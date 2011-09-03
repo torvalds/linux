@@ -163,6 +163,8 @@ struct srp_target_port {
 	struct ib_sa_query     *path_query;
 	int			path_query_id;
 
+	u32			rq_tmo_jiffies;
+
 	struct ib_cm_id	       *cm_id;
 
 	int			max_ti_iu_len;

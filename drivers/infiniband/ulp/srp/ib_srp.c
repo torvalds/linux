@@ -1419,6 +1419,33 @@ err:
 	return -ENOMEM;
 }
 
+static uint32_t srp_compute_rq_tmo(struct ib_qp_attr *qp_attr, int attr_mask)
+{
+	uint64_t T_tr_ns, max_compl_time_ms;
+	uint32_t rq_tmo_jiffies;
+
+	/*
+	 * According to section 11.2.4.2 in the IBTA spec (Modify Queue Pair,
+	 * table 91), both the QP timeout and the retry count have to be set
+	 * for RC QP's during the RTR to RTS transition.
+	 */
+	WARN_ON_ONCE((attr_mask & (IB_QP_TIMEOUT | IB_QP_RETRY_CNT)) !=
+		     (IB_QP_TIMEOUT | IB_QP_RETRY_CNT));
+
+	/*
+	 * Set target->rq_tmo_jiffies to one second more than the largest time
+	 * it can take before an error completion is generated. See also
+	 * C9-140..142 in the IBTA spec for more information about how to
+	 * convert the QP Local ACK Timeout value to nanoseconds.
+	 */
+	T_tr_ns = 4096 * (1ULL << qp_attr->timeout);
+	max_compl_time_ms = qp_attr->retry_cnt * 4 * T_tr_ns;
+	do_div(max_compl_time_ms, NSEC_PER_MSEC);
+	rq_tmo_jiffies = msecs_to_jiffies(max_compl_time_ms + 1000);
+
+	return rq_tmo_jiffies;
+}
+
 static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
 			       struct srp_login_rsp *lrsp,
 			       struct srp_target_port *target)
@@ -1477,6 +1504,8 @@ static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
 	ret = ib_cm_init_qp_attr(cm_id, qp_attr, &attr_mask);
 	if (ret)
 		goto error_free;
+
+	target->rq_tmo_jiffies = srp_compute_rq_tmo(qp_attr, attr_mask);
 
 	ret = ib_modify_qp(target->qp, qp_attr, attr_mask);
 	if (ret)
@@ -1729,6 +1758,21 @@ static int srp_reset_host(struct scsi_cmnd *scmnd)
 	return ret;
 }
 
+static int srp_slave_configure(struct scsi_device *sdev)
+{
+	struct Scsi_Host *shost = sdev->host;
+	struct srp_target_port *target = host_to_target(shost);
+	struct request_queue *q = sdev->request_queue;
+	unsigned long timeout;
+
+	if (sdev->type == TYPE_DISK) {
+		timeout = max_t(unsigned, 30 * HZ, target->rq_tmo_jiffies);
+		blk_queue_rq_timeout(q, timeout);
+	}
+
+	return 0;
+}
+
 static ssize_t show_id_ext(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
@@ -1861,6 +1905,7 @@ static struct scsi_host_template srp_template = {
 	.module				= THIS_MODULE,
 	.name				= "InfiniBand SRP initiator",
 	.proc_name			= DRV_NAME,
+	.slave_configure		= srp_slave_configure,
 	.info				= srp_target_info,
 	.queuecommand			= srp_queuecommand,
 	.eh_abort_handler		= srp_abort,
