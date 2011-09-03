@@ -1011,6 +1011,19 @@ static void init_hwxmits(struct hw_xmit *phwxmit, sint entry)
 	}
 }
 
+void xmitframe_xmitbuf_attach(struct xmit_frame *pxmitframe,
+			struct xmit_buf *pxmitbuf)
+{
+	/* pxmitbuf attach to pxmitframe */
+	pxmitframe->pxmitbuf = pxmitbuf;
+	/* urb and irp connection */
+	pxmitframe->pxmit_urb[0] = pxmitbuf->pxmit_urb[0];
+	/* buffer addr assoc */
+	pxmitframe->buf_addr = pxmitbuf->pbuf;
+	/* pxmitframe attach to pxmitbuf */
+	pxmitbuf->priv_data = pxmitframe;
+}
+
 /*
  * tx_action == 0 == no frames to transmit
  * tx_action > 0 ==> we have frames to transmit
@@ -1042,9 +1055,7 @@ int r8712_pre_xmit(struct _adapter *padapter, struct xmit_frame *pxmitframe)
 	} else { /*dump packet directly*/
 		spin_unlock_irqrestore(&pxmitpriv->lock, irqL);
 		ret = true;
-		pxmitframe->pxmitbuf = pxmitbuf;
-		pxmitframe->pxmit_urb[0] = pxmitbuf->pxmit_urb[0];
-		pxmitframe->buf_addr = pxmitbuf->pbuf;
+		xmitframe_xmitbuf_attach(pxmitframe, pxmitbuf);
 		r8712_xmit_direct(padapter, pxmitframe);
 	}
 	return ret;

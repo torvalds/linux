@@ -423,31 +423,31 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 		if (!pxmitbuf)
 			return false;
 	}
-	do {
-		pxmitframe = dequeue_xframe_ex(pxmitpriv, phwxmits, hwentry);
-		if (pxmitframe) {
-			pxmitframe->pxmitbuf = pxmitbuf;
-			pxmitframe->pxmit_urb[0] = pxmitbuf->pxmit_urb[0];
-			pxmitframe->buf_addr = pxmitbuf->pbuf;
-			if (pxmitframe->frame_tag == DATA_FRAMETAG) {
-				if (pxmitframe->attrib.priority <= 15)
-					res = r8712_xmitframe_coalesce(padapter,
-					      pxmitframe->pkt, pxmitframe);
-				/* always return ndis_packet after
-				 *  r8712_xmitframe_coalesce */
-				r8712_xmit_complete(padapter, pxmitframe);
-			}
-			if (res == _SUCCESS)
-				dump_xframe(padapter, pxmitframe);
-			else
-				r8712_free_xmitframe_ex(pxmitpriv, pxmitframe);
-			xcnt++;
-		} else {
-			r8712_free_xmitbuf(pxmitpriv, pxmitbuf);
-			return false;
+	/* 1st frame dequeued */
+	pxmitframe = dequeue_xframe_ex(pxmitpriv, phwxmits, hwentry);
+	/* need to remember the 1st frame */
+	if (pxmitframe != NULL) {
+
+
+		xmitframe_xmitbuf_attach(pxmitframe, pxmitbuf);
+		if (pxmitframe->frame_tag == DATA_FRAMETAG) {
+			if (pxmitframe->attrib.priority <= 15)
+				res = r8712_xmitframe_coalesce(padapter,
+					pxmitframe->pkt, pxmitframe);
+			/* always return ndis_packet after
+			 * r8712_xmitframe_coalesce */
+			r8712_xmit_complete(padapter, pxmitframe);
 		}
-		break;
-	} while (0);
+		if (res == _SUCCESS)
+			dump_xframe(padapter, pxmitframe);
+		else
+			r8712_free_xmitframe_ex(pxmitpriv, pxmitframe);
+		xcnt++;
+
+	} else { /* pxmitframe == NULL && p2ndxmitframe == NULL */
+		r8712_free_xmitbuf(pxmitpriv, pxmitbuf);
+		return false;
+	}
 	return true;
 }
 

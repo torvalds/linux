@@ -135,7 +135,9 @@ struct xmit_buf {
 
 	u8 *pallocated_buf;
 	u8 *pbuf;
+	void *priv_data;
 	struct urb *pxmit_urb[8];
+	u32 aggr_nr;
 };
 
 struct xmit_frame {
@@ -279,6 +281,9 @@ int r8712_xmit_enqueue(struct _adapter *padapter,
 		       struct xmit_frame *pxmitframe);
 int r8712_xmit_direct(struct _adapter *padapter, struct xmit_frame *pxmitframe);
 void r8712_xmit_bh(void *priv);
+
+void xmitframe_xmitbuf_attach(struct xmit_frame *pxmitframe,
+			struct xmit_buf *pxmitbuf);
 
 #include "rtl8712_xmit.h"
 
