@@ -348,7 +348,7 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 	_r8712_free_recv_priv(&padapter->recvpriv);
 	mp871xdeinit(padapter);
 	if (pnetdev)
-		os_free_netdev(pnetdev);
+		free_netdev(pnetdev);
 	return _SUCCESS;
 }
 

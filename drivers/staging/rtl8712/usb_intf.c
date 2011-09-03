@@ -599,7 +599,7 @@ error:
 	if (padapter->dvobj_deinit != NULL)
 		padapter->dvobj_deinit(padapter);
 	if (pnetdev)
-		os_free_netdev(pnetdev);
+		free_netdev(pnetdev);
 	return -ENODEV;
 }
 

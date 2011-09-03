@@ -78,11 +78,6 @@ struct	__queue	{
 		spin_lock_init(&((pqueue)->lock));	\
 	} while (0)
 
-static inline void os_free_netdev(struct net_device *dev)
-{
-	free_netdev(dev);
-}
-
 static inline struct list_head *get_next(struct list_head *list)
 {
 	return list->next;
