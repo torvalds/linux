@@ -557,7 +557,7 @@ down:
 static int bond_update_speed_duplex(struct slave *slave)
 {
 	struct net_device *slave_dev = slave->dev;
-	struct ethtool_cmd etool = { .cmd = ETHTOOL_GSET };
+	struct ethtool_cmd ecmd;
 	u32 slave_speed;
 	int res;
 
@@ -565,18 +565,15 @@ static int bond_update_speed_duplex(struct slave *slave)
 	slave->speed = SPEED_100;
 	slave->duplex = DUPLEX_FULL;
 
-	if (!slave_dev->ethtool_ops || !slave_dev->ethtool_ops->get_settings)
-		return -1;
-
-	res = slave_dev->ethtool_ops->get_settings(slave_dev, &etool);
+	res = __ethtool_get_settings(slave_dev, &ecmd);
 	if (res < 0)
 		return -1;
 
-	slave_speed = ethtool_cmd_speed(&etool);
+	slave_speed = ethtool_cmd_speed(&ecmd);
 	if (slave_speed == 0 || slave_speed == ((__u32) -1))
 		return -1;
 
-	switch (etool.duplex) {
+	switch (ecmd.duplex) {
 	case DUPLEX_FULL:
 	case DUPLEX_HALF:
 		break;
@@ -585,7 +582,7 @@ static int bond_update_speed_duplex(struct slave *slave)
 	}
 
 	slave->speed = slave_speed;
-	slave->duplex = etool.duplex;
+	slave->duplex = ecmd.duplex;
 
 	return 0;
 }

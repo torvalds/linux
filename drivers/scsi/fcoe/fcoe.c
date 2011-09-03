@@ -2043,7 +2043,7 @@ int fcoe_link_speed_update(struct fc_lport *lport)
 	struct net_device *netdev = fcoe_netdev(lport);
 	struct ethtool_cmd ecmd;
 
-	if (!dev_ethtool_get_settings(netdev, &ecmd)) {
+	if (!__ethtool_get_settings(netdev, &ecmd)) {
 		lport->link_supported_speeds &=
 			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
 		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
@@ -2452,7 +2452,9 @@ static int fcoe_vport_create(struct fc_vport *vport, bool disabled)
 	}
 
 	mutex_lock(&fcoe_config_mutex);
+	rtnl_lock();
 	vn_port = fcoe_if_create(fcoe, &vport->dev, 1);
+	rtnl_unlock();
 	mutex_unlock(&fcoe_config_mutex);
 
 	if (IS_ERR(vn_port)) {

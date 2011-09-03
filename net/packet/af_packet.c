@@ -530,33 +530,35 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 {
 	struct net_device *dev;
 	unsigned int mbits = 0, msec = 0, div = 0, tmo = 0;
+	struct ethtool_cmd ecmd;
+	int err;
 
-	dev = dev_get_by_index(sock_net(&po->sk), po->ifindex);
-	if (unlikely(dev == NULL))
+	rtnl_lock();
+	dev = __dev_get_by_index(sock_net(&po->sk), po->ifindex);
+	if (unlikely(!dev)) {
+		rtnl_unlock();
 		return DEFAULT_PRB_RETIRE_TOV;
-
-	if (dev->ethtool_ops && dev->ethtool_ops->get_settings) {
-		struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET, };
-
-		if (!dev->ethtool_ops->get_settings(dev, &ecmd)) {
-			switch (ecmd.speed) {
-			case SPEED_10000:
-				msec = 1;
-				div = 10000/1000;
-				break;
-			case SPEED_1000:
-				msec = 1;
-				div = 1000/1000;
-				break;
-			/*
-			 * If the link speed is so slow you don't really
-			 * need to worry about perf anyways
-			 */
-			case SPEED_100:
-			case SPEED_10:
-			default:
-				return DEFAULT_PRB_RETIRE_TOV;
-			}
+	}
+	err = __ethtool_get_settings(dev, &ecmd);
+	rtnl_unlock();
+	if (!err) {
+		switch (ecmd.speed) {
+		case SPEED_10000:
+			msec = 1;
+			div = 10000/1000;
+			break;
+		case SPEED_1000:
+			msec = 1;
+			div = 1000/1000;
+			break;
+		/*
+		 * If the link speed is so slow you don't really
+		 * need to worry about perf anyways
+		 */
+		case SPEED_100:
+		case SPEED_10:
+		default:
+			return DEFAULT_PRB_RETIRE_TOV;
 		}
 	}
 

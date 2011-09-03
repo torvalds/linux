@@ -2589,9 +2589,6 @@ static inline int netif_is_bond_slave(struct net_device *dev)
 
 extern struct pernet_operations __net_initdata loopback_net_ops;
 
-int dev_ethtool_get_settings(struct net_device *dev,
-			     struct ethtool_cmd *cmd);
-
 static inline u32 dev_ethtool_get_rx_csum(struct net_device *dev)
 {
 	if (dev->features & NETIF_F_RXCSUM)

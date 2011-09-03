@@ -569,15 +569,25 @@ int __ethtool_set_flags(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
+int __ethtool_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
-	int err;
+	ASSERT_RTNL();
 
-	if (!dev->ethtool_ops->get_settings)
+	if (!dev->ethtool_ops || !dev->ethtool_ops->get_settings)
 		return -EOPNOTSUPP;
 
-	err = dev->ethtool_ops->get_settings(dev, &cmd);
+	memset(cmd, 0, sizeof(struct ethtool_cmd));
+	cmd->cmd = ETHTOOL_GSET;
+	return dev->ethtool_ops->get_settings(dev, cmd);
+}
+EXPORT_SYMBOL(__ethtool_get_settings);
+
+static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
+{
+	int err;
+	struct ethtool_cmd cmd;
+
+	err = __ethtool_get_settings(dev, &cmd);
 	if (err < 0)
 		return err;
 

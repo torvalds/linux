@@ -728,6 +728,9 @@ enum ethtool_sfeatures_retval_bits {
 /* needed by dev_disable_lro() */
 extern int __ethtool_set_flags(struct net_device *dev, u32 flags);
 
+extern int __ethtool_get_settings(struct net_device *dev,
+				  struct ethtool_cmd *cmd);
+
 /**
  * enum ethtool_phys_id_state - indicator state for physical identification
  * @ETHTOOL_ID_INACTIVE: Physical ID indicator should be deactivated

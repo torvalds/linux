@@ -673,7 +673,7 @@ static void bnx2fc_link_speed_update(struct fc_lport *lport)
 	struct net_device *netdev = interface->netdev;
 	struct ethtool_cmd ecmd;
 
-	if (!dev_ethtool_get_settings(netdev, &ecmd)) {
+	if (!__ethtool_get_settings(netdev, &ecmd)) {
 		lport->link_supported_speeds &=
 			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
 		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
@@ -1001,9 +1001,11 @@ static int bnx2fc_vport_create(struct fc_vport *vport, bool disabled)
 			"this interface\n");
 		return -EIO;
 	}
+	rtnl_lock();
 	mutex_lock(&bnx2fc_dev_lock);
 	vn_port = bnx2fc_if_create(interface, &vport->dev, 1);
 	mutex_unlock(&bnx2fc_dev_lock);
+	rtnl_unlock();
 
 	if (IS_ERR(vn_port)) {
 		printk(KERN_ERR PFX "bnx2fc_vport_create (%s) failed\n",

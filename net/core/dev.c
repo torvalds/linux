@@ -4566,30 +4566,6 @@ void dev_set_rx_mode(struct net_device *dev)
 }
 
 /**
- *	dev_ethtool_get_settings - call device's ethtool_ops::get_settings()
- *	@dev: device
- *	@cmd: memory area for ethtool_ops::get_settings() result
- *
- *      The cmd arg is initialized properly (cleared and
- *      ethtool_cmd::cmd field set to ETHTOOL_GSET).
- *
- *	Return device's ethtool_ops::get_settings() result value or
- *	-EOPNOTSUPP when device doesn't expose
- *	ethtool_ops::get_settings() operation.
- */
-int dev_ethtool_get_settings(struct net_device *dev,
-			     struct ethtool_cmd *cmd)
-{
-	if (!dev->ethtool_ops || !dev->ethtool_ops->get_settings)
-		return -EOPNOTSUPP;
-
-	memset(cmd, 0, sizeof(struct ethtool_cmd));
-	cmd->cmd = ETHTOOL_GSET;
-	return dev->ethtool_ops->get_settings(dev, cmd);
-}
-EXPORT_SYMBOL(dev_ethtool_get_settings);
-
-/**
  *	dev_get_flags - get flags reported to userspace
  *	@dev: device
  *
