@@ -61,6 +61,25 @@
 
 #include "et1310_address_map.h"
 
+/* some defines for modem registers that seem to be 'reserved' */
+#define PHY_INDEX_REG              0x10
+#define PHY_DATA_REG               0x11
+#define PHY_MPHY_CONTROL_REG       0x12
+
+/* defines for specified registers */
+#define PHY_LOOPBACK_CONTROL       0x13	/* TRU_VMI_LOOPBACK_CONTROL_1_REG 19 */
+					/* TRU_VMI_LOOPBACK_CONTROL_2_REG 20 */
+#define PHY_REGISTER_MGMT_CONTROL  0x15	/* TRU_VMI_MI_SEQ_CONTROL_REG     21 */
+#define PHY_CONFIG                 0x16	/* TRU_VMI_CONFIGURATION_REG      22 */
+#define PHY_PHY_CONTROL            0x17	/* TRU_VMI_PHY_CONTROL_REG        23 */
+#define PHY_INTERRUPT_MASK         0x18	/* TRU_VMI_INTERRUPT_MASK_REG     24 */
+#define PHY_INTERRUPT_STATUS       0x19	/* TRU_VMI_INTERRUPT_STATUS_REG   25 */
+#define PHY_PHY_STATUS             0x1A	/* TRU_VMI_PHY_STATUS_REG         26 */
+#define PHY_LED_1                  0x1B	/* TRU_VMI_LED_CONTROL_1_REG      27 */
+#define PHY_LED_2                  0x1C	/* TRU_VMI_LED_CONTROL_2_REG      28 */
+					/* TRU_VMI_LINK_CONTROL_REG       29 */
+					/* TRU_VMI_TIMING_CONTROL_REG        */
+
 /* PHY Register Mapping(MI) Management Interface Regs */
 struct mi_regs {
 	u8 bmcr;	/* Basic mode control reg(Reg 0x00) */
@@ -89,6 +108,9 @@ struct mi_regs {
 	u8 lcr2;	/* LED Control 2 Reg(Reg 0x1C) */
 	u8 mi_res4[3];	/* Future use by MI working group(Reg 0x1D - 0x1F) */
 };
+
+/* MI Register 10: Gigabit basic mode status reg(Reg 0x0A) */
+#define ET_1000BT_MSTR_SLV 0x4000
 
 /* MI Register 16 - 18: Reserved Reg(0x10-0x12) */
 
@@ -128,6 +150,13 @@ struct mi_regs {
  *	2-0:	mac_if_mode
  */
 
+#define ET_PHY_CONFIG_TX_FIFO_DEPTH	0x3000
+
+#define ET_PHY_CONFIG_FIFO_DEPTH_8	0x0000
+#define ET_PHY_CONFIG_FIFO_DEPTH_16	0x1000
+#define ET_PHY_CONFIG_FIFO_DEPTH_32	0x2000
+#define ET_PHY_CONFIG_FIFO_DEPTH_64	0x3000
+
 /* MI Register 23: PHY CONTROL Reg(0x17)
  *	15:	reserved
  *	14:	tdr_en
@@ -156,6 +185,9 @@ struct mi_regs {
  *	0:	int_en
  */
 
+#define ET_PHY_INT_MASK_AUTONEGSTAT	0x0100
+#define ET_PHY_INT_MASK_LINKSTAT	0x0004
+#define ET_PHY_INT_MASK_ENABLE		0x0001
 
 /* MI Register 25: Interrupt Status Reg(0x19)
  *	15-10:	reserved
@@ -187,6 +219,12 @@ struct mi_regs {
  *	1:	pause_en
  *	0:	asymmetric_dir
  */
+#define ET_PHY_AUTONEG_STATUS	0x1000
+#define ET_PHY_POLARITY_STATUS	0x0400
+#define ET_PHY_SPEED_STATUS	0x0300
+#define ET_PHY_DUPLEX_STATUS	0x0080
+#define ET_PHY_LSTATUS		0x0040
+#define ET_PHY_AUTONEG_ENABLE	0x0020
 
 /* MI Register 27: LED Control Reg 1(0x1B)
  *	15-14:	reserved
@@ -205,11 +243,35 @@ struct mi_regs {
  *	7-4:	led_100BaseTX
  *	3-0:	led_1000BaseT
  */
+#define ET_LED2_LED_LINK	0xF000
+#define ET_LED2_LED_TXRX	0x0F00
+#define ET_LED2_LED_100TX	0x00F0
+#define ET_LED2_LED_1000T	0x000F
+
+/* defines for LED control reg 2 values */
+#define LED_VAL_1000BT			0x0
+#define LED_VAL_100BTX			0x1
+#define LED_VAL_10BT			0x2
+#define LED_VAL_1000BT_100BTX		0x3 /* 1000BT on, 100BTX blink */
+#define LED_VAL_LINKON			0x4
+#define LED_VAL_TX			0x5
+#define LED_VAL_RX			0x6
+#define LED_VAL_TXRX			0x7 /* TX or RX */
+#define LED_VAL_DUPLEXFULL		0x8
+#define LED_VAL_COLLISION		0x9
+#define LED_VAL_LINKON_ACTIVE		0xA /* Link on, activity blink */
+#define LED_VAL_LINKON_RECV		0xB /* Link on, receive blink */
+#define LED_VAL_DUPLEXFULL_COLLISION	0xC /* Duplex on, collision blink */
+#define LED_VAL_BLINK			0xD
+#define LED_VAL_ON			0xE
+#define LED_VAL_OFF			0xF
+
+#define LED_LINK_SHIFT			12
+#define LED_TXRX_SHIFT			8
+#define LED_100TX_SHIFT			4
 
 /* MI Register 29 - 31: Reserved Reg(0x1D - 0x1E) */
 
-
-/* Prototypes for ET1310_phy.c */
 /* Defines for PHY access routines */
 
 /* Define bit operation flags */
@@ -248,23 +310,5 @@ struct mi_regs {
 #define TRUEPHY_ADV_DUPLEX_HALF         0x02
 #define TRUEPHY_ADV_DUPLEX_BOTH     \
 	(TRUEPHY_ADV_DUPLEX_FULL | TRUEPHY_ADV_DUPLEX_HALF)
-
-/* some defines for modem registers that seem to be 'reserved' */
-#define PHY_INDEX_REG              0x10
-#define PHY_DATA_REG               0x11
-
-#define PHY_MPHY_CONTROL_REG       0x12
-#define PHY_LOOPBACK_CONTROL       0x13	/* TRU_VMI_LOOPBACK_CONTROL_1_REG 19 */
-					/* TRU_VMI_LOOPBACK_CONTROL_2_REG 20 */
-#define PHY_REGISTER_MGMT_CONTROL  0x15	/* TRU_VMI_MI_SEQ_CONTROL_REG     21 */
-#define PHY_CONFIG                 0x16	/* TRU_VMI_CONFIGURATION_REG      22 */
-#define PHY_PHY_CONTROL            0x17	/* TRU_VMI_PHY_CONTROL_REG        23 */
-#define PHY_INTERRUPT_MASK         0x18	/* TRU_VMI_INTERRUPT_MASK_REG     24 */
-#define PHY_INTERRUPT_STATUS       0x19	/* TRU_VMI_INTERRUPT_STATUS_REG   25 */
-#define PHY_PHY_STATUS             0x1A	/* TRU_VMI_PHY_STATUS_REG         26 */
-#define PHY_LED_1                  0x1B	/* TRU_VMI_LED_CONTROL_1_REG      27 */
-#define PHY_LED_2                  0x1C	/* TRU_VMI_LED_CONTROL_2_REG      28 */
-					/* TRU_VMI_LINK_CONTROL_REG       29 */
-					/* TRU_VMI_TIMING_CONTROL_REG        */
 
 #endif /* _ET1310_PHY_H_ */

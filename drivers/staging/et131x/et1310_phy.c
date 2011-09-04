@@ -122,11 +122,10 @@ int et131x_mdio_reset(struct mii_bus *bus)
 	struct net_device *netdev = bus->priv;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	et131x_mii_write(adapter, MII_BMCR, 0x8000);
+	et131x_mii_write(adapter, MII_BMCR, BMCR_RESET);
 
 	return 0;
 }
-
 
 int et131x_mii_read(struct et131x_adapter *adapter, u8 reg, u16 *value)
 {
@@ -293,9 +292,9 @@ void et1310_phy_power_down(struct et131x_adapter *adapter, bool down)
 	u16 data;
 
 	et131x_mii_read(adapter, MII_BMCR, &data);
-	data &= ~0x0800;	/* Power UP */
-	if (down) /* Power DOWN */
-		data |= 0x0800;
+	data &= ~BMCR_PDOWN;
+	if (down)
+		data |= BMCR_PDOWN;
 	et131x_mii_write(adapter, MII_BMCR, data);
 }
 
@@ -333,19 +332,20 @@ static void et1310_phy_link_status(struct et131x_adapter *adapter,
 	et131x_mii_read(adapter, PHY_PHY_STATUS, &vmi_phystatus);
 	et131x_mii_read(adapter, MII_BMCR, &control);
 
-	*link_status = (vmi_phystatus & 0x0040) ? 1 : 0;
-	*autoneg = (control & 0x1000) ? ((vmi_phystatus & 0x0020) ?
+	*link_status = (vmi_phystatus & ET_PHY_LSTATUS) ? 1 : 0;
+	*autoneg = (control & ET_PHY_AUTONEG_STATUS) ?
+			((vmi_phystatus & ET_PHY_AUTONEG_ENABLE) ?
 					    TRUEPHY_ANEG_COMPLETE :
 					    TRUEPHY_ANEG_NOT_COMPLETE) :
-		    TRUEPHY_ANEG_DISABLED;
-	*linkspeed = (vmi_phystatus & 0x0300) >> 8;
-	*duplex_mode = (vmi_phystatus & 0x0080) >> 7;
+							TRUEPHY_ANEG_DISABLED;
+	*linkspeed = (vmi_phystatus & ET_PHY_SPEED_STATUS) >> 8;
+	*duplex_mode = (vmi_phystatus & ET_PHY_DUPLEX_STATUS) >> 7;
 	/* NOTE: Need to complete this */
 	*mdi_mdix = 0;
 
-	*masterslave = (is1000BaseT & 0x4000) ?
+	*masterslave = (is1000BaseT & ET_1000BT_MSTR_SLV) ?
 			TRUEPHY_CFG_MASTER : TRUEPHY_CFG_SLAVE;
-	*polarity = (vmi_phystatus & 0x0400) ?
+	*polarity = (vmi_phystatus & ET_PHY_POLARITY_STATUS) ?
 			TRUEPHY_POLARITY_INVERTED : TRUEPHY_POLARITY_NORMAL;
 }
 
@@ -402,15 +402,17 @@ void et131x_xcvr_init(struct et131x_adapter *adapter)
 	/* Zero out the adapter structure variable representing BMSR */
 	adapter->bmsr = 0;
 
-	et131x_mii_read(adapter, (u8) offsetof(struct mi_regs, isr), &isr);
-	et131x_mii_read(adapter, (u8) offsetof(struct mi_regs, imr), &imr);
+	et131x_mii_read(adapter, PHY_INTERRUPT_STATUS, &isr);
+	et131x_mii_read(adapter, PHY_INTERRUPT_MASK, &imr);
 
 	/* Set the link status interrupt only.  Bad behavior when link status
 	 * and auto neg are set, we run into a nested interrupt problem
 	 */
-	imr |= 0x0105;
+	imr |= (ET_PHY_INT_MASK_AUTONEGSTAT &
+		ET_PHY_INT_MASK_LINKSTAT &
+		ET_PHY_INT_MASK_ENABLE);
 
-	et131x_mii_write(adapter, (u8) offsetof(struct mi_regs, imr), imr);
+	et131x_mii_write(adapter, PHY_INTERRUPT_MASK, imr);
 
 	/* Set the LED behavior such that LED 1 indicates speed (off =
 	 * 10Mbits, blink = 100Mbits, on = 1000Mbits) and LED 2 indicates
@@ -421,19 +423,17 @@ void et131x_xcvr_init(struct et131x_adapter *adapter)
 	 * EEPROM. However, the above description is the default.
 	 */
 	if ((adapter->eeprom_data[1] & 0x4) == 0) {
-		et131x_mii_read(adapter, (u8) offsetof(struct mi_regs, lcr2),
-		       &lcr2);
+		et131x_mii_read(adapter, PHY_LED_2, &lcr2);
 
-		lcr2 &= 0x00FF;
-		lcr2 |= 0xA000;	/* led link */
+		lcr2 &= (ET_LED2_LED_100TX & ET_LED2_LED_1000T);
+		lcr2 |= (LED_VAL_LINKON_ACTIVE << LED_LINK_SHIFT);
 
 		if ((adapter->eeprom_data[1] & 0x8) == 0)
-			lcr2 |= 0x0300;
+			lcr2 |= (LED_VAL_1000BT_100BTX << LED_TXRX_SHIFT);
 		else
-			lcr2 |= 0x0400;
+			lcr2 |= (LED_VAL_LINKON << LED_TXRX_SHIFT);
 
-		et131x_mii_write(adapter, (u8) offsetof(struct mi_regs, lcr2),
-			lcr2);
+		et131x_mii_write(adapter, PHY_LED_2, lcr2);
 	}
 }
 
@@ -464,14 +464,16 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 				 */
 				u16 register18;
 
-				et131x_mii_read(adapter, 0x12, &register18);
-				et131x_mii_write(adapter, 0x12,
+				et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
+						 &register18);
+				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
 						 register18 | 0x4);
-				et131x_mii_write(adapter, 0x10,
+				et131x_mii_write(adapter, PHY_INDEX_REG,
 						 register18 | 0x8402);
-				et131x_mii_write(adapter, 0x11,
+				et131x_mii_write(adapter, PHY_DATA_REG,
 						 register18 | 511);
-				et131x_mii_write(adapter, 0x12, register18);
+				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+						 register18);
 			}
 
 			/* Free the packets being actively sent & stopped */
@@ -516,22 +518,25 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 				 */
 				u16 register18;
 
-				et131x_mii_read(adapter, 0x12, &register18);
-				et131x_mii_write(adapter, 0x12,
+				et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
+						 &register18);
+				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
 						 register18 | 0x4);
-				et131x_mii_write(adapter, 0x10,
+				et131x_mii_write(adapter, PHY_INDEX_REG,
 						 register18 | 0x8402);
-				et131x_mii_write(adapter, 0x11,
+				et131x_mii_write(adapter, PHY_DATA_REG,
 						 register18 | 511);
-				et131x_mii_write(adapter, 0x12, register18);
+				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+						 register18);
 			}
 
 			et1310_config_flow_control(adapter);
 
 			if (phydev && phydev->speed == SPEED_1000 &&
 					adapter->registry_jumbo_packet > 2048)
-				et1310_phy_and_or_reg(adapter, 0x16, 0xcfff,
-								   0x2000);
+				et1310_phy_and_or_reg(adapter, PHY_CONFIG,
+						~ET_PHY_CONFIG_TX_FIFO_DEPTH,
+						ET_PHY_CONFIG_FIFO_DEPTH_32);
 
 			et131x_set_rx_dma_timer(adapter);
 			et1310_config_mac_regs2(adapter);
