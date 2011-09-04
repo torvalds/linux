@@ -167,7 +167,8 @@ static int speyside_wm8996_init(struct snd_soc_pcm_runtime *rtd)
 	gpio_direction_output(WM8996_HPSEL_GPIO, speyside_jack_polarity);
 
 	ret = snd_soc_jack_new(codec, "Headset",
-			       SND_JACK_HEADSET | SND_JACK_BTN_0,
+			       SND_JACK_LINEOUT | SND_JACK_HEADSET |
+			       SND_JACK_BTN_0,
 			       &speyside_headset);
 	if (ret)
 		return ret;
