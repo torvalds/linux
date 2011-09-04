@@ -3114,7 +3114,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 				em28xx_err(DRIVER_NAME " This is an anciliary "
 					"interface not used by the driver\n");
 
-				em28xx_devused &= ~(1<<nr);
 				retval = -ENODEV;
 				goto err;
 			}
