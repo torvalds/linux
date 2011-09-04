@@ -764,6 +764,8 @@ struct b43_phy_n {
 	u8 cal_orig_pwr_idx[2];
 	u8 measure_hold;
 	u8 phyrxchain;
+	u8 hw_phyrxchain;
+	u8 hw_phytxchain;
 	u8 perical;
 	u32 deaf_count;
 	u32 rxcalparams;
