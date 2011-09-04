@@ -147,7 +147,6 @@ struct et131x_adapter {
 
 	/* Flags that indicate current state of the adapter */
 	u32 flags;
-	u32 hw_errs;
 
 	/* Configuration  */
 	u8 rom_addr[ETH_ALEN];
@@ -170,7 +169,6 @@ struct et131x_adapter {
 
 	/* Packet Filter and look ahead size */
 	u32 packet_filter;
-	u32 linkspeed;
 	u32 duplex_mode;
 
 	/* multicast list */

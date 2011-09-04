@@ -82,6 +82,7 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/crc32.h>
+#include <linux/phy.h>
 
 #include "et1310_phy.h"
 #include "et131x_adapter.h"
@@ -166,6 +167,7 @@ void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 {
 	int32_t delay = 0;
 	struct mac_regs __iomem *mac = &adapter->regs->mac;
+	struct phy_device *phydev = adapter->phydev;
 	u32 cfg1;
 	u32 cfg2;
 	u32 ifctrl;
@@ -178,7 +180,7 @@ void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 
 	/* Set up the if mode bits */
 	cfg2 &= ~0x300;
-	if (adapter->linkspeed == TRUEPHY_SPEED_1000MBPS) {
+	if (phydev && phydev->speed == SPEED_1000) {
 		cfg2 |= 0x200;
 		/* Phy mode bit */
 		ifctrl &= ~(1 << 24);
@@ -239,6 +241,7 @@ void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 {
 	struct rxmac_regs __iomem *rxmac = &adapter->regs->rxmac;
+	struct phy_device *phydev = adapter->phydev;
 	u32 sa_lo;
 	u32 sa_hi = 0;
 	u32 pf_ctrl = 0;
@@ -351,7 +354,7 @@ void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	 * bit 16: Receive frame truncated.
 	 * bit 17: Drop packet enable
 	 */
-	if (adapter->linkspeed == TRUEPHY_SPEED_100MBPS)
+	if (phydev && phydev->speed == SPEED_100)
 		writel(0x30038, &rxmac->mif_ctrl);
 	else
 		writel(0x30030, &rxmac->mif_ctrl);

@@ -82,6 +82,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
+#include <linux/phy.h>
 
 #include "et1310_phy.h"
 #include "et131x_adapter.h"
@@ -287,6 +288,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	u32 nr_frags = skb_shinfo(skb)->nr_frags + 1;
 	struct skb_frag_struct *frags = &skb_shinfo(skb)->frags[0];
 	unsigned long flags;
+	struct phy_device *phydev = adapter->phydev;
 
 	/* Part of the optimizations of this send routine restrict us to
 	 * sending 24 fragments at a pass.  In practice we should never see
@@ -400,7 +402,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	if (frag == 0)
 		return -EIO;
 
-	if (adapter->linkspeed == TRUEPHY_SPEED_1000MBPS) {
+	if (phydev && phydev->speed == SPEED_1000) {
 		if (++adapter->tx_ring.since_irq == PARM_TX_NUM_BUFS_DEF) {
 			/* Last element & Interrupt flag */
 			desc[frag - 1].flags = 0x5;
@@ -478,7 +480,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	/* For Gig only, we use Tx Interrupt coalescing.  Enable the software
 	 * timer to wake us up if this packet isn't followed by N more.
 	 */
-	if (adapter->linkspeed == TRUEPHY_SPEED_1000MBPS) {
+	if (phydev && phydev->speed == SPEED_1000) {
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &adapter->regs->global.watchdog_timer);
 	}

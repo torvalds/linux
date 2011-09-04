@@ -440,6 +440,7 @@ void et131x_xcvr_init(struct et131x_adapter *adapter)
 void et131x_mii_check(struct et131x_adapter *adapter,
 		      u16 bmsr, u16 bmsr_ints)
 {
+	struct phy_device *phydev = adapter->phydev;
 	u8 link_status;
 	u32 autoneg_status;
 	u32 speed;
@@ -456,7 +457,7 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 			dev_warn(&adapter->pdev->dev,
 			    "Link down - cable problem ?\n");
 
-			if (adapter->linkspeed == TRUEPHY_SPEED_10MBPS) {
+			if (phydev && phydev->speed == SPEED_10) {
 				/* NOTE - Is there a way to query this without
 				 * TruePHY?
 				 * && TRU_QueryCoreType(adapter->hTruePhy, 0) ==
@@ -476,7 +477,6 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 
 			netif_carrier_off(adapter->netdev);
 
-			adapter->linkspeed = 0;
 			adapter->duplex_mode = 0;
 
 			/* Free the packets being actively sent & stopped */
@@ -516,12 +516,11 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 					     &speed, &duplex, &mdi_mdix,
 					     &masterslave, &polarity);
 
-			adapter->linkspeed = speed;
 			adapter->duplex_mode = duplex;
 
 			adapter->boot_coma = 20;
 
-			if (adapter->linkspeed == TRUEPHY_SPEED_10MBPS) {
+			if (phydev && phydev->speed == SPEED_10) {
 				/*
 				 * NOTE - Is there a way to query this without
 				 * TruePHY?
@@ -542,7 +541,7 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 
 			et1310_config_flow_control(adapter);
 
-			if (adapter->linkspeed == TRUEPHY_SPEED_1000MBPS &&
+			if (phydev && phydev->speed == SPEED_1000 &&
 					adapter->registry_jumbo_packet > 2048)
 				et1310_phy_and_or_reg(adapter, 0x16, 0xcfff,
 								   0x2000);

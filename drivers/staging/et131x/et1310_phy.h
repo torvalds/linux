@@ -242,11 +242,6 @@ struct mi_regs {
 #define TRUEPHY_MASK                    2
 #endif
 
-/* Define speeds */
-#define TRUEPHY_SPEED_10MBPS            0
-#define TRUEPHY_SPEED_100MBPS           1
-#define TRUEPHY_SPEED_1000MBPS          2
-
 /* Define duplex modes */
 #define TRUEPHY_DUPLEX_HALF             0
 #define TRUEPHY_DUPLEX_FULL             1

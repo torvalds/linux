@@ -82,6 +82,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
+#include <linux/phy.h>
 
 #include "et1310_phy.h"
 #include "et131x_adapter.h"
@@ -724,11 +725,15 @@ void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
  */
 void et131x_set_rx_dma_timer(struct et131x_adapter *adapter)
 {
+	struct phy_device *phydev = adapter->phydev;
+
+	if (!phydev)
+		return;
+
 	/* For version B silicon, we do not use the RxDMA timer for 10 and 100
 	 * Mbits/s line rates. We do not enable and RxDMA interrupt coalescing.
 	 */
-	if ((adapter->linkspeed == TRUEPHY_SPEED_100MBPS) ||
-	    (adapter->linkspeed == TRUEPHY_SPEED_10MBPS)) {
+	if ((phydev->speed == SPEED_100) || (phydev->speed == SPEED_10)) {
 		writel(0, &adapter->regs->rxdma.max_pkt_time);
 		writel(1, &adapter->regs->rxdma.num_pkt_done);
 	}

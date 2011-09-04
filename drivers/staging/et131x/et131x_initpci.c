@@ -678,12 +678,6 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	/* Copy address into the net_device struct */
 	memcpy(netdev->dev_addr, adapter->addr, ETH_ALEN);
 
-	/* Setup et1310 as per the documentation */
-	et131x_adapter_setup(adapter);
-
-	/* Create a timer to count errors received by the NIC */
-	init_timer(&adapter->error_timer);
-
 	adapter->error_timer.expires = jiffies + TX_ERROR_PERIOD * HZ / 1000;
 	adapter->error_timer.function = et131x_error_timer_handler;
 	adapter->error_timer.data = (unsigned long)adapter;
@@ -725,6 +719,12 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "failed to probe MII bus\n");
 		goto err_mdio_unregister;
 	}
+
+	/* Setup et1310 as per the documentation */
+	et131x_adapter_setup(adapter);
+
+	/* Create a timer to count errors received by the NIC */
+	init_timer(&adapter->error_timer);
 
 	/* We can enable interrupts now
 	 *
