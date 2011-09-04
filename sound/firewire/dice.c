@@ -246,6 +246,9 @@ static void dice_enable_clear(struct dice *dice)
 {
 	__be32 value;
 
+	if (!dice->global_enabled)
+		return;
+
 	value = 0;
 	snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   global_address(dice, GLOBAL_ENABLE),
@@ -1009,6 +1012,8 @@ static void dice_bus_reset(struct fw_unit *unit)
 	 * manner.
 	 */
 	amdtp_out_stream_pcm_abort(&dice->stream);
+
+	dice->global_enabled = false;
 	dice_stream_stop_packets(dice);
 
 	dice_owner_update(dice);
