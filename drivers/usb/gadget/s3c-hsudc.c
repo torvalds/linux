@@ -1241,10 +1241,24 @@ static int s3c_hsudc_gadget_getframe(struct usb_gadget *gadget)
 	return s3c_hsudc_read_frameno(to_hsudc(gadget));
 }
 
+static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
+{
+	struct s3c_hsudc *hsudc = the_controller;
+
+	if (!hsudc)
+		return -ENODEV;
+
+	if (hsudc->transceiver)
+		return otg_set_power(hsudc->transceiver, mA);
+
+	return -EOPNOTSUPP;
+}
+
 static struct usb_gadget_ops s3c_hsudc_gadget_ops = {
 	.get_frame	= s3c_hsudc_gadget_getframe,
 	.start		= s3c_hsudc_start,
 	.stop		= s3c_hsudc_stop,
+	.vbus_draw	= s3c_hsudc_vbus_draw,
 };
 
 static int s3c_hsudc_probe(struct platform_device *pdev)
