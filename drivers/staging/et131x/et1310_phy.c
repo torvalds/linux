@@ -496,12 +496,6 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 
 			/* Setup ET1310 as per the documentation */
 			et131x_adapter_setup(adapter);
-
-			/* Setup the PHY into coma mode until the cable is
-			 * plugged back in
-			 */
-			if (adapter->registry_phy_coma == 1)
-				et1310_enable_phy_coma(adapter);
 		}
 	}
 

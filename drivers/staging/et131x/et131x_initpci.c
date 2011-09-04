@@ -250,14 +250,12 @@ void et131x_error_timer_handler(unsigned long data)
 		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
 
 	if (!(adapter->bmsr & BMSR_LSTATUS) &&
-	    adapter->registry_phy_coma &&
 	    adapter->boot_coma < 11) {
 		adapter->boot_coma++;
 	}
 
 	if (adapter->boot_coma == 10) {
-		if (!(adapter->bmsr & BMSR_LSTATUS)
-		    && adapter->registry_phy_coma) {
+		if (!(adapter->bmsr & BMSR_LSTATUS)) {
 			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
 				/* NOTE - This was originally a 'sync with
 				 *  interrupt'. How to do that under Linux?

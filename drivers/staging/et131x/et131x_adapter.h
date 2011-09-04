@@ -178,9 +178,7 @@ struct et131x_adapter {
 	struct address_map __iomem *regs;
 
 	/* Registry parameters */
-	u8 speed_duplex;	/* speed/duplex */
 	u8 wanted_flow;		/* Flow we want for 802.3x flow control */
-	u8 registry_phy_coma;	/* Phy Coma mode enable/disable */
 
 	u32 registry_rx_mem_end;	/* Size of internal rx memory */
 	u32 registry_jumbo_packet;	/* Max supported ethernet packet size */
