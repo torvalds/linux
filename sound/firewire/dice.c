@@ -505,8 +505,8 @@ static void dice_notification(struct fw_card *card, struct fw_request *request,
 		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
 		return;
 	}
-	dev_info(&dice->unit->device,
-		 "notification: %08x\n", be32_to_cpup(data));
+	dev_dbg(&dice->unit->device,
+		"notification: %08x\n", be32_to_cpup(data));
 	fw_send_response(card, request, RCODE_COMPLETE);
 }
 
