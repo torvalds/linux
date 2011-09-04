@@ -477,8 +477,6 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 
 			netif_carrier_off(adapter->netdev);
 
-			adapter->duplex_mode = 0;
-
 			/* Free the packets being actively sent & stopped */
 			et131x_free_busy_send_packets(adapter);
 
@@ -515,8 +513,6 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 					     &link_status, &autoneg_status,
 					     &speed, &duplex, &mdi_mdix,
 					     &masterslave, &polarity);
-
-			adapter->duplex_mode = duplex;
 
 			adapter->boot_coma = 20;
 

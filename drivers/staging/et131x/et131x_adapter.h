@@ -169,7 +169,6 @@ struct et131x_adapter {
 
 	/* Packet Filter and look ahead size */
 	u32 packet_filter;
-	u32 duplex_mode;
 
 	/* multicast list */
 	u32 multicast_addr_count;

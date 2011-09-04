@@ -205,11 +205,11 @@ void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 	cfg2 &= ~0x0021;
 
 	/* Turn on duplex if needed */
-	if (adapter->duplex_mode)
+	if (phydev && phydev->duplex == DUPLEX_FULL)
 		cfg2 |= 0x01;
 
 	ifctrl &= ~(1 << 26);
-	if (!adapter->duplex_mode)
+	if (phydev && phydev->duplex == DUPLEX_HALF)
 		ifctrl |= (1<<26);	/* Enable ghd */
 
 	writel(ifctrl, &mac->if_ctrl);
@@ -450,7 +450,9 @@ void et1310_config_macstat_regs(struct et131x_adapter *adapter)
 
 void et1310_config_flow_control(struct et131x_adapter *adapter)
 {
-	if (adapter->duplex_mode == 0) {
+	struct phy_device *phydev = adapter->phydev;
+
+	if (phydev->duplex == DUPLEX_HALF) {
 		adapter->flowcontrol = FLOW_NONE;
 	} else {
 		char remote_pause, remote_async_pause;

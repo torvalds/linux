@@ -242,10 +242,6 @@ struct mi_regs {
 #define TRUEPHY_MASK                    2
 #endif
 
-/* Define duplex modes */
-#define TRUEPHY_DUPLEX_HALF             0
-#define TRUEPHY_DUPLEX_FULL             1
-
 /* Define master/slave configuration values */
 #define TRUEPHY_CFG_SLAVE               0
 #define TRUEPHY_CFG_MASTER              1
