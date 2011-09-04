@@ -75,6 +75,7 @@
 #define  CLOCK_RATE_ANY_MID		0x00000800
 #define  CLOCK_RATE_ANY_HIGH		0x00000900
 #define  CLOCK_RATE_NONE		0x00000a00
+#define  CLOCK_RATE_SHIFT		8
 #define GLOBAL_ENABLE			0x050
 #define  ENABLE				0x00000001
 #define GLOBAL_STATUS			0x054
@@ -247,6 +248,16 @@ struct dice {
 MODULE_DESCRIPTION("DICE driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
+
+static const unsigned int dice_rates[] = {
+	[0] =  32000,
+	[1] =  44100,
+	[2] =  48000,
+	[3] =  88200,
+	[4] =  96000,
+	[5] = 176400,
+	[6] = 192000,
+};
 
 static inline u64 global_address(struct dice *dice, unsigned int offset)
 {
@@ -508,9 +519,6 @@ static int dice_open(struct snd_pcm_substream *substream)
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_BLOCK_TRANSFER,
 		.formats = AMDTP_OUT_PCM_FORMAT_BITS,
-		.rates = SNDRV_PCM_RATE_44100,
-		.rate_min = 44100,
-		.rate_max = 44100,
 		.buffer_bytes_max = 16 * 1024 * 1024,
 		.period_bytes_min = 1,
 		.period_bytes_max = UINT_MAX,
@@ -519,8 +527,19 @@ static int dice_open(struct snd_pcm_substream *substream)
 	};
 	struct dice *dice = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	__be32 number_audio, number_midi;
+	__be32 clock_sel, number_audio, number_midi;
+	unsigned int rate;
 	int err;
+
+	err = snd_fw_transaction(dice->unit, TCODE_READ_QUADLET_REQUEST,
+				 global_address(dice, GLOBAL_CLOCK_SELECT),
+				 &clock_sel, 4);
+	if (err < 0)
+		return err;
+	rate = (be32_to_cpu(clock_sel) & CLOCK_RATE_MASK) >> CLOCK_RATE_SHIFT;
+	if (rate >= ARRAY_SIZE(dice_rates))
+		return -ENXIO;
+	rate = dice_rates[rate];
 
 	err = snd_fw_transaction(dice->unit, TCODE_READ_QUADLET_REQUEST,
 				 rx_address(dice, RX_NUMBER_AUDIO),
@@ -534,10 +553,14 @@ static int dice_open(struct snd_pcm_substream *substream)
 		return err;
 
 	runtime->hw = hardware;
+
+	runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
+	snd_pcm_limit_hw_rates(runtime);
+
 	runtime->hw.channels_min = be32_to_cpu(number_audio);
 	runtime->hw.channels_max = be32_to_cpu(number_audio);
 
-	amdtp_out_stream_set_rate(&dice->stream, 44100);
+	amdtp_out_stream_set_rate(&dice->stream, rate);
 	amdtp_out_stream_set_pcm(&dice->stream, be32_to_cpu(number_audio));
 	amdtp_out_stream_set_midi(&dice->stream, be32_to_cpu(number_midi));
 
@@ -746,16 +769,8 @@ static int dice_create_pcm(struct dice *dice)
 		.page      = snd_pcm_lib_get_vmalloc_page,
 		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
-	__be32 clock;
 	struct snd_pcm *pcm;
 	int err;
-
-	clock = cpu_to_be32(CLOCK_SOURCE_ARX1 | CLOCK_RATE_44100);
-	err = snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 global_address(dice, GLOBAL_CLOCK_SELECT),
-				 &clock, 4);
-	if (err < 0)
-		return err;
 
 	err = snd_pcm_new(dice->card, "DICE", 0, 1, 0, &pcm);
 	if (err < 0)
@@ -897,6 +912,7 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 {
 	struct snd_card *card;
 	struct dice *dice;
+	__be32 clock_sel;
 	int err;
 
 	err = snd_card_create(-1, NULL, THIS_MODULE, sizeof(*dice), &card);
@@ -937,6 +953,19 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	card->private_free = dice_card_free;
 
 	dice_card_strings(dice);
+
+	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
+				 global_address(dice, GLOBAL_CLOCK_SELECT),
+				 &clock_sel, 4);
+	if (err < 0)
+		goto error;
+	clock_sel &= cpu_to_be32(~CLOCK_SOURCE_MASK);
+	clock_sel |= cpu_to_be32(CLOCK_SOURCE_ARX1);
+	err = snd_fw_transaction(unit, TCODE_WRITE_QUADLET_REQUEST,
+				 global_address(dice, GLOBAL_CLOCK_SELECT),
+				 &clock_sel, 4);
+	if (err < 0)
+		goto error;
 
 	err = dice_create_pcm(dice);
 	if (err < 0)
