@@ -118,7 +118,7 @@ static int dice_owner_set(struct dice *dice)
 {
 	struct fw_device *device = fw_parent_device(dice->unit);
 	__be64 *buffer;
-	int rcode, err, errors = 0;
+	int err, errors = 0;
 
 	buffer = kmalloc(2 * 8, GFP_KERNEL);
 	if (!buffer)
@@ -132,31 +132,24 @@ static int dice_owner_set(struct dice *dice)
 
 		dice->owner_generation = device->generation;
 		smp_rmb(); /* node_id vs. generation */
-		rcode = fw_run_transaction(device->card,
-					   TCODE_LOCK_COMPARE_SWAP,
-					   device->node_id,
-					   dice->owner_generation,
-					   device->max_speed,
-					   global_address(dice, GLOBAL_OWNER),
-					   buffer, 2 * 8);
+		err = snd_fw_transaction(dice->unit,
+					 TCODE_LOCK_COMPARE_SWAP,
+					 global_address(dice, GLOBAL_OWNER),
+					 buffer, 2 * 8,
+					 FW_FIXED_GENERATION |
+							dice->owner_generation);
 
-		if (rcode == RCODE_COMPLETE) {
-			if (buffer[0] == cpu_to_be64(OWNER_NO_OWNER)) {
-				err = 0;
-			} else {
+		if (err == 0) {
+			if (buffer[0] != cpu_to_be64(OWNER_NO_OWNER)) {
 				dev_err(&dice->unit->device,
 					"device is already in use\n");
 				err = -EBUSY;
 			}
 			break;
 		}
-		if (rcode_is_permanent_error(rcode) || ++errors >= 3) {
-			dev_err(&dice->unit->device,
-				"setting device owner failed: %s\n",
-				fw_rcode_string(rcode));
-			err = -EIO;
+		if (err != -EAGAIN || ++errors >= 3)
 			break;
-		}
+
 		msleep(20);
 	}
 
@@ -169,7 +162,7 @@ static int dice_owner_update(struct dice *dice)
 {
 	struct fw_device *device = fw_parent_device(dice->unit);
 	__be64 *buffer;
-	int rcode, err, errors = 0;
+	int err;
 
 	if (dice->owner_generation == -1)
 		return 0;
@@ -178,44 +171,26 @@ static int dice_owner_update(struct dice *dice)
 	if (!buffer)
 		return -ENOMEM;
 
-	for (;;) {
-		buffer[0] = cpu_to_be64(OWNER_NO_OWNER);
-		buffer[1] = cpu_to_be64(
-			((u64)device->card->node_id << OWNER_NODE_SHIFT) |
-			dice->notification_handler.offset);
+	buffer[0] = cpu_to_be64(OWNER_NO_OWNER);
+	buffer[1] = cpu_to_be64(
+		((u64)device->card->node_id << OWNER_NODE_SHIFT) |
+		dice->notification_handler.offset);
 
-		dice->owner_generation = device->generation;
-		smp_rmb(); /* node_id vs. generation */
-		rcode = fw_run_transaction(device->card,
-					   TCODE_LOCK_COMPARE_SWAP,
-					   device->node_id,
-					   dice->owner_generation,
-					   device->max_speed,
-					   global_address(dice, GLOBAL_OWNER),
-					   buffer, 2 * 8);
+	dice->owner_generation = device->generation;
+	smp_rmb(); /* node_id vs. generation */
+	err = snd_fw_transaction(dice->unit, TCODE_LOCK_COMPARE_SWAP,
+				 global_address(dice, GLOBAL_OWNER),
+				 buffer, 2 * 8,
+				 FW_FIXED_GENERATION | dice->owner_generation);
 
-		if (rcode == RCODE_COMPLETE) {
-			if (buffer[0] == cpu_to_be64(OWNER_NO_OWNER)) {
-				err = 0;
-			} else {
-				dev_err(&dice->unit->device,
-					"device is already in use\n");
-				err = -EBUSY;
-			}
-			break;
-		}
-		if (rcode == RCODE_GENERATION) {
-			err = 0; /* try again later */
-			break;
-		}
-		if (rcode_is_permanent_error(rcode) || ++errors >= 3) {
+	if (err == 0) {
+		if (buffer[0] != cpu_to_be64(OWNER_NO_OWNER)) {
 			dev_err(&dice->unit->device,
-				"setting device owner failed: %s\n",
-				fw_rcode_string(rcode));
-			err = -EIO;
-			break;
+				"device is already in use\n");
+			err = -EBUSY;
 		}
-		msleep(20);
+	} else if (err == -EAGAIN) {
+		err = 0; /* try again later */
 	}
 
 	kfree(buffer);
@@ -230,38 +205,19 @@ static void dice_owner_clear(struct dice *dice)
 {
 	struct fw_device *device = fw_parent_device(dice->unit);
 	__be64 *buffer;
-	int rcode, errors = 0;
 
 	buffer = kmalloc(2 * 8, GFP_KERNEL);
 	if (!buffer)
 		return;
 
-	for (;;) {
-		buffer[0] = cpu_to_be64(
-			((u64)device->card->node_id << OWNER_NODE_SHIFT) |
-			dice->notification_handler.offset);
-		buffer[1] = cpu_to_be64(OWNER_NO_OWNER);
-
-		rcode = fw_run_transaction(device->card,
-					   TCODE_LOCK_COMPARE_SWAP,
-					   device->node_id,
-					   dice->owner_generation,
-					   device->max_speed,
-					   global_address(dice, GLOBAL_OWNER),
-					   buffer, 2 * 8);
-
-		if (rcode == RCODE_COMPLETE)
-			break;
-		if (rcode == RCODE_GENERATION)
-			break;
-		if (rcode_is_permanent_error(rcode) || ++errors >= 3) {
-			dev_err(&dice->unit->device,
-				"clearing device owner failed: %s\n",
-				fw_rcode_string(rcode));
-			break;
-		}
-		msleep(20);
-	}
+	buffer[0] = cpu_to_be64(
+		((u64)device->card->node_id << OWNER_NODE_SHIFT) |
+		dice->notification_handler.offset);
+	buffer[1] = cpu_to_be64(OWNER_NO_OWNER);
+	snd_fw_transaction(dice->unit, TCODE_LOCK_COMPARE_SWAP,
+			   global_address(dice, GLOBAL_OWNER),
+			   buffer, 2 * 8, FW_QUIET |
+			   FW_FIXED_GENERATION | dice->owner_generation);
 
 	kfree(buffer);
 
@@ -270,67 +226,32 @@ static void dice_owner_clear(struct dice *dice)
 
 static int dice_enable_set(struct dice *dice)
 {
-	struct fw_device *device = fw_parent_device(dice->unit);
 	__be32 value;
-	int rcode, err, errors = 0;
+	int err;
 
 	value = cpu_to_be32(1);
-	for (;;) {
-		rcode = fw_run_transaction(device->card,
-					   TCODE_WRITE_QUADLET_REQUEST,
-					   device->node_id,
-					   dice->owner_generation,
-					   device->max_speed,
-					   global_address(dice, GLOBAL_ENABLE),
-					   &value, 4);
-		if (rcode == RCODE_COMPLETE) {
-			dice->global_enabled = true;
-			err = 0;
-			break;
-		}
-		if (rcode == RCODE_GENERATION) {
-			err = -EAGAIN;
-			break;
-		}
-		if (rcode_is_permanent_error(rcode) || ++errors >= 3) {
-			dev_err(&dice->unit->device,
-				"device enabling failed: %s\n",
-				fw_rcode_string(rcode));
-			err = -EIO;
-			break;
-		}
-		msleep(20);
-	}
+	err = snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 global_address(dice, GLOBAL_ENABLE),
+				 &value, 4,
+				 FW_FIXED_GENERATION | dice->owner_generation);
+	if (err < 0)
+		return err;
 
-	return err;
+	dice->global_enabled = true;
+
+	return 0;
 }
 
 static void dice_enable_clear(struct dice *dice)
 {
-	struct fw_device *device = fw_parent_device(dice->unit);
 	__be32 value;
-	int rcode, errors = 0;
 
 	value = 0;
-	for (;;) {
-		rcode = fw_run_transaction(device->card,
-					   TCODE_WRITE_QUADLET_REQUEST,
-					   device->node_id,
-					   dice->owner_generation,
-					   device->max_speed,
-					   global_address(dice, GLOBAL_ENABLE),
-					   &value, 4);
-		if (rcode == RCODE_COMPLETE ||
-		    rcode == RCODE_GENERATION)
-			break;
-		if (rcode_is_permanent_error(rcode) || ++errors >= 3) {
-			dev_err(&dice->unit->device,
-				"device disabling failed: %s\n",
-				fw_rcode_string(rcode));
-			break;
-		}
-		msleep(20);
-	}
+	snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   global_address(dice, GLOBAL_ENABLE),
+			   &value, 4, FW_QUIET |
+			   FW_FIXED_GENERATION | dice->owner_generation);
+
 	dice->global_enabled = false;
 }
 
@@ -384,7 +305,7 @@ static int dice_open(struct snd_pcm_substream *substream)
 
 	err = snd_fw_transaction(dice->unit, TCODE_READ_QUADLET_REQUEST,
 				 global_address(dice, GLOBAL_CLOCK_SELECT),
-				 &clock_sel, 4);
+				 &clock_sel, 4, 0);
 	if (err < 0)
 		goto err_lock;
 	rate_index = (be32_to_cpu(clock_sel) & CLOCK_RATE_MASK)
@@ -396,7 +317,7 @@ static int dice_open(struct snd_pcm_substream *substream)
 
 	err = snd_fw_transaction(dice->unit, TCODE_READ_BLOCK_REQUEST,
 				 rx_address(dice, RX_NUMBER_AUDIO),
-				 data, 2 * 4);
+				 data, 2 * 4, 0);
 	if (err < 0)
 		goto err_lock;
 	number_audio = be32_to_cpu(data[0]);
@@ -488,7 +409,7 @@ static int dice_stream_start(struct dice *dice)
 		err = snd_fw_transaction(dice->unit,
 					 TCODE_WRITE_QUADLET_REQUEST,
 					 rx_address(dice, RX_ISOCHRONOUS),
-					 &channel, 4);
+					 &channel, 4, 0);
 		if (err < 0)
 			goto err_resources;
 	}
@@ -502,7 +423,7 @@ static int dice_stream_start(struct dice *dice)
 err_rx_channel:
 	channel = cpu_to_be32((u32)-1);
 	snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   rx_address(dice, RX_ISOCHRONOUS), &channel, 4);
+			   rx_address(dice, RX_ISOCHRONOUS), &channel, 4, 0);
 err_resources:
 	fw_iso_resources_free(&dice->resources);
 error:
@@ -528,7 +449,7 @@ static void dice_stream_stop(struct dice *dice)
 
 	channel = cpu_to_be32((u32)-1);
 	snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   rx_address(dice, RX_ISOCHRONOUS), &channel, 4);
+			   rx_address(dice, RX_ISOCHRONOUS), &channel, 4, 0);
 
 	fw_iso_resources_free(&dice->resources);
 }
@@ -880,7 +801,7 @@ static int dice_interface_check(struct fw_unit *unit)
 	 */
 	err = snd_fw_transaction(unit, TCODE_READ_BLOCK_REQUEST,
 				 DICE_PRIVATE_SPACE,
-				 pointers, sizeof(pointers));
+				 pointers, sizeof(pointers), 0);
 	if (err < 0)
 		return -ENODEV;
 	for (i = 0; i < ARRAY_SIZE(pointers); ++i) {
@@ -896,7 +817,7 @@ static int dice_interface_check(struct fw_unit *unit)
 	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
 				 DICE_PRIVATE_SPACE +
 				 be32_to_cpu(pointers[0]) * 4 + GLOBAL_VERSION,
-				 &version, 4);
+				 &version, 4, 0);
 	if (err < 0)
 		return -ENODEV;
 	if ((version & cpu_to_be32(0xff000000)) != cpu_to_be32(0x01000000)) {
@@ -915,7 +836,7 @@ static int dice_init_offsets(struct dice *dice)
 
 	err = snd_fw_transaction(dice->unit, TCODE_READ_BLOCK_REQUEST,
 				 DICE_PRIVATE_SPACE,
-				 pointers, sizeof(pointers));
+				 pointers, sizeof(pointers), 0);
 	if (err < 0)
 		return err;
 
@@ -939,7 +860,7 @@ static void dice_card_strings(struct dice *dice)
 	BUILD_BUG_ON(NICK_NAME_SIZE < sizeof(card->shortname));
 	err = snd_fw_transaction(dice->unit, TCODE_READ_BLOCK_REQUEST,
 				 global_address(dice, GLOBAL_NICK_NAME),
-				 card->shortname, sizeof(card->shortname));
+				 card->shortname, sizeof(card->shortname), 0);
 	if (err >= 0) {
 		/* DICE strings are returned in "always-wrong" endianness */
 		BUILD_BUG_ON(sizeof(card->shortname) % 4 != 0);
@@ -1015,14 +936,14 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
 				 global_address(dice, GLOBAL_CLOCK_SELECT),
-				 &clock_sel, 4);
+				 &clock_sel, 4, 0);
 	if (err < 0)
 		goto error;
 	clock_sel &= cpu_to_be32(~CLOCK_SOURCE_MASK);
 	clock_sel |= cpu_to_be32(CLOCK_SOURCE_ARX1);
 	err = snd_fw_transaction(unit, TCODE_WRITE_QUADLET_REQUEST,
 				 global_address(dice, GLOBAL_CLOCK_SELECT),
-				 &clock_sel, 4);
+				 &clock_sel, 4, 0);
 	if (err < 0)
 		goto error;
 

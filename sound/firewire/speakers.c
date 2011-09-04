@@ -647,7 +647,7 @@ static u32 fwspk_read_firmware_version(struct fw_unit *unit)
 	int err;
 
 	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
-				 OXFORD_FIRMWARE_ID_ADDRESS, &data, 4);
+				 OXFORD_FIRMWARE_ID_ADDRESS, &data, 4, 0);
 	return err >= 0 ? be32_to_cpu(data) : 0;
 }
 
