@@ -136,7 +136,6 @@ struct ce_stats {
 	u32		interrupt_status;
 };
 
-
 /* The private adapter structure */
 struct et131x_adapter {
 	struct net_device *netdev;
@@ -179,10 +178,7 @@ struct et131x_adapter {
 
 	/* Registry parameters */
 	u8 wanted_flow;		/* Flow we want for 802.3x flow control */
-
-	u32 registry_rx_mem_end;	/* Size of internal rx memory */
 	u32 registry_jumbo_packet;	/* Max supported ethernet packet size */
-
 
 	/* Derived from the registry: */
 	u8 ai_force_duplex;	/* duplex setting */
