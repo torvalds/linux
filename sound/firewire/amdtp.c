@@ -59,7 +59,7 @@ EXPORT_SYMBOL(amdtp_out_stream_init);
  */
 void amdtp_out_stream_destroy(struct amdtp_out_stream *s)
 {
-	WARN_ON(!IS_ERR(s->context));
+	WARN_ON(amdtp_out_stream_running(s));
 	mutex_destroy(&s->mutex);
 	fw_unit_put(s->unit);
 }
@@ -89,7 +89,7 @@ void amdtp_out_stream_set_rate(struct amdtp_out_stream *s, unsigned int rate)
 	};
 	unsigned int sfc;
 
-	if (WARN_ON(!IS_ERR(s->context)))
+	if (WARN_ON(amdtp_out_stream_running(s)))
 		return;
 
 	for (sfc = 0; sfc < ARRAY_SIZE(rate_info); ++sfc)
@@ -145,7 +145,7 @@ static void amdtp_write_s32(struct amdtp_out_stream *s,
 void amdtp_out_stream_set_pcm_format(struct amdtp_out_stream *s,
 				     snd_pcm_format_t format)
 {
-	if (WARN_ON(!IS_ERR(s->context)))
+	if (WARN_ON(amdtp_out_stream_running(s)))
 		return;
 
 	switch (format) {
@@ -481,7 +481,7 @@ int amdtp_out_stream_start(struct amdtp_out_stream *s, int channel, int speed)
 
 	mutex_lock(&s->mutex);
 
-	if (WARN_ON(!IS_ERR(s->context) ||
+	if (WARN_ON(amdtp_out_stream_running(s) ||
 		    (!s->pcm_channels && !s->midi_ports))) {
 		err = -EBADFD;
 		goto err_unlock;
@@ -577,7 +577,7 @@ void amdtp_out_stream_stop(struct amdtp_out_stream *s)
 {
 	mutex_lock(&s->mutex);
 
-	if (IS_ERR(s->context)) {
+	if (!amdtp_out_stream_running(s)) {
 		mutex_unlock(&s->mutex);
 		return;
 	}

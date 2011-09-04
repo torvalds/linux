@@ -246,7 +246,6 @@ struct dice {
 	int dev_lock_count; /* > 0 driver, < 0 userspace */
 	bool dev_lock_changed;
 	bool global_enabled;
-	bool stream_running;
 	wait_queue_head_t hwdep_wait;
 	u32 notification_bits;
 	struct snd_pcm_substream *pcm;
@@ -654,7 +653,7 @@ static int dice_stream_start_packets(struct dice *dice)
 {
 	int err;
 
-	if (dice->stream_running)
+	if (amdtp_out_stream_running(&dice->stream))
 		return 0;
 
 	err = amdtp_out_stream_start(&dice->stream, dice->resources.channel,
@@ -667,8 +666,6 @@ static int dice_stream_start_packets(struct dice *dice)
 		amdtp_out_stream_stop(&dice->stream);
 		return err;
 	}
-
-	dice->stream_running = true;
 
 	return 0;
 }
@@ -712,14 +709,10 @@ error:
 
 static void dice_stream_stop_packets(struct dice *dice)
 {
-	if (!dice->stream_running)
-		return;
-
-	dice_enable_clear(dice);
-
-	amdtp_out_stream_stop(&dice->stream);
-
-	dice->stream_running = false;
+	if (amdtp_out_stream_running(&dice->stream)) {
+		dice_enable_clear(dice);
+		amdtp_out_stream_stop(&dice->stream);
+	}
 }
 
 static void dice_stream_stop(struct dice *dice)

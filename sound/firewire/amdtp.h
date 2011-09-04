@@ -1,6 +1,7 @@
 #ifndef SOUND_FIREWIRE_AMDTP_H_INCLUDED
 #define SOUND_FIREWIRE_AMDTP_H_INCLUDED
 
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include "packets-buffer.h"
@@ -91,6 +92,11 @@ void amdtp_out_stream_set_pcm_format(struct amdtp_out_stream *s,
 void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s);
 unsigned long amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s);
 void amdtp_out_stream_pcm_abort(struct amdtp_out_stream *s);
+
+static inline bool amdtp_out_stream_running(struct amdtp_out_stream *s)
+{
+	return !IS_ERR(s->context);
+}
 
 /**
  * amdtp_out_stream_set_pcm - configure format of PCM samples

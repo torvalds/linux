@@ -53,7 +53,6 @@ struct fwspk {
 	struct mutex mutex;
 	struct cmp_connection connection;
 	struct amdtp_out_stream stream;
-	bool stream_running;
 	bool mute;
 	s16 volume[6];
 	s16 volume_min;
@@ -189,10 +188,9 @@ static int fwspk_close(struct snd_pcm_substream *substream)
 
 static void fwspk_stop_stream(struct fwspk *fwspk)
 {
-	if (fwspk->stream_running) {
+	if (amdtp_out_stream_running(&fwspk->stream)) {
 		amdtp_out_stream_stop(&fwspk->stream);
 		cmp_connection_break(&fwspk->connection);
-		fwspk->stream_running = false;
 	}
 }
 
@@ -286,7 +284,7 @@ static int fwspk_prepare(struct snd_pcm_substream *substream)
 	if (amdtp_out_streaming_error(&fwspk->stream))
 		fwspk_stop_stream(fwspk);
 
-	if (!fwspk->stream_running) {
+	if (!amdtp_out_stream_running(&fwspk->stream)) {
 		err = cmp_connection_establish(&fwspk->connection,
 			amdtp_out_stream_get_max_payload(&fwspk->stream));
 		if (err < 0)
@@ -297,8 +295,6 @@ static int fwspk_prepare(struct snd_pcm_substream *substream)
 					fwspk->connection.speed);
 		if (err < 0)
 			goto err_connection;
-
-		fwspk->stream_running = true;
 	}
 
 	mutex_unlock(&fwspk->mutex);
