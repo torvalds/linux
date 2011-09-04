@@ -455,6 +455,20 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+static void ieee80211_config_ap_ssid(struct ieee80211_sub_if_data *sdata,
+				     struct beacon_parameters *params)
+{
+	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
+
+	bss_conf->ssid_len = params->ssid_len;
+
+	if (params->ssid_len)
+		memcpy(bss_conf->ssid, params->ssid, params->ssid_len);
+
+	bss_conf->hidden_ssid =
+		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
+}
+
 /*
  * This handles both adding a beacon and setting new beacon info
  */
@@ -548,8 +562,11 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 
 	kfree(old);
 
+	ieee80211_config_ap_ssid(sdata, params);
+
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
-						BSS_CHANGED_BEACON);
+						BSS_CHANGED_BEACON |
+						BSS_CHANGED_SSID);
 	return 0;
 }
 
