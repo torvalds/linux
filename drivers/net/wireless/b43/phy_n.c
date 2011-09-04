@@ -444,19 +444,14 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 		else
 			b43_phy_write(dev, B43_NPHY_AFECTL_DACGAIN2, dac_gain);
 
-		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x1D10 + i);
-		b43_phy_write(dev, B43_NPHY_TABLE_DATALO, radio_gain);
+		b43_ntab_write(dev, B43_NTAB16(0x7, 0x110 + i), radio_gain);
 
-		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x3C57);
-		tmp = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
-
+		tmp = b43_ntab_read(dev, B43_NTAB16(0xF, 0x57));
 		if (i == 0)
 			tmp = (tmp & 0x00FF) | (bbmult << 8);
 		else
 			tmp = (tmp & 0xFF00) | bbmult;
-
-		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x3C57);
-		b43_phy_write(dev, B43_NPHY_TABLE_DATALO, tmp);
+		b43_ntab_write(dev, B43_NTAB16(0xF, 0x57), tmp);
 
 		if (0)
 			; /* TODO */
@@ -970,11 +965,7 @@ static void b43_nphy_calc_rx_iq_comp(struct b43_wldev *dev, u8 mask)
 static void b43_nphy_tx_iq_workaround(struct b43_wldev *dev)
 {
 	u16 array[4];
-	int i;
-
-	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x3C50);
-	for (i = 0; i < 4; i++)
-		array[i] = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+	b43_ntab_read_bulk(dev, B43_NTAB16(0xF, 0x50), 4, array);
 
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_NPHY_TXIQW0, array[0]);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_NPHY_TXIQW1, array[1]);
