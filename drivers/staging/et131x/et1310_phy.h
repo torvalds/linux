@@ -61,24 +61,6 @@
 
 #include "et1310_address_map.h"
 
-/* VMI Register Addresses */
-#define VMI_RESERVED16_REG                  16
-#define VMI_RESERVED17_REG                  17
-#define VMI_RESERVED18_REG                  18
-#define VMI_LOOPBACK_CONTROL_REG            19
-#define VMI_RESERVED20_REG                  20
-#define VMI_MI_CONTROL_REG                  21
-#define VMI_PHY_CONFIGURATION_REG           22
-#define VMI_PHY_CONTROL_REG                 23
-#define VMI_INTERRUPT_MASK_REG              24
-#define VMI_INTERRUPT_STATUS_REG            25
-#define VMI_PHY_STATUS_REG                  26
-#define VMI_LED_CONTROL_1_REG               27
-#define VMI_LED_CONTROL_2_REG               28
-#define VMI_RESERVED29_REG                  29
-#define VMI_RESERVED30_REG                  30
-#define VMI_RESERVED31_REG                  31
-
 /* PHY Register Mapping(MI) Management Interface Regs */
 struct mi_regs {
 	u8 bmcr;	/* Basic mode control reg(Reg 0x00) */
