@@ -10,6 +10,8 @@
 #define B43_LCNTAB16(table, offset)	(((table) << 10) | (offset) | B43_LCNTAB_16BIT)
 #define B43_LCNTAB32(table, offset)	(((table) << 10) | (offset) | B43_LCNTAB_32BIT)
 
+#define B43_LCNTAB_TX_GAIN_SIZE		128
+
 u32 b43_lcntab_read(struct b43_wldev *dev, u32 offset);
 void b43_lcntab_read_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, void *_data);
