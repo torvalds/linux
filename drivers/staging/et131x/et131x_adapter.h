@@ -181,8 +181,6 @@ struct et131x_adapter {
 	u32 registry_jumbo_packet;	/* Max supported ethernet packet size */
 
 	/* Derived from the registry: */
-	u8 ai_force_duplex;	/* duplex setting */
-	u16 ai_force_speed;	/* 'Speed', user over-ride of line speed */
 	u8 flowcontrol;		/* flow control validated by the far-end */
 
 	/* Minimize init-time */

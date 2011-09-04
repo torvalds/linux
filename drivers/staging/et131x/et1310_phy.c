@@ -498,10 +498,8 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 		}
 	}
 
-	if ((bmsr_ints & BMSR_ANEGCOMPLETE) ||
-	   (adapter->ai_force_duplex == 3 && (bmsr_ints & BMSR_LSTATUS))) {
-		if ((bmsr & BMSR_ANEGCOMPLETE) ||
-		    adapter->ai_force_duplex == 3) {
+	if (bmsr_ints & BMSR_ANEGCOMPLETE) {
+		if (bmsr & BMSR_ANEGCOMPLETE) {
 			et1310_phy_link_status(adapter,
 					     &link_status, &autoneg_status,
 					     &speed, &duplex, &mdi_mdix,
