@@ -452,7 +452,6 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 	if (bmsr_ints & BMSR_LSTATUS) {
 		if (bmsr & BMSR_LSTATUS) {
 			adapter->boot_coma = 20;
-			netif_carrier_on(adapter->netdev);
 		} else {
 			dev_warn(&adapter->pdev->dev,
 			    "Link down - cable problem ?\n");
@@ -474,8 +473,6 @@ void et131x_mii_check(struct et131x_adapter *adapter,
 						 register18 | 511);
 				et131x_mii_write(adapter, 0x12, register18);
 			}
-
-			netif_carrier_off(adapter->netdev);
 
 			/* Free the packets being actively sent & stopped */
 			et131x_free_busy_send_packets(adapter);
