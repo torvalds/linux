@@ -125,7 +125,6 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
 
-	adapter->cached_mask_value = mask;
 	writel(mask, &adapter->regs->global.int_mask);
 }
 
@@ -139,7 +138,6 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 void et131x_disable_interrupts(struct et131x_adapter *adapter)
 {
 	/* Disable all global interrupts */
-	adapter->cached_mask_value = INT_MASK_DISABLE;
 	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask);
 }
 
