@@ -364,44 +364,6 @@ void et131x_isr_handler(struct work_struct *work)
 			dev_err(&adapter->pdev->dev, "WAKE_ON_LAN interrupt\n");
 		}
 
-		/* Handle the PHY interrupt */
-		if (status & ET_INTR_PHY) {
-			u32 pm_csr;
-			u16 bmsr_ints;
-			u16 bmsr_data;
-			u16 myisr;
-
-			/* If we are in coma mode when we get this interrupt,
-			 * we need to disable it.
-			 */
-			pm_csr = readl(&iomem->global.pm_csr);
-			if (pm_csr & ET_PM_PHY_SW_COMA) {
-				/*
-				 * Check to see if we are in coma mode and if
-				 * so, disable it because we will not be able
-				 * to read PHY values until we are out.
-				 */
-				et1310_disable_phy_coma(adapter);
-			}
-
-			/* Read the PHY ISR to clear the reason for the
-			 * interrupt.
-			 */
-			et131x_mii_read(adapter,
-					(uint8_t) offsetof(struct mi_regs, isr),
-					&myisr);
-
-			et131x_mii_read(adapter,
-			       (uint8_t) offsetof(struct mi_regs, bmsr),
-			       &bmsr_data);
-
-			bmsr_ints = adapter->bmsr ^ bmsr_data;
-			adapter->bmsr = bmsr_data;
-
-			/* Do all the cable in / cable out stuff */
-			et131x_mii_check(adapter, bmsr_data, bmsr_ints);
-		}
-
 		/* Let's move on to the TxMac */
 		if (status & ET_INTR_TXMAC) {
 			u32 err = readl(&iomem->txmac.err);
