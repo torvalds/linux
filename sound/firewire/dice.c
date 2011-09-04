@@ -827,28 +827,93 @@ static void dice_card_free(struct snd_card *card)
 	mutex_destroy(&dice->mutex);
 }
 
+#define DICE_CATEGORY_ID 0x04
+
+static int dice_interface_check(struct fw_unit *unit)
+{
+	static const int min_values[10] = {
+		10, 0x64 / 4,
+		10, 0x18 / 4,
+		10, 0x18 / 4,
+		0, 0,
+		0, 0,
+	};
+	struct fw_device *device = fw_parent_device(unit);
+	struct fw_csr_iterator it;
+	int key, value, vendor = -1, model = -1, err;
+	unsigned int i;
+	__be32 pointers[ARRAY_SIZE(min_values)];
+	__be32 version;
+
+	/*
+	 * Check that GUID and unit directory are constructed according to DICE
+	 * rules, i.e., that the specifier ID is the GUID's OUI, and that the
+	 * GUID chip ID consists of the 8-bit DICE category ID, the 10-bit
+	 * product ID, and a 22-bit serial number.
+	 */
+	fw_csr_iterator_init(&it, unit->directory);
+	while (fw_csr_iterator_next(&it, &key, &value)) {
+		switch (key) {
+		case CSR_SPECIFIER_ID:
+			vendor = value;
+			break;
+		case CSR_MODEL:
+			model = value;
+			break;
+		}
+	}
+	if (device->config_rom[3] != ((vendor << 8) | DICE_CATEGORY_ID) ||
+	    device->config_rom[4] >> 22 != model)
+		return -ENODEV;
+
+	/*
+	 * Check that the sub address spaces exist and are located inside the
+	 * private address space.  The minimum values are chosen so that all
+	 * minimally required registers are included.
+	 */
+	err = snd_fw_transaction(unit, TCODE_READ_BLOCK_REQUEST,
+				 DICE_PRIVATE_SPACE,
+				 pointers, sizeof(pointers));
+	if (err < 0)
+		return -ENODEV;
+	for (i = 0; i < ARRAY_SIZE(pointers); ++i) {
+		value = be32_to_cpu(pointers[i]);
+		if (value < min_values[i] || value >= 0x40000)
+			return -ENODEV;
+	}
+
+	/*
+	 * Check that the implemented DICE driver specification major version
+	 * number matches.
+	 */
+	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
+				 DICE_PRIVATE_SPACE +
+				 be32_to_cpu(pointers[0]) * 4 + GLOBAL_VERSION,
+				 &version, 4);
+	if (err < 0)
+		return -ENODEV;
+	if ((version & cpu_to_be32(0xff000000)) != cpu_to_be32(0x01000000)) {
+		dev_err(&unit->device,
+			"unknown DICE version: 0x%08x\n", be32_to_cpu(version));
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int dice_init_offsets(struct dice *dice)
 {
 	__be32 pointers[6];
-	unsigned int global_size, rx_size;
 	int err;
 
 	err = snd_fw_transaction(dice->unit, TCODE_READ_BLOCK_REQUEST,
-				 DICE_PRIVATE_SPACE, &pointers, 6 * 4);
+				 DICE_PRIVATE_SPACE,
+				 pointers, sizeof(pointers));
 	if (err < 0)
 		return err;
 
 	dice->global_offset = be32_to_cpu(pointers[0]) * 4;
-	global_size = be32_to_cpu(pointers[1]);
 	dice->rx_offset = be32_to_cpu(pointers[4]) * 4;
-	rx_size = be32_to_cpu(pointers[5]);
-
-	/* some sanity checks to ensure that we actually have a DICE */
-	if (dice->global_offset < 10 * 4 || global_size < 0x168 / 4 ||
-	    dice->rx_offset < 10 * 4 || rx_size < 0x120 / 4) {
-		dev_err(&dice->unit->device, "invalid register pointers\n");
-		return -ENXIO;
-	}
 
 	return 0;
 }
@@ -881,8 +946,8 @@ static void dice_card_strings(struct dice *dice)
 	strcpy(model, "?");
 	fw_csr_string(dice->unit->directory, CSR_MODEL, model, sizeof(model));
 	snprintf(card->longname, sizeof(card->longname),
-		 "%s %s, GUID %08x%08x at %s, S%d",
-		 vendor, model, dev->config_rom[3], dev->config_rom[4],
+		 "%s %s (serial %u) at %s, S%d",
+		 vendor, model, dev->config_rom[4] & 0x3fffff,
 		 dev_name(&dice->unit->device), 100 << dev->max_speed);
 
 	strcpy(card->mixername, "DICE");
@@ -894,6 +959,10 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	struct dice *dice;
 	__be32 clock_sel;
 	int err;
+
+	err = dice_interface_check(unit);
+	if (err < 0)
+		return err;
 
 	err = snd_card_create(-1, NULL, THIS_MODULE, sizeof(*dice), &card);
 	if (err < 0)
@@ -1020,15 +1089,12 @@ static void dice_bus_reset(struct fw_unit *unit)
 	mutex_unlock(&dice->mutex);
 }
 
-#define TC_OUI		0x000166
 #define DICE_INTERFACE	0x000001
 
 static const struct ieee1394_device_id dice_id_table[] = {
 	{
-		.match_flags  = IEEE1394_MATCH_SPECIFIER_ID |
-				IEEE1394_MATCH_VERSION,
-		.specifier_id = TC_OUI,
-		.version      = DICE_INTERFACE,
+		.match_flags = IEEE1394_MATCH_VERSION,
+		.version     = DICE_INTERFACE,
 	},
 	{ }
 };
