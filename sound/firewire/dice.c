@@ -559,24 +559,92 @@ static int dice_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void dice_stop_stream(struct dice *dice)
+static int dice_stream_start_packets(struct dice *dice)
+{
+	int err;
+
+	if (dice->stream_running)
+		return 0;
+
+	err = amdtp_out_stream_start(&dice->stream, dice->resources.channel,
+				     fw_parent_device(dice->unit)->max_speed);
+	if (err < 0)
+		return err;
+
+	err = dice_enable_set(dice);
+	if (err < 0) {
+		amdtp_out_stream_stop(&dice->stream);
+		return err;
+	}
+
+	dice->stream_running = true;
+
+	return 0;
+}
+
+static int dice_stream_start(struct dice *dice)
+{
+	__be32 channel;
+	int err;
+
+	if (!dice->resources.allocated) {
+		err = fw_iso_resources_allocate(&dice->resources,
+				amdtp_out_stream_get_max_payload(&dice->stream),
+				fw_parent_device(dice->unit)->max_speed);
+		if (err < 0)
+			goto error;
+
+		channel = cpu_to_be32(dice->resources.channel);
+		err = snd_fw_transaction(dice->unit,
+					 TCODE_WRITE_QUADLET_REQUEST,
+					 rx_address(dice, RX_ISOCHRONOUS),
+					 &channel, 4);
+		if (err < 0)
+			goto err_resources;
+	}
+
+	err = dice_stream_start_packets(dice);
+	if (err < 0)
+		goto err_rx_channel;
+
+	return 0;
+
+err_rx_channel:
+	channel = cpu_to_be32((u32)-1);
+	snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   rx_address(dice, RX_ISOCHRONOUS), &channel, 4);
+err_resources:
+	fw_iso_resources_free(&dice->resources);
+error:
+	return err;
+}
+
+static void dice_stream_stop_packets(struct dice *dice)
+{
+	if (!dice->stream_running)
+		return;
+
+	dice_enable_clear(dice);
+
+	amdtp_out_stream_stop(&dice->stream);
+
+	dice->stream_running = false;
+}
+
+static void dice_stream_stop(struct dice *dice)
 {
 	__be32 channel;
 
-	if (dice->stream_running) {
-		dice_enable_clear(dice);
+	dice_stream_stop_packets(dice);
 
-		amdtp_out_stream_stop(&dice->stream);
+	if (!dice->resources.allocated)
+		return;
 
-		channel = cpu_to_be32((u32)-1);
-		snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
-				   rx_address(dice, RX_ISOCHRONOUS),
-				   &channel, 4);
+	channel = cpu_to_be32((u32)-1);
+	snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   rx_address(dice, RX_ISOCHRONOUS), &channel, 4);
 
-		fw_iso_resources_free(&dice->resources);
-
-		dice->stream_running = false;
-	}
+	fw_iso_resources_free(&dice->resources);
 }
 
 static int dice_hw_params(struct snd_pcm_substream *substream,
@@ -586,7 +654,7 @@ static int dice_hw_params(struct snd_pcm_substream *substream,
 	int err;
 
 	mutex_lock(&dice->mutex);
-	dice_stop_stream(dice);
+	dice_stream_stop(dice);
 	mutex_unlock(&dice->mutex);
 
 	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
@@ -608,7 +676,7 @@ static int dice_hw_free(struct snd_pcm_substream *substream)
 	struct dice *dice = substream->private_data;
 
 	mutex_lock(&dice->mutex);
-	dice_stop_stream(dice);
+	dice_stream_stop(dice);
 	mutex_unlock(&dice->mutex);
 
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
@@ -617,42 +685,17 @@ static int dice_hw_free(struct snd_pcm_substream *substream)
 static int dice_prepare(struct snd_pcm_substream *substream)
 {
 	struct dice *dice = substream->private_data;
-	struct fw_device *device = fw_parent_device(dice->unit);
-	__be32 channel;
 	int err;
 
 	mutex_lock(&dice->mutex);
 
 	if (amdtp_out_streaming_error(&dice->stream))
-		dice_stop_stream(dice);
+		dice_stream_stop_packets(dice);
 
-	if (!dice->stream_running) {
-		err = fw_iso_resources_allocate(&dice->resources,
-				amdtp_out_stream_get_max_payload(&dice->stream),
-				device->max_speed);
-		if (err < 0)
-			goto error;
-
-		//TODO: RX_SEQ_START
-		channel = cpu_to_be32(dice->resources.channel);
-		err = snd_fw_transaction(dice->unit,
-					 TCODE_WRITE_QUADLET_REQUEST,
-					 rx_address(dice, RX_ISOCHRONOUS),
-					 &channel, 4);
-		if (err < 0)
-			goto err_resources;
-
-		err = amdtp_out_stream_start(&dice->stream,
-					     dice->resources.channel,
-					     device->max_speed);
-		if (err < 0)
-			goto err_resources;
-
-		err = dice_enable_set(dice);
-		if (err < 0)
-			goto err_stream;
-
-		dice->stream_running = true;
+	err = dice_stream_start(dice);
+	if (err < 0) {
+		mutex_unlock(&dice->mutex);
+		return err;
 	}
 
 	mutex_unlock(&dice->mutex);
@@ -660,15 +703,6 @@ static int dice_prepare(struct snd_pcm_substream *substream)
 	amdtp_out_stream_pcm_prepare(&dice->stream);
 
 	return 0;
-
-err_stream:
-	amdtp_out_stream_stop(&dice->stream);
-err_resources:
-	fw_iso_resources_free(&dice->resources);
-error:
-	mutex_unlock(&dice->mutex);
-
-	return err;
 }
 
 static int dice_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -941,7 +975,7 @@ static void dice_remove(struct fw_unit *unit)
 
 	mutex_lock(&dice->mutex);
 	amdtp_out_stream_pcm_abort(&dice->stream);
-	dice_stop_stream(dice);
+	dice_stream_stop(dice);
 	dice_owner_clear(dice);
 	mutex_unlock(&dice->mutex);
 
@@ -953,8 +987,8 @@ static void dice_bus_reset(struct fw_unit *unit)
 	struct dice *dice = dev_get_drvdata(&unit->device);
 
 	mutex_lock(&dice->mutex);
+
 	/*
-	 * XXX is the following true?
 	 * On a bus reset, the DICE firmware disables streaming and then goes
 	 * off contemplating its own navel for hundreds of milliseconds before
 	 * it can react to any of our attempts to reenable streaming.  This
@@ -962,9 +996,13 @@ static void dice_bus_reset(struct fw_unit *unit)
 	 * to stop so that the application can restart them in an orderly
 	 * manner.
 	 */
-	dice_owner_update(dice);
 	amdtp_out_stream_pcm_abort(&dice->stream);
-	dice_stop_stream(dice);
+	dice_stream_stop_packets(dice);
+
+	dice_owner_update(dice);
+
+	fw_iso_resources_update(&dice->resources);
+
 	mutex_unlock(&dice->mutex);
 }
 
