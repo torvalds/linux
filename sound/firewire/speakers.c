@@ -245,8 +245,10 @@ static int fwspk_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		goto error;
 
-	amdtp_out_stream_set_rate(&fwspk->stream, params_rate(hw_params));
-	amdtp_out_stream_set_pcm(&fwspk->stream, params_channels(hw_params));
+	amdtp_out_stream_set_parameters(&fwspk->stream,
+					params_rate(hw_params),
+					params_channels(hw_params),
+					0);
 
 	amdtp_out_stream_set_pcm_format(&fwspk->stream,
 					params_format(hw_params));

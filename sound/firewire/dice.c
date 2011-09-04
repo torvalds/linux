@@ -375,7 +375,7 @@ static int dice_open(struct snd_pcm_substream *substream)
 	struct dice *dice = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	__be32 clock_sel, number_audio, number_midi;
-	unsigned int rate;
+	unsigned int rate_index, rate;
 	int err;
 
 	err = dice_try_lock(dice);
@@ -387,12 +387,13 @@ static int dice_open(struct snd_pcm_substream *substream)
 				 &clock_sel, 4);
 	if (err < 0)
 		goto err_lock;
-	rate = (be32_to_cpu(clock_sel) & CLOCK_RATE_MASK) >> CLOCK_RATE_SHIFT;
-	if (rate >= ARRAY_SIZE(dice_rates)) {
+	rate_index = (be32_to_cpu(clock_sel) & CLOCK_RATE_MASK)
+							>> CLOCK_RATE_SHIFT;
+	if (rate_index >= ARRAY_SIZE(dice_rates)) {
 		err = -ENXIO;
 		goto err_lock;
 	}
-	rate = dice_rates[rate];
+	rate = dice_rates[rate_index];
 
 	err = snd_fw_transaction(dice->unit, TCODE_READ_QUADLET_REQUEST,
 				 rx_address(dice, RX_NUMBER_AUDIO),
@@ -413,9 +414,20 @@ static int dice_open(struct snd_pcm_substream *substream)
 	runtime->hw.channels_min = be32_to_cpu(number_audio);
 	runtime->hw.channels_max = be32_to_cpu(number_audio);
 
-	amdtp_out_stream_set_rate(&dice->stream, rate);
-	amdtp_out_stream_set_pcm(&dice->stream, be32_to_cpu(number_audio));
-	amdtp_out_stream_set_midi(&dice->stream, be32_to_cpu(number_midi));
+	amdtp_out_stream_set_parameters(&dice->stream, rate,
+					be32_to_cpu(number_audio),
+					be32_to_cpu(number_midi));
+
+	err = snd_pcm_hw_constraint_step(runtime, 0,
+					 SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					 amdtp_syt_intervals[rate_index]);
+	if (err < 0)
+		goto err_lock;
+	err = snd_pcm_hw_constraint_step(runtime, 0,
+					 SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					 amdtp_syt_intervals[rate_index]);
+	if (err < 0)
+		goto err_lock;
 
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
@@ -993,7 +1005,8 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 		goto err_notification_handler;
 	dice->resources.channels_mask = 0x00000000ffffffffuLL;
 
-	err = amdtp_out_stream_init(&dice->stream, unit, CIP_BLOCKING);
+	err = amdtp_out_stream_init(&dice->stream, unit,
+				    CIP_BLOCKING | CIP_HI_DUALWIRE);
 	if (err < 0)
 		goto err_resources;
 
