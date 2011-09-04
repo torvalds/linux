@@ -942,7 +942,7 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 		goto err_notification_handler;
 	dice->resources.channels_mask = 0x00000000ffffffffuLL;
 
-	err = amdtp_out_stream_init(&dice->stream, unit, CIP_NONBLOCKING);
+	err = amdtp_out_stream_init(&dice->stream, unit, CIP_BLOCKING);
 	if (err < 0)
 		goto err_resources;
 

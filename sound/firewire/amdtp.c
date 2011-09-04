@@ -42,9 +42,6 @@ static void pcm_period_tasklet(unsigned long data);
 int amdtp_out_stream_init(struct amdtp_out_stream *s, struct fw_unit *unit,
 			  enum cip_out_flags flags)
 {
-	if (flags != CIP_NONBLOCKING)
-		return -EINVAL;
-
 	s->unit = fw_unit_get(unit);
 	s->flags = flags;
 	s->context = ERR_PTR(-1);
@@ -96,12 +93,20 @@ void amdtp_out_stream_set_rate(struct amdtp_out_stream *s, unsigned int rate)
 		return;
 
 	for (sfc = 0; sfc < ARRAY_SIZE(rate_info); ++sfc)
-		if (rate_info[sfc].rate == rate) {
-			s->sfc = sfc;
-			s->syt_interval = rate_info[sfc].syt_interval;
-			return;
-		}
+		if (rate_info[sfc].rate == rate)
+			goto sfc_found;
 	WARN_ON(1);
+	return;
+
+sfc_found:
+	s->sfc = sfc;
+	s->syt_interval = rate_info[sfc].syt_interval;
+
+	/* default buffering in the device */
+	s->transfer_delay = TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
+	if (s->flags & CIP_BLOCKING)
+		/* additional buffering needed to adjust for no-data packets */
+		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
 }
 EXPORT_SYMBOL(amdtp_out_stream_set_rate);
 
@@ -110,25 +115,15 @@ EXPORT_SYMBOL(amdtp_out_stream_set_rate);
  * @s: the AMDTP output stream
  *
  * This function must not be called before the stream has been configured
- * with amdtp_out_stream_set_hw_params(), amdtp_out_stream_set_pcm(), and
+ * with amdtp_out_stream_set_rate(), amdtp_out_stream_set_pcm(), and
  * amdtp_out_stream_set_midi().
  */
 unsigned int amdtp_out_stream_get_max_payload(struct amdtp_out_stream *s)
 {
-	static const unsigned int max_data_blocks[] = {
-		[CIP_SFC_32000]  =  4,
-		[CIP_SFC_44100]  =  6,
-		[CIP_SFC_48000]  =  6,
-		[CIP_SFC_88200]  = 12,
-		[CIP_SFC_96000]  = 12,
-		[CIP_SFC_176400] = 23,
-		[CIP_SFC_192000] = 24,
-	};
-
 	s->data_block_quadlets = s->pcm_channels;
 	s->data_block_quadlets += DIV_ROUND_UP(s->midi_ports, 8);
 
-	return 8 + max_data_blocks[s->sfc] * 4 * s->data_block_quadlets;
+	return 8 + s->syt_interval * s->data_block_quadlets * 4;
 }
 EXPORT_SYMBOL(amdtp_out_stream_get_max_payload);
 
@@ -248,7 +243,7 @@ static unsigned int calculate_syt(struct amdtp_out_stream *s,
 	s->last_syt_offset = syt_offset;
 
 	if (syt_offset < TICKS_PER_CYCLE) {
-		syt_offset += TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
+		syt_offset += s->transfer_delay;
 		syt = (cycle + syt_offset / TICKS_PER_CYCLE) << 12;
 		syt += syt_offset % TICKS_PER_CYCLE;
 
@@ -344,8 +339,17 @@ static void queue_out_packet(struct amdtp_out_stream *s, unsigned int cycle)
 		return;
 	index = s->packet_index;
 
-	data_blocks = calculate_data_blocks(s);
 	syt = calculate_syt(s, cycle);
+	if (!(s->flags & CIP_BLOCKING)) {
+		data_blocks = calculate_data_blocks(s);
+	} else {
+		if (syt != 0xffff) {
+			data_blocks = s->syt_interval;
+		} else {
+			data_blocks = 0;
+			syt = 0xffffff;
+		}
+	}
 
 	buffer = s->buffer.packets[index].buffer;
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
@@ -455,9 +459,9 @@ static int queue_initial_skip_packets(struct amdtp_out_stream *s)
  * @speed: firewire speed code
  *
  * The stream cannot be started until it has been configured with
- * amdtp_out_stream_set_hw_params(), amdtp_out_stream_set_pcm(), and
- * amdtp_out_stream_set_midi(); and it must be started before any
- * PCM or MIDI device can be started.
+ * amdtp_out_stream_set_rate(), amdtp_out_stream_set_pcm(),
+ * amdtp_out_stream_set_midi(), and amdtp_out_stream_set_format();
+ * and it must be started before any PCM or MIDI device can be started.
  */
 int amdtp_out_stream_start(struct amdtp_out_stream *s, int channel, int speed)
 {

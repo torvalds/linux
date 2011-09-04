@@ -11,9 +11,13 @@
  *	sample_rate/8000 samples, with rounding up or down to adjust
  *	for clock skew and left-over fractional samples.  This should
  *	be used if supported by the device.
+ * @CIP_BLOCKING: In blocking mode, each packet contains either zero or
+ *	SYT_INTERVAL samples, with these two types alternating so that
+ *	the overall sample rate comes out right.
  */
 enum cip_out_flags {
-	CIP_NONBLOCKING = 0,
+	CIP_NONBLOCKING	= 0x00,
+	CIP_BLOCKING	= 0x01,
 };
 
 /**
@@ -51,6 +55,7 @@ struct amdtp_out_stream {
 				 __be32 *buffer, unsigned int frames);
 
 	unsigned int syt_interval;
+	unsigned int transfer_delay;
 	unsigned int source_node_id_field;
 	struct iso_packets_buffer buffer;
 
