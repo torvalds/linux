@@ -966,6 +966,18 @@ static int dice_hwdep_unlock(struct dice *dice)
 	return err;
 }
 
+static int dice_hwdep_release(struct snd_hwdep *hwdep, struct file *file)
+{
+	struct dice *dice = hwdep->private_data;
+
+	spin_lock_irq(&dice->lock);
+	if (dice->dev_lock_count == -1)
+		dice->dev_lock_count = 0;
+	spin_unlock_irq(&dice->lock);
+
+	return 0;
+}
+
 static int dice_hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
@@ -998,6 +1010,7 @@ static int dice_create_hwdep(struct dice *dice)
 {
 	static const struct snd_hwdep_ops ops = {
 		.read         = dice_hwdep_read,
+		.release      = dice_hwdep_release,
 		.poll         = dice_hwdep_poll,
 		.ioctl        = dice_hwdep_ioctl,
 		.ioctl_compat = dice_hwdep_compat_ioctl,
