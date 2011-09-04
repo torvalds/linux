@@ -115,7 +115,7 @@ static inline void update_t_max_wait(transaction_t *transaction,
  */
 
 static int start_this_handle(journal_t *journal, handle_t *handle,
-			     int gfp_mask)
+			     gfp_t gfp_mask)
 {
 	transaction_t	*transaction, *new_transaction = NULL;
 	tid_t		tid;
@@ -320,7 +320,7 @@ static handle_t *new_handle(int nblocks)
  * Return a pointer to a newly allocated handle, or an ERR_PTR() value
  * on failure.
  */
-handle_t *jbd2__journal_start(journal_t *journal, int nblocks, int gfp_mask)
+handle_t *jbd2__journal_start(journal_t *journal, int nblocks, gfp_t gfp_mask)
 {
 	handle_t *handle = journal_current_handle();
 	int err;
@@ -443,7 +443,7 @@ out:
  * transaction capabable of guaranteeing the requested number of
  * credits.
  */
-int jbd2__journal_restart(handle_t *handle, int nblocks, int gfp_mask)
+int jbd2__journal_restart(handle_t *handle, int nblocks, gfp_t gfp_mask)
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal = transaction->t_journal;

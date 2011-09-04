@@ -1106,9 +1106,9 @@ static inline handle_t *journal_current_handle(void)
  */
 
 extern handle_t *jbd2_journal_start(journal_t *, int nblocks);
-extern handle_t *jbd2__journal_start(journal_t *, int nblocks, int gfp_mask);
+extern handle_t *jbd2__journal_start(journal_t *, int nblocks, gfp_t gfp_mask);
 extern int	 jbd2_journal_restart(handle_t *, int nblocks);
-extern int	 jbd2__journal_restart(handle_t *, int nblocks, int gfp_mask);
+extern int	 jbd2__journal_restart(handle_t *, int nblocks, gfp_t gfp_mask);
 extern int	 jbd2_journal_extend (handle_t *, int nblocks);
 extern int	 jbd2_journal_get_write_access(handle_t *, struct buffer_head *);
 extern int	 jbd2_journal_get_create_access (handle_t *, struct buffer_head *);
