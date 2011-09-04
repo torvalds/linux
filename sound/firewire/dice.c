@@ -1000,12 +1000,15 @@ static void dice_remove(struct fw_unit *unit)
 {
 	struct dice *dice = dev_get_drvdata(&unit->device);
 
+	mutex_lock(&dice->mutex);
+
+	amdtp_out_stream_pcm_abort(&dice->stream);
+
 	snd_card_disconnect(dice->card);
 
-	mutex_lock(&dice->mutex);
-	amdtp_out_stream_pcm_abort(&dice->stream);
 	dice_stream_stop(dice);
 	dice_owner_clear(dice);
+
 	mutex_unlock(&dice->mutex);
 
 	snd_card_free_when_closed(dice->card);
