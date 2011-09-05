@@ -85,8 +85,6 @@ typedef int (*regmap_hw_read)(struct device *dev,
  *                if not implemented  on a given device.
  * @read: Read operation.  Data is returned in the buffer used to transmit
  *         data.
- * @owner: Module with the bus implementation, used to pin the implementation
- *         in memory.
  * @read_flag_mask: Mask to be set in the top byte of the register when doing
  *                  a read.
  */
@@ -94,7 +92,6 @@ struct regmap_bus {
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
 	regmap_hw_read read;
-	struct module *owner;
 	u8 read_flag_mask;
 };
 

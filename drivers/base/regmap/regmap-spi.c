@@ -50,7 +50,6 @@ static struct regmap_bus regmap_spi = {
 	.write = regmap_spi_write,
 	.gather_write = regmap_spi_gather_write,
 	.read = regmap_spi_read,
-	.owner = THIS_MODULE,
 	.read_flag_mask = 0x80,
 };
 
