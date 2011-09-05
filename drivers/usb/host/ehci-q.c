@@ -1056,7 +1056,7 @@ static struct ehci_qh *qh_append_tds (
 			 */
 			token = qtd->hw_token;
 			qtd->hw_token = HALT_BIT(ehci);
-			wmb ();
+
 			dummy = qh->dummy;
 
 			dma = dummy->qtd_dma;
