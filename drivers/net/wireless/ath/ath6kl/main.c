@@ -261,7 +261,7 @@ int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value)
  * Write to the ATH6KL through its diagnostic window. No cooperation from
  * the Target is required for this.
  */
-static int ath6kl_diag_write32(struct ath6kl *ar, u32 address, u32 value)
+int ath6kl_diag_write32(struct ath6kl *ar, u32 address, u32 value)
 {
 	int ret;
 
