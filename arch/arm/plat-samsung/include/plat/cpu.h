@@ -30,7 +30,7 @@ extern unsigned long samsung_cpu_id;
 
 #define S5P6440_CPU_ID		0x56440000
 #define S5P6450_CPU_ID		0x36450000
-#define S5P64XX_CPU_MASK	0x1FF40000
+#define S5P64XX_CPU_MASK	0xFFFFF000
 
 #define S5PC100_CPU_ID		0x43100000
 #define S5PC100_CPU_MASK	0xFFFFF000
