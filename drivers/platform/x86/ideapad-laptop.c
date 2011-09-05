@@ -284,9 +284,8 @@ static struct rfkill_ops ideapad_rfk_ops = {
 	.set_block = ideapad_rfk_set,
 };
 
-static void ideapad_sync_rfk_state(struct acpi_device *adevice)
+static void ideapad_sync_rfk_state(struct ideapad_private *priv)
 {
-	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	unsigned long hw_blocked;
 	int i;
 
@@ -577,7 +576,7 @@ static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 		else
 			priv->rfk[i] = NULL;
 	}
-	ideapad_sync_rfk_state(adevice);
+	ideapad_sync_rfk_state(priv);
 
 	if (!acpi_video_backlight_support()) {
 		ret = ideapad_backlight_init(priv);
@@ -630,7 +629,7 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 		if (test_bit(vpc_bit, &vpc1)) {
 			switch (vpc_bit) {
 			case 9:
-				ideapad_sync_rfk_state(adevice);
+				ideapad_sync_rfk_state(priv);
 				break;
 			case 4:
 				ideapad_backlight_notify_brightness(priv);
