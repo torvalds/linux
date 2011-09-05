@@ -448,13 +448,26 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar)
 			status = -EIO;
 		}
 
-	ret = ath6kl_wmi_info_req_cmd(ar->wmi, P2P_FLAG_CAPABILITIES_REQ |
-				      P2P_FLAG_MACADDR_REQ |
-				      P2P_FLAG_HMODEL_REQ);
-	if (ret) {
-		ath6kl_dbg(ATH6KL_DBG_TRC, "failed to request P2P "
-			   "capabilities (%d) - assuming P2P not supported\n",
-			   ret);
+	if (ar->p2p) {
+		ret = ath6kl_wmi_info_req_cmd(ar->wmi,
+					      P2P_FLAG_CAPABILITIES_REQ |
+					      P2P_FLAG_MACADDR_REQ |
+					      P2P_FLAG_HMODEL_REQ);
+		if (ret) {
+			ath6kl_dbg(ATH6KL_DBG_TRC, "failed to request P2P "
+				   "capabilities (%d) - assuming P2P not "
+				   "supported\n", ret);
+			ar->p2p = 0;
+		}
+	}
+
+	if (ar->p2p) {
+		/* Enable Probe Request reporting for P2P */
+		ret = ath6kl_wmi_probe_report_req_cmd(ar->wmi, true);
+		if (ret) {
+			ath6kl_dbg(ATH6KL_DBG_TRC, "failed to enable Probe "
+				   "Request reporting (%d)\n", ret);
+		}
 	}
 
 	return status;
@@ -492,6 +505,10 @@ int ath6kl_configure_target(struct ath6kl *ar)
 
 	param |= (1 << HI_OPTION_NUM_DEV_SHIFT);
 	param |= (fw_iftype << HI_OPTION_FW_MODE_SHIFT);
+	if (ar->p2p && fw_iftype == HI_OPTION_FW_MODE_BSS_STA) {
+		param |= HI_OPTION_FW_SUBMODE_P2PDEV <<
+			HI_OPTION_FW_SUBMODE_SHIFT;
+	}
 	param |= (0 << HI_OPTION_MAC_ADDR_METHOD_SHIFT);
 	param |= (0 << HI_OPTION_FW_BRIDGE_SHIFT);
 

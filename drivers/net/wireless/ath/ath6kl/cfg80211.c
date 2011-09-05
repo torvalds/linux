@@ -20,6 +20,10 @@
 #include "hif-ops.h"
 #include "testmode.h"
 
+static unsigned int ath6kl_p2p;
+
+module_param(ath6kl_p2p, uint, 0644);
+
 #define RATETAB_ENT(_rate, _rateid, _flags) {   \
 	.bitrate    = (_rate),                  \
 	.flags      = (_flags),                 \
@@ -1936,6 +1940,7 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 {
 	int ret = 0;
 	struct wireless_dev *wdev;
+	struct ath6kl *ar;
 
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!wdev) {
@@ -1951,6 +1956,9 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 		return NULL;
 	}
 
+	ar = wiphy_priv(wdev->wiphy);
+	ar->p2p = !!ath6kl_p2p;
+
 	wdev->wiphy->mgmt_stypes = ath6kl_mgmt_stypes;
 
 	wdev->wiphy->max_remain_on_channel_duration = 5000;
@@ -1960,6 +1968,10 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 
 	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
+	if (ar->p2p) {
+		wdev->wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_GO) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT);
+	}
 	/* max num of ssids that can be probed during scanning */
 	wdev->wiphy->max_scan_ssids = MAX_PROBED_SSID_INDEX;
 	wdev->wiphy->max_scan_ie_len = 1000; /* FIX: what is correct limit? */

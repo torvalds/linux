@@ -304,6 +304,11 @@ struct host_interest {
 #define HI_OPTION_FW_MODE_BSS_STA 0x1
 #define HI_OPTION_FW_MODE_AP      0x2
 
+#define HI_OPTION_FW_SUBMODE_NONE      0x0
+#define HI_OPTION_FW_SUBMODE_P2PDEV    0x1
+#define HI_OPTION_FW_SUBMODE_P2PCLIENT 0x2
+#define HI_OPTION_FW_SUBMODE_P2PGO     0x3
+
 #define HI_OPTION_NUM_DEV_SHIFT   0x9
 
 #define HI_OPTION_FW_BRIDGE_SHIFT 0x04
@@ -316,6 +321,7 @@ struct host_interest {
 |------------------------------------------------------------------------------|
 */
 #define HI_OPTION_FW_MODE_SHIFT        0xC
+#define HI_OPTION_FW_SUBMODE_SHIFT     0x14
 
 /* Convert a Target virtual address into a Target physical address */
 #define AR6003_VTOP(vaddr) ((vaddr) & 0x001fffff)

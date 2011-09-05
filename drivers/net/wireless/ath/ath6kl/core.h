@@ -471,6 +471,8 @@ struct ath6kl {
 	bool probe_req_report;
 	u16 next_chan;
 
+	bool p2p;
+
 #ifdef CONFIG_ATH6KL_DEBUG
 	struct {
 		struct circ_buf fwlog_buf;
