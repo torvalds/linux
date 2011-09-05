@@ -848,7 +848,7 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	bio->bi_end_io = super_written;
 
 	atomic_inc(&mddev->pending_writes);
-	submit_bio(REQ_WRITE | REQ_SYNC | REQ_FLUSH | REQ_FUA, bio);
+	submit_bio(WRITE_FLUSH_FUA, bio);
 }
 
 void md_super_wait(mddev_t *mddev)
@@ -1738,6 +1738,11 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	sb->level = cpu_to_le32(mddev->level);
 	sb->layout = cpu_to_le32(mddev->layout);
 
+	if (test_bit(WriteMostly, &rdev->flags))
+		sb->devflags |= WriteMostly1;
+	else
+		sb->devflags &= ~WriteMostly1;
+
 	if (mddev->bitmap && mddev->bitmap_info.file == NULL) {
 		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_info.offset);
 		sb->feature_map = cpu_to_le32(MD_FEATURE_BITMAP_OFFSET);
@@ -2561,7 +2566,10 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	int err = -EINVAL;
 	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
 		md_error(rdev->mddev, rdev);
-		err = 0;
+		if (test_bit(Faulty, &rdev->flags))
+			err = 0;
+		else
+			err = -EBUSY;
 	} else if (cmd_match(buf, "remove")) {
 		if (rdev->raid_disk >= 0)
 			err = -EBUSY;
@@ -2584,7 +2592,7 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		err = 0;
 	} else if (cmd_match(buf, "-blocked")) {
 		if (!test_bit(Faulty, &rdev->flags) &&
-		    test_bit(BlockedBadBlocks, &rdev->flags)) {
+		    rdev->badblocks.unacked_exist) {
 			/* metadata handler doesn't understand badblocks,
 			 * so we need to fail the device
 			 */
@@ -5983,6 +5991,8 @@ static int set_disk_faulty(mddev_t *mddev, dev_t dev)
 		return -ENODEV;
 
 	md_error(mddev, rdev);
+	if (!test_bit(Faulty, &rdev->flags))
+		return -EBUSY;
 	return 0;
 }
 
