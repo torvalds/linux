@@ -676,13 +676,20 @@ int speround_handler(struct pt_regs *regs)
 	type = insn_type(speinsn & 0x7ff);
 	if (type == XCR) return -ENOSYS;
 
+	__FPU_FPSCR = mfspr(SPRN_SPEFSCR);
+	pr_debug("speinsn:%08lx spefscr:%08lx\n", speinsn, __FPU_FPSCR);
+
+	/* No need to round if the result is exact */
+	if (!(__FPU_FPSCR & FP_EX_INEXACT))
+		return 0;
+
 	fc = (speinsn >> 21) & 0x1f;
 	s_lo = regs->gpr[fc] & SIGN_BIT_S;
 	s_hi = current->thread.evr[fc] & SIGN_BIT_S;
 	fgpr.wp[0] = current->thread.evr[fc];
 	fgpr.wp[1] = regs->gpr[fc];
 
-	__FPU_FPSCR = mfspr(SPRN_SPEFSCR);
+	pr_debug("round fgpr: %08x  %08x\n", fgpr.wp[0], fgpr.wp[1]);
 
 	switch ((speinsn >> 5) & 0x7) {
 	/* Since SPE instructions on E500 core can handle round to nearest
@@ -721,6 +728,8 @@ int speround_handler(struct pt_regs *regs)
 
 	current->thread.evr[fc] = fgpr.wp[0];
 	regs->gpr[fc] = fgpr.wp[1];
+
+	pr_debug("  to fgpr: %08x  %08x\n", fgpr.wp[0], fgpr.wp[1]);
 
 	return 0;
 }
