@@ -50,49 +50,52 @@ static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);		/* Protects the list of hosts */
 
-static int soc_camera_power_set(struct soc_camera_device *icd,
-				struct soc_camera_link *icl,
-				int power_on)
+static int soc_camera_power_on(struct soc_camera_device *icd,
+			       struct soc_camera_link *icl)
 {
 	int ret;
 
-	if (power_on) {
-		ret = regulator_bulk_enable(icl->num_regulators,
-					    icl->regulators);
-		if (ret < 0) {
-			dev_err(icd->pdev, "Cannot enable regulators\n");
-			return ret;
-		}
+	ret = regulator_bulk_enable(icl->num_regulators,
+				    icl->regulators);
+	if (ret < 0) {
+		dev_err(icd->pdev, "Cannot enable regulators\n");
+		return ret;
+	}
 
-		if (icl->power)
-			ret = icl->power(icd->pdev, power_on);
+	if (icl->power) {
+		ret = icl->power(icd->pdev, 1);
 		if (ret < 0) {
 			dev_err(icd->pdev,
 				"Platform failed to power-on the camera.\n");
 
 			regulator_bulk_disable(icl->num_regulators,
 					       icl->regulators);
-			return ret;
 		}
-	} else {
-		ret = 0;
-		if (icl->power)
-			ret = icl->power(icd->pdev, 0);
+	}
+
+	return ret;
+}
+
+static int soc_camera_power_off(struct soc_camera_device *icd,
+				struct soc_camera_link *icl)
+{
+	int ret;
+
+	if (icl->power) {
+		ret = icl->power(icd->pdev, 0);
 		if (ret < 0) {
 			dev_err(icd->pdev,
 				"Platform failed to power-off the camera.\n");
 			return ret;
 		}
-
-		ret = regulator_bulk_disable(icl->num_regulators,
-					     icl->regulators);
-		if (ret < 0) {
-			dev_err(icd->pdev, "Cannot disable regulators\n");
-			return ret;
-		}
 	}
 
-	return 0;
+	ret = regulator_bulk_disable(icl->num_regulators,
+				     icl->regulators);
+	if (ret < 0)
+		dev_err(icd->pdev, "Cannot disable regulators\n");
+
+	return ret;
 }
 
 const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
@@ -502,7 +505,7 @@ static int soc_camera_open(struct file *file)
 			},
 		};
 
-		ret = soc_camera_power_set(icd, icl, 1);
+		ret = soc_camera_power_on(icd, icl);
 		if (ret < 0)
 			goto epower;
 
@@ -556,7 +559,7 @@ esfmt:
 eresume:
 	ici->ops->remove(icd);
 eiciadd:
-	soc_camera_power_set(icd, icl, 0);
+	soc_camera_power_off(icd, icl);
 epower:
 	icd->use_count--;
 	module_put(ici->ops->owner);
@@ -580,7 +583,7 @@ static int soc_camera_close(struct file *file)
 		if (ici->ops->init_videobuf2)
 			vb2_queue_release(&icd->vb2_vidq);
 
-		soc_camera_power_set(icd, icl, 0);
+		soc_camera_power_off(icd, icl);
 	}
 
 	if (icd->streamer == file)
@@ -1026,7 +1029,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	if (ret < 0)
 		goto ereg;
 
-	ret = soc_camera_power_set(icd, icl, 1);
+	ret = soc_camera_power_on(icd, icl);
 	if (ret < 0)
 		goto epower;
 
@@ -1106,7 +1109,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 
 	ici->ops->remove(icd);
 
-	soc_camera_power_set(icd, icl, 0);
+	soc_camera_power_off(icd, icl);
 
 	mutex_unlock(&icd->video_lock);
 
@@ -1129,7 +1132,7 @@ eadddev:
 evdc:
 	ici->ops->remove(icd);
 eadd:
-	soc_camera_power_set(icd, icl, 0);
+	soc_camera_power_off(icd, icl);
 epower:
 	regulator_bulk_free(icl->num_regulators, icl->regulators);
 ereg:
