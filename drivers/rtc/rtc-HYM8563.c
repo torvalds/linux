@@ -478,6 +478,19 @@ static int __devexit hym8563_remove(struct i2c_client *client)
 	return 0;
 }
 
+
+void hym8563_shutdown(struct i2c_client * client)
+{	u8 regs[2];	
+    int ret; 	
+    //disable clkout	
+    regs[0] = 0x00;	
+    ret=hym8563_i2c_set_regs(client, RTC_CLKOUT, regs, 1);	
+    if(ret<0)	
+        printk("rtc shutdown is error\n");
+}
+
+
+
 static const struct i2c_device_id hym8563_id[] = {
 	{ "rtc_hym8563", 0 },
 	{ }
@@ -491,6 +504,7 @@ static struct i2c_driver hym8563_driver = {
 	},
 	.probe		= hym8563_probe,
 	.remove		= __devexit_p(hym8563_remove),
+	.shutdown=hym8563_shutdown,
 	.id_table	= hym8563_id,
 };
 
