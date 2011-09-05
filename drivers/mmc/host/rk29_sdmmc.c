@@ -2510,15 +2510,15 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
                        && (rk29_sdmmc_test_pending(host, EVENT_CMD_COMPLETE)|| rk29_sdmmc_test_pending(host, EVENT_DATA_COMPLETE) );
         if(pending_flag)
         {
-            printk("%s..%d...  cmd=%d(arg=0x%x),completedone=%d, retrycount=%d, doneflag=%d, \n \
+            xbwprintk(7, "%s..%d...  cmd=%d(arg=0x%x),completedone=%d, retrycount=%d, doneflag=%d, \n \
                 host->state=0x%x, switchstate=%x, \n \
                 pendingEvent=0x%lu, completeEvents=0x%lu, \n \
                 mrqCMD=%d, arg=0x%x \n ====xbw[%s]====\n",\
                 
                 __FUNCTION__, __LINE__,host->cmd->opcode, host->cmd->arg, host->complete_done,\
                 host->retryfunc, host->mmc->doneflag,host->state, state, \
-                host->pending_events,host->completed_events,host->dma_name, \
-                host->mrq->cmd->opcode, host->mrq->cmd->arg);
+                host->pending_events,host->completed_events,\
+                host->mrq->cmd->opcode, host->mrq->cmd->arg, host->dma_name);
                 
             cpu_relax();
         }
