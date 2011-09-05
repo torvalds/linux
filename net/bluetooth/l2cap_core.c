@@ -991,7 +991,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 
 	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend)) {
 		del_timer(&conn->security_timer);
-		hci_conn_put(hcon);
+		smp_chan_destroy(conn);
 	}
 
 	hcon->l2cap_data = NULL;
