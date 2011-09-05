@@ -1585,6 +1585,24 @@ void efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 	}
 }
 
+void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
+			    unsigned int *rx_usecs, bool *rx_adaptive)
+{
+	*rx_adaptive = efx->irq_rx_adaptive;
+	*rx_usecs = efx->irq_rx_moderation * EFX_IRQ_MOD_RESOLUTION;
+
+	/* If channels are shared between RX and TX, so is IRQ
+	 * moderation.  Otherwise, IRQ moderation is the same for all
+	 * TX channels and is not adaptive.
+	 */
+	if (efx->tx_channel_offset == 0)
+		*tx_usecs = *rx_usecs;
+	else
+		*tx_usecs =
+			efx->channel[efx->tx_channel_offset]->irq_moderation *
+			EFX_IRQ_MOD_RESOLUTION;
+}
+
 /**************************************************************************
  *
  * Hardware monitor

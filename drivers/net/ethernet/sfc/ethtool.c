@@ -586,40 +586,37 @@ static int efx_ethtool_nway_reset(struct net_device *net_dev)
 	return mdio45_nway_restart(&efx->mdio);
 }
 
+/*
+ * Each channel has a single IRQ and moderation timer, started by any
+ * completion (or other event).  Unless the module parameter
+ * separate_tx_channels is set, IRQs and moderation are therefore
+ * shared between RX and TX completions.  In this case, when RX IRQ
+ * moderation is explicitly changed then TX IRQ moderation is
+ * automatically changed too, but otherwise we fail if the two values
+ * are requested to be different.
+ *
+ * We implement adaptive IRQ moderation, but use a different algorithm
+ * from that assumed in the definition of struct ethtool_coalesce.
+ * Therefore we do not use any of the adaptive moderation parameters
+ * in it.
+ */
+
 static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 				    struct ethtool_coalesce *coalesce)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_channel *channel;
+	unsigned int tx_usecs, rx_usecs;
+	bool rx_adaptive;
 
-	memset(coalesce, 0, sizeof(*coalesce));
+	efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &rx_adaptive);
 
-	/* Find lowest IRQ moderation across all used TX queues */
-	coalesce->tx_coalesce_usecs_irq = ~((u32) 0);
-	efx_for_each_channel(channel, efx) {
-		if (!efx_channel_has_tx_queues(channel))
-			continue;
-		if (channel->irq_moderation < coalesce->tx_coalesce_usecs_irq) {
-			if (channel->channel < efx->n_rx_channels)
-				coalesce->tx_coalesce_usecs_irq =
-					channel->irq_moderation;
-			else
-				coalesce->tx_coalesce_usecs_irq = 0;
-		}
-	}
-
-	coalesce->use_adaptive_rx_coalesce = efx->irq_rx_adaptive;
-	coalesce->rx_coalesce_usecs_irq = efx->irq_rx_moderation;
-
-	coalesce->tx_coalesce_usecs_irq *= EFX_IRQ_MOD_RESOLUTION;
-	coalesce->rx_coalesce_usecs_irq *= EFX_IRQ_MOD_RESOLUTION;
+	coalesce->tx_coalesce_usecs_irq = tx_usecs;
+	coalesce->rx_coalesce_usecs_irq = rx_usecs;
+	coalesce->use_adaptive_rx_coalesce = rx_adaptive;
 
 	return 0;
 }
 
-/* Set coalescing parameters
- * The difficulties occur for shared channels
- */
 static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 				    struct ethtool_coalesce *coalesce)
 {
@@ -637,20 +634,22 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 		return -EINVAL;
 	}
 
+	efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
+
 	rx_usecs = coalesce->rx_coalesce_usecs_irq;
-	tx_usecs = coalesce->tx_coalesce_usecs_irq;
 	adaptive = coalesce->use_adaptive_rx_coalesce;
 
-	/* If the channel is shared only allow RX parameters to be set */
-	efx_for_each_channel(channel, efx) {
-		if (efx_channel_has_rx_queue(channel) &&
-		    efx_channel_has_tx_queues(channel) &&
-		    tx_usecs) {
-			netif_err(efx, drv, efx->net_dev, "Channel is shared. "
-				  "Only RX coalescing may be set\n");
-			return -EINVAL;
-		}
+	/* If channels are shared, TX IRQ moderation can be quietly
+	 * overridden unless it is changed from its old value.
+	 */
+	if (efx->tx_channel_offset == 0 &&
+	    coalesce->tx_coalesce_usecs_irq != tx_usecs &&
+	    coalesce->tx_coalesce_usecs_irq != rx_usecs) {
+		netif_err(efx, drv, efx->net_dev, "Channels are shared. "
+			  "RX and TX IRQ moderation must be equal\n");
+		return -EINVAL;
 	}
+	tx_usecs = coalesce->tx_coalesce_usecs_irq;
 
 	efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive);
 	efx_for_each_channel(channel, efx)
