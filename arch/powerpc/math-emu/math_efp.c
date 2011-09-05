@@ -171,10 +171,6 @@ static unsigned long insn_type(unsigned long speinsn)
 	case EFDNABS:	ret = XA;	break;
 	case EFDNEG:	ret = XA;	break;
 	case EFDSUB:	ret = AB;	break;
-
-	default:
-		printk(KERN_ERR "\nOoops! SPE instruction no type found.");
-		printk(KERN_ERR "\ninst code: %08lx\n", speinsn);
 	}
 
 	return ret;
@@ -195,7 +191,7 @@ int do_spe_mathemu(struct pt_regs *regs)
 
 	type = insn_type(speinsn);
 	if (type == NOTYPE)
-		return -ENOSYS;
+		goto illegal;
 
 	func = speinsn & 0x7ff;
 	fc = (speinsn >> 21) & 0x1f;
