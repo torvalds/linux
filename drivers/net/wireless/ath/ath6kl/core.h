@@ -478,6 +478,8 @@ struct ath6kl {
 		void *fwlog_tmp;
 		u32 fwlog_mask;
 		unsigned int dbgfs_diag_reg;
+		u32 diag_reg_addr_wr;
+		u32 diag_reg_val_wr;
 	} debug;
 #endif /* CONFIG_ATH6KL_DEBUG */
 };

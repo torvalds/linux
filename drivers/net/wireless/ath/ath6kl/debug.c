@@ -759,6 +759,68 @@ static const struct file_operations fops_lrssi_roam_threshold = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath6kl_regwrite_read(struct file *file,
+				    char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	u8 buf[32];
+	unsigned int len = 0;
+
+	len = scnprintf(buf, sizeof(buf), "Addr: 0x%x Val: 0x%x\n",
+			ar->debug.diag_reg_addr_wr, ar->debug.diag_reg_val_wr);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath6kl_regwrite_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char buf[32];
+	char *sptr, *token;
+	unsigned int len = 0;
+	u32 reg_addr, reg_val;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	sptr = buf;
+
+	token = strsep(&sptr, "=");
+	if (!token)
+		return -EINVAL;
+
+	if (kstrtou32(token, 0, &reg_addr))
+		return -EINVAL;
+
+	if (!ath6kl_dbg_is_diag_reg_valid(reg_addr))
+		return -EINVAL;
+
+	if (kstrtou32(sptr, 0, &reg_val))
+		return -EINVAL;
+
+	ar->debug.diag_reg_addr_wr = reg_addr;
+	ar->debug.diag_reg_val_wr = reg_val;
+
+	if (ath6kl_diag_write32(ar, ar->debug.diag_reg_addr_wr,
+				cpu_to_le32(ar->debug.diag_reg_val_wr)))
+		return -EIO;
+
+	return count;
+}
+
+static const struct file_operations fops_diag_reg_write = {
+	.read = ath6kl_regwrite_read,
+	.write = ath6kl_regwrite_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath6kl_debug_init(struct ath6kl *ar)
 {
 	ar->debug.fwlog_buf.buf = vmalloc(ATH6KL_FWLOG_SIZE);
@@ -807,6 +869,10 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("lrssi_roam_threshold", S_IRUSR | S_IWUSR,
 			    ar->debugfs_phy, ar, &fops_lrssi_roam_threshold);
+
+	debugfs_create_file("reg_write", S_IRUSR | S_IWUSR,
+			    ar->debugfs_phy, ar, &fops_diag_reg_write);
+
 	return 0;
 }
 
