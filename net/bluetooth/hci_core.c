@@ -1523,11 +1523,6 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (!hdev->workqueue)
 		goto nomem;
 
-	hdev->tfm = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hdev->tfm))
-		BT_INFO("Failed to load transform for ecb(aes): %ld",
-							PTR_ERR(hdev->tfm));
-
 	hci_register_sysfs(hdev);
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
@@ -1575,9 +1570,6 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
 					!test_bit(HCI_SETUP, &hdev->flags))
 		mgmt_index_removed(hdev->id);
-
-	if (!IS_ERR(hdev->tfm))
-		crypto_free_blkcipher(hdev->tfm);
 
 	hci_notify(hdev, HCI_DEV_UNREG);
 

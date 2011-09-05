@@ -232,11 +232,13 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 
 static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 {
+	struct smp_chan *smp = conn->smp_chan;
+
 	if ((max_key_size > SMP_MAX_ENC_KEY_SIZE) ||
 			(max_key_size < SMP_MIN_ENC_KEY_SIZE))
 		return SMP_ENC_KEY_SIZE;
 
-	conn->smp_key_size = max_key_size;
+	smp->smp_key_size = max_key_size;
 
 	return 0;
 }
@@ -244,6 +246,7 @@ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_pairing rsp, *req = (void *) skb->data;
+	struct smp_chan *smp = conn->smp_chan;
 	u8 key_size;
 
 	BT_DBG("conn %p", conn);
@@ -251,8 +254,8 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (!test_and_set_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend))
 		hci_conn_hold(conn->hcon);
 
-	conn->preq[0] = SMP_CMD_PAIRING_REQ;
-	memcpy(&conn->preq[1], req, sizeof(*req));
+	smp->preq[0] = SMP_CMD_PAIRING_REQ;
+	memcpy(&smp->preq[1], req, sizeof(*req));
 	skb_pull(skb, sizeof(*req));
 
 	if (req->oob_flag)
@@ -266,10 +269,10 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		return SMP_ENC_KEY_SIZE;
 
 	/* Just works */
-	memset(conn->tk, 0, sizeof(conn->tk));
+	memset(smp->tk, 0, sizeof(smp->tk));
 
-	conn->prsp[0] = SMP_CMD_PAIRING_RSP;
-	memcpy(&conn->prsp[1], &rsp, sizeof(rsp));
+	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
+	memcpy(&smp->prsp[1], &rsp, sizeof(rsp));
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_RSP, sizeof(rsp), &rsp);
 
@@ -280,7 +283,9 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_pairing *req, *rsp = (void *) skb->data;
 	struct smp_cmd_pairing_confirm cp;
-	struct crypto_blkcipher *tfm = conn->hcon->hdev->tfm;
+	struct smp_chan *smp = conn->smp_chan;
+	struct crypto_blkcipher *tfm = smp->tfm;
+
 	int ret;
 	u8 res[16], key_size;
 
@@ -288,7 +293,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*rsp));
 
-	req = (void *) &conn->preq[1];
+	req = (void *) &smp->preq[1];
 
 	key_size = min(req->max_key_size, rsp->max_key_size);
 	if (check_enc_key_size(conn, key_size))
@@ -298,16 +303,16 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 		return SMP_OOB_NOT_AVAIL;
 
 	/* Just works */
-	memset(conn->tk, 0, sizeof(conn->tk));
+	memset(smp->tk, 0, sizeof(smp->tk));
 
-	conn->prsp[0] = SMP_CMD_PAIRING_RSP;
-	memcpy(&conn->prsp[1], rsp, sizeof(*rsp));
+	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
+	memcpy(&smp->prsp[1], rsp, sizeof(*rsp));
 
-	ret = smp_rand(conn->prnd);
+	ret = smp_rand(smp->prnd);
 	if (ret)
 		return SMP_UNSPECIFIED;
 
-	ret = smp_c1(tfm, conn->tk, conn->prnd, conn->preq, conn->prsp, 0,
+	ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp, 0,
 			conn->src, conn->hcon->dst_type, conn->dst, res);
 	if (ret)
 		return SMP_UNSPECIFIED;
@@ -321,17 +326,18 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 
 static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 {
-	struct crypto_blkcipher *tfm = conn->hcon->hdev->tfm;
+	struct smp_chan *smp = conn->smp_chan;
+	struct crypto_blkcipher *tfm = smp->tfm;
 
 	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
 
-	memcpy(conn->pcnf, skb->data, sizeof(conn->pcnf));
-	skb_pull(skb, sizeof(conn->pcnf));
+	memcpy(smp->pcnf, skb->data, sizeof(smp->pcnf));
+	skb_pull(skb, sizeof(smp->pcnf));
 
 	if (conn->hcon->out) {
 		u8 random[16];
 
-		swap128(conn->prnd, random);
+		swap128(smp->prnd, random);
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(random),
 								random);
 	} else {
@@ -339,11 +345,11 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 		int ret;
 		u8 res[16];
 
-		ret = smp_rand(conn->prnd);
+		ret = smp_rand(smp->prnd);
 		if (ret)
 			return SMP_UNSPECIFIED;
 
-		ret = smp_c1(tfm, conn->tk, conn->prnd, conn->preq, conn->prsp,
+		ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp,
 						conn->hcon->dst_type, conn->dst,
 						0, conn->src, res);
 		if (ret)
@@ -360,7 +366,8 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct hci_conn *hcon = conn->hcon;
-	struct crypto_blkcipher *tfm = hcon->hdev->tfm;
+	struct smp_chan *smp = conn->smp_chan;
+	struct crypto_blkcipher *tfm = smp->tfm;
 	int ret;
 	u8 key[16], res[16], random[16], confirm[16];
 
@@ -368,11 +375,11 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	skb_pull(skb, sizeof(random));
 
 	if (conn->hcon->out)
-		ret = smp_c1(tfm, conn->tk, random, conn->preq, conn->prsp, 0,
+		ret = smp_c1(tfm, smp->tk, random, smp->preq, smp->prsp, 0,
 				conn->src, conn->hcon->dst_type, conn->dst,
 				res);
 	else
-		ret = smp_c1(tfm, conn->tk, random, conn->preq, conn->prsp,
+		ret = smp_c1(tfm, smp->tk, random, smp->preq, smp->prsp,
 				conn->hcon->dst_type, conn->dst, 0, conn->src,
 				res);
 	if (ret)
@@ -382,7 +389,7 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	swap128(res, confirm);
 
-	if (memcmp(conn->pcnf, confirm, sizeof(conn->pcnf)) != 0) {
+	if (memcmp(smp->pcnf, confirm, sizeof(smp->pcnf)) != 0) {
 		BT_ERR("Pairing failed (confirmation values mismatch)");
 		return SMP_CONFIRM_FAILED;
 	}
@@ -394,17 +401,17 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 		memset(rand, 0, sizeof(rand));
 		ediv = 0;
 
-		smp_s1(tfm, conn->tk, random, conn->prnd, key);
+		smp_s1(tfm, smp->tk, random, smp->prnd, key);
 		swap128(key, stk);
 
-		memset(stk + conn->smp_key_size, 0,
-				SMP_MAX_ENC_KEY_SIZE - conn->smp_key_size);
+		memset(stk + smp->smp_key_size, 0,
+				SMP_MAX_ENC_KEY_SIZE - smp->smp_key_size);
 
 		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend))
 			return SMP_UNSPECIFIED;
 
 		hci_le_start_enc(hcon, ediv, rand, stk);
-		hcon->enc_key_size = conn->smp_key_size;
+		hcon->enc_key_size = smp->smp_key_size;
 	} else {
 		u8 stk[16], r[16], rand[8];
 		__le16 ediv;
@@ -412,16 +419,16 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 		memset(rand, 0, sizeof(rand));
 		ediv = 0;
 
-		swap128(conn->prnd, r);
+		swap128(smp->prnd, r);
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(r), r);
 
-		smp_s1(tfm, conn->tk, conn->prnd, random, key);
+		smp_s1(tfm, smp->tk, smp->prnd, random, key);
 		swap128(key, stk);
 
-		memset(stk + conn->smp_key_size, 0,
-				SMP_MAX_ENC_KEY_SIZE - conn->smp_key_size);
+		memset(stk + smp->smp_key_size, 0,
+				SMP_MAX_ENC_KEY_SIZE - smp->smp_key_size);
 
-		hci_add_ltk(conn->hcon->hdev, 0, conn->dst, conn->smp_key_size,
+		hci_add_ltk(conn->hcon->hdev, 0, conn->dst, smp->smp_key_size,
 							ediv, rand, stk);
 	}
 
@@ -433,6 +440,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_cmd_security_req *rp = (void *) skb->data;
 	struct smp_cmd_pairing cp;
 	struct hci_conn *hcon = conn->hcon;
+	struct smp_chan *smp = conn->smp_chan;
 
 	BT_DBG("conn %p", conn);
 
@@ -446,8 +454,8 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	memset(&cp, 0, sizeof(cp));
 	build_pairing_cmd(conn, &cp, NULL, rp->auth_req);
 
-	conn->preq[0] = SMP_CMD_PAIRING_REQ;
-	memcpy(&conn->preq[1], &cp, sizeof(cp));
+	smp->preq[0] = SMP_CMD_PAIRING_REQ;
+	memcpy(&smp->preq[1], &cp, sizeof(cp));
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_REQ, sizeof(cp), &cp);
 
@@ -457,14 +465,12 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 {
 	struct hci_conn *hcon = conn->hcon;
+	struct smp_chan *smp = conn->smp_chan;
 	__u8 authreq;
 
 	BT_DBG("conn %p hcon %p level 0x%2.2x", conn, hcon, sec_level);
 
 	if (!lmp_host_le_capable(hcon->hdev))
-		return 1;
-
-	if (IS_ERR(hcon->hdev->tfm))
 		return 1;
 
 	if (sec_level == BT_SECURITY_LOW)
@@ -505,8 +511,8 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 		struct smp_cmd_pairing cp;
 
 		build_pairing_cmd(conn, &cp, NULL, authreq);
-		conn->preq[0] = SMP_CMD_PAIRING_REQ;
-		memcpy(&conn->preq[1], &cp, sizeof(cp));
+		smp->preq[0] = SMP_CMD_PAIRING_REQ;
+		memcpy(&smp->preq[1], &cp, sizeof(cp));
 
 		smp_send_cmd(conn, SMP_CMD_PAIRING_REQ, sizeof(cp), &cp);
 	} else {
@@ -524,10 +530,11 @@ done:
 static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_encrypt_info *rp = (void *) skb->data;
+	struct smp_chan *smp = conn->smp_chan;
 
 	skb_pull(skb, sizeof(*rp));
 
-	memcpy(conn->tk, rp->ltk, sizeof(conn->tk));
+	memcpy(smp->tk, rp->ltk, sizeof(smp->tk));
 
 	return 0;
 }
@@ -535,11 +542,12 @@ static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
 static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_master_ident *rp = (void *) skb->data;
+	struct smp_chan *smp = conn->smp_chan;
 
 	skb_pull(skb, sizeof(*rp));
 
-	hci_add_ltk(conn->hcon->hdev, 1, conn->src, conn->smp_key_size,
-						rp->ediv, rp->rand, conn->tk);
+	hci_add_ltk(conn->hcon->hdev, 1, conn->src, smp->smp_key_size,
+						rp->ediv, rp->rand, smp->tk);
 
 	smp_distribute_keys(conn, 1);
 
@@ -554,12 +562,6 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (!lmp_host_le_capable(conn->hcon->hdev)) {
 		err = -ENOTSUPP;
-		reason = SMP_PAIRING_NOTSUPP;
-		goto done;
-	}
-
-	if (IS_ERR(conn->hcon->hdev->tfm)) {
-		err = PTR_ERR(conn->hcon->hdev->tfm);
 		reason = SMP_PAIRING_NOTSUPP;
 		goto done;
 	}
@@ -627,23 +629,21 @@ done:
 int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 {
 	struct smp_cmd_pairing *req, *rsp;
+	struct smp_chan *smp = conn->smp_chan;
 	__u8 *keydist;
 
 	BT_DBG("conn %p force %d", conn, force);
 
-	if (IS_ERR(conn->hcon->hdev->tfm))
-		return PTR_ERR(conn->hcon->hdev->tfm);
-
 	if (!test_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend))
 		return 0;
 
-	rsp = (void *) &conn->prsp[1];
+	rsp = (void *) &smp->prsp[1];
 
 	/* The responder sends its keys first */
 	if (!force && conn->hcon->out && (rsp->resp_key_dist & 0x07))
 		return 0;
 
-	req = (void *) &conn->preq[1];
+	req = (void *) &smp->preq[1];
 
 	if (conn->hcon->out) {
 		keydist = &rsp->init_key_dist;
@@ -667,7 +667,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 
 		smp_send_cmd(conn, SMP_CMD_ENCRYPT_INFO, sizeof(enc), &enc);
 
-		hci_add_ltk(conn->hcon->hdev, 1, conn->dst, conn->smp_key_size,
+		hci_add_ltk(conn->hcon->hdev, 1, conn->dst, smp->smp_key_size,
 						ediv, ident.rand, enc.ltk);
 
 		ident.ediv = cpu_to_le16(ediv);
