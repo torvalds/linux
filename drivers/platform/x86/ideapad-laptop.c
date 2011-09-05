@@ -34,6 +34,8 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/backlight.h>
 #include <linux/fb.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
 
@@ -71,10 +73,12 @@ struct ideapad_private {
 	struct platform_device *platform_device;
 	struct input_dev *inputdev;
 	struct backlight_device *blightdev;
+	struct dentry *debug;
 	unsigned long cfg;
 };
 
 static acpi_handle ideapad_handle;
+static struct ideapad_private *ideapad_priv;
 static bool no_bt_rfkill;
 module_param(no_bt_rfkill, bool, 0444);
 MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
@@ -185,6 +189,146 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 	}
 	pr_err("timeout in write_ec_cmd\n");
 	return -1;
+}
+
+/*
+ * debugfs
+ */
+#define DEBUGFS_EVENT_LEN (4096)
+static int debugfs_status_show(struct seq_file *s, void *data)
+{
+	unsigned long value;
+
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_BL_MAX, &value))
+		seq_printf(s, "Backlight max:\t%lu\n", value);
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_BL, &value))
+		seq_printf(s, "Backlight now:\t%lu\n", value);
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_BL_POWER, &value))
+		seq_printf(s, "BL power value:\t%s\n", value ? "On" : "Off");
+	seq_printf(s, "=====================\n");
+
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_RF, &value))
+		seq_printf(s, "Radio status:\t%s(%lu)\n",
+			   value ? "On" : "Off", value);
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_WIFI, &value))
+		seq_printf(s, "Wifi status:\t%s(%lu)\n",
+			   value ? "On" : "Off", value);
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_BT, &value))
+		seq_printf(s, "BT status:\t%s(%lu)\n",
+			   value ? "On" : "Off", value);
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_3G, &value))
+		seq_printf(s, "3G status:\t%s(%lu)\n",
+			   value ? "On" : "Off", value);
+	seq_printf(s, "=====================\n");
+
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_TOUCHPAD, &value))
+		seq_printf(s, "Touchpad status:%s(%lu)\n",
+			   value ? "On" : "Off", value);
+	if (!read_ec_data(ideapad_handle, VPCCMD_R_CAMERA, &value))
+		seq_printf(s, "Camera status:\t%s(%lu)\n",
+			   value ? "On" : "Off", value);
+
+	return 0;
+}
+
+static int debugfs_status_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, debugfs_status_show, NULL);
+}
+
+static const struct file_operations debugfs_status_fops = {
+	.owner = THIS_MODULE,
+	.open = debugfs_status_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int debugfs_cfg_show(struct seq_file *s, void *data)
+{
+	if (!ideapad_priv) {
+		seq_printf(s, "cfg: N/A\n");
+	} else {
+		seq_printf(s, "cfg: 0x%.8lX\n\nCapability: ",
+			   ideapad_priv->cfg);
+		if (test_bit(CFG_BT_BIT, &ideapad_priv->cfg))
+			seq_printf(s, "Bluetooth ");
+		if (test_bit(CFG_3G_BIT, &ideapad_priv->cfg))
+			seq_printf(s, "3G ");
+		if (test_bit(CFG_WIFI_BIT, &ideapad_priv->cfg))
+			seq_printf(s, "Wireless ");
+		if (test_bit(CFG_CAMERA_BIT, &ideapad_priv->cfg))
+			seq_printf(s, "Camera ");
+		seq_printf(s, "\nGraphic: ");
+		switch ((ideapad_priv->cfg)&0x700) {
+		case 0x100:
+			seq_printf(s, "Intel");
+			break;
+		case 0x200:
+			seq_printf(s, "ATI");
+			break;
+		case 0x300:
+			seq_printf(s, "Nvidia");
+			break;
+		case 0x400:
+			seq_printf(s, "Intel and ATI");
+			break;
+		case 0x500:
+			seq_printf(s, "Intel and Nvidia");
+			break;
+		}
+		seq_printf(s, "\n");
+	}
+	return 0;
+}
+
+static int debugfs_cfg_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, debugfs_cfg_show, NULL);
+}
+
+static const struct file_operations debugfs_cfg_fops = {
+	.owner = THIS_MODULE,
+	.open = debugfs_cfg_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int __devinit ideapad_debugfs_init(struct ideapad_private *priv)
+{
+	struct dentry *node;
+
+	priv->debug = debugfs_create_dir("ideapad", NULL);
+	if (priv->debug == NULL) {
+		pr_err("failed to create debugfs directory");
+		goto errout;
+	}
+
+	node = debugfs_create_file("cfg", S_IRUGO, priv->debug, NULL,
+				   &debugfs_cfg_fops);
+	if (!node) {
+		pr_err("failed to create cfg in debugfs");
+		goto errout;
+	}
+
+	node = debugfs_create_file("status", S_IRUGO, priv->debug, NULL,
+				   &debugfs_status_fops);
+	if (!node) {
+		pr_err("failed to create event in debugfs");
+		goto errout;
+	}
+
+	return 0;
+
+errout:
+	return -ENOMEM;
+}
+
+static void ideapad_debugfs_exit(struct ideapad_private *priv)
+{
+	debugfs_remove_recursive(priv->debug);
+	priv->debug = NULL;
 }
 
 /*
@@ -573,12 +717,17 @@ static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 	if (!priv)
 		return -ENOMEM;
 	dev_set_drvdata(&adevice->dev, priv);
+	ideapad_priv = priv;
 	ideapad_handle = adevice->handle;
 	priv->cfg = cfg;
 
 	ret = ideapad_platform_init(priv);
 	if (ret)
 		goto platform_failed;
+
+	ret = ideapad_debugfs_init(priv);
+	if (ret)
+		goto debugfs_failed;
 
 	ret = ideapad_input_init(priv);
 	if (ret)
@@ -605,6 +754,8 @@ backlight_failed:
 		ideapad_unregister_rfkill(adevice, i);
 	ideapad_input_exit(priv);
 input_failed:
+	ideapad_debugfs_exit(priv);
+debugfs_failed:
 	ideapad_platform_exit(priv);
 platform_failed:
 	kfree(priv);
@@ -620,6 +771,7 @@ static int __devexit ideapad_acpi_remove(struct acpi_device *adevice, int type)
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(adevice, i);
 	ideapad_input_exit(priv);
+	ideapad_debugfs_exit(priv);
 	ideapad_platform_exit(priv);
 	dev_set_drvdata(&adevice->dev, NULL);
 	kfree(priv);
