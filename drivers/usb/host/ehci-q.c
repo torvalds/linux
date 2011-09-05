@@ -111,8 +111,6 @@ qh_update (struct ehci_hcd *ehci, struct ehci_qh *qh, struct ehci_qtd *qtd)
 		}
 	}
 
-	/* HC must see latest qtd and qh data before we clear ACTIVE+HALT */
-	wmb ();
 	hw->hw_token &= cpu_to_hc32(ehci, QTD_TOGGLE | QTD_STS_PING);
 }
 
