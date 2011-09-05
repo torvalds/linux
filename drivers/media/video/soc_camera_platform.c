@@ -173,7 +173,9 @@ evdrs:
 static int soc_camera_platform_remove(struct platform_device *pdev)
 {
 	struct soc_camera_platform_priv *priv = get_priv(pdev);
+	struct soc_camera_platform_info *p = v4l2_get_subdevdata(&priv->subdev);
 
+	p->icd->control = NULL;
 	v4l2_device_unregister_subdev(&priv->subdev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
