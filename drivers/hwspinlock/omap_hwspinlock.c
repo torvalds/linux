@@ -143,7 +143,6 @@ static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 		}
 
 		omap_lock->lock.dev = &pdev->dev;
-		omap_lock->lock.owner = THIS_MODULE;
 		omap_lock->lock.id = i;
 		omap_lock->lock.ops = &omap_hwspinlock_ops;
 		omap_lock->addr = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
@@ -208,6 +207,7 @@ static struct platform_driver omap_hwspinlock_driver = {
 	.remove		= omap_hwspinlock_remove,
 	.driver		= {
 		.name	= "omap_hwspinlock",
+		.owner	= THIS_MODULE,
 	},
 };
 

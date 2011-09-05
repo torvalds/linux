@@ -352,7 +352,7 @@ static int __hwspin_lock_request(struct hwspinlock *hwlock)
 	int ret;
 
 	/* prevent underlying implementation from being removed */
-	if (!try_module_get(hwlock->owner)) {
+	if (!try_module_get(hwlock->dev->driver->owner)) {
 		dev_err(hwlock->dev, "%s: can't get owner\n", __func__);
 		return -EINVAL;
 	}
@@ -535,7 +535,7 @@ int hwspin_lock_free(struct hwspinlock *hwlock)
 	/* sanity check (this shouldn't happen) */
 	WARN_ON(tmp != hwlock);
 
-	module_put(hwlock->owner);
+	module_put(hwlock->dev->driver->owner);
 
 out:
 	spin_unlock(&hwspinlock_tree_lock);

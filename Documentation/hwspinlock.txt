@@ -256,18 +256,16 @@ underlying hwspinlock implementation using the hwspin_lock_register() API.
  * @ops: vendor-specific hwspinlock handlers
  * @id: a global, unique, system-wide, index of the lock.
  * @lock: initialized and used by hwspinlock core
- * @owner: underlying implementation module, used to maintain module ref count
  */
 struct hwspinlock {
 	struct device *dev;
 	const struct hwspinlock_ops *ops;
 	int id;
 	spinlock_t lock;
-	struct module *owner;
 };
 
-The underlying implementation is responsible to assign the dev, ops, id and
-owner members. The lock member, OTOH, is initialized and used by the hwspinlock
+The underlying implementation is responsible to assign the dev, ops and id
+members. The lock member, OTOH, is initialized and used by the hwspinlock
 core.
 
 6. Implementation callbacks
