@@ -397,6 +397,7 @@ static int remove_nodes(struct device *dev,
 
 static int release_nodes(struct device *dev, struct list_head *first,
 			 struct list_head *end, unsigned long flags)
+	__releases(&dev->devres_lock)
 {
 	LIST_HEAD(todo);
 	int cnt;

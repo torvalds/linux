@@ -192,6 +192,7 @@ static struct omap_hwmod_addr_space omap2430_usbhsotg_addrs[] = {
 		.pa_end		= OMAP243X_HS_BASE + SZ_4K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /*  l4_core ->usbhsotg  interface */

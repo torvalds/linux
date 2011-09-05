@@ -290,6 +290,10 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		if (IS_GEN6(dev) || IS_GEN7(dev))
 			mode |= MI_FLUSH_ENABLE << 16 | MI_FLUSH_ENABLE;
 		I915_WRITE(MI_MODE, mode);
+		if (IS_GEN7(dev))
+			I915_WRITE(GFX_MODE_GEN7,
+				   GFX_MODE_DISABLE(GFX_TLB_INVALIDATE_ALWAYS) |
+				   GFX_MODE_ENABLE(GFX_REPLAY_MODE));
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6) {
