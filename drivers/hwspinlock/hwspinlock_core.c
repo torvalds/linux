@@ -282,6 +282,8 @@ int hwspin_lock_register(struct hwspinlock *hwlock)
 	spin_lock(&hwspinlock_tree_lock);
 
 	ret = radix_tree_insert(&hwspinlock_tree, hwlock->id, hwlock);
+	if (ret == -EEXIST)
+		pr_err("hwspinlock id %d already exists!\n", hwlock->id);
 	if (ret)
 		goto out;
 

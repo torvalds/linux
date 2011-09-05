@@ -94,11 +94,15 @@ static const struct hwspinlock_ops omap_hwspinlock_ops = {
 
 static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 {
+	struct hwspinlock_pdata *pdata = pdev->dev.platform_data;
 	struct omap_hwspinlock *omap_lock;
 	struct omap_hwspinlock_state *state;
 	struct resource *res;
 	void __iomem *io_base;
 	int i, ret;
+
+	if (!pdata)
+		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -141,7 +145,7 @@ static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 		omap_lock = &state->lock[i];
 
 		omap_lock->lock.dev = &pdev->dev;
-		omap_lock->lock.id = i;
+		omap_lock->lock.id = pdata->base_id + i;
 		omap_lock->lock.ops = &omap_hwspinlock_ops;
 		omap_lock->addr = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
 
