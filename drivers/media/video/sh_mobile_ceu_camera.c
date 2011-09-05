@@ -951,6 +951,38 @@ static bool sh_mobile_ceu_packing_supported(const struct soc_mbus_pixelfmt *fmt)
 
 static int client_g_rect(struct v4l2_subdev *sd, struct v4l2_rect *rect);
 
+static struct soc_camera_device *ctrl_to_icd(struct v4l2_ctrl *ctrl)
+{
+	return container_of(ctrl->handler, struct soc_camera_device,
+							ctrl_handler);
+}
+
+static int sh_mobile_ceu_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct soc_camera_device *icd = ctrl_to_icd(ctrl);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+
+	switch (ctrl->id) {
+	case V4L2_CID_SHARPNESS:
+		switch (icd->current_fmt->host_fmt->fourcc) {
+		case V4L2_PIX_FMT_NV12:
+		case V4L2_PIX_FMT_NV21:
+		case V4L2_PIX_FMT_NV16:
+		case V4L2_PIX_FMT_NV61:
+			ceu_write(pcdev, CLFCR, !ctrl->val);
+			return 0;
+		}
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static const struct v4l2_ctrl_ops sh_mobile_ceu_ctrl_ops = {
+	.s_ctrl = sh_mobile_ceu_s_ctrl,
+};
+
 static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int idx,
 				     struct soc_camera_format_xlate *xlate)
 {
@@ -986,6 +1018,12 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 		struct v4l2_mbus_framefmt mf;
 		struct v4l2_rect rect;
 		int shift = 0;
+
+		/* Add our control */
+		v4l2_ctrl_new_std(&icd->ctrl_handler, &sh_mobile_ceu_ctrl_ops,
+				  V4L2_CID_SHARPNESS, 0, 1, 1, 0);
+		if (icd->ctrl_handler.error)
+			return icd->ctrl_handler.error;
 
 		/* FIXME: subwindow is lost between close / open */
 
@@ -1915,55 +1953,6 @@ static int sh_mobile_ceu_init_videobuf(struct vb2_queue *q,
 	return vb2_queue_init(q);
 }
 
-static int sh_mobile_ceu_get_ctrl(struct soc_camera_device *icd,
-				  struct v4l2_control *ctrl)
-{
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	u32 val;
-
-	switch (ctrl->id) {
-	case V4L2_CID_SHARPNESS:
-		val = ceu_read(pcdev, CLFCR);
-		ctrl->value = val ^ 1;
-		return 0;
-	}
-	return -ENOIOCTLCMD;
-}
-
-static int sh_mobile_ceu_set_ctrl(struct soc_camera_device *icd,
-				  struct v4l2_control *ctrl)
-{
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-
-	switch (ctrl->id) {
-	case V4L2_CID_SHARPNESS:
-		switch (icd->current_fmt->host_fmt->fourcc) {
-		case V4L2_PIX_FMT_NV12:
-		case V4L2_PIX_FMT_NV21:
-		case V4L2_PIX_FMT_NV16:
-		case V4L2_PIX_FMT_NV61:
-			ceu_write(pcdev, CLFCR, !ctrl->value);
-			return 0;
-		}
-		return -EINVAL;
-	}
-	return -ENOIOCTLCMD;
-}
-
-static const struct v4l2_queryctrl sh_mobile_ceu_controls[] = {
-	{
-		.id		= V4L2_CID_SHARPNESS,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Low-pass filter",
-		.minimum	= 0,
-		.maximum	= 1,
-		.step		= 1,
-		.default_value	= 0,
-	},
-};
-
 static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= sh_mobile_ceu_add_device,
@@ -1975,14 +1964,10 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.set_livecrop	= sh_mobile_ceu_set_livecrop,
 	.set_fmt	= sh_mobile_ceu_set_fmt,
 	.try_fmt	= sh_mobile_ceu_try_fmt,
-	.set_ctrl	= sh_mobile_ceu_set_ctrl,
-	.get_ctrl	= sh_mobile_ceu_get_ctrl,
 	.poll		= sh_mobile_ceu_poll,
 	.querycap	= sh_mobile_ceu_querycap,
 	.set_bus_param	= sh_mobile_ceu_set_bus_param,
 	.init_videobuf2	= sh_mobile_ceu_init_videobuf,
-	.controls	= sh_mobile_ceu_controls,
-	.num_controls	= ARRAY_SIZE(sh_mobile_ceu_controls),
 };
 
 struct bus_wait {
