@@ -423,6 +423,7 @@ static void wacom_remove(struct hid_device *hdev)
 #ifdef CONFIG_HID_WACOM_POWER_SUPPLY
 	struct wacom_data *wdata = hid_get_drvdata(hdev);
 #endif
+	device_remove_file(&hdev->dev, &dev_attr_speed);
 	hid_hw_stop(hdev);
 
 #ifdef CONFIG_HID_WACOM_POWER_SUPPLY
