@@ -4687,13 +4687,13 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 		bpc = 6; /* min is 18bpp */
 		break;
 	case 24:
-		bpc = min((unsigned int)8, display_bpc);
+		bpc = 8;
 		break;
 	case 30:
-		bpc = min((unsigned int)10, display_bpc);
+		bpc = 10;
 		break;
 	case 48:
-		bpc = min((unsigned int)12, display_bpc);
+		bpc = 12;
 		break;
 	default:
 		DRM_DEBUG("unsupported depth, assuming 24 bits\n");
@@ -4701,10 +4701,12 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 		break;
 	}
 
+	display_bpc = min(display_bpc, bpc);
+
 	DRM_DEBUG_DRIVER("setting pipe bpc to %d (max display bpc %d)\n",
 			 bpc, display_bpc);
 
-	*pipe_bpp = bpc * 3;
+	*pipe_bpp = display_bpc * 3;
 
 	return display_bpc != bpc;
 }
