@@ -41,6 +41,31 @@ static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 static void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 
+void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
+{
+	u16 ctl, v;
+	int cap, err;
+
+	cap = pci_pcie_cap(rdev->pdev);
+	if (!cap)
+		return;
+
+	err = pci_read_config_word(rdev->pdev, cap + PCI_EXP_DEVCTL, &ctl);
+	if (err)
+		return;
+
+	v = (ctl & PCI_EXP_DEVCTL_READRQ) >> 12;
+
+	/* if bios or OS sets MAX_READ_REQUEST_SIZE to an invalid value, fix it
+	 * to avoid hangs or perfomance issues
+	 */
+	if ((v == 0) || (v == 6) || (v == 7)) {
+		ctl &= ~PCI_EXP_DEVCTL_READRQ;
+		ctl |= (2 << 12);
+		pci_write_config_word(rdev->pdev, cap + PCI_EXP_DEVCTL, ctl);
+	}
+}
+
 void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
 	/* enable the pflip int */
@@ -1862,6 +1887,8 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	}
 
 	WREG32(GRBM_CNTL, GRBM_READ_TIMEOUT(0xff));
+
+	evergreen_fix_pci_max_read_req_size(rdev);
 
 	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG) & ~2;
 

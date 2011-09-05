@@ -592,3 +592,11 @@ Why:    In 3.0, we can now autodetect internal 3G device and already have
 	interface that was used by acer-wmi driver. It will replaced by
 	information log when acer-wmi initial.
 Who:    Lee, Chun-Yi <jlee@novell.com>
+
+----------------------------
+What:	The XFS nodelaylog mount option
+When:	3.3
+Why:	The delaylog mode that has been the default since 2.6.39 has proven
+	stable, and the old code is in the way of additional improvements in
+	the log code.
+Who:	Christoph Hellwig <hch@lst.de>
