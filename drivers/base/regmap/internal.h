@@ -46,6 +46,9 @@ struct regmap {
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
+
+	u8 read_flag_mask;
+	u8 write_flag_mask;
 };
 
 bool regmap_writeable(struct regmap *map, unsigned int reg);
