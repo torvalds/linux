@@ -2282,14 +2282,14 @@ pl022_remove(struct amba_device *adev)
 }
 
 #ifdef CONFIG_SUSPEND
-static int pl011_suspend(struct device *dev)
+static int pl022_suspend(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
 	int status = 0;
 
 	status = stop_queue(pl022);
 	if (status) {
-		dev_warn(&adev->dev, "suspend cannot stop queue\n");
+		dev_warn(dev, "suspend cannot stop queue\n");
 		return status;
 	}
 
@@ -2298,7 +2298,7 @@ static int pl011_suspend(struct device *dev)
 	load_ssp_default_config(pl022);
 	amba_pclk_disable(pl022->adev);
 	amba_vcore_disable(pl022->adev);
-	dev_dbg(&adev->dev, "suspended\n");
+	dev_dbg(dev, "suspended\n");
 	return 0;
 }
 
