@@ -1221,6 +1221,9 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 	case NL80211_IFTYPE_ADHOC:
 		ar->next_mode = ADHOC_NETWORK;
 		break;
+	case NL80211_IFTYPE_AP:
+		ar->next_mode = AP_NETWORK;
+		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 		ar->next_mode = INFRA_NETWORK;
 		break;
@@ -1956,7 +1959,7 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 	set_wiphy_dev(wdev->wiphy, dev);
 
 	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-	    BIT(NL80211_IFTYPE_ADHOC);
+		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
 	/* max num of ssids that can be probed during scanning */
 	wdev->wiphy->max_scan_ssids = MAX_PROBED_SSID_INDEX;
 	wdev->wiphy->max_scan_ie_len = 1000; /* FIX: what is correct limit? */
