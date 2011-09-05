@@ -3074,10 +3074,9 @@ static int dsi_vc_send_short(struct platform_device *dsidev, int channel,
 int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	u8 nullpkg[] = {0, 0, 0, 0};
 
-	return dsi_vc_send_long(dsidev, channel, MIPI_DSI_NULL_PACKET, nullpkg,
-		4, 0);
+	return dsi_vc_send_long(dsidev, channel, MIPI_DSI_NULL_PACKET, NULL,
+		0, 0);
 }
 EXPORT_SYMBOL(dsi_vc_send_null);
 
