@@ -386,8 +386,10 @@ static void ideapad_platform_exit(struct ideapad_private *priv)
  * input device
  */
 static const struct key_entry ideapad_keymap[] = {
-	{ KE_KEY, 0x06, { KEY_SWITCHVIDEOMODE } },
-	{ KE_KEY, 0x0D, { KEY_WLAN } },
+	{ KE_KEY, 6,  { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY, 13, { KEY_WLAN } },
+	{ KE_KEY, 16, { KEY_PROG1 } },
+	{ KE_KEY, 17, { KEY_PROG2 } },
 	{ KE_END, 0 },
 };
 
@@ -440,6 +442,18 @@ static void ideapad_input_report(struct ideapad_private *priv,
 				 unsigned long scancode)
 {
 	sparse_keymap_report_event(priv->inputdev, scancode, 1, true);
+}
+
+static void ideapad_input_novokey(struct ideapad_private *priv)
+{
+	unsigned long long_pressed;
+
+	if (read_ec_data(ideapad_handle, VPCCMD_R_NOVO, &long_pressed))
+		return;
+	if (long_pressed)
+		ideapad_input_report(priv, 17);
+	else
+		ideapad_input_report(priv, 16);
 }
 
 /*
@@ -633,6 +647,9 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 				break;
 			case 4:
 				ideapad_backlight_notify_brightness(priv);
+				break;
+			case 3:
+				ideapad_input_novokey(priv);
 				break;
 			case 2:
 				ideapad_backlight_notify_power(priv);
