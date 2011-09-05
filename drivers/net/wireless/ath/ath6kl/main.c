@@ -261,7 +261,7 @@ int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value)
  * Write to the ATH6KL through its diagnostic window. No cooperation from
  * the Target is required for this.
  */
-int ath6kl_diag_write32(struct ath6kl *ar, u32 address, u32 value)
+int ath6kl_diag_write32(struct ath6kl *ar, u32 address, __le32 value)
 {
 	int ret;
 
@@ -298,7 +298,8 @@ int ath6kl_diag_read(struct ath6kl *ar, u32 address, void *data, u32 length)
 
 int ath6kl_diag_write(struct ath6kl *ar, u32 address, void *data, u32 length)
 {
-	u32 count, *buf = data;
+	u32 count;
+	__le32 *buf = data;
 	int ret;
 
 	if (WARN_ON(length % 4))
@@ -397,13 +398,14 @@ static void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 {
 	int status = 0;
 	u32 address;
-	u32 data;
+	__le32 data;
 
 	if (target_type != TARGET_TYPE_AR6003 &&
 		target_type != TARGET_TYPE_AR6004)
 		return;
 
-	data = cold_reset ? RESET_CONTROL_COLD_RST : RESET_CONTROL_MBOX_RST;
+	data = cold_reset ? cpu_to_le32(RESET_CONTROL_COLD_RST) :
+			    cpu_to_le32(RESET_CONTROL_MBOX_RST);
 
 	switch (target_type) {
 	case TARGET_TYPE_AR6003:
