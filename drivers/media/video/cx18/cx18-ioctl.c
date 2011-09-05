@@ -160,12 +160,7 @@ static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 	pixfmt->priv = 0;
 	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
 		pixfmt->pixelformat = s->pixelformat;
-		/* HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
-		   UYUV YUV size is (Y=(h*720) + UV=(h*(720))) */
-		if (s->pixelformat == V4L2_PIX_FMT_HM12)
-			pixfmt->sizeimage = pixfmt->height * 720 * 3 / 2;
-		else
-			pixfmt->sizeimage = pixfmt->height * 720 * 2;
+		pixfmt->sizeimage = s->vb_bytes_per_frame;
 		pixfmt->bytesperline = 720;
 	} else {
 		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
@@ -296,6 +291,12 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 		return -EBUSY;
 
 	s->pixelformat = fmt->fmt.pix.pixelformat;
+	/* HM12 YUV size is (Y=(h*720) + UV=(h*(720/2)))
+	   UYUV YUV size is (Y=(h*720) + UV=(h*(720))) */
+	if (s->pixelformat == V4L2_PIX_FMT_HM12)
+		s->vb_bytes_per_frame = h * 720 * 3 / 2;
+	else
+		s->vb_bytes_per_frame = h * 720 * 2;
 
 	mbus_fmt.width = cx->cxhdl.width = w;
 	mbus_fmt.height = cx->cxhdl.height = h;
@@ -463,13 +464,16 @@ static int cx18_s_register(struct file *file, void *fh,
 static int cx18_querycap(struct file *file, void *fh,
 				struct v4l2_capability *vcap)
 {
-	struct cx18 *cx = fh2id(fh)->cx;
+	struct cx18_open_id *id = fh2id(fh);
+	struct cx18 *cx = id->cx;
 
 	strlcpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, cx->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
 		 "PCI:%s", pci_name(cx->pci_dev));
 	vcap->capabilities = cx->v4l2_cap; 	    /* capabilities */
+	if (id->type == CX18_ENC_STREAM_TYPE_YUV)
+		vcap->capabilities |= V4L2_CAP_STREAMING;
 	return 0;
 }
 
