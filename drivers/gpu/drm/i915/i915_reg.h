@@ -375,12 +375,16 @@
 # define MI_FLUSH_ENABLE				(1 << 11)
 
 #define GFX_MODE	0x02520
+#define GFX_MODE_GEN7	0x0229c
 #define   GFX_RUN_LIST_ENABLE		(1<<15)
 #define   GFX_TLB_INVALIDATE_ALWAYS	(1<<13)
 #define   GFX_SURFACE_FAULT_ENABLE	(1<<12)
 #define   GFX_REPLAY_MODE		(1<<11)
 #define   GFX_PSMI_GRANULARITY		(1<<10)
 #define   GFX_PPGTT_ENABLE		(1<<9)
+
+#define GFX_MODE_ENABLE(bit) (((bit) << 16) | (bit))
+#define GFX_MODE_DISABLE(bit) (((bit) << 16) | (0))
 
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
@@ -1318,6 +1322,7 @@
 #define   ADPA_PIPE_SELECT_MASK	(1<<30)
 #define   ADPA_PIPE_A_SELECT	0
 #define   ADPA_PIPE_B_SELECT	(1<<30)
+#define   ADPA_PIPE_SELECT(pipe) ((pipe) << 30)
 #define   ADPA_USE_VGA_HVPOLARITY (1<<15)
 #define   ADPA_SETS_HVPOLARITY	0
 #define   ADPA_VSYNC_CNTL_DISABLE (1<<11)
@@ -1460,6 +1465,7 @@
 /* Selects pipe B for LVDS data.  Must be set on pre-965. */
 #define   LVDS_PIPEB_SELECT		(1 << 30)
 #define   LVDS_PIPE_MASK		(1 << 30)
+#define   LVDS_PIPE(pipe)		((pipe) << 30)
 /* LVDS dithering flag on 965/g4x platform */
 #define   LVDS_ENABLE_DITHER		(1 << 25)
 /* LVDS sync polarity flags. Set to invert (i.e. negative) */
@@ -1498,9 +1504,6 @@
 #define   LVDS_B0B3_POWER_MASK		(3 << 2)
 #define   LVDS_B0B3_POWER_DOWN		(0 << 2)
 #define   LVDS_B0B3_POWER_UP		(3 << 2)
-
-#define LVDS_PIPE_ENABLED(V, P) \
-	(((V) & (LVDS_PIPE_MASK | LVDS_PORT_EN)) == ((P) << 30 | LVDS_PORT_EN))
 
 /* Video Data Island Packet control */
 #define VIDEO_DIP_DATA		0x61178
@@ -3256,14 +3259,12 @@
 #define  ADPA_CRT_HOTPLUG_VOLREF_475MV  (1<<17)
 #define  ADPA_CRT_HOTPLUG_FORCE_TRIGGER (1<<16)
 
-#define ADPA_PIPE_ENABLED(V, P) \
-	(((V) & (ADPA_TRANS_SELECT_MASK | ADPA_DAC_ENABLE)) == ((P) << 30 | ADPA_DAC_ENABLE))
-
 /* or SDVOB */
 #define HDMIB   0xe1140
 #define  PORT_ENABLE    (1 << 31)
 #define  TRANSCODER_A   (0)
 #define  TRANSCODER_B   (1 << 30)
+#define  TRANSCODER(pipe)	((pipe) << 30)
 #define  TRANSCODER_MASK   (1 << 30)
 #define  COLOR_FORMAT_8bpc      (0)
 #define  COLOR_FORMAT_12bpc     (3 << 26)
@@ -3279,9 +3280,6 @@
 #define  VSYNC_ACTIVE_HIGH      (1 << 4)
 #define  HSYNC_ACTIVE_HIGH      (1 << 3)
 #define  PORT_DETECTED          (1 << 2)
-
-#define HDMI_PIPE_ENABLED(V, P) \
-	(((V) & (TRANSCODER_MASK | PORT_ENABLE)) == ((P) << 30 | PORT_ENABLE))
 
 /* PCH SDVOB multiplex with HDMIB */
 #define PCH_SDVOB	HDMIB
@@ -3349,6 +3347,7 @@
 #define  PORT_TRANS_B_SEL_CPT	(1<<29)
 #define  PORT_TRANS_C_SEL_CPT	(2<<29)
 #define  PORT_TRANS_SEL_MASK	(3<<29)
+#define  PORT_TRANS_SEL_CPT(pipe)	((pipe) << 29)
 
 #define TRANS_DP_CTL_A		0xe0300
 #define TRANS_DP_CTL_B		0xe1300

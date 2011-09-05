@@ -3419,8 +3419,26 @@ static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
 static int bond_open(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *slave;
+	int i;
 
 	bond->kill_timers = 0;
+
+	/* reset slave->backup and slave->inactive */
+	read_lock(&bond->lock);
+	if (bond->slave_cnt > 0) {
+		read_lock(&bond->curr_slave_lock);
+		bond_for_each_slave(bond, slave, i) {
+			if ((bond->params.mode == BOND_MODE_ACTIVEBACKUP)
+				&& (slave != bond->curr_active_slave)) {
+				bond_set_slave_inactive_flags(slave);
+			} else {
+				bond_set_slave_active_flags(slave);
+			}
+		}
+		read_unlock(&bond->curr_slave_lock);
+	}
+	read_unlock(&bond->lock);
 
 	INIT_DELAYED_WORK(&bond->mcast_work, bond_resend_igmp_join_requests_delayed);
 

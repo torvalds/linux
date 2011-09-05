@@ -565,11 +565,11 @@ static void alc_hp_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!spec->automute)
-		return;
 	spec->jack_present =
 		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
 			     spec->autocfg.hp_pins);
+	if (!spec->automute)
+		return;
 	update_speakers(codec);
 }
 
@@ -578,11 +578,11 @@ static void alc_line_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!spec->automute || !spec->detect_line)
-		return;
 	spec->line_jack_present =
 		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.line_out_pins),
 			     spec->autocfg.line_out_pins);
+	if (!spec->automute || !spec->detect_line)
+		return;
 	update_speakers(codec);
 }
 
@@ -1784,6 +1784,7 @@ static const char * const alc_slave_vols[] = {
 	"Speaker Playback Volume",
 	"Mono Playback Volume",
 	"Line-Out Playback Volume",
+	"PCM Playback Volume",
 	NULL,
 };
 
@@ -1798,6 +1799,7 @@ static const char * const alc_slave_sws[] = {
 	"Mono Playback Switch",
 	"IEC958 Playback Switch",
 	"Line-Out Playback Switch",
+	"PCM Playback Switch",
 	NULL,
 };
 
@@ -3081,16 +3083,22 @@ static void alc_auto_init_multi_out(struct hda_codec *codec)
 static void alc_auto_init_extra_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t pin;
+	hda_nid_t pin, dac;
 
 	pin = spec->autocfg.hp_pins[0];
-	if (pin)
-		alc_auto_set_output_and_unmute(codec, pin, PIN_HP,
-						  spec->multiout.hp_nid);
+	if (pin) {
+		dac = spec->multiout.hp_nid;
+		if (!dac)
+			dac = spec->multiout.dac_nids[0];
+		alc_auto_set_output_and_unmute(codec, pin, PIN_HP, dac);
+	}
 	pin = spec->autocfg.speaker_pins[0];
-	if (pin)
-		alc_auto_set_output_and_unmute(codec, pin, PIN_OUT,
-					spec->multiout.extra_out_nid[0]);
+	if (pin) {
+		dac = spec->multiout.extra_out_nid[0];
+		if (!dac)
+			dac = spec->multiout.dac_nids[0];
+		alc_auto_set_output_and_unmute(codec, pin, PIN_OUT, dac);
+	}
 }
 
 /*
@@ -4484,6 +4492,22 @@ static void alc269_fixup_pcm_44k(struct hda_codec *codec,
 	spec->stream_analog_capture = &alc269_44k_pcm_analog_capture;
 }
 
+static void alc269_fixup_stereo_dmic(struct hda_codec *codec,
+				     const struct alc_fixup *fix, int action)
+{
+	int coef;
+
+	if (action != ALC_FIXUP_ACT_INIT)
+		return;
+	/* The digital-mic unit sends PDM (differential signal) instead of
+	 * the standard PCM, thus you can't record a valid mono stream as is.
+	 * Below is a workaround specific to ALC269 to control the dmic
+	 * signal source as mono.
+	 */
+	coef = alc_read_coef_idx(codec, 0x07);
+	alc_write_coef_idx(codec, 0x07, coef | 0x80);
+}
+
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC275_FIXUP_SONY_VAIO_GPIO2,
@@ -4494,6 +4518,7 @@ enum {
 	ALC275_FIXUP_SONY_HWEQ,
 	ALC271_FIXUP_DMIC,
 	ALC269_FIXUP_PCM_44K,
+	ALC269_FIXUP_STEREO_DMIC,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -4556,10 +4581,19 @@ static const struct alc_fixup alc269_fixups[] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc269_fixup_pcm_44k,
 	},
+	[ALC269_FIXUP_STEREO_DMIC] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc269_fixup_stereo_dmic,
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
+	SND_PCI_QUIRK(0x1043, 0x16e3, "ASUS UX50", ALC269_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1043, 0x831a, "ASUS P901", ALC269_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1043, 0x834a, "ASUS S101", ALC269_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1043, 0x8398, "ASUS P1005", ALC269_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1043, 0x83ce, "ASUS P1005", ALC269_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x104d, 0x9073, "Sony VAIO", ALC275_FIXUP_SONY_VAIO_GPIO2),
 	SND_PCI_QUIRK(0x104d, 0x907b, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
 	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),

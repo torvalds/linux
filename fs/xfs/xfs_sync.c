@@ -332,7 +332,7 @@ xfs_sync_fsdata(
 	 * between there and here.
 	 */
 	bp = xfs_getsb(mp, 0);
-	if (XFS_BUF_ISPINNED(bp))
+	if (xfs_buf_ispinned(bp))
 		xfs_log_force(mp, 0);
 
 	return xfs_bwrite(mp, bp);

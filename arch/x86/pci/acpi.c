@@ -360,6 +360,15 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 		}
 	}
 
+	/* After the PCI-E bus has been walked and all devices discovered,
+	 * configure any settings of the fabric that might be necessary.
+	 */
+	if (bus) {
+		struct pci_bus *child;
+		list_for_each_entry(child, &bus->children, node)
+			pcie_bus_configure_settings(child, child->self->pcie_mpss);
+	}
+
 	if (!bus)
 		kfree(sd);
 

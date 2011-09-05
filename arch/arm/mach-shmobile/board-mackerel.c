@@ -1592,6 +1592,7 @@ static void __init mackerel_init(void)
 	hdmi_init_pm_clock();
 	sh7372_pm_init();
 	pm_clk_add(&fsi_device.dev, "spu2");
+	pm_clk_add(&hdmi_lcdc_device.dev, "hdmi");
 }
 
 static void __init mackerel_timer_init(void)

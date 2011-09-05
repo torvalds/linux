@@ -367,7 +367,7 @@ static void sl_bump(struct slip *sl)
 	memcpy(skb_put(skb, count), sl->rbuff, count);
 	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IP);
-	netif_rx(skb);
+	netif_rx_ni(skb);
 	dev->stats.rx_packets++;
 }
 
