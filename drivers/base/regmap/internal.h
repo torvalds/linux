@@ -61,9 +61,9 @@ extern void regmap_debugfs_initcall(void);
 extern void regmap_debugfs_init(struct regmap *map);
 extern void regmap_debugfs_exit(struct regmap *map);
 #else
-void regmap_debugfs_initcall(void) { }
-void regmap_debugfs_init(struct regmap *map) { }
-void regmap_debugfs_exit(struct regmap *map) { }
+static inline void regmap_debugfs_initcall(void) { }
+static inline void regmap_debugfs_init(struct regmap *map) { }
+static inline void regmap_debugfs_exit(struct regmap *map) { }
 #endif
 
 #endif
