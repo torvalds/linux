@@ -550,12 +550,22 @@ void __init rk29_gpio_init(void)
 	}
 	rk29_gpio_irq_setup();
 }
+__weak void rk29_setgpio_suspend_board(void)
+{
+}
 
+__weak void rk29_setgpio_resume_board(void)
+{
+
+}
 #ifdef CONFIG_PM
+
 static int rk29_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
 {
 	unsigned i;
-
+	
+	rk29_setgpio_suspend_board();
+	
 	for (i = 0; i < MAX_BANK; i++) {
 		struct rk29_gpio_chip *rk29_gpio = &rk29gpio_chip[i];
 
@@ -572,7 +582,9 @@ static int rk29_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
 static int rk29_gpio_resume(struct sys_device *dev)
 {
 	unsigned i;
-
+	
+	rk29_setgpio_resume_board();
+	
 	for (i = 0; i < MAX_BANK; i++) {
 		struct rk29_gpio_chip *rk29_gpio = &rk29gpio_chip[i];
 

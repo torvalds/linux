@@ -164,6 +164,45 @@ struct rk29_nand_platform_data rk29_nand_data = {
 #define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
 #define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
 #define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
+
+#if 1
+void key_gpio_pullupdown_enable(void)
+{	 gpio_pull_updown(RK29_PIN6_PA0, 0);
+	 gpio_pull_updown(RK29_PIN6_PA1, 0);
+	 gpio_pull_updown(RK29_PIN6_PA2, 0);
+	 gpio_pull_updown(RK29_PIN6_PA3, 0);
+	 gpio_pull_updown(RK29_PIN6_PA4, 0);
+	 gpio_pull_updown(RK29_PIN6_PA5, 0);
+	 gpio_pull_updown(RK29_PIN6_PA6, 0);
+
+}
+void key_gpio_pullupdown_disable(void)
+{
+	 gpio_pull_updown(RK29_PIN6_PA0, 1);
+	 gpio_pull_updown(RK29_PIN6_PA1, 1);
+	 gpio_pull_updown(RK29_PIN6_PA2, 1);
+	 gpio_pull_updown(RK29_PIN6_PA3, 1);
+	 gpio_pull_updown(RK29_PIN6_PA4, 1);
+	 gpio_pull_updown(RK29_PIN6_PA5, 1);
+	 gpio_pull_updown(RK29_PIN6_PA6, 1);
+}
+void  rk29_setgpio_suspend_board(void)
+{	
+	
+	key_gpio_pullupdown_enable();
+	
+}
+
+void  rk29_setgpio_resume_board(void)
+{	 
+	
+	 key_gpio_pullupdown_disable();  
+
+ }
+#endif 
+
+
+
 #ifdef CONFIG_FB_RK29
 /*****************************************************************************************
  * lcd  devices
