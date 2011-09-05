@@ -623,7 +623,8 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
 	unsigned int tx_usecs, rx_usecs;
-	bool adaptive;
+	bool adaptive, rx_may_override_tx;
+	int rc;
 
 	if (coalesce->use_adaptive_tx_coalesce)
 		return -EINVAL;
@@ -642,16 +643,14 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	/* If channels are shared, TX IRQ moderation can be quietly
 	 * overridden unless it is changed from its old value.
 	 */
-	if (efx->tx_channel_offset == 0 &&
-	    coalesce->tx_coalesce_usecs_irq != tx_usecs &&
-	    coalesce->tx_coalesce_usecs_irq != rx_usecs) {
-		netif_err(efx, drv, efx->net_dev, "Channels are shared. "
-			  "RX and TX IRQ moderation must be equal\n");
-		return -EINVAL;
-	}
+	rx_may_override_tx = coalesce->tx_coalesce_usecs_irq == tx_usecs;
 	tx_usecs = coalesce->tx_coalesce_usecs_irq;
 
-	efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive);
+	rc = efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive,
+				     rx_may_override_tx);
+	if (rc != 0)
+		return rc;
+
 	efx_for_each_channel(channel, efx)
 		efx->type->push_irq_moderation(channel);
 

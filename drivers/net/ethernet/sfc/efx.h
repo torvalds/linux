@@ -111,8 +111,9 @@ extern int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok);
 
 /* Global */
 extern void efx_schedule_reset(struct efx_nic *efx, enum reset_type type);
-extern void efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
-				    unsigned int rx_usecs, bool rx_adaptive);
+extern int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
+				   unsigned int rx_usecs, bool rx_adaptive,
+				   bool rx_may_override_tx);
 extern void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 				   unsigned int *rx_usecs, bool *rx_adaptive);
 

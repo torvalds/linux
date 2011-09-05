@@ -104,6 +104,8 @@ static void falcon_push_irq_moderation(struct efx_channel *channel)
 	efx_dword_t timer_cmd;
 	struct efx_nic *efx = channel->efx;
 
+	BUILD_BUG_ON(EFX_IRQ_MOD_MAX > (1 << FRF_AB_TC_TIMER_VAL_WIDTH));
+
 	/* Set timer register */
 	if (channel->irq_moderation) {
 		EFX_POPULATE_DWORD_2(timer_cmd,

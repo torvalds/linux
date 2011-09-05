@@ -204,7 +204,8 @@ extern irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx);
 extern irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id);
 extern void falcon_irq_ack_a1(struct efx_nic *efx);
 
-#define EFX_IRQ_MOD_RESOLUTION 5
+#define EFX_IRQ_MOD_RESOLUTION	5
+#define EFX_IRQ_MOD_MAX		0x1000
 
 /* Global Resources */
 extern int efx_nic_flush_queues(struct efx_nic *efx);

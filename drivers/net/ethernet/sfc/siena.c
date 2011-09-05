@@ -36,6 +36,8 @@ static void siena_push_irq_moderation(struct efx_channel *channel)
 {
 	efx_dword_t timer_cmd;
 
+	BUILD_BUG_ON(EFX_IRQ_MOD_MAX > (1 << FRF_CZ_TC_TIMER_VAL_WIDTH));
+
 	if (channel->irq_moderation)
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     FRF_CZ_TC_TIMER_MODE,
