@@ -722,7 +722,8 @@ qh_urb_transaction (
 
 	/*
 	 * control requests may need a terminating data "status" ack;
-	 * bulk ones may need a terminating short packet (zero length).
+	 * other OUT ones may need a terminating short packet
+	 * (zero length).
 	 */
 	if (likely (urb->transfer_buffer_length != 0)) {
 		int	one_more = 0;
@@ -731,7 +732,7 @@ qh_urb_transaction (
 			one_more = 1;
 			token ^= 0x0100;	/* "in" <--> "out"  */
 			token |= QTD_TOGGLE;	/* force DATA1 */
-		} else if (usb_pipebulk (urb->pipe)
+		} else if (usb_pipeout(urb->pipe)
 				&& (urb->transfer_flags & URB_ZERO_PACKET)
 				&& !(urb->transfer_buffer_length % maxpacket)) {
 			one_more = 1;
