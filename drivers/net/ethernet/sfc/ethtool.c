@@ -628,12 +628,12 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	unsigned tx_usecs, rx_usecs, adaptive;
 
 	if (coalesce->use_adaptive_tx_coalesce)
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	if (coalesce->rx_coalesce_usecs || coalesce->tx_coalesce_usecs) {
 		netif_err(efx, drv, efx->net_dev, "invalid coalescing setting. "
 			  "Only rx/tx_coalesce_usecs_irq are supported\n");
-		return -EOPNOTSUPP;
+		return -EINVAL;
 	}
 
 	rx_usecs = coalesce->rx_coalesce_usecs_irq;
@@ -647,7 +647,7 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 		    tx_usecs) {
 			netif_err(efx, drv, efx->net_dev, "Channel is shared. "
 				  "Only RX coalescing may be set\n");
-			return -EOPNOTSUPP;
+			return -EINVAL;
 		}
 	}
 
