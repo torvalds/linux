@@ -514,9 +514,8 @@ static void egalax_i2c_wq(struct work_struct *work)
 		egalax_i2c->skip_packet = 0;
 
 	mutex_unlock(&egalax_i2c->mutex_wq);
-	
-	if( egalax_i2c->work_state > 0 )
-		enable_irq(p_egalax_i2c_dev->irq);
+
+	enable_irq(p_egalax_i2c_dev->irq);
 
 	TS_DEBUG("egalax_i2c_wq leave\n");
 }
@@ -562,9 +561,13 @@ static int egalax_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 	
 	i2c_master_normal_send(client, cmdbuf, MAX_I2C_LEN, EETI_I2C_RATE);
 
-	egalax_i2c->work_state = 0;
 	disable_irq(p_egalax_i2c_dev->irq);
-	cancel_work_sync(&egalax_i2c->work);
+	egalax_i2c->work_state = 0;
+	if (cancel_work_sync(&egalax_i2c->work)) {
+		/* if work was pending disable-count is now 2 */
+		pr_info("%s: work was pending\n", __func__);
+		enable_irq(p_egalax_i2c_dev->irq);
+	}
 
 	printk(KERN_DEBUG "[egalax_i2c]: device suspend done\n");	
 
