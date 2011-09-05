@@ -584,8 +584,8 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 					name + prefix_len, prefix);
 		ret = snd_ctl_add(card, kcontrol);
 		if (ret < 0) {
-			dev_err(dapm->dev,
-				"asoc: failed to add kcontrol %s\n", w->name);
+			dev_err(dapm->dev, "failed to add kcontrol %s: %d\n",
+				w->name, ret);
 			kfree(wlist);
 			return ret;
 		}
