@@ -846,6 +846,7 @@ static int conn_connect(struct drbd_tconn *tconn)
 	struct drbd_conf *mdev;
 	struct net_conf *nc;
 	int vnr, timeout, try, h, ok;
+	bool discard_my_data;
 
 	if (conn_request_state(tconn, NS(conn, C_WF_CONNECTION), CS_VERBOSE) < SS_SUCCESS)
 		return -2;
@@ -960,6 +961,7 @@ retry:
 
 	msock->sk->sk_rcvtimeo = nc->ping_int*HZ;
 	timeout = nc->timeout * HZ / 10;
+	discard_my_data = nc->discard_my_data;
 	rcu_read_unlock();
 
 	msock->sk->sk_sndtimeo = timeout;
@@ -997,6 +999,12 @@ retry:
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		kref_get(&mdev->kref);
 		rcu_read_unlock();
+
+		if (discard_my_data)
+			set_bit(DISCARD_MY_DATA, &mdev->flags);
+		else
+			clear_bit(DISCARD_MY_DATA, &mdev->flags);
+
 		drbd_connected(mdev);
 		kref_put(&mdev->kref, &drbd_minor_destroy);
 		rcu_read_lock();
@@ -1007,6 +1015,14 @@ retry:
 		return 0;
 
 	drbd_thread_start(&tconn->asender);
+
+	mutex_lock(&tconn->conf_update);
+	/* The discard_my_data flag is a single-shot modifier to the next
+	 * connection attempt, the handshake of which is now well underway.
+	 * No need for rcu style copying of the whole struct
+	 * just to clear a single value. */
+	tconn->net_conf->discard_my_data = 0;
+	mutex_unlock(&tconn->conf_update);
 
 	return h;
 
@@ -2906,9 +2922,9 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	}
 
 	if (hg == -100) {
-		if (nc->discard_my_data && !(mdev->p_uuid[UI_FLAGS]&1))
+		if (test_bit(DISCARD_MY_DATA, &mdev->flags) && !(mdev->p_uuid[UI_FLAGS]&1))
 			hg = -1;
-		if (!nc->discard_my_data && (mdev->p_uuid[UI_FLAGS]&1))
+		if (!test_bit(DISCARD_MY_DATA, &mdev->flags) && (mdev->p_uuid[UI_FLAGS]&1))
 			hg = 1;
 
 		if (abs(hg) < 100)
@@ -3856,9 +3872,7 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
 		}
 	}
 
-	mutex_lock(&mdev->tconn->conf_update);
-	mdev->tconn->net_conf->discard_my_data = 0; /* without copy; single bit op is atomic */
-	mutex_unlock(&mdev->tconn->conf_update);
+	clear_bit(DISCARD_MY_DATA, &mdev->flags);
 
 	drbd_md_sync(mdev); /* update connected indicator, la_size, ... */
 

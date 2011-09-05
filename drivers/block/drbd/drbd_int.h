@@ -697,6 +697,7 @@ enum {
 	AL_SUSPENDED,		/* Activity logging is currently suspended. */
 	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
 	B_RS_H_DONE,		/* Before resync handler done (already executed) */
+	DISCARD_MY_DATA,	/* discard_my_data flag per volume */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */
