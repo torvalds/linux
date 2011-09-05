@@ -595,6 +595,20 @@ static int efx_ethtool_nway_reset(struct net_device *net_dev)
  * automatically changed too, but otherwise we fail if the two values
  * are requested to be different.
  *
+ * The hardware does not support a limit on the number of completions
+ * before an IRQ, so we do not use the max_frames fields.  We should
+ * report and require that max_frames == (usecs != 0), but this would
+ * invalidate existing user documentation.
+ *
+ * The hardware does not have distinct settings for interrupt
+ * moderation while the previous IRQ is being handled, so we should
+ * not use the 'irq' fields.  However, an earlier developer
+ * misunderstood the meaning of the 'irq' fields and the driver did
+ * not support the standard fields.  To avoid invalidating existing
+ * user documentation, we report and accept changes through either the
+ * standard or 'irq' fields.  If both are changed at the same time, we
+ * prefer the standard field.
+ *
  * We implement adaptive IRQ moderation, but use a different algorithm
  * from that assumed in the definition of struct ethtool_coalesce.
  * Therefore we do not use any of the adaptive moderation parameters
@@ -610,7 +624,9 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 
 	efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &rx_adaptive);
 
+	coalesce->tx_coalesce_usecs = tx_usecs;
 	coalesce->tx_coalesce_usecs_irq = tx_usecs;
+	coalesce->rx_coalesce_usecs = rx_usecs;
 	coalesce->rx_coalesce_usecs_irq = rx_usecs;
 	coalesce->use_adaptive_rx_coalesce = rx_adaptive;
 
@@ -629,22 +645,24 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	if (coalesce->use_adaptive_tx_coalesce)
 		return -EINVAL;
 
-	if (coalesce->rx_coalesce_usecs || coalesce->tx_coalesce_usecs) {
-		netif_err(efx, drv, efx->net_dev, "invalid coalescing setting. "
-			  "Only rx/tx_coalesce_usecs_irq are supported\n");
-		return -EINVAL;
-	}
-
 	efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
 
-	rx_usecs = coalesce->rx_coalesce_usecs_irq;
+	if (coalesce->rx_coalesce_usecs != rx_usecs)
+		rx_usecs = coalesce->rx_coalesce_usecs;
+	else
+		rx_usecs = coalesce->rx_coalesce_usecs_irq;
+
 	adaptive = coalesce->use_adaptive_rx_coalesce;
 
 	/* If channels are shared, TX IRQ moderation can be quietly
 	 * overridden unless it is changed from its old value.
 	 */
-	rx_may_override_tx = coalesce->tx_coalesce_usecs_irq == tx_usecs;
-	tx_usecs = coalesce->tx_coalesce_usecs_irq;
+	rx_may_override_tx = (coalesce->tx_coalesce_usecs == tx_usecs &&
+			      coalesce->tx_coalesce_usecs_irq == tx_usecs);
+	if (coalesce->tx_coalesce_usecs != tx_usecs)
+		tx_usecs = coalesce->tx_coalesce_usecs;
+	else
+		tx_usecs = coalesce->tx_coalesce_usecs_irq;
 
 	rc = efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive,
 				     rx_may_override_tx);
