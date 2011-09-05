@@ -3472,7 +3472,7 @@ sta_not_found:
 									 rates);
 			wl->basic_rate = wl1271_tx_min_rate_get(wl);
 
-			/* by default, use 11b rates */
+			/* by default, use 11b + OFDM rates */
 			wl->rate_set = CONF_TX_IBSS_DEFAULT_RATES;
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)

@@ -454,12 +454,10 @@ struct conf_rx_settings {
 #define CONF_TX_AP_DEFAULT_MGMT_RATES  (CONF_HW_BIT_RATE_1MBPS | \
 	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS)
 
-/*
- * Default rates for working as IBSS. use 11b rates
- */
+/* default rates for working as IBSS (11b and OFDM) */
 #define CONF_TX_IBSS_DEFAULT_RATES  (CONF_HW_BIT_RATE_1MBPS |       \
 		CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS | \
-		CONF_HW_BIT_RATE_11MBPS);
+		CONF_HW_BIT_RATE_11MBPS | CONF_TX_OFDM_RATES);
 
 struct conf_tx_rate_class {
 
