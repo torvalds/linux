@@ -279,7 +279,7 @@
 			gpio: gpio-controller@b0120000 {
 				#gpio-cells = <2>;
 				#interrupt-cells = <2>;
-				compatible = "sirf,prima2-gpio";
+				compatible = "sirf,prima2-gpio-pinmux";
 				reg = <0xb0120000 0x10000>;
 				gpio-controller;
 				interrupt-controller;
