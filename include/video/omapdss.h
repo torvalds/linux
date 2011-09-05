@@ -228,6 +228,35 @@ void rfbi_bus_lock(void);
 void rfbi_bus_unlock(void);
 
 /* DSI */
+
+struct omap_dss_dsi_videomode_data {
+	/* DSI video mode blanking data */
+	/* Unit: byte clock cycles */
+	u16 hsa;
+	u16 hfp;
+	u16 hbp;
+	/* Unit: line clocks */
+	u16 vsa;
+	u16 vfp;
+	u16 vbp;
+
+	/* DSI blanking modes */
+	int blanking_mode;
+	int hsa_blanking_mode;
+	int hbp_blanking_mode;
+	int hfp_blanking_mode;
+
+	/* Video port sync events */
+	int vp_de_pol;
+	int vp_hsync_pol;
+	int vp_vsync_pol;
+	bool vp_vsync_end;
+	bool vp_hsync_end;
+
+	bool ddr_clk_always_on;
+	int window_sync;
+};
+
 void dsi_bus_lock(struct omap_dss_device *dssdev);
 void dsi_bus_unlock(struct omap_dss_device *dssdev);
 int dsi_vc_dcs_write(struct omap_dss_device *dssdev, int channel, u8 *data,
@@ -258,6 +287,8 @@ int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
 		u16 len);
 int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel);
 int dsi_vc_send_bta_sync(struct omap_dss_device *dssdev, int channel);
+int dsi_video_mode_enable(struct omap_dss_device *dssdev, int channel);
+void dsi_video_mode_disable(struct omap_dss_device *dssdev, int channel);
 
 /* Board specific data */
 struct omap_dss_board_info {
@@ -505,6 +536,7 @@ struct omap_dss_device {
 
 		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
 		enum omap_dss_dsi_mode dsi_mode;
+		struct omap_dss_dsi_videomode_data dsi_vm_data;
 	} panel;
 
 	struct {
