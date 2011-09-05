@@ -519,57 +519,55 @@ static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
 	}
 }
 
-static void ath6kl_connect_ap_mode(struct ath6kl *ar, u16 channel, u8 *bssid,
-				   u16 listen_int, u16 beacon_int,
-				   u8 assoc_req_len, u8 *assoc_info)
+void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
 {
-	struct net_device *dev = ar->net_dev;
-	u8 *ies = NULL, *wpa_ie = NULL, *pos;
-	size_t ies_len = 0;
-	struct station_info sinfo;
 	struct ath6kl_req_key *ik;
 	int res;
 	u8 key_rsc[ATH6KL_KEY_SEQ_LEN];
 
-	if (memcmp(dev->dev_addr, bssid, ETH_ALEN) == 0) {
-		ik = &ar->ap_mode_bkey;
+	ik = &ar->ap_mode_bkey;
 
-		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "AP mode started on %u MHz\n",
-			   channel);
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "AP mode started on %u MHz\n", channel);
 
-		switch (ar->auth_mode) {
-		case NONE_AUTH:
-			if (ar->prwise_crypto == WEP_CRYPT)
-				ath6kl_install_static_wep_keys(ar);
+	switch (ar->auth_mode) {
+	case NONE_AUTH:
+		if (ar->prwise_crypto == WEP_CRYPT)
+			ath6kl_install_static_wep_keys(ar);
+		break;
+	case WPA_PSK_AUTH:
+	case WPA2_PSK_AUTH:
+	case (WPA_PSK_AUTH | WPA2_PSK_AUTH):
+		if (!ik->valid)
 			break;
-		case WPA_PSK_AUTH:
-		case WPA2_PSK_AUTH:
-		case (WPA_PSK_AUTH|WPA2_PSK_AUTH):
-			if (!ik->valid)
-				break;
 
-			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed addkey for "
-				   "the initial group key for AP mode\n");
-			memset(key_rsc, 0, sizeof(key_rsc));
-			res = ath6kl_wmi_addkey_cmd(
-				ar->wmi, ik->key_index, ik->key_type,
-				GROUP_USAGE, ik->key_len, key_rsc, ik->key,
-				KEY_OP_INIT_VAL, NULL, SYNC_BOTH_WMIFLAG);
-			if (res) {
-				ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed "
-					   "addkey failed: %d\n", res);
-			}
-			break;
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed addkey for "
+			   "the initial group key for AP mode\n");
+		memset(key_rsc, 0, sizeof(key_rsc));
+		res = ath6kl_wmi_addkey_cmd(
+			ar->wmi, ik->key_index, ik->key_type,
+			GROUP_USAGE, ik->key_len, key_rsc, ik->key,
+			KEY_OP_INIT_VAL, NULL, SYNC_BOTH_WMIFLAG);
+		if (res) {
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed "
+				   "addkey failed: %d\n", res);
 		}
-
-		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
-		set_bit(CONNECTED, &ar->flag);
-		netif_carrier_on(ar->net_dev);
-		return;
+		break;
 	}
 
-	ath6kl_dbg(ATH6KL_DBG_TRC, "new station %pM aid=%d\n",
-		   bssid, channel);
+	ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+	set_bit(CONNECTED, &ar->flag);
+	netif_carrier_on(ar->net_dev);
+}
+
+void ath6kl_connect_ap_mode_sta(struct ath6kl *ar, u16 aid, u8 *mac_addr,
+				u8 keymgmt, u8 ucipher, u8 auth,
+				u8 assoc_req_len, u8 *assoc_info)
+{
+	u8 *ies = NULL, *wpa_ie = NULL, *pos;
+	size_t ies_len = 0;
+	struct station_info sinfo;
+
+	ath6kl_dbg(ATH6KL_DBG_TRC, "new station %pM aid=%d\n", mac_addr, aid);
 
 	if (assoc_req_len > sizeof(struct ieee80211_hdr_3addr)) {
 		struct ieee80211_mgmt *mgmt =
@@ -606,10 +604,9 @@ static void ath6kl_connect_ap_mode(struct ath6kl *ar, u16 channel, u8 *bssid,
 		pos += 2 + pos[1];
 	}
 
-	ath6kl_add_new_sta(ar, bssid, channel, wpa_ie,
+	ath6kl_add_new_sta(ar, mac_addr, aid, wpa_ie,
 			   wpa_ie ? 2 + wpa_ie[1] : 0,
-			   listen_int & 0xFF, beacon_int,
-			   (listen_int >> 8) & 0xFF);
+			   keymgmt, ucipher, auth);
 
 	/* send event to application */
 	memset(&sinfo, 0, sizeof(sinfo));
@@ -620,11 +617,9 @@ static void ath6kl_connect_ap_mode(struct ath6kl *ar, u16 channel, u8 *bssid,
 	sinfo.assoc_req_ies_len = ies_len;
 	sinfo.filled |= STATION_INFO_ASSOC_REQ_IES;
 
-	cfg80211_new_sta(ar->net_dev, bssid, &sinfo, GFP_KERNEL);
+	cfg80211_new_sta(ar->net_dev, mac_addr, &sinfo, GFP_KERNEL);
 
 	netif_wake_queue(ar->net_dev);
-
-	return;
 }
 
 /* Functions for Tx credit handling */
@@ -1029,13 +1024,6 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 			  u8 *assoc_info)
 {
 	unsigned long flags;
-
-	if (ar->nw_type == AP_NETWORK) {
-		ath6kl_connect_ap_mode(ar, channel, bssid, listen_int,
-				       beacon_int, assoc_req_len,
-				       assoc_info + beacon_ie_len);
-		return;
-	}
 
 	ath6kl_cfg80211_connect_event(ar, channel, bssid,
 				      listen_int, beacon_int,
