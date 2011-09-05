@@ -260,7 +260,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
                 printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
             }
         }
-        else
+        else if (TOUCH_SCREEN_DISPLAY_PIN != INVALID_GPIO)
         {
              ret = gpio_request(TOUCH_SCREEN_DISPLAY_PIN, NULL);
              if(ret != 0)
@@ -284,7 +284,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
                  printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
              }
         }
-        else
+        else if (TOUCH_SCREEN_STANDBY_PIN != INVALID_GPIO)
         {
              ret = gpio_request(TOUCH_SCREEN_STANDBY_PIN, NULL);
              if(ret != 0)
