@@ -363,20 +363,8 @@ static ssize_t store_ideapad_cam(struct device *dev,
 
 static DEVICE_ATTR(camera_power, 0644, show_ideapad_cam, store_ideapad_cam);
 
-static ssize_t show_ideapad_cfg(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct ideapad_private *priv = dev_get_drvdata(dev);
-
-	return sprintf(buf, "0x%.8lX\n", priv->cfg);
-}
-
-static DEVICE_ATTR(cfg, 0444, show_ideapad_cfg, NULL);
-
 static struct attribute *ideapad_attributes[] = {
 	&dev_attr_camera_power.attr,
-	&dev_attr_cfg.attr,
 	NULL
 };
 
