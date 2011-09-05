@@ -2740,6 +2740,7 @@ int ath6kl_wmi_set_pvb_cmd(struct wmi *wmi, u16 aid, bool flag)
 
 	cmd = (struct wmi_ap_set_pvb_cmd *) skb->data;
 	cmd->aid = cpu_to_le16(aid);
+	cmd->rsvd = cpu_to_le16(0);
 	cmd->flag = cpu_to_le32(flag);
 
 	ret = ath6kl_wmi_cmd_send(wmi, skb, WMI_AP_SET_PVB_CMDID,

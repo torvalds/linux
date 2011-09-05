@@ -1922,6 +1922,7 @@ struct wmi_ap_set_mlme_cmd {
 
 struct wmi_ap_set_pvb_cmd {
 	__le32 flag;
+	__le16 rsvd;
 	__le16 aid;
 } __packed;
 
