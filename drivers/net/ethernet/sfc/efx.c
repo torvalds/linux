@@ -1556,18 +1556,18 @@ static void efx_remove_all(struct efx_nic *efx)
  *
  **************************************************************************/
 
-static unsigned irq_mod_ticks(int usecs, int resolution)
+static unsigned int irq_mod_ticks(unsigned int usecs, unsigned int resolution)
 {
-	if (usecs <= 0)
-		return 0; /* cannot receive interrupts ahead of time :-) */
+	if (usecs == 0)
+		return 0;
 	if (usecs < resolution)
 		return 1; /* never round down to 0 */
 	return usecs / resolution;
 }
 
 /* Set interrupt moderation parameters */
-void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs,
-			     bool rx_adaptive)
+void efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
+			     unsigned int rx_usecs, bool rx_adaptive)
 {
 	struct efx_channel *channel;
 	unsigned tx_ticks = irq_mod_ticks(tx_usecs, EFX_IRQ_MOD_RESOLUTION);

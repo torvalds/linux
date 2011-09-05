@@ -625,7 +625,8 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
-	unsigned tx_usecs, rx_usecs, adaptive;
+	unsigned int tx_usecs, rx_usecs;
+	bool adaptive;
 
 	if (coalesce->use_adaptive_tx_coalesce)
 		return -EINVAL;
