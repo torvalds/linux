@@ -164,8 +164,7 @@ CONFIGURING the kernel:
    only ask you for the answers to new questions.
 
  - Alternate configuration commands are:
-	"make config"      Plain te
-t interface.
+	"make config"      Plain text interface.
 	"make menuconfig"  Text based color menus, radiolists & dialogs.
 	"make nconfig"     Enhanced text based color menus.
 	"make xconfig"     X windows (Qt) based configuration tool.
