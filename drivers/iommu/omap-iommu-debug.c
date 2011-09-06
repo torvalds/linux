@@ -21,7 +21,7 @@
 #include <plat/iommu.h>
 #include <plat/iovmm.h>
 
-#include "iopgtable.h"
+#include <plat/iopgtable.h>
 
 #define MAXCOLUMN 100 /* for short messages */
 
@@ -32,7 +32,7 @@ static struct dentry *iommu_debug_root;
 static ssize_t debug_read_ver(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
-	u32 ver = iommu_arch_version();
+	u32 ver = omap_iommu_arch_version();
 	char buf[MAXCOLUMN], *p = buf;
 
 	p += sprintf(p, "H/W version: %d.%d\n", (ver >> 4) & 0xf , ver & 0xf);
@@ -43,7 +43,7 @@ static ssize_t debug_read_ver(struct file *file, char __user *userbuf,
 static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 			       size_t count, loff_t *ppos)
 {
-	struct iommu *obj = file->private_data;
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	ssize_t bytes;
 
@@ -54,7 +54,7 @@ static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 
 	mutex_lock(&iommu_debug_lock);
 
-	bytes = iommu_dump_ctx(obj, p, count);
+	bytes = omap_iommu_dump_ctx(obj, p, count);
 	bytes = simple_read_from_buffer(userbuf, count, ppos, buf, bytes);
 
 	mutex_unlock(&iommu_debug_lock);
@@ -66,7 +66,7 @@ static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 static ssize_t debug_read_tlb(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
-	struct iommu *obj = file->private_data;
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	ssize_t bytes, rest;
 
@@ -80,7 +80,7 @@ static ssize_t debug_read_tlb(struct file *file, char __user *userbuf,
 	p += sprintf(p, "%8s %8s\n", "cam:", "ram:");
 	p += sprintf(p, "-----------------------------------------\n");
 	rest = count - (p - buf);
-	p += dump_tlb_entries(obj, p, rest);
+	p += omap_dump_tlb_entries(obj, p, rest);
 
 	bytes = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 
@@ -96,7 +96,7 @@ static ssize_t debug_write_pagetable(struct file *file,
 	struct iotlb_entry e;
 	struct cr_regs cr;
 	int err;
-	struct iommu *obj = file->private_data;
+	struct omap_iommu *obj = file->private_data;
 	char buf[MAXCOLUMN], *p = buf;
 
 	count = min(count, sizeof(buf));
@@ -113,8 +113,8 @@ static ssize_t debug_write_pagetable(struct file *file,
 		return -EINVAL;
 	}
 
-	iotlb_cr_to_e(&cr, &e);
-	err = iopgtable_store_entry(obj, &e);
+	omap_iotlb_cr_to_e(&cr, &e);
+	err = omap_iopgtable_store_entry(obj, &e);
 	if (err)
 		dev_err(obj->dev, "%s: fail to store cr\n", __func__);
 
@@ -136,7 +136,7 @@ static ssize_t debug_write_pagetable(struct file *file,
 		__err;						\
 	})
 
-static ssize_t dump_ioptable(struct iommu *obj, char *buf, ssize_t len)
+static ssize_t dump_ioptable(struct omap_iommu *obj, char *buf, ssize_t len)
 {
 	int i;
 	u32 *iopgd;
@@ -183,7 +183,7 @@ out:
 static ssize_t debug_read_pagetable(struct file *file, char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	struct iommu *obj = file->private_data;
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	size_t bytes;
 
@@ -211,7 +211,7 @@ static ssize_t debug_read_pagetable(struct file *file, char __user *userbuf,
 static ssize_t debug_read_mmap(struct file *file, char __user *userbuf,
 			       size_t count, loff_t *ppos)
 {
-	struct iommu *obj = file->private_data;
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	struct iovm_struct *tmp;
 	int uninitialized_var(i);
@@ -253,7 +253,7 @@ static ssize_t debug_read_mmap(struct file *file, char __user *userbuf,
 static ssize_t debug_read_mem(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
-	struct iommu *obj = file->private_data;
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	struct iovm_struct *area;
 	ssize_t bytes;
@@ -267,7 +267,7 @@ static ssize_t debug_read_mem(struct file *file, char __user *userbuf,
 
 	mutex_lock(&iommu_debug_lock);
 
-	area = find_iovm_area(obj, (u32)ppos);
+	area = omap_find_iovm_area(obj, (u32)ppos);
 	if (IS_ERR(area)) {
 		bytes = -EINVAL;
 		goto err_out;
@@ -286,7 +286,7 @@ err_out:
 static ssize_t debug_write_mem(struct file *file, const char __user *userbuf,
 			       size_t count, loff_t *ppos)
 {
-	struct iommu *obj = file->private_data;
+	struct omap_iommu *obj = file->private_data;
 	struct iovm_struct *area;
 	char *p, *buf;
 
@@ -304,7 +304,7 @@ static ssize_t debug_write_mem(struct file *file, const char __user *userbuf,
 		goto err_out;
 	}
 
-	area = find_iovm_area(obj, (u32)ppos);
+	area = omap_find_iovm_area(obj, (u32)ppos);
 	if (IS_ERR(area)) {
 		count = -EINVAL;
 		goto err_out;
@@ -360,7 +360,7 @@ DEBUG_FOPS(mem);
 static int iommu_debug_register(struct device *dev, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct iommu *obj = platform_get_drvdata(pdev);
+	struct omap_iommu *obj = platform_get_drvdata(pdev);
 	struct dentry *d, *parent;
 
 	if (!obj || !obj->dev)
@@ -396,7 +396,7 @@ static int __init iommu_debug_init(void)
 		return -ENOMEM;
 	iommu_debug_root = d;
 
-	err = foreach_iommu_device(d, iommu_debug_register);
+	err = omap_foreach_iommu_device(d, iommu_debug_register);
 	if (err)
 		goto err_out;
 	return 0;

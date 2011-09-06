@@ -327,7 +327,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 					      IRQF_TRIGGER_FALLING,
 					      gpios[i].name,
 					      &gpios[i]);
-		if (ret)
+		if (ret < 0)
 			goto err;
 
 		if (gpios[i].wake) {
