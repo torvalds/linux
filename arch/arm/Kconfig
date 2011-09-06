@@ -311,6 +311,7 @@ config ARCH_VEXPRESS
 	select ICST
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
+	select MULTI_IRQ_HANDLER
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.
 
