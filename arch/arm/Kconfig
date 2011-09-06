@@ -366,6 +366,7 @@ config ARCH_CNS3XXX
 	select ARM_GIC
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
