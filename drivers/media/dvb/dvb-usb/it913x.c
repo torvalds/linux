@@ -436,7 +436,7 @@ static int it913x_name(struct dvb_usb_adapter *adap)
 {
 	const char *desc = adap->dev->desc->name;
 	char *fe_name[] = {"_1", "_2", "_3", "_4"};
-	char *name = adap->fe[0]->ops.info.name;
+	char *name = adap->fe_adap[0].fe->ops.info.name;
 
 	strlcpy(name, desc, 128);
 	strlcat(name, fe_name[adap->id], 128);
@@ -450,12 +450,12 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 	int ret = 0;
 	u8 adf = it913x_read_reg(udev, IO_MUX_POWER_CLK);
 	u8 adap_addr = I2C_BASE_ADDR + (adap->id << 5);
-	u16 ep_size = adap->props.stream.u.bulk.buffersize;
+	u16 ep_size = adap->props.fe[0].stream.u.bulk.buffersize;
 
-	adap->fe[0] = dvb_attach(it913x_fe_attach,
+	adap->fe_adap[0].fe = dvb_attach(it913x_fe_attach,
 		&adap->dev->i2c_adap, adap_addr, adf, IT9137);
 
-	if (adap->id == 0 && adap->fe[0]) {
+	if (adap->id == 0 && adap->fe_adap[0].fe) {
 		ret = it913x_wr_reg(udev, DEV_0_DMOD, MP2_SW_RST, 0x1);
 		ret = it913x_wr_reg(udev, DEV_0_DMOD, MP2IF2_SW_RST, 0x1);
 		ret = it913x_wr_reg(udev, DEV_0, EP0_TX_EN, 0x0f);
@@ -465,7 +465,7 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 					ep_size & 0xff);
 		ret = it913x_wr_reg(udev, DEV_0, EP4_TX_LEN_MSB, ep_size >> 8);
 		ret = it913x_wr_reg(udev, DEV_0, EP4_MAX_PKT, 0x80);
-	} else if (adap->id == 1 && adap->fe[0]) {
+	} else if (adap->id == 1 && adap->fe_adap[0].fe) {
 		ret = it913x_wr_reg(udev, DEV_0, EP0_TX_EN, 0x6f);
 		ret = it913x_wr_reg(udev, DEV_0, EP5_TX_LEN_LSB,
 					ep_size & 0xff);
@@ -524,6 +524,8 @@ static struct dvb_usb_device_properties it913x_properties = {
 	.num_adapters = 2,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
 				DVB_USB_ADAP_NEED_PID_FILTERING|
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
@@ -544,8 +546,11 @@ static struct dvb_usb_device_properties it913x_properties = {
 					}
 				}
 			}
+		}},
 		},
 			{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
 				DVB_USB_ADAP_NEED_PID_FILTERING|
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
@@ -566,6 +571,7 @@ static struct dvb_usb_device_properties it913x_properties = {
 					}
 				}
 			}
+		}},
 		}
 	},
 	.identify_state   = it913x_identify_state,

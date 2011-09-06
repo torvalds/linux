@@ -253,7 +253,8 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	struct dvb_usb_device *d = adap->dev;
 	struct mxl111sf_state *state = d->priv;
-	struct mxl111sf_adap_state *adap_state = adap->priv;
+	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe->id].priv;
+
 	int err;
 
 	/* exit if we didnt initialize the driver yet */
@@ -311,7 +312,7 @@ static int mxl111sf_adap_fe_sleep(struct dvb_frontend *fe)
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	struct dvb_usb_device *d = adap->dev;
 	struct mxl111sf_state *state = d->priv;
-	struct mxl111sf_adap_state *adap_state = adap->priv;
+	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe->id].priv;
 	int err;
 
 	/* exit if we didnt initialize the driver yet */
@@ -336,7 +337,7 @@ static int mxl111sf_ep6_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
 	struct dvb_usb_device *d = adap->dev;
 	struct mxl111sf_state *state = d->priv;
-	struct mxl111sf_adap_state *adap_state = adap->priv;
+	struct mxl111sf_adap_state *adap_state = adap->fe_adap[adap->active_fe].priv;
 	int ret = 0;
 	u8 tmp;
 
@@ -378,7 +379,7 @@ static int mxl111sf_lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
 	struct mxl111sf_state *state = d->priv;
-	struct mxl111sf_adap_state *adap_state = adap->priv;
+	struct mxl111sf_adap_state *adap_state = adap->fe_adap[0].priv;
 	int ret;
 
 	deb_adv("%s()\n", __func__);
@@ -421,14 +422,14 @@ static int mxl111sf_lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
 	if (mxl_fail(ret))
 		goto fail;
 
-	adap->fe[0] = dvb_attach(lgdt3305_attach,
+	adap->fe_adap[0].fe = dvb_attach(lgdt3305_attach,
 				 &hauppauge_lgdt3305_config,
 				 &adap->dev->i2c_adap);
-	if (adap->fe[0]) {
-		adap_state->fe_init = adap->fe[0]->ops.init;
-		adap->fe[0]->ops.init = mxl111sf_adap_fe_init;
-		adap_state->fe_sleep = adap->fe[0]->ops.sleep;
-		adap->fe[0]->ops.sleep = mxl111sf_adap_fe_sleep;
+	if (adap->fe_adap[0].fe) {
+		adap_state->fe_init = adap->fe_adap[0].fe->ops.init;
+		adap->fe_adap[0].fe->ops.init = mxl111sf_adap_fe_init;
+		adap_state->fe_sleep = adap->fe_adap[0].fe->ops.sleep;
+		adap->fe_adap[0].fe->ops.sleep = mxl111sf_adap_fe_sleep;
 		return 0;
 	}
 	ret = -EIO;
@@ -516,7 +517,7 @@ static int mxl111sf_attach_tuner(struct dvb_usb_adapter *adap)
 
 	deb_adv("%s()\n", __func__);
 
-	if (NULL != dvb_attach(mxl111sf_tuner_attach, adap->fe[0], state,
+	if (NULL != dvb_attach(mxl111sf_tuner_attach, adap->fe_adap[0].fe, state,
 			       &mxl_tuner_config))
 		return 0;
 
@@ -714,13 +715,16 @@ static struct dvb_usb_device_properties mxl111sf_atsc_bulk_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
+		.num_frontends = 1,
+		.fe = {{
 			.size_of_priv     = sizeof(struct mxl111sf_adap_state),
-			.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
 			.tuner_attach     = mxl111sf_attach_tuner,
 
 			MXL111SF_EP6_BULK_STREAMING_CONFIG,
+		}},
 		},
 	},
 	.num_device_descs = 6,
@@ -768,13 +772,16 @@ static struct dvb_usb_device_properties mxl111sf_atsc_isoc_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
+		.num_frontends = 1,
+		.fe = {{
 			.size_of_priv     = sizeof(struct mxl111sf_adap_state),
-			.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
 			.tuner_attach     = mxl111sf_attach_tuner,
 
 			MXL111SF_EP6_ISOC_STREAMING_CONFIG,
+		}},
 		},
 	},
 	.num_device_descs = 6,

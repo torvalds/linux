@@ -528,13 +528,13 @@ int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw
 		for (adap_num = 0; adap_num < dib0700_devices[i].num_adapters;
 				adap_num++) {
 			if (fw_version >= 0x10201) {
-				dib0700_devices[i].adapter[adap_num].stream.u.bulk.buffersize = 188*nb_packet_buffer_size;
+				dib0700_devices[i].adapter[adap_num].fe[0].stream.u.bulk.buffersize = 188*nb_packet_buffer_size;
 			} else {
 				/* for fw version older than 1.20.1,
 				 * the buffersize has to be n times 512 */
-				dib0700_devices[i].adapter[adap_num].stream.u.bulk.buffersize = ((188*nb_packet_buffer_size+188/2)/512)*512;
-				if (dib0700_devices[i].adapter[adap_num].stream.u.bulk.buffersize < 512)
-					dib0700_devices[i].adapter[adap_num].stream.u.bulk.buffersize = 512;
+				dib0700_devices[i].adapter[adap_num].fe[0].stream.u.bulk.buffersize = ((188*nb_packet_buffer_size+188/2)/512)*512;
+				if (dib0700_devices[i].adapter[adap_num].fe[0].stream.u.bulk.buffersize < 512)
+					dib0700_devices[i].adapter[adap_num].fe[0].stream.u.bulk.buffersize = 512;
 			}
 		}
 	}
@@ -579,18 +579,18 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	deb_info("modifying (%d) streaming state for %d\n", onoff, adap->id);
 
 	st->channel_state &= ~0x3;
-	if ((adap->stream.props.endpoint != 2)
-			&& (adap->stream.props.endpoint != 3)) {
-		deb_info("the endpoint number (%i) is not correct, use the adapter id instead", adap->stream.props.endpoint);
+	if ((adap->fe_adap[0].stream.props.endpoint != 2)
+			&& (adap->fe_adap[0].stream.props.endpoint != 3)) {
+		deb_info("the endpoint number (%i) is not correct, use the adapter id instead", adap->fe_adap[0].stream.props.endpoint);
 		if (onoff)
 			st->channel_state |=	1 << (adap->id);
 		else
 			st->channel_state |=	1 << ~(adap->id);
 	} else {
 		if (onoff)
-			st->channel_state |=	1 << (adap->stream.props.endpoint-2);
+			st->channel_state |=	1 << (adap->fe_adap[0].stream.props.endpoint-2);
 		else
-			st->channel_state |=	1 << (3-adap->stream.props.endpoint);
+			st->channel_state |=	1 << (3-adap->fe_adap[0].stream.props.endpoint);
 	}
 
 	st->buf[2] |= st->channel_state;

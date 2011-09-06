@@ -941,7 +941,7 @@ static int lme_name(struct dvb_usb_adapter *adap)
 	const char *desc = adap->dev->desc->name;
 	char *fe_name[] = {"", " LG TDQY-P001F", " SHARP:BS2F7HZ7395",
 				" SHARP:BS2F7HZ0194"};
-	char *name = adap->fe[0]->ops.info.name;
+	char *name = adap->fe_adap[0].fe->ops.info.name;
 
 	strlcpy(name, desc, 128);
 	strlcat(name, fe_name[st->tuner_config], 128);
@@ -958,10 +958,10 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	st->i2c_talk_onoff = 1;
 
 	st->i2c_gate = 4;
-	adap->fe[0] = dvb_attach(tda10086_attach, &tda10086_config,
+	adap->fe_adap[0].fe = dvb_attach(tda10086_attach, &tda10086_config,
 		&adap->dev->i2c_adap);
 
-	if (adap->fe[0]) {
+	if (adap->fe_adap[0].fe) {
 		info("TUN Found Frontend TDA10086");
 		st->i2c_tuner_gate_w = 4;
 		st->i2c_tuner_gate_r = 4;
@@ -975,9 +975,9 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	st->i2c_gate = 4;
-	adap->fe[0] = dvb_attach(stv0299_attach, &sharp_z0194_config,
+	adap->fe_adap[0].fe = dvb_attach(stv0299_attach, &sharp_z0194_config,
 			&adap->dev->i2c_adap);
-	if (adap->fe[0]) {
+	if (adap->fe_adap[0].fe) {
 		info("FE Found Stv0299");
 		st->i2c_tuner_gate_w = 4;
 		st->i2c_tuner_gate_r = 5;
@@ -991,9 +991,9 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	st->i2c_gate = 5;
-	adap->fe[0] = dvb_attach(stv0288_attach, &lme_config,
+	adap->fe_adap[0].fe = dvb_attach(stv0288_attach, &lme_config,
 			&adap->dev->i2c_adap);
-	if (adap->fe[0]) {
+	if (adap->fe_adap[0].fe) {
 		info("FE Found Stv0288");
 		st->i2c_tuner_gate_w = 4;
 		st->i2c_tuner_gate_r = 5;
@@ -1010,15 +1010,15 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 
 
 end:	if (ret) {
-		if (adap->fe[0]) {
-			dvb_frontend_detach(adap->fe[0]);
-			adap->fe[0] = NULL;
+		if (adap->fe_adap[0].fe) {
+			dvb_frontend_detach(adap->fe_adap[0].fe);
+			adap->fe_adap[0].fe = NULL;
 		}
 		adap->dev->props.rc.core.rc_codes = NULL;
 		return -ENODEV;
 	}
 
-	adap->fe[0]->ops.set_voltage = dm04_lme2510_set_voltage;
+	adap->fe_adap[0].fe->ops.set_voltage = dm04_lme2510_set_voltage;
 	ret = lme_name(adap);
 	return ret;
 }
@@ -1031,17 +1031,17 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 
 	switch (st->tuner_config) {
 	case TUNER_LG:
-		if (dvb_attach(tda826x_attach, adap->fe[0], 0xc0,
+		if (dvb_attach(tda826x_attach, adap->fe_adap[0].fe, 0xc0,
 			&adap->dev->i2c_adap, 1))
 			ret = st->tuner_config;
 		break;
 	case TUNER_S7395:
-		if (dvb_attach(ix2505v_attach , adap->fe[0], &lme_tuner,
+		if (dvb_attach(ix2505v_attach , adap->fe_adap[0].fe, &lme_tuner,
 			&adap->dev->i2c_adap))
 			ret = st->tuner_config;
 		break;
 	case TUNER_S0194:
-		if (dvb_attach(dvb_pll_attach , adap->fe[0], 0xc0,
+		if (dvb_attach(dvb_pll_attach , adap->fe_adap[0].fe, 0xc0,
 			&adap->dev->i2c_adap, DVB_PLL_OPERA1))
 			ret = st->tuner_config;
 		break;
@@ -1145,6 +1145,8 @@ static struct dvb_usb_device_properties lme2510_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
 				DVB_USB_ADAP_NEED_PID_FILTERING|
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
@@ -1166,6 +1168,7 @@ static struct dvb_usb_device_properties lme2510_properties = {
 					}
 				}
 			}
+		}},
 		}
 	},
 	.rc.core = {
@@ -1193,6 +1196,8 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
 				DVB_USB_ADAP_NEED_PID_FILTERING|
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
@@ -1214,6 +1219,7 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 					}
 				}
 			}
+		}},
 		}
 	},
 	.rc.core = {
@@ -1241,7 +1247,7 @@ static void *lme2510_exit_int(struct dvb_usb_device *d)
 	void *buffer = NULL;
 
 	if (adap != NULL) {
-		lme2510_kill_urb(&adap->stream);
+		lme2510_kill_urb(&adap->fe_adap[0].stream);
 		adap->feedcount = 0;
 	}
 

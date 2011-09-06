@@ -222,7 +222,7 @@ static int ttusb2_frontend_tda10086_attach(struct dvb_usb_adapter *adap)
 	if (usb_set_interface(adap->dev->udev,0,3) < 0)
 		err("set interface to alts=3 failed");
 
-	if ((adap->fe[0] = dvb_attach(tda10086_attach, &tda10086_config, &adap->dev->i2c_adap)) == NULL) {
+	if ((adap->fe_adap[0].fe = dvb_attach(tda10086_attach, &tda10086_config, &adap->dev->i2c_adap)) == NULL) {
 		deb_info("TDA10086 attach failed\n");
 		return -ENODEV;
 	}
@@ -234,7 +234,7 @@ static int ttusb2_ct3650_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 
-	return adap->fe[0]->ops.i2c_gate_ctrl(adap->fe[0], enable);
+	return adap->fe_adap[0].fe->ops.i2c_gate_ctrl(adap->fe_adap[0].fe, enable);
 }
 
 static int ttusb2_frontend_tda10023_attach(struct dvb_usb_adapter *adap)
@@ -242,26 +242,26 @@ static int ttusb2_frontend_tda10023_attach(struct dvb_usb_adapter *adap)
 	if (usb_set_interface(adap->dev->udev, 0, 3) < 0)
 		err("set interface to alts=3 failed");
 
-	if (adap->fe[0] == NULL) {
+	if (adap->fe_adap[0].fe == NULL) {
 		/* FE 0 DVB-C */
-		adap->fe[0] = dvb_attach(tda10023_attach,
+		adap->fe_adap[0].fe = dvb_attach(tda10023_attach,
 			&tda10023_config, &adap->dev->i2c_adap, 0x48);
 
-		if (adap->fe[0] == NULL) {
+		if (adap->fe_adap[0].fe == NULL) {
 			deb_info("TDA10023 attach failed\n");
 			return -ENODEV;
 		}
 	} else {
-		adap->fe[1] = dvb_attach(tda10048_attach,
+		adap->fe_adap[1].fe = dvb_attach(tda10048_attach,
 			&tda10048_config, &adap->dev->i2c_adap);
 
-		if (adap->fe[1] == NULL) {
+		if (adap->fe_adap[1].fe == NULL) {
 			deb_info("TDA10048 attach failed\n");
 			return -ENODEV;
 		}
 
 		/* tuner is behind TDA10023 I2C-gate */
-		adap->fe[1]->ops.i2c_gate_ctrl = ttusb2_ct3650_i2c_gate_ctrl;
+		adap->fe_adap[1].fe->ops.i2c_gate_ctrl = ttusb2_ct3650_i2c_gate_ctrl;
 
 	}
 
@@ -273,10 +273,10 @@ static int ttusb2_tuner_tda827x_attach(struct dvb_usb_adapter *adap)
 	struct dvb_frontend *fe;
 
 	/* MFE: select correct FE to attach tuner since that's called twice */
-	if (adap->fe[1] == NULL)
-		fe = adap->fe[0];
+	if (adap->fe_adap[1].fe == NULL)
+		fe = adap->fe_adap[0].fe;
 	else
-		fe = adap->fe[1];
+		fe = adap->fe_adap[1].fe;
 
 	/* attach tuner */
 	if (dvb_attach(tda827x_attach, fe, 0x61, &adap->dev->i2c_adap, &tda827x_config) == NULL) {
@@ -288,12 +288,12 @@ static int ttusb2_tuner_tda827x_attach(struct dvb_usb_adapter *adap)
 
 static int ttusb2_tuner_tda826x_attach(struct dvb_usb_adapter *adap)
 {
-	if (dvb_attach(tda826x_attach, adap->fe[0], 0x60, &adap->dev->i2c_adap, 0) == NULL) {
+	if (dvb_attach(tda826x_attach, adap->fe_adap[0].fe, 0x60, &adap->dev->i2c_adap, 0) == NULL) {
 		deb_info("TDA8263 attach failed\n");
 		return -ENODEV;
 	}
 
-	if (dvb_attach(lnbp21_attach, adap->fe[0], &adap->dev->i2c_adap, 0, 0) == NULL) {
+	if (dvb_attach(lnbp21_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap, 0, 0) == NULL) {
 		deb_info("LNBP21 attach failed\n");
 		return -ENODEV;
 	}
@@ -340,6 +340,8 @@ static struct dvb_usb_device_properties ttusb2_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.streaming_ctrl   = NULL, // ttusb2_streaming_ctrl,
 
 			.frontend_attach  = ttusb2_frontend_tda10086_attach,
@@ -358,6 +360,7 @@ static struct dvb_usb_device_properties ttusb2_properties = {
 					}
 				}
 			}
+		}},
 		}
 	},
 
@@ -392,6 +395,8 @@ static struct dvb_usb_device_properties ttusb2_properties_s2400 = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.streaming_ctrl   = NULL,
 
 			.frontend_attach  = ttusb2_frontend_tda10086_attach,
@@ -410,6 +415,7 @@ static struct dvb_usb_device_properties ttusb2_properties_s2400 = {
 					}
 				}
 			}
+		}},
 		}
 	},
 
@@ -446,9 +452,10 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 2,
+		.fe = {{
 			.streaming_ctrl   = NULL,
 
-			.num_frontends    = 2,
 			.frontend_attach  = ttusb2_frontend_tda10023_attach,
 			.tuner_attach = ttusb2_tuner_tda827x_attach,
 
@@ -465,6 +472,26 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 					}
 				}
 			}
+		},{
+			.streaming_ctrl   = NULL,
+
+			.frontend_attach  = ttusb2_frontend_tda10023_attach,
+			.tuner_attach = ttusb2_tuner_tda827x_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_ISOC,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.isoc = {
+						.framesperurb = 4,
+						.framesize = 940,
+						.interval = 1,
+					}
+				}
+			}
+		}},
 		},
 	},
 
