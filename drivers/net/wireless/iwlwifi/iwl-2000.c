@@ -285,6 +285,7 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.name = "2000D Series 2x2 BGN",
 	IWL_DEVICE_2000,
+	.ht_params = &iwl2000_ht_params,
 };
 
 #define IWL_DEVICE_2030						\
