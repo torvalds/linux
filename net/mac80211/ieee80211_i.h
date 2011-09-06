@@ -261,6 +261,7 @@ struct mesh_stats {
 	__u32 fwded_frames;		/* Mesh total forwarded frames */
 	__u32 dropped_frames_ttl;	/* Not transmitted since mesh_ttl == 0*/
 	__u32 dropped_frames_no_route;	/* Not transmitted, no route found */
+	__u32 dropped_frames_congestion;/* Not forwarded due to congestion */
 	atomic_t estab_plinks;
 };
 
