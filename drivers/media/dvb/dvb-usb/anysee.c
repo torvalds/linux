@@ -130,6 +130,29 @@ static int anysee_wr_reg_mask(struct dvb_usb_device *d, u16 reg, u8 val,
 	return anysee_write_reg(d, reg, val);
 }
 
+/* read single register with mask */
+static int anysee_rd_reg_mask(struct dvb_usb_device *d, u16 reg, u8 *val,
+	u8 mask)
+{
+	int ret, i;
+	u8 tmp;
+
+	ret = anysee_read_reg(d, reg, &tmp);
+	if (ret)
+		return ret;
+
+	tmp &= mask;
+
+	/* find position of the first bit */
+	for (i = 0; i < 8; i++) {
+		if ((mask >> i) & 0x01)
+			break;
+	}
+	*val = tmp >> i;
+
+	return 0;
+}
+
 static int anysee_get_hw_info(struct dvb_usb_device *d, u8 *id)
 {
 	u8 buf[] = {CMD_GET_HW_INFO};
@@ -155,22 +178,6 @@ static int anysee_ir_ctrl(struct dvb_usb_device *d, u8 onoff)
 	u8 buf[] = {CMD_LED_AND_IR_CTRL, 0x02, onoff};
 	deb_info("%s: onoff:%02x\n", __func__, onoff);
 	return anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
-}
-
-static int anysee_init(struct dvb_usb_device *d)
-{
-	int ret;
-	/* LED light */
-	ret = anysee_led_ctrl(d, 0x01, 0x03);
-	if (ret)
-		return ret;
-
-	/* enable IR */
-	ret = anysee_ir_ctrl(d, 1);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 /* I2C */
@@ -298,7 +305,7 @@ static struct tda10023_config anysee_tda10023_tda18212_config = {
 	.pll_m  = 12,
 	.pll_p  = 3,
 	.pll_n  = 1,
-	.output_mode = TDA10023_OUTPUT_MODE_PARALLEL_C,
+	.output_mode = TDA10023_OUTPUT_MODE_PARALLEL_B,
 	.deltaf = 0xba02,
 };
 
@@ -802,11 +809,6 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		/* E7 TC */
 		/* E7 PTC */
 
-		/* enable transport stream on IOA[7] */
-		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
-		if (ret)
-			goto error;
-
 		if ((state->fe_id ^ dvb_usb_anysee_delsys) == 0)  {
 			/* disable DVB-T demod on IOD[6] */
 			ret = anysee_wr_reg_mask(adap->dev, REG_IOD, (0 << 6),
@@ -848,6 +850,8 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			adap->fe_adap[state->fe_id].fe->ops.i2c_gate_ctrl =
 				anysee_i2c_gate_ctrl;
 
+		state->has_ci = true;
+
 		break;
 	case ANYSEE_HW_508S2: /* 19 */
 	case ANYSEE_HW_508PS2: /* 22 */
@@ -856,11 +860,6 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 
 		if (state->fe_id)
 			break;
-
-		/* enable transport stream on IOA[7] */
-		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
-		if (ret)
-			goto error;
 
 		/* enable DVB-S/S2 demod on IOE[5] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 5), 0x20);
@@ -871,14 +870,11 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		adap->fe_adap[0].fe = dvb_attach(stv0900_attach, &anysee_stv0900_config,
 			&adap->dev->i2c_adap, 0);
 
+		state->has_ci = true;
+
 		break;
 	case ANYSEE_HW_508T2C: /* 20 */
 		/* E7 T2C */
-
-		/* enable transport stream on IOA[7] */
-		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
-		if (ret)
-			goto error;
 
 		/* enable DVB-T/T2/C demod on IOE[5] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 5), 0x20);
@@ -896,6 +892,8 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				&anysee_cxd2820r_config,
 				&adap->dev->i2c_adap, adap->fe_adap[0].fe);
 		}
+
+		state->has_ci = true;
 
 		break;
 	}
@@ -1042,6 +1040,201 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 	return 0;
 }
 
+static int anysee_ci_read_attribute_mem(struct dvb_ca_en50221 *ci, int slot,
+	int addr)
+{
+	struct dvb_usb_device *d = ci->data;
+	int ret;
+	u8 buf[] = {CMD_CI, 0x02, 0x40 | addr >> 8, addr & 0xff, 0x00, 1};
+	u8 val;
+
+	ret = anysee_ctrl_msg(d, buf, sizeof(buf), &val, 1);
+	if (ret)
+		return ret;
+
+	return val;
+}
+
+static int anysee_ci_write_attribute_mem(struct dvb_ca_en50221 *ci, int slot,
+	int addr, u8 val)
+{
+	struct dvb_usb_device *d = ci->data;
+	int ret;
+	u8 buf[] = {CMD_CI, 0x03, 0x40 | addr >> 8, addr & 0xff, 0x00, 1, val};
+
+	ret = anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int anysee_ci_read_cam_control(struct dvb_ca_en50221 *ci, int slot,
+	u8 addr)
+{
+	struct dvb_usb_device *d = ci->data;
+	int ret;
+	u8 buf[] = {CMD_CI, 0x04, 0x40, addr, 0x00, 1};
+	u8 val;
+
+	ret = anysee_ctrl_msg(d, buf, sizeof(buf), &val, 1);
+	if (ret)
+		return ret;
+
+	return val;
+}
+
+static int anysee_ci_write_cam_control(struct dvb_ca_en50221 *ci, int slot,
+	u8 addr, u8 val)
+{
+	struct dvb_usb_device *d = ci->data;
+	int ret;
+	u8 buf[] = {CMD_CI, 0x05, 0x40, addr, 0x00, 1, val};
+
+	ret = anysee_ctrl_msg(d, buf, sizeof(buf), NULL, 0);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int anysee_ci_slot_reset(struct dvb_ca_en50221 *ci, int slot)
+{
+	struct dvb_usb_device *d = ci->data;
+	int ret;
+	struct anysee_state *state = d->priv;
+
+	state->ci_cam_ready = jiffies + msecs_to_jiffies(1000);
+
+	ret = anysee_wr_reg_mask(d, REG_IOA, (0 << 7), 0x80);
+	if (ret)
+		return ret;
+
+	msleep(300);
+
+	ret = anysee_wr_reg_mask(d, REG_IOA, (1 << 7), 0x80);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int anysee_ci_slot_shutdown(struct dvb_ca_en50221 *ci, int slot)
+{
+	struct dvb_usb_device *d = ci->data;
+	int ret;
+
+	ret = anysee_wr_reg_mask(d, REG_IOA, (0 << 7), 0x80);
+	if (ret)
+		return ret;
+
+	msleep(30);
+
+	ret = anysee_wr_reg_mask(d, REG_IOA, (1 << 7), 0x80);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int anysee_ci_slot_ts_enable(struct dvb_ca_en50221 *ci, int slot)
+{
+	struct dvb_usb_device *d = ci->data;
+	int ret;
+
+	ret = anysee_wr_reg_mask(d, REG_IOD, (0 << 1), 0x02);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int anysee_ci_poll_slot_status(struct dvb_ca_en50221 *ci, int slot,
+	int open)
+{
+	struct dvb_usb_device *d = ci->data;
+	struct anysee_state *state = d->priv;
+	int ret;
+	u8 tmp;
+
+	ret = anysee_rd_reg_mask(d, REG_IOC, &tmp, 0x40);
+	if (ret)
+		return ret;
+
+	if (tmp == 0) {
+		ret = DVB_CA_EN50221_POLL_CAM_PRESENT;
+		if (time_after(jiffies, state->ci_cam_ready))
+			ret |= DVB_CA_EN50221_POLL_CAM_READY;
+	}
+
+	return ret;
+}
+
+static int anysee_ci_init(struct dvb_usb_device *d)
+{
+	struct anysee_state *state = d->priv;
+	int ret;
+
+	state->ci.owner               = THIS_MODULE;
+	state->ci.read_attribute_mem  = anysee_ci_read_attribute_mem;
+	state->ci.write_attribute_mem = anysee_ci_write_attribute_mem;
+	state->ci.read_cam_control    = anysee_ci_read_cam_control;
+	state->ci.write_cam_control   = anysee_ci_write_cam_control;
+	state->ci.slot_reset          = anysee_ci_slot_reset;
+	state->ci.slot_shutdown       = anysee_ci_slot_shutdown;
+	state->ci.slot_ts_enable      = anysee_ci_slot_ts_enable;
+	state->ci.poll_slot_status    = anysee_ci_poll_slot_status;
+	state->ci.data                = d;
+
+	ret = anysee_wr_reg_mask(d, REG_IOA, (1 << 7), 0x80);
+	if (ret)
+		return ret;
+
+	ret = dvb_ca_en50221_init(&d->adapter[0].dvb_adap, &state->ci, 0, 1);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void anysee_ci_release(struct dvb_usb_device *d)
+{
+	struct anysee_state *state = d->priv;
+
+	/* detach CI */
+	if (state->has_ci)
+		dvb_ca_en50221_release(&state->ci);
+
+	return;
+}
+
+static int anysee_init(struct dvb_usb_device *d)
+{
+	struct anysee_state *state = d->priv;
+	int ret;
+
+	/* LED light */
+	ret = anysee_led_ctrl(d, 0x01, 0x03);
+	if (ret)
+		return ret;
+
+	/* enable IR */
+	ret = anysee_ir_ctrl(d, 1);
+	if (ret)
+		return ret;
+
+	/* attach CI */
+	if (state->has_ci) {
+		ret = anysee_ci_init(d);
+		if (ret) {
+			state->has_ci = false;
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties anysee_properties;
 
@@ -1081,6 +1274,16 @@ static int anysee_probe(struct usb_interface *intf,
 		return ret;
 
 	return anysee_init(d);
+}
+
+static void anysee_disconnect(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+
+	anysee_ci_release(d);
+	dvb_usb_device_exit(intf);
+
+	return;
 }
 
 static struct usb_device_id anysee_table[] = {
@@ -1160,7 +1363,7 @@ static struct dvb_usb_device_properties anysee_properties = {
 static struct usb_driver anysee_driver = {
 	.name       = "dvb_usb_anysee",
 	.probe      = anysee_probe,
-	.disconnect = dvb_usb_device_exit,
+	.disconnect = anysee_disconnect,
 	.id_table   = anysee_table,
 };
 
