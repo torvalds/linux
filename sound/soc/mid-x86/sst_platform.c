@@ -469,7 +469,7 @@ static struct platform_driver sst_platform_driver = {
 static int __init sst_soc_platform_init(void)
 {
 	pr_debug("sst_soc_platform_init called\n");
-	return  platform_driver_register(&sst_platform_driver);
+	return platform_driver_register(&sst_platform_driver);
 }
 module_init(sst_soc_platform_init);
 
