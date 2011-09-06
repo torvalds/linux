@@ -131,12 +131,10 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 {
 	struct dwc3_omap	*omap = _omap;
 	u32			reg;
-	u32			ctrl;
 
 	spin_lock(&omap->lock);
 
 	reg = dwc3_readl(omap->base, USBOTGSS_IRQSTATUS_1);
-	ctrl = dwc3_readl(omap->base, USBOTGSS_UTMI_OTG_CTRL);
 
 	if (reg & USBOTGSS_IRQ1_DMADISABLECLR) {
 		dev_dbg(omap->dev, "DMA Disable was Cleared\n");
@@ -146,47 +144,34 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	if (reg & USBOTGSS_IRQ1_OEVT)
 		dev_dbg(omap->dev, "OTG Event\n");
 
-	if (reg & USBOTGSS_IRQ1_DRVVBUS_RISE) {
+	if (reg & USBOTGSS_IRQ1_DRVVBUS_RISE)
 		dev_dbg(omap->dev, "DRVVBUS Rise\n");
-		ctrl |= USBOTGSS_UTMI_OTG_CTRL_DRVVBUS;
-	}
 
-	if (reg & USBOTGSS_IRQ1_CHRGVBUS_RISE) {
+	if (reg & USBOTGSS_IRQ1_CHRGVBUS_RISE)
 		dev_dbg(omap->dev, "CHRGVBUS Rise\n");
-		ctrl |= USBOTGSS_UTMI_OTG_CTRL_CHRGVBUS;
-	}
 
-	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_RISE) {
+	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_RISE)
 		dev_dbg(omap->dev, "DISCHRGVBUS Rise\n");
-		ctrl |= USBOTGSS_UTMI_OTG_CTRL_DISCHRGVBUS;
-	}
 
-	if (reg & USBOTGSS_IRQ1_IDPULLUP_RISE) {
+	if (reg & USBOTGSS_IRQ1_IDPULLUP_RISE)
 		dev_dbg(omap->dev, "IDPULLUP Rise\n");
-		ctrl |= USBOTGSS_UTMI_OTG_CTRL_IDPULLUP;
-	}
 
-	if (reg & USBOTGSS_IRQ1_DRVVBUS_FALL) {
+	if (reg & USBOTGSS_IRQ1_DRVVBUS_FALL)
 		dev_dbg(omap->dev, "DRVVBUS Fall\n");
-		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_DRVVBUS;
-	}
 
-	if (reg & USBOTGSS_IRQ1_CHRGVBUS_FALL) {
+	if (reg & USBOTGSS_IRQ1_CHRGVBUS_FALL)
 		dev_dbg(omap->dev, "CHRGVBUS Fall\n");
-		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_CHRGVBUS;
-	}
 
-	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_FALL) {
+	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_FALL)
 		dev_dbg(omap->dev, "DISCHRGVBUS Fall\n");
-		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_DISCHRGVBUS;
-	}
 
-	if (reg & USBOTGSS_IRQ1_IDPULLUP_FALL) {
+	if (reg & USBOTGSS_IRQ1_IDPULLUP_FALL)
 		dev_dbg(omap->dev, "IDPULLUP Fall\n");
-		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_IDPULLUP;
-	}
 
-	dwc3_writel(omap->base, USBOTGSS_UTMI_OTG_CTRL, ctrl);
+	dwc3_writel(omap->base, USBOTGSS_IRQSTATUS_1, reg);
+
+	reg = dwc3_readl(omap->base, USBOTGSS_IRQSTATUS_0);
+	dwc3_writel(omap->base, USBOTGSS_IRQSTATUS_0, reg);
 
 	spin_unlock(&omap->lock);
 
