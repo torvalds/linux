@@ -1372,7 +1372,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @inode_getsecctx:
  * 	Returns a string containing all relavent security context information
  *
- * 	@inode we wish to set the security context of.
+ * 	@inode we wish to get the security context of.
  *	@ctx is a pointer in which to place the allocated security context.
  *	@ctxlen points to the place to put the length of @ctx.
  * This is the main security structure.
