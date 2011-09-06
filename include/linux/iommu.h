@@ -54,7 +54,6 @@ struct iommu_ops {
 			      unsigned long cap);
 };
 
-extern void register_iommu(struct iommu_ops *ops);
 extern int bus_set_iommu(struct bus_type *bus, struct iommu_ops *ops);
 extern bool iommu_present(struct bus_type *bus);
 extern struct iommu_domain *iommu_domain_alloc(struct bus_type *bus);

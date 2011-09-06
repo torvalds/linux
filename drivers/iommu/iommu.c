@@ -25,16 +25,6 @@
 #include <linux/errno.h>
 #include <linux/iommu.h>
 
-static struct iommu_ops *iommu_ops;
-
-void register_iommu(struct iommu_ops *ops)
-{
-	if (iommu_ops)
-		BUG();
-
-	iommu_ops = ops;
-}
-
 static void iommu_bus_init(struct bus_type *bus, struct iommu_ops *ops)
 {
 }
@@ -68,34 +58,25 @@ EXPORT_SYMBOL_GPL(bus_set_iommu);
 
 bool iommu_present(struct bus_type *bus)
 {
-	if (bus->iommu_ops != NULL)
-		return true;
-	else
-		return iommu_ops != NULL;
+	return bus->iommu_ops != NULL;
 }
 EXPORT_SYMBOL_GPL(iommu_present);
 
 struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 {
 	struct iommu_domain *domain;
-	struct iommu_ops *ops;
 	int ret;
 
-	if (bus->iommu_ops)
-		ops = bus->iommu_ops;
-	else
-		ops = iommu_ops;
-
-	if (ops == NULL)
+	if (bus == NULL || bus->iommu_ops == NULL)
 		return NULL;
 
 	domain = kmalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		return NULL;
 
-	domain->ops = ops;
+	domain->ops = bus->iommu_ops;
 
-	ret = iommu_ops->domain_init(domain);
+	ret = domain->ops->domain_init(domain);
 	if (ret)
 		goto out_free;
 
