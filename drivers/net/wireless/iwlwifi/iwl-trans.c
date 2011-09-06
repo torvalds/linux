@@ -1497,6 +1497,8 @@ static int iwl_trans_pcie_check_stuck_queue(struct iwl_trans *trans, int cnt)
 	if (time_after(jiffies, timeout)) {
 		IWL_ERR(trans, "Queue %d stuck for %u ms.\n", q->id,
 			hw_params(trans).wd_timeout);
+		IWL_ERR(trans, "Current read_ptr %d write_ptr %d\n",
+			q->read_ptr, q->write_ptr);
 		return 1;
 	}
 
