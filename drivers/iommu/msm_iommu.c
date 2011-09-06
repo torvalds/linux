@@ -728,7 +728,7 @@ static void __init setup_iommu_tex_classes(void)
 static int __init msm_iommu_init(void)
 {
 	setup_iommu_tex_classes();
-	register_iommu(&msm_iommu_ops);
+	bus_set_iommu(&platform_bus_type, &msm_iommu_ops);
 	return 0;
 }
 
