@@ -1471,13 +1471,13 @@ static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 
 		for (i = 0; i < map.m_len; i++)
 			unmap_underlying_metadata(bdev, map.m_pblk + i);
-	}
 
-	if (ext4_should_order_data(mpd->inode)) {
-		err = ext4_jbd2_file_inode(handle, mpd->inode);
-		if (err)
-			/* This only happens if the journal is aborted */
-			return;
+		if (ext4_should_order_data(mpd->inode)) {
+			err = ext4_jbd2_file_inode(handle, mpd->inode);
+			if (err)
+				/* Only if the journal is aborted */
+				return;
+		}
 	}
 
 	/*
@@ -3173,12 +3173,8 @@ int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 		err = 0;
 		if (ext4_should_journal_data(inode)) {
 			err = ext4_handle_dirty_metadata(handle, inode, bh);
-		} else {
-			if (ext4_should_order_data(inode) &&
-			   EXT4_I(inode)->jinode)
-				err = ext4_jbd2_file_inode(handle, inode);
+		} else
 			mark_buffer_dirty(bh);
-		}
 
 		BUFFER_TRACE(bh, "Partial buffer zeroed");
 next:
@@ -3301,11 +3297,8 @@ int ext4_block_zero_page_range(handle_t *handle,
 	err = 0;
 	if (ext4_should_journal_data(inode)) {
 		err = ext4_handle_dirty_metadata(handle, inode, bh);
-	} else {
-		if (ext4_should_order_data(inode) && EXT4_I(inode)->jinode)
-			err = ext4_jbd2_file_inode(handle, inode);
+	} else
 		mark_buffer_dirty(bh);
-	}
 
 unlock:
 	unlock_page(page);
