@@ -846,9 +846,6 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 		return pos;
 	}
 
-	/* enable/disable bt channel inhibition */
-	priv->bt_ch_announce = iwlagn_mod_params.bt_ch_announce;
-
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (!(iwl_get_debug_level(trans->shrd) & IWL_DL_FW_ERRORS) && !full_log)
 		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
