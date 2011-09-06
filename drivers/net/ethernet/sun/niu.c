@@ -7303,7 +7303,7 @@ static int niu_get_ethtool_tcam_all(struct niu *np,
 }
 
 static int niu_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-		       void *rule_locs)
+		       u32 *rule_locs)
 {
 	struct niu *np = netdev_priv(dev);
 	int ret = 0;
@@ -7322,7 +7322,7 @@ static int niu_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		ret = niu_get_ethtool_tcam_entry(np, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLALL:
-		ret = niu_get_ethtool_tcam_all(np, cmd, (u32 *)rule_locs);
+		ret = niu_get_ethtool_tcam_all(np, cmd, rule_locs);
 		break;
 	default:
 		ret = -EINVAL;

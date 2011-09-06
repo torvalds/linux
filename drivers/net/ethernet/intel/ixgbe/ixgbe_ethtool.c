@@ -2287,7 +2287,7 @@ static int ixgbe_get_ethtool_fdir_all(struct ixgbe_adapter *adapter,
 }
 
 static int ixgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-			   void *rule_locs)
+			   u32 *rule_locs)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int ret = -EOPNOTSUPP;
@@ -2305,8 +2305,7 @@ static int ixgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		ret = ixgbe_get_ethtool_fdir_entry(adapter, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLALL:
-		ret = ixgbe_get_ethtool_fdir_all(adapter, cmd,
-						 (u32 *)rule_locs);
+		ret = ixgbe_get_ethtool_fdir_all(adapter, cmd, rule_locs);
 		break;
 	default:
 		break;

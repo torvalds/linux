@@ -479,7 +479,7 @@ struct ethtool_rx_flow_spec {
  * @data: Command-dependent value
  * @fs: Flow classification rule
  * @rule_cnt: Number of rules to be affected
- * @rule_locs: Array of valid rule locations
+ * @rule_locs: Array of used rule locations
  *
  * For %ETHTOOL_GRXFH and %ETHTOOL_SRXFH, @data is a bitmask indicating
  * the fields included in the flow hash, e.g. %RXH_IP_SRC.  The following
@@ -497,7 +497,8 @@ struct ethtool_rx_flow_spec {
  * For %ETHTOOL_GRXCLSRLALL, @rule_cnt specifies the array size of the
  * user buffer for @rule_locs on entry.  On return, @data is the size
  * of the rule table and @rule_locs contains the locations of the
- * defined rules.
+ * defined rules.  Drivers must use the second parameter to get_rxnfc()
+ * instead of @rule_locs.
  *
  * For %ETHTOOL_SRXCLSRLINS, @fs specifies the rule to add or update.
  * @fs.@location specifies the location to use and must not be ignored.
@@ -939,7 +940,7 @@ struct ethtool_ops {
 	int	(*set_priv_flags)(struct net_device *, u32);
 	int	(*get_sset_count)(struct net_device *, int);
 	int	(*get_rxnfc)(struct net_device *,
-			     struct ethtool_rxnfc *, void *);
+			     struct ethtool_rxnfc *, u32 *rule_locs);
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
 	int	(*flash_device)(struct net_device *, struct ethtool_flash *);
 	int	(*reset)(struct net_device *, u32 *);

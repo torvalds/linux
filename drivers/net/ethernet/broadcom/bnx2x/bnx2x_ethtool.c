@@ -2241,7 +2241,7 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 }
 
 static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-			   void *rules __always_unused)
+			   u32 *rules __always_unused)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 

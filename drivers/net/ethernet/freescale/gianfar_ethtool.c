@@ -1712,7 +1712,7 @@ static int gfar_set_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 }
 
 static int gfar_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-		void *rule_locs)
+		u32 *rule_locs)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	int ret = 0;
@@ -1728,7 +1728,7 @@ static int gfar_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		ret = gfar_get_cls(priv, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLALL:
-		ret = gfar_get_cls_all(priv, cmd, (u32 *) rule_locs);
+		ret = gfar_get_cls_all(priv, cmd, rule_locs);
 		break;
 	default:
 		ret = -EINVAL;

@@ -1902,7 +1902,7 @@ static int set_rss_table(struct net_device *dev,
 }
 
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-		     void *rules)
+		     u32 *rules)
 {
 	const struct port_info *pi = netdev_priv(dev);
 
