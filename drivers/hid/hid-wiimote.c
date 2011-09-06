@@ -17,6 +17,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/power_supply.h>
 #include <linux/spinlock.h>
 #include "hid-ids.h"
 
@@ -51,6 +52,7 @@ struct wiimote_data {
 	struct led_classdev *leds[4];
 	struct input_dev *accel;
 	struct input_dev *ir;
+	struct power_supply battery;
 
 	spinlock_t qlock;
 	__u8 head;
@@ -131,6 +133,10 @@ static __u16 wiiproto_keymap[] = {
 	BTN_A,		/* WIIPROTO_KEY_A */
 	BTN_B,		/* WIIPROTO_KEY_B */
 	BTN_MODE,	/* WIIPROTO_KEY_HOME */
+};
+
+static enum power_supply_property wiimote_battery_props[] = {
+	POWER_SUPPLY_PROP_CAPACITY
 };
 
 /* requires the state.lock spinlock to be held */
@@ -449,6 +455,43 @@ static int wiimote_cmd_write(struct wiimote_data *wdata, __u32 offset,
 	ret = wiimote_cmd_wait(wdata);
 	if (!ret && wdata->state.cmd_err)
 		ret = -EIO;
+
+	return ret;
+}
+
+static int wiimote_battery_get_property(struct power_supply *psy,
+						enum power_supply_property psp,
+						union power_supply_propval *val)
+{
+	struct wiimote_data *wdata = container_of(psy,
+						struct wiimote_data, battery);
+	int ret = 0, state;
+	unsigned long flags;
+
+	ret = wiimote_cmd_acquire(wdata);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiimote_cmd_set(wdata, WIIPROTO_REQ_SREQ, 0);
+	wiiproto_req_status(wdata);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	ret = wiimote_cmd_wait(wdata);
+	state = wdata->state.cmd_battery;
+	wiimote_cmd_release(wdata);
+
+	if (ret)
+		return ret;
+
+	switch (psp) {
+		case POWER_SUPPLY_PROP_CAPACITY:
+			val->intval = state * 100 / 255;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+	}
 
 	return ret;
 }
@@ -1155,6 +1198,7 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 {
 	wiimote_leds_destroy(wdata);
 
+	power_supply_unregister(&wdata->battery);
 	input_unregister_device(wdata->accel);
 	input_unregister_device(wdata->ir);
 	input_unregister_device(wdata->input);
@@ -1206,6 +1250,19 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_input;
 	}
 
+	wdata->battery.properties = wiimote_battery_props;
+	wdata->battery.num_properties = ARRAY_SIZE(wiimote_battery_props);
+	wdata->battery.get_property = wiimote_battery_get_property;
+	wdata->battery.name = "wiimote_battery";
+	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
+	wdata->battery.use_for_apm = 0;
+
+	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery);
+	if (ret) {
+		hid_err(hdev, "Cannot register battery device\n");
+		goto err_battery;
+	}
+
 	ret = wiimote_leds_create(wdata);
 	if (ret)
 		goto err_free;
@@ -1223,6 +1280,9 @@ err_free:
 	wiimote_destroy(wdata);
 	return ret;
 
+err_battery:
+	input_unregister_device(wdata->input);
+	wdata->input = NULL;
 err_input:
 	input_unregister_device(wdata->ir);
 	wdata->ir = NULL;

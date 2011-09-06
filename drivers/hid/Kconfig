@@ -590,6 +590,7 @@ config HID_WIIMOTE
 	tristate "Nintendo Wii Remote support"
 	depends on BT_HIDP
 	depends on LEDS_CLASS
+	select POWER_SUPPLY
 	---help---
 	Support for the Nintendo Wii Remote bluetooth device.
 
