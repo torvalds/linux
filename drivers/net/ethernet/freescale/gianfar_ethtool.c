@@ -1676,6 +1676,7 @@ static int gfar_get_cls_all(struct gfar_private *priv,
 	}
 
 	cmd->data = MAX_FILER_IDX;
+	cmd->rule_cnt = i;
 
 	return 0;
 }

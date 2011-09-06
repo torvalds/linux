@@ -7299,6 +7299,8 @@ static int niu_get_ethtool_tcam_all(struct niu *np,
 	}
 	niu_unlock_parent(np, flags);
 
+	nfc->rule_cnt = cnt;
+
 	return ret;
 }
 

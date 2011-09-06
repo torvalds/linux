@@ -496,9 +496,9 @@ struct ethtool_rx_flow_spec {
  *
  * For %ETHTOOL_GRXCLSRLALL, @rule_cnt specifies the array size of the
  * user buffer for @rule_locs on entry.  On return, @data is the size
- * of the rule table and @rule_locs contains the locations of the
- * defined rules.  Drivers must use the second parameter to get_rxnfc()
- * instead of @rule_locs.
+ * of the rule table, @rule_cnt is the number of defined rules, and
+ * @rule_locs contains the locations of the defined rules.  Drivers
+ * must use the second parameter to get_rxnfc() instead of @rule_locs.
  *
  * For %ETHTOOL_SRXCLSRLINS, @fs specifies the rule to add or update.
  * @fs.@location specifies the location to use and must not be ignored.

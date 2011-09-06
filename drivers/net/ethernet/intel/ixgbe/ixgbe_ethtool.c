@@ -2283,6 +2283,8 @@ static int ixgbe_get_ethtool_fdir_all(struct ixgbe_adapter *adapter,
 		cnt++;
 	}
 
+	cmd->rule_cnt = cnt;
+
 	return 0;
 }
 
