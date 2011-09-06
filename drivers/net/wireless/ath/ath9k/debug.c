@@ -1323,16 +1323,17 @@ void ath9k_debug_samp_bb_mac(struct ath_softc *sc)
 
 	ath9k_ps_wakeup(sc);
 
+	spin_lock_bh(&sc->debug.samp_lock);
+
 	spin_lock_irqsave(&common->cc_lock, flags);
 	ath_hw_cycle_counters_update(common);
-	spin_unlock_irqrestore(&common->cc_lock, flags);
-
-	spin_lock_bh(&sc->debug.samp_lock);
 
 	ATH_SAMP_DBG(cc.cycles) = common->cc_ani.cycles;
 	ATH_SAMP_DBG(cc.rx_busy) = common->cc_ani.rx_busy;
 	ATH_SAMP_DBG(cc.rx_frame) = common->cc_ani.rx_frame;
 	ATH_SAMP_DBG(cc.tx_frame) = common->cc_ani.tx_frame;
+	spin_unlock_irqrestore(&common->cc_lock, flags);
+
 	ATH_SAMP_DBG(noise) = ah->noise;
 
 	REG_WRITE_D(ah, AR_MACMISC,
@@ -1390,6 +1391,8 @@ static int open_file_bb_mac_samps(struct inode *inode, struct file *file)
 	spin_lock_bh(&sc->debug.samp_lock);
 	memcpy(bb_mac_samp, sc->debug.bb_mac_samp,
 			sizeof(*bb_mac_samp) * ATH_DBG_MAX_SAMPLES);
+	len += snprintf(buf + len, size - len,
+			"Current Sample Index: %d\n", sc->debug.sampidx);
 	spin_unlock_bh(&sc->debug.samp_lock);
 
 	len += snprintf(buf + len, size - len,
