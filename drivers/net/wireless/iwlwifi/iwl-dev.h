@@ -117,21 +117,6 @@ struct iwl_channel_info {
 	u8 ht40_extension_channel; /* HT_IE_EXT_CHANNEL_* */
 };
 
-#define IWL_TX_FIFO_BK		0	/* shared */
-#define IWL_TX_FIFO_BE		1
-#define IWL_TX_FIFO_VI		2	/* shared */
-#define IWL_TX_FIFO_VO		3
-#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
-#define IWL_TX_FIFO_BE_IPAN	4
-#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
-#define IWL_TX_FIFO_VO_IPAN	5
-/* re-uses the VO FIFO, uCode will properly flush/schedule */
-#define IWL_TX_FIFO_AUX		5
-#define IWL_TX_FIFO_UNUSED	-1
-
-/* AUX (TX during scan dwell) queue */
-#define IWL_AUX_QUEUE		10
-
 /*
  * Minimum number of queues. MAX_NUM is defined in hw specific files.
  * Set the minimum to accommodate
@@ -544,9 +529,6 @@ struct iwl_chain_noise_data {
 #define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
 #define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
 
-#define IWL_TRAFFIC_ENTRIES	(256)
-#define IWL_TRAFFIC_ENTRY_SIZE  (64)
-
 enum {
 	MEASUREMENT_READY = (1 << 0),
 	MEASUREMENT_ACTIVE = (1 << 1),
@@ -686,21 +668,6 @@ struct iwl_event_log {
 	int wraps_once_count;
 	int wraps_more_count;
 };
-
-/*
- * host interrupt timeout value
- * used with setting interrupt coalescing timer
- * the CSR_INT_COALESCING is an 8 bit register in 32-usec unit
- *
- * default interrupt coalescing timer is 64 x 32 = 2048 usecs
- * default interrupt coalescing calibration timer is 16 x 32 = 512 usecs
- */
-#define IWL_HOST_INT_TIMEOUT_MAX	(0xFF)
-#define IWL_HOST_INT_TIMEOUT_DEF	(0x40)
-#define IWL_HOST_INT_TIMEOUT_MIN	(0x0)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MAX	(0xFF)
-#define IWL_HOST_INT_CALIB_TIMEOUT_DEF	(0x10)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MIN	(0x0)
 
 /*
  * This is the threshold value of plcp error rate per 100mSecs.  It is
@@ -933,9 +900,6 @@ struct iwl_priv {
 	/*TODO: remove these pointers - use bus(priv) instead */
 	struct iwl_bus *bus;	/* bus specific data */
 
-	/* microcode/device supports multiple contexts */
-	u8 valid_contexts;
-
 	/* max number of station keys */
 	u8 sta_key_max_num;
 
@@ -1163,7 +1127,7 @@ iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 #define for_each_context(priv, ctx)				\
 	for (ctx = &priv->contexts[IWL_RXON_CTX_BSS];		\
 	     ctx < &priv->contexts[NUM_IWL_RXON_CTX]; ctx++)	\
-		if (priv->valid_contexts & BIT(ctx->ctxid))
+		if (priv->shrd->valid_contexts & BIT(ctx->ctxid))
 
 static inline int iwl_is_associated_ctx(struct iwl_rxon_context *ctx)
 {

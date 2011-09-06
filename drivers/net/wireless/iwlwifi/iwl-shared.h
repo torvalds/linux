@@ -213,6 +213,7 @@ struct iwl_tid_data {
  * @ucode_owner: IWL_OWNERSHIP_*
  * @cmd_queue: command queue number
  * @status: STATUS_*
+ * @valid_contexts: microcode/device supports multiple contexts
  * @bus: pointer to the bus layer data
  * @priv: pointer to the upper layer data
  * @hw_params: see struct iwl_hw_params
@@ -233,6 +234,7 @@ struct iwl_shared {
 	u8 cmd_queue;
 	unsigned long status;
 	bool wowlan;
+	u8 valid_contexts;
 
 	struct iwl_bus *bus;
 	struct iwl_priv *priv;
@@ -387,6 +389,7 @@ void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
 				enum iwl_rxon_context_id ctx,
 				u8 sta_id, u8 tid);
 void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
+void iwl_nic_config(struct iwl_priv *priv);
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
@@ -407,6 +410,9 @@ static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv, u8 ctxid);
 
 #define IWL_CMD(x) case x: return #x
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
+
+#define IWL_TRAFFIC_ENTRIES	(256)
+#define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS

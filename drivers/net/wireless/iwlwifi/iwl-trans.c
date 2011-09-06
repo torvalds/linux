@@ -71,9 +71,7 @@
 #include "iwl-prph.h"
 #include "iwl-shared.h"
 #include "iwl-eeprom.h"
-
-/* TODO: the transport layer should not include this */
-#include "iwl-core.h"
+#include "iwl-agn-hw.h"
 
 static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 {
@@ -638,7 +636,7 @@ static int iwl_nic_init(struct iwl_trans *trans)
 
 	iwl_set_pwr_vmain(trans);
 
-	priv(trans)->cfg->lib->nic_config(priv(trans));
+	iwl_nic_config(priv(trans));
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	iwl_rx_init(trans);
@@ -831,8 +829,6 @@ static void iwl_trans_txq_set_sched(struct iwl_trans *trans, u32 mask)
 static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 {
 	const struct queue_to_fifo_ac *queue_to_fifo;
-	struct iwl_rxon_context *ctx;
-	struct iwl_priv *priv = priv(trans);
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 a;
@@ -900,7 +896,7 @@ static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 	iwl_trans_txq_set_sched(trans, IWL_MASK(0, 7));
 
 	/* map queues to FIFOs */
-	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+	if (trans->shrd->valid_contexts != BIT(IWL_RXON_CTX_BSS))
 		queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
 	else
 		queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
@@ -912,8 +908,6 @@ static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 		sizeof(trans_pcie->queue_stopped));
 	for (i = 0; i < 4; i++)
 		atomic_set(&trans_pcie->queue_stop_count[i], 0);
-	for_each_context(priv, ctx)
-		ctx->last_tx_rejected = false;
 
 	/* reset to 0 to enable all the queue first */
 	trans_pcie->txq_ctx_active_msk = 0;

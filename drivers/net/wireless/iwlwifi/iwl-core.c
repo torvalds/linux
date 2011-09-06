@@ -1870,3 +1870,9 @@ void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state)
 {
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }
+
+void iwl_nic_config(struct iwl_priv *priv)
+{
+	priv->cfg->lib->nic_config(priv);
+
+}
