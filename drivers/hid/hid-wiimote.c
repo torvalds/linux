@@ -305,9 +305,28 @@ static void wiimote_leds_set(struct led_classdev *led_dev,
 	}
 }
 
-static int wiimote_input_event(struct input_dev *dev, unsigned int type,
-						unsigned int code, int value)
+static int wiimote_ff_play(struct input_dev *dev, void *data,
+							struct ff_effect *eff)
 {
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	__u8 value;
+	unsigned long flags;
+
+	/*
+	 * The wiimote supports only a single rumble motor so if any magnitude
+	 * is set to non-zero then we start the rumble motor. If both are set to
+	 * zero, we stop the rumble motor.
+	 */
+
+	if (eff->u.rumble.strong_magnitude || eff->u.rumble.weak_magnitude)
+		value = 1;
+	else
+		value = 0;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiiproto_req_rumble(wdata, value);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
 	return 0;
 }
 
@@ -480,7 +499,6 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	hid_set_drvdata(hdev, wdata);
 
 	input_set_drvdata(wdata->input, wdata);
-	wdata->input->event = wiimote_input_event;
 	wdata->input->open = wiimote_input_open;
 	wdata->input->close = wiimote_input_close;
 	wdata->input->dev.parent = &wdata->hdev->dev;
@@ -493,6 +511,13 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	set_bit(EV_KEY, wdata->input->evbit);
 	for (i = 0; i < WIIPROTO_KEY_COUNT; ++i)
 		set_bit(wiiproto_keymap[i], wdata->input->keybit);
+
+	set_bit(FF_RUMBLE, wdata->input->ffbit);
+	if (input_ff_create_memless(wdata->input, NULL, wiimote_ff_play)) {
+		input_free_device(wdata->input);
+		kfree(wdata);
+		return NULL;
+	}
 
 	spin_lock_init(&wdata->qlock);
 	INIT_WORK(&wdata->worker, wiimote_worker);
