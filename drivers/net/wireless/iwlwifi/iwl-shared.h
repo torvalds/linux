@@ -403,7 +403,7 @@ void iwl_reset_traffic_log(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv, u8 ctxid);
 #else
-static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv, u8 ctxid);
+static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv, u8 ctxid)
 {
 }
 #endif
