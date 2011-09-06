@@ -902,9 +902,10 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 
 	orig_ptr = btrfs_node_blockptr(mid, orig_slot);
 
-	if (level < BTRFS_MAX_LEVEL - 1)
+	if (level < BTRFS_MAX_LEVEL - 1) {
 		parent = path->nodes[level + 1];
-	pslot = path->slots[level + 1];
+		pslot = path->slots[level + 1];
+	}
 
 	/*
 	 * deal with the case where there is only one pointer in the root
@@ -1107,9 +1108,10 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 	mid = path->nodes[level];
 	WARN_ON(btrfs_header_generation(mid) != trans->transid);
 
-	if (level < BTRFS_MAX_LEVEL - 1)
+	if (level < BTRFS_MAX_LEVEL - 1) {
 		parent = path->nodes[level + 1];
-	pslot = path->slots[level + 1];
+		pslot = path->slots[level + 1];
+	}
 
 	if (!parent)
 		return 1;
