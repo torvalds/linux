@@ -2295,7 +2295,6 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 static void *
 il4965_rs_alloc_sta(void *il_rate, struct ieee80211_sta *sta, gfp_t gfp)
 {
-	struct il_lq_sta *lq_sta;
 	struct il_station_priv *sta_priv =
 	    (struct il_station_priv *)sta->drv_priv;
 	struct il_priv *il;
@@ -2303,9 +2302,7 @@ il4965_rs_alloc_sta(void *il_rate, struct ieee80211_sta *sta, gfp_t gfp)
 	il = (struct il_priv *)il_rate;
 	D_RATE("create station rate scale win\n");
 
-	lq_sta = &sta_priv->lq_sta;
-
-	return lq_sta;
+	return &sta_priv->lq_sta;
 }
 
 /*
