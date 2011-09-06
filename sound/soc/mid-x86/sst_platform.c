@@ -233,6 +233,10 @@ static int sst_platform_open(struct snd_pcm_substream *substream)
 	pr_debug("sst_platform_open called\n");
 
 	snd_soc_set_runtime_hwparams(substream, &sst_platform_pcm_hw);
+	ret_val = snd_pcm_hw_constraint_integer(runtime,
+						SNDRV_PCM_HW_PARAM_PERIODS);
+	if (ret_val < 0)
+		return ret_val;
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
@@ -260,8 +264,8 @@ static int sst_platform_open(struct snd_pcm_substream *substream)
 		return ret_val;
 	}
 	runtime->private_data = stream;
-	return snd_pcm_hw_constraint_integer(runtime,
-			 SNDRV_PCM_HW_PARAM_PERIODS);
+
+	return 0;
 }
 
 static int sst_platform_close(struct snd_pcm_substream *substream)
