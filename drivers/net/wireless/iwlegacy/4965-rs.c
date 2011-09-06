@@ -1793,9 +1793,6 @@ il4965_rs_rate_scale_perform(struct il_priv *il, struct sk_buff *skb,
 	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		return;
 
-	if (!sta || !lq_sta)
-		return;
-
 	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
 
 	tid = il4965_rs_tl_add_packet(lq_sta, hdr);
