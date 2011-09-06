@@ -850,8 +850,7 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&il->mutex);
 
-	if (vif)
-		ctx = il_rxon_ctx_from_vif(vif);
+	ctx = il_rxon_ctx_from_vif(vif);
 
 	if (!il->scan_cmd) {
 		il->scan_cmd =
