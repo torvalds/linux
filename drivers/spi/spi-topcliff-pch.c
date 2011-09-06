@@ -317,16 +317,19 @@ static void pch_spi_handler_sub(struct pch_spi_data *data, u32 reg_spsr_val,
 
 	/* if transfer complete interrupt */
 	if (reg_spsr_val & SPSR_FI_BIT) {
-		if (tx_index < bpw_len)
+		if ((tx_index == bpw_len) && (rx_index == tx_index)) {
+			/* disable interrupts */
+			pch_spi_setclr_reg(data->master, PCH_SPCR, 0, PCH_ALL);
+
+			/* transfer is completed;
+			   inform pch_spi_process_messages */
+			data->transfer_complete = true;
+			data->transfer_active = false;
+			wake_up(&data->wait);
+		} else {
 			dev_err(&data->master->dev,
 				"%s : Transfer is not completed", __func__);
-		/* disable interrupts */
-		pch_spi_setclr_reg(data->master, PCH_SPCR, 0, PCH_ALL);
-
-		/* transfer is completed;inform pch_spi_process_messages */
-		data->transfer_complete = true;
-		data->transfer_active = false;
-		wake_up(&data->wait);
+		}
 	}
 }
 
