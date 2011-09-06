@@ -60,7 +60,6 @@ static u64 current_sessionid = 1;
 #define ONE_STATEID(stateid)  (!memcmp((stateid), &onestateid, sizeof(stateid_t)))
 
 /* forward declarations */
-static struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
 static struct nfs4_delegation * search_for_delegation(stateid_t *stid);
 static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, stateid_t *stid);
 static int check_for_locks(struct nfs4_file *filp, struct nfs4_lockowner *lowner);
@@ -1059,6 +1058,32 @@ static void gen_confirm(struct nfs4_client *clp)
 	p = (u32 *)clp->cl_confirm.data;
 	*p++ = get_seconds();
 	*p++ = i++;
+}
+
+static int
+same_stateid(stateid_t *id_one, stateid_t *id_two)
+{
+	if (id_one->si_stateownerid != id_two->si_stateownerid)
+		return 0;
+	return id_one->si_fileid == id_two->si_fileid;
+}
+
+static struct nfs4_stateid *find_stateid(stateid_t *t, int flags)
+{
+	struct nfs4_stateid *s;
+	unsigned int hashval;
+
+	hashval = stateid_hashval(t->si_stateownerid, t->si_fileid);
+	list_for_each_entry(s, &stateid_hashtbl[hashval], st_hash) {
+		if (!same_stateid(&s->st_stateid, t))
+			continue;
+		if (flags & LOCK_STATE && s->st_type != NFS4_LOCK_STID)
+			return NULL;
+		if (flags & OPEN_STATE && s->st_type != NFS4_OPEN_STID)
+			return NULL;
+		return s;
+		}
+	return NULL;
 }
 
 static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
@@ -3693,32 +3718,6 @@ lock_ownerstr_hashval(struct inode *inode, u32 cl_id,
 
 static struct list_head lock_ownerid_hashtbl[LOCK_HASH_SIZE];
 static struct list_head	lock_ownerstr_hashtbl[LOCK_HASH_SIZE];
-
-static int
-same_stateid(stateid_t *id_one, stateid_t *id_two)
-{
-	if (id_one->si_stateownerid != id_two->si_stateownerid)
-		return 0;
-	return id_one->si_fileid == id_two->si_fileid;
-}
-
-static struct nfs4_stateid *find_stateid(stateid_t *t, int flags)
-{
-	struct nfs4_stateid *s;
-	unsigned int hashval;
-
-	hashval = stateid_hashval(t->si_stateownerid, t->si_fileid);
-	list_for_each_entry(s, &stateid_hashtbl[hashval], st_hash) {
-		if (!same_stateid(&s->st_stateid, t))
-			continue;
-		if (flags & LOCK_STATE && s->st_type != NFS4_LOCK_STID)
-			return NULL;
-		if (flags & OPEN_STATE && s->st_type != NFS4_OPEN_STID)
-			return NULL;
-		return s;
-		}
-	return NULL;
-}
 
 static struct nfs4_delegation *
 search_for_delegation(stateid_t *stid)
