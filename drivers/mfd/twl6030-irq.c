@@ -187,6 +187,13 @@ static inline void activate_irq(int irq)
 #endif
 }
 
+int twl6030_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	int twl_irq = (int)irq_get_chip_data(d->irq);
+
+	return irq_set_irq_wake(twl_irq, on);
+}
+
 /*----------------------------------------------------------------------*/
 
 static unsigned twl6030_irq_next;
@@ -318,10 +325,12 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	twl6030_irq_chip = dummy_irq_chip;
 	twl6030_irq_chip.name = "twl6030";
 	twl6030_irq_chip.irq_set_type = NULL;
+	twl6030_irq_chip.irq_set_wake = twl6030_irq_set_wake;
 
 	for (i = irq_base; i < irq_end; i++) {
 		irq_set_chip_and_handler(i, &twl6030_irq_chip,
 					 handle_simple_irq);
+		irq_set_chip_data(i, (void *)irq_num);
 		activate_irq(i);
 	}
 
