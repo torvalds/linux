@@ -608,7 +608,7 @@ struct sys_timer ag5evm_timer = {
 MACHINE_START(AG5EVM, "ag5evm")
 	.map_io		= ag5evm_map_io,
 	.init_irq	= sh73a0_init_irq,
-	.handle_irq	= shmobile_handle_irq_gic,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= ag5evm_init,
 	.timer		= &ag5evm_timer,
 MACHINE_END
