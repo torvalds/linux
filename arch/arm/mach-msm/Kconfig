@@ -50,7 +50,6 @@ config ARCH_MSM8X60
 	select GPIO_MSM_V2
 	select MSM_GPIOMUX
 	select MSM_SCM if SMP
-	select MULTI_IRQ_HANDLER
 
 config ARCH_MSM8960
 	bool "MSM8960"
@@ -61,7 +60,6 @@ config ARCH_MSM8960
 	select MSM_V2_TLMM
 	select MSM_GPIOMUX
 	select MSM_SCM if SMP
-	select MULTI_IRQ_HANDLER
 
 endchoice
 

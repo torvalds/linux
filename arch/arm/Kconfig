@@ -278,7 +278,6 @@ config ARCH_REALVIEW
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
 	select NEED_MACH_MEMORY_H
-	select MULTI_IRQ_HANDLER
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -311,7 +310,6 @@ config ARCH_VEXPRESS
 	select ICST
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
-	select MULTI_IRQ_HANDLER
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.
 
@@ -347,7 +345,6 @@ config ARCH_HIGHBANK
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU
 	select USE_OF
-	select MULTI_IRQ_HANDLER
 	help
 	  Support for the Calxeda Highbank SoC based boards.
 
@@ -366,7 +363,6 @@ config ARCH_CNS3XXX
 	select ARM_GIC
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
-	select MULTI_IRQ_HANDLER
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
@@ -855,7 +851,6 @@ config ARCH_EXYNOS
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select NEED_MACH_MEMORY_H
-	select MULTI_IRQ_HANDLER
 	help
 	  Support for SAMSUNG's EXYNOS SoCs (EXYNOS4/5)
 
@@ -979,7 +974,6 @@ config ARCH_ZYNQ
 	select ARM_AMBA
 	select ICST
 	select USE_OF
-	select MULTI_IRQ_HANDLER
 	help
 	  Support for Xilinx Zynq ARM Cortex A9 Platform
 endchoice

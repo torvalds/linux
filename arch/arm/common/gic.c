@@ -71,9 +71,6 @@ struct gic_chip_data {
 
 static DEFINE_RAW_SPINLOCK(irq_controller_lock);
 
-/* Address of GIC 0 CPU interface */
-void __iomem *gic_cpu_base_addr __read_mostly;
-
 /*
  * Supported arch specific GIC irq extension.
  * Default make them NULL.
@@ -700,7 +697,6 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 	 * For secondary GICs, skip over PPIs, too.
 	 */
 	if (gic_nr == 0) {
-		gic_cpu_base_addr = cpu_base;
 		domain->hwirq_base = 16;
 		if (irq_start > 0)
 			irq_start = (irq_start & ~31) + 16;
