@@ -41,6 +41,7 @@ struct wiimote_state {
 	__u32 opt;
 
 	/* results of synchronous requests */
+	__u8 cmd_battery;
 	__u8 cmd_err;
 };
 
@@ -83,6 +84,7 @@ enum wiiproto_reqs {
 	WIIPROTO_REQ_LED = 0x11,
 	WIIPROTO_REQ_DRM = 0x12,
 	WIIPROTO_REQ_IR1 = 0x13,
+	WIIPROTO_REQ_SREQ = 0x15,
 	WIIPROTO_REQ_WMEM = 0x16,
 	WIIPROTO_REQ_RMEM = 0x17,
 	WIIPROTO_REQ_IR2 = 0x1a,
@@ -349,6 +351,17 @@ static void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm)
 	cmd[0] = WIIPROTO_REQ_DRM;
 	cmd[1] = 0;
 	cmd[2] = drm;
+
+	wiiproto_keep_rumble(wdata, &cmd[1]);
+	wiimote_queue(wdata, cmd, sizeof(cmd));
+}
+
+static void wiiproto_req_status(struct wiimote_data *wdata)
+{
+	__u8 cmd[2];
+
+	cmd[0] = WIIPROTO_REQ_SREQ;
+	cmd[1] = 0;
 
 	wiiproto_keep_rumble(wdata, &cmd[1]);
 	wiimote_queue(wdata, cmd, sizeof(cmd));
@@ -805,6 +818,11 @@ static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
 
 	/* on status reports the drm is reset so we need to resend the drm */
 	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+
+	if (wiimote_cmd_pending(wdata, WIIPROTO_REQ_SREQ, 0)) {
+		wdata->state.cmd_battery = payload[5];
+		wiimote_cmd_complete(wdata);
+	}
 }
 
 static void handler_data(struct wiimote_data *wdata, const __u8 *payload)
