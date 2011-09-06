@@ -668,6 +668,32 @@ static void wiimote_accel_close(struct input_dev *dev)
 	hid_hw_close(wdata->hdev);
 }
 
+static int wiimote_ir_open(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	int ret;
+
+	ret = hid_hw_open(wdata->hdev);
+	if (ret)
+		return ret;
+
+	ret = wiimote_init_ir(wdata, WIIPROTO_FLAG_IR_BASIC);
+	if (ret) {
+		hid_hw_close(wdata->hdev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void wiimote_ir_close(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+
+	wiimote_init_ir(wdata, 0);
+	hid_hw_close(wdata->hdev);
+}
+
 static void handler_keys(struct wiimote_data *wdata, const __u8 *payload)
 {
 	input_report_key(wdata->input, wiiproto_keymap[WIIPROTO_KEY_LEFT],
@@ -1062,6 +1088,8 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 		goto err_ir;
 
 	input_set_drvdata(wdata->ir, wdata);
+	wdata->ir->open = wiimote_ir_open;
+	wdata->ir->close = wiimote_ir_close;
 	wdata->ir->dev.parent = &wdata->hdev->dev;
 	wdata->ir->id.bustype = wdata->hdev->bus;
 	wdata->ir->id.vendor = wdata->hdev->vendor;
