@@ -1373,6 +1373,9 @@ static int open_file_bb_mac_samps(struct inode *inode, struct file *file)
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	u8 nread;
 
+	if (sc->sc_flags & SC_OP_INVALID)
+		return -EAGAIN;
+
 	buf = vmalloc(size);
 	if (!buf)
 		return -ENOMEM;
@@ -1381,6 +1384,8 @@ static int open_file_bb_mac_samps(struct inode *inode, struct file *file)
 		vfree(buf);
 		return -ENOMEM;
 	}
+	/* Account the current state too */
+	ath9k_debug_samp_bb_mac(sc);
 
 	spin_lock_bh(&sc->debug.samp_lock);
 	memcpy(bb_mac_samp, sc->debug.bb_mac_samp,
