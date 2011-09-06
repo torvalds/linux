@@ -58,6 +58,7 @@
 #define PCH_SLEEP_TIME		10
 
 #define SSN_LOW			0x02U
+#define SSN_HIGH		0x03U
 #define SSN_NO_CONTROL		0x00U
 #define PCH_MAX_CS		0xFF
 #define PCI_DEVICE_ID_GE_SPI	0x8816
@@ -756,10 +757,6 @@ static void pch_spi_set_ir(struct pch_spi_data *data)
 
 	wait_event_interruptible(data->wait, data->transfer_complete);
 
-	pch_spi_writereg(data->master, PCH_SSNXCR, SSN_NO_CONTROL);
-	dev_dbg(&data->master->dev,
-		"%s:no more control over SSN-writing 0 to SSNXCR.", __func__);
-
 	/* clear all interrupts */
 	pch_spi_writereg(data->master, PCH_SPSR,
 			 pch_spi_readreg(data->master, PCH_SPSR));
@@ -848,9 +845,6 @@ static void pch_spi_start_transfer(struct pch_spi_data *data)
 	kfree(dma->sg_rx_p);
 
 	spin_lock_irqsave(&data->lock, flags);
-	pch_spi_writereg(data->master, PCH_SSNXCR, SSN_NO_CONTROL);
-	dev_dbg(&data->master->dev,
-		"%s:no more control over SSN-writing 0 to SSNXCR.", __func__);
 
 	/* clear fifo threshold, disable interrupts, disable SPI transfer */
 	pch_spi_setclr_reg(data->master, PCH_SPCR, 0,
@@ -1167,6 +1161,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 	if (data->use_dma)
 		pch_spi_request_dma(data,
 				    data->current_msg->spi->bits_per_word);
+	pch_spi_writereg(data->master, PCH_SSNXCR, SSN_NO_CONTROL);
 	do {
 		/* If we are already processing a message get the next
 		transfer structure from the message otherwise retrieve
@@ -1227,6 +1222,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 
 	} while (data->cur_trans != NULL);
 
+	pch_spi_writereg(data->master, PCH_SSNXCR, SSN_HIGH);
 	if (data->use_dma)
 		pch_spi_release_dma(data);
 }
