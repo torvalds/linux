@@ -56,7 +56,7 @@ struct iommu_ops {
 
 extern void register_iommu(struct iommu_ops *ops);
 extern int bus_set_iommu(struct bus_type *bus, struct iommu_ops *ops);
-extern bool iommu_found(void);
+extern bool iommu_present(struct bus_type *bus);
 extern struct iommu_domain *iommu_domain_alloc(struct bus_type *bus);
 extern void iommu_domain_free(struct iommu_domain *domain);
 extern int iommu_attach_device(struct iommu_domain *domain,
@@ -76,7 +76,7 @@ extern int iommu_domain_has_cap(struct iommu_domain *domain,
 
 struct iommu_ops {};
 
-static inline bool iommu_found(void)
+static inline bool iommu_present(struct bus_type *bus)
 {
 	return false;
 }
