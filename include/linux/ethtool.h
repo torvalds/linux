@@ -456,7 +456,9 @@ struct ethtool_flow_ext {
  *	includes the %FLOW_EXT flag.
  * @ring_cookie: RX ring/queue index to deliver to, or %RX_CLS_FLOW_DISC
  *	if packets should be discarded
- * @location: Location of rule in the table
+ * @location: Location of rule in the table.  Locations must be
+ *	numbered such that a flow matching multiple rules will be
+ *	classified according to the first (lowest numbered) rule.
  */
 struct ethtool_rx_flow_spec {
 	__u32		flow_type;
@@ -502,9 +504,6 @@ struct ethtool_rx_flow_spec {
  *
  * For %ETHTOOL_SRXCLSRLDEL, @fs.@location specifies the location of an
  * existing rule on entry.
- *
- * Implementation of indexed classification rules generally requires a
- * TCAM.
  */
 struct ethtool_rxnfc {
 	__u32				cmd;
