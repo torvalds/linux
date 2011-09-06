@@ -100,7 +100,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 {
 	size_t size;
 
-	size         = 0x1000UL << gfp_order;
+	size         = PAGE_SIZE << gfp_order;
 
 	BUG_ON(!IS_ALIGNED(iova | paddr, size));
 
@@ -112,7 +112,7 @@ int iommu_unmap(struct iommu_domain *domain, unsigned long iova, int gfp_order)
 {
 	size_t size;
 
-	size         = 0x1000UL << gfp_order;
+	size         = PAGE_SIZE << gfp_order;
 
 	BUG_ON(!IS_ALIGNED(iova, size));
 
