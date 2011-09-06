@@ -41,34 +41,20 @@
 #define SPINLOCK_NOTTAKEN		(0)	/* free */
 #define SPINLOCK_TAKEN			(1)	/* locked */
 
-#define to_omap_hwspinlock(lock)	\
-	container_of(lock, struct omap_hwspinlock, lock)
-
-struct omap_hwspinlock {
-	struct hwspinlock lock;
-	void __iomem *addr;
-};
-
-struct omap_hwspinlock_state {
-	int num_locks;			/* Total number of locks in system */
-	void __iomem *io_base;		/* Mapped base address */
-	struct omap_hwspinlock lock[0];	/* Array of 'num_locks' locks */
-};
-
 static int omap_hwspinlock_trylock(struct hwspinlock *lock)
 {
-	struct omap_hwspinlock *omap_lock = to_omap_hwspinlock(lock);
+	void __iomem *lock_addr = lock->priv;
 
 	/* attempt to acquire the lock by reading its value */
-	return (SPINLOCK_NOTTAKEN == readl(omap_lock->addr));
+	return (SPINLOCK_NOTTAKEN == readl(lock_addr));
 }
 
 static void omap_hwspinlock_unlock(struct hwspinlock *lock)
 {
-	struct omap_hwspinlock *omap_lock = to_omap_hwspinlock(lock);
+	void __iomem *lock_addr = lock->priv;
 
 	/* release the lock by writing 0 to it */
-	writel(SPINLOCK_NOTTAKEN, omap_lock->addr);
+	writel(SPINLOCK_NOTTAKEN, lock_addr);
 }
 
 /*
@@ -95,11 +81,11 @@ static const struct hwspinlock_ops omap_hwspinlock_ops = {
 static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct hwspinlock_pdata *pdata = pdev->dev.platform_data;
-	struct omap_hwspinlock *omap_lock;
-	struct omap_hwspinlock_state *state;
+	struct hwspinlock_device *bank;
+	struct hwspinlock *hwlock;
 	struct resource *res;
 	void __iomem *io_base;
-	int i, ret;
+	int num_locks, i, ret;
 
 	if (!pdata)
 		return -ENODEV;
@@ -122,18 +108,18 @@ static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 		goto iounmap_base;
 	}
 
-	i *= 32; /* actual number of locks in this device */
+	num_locks = i * 32; /* actual number of locks in this device */
 
-	state = kzalloc(sizeof(*state) + i * sizeof(*omap_lock), GFP_KERNEL);
-	if (!state) {
+	bank = kzalloc(sizeof(*bank) + num_locks * sizeof(*hwlock), GFP_KERNEL);
+	if (!bank) {
 		ret = -ENOMEM;
 		goto iounmap_base;
 	}
 
-	state->num_locks = i;
-	state->io_base = io_base;
+	platform_set_drvdata(pdev, bank);
 
-	platform_set_drvdata(pdev, state);
+	for (i = 0, hwlock = &bank->lock[0]; i < num_locks; i++, hwlock++)
+		hwlock->priv = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
 
 	/*
 	 * runtime PM will make sure the clock of this module is
@@ -141,26 +127,16 @@ static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_enable(&pdev->dev);
 
-	for (i = 0; i < state->num_locks; i++) {
-		omap_lock = &state->lock[i];
-
-		omap_lock->lock.dev = &pdev->dev;
-		omap_lock->lock.id = pdata->base_id + i;
-		omap_lock->lock.ops = &omap_hwspinlock_ops;
-		omap_lock->addr = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
-
-		ret = hwspin_lock_register(&omap_lock->lock);
-		if (ret)
-			goto free_locks;
-	}
+	ret = hwspin_lock_register(bank, &pdev->dev, &omap_hwspinlock_ops,
+						pdata->base_id, num_locks);
+	if (ret)
+		goto reg_fail;
 
 	return 0;
 
-free_locks:
-	while (--i >= 0)
-		hwspin_lock_unregister(i);
+reg_fail:
 	pm_runtime_disable(&pdev->dev);
-	kfree(state);
+	kfree(bank);
 iounmap_base:
 	iounmap(io_base);
 	return ret;
@@ -168,23 +144,19 @@ iounmap_base:
 
 static int omap_hwspinlock_remove(struct platform_device *pdev)
 {
-	struct omap_hwspinlock_state *state = platform_get_drvdata(pdev);
-	struct hwspinlock *lock;
-	int i;
+	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
+	void __iomem *io_base = bank->lock[0].priv - LOCK_BASE_OFFSET;
+	int ret;
 
-	for (i = 0; i < state->num_locks; i++) {
-		lock = hwspin_lock_unregister(i);
-		/* this shouldn't happen at this point. if it does, at least
-		 * don't continue with the remove */
-		if (!lock) {
-			dev_err(&pdev->dev, "%s: failed on %d\n", __func__, i);
-			return -EBUSY;
-		}
+	ret = hwspin_lock_unregister(bank);
+	if (ret) {
+		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
+		return ret;
 	}
 
 	pm_runtime_disable(&pdev->dev);
-	iounmap(state->io_base);
-	kfree(state);
+	iounmap(io_base);
+	kfree(bank);
 
 	return 0;
 }

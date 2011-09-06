@@ -227,42 +227,62 @@ int hwspinlock_example2(void)
 
 4. API for implementors
 
-  int hwspin_lock_register(struct hwspinlock *hwlock);
+  int hwspin_lock_register(struct hwspinlock_device *bank, struct device *dev,
+		const struct hwspinlock_ops *ops, int base_id, int num_locks);
    - to be called from the underlying platform-specific implementation, in
-     order to register a new hwspinlock instance. Should be called from
-     a process context (this function might sleep).
+     order to register a new hwspinlock device (which is usually a bank of
+     numerous locks). Should be called from a process context (this function
+     might sleep).
      Returns 0 on success, or appropriate error code on failure.
 
-  struct hwspinlock *hwspin_lock_unregister(unsigned int id);
+  int hwspin_lock_unregister(struct hwspinlock_device *bank);
    - to be called from the underlying vendor-specific implementation, in order
-     to unregister an existing (and unused) hwspinlock instance.
+     to unregister an hwspinlock device (which is usually a bank of numerous
+     locks).
      Should be called from a process context (this function might sleep).
      Returns the address of hwspinlock on success, or NULL on error (e.g.
      if the hwspinlock is sill in use).
 
-5. struct hwspinlock
+5. Important structs
 
-This struct represents an hwspinlock instance. It is registered by the
-underlying hwspinlock implementation using the hwspin_lock_register() API.
+struct hwspinlock_device is a device which usually contains a bank
+of hardware locks. It is registered by the underlying hwspinlock
+implementation using the hwspin_lock_register() API.
 
 /**
- * struct hwspinlock - vendor-specific hwspinlock implementation
- *
- * @dev: underlying device, will be used with runtime PM api
- * @ops: vendor-specific hwspinlock handlers
- * @id: a global, unique, system-wide, index of the lock.
- * @lock: initialized and used by hwspinlock core
+ * struct hwspinlock_device - a device which usually spans numerous hwspinlocks
+ * @dev: underlying device, will be used to invoke runtime PM api
+ * @ops: platform-specific hwspinlock handlers
+ * @base_id: id index of the first lock in this device
+ * @num_locks: number of locks in this device
+ * @lock: dynamically allocated array of 'struct hwspinlock'
  */
-struct hwspinlock {
+struct hwspinlock_device {
 	struct device *dev;
 	const struct hwspinlock_ops *ops;
-	int id;
-	spinlock_t lock;
+	int base_id;
+	int num_locks;
+	struct hwspinlock lock[0];
 };
 
-The underlying implementation is responsible to assign the dev, ops and id
-members. The lock member, OTOH, is initialized and used by the hwspinlock
-core.
+struct hwspinlock_device contains an array of hwspinlock structs, each
+of which represents a single hardware lock:
+
+/**
+ * struct hwspinlock - this struct represents a single hwspinlock instance
+ * @bank: the hwspinlock_device structure which owns this lock
+ * @lock: initialized and used by hwspinlock core
+ * @priv: private data, owned by the underlying platform-specific hwspinlock drv
+ */
+struct hwspinlock {
+	struct hwspinlock_device *bank;
+	spinlock_t lock;
+	void *priv;
+};
+
+When registering a bank of locks, the hwspinlock driver only needs to
+set the priv members of the locks. The rest of the members are set and
+initialized by the hwspinlock core itself.
 
 6. Implementation callbacks
 

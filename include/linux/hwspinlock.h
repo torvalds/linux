@@ -20,12 +20,15 @@
 
 #include <linux/err.h>
 #include <linux/sched.h>
+#include <linux/device.h>
 
 /* hwspinlock mode argument */
 #define HWLOCK_IRQSTATE	0x01	/* Disable interrupts, save state */
 #define HWLOCK_IRQ	0x02	/* Disable interrupts, don't save state */
 
 struct hwspinlock;
+struct hwspinlock_device;
+struct hwspinlock_ops;
 
 /**
  * struct hwspinlock_pdata - platform data for hwspinlock drivers
@@ -57,8 +60,9 @@ struct hwspinlock_pdata {
 
 #if defined(CONFIG_HWSPINLOCK) || defined(CONFIG_HWSPINLOCK_MODULE)
 
-int hwspin_lock_register(struct hwspinlock *lock);
-struct hwspinlock *hwspin_lock_unregister(unsigned int id);
+int hwspin_lock_register(struct hwspinlock_device *bank, struct device *dev,
+		const struct hwspinlock_ops *ops, int base_id, int num_locks);
+int hwspin_lock_unregister(struct hwspinlock_device *bank);
 struct hwspinlock *hwspin_lock_request(void);
 struct hwspinlock *hwspin_lock_request_specific(unsigned int id);
 int hwspin_lock_free(struct hwspinlock *hwlock);
