@@ -478,6 +478,16 @@ static struct cxd2820r_config anysee_cxd2820r_config = {
  * IOE[5] STV0903 1=enabled
  */
 
+
+/* external I2C gate used for DNOD44CDH086A(TDA18212) tuner module */
+static int anysee_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
+{
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+
+	/* enable / disable tuner access on IOE[4] */
+	return anysee_wr_reg_mask(adap->dev, REG_IOE, (enable << 4), 0x10);
+}
+
 static int anysee_frontend_ctrl(struct dvb_frontend *fe, int onoff)
 {
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
@@ -779,6 +789,13 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			}
 		}
 
+		/* I2C gate for DNOD44CDH086A(TDA18212) tuner module */
+		if (tmp == 0xc7) {
+			if (adap->fe_adap[state->fe_id].fe)
+				adap->fe_adap[state->fe_id].fe->ops.i2c_gate_ctrl =
+					anysee_i2c_gate_ctrl;
+		}
+
 		break;
 	case ANYSEE_HW_508TC: /* 18 */
 	case ANYSEE_HW_508PTC: /* 21 */
@@ -826,6 +843,11 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				&adap->dev->i2c_adap);
 		}
 
+		/* I2C gate for DNOD44CDH086A(TDA18212) tuner module */
+		if (adap->fe_adap[state->fe_id].fe)
+			adap->fe_adap[state->fe_id].fe->ops.i2c_gate_ctrl =
+				anysee_i2c_gate_ctrl;
+
 		break;
 	case ANYSEE_HW_508S2: /* 19 */
 	case ANYSEE_HW_508PS2: /* 22 */
@@ -865,14 +887,14 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 
 		if (state->fe_id == 0)  {
 			/* DVB-T/T2 */
-			adap->fe[0] = dvb_attach(cxd2820r_attach,
+			adap->fe_adap[state->fe_id].fe = dvb_attach(cxd2820r_attach,
 				&anysee_cxd2820r_config,
 				&adap->dev->i2c_adap, NULL);
 		} else {
 			/* DVB-C */
-			adap->fe[1] = dvb_attach(cxd2820r_attach,
+			adap->fe_adap[state->fe_id].fe = dvb_attach(cxd2820r_attach,
 				&anysee_cxd2820r_config,
-				&adap->dev->i2c_adap, adap->fe[0]);
+				&adap->dev->i2c_adap, adap->fe_adap[0].fe);
 		}
 
 		break;
@@ -935,21 +957,11 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* Try first attach TDA18212 silicon tuner on IOE[4], if that
 		 * fails attach old simple PLL. */
 
-		/* enable tuner on IOE[4] */
-		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 4), 0x10);
-		if (ret)
-			goto error;
-
 		/* attach tuner */
 		fe = dvb_attach(tda18212_attach, adap->fe_adap[state->fe_id].fe,
 			&adap->dev->i2c_adap, &anysee_tda18212_config);
 		if (fe)
 			break;
-
-		/* disable tuner on IOE[4] */
-		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (0 << 4), 0x10);
-		if (ret)
-			goto error;
 
 		/* attach tuner */
 		fe = dvb_attach(dvb_pll_attach, adap->fe_adap[state->fe_id].fe,
@@ -961,11 +973,6 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 	case ANYSEE_HW_508PTC: /* 21 */
 		/* E7 TC */
 		/* E7 PTC */
-
-		/* enable tuner on IOE[4] */
-		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 4), 0x10);
-		if (ret)
-			goto error;
 
 		/* attach tuner */
 		fe = dvb_attach(tda18212_attach, adap->fe_adap[state->fe_id].fe,
@@ -993,7 +1000,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E7 T2C */
 
 		/* attach tuner */
-		fe = dvb_attach(tda18212_attach, adap->fe[state->fe_id],
+		fe = dvb_attach(tda18212_attach, adap->fe_adap[state->fe_id].fe,
 			&adap->dev->i2c_adap, &anysee_tda18212_config2);
 
 		break;
@@ -1006,7 +1013,6 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 	else
 		ret = -ENODEV;
 
-error:
 	return ret;
 }
 
