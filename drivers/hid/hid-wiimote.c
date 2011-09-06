@@ -71,7 +71,10 @@ enum wiiproto_reqs {
 	WIIPROTO_REQ_RUMBLE = 0x10,
 	WIIPROTO_REQ_LED = 0x11,
 	WIIPROTO_REQ_DRM = 0x12,
+	WIIPROTO_REQ_WMEM = 0x16,
+	WIIPROTO_REQ_RMEM = 0x17,
 	WIIPROTO_REQ_STATUS = 0x20,
+	WIIPROTO_REQ_DATA = 0x21,
 	WIIPROTO_REQ_RETURN = 0x22,
 	WIIPROTO_REQ_DRM_K = 0x30,
 	WIIPROTO_REQ_DRM_KA = 0x31,
@@ -306,6 +309,37 @@ static void wiiproto_req_accel(struct wiimote_data *wdata, __u8 accel)
 	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
 }
 
+#define wiiproto_req_wreg(wdata, os, buf, sz) \
+			wiiproto_req_wmem((wdata), false, (os), (buf), (sz))
+
+#define wiiproto_req_weeprom(wdata, os, buf, sz) \
+			wiiproto_req_wmem((wdata), true, (os), (buf), (sz))
+
+static void wiiproto_req_wmem(struct wiimote_data *wdata, bool eeprom,
+				__u32 offset, const __u8 *buf, __u8 size)
+{
+	__u8 cmd[22];
+
+	if (size > 16 || size == 0) {
+		hid_warn(wdata->hdev, "Invalid length %d wmem request\n", size);
+		return;
+	}
+
+	memset(cmd, 0, sizeof(cmd));
+	cmd[0] = WIIPROTO_REQ_WMEM;
+	cmd[2] = (offset >> 16) & 0xff;
+	cmd[3] = (offset >> 8) & 0xff;
+	cmd[4] = offset & 0xff;
+	cmd[5] = size;
+	memcpy(&cmd[6], buf, size);
+
+	if (!eeprom)
+		cmd[1] |= 0x04;
+
+	wiiproto_keep_rumble(wdata, &cmd[1]);
+	wiimote_queue(wdata, cmd, sizeof(cmd));
+}
+
 static enum led_brightness wiimote_leds_get(struct led_classdev *led_dev)
 {
 	struct wiimote_data *wdata;
@@ -535,6 +569,11 @@ static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
 	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
 }
 
+static void handler_data(struct wiimote_data *wdata, const __u8 *payload)
+{
+	handler_keys(wdata, payload);
+}
+
 static void handler_return(struct wiimote_data *wdata, const __u8 *payload)
 {
 	__u8 err = payload[3];
@@ -647,6 +686,7 @@ struct wiiproto_handler {
 
 static struct wiiproto_handler handlers[] = {
 	{ .id = WIIPROTO_REQ_STATUS, .size = 6, .func = handler_status },
+	{ .id = WIIPROTO_REQ_DATA, .size = 21, .func = handler_data },
 	{ .id = WIIPROTO_REQ_RETURN, .size = 4, .func = handler_return },
 	{ .id = WIIPROTO_REQ_DRM_K, .size = 2, .func = handler_keys },
 	{ .id = WIIPROTO_REQ_DRM_KA, .size = 5, .func = handler_drm_KA },
