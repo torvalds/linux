@@ -64,6 +64,7 @@ extern int mx51_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
 extern int mx53_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
+extern int mx6q_clocks_init(void);
 extern struct platform_device *mxc_register_gpio(char *name, int id,
 	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
 extern void mxc_set_cpu_type(unsigned int type);
@@ -101,7 +102,19 @@ void gic_handle_irq(struct pt_regs *);
 
 extern void imx_enable_cpu(int cpu, bool enable);
 extern void imx_set_cpu_jump(int cpu, void *jump_addr);
+#ifdef CONFIG_DEBUG_LL
+extern void imx_lluart_map_io(void);
+#else
+static inline void imx_lluart_map_io(void) {}
+#endif
 #ifdef CONFIG_SMP
 extern void v7_secondary_startup(void);
+extern void imx_scu_map_io(void);
+#else
+static inline void imx_scu_map_io(void) {}
 #endif
+extern void imx_enable_cpu(int cpu, bool enable);
+extern void imx_set_cpu_jump(int cpu, void *jump_addr);
+extern void imx_src_init(void);
+extern void imx_gpc_init(void);
 #endif
