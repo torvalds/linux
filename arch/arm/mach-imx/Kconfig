@@ -1,5 +1,15 @@
 config IMX_HAVE_DMA_V1
 	bool
+
+config HAVE_IMX_GPC
+	bool
+
+config HAVE_IMX_MMDC
+	bool
+
+config HAVE_IMX_SRC
+	bool
+
 #
 # ARCH_MX31 and ARCH_MX35 are left for compatibility
 # Some usages assume that having one of them implies not having (e.g.) ARCH_MX2.
@@ -601,6 +611,9 @@ config SOC_IMX6Q
 	select ARM_GIC
 	select CACHE_L2X0
 	select CPU_V7
+	select HAVE_IMX_GPC
+	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
 	select USE_OF
 
 	help
