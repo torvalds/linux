@@ -1953,7 +1953,7 @@ static void unfreeze_partials(struct kmem_cache *s)
 
 			new.frozen = 0;
 
-			if (!new.inuse && (!n || n->nr_partial < s->min_partial))
+			if (!new.inuse && (!n || n->nr_partial > s->min_partial))
 				m = M_FREE;
 			else {
 				struct kmem_cache_node *n2 = get_node(s,
