@@ -286,7 +286,7 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	omap->dma_status = !!(reg & USBOTGSS_SYSCONFIG_DMADISABLE);
 
 	ret = request_irq(omap->irq, dwc3_omap_interrupt, 0,
-			"dwc3-wrapper", omap);
+			"dwc3-omap", omap);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request IRQ #%d --> %d\n",
 				omap->irq, ret);
