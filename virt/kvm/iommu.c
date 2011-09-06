@@ -233,7 +233,7 @@ int kvm_iommu_map_guest(struct kvm *kvm)
 		return -ENODEV;
 	}
 
-	kvm->arch.iommu_domain = iommu_domain_alloc();
+	kvm->arch.iommu_domain = iommu_domain_alloc(&pci_bus_type);
 	if (!kvm->arch.iommu_domain)
 		return -ENOMEM;
 

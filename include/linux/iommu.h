@@ -25,10 +25,12 @@
 #define IOMMU_WRITE	(2)
 #define IOMMU_CACHE	(4) /* DMA cache coherency */
 
+struct iommu_ops;
 struct bus_type;
 struct device;
 
 struct iommu_domain {
+	struct iommu_ops *ops;
 	void *priv;
 };
 
@@ -55,7 +57,7 @@ struct iommu_ops {
 extern void register_iommu(struct iommu_ops *ops);
 extern int bus_set_iommu(struct bus_type *bus, struct iommu_ops *ops);
 extern bool iommu_found(void);
-extern struct iommu_domain *iommu_domain_alloc(void);
+extern struct iommu_domain *iommu_domain_alloc(struct bus_type *bus);
 extern void iommu_domain_free(struct iommu_domain *domain);
 extern int iommu_attach_device(struct iommu_domain *domain,
 			       struct device *dev);
@@ -79,7 +81,7 @@ static inline bool iommu_found(void)
 	return false;
 }
 
-static inline struct iommu_domain *iommu_domain_alloc(void)
+static inline struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 {
 	return NULL;
 }

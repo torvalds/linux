@@ -2141,7 +2141,7 @@ static int isp_probe(struct platform_device *pdev)
 	/* to be removed once iommu migration is complete */
 	isp->iommu = to_iommu(isp->iommu_dev);
 
-	isp->domain = iommu_domain_alloc();
+	isp->domain = iommu_domain_alloc(pdev->dev.bus);
 	if (!isp->domain) {
 		dev_err(isp->dev, "can't alloc iommu domain\n");
 		ret = -ENOMEM;

@@ -16,6 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/types.h>
@@ -71,14 +72,25 @@ bool iommu_found(void)
 }
 EXPORT_SYMBOL_GPL(iommu_found);
 
-struct iommu_domain *iommu_domain_alloc(void)
+struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 {
 	struct iommu_domain *domain;
+	struct iommu_ops *ops;
 	int ret;
+
+	if (bus->iommu_ops)
+		ops = bus->iommu_ops;
+	else
+		ops = iommu_ops;
+
+	if (ops == NULL)
+		return NULL;
 
 	domain = kmalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		return NULL;
+
+	domain->ops = ops;
 
 	ret = iommu_ops->domain_init(domain);
 	if (ret)
