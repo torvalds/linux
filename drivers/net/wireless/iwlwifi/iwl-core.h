@@ -73,8 +73,6 @@ struct iwl_cmd;
 
 #define TIME_UNIT		1024
 
-#define IWL_CMD(x) case x: return #x
-
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -271,7 +269,6 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
 void iwl_free_traffic_mem(struct iwl_priv *priv);
-void iwl_reset_traffic_log(struct iwl_priv *priv);
 void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
 				u16 length, struct ieee80211_hdr *header);
 void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
@@ -360,25 +357,11 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/
 
-const char *get_cmd_string(u8 cmd);
 void iwl_bg_watchdog(unsigned long data);
 u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
-
-/*****************************************************
-*  Error Handling Debugging
-******************************************************/
-#ifdef CONFIG_IWLWIFI_DEBUG
-void iwl_print_rx_config_cmd(struct iwl_priv *priv,
-			     struct iwl_rxon_context *ctx);
-#else
-static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
-					   struct iwl_rxon_context *ctx)
-{
-}
-#endif
 
 /*****************************************************
 *  GEOS
@@ -389,8 +372,6 @@ void iwl_free_geos(struct iwl_priv *priv);
 extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
-void iwl_apm_stop(struct iwl_priv *priv);
-int iwl_apm_init(struct iwl_priv *priv);
 
 int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 
@@ -407,8 +388,5 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 }
 
 extern bool bt_siso_mode;
-
-
-void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
 
 #endif /* __iwl_core_h__ */

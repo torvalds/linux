@@ -65,14 +65,15 @@
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 
-#include "iwl-dev.h"
 #include "iwl-trans.h"
-#include "iwl-core.h"
-#include "iwl-helpers.h"
 #include "iwl-trans-int-pcie.h"
-/*TODO remove uneeded includes when the transport layer tx_free will be here */
-#include "iwl-agn.h"
+#include "iwl-csr.h"
+#include "iwl-prph.h"
 #include "iwl-shared.h"
+#include "iwl-eeprom.h"
+
+/* TODO: the transport layer should not include this */
+#include "iwl-core.h"
 
 static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 {

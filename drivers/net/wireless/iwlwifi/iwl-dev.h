@@ -32,7 +32,6 @@
 #define __iwl_dev_h__
 
 #include <linux/interrupt.h>
-#include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
 #include <linux/wait.h>
 #include <linux/leds.h>
@@ -88,100 +87,6 @@ struct iwl_tx_queue;
 #define DEFAULT_BEACON_INTERVAL   200U
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
-
-/* defined below */
-struct iwl_device_cmd;
-
-struct iwl_cmd_meta {
-	/* only for SYNC commands, iff the reply skb is wanted */
-	struct iwl_host_cmd *source;
-	/*
-	 * only for ASYNC commands
-	 * (which is somewhat stupid -- look at iwl-sta.c for instance
-	 * which duplicates a bunch of code because the callback isn't
-	 * invoked for SYNC commands, if it were and its result passed
-	 * through it would be simpler...)
-	 */
-	void (*callback)(struct iwl_shared *shrd,
-			 struct iwl_device_cmd *cmd,
-			 struct iwl_rx_packet *pkt);
-
-	u32 flags;
-
-	DEFINE_DMA_UNMAP_ADDR(mapping);
-	DEFINE_DMA_UNMAP_LEN(len);
-};
-
-/*
- * Generic queue structure
- *
- * Contains common data for Rx and Tx queues.
- *
- * Note the difference between n_bd and n_window: the hardware
- * always assumes 256 descriptors, so n_bd is always 256 (unless
- * there might be HW changes in the future). For the normal TX
- * queues, n_window, which is the size of the software queue data
- * is also 256; however, for the command queue, n_window is only
- * 32 since we don't need so many commands pending. Since the HW
- * still uses 256 BDs for DMA though, n_bd stays 256. As a result,
- * the software buffers (in the variables @meta, @txb in struct
- * iwl_tx_queue) only have 32 entries, while the HW buffers (@tfds
- * in the same struct) have 256.
- * This means that we end up with the following:
- *  HW entries: | 0 | ... | N * 32 | ... | N * 32 + 31 | ... | 255 |
- *  SW entries:           | 0      | ... | 31          |
- * where N is a number between 0 and 7. This means that the SW
- * data is a window overlayed over the HW queue.
- */
-struct iwl_queue {
-	int n_bd;              /* number of BDs in this queue */
-	int write_ptr;       /* 1-st empty entry (index) host_w*/
-	int read_ptr;         /* last used entry (index) host_r*/
-	/* use for monitoring and recovering the stuck queue */
-	dma_addr_t dma_addr;   /* physical addr for BD's */
-	int n_window;	       /* safe queue window */
-	u32 id;
-	int low_mark;	       /* low watermark, resume queue if free
-				* space more than this */
-	int high_mark;         /* high watermark, stop queue if free
-				* space less than this */
-};
-
-/**
- * struct iwl_tx_queue - Tx Queue for DMA
- * @q: generic Rx/Tx queue descriptor
- * @bd: base of circular buffer of TFDs
- * @cmd: array of command/TX buffer pointers
- * @meta: array of meta data for each command/tx buffer
- * @dma_addr_cmd: physical address of cmd/tx buffer array
- * @txb: array of per-TFD driver data
- * @time_stamp: time (in jiffies) of last read_ptr change
- * @need_update: indicates need to update read/write index
- * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
- * @sta_id: valid if sched_retry is set
- * @tid: valid if sched_retry is set
- *
- * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
- * descriptors) and required locking structures.
- */
-#define TFD_TX_CMD_SLOTS 256
-#define TFD_CMD_SLOTS 32
-
-struct iwl_tx_queue {
-	struct iwl_queue q;
-	struct iwl_tfd *tfds;
-	struct iwl_device_cmd **cmd;
-	struct iwl_cmd_meta *meta;
-	struct sk_buff **skbs;
-	unsigned long time_stamp;
-	u8 need_update;
-	u8 sched_retry;
-	u8 active;
-	u8 swq_id;
-
-	u16 sta_id;
-	u16 tid;
-};
 
 #define IWL_NUM_SCAN_RATES         (2)
 
@@ -248,70 +153,6 @@ struct iwl_channel_info {
 #define IEEE80211_4ADDR_LEN             30
 #define IEEE80211_HLEN                  (IEEE80211_4ADDR_LEN)
 #define IEEE80211_FRAME_LEN             (IEEE80211_DATA_LEN + IEEE80211_HLEN)
-
-
-#define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
-#define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
-#define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
-
-enum {
-	CMD_SYNC = 0,
-	CMD_ASYNC = BIT(0),
-	CMD_WANT_SKB = BIT(1),
-	CMD_ON_DEMAND = BIT(2),
-};
-
-#define DEF_CMD_PAYLOAD_SIZE 320
-
-/**
- * struct iwl_device_cmd
- *
- * For allocation of the command and tx queues, this establishes the overall
- * size of the largest command we send to uCode, except for commands that
- * aren't fully copied and use other TFD space.
- */
-struct iwl_device_cmd {
-	struct iwl_cmd_header hdr;	/* uCode API */
-	union {
-		u32 flags;
-		u8 val8;
-		u16 val16;
-		u32 val32;
-		struct iwl_tx_cmd tx;
-		struct iwl6000_channel_switch_cmd chswitch;
-		u8 payload[DEF_CMD_PAYLOAD_SIZE];
-	} __packed cmd;
-} __packed;
-
-#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
-
-#define IWL_MAX_CMD_TFDS	2
-
-enum iwl_hcmd_dataflag {
-	IWL_HCMD_DFL_NOCOPY	= BIT(0),
-};
-
-/**
- * struct iwl_host_cmd - Host command to the uCode
- * @data: array of chunks that composes the data of the host command
- * @reply_page: pointer to the page that holds the response to the host command
- * @callback:
- * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
- * @len: array of the lenths of the chunks in data
- * @dataflags:
- * @id: id of the host command
- */
-struct iwl_host_cmd {
-	const void *data[IWL_MAX_CMD_TFDS];
-	unsigned long reply_page;
-	void (*callback)(struct iwl_shared *shrd,
-			 struct iwl_device_cmd *cmd,
-			 struct iwl_rx_packet *pkt);
-	u32 flags;
-	u16 len[IWL_MAX_CMD_TFDS];
-	u8 dataflags[IWL_MAX_CMD_TFDS];
-	u8 id;
-};
 
 #define SUP_RATE_11A_MAX_NUM_CHANNELS  8
 #define SUP_RATE_11B_MAX_NUM_CHANNELS  4
@@ -579,9 +420,6 @@ extern const u8 iwl_bcast_addr[ETH_ALEN];
 #define IWL_OPERATION_MODE_HT_ONLY  1
 #define IWL_OPERATION_MODE_MIXED    2
 #define IWL_OPERATION_MODE_20MHZ    3
-
-#define IWL_TX_CRC_SIZE 4
-#define IWL_TX_DELIMITER_SIZE 4
 
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
 

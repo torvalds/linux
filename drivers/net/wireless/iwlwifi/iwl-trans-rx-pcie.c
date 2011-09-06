@@ -30,8 +30,7 @@
 #include <linux/wait.h>
 #include <linux/gfp.h>
 
-#include "iwl-dev.h"
-#include "iwl-agn.h"
+/*TODO: Remove include to iwl-core.h*/
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
@@ -660,8 +659,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 	iwl_dump_nic_event_log(trans, false, NULL, false);
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_get_debug_level(trans->shrd) & IWL_DL_FW_ERRORS)
-		iwl_print_rx_config_cmd(priv,
-					&priv->contexts[IWL_RXON_CTX_BSS]);
+		iwl_print_rx_config_cmd(priv(trans), IWL_RXON_CTX_BSS);
 #endif
 
 	iwlagn_fw_error(priv, false);

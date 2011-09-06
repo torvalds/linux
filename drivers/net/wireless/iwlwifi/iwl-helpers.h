@@ -35,33 +35,10 @@
 
 #include "iwl-io.h"
 
-#define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
-
-
 static inline struct ieee80211_conf *ieee80211_get_hw_conf(
 	struct ieee80211_hw *hw)
 {
 	return &hw->conf;
-}
-
-/**
- * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl_queue_inc_wrap(int index, int n_bd)
-{
-	return ++index & (n_bd - 1);
-}
-
-/**
- * iwl_queue_dec_wrap - decrement queue index, wrap back to end
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl_queue_dec_wrap(int index, int n_bd)
-{
-	return --index & (n_bd - 1);
 }
 
 static inline void iwl_enable_rfkill_int(struct iwl_priv *priv)
