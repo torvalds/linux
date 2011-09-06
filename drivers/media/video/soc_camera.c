@@ -512,6 +512,7 @@ static int soc_camera_open(struct file *file)
 			if (ret < 0)
 				goto einitvb;
 		}
+		v4l2_ctrl_handler_setup(&icd->ctrl_handler);
 	}
 
 	file->private_data = icd;
@@ -781,78 +782,6 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	return 0;
 }
 
-static int soc_camera_queryctrl(struct file *file, void *priv,
-				struct v4l2_queryctrl *qc)
-{
-	struct soc_camera_device *icd = file->private_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	int i;
-
-	WARN_ON(priv != file->private_data);
-
-	if (!qc->id)
-		return -EINVAL;
-
-	/* First check host controls */
-	for (i = 0; i < ici->ops->num_controls; i++)
-		if (qc->id == ici->ops->controls[i].id) {
-			memcpy(qc, &(ici->ops->controls[i]),
-				sizeof(*qc));
-			return 0;
-		}
-
-	if (!icd->ops)
-		return -EINVAL;
-
-	/* Then device controls */
-	for (i = 0; i < icd->ops->num_controls; i++)
-		if (qc->id == icd->ops->controls[i].id) {
-			memcpy(qc, &(icd->ops->controls[i]),
-				sizeof(*qc));
-			return 0;
-		}
-
-	return -EINVAL;
-}
-
-static int soc_camera_g_ctrl(struct file *file, void *priv,
-			     struct v4l2_control *ctrl)
-{
-	struct soc_camera_device *icd = file->private_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	int ret;
-
-	WARN_ON(priv != file->private_data);
-
-	if (ici->ops->get_ctrl) {
-		ret = ici->ops->get_ctrl(icd, ctrl);
-		if (ret != -ENOIOCTLCMD)
-			return ret;
-	}
-
-	return v4l2_subdev_call(sd, core, g_ctrl, ctrl);
-}
-
-static int soc_camera_s_ctrl(struct file *file, void *priv,
-			     struct v4l2_control *ctrl)
-{
-	struct soc_camera_device *icd = file->private_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	int ret;
-
-	WARN_ON(priv != file->private_data);
-
-	if (ici->ops->set_ctrl) {
-		ret = ici->ops->set_ctrl(icd, ctrl);
-		if (ret != -ENOIOCTLCMD)
-			return ret;
-	}
-
-	return v4l2_subdev_call(sd, core, s_ctrl, ctrl);
-}
-
 static int soc_camera_cropcap(struct file *file, void *fh,
 			      struct v4l2_cropcap *a)
 {
@@ -1055,6 +984,17 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 
 	dev_info(icd->pdev, "Probing %s\n", dev_name(icd->pdev));
 
+	/*
+	 * Currently the subdev with the largest number of controls (13) is
+	 * ov6550. So let's pick 16 as a hint for the control handler. Note
+	 * that this is a hint only: too large and you waste some memory, too
+	 * small and there is a (very) small performance hit when looking up
+	 * controls in the internal hash.
+	 */
+	ret = v4l2_ctrl_handler_init(&icd->ctrl_handler, 16);
+	if (ret < 0)
+		return ret;
+
 	ret = regulator_bulk_get(icd->pdev, icl->num_regulators,
 				 icl->regulators);
 	if (ret < 0)
@@ -1108,6 +1048,9 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	sd = soc_camera_to_subdev(icd);
 	sd->grp_id = (long)icd;
 
+	if (v4l2_ctrl_add_handler(&icd->ctrl_handler, sd->ctrl_handler))
+		goto ectrl;
+
 	/* At this point client .probe() should have run already */
 	ret = soc_camera_init_user_formats(icd);
 	if (ret < 0)
@@ -1146,6 +1089,7 @@ evidstart:
 	mutex_unlock(&icd->video_lock);
 	soc_camera_free_user_formats(icd);
 eiufmt:
+ectrl:
 	if (icl->board_info) {
 		soc_camera_free_i2c(icd);
 	} else {
@@ -1162,6 +1106,7 @@ eadd:
 epower:
 	regulator_bulk_free(icl->num_regulators, icl->regulators);
 ereg:
+	v4l2_ctrl_handler_free(&icd->ctrl_handler);
 	return ret;
 }
 
@@ -1176,6 +1121,7 @@ static int soc_camera_remove(struct soc_camera_device *icd)
 
 	BUG_ON(!icd->parent);
 
+	v4l2_ctrl_handler_free(&icd->ctrl_handler);
 	if (vdev) {
 		video_unregister_device(vdev);
 		icd->vdev = NULL;
@@ -1381,9 +1327,6 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_dqbuf		 = soc_camera_dqbuf,
 	.vidioc_streamon	 = soc_camera_streamon,
 	.vidioc_streamoff	 = soc_camera_streamoff,
-	.vidioc_queryctrl	 = soc_camera_queryctrl,
-	.vidioc_g_ctrl		 = soc_camera_g_ctrl,
-	.vidioc_s_ctrl		 = soc_camera_s_ctrl,
 	.vidioc_cropcap		 = soc_camera_cropcap,
 	.vidioc_g_crop		 = soc_camera_g_crop,
 	.vidioc_s_crop		 = soc_camera_s_crop,
@@ -1412,6 +1355,7 @@ static int video_dev_create(struct soc_camera_device *icd)
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN;
+	vdev->ctrl_handler	= &icd->ctrl_handler;
 	vdev->lock		= &icd->video_lock;
 
 	icd->vdev = vdev;
