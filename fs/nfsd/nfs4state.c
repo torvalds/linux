@@ -2314,7 +2314,7 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 }
 
 static inline void
-init_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *open) {
+init_open_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *open) {
 	struct nfs4_openowner *oo = open->op_openowner;
 	unsigned int hashval = stateid_hashval(oo->oo_owner.so_id, fp->fi_id);
 
@@ -2934,7 +2934,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		status = nfs4_new_open(rqstp, &stp, fp, current_fh, open);
 		if (status)
 			goto out;
-		init_stateid(stp, fp, open);
+		init_open_stateid(stp, fp, open);
 		status = nfsd4_truncate(rqstp, current_fh, open);
 		if (status) {
 			release_open_stateid(stp);
