@@ -1,0 +1,6 @@
+Freescale i.MX Platforms Device Tree Bindings
+-----------------------------------------------
+
+i.MX6 Quad SABRE Automotive Board
+Required root node properties:
+    - compatible = "fsl,imx6q-sabreauto", "fsl,imx6q";
