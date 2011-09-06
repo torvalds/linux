@@ -651,24 +651,22 @@ int zram_init_device(struct zram *zram)
 	if (!zram->compress_workmem) {
 		pr_err("Error allocating compressor working memory!\n");
 		ret = -ENOMEM;
-		goto fail;
+		goto fail_no_table;
 	}
 
 	zram->compress_buffer = (void *)__get_free_pages(__GFP_ZERO, 1);
 	if (!zram->compress_buffer) {
 		pr_err("Error allocating compressor buffer space\n");
 		ret = -ENOMEM;
-		goto fail;
+		goto fail_no_table;
 	}
 
 	num_pages = zram->disksize >> PAGE_SHIFT;
 	zram->table = vzalloc(num_pages * sizeof(*zram->table));
 	if (!zram->table) {
 		pr_err("Error allocating zram address table\n");
-		/* To prevent accessing table entries during cleanup */
-		zram->disksize = 0;
 		ret = -ENOMEM;
-		goto fail;
+		goto fail_no_table;
 	}
 
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
@@ -689,6 +687,9 @@ int zram_init_device(struct zram *zram)
 	pr_debug("Initialization done!\n");
 	return 0;
 
+fail_no_table:
+	/* To prevent accessing table entries during cleanup */
+	zram->disksize = 0;
 fail:
 	__zram_reset_device(zram);
 	up_write(&zram->init_lock);
