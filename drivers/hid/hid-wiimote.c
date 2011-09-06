@@ -21,7 +21,7 @@
 #include <linux/spinlock.h>
 #include "hid-ids.h"
 
-#define WIIMOTE_VERSION "0.1"
+#define WIIMOTE_VERSION "0.2"
 #define WIIMOTE_NAME "Nintendo Wii Remote"
 #define WIIMOTE_BUFSIZE 32
 
