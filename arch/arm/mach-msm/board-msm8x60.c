@@ -108,6 +108,7 @@ MACHINE_START(MSM8X60_RUMI3, "QCT MSM8X60 RUMI3")
 	.reserve = msm8x60_reserve,
 	.map_io = msm8x60_map_io,
 	.init_irq = msm8x60_init_irq,
+	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
 	.timer = &msm_timer,
 MACHINE_END
@@ -117,6 +118,7 @@ MACHINE_START(MSM8X60_SURF, "QCT MSM8X60 SURF")
 	.reserve = msm8x60_reserve,
 	.map_io = msm8x60_map_io,
 	.init_irq = msm8x60_init_irq,
+	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
 	.timer = &msm_timer,
 MACHINE_END
@@ -126,6 +128,7 @@ MACHINE_START(MSM8X60_SIM, "QCT MSM8X60 SIMULATOR")
 	.reserve = msm8x60_reserve,
 	.map_io = msm8x60_map_io,
 	.init_irq = msm8x60_init_irq,
+	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
 	.timer = &msm_timer,
 MACHINE_END
@@ -135,6 +138,7 @@ MACHINE_START(MSM8X60_FFA, "QCT MSM8X60 FFA")
 	.reserve = msm8x60_reserve,
 	.map_io = msm8x60_map_io,
 	.init_irq = msm8x60_init_irq,
+	.handle_irq = gic_handle_irq,
 	.init_machine = msm8x60_init,
 	.timer = &msm_timer,
 MACHINE_END
