@@ -1325,6 +1325,12 @@ enum wmi_disconnect_reason {
 	IBSS_MERGE = 0xe,
 };
 
+#define ATH6KL_COUNTRY_RD_SHIFT        16
+
+struct ath6kl_wmi_regdomain {
+	__le32 reg_code;
+};
+
 struct wmi_disconnect_event {
 	/* reason code, see 802.11 spec. */
 	__le16 proto_reason_status;
