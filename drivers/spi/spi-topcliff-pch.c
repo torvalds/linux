@@ -50,6 +50,8 @@
 #define PCH_RX_THOLD		7
 #define PCH_RX_THOLD_MAX	15
 
+#define PCH_TX_THOLD		2
+
 #define PCH_MAX_BAUDRATE	5000000
 #define PCH_MAX_FIFO_DEPTH	16
 
@@ -1040,8 +1042,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	/* set receive fifo threshold and transmit fifo threshold */
 	pch_spi_setclr_reg(data->master, PCH_SPCR,
 			   ((size - 1) << SPCR_RFIC_FIELD) |
-			   ((PCH_MAX_FIFO_DEPTH - PCH_DMA_TRANS_SIZE) <<
-			    SPCR_TFIC_FIELD),
+			   (PCH_TX_THOLD << SPCR_TFIC_FIELD),
 			   MASK_RFIC_SPCR_BITS | MASK_TFIC_SPCR_BITS);
 
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -1052,13 +1053,20 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	/* offset, length setting */
 	sg = dma->sg_rx_p;
 	for (i = 0; i < num; i++, sg++) {
-		if (i == 0) {
-			sg->offset = 0;
+		if (i == (num - 2)) {
+			sg->offset = size * i;
+			sg->offset = sg->offset * (*bpw / 8);
 			sg_set_page(sg, virt_to_page(dma->rx_buf_virt), rem,
 				    sg->offset);
 			sg_dma_len(sg) = rem;
+		} else if (i == (num - 1)) {
+			sg->offset = size * (i - 1) + rem;
+			sg->offset = sg->offset * (*bpw / 8);
+			sg_set_page(sg, virt_to_page(dma->rx_buf_virt), size,
+				    sg->offset);
+			sg_dma_len(sg) = size;
 		} else {
-			sg->offset = rem + size * (i - 1);
+			sg->offset = size * i;
 			sg->offset = sg->offset * (*bpw / 8);
 			sg_set_page(sg, virt_to_page(dma->rx_buf_virt), size,
 				    sg->offset);
@@ -1082,6 +1090,16 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	dma->desc_rx = desc_rx;
 
 	/* TX */
+	if (data->bpw_len > PCH_DMA_TRANS_SIZE) {
+		num = data->bpw_len / PCH_DMA_TRANS_SIZE;
+		size = PCH_DMA_TRANS_SIZE;
+		rem = 16;
+	} else {
+		num = 1;
+		size = data->bpw_len;
+		rem = data->bpw_len;
+	}
+
 	dma->sg_tx_p = kzalloc(sizeof(struct scatterlist)*num, GFP_ATOMIC);
 	sg_init_table(dma->sg_tx_p, num); /* Initialize SG table */
 	/* offset, length setting */
