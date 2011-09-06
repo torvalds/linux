@@ -411,7 +411,7 @@ static void unhash_generic_stateid(struct nfs4_stateid *stp)
 	list_del(&stp->st_perstateowner);
 }
 
-static void free_generic_stateid(struct nfs4_stateid *stp)
+static void close_generic_stateid(struct nfs4_stateid *stp)
 {
 	int i;
 
@@ -420,9 +420,16 @@ static void free_generic_stateid(struct nfs4_stateid *stp)
 			if (test_bit(i, &stp->st_access_bmap))
 				nfs4_file_put_access(stp->st_file,
 						nfs4_access_to_omode(i));
+			__clear_bit(i, &stp->st_access_bmap);
 		}
 	}
 	put_nfs4_file(stp->st_file);
+	stp->st_file = NULL;
+}
+
+static void free_generic_stateid(struct nfs4_stateid *stp)
+{
+	close_generic_stateid(stp);
 	kmem_cache_free(stateid_slab, stp);
 }
 
