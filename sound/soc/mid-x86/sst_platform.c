@@ -226,13 +226,14 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 
 static int sst_platform_open(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct sst_runtime_stream *stream;
 	int ret_val = 0;
 
 	pr_debug("sst_platform_open called\n");
-	runtime = substream->runtime;
-	runtime->hw = sst_platform_pcm_hw;
+
+	snd_soc_set_runtime_hwparams(substream, &sst_platform_pcm_hw);
+
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
 		return -ENOMEM;
