@@ -611,6 +611,7 @@ config SOC_IMX6Q
 	select ARM_GIC
 	select CACHE_L2X0
 	select CPU_V7
+	select HAVE_ARM_SCU
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
