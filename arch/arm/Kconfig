@@ -345,6 +345,7 @@ config ARCH_HIGHBANK
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU
 	select USE_OF
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for the Calxeda Highbank SoC based boards.
 
