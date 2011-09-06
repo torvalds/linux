@@ -463,8 +463,6 @@ struct nfs4_stateid {
 };
 
 /* flags for preprocess_seqid_op() */
-#define OPEN_STATE              0x00000004
-#define LOCK_STATE              0x00000008
 #define RD_STATE	        0x00000010
 #define WR_STATE	        0x00000020
 

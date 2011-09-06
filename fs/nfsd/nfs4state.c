@@ -1080,16 +1080,14 @@ static struct nfs4_stateid *find_stateid(stateid_t *t)
 	return NULL;
 }
 
-static struct nfs4_stateid *find_stateid_by_type(stateid_t *t, int flags)
+static struct nfs4_stateid *find_stateid_by_type(stateid_t *t, char typemask)
 {
 	struct nfs4_stateid *s;
 
 	s = find_stateid(t);
 	if (!s)
 		return NULL;
-	if (flags & LOCK_STATE && s->st_type == NFS4_LOCK_STID)
-		return s;
-	if (flags & OPEN_STATE && s->st_type == NFS4_OPEN_STID)
+	if (typemask & s->st_type)
 		return s;
 	return NULL;
 }
@@ -3445,7 +3443,7 @@ static __be32 nfs4_seqid_op_checks(struct nfsd4_compound_state *cstate, stateid_
  */
 static __be32
 nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
-			 stateid_t *stateid, int flags,
+			 stateid_t *stateid, char typemask,
 			 struct nfs4_stateid **stpp)
 {
 	__be32 status;
@@ -3457,7 +3455,7 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 	status = nfs4_nospecial_stateid_checks(stateid);
 	if (status)
 		return status;
-	*stpp = find_stateid_by_type(stateid, flags);
+	*stpp = find_stateid_by_type(stateid, typemask);
 	if (*stpp == NULL)
 		return nfserr_expired;
 	cstate->replay_owner = (*stpp)->st_stateowner;
@@ -3472,7 +3470,7 @@ static __be32 nfs4_preprocess_confirmed_seqid_op(struct nfsd4_compound_state *cs
 	struct nfs4_openowner *oo;
 
 	status = nfs4_preprocess_seqid_op(cstate, seqid, stateid,
-						OPEN_STATE, stpp);
+						NFS4_OPEN_STID, stpp);
 	if (status)
 		return status;
 	oo = openowner((*stpp)->st_stateowner);
@@ -3501,7 +3499,7 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	status = nfs4_preprocess_seqid_op(cstate,
 					oc->oc_seqid, &oc->oc_req_stateid,
-					OPEN_STATE, &stp);
+					NFS4_OPEN_STID, &stp);
 	if (status)
 		goto out;
 	oo = openowner(stp->st_stateowner);
@@ -3999,7 +3997,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfs4_preprocess_seqid_op(cstate,
 				       lock->lk_old_lock_seqid,
 				       &lock->lk_old_lock_stateid,
-				       LOCK_STATE, &lock_stp);
+				       NFS4_LOCK_STID, &lock_stp);
 		if (status)
 			goto out;
 		lock_sop = lockowner(lock_stp->st_stateowner);
@@ -4197,7 +4195,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfs4_lock_state();
 									        
 	status = nfs4_preprocess_seqid_op(cstate, locku->lu_seqid,
-					&locku->lu_stateid, LOCK_STATE, &stp);
+					&locku->lu_stateid, NFS4_LOCK_STID, &stp);
 	if (status)
 		goto out;
 	filp = find_any_file(stp->st_file);
