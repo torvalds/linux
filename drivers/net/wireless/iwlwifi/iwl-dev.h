@@ -102,7 +102,7 @@ struct iwl_cmd_meta {
 	 * invoked for SYNC commands, if it were and its result passed
 	 * through it would be simpler...)
 	 */
-	void (*callback)(struct iwl_priv *priv,
+	void (*callback)(struct iwl_shared *shrd,
 			 struct iwl_device_cmd *cmd,
 			 struct iwl_rx_packet *pkt);
 
@@ -304,7 +304,7 @@ enum iwl_hcmd_dataflag {
 struct iwl_host_cmd {
 	const void *data[IWL_MAX_CMD_TFDS];
 	unsigned long reply_page;
-	void (*callback)(struct iwl_priv *priv,
+	void (*callback)(struct iwl_shared *shrd,
 			 struct iwl_device_cmd *cmd,
 			 struct iwl_rx_packet *pkt);
 	u32 flags;
@@ -1141,8 +1141,6 @@ struct iwl_priv {
 
 	/* Rate scaling data */
 	u8 retry_rate;
-
-	wait_queue_head_t wait_command_queue;
 
 	int activity_timer_active;
 

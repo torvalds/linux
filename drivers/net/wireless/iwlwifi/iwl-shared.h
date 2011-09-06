@@ -250,6 +250,8 @@ struct iwl_shared {
 	struct ieee80211_hw *hw;
 
 	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
+
+	wait_queue_head_t wait_command_queue;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
@@ -361,6 +363,7 @@ void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
 void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
 				enum iwl_rxon_context_id ctx,
 				u8 sta_id, u8 tid);
+void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS

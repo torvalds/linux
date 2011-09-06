@@ -604,9 +604,8 @@ error:
 	return ret;
 }
 
-static void iwl_set_pwr_vmain(struct iwl_priv *priv)
+static void iwl_set_pwr_vmain(struct iwl_trans *trans)
 {
-	struct iwl_trans *trans = trans(priv);
 /*
  * (for documentation purposes)
  * to set power to V_AUX, do:
@@ -625,11 +624,10 @@ static void iwl_set_pwr_vmain(struct iwl_priv *priv)
 static int iwl_nic_init(struct iwl_trans *trans)
 {
 	unsigned long flags;
-	struct iwl_priv *priv = priv(trans);
 
 	/* nic_init */
 	spin_lock_irqsave(&trans->shrd->lock, flags);
-	iwl_apm_init(priv);
+	iwl_apm_init(priv(trans));
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	iwl_write8(bus(trans), CSR_INT_COALESCING,
@@ -637,9 +635,9 @@ static int iwl_nic_init(struct iwl_trans *trans)
 
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 
-	iwl_set_pwr_vmain(priv);
+	iwl_set_pwr_vmain(trans);
 
-	priv->cfg->lib->nic_config(priv);
+	priv(trans)->cfg->lib->nic_config(priv(trans));
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	iwl_rx_init(trans);
@@ -764,7 +762,6 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
 static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 {
 	int ret;
-	struct iwl_priv *priv = priv(trans);
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -792,7 +789,7 @@ static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 		set_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
 
 	if (iwl_is_rfkill(trans->shrd)) {
-		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
+		iwl_set_hw_rfkill_state(priv(trans), true);
 		iwl_enable_interrupts(trans);
 		return -ERFKILL;
 	}
@@ -1397,7 +1394,7 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 	else
 		clear_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
 
-	wiphy_rfkill_set_hw_state(priv(trans)->hw->wiphy, hw_rfkill);
+	iwl_set_hw_rfkill_state(priv(trans), hw_rfkill);
 
 	return 0;
 }
@@ -1674,7 +1671,6 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 {
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_priv *priv = priv(trans);
 	struct iwl_tx_queue *txq;
 	struct iwl_queue *q;
 	char *buf;
@@ -1684,7 +1680,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	const size_t bufsz = sizeof(char) * 64 * hw_params(trans).max_txq_num;
 
 	if (!trans_pcie->txq) {
-		IWL_ERR(priv, "txq not ready\n");
+		IWL_ERR(trans, "txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);

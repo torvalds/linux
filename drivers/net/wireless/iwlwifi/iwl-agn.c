@@ -3032,7 +3032,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
 	priv->shrd->workqueue = create_singlethread_workqueue(DRV_NAME);
 
-	init_waitqueue_head(&priv->wait_command_queue);
+	init_waitqueue_head(&priv->shrd->wait_command_queue);
 
 	INIT_WORK(&priv->restart, iwl_bg_restart);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);

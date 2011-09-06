@@ -536,7 +536,6 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 	struct iwl_tid_data *tid_data;
 	unsigned long flags;
 	int txq_id;
-	struct iwl_priv *priv = priv(trans);
 
 	txq_id = iwlagn_txq_ctx_activate_free(trans);
 	if (txq_id == -1) {
@@ -560,7 +559,7 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 			     "queue\n", tid_data->tfds_in_queue);
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 
 	return 0;
 }
@@ -856,16 +855,16 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
  * need to be reclaimed. As result, some free space forms.  If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
-static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int idx)
+static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
+				   int idx)
 {
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans(priv));
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	int nfreed = 0;
 
 	if ((idx >= q->n_bd) || (iwl_queue_used(q, idx) == 0)) {
-		IWL_ERR(priv, "%s: Read index for DMA queue txq id (%d), "
+		IWL_ERR(trans, "%s: Read index for DMA queue txq id (%d), "
 			  "index %d is out of range [0-%d] %d %d.\n", __func__,
 			  txq_id, idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
@@ -875,9 +874,9 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int idx)
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		if (nfreed++ > 0) {
-			IWL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", idx,
+			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
-			iwlagn_fw_error(priv, false);
+			iwlagn_fw_error(priv(trans), false);
 		}
 
 	}
@@ -891,7 +890,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int idx)
  * will be executed.  The attached skb (if present) will only be freed
  * if the callback returns 1
  */
-void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
+void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -900,7 +899,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	int cmd_index;
 	struct iwl_device_cmd *cmd;
 	struct iwl_cmd_meta *meta;
-	struct iwl_trans *trans = trans(priv);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[trans->shrd->cmd_queue];
 	unsigned long flags;
@@ -913,7 +911,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		  txq_id, trans->shrd->cmd_queue, sequence,
 		  trans_pcie->txq[trans->shrd->cmd_queue].q.read_ptr,
 		  trans_pcie->txq[trans->shrd->cmd_queue].q.write_ptr)) {
-		iwl_print_hex_error(priv, pkt, 32);
+		iwl_print_hex_error(trans, pkt, 32);
 		return;
 	}
 
@@ -929,17 +927,17 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		meta->source->reply_page = (unsigned long)rxb_addr(rxb);
 		rxb->page = NULL;
 	} else if (meta->callback)
-		meta->callback(priv, cmd, pkt);
+		meta->callback(trans->shrd, cmd, pkt);
 
 	spin_lock_irqsave(&trans->hcmd_lock, flags);
 
-	iwl_hcmd_queue_reclaim(priv, txq_id, index);
+	iwl_hcmd_queue_reclaim(trans, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
-		wake_up_interruptible(&priv->wait_command_queue);
+		wake_up_interruptible(&trans->shrd->wait_command_queue);
 	}
 
 	meta->flags = 0;
@@ -1031,12 +1029,12 @@ const char *get_cmd_string(u8 cmd)
 
 #define HOST_COMPLETE_TIMEOUT (2 * HZ)
 
-static void iwl_generic_cmd_callback(struct iwl_priv *priv,
+static void iwl_generic_cmd_callback(struct iwl_shared *shrd,
 				     struct iwl_device_cmd *cmd,
 				     struct iwl_rx_packet *pkt)
 {
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(priv, "Bad return from %s (0x%08X)\n",
+		IWL_ERR(shrd->trans, "Bad return from %s (0x%08X)\n",
 			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		return;
 	}
@@ -1045,11 +1043,11 @@ static void iwl_generic_cmd_callback(struct iwl_priv *priv,
 	switch (cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IWL_DEBUG_HC_DUMP(priv, "back from %s (0x%08X)\n",
+		IWL_DEBUG_HC_DUMP(shrd->trans, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		break;
 	default:
-		IWL_DEBUG_HC(priv, "back from %s (0x%08X)\n",
+		IWL_DEBUG_HC(shrd->trans, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 	}
 #endif
@@ -1107,7 +1105,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return ret;
 	}
 
-	ret = wait_event_interruptible_timeout(priv(trans)->wait_command_queue,
+	ret = wait_event_interruptible_timeout(trans->shrd->wait_command_queue,
 			!test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {

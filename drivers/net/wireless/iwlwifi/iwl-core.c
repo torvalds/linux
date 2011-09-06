@@ -868,7 +868,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	 * commands by clearing the ready bit */
 	clear_bit(STATUS_READY, &priv->shrd->status);
 
-	wake_up_interruptible(&priv->wait_command_queue);
+	wake_up_interruptible(&priv->shrd->wait_command_queue);
 
 	if (!ondemand) {
 		/*
@@ -1864,4 +1864,9 @@ void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
 	vif = priv->contexts[ctx].vif;
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
+}
+
+void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state)
+{
+	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }

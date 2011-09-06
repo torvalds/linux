@@ -123,14 +123,14 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 	return ret;
 }
 
-static void iwl_add_sta_callback(struct iwl_priv *priv,
+static void iwl_add_sta_callback(struct iwl_shared *shrd,
 				 struct iwl_device_cmd *cmd,
 				 struct iwl_rx_packet *pkt)
 {
 	struct iwl_addsta_cmd *addsta =
 		(struct iwl_addsta_cmd *)cmd->cmd.payload;
 
-	iwl_process_add_sta_resp(priv, addsta, pkt, false);
+	iwl_process_add_sta_resp(shrd->priv, addsta, pkt, false);
 
 }
 

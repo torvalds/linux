@@ -195,7 +195,8 @@ int iwl_queue_init(struct iwl_queue *q, int count, int slots_num, u32 id);
 int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 int __must_check iwl_trans_pcie_send_cmd_pdu(struct iwl_trans *trans, u8 id,
 			u32 flags, u16 len, const void *data);
-void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
+void iwl_tx_cmd_complete(struct iwl_trans *trans,
+			 struct iwl_rx_mem_buffer *rxb);
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt);
