@@ -127,6 +127,7 @@ MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	.map_io		= omap3_map_io,
 	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rx51_init,
 	.timer		= &omap3_timer,
 MACHINE_END

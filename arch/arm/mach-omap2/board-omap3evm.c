@@ -681,6 +681,7 @@ MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3_evm_init,
 	.timer		= &omap3_timer,
 MACHINE_END
