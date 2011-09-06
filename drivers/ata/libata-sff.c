@@ -569,7 +569,7 @@ unsigned int ata_sff_data_xfer(struct ata_device *dev, unsigned char *buf,
 
 	/* Transfer trailing byte, if any. */
 	if (unlikely(buflen & 0x01)) {
-		unsigned char pad[2];
+		unsigned char pad[2] = { };
 
 		/* Point buf to the tail of buffer */
 		buf += buflen - 1;
@@ -628,7 +628,7 @@ unsigned int ata_sff_data_xfer32(struct ata_device *dev, unsigned char *buf,
 
 	/* Transfer trailing bytes, if any */
 	if (unlikely(slop)) {
-		unsigned char pad[4];
+		unsigned char pad[4] = { };
 
 		/* Point buf to the tail of buffer */
 		buf += buflen - slop;
