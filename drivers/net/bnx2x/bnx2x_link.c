@@ -3624,6 +3624,12 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
 			 MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT1, val16);
 
+	/* Advertised and set FEC (Forward Error Correction) */
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+			 MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT2,
+			 (MDIO_WC_REG_AN_IEEE1BLK_AN_ADV2_FEC_ABILITY |
+			  MDIO_WC_REG_AN_IEEE1BLK_AN_ADV2_FEC_REQ));
+
 	/* Enable CL37 BAM */
 	if (REG_RD(bp, params->shmem_base +
 		   offsetof(struct shmem_region, dev_info.
