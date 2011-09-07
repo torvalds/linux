@@ -58,6 +58,23 @@
 #define A_DEFAULT_LISTEN_INTERVAL         100
 #define A_MAX_WOW_LISTEN_INTERVAL         1000
 
+/* includes also the null byte */
+#define ATH6KL_FIRMWARE_MAGIC               "QCA-ATH6KL"
+
+enum ath6kl_fw_ie_type {
+	ATH6KL_FW_IE_FW_VERSION = 0,
+	ATH6KL_FW_IE_TIMESTAMP = 1,
+	ATH6KL_FW_IE_OTP_IMAGE = 2,
+	ATH6KL_FW_IE_FW_IMAGE = 3,
+	ATH6KL_FW_IE_PATCH_IMAGE = 4,
+};
+
+struct ath6kl_fw_ie {
+	__le32 id;
+	__le32 len;
+	u8 data[0];
+};
+
 /* AR6003 1.0 definitions */
 #define AR6003_REV1_VERSION                 0x300002ba
 
@@ -68,6 +85,7 @@
 #define AR6003_REV2_FIRMWARE_FILE           "ath6k/AR6003/hw2.0/athwlan.bin.z77"
 #define AR6003_REV2_TCMD_FIRMWARE_FILE      "ath6k/AR6003/hw2.0/athtcmd_ram.bin"
 #define AR6003_REV2_PATCH_FILE              "ath6k/AR6003/hw2.0/data.patch.bin"
+#define AR6003_REV2_FIRMWARE_2_FILE         "ath6k/AR6003/hw2.0/fw-2.bin"
 #define AR6003_REV2_BOARD_DATA_FILE         "ath6k/AR6003/hw2.0/bdata.bin"
 #define AR6003_REV2_DEFAULT_BOARD_DATA_FILE "ath6k/AR6003/hw2.0/bdata.SD31.bin"
 
@@ -77,6 +95,7 @@
 #define AR6003_REV3_FIRMWARE_FILE           "ath6k/AR6003/hw2.1.1/athwlan.bin"
 #define AR6003_REV3_TCMD_FIRMWARE_FILE    "ath6k/AR6003/hw2.1.1/athtcmd_ram.bin"
 #define AR6003_REV3_PATCH_FILE            "ath6k/AR6003/hw2.1.1/data.patch.bin"
+#define AR6003_REV3_FIRMWARE_2_FILE           "ath6k/AR6003/hw2.1.1/fw-2.bin"
 #define AR6003_REV3_BOARD_DATA_FILE       "ath6k/AR6003/hw2.1.1/bdata.bin"
 #define AR6003_REV3_DEFAULT_BOARD_DATA_FILE	\
 	"ath6k/AR6003/hw2.1.1/bdata.SD31.bin"
@@ -84,6 +103,7 @@
 /* AR6004 1.0 definitions */
 #define AR6004_REV1_VERSION                 0x30000623
 #define AR6004_REV1_FIRMWARE_FILE           "ath6k/AR6004/hw6.1/fw.ram.bin"
+#define AR6004_REV1_FIRMWARE_2_FILE         "ath6k/AR6004/hw6.1/fw-2.bin"
 #define AR6004_REV1_BOARD_DATA_FILE         "ath6k/AR6004/hw6.1/bdata.bin"
 #define AR6004_REV1_DEFAULT_BOARD_DATA_FILE "ath6k/AR6004/hw6.1/bdata.DB132.bin"
 #define AR6004_REV1_EPPING_FIRMWARE_FILE "ath6k/AR6004/hw6.1/endpointping.bin"

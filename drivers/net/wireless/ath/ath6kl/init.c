@@ -917,13 +917,9 @@ static int ath6kl_fetch_patch_file(struct ath6kl *ar)
 	return 0;
 }
 
-static int ath6kl_fetch_firmwares(struct ath6kl *ar)
+static int ath6kl_fetch_fw_api1(struct ath6kl *ar)
 {
 	int ret;
-
-	ret = ath6kl_fetch_board_file(ar);
-	if (ret)
-		return ret;
 
 	ret = ath6kl_fetch_otp_file(ar);
 	if (ret)
@@ -934,6 +930,136 @@ static int ath6kl_fetch_firmwares(struct ath6kl *ar)
 		return ret;
 
 	ret = ath6kl_fetch_patch_file(ar);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
+{
+	size_t magic_len, len, ie_len;
+	const struct firmware *fw;
+	struct ath6kl_fw_ie *hdr;
+	const char *filename;
+	const u8 *data;
+	int ret, ie_id;
+
+	switch (ar->version.target_ver) {
+	case AR6003_REV2_VERSION:
+		filename = AR6003_REV2_FIRMWARE_2_FILE;
+		break;
+	case AR6003_REV3_VERSION:
+		filename = AR6003_REV3_FIRMWARE_2_FILE;
+		break;
+	case AR6004_REV1_VERSION:
+		filename = AR6004_REV1_FIRMWARE_2_FILE;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	ret = request_firmware(&fw, filename, ar->dev);
+	if (ret)
+		return ret;
+
+	data = fw->data;
+	len = fw->size;
+
+	/* magic also includes the null byte, check that as well */
+	magic_len = strlen(ATH6KL_FIRMWARE_MAGIC) + 1;
+
+	if (len < magic_len) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (memcmp(data, ATH6KL_FIRMWARE_MAGIC, magic_len) != 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	len -= magic_len;
+	data += magic_len;
+
+	/* loop elements */
+	while (len > sizeof(struct ath6kl_fw_ie)) {
+		/* hdr is unaligned! */
+		hdr = (struct ath6kl_fw_ie *) data;
+
+		ie_id = le32_to_cpup(&hdr->id);
+		ie_len = le32_to_cpup(&hdr->len);
+
+		len -= sizeof(*hdr);
+		data += sizeof(*hdr);
+
+		if (len < ie_len) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		switch (ie_id) {
+		case ATH6KL_FW_IE_OTP_IMAGE:
+			ar->fw_otp = kmemdup(data, ie_len, GFP_KERNEL);
+
+			if (ar->fw_otp == NULL) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			ar->fw_otp_len = ie_len;
+			break;
+		case ATH6KL_FW_IE_FW_IMAGE:
+			ar->fw = kmemdup(data, ie_len, GFP_KERNEL);
+
+			if (ar->fw == NULL) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			ar->fw_len = ie_len;
+			break;
+		case ATH6KL_FW_IE_PATCH_IMAGE:
+			ar->fw_patch = kmemdup(data, ie_len, GFP_KERNEL);
+
+			if (ar->fw_patch == NULL) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			ar->fw_patch_len = ie_len;
+			break;
+		default:
+			ath6kl_dbg(ATH6KL_DBG_TRC, "Unknown fw ie: %u\n",
+				   le32_to_cpup(&hdr->id));
+			break;
+		}
+
+		len -= ie_len;
+		data += ie_len;
+	};
+
+	ret = 0;
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+
+static int ath6kl_fetch_firmwares(struct ath6kl *ar)
+{
+	int ret;
+
+	ret = ath6kl_fetch_board_file(ar);
+	if (ret)
+		return ret;
+
+	ret = ath6kl_fetch_fw_api2(ar);
+	if (ret == 0)
+		/* fw api 2 found, use it */
+		return 0;
+
+	ret = ath6kl_fetch_fw_api1(ar);
 	if (ret)
 		return ret;
 
