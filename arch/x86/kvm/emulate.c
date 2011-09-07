@@ -263,7 +263,7 @@ struct gprefix {
 	__emulate_2op_nobyte(ctxt, _op, "w", "r", _LO32, "r", "", "r")
 
 /* Instruction has three operands and one operand is stored in ECX register */
-#define __emulate_2op_cl(_op, ctxt, _suffix, _type)	\
+#define __emulate_2op_cl(ctxt, _op, _suffix, _type)		\
 	do {								\
 		unsigned long _tmp;					\
 		_type _clv  = (ctxt)->src2.val;				\
@@ -287,13 +287,13 @@ struct gprefix {
 	do {								\
 		switch ((ctxt)->dst.bytes) {				\
 		case 2:							\
-			__emulate_2op_cl(_op, ctxt, "w", u16);         	\
+			__emulate_2op_cl(ctxt, _op, "w", u16);		\
 			break;						\
 		case 4:							\
-			__emulate_2op_cl(_op, ctxt, "l", u32);		\
+			__emulate_2op_cl(ctxt, _op, "l", u32);		\
 			break;						\
 		case 8:							\
-			ON64(__emulate_2op_cl(_op, ctxt, "q", ulong));	\
+			ON64(__emulate_2op_cl(ctxt, _op, "q", ulong));	\
 			break;						\
 		}							\
 	} while (0)
