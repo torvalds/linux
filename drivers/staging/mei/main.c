@@ -170,7 +170,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 		       pdev->irq);
 		goto unmap_memory;
 	}
-	INIT_DELAYED_WORK(&dev->wd_work, mei_wd_timer);
+	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	if (mei_hw_init(dev)) {
 		printk(KERN_ERR "mei: Init hw failure.\n");
 		err = -ENODEV;
@@ -178,7 +178,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	}
 	mei_device = pdev;
 	pci_set_drvdata(pdev, dev);
-	schedule_delayed_work(&dev->wd_work, HZ);
+	schedule_delayed_work(&dev->timer_work, HZ);
 
 	mutex_unlock(&mei_mutex);
 
@@ -1154,7 +1154,7 @@ static int mei_pci_resume(struct device *device)
 	/* Start watchdog if stopped in suspend */
 	if (dev->wd_timeout) {
 		dev->wd_due_counter = 1;
-		schedule_delayed_work(&dev->wd_work, HZ);
+		schedule_delayed_work(&dev->timer_work, HZ);
 	}
 	return err;
 }

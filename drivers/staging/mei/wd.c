@@ -142,7 +142,7 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 	int ret;
 	u16 wd_timeout = dev->wd_timeout;
 
-	cancel_delayed_work(&dev->wd_work);
+	cancel_delayed_work(&dev->timer_work);
 	if (dev->wd_cl.state != MEI_FILE_CONNECTED || !dev->wd_timeout)
 		return 0;
 

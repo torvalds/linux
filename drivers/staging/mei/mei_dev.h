@@ -209,7 +209,7 @@ struct mei_device {
 	 * lock for the device
 	 */
 	struct mutex device_lock; /* device lock */
-	struct delayed_work wd_work;	/* watch dog deleye work */
+	struct delayed_work timer_work;	/* MEI timer delayed work (timeouts) */
 	bool recvd_msg;
 	/*
 	 * hw states of host and fw(ME)
@@ -336,7 +336,7 @@ void mei_host_client_properties(struct mei_device *dev);
  */
 irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id);
 irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id);
-void mei_wd_timer(struct work_struct *work);
+void mei_timer(struct work_struct *work);
 
 /*
  *  MEI input output function prototype

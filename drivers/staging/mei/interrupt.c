@@ -1393,7 +1393,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
  *
  * NOTE: This function is called by timer interrupt work
  */
-void mei_wd_timer(struct work_struct *work)
+void mei_timer(struct work_struct *work)
 {
 	unsigned long timeout;
 	struct mei_cl *cl_pos = NULL;
@@ -1403,7 +1403,7 @@ void mei_wd_timer(struct work_struct *work)
 	struct mei_cl_cb  *cb_next = NULL;
 
 	struct mei_device *dev = container_of(work,
-					struct mei_device, wd_work.work);
+					struct mei_device, timer_work.work);
 
 
 	mutex_lock(&dev->device_lock);
@@ -1495,7 +1495,7 @@ void mei_wd_timer(struct work_struct *work)
 		}
 	}
 out:
-	 schedule_delayed_work(&dev->wd_work, 2 * HZ);
+	 schedule_delayed_work(&dev->timer_work, 2 * HZ);
 	 mutex_unlock(&dev->device_lock);
 }
 
