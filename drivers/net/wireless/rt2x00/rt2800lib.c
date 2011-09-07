@@ -897,28 +897,12 @@ static void rt2800_brightness_set(struct led_classdev *led_cdev,
 	}
 }
 
-static int rt2800_blink_set(struct led_classdev *led_cdev,
-			    unsigned long *delay_on, unsigned long *delay_off)
-{
-	struct rt2x00_led *led =
-	    container_of(led_cdev, struct rt2x00_led, led_dev);
-	u32 reg;
-
-	rt2800_register_read(led->rt2x00dev, LED_CFG, &reg);
-	rt2x00_set_field32(&reg, LED_CFG_ON_PERIOD, *delay_on);
-	rt2x00_set_field32(&reg, LED_CFG_OFF_PERIOD, *delay_off);
-	rt2800_register_write(led->rt2x00dev, LED_CFG, reg);
-
-	return 0;
-}
-
 static void rt2800_init_led(struct rt2x00_dev *rt2x00dev,
 		     struct rt2x00_led *led, enum led_type type)
 {
 	led->rt2x00dev = rt2x00dev;
 	led->type = type;
 	led->led_dev.brightness_set = rt2800_brightness_set;
-	led->led_dev.blink_set = rt2800_blink_set;
 	led->flags = LED_INITIALIZED;
 }
 #endif /* CONFIG_RT2X00_LIB_LEDS */
