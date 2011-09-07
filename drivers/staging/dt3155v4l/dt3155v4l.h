@@ -204,7 +204,7 @@ struct dt3155_priv {
 	spinlock_t lock;
 	unsigned int field_count;
 	struct dt3155_stats stats;
-	void *regs;
+	void __iomem *regs;
 	int users;
 	u8 csr2, config;
 };
