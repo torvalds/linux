@@ -263,40 +263,37 @@ struct gprefix {
 	__emulate_2op_nobyte(ctxt, _op, "w", "r", _LO32, "r", "", "r")
 
 /* Instruction has three operands and one operand is stored in ECX register */
-#define __emulate_2op_cl(_op, _cl, _src, _dst, _eflags, _suffix, _type)	\
+#define __emulate_2op_cl(_op, ctxt, _suffix, _type)	\
 	do {								\
 		unsigned long _tmp;					\
-		_type _clv  = (_cl).val;				\
-		_type _srcv = (_src).val;				\
-		_type _dstv = (_dst).val;				\
+		_type _clv  = (ctxt)->src2.val;				\
+		_type _srcv = (ctxt)->src.val;				\
+		_type _dstv = (ctxt)->dst.val;				\
 									\
 		__asm__ __volatile__ (					\
 			_PRE_EFLAGS("0", "5", "2")			\
 			_op _suffix " %4,%1 \n"				\
 			_POST_EFLAGS("0", "5", "2")			\
-			: "=m" (_eflags), "+r" (_dstv), "=&r" (_tmp)	\
+			: "=m" ((ctxt)->eflags), "+r" (_dstv), "=&r" (_tmp) \
 			: "c" (_clv) , "r" (_srcv), "i" (EFLAGS_MASK)	\
 			);						\
 									\
-		(_cl).val  = (unsigned long) _clv;			\
-		(_src).val = (unsigned long) _srcv;			\
-		(_dst).val = (unsigned long) _dstv;			\
+		(ctxt)->src2.val  = (unsigned long) _clv;		\
+		(ctxt)->src2.val = (unsigned long) _srcv;		\
+		(ctxt)->dst.val = (unsigned long) _dstv;		\
 	} while (0)
 
-#define emulate_2op_cl(_op, _cl, _src, _dst, _eflags)			\
+#define emulate_2op_cl(ctxt, _op)					\
 	do {								\
-		switch ((_dst).bytes) {					\
+		switch ((ctxt)->dst.bytes) {				\
 		case 2:							\
-			__emulate_2op_cl(_op, _cl, _src, _dst, _eflags,	\
-					 "w", unsigned short);         	\
+			__emulate_2op_cl(_op, ctxt, "w", u16);         	\
 			break;						\
 		case 4:							\
-			__emulate_2op_cl(_op, _cl, _src, _dst, _eflags,	\
-					 "l", unsigned int);           	\
+			__emulate_2op_cl(_op, ctxt, "l", u32);		\
 			break;						\
 		case 8:							\
-			ON64(__emulate_2op_cl(_op, _cl, _src, _dst, _eflags, \
-					      "q", unsigned long));	\
+			ON64(__emulate_2op_cl(_op, ctxt, "q", ulong));	\
 			break;						\
 		}							\
 	} while (0)
@@ -4123,7 +4120,7 @@ twobyte_insn:
 		break;
 	case 0xa4: /* shld imm8, r, r/m */
 	case 0xa5: /* shld cl, r, r/m */
-		emulate_2op_cl("shld", ctxt->src2, ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_cl(ctxt, "shld");
 		break;
 	case 0xa8:	/* push gs */
 		rc = emulate_push_sreg(ctxt, VCPU_SREG_GS);
@@ -4137,7 +4134,7 @@ twobyte_insn:
 		break;
 	case 0xac: /* shrd imm8, r, r/m */
 	case 0xad: /* shrd cl, r, r/m */
-		emulate_2op_cl("shrd", ctxt->src2, ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_cl(ctxt, "shrd");
 		break;
 	case 0xae:              /* clflush */
 		break;
