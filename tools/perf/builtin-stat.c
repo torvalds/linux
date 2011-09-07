@@ -196,6 +196,7 @@ static bool			csv_output			= false;
 static bool			group				= false;
 static const char		*output_name			= NULL;
 static FILE			*output				= NULL;
+static int			output_fd;
 
 static volatile int done = 0;
 
@@ -1080,6 +1081,8 @@ static const struct option options[] = {
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
 	OPT_BOOLEAN(0, "append", &append_file, "append to the output file"),
+	OPT_INTEGER(0, "log-fd", &output_fd,
+		    "log output to fd, instead of stderr"),
 	OPT_END()
 };
 
@@ -1166,6 +1169,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (output_name && strcmp(output_name, "-"))
 		output = NULL;
 
+	if (output_name && output_fd) {
+		fprintf(stderr, "cannot use both --output and --log-fd\n");
+		usage_with_options(stat_usage, options);
+	}
 	if (!output) {
 		struct timespec tm;
 		mode = append_file ? "a" : "w";
@@ -1177,6 +1184,13 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		}
 		clock_gettime(CLOCK_REALTIME, &tm);
 		fprintf(output, "# started on %s\n", ctime(&tm.tv_sec));
+	} else if (output_fd != 2) {
+		mode = append_file ? "a" : "w";
+		output = fdopen(output_fd, mode);
+		if (!output) {
+			perror("Failed opening logfd");
+			return -errno;
+		}
 	}
 
 	if (csv_sep)
