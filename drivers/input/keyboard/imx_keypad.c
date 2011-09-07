@@ -510,7 +510,7 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 	/* Ensure that the keypad will stay dormant until opened */
 	imx_keypad_inhibit(keypad);
 
-	error = request_irq(irq, imx_keypad_irq_handler, IRQF_DISABLED,
+	error = request_irq(irq, imx_keypad_irq_handler, 0,
 			    pdev->name, keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
