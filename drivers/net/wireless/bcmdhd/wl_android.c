@@ -108,6 +108,7 @@ uint dhd_dev_reset(struct net_device *dev, uint8 flag);
 void dhd_dev_init_ioctl(struct net_device *dev);
 #ifdef WL_CFG80211
 int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr);
+int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command);
 #else
 int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr) { return 0; }
 #endif
@@ -454,6 +455,9 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 			net_os_set_packet_filter(net, 0); /* DHCP starts */
 		else
 			net_os_set_packet_filter(net, 1); /* DHCP ends */
+#ifdef WL_CFG80211
+		bytes_written = wl_cfg80211_set_btcoex_dhcp(net, command);
+#endif
 	}
 	else if (strnicmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
 		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd.total_len);

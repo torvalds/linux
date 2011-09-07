@@ -323,6 +323,27 @@ struct ap_info {
 	u8 *wps_ie;
 	bool security_mode;
 };
+struct btcoex_info {
+	struct timer_list timer;
+	uint32 timer_ms;
+	uint32 timer_on;
+	uint32 ts_dhcp_start;	/* ms ts ecord time stats */
+	uint32 ts_dhcp_ok;	/* ms ts ecord time stats */
+	bool dhcp_done;		/* flag, indicates that host done with
+				 * dhcp before t1/t2 expiration
+				 */
+	int bt_state;
+	struct work_struct work;
+	struct net_device *dev;
+};
+
+struct sta_info {
+	/* Structure to hold WPS IE for a STA */
+	u8  probe_req_ie[IE_MAX_LEN];
+	u8  assoc_req_ie[IE_MAX_LEN];
+	u32 probe_req_ie_len;
+	u32 assoc_req_ie_len;
+};
 /* dongle private data of cfg80211 interface */
 struct wl_priv {
 	struct wireless_dev *wdev;	/* representing wl cfg80211 device */
@@ -343,8 +364,6 @@ struct wl_priv {
 	struct wl_cfg80211_bss_info *bss_info;
 	/* information element object for internal purpose */
 	struct wl_ie ie;
-	u8 scan_ie_buf[2048];
-	int scan_ie_len;
 	struct ether_addr bssid;	/* bssid of currently engaged network */
 
 	/* for synchronization of main event thread */
@@ -357,7 +376,7 @@ struct wl_priv {
 	/* control firwmare and nvram paramter downloading */
 	struct wl_fw_ctrl *fw;
 	struct wl_pmk_list *pmk_list;	/* wpa2 pmk list */
-	tsk_ctl_t event_tsk;		/* task of main event handler thread */
+	tsk_ctl_t event_tsk;  		/* task of main event handler thread */
 	unsigned long status;		/* current dongle status */
 	void *pub;
 	u32 channel;		/* current channel */
@@ -385,9 +404,10 @@ struct wl_priv {
 	u64 cache_cookie;
 	wait_queue_head_t dongle_event_wait;
 	struct ap_info *ap_info;
+	struct sta_info *sta_info;
 	struct p2p_info *p2p;
 	bool p2p_supported;
-	s8 last_eventmask[WL_EVENTING_MASK_LEN];
+	struct btcoex_info *btcoex_info;
 };
 
 #define wl_to_wiphy(w) (w->wdev->wiphy)
@@ -507,6 +527,7 @@ extern void wl_cfg80211_release_fw(void);
 extern s8 *wl_cfg80211_get_fwname(void);
 extern s8 *wl_cfg80211_get_nvramname(void);
 extern s32 wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr);
+extern int wl_cfg80211_hang(struct net_device *dev, u16 reason);
 #ifdef CONFIG_SYSCTL
 extern s32 wl_cfg80211_sysctl_export_devaddr(void *data);
 #endif

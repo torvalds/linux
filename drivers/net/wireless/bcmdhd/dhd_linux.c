@@ -132,7 +132,11 @@ MODULE_LICENSE("GPL v2");
 
 #include <dhd_bus.h>
 
+#ifndef PROP_TXSTATUS
 #define DBUS_RX_BUFFER_SIZE_DHD(net)	(net->mtu + net->hard_header_len + dhd->pub.hdrlen)
+#else
+#define DBUS_RX_BUFFER_SIZE_DHD(net)	(net->mtu + net->hard_header_len + dhd->pub.hdrlen + 128)
+#endif
 
 #if LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 15)
 const char *
@@ -218,7 +222,7 @@ typedef struct dhd_info {
 	struct semaphore proto_sem;
 #ifdef PROP_TXSTATUS
 	spinlock_t	wlfc_spinlock;
-#endif
+#endif /* PROP_TXSTATUS */
 #ifdef WLMEDIA_HTSF
 	htsf_t  htsf;
 #endif
@@ -257,8 +261,6 @@ typedef struct dhd_info {
 	spinlock_t wakelock_spinlock;
 	int wakelock_counter;
 	int wakelock_timeout_enable;
-
-	int hang_was_sent;
 
 	/* Thread to issue ioctl for multicast */
 	bool set_macaddress;
@@ -498,7 +500,6 @@ static struct notifier_block dhd_sleep_pm_notifier = {
 extern int register_pm_notifier(struct notifier_block *nb);
 extern int unregister_pm_notifier(struct notifier_block *nb);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
-	/* && defined(DHD_GPL) */
 
 static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 {
@@ -976,10 +977,8 @@ dhd_op_if(dhd_if_t *ifp)
 					dhd_net_attach)) {
 					ifp->state = 0;
 					return;
-			}
-
+				}
 #endif
-
 			if ((err = dhd_net_attach(&dhd->pub, ifp->idx)) != 0) {
 				DHD_ERROR(("%s: dhd_net_attach failed, err %d\n",
 					__FUNCTION__, err));
@@ -1037,7 +1036,7 @@ dhd_op_if(dhd_if_t *ifp)
 			ap_net_dev = NULL;   /*  NULL  SOFTAP global wl0.1 as well */
 		dhd_os_spin_unlock(&dhd->pub, flags);
 #endif /*  SOFTAP */
-	MFREE(dhd->pub.osh, ifp, sizeof(*ifp));
+		MFREE(dhd->pub.osh, ifp, sizeof(*ifp));
 	}
 }
 
@@ -1412,6 +1411,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			PKTFREE(dhdp->osh, pktbuf, TRUE);
 			continue;
 		}
+
 
 		pnext = PKTNEXT(dhdp->osh, pktbuf);
 		PKTSETNEXT(wl->sh.osh, pktbuf, NULL);
@@ -2078,6 +2078,14 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		goto done;
 	}
 
+	/* send to dongle only if we are not waiting for reload already */
+	if (dhd->pub.hang_was_sent) {
+		DHD_ERROR(("%s: HANG was sent up earlier. Not talking to the chip\n",
+			__FUNCTION__));
+		bcmerror = BCME_DONGLE_DOWN;
+		goto done;
+	}
+
 	/* check for local dhd ioctl and handle it */
 	if (driver == DHD_IOCTL_MAGIC) {
 		bcmerror = dhd_ioctl((void *)&dhd->pub, &ioc, buf, buflen);
@@ -2185,6 +2193,41 @@ done:
 }
 
 static int
+dhd_cleanup_virt_ifaces(dhd_info_t *dhd)
+{
+	int i = 1; /* Leave ifidx 0 [Primary Interface] */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+	int rollback_lock = FALSE;
+#endif
+
+	DHD_TRACE(("%s: Enter \n", __func__));
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+	/* release lock for unregister_netdev */
+	if (rtnl_is_locked()) {
+		rtnl_unlock();
+		rollback_lock = TRUE;
+	}
+#endif
+
+	for (i = 1; i < DHD_MAX_IFS; i++) {
+		if (dhd->iflist[i]) {
+			DHD_TRACE(("Deleting IF: %d \n", i));
+			dhd->iflist[i]->state = WLC_E_IF_DEL;
+			dhd->iflist[i]->idx = i;
+			dhd_op_if(dhd->iflist[i]);
+		}
+	}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+	if (rollback_lock)
+		rtnl_lock();
+#endif
+
+	return 0;
+}
+
+static int
 dhd_stop(struct net_device *net)
 {
 	int ifidx;
@@ -2197,8 +2240,17 @@ dhd_stop(struct net_device *net)
 	ifidx = dhd_net2idx(dhd, net);
 
 #ifdef WL_CFG80211
-	if (ifidx == 0)
+	if (ifidx == 0) {
 		wl_cfg80211_down();
+
+		/** For CFG80211: Clean up all the left over virtual interfaces
+		 * when the primary Interface is brought down. [ifconfig wlan0 down]
+		 */
+		if ((dhd->dhd_state & DHD_ATTACH_STATE_ADD_IF) &&
+			(dhd->dhd_state & DHD_ATTACH_STATE_CFG80211)) {
+			dhd_cleanup_virt_ifaces(dhd);
+		}
+	}
 #endif
 
 #ifdef PROP_TXSTATUS
@@ -2238,6 +2290,7 @@ dhd_open(struct net_device *net)
 		strcpy(fw_path, firmware_path);
 		firmware_path[0] = '\0';
 	}
+
 #if !defined(WL_CFG80211)
 	/** Force start if ifconfig_up gets called before START command
 	 *  We keep WEXT's wl_control_wl_start to provide backward compatibility
@@ -2262,7 +2315,9 @@ dhd_open(struct net_device *net)
 	if (ifidx == 0) {
 		atomic_set(&dhd->pend_8021x_cnt, 0);
 #if defined(WL_CFG80211)
+		DHD_ERROR(("\n%s\n", dhd_version));
 		wl_android_wifi_on(net);
+		dhd->pub.hang_was_sent = 0;
 #endif
 
 		if (dhd->pub.busstate != DHD_BUS_DATA) {
@@ -2610,7 +2665,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 
 	ASSERT(dhd);
 
-	DHD_TRACE(("%s: \n", __FUNCTION__));
+	DHD_TRACE(("Enter %s:\n", __FUNCTION__));
 
 	dhd_os_sdlock(dhdp);
 
@@ -2706,6 +2761,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;
+	int scan_passive_time = 130;
 	char buf[WLC_IOCTL_SMLEN];
 	char *ptr;
 	uint32 listen_interval = LISTEN_INTERVAL; /* Default Listen Interval in Beacons */
@@ -2946,14 +3002,16 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		sizeof(scan_assoc_time), TRUE, 0);
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_SCAN_UNASSOC_TIME, (char *)&scan_unassoc_time,
 		sizeof(scan_unassoc_time), TRUE, 0);
+	dhd_wl_ioctl_cmd(dhd, WLC_SET_SCAN_PASSIVE_TIME, (char *)&scan_passive_time,
+		sizeof(scan_passive_time), TRUE, 0);
 
 #ifdef ARP_OFFLOAD_SUPPORT
 	/* Set and enable ARP offload feature for STA only  */
-	if (arpoe
 #if defined(SOFTAP)
-			&& (!ap_fw_loaded)
-#endif /* (OEM_ANDROID) && defined(SOFTAP)  */
-		) {
+	if (arpoe && !ap_fw_loaded) {
+#else
+	if (arpoe) {
+#endif 
 		dhd_arp_offload_set(dhd, dhd_arp_mode);
 		dhd_arp_offload_enable(dhd, arpoe);
 	} else {
@@ -2970,7 +3028,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	dhd->pktfilter[1] = NULL;
 	dhd->pktfilter[2] = NULL;
 	dhd->pktfilter[3] = NULL;
-
 #if defined(SOFTAP)
 	if (ap_fw_loaded) {
 		int i;
@@ -2979,13 +3036,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 				0, dhd_master_mode);
 		}
 	}
-#endif /* (SOFTAP) */
+#endif /* defined(SOFTAP) */
 #endif /* PKT_FILTER_SUPPORT */
 
 	/* Force STA UP */
-	ret = dhd_wl_ioctl_cmd(dhd, WLC_UP, (char *)&up, sizeof(up), TRUE, 0);
-	if (ret < 0)
-		goto done;
+	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_UP, (char *)&up, sizeof(up), TRUE, 0)) < 0)
+		DHD_ERROR(("%s Setting WL UP failed %d\n", __FUNCTION__, ret));
 
 
 done:
@@ -3065,7 +3121,8 @@ int dhd_change_mtu(dhd_pub_t *dhdp, int new_mtu, int ifidx)
 
 #ifdef ARP_OFFLOAD_SUPPORT
 /* add or remove AOE host ip(s) (up to 8 IPs on the interface)  */
-void aoe_update_host_ipv4_table(dhd_pub_t *dhd_pub, u32 ipa, bool add)
+void
+aoe_update_host_ipv4_table(dhd_pub_t *dhd_pub, u32 ipa, bool add)
 {
 	u32 ipv4_buf[MAX_IPV4_ENTRIES]; /* temp save for AOE host_ip table */
 	int i;
@@ -3088,14 +3145,11 @@ void aoe_update_host_ipv4_table(dhd_pub_t *dhd_pub, u32 ipa, bool add)
 	}
 
 	for (i = 0; i < MAX_IPV4_ENTRIES; i++) {
-
 		if (add && (ipv4_buf[i] == 0)) {
-
-				ipv4_buf[i]	= ipa;
+				ipv4_buf[i] = ipa;
 				add = FALSE; /* added ipa to local table  */
 				DHD_ARPOE(("%s: Saved new IP in temp arp_hostip[%d]\n",
 				__FUNCTION__, i));
-
 		} else if (ipv4_buf[i] == ipa) {
 			ipv4_buf[i]	= 0;
 			DHD_ARPOE(("%s: removed IP:%x from temp table %d\n",
@@ -3160,14 +3214,14 @@ static int dhd_device_event(struct notifier_block *this,
 #ifdef AOE_IP_ALIAS_SUPPORT
 		if (!(ifa->ifa_label[strlen(ifa->ifa_label)-2] == 0x3a)) {
 				DHD_ARPOE(("%s: primary interface is down, AOE clr all\n",
-					__FUNCTION__));
+				           __FUNCTION__));
 				dhd_aoe_hostip_clr(&dhd->pub);
 				dhd_aoe_arp_clr(&dhd->pub);
 		} else
 			aoe_update_host_ipv4_table(dhd_pub, ifa->ifa_address, FALSE);
 #else
-	dhd_aoe_hostip_clr(&dhd->pub);
-	dhd_aoe_arp_clr(&dhd->pub);
+			dhd_aoe_hostip_clr(&dhd->pub);
+			dhd_aoe_arp_clr(&dhd->pub);
 #endif
 			break;
 
@@ -3221,9 +3275,9 @@ dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 		net->netdev_ops = &dhd_ops_pri;
 #endif
 	} else {
-	/*
-	 * We have to use the primary MAC for virtual interfaces
-	 */
+		/*
+		 * We have to use the primary MAC for virtual interfaces
+		 */
 		memcpy(temp_addr, dhd->iflist[ifidx]->mac_addr, ETHER_ADDR_LEN);
 		/*
 		 * Android sets the locally administered bit to indicate that this is a
@@ -3362,15 +3416,10 @@ void dhd_detach(dhd_pub_t *dhdp)
 
 	/* delete all interfaces, start with virtual  */
 	if (dhd->dhd_state & DHD_ATTACH_STATE_ADD_IF) {
-		int i = 1;
 		dhd_if_t *ifp;
 
-		for (i = 1; i < DHD_MAX_IFS; i++)
-			if (dhd->iflist[i]) {
-				dhd->iflist[i]->state = WLC_E_IF_DEL;
-				dhd->iflist[i]->idx = i;
-				dhd_op_if(dhd->iflist[i]);
-			}
+		/* Cleanup all virtual Interfaces */
+		dhd_cleanup_virt_ifaces(dhd);
 
 		/*  delete primary interface 0 */
 		ifp = dhd->iflist[0];
@@ -3428,8 +3477,8 @@ void dhd_detach(dhd_pub_t *dhdp)
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
-	unregister_pm_notifier(&dhd_sleep_pm_notifier);
-#endif
+		unregister_pm_notifier(&dhd_sleep_pm_notifier);
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
 
 	if (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT) {
 #ifdef CONFIG_HAS_WAKELOCK
@@ -3437,7 +3486,6 @@ void dhd_detach(dhd_pub_t *dhdp)
 		wake_lock_destroy(&dhd->wl_rxwake);
 #endif
 	}
-
 }
 
 
@@ -3508,7 +3556,6 @@ dhd_module_init(void)
 		sema_init(&dhd_registration_sem, 0);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) */
 	error = dhd_bus_register();
-
 
 	if (!error)
 		printf("\n%s\n", dhd_version);
@@ -4156,10 +4203,13 @@ int net_os_send_hang_message(struct net_device *dev)
 	int ret = 0;
 
 	if (dhd) {
-		if (!dhd->hang_was_sent) {
-			dhd->hang_was_sent = 1;
+		if (!dhd->pub.hang_was_sent) {
+			dhd->pub.hang_was_sent = 1;
 #if defined(CONFIG_WIRELESS_EXT)
 			ret = wl_iw_send_priv_event(dev, "HANG");
+#endif
+#if defined(WL_CFG80211)
+			ret = wl_cfg80211_hang(dev, WLAN_REASON_UNSPECIFIED);
 #endif
 		}
 	}

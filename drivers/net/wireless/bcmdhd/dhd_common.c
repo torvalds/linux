@@ -1970,7 +1970,7 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 		pfn_element.wpa_auth = htod32(WPA_AUTH_PFN_ANY);
 		pfn_element.wsec = htod32(0);
 		pfn_element.infra = htod32(1);
-
+		pfn_element.flags = htod32(ENABLE << WL_PFN_HIDDEN_BIT);
 		memcpy((char *)pfn_element.ssid.SSID, ssids_local[i].SSID, ssids_local[i].SSID_len);
 		pfn_element.ssid.SSID_len = ssids_local[i].SSID_len;
 

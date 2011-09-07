@@ -627,16 +627,14 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 	s32 ret = BCME_OK;
 	u32 pos;
 	u8  *ie_buf;
-	u8  *mgmt_ie_buf;
-	u32 mgmt_ie_buf_len;
-	u32 *mgmt_ie_len;
+	u8  *mgmt_ie_buf = NULL;
+	u32 mgmt_ie_buf_len = 0;
+	u32 *mgmt_ie_len = 0;
 	u8 ie_id, ie_len;
 	u8 delete = 0;
 #define IE_TYPE(type, bsstype) (wl_to_p2p_bss_saved_ie(wl, bsstype).p2p_ ## type ## _ie)
 #define IE_TYPE_LEN(type, bsstype) (wl_to_p2p_bss_saved_ie(wl, bsstype).p2p_ ## type ## _ie_len)
-	if (bssidx == -1)
-		return BCME_BADARG;
-	if (wl->p2p_supported && p2p_on(wl)) {
+	if (wl->p2p_supported && p2p_on(wl) && bssidx != -1) {
 		if (bssidx == P2PAPI_BSSCFG_PRIMARY)
 			bssidx =  wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE);
 		switch (pktflag) {
@@ -671,7 +669,7 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 				CFGP2P_ERR(("not suitable type\n"));
 				return -1;
 		}
-	} else {
+	} else if (get_mode_by_netdev(wl, ndev) == WL_MODE_AP) {
 		switch (pktflag) {
 			case VNDR_IE_PRBRSP_FLAG :
 				mgmt_ie_buf = wl->ap_info->probe_res_ie;
@@ -689,37 +687,63 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 				CFGP2P_ERR(("not suitable type\n"));
 				return -1;
 		}
+		bssidx = 0;
+	} else if (bssidx == -1 && get_mode_by_netdev(wl, ndev) == WL_MODE_BSS) {
+		switch (pktflag) {
+			case VNDR_IE_PRBREQ_FLAG :
+				mgmt_ie_buf = wl->sta_info->probe_req_ie;
+				mgmt_ie_len = &wl->sta_info->probe_req_ie_len;
+				mgmt_ie_buf_len = sizeof(wl->sta_info->probe_req_ie);
+				break;
+			case VNDR_IE_ASSOCREQ_FLAG :
+				mgmt_ie_buf = wl->sta_info->assoc_req_ie;
+				mgmt_ie_len = &wl->sta_info->assoc_req_ie_len;
+				mgmt_ie_buf_len = sizeof(wl->sta_info->assoc_req_ie);
+				break;
+			default:
+				mgmt_ie_buf = NULL;
+				mgmt_ie_len = NULL;
+				CFGP2P_ERR(("not suitable type\n"));
+				return -1;
+		}
+		bssidx = 0;
+	} else {
+		CFGP2P_ERR(("not suitable type\n"));
+		return -1;
 	}
-	/* Add if there is any extra IE */
-	if (vndr_ie && vndr_ie_len) {
-		CFGP2P_INFO(("Request has extra IE"));
-		if (vndr_ie_len > mgmt_ie_buf_len) {
-			CFGP2P_ERR(("extra IE size too big\n"));
-			ret = -ENOMEM;
-		} else {
-			if (mgmt_ie_buf != NULL) {
-				if ((vndr_ie_len == *mgmt_ie_len) &&
-				     (memcmp(mgmt_ie_buf, vndr_ie, vndr_ie_len) == 0)) {
-					CFGP2P_INFO(("Previous mgmt IE is equals to current IE"));
-					goto exit;
-				}
-				pos = 0;
-				delete = 1;
-				ie_buf = (u8 *) mgmt_ie_buf;
-				while (pos < *mgmt_ie_len) {
-					ie_id = ie_buf[pos++];
-					ie_len = ie_buf[pos++];
-					CFGP2P_INFO(("DELELED ID(%d), Len(%d),"
-						"OUI(%02x:%02x:%02x)\n",
-						ie_id, ie_len, ie_buf[pos],
-						ie_buf[pos+1], ie_buf[pos+2]));
-					ret = wl_cfgp2p_vndr_ie(ndev, bssidx, pktflag,
-					    ie_buf+pos, VNDR_SPEC_ELEMENT_ID,
-						ie_buf+pos+3, ie_len-3, delete);
-					pos += ie_len;
-				}
 
+	if (vndr_ie_len > mgmt_ie_buf_len) {
+		CFGP2P_ERR(("extra IE size too big\n"));
+		ret = -ENOMEM;
+	} else {
+		if (mgmt_ie_buf != NULL) {
+			if (vndr_ie_len && (vndr_ie_len == *mgmt_ie_len) &&
+			     (memcmp(mgmt_ie_buf, vndr_ie, vndr_ie_len) == 0)) {
+				CFGP2P_INFO(("Previous mgmt IE is equals to current IE"));
+				goto exit;
 			}
+			pos = 0;
+			delete = 1;
+			ie_buf = (u8 *) mgmt_ie_buf;
+			while (pos < *mgmt_ie_len) {
+				ie_id = ie_buf[pos++];
+				ie_len = ie_buf[pos++];
+				if ((ie_id == DOT11_MNG_VS_ID) &&
+				   (wl_cfgp2p_is_wps_ie(&ie_buf[pos-2], NULL, 0) ||
+					wl_cfgp2p_is_p2p_ie(&ie_buf[pos-2], NULL, 0))) {
+					CFGP2P_INFO(("DELELED ID : %d, Len : %d , OUI :"
+						"%02x:%02x:%02x\n", ie_id, ie_len, ie_buf[pos],
+						ie_buf[pos+1], ie_buf[pos+2]));
+					ret = wl_cfgp2p_vndr_ie(ndev, bssidx, pktflag, ie_buf+pos,
+					    VNDR_SPEC_ELEMENT_ID, ie_buf+pos+3, ie_len-3, delete);
+				}
+				pos += ie_len;
+			}
+
+		}
+		*mgmt_ie_len = 0;
+		/* Add if there is any extra IE */
+		if (vndr_ie && vndr_ie_len) {
 			/* save the current IE in wl struct */
 			memcpy(mgmt_ie_buf, vndr_ie, vndr_ie_len);
 			*mgmt_ie_len = vndr_ie_len;
@@ -741,7 +765,6 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 				pos += ie_len;
 			}
 		}
-
 	}
 #undef IE_TYPE
 #undef IE_TYPE_LEN

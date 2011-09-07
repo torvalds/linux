@@ -1266,6 +1266,7 @@ wl_iw_set_dtim_skip(
 				&iovbuf, sizeof(iovbuf))) >= 0) {
 				p += snprintf(p, MAX_WX_STRING, "OK");
 
+				
 				net_os_set_dtim_skip(dev, bcn_li_dtim);
 
 				WL_TRACE(("%s: set dtim_skip %d OK\n", __FUNCTION__,
@@ -1737,6 +1738,7 @@ wl_iw_control_wl_off(
 		sdioh_stop(NULL);
 #endif
 
+		
 		net_os_set_dtim_skip(dev, 0);
 
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
@@ -2415,7 +2417,7 @@ wl_iw_get_range(
 	list = (wl_uint32_list_t *)channels;
 
 	dwrq->length = sizeof(struct iw_range);
-	memset(range, 0, sizeof(range));
+	memset(range, 0, sizeof(*range));
 
 	
 	range->min_nwid = range->max_nwid = 0;
@@ -4472,7 +4474,7 @@ wl_iw_set_essid(
 	g_ssid.SSID_len = htod32(g_ssid.SSID_len);
 
 	
-	memset(join_params, 0, sizeof(join_params));
+	memset(join_params, 0, sizeof(*join_params));
 	join_params_size = sizeof(join_params->ssid);
 
 	memcpy(join_params->ssid.SSID, g_ssid.SSID, g_ssid.SSID_len);
@@ -6297,6 +6299,8 @@ wl_iw_add_wps_probe_req_ie(
 		str_ptr += WPS_PROBE_REQ_IE_CMD_LENGTH;
 		datalen = wrqu->data.length - WPS_PROBE_REQ_IE_CMD_LENGTH;
 
+		
+		
 		buflen = sizeof(vndr_ie_setbuf_t) + datalen - sizeof(vndr_ie_t);
 		ie_setbuf = (vndr_ie_setbuf_t *)kmalloc(buflen, GFP_KERNEL);
 		if (!ie_setbuf) {
@@ -6306,16 +6310,21 @@ wl_iw_add_wps_probe_req_ie(
 
 		memset(ie_setbuf, 0x00, buflen);
 
+		
 		strncpy(ie_setbuf->cmd, "add", VNDR_IE_CMD_LEN - 1);
 		ie_setbuf->cmd[VNDR_IE_CMD_LEN - 1] = '\0';
 
+		
 		iecount = htod32(1);
 		memcpy((void *)&ie_setbuf->vndr_ie_buffer.iecount, &iecount, sizeof(int));
 
+		
 		pktflag = 0x10;
-		memcpy((void *)&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].pktflag, &pktflag, sizeof(uint32));
+		memcpy((void *)&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].pktflag,
+			&pktflag, sizeof(uint32));
 
-		memcpy((void *)&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].vndr_ie_data, str_ptr, datalen);
+		memcpy((void *)&ie_setbuf->vndr_ie_buffer.vndr_ie_list[0].vndr_ie_data,
+			str_ptr, datalen);
 
 		total_len = strlen("vndr_ie ") + buflen;
 		bufptr = (char *)kmalloc(total_len, GFP_KERNEL);
@@ -7528,11 +7537,15 @@ wl_iw_set_priv(
 			ret = wl_iw_set_cscan(dev, info, (union iwreq_data *)dwrq, extra);
 #endif 
 #ifdef CONFIG_WPS2
-		else if (strnicmp(extra, WPS_ADD_PROBE_REQ_IE_CMD, strlen(WPS_ADD_PROBE_REQ_IE_CMD)) == 0)
-			ret = wl_iw_add_wps_probe_req_ie(dev, info, (union iwreq_data *)dwrq, extra);
-		else if (strnicmp(extra, WPS_DEL_PROBE_REQ_IE_CMD, strlen(WPS_DEL_PROBE_REQ_IE_CMD)) == 0)
-			ret = wl_iw_del_wps_probe_req_ie(dev, info, (union iwreq_data *)dwrq, extra);
-#endif
+		else if (strnicmp(extra, WPS_ADD_PROBE_REQ_IE_CMD,
+			strlen(WPS_ADD_PROBE_REQ_IE_CMD)) == 0)
+			ret = wl_iw_add_wps_probe_req_ie(dev, info,
+				(union iwreq_data *)dwrq, extra);
+		else if (strnicmp(extra, WPS_DEL_PROBE_REQ_IE_CMD,
+			strlen(WPS_DEL_PROBE_REQ_IE_CMD)) == 0)
+			ret = wl_iw_del_wps_probe_req_ie(dev, info,
+				(union iwreq_data *)dwrq, extra);
+#endif 
 		else if (strnicmp(extra, "POWERMODE", strlen("POWERMODE")) == 0)
 			ret = wl_iw_set_power_mode(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, "BTCOEXMODE", strlen("BTCOEXMODE")) == 0)
@@ -7761,8 +7774,8 @@ static const struct iw_priv_args wl_iw_priv_args[] =
 
 	{
 		WL_AP_STA_LIST,
-		0,                     
-		IW_PRIV_TYPE_CHAR | 0, 
+		IW_PRIV_TYPE_CHAR | 0,	
+		IW_PRIV_TYPE_CHAR | 1024,  
 		"AP_GET_STA_LIST"
 	},
 
