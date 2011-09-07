@@ -58,7 +58,7 @@ static struct cdev mei_cdev;
 static int mei_major;
 /* The device pointer */
 /* Currently this driver works as long as there is only a single AMT device. */
-static struct pci_dev *mei_device;
+struct pci_dev *mei_device;
 
 static struct class *mei_class;
 

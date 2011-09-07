@@ -27,21 +27,6 @@
 #include "mei.h"
 
 /*
- * Watchdog Device structs
- */
-const struct watchdog_info wd_info = {
-		.identity = INTEL_AMT_WATCHDOG_ID,
-};
-
-struct watchdog_device amt_wd_dev = {
-		.info = &wd_info,
-		.timeout = AMT_WD_DEFAULT_TIMEOUT,
-		.min_timeout = AMT_WD_MIN_TIMEOUT,
-		.max_timeout = AMT_WD_MAX_TIMEOUT,
-};
-
-
-/*
  * MEI Watchdog Module Parameters
  */
 static u16 watchdog_timeout = AMT_WD_DEFAULT_TIMEOUT;
@@ -209,4 +194,84 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 out:
 	return ret;
 }
+
+/*
+ * mei_wd_ops_start - wd start command from the watchdog core.
+ *
+ * @wd_dev - watchdog device struct
+ *
+ * returns 0 if success, negative errno code for failure
+ */
+static int mei_wd_ops_start(struct watchdog_device *wd_dev)
+{
+	int err = -ENODEV;
+	struct mei_device *dev;
+
+	dev = pci_get_drvdata(mei_device);
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+
+	if (dev->mei_state != MEI_ENABLED) {
+		dev_dbg(&dev->pdev->dev, "mei_state != MEI_ENABLED  mei_state= %d\n",
+		    dev->mei_state);
+		goto end_unlock;
+	}
+
+	if (dev->wd_cl.state != MEI_FILE_CONNECTED)	{
+		dev_dbg(&dev->pdev->dev, "MEI Driver is not connected to Watchdog Client\n");
+		goto end_unlock;
+	}
+
+	mei_wd_start_setup(dev);
+
+	err = 0;
+end_unlock:
+	mutex_unlock(&dev->device_lock);
+	return err;
+}
+
+/*
+ * mei_wd_ops_stop -  wd stop command from the watchdog core.
+ *
+ * @wd_dev - watchdog device struct
+ *
+ * returns 0 if success, negative errno code for failure
+ */
+static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
+{
+	struct mei_device *dev;
+	dev = pci_get_drvdata(mei_device);
+
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+	mei_wd_stop(dev, false);
+	mutex_unlock(&dev->device_lock);
+
+	return 0;
+}
+
+/*
+ * Watchdog Device structs
+ */
+const struct watchdog_ops wd_ops = {
+		.owner = THIS_MODULE,
+		.start = mei_wd_ops_start,
+		.stop = mei_wd_ops_stop,
+};
+const struct watchdog_info wd_info = {
+		.identity = INTEL_AMT_WATCHDOG_ID,
+};
+
+struct watchdog_device amt_wd_dev = {
+		.info = &wd_info,
+		.ops = &wd_ops,
+		.timeout = AMT_WD_DEFAULT_TIMEOUT,
+		.min_timeout = AMT_WD_MIN_TIMEOUT,
+		.max_timeout = AMT_WD_MAX_TIMEOUT,
+};
+
 

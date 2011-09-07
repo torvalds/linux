@@ -38,6 +38,11 @@
 #define MEI_WD_STATE_INDEPENDENCE_MSG_SENT       (1 << 0)
 
 /*
+ * MEI PCI Device object
+ */
+extern struct pci_dev *mei_device;
+
+/*
  * AMT Watchdog Device
  */
 #define INTEL_AMT_WATCHDOG_ID "INTCAMT"
