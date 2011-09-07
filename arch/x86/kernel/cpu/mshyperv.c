@@ -11,6 +11,8 @@
  */
 
 #include <linux/types.h>
+#include <linux/time.h>
+#include <linux/clocksource.h>
 #include <linux/module.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
@@ -36,6 +38,25 @@ static bool __init ms_hyperv_platform(void)
 		!memcmp("Microsoft Hv", hyp_signature, 12);
 }
 
+static cycle_t read_hv_clock(struct clocksource *arg)
+{
+	cycle_t current_tick;
+	/*
+	 * Read the partition counter to get the current tick count. This count
+	 * is set to 0 when the partition is created and is incremented in
+	 * 100 nanosecond units.
+	 */
+	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
+	return current_tick;
+}
+
+static struct clocksource hyperv_cs = {
+	.name		= "hyperv_clocksource",
+	.rating		= 400, /* use this when running on Hyperv*/
+	.read		= read_hv_clock,
+	.mask		= CLOCKSOURCE_MASK(64),
+};
+
 static void __init ms_hyperv_init_platform(void)
 {
 	/*
@@ -46,6 +67,8 @@ static void __init ms_hyperv_init_platform(void)
 
 	printk(KERN_INFO "HyperV: features 0x%x, hints 0x%x\n",
 	       ms_hyperv.features, ms_hyperv.hints);
+
+	clocksource_register_hz(&hyperv_cs, NSEC_PER_SEC/100);
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
