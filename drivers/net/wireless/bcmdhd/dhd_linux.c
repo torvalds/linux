@@ -2000,6 +2000,14 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	DHD_OS_WAKE_LOCK(&dhd->pub);
 
+	/* send to dongle only if we are not waiting for reload already */
+	if (dhd->pub.hang_was_sent) {
+		DHD_ERROR(("%s: HANG was sent up earlier\n", __FUNCTION__));
+		DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(&dhd->pub, DHD_EVENT_TIMEOUT);
+		DHD_OS_WAKE_UNLOCK(&dhd->pub);
+		return OSL_ERROR(BCME_DONGLE_DOWN);
+	}
+
 	ifidx = dhd_net2idx(dhd, net);
 	DHD_TRACE(("%s: ifidx %d, cmd 0x%04x\n", __FUNCTION__, ifidx, cmd));
 
@@ -2075,14 +2083,6 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	if (!capable(CAP_NET_ADMIN)) {
 		bcmerror = -BCME_EPERM;
-		goto done;
-	}
-
-	/* send to dongle only if we are not waiting for reload already */
-	if (dhd->pub.hang_was_sent) {
-		DHD_ERROR(("%s: HANG was sent up earlier. Not talking to the chip\n",
-			__FUNCTION__));
-		bcmerror = BCME_DONGLE_DOWN;
 		goto done;
 	}
 
@@ -2267,7 +2267,7 @@ dhd_stop(struct net_device *net)
 	if (ifidx == 0)
 		wl_android_wifi_off(net);
 #endif
-
+	dhd->pub.hang_was_sent = 0;
 	OLD_MOD_DEC_USE_COUNT;
 	return 0;
 }
@@ -2317,7 +2317,6 @@ dhd_open(struct net_device *net)
 #if defined(WL_CFG80211)
 		DHD_ERROR(("\n%s\n", dhd_version));
 		wl_android_wifi_on(net);
-		dhd->pub.hang_was_sent = 0;
 #endif
 
 		if (dhd->pub.busstate != DHD_BUS_DATA) {

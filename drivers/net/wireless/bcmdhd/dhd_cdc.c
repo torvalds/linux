@@ -282,7 +282,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len)
 	int ret = -1;
 	uint8 action;
 
-	if (dhd->busstate == DHD_BUS_DOWN) {
+	if ((dhd->busstate == DHD_BUS_DOWN) || dhd->hang_was_sent) {
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
 		goto done;
 	}
