@@ -1428,7 +1428,7 @@ static int __devinit cx25821_initdev(struct pci_dev *pci_dev,
 	}
 
 	err =
-	    request_irq(pci_dev->irq, cx25821_irq, IRQF_SHARED | IRQF_DISABLED,
+	    request_irq(pci_dev->irq, cx25821_irq, IRQF_SHARED,
 			dev->name, dev);
 
 	if (err < 0) {

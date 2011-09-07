@@ -693,7 +693,7 @@ int cx25821_start_video_dma_upstream_ch2(struct cx25821_dev *dev,
 
 	err =
 	    request_irq(dev->pci->irq, cx25821_upstream_irq_ch2,
-			IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+			IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		pr_err("%s: can't get upstream IRQ %d\n",
 		       dev->name, dev->pci->irq);

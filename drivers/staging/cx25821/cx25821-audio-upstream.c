@@ -680,7 +680,7 @@ int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
 
 	err =
 	    request_irq(dev->pci->irq, cx25821_upstream_irq_audio,
-			IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+			IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		pr_err("%s: can't get upstream IRQ %d\n",
 		       dev->name, dev->pci->irq);
