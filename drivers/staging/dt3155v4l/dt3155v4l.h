@@ -183,7 +183,6 @@ struct dt3155_stats {
  * @q			pointer to vb2_queue structure
  * @curr_buf:		pointer to curren buffer
  * @mux:		mutex to protect the instance
- * @irq_handler:	irq handler for the driver
  * @dmaq		queue for dma buffers
  * @lock		spinlock for dma queue
  * @field_count		fields counter
@@ -199,7 +198,6 @@ struct dt3155_priv {
 	struct vb2_queue *q;
 	struct vb2_buffer *curr_buf;
 	struct mutex mux;
-	irq_handler_t irq_handler;
 	struct list_head dmaq;
 	spinlock_t lock;
 	unsigned int field_count;

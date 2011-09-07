@@ -406,8 +406,7 @@ dt3155_open(struct file *filp)
 		/* disable all irqs, clear all irq flags */
 		iowrite32(FLD_START | FLD_END_EVEN | FLD_END_ODD,
 						pd->regs + INT_CSR);
-		pd->irq_handler = dt3155_irq_handler_even;
-		ret = request_irq(pd->pdev->irq, pd->irq_handler,
+		ret = request_irq(pd->pdev->irq, dt3155_irq_handler_even,
 						IRQF_SHARED, DT3155_NAME, pd);
 		if (ret)
 			goto err_request_irq;
