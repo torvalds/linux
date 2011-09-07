@@ -231,8 +231,8 @@ static void sis_old_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	u8 t1, t2;
 	int speed = adev->pio_mode - XFER_PIO_0;
 
-	const u8 active[]   = { 0x00, 0x07, 0x04, 0x03, 0x01 };
-	const u8 recovery[] = { 0x00, 0x06, 0x04, 0x03, 0x03 };
+	static const u8 active[]   = { 0x00, 0x07, 0x04, 0x03, 0x01 };
+	static const u8 recovery[] = { 0x00, 0x06, 0x04, 0x03, 0x03 };
 
 	sis_set_fifo(ap, adev);
 
@@ -267,7 +267,7 @@ static void sis_100_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	int port = sis_old_port_base(adev);
 	int speed = adev->pio_mode - XFER_PIO_0;
 
-	const u8 actrec[] = { 0x00, 0x67, 0x44, 0x33, 0x31 };
+	static const u8 actrec[] = { 0x00, 0x67, 0x44, 0x33, 0x31 };
 
 	sis_set_fifo(ap, adev);
 
@@ -293,14 +293,14 @@ static void sis_133_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	u32 t1;
 	int speed = adev->pio_mode - XFER_PIO_0;
 
-	const u32 timing133[] = {
+	static const u32 timing133[] = {
 		0x28269000,	/* Recovery << 24 | Act << 16 | Ini << 12 */
 		0x0C266000,
 		0x04263000,
 		0x0C0A3000,
 		0x05093000
 	};
-	const u32 timing100[] = {
+	static const u32 timing100[] = {
 		0x1E1C6000,	/* Recovery << 24 | Act << 16 | Ini << 12 */
 		0x091C4000,
 		0x031C2000,
@@ -341,8 +341,8 @@ static void sis_old_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	int drive_pci = sis_old_port_base(adev);
 	u16 timing;
 
-	const u16 mwdma_bits[] = { 0x008, 0x302, 0x301 };
-	const u16 udma_bits[]  = { 0xE000, 0xC000, 0xA000 };
+	static const u16 mwdma_bits[] = { 0x008, 0x302, 0x301 };
+	static const u16 udma_bits[]  = { 0xE000, 0xC000, 0xA000 };
 
 	pci_read_config_word(pdev, drive_pci, &timing);
 
@@ -381,8 +381,8 @@ static void sis_66_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	u16 timing;
 
 	/* MWDMA 0-2 and UDMA 0-5 */
-	const u16 mwdma_bits[] = { 0x008, 0x302, 0x301 };
-	const u16 udma_bits[]  = { 0xF000, 0xD000, 0xB000, 0xA000, 0x9000, 0x8000 };
+	static const u16 mwdma_bits[] = { 0x008, 0x302, 0x301 };
+	static const u16 udma_bits[]  = { 0xF000, 0xD000, 0xB000, 0xA000, 0x9000, 0x8000 };
 
 	pci_read_config_word(pdev, drive_pci, &timing);
 
@@ -419,7 +419,7 @@ static void sis_100_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	int drive_pci = sis_old_port_base(adev);
 	u8 timing;
 
-	const u8 udma_bits[]  = { 0x8B, 0x87, 0x85, 0x83, 0x82, 0x81};
+	static const u8 udma_bits[]  = { 0x8B, 0x87, 0x85, 0x83, 0x82, 0x81};
 
 	pci_read_config_byte(pdev, drive_pci + 1, &timing);
 
