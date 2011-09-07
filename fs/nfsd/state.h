@@ -328,10 +328,10 @@ struct nfs4_replay {
 *         for lock_owner
 *    so_perclient: nfs4_client->cl_perclient entry - used when nfs4_client
 *         struct is reaped.
-*    so_perfilestate: heads the list of nfs4_stateid (either open or lock) 
-*         and is used to ensure no dangling nfs4_stateid references when we 
+*    so_perfilestate: heads the list of nfs4_ol_stateid (either open or lock) 
+*         and is used to ensure no dangling nfs4_ol_stateid references when we 
 *         release a stateowner.
-*    so_perlockowner: (open) nfs4_stateid->st_perlockowner entry - used when
+*    so_perlockowner: (open) nfs4_ol_stateid->st_perlockowner entry - used when
 *         close is called to reap associated byte-range locks
 *    so_close_lru: (open) stateowner is placed on this list instead of being
 *         reaped (when so_perfilestate is empty) to hold the last close replay.
@@ -430,9 +430,9 @@ static inline struct file *find_any_file(struct nfs4_file *f)
 }
 
 /*
-* nfs4_stateid can either be an open stateid or (eventually) a lock stateid
+* nfs4_ol_stateid can either be an open stateid or (eventually) a lock stateid
 *
-* (open)nfs4_stateid: one per (open)nfs4_stateowner, nfs4_file
+* (open)nfs4_ol_stateid: one per (open)nfs4_stateowner, nfs4_file
 *
 * 	st_hash: stateid_hashtbl[] entry or lockstateid_hashtbl entry
 * 	st_perfile: file_hashtbl[] entry.
@@ -446,21 +446,30 @@ static inline struct file *find_any_file(struct nfs4_file *f)
 * we should consider defining separate structs for the two cases.
 */
 
-struct nfs4_stateid {
+struct nfs4_stid {
 #define NFS4_OPEN_STID 1
 #define NFS4_LOCK_STID 2
-	char st_type;
-	struct list_head              st_hash; 
+	char sc_type;
+	struct list_head sc_hash;
+	stateid_t sc_stateid;
+};
+
+struct nfs4_ol_stateid {
+	struct nfs4_stid    st_stid;
 	struct list_head              st_perfile;
 	struct list_head              st_perstateowner;
 	struct list_head              st_lockowners;
 	struct nfs4_stateowner      * st_stateowner;
 	struct nfs4_file            * st_file;
-	stateid_t                     st_stateid;
 	unsigned long                 st_access_bmap;
 	unsigned long                 st_deny_bmap;
-	struct nfs4_stateid         * st_openstp;
+	struct nfs4_ol_stateid         * st_openstp;
 };
+
+static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s)
+{
+	return container_of(s, struct nfs4_ol_stateid, st_stid);
+}
 
 /* flags for preprocess_seqid_op() */
 #define RD_STATE	        0x00000010
