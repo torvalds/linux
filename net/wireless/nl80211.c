@@ -2627,10 +2627,15 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		if (tb[NL80211_STA_WME_UAPSD_QUEUES])
 			params.uapsd_queues =
 			     nla_get_u8(tb[NL80211_STA_WME_UAPSD_QUEUES]);
+		if (params.uapsd_queues & ~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
+			return -EINVAL;
 
 		if (tb[NL80211_STA_WME_MAX_SP])
 			params.max_sp =
 			     nla_get_u8(tb[NL80211_STA_WME_MAX_SP]);
+
+		if (params.max_sp & ~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
+			return -EINVAL;
 	}
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
