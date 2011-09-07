@@ -491,6 +491,9 @@ static int omap2430_runtime_suspend(struct device *dev)
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
 
+	musb->context.otg_interfsel = musb_readl(musb->mregs,
+						OTG_INTERFSEL);
+
 	omap2430_low_level_exit(musb);
 	otg_set_suspend(musb->xceiv, 1);
 
@@ -503,6 +506,9 @@ static int omap2430_runtime_resume(struct device *dev)
 	struct musb			*musb = glue_to_musb(glue);
 
 	omap2430_low_level_init(musb);
+	musb_writel(musb->mregs, OTG_INTERFSEL,
+					musb->context.otg_interfsel);
+
 	otg_set_suspend(musb->xceiv, 0);
 
 	return 0;
