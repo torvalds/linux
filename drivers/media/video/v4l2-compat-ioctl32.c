@@ -159,11 +159,20 @@ struct v4l2_format32 {
 	} fmt;
 };
 
+/**
+ * struct v4l2_create_buffers32 - VIDIOC_CREATE_BUFS32 argument
+ * @index:	on return, index of the first created buffer
+ * @count:	entry: number of requested buffers,
+ *		return: number of created buffers
+ * @memory:	buffer memory type
+ * @format:	frame format, for which buffers are requested
+ * @reserved:	future extensions
+ */
 struct v4l2_create_buffers32 {
-	__u32			index;		/* output: buffers index...index + count - 1 have been created */
+	__u32			index;
 	__u32			count;
 	enum v4l2_memory        memory;
-	struct v4l2_format32	format;		/* filled in by the user, plane sizes calculated by the driver */
+	struct v4l2_format32	format;
 	__u32			reserved[8];
 };
 

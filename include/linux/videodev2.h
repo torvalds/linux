@@ -2142,12 +2142,20 @@ struct v4l2_dbg_chip_ident {
 	__u32 revision;    /* chip revision, chip specific */
 } __attribute__ ((packed));
 
-/* VIDIOC_CREATE_BUFS */
+/**
+ * struct v4l2_create_buffers - VIDIOC_CREATE_BUFS argument
+ * @index:	on return, index of the first created buffer
+ * @count:	entry: number of requested buffers,
+ *		return: number of created buffers
+ * @memory:	buffer memory type
+ * @format:	frame format, for which buffers are requested
+ * @reserved:	future extensions
+ */
 struct v4l2_create_buffers {
-	__u32			index;		/* output: buffers index...index + count - 1 have been created */
+	__u32			index;
 	__u32			count;
 	enum v4l2_memory        memory;
-	struct v4l2_format	format;		/* "type" is used always, the rest if sizeimage == 0 */
+	struct v4l2_format	format;
 	__u32			reserved[8];
 };
 
