@@ -116,6 +116,8 @@
 #define MAX_EMULATION_MAC_ADDRS         16
 #define IXGBE_MAX_PF_MACVLANS           15
 #define VMDQ_P(p)   ((p) + adapter->num_vfs)
+#define IXGBE_82599_VF_DEVICE_ID        0x10ED
+#define IXGBE_X540_VF_DEVICE_ID         0x1515
 
 struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
@@ -512,6 +514,8 @@ struct ixgbe_adapter {
 	struct hlist_head fdir_filter_list;
 	union ixgbe_atr_input fdir_mask;
 	int fdir_filter_count;
+	u32 timer_event_accumulator;
+	u32 vferr_refcount;
 };
 
 struct ixgbe_fdir_filter {
