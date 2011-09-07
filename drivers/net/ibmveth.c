@@ -811,7 +811,7 @@ static int ibmveth_set_csum_offload(struct net_device *dev, u32 data)
 		} else
 			adapter->fw_ipv6_csum_support = data;
 
-		if (ret != H_SUCCESS || ret6 != H_SUCCESS)
+		if (ret == H_SUCCESS || ret6 == H_SUCCESS)
 			adapter->rx_csum = data;
 		else
 			rc1 = -EIO;
