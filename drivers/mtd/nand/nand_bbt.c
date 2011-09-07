@@ -898,30 +898,19 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 			if (td->pages[i] == -1 && md->pages[i] == -1) {
 				writeops = 0x03;
 				goto create;
-			}
-
-			if (td->pages[i] == -1) {
+			} else if (td->pages[i] == -1) {
 				rd = md;
 				td->version[i] = md->version[i];
 				writeops = 0x01;
-				goto writecheck;
-			}
-
-			if (md->pages[i] == -1) {
+			} else if (md->pages[i] == -1) {
 				rd = td;
 				md->version[i] = td->version[i];
 				writeops = 0x02;
-				goto writecheck;
-			}
-
-			if (td->version[i] == md->version[i]) {
+			} else if (td->version[i] == md->version[i]) {
 				rd = td;
 				if (!(td->options & NAND_BBT_VERSION))
 					rd2 = md;
-				goto writecheck;
-			}
-
-			if (((int8_t)(td->version[i] - md->version[i])) > 0) {
+			} else if (((int8_t)(td->version[i] - md->version[i])) > 0) {
 				rd = td;
 				md->version[i] = td->version[i];
 				writeops = 0x02;
@@ -930,17 +919,14 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 				td->version[i] = md->version[i];
 				writeops = 0x01;
 			}
-
-			goto writecheck;
-
 		} else {
 			if (td->pages[i] == -1) {
 				writeops = 0x01;
 				goto create;
 			}
 			rd = td;
-			goto writecheck;
 		}
+		goto writecheck;
 	create:
 		/* Create the bad block table by scanning the device? */
 		if (!(td->options & NAND_BBT_CREATE))
