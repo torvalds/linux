@@ -521,7 +521,13 @@ void mei_host_client_properties(struct mei_device *dev)
 	bitmap_set(dev->host_clients_map, 0, 3);
 	dev->mei_state = MEI_ENABLED;
 
-	mei_wd_host_init(dev);
+	/* if wd initialization fails, initialization the AMTHI client,
+	 * otherwise the AMTHI client will be initialized after the WD client connect response
+	 * will be received
+	 */
+	if (mei_wd_host_init(dev))
+		mei_host_init_iamthif(dev);
+
 	return;
 }
 

@@ -63,8 +63,10 @@ void mei_wd_start_setup(struct mei_device *dev)
  *
  * @dev: the device structure
  */
-void mei_wd_host_init(struct mei_device *dev)
+bool mei_wd_host_init(struct mei_device *dev)
 {
+	bool ret = false;
+
 	mei_cl_init(&dev->wd_cl, dev);
 
 	/* look for WD client and connect to it */
@@ -83,19 +85,25 @@ void mei_wd_host_init(struct mei_device *dev)
 				dev_dbg(&dev->pdev->dev, "Failed to connect to WD client\n");
 				dev->wd_cl.state = MEI_FILE_DISCONNECTED;
 				dev->wd_cl.host_client_id = 0;
-				mei_host_init_iamthif(dev) ;
+				ret = false;
+				goto end;
 			} else {
 				dev->wd_cl.timer_count = CONNECT_TIMEOUT;
 			}
 		} else {
 			dev_dbg(&dev->pdev->dev, "Failed to find WD client\n");
-			mei_host_init_iamthif(dev) ;
+			ret = false;
+			goto end;
 		}
 	} else {
 		dev->wd_bypass = true;
 		dev_dbg(&dev->pdev->dev, "WD requested to be disabled\n");
-		mei_host_init_iamthif(dev) ;
+		ret = false;
+		goto end;
 	}
+
+end:
+	return ret;
 }
 
 /**
