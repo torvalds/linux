@@ -2318,10 +2318,7 @@ init_open_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_o
 	struct nfs4_openowner *oo = open->op_openowner;
 	unsigned int hashval = stateid_hashval(oo->oo_owner.so_id, fp->fi_id);
 
-	INIT_LIST_HEAD(&stp->st_hash);
-	INIT_LIST_HEAD(&stp->st_perstateowner);
 	INIT_LIST_HEAD(&stp->st_lockowners);
-	INIT_LIST_HEAD(&stp->st_perfile);
 	list_add(&stp->st_hash, &stateid_hashtbl[hashval]);
 	list_add(&stp->st_perstateowner, &oo->oo_owner.so_stateids);
 	list_add(&stp->st_perfile, &fp->fi_stateids);
@@ -3874,10 +3871,6 @@ alloc_init_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fp, struct 
 	stp = nfs4_alloc_stateid();
 	if (stp == NULL)
 		goto out;
-	INIT_LIST_HEAD(&stp->st_hash);
-	INIT_LIST_HEAD(&stp->st_perfile);
-	INIT_LIST_HEAD(&stp->st_perstateowner);
-	INIT_LIST_HEAD(&stp->st_lockowners); /* not used */
 	list_add(&stp->st_hash, &stateid_hashtbl[hashval]);
 	list_add(&stp->st_perfile, &fp->fi_stateids);
 	list_add(&stp->st_perstateowner, &lo->lo_owner.so_stateids);
