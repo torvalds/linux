@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/of.h>
 #include <linux/mmc/sdio_func.h>
 #include "core.h"
 #include "cfg80211.h"
@@ -680,6 +681,64 @@ static int ath6kl_get_fw(struct ath6kl *ar, const char *filename,
 	return ret;
 }
 
+#ifdef CONFIG_OF
+static const char *get_target_ver_dir(const struct ath6kl *ar)
+{
+	switch (ar->version.target_ver) {
+	case AR6003_REV1_VERSION:
+		return "ath6k/AR6003/hw1.0";
+	case AR6003_REV2_VERSION:
+		return "ath6k/AR6003/hw2.0";
+	case AR6003_REV3_VERSION:
+		return "ath6k/AR6003/hw2.1.1";
+	}
+	ath6kl_warn("%s: unsupported target version 0x%x.\n", __func__,
+		    ar->version.target_ver);
+	return NULL;
+}
+
+/*
+ * Check the device tree for a board-id and use it to construct
+ * the pathname to the firmware file.  Used (for now) to find a
+ * fallback to the "bdata.bin" file--typically a symlink to the
+ * appropriate board-specific file.
+ */
+static bool check_device_tree(struct ath6kl *ar)
+{
+	static const char *board_id_prop = "atheros,board-id";
+	struct device_node *node;
+	char board_filename[64];
+	const char *board_id;
+	int ret;
+
+	for_each_compatible_node(node, NULL, "atheros,ath6kl") {
+		board_id = of_get_property(node, board_id_prop, NULL);
+		if (board_id == NULL) {
+			ath6kl_warn("No \"%s\" property on %s node.\n",
+				    board_id_prop, node->name);
+			continue;
+		}
+		snprintf(board_filename, sizeof(board_filename),
+			 "%s/bdata.%s.bin", get_target_ver_dir(ar), board_id);
+
+		ret = ath6kl_get_fw(ar, board_filename, &ar->fw_board,
+				    &ar->fw_board_len);
+		if (ret) {
+			ath6kl_err("Failed to get DT board file %s: %d\n",
+				   board_filename, ret);
+			continue;
+		}
+		return true;
+	}
+	return false;
+}
+#else
+static bool check_device_tree(struct ath6kl *ar)
+{
+	return false;
+}
+#endif /* CONFIG_OF */
+
 static int ath6kl_fetch_board_file(struct ath6kl *ar)
 {
 	const char *filename;
@@ -701,6 +760,11 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 			    &ar->fw_board_len);
 	if (ret == 0) {
 		/* managed to get proper board file */
+		return 0;
+	}
+
+	if (check_device_tree(ar)) {
+		/* got board file from device tree */
 		return 0;
 	}
 
