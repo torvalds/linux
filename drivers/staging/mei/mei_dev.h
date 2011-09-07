@@ -356,7 +356,7 @@ int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid);
  * @dev: the device structure
  * @offset: offset from which to read the data
  *
- * returns the byte read.
+ * returns register value (u32)
  */
 static inline u32 mei_reg_read(struct mei_device *dev, unsigned long offset)
 {
@@ -368,7 +368,7 @@ static inline u32 mei_reg_read(struct mei_device *dev, unsigned long offset)
  *
  * @dev: the device structure
  * @offset: offset from which to write the data
- * @value: the byte to write
+ * @value: register value to write (u32)
  */
 static inline void mei_reg_write(struct mei_device *dev,
 				unsigned long offset, u32 value)
