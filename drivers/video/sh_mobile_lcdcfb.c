@@ -1459,7 +1459,7 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
  * Probe/remove and driver init/exit
  */
 
-static const struct fb_videomode default_720p = {
+static const struct fb_videomode default_720p __devinitconst = {
 	.name = "HDMI 720p",
 	.xres = 1280,
 	.yres = 720,
@@ -1528,7 +1528,7 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int sh_mobile_lcdc_check_interface(struct sh_mobile_lcdc_chan *ch)
+static int __devinit sh_mobile_lcdc_check_interface(struct sh_mobile_lcdc_chan *ch)
 {
 	int interface_type = ch->cfg.interface_type;
 
