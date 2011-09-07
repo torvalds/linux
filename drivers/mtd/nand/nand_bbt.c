@@ -306,28 +306,16 @@ static int scan_read_raw_oob(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 	ops.ooboffs = 0;
 	ops.ooblen = mtd->oobsize;
 
-
 	while (len > 0) {
-		if (len <= mtd->writesize) {
-			ops.oobbuf = buf + len;
-			ops.datbuf = buf;
-			ops.len = len;
-			res = mtd->read_oob(mtd, offs, &ops);
+		ops.datbuf = buf;
+		ops.len = min(len, (size_t)mtd->writesize);
+		ops.oobbuf = buf + ops.len;
 
-			/* Ignore ECC errors when checking for BBM */
-			if (res != -EUCLEAN && res != -EBADMSG)
-				return res;
-			return 0;
-		} else {
-			ops.oobbuf = buf + mtd->writesize;
-			ops.datbuf = buf;
-			ops.len = mtd->writesize;
-			res = mtd->read_oob(mtd, offs, &ops);
+		res = mtd->read_oob(mtd, offs, &ops);
 
-			/* Ignore ECC errors when checking for BBM */
-			if (res && res != -EUCLEAN && res != -EBADMSG)
-				return res;
-		}
+		/* Ignore ECC errors when checking for BBM */
+		if (res && res != -EUCLEAN && res != -EBADMSG)
+			return res;
 
 		buf += mtd->oobsize + mtd->writesize;
 		len -= mtd->writesize;
