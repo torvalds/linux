@@ -462,6 +462,12 @@ struct ath6kl {
 		size_t rx_report_len;
 	} tm;
 
+	struct {
+		u32 dataset_patch_addr;
+		u32 app_load_addr;
+		u32 app_start_override_addr;
+	} hw;
+
 	u16 conf_flags;
 	wait_queue_head_t event_wq;
 	struct ath6kl_mbox_info mbox_info;
