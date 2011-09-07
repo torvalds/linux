@@ -778,9 +778,9 @@ static int bnx2x_ets_e3b0_set_cos_bw(struct bnx2x *bp,
 {
 	u32 nig_reg_adress_crd_weight = 0;
 	u32 pbf_reg_adress_crd_weight = 0;
-	/* Calculate and set BW for this COS*/
-	const u32 cos_bw_nig = (bw * min_w_val_nig) / total_bw;
-	const u32 cos_bw_pbf = (bw * min_w_val_pbf) / total_bw;
+	/* Calculate and set BW for this COS - use 1 instead of 0 for BW */
+	const u32 cos_bw_nig = ((bw ? bw : 1) * min_w_val_nig) / total_bw;
+	const u32 cos_bw_pbf = ((bw ? bw : 1) * min_w_val_pbf) / total_bw;
 
 	switch (cos_entry) {
 	case 0:
@@ -852,18 +852,12 @@ static int bnx2x_ets_e3b0_get_total_bw(
 	/* Calculate total BW requested */
 	for (cos_idx = 0; cos_idx < ets_params->num_of_cos; cos_idx++) {
 		if (bnx2x_cos_state_bw == ets_params->cos[cos_idx].state) {
-
-			if (0 == ets_params->cos[cos_idx].params.bw_params.bw) {
-				DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config BW"
-						   "was set to 0\n");
-			return -EINVAL;
+			*total_bw +=
+				ets_params->cos[cos_idx].params.bw_params.bw;
 		}
-		*total_bw +=
-		    ets_params->cos[cos_idx].params.bw_params.bw;
-	    }
 	}
 
-	/*Check taotl BW is valid */
+	/* Check total BW is valid */
 	if ((100 != *total_bw) || (0 == *total_bw)) {
 		if (0 == *total_bw) {
 			DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config toatl BW"
