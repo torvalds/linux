@@ -183,16 +183,16 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 	size_t retlen, len, totlen;
 	loff_t from;
 	int bits = td->options & NAND_BBT_NRBITS_MSK;
-	uint8_t msk = (uint8_t) ((1 << bits) - 1);
+	uint8_t msk = (uint8_t)((1 << bits) - 1);
 	u32 marker_len;
 	int reserved_block_code = td->reserved_block_code;
 
 	totlen = (num * bits) >> 3;
 	marker_len = add_marker_len(td);
-	from = ((loff_t) page) << this->page_shift;
+	from = ((loff_t)page) << this->page_shift;
 
 	while (totlen) {
-		len = min(totlen, (size_t) (1 << this->bbt_erase_shift));
+		len = min(totlen, (size_t)(1 << this->bbt_erase_shift));
 		if (marker_len) {
 			/*
 			 * In case the BBT marker is not in the OOB area it
@@ -250,7 +250,7 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
  * @mtd: MTD device structure
  * @buf: temporary buffer
  * @td: descriptor for the bad block table
- * @chip: read the table for a specific chip, -1 read all chips; aplies only if
+ * @chip: read the table for a specific chip, -1 read all chips; applies only if
  *        NAND_BBT_PERCHIP option is set
  *
  * Read the bad block table for all chips starting at a given page. We assume
@@ -743,12 +743,12 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 		bbtoffs = chip * (numblocks >> 2);
 
-		to = ((loff_t) page) << this->page_shift;
+		to = ((loff_t)page) << this->page_shift;
 
 		/* Must we save the block contents? */
 		if (td->options & NAND_BBT_SAVECONTENT) {
 			/* Make it block aligned */
-			to &= ~((loff_t) ((1 << this->bbt_erase_shift) - 1));
+			to &= ~((loff_t)((1 << this->bbt_erase_shift) - 1));
 			len = 1 << this->bbt_erase_shift;
 			res = mtd->read(mtd, to, len, &retlen, buf);
 			if (res < 0) {
@@ -771,7 +771,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			pageoffs = page - (int)(to >> this->page_shift);
 			offs = pageoffs << this->page_shift;
 			/* Preset the bbt area with 0xff */
-			memset(&buf[offs], 0xff, (size_t) (numblocks >> sft));
+			memset(&buf[offs], 0xff, (size_t)(numblocks >> sft));
 			ooboffs = len + (pageoffs * mtd->oobsize);
 
 		} else if (td->options & NAND_BBT_NO_OOB) {
@@ -781,7 +781,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			if (td->options & NAND_BBT_VERSION)
 				offs++;
 			/* Calc length */
-			len = (size_t) (numblocks >> sft);
+			len = (size_t)(numblocks >> sft);
 			len += offs;
 			/* Make it page aligned! */
 			len = ALIGN(len, mtd->writesize);
@@ -791,7 +791,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			memcpy(buf, td->pattern, td->len);
 		} else {
 			/* Calc length */
-			len = (size_t) (numblocks >> sft);
+			len = (size_t)(numblocks >> sft);
 			/* Make it page aligned! */
 			len = ALIGN(len, mtd->writesize);
 			/* Preset the buffer with 0xff */
@@ -903,14 +903,14 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 			if (td->pages[i] == -1) {
 				rd = md;
 				td->version[i] = md->version[i];
-				writeops = 1;
+				writeops = 0x01;
 				goto writecheck;
 			}
 
 			if (md->pages[i] == -1) {
 				rd = td;
 				md->version[i] = td->version[i];
-				writeops = 2;
+				writeops = 0x02;
 				goto writecheck;
 			}
 
@@ -921,14 +921,14 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 				goto writecheck;
 			}
 
-			if (((int8_t) (td->version[i] - md->version[i])) > 0) {
+			if (((int8_t)(td->version[i] - md->version[i])) > 0) {
 				rd = td;
 				md->version[i] = td->version[i];
-				writeops = 2;
+				writeops = 0x02;
 			} else {
 				rd = md;
 				td->version[i] = md->version[i];
-				writeops = 1;
+				writeops = 0x01;
 			}
 
 			goto writecheck;
