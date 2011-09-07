@@ -2109,8 +2109,8 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 
 		bp = xfs_buf_get(mp->m_ddev_targp, dblkno, blkcnt,
 				 XBF_LOCK | XBF_DONT_BLOCK);
-		ASSERT(!xfs_buf_geterror(bp));
-
+		if (!bp)
+			return ENOMEM;
 		tmp = (valuelen < XFS_BUF_SIZE(bp)) ? valuelen :
 							XFS_BUF_SIZE(bp);
 		xfs_buf_iomove(bp, 0, tmp, src, XBRW_WRITE);
