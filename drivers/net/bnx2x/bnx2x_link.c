@@ -1720,7 +1720,7 @@ static int bnx2x_xmac_enable(struct link_params *params,
 
 	/* Check loopback mode */
 	if (lb)
-		val |= XMAC_CTRL_REG_CORE_LOCAL_LPBK;
+		val |= XMAC_CTRL_REG_LINE_LOCAL_LPBK;
 	REG_WR(bp, xmac_base + XMAC_REG_CTRL, val);
 	bnx2x_set_xumac_nig(params,
 			    ((vars->flow_ctrl & BNX2X_FLOW_CTRL_TX) != 0), 1);
