@@ -332,10 +332,6 @@ config MTD_SOLUTIONENGINE
 	  This enables access to the flash chips on the Hitachi SolutionEngine and
 	  similar boards. Say 'Y' if you are building a kernel for such a board.
 
-config MTD_ARM_INTEGRATOR
-	tristate "CFI Flash device mapped on ARM Integrator/P720T"
-	depends on ARM && MTD_CFI
-
 config MTD_CDB89712
 	tristate "Cirrus CDB89712 evaluation board mappings"
 	depends on MTD_CFI && ARCH_CDB89712
