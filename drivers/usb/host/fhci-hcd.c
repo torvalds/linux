@@ -689,7 +689,7 @@ static int __devinit of_fhci_probe(struct platform_device *ofdev)
 	}
 
 	ret = request_irq(fhci->timer->irq, fhci_frame_limit_timer_irq,
-			  IRQF_DISABLED, "qe timer (usb)", hcd);
+			  0, "qe timer (usb)", hcd);
 	if (ret) {
 		dev_err(dev, "failed to request timer irq");
 		goto err_timer_irq;
@@ -748,7 +748,7 @@ static int __devinit of_fhci_probe(struct platform_device *ofdev)
 	out_be16(&fhci->regs->usb_event, 0xffff);
 	out_be16(&fhci->regs->usb_mask, 0);
 
-	ret = usb_add_hcd(hcd, usb_irq, IRQF_DISABLED);
+	ret = usb_add_hcd(hcd, usb_irq, 0);
 	if (ret < 0)
 		goto err_add_hcd;
 

@@ -154,7 +154,7 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	ehci->clk = usbh_clk;
 
 	spear_start_ehci(ehci);
-	retval = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval)
 		goto fail_add_hcd;
 

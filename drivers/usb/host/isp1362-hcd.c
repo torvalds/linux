@@ -2773,7 +2773,7 @@ static int __devinit isp1362_probe(struct platform_device *pdev)
 	if (irq_res->flags & IORESOURCE_IRQ_LOWLEVEL)
 		irq_flags |= IRQF_TRIGGER_LOW;
 
-	retval = usb_add_hcd(hcd, irq, irq_flags | IRQF_DISABLED | IRQF_SHARED);
+	retval = usb_add_hcd(hcd, irq, irq_flags | IRQF_SHARED);
 	if (retval != 0)
 		goto err6;
 	pr_info("%s, irq %d\n", hcd->product_desc, irq);

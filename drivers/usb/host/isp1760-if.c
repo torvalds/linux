@@ -79,7 +79,7 @@ static int of_isp1760_probe(struct platform_device *dev)
 		devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
 
 	hcd = isp1760_register(memory.start, res_len, virq,
-		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev),
+		IRQF_SHARED, &dev->dev, dev_name(&dev->dev),
 		devflags);
 	if (IS_ERR(hcd)) {
 		ret = PTR_ERR(hcd);
@@ -240,7 +240,7 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 
 	dev->dev.dma_mask = NULL;
 	hcd = isp1760_register(pci_mem_phy0, memlength, dev->irq,
-		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev),
+		IRQF_SHARED, &dev->dev, dev_name(&dev->dev),
 		devflags);
 	if (IS_ERR(hcd)) {
 		ret_status = -ENODEV;
@@ -313,7 +313,7 @@ static int __devinit isp1760_plat_probe(struct platform_device *pdev)
 	resource_size_t mem_size;
 	struct isp1760_platform_data *priv = pdev->dev.platform_data;
 	unsigned int devflags = 0;
-	unsigned long irqflags = IRQF_SHARED | IRQF_DISABLED;
+	unsigned long irqflags = IRQF_SHARED;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem_res) {

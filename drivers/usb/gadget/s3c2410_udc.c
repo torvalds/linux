@@ -1893,7 +1893,7 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 
 	/* irq setup after old hardware state is cleaned up */
 	retval = request_irq(IRQ_USBD, s3c2410_udc_irq,
-			     IRQF_DISABLED, gadget_name, udc);
+			     0, gadget_name, udc);
 
 	if (retval != 0) {
 		dev_err(dev, "cannot get irq %i, err %d\n", IRQ_USBD, retval);
@@ -1917,7 +1917,7 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		}
 
 		retval = request_irq(irq, s3c2410_udc_vbus_irq,
-				     IRQF_DISABLED | IRQF_TRIGGER_RISING
+				     IRQF_TRIGGER_RISING
 				     | IRQF_TRIGGER_FALLING | IRQF_SHARED,
 				     gadget_name, udc);
 

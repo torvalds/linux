@@ -223,7 +223,7 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	*((struct xhci_hcd **) xhci->shared_hcd->hcd_priv) = xhci;
 
 	retval = usb_add_hcd(xhci->shared_hcd, dev->irq,
-			IRQF_DISABLED | IRQF_SHARED);
+			IRQF_SHARED);
 	if (retval)
 		goto put_usb3_hcd;
 	/* Roothub already marked as USB 3.0 speed */

@@ -134,7 +134,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 
 	/* Don't need to set host mode here. It will be done by tdi_reset() */
 
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
 

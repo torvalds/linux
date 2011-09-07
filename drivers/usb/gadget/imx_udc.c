@@ -1478,7 +1478,7 @@ static int __init imx_udc_probe(struct platform_device *pdev)
 
 	for (i = 0; i < IMX_USB_NB_EP + 1; i++) {
 		ret = request_irq(imx_usb->usbd_int[i], intr_handler(i),
-				     IRQF_DISABLED, driver_name, imx_usb);
+				     0, driver_name, imx_usb);
 		if (ret) {
 			dev_err(&pdev->dev, "can't get irq %i, err %d\n",
 				imx_usb->usbd_int[i], ret);

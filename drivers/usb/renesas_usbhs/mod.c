@@ -145,7 +145,7 @@ int usbhs_mod_probe(struct usbhs_priv *priv)
 
 	/* irq settings */
 	ret = request_irq(priv->irq, usbhs_interrupt,
-			  IRQF_DISABLED, dev_name(dev), priv);
+			  0, dev_name(dev), priv);
 	if (ret) {
 		dev_err(dev, "irq request err\n");
 		goto mod_init_gadget_err;

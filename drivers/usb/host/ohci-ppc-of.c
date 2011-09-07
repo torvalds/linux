@@ -143,7 +143,7 @@ static int __devinit ohci_hcd_ppc_of_probe(struct platform_device *op)
 
 	ohci_hcd_init(ohci);
 
-	rv = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	rv = usb_add_hcd(hcd, irq, 0);
 	if (rv == 0)
 		return 0;
 

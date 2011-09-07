@@ -236,7 +236,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	priv->hcd = hcd;
 	platform_set_drvdata(pdev, priv);
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto err_add;
 

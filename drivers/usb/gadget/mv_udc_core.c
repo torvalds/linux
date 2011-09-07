@@ -2049,7 +2049,7 @@ int mv_udc_probe(struct platform_device *dev)
 	}
 	udc->irq = r->start;
 	if (request_irq(udc->irq, mv_udc_irq,
-		IRQF_DISABLED | IRQF_SHARED, driver_name, udc)) {
+		IRQF_SHARED, driver_name, udc)) {
 		dev_err(&dev->dev, "Request irq %d for UDC failed\n",
 			udc->irq);
 		retval = -ENODEV;

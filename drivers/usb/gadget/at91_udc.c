@@ -1810,7 +1810,7 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	/* request UDC and maybe VBUS irqs */
 	udc->udp_irq = platform_get_irq(pdev, 0);
 	retval = request_irq(udc->udp_irq, at91_udc_irq,
-			IRQF_DISABLED, driver_name, udc);
+			0, driver_name, udc);
 	if (retval < 0) {
 		DBG("request irq %d failed\n", udc->udp_irq);
 		goto fail1;
@@ -1838,7 +1838,7 @@ static int __init at91udc_probe(struct platform_device *pdev)
 				  jiffies + VBUS_POLL_TIMEOUT);
 		} else {
 			if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
-					IRQF_DISABLED, driver_name, udc)) {
+					0, driver_name, udc)) {
 				DBG("request vbus irq %d failed\n",
 				    udc->board.vbus_pin);
 				retval = -EBUSY;

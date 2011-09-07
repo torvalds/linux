@@ -163,7 +163,7 @@ static int ehci_ath79_probe(struct platform_device *pdev)
 		goto err_release_region;
 	}
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto err_iounmap;
 

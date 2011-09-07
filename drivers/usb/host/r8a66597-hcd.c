@@ -2519,7 +2519,7 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->has_tt = 1;
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | irq_trigger);
+	ret = usb_add_hcd(hcd, irq, irq_trigger);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to add hcd\n");
 		goto clean_up3;
