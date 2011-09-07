@@ -1151,11 +1151,9 @@ static int mei_pci_resume(struct device *device)
 	mei_reset(dev, 1);
 	mutex_unlock(&dev->device_lock);
 
-	/* Start watchdog if stopped in suspend */
-	if (dev->wd_timeout) {
-		dev->wd_due_counter = 1;
-		schedule_delayed_work(&dev->timer_work, HZ);
-	}
+	/* Start timer if stopped in suspend */
+	schedule_delayed_work(&dev->timer_work, HZ);
+
 	return err;
 }
 static SIMPLE_DEV_PM_OPS(mei_pm_ops, mei_pci_suspend, mei_pci_resume);
