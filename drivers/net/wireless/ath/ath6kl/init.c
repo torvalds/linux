@@ -902,6 +902,7 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 	const char *filename;
 	const u8 *data;
 	int ret, ie_id;
+	__le32 *val;
 
 	switch (ar->version.target_ver) {
 	case AR6003_REV2_VERSION:
@@ -986,6 +987,10 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 			}
 
 			ar->fw_patch_len = ie_len;
+			break;
+		case ATH6KL_FW_IE_RESERVED_RAM_SIZE:
+			val = (__le32 *) data;
+			ar->hw.reserved_ram_size = le32_to_cpup(val);
 			break;
 		default:
 			ath6kl_dbg(ATH6KL_DBG_TRC, "Unknown fw ie: %u\n",

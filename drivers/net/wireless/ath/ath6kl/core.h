@@ -67,6 +67,7 @@ enum ath6kl_fw_ie_type {
 	ATH6KL_FW_IE_OTP_IMAGE = 2,
 	ATH6KL_FW_IE_FW_IMAGE = 3,
 	ATH6KL_FW_IE_PATCH_IMAGE = 4,
+	ATH6KL_FW_IE_RESERVED_RAM_SIZE = 5,
 };
 
 struct ath6kl_fw_ie {
