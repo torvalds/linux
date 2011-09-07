@@ -528,7 +528,7 @@ static void print_noise_pct(double total, double avg)
 
 	if (csv_output)
 		fprintf(output, "%s%.2f%%", csv_sep, pct);
-	else
+	else if (pct)
 		fprintf(output, "  ( +-%6.2f%% )", pct);
 }
 
