@@ -1171,7 +1171,7 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
 {
 	struct nand_chip *this = mtd->priv;
-	int len, res = 0, writeops = 0;
+	int len, res = 0;
 	int chip, chipsel;
 	uint8_t *buf;
 	struct nand_bbt_descr *td = this->bbt_td;
@@ -1187,8 +1187,6 @@ int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
 	if (!buf)
 		return -ENOMEM;
 
-	writeops = md != NULL ? 0x03 : 0x01;
-
 	/* Do we have a bbt per chip? */
 	if (td->options & NAND_BBT_PERCHIP) {
 		chip = (int)(offs >> this->chip_shift);
@@ -1203,13 +1201,13 @@ int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
 		md->version[chip]++;
 
 	/* Write the bad block table to the device? */
-	if ((writeops & 0x01) && (td->options & NAND_BBT_WRITE)) {
+	if (td->options & NAND_BBT_WRITE) {
 		res = write_bbt(mtd, buf, td, md, chipsel);
 		if (res < 0)
 			goto out;
 	}
 	/* Write the mirror bad block table to the device? */
-	if ((writeops & 0x02) && md && (md->options & NAND_BBT_WRITE)) {
+	if (md && (md->options & NAND_BBT_WRITE)) {
 		res = write_bbt(mtd, buf, md, td, chipsel);
 	}
 
