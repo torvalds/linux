@@ -718,7 +718,16 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 	subs->hwptr_done += bytes;
 	if (subs->hwptr_done >= runtime->buffer_size * stride)
 		subs->hwptr_done -= runtime->buffer_size * stride;
+
+	/* update delay with exact number of samples queued */
+	runtime->delay = subs->last_delay;
 	runtime->delay += frames;
+	subs->last_delay = runtime->delay;
+
+	/* realign last_frame_number */
+	subs->last_frame_number = usb_get_current_frame_number(subs->dev);
+	subs->last_frame_number &= 0xFF; /* keep 8 LSBs */
+
 	spin_unlock_irqrestore(&subs->lock, flags);
 	urb->transfer_buffer_length = bytes;
 	if (period_elapsed)
@@ -737,12 +746,27 @@ static int retire_playback_urb(struct snd_usb_substream *subs,
 	unsigned long flags;
 	int stride = runtime->frame_bits >> 3;
 	int processed = urb->transfer_buffer_length / stride;
+	int est_delay;
 
 	spin_lock_irqsave(&subs->lock, flags);
-	if (processed > runtime->delay)
-		runtime->delay = 0;
+
+	est_delay = snd_usb_pcm_delay(subs, runtime->rate);
+	/* update delay with exact number of samples played */
+	if (processed > subs->last_delay)
+		subs->last_delay = 0;
 	else
-		runtime->delay -= processed;
+		subs->last_delay -= processed;
+	runtime->delay = subs->last_delay;
+
+	/*
+	 * Report when delay estimate is off by more than 2ms.
+	 * The error should be lower than 2ms since the estimate relies
+	 * on two reads of a counter updated every ms.
+	 */
+	if (abs(est_delay - subs->last_delay) * 1000 > runtime->rate * 2)
+		snd_printk(KERN_DEBUG "delay: estimated %d, actual %d\n",
+			est_delay, subs->last_delay);
+
 	spin_unlock_irqrestore(&subs->lock, flags);
 	return 0;
 }

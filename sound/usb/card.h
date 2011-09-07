@@ -94,6 +94,8 @@ struct snd_usb_substream {
 	spinlock_t lock;
 
 	struct snd_urb_ops ops;		/* callbacks (must be filled at init) */
+	int last_frame_number;          /* stored frame number */
+	int last_delay;                 /* stored delay */
 };
 
 struct snd_usb_stream {
