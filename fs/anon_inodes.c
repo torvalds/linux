@@ -187,7 +187,7 @@ EXPORT_SYMBOL_GPL(anon_inode_getfd);
  */
 static struct inode *anon_inode_mkinode(void)
 {
-	struct inode *inode = new_inode(anon_inode_mnt->mnt_sb);
+	struct inode *inode = new_inode_pseudo(anon_inode_mnt->mnt_sb);
 
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
@@ -233,7 +233,7 @@ static int __init anon_inode_init(void)
 	return 0;
 
 err_mntput:
-	mntput(anon_inode_mnt);
+	kern_unmount(anon_inode_mnt);
 err_unregister_filesystem:
 	unregister_filesystem(&anon_inode_fs_type);
 err_exit:

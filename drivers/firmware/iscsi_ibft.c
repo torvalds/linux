@@ -566,6 +566,11 @@ static mode_t __init ibft_check_initiator_for(void *data, int type)
 	return rc;
 }
 
+static void ibft_kobj_release(void *data)
+{
+	kfree(data);
+}
+
 /*
  * Helper function for ibft_register_kobjects.
  */
@@ -595,7 +600,8 @@ static int __init ibft_create_kobject(struct acpi_table_ibft *header,
 		boot_kobj = iscsi_boot_create_initiator(boot_kset, hdr->index,
 						ibft_kobj,
 						ibft_attr_show_initiator,
-						ibft_check_initiator_for);
+						ibft_check_initiator_for,
+						ibft_kobj_release);
 		if (!boot_kobj) {
 			rc = -ENOMEM;
 			goto free_ibft_obj;
@@ -610,7 +616,8 @@ static int __init ibft_create_kobject(struct acpi_table_ibft *header,
 		boot_kobj = iscsi_boot_create_ethernet(boot_kset, hdr->index,
 						       ibft_kobj,
 						       ibft_attr_show_nic,
-						       ibft_check_nic_for);
+						       ibft_check_nic_for,
+						       ibft_kobj_release);
 		if (!boot_kobj) {
 			rc = -ENOMEM;
 			goto free_ibft_obj;
@@ -625,7 +632,8 @@ static int __init ibft_create_kobject(struct acpi_table_ibft *header,
 		boot_kobj = iscsi_boot_create_target(boot_kset, hdr->index,
 						     ibft_kobj,
 						     ibft_attr_show_target,
-						     ibft_check_tgt_for);
+						     ibft_check_tgt_for,
+						     ibft_kobj_release);
 		if (!boot_kobj) {
 			rc = -ENOMEM;
 			goto free_ibft_obj;

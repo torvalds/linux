@@ -264,6 +264,8 @@ static struct platform_device *platform_devices[] __initdata = {
 
 static void __init eukrea_cpuimx51sd_init(void)
 {
+	imx51_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx51sd_pads,
 					ARRAY_SIZE(eukrea_cpuimx51sd_pads));
 

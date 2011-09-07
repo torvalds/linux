@@ -23,6 +23,10 @@ struct machine_desc {
 
 	unsigned int		nr_irqs;	/* number of IRQs */
 
+#ifdef CONFIG_ZONE_DMA
+	unsigned long		dma_zone_size;	/* size of DMA-able area */
+#endif
+
 	unsigned int		video_start;	/* start of video RAM	*/
 	unsigned int		video_end;	/* end of video RAM	*/
 
@@ -69,5 +73,12 @@ static const struct machine_desc __mach_desc_##_type	\
 
 #define MACHINE_END				\
 };
+
+#define DT_MACHINE_START(_name, _namestr)		\
+static const struct machine_desc __mach_desc_##_name	\
+ __used							\
+ __attribute__((__section__(".arch.info.init"))) = {	\
+	.nr		= ~0,				\
+	.name		= _namestr,
 
 #endif

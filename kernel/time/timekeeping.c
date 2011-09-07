@@ -604,6 +604,12 @@ static struct timespec timekeeping_suspend_time;
  */
 static void __timekeeping_inject_sleeptime(struct timespec *delta)
 {
+	if (!timespec_valid(delta)) {
+		printk(KERN_WARNING "__timekeeping_inject_sleeptime: Invalid "
+					"sleep delta value!\n");
+		return;
+	}
+
 	xtime = timespec_add(xtime, *delta);
 	wall_to_monotonic = timespec_sub(wall_to_monotonic, *delta);
 	total_sleep_time = timespec_add(total_sleep_time, *delta);
@@ -686,12 +692,34 @@ static void timekeeping_resume(void)
 static int timekeeping_suspend(void)
 {
 	unsigned long flags;
+	struct timespec		delta, delta_delta;
+	static struct timespec	old_delta;
 
 	read_persistent_clock(&timekeeping_suspend_time);
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 	timekeeping_forward_now();
 	timekeeping_suspended = 1;
+
+	/*
+	 * To avoid drift caused by repeated suspend/resumes,
+	 * which each can add ~1 second drift error,
+	 * try to compensate so the difference in system time
+	 * and persistent_clock time stays close to constant.
+	 */
+	delta = timespec_sub(xtime, timekeeping_suspend_time);
+	delta_delta = timespec_sub(delta, old_delta);
+	if (abs(delta_delta.tv_sec)  >= 2) {
+		/*
+		 * if delta_delta is too large, assume time correction
+		 * has occured and set old_delta to the current delta.
+		 */
+		old_delta = delta;
+	} else {
+		/* Otherwise try to adjust old_system to compensate */
+		timekeeping_suspend_time =
+			timespec_add(timekeeping_suspend_time, delta_delta);
+	}
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_SUSPEND, NULL);

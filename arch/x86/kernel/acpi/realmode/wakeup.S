@@ -28,6 +28,8 @@ pmode_cr3:	.long	0	/* Saved %cr3 */
 pmode_cr4:	.long	0	/* Saved %cr4 */
 pmode_efer:	.quad	0	/* Saved EFER */
 pmode_gdt:	.quad	0
+pmode_misc_en:	.quad	0	/* Saved MISC_ENABLE MSR */
+pmode_behavior:	.long	0	/* Wakeup behavior flags */
 realmode_flags:	.long	0
 real_magic:	.long	0
 trampoline_segment:	.word 0
@@ -90,6 +92,18 @@ wakeup_code:
 
 	/* Call the C code */
 	calll	main
+
+	/* Restore MISC_ENABLE before entering protected mode, in case
+	   BIOS decided to clear XD_DISABLE during S3. */
+	movl	pmode_behavior, %eax
+	btl	$WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE, %eax
+	jnc	1f
+
+	movl	pmode_misc_en, %eax
+	movl	pmode_misc_en + 4, %edx
+	movl	$MSR_IA32_MISC_ENABLE, %ecx
+	wrmsr
+1:
 
 	/* Do any other stuff... */
 

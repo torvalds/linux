@@ -1,4 +1,5 @@
 b43-y				+= main.o
+b43-y				+= bus.o
 b43-y				+= tables.o
 b43-$(CONFIG_B43_PHY_N)		+= tables_nphy.o
 b43-$(CONFIG_B43_PHY_N)		+= radio_2055.o
@@ -9,6 +10,10 @@ b43-y				+= phy_a.o
 b43-$(CONFIG_B43_PHY_N)		+= phy_n.o
 b43-$(CONFIG_B43_PHY_LP)	+= phy_lp.o
 b43-$(CONFIG_B43_PHY_LP)	+= tables_lpphy.o
+b43-$(CONFIG_B43_PHY_HT)	+= phy_ht.o
+b43-$(CONFIG_B43_PHY_HT)	+= tables_phy_ht.o
+b43-$(CONFIG_B43_PHY_HT)	+= radio_2059.o
+b43-$(CONFIG_B43_PHY_LCN)	+= phy_lcn.o tables_phy_lcn.o
 b43-y				+= sysfs.o
 b43-y				+= xmit.o
 b43-y				+= lo.o

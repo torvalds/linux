@@ -1,0 +1,22 @@
+* Freescale i.MX/MXC GPIO controller
+
+Required properties:
+- compatible : Should be "fsl,<soc>-gpio"
+- reg : Address and length of the register set for the device
+- interrupts : Should be the port interrupt shared by all 32 pins, if
+  one number.  If two numbers, the first one is the interrupt shared
+  by low 16 pins and the second one is for high 16 pins.
+- gpio-controller : Marks the device node as a gpio controller.
+- #gpio-cells : Should be two.  The first cell is the pin number and
+  the second cell is used to specify optional parameters (currently
+  unused).
+
+Example:
+
+gpio0: gpio@73f84000 {
+	compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+	reg = <0x73f84000 0x4000>;
+	interrupts = <50 51>;
+	gpio-controller;
+	#gpio-cells = <2>;
+};

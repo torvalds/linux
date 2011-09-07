@@ -31,7 +31,6 @@
 #include "nouveau_grctx.h"
 #include "nouveau_dma.h"
 #include "nouveau_vm.h"
-#include "nouveau_ramht.h"
 #include "nv50_evo.h"
 
 struct nv50_graph_engine {
@@ -125,7 +124,6 @@ static void
 nv50_graph_init_reset(struct drm_device *dev)
 {
 	uint32_t pmc_e = NV_PMC_ENABLE_PGRAPH | (1 << 21);
-
 	NV_DEBUG(dev, "\n");
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) & ~pmc_e);
@@ -255,9 +253,13 @@ nv50_graph_init(struct drm_device *dev, int engine)
 }
 
 static int
-nv50_graph_fini(struct drm_device *dev, int engine)
+nv50_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
-	NV_DEBUG(dev, "\n");
+	nv_mask(dev, 0x400500, 0x00010001, 0x00000000);
+	if (!nv_wait(dev, 0x400700, ~0, 0) && suspend) {
+		nv_mask(dev, 0x400500, 0x00010001, 0x00010001);
+		return -EBUSY;
+	}
 	nv50_graph_unload_context(dev);
 	nv_wr32(dev, 0x40013c, 0x00000000);
 	return 0;

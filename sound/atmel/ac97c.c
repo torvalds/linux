@@ -971,7 +971,7 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 	chip->card = card;
 	chip->pclk = pclk;
 	chip->pdev = pdev;
-	chip->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	chip->regs = ioremap(regs->start, resource_size(regs));
 
 	if (!chip->regs) {
 		dev_dbg(&pdev->dev, "could not remap register memory\n");
@@ -1199,4 +1199,4 @@ module_exit(atmel_ac97c_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Atmel AC97 controller");
-MODULE_AUTHOR("Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");

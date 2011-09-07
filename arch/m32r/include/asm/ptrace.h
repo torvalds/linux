@@ -138,8 +138,6 @@ extern void init_debug_traps(struct task_struct *);
 #define instruction_pointer(regs) ((regs)->bpc)
 #define profile_pc(regs) instruction_pointer(regs)
 
-extern void show_regs(struct pt_regs *);
-
 extern void withdraw_debug_trap(struct pt_regs *regs);
 
 #define task_pt_regs(task) \

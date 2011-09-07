@@ -954,3 +954,43 @@ void fscache_mark_pages_cached(struct fscache_retrieval *op,
 	pagevec_reinit(pagevec);
 }
 EXPORT_SYMBOL(fscache_mark_pages_cached);
+
+/*
+ * Uncache all the pages in an inode that are marked PG_fscache, assuming them
+ * to be associated with the given cookie.
+ */
+void __fscache_uncache_all_inode_pages(struct fscache_cookie *cookie,
+				       struct inode *inode)
+{
+	struct address_space *mapping = inode->i_mapping;
+	struct pagevec pvec;
+	pgoff_t next;
+	int i;
+
+	_enter("%p,%p", cookie, inode);
+
+	if (!mapping || mapping->nrpages == 0) {
+		_leave(" [no pages]");
+		return;
+	}
+
+	pagevec_init(&pvec, 0);
+	next = 0;
+	do {
+		if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE))
+			break;
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
+			next = page->index;
+			if (PageFsCache(page)) {
+				__fscache_wait_on_page_write(cookie, page);
+				__fscache_uncache_page(cookie, page);
+			}
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+	} while (++next);
+
+	_leave("");
+}
+EXPORT_SYMBOL(__fscache_uncache_all_inode_pages);

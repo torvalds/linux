@@ -41,6 +41,7 @@
 #include "a_debug.h"
 #include "dbglog_api.h"
 #include "roaming.h"
+#include "cfg80211.h"
 
 #define ATH_DEBUG_WMI ATH_DEBUG_MAKE_MODULE_MASK(0)
 
@@ -4465,10 +4466,9 @@ wmi_verify_tspec_params(WMI_CREATE_PSTREAM_CMD *pCmd, int tspecCompliance)
 static int
 wmi_tcmd_test_report_rx(struct wmi_t *wmip, u8 *datap, int len)
 {
+	ar6000_testmode_rx_report_event(wmip->wmi_devt, datap, len);
 
-   A_DPRINTF(DBG_WMI, (DBGFMT "Enter\n", DBGARG));
-
-   return 0;
+	return 0;
 }
 
 #endif /* CONFIG_HOST_TCMD_SUPPORT*/

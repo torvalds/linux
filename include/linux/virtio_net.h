@@ -63,6 +63,7 @@ struct virtio_net_config {
  * specify GSO or CSUM features, you can simply ignore the header. */
 struct virtio_net_hdr {
 #define VIRTIO_NET_HDR_F_NEEDS_CSUM	1	// Use csum_start, csum_offset
+#define VIRTIO_NET_HDR_F_DATA_VALID	2	// Csum is valid
 	__u8 flags;
 #define VIRTIO_NET_HDR_GSO_NONE		0	// Not a GSO frame
 #define VIRTIO_NET_HDR_GSO_TCPV4	1	// GSO frame, IPv4 TCP (TSO)

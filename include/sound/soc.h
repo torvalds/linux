@@ -203,6 +203,16 @@
 	SOC_VALUE_ENUM_DOUBLE_DECL(name, xreg, xshift, xshift, xmask, xtexts, xvalues)
 
 /*
+ * Component probe and remove ordering levels for components with runtime
+ * dependencies.
+ */
+#define SND_SOC_COMP_ORDER_FIRST		-2
+#define SND_SOC_COMP_ORDER_EARLY		-1
+#define SND_SOC_COMP_ORDER_NORMAL		0
+#define SND_SOC_COMP_ORDER_LATE		1
+#define SND_SOC_COMP_ORDER_LAST		2
+
+/*
  * Bias levels
  *
  * @ON:      Bias is fully on for audio playback and capture operations.
@@ -214,10 +224,10 @@
  * @OFF:     Power Off. No restrictions on transition times.
  */
 enum snd_soc_bias_level {
-	SND_SOC_BIAS_OFF,
-	SND_SOC_BIAS_STANDBY,
-	SND_SOC_BIAS_PREPARE,
-	SND_SOC_BIAS_ON,
+	SND_SOC_BIAS_OFF = 0,
+	SND_SOC_BIAS_STANDBY = 1,
+	SND_SOC_BIAS_PREPARE = 2,
+	SND_SOC_BIAS_ON = 3,
 };
 
 struct snd_jack;
@@ -248,8 +258,7 @@ typedef int (*hw_write_t)(void *,const char* ,int);
 extern struct snd_ac97_bus_ops soc_ac97_ops;
 
 enum snd_soc_control_type {
-	SND_SOC_CUSTOM = 1,
-	SND_SOC_I2C,
+	SND_SOC_I2C = 1,
 	SND_SOC_SPI,
 };
 
@@ -257,6 +266,11 @@ enum snd_soc_compress_type {
 	SND_SOC_FLAT_COMPRESSION = 1,
 	SND_SOC_LZO_COMPRESSION,
 	SND_SOC_RBTREE_COMPRESSION
+};
+
+enum snd_soc_pcm_subclass {
+	SND_SOC_PCM_CLASS_PCM	= 0,
+	SND_SOC_PCM_CLASS_BE	= 1,
 };
 
 int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
@@ -298,6 +312,10 @@ int snd_soc_default_readable_register(struct snd_soc_codec *codec,
 				      unsigned int reg);
 int snd_soc_default_writable_register(struct snd_soc_codec *codec,
 				      unsigned int reg);
+int snd_soc_platform_read(struct snd_soc_platform *platform,
+					unsigned int reg);
+int snd_soc_platform_write(struct snd_soc_platform *platform,
+					unsigned int reg, unsigned int val);
 
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
@@ -349,6 +367,8 @@ struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 				  void *data, char *long_name,
 				  const char *prefix);
 int snd_soc_add_controls(struct snd_soc_codec *codec,
+	const struct snd_kcontrol_new *controls, int num_controls);
+int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
@@ -613,6 +633,10 @@ struct snd_soc_codec_driver {
 
 	void (*seq_notifier)(struct snd_soc_dapm_context *,
 			     enum snd_soc_dapm_type, int);
+
+	/* probe ordering - for components with runtime dependencies */
+	int probe_order;
+	int remove_order;
 };
 
 /* SoC platform interface */
@@ -624,9 +648,16 @@ struct snd_soc_platform_driver {
 	int (*resume)(struct snd_soc_dai *dai);
 
 	/* pcm creation and destruction */
-	int (*pcm_new)(struct snd_card *, struct snd_soc_dai *,
-		struct snd_pcm *);
+	int (*pcm_new)(struct snd_soc_pcm_runtime *);
 	void (*pcm_free)(struct snd_pcm *);
+
+	/* Default control and setup, added after probe() is run */
+	const struct snd_kcontrol_new *controls;
+	int num_controls;
+	const struct snd_soc_dapm_widget *dapm_widgets;
+	int num_dapm_widgets;
+	const struct snd_soc_dapm_route *dapm_routes;
+	int num_dapm_routes;
 
 	/*
 	 * For platform caused delay reporting.
@@ -637,6 +668,14 @@ struct snd_soc_platform_driver {
 
 	/* platform stream ops */
 	struct snd_pcm_ops *ops;
+
+	/* probe ordering - for components with runtime dependencies */
+	int probe_order;
+	int remove_order;
+
+	/* platform IO - used for platform DAPM */
+	unsigned int (*read)(struct snd_soc_platform *, unsigned int);
+	int (*write)(struct snd_soc_platform *, unsigned int, unsigned int);
 };
 
 struct snd_soc_platform {
@@ -651,6 +690,8 @@ struct snd_soc_platform {
 	struct snd_soc_card *card;
 	struct list_head list;
 	struct list_head card_list;
+
+	struct snd_soc_dapm_context dapm;
 };
 
 struct snd_soc_dai_link {
@@ -726,8 +767,10 @@ struct snd_soc_card {
 
 	/* callbacks */
 	int (*set_bias_level)(struct snd_soc_card *,
+			      struct snd_soc_dapm_context *dapm,
 			      enum snd_soc_bias_level level);
 	int (*set_bias_level_post)(struct snd_soc_card *,
+				   struct snd_soc_dapm_context *dapm,
 				   enum snd_soc_bias_level level);
 
 	long pmdown_time;
@@ -790,6 +833,9 @@ struct snd_soc_pcm_runtime  {
 	struct device dev;
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dai_link;
+	struct mutex pcm_mutex;
+	enum snd_soc_pcm_subclass pcm_subclass;
+	struct snd_pcm_ops ops;
 
 	unsigned int complete:1;
 	unsigned int dev_registered:1;

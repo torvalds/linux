@@ -262,8 +262,10 @@ uvc_function_set_alt(struct usb_function *f, unsigned interface, unsigned alt)
 		if (uvc->state != UVC_STATE_CONNECTED)
 			return 0;
 
-		if (uvc->video.ep)
-			usb_ep_enable(uvc->video.ep, &uvc_streaming_ep);
+		if (uvc->video.ep) {
+			uvc->video.ep->desc = &uvc_streaming_ep;
+			usb_ep_enable(uvc->video.ep);
+		}
 
 		memset(&v4l2_event, 0, sizeof(v4l2_event));
 		v4l2_event.type = UVC_EVENT_STREAMON;
@@ -649,7 +651,7 @@ uvc_bind_config(struct usb_configuration *c,
 	if (ret)
 		kfree(uvc);
 
-	return 0;
+	return ret;
 
 error:
 	kfree(uvc);

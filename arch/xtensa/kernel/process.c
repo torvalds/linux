@@ -40,7 +40,7 @@
 #include <asm/platform.h>
 #include <asm/mmu.h>
 #include <asm/irq.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/asm-offsets.h>
 #include <asm/regs.h>
 

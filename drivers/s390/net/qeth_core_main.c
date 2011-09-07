@@ -1097,7 +1097,6 @@ static int qeth_setup_card(struct qeth_card *card)
 	card->dev = NULL;
 	spin_lock_init(&card->vlanlock);
 	spin_lock_init(&card->mclock);
-	card->vlangrp = NULL;
 	spin_lock_init(&card->lock);
 	spin_lock_init(&card->ip_lock);
 	spin_lock_init(&card->thread_mask_lock);

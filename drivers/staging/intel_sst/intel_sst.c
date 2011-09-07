@@ -545,7 +545,10 @@ static int intel_sst_runtime_suspend(struct device *dev)
 	/* Move the SST state to Suspended */
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_SUSPENDED;
-	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
+
+	/* Only needed by Medfield */
+	if (sst_drv_ctx->pci_id != SST_MRST_PCI_ID)
+		sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 	mutex_unlock(&sst_drv_ctx->sst_lock);
 	return 0;
 }

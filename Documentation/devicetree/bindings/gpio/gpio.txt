@@ -4,17 +4,45 @@ Specifying GPIO information for devices
 1) gpios property
 -----------------
 
-Nodes that makes use of GPIOs should define them using `gpios' property,
-format of which is: <&gpio-controller1-phandle gpio1-specifier
-		     &gpio-controller2-phandle gpio2-specifier
-		     0 /* holes are permitted, means no GPIO 3 */
-		     &gpio-controller4-phandle gpio4-specifier
-		     ...>;
+Nodes that makes use of GPIOs should specify them using one or more
+properties, each containing a 'gpio-list':
 
-Note that gpio-specifier length is controller dependent.
+	gpio-list ::= <single-gpio> [gpio-list]
+	single-gpio ::= <gpio-phandle> <gpio-specifier>
+	gpio-phandle : phandle to gpio controller node
+	gpio-specifier : Array of #gpio-cells specifying specific gpio
+			 (controller specific)
+
+GPIO properties should be named "[<name>-]gpios".  Exact
+meaning of each gpios property must be documented in the device tree
+binding for each device.
+
+For example, the following could be used to describe gpios pins to use
+as chip select lines; with chip selects 0, 1 and 3 populated, and chip
+select 2 left empty:
+
+	gpio1: gpio1 {
+		gpio-controller
+		 #gpio-cells = <2>;
+	};
+	gpio2: gpio2 {
+		gpio-controller
+		 #gpio-cells = <1>;
+	};
+	[...]
+	 chipsel-gpios = <&gpio1 12 0>,
+			 <&gpio1 13 0>,
+			 <0>, /* holes are permitted, means no GPIO 2 */
+			 <&gpio2 2>;
+
+Note that gpio-specifier length is controller dependent.  In the
+above example, &gpio1 uses 2 cells to specify a gpio, while &gpio2
+only uses one.
 
 gpio-specifier may encode: bank, pin position inside the bank,
 whether pin is open-drain and whether pin is logically inverted.
+Exact meaning of each specifier cell is controller specific, and must
+be documented in the device tree binding for the device.
 
 Example of the node using GPIOs:
 
@@ -28,8 +56,8 @@ and empty GPIO flags as accepted by the "qe_pio_e" gpio-controller.
 2) gpio-controller nodes
 ------------------------
 
-Every GPIO controller node must have #gpio-cells property defined,
-this information will be used to translate gpio-specifiers.
+Every GPIO controller node must both an empty "gpio-controller"
+property, and have #gpio-cells contain the size of the gpio-specifier.
 
 Example of two SOC GPIO banks defined as gpio-controller nodes:
 

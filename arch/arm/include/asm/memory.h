@@ -204,18 +204,6 @@ static inline unsigned long __phys_to_virt(unsigned long x)
 #endif
 
 /*
- * The DMA mask corresponding to the maximum bus address allocatable
- * using GFP_DMA.  The default here places no restriction on DMA
- * allocations.  This must be the smallest DMA mask in the system,
- * so a successful GFP_DMA allocation will always satisfy this.
- */
-#ifndef ARM_DMA_ZONE_SIZE
-#define ISA_DMA_THRESHOLD	(0xffffffffULL)
-#else
-#define ISA_DMA_THRESHOLD	(PHYS_OFFSET + ARM_DMA_ZONE_SIZE - 1)
-#endif
-
-/*
  * PFNs are used to describe any physical page; this means
  * PFN 0 == physical address 0.
  *

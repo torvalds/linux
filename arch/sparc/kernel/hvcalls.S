@@ -798,3 +798,10 @@ ENTRY(sun4v_niagara2_setperf)
 	retl
 	 nop
 ENDPROC(sun4v_niagara2_setperf)
+
+ENTRY(sun4v_reboot_data_set)
+	mov	HV_FAST_REBOOT_DATA_SET, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+ENDPROC(sun4v_reboot_data_set)

@@ -156,6 +156,8 @@ __setup("otg_mode=", eukrea_cpuimx35_otg_mode);
  */
 static void __init eukrea_cpuimx35_init(void)
 {
+	imx35_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx35_pads,
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
 

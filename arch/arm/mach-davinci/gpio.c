@@ -254,8 +254,10 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
 	struct davinci_gpio_regs __iomem *g;
 	u32 mask = 0xffff;
+	struct davinci_gpio_controller *d;
 
-	g = (__force struct davinci_gpio_regs __iomem *) irq_desc_get_handler_data(desc);
+	d = (struct davinci_gpio_controller *)irq_desc_get_handler_data(desc);
+	g = (struct davinci_gpio_regs __iomem *)d->regs;
 
 	/* we only care about one bank */
 	if (irq & 1)
@@ -274,11 +276,14 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 		if (!status)
 			break;
 		__raw_writel(status, &g->intstat);
-		if (irq & 1)
-			status >>= 16;
 
 		/* now demux them to the right lowlevel handler */
-		n = (int)irq_get_handler_data(irq);
+		n = d->irq_base;
+		if (irq & 1) {
+			n += 16;
+			status >>= 16;
+		}
+
 		while (status) {
 			res = ffs(status);
 			n += res;
@@ -424,7 +429,13 @@ static int __init davinci_gpio_irq_setup(void)
 
 		/* set up all irqs in this bank */
 		irq_set_chained_handler(bank_irq, gpio_irq_handler);
-		irq_set_handler_data(bank_irq, (__force void *)g);
+
+		/*
+		 * Each chip handles 32 gpios, and each irq bank consists of 16
+		 * gpio irqs. Pass the irq bank's corresponding controller to
+		 * the chained irq handler.
+		 */
+		irq_set_handler_data(bank_irq, &chips[gpio / 32]);
 
 		for (i = 0; i < 16 && gpio < ngpio; i++, irq++, gpio++) {
 			irq_set_chip(irq, &gpio_irqchip);

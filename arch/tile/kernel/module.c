@@ -98,25 +98,6 @@ void module_free(struct module *mod, void *module_region)
 	 */
 }
 
-/* We don't need anything special. */
-int module_frob_arch_sections(Elf_Ehdr *hdr,
-			      Elf_Shdr *sechdrs,
-			      char *secstrings,
-			      struct module *mod)
-{
-	return 0;
-}
-
-int apply_relocate(Elf_Shdr *sechdrs,
-		   const char *strtab,
-		   unsigned int symindex,
-		   unsigned int relsec,
-		   struct module *me)
-{
-	pr_err("module %s: .rel relocation unsupported\n", me->name);
-	return -ENOEXEC;
-}
-
 #ifdef __tilegx__
 /*
  * Validate that the high 16 bits of "value" is just the sign-extension of
@@ -248,16 +229,4 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		}
 	}
 	return 0;
-}
-
-int module_finalize(const Elf_Ehdr *hdr,
-		    const Elf_Shdr *sechdrs,
-		    struct module *me)
-{
-	/* FIXME: perhaps remove the "writable" bit from the TLB? */
-	return 0;
-}
-
-void module_arch_cleanup(struct module *mod)
-{
 }

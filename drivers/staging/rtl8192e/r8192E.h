@@ -35,7 +35,7 @@
 #include <linux/proc_fs.h>	// Necessary because we use the proc fs
 #include <linux/if_arp.h>
 #include <linux/random.h>
-#include <linux/version.h>
+#include <linux/interrupt.h>
 #include <asm/io.h>
 #include "ieee80211/rtl819x_HT.h"
 #include "ieee80211/ieee80211.h"

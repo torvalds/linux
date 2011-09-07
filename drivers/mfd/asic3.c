@@ -619,6 +619,7 @@ static void asic3_clk_disable(struct asic3 *asic, struct asic3_clk *clk)
 /* MFD cells (SPI, PWM, LED, DS1WM, MMC) */
 static struct ds1wm_driver_data ds1wm_pdata = {
 	.active_high = 1,
+	.reset_recover_delay = 1,
 };
 
 static struct resource ds1wm_resources[] = {

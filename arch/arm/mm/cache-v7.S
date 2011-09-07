@@ -325,16 +325,5 @@ ENDPROC(v7_dma_unmap_area)
 
 	__INITDATA
 
-	.type	v7_cache_fns, #object
-ENTRY(v7_cache_fns)
-	.long	v7_flush_icache_all
-	.long	v7_flush_kern_cache_all
-	.long	v7_flush_user_cache_all
-	.long	v7_flush_user_cache_range
-	.long	v7_coherent_kern_range
-	.long	v7_coherent_user_range
-	.long	v7_flush_kern_dcache_area
-	.long	v7_dma_map_area
-	.long	v7_dma_unmap_area
-	.long	v7_dma_flush_range
-	.size	v7_cache_fns, . - v7_cache_fns
+	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
+	define_cache_functions v7

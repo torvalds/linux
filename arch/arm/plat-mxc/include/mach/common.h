@@ -43,6 +43,15 @@ extern void mx35_init_irq(void);
 extern void mx50_init_irq(void);
 extern void mx51_init_irq(void);
 extern void mx53_init_irq(void);
+extern void imx1_soc_init(void);
+extern void imx21_soc_init(void);
+extern void imx25_soc_init(void);
+extern void imx27_soc_init(void);
+extern void imx31_soc_init(void);
+extern void imx35_soc_init(void);
+extern void imx50_soc_init(void);
+extern void imx51_soc_init(void);
+extern void imx53_soc_init(void);
 extern void epit_timer_init(struct clk *timer_clk, void __iomem *base, int irq);
 extern void mxc_timer_init(struct clk *timer_clk, void __iomem *, int);
 extern int mx1_clocks_init(unsigned long fref);
@@ -55,7 +64,8 @@ extern int mx51_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
 extern int mx53_clocks_init(unsigned long ckil, unsigned long osc,
 			unsigned long ckih1, unsigned long ckih2);
-extern int mxc_register_gpios(void);
+extern struct platform_device *mxc_register_gpio(char *name, int id,
+	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
 extern int mxc_register_device(struct platform_device *pdev, void *data);
 extern void mxc_set_cpu_type(unsigned int type);
 extern void mxc_arch_reset_init(void __iomem *);

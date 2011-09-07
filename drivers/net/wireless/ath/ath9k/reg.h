@@ -600,7 +600,6 @@
 
 #define AR_D_GBL_IFS_SIFS         0x1030
 #define AR_D_GBL_IFS_SIFS_M       0x0000FFFF
-#define AR_D_GBL_IFS_SIFS_ASYNC_FIFO_DUR 0x000003AB
 #define AR_D_GBL_IFS_SIFS_RESV0   0xFFFFFFFF
 
 #define AR_D_TXBLK_BASE            0x1038
@@ -616,12 +615,10 @@
 #define AR_D_GBL_IFS_SLOT         0x1070
 #define AR_D_GBL_IFS_SLOT_M       0x0000FFFF
 #define AR_D_GBL_IFS_SLOT_RESV0   0xFFFF0000
-#define AR_D_GBL_IFS_SLOT_ASYNC_FIFO_DUR   0x00000420
 
 #define AR_D_GBL_IFS_EIFS         0x10b0
 #define AR_D_GBL_IFS_EIFS_M       0x0000FFFF
 #define AR_D_GBL_IFS_EIFS_RESV0   0xFFFF0000
-#define AR_D_GBL_IFS_EIFS_ASYNC_FIFO_DUR   0x0000A5EB
 
 #define AR_D_GBL_IFS_MISC        0x10f0
 #define AR_D_GBL_IFS_MISC_LFSR_SLICE_SEL        0x00000007
@@ -788,6 +785,10 @@
 #define AR_SREV_REVISION_9271_11	1
 #define AR_SREV_VERSION_9300		0x1c0
 #define AR_SREV_REVISION_9300_20	2 /* 2.0 and 2.1 */
+#define AR_SREV_VERSION_9330		0x200
+#define AR_SREV_REVISION_9330_10	0
+#define AR_SREV_REVISION_9330_11	1
+#define AR_SREV_REVISION_9330_12	2
 #define AR_SREV_VERSION_9485		0x240
 #define AR_SREV_REVISION_9485_10	0
 #define AR_SREV_REVISION_9485_11        1
@@ -861,6 +862,18 @@
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300))
 #define AR_SREV_9300_20_OR_LATER(_ah) \
 	((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9300)
+
+#define AR_SREV_9330(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9330))
+#define AR_SREV_9330_10(_ah) \
+	(AR_SREV_9330((_ah)) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_10))
+#define AR_SREV_9330_11(_ah) \
+	(AR_SREV_9330((_ah)) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_11))
+#define AR_SREV_9330_12(_ah) \
+	(AR_SREV_9330((_ah)) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_12))
 
 #define AR_SREV_9485(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9485))
@@ -1461,7 +1474,6 @@ enum {
 #define AR_TIME_OUT_ACK_S    0
 #define AR_TIME_OUT_CTS      0x3FFF0000
 #define AR_TIME_OUT_CTS_S    16
-#define AR_TIME_OUT_ACK_CTS_ASYNC_FIFO_DUR    0x16001D56
 
 #define AR_RSSI_THR          0x8018
 #define AR_RSSI_THR_MASK     0x000000FF
@@ -1477,7 +1489,6 @@ enum {
 #define AR_USEC_TX_LAT_S     14
 #define AR_USEC_RX_LAT       0x1F800000
 #define AR_USEC_RX_LAT_S     23
-#define AR_USEC_ASYNC_FIFO_DUR    0x12e00074
 
 #define AR_RESET_TSF        0x8020
 #define AR_RESET_TSF_ONCE   0x01000000
@@ -1861,29 +1872,6 @@ enum {
 #define AR_RATE_DURATION_32     0x8780
 #define AR_RATE_DURATION(_n)    (AR_RATE_DURATION_0 + ((_n)<<2))
 
-
-#define AR_KEYTABLE_0           0x8800
-#define AR_KEYTABLE(_n)         (AR_KEYTABLE_0 + ((_n)*32))
-#define AR_KEY_CACHE_SIZE       128
-#define AR_RSVD_KEYTABLE_ENTRIES 4
-#define AR_KEY_TYPE             0x00000007
-#define AR_KEYTABLE_TYPE_40     0x00000000
-#define AR_KEYTABLE_TYPE_104    0x00000001
-#define AR_KEYTABLE_TYPE_128    0x00000003
-#define AR_KEYTABLE_TYPE_TKIP   0x00000004
-#define AR_KEYTABLE_TYPE_AES    0x00000005
-#define AR_KEYTABLE_TYPE_CCM    0x00000006
-#define AR_KEYTABLE_TYPE_CLR    0x00000007
-#define AR_KEYTABLE_ANT         0x00000008
-#define AR_KEYTABLE_VALID       0x00008000
-#define AR_KEYTABLE_KEY0(_n)    (AR_KEYTABLE(_n) + 0)
-#define AR_KEYTABLE_KEY1(_n)    (AR_KEYTABLE(_n) + 4)
-#define AR_KEYTABLE_KEY2(_n)    (AR_KEYTABLE(_n) + 8)
-#define AR_KEYTABLE_KEY3(_n)    (AR_KEYTABLE(_n) + 12)
-#define AR_KEYTABLE_KEY4(_n)    (AR_KEYTABLE(_n) + 16)
-#define AR_KEYTABLE_TYPE(_n)    (AR_KEYTABLE(_n) + 20)
-#define AR_KEYTABLE_MAC0(_n)    (AR_KEYTABLE(_n) + 24)
-#define AR_KEYTABLE_MAC1(_n)    (AR_KEYTABLE(_n) + 28)
 
 #define AR9271_CORE_CLOCK	117   /* clock to 117Mhz */
 #define AR9271_TARGET_BAUD_RATE	19200 /* 115200 */

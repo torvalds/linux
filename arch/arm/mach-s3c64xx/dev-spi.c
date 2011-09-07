@@ -88,6 +88,7 @@ static struct s3c64xx_spi_info s3c64xx_spi0_pdata = {
 	.cfg_gpio = s3c64xx_spi_cfg_gpio,
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
+	.tx_st_done = 21,
 };
 
 static u64 spi_dmamask = DMA_BIT_MASK(32);
@@ -132,6 +133,7 @@ static struct s3c64xx_spi_info s3c64xx_spi1_pdata = {
 	.cfg_gpio = s3c64xx_spi_cfg_gpio,
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
+	.tx_st_done = 21,
 };
 
 struct platform_device s3c64xx_device_spi1 = {

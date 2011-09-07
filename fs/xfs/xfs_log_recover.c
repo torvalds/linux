@@ -91,6 +91,8 @@ xlog_get_bp(
 	xlog_t		*log,
 	int		nbblks)
 {
+	struct xfs_buf	*bp;
+
 	if (!xlog_buf_bbcount_valid(log, nbblks)) {
 		xfs_warn(log->l_mp, "Invalid block length (0x%x) for buffer",
 			nbblks);
@@ -118,8 +120,10 @@ xlog_get_bp(
 		nbblks += log->l_sectBBsize;
 	nbblks = round_up(nbblks, log->l_sectBBsize);
 
-	return xfs_buf_get_uncached(log->l_mp->m_logdev_targp,
-					BBTOB(nbblks), 0);
+	bp = xfs_buf_get_uncached(log->l_mp->m_logdev_targp, BBTOB(nbblks), 0);
+	if (bp)
+		xfs_buf_unlock(bp);
+	return bp;
 }
 
 STATIC void
@@ -143,7 +147,7 @@ xlog_align(
 	xfs_daddr_t	offset = blk_no & ((xfs_daddr_t)log->l_sectBBsize - 1);
 
 	ASSERT(BBTOB(offset + nbblks) <= XFS_BUF_SIZE(bp));
-	return XFS_BUF_PTR(bp) + BBTOB(offset);
+	return bp->b_addr + BBTOB(offset);
 }
 
 
@@ -174,9 +178,7 @@ xlog_bread_noalign(
 
 	XFS_BUF_SET_ADDR(bp, log->l_logBBstart + blk_no);
 	XFS_BUF_READ(bp);
-	XFS_BUF_BUSY(bp);
 	XFS_BUF_SET_COUNT(bp, BBTOB(nbblks));
-	XFS_BUF_SET_TARGET(bp, log->l_mp->m_logdev_targp);
 
 	xfsbdstrat(log->l_mp, bp);
 	error = xfs_buf_iowait(bp);
@@ -216,18 +218,18 @@ xlog_bread_offset(
 	xfs_buf_t	*bp,
 	xfs_caddr_t	offset)
 {
-	xfs_caddr_t	orig_offset = XFS_BUF_PTR(bp);
+	xfs_caddr_t	orig_offset = bp->b_addr;
 	int		orig_len = bp->b_buffer_length;
 	int		error, error2;
 
-	error = XFS_BUF_SET_PTR(bp, offset, BBTOB(nbblks));
+	error = xfs_buf_associate_memory(bp, offset, BBTOB(nbblks));
 	if (error)
 		return error;
 
 	error = xlog_bread_noalign(log, blk_no, nbblks, bp);
 
 	/* must reset buffer pointer even on error */
-	error2 = XFS_BUF_SET_PTR(bp, orig_offset, orig_len);
+	error2 = xfs_buf_associate_memory(bp, orig_offset, orig_len);
 	if (error)
 		return error;
 	return error2;
@@ -262,11 +264,9 @@ xlog_bwrite(
 
 	XFS_BUF_SET_ADDR(bp, log->l_logBBstart + blk_no);
 	XFS_BUF_ZEROFLAGS(bp);
-	XFS_BUF_BUSY(bp);
-	XFS_BUF_HOLD(bp);
-	XFS_BUF_PSEMA(bp, PRIBIO);
+	xfs_buf_hold(bp);
+	xfs_buf_lock(bp);
 	XFS_BUF_SET_COUNT(bp, BBTOB(nbblks));
-	XFS_BUF_SET_TARGET(bp, log->l_mp->m_logdev_targp);
 
 	if ((error = xfs_bwrite(log->l_mp, bp)))
 		xfs_ioerror_alert("xlog_bwrite", log->l_mp,
@@ -300,14 +300,14 @@ xlog_header_check_recover(
 	xfs_mount_t		*mp,
 	xlog_rec_header_t	*head)
 {
-	ASSERT(be32_to_cpu(head->h_magicno) == XLOG_HEADER_MAGIC_NUM);
+	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
 
 	/*
 	 * IRIX doesn't write the h_fmt field and leaves it zeroed
 	 * (XLOG_FMT_UNKNOWN). This stops us from trying to recover
 	 * a dirty log created in IRIX.
 	 */
-	if (unlikely(be32_to_cpu(head->h_fmt) != XLOG_FMT)) {
+	if (unlikely(head->h_fmt != cpu_to_be32(XLOG_FMT))) {
 		xfs_warn(mp,
 	"dirty log written in incompatible format - can't recover");
 		xlog_header_check_dump(mp, head);
@@ -333,7 +333,7 @@ xlog_header_check_mount(
 	xfs_mount_t		*mp,
 	xlog_rec_header_t	*head)
 {
-	ASSERT(be32_to_cpu(head->h_magicno) == XLOG_HEADER_MAGIC_NUM);
+	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
 
 	if (uuid_is_nil(&head->h_fs_uuid)) {
 		/*
@@ -356,7 +356,7 @@ STATIC void
 xlog_recover_iodone(
 	struct xfs_buf	*bp)
 {
-	if (XFS_BUF_GETERROR(bp)) {
+	if (bp->b_error) {
 		/*
 		 * We're not going to bother about retrying
 		 * this during recovery. One strike!
@@ -367,7 +367,7 @@ xlog_recover_iodone(
 		xfs_force_shutdown(bp->b_target->bt_mount,
 					SHUTDOWN_META_IO_ERROR);
 	}
-	XFS_BUF_CLR_IODONE_FUNC(bp);
+	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
 
@@ -534,7 +534,7 @@ xlog_find_verify_log_record(
 
 		head = (xlog_rec_header_t *)offset;
 
-		if (XLOG_HEADER_MAGIC_NUM == be32_to_cpu(head->h_magicno))
+		if (head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
 			break;
 
 		if (!smallmem)
@@ -916,7 +916,7 @@ xlog_find_tail(
 		if (error)
 			goto done;
 
-		if (XLOG_HEADER_MAGIC_NUM == be32_to_cpu(*(__be32 *)offset)) {
+		if (*(__be32 *)offset == cpu_to_be32(XLOG_HEADER_MAGIC_NUM)) {
 			found = 1;
 			break;
 		}
@@ -933,8 +933,8 @@ xlog_find_tail(
 			if (error)
 				goto done;
 
-			if (XLOG_HEADER_MAGIC_NUM ==
-			    be32_to_cpu(*(__be32 *)offset)) {
+			if (*(__be32 *)offset ==
+			    cpu_to_be32(XLOG_HEADER_MAGIC_NUM)) {
 				found = 2;
 				break;
 			}
@@ -1258,7 +1258,7 @@ xlog_write_log_records(
 		 */
 		ealign = round_down(end_block, sectbb);
 		if (j == 0 && (start_block + endcount > ealign)) {
-			offset = XFS_BUF_PTR(bp) + BBTOB(ealign - start_block);
+			offset = bp->b_addr + BBTOB(ealign - start_block);
 			error = xlog_bread_offset(log, ealign, sectbb,
 							bp, offset);
 			if (error)
@@ -1947,7 +1947,7 @@ xfs_qm_dqcheck(
 	 * This is all fine; things are still consistent, and we haven't lost
 	 * any quota information. Just don't complain about bad dquot blks.
 	 */
-	if (be16_to_cpu(ddq->d_magic) != XFS_DQUOT_MAGIC) {
+	if (ddq->d_magic != cpu_to_be16(XFS_DQUOT_MAGIC)) {
 		if (flags & XFS_QMOPT_DOWARN)
 			xfs_alert(mp,
 			"%s : XFS dquot ID 0x%x, magic 0x%x != 0x%x",
@@ -2131,15 +2131,16 @@ xlog_recover_buffer_pass2(
 
 	bp = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkno, buf_f->blf_len,
 			  buf_flags);
-	if (XFS_BUF_ISERROR(bp)) {
+	if (!bp)
+		return XFS_ERROR(ENOMEM);
+	error = bp->b_error;
+	if (error) {
 		xfs_ioerror_alert("xlog_recover_do..(read#1)", mp,
 				  bp, buf_f->blf_blkno);
-		error = XFS_BUF_GETERROR(bp);
 		xfs_buf_relse(bp);
 		return error;
 	}
 
-	error = 0;
 	if (buf_f->blf_flags & XFS_BLF_INODE_BUF) {
 		error = xlog_recover_do_inode_buffer(mp, item, bp, buf_f);
 	} else if (buf_f->blf_flags &
@@ -2174,7 +2175,7 @@ xlog_recover_buffer_pass2(
 		error = xfs_bwrite(mp, bp);
 	} else {
 		ASSERT(bp->b_target->bt_mount == mp);
-		XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
+		bp->b_iodone = xlog_recover_iodone;
 		xfs_bdwrite(mp, bp);
 	}
 
@@ -2223,14 +2224,17 @@ xlog_recover_inode_pass2(
 
 	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len,
 			  XBF_LOCK);
-	if (XFS_BUF_ISERROR(bp)) {
+	if (!bp) {
+		error = ENOMEM;
+		goto error;
+	}
+	error = bp->b_error;
+	if (error) {
 		xfs_ioerror_alert("xlog_recover_do..(read#2)", mp,
 				  bp, in_f->ilf_blkno);
-		error = XFS_BUF_GETERROR(bp);
 		xfs_buf_relse(bp);
 		goto error;
 	}
-	error = 0;
 	ASSERT(in_f->ilf_fields & XFS_ILOG_CORE);
 	dip = (xfs_dinode_t *)xfs_buf_offset(bp, in_f->ilf_boffset);
 
@@ -2238,7 +2242,7 @@ xlog_recover_inode_pass2(
 	 * Make sure the place we're flushing out to really looks
 	 * like an inode!
 	 */
-	if (unlikely(be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC)) {
+	if (unlikely(dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))) {
 		xfs_buf_relse(bp);
 		xfs_alert(mp,
 	"%s: Bad inode magic number, dip = 0x%p, dino bp = 0x%p, ino = %Ld",
@@ -2279,7 +2283,7 @@ xlog_recover_inode_pass2(
 	/* Take the opportunity to reset the flush iteration count */
 	dicp->di_flushiter = 0;
 
-	if (unlikely((dicp->di_mode & S_IFMT) == S_IFREG)) {
+	if (unlikely(S_ISREG(dicp->di_mode))) {
 		if ((dicp->di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (dicp->di_format != XFS_DINODE_FMT_BTREE)) {
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(3)",
@@ -2292,7 +2296,7 @@ xlog_recover_inode_pass2(
 			error = EFSCORRUPTED;
 			goto error;
 		}
-	} else if (unlikely((dicp->di_mode & S_IFMT) == S_IFDIR)) {
+	} else if (unlikely(S_ISDIR(dicp->di_mode))) {
 		if ((dicp->di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (dicp->di_format != XFS_DINODE_FMT_BTREE) &&
 		    (dicp->di_format != XFS_DINODE_FMT_LOCAL)) {
@@ -2434,7 +2438,7 @@ xlog_recover_inode_pass2(
 
 write_inode_buffer:
 	ASSERT(bp->b_target->bt_mount == mp);
-	XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
+	bp->b_iodone = xlog_recover_iodone;
 	xfs_bdwrite(mp, bp);
 error:
 	if (need_free)
@@ -2556,7 +2560,7 @@ xlog_recover_dquot_pass2(
 
 	ASSERT(dq_f->qlf_size == 2);
 	ASSERT(bp->b_target->bt_mount == mp);
-	XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
+	bp->b_iodone = xlog_recover_iodone;
 	xfs_bdwrite(mp, bp);
 
 	return (0);
@@ -3295,7 +3299,7 @@ xlog_valid_rec_header(
 {
 	int			hlen;
 
-	if (unlikely(be32_to_cpu(rhead->h_magicno) != XLOG_HEADER_MAGIC_NUM)) {
+	if (unlikely(rhead->h_magicno != cpu_to_be32(XLOG_HEADER_MAGIC_NUM))) {
 		XFS_ERROR_REPORT("xlog_valid_rec_header(1)",
 				XFS_ERRLEVEL_LOW, log->l_mp);
 		return XFS_ERROR(EFSCORRUPTED);
@@ -3433,7 +3437,7 @@ xlog_do_recovery_pass(
 			/*
 			 * Check for header wrapping around physical end-of-log
 			 */
-			offset = XFS_BUF_PTR(hbp);
+			offset = hbp->b_addr;
 			split_hblks = 0;
 			wrapped_hblks = 0;
 			if (blk_no + hblks <= log->l_logBBsize) {
@@ -3493,7 +3497,7 @@ xlog_do_recovery_pass(
 			} else {
 				/* This log record is split across the
 				 * physical end of log */
-				offset = XFS_BUF_PTR(dbp);
+				offset = dbp->b_addr;
 				split_bblks = 0;
 				if (blk_no != log->l_logBBsize) {
 					/* some data is before the physical

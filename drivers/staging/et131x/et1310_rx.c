@@ -88,7 +88,23 @@
 #include "et1310_rx.h"
 #include "et131x.h"
 
-void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd);
+static inline u32 bump_fbr(u32 *fbr, u32 limit)
+{
+	u32 v = *fbr;
+	v++;
+	/* This works for all cases where limit < 1024. The 1023 case
+	   works because 1023++ is 1024 which means the if condition is not
+	   taken but the carry of the bit into the wrap bit toggles the wrap
+	   value correctly */
+	if ((v & ET_DMA10_MASK) > limit) {
+		v &= ~ET_DMA10_MASK;
+		v ^= ET_DMA10_WRAP;
+	}
+	/* For the 1023 case */
+	v &= (ET_DMA10_MASK|ET_DMA10_WRAP);
+	*fbr = v;
+	return v;
+}
 
 /**
  * et131x_rx_dma_memory_alloc
@@ -246,7 +262,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 					 &rx_ring->Fbr1MemPa[i]);
 
 		if (!rx_ring->Fbr1MemVa[i]) {
-		dev_err(&adapter->pdev->dev,
+			dev_err(&adapter->pdev->dev,
 				"Could not alloc memory\n");
 			return -ENOMEM;
 		}
@@ -378,7 +394,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 						   SLAB_HWCACHE_ALIGN,
 						   NULL);
 
-	adapter->Flags |= fMP_ADAPTER_RECV_LOOKASIDE;
+	adapter->flags |= fMP_ADAPTER_RECV_LOOKASIDE;
 
 	/* The RFDs are going to be put on lists later on, so initialize the
 	 * lists now.
@@ -491,7 +507,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	/* Free Packet Status Ring */
 	if (rx_ring->pPSRingVa) {
 		pktStatRingSize =
-		    sizeof(struct pkt_stat_desc) * adapter->rx_ring.PsrNumEntries;
+		  sizeof(struct pkt_stat_desc) * adapter->rx_ring.PsrNumEntries;
 
 		pci_free_consistent(adapter->pdev, pktStatRingSize,
 				    rx_ring->pPSRingVa, rx_ring->pPSRingPa);
@@ -512,9 +528,9 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	/* Free receive packet pool */
 
 	/* Destroy the lookaside (RFD) pool */
-	if (adapter->Flags & fMP_ADAPTER_RECV_LOOKASIDE) {
+	if (adapter->flags & fMP_ADAPTER_RECV_LOOKASIDE) {
 		kmem_cache_destroy(rx_ring->RecvLookaside);
-		adapter->Flags &= ~fMP_ADAPTER_RECV_LOOKASIDE;
+		adapter->flags &= ~fMP_ADAPTER_RECV_LOOKASIDE;
 	}
 
 	/* Free the FBR Lookup Table */
@@ -708,6 +724,82 @@ void SetRxDmaTimer(struct et131x_adapter *etdev)
 }
 
 /**
+ * NICReturnRFD - Recycle a RFD and put it back onto the receive list
+ * @etdev: pointer to our adapter
+ * @rfd: pointer to the RFD
+ */
+void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
+{
+	struct rx_ring *rx_local = &etdev->rx_ring;
+	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
+	u16 bi = rfd->bufferindex;
+	u8 ri = rfd->ringindex;
+	unsigned long flags;
+
+	/* We don't use any of the OOB data besides status. Otherwise, we
+	 * need to clean up OOB data
+	 */
+	if (
+#ifdef USE_FBR0
+	    (ri == 0 && bi < rx_local->Fbr0NumEntries) ||
+#endif
+	    (ri == 1 && bi < rx_local->Fbr1NumEntries)) {
+		spin_lock_irqsave(&etdev->FbrLock, flags);
+
+		if (ri == 1) {
+			struct fbr_desc *next =
+			    (struct fbr_desc *) (rx_local->pFbr1RingVa) +
+					 INDEX10(rx_local->local_Fbr1_full);
+
+			/* Handle the Free Buffer Ring advancement here. Write
+			 * the PA / Buffer Index for the returned buffer into
+			 * the oldest (next to be freed)FBR entry
+			 */
+			next->addr_hi = rx_local->fbr[1]->bus_high[bi];
+			next->addr_lo = rx_local->fbr[1]->bus_low[bi];
+			next->word2 = bi;
+
+			writel(bump_fbr(&rx_local->local_Fbr1_full,
+				rx_local->Fbr1NumEntries - 1),
+				&rx_dma->fbr1_full_offset);
+		}
+#ifdef USE_FBR0
+		else {
+			struct fbr_desc *next = (struct fbr_desc *)
+				rx_local->pFbr0RingVa +
+					INDEX10(rx_local->local_Fbr0_full);
+
+			/* Handle the Free Buffer Ring advancement here. Write
+			 * the PA / Buffer Index for the returned buffer into
+			 * the oldest (next to be freed) FBR entry
+			 */
+			next->addr_hi = rx_local->fbr[0]->bus_high[bi];
+			next->addr_lo = rx_local->fbr[0]->bus_low[bi];
+			next->word2 = bi;
+
+			writel(bump_fbr(&rx_local->local_Fbr0_full,
+					rx_local->Fbr0NumEntries - 1),
+			       &rx_dma->fbr0_full_offset);
+		}
+#endif
+		spin_unlock_irqrestore(&etdev->FbrLock, flags);
+	} else {
+		dev_err(&etdev->pdev->dev,
+			  "NICReturnRFD illegal Buffer Index returned\n");
+	}
+
+	/* The processing on this RFD is done, so put it back on the tail of
+	 * our list
+	 */
+	spin_lock_irqsave(&etdev->rcv_lock, flags);
+	list_add_tail(&rfd->list_node, &rx_local->RecvList);
+	rx_local->nReadyRecv++;
+	spin_unlock_irqrestore(&etdev->rcv_lock, flags);
+
+	WARN_ON(rx_local->nReadyRecv > rx_local->NumRfd);
+}
+
+/**
  * et131x_rx_dma_disable - Stop of Rx_DMA on the ET1310
  * @etdev: pointer to our adapter structure
  */
@@ -776,7 +868,7 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
  * the packet to it, puts the RFD in the RecvPendList, and also returns
  * the pointer to the RFD.
  */
-struct rfd * nic_rx_pkts(struct et131x_adapter *etdev)
+struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 {
 	struct rx_ring *rx_local = &etdev->rx_ring;
 	struct rx_status_block *status;
@@ -879,7 +971,7 @@ struct rfd * nic_rx_pkts(struct et131x_adapter *etdev)
 	 * also counted here.
 	 */
 	if (len < (NIC_MIN_PACKET_SIZE + 4)) {
-		etdev->Stats.other_errors++;
+		etdev->stats.other_errors++;
 		len = 0;
 	}
 
@@ -947,16 +1039,16 @@ struct rfd * nic_rx_pkts(struct et131x_adapter *etdev)
 			}
 
 			if (len > 0)
-				etdev->Stats.multircv++;
+				etdev->stats.multircv++;
 		} else if (word0 & ALCATEL_BROADCAST_PKT)
-			etdev->Stats.brdcstrcv++;
+			etdev->stats.brdcstrcv++;
 		else
 			/* Not sure what this counter measures in
 			 * promiscuous mode. Perhaps we should check
 			 * the MAC address to see if it is directed
 			 * to us in promiscuous mode.
 			 */
-			etdev->Stats.unircv++;
+			etdev->stats.unircv++;
 	}
 
 	if (len > 0) {
@@ -1034,13 +1126,12 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		 * Free buffer ring.
 		 */
 		if (!etdev->PacketFilter ||
-		    !(etdev->Flags & fMP_ADAPTER_LINK_DETECTION) ||
-		    rfd->len == 0) {
+		    !netif_carrier_ok(etdev->netdev) ||
+		    rfd->len == 0)
 			continue;
-		}
 
 		/* Increment the number of packets we received */
-		etdev->Stats.ipackets++;
+		etdev->net_stats.rx_packets++;
 
 		/* Set the status on the packet, either resources or success */
 		if (etdev->rx_ring.nReadyRecv < RFD_LOW_WATER_MARK) {
@@ -1059,96 +1150,3 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		etdev->rx_ring.UnfinishedReceives = false;
 }
 
-static inline u32 bump_fbr(u32 *fbr, u32 limit)
-{
-	u32 v = *fbr;
-	v++;
-	/* This works for all cases where limit < 1024. The 1023 case
-	   works because 1023++ is 1024 which means the if condition is not
-	   taken but the carry of the bit into the wrap bit toggles the wrap
-	   value correctly */
-	if ((v & ET_DMA10_MASK) > limit) {
-		v &= ~ET_DMA10_MASK;
-		v ^= ET_DMA10_WRAP;
-	}
-	/* For the 1023 case */
-	v &= (ET_DMA10_MASK|ET_DMA10_WRAP);
-	*fbr = v;
-	return v;
-}
-
-/**
- * NICReturnRFD - Recycle a RFD and put it back onto the receive list
- * @etdev: pointer to our adapter
- * @rfd: pointer to the RFD
- */
-void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
-{
-	struct rx_ring *rx_local = &etdev->rx_ring;
-	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
-	u16 bi = rfd->bufferindex;
-	u8 ri = rfd->ringindex;
-	unsigned long flags;
-
-	/* We don't use any of the OOB data besides status. Otherwise, we
-	 * need to clean up OOB data
-	 */
-	if (
-#ifdef USE_FBR0
-	    (ri == 0 && bi < rx_local->Fbr0NumEntries) ||
-#endif
-	    (ri == 1 && bi < rx_local->Fbr1NumEntries)) {
-		spin_lock_irqsave(&etdev->FbrLock, flags);
-
-		if (ri == 1) {
-			struct fbr_desc *next =
-			    (struct fbr_desc *) (rx_local->pFbr1RingVa) +
-					 INDEX10(rx_local->local_Fbr1_full);
-
-			/* Handle the Free Buffer Ring advancement here. Write
-			 * the PA / Buffer Index for the returned buffer into
-			 * the oldest (next to be freed)FBR entry
-			 */
-			next->addr_hi = rx_local->fbr[1]->bus_high[bi];
-			next->addr_lo = rx_local->fbr[1]->bus_low[bi];
-			next->word2 = bi;
-
-			writel(bump_fbr(&rx_local->local_Fbr1_full,
-				rx_local->Fbr1NumEntries - 1),
-				&rx_dma->fbr1_full_offset);
-		}
-#ifdef USE_FBR0
-		else {
-			struct fbr_desc *next = (struct fbr_desc *)
-				rx_local->pFbr0RingVa +
-					INDEX10(rx_local->local_Fbr0_full);
-
-			/* Handle the Free Buffer Ring advancement here. Write
-			 * the PA / Buffer Index for the returned buffer into
-			 * the oldest (next to be freed) FBR entry
-			 */
-			next->addr_hi = rx_local->fbr[0]->bus_high[bi];
-			next->addr_lo = rx_local->fbr[0]->bus_low[bi];
-			next->word2 = bi;
-
-			writel(bump_fbr(&rx_local->local_Fbr0_full,
-					rx_local->Fbr0NumEntries - 1),
-			       &rx_dma->fbr0_full_offset);
-		}
-#endif
-		spin_unlock_irqrestore(&etdev->FbrLock, flags);
-	} else {
-		dev_err(&etdev->pdev->dev,
-			  "NICReturnRFD illegal Buffer Index returned\n");
-	}
-
-	/* The processing on this RFD is done, so put it back on the tail of
-	 * our list
-	 */
-	spin_lock_irqsave(&etdev->rcv_lock, flags);
-	list_add_tail(&rfd->list_node, &rx_local->RecvList);
-	rx_local->nReadyRecv++;
-	spin_unlock_irqrestore(&etdev->rcv_lock, flags);
-
-	WARN_ON(rx_local->nReadyRecv > rx_local->NumRfd);
-}

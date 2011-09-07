@@ -123,6 +123,9 @@ enum {
 	/* debug commands */
 	MLX4_CMD_QUERY_DEBUG_MSG = 0x2a,
 	MLX4_CMD_SET_DEBUG_MSG	 = 0x2b,
+
+	/* statistics commands */
+	MLX4_CMD_QUERY_IF_STAT	 = 0X54,
 };
 
 enum {

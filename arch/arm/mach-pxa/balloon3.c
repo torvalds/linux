@@ -825,6 +825,7 @@ MACHINE_START(BALLOON3, "Balloon3")
 	.map_io		= balloon3_map_io,
 	.nr_irqs	= BALLOON3_NR_IRQS,
 	.init_irq	= balloon3_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= balloon3_init,
 	.boot_params	= PLAT_PHYS_OFFSET + 0x100,

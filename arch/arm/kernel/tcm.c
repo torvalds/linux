@@ -19,6 +19,8 @@
 #include "tcm.h"
 
 static struct gen_pool *tcm_pool;
+static bool dtcm_present;
+static bool itcm_present;
 
 /* TCM section definitions from the linker */
 extern char __itcm_start, __sitcm_text, __eitcm_text;
@@ -90,6 +92,18 @@ void tcm_free(void *addr, size_t len)
 }
 EXPORT_SYMBOL(tcm_free);
 
+bool tcm_dtcm_present(void)
+{
+	return dtcm_present;
+}
+EXPORT_SYMBOL(tcm_dtcm_present);
+
+bool tcm_itcm_present(void)
+{
+	return itcm_present;
+}
+EXPORT_SYMBOL(tcm_itcm_present);
+
 static int __init setup_tcm_bank(u8 type, u8 bank, u8 banks,
 				  u32 *offset)
 {
@@ -134,6 +148,10 @@ static int __init setup_tcm_bank(u8 type, u8 bank, u8 banks,
 			(tcm_region & 1) ? "" : "not ");
 	}
 
+	/* Not much fun you can do with a size 0 bank */
+	if (tcm_size == 0)
+		return 0;
+
 	/* Force move the TCM bank to where we want it, enable */
 	tcm_region = *offset | (tcm_region & 0x00000ffeU) | 1;
 
@@ -165,11 +183,19 @@ void __init tcm_init(void)
 	u32 tcm_status = read_cpuid_tcmstatus();
 	u8 dtcm_banks = (tcm_status >> 16) & 0x03;
 	u8 itcm_banks = (tcm_status & 0x03);
+	size_t dtcm_code_sz = &__edtcm_data - &__sdtcm_data;
+	size_t itcm_code_sz = &__eitcm_text - &__sitcm_text;
 	char *start;
 	char *end;
 	char *ram;
 	int ret;
 	int i;
+
+	/* Values greater than 2 for D/ITCM banks are "reserved" */
+	if (dtcm_banks > 2)
+		dtcm_banks = 0;
+	if (itcm_banks > 2)
+		itcm_banks = 0;
 
 	/* Setup DTCM if present */
 	if (dtcm_banks > 0) {
@@ -177,6 +203,13 @@ void __init tcm_init(void)
 			ret = setup_tcm_bank(0, i, dtcm_banks, &dtcm_end);
 			if (ret)
 				return;
+		}
+		/* This means you compiled more code than fits into DTCM */
+		if (dtcm_code_sz > (dtcm_end - DTCM_OFFSET)) {
+			pr_info("CPU DTCM: %u bytes of code compiled to "
+				"DTCM but only %lu bytes of DTCM present\n",
+				dtcm_code_sz, (dtcm_end - DTCM_OFFSET));
+			goto no_dtcm;
 		}
 		dtcm_res.end = dtcm_end - 1;
 		request_resource(&iomem_resource, &dtcm_res);
@@ -186,18 +219,29 @@ void __init tcm_init(void)
 		start = &__sdtcm_data;
 		end   = &__edtcm_data;
 		ram   = &__dtcm_start;
-		/* This means you compiled more code than fits into DTCM */
-		BUG_ON((end - start) > (dtcm_end - DTCM_OFFSET));
-		memcpy(start, ram, (end-start));
-		pr_debug("CPU DTCM: copied data from %p - %p\n", start, end);
+		memcpy(start, ram, dtcm_code_sz);
+		pr_debug("CPU DTCM: copied data from %p - %p\n",
+			 start, end);
+		dtcm_present = true;
+	} else if (dtcm_code_sz) {
+		pr_info("CPU DTCM: %u bytes of code compiled to DTCM but no "
+			"DTCM banks present in CPU\n", dtcm_code_sz);
 	}
 
+no_dtcm:
 	/* Setup ITCM if present */
 	if (itcm_banks > 0) {
 		for (i = 0; i < itcm_banks; i++) {
 			ret = setup_tcm_bank(1, i, itcm_banks, &itcm_end);
 			if (ret)
 				return;
+		}
+		/* This means you compiled more code than fits into ITCM */
+		if (itcm_code_sz > (itcm_end - ITCM_OFFSET)) {
+			pr_info("CPU ITCM: %u bytes of code compiled to "
+				"ITCM but only %lu bytes of ITCM present\n",
+				itcm_code_sz, (itcm_end - ITCM_OFFSET));
+			return;
 		}
 		itcm_res.end = itcm_end - 1;
 		request_resource(&iomem_resource, &itcm_res);
@@ -207,10 +251,13 @@ void __init tcm_init(void)
 		start = &__sitcm_text;
 		end   = &__eitcm_text;
 		ram   = &__itcm_start;
-		/* This means you compiled more code than fits into ITCM */
-		BUG_ON((end - start) > (itcm_end - ITCM_OFFSET));
-		memcpy(start, ram, (end-start));
-		pr_debug("CPU ITCM: copied code from %p - %p\n", start, end);
+		memcpy(start, ram, itcm_code_sz);
+		pr_debug("CPU ITCM: copied code from %p - %p\n",
+			 start, end);
+		itcm_present = true;
+	} else if (itcm_code_sz) {
+		pr_info("CPU ITCM: %u bytes of code compiled to ITCM but no "
+			"ITCM banks present in CPU\n", itcm_code_sz);
 	}
 }
 
@@ -221,7 +268,6 @@ void __init tcm_init(void)
  */
 static int __init setup_tcm_pool(void)
 {
-	u32 tcm_status = read_cpuid_tcmstatus();
 	u32 dtcm_pool_start = (u32) &__edtcm_data;
 	u32 itcm_pool_start = (u32) &__eitcm_text;
 	int ret;
@@ -236,7 +282,7 @@ static int __init setup_tcm_pool(void)
 	pr_debug("Setting up TCM memory pool\n");
 
 	/* Add the rest of DTCM to the TCM pool */
-	if (tcm_status & (0x03 << 16)) {
+	if (dtcm_present) {
 		if (dtcm_pool_start < dtcm_end) {
 			ret = gen_pool_add(tcm_pool, dtcm_pool_start,
 					   dtcm_end - dtcm_pool_start, -1);
@@ -253,7 +299,7 @@ static int __init setup_tcm_pool(void)
 	}
 
 	/* Add the rest of ITCM to the TCM pool */
-	if (tcm_status & 0x03) {
+	if (itcm_present) {
 		if (itcm_pool_start < itcm_end) {
 			ret = gen_pool_add(tcm_pool, itcm_pool_start,
 					   itcm_end - itcm_pool_start, -1);

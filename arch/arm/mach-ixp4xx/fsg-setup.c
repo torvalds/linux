@@ -275,5 +275,8 @@ MACHINE_START(FSG, "Freecom FSG-3")
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,
 	.init_machine	= fsg_init,
+#if defined(CONFIG_PCI)
+	.dma_zone_size	= SZ_64M,
+#endif
 MACHINE_END
 

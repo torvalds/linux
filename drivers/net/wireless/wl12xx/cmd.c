@@ -23,7 +23,6 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/crc7.h>
 #include <linux/spi/spi.h>
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
@@ -106,7 +105,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 fail:
 	WARN_ON(1);
-	ieee80211_queue_work(wl->hw, &wl->recovery_work);
+	wl12xx_queue_recovery_work(wl);
 	return ret;
 }
 
@@ -134,6 +133,11 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	/* Override the REF CLK from the NVS with the one from platform data */
 	gen_parms->general_params.ref_clock = wl->ref_clock;
+
+	/* LPD mode enable (bits 6-7) in WL1271 AP mode only */
+	if (wl->quirks & WL12XX_QUIRK_LPD_MODE)
+		gen_parms->general_params.general_settings |=
+			GENERAL_SETTINGS_DRPW_LPD;
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
@@ -352,7 +356,7 @@ static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
 
 	ret = wl1271_cmd_wait_for_event_or_timeout(wl, mask);
 	if (ret != 0) {
-		ieee80211_queue_work(wl->hw, &wl->recovery_work);
+		wl12xx_queue_recovery_work(wl);
 		return ret;
 	}
 
@@ -395,10 +399,6 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	memcpy(join->ssid, wl->ssid, wl->ssid_len);
 
 	join->ctrl |= wl->session_counter << WL1271_JOIN_CMD_TX_SESSION_OFFSET;
-
-	/* reset TX security counters */
-	wl->tx_security_last_seq = 0;
-	wl->tx_security_seq = 0;
 
 	wl1271_debug(DEBUG_CMD, "cmd join: basic_rate_set=0x%x, rate_set=0x%x",
 		join->basic_rate_set, join->supported_rate_set);
@@ -1080,7 +1080,7 @@ int wl1271_cmd_start_bss(struct wl1271 *wl)
 
 	memcpy(cmd->bssid, bss_conf->bssid, ETH_ALEN);
 
-	cmd->aging_period = cpu_to_le16(WL1271_AP_DEF_INACTIV_SEC);
+	cmd->aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
 	cmd->bss_index = WL1271_AP_BSS_INDEX;
 	cmd->global_hlid = WL1271_AP_GLOBAL_HLID;
 	cmd->broadcast_hlid = WL1271_AP_BROADCAST_HLID;
@@ -1167,14 +1167,7 @@ int wl1271_cmd_add_sta(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
 	cmd->bss_index = WL1271_AP_BSS_INDEX;
 	cmd->aid = sta->aid;
 	cmd->hlid = hlid;
-
-	/*
-	 * FIXME: Does STA support QOS? We need to propagate this info from
-	 * hostapd. Currently not that important since this is only used for
-	 * sending the correct flavor of null-data packet in response to a
-	 * trigger.
-	 */
-	cmd->wmm = 0;
+	cmd->wmm = sta->wme ? 1 : 0;
 
 	cmd->supported_rates = cpu_to_le32(wl1271_tx_enabled_rates_get(wl,
 						sta->supp_rates[wl->band]));
@@ -1223,6 +1216,90 @@ int wl1271_cmd_remove_sta(struct wl1271 *wl, u8 hlid)
 	 * due to a firmware bug.
 	 */
 	wl1271_cmd_wait_for_event_or_timeout(wl, STA_REMOVE_COMPLETE_EVENT_ID);
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl12xx_cmd_config_fwlog(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_config_fwlog *cmd;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd config firmware logger");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->logger_mode = wl->conf.fwlog.mode;
+	cmd->log_severity = wl->conf.fwlog.severity;
+	cmd->timestamp = wl->conf.fwlog.timestamp;
+	cmd->output = wl->conf.fwlog.output;
+	cmd->threshold = wl->conf.fwlog.threshold;
+
+	ret = wl1271_cmd_send(wl, CMD_CONFIG_FWLOGGER, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send config firmware logger command");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl12xx_cmd_start_fwlog(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_start_fwlog *cmd;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd start firmware logger");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = wl1271_cmd_send(wl, CMD_START_FWLOGGER, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send start firmware logger command");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl12xx_cmd_stop_fwlog(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_stop_fwlog *cmd;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd stop firmware logger");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = wl1271_cmd_send(wl, CMD_STOP_FWLOGGER, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send stop firmware logger command");
+		goto out_free;
+	}
 
 out_free:
 	kfree(cmd);

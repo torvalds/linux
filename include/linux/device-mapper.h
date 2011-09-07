@@ -208,6 +208,49 @@ struct dm_target_callbacks {
 int dm_register_target(struct target_type *t);
 void dm_unregister_target(struct target_type *t);
 
+/*
+ * Target argument parsing.
+ */
+struct dm_arg_set {
+	unsigned argc;
+	char **argv;
+};
+
+/*
+ * The minimum and maximum value of a numeric argument, together with
+ * the error message to use if the number is found to be outside that range.
+ */
+struct dm_arg {
+	unsigned min;
+	unsigned max;
+	char *error;
+};
+
+/*
+ * Validate the next argument, either returning it as *value or, if invalid,
+ * returning -EINVAL and setting *error.
+ */
+int dm_read_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
+		unsigned *value, char **error);
+
+/*
+ * Process the next argument as the start of a group containing between
+ * arg->min and arg->max further arguments. Either return the size as
+ * *num_args or, if invalid, return -EINVAL and set *error.
+ */
+int dm_read_arg_group(struct dm_arg *arg, struct dm_arg_set *arg_set,
+		      unsigned *num_args, char **error);
+
+/*
+ * Return the current argument and shift to the next.
+ */
+const char *dm_shift_arg(struct dm_arg_set *as);
+
+/*
+ * Move through num_args arguments.
+ */
+void dm_consume_args(struct dm_arg_set *as, unsigned num_args);
+
 /*-----------------------------------------------------------------
  * Functions for creating and manipulating mapped devices.
  * Drop the reference with dm_put when you finish with the object.

@@ -13,6 +13,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/crc32.h>
 #include <linux/spinlock.h>
 #include <linux/bitrev.h>

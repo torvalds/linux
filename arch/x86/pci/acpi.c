@@ -188,7 +188,7 @@ static bool resource_contains(struct resource *res, resource_size_t point)
 	return false;
 }
 
-static void coalesce_windows(struct pci_root_info *info, int type)
+static void coalesce_windows(struct pci_root_info *info, unsigned long type)
 {
 	int i, j;
 	struct resource *res1, *res2;
@@ -246,10 +246,9 @@ static void add_resources(struct pci_root_info *info)
 
 		conflict = insert_resource_conflict(root, res);
 		if (conflict)
-			dev_err(&info->bridge->dev,
-				"address space collision: host bridge window %pR "
-				"conflicts with %s %pR\n",
-				res, conflict->name, conflict);
+			dev_info(&info->bridge->dev,
+				 "ignoring host bridge window %pR (conflicts with %s %pR)\n",
+				 res, conflict->name, conflict);
 		else
 			pci_bus_add_resource(info->bus, res, 0);
 	}
@@ -359,6 +358,15 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 			get_current_resources(device, busnum, domain, bus);
 			bus->subordinate = pci_scan_child_bus(bus);
 		}
+	}
+
+	/* After the PCI-E bus has been walked and all devices discovered,
+	 * configure any settings of the fabric that might be necessary.
+	 */
+	if (bus) {
+		struct pci_bus *child;
+		list_for_each_entry(child, &bus->children, node)
+			pcie_bus_configure_settings(child, child->self->pcie_mpss);
 	}
 
 	if (!bus)

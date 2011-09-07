@@ -7,6 +7,7 @@
  */
 
 #include <linux/bug.h>
+#include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/ethtool.h>
@@ -73,7 +74,7 @@ struct rfc2734_arp {
 	__be32 fifo_lo;		/* lo 32bits of sender's FIFO addr	*/
 	__be32 sip;		/* Sender's IP Address			*/
 	__be32 tip;		/* IP Address of requested hw addr	*/
-} __attribute__((packed));
+} __packed;
 
 /* This header format is specific to this driver implementation. */
 #define FWNET_ALEN	8
@@ -81,7 +82,7 @@ struct rfc2734_arp {
 struct fwnet_header {
 	u8 h_dest[FWNET_ALEN];	/* destination address */
 	__be16 h_proto;		/* packet type ID field */
-} __attribute__((packed));
+} __packed;
 
 /* IPv4 and IPv6 encapsulation header */
 struct rfc2734_header {
@@ -261,16 +262,16 @@ static int fwnet_header_rebuild(struct sk_buff *skb)
 }
 
 static int fwnet_header_cache(const struct neighbour *neigh,
-			      struct hh_cache *hh)
+			      struct hh_cache *hh, __be16 type)
 {
 	struct net_device *net;
 	struct fwnet_header *h;
 
-	if (hh->hh_type == cpu_to_be16(ETH_P_802_3))
+	if (type == cpu_to_be16(ETH_P_802_3))
 		return -1;
 	net = neigh->dev;
 	h = (struct fwnet_header *)((u8 *)hh->hh_data + 16 - sizeof(*h));
-	h->h_proto = hh->hh_type;
+	h->h_proto = type;
 	memcpy(h->h_dest, neigh->ha, net->addr_len);
 	hh->hh_len = FWNET_HLEN;
 

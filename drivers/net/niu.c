@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
@@ -6248,9 +6249,10 @@ static void niu_sync_mac_stats(struct niu *np)
 		niu_sync_bmac_stats(np);
 }
 
-static void niu_get_rx_stats(struct niu *np)
+static void niu_get_rx_stats(struct niu *np,
+			     struct rtnl_link_stats64 *stats)
 {
-	unsigned long pkts, dropped, errors, bytes;
+	u64 pkts, dropped, errors, bytes;
 	struct rx_ring_info *rx_rings;
 	int i;
 
@@ -6272,15 +6274,16 @@ static void niu_get_rx_stats(struct niu *np)
 	}
 
 no_rings:
-	np->dev->stats.rx_packets = pkts;
-	np->dev->stats.rx_bytes = bytes;
-	np->dev->stats.rx_dropped = dropped;
-	np->dev->stats.rx_errors = errors;
+	stats->rx_packets = pkts;
+	stats->rx_bytes = bytes;
+	stats->rx_dropped = dropped;
+	stats->rx_errors = errors;
 }
 
-static void niu_get_tx_stats(struct niu *np)
+static void niu_get_tx_stats(struct niu *np,
+			     struct rtnl_link_stats64 *stats)
 {
-	unsigned long pkts, errors, bytes;
+	u64 pkts, errors, bytes;
 	struct tx_ring_info *tx_rings;
 	int i;
 
@@ -6299,20 +6302,22 @@ static void niu_get_tx_stats(struct niu *np)
 	}
 
 no_rings:
-	np->dev->stats.tx_packets = pkts;
-	np->dev->stats.tx_bytes = bytes;
-	np->dev->stats.tx_errors = errors;
+	stats->tx_packets = pkts;
+	stats->tx_bytes = bytes;
+	stats->tx_errors = errors;
 }
 
-static struct net_device_stats *niu_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *niu_get_stats(struct net_device *dev,
+					       struct rtnl_link_stats64 *stats)
 {
 	struct niu *np = netdev_priv(dev);
 
 	if (netif_running(dev)) {
-		niu_get_rx_stats(np);
-		niu_get_tx_stats(np);
+		niu_get_rx_stats(np, stats);
+		niu_get_tx_stats(np, stats);
 	}
-	return &dev->stats;
+
+	return stats;
 }
 
 static void niu_load_hash_xmac(struct niu *np, u16 *hash)
@@ -9196,7 +9201,7 @@ static int __devinit niu_ldg_init(struct niu *np)
 
 	first_chan = 0;
 	for (i = 0; i < port; i++)
-		first_chan += parent->rxchan_per_port[port];
+		first_chan += parent->rxchan_per_port[i];
 	num_chan = parent->rxchan_per_port[port];
 
 	for (i = first_chan; i < (first_chan + num_chan); i++) {
@@ -9212,7 +9217,7 @@ static int __devinit niu_ldg_init(struct niu *np)
 
 	first_chan = 0;
 	for (i = 0; i < port; i++)
-		first_chan += parent->txchan_per_port[port];
+		first_chan += parent->txchan_per_port[i];
 	num_chan = parent->txchan_per_port[port];
 	for (i = first_chan; i < (first_chan + num_chan); i++) {
 		err = niu_ldg_assign_ldn(np, parent,
@@ -9710,7 +9715,7 @@ static const struct net_device_ops niu_netdev_ops = {
 	.ndo_open		= niu_open,
 	.ndo_stop		= niu_close,
 	.ndo_start_xmit		= niu_start_xmit,
-	.ndo_get_stats		= niu_get_stats,
+	.ndo_get_stats64	= niu_get_stats,
 	.ndo_set_multicast_list	= niu_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= niu_set_mac_addr,
@@ -9792,7 +9797,7 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 		goto err_out_disable_pdev;
 	}
 
-	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(pdev);
 	if (pos <= 0) {
 		dev_err(&pdev->dev, "Cannot find PCI Express capability, aborting\n");
 		goto err_out_free_res;

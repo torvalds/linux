@@ -223,7 +223,7 @@ static int pdacf_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_exclusive_irq(link, pdacf_interrupt);
+	ret = pcmcia_request_irq(link, pdacf_interrupt);
 	if (ret)
 		goto failed;
 

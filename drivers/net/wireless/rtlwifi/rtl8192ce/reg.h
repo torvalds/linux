@@ -1074,10 +1074,10 @@
 #define _SRL(x)					(((x) & 0x3F) << 8)
 
 #define _SIFS_CCK_CTX(x)			((x) & 0xFF)
-#define _SIFS_CCK_TRX(x)			(((x) & 0xFF) << 8);
+#define _SIFS_CCK_TRX(x)			(((x) & 0xFF) << 8)
 
 #define _SIFS_OFDM_CTX(x)			((x) & 0xFF)
-#define _SIFS_OFDM_TRX(x)			(((x) & 0xFF) << 8);
+#define _SIFS_OFDM_TRX(x)			(((x) & 0xFF) << 8)
 
 #define _TBTT_PROHIBIT_HOLD(x)			(((x) & 0xFF) << 8)
 
@@ -1203,7 +1203,9 @@
 #define EPROM_CMD_CONFIG			0x3
 #define EPROM_CMD_LOAD				1
 
+#define HWSET_MAX_SIZE				128
 #define	HWSET_MAX_SIZE_92S			HWSET_MAX_SIZE
+#define EFUSE_MAX_SECTION			16
 
 #define	WL_HWPDN_EN				BIT(0)
 

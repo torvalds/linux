@@ -179,15 +179,7 @@
 #define BCMA_CC_PROG_WAITCNT		0x0124
 #define BCMA_CC_FLASH_CFG		0x0128
 #define BCMA_CC_FLASH_WAITCNT		0x012C
-#define BCMA_CC_CLKCTLST		0x01E0 /* Clock control and status (rev >= 20) */
-#define  BCMA_CC_CLKCTLST_FORCEALP	0x00000001 /* Force ALP request */
-#define  BCMA_CC_CLKCTLST_FORCEHT	0x00000002 /* Force HT request */
-#define  BCMA_CC_CLKCTLST_FORCEILP	0x00000004 /* Force ILP request */
-#define  BCMA_CC_CLKCTLST_HAVEALPREQ	0x00000008 /* ALP available request */
-#define  BCMA_CC_CLKCTLST_HAVEHTREQ	0x00000010 /* HT available request */
-#define  BCMA_CC_CLKCTLST_HWCROFF	0x00000020 /* Force HW clock request off */
-#define  BCMA_CC_CLKCTLST_HAVEHT	0x00010000 /* HT available */
-#define  BCMA_CC_CLKCTLST_HAVEALP	0x00020000 /* APL available */
+/* 0x1E0 is defined as shared BCMA_CLKCTLST */
 #define BCMA_CC_HW_WORKAROUND		0x01E4 /* Hardware workaround (rev >= 20) */
 #define BCMA_CC_UART0_DATA		0x0300
 #define BCMA_CC_UART0_IMR		0x0304
@@ -244,6 +236,8 @@
 #define BCMA_CC_REGCTL_DATA		0x065C
 #define BCMA_CC_PLLCTL_ADDR		0x0660
 #define BCMA_CC_PLLCTL_DATA		0x0664
+#define BCMA_CC_SPROM			0x0800 /* SPROM beginning */
+#define BCMA_CC_SPROM_PCIE6		0x0830 /* SPROM beginning on PCIe rev >= 6 */
 
 /* Data for the PMU, if available.
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)

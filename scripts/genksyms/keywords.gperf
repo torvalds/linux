@@ -1,3 +1,6 @@
+%language=ANSI-C
+%define hash-function-name is_reserved_hash
+%define lookup-function-name is_reserved_word
 %{
 struct resword;
 static const struct resword *is_reserved_word(register const char *str, register unsigned int len);

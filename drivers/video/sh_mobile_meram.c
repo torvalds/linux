@@ -218,7 +218,7 @@ static inline void meram_get_next_icb_addr(struct sh_mobile_meram_info *pdata,
 		icb_offset = 0xc0000000 | (cfg->current_reg << 23);
 
 	*icb_addr_y = icb_offset | (cfg->icb[0].marker_icb << 24);
-	if ((*icb_addr_c) && is_nvcolor(cfg->pixelformat))
+	if (is_nvcolor(cfg->pixelformat))
 		*icb_addr_c = icb_offset | (cfg->icb[1].marker_icb << 24);
 }
 

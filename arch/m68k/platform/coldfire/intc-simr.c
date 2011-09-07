@@ -171,8 +171,6 @@ void __init init_IRQ(void)
 {
 	int irq, eirq;
 
-	init_vectors();
-
 	/* Mask all interrupt sources */
 	__raw_writeb(0xff, MCFINTC0_SIMR);
 	if (MCFINTC1_SIMR)

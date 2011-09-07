@@ -65,7 +65,7 @@ void mei_wd_start_setup(struct mei_device *dev)
  */
 void mei_wd_host_init(struct mei_device *dev)
 {
-	mei_init_file_private(&dev->wd_cl, dev);
+	mei_cl_init(&dev->wd_cl, dev);
 
 	/* look for WD client and connect to it */
 	dev->wd_cl.state = MEI_FILE_DISCONNECTED;
@@ -83,18 +83,18 @@ void mei_wd_host_init(struct mei_device *dev)
 				dev_dbg(&dev->pdev->dev, "Failed to connect to WD client\n");
 				dev->wd_cl.state = MEI_FILE_DISCONNECTED;
 				dev->wd_cl.host_client_id = 0;
-				host_init_iamthif(dev) ;
+				mei_host_init_iamthif(dev) ;
 			} else {
 				dev->wd_cl.timer_count = CONNECT_TIMEOUT;
 			}
 		} else {
 			dev_dbg(&dev->pdev->dev, "Failed to find WD client\n");
-			host_init_iamthif(dev) ;
+			mei_host_init_iamthif(dev) ;
 		}
 	} else {
 		dev->wd_bypass = true;
 		dev_dbg(&dev->pdev->dev, "WD requested to be disabled\n");
-		host_init_iamthif(dev) ;
+		mei_host_init_iamthif(dev) ;
 	}
 }
 
@@ -141,7 +141,7 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 	dev->wd_timeout = 0;
 	dev->wd_due_counter = 0;
 	memcpy(dev->wd_data, mei_stop_wd_params, MEI_WD_PARAMS_SIZE);
-	dev->stop = 1;
+	dev->stop = true;
 
 	ret = mei_flow_ctrl_creds(dev, &dev->wd_cl);
 	if (ret < 0)
@@ -149,7 +149,7 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 
 	if (ret && dev->mei_host_buffer_is_empty) {
 		ret = 0;
-		dev->mei_host_buffer_is_empty = 0;
+		dev->mei_host_buffer_is_empty = false;
 
 		if (!mei_wd_send(dev)) {
 			ret = mei_flow_ctrl_reduce(dev, &dev->wd_cl);
@@ -159,20 +159,25 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 			dev_dbg(&dev->pdev->dev, "send stop WD failed\n");
 		}
 
-		dev->wd_pending = 0;
+		dev->wd_pending = false;
 	} else {
-		dev->wd_pending = 1;
+		dev->wd_pending = true;
 	}
-	dev->wd_stopped = 0;
+	dev->wd_stopped = false;
 	mutex_unlock(&dev->device_lock);
 
 	ret = wait_event_interruptible_timeout(dev->wait_stop_wd,
 					dev->wd_stopped, 10 * HZ);
 	mutex_lock(&dev->device_lock);
-	if (!dev->wd_stopped)
-		dev_dbg(&dev->pdev->dev, "stop wd failed to complete.\n");
-	else
-		dev_dbg(&dev->pdev->dev, "stop wd complete.\n");
+	if (dev->wd_stopped) {
+		dev_dbg(&dev->pdev->dev, "stop wd complete ret=%d.\n", ret);
+		ret = 0;
+	} else {
+		if (!ret)
+			ret = -ETIMEDOUT;
+		dev_warn(&dev->pdev->dev,
+			"stop wd failed to complete ret=%d.\n", ret);
+	}
 
 	if (preserve)
 		dev->wd_timeout = wd_timeout;

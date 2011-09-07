@@ -285,11 +285,7 @@ static int io_submit_init(struct ext4_io_submit *io,
 	io_end = ext4_init_io_end(inode, GFP_NOFS);
 	if (!io_end)
 		return -ENOMEM;
-	do {
-		bio = bio_alloc(GFP_NOIO, nvecs);
-		nvecs >>= 1;
-	} while (bio == NULL);
-
+	bio = bio_alloc(GFP_NOIO, min(nvecs, BIO_MAX_PAGES));
 	bio->bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_bdev = bh->b_bdev;
 	bio->bi_private = io->io_end = io_end;
@@ -338,8 +334,10 @@ submit_and_retry:
 	if ((io_end->num_io_pages >= MAX_IO_PAGES) &&
 	    (io_end->pages[io_end->num_io_pages-1] != io_page))
 		goto submit_and_retry;
-	if (buffer_uninit(bh))
-		io->io_end->flag |= EXT4_IO_END_UNWRITTEN;
+	if (buffer_uninit(bh) && !(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
+		io_end->flag |= EXT4_IO_END_UNWRITTEN;
+		atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+	}
 	io->io_end->size += bh->b_size;
 	io->io_next_block++;
 	ret = bio_add_page(io->io_bio, bh->b_page, bh->b_size, bh_offset(bh));

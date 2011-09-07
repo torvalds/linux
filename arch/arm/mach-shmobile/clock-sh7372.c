@@ -561,10 +561,6 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP403] = MSTP(&r_clk, SMSTPCR4, 3, 0), /* KEYSC */
 };
 
-#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
-#define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
-#define CLKDEV_ICK_ID(_cid, _did, _clk) { .con_id = _cid, .dev_id = _did, .clk = _clk }
-
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("dv_clki_div2_clk", &sh7372_dv_clki_div2_clk),
@@ -659,9 +655,12 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("renesas_usbhs.1", &mstp_clks[MSTP406]), /* USB1 */
 	CLKDEV_DEV_ID("sh_keysc.0", &mstp_clks[MSTP403]), /* KEYSC */
 
+	CLKDEV_ICK_ID("hdmi", "sh_mobile_lcdc_fb.1",
+		      &div6_reparent_clks[DIV6_HDMI]),
 	CLKDEV_ICK_ID("ick", "sh-mobile-hdmi", &div6_reparent_clks[DIV6_HDMI]),
 	CLKDEV_ICK_ID("icka", "sh_fsi2", &div6_reparent_clks[DIV6_FSIA]),
 	CLKDEV_ICK_ID("ickb", "sh_fsi2", &div6_reparent_clks[DIV6_FSIB]),
+	CLKDEV_ICK_ID("spu2", "sh_fsi2", &mstp_clks[MSTP223]),
 };
 
 void __init sh7372_clock_init(void)

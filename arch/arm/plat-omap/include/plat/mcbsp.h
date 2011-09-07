@@ -24,7 +24,6 @@
 #ifndef __ASM_ARCH_OMAP_MCBSP_H
 #define __ASM_ARCH_OMAP_MCBSP_H
 
-#include <linux/completion.h>
 #include <linux/spinlock.h>
 
 #include <mach/hardware.h>
@@ -34,7 +33,7 @@
 #define OMAP_MCBSP_PLATFORM_DEVICE(port_nr)		\
 static struct platform_device omap_mcbsp##port_nr = {	\
 	.name	= "omap-mcbsp-dai",			\
-	.id	= OMAP_MCBSP##port_nr,			\
+	.id	= port_nr - 1,			\
 }
 
 #define MCBSP_CONFIG_TYPE2	0x2
@@ -333,18 +332,6 @@ struct omap_mcbsp_reg_cfg {
 };
 
 typedef enum {
-	OMAP_MCBSP1 = 0,
-	OMAP_MCBSP2,
-	OMAP_MCBSP3,
-	OMAP_MCBSP4,
-	OMAP_MCBSP5
-} omap_mcbsp_id;
-
-typedef int __bitwise omap_mcbsp_io_type_t;
-#define OMAP_MCBSP_IRQ_IO ((__force omap_mcbsp_io_type_t) 1)
-#define OMAP_MCBSP_POLL_IO ((__force omap_mcbsp_io_type_t) 2)
-
-typedef enum {
 	OMAP_MCBSP_WORD_8 = 0,
 	OMAP_MCBSP_WORD_12,
 	OMAP_MCBSP_WORD_16,
@@ -352,38 +339,6 @@ typedef enum {
 	OMAP_MCBSP_WORD_24,
 	OMAP_MCBSP_WORD_32,
 } omap_mcbsp_word_length;
-
-typedef enum {
-	OMAP_MCBSP_CLK_RISING = 0,
-	OMAP_MCBSP_CLK_FALLING,
-} omap_mcbsp_clk_polarity;
-
-typedef enum {
-	OMAP_MCBSP_FS_ACTIVE_HIGH = 0,
-	OMAP_MCBSP_FS_ACTIVE_LOW,
-} omap_mcbsp_fs_polarity;
-
-typedef enum {
-	OMAP_MCBSP_CLK_STP_MODE_NO_DELAY = 0,
-	OMAP_MCBSP_CLK_STP_MODE_DELAY,
-} omap_mcbsp_clk_stp_mode;
-
-
-/******* SPI specific mode **********/
-typedef enum {
-	OMAP_MCBSP_SPI_MASTER = 0,
-	OMAP_MCBSP_SPI_SLAVE,
-} omap_mcbsp_spi_mode;
-
-struct omap_mcbsp_spi_cfg {
-	omap_mcbsp_spi_mode		spi_mode;
-	omap_mcbsp_clk_polarity		rx_clock_polarity;
-	omap_mcbsp_clk_polarity		tx_clock_polarity;
-	omap_mcbsp_fs_polarity		fsx_polarity;
-	u8				clk_div;
-	omap_mcbsp_clk_stp_mode		clk_stp_mode;
-	omap_mcbsp_word_length		word_length;
-};
 
 /* Platform specific configuration */
 struct omap_mcbsp_ops {
@@ -422,25 +377,13 @@ struct omap_mcbsp {
 	void __iomem *io_base;
 	u8 id;
 	u8 free;
-	omap_mcbsp_word_length rx_word_length;
-	omap_mcbsp_word_length tx_word_length;
 
-	omap_mcbsp_io_type_t io_type; /* IRQ or poll */
-	/* IRQ based TX/RX */
 	int rx_irq;
 	int tx_irq;
 
 	/* DMA stuff */
 	u8 dma_rx_sync;
-	short dma_rx_lch;
 	u8 dma_tx_sync;
-	short dma_tx_lch;
-
-	/* Completion queues */
-	struct completion tx_irq_completion;
-	struct completion rx_irq_completion;
-	struct completion tx_dma_completion;
-	struct completion rx_dma_completion;
 
 	/* Protect the field .free, while checking if the mcbsp is in use */
 	spinlock_t lock;
@@ -499,24 +442,9 @@ int omap_mcbsp_request(unsigned int id);
 void omap_mcbsp_free(unsigned int id);
 void omap_mcbsp_start(unsigned int id, int tx, int rx);
 void omap_mcbsp_stop(unsigned int id, int tx, int rx);
-void omap_mcbsp_xmit_word(unsigned int id, u32 word);
-u32 omap_mcbsp_recv_word(unsigned int id);
-
-int omap_mcbsp_xmit_buffer(unsigned int id, dma_addr_t buffer, unsigned int length);
-int omap_mcbsp_recv_buffer(unsigned int id, dma_addr_t buffer, unsigned int length);
-int omap_mcbsp_spi_master_xmit_word_poll(unsigned int id, u32 word);
-int omap_mcbsp_spi_master_recv_word_poll(unsigned int id, u32 * word);
-
 
 /* McBSP functional clock source changing function */
 extern int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id);
-/* SPI specific API */
-void omap_mcbsp_set_spi_mode(unsigned int id, const struct omap_mcbsp_spi_cfg * spi_cfg);
-
-/* Polled read/write functions */
-int omap_mcbsp_pollread(unsigned int id, u16 * buf);
-int omap_mcbsp_pollwrite(unsigned int id, u16 buf);
-int omap_mcbsp_set_io_type(unsigned int id, omap_mcbsp_io_type_t io_type);
 
 /* McBSP signal muxing API */
 void omap2_mcbsp1_mux_clkr_src(u8 mux);

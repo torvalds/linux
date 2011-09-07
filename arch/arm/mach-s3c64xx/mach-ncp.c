@@ -30,7 +30,6 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/regs-fb.h>
 #include <mach/map.h>
 
 #include <asm/irq.h>
@@ -44,6 +43,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/regs-fb-v4.h>
 
 #define UCON S3C2410_UCON_DEFAULT
 #define ULCON S3C2410_LCON_CS8 | S3C2410_LCON_PNONE

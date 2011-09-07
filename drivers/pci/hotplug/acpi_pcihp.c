@@ -408,7 +408,7 @@ got_one:
 }
 EXPORT_SYMBOL(acpi_get_hp_hw_control_from_firmware);
 
-static int is_ejectable(acpi_handle handle)
+static int pcihp_is_ejectable(acpi_handle handle)
 {
 	acpi_status status;
 	acpi_handle tmp;
@@ -442,7 +442,7 @@ int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle)
 		return 0;
 	if (bridge_handle != parent_handle)
 		return 0;
-	return is_ejectable(handle);
+	return pcihp_is_ejectable(handle);
 }
 EXPORT_SYMBOL_GPL(acpi_pci_check_ejectable);
 
@@ -450,7 +450,7 @@ static acpi_status
 check_hotplug(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int *found = (int *)context;
-	if (is_ejectable(handle)) {
+	if (pcihp_is_ejectable(handle)) {
 		*found = 1;
 		return AE_CTRL_TERMINATE;
 	}

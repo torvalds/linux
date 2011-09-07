@@ -848,10 +848,16 @@ restart_loop:
 	while (commit_transaction->t_forget) {
 		transaction_t *cp_transaction;
 		struct buffer_head *bh;
+		int try_to_free = 0;
 
 		jh = commit_transaction->t_forget;
 		spin_unlock(&journal->j_list_lock);
 		bh = jh2bh(jh);
+		/*
+		 * Get a reference so that bh cannot be freed before we are
+		 * done with it.
+		 */
+		get_bh(bh);
 		jbd_lock_bh_state(bh);
 		J_ASSERT_JH(jh,	jh->b_transaction == commit_transaction);
 
@@ -914,28 +920,27 @@ restart_loop:
 			__jbd2_journal_insert_checkpoint(jh, commit_transaction);
 			if (is_journal_aborted(journal))
 				clear_buffer_jbddirty(bh);
-			JBUFFER_TRACE(jh, "refile for checkpoint writeback");
-			__jbd2_journal_refile_buffer(jh);
-			jbd_unlock_bh_state(bh);
 		} else {
 			J_ASSERT_BH(bh, !buffer_dirty(bh));
-			/* The buffer on BJ_Forget list and not jbddirty means
+			/*
+			 * The buffer on BJ_Forget list and not jbddirty means
 			 * it has been freed by this transaction and hence it
 			 * could not have been reallocated until this
 			 * transaction has committed. *BUT* it could be
 			 * reallocated once we have written all the data to
 			 * disk and before we process the buffer on BJ_Forget
-			 * list. */
-			JBUFFER_TRACE(jh, "refile or unfile freed buffer");
-			__jbd2_journal_refile_buffer(jh);
-			if (!jh->b_transaction) {
-				jbd_unlock_bh_state(bh);
-				 /* needs a brelse */
-				jbd2_journal_remove_journal_head(bh);
-				release_buffer_page(bh);
-			} else
-				jbd_unlock_bh_state(bh);
+			 * list.
+			 */
+			if (!jh->b_next_transaction)
+				try_to_free = 1;
 		}
+		JBUFFER_TRACE(jh, "refile or unfile buffer");
+		__jbd2_journal_refile_buffer(jh);
+		jbd_unlock_bh_state(bh);
+		if (try_to_free)
+			release_buffer_page(bh);	/* Drops bh reference */
+		else
+			__brelse(bh);
 		cond_resched_lock(&journal->j_list_lock);
 	}
 	spin_unlock(&journal->j_list_lock);

@@ -17,8 +17,4 @@
  */
 #define PLAT_PHYS_OFFSET	UL(0xa0000000)
 
-#if defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)
-#define ARM_DMA_ZONE_SIZE	SZ_64M
-#endif
-
 #endif

@@ -13,6 +13,69 @@
 
 #include <linux/v4l2-mediabus.h>
 
+/* Parallel flags */
+/*
+ * Can the client run in master or in slave mode. By "Master mode" an operation
+ * mode is meant, when the client (e.g., a camera sensor) is producing
+ * horizontal and vertical synchronisation. In "Slave mode" the host is
+ * providing these signals to the slave.
+ */
+#define V4L2_MBUS_MASTER			(1 << 0)
+#define V4L2_MBUS_SLAVE				(1 << 1)
+/* Which signal polarities it supports */
+/* Note: in BT.656 mode HSYNC and VSYNC are unused */
+#define V4L2_MBUS_HSYNC_ACTIVE_HIGH		(1 << 2)
+#define V4L2_MBUS_HSYNC_ACTIVE_LOW		(1 << 3)
+#define V4L2_MBUS_VSYNC_ACTIVE_HIGH		(1 << 4)
+#define V4L2_MBUS_VSYNC_ACTIVE_LOW		(1 << 5)
+#define V4L2_MBUS_PCLK_SAMPLE_RISING		(1 << 6)
+#define V4L2_MBUS_PCLK_SAMPLE_FALLING		(1 << 7)
+#define V4L2_MBUS_DATA_ACTIVE_HIGH		(1 << 8)
+#define V4L2_MBUS_DATA_ACTIVE_LOW		(1 << 9)
+
+/* Serial flags */
+/* How many lanes the client can use */
+#define V4L2_MBUS_CSI2_1_LANE			(1 << 0)
+#define V4L2_MBUS_CSI2_2_LANE			(1 << 1)
+#define V4L2_MBUS_CSI2_3_LANE			(1 << 2)
+#define V4L2_MBUS_CSI2_4_LANE			(1 << 3)
+/* On which channels it can send video data */
+#define V4L2_MBUS_CSI2_CHANNEL_0		(1 << 4)
+#define V4L2_MBUS_CSI2_CHANNEL_1		(1 << 5)
+#define V4L2_MBUS_CSI2_CHANNEL_2		(1 << 6)
+#define V4L2_MBUS_CSI2_CHANNEL_3		(1 << 7)
+/* Does it support only continuous or also non-continuous clock mode */
+#define V4L2_MBUS_CSI2_CONTINUOUS_CLOCK		(1 << 8)
+#define V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK	(1 << 9)
+
+#define V4L2_MBUS_CSI2_LANES		(V4L2_MBUS_CSI2_1_LANE | V4L2_MBUS_CSI2_2_LANE | \
+					 V4L2_MBUS_CSI2_3_LANE | V4L2_MBUS_CSI2_4_LANE)
+#define V4L2_MBUS_CSI2_CHANNELS		(V4L2_MBUS_CSI2_CHANNEL_0 | V4L2_MBUS_CSI2_CHANNEL_1 | \
+					 V4L2_MBUS_CSI2_CHANNEL_2 | V4L2_MBUS_CSI2_CHANNEL_3)
+
+/**
+ * v4l2_mbus_type - media bus type
+ * @V4L2_MBUS_PARALLEL:	parallel interface with hsync and vsync
+ * @V4L2_MBUS_BT656:	parallel interface with embedded synchronisation, can
+ *			also be used for BT.1120
+ * @V4L2_MBUS_CSI2:	MIPI CSI-2 serial interface
+ */
+enum v4l2_mbus_type {
+	V4L2_MBUS_PARALLEL,
+	V4L2_MBUS_BT656,
+	V4L2_MBUS_CSI2,
+};
+
+/**
+ * v4l2_mbus_config - media bus configuration
+ * @type:	in: interface type
+ * @flags:	in / out: configuration flags, depending on @type
+ */
+struct v4l2_mbus_config {
+	enum v4l2_mbus_type type;
+	unsigned int flags;
+};
+
 static inline void v4l2_fill_pix_format(struct v4l2_pix_format *pix_fmt,
 				const struct v4l2_mbus_framefmt *mbus_fmt)
 {

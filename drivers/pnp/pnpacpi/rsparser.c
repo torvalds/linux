@@ -509,15 +509,15 @@ static __init void pnpacpi_parse_dma_option(struct pnp_dev *dev,
 					    struct acpi_resource_dma *p)
 {
 	int i;
-	unsigned char map = 0, flags;
+	unsigned char map = 0, flags = 0;
 
 	if (p->channel_count == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	for (i = 0; i < p->channel_count; i++)
 		map |= 1 << p->channels[i];
 
-	flags = dma_flags(dev, p->type, p->bus_master, p->transfer);
+	flags |= dma_flags(dev, p->type, p->bus_master, p->transfer);
 	pnp_register_dma_resource(dev, option_flags, map, flags);
 }
 
@@ -527,17 +527,17 @@ static __init void pnpacpi_parse_irq_option(struct pnp_dev *dev,
 {
 	int i;
 	pnp_irq_mask_t map;
-	unsigned char flags;
+	unsigned char flags = 0;
 
 	if (p->interrupt_count == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	bitmap_zero(map.bits, PNP_IRQ_NR);
 	for (i = 0; i < p->interrupt_count; i++)
 		if (p->interrupts[i])
 			__set_bit(p->interrupts[i], map.bits);
 
-	flags = irq_flags(p->triggering, p->polarity, p->sharable);
+	flags |= irq_flags(p->triggering, p->polarity, p->sharable);
 	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
@@ -547,10 +547,10 @@ static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
 {
 	int i;
 	pnp_irq_mask_t map;
-	unsigned char flags;
+	unsigned char flags = 0;
 
 	if (p->interrupt_count == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	bitmap_zero(map.bits, PNP_IRQ_NR);
 	for (i = 0; i < p->interrupt_count; i++) {
@@ -564,7 +564,7 @@ static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
 		}
 	}
 
-	flags = irq_flags(p->triggering, p->polarity, p->sharable);
+	flags |= irq_flags(p->triggering, p->polarity, p->sharable);
 	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
@@ -575,10 +575,10 @@ static __init void pnpacpi_parse_port_option(struct pnp_dev *dev,
 	unsigned char flags = 0;
 
 	if (io->address_length == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	if (io->io_decode == ACPI_DECODE_16)
-		flags = IORESOURCE_IO_16BIT_ADDR;
+		flags |= IORESOURCE_IO_16BIT_ADDR;
 	pnp_register_port_resource(dev, option_flags, io->minimum, io->maximum,
 				   io->alignment, io->address_length, flags);
 }
@@ -587,11 +587,13 @@ static __init void pnpacpi_parse_fixed_port_option(struct pnp_dev *dev,
 					unsigned int option_flags,
 					struct acpi_resource_fixed_io *io)
 {
+	unsigned char flags = 0;
+
 	if (io->address_length == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	pnp_register_port_resource(dev, option_flags, io->address, io->address,
-				   0, io->address_length, IORESOURCE_IO_FIXED);
+				   0, io->address_length, flags | IORESOURCE_IO_FIXED);
 }
 
 static __init void pnpacpi_parse_mem24_option(struct pnp_dev *dev,
@@ -601,10 +603,10 @@ static __init void pnpacpi_parse_mem24_option(struct pnp_dev *dev,
 	unsigned char flags = 0;
 
 	if (p->address_length == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
-		flags = IORESOURCE_MEM_WRITEABLE;
+		flags |= IORESOURCE_MEM_WRITEABLE;
 	pnp_register_mem_resource(dev, option_flags, p->minimum, p->maximum,
 				  p->alignment, p->address_length, flags);
 }
@@ -616,10 +618,10 @@ static __init void pnpacpi_parse_mem32_option(struct pnp_dev *dev,
 	unsigned char flags = 0;
 
 	if (p->address_length == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
-		flags = IORESOURCE_MEM_WRITEABLE;
+		flags |= IORESOURCE_MEM_WRITEABLE;
 	pnp_register_mem_resource(dev, option_flags, p->minimum, p->maximum,
 				  p->alignment, p->address_length, flags);
 }
@@ -631,10 +633,10 @@ static __init void pnpacpi_parse_fixed_mem32_option(struct pnp_dev *dev,
 	unsigned char flags = 0;
 
 	if (p->address_length == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	if (p->write_protect == ACPI_READ_WRITE_MEMORY)
-		flags = IORESOURCE_MEM_WRITEABLE;
+		flags |= IORESOURCE_MEM_WRITEABLE;
 	pnp_register_mem_resource(dev, option_flags, p->address, p->address,
 				  0, p->address_length, flags);
 }
@@ -655,18 +657,18 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 	}
 
 	if (p->address_length == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
 		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
-			flags = IORESOURCE_MEM_WRITEABLE;
+			flags |= IORESOURCE_MEM_WRITEABLE;
 		pnp_register_mem_resource(dev, option_flags, p->minimum,
 					  p->minimum, 0, p->address_length,
 					  flags);
 	} else if (p->resource_type == ACPI_IO_RANGE)
 		pnp_register_port_resource(dev, option_flags, p->minimum,
 					   p->minimum, 0, p->address_length,
-					   IORESOURCE_IO_FIXED);
+					   flags | IORESOURCE_IO_FIXED);
 }
 
 static __init void pnpacpi_parse_ext_address_option(struct pnp_dev *dev,
@@ -677,18 +679,18 @@ static __init void pnpacpi_parse_ext_address_option(struct pnp_dev *dev,
 	unsigned char flags = 0;
 
 	if (p->address_length == 0)
-		return;
+		flags |= IORESOURCE_DISABLED;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE) {
 		if (p->info.mem.write_protect == ACPI_READ_WRITE_MEMORY)
-			flags = IORESOURCE_MEM_WRITEABLE;
+			flags |= IORESOURCE_MEM_WRITEABLE;
 		pnp_register_mem_resource(dev, option_flags, p->minimum,
 					  p->minimum, 0, p->address_length,
 					  flags);
 	} else if (p->resource_type == ACPI_IO_RANGE)
 		pnp_register_port_resource(dev, option_flags, p->minimum,
 					   p->minimum, 0, p->address_length,
-					   IORESOURCE_IO_FIXED);
+					   flags | IORESOURCE_IO_FIXED);
 }
 
 struct acpipnp_parse_option_s {
@@ -1018,7 +1020,7 @@ static void pnpacpi_encode_io(struct pnp_dev *dev,
 		io->minimum = p->start;
 		io->maximum = p->end;
 		io->alignment = 0;	/* Correct? */
-		io->address_length = p->end - p->start + 1;
+		io->address_length = resource_size(p);
 	} else {
 		io->minimum = 0;
 		io->address_length = 0;
@@ -1036,7 +1038,7 @@ static void pnpacpi_encode_fixed_io(struct pnp_dev *dev,
 
 	if (pnp_resource_enabled(p)) {
 		fixed_io->address = p->start;
-		fixed_io->address_length = p->end - p->start + 1;
+		fixed_io->address_length = resource_size(p);
 	} else {
 		fixed_io->address = 0;
 		fixed_io->address_length = 0;
@@ -1059,7 +1061,7 @@ static void pnpacpi_encode_mem24(struct pnp_dev *dev,
 		memory24->minimum = p->start;
 		memory24->maximum = p->end;
 		memory24->alignment = 0;
-		memory24->address_length = p->end - p->start + 1;
+		memory24->address_length = resource_size(p);
 	} else {
 		memory24->minimum = 0;
 		memory24->address_length = 0;
@@ -1083,7 +1085,7 @@ static void pnpacpi_encode_mem32(struct pnp_dev *dev,
 		memory32->minimum = p->start;
 		memory32->maximum = p->end;
 		memory32->alignment = 0;
-		memory32->address_length = p->end - p->start + 1;
+		memory32->address_length = resource_size(p);
 	} else {
 		memory32->minimum = 0;
 		memory32->alignment = 0;
@@ -1106,7 +1108,7 @@ static void pnpacpi_encode_fixed_mem32(struct pnp_dev *dev,
 		    p->flags & IORESOURCE_MEM_WRITEABLE ?
 		    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
 		fixed_memory32->address = p->start;
-		fixed_memory32->address_length = p->end - p->start + 1;
+		fixed_memory32->address_length = resource_size(p);
 	} else {
 		fixed_memory32->address = 0;
 		fixed_memory32->address_length = 0;

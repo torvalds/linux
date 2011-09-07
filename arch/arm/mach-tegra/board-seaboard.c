@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/i2c.h>
-#include <linux/i2c-tegra.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/io.h>
@@ -64,22 +63,6 @@ static __initdata struct tegra_clk_init_table seaboard_clk_init_table[] = {
 	{ "uartb",	"pll_p",	216000000,	true},
 	{ "uartd",	"pll_p",	216000000,	true},
 	{ NULL,		NULL,		0,		0},
-};
-
-static struct tegra_i2c_platform_data seaboard_i2c1_platform_data = {
-	.bus_clk_rate	= 400000.
-};
-
-static struct tegra_i2c_platform_data seaboard_i2c2_platform_data = {
-	.bus_clk_rate	= 400000,
-};
-
-static struct tegra_i2c_platform_data seaboard_i2c3_platform_data = {
-	.bus_clk_rate	= 400000,
-};
-
-static struct tegra_i2c_platform_data seaboard_dvc_platform_data = {
-	.bus_clk_rate	= 400000,
 };
 
 static struct gpio_keys_button seaboard_gpio_keys_buttons[] = {
@@ -137,9 +120,9 @@ static struct tegra_sdhci_platform_data sdhci_pdata4 = {
 static struct platform_device *seaboard_devices[] __initdata = {
 	&debug_uart,
 	&tegra_pmu_device,
-	&tegra_sdhci_device1,
-	&tegra_sdhci_device3,
 	&tegra_sdhci_device4,
+	&tegra_sdhci_device3,
+	&tegra_sdhci_device1,
 	&seaboard_gpio_keys_device,
 };
 
@@ -159,12 +142,7 @@ static void __init seaboard_i2c_init(void)
 
 	i2c_register_board_info(0, &isl29018_device, 1);
 
-	i2c_register_board_info(4, &adt7461_device, 1);
-
-	tegra_i2c_device1.dev.platform_data = &seaboard_i2c1_platform_data;
-	tegra_i2c_device2.dev.platform_data = &seaboard_i2c2_platform_data;
-	tegra_i2c_device3.dev.platform_data = &seaboard_i2c3_platform_data;
-	tegra_i2c_device4.dev.platform_data = &seaboard_dvc_platform_data;
+	i2c_register_board_info(3, &adt7461_device, 1);
 
 	platform_device_register(&tegra_i2c_device1);
 	platform_device_register(&tegra_i2c_device2);

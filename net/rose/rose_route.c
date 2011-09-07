@@ -864,11 +864,6 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	int res = 0;
 	char buf[11];
 
-#if 0
-	if (call_in_firewall(PF_ROSE, skb->dev, skb->data, NULL, &skb) != FW_ACCEPT)
-		return res;
-#endif
-
 	if (skb->len < ROSE_MIN_LEN)
 		return res;
 	frametype = skb->data[2];

@@ -99,11 +99,6 @@ static struct platform_device dm9000x_device = {
 	}
 };
 
-/* --- SERIAL RESSOURCE --- */
-static const struct imxuart_platform_data uart0_pdata __initconst = {
-	.flags = 0,
-};
-
 static const struct imxuart_platform_data uart1_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -115,11 +110,13 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init apf9328_init(void)
 {
+	imx1_soc_init();
+
 	mxc_gpio_setup_multiple_pins(apf9328_pins,
 			ARRAY_SIZE(apf9328_pins),
 			"APF9328");
 
-	imx1_add_imx_uart0(&uart0_pdata);
+	imx1_add_imx_uart0(NULL);
 	imx1_add_imx_uart1(&uart1_pdata);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));

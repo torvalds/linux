@@ -65,7 +65,7 @@
 #include <linux/tty.h>
 #include <linux/types.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/system.h>
 
 #include <asm/dec/interrupts.h>

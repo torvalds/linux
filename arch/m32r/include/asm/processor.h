@@ -106,7 +106,6 @@ struct thread_struct {
 
 #define start_thread(regs, new_pc, new_spu) 				\
 	do {								\
-		set_fs(USER_DS); 					\
 		regs->psw = (regs->psw | USERPS_BPSW) & 0x0000FFFFUL;	\
 		regs->bpc = new_pc;					\
 		regs->spu = new_spu;					\

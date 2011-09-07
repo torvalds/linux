@@ -84,7 +84,8 @@ struct rpc_task {
 #endif
 	unsigned char		tk_priority : 2,/* Task priority */
 				tk_garb_retry : 2,
-				tk_cred_retry : 2;
+				tk_cred_retry : 2,
+				tk_rebind_retry : 2;
 };
 #define tk_xprt			tk_client->cl_xprt
 
@@ -226,6 +227,10 @@ void		rpc_init_wait_queue(struct rpc_wait_queue *, const char *);
 void		rpc_destroy_wait_queue(struct rpc_wait_queue *);
 void		rpc_sleep_on(struct rpc_wait_queue *, struct rpc_task *,
 					rpc_action action);
+void		rpc_sleep_on_priority(struct rpc_wait_queue *,
+					struct rpc_task *,
+					rpc_action action,
+					int priority);
 void		rpc_wake_up_queued_task(struct rpc_wait_queue *,
 					struct rpc_task *);
 void		rpc_wake_up(struct rpc_wait_queue *);

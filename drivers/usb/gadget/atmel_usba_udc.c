@@ -272,7 +272,7 @@ static void usba_init_debugfs(struct usba_udc *udc)
 
 	regs_resource = platform_get_resource(udc->pdev, IORESOURCE_MEM,
 				CTRL_IOMEM_ID);
-	regs->d_inode->i_size = regs_resource->end - regs_resource->start + 1;
+	regs->d_inode->i_size = resource_size(regs_resource);
 	udc->debugfs_regs = regs;
 
 	usba_ep_init_debugfs(udc, to_usba_ep(udc->gadget.ep0));
@@ -1007,10 +1007,16 @@ usba_udc_set_selfpowered(struct usb_gadget *gadget, int is_selfpowered)
 	return 0;
 }
 
+static int atmel_usba_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int atmel_usba_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops usba_udc_ops = {
 	.get_frame		= usba_udc_get_frame,
 	.wakeup			= usba_udc_wakeup,
 	.set_selfpowered	= usba_udc_set_selfpowered,
+	.start			= atmel_usba_start,
+	.stop			= atmel_usba_stop,
 };
 
 static struct usb_endpoint_descriptor usba_ep0_desc = {
@@ -1789,7 +1795,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int atmel_usba_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct usba_udc *udc = &the_udc;
@@ -1842,9 +1848,8 @@ err_driver_bind:
 	udc->gadget.dev.driver = NULL;
 	return ret;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int atmel_usba_stop(struct usb_gadget_driver *driver)
 {
 	struct usba_udc *udc = &the_udc;
 	unsigned long flags;
@@ -1880,7 +1885,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 static int __init usba_udc_probe(struct platform_device *pdev)
 {
@@ -2021,11 +2025,23 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
+	if (ret)
+		goto err_add_udc;
+
 	usba_init_debugfs(udc);
 	for (i = 1; i < pdata->num_ep; i++)
 		usba_ep_init_debugfs(udc, &usba_ep[i]);
 
 	return 0;
+
+err_add_udc:
+	if (gpio_is_valid(pdata->vbus_pin)) {
+		free_irq(gpio_to_irq(udc->vbus_pin), udc);
+		gpio_free(udc->vbus_pin);
+	}
+
+	device_unregister(&udc->gadget.dev);
 
 err_device_add:
 	free_irq(irq, udc);
@@ -2052,6 +2068,8 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 	struct usba_platform_data *pdata = pdev->dev.platform_data;
 
 	udc = platform_get_drvdata(pdev);
+
+	usb_del_gadget_udc(&udc->gadget);
 
 	for (i = 1; i < pdata->num_ep; i++)
 		usba_ep_cleanup_debugfs(&usba_ep[i]);

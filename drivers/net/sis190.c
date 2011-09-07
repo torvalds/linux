@@ -21,6 +21,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -1824,6 +1825,16 @@ static int sis190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		generic_mii_ioctl(&tp->mii_if, if_mii(ifr), cmd, NULL);
 }
 
+static int sis190_mac_addr(struct net_device  *dev, void *p)
+{
+	int rc;
+
+	rc = eth_mac_addr(dev, p);
+	if (!rc)
+		sis190_init_rxfilter(dev);
+	return rc;
+}
+
 static const struct net_device_ops sis190_netdev_ops = {
 	.ndo_open		= sis190_open,
 	.ndo_stop		= sis190_close,
@@ -1832,7 +1843,7 @@ static const struct net_device_ops sis190_netdev_ops = {
 	.ndo_tx_timeout		= sis190_tx_timeout,
 	.ndo_set_multicast_list = sis190_set_rx_mode,
 	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address	= sis190_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	 = sis190_netpoll,

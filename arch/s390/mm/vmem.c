@@ -61,12 +61,12 @@ static inline pmd_t *vmem_pmd_alloc(void)
 	return pmd;
 }
 
-static pte_t __ref *vmem_pte_alloc(void)
+static pte_t __ref *vmem_pte_alloc(unsigned long address)
 {
 	pte_t *pte;
 
 	if (slab_is_available())
-		pte = (pte_t *) page_table_alloc(&init_mm);
+		pte = (pte_t *) page_table_alloc(&init_mm, address);
 	else
 		pte = alloc_bootmem(PTRS_PER_PTE * sizeof(pte_t));
 	if (!pte)
@@ -120,7 +120,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		}
 #endif
 		if (pmd_none(*pm_dir)) {
-			pt_dir = vmem_pte_alloc();
+			pt_dir = vmem_pte_alloc(address);
 			if (!pt_dir)
 				goto out;
 			pmd_populate(&init_mm, pm_dir, pt_dir);
@@ -205,7 +205,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 
 		pm_dir = pmd_offset(pu_dir, address);
 		if (pmd_none(*pm_dir)) {
-			pt_dir = vmem_pte_alloc();
+			pt_dir = vmem_pte_alloc(address);
 			if (!pt_dir)
 				goto out;
 			pmd_populate(&init_mm, pm_dir, pt_dir);

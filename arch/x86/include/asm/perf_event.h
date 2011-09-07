@@ -152,6 +152,11 @@ extern unsigned long perf_misc_flags(struct pt_regs *regs);
 	(regs)->bp = caller_frame_pointer();			\
 	(regs)->cs = __KERNEL_CS;				\
 	regs->flags = 0;					\
+	asm volatile(						\
+		_ASM_MOV "%%"_ASM_SP ", %0\n"			\
+		: "=m" ((regs)->sp)				\
+		:: "memory"					\
+	);							\
 }
 
 #else

@@ -11,10 +11,11 @@
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <asm/ptrace.h>
-#include <asm/uaccess.h>
-#include <asm/stacktrace.h>
 #include <linux/compat.h>
+#include <linux/uaccess.h>
+
+#include <asm/ptrace.h>
+#include <asm/stacktrace.h>
 
 static int backtrace_stack(void *data, char *name)
 {
@@ -40,13 +41,13 @@ static struct stacktrace_ops backtrace_ops = {
 static struct stack_frame_ia32 *
 dump_user_backtrace_32(struct stack_frame_ia32 *head)
 {
+	/* Also check accessibility of one struct frame_head beyond: */
 	struct stack_frame_ia32 bufhead[2];
 	struct stack_frame_ia32 *fp;
+	unsigned long bytes;
 
-	/* Also check accessibility of one struct frame_head beyond */
-	if (!access_ok(VERIFY_READ, head, sizeof(bufhead)))
-		return NULL;
-	if (__copy_from_user_inatomic(bufhead, head, sizeof(bufhead)))
+	bytes = copy_from_user_nmi(bufhead, head, sizeof(bufhead));
+	if (bytes != sizeof(bufhead))
 		return NULL;
 
 	fp = (struct stack_frame_ia32 *) compat_ptr(bufhead[0].next_frame);
@@ -87,12 +88,12 @@ x86_backtrace_32(struct pt_regs * const regs, unsigned int depth)
 
 static struct stack_frame *dump_user_backtrace(struct stack_frame *head)
 {
+	/* Also check accessibility of one struct frame_head beyond: */
 	struct stack_frame bufhead[2];
+	unsigned long bytes;
 
-	/* Also check accessibility of one struct stack_frame beyond */
-	if (!access_ok(VERIFY_READ, head, sizeof(bufhead)))
-		return NULL;
-	if (__copy_from_user_inatomic(bufhead, head, sizeof(bufhead)))
+	bytes = copy_from_user_nmi(bufhead, head, sizeof(bufhead));
+	if (bytes != sizeof(bufhead))
 		return NULL;
 
 	oprofile_add_trace(bufhead[0].return_address);

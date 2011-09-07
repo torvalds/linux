@@ -32,7 +32,6 @@
 
 #include <linux/sched.h>
 #include <linux/firmware.h>
-#include <linux/version.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/usb.h>
@@ -302,9 +301,6 @@ enum hw_variables {
 	HW_VAR_CTRL_FILTER,
 	HW_VAR_DATA_FILTER,
 };
-
-#define HWSET_MAX_SIZE				128
-#define EFUSE_MAX_SECTION			16
 
 enum _RT_MEDIA_STATUS {
 	RT_MEDIA_DISCONNECT = 0,
@@ -938,7 +934,7 @@ struct rtl_mac {
 	int n_channels;
 	int n_bitrates;
 
-	bool offchan_deley;
+	bool offchan_delay;
 
 	/*filters */
 	u32 rx_conf;
@@ -1188,7 +1184,6 @@ struct rtl_efuse {
 
 struct rtl_ps_ctl {
 	bool pwrdomain_protect;
-	bool set_rfpowerstate_inprogress;
 	bool in_powersavemode;
 	bool rfchange_inprogress;
 	bool swrf_processing;
@@ -1536,6 +1531,7 @@ struct rtl_works {
 	/* For SW LPS */
 	struct delayed_work ps_work;
 	struct delayed_work ps_rfon_wq;
+	struct tasklet_struct ips_leave_tasklet;
 };
 
 struct rtl_debug {
@@ -1983,7 +1979,7 @@ static inline u16 rtl_get_tid(struct sk_buff *skb)
 
 static inline struct ieee80211_sta *get_sta(struct ieee80211_hw *hw,
 					    struct ieee80211_vif *vif,
-					    u8 *bssid)
+					    const u8 *bssid)
 {
 	return ieee80211_find_sta(vif, bssid);
 }

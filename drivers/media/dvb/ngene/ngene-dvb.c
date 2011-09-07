@@ -118,6 +118,16 @@ static void swap_buffer(u32 *p, u32 len)
 	}
 }
 
+/* start of filler packet */
+static u8 fill_ts[] = { 0x47, 0x1f, 0xff, 0x10, TS_FILLER };
+
+/* #define DEBUG_CI_XFER */
+#ifdef DEBUG_CI_XFER
+static u32 ok;
+static u32 overflow;
+static u32 stripped;
+#endif
+
 void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 {
 	struct ngene_channel *chan = priv;
@@ -126,20 +136,40 @@ void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 
 	if (flags & DF_SWAP32)
 		swap_buffer(buf, len);
+
 	if (dev->ci.en && chan->number == 2) {
-		if (dvb_ringbuffer_free(&dev->tsin_rbuf) > len) {
-			dvb_ringbuffer_write(&dev->tsin_rbuf, buf, len);
-			wake_up_interruptible(&dev->tsin_rbuf.queue);
+		while (len >= 188) {
+			if (memcmp(buf, fill_ts, sizeof fill_ts) != 0) {
+				if (dvb_ringbuffer_free(&dev->tsin_rbuf) >= 188) {
+					dvb_ringbuffer_write(&dev->tsin_rbuf, buf, 188);
+					wake_up(&dev->tsin_rbuf.queue);
+#ifdef DEBUG_CI_XFER
+					ok++;
+#endif
+				}
+#ifdef DEBUG_CI_XFER
+				else
+					overflow++;
+#endif
+			}
+#ifdef DEBUG_CI_XFER
+			else
+				stripped++;
+
+			if (ok % 100 == 0 && overflow)
+				printk(KERN_WARNING "%s: ok %u overflow %u dropped %u\n", __func__, ok, overflow, stripped);
+#endif
+			buf += 188;
+			len -= 188;
 		}
-		return 0;
+		return NULL;
 	}
-	if (chan->users > 0) {
+
+	if (chan->users > 0)
 		dvb_dmx_swfilter(&chan->demux, buf, len);
-	}
+
 	return NULL;
 }
-
-u8 fill_ts[188] = { 0x47, 0x1f, 0xff, 0x10 };
 
 void *tsout_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 {

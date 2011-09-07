@@ -18,7 +18,6 @@ struct proc_mounts {
 	struct seq_file m; /* must be the first element */
 	struct mnt_namespace *ns;
 	struct path root;
-	int event;
 };
 
 struct fs_struct;

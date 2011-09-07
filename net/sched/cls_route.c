@@ -125,7 +125,7 @@ static inline int route4_hash_wild(void)
 	return 0;						\
 }
 
-static int route4_classify(struct sk_buff *skb, struct tcf_proto *tp,
+static int route4_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			   struct tcf_result *res)
 {
 	struct route4_head *head = (struct route4_head *)tp->root;

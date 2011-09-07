@@ -28,6 +28,12 @@
 #define SIXAXIS_CONTROLLER_USB  (1 << 1)
 #define SIXAXIS_CONTROLLER_BT   (1 << 2)
 
+static const u8 sixaxis_rdesc_fixup[] = {
+	0x95, 0x13, 0x09, 0x01, 0x81, 0x02, 0x95, 0x0C,
+	0x81, 0x01, 0x75, 0x10, 0x95, 0x04, 0x26, 0xFF,
+	0x03, 0x46, 0xFF, 0x03, 0x09, 0x01, 0x81, 0x02
+};
+
 struct sony_sc {
 	unsigned long quirks;
 };
@@ -43,7 +49,35 @@ static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "Fixing up Sony Vaio VGX report descriptor\n");
 		rdesc[55] = 0x06;
 	}
+
+	/* The HID descriptor exposed over BT has a trailing zero byte */
+	if ((((sc->quirks & SIXAXIS_CONTROLLER_USB) && *rsize == 148) ||
+			((sc->quirks & SIXAXIS_CONTROLLER_BT) && *rsize == 149)) &&
+			rdesc[83] == 0x75) {
+		hid_info(hdev, "Fixing up Sony Sixaxis report descriptor\n");
+		memcpy((void *)&rdesc[83], (void *)&sixaxis_rdesc_fixup,
+			sizeof(sixaxis_rdesc_fixup));
+	}
 	return rdesc;
+}
+
+static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
+		__u8 *rd, int size)
+{
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	/* Sixaxis HID report has acclerometers/gyro with MSByte first, this
+	 * has to be BYTE_SWAPPED before passing up to joystick interface
+	 */
+	if ((sc->quirks & (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)) &&
+			rd[0] == 0x01 && size == 49) {
+		swap(rd[41], rd[42]);
+		swap(rd[43], rd[44]);
+		swap(rd[45], rd[46]);
+		swap(rd[47], rd[48]);
+	}
+
+	return 0;
 }
 
 /*
@@ -194,6 +228,7 @@ static struct hid_driver sony_driver = {
 	.probe = sony_probe,
 	.remove = sony_remove,
 	.report_fixup = sony_report_fixup,
+	.raw_event = sony_raw_event
 };
 
 static int __init sony_init(void)

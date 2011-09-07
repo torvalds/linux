@@ -51,7 +51,6 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/parport.h>
-#include <linux/version.h>
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>

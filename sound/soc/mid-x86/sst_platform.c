@@ -402,9 +402,10 @@ static void sst_pcm_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-int sst_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
-			struct snd_pcm *pcm)
+int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int retval = 0;
 
 	pr_debug("sst_pcm_new called\n");

@@ -74,8 +74,14 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 		cERROR(1, "%s: Could not init md5 shash\n", __func__);
 		goto symlink_hash_err;
 	}
-	crypto_shash_update(&sdescmd5->shash, link_str, link_len);
+	rc = crypto_shash_update(&sdescmd5->shash, link_str, link_len);
+	if (rc) {
+		cERROR(1, "%s: Could not update iwth link_str\n", __func__);
+		goto symlink_hash_err;
+	}
 	rc = crypto_shash_final(&sdescmd5->shash, md5_hash);
+	if (rc)
+		cERROR(1, "%s: Could not generate md5 hash\n", __func__);
 
 symlink_hash_err:
 	crypto_free_shash(md5);

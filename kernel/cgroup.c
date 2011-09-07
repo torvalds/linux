@@ -27,9 +27,11 @@
  */
 
 #include <linux/cgroup.h>
+#include <linux/cred.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/init_task.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -59,7 +61,7 @@
 #include <linux/poll.h>
 #include <linux/flex_array.h> /* used in cgroup_attach_proc */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 static DEFINE_MUTEX(cgroup_mutex);
 
@@ -1514,6 +1516,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		struct cgroup *root_cgrp = &root->top_cgroup;
 		struct inode *inode;
 		struct cgroupfs_root *existing_root;
+		const struct cred *cred;
 		int i;
 
 		BUG_ON(sb->s_root != NULL);
@@ -1593,7 +1596,9 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		BUG_ON(!list_empty(&root_cgrp->children));
 		BUG_ON(root->number_of_cgroups != 1);
 
+		cred = override_creds(&init_cred);
 		cgroup_populate_dir(root_cgrp);
+		revert_creds(cred);
 		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&inode->i_mutex);
 	} else {
@@ -1697,7 +1702,6 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 {
 	char *start;
 	struct dentry *dentry = rcu_dereference_check(cgrp->dentry,
-						      rcu_read_lock_held() ||
 						      cgroup_lock_is_held());
 
 	if (!dentry || cgrp == dummytop) {
@@ -1723,7 +1727,6 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 			break;
 
 		dentry = rcu_dereference_check(cgrp->dentry,
-					       rcu_read_lock_held() ||
 					       cgroup_lock_is_held());
 		if (!cgrp->parent)
 			continue;
@@ -3542,7 +3545,8 @@ static int cgroup_write_event_control(struct cgroup *cgrp, struct cftype *cft,
 	}
 
 	/* the process need read permission on control file */
-	ret = file_permission(cfile, MAY_READ);
+	/* AV: shouldn't we check that it's been opened for read instead? */
+	ret = inode_permission(cfile->f_path.dentry->d_inode, MAY_READ);
 	if (ret < 0)
 		goto fail;
 
@@ -4813,8 +4817,7 @@ unsigned short css_id(struct cgroup_subsys_state *css)
 	 * on this or this is under rcu_read_lock(). Once css->id is allocated,
 	 * it's unchanged until freed.
 	 */
-	cssid = rcu_dereference_check(css->id,
-			rcu_read_lock_held() || atomic_read(&css->refcnt));
+	cssid = rcu_dereference_check(css->id, atomic_read(&css->refcnt));
 
 	if (cssid)
 		return cssid->id;
@@ -4826,8 +4829,7 @@ unsigned short css_depth(struct cgroup_subsys_state *css)
 {
 	struct css_id *cssid;
 
-	cssid = rcu_dereference_check(css->id,
-			rcu_read_lock_held() || atomic_read(&css->refcnt));
+	cssid = rcu_dereference_check(css->id, atomic_read(&css->refcnt));
 
 	if (cssid)
 		return cssid->depth;

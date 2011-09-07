@@ -98,6 +98,8 @@ static int __init balloon_init(void)
 
 	register_balloon(&balloon_sysdev);
 
+	register_xen_selfballooning(&balloon_sysdev);
+
 	target_watch.callback = watch_target;
 	xenstore_notifier.notifier_call = balloon_init_watcher;
 

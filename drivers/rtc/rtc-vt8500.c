@@ -74,11 +74,12 @@
 #define VT8500_RTC_CR_SM_SEC	(1 << 3)	/* 0: 1Hz/60, 1: 1Hz */
 #define VT8500_RTC_CR_CALIB	(1 << 4)	/* Enable calibration */
 
+#define VT8500_RTC_IS_ALARM	(1 << 0)	/* Alarm interrupt status */
+
 struct vt8500_rtc {
 	void __iomem		*regbase;
 	struct resource		*res;
 	int			irq_alarm;
-	int			irq_hz;
 	struct rtc_device	*rtc;
 	spinlock_t		lock;		/* Protects this structure */
 };
@@ -97,12 +98,8 @@ static irqreturn_t vt8500_rtc_irq(int irq, void *dev_id)
 
 	spin_unlock(&vt8500_rtc->lock);
 
-	if (isr & 1)
+	if (isr & VT8500_RTC_IS_ALARM)
 		events |= RTC_AF | RTC_IRQF;
-
-	/* Only second/minute interrupts are supported */
-	if (isr & 2)
-		events |= RTC_UF | RTC_IRQF;
 
 	rtc_update_irq(vt8500_rtc->rtc, 1, events);
 
@@ -166,8 +163,8 @@ static int vt8500_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alrm->time.tm_sec = bcd2bin((alarm & TIME_SEC_MASK));
 
 	alrm->enabled = (alarm & ALARM_ENABLE_MASK) ? 1 : 0;
+	alrm->pending = (isr & VT8500_RTC_IS_ALARM) ? 1 : 0;
 
-	alrm->pending = (isr & 1) ? 1 : 0;
 	return rtc_valid_tm(&alrm->time);
 }
 
@@ -199,27 +196,12 @@ static int vt8500_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int vt8500_update_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct vt8500_rtc *vt8500_rtc = dev_get_drvdata(dev);
-	unsigned long tmp = readl(vt8500_rtc->regbase + VT8500_RTC_CR);
-
-	if (enabled)
-		tmp |= VT8500_RTC_CR_SM_SEC | VT8500_RTC_CR_SM_ENABLE;
-	else
-		tmp &= ~VT8500_RTC_CR_SM_ENABLE;
-
-	writel(tmp, vt8500_rtc->regbase + VT8500_RTC_CR);
-	return 0;
-}
-
 static const struct rtc_class_ops vt8500_rtc_ops = {
 	.read_time = vt8500_rtc_read_time,
 	.set_time = vt8500_rtc_set_time,
 	.read_alarm = vt8500_rtc_read_alarm,
 	.set_alarm = vt8500_rtc_set_alarm,
 	.alarm_irq_enable = vt8500_alarm_irq_enable,
-	.update_irq_enable = vt8500_update_irq_enable,
 };
 
 static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
@@ -248,13 +230,6 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	vt8500_rtc->irq_hz = platform_get_irq(pdev, 1);
-	if (vt8500_rtc->irq_hz < 0) {
-		dev_err(&pdev->dev, "No 1Hz IRQ resource defined\n");
-		ret = -ENXIO;
-		goto err_free;
-	}
-
 	vt8500_rtc->res = request_mem_region(vt8500_rtc->res->start,
 					     resource_size(vt8500_rtc->res),
 					     "vt8500-rtc");
@@ -272,9 +247,8 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 		goto err_release;
 	}
 
-	/* Enable the second/minute interrupt generation and enable RTC */
-	writel(VT8500_RTC_CR_ENABLE | VT8500_RTC_CR_24H
-		| VT8500_RTC_CR_SM_ENABLE | VT8500_RTC_CR_SM_SEC,
+	/* Enable RTC and set it to 24-hour mode */
+	writel(VT8500_RTC_CR_ENABLE | VT8500_RTC_CR_24H,
 	       vt8500_rtc->regbase + VT8500_RTC_CR);
 
 	vt8500_rtc->rtc = rtc_device_register("vt8500-rtc", &pdev->dev,
@@ -286,26 +260,16 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 		goto err_unmap;
 	}
 
-	ret = request_irq(vt8500_rtc->irq_hz, vt8500_rtc_irq, 0,
-			  "rtc 1Hz", vt8500_rtc);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can't get irq %i, err %d\n",
-			vt8500_rtc->irq_hz, ret);
-		goto err_unreg;
-	}
-
 	ret = request_irq(vt8500_rtc->irq_alarm, vt8500_rtc_irq, 0,
 			  "rtc alarm", vt8500_rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can't get irq %i, err %d\n",
 			vt8500_rtc->irq_alarm, ret);
-		goto err_free_hz;
+		goto err_unreg;
 	}
 
 	return 0;
 
-err_free_hz:
-	free_irq(vt8500_rtc->irq_hz, vt8500_rtc);
 err_unreg:
 	rtc_device_unregister(vt8500_rtc->rtc);
 err_unmap:
@@ -323,7 +287,6 @@ static int __devexit vt8500_rtc_remove(struct platform_device *pdev)
 	struct vt8500_rtc *vt8500_rtc = platform_get_drvdata(pdev);
 
 	free_irq(vt8500_rtc->irq_alarm, vt8500_rtc);
-	free_irq(vt8500_rtc->irq_hz, vt8500_rtc);
 
 	rtc_device_unregister(vt8500_rtc->rtc);
 

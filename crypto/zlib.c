@@ -29,7 +29,6 @@
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/net.h>
-#include <linux/slab.h>
 
 #include <crypto/internal/compress.h>
 
@@ -60,7 +59,7 @@ static void zlib_decomp_exit(struct zlib_ctx *ctx)
 
 	if (stream->workspace) {
 		zlib_inflateEnd(stream);
-		kfree(stream->workspace);
+		vfree(stream->workspace);
 		stream->workspace = NULL;
 	}
 }
@@ -228,13 +227,13 @@ static int zlib_decompress_setup(struct crypto_pcomp *tfm, void *params,
 				 ? nla_get_u32(tb[ZLIB_DECOMP_WINDOWBITS])
 				 : DEF_WBITS;
 
-	stream->workspace = kzalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
+	stream->workspace = vzalloc(zlib_inflate_workspacesize());
 	if (!stream->workspace)
 		return -ENOMEM;
 
 	ret = zlib_inflateInit2(stream, ctx->decomp_windowBits);
 	if (ret != Z_OK) {
-		kfree(stream->workspace);
+		vfree(stream->workspace);
 		stream->workspace = NULL;
 		return -EINVAL;
 	}

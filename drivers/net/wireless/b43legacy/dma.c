@@ -4,7 +4,7 @@
 
   DMA ringbuffer and descriptor allocation/management
 
-  Copyright (c) 2005, 2006 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2005, 2006 Michael Buesch <m@bues.ch>
 
   Some code in this file is derived from the b44.c driver
   Copyright (C) 2002 David S. Miller
@@ -73,7 +73,7 @@ static void op32_fill_descriptor(struct b43legacy_dmaring *ring,
 	addr = (u32)(dmaaddr & ~SSB_DMA_TRANSLATION_MASK);
 	addrext = (u32)(dmaaddr & SSB_DMA_TRANSLATION_MASK)
 		   >> SSB_DMA_TRANSLATION_SHIFT;
-	addr |= ssb_dma_translation(ring->dev->dev);
+	addr |= ring->dev->dma.translation;
 	ctl = (bufsize - ring->frameoffset)
 	      & B43legacy_DMA32_DCTL_BYTECNT;
 	if (slot == ring->nr_slots - 1)
@@ -175,7 +175,7 @@ static void op64_fill_descriptor(struct b43legacy_dmaring *ring,
 	addrhi = (((u64)dmaaddr >> 32) & ~SSB_DMA_TRANSLATION_MASK);
 	addrext = (((u64)dmaaddr >> 32) & SSB_DMA_TRANSLATION_MASK)
 		  >> SSB_DMA_TRANSLATION_SHIFT;
-	addrhi |= ssb_dma_translation(ring->dev->dev);
+	addrhi |= ring->dev->dma.translation;
 	if (slot == ring->nr_slots - 1)
 		ctl0 |= B43legacy_DMA64_DCTL0_DTABLEEND;
 	if (start)
@@ -709,7 +709,7 @@ static int dmacontroller_setup(struct b43legacy_dmaring *ring)
 	int err = 0;
 	u32 value;
 	u32 addrext;
-	u32 trans = ssb_dma_translation(ring->dev->dev);
+	u32 trans = ring->dev->dma.translation;
 
 	if (ring->tx) {
 		if (ring->type == B43legacy_DMA_64BIT) {
@@ -817,14 +817,13 @@ static void dmacontroller_cleanup(struct b43legacy_dmaring *ring)
 
 static void free_all_descbuffers(struct b43legacy_dmaring *ring)
 {
-	struct b43legacy_dmadesc_generic *desc;
 	struct b43legacy_dmadesc_meta *meta;
 	int i;
 
 	if (!ring->used_slots)
 		return;
 	for (i = 0; i < ring->nr_slots; i++) {
-		desc = ring->ops->idx2desc(ring, i, &meta);
+		ring->ops->idx2desc(ring, i, &meta);
 
 		if (!meta->skb) {
 			B43legacy_WARN_ON(!ring->tx);
@@ -1094,6 +1093,7 @@ int b43legacy_dma_init(struct b43legacy_wldev *dev)
 		return -EOPNOTSUPP;
 #endif
 	}
+	dma->translation = ssb_dma_translation(dev->dev);
 
 	err = -ENOMEM;
 	/* setup TX DMA channels. */
@@ -1371,10 +1371,8 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		     struct sk_buff *skb)
 {
 	struct b43legacy_dmaring *ring;
-	struct ieee80211_hdr *hdr;
 	int err = 0;
 	unsigned long flags;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	ring = priority_to_txring(dev, skb_get_queue_mapping(skb));
 	spin_lock_irqsave(&ring->lock, flags);
@@ -1401,8 +1399,6 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 
 	/* dma_tx_fragment might reallocate the skb, so invalidate pointers pointing
 	 * into the skb data or cb now. */
-	hdr = NULL;
-	info = NULL;
 	err = dma_tx_fragment(ring, &skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
@@ -1435,7 +1431,6 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 {
 	const struct b43legacy_dma_ops *ops;
 	struct b43legacy_dmaring *ring;
-	struct b43legacy_dmadesc_generic *desc;
 	struct b43legacy_dmadesc_meta *meta;
 	int retry_limit;
 	int slot;
@@ -1450,7 +1445,7 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 	ops = ring->ops;
 	while (1) {
 		B43legacy_WARN_ON(!(slot >= 0 && slot < ring->nr_slots));
-		desc = ops->idx2desc(ring, slot, &meta);
+		ops->idx2desc(ring, slot, &meta);
 
 		if (meta->skb)
 			unmap_descbuffer(ring, meta->dmaaddr,

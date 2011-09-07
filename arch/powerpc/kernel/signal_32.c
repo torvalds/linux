@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/elf.h>
 #include <linux/ptrace.h>
+#include <linux/ratelimit.h>
 #ifdef CONFIG_PPC64
 #include <linux/syscalls.h>
 #include <linux/compat.h>
@@ -892,11 +893,12 @@ badframe:
 	printk("badframe in handle_rt_signal, regs=%p frame=%p newsp=%lx\n",
 	       regs, frame, newsp);
 #endif
-	if (show_unhandled_signals && printk_ratelimit())
-		printk(KERN_INFO "%s[%d]: bad frame in handle_rt_signal32: "
-			"%p nip %08lx lr %08lx\n",
-			current->comm, current->pid,
-			addr, regs->nip, regs->link);
+	if (show_unhandled_signals)
+		printk_ratelimited(KERN_INFO
+				   "%s[%d]: bad frame in handle_rt_signal32: "
+				   "%p nip %08lx lr %08lx\n",
+				   current->comm, current->pid,
+				   addr, regs->nip, regs->link);
 
 	force_sigsegv(sig, current);
 	return 0;
@@ -1058,11 +1060,12 @@ long sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	return 0;
 
  bad:
-	if (show_unhandled_signals && printk_ratelimit())
-		printk(KERN_INFO "%s[%d]: bad frame in sys_rt_sigreturn: "
-			"%p nip %08lx lr %08lx\n",
-			current->comm, current->pid,
-			rt_sf, regs->nip, regs->link);
+	if (show_unhandled_signals)
+		printk_ratelimited(KERN_INFO
+				   "%s[%d]: bad frame in sys_rt_sigreturn: "
+				   "%p nip %08lx lr %08lx\n",
+				   current->comm, current->pid,
+				   rt_sf, regs->nip, regs->link);
 
 	force_sig(SIGSEGV, current);
 	return 0;
@@ -1149,12 +1152,12 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 	if (do_setcontext(ctx, regs, 1)) {
-		if (show_unhandled_signals && printk_ratelimit())
-			printk(KERN_INFO "%s[%d]: bad frame in "
-				"sys_debug_setcontext: %p nip %08lx "
-				"lr %08lx\n",
-				current->comm, current->pid,
-				ctx, regs->nip, regs->link);
+		if (show_unhandled_signals)
+			printk_ratelimited(KERN_INFO "%s[%d]: bad frame in "
+					   "sys_debug_setcontext: %p nip %08lx "
+					   "lr %08lx\n",
+					   current->comm, current->pid,
+					   ctx, regs->nip, regs->link);
 
 		force_sig(SIGSEGV, current);
 		goto out;
@@ -1236,11 +1239,12 @@ badframe:
 	printk("badframe in handle_signal, regs=%p frame=%p newsp=%lx\n",
 	       regs, frame, newsp);
 #endif
-	if (show_unhandled_signals && printk_ratelimit())
-		printk(KERN_INFO "%s[%d]: bad frame in handle_signal32: "
-			"%p nip %08lx lr %08lx\n",
-			current->comm, current->pid,
-			frame, regs->nip, regs->link);
+	if (show_unhandled_signals)
+		printk_ratelimited(KERN_INFO
+				   "%s[%d]: bad frame in handle_signal32: "
+				   "%p nip %08lx lr %08lx\n",
+				   current->comm, current->pid,
+				   frame, regs->nip, regs->link);
 
 	force_sigsegv(sig, current);
 	return 0;
@@ -1288,11 +1292,12 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	return 0;
 
 badframe:
-	if (show_unhandled_signals && printk_ratelimit())
-		printk(KERN_INFO "%s[%d]: bad frame in sys_sigreturn: "
-			"%p nip %08lx lr %08lx\n",
-			current->comm, current->pid,
-			addr, regs->nip, regs->link);
+	if (show_unhandled_signals)
+		printk_ratelimited(KERN_INFO
+				   "%s[%d]: bad frame in sys_sigreturn: "
+				   "%p nip %08lx lr %08lx\n",
+				   current->comm, current->pid,
+				   addr, regs->nip, regs->link);
 
 	force_sig(SIGSEGV, current);
 	return 0;

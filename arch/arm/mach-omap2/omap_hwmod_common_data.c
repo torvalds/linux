@@ -49,23 +49,3 @@ struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2 = {
 	.srst_shift	= SYSC_TYPE2_SOFTRESET_SHIFT,
 };
 
-
-/*
- * omap_hwmod class data
- */
-
-struct omap_hwmod_class l3_hwmod_class = {
-	.name = "l3"
-};
-
-struct omap_hwmod_class l4_hwmod_class = {
-	.name = "l4"
-};
-
-struct omap_hwmod_class mpu_hwmod_class = {
-	.name = "mpu"
-};
-
-struct omap_hwmod_class iva_hwmod_class = {
-	.name = "iva"
-};

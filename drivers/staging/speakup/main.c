@@ -23,7 +23,6 @@
 */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/vt.h>
 #include <linux/tty.h>
 #include <linux/mm.h>		/* __get_free_page() and friends */

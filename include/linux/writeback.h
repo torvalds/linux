@@ -7,9 +7,28 @@
 #include <linux/sched.h>
 #include <linux/fs.h>
 
-struct backing_dev_info;
+/*
+ * The 1/4 region under the global dirty thresh is for smooth dirty throttling:
+ *
+ *	(thresh - thresh/DIRTY_FULL_SCOPE, thresh)
+ *
+ * Further beyond, all dirtier tasks will enter a loop waiting (possibly long
+ * time) for the dirty pages to drop, unless written enough pages.
+ *
+ * The global dirty threshold is normally equal to the global dirty limit,
+ * except when the system suddenly allocates a lot of anonymous memory and
+ * knocks down the global dirty threshold quickly, in which case the global
+ * dirty limit will follow down slowly to prevent livelocking all dirtier tasks.
+ */
+#define DIRTY_SCOPE		8
+#define DIRTY_FULL_SCOPE	(DIRTY_SCOPE / 2)
 
-extern spinlock_t inode_wb_list_lock;
+/*
+ * 4MB minimal write chunk size
+ */
+#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_CACHE_SHIFT - 10))
+
+struct backing_dev_info;
 
 /*
  * fs/fs-writeback.c
@@ -26,11 +45,6 @@ enum writeback_sync_modes {
  */
 struct writeback_control {
 	enum writeback_sync_modes sync_mode;
-	unsigned long *older_than_this;	/* If !NULL, only write back inodes
-					   older than this */
-	unsigned long wb_start;         /* Time writeback_inodes_wb was
-					   called. This is needed to avoid
-					   extra jobs and livelock */
 	long nr_to_write;		/* Write this many pages, and decrement
 					   this for each page written */
 	long pages_skipped;		/* Pages which were not written */
@@ -43,13 +57,11 @@ struct writeback_control {
 	loff_t range_start;
 	loff_t range_end;
 
-	unsigned nonblocking:1;		/* Don't get stuck on request queues */
-	unsigned encountered_congestion:1; /* An output: a queue is full */
 	unsigned for_kupdate:1;		/* A kupdate writeback */
 	unsigned for_background:1;	/* A background writeback */
+	unsigned tagged_writepages:1;	/* tag-and-write to avoid livelock */
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
-	unsigned more_io:1;		/* more io to be dispatched */
 };
 
 /*
@@ -62,8 +74,7 @@ void writeback_inodes_sb_nr(struct super_block *, unsigned long nr);
 int writeback_inodes_sb_if_idle(struct super_block *);
 int writeback_inodes_sb_nr_if_idle(struct super_block *, unsigned long nr);
 void sync_inodes_sb(struct super_block *);
-void writeback_inodes_wb(struct bdi_writeback *wb,
-		struct writeback_control *wbc);
+long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages);
 long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
 void wakeup_flusher_threads(long nr_pages);
 
@@ -93,6 +104,8 @@ void laptop_mode_timer_fn(unsigned long data);
 static inline void laptop_sync_completion(void) { }
 #endif
 void throttle_vm_writeout(gfp_t gfp_mask);
+
+extern unsigned long global_dirty_limit;
 
 /* These are exported to sysctl. */
 extern int dirty_background_ratio;
@@ -127,6 +140,13 @@ int dirty_writeback_centisecs_handler(struct ctl_table *, int,
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
 unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
 			       unsigned long dirty);
+
+void __bdi_update_bandwidth(struct backing_dev_info *bdi,
+			    unsigned long thresh,
+			    unsigned long dirty,
+			    unsigned long bdi_thresh,
+			    unsigned long bdi_dirty,
+			    unsigned long start_time);
 
 void page_writeback_init(void);
 void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,

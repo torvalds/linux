@@ -345,11 +345,11 @@ static int carl9170_op_start(struct ieee80211_hw *hw)
 	carl9170_zap_queues(ar);
 
 	/* reset QoS defaults */
-	CARL9170_FILL_QUEUE(ar->edcf[0], 3, 15, 1023,  0); /* BEST EFFORT */
-	CARL9170_FILL_QUEUE(ar->edcf[1], 2, 7,    15, 94); /* VIDEO */
-	CARL9170_FILL_QUEUE(ar->edcf[2], 2, 3,     7, 47); /* VOICE */
-	CARL9170_FILL_QUEUE(ar->edcf[3], 7, 15, 1023,  0); /* BACKGROUND */
-	CARL9170_FILL_QUEUE(ar->edcf[4], 2, 3,     7,  0); /* SPECIAL */
+	CARL9170_FILL_QUEUE(ar->edcf[AR9170_TXQ_VO], 2, 3,     7, 47);
+	CARL9170_FILL_QUEUE(ar->edcf[AR9170_TXQ_VI], 2, 7,    15, 94);
+	CARL9170_FILL_QUEUE(ar->edcf[AR9170_TXQ_BE], 3, 15, 1023,  0);
+	CARL9170_FILL_QUEUE(ar->edcf[AR9170_TXQ_BK], 7, 15, 1023,  0);
+	CARL9170_FILL_QUEUE(ar->edcf[AR9170_TXQ_SPECIAL], 2, 3, 7, 0);
 
 	ar->current_factor = ar->current_density = -1;
 	/* "The first key is unique." */
@@ -1484,6 +1484,13 @@ static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
 	}
 }
 
+static bool carl9170_tx_frames_pending(struct ieee80211_hw *hw)
+{
+	struct ar9170 *ar = hw->priv;
+
+	return !!atomic_read(&ar->tx_total_queued);
+}
+
 static const struct ieee80211_ops carl9170_ops = {
 	.start			= carl9170_op_start,
 	.stop			= carl9170_op_stop,
@@ -1504,6 +1511,7 @@ static const struct ieee80211_ops carl9170_ops = {
 	.get_survey		= carl9170_op_get_survey,
 	.get_stats		= carl9170_op_get_stats,
 	.ampdu_action		= carl9170_op_ampdu_action,
+	.tx_frames_pending	= carl9170_tx_frames_pending,
 };
 
 void *carl9170_alloc(size_t priv_size)
@@ -1577,6 +1585,7 @@ void *carl9170_alloc(size_t priv_size)
 		     IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		     IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_PS_NULLFUNC_STACK |
+		     IEEE80211_HW_NEED_DTIM_PERIOD |
 		     IEEE80211_HW_SIGNAL_DBM;
 
 	if (!modparam_noht) {
@@ -1621,7 +1630,7 @@ static int carl9170_read_eeprom(struct ar9170 *ar)
 	BUILD_BUG_ON(sizeof(ar->eeprom) % RB);
 #endif
 
-	for (i = 0; i < sizeof(ar->eeprom)/RB; i++) {
+	for (i = 0; i < sizeof(ar->eeprom) / RB; i++) {
 		for (j = 0; j < RW; j++)
 			offsets[j] = cpu_to_le32(AR9170_EEPROM_START +
 						 RB * i + 4 * j);

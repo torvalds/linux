@@ -347,15 +347,17 @@ static struct isl6423_config anysee_isl6423_config = {
  * PCB: ?
  * parts: DNOS404ZH102A(MT352, DTT7579(?))
  *
- * E30 VID=04b4 PID=861f HW=2 FW=2.1 Product=????????
- * PCB: ?
+ * E30 VID=04b4 PID=861f HW=2 FW=2.1 "anysee-T(LP)"
+ * PCB: PCB 507T (rev1.61)
  * parts: DNOS404ZH103A(ZL10353, DTT7579(?))
+ * OEA=0a OEB=00 OEC=00 OED=ff OEE=00
+ * IOA=45 IOB=ff IOC=00 IOD=ff IOE=00
  *
  * E30 Plus VID=04b4 PID=861f HW=6 FW=1.0 "anysee"
  * PCB: 507CD (rev1.1)
  * parts: DNOS404ZH103A(ZL10353, DTT7579(?)), CST56I01
- * OEA=80 OEB=00 OEC=00 OED=ff OEF=fe
- * IOA=4f IOB=ff IOC=00 IOD=06 IOF=01
+ * OEA=80 OEB=00 OEC=00 OED=ff OEE=fe
+ * IOA=4f IOB=ff IOC=00 IOD=06 IOE=01
  * IOD[0] ZL10353 1=enabled
  * IOA[7] TS 0=enabled
  * tuner is not behind ZL10353 I2C-gate (no care if gate disabled or not)
@@ -363,30 +365,30 @@ static struct isl6423_config anysee_isl6423_config = {
  * E30 C Plus VID=04b4 PID=861f HW=10 FW=1.0 "anysee-DC(LP)"
  * PCB: 507DC (rev0.2)
  * parts: TDA10023, DTOS403IH102B TM, CST56I01
- * OEA=80 OEB=00 OEC=00 OED=ff OEF=fe
- * IOA=4f IOB=ff IOC=00 IOD=26 IOF=01
+ * OEA=80 OEB=00 OEC=00 OED=ff OEE=fe
+ * IOA=4f IOB=ff IOC=00 IOD=26 IOE=01
  * IOD[0] TDA10023 1=enabled
  *
  * E30 S2 Plus VID=04b4 PID=861f HW=11 FW=0.1 "anysee-S2(LP)"
  * PCB: 507SI (rev2.1)
  * parts: BS2N10WCC01(CX24116, CX24118), ISL6423, TDA8024
- * OEA=80 OEB=00 OEC=ff OED=ff OEF=fe
- * IOA=4d IOB=ff IOC=00 IOD=26 IOF=01
+ * OEA=80 OEB=00 OEC=ff OED=ff OEE=fe
+ * IOA=4d IOB=ff IOC=00 IOD=26 IOE=01
  * IOD[0] CX24116 1=enabled
  *
  * E30 C Plus VID=1c73 PID=861f HW=15 FW=1.2 "anysee-FA(LP)"
  * PCB: 507FA (rev0.4)
  * parts: TDA10023, DTOS403IH102B TM, TDA8024
- * OEA=80 OEB=00 OEC=ff OED=ff OEF=ff
- * IOA=4d IOB=ff IOC=00 IOD=00 IOF=c0
+ * OEA=80 OEB=00 OEC=ff OED=ff OEE=ff
+ * IOA=4d IOB=ff IOC=00 IOD=00 IOE=c0
  * IOD[5] TDA10023 1=enabled
  * IOE[0] tuner 1=enabled
  *
  * E30 Combo Plus VID=1c73 PID=861f HW=15 FW=1.2 "anysee-FA(LP)"
  * PCB: 507FA (rev1.1)
  * parts: ZL10353, TDA10023, DTOS403IH102B TM, TDA8024
- * OEA=80 OEB=00 OEC=ff OED=ff OEF=ff
- * IOA=4d IOB=ff IOC=00 IOD=00 IOF=c0
+ * OEA=80 OEB=00 OEC=ff OED=ff OEE=ff
+ * IOA=4d IOB=ff IOC=00 IOD=00 IOE=c0
  * DVB-C:
  * IOD[5] TDA10023 1=enabled
  * IOE[0] tuner 1=enabled
@@ -398,8 +400,8 @@ static struct isl6423_config anysee_isl6423_config = {
  * E7 TC VID=1c73 PID=861f HW=18 FW=0.7 AMTCI=0.5 "anysee-E7TC(LP)"
  * PCB: 508TC (rev0.6)
  * parts: ZL10353, TDA10023, DNOD44CDH086A(TDA18212)
- * OEA=80 OEB=00 OEC=03 OED=f7 OEF=ff
- * IOA=4d IOB=00 IOC=cc IOD=48 IOF=e4
+ * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
+ * IOA=4d IOB=00 IOC=cc IOD=48 IOE=e4
  * IOA[7] TS 1=enabled
  * IOE[4] TDA18212 1=enabled
  * DVB-C:
@@ -414,11 +416,34 @@ static struct isl6423_config anysee_isl6423_config = {
  * E7 S2 VID=1c73 PID=861f HW=19 FW=0.4 AMTCI=0.5 "anysee-E7S2(LP)"
  * PCB: 508S2 (rev0.7)
  * parts: DNBU10512IST(STV0903, STV6110), ISL6423
- * OEA=80 OEB=00 OEC=03 OED=f7 OEF=ff
- * IOA=4d IOB=00 IOC=c4 IOD=08 IOF=e4
+ * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
+ * IOA=4d IOB=00 IOC=c4 IOD=08 IOE=e4
  * IOA[7] TS 1=enabled
  * IOE[5] STV0903 1=enabled
  *
+ * E7 PTC VID=1c73 PID=861f HW=21 FW=0.1 AMTCI=?? "anysee-E7PTC(LP)"
+ * PCB: 508PTC (rev0.5)
+ * parts: ZL10353, TDA10023, DNOD44CDH086A(TDA18212)
+ * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
+ * IOA=4d IOB=00 IOC=cc IOD=48 IOE=e4
+ * IOA[7] TS 1=enabled
+ * IOE[4] TDA18212 1=enabled
+ * DVB-C:
+ * IOD[6] ZL10353 0=disabled
+ * IOD[5] TDA10023 1=enabled
+ * IOE[0] IF 1=enabled
+ * DVB-T:
+ * IOD[5] TDA10023 0=disabled
+ * IOD[6] ZL10353 1=enabled
+ * IOE[0] IF 0=enabled
+ *
+ * E7 S2 VID=1c73 PID=861f HW=22 FW=0.1 AMTCI=?? "anysee-E7PS2(LP)"
+ * PCB: 508PS2 (rev0.4)
+ * parts: DNBU10512IST(STV0903, STV6110), ISL6423
+ * OEA=80 OEB=00 OEC=03 OED=f7 OEE=ff
+ * IOA=4d IOB=00 IOC=c4 IOD=08 IOE=e4
+ * IOA[7] TS 1=enabled
+ * IOE[5] STV0903 1=enabled
  */
 
 static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
@@ -459,7 +484,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	state->hw = hw_info[0];
 
 	switch (state->hw) {
-	case ANYSEE_HW_02: /* 2 */
+	case ANYSEE_HW_507T: /* 2 */
 		/* E30 */
 
 		/* attach demod */
@@ -593,7 +618,9 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 
 		break;
 	case ANYSEE_HW_508TC: /* 18 */
+	case ANYSEE_HW_508PTC: /* 21 */
 		/* E7 TC */
+		/* E7 PTC */
 
 		/* enable transport stream on IOA[7] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
@@ -650,7 +677,9 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 
 		break;
 	case ANYSEE_HW_508S2: /* 19 */
+	case ANYSEE_HW_508PS2: /* 22 */
 		/* E7 S2 */
+		/* E7 PS2 */
 
 		/* enable transport stream on IOA[7] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOA, (1 << 7), 0x80);
@@ -687,7 +716,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 	deb_info("%s:\n", __func__);
 
 	switch (state->hw) {
-	case ANYSEE_HW_02: /* 2 */
+	case ANYSEE_HW_507T: /* 2 */
 		/* E30 */
 
 		/* attach tuner */
@@ -762,7 +791,9 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 
 		break;
 	case ANYSEE_HW_508TC: /* 18 */
+	case ANYSEE_HW_508PTC: /* 21 */
 		/* E7 TC */
+		/* E7 PTC */
 
 		/* enable tuner on IOE[4] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 4), 0x10);
@@ -775,7 +806,9 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 
 		break;
 	case ANYSEE_HW_508S2: /* 19 */
+	case ANYSEE_HW_508PS2: /* 22 */
 		/* E7 S2 */
+		/* E7 PS2 */
 
 		/* attach tuner */
 		fe = dvb_attach(stv6110_attach, adap->fe,

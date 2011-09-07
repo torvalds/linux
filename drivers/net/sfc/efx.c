@@ -229,8 +229,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 	struct efx_nic *efx = channel->efx;
 	int spent;
 
-	if (unlikely(efx->reset_pending != RESET_TYPE_NONE ||
-		     !channel->enabled))
+	if (unlikely(efx->reset_pending || !channel->enabled))
 		return 0;
 
 	spent = efx_nic_process_eventq(channel, budget);
@@ -1461,7 +1460,7 @@ static void efx_start_all(struct efx_nic *efx)
 	 * reset_pending [modified from an atomic context], we instead guarantee
 	 * that efx_mcdi_mode_poll() isn't reverted erroneously */
 	efx_mcdi_mode_event(efx);
-	if (efx->reset_pending != RESET_TYPE_NONE)
+	if (efx->reset_pending)
 		efx_mcdi_mode_poll(efx);
 
 	/* Start the hardware monitor if there is one. Otherwise (we're link
@@ -2118,8 +2117,10 @@ int efx_reset(struct efx_nic *efx, enum reset_type method)
 		goto out;
 	}
 
-	/* Allow resets to be rescheduled. */
-	efx->reset_pending = RESET_TYPE_NONE;
+	/* Clear flags for the scopes we covered.  We assume the NIC and
+	 * driver are now quiescent so that there is no race here.
+	 */
+	efx->reset_pending &= -(1 << (method + 1));
 
 	/* Reinitialise bus-mastering, which may have been turned off before
 	 * the reset was scheduled. This is still appropriate, even in the
@@ -2154,12 +2155,13 @@ out:
 static void efx_reset_work(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic, reset_work);
+	unsigned long pending = ACCESS_ONCE(efx->reset_pending);
 
-	if (efx->reset_pending == RESET_TYPE_NONE)
+	if (!pending)
 		return;
 
 	/* If we're not RUNNING then don't reset. Leave the reset_pending
-	 * flag set so that efx_pci_probe_main will be retried */
+	 * flags set so that efx_pci_probe_main will be retried */
 	if (efx->state != STATE_RUNNING) {
 		netif_info(efx, drv, efx->net_dev,
 			   "scheduled reset quenched. NIC not RUNNING\n");
@@ -2167,7 +2169,7 @@ static void efx_reset_work(struct work_struct *data)
 	}
 
 	rtnl_lock();
-	(void)efx_reset(efx, efx->reset_pending);
+	(void)efx_reset(efx, fls(pending) - 1);
 	rtnl_unlock();
 }
 
@@ -2175,40 +2177,24 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 {
 	enum reset_type method;
 
-	if (efx->reset_pending != RESET_TYPE_NONE) {
-		netif_info(efx, drv, efx->net_dev,
-			   "quenching already scheduled reset\n");
-		return;
-	}
-
 	switch (type) {
 	case RESET_TYPE_INVISIBLE:
 	case RESET_TYPE_ALL:
 	case RESET_TYPE_WORLD:
 	case RESET_TYPE_DISABLE:
 		method = type;
+		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
+			  RESET_TYPE(method));
 		break;
-	case RESET_TYPE_RX_RECOVERY:
-	case RESET_TYPE_RX_DESC_FETCH:
-	case RESET_TYPE_TX_DESC_FETCH:
-	case RESET_TYPE_TX_SKIP:
-		method = RESET_TYPE_INVISIBLE;
-		break;
-	case RESET_TYPE_MC_FAILURE:
 	default:
-		method = RESET_TYPE_ALL;
-		break;
-	}
-
-	if (method != type)
+		method = efx->type->map_reset_reason(type);
 		netif_dbg(efx, drv, efx->net_dev,
 			  "scheduling %s reset for %s\n",
 			  RESET_TYPE(method), RESET_TYPE(type));
-	else
-		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
-			  RESET_TYPE(method));
+		break;
+	}
 
-	efx->reset_pending = method;
+	set_bit(method, &efx->reset_pending);
 
 	/* efx_process_channel() will no longer read events once a
 	 * reset is scheduled. So switch back to poll'd MCDI completions. */
@@ -2288,7 +2274,6 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_INIT;
-	efx->reset_pending = RESET_TYPE_NONE;
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
 	efx->net_dev = net_dev;
@@ -2491,7 +2476,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		goto fail1;
 
 	netif_info(efx, probe, efx->net_dev,
-		   "Solarflare Communications NIC detected\n");
+		   "Solarflare NIC detected\n");
 
 	/* Set up basic I/O (BAR mappings etc) */
 	rc = efx_init_io(efx);
@@ -2510,7 +2495,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		cancel_work_sync(&efx->reset_work);
 
 		if (rc == 0) {
-			if (efx->reset_pending != RESET_TYPE_NONE) {
+			if (efx->reset_pending) {
 				/* If there was a scheduled reset during
 				 * probe, the NIC is probably hosed anyway */
 				efx_pci_remove_main(efx);
@@ -2521,11 +2506,12 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		}
 
 		/* Retry if a recoverably reset event has been scheduled */
-		if ((efx->reset_pending != RESET_TYPE_INVISIBLE) &&
-		    (efx->reset_pending != RESET_TYPE_ALL))
+		if (efx->reset_pending &
+		    ~(1 << RESET_TYPE_INVISIBLE | 1 << RESET_TYPE_ALL) ||
+		    !efx->reset_pending)
 			goto fail3;
 
-		efx->reset_pending = RESET_TYPE_NONE;
+		efx->reset_pending = 0;
 	}
 
 	if (rc) {
@@ -2609,7 +2595,7 @@ static int efx_pm_poweroff(struct device *dev)
 
 	efx->type->fini(efx);
 
-	efx->reset_pending = RESET_TYPE_NONE;
+	efx->reset_pending = 0;
 
 	pci_save_state(pci_dev);
 	return pci_set_power_state(pci_dev, PCI_D3hot);

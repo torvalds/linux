@@ -321,7 +321,7 @@ static inline unsigned short twd_i387_to_fxsr(unsigned short twd)
 	return tmp;
 }
 
-#define FPREG_ADDR(f, n)	((void *)&(f)->st_space + (n) * 16);
+#define FPREG_ADDR(f, n)	((void *)&(f)->st_space + (n) * 16)
 #define FP_EXP_TAG_VALID	0
 #define FP_EXP_TAG_ZERO		1
 #define FP_EXP_TAG_SPECIAL	2

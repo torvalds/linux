@@ -3,9 +3,9 @@
  *
  *  Copyright (C) 2006 Markus Rechberger <mrechberger@gmail.com>
  *
- *  Copyright (C) 2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *  Copyright (C) 2007-2011 Mauro Carvalho Chehab <mchehab@redhat.com>
  *	- Port to work with the in-kernel driver
- *	- Several cleanups
+ *	- Cleanups, fixes, alsa-controls, etc.
  *
  *  This driver is based on my previous au600 usb pstn audio driver
  *  and inherits all the copyrights
@@ -41,6 +41,7 @@
 #include <sound/info.h>
 #include <sound/initval.h>
 #include <sound/control.h>
+#include <sound/tlv.h>
 #include <media/v4l2-common.h>
 #include "em28xx.h"
 
@@ -212,9 +213,12 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
 		if (errCode) {
+			em28xx_errdev("submit of audio urb failed\n");
 			em28xx_deinit_isoc_audio(dev);
+			atomic_set(&dev->stream_started, 0);
 			return errCode;
 		}
+
 	}
 
 	return 0;
@@ -245,6 +249,7 @@ static struct snd_pcm_hardware snd_em28xx_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |
+		SNDRV_PCM_INFO_BATCH	      |
 		SNDRV_PCM_INFO_MMAP_VALID,
 
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
@@ -276,24 +281,27 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		return -ENODEV;
 	}
 
-	/* Sets volume, mute, etc */
-
-	dev->mute = 0;
-	mutex_lock(&dev->lock);
-	ret = em28xx_audio_analog_set(dev);
-	if (ret < 0)
-		goto err;
-
 	runtime->hw = snd_em28xx_hw_capture;
-	if (dev->alt == 0 && dev->adev.users == 0) {
-		int errCode;
-		dev->alt = 7;
-		dprintk("changing alternate number to 7\n");
-		errCode = usb_set_interface(dev->udev, 0, 7);
-	}
+	if ((dev->alt == 0 || dev->audio_ifnum) && dev->adev.users == 0) {
+		if (dev->audio_ifnum)
+			dev->alt = 1;
+		else
+			dev->alt = 7;
 
-	dev->adev.users++;
-	mutex_unlock(&dev->lock);
+		dprintk("changing alternate number on interface %d to %d\n",
+			dev->audio_ifnum, dev->alt);
+		usb_set_interface(dev->udev, dev->audio_ifnum, dev->alt);
+
+		/* Sets volume, mute, etc */
+		dev->mute = 0;
+		mutex_lock(&dev->lock);
+		ret = em28xx_audio_analog_set(dev);
+		if (ret < 0)
+			goto err;
+
+		dev->adev.users++;
+		mutex_unlock(&dev->lock);
+	}
 
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	dev->adev.capture_pcm_substream = substream;
@@ -342,6 +350,8 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 
 	ret = snd_pcm_alloc_vmalloc_buffer(substream,
 				params_buffer_bytes(hw_params));
+	if (ret < 0)
+		return ret;
 	format = params_format(hw_params);
 	rate = params_rate(hw_params);
 	channels = params_channels(hw_params);
@@ -393,20 +403,24 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 				      int cmd)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
-	int retval;
+	int retval = 0;
 
 	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE: /* fall through */
+	case SNDRV_PCM_TRIGGER_RESUME: /* fall through */
 	case SNDRV_PCM_TRIGGER_START:
 		atomic_set(&dev->stream_started, 1);
 		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
+	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
 	case SNDRV_PCM_TRIGGER_STOP:
-		atomic_set(&dev->stream_started, 1);
+		atomic_set(&dev->stream_started, 0);
 		break;
 	default:
 		retval = -EINVAL;
 	}
 	schedule_work(&dev->wq_trigger);
-	return 0;
+	return retval;
 }
 
 static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
@@ -432,6 +446,179 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 	return vmalloc_to_page(pageptr);
 }
 
+/*
+ * AC97 volume control support
+ */
+static int em28xx_vol_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *info)
+{
+	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	info->count = 2;
+	info->value.integer.min = 0;
+	info->value.integer.max = 0x1f;
+
+	return 0;
+}
+
+static int em28xx_vol_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
+{
+	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+	u16 val = (0x1f - (value->value.integer.value[0] & 0x1f)) |
+		  (0x1f - (value->value.integer.value[1] & 0x1f)) << 8;
+	int rc;
+
+	mutex_lock(&dev->lock);
+	rc = em28xx_read_ac97(dev, kcontrol->private_value);
+	if (rc < 0)
+		goto err;
+
+	val |= rc & 0x8000;	/* Preserve the mute flag */
+
+	rc = em28xx_write_ac97(dev, kcontrol->private_value, val);
+	if (rc < 0)
+		goto err;
+
+	dprintk("%sleft vol %d, right vol %d (0x%04x) to ac97 volume control 0x%04x\n",
+		(val & 0x8000) ? "muted " : "",
+		0x1f - ((val >> 8) & 0x1f), 0x1f - (val & 0x1f),
+		val, (int)kcontrol->private_value);
+
+err:
+	mutex_unlock(&dev->lock);
+	return rc;
+}
+
+static int em28xx_vol_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
+{
+	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+	int val;
+
+	mutex_lock(&dev->lock);
+	val = em28xx_read_ac97(dev, kcontrol->private_value);
+	mutex_unlock(&dev->lock);
+	if (val < 0)
+		return val;
+
+	dprintk("%sleft vol %d, right vol %d (0x%04x) from ac97 volume control 0x%04x\n",
+		(val & 0x8000) ? "muted " : "",
+		0x1f - ((val >> 8) & 0x1f), 0x1f - (val & 0x1f),
+		val, (int)kcontrol->private_value);
+
+	value->value.integer.value[0] = 0x1f - (val & 0x1f);
+	value->value.integer.value[1] = 0x1f - ((val << 8) & 0x1f);
+
+	return 0;
+}
+
+static int em28xx_vol_put_mute(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
+{
+	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+	u16 val = value->value.integer.value[0];
+	int rc;
+
+	mutex_lock(&dev->lock);
+	rc = em28xx_read_ac97(dev, kcontrol->private_value);
+	if (rc < 0)
+		goto err;
+
+	if (val)
+		rc &= 0x1f1f;
+	else
+		rc |= 0x8000;
+
+	rc = em28xx_write_ac97(dev, kcontrol->private_value, rc);
+	if (rc < 0)
+		goto err;
+
+	dprintk("%sleft vol %d, right vol %d (0x%04x) to ac97 volume control 0x%04x\n",
+		(val & 0x8000) ? "muted " : "",
+		0x1f - ((val >> 8) & 0x1f), 0x1f - (val & 0x1f),
+		val, (int)kcontrol->private_value);
+
+err:
+	mutex_unlock(&dev->lock);
+	return rc;
+}
+
+static int em28xx_vol_get_mute(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
+{
+	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
+	int val;
+
+	mutex_lock(&dev->lock);
+	val = em28xx_read_ac97(dev, kcontrol->private_value);
+	mutex_unlock(&dev->lock);
+	if (val < 0)
+		return val;
+
+	if (val & 0x8000)
+		value->value.integer.value[0] = 0;
+	else
+		value->value.integer.value[0] = 1;
+
+	dprintk("%sleft vol %d, right vol %d (0x%04x) from ac97 volume control 0x%04x\n",
+		(val & 0x8000) ? "muted " : "",
+		0x1f - ((val >> 8) & 0x1f), 0x1f - (val & 0x1f),
+		val, (int)kcontrol->private_value);
+
+	return 0;
+}
+
+static const DECLARE_TLV_DB_SCALE(em28xx_db_scale, -3450, 150, 0);
+
+static int em28xx_cvol_new(struct snd_card *card, struct em28xx *dev,
+			   char *name, int id)
+{
+	int err;
+	char ctl_name[44];
+	struct snd_kcontrol *kctl;
+	struct snd_kcontrol_new tmp;
+
+	memset (&tmp, 0, sizeof(tmp));
+	tmp.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	tmp.private_value = id,
+	tmp.name  = ctl_name,
+
+	/* Add Mute Control */
+	sprintf(ctl_name, "%s Switch", name);
+	tmp.get  = em28xx_vol_get_mute;
+	tmp.put  = em28xx_vol_put_mute;
+	tmp.info = snd_ctl_boolean_mono_info;
+	kctl = snd_ctl_new1(&tmp, dev);
+	err = snd_ctl_add(card, kctl);
+	if (err < 0)
+		return err;
+	dprintk("Added control %s for ac97 volume control 0x%04x\n",
+		ctl_name, id);
+
+	memset (&tmp, 0, sizeof(tmp));
+	tmp.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	tmp.private_value = id,
+	tmp.name  = ctl_name,
+
+	/* Add Volume Control */
+	sprintf(ctl_name, "%s Volume", name);
+	tmp.get   = em28xx_vol_get;
+	tmp.put   = em28xx_vol_put;
+	tmp.info  = em28xx_vol_info;
+	tmp.tlv.p = em28xx_db_scale,
+	kctl = snd_ctl_new1(&tmp, dev);
+	err = snd_ctl_add(card, kctl);
+	if (err < 0)
+		return err;
+	dprintk("Added control %s for ac97 volume control 0x%04x\n",
+		ctl_name, id);
+
+	return 0;
+}
+
+/*
+ * register/unregister code and data
+ */
 static struct snd_pcm_ops snd_em28xx_pcm_capture = {
 	.open      = snd_em28xx_capture_open,
 	.close     = snd_em28xx_pcm_close,
@@ -452,17 +639,17 @@ static int em28xx_audio_init(struct em28xx *dev)
 	static int          devnr;
 	int                 err;
 
-	if (dev->has_alsa_audio != 1) {
+	if (!dev->has_alsa_audio || dev->audio_ifnum < 0) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
 		return 0;
 	}
 
-	printk(KERN_INFO "em28xx-audio.c: probing for em28x1 "
-			 "non standard usbaudio\n");
+	printk(KERN_INFO "em28xx-audio.c: probing for em28xx Audio Vendor Class\n");
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
+	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2007-2011 Mauro Carvalho Chehab\n");
 
 	err = snd_card_create(index[devnr], "Em28xx Audio", THIS_MODULE, 0,
 			      &card);
@@ -487,6 +674,22 @@ static int em28xx_audio_init(struct em28xx *dev)
 	strcpy(card->longname, "Empia Em28xx Audio");
 
 	INIT_WORK(&dev->wq_trigger, audio_trigger);
+
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+		em28xx_cvol_new(card, dev, "Video", AC97_VIDEO_VOL);
+		em28xx_cvol_new(card, dev, "Line In", AC97_LINEIN_VOL);
+		em28xx_cvol_new(card, dev, "Phone", AC97_PHONE_VOL);
+		em28xx_cvol_new(card, dev, "Microphone", AC97_PHONE_VOL);
+		em28xx_cvol_new(card, dev, "CD", AC97_CD_VOL);
+		em28xx_cvol_new(card, dev, "AUX", AC97_AUX_VOL);
+		em28xx_cvol_new(card, dev, "PCM", AC97_PCM_OUT_VOL);
+
+		em28xx_cvol_new(card, dev, "Master", AC97_MASTER_VOL);
+		em28xx_cvol_new(card, dev, "Line", AC97_LINE_LEVEL_VOL);
+		em28xx_cvol_new(card, dev, "Mono", AC97_MASTER_MONO_VOL);
+		em28xx_cvol_new(card, dev, "LFE", AC97_LFE_MASTER_VOL);
+		em28xx_cvol_new(card, dev, "Surround", AC97_SURR_MASTER_VOL);
+	}
 
 	err = snd_card_register(card);
 	if (err < 0) {
@@ -538,7 +741,7 @@ static void __exit em28xx_alsa_unregister(void)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Markus Rechberger <mrechberger@gmail.com>");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
 MODULE_DESCRIPTION("Em28xx Audio driver");
 
 module_init(em28xx_alsa_register);

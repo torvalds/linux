@@ -317,4 +317,7 @@ MACHINE_START(REALVIEW_PBA8, "ARM-RealView PB-A8")
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pba8_timer,
 	.init_machine	= realview_pba8_init,
+#ifdef CONFIG_ZONE_DMA
+	.dma_zone_size	= SZ_256M,
+#endif
 MACHINE_END

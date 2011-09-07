@@ -96,7 +96,7 @@
 
 #include <asm/sections.h>
 #include <asm/processor.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/kmemcheck.h>
 #include <linux/kmemleak.h>

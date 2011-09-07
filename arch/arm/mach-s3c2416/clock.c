@@ -42,7 +42,7 @@ static struct clksrc_clk hsmmc_div[] = {
 	[0] = {
 		.clk = {
 			.name	= "hsmmc-div",
-			.id	= 0,
+			.devname	= "s3c-sdhci.0",
 			.parent	= &clk_esysclk.clk,
 		},
 		.reg_div = { .reg = S3C2416_CLKDIV2, .size = 2, .shift = 6 },
@@ -50,7 +50,7 @@ static struct clksrc_clk hsmmc_div[] = {
 	[1] = {
 		.clk = {
 			.name	= "hsmmc-div",
-			.id	= 1,
+			.devname	= "s3c-sdhci.1",
 			.parent	= &clk_esysclk.clk,
 		},
 		.reg_div = { .reg = S3C2443_CLKDIV1, .size = 2, .shift = 6 },
@@ -60,8 +60,8 @@ static struct clksrc_clk hsmmc_div[] = {
 static struct clksrc_clk hsmmc_mux[] = {
 	[0] = {
 		.clk	= {
-			.id	= 0,
 			.name	= "hsmmc-if",
+			.devname	= "s3c-sdhci.0",
 			.ctrlbit = (1 << 6),
 			.enable = s3c2443_clkcon_enable_s,
 		},
@@ -76,8 +76,8 @@ static struct clksrc_clk hsmmc_mux[] = {
 	},
 	[1] = {
 		.clk	= {
-			.id	= 1,
 			.name	= "hsmmc-if",
+			.devname	= "s3c-sdhci.1",
 			.ctrlbit = (1 << 12),
 			.enable = s3c2443_clkcon_enable_s,
 		},
@@ -94,7 +94,7 @@ static struct clksrc_clk hsmmc_mux[] = {
 
 static struct clk hsmmc0_clk = {
 	.name		= "hsmmc",
-	.id		= 0,
+	.devname	= "s3c-sdhci.0",
 	.parent		= &clk_h,
 	.enable		= s3c2443_clkcon_enable_h,
 	.ctrlbit	= S3C2416_HCLKCON_HSMMC0,

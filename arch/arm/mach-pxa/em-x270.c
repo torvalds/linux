@@ -1302,6 +1302,7 @@ MACHINE_START(EM_X270, "Compulab EM-X270")
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,
 MACHINE_END
@@ -1310,6 +1311,7 @@ MACHINE_START(EXEDA, "Compulab eXeda")
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,
 MACHINE_END

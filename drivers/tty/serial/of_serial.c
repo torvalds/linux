@@ -32,17 +32,17 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 {
 	struct resource resource;
 	struct device_node *np = ofdev->dev.of_node;
-	const __be32 *clk, *spd;
-	const __be32 *prop;
-	int ret, prop_size;
+	u32 clk, spd, prop;
+	int ret;
 
 	memset(port, 0, sizeof *port);
-	spd = of_get_property(np, "current-speed", NULL);
-	clk = of_get_property(np, "clock-frequency", NULL);
-	if (!clk) {
+	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 		dev_warn(&ofdev->dev, "no clock-frequency property set\n");
 		return -ENODEV;
 	}
+	/* If current-speed was set, then try not to change it. */
+	if (of_property_read_u32(np, "current-speed", &spd) == 0)
+		port->custom_divisor = clk / (16 * spd);
 
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
@@ -54,25 +54,35 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 	port->mapbase = resource.start;
 
 	/* Check for shifted address mapping */
-	prop = of_get_property(np, "reg-offset", &prop_size);
-	if (prop && (prop_size == sizeof(u32)))
-		port->mapbase += be32_to_cpup(prop);
+	if (of_property_read_u32(np, "reg-offset", &prop) == 0)
+		port->mapbase += prop;
 
 	/* Check for registers offset within the devices address range */
-	prop = of_get_property(np, "reg-shift", &prop_size);
-	if (prop && (prop_size == sizeof(u32)))
-		port->regshift = be32_to_cpup(prop);
+	if (of_property_read_u32(np, "reg-shift", &prop) == 0)
+		port->regshift = prop;
 
 	port->irq = irq_of_parse_and_map(np, 0);
 	port->iotype = UPIO_MEM;
+	if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
+		switch (prop) {
+		case 1:
+			port->iotype = UPIO_MEM;
+			break;
+		case 4:
+			port->iotype = UPIO_MEM32;
+			break;
+		default:
+			dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
+				 prop);
+			return -EINVAL;
+		}
+	}
+
 	port->type = type;
-	port->uartclk = be32_to_cpup(clk);
+	port->uartclk = clk;
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
 		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	port->dev = &ofdev->dev;
-	/* If current-speed was set, then try not to change it. */
-	if (spd)
-		port->custom_divisor = be32_to_cpup(clk) / (16 * (be32_to_cpup(spd)));
 
 	return 0;
 }
@@ -171,6 +181,7 @@ static struct of_device_id __devinitdata of_platform_serial_table[] = {
 	{ .compatible = "ns16550",  .data = (void *)PORT_16550, },
 	{ .compatible = "ns16750",  .data = (void *)PORT_16750, },
 	{ .compatible = "ns16850",  .data = (void *)PORT_16850, },
+	{ .compatible = "nvidia,tegra20-uart", .data = (void *)PORT_TEGRA, },
 #ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
 	{ .compatible = "ibm,qpace-nwp-serial",
 		.data = (void *)PORT_NWPSERIAL, },

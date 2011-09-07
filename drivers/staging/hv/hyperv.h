@@ -523,46 +523,6 @@ enum vmbus_channel_state {
 	CHANNEL_OPEN_STATE,
 };
 
-struct vmbus_channel {
-	struct list_head listentry;
-
-	struct hv_device *device_obj;
-
-	struct timer_list poll_timer; /* SA-111 workaround */
-	struct work_struct work;
-
-	enum vmbus_channel_state state;
-	/*
-	 * For util channels, stash the
-	 * the service index for easy access.
-	 */
-	s8 util_index;
-
-	struct vmbus_channel_offer_channel offermsg;
-	/*
-	 * These are based on the OfferMsg.MonitorId.
-	 * Save it here for easy access.
-	 */
-	u8 monitor_grp;
-	u8 monitor_bit;
-
-	u32 ringbuffer_gpadlhandle;
-
-	/* Allocated memory for ring buffer */
-	void *ringbuffer_pages;
-	u32 ringbuffer_pagecount;
-	struct hv_ring_buffer_info outbound;	/* send to parent */
-	struct hv_ring_buffer_info inbound;	/* receive from parent */
-	spinlock_t inbound_lock;
-	struct workqueue_struct *controlwq;
-
-	/* Channel callback are invoked in this workqueue context */
-	/* HANDLE dataWorkQueue; */
-
-	void (*onchannel_callback)(void *context);
-	void *channel_callback_context;
-};
-
 struct vmbus_channel_debug_info {
 	u32 relid;
 	enum vmbus_channel_state state;
@@ -609,6 +569,51 @@ struct vmbus_channel_msginfo {
 	unsigned char msg[0];
 };
 
+struct vmbus_close_msg {
+	struct vmbus_channel_msginfo info;
+	struct vmbus_channel_close_channel msg;
+};
+
+struct vmbus_channel {
+	struct list_head listentry;
+
+	struct hv_device *device_obj;
+
+	struct work_struct work;
+
+	enum vmbus_channel_state state;
+	/*
+	 * For util channels, stash the
+	 * the service index for easy access.
+	 */
+	s8 util_index;
+
+	struct vmbus_channel_offer_channel offermsg;
+	/*
+	 * These are based on the OfferMsg.MonitorId.
+	 * Save it here for easy access.
+	 */
+	u8 monitor_grp;
+	u8 monitor_bit;
+
+	u32 ringbuffer_gpadlhandle;
+
+	/* Allocated memory for ring buffer */
+	void *ringbuffer_pages;
+	u32 ringbuffer_pagecount;
+	struct hv_ring_buffer_info outbound;	/* send to parent */
+	struct hv_ring_buffer_info inbound;	/* receive from parent */
+	spinlock_t inbound_lock;
+	struct workqueue_struct *controlwq;
+
+	struct vmbus_close_msg close_msg;
+
+	/* Channel callback are invoked in this workqueue context */
+	/* HANDLE dataWorkQueue; */
+
+	void (*onchannel_callback)(void *context);
+	void *channel_callback_context;
+};
 
 void free_channel(struct vmbus_channel *channel);
 
@@ -691,7 +696,6 @@ extern int vmbus_recvpacket_raw(struct vmbus_channel *channel,
 				     u32 *buffer_actual_len,
 				     u64 *requestid);
 
-extern void vmbus_onchannel_event(struct vmbus_channel *channel);
 
 extern void vmbus_get_debug_info(struct vmbus_channel *channel,
 				     struct vmbus_channel_debug_info *debug);

@@ -29,7 +29,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/map.h>
-#include <mach/regs-fb.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-modem.h>
 #include <mach/regs-srom.h>
@@ -42,6 +41,7 @@
 #include <plat/nand.h>
 #include <plat/regs-serial.h>
 #include <plat/ts.h>
+#include <plat/regs-fb-v4.h>
 
 #include <video/platform_lcd.h>
 

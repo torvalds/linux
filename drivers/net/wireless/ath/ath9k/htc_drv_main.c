@@ -1294,10 +1294,15 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	u32 rfilt;
 
 	mutex_lock(&priv->mutex);
-	ath9k_htc_ps_wakeup(priv);
-
 	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
+
+	if (priv->op_flags & OP_INVALID) {
+		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_ANY,
+			"Unable to configure filter on invalid state\n");
+		return;
+	}
+	ath9k_htc_ps_wakeup(priv);
 
 	priv->rxfilter = *total_flags;
 	rfilt = ath9k_htc_calcrxfilter(priv);

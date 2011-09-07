@@ -187,43 +187,14 @@ sa110_crval:
 
 	__INITDATA
 
-/*
- * Purpose : Function pointers used to access above functions - all calls
- *	     come through these
- */
-
-	.type	sa110_processor_functions, #object
-ENTRY(sa110_processor_functions)
-	.word	v4_early_abort
-	.word	legacy_pabort
-	.word	cpu_sa110_proc_init
-	.word	cpu_sa110_proc_fin
-	.word	cpu_sa110_reset
-	.word	cpu_sa110_do_idle
-	.word	cpu_sa110_dcache_clean_area
-	.word	cpu_sa110_switch_mm
-	.word	cpu_sa110_set_pte_ext
-	.word	0
-	.word	0
-	.word	0
-	.size	sa110_processor_functions, . - sa110_processor_functions
+	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
+	define_processor_functions sa110, dabort=v4_early_abort, pabort=legacy_pabort
 
 	.section ".rodata"
 
-	.type	cpu_arch_name, #object
-cpu_arch_name:
-	.asciz	"armv4"
-	.size	cpu_arch_name, . - cpu_arch_name
-
-	.type	cpu_elf_name, #object
-cpu_elf_name:
-	.asciz	"v4"
-	.size	cpu_elf_name, . - cpu_elf_name
-
-	.type	cpu_sa110_name, #object
-cpu_sa110_name:
-	.asciz	"StrongARM-110"
-	.size	cpu_sa110_name, . - cpu_sa110_name
+	string	cpu_arch_name, "armv4"
+	string	cpu_elf_name, "v4"
+	string	cpu_sa110_name, "StrongARM-110"
 
 	.align
 

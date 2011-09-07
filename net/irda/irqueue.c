@@ -780,7 +780,7 @@ void* hashbin_lock_find( hashbin_t* hashbin, long hashv, const char* name )
 	/*
 	 * Search for entry
 	 */
-	entry = (irda_queue_t* ) hashbin_find( hashbin, hashv, name );
+	entry = hashbin_find(hashbin, hashv, name);
 
 	/* Release lock */
 	spin_unlock_irqrestore(&hashbin->hb_spinlock, flags);
@@ -813,7 +813,7 @@ void* hashbin_find_next( hashbin_t* hashbin, long hashv, const char* name,
 	 * This allow to check if the current item is still in the
 	 * hashbin or has been removed.
 	 */
-	entry = (irda_queue_t* ) hashbin_find( hashbin, hashv, name );
+	entry = hashbin_find(hashbin, hashv, name);
 
 	/*
 	 * Trick hashbin_get_next() to return what we want

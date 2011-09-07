@@ -2,17 +2,8 @@
 # Near Field Communication (NFC) devices
 #
 
-menuconfig NFC_DEVICES
-	bool "Near Field Communication (NFC) devices"
-	default n
-	---help---
-	  You'll have to say Y if your computer contains an NFC device that
-	  you want to use under Linux.
-
-	  You can say N here if you don't have any Near Field Communication
-	  devices connected to your computer.
-
-if NFC_DEVICES
+menu "Near Field Communication (NFC) devices"
+	depends on NFC
 
 config PN544_NFC
 	tristate "PN544 NFC driver"
@@ -26,5 +17,14 @@ config PN544_NFC
 	  To compile this driver as a module, choose m here. The module will
 	  be called pn544.
 
+config NFC_PN533
+	tristate "NXP PN533 USB driver"
+	depends on USB
+	help
+	  NXP PN533 USB driver.
+	  This driver provides support for NFC NXP PN533 devices.
 
-endif # NFC_DEVICES
+	  Say Y here to compile support for PN533 devices into the
+	  kernel or say M to compile it as module (pn533).
+
+endmenu

@@ -1,0 +1,297 @@
+<refentry id="vidioc-subscribe-event">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT</refname>
+    <refpurpose>Subscribe or unsubscribe event</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_event_subscription
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Subscribe or unsubscribe V4L2 event. Subscribed events are
+    dequeued by using the &VIDIOC-DQEVENT; ioctl.</para>
+
+    <table frame="none" pgwide="1" id="v4l2-event-subscription">
+      <title>struct <structname>v4l2_event_subscription</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>Type of the event.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>id</structfield></entry>
+	    <entry>ID of the event source. If there is no ID associated with
+		the event source, then set this to 0. Whether or not an event
+		needs an ID depends on the event type.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry>Event flags, see <xref linkend="event-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[5]</entry>
+	    <entry>Reserved for future extensions. Drivers and applications
+	    must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="event-type">
+      <title>Event Types</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_ALL</constant></entry>
+	    <entry>0</entry>
+	    <entry>All events. V4L2_EVENT_ALL is valid only for
+	    VIDIOC_UNSUBSCRIBE_EVENT for unsubscribing all events at once.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_VSYNC</constant></entry>
+	    <entry>1</entry>
+	    <entry>This event is triggered on the vertical sync.
+	    This event has a &v4l2-event-vsync; associated with it.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_EOS</constant></entry>
+	    <entry>2</entry>
+	    <entry>This event is triggered when the end of a stream is reached.
+	    This is typically used with MPEG decoders to report to the application
+	    when the last of the MPEG stream has been decoded.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL</constant></entry>
+	    <entry>3</entry>
+	    <entry><para>This event requires that the <structfield>id</structfield>
+		matches the control ID from which you want to receive events.
+		This event is triggered if the control's value changes, if a
+		button control is pressed or if the control's flags change.
+	    	This event has a &v4l2-event-ctrl; associated with it. This struct
+		contains much of the same information as &v4l2-queryctrl; and
+		&v4l2-control;.</para>
+
+		<para>If the event is generated due to a call to &VIDIOC-S-CTRL; or
+		&VIDIOC-S-EXT-CTRLS;, then the event will <emphasis>not</emphasis> be sent to
+		the file handle that called the ioctl function. This prevents
+		nasty feedback loops. If you <emphasis>do</emphasis> want to get the
+		event, then set the <constant>V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK</constant>
+		flag.
+		</para>
+
+		<para>This event type will ensure that no information is lost when
+		more events are raised than there is room internally. In that
+		case the &v4l2-event-ctrl; of the second-oldest event is kept,
+		but the <structfield>changes</structfield> field of the
+		second-oldest event is ORed with the <structfield>changes</structfield>
+		field of the oldest event.</para>
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_PRIVATE_START</constant></entry>
+	    <entry>0x08000000</entry>
+	    <entry>Base event number for driver-private events.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="event-flags">
+      <title>Event Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_SUB_FL_SEND_INITIAL</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>When this event is subscribed an initial event will be sent
+		containing the current status. This only makes sense for events
+		that are triggered by a status change such as <constant>V4L2_EVENT_CTRL</constant>.
+		Other events will ignore this flag.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK</constant></entry>
+	    <entry>0x0002</entry>
+	    <entry><para>If set, then events directly caused by an ioctl will also be sent to
+		the filehandle that called that ioctl. For example, changing a control using
+		&VIDIOC-S-CTRL; will cause a V4L2_EVENT_CTRL to be sent back to that same
+		filehandle. Normally such events are suppressed to prevent feedback loops
+		where an application changes a control to a one value and then another, and
+		then receives an event telling it that that control has changed to the first
+		value.</para>
+
+		<para>Since it can't tell whether that event was caused by another application
+		or by the &VIDIOC-S-CTRL; call it is hard to decide whether to set the
+		control to the value in the event, or ignore it.</para>
+
+		<para>Think carefully when you set this flag so you won't get into situations
+		like that.</para>
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-vsync">
+      <title>struct <structname>v4l2_event_vsync</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>field</structfield></entry>
+	    <entry>The upcoming field. See &v4l2-field;.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-ctrl">
+      <title>struct <structname>v4l2_event_ctrl</structname></title>
+      <tgroup cols="4">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>changes</structfield></entry>
+	    <entry></entry>
+	    <entry>A bitmask that tells what has changed. See <xref linkend="changes-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry></entry>
+	    <entry>The type of the control. See &v4l2-ctrl-type;.</entry>
+	  </row>
+	  <row>
+	    <entry>union (anonymous)</entry>
+	    <entry></entry>
+	    <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s32</entry>
+	    <entry><structfield>value</structfield></entry>
+	    <entry>The 32-bit value of the control for 32-bit control types.
+		This is 0 for string controls since the value of a string
+		cannot be passed using &VIDIOC-DQEVENT;.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s64</entry>
+	    <entry><structfield>value64</structfield></entry>
+	    <entry>The 64-bit value of the control for 64-bit control types.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry></entry>
+	    <entry>The control flags. See <xref linkend="control-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>minimum</structfield></entry>
+	    <entry></entry>
+	    <entry>The minimum value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>maximum</structfield></entry>
+	    <entry></entry>
+	    <entry>The maximum value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>step</structfield></entry>
+	    <entry></entry>
+	    <entry>The step value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>default_value</structfield></entry>
+	    <entry></entry>
+	    <entry>The default value value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="changes-flags">
+      <title>Changes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL_CH_VALUE</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>This control event was triggered because the value of the control
+		changed. Special case: if a button control is pressed, then this
+		event is sent as well, even though there is not explicit value
+		associated with a button control.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL_CH_FLAGS</constant></entry>
+	    <entry>0x0002</entry>
+	    <entry>This control event was triggered because the control flags
+		changed.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+  <refsect1>
+    &return-value;
+  </refsect1>
+</refentry>

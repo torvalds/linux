@@ -226,7 +226,7 @@ They depend on various facilities being available:
      	cdrecord.
 
 	e.g.
-	  cdrecord dev=ATAPI:1,0,0 arch/i386/boot/image.iso
+	  cdrecord dev=ATAPI:1,0,0 arch/x86/boot/image.iso
 
      	For more information on isolinux, including how to create bootdisks
      	for prebuilt kernels, see http://syslinux.zytor.com/

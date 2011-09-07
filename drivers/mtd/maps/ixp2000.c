@@ -155,7 +155,7 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	if (!plat)
 		return -ENODEV;
 
-	window_size = dev->resource->end - dev->resource->start + 1;
+	window_size = resource_size(dev->resource);
 	dev_info(&dev->dev, "Probe of IXP2000 flash(%d banks x %dMiB)\n",
 		 ixp_data->nr_banks, ((u32)window_size >> 20));
 
@@ -194,16 +194,17 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	info->map.copy_to = ixp2000_flash_copy_to;
 
 	info->res = request_mem_region(dev->resource->start,
-			dev->resource->end - dev->resource->start + 1,
-			dev_name(&dev->dev));
+				       resource_size(dev->resource),
+				       dev_name(&dev->dev));
 	if (!info->res) {
 		dev_err(&dev->dev, "Could not reserve memory region\n");
 		err = -ENOMEM;
 		goto Error;
 	}
 
-	info->map.map_priv_1 = (unsigned long) ioremap(dev->resource->start,
-			    	dev->resource->end - dev->resource->start + 1);
+	info->map.map_priv_1 =
+		(unsigned long)ioremap(dev->resource->start,
+				       resource_size(dev->resource));
 	if (!info->map.map_priv_1) {
 		dev_err(&dev->dev, "Failed to ioremap flash region\n");
 		err = -EIO;

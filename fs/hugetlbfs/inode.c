@@ -94,7 +94,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
 	vma->vm_ops = &hugetlb_vm_ops;
 
-	if (vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT))
+	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
 		return -EINVAL;
 
 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
@@ -491,6 +491,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
 			inode->i_op = &page_symlink_inode_operations;
 			break;
 		}
+		lockdep_annotate_inode_mutex_key(inode);
 	}
 	return inode;
 }
@@ -1030,6 +1031,7 @@ static int __init init_hugetlbfs_fs(void)
 static void __exit exit_hugetlbfs_fs(void)
 {
 	kmem_cache_destroy(hugetlbfs_inode_cachep);
+	kern_unmount(hugetlbfs_vfsmount);
 	unregister_filesystem(&hugetlbfs_fs_type);
 	bdi_destroy(&hugetlbfs_backing_dev_info);
 }

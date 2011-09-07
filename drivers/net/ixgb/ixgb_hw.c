@@ -149,6 +149,7 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 	 */
 	IXGB_WRITE_REG(hw, RCTL, IXGB_READ_REG(hw, RCTL) & ~IXGB_RCTL_RXEN);
 	IXGB_WRITE_REG(hw, TCTL, IXGB_READ_REG(hw, TCTL) & ~IXGB_TCTL_TXEN);
+	IXGB_WRITE_FLUSH(hw);
 	msleep(IXGB_DELAY_BEFORE_RESET);
 
 	/* Issue a global reset to the MAC.  This will reset the chip's
@@ -1220,6 +1221,7 @@ ixgb_optics_reset_bcm(struct ixgb_hw *hw)
 	ctrl &= ~IXGB_CTRL0_SDP2;
 	ctrl |= IXGB_CTRL0_SDP3;
 	IXGB_WRITE_REG(hw, CTRL0, ctrl);
+	IXGB_WRITE_FLUSH(hw);
 
 	/* SerDes needs extra delay */
 	msleep(IXGB_SUN_PHY_RESET_DELAY);

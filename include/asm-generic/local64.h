@@ -55,7 +55,7 @@ typedef struct {
 
 #else /* BITS_PER_LONG != 64 */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /* Don't use typedef: don't want them to be mixed with atomic_t's. */
 typedef struct {

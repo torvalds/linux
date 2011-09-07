@@ -1032,7 +1032,6 @@ static int isp_stat_init_entities(struct ispstat *stat, const char *name,
 	snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "OMAP3 ISP %s", name);
 	subdev->grp_id = 1 << 16;	/* group ID for isp subdevs */
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
-	subdev->nevents = STAT_NEVENTS;
 	v4l2_set_subdevdata(subdev, stat);
 
 	stat->pad.flags = MEDIA_PAD_FL_SINK;
@@ -1050,7 +1049,7 @@ int omap3isp_stat_subscribe_event(struct v4l2_subdev *subdev,
 	if (sub->type != stat->event_type)
 		return -EINVAL;
 
-	return v4l2_event_subscribe(fh, sub);
+	return v4l2_event_subscribe(fh, sub, STAT_NEVENTS);
 }
 
 int omap3isp_stat_unsubscribe_event(struct v4l2_subdev *subdev,

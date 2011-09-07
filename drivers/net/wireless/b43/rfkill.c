@@ -3,7 +3,7 @@
   Broadcom B43 wireless driver
   RFKILL support
 
-  Copyright (c) 2007 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2007 Michael Buesch <m@bues.ch>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,17 +37,16 @@ void b43_rfkill_poll(struct ieee80211_hw *hw)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
-	struct ssb_bus *bus = dev->sdev->bus;
 	bool enabled;
 	bool brought_up = false;
 
 	mutex_lock(&wl->mutex);
 	if (unlikely(b43_status(dev) < B43_STAT_INITIALIZED)) {
-		if (ssb_bus_powerup(bus, 0)) {
+		if (b43_bus_powerup(dev, 0)) {
 			mutex_unlock(&wl->mutex);
 			return;
 		}
-		ssb_device_enable(dev->sdev, 0);
+		b43_device_enable(dev, 0);
 		brought_up = true;
 	}
 
@@ -63,8 +62,8 @@ void b43_rfkill_poll(struct ieee80211_hw *hw)
 	}
 
 	if (brought_up) {
-		ssb_device_disable(dev->sdev, 0);
-		ssb_bus_may_powerdown(bus);
+		b43_device_disable(dev, 0);
+		b43_bus_may_powerdown(dev);
 	}
 
 	mutex_unlock(&wl->mutex);

@@ -46,7 +46,7 @@
 #include <linux/cciss_ioctl.h>
 #include <linux/string.h>
 #include <linux/bitmap.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/kthread.h>
 #include "hpsa_cmd.h"
 #include "hpsa.h"
@@ -1037,6 +1037,7 @@ static void complete_scsi_command(struct CommandList *cp)
 	unsigned char sense_key;
 	unsigned char asc;      /* additional sense code */
 	unsigned char ascq;     /* additional sense code qualifier */
+	unsigned long sense_data_size;
 
 	ei = cp->err_info;
 	cmd = (struct scsi_cmnd *) cp->scsi_cmd;
@@ -1051,10 +1052,14 @@ static void complete_scsi_command(struct CommandList *cp)
 	cmd->result |= ei->ScsiStatus;
 
 	/* copy the sense data whether we need to or not. */
-	memcpy(cmd->sense_buffer, ei->SenseInfo,
-		ei->SenseLen > SCSI_SENSE_BUFFERSIZE ?
-			SCSI_SENSE_BUFFERSIZE :
-			ei->SenseLen);
+	if (SCSI_SENSE_BUFFERSIZE < sizeof(ei->SenseInfo))
+		sense_data_size = SCSI_SENSE_BUFFERSIZE;
+	else
+		sense_data_size = sizeof(ei->SenseInfo);
+	if (ei->SenseLen < sense_data_size)
+		sense_data_size = ei->SenseLen;
+
+	memcpy(cmd->sense_buffer, ei->SenseInfo, sense_data_size);
 	scsi_set_resid(cmd, ei->ResidualCnt);
 
 	if (ei->CommandStatus == 0) {
@@ -1214,8 +1219,8 @@ static void complete_scsi_command(struct CommandList *cp)
 		dev_warn(&h->pdev->dev, "cp %p reports abort failed\n", cp);
 		break;
 	case CMD_UNSOLICITED_ABORT:
-		cmd->result = DID_RESET << 16;
-		dev_warn(&h->pdev->dev, "cp %p aborted do to an unsolicited "
+		cmd->result = DID_SOFT_ERROR << 16; /* retry the command */
+		dev_warn(&h->pdev->dev, "cp %p aborted due to an unsolicited "
 			"abort\n", cp);
 		break;
 	case CMD_TIMEOUT:
@@ -2580,7 +2585,8 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		c->SG[0].Ext = 0; /* we are not chaining*/
 	}
 	hpsa_scsi_do_simple_cmd_core(h, c);
-	hpsa_pci_unmap(h->pdev, c, 1, PCI_DMA_BIDIRECTIONAL);
+	if (iocommand.buf_size > 0)
+		hpsa_pci_unmap(h->pdev, c, 1, PCI_DMA_BIDIRECTIONAL);
 	check_ioctl_unit_attention(h, c);
 
 	/* Copy the error information out */

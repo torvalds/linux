@@ -4008,31 +4008,32 @@ sctp_disposition_t sctp_sf_eat_auth(const struct sctp_endpoint *ep,
 	auth_hdr = (struct sctp_authhdr *)chunk->skb->data;
 	error = sctp_sf_authenticate(ep, asoc, type, chunk);
 	switch (error) {
-		case SCTP_IERROR_AUTH_BAD_HMAC:
-			/* Generate the ERROR chunk and discard the rest
-			 * of the packet
-			 */
-			err_chunk = sctp_make_op_error(asoc, chunk,
-							SCTP_ERROR_UNSUP_HMAC,
-							&auth_hdr->hmac_id,
-							sizeof(__u16), 0);
-			if (err_chunk) {
-				sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
-						SCTP_CHUNK(err_chunk));
-			}
-			/* Fall Through */
-		case SCTP_IERROR_AUTH_BAD_KEYID:
-		case SCTP_IERROR_BAD_SIG:
-			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
-			break;
-		case SCTP_IERROR_PROTO_VIOLATION:
-			return sctp_sf_violation_chunklen(ep, asoc, type, arg,
-							  commands);
-			break;
-		case SCTP_IERROR_NOMEM:
-			return SCTP_DISPOSITION_NOMEM;
-		default:
-			break;
+	case SCTP_IERROR_AUTH_BAD_HMAC:
+		/* Generate the ERROR chunk and discard the rest
+		 * of the packet
+		 */
+		err_chunk = sctp_make_op_error(asoc, chunk,
+					       SCTP_ERROR_UNSUP_HMAC,
+					       &auth_hdr->hmac_id,
+					       sizeof(__u16), 0);
+		if (err_chunk) {
+			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
+					SCTP_CHUNK(err_chunk));
+		}
+		/* Fall Through */
+	case SCTP_IERROR_AUTH_BAD_KEYID:
+	case SCTP_IERROR_BAD_SIG:
+		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
+
+	case SCTP_IERROR_PROTO_VIOLATION:
+		return sctp_sf_violation_chunklen(ep, asoc, type, arg,
+						  commands);
+
+	case SCTP_IERROR_NOMEM:
+		return SCTP_DISPOSITION_NOMEM;
+
+	default:			/* Prevent gcc warnings */
+		break;
 	}
 
 	if (asoc->active_key_id != ntohs(auth_hdr->shkey_id)) {
@@ -5154,7 +5155,7 @@ sctp_disposition_t sctp_sf_do_9_2_start_shutdown(
 	 * The sender of the SHUTDOWN MAY also start an overall guard timer
 	 * 'T5-shutdown-guard' to bound the overall time for shutdown sequence.
 	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
+	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
 
 	if (asoc->autoclose)
@@ -5299,14 +5300,28 @@ sctp_disposition_t sctp_sf_do_6_3_3_rtx(const struct sctp_endpoint *ep,
 	SCTP_INC_STATS(SCTP_MIB_T3_RTX_EXPIREDS);
 
 	if (asoc->overall_error_count >= asoc->max_retrans) {
-		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
-				SCTP_ERROR(ETIMEDOUT));
-		/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
-		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_PERR(SCTP_ERROR_NO_ERROR));
-		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
-		SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
-		return SCTP_DISPOSITION_DELETE_TCB;
+		if (asoc->state == SCTP_STATE_SHUTDOWN_PENDING) {
+			/*
+			 * We are here likely because the receiver had its rwnd
+			 * closed for a while and we have not been able to
+			 * transmit the locally queued data within the maximum
+			 * retransmission attempts limit.  Start the T5
+			 * shutdown guard timer to give the receiver one last
+			 * chance and some additional time to recover before
+			 * aborting.
+			 */
+			sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START_ONCE,
+				SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
+		} else {
+			sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
+					SCTP_ERROR(ETIMEDOUT));
+			/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
+			sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
+					SCTP_PERR(SCTP_ERROR_NO_ERROR));
+			SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
+			SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
+			return SCTP_DISPOSITION_DELETE_TCB;
+		}
 	}
 
 	/* E1) For the destination address for which the timer

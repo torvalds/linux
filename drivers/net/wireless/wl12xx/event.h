@@ -58,20 +58,23 @@ enum {
 	CHANNEL_SWITCH_COMPLETE_EVENT_ID	 = BIT(17),
 	BSS_LOSE_EVENT_ID			 = BIT(18),
 	REGAINED_BSS_EVENT_ID			 = BIT(19),
-	ROAMING_TRIGGER_MAX_TX_RETRY_EVENT_ID	 = BIT(20),
+	MAX_TX_RETRY_EVENT_ID			 = BIT(20),
 	/* STA: dummy paket for dynamic mem blocks */
 	DUMMY_PACKET_EVENT_ID                    = BIT(21),
 	/* AP: STA remove complete */
 	STA_REMOVE_COMPLETE_EVENT_ID             = BIT(21),
 	SOFT_GEMINI_SENSE_EVENT_ID		 = BIT(22),
+	/* STA: SG prediction */
 	SOFT_GEMINI_PREDICTION_EVENT_ID		 = BIT(23),
+	/* AP: Inactive STA */
+	INACTIVE_STA_EVENT_ID			 = BIT(23),
 	SOFT_GEMINI_AVALANCHE_EVENT_ID		 = BIT(24),
 	PLT_RX_CALIBRATION_COMPLETE_EVENT_ID	 = BIT(25),
 	DBG_EVENT_ID				 = BIT(26),
 	HEALTH_CHECK_REPLY_EVENT_ID		 = BIT(27),
 	PERIODIC_SCAN_COMPLETE_EVENT_ID		 = BIT(28),
 	PERIODIC_SCAN_REPORT_EVENT_ID		 = BIT(29),
-	BA_SESSION_TEAR_DOWN_EVENT_ID		 = BIT(30),
+	BA_SESSION_RX_CONSTRAINT_EVENT_ID	 = BIT(30),
 	EVENT_MBOX_ALL_EVENT_ID			 = 0x7fffffff,
 };
 
@@ -119,15 +122,35 @@ struct event_mailbox {
 
 	/* AP FW only */
 	u8 hlid_removed;
+
+	/* a bitmap of hlids for stations that have been inactive too long */
 	__le16 sta_aging_status;
+
+	/* a bitmap of hlids for stations which didn't respond to TX */
 	__le16 sta_tx_retry_exceeded;
 
-	u8 reserved_5[24];
+	/*
+	 * Bitmap, Each bit set represents the Role ID for which this constraint
+	 * is set. Range: 0 - FF, FF means ANY role
+	 */
+	u8 ba_role_id;
+	/*
+	 * Bitmap, Each bit set represents the Link ID for which this constraint
+	 * is set. Not applicable if ba_role_id is set to ANY role (FF).
+	 * Range: 0 - FFFF, FFFF means ANY link in that role
+	 */
+	u8 ba_link_id;
+	u8 ba_allowed;
+
+	u8 reserved_5[21];
 } __packed;
 
 int wl1271_event_unmask(struct wl1271 *wl);
 void wl1271_event_mbox_config(struct wl1271 *wl);
 int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
 void wl1271_pspoll_work(struct work_struct *work);
+
+/* Functions from main.c */
+bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid);
 
 #endif

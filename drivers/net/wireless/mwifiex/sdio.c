@@ -31,9 +31,26 @@
 
 #define SDIO_VERSION	"1.0"
 
+/* The mwifiex_sdio_remove() callback function is called when
+ * user removes this module from kernel space or ejects
+ * the card from the slot. The driver handles these 2 cases
+ * differently.
+ * If the user is removing the module, the few commands (FUNC_SHUTDOWN,
+ * HS_CANCEL etc.) are sent to the firmware.
+ * If the card is removed, there is no need to send these command.
+ *
+ * The variable 'user_rmmod' is used to distinguish these two
+ * scenarios. This flag is initialized as FALSE in case the card
+ * is removed, and will be set to TRUE for module removal when
+ * module_exit function is called.
+ */
+static u8 user_rmmod;
+
 static struct mwifiex_if_ops sdio_ops;
 
 static struct semaphore add_remove_card_sem;
+
+static int mwifiex_sdio_resume(struct device *dev);
 
 /*
  * SDIO probe.
@@ -93,17 +110,39 @@ static void
 mwifiex_sdio_remove(struct sdio_func *func)
 {
 	struct sdio_mmc_card *card;
+	struct mwifiex_adapter *adapter;
+	int i;
 
 	pr_debug("info: SDIO func num=%d\n", func->num);
 
-	if (func) {
-		card = sdio_get_drvdata(func);
-		if (card) {
-			mwifiex_remove_card(card->adapter,
-					&add_remove_card_sem);
-			kfree(card);
-		}
+	card = sdio_get_drvdata(func);
+	if (!card)
+		return;
+
+	adapter = card->adapter;
+	if (!adapter || !adapter->priv_num)
+		return;
+
+	if (user_rmmod) {
+		if (adapter->is_suspended)
+			mwifiex_sdio_resume(adapter->dev);
+
+		for (i = 0; i < adapter->priv_num; i++)
+			if ((GET_BSS_ROLE(adapter->priv[i]) ==
+						MWIFIEX_BSS_ROLE_STA) &&
+					adapter->priv[i]->media_connected)
+				mwifiex_deauthenticate(adapter->priv[i], NULL);
+
+		mwifiex_disable_auto_ds(mwifiex_get_priv(adapter,
+							 MWIFIEX_BSS_ROLE_ANY));
+
+		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
+						MWIFIEX_BSS_ROLE_ANY),
+					 MWIFIEX_FUNC_SHUTDOWN);
 	}
+
+	mwifiex_remove_card(card->adapter, &add_remove_card_sem);
+	kfree(card);
 }
 
 /*
@@ -1283,7 +1322,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 				if (!(card->mp_wr_bitmap &
 						(1 << card->curr_wr_port))
 						|| !MP_TX_AGGR_BUF_HAS_ROOM(
-							card, next_pkt_len))
+						card, pkt_len + next_pkt_len))
 					f_send_aggr_buf = 1;
 			} else {
 				/* No room in Aggr buf, send it */
@@ -1531,6 +1570,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	sdio_set_drvdata(func, card);
 
 	adapter->dev = &func->dev;
+	strcpy(adapter->fw_name, SD8787_DEFAULT_FW_NAME);
 
 	return 0;
 
@@ -1552,7 +1592,6 @@ disable_func:
  *        the first interrupt got from bootloader
  *      - Disable host interrupt mask register
  *      - Get SDIO port
- *      - Get revision ID
  *      - Initialize SDIO variables in card
  *      - Allocate MP registers
  *      - Allocate MPA Tx and Rx buffers
@@ -1575,10 +1614,6 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 
 	/* Get SDIO ioport */
 	mwifiex_init_sdio_ioport(adapter);
-
-	/* Get revision ID */
-#define REV_ID_REG	0x5c
-	mwifiex_read_reg(adapter, REV_ID_REG, &adapter->revision_id);
 
 	/* Initialize SDIO variables in card */
 	card->mp_rd_bitmap = 0;
@@ -1700,6 +1735,9 @@ mwifiex_sdio_init_module(void)
 {
 	sema_init(&add_remove_card_sem, 1);
 
+	/* Clear the flag in case user removes the card. */
+	user_rmmod = 0;
+
 	return sdio_register_driver(&mwifiex_sdio);
 }
 
@@ -1715,32 +1753,12 @@ mwifiex_sdio_init_module(void)
 static void
 mwifiex_sdio_cleanup_module(void)
 {
-	struct mwifiex_adapter *adapter = g_adapter;
-	int i;
+	if (!down_interruptible(&add_remove_card_sem))
+		up(&add_remove_card_sem);
 
-	if (down_interruptible(&add_remove_card_sem))
-		goto exit_sem_err;
+	/* Set the flag as user is removing this module. */
+	user_rmmod = 1;
 
-	if (!adapter || !adapter->priv_num)
-		goto exit;
-
-	if (adapter->is_suspended)
-		mwifiex_sdio_resume(adapter->dev);
-
-	for (i = 0; i < adapter->priv_num; i++)
-		if ((GET_BSS_ROLE(adapter->priv[i]) == MWIFIEX_BSS_ROLE_STA) &&
-		    adapter->priv[i]->media_connected)
-			mwifiex_deauthenticate(adapter->priv[i], NULL);
-
-	if (!adapter->surprise_removed)
-		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
-							  MWIFIEX_BSS_ROLE_ANY),
-					 MWIFIEX_FUNC_SHUTDOWN);
-
-exit:
-	up(&add_remove_card_sem);
-
-exit_sem_err:
 	sdio_unregister_driver(&mwifiex_sdio);
 }
 
@@ -1751,4 +1769,4 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);
 MODULE_VERSION(SDIO_VERSION);
 MODULE_LICENSE("GPL v2");
-MODULE_FIRMWARE("sd8787.bin");
+MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");

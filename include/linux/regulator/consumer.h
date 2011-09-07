@@ -122,6 +122,9 @@ struct regulator;
 struct regulator_bulk_data {
 	const char *supply;
 	struct regulator *consumer;
+
+	/* Internal use */
+	int ret;
 };
 
 #if defined(CONFIG_REGULATOR)

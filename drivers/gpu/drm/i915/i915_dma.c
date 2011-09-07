@@ -61,7 +61,6 @@ static void i915_write_hws_pga(struct drm_device *dev)
 static int i915_init_phys_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
 	/* Program Hardware Status Page */
 	dev_priv->status_page_dmah =
@@ -71,10 +70,9 @@ static int i915_init_phys_hws(struct drm_device *dev)
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return -ENOMEM;
 	}
-	ring->status_page.page_addr =
-		(void __force __iomem *)dev_priv->status_page_dmah->vaddr;
 
-	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
+	memset_io((void __force __iomem *)dev_priv->status_page_dmah->vaddr,
+		  0, PAGE_SIZE);
 
 	i915_write_hws_pga(dev);
 
@@ -1073,6 +1071,9 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	unsigned long cfb_base;
 	unsigned long ll_base = 0;
 
+	/* Just in case the BIOS is doing something questionable. */
+	intel_disable_fbc(dev);
+
 	compressed_fb = drm_mm_search_free(&dev_priv->mm.stolen, size, 4096, 0);
 	if (compressed_fb)
 		compressed_fb = drm_mm_get_block(compressed_fb, size, 4096);
@@ -1099,7 +1100,6 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	dev_priv->cfb_size = size;
 
-	intel_disable_fbc(dev);
 	dev_priv->compressed_fb = compressed_fb;
 	if (HAS_PCH_SPLIT(dev))
 		I915_WRITE(ILK_DPFC_CB_BASE, compressed_fb->start);
@@ -1265,30 +1265,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 		goto cleanup_vga_switcheroo;
 
 	intel_modeset_gem_init(dev);
-
-	if (IS_IVYBRIDGE(dev)) {
-		/* Share pre & uninstall handlers with ILK/SNB */
-		dev->driver->irq_handler = ivybridge_irq_handler;
-		dev->driver->irq_preinstall = ironlake_irq_preinstall;
-		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
-		dev->driver->irq_uninstall = ironlake_irq_uninstall;
-		dev->driver->enable_vblank = ivybridge_enable_vblank;
-		dev->driver->disable_vblank = ivybridge_disable_vblank;
-	} else if (HAS_PCH_SPLIT(dev)) {
-		dev->driver->irq_handler = ironlake_irq_handler;
-		dev->driver->irq_preinstall = ironlake_irq_preinstall;
-		dev->driver->irq_postinstall = ironlake_irq_postinstall;
-		dev->driver->irq_uninstall = ironlake_irq_uninstall;
-		dev->driver->enable_vblank = ironlake_enable_vblank;
-		dev->driver->disable_vblank = ironlake_disable_vblank;
-	} else {
-		dev->driver->irq_preinstall = i915_driver_irq_preinstall;
-		dev->driver->irq_postinstall = i915_driver_irq_postinstall;
-		dev->driver->irq_uninstall = i915_driver_irq_uninstall;
-		dev->driver->irq_handler = i915_driver_irq_handler;
-		dev->driver->enable_vblank = i915_enable_vblank;
-		dev->driver->disable_vblank = i915_disable_vblank;
-	}
 
 	ret = drm_irq_install(dev);
 	if (ret)
@@ -1967,7 +1943,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!dev_priv->mm.gtt) {
 		DRM_ERROR("Failed to initialize GTT\n");
 		ret = -ENODEV;
-		goto out_iomapfree;
+		goto out_rmmap;
 	}
 
 	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
@@ -2011,18 +1987,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (dev_priv->wq == NULL) {
 		DRM_ERROR("Failed to create our workqueue.\n");
 		ret = -ENOMEM;
-		goto out_iomapfree;
+		goto out_mtrrfree;
 	}
 
 	/* enable GEM by default */
 	dev_priv->has_gem = 1;
 
-	dev->driver->get_vblank_counter = i915_get_vblank_counter;
-	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev) || IS_IVYBRIDGE(dev)) {
-		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
-		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
-	}
+	intel_irq_init(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev);
@@ -2103,13 +2074,21 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_gem_unload:
+	if (dev_priv->mm.inactive_shrinker.shrink)
+		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
+
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
 	destroy_workqueue(dev_priv->wq);
-out_iomapfree:
+out_mtrrfree:
+	if (dev_priv->mm.gtt_mtrr >= 0) {
+		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
+			 dev->agp->agp_info.aper_size * 1024 * 1024);
+		dev_priv->mm.gtt_mtrr = -1;
+	}
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
@@ -2182,9 +2161,8 @@ int i915_driver_unload(struct drm_device *dev)
 		/* Flush any outstanding unpin_work. */
 		flush_workqueue(dev_priv->wq);
 
-		i915_gem_free_all_phys_object(dev);
-
 		mutex_lock(&dev->struct_mutex);
+		i915_gem_free_all_phys_object(dev);
 		i915_gem_cleanup_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 		if (I915_HAS_FBC(dev) && i915_powersave)

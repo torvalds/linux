@@ -150,7 +150,7 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	struct orinoco_private *priv;
 	struct airport *card;
 	unsigned long phys_addr;
-	hermes_t *hw;
+	struct hermes *hw;
 
 	if (macio_resource_count(mdev) < 1 || macio_irq_count(mdev) < 1) {
 		printk(KERN_ERR PFX "Wrong interrupt/addresses in OF tree\n");
@@ -228,10 +228,9 @@ MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("Driver for the Apple Airport wireless card.");
 MODULE_LICENSE("Dual MPL/GPL");
 
-static struct of_device_id airport_match[] =
-{
+static struct of_device_id airport_match[] = {
 	{
-	.name 		= "radio",
+	.name		= "radio",
 	},
 	{},
 };
@@ -240,7 +239,7 @@ MODULE_DEVICE_TABLE(of, airport_match);
 
 static struct macio_driver airport_driver = {
 	.driver = {
-		.name 		= DRIVER_NAME,
+		.name		= DRIVER_NAME,
 		.owner		= THIS_MODULE,
 		.of_match_table	= airport_match,
 	},

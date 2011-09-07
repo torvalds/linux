@@ -1,0 +1,10 @@
+SMSC LAN91c111 Ethernet mac
+
+Required properties:
+- compatible = "smsc,lan91c111";
+- reg : physical address and size of registers
+- interrupts : interrupt connection
+
+Optional properties:
+- phy-device : phandle to Ethernet phy
+- local-mac-address : Ethernet mac address to use

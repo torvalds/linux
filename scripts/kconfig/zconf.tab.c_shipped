@@ -1,10 +1,9 @@
-
-/* A Bison parser, made by GNU Bison 2.4.1.  */
+/* A Bison parser, made by GNU Bison 2.4.3.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
-   Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
+   2009, 2010 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +45,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.4.1"
+#define YYBISON_VERSION "2.4.3"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -88,7 +87,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define LKC_DIRECT_LINK
 #include "lkc.h"
 
 #define printd(mask, fmt...) if (cdebug & (mask)) printf(fmt)
@@ -102,22 +100,18 @@ extern int zconflex(void);
 static void zconfprint(const char *err, ...);
 static void zconf_error(const char *err, ...);
 static void zconferror(const char *err);
-static bool zconf_endtoken(struct kconf_id *id, int starttoken, int endtoken);
+static bool zconf_endtoken(const struct kconf_id *id, int starttoken, int endtoken);
 
 struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 
 static struct menu *current_menu, *current_entry;
 
-#define YYDEBUG 0
-#if YYDEBUG
-#define YYERROR_VERBOSE
-#endif
 
 
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
-# define YYDEBUG 0
+# define YYDEBUG 1
 #endif
 
 /* Enabling verbose error messages.  */
@@ -188,7 +182,7 @@ typedef union YYSTYPE
 	struct symbol *symbol;
 	struct expr *expr;
 	struct menu *menu;
-	struct kconf_id *id;
+	const struct kconf_id *id;
 
 
 
@@ -255,7 +249,7 @@ typedef short int yytype_int16;
 #define YYSIZE_MAXIMUM ((YYSIZE_T) -1)
 
 #ifndef YY_
-# if YYENABLE_NLS
+# if defined YYENABLE_NLS && YYENABLE_NLS
 #  if ENABLE_NLS
 #   include <libintl.h> /* INFRINGES ON USER NAME SPACE */
 #   define YY_(msgid) dgettext ("bison-runtime", msgid)
@@ -535,18 +529,18 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   108,   108,   108,   110,   110,   112,   114,   115,   116,
-     117,   118,   119,   123,   127,   127,   127,   127,   127,   127,
-     127,   127,   131,   132,   133,   134,   135,   136,   140,   141,
-     147,   155,   161,   169,   179,   181,   182,   183,   184,   185,
-     186,   189,   197,   203,   213,   219,   225,   228,   230,   241,
-     242,   247,   256,   261,   269,   272,   274,   275,   276,   277,
-     278,   281,   287,   298,   304,   314,   316,   321,   329,   337,
-     340,   342,   343,   344,   349,   356,   363,   368,   376,   379,
-     381,   382,   383,   386,   394,   401,   408,   414,   421,   423,
-     424,   425,   428,   436,   438,   439,   442,   449,   451,   456,
-     457,   460,   461,   462,   466,   467,   470,   471,   474,   475,
-     476,   477,   478,   479,   480,   483,   484,   487,   488
+       0,   104,   104,   104,   106,   106,   108,   110,   111,   112,
+     113,   114,   115,   119,   123,   123,   123,   123,   123,   123,
+     123,   123,   127,   128,   129,   130,   131,   132,   136,   137,
+     143,   151,   157,   165,   175,   177,   178,   179,   180,   181,
+     182,   185,   193,   199,   209,   215,   221,   224,   226,   237,
+     238,   243,   252,   257,   265,   268,   270,   271,   272,   273,
+     274,   277,   283,   294,   300,   310,   312,   317,   325,   333,
+     336,   338,   339,   340,   345,   352,   359,   364,   372,   375,
+     377,   378,   379,   382,   390,   397,   404,   410,   417,   419,
+     420,   421,   424,   432,   434,   435,   438,   445,   447,   452,
+     453,   456,   457,   458,   462,   463,   466,   467,   470,   471,
+     472,   473,   474,   475,   476,   479,   480,   483,   484
 };
 #endif
 
@@ -806,9 +800,18 @@ static const yytype_uint8 yystos[] =
 
 /* Like YYERROR except do call yyerror.  This remains here temporarily
    to ease the transition to the new meaning of YYERROR, for GCC.
-   Once GCC version 2 has supplanted version 1, this can go.  */
+   Once GCC version 2 has supplanted version 1, this can go.  However,
+   YYFAIL appears to be in use.  Nevertheless, it is formally deprecated
+   in Bison 2.4.2's NEWS entry, where a plan to phase it out is
+   discussed.  */
 
 #define YYFAIL		goto yyerrlab
+#if defined YYFAIL
+  /* This is here to suppress warnings from the GCC cpp's
+     -Wunused-macros.  Normally we don't worry about that warning, but
+     some users do, and we want to make it easy for users to remove
+     YYFAIL uses, which will produce warnings from Bison 2.5.  */
+#endif
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
@@ -865,7 +868,7 @@ while (YYID (0))
    we won't break user code: when these are the locations we know.  */
 
 #ifndef YY_LOCATION_PRINT
-# if YYLTYPE_IS_TRIVIAL
+# if defined YYLTYPE_IS_TRIVIAL && YYLTYPE_IS_TRIVIAL
 #  define YY_LOCATION_PRINT(File, Loc)			\
      fprintf (File, "%d.%d-%d.%d",			\
 	      (Loc).first_line, (Loc).first_column,	\
@@ -1753,7 +1756,7 @@ yyreduce:
   case 48:
 
     {
-	struct kconf_id *id = kconf_id_lookup((yyvsp[(2) - (3)].string), strlen((yyvsp[(2) - (3)].string)));
+	const struct kconf_id *id = kconf_id_lookup((yyvsp[(2) - (3)].string), strlen((yyvsp[(2) - (3)].string)));
 	if (id && id->flags & TF_OPTION)
 		menu_add_option(id->token, (yyvsp[(3) - (3)].string));
 	else
@@ -2258,10 +2261,8 @@ void conf_parse(const char *name)
 	modules_sym->flags |= SYMBOL_AUTO;
 	rootmenu.prompt = menu_add_prompt(P_MENU, "Linux Kernel Configuration", NULL);
 
-#if YYDEBUG
 	if (getenv("ZCONF_DEBUG"))
 		zconfdebug = 1;
-#endif
 	zconfparse();
 	if (zconfnerrs)
 		exit(1);
@@ -2300,7 +2301,7 @@ static const char *zconf_tokenname(int token)
 	return "<token>";
 }
 
-static bool zconf_endtoken(struct kconf_id *id, int starttoken, int endtoken)
+static bool zconf_endtoken(const struct kconf_id *id, int starttoken, int endtoken)
 {
 	if (id->token != endtoken) {
 		zconf_error("unexpected '%s' within %s block",
@@ -2345,9 +2346,7 @@ static void zconf_error(const char *err, ...)
 
 static void zconferror(const char *err)
 {
-#if YYDEBUG
 	fprintf(stderr, "%s:%d: %s\n", zconf_curname(), zconf_lineno() + 1, err);
-#endif
 }
 
 static void print_quoted_string(FILE *out, const char *str)
@@ -2496,7 +2495,7 @@ void zconfdump(FILE *out)
 	}
 }
 
-#include "lex.zconf.c"
+#include "zconf.lex.c"
 #include "util.c"
 #include "confdata.c"
 #include "expr.c"

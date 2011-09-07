@@ -166,7 +166,7 @@ int mpc8xx_pic_init(void)
 	if (ret)
 		goto out;
 
-	siu_reg = ioremap(res.start, res.end - res.start + 1);
+	siu_reg = ioremap(res.start, resource_size(&res));
 	if (siu_reg == NULL) {
 		ret = -EINVAL;
 		goto out;

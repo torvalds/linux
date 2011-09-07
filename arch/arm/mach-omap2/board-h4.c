@@ -298,7 +298,7 @@ static void __init omap_h4_init_early(void)
 
 static void __init omap_h4_init_irq(void)
 {
-	omap_init_irq();
+	omap2_init_irq();
 }
 
 static struct at24_platform_data m24c01 = {
@@ -388,5 +388,5 @@ MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	.init_early	= omap_h4_init_early,
 	.init_irq	= omap_h4_init_irq,
 	.init_machine	= omap_h4_init,
-	.timer		= &omap_timer,
+	.timer		= &omap2_timer,
 MACHINE_END

@@ -109,11 +109,7 @@ static int ip1001_config_init(struct phy_device *phydev)
 	value = phy_read(phydev, 16);
 	value |= 0x3;
 
-	err = phy_write(phydev, 16, value);
-	if (err < 0)
-		return err;
-
-	return err;
+	return phy_write(phydev, 16, value);
 }
 
 static int ip175c_read_status(struct phy_device *phydev)

@@ -1,9 +1,7 @@
 /*
  * security/tomoyo/realpath.c
  *
- * Pathname calculation functions for TOMOYO.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/types.h>
@@ -70,6 +68,161 @@ char *tomoyo_encode(const char *str)
 }
 
 /**
+ * tomoyo_get_absolute_path - Get the path of a dentry but ignores chroot'ed root.
+ *
+ * @path:   Pointer to "struct path".
+ * @buffer: Pointer to buffer to return value in.
+ * @buflen: Sizeof @buffer.
+ *
+ * Returns the buffer on success, an error code otherwise.
+ *
+ * If dentry is a directory, trailing '/' is appended.
+ */
+static char *tomoyo_get_absolute_path(struct path *path, char * const buffer,
+				      const int buflen)
+{
+	char *pos = ERR_PTR(-ENOMEM);
+	if (buflen >= 256) {
+		struct path ns_root = { };
+		/* go to whatever namespace root we are under */
+		pos = __d_path(path, &ns_root, buffer, buflen - 1);
+		if (!IS_ERR(pos) && *pos == '/' && pos[1]) {
+			struct inode *inode = path->dentry->d_inode;
+			if (inode && S_ISDIR(inode->i_mode)) {
+				buffer[buflen - 2] = '/';
+				buffer[buflen - 1] = '\0';
+			}
+		}
+	}
+	return pos;
+}
+
+/**
+ * tomoyo_get_dentry_path - Get the path of a dentry.
+ *
+ * @dentry: Pointer to "struct dentry".
+ * @buffer: Pointer to buffer to return value in.
+ * @buflen: Sizeof @buffer.
+ *
+ * Returns the buffer on success, an error code otherwise.
+ *
+ * If dentry is a directory, trailing '/' is appended.
+ */
+static char *tomoyo_get_dentry_path(struct dentry *dentry, char * const buffer,
+				    const int buflen)
+{
+	char *pos = ERR_PTR(-ENOMEM);
+	if (buflen >= 256) {
+		pos = dentry_path_raw(dentry, buffer, buflen - 1);
+		if (!IS_ERR(pos) && *pos == '/' && pos[1]) {
+			struct inode *inode = dentry->d_inode;
+			if (inode && S_ISDIR(inode->i_mode)) {
+				buffer[buflen - 2] = '/';
+				buffer[buflen - 1] = '\0';
+			}
+		}
+	}
+	return pos;
+}
+
+/**
+ * tomoyo_get_local_path - Get the path of a dentry.
+ *
+ * @dentry: Pointer to "struct dentry".
+ * @buffer: Pointer to buffer to return value in.
+ * @buflen: Sizeof @buffer.
+ *
+ * Returns the buffer on success, an error code otherwise.
+ */
+static char *tomoyo_get_local_path(struct dentry *dentry, char * const buffer,
+				   const int buflen)
+{
+	struct super_block *sb = dentry->d_sb;
+	char *pos = tomoyo_get_dentry_path(dentry, buffer, buflen);
+	if (IS_ERR(pos))
+		return pos;
+	/* Convert from $PID to self if $PID is current thread. */
+	if (sb->s_magic == PROC_SUPER_MAGIC && *pos == '/') {
+		char *ep;
+		const pid_t pid = (pid_t) simple_strtoul(pos + 1, &ep, 10);
+		if (*ep == '/' && pid && pid ==
+		    task_tgid_nr_ns(current, sb->s_fs_info)) {
+			pos = ep - 5;
+			if (pos < buffer)
+				goto out;
+			memmove(pos, "/self", 5);
+		}
+		goto prepend_filesystem_name;
+	}
+	/* Use filesystem name for unnamed devices. */
+	if (!MAJOR(sb->s_dev))
+		goto prepend_filesystem_name;
+	{
+		struct inode *inode = sb->s_root->d_inode;
+		/*
+		 * Use filesystem name if filesystem does not support rename()
+		 * operation.
+		 */
+		if (inode->i_op && !inode->i_op->rename)
+			goto prepend_filesystem_name;
+	}
+	/* Prepend device name. */
+	{
+		char name[64];
+		int name_len;
+		const dev_t dev = sb->s_dev;
+		name[sizeof(name) - 1] = '\0';
+		snprintf(name, sizeof(name) - 1, "dev(%u,%u):", MAJOR(dev),
+			 MINOR(dev));
+		name_len = strlen(name);
+		pos -= name_len;
+		if (pos < buffer)
+			goto out;
+		memmove(pos, name, name_len);
+		return pos;
+	}
+	/* Prepend filesystem name. */
+prepend_filesystem_name:
+	{
+		const char *name = sb->s_type->name;
+		const int name_len = strlen(name);
+		pos -= name_len + 1;
+		if (pos < buffer)
+			goto out;
+		memmove(pos, name, name_len);
+		pos[name_len] = ':';
+	}
+	return pos;
+out:
+	return ERR_PTR(-ENOMEM);
+}
+
+/**
+ * tomoyo_get_socket_name - Get the name of a socket.
+ *
+ * @path:   Pointer to "struct path".
+ * @buffer: Pointer to buffer to return value in.
+ * @buflen: Sizeof @buffer.
+ *
+ * Returns the buffer.
+ */
+static char *tomoyo_get_socket_name(struct path *path, char * const buffer,
+				    const int buflen)
+{
+	struct inode *inode = path->dentry->d_inode;
+	struct socket *sock = inode ? SOCKET_I(inode) : NULL;
+	struct sock *sk = sock ? sock->sk : NULL;
+	if (sk) {
+		snprintf(buffer, buflen, "socket:[family=%u:type=%u:"
+			 "protocol=%u]", sk->sk_family, sk->sk_type,
+			 sk->sk_protocol);
+	} else {
+		snprintf(buffer, buflen, "socket:[unknown]");
+	}
+	return buffer;
+}
+
+/**
  * tomoyo_realpath_from_path - Returns realpath(3) of the given pathname but ignores chroot'ed root.
  *
  * @path: Pointer to "struct path".
@@ -90,55 +243,42 @@ char *tomoyo_realpath_from_path(struct path *path)
 	char *name = NULL;
 	unsigned int buf_len = PAGE_SIZE / 2;
 	struct dentry *dentry = path->dentry;
-	bool is_dir;
+	struct super_block *sb;
 	if (!dentry)
 		return NULL;
-	is_dir = dentry->d_inode && S_ISDIR(dentry->d_inode->i_mode);
+	sb = dentry->d_sb;
 	while (1) {
-		struct path ns_root = { .mnt = NULL, .dentry = NULL };
 		char *pos;
+		struct inode *inode;
 		buf_len <<= 1;
 		kfree(buf);
 		buf = kmalloc(buf_len, GFP_NOFS);
 		if (!buf)
 			break;
+		/* To make sure that pos is '\0' terminated. */
+		buf[buf_len - 1] = '\0';
 		/* Get better name for socket. */
-		if (dentry->d_sb && dentry->d_sb->s_magic == SOCKFS_MAGIC) {
-			struct inode *inode = dentry->d_inode;
-			struct socket *sock = inode ? SOCKET_I(inode) : NULL;
-			struct sock *sk = sock ? sock->sk : NULL;
-			if (sk) {
-				snprintf(buf, buf_len - 1, "socket:[family=%u:"
-					 "type=%u:protocol=%u]", sk->sk_family,
-					 sk->sk_type, sk->sk_protocol);
-			} else {
-				snprintf(buf, buf_len - 1, "socket:[unknown]");
-			}
-			name = tomoyo_encode(buf);
-			break;
+		if (sb->s_magic == SOCKFS_MAGIC) {
+			pos = tomoyo_get_socket_name(path, buf, buf_len - 1);
+			goto encode;
 		}
-		/* For "socket:[\$]" and "pipe:[\$]". */
+		/* For "pipe:[\$]". */
 		if (dentry->d_op && dentry->d_op->d_dname) {
 			pos = dentry->d_op->d_dname(dentry, buf, buf_len - 1);
-			if (IS_ERR(pos))
-				continue;
-			name = tomoyo_encode(pos);
-			break;
+			goto encode;
 		}
-		/* If we don't have a vfsmount, we can't calculate. */
-		if (!path->mnt)
-			break;
-		/* go to whatever namespace root we are under */
-		pos = __d_path(path, &ns_root, buf, buf_len);
-		/* Prepend "/proc" prefix if using internal proc vfs mount. */
-		if (!IS_ERR(pos) && (path->mnt->mnt_flags & MNT_INTERNAL) &&
-		    (path->mnt->mnt_sb->s_magic == PROC_SUPER_MAGIC)) {
-			pos -= 5;
-			if (pos >= buf)
-				memcpy(pos, "/proc", 5);
-			else
-				pos = ERR_PTR(-ENOMEM);
-		}
+		inode = sb->s_root->d_inode;
+		/*
+		 * Get local name for filesystems without rename() operation
+		 * or dentry without vfsmount.
+		 */
+		if (!path->mnt || (inode->i_op && !inode->i_op->rename))
+			pos = tomoyo_get_local_path(path->dentry, buf,
+						    buf_len - 1);
+		/* Get absolute name for the rest. */
+		else
+			pos = tomoyo_get_absolute_path(path, buf, buf_len - 1);
+encode:
 		if (IS_ERR(pos))
 			continue;
 		name = tomoyo_encode(pos);
@@ -147,16 +287,6 @@ char *tomoyo_realpath_from_path(struct path *path)
 	kfree(buf);
 	if (!name)
 		tomoyo_warn_oom(__func__);
-	else if (is_dir && *name) {
-		/* Append trailing '/' if dentry is a directory. */
-		char *pos = name + strlen(name) - 1;
-		if (*pos != '/')
-			/*
-			 * This is OK because tomoyo_encode() reserves space
-			 * for appending "/".
-			 */
-			*++pos = '/';
-	}
 	return name;
 }
 

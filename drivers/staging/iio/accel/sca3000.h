@@ -173,7 +173,6 @@
 struct sca3000_state {
 	struct spi_device		*us;
 	const struct sca3000_chip_info	*info;
-	struct iio_dev			*indio_dev;
 	struct work_struct		interrupt_handler_ws;
 	s64				last_timestamp;
 	int				mo_det_use_count;

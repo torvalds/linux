@@ -167,7 +167,7 @@ void setup_paca(struct paca_struct *new_paca)
 	 * if we do a GET_PACA() before the feature fixups have been
 	 * applied
 	 */
-	if (cpu_has_feature(CPU_FTR_HVMODE_206))
+	if (cpu_has_feature(CPU_FTR_HVMODE))
 		mtspr(SPRN_SPRG_HPACA, local_paca);
 #endif
 	mtspr(SPRN_SPRG_PACA, local_paca);

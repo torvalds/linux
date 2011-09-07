@@ -50,7 +50,6 @@
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
 #include <asm/cacheflush.h>
-#include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/rar_register.h>
@@ -201,7 +200,7 @@ static int sep_singleton_release(struct inode *inode, struct file *filp)
 }
 
 /**
- *	sep_request_daemonopen - request daemon open method
+ *	sep_request_daemon_open - request daemon open method
  *	@inode: inode of SEP device
  *	@filp: file handle to SEP device
  *
@@ -1102,9 +1101,9 @@ static int sep_lock_user_pages(struct sep_device *sep,
 			"lli_array[%x].bus_address is "
 			"%08lx, lli_array[%x].block_size is %x\n",
 			num_pages - 1,
-			(unsigned long)lli_array[num_pages -1].bus_address,
+			(unsigned long)lli_array[num_pages - 1].bus_address,
 			num_pages - 1,
-			lli_array[num_pages -1].block_size);
+			lli_array[num_pages - 1].block_size);
 	}
 
 	/* Set output params according to the in_out flag */

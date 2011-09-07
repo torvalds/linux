@@ -39,6 +39,7 @@
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/slab.h>
+#include <linux/serial_core.h>
 
 #include <asm/uaccess.h>
 
@@ -163,8 +164,10 @@ static void hvc_console_print(struct console *co, const char *b,
 		} else {
 			r = cons_ops[index]->put_chars(vtermnos[index], c, i);
 			if (r <= 0) {
-				/* throw away chars on error */
-				i = 0;
+				/* throw away characters on error
+				 * but spin in case of -EAGAIN */
+				if (r != -EAGAIN)
+					i = 0;
 			} else if (r > 0) {
 				i -= r;
 				if (i > 0)
@@ -184,7 +187,7 @@ static struct tty_driver *hvc_console_device(struct console *c, int *index)
 }
 
 static int __init hvc_console_setup(struct console *co, char *options)
-{
+{	
 	if (co->index < 0 || co->index >= MAX_NR_HVC_CONSOLES)
 		return -ENODEV;
 
@@ -448,7 +451,7 @@ static int hvc_push(struct hvc_struct *hp)
 
 	n = hp->ops->put_chars(hp->vtermno, hp->outbuf, hp->n_outbuf);
 	if (n <= 0) {
-		if (n == 0) {
+		if (n == 0 || n == -EAGAIN) {
 			hp->do_wakeup = 1;
 			return 0;
 		}
@@ -745,6 +748,58 @@ static int khvcd(void *unused)
 	return 0;
 }
 
+static int hvc_tiocmget(struct tty_struct *tty)
+{
+	struct hvc_struct *hp = tty->driver_data;
+
+	if (!hp || !hp->ops->tiocmget)
+		return -EINVAL;
+	return hp->ops->tiocmget(hp);
+}
+
+static int hvc_tiocmset(struct tty_struct *tty,
+			unsigned int set, unsigned int clear)
+{
+	struct hvc_struct *hp = tty->driver_data;
+
+	if (!hp || !hp->ops->tiocmset)
+		return -EINVAL;
+	return hp->ops->tiocmset(hp, set, clear);
+}
+
+#ifdef CONFIG_CONSOLE_POLL
+int hvc_poll_init(struct tty_driver *driver, int line, char *options)
+{
+	return 0;
+}
+
+static int hvc_poll_get_char(struct tty_driver *driver, int line)
+{
+	struct tty_struct *tty = driver->ttys[0];
+	struct hvc_struct *hp = tty->driver_data;
+	int n;
+	char ch;
+
+	n = hp->ops->get_chars(hp->vtermno, &ch, 1);
+
+	if (n == 0)
+		return NO_POLL_CHAR;
+
+	return ch;
+}
+
+static void hvc_poll_put_char(struct tty_driver *driver, int line, char ch)
+{
+	struct tty_struct *tty = driver->ttys[0];
+	struct hvc_struct *hp = tty->driver_data;
+	int n;
+
+	do {
+		n = hp->ops->put_chars(hp->vtermno, &ch, 1);
+	} while (n <= 0);
+}
+#endif
+
 static const struct tty_operations hvc_ops = {
 	.open = hvc_open,
 	.close = hvc_close,
@@ -753,6 +808,13 @@ static const struct tty_operations hvc_ops = {
 	.unthrottle = hvc_unthrottle,
 	.write_room = hvc_write_room,
 	.chars_in_buffer = hvc_chars_in_buffer,
+	.tiocmget = hvc_tiocmget,
+	.tiocmset = hvc_tiocmset,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_init = hvc_poll_init,
+	.poll_get_char = hvc_poll_get_char,
+	.poll_put_char = hvc_poll_put_char,
+#endif
 };
 
 struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,

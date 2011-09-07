@@ -2090,7 +2090,7 @@ static int __devinit snd_ali_resources(struct snd_ali *codec)
 	codec->port = pci_resource_start(codec->pci, 0);
 
 	if (request_irq(codec->pci->irq, snd_ali_card_interrupt,
-			IRQF_SHARED, "ALI 5451", codec)) {
+			IRQF_SHARED, KBUILD_MODNAME, codec)) {
 		snd_printk(KERN_ERR "Unable to request irq.\n");
 		return -EBUSY;
 	}
@@ -2295,7 +2295,7 @@ static void __devexit snd_ali_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "ALI 5451",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.remove = __devexit_p(snd_ali_remove),

@@ -318,6 +318,7 @@
 #define ESR_ILK		0x00100000	/* Instr. Cache Locking */
 #define ESR_PUO		0x00040000	/* Unimplemented Operation exception */
 #define ESR_BO		0x00020000	/* Byte Ordering */
+#define ESR_SPV		0x00000080	/* Signal Processing operation */
 
 /* Bit definitions related to the DBCR0. */
 #if defined(CONFIG_40x)

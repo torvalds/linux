@@ -44,7 +44,7 @@ struct pci_dev;
  * bus numbers (don't do that on ppc64 yet !)
  */
 #define pcibios_assign_all_busses() \
-	(ppc_pci_has_flag(PPC_PCI_REASSIGN_ALL_BUS))
+	(pci_has_flag(PCI_REASSIGN_ALL_BUS))
 
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
@@ -179,8 +179,7 @@ extern int remove_phb_dynamic(struct pci_controller *phb);
 extern struct pci_dev *of_create_pci_dev(struct device_node *node,
 					struct pci_bus *bus, int devfn);
 
-extern void of_scan_pci_bridge(struct device_node *node,
-				struct pci_dev *dev);
+extern void of_scan_pci_bridge(struct pci_dev *dev);
 
 extern void of_scan_bus(struct device_node *node, struct pci_bus *bus);
 extern void of_rescan_bus(struct device_node *node, struct pci_bus *bus);

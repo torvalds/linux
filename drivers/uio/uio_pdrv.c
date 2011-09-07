@@ -58,7 +58,7 @@ static int uio_pdrv_probe(struct platform_device *pdev)
 
 		uiomem->memtype = UIO_MEM_PHYS;
 		uiomem->addr = r->start;
-		uiomem->size = r->end - r->start + 1;
+		uiomem->size = resource_size(r);
 		++uiomem;
 	}
 

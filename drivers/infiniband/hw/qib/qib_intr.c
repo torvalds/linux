@@ -96,8 +96,12 @@ void qib_handle_e_ibstatuschanged(struct qib_pportdata *ppd, u64 ibcs)
 	 * states, or if it transitions from any of the up (INIT or better)
 	 * states into any of the down states (except link recovery), then
 	 * call the chip-specific code to take appropriate actions.
+	 *
+	 * ppd->lflags could be 0 if this is the first time the interrupt
+	 * handlers has been called but the link is already up.
 	 */
-	if (lstate >= IB_PORT_INIT && (ppd->lflags & QIBL_LINKDOWN) &&
+	if (lstate >= IB_PORT_INIT &&
+	    (!ppd->lflags || (ppd->lflags & QIBL_LINKDOWN)) &&
 	    ltstate == IB_PHYSPORTSTATE_LINKUP) {
 		/* transitioned to UP */
 		if (dd->f_ib_updown(ppd, 1, ibcs))

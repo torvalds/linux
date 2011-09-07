@@ -144,6 +144,7 @@ extern u32 wl12xx_debug_level;
 
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
+#define WL1271_TX_SQN_POST_RECOVERY_PADDING 0xff
 
 #define WL1271_CIPHER_SUITE_GEM 0x00147201
 
@@ -172,7 +173,6 @@ extern u32 wl12xx_debug_level;
 #define WL1271_PS_STA_MAX_BLOCKS  (2 * 9)
 
 #define WL1271_AP_BSS_INDEX        0
-#define WL1271_AP_DEF_INACTIV_SEC  300
 #define WL1271_AP_DEF_BEACON_EXP   20
 
 #define ACX_TX_DESCRIPTORS         32
@@ -225,6 +225,8 @@ enum {
 
 #define FW_VER_MINOR_1_SPARE_STA_MIN 58
 #define FW_VER_MINOR_1_SPARE_AP_MIN  47
+
+#define FW_VER_MINOR_FWLOG_STA_MIN 70
 
 struct wl1271_chip {
 	u32 id;
@@ -284,8 +286,7 @@ struct wl1271_fw_sta_status {
 	u8  tx_total;
 	u8  reserved1;
 	__le16 reserved2;
-	/* Total structure size is 68 bytes */
-	u32 padding;
+	__le32 log_start_addr;
 } __packed;
 
 struct wl1271_fw_full_status {
@@ -359,6 +360,9 @@ enum wl12xx_flags {
 	WL1271_FLAG_DUMMY_PACKET_PENDING,
 	WL1271_FLAG_SUSPENDED,
 	WL1271_FLAG_PENDING_WORK,
+	WL1271_FLAG_SOFT_GEMINI,
+	WL1271_FLAG_RX_STREAMING_STARTED,
+	WL1271_FLAG_RECOVERY_IN_PROGRESS,
 };
 
 struct wl1271_link {
@@ -420,7 +424,7 @@ struct wl1271 {
 	/* Accounting for allocated / available TX blocks on HW */
 	u32 tx_blocks_freed[NUM_TX_QUEUES];
 	u32 tx_blocks_available;
-	u32 tx_allocated_blocks;
+	u32 tx_allocated_blocks[NUM_TX_QUEUES];
 	u32 tx_results_count;
 
 	/* Transmitted TX packets counter for chipset interface */
@@ -434,7 +438,8 @@ struct wl1271 {
 
 	/* Frames scheduled for transmission, not handled yet */
 	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
-	int tx_queue_count;
+	int tx_queue_count[NUM_TX_QUEUES];
+	long stopped_queues_map;
 
 	/* Frames received, not handled yet by mac80211 */
 	struct sk_buff_head deferred_rx_queue;
@@ -443,15 +448,23 @@ struct wl1271 {
 	struct sk_buff_head deferred_tx_queue;
 
 	struct work_struct tx_work;
+	struct workqueue_struct *freezable_wq;
 
 	/* Pending TX frames */
 	unsigned long tx_frames_map[BITS_TO_LONGS(ACX_TX_DESCRIPTORS)];
 	struct sk_buff *tx_frames[ACX_TX_DESCRIPTORS];
 	int tx_frames_cnt;
 
-	/* Security sequence number counters */
-	u8 tx_security_last_seq;
-	s64 tx_security_seq;
+	/*
+	 * Security sequence number
+	 *     bits 0-15: lower 16 bits part of sequence number
+	 *     bits 16-47: higher 32 bits part of sequence number
+	 *     bits 48-63: not in use
+	 */
+	u64 tx_security_seq;
+
+	/* 8 bits of the last sequence number in use */
+	u8 tx_security_last_seq_lsb;
 
 	/* FW Rx counter */
 	u32 rx_counter;
@@ -467,6 +480,15 @@ struct wl1271 {
 
 	/* Network stack work  */
 	struct work_struct netstack_work;
+
+	/* FW log buffer */
+	u8 *fwlog;
+
+	/* Number of valid bytes in the FW log buffer */
+	ssize_t fwlog_size;
+
+	/* Sysfs FW log entry readers wait queue */
+	wait_queue_head_t fwlog_waitq;
 
 	/* Hardware recovery work */
 	struct work_struct recovery_work;
@@ -507,6 +529,11 @@ struct wl1271 {
 
 	/* Default key (for WEP) */
 	u32 default_key;
+
+	/* Rx Streaming */
+	struct work_struct rx_streaming_enable_work;
+	struct work_struct rx_streaming_disable_work;
+	struct timer_list rx_streaming_timer;
 
 	unsigned int filters;
 	unsigned int rx_config;
@@ -564,6 +591,7 @@ struct wl1271 {
 	/* RX BA constraint value */
 	bool ba_support;
 	u8 ba_rx_bitmap;
+	bool ba_allowed;
 
 	int tcxo_clock;
 
@@ -572,6 +600,7 @@ struct wl1271 {
 	 * (currently, only "ANY" trigger is supported)
 	 */
 	bool wow_enabled;
+	bool irq_wake_enabled;
 
 	/*
 	 * AP-mode - links indexed by HLID. The global and broadcast links
@@ -601,6 +630,9 @@ struct wl1271_station {
 
 int wl1271_plt_start(struct wl1271 *wl);
 int wl1271_plt_stop(struct wl1271 *wl);
+int wl1271_recalc_rx_streaming(struct wl1271 *wl);
+void wl12xx_queue_recovery_work(struct wl1271 *wl);
+size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen);
 
 #define JOIN_TIMEOUT 5000 /* 5000 milliseconds to join */
 
@@ -608,8 +640,8 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 #define WL1271_DEFAULT_POWER_LEVEL 0
 
-#define WL1271_TX_QUEUE_LOW_WATERMARK  10
-#define WL1271_TX_QUEUE_HIGH_WATERMARK 25
+#define WL1271_TX_QUEUE_LOW_WATERMARK  32
+#define WL1271_TX_QUEUE_HIGH_WATERMARK 256
 
 #define WL1271_DEFERRED_QUEUE_LIMIT    64
 
@@ -635,5 +667,16 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 /* WL128X requires aggregated packets to be aligned to the SDIO block size */
 #define WL12XX_QUIRK_BLOCKSIZE_ALIGNMENT	BIT(2)
+
+/*
+ * WL127X AP mode requires Low Power DRPw (LPD) enable to reduce power
+ * consumption
+ */
+#define WL12XX_QUIRK_LPD_MODE                   BIT(3)
+
+/* Older firmwares did not implement the FW logger over bus feature */
+#define WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED	BIT(4)
+
+#define WL12XX_HW_BLOCK_SIZE	256
 
 #endif

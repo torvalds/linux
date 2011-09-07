@@ -28,6 +28,8 @@
 #include "util/hist.h"
 #include "util/session.h"
 
+#include <linux/bitmap.h>
+
 static char		const *input_name = "perf.data";
 
 static bool		force, use_tui, use_stdio;
@@ -37,6 +39,9 @@ static bool		full_paths;
 static bool		print_line;
 
 static const char *sym_hist_filter;
+
+static const char	*cpu_list;
+static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
 static int perf_evlist__add_sample(struct perf_evlist *evlist,
 				   struct perf_sample *sample,
@@ -89,6 +94,9 @@ static int process_sample_event(union perf_event *event,
 			   event->header.type);
 		return -1;
 	}
+
+	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
+		return 0;
 
 	if (!al.filtered &&
 	    perf_evlist__add_sample(session->evlist, sample, evsel, &al)) {
@@ -177,6 +185,12 @@ static int __cmd_annotate(void)
 	if (session == NULL)
 		return -ENOMEM;
 
+	if (cpu_list) {
+		ret = perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap);
+		if (ret)
+			goto out_delete;
+	}
+
 	ret = perf_session__process_events(session, &event_ops);
 	if (ret)
 		goto out_delete;
@@ -252,6 +266,7 @@ static const struct option options[] = {
 		    "print matching source lines (may be slow)"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,
 		    "Don't shorten the displayed pathnames"),
+	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_END()
 };
 

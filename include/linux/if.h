@@ -76,6 +76,8 @@
 #define IFF_BRIDGE_PORT	0x4000		/* device used as bridge port */
 #define IFF_OVS_DATAPATH	0x8000	/* device used as Open vSwitch
 					 * datapath port */
+#define IFF_TX_SKB_SHARING	0x10000	/* The interface supports sharing
+					 * skbs on transmit */
 
 #define IF_GET_IFACE	0x0001		/* for querying only */
 #define IF_GET_PROTO	0x0002

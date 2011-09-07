@@ -526,6 +526,7 @@ struct ext4_new_group_data {
 #define EXT4_FREE_BLOCKS_METADATA	0x0001
 #define EXT4_FREE_BLOCKS_FORGET		0x0002
 #define EXT4_FREE_BLOCKS_VALIDATED	0x0004
+#define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE	0x0008
 
 /*
  * ioctl commands
@@ -939,6 +940,8 @@ struct ext4_inode_info {
 #define ext4_find_next_zero_bit		find_next_zero_bit_le
 #define ext4_find_next_bit		find_next_bit_le
 
+extern void ext4_set_bits(void *bm, int cur, int len);
+
 /*
  * Maximal mount counts between two filesystem checks
  */
@@ -1126,7 +1129,8 @@ struct ext4_sb_info {
 	struct journal_s *s_journal;
 	struct list_head s_orphan;
 	struct mutex s_orphan_lock;
-	struct mutex s_resize_lock;
+	unsigned long s_resize_flags;		/* Flags indicating if there
+						   is a resizer */
 	unsigned long s_commit_interval;
 	u32 s_max_batch_time;
 	u32 s_min_batch_time;
@@ -1214,6 +1218,9 @@ struct ext4_sb_info {
 
 	/* Kernel thread for multiple mount protection */
 	struct task_struct *s_mmp_tsk;
+
+	/* record the last minlen when FITRIM is called. */
+	atomic_t s_last_trim_minblks;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -1743,6 +1750,7 @@ extern unsigned ext4_init_block_bitmap(struct super_block *sb,
 				       struct ext4_group_desc *desc);
 #define ext4_free_blocks_after_init(sb, group, desc)			\
 		ext4_init_block_bitmap(sb, NULL, group, desc)
+ext4_fsblk_t ext4_inode_to_goal_block(struct inode *);
 
 /* dir.c */
 extern int __ext4_check_dir_entry(const char *, unsigned int, struct inode *,
@@ -1758,7 +1766,7 @@ extern int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 extern void ext4_htree_free_dir_info(struct dir_private_info *p);
 
 /* fsync.c */
-extern int ext4_sync_file(struct file *, int);
+extern int ext4_sync_file(struct file *, loff_t, loff_t, int);
 extern int ext4_flush_completed_IO(struct inode *);
 
 /* hash.c */
@@ -1793,7 +1801,7 @@ extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			     unsigned long count, int flags);
 extern int ext4_mb_add_groupinfo(struct super_block *sb,
 		ext4_group_t i, struct ext4_group_desc *desc);
-extern void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
+extern int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 				ext4_fsblk_t block, unsigned long count);
 extern int ext4_trim_fs(struct super_block *, struct fstrim_range *);
 
@@ -1834,6 +1842,17 @@ extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern void ext4_da_update_reserve_space(struct inode *inode,
 					int used, int quota_claim);
+
+/* indirect.c */
+extern int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
+				struct ext4_map_blocks *map, int flags);
+extern ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
+				const struct iovec *iov, loff_t offset,
+				unsigned long nr_segs);
+extern int ext4_ind_calc_metadata_amount(struct inode *inode, sector_t lblock);
+extern int ext4_ind_trans_blocks(struct inode *inode, int nrblocks, int chunk);
+extern void ext4_ind_truncate(struct inode *inode);
+
 /* ioctl.c */
 extern long ext4_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
@@ -1855,6 +1874,9 @@ extern int ext4_group_extend(struct super_block *sb,
 				ext4_fsblk_t n_blocks_count);
 
 /* super.c */
+extern void *ext4_kvmalloc(size_t size, gfp_t flags);
+extern void *ext4_kvzalloc(size_t size, gfp_t flags);
+extern void ext4_kvfree(void *ptr);
 extern void __ext4_error(struct super_block *, const char *, unsigned int,
 			 const char *, ...)
 	__attribute__ ((format (printf, 4, 5)));
@@ -2067,10 +2089,18 @@ struct ext4_group_info {
 					 * 5 free 8-block regions. */
 };
 
-#define EXT4_GROUP_INFO_NEED_INIT_BIT	0
+#define EXT4_GROUP_INFO_NEED_INIT_BIT		0
+#define EXT4_GROUP_INFO_WAS_TRIMMED_BIT		1
 
 #define EXT4_MB_GRP_NEED_INIT(grp)	\
 	(test_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &((grp)->bb_state)))
+
+#define EXT4_MB_GRP_WAS_TRIMMED(grp)	\
+	(test_bit(EXT4_GROUP_INFO_WAS_TRIMMED_BIT, &((grp)->bb_state)))
+#define EXT4_MB_GRP_SET_TRIMMED(grp)	\
+	(set_bit(EXT4_GROUP_INFO_WAS_TRIMMED_BIT, &((grp)->bb_state)))
+#define EXT4_MB_GRP_CLEAR_TRIMMED(grp)	\
+	(clear_bit(EXT4_GROUP_INFO_WAS_TRIMMED_BIT, &((grp)->bb_state)))
 
 #define EXT4_MAX_CONTENTION		8
 #define EXT4_CONTENTION_THRESHOLD	2
@@ -2123,6 +2153,19 @@ static inline void ext4_mark_super_dirty(struct super_block *sb)
 }
 
 /*
+ * Block validity checking
+ */
+#define ext4_check_indirect_blockref(inode, bh)				\
+	ext4_check_blockref(__func__, __LINE__, inode,			\
+			    (__le32 *)(bh)->b_data,			\
+			    EXT4_ADDR_PER_BLOCK((inode)->i_sb))
+
+#define ext4_ind_check_inode(inode)					\
+	ext4_check_blockref(__func__, __LINE__, inode,			\
+			    EXT4_I(inode)->i_data,			\
+			    EXT4_NDIR_BLOCKS)
+
+/*
  * Inodes and files operations
  */
 
@@ -2151,6 +2194,8 @@ extern void ext4_exit_system_zone(void);
 extern int ext4_data_block_valid(struct ext4_sb_info *sbi,
 				 ext4_fsblk_t start_blk,
 				 unsigned int count);
+extern int ext4_check_blockref(const char *, unsigned int,
+			       struct inode *, __le32 *, unsigned int);
 
 /* extents.c */
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);
@@ -2229,6 +2274,10 @@ static inline void set_bitmap_uptodate(struct buffer_head *bh)
 					     EXT4_WQ_HASH_SZ])
 extern wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
 extern struct mutex ext4__aio_mutex[EXT4_WQ_HASH_SZ];
+
+#define EXT4_RESIZING	0
+extern int ext4_resize_begin(struct super_block *sb);
+extern void ext4_resize_end(struct super_block *sb);
 
 #endif	/* __KERNEL__ */
 

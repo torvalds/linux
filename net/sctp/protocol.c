@@ -503,7 +503,9 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		sctp_v4_dst_saddr(&dst_saddr, fl4, htons(bp->port));
 		rcu_read_lock();
 		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
-			if (!laddr->valid || (laddr->state != SCTP_ADDR_SRC))
+			if (!laddr->valid || (laddr->state == SCTP_ADDR_DEL) ||
+			    (laddr->state != SCTP_ADDR_SRC &&
+			    !asoc->src_out_of_asoc_ok))
 				continue;
 			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a))
 				goto out_unlock;
@@ -623,6 +625,143 @@ static void sctp_v4_ecn_capable(struct sock *sk)
 	INET_ECN_xmit(sk);
 }
 
+void sctp_addr_wq_timeout_handler(unsigned long arg)
+{
+	struct sctp_sockaddr_entry *addrw, *temp;
+	struct sctp_sock *sp;
+
+	spin_lock_bh(&sctp_addr_wq_lock);
+
+	list_for_each_entry_safe(addrw, temp, &sctp_addr_waitq, list) {
+		SCTP_DEBUG_PRINTK_IPADDR("sctp_addrwq_timo_handler: the first ent in wq %p is ",
+		    " for cmd %d at entry %p\n", &sctp_addr_waitq, &addrw->a, addrw->state,
+		    addrw);
+
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+		/* Now we send an ASCONF for each association */
+		/* Note. we currently don't handle link local IPv6 addressees */
+		if (addrw->a.sa.sa_family == AF_INET6) {
+			struct in6_addr *in6;
+
+			if (ipv6_addr_type(&addrw->a.v6.sin6_addr) &
+			    IPV6_ADDR_LINKLOCAL)
+				goto free_next;
+
+			in6 = (struct in6_addr *)&addrw->a.v6.sin6_addr;
+			if (ipv6_chk_addr(&init_net, in6, NULL, 0) == 0 &&
+			    addrw->state == SCTP_ADDR_NEW) {
+				unsigned long timeo_val;
+
+				SCTP_DEBUG_PRINTK("sctp_timo_handler: this is on DAD, trying %d sec later\n",
+				    SCTP_ADDRESS_TICK_DELAY);
+				timeo_val = jiffies;
+				timeo_val += msecs_to_jiffies(SCTP_ADDRESS_TICK_DELAY);
+				mod_timer(&sctp_addr_wq_timer, timeo_val);
+				break;
+			}
+		}
+#endif
+		list_for_each_entry(sp, &sctp_auto_asconf_splist, auto_asconf_list) {
+			struct sock *sk;
+
+			sk = sctp_opt2sk(sp);
+			/* ignore bound-specific endpoints */
+			if (!sctp_is_ep_boundall(sk))
+				continue;
+			sctp_bh_lock_sock(sk);
+			if (sctp_asconf_mgmt(sp, addrw) < 0)
+				SCTP_DEBUG_PRINTK("sctp_addrwq_timo_handler: sctp_asconf_mgmt failed\n");
+			sctp_bh_unlock_sock(sk);
+		}
+free_next:
+		list_del(&addrw->list);
+		kfree(addrw);
+	}
+	spin_unlock_bh(&sctp_addr_wq_lock);
+}
+
+static void sctp_free_addr_wq(void)
+{
+	struct sctp_sockaddr_entry *addrw;
+	struct sctp_sockaddr_entry *temp;
+
+	spin_lock_bh(&sctp_addr_wq_lock);
+	del_timer(&sctp_addr_wq_timer);
+	list_for_each_entry_safe(addrw, temp, &sctp_addr_waitq, list) {
+		list_del(&addrw->list);
+		kfree(addrw);
+	}
+	spin_unlock_bh(&sctp_addr_wq_lock);
+}
+
+/* lookup the entry for the same address in the addr_waitq
+ * sctp_addr_wq MUST be locked
+ */
+static struct sctp_sockaddr_entry *sctp_addr_wq_lookup(struct sctp_sockaddr_entry *addr)
+{
+	struct sctp_sockaddr_entry *addrw;
+
+	list_for_each_entry(addrw, &sctp_addr_waitq, list) {
+		if (addrw->a.sa.sa_family != addr->a.sa.sa_family)
+			continue;
+		if (addrw->a.sa.sa_family == AF_INET) {
+			if (addrw->a.v4.sin_addr.s_addr ==
+			    addr->a.v4.sin_addr.s_addr)
+				return addrw;
+		} else if (addrw->a.sa.sa_family == AF_INET6) {
+			if (ipv6_addr_equal(&addrw->a.v6.sin6_addr,
+			    &addr->a.v6.sin6_addr))
+				return addrw;
+		}
+	}
+	return NULL;
+}
+
+void sctp_addr_wq_mgmt(struct sctp_sockaddr_entry *addr, int cmd)
+{
+	struct sctp_sockaddr_entry *addrw;
+	unsigned long timeo_val;
+
+	/* first, we check if an opposite message already exist in the queue.
+	 * If we found such message, it is removed.
+	 * This operation is a bit stupid, but the DHCP client attaches the
+	 * new address after a couple of addition and deletion of that address
+	 */
+
+	spin_lock_bh(&sctp_addr_wq_lock);
+	/* Offsets existing events in addr_wq */
+	addrw = sctp_addr_wq_lookup(addr);
+	if (addrw) {
+		if (addrw->state != cmd) {
+			SCTP_DEBUG_PRINTK_IPADDR("sctp_addr_wq_mgmt offsets existing entry for %d ",
+			    " in wq %p\n", addrw->state, &addrw->a,
+			    &sctp_addr_waitq);
+			list_del(&addrw->list);
+			kfree(addrw);
+		}
+		spin_unlock_bh(&sctp_addr_wq_lock);
+		return;
+	}
+
+	/* OK, we have to add the new address to the wait queue */
+	addrw = kmemdup(addr, sizeof(struct sctp_sockaddr_entry), GFP_ATOMIC);
+	if (addrw == NULL) {
+		spin_unlock_bh(&sctp_addr_wq_lock);
+		return;
+	}
+	addrw->state = cmd;
+	list_add_tail(&addrw->list, &sctp_addr_waitq);
+	SCTP_DEBUG_PRINTK_IPADDR("sctp_addr_wq_mgmt add new entry for cmd:%d ",
+	    " in wq %p\n", addrw->state, &addrw->a, &sctp_addr_waitq);
+
+	if (!timer_pending(&sctp_addr_wq_timer)) {
+		timeo_val = jiffies;
+		timeo_val += msecs_to_jiffies(SCTP_ADDRESS_TICK_DELAY);
+		mod_timer(&sctp_addr_wq_timer, timeo_val);
+	}
+	spin_unlock_bh(&sctp_addr_wq_lock);
+}
+
 /* Event handler for inet address addition/deletion events.
  * The sctp_local_addr_list needs to be protocted by a spin lock since
  * multiple notifiers (say IPv4 and IPv6) may be running at the same
@@ -650,6 +789,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 			addr->valid = 1;
 			spin_lock_bh(&sctp_local_addr_lock);
 			list_add_tail_rcu(&addr->list, &sctp_local_addr_list);
+			sctp_addr_wq_mgmt(addr, SCTP_ADDR_NEW);
 			spin_unlock_bh(&sctp_local_addr_lock);
 		}
 		break;
@@ -660,6 +800,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 			if (addr->a.sa.sa_family == AF_INET &&
 					addr->a.v4.sin_addr.s_addr ==
 					ifa->ifa_local) {
+				sctp_addr_wq_mgmt(addr, SCTP_ADDR_DEL);
 				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
@@ -1058,7 +1199,6 @@ SCTP_STATIC __init int sctp_init(void)
 	int status = -EINVAL;
 	unsigned long goal;
 	unsigned long limit;
-	unsigned long nr_pages;
 	int max_share;
 	int order;
 
@@ -1148,15 +1288,7 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Initialize handle used for association ids. */
 	idr_init(&sctp_assocs_id);
 
-	/* Set the pressure threshold to be a fraction of global memory that
-	 * is up to 1/2 at 256 MB, decreasing toward zero with the amount of
-	 * memory, with a floor of 128 pages.
-	 * Note this initializes the data in sctpv6_prot too
-	 * Unabashedly stolen from tcp_init
-	 */
-	nr_pages = totalram_pages - totalhigh_pages;
-	limit = min(nr_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
-	limit = (limit * (nr_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
+	limit = nr_free_buffer_pages() / 8;
 	limit = max(limit, 128UL);
 	sysctl_sctp_mem[0] = limit / 4 * 3;
 	sysctl_sctp_mem[1] = limit;
@@ -1242,6 +1374,7 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Disable ADDIP by default. */
 	sctp_addip_enable = 0;
 	sctp_addip_noauth = 0;
+	sctp_default_auto_asconf = 0;
 
 	/* Enable PR-SCTP by default. */
 	sctp_prsctp_enable = 1;
@@ -1265,6 +1398,13 @@ SCTP_STATIC __init int sctp_init(void)
 	INIT_LIST_HEAD(&sctp_local_addr_list);
 	spin_lock_init(&sctp_local_addr_lock);
 	sctp_get_local_addr_list();
+
+	/* Initialize the address event list */
+	INIT_LIST_HEAD(&sctp_addr_waitq);
+	INIT_LIST_HEAD(&sctp_auto_asconf_splist);
+	spin_lock_init(&sctp_addr_wq_lock);
+	sctp_addr_wq_timer.expires = 0;
+	setup_timer(&sctp_addr_wq_timer, sctp_addr_wq_timeout_handler, 0);
 
 	status = sctp_v4_protosw_init();
 
@@ -1337,6 +1477,7 @@ SCTP_STATIC __exit void sctp_exit(void)
 	/* Unregister with inet6/inet layers. */
 	sctp_v6_del_protocol();
 	sctp_v4_del_protocol();
+	sctp_free_addr_wq();
 
 	/* Free the control endpoint.  */
 	inet_ctl_sock_destroy(sctp_ctl_sock);

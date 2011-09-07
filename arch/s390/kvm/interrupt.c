@@ -128,6 +128,10 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		if (rc == -EFAULT)
 			exception = 1;
 
+		rc = put_guest_u16(vcpu, __LC_CPU_ADDRESS, inti->emerg.code);
+		if (rc == -EFAULT)
+			exception = 1;
+
 		rc = copy_to_guest(vcpu, __LC_EXT_OLD_PSW,
 			 &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 		if (rc == -EFAULT)

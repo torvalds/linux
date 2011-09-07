@@ -24,6 +24,7 @@
 #include <linux/elf.h>
 #include <linux/ptrace.h>
 #include <linux/module.h>
+#include <linux/ratelimit.h>
 
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
@@ -380,10 +381,10 @@ badframe:
 	printk("badframe in sys_rt_sigreturn, regs=%p uc=%p &uc->uc_mcontext=%p\n",
 	       regs, uc, &uc->uc_mcontext);
 #endif
-	if (show_unhandled_signals && printk_ratelimit())
-		printk(regs->msr & MSR_64BIT ? fmt64 : fmt32,
-			current->comm, current->pid, "rt_sigreturn",
-			(long)uc, regs->nip, regs->link);
+	if (show_unhandled_signals)
+		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
+				   current->comm, current->pid, "rt_sigreturn",
+				   (long)uc, regs->nip, regs->link);
 
 	force_sig(SIGSEGV, current);
 	return 0;
@@ -468,10 +469,10 @@ badframe:
 	printk("badframe in setup_rt_frame, regs=%p frame=%p newsp=%lx\n",
 	       regs, frame, newsp);
 #endif
-	if (show_unhandled_signals && printk_ratelimit())
-		printk(regs->msr & MSR_64BIT ? fmt64 : fmt32,
-			current->comm, current->pid, "setup_rt_frame",
-			(long)frame, regs->nip, regs->link);
+	if (show_unhandled_signals)
+		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
+				   current->comm, current->pid, "setup_rt_frame",
+				   (long)frame, regs->nip, regs->link);
 
 	force_sigsegv(signr, current);
 	return 0;

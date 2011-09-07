@@ -60,11 +60,6 @@ struct xt_rateest *xt_rateest_lookup(const char *name)
 }
 EXPORT_SYMBOL_GPL(xt_rateest_lookup);
 
-static void xt_rateest_free_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct xt_rateest, rcu));
-}
-
 void xt_rateest_put(struct xt_rateest *est)
 {
 	mutex_lock(&xt_rateest_mutex);
@@ -75,7 +70,7 @@ void xt_rateest_put(struct xt_rateest *est)
 		 * gen_estimator est_timer() might access est->lock or bstats,
 		 * wait a RCU grace period before freeing 'est'
 		 */
-		call_rcu(&est->rcu, xt_rateest_free_rcu);
+		kfree_rcu(est, rcu);
 	}
 	mutex_unlock(&xt_rateest_mutex);
 }
@@ -188,7 +183,6 @@ static int __init xt_rateest_tg_init(void)
 static void __exit xt_rateest_tg_fini(void)
 {
 	xt_unregister_target(&xt_rateest_tg_reg);
-	rcu_barrier(); /* Wait for completion of call_rcu()'s (xt_rateest_free_rcu) */
 }
 
 

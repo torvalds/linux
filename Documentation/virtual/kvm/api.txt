@@ -180,6 +180,19 @@ KVM_CHECK_EXTENSION ioctl() to determine the value for max_vcpus at run-time.
 If the KVM_CAP_NR_VCPUS does not exist, you should assume that max_vcpus is 4
 cpus max.
 
+On powerpc using book3s_hv mode, the vcpus are mapped onto virtual
+threads in one or more virtual CPU cores.  (This is because the
+hardware requires all the hardware threads in a CPU core to be in the
+same partition.)  The KVM_CAP_PPC_SMT capability indicates the number
+of vcpus per virtual core (vcore).  The vcore id is obtained by
+dividing the vcpu id by the number of vcpus per vcore.  The vcpus in a
+given vcore will always be in the same physical core as each other
+(though that might be a different physical core from time to time).
+Userspace can control the threading (SMT) mode of the guest by its
+allocation of vcpu ids.  For example, if userspace wants
+single-threaded guest vcpus, it should make all vcpu ids be a multiple
+of the number of vcpus per vcore.
+
 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
 
 Capability: basic
@@ -1143,15 +1156,10 @@ Assigns an IRQ to a passed-through device.
 
 struct kvm_assigned_irq {
 	__u32 assigned_dev_id;
-	__u32 host_irq;
+	__u32 host_irq; /* ignored (legacy field) */
 	__u32 guest_irq;
 	__u32 flags;
 	union {
-		struct {
-			__u32 addr_lo;
-			__u32 addr_hi;
-			__u32 data;
-		} guest_msi;
 		__u32 reserved[12];
 	};
 };
@@ -1239,8 +1247,10 @@ Type: vm ioctl
 Parameters: struct kvm_assigned_msix_nr (in)
 Returns: 0 on success, -1 on error
 
-Set the number of MSI-X interrupts for an assigned device. This service can
-only be called once in the lifetime of an assigned device.
+Set the number of MSI-X interrupts for an assigned device. The number is
+reset again by terminating the MSI-X assignment of the device via
+KVM_DEASSIGN_DEV_IRQ. Calling this service more than once at any earlier
+point will fail.
 
 struct kvm_assigned_msix_nr {
 	__u32 assigned_dev_id;
@@ -1290,6 +1300,135 @@ Returns: virtual tsc-khz on success, negative value on error
 Returns the tsc frequency of the guest. The unit of the return value is
 KHz. If the host has unstable tsc this ioctl returns -EIO instead as an
 error.
+
+4.56 KVM_GET_LAPIC
+
+Capability: KVM_CAP_IRQCHIP
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_lapic_state (out)
+Returns: 0 on success, -1 on error
+
+#define KVM_APIC_REG_SIZE 0x400
+struct kvm_lapic_state {
+	char regs[KVM_APIC_REG_SIZE];
+};
+
+Reads the Local APIC registers and copies them into the input argument.  The
+data format and layout are the same as documented in the architecture manual.
+
+4.57 KVM_SET_LAPIC
+
+Capability: KVM_CAP_IRQCHIP
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_lapic_state (in)
+Returns: 0 on success, -1 on error
+
+#define KVM_APIC_REG_SIZE 0x400
+struct kvm_lapic_state {
+	char regs[KVM_APIC_REG_SIZE];
+};
+
+Copies the input argument into the the Local APIC registers.  The data format
+and layout are the same as documented in the architecture manual.
+
+4.58 KVM_IOEVENTFD
+
+Capability: KVM_CAP_IOEVENTFD
+Architectures: all
+Type: vm ioctl
+Parameters: struct kvm_ioeventfd (in)
+Returns: 0 on success, !0 on error
+
+This ioctl attaches or detaches an ioeventfd to a legal pio/mmio address
+within the guest.  A guest write in the registered address will signal the
+provided event instead of triggering an exit.
+
+struct kvm_ioeventfd {
+	__u64 datamatch;
+	__u64 addr;        /* legal pio/mmio address */
+	__u32 len;         /* 1, 2, 4, or 8 bytes    */
+	__s32 fd;
+	__u32 flags;
+	__u8  pad[36];
+};
+
+The following flags are defined:
+
+#define KVM_IOEVENTFD_FLAG_DATAMATCH (1 << kvm_ioeventfd_flag_nr_datamatch)
+#define KVM_IOEVENTFD_FLAG_PIO       (1 << kvm_ioeventfd_flag_nr_pio)
+#define KVM_IOEVENTFD_FLAG_DEASSIGN  (1 << kvm_ioeventfd_flag_nr_deassign)
+
+If datamatch flag is set, the event will be signaled only if the written value
+to the registered address is equal to datamatch in struct kvm_ioeventfd.
+
+4.62 KVM_CREATE_SPAPR_TCE
+
+Capability: KVM_CAP_SPAPR_TCE
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_create_spapr_tce (in)
+Returns: file descriptor for manipulating the created TCE table
+
+This creates a virtual TCE (translation control entry) table, which
+is an IOMMU for PAPR-style virtual I/O.  It is used to translate
+logical addresses used in virtual I/O into guest physical addresses,
+and provides a scatter/gather capability for PAPR virtual I/O.
+
+/* for KVM_CAP_SPAPR_TCE */
+struct kvm_create_spapr_tce {
+	__u64 liobn;
+	__u32 window_size;
+};
+
+The liobn field gives the logical IO bus number for which to create a
+TCE table.  The window_size field specifies the size of the DMA window
+which this TCE table will translate - the table will contain one 64
+bit TCE entry for every 4kiB of the DMA window.
+
+When the guest issues an H_PUT_TCE hcall on a liobn for which a TCE
+table has been created using this ioctl(), the kernel will handle it
+in real mode, updating the TCE table.  H_PUT_TCE calls for other
+liobns will cause a vm exit and must be handled by userspace.
+
+The return value is a file descriptor which can be passed to mmap(2)
+to map the created TCE table into userspace.  This lets userspace read
+the entries written by kernel-handled H_PUT_TCE calls, and also lets
+userspace update the TCE table directly which is useful in some
+circumstances.
+
+4.63 KVM_ALLOCATE_RMA
+
+Capability: KVM_CAP_PPC_RMA
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_allocate_rma (out)
+Returns: file descriptor for mapping the allocated RMA
+
+This allocates a Real Mode Area (RMA) from the pool allocated at boot
+time by the kernel.  An RMA is a physically-contiguous, aligned region
+of memory used on older POWER processors to provide the memory which
+will be accessed by real-mode (MMU off) accesses in a KVM guest.
+POWER processors support a set of sizes for the RMA that usually
+includes 64MB, 128MB, 256MB and some larger powers of two.
+
+/* for KVM_ALLOCATE_RMA */
+struct kvm_allocate_rma {
+	__u64 rma_size;
+};
+
+The return value is a file descriptor which can be passed to mmap(2)
+to map the allocated RMA into userspace.  The mapped area can then be
+passed to the KVM_SET_USER_MEMORY_REGION ioctl to establish it as the
+RMA for a virtual machine.  The size of the RMA in bytes (which is
+fixed at host kernel boot time) is returned in the rma_size field of
+the argument structure.
+
+The KVM_CAP_PPC_RMA capability is 1 or 2 if the KVM_ALLOCATE_RMA ioctl
+is supported; 2 if the processor requires all virtual machines to have
+an RMA, or 1 if the processor can use an RMA but doesn't require it,
+because it supports the Virtual RMA (VRMA) facility.
 
 5. The kvm_run structure
 
@@ -1472,6 +1611,23 @@ If exit_reason is KVM_EXIT_OSI, then the vcpu has triggered such a hypercall.
 Userspace can now handle the hypercall and when it's done modify the gprs as
 necessary. Upon guest entry all guest GPRs will then be replaced by the values
 in this struct.
+
+		/* KVM_EXIT_PAPR_HCALL */
+		struct {
+			__u64 nr;
+			__u64 ret;
+			__u64 args[9];
+		} papr_hcall;
+
+This is used on 64-bit PowerPC when emulating a pSeries partition,
+e.g. with the 'pseries' machine type in qemu.  It occurs when the
+guest does a hypercall using the 'sc 1' instruction.  The 'nr' field
+contains the hypercall number (from the guest R3), and 'args' contains
+the arguments (from the guest R4 - R12).  Userspace should put the
+return code in 'ret' and any extra returned values in args[].
+The possible hypercalls are defined in the Power Architecture Platform
+Requirements (PAPR) document available from www.power.org (free
+developer registration required to access it).
 
 		/* Fix the size of the union. */
 		char padding[256];

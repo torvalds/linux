@@ -1211,7 +1211,6 @@ struct nes_vnic {
 	/* void *mem; */
 	struct nes_device *nesdev;
 	struct net_device *netdev;
-	struct vlan_group *vlan_grp;
 	atomic_t          rx_skbs_needed;
 	atomic_t          rx_skb_timer_running;
 	int               budget;
@@ -1356,8 +1355,5 @@ struct nes_terminate_hdr {
 /* Used for link status recheck after interrupt processing */
 #define NES_LINK_RECHECK_DELAY	msecs_to_jiffies(50)
 #define NES_LINK_RECHECK_MAX	60
-
-#define nes_vlan_rx vlan_hwaccel_receive_skb
-#define nes_netif_rx netif_receive_skb
 
 #endif		/* __NES_HW_H */

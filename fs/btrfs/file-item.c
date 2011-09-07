@@ -177,6 +177,15 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 
 	WARN_ON(bio->bi_vcnt <= 0);
 
+	/*
+	 * the free space stuff is only read when it hasn't been
+	 * updated in the current transaction.  So, we can safely
+	 * read from the commit root and sidestep a nasty deadlock
+	 * between reading the free space cache and updating the csum tree.
+	 */
+	if (btrfs_is_free_space_inode(root, inode))
+		path->search_commit_root = 1;
+
 	disk_bytenr = (u64)bio->bi_sector << 9;
 	if (dio)
 		offset = logical_offset;
@@ -282,7 +291,8 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 	u16 csum_size = btrfs_super_csum_size(&root->fs_info->super_copy);
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 
 	if (search_commit) {
 		path->skip_locking = 1;
@@ -664,15 +674,13 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 	struct btrfs_sector_sum *sector_sum;
 	u32 nritems;
 	u32 ins_size;
-	char *eb_map;
-	char *eb_token;
-	unsigned long map_len;
-	unsigned long map_start;
 	u16 csum_size =
 		btrfs_super_csum_size(&root->fs_info->super_copy);
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
+
 	sector_sum = sums->sums;
 again:
 	next_offset = (u64)-1;
@@ -814,30 +822,9 @@ found:
 	item_end = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
 	item_end = (struct btrfs_csum_item *)((unsigned char *)item_end +
 				      btrfs_item_size_nr(leaf, path->slots[0]));
-	eb_token = NULL;
 next_sector:
 
-	if (!eb_token ||
-	   (unsigned long)item + csum_size >= map_start + map_len) {
-		int err;
-
-		if (eb_token)
-			unmap_extent_buffer(leaf, eb_token, KM_USER1);
-		eb_token = NULL;
-		err = map_private_extent_buffer(leaf, (unsigned long)item,
-						csum_size,
-						&eb_token, &eb_map,
-						&map_start, &map_len, KM_USER1);
-		if (err)
-			eb_token = NULL;
-	}
-	if (eb_token) {
-		memcpy(eb_token + ((unsigned long)item & (PAGE_CACHE_SIZE - 1)),
-		       &sector_sum->sum, csum_size);
-	} else {
-		write_extent_buffer(leaf, &sector_sum->sum,
-				    (unsigned long)item, csum_size);
-	}
+	write_extent_buffer(leaf, &sector_sum->sum, (unsigned long)item, csum_size);
 
 	total_bytes += root->sectorsize;
 	sector_sum++;
@@ -850,10 +837,7 @@ next_sector:
 			goto next_sector;
 		}
 	}
-	if (eb_token) {
-		unmap_extent_buffer(leaf, eb_token, KM_USER1);
-		eb_token = NULL;
-	}
+
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	if (total_bytes < sums->len) {
 		btrfs_release_path(path);

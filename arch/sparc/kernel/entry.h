@@ -42,6 +42,20 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 extern void fpload(unsigned long *fpregs, unsigned long *fsr);
 
 #else /* CONFIG_SPARC32 */
+struct popc_3insn_patch_entry {
+	unsigned int	addr;
+	unsigned int	insns[3];
+};
+extern struct popc_3insn_patch_entry __popc_3insn_patch,
+	__popc_3insn_patch_end;
+
+struct popc_6insn_patch_entry {
+	unsigned int	addr;
+	unsigned int	insns[6];
+};
+extern struct popc_6insn_patch_entry __popc_6insn_patch,
+	__popc_6insn_patch_end;
+
 extern void __init per_cpu_patch(void);
 extern void __init sun4v_patch(void);
 extern void __init boot_cpu_id_too_large(int cpu);

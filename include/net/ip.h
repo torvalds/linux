@@ -228,8 +228,6 @@ extern struct ctl_path net_ipv4_ctl_path[];
 extern int inet_peer_threshold;
 extern int inet_peer_minttl;
 extern int inet_peer_maxttl;
-extern int inet_peer_gc_mintime;
-extern int inet_peer_gc_maxtime;
 
 /* From ip_output.c */
 extern int sysctl_ip_dynaddr;
@@ -237,6 +235,11 @@ extern int sysctl_ip_dynaddr;
 extern void ipfrag_init(void);
 
 extern void ip_static_sysctl_init(void);
+
+static inline bool ip_is_fragment(const struct iphdr *iph)
+{
+	return (iph->frag_off & htons(IP_MF | IP_OFFSET)) != 0;
+}
 
 #ifdef CONFIG_INET
 #include <net/dst.h>
@@ -401,7 +404,8 @@ enum ip_defrag_users {
 	__IP_DEFRAG_CONNTRACK_BRIDGE_IN = IP_DEFRAG_CONNTRACK_BRIDGE_IN + USHRT_MAX,
 	IP_DEFRAG_VS_IN,
 	IP_DEFRAG_VS_OUT,
-	IP_DEFRAG_VS_FWD
+	IP_DEFRAG_VS_FWD,
+	IP_DEFRAG_AF_PACKET,
 };
 
 int ip_defrag(struct sk_buff *skb, u32 user);

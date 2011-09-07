@@ -214,7 +214,7 @@ replacing "/usr/src" with wherever you keep your Linux kernel source tree:
   make config
   make bzImage (or zImage)
 
-Then install "arch/i386/boot/bzImage" or "arch/i386/boot/zImage" as your
+Then install "arch/x86/boot/bzImage" or "arch/x86/boot/zImage" as your
 standard kernel, run lilo if appropriate, and reboot.
 
 To create the necessary devices in /dev, the "make_rd" script included in

@@ -1584,23 +1584,19 @@ static const struct ethtool_ops nes_ethtool_ops = {
 	.set_pauseparam = nes_netdev_set_pauseparam,
 };
 
-
-static void nes_netdev_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
+static void nes_vlan_mode(struct net_device *netdev, struct nes_device *nesdev, u32 features)
 {
-	struct nes_vnic *nesvnic = netdev_priv(netdev);
-	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u32 u32temp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&nesadapter->phy_lock, flags);
-	nesvnic->vlan_grp = grp;
 
 	nes_debug(NES_DBG_NETDEV, "%s: %s\n", __func__, netdev->name);
 
 	/* Enable/Disable VLAN Stripping */
 	u32temp = nes_read_indexed(nesdev, NES_IDX_PCIX_DIAG);
-	if (grp)
+	if (features & NETIF_F_HW_VLAN_RX)
 		u32temp &= 0xfdffffff;
 	else
 		u32temp	|= 0x02000000;
@@ -1609,17 +1605,44 @@ static void nes_netdev_vlan_rx_register(struct net_device *netdev, struct vlan_g
 	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 }
 
+static u32 nes_fix_features(struct net_device *netdev, u32 features)
+{
+	/*
+	 * Since there is no support for separate rx/tx vlan accel
+	 * enable/disable make sure tx flag is always in same state as rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_RX)
+		features |= NETIF_F_HW_VLAN_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_TX;
+
+	return features;
+}
+
+static int nes_set_features(struct net_device *netdev, u32 features)
+{
+	struct nes_vnic *nesvnic = netdev_priv(netdev);
+	struct nes_device *nesdev = nesvnic->nesdev;
+	u32 changed = netdev->features ^ features;
+
+	if (changed & NETIF_F_HW_VLAN_RX)
+		nes_vlan_mode(netdev, nesdev, features);
+
+	return 0;
+}
+
 static const struct net_device_ops nes_netdev_ops = {
-	.ndo_open 		= nes_netdev_open,
+	.ndo_open		= nes_netdev_open,
 	.ndo_stop		= nes_netdev_stop,
-	.ndo_start_xmit 	= nes_netdev_start_xmit,
+	.ndo_start_xmit		= nes_netdev_start_xmit,
 	.ndo_get_stats		= nes_netdev_get_stats,
-	.ndo_tx_timeout 	= nes_netdev_tx_timeout,
+	.ndo_tx_timeout		= nes_netdev_tx_timeout,
 	.ndo_set_mac_address	= nes_netdev_set_mac_address,
 	.ndo_set_multicast_list = nes_netdev_set_multicast_list,
 	.ndo_change_mtu		= nes_netdev_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_vlan_rx_register 	= nes_netdev_vlan_rx_register,
+	.ndo_fix_features	= nes_fix_features,
+	.ndo_set_features	= nes_set_features,
 };
 
 /**
@@ -1656,7 +1679,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->ethtool_ops = &nes_ethtool_ops;
 	netif_napi_add(netdev, &nesvnic->napi, nes_netdev_poll, 128);
 	nes_debug(NES_DBG_INIT, "Enabling VLAN Insert/Delete.\n");
-	netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	netdev->features |= NETIF_F_HW_VLAN_TX;
 
 	/* Fill in the port structure */
 	nesvnic->netdev = netdev;
@@ -1683,7 +1706,8 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->dev_addr[5] = (u8)u64temp;
 	memcpy(netdev->perm_addr, netdev->dev_addr, 6);
 
-	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_IP_CSUM;
+	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_IP_CSUM |
+			      NETIF_F_HW_VLAN_RX;
 	if ((nesvnic->logical_port < 2) || (nesdev->nesadapter->hw_rev != NE020_REV))
 		netdev->hw_features |= NETIF_F_TSO;
 	netdev->features |= netdev->hw_features;
@@ -1814,6 +1838,8 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 
 		nes_init_phy(nesdev);
 	}
+
+	nes_vlan_mode(netdev, nesdev, netdev->features);
 
 	return netdev;
 }

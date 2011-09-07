@@ -80,7 +80,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 				  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 	if (ret) {
 		jffs2_free_raw_inode(ri);
-		if (S_ISLNK(inode->i_mode & S_IFMT))
+		if (S_ISLNK(inode->i_mode))
 			 kfree(mdata);
 		return ret;
 	}
@@ -406,7 +406,7 @@ int jffs2_remount_fs (struct super_block *sb, int *flags, char *data)
 
 /* jffs2_new_inode: allocate a new inode and inocache, add it to the hash,
    fill in the raw_inode while you're at it. */
-struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_inode *ri)
+struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_raw_inode *ri)
 {
 	struct inode *inode;
 	struct super_block *sb = dir_i->i_sb;

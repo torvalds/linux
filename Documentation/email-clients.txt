@@ -199,18 +199,16 @@ to coerce it into behaving.
 
 To beat some sense out of the internal editor, do this:
 
-- Under account settings, composition and addressing, uncheck "Compose
-  messages in HTML format".
-
 - Edit your Thunderbird config settings so that it won't use format=flowed.
   Go to "edit->preferences->advanced->config editor" to bring up the
   thunderbird's registry editor, and set "mailnews.send_plaintext_flowed" to
   "false".
 
-- Enable "preformat" mode: Shft-click on the Write icon to bring up the HTML
-  composer, select "Preformat" from the drop-down box just under the subject
-  line, then close the message without saving.  (This setting also applies to
-  the text composer, but the only control for it is in the HTML composer.)
+- Disable HTML Format: Set "mail.identity.id1.compose_html" to "false".
+
+- Enable "preformat" mode: Set "editor.quotesPreformatted" to "true".
+
+- Enable UTF8: Set "prefs.converted-to-utf8" to "true".
 
 - Install the "toggle wordwrap" extension.  Download the file from:
     https://addons.mozilla.org/thunderbird/addon/2351/

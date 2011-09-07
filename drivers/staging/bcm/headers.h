@@ -20,25 +20,22 @@
 #include <linux/file.h>
 #include <linux/string.h>
 #include <linux/etherdevice.h>
-#include <net/ip.h>
 #include <linux/wait.h>
 #include <linux/proc_fs.h>
 #include <linux/interrupt.h>
-
-#include <linux/version.h>
 #include <linux/stddef.h>
-#include <linux/kernel.h>
 #include <linux/stat.h>
 #include <linux/fcntl.h>
 #include <linux/unistd.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
-#include <asm/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/usb.h>
+#include <asm/uaccess.h>
+#include <net/ip.h>
 
 #include "Typedefs.h"
 #include "Version.h"
@@ -60,7 +57,6 @@
 #include "Prototypes.h"
 #include "Queue.h"
 #include "vendorspecificextn.h"
-
 
 #include "InterfaceMacros.h"
 #include "InterfaceAdapter.h"

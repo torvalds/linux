@@ -311,7 +311,7 @@ public slots:
 	void listFocusChanged(void);
 	void goBack(void);
 	void loadConfig(void);
-	void saveConfig(void);
+	bool saveConfig(void);
 	void saveConfigAs(void);
 	void searchConfig(void);
 	void showSingleView(void);

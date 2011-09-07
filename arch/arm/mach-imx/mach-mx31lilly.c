@@ -192,7 +192,7 @@ static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 };
 
-static void lilly1131_usb_init(void)
+static void __init lilly1131_usb_init(void)
 {
 	imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
 
@@ -243,6 +243,8 @@ core_param(mx31lilly_baseboard, mx31lilly_baseboard, int, 0444);
 
 static void __init mx31lilly_board_init(void)
 {
+	imx31_soc_init();
+
 	switch (mx31lilly_baseboard) {
 	case MX31LILLY_NOBOARD:
 		break;

@@ -1,7 +1,7 @@
 config VIDEO_DT3155
 	tristate "DT3155 frame grabber, Video4Linux interface"
 	depends on PCI && VIDEO_DEV && VIDEO_V4L2
-	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF2_DMA_CONTIG
 	default n
 	---help---
 	  Enables dt3155 device driver for the DataTranslation DT3155 frame grabber.
@@ -18,3 +18,11 @@ config DT3155_CCIR
 	---help---
 	  Select it for CCIR/50Hz (European region),
 	  or leave it unselected for RS-170/60Hz (North America).
+
+config DT3155_STREAMING
+	bool "Selects streaming capture method"
+	depends on VIDEO_DT3155
+	default y
+	---help---
+	  Select it if you want to use streaming of memory mapped buffers
+	  or leave it unselected if you want to use read method (one copy more).

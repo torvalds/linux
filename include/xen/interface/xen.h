@@ -450,6 +450,45 @@ struct start_info {
 	int8_t cmd_line[MAX_GUEST_CMDLINE];
 };
 
+struct dom0_vga_console_info {
+	uint8_t video_type;
+#define XEN_VGATYPE_TEXT_MODE_3 0x03
+#define XEN_VGATYPE_VESA_LFB    0x23
+
+	union {
+		struct {
+			/* Font height, in pixels. */
+			uint16_t font_height;
+			/* Cursor location (column, row). */
+			uint16_t cursor_x, cursor_y;
+			/* Number of rows and columns (dimensions in characters). */
+			uint16_t rows, columns;
+		} text_mode_3;
+
+		struct {
+			/* Width and height, in pixels. */
+			uint16_t width, height;
+			/* Bytes per scan line. */
+			uint16_t bytes_per_line;
+			/* Bits per pixel. */
+			uint16_t bits_per_pixel;
+			/* LFB physical address, and size (in units of 64kB). */
+			uint32_t lfb_base;
+			uint32_t lfb_size;
+			/* RGB mask offsets and sizes, as defined by VBE 1.2+ */
+			uint8_t  red_pos, red_size;
+			uint8_t  green_pos, green_size;
+			uint8_t  blue_pos, blue_size;
+			uint8_t  rsvd_pos, rsvd_size;
+
+			/* VESA capabilities (offset 0xa, VESA command 0x4f00). */
+			uint32_t gbl_caps;
+			/* Mode attributes (offset 0x0, VESA command 0x4f01). */
+			uint16_t mode_attrs;
+		} vesa_lfb;
+	} u;
+};
+
 /* These flags are passed in the 'flags' field of start_info_t. */
 #define SIF_PRIVILEGED    (1<<0)  /* Is the domain privileged? */
 #define SIF_INITDOMAIN    (1<<1)  /* Is this the initial control domain? */

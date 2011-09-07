@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2009 Intel Corporation.
+  Copyright(c) 2007-2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -285,6 +285,7 @@ static s32 igb_ready_nvm_eeprom(struct e1000_hw *hw)
 		/* Clear SK and CS */
 		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
 		wr32(E1000_EECD, eecd);
+		wrfl();
 		udelay(1);
 		timeout = NVM_MAX_RETRY_SPI;
 

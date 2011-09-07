@@ -357,7 +357,8 @@ void pgtable_cache_init(void);
 /*
  * find_linux_pte returns the address of a linux pte for a given
  * effective address and directory.  If not found, it returns zero.
- */static inline pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea)
+ */
+static inline pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea)
 {
 	pgd_t *pg;
 	pud_t *pu;

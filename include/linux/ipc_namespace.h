@@ -44,6 +44,11 @@ struct ipc_namespace {
 	size_t		shm_ctlall;
 	int		shm_ctlmni;
 	int		shm_tot;
+	/*
+	 * Defines whether IPC_RMID is forced for _all_ shm segments regardless
+	 * of shmctl()
+	 */
+	int		shm_rmid_forced;
 
 	struct notifier_block ipcns_nb;
 
@@ -72,6 +77,7 @@ extern int register_ipcns_notifier(struct ipc_namespace *);
 extern int cond_register_ipcns_notifier(struct ipc_namespace *);
 extern void unregister_ipcns_notifier(struct ipc_namespace *);
 extern int ipcns_notify(unsigned long);
+extern void shm_destroy_orphaned(struct ipc_namespace *ns);
 #else /* CONFIG_SYSVIPC */
 static inline int register_ipcns_notifier(struct ipc_namespace *ns)
 { return 0; }
@@ -79,6 +85,7 @@ static inline int cond_register_ipcns_notifier(struct ipc_namespace *ns)
 { return 0; }
 static inline void unregister_ipcns_notifier(struct ipc_namespace *ns) { }
 static inline int ipcns_notify(unsigned long l) { return 0; }
+static inline void shm_destroy_orphaned(struct ipc_namespace *ns) {}
 #endif /* CONFIG_SYSVIPC */
 
 #ifdef CONFIG_POSIX_MQUEUE

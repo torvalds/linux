@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/delay.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -30,7 +31,7 @@ static int s5pv210_serial_setsource(struct uart_port *port,
 	struct s3c2410_uartcfg *cfg = port->dev->platform_data;
 	unsigned long ucon = rd_regl(port, S3C2410_UCON);
 
-	if ((cfg->clocks_size) == 1)
+	if (cfg->flags & NO_NEED_CHECK_CLKSRC)
 		return 0;
 
 	if (strcmp(clk->name, "pclk") == 0)
@@ -55,7 +56,7 @@ static int s5pv210_serial_getsource(struct uart_port *port,
 
 	clk->divisor = 1;
 
-	if ((cfg->clocks_size) == 1)
+	if (cfg->flags & NO_NEED_CHECK_CLKSRC)
 		return 0;
 
 	switch (ucon & S5PV210_UCON_CLKMASK) {
@@ -82,6 +83,9 @@ static int s5pv210_serial_resetport(struct uart_port *port,
 	/* reset both fifos */
 	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
 	wr_regl(port, S3C2410_UFCON, cfg->ufcon);
+
+	/* It is need to delay When reset FIFO register */
+	udelay(1);
 
 	return 0;
 }
@@ -134,13 +138,6 @@ static struct platform_driver s5p_serial_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init s5pv210_serial_console_init(void)
-{
-	return s3c24xx_serial_initconsole(&s5p_serial_driver, s5p_uart_inf);
-}
-
-console_initcall(s5pv210_serial_console_init);
 
 static int __init s5p_serial_init(void)
 {

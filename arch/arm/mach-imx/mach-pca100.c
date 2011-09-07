@@ -357,6 +357,8 @@ static void __init pca100_init(void)
 {
 	int ret;
 
+	imx27_soc_init();
+
 	/* SSI unit */
 	mxc_audmux_v1_configure_port(MX27_AUDMUX_HPCR1_SSI0,
 				  MXC_AUDMUX_V1_PCR_SYN | /* 4wire mode */

@@ -259,6 +259,8 @@ static void __init s3c2410_timer_resources(void)
 	clk_enable(timerclk);
 
 	if (!use_tclk1_12()) {
+		tmpdev.id = 4;
+		tmpdev.dev.init_name = "s3c24xx-pwm.4";
 		tin = clk_get(&tmpdev.dev, "pwm-tin");
 		if (IS_ERR(tin))
 			panic("failed to get pwm-tin clock for system timer");

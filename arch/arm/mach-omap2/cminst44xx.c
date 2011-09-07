@@ -2,6 +2,7 @@
  * OMAP4 CM instance functions
  *
  * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2011 Texas Instruments, Inc.
  * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
@@ -32,6 +33,22 @@
 #include "prm44xx.h"
 #include "prcm_mpu44xx.h"
 
+/*
+ * CLKCTRL_IDLEST_*: possible values for the CM_*_CLKCTRL.IDLEST bitfield:
+ *
+ *   0x0 func:     Module is fully functional, including OCP
+ *   0x1 trans:    Module is performing transition: wakeup, or sleep, or sleep
+ *                 abortion
+ *   0x2 idle:     Module is in Idle mode (only OCP part). It is functional if
+ *                 using separate functional clock
+ *   0x3 disabled: Module is disabled and cannot be accessed
+ *
+ */
+#define CLKCTRL_IDLEST_FUNCTIONAL		0x0
+#define CLKCTRL_IDLEST_INTRANSITION		0x1
+#define CLKCTRL_IDLEST_INTERFACE_IDLE		0x2
+#define CLKCTRL_IDLEST_DISABLED			0x3
+
 static u32 _cm_bases[OMAP4_MAX_PRCM_PARTITIONS] = {
 	[OMAP4430_INVALID_PRCM_PARTITION]	= 0,
 	[OMAP4430_PRM_PARTITION]		= OMAP4430_PRM_BASE,
@@ -40,6 +57,48 @@ static u32 _cm_bases[OMAP4_MAX_PRCM_PARTITIONS] = {
 	[OMAP4430_SCRM_PARTITION]		= 0,
 	[OMAP4430_PRCM_MPU_PARTITION]		= OMAP4430_PRCM_MPU_BASE,
 };
+
+/* Private functions */
+
+/**
+ * _clkctrl_idlest - read a CM_*_CLKCTRL register; mask & shift IDLEST bitfield
+ * @part: PRCM partition ID that the CM_CLKCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * Return the IDLEST bitfield of a CM_*_CLKCTRL register, shifted down to
+ * bit 0.
+ */
+static u32 _clkctrl_idlest(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	u32 v = omap4_cminst_read_inst_reg(part, inst, clkctrl_offs);
+	v &= OMAP4430_IDLEST_MASK;
+	v >>= OMAP4430_IDLEST_SHIFT;
+	return v;
+}
+
+/**
+ * _is_module_ready - can module registers be accessed without causing an abort?
+ * @part: PRCM partition ID that the CM_CLKCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * Returns true if the module's CM_*_CLKCTRL.IDLEST bitfield is either
+ * *FUNCTIONAL or *INTERFACE_IDLE; false otherwise.
+ */
+static bool _is_module_ready(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	u32 v;
+
+	v = _clkctrl_idlest(part, inst, cdoffs, clkctrl_offs);
+
+	return (v == CLKCTRL_IDLEST_FUNCTIONAL ||
+		v == CLKCTRL_IDLEST_INTERFACE_IDLE) ? true : false;
+}
+
+/* Public functions */
 
 /* Read a register in a CM instance */
 u32 omap4_cminst_read_inst_reg(u8 part, s16 inst, u16 idx)
@@ -200,36 +259,93 @@ void omap4_cminst_clkdm_force_wakeup(u8 part, s16 inst, u16 cdoffs)
  */
 
 /**
- * omap4_cm_wait_module_ready - wait for a module to be in 'func' state
- * @clkctrl_reg: CLKCTRL module address
+ * omap4_cminst_wait_module_ready - wait for a module to be in 'func' state
+ * @part: PRCM partition ID that the CM_CLKCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Wait for the module IDLEST to be functional. If the idle state is in any
  * the non functional state (trans, idle or disabled), module and thus the
  * sysconfig cannot be accessed and will probably lead to an "imprecise
  * external abort"
- *
- * Module idle state:
- *   0x0 func:     Module is fully functional, including OCP
- *   0x1 trans:    Module is performing transition: wakeup, or sleep, or sleep
- *                 abortion
- *   0x2 idle:     Module is in Idle mode (only OCP part). It is functional if
- *                 using separate functional clock
- *   0x3 disabled: Module is disabled and cannot be accessed
- *
  */
-int omap4_cm_wait_module_ready(void __iomem *clkctrl_reg)
+int omap4_cminst_wait_module_ready(u8 part, u16 inst, s16 cdoffs,
+				   u16 clkctrl_offs)
 {
 	int i = 0;
 
-	if (!clkctrl_reg)
+	if (!clkctrl_offs)
 		return 0;
 
-	omap_test_timeout((
-		((__raw_readl(clkctrl_reg) & OMAP4430_IDLEST_MASK) == 0) ||
-		 (((__raw_readl(clkctrl_reg) & OMAP4430_IDLEST_MASK) >>
-		  OMAP4430_IDLEST_SHIFT) == 0x2)),
-		MAX_MODULE_READY_TIME, i);
+	omap_test_timeout(_is_module_ready(part, inst, cdoffs, clkctrl_offs),
+			  MAX_MODULE_READY_TIME, i);
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }
 
+/**
+ * omap4_cminst_wait_module_idle - wait for a module to be in 'disabled'
+ * state
+ * @part: PRCM partition ID that the CM_CLKCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * Wait for the module IDLEST to be disabled. Some PRCM transition,
+ * like reset assertion or parent clock de-activation must wait the
+ * module to be fully disabled.
+ */
+int omap4_cminst_wait_module_idle(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_offs)
+{
+	int i = 0;
+
+	if (!clkctrl_offs)
+		return 0;
+
+	omap_test_timeout((_clkctrl_idlest(part, inst, cdoffs, clkctrl_offs) ==
+			   CLKCTRL_IDLEST_DISABLED),
+			  MAX_MODULE_READY_TIME, i);
+
+	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
+}
+
+/**
+ * omap4_cminst_module_enable - Enable the modulemode inside CLKCTRL
+ * @mode: Module mode (SW or HW)
+ * @part: PRCM partition ID that the CM_CLKCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * No return value.
+ */
+void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst, s16 cdoffs,
+			    u16 clkctrl_offs)
+{
+	u32 v;
+
+	v = omap4_cminst_read_inst_reg(part, inst, clkctrl_offs);
+	v &= ~OMAP4430_MODULEMODE_MASK;
+	v |= mode << OMAP4430_MODULEMODE_SHIFT;
+	omap4_cminst_write_inst_reg(v, part, inst, clkctrl_offs);
+}
+
+/**
+ * omap4_cminst_module_disable - Disable the module inside CLKCTRL
+ * @part: PRCM partition ID that the CM_CLKCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * No return value.
+ */
+void omap4_cminst_module_disable(u8 part, u16 inst, s16 cdoffs,
+			     u16 clkctrl_offs)
+{
+	u32 v;
+
+	v = omap4_cminst_read_inst_reg(part, inst, clkctrl_offs);
+	v &= ~OMAP4430_MODULEMODE_MASK;
+	omap4_cminst_write_inst_reg(v, part, inst, clkctrl_offs);
+}

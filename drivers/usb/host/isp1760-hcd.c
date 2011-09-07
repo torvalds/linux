@@ -1555,7 +1555,7 @@ static void kill_transfer(struct usb_hcd *hcd, struct urb *urb,
 
 	/* We need to forcefully reclaim the slot since some transfers never
 	   return, e.g. interrupt transfers and NAKed bulk transfers. */
-	if (usb_pipebulk(urb->pipe)) {
+	if (usb_pipecontrol(urb->pipe) || usb_pipebulk(urb->pipe)) {
 		skip_map = reg_read32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG);
 		skip_map |= (1 << qh->slot);
 		reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, skip_map);
@@ -1583,6 +1583,9 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	int retval = 0;
 
 	spin_lock_irqsave(&priv->lock, spinflags);
+	retval = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (retval)
+		goto out;
 
 	qh = urb->ep->hcpriv;
 	if (!qh) {

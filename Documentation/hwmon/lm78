@@ -13,7 +13,8 @@ Supported chips:
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/
 
-Author: Frodo Looijaard <frodol@dds.nl>
+Authors: Frodo Looijaard <frodol@dds.nl>
+         Jean Delvare <khali@linux-fr.org>
 
 Description
 -----------

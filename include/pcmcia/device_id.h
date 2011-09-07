@@ -95,6 +95,15 @@
 	.prod_id = { (v1), NULL, NULL, NULL }, \
 	.prod_id_hash = { (vh1), 0, 0, 0 }, }
 
+#define PCMCIA_DEVICE_MANF_CARD_PROD_ID3(manf, card, v3, vh3) { \
+	.match_flags = PCMCIA_DEV_ID_MATCH_MANF_ID| \
+			PCMCIA_DEV_ID_MATCH_CARD_ID| \
+			PCMCIA_DEV_ID_MATCH_PROD_ID3, \
+	.manf_id = (manf), \
+	.card_id = (card), \
+	.prod_id = { NULL, NULL, (v3), NULL }, \
+	.prod_id_hash = { 0, 0, (vh3), 0 }, }
+
 
 /* multi-function devices */
 

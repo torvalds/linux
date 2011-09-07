@@ -200,7 +200,7 @@ static void rtl_tx_status(void *ppriv,
 	if (sta) {
 		/* Check if aggregation has to be enabled for this tid */
 		sta_entry = (struct rtl_sta_info *) sta->drv_priv;
-		if ((sta->ht_cap.ht_supported == true) &&
+		if ((sta->ht_cap.ht_supported) &&
 				!(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
 			if (ieee80211_is_data_qos(fc)) {
 				u8 tid = rtl_get_tid(skb);

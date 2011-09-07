@@ -3,7 +3,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/types.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct hw_data;
 

@@ -11,7 +11,6 @@ config WL12XX
 	depends on WL12XX_MENU && GENERIC_HARDIRQS
 	depends on INET
 	select FW_LOADER
-	select CRC7
 	---help---
 	  This module adds support for wireless adapters based on TI wl1271 and
 	  TI wl1273 chipsets. This module does *not* include support for wl1251.
@@ -33,6 +32,7 @@ config WL12XX_HT
 config WL12XX_SPI
 	tristate "TI wl12xx SPI support"
 	depends on WL12XX && SPI_MASTER
+	select CRC7
 	---help---
 	  This module adds support for the SPI interface of adapters using
 	  TI wl12xx chipsets.  Select this if your platform is using

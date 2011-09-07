@@ -52,6 +52,10 @@ config IRQ_EDGE_EOI_HANDLER
 config GENERIC_IRQ_CHIP
        bool
 
+# Generic irq_domain hw <--> linux irq number translation
+config IRQ_DOMAIN
+	bool
+
 # Support forced irq threading
 config IRQ_FORCED_THREADING
        bool

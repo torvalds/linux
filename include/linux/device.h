@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pm.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/device.h>
 
 struct device;
@@ -516,7 +516,7 @@ struct device_dma_parameters {
  * 		minimizes board-specific #ifdefs in drivers.
  * @power:	For device power management.
  * 		See Documentation/power/devices.txt for details.
- * @pwr_domain:	Provide callbacks that are executed during system suspend,
+ * @pm_domain:	Provide callbacks that are executed during system suspend,
  * 		hibernation, system resume and during runtime PM transitions
  * 		along with subsystem-level and driver-level callbacks.
  * @numa_node:	NUMA node this device is close to.
@@ -530,7 +530,6 @@ struct device_dma_parameters {
  * @dma_mem:	Internal for coherent mem override.
  * @archdata:	For arch-specific additions.
  * @of_node:	Associated device tree node.
- * @of_match:	Matching of_device_id from driver.
  * @devt:	For creating the sysfs "dev".
  * @devres_lock: Spinlock to protect the resource of the device.
  * @devres_head: The resources list of the device.
@@ -568,7 +567,7 @@ struct device {
 	void		*platform_data;	/* Platform specific data, device
 					   core doesn't touch it */
 	struct dev_pm_info	power;
-	struct dev_power_domain	*pwr_domain;
+	struct dev_pm_domain	*pm_domain;
 
 #ifdef CONFIG_NUMA
 	int		numa_node;	/* NUMA node this device is close to */
@@ -654,13 +653,13 @@ static inline int device_is_registered(struct device *dev)
 
 static inline void device_enable_async_suspend(struct device *dev)
 {
-	if (!dev->power.in_suspend)
+	if (!dev->power.is_prepared)
 		dev->power.async_suspend = true;
 }
 
 static inline void device_disable_async_suspend(struct device *dev)
 {
-	if (!dev->power.in_suspend)
+	if (!dev->power.is_prepared)
 		dev->power.async_suspend = false;
 }
 

@@ -257,9 +257,12 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 	case 3:
 		if (nr_node->routes[1].quality > nr_node->routes[0].quality) {
 			switch (nr_node->which) {
-				case 0:  nr_node->which = 1; break;
-				case 1:  nr_node->which = 0; break;
-				default: break;
+			case 0:
+				nr_node->which = 1;
+				break;
+			case 1:
+				nr_node->which = 0;
+				break;
 			}
 			nr_route           = nr_node->routes[0];
 			nr_node->routes[0] = nr_node->routes[1];
@@ -505,12 +508,13 @@ static int nr_dec_obs(void)
 				s->count--;
 
 				switch (i) {
-					case 0:
-						s->routes[0] = s->routes[1];
-					case 1:
-						s->routes[1] = s->routes[2];
-					case 2:
-						break;
+				case 0:
+					s->routes[0] = s->routes[1];
+					/* Fallthrough */
+				case 1:
+					s->routes[1] = s->routes[2];
+				case 2:
+					break;
 				}
 				break;
 

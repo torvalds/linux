@@ -39,7 +39,7 @@
 #include <linux/tty.h>
 #include <linux/types.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/war.h>
 

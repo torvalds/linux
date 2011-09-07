@@ -30,7 +30,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
 #include <asm/proto.h>

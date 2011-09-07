@@ -99,6 +99,7 @@ enum acer_wmi_event_ids {
 static const struct key_entry acer_wmi_keymap[] = {
 	{KE_KEY, 0x01, {KEY_WLAN} },     /* WiFi */
 	{KE_KEY, 0x03, {KEY_WLAN} },     /* WiFi */
+	{KE_KEY, 0x04, {KEY_WLAN} },     /* WiFi */
 	{KE_KEY, 0x12, {KEY_BLUETOOTH} },	/* BT */
 	{KE_KEY, 0x21, {KEY_PROG1} },    /* Backup */
 	{KE_KEY, 0x22, {KEY_PROG2} },    /* Arcade */
@@ -304,6 +305,10 @@ static struct quirk_entry quirk_fujitsu_amilo_li_1718 = {
 	.wireless = 2,
 };
 
+static struct quirk_entry quirk_lenovo_ideapad_s205 = {
+	.wireless = 3,
+};
+
 /* The Aspire One has a dummy ACPI-WMI interface - disable it */
 static struct dmi_system_id __devinitdata acer_blacklist[] = {
 	{
@@ -450,6 +455,15 @@ static struct dmi_system_id acer_quirks[] = {
 		},
 		.driver_data = &quirk_medion_md_98300,
 	},
+	{
+		.callback = dmi_matched,
+		.ident = "Lenovo Ideapad S205",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "10382LG"),
+		},
+		.driver_data = &quirk_lenovo_ideapad_s205,
+	},
 	{}
 };
 
@@ -538,6 +552,12 @@ struct wmi_interface *iface)
 			return AE_OK;
 		case 2:
 			err = ec_read(0x71, &result);
+			if (err)
+				return AE_ERROR;
+			*value = result & 0x1;
+			return AE_OK;
+		case 3:
+			err = ec_read(0x78, &result);
 			if (err)
 				return AE_ERROR;
 			*value = result & 0x1;
@@ -1156,9 +1176,9 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 	struct wmid3_gds_input_param params = {
 		.function_num = 0x1,
 		.hotkey_number = 0x01,
-		.devices = ACER_WMID3_GDS_WIRELESS &
-				ACER_WMID3_GDS_THREEG &
-				ACER_WMID3_GDS_WIMAX &
+		.devices = ACER_WMID3_GDS_WIRELESS |
+				ACER_WMID3_GDS_THREEG |
+				ACER_WMID3_GDS_WIMAX |
 				ACER_WMID3_GDS_BLUETOOTH,
 	};
 	struct acpi_buffer input = {
@@ -1266,8 +1286,13 @@ static void acer_rfkill_update(struct work_struct *ignored)
 	acpi_status status;
 
 	status = get_u32(&state, ACER_CAP_WIRELESS);
-	if (ACPI_SUCCESS(status))
-		rfkill_set_sw_state(wireless_rfkill, !state);
+	if (ACPI_SUCCESS(status)) {
+		if (quirks->wireless == 3) {
+			rfkill_set_hw_state(wireless_rfkill, !state);
+		} else {
+			rfkill_set_sw_state(wireless_rfkill, !state);
+		}
+	}
 
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
 		status = get_u32(&state, ACER_CAP_BLUETOOTH);
@@ -1400,6 +1425,9 @@ static ssize_t show_bool_threeg(struct device *dev,
 {
 	u32 result; \
 	acpi_status status;
+
+	pr_info("This threeg sysfs will be removed in 2012"
+		" - used by: %s\n", current->comm);
 	if (wmi_has_guid(WMID_GUID3))
 		status = wmid3_get_device_status(&result,
 				ACER_WMID3_GDS_THREEG);
@@ -1415,8 +1443,10 @@ static ssize_t set_bool_threeg(struct device *dev,
 {
 	u32 tmp = simple_strtoul(buf, NULL, 10);
 	acpi_status status = set_u32(tmp, ACER_CAP_THREEG);
-		if (ACPI_FAILURE(status))
-			return -EINVAL;
+	pr_info("This threeg sysfs will be removed in 2012"
+		" - used by: %s\n", current->comm);
+	if (ACPI_FAILURE(status))
+		return -EINVAL;
 	return count;
 }
 static DEVICE_ATTR(threeg, S_IRUGO | S_IWUSR, show_bool_threeg,
@@ -1425,6 +1455,8 @@ static DEVICE_ATTR(threeg, S_IRUGO | S_IWUSR, show_bool_threeg,
 static ssize_t show_interface(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
+	pr_info("This interface sysfs will be removed in 2012"
+		" - used by: %s\n", current->comm);
 	switch (interface->type) {
 	case ACER_AMW0:
 		return sprintf(buf, "AMW0\n");
@@ -1445,6 +1477,8 @@ static void acer_wmi_notify(u32 value, void *context)
 	union acpi_object *obj;
 	struct event_return_value return_value;
 	acpi_status status;
+	u16 device_state;
+	const struct key_entry *key;
 
 	status = wmi_get_event_data(value, &response);
 	if (status != AE_OK) {
@@ -1472,23 +1506,32 @@ static void acer_wmi_notify(u32 value, void *context)
 
 	switch (return_value.function) {
 	case WMID_HOTKEY_EVENT:
-		if (return_value.device_state) {
-			u16 device_state = return_value.device_state;
-			pr_debug("device state: 0x%x\n", device_state);
-			if (has_cap(ACER_CAP_WIRELESS))
-				rfkill_set_sw_state(wireless_rfkill,
-				!(device_state & ACER_WMID3_GDS_WIRELESS));
-			if (has_cap(ACER_CAP_BLUETOOTH))
-				rfkill_set_sw_state(bluetooth_rfkill,
-				!(device_state & ACER_WMID3_GDS_BLUETOOTH));
-			if (has_cap(ACER_CAP_THREEG))
-				rfkill_set_sw_state(threeg_rfkill,
-				!(device_state & ACER_WMID3_GDS_THREEG));
-		}
-		if (!sparse_keymap_report_event(acer_wmi_input_dev,
-				return_value.key_num, 1, true))
+		device_state = return_value.device_state;
+		pr_debug("device state: 0x%x\n", device_state);
+
+		key = sparse_keymap_entry_from_scancode(acer_wmi_input_dev,
+							return_value.key_num);
+		if (!key) {
 			pr_warn("Unknown key number - 0x%x\n",
 				return_value.key_num);
+		} else {
+			switch (key->keycode) {
+			case KEY_WLAN:
+			case KEY_BLUETOOTH:
+				if (has_cap(ACER_CAP_WIRELESS))
+					rfkill_set_sw_state(wireless_rfkill,
+						!(device_state & ACER_WMID3_GDS_WIRELESS));
+				if (has_cap(ACER_CAP_THREEG))
+					rfkill_set_sw_state(threeg_rfkill,
+						!(device_state & ACER_WMID3_GDS_THREEG));
+				if (has_cap(ACER_CAP_BLUETOOTH))
+					rfkill_set_sw_state(bluetooth_rfkill,
+						!(device_state & ACER_WMID3_GDS_BLUETOOTH));
+				break;
+			}
+			sparse_keymap_report_entry(acer_wmi_input_dev, key,
+						   1, true);
+		}
 		break;
 	default:
 		pr_warn("Unknown function number - %d - %d\n",

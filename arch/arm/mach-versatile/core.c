@@ -24,6 +24,9 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 #include <linux/amba/pl061.h>
@@ -83,13 +86,26 @@ static struct fpga_irq_data sic_irq = {
 #define PIC_MASK	0
 #endif
 
+/* Lookup table for finding a DT node that represents the vic instance */
+static const struct of_device_id vic_of_match[] __initconst = {
+	{ .compatible = "arm,versatile-vic", },
+	{}
+};
+
+static const struct of_device_id sic_of_match[] __initconst = {
+	{ .compatible = "arm,versatile-sic", },
+	{}
+};
+
 void __init versatile_init_irq(void)
 {
 	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0, 0);
+	irq_domain_generate_simple(vic_of_match, VERSATILE_VIC_BASE, IRQ_VIC_START);
 
 	writel(~0, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
 
 	fpga_irq_init(IRQ_VICSOURCE31, ~PIC_MASK, &sic_irq);
+	irq_domain_generate_simple(sic_of_match, VERSATILE_SIC_BASE, IRQ_SIC_START);
 
 	/*
 	 * Interrupts on secondary controller from 0 to 8 are routed to
@@ -645,6 +661,52 @@ static struct amba_device *amba_devs[] __initdata = {
 	&kmi0_device,
 	&kmi1_device,
 };
+
+#ifdef CONFIG_OF
+/*
+ * Lookup table for attaching a specific name and platform_data pointer to
+ * devices as they get created by of_platform_populate().  Ideally this table
+ * would not exist, but the current clock implementation depends on some devices
+ * having a specific name.
+ */
+struct of_dev_auxdata versatile_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_MMCI0_BASE, "fpga:05", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_KMI0_BASE, "fpga:06", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_KMI1_BASE, "fpga:07", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_UART3_BASE, "fpga:09", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_MMCI1_BASE, "fpga:0b", NULL),
+
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_CLCD_BASE, "dev:20", &clcd_plat_data),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_UART0_BASE, "dev:f1", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_UART1_BASE, "dev:f2", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_UART2_BASE, "dev:f3", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_SSP_BASE, "dev:f4", NULL),
+
+#if 0
+	/*
+	 * These entries are unnecessary because no clocks referencing
+	 * them.  I've left them in for now as place holders in case
+	 * any of them need to be added back, but they should be
+	 * removed before actually committing this patch.  --gcl
+	 */
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_AACI_BASE, "fpga:04", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_SCI1_BASE, "fpga:0a", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_SMC_BASE, "dev:00", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_MPMC_BASE, "dev:10", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_DMAC_BASE, "dev:30", NULL),
+
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_SCTL_BASE, "dev:e0", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_WATCHDOG_BASE, "dev:e1", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_GPIO0_BASE, "dev:e4", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_GPIO1_BASE, "dev:e5", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_GPIO2_BASE, "dev:e6", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_GPIO3_BASE, "dev:e7", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_RTC_BASE, "dev:e8", NULL),
+	OF_DEV_AUXDATA("arm,primecell", VERSATILE_SCI_BASE, "dev:f0", NULL),
+#endif
+	{}
+};
+#endif
 
 #ifdef CONFIG_LEDS
 #define VA_LEDS_BASE (__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_LED_OFFSET)

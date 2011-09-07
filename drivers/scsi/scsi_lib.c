@@ -137,6 +137,7 @@ static int __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, int unbusy)
 		host->host_blocked = host->max_host_blocked;
 		break;
 	case SCSI_MLQUEUE_DEVICE_BUSY:
+	case SCSI_MLQUEUE_EH_RETRY:
 		device->device_blocked = device->max_device_blocked;
 		break;
 	case SCSI_MLQUEUE_TARGET_BUSY:
@@ -213,6 +214,8 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	int ret = DRIVER_ERROR << 24;
 
 	req = blk_get_request(sdev->request_queue, write, __GFP_WAIT);
+	if (!req)
+		return ret;
 
 	if (bufflen &&	blk_rq_map_kern(sdev->request_queue, req,
 					buffer, bufflen, __GFP_WAIT))

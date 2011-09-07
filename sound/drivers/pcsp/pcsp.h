@@ -10,14 +10,8 @@
 #define __PCSP_H__
 
 #include <linux/hrtimer.h>
+#include <linux/i8253.h>
 #include <linux/timex.h>
-#if defined(CONFIG_MIPS) || defined(CONFIG_X86)
-/* Use the global PIT lock ! */
-#include <asm/i8253.h>
-#else
-#include <asm/8253pit.h>
-static DEFINE_RAW_SPINLOCK(i8253_lock);
-#endif
 
 #define PCSP_SOUND_VERSION 0x400	/* read 4.00 */
 #define PCSP_DEBUG 0

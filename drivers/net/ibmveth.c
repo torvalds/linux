@@ -34,6 +34,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/pm.h>
 #include <linux/ethtool.h>
@@ -42,7 +43,7 @@
 #include <linux/ipv6.h>
 #include <linux/slab.h>
 #include <asm/hvcall.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/vio.h>
 #include <asm/iommu.h>
 #include <asm/firmware.h>

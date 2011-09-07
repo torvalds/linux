@@ -199,17 +199,15 @@ am79c961_ramtest(struct net_device *dev, unsigned int val)
 
 static void am79c961_mc_hash(char *addr, u16 *hash)
 {
-	if (addr[0] & 0x01) {
-		int idx, bit;
-		u32 crc;
+	int idx, bit;
+	u32 crc;
 
-		crc = ether_crc_le(ETH_ALEN, addr);
+	crc = ether_crc_le(ETH_ALEN, addr);
 
-		idx = crc >> 30;
-		bit = (crc >> 26) & 15;
+	idx = crc >> 30;
+	bit = (crc >> 26) & 15;
 
-		hash[idx] |= 1 << bit;
-	}
+	hash[idx] |= 1 << bit;
 }
 
 static unsigned int am79c961_get_rx_mode(struct net_device *dev, u16 *hash)

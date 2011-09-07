@@ -16,6 +16,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <asm/natfeat.h>
 #include <asm/virtconvert.h>
@@ -204,7 +205,6 @@ static struct net_device * __init nfeth_probe(int unit)
 	dev->irq = nfEtherIRQ;
 	dev->netdev_ops = &nfeth_netdev_ops;
 
-	dev->flags |= NETIF_F_NO_CSUM;
 	memcpy(dev->dev_addr, mac, ETH_ALEN);
 
 	priv = netdev_priv(dev);

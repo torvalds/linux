@@ -51,17 +51,12 @@ struct be_mcc_wrb {
 
 /* Completion Status */
 enum {
-	MCC_STATUS_SUCCESS = 0x0,
-/* The client does not have sufficient privileges to execute the command */
-	MCC_STATUS_INSUFFICIENT_PRIVILEGES = 0x1,
-/* A parameter in the command was invalid. */
-	MCC_STATUS_INVALID_PARAMETER = 0x2,
-/* There are insufficient chip resources to execute the command */
-	MCC_STATUS_INSUFFICIENT_RESOURCES = 0x3,
-/* The command is completing because the queue was getting flushed */
-	MCC_STATUS_QUEUE_FLUSHING = 0x4,
-/* The command is completing with a DMA error */
-	MCC_STATUS_DMA_FAILED = 0x5,
+	MCC_STATUS_SUCCESS = 0,
+	MCC_STATUS_FAILED = 1,
+	MCC_STATUS_ILLEGAL_REQUEST = 2,
+	MCC_STATUS_ILLEGAL_FIELD = 3,
+	MCC_STATUS_INSUFFICIENT_BUFFER = 4,
+	MCC_STATUS_UNAUTHORIZED_REQUEST = 5,
 	MCC_STATUS_NOT_SUPPORTED = 66
 };
 
@@ -431,6 +426,14 @@ struct amap_mcc_context_lancer {
 } __packed;
 
 struct be_cmd_req_mcc_create {
+	struct be_cmd_req_hdr hdr;
+	u16 num_pages;
+	u16 cq_id;
+	u8 context[sizeof(struct amap_mcc_context_be) / 8];
+	struct phys_addr pages[8];
+} __packed;
+
+struct be_cmd_req_mcc_ext_create {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u16 cq_id;
@@ -1479,6 +1482,8 @@ extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			u32 rss, u8 *rss_id);
 extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
+extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
+			struct be_queue_info *q);
 extern int be_cmd_link_status_query(struct be_adapter *adapter,
 			bool *link_up, u8 *mac_speed, u16 *link_speed, u32 dom);
 extern int be_cmd_reset(struct be_adapter *adapter);
@@ -1540,7 +1545,7 @@ extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 extern void be_detect_dump_ue(struct be_adapter *adapter);
 extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
 extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
-extern int be_cmd_check_native_mode(struct be_adapter *adapter);
+extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
 

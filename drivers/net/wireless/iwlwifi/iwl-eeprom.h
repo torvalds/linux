@@ -110,12 +110,10 @@ enum {
 };
 
 /* SKU Capabilities */
-/* 5000 and up */
-#define EEPROM_SKU_CAP_BAND_POS				(4)
-#define EEPROM_SKU_CAP_BAND_SELECTION	                \
-		(3 << EEPROM_SKU_CAP_BAND_POS)
+#define EEPROM_SKU_CAP_BAND_24GHZ			(1 << 4)
+#define EEPROM_SKU_CAP_BAND_52GHZ			(1 << 5)
 #define EEPROM_SKU_CAP_11N_ENABLE	                (1 << 6)
-#define EEPROM_SKU_CAP_AMT_ENABLE	                (1 << 7)
+#define EEPROM_SKU_CAP_AMT_ENABLE			(1 << 7)
 #define EEPROM_SKU_CAP_IPAN_ENABLE	                (1 << 8)
 
 /* *regulatory* channel data format in eeprom, one for each channel.
@@ -164,16 +162,12 @@ struct iwl_eeprom_enhanced_txpwr {
 	s8 mimo3_max;
 } __packed;
 
-/* 5000 Specific */
-#define EEPROM_5000_TX_POWER_VERSION    (4)
-#define EEPROM_5000_EEPROM_VERSION	(0x11A)
-
-/* 5000 and up calibration */
+/* calibration */
 #define EEPROM_CALIB_ALL	(INDIRECT_ADDRESS | INDIRECT_CALIBRATION)
 #define EEPROM_XTAL		((2*0x128) | EEPROM_CALIB_ALL)
 
-/* 5000 temperature */
-#define EEPROM_5000_TEMPERATURE ((2*0x12A) | EEPROM_CALIB_ALL)
+/* temperature */
+#define EEPROM_TEMPERATURE ((2*0x12A) | EEPROM_CALIB_ALL)
 
 /* agn links */
 #define EEPROM_LINK_HOST             (2*0x64)
@@ -204,6 +198,10 @@ struct iwl_eeprom_enhanced_txpwr {
 /* 6000 regulatory - indirect access */
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS  ((0x80)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
+
+/* 5000 Specific */
+#define EEPROM_5000_TX_POWER_VERSION    (4)
+#define EEPROM_5000_EEPROM_VERSION	(0x11A)
 
 /* 5050 Specific */
 #define EEPROM_5050_TX_POWER_VERSION    (4)
@@ -270,13 +268,13 @@ extern const u8 iwl_eeprom_band_1[14];
 
 /* General */
 #define EEPROM_DEVICE_ID                    (2*0x08)	/* 2 bytes */
+#define EEPROM_SUBSYSTEM_ID		    (2*0x0A)	/* 2 bytes */
 #define EEPROM_MAC_ADDRESS                  (2*0x15)	/* 6  bytes */
 #define EEPROM_BOARD_REVISION               (2*0x35)	/* 2  bytes */
 #define EEPROM_BOARD_PBA_NUMBER             (2*0x3B+1)	/* 9  bytes */
 #define EEPROM_VERSION                      (2*0x44)	/* 2  bytes */
 #define EEPROM_SKU_CAP                      (2*0x45)	/* 2  bytes */
 #define EEPROM_OEM_MODE                     (2*0x46)	/* 2  bytes */
-#define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
 #define EEPROM_RADIO_CONFIG                 (2*0x48)	/* 2  bytes */
 #define EEPROM_NUM_MAC_ADDRESS              (2*0x4C)	/* 2  bytes */
 
@@ -294,7 +292,6 @@ extern const u8 iwl_eeprom_band_1[14];
 
 struct iwl_eeprom_ops {
 	const u32 regulatory_bands[7];
-	const u8* (*query_addr) (const struct iwl_priv *priv, size_t offset);
 	void (*update_enhanced_txpower) (struct iwl_priv *priv);
 };
 
@@ -311,5 +308,6 @@ void iwl_free_channel_map(struct iwl_priv *priv);
 const struct iwl_channel_info *iwl_get_channel_info(
 		const struct iwl_priv *priv,
 		enum ieee80211_band band, u16 channel);
+void iwl_rf_config(struct iwl_priv *priv);
 
 #endif  /* __iwl_eeprom_h__ */

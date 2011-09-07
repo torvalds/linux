@@ -402,8 +402,8 @@ static ssize_t target_stat_scsi_lu_show_attr_lu_name(
 		return -ENODEV;
 	/* scsiLuWwnName */
 	return snprintf(page, PAGE_SIZE, "%s\n",
-			(strlen(DEV_T10_WWN(dev)->unit_serial)) ?
-			(char *)&DEV_T10_WWN(dev)->unit_serial[0] : "None");
+			(strlen(dev->se_sub_dev->t10_wwn.unit_serial)) ?
+			dev->se_sub_dev->t10_wwn.unit_serial : "None");
 }
 DEV_STAT_SCSI_LU_ATTR_RO(lu_name);
 
@@ -413,17 +413,17 @@ static ssize_t target_stat_scsi_lu_show_attr_vend(
 	struct se_subsystem_dev *se_subdev = container_of(sgrps,
 			struct se_subsystem_dev, dev_stat_grps);
 	struct se_device *dev = se_subdev->se_dev_ptr;
-	int j;
-	char str[28];
+	int i;
+	char str[sizeof(dev->se_sub_dev->t10_wwn.vendor)+1];
 
 	if (!dev)
 		return -ENODEV;
+
 	/* scsiLuVendorId */
-	memcpy(&str[0], (void *)DEV_T10_WWN(dev), 28);
-	for (j = 0; j < 8; j++)
-		str[j] = ISPRINT(DEV_T10_WWN(dev)->vendor[j]) ?
-				DEV_T10_WWN(dev)->vendor[j] : 0x20;
-	str[8] = 0;
+	for (i = 0; i < sizeof(dev->se_sub_dev->t10_wwn.vendor); i++)
+		str[i] = ISPRINT(dev->se_sub_dev->t10_wwn.vendor[i]) ?
+			dev->se_sub_dev->t10_wwn.vendor[i] : ' ';
+	str[i] = '\0';
 	return snprintf(page, PAGE_SIZE, "%s\n", str);
 }
 DEV_STAT_SCSI_LU_ATTR_RO(vend);
@@ -434,18 +434,17 @@ static ssize_t target_stat_scsi_lu_show_attr_prod(
 	struct se_subsystem_dev *se_subdev = container_of(sgrps,
 			struct se_subsystem_dev, dev_stat_grps);
 	struct se_device *dev = se_subdev->se_dev_ptr;
-	int j;
-	char str[28];
+	int i;
+	char str[sizeof(dev->se_sub_dev->t10_wwn.model)+1];
 
 	if (!dev)
 		return -ENODEV;
 
 	/* scsiLuProductId */
-	memcpy(&str[0], (void *)DEV_T10_WWN(dev), 28);
-	for (j = 0; j < 16; j++)
-		str[j] = ISPRINT(DEV_T10_WWN(dev)->model[j]) ?
-				DEV_T10_WWN(dev)->model[j] : 0x20;
-	str[16] = 0;
+	for (i = 0; i < sizeof(dev->se_sub_dev->t10_wwn.vendor); i++)
+		str[i] = ISPRINT(dev->se_sub_dev->t10_wwn.model[i]) ?
+			dev->se_sub_dev->t10_wwn.model[i] : ' ';
+	str[i] = '\0';
 	return snprintf(page, PAGE_SIZE, "%s\n", str);
 }
 DEV_STAT_SCSI_LU_ATTR_RO(prod);
@@ -456,18 +455,17 @@ static ssize_t target_stat_scsi_lu_show_attr_rev(
 	struct se_subsystem_dev *se_subdev = container_of(sgrps,
 			struct se_subsystem_dev, dev_stat_grps);
 	struct se_device *dev = se_subdev->se_dev_ptr;
-	int j;
-	char str[28];
+	int i;
+	char str[sizeof(dev->se_sub_dev->t10_wwn.revision)+1];
 
 	if (!dev)
 		return -ENODEV;
 
 	/* scsiLuRevisionId */
-	memcpy(&str[0], (void *)DEV_T10_WWN(dev), 28);
-	for (j = 0; j < 4; j++)
-		str[j] = ISPRINT(DEV_T10_WWN(dev)->revision[j]) ?
-				DEV_T10_WWN(dev)->revision[j] : 0x20;
-	str[4] = 0;
+	for (i = 0; i < sizeof(dev->se_sub_dev->t10_wwn.revision); i++)
+		str[i] = ISPRINT(dev->se_sub_dev->t10_wwn.revision[i]) ?
+			dev->se_sub_dev->t10_wwn.revision[i] : ' ';
+	str[i] = '\0';
 	return snprintf(page, PAGE_SIZE, "%s\n", str);
 }
 DEV_STAT_SCSI_LU_ATTR_RO(rev);
@@ -484,7 +482,7 @@ static ssize_t target_stat_scsi_lu_show_attr_dev_type(
 
 	/* scsiLuPeripheralType */
 	return snprintf(page, PAGE_SIZE, "%u\n",
-			TRANSPORT(dev)->get_device_type(dev));
+			dev->transport->get_device_type(dev));
 }
 DEV_STAT_SCSI_LU_ATTR_RO(dev_type);
 
@@ -668,18 +666,18 @@ static struct config_item_type target_stat_scsi_lu_cit = {
  */
 void target_stat_setup_dev_default_groups(struct se_subsystem_dev *se_subdev)
 {
-	struct config_group *dev_stat_grp = &DEV_STAT_GRP(se_subdev)->stat_group;
+	struct config_group *dev_stat_grp = &se_subdev->dev_stat_grps.stat_group;
 
-	config_group_init_type_name(&DEV_STAT_GRP(se_subdev)->scsi_dev_group,
+	config_group_init_type_name(&se_subdev->dev_stat_grps.scsi_dev_group,
 			"scsi_dev", &target_stat_scsi_dev_cit);
-	config_group_init_type_name(&DEV_STAT_GRP(se_subdev)->scsi_tgt_dev_group,
+	config_group_init_type_name(&se_subdev->dev_stat_grps.scsi_tgt_dev_group,
 			"scsi_tgt_dev", &target_stat_scsi_tgt_dev_cit);
-	config_group_init_type_name(&DEV_STAT_GRP(se_subdev)->scsi_lu_group,
+	config_group_init_type_name(&se_subdev->dev_stat_grps.scsi_lu_group,
 			"scsi_lu", &target_stat_scsi_lu_cit);
 
-	dev_stat_grp->default_groups[0] = &DEV_STAT_GRP(se_subdev)->scsi_dev_group;
-	dev_stat_grp->default_groups[1] = &DEV_STAT_GRP(se_subdev)->scsi_tgt_dev_group;
-	dev_stat_grp->default_groups[2] = &DEV_STAT_GRP(se_subdev)->scsi_lu_group;
+	dev_stat_grp->default_groups[0] = &se_subdev->dev_stat_grps.scsi_dev_group;
+	dev_stat_grp->default_groups[1] = &se_subdev->dev_stat_grps.scsi_tgt_dev_group;
+	dev_stat_grp->default_groups[2] = &se_subdev->dev_stat_grps.scsi_lu_group;
 	dev_stat_grp->default_groups[3] = NULL;
 }
 
@@ -922,7 +920,7 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_name(
 	tpg = sep->sep_tpg;
 
 	ret = snprintf(page, PAGE_SIZE, "%sPort#%u\n",
-		TPG_TFO(tpg)->get_fabric_name(), sep->sep_index);
+		tpg->se_tpg_tfo->get_fabric_name(), sep->sep_index);
 	spin_unlock(&lun->lun_sep_lock);
 	return ret;
 }
@@ -945,8 +943,8 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_port_index(
 	tpg = sep->sep_tpg;
 
 	ret = snprintf(page, PAGE_SIZE, "%s%s%d\n",
-		TPG_TFO(tpg)->tpg_get_wwn(tpg), "+t+",
-		TPG_TFO(tpg)->tpg_get_tag(tpg));
+		tpg->se_tpg_tfo->tpg_get_wwn(tpg), "+t+",
+		tpg->se_tpg_tfo->tpg_get_tag(tpg));
 	spin_unlock(&lun->lun_sep_lock);
 	return ret;
 }
@@ -1128,7 +1126,7 @@ static ssize_t target_stat_scsi_transport_show_attr_device(
 	tpg = sep->sep_tpg;
 	/* scsiTransportType */
 	ret = snprintf(page, PAGE_SIZE, "scsiTransport%s\n",
-			TPG_TFO(tpg)->get_fabric_name());
+			tpg->se_tpg_tfo->get_fabric_name());
 	spin_unlock(&lun->lun_sep_lock);
 	return ret;
 }
@@ -1150,7 +1148,7 @@ static ssize_t target_stat_scsi_transport_show_attr_indx(
 	}
 	tpg = sep->sep_tpg;
 	ret = snprintf(page, PAGE_SIZE, "%u\n",
-			TPG_TFO(tpg)->tpg_get_inst_index(tpg));
+			tpg->se_tpg_tfo->tpg_get_inst_index(tpg));
 	spin_unlock(&lun->lun_sep_lock);
 	return ret;
 }
@@ -1173,10 +1171,10 @@ static ssize_t target_stat_scsi_transport_show_attr_dev_name(
 		return -ENODEV;
 	}
 	tpg = sep->sep_tpg;
-	wwn = DEV_T10_WWN(dev);
+	wwn = &dev->se_sub_dev->t10_wwn;
 	/* scsiTransportDevName */
 	ret = snprintf(page, PAGE_SIZE, "%s+%s\n",
-			TPG_TFO(tpg)->tpg_get_wwn(tpg),
+			tpg->se_tpg_tfo->tpg_get_wwn(tpg),
 			(strlen(wwn->unit_serial)) ? wwn->unit_serial :
 			wwn->vendor);
 	spin_unlock(&lun->lun_sep_lock);
@@ -1212,18 +1210,18 @@ static struct config_item_type target_stat_scsi_transport_cit = {
  */
 void target_stat_setup_port_default_groups(struct se_lun *lun)
 {
-	struct config_group *port_stat_grp = &PORT_STAT_GRP(lun)->stat_group;
+	struct config_group *port_stat_grp = &lun->port_stat_grps.stat_group;
 
-	config_group_init_type_name(&PORT_STAT_GRP(lun)->scsi_port_group,
+	config_group_init_type_name(&lun->port_stat_grps.scsi_port_group,
 			"scsi_port", &target_stat_scsi_port_cit);
-	config_group_init_type_name(&PORT_STAT_GRP(lun)->scsi_tgt_port_group,
+	config_group_init_type_name(&lun->port_stat_grps.scsi_tgt_port_group,
 			"scsi_tgt_port", &target_stat_scsi_tgt_port_cit);
-	config_group_init_type_name(&PORT_STAT_GRP(lun)->scsi_transport_group,
+	config_group_init_type_name(&lun->port_stat_grps.scsi_transport_group,
 			"scsi_transport", &target_stat_scsi_transport_cit);
 
-	port_stat_grp->default_groups[0] = &PORT_STAT_GRP(lun)->scsi_port_group;
-	port_stat_grp->default_groups[1] = &PORT_STAT_GRP(lun)->scsi_tgt_port_group;
-	port_stat_grp->default_groups[2] = &PORT_STAT_GRP(lun)->scsi_transport_group;
+	port_stat_grp->default_groups[0] = &lun->port_stat_grps.scsi_port_group;
+	port_stat_grp->default_groups[1] = &lun->port_stat_grps.scsi_tgt_port_group;
+	port_stat_grp->default_groups[2] = &lun->port_stat_grps.scsi_transport_group;
 	port_stat_grp->default_groups[3] = NULL;
 }
 
@@ -1264,7 +1262,7 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_inst(
 	tpg = nacl->se_tpg;
 	/* scsiInstIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n",
-			TPG_TFO(tpg)->tpg_get_inst_index(tpg));
+			tpg->se_tpg_tfo->tpg_get_inst_index(tpg));
 	spin_unlock_irq(&nacl->device_list_lock);
 	return ret;
 }
@@ -1314,7 +1312,7 @@ static ssize_t target_stat_scsi_auth_intr_show_attr_port(
 	}
 	tpg = nacl->se_tpg;
 	/* scsiAuthIntrTgtPortIndex */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", TPG_TFO(tpg)->tpg_get_tag(tpg));
+	ret = snprintf(page, PAGE_SIZE, "%u\n", tpg->se_tpg_tfo->tpg_get_tag(tpg));
 	spin_unlock_irq(&nacl->device_list_lock);
 	return ret;
 }
@@ -1632,7 +1630,7 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_inst(
 	tpg = nacl->se_tpg;
 	/* scsiInstIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n",
-			TPG_TFO(tpg)->tpg_get_inst_index(tpg));
+			tpg->se_tpg_tfo->tpg_get_inst_index(tpg));
 	spin_unlock_irq(&nacl->device_list_lock);
 	return ret;
 }
@@ -1682,7 +1680,7 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_port(
 	}
 	tpg = nacl->se_tpg;
 	/* scsiPortIndex */
-	ret = snprintf(page, PAGE_SIZE, "%u\n", TPG_TFO(tpg)->tpg_get_tag(tpg));
+	ret = snprintf(page, PAGE_SIZE, "%u\n", tpg->se_tpg_tfo->tpg_get_tag(tpg));
 	spin_unlock_irq(&nacl->device_list_lock);
 	return ret;
 }
@@ -1708,7 +1706,7 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_indx(
 	tpg = nacl->se_tpg;
 	/* scsiAttIntrPortIndex */
 	ret = snprintf(page, PAGE_SIZE, "%u\n",
-			TPG_TFO(tpg)->sess_get_index(se_sess));
+			tpg->se_tpg_tfo->sess_get_index(se_sess));
 	spin_unlock_irq(&nacl->nacl_sess_lock);
 	return ret;
 }
@@ -1757,8 +1755,8 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_port_ident(
 	tpg = nacl->se_tpg;
 	/* scsiAttIntrPortName+scsiAttIntrPortIdentifier */
 	memset(buf, 0, 64);
-	if (TPG_TFO(tpg)->sess_get_initiator_sid != NULL)
-		TPG_TFO(tpg)->sess_get_initiator_sid(se_sess,
+	if (tpg->se_tpg_tfo->sess_get_initiator_sid != NULL)
+		tpg->se_tpg_tfo->sess_get_initiator_sid(se_sess,
 				(unsigned char *)&buf[0], 64);
 
 	ret = snprintf(page, PAGE_SIZE, "%s+i+%s\n", nacl->initiatorname, buf);
@@ -1797,14 +1795,14 @@ static struct config_item_type target_stat_scsi_att_intr_port_cit = {
  */
 void target_stat_setup_mappedlun_default_groups(struct se_lun_acl *lacl)
 {
-	struct config_group *ml_stat_grp = &ML_STAT_GRPS(lacl)->stat_group;
+	struct config_group *ml_stat_grp = &lacl->ml_stat_grps.stat_group;
 
-	config_group_init_type_name(&ML_STAT_GRPS(lacl)->scsi_auth_intr_group,
+	config_group_init_type_name(&lacl->ml_stat_grps.scsi_auth_intr_group,
 			"scsi_auth_intr", &target_stat_scsi_auth_intr_cit);
-	config_group_init_type_name(&ML_STAT_GRPS(lacl)->scsi_att_intr_port_group,
+	config_group_init_type_name(&lacl->ml_stat_grps.scsi_att_intr_port_group,
 			"scsi_att_intr_port", &target_stat_scsi_att_intr_port_cit);
 
-	ml_stat_grp->default_groups[0] = &ML_STAT_GRPS(lacl)->scsi_auth_intr_group;
-	ml_stat_grp->default_groups[1] = &ML_STAT_GRPS(lacl)->scsi_att_intr_port_group;
+	ml_stat_grp->default_groups[0] = &lacl->ml_stat_grps.scsi_auth_intr_group;
+	ml_stat_grp->default_groups[1] = &lacl->ml_stat_grps.scsi_att_intr_port_group;
 	ml_stat_grp->default_groups[2] = NULL;
 }

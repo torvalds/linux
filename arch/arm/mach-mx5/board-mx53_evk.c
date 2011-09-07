@@ -35,6 +35,7 @@
 #define MX53_EVK_FEC_PHY_RST	IMX_GPIO_NR(7, 6)
 #define EVK_ECSPI1_CS0		IMX_GPIO_NR(2, 30)
 #define EVK_ECSPI1_CS1		IMX_GPIO_NR(3, 19)
+#define MX53EVK_LED		IMX_GPIO_NR(7, 7)
 
 #include "crm_regs.h"
 #include "devices-imx53.h"
@@ -58,10 +59,25 @@ static iomux_v3_cfg_t mx53_evk_pads[] = {
 	/* ecspi chip select lines */
 	MX53_PAD_EIM_EB2__GPIO2_30,
 	MX53_PAD_EIM_D19__GPIO3_19,
+	/* LED */
+	MX53_PAD_PATA_DA_1__GPIO7_7,
 };
 
 static const struct imxuart_platform_data mx53_evk_uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
+};
+
+static const struct gpio_led mx53evk_leds[] __initconst = {
+	{
+		.name			= "green",
+		.default_trigger	= "heartbeat",
+		.gpio			= MX53EVK_LED,
+	},
+};
+
+static const struct gpio_led_platform_data mx53evk_leds_data __initconst = {
+	.leds		= mx53evk_leds,
+	.num_leds	= ARRAY_SIZE(mx53evk_leds),
 };
 
 static inline void mx53_evk_init_uart(void)
@@ -117,6 +133,8 @@ static const struct spi_imx_master mx53_evk_spi_data __initconst = {
 
 static void __init mx53_evk_board_init(void)
 {
+	imx53_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx53_evk_pads,
 					ARRAY_SIZE(mx53_evk_pads));
 	mx53_evk_init_uart();
@@ -133,6 +151,7 @@ static void __init mx53_evk_board_init(void)
 		ARRAY_SIZE(mx53_evk_spi_board_info));
 	imx53_add_ecspi(0, &mx53_evk_spi_data);
 	imx53_add_imx2_wdt(0, NULL);
+	gpio_led_register_device(-1, &mx53evk_leds_data);
 }
 
 static void __init mx53_evk_timer_init(void)

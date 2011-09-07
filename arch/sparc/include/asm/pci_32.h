@@ -42,9 +42,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 }
 #endif
 
-struct device_node;
-extern struct device_node *pci_device_to_OF_node(struct pci_dev *pdev);
-
 #endif /* __KERNEL__ */
 
 #ifndef CONFIG_LEON_PCI

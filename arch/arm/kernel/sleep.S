@@ -10,63 +10,60 @@
 /*
  * Save CPU state for a suspend
  *  r1 = v:p offset
- *  r3 = virtual return function
- * Note: sp is decremented to allocate space for CPU state on stack
- * r0-r3,r9,r10,lr corrupted
+ *  r2 = suspend function arg0
+ *  r3 = suspend function
  */
-ENTRY(cpu_suspend)
-	mov	r9, lr
+ENTRY(__cpu_suspend)
+	stmfd	sp!, {r4 - r11, lr}
 #ifdef MULTI_CPU
 	ldr	r10, =processor
-	mov	r2, sp			@ current virtual SP
-	ldr	r0, [r10, #CPU_SLEEP_SIZE] @ size of CPU sleep state
+	ldr	r5, [r10, #CPU_SLEEP_SIZE] @ size of CPU sleep state
 	ldr	ip, [r10, #CPU_DO_RESUME] @ virtual resume function
-	sub	sp, sp, r0		@ allocate CPU state on stack
-	mov	r0, sp			@ save pointer
+#else
+	ldr	r5, =cpu_suspend_size
+	ldr	ip, =cpu_do_resume
+#endif
+	mov	r6, sp			@ current virtual SP
+	sub	sp, sp, r5		@ allocate CPU state on stack
+	mov	r0, sp			@ save pointer to CPU save block
 	add	ip, ip, r1		@ convert resume fn to phys
-	stmfd	sp!, {r1, r2, r3, ip}	@ save v:p, virt SP, retfn, phys resume fn
-	ldr	r3, =sleep_save_sp
-	add	r2, sp, r1		@ convert SP to phys
+	stmfd	sp!, {r1, r6, ip}	@ save v:p, virt SP, phys resume fn
+	ldr	r5, =sleep_save_sp
+	add	r6, sp, r1		@ convert SP to phys
+	stmfd	sp!, {r2, r3}		@ save suspend func arg and pointer
 #ifdef CONFIG_SMP
 	ALT_SMP(mrc p15, 0, lr, c0, c0, 5)
 	ALT_UP(mov lr, #0)
 	and	lr, lr, #15
-	str	r2, [r3, lr, lsl #2]	@ save phys SP
+	str	r6, [r5, lr, lsl #2]	@ save phys SP
 #else
-	str	r2, [r3]		@ save phys SP
+	str	r6, [r5]		@ save phys SP
 #endif
+#ifdef MULTI_CPU
 	mov	lr, pc
 	ldr	pc, [r10, #CPU_DO_SUSPEND] @ save CPU state
 #else
-	mov	r2, sp			@ current virtual SP
-	ldr	r0, =cpu_suspend_size
-	sub	sp, sp, r0		@ allocate CPU state on stack
-	mov	r0, sp			@ save pointer
-	stmfd	sp!, {r1, r2, r3}	@ save v:p, virt SP, return fn
-	ldr	r3, =sleep_save_sp
-	add	r2, sp, r1		@ convert SP to phys
-#ifdef CONFIG_SMP
-	ALT_SMP(mrc p15, 0, lr, c0, c0, 5)
-	ALT_UP(mov lr, #0)
-	and	lr, lr, #15
-	str	r2, [r3, lr, lsl #2]	@ save phys SP
-#else
-	str	r2, [r3]		@ save phys SP
-#endif
 	bl	cpu_do_suspend
 #endif
 
 	@ flush data cache
 #ifdef MULTI_CACHE
 	ldr	r10, =cpu_cache
-	mov	lr, r9
+	mov	lr, pc
 	ldr	pc, [r10, #CACHE_FLUSH_KERN_ALL]
 #else
-	mov	lr, r9
-	b	__cpuc_flush_kern_all
+	bl	__cpuc_flush_kern_all
 #endif
-ENDPROC(cpu_suspend)
+	adr	lr, BSYM(cpu_suspend_abort)
+	ldmfd	sp!, {r0, pc}		@ call suspend fn
+ENDPROC(__cpu_suspend)
 	.ltorg
+
+cpu_suspend_abort:
+	ldmia	sp!, {r1 - r3}		@ pop v:p, virt SP, phys resume fn
+	mov	sp, r2
+	ldmfd	sp!, {r4 - r11, pc}
+ENDPROC(cpu_suspend_abort)
 
 /*
  * r0 = control register value
@@ -97,7 +94,9 @@ ENDPROC(cpu_resume_turn_mmu_on)
 cpu_resume_after_mmu:
 	str	r5, [r2, r4, lsl #2]	@ restore old mapping
 	mcr	p15, 0, r0, c1, c0, 0	@ turn on D-cache
-	mov	pc, lr
+	bl	cpu_init		@ restore the und/abt/irq banked regs
+	mov	r0, #0			@ return zero on success
+	ldmfd	sp!, {r4 - r11, pc}
 ENDPROC(cpu_resume_after_mmu)
 
 /*
@@ -120,20 +119,11 @@ ENTRY(cpu_resume)
 	ldr	r0, sleep_save_sp	@ stack phys addr
 #endif
 	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set SVC, irqs off
-#ifdef MULTI_CPU
-	@ load v:p, stack, return fn, resume fn
-  ARM(	ldmia	r0!, {r1, sp, lr, pc}	)
-THUMB(	ldmia	r0!, {r1, r2, r3, r4}	)
+	@ load v:p, stack, resume fn
+  ARM(	ldmia	r0!, {r1, sp, pc}	)
+THUMB(	ldmia	r0!, {r1, r2, r3}	)
 THUMB(	mov	sp, r2			)
-THUMB(	mov	lr, r3			)
-THUMB(	bx	r4			)
-#else
-	@ load v:p, stack, return fn
-  ARM(	ldmia	r0!, {r1, sp, lr}	)
-THUMB(	ldmia	r0!, {r1, r2, lr}	)
-THUMB(	mov	sp, r2			)
-	b	cpu_do_resume
-#endif
+THUMB(	bx	r3			)
 ENDPROC(cpu_resume)
 
 sleep_save_sp:

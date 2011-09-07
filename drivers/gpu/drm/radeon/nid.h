@@ -320,7 +320,7 @@
 #define	CGTS_USER_TCC_DISABLE				0x914C
 #define		TCC_DISABLE_MASK				0xFFFF0000
 #define		TCC_DISABLE_SHIFT				16
-#define	CGTS_SM_CTRL_REG				0x915C
+#define	CGTS_SM_CTRL_REG				0x9150
 #define		OVERRIDE				(1 << 21)
 
 #define	TA_CNTL_AUX					0x9508

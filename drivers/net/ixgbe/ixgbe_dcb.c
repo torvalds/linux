@@ -258,15 +258,13 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
-		ret = ixgbe_dcb_hw_config_82598(hw, dcb_config->rx_pba_cfg,
-						pfc_en, refill, max, bwgid,
-						ptype);
+		ret = ixgbe_dcb_hw_config_82598(hw, pfc_en, refill, max,
+						bwgid, ptype);
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		ret = ixgbe_dcb_hw_config_82599(hw, dcb_config->rx_pba_cfg,
-						pfc_en, refill, max, bwgid,
-						ptype, prio_tc);
+		ret = ixgbe_dcb_hw_config_82599(hw, pfc_en, refill, max,
+						bwgid, ptype, prio_tc);
 		break;
 	default:
 		break;

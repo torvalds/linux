@@ -100,8 +100,7 @@ static int __devinit timeriomem_rng_probe(struct platform_device *pdev)
 
 	timeriomem_rng_data = pdev->dev.platform_data;
 
-	timeriomem_rng_data->address = ioremap(res->start,
-						res->end - res->start + 1);
+	timeriomem_rng_data->address = ioremap(res->start, resource_size(res));
 	if (!timeriomem_rng_data->address)
 		return -EIO;
 

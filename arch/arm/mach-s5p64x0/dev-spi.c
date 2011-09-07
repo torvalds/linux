@@ -112,12 +112,14 @@ static struct s3c64xx_spi_info s5p6440_spi0_pdata = {
 	.cfg_gpio	= s5p6440_spi_cfg_gpio,
 	.fifo_lvl_mask	= 0x1ff,
 	.rx_lvl_offset	= 15,
+	.tx_st_done	= 25,
 };
 
 static struct s3c64xx_spi_info s5p6450_spi0_pdata = {
 	.cfg_gpio	= s5p6450_spi_cfg_gpio,
 	.fifo_lvl_mask	= 0x1ff,
 	.rx_lvl_offset	= 15,
+	.tx_st_done	= 25,
 };
 
 static u64 spi_dmamask = DMA_BIT_MASK(32);
@@ -160,12 +162,14 @@ static struct s3c64xx_spi_info s5p6440_spi1_pdata = {
 	.cfg_gpio	= s5p6440_spi_cfg_gpio,
 	.fifo_lvl_mask	= 0x7f,
 	.rx_lvl_offset	= 15,
+	.tx_st_done	= 25,
 };
 
 static struct s3c64xx_spi_info s5p6450_spi1_pdata = {
 	.cfg_gpio	= s5p6450_spi_cfg_gpio,
 	.fifo_lvl_mask	= 0x7f,
 	.rx_lvl_offset	= 15,
+	.tx_st_done	= 25,
 };
 
 struct platform_device s5p64x0_device_spi1 = {

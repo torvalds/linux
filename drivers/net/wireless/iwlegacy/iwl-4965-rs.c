@@ -2275,6 +2275,9 @@ iwl4965_rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
 
+	if (!lq_sta)
+		return;
+
 	rate_idx  = lq_sta->last_txrate_idx;
 
 	if (lq_sta->last_rate_n_flags & RATE_MCS_HT_MSK) {

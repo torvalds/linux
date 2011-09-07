@@ -2078,10 +2078,9 @@ static void journal_free_journal_head(struct journal_head *jh)
  * When a buffer has its BH_JBD bit set it is immune from being released by
  * core kernel code, mainly via ->b_count.
  *
- * A journal_head may be detached from its buffer_head when the journal_head's
- * b_transaction, b_cp_transaction and b_next_transaction pointers are NULL.
- * Various places in JBD call jbd2_journal_remove_journal_head() to indicate that the
- * journal_head can be dropped if needed.
+ * A journal_head is detached from its buffer_head when the journal_head's
+ * b_jcount reaches zero. Running transaction (b_transaction) and checkpoint
+ * transaction (b_cp_transaction) hold their references to b_jcount.
  *
  * Various places in the kernel want to attach a journal_head to a buffer_head
  * _before_ attaching the journal_head to a transaction.  To protect the
@@ -2094,17 +2093,16 @@ static void journal_free_journal_head(struct journal_head *jh)
  *	(Attach a journal_head if needed.  Increments b_jcount)
  *	struct journal_head *jh = jbd2_journal_add_journal_head(bh);
  *	...
+ *      (Get another reference for transaction)
+ *	jbd2_journal_grab_journal_head(bh);
  *	jh->b_transaction = xxx;
+ *	(Put original reference)
  *	jbd2_journal_put_journal_head(jh);
- *
- * Now, the journal_head's b_jcount is zero, but it is safe from being released
- * because it has a non-zero b_transaction.
  */
 
 /*
  * Give a buffer_head a journal_head.
  *
- * Doesn't need the journal lock.
  * May sleep.
  */
 struct journal_head *jbd2_journal_add_journal_head(struct buffer_head *bh)
@@ -2168,61 +2166,29 @@ static void __journal_remove_journal_head(struct buffer_head *bh)
 	struct journal_head *jh = bh2jh(bh);
 
 	J_ASSERT_JH(jh, jh->b_jcount >= 0);
-
-	get_bh(bh);
-	if (jh->b_jcount == 0) {
-		if (jh->b_transaction == NULL &&
-				jh->b_next_transaction == NULL &&
-				jh->b_cp_transaction == NULL) {
-			J_ASSERT_JH(jh, jh->b_jlist == BJ_None);
-			J_ASSERT_BH(bh, buffer_jbd(bh));
-			J_ASSERT_BH(bh, jh2bh(jh) == bh);
-			BUFFER_TRACE(bh, "remove journal_head");
-			if (jh->b_frozen_data) {
-				printk(KERN_WARNING "%s: freeing "
-						"b_frozen_data\n",
-						__func__);
-				jbd2_free(jh->b_frozen_data, bh->b_size);
-			}
-			if (jh->b_committed_data) {
-				printk(KERN_WARNING "%s: freeing "
-						"b_committed_data\n",
-						__func__);
-				jbd2_free(jh->b_committed_data, bh->b_size);
-			}
-			bh->b_private = NULL;
-			jh->b_bh = NULL;	/* debug, really */
-			clear_buffer_jbd(bh);
-			__brelse(bh);
-			journal_free_journal_head(jh);
-		} else {
-			BUFFER_TRACE(bh, "journal_head was locked");
-		}
+	J_ASSERT_JH(jh, jh->b_transaction == NULL);
+	J_ASSERT_JH(jh, jh->b_next_transaction == NULL);
+	J_ASSERT_JH(jh, jh->b_cp_transaction == NULL);
+	J_ASSERT_JH(jh, jh->b_jlist == BJ_None);
+	J_ASSERT_BH(bh, buffer_jbd(bh));
+	J_ASSERT_BH(bh, jh2bh(jh) == bh);
+	BUFFER_TRACE(bh, "remove journal_head");
+	if (jh->b_frozen_data) {
+		printk(KERN_WARNING "%s: freeing b_frozen_data\n", __func__);
+		jbd2_free(jh->b_frozen_data, bh->b_size);
 	}
+	if (jh->b_committed_data) {
+		printk(KERN_WARNING "%s: freeing b_committed_data\n", __func__);
+		jbd2_free(jh->b_committed_data, bh->b_size);
+	}
+	bh->b_private = NULL;
+	jh->b_bh = NULL;	/* debug, really */
+	clear_buffer_jbd(bh);
+	journal_free_journal_head(jh);
 }
 
 /*
- * jbd2_journal_remove_journal_head(): if the buffer isn't attached to a transaction
- * and has a zero b_jcount then remove and release its journal_head.   If we did
- * see that the buffer is not used by any transaction we also "logically"
- * decrement ->b_count.
- *
- * We in fact take an additional increment on ->b_count as a convenience,
- * because the caller usually wants to do additional things with the bh
- * after calling here.
- * The caller of jbd2_journal_remove_journal_head() *must* run __brelse(bh) at some
- * time.  Once the caller has run __brelse(), the buffer is eligible for
- * reaping by try_to_free_buffers().
- */
-void jbd2_journal_remove_journal_head(struct buffer_head *bh)
-{
-	jbd_lock_bh_journal_head(bh);
-	__journal_remove_journal_head(bh);
-	jbd_unlock_bh_journal_head(bh);
-}
-
-/*
- * Drop a reference on the passed journal_head.  If it fell to zero then try to
+ * Drop a reference on the passed journal_head.  If it fell to zero then
  * release the journal_head from the buffer_head.
  */
 void jbd2_journal_put_journal_head(struct journal_head *jh)
@@ -2232,11 +2198,12 @@ void jbd2_journal_put_journal_head(struct journal_head *jh)
 	jbd_lock_bh_journal_head(bh);
 	J_ASSERT_JH(jh, jh->b_jcount > 0);
 	--jh->b_jcount;
-	if (!jh->b_jcount && !jh->b_transaction) {
+	if (!jh->b_jcount) {
 		__journal_remove_journal_head(bh);
+		jbd_unlock_bh_journal_head(bh);
 		__brelse(bh);
-	}
-	jbd_unlock_bh_journal_head(bh);
+	} else
+		jbd_unlock_bh_journal_head(bh);
 }
 
 /*
@@ -2422,73 +2389,6 @@ static void __exit journal_exit(void)
 	jbd2_remove_jbd_stats_proc_entry();
 	jbd2_journal_destroy_caches();
 }
-
-/* 
- * jbd2_dev_to_name is a utility function used by the jbd2 and ext4 
- * tracing infrastructure to map a dev_t to a device name.
- *
- * The caller should use rcu_read_lock() in order to make sure the
- * device name stays valid until its done with it.  We use
- * rcu_read_lock() as well to make sure we're safe in case the caller
- * gets sloppy, and because rcu_read_lock() is cheap and can be safely
- * nested.
- */
-struct devname_cache {
-	struct rcu_head	rcu;
-	dev_t		device;
-	char		devname[BDEVNAME_SIZE];
-};
-#define CACHE_SIZE_BITS 6
-static struct devname_cache *devcache[1 << CACHE_SIZE_BITS];
-static DEFINE_SPINLOCK(devname_cache_lock);
-
-static void free_devcache(struct rcu_head *rcu)
-{
-	kfree(rcu);
-}
-
-const char *jbd2_dev_to_name(dev_t device)
-{
-	int	i = hash_32(device, CACHE_SIZE_BITS);
-	char	*ret;
-	struct block_device *bd;
-	static struct devname_cache *new_dev;
-
-	rcu_read_lock();
-	if (devcache[i] && devcache[i]->device == device) {
-		ret = devcache[i]->devname;
-		rcu_read_unlock();
-		return ret;
-	}
-	rcu_read_unlock();
-
-	new_dev = kmalloc(sizeof(struct devname_cache), GFP_KERNEL);
-	if (!new_dev)
-		return "NODEV-ALLOCFAILURE"; /* Something non-NULL */
-	bd = bdget(device);
-	spin_lock(&devname_cache_lock);
-	if (devcache[i]) {
-		if (devcache[i]->device == device) {
-			kfree(new_dev);
-			bdput(bd);
-			ret = devcache[i]->devname;
-			spin_unlock(&devname_cache_lock);
-			return ret;
-		}
-		call_rcu(&devcache[i]->rcu, free_devcache);
-	}
-	devcache[i] = new_dev;
-	devcache[i]->device = device;
-	if (bd) {
-		bdevname(bd, devcache[i]->devname);
-		bdput(bd);
-	} else
-		__bdevname(device, devcache[i]->devname);
-	ret = devcache[i]->devname;
-	spin_unlock(&devname_cache_lock);
-	return ret;
-}
-EXPORT_SYMBOL(jbd2_dev_to_name);
 
 MODULE_LICENSE("GPL");
 module_init(journal_init);

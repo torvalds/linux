@@ -229,6 +229,8 @@ struct super_operations {
 
         ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
         ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
+	int (*nr_cached_objects)(struct super_block *);
+	void (*free_cached_objects)(struct super_block *, int);
 };
 
 All methods are called without any locks being held, unless otherwise
@@ -301,6 +303,26 @@ or bottom half).
 
   quota_write: called by the VFS to write to filesystem quota file.
 
+  nr_cached_objects: called by the sb cache shrinking function for the
+	filesystem to return the number of freeable cached objects it contains.
+	Optional.
+
+  free_cache_objects: called by the sb cache shrinking function for the
+	filesystem to scan the number of objects indicated to try to free them.
+	Optional, but any filesystem implementing this method needs to also
+	implement ->nr_cached_objects for it to be called correctly.
+
+	We can't do anything with any errors that the filesystem might
+	encountered, hence the void return type. This will never be called if
+	the VM is trying to reclaim under GFP_NOFS conditions, hence this
+	method does not need to handle that situation itself.
+
+	Implementations must include conditional reschedule calls inside any
+	scanning loop that is done. This allows the VFS to determine
+	appropriate scan batch sizes without having to worry about whether
+	implementations will cause holdoff problems due to large scan batch
+	sizes.
+
 Whoever sets up the inode is responsible for filling in the "i_op" field. This
 is a pointer to a "struct inode_operations" which describes the methods that
 can be performed on individual inodes.
@@ -333,8 +355,8 @@ struct inode_operations {
         void * (*follow_link) (struct dentry *, struct nameidata *);
         void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
-	int (*permission) (struct inode *, int, unsigned int);
-	int (*check_acl)(struct inode *, int, unsigned int);
+	int (*permission) (struct inode *, int);
+	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
@@ -423,7 +445,7 @@ otherwise noted.
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
 
-	May be called in rcu-walk mode (flags & IPERM_FLAG_RCU). If in rcu-walk
+	May be called in rcu-walk mode (mask & MAY_NOT_BLOCK). If in rcu-walk
         mode, the filesystem must check the permission without blocking or
 	storing to the inode.
 
@@ -755,7 +777,7 @@ struct file_operations {
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *);
 	int (*release) (struct inode *, struct file *);
-	int (*fsync) (struct file *, int datasync);
+	int (*fsync) (struct file *, loff_t, loff_t, int datasync);
 	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);

@@ -9,6 +9,7 @@
 #define __LINUX_POSIX_ACL_H
 
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 
 #define ACL_UNDEFINED_ID	(-1)
 
@@ -38,7 +39,10 @@ struct posix_acl_entry {
 };
 
 struct posix_acl {
-	atomic_t		a_refcount;
+	union {
+		atomic_t		a_refcount;
+		struct rcu_head		a_rcu;
+	};
 	unsigned int		a_count;
 	struct posix_acl_entry	a_entries[0];
 };
@@ -65,7 +69,7 @@ static inline void
 posix_acl_release(struct posix_acl *acl)
 {
 	if (acl && atomic_dec_and_test(&acl->a_refcount))
-		kfree(acl);
+		kfree_rcu(acl, a_rcu);
 }
 
 
@@ -73,32 +77,33 @@ posix_acl_release(struct posix_acl *acl)
 
 extern void posix_acl_init(struct posix_acl *, int);
 extern struct posix_acl *posix_acl_alloc(int, gfp_t);
-extern struct posix_acl *posix_acl_clone(const struct posix_acl *, gfp_t);
 extern int posix_acl_valid(const struct posix_acl *);
 extern int posix_acl_permission(struct inode *, const struct posix_acl *, int);
-extern struct posix_acl *posix_acl_from_mode(mode_t, gfp_t);
-extern int posix_acl_equiv_mode(const struct posix_acl *, mode_t *);
-extern int posix_acl_create_masq(struct posix_acl *, mode_t *);
-extern int posix_acl_chmod_masq(struct posix_acl *, mode_t);
+extern struct posix_acl *posix_acl_from_mode(umode_t, gfp_t);
+extern int posix_acl_equiv_mode(const struct posix_acl *, umode_t *);
+extern int posix_acl_create(struct posix_acl **, gfp_t, umode_t *);
+extern int posix_acl_chmod(struct posix_acl **, gfp_t, umode_t);
 
 extern struct posix_acl *get_posix_acl(struct inode *, int);
 extern int set_posix_acl(struct inode *, int, struct posix_acl *);
 
 #ifdef CONFIG_FS_POSIX_ACL
-static inline struct posix_acl *get_cached_acl(struct inode *inode, int type)
+static inline struct posix_acl **acl_by_type(struct inode *inode, int type)
 {
-	struct posix_acl **p, *acl;
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		p = &inode->i_acl;
-		break;
+		return &inode->i_acl;
 	case ACL_TYPE_DEFAULT:
-		p = &inode->i_default_acl;
-		break;
+		return &inode->i_default_acl;
 	default:
-		return ERR_PTR(-EINVAL);
+		BUG();
 	}
-	acl = ACCESS_ONCE(*p);
+}
+
+static inline struct posix_acl *get_cached_acl(struct inode *inode, int type)
+{
+	struct posix_acl **p = acl_by_type(inode, type);
+	struct posix_acl *acl = ACCESS_ONCE(*p);
 	if (acl) {
 		spin_lock(&inode->i_lock);
 		acl = *p;
@@ -109,41 +114,20 @@ static inline struct posix_acl *get_cached_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static inline int negative_cached_acl(struct inode *inode, int type)
+static inline struct posix_acl *get_cached_acl_rcu(struct inode *inode, int type)
 {
-	struct posix_acl **p, *acl;
-	switch (type) {
-	case ACL_TYPE_ACCESS:
-		p = &inode->i_acl;
-		break;
-	case ACL_TYPE_DEFAULT:
-		p = &inode->i_default_acl;
-		break;
-	default:
-		BUG();
-	}
-	acl = ACCESS_ONCE(*p);
-	if (acl)
-		return 0;
-	return 1;
+	return rcu_dereference(*acl_by_type(inode, type));
 }
 
 static inline void set_cached_acl(struct inode *inode,
 				  int type,
 				  struct posix_acl *acl)
 {
-	struct posix_acl *old = NULL;
+	struct posix_acl **p = acl_by_type(inode, type);
+	struct posix_acl *old;
 	spin_lock(&inode->i_lock);
-	switch (type) {
-	case ACL_TYPE_ACCESS:
-		old = inode->i_acl;
-		inode->i_acl = posix_acl_dup(acl);
-		break;
-	case ACL_TYPE_DEFAULT:
-		old = inode->i_default_acl;
-		inode->i_default_acl = posix_acl_dup(acl);
-		break;
-	}
+	old = *p;
+	rcu_assign_pointer(*p, posix_acl_dup(acl));
 	spin_unlock(&inode->i_lock);
 	if (old != ACL_NOT_CACHED)
 		posix_acl_release(old);
@@ -151,18 +135,11 @@ static inline void set_cached_acl(struct inode *inode,
 
 static inline void forget_cached_acl(struct inode *inode, int type)
 {
-	struct posix_acl *old = NULL;
+	struct posix_acl **p = acl_by_type(inode, type);
+	struct posix_acl *old;
 	spin_lock(&inode->i_lock);
-	switch (type) {
-	case ACL_TYPE_ACCESS:
-		old = inode->i_acl;
-		inode->i_acl = ACL_NOT_CACHED;
-		break;
-	case ACL_TYPE_DEFAULT:
-		old = inode->i_default_acl;
-		inode->i_default_acl = ACL_NOT_CACHED;
-		break;
-	}
+	old = *p;
+	*p = ACL_NOT_CACHED;
 	spin_unlock(&inode->i_lock);
 	if (old != ACL_NOT_CACHED)
 		posix_acl_release(old);

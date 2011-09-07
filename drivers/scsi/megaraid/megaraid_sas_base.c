@@ -18,7 +18,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  *  FILE: megaraid_sas_base.c
- *  Version : v00.00.05.38-rc1
+ *  Version : v00.00.05.40-rc1
  *
  *  Authors: LSI Corporation
  *           Sreenivas Bagalkote
@@ -54,6 +54,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include "megaraid_sas_fusion.h"
 #include "megaraid_sas.h"
 
@@ -2057,6 +2058,20 @@ megasas_service_aen(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	}
 }
 
+static int megasas_change_queue_depth(struct scsi_device *sdev,
+				      int queue_depth, int reason)
+{
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
+
+	if (queue_depth > sdev->host->can_queue)
+		queue_depth = sdev->host->can_queue;
+	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev),
+				queue_depth);
+
+	return queue_depth;
+}
+
 /*
  * Scsi host template for megaraid_sas driver
  */
@@ -2074,6 +2089,7 @@ static struct scsi_host_template megasas_template = {
 	.eh_timed_out = megasas_reset_timer,
 	.bios_param = megasas_bios_param,
 	.use_clustering = ENABLE_CLUSTERING,
+	.change_queue_depth = megasas_change_queue_depth,
 };
 
 /**

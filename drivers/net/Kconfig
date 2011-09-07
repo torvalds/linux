@@ -1934,13 +1934,6 @@ config DECLANCE
 	  DEC (now Compaq) based on the AMD Lance chipset, including the
 	  DEPCA series.  (This chipset is better known via the NE2100 cards.)
 
-config 68360_ENET
-	bool "Motorola 68360 ethernet controller"
-	depends on M68360
-	help
-	  Say Y here if you want to use the built-in ethernet controller of
-	  the Motorola 68360 processor.
-
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
 	depends on M523x || M527x || M5272 || M528x || M520x || M532x || \
@@ -2115,7 +2108,6 @@ config E1000
 
 config E1000E
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
-	select CRC32
 	depends on PCI && (!SPARC32 || BROKEN)
 	select CRC32
 	---help---
@@ -2197,15 +2189,6 @@ config IGBVF
 
 source "drivers/net/ixp2000/Kconfig"
 
-config MYRI_SBUS
-	tristate "MyriCOM Gigabit Ethernet support"
-	depends on SBUS
-	help
-	  This driver supports MyriCOM Sbus gigabit Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called myri_sbus.  This is recommended.
-
 config NS83820
 	tristate "National Semiconductor DP83820 support"
 	depends on PCI
@@ -2282,7 +2265,7 @@ config SIS190
 	  will be called sis190.  This is recommended.
 
 config SKGE
-	tristate "New SysKonnect GigaEthernet support"
+	tristate "Marvell Yukon Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
 	---help---
@@ -2298,7 +2281,7 @@ config SKGE
 	  Linksys EG1032/EG1064, 3Com 3C940/3C940B, SysKonnect SK-9871/9872.
 
 	  It does not support the newer Yukon2 chipset: a separate driver,
-	  sky2, is provided for Yukon2-based adapters.
+	  sky2, is provided for these adapters.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called skge.  This is recommended.
@@ -2313,8 +2296,17 @@ config SKGE_DEBUG
 
 	  If unsure, say N.
 
+config SKGE_GENESIS
+       bool "Support for older SysKonnect Genesis boards"
+       depends on SKGE
+       help
+         This enables support for the older and uncommon SysKonnect Genesis
+	 chips, which support MII via an external transceiver, instead of
+	 an internal one. Disabling this option will save some memory
+	 by making code smaller. If unsure say Y.
+
 config SKY2
-	tristate "SysKonnect Yukon2 support"
+	tristate "Marvell Yukon 2 support"
 	depends on PCI
 	select CRC32
 	---help---
@@ -2324,7 +2316,7 @@ config SKY2
 	  88E8053/88E8055/88E8061/88E8062, SysKonnect SK-9E21D/SK-9S21
 
 	  There is companion driver for the older Marvell Yukon and
-	  Genesis based adapters: skge.
+	  SysKonnect Genesis based adapters: skge.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called sky2.  This is recommended.
@@ -2560,6 +2552,15 @@ config PCH_GBE
 	  ML7223 IOH is for MP(Media Phone) use.
 	  ML7223 is companion chip for Intel Atom E6xx series.
 	  ML7223 is completely compatible for Intel EG20T PCH.
+
+config FTGMAC100
+	tristate "Faraday FTGMAC100 Gigabit Ethernet support"
+	depends on ARM
+	select PHYLIB
+	help
+	  This driver supports the FTGMAC100 Gigabit Ethernet controller
+	  from Faraday. It is used on Faraday A369, Andes AG102 and some
+	  other ARM/NDS32 SoC's.
 
 endif # NETDEV_1000
 
@@ -3416,7 +3417,8 @@ config NETCONSOLE
 
 config NETCONSOLE_DYNAMIC
 	bool "Dynamic reconfiguration of logging targets"
-	depends on NETCONSOLE && SYSFS && CONFIGFS_FS
+	depends on NETCONSOLE && SYSFS && CONFIGFS_FS && \
+			!(NETCONSOLE=y && CONFIGFS_FS=m)
 	help
 	  This option enables the ability to dynamically reconfigure target
 	  parameters (interface, IP addresses, port numbers, MAC addresses)

@@ -375,6 +375,11 @@ static int ath3k_probe(struct usb_interface *intf,
 
 	/* load patch and sysconfig files for AR3012 */
 	if (id->driver_info & BTUSB_ATH3012) {
+
+		/* New firmware with patch and sysconfig files already loaded */
+		if (le16_to_cpu(udev->descriptor.bcdDevice) > 0x0001)
+			return -ENODEV;
+
 		ret = ath3k_load_patch(udev);
 		if (ret < 0) {
 			BT_ERR("Loading patch file failed");

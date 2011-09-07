@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 #include <linux/percpu_counter.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;

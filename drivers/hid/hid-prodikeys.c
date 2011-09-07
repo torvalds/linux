@@ -44,8 +44,6 @@ struct pk_device {
 	struct pcmidi_snd	*pm; /* pcmidi device context */
 };
 
-struct pcmidi_snd;
-
 struct pcmidi_sustain {
 	unsigned long		in_use;
 	struct pcmidi_snd	*pm;
@@ -242,7 +240,7 @@ drop_note:
 	return;
 }
 
-void pcmidi_sustained_note_release(unsigned long data)
+static void pcmidi_sustained_note_release(unsigned long data)
 {
 	struct pcmidi_sustain *pms = (struct pcmidi_sustain *)data;
 
@@ -250,7 +248,7 @@ void pcmidi_sustained_note_release(unsigned long data)
 	pms->in_use = 0;
 }
 
-void init_sustain_timers(struct pcmidi_snd *pm)
+static void init_sustain_timers(struct pcmidi_snd *pm)
 {
 	struct pcmidi_sustain *pms;
 	unsigned i;
@@ -264,7 +262,7 @@ void init_sustain_timers(struct pcmidi_snd *pm)
 	}
 }
 
-void stop_sustain_timers(struct pcmidi_snd *pm)
+static void stop_sustain_timers(struct pcmidi_snd *pm)
 {
 	struct pcmidi_sustain *pms;
 	unsigned i;
@@ -499,7 +497,7 @@ static int pcmidi_handle_report4(struct pcmidi_snd *pm, u8 *data)
 	return 1;
 }
 
-int pcmidi_handle_report(
+static int pcmidi_handle_report(
 	struct pcmidi_snd *pm, unsigned report_id, u8 *data, int size)
 {
 	int ret = 0;
@@ -518,7 +516,8 @@ int pcmidi_handle_report(
 	return ret;
 }
 
-void pcmidi_setup_extra_keys(struct pcmidi_snd *pm, struct input_dev *input)
+static void pcmidi_setup_extra_keys(
+	struct pcmidi_snd *pm, struct input_dev *input)
 {
 	/* reassigned functionality for N/A keys
 		MY PICTURES =>	KEY_WORDPROCESSOR
@@ -602,7 +601,7 @@ static struct snd_rawmidi_ops pcmidi_in_ops = {
 	.trigger = pcmidi_in_trigger
 };
 
-int pcmidi_snd_initialise(struct pcmidi_snd *pm)
+static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 {
 	static int dev;
 	struct snd_card *card;
@@ -720,7 +719,7 @@ fail:
 	return err;
 }
 
-int pcmidi_snd_terminate(struct pcmidi_snd *pm)
+static int pcmidi_snd_terminate(struct pcmidi_snd *pm)
 {
 	if (pm->card) {
 		stop_sustain_timers(pm);

@@ -1585,6 +1585,7 @@ static s32 ixgbe_raise_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl)
 	*i2cctl |= IXGBE_I2C_CLK_OUT;
 
 	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, *i2cctl);
+	IXGBE_WRITE_FLUSH(hw);
 
 	/* SCL rise time (1000ns) */
 	udelay(IXGBE_I2C_T_RISE);
@@ -1605,6 +1606,7 @@ static void ixgbe_lower_i2c_clk(struct ixgbe_hw *hw, u32 *i2cctl)
 	*i2cctl &= ~IXGBE_I2C_CLK_OUT;
 
 	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, *i2cctl);
+	IXGBE_WRITE_FLUSH(hw);
 
 	/* SCL fall time (300ns) */
 	udelay(IXGBE_I2C_T_FALL);
@@ -1628,6 +1630,7 @@ static s32 ixgbe_set_i2c_data(struct ixgbe_hw *hw, u32 *i2cctl, bool data)
 		*i2cctl &= ~IXGBE_I2C_DATA_OUT;
 
 	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, *i2cctl);
+	IXGBE_WRITE_FLUSH(hw);
 
 	/* Data rise/fall (1000ns/300ns) and set-up time (250ns) */
 	udelay(IXGBE_I2C_T_RISE + IXGBE_I2C_T_FALL + IXGBE_I2C_T_SU_DATA);

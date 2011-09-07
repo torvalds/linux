@@ -560,6 +560,8 @@ int __init orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys)
 {
 	int ret = 0;
 
+	vga_base = ORION5X_PCIE_MEM_PHYS_BASE;
+
 	if (nr == 0) {
 		orion_pcie_set_local_bus_nr(PCIE_BASE, sys->busnr);
 		ret = pcie_setup(sys);
@@ -587,7 +589,7 @@ struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys
 	return bus;
 }
 
-int __init orion5x_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int bus = dev->bus->number;
 

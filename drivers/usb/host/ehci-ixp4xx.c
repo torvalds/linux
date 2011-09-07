@@ -100,7 +100,7 @@ static int ixp4xx_ehci_probe(struct platform_device *pdev)
 		goto fail_request_resource;
 	}
 	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = res->end - res->start + 1;
+	hcd->rsrc_len = resource_size(res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
 				driver->description)) {

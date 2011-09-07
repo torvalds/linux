@@ -98,7 +98,7 @@ struct vme_device_id {
 
 struct vme_driver {
 	struct list_head node;
-	char *name;
+	const char *name;
 	const struct vme_device_id *bind_table;
 	int (*probe)  (struct device *, int, int);
 	int (*remove) (struct device *, int, int);

@@ -116,6 +116,7 @@ static void dn_dst_destroy(struct dst_entry *);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
 static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu);
+static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst, const void *daddr);
 static int dn_route_input(struct sk_buff *);
 static void dn_run_flush(unsigned long dummy);
 
@@ -139,6 +140,7 @@ static struct dst_ops dn_dst_ops = {
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
+	.neigh_lookup =		dn_dst_neigh_lookup,
 };
 
 static void dn_dst_destroy(struct dst_entry *dst)
@@ -241,9 +243,11 @@ static int dn_dst_gc(struct dst_ops *ops)
  */
 static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
+	struct neighbour *n = dst_get_neighbour(dst);
 	u32 min_mtu = 230;
-	struct dn_dev *dn = dst->neighbour ?
-			    rcu_dereference_raw(dst->neighbour->dev->dn_ptr) : NULL;
+	struct dn_dev *dn;
+
+	dn = n ? rcu_dereference_raw(n->dev->dn_ptr) : NULL;
 
 	if (dn && dn->use_long == 0)
 		min_mtu -= 6;
@@ -495,11 +499,11 @@ static int dn_route_rx_packet(struct sk_buff *skb)
 	}
 
 	if ((skb->pkt_type == PACKET_HOST) && (cb->rt_flags & DN_RT_F_RQR)) {
-		switch(cb->rt_flags & DN_RT_PKT_MSK) {
-			case DN_RT_PKT_SHORT:
-				return dn_return_short(skb);
-			case DN_RT_PKT_LONG:
-				return dn_return_long(skb);
+		switch (cb->rt_flags & DN_RT_PKT_MSK) {
+		case DN_RT_PKT_SHORT:
+			return dn_return_short(skb);
+		case DN_RT_PKT_LONG:
+			return dn_return_long(skb);
 		}
 	}
 
@@ -652,38 +656,38 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 		if (unlikely(skb_linearize(skb)))
 			goto dump_it;
 
-		switch(flags & DN_RT_CNTL_MSK) {
-			case DN_RT_PKT_INIT:
-				dn_dev_init_pkt(skb);
-				break;
-			case DN_RT_PKT_VERI:
-				dn_dev_veri_pkt(skb);
-				break;
+		switch (flags & DN_RT_CNTL_MSK) {
+		case DN_RT_PKT_INIT:
+			dn_dev_init_pkt(skb);
+			break;
+		case DN_RT_PKT_VERI:
+			dn_dev_veri_pkt(skb);
+			break;
 		}
 
 		if (dn->parms.state != DN_DEV_S_RU)
 			goto dump_it;
 
-		switch(flags & DN_RT_CNTL_MSK) {
-			case DN_RT_PKT_HELO:
-				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-					       skb, skb->dev, NULL,
-					       dn_route_ptp_hello);
+		switch (flags & DN_RT_CNTL_MSK) {
+		case DN_RT_PKT_HELO:
+			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+				       skb, skb->dev, NULL,
+				       dn_route_ptp_hello);
 
-			case DN_RT_PKT_L1RT:
-			case DN_RT_PKT_L2RT:
-				return NF_HOOK(NFPROTO_DECNET, NF_DN_ROUTE,
-					       skb, skb->dev, NULL,
-					       dn_route_discard);
-			case DN_RT_PKT_ERTH:
-				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-					       skb, skb->dev, NULL,
-					       dn_neigh_router_hello);
+		case DN_RT_PKT_L1RT:
+		case DN_RT_PKT_L2RT:
+			return NF_HOOK(NFPROTO_DECNET, NF_DN_ROUTE,
+				       skb, skb->dev, NULL,
+				       dn_route_discard);
+		case DN_RT_PKT_ERTH:
+			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+				       skb, skb->dev, NULL,
+				       dn_neigh_router_hello);
 
-			case DN_RT_PKT_EEDH:
-				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-					       skb, skb->dev, NULL,
-					       dn_neigh_endnode_hello);
+		case DN_RT_PKT_EEDH:
+			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+				       skb, skb->dev, NULL,
+				       dn_neigh_endnode_hello);
 		}
 	} else {
 		if (dn->parms.state != DN_DEV_S_RU)
@@ -691,11 +695,11 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 
 		skb_pull(skb, 1); /* Pull flags */
 
-		switch(flags & DN_RT_PKT_MSK) {
-			case DN_RT_PKT_LONG:
-				return dn_route_rx_long(skb);
-			case DN_RT_PKT_SHORT:
-				return dn_route_rx_short(skb);
+		switch (flags & DN_RT_PKT_MSK) {
+		case DN_RT_PKT_LONG:
+			return dn_route_rx_long(skb);
+		case DN_RT_PKT_SHORT:
+			return dn_route_rx_short(skb);
 		}
 	}
 
@@ -703,6 +707,14 @@ dump_it:
 	kfree_skb(skb);
 out:
 	return NET_RX_DROP;
+}
+
+static int dn_to_neigh_output(struct sk_buff *skb)
+{
+	struct dst_entry *dst = skb_dst(skb);
+	struct neighbour *n = dst_get_neighbour(dst);
+
+	return n->output(n, skb);
 }
 
 static int dn_output(struct sk_buff *skb)
@@ -715,7 +727,7 @@ static int dn_output(struct sk_buff *skb)
 
 	int err = -EINVAL;
 
-	if ((neigh = dst->neighbour) == NULL)
+	if ((neigh = dst_get_neighbour(dst)) == NULL)
 		goto error;
 
 	skb->dev = dev;
@@ -733,7 +745,7 @@ static int dn_output(struct sk_buff *skb)
 	cb->hops = 0;
 
 	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_OUT, skb, NULL, dev,
-		       neigh->output);
+		       dn_to_neigh_output);
 
 error:
 	if (net_ratelimit())
@@ -750,7 +762,6 @@ static int dn_forward(struct sk_buff *skb)
 	struct dst_entry *dst = skb_dst(skb);
 	struct dn_dev *dn_db = rcu_dereference(dst->dev->dn_ptr);
 	struct dn_route *rt;
-	struct neighbour *neigh = dst->neighbour;
 	int header_len;
 #ifdef CONFIG_NETFILTER
 	struct net_device *dev = skb->dev;
@@ -783,7 +794,7 @@ static int dn_forward(struct sk_buff *skb)
 		cb->rt_flags |= DN_RT_F_IE;
 
 	return NF_HOOK(NFPROTO_DECNET, NF_DN_FORWARD, skb, dev, skb->dev,
-		       neigh->output);
+		       dn_to_neigh_output);
 
 drop:
 	kfree_skb(skb);
@@ -818,6 +829,11 @@ static unsigned int dn_dst_default_mtu(const struct dst_entry *dst)
 	return dst->dev->mtu;
 }
 
+static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+{
+	return __neigh_lookup_errno(&dn_neigh_table, daddr, dst->dev);
+}
+
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 {
 	struct dn_fib_info *fi = res->fi;
@@ -833,11 +849,11 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 	}
 	rt->rt_type = res->type;
 
-	if (dev != NULL && rt->dst.neighbour == NULL) {
+	if (dev != NULL && dst_get_neighbour(&rt->dst) == NULL) {
 		n = __neigh_lookup_errno(&dn_neigh_table, &rt->rt_gateway, dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
-		rt->dst.neighbour = n;
+		dst_set_neighbour(&rt->dst, n);
 	}
 
 	if (dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
@@ -1144,7 +1160,7 @@ make_route:
 	rt->rt_dst_map    = fld.daddr;
 	rt->rt_src_map    = fld.saddr;
 
-	rt->dst.neighbour = neigh;
+	dst_set_neighbour(&rt->dst, neigh);
 	neigh = NULL;
 
 	rt->dst.lastuse = jiffies;
@@ -1416,23 +1432,23 @@ make_route:
 	rt->fld.flowidn_iif  = in_dev->ifindex;
 	rt->fld.flowidn_mark = fld.flowidn_mark;
 
-	rt->dst.neighbour = neigh;
+	dst_set_neighbour(&rt->dst, neigh);
 	rt->dst.lastuse = jiffies;
 	rt->dst.output = dn_rt_bug;
-	switch(res.type) {
-		case RTN_UNICAST:
-			rt->dst.input = dn_forward;
-			break;
-		case RTN_LOCAL:
-			rt->dst.output = dn_output;
-			rt->dst.input = dn_nsp_rx;
-			rt->dst.dev = in_dev;
-			flags |= RTCF_LOCAL;
-			break;
-		default:
-		case RTN_UNREACHABLE:
-		case RTN_BLACKHOLE:
-			rt->dst.input = dst_discard;
+	switch (res.type) {
+	case RTN_UNICAST:
+		rt->dst.input = dn_forward;
+		break;
+	case RTN_LOCAL:
+		rt->dst.output = dn_output;
+		rt->dst.input = dn_nsp_rx;
+		rt->dst.dev = in_dev;
+		flags |= RTCF_LOCAL;
+		break;
+	default:
+	case RTN_UNREACHABLE:
+	case RTN_BLACKHOLE:
+		rt->dst.input = dst_discard;
 	}
 	rt->rt_flags = flags;
 
@@ -1841,10 +1857,11 @@ void __init dn_route_init(void)
 	proc_net_fops_create(&init_net, "decnet_cache", S_IRUGO, &dn_rt_cache_seq_fops);
 
 #ifdef CONFIG_DECNET_ROUTER
-	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute, dn_fib_dump);
+	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
+		      dn_fib_dump, NULL);
 #else
 	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
-		      dn_cache_dump);
+		      dn_cache_dump, NULL);
 #endif
 }
 

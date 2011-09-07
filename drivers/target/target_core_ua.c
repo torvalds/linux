@@ -49,15 +49,15 @@ int core_scsi3_ua_check(
 	struct se_session *sess = cmd->se_sess;
 	struct se_node_acl *nacl;
 
-	if (!(sess))
+	if (!sess)
 		return 0;
 
 	nacl = sess->se_node_acl;
-	if (!(nacl))
+	if (!nacl)
 		return 0;
 
 	deve = &nacl->device_list[cmd->orig_fe_lun];
-	if (!(atomic_read(&deve->ua_count)))
+	if (!atomic_read(&deve->ua_count))
 		return 0;
 	/*
 	 * From sam4r14, section 5.14 Unit attention condition:
@@ -80,10 +80,10 @@ int core_scsi3_ua_check(
 	case REQUEST_SENSE:
 		return 0;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
-	return -1;
+	return -EINVAL;
 }
 
 int core_scsi3_ua_allocate(
@@ -97,13 +97,13 @@ int core_scsi3_ua_allocate(
 	/*
 	 * PASSTHROUGH OPS
 	 */
-	if (!(nacl))
-		return -1;
+	if (!nacl)
+		return -EINVAL;
 
 	ua = kmem_cache_zalloc(se_ua_cache, GFP_ATOMIC);
-	if (!(ua)) {
-		printk(KERN_ERR "Unable to allocate struct se_ua\n");
-		return -1;
+	if (!ua) {
+		pr_err("Unable to allocate struct se_ua\n");
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&ua->ua_dev_list);
 	INIT_LIST_HEAD(&ua->ua_nacl_list);
@@ -177,9 +177,9 @@ int core_scsi3_ua_allocate(
 	spin_unlock(&deve->ua_lock);
 	spin_unlock_irq(&nacl->device_list_lock);
 
-	printk(KERN_INFO "[%s]: Allocated UNIT ATTENTION, mapped LUN: %u, ASC:"
+	pr_debug("[%s]: Allocated UNIT ATTENTION, mapped LUN: %u, ASC:"
 		" 0x%02x, ASCQ: 0x%02x\n",
-		TPG_TFO(nacl->se_tpg)->get_fabric_name(), unpacked_lun,
+		nacl->se_tpg->se_tpg_tfo->get_fabric_name(), unpacked_lun,
 		asc, ascq);
 
 	atomic_inc(&deve->ua_count);
@@ -208,23 +208,23 @@ void core_scsi3_ua_for_check_condition(
 	u8 *asc,
 	u8 *ascq)
 {
-	struct se_device *dev = SE_DEV(cmd);
+	struct se_device *dev = cmd->se_dev;
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
 	struct se_node_acl *nacl;
 	struct se_ua *ua = NULL, *ua_p;
 	int head = 1;
 
-	if (!(sess))
+	if (!sess)
 		return;
 
 	nacl = sess->se_node_acl;
-	if (!(nacl))
+	if (!nacl)
 		return;
 
 	spin_lock_irq(&nacl->device_list_lock);
 	deve = &nacl->device_list[cmd->orig_fe_lun];
-	if (!(atomic_read(&deve->ua_count))) {
+	if (!atomic_read(&deve->ua_count)) {
 		spin_unlock_irq(&nacl->device_list_lock);
 		return;
 	}
@@ -240,7 +240,7 @@ void core_scsi3_ua_for_check_condition(
 		 * highest priority UNIT_ATTENTION and ASC/ASCQ without
 		 * clearing it.
 		 */
-		if (DEV_ATTRIB(dev)->emulate_ua_intlck_ctrl != 0) {
+		if (dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl != 0) {
 			*asc = ua->ua_asc;
 			*ascq = ua->ua_ascq;
 			break;
@@ -264,13 +264,13 @@ void core_scsi3_ua_for_check_condition(
 	spin_unlock(&deve->ua_lock);
 	spin_unlock_irq(&nacl->device_list_lock);
 
-	printk(KERN_INFO "[%s]: %s UNIT ATTENTION condition with"
+	pr_debug("[%s]: %s UNIT ATTENTION condition with"
 		" INTLCK_CTRL: %d, mapped LUN: %u, got CDB: 0x%02x"
 		" reported ASC: 0x%02x, ASCQ: 0x%02x\n",
-		TPG_TFO(nacl->se_tpg)->get_fabric_name(),
-		(DEV_ATTRIB(dev)->emulate_ua_intlck_ctrl != 0) ? "Reporting" :
-		"Releasing", DEV_ATTRIB(dev)->emulate_ua_intlck_ctrl,
-		cmd->orig_fe_lun, T_TASK(cmd)->t_task_cdb[0], *asc, *ascq);
+		nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+		(dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl != 0) ? "Reporting" :
+		"Releasing", dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl,
+		cmd->orig_fe_lun, cmd->t_task_cdb[0], *asc, *ascq);
 }
 
 int core_scsi3_ua_clear_for_request_sense(
@@ -284,18 +284,18 @@ int core_scsi3_ua_clear_for_request_sense(
 	struct se_ua *ua = NULL, *ua_p;
 	int head = 1;
 
-	if (!(sess))
-		return -1;
+	if (!sess)
+		return -EINVAL;
 
 	nacl = sess->se_node_acl;
-	if (!(nacl))
-		return -1;
+	if (!nacl)
+		return -EINVAL;
 
 	spin_lock_irq(&nacl->device_list_lock);
 	deve = &nacl->device_list[cmd->orig_fe_lun];
-	if (!(atomic_read(&deve->ua_count))) {
+	if (!atomic_read(&deve->ua_count)) {
 		spin_unlock_irq(&nacl->device_list_lock);
-		return -1;
+		return -EPERM;
 	}
 	/*
 	 * The highest priority Unit Attentions are placed at the head of the
@@ -323,10 +323,10 @@ int core_scsi3_ua_clear_for_request_sense(
 	spin_unlock(&deve->ua_lock);
 	spin_unlock_irq(&nacl->device_list_lock);
 
-	printk(KERN_INFO "[%s]: Released UNIT ATTENTION condition, mapped"
+	pr_debug("[%s]: Released UNIT ATTENTION condition, mapped"
 		" LUN: %u, got REQUEST_SENSE reported ASC: 0x%02x,"
-		" ASCQ: 0x%02x\n", TPG_TFO(nacl->se_tpg)->get_fabric_name(),
+		" ASCQ: 0x%02x\n", nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
 		cmd->orig_fe_lun, *asc, *ascq);
 
-	return (head) ? -1 : 0;
+	return (head) ? -EPERM : 0;
 }

@@ -183,7 +183,7 @@ static const struct sh_dmae_slave_config sh7757_dmae1_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_SCIF2_RX,
 		.addr		= 0x1f4b0014,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x22,
 	},
@@ -197,7 +197,7 @@ static const struct sh_dmae_slave_config sh7757_dmae1_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_SCIF3_RX,
 		.addr		= 0x1f4c0014,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x2a,
 	},
@@ -211,7 +211,7 @@ static const struct sh_dmae_slave_config sh7757_dmae1_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_SCIF4_RX,
 		.addr		= 0x1f4d0014,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x42,
 	},
@@ -228,7 +228,7 @@ static const struct sh_dmae_slave_config sh7757_dmae2_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC0_RX,
 		.addr		= 0x1e500013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x22,
 	},
@@ -242,7 +242,7 @@ static const struct sh_dmae_slave_config sh7757_dmae2_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC1_RX,
 		.addr		= 0x1e510013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x2a,
 	},
@@ -256,7 +256,7 @@ static const struct sh_dmae_slave_config sh7757_dmae2_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC2_RX,
 		.addr		= 0x1e520013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0xa2,
 	},
@@ -265,12 +265,12 @@ static const struct sh_dmae_slave_config sh7757_dmae2_slaves[] = {
 		.addr		= 0x1e530012,
 		.chcr		= SM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
-		.mid_rid	= 0xab,
+		.mid_rid	= 0xa9,
 	},
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC3_RX,
 		.addr		= 0x1e530013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0xaf,
 	},
@@ -279,14 +279,14 @@ static const struct sh_dmae_slave_config sh7757_dmae2_slaves[] = {
 		.addr		= 0x1e540012,
 		.chcr		= SM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
-		.mid_rid	= 0xc1,
+		.mid_rid	= 0xc5,
 	},
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC4_RX,
 		.addr		= 0x1e540013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
-		.mid_rid	= 0xc2,
+		.mid_rid	= 0xc6,
 	},
 };
 
@@ -301,7 +301,7 @@ static const struct sh_dmae_slave_config sh7757_dmae3_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC5_RX,
 		.addr		= 0x1e550013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x22,
 	},
@@ -315,7 +315,7 @@ static const struct sh_dmae_slave_config sh7757_dmae3_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC6_RX,
 		.addr		= 0x1e560013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x2a,
 	},
@@ -329,7 +329,7 @@ static const struct sh_dmae_slave_config sh7757_dmae3_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC7_RX,
 		.addr		= 0x1e570013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x42,
 	},
@@ -343,7 +343,7 @@ static const struct sh_dmae_slave_config sh7757_dmae3_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC8_RX,
 		.addr		= 0x1e580013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x46,
 	},
@@ -357,7 +357,7 @@ static const struct sh_dmae_slave_config sh7757_dmae3_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_RIIC9_RX,
 		.addr		= 0x1e590013,
-		.chcr		= SM_INC | 0x800 | 0x40000000 |
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x52,
 	},
@@ -659,6 +659,54 @@ static struct platform_device spi0_device = {
 	.resource	= spi0_resources,
 };
 
+static struct resource usb_ehci_resources[] = {
+	[0] = {
+		.start	= 0xfe4f1000,
+		.end	= 0xfe4f10ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 57,
+		.end	= 57,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb_ehci_device = {
+	.name		= "sh_ehci",
+	.id		= -1,
+	.dev = {
+		.dma_mask = &usb_ehci_device.dev.coherent_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(usb_ehci_resources),
+	.resource	= usb_ehci_resources,
+};
+
+static struct resource usb_ohci_resources[] = {
+	[0] = {
+		.start	= 0xfe4f1800,
+		.end	= 0xfe4f18ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 57,
+		.end	= 57,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb_ohci_device = {
+	.name		= "sh_ohci",
+	.id		= -1,
+	.dev = {
+		.dma_mask = &usb_ohci_device.dev.coherent_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(usb_ohci_resources),
+	.resource	= usb_ohci_resources,
+};
+
 static struct platform_device *sh7757_devices[] __initdata = {
 	&scif2_device,
 	&scif3_device,
@@ -670,6 +718,8 @@ static struct platform_device *sh7757_devices[] __initdata = {
 	&dma2_device,
 	&dma3_device,
 	&spi0_device,
+	&usb_ehci_device,
+	&usb_ohci_device,
 };
 
 static int __init sh7757_devices_setup(void)
@@ -1039,13 +1089,13 @@ static DECLARE_INTC_DESC(intc_desc, "sh7757", vectors, groups,
 
 /* Support for external interrupt pins in IRQ mode */
 static struct intc_vect vectors_irq0123[] __initdata = {
-	INTC_VECT(IRQ0, 0x240), INTC_VECT(IRQ1, 0x280),
-	INTC_VECT(IRQ2, 0x2c0), INTC_VECT(IRQ3, 0x300),
+	INTC_VECT(IRQ0, 0x200), INTC_VECT(IRQ1, 0x240),
+	INTC_VECT(IRQ2, 0x280), INTC_VECT(IRQ3, 0x2c0),
 };
 
 static struct intc_vect vectors_irq4567[] __initdata = {
-	INTC_VECT(IRQ4, 0x340), INTC_VECT(IRQ5, 0x380),
-	INTC_VECT(IRQ6, 0x3c0), INTC_VECT(IRQ7, 0x200),
+	INTC_VECT(IRQ4, 0x300), INTC_VECT(IRQ5, 0x340),
+	INTC_VECT(IRQ6, 0x380), INTC_VECT(IRQ7, 0x3c0),
 };
 
 static struct intc_sense_reg sense_registers[] __initdata = {
@@ -1079,14 +1129,14 @@ static struct intc_vect vectors_irl0123[] __initdata = {
 };
 
 static struct intc_vect vectors_irl4567[] __initdata = {
-	INTC_VECT(IRL4_LLLL, 0xb00), INTC_VECT(IRL4_LLLH, 0xb20),
-	INTC_VECT(IRL4_LLHL, 0xb40), INTC_VECT(IRL4_LLHH, 0xb60),
-	INTC_VECT(IRL4_LHLL, 0xb80), INTC_VECT(IRL4_LHLH, 0xba0),
-	INTC_VECT(IRL4_LHHL, 0xbc0), INTC_VECT(IRL4_LHHH, 0xbe0),
-	INTC_VECT(IRL4_HLLL, 0xc00), INTC_VECT(IRL4_HLLH, 0xc20),
-	INTC_VECT(IRL4_HLHL, 0xc40), INTC_VECT(IRL4_HLHH, 0xc60),
-	INTC_VECT(IRL4_HHLL, 0xc80), INTC_VECT(IRL4_HHLH, 0xca0),
-	INTC_VECT(IRL4_HHHL, 0xcc0),
+	INTC_VECT(IRL4_LLLL, 0x200), INTC_VECT(IRL4_LLLH, 0x220),
+	INTC_VECT(IRL4_LLHL, 0x240), INTC_VECT(IRL4_LLHH, 0x260),
+	INTC_VECT(IRL4_LHLL, 0x280), INTC_VECT(IRL4_LHLH, 0x2a0),
+	INTC_VECT(IRL4_LHHL, 0x2c0), INTC_VECT(IRL4_LHHH, 0x2e0),
+	INTC_VECT(IRL4_HLLL, 0x300), INTC_VECT(IRL4_HLLH, 0x320),
+	INTC_VECT(IRL4_HLHL, 0x340), INTC_VECT(IRL4_HLHH, 0x360),
+	INTC_VECT(IRL4_HHLL, 0x380), INTC_VECT(IRL4_HHLH, 0x3a0),
+	INTC_VECT(IRL4_HHHL, 0x3c0),
 };
 
 static DECLARE_INTC_DESC(intc_desc_irl0123, "sh7757-irl0123", vectors_irl0123,

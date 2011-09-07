@@ -1,6 +1,7 @@
 config USB_PWC
 	tristate "USB Philips Cameras"
 	depends on VIDEO_V4L2
+	select VIDEOBUF2_VMALLOC
 	---help---
 	  Say Y or M here if you want to use one of these Philips & OEM
 	  webcams:

@@ -796,30 +796,13 @@ static int efx_ethtool_set_wol(struct net_device *net_dev,
 static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	enum reset_type method;
-	enum {
-		ETH_RESET_EFX_INVISIBLE = (ETH_RESET_DMA | ETH_RESET_FILTER |
-					   ETH_RESET_OFFLOAD | ETH_RESET_MAC)
-	};
+	int rc;
 
-	/* Check for minimal reset flags */
-	if ((*flags & ETH_RESET_EFX_INVISIBLE) != ETH_RESET_EFX_INVISIBLE)
-		return -EINVAL;
-	*flags ^= ETH_RESET_EFX_INVISIBLE;
-	method = RESET_TYPE_INVISIBLE;
+	rc = efx->type->map_reset_flags(flags);
+	if (rc < 0)
+		return rc;
 
-	if (*flags & ETH_RESET_PHY) {
-		*flags ^= ETH_RESET_PHY;
-		method = RESET_TYPE_ALL;
-	}
-
-	if ((*flags & efx->type->reset_world_flags) ==
-	    efx->type->reset_world_flags) {
-		*flags ^= efx->type->reset_world_flags;
-		method = RESET_TYPE_WORLD;
-	}
-
-	return efx_reset(efx, method);
+	return efx_reset(efx, rc);
 }
 
 static int

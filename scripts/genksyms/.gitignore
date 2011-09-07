@@ -1,4 +1,5 @@
-keywords.c
-lex.c
-parse.[ch]
+*.hash.c
+*.lex.c
+*.tab.c
+*.tab.h
 genksyms

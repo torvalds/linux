@@ -49,7 +49,7 @@
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/uaccess.h>
 
 extern struct workqueue_struct *ib_wq;
@@ -350,7 +350,8 @@ enum ib_event_type {
 	IB_EVENT_SRQ_ERR,
 	IB_EVENT_SRQ_LIMIT_REACHED,
 	IB_EVENT_QP_LAST_WQE_REACHED,
-	IB_EVENT_CLIENT_REREGISTER
+	IB_EVENT_CLIENT_REREGISTER,
+	IB_EVENT_GID_CHANGE,
 };
 
 struct ib_event {

@@ -156,4 +156,5 @@ MACHINE_START(SHARK, "Shark")
 	.map_io		= shark_map_io,
 	.init_irq	= shark_init_irq,
 	.timer		= &shark_timer,
+	.dma_zone_size	= SZ_4M,
 MACHINE_END

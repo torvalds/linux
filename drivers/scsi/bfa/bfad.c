@@ -56,14 +56,15 @@ int		fdmi_enable = BFA_TRUE;
 int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
+int		max_xfer_size = BFAD_MAX_SECTORS >> 1;
 
 /* Firmware releated */
-u32	bfi_image_ct_fc_size, bfi_image_ct_cna_size, bfi_image_cb_fc_size;
-u32     *bfi_image_ct_fc, *bfi_image_ct_cna, *bfi_image_cb_fc;
+u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
+u32	*bfi_image_cb, *bfi_image_ct, *bfi_image_ct2;
 
-#define BFAD_FW_FILE_CT_FC      "ctfw_fc.bin"
-#define BFAD_FW_FILE_CT_CNA     "ctfw_cna.bin"
-#define BFAD_FW_FILE_CB_FC      "cbfw_fc.bin"
+#define BFAD_FW_FILE_CB		"cbfw.bin"
+#define BFAD_FW_FILE_CT		"ctfw.bin"
+#define BFAD_FW_FILE_CT2	"ct2fw.bin"
 
 static u32 *bfad_load_fwimg(struct pci_dev *pdev);
 static void bfad_free_fwimg(void);
@@ -71,18 +72,18 @@ static void bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 		u32 *bfi_image_size, char *fw_name);
 
 static const char *msix_name_ct[] = {
+	"ctrl",
 	"cpe0", "cpe1", "cpe2", "cpe3",
-	"rme0", "rme1", "rme2", "rme3",
-	"ctrl" };
+	"rme0", "rme1", "rme2", "rme3" };
 
 static const char *msix_name_cb[] = {
 	"cpe0", "cpe1", "cpe2", "cpe3",
 	"rme0", "rme1", "rme2", "rme3",
 	"eemc", "elpu0", "elpu1", "epss", "mlpu" };
 
-MODULE_FIRMWARE(BFAD_FW_FILE_CT_FC);
-MODULE_FIRMWARE(BFAD_FW_FILE_CT_CNA);
-MODULE_FIRMWARE(BFAD_FW_FILE_CB_FC);
+MODULE_FIRMWARE(BFAD_FW_FILE_CB);
+MODULE_FIRMWARE(BFAD_FW_FILE_CT);
+MODULE_FIRMWARE(BFAD_FW_FILE_CT2);
 
 module_param(os_name, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(os_name, "OS name of the hba host machine");
@@ -144,6 +145,9 @@ MODULE_PARM_DESC(pcie_max_read_reqsz, "PCIe max read request size, default=0 "
 module_param(bfa_debugfs_enable, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
 		" Range[false:0|true:1]");
+module_param(max_xfer_size, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_xfer_size, "default=32MB,"
+		" Range[64k|128k|256k|512k|1024k|2048k]");
 
 static void
 bfad_sm_uninit(struct bfad_s *bfad, enum bfad_sm_event event);
@@ -527,28 +531,26 @@ bfa_fcb_pbc_vport_create(struct bfad_s *bfad, struct bfi_pbc_vport_s pbc_vport)
 void
 bfad_hal_mem_release(struct bfad_s *bfad)
 {
-	int		i;
 	struct bfa_meminfo_s *hal_meminfo = &bfad->meminfo;
-	struct bfa_mem_elem_s *meminfo_elem;
+	struct bfa_mem_dma_s *dma_info, *dma_elem;
+	struct bfa_mem_kva_s *kva_info, *kva_elem;
+	struct list_head *dm_qe, *km_qe;
 
-	for (i = 0; i < BFA_MEM_TYPE_MAX; i++) {
-		meminfo_elem = &hal_meminfo->meminfo[i];
-		if (meminfo_elem->kva != NULL) {
-			switch (meminfo_elem->mem_type) {
-			case BFA_MEM_TYPE_KVA:
-				vfree(meminfo_elem->kva);
-				break;
-			case BFA_MEM_TYPE_DMA:
-				dma_free_coherent(&bfad->pcidev->dev,
-					meminfo_elem->mem_len,
-					meminfo_elem->kva,
-					(dma_addr_t) meminfo_elem->dma);
-				break;
-			default:
-				WARN_ON(1);
-				break;
-			}
-		}
+	dma_info = &hal_meminfo->dma_info;
+	kva_info = &hal_meminfo->kva_info;
+
+	/* Iterate through the KVA meminfo queue */
+	list_for_each(km_qe, &kva_info->qe) {
+		kva_elem = (struct bfa_mem_kva_s *) km_qe;
+		vfree(kva_elem->kva);
+	}
+
+	/* Iterate through the DMA meminfo queue */
+	list_for_each(dm_qe, &dma_info->qe) {
+		dma_elem = (struct bfa_mem_dma_s *) dm_qe;
+		dma_free_coherent(&bfad->pcidev->dev,
+				dma_elem->mem_len, dma_elem->kva,
+				(dma_addr_t) dma_elem->dma);
 	}
 
 	memset(hal_meminfo, 0, sizeof(struct bfa_meminfo_s));
@@ -563,15 +565,15 @@ bfad_update_hal_cfg(struct bfa_iocfc_cfg_s *bfa_cfg)
 		bfa_cfg->fwcfg.num_ioim_reqs = num_ios;
 	if (num_tms > 0)
 		bfa_cfg->fwcfg.num_tskim_reqs = num_tms;
-	if (num_fcxps > 0)
+	if (num_fcxps > 0 && num_fcxps <= BFA_FCXP_MAX)
 		bfa_cfg->fwcfg.num_fcxp_reqs = num_fcxps;
-	if (num_ufbufs > 0)
+	if (num_ufbufs > 0 && num_ufbufs <= BFA_UF_MAX)
 		bfa_cfg->fwcfg.num_uf_bufs = num_ufbufs;
 	if (reqq_size > 0)
 		bfa_cfg->drvcfg.num_reqq_elems = reqq_size;
 	if (rspq_size > 0)
 		bfa_cfg->drvcfg.num_rspq_elems = rspq_size;
-	if (num_sgpgs > 0)
+	if (num_sgpgs > 0 && num_sgpgs <= BFA_SGPG_MAX)
 		bfa_cfg->drvcfg.num_sgpgs = num_sgpgs;
 
 	/*
@@ -591,85 +593,46 @@ bfad_update_hal_cfg(struct bfa_iocfc_cfg_s *bfa_cfg)
 bfa_status_t
 bfad_hal_mem_alloc(struct bfad_s *bfad)
 {
-	int		i;
 	struct bfa_meminfo_s *hal_meminfo = &bfad->meminfo;
-	struct bfa_mem_elem_s *meminfo_elem;
-	dma_addr_t	phys_addr;
-	void	       *kva;
+	struct bfa_mem_dma_s *dma_info, *dma_elem;
+	struct bfa_mem_kva_s *kva_info, *kva_elem;
+	struct list_head *dm_qe, *km_qe;
 	bfa_status_t	rc = BFA_STATUS_OK;
-	int retry_count = 0;
-	int reset_value = 1;
-	int min_num_sgpgs = 512;
+	dma_addr_t	phys_addr;
 
 	bfa_cfg_get_default(&bfad->ioc_cfg);
-
-retry:
 	bfad_update_hal_cfg(&bfad->ioc_cfg);
 	bfad->cfg_data.ioc_queue_depth = bfad->ioc_cfg.fwcfg.num_ioim_reqs;
-	bfa_cfg_get_meminfo(&bfad->ioc_cfg, hal_meminfo);
+	bfa_cfg_get_meminfo(&bfad->ioc_cfg, hal_meminfo, &bfad->bfa);
 
-	for (i = 0; i < BFA_MEM_TYPE_MAX; i++) {
-		meminfo_elem = &hal_meminfo->meminfo[i];
-		switch (meminfo_elem->mem_type) {
-		case BFA_MEM_TYPE_KVA:
-			kva = vmalloc(meminfo_elem->mem_len);
-			if (kva == NULL) {
-				bfad_hal_mem_release(bfad);
-				rc = BFA_STATUS_ENOMEM;
-				goto ext;
-			}
-			memset(kva, 0, meminfo_elem->mem_len);
-			meminfo_elem->kva = kva;
-			break;
-		case BFA_MEM_TYPE_DMA:
-			kva = dma_alloc_coherent(&bfad->pcidev->dev,
-				meminfo_elem->mem_len, &phys_addr, GFP_KERNEL);
-			if (kva == NULL) {
-				bfad_hal_mem_release(bfad);
-				/*
-				 * If we cannot allocate with default
-				 * num_sgpages try with half the value.
-				 */
-				if (num_sgpgs > min_num_sgpgs) {
-					printk(KERN_INFO
-					"bfad[%d]: memory allocation failed"
-					" with num_sgpgs: %d\n",
-						bfad->inst_no, num_sgpgs);
-					nextLowerInt(&num_sgpgs);
-					printk(KERN_INFO
-					"bfad[%d]: trying to allocate memory"
-					" with num_sgpgs: %d\n",
-						bfad->inst_no, num_sgpgs);
-					retry_count++;
-					goto retry;
-				} else {
-					if (num_sgpgs_parm > 0)
-						num_sgpgs = num_sgpgs_parm;
-					else {
-						reset_value =
-							(1 << retry_count);
-						num_sgpgs *= reset_value;
-					}
-					rc = BFA_STATUS_ENOMEM;
-					goto ext;
-				}
-			}
+	dma_info = &hal_meminfo->dma_info;
+	kva_info = &hal_meminfo->kva_info;
 
-			if (num_sgpgs_parm > 0)
-				num_sgpgs = num_sgpgs_parm;
-			else {
-				reset_value = (1 << retry_count);
-				num_sgpgs *= reset_value;
-			}
-
-			memset(kva, 0, meminfo_elem->mem_len);
-			meminfo_elem->kva = kva;
-			meminfo_elem->dma = phys_addr;
-			break;
-		default:
-			break;
-
+	/* Iterate through the KVA meminfo queue */
+	list_for_each(km_qe, &kva_info->qe) {
+		kva_elem = (struct bfa_mem_kva_s *) km_qe;
+		kva_elem->kva = vmalloc(kva_elem->mem_len);
+		if (kva_elem->kva == NULL) {
+			bfad_hal_mem_release(bfad);
+			rc = BFA_STATUS_ENOMEM;
+			goto ext;
 		}
+		memset(kva_elem->kva, 0, kva_elem->mem_len);
+	}
+
+	/* Iterate through the DMA meminfo queue */
+	list_for_each(dm_qe, &dma_info->qe) {
+		dma_elem = (struct bfa_mem_dma_s *) dm_qe;
+		dma_elem->kva = dma_alloc_coherent(&bfad->pcidev->dev,
+						dma_elem->mem_len,
+						&phys_addr, GFP_KERNEL);
+		if (dma_elem->kva == NULL) {
+			bfad_hal_mem_release(bfad);
+			rc = BFA_STATUS_ENOMEM;
+			goto ext;
+		}
+		dma_elem->dma = phys_addr;
+		memset(dma_elem->kva, 0, dma_elem->mem_len);
 	}
 ext:
 	return rc;
@@ -780,13 +743,17 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 	pci_set_master(pdev);
 
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0)
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
+	if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) ||
+	    (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0)) {
+		if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) ||
+		   (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)) {
 			printk(KERN_ERR "pci_set_dma_mask fail %p\n", pdev);
 			goto out_release_region;
 		}
+	}
 
 	bfad->pci_bar0_kva = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
+	bfad->pci_bar2_kva = pci_iomap(pdev, 2, pci_resource_len(pdev, 2));
 
 	if (bfad->pci_bar0_kva == NULL) {
 		printk(KERN_ERR "Fail to map bar0\n");
@@ -797,6 +764,7 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 	bfad->hal_pcidev.pci_func = PCI_FUNC(pdev->devfn);
 	bfad->hal_pcidev.pci_bar_kva = bfad->pci_bar0_kva;
 	bfad->hal_pcidev.device_id = pdev->device;
+	bfad->hal_pcidev.ssid = pdev->subsystem_device;
 	bfad->pci_name = pci_name(pdev);
 
 	bfad->pci_attr.vendor_id = pdev->vendor;
@@ -868,6 +836,7 @@ void
 bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 {
 	pci_iounmap(pdev, bfad->pci_bar0_kva);
+	pci_iounmap(pdev, bfad->pci_bar2_kva);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
@@ -908,12 +877,29 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfad->bfa_fcs.trcmod = bfad->trcmod;
 	bfa_fcs_attach(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
 	bfad->bfa_fcs.fdmi_enabled = fdmi_enable;
+	bfa_fcs_init(&bfad->bfa_fcs);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	bfad->bfad_flags |= BFAD_DRV_INIT_DONE;
 
+	/* configure base port */
+	rc = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
+	if (rc != BFA_STATUS_OK)
+		goto out_cfg_pport_fail;
+
 	return BFA_STATUS_OK;
 
+out_cfg_pport_fail:
+	/* fcs exit - on cfg pport failure */
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	init_completion(&bfad->comp);
+	bfad->pport.flags |= BFAD_PORT_DELETE;
+	bfa_fcs_exit(&bfad->bfa_fcs);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	wait_for_completion(&bfad->comp);
+	/* bfa detach - free hal memory */
+	bfa_detach(&bfad->bfa);
+	bfad_hal_mem_release(bfad);
 out_hal_mem_alloc_failure:
 	return BFA_STATUS_FAILED;
 }
@@ -945,6 +931,7 @@ bfad_drv_start(struct bfad_s *bfad)
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	bfa_iocfc_start(&bfad->bfa);
+	bfa_fcs_pbc_vport_init(&bfad->bfa_fcs);
 	bfa_fcs_fabric_modstart(&bfad->bfa_fcs);
 	bfad->bfad_flags |= BFAD_HAL_START_DONE;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -1032,6 +1019,12 @@ bfad_start_ops(struct bfad_s *bfad) {
 	struct bfad_vport_s *vport, *vport_new;
 	struct bfa_fcs_driver_info_s driver_info;
 
+	/* Limit min/max. xfer size to [64k-32MB] */
+	if (max_xfer_size < BFAD_MIN_SECTORS >> 1)
+		max_xfer_size = BFAD_MIN_SECTORS >> 1;
+	if (max_xfer_size > BFAD_MAX_SECTORS >> 1)
+		max_xfer_size = BFAD_MAX_SECTORS >> 1;
+
 	/* Fill the driver_info info to fcs*/
 	memset(&driver_info, 0, sizeof(driver_info));
 	strncpy(driver_info.version, BFAD_DRIVER_VERSION,
@@ -1049,19 +1042,19 @@ bfad_start_ops(struct bfad_s *bfad) {
 	strncpy(driver_info.os_device_name, bfad->pci_name,
 		sizeof(driver_info.os_device_name - 1));
 
-	/* FCS INIT */
+	/* FCS driver info init */
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
-	bfa_fcs_init(&bfad->bfa_fcs);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	retval = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
-	if (retval != BFA_STATUS_OK) {
-		if (bfa_sm_cmp_state(bfad, bfad_sm_initializing))
-			bfa_sm_set_state(bfad, bfad_sm_failed);
-		bfad_stop(bfad);
-		return BFA_STATUS_FAILED;
-	}
+	/*
+	 * FCS update cfg - reset the pwwn/nwwn of fabric base logical port
+	 * with values learned during bfa_init firmware GETATTR REQ.
+	 */
+	bfa_fcs_update_cfg(&bfad->bfa_fcs);
+
+	/* Setup fc host fixed attribute if the lk supports */
+	bfad_fc_host_init(bfad->pport.im_port);
 
 	/* BFAD level FC4 IM specific resource allocation */
 	retval = bfad_im_probe(bfad);
@@ -1233,8 +1226,8 @@ bfad_install_msix_handler(struct bfad_s *bfad)
 	for (i = 0; i < bfad->nvec; i++) {
 		sprintf(bfad->msix_tab[i].name, "bfa-%s-%s",
 				bfad->pci_name,
-				((bfa_asic_id_ct(bfad->hal_pcidev.device_id)) ?
-				msix_name_ct[i] : msix_name_cb[i]));
+				((bfa_asic_id_cb(bfad->hal_pcidev.device_id)) ?
+				msix_name_cb[i] : msix_name_ct[i]));
 
 		error = request_irq(bfad->msix_tab[i].msix.vector,
 				    (irq_handler_t) bfad_msix, 0,
@@ -1247,6 +1240,9 @@ bfad_install_msix_handler(struct bfad_s *bfad)
 			for (j = 0; j < i; j++)
 				free_irq(bfad->msix_tab[j].msix.vector,
 						&bfad->msix_tab[j]);
+
+			bfad->bfad_flags &= ~BFAD_MSIX_ON;
+			pci_disable_msix(bfad->pcidev);
 
 			return 1;
 		}
@@ -1265,6 +1261,7 @@ bfad_setup_intr(struct bfad_s *bfad)
 	u32 mask = 0, i, num_bit = 0, max_bit = 0;
 	struct msix_entry msix_entries[MAX_MSIX_ENTRY];
 	struct pci_dev *pdev = bfad->pcidev;
+	u16	reg;
 
 	/* Call BFA to get the msix map for this PCI function.  */
 	bfa_msix_getvecs(&bfad->bfa, &mask, &num_bit, &max_bit);
@@ -1272,8 +1269,8 @@ bfad_setup_intr(struct bfad_s *bfad)
 	/* Set up the msix entry table */
 	bfad_init_msix_entry(bfad, msix_entries, mask, max_bit);
 
-	if ((bfa_asic_id_ct(pdev->device) && !msix_disable_ct) ||
-	    (!bfa_asic_id_ct(pdev->device) && !msix_disable_cb)) {
+	if ((bfa_asic_id_ctc(pdev->device) && !msix_disable_ct) ||
+	   (bfa_asic_id_cb(pdev->device) && !msix_disable_cb)) {
 
 		error = pci_enable_msix(bfad->pcidev, msix_entries, bfad->nvec);
 		if (error) {
@@ -1293,6 +1290,13 @@ bfad_setup_intr(struct bfad_s *bfad)
 
 			goto line_based;
 		}
+
+		/* Disable INTX in MSI-X mode */
+		pci_read_config_word(pdev, PCI_COMMAND, &reg);
+
+		if (!(reg & PCI_COMMAND_INTX_DISABLE))
+			pci_write_config_word(pdev, PCI_COMMAND,
+				reg | PCI_COMMAND_INTX_DISABLE);
 
 		/* Save the vectors */
 		for (i = 0; i < bfad->nvec; i++) {
@@ -1315,6 +1319,7 @@ line_based:
 		/* Enable interrupt handler failed */
 		return 1;
 	}
+	bfad->bfad_flags |= BFAD_INTX_ON;
 
 	return error;
 }
@@ -1331,7 +1336,7 @@ bfad_remove_intr(struct bfad_s *bfad)
 
 		pci_disable_msix(bfad->pcidev);
 		bfad->bfad_flags &= ~BFAD_MSIX_ON;
-	} else {
+	} else if (bfad->bfad_flags & BFAD_INTX_ON) {
 		free_irq(bfad->pcidev->irq, bfad);
 	}
 }
@@ -1343,7 +1348,7 @@ int
 bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	struct bfad_s	*bfad;
-	int		error = -ENODEV, retval;
+	int		error = -ENODEV, retval, i;
 
 	/* For single port cards - only claim function 0 */
 	if ((pdev->device == BFA_PCI_DEVICE_ID_FC_8G1P) &&
@@ -1366,6 +1371,12 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* TRACE INIT */
 	bfa_trc_init(bfad->trcmod);
 	bfa_trc(bfad, bfad_inst);
+
+	/* AEN INIT */
+	INIT_LIST_HEAD(&bfad->free_aen_q);
+	INIT_LIST_HEAD(&bfad->active_aen_q);
+	for (i = 0; i < BFA_AEN_MAX_ENTRY; i++)
+		list_add_tail(&bfad->aen_list[i].qe, &bfad->free_aen_q);
 
 	if (!(bfad_load_fwimg(pdev))) {
 		kfree(bfad->trcmod);
@@ -1501,6 +1512,14 @@ struct pci_device_id bfad_id_table[] = {
 		.class = (PCI_CLASS_SERIAL_FIBER << 8),
 		.class_mask = ~0,
 	},
+	{
+		.vendor = BFA_PCI_VENDOR_ID_BROCADE,
+		.device = BFA_PCI_DEVICE_ID_CT2,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.class = (PCI_CLASS_SERIAL_FIBER << 8),
+		.class_mask = ~0,
+	},
 
 	{0, 0},
 };
@@ -1594,33 +1613,33 @@ out:
 static u32 *
 bfad_load_fwimg(struct pci_dev *pdev)
 {
-	if (pdev->device == BFA_PCI_DEVICE_ID_CT_FC) {
-		if (bfi_image_ct_fc_size == 0)
-			bfad_read_firmware(pdev, &bfi_image_ct_fc,
-				&bfi_image_ct_fc_size, BFAD_FW_FILE_CT_FC);
-		return bfi_image_ct_fc;
-	} else if (pdev->device == BFA_PCI_DEVICE_ID_CT) {
-		if (bfi_image_ct_cna_size == 0)
-			bfad_read_firmware(pdev, &bfi_image_ct_cna,
-				&bfi_image_ct_cna_size, BFAD_FW_FILE_CT_CNA);
-		return bfi_image_ct_cna;
+	if (pdev->device == BFA_PCI_DEVICE_ID_CT2) {
+		if (bfi_image_ct2_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_ct2,
+				&bfi_image_ct2_size, BFAD_FW_FILE_CT2);
+		return bfi_image_ct2;
+	} else if (bfa_asic_id_ct(pdev->device)) {
+		if (bfi_image_ct_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_ct,
+				&bfi_image_ct_size, BFAD_FW_FILE_CT);
+		return bfi_image_ct;
 	} else {
-		if (bfi_image_cb_fc_size == 0)
-			bfad_read_firmware(pdev, &bfi_image_cb_fc,
-				&bfi_image_cb_fc_size, BFAD_FW_FILE_CB_FC);
-		return bfi_image_cb_fc;
+		if (bfi_image_cb_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_cb,
+				&bfi_image_cb_size, BFAD_FW_FILE_CB);
+		return bfi_image_cb;
 	}
 }
 
 static void
 bfad_free_fwimg(void)
 {
-	if (bfi_image_ct_fc_size && bfi_image_ct_fc)
-		vfree(bfi_image_ct_fc);
-	if (bfi_image_ct_cna_size && bfi_image_ct_cna)
-		vfree(bfi_image_ct_cna);
-	if (bfi_image_cb_fc_size && bfi_image_cb_fc)
-		vfree(bfi_image_cb_fc);
+	if (bfi_image_ct2_size && bfi_image_ct2)
+		vfree(bfi_image_ct2);
+	if (bfi_image_ct_size && bfi_image_ct)
+		vfree(bfi_image_ct);
+	if (bfi_image_cb_size && bfi_image_cb)
+		vfree(bfi_image_cb);
 }
 
 module_init(bfad_init);

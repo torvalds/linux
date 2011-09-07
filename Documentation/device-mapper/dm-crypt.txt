@@ -4,7 +4,8 @@ dm-crypt
 Device-Mapper's "crypt" target provides transparent encryption of block devices
 using the kernel crypto API.
 
-Parameters: <cipher> <key> <iv_offset> <device path> <offset>
+Parameters: <cipher> <key> <iv_offset> <device path> \
+	      <offset> [<#opt_params> <opt_params>]
 
 <cipher>
     Encryption cipher and an optional IV generation mode.
@@ -36,6 +37,24 @@ Parameters: <cipher> <key> <iv_offset> <device path> <offset>
 
 <offset>
     Starting sector within the device where the encrypted data begins.
+
+<#opt_params>
+    Number of optional parameters. If there are no optional parameters,
+    the optional paramaters section can be skipped or #opt_params can be zero.
+    Otherwise #opt_params is the number of following arguments.
+
+    Example of optional parameters section:
+        1 allow_discards
+
+allow_discards
+    Block discard requests (a.k.a. TRIM) are passed through the crypt device.
+    The default is to ignore discard requests.
+
+    WARNING: Assess the specific security risks carefully before enabling this
+    option.  For example, allowing discards on encrypted devices may lead to
+    the leak of information about the ciphertext device (filesystem type,
+    used space etc.) if the discarded blocks can be located easily on the
+    device later.
 
 Example scripts
 ===============

@@ -20,6 +20,7 @@
 #define SCU_INVALIDATE		0x0c
 #define SCU_FPGA_REVISION	0x10
 
+#ifdef CONFIG_SMP
 /*
  * Get the number of CPU cores from the SCU configuration
  */
@@ -50,6 +51,7 @@ void __init scu_enable(void __iomem *scu_base)
 	 */
 	flush_cache_all();
 }
+#endif
 
 /*
  * Set the executing CPUs power mode as defined.  This will be in

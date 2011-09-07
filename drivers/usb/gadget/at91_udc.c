@@ -35,6 +35,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
+#include <linux/prefetch.h>
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -985,12 +986,18 @@ static int at91_set_selfpowered(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
+static int at91_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int at91_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops at91_udc_ops = {
 	.get_frame		= at91_get_frame,
 	.wakeup			= at91_wakeup,
 	.set_selfpowered	= at91_set_selfpowered,
 	.vbus_session		= at91_vbus_session,
 	.pullup			= at91_pullup,
+	.start			= at91_start,
+	.stop			= at91_stop,
 
 	/*
 	 * VBUS-powered devices may also also want to support bigger
@@ -1628,7 +1635,7 @@ static void at91_vbus_timer(unsigned long data)
 		schedule_work(&udc->vbus_timer_work);
 }
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int at91_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct at91_udc	*udc = &controller;
@@ -1672,9 +1679,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	DBG("bound to %s\n", driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
+static int at91_stop(struct usb_gadget_driver *driver)
 {
 	struct at91_udc *udc = &controller;
 	unsigned long	flags;
@@ -1696,7 +1702,6 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	DBG("unbound from %s\n", driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL (usb_gadget_unregister_driver);
 
 /*-------------------------------------------------------------------------*/
 
@@ -1854,13 +1859,18 @@ static int __init at91udc_probe(struct platform_device *pdev)
 		DBG("no VBUS detection, assuming always-on\n");
 		udc->vbus = 1;
 	}
+	retval = usb_add_gadget_udc(dev, &udc->gadget);
+	if (retval)
+		goto fail4;
 	dev_set_drvdata(dev, udc);
 	device_init_wakeup(dev, 1);
 	create_debug_file(udc);
 
 	INFO("%s version %s\n", driver_name, DRIVER_VERSION);
 	return 0;
-
+fail4:
+	if (udc->board.vbus_pin > 0 && !udc->board.vbus_polled)
+		free_irq(udc->board.vbus_pin, udc);
 fail3:
 	if (udc->board.vbus_pin > 0)
 		gpio_free(udc->board.vbus_pin);
@@ -1887,6 +1897,7 @@ static int __exit at91udc_remove(struct platform_device *pdev)
 
 	DBG("remove\n");
 
+	usb_del_gadget_udc(&udc->gadget);
 	if (udc->driver)
 		return -EBUSY;
 

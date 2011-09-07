@@ -502,7 +502,6 @@ static struct flash_platform_data bfin_spi_flash_data = {
 
 static struct bfin5xx_spi_chip spi_flash_chip_info = {
 	.enable_dma = 0,         /* use dma transfer with this chip*/
-	.bits_per_word = 8,
 };
 #endif
 
@@ -520,13 +519,6 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 	.pen_down_acc_interval 	= 255,	/* 9.4 ms */
 	.gpio_export		= 1,	/* Export GPIO to gpiolib */
 	.gpio_base		= -1,	/* Dynamic allocation */
-};
-#endif
-
-#if defined(CONFIG_TOUCHSCREEN_AD7879_SPI) || defined(CONFIG_TOUCHSCREEN_AD7879_SPI_MODULE)
-static struct bfin5xx_spi_chip spi_ad7879_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 16,
 };
 #endif
 
@@ -559,20 +551,6 @@ static struct platform_device bfin_lq035q1_device = {
 };
 #endif
 
-#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
-static struct bfin5xx_spi_chip spidev_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 8,
-};
-#endif
-
-#if defined(CONFIG_FB_BFIN_LQ035Q1) || defined(CONFIG_FB_BFIN_LQ035Q1_MODULE)
-static struct bfin5xx_spi_chip lq035q1_spi_chip_info = {
-	.enable_dma	= 0,
-	.bits_per_word	= 8,
-};
-#endif
-
 static struct spi_board_info bf538_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
@@ -595,7 +573,6 @@ static struct spi_board_info bf538_spi_board_info[] __initdata = {
 		.max_speed_hz = 5000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 1,
-		.controller_data = &spi_ad7879_chip_info,
 		.mode = SPI_CPHA | SPI_CPOL,
 	},
 #endif
@@ -605,7 +582,6 @@ static struct spi_board_info bf538_spi_board_info[] __initdata = {
 		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 2,
-		.controller_data = &lq035q1_spi_chip_info,
 		.mode = SPI_CPHA | SPI_CPOL,
 	},
 #endif
@@ -615,7 +591,6 @@ static struct spi_board_info bf538_spi_board_info[] __initdata = {
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 1,
-		.controller_data = &spidev_chip_info,
 	},
 #endif
 };

@@ -34,12 +34,12 @@ static DEFINE_PCI_DEVICE_TABLE(ath5k_pci_id_table) = {
 	{ PCI_VDEVICE(3COM_2,  0x0013) }, /* 3com 5212 */
 	{ PCI_VDEVICE(3COM,    0x0013) }, /* 3com 3CRDAG675 5212 */
 	{ PCI_VDEVICE(ATHEROS, 0x1014) }, /* IBM minipci 5212 */
-	{ PCI_VDEVICE(ATHEROS, 0x0014) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0015) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0016) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0017) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0018) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0019) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0014) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0015) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0016) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0017) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0018) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0019) }, /* 5212 compatible */
 	{ PCI_VDEVICE(ATHEROS, 0x001a) }, /* 2413 Griffin-lite */
 	{ PCI_VDEVICE(ATHEROS, 0x001b) }, /* 5413 Eagle */
 	{ PCI_VDEVICE(ATHEROS, 0x001c) }, /* PCI-E cards */
@@ -51,10 +51,10 @@ MODULE_DEVICE_TABLE(pci, ath5k_pci_id_table);
 /* return bus cachesize in 4B word units */
 static void ath5k_pci_read_cachesize(struct ath_common *common, int *csz)
 {
-	struct ath5k_softc *sc = (struct ath5k_softc *) common->priv;
+	struct ath5k_hw *ah = (struct ath5k_hw *) common->priv;
 	u8 u8tmp;
 
-	pci_read_config_byte(sc->pdev, PCI_CACHE_LINE_SIZE, &u8tmp);
+	pci_read_config_byte(ah->pdev, PCI_CACHE_LINE_SIZE, &u8tmp);
 	*csz = (int)u8tmp;
 
 	/*
@@ -156,7 +156,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
 	void __iomem *mem;
-	struct ath5k_softc *sc;
+	struct ath5k_hw *ah;
 	struct ieee80211_hw *hw;
 	int ret;
 	u8 csz;
@@ -234,7 +234,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 
 	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
-		dev_err(&pdev->dev, "cannot remap PCI memory region\n") ;
+		dev_err(&pdev->dev, "cannot remap PCI memory region\n");
 		ret = -EIO;
 		goto err_reg;
 	}
@@ -243,7 +243,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	 * Allocate hw (mac80211 main struct)
 	 * and hw->priv (driver private data)
 	 */
-	hw = ieee80211_alloc_hw(sizeof(*sc), &ath5k_hw_ops);
+	hw = ieee80211_alloc_hw(sizeof(*ah), &ath5k_hw_ops);
 	if (hw == NULL) {
 		dev_err(&pdev->dev, "cannot allocate ieee80211_hw\n");
 		ret = -ENOMEM;
@@ -252,16 +252,16 @@ ath5k_pci_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "registered as '%s'\n", wiphy_name(hw->wiphy));
 
-	sc = hw->priv;
-	sc->hw = hw;
-	sc->pdev = pdev;
-	sc->dev = &pdev->dev;
-	sc->irq = pdev->irq;
-	sc->devid = id->device;
-	sc->iobase = mem; /* So we can unmap it on detach */
+	ah = hw->priv;
+	ah->hw = hw;
+	ah->pdev = pdev;
+	ah->dev = &pdev->dev;
+	ah->irq = pdev->irq;
+	ah->devid = id->device;
+	ah->iobase = mem; /* So we can unmap it on detach */
 
 	/* Initialize */
-	ret = ath5k_init_softc(sc, &ath_pci_bus_ops);
+	ret = ath5k_init_softc(ah, &ath_pci_bus_ops);
 	if (ret)
 		goto err_free;
 
@@ -285,10 +285,10 @@ static void __devexit
 ath5k_pci_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_hw *ah = hw->priv;
 
-	ath5k_deinit_softc(sc);
-	pci_iounmap(pdev, sc->iobase);
+	ath5k_deinit_softc(ah);
+	pci_iounmap(pdev, ah->iobase);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
 	ieee80211_free_hw(hw);
@@ -297,16 +297,19 @@ ath5k_pci_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int ath5k_pci_suspend(struct device *dev)
 {
-	struct ath5k_softc *sc = pci_get_drvdata(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ath5k_hw *ah = hw->priv;
 
-	ath5k_led_off(sc);
+	ath5k_led_off(ah);
 	return 0;
 }
 
 static int ath5k_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct ath5k_softc *sc = pci_get_drvdata(pdev);
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ath5k_hw *ah = hw->priv;
 
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
@@ -315,7 +318,7 @@ static int ath5k_pci_resume(struct device *dev)
 	 */
 	pci_write_config_byte(pdev, 0x41, 0);
 
-	ath5k_led_enable(sc);
+	ath5k_led_enable(ah);
 	return 0;
 }
 

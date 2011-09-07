@@ -47,7 +47,7 @@
 #include <linux/string.h>
 #include <asm/uaccess.h>
 #include <linux/interrupt.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/in.h>
@@ -60,12 +60,6 @@
 
 struct tipc_msg;	/* msg.h */
 struct print_buf;	/* log.h */
-
-/*
- * TIPC sanity test macros
- */
-
-#define assert(i)  BUG_ON(!(i))
 
 /*
  * TIPC system monitoring code

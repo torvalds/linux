@@ -196,15 +196,20 @@ Support for Augmented rbtrees
 Augmented rbtree is an rbtree with "some" additional data stored in each node.
 This data can be used to augment some new functionality to rbtree.
 Augmented rbtree is an optional feature built on top of basic rbtree
-infrastructure. rbtree user who wants this feature will have an augment
-callback function in rb_root initialized.
+infrastructure. An rbtree user who wants this feature will have to call the
+augmentation functions with the user provided augmentation callback
+when inserting and erasing nodes.
 
-This callback function will be called from rbtree core routines whenever
-a node has a change in one or both of its children. It is the responsibility
-of the callback function to recalculate the additional data that is in the
-rb node using new children information. Note that if this new additional
-data affects the parent node's additional data, then callback function has
-to handle it and do the recursive updates.
+On insertion, the user must call rb_augment_insert() once the new node is in
+place. This will cause the augmentation function callback to be called for
+each node between the new node and the root which has been affected by the
+insertion.
+
+When erasing a node, the user must call rb_augment_erase_begin() first to
+retrieve the deepest node on the rebalance path. Then, after erasing the
+original node, the user must call rb_augment_erase_end() with the deepest
+node found earlier. This will cause the augmentation function to be called
+for each affected node between the deepest node and the root.
 
 
 Interval tree is an example of augmented rb tree. Reference -

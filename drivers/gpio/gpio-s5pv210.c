@@ -1,9 +1,8 @@
-/* linux/arch/arm/mach-s5pv210/gpiolib.c
+/*
+ * S5PV210 - GPIOlib support
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
- *
- * S5PV210 - GPIOlib support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

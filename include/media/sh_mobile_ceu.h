@@ -7,10 +7,18 @@
 #define SH_CEU_FLAG_VSYNC_LOW		(1 << 3) /* default High if possible */
 
 struct device;
+struct resource;
+
+struct sh_mobile_ceu_companion {
+	u32		num_resources;
+	struct resource	*resource;
+	int		id;
+	void		*platform_data;
+};
 
 struct sh_mobile_ceu_info {
 	unsigned long flags;
-	struct device *csi2_dev;
+	struct sh_mobile_ceu_companion *csi2;
 };
 
 #endif /* __ASM_SH_MOBILE_CEU_H__ */

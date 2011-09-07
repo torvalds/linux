@@ -13,6 +13,7 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2007
+ * Copyright 2010-2011 Freescale Semiconductor, Inc.
  *
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  *          Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
@@ -76,6 +77,60 @@ void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 		       kvmppc_get_gpr(vcpu, i+2),
 		       kvmppc_get_gpr(vcpu, i+3));
 	}
+}
+
+#ifdef CONFIG_SPE
+void kvmppc_vcpu_disable_spe(struct kvm_vcpu *vcpu)
+{
+	preempt_disable();
+	enable_kernel_spe();
+	kvmppc_save_guest_spe(vcpu);
+	vcpu->arch.shadow_msr &= ~MSR_SPE;
+	preempt_enable();
+}
+
+static void kvmppc_vcpu_enable_spe(struct kvm_vcpu *vcpu)
+{
+	preempt_disable();
+	enable_kernel_spe();
+	kvmppc_load_guest_spe(vcpu);
+	vcpu->arch.shadow_msr |= MSR_SPE;
+	preempt_enable();
+}
+
+static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.shared->msr & MSR_SPE) {
+		if (!(vcpu->arch.shadow_msr & MSR_SPE))
+			kvmppc_vcpu_enable_spe(vcpu);
+	} else if (vcpu->arch.shadow_msr & MSR_SPE) {
+		kvmppc_vcpu_disable_spe(vcpu);
+	}
+}
+#else
+static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
+{
+}
+#endif
+
+/*
+ * Helper function for "full" MSR writes.  No need to call this if only
+ * EE/CE/ME/DE/RI are changing.
+ */
+void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
+{
+	u32 old_msr = vcpu->arch.shared->msr;
+
+	vcpu->arch.shared->msr = new_msr;
+
+	kvmppc_mmu_msr_notify(vcpu, old_msr);
+
+	if (vcpu->arch.shared->msr & MSR_WE) {
+		kvm_vcpu_block(vcpu);
+		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
+	};
+
+	kvmppc_vcpu_sync_spe(vcpu);
 }
 
 static void kvmppc_booke_queue_irqprio(struct kvm_vcpu *vcpu,
@@ -257,6 +312,19 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 		vcpu->arch.shared->int_pending = 0;
 }
 
+int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	local_irq_disable();
+	kvm_guest_enter();
+	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
+	kvm_guest_exit();
+	local_irq_enable();
+
+	return ret;
+}
+
 /**
  * kvmppc_handle_exit
  *
@@ -344,10 +412,16 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 
-	case BOOKE_INTERRUPT_SPE_UNAVAIL:
-		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_UNAVAIL);
+#ifdef CONFIG_SPE
+	case BOOKE_INTERRUPT_SPE_UNAVAIL: {
+		if (vcpu->arch.shared->msr & MSR_SPE)
+			kvmppc_vcpu_enable_spe(vcpu);
+		else
+			kvmppc_booke_queue_irqprio(vcpu,
+						   BOOKE_IRQPRIO_SPE_UNAVAIL);
 		r = RESUME_GUEST;
 		break;
+	}
 
 	case BOOKE_INTERRUPT_SPE_FP_DATA:
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_FP_DATA);
@@ -358,6 +432,28 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_FP_ROUND);
 		r = RESUME_GUEST;
 		break;
+#else
+	case BOOKE_INTERRUPT_SPE_UNAVAIL:
+		/*
+		 * Guest wants SPE, but host kernel doesn't support it.  Send
+		 * an "unimplemented operation" program check to the guest.
+		 */
+		kvmppc_core_queue_program(vcpu, ESR_PUO | ESR_SPV);
+		r = RESUME_GUEST;
+		break;
+
+	/*
+	 * These really should never happen without CONFIG_SPE,
+	 * as we should never enable the real MSR[SPE] in the guest.
+	 */
+	case BOOKE_INTERRUPT_SPE_FP_DATA:
+	case BOOKE_INTERRUPT_SPE_FP_ROUND:
+		printk(KERN_CRIT "%s: unexpected SPE interrupt %u at %08lx\n",
+		       __func__, exit_nr, vcpu->arch.pc);
+		run->hw.hardware_exit_reason = exit_nr;
+		r = RESUME_HOST;
+		break;
+#endif
 
 	case BOOKE_INTERRUPT_DATA_STORAGE:
 		kvmppc_core_queue_data_storage(vcpu, vcpu->arch.fault_dear,
@@ -391,6 +487,17 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		int gtlb_index;
 		gpa_t gpaddr;
 		gfn_t gfn;
+
+#ifdef CONFIG_KVM_E500
+		if (!(vcpu->arch.shared->msr & MSR_PR) &&
+		    (eaddr & PAGE_MASK) == vcpu->arch.magic_page_ea) {
+			kvmppc_map_magic(vcpu);
+			kvmppc_account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
+			r = RESUME_GUEST;
+
+			break;
+		}
+#endif
 
 		/* Check the guest TLB. */
 		gtlb_index = kvmppc_mmu_dtlb_index(vcpu, eaddr);
@@ -514,6 +621,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.pc = 0;
 	vcpu->arch.shared->msr = 0;
+	vcpu->arch.shadow_msr = MSR_USER | MSR_DE | MSR_IS | MSR_DS;
 	kvmppc_set_gpr(vcpu, 1, (16<<20) - 8); /* -8 for the callee-save LR slot */
 
 	vcpu->arch.shadow_pid = 1;
@@ -768,6 +876,26 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 {
 	return -ENOTSUPP;
+}
+
+int kvmppc_core_prepare_memory_region(struct kvm *kvm,
+				      struct kvm_userspace_memory_region *mem)
+{
+	return 0;
+}
+
+void kvmppc_core_commit_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem)
+{
+}
+
+int kvmppc_core_init_vm(struct kvm *kvm)
+{
+	return 0;
+}
+
+void kvmppc_core_destroy_vm(struct kvm *kvm)
+{
 }
 
 int __init kvmppc_booke_init(void)

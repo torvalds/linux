@@ -24,7 +24,6 @@
 #define MODULE_NAME "gspca"
 
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
@@ -51,11 +50,12 @@
 #error "DEF_NURBS too big"
 #endif
 
+#define DRIVER_VERSION_NUMBER	"2.13.0"
+
 MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
-
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 13, 0)
+MODULE_VERSION(DRIVER_VERSION_NUMBER);
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -443,8 +443,11 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	} else {
 		switch (gspca_dev->last_packet_type) {
 		case DISCARD_PACKET:
-			if (packet_type == LAST_PACKET)
+			if (packet_type == LAST_PACKET) {
 				gspca_dev->last_packet_type = packet_type;
+				gspca_dev->image = NULL;
+				gspca_dev->image_len = 0;
+			}
 			return;
 		case LAST_PACKET:
 			return;
@@ -1278,10 +1281,10 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		ret = -ENODEV;
 		goto out;
 	}
-	strncpy((char *) cap->driver, gspca_dev->sd_desc->name,
+	strlcpy((char *) cap->driver, gspca_dev->sd_desc->name,
 			sizeof cap->driver);
 	if (gspca_dev->dev->product != NULL) {
-		strncpy((char *) cap->card, gspca_dev->dev->product,
+		strlcpy((char *) cap->card, gspca_dev->dev->product,
 			sizeof cap->card);
 	} else {
 		snprintf((char *) cap->card, sizeof cap->card,
@@ -1291,7 +1294,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	}
 	usb_make_path(gspca_dev->dev, (char *) cap->bus_info,
 			sizeof(cap->bus_info));
-	cap->version = DRIVER_VERSION_NUMBER;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
 			  | V4L2_CAP_STREAMING
 			  | V4L2_CAP_READWRITE;
@@ -1460,7 +1462,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	input->status = gspca_dev->cam.input_flags;
-	strncpy(input->name, gspca_dev->sd_desc->name,
+	strlcpy(input->name, gspca_dev->sd_desc->name,
 		sizeof input->name);
 	return 0;
 }
@@ -2478,10 +2480,7 @@ EXPORT_SYMBOL(gspca_auto_gain_n_exposure);
 /* -- module insert / remove -- */
 static int __init gspca_init(void)
 {
-	info("v%d.%d.%d registered",
-		(DRIVER_VERSION_NUMBER >> 16) & 0xff,
-		(DRIVER_VERSION_NUMBER >> 8) & 0xff,
-		DRIVER_VERSION_NUMBER & 0xff);
+	info("v" DRIVER_VERSION_NUMBER " registered");
 	return 0;
 }
 static void __exit gspca_exit(void)

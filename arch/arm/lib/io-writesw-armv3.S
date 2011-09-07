@@ -9,7 +9,6 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <mach/hardware.h>
 
 .Loutsw_bad_alignment:
 		adr	r0, .Loutsw_bad_align_msg

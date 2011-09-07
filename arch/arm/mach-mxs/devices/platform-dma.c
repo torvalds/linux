@@ -6,6 +6,7 @@
  * Free Software Foundation.
  */
 #include <linux/compiler.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/init.h>
 

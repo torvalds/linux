@@ -2560,6 +2560,7 @@ static __devexit int wm8904_i2c_remove(struct i2c_client *client)
 static const struct i2c_device_id wm8904_i2c_id[] = {
 	{ "wm8904", WM8904 },
 	{ "wm8912", WM8912 },
+	{ "wm8918", WM8904 },   /* Actually a subset, updates to follow */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8904_i2c_id);

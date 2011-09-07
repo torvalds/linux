@@ -45,7 +45,7 @@
 
 #include <net/neighbour.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>

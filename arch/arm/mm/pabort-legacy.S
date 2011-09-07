@@ -4,16 +4,18 @@
 /*
  * Function: legacy_pabort
  *
- * Params  : r0 = address of aborted instruction
+ * Params  : r2 = pt_regs
+ *	   : r4 = address of aborted instruction
+ *	   : r5 = psr for parent context
  *
- * Returns : r0 = address of abort
- *	   : r1 = Simulated IFSR with section translation fault status
+ * Returns : r4 - r11, r13 preserved
  *
  * Purpose : obtain information about current prefetch abort.
  */
 
 	.align	5
 ENTRY(legacy_pabort)
+	mov	r0, r4
 	mov	r1, #5
-	mov	pc, lr
+	b	do_PrefetchAbort
 ENDPROC(legacy_pabort)

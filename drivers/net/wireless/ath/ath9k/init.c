@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/ath9k_platform.h>
 
@@ -196,6 +197,19 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	return val;
 }
 
+static unsigned int __ath9k_reg_rmw(struct ath_softc *sc, u32 reg_offset,
+				    u32 set, u32 clr)
+{
+	u32 val;
+
+	val = ioread32(sc->mem + reg_offset);
+	val &= ~clr;
+	val |= set;
+	iowrite32(val, sc->mem + reg_offset);
+
+	return val;
+}
+
 static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 clr)
 {
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
@@ -204,16 +218,12 @@ static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 cl
 	unsigned long uninitialized_var(flags);
 	u32 val;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON)
+	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
-
-	val = ioread32(sc->mem + reg_offset);
-	val &= ~clr;
-	val |= set;
-	iowrite32(val, sc->mem + reg_offset);
-
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON)
+		val = __ath9k_reg_rmw(sc, reg_offset, set, clr);
 		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
+	} else
+		val = __ath9k_reg_rmw(sc, reg_offset, set, clr);
 
 	return val;
 }
@@ -245,7 +255,7 @@ static void setup_ht_cap(struct ath_softc *sc,
 	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
 
-	if (AR_SREV_9485(ah))
+	if (AR_SREV_9330(ah) || AR_SREV_9485(ah))
 		max_streams = 1;
 	else if (AR_SREV_9300_20_OR_LATER(ah))
 		max_streams = 3;
@@ -298,10 +308,6 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		      struct list_head *head, const char *name,
 		      int nbuf, int ndesc, bool is_tx)
 {
-#define	DS2PHYS(_dd, _ds)						\
-	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
-#define ATH_DESC_4KB_BOUND_CHECK(_daddr) ((((_daddr) & 0xFFF) > 0xF7F) ? 1 : 0)
-#define ATH_DESC_4KB_BOUND_NUM_SKIPPED(_len) ((_len) / 4096)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u8 *ds;
 	struct ath_buf *bf;
@@ -396,9 +402,6 @@ fail2:
 fail:
 	memset(dd, 0, sizeof(*dd));
 	return error;
-#undef ATH_DESC_4KB_BOUND_CHECK
-#undef ATH_DESC_4KB_BOUND_NUM_SKIPPED
-#undef DS2PHYS
 }
 
 void ath9k_init_crypto(struct ath_softc *sc)
@@ -519,7 +522,6 @@ static void ath9k_init_misc(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int i = 0;
-
 	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	sc->config.txpowlimit = ATH_TXPOWER_MAX;
@@ -575,6 +577,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 		sc->sc_ah->gpio_val = pdata->gpio_val;
 		sc->sc_ah->led_pin = pdata->led_pin;
 		ah->is_clk_25mhz = pdata->is_clk_25mhz;
+		ah->get_mac_revision = pdata->get_mac_revision;
+		ah->external_reset = pdata->external_reset;
 	}
 
 	common = ath9k_hw_common(ah);
@@ -585,6 +589,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	common->priv = sc;
 	common->debug_mask = ath9k_debug;
 	common->btcoex_enabled = ath9k_btcoex_enable == 1;
+	common->disable_ani = false;
 	spin_lock_init(&common->cc_lock);
 
 	spin_lock_init(&sc->sc_serial_rw);
@@ -665,8 +670,10 @@ static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
 static void ath9k_init_txpower_limits(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath9k_channel *curchan = ah->curchan;
 
+	ah->txchainmask = common->tx_chainmask;
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 		ath9k_init_band_txpower(sc, IEEE80211_BAND_2GHZ);
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)

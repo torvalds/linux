@@ -28,7 +28,7 @@
 #include <asm/tlbflush.h>
 
 #include <asm/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/irq_regs.h>
 #include <asm/traps.h>
 

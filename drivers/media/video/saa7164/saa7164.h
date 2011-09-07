@@ -48,7 +48,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/kdev_t.h>
-#include <linux/version.h>
 #include <linux/mutex.h>
 #include <linux/crc32.h>
 #include <linux/kthread.h>

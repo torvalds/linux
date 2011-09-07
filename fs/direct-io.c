@@ -35,7 +35,7 @@
 #include <linux/buffer_head.h>
 #include <linux/rwsem.h>
 #include <linux/uio.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * How many user pages to map in one call to get_user_pages().  This determines
@@ -134,6 +134,50 @@ struct dio {
 	 */
 	struct page *pages[DIO_PAGES];	/* page buffer */
 };
+
+static void __inode_dio_wait(struct inode *inode)
+{
+	wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_DIO_WAKEUP);
+	DEFINE_WAIT_BIT(q, &inode->i_state, __I_DIO_WAKEUP);
+
+	do {
+		prepare_to_wait(wq, &q.wait, TASK_UNINTERRUPTIBLE);
+		if (atomic_read(&inode->i_dio_count))
+			schedule();
+	} while (atomic_read(&inode->i_dio_count));
+	finish_wait(wq, &q.wait);
+}
+
+/**
+ * inode_dio_wait - wait for outstanding DIO requests to finish
+ * @inode: inode to wait for
+ *
+ * Waits for all pending direct I/O requests to finish so that we can
+ * proceed with a truncate or equivalent operation.
+ *
+ * Must be called under a lock that serializes taking new references
+ * to i_dio_count, usually by inode->i_mutex.
+ */
+void inode_dio_wait(struct inode *inode)
+{
+	if (atomic_read(&inode->i_dio_count))
+		__inode_dio_wait(inode);
+}
+EXPORT_SYMBOL_GPL(inode_dio_wait);
+
+/*
+ * inode_dio_done - signal finish of a direct I/O requests
+ * @inode: inode the direct I/O happens on
+ *
+ * This is called once we've finished processing a direct I/O request,
+ * and is used to wake up callers waiting for direct I/O to be quiesced.
+ */
+void inode_dio_done(struct inode *inode)
+{
+	if (atomic_dec_and_test(&inode->i_dio_count))
+		wake_up_bit(&inode->i_state, __I_DIO_WAKEUP);
+}
+EXPORT_SYMBOL_GPL(inode_dio_done);
 
 /*
  * How many pages are in the queue?
@@ -249,13 +293,11 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret, bool is
 	if (dio->end_io && dio->result) {
 		dio->end_io(dio->iocb, offset, transferred,
 			    dio->map_bh.b_private, ret, is_async);
-	} else if (is_async) {
-		aio_complete(dio->iocb, ret, 0);
+	} else {
+		if (is_async)
+			aio_complete(dio->iocb, ret, 0);
+		inode_dio_done(dio->inode);
 	}
-
-	if (dio->flags & DIO_LOCKING)
-		/* lockdep: non-owner release */
-		up_read_non_owner(&dio->inode->i_alloc_sem);
 
 	return ret;
 }
@@ -980,9 +1022,6 @@ out:
 	return ret;
 }
 
-/*
- * Releases both i_mutex and i_alloc_sem
- */
 static ssize_t
 direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode, 
 	const struct iovec *iov, loff_t offset, unsigned long nr_segs, 
@@ -1146,15 +1185,16 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
  *    For writes this function is called under i_mutex and returns with
  *    i_mutex held, for reads, i_mutex is not held on entry, but it is
  *    taken and dropped again before returning.
- *    For reads and writes i_alloc_sem is taken in shared mode and released
- *    on I/O completion (which may happen asynchronously after returning to
- *    the caller).
- *
  *  - if the flags value does NOT contain DIO_LOCKING we don't use any
  *    internal locking but rather rely on the filesystem to synchronize
  *    direct I/O reads/writes versus each other and truncate.
- *    For reads and writes both i_mutex and i_alloc_sem are not held on
- *    entry and are never taken.
+ *
+ * To help with locking against truncate we incremented the i_dio_count
+ * counter before starting direct I/O, and decrement it once we are done.
+ * Truncate can wait for it to reach zero to provide exclusion.  It is
+ * expected that filesystem provide exclusion between new direct I/O
+ * and truncates.  For DIO_LOCKING filesystems this is done by i_mutex,
+ * but other filesystems need to take care of this on their own.
  */
 ssize_t
 __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
@@ -1200,6 +1240,10 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 		}
 	}
 
+	/* watch out for a 0 len io from a tricksy fs */
+	if (rw == READ && end == offset)
+		return 0;
+
 	dio = kmalloc(sizeof(*dio), GFP_KERNEL);
 	retval = -ENOMEM;
 	if (!dio)
@@ -1213,8 +1257,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 
 	dio->flags = flags;
 	if (dio->flags & DIO_LOCKING) {
-		/* watch out for a 0 len io from a tricksy fs */
-		if (rw == READ && end > offset) {
+		if (rw == READ) {
 			struct address_space *mapping =
 					iocb->ki_filp->f_mapping;
 
@@ -1229,13 +1272,12 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 				goto out;
 			}
 		}
-
-		/*
-		 * Will be released at I/O completion, possibly in a
-		 * different thread.
-		 */
-		down_read_non_owner(&inode->i_alloc_sem);
 	}
+
+	/*
+	 * Will be decremented at I/O completion time.
+	 */
+	atomic_inc(&inode->i_dio_count);
 
 	/*
 	 * For file extending writes updating i_size before data

@@ -392,7 +392,7 @@ sys_call_table:
 	PTR	sys_getresuid
 	PTR	sys_ni_syscall			/* was query_module */
 	PTR	sys_poll
-	PTR	compat_sys_nfsservctl
+	PTR	sys_ni_syscall			/* was nfsservctl */
 	PTR	sys_setresgid			/* 4190 */
 	PTR	sys_getresgid
 	PTR	sys_prctl
@@ -546,5 +546,6 @@ sys_call_table:
 	PTR	compat_sys_open_by_handle_at	/* 4340 */
 	PTR	compat_sys_clock_adjtime
 	PTR	sys_syncfs
+	PTR	compat_sys_sendmmsg
 	PTR	sys_setns
 	.size	sys_call_table,.-sys_call_table

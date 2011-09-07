@@ -99,18 +99,6 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 				     "level = %d\n", sp, level);
 			return;
 		}
-
-		if (*sptep == shadow_notrap_nonpresent_pte) {
-			audit_printk(vcpu->kvm, "notrap spte in unsync "
-				     "sp: %p\n", sp);
-			return;
-		}
-	}
-
-	if (sp->role.direct && *sptep == shadow_notrap_nonpresent_pte) {
-		audit_printk(vcpu->kvm, "notrap spte in direct sp: %p\n",
-			     sp);
-		return;
 	}
 
 	if (!is_shadow_present_pte(*sptep) || !is_last_spte(*sptep, level))

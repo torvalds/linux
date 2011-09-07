@@ -719,9 +719,15 @@ static void __init cdce_clk_init(void)
 	}
 }
 
+#define DM6467T_EVM_REF_FREQ		33000000
+
 static void __init davinci_map_io(void)
 {
 	dm646x_init();
+
+	if (machine_is_davinci_dm6467tevm())
+		davinci_set_refclk_rate(DM6467T_EVM_REF_FREQ);
+
 	cdce_clk_init();
 }
 
@@ -785,23 +791,13 @@ static __init void evm_init(void)
 	soc_info->emac_pdata->phy_id = DM646X_EVM_PHY_ID;
 }
 
-#define DM646X_EVM_REF_FREQ		27000000
-#define DM6467T_EVM_REF_FREQ		33000000
-
-void __init dm646x_board_setup_refclk(struct clk *clk)
-{
-	if (machine_is_davinci_dm6467tevm())
-		clk->rate = DM6467T_EVM_REF_FREQ;
-	else
-		clk->rate = DM646X_EVM_REF_FREQ;
-}
-
 MACHINE_START(DAVINCI_DM6467_EVM, "DaVinci DM646x EVM")
 	.boot_params  = (0x80000100),
 	.map_io       = davinci_map_io,
 	.init_irq     = davinci_irq_init,
 	.timer        = &davinci_timer,
 	.init_machine = evm_init,
+	.dma_zone_size	= SZ_128M,
 MACHINE_END
 
 MACHINE_START(DAVINCI_DM6467TEVM, "DaVinci DM6467T EVM")
@@ -810,5 +806,6 @@ MACHINE_START(DAVINCI_DM6467TEVM, "DaVinci DM6467T EVM")
 	.init_irq     = davinci_irq_init,
 	.timer        = &davinci_timer,
 	.init_machine = evm_init,
+	.dma_zone_size	= SZ_128M,
 MACHINE_END
 

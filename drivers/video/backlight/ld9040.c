@@ -668,6 +668,7 @@ static int ld9040_probe(struct spi_device *spi)
 	struct ld9040 *lcd = NULL;
 	struct lcd_device *ld = NULL;
 	struct backlight_device *bd = NULL;
+	struct backlight_properties props;
 
 	lcd = kzalloc(sizeof(struct ld9040), GFP_KERNEL);
 	if (!lcd)
@@ -699,14 +700,17 @@ static int ld9040_probe(struct spi_device *spi)
 
 	lcd->ld = ld;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
+	props.max_brightness = MAX_BRIGHTNESS;
+
 	bd = backlight_device_register("ld9040-bl", &spi->dev,
-		lcd, &ld9040_backlight_ops, NULL);
-	if (IS_ERR(ld)) {
-		ret = PTR_ERR(ld);
-		goto out_free_lcd;
+		lcd, &ld9040_backlight_ops, &props);
+	if (IS_ERR(bd)) {
+		ret = PTR_ERR(bd);
+		goto out_unregister_lcd;
 	}
 
-	bd->props.max_brightness = MAX_BRIGHTNESS;
 	bd->props.brightness = MAX_BRIGHTNESS;
 	lcd->bd = bd;
 
@@ -731,6 +735,8 @@ static int ld9040_probe(struct spi_device *spi)
 	dev_info(&spi->dev, "ld9040 panel driver has been probed.\n");
 	return 0;
 
+out_unregister_lcd:
+	lcd_device_unregister(lcd->ld);
 out_free_lcd:
 	kfree(lcd);
 	return ret;
@@ -741,6 +747,7 @@ static int __devexit ld9040_remove(struct spi_device *spi)
 	struct ld9040 *lcd = dev_get_drvdata(&spi->dev);
 
 	ld9040_power(lcd, FB_BLANK_POWERDOWN);
+	backlight_device_unregister(lcd->bd);
 	lcd_device_unregister(lcd->ld);
 	kfree(lcd);
 

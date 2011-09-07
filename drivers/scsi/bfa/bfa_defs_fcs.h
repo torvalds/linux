@@ -90,12 +90,14 @@ enum bfa_lport_role {
  * FCS port configuration.
  */
 struct bfa_lport_cfg_s {
-    wwn_t	       pwwn;       /*  port wwn */
-    wwn_t	       nwwn;       /*  node wwn */
-    struct bfa_lport_symname_s  sym_name;   /*  vm port symbolic name */
-    bfa_boolean_t       preboot_vp;  /*  vport created from PBC */
-    enum bfa_lport_role     roles;      /*  FCS port roles */
-    u8	     tag[16];	/*  opaque tag from application */
+	wwn_t	       pwwn;       /*  port wwn */
+	wwn_t	       nwwn;       /*  node wwn */
+	struct bfa_lport_symname_s  sym_name;   /*  vm port symbolic name */
+	enum bfa_lport_role roles;      /* FCS port roles */
+	u32     rsvd;
+	bfa_boolean_t   preboot_vp;  /*  vport created from PBC */
+	u8	tag[16];        /* opaque tag from application */
+	u8	padding[4];
 };
 
 /*
@@ -249,12 +251,13 @@ enum bfa_vport_state {
 	BFA_FCS_VPORT_FDISC_SEND	= 2,
 	BFA_FCS_VPORT_FDISC		= 3,
 	BFA_FCS_VPORT_FDISC_RETRY	= 4,
-	BFA_FCS_VPORT_ONLINE		= 5,
-	BFA_FCS_VPORT_DELETING		= 6,
-	BFA_FCS_VPORT_CLEANUP		= 6,
-	BFA_FCS_VPORT_LOGO_SEND		= 7,
-	BFA_FCS_VPORT_LOGO		= 8,
-	BFA_FCS_VPORT_ERROR		= 9,
+	BFA_FCS_VPORT_FDISC_RSP_WAIT	= 5,
+	BFA_FCS_VPORT_ONLINE		= 6,
+	BFA_FCS_VPORT_DELETING		= 7,
+	BFA_FCS_VPORT_CLEANUP		= 8,
+	BFA_FCS_VPORT_LOGO_SEND		= 9,
+	BFA_FCS_VPORT_LOGO		= 10,
+	BFA_FCS_VPORT_ERROR		= 11,
 	BFA_FCS_VPORT_MAX_STATE,
 };
 

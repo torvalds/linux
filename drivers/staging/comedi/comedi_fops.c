@@ -383,8 +383,8 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 	/* fill devinfo structure */
 	devinfo.version_code = COMEDI_VERSION_CODE;
 	devinfo.n_subdevs = dev->n_subdevices;
-	memcpy(devinfo.driver_name, dev->driver->driver_name, COMEDI_NAMELEN);
-	memcpy(devinfo.board_name, dev->board_name, COMEDI_NAMELEN);
+	strlcpy(devinfo.driver_name, dev->driver->driver_name, COMEDI_NAMELEN);
+	strlcpy(devinfo.board_name, dev->board_name, COMEDI_NAMELEN);
 
 	if (read_subdev)
 		devinfo.read_subdevice = read_subdev - dev->subdevices;
@@ -1291,10 +1291,10 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
 		s->lock = file;
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 
+#if 0
 	if (ret < 0)
 		return ret;
 
-#if 0
 	if (s->lock_f)
 		ret = s->lock_f(dev, s);
 #endif
@@ -2175,9 +2175,8 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		return -EBUSY;
 	}
 	info->device->minor = i;
-	csdev = COMEDI_DEVICE_CREATE(comedi_class, NULL,
-				     MKDEV(COMEDI_MAJOR, i), NULL,
-				     hardware_device, "comedi%i", i);
+	csdev = device_create(comedi_class, hardware_device,
+			      MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 	if (!IS_ERR(csdev))
 		info->device->class_dev = csdev;
 	dev_set_drvdata(csdev, info);
@@ -2276,10 +2275,9 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 		return -EBUSY;
 	}
 	s->minor = i;
-	csdev = COMEDI_DEVICE_CREATE(comedi_class, dev->class_dev,
-				     MKDEV(COMEDI_MAJOR, i), NULL, NULL,
-				     "comedi%i_subd%i", dev->minor,
-				     (int)(s - dev->subdevices));
+	csdev = device_create(comedi_class, dev->class_dev,
+			      MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i_subd%i",
+			      dev->minor, (int)(s - dev->subdevices));
 	if (!IS_ERR(csdev))
 		s->class_dev = csdev;
 	dev_set_drvdata(csdev, info);

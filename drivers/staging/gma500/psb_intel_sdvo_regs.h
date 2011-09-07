@@ -51,7 +51,7 @@ struct psb_intel_sdvo_caps {
 	unsigned int stall_support:1;
 	unsigned int pad:1;
 	u16 output_flags;
-} __attribute__ ((packed));
+} __packed;
 
 /** This matches the EDID DTD structure, more or less */
 struct psb_intel_sdvo_dtd {
@@ -82,18 +82,18 @@ struct psb_intel_sdvo_dtd {
 		u8 v_sync_off_high;
 		u8 reserved;
 	} part2;
-} __attribute__ ((packed));
+} __packed;
 
 struct psb_intel_sdvo_pixel_clock_range {
 	u16 min;		/**< pixel clock, in 10kHz units */
 	u16 max;		/**< pixel clock, in 10kHz units */
-} __attribute__ ((packed));
+} __packed;
 
 struct psb_intel_sdvo_preferred_input_timing_args {
 	u16 clock;
 	u16 width;
 	u16 height;
-} __attribute__ ((packed));
+} __packed;
 
 /* I2C registers for SDVO */
 #define SDVO_I2C_ARG_0				0x07
@@ -147,7 +147,7 @@ struct psb_intel_sdvo_get_trained_inputs_response {
 	unsigned int input0_trained:1;
 	unsigned int input1_trained:1;
 	unsigned int pad:6;
-} __attribute__ ((packed));
+} __packed;
 
 /** Returns a struct psb_intel_sdvo_output_flags of active outputs. */
 #define SDVO_CMD_GET_ACTIVE_OUTPUTS			0x04
@@ -201,7 +201,7 @@ struct psb_intel_sdvo_get_interrupt_event_source_response {
 	u16 interrupt_status;
 	unsigned int ambient_light_interrupt:1;
 	unsigned int pad:7;
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * Selects which input is affected by future input commands.
@@ -214,7 +214,7 @@ struct psb_intel_sdvo_get_interrupt_event_source_response {
 struct psb_intel_sdvo_set_target_input_args {
 	unsigned int target_1:1;
 	unsigned int pad:7;
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * Takes a struct psb_intel_sdvo_output_flags of which outputs are targeted by

@@ -103,8 +103,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	if (!request_mem_region(mem->start, mem->end - mem->start + 1,
-				pdev->name)) {
+	if (!request_mem_region(mem->start, resource_size(mem), pdev->name)) {
 		dev_err(dev, "request_mem_region failed\n");
 		retval = -EBUSY;
 		goto err0;
@@ -126,7 +125,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 
 	if (!dma_declare_coherent_memory(dev, mem->start,
 					 mem->start - mem->parent->start,
-					 (mem->end - mem->start) + 1,
+					 resource_size(mem),
 					 DMA_MEMORY_MAP |
 					 DMA_MEMORY_EXCLUSIVE)) {
 		dev_err(dev, "cannot declare coherent memory\n");
@@ -149,7 +148,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 	}
 
 	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = res->end - res->start + 1;
+	hcd->rsrc_len = resource_size(res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,	pdev->name)) {
 		dev_err(dev, "request_mem_region failed\n");
@@ -185,7 +184,7 @@ err3:
 err2:
 	dma_release_declared_memory(dev);
 err1:
-	release_mem_region(mem->start, mem->end - mem->start + 1);
+	release_mem_region(mem->start, resource_size(mem));
 err0:
 	return retval;
 }
@@ -201,7 +200,7 @@ static int ohci_hcd_sm501_drv_remove(struct platform_device *pdev)
 	dma_release_declared_memory(&pdev->dev);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (mem)
-		release_mem_region(mem->start, mem->end - mem->start + 1);
+		release_mem_region(mem->start, resource_size(mem));
 
 	/* mask interrupts and disable power */
 

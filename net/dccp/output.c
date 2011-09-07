@@ -27,11 +27,13 @@ static inline void dccp_event_ack_sent(struct sock *sk)
 	inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 }
 
-static void dccp_skb_entail(struct sock *sk, struct sk_buff *skb)
+/* enqueue @skb on sk_send_head for retransmission, return clone to send now */
+static struct sk_buff *dccp_skb_entail(struct sock *sk, struct sk_buff *skb)
 {
 	skb_set_owner_w(skb, sk);
 	WARN_ON(sk->sk_send_head);
 	sk->sk_send_head = skb;
+	return skb_clone(sk->sk_send_head, gfp_any());
 }
 
 /*
@@ -552,8 +554,7 @@ int dccp_connect(struct sock *sk)
 
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_REQUEST;
 
-	dccp_skb_entail(sk, skb);
-	dccp_transmit_skb(sk, skb_clone(skb, GFP_KERNEL));
+	dccp_transmit_skb(sk, dccp_skb_entail(sk, skb));
 	DCCP_INC_STATS(DCCP_MIB_ACTIVEOPENS);
 
 	/* Timer for repeating the REQUEST until an answer. */
@@ -678,8 +679,7 @@ void dccp_send_close(struct sock *sk, const int active)
 		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_CLOSE;
 
 	if (active) {
-		dccp_skb_entail(sk, skb);
-		dccp_transmit_skb(sk, skb_clone(skb, prio));
+		skb = dccp_skb_entail(sk, skb);
 		/*
 		 * Retransmission timer for active-close: RFC 4340, 8.3 requires
 		 * to retransmit the Close/CloseReq until the CLOSING/CLOSEREQ
@@ -692,6 +692,6 @@ void dccp_send_close(struct sock *sk, const int active)
 		 */
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 					  DCCP_TIMEOUT_INIT, DCCP_RTO_MAX);
-	} else
-		dccp_transmit_skb(sk, skb);
+	}
+	dccp_transmit_skb(sk, skb);
 }

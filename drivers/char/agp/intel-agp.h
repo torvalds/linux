@@ -90,9 +90,10 @@
 #define G4x_GMCH_SIZE_MASK	(0xf << 8)
 #define G4x_GMCH_SIZE_1M	(0x1 << 8)
 #define G4x_GMCH_SIZE_2M	(0x3 << 8)
-#define G4x_GMCH_SIZE_VT_1M	(0x9 << 8)
-#define G4x_GMCH_SIZE_VT_1_5M	(0xa << 8)
-#define G4x_GMCH_SIZE_VT_2M	(0xc << 8)
+#define G4x_GMCH_SIZE_VT_EN	(0x8 << 8)
+#define G4x_GMCH_SIZE_VT_1M	(G4x_GMCH_SIZE_1M | G4x_GMCH_SIZE_VT_EN)
+#define G4x_GMCH_SIZE_VT_1_5M	((0x2 << 8) | G4x_GMCH_SIZE_VT_EN)
+#define G4x_GMCH_SIZE_VT_2M	(G4x_GMCH_SIZE_2M | G4x_GMCH_SIZE_VT_EN)
 
 #define GFX_FLSH_CNTL		0x2170 /* 915+ */
 

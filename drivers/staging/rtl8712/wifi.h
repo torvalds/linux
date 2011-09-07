@@ -2,6 +2,7 @@
 #define _WIFI_H_
 
 #include "rtl871x_byteorder.h"
+#include <linux/compiler.h>
 
 #ifdef BIT
 #undef BIT
@@ -523,7 +524,7 @@ struct ieee80211_bar {
 	unsigned char ta[6];
 	unsigned short control;
 	unsigned short start_seq_num;
-} __attribute__((packed));
+} __packed;
 
 /* 802.11 BAR control masks */
 #define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL     0x0000
@@ -544,7 +545,7 @@ struct ieee80211_ht_cap {
 	unsigned short	extended_ht_cap_info;
 	unsigned int		tx_BF_cap_info;
 	unsigned char	       antenna_selection_info;
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * struct ieee80211_ht_cap - HT additional information
@@ -558,7 +559,7 @@ struct ieee80211_ht_addt_info {
 	unsigned short	operation_mode;
 	unsigned short	stbc_param;
 	unsigned char		basic_set[16];
-} __attribute__ ((packed));
+} __packed;
 
 /* 802.11n HT capabilities masks */
 #define IEEE80211_HT_CAP_SUP_WIDTH		0x0002

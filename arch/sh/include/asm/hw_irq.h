@@ -3,7 +3,7 @@
 
 #include <linux/init.h>
 #include <linux/sh_intc.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 extern atomic_t irq_err_count;
 

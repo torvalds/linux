@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -1705,16 +1706,14 @@ static int __init ipu_probe(struct platform_device *pdev)
 		ipu_data.irq_fn, ipu_data.irq_err, ipu_data.irq_base);
 
 	/* Remap IPU common registers */
-	ipu_data.reg_ipu = ioremap(mem_ipu->start,
-				   mem_ipu->end - mem_ipu->start + 1);
+	ipu_data.reg_ipu = ioremap(mem_ipu->start, resource_size(mem_ipu));
 	if (!ipu_data.reg_ipu) {
 		ret = -ENOMEM;
 		goto err_ioremap_ipu;
 	}
 
 	/* Remap Image Converter and Image DMA Controller registers */
-	ipu_data.reg_ic = ioremap(mem_ic->start,
-				  mem_ic->end - mem_ic->start + 1);
+	ipu_data.reg_ic = ioremap(mem_ic->start, resource_size(mem_ic));
 	if (!ipu_data.reg_ic) {
 		ret = -ENOMEM;
 		goto err_ioremap_ic;

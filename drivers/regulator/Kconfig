@@ -235,6 +235,7 @@ config REGULATOR_TPS6105X
 config REGULATOR_TPS65023
 	tristate "TI TPS65023 Power regulators"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  This driver supports TPS65023 voltage regulator chips. TPS65023 provides
 	  three step-down converters and two general-purpose LDO voltage regulators.
@@ -247,6 +248,12 @@ config REGULATOR_TPS6507X
 	  This driver supports TPS6507X voltage regulator chips. TPS6507X provides
 	  three step-down converters and two general-purpose LDO voltage regulators.
 	  It supports TI's software based Class-2 SmartReflex implementation.
+
+config REGULATOR_TPS65912
+	tristate "TI TPS65912 Power regulator"
+	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
+	help
+	    This driver supports TPS65912 voltage regulator chip.
 
 config REGULATOR_88PM8607
 	bool "Marvell 88PM8607 Power regulators"
@@ -302,6 +309,13 @@ config REGULATOR_TPS65910
 	depends on MFD_TPS65910
 	help
 	  This driver supports TPS65910 voltage regulator chips.
+
+config REGULATOR_AAT2870
+	tristate "AnalogicTech AAT2870 Regulators"
+	depends on MFD_AAT2870_CORE
+	help
+	  If you have a AnalogicTech AAT2870 say Y to enable the
+	  regulator driver.
 
 endif
 

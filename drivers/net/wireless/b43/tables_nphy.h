@@ -60,16 +60,8 @@ struct nphy_gain_ctl_workaround_entry {
 struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 	struct b43_wldev *dev, bool ghz5, bool ext_lna);
 
-/* Get the NPHY Channel Switch Table entry for a channel.
- * Returns NULL on failure to find an entry. */
-const struct b43_nphy_channeltab_entry_rev2 *
-b43_nphy_get_chantabent_rev2(struct b43_wldev *dev, u8 channel);
-const struct b43_nphy_channeltab_entry_rev3 *
-b43_nphy_get_chantabent_rev3(struct b43_wldev *dev, u16 freq);
-
 
 /* The N-PHY tables. */
-
 #define B43_NTAB_TYPEMASK		0xF0000000
 #define B43_NTAB_8BIT			0x10000000
 #define B43_NTAB_16BIT			0x20000000

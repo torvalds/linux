@@ -25,7 +25,6 @@
 typedef void (*bfa_cee_get_attr_cbfn_t) (void *dev, enum bfa_status status);
 typedef void (*bfa_cee_get_stats_cbfn_t) (void *dev, enum bfa_status status);
 typedef void (*bfa_cee_reset_stats_cbfn_t) (void *dev, enum bfa_status status);
-typedef void (*bfa_cee_hbfail_cbfn_t) (void *dev, enum bfa_status status);
 
 struct bfa_cee_cbfn {
 	bfa_cee_get_attr_cbfn_t    get_attr_cbfn;
@@ -45,7 +44,7 @@ struct bfa_cee {
 	enum bfa_status get_stats_status;
 	enum bfa_status reset_stats_status;
 	struct bfa_cee_cbfn cbfn;
-	struct bfa_ioc_hbfail_notify hbfail;
+	struct bfa_ioc_notify ioc_notify;
 	struct bfa_cee_attr *attr;
 	struct bfa_cee_stats *stats;
 	struct bfa_dma attr_dma;

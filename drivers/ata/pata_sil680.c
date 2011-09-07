@@ -327,13 +327,11 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 		.port_ops = &sil680_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	static int printed_version;
 	struct ata_host *host;
 	void __iomem *mmio_base;
 	int rc, try_mmio;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)

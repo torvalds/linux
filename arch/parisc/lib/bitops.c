@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_SMP
 arch_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned = {

@@ -428,7 +428,7 @@ static inline int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u3
 		last_reg = ARRAY_SIZE(evergreen_reg_safe_bm);
 
 	i = (reg >> 7);
-	if (i > last_reg) {
+	if (i >= last_reg) {
 		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
 		return -EINVAL;
 	}
@@ -856,7 +856,6 @@ static inline int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u3
 	case SQ_PGM_START_PS:
 	case SQ_PGM_START_HS:
 	case SQ_PGM_START_LS:
-	case GDS_ADDR_BASE:
 	case SQ_CONST_MEM_BASE:
 	case SQ_ALU_CONST_CACHE_GS_0:
 	case SQ_ALU_CONST_CACHE_GS_1:
@@ -938,6 +937,34 @@ static inline int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u3
 	case SQ_ALU_CONST_CACHE_LS_13:
 	case SQ_ALU_CONST_CACHE_LS_14:
 	case SQ_ALU_CONST_CACHE_LS_15:
+		r = evergreen_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		break;
+	case SX_MEMORY_EXPORT_BASE:
+		if (p->rdev->family >= CHIP_CAYMAN) {
+			dev_warn(p->dev, "bad SET_CONFIG_REG "
+				 "0x%04X\n", reg);
+			return -EINVAL;
+		}
+		r = evergreen_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONFIG_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		break;
+	case CAYMAN_SX_SCATTER_EXPORT_BASE:
+		if (p->rdev->family < CHIP_CAYMAN) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+				 "0x%04X\n", reg);
+			return -EINVAL;
+		}
 		r = evergreen_cs_packet_next_reloc(p, &reloc);
 		if (r) {
 			dev_warn(p->dev, "bad SET_CONTEXT_REG "
@@ -1147,6 +1174,34 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad DRAW_INDEX_OFFSET_2\n");
 			return -EINVAL;
 		}
+		r = evergreen_cs_track_check(p);
+		if (r) {
+			dev_warn(p->dev, "%s:%d invalid cmd stream\n", __func__, __LINE__);
+			return r;
+		}
+		break;
+	case PACKET3_DISPATCH_DIRECT:
+		if (pkt->count != 3) {
+			DRM_ERROR("bad DISPATCH_DIRECT\n");
+			return -EINVAL;
+		}
+		r = evergreen_cs_track_check(p);
+		if (r) {
+			dev_warn(p->dev, "%s:%d invalid cmd stream %d\n", __func__, __LINE__, idx);
+			return r;
+		}
+		break;
+	case PACKET3_DISPATCH_INDIRECT:
+		if (pkt->count != 1) {
+			DRM_ERROR("bad DISPATCH_INDIRECT\n");
+			return -EINVAL;
+		}
+		r = evergreen_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("bad DISPATCH_INDIRECT\n");
+			return -EINVAL;
+		}
+		ib[idx+0] = idx_value + (u32)(reloc->lobj.gpu_offset & 0xffffffff);
 		r = evergreen_cs_track_check(p);
 		if (r) {
 			dev_warn(p->dev, "%s:%d invalid cmd stream\n", __func__, __LINE__);

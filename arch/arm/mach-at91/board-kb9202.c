@@ -48,7 +48,7 @@ static void __init kb9202_init_early(void)
 	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
 
 	/* Initialize processor: 10 MHz crystal */
-	at91rm9200_initialize(10000000);
+	at91_initialize(10000000);
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
@@ -67,11 +67,6 @@ static void __init kb9202_init_early(void)
 
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
-}
-
-static void __init kb9202_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata kb9202_eth_data = {
@@ -140,8 +135,8 @@ static void __init kb9202_board_init(void)
 MACHINE_START(KB9200, "KB920x")
 	/* Maintainer: KwikByte, Inc. */
 	.timer		= &at91rm9200_timer,
-	.map_io		= at91rm9200_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= kb9202_init_early,
-	.init_irq	= kb9202_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= kb9202_board_init,
 MACHINE_END

@@ -10,6 +10,7 @@
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>

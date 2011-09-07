@@ -106,7 +106,8 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 
 	params->tcp_rss = tcp_rss;
 	params->udp_rss = udp_rss;
-	if (params->udp_rss && !mdev->dev->caps.udp_rss) {
+	if (params->udp_rss && !(mdev->dev->caps.flags
+					& MLX4_DEV_CAP_FLAG_UDP_RSS)) {
 		mlx4_warn(mdev, "UDP RSS is not supported on this device.\n");
 		params->udp_rss = 0;
 	}

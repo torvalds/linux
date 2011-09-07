@@ -61,6 +61,7 @@ hcall(unsigned long call,
 		     : "memory");
 	return call;
 }
+/*:*/
 
 /* Can't use our min() macro here: needs to be a constant */
 #define LGUEST_IRQS (NR_IRQS < 32 ? NR_IRQS: 32)

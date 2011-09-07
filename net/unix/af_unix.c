@@ -808,8 +808,9 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct net *net = sock_net(sk);
 	struct unix_sock *u = unix_sk(sk);
 	struct sockaddr_un *sunaddr = (struct sockaddr_un *)uaddr;
+	char *sun_path = sunaddr->sun_path;
 	struct dentry *dentry = NULL;
-	struct nameidata nd;
+	struct path path;
 	int err;
 	unsigned hash;
 	struct unix_address *addr;
@@ -845,48 +846,44 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	addr->hash = hash ^ sk->sk_type;
 	atomic_set(&addr->refcnt, 1);
 
-	if (sunaddr->sun_path[0]) {
+	if (sun_path[0]) {
 		unsigned int mode;
 		err = 0;
 		/*
 		 * Get the parent directory, calculate the hash for last
 		 * component.
 		 */
-		err = kern_path_parent(sunaddr->sun_path, &nd);
-		if (err)
-			goto out_mknod_parent;
-
-		dentry = lookup_create(&nd, 0);
+		dentry = kern_path_create(AT_FDCWD, sun_path, &path, 0);
 		err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
-			goto out_mknod_unlock;
+			goto out_mknod_parent;
 
 		/*
 		 * All right, let's create it.
 		 */
 		mode = S_IFSOCK |
 		       (SOCK_INODE(sock)->i_mode & ~current_umask());
-		err = mnt_want_write(nd.path.mnt);
+		err = mnt_want_write(path.mnt);
 		if (err)
 			goto out_mknod_dput;
-		err = security_path_mknod(&nd.path, dentry, mode, 0);
+		err = security_path_mknod(&path, dentry, mode, 0);
 		if (err)
 			goto out_mknod_drop_write;
-		err = vfs_mknod(nd.path.dentry->d_inode, dentry, mode, 0);
+		err = vfs_mknod(path.dentry->d_inode, dentry, mode, 0);
 out_mknod_drop_write:
-		mnt_drop_write(nd.path.mnt);
+		mnt_drop_write(path.mnt);
 		if (err)
 			goto out_mknod_dput;
-		mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-		dput(nd.path.dentry);
-		nd.path.dentry = dentry;
+		mutex_unlock(&path.dentry->d_inode->i_mutex);
+		dput(path.dentry);
+		path.dentry = dentry;
 
 		addr->hash = UNIX_HASH_SIZE;
 	}
 
 	spin_lock(&unix_table_lock);
 
-	if (!sunaddr->sun_path[0]) {
+	if (!sun_path[0]) {
 		err = -EADDRINUSE;
 		if (__unix_find_socket_byname(net, sunaddr, addr_len,
 					      sk->sk_type, hash)) {
@@ -897,8 +894,8 @@ out_mknod_drop_write:
 		list = &unix_socket_table[addr->hash];
 	} else {
 		list = &unix_socket_table[dentry->d_inode->i_ino & (UNIX_HASH_SIZE-1)];
-		u->dentry = nd.path.dentry;
-		u->mnt    = nd.path.mnt;
+		u->dentry = path.dentry;
+		u->mnt    = path.mnt;
 	}
 
 	err = 0;
@@ -915,9 +912,8 @@ out:
 
 out_mknod_dput:
 	dput(dentry);
-out_mknod_unlock:
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	path_put(&nd.path);
+	mutex_unlock(&path.dentry->d_inode->i_mutex);
+	path_put(&path);
 out_mknod_parent:
 	if (err == -EEXIST)
 		err = -EADDRINUSE;

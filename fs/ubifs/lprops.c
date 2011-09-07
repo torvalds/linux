@@ -504,7 +504,7 @@ static int is_lprops_dirty(struct ubifs_info *c, struct ubifs_lprops *lprops)
 	pnode = (struct ubifs_pnode *)container_of(lprops - pos,
 						   struct ubifs_pnode,
 						   lprops[0]);
-	return !test_bit(COW_ZNODE, &pnode->flags) &&
+	return !test_bit(COW_CNODE, &pnode->flags) &&
 	       test_bit(DIRTY_CNODE, &pnode->flags);
 }
 
@@ -860,7 +860,7 @@ int dbg_check_cats(struct ubifs_info *c)
 	struct list_head *pos;
 	int i, cat;
 
-	if (!(ubifs_chk_flags & (UBIFS_CHK_GEN | UBIFS_CHK_LPROPS)))
+	if (!dbg_is_chk_gen(c) && !dbg_is_chk_lprops(c))
 		return 0;
 
 	list_for_each_entry(lprops, &c->empty_list, list) {
@@ -958,7 +958,7 @@ void dbg_check_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat,
 {
 	int i = 0, j, err = 0;
 
-	if (!(ubifs_chk_flags & (UBIFS_CHK_GEN | UBIFS_CHK_LPROPS)))
+	if (!dbg_is_chk_gen(c) && !dbg_is_chk_lprops(c))
 		return;
 
 	for (i = 0; i < heap->cnt; i++) {
@@ -1262,7 +1262,7 @@ int dbg_check_lprops(struct ubifs_info *c)
 	int i, err;
 	struct ubifs_lp_stats lst;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	/*

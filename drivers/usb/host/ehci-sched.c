@@ -172,7 +172,7 @@ periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
 		}
 	}
 #ifdef	DEBUG
-	if (usecs > 100)
+	if (usecs > ehci->uframe_periodic_max)
 		ehci_err (ehci, "uframe %d sched overrun: %d usecs\n",
 			frame * 8 + uframe, usecs);
 #endif
@@ -709,11 +709,8 @@ static int check_period (
 	if (uframe >= 8)
 		return 0;
 
-	/*
-	 * 80% periodic == 100 usec/uframe available
-	 * convert "usecs we need" to "max already claimed"
-	 */
-	usecs = 100 - usecs;
+	/* convert "usecs we need" to "max already claimed" */
+	usecs = ehci->uframe_periodic_max - usecs;
 
 	/* we "know" 2 and 4 uframe intervals were rejected; so
 	 * for period 0, check _every_ microframe in the schedule.
@@ -1286,9 +1283,9 @@ itd_slot_ok (
 {
 	uframe %= period;
 	do {
-		/* can't commit more than 80% periodic == 100 usec */
+		/* can't commit more than uframe_periodic_max usec */
 		if (periodic_usecs (ehci, uframe >> 3, uframe & 0x7)
-				> (100 - usecs))
+				> (ehci->uframe_periodic_max - usecs))
 			return 0;
 
 		/* we know urb->interval is 2^N uframes */
@@ -1345,7 +1342,7 @@ sitd_slot_ok (
 #endif
 
 		/* check starts (OUT uses more than one) */
-		max_used = 100 - stream->usecs;
+		max_used = ehci->uframe_periodic_max - stream->usecs;
 		for (tmp = stream->raw_mask & 0xff; tmp; tmp >>= 1, uf++) {
 			if (periodic_usecs (ehci, frame, uf) > max_used)
 				return 0;
@@ -1354,7 +1351,7 @@ sitd_slot_ok (
 		/* for IN, check CSPLIT */
 		if (stream->c_usecs) {
 			uf = uframe & 7;
-			max_used = 100 - stream->c_usecs;
+			max_used = ehci->uframe_periodic_max - stream->c_usecs;
 			do {
 				tmp = 1 << uf;
 				tmp <<= 8;

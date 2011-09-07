@@ -1455,7 +1455,7 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 			RT6_TRACE("aging clone %p\n", rt);
 			return -1;
 		} else if ((rt->rt6i_flags & RTF_GATEWAY) &&
-			   (!(rt->rt6i_nexthop->flags & NTF_ROUTER))) {
+			   (!(dst_get_neighbour_raw(&rt->dst)->flags & NTF_ROUTER))) {
 			RT6_TRACE("purging route %p via non-router but gateway\n",
 				  rt);
 			return -1;
@@ -1586,7 +1586,8 @@ int __init fib6_init(void)
 	if (ret)
 		goto out_kmem_cache_create;
 
-	ret = __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
+	ret = __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib,
+			      NULL);
 	if (ret)
 		goto out_unregister_subsys;
 out:

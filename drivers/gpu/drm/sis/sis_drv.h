@@ -48,8 +48,8 @@ enum sis_family {
 
 
 #define SIS_BASE (dev_priv->mmio)
-#define SIS_READ(reg)         DRM_READ32(SIS_BASE, reg);
-#define SIS_WRITE(reg, val)   DRM_WRITE32(SIS_BASE, reg, val);
+#define SIS_READ(reg)         DRM_READ32(SIS_BASE, reg)
+#define SIS_WRITE(reg, val)   DRM_WRITE32(SIS_BASE, reg, val)
 
 typedef struct drm_sis_private {
 	drm_local_map_t *mmio;

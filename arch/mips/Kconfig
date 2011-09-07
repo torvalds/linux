@@ -185,6 +185,7 @@ config MACH_JAZZ
 	select CSRC_R4K
 	select DEFAULT_SGI_PARTITION if CPU_BIG_ENDIAN
 	select GENERIC_ISA_DMA
+	select HAVE_PCSPKR_PLATFORM
 	select IRQ_CPU
 	select I8253
 	select I8259
@@ -266,6 +267,7 @@ config MIPS_MALTA
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
+	select HAVE_PCSPKR_PLATFORM
 	select IRQ_CPU
 	select IRQ_GIC
 	select HW_HAS_PCI
@@ -640,6 +642,7 @@ config SNI_RM
 	select DEFAULT_SGI_PARTITION if CPU_BIG_ENDIAN
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
+	select HAVE_PCSPKR_PLATFORM
 	select HW_HAS_EISA
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -2388,6 +2391,7 @@ config MMU
 config I8253
 	bool
 	select CLKSRC_I8253
+	select CLKEVT_I8253
 	select MIPS_EXTERNAL_TIMER
 
 config ZONE_DMA32
@@ -2488,21 +2492,5 @@ source "arch/mips/Kconfig.debug"
 source "security/Kconfig"
 
 source "crypto/Kconfig"
-
-menuconfig VIRTUALIZATION
-	bool "Virtualization"
-	default n
-	---help---
-	  Say Y here to get to see options for using your Linux host to run other
-	  operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
-
-	  If you say N, all options in this submenu will be skipped and disabled.
-
-if VIRTUALIZATION
-
-source drivers/virtio/Kconfig
-
-endif # VIRTUALIZATION
 
 source "lib/Kconfig"

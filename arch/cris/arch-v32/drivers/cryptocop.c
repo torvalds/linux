@@ -16,7 +16,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/list.h>
 #include <linux/interrupt.h>

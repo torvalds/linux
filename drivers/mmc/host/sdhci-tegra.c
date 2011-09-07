@@ -24,7 +24,6 @@
 #include <mach/gpio.h>
 #include <mach/sdhci.h>
 
-#include "sdhci.h"
 #include "sdhci-pltfm.h"
 
 static u32 tegra_sdhci_readl(struct sdhci_host *host, int reg)
@@ -116,20 +115,42 @@ static int tegra_sdhci_8bit(struct sdhci_host *host, int bus_width)
 	return 0;
 }
 
+static struct sdhci_ops tegra_sdhci_ops = {
+	.get_ro     = tegra_sdhci_get_ro,
+	.read_l     = tegra_sdhci_readl,
+	.read_w     = tegra_sdhci_readw,
+	.write_l    = tegra_sdhci_writel,
+	.platform_8bit_width = tegra_sdhci_8bit,
+};
 
-static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
-				  struct sdhci_pltfm_data *pdata)
+static struct sdhci_pltfm_data sdhci_tegra_pdata = {
+	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
+		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
+		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
+	.ops  = &tegra_sdhci_ops,
+};
+
+static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 {
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct platform_device *pdev = to_platform_device(mmc_dev(host->mmc));
+	struct sdhci_pltfm_host *pltfm_host;
 	struct tegra_sdhci_platform_data *plat;
+	struct sdhci_host *host;
 	struct clk *clk;
 	int rc;
 
+	host = sdhci_pltfm_init(pdev, &sdhci_tegra_pdata);
+	if (IS_ERR(host))
+		return PTR_ERR(host);
+
+	pltfm_host = sdhci_priv(host);
+
 	plat = pdev->dev.platform_data;
+
 	if (plat == NULL) {
 		dev_err(mmc_dev(host->mmc), "missing platform data\n");
-		return -ENXIO;
+		rc = -ENXIO;
+		goto err_no_plat;
 	}
 
 	if (gpio_is_valid(plat->power_gpio)) {
@@ -137,7 +158,7 @@ static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
 		if (rc) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to allocate power gpio\n");
-			goto out;
+			goto err_power_req;
 		}
 		tegra_gpio_enable(plat->power_gpio);
 		gpio_direction_output(plat->power_gpio, 1);
@@ -148,7 +169,7 @@ static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
 		if (rc) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to allocate cd gpio\n");
-			goto out_power;
+			goto err_cd_req;
 		}
 		tegra_gpio_enable(plat->cd_gpio);
 		gpio_direction_input(plat->cd_gpio);
@@ -159,7 +180,7 @@ static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
 
 		if (rc)	{
 			dev_err(mmc_dev(host->mmc), "request irq error\n");
-			goto out_cd;
+			goto err_cd_irq_req;
 		}
 
 	}
@@ -169,7 +190,7 @@ static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
 		if (rc) {
 			dev_err(mmc_dev(host->mmc),
 				"failed to allocate wp gpio\n");
-			goto out_irq;
+			goto err_wp_req;
 		}
 		tegra_gpio_enable(plat->wp_gpio);
 		gpio_direction_input(plat->wp_gpio);
@@ -179,7 +200,7 @@ static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
 	if (IS_ERR(clk)) {
 		dev_err(mmc_dev(host->mmc), "clk err\n");
 		rc = PTR_ERR(clk);
-		goto out_wp;
+		goto err_clk_get;
 	}
 	clk_enable(clk);
 	pltfm_host->clk = clk;
@@ -189,38 +210,47 @@ static int tegra_sdhci_pltfm_init(struct sdhci_host *host,
 	if (plat->is_8bit)
 		host->mmc->caps |= MMC_CAP_8_BIT_DATA;
 
+	rc = sdhci_add_host(host);
+	if (rc)
+		goto err_add_host;
+
 	return 0;
 
-out_wp:
+err_add_host:
+	clk_disable(pltfm_host->clk);
+	clk_put(pltfm_host->clk);
+err_clk_get:
 	if (gpio_is_valid(plat->wp_gpio)) {
 		tegra_gpio_disable(plat->wp_gpio);
 		gpio_free(plat->wp_gpio);
 	}
-
-out_irq:
+err_wp_req:
 	if (gpio_is_valid(plat->cd_gpio))
 		free_irq(gpio_to_irq(plat->cd_gpio), host);
-out_cd:
+err_cd_irq_req:
 	if (gpio_is_valid(plat->cd_gpio)) {
 		tegra_gpio_disable(plat->cd_gpio);
 		gpio_free(plat->cd_gpio);
 	}
-
-out_power:
+err_cd_req:
 	if (gpio_is_valid(plat->power_gpio)) {
 		tegra_gpio_disable(plat->power_gpio);
 		gpio_free(plat->power_gpio);
 	}
-
-out:
+err_power_req:
+err_no_plat:
+	sdhci_pltfm_free(pdev);
 	return rc;
 }
 
-static void tegra_sdhci_pltfm_exit(struct sdhci_host *host)
+static int __devexit sdhci_tegra_remove(struct platform_device *pdev)
 {
+	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct platform_device *pdev = to_platform_device(mmc_dev(host->mmc));
 	struct tegra_sdhci_platform_data *plat;
+	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
+
+	sdhci_remove_host(host, dead);
 
 	plat = pdev->dev.platform_data;
 
@@ -242,22 +272,37 @@ static void tegra_sdhci_pltfm_exit(struct sdhci_host *host)
 
 	clk_disable(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
+
+	sdhci_pltfm_free(pdev);
+
+	return 0;
 }
 
-static struct sdhci_ops tegra_sdhci_ops = {
-	.get_ro     = tegra_sdhci_get_ro,
-	.read_l     = tegra_sdhci_readl,
-	.read_w     = tegra_sdhci_readw,
-	.write_l    = tegra_sdhci_writel,
-	.platform_8bit_width = tegra_sdhci_8bit,
+static struct platform_driver sdhci_tegra_driver = {
+	.driver		= {
+		.name	= "sdhci-tegra",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= sdhci_tegra_probe,
+	.remove		= __devexit_p(sdhci_tegra_remove),
+#ifdef CONFIG_PM
+	.suspend	= sdhci_pltfm_suspend,
+	.resume		= sdhci_pltfm_resume,
+#endif
 };
 
-struct sdhci_pltfm_data sdhci_tegra_pdata = {
-	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
-		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
-		  SDHCI_QUIRK_NO_HISPD_BIT |
-		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
-	.ops  = &tegra_sdhci_ops,
-	.init = tegra_sdhci_pltfm_init,
-	.exit = tegra_sdhci_pltfm_exit,
-};
+static int __init sdhci_tegra_init(void)
+{
+	return platform_driver_register(&sdhci_tegra_driver);
+}
+module_init(sdhci_tegra_init);
+
+static void __exit sdhci_tegra_exit(void)
+{
+	platform_driver_unregister(&sdhci_tegra_driver);
+}
+module_exit(sdhci_tegra_exit);
+
+MODULE_DESCRIPTION("SDHCI driver for Tegra");
+MODULE_AUTHOR(" Google, Inc.");
+MODULE_LICENSE("GPL v2");

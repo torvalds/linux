@@ -577,13 +577,13 @@ retry:
 	}
 	inode = &gss_msg->inode->vfs_inode;
 	for (;;) {
-		prepare_to_wait(&gss_msg->waitqueue, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(&gss_msg->waitqueue, &wait, TASK_KILLABLE);
 		spin_lock(&inode->i_lock);
 		if (gss_msg->ctx != NULL || gss_msg->msg.errno < 0) {
 			break;
 		}
 		spin_unlock(&inode->i_lock);
-		if (signalled()) {
+		if (fatal_signal_pending(current)) {
 			err = -ERESTARTSYS;
 			goto out_intr;
 		}
@@ -1421,18 +1421,16 @@ gss_wrap_req(struct rpc_task *task,
 		goto out;
 	}
 	switch (gss_cred->gc_service) {
-		case RPC_GSS_SVC_NONE:
-			gss_wrap_req_encode(encode, rqstp, p, obj);
-			status = 0;
-			break;
-		case RPC_GSS_SVC_INTEGRITY:
-			status = gss_wrap_req_integ(cred, ctx, encode,
-								rqstp, p, obj);
-			break;
-		case RPC_GSS_SVC_PRIVACY:
-			status = gss_wrap_req_priv(cred, ctx, encode,
-					rqstp, p, obj);
-			break;
+	case RPC_GSS_SVC_NONE:
+		gss_wrap_req_encode(encode, rqstp, p, obj);
+		status = 0;
+		break;
+	case RPC_GSS_SVC_INTEGRITY:
+		status = gss_wrap_req_integ(cred, ctx, encode, rqstp, p, obj);
+		break;
+	case RPC_GSS_SVC_PRIVACY:
+		status = gss_wrap_req_priv(cred, ctx, encode, rqstp, p, obj);
+		break;
 	}
 out:
 	gss_put_ctx(ctx);
@@ -1531,18 +1529,18 @@ gss_unwrap_resp(struct rpc_task *task,
 	if (ctx->gc_proc != RPC_GSS_PROC_DATA)
 		goto out_decode;
 	switch (gss_cred->gc_service) {
-		case RPC_GSS_SVC_NONE:
-			break;
-		case RPC_GSS_SVC_INTEGRITY:
-			status = gss_unwrap_resp_integ(cred, ctx, rqstp, &p);
-			if (status)
-				goto out;
-			break;
-		case RPC_GSS_SVC_PRIVACY:
-			status = gss_unwrap_resp_priv(cred, ctx, rqstp, &p);
-			if (status)
-				goto out;
-			break;
+	case RPC_GSS_SVC_NONE:
+		break;
+	case RPC_GSS_SVC_INTEGRITY:
+		status = gss_unwrap_resp_integ(cred, ctx, rqstp, &p);
+		if (status)
+			goto out;
+		break;
+	case RPC_GSS_SVC_PRIVACY:
+		status = gss_unwrap_resp_priv(cred, ctx, rqstp, &p);
+		if (status)
+			goto out;
+		break;
 	}
 	/* take into account extra slack for integrity and privacy cases: */
 	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + (p - savedp)

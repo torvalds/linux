@@ -38,7 +38,6 @@
 
 /**
  * struct ad9834_state - driver instance specific data
- * @indio_dev:		the industrial I/O device
  * @spi:		spi_device
  * @reg:		supply regulator
  * @mclk:		external master clock
@@ -52,7 +51,6 @@
  */
 
 struct ad9834_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	struct regulator		*reg;
 	unsigned int			mclk;

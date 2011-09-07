@@ -437,17 +437,17 @@ int dn_dev_ioctl(unsigned int cmd, void __user *arg)
 
 	dev_load(&init_net, ifr->ifr_name);
 
-	switch(cmd) {
-		case SIOCGIFADDR:
-			break;
-		case SIOCSIFADDR:
-			if (!capable(CAP_NET_ADMIN))
-				return -EACCES;
-			if (sdn->sdn_family != AF_DECnet)
-				return -EINVAL;
-			break;
-		default:
+	switch (cmd) {
+	case SIOCGIFADDR:
+		break;
+	case SIOCSIFADDR:
+		if (!capable(CAP_NET_ADMIN))
+			return -EACCES;
+		if (sdn->sdn_family != AF_DECnet)
 			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	rtnl_lock();
@@ -470,27 +470,27 @@ int dn_dev_ioctl(unsigned int cmd, void __user *arg)
 		goto done;
 	}
 
-	switch(cmd) {
-		case SIOCGIFADDR:
-			*((__le16 *)sdn->sdn_nodeaddr) = ifa->ifa_local;
-			goto rarok;
+	switch (cmd) {
+	case SIOCGIFADDR:
+		*((__le16 *)sdn->sdn_nodeaddr) = ifa->ifa_local;
+		goto rarok;
 
-		case SIOCSIFADDR:
-			if (!ifa) {
-				if ((ifa = dn_dev_alloc_ifa()) == NULL) {
-					ret = -ENOBUFS;
-					break;
-				}
-				memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
-			} else {
-				if (ifa->ifa_local == dn_saddr2dn(sdn))
-					break;
-				dn_dev_del_ifa(dn_db, ifap, 0);
+	case SIOCSIFADDR:
+		if (!ifa) {
+			if ((ifa = dn_dev_alloc_ifa()) == NULL) {
+				ret = -ENOBUFS;
+				break;
 			}
+			memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
+		} else {
+			if (ifa->ifa_local == dn_saddr2dn(sdn))
+				break;
+			dn_dev_del_ifa(dn_db, ifap, 0);
+		}
 
-			ifa->ifa_local = ifa->ifa_address = dn_saddr2dn(sdn);
+		ifa->ifa_local = ifa->ifa_address = dn_saddr2dn(sdn);
 
-			ret = dn_dev_set_ifa(dev, ifa);
+		ret = dn_dev_set_ifa(dev, ifa);
 	}
 done:
 	rtnl_unlock();
@@ -1313,7 +1313,7 @@ static void *dn_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	++*pos;
 
-	dev = (struct net_device *)v;
+	dev = v;
 	if (v == SEQ_START_TOKEN)
 		dev = net_device_entry(&init_net.dev_base_head);
 
@@ -1335,13 +1335,13 @@ static void dn_dev_seq_stop(struct seq_file *seq, void *v)
 
 static char *dn_type2asc(char type)
 {
-	switch(type) {
-		case DN_DEV_BCAST:
-			return "B";
-		case DN_DEV_UCAST:
-			return "U";
-		case DN_DEV_MPOINT:
-			return "M";
+	switch (type) {
+	case DN_DEV_BCAST:
+		return "B";
+	case DN_DEV_UCAST:
+		return "U";
+	case DN_DEV_MPOINT:
+		return "M";
 	}
 
 	return "?";
@@ -1414,9 +1414,9 @@ void __init dn_dev_init(void)
 
 	dn_dev_devices_on();
 
-	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL);
-	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL);
-	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr);
+	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL, NULL);
+	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL, NULL);
+	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr, NULL);
 
 	proc_net_fops_create(&init_net, "decnet_dev", S_IRUGO, &dn_dev_seq_fops);
 

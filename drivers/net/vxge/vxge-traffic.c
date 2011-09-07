@@ -1309,7 +1309,7 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 
 	vxge_hw_channel_dtr_try_complete(channel, rxdh);
 
-	rxdp = (struct vxge_hw_ring_rxd_1 *)*rxdh;
+	rxdp = *rxdh;
 	if (rxdp == NULL) {
 		status = VXGE_HW_INF_NO_MORE_COMPLETED_DESCRIPTORS;
 		goto exit;
@@ -1565,7 +1565,7 @@ void vxge_hw_fifo_txdl_post(struct __vxge_hw_fifo *fifo, void *txdlh)
 	channel = &fifo->channel;
 
 	txdl_priv = __vxge_hw_fifo_txdl_priv(fifo, txdlh);
-	txdp_first = (struct vxge_hw_fifo_txd *)txdlh;
+	txdp_first = txdlh;
 
 	txdp_last = (struct vxge_hw_fifo_txd *)txdlh  +  (txdl_priv->frags - 1);
 	txdp_last->control_0 |=
@@ -1631,7 +1631,7 @@ enum vxge_hw_status vxge_hw_fifo_txdl_next_completed(
 
 	vxge_hw_channel_dtr_try_complete(channel, txdlh);
 
-	txdp = (struct vxge_hw_fifo_txd *)*txdlh;
+	txdp = *txdlh;
 	if (txdp == NULL) {
 		status = VXGE_HW_INF_NO_MORE_COMPLETED_DESCRIPTORS;
 		goto exit;

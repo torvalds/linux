@@ -757,7 +757,6 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
-	vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 	return 0;
 }
@@ -1184,14 +1183,10 @@ static int ivtv_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 
 	ivtv_call_all(itv, tuner, g_tuner, vt);
 
-	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
+	if (vt->type == V4L2_TUNER_RADIO)
 		strlcpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
-		vt->type = V4L2_TUNER_RADIO;
-	} else {
+	else
 		strlcpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
-		vt->type = V4L2_TUNER_ANALOG_TV;
-	}
-
 	return 0;
 }
 
@@ -1455,11 +1450,11 @@ static int ivtv_subscribe_event(struct v4l2_fh *fh, struct v4l2_event_subscripti
 	switch (sub->type) {
 	case V4L2_EVENT_VSYNC:
 	case V4L2_EVENT_EOS:
-		break;
+	case V4L2_EVENT_CTRL:
+		return v4l2_event_subscribe(fh, sub, 0);
 	default:
 		return -EINVAL;
 	}
-	return v4l2_event_subscribe(fh, sub);
 }
 
 static int ivtv_log_status(struct file *file, void *fh)

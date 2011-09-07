@@ -121,7 +121,7 @@ int snd_soundfont_search_zone(struct snd_sf_list *sflist, int *notep, int vel,
 int snd_sf_calc_parm_hold(int msec);
 int snd_sf_calc_parm_attack(int msec);
 int snd_sf_calc_parm_decay(int msec);
-#define snd_sf_calc_parm_delay(msec) (0x8000 - (msec) * 1000 / 725);
+#define snd_sf_calc_parm_delay(msec) (0x8000 - (msec) * 1000 / 725)
 extern int snd_sf_vol_table[128];
 int snd_sf_linear_to_log(unsigned int amount, int offset, int ratio);
 

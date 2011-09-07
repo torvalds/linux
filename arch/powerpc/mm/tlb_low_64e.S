@@ -30,6 +30,212 @@
 #define VPTE_PGD_SHIFT	(VPTE_PUD_SHIFT + PUD_INDEX_SIZE)
 #define VPTE_INDEX_SIZE (VPTE_PGD_SHIFT + PGD_INDEX_SIZE)
 
+/**********************************************************************
+ *                                                                    *
+ * TLB miss handling for Book3E with a bolted linear mapping          *
+ * No virtual page table, no nested TLB misses                        *
+ *                                                                    *
+ **********************************************************************/
+
+.macro tlb_prolog_bolted addr
+	mtspr	SPRN_SPRG_TLB_SCRATCH,r13
+	mfspr	r13,SPRN_SPRG_PACA
+	std	r10,PACA_EXTLB+EX_TLB_R10(r13)
+	mfcr	r10
+	std	r11,PACA_EXTLB+EX_TLB_R11(r13)
+	std	r16,PACA_EXTLB+EX_TLB_R16(r13)
+	mfspr	r16,\addr		/* get faulting address */
+	std	r14,PACA_EXTLB+EX_TLB_R14(r13)
+	ld	r14,PACAPGD(r13)
+	std	r15,PACA_EXTLB+EX_TLB_R15(r13)
+	std	r10,PACA_EXTLB+EX_TLB_CR(r13)
+	TLB_MISS_PROLOG_STATS_BOLTED
+.endm
+
+.macro tlb_epilog_bolted
+	ld	r14,PACA_EXTLB+EX_TLB_CR(r13)
+	ld	r10,PACA_EXTLB+EX_TLB_R10(r13)
+	ld	r11,PACA_EXTLB+EX_TLB_R11(r13)
+	mtcr	r14
+	ld	r14,PACA_EXTLB+EX_TLB_R14(r13)
+	ld	r15,PACA_EXTLB+EX_TLB_R15(r13)
+	TLB_MISS_RESTORE_STATS_BOLTED
+	ld	r16,PACA_EXTLB+EX_TLB_R16(r13)
+	mfspr	r13,SPRN_SPRG_TLB_SCRATCH
+.endm
+
+/* Data TLB miss */
+	START_EXCEPTION(data_tlb_miss_bolted)
+	tlb_prolog_bolted SPRN_DEAR
+
+	/* We need _PAGE_PRESENT and  _PAGE_ACCESSED set */
+
+	/* We do the user/kernel test for the PID here along with the RW test
+	 */
+	/* We pre-test some combination of permissions to avoid double
+	 * faults:
+	 *
+	 * We move the ESR:ST bit into the position of _PAGE_BAP_SW in the PTE
+	 * ESR_ST   is 0x00800000
+	 * _PAGE_BAP_SW is 0x00000010
+	 * So the shift is >> 19. This tests for supervisor writeability.
+	 * If the page happens to be supervisor writeable and not user
+	 * writeable, we will take a new fault later, but that should be
+	 * a rare enough case.
+	 *
+	 * We also move ESR_ST in _PAGE_DIRTY position
+	 * _PAGE_DIRTY is 0x00001000 so the shift is >> 11
+	 *
+	 * MAS1 is preset for all we need except for TID that needs to
+	 * be cleared for kernel translations
+	 */
+
+	mfspr	r11,SPRN_ESR
+
+	srdi	r15,r16,60		/* get region */
+	rldicl.	r10,r16,64-PGTABLE_EADDR_SIZE,PGTABLE_EADDR_SIZE+4
+	bne-	dtlb_miss_fault_bolted
+
+	rlwinm	r10,r11,32-19,27,27
+	rlwimi	r10,r11,32-16,19,19
+	cmpwi	r15,0
+	ori	r10,r10,_PAGE_PRESENT
+	oris	r11,r10,_PAGE_ACCESSED@h
+
+	TLB_MISS_STATS_SAVE_INFO_BOLTED
+	bne	tlb_miss_kernel_bolted
+
+tlb_miss_common_bolted:
+/*
+ * This is the guts of the TLB miss handler for bolted-linear.
+ * We are entered with:
+ *
+ * r16 = faulting address
+ * r15 = crap (free to use)
+ * r14 = page table base
+ * r13 = PACA
+ * r11 = PTE permission mask
+ * r10 = crap (free to use)
+ */
+	rldicl	r15,r16,64-PGDIR_SHIFT+3,64-PGD_INDEX_SIZE-3
+	cmpldi	cr0,r14,0
+	clrrdi	r15,r15,3
+	beq	tlb_miss_fault_bolted
+
+BEGIN_MMU_FTR_SECTION
+	/* Set the TLB reservation and search for existing entry. Then load
+	 * the entry.
+	 */
+	PPC_TLBSRX_DOT(0,r16)
+	ldx	r14,r14,r15
+	beq	normal_tlb_miss_done
+MMU_FTR_SECTION_ELSE
+	ldx	r14,r14,r15
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
+
+#ifndef CONFIG_PPC_64K_PAGES
+	rldicl	r15,r16,64-PUD_SHIFT+3,64-PUD_INDEX_SIZE-3
+	clrrdi	r15,r15,3
+
+	cmpldi	cr0,r14,0
+	beq	tlb_miss_fault_bolted
+
+	ldx	r14,r14,r15
+#endif /* CONFIG_PPC_64K_PAGES */
+
+	rldicl	r15,r16,64-PMD_SHIFT+3,64-PMD_INDEX_SIZE-3
+	clrrdi	r15,r15,3
+
+	cmpldi	cr0,r14,0
+	beq	tlb_miss_fault_bolted
+
+	ldx	r14,r14,r15
+
+	rldicl	r15,r16,64-PAGE_SHIFT+3,64-PTE_INDEX_SIZE-3
+	clrrdi	r15,r15,3
+
+	cmpldi	cr0,r14,0
+	beq	tlb_miss_fault_bolted
+
+	ldx	r14,r14,r15
+
+	/* Check if required permissions are met */
+	andc.	r15,r11,r14
+	rldicr	r15,r14,64-(PTE_RPN_SHIFT-PAGE_SHIFT),63-PAGE_SHIFT
+	bne-	tlb_miss_fault_bolted
+
+	/* Now we build the MAS:
+	 *
+	 * MAS 0   :	Fully setup with defaults in MAS4 and TLBnCFG
+	 * MAS 1   :	Almost fully setup
+	 *               - PID already updated by caller if necessary
+	 *               - TSIZE need change if !base page size, not
+	 *                 yet implemented for now
+	 * MAS 2   :	Defaults not useful, need to be redone
+	 * MAS 3+7 :	Needs to be done
+	 */
+	clrrdi	r11,r16,12		/* Clear low crap in EA */
+	clrldi	r15,r15,12		/* Clear crap at the top */
+	rlwimi	r11,r14,32-19,27,31	/* Insert WIMGE */
+	rlwimi	r15,r14,32-8,22,25	/* Move in U bits */
+	mtspr	SPRN_MAS2,r11
+	andi.	r11,r14,_PAGE_DIRTY
+	rlwimi	r15,r14,32-2,26,31	/* Move in BAP bits */
+
+	/* Mask out SW and UW if !DIRTY (XXX optimize this !) */
+	bne	1f
+	li	r11,MAS3_SW|MAS3_UW
+	andc	r15,r15,r11
+1:
+	mtspr	SPRN_MAS7_MAS3,r15
+	tlbwe
+
+	TLB_MISS_STATS_X(MMSTAT_TLB_MISS_NORM_OK)
+	tlb_epilog_bolted
+	rfi
+
+itlb_miss_kernel_bolted:
+	li	r11,_PAGE_PRESENT|_PAGE_BAP_SX	/* Base perm */
+	oris	r11,r11,_PAGE_ACCESSED@h
+tlb_miss_kernel_bolted:
+	mfspr	r10,SPRN_MAS1
+	ld	r14,PACA_KERNELPGD(r13)
+	cmpldi	cr0,r15,8		/* Check for vmalloc region */
+	rlwinm	r10,r10,0,16,1		/* Clear TID */
+	mtspr	SPRN_MAS1,r10
+	beq+	tlb_miss_common_bolted
+
+tlb_miss_fault_bolted:
+	/* We need to check if it was an instruction miss */
+	andi.	r10,r11,_PAGE_EXEC|_PAGE_BAP_SX
+	bne	itlb_miss_fault_bolted
+dtlb_miss_fault_bolted:
+	TLB_MISS_STATS_D(MMSTAT_TLB_MISS_NORM_FAULT)
+	tlb_epilog_bolted
+	b	exc_data_storage_book3e
+itlb_miss_fault_bolted:
+	TLB_MISS_STATS_I(MMSTAT_TLB_MISS_NORM_FAULT)
+	tlb_epilog_bolted
+	b	exc_instruction_storage_book3e
+
+/* Instruction TLB miss */
+	START_EXCEPTION(instruction_tlb_miss_bolted)
+	tlb_prolog_bolted SPRN_SRR0
+
+	rldicl.	r10,r16,64-PGTABLE_EADDR_SIZE,PGTABLE_EADDR_SIZE+4
+	srdi	r15,r16,60		/* get region */
+	TLB_MISS_STATS_SAVE_INFO_BOLTED
+	bne-	itlb_miss_fault_bolted
+
+	li	r11,_PAGE_PRESENT|_PAGE_EXEC	/* Base perm */
+
+	/* We do the user/kernel test for the PID here along with the RW test
+	 */
+
+	cmpldi	cr0,r15,0			/* Check for user region */
+	oris	r11,r11,_PAGE_ACCESSED@h
+	beq	tlb_miss_common_bolted
+	b	itlb_miss_kernel_bolted
 
 /**********************************************************************
  *                                                                    *

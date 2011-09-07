@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 
@@ -26,10 +27,10 @@
 #include <mach/iomux-mx28.h>
 
 #include "devices-mx28.h"
-#include "gpio.h"
 
 #define MX28EVK_FLEXCAN_SWITCH	MXS_GPIO_NR(2, 13)
 #define MX28EVK_FEC_PHY_POWER	MXS_GPIO_NR(2, 15)
+#define MX28EVK_GPIO_LED	MXS_GPIO_NR(3, 5)
 #define MX28EVK_BL_ENABLE	MXS_GPIO_NR(3, 18)
 #define MX28EVK_LCD_ENABLE	MXS_GPIO_NR(3, 30)
 #define MX28EVK_FEC_PHY_RESET	MXS_GPIO_NR(4, 13)
@@ -179,6 +180,23 @@ static const iomux_cfg_t mx28evk_pads[] __initconst = {
 	/* slot power enable */
 	MX28_PAD_PWM4__GPIO_3_29 |
 		(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
+
+	/* led */
+	MX28_PAD_AUART1_TX__GPIO_3_5 | MXS_PAD_CTRL,
+};
+
+/* led */
+static const struct gpio_led mx28evk_leds[] __initconst = {
+	{
+		.name = "GPIO-LED",
+		.default_trigger = "heartbeat",
+		.gpio = MX28EVK_GPIO_LED,
+	},
+};
+
+static const struct gpio_led_platform_data mx28evk_led_data __initconst = {
+	.leds = mx28evk_leds,
+	.num_leds = ARRAY_SIZE(mx28evk_leds),
 };
 
 /* fec */
@@ -386,6 +404,8 @@ static void __init mx28evk_init(void)
 	if (ret)
 		pr_warn("failed to request gpio mmc1-slot-power: %d\n", ret);
 	mx28_add_mxs_mmc(1, &mx28evk_mmc_pdata[1]);
+
+	gpio_led_register_device(0, &mx28evk_led_data);
 }
 
 static void __init mx28evk_timer_init(void)

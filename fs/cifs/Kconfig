@@ -156,6 +156,6 @@ config CIFS_ACL
 
 config CIFS_NFSD_EXPORT
 	  bool "Allow nfsd to export CIFS file system (EXPERIMENTAL)"
-	  depends on CIFS && EXPERIMENTAL
+	  depends on CIFS && EXPERIMENTAL && BROKEN
 	  help
 	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)

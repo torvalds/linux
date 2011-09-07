@@ -605,16 +605,6 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 
 
 /**
- * nes_modify_port
- */
-static int nes_modify_port(struct ib_device *ibdev, u8 port,
-		int port_modify_mask, struct ib_port_modify *props)
-{
-	return 0;
-}
-
-
-/**
  * nes_query_pkey
  */
 static int nes_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
@@ -3882,7 +3872,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.dev.parent = &nesdev->pcidev->dev;
 	nesibdev->ibdev.query_device = nes_query_device;
 	nesibdev->ibdev.query_port = nes_query_port;
-	nesibdev->ibdev.modify_port = nes_modify_port;
 	nesibdev->ibdev.query_pkey = nes_query_pkey;
 	nesibdev->ibdev.query_gid = nes_query_gid;
 	nesibdev->ibdev.alloc_ucontext = nes_alloc_ucontext;

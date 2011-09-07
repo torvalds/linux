@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
+#include <media/sh_mobile_ceu.h>
 #include <media/sh_mobile_csi2.h>
 #include <media/soc_camera.h>
 #include <media/v4l2-common.h>
@@ -33,7 +34,6 @@
 struct sh_csi2 {
 	struct v4l2_subdev		subdev;
 	struct list_head		list;
-	struct notifier_block		notifier;
 	unsigned int			irq;
 	void __iomem			*base;
 	struct platform_device		*pdev;
@@ -132,13 +132,6 @@ static struct v4l2_subdev_video_ops sh_csi2_subdev_video_ops = {
 	.try_mbus_fmt	= sh_csi2_try_fmt,
 };
 
-static struct v4l2_subdev_core_ops sh_csi2_subdev_core_ops;
-
-static struct v4l2_subdev_ops sh_csi2_subdev_ops = {
-	.core	= &sh_csi2_subdev_core_ops,
-	.video	= &sh_csi2_subdev_video_ops,
-};
-
 static void sh_csi2_hwinit(struct sh_csi2 *priv)
 {
 	struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
@@ -186,64 +179,83 @@ static unsigned long sh_csi2_query_bus_param(struct soc_camera_device *icd)
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
-static int sh_csi2_notify(struct notifier_block *nb,
-			  unsigned long action, void *data)
+static int sh_csi2_client_connect(struct sh_csi2 *priv)
 {
-	struct device *dev = data;
-	struct soc_camera_device *icd = to_soc_camera_dev(dev);
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev->parent);
-	struct sh_csi2 *priv =
-		container_of(nb, struct sh_csi2, notifier);
 	struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
-	int ret, i;
+	struct v4l2_subdev *sd, *csi2_sd = &priv->subdev;
+	struct soc_camera_device *icd = NULL;
+	struct device *dev = v4l2_get_subdevdata(&priv->subdev);
+	int i;
+
+	v4l2_device_for_each_subdev(sd, csi2_sd->v4l2_dev)
+		if (sd->grp_id) {
+			icd = (struct soc_camera_device *)sd->grp_id;
+			break;
+		}
+
+	if (!icd)
+		return -EINVAL;
 
 	for (i = 0; i < pdata->num_clients; i++)
 		if (&pdata->clients[i].pdev->dev == icd->pdev)
 			break;
 
-	dev_dbg(dev, "%s(%p): action = %lu, found #%d\n", __func__, dev, action, i);
+	dev_dbg(dev, "%s(%p): found #%d\n", __func__, dev, i);
 
 	if (i == pdata->num_clients)
-		return NOTIFY_DONE;
+		return -ENODEV;
 
-	switch (action) {
-	case BUS_NOTIFY_BOUND_DRIVER:
-		snprintf(priv->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s%s",
-			 dev_name(v4l2_dev->dev), ".mipi-csi");
-		priv->subdev.grp_id = (long)icd;
-		ret = v4l2_device_register_subdev(v4l2_dev, &priv->subdev);
-		dev_dbg(dev, "%s(%p): ret(register_subdev) = %d\n", __func__, priv, ret);
-		if (ret < 0)
-			return NOTIFY_DONE;
+	priv->client = pdata->clients + i;
 
-		priv->client = pdata->clients + i;
+	priv->set_bus_param		= icd->ops->set_bus_param;
+	priv->query_bus_param		= icd->ops->query_bus_param;
+	icd->ops->set_bus_param		= sh_csi2_set_bus_param;
+	icd->ops->query_bus_param	= sh_csi2_query_bus_param;
 
-		priv->set_bus_param		= icd->ops->set_bus_param;
-		priv->query_bus_param		= icd->ops->query_bus_param;
-		icd->ops->set_bus_param		= sh_csi2_set_bus_param;
-		icd->ops->query_bus_param	= sh_csi2_query_bus_param;
+	csi2_sd->grp_id = (long)icd;
 
-		pm_runtime_get_sync(v4l2_get_subdevdata(&priv->subdev));
+	pm_runtime_get_sync(dev);
 
-		sh_csi2_hwinit(priv);
-		break;
-	case BUS_NOTIFY_UNBIND_DRIVER:
-		priv->client = NULL;
+	sh_csi2_hwinit(priv);
 
-		/* Driver is about to be unbound */
-		icd->ops->set_bus_param		= priv->set_bus_param;
-		icd->ops->query_bus_param	= priv->query_bus_param;
-		priv->set_bus_param		= NULL;
-		priv->query_bus_param		= NULL;
-
-		v4l2_device_unregister_subdev(&priv->subdev);
-
-		pm_runtime_put(v4l2_get_subdevdata(&priv->subdev));
-		break;
-	}
-
-	return NOTIFY_OK;
+	return 0;
 }
+
+static void sh_csi2_client_disconnect(struct sh_csi2 *priv)
+{
+	struct soc_camera_device *icd = (struct soc_camera_device *)priv->subdev.grp_id;
+
+	priv->client = NULL;
+	priv->subdev.grp_id = 0;
+
+	/* Driver is about to be unbound */
+	icd->ops->set_bus_param		= priv->set_bus_param;
+	icd->ops->query_bus_param	= priv->query_bus_param;
+	priv->set_bus_param		= NULL;
+	priv->query_bus_param		= NULL;
+
+	pm_runtime_put(v4l2_get_subdevdata(&priv->subdev));
+}
+
+static int sh_csi2_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
+
+	if (on)
+		return sh_csi2_client_connect(priv);
+
+	sh_csi2_client_disconnect(priv);
+	return 0;
+}
+
+static struct v4l2_subdev_core_ops sh_csi2_subdev_core_ops = {
+	.s_power	= sh_csi2_s_power,
+};
+
+static struct v4l2_subdev_ops sh_csi2_subdev_ops = {
+	.core	= &sh_csi2_subdev_core_ops,
+	.video	= &sh_csi2_subdev_video_ops,
+};
 
 static __devinit int sh_csi2_probe(struct platform_device *pdev)
 {
@@ -274,14 +286,6 @@ static __devinit int sh_csi2_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->irq = irq;
-	priv->notifier.notifier_call = sh_csi2_notify;
-
-	/* We MUST attach after the MIPI sensor */
-	ret = bus_register_notifier(&soc_camera_bus_type, &priv->notifier);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "CSI2 cannot register notifier\n");
-		goto ernotify;
-	}
 
 	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
 		dev_err(&pdev->dev, "CSI2 register region already claimed\n");
@@ -297,11 +301,17 @@ static __devinit int sh_csi2_probe(struct platform_device *pdev)
 	}
 
 	priv->pdev = pdev;
+	platform_set_drvdata(pdev, priv);
 
 	v4l2_subdev_init(&priv->subdev, &sh_csi2_subdev_ops);
 	v4l2_set_subdevdata(&priv->subdev, &pdev->dev);
 
-	platform_set_drvdata(pdev, priv);
+	snprintf(priv->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s.mipi-csi",
+		 dev_name(pdata->v4l2_dev->dev));
+	ret = v4l2_device_register_subdev(pdata->v4l2_dev, &priv->subdev);
+	dev_dbg(&pdev->dev, "%s(%p): ret(register_subdev) = %d\n", __func__, priv, ret);
+	if (ret < 0)
+		goto esdreg;
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -309,11 +319,11 @@ static __devinit int sh_csi2_probe(struct platform_device *pdev)
 
 	return 0;
 
+esdreg:
+	iounmap(priv->base);
 eremap:
 	release_mem_region(res->start, resource_size(res));
 ereqreg:
-	bus_unregister_notifier(&soc_camera_bus_type, &priv->notifier);
-ernotify:
 	kfree(priv);
 
 	return ret;
@@ -324,7 +334,7 @@ static __devexit int sh_csi2_remove(struct platform_device *pdev)
 	struct sh_csi2 *priv = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	bus_unregister_notifier(&soc_camera_bus_type, &priv->notifier);
+	v4l2_device_unregister_subdev(&priv->subdev);
 	pm_runtime_disable(&pdev->dev);
 	iounmap(priv->base);
 	release_mem_region(res->start, resource_size(res));
@@ -335,8 +345,9 @@ static __devexit int sh_csi2_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver __refdata sh_csi2_pdrv = {
-	.remove  = __devexit_p(sh_csi2_remove),
-	.driver  = {
+	.remove	= __devexit_p(sh_csi2_remove),
+	.probe	= sh_csi2_probe,
+	.driver	= {
 		.name	= "sh-mobile-csi2",
 		.owner	= THIS_MODULE,
 	},
@@ -344,7 +355,7 @@ static struct platform_driver __refdata sh_csi2_pdrv = {
 
 static int __init sh_csi2_init(void)
 {
-	return platform_driver_probe(&sh_csi2_pdrv, sh_csi2_probe);
+	return platform_driver_register(&sh_csi2_pdrv);
 }
 
 static void __exit sh_csi2_exit(void)

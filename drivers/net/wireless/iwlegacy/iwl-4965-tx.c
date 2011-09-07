@@ -240,8 +240,7 @@ static void iwl4965_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 
 	case WLAN_CIPHER_SUITE_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
-		ieee80211_get_tkip_key(keyconf, skb_frag,
-			IEEE80211_TKIP_P2_KEY, tx_cmd->key);
+		ieee80211_get_tkip_p2k(keyconf, skb_frag, tx_cmd->key);
 		IWL_DEBUG_TX(priv, "tx_cmd with tkip hwcrypto\n");
 		break;
 

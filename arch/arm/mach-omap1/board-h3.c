@@ -439,7 +439,7 @@ static void __init h3_init(void)
 static void __init h3_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static void __init h3_map_io(void)
@@ -454,5 +454,5 @@ MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	.reserve	= omap_reserve,
 	.init_irq	= h3_init_irq,
 	.init_machine	= h3_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

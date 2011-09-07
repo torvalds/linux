@@ -121,7 +121,7 @@ static u32 flow_get_proto_src(struct sk_buff *skb)
 		if (!pskb_network_may_pull(skb, sizeof(*iph)))
 			break;
 		iph = ip_hdr(skb);
-		if (iph->frag_off & htons(IP_MF | IP_OFFSET))
+		if (ip_is_fragment(iph))
 			break;
 		poff = proto_ports_offset(iph->protocol);
 		if (poff >= 0 &&
@@ -163,7 +163,7 @@ static u32 flow_get_proto_dst(struct sk_buff *skb)
 		if (!pskb_network_may_pull(skb, sizeof(*iph)))
 			break;
 		iph = ip_hdr(skb);
-		if (iph->frag_off & htons(IP_MF | IP_OFFSET))
+		if (ip_is_fragment(iph))
 			break;
 		poff = proto_ports_offset(iph->protocol);
 		if (poff >= 0 &&
@@ -356,7 +356,7 @@ static u32 flow_key_get(struct sk_buff *skb, int key)
 	}
 }
 
-static int flow_classify(struct sk_buff *skb, struct tcf_proto *tp,
+static int flow_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			 struct tcf_result *res)
 {
 	struct flow_head *head = tp->root;

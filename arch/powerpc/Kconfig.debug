@@ -167,6 +167,13 @@ config PPC_EARLY_DEBUG_LPAR
 	  Select this to enable early debugging for a machine with a HVC
 	  console on vterm 0.
 
+config PPC_EARLY_DEBUG_LPAR_HVSI
+	bool "LPAR HVSI Console"
+	depends on PPC_PSERIES
+	help
+	  Select this to enable early debugging for a machine with a HVSI
+	  console on a specified vterm.
+
 config PPC_EARLY_DEBUG_G5
 	bool "Apple G5"
 	depends on PPC_PMAC64
@@ -252,6 +259,14 @@ config PPC_EARLY_DEBUG_WSP
 	select PPC_UDBG_16550
 
 endchoice
+
+config PPC_EARLY_DEBUG_HVSI_VTERMNO
+	hex "vterm number to use with early debug HVSI"
+	depends on PPC_EARLY_DEBUG_LPAR_HVSI
+	default "0x30000000"
+	help
+	  You probably want 0x30000000 for your first serial port and
+	  0x30000001 for your second one
 
 config PPC_EARLY_DEBUG_44x_PHYSLOW
 	hex "Low 32 bits of early debug UART physical address"

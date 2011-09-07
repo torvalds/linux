@@ -80,22 +80,13 @@ available tools.
 The limit on the length of lines is 80 columns and this is a strongly
 preferred limit.
 
-Statements longer than 80 columns will be broken into sensible chunks.
-Descendants are always substantially shorter than the parent and are placed
-substantially to the right. The same applies to function headers with a long
-argument list. Long strings are as well broken into shorter strings. The
-only exception to this is where exceeding 80 columns significantly increases
-readability and does not hide information.
+Statements longer than 80 columns will be broken into sensible chunks, unless
+exceeding 80 columns significantly increases readability and does not hide
+information. Descendants are always substantially shorter than the parent and
+are placed substantially to the right. The same applies to function headers
+with a long argument list. However, never break user-visible strings such as
+printk messages, because that breaks the ability to grep for them.
 
-void fun(int a, int b, int c)
-{
-	if (condition)
-		printk(KERN_WARNING "Warning this is a long printk with "
-						"3 parameters a: %u b: %u "
-						"c: %u \n", a, b, c);
-	else
-		next_statement;
-}
 
 		Chapter 3: Placing Braces and Spaces
 
@@ -680,8 +671,8 @@ ones already enabled by DEBUG.
 		Chapter 14: Allocating memory
 
 The kernel provides the following general purpose memory allocators:
-kmalloc(), kzalloc(), kcalloc(), and vmalloc().  Please refer to the API
-documentation for further information about them.
+kmalloc(), kzalloc(), kcalloc(), vmalloc(), and vzalloc().  Please refer to
+the API documentation for further information about them.
 
 The preferred form for passing a size of a struct is the following:
 

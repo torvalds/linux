@@ -3,6 +3,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include "rds.h"

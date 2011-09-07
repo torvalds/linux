@@ -6,7 +6,7 @@
  * Released under the GPL, see the file COPYING for details.
  *
  * Simple token based thrashing protection, using the algorithm
- * described in:  http://www.cs.wm.edu/~sjiang/token.pdf
+ * described in: http://www.cse.ohio-state.edu/hpcs/WWW/HTML/publications/abs05-1.html
  *
  * Sep 2006, Ashwin Chaugule <ashwin.chaugule@celunite.com>
  * Improved algorithm to pass token:
@@ -30,8 +30,6 @@
 static DEFINE_SPINLOCK(swap_token_lock);
 struct mm_struct *swap_token_mm;
 struct mem_cgroup *swap_token_memcg;
-static unsigned int global_faults;
-static unsigned int last_aging;
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 static struct mem_cgroup *swap_token_memcg_from_mm(struct mm_struct *mm)
@@ -55,6 +53,8 @@ void grab_swap_token(struct mm_struct *mm)
 {
 	int current_interval;
 	unsigned int old_prio = mm->token_priority;
+	static unsigned int global_faults;
+	static unsigned int last_aging;
 
 	global_faults++;
 
@@ -67,6 +67,17 @@ void grab_swap_token(struct mm_struct *mm)
 	if (!swap_token_mm)
 		goto replace_token;
 
+	/*
+	 * Usually, we don't need priority aging because long interval faults
+	 * makes priority decrease quickly. But there is one exception. If the
+	 * token owner task is sleeping, it never make long interval faults.
+	 * Thus, we need a priority aging mechanism instead. The requirements
+	 * of priority aging are
+	 *  1) An aging interval is reasonable enough long. Too short aging
+	 *     interval makes quick swap token lost and decrease performance.
+	 *  2) The swap token owner task have to get priority aging even if
+	 *     it's under sleep.
+	 */
 	if ((global_faults - last_aging) > TOKEN_AGING_INTERVAL) {
 		swap_token_mm->token_priority /= 2;
 		last_aging = global_faults;

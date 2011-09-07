@@ -994,7 +994,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 			mpt2sas_scsih_issue_tm(ioc,
 			    le16_to_cpu(mpi_request->FunctionDependent1), 0, 0,
 			    0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 10,
-			    NULL);
+			    0, TM_MUTEX_ON);
 			ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 		} else
 			mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
@@ -2706,13 +2706,13 @@ static DEVICE_ATTR(ioc_reset_count, S_IRUGO,
     _ctl_ioc_reset_count_show, NULL);
 
 struct DIAG_BUFFER_START {
-	u32 Size;
-	u32 DiagVersion;
+	__le32 Size;
+	__le32 DiagVersion;
 	u8 BufferType;
 	u8 Reserved[3];
-	u32 Reserved1;
-	u32 Reserved2;
-	u32 Reserved3;
+	__le32 Reserved1;
+	__le32 Reserved2;
+	__le32 Reserved3;
 };
 /**
  * _ctl_host_trace_buffer_size_show - host buffer size (trace only)

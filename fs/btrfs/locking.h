@@ -19,11 +19,43 @@
 #ifndef __BTRFS_LOCKING_
 #define __BTRFS_LOCKING_
 
+#define BTRFS_WRITE_LOCK 1
+#define BTRFS_READ_LOCK 2
+#define BTRFS_WRITE_LOCK_BLOCKING 3
+#define BTRFS_READ_LOCK_BLOCKING 4
+
 int btrfs_tree_lock(struct extent_buffer *eb);
 int btrfs_tree_unlock(struct extent_buffer *eb);
 int btrfs_try_spin_lock(struct extent_buffer *eb);
 
-void btrfs_set_lock_blocking(struct extent_buffer *eb);
-void btrfs_clear_lock_blocking(struct extent_buffer *eb);
+void btrfs_tree_read_lock(struct extent_buffer *eb);
+void btrfs_tree_read_unlock(struct extent_buffer *eb);
+void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb);
+void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw);
+void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw);
 void btrfs_assert_tree_locked(struct extent_buffer *eb);
+int btrfs_try_tree_read_lock(struct extent_buffer *eb);
+int btrfs_try_tree_write_lock(struct extent_buffer *eb);
+
+static inline void btrfs_tree_unlock_rw(struct extent_buffer *eb, int rw)
+{
+	if (rw == BTRFS_WRITE_LOCK || rw == BTRFS_WRITE_LOCK_BLOCKING)
+		btrfs_tree_unlock(eb);
+	else if (rw == BTRFS_READ_LOCK_BLOCKING)
+		btrfs_tree_read_unlock_blocking(eb);
+	else if (rw == BTRFS_READ_LOCK)
+		btrfs_tree_read_unlock(eb);
+	else
+		BUG();
+}
+
+static inline void btrfs_set_lock_blocking(struct extent_buffer *eb)
+{
+	btrfs_set_lock_blocking_rw(eb, BTRFS_WRITE_LOCK);
+}
+
+static inline void btrfs_clear_lock_blocking(struct extent_buffer *eb)
+{
+	btrfs_clear_lock_blocking_rw(eb, BTRFS_WRITE_LOCK_BLOCKING);
+}
 #endif

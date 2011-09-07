@@ -126,6 +126,7 @@ static struct platform_driver ci13xxx_msm_driver = {
 	.probe = ci13xxx_msm_probe,
 	.driver = { .name = "msm_hsusb", },
 };
+MODULE_ALIAS("platform:msm_hsusb");
 
 static int __init ci13xxx_msm_init(void)
 {

@@ -627,6 +627,11 @@ static void ar5008_hw_init_bb(struct ath_hw *ah,
 	else
 		synthDelay /= 10;
 
+	if (IS_CHAN_HALF_RATE(chan))
+		synthDelay *= 2;
+	else if (IS_CHAN_QUARTER_RATE(chan))
+		synthDelay *= 4;
+
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 
 	udelay(synthDelay + BASE_ACTIVATE_DELAY);

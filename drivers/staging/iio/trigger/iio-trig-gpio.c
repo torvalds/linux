@@ -7,7 +7,7 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  *
- * Currently this is more of a functioning proof of concept that a fully
+ * Currently this is more of a functioning proof of concept than a full
  * fledged trigger driver.
  *
  * TODO:

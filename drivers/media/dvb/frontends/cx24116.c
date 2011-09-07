@@ -1452,11 +1452,7 @@ tuned:  /* Set/Reset B/W */
 	cmd.args[0x00] = CMD_BANDWIDTH;
 	cmd.args[0x01] = 0x00;
 	cmd.len = 0x02;
-	ret = cx24116_cmd_execute(fe, &cmd);
-	if (ret != 0)
-		return ret;
-
-	return ret;
+	return cx24116_cmd_execute(fe, &cmd);
 }
 
 static int cx24116_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters *params,

@@ -22,7 +22,6 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/version.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/module.h>
