@@ -51,12 +51,12 @@ const uuid_le mei_wd_guid = UUID_LE(0x05B79A6F, 0x4628, 0x4D7F, 0x89,
 						0x32, 0xAB);
 
 
-void mei_wd_start_setup(struct mei_device *dev)
+void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
 {
-	dev_dbg(&dev->pdev->dev, "dev->wd_timeout=%d.\n", dev->wd_timeout);
+	dev_dbg(&dev->pdev->dev, "timeout=%d.\n", timeout);
 	memcpy(dev->wd_data, mei_start_wd_params, MEI_WD_PARAMS_SIZE);
 	memcpy(dev->wd_data + MEI_WD_PARAMS_SIZE,
-		&dev->wd_timeout, sizeof(u16));
+			&timeout, sizeof(u16));
 }
 
 /**
@@ -75,7 +75,6 @@ bool mei_wd_host_init(struct mei_device *dev)
 	dev->wd_timeout = watchdog_timeout;
 
 	if (dev->wd_timeout > 0) {
-		mei_wd_start_setup(dev);
 		/* find ME WD client */
 		mei_find_me_client_update_filext(dev, &dev->wd_cl,
 					&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
@@ -224,7 +223,7 @@ static int mei_wd_ops_start(struct watchdog_device *wd_dev)
 		goto end_unlock;
 	}
 
-	mei_wd_start_setup(dev);
+	mei_wd_set_start_timeout(dev, dev->wd_timeout);
 
 	err = 0;
 end_unlock:
@@ -307,6 +306,36 @@ end:
 }
 
 /*
+ * mei_wd_ops_set_timeout - wd set timeout command from the watchdog core.
+ *
+ * @wd_dev - watchdog device struct
+ * @timeout - timeout value to set
+ *
+ * returns 0 if success, negative errno code for failure
+ */
+static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev, unsigned int timeout)
+{
+	struct mei_device *dev;
+	dev = pci_get_drvdata(mei_device);
+
+	if (!dev)
+		return -ENODEV;
+
+	/* Check Timeout value */
+	if (timeout < AMT_WD_MIN_TIMEOUT || timeout > AMT_WD_MAX_TIMEOUT)
+		return -EINVAL;
+
+	mutex_lock(&dev->device_lock);
+
+	dev->wd_timeout = timeout;
+	mei_wd_set_start_timeout(dev, dev->wd_timeout);
+
+	mutex_unlock(&dev->device_lock);
+
+	return 0;
+}
+
+/*
  * Watchdog Device structs
  */
 const struct watchdog_ops wd_ops = {
@@ -314,6 +343,7 @@ const struct watchdog_ops wd_ops = {
 		.start = mei_wd_ops_start,
 		.stop = mei_wd_ops_stop,
 		.ping = mei_wd_ops_ping,
+		.set_timeout = mei_wd_ops_set_timeout,
 };
 const struct watchdog_info wd_info = {
 		.identity = INTEL_AMT_WATCHDOG_ID,

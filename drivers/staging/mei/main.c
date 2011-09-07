@@ -1153,7 +1153,6 @@ static int mei_pci_resume(struct device *device)
 
 	/* Start watchdog if stopped in suspend */
 	if (dev->wd_timeout) {
-		mei_wd_start_setup(dev);
 		dev->wd_due_counter = 1;
 		schedule_delayed_work(&dev->wd_work, HZ);
 	}
