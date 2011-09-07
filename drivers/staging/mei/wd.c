@@ -26,16 +26,6 @@
 #include "interface.h"
 #include "mei.h"
 
-/*
- * MEI Watchdog Module Parameters
- */
-static u16 watchdog_timeout = AMT_WD_DEFAULT_TIMEOUT;
-module_param(watchdog_timeout, ushort, 0);
-MODULE_PARM_DESC(watchdog_timeout,
-		"Intel(R) AMT Watchdog timeout value in seconds. (default="
-					__MODULE_STRING(AMT_WD_DEFAULT_TIMEOUT)
-					", disable=0)");
-
 static const u8 mei_start_wd_params[] = { 0x02, 0x12, 0x13, 0x10 };
 static const u8 mei_stop_wd_params[] = { 0x02, 0x02, 0x14, 0x10 };
 
