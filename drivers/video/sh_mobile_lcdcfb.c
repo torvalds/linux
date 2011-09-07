@@ -191,6 +191,7 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 				       int clock_source,
 				       struct sh_mobile_lcdc_priv *priv)
 {
+	struct clk *clk;
 	char *str;
 
 	switch (clock_source) {
@@ -210,21 +211,16 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	if (str) {
-		priv->dot_clk = clk_get(&pdev->dev, str);
-		if (IS_ERR(priv->dot_clk)) {
-			dev_err(&pdev->dev, "cannot get dot clock %s\n", str);
-			return PTR_ERR(priv->dot_clk);
-		}
+	if (str == NULL)
+		return 0;
+
+	clk = clk_get(&pdev->dev, str);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "cannot get dot clock %s\n", str);
+		return PTR_ERR(clk);
 	}
 
-	/* Runtime PM support involves two step for this driver:
-	 * 1) Enable Runtime PM
-	 * 2) Force Runtime PM Resume since hardware is accessed from probe()
-	 */
-	priv->dev = &pdev->dev;
-	pm_runtime_enable(priv->dev);
-	pm_runtime_resume(priv->dev);
+	priv->dot_clk = clk;
 	return 0;
 }
 
@@ -1513,11 +1509,10 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 			sh_mobile_lcdc_bl_remove(priv->ch[i].bl);
 	}
 
-	if (priv->dot_clk)
+	if (priv->dot_clk) {
+		pm_runtime_disable(&pdev->dev);
 		clk_put(priv->dot_clk);
-
-	if (priv->dev)
-		pm_runtime_disable(priv->dev);
+	}
 
 	if (priv->base)
 		iounmap(priv->base);
@@ -1739,6 +1734,8 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	priv->dev = &pdev->dev;
+	priv->meram_dev = pdata->meram_dev;
 	platform_set_drvdata(pdev, priv);
 
 	error = request_irq(i, sh_mobile_lcdc_irq, 0,
@@ -1804,7 +1801,8 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	priv->meram_dev = pdata->meram_dev;
+	/* Enable runtime PM. */
+	pm_runtime_enable(&pdev->dev);
 
 	for (i = 0; i < num_channels; i++) {
 		struct sh_mobile_lcdc_chan *ch = priv->ch + i;
