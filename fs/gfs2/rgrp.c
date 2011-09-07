@@ -1346,7 +1346,7 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 
 	rgd->rd_last_alloc = blk;
 	block = rgd->rd_data0 + blk;
-	ip->i_goal = block;
+	ip->i_goal = block + *n - 1;
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error == 0) {
 		struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
