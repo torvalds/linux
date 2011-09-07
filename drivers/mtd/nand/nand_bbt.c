@@ -875,7 +875,7 @@ static inline int nand_memory_bbt(struct mtd_info *mtd, struct nand_bbt_descr *b
  */
 static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr *bd)
 {
-	int i, chips, writeops, chipsel, res;
+	int i, chips, writeops, create, chipsel, res;
 	struct nand_chip *this = mtd->priv;
 	struct nand_bbt_descr *td = this->bbt_td;
 	struct nand_bbt_descr *md = this->bbt_md;
@@ -889,6 +889,7 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 
 	for (i = 0; i < chips; i++) {
 		writeops = 0;
+		create = 0;
 		rd = NULL;
 		rd2 = NULL;
 		/* Per chip or per device? */
@@ -896,8 +897,8 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		/* Mirrored table available? */
 		if (md) {
 			if (td->pages[i] == -1 && md->pages[i] == -1) {
+				create = 1;
 				writeops = 0x03;
-				goto create;
 			} else if (td->pages[i] == -1) {
 				rd = md;
 				td->version[i] = md->version[i];
@@ -921,25 +922,27 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 			}
 		} else {
 			if (td->pages[i] == -1) {
+				create = 1;
 				writeops = 0x01;
-				goto create;
+			} else {
+				rd = td;
 			}
-			rd = td;
 		}
-		goto writecheck;
-	create:
-		/* Create the bad block table by scanning the device? */
-		if (!(td->options & NAND_BBT_CREATE))
-			continue;
 
-		/* Create the table in memory by scanning the chip(s) */
-		if (!(this->bbt_options & NAND_BBT_CREATE_EMPTY))
-			create_bbt(mtd, buf, bd, chipsel);
+		if (create) {
+			/* Create the bad block table by scanning the device? */
+			if (!(td->options & NAND_BBT_CREATE))
+				continue;
 
-		td->version[i] = 1;
-		if (md)
-			md->version[i] = 1;
-	writecheck:
+			/* Create the table in memory by scanning the chip(s) */
+			if (!(this->bbt_options & NAND_BBT_CREATE_EMPTY))
+				create_bbt(mtd, buf, bd, chipsel);
+
+			td->version[i] = 1;
+			if (md)
+				md->version[i] = 1;
+		}
+
 		/* Read back first? */
 		if (rd)
 			read_abs_bbt(mtd, buf, rd, chipsel);
