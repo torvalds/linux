@@ -322,21 +322,7 @@ struct gprefix {
 		}							\
 	} while (0)
 
-#define __emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, _suffix)		\
-	do {								\
-		unsigned long _tmp;					\
-									\
-		__asm__ __volatile__ (					\
-			_PRE_EFLAGS("0", "4", "1")			\
-			_op _suffix " %5; "				\
-			_POST_EFLAGS("0", "4", "1")			\
-			: "=m" (_eflags), "=&r" (_tmp),			\
-			  "+a" (_rax), "+d" (_rdx)			\
-			: "i" (EFLAGS_MASK), "m" ((_src).val),		\
-			  "a" (_rax), "d" (_rdx));			\
-	} while (0)
-
-#define __emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, _eflags, _suffix, _ex) \
+#define __emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, _suffix, _ex) \
 	do {								\
 		unsigned long _tmp;					\
 									\
@@ -358,46 +344,24 @@ struct gprefix {
 	} while (0)
 
 /* instruction has only one source operand, destination is implicit (e.g. mul, div, imul, idiv) */
-#define emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags)		\
+#define emulate_1op_rax_rdx(_op, _src, _rax, _rdx, _eflags, _ex)	\
 	do {								\
 		switch((_src).bytes) {					\
 		case 1:							\
 			__emulate_1op_rax_rdx(_op, _src, _rax, _rdx,	\
-					      _eflags, "b");		\
+					      _eflags, "b", _ex);	\
 			break;						\
 		case 2:							\
 			__emulate_1op_rax_rdx(_op, _src, _rax, _rdx,	\
-					      _eflags, "w");		\
+					      _eflags, "w", _ex);	\
 			break;						\
 		case 4:							\
 			__emulate_1op_rax_rdx(_op, _src, _rax, _rdx,	\
-					      _eflags, "l");		\
-			break;						\
-		case 8:							\
-			ON64(__emulate_1op_rax_rdx(_op, _src, _rax, _rdx, \
-						   _eflags, "q"));	\
-			break;						\
-		}							\
-	} while (0)
-
-#define emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, _eflags, _ex)	\
-	do {								\
-		switch((_src).bytes) {					\
-		case 1:							\
-			__emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx,	\
-						 _eflags, "b", _ex);	\
-			break;						\
-		case 2:							\
-			__emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, \
-						 _eflags, "w", _ex);	\
-			break;						\
-		case 4:							\
-			__emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, \
-						 _eflags, "l", _ex);	\
+					      _eflags, "l", _ex);	\
 			break;						\
 		case 8: ON64(						\
-			__emulate_1op_rax_rdx_ex(_op, _src, _rax, _rdx, \
-						 _eflags, "q", _ex));	\
+			__emulate_1op_rax_rdx(_op, _src, _rax, _rdx,	\
+					      _eflags, "q", _ex));	\
 			break;						\
 		}							\
 	} while (0)
@@ -1718,18 +1682,20 @@ static int em_grp3(struct x86_emulate_ctxt *ctxt)
 		emulate_1op(ctxt, "neg");
 		break;
 	case 4: /* mul */
-		emulate_1op_rax_rdx("mul", ctxt->src, *rax, *rdx, ctxt->eflags);
+		emulate_1op_rax_rdx("mul", ctxt->src, *rax, *rdx,
+				    ctxt->eflags, de);
 		break;
 	case 5: /* imul */
-		emulate_1op_rax_rdx("imul", ctxt->src, *rax, *rdx, ctxt->eflags);
+		emulate_1op_rax_rdx("imul", ctxt->src, *rax, *rdx,
+				    ctxt->eflags, de);
 		break;
 	case 6: /* div */
-		emulate_1op_rax_rdx_ex("div", ctxt->src, *rax, *rdx,
-				       ctxt->eflags, de);
+		emulate_1op_rax_rdx("div", ctxt->src, *rax, *rdx,
+				    ctxt->eflags, de);
 		break;
 	case 7: /* idiv */
-		emulate_1op_rax_rdx_ex("idiv", ctxt->src, *rax, *rdx,
-				       ctxt->eflags, de);
+		emulate_1op_rax_rdx("idiv", ctxt->src, *rax, *rdx,
+				    ctxt->eflags, de);
 		break;
 	default:
 		return X86EMUL_UNHANDLEABLE;
