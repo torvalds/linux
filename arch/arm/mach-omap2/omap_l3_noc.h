@@ -34,7 +34,10 @@
 /* L3 TARG register offsets */
 #define L3_TARG_STDERRLOG_MAIN		0x48
 #define L3_TARG_STDERRLOG_SLVOFSLSB	0x5c
+#define L3_TARG_STDERRLOG_MSTADDR	0x68
 #define L3_FLAGMUX_REGERR0		0xc
+
+#define NUM_OF_L3_MASTERS	(sizeof(l3_masters)/sizeof(l3_masters[0]))
 
 static u32 l3_flagmux[L3_MODULES] = {
 	0x500,
@@ -74,6 +77,37 @@ static u32 l3_targ_inst_clk2[] = {
 
 static u32 l3_targ_inst_clk3[] = {
 	0x0100	/* EMUSS */
+};
+
+static struct l3_masters_data {
+	u32 id;
+	char name[10];
+} l3_masters[] = {
+	{ 0x0 , "MPU"},
+	{ 0x10, "CS_ADP"},
+	{ 0x14, "xxx"},
+	{ 0x20, "DSP"},
+	{ 0x30, "IVAHD"},
+	{ 0x40, "ISS"},
+	{ 0x44, "DucatiM3"},
+	{ 0x48, "FaceDetect"},
+	{ 0x50, "SDMA_Rd"},
+	{ 0x54, "SDMA_Wr"},
+	{ 0x58, "xxx"},
+	{ 0x5C, "xxx"},
+	{ 0x60, "SGX"},
+	{ 0x70, "DSS"},
+	{ 0x80, "C2C"},
+	{ 0x88, "xxx"},
+	{ 0x8C, "xxx"},
+	{ 0x90, "HSI"},
+	{ 0xA0, "MMC1"},
+	{ 0xA4, "MMC2"},
+	{ 0xA8, "MMC6"},
+	{ 0xB0, "UNIPRO1"},
+	{ 0xC0, "USBHOSTHS"},
+	{ 0xC4, "USBOTGHS"},
+	{ 0xC8, "USBHOSTFS"}
 };
 
 static char *l3_targ_inst_name[L3_MODULES][18] = {

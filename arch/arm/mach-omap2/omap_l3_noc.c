@@ -56,11 +56,11 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 {
 
 	struct omap4_l3 *l3 = _l3;
-	int inttype, i;
+	int inttype, i, k;
 	int err_src = 0;
-	u32 std_err_main, err_reg, clear;
+	u32 std_err_main, err_reg, clear, masterid;
 	void __iomem *base, *l3_targ_base;
-	char *source_name;
+	char *target_name, *master_name = "UN IDENTIFIED";
 
 	/* Get the Type of interrupt */
 	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
@@ -83,13 +83,15 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 			l3_targ_base = base + *(l3_targ[i] + err_src);
 			std_err_main =  __raw_readl(l3_targ_base +
 					L3_TARG_STDERRLOG_MAIN);
+			masterid = __raw_readl(l3_targ_base +
+					L3_TARG_STDERRLOG_MSTADDR);
 
 			switch (std_err_main & CUSTOM_ERROR) {
 			case STANDARD_ERROR:
-				source_name =
+				target_name =
 					l3_targ_inst_name[i][err_src];
-				WARN(true, "L3 standard error: SOURCE:%s at address 0x%x\n",
-					source_name,
+				WARN(true, "L3 standard error: TARGET:%s at address 0x%x\n",
+					target_name,
 					__raw_readl(l3_targ_base +
 						L3_TARG_STDERRLOG_SLVOFSLSB));
 				/* clear the std error log*/
@@ -99,11 +101,15 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 				break;
 
 			case CUSTOM_ERROR:
-				source_name =
+				target_name =
 					l3_targ_inst_name[i][err_src];
-
-				WARN(true, "L3 custom error: SOURCE:%s\n",
-					source_name);
+				for (k = 0; k < NUM_OF_L3_MASTERS; k++) {
+					if (masterid == l3_masters[k].id)
+						master_name =
+							l3_masters[k].name;
+				}
+				WARN(true, "L3 custom error: MASTER:%s TARGET:%s\n",
+					master_name, target_name);
 				/* clear the std error log*/
 				clear = std_err_main | CLEAR_STDERR_LOG;
 				writel(clear, l3_targ_base +
