@@ -1198,9 +1198,11 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		}
 	}
 
-	if (csv_sep)
+	if (csv_sep) {
 		csv_output = true;
-	else
+		if (!strcmp(csv_sep, "\\t"))
+			csv_sep = "\t";
+	} else
 		csv_sep = DEFAULT_SEPARATOR;
 
 	/*
