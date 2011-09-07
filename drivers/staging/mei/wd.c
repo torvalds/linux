@@ -255,15 +255,69 @@ static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
 }
 
 /*
+ * mei_wd_ops_ping - wd ping command from the watchdog core.
+ *
+ * @wd_dev - watchdog device struct
+ *
+ * returns 0 if success, negative errno code for failure
+ */
+static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
+{
+	int ret = 0;
+	struct mei_device *dev;
+	dev = pci_get_drvdata(mei_device);
+
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->device_lock);
+
+	if (dev->wd_cl.state != MEI_FILE_CONNECTED) {
+		dev_dbg(&dev->pdev->dev, "wd is not connected.\n");
+		ret = -ENODEV;
+		goto end;
+	}
+
+	/* Check if we can send the ping to HW*/
+	if (dev->mei_host_buffer_is_empty &&
+		mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
+
+		dev->mei_host_buffer_is_empty = false;
+		dev_dbg(&dev->pdev->dev, "sending watchdog ping\n");
+
+		if (mei_wd_send(dev)) {
+			dev_dbg(&dev->pdev->dev, "wd send failed.\n");
+			ret = -EIO;
+			goto end;
+		}
+
+		if (mei_flow_ctrl_reduce(dev, &dev->wd_cl)) {
+			dev_dbg(&dev->pdev->dev, "mei_flow_ctrl_reduce() failed.\n");
+			ret = -EIO;
+			goto end;
+		}
+
+	} else {
+		dev->wd_pending = true;
+	}
+
+end:
+	mutex_unlock(&dev->device_lock);
+	return ret;
+}
+
+/*
  * Watchdog Device structs
  */
 const struct watchdog_ops wd_ops = {
 		.owner = THIS_MODULE,
 		.start = mei_wd_ops_start,
 		.stop = mei_wd_ops_stop,
+		.ping = mei_wd_ops_ping,
 };
 const struct watchdog_info wd_info = {
 		.identity = INTEL_AMT_WATCHDOG_ID,
+		.options = WDIOF_KEEPALIVEPING,
 };
 
 struct watchdog_device amt_wd_dev = {

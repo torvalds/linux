@@ -1430,33 +1430,6 @@ void mei_wd_timer(struct work_struct *work)
 		}
 	}
 
-	if (dev->wd_cl.state != MEI_FILE_CONNECTED)
-		goto out;
-
-	/* Watchdog */
-	if (dev->wd_due_counter && !dev->wd_bypass) {
-		if (--dev->wd_due_counter == 0) {
-			if (dev->mei_host_buffer_is_empty &&
-			    mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
-				dev->mei_host_buffer_is_empty = false;
-				dev_dbg(&dev->pdev->dev, "send watchdog.\n");
-
-				if (mei_wd_send(dev))
-					dev_dbg(&dev->pdev->dev, "wd send failed.\n");
-				else
-					if (mei_flow_ctrl_reduce(dev, &dev->wd_cl))
-						goto out;
-
-				if (dev->wd_timeout)
-					dev->wd_due_counter = 2;
-				else
-					dev->wd_due_counter = 0;
-
-			} else
-				dev->wd_pending = true;
-
-		}
-	}
 	if (dev->iamthif_stall_timer) {
 		if (--dev->iamthif_stall_timer == 0) {
 			dev_dbg(&dev->pdev->dev, "reseting because of hang to amthi.\n");
