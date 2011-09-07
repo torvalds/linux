@@ -120,6 +120,16 @@ int mei_wd_send(struct mei_device *dev)
 	return -EIO;
 }
 
+/**
+ * mei_wd_stop - sends watchdog stop message to fw.
+ *
+ * @dev: the device structure
+ * @preserve: indicate if to keep the timeout value
+ *
+ * returns 0 if success,
+ *	-EIO when message send fails
+ *	-EINVAL when invalid message is to be sent
+ */
 int mei_wd_stop(struct mei_device *dev, bool preserve)
 {
 	int ret;
