@@ -1631,6 +1631,7 @@ struct il_apm_ops {
 	void (*config) (struct il_priv *il);
 };
 
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 struct il_debugfs_ops {
 	ssize_t(*rx_stats_read) (struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos);
@@ -1640,6 +1641,7 @@ struct il_debugfs_ops {
 				      char __user *user_buf, size_t count,
 				      loff_t *ppos);
 };
+#endif
 
 struct il_temp_ops {
 	void (*temperature) (struct il_priv *il);
@@ -1683,7 +1685,9 @@ struct il_lib_ops {
 	/* temperature */
 	struct il_temp_ops temp_ops;
 
+#ifdef CONFIG_IWLEGACY_DEBUGFS
 	struct il_debugfs_ops debugfs_ops;
+#endif
 
 };
 
