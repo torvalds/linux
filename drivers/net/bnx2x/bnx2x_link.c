@@ -5924,7 +5924,7 @@ int bnx2x_set_led(struct link_params *params,
 					(tmp | EMAC_LED_OVERRIDE));
 				/*
 				 * return here without enabling traffic
-				 * LED blink andsetting rate in ON mode.
+				 * LED blink and setting rate in ON mode.
 				 * In oper mode, enabling LED blink
 				 * and setting rate is needed.
 				 */
@@ -5936,7 +5936,11 @@ int bnx2x_set_led(struct link_params *params,
 			 * This is a work-around for HW issue found when link
 			 * is up in CL73
 			 */
-			REG_WR(bp, NIG_REG_LED_10G_P0 + port*4, 1);
+			if ((!CHIP_IS_E3(bp)) ||
+			    (CHIP_IS_E3(bp) &&
+			     mode == LED_MODE_ON))
+				REG_WR(bp, NIG_REG_LED_10G_P0 + port*4, 1);
+
 			if (CHIP_IS_E1x(bp) ||
 			    CHIP_IS_E2(bp) ||
 			    (mode == LED_MODE_ON))
