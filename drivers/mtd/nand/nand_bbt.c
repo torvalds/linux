@@ -313,8 +313,7 @@ static int scan_read_raw_oob(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 
 		res = mtd->read_oob(mtd, offs, &ops);
 
-		/* Ignore ECC errors when checking for BBM */
-		if (res && res != -EUCLEAN && res != -EBADMSG)
+		if (res)
 			return res;
 
 		buf += mtd->oobsize + mtd->writesize;
@@ -400,7 +399,8 @@ static int scan_block_full(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 	int ret, j;
 
 	ret = scan_read_raw_oob(mtd, buf, offs, readlen);
-	if (ret)
+	/* Ignore ECC errors when checking for BBM */
+	if (ret && ret != -EUCLEAN && ret != -EBADMSG)
 		return ret;
 
 	for (j = 0; j < len; j++, buf += scanlen) {
