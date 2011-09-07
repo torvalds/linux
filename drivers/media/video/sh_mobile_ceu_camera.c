@@ -566,16 +566,24 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 	ret = sh_mobile_ceu_soft_reset(pcdev);
 
 	csi2_sd = find_csi2(pcdev);
+	if (csi2_sd)
+		csi2_sd->grp_id = (long)icd;
 
 	ret = v4l2_subdev_call(csi2_sd, core, s_power, 1);
-	if (ret != -ENODEV && ret != -ENOIOCTLCMD && ret < 0) {
+	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV) {
 		pm_runtime_put_sync(ici->v4l2_dev.dev);
-	} else {
-		pcdev->icd = icd;
-		ret = 0;
+		return ret;
 	}
 
-	return ret;
+	/*
+	 * -ENODEV is special: either csi2_sd == NULL or the CSI-2 driver
+	 * has not found this soc-camera device among its clients
+	 */
+	if (ret == -ENODEV && csi2_sd)
+		csi2_sd->grp_id = 0;
+	pcdev->icd = icd;
+
+	return 0;
 }
 
 /* Called with .video_lock held */
@@ -588,6 +596,8 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 	BUG_ON(icd != pcdev->icd);
 
 	v4l2_subdev_call(csi2_sd, core, s_power, 0);
+	if (csi2_sd)
+		csi2_sd->grp_id = 0;
 	/* disable capture, disable interrupts */
 	ceu_write(pcdev, CEIER, 0);
 	sh_mobile_ceu_soft_reset(pcdev);
