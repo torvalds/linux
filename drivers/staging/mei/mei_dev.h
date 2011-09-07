@@ -18,6 +18,7 @@
 #define _MEI_DEV_H_
 
 #include <linux/types.h>
+#include <linux/watchdog.h>
 #include "mei.h"
 #include "hw.h"
 
@@ -35,6 +36,12 @@
 #define MEI_START_WD_DATA_SIZE         20
 #define MEI_WD_PARAMS_SIZE             4
 #define MEI_WD_STATE_INDEPENDENCE_MSG_SENT       (1 << 0)
+
+/*
+ * AMT Watchdog Device
+ */
+#define INTEL_AMT_WATCHDOG_ID "INTCAMT"
+extern struct watchdog_device amt_wd_dev;
 
 /*
  * AMTHI Client UUID
@@ -258,6 +265,8 @@ struct mei_device {
 	bool iamthif_flow_control_pending;
 	bool iamthif_ioctl;
 	bool iamthif_canceled;
+
+	bool wd_interface_reg;
 };
 
 

@@ -23,7 +23,9 @@
 #include "mei_dev.h"
 
 
-#define AMT_WD_VALUE 120	/* seconds */
+#define AMT_WD_DEFAULT_TIMEOUT 120	/* seconds */
+#define AMT_WD_MIN_TIMEOUT 120	/* seconds */
+#define AMT_WD_MAX_TIMEOUT 65535	/* seconds */
 
 #define MEI_WATCHDOG_DATA_SIZE         16
 #define MEI_START_WD_DATA_SIZE         20

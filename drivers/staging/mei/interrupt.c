@@ -396,6 +396,18 @@ static void mei_client_connect_response(struct mei_device *dev,
 		dev->wd_due_counter = (dev->wd_timeout) ? 1 : 0;
 
 		dev_dbg(&dev->pdev->dev, "successfully connected to WD client.\n");
+
+		/* Registering watchdog interface device once we got connection
+		   to the WD Client
+		*/
+		if (watchdog_register_device(&amt_wd_dev)) {
+			printk(KERN_ERR "mei: unable to register watchdog device.\n");
+			dev->wd_interface_reg = false;
+		} else {
+			dev_dbg(&dev->pdev->dev, "successfully register watchdog interface.\n");
+			dev->wd_interface_reg = true;
+		}
+
 		mei_host_init_iamthif(dev);
 		return;
 	}

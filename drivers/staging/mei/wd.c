@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
+#include <linux/watchdog.h>
 
 #include "mei_dev.h"
 #include "hw.h"
@@ -26,13 +27,28 @@
 #include "mei.h"
 
 /*
+ * Watchdog Device structs
+ */
+const struct watchdog_info wd_info = {
+		.identity = INTEL_AMT_WATCHDOG_ID,
+};
+
+struct watchdog_device amt_wd_dev = {
+		.info = &wd_info,
+		.timeout = AMT_WD_DEFAULT_TIMEOUT,
+		.min_timeout = AMT_WD_MIN_TIMEOUT,
+		.max_timeout = AMT_WD_MAX_TIMEOUT,
+};
+
+
+/*
  * MEI Watchdog Module Parameters
  */
-static u16 watchdog_timeout = AMT_WD_VALUE;
+static u16 watchdog_timeout = AMT_WD_DEFAULT_TIMEOUT;
 module_param(watchdog_timeout, ushort, 0);
 MODULE_PARM_DESC(watchdog_timeout,
 		"Intel(R) AMT Watchdog timeout value in seconds. (default="
-					__MODULE_STRING(AMT_WD_VALUE)
+					__MODULE_STRING(AMT_WD_DEFAULT_TIMEOUT)
 					", disable=0)");
 
 static const u8 mei_start_wd_params[] = { 0x02, 0x12, 0x13, 0x10 };
