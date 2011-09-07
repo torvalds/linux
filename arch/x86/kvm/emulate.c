@@ -205,64 +205,62 @@ struct gprefix {
 #define ON64(x)
 #endif
 
-#define ____emulate_2op(_op, _src, _dst, _eflags, _x, _y, _suffix, _dsttype) \
+#define ____emulate_2op(ctxt, _op, _x, _y, _suffix, _dsttype)	\
 	do {								\
 		__asm__ __volatile__ (					\
 			_PRE_EFLAGS("0", "4", "2")			\
 			_op _suffix " %"_x"3,%1; "			\
 			_POST_EFLAGS("0", "4", "2")			\
-			: "=m" (_eflags), "+q" (*(_dsttype*)&(_dst).val),\
+			: "=m" ((ctxt)->eflags),			\
+			  "+q" (*(_dsttype*)&(ctxt)->dst.val),		\
 			  "=&r" (_tmp)					\
-			: _y ((_src).val), "i" (EFLAGS_MASK));		\
+			: _y ((ctxt)->src.val), "i" (EFLAGS_MASK));	\
 	} while (0)
 
 
 /* Raw emulation: instruction has two explicit operands. */
-#define __emulate_2op_nobyte(_op,_src,_dst,_eflags,_wx,_wy,_lx,_ly,_qx,_qy) \
+#define __emulate_2op_nobyte(ctxt,_op,_wx,_wy,_lx,_ly,_qx,_qy)		\
 	do {								\
 		unsigned long _tmp;					\
 									\
-		switch ((_dst).bytes) {					\
+		switch ((ctxt)->dst.bytes) {				\
 		case 2:							\
-			____emulate_2op(_op,_src,_dst,_eflags,_wx,_wy,"w",u16);\
+			____emulate_2op(ctxt,_op,_wx,_wy,"w",u16);	\
 			break;						\
 		case 4:							\
-			____emulate_2op(_op,_src,_dst,_eflags,_lx,_ly,"l",u32);\
+			____emulate_2op(ctxt,_op,_lx,_ly,"l",u32);	\
 			break;						\
 		case 8:							\
-			ON64(____emulate_2op(_op,_src,_dst,_eflags,_qx,_qy,"q",u64)); \
+			ON64(____emulate_2op(ctxt,_op,_qx,_qy,"q",u64)); \
 			break;						\
 		}							\
 	} while (0)
 
-#define __emulate_2op(_op,_src,_dst,_eflags,_bx,_by,_wx,_wy,_lx,_ly,_qx,_qy) \
+#define __emulate_2op(ctxt,_op,_bx,_by,_wx,_wy,_lx,_ly,_qx,_qy)		     \
 	do {								     \
 		unsigned long _tmp;					     \
-		switch ((_dst).bytes) {				             \
+		switch ((ctxt)->dst.bytes) {				     \
 		case 1:							     \
-			____emulate_2op(_op,_src,_dst,_eflags,_bx,_by,"b",u8); \
+			____emulate_2op(ctxt,_op,_bx,_by,"b",u8);	     \
 			break;						     \
 		default:						     \
-			__emulate_2op_nobyte(_op, _src, _dst, _eflags,	     \
+			__emulate_2op_nobyte(ctxt, _op,			     \
 					     _wx, _wy, _lx, _ly, _qx, _qy);  \
 			break;						     \
 		}							     \
 	} while (0)
 
 /* Source operand is byte-sized and may be restricted to just %cl. */
-#define emulate_2op_SrcB(_op, _src, _dst, _eflags)                      \
-	__emulate_2op(_op, _src, _dst, _eflags,				\
-		      "b", "c", "b", "c", "b", "c", "b", "c")
+#define emulate_2op_SrcB(ctxt, _op)					\
+	__emulate_2op(ctxt, _op, "b", "c", "b", "c", "b", "c", "b", "c")
 
 /* Source operand is byte, word, long or quad sized. */
-#define emulate_2op_SrcV(_op, _src, _dst, _eflags)                      \
-	__emulate_2op(_op, _src, _dst, _eflags,				\
-		      "b", "q", "w", "r", _LO32, "r", "", "r")
+#define emulate_2op_SrcV(ctxt, _op)					\
+	__emulate_2op(ctxt, _op, "b", "q", "w", "r", _LO32, "r", "", "r")
 
 /* Source operand is word, long or quad sized. */
-#define emulate_2op_SrcV_nobyte(_op, _src, _dst, _eflags)               \
-	__emulate_2op_nobyte(_op, _src, _dst, _eflags,			\
-			     "w", "r", _LO32, "r", "", "r")
+#define emulate_2op_SrcV_nobyte(ctxt, _op)				\
+	__emulate_2op_nobyte(ctxt, _op, "w", "r", _LO32, "r", "", "r")
 
 /* Instruction has three operands and one operand is stored in ECX register */
 #define __emulate_2op_cl(_op, _cl, _src, _dst, _eflags, _suffix, _type)	\
@@ -1681,26 +1679,26 @@ static int em_grp2(struct x86_emulate_ctxt *ctxt)
 {
 	switch (ctxt->modrm_reg) {
 	case 0:	/* rol */
-		emulate_2op_SrcB("rol", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcB(ctxt, "rol");
 		break;
 	case 1:	/* ror */
-		emulate_2op_SrcB("ror", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcB(ctxt, "ror");
 		break;
 	case 2:	/* rcl */
-		emulate_2op_SrcB("rcl", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcB(ctxt, "rcl");
 		break;
 	case 3:	/* rcr */
-		emulate_2op_SrcB("rcr", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcB(ctxt, "rcr");
 		break;
 	case 4:	/* sal/shl */
 	case 6:	/* sal/shl */
-		emulate_2op_SrcB("sal", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcB(ctxt, "sal");
 		break;
 	case 5:	/* shr */
-		emulate_2op_SrcB("shr", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcB(ctxt, "shr");
 		break;
 	case 7:	/* sar */
-		emulate_2op_SrcB("sar", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcB(ctxt, "sar");
 		break;
 	}
 	return X86EMUL_CONTINUE;
@@ -1714,7 +1712,7 @@ static int em_grp3(struct x86_emulate_ctxt *ctxt)
 
 	switch (ctxt->modrm_reg) {
 	case 0 ... 1:	/* test */
-		emulate_2op_SrcV("test", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcV(ctxt, "test");
 		break;
 	case 2:	/* not */
 		ctxt->dst.val = ~ctxt->dst.val;
@@ -2459,7 +2457,7 @@ static int em_das(struct x86_emulate_ctxt *ctxt)
 	ctxt->src.type = OP_IMM;
 	ctxt->src.val = 0;
 	ctxt->src.bytes = 1;
-	emulate_2op_SrcV("or", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "or");
 	ctxt->eflags &= ~(X86_EFLAGS_AF | X86_EFLAGS_CF);
 	if (cf)
 		ctxt->eflags |= X86_EFLAGS_CF;
@@ -2509,49 +2507,49 @@ static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
 
 static int em_add(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("add", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "add");
 	return X86EMUL_CONTINUE;
 }
 
 static int em_or(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("or", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "or");
 	return X86EMUL_CONTINUE;
 }
 
 static int em_adc(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("adc", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "adc");
 	return X86EMUL_CONTINUE;
 }
 
 static int em_sbb(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("sbb", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "sbb");
 	return X86EMUL_CONTINUE;
 }
 
 static int em_and(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("and", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "and");
 	return X86EMUL_CONTINUE;
 }
 
 static int em_sub(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("sub", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "sub");
 	return X86EMUL_CONTINUE;
 }
 
 static int em_xor(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("xor", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "xor");
 	return X86EMUL_CONTINUE;
 }
 
 static int em_cmp(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("cmp", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "cmp");
 	/* Disable writeback. */
 	ctxt->dst.type = OP_NONE;
 	return X86EMUL_CONTINUE;
@@ -2559,7 +2557,7 @@ static int em_cmp(struct x86_emulate_ctxt *ctxt)
 
 static int em_test(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV("test", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV(ctxt, "test");
 	return X86EMUL_CONTINUE;
 }
 
@@ -2577,7 +2575,7 @@ static int em_xchg(struct x86_emulate_ctxt *ctxt)
 
 static int em_imul(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_2op_SrcV_nobyte("imul", ctxt->src, ctxt->dst, ctxt->eflags);
+	emulate_2op_SrcV_nobyte(ctxt, "imul");
 	return X86EMUL_CONTINUE;
 }
 
@@ -4121,7 +4119,7 @@ twobyte_insn:
 		ctxt->dst.type = OP_NONE;
 		/* only subword offset */
 		ctxt->src.val &= (ctxt->dst.bytes << 3) - 1;
-		emulate_2op_SrcV_nobyte("bt", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcV_nobyte(ctxt, "bt");
 		break;
 	case 0xa4: /* shld imm8, r, r/m */
 	case 0xa5: /* shld cl, r, r/m */
@@ -4135,7 +4133,7 @@ twobyte_insn:
 		break;
 	case 0xab:
 	      bts:		/* bts */
-		emulate_2op_SrcV_nobyte("bts", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcV_nobyte(ctxt, "bts");
 		break;
 	case 0xac: /* shrd imm8, r, r/m */
 	case 0xad: /* shrd cl, r, r/m */
@@ -4150,7 +4148,7 @@ twobyte_insn:
 		 */
 		ctxt->src.orig_val = ctxt->src.val;
 		ctxt->src.val = ctxt->regs[VCPU_REGS_RAX];
-		emulate_2op_SrcV("cmp", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcV(ctxt, "cmp");
 		if (ctxt->eflags & EFLG_ZF) {
 			/* Success: write back to memory. */
 			ctxt->dst.val = ctxt->src.orig_val;
@@ -4165,7 +4163,7 @@ twobyte_insn:
 		break;
 	case 0xb3:
 	      btr:		/* btr */
-		emulate_2op_SrcV_nobyte("btr", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcV_nobyte(ctxt, "btr");
 		break;
 	case 0xb4:		/* lfs */
 		rc = emulate_load_segment(ctxt, VCPU_SREG_FS);
@@ -4192,7 +4190,7 @@ twobyte_insn:
 		break;
 	case 0xbb:
 	      btc:		/* btc */
-		emulate_2op_SrcV_nobyte("btc", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcV_nobyte(ctxt, "btc");
 		break;
 	case 0xbc: {		/* bsf */
 		u8 zf;
@@ -4224,7 +4222,7 @@ twobyte_insn:
 							(s16) ctxt->src.val;
 		break;
 	case 0xc0 ... 0xc1:	/* xadd */
-		emulate_2op_SrcV("add", ctxt->src, ctxt->dst, ctxt->eflags);
+		emulate_2op_SrcV(ctxt, "add");
 		/* Write back the register source. */
 		ctxt->src.val = ctxt->dst.orig_val;
 		write_register_operand(&ctxt->src);
