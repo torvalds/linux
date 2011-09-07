@@ -1025,7 +1025,12 @@ retry_bounce:
 		netdev->stats.tx_bytes += skb->len;
 	}
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags + 1; i++)
+	dma_unmap_single(&adapter->vdev->dev,
+			 descs[0].fields.address,
+			 descs[0].fields.flags_len & IBMVETH_BUF_LEN_MASK,
+			 DMA_TO_DEVICE);
+
+	for (i = 1; i < skb_shinfo(skb)->nr_frags + 1; i++)
 		dma_unmap_page(&adapter->vdev->dev, descs[i].fields.address,
 			       descs[i].fields.flags_len & IBMVETH_BUF_LEN_MASK,
 			       DMA_TO_DEVICE);
