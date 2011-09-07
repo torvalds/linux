@@ -298,7 +298,7 @@ struct gprefix {
 		}							\
 	} while (0)
 
-#define __emulate_1op(_op, _dst, _eflags, _suffix)			\
+#define __emulate_1op(ctxt, _op, _suffix)				\
 	do {								\
 		unsigned long _tmp;					\
 									\
@@ -306,19 +306,19 @@ struct gprefix {
 			_PRE_EFLAGS("0", "3", "2")			\
 			_op _suffix " %1; "				\
 			_POST_EFLAGS("0", "3", "2")			\
-			: "=m" (_eflags), "+m" ((_dst).val),		\
+			: "=m" ((ctxt)->eflags), "+m" ((ctxt)->dst.val), \
 			  "=&r" (_tmp)					\
 			: "i" (EFLAGS_MASK));				\
 	} while (0)
 
 /* Instruction has only one explicit operand (no source operand). */
-#define emulate_1op(_op, _dst, _eflags)                                    \
+#define emulate_1op(ctxt, _op)						\
 	do {								\
-		switch ((_dst).bytes) {				        \
-		case 1:	__emulate_1op(_op, _dst, _eflags, "b"); break;	\
-		case 2:	__emulate_1op(_op, _dst, _eflags, "w"); break;	\
-		case 4:	__emulate_1op(_op, _dst, _eflags, "l"); break;	\
-		case 8:	ON64(__emulate_1op(_op, _dst, _eflags, "q")); break; \
+		switch ((ctxt)->dst.bytes) {				\
+		case 1:	__emulate_1op(ctxt, _op, "b"); break;		\
+		case 2:	__emulate_1op(ctxt, _op, "w"); break;		\
+		case 4:	__emulate_1op(ctxt, _op, "l"); break;		\
+		case 8:	ON64(__emulate_1op(ctxt, _op, "q")); break;	\
 		}							\
 	} while (0)
 
@@ -1715,7 +1715,7 @@ static int em_grp3(struct x86_emulate_ctxt *ctxt)
 		ctxt->dst.val = ~ctxt->dst.val;
 		break;
 	case 3:	/* neg */
-		emulate_1op("neg", ctxt->dst, ctxt->eflags);
+		emulate_1op(ctxt, "neg");
 		break;
 	case 4: /* mul */
 		emulate_1op_rax_rdx("mul", ctxt->src, *rax, *rdx, ctxt->eflags);
@@ -1745,10 +1745,10 @@ static int em_grp45(struct x86_emulate_ctxt *ctxt)
 
 	switch (ctxt->modrm_reg) {
 	case 0:	/* inc */
-		emulate_1op("inc", ctxt->dst, ctxt->eflags);
+		emulate_1op(ctxt, "inc");
 		break;
 	case 1:	/* dec */
-		emulate_1op("dec", ctxt->dst, ctxt->eflags);
+		emulate_1op(ctxt, "dec");
 		break;
 	case 2: /* call near abs */ {
 		long int old_eip;
@@ -3849,10 +3849,10 @@ special_insn:
 		rc = emulate_pop_sreg(ctxt, VCPU_SREG_DS);
 		break;
 	case 0x40 ... 0x47: /* inc r16/r32 */
-		emulate_1op("inc", ctxt->dst, ctxt->eflags);
+		emulate_1op(ctxt, "inc");
 		break;
 	case 0x48 ... 0x4f: /* dec r16/r32 */
-		emulate_1op("dec", ctxt->dst, ctxt->eflags);
+		emulate_1op(ctxt, "dec");
 		break;
 	case 0x63:		/* movsxd */
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
