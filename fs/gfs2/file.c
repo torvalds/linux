@@ -593,16 +593,12 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
 		sync_state &= ~I_DIRTY_SYNC;
 
 	if (sync_state) {
-		mutex_lock(&inode->i_mutex);
 		ret = sync_inode_metadata(inode, 1);
-		if (ret) {
-			mutex_unlock(&inode->i_mutex);
+		if (ret)
 			return ret;
-		}
 		if (gfs2_is_jdata(ip))
 			filemap_write_and_wait(mapping);
-		gfs2_ail_flush(ip->i_gl);
-		mutex_unlock(&inode->i_mutex);
+		gfs2_ail_flush(ip->i_gl, 1);
 	}
 
 	if (mapping->nrpages)
