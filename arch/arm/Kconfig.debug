@@ -94,7 +94,7 @@ config DEBUG_ICEDCC
 
 config OC_ETM
 	bool "On-chip ETM and ETB"
-	select ARM_AMBA
+	depends on ARM_AMBA
 	help
 	  Enables the on-chip embedded trace macrocell and embedded trace
 	  buffer driver that will allow you to collect traces of the
