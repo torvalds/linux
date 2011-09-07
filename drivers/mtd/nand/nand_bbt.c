@@ -107,10 +107,8 @@ static int check_pattern(uint8_t *buf, int len, int paglen, struct nand_bbt_desc
 	p += end;
 
 	/* Compare the pattern */
-	for (i = 0; i < td->len; i++) {
-		if (p[i] != td->pattern[i])
-			return -1;
-	}
+	if (memcmp(p, td->pattern, td->len))
+		return -1;
 
 	if (td->options & NAND_BBT_SCANEMPTY) {
 		p += td->len;
