@@ -1479,14 +1479,22 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			else
 				ret = chip->ecc.read_page(mtd, chip, bufpoi,
 							  page);
-			if (ret < 0)
+			if (ret < 0) {
+				if (!aligned)
+					/* Invalidate page cache */
+					chip->pagebuf = -1;
 				break;
+			}
 
 			/* Transfer not aligned data */
 			if (!aligned) {
 				if (!NAND_SUBPAGE_READ(chip) && !oob &&
-				    !(mtd->ecc_stats.failed - stats.failed))
+				    !(mtd->ecc_stats.failed - stats.failed) &&
+				    (ops->mode != MTD_OPS_RAW))
 					chip->pagebuf = realpage;
+				else
+					/* Invalidate page cache */
+					chip->pagebuf = -1;
 				memcpy(buf, chip->buffers->databuf + col, bytes);
 			}
 
