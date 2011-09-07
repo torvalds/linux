@@ -118,6 +118,10 @@ struct mxs_saif {
 	void __iomem *base;
 	int irq;
 	struct mxs_pcm_dma_params dma_param;
+	unsigned int id;
+	unsigned int master_id;
+	unsigned int cur_rate;
+	unsigned int ongoing;
 
 	struct platform_device *soc_platform_pdev;
 	u32 fifo_underrun;
