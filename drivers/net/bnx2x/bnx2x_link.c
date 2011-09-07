@@ -10638,8 +10638,7 @@ static struct bnx2x_phy phy_warpcore = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= (FLAGS_HW_LOCK_REQUIRED |
-			   FLAGS_TX_ERROR_CHECK),
+	.flags		= FLAGS_HW_LOCK_REQUIRED,
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10765,8 +10764,7 @@ static struct bnx2x_phy phy_8706 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= (FLAGS_INIT_XGXS_FIRST |
-			   FLAGS_TX_ERROR_CHECK),
+	.flags		= FLAGS_INIT_XGXS_FIRST,
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10797,8 +10795,7 @@ static struct bnx2x_phy phy_8726 = {
 	.addr		= 0xff,
 	.def_md_devad	= 0,
 	.flags		= (FLAGS_HW_LOCK_REQUIRED |
-			   FLAGS_INIT_XGXS_FIRST |
-			   FLAGS_TX_ERROR_CHECK),
+			   FLAGS_INIT_XGXS_FIRST),
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -10829,8 +10826,7 @@ static struct bnx2x_phy phy_8727 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= (FLAGS_FAN_FAILURE_DET_REQ |
-			   FLAGS_TX_ERROR_CHECK),
+	.flags		= FLAGS_FAN_FAILURE_DET_REQ,
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
