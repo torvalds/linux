@@ -466,6 +466,8 @@ struct ath6kl {
 		u32 dataset_patch_addr;
 		u32 app_load_addr;
 		u32 app_start_override_addr;
+		u32 board_ext_data_addr;
+		u32 reserved_ram_size;
 	} hw;
 
 	u16 conf_flags;

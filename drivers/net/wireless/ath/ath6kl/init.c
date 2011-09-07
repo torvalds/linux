@@ -527,33 +527,21 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	 * but possible in theory.
 	 */
 
-	if (ar->target_type == TARGET_TYPE_AR6003 ||
-	    ar->target_type == TARGET_TYPE_AR6004) {
-		if (ar->version.target_ver == AR6003_REV2_VERSION) {
-			param = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
-			ram_reserved_size =  AR6003_REV2_RAM_RESERVE_SIZE;
-		} else if (ar->version.target_ver == AR6004_REV1_VERSION) {
-			param = AR6004_REV1_BOARD_EXT_DATA_ADDRESS;
-			ram_reserved_size =  AR6004_REV1_RAM_RESERVE_SIZE;
-		} else {
-			param = AR6003_REV3_BOARD_EXT_DATA_ADDRESS;
-			ram_reserved_size =  AR6003_REV3_RAM_RESERVE_SIZE;
-		}
+	param = ar->hw.board_ext_data_addr;
+	ram_reserved_size = ar->hw.reserved_ram_size;
 
-		if (ath6kl_bmi_write(ar,
-				     ath6kl_get_hi_item_addr(ar,
-				     HI_ITEM(hi_board_ext_data)),
-				     (u8 *)&param, 4) != 0) {
-			ath6kl_err("bmi_write_memory for hi_board_ext_data failed\n");
-			return -EIO;
-		}
-		if (ath6kl_bmi_write(ar,
-				     ath6kl_get_hi_item_addr(ar,
-				     HI_ITEM(hi_end_ram_reserve_sz)),
-				     (u8 *)&ram_reserved_size, 4) != 0) {
-			ath6kl_err("bmi_write_memory for hi_end_ram_reserve_sz failed\n");
-			return -EIO;
-		}
+	if (ath6kl_bmi_write(ar, ath6kl_get_hi_item_addr(ar,
+					HI_ITEM(hi_board_ext_data)),
+			     (u8 *)&param, 4) != 0) {
+		ath6kl_err("bmi_write_memory for hi_board_ext_data failed\n");
+		return -EIO;
+	}
+
+	if (ath6kl_bmi_write(ar, ath6kl_get_hi_item_addr(ar,
+					HI_ITEM(hi_end_ram_reserve_sz)),
+			     (u8 *)&ram_reserved_size, 4) != 0) {
+		ath6kl_err("bmi_write_memory for hi_end_ram_reserve_sz failed\n");
+		return -EIO;
 	}
 
 	/* set the block size for the target */
@@ -1356,16 +1344,22 @@ static int ath6kl_init_hw_params(struct ath6kl *ar)
 		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
 		ar->hw.app_load_addr = AR6003_REV2_APP_LOAD_ADDRESS;
 		ar->hw.app_start_override_addr = AR6003_REV2_APP_START_OVERRIDE;
+		ar->hw.board_ext_data_addr = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
+		ar->hw.reserved_ram_size = AR6003_REV2_RAM_RESERVE_SIZE;
 		break;
 	case AR6003_REV3_VERSION:
 		ar->hw.dataset_patch_addr = AR6003_REV3_DATASET_PATCH_ADDRESS;
 		ar->hw.app_load_addr = 0x1234;
 		ar->hw.app_start_override_addr = AR6003_REV3_APP_START_OVERRIDE;
+		ar->hw.board_ext_data_addr = AR6003_REV3_BOARD_EXT_DATA_ADDRESS;
+		ar->hw.reserved_ram_size = AR6003_REV3_RAM_RESERVE_SIZE;
 		break;
 	case AR6004_REV1_VERSION:
 		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
 		ar->hw.app_load_addr = AR6003_REV3_APP_LOAD_ADDRESS;
 		ar->hw.app_start_override_addr = AR6003_REV3_APP_START_OVERRIDE;
+		ar->hw.board_ext_data_addr = AR6004_REV1_BOARD_EXT_DATA_ADDRESS;
+		ar->hw.reserved_ram_size = AR6004_REV1_RAM_RESERVE_SIZE;
 		break;
 	default:
 		ath6kl_err("Unsupported hardware version: 0x%x\n",
