@@ -929,6 +929,7 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 	union ibmveth_buf_desc descs[6];
 	int last, i;
 	int force_bounce = 0;
+	dma_addr_t dma_addr;
 
 	/*
 	 * veth handles a maximum of 6 segments including the header, so
@@ -993,17 +994,16 @@ retry_bounce:
 	}
 
 	/* Map the header */
-	descs[0].fields.address = dma_map_single(&adapter->vdev->dev, skb->data,
-						 skb_headlen(skb),
-						 DMA_TO_DEVICE);
-	if (dma_mapping_error(&adapter->vdev->dev, descs[0].fields.address))
+	dma_addr = dma_map_single(&adapter->vdev->dev, skb->data,
+				  skb_headlen(skb), DMA_TO_DEVICE);
+	if (dma_mapping_error(&adapter->vdev->dev, dma_addr))
 		goto map_failed;
 
 	descs[0].fields.flags_len = desc_flags | skb_headlen(skb);
+	descs[0].fields.address = dma_addr;
 
 	/* Map the frags */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		unsigned long dma_addr;
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		dma_addr = dma_map_page(&adapter->vdev->dev, frag->page,
