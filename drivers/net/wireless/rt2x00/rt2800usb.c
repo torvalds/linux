@@ -534,7 +534,8 @@ static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
 		if (!entry || rt2x00queue_empty(queue))
 			break;
 
-		rt2800_txdone_entry(entry, reg);
+		rt2800_txdone_entry(entry, reg,
+				    rt2800usb_get_txwi(entry));
 	}
 }
 

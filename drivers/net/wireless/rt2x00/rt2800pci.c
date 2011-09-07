@@ -760,7 +760,7 @@ static bool rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 		}
 
 		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		rt2800_txdone_entry(entry, status);
+		rt2800_txdone_entry(entry, status, rt2800pci_get_txwi(entry));
 
 		if (--max_tx_done == 0)
 			break;

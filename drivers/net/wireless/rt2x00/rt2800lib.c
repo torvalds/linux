@@ -601,7 +601,7 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 
-void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
+void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
@@ -609,13 +609,11 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
 	u32 word;
 	u16 mcs, real_mcs;
 	int aggr, ampdu;
-	__le32 *txwi;
 
 	/*
 	 * Obtain the status about this packet.
 	 */
 	txdesc.flags = 0;
-	txwi = rt2800_drv_get_txwi(entry);
 	rt2x00_desc_read(txwi, 0, &word);
 
 	mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
