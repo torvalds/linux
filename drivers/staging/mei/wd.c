@@ -72,32 +72,25 @@ bool mei_wd_host_init(struct mei_device *dev)
 
 	/* look for WD client and connect to it */
 	dev->wd_cl.state = MEI_FILE_DISCONNECTED;
-	dev->wd_timeout = watchdog_timeout;
+	dev->wd_timeout = AMT_WD_DEFAULT_TIMEOUT;
 
-	if (dev->wd_timeout > 0) {
-		/* find ME WD client */
-		mei_find_me_client_update_filext(dev, &dev->wd_cl,
-					&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
+	/* find ME WD client */
+	mei_find_me_client_update_filext(dev, &dev->wd_cl,
+				&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
 
-		dev_dbg(&dev->pdev->dev, "check wd_cl\n");
-		if (MEI_FILE_CONNECTING == dev->wd_cl.state) {
-			if (!mei_connect(dev, &dev->wd_cl)) {
-				dev_dbg(&dev->pdev->dev, "Failed to connect to WD client\n");
-				dev->wd_cl.state = MEI_FILE_DISCONNECTED;
-				dev->wd_cl.host_client_id = 0;
-				ret = false;
-				goto end;
-			} else {
-				dev->wd_cl.timer_count = CONNECT_TIMEOUT;
-			}
-		} else {
-			dev_dbg(&dev->pdev->dev, "Failed to find WD client\n");
+	dev_dbg(&dev->pdev->dev, "check wd_cl\n");
+	if (MEI_FILE_CONNECTING == dev->wd_cl.state) {
+		if (!mei_connect(dev, &dev->wd_cl)) {
+			dev_dbg(&dev->pdev->dev, "Failed to connect to WD client\n");
+			dev->wd_cl.state = MEI_FILE_DISCONNECTED;
+			dev->wd_cl.host_client_id = 0;
 			ret = false;
 			goto end;
+		} else {
+			dev->wd_cl.timer_count = CONNECT_TIMEOUT;
 		}
 	} else {
-		dev->wd_bypass = true;
-		dev_dbg(&dev->pdev->dev, "WD requested to be disabled\n");
+		dev_dbg(&dev->pdev->dev, "Failed to find WD client\n");
 		ret = false;
 		goto end;
 	}
