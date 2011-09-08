@@ -1,5 +1,5 @@
 /*
- * hdmi_omap4_panel.c
+ * hdmi_panel.c
  *
  * HDMI library support functions for TI OMAP4 processors.
  *
