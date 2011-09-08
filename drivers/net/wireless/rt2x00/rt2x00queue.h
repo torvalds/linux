@@ -321,6 +321,7 @@ struct txentry_desc {
 			u8 ba_size;
 			u8 mpdu_density;
 			enum txop txop;
+			int wcid;
 		} ht;
 	} u;
 
