@@ -7658,6 +7658,10 @@ void gen6_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
 	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	I915_WRITE(GEN6_PMIER, 0);
+	/* Complete PM interrupt masking here doesn't race with the rps work
+	 * item again unmasking PM interrupts because that is using a different
+	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
+	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
 
 	spin_lock_irq(&dev_priv->rps_lock);
 	dev_priv->pm_iir = 0;
@@ -8655,6 +8659,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	 * enqueue unpin/hotplug work. */
 	drm_irq_uninstall(dev);
 	cancel_work_sync(&dev_priv->hotplug_work);
+	cancel_work_sync(&dev_priv->rps_work);
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
