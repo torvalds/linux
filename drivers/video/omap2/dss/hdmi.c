@@ -534,6 +534,21 @@ static int read_edid(struct hdmi_ip_data *ip_data, u8 *pedid, u16 max_length)
 	return 0;
 }
 
+static void copy_hdmi_to_dss_timings(
+		const struct hdmi_video_timings *hdmi_timings,
+		struct omap_video_timings *timings)
+{
+	timings->x_res = hdmi_timings->x_res;
+	timings->y_res = hdmi_timings->y_res;
+	timings->pixel_clock = hdmi_timings->pixel_clock;
+	timings->hbp = hdmi_timings->hbp;
+	timings->hfp = hdmi_timings->hfp;
+	timings->hsw = hdmi_timings->hsw;
+	timings->vbp = hdmi_timings->vbp;
+	timings->vfp = hdmi_timings->vfp;
+	timings->vsw = hdmi_timings->vsw;
+}
+
 static int get_timings_index(void)
 {
 	int code;
@@ -558,7 +573,7 @@ static struct hdmi_cm hdmi_get_code(struct omap_video_timings *timing)
 {
 	int i = 0, code = -1, temp_vsync = 0, temp_hsync = 0;
 	int timing_vsync = 0, timing_hsync = 0;
-	struct omap_video_timings temp;
+	struct hdmi_video_timings temp;
 	struct hdmi_cm cm = {-1};
 	DSSDBG("hdmi_get_code\n");
 
@@ -716,7 +731,8 @@ static void hdmi_read_edid(struct omap_video_timings *dp)
 
 	code = get_timings_index();
 
-	*dp = cea_vesa_timings[code].timings;
+	copy_hdmi_to_dss_timings(&cea_vesa_timings[code].timings, dp);
+
 }
 
 static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
@@ -1178,7 +1194,8 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 		hdmi_read_edid(p);
 	}
 	code = get_timings_index();
-	dssdev->panel.timings = cea_vesa_timings[code].timings;
+	copy_hdmi_to_dss_timings(&cea_vesa_timings[code].timings,
+			&dssdev->panel.timings);
 	update_hdmi_timings(&hdmi.ip_data.cfg, p, code);
 
 	phy = p->pixel_clock;
