@@ -344,7 +344,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_unregister_driver);
 static ssize_t usb_udc_srp_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
-	struct usb_udc		*udc = dev_get_drvdata(dev);
+	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
 
 	if (sysfs_streq(buf, "1"))
 		usb_gadget_wakeup(udc->gadget);
