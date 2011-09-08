@@ -931,6 +931,11 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 		rt2x00dev->hw->extra_tx_headroom += RT2X00_ALIGN_SIZE;
 
 	/*
+	 * Tell mac80211 about the size of our private STA structure.
+	 */
+	rt2x00dev->hw->sta_data_size = sizeof(struct rt2x00_sta);
+
+	/*
 	 * Allocate tx status FIFO for driver use.
 	 */
 	if (test_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags)) {

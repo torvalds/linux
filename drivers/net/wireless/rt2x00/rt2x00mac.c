@@ -552,6 +552,39 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 EXPORT_SYMBOL_GPL(rt2x00mac_set_key);
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
+int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
+
+	/*
+	 * If there's no space left in the device table store
+	 * -1 as wcid but tell mac80211 everything went ok.
+	 */
+	if (rt2x00dev->ops->lib->sta_add(rt2x00dev, vif, sta))
+		sta_priv->wcid = -1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_sta_add);
+
+int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
+
+	/*
+	 * If we never sent the STA to the device no need to clean it up.
+	 */
+	if (sta_priv->wcid < 0)
+		return 0;
+
+	return rt2x00dev->ops->lib->sta_remove(rt2x00dev, sta_priv->wcid);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_sta_remove);
+
 void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;

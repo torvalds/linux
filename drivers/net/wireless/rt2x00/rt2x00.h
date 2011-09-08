@@ -512,6 +512,19 @@ struct rt2x00intf_conf {
 };
 
 /*
+ * Private structure for storing STA details
+ * wcid: Wireless Client ID
+ */
+struct rt2x00_sta {
+	int wcid;
+};
+
+static inline struct rt2x00_sta* sta_to_rt2x00_sta(struct ieee80211_sta *sta)
+{
+	return (struct rt2x00_sta *)sta->drv_priv;
+}
+
+/*
  * rt2x00lib callback functions.
  */
 struct rt2x00lib_ops {
@@ -620,6 +633,11 @@ struct rt2x00lib_ops {
 	void (*config) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_conf *libconf,
 			const unsigned int changed_flags);
+	int (*sta_add) (struct rt2x00_dev *rt2x00dev,
+			struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta);
+	int (*sta_remove) (struct rt2x00_dev *rt2x00dev,
+			   int wcid);
 };
 
 /*
@@ -1267,6 +1285,10 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 #else
 #define rt2x00mac_set_key	NULL
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
+int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta);
+int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta);
 void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw);
 void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw);
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
