@@ -214,9 +214,19 @@ out:
 
 static void dwc3_ep0_stall_and_restart(struct dwc3 *dwc)
 {
+	struct dwc3_ep		*dep = dwc->eps[0];
+
 	/* stall is always issued on EP0 */
 	__dwc3_gadget_ep_set_halt(dwc->eps[0], 1);
 	dwc->eps[0]->flags = DWC3_EP_ENABLED;
+
+	if (!list_empty(&dep->request_list)) {
+		struct dwc3_request	*req;
+
+		req = next_request(&dep->request_list);
+		dwc3_gadget_giveback(dep, req, -ECONNRESET);
+	}
+
 	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
 }
