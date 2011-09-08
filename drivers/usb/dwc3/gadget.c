@@ -1792,10 +1792,10 @@ static void dwc3_gadget_wakeup_interrupt(struct dwc3 *dwc)
 static void dwc3_gadget_linksts_change_interrupt(struct dwc3 *dwc,
 		unsigned int evtinfo)
 {
-	dev_vdbg(dwc->dev, "%s\n", __func__);
-
 	/*  The fith bit says SuperSpeed yes or no. */
 	dwc->link_state = evtinfo & DWC3_LINK_STATE_MASK;
+
+	dev_vdbg(dwc->dev, "%s link %d\n", __func__, dwc->link_state);
 }
 
 static void dwc3_gadget_interrupt(struct dwc3 *dwc,
