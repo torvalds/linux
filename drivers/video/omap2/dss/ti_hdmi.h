@@ -91,11 +91,12 @@ struct hdmi_ip_data {
 	struct hdmi_config cfg;
 	struct hdmi_pll_info pll_data;
 };
-int hdmi_phy_init(struct hdmi_ip_data *ip_data);
-void hdmi_phy_off(struct hdmi_ip_data *ip_data);
-int read_edid(struct hdmi_ip_data *ip_data, u8 *pedid, u16 max_length);
-void hdmi_wp_video_start(struct hdmi_ip_data *ip_data, bool start);
-int hdmi_pll_program(struct hdmi_ip_data *ip_data);
-int hdmi_set_pll_pwr(struct hdmi_ip_data *ip_data, enum hdmi_pll_pwr val);
-void hdmi_basic_configure(struct hdmi_ip_data *ip_data);
+int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data);
+void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data);
+int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data,
+					u8 *pedid, u16 max_length);
+void ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data, bool start);
+int ti_hdmi_4xxx_pll_enable(struct hdmi_ip_data *ip_data);
+void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data);
+void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data);
 #endif
