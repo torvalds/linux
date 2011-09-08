@@ -360,15 +360,29 @@ static void clkevt_set_mode(enum clock_event_mode mode, struct clock_event_devic
 {
 	u32 ctrl = readl(clkevt_base + TIMER_CTRL) & ~TIMER_CTRL_ENABLE;
 
-	BUG_ON(mode == CLOCK_EVT_MODE_ONESHOT);
+	/* Disable timer */
+	writel(ctrl, clkevt_base + TIMER_CTRL);
 
-	if (mode == CLOCK_EVT_MODE_PERIODIC) {
-		writel(ctrl, clkevt_base + TIMER_CTRL);
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		/* Enable the timer and start the periodic tick */
 		writel(timer_reload, clkevt_base + TIMER_LOAD);
 		ctrl |= TIMER_CTRL_PERIODIC | TIMER_CTRL_ENABLE;
+		writel(ctrl, clkevt_base + TIMER_CTRL);
+		break;
+	case CLOCK_EVT_MODE_ONESHOT:
+		/* Leave the timer disabled, .set_next_event will enable it */
+		ctrl &= ~TIMER_CTRL_PERIODIC;
+		writel(ctrl, clkevt_base + TIMER_CTRL);
+		break;
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+	case CLOCK_EVT_MODE_RESUME:
+	default:
+		/* Just leave in disabled state */
+		break;
 	}
 
-	writel(ctrl, clkevt_base + TIMER_CTRL);
 }
 
 static int clkevt_set_next_event(unsigned long next, struct clock_event_device *evt)
@@ -385,7 +399,7 @@ static int clkevt_set_next_event(unsigned long next, struct clock_event_device *
 static struct clock_event_device integrator_clockevent = {
 	.name		= "timer1",
 	.shift		= 34,
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
+	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= clkevt_set_mode,
 	.set_next_event	= clkevt_set_next_event,
 	.rating		= 300,
