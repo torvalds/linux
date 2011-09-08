@@ -393,7 +393,10 @@ again:
 	     (BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS))) {
 		WARN_ON(pages);
 		pages = kzalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
-		BUG_ON(!pages);
+		if (!pages) {
+			/* just bail out to the uncompressed code */
+			goto cont;
+		}
 
 		if (BTRFS_I(inode)->force_compress)
 			compress_type = BTRFS_I(inode)->force_compress;
@@ -424,6 +427,7 @@ again:
 			will_compress = 1;
 		}
 	}
+cont:
 	if (start == 0) {
 		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
