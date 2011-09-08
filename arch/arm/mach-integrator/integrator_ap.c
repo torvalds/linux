@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mtd/physmap.h>
+#include <linux/clk.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -322,13 +323,14 @@ static void __init ap_init(void)
 
 static unsigned long timer_reload;
 
-static void integrator_clocksource_init(u32 khz)
+static void integrator_clocksource_init(unsigned long inrate)
 {
 	void __iomem *base = (void __iomem *)TIMER2_VA_BASE;
 	u32 ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
+	unsigned long rate = inrate;
 
-	if (khz >= 1500) {
-		khz /= 16;
+	if (rate >= 1500000) {
+		rate /= 16;
 		ctrl |= TIMER_CTRL_DIV16;
 	}
 
@@ -336,7 +338,7 @@ static void integrator_clocksource_init(u32 khz)
 	writel(ctrl, base + TIMER_CTRL);
 
 	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
-		khz * 1000, 200, 16, clocksource_mmio_readl_down);
+			rate, 200, 16, clocksource_mmio_readl_down);
 }
 
 static void __iomem * const clkevt_base = (void __iomem *)TIMER1_VA_BASE;
@@ -411,24 +413,25 @@ static struct irqaction integrator_timer_irq = {
 	.dev_id		= &integrator_clockevent,
 };
 
-static void integrator_clockevent_init(u32 khz)
+static void integrator_clockevent_init(unsigned long inrate)
 {
+	unsigned long rate = inrate;
 	unsigned int ctrl = 0;
 
 	/* Calculate and program a divisor */
-	if (khz * 1000 > 0x100000 * HZ) {
-		khz /= 256;
+	if (rate > 0x100000 * HZ) {
+		rate /= 256;
 		ctrl |= TIMER_CTRL_DIV256;
-	} else if (khz * 1000 > 0x10000 * HZ) {
-		khz /= 16;
+	} else if (rate > 0x10000 * HZ) {
+		rate /= 16;
 		ctrl |= TIMER_CTRL_DIV16;
 	}
-	timer_reload = khz * 1000 / HZ;
+	timer_reload = rate / HZ;
 	writel(ctrl, clkevt_base + TIMER_CTRL);
 
 	setup_irq(IRQ_TIMERINT1, &integrator_timer_irq);
 	clockevents_config_and_register(&integrator_clockevent,
-					khz * 1000,
+					rate,
 					1,
 					0xffffU);
 }
@@ -438,14 +441,20 @@ static void integrator_clockevent_init(u32 khz)
  */
 static void __init ap_init_timer(void)
 {
-	u32 khz = TICKS_PER_uSEC * 1000;
+	struct clk *clk;
+	unsigned long rate;
+
+	clk = clk_get_sys("ap_timer", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
+	rate = clk_get_rate(clk);
 
 	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
 	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
 	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
 
-	integrator_clocksource_init(khz);
-	integrator_clockevent_init(khz);
+	integrator_clocksource_init(rate);
+	integrator_clockevent_init(rate);
 }
 
 static struct sys_timer ap_timer = {

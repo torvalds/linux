@@ -126,6 +126,10 @@ static struct clk_lookup lookups[] = {
 	{	/* Bus clock */
 		.con_id		= "apb_pclk",
 		.clk		= &dummy_apb_pclk,
+	}, {
+		/* Integrator/AP timer frequency */
+		.dev_id		= "ap_timer",
+		.clk		= &clk24mhz,
 	}, {	/* UART0 */
 		.dev_id		= "mb:16",
 		.clk		= &uartclk,
