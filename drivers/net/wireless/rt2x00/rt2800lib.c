@@ -4484,7 +4484,18 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn,
 			u8 buf_size)
 {
+	struct rt2x00_sta *sta_priv = (struct rt2x00_sta *)sta->drv_priv;
 	int ret = 0;
+
+	/*
+	 * Don't allow aggregation for stations the hardware isn't aware
+	 * of because tx status reports for frames to an unknown station
+	 * always contain wcid=255 and thus we can't distinguish between
+	 * multiple stations which leads to unwanted situations when the
+	 * hw reorders frames due to aggregation.
+	 */
+	if (sta_priv->wcid < 0)
+		return 1;
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
