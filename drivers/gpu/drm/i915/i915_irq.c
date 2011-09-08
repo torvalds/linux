@@ -383,6 +383,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	pm_iir = dev_priv->pm_iir;
 	dev_priv->pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
+	I915_WRITE(GEN6_PMIMR, 0);
 	spin_unlock_irq(&dev_priv->rps_lock);
 
 	if (!pm_iir)
@@ -420,7 +421,6 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	 * an *extremely* unlikely race with gen6_rps_enable() that is prevented
 	 * by holding struct_mutex for the duration of the write.
 	 */
-	I915_WRITE(GEN6_PMIMR, pm_imr & ~pm_iir);
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
