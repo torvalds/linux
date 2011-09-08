@@ -379,7 +379,8 @@ static int mxl111sf_lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
 	struct mxl111sf_state *state = d->priv;
-	struct mxl111sf_adap_state *adap_state = adap->fe_adap[0].priv;
+	int fe_id = adap->num_frontends_initialized;
+	struct mxl111sf_adap_state *adap_state = adap->fe_adap[fe_id].priv;
 	int ret;
 
 	deb_adv("%s()\n", __func__);
@@ -422,14 +423,14 @@ static int mxl111sf_lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
 	if (mxl_fail(ret))
 		goto fail;
 
-	adap->fe_adap[0].fe = dvb_attach(lgdt3305_attach,
+	adap->fe_adap[fe_id].fe = dvb_attach(lgdt3305_attach,
 				 &hauppauge_lgdt3305_config,
 				 &adap->dev->i2c_adap);
-	if (adap->fe_adap[0].fe) {
-		adap_state->fe_init = adap->fe_adap[0].fe->ops.init;
-		adap->fe_adap[0].fe->ops.init = mxl111sf_adap_fe_init;
-		adap_state->fe_sleep = adap->fe_adap[0].fe->ops.sleep;
-		adap->fe_adap[0].fe->ops.sleep = mxl111sf_adap_fe_sleep;
+	if (adap->fe_adap[fe_id].fe) {
+		adap_state->fe_init = adap->fe_adap[fe_id].fe->ops.init;
+		adap->fe_adap[fe_id].fe->ops.init = mxl111sf_adap_fe_init;
+		adap_state->fe_sleep = adap->fe_adap[fe_id].fe->ops.sleep;
+		adap->fe_adap[fe_id].fe->ops.sleep = mxl111sf_adap_fe_sleep;
 		return 0;
 	}
 	ret = -EIO;
@@ -514,10 +515,12 @@ static int mxl111sf_attach_tuner(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
 	struct mxl111sf_state *state = d->priv;
+	int fe_id = adap->num_frontends_initialized;
 
 	deb_adv("%s()\n", __func__);
 
-	if (NULL != dvb_attach(mxl111sf_tuner_attach, adap->fe_adap[0].fe, state,
+	if (NULL != dvb_attach(mxl111sf_tuner_attach,
+			       adap->fe_adap[fe_id].fe, state,
 			       &mxl_tuner_config))
 		return 0;
 
