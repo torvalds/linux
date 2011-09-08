@@ -504,15 +504,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	memset(&crypto, 0, sizeof(crypto));
 
-	/*
-	 * When in STA mode, bssidx is always 0 otherwise local_address[5]
-	 * contains the bss number, see BSS_ID_MASK comments for details.
-	 */
-	if (rt2x00dev->intf_sta_count)
-		crypto.bssidx = 0;
-	else
-		crypto.bssidx = vif->addr[5] & (rt2x00dev->ops->max_ap_intf - 1);
-
+	crypto.bssidx = rt2x00lib_get_bssidx(rt2x00dev, vif);
 	crypto.cipher = rt2x00crypto_key_to_cipher(key);
 	if (crypto.cipher == CIPHER_NONE)
 		return -EOPNOTSUPP;

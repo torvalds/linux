@@ -1226,6 +1226,12 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
 /*
+ * Utility functions.
+ */
+u32 rt2x00lib_get_bssidx(struct rt2x00_dev *rt2x00dev,
+			 struct ieee80211_vif *vif);
+
+/*
  * Interrupt context handlers.
  */
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);

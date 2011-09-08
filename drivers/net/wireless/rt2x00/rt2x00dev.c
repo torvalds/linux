@@ -33,6 +33,22 @@
 #include "rt2x00lib.h"
 
 /*
+ * Utility functions.
+ */
+u32 rt2x00lib_get_bssidx(struct rt2x00_dev *rt2x00dev,
+			 struct ieee80211_vif *vif)
+{
+	/*
+	 * When in STA mode, bssidx is always 0 otherwise local_address[5]
+	 * contains the bss number, see BSS_ID_MASK comments for details.
+	 */
+	if (rt2x00dev->intf_sta_count)
+		return 0;
+	return vif->addr[5] & (rt2x00dev->ops->max_ap_intf - 1);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_get_bssidx);
+
+/*
  * Radio control handlers.
  */
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
