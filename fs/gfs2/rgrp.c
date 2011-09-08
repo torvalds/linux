@@ -329,17 +329,16 @@ static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
 
 struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk)
 {
-	struct rb_node **newn, *parent = NULL;
+	struct rb_node **newn;
+	struct gfs2_rgrpd *cur;
 
 	spin_lock(&sdp->sd_rindex_spin);
 	newn = &sdp->sd_rindex_tree.rb_node;
 	while (*newn) {
-		struct gfs2_rgrpd *cur = rb_entry(*newn, struct gfs2_rgrpd,
-						  rd_node);
-		parent = *newn;
+		cur = rb_entry(*newn, struct gfs2_rgrpd, rd_node);
 		if (blk < cur->rd_addr)
 			newn = &((*newn)->rb_left);
-		else if (blk > cur->rd_data0 + cur->rd_data)
+		else if (blk >= cur->rd_data0 + cur->rd_data)
 			newn = &((*newn)->rb_right);
 		else {
 			spin_unlock(&sdp->sd_rindex_spin);
