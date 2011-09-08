@@ -34,8 +34,10 @@
  * @new_first:	first entry in batch to be added
  * @new_last:	last entry in batch to be added
  * @head:	the head for your lock-less list
+ *
+ * Return whether list is empty before adding.
  */
-void llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
+bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 		     struct llist_head *head)
 {
 	struct llist_node *entry, *old_entry;
@@ -49,6 +51,8 @@ void llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 			break;
 		cpu_relax();
 	}
+
+	return old_entry == NULL;
 }
 EXPORT_SYMBOL_GPL(llist_add_batch);
 
