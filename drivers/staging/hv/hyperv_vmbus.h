@@ -606,7 +606,7 @@ struct hv_device *vmbus_device_create(uuid_le *type,
 					 struct vmbus_channel *channel);
 
 int vmbus_device_register(struct hv_device *child_device_obj);
-void vmbus_child_device_unregister(struct hv_device *device_obj);
+void vmbus_device_unregister(struct hv_device *device_obj);
 
 /* static void */
 /* VmbusChildDeviceDestroy( */

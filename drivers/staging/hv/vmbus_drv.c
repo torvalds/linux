@@ -650,10 +650,10 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 }
 
 /*
- * vmbus_child_device_unregister - Remove the specified child device
+ * vmbus_device_unregister - Remove the specified child device
  * from the vmbus.
  */
-void vmbus_child_device_unregister(struct hv_device *device_obj)
+void vmbus_device_unregister(struct hv_device *device_obj)
 {
 	/*
 	 * Kick off the process of unregistering the device.

@@ -333,7 +333,7 @@ static void vmbus_process_rescind_offer(struct work_struct *work)
 						     struct vmbus_channel,
 						     work);
 
-	vmbus_child_device_unregister(channel->device_obj);
+	vmbus_device_unregister(channel->device_obj);
 }
 
 /*
