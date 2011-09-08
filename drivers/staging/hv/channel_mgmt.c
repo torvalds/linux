@@ -433,9 +433,6 @@ static void vmbus_process_offer(struct work_struct *work)
 /*
  * vmbus_onoffer - Handler for channel offers from vmbus in parent partition.
  *
- * We ignore all offers except network and storage offers. For each network and
- * storage offers, we create a channel object and queue a work item to the
- * channel object to process the offer synchronously
  */
 static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 {
