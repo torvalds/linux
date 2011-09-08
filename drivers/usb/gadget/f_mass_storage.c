@@ -1861,7 +1861,7 @@ typedef struct tagLoaderParam
 	int	crc;
 } PARM_INFO;
 #define PARM_TAG			0x4D524150
-#define MSC_EXT_DBG			1
+#define MSC_EXT_DBG			0
 extern int  GetParamterInfo(char * pbuf , int len);
 
 /* the buf is bh->buf,it is large enough. */
@@ -1975,13 +1975,21 @@ static int do_get_versions( int ret ,char* buf )
 	        ver[4] = ASC_BCD1(p_f[0])|ASC_BCD0(p_f[1]);
 	        p_f+=3;
 	} 
-	ver[2] = ASC_BCD0(p_f[0]);
-	p_f++;
-	if( p_f[0] != ' ' ){
-	        ver[2] |= ASC_BCD1(p_f[0]);
-	        p_f++;
-	}
+//	ver[2] = ASC_BCD0(p_f[0]);
+//	p_f++;
+//	if( p_f[0] != ' ' ){
+//	        ver[2] |= ASC_BCD1(p_f[0]);
+//	        p_f++;
+//	}
 	// only support 2 byte version.
+	if ((p_f[1]>='0')&&(p_f[1]<='9'))
+	{
+		ver[2] = ASC_BCD1(p_f[0])|ASC_BCD0(p_f[1]);
+	}
+	else
+	{
+		ver[2] = ASC_BCD0(p_f[0]);
+	}
 	ver[3] = 0;
 
 	#if MSC_EXT_DBG
