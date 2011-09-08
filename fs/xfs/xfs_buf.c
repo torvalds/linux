@@ -415,10 +415,7 @@ _xfs_buf_map_pages(
 /*
  *	Look up, and creates if absent, a lockable buffer for
  *	a given range of an inode.  The buffer is returned
- *	locked.	 If other overlapping buffers exist, they are
- *	released before the new buffer is created and locked,
- *	which may imply that this call will block until those buffers
- *	are unlocked.  No I/O is implied by this call.
+ *	locked.	No I/O is implied by this call.
  */
 xfs_buf_t *
 _xfs_buf_find(
