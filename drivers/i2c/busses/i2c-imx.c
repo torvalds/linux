@@ -466,7 +466,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 {
 	struct imx_i2c_struct *i2c_imx;
 	struct resource *res;
-	struct imxi2c_platform_data *pdata;
+	struct imxi2c_platform_data *pdata = pdev->dev.platform_data;
 	void __iomem *base;
 	resource_size_t res_size;
 	int irq;
@@ -485,19 +485,11 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	pdata = pdev->dev.platform_data;
-
-	if (pdata && pdata->init) {
-		ret = pdata->init(&pdev->dev);
-		if (ret)
-			return ret;
-	}
-
 	res_size = resource_size(res);
 
 	if (!request_mem_region(res->start, res_size, DRIVER_NAME)) {
-		ret = -EBUSY;
-		goto fail0;
+		dev_err(&pdev->dev, "request_mem_region failed\n");
+		return -EBUSY;
 	}
 
 	base = ioremap(res->start, res_size);
@@ -586,9 +578,6 @@ fail2:
 	iounmap(base);
 fail1:
 	release_mem_region(res->start, resource_size(res));
-fail0:
-	if (pdata && pdata->exit)
-		pdata->exit(&pdev->dev);
 	return ret; /* Return error number */
 }
 
@@ -610,10 +599,6 @@ static int __exit i2c_imx_remove(struct platform_device *pdev)
 	writeb(0, i2c_imx->base + IMX_I2C_IFDR);
 	writeb(0, i2c_imx->base + IMX_I2C_I2CR);
 	writeb(0, i2c_imx->base + IMX_I2C_I2SR);
-
-	/* Shut down hardware */
-	if (pdata && pdata->exit)
-		pdata->exit(&pdev->dev);
 
 	clk_put(i2c_imx->clk);
 
