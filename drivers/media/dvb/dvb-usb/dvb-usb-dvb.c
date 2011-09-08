@@ -77,9 +77,6 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 		}
 
 	}
-	if ((adap->feedcount == onoff) && (!onoff))
-		adap->active_fe = -1;
-
 	return 0;
 }
 
