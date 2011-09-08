@@ -536,8 +536,9 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 		unsigned long flags;
 		spin_lock_irqsave(&dev_priv->rps_lock, flags);
 		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-		I915_WRITE(GEN6_PMIMR, pm_iir);
 		dev_priv->pm_iir |= pm_iir;
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+		POSTING_READ(GEN6_PMIMR);
 		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
 		queue_work(dev_priv->wq, &dev_priv->rps_work);
 	}
@@ -649,8 +650,9 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 		unsigned long flags;
 		spin_lock_irqsave(&dev_priv->rps_lock, flags);
 		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-		I915_WRITE(GEN6_PMIMR, pm_iir);
 		dev_priv->pm_iir |= pm_iir;
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+		POSTING_READ(GEN6_PMIMR);
 		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
 		queue_work(dev_priv->wq, &dev_priv->rps_work);
 	}
