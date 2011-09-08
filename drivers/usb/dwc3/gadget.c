@@ -1150,13 +1150,10 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 
-	/*
-	 * REVISIT: power down scale might be different
-	 * depending on PHY used, need to pass that via platform_data
-	 */
-	reg |= DWC3_GCTL_PWRDNSCALE(0x61a)
-		| DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_DEVICE);
+	reg &= ~DWC3_GCTL_SCALEDOWN(3);
+	reg &= ~DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG);
 	reg &= ~DWC3_GCTL_DISSCRAMBLE;
+	reg |= DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_DEVICE);
 
 	/*
 	 * WORKAROUND: DWC3 revisions <1.90a have a bug
