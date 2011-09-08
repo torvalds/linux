@@ -1,7 +1,7 @@
 /*
- * hdmi.h
+ * ti_hdmi_4xxx_ip.h
  *
- * HDMI driver definition for TI OMAP4 processors.
+ * HDMI header definition for DM81xx, DM38xx, TI OMAP4 etc processors.
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -18,11 +18,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _OMAP4_DSS_HDMI_H_
-#define _OMAP4_DSS_HDMI_H_
+#ifndef _HDMI_TI_4xxx_H_
+#define _HDMI_TI_4xxx_H_
 
 #include <linux/string.h>
 #include <video/omapdss.h>
+#include "ti_hdmi.h"
 
 struct hdmi_reg { u16 idx; };
 
