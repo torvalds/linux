@@ -398,12 +398,10 @@ static int clkevt_set_next_event(unsigned long next, struct clock_event_device *
 
 static struct clock_event_device integrator_clockevent = {
 	.name		= "timer1",
-	.shift		= 34,
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= clkevt_set_mode,
 	.set_next_event	= clkevt_set_next_event,
 	.rating		= 300,
-	.cpumask	= cpu_all_mask,
 };
 
 static struct irqaction integrator_timer_irq = {
@@ -415,9 +413,9 @@ static struct irqaction integrator_timer_irq = {
 
 static void integrator_clockevent_init(u32 khz)
 {
-	struct clock_event_device *evt = &integrator_clockevent;
 	unsigned int ctrl = 0;
 
+	/* Calculate and program a divisor */
 	if (khz * 1000 > 0x100000 * HZ) {
 		khz /= 256;
 		ctrl |= TIMER_CTRL_DIV256;
@@ -425,17 +423,14 @@ static void integrator_clockevent_init(u32 khz)
 		khz /= 16;
 		ctrl |= TIMER_CTRL_DIV16;
 	}
-
 	timer_reload = khz * 1000 / HZ;
 	writel(ctrl, clkevt_base + TIMER_CTRL);
 
-	evt->irq = IRQ_TIMERINT1;
-	evt->mult = div_sc(khz, NSEC_PER_MSEC, evt->shift);
-	evt->max_delta_ns = clockevent_delta2ns(0xffff, evt);
-	evt->min_delta_ns = clockevent_delta2ns(0xf, evt);
-
 	setup_irq(IRQ_TIMERINT1, &integrator_timer_irq);
-	clockevents_register_device(evt);
+	clockevents_config_and_register(&integrator_clockevent,
+					khz * 1000,
+					1,
+					0xffffU);
 }
 
 /*
