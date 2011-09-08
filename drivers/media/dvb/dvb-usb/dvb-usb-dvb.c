@@ -17,7 +17,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	if (adap == NULL)
 		return -ENODEV;
 
-	if (adap->active_fe < 0) {
+	if ((adap->active_fe < 0) ||
+	    (adap->active_fe >= adap->num_frontends_initialized)) {
 		return -EINVAL;
 	}
 
