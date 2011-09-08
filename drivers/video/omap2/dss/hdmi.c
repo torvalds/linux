@@ -39,6 +39,7 @@
 #include <sound/pcm_params.h>
 #endif
 
+#include "ti_hdmi.h"
 #include "dss.h"
 #include "hdmi.h"
 #include "dss_features.h"

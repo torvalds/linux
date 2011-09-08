@@ -155,24 +155,6 @@ struct dsi_clock_info {
 	bool use_sys_clk;
 };
 
-enum hdmi_clk_refsel {
-	HDMI_REFSEL_PCLK = 0,
-	HDMI_REFSEL_REF1 = 1,
-	HDMI_REFSEL_REF2 = 2,
-	HDMI_REFSEL_SYSCLK = 3
-};
-
-/* HDMI PLL structure */
-struct hdmi_pll_info {
-	u16 regn;
-	u16 regm;
-	u32 regmf;
-	u16 regm2;
-	u16 regsd;
-	u16 dcofreq;
-	enum hdmi_clk_refsel refsel;
-};
-
 struct seq_file;
 struct platform_device;
 
