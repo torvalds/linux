@@ -619,9 +619,9 @@ struct hv_device *vmbus_device_create(uuid_le *type,
 }
 
 /*
- * vmbus_child_device_register - Register the child device
+ * vmbus_device_register - Register the child device
  */
-int vmbus_child_device_register(struct hv_device *child_device_obj)
+int vmbus_device_register(struct hv_device *child_device_obj)
 {
 	int ret = 0;
 

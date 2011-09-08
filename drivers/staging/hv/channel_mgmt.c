@@ -393,7 +393,7 @@ static void vmbus_process_offer(struct work_struct *work)
 	 * binding which eventually invokes the device driver's AddDevice()
 	 * method.
 	 */
-	ret = vmbus_child_device_register(newchannel->device_obj);
+	ret = vmbus_device_register(newchannel->device_obj);
 	if (ret != 0) {
 		pr_err("unable to add child device object (relid %d)\n",
 			   newchannel->offermsg.child_relid);
