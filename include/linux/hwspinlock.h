@@ -122,16 +122,6 @@ static inline int hwspin_lock_get_id(struct hwspinlock *hwlock)
 	return 0;
 }
 
-static inline int hwspin_lock_register(struct hwspinlock *hwlock)
-{
-	return -ENODEV;
-}
-
-static inline struct hwspinlock *hwspin_lock_unregister(unsigned int id)
-{
-	return NULL;
-}
-
 #endif /* !CONFIG_HWSPINLOCK */
 
 /**
