@@ -545,6 +545,8 @@ static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 		dwc->ep0_next_event = DWC3_EP0_NRDY_DATA;
 	}
 
+	dwc->ep0_expect_in = !!(ctrl->bRequestType & USB_DIR_IN);
+
 	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD)
 		ret = dwc3_ep0_std_request(dwc, ctrl);
 	else
@@ -754,6 +756,20 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 					DEPEVT_STATUS_CONTROL_DATA,
 					event->status);
 
+			dwc3_ep0_stall_and_restart(dwc);
+			return;
+		}
+
+		/*
+		 * One of the possible error cases is when Host _does_
+		 * request for Data Phase, but it does so on the wrong
+		 * direction.
+		 *
+		 * Here, we already know ep0_next_event is DATA (see above),
+		 * so we only need to check for direction.
+		 */
+		if (dwc->ep0_expect_in != event->endpoint_number) {
+			dev_vdbg(dwc->dev, "Wrong direction for Data phase\n");
 			dwc3_ep0_stall_and_restart(dwc);
 			return;
 		}
