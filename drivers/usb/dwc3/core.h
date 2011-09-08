@@ -160,6 +160,7 @@
 #define DWC3_GCTL_PRTCAP_OTG	3
 
 #define DWC3_GCTL_CORESOFTRESET	(1 << 11)
+#define DWC3_GCTL_SCALEDOWN(n)	(n << 4)
 #define DWC3_GCTL_DISSCRAMBLE	(1 << 3)
 
 /* Global USB2 PHY Configuration Register */
