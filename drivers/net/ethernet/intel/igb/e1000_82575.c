@@ -1580,14 +1580,31 @@ void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
  **/
 void igb_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
 {
-	u32 dtxswc = rd32(E1000_DTXSWC);
+	u32 dtxswc;
 
-	if (enable)
-		dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
-	else
-		dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+	switch (hw->mac.type) {
+	case e1000_82576:
+		dtxswc = rd32(E1000_DTXSWC);
+		if (enable)
+			dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		else
+			dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		wr32(E1000_DTXSWC, dtxswc);
+		break;
+	case e1000_i350:
+		dtxswc = rd32(E1000_TXSWC);
+		if (enable)
+			dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		else
+			dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		wr32(E1000_TXSWC, dtxswc);
+		break;
+	default:
+		/* Currently no other hardware supports loopback */
+		break;
+	}
 
-	wr32(E1000_DTXSWC, dtxswc);
+
 }
 
 /**
