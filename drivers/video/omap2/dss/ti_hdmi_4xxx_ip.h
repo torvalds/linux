@@ -24,6 +24,11 @@
 #include <linux/string.h>
 #include <video/omapdss.h>
 #include "ti_hdmi.h"
+#if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
+	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
+#include <sound/soc.h>
+#include <sound/pcm_params.h>
+#endif
 
 struct hdmi_reg { u16 idx; };
 
@@ -572,4 +577,21 @@ struct hdmi_core_audio_config {
 	bool					en_parallel_aud_input;
 	bool					en_spdif;
 };
+
+#if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
+	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
+int hdmi_audio_trigger(struct hdmi_ip_data *ip_data,
+				struct snd_pcm_substream *substream, int cmd,
+				struct snd_soc_dai *dai);
+int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
+				u32 sample_freq, u32 *n, u32 *cts);
+void hdmi_core_audio_infoframe_config(struct hdmi_ip_data *ip_data,
+		struct hdmi_core_infoframe_audio *info_aud);
+void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
+					struct hdmi_core_audio_config *cfg);
+void hdmi_wp_audio_config_dma(struct hdmi_ip_data *ip_data,
+					struct hdmi_audio_dma *aud_dma);
+void hdmi_wp_audio_config_format(struct hdmi_ip_data *ip_data,
+					struct hdmi_audio_format *aud_fmt);
+#endif
 #endif
