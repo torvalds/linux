@@ -278,6 +278,11 @@ extern void omap_secondary_startup(void);
 extern u32 omap_modify_auxcoreboot0(u32 set_mask, u32 clear_mask);
 extern void omap_auxcoreboot_addr(u32 cpu_addr);
 extern u32 omap_read_auxcoreboot0(void);
+
+extern void omap4_cpu_die(unsigned int cpu);
+
+extern struct smp_operations omap4_smp_ops;
+
 extern void omap5_secondary_startup(void);
 #endif
 

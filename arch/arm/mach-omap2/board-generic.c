@@ -127,6 +127,7 @@ static const char *omap4_boards_compat[] __initdata = {
 
 DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.reserve	= omap_reserve,
+	.smp		= smp_ops(omap4_smp_ops),
 	.map_io		= omap4_map_io,
 	.init_early	= omap4430_init_early,
 	.init_irq	= omap_gic_of_init,
@@ -147,6 +148,7 @@ static const char *omap5_boards_compat[] __initdata = {
 
 DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
 	.reserve	= omap_reserve,
+	.smp		= smp_ops(omap4_smp_ops),
 	.map_io		= omap5_map_io,
 	.init_early	= omap5_init_early,
 	.init_irq	= omap_gic_of_init,
