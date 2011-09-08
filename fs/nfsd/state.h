@@ -76,6 +76,15 @@ struct nfsd4_callback {
 	bool cb_done;
 };
 
+struct nfs4_stid {
+#define NFS4_OPEN_STID 1
+#define NFS4_LOCK_STID 2
+#define NFS4_DELEG_STID 4
+	char sc_type;
+	struct list_head sc_hash;
+	stateid_t sc_stateid;
+};
+
 struct nfs4_delegation {
 	struct list_head	dl_perfile;
 	struct list_head	dl_perclnt;
@@ -86,7 +95,7 @@ struct nfs4_delegation {
 	u32			dl_type;
 	time_t			dl_time;
 /* For recall: */
-	stateid_t		dl_stateid;
+	struct nfs4_stid	dl_stid;
 	struct knfsd_fh		dl_fh;
 	int			dl_retries;
 	struct nfsd4_callback	dl_recall;
@@ -446,14 +455,7 @@ static inline struct file *find_any_file(struct nfs4_file *f)
 * we should consider defining separate structs for the two cases.
 */
 
-struct nfs4_stid {
-#define NFS4_OPEN_STID 1
-#define NFS4_LOCK_STID 2
-	char sc_type;
-	struct list_head sc_hash;
-	stateid_t sc_stateid;
-};
-
+/* "ol" stands for "Open or Lock".  Better suggestions welcome. */
 struct nfs4_ol_stateid {
 	struct nfs4_stid    st_stid;
 	struct list_head              st_perfile;

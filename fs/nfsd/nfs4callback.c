@@ -351,7 +351,7 @@ static void encode_cb_recall4args(struct xdr_stream *xdr,
 	__be32 *p;
 
 	encode_nfs_cb_opnum4(xdr, OP_CB_RECALL);
-	encode_stateid4(xdr, &dp->dl_stateid);
+	encode_stateid4(xdr, &dp->dl_stid.sc_stateid);
 
 	p = xdr_reserve_space(xdr, 4);
 	*p++ = xdr_zero;			/* truncate */

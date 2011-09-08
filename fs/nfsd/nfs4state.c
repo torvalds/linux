@@ -247,10 +247,10 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct sv
 	get_nfs4_file(fp);
 	dp->dl_file = fp;
 	dp->dl_type = type;
-	dp->dl_stateid.si_boot = boot_time;
-	dp->dl_stateid.si_stateownerid = current_delegid++;
-	dp->dl_stateid.si_fileid = 0;
-	dp->dl_stateid.si_generation = 1;
+	dp->dl_stid.sc_stateid.si_boot = boot_time;
+	dp->dl_stid.sc_stateid.si_stateownerid = current_delegid++;
+	dp->dl_stid.sc_stateid.si_fileid = 0;
+	dp->dl_stid.sc_stateid.si_generation = 1;
 	fh_copy_shallow(&dp->dl_fh, &current_fh->fh_handle);
 	dp->dl_time = 0;
 	atomic_set(&dp->dl_count, 1);
@@ -2572,7 +2572,7 @@ find_delegation_file(struct nfs4_file *fp, stateid_t *stid)
 
 	spin_lock(&recall_lock);
 	list_for_each_entry(dp, &fp->fi_delegations, dl_perfile)
-		if (dp->dl_stateid.si_stateownerid == stid->si_stateownerid) {
+		if (dp->dl_stid.sc_stateid.si_stateownerid == stid->si_stateownerid) {
 			spin_unlock(&recall_lock);
 			return dp;
 		}
@@ -2861,10 +2861,10 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_ol_
 	if (status)
 		goto out_free;
 
-	memcpy(&open->op_delegate_stateid, &dp->dl_stateid, sizeof(dp->dl_stateid));
+	memcpy(&open->op_delegate_stateid, &dp->dl_stid.sc_stateid, sizeof(dp->dl_stid.sc_stateid));
 
 	dprintk("NFSD: delegation stateid=" STATEID_FMT "\n",
-		STATEID_VAL(&dp->dl_stateid));
+		STATEID_VAL(&dp->dl_stid.sc_stateid));
 out:
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS
 			&& flag == NFS4_OPEN_DELEGATE_NONE
@@ -3296,7 +3296,7 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		dp = find_delegation_stateid(ino, stateid);
 		if (!dp)
 			goto out;
-		status = check_stateid_generation(stateid, &dp->dl_stateid, nfsd4_has_session(cstate));
+		status = check_stateid_generation(stateid, &dp->dl_stid.sc_stateid, nfsd4_has_session(cstate));
 		if (status)
 			goto out;
 		status = nfs4_check_delegmode(dp, flags);
@@ -3667,7 +3667,7 @@ nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	dp = find_delegation_stateid(inode, stateid);
 	if (!dp)
 		goto out;
-	status = check_stateid_generation(stateid, &dp->dl_stateid, nfsd4_has_session(cstate));
+	status = check_stateid_generation(stateid, &dp->dl_stid.sc_stateid, nfsd4_has_session(cstate));
 	if (status)
 		goto out;
 	renew_client(dp->dl_client);
@@ -3737,7 +3737,7 @@ search_for_delegation(stateid_t *stid)
 		list_for_each_entry(fp, &file_hashtbl[i], fi_hash) {
 			list_for_each(pos, &fp->fi_delegations) {
 				dp = list_entry(pos, struct nfs4_delegation, dl_perfile);
-				if (same_stateid(&dp->dl_stateid, stid))
+				if (same_stateid(&dp->dl_stid.sc_stateid, stid))
 					return dp;
 			}
 		}
