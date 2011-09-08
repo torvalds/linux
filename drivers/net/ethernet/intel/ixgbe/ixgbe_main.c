@@ -7587,10 +7587,12 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			ixgbe_vf_configuration(pdev, (i | 0x10000000));
 	}
 
-	/* Inform firmware of driver version */
+	/* firmware requires driver version to be 0xFFFFFFFF
+	 * since os does not support feature
+	 */
 	if (hw->mac.ops.set_fw_drv_ver)
-		hw->mac.ops.set_fw_drv_ver(hw, MAJ, MIN, BUILD,
-					   FW_CEM_UNUSED_VER);
+		hw->mac.ops.set_fw_drv_ver(hw, 0xFF, 0xFF, 0xFF,
+					   0xFF);
 
 	/* add san mac addr to netdev */
 	ixgbe_add_sanmac_netdev(netdev);
