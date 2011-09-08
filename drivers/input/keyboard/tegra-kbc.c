@@ -55,6 +55,7 @@
 
 #define KBC_ROW_CFG0_0	0x8
 #define KBC_COL_CFG0_0	0x18
+#define KBC_TO_CNT_0	0x24
 #define KBC_INIT_DLY_0	0x28
 #define KBC_RPT_DLY_0	0x2c
 #define KBC_KP_ENT0_0	0x30
@@ -70,6 +71,7 @@ struct tegra_kbc {
 	spinlock_t lock;
 	unsigned int repoll_dly;
 	unsigned long cp_dly_jiffies;
+	unsigned int cp_to_wkup_dly;
 	bool use_fn_map;
 	bool use_ghost_filter;
 	const struct tegra_kbc_platform_data *pdata;
@@ -341,6 +343,18 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	kbc->num_pressed_keys = num_down;
 }
 
+static void tegra_kbc_set_fifo_interrupt(struct tegra_kbc *kbc, bool enable)
+{
+	u32 val;
+
+	val = readl(kbc->mmio + KBC_CONTROL_0);
+	if (enable)
+		val |= KBC_CONTROL_FIFO_CNT_INT_EN;
+	else
+		val &= ~KBC_CONTROL_FIFO_CNT_INT_EN;
+	writel(val, kbc->mmio + KBC_CONTROL_0);
+}
+
 static void tegra_kbc_keypress_timer(unsigned long data)
 {
 	struct tegra_kbc *kbc = (struct tegra_kbc *)data;
@@ -370,9 +384,7 @@ static void tegra_kbc_keypress_timer(unsigned long data)
 
 		/* All keys are released so enable the keypress interrupt */
 		spin_lock_irqsave(&kbc->lock, flags);
-		val = readl(kbc->mmio + KBC_CONTROL_0);
-		val |= KBC_CONTROL_FIFO_CNT_INT_EN;
-		writel(val, kbc->mmio + KBC_CONTROL_0);
+		tegra_kbc_set_fifo_interrupt(kbc, true);
 		spin_unlock_irqrestore(&kbc->lock, flags);
 	}
 }
@@ -380,15 +392,13 @@ static void tegra_kbc_keypress_timer(unsigned long data)
 static irqreturn_t tegra_kbc_isr(int irq, void *args)
 {
 	struct tegra_kbc *kbc = args;
-	u32 val, ctl;
+	u32 val;
 
 	/*
 	 * Until all keys are released, defer further processing to
 	 * the polling loop in tegra_kbc_keypress_timer
 	 */
-	ctl = readl(kbc->mmio + KBC_CONTROL_0);
-	ctl &= ~KBC_CONTROL_FIFO_CNT_INT_EN;
-	writel(ctl, kbc->mmio + KBC_CONTROL_0);
+	tegra_kbc_set_fifo_interrupt(kbc, false);
 
 	/*
 	 * Quickly bail out & reenable interrupts if the fifo threshold
@@ -404,8 +414,7 @@ static irqreturn_t tegra_kbc_isr(int irq, void *args)
 		 */
 		mod_timer(&kbc->timer, jiffies + kbc->cp_dly_jiffies);
 	} else {
-		ctl |= KBC_CONTROL_FIFO_CNT_INT_EN;
-		writel(ctl, kbc->mmio + KBC_CONTROL_0);
+		tegra_kbc_set_fifo_interrupt(kbc, true);
 	}
 
 	return IRQ_HANDLED;
@@ -734,18 +743,30 @@ static int tegra_kbc_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
 
+	mutex_lock(&kbc->idev->mutex);
 	if (device_may_wakeup(&pdev->dev)) {
-		tegra_kbc_setup_wakekeys(kbc, true);
-		enable_irq_wake(kbc->irq);
+		disable_irq(kbc->irq);
+		del_timer_sync(&kbc->timer);
+		tegra_kbc_set_fifo_interrupt(kbc, false);
+
 		/* Forcefully clear the interrupt status */
 		writel(0x7, kbc->mmio + KBC_INT_0);
+		/*
+		 * Store the previous resident time of continuous polling mode.
+		 * Force the keyboard into interrupt mode.
+		 */
+		kbc->cp_to_wkup_dly = readl(kbc->mmio + KBC_TO_CNT_0);
+		writel(0, kbc->mmio + KBC_TO_CNT_0);
+
+		tegra_kbc_setup_wakekeys(kbc, true);
 		msleep(30);
+
+		enable_irq_wake(kbc->irq);
 	} else {
-		mutex_lock(&kbc->idev->mutex);
 		if (kbc->idev->users)
 			tegra_kbc_stop(kbc);
-		mutex_unlock(&kbc->idev->mutex);
 	}
+	mutex_unlock(&kbc->idev->mutex);
 
 	return 0;
 }
@@ -756,15 +777,22 @@ static int tegra_kbc_resume(struct device *dev)
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
 	int err = 0;
 
+	mutex_lock(&kbc->idev->mutex);
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(kbc->irq);
 		tegra_kbc_setup_wakekeys(kbc, false);
+
+		/* Restore the resident time of continuous polling mode. */
+		writel(kbc->cp_to_wkup_dly, kbc->mmio + KBC_TO_CNT_0);
+
+		tegra_kbc_set_fifo_interrupt(kbc, true);
+
+		enable_irq(kbc->irq);
 	} else {
-		mutex_lock(&kbc->idev->mutex);
 		if (kbc->idev->users)
 			err = tegra_kbc_start(kbc);
-		mutex_unlock(&kbc->idev->mutex);
 	}
+	mutex_unlock(&kbc->idev->mutex);
 
 	return err;
 }
