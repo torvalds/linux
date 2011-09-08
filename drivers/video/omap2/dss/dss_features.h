@@ -20,6 +20,10 @@
 #ifndef __OMAP2_DSS_FEATURES_H
 #define __OMAP2_DSS_FEATURES_H
 
+#if defined(CONFIG_OMAP4_DSS_HDMI)
+#include "ti_hdmi.h"
+#endif
+
 #define MAX_DSS_MANAGERS	3
 #define MAX_DSS_OVERLAYS	3
 #define MAX_DSS_LCD_MANAGERS	2
@@ -99,4 +103,7 @@ u32 dss_feat_get_burst_size_unit(void);		/* in bytes */
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);
 void dss_features_init(void);
+#if defined(CONFIG_OMAP4_DSS_HDMI)
+void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data);
+#endif
 #endif

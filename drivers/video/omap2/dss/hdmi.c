@@ -186,6 +186,7 @@ int hdmi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
+	dss_init_hdmi_ip_ops(&hdmi.ip_data);
 	return 0;
 }
 
@@ -366,7 +367,7 @@ static void hdmi_read_edid(struct omap_video_timings *dp)
 	memset(hdmi.edid, 0, HDMI_EDID_MAX_LENGTH);
 
 	if (!hdmi.edid_set)
-		ret = ti_hdmi_4xxx_read_edid(&hdmi.ip_data, hdmi.edid,
+		ret = hdmi.ip_data.ops->read_edid(&hdmi.ip_data, hdmi.edid,
 						HDMI_EDID_MAX_LENGTH);
 	if (!ret) {
 		if (!memcmp(hdmi.edid, edid_header, sizeof(edid_header))) {
@@ -480,16 +481,16 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 
 	hdmi_compute_pll(dssdev, phy, &hdmi.ip_data.pll_data);
 
-	ti_hdmi_4xxx_wp_video_start(&hdmi.ip_data, 0);
+	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
 
 	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
-	r = ti_hdmi_4xxx_pll_enable(&hdmi.ip_data);
+	r = hdmi.ip_data.ops->pll_enable(&hdmi.ip_data);
 	if (r) {
 		DSSDBG("Failed to lock PLL\n");
 		goto err;
 	}
 
-	r = ti_hdmi_4xxx_phy_enable(&hdmi.ip_data);
+	r = hdmi.ip_data.ops->phy_enable(&hdmi.ip_data);
 	if (r) {
 		DSSDBG("Failed to start PHY\n");
 		goto err;
@@ -497,7 +498,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 
 	hdmi.ip_data.cfg.cm.mode = hdmi.mode;
 	hdmi.ip_data.cfg.cm.code = hdmi.code;
-	ti_hdmi_4xxx_basic_configure(&hdmi.ip_data);
+	hdmi.ip_data.ops->video_configure(&hdmi.ip_data);
 
 	/* Make selection of HDMI in DSS */
 	dss_select_hdmi_venc_clk_source(DSS_HDMI_M_PCLK);
@@ -519,7 +520,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 
 	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, 1);
 
-	ti_hdmi_4xxx_wp_video_start(&hdmi.ip_data, 1);
+	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 1);
 
 	return 0;
 err:
@@ -531,9 +532,9 @@ static void hdmi_power_off(struct omap_dss_device *dssdev)
 {
 	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, 0);
 
-	ti_hdmi_4xxx_wp_video_start(&hdmi.ip_data, 0);
-	ti_hdmi_4xxx_phy_disable(&hdmi.ip_data);
-	ti_hdmi_4xxx_pll_disable(&hdmi.ip_data);
+	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
+	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
+	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
 	hdmi_runtime_put();
 
 	hdmi.edid_set = 0;

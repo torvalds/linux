@@ -429,6 +429,26 @@ static const struct omap_dss_features omap4_dss_features = {
 	.burst_size_unit = 16,
 };
 
+#if defined(CONFIG_OMAP4_DSS_HDMI)
+/* HDMI OMAP4 Functions*/
+static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
+
+	.video_configure	=	ti_hdmi_4xxx_basic_configure,
+	.phy_enable		=	ti_hdmi_4xxx_phy_enable,
+	.phy_disable		=	ti_hdmi_4xxx_phy_disable,
+	.read_edid		=	ti_hdmi_4xxx_read_edid,
+	.pll_enable		=	ti_hdmi_4xxx_pll_enable,
+	.pll_disable		=	ti_hdmi_4xxx_pll_disable,
+	.video_enable		=	ti_hdmi_4xxx_wp_video_start,
+};
+
+void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data)
+{
+	if (cpu_is_omap44xx())
+		ip_data->ops = &omap4_hdmi_functions;
+}
+#endif
+
 /* Functions returning values related to a DSS feature */
 int dss_feat_get_num_mgrs(void)
 {

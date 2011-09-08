@@ -21,6 +21,8 @@
 #ifndef _TI_HDMI_H
 #define _TI_HDMI_H
 
+struct hdmi_ip_data;
+
 enum hdmi_pll_pwr {
 	HDMI_PLLPWRCMD_ALLOFF = 0,
 	HDMI_PLLPWRCMD_PLLONLY = 1,
@@ -82,12 +84,31 @@ struct hdmi_pll_info {
 	enum hdmi_clk_refsel refsel;
 };
 
+struct ti_hdmi_ip_ops {
+
+	void (*video_configure)(struct hdmi_ip_data *ip_data);
+
+	int (*phy_enable)(struct hdmi_ip_data *ip_data);
+
+	void (*phy_disable)(struct hdmi_ip_data *ip_data);
+
+	int (*read_edid)(struct hdmi_ip_data *ip_data,
+			u8 *pedid, u16 max_length);
+
+	int (*pll_enable)(struct hdmi_ip_data *ip_data);
+
+	void (*pll_disable)(struct hdmi_ip_data *ip_data);
+
+	void (*video_enable)(struct hdmi_ip_data *ip_data, bool start);
+};
+
 struct hdmi_ip_data {
 	void __iomem	*base_wp;	/* HDMI wrapper */
 	unsigned long	core_sys_offset;
 	unsigned long	core_av_offset;
 	unsigned long	pll_offset;
 	unsigned long	phy_offset;
+	const struct ti_hdmi_ip_ops *ops;
 	struct hdmi_config cfg;
 	struct hdmi_pll_info pll_data;
 };
