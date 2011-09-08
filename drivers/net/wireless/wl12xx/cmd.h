@@ -79,6 +79,9 @@ int wl12xx_cmd_remove_peer(struct wl1271 *wl, u8 hlid);
 int wl12xx_cmd_config_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_start_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_stop_fwlog(struct wl1271 *wl);
+int wl12xx_cmd_channel_switch(struct wl1271 *wl,
+			      struct ieee80211_channel_switch *ch_switch);
+int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl);
 
 enum wl1271_commands {
 	CMD_INTERROGATE     = 1,    /*use this to read information elements*/
@@ -674,6 +677,23 @@ struct wl12xx_cmd_start_fwlog {
 } __packed;
 
 struct wl12xx_cmd_stop_fwlog {
+	struct wl1271_cmd_header header;
+} __packed;
+
+struct wl12xx_cmd_channel_switch {
+	struct wl1271_cmd_header header;
+
+	/* The new serving channel */
+	u8 channel;
+	/* Relative time of the serving channel switch in TBTT units */
+	u8 switch_time;
+	/* 1: Suspend TX till switch time; 0: Do not suspend TX */
+	u8 tx_suspend;
+	/* 1: Flush TX at switch time; 0: Do not flush */
+	u8 flush;
+} __packed;
+
+struct wl12xx_cmd_stop_channel_switch {
 	struct wl1271_cmd_header header;
 } __packed;
 

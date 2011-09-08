@@ -2222,6 +2222,11 @@ static int wl1271_unjoin(struct wl1271 *wl)
 {
 	int ret;
 
+	if (test_and_clear_bit(WL1271_FLAG_CS_PROGRESS, &wl->flags)) {
+		wl12xx_cmd_stop_channel_switch(wl);
+		ieee80211_chswitch_done(wl->vif, false);
+	}
+
 	/* to stop listening to a channel, we disconnect */
 	ret = wl12xx_cmd_role_stop_sta(wl);
 	if (ret < 0)
@@ -4130,6 +4135,37 @@ static int wl12xx_set_bitrate_mask(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
+				     struct ieee80211_channel_switch *ch_switch)
+{
+	struct wl1271 *wl = hw->priv;
+	int ret;
+
+	wl1271_debug(DEBUG_MAC80211, "mac80211 channel switch");
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state == WL1271_STATE_OFF)) {
+		mutex_unlock(&wl->mutex);
+		ieee80211_chswitch_done(wl->vif, false);
+		return;
+	}
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl12xx_cmd_channel_switch(wl, ch_switch);
+
+	if (!ret)
+		set_bit(WL1271_FLAG_CS_PROGRESS, &wl->flags);
+
+	wl1271_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+}
+
 static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
@@ -4406,6 +4442,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.ampdu_action = wl1271_op_ampdu_action,
 	.tx_frames_pending = wl1271_tx_frames_pending,
 	.set_bitrate_mask = wl12xx_set_bitrate_mask,
+	.channel_switch = wl12xx_op_channel_switch,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
