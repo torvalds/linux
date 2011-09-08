@@ -59,7 +59,6 @@ static struct {
 	u8 edid[HDMI_EDID_MAX_LENGTH];
 	u8 edid_set;
 	bool custom_set;
-	struct hdmi_config cfg;
 
 	struct clk *sys_clk;
 } hdmi;
@@ -229,12 +228,11 @@ int hdmi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int hdmi_pll_init(struct hdmi_ip_data *ip_data,
-		enum hdmi_clk_refsel refsel, int dcofreq,
-		struct hdmi_pll_info *fmt, u16 sd)
+static int hdmi_pll_init(struct hdmi_ip_data *ip_data)
 {
 	u32 r;
 	void __iomem *pll_base = hdmi_pll_base(ip_data);
+	struct hdmi_pll_info *fmt = &ip_data->pll_data;
 
 	/* PLL start always use manual mode */
 	REG_FLD_MOD(pll_base, PLLCTRL_PLL_CONTROL, 0x0, 0, 0);
@@ -250,10 +248,11 @@ static int hdmi_pll_init(struct hdmi_ip_data *ip_data,
 	r = FLD_MOD(r, 0x0, 12, 12); /* PLL_HIGHFREQ divide by 2 */
 	r = FLD_MOD(r, 0x1, 13, 13); /* PLL_REFEN */
 	r = FLD_MOD(r, 0x0, 14, 14); /* PHY_CLKINEN de-assert during locking */
+	r = FLD_MOD(r, fmt->refsel, 22, 21); /* REFSEL */
 
-	if (dcofreq) {
+	if (fmt->dcofreq) {
 		/* divider programming for frequency beyond 1000Mhz */
-		REG_FLD_MOD(pll_base, PLLCTRL_CFG3, sd, 17, 10);
+		REG_FLD_MOD(pll_base, PLLCTRL_CFG3, fmt->regsd, 17, 10);
 		r = FLD_MOD(r, 0x4, 3, 1); /* 1000MHz and 2000MHz */
 	} else {
 		r = FLD_MOD(r, 0x2, 3, 1); /* 500MHz and 1000MHz */
@@ -379,11 +378,9 @@ static int hdmi_phy_init(struct hdmi_ip_data *ip_data)
 	return 0;
 }
 
-static int hdmi_pll_program(struct hdmi_ip_data *ip_data,
-				struct hdmi_pll_info *fmt)
+static int hdmi_pll_program(struct hdmi_ip_data *ip_data)
 {
 	u16 r = 0;
-	enum hdmi_clk_refsel refsel;
 
 	r = hdmi_set_pll_pwr(ip_data, HDMI_PLLPWRCMD_ALLOFF);
 	if (r)
@@ -397,9 +394,7 @@ static int hdmi_pll_program(struct hdmi_ip_data *ip_data,
 	if (r)
 		return r;
 
-	refsel = HDMI_REFSEL_SYSCLK;
-
-	r = hdmi_pll_init(ip_data, refsel, fmt->dcofreq, fmt, fmt->regsd);
+	r = hdmi_pll_init(ip_data);
 	if (r)
 		return r;
 
@@ -1015,8 +1010,7 @@ static void hdmi_wp_video_config_timing(struct hdmi_ip_data *ip_data,
 	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_TIMING_V, timing_v);
 }
 
-static void hdmi_basic_configure(struct hdmi_ip_data *ip_data,
-			struct hdmi_config *cfg)
+static void hdmi_basic_configure(struct hdmi_ip_data *ip_data)
 {
 	/* HDMI */
 	struct omap_video_timings video_timing;
@@ -1026,6 +1020,7 @@ static void hdmi_basic_configure(struct hdmi_ip_data *ip_data,
 	struct hdmi_core_infoframe_avi avi_cfg;
 	struct hdmi_core_video_config v_core_cfg;
 	struct hdmi_core_packet_enable_repeat repeat_cfg;
+	struct hdmi_config *cfg = &ip_data->cfg;
 
 	hdmi_wp_init(&video_timing, &video_format,
 		&video_interface);
@@ -1034,8 +1029,7 @@ static void hdmi_basic_configure(struct hdmi_ip_data *ip_data,
 		&avi_cfg,
 		&repeat_cfg);
 
-	hdmi_wp_video_init_format(&video_format,
-			&video_timing, cfg);
+	hdmi_wp_video_init_format(&video_format, &video_timing, cfg);
 
 	hdmi_wp_video_config_timing(ip_data, &video_timing);
 
@@ -1154,6 +1148,9 @@ static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
 	pi->dcofreq = phy > 1000 * 100;
 	pi->regsd = ((pi->regm * clkin / 10) / ((pi->regn + 1) * 250) + 5) / 10;
 
+	/* Set the reference clock to sysclk reference */
+	pi->refsel = HDMI_REFSEL_SYSCLK;
+
 	DSSDBG("M = %d Mf = %d\n", pi->regm, pi->regmf);
 	DSSDBG("range = %d sd = %d\n", pi->dcofreq, pi->regsd);
 }
@@ -1161,7 +1158,6 @@ static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
 static int hdmi_power_on(struct omap_dss_device *dssdev)
 {
 	int r, code = 0;
-	struct hdmi_pll_info pll_data;
 	struct omap_video_timings *p;
 	unsigned long phy;
 
@@ -1183,16 +1179,16 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	}
 	code = get_timings_index();
 	dssdev->panel.timings = cea_vesa_timings[code].timings;
-	update_hdmi_timings(&hdmi.cfg, p, code);
+	update_hdmi_timings(&hdmi.ip_data.cfg, p, code);
 
 	phy = p->pixel_clock;
 
-	hdmi_compute_pll(dssdev, phy, &pll_data);
+	hdmi_compute_pll(dssdev, phy, &hdmi.ip_data.pll_data);
 
 	hdmi_wp_video_start(&hdmi.ip_data, 0);
 
 	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
-	r = hdmi_pll_program(&hdmi.ip_data, &pll_data);
+	r = hdmi_pll_program(&hdmi.ip_data);
 	if (r) {
 		DSSDBG("Failed to lock PLL\n");
 		goto err;
@@ -1204,9 +1200,9 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	hdmi.cfg.cm.mode = hdmi.mode;
-	hdmi.cfg.cm.code = hdmi.code;
-	hdmi_basic_configure(&hdmi.ip_data, &hdmi.cfg);
+	hdmi.ip_data.cfg.cm.mode = hdmi.mode;
+	hdmi.ip_data.cfg.cm.code = hdmi.code;
+	hdmi_basic_configure(&hdmi.ip_data);
 
 	/* Make selection of HDMI in DSS */
 	dss_select_hdmi_venc_clk_source(DSS_HDMI_M_PCLK);

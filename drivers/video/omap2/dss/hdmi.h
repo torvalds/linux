@@ -218,13 +218,6 @@ enum hdmi_pll_pwr {
 	HDMI_PLLPWRCMD_BOTHON_NOPHYCLK = 3
 };
 
-enum hdmi_clk_refsel {
-	HDMI_REFSEL_PCLK = 0,
-	HDMI_REFSEL_REF1 = 1,
-	HDMI_REFSEL_REF2 = 2,
-	HDMI_REFSEL_SYSCLK = 3
-};
-
 enum hdmi_core_inputbus_width {
 	HDMI_INPUT_8BIT = 0,
 	HDMI_INPUT_10BIT = 1,
@@ -558,14 +551,6 @@ struct hdmi_video_interface {
 	int	tm;	/* Timing mode */
 };
 
-struct hdmi_ip_data {
-	void __iomem	*base_wp;	/* HDMI wrapper */
-	unsigned long	core_sys_offset;
-	unsigned long	core_av_offset;
-	unsigned long	pll_offset;
-	unsigned long	phy_offset;
-};
-
 struct hdmi_cm {
 	int	code;
 	int	mode;
@@ -575,6 +560,16 @@ struct hdmi_config {
 	struct hdmi_timings timings;
 	u16	interlace;
 	struct hdmi_cm cm;
+};
+
+struct hdmi_ip_data {
+	void __iomem	*base_wp;	/* HDMI wrapper */
+	unsigned long	core_sys_offset;
+	unsigned long	core_av_offset;
+	unsigned long	pll_offset;
+	unsigned long	phy_offset;
+	struct hdmi_config cfg;
+	struct hdmi_pll_info pll_data;
 };
 
 struct hdmi_audio_format {
