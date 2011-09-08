@@ -142,8 +142,10 @@ static inline bool llist_empty(const struct llist_head *head)
  * llist_add - add a new entry
  * @new:	new entry to be added
  * @head:	the head for your lock-less list
+ *
+ * Return whether list is empty before adding.
  */
-static inline void llist_add(struct llist_node *new, struct llist_head *head)
+static inline bool llist_add(struct llist_node *new, struct llist_head *head)
 {
 	struct llist_node *entry, *old_entry;
 
@@ -156,6 +158,8 @@ static inline void llist_add(struct llist_node *new, struct llist_head *head)
 			break;
 		cpu_relax();
 	}
+
+	return old_entry == NULL;
 }
 
 /**
