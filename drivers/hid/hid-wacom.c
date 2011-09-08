@@ -383,6 +383,8 @@ move_on:
 	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
 	input = hidinput->input;
 
+	__set_bit(INPUT_PROP_POINTER, input->propbit);
+
 	/* Basics */
 	input->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_REL);
 

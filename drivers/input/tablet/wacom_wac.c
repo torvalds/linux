@@ -1098,6 +1098,8 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(BTN_TOOL_MOUSE, input_dev->keybit);
 		__set_bit(BTN_STYLUS, input_dev->keybit);
 		__set_bit(BTN_STYLUS2, input_dev->keybit);
+
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 		break;
 
 	case WACOM_21UX2:
@@ -1126,6 +1128,9 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		}
 
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
+
+		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+
 		wacom_setup_cintiq(wacom_wac);
 		break;
 
@@ -1150,6 +1155,8 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case INTUOS:
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
+
 		wacom_setup_intuos(wacom_wac);
 		break;
 
@@ -1165,6 +1172,8 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		wacom_setup_intuos(wacom_wac);
+
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 		break;
 
 	case TABLETPC2FG:
@@ -1183,14 +1192,24 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case TABLETPC:
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
+		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+
 		if (features->device_type != BTN_TOOL_PEN)
 			break;  /* no need to process stylus stuff */
 
 		/* fall through */
 
 	case PL:
-	case PTU:
 	case DTU:
+		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
+		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
+		__set_bit(BTN_STYLUS, input_dev->keybit);
+		__set_bit(BTN_STYLUS2, input_dev->keybit);
+
+		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+		break;
+
+	case PTU:
 		__set_bit(BTN_STYLUS2, input_dev->keybit);
 		/* fall through */
 
@@ -1198,10 +1217,14 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
 		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 		__set_bit(BTN_STYLUS, input_dev->keybit);
+
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 		break;
 
 	case BAMBOO_PT:
 		__clear_bit(ABS_MISC, input_dev->absbit);
+
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 
 		if (features->device_type == BTN_TOOL_DOUBLETAP) {
 			__set_bit(BTN_LEFT, input_dev->keybit);
