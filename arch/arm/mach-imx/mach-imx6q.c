@@ -226,6 +226,7 @@ static const char *imx6q_dt_compat[] __initdata = {
 };
 
 DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
+	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,
 	.handle_irq	= imx6q_handle_irq,
