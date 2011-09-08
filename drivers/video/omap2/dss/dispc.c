@@ -1692,7 +1692,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 		enum omap_color_mode color_mode, bool *five_taps)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
-	const int maxdownscale = cpu_is_omap34xx() ? 4 : 2;
+	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
 	unsigned long fclk = 0;
 
 	if ((ovl->caps & OMAP_DSS_OVL_CAP_SCALE) == 0) {

@@ -84,6 +84,7 @@ enum dss_range_param {
 	FEAT_PARAM_DSIPLL_REGM_DSI,
 	FEAT_PARAM_DSIPLL_FINT,
 	FEAT_PARAM_DSIPLL_LPDIV,
+	FEAT_PARAM_DOWNSCALE,
 };
 
 /* DSS Feature Functions */
