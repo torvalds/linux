@@ -71,11 +71,6 @@ void dwc3_map_buffer_to_dma(struct dwc3_request *req)
 				req->request.length, req->direction
 				? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		req->mapped = true;
-	} else {
-		dma_sync_single_for_device(dwc->dev, req->request.dma,
-				req->request.length, req->direction
-				? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		req->mapped = false;
 	}
 }
 
@@ -94,10 +89,6 @@ void dwc3_unmap_buffer_from_dma(struct dwc3_request *req)
 				? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		req->mapped = 0;
 		req->request.dma = DMA_ADDR_INVALID;
-	} else {
-		dma_sync_single_for_cpu(dwc->dev, req->request.dma,
-				req->request.length, req->direction
-				? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	}
 }
 
