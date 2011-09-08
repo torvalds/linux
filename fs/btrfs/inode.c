@@ -5777,8 +5777,7 @@ again:
 	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags)) {
 		ret = btrfs_ordered_update_i_size(inode, 0, ordered);
 		if (!ret)
-			ret = btrfs_update_inode(trans, root, inode);
-		err = ret;
+			err = btrfs_update_inode(trans, root, inode);
 		goto out;
 	}
 
