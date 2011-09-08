@@ -547,6 +547,7 @@ int parse_chan_pair(char *str, struct line *line, int device,
 	char *in, *out;
 
 	if (!list_empty(chans)) {
+		line->chan_in = line->chan_out = NULL;
 		free_chan(chans);
 		INIT_LIST_HEAD(chans);
 	}
@@ -565,6 +566,7 @@ int parse_chan_pair(char *str, struct line *line, int device,
 
 		new->input = 1;
 		list_add(&new->list, chans);
+		line->chan_in = new;
 
 		new = parse_chan(line, out, device, opts, error_out);
 		if (new == NULL)
@@ -572,6 +574,7 @@ int parse_chan_pair(char *str, struct line *line, int device,
 
 		list_add(&new->list, chans);
 		new->output = 1;
+		line->chan_out = new;
 	}
 	else {
 		new = parse_chan(line, str, device, opts, error_out);
@@ -581,6 +584,7 @@ int parse_chan_pair(char *str, struct line *line, int device,
 		list_add(&new->list, chans);
 		new->input = 1;
 		new->output = 1;
+		line->chan_in = line->chan_out = new;
 	}
 	return 0;
 }

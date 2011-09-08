@@ -39,6 +39,7 @@ struct line {
 
 	char *init_str;
 	struct list_head chan_list;
+	struct chan *chan_in, *chan_out;
 
 	/*This lock is actually, mostly, local to*/
 	spinlock_t lock;
