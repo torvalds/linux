@@ -942,7 +942,6 @@ static int ov5642_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov5642_subdev_ops);
 
-	icd->ops	= NULL;
 	priv->fmt	= &ov5642_colour_fmts[0];
 
 	ret = ov5642_video_probe(icd, client);

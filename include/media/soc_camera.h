@@ -39,7 +39,6 @@ struct soc_camera_device {
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
 	struct soc_camera_sense *sense;	/* See comment in struct definition */
-	struct soc_camera_ops *ops;
 	struct video_device *vdev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	const struct soc_camera_format_xlate *current_fmt;
@@ -192,11 +191,6 @@ struct soc_camera_format_xlate {
 	const struct soc_mbus_pixelfmt *host_fmt;
 };
 
-struct soc_camera_ops {
-	const struct v4l2_queryctrl *controls;
-	int num_controls;
-};
-
 #define SOCAM_SENSE_PCLK_CHANGED	(1 << 0)
 
 /**
@@ -222,18 +216,6 @@ struct soc_camera_sense {
 	unsigned long pixel_clock_max;
 	unsigned long pixel_clock;
 };
-
-static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
-	struct soc_camera_ops *ops, int id)
-{
-	int i;
-
-	for (i = 0; i < ops->num_controls; i++)
-		if (ops->controls[i].id == id)
-			return &ops->controls[i];
-
-	return NULL;
-}
 
 #define SOCAM_DATAWIDTH(x)	BIT((x) - 1)
 #define SOCAM_DATAWIDTH_4	SOCAM_DATAWIDTH(4)

@@ -1095,8 +1095,6 @@ static int mt9t112_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &mt9t112_subdev_ops);
 
-	icd->ops = NULL;
-
 	ret = mt9t112_camera_probe(icd, client);
 	if (ret)
 		kfree(priv);

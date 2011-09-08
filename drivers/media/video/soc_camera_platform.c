@@ -150,8 +150,6 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 	/* Set the control device reference */
 	icd->control = &pdev->dev;
 
-	icd->ops = NULL;
-
 	ici = to_soc_camera_host(icd->parent);
 
 	v4l2_subdev_init(&priv->subdev, &platform_subdev_ops);

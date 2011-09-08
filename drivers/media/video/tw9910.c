@@ -921,7 +921,6 @@ static int tw9910_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
 
-	icd->ops     = NULL;
 	icd->iface   = icl->bus_id;
 
 	ret = tw9910_video_probe(icd, client);
