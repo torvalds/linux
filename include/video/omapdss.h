@@ -377,6 +377,7 @@ struct omap_overlay_info {
 	u16 out_height;	/* if 0, out_height == height */
 	u8 global_alpha;
 	u8 pre_mult_alpha;
+	u8 zorder;
 };
 
 struct omap_overlay {

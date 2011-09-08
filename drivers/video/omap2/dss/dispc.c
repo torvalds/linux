@@ -739,6 +739,27 @@ static void dispc_ovl_set_vid_size(enum omap_plane plane, int width, int height)
 	dispc_write_reg(DISPC_OVL_SIZE(plane), val);
 }
 
+static void dispc_ovl_set_zorder(enum omap_plane plane, u8 zorder)
+{
+	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
+
+	if ((ovl->caps & OMAP_DSS_OVL_CAP_ZORDER) == 0)
+		return;
+
+	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), zorder, 27, 26);
+}
+
+static void dispc_ovl_enable_zorder_planes(void)
+{
+	int i;
+
+	if (!dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
+		return;
+
+	for (i = 0; i < dss_feat_get_num_ovls(); i++)
+		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(i), 1, 25, 25);
+}
+
 static void dispc_ovl_set_pre_mult_alpha(enum omap_plane plane, bool enable)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
@@ -1866,6 +1887,7 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	dispc_ovl_set_rotation_attrs(plane, oi->rotation, oi->mirror,
 			oi->color_mode);
 
+	dispc_ovl_set_zorder(plane, oi->zorder);
 	dispc_ovl_set_pre_mult_alpha(plane, oi->pre_mult_alpha);
 	dispc_ovl_setup_global_alpha(plane, oi->global_alpha);
 
@@ -3317,6 +3339,8 @@ static void _omap_dispc_initial_config(void)
 	dispc_read_plane_fifo_sizes();
 
 	dispc_configure_burst_sizes();
+
+	dispc_ovl_enable_zorder_planes();
 }
 
 /* DISPC HW IP initialisation */
