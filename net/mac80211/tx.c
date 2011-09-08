@@ -1879,6 +1879,10 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		rcu_read_unlock();
 	}
 
+	/* For mesh, the use of the QoS header is mandatory */
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		sta_flags |= WLAN_STA_WME;
+
 	/* receiver and we are QoS enabled, use a QoS type frame */
 	if ((sta_flags & WLAN_STA_WME) && local->hw.queues >= 4) {
 		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
