@@ -14,30 +14,16 @@
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 #include <mach/common.h>
+#include <mach/r8a7779.h>
+#include <mach/emev2.h>
 #include <asm/cacheflush.h>
+#include <asm/mach-types.h>
 
 static cpumask_t dead_cpus;
 
-int platform_cpu_kill(unsigned int cpu)
-{
-	int k;
-
-	/* this function is running on another CPU than the offline target,
-	 * here we need wait for shutdown code in platform_cpu_die() to
-	 * finish before asking SoC-specific code to power off the CPU core.
-	 */
-	for (k = 0; k < 1000; k++) {
-		if (cpumask_test_cpu(cpu, &dead_cpus))
-			return shmobile_platform_cpu_kill(cpu);
-
-		mdelay(1);
-	}
-
-	return 0;
-}
-
-void platform_cpu_die(unsigned int cpu)
+void shmobile_cpu_die(unsigned int cpu)
 {
 	/* hardware shutdown code running on the CPU that is being offlined */
 	flush_cache_all();
@@ -60,7 +46,7 @@ void platform_cpu_die(unsigned int cpu)
 	}
 }
 
-int platform_cpu_disable(unsigned int cpu)
+int shmobile_cpu_disable(unsigned int cpu)
 {
 	cpumask_clear_cpu(cpu, &dead_cpus);
 	/*
@@ -68,4 +54,9 @@ int platform_cpu_disable(unsigned int cpu)
 	 * e.g. clock tick interrupts)
 	 */
 	return cpu == 0 ? -EPERM : 0;
+}
+
+int shmobile_cpu_is_dead(unsigned int cpu)
+{
+	return cpumask_test_cpu(cpu, &dead_cpus);
 }

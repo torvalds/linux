@@ -650,6 +650,7 @@ static void __init ag5evm_init(void)
 }
 
 MACHINE_START(AG5EVM, "ag5evm")
+	.smp		= smp_ops(sh73a0_smp_ops),
 	.map_io		= sh73a0_map_io,
 	.init_early	= sh73a0_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
