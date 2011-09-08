@@ -14,7 +14,6 @@ config ACPI_APEI_GHES
 	depends on ACPI_APEI && X86
 	select ACPI_HED
 	select IRQ_WORK
-	select LLIST
 	select GENERIC_ALLOCATOR
 	help
 	  Generic Hardware Error Source provides a way to report
