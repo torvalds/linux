@@ -418,13 +418,20 @@ void dispc_runtime_put(void)
 	WARN_ON(r < 0);
 }
 
+static inline bool dispc_mgr_is_lcd(enum omap_channel channel)
+{
+	if (channel == OMAP_DSS_CHANNEL_LCD ||
+			channel == OMAP_DSS_CHANNEL_LCD2)
+		return true;
+	else
+		return false;
+}
 
 bool dispc_mgr_go_busy(enum omap_channel channel)
 {
 	int bit;
 
-	if (channel == OMAP_DSS_CHANNEL_LCD ||
-			channel == OMAP_DSS_CHANNEL_LCD2)
+	if (dispc_mgr_is_lcd(channel))
 		bit = 5; /* GOLCD */
 	else
 		bit = 6; /* GODIGIT */
@@ -440,8 +447,7 @@ void dispc_mgr_go(enum omap_channel channel)
 	int bit;
 	bool enable_bit, go_bit;
 
-	if (channel == OMAP_DSS_CHANNEL_LCD ||
-			channel == OMAP_DSS_CHANNEL_LCD2)
+	if (dispc_mgr_is_lcd(channel))
 		bit = 0; /* LCDENABLE */
 	else
 		bit = 1; /* DIGITALENABLE */
@@ -455,8 +461,7 @@ void dispc_mgr_go(enum omap_channel channel)
 	if (!enable_bit)
 		return;
 
-	if (channel == OMAP_DSS_CHANNEL_LCD ||
-			channel == OMAP_DSS_CHANNEL_LCD2)
+	if (dispc_mgr_is_lcd(channel))
 		bit = 5; /* GOLCD */
 	else
 		bit = 6; /* GODIGIT */
@@ -945,7 +950,7 @@ void dispc_mgr_set_cpr_coef(enum omap_channel channel,
 {
 	u32 coef_r, coef_g, coef_b;
 
-	if (channel != OMAP_DSS_CHANNEL_LCD && channel != OMAP_DSS_CHANNEL_LCD2)
+	if (!dispc_mgr_is_lcd(channel))
 		return;
 
 	coef_r = FLD_VAL(coefs->rr, 31, 22) | FLD_VAL(coefs->rg, 20, 11) |
@@ -2001,8 +2006,7 @@ bool dispc_mgr_is_enabled(enum omap_channel channel)
 
 void dispc_mgr_enable(enum omap_channel channel, bool enable)
 {
-	if (channel == OMAP_DSS_CHANNEL_LCD ||
-			channel == OMAP_DSS_CHANNEL_LCD2)
+	if (dispc_mgr_is_lcd(channel))
 		dispc_mgr_enable_lcd_out(channel, enable);
 	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
 		dispc_mgr_enable_digit_out(enable);
