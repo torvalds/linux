@@ -478,6 +478,8 @@ struct rt2x00lib_crypto {
 	u8 key[16];
 	u8 tx_mic[8];
 	u8 rx_mic[8];
+
+	int wcid;
 };
 
 /*
