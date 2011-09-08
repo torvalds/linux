@@ -1630,8 +1630,8 @@ static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
 	u64 tmp, pclk = dispc_mgr_pclk_rate(channel);
 
 	if (height > out_height) {
-		/* FIXME get real display PPL */
-		unsigned int ppl = 800;
+		struct omap_dss_device *dssdev = dispc_mgr_get_device(channel);
+		unsigned int ppl = dssdev->panel.timings.x_res;
 
 		tmp = pclk * height * out_width;
 		do_div(tmp, 2 * out_height * ppl);
