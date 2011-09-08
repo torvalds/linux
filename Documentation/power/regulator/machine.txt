@@ -43,6 +43,7 @@ to their supply regulator :-
 
 static struct regulator_init_data regulator1_data = {
 	.constraints = {
+		.name = "Regulator-1",
 		.min_uV = 3300000,
 		.max_uV = 3300000,
 		.valid_modes_mask = REGULATOR_MODE_NORMAL,
@@ -51,13 +52,19 @@ static struct regulator_init_data regulator1_data = {
 	.consumer_supplies = regulator1_consumers,
 };
 
+The name field should be set to something that is usefully descriptive
+for the board for configuration of supplies for other regulators and
+for use in logging and other diagnostic output.  Normally the name
+used for the supply rail in the schematic is a good choice.  If no
+name is provided then the subsystem will choose one.
+
 Regulator-1 supplies power to Regulator-2. This relationship must be registered
 with the core so that Regulator-1 is also enabled when Consumer A enables its
 supply (Regulator-2). The supply regulator is set by the supply_regulator
-field below:-
+field below and co:-
 
 static struct regulator_init_data regulator2_data = {
-	.supply_regulator = "regulator_name",
+	.supply_regulator = "Regulator-1",
 	.constraints = {
 		.min_uV = 1800000,
 		.max_uV = 2000000,
