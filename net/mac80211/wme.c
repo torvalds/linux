@@ -135,7 +135,8 @@ u16 ieee80211_downgrade_queue(struct ieee80211_local *local,
 	return ieee802_1d_to_ac[skb->priority];
 }
 
-void ieee80211_set_qos_hdr(struct ieee80211_local *local, struct sk_buff *skb)
+void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
+			   struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 
@@ -146,10 +147,11 @@ void ieee80211_set_qos_hdr(struct ieee80211_local *local, struct sk_buff *skb)
 
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 
-		if (unlikely(local->wifi_wme_noack_test))
+		if (unlikely(sdata->local->wifi_wme_noack_test))
 			ack_policy |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
-		/* qos header is 2 bytes, second reserved */
+		/* qos header is 2 bytes */
 		*p++ = ack_policy | tid;
-		*p = 0;
+		*p = ieee80211_vif_is_mesh(&sdata->vif) ?
+			(IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT >> 8) : 0;
 	}
 }
