@@ -383,7 +383,7 @@ static void vmbus_process_offer(struct work_struct *work)
 	 * We need to set the DeviceObject field before calling
 	 * vmbus_child_dev_add()
 	 */
-	newchannel->device_obj = vmbus_child_device_create(
+	newchannel->device_obj = vmbus_device_create(
 		&newchannel->offermsg.offer.if_type,
 		&newchannel->offermsg.offer.if_instance,
 		newchannel);

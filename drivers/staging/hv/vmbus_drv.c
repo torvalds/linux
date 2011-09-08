@@ -594,10 +594,10 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver)
 EXPORT_SYMBOL_GPL(vmbus_driver_unregister);
 
 /*
- * vmbus_child_device_create - Creates and registers a new child device
+ * vmbus_device_create - Creates and registers a new child device
  * on the vmbus.
  */
-struct hv_device *vmbus_child_device_create(uuid_le *type,
+struct hv_device *vmbus_device_create(uuid_le *type,
 					    uuid_le *instance,
 					    struct vmbus_channel *channel)
 {
