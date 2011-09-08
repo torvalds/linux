@@ -670,7 +670,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     {
         printk(KERN_ERR ">>>>>> set lcdc dclk failed\n");
     }
-    inf->fb0->var.pixclock = inf->fb1->var.pixclock = div_u64(1000000000000llu, screen->pixclock);
+    inf->fb0->var.pixclock = inf->fb1->var.pixclock = div_u64(1000000000000llu, clk_get_rate(inf->dclk));
     if(initscreen)
     {
         ret = clk_set_parent(inf->aclk, inf->aclk_parent);
@@ -2774,7 +2774,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     inf->fb0->var.yres_virtual = screen->y_res;
     inf->fb0->var.width = screen->width;
     inf->fb0->var.height = screen->height;
-    inf->fb0->var.pixclock = div_u64(1000000000000llu, screen->pixclock);
+    //inf->fb0->var.pixclock = div_u64(1000000000000llu, screen->pixclock);
     inf->fb0->var.left_margin = screen->left_margin;
     inf->fb0->var.right_margin = screen->right_margin;
     inf->fb0->var.upper_margin = screen->upper_margin;
@@ -2863,7 +2863,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     inf->fb1->var.yres_virtual = screen->y_res;
     inf->fb1->var.width = screen->width;
     inf->fb1->var.height = screen->height;
-    inf->fb1->var.pixclock = div_u64(1000000000000llu, screen->pixclock);
+    //inf->fb1->var.pixclock = div_u64(1000000000000llu, screen->pixclock);
     inf->fb1->var.left_margin = screen->left_margin;
     inf->fb1->var.right_margin = screen->right_margin;
     inf->fb1->var.upper_margin = screen->upper_margin;
