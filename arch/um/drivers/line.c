@@ -21,7 +21,7 @@ static irqreturn_t line_interrupt(int irq, void *data)
 	struct line *line = chan->line;
 
 	if (line)
-		chan_interrupt(&line->chan_list, &line->task, line->tty, irq);
+		chan_interrupt(line, &line->task, line->tty, irq);
 	return IRQ_HANDLED;
 }
 
@@ -30,7 +30,7 @@ static void line_timer_cb(struct work_struct *work)
 	struct line *line = container_of(work, struct line, task.work);
 
 	if (!line->throttled)
-		chan_interrupt(&line->chan_list, &line->task, line->tty,
+		chan_interrupt(line, &line->task, line->tty,
 			       line->driver->read_irq);
 }
 
@@ -145,7 +145,7 @@ static int flush_buffer(struct line *line)
 		/* line->buffer + LINE_BUFSIZE is the end of the buffer! */
 		count = line->buffer + LINE_BUFSIZE - line->head;
 
-		n = write_chan(&line->chan_list, line->head, count,
+		n = write_chan(line->chan_out, line->head, count,
 			       line->driver->write_irq);
 		if (n < 0)
 			return n;
@@ -162,7 +162,7 @@ static int flush_buffer(struct line *line)
 	}
 
 	count = line->tail - line->head;
-	n = write_chan(&line->chan_list, line->head, count,
+	n = write_chan(line->chan_out, line->head, count,
 		       line->driver->write_irq);
 
 	if (n < 0)
@@ -206,7 +206,7 @@ int line_write(struct tty_struct *tty, const unsigned char *buf, int len)
 	if (line->head != line->tail)
 		ret = buffer_data(line, buf, len);
 	else {
-		n = write_chan(&line->chan_list, buf, len,
+		n = write_chan(line->chan_out, buf, len,
 			       line->driver->write_irq);
 		if (n < 0) {
 			ret = n;
@@ -318,7 +318,7 @@ void line_throttle(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
 
-	deactivate_chan(&line->chan_list, line->driver->read_irq);
+	deactivate_chan(line->chan_in, line->driver->read_irq);
 	line->throttled = 1;
 }
 
@@ -327,7 +327,7 @@ void line_unthrottle(struct tty_struct *tty)
 	struct line *line = tty->driver_data;
 
 	line->throttled = 0;
-	chan_interrupt(&line->chan_list, &line->task, tty,
+	chan_interrupt(line, &line->task, tty,
 		       line->driver->read_irq);
 
 	/*
@@ -336,7 +336,7 @@ void line_unthrottle(struct tty_struct *tty)
 	 * again and we shouldn't turn the interrupt back on.
 	 */
 	if (!line->throttled)
-		reactivate_chan(&line->chan_list, line->driver->read_irq);
+		reactivate_chan(line->chan_in, line->driver->read_irq);
 }
 
 static irqreturn_t line_write_interrupt(int irq, void *data)
@@ -428,11 +428,11 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	INIT_DELAYED_WORK(&line->task, line_timer_cb);
 
 	if (!line->sigio) {
-		chan_enable_winch(&line->chan_list, tty);
+		chan_enable_winch(line->chan_out, tty);
 		line->sigio = 1;
 	}
 
-	chan_window_size(&line->chan_list, &tty->winsize.ws_row,
+	chan_window_size(line, &tty->winsize.ws_row,
 			 &tty->winsize.ws_col);
 out_unlock:
 	mutex_unlock(&line->count_lock);
@@ -624,7 +624,7 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 		CONFIG_CHUNK(str, size, n, "none", 1);
 	else if (line->tty == NULL)
 		CONFIG_CHUNK(str, size, n, line->init_str, 1);
-	else n = chan_config_string(&line->chan_list, str, size, error_out);
+	else n = chan_config_string(line, str, size, error_out);
 	mutex_unlock(&line->count_lock);
 
 	return n;
@@ -761,7 +761,7 @@ static irqreturn_t winch_interrupt(int irq, void *data)
 	if (tty != NULL) {
 		line = tty->driver_data;
 		if (line != NULL) {
-			chan_window_size(&line->chan_list, &tty->winsize.ws_row,
+			chan_window_size(line, &tty->winsize.ws_row,
 					 &tty->winsize.ws_col);
 			kill_pgrp(tty->pgrp, SIGWINCH, 1);
 		}

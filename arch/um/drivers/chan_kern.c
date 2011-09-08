@@ -140,18 +140,10 @@ static int open_chan(struct list_head *chans)
 	return err;
 }
 
-void chan_enable_winch(struct list_head *chans, struct tty_struct *tty)
+void chan_enable_winch(struct chan *chan, struct tty_struct *tty)
 {
-	struct list_head *ele;
-	struct chan *chan;
-
-	list_for_each(ele, chans) {
-		chan = list_entry(ele, struct chan, list);
-		if (chan->primary && chan->output && chan->ops->winch) {
-			register_winch(chan->fd, tty);
-			return;
-		}
-	}
+	if (chan && chan->primary && chan->ops->winch)
+		register_winch(chan->fd, tty);
 }
 
 int enable_chan(struct line *line)
@@ -258,72 +250,45 @@ void close_chan(struct list_head *chans, int delay_free_irq)
 	}
 }
 
-void deactivate_chan(struct list_head *chans, int irq)
+void deactivate_chan(struct chan *chan, int irq)
 {
-	struct list_head *ele;
-
-	struct chan *chan;
-	list_for_each(ele, chans) {
-		chan = list_entry(ele, struct chan, list);
-
-		if (chan->enabled && chan->input)
-			deactivate_fd(chan->fd, irq);
-	}
+	if (chan && chan->enabled)
+		deactivate_fd(chan->fd, irq);
 }
 
-void reactivate_chan(struct list_head *chans, int irq)
+void reactivate_chan(struct chan *chan, int irq)
 {
-	struct list_head *ele;
-	struct chan *chan;
-
-	list_for_each(ele, chans) {
-		chan = list_entry(ele, struct chan, list);
-
-		if (chan->enabled && chan->input)
-			reactivate_fd(chan->fd, irq);
-	}
+	if (chan && chan->enabled)
+		reactivate_fd(chan->fd, irq);
 }
 
-int write_chan(struct list_head *chans, const char *buf, int len,
+int write_chan(struct chan *chan, const char *buf, int len,
 	       int write_irq)
 {
-	struct list_head *ele;
-	struct chan *chan = NULL;
 	int n, ret = 0;
 
-	if (len == 0)
+	if (len == 0 || !chan || !chan->ops->write)
 		return 0;
 
-	list_for_each(ele, chans) {
-		chan = list_entry(ele, struct chan, list);
-		if (!chan->output || (chan->ops->write == NULL))
-			continue;
-
-		n = chan->ops->write(chan->fd, buf, len, chan->data);
-		if (chan->primary) {
-			ret = n;
-			if ((ret == -EAGAIN) || ((ret >= 0) && (ret < len)))
-				reactivate_fd(chan->fd, write_irq);
-		}
+	n = chan->ops->write(chan->fd, buf, len, chan->data);
+	if (chan->primary) {
+		ret = n;
+		if ((ret == -EAGAIN) || ((ret >= 0) && (ret < len)))
+			reactivate_fd(chan->fd, write_irq);
 	}
 	return ret;
 }
 
-int console_write_chan(struct list_head *chans, const char *buf, int len)
+int console_write_chan(struct chan *chan, const char *buf, int len)
 {
-	struct list_head *ele;
-	struct chan *chan;
 	int n, ret = 0;
 
-	list_for_each(ele, chans) {
-		chan = list_entry(ele, struct chan, list);
-		if (!chan->output || (chan->ops->console_write == NULL))
-			continue;
+	if (!chan || !chan->ops->console_write)
+		return 0;
 
-		n = chan->ops->console_write(chan->fd, buf, len);
-		if (chan->primary)
-			ret = n;
-	}
+	n = chan->ops->console_write(chan->fd, buf, len);
+	if (chan->primary)
+		ret = n;
 	return ret;
 }
 
@@ -340,20 +305,24 @@ int console_open_chan(struct line *line, struct console *co)
 	return 0;
 }
 
-int chan_window_size(struct list_head *chans, unsigned short *rows_out,
+int chan_window_size(struct line *line, unsigned short *rows_out,
 		      unsigned short *cols_out)
 {
-	struct list_head *ele;
 	struct chan *chan;
 
-	list_for_each(ele, chans) {
-		chan = list_entry(ele, struct chan, list);
-		if (chan->primary) {
-			if (chan->ops->window_size == NULL)
-				return 0;
-			return chan->ops->window_size(chan->fd, chan->data,
-						      rows_out, cols_out);
-		}
+	chan = line->chan_in;
+	if (chan && chan->primary) {
+		if (chan->ops->window_size == NULL)
+			return 0;
+		return chan->ops->window_size(chan->fd, chan->data,
+					      rows_out, cols_out);
+	}
+	chan = line->chan_out;
+	if (chan && chan->primary) {
+		if (chan->ops->window_size == NULL)
+			return 0;
+		return chan->ops->window_size(chan->fd, chan->data,
+					      rows_out, cols_out);
 	}
 	return 0;
 }
@@ -429,21 +398,15 @@ static int chan_pair_config_string(struct chan *in, struct chan *out,
 	return n;
 }
 
-int chan_config_string(struct list_head *chans, char *str, int size,
+int chan_config_string(struct line *line, char *str, int size,
 		       char **error_out)
 {
-	struct list_head *ele;
-	struct chan *chan, *in = NULL, *out = NULL;
+	struct chan *in = line->chan_in, *out = line->chan_out;
 
-	list_for_each(ele, chans) {
-		chan = list_entry(ele, struct chan, list);
-		if (!chan->primary)
-			continue;
-		if (chan->input)
-			in = chan;
-		if (chan->output)
-			out = chan;
-	}
+	if (in && !in->primary)
+		in = NULL;
+	if (out && !out->primary)
+		out = NULL;
 
 	return chan_pair_config_string(in, out, str, size, error_out);
 }
@@ -589,39 +552,36 @@ int parse_chan_pair(char *str, struct line *line, int device,
 	return 0;
 }
 
-void chan_interrupt(struct list_head *chans, struct delayed_work *task,
+void chan_interrupt(struct line *line, struct delayed_work *task,
 		    struct tty_struct *tty, int irq)
 {
-	struct list_head *ele, *next;
-	struct chan *chan;
+	struct chan *chan = line->chan_in;
 	int err;
 	char c;
 
-	list_for_each_safe(ele, next, chans) {
-		chan = list_entry(ele, struct chan, list);
-		if (!chan->input || (chan->ops->read == NULL))
-			continue;
-		do {
-			if (tty && !tty_buffer_request_room(tty, 1)) {
-				schedule_delayed_work(task, 1);
-				goto out;
-			}
-			err = chan->ops->read(chan->fd, &c, chan->data);
-			if (err > 0)
-				tty_receive_char(tty, c);
-		} while (err > 0);
+	if (!chan || !chan->ops->read)
+		goto out;
 
-		if (err == 0)
-			reactivate_fd(chan->fd, irq);
-		if (err == -EIO) {
-			if (chan->primary) {
-				if (tty != NULL)
-					tty_hangup(tty);
-				close_chan(chans, 1);
-				return;
-			}
-			else close_one_chan(chan, 1);
+	do {
+		if (tty && !tty_buffer_request_room(tty, 1)) {
+			schedule_delayed_work(task, 1);
+			goto out;
 		}
+		err = chan->ops->read(chan->fd, &c, chan->data);
+		if (err > 0)
+			tty_receive_char(tty, c);
+	} while (err > 0);
+
+	if (err == 0)
+		reactivate_fd(chan->fd, irq);
+	if (err == -EIO) {
+		if (chan->primary) {
+			if (tty != NULL)
+				tty_hangup(tty);
+			close_chan(&line->chan_list, 1);
+			return;
+		}
+		else close_one_chan(chan, 1);
 	}
  out:
 	if (tty)

@@ -151,7 +151,7 @@ static void ssl_console_write(struct console *c, const char *string,
 	unsigned long flags;
 
 	spin_lock_irqsave(&line->lock, flags);
-	console_write_chan(&line->chan_list, string, len);
+	console_write_chan(line->chan_out, string, len);
 	spin_unlock_irqrestore(&line->lock, flags);
 }
 
