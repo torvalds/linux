@@ -422,6 +422,21 @@ static inline int wait_for_bit_change(struct platform_device *dsidev,
 	return value;
 }
 
+u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
+{
+	switch (fmt) {
+	case OMAP_DSS_DSI_FMT_RGB888:
+	case OMAP_DSS_DSI_FMT_RGB666:
+		return 24;
+	case OMAP_DSS_DSI_FMT_RGB666_PACKED:
+		return 18;
+	case OMAP_DSS_DSI_FMT_RGB565:
+		return 16;
+	default:
+		BUG();
+	}
+}
+
 #ifdef DEBUG
 static void dsi_perf_mark_setup(struct platform_device *dsidev)
 {
@@ -438,6 +453,7 @@ static void dsi_perf_mark_start(struct platform_device *dsidev)
 static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct omap_dss_device *dssdev = dsi->update_region.device;
 	ktime_t t, setup_time, trans_time;
 	u32 total_bytes;
 	u32 setup_us, trans_us, total_us;
@@ -461,7 +477,7 @@ static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 
 	total_bytes = dsi->update_region.w *
 		dsi->update_region.h *
-		dsi->update_region.device->ctrl.pixel_size / 8;
+		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
 
 	printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
 			"%u bytes, %u kbytes/sec\n",
@@ -3689,7 +3705,7 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 	dsi_set_lp_rx_timeout(dsidev, 0x1fff, true, true);
 	dsi_set_hs_tx_timeout(dsidev, 0x1fff, true, true);
 
-	switch (dssdev->ctrl.pixel_size) {
+	switch (dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt)) {
 	case 16:
 		buswidth = 0;
 		break;
@@ -3814,7 +3830,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 
 	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_VP);
 
-	bytespp	= dssdev->ctrl.pixel_size / 8;
+	bytespp	= dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
 	bytespl = w * bytespp;
 	bytespf = bytespl * h;
 
@@ -4023,7 +4039,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 	dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 1);
 
 	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
-			dssdev->ctrl.pixel_size);
+			dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt));
 
 	{
 		struct omap_video_timings timings = {

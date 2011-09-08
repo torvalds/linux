@@ -129,6 +129,13 @@ enum omap_dss_venc_type {
 	OMAP_DSS_VENC_TYPE_SVIDEO,
 };
 
+enum omap_dss_dsi_pixel_format {
+	OMAP_DSS_DSI_FMT_RGB888,
+	OMAP_DSS_DSI_FMT_RGB666,
+	OMAP_DSS_DSI_FMT_RGB666_PACKED,
+	OMAP_DSS_DSI_FMT_RGB565,
+};
+
 enum omap_dss_dsi_mode {
 	OMAP_DSS_DSI_CMD_MODE = 0,
 	OMAP_DSS_DSI_VIDEO_MODE,
@@ -496,6 +503,7 @@ struct omap_dss_device {
 
 		enum omap_panel_config config;
 
+		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
 		enum omap_dss_dsi_mode dsi_mode;
 	} panel;
 

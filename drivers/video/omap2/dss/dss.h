@@ -282,6 +282,8 @@ void dsi_create_debugfs_files_reg(struct dentry *debugfs_dir,
 
 int dsi_init_display(struct omap_dss_device *display);
 void dsi_irq_handler(void);
+u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
+
 unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
 int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo);
@@ -311,6 +313,11 @@ static inline int dsi_runtime_get(struct platform_device *dsidev)
 }
 static inline void dsi_runtime_put(struct platform_device *dsidev)
 {
+}
+static inline u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
+{
+	WARN("%s: DSI not compiled in, returning pixel_size as 0\n", __func__);
+	return 0;
 }
 static inline unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev)
 {

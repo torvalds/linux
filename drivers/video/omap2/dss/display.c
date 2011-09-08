@@ -299,8 +299,12 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 			return 16;
 
 	case OMAP_DISPLAY_TYPE_DBI:
-	case OMAP_DISPLAY_TYPE_DSI:
 		if (dssdev->ctrl.pixel_size == 24)
+			return 24;
+		else
+			return 16;
+	case OMAP_DISPLAY_TYPE_DSI:
+		if (dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) > 16)
 			return 24;
 		else
 			return 16;
@@ -339,8 +343,10 @@ bool dss_use_replication(struct omap_dss_device *dssdev,
 		bpp = 24;
 		break;
 	case OMAP_DISPLAY_TYPE_DBI:
-	case OMAP_DISPLAY_TYPE_DSI:
 		bpp = dssdev->ctrl.pixel_size;
+		break;
+	case OMAP_DISPLAY_TYPE_DSI:
+		bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
 		break;
 	default:
 		BUG();
