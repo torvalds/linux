@@ -261,6 +261,14 @@ struct ext4_io_submit {
 #endif
 #define EXT4_BLOCK_ALIGN(size, blkbits)		ALIGN((size), (1 << (blkbits)))
 
+/* Translate a block number to a cluster number */
+#define EXT4_B2C(sbi, blk)	((blk) >> (sbi)->s_cluster_bits)
+/* Translate a cluster number to a block number */
+#define EXT4_C2B(sbi, cluster)	((cluster) << (sbi)->s_cluster_bits)
+/* Translate # of blks to # of clusters */
+#define EXT4_NUM_B2C(sbi, blks)	(((blks) + (sbi)->s_cluster_ratio - 1) >> \
+				 (sbi)->s_cluster_bits)
+
 /*
  * Structure of a blocks group descriptor
  */
@@ -1770,6 +1778,11 @@ extern void ext4_init_block_bitmap(struct super_block *sb,
 extern unsigned ext4_free_blocks_after_init(struct super_block *sb,
 					    ext4_group_t block_group,
 					    struct ext4_group_desc *gdp);
+extern unsigned ext4_num_base_meta_clusters(struct super_block *sb,
+					    ext4_group_t block_group);
+extern unsigned ext4_num_overhead_clusters(struct super_block *sb,
+					   ext4_group_t block_group,
+					   struct ext4_group_desc *gdp);
 ext4_fsblk_t ext4_inode_to_goal_block(struct inode *);
 
 /* dir.c */
