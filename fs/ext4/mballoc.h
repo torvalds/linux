@@ -139,9 +139,9 @@ enum {
 
 struct ext4_free_extent {
 	ext4_lblk_t fe_logical;
-	ext4_grpblk_t fe_start;
+	ext4_grpblk_t fe_start;	/* In cluster units */
 	ext4_group_t fe_group;
-	ext4_grpblk_t fe_len;
+	ext4_grpblk_t fe_len;	/* In cluster units */
 };
 
 /*
