@@ -856,9 +856,9 @@ struct wm831x_battery_pdata wm831x_battery_platdata = {
 	.off_mask = 1,       /** Mask OFF while charging */
 	.trickle_ilim = 200,   /** Trickle charge current limit, in mA */
 	.vsel = 4200,           /** Target voltage, in mV */
-	.eoc_iterm = 90,      /** End of trickle charge current, in mA */
+	.eoc_iterm = 50,      /** End of trickle charge current, in mA */
 	.fast_ilim = 600,      /** Fast charge current limit, in mA */
-	.timeout = 240,        /** Charge cycle timeout, in minutes */
+	.timeout = 480,        /** Charge cycle timeout, in minutes */
 	.syslo = 3300,    /* syslo threshold, in mV*/
 	.sysok = 3500,    /* sysko threshold, in mV*/
 };
