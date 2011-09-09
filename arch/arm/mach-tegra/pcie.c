@@ -41,6 +41,8 @@
 #include <mach/clk.h>
 #include <mach/powergate.h>
 
+#include "board.h"
+
 /* register definitions */
 #define AFI_OFFSET	0x3800
 #define PADS_OFFSET	0x3000
