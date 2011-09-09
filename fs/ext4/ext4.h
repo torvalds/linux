@@ -539,6 +539,8 @@ struct ext4_new_group_data {
 #define EXT4_FREE_BLOCKS_FORGET		0x0002
 #define EXT4_FREE_BLOCKS_VALIDATED	0x0004
 #define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE	0x0008
+#define EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER	0x0010
+#define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
 
 /*
  * Flags used by ext4_discard_partial_page_buffers

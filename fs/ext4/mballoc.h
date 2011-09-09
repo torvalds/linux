@@ -106,7 +106,7 @@ struct ext4_free_data {
 	ext4_group_t group;
 
 	/* free block extent */
-	ext4_grpblk_t start_blk;
+	ext4_grpblk_t start_cluster;
 	ext4_grpblk_t count;
 
 	/* transaction which freed this extent */
