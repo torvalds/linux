@@ -3383,7 +3383,8 @@ static int __finish_chunk_alloc(struct btrfs_trans_handle *trans,
 		device = map->stripes[index].dev;
 		device->bytes_used += stripe_size;
 		ret = btrfs_update_device(trans, device);
-		BUG_ON(ret);
+		if (ret)
+			goto out_free;
 		index++;
 	}
 
@@ -3430,6 +3431,7 @@ static int __finish_chunk_alloc(struct btrfs_trans_handle *trans,
 					     item_size);
 	}
 
+out_free:
 	kfree(chunk);
 	return ret;
 }
