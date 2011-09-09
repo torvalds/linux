@@ -82,17 +82,6 @@
 #define ETP_WMIN_V2			0
 #define ETP_WMAX_V2			15
 
-/*
- * For two finger touches the coordinate of each finger gets reported
- * separately but with reduced resolution.
- */
-#define ETP_2FT_FUZZ			4
-
-#define ETP_2FT_XMIN			(  0 + ETP_2FT_FUZZ)
-#define ETP_2FT_XMAX			(288 - ETP_2FT_FUZZ)
-#define ETP_2FT_YMIN			(  0 + ETP_2FT_FUZZ)
-#define ETP_2FT_YMAX			(192 - ETP_2FT_FUZZ)
-
 struct elantech_data {
 	unsigned char reg_10;
 	unsigned char reg_11;

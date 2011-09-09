@@ -273,11 +273,11 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 	struct elantech_data *etd = psmouse->private;
 	struct input_dev *dev = psmouse->dev;
 	unsigned char *packet = psmouse->packet;
-	unsigned int fingers, x1 = 0, y1 = 0, x2 = 0, y2 = 0, width = 0, pres = 0;
+	unsigned int fingers, x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+	unsigned int width = 0, pres = 0;
 
 	/* byte 0: n1  n0   .   .   .   .   R   L */
 	fingers = (packet[0] & 0xc0) >> 6;
-	input_report_key(dev, BTN_TOUCH, fingers != 0);
 
 	switch (fingers) {
 	case 3:
@@ -300,9 +300,6 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		 */
 		y1 = ETP_YMAX_V2 - (((packet[4] & 0x0f) << 8) | packet[5]);
 
-		input_report_abs(dev, ABS_X, x1);
-		input_report_abs(dev, ABS_Y, y1);
-
 		pres = (packet[1] & 0xf0) | ((packet[4] & 0xf0) >> 4);
 		width = ((packet[0] & 0x30) >> 2) | ((packet[3] & 0x30) >> 4);
 		break;
@@ -314,22 +311,18 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		 * byte 0:  .   .  ay8 ax8  .   .   .   .
 		 * byte 1: ax7 ax6 ax5 ax4 ax3 ax2 ax1 ax0
 		 */
-		x1 = ((packet[0] & 0x10) << 4) | packet[1];
+		x1 = (((packet[0] & 0x10) << 4) | packet[1]) << 2;
 		/* byte 2: ay7 ay6 ay5 ay4 ay3 ay2 ay1 ay0 */
-		y1 = ETP_2FT_YMAX - (((packet[0] & 0x20) << 3) | packet[2]);
+		y1 = ETP_YMAX_V2 -
+			((((packet[0] & 0x20) << 3) | packet[2]) << 2);
 		/*
 		 * byte 3:  .   .  by8 bx8  .   .   .   .
 		 * byte 4: bx7 bx6 bx5 bx4 bx3 bx2 bx1 bx0
 		 */
-		x2 = ((packet[3] & 0x10) << 4) | packet[4];
+		x2 = (((packet[3] & 0x10) << 4) | packet[4]) << 2;
 		/* byte 5: by7 by8 by5 by4 by3 by2 by1 by0 */
-		y2 = ETP_2FT_YMAX - (((packet[3] & 0x20) << 3) | packet[5]);
-		/*
-		 * For compatibility with the X Synaptics driver scale up
-		 * one coordinate and report as ordinary mouse movent
-		 */
-		input_report_abs(dev, ABS_X, x1 << 2);
-		input_report_abs(dev, ABS_Y, y1 << 2);
+		y2 = ETP_YMAX_V2 -
+			((((packet[3] & 0x20) << 3) | packet[5]) << 2);
 
 		/* Unknown so just report sensible values */
 		pres = 127;
@@ -337,6 +330,11 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		break;
 	}
 
+	input_report_key(dev, BTN_TOUCH, fingers != 0);
+	if (fingers != 0) {
+		input_report_abs(dev, ABS_X, x1);
+		input_report_abs(dev, ABS_Y, y1);
+	}
 	elantech_report_semi_mt_data(dev, fingers, x1, y1, x2, y2);
 	input_report_key(dev, BTN_TOOL_FINGER, fingers == 1);
 	input_report_key(dev, BTN_TOOL_DOUBLETAP, fingers == 2);
