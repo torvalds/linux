@@ -3261,28 +3261,26 @@ static int is_delegation_stateid(stateid_t *stateid)
 
 __be32 nfs4_validate_stateid(stateid_t *stateid, bool has_session)
 {
-	struct nfs4_ol_stateid *stp = NULL;
-	__be32 status = nfserr_stale_stateid;
+	struct nfs4_stid *s;
+	struct nfs4_ol_stateid *ols;
+	__be32 status;
 
 	if (STALE_STATEID(stateid))
-		goto out;
+		return nfserr_stale_stateid;
 
-	status = nfserr_expired;
-	stp = find_ol_stateid(stateid);
-	if (!stp)
-		goto out;
-	status = nfserr_bad_stateid;
-	if (stp->st_stateowner->so_is_open_owner
-	    && !openowner(stp->st_stateowner)->oo_confirmed)
-		goto out;
-
-	status = check_stateid_generation(stateid, &stp->st_stid.sc_stateid, has_session);
+	s = find_stateid(stateid);
+	if (!s)
+		 return nfserr_stale_stateid;
+	status = check_stateid_generation(stateid, &s->sc_stateid, has_session);
 	if (status)
-		goto out;
-
-	status = nfs_ok;
-out:
-	return status;
+		return status;
+	if (!(s->sc_type & (NFS4_OPEN_STID | NFS4_LOCK_STID)))
+		return nfs_ok;
+	ols = openlockstateid(s);
+	if (ols->st_stateowner->so_is_open_owner
+	    && !openowner(ols->st_stateowner)->oo_confirmed)
+		return nfserr_bad_stateid;
+	return nfs_ok;
 }
 
 /*
