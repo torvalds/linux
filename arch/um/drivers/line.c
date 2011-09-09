@@ -640,14 +640,11 @@ int line_id(char **str, int *start_out, int *end_out)
 
 int line_remove(struct line *lines, unsigned int num, int n, char **error_out)
 {
-	int err;
-	char config[sizeof("conxxxx=none\0")];
-
-	sprintf(config, "%d=none", n);
-	err = line_setup(lines, num, config, error_out);
-	if (err >= 0)
-		err = 0;
-	return err;
+	if (n >= num) {
+		*error_out = "Device number out of range";
+		return -EINVAL;
+	}
+	return setup_one_line(lines, n, "none", INIT_ONE, error_out);
 }
 
 struct tty_driver *register_lines(struct line_driver *line_driver,
