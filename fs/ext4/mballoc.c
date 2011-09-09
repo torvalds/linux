@@ -653,7 +653,7 @@ static void ext4_mb_mark_free_simple(struct super_block *sb,
 	ext4_grpblk_t chunk;
 	unsigned short border;
 
-	BUG_ON(len > EXT4_BLOCKS_PER_GROUP(sb));
+	BUG_ON(len > EXT4_CLUSTERS_PER_GROUP(sb));
 
 	border = 2 << sb->s_blocksize_bits;
 
@@ -705,7 +705,7 @@ void ext4_mb_generate_buddy(struct super_block *sb,
 				void *buddy, void *bitmap, ext4_group_t group)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
-	ext4_grpblk_t max = EXT4_BLOCKS_PER_GROUP(sb);
+	ext4_grpblk_t max = EXT4_CLUSTERS_PER_GROUP(sb);
 	ext4_grpblk_t i = 0;
 	ext4_grpblk_t first;
 	ext4_grpblk_t len;
@@ -1624,8 +1624,8 @@ static void ext4_mb_measure_extent(struct ext4_allocation_context *ac,
 	struct ext4_free_extent *gex = &ac->ac_g_ex;
 
 	BUG_ON(ex->fe_len <= 0);
-	BUG_ON(ex->fe_len > EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
-	BUG_ON(ex->fe_start >= EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
+	BUG_ON(ex->fe_len > EXT4_CLUSTERS_PER_GROUP(ac->ac_sb));
+	BUG_ON(ex->fe_start >= EXT4_CLUSTERS_PER_GROUP(ac->ac_sb));
 	BUG_ON(ac->ac_status != AC_STATUS_CONTINUE);
 
 	ac->ac_found++;
@@ -1823,8 +1823,8 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 
 	while (free && ac->ac_status == AC_STATUS_CONTINUE) {
 		i = mb_find_next_zero_bit(bitmap,
-						EXT4_BLOCKS_PER_GROUP(sb), i);
-		if (i >= EXT4_BLOCKS_PER_GROUP(sb)) {
+						EXT4_CLUSTERS_PER_GROUP(sb), i);
+		if (i >= EXT4_CLUSTERS_PER_GROUP(sb)) {
 			/*
 			 * IF we have corrupt bitmap, we won't find any
 			 * free blocks even though group info says we
@@ -1887,7 +1887,7 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 	do_div(a, sbi->s_stripe);
 	i = (a * sbi->s_stripe) - first_group_block;
 
-	while (i < EXT4_BLOCKS_PER_GROUP(sb)) {
+	while (i < EXT4_CLUSTERS_PER_GROUP(sb)) {
 		if (!mb_test_bit(i, bitmap)) {
 			max = mb_find_extent(e4b, 0, i, sbi->s_stripe, &ex);
 			if (max >= sbi->s_stripe) {
@@ -3036,7 +3036,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	}
 	BUG_ON(start + size <= ac->ac_o_ex.fe_logical &&
 			start > ac->ac_o_ex.fe_logical);
-	BUG_ON(size <= 0 || size > EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
+	BUG_ON(size <= 0 || size > EXT4_CLUSTERS_PER_GROUP(ac->ac_sb));
 
 	/* now prepare goal request */
 
@@ -3690,7 +3690,7 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 	}
 
 	if (needed == 0)
-		needed = EXT4_BLOCKS_PER_GROUP(sb) + 1;
+		needed = EXT4_CLUSTERS_PER_GROUP(sb) + 1;
 
 	INIT_LIST_HEAD(&list);
 repeat:
@@ -4007,8 +4007,8 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	len = ar->len;
 
 	/* just a dirty hack to filter too big requests  */
-	if (len >= EXT4_BLOCKS_PER_GROUP(sb) - 10)
-		len = EXT4_BLOCKS_PER_GROUP(sb) - 10;
+	if (len >= EXT4_CLUSTERS_PER_GROUP(sb) - 10)
+		len = EXT4_CLUSTERS_PER_GROUP(sb) - 10;
 
 	/* start searching from the goal */
 	goal = ar->goal;
@@ -4552,8 +4552,8 @@ do_more:
 	 * Check to see if we are freeing blocks across a group
 	 * boundary.
 	 */
-	if (bit + count > EXT4_BLOCKS_PER_GROUP(sb)) {
-		overflow = bit + count - EXT4_BLOCKS_PER_GROUP(sb);
+	if (bit + count > EXT4_CLUSTERS_PER_GROUP(sb)) {
+		overflow = bit + count - EXT4_CLUSTERS_PER_GROUP(sb);
 		count -= overflow;
 	}
 	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
@@ -4948,7 +4948,7 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	struct ext4_group_info *grp;
 	ext4_group_t first_group, last_group;
 	ext4_group_t group, ngroups = ext4_get_groups_count(sb);
-	ext4_grpblk_t cnt = 0, first_block, last_block;
+	ext4_grpblk_t cnt = 0, first_cluster, last_cluster;
 	uint64_t start, len, minlen, trimmed = 0;
 	ext4_fsblk_t first_data_blk =
 			le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
@@ -4958,7 +4958,7 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	len = range->len >> sb->s_blocksize_bits;
 	minlen = range->minlen >> sb->s_blocksize_bits;
 
-	if (unlikely(minlen > EXT4_BLOCKS_PER_GROUP(sb)))
+	if (unlikely(minlen > EXT4_CLUSTERS_PER_GROUP(sb)))
 		return -EINVAL;
 	if (start + len <= first_data_blk)
 		goto out;
@@ -4969,11 +4969,11 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 
 	/* Determine first and last group to examine based on start and len */
 	ext4_get_group_no_and_offset(sb, (ext4_fsblk_t) start,
-				     &first_group, &first_block);
+				     &first_group, &first_cluster);
 	ext4_get_group_no_and_offset(sb, (ext4_fsblk_t) (start + len),
-				     &last_group, &last_block);
+				     &last_group, &last_cluster);
 	last_group = (last_group > ngroups - 1) ? ngroups - 1 : last_group;
-	last_block = EXT4_BLOCKS_PER_GROUP(sb);
+	last_cluster = EXT4_CLUSTERS_PER_GROUP(sb);
 
 	if (first_group > last_group)
 		return -EINVAL;
@@ -4993,20 +4993,20 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		 * change it for the last group in which case start +
 		 * len < EXT4_BLOCKS_PER_GROUP(sb).
 		 */
-		if (first_block + len < EXT4_BLOCKS_PER_GROUP(sb))
-			last_block = first_block + len;
-		len -= last_block - first_block;
+		if (first_cluster + len < EXT4_CLUSTERS_PER_GROUP(sb))
+			last_cluster = first_cluster + len;
+		len -= last_cluster - first_cluster;
 
 		if (grp->bb_free >= minlen) {
-			cnt = ext4_trim_all_free(sb, group, first_block,
-						last_block, minlen);
+			cnt = ext4_trim_all_free(sb, group, first_cluster,
+						last_cluster, minlen);
 			if (cnt < 0) {
 				ret = cnt;
 				break;
 			}
 		}
 		trimmed += cnt;
-		first_block = 0;
+		first_cluster = 0;
 	}
 	range->len = trimmed * sb->s_blocksize;
 
