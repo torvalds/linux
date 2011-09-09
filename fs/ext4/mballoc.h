@@ -216,6 +216,7 @@ struct ext4_buddy {
 static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 					struct ext4_free_extent *fex)
 {
-	return ext4_group_first_block_no(sb, fex->fe_group) + fex->fe_start;
+	return ext4_group_first_block_no(sb, fex->fe_group) +
+		(fex->fe_start << EXT4_SB(sb)->s_cluster_bits);
 }
 #endif
