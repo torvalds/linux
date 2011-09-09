@@ -2255,7 +2255,7 @@ static int ext4_nonda_switch(struct super_block *sb)
 		percpu_counter_read_positive(&sbi->s_freeclusters_counter));
 	dirty_blocks = percpu_counter_read_positive(&sbi->s_dirtyclusters_counter);
 	if (2 * free_blocks < 3 * dirty_blocks ||
-		free_blocks < (dirty_blocks + EXT4_FREEBLOCKS_WATERMARK)) {
+		free_blocks < (dirty_blocks + EXT4_FREECLUSTERS_WATERMARK)) {
 		/*
 		 * free block count is less than 150% of dirty blocks
 		 * or free blocks is less than watermark

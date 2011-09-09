@@ -2103,13 +2103,13 @@ do {								\
 } while (0)
 
 #ifdef CONFIG_SMP
-/* Each CPU can accumulate percpu_counter_batch blocks in their local
- * counters. So we need to make sure we have free blocks more
+/* Each CPU can accumulate percpu_counter_batch clusters in their local
+ * counters. So we need to make sure we have free clusters more
  * than percpu_counter_batch  * nr_cpu_ids. Also add a window of 4 times.
  */
-#define EXT4_FREEBLOCKS_WATERMARK (4 * (percpu_counter_batch * nr_cpu_ids))
+#define EXT4_FREECLUSTERS_WATERMARK (4 * (percpu_counter_batch * nr_cpu_ids))
 #else
-#define EXT4_FREEBLOCKS_WATERMARK 0
+#define EXT4_FREECLUSTERS_WATERMARK 0
 #endif
 
 static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
