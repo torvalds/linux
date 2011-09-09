@@ -36,7 +36,6 @@ static struct map_desc mx50_io_desc[] __initdata = {
  */
 static struct map_desc mx51_io_desc[] __initdata = {
 	imx_map_entry(MX51, IRAM, MT_DEVICE),
-	imx_map_entry(MX51, DEBUG, MT_DEVICE),
 	imx_map_entry(MX51, AIPS1, MT_DEVICE),
 	imx_map_entry(MX51, SPBA0, MT_DEVICE),
 	imx_map_entry(MX51, AIPS2, MT_DEVICE),
