@@ -260,12 +260,10 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	u32 val = 0;
 	unsigned int i;
 	unsigned int num_down = 0;
-	unsigned long flags;
 	bool fn_keypress = false;
 	bool key_in_same_row = false;
 	bool key_in_same_col = false;
 
-	spin_lock_irqsave(&kbc->lock, flags);
 	for (i = 0; i < KBC_MAX_KPENT; i++) {
 		if ((i % 4) == 0)
 			val = readl(kbc->mmio + KBC_KP_ENT0_0 + i);
@@ -294,7 +292,7 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	 * any 2 of the 3 keys share a row, and any 2 of them share a column.
 	 * If so ignore the key presses for this iteration.
 	 */
-	if ((kbc->use_ghost_filter) && (num_down >= 3)) {
+	if (kbc->use_ghost_filter && num_down >= 3) {
 		for (i = 0; i < num_down; i++) {
 			unsigned int j;
 			u8 curr_col = scancodes[i] & 0x07;
@@ -326,8 +324,6 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 			keycodes[i] = kbc->keycode[scancodes[i]];
 		}
 	}
-
-	spin_unlock_irqrestore(&kbc->lock, flags);
 
 	/* Ignore the key presses for this iteration? */
 	if (key_in_same_col && key_in_same_row)
@@ -362,6 +358,8 @@ static void tegra_kbc_keypress_timer(unsigned long data)
 	u32 val;
 	unsigned int i;
 
+	spin_lock_irqsave(&kbc->lock, flags);
+
 	val = (readl(kbc->mmio + KBC_INT_0) >> 4) & 0xf;
 	if (val) {
 		unsigned long dly;
@@ -383,22 +381,19 @@ static void tegra_kbc_keypress_timer(unsigned long data)
 		kbc->num_pressed_keys = 0;
 
 		/* All keys are released so enable the keypress interrupt */
-		spin_lock_irqsave(&kbc->lock, flags);
 		tegra_kbc_set_fifo_interrupt(kbc, true);
-		spin_unlock_irqrestore(&kbc->lock, flags);
 	}
+
+	spin_unlock_irqrestore(&kbc->lock, flags);
 }
 
 static irqreturn_t tegra_kbc_isr(int irq, void *args)
 {
 	struct tegra_kbc *kbc = args;
+	unsigned long flags;
 	u32 val;
 
-	/*
-	 * Until all keys are released, defer further processing to
-	 * the polling loop in tegra_kbc_keypress_timer
-	 */
-	tegra_kbc_set_fifo_interrupt(kbc, false);
+	spin_lock_irqsave(&kbc->lock, flags);
 
 	/*
 	 * Quickly bail out & reenable interrupts if the fifo threshold
@@ -409,13 +404,14 @@ static irqreturn_t tegra_kbc_isr(int irq, void *args)
 
 	if (val & KBC_INT_FIFO_CNT_INT_STATUS) {
 		/*
-		 * Schedule timer to run when hardware is in continuous
-		 * polling mode.
+		 * Until all keys are released, defer further processing to
+		 * the polling loop in tegra_kbc_keypress_timer.
 		 */
+		tegra_kbc_set_fifo_interrupt(kbc, false);
 		mod_timer(&kbc->timer, jiffies + kbc->cp_dly_jiffies);
-	} else {
-		tegra_kbc_set_fifo_interrupt(kbc, true);
 	}
+
+	spin_unlock_irqrestore(&kbc->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -464,7 +460,6 @@ static void tegra_kbc_config_pins(struct tegra_kbc *kbc)
 static int tegra_kbc_start(struct tegra_kbc *kbc)
 {
 	const struct tegra_kbc_platform_data *pdata = kbc->pdata;
-	unsigned long flags;
 	unsigned int debounce_cnt;
 	u32 val = 0;
 
@@ -502,7 +497,6 @@ static int tegra_kbc_start(struct tegra_kbc *kbc)
 	 * Atomically clear out any remaining entries in the key FIFO
 	 * and enable keyboard interrupts.
 	 */
-	spin_lock_irqsave(&kbc->lock, flags);
 	while (1) {
 		val = readl(kbc->mmio + KBC_INT_0);
 		val >>= 4;
@@ -513,7 +507,6 @@ static int tegra_kbc_start(struct tegra_kbc *kbc)
 		val = readl(kbc->mmio + KBC_KP_ENT1_0);
 	}
 	writel(0x7, kbc->mmio + KBC_INT_0);
-	spin_unlock_irqrestore(&kbc->lock, flags);
 
 	enable_irq(kbc->irq);
 
