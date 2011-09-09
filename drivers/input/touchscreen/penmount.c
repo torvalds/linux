@@ -33,7 +33,7 @@ MODULE_LICENSE("GPL");
  * Definitions & global arrays.
  */
 
-#define	PM_MAX_LENGTH	5
+#define	PM_MAX_LENGTH	6
 
 /*
  * Per-touchscreen data.
@@ -45,7 +45,23 @@ struct pm {
 	int idx;
 	unsigned char data[PM_MAX_LENGTH];
 	char phys[32];
+	unsigned char packetsize;
 };
+
+/*
+ * pm_checkpacket() checks if data packet is valid
+ */
+
+static bool pm_checkpacket(unsigned char *packet)
+{
+	int total = 0;
+	int i;
+
+	for (i = 0; i < 5; i++)
+		total += packet[i];
+
+	return packet[5] == (unsigned char)~(total & 0xff);
+}
 
 static irqreturn_t pm_interrupt(struct serio *serio,
 		unsigned char data, unsigned int flags)
@@ -55,14 +71,34 @@ static irqreturn_t pm_interrupt(struct serio *serio,
 
 	pm->data[pm->idx] = data;
 
-	if (pm->data[0] & 0x80) {
-		if (PM_MAX_LENGTH == ++pm->idx) {
-			input_report_abs(dev, ABS_X, pm->data[1] * 128 + pm->data[2]);
-			input_report_abs(dev, ABS_Y, pm->data[3] * 128 + pm->data[4]);
-			input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
-			input_sync(dev);
-			pm->idx = 0;
+	switch (pm->dev->id.product) {
+	case 0x9000:
+		if (pm->data[0] & 0x80) {
+			if (pm->packetsize == ++pm->idx) {
+				input_report_abs(dev, ABS_X, pm->data[1] * 128 + pm->data[2]);
+				input_report_abs(dev, ABS_Y, pm->data[3] * 128 + pm->data[4]);
+				input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
+				input_sync(dev);
+				pm->idx = 0;
+			}
 		}
+		break;
+
+	case 0x6000:
+		if ((pm->data[0] & 0xbf) == 0x30) {
+			if (pm->packetsize == ++pm->idx) {
+				if (pm_checkpacket(pm->data)) {
+					input_report_abs(dev, ABS_X,
+							pm->data[2] * 256 + pm->data[1]);
+					input_report_abs(dev, ABS_Y,
+							pm->data[4] * 256 + pm->data[3]);
+					input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
+					input_sync(dev);
+				}
+				pm->idx = 0;
+			}
+		}
+		break;
 	}
 
 	return IRQ_HANDLED;
@@ -119,6 +155,19 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
         input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
         input_set_abs_params(pm->dev, ABS_X, 0, 0x3ff, 0, 0);
         input_set_abs_params(pm->dev, ABS_Y, 0, 0x3ff, 0, 0);
+
+	switch (serio->id.id) {
+	default:
+	case 0:
+		pm->packetsize = 5;
+		input_dev->id.product = 0x9000;
+		break;
+
+	case 1:
+		pm->packetsize = 6;
+		input_dev->id.product = 0x6000;
+		break;
+	}
 
 	serio_set_drvdata(serio, pm);
 
