@@ -350,7 +350,7 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 	input_sync(dev);
 }
 
-static int elantech_check_parity_v1(struct psmouse *psmouse)
+static int elantech_packet_check_v1(struct psmouse *psmouse)
 {
 	struct elantech_data *etd = psmouse->private;
 	unsigned char *packet = psmouse->packet;
@@ -374,6 +374,34 @@ static int elantech_check_parity_v1(struct psmouse *psmouse)
 	       etd->parity[packet[3]] == p3;
 }
 
+static int elantech_packet_check_v2(struct psmouse *psmouse)
+{
+	struct elantech_data *etd = psmouse->private;
+	unsigned char *packet = psmouse->packet;
+
+	/*
+	 * V2 hardware has two flavors. Older ones that do not report pressure,
+	 * and newer ones that reports pressure and width. With newer ones, all
+	 * packets (1, 2, 3 finger touch) have the same constant bits. With
+	 * older ones, 1/3 finger touch packets and 2 finger touch packets
+	 * have different constant bits.
+	 * With all three cases, if the constant bits are not exactly what I
+	 * expected, I consider them invalid.
+	 */
+	if (etd->reports_pressure)
+		return (packet[0] & 0x0c) == 0x04 &&
+		       (packet[3] & 0x0f) == 0x02;
+
+	if ((packet[0] & 0xc0) == 0x80)
+		return (packet[0] & 0x0c) == 0x0c &&
+		       (packet[3] & 0x0e) == 0x08;
+
+	return (packet[0] & 0x3c) == 0x3c &&
+	       (packet[1] & 0xf0) == 0x00 &&
+	       (packet[3] & 0x3e) == 0x38 &&
+	       (packet[4] & 0xf0) == 0x00;
+}
+
 /*
  * Process byte stream from mouse and handle complete packets
  */
@@ -389,14 +417,16 @@ static psmouse_ret_t elantech_process_byte(struct psmouse *psmouse)
 
 	switch (etd->hw_version) {
 	case 1:
-		if (etd->paritycheck && !elantech_check_parity_v1(psmouse))
+		if (etd->paritycheck && !elantech_packet_check_v1(psmouse))
 			return PSMOUSE_BAD_DATA;
 
 		elantech_report_absolute_v1(psmouse);
 		break;
 
 	case 2:
-		/* We don't know how to check parity in protocol v2 */
+		if (etd->paritycheck && !elantech_packet_check_v2(psmouse))
+			return PSMOUSE_BAD_DATA;
+
 		elantech_report_absolute_v2(psmouse);
 		break;
 	}
@@ -795,8 +825,7 @@ int elantech_init(struct psmouse *psmouse)
 		etd->hw_version = 2;
 		/* For now show extra debug information */
 		etd->debug = 1;
-		/* Don't know how to do parity checking for version 2 */
-		etd->paritycheck = 0;
+		etd->paritycheck = 1;
 
 		if (etd->fw_version >= 0x020800)
 			etd->reports_pressure = true;
