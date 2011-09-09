@@ -482,7 +482,7 @@ void close_lines(struct line *lines, int nlines)
 }
 
 static int setup_one_line(struct line *lines, int n, char *init,
-			  char **error_out)
+			  const struct chan_opts *opts, char **error_out)
 {
 	struct line *line = &lines[n];
 	int err = -EINVAL;
@@ -494,13 +494,28 @@ static int setup_one_line(struct line *lines, int n, char *init,
 		goto out;
 	}
 
-	if (!strcmp(init, "none"))
-		line->valid = 0;
-	else {
-		line->init_str = init;
+	if (!strcmp(init, "none")) {
+		if (line->valid) {
+			line->valid = 0;
+			kfree(line->init_str);
+			parse_chan_pair(NULL, line, n, opts, error_out);
+			err = 0;
+		}
+	} else {
+		char *new = kstrdup(init, GFP_KERNEL);
+		if (!new) {
+			*error_out = "Failed to allocate memory";
+			return -ENOMEM;
+		}
+		line->init_str = new;
 		line->valid = 1;
+		err = parse_chan_pair(new, line, n, opts, error_out);
+		if (err) {
+			line->init_str = NULL;
+			line->valid = 0;
+			kfree(new);
+		}
 	}
-	err = 0;
 out:
 	mutex_unlock(&line->count_lock);
 	return err;
@@ -549,10 +564,8 @@ out:
 int line_config(struct line *lines, unsigned int num, char *str,
 		const struct chan_opts *opts, char **error_out)
 {
-	struct line *line;
-	char *new;
 	char *end;
-	int n, err;
+	int n;
 
 	if (*str == '=') {
 		*error_out = "Can't configure all devices from mconsole";
@@ -569,16 +582,7 @@ int line_config(struct line *lines, unsigned int num, char *str,
 		return -EINVAL;
 	}
 
-	new = kstrdup(end, GFP_KERNEL);
-	if (new == NULL) {
-		*error_out = "Failed to allocate memory";
-		return -ENOMEM;
-	}
-	err = setup_one_line(lines, n, new, error_out);
-	if (err)
-		return err;
-	line = &lines[n];
-	return parse_chan_pair(line->init_str, line, n, opts, error_out);
+	return setup_one_line(lines, n, end, opts, error_out);
 }
 
 int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
@@ -633,7 +637,7 @@ int line_remove(struct line *lines, unsigned int num, int n, char **error_out)
 		*error_out = "Device number out of range";
 		return -EINVAL;
 	}
-	return setup_one_line(lines, n, "none", error_out);
+	return setup_one_line(lines, n, "none", NULL, error_out);
 }
 
 struct tty_driver *register_lines(struct line_driver *line_driver,
@@ -688,15 +692,9 @@ void lines_init(struct line *lines, int nlines, struct chan_opts *opts)
 		if (line->init_str == NULL)
 			continue;
 
-		line->init_str = kstrdup(line->init_str, GFP_KERNEL);
-		if (line->init_str == NULL)
-			printk(KERN_ERR "lines_init - kstrdup returned NULL\n");
-
-		if (parse_chan_pair(line->init_str, line, i, opts, &error)) {
-			printk(KERN_ERR "parse_chan_pair failed for "
+		if (setup_one_line(lines, i, line->init_str, opts, &error))
+			printk(KERN_ERR "setup_one_line failed for "
 			       "device %d : %s\n", i, error);
-			line->valid = 0;
-		}
 	}
 }
 

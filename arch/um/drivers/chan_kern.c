@@ -551,6 +551,9 @@ int parse_chan_pair(char *str, struct line *line, int device,
 		INIT_LIST_HEAD(chans);
 	}
 
+	if (!str)
+		return 0;
+
 	out = strchr(str, ',');
 	if (out != NULL) {
 		in = str;
