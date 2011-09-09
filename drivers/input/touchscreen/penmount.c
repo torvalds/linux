@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/serio.h>
 #include <linux/init.h>
 
@@ -34,6 +35,17 @@ MODULE_LICENSE("GPL");
  */
 
 #define	PM_MAX_LENGTH	6
+#define	PM_MAX_MTSLOT	16
+#define	PM_3000_MTSLOT	2
+
+/*
+ * Multi-touch slot
+ */
+
+struct mt_slot {
+	unsigned short x, y;
+	bool active; /* is the touch valid? */
+};
 
 /*
  * Per-touchscreen data.
@@ -46,7 +58,31 @@ struct pm {
 	unsigned char data[PM_MAX_LENGTH];
 	char phys[32];
 	unsigned char packetsize;
+	unsigned char maxcontacts;
+	struct mt_slot slots[PM_MAX_MTSLOT];
 };
+
+/*
+ * pm_mtevent() sends mt events and also emulates pointer movement
+ */
+
+static void pm_mtevent(struct pm *pm, struct input_dev *input)
+{
+	int i;
+
+	for (i = 0; i < pm->maxcontacts; ++i) {
+		input_mt_slot(input, i);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER,
+				pm->slots[i].active);
+		if (pm->slots[i].active) {
+			input_event(input, EV_ABS, ABS_MT_POSITION_X, pm->slots[i].x);
+			input_event(input, EV_ABS, ABS_MT_POSITION_Y, pm->slots[i].y);
+		}
+	}
+
+	input_mt_report_pointer_emulation(input, true);
+	input_sync(input);
+}
 
 /*
  * pm_checkpacket() checks if data packet is valid
@@ -99,6 +135,21 @@ static irqreturn_t pm_interrupt(struct serio *serio,
 			}
 		}
 		break;
+
+	case 0x3000:
+		if ((pm->data[0] & 0xce) == 0x40) {
+			if (pm->packetsize == ++pm->idx) {
+				if (pm_checkpacket(pm->data)) {
+					int slotnum = pm->data[0] & 0x0f;
+					pm->slots[slotnum].active = pm->data[0] & 0x30;
+					pm->slots[slotnum].x = pm->data[2] * 256 + pm->data[1];
+					pm->slots[slotnum].y = pm->data[4] * 256 + pm->data[3];
+					pm_mtevent(pm, dev);
+				}
+				pm->idx = 0;
+			}
+		}
+		break;
 	}
 
 	return IRQ_HANDLED;
@@ -130,6 +181,7 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct pm *pm;
 	struct input_dev *input_dev;
+	int max_x, max_y;
 	int err;
 
 	pm = kzalloc(sizeof(struct pm), GFP_KERNEL);
@@ -142,6 +194,7 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	pm->serio = serio;
 	pm->dev = input_dev;
 	snprintf(pm->phys, sizeof(pm->phys), "%s/input0", serio->phys);
+	pm->maxcontacts = 1;
 
 	input_dev->name = "PenMount Serial TouchScreen";
 	input_dev->phys = pm->phys;
@@ -151,22 +204,40 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
 
-        input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-        input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-        input_set_abs_params(pm->dev, ABS_X, 0, 0x3ff, 0, 0);
-        input_set_abs_params(pm->dev, ABS_Y, 0, 0x3ff, 0, 0);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
 	switch (serio->id.id) {
 	default:
 	case 0:
 		pm->packetsize = 5;
 		input_dev->id.product = 0x9000;
+		max_x = max_y = 0x3ff;
 		break;
 
 	case 1:
 		pm->packetsize = 6;
 		input_dev->id.product = 0x6000;
+		max_x = max_y = 0x3ff;
 		break;
+
+	case 2:
+		pm->packetsize = 6;
+		input_dev->id.product = 0x3000;
+		max_x = max_y = 0x7ff;
+		pm->maxcontacts = PM_3000_MTSLOT;
+		break;
+	}
+
+	input_set_abs_params(pm->dev, ABS_X, 0, max_x, 0, 0);
+	input_set_abs_params(pm->dev, ABS_Y, 0, max_y, 0, 0);
+
+	if (pm->maxcontacts > 1) {
+		input_mt_init_slots(pm->dev, pm->maxcontacts);
+		input_set_abs_params(pm->dev,
+				     ABS_MT_POSITION_X, 0, max_x, 0, 0);
+		input_set_abs_params(pm->dev,
+				     ABS_MT_POSITION_Y, 0, max_y, 0, 0);
 	}
 
 	serio_set_drvdata(serio, pm);
