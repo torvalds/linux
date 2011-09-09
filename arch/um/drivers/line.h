@@ -15,7 +15,7 @@
 #include "chan_user.h"
 #include "mconsole_kern.h"
 
-/* There's only one modifiable field in this - .mc.list */
+/* There's only two modifiable fields in this - .mc.list and .driver */
 struct line_driver {
 	const char *name;
 	const char *device_name;
@@ -28,6 +28,7 @@ struct line_driver {
 	const int write_irq;
 	const char *write_irq_name;
 	struct mc_device mc;
+	struct tty_driver *driver;
 };
 
 struct line {
@@ -78,9 +79,9 @@ extern char *add_xterm_umid(char *base);
 extern int line_setup_irq(int fd, int input, int output, struct line *line,
 			  void *data);
 extern void line_close_chan(struct line *line);
-extern struct tty_driver *register_lines(struct line_driver *line_driver,
-					 const struct tty_operations *driver,
-					 struct line *lines, int nlines);
+extern int register_lines(struct line_driver *line_driver,
+			  const struct tty_operations *driver,
+			  struct line *lines, int nlines);
 extern void lines_init(struct line *lines, int nlines, struct chan_opts *opts);
 extern void close_lines(struct line *lines, int nlines);
 

@@ -27,12 +27,6 @@
 
 #define MAX_TTYS (16)
 
-/* Referenced only by tty_driver below - presumably it's locked correctly
- * by the tty driver.
- */
-
-static struct tty_driver *console_driver;
-
 static void stdio_announce(char *dev_name, int dev)
 {
 	printk(KERN_INFO "Virtual console %d assigned device '%s'\n", dev,
@@ -137,7 +131,7 @@ static void uml_console_write(struct console *console, const char *string,
 static struct tty_driver *uml_console_device(struct console *c, int *index)
 {
 	*index = c->index;
-	return console_driver;
+	return driver.driver;
 }
 
 static int uml_console_setup(struct console *co, char *options)
@@ -160,6 +154,7 @@ static struct console stdiocons = {
 static int stdio_init(void)
 {
 	char *new_title;
+	int err;
 	int i;
 
 	for (i = 0; i < MAX_TTYS; i++) {
@@ -168,18 +163,16 @@ static int stdio_init(void)
 			s = def_conf;
 		if (!s)
 			s = i ? CONFIG_CON_CHAN : CONFIG_CON_ZERO_CHAN;
-		if (s && strcmp(s, "none") != 0) {
+		if (s && strcmp(s, "none") != 0)
 			vts[i].init_str = s;
-			vts[i].valid = 1;
-		}
 		spin_lock_init(&vts[i].lock);
 		mutex_init(&vts[i].count_lock);
 		vts[i].driver = &driver;
 	}
-	console_driver = register_lines(&driver, &console_ops, vts,
+	err = register_lines(&driver, &console_ops, vts,
 					ARRAY_SIZE(vts));
-	if (console_driver == NULL)
-		return -1;
+	if (err)
+		return err;
 	printk(KERN_INFO "Initialized stdio console driver\n");
 
 	new_title = add_xterm_umid(opts.xterm_title);

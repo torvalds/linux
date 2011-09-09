@@ -485,6 +485,7 @@ static int setup_one_line(struct line *lines, int n, char *init,
 			  const struct chan_opts *opts, char **error_out)
 {
 	struct line *line = &lines[n];
+	struct tty_driver *driver = line->driver->driver;
 	int err = -EINVAL;
 
 	mutex_lock(&line->count_lock);
@@ -498,6 +499,7 @@ static int setup_one_line(struct line *lines, int n, char *init,
 		if (line->valid) {
 			line->valid = 0;
 			kfree(line->init_str);
+			tty_unregister_device(driver, n);
 			parse_chan_pair(NULL, line, n, opts, error_out);
 			err = 0;
 		}
@@ -507,9 +509,19 @@ static int setup_one_line(struct line *lines, int n, char *init,
 			*error_out = "Failed to allocate memory";
 			return -ENOMEM;
 		}
+		if (line->valid)
+			tty_unregister_device(driver, n);
 		line->init_str = new;
 		line->valid = 1;
 		err = parse_chan_pair(new, line, n, opts, error_out);
+		if (!err) {
+			struct device *d = tty_register_device(driver, n, NULL);
+			if (IS_ERR(d)) {
+				*error_out = "Failed to register device";
+				err = PTR_ERR(d);
+				parse_chan_pair(NULL, line, n, opts, error_out);
+			}
+		}
 		if (err) {
 			line->init_str = NULL;
 			line->valid = 0;
@@ -640,15 +652,15 @@ int line_remove(struct line *lines, unsigned int num, int n, char **error_out)
 	return setup_one_line(lines, n, "none", NULL, error_out);
 }
 
-struct tty_driver *register_lines(struct line_driver *line_driver,
-				  const struct tty_operations *ops,
-				  struct line *lines, int nlines)
+int register_lines(struct line_driver *line_driver,
+		   const struct tty_operations *ops,
+		   struct line *lines, int nlines)
 {
-	int i;
 	struct tty_driver *driver = alloc_tty_driver(nlines);
+	int err;
 
 	if (!driver)
-		return NULL;
+		return -ENOMEM;
 
 	driver->driver_name = line_driver->name;
 	driver->name = line_driver->device_name;
@@ -656,24 +668,21 @@ struct tty_driver *register_lines(struct line_driver *line_driver,
 	driver->minor_start = line_driver->minor_start;
 	driver->type = line_driver->type;
 	driver->subtype = line_driver->subtype;
-	driver->flags = TTY_DRIVER_REAL_RAW;
+	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	driver->init_termios = tty_std_termios;
 	tty_set_operations(driver, ops);
 
-	if (tty_register_driver(driver)) {
+	err = tty_register_driver(driver);
+	if (err) {
 		printk(KERN_ERR "register_lines : can't register %s driver\n",
 		       line_driver->name);
 		put_tty_driver(driver);
-		return NULL;
+		return err;
 	}
 
-	for(i = 0; i < nlines; i++) {
-		if (!lines[i].valid)
-			tty_unregister_device(driver, i);
-	}
-
+	line_driver->driver = driver;
 	mconsole_register_dev(&line_driver->mc);
-	return driver;
+	return 0;
 }
 
 static DEFINE_SPINLOCK(winch_handler_lock);

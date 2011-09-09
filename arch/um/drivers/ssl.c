@@ -20,12 +20,6 @@
 
 static const int ssl_version = 1;
 
-/* Referenced only by tty_driver below - presumably it's locked correctly
- * by the tty driver.
- */
-
-static struct tty_driver *ssl_driver;
-
 #define NR_PORTS 64
 
 static void ssl_announce(char *dev_name, int dev)
@@ -164,7 +158,7 @@ static void ssl_console_write(struct console *c, const char *string,
 static struct tty_driver *ssl_console_device(struct console *c, int *index)
 {
 	*index = c->index;
-	return ssl_driver;
+	return driver.driver;
 }
 
 static int ssl_console_setup(struct console *co, char *options)
@@ -187,6 +181,7 @@ static struct console ssl_cons = {
 static int ssl_init(void)
 {
 	char *new_title;
+	int err;
 	int i;
 
 	printk(KERN_INFO "Initializing software serial port version %d\n",
@@ -196,16 +191,16 @@ static int ssl_init(void)
 		char *s = conf[i];
 		if (!s)
 			s = def_conf;
-		if (s && strcmp(s, "none") != 0) {
+		if (s && strcmp(s, "none") != 0)
 			serial_lines[i].init_str = s;
-			serial_lines[i].valid = 1;
-		}
 		spin_lock_init(&serial_lines[i].lock);
 		mutex_init(&serial_lines[i].count_lock);
 		serial_lines[i].driver = &driver;
 	}
-	ssl_driver = register_lines(&driver, &ssl_ops, serial_lines,
+	err = register_lines(&driver, &ssl_ops, serial_lines,
 				    ARRAY_SIZE(serial_lines));
+	if (err)
+		return err;
 
 	new_title = add_xterm_umid(opts.xterm_title);
 	if (new_title != NULL)
