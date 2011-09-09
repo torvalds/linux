@@ -2035,7 +2035,7 @@ static int ext4_fill_flex_info(struct super_block *sb)
 		atomic_add(ext4_free_inodes_count(sb, gdp),
 			   &sbi->s_flex_groups[flex_group].free_inodes);
 		atomic_add(ext4_free_blks_count(sb, gdp),
-			   &sbi->s_flex_groups[flex_group].free_blocks);
+			   &sbi->s_flex_groups[flex_group].free_clusters);
 		atomic_add(ext4_used_dirs_count(sb, gdp),
 			   &sbi->s_flex_groups[flex_group].used_dirs);
 	}

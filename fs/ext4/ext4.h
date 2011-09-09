@@ -300,7 +300,7 @@ struct ext4_group_desc
 
 struct flex_groups {
 	atomic_t free_inodes;
-	atomic_t free_blocks;
+	atomic_t free_clusters;
 	atomic_t used_dirs;
 };
 

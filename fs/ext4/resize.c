@@ -946,8 +946,8 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	    sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group;
 		flex_group = ext4_flex_group(sbi, input->group);
-		atomic_add(input->free_blocks_count,
-			   &sbi->s_flex_groups[flex_group].free_blocks);
+		atomic_add(EXT4_B2C(sbi, input->free_blocks_count),
+			   &sbi->s_flex_groups[flex_group].free_clusters);
 		atomic_add(EXT4_INODES_PER_GROUP(sb),
 			   &sbi->s_flex_groups[flex_group].free_inodes);
 	}
