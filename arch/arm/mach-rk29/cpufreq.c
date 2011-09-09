@@ -29,7 +29,6 @@
 #include <linux/workqueue.h>
 #include <mach/clock.h>
 #include <mach/cpufreq.h>
-#include <mach/ddr.h>
 #include <../../../drivers/video/rk29_fb.h>
 
 #define MHZ	(1000*1000)
@@ -84,9 +83,8 @@ enum {
 	DEBUG_CHANGE	= 1U << 0,
 	DEBUG_TEMP	= 1U << 1,
 	DEBUG_DISP	= 1U << 2,
-	DEBUG_DDR	= 1U << 3,
 };
-static uint debug_mask = DEBUG_CHANGE | DEBUG_DDR;
+static uint debug_mask = DEBUG_CHANGE;
 module_param(debug_mask, uint, 0644);
 #define dprintk(mask, fmt, ...) do { if (mask & debug_mask) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); } while (0)
 
@@ -123,12 +121,6 @@ static int limit_index_816 = -1;
 static unsigned int limit_freq_816;
 static int limit_index_1008 = -1;
 static unsigned int limit_freq_1008;
-#endif
-
-#ifdef CONFIG_DDR_FREQ
-static void rk29_cpufreq_change_ddr_freq(unsigned long mhz);
-#else
-static inline void rk29_cpufreq_change_ddr_freq(unsigned long mhz) {}
 #endif
 
 static bool rk29_cpufreq_is_ondemand_policy(struct cpufreq_policy *policy)
@@ -366,7 +358,6 @@ static int rk29_cpufreq_do_target(struct cpufreq_policy *policy, unsigned int ta
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	dprintk(DEBUG_CHANGE, "pre change\n");
 	clk_set_rate(arm_clk, freqs.new * KHZ + aclk_limit());
-	rk29_cpufreq_change_ddr_freq(0);
 	dprintk(DEBUG_CHANGE, "post change\n");
 	freqs.new = clk_get_rate(arm_clk) / KHZ;
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
@@ -485,119 +476,6 @@ static struct notifier_block rk29_cpufreq_fb_notifier = {
 };
 #endif
 
-#ifdef CONFIG_DDR_FREQ
-static struct clk *ddr_pll_clk;
-static struct clk *aclk_lcdc;
-static bool ddr_pll_can_change;
-static bool aclk_lcdc_disabled;
-static bool disable_ddr_freq;
-module_param(ddr_pll_can_change, bool, 0644);
-module_param(aclk_lcdc_disabled, bool, 0644);
-module_param(disable_ddr_freq, bool, 0644);
-static unsigned long ddr_max_mhz;
-static unsigned long ddr_min_mhz;
-module_param(ddr_max_mhz, ulong, 0644);
-module_param(ddr_min_mhz, ulong, 0644);
-#define DDR_ARM_RATE (408 * MHZ)
-
-static void rk29_cpufreq_change_ddr_freq(unsigned long mhz)
-{
-	unsigned long flags;
-	unsigned long ddr_rate, arm_rate;
-	bool changed = false;
-
-	if (disable_ddr_freq)
-		return;
-
-	if (DEBUG_DDR & debug_mask) {
-		unsigned long _mhz = mhz;
-		ddr_rate = clk_get_rate(ddr_clk);
-		if (!mhz && ddr_pll_can_change && aclk_lcdc_disabled) {
-			arm_rate = clk_get_rate(arm_clk);
-			if (arm_rate <= DDR_ARM_RATE && ddr_rate == ddr_max_rate)
-				_mhz = ddr_min_mhz;
-			else if (arm_rate > DDR_ARM_RATE && ddr_rate < ddr_max_rate)
-				_mhz = ddr_max_mhz;
-		}
-		if (_mhz) {
-			unsigned long hz = _mhz * MHZ;
-			if (hz != ddr_rate)
-				dprintk(DEBUG_DDR, "ddr %lu -> %lu Hz\n", ddr_rate, hz);
-		}
-	}
-
-	local_irq_save(flags);
-	ddr_rate = clk_get_rate(ddr_clk);
-	if (!mhz && ddr_pll_can_change && aclk_lcdc_disabled) {
-		arm_rate = clk_get_rate(arm_clk);
-		if (arm_rate <= DDR_ARM_RATE && ddr_rate == ddr_max_rate)
-			mhz = ddr_min_mhz;
-		else if (arm_rate > DDR_ARM_RATE && ddr_rate < ddr_max_rate)
-			mhz = ddr_max_mhz;
-	}
-	if (mhz && (mhz * MHZ) != ddr_rate) {
-		ddr_change_freq(mhz);
-		changed = true;
-	}
-	local_irq_restore(flags);
-
-	if (changed)
-		dprintk(DEBUG_DDR, "ok, got %lu Hz\n", clk_get_rate(ddr_clk));
-}
-
-static int rk29_cpufreq_ddr_pll_notifier_event(struct notifier_block *this,
-		unsigned long event, void *ptr)
-{
-	switch (event) {
-	case CLK_PRE_ENABLE:
-		ddr_pll_can_change = false;
-		break;
-	case CLK_ABORT_ENABLE:
-	case CLK_POST_DISABLE:
-		ddr_pll_can_change = true;
-		break;
-	default:
-		return NOTIFY_DONE;
-	}
-
-	if (!disable_ddr_freq) {
-		dprintk(DEBUG_DDR, "event: %lu ddr_pll_can_change: %d\n", event, ddr_pll_can_change);
-		rk29_cpufreq_change_ddr_freq(ddr_pll_can_change ? 0 : ddr_max_mhz);
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block rk29_cpufreq_ddr_pll_notifier = {
-	.notifier_call = rk29_cpufreq_ddr_pll_notifier_event,
-};
-
-static int rk29_cpufreq_aclk_lcdc_notifier_event(struct notifier_block *this,
-		unsigned long event, void *ptr)
-{
-	switch (event) {
-	case CLK_PRE_ENABLE:
-		aclk_lcdc_disabled = false;
-		break;
-	case CLK_ABORT_ENABLE:
-	case CLK_POST_DISABLE:
-		aclk_lcdc_disabled = true;
-		break;
-	default:
-		return NOTIFY_DONE;
-	}
-
-	if (!disable_ddr_freq) {
-		dprintk(DEBUG_DDR, "event: %lu aclk_lcdc_disabled: %d\n", event, aclk_lcdc_disabled);
-		rk29_cpufreq_change_ddr_freq(aclk_lcdc_disabled ? 0 : ddr_max_mhz);
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block rk29_cpufreq_aclk_lcdc_notifier = {
-	.notifier_call = rk29_cpufreq_aclk_lcdc_notifier_event,
-};
-#endif
-
 static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu != 0)
@@ -619,23 +497,6 @@ static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 		return err;
 	}
 	ddr_max_rate = clk_get_rate(ddr_clk);
-
-#ifdef CONFIG_DDR_FREQ
-	ddr_max_mhz = ddr_max_rate / MHZ;
-	{
-		unsigned long ddr_min_rate;
-		ddr_min_rate = ddr_max_rate >> 1;
-		if (ddr_min_rate > 150 * MHZ)
-			ddr_min_rate >>= 1;
-		ddr_min_mhz = ddr_min_rate / MHZ;
-	}
-
-	ddr_pll_clk = clk_get(NULL, "ddr_pll");
-	aclk_lcdc = clk_get(NULL, "aclk_lcdc");
-
-	clk_notifier_register(ddr_pll_clk, &rk29_cpufreq_ddr_pll_notifier);
-	clk_notifier_register(aclk_lcdc, &rk29_cpufreq_aclk_lcdc_notifier);
-#endif
 
 #ifdef CONFIG_REGULATOR
 	vcore = regulator_get(NULL, "vcore");
@@ -673,10 +534,6 @@ static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 
 static int rk29_cpufreq_exit(struct cpufreq_policy *policy)
 {
-#ifdef CONFIG_DDR_FREQ
-	clk_notifier_unregister(ddr_pll_clk, &rk29_cpufreq_ddr_pll_notifier);
-	clk_notifier_unregister(aclk_lcdc, &rk29_cpufreq_aclk_lcdc_notifier);
-#endif
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
 	rk29fb_unregister_notifier(&rk29_cpufreq_fb_notifier);
 #endif
