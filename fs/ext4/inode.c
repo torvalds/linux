@@ -398,6 +398,49 @@ static pgoff_t ext4_num_dirty_pages(struct inode *inode, pgoff_t idx,
 }
 
 /*
+ * Sets the BH_Da_Mapped bit on the buffer heads corresponding to the given map.
+ */
+static void set_buffers_da_mapped(struct inode *inode,
+				   struct ext4_map_blocks *map)
+{
+	struct address_space *mapping = inode->i_mapping;
+	struct pagevec pvec;
+	int i, nr_pages;
+	pgoff_t index, end;
+
+	index = map->m_lblk >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	end = (map->m_lblk + map->m_len - 1) >>
+		(PAGE_CACHE_SHIFT - inode->i_blkbits);
+
+	pagevec_init(&pvec, 0);
+	while (index <= end) {
+		nr_pages = pagevec_lookup(&pvec, mapping, index,
+					  min(end - index + 1,
+					      (pgoff_t)PAGEVEC_SIZE));
+		if (nr_pages == 0)
+			break;
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+			struct buffer_head *bh, *head;
+
+			if (unlikely(page->mapping != mapping) ||
+			    !PageDirty(page))
+				break;
+
+			if (page_has_buffers(page)) {
+				bh = head = page_buffers(page);
+				do {
+					set_buffer_da_mapped(bh);
+					bh = bh->b_this_page;
+				} while (bh != head);
+			}
+			index++;
+		}
+		pagevec_release(&pvec);
+	}
+}
+
+/*
  * The ext4_map_blocks() function tries to look up the requested blocks,
  * and returns if the blocks are already mapped.
  *
@@ -516,8 +559,16 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 			(flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE))
 			ext4_da_update_reserve_space(inode, retval, 1);
 	}
-	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) {
 		ext4_clear_inode_state(inode, EXT4_STATE_DELALLOC_RESERVED);
+
+		/* If we have successfully mapped the delayed allocated blocks,
+		 * set the BH_Da_Mapped bit on them. Its important to do this
+		 * under the protection of i_data_sem.
+		 */
+		if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED)
+			set_buffers_da_mapped(inode, map);
+	}
 
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
@@ -1038,7 +1089,7 @@ static int ext4_journalled_write_end(struct file *file,
 /*
  * Reserve a single cluster located at lblock
  */
-int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
+static int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
 {
 	int retries = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
@@ -1153,6 +1204,7 @@ static void ext4_da_page_release_reservation(struct page *page,
 		if ((offset <= curr_off) && (buffer_delay(bh))) {
 			to_release++;
 			clear_buffer_delay(bh);
+			clear_buffer_da_mapped(bh);
 		}
 		curr_off = next_off;
 	} while ((bh = bh->b_this_page) != head);
@@ -1271,6 +1323,8 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 						clear_buffer_delay(bh);
 						bh->b_blocknr = pblock;
 					}
+					if (buffer_da_mapped(bh))
+						clear_buffer_da_mapped(bh);
 					if (buffer_unwritten(bh) ||
 					    buffer_mapped(bh))
 						BUG_ON(bh->b_blocknr != pblock);
@@ -1604,6 +1658,66 @@ static int ext4_bh_delay_or_unwritten(handle_t *handle, struct buffer_head *bh)
 }
 
 /*
+ * This function is grabs code from the very beginning of
+ * ext4_map_blocks, but assumes that the caller is from delayed write
+ * time. This function looks up the requested blocks and sets the
+ * buffer delay bit under the protection of i_data_sem.
+ */
+static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
+			      struct ext4_map_blocks *map,
+			      struct buffer_head *bh)
+{
+	int retval;
+	sector_t invalid_block = ~((sector_t) 0xffff);
+
+	if (invalid_block < ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es))
+		invalid_block = ~0;
+
+	map->m_flags = 0;
+	ext_debug("ext4_da_map_blocks(): inode %lu, max_blocks %u,"
+		  "logical block %lu\n", inode->i_ino, map->m_len,
+		  (unsigned long) map->m_lblk);
+	/*
+	 * Try to see if we can get the block without requesting a new
+	 * file system block.
+	 */
+	down_read((&EXT4_I(inode)->i_data_sem));
+	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
+		retval = ext4_ext_map_blocks(NULL, inode, map, 0);
+	else
+		retval = ext4_ind_map_blocks(NULL, inode, map, 0);
+
+	if (retval == 0) {
+		/*
+		 * XXX: __block_prepare_write() unmaps passed block,
+		 * is it OK?
+		 */
+		/* If the block was allocated from previously allocated cluster,
+		 * then we dont need to reserve it again. */
+		if (!(map->m_flags & EXT4_MAP_FROM_CLUSTER)) {
+			retval = ext4_da_reserve_space(inode, iblock);
+			if (retval)
+				/* not enough space to reserve */
+				goto out_unlock;
+		}
+
+		/* Clear EXT4_MAP_FROM_CLUSTER flag since its purpose is served
+		 * and it should not appear on the bh->b_state.
+		 */
+		map->m_flags &= ~EXT4_MAP_FROM_CLUSTER;
+
+		map_bh(bh, inode->i_sb, invalid_block);
+		set_buffer_new(bh);
+		set_buffer_delay(bh);
+	}
+
+out_unlock:
+	up_read((&EXT4_I(inode)->i_data_sem));
+
+	return retval;
+}
+
+/*
  * This is a special get_blocks_t callback which is used by
  * ext4_da_write_begin().  It will either return mapped block or
  * reserve space for a single block.
@@ -1620,10 +1734,6 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 {
 	struct ext4_map_blocks map;
 	int ret = 0;
-	sector_t invalid_block = ~((sector_t) 0xffff);
-
-	if (invalid_block < ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es))
-		invalid_block = ~0;
 
 	BUG_ON(create == 0);
 	BUG_ON(bh->b_size != inode->i_sb->s_blocksize);
@@ -1636,29 +1746,9 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 	 * preallocated blocks are unmapped but should treated
 	 * the same as allocated blocks.
 	 */
-	ret = ext4_map_blocks(NULL, inode, &map, 0);
-	if (ret < 0)
+	ret = ext4_da_map_blocks(inode, iblock, &map, bh);
+	if (ret <= 0)
 		return ret;
-	if (ret == 0) {
-		if (buffer_delay(bh))
-			return 0; /* Not sure this could or should happen */
-		/*
-		 * XXX: __block_write_begin() unmaps passed block, is it OK?
-		 */
-		/* If the block was allocated from previously allocated cluster,
-		 * then we dont need to reserve it again. */
-		if (!(map.m_flags & EXT4_MAP_FROM_CLUSTER)) {
-			ret = ext4_da_reserve_space(inode, iblock);
-			if (ret)
-				/* not enough space to reserve */
-				return ret;
-		}
-
-		map_bh(bh, inode->i_sb, invalid_block);
-		set_buffer_new(bh);
-		set_buffer_delay(bh);
-		return 0;
-	}
 
 	map_bh(bh, inode->i_sb, map.m_pblk);
 	bh->b_state = (bh->b_state & ~EXT4_MAP_FLAGS) | map.m_flags;

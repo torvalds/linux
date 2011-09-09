@@ -1893,7 +1893,6 @@ extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern void ext4_da_update_reserve_space(struct inode *inode,
 					int used, int quota_claim);
-extern int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock);
 
 /* indirect.c */
 extern int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
@@ -2300,10 +2299,14 @@ enum ext4_state_bits {
 				 * never, ever appear in a buffer_head's state
 				 * flag. See EXT4_MAP_FROM_CLUSTER to see where
 				 * this is used. */
+	BH_Da_Mapped,	/* Delayed allocated block that now has a mapping. This
+			 * flag is set when ext4_map_blocks is called on a
+			 * delayed allocated block to get its real mapping. */
 };
 
 BUFFER_FNS(Uninit, uninit)
 TAS_BUFFER_FNS(Uninit, uninit)
+BUFFER_FNS(Da_Mapped, da_mapped)
 
 /*
  * Add new method to test wether block and inode bitmaps are properly

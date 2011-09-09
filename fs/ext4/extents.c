@@ -3296,27 +3296,8 @@ static int ext4_find_delalloc_range(struct inode *inode,
 
 	while ((i >= lblk_start) && (i <= lblk_end)) {
 		page = find_get_page(mapping, index);
-		if (!page || !PageDirty(page))
+		if (!page)
 			goto nextpage;
-
-		if (PageWriteback(page)) {
-			/*
-			 * This might be a race with allocation and writeout. In
-			 * this case we just assume that the rest of the range
-			 * will eventually be written and there wont be any
-			 * delalloc blocks left.
-			 * TODO: the above assumption is troublesome, but might
-			 * work better in practice. other option could be note
-			 * somewhere that the cluster is getting written out and
-			 * detect that here.
-			 */
-			page_cache_release(page);
-			trace_ext4_find_delalloc_range(inode,
-					lblk_start, lblk_end,
-					search_hint_reverse,
-					0, i);
-			return 0;
-		}
 
 		if (!page_has_buffers(page))
 			goto nextpage;
@@ -3340,7 +3321,11 @@ static int ext4_find_delalloc_range(struct inode *inode,
 				continue;
 			}
 
-			if (buffer_delay(bh)) {
+			/* Check if the buffer is delayed allocated and that it
+			 * is not yet mapped. (when da-buffers are mapped during
+			 * their writeout, their da_mapped bit is set.)
+			 */
+			if (buffer_delay(bh) && !buffer_da_mapped(bh)) {
 				page_cache_release(page);
 				trace_ext4_find_delalloc_range(inode,
 						lblk_start, lblk_end,
@@ -4106,6 +4091,7 @@ got_allocated_blocks:
 			ext4_da_update_reserve_space(inode, allocated_clusters,
 							1);
 			if (reserved_clusters < allocated_clusters) {
+				struct ext4_inode_info *ei = EXT4_I(inode);
 				int reservation = allocated_clusters -
 						  reserved_clusters;
 				/*
@@ -4148,11 +4134,11 @@ got_allocated_blocks:
 				 *   remaining blocks finally gets written, we
 				 *   could claim them.
 				 */
-				while (reservation) {
-					ext4_da_reserve_space(inode,
-							      map->m_lblk);
-					reservation--;
-				}
+				dquot_reserve_block(inode,
+						EXT4_C2B(sbi, reservation));
+				spin_lock(&ei->i_block_reservation_lock);
+				ei->i_reserved_data_blocks += reservation;
+				spin_unlock(&ei->i_block_reservation_lock);
 			}
 		}
 	}
