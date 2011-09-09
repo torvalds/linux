@@ -49,10 +49,6 @@
  * issues and should be optimal for the uncontended case. Note the tail must be
  * in the high part, because a wide xadd increment of the low part would carry
  * up and contaminate the high part.
- *
- * With fewer than 2^8 possible CPUs, we can use x86's partial registers to
- * save some instructions and make the code more elegant. There really isn't
- * much between them in performance though, especially as locks are out of line.
  */
 static __always_inline void __ticket_spin_lock(arch_spinlock_t *lock)
 {
