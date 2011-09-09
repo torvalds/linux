@@ -3358,6 +3358,11 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 		return -ENOTSUPP;
 	}
 
+	if (EXT4_SB(inode->i_sb)->s_cluster_ratio > 1) {
+		/* TODO: Add support for bigalloc file systems */
+		return -ENOTSUPP;
+	}
+
 	return ext4_ext_punch_hole(file, offset, length);
 }
 

@@ -2701,6 +2701,13 @@ static int ext4_feature_set_ok(struct super_block *sb, int readonly)
 			return 0;
 		}
 	}
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_BIGALLOC) &&
+	    !EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+		ext4_msg(sb, KERN_ERR,
+			 "Can't support bigalloc feature without "
+			 "extents feature\n");
+		return 0;
+	}
 	return 1;
 }
 

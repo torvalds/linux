@@ -21,6 +21,7 @@
 long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
+	struct super_block *sb = inode->i_sb;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	unsigned int flags;
 
@@ -183,7 +184,6 @@ setversion_out:
 		 * Returns 1 if it slept, else zero.
 		 */
 		{
-			struct super_block *sb = inode->i_sb;
 			DECLARE_WAITQUEUE(wait, current);
 			int ret = 0;
 
@@ -199,7 +199,6 @@ setversion_out:
 #endif
 	case EXT4_IOC_GROUP_EXTEND: {
 		ext4_fsblk_t n_blocks_count;
-		struct super_block *sb = inode->i_sb;
 		int err, err2=0;
 
 		err = ext4_resize_begin(sb);
@@ -208,6 +207,13 @@ setversion_out:
 
 		if (get_user(n_blocks_count, (__u32 __user *)arg))
 			return -EFAULT;
+
+		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+			ext4_msg(sb, KERN_ERR,
+				 "Online resizing not supported with bigalloc");
+			return -EOPNOTSUPP;
+		}
 
 		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
@@ -250,6 +256,13 @@ setversion_out:
 			goto mext_out;
 		}
 
+		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+			ext4_msg(sb, KERN_ERR,
+				 "Online defrag not supported with bigalloc");
+			return -EOPNOTSUPP;
+		}
+
 		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			goto mext_out;
@@ -270,7 +283,6 @@ mext_out:
 
 	case EXT4_IOC_GROUP_ADD: {
 		struct ext4_new_group_data input;
-		struct super_block *sb = inode->i_sb;
 		int err, err2=0;
 
 		err = ext4_resize_begin(sb);
@@ -280,6 +292,13 @@ mext_out:
 		if (copy_from_user(&input, (struct ext4_new_group_input __user *)arg,
 				sizeof(input)))
 			return -EFAULT;
+
+		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+			ext4_msg(sb, KERN_ERR,
+				 "Online resizing not supported with bigalloc");
+			return -EOPNOTSUPP;
+		}
 
 		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
@@ -337,7 +356,6 @@ mext_out:
 
 	case FITRIM:
 	{
-		struct super_block *sb = inode->i_sb;
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		int ret = 0;
@@ -347,6 +365,13 @@ mext_out:
 
 		if (!blk_queue_discard(q))
 			return -EOPNOTSUPP;
+
+		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+			ext4_msg(sb, KERN_ERR,
+				 "FITRIM not supported with bigalloc");
+			return -EOPNOTSUPP;
+		}
 
 		if (copy_from_user(&range, (struct fstrim_range *)arg,
 		    sizeof(range)))
