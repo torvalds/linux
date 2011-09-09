@@ -1787,9 +1787,9 @@ extern void ext4_init_block_bitmap(struct super_block *sb,
 				   struct buffer_head *bh,
 				   ext4_group_t group,
 				   struct ext4_group_desc *desc);
-extern unsigned ext4_free_blocks_after_init(struct super_block *sb,
-					    ext4_group_t block_group,
-					    struct ext4_group_desc *gdp);
+extern unsigned ext4_free_clusters_after_init(struct super_block *sb,
+					      ext4_group_t block_group,
+					      struct ext4_group_desc *gdp);
 extern unsigned ext4_num_base_meta_clusters(struct super_block *sb,
 					    ext4_group_t block_group);
 extern unsigned ext4_num_overhead_clusters(struct super_block *sb,

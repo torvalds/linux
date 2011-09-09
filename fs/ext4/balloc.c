@@ -213,9 +213,9 @@ void ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 /* Return the number of free blocks in a block group.  It is used when
  * the block bitmap is uninitialized, so we can't just count the bits
  * in the bitmap. */
-unsigned ext4_free_blocks_after_init(struct super_block *sb,
-				     ext4_group_t block_group,
-				     struct ext4_group_desc *gdp)
+unsigned ext4_free_clusters_after_init(struct super_block *sb,
+				       ext4_group_t block_group,
+				       struct ext4_group_desc *gdp)
 {
 	return num_clusters_in_group(sb, block_group) - 
 		ext4_num_overhead_clusters(sb, block_group, gdp);
