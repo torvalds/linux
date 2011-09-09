@@ -462,7 +462,7 @@ static struct pci_bus __init *tegra_pcie_scan_bus(int nr,
 	struct tegra_pcie_port *pp;
 
 	if (nr >= tegra_pcie.num_ports)
-		return 0;
+		return NULL;
 
 	pp = tegra_pcie.port + nr;
 	pp->root_bus_nr = sys->busnr;
