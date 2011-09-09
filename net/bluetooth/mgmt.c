@@ -2324,11 +2324,13 @@ int mgmt_device_found(u16 index, bdaddr_t *bdaddr, u8 *dev_class, s8 rssi,
 	memset(&ev, 0, sizeof(ev));
 
 	bacpy(&ev.bdaddr, bdaddr);
-	memcpy(ev.dev_class, dev_class, sizeof(ev.dev_class));
 	ev.rssi = rssi;
 
 	if (eir)
 		memcpy(ev.eir, eir, sizeof(ev.eir));
+
+	if (dev_class)
+		memcpy(ev.dev_class, dev_class, sizeof(ev.dev_class));
 
 	return mgmt_event(MGMT_EV_DEVICE_FOUND, index, &ev, sizeof(ev), NULL);
 }
