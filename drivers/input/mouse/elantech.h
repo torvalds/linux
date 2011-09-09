@@ -16,6 +16,7 @@
 /*
  * Command values for Synaptics style queries
  */
+#define ETP_FW_ID_QUERY			0x00
 #define ETP_FW_VERSION_QUERY		0x01
 #define ETP_CAPABILITIES_QUERY		0x02
 
@@ -24,6 +25,7 @@
  */
 #define ETP_REGISTER_READ		0x10
 #define ETP_REGISTER_WRITE		0x11
+#define ETP_REGISTER_READWRITE		0x00
 
 /*
  * Hardware version 2 custom PS/2 command value
@@ -79,6 +81,14 @@
 #define ETP_WMIN_V2			0
 #define ETP_WMAX_V2			15
 
+/*
+ * v3 hardware has 2 kinds of packet types.
+ */
+#define PACKET_UNKNOWN			0x01
+#define PACKET_DEBOUNCE			0x02
+#define PACKET_V3_HEAD			0x03
+#define PACKET_V3_TAIL			0x04
+
 struct elantech_data {
 	unsigned char reg_10;
 	unsigned char reg_11;
@@ -98,6 +108,8 @@ struct elantech_data {
 	unsigned int fw_version;
 	unsigned int single_finger_reports;
 	unsigned int y_max;
+	unsigned int prev_x;
+	unsigned int prev_y;
 	unsigned char parity[256];
 };
 
