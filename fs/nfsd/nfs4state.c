@@ -3290,6 +3290,7 @@ __be32
 nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 			   stateid_t *stateid, int flags, struct file **filpp)
 {
+	struct nfs4_stid *s;
 	struct nfs4_ol_stateid *stp = NULL;
 	struct nfs4_delegation *dp = NULL;
 	struct svc_fh *current_fh = &cstate->current_fh;
@@ -3314,13 +3315,14 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 	 * but that we can't find, is expired:
 	 */
 	status = nfserr_expired;
-	if (is_delegation_stateid(stateid)) {
-		dp = find_deleg_stateid(stateid);
-		if (!dp)
-			goto out;
-		status = check_stateid_generation(stateid, &dp->dl_stid.sc_stateid, nfsd4_has_session(cstate));
-		if (status)
-			goto out;
+	s = find_stateid(stateid);
+	if (!s)
+		goto out;
+	status = check_stateid_generation(stateid, &s->sc_stateid, nfsd4_has_session(cstate));
+	if (status)
+		goto out;
+	if (s->sc_type == NFS4_DELEG_STID) {
+		dp = delegstateid(s);
 		status = nfs4_check_delegmode(dp, flags);
 		if (status)
 			goto out;
@@ -3330,18 +3332,12 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 			BUG_ON(!*filpp);
 		}
 	} else { /* open or lock stateid */
-		stp = find_ol_stateid(stateid);
-		if (!stp)
-			goto out;
+		stp = openlockstateid(s);
 		status = nfserr_bad_stateid;
 		if (nfs4_check_fh(current_fh, stp))
 			goto out;
 		if (stp->st_stateowner->so_is_open_owner
 		    && !openowner(stp->st_stateowner)->oo_confirmed)
-			goto out;
-		status = check_stateid_generation(stateid, &stp->st_stid.sc_stateid,
-						  nfsd4_has_session(cstate));
-		if (status)
 			goto out;
 		status = nfs4_check_openmode(stp, flags);
 		if (status)
