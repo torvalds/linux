@@ -383,14 +383,17 @@ static int __init playpaq_asoc_init(void)
 	_gclk0 = clk_get(NULL, "gclk0");
 	if (IS_ERR(_gclk0)) {
 		_gclk0 = NULL;
+		ret = PTR_ERR(_gclk0);
 		goto err_gclk0;
 	}
 	_pll0 = clk_get(NULL, "pll0");
 	if (IS_ERR(_pll0)) {
 		_pll0 = NULL;
+		ret = PTR_ERR(_pll0);
 		goto err_pll0;
 	}
-	if (clk_set_parent(_gclk0, _pll0)) {
+	ret = clk_set_parent(_gclk0, _pll0);
+	if (ret) {
 		pr_warning("snd-soc-playpaq: "
 			   "Failed to set PLL0 as parent for DAC clock\n");
 		goto err_set_clk;
