@@ -22,6 +22,13 @@
 #include <media/v4l2-ctrls.h>
 
 /*
+ * ATTENTION: this driver still cannot be used outside of the soc-camera
+ * framework because of its PM implementation, using the video_device node.
+ * If hardware becomes available for testing, alternative PM approaches shall
+ * be considered and tested.
+ */
+
+/*
  * mt9t031 i2c address 0x5d
  * The platform has to define i2c_board_info and link to it from
  * struct soc_camera_link
@@ -606,6 +613,19 @@ static struct device_type mt9t031_dev_type = {
 	.pm	= &mt9t031_dev_pm_ops,
 };
 
+static int mt9t031_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct video_device *vdev = soc_camera_i2c_to_vdev(client);
+
+	if (on)
+		vdev->dev.type = &mt9t031_dev_type;
+	else
+		vdev->dev.type = NULL;
+
+	return 0;
+}
+
 /*
  * Interface active, can use i2c. If it fails, it can indeed mean, that
  * this wasn't our capture interface, so, we wait for the right one
@@ -613,7 +633,6 @@ static struct device_type mt9t031_dev_type = {
 static int mt9t031_video_probe(struct i2c_client *client)
 {
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
-	struct video_device *vdev = soc_camera_i2c_to_vdev(client);
 	s32 data;
 	int ret;
 
@@ -637,12 +656,11 @@ static int mt9t031_video_probe(struct i2c_client *client)
 	dev_info(&client->dev, "Detected a MT9T031 chip ID %x\n", data);
 
 	ret = mt9t031_idle(client);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&client->dev, "Failed to initialise the camera\n");
-	} else {
-		vdev->dev.type = &mt9t031_dev_type;
+	else
 		v4l2_ctrl_handler_setup(&mt9t031->hdl);
-	}
+
 	return ret;
 }
 
@@ -663,6 +681,7 @@ static const struct v4l2_ctrl_ops mt9t031_ctrl_ops = {
 
 static struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {
 	.g_chip_ident	= mt9t031_g_chip_ident,
+	.s_power	= mt9t031_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9t031_g_register,
 	.s_register	= mt9t031_s_register,

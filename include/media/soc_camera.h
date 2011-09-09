@@ -253,14 +253,14 @@ unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
 #include <linux/i2c.h>
 static inline struct video_device *soc_camera_i2c_to_vdev(const struct i2c_client *client)
 {
-	struct soc_camera_device *icd = client->dev.platform_data;
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct soc_camera_device *icd = (struct soc_camera_device *)sd->grp_id;
 	return icd ? icd->vdev : NULL;
 }
 
 static inline struct soc_camera_link *soc_camera_i2c_to_link(const struct i2c_client *client)
 {
-	struct soc_camera_device *icd = client->dev.platform_data;
-	return icd ? to_soc_camera_link(icd) : NULL;
+	return client->dev.platform_data;
 }
 
 static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(const struct video_device *vdev)
