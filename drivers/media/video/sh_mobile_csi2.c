@@ -208,6 +208,9 @@ static int sh_csi2_client_connect(struct sh_csi2 *priv)
 	unsigned long common_flags, csi2_flags;
 	int i, ret;
 
+	if (priv->client)
+		return -EBUSY;
+
 	for (i = 0; i < pdata->num_clients; i++)
 		if (&pdata->clients[i].pdev->dev == icd->pdev)
 			break;
@@ -262,6 +265,9 @@ static int sh_csi2_client_connect(struct sh_csi2 *priv)
 
 static void sh_csi2_client_disconnect(struct sh_csi2 *priv)
 {
+	if (!priv->client)
+		return;
+
 	priv->client = NULL;
 
 	pm_runtime_put(v4l2_get_subdevdata(&priv->subdev));
