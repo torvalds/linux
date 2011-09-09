@@ -491,7 +491,8 @@ greth_start_xmit_gbit(struct sk_buff *skb, struct net_device *dev)
 	if (nr_frags != 0)
 		status = GRETH_TXBD_MORE;
 
-	status |= GRETH_TXBD_CSALL;
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		status |= GRETH_TXBD_CSALL;
 	status |= skb_headlen(skb) & GRETH_BD_LEN;
 	if (greth->tx_next == GRETH_TXBD_NUM_MASK)
 		status |= GRETH_BD_WR;
@@ -514,7 +515,9 @@ greth_start_xmit_gbit(struct sk_buff *skb, struct net_device *dev)
 		greth->tx_skbuff[curr_tx] = NULL;
 		bdp = greth->tx_bd_base + curr_tx;
 
-		status = GRETH_TXBD_CSALL | GRETH_BD_EN;
+		status = GRETH_BD_EN;
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
+			status |= GRETH_TXBD_CSALL;
 		status |= frag->size & GRETH_BD_LEN;
 
 		/* Wrap around descriptor ring */
