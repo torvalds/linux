@@ -23,6 +23,9 @@
 
 #include <trace/events/ext4.h>
 
+static unsigned int num_base_meta_blocks(struct super_block *sb,
+					 ext4_group_t block_group);
+
 /*
  * balloc.c contains the blocks allocation and deallocation routines
  */
@@ -83,14 +86,30 @@ static int ext4_group_used_meta_blocks(struct super_block *sb,
 	return used_blocks;
 }
 
+static unsigned int num_blocks_in_group(struct super_block *sb,
+					ext4_group_t block_group)
+{
+	if (block_group == ext4_get_groups_count(sb) - 1) {
+		/*
+		 * Even though mke2fs always initializes the first and
+		 * last group, just in case some other tool was used,
+		 * we need to make sure we calculate the right free
+		 * blocks.
+		 */
+		return ext4_blocks_count(EXT4_SB(sb)->s_es) -
+			ext4_group_first_block_no(sb, block_group);
+	} else
+		return EXT4_BLOCKS_PER_GROUP(sb);
+}
+
 /* Initializes an uninitialized block bitmap if given, and returns the
  * number of blocks free in the group. */
 unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 ext4_group_t block_group, struct ext4_group_desc *gdp)
 {
-	int bit, bit_max;
+	unsigned int bit, bit_max = num_base_meta_blocks(sb, block_group);
 	ext4_group_t ngroups = ext4_get_groups_count(sb);
-	unsigned free_blocks, group_blocks;
+	unsigned group_blocks = num_blocks_in_group(sb, block_group);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	if (bh) {
@@ -109,35 +128,6 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		}
 		memset(bh->b_data, 0, sb->s_blocksize);
 	}
-
-	/* Check for superblock and gdt backups in this group */
-	bit_max = ext4_bg_has_super(sb, block_group);
-
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_META_BG) ||
-	    block_group < le32_to_cpu(sbi->s_es->s_first_meta_bg) *
-			  sbi->s_desc_per_block) {
-		if (bit_max) {
-			bit_max += ext4_bg_num_gdb(sb, block_group);
-			bit_max +=
-				le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks);
-		}
-	} else { /* For META_BG_BLOCK_GROUPS */
-		bit_max += ext4_bg_num_gdb(sb, block_group);
-	}
-
-	if (block_group == ngroups - 1) {
-		/*
-		 * Even though mke2fs always initialize first and last group
-		 * if some other tool enabled the EXT4_BG_BLOCK_UNINIT we need
-		 * to make sure we calculate the right free blocks
-		 */
-		group_blocks = ext4_blocks_count(sbi->s_es) -
-			ext4_group_first_block_no(sb, ngroups - 1);
-	} else {
-		group_blocks = EXT4_BLOCKS_PER_GROUP(sb);
-	}
-
-	free_blocks = group_blocks - bit_max;
 
 	if (bh) {
 		ext4_fsblk_t start, tmp;
@@ -176,7 +166,8 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		ext4_mark_bitmap_end(group_blocks, sb->s_blocksize * 8,
 				     bh->b_data);
 	}
-	return free_blocks - ext4_group_used_meta_blocks(sb, block_group, gdp);
+	return group_blocks - bit_max -
+		ext4_group_used_meta_blocks(sb, block_group, gdp);
 }
 
 
@@ -620,6 +611,31 @@ unsigned long ext4_bg_num_gdb(struct super_block *sb, ext4_group_t group)
 
 }
 
+/*
+ * This function returns the number of file system metadata blocks at
+ * the beginning of a block group, including the reserved gdt blocks.
+ */
+static unsigned int num_base_meta_blocks(struct super_block *sb,
+					 ext4_group_t block_group)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	int num;
+
+	/* Check for superblock and gdt backups in this group */
+	num = ext4_bg_has_super(sb, block_group);
+
+	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_META_BG) ||
+	    block_group < le32_to_cpu(sbi->s_es->s_first_meta_bg) *
+			  sbi->s_desc_per_block) {
+		if (num) {
+			num += ext4_bg_num_gdb(sb, block_group);
+			num += le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks);
+		}
+	} else { /* For META_BG_BLOCK_GROUPS */
+		num += ext4_bg_num_gdb(sb, block_group);
+	}
+	return num;
+}
 /**
  *	ext4_inode_to_goal_block - return a hint for block allocation
  *	@inode: inode for block allocation
