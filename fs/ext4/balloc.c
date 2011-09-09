@@ -445,11 +445,11 @@ static int ext4_has_free_blocks(struct ext4_sb_info *sbi,
 	return 0;
 }
 
-int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
-			   s64 nblocks, unsigned int flags)
+int ext4_claim_free_clusters(struct ext4_sb_info *sbi,
+			     s64 nclusters, unsigned int flags)
 {
-	if (ext4_has_free_blocks(sbi, nblocks, flags)) {
-		percpu_counter_add(&sbi->s_dirtyclusters_counter, nblocks);
+	if (ext4_has_free_blocks(sbi, nclusters, flags)) {
+		percpu_counter_add(&sbi->s_dirtyclusters_counter, nclusters);
 		return 0;
 	} else
 		return -ENOSPC;

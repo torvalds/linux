@@ -1071,7 +1071,7 @@ repeat:
 	 * We do still charge estimated metadata to the sb though;
 	 * we cannot afford to run out of free blocks.
 	 */
-	if (ext4_claim_free_blocks(sbi, md_needed + 1, 0)) {
+	if (ext4_claim_free_clusters(sbi, md_needed + 1, 0)) {
 		dquot_release_reservation_block(inode, EXT4_C2B(sbi, 1));
 		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
 			yield();

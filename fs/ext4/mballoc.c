@@ -4297,7 +4297,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		 * and verify allocation doesn't exceed the quota limits.
 		 */
 		while (ar->len &&
-			ext4_claim_free_blocks(sbi, ar->len, ar->flags)) {
+			ext4_claim_free_clusters(sbi, ar->len, ar->flags)) {
 
 			/* let others to free the space */
 			yield();
