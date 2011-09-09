@@ -2473,7 +2473,8 @@ static ssize_t delayed_allocation_blocks_show(struct ext4_attr *a,
 					      char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(s64) percpu_counter_sum(&sbi->s_dirtyclusters_counter));
+		(s64) EXT4_C2B(sbi,
+			percpu_counter_sum(&sbi->s_dirtyclusters_counter)));
 }
 
 static ssize_t session_write_kbytes_show(struct ext4_attr *a,

@@ -300,14 +300,14 @@ void ext4_da_update_reserve_space(struct inode *inode,
 
 	/* Update quota subsystem for data blocks */
 	if (quota_claim)
-		dquot_claim_block(inode, used);
+		dquot_claim_block(inode, EXT4_C2B(sbi, used));
 	else {
 		/*
 		 * We did fallocate with an offset that is already delayed
 		 * allocated. So on delayed allocated writeback we should
 		 * not re-claim the quota for fallocated blocks.
 		 */
-		dquot_release_reservation_block(inode, used);
+		dquot_release_reservation_block(inode, EXT4_C2B(sbi, used));
 	}
 
 	/*
@@ -1037,14 +1037,14 @@ static int ext4_journalled_write_end(struct file *file,
 }
 
 /*
- * Reserve a single block located at lblock
+ * Reserve a single cluster located at lblock
  */
-static int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
+int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
 {
 	int retries = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	unsigned long md_needed;
+	unsigned int md_needed;
 	int ret;
 
 	/*
@@ -1054,7 +1054,8 @@ static int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
 	 */
 repeat:
 	spin_lock(&ei->i_block_reservation_lock);
-	md_needed = ext4_calc_metadata_amount(inode, lblock);
+	md_needed = EXT4_NUM_B2C(sbi,
+				 ext4_calc_metadata_amount(inode, lblock));
 	trace_ext4_da_reserve_space(inode, md_needed);
 	spin_unlock(&ei->i_block_reservation_lock);
 
@@ -1063,7 +1064,7 @@ repeat:
 	 * us from metadata over-estimation, though we may go over by
 	 * a small amount in the end.  Here we just reserve for data.
 	 */
-	ret = dquot_reserve_block(inode, 1);
+	ret = dquot_reserve_block(inode, EXT4_C2B(sbi, 1));
 	if (ret)
 		return ret;
 	/*
@@ -1071,7 +1072,7 @@ repeat:
 	 * we cannot afford to run out of free blocks.
 	 */
 	if (ext4_claim_free_blocks(sbi, md_needed + 1, 0)) {
-		dquot_release_reservation_block(inode, 1);
+		dquot_release_reservation_block(inode, EXT4_C2B(sbi, 1));
 		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
 			yield();
 			goto repeat;
@@ -1118,6 +1119,8 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 		 * We can release all of the reserved metadata blocks
 		 * only when we have written all of the delayed
 		 * allocation blocks.
+		 * Note that in case of bigalloc, i_reserved_meta_blocks,
+		 * i_reserved_data_blocks, etc. refer to number of clusters.
 		 */
 		percpu_counter_sub(&sbi->s_dirtyclusters_counter,
 				   ei->i_reserved_meta_blocks);
@@ -1130,7 +1133,7 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 
-	dquot_release_reservation_block(inode, to_free);
+	dquot_release_reservation_block(inode, EXT4_C2B(sbi, to_free));
 }
 
 static void ext4_da_page_release_reservation(struct page *page,
@@ -1139,6 +1142,9 @@ static void ext4_da_page_release_reservation(struct page *page,
 	int to_release = 0;
 	struct buffer_head *head, *bh;
 	unsigned int curr_off = 0;
+	struct inode *inode = page->mapping->host;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	int num_clusters;
 
 	head = page_buffers(page);
 	bh = head;
@@ -1151,7 +1157,20 @@ static void ext4_da_page_release_reservation(struct page *page,
 		}
 		curr_off = next_off;
 	} while ((bh = bh->b_this_page) != head);
-	ext4_da_release_space(page->mapping->host, to_release);
+
+	/* If we have released all the blocks belonging to a cluster, then we
+	 * need to release the reserved space for that cluster. */
+	num_clusters = EXT4_NUM_B2C(sbi, to_release);
+	while (num_clusters > 0) {
+		ext4_fsblk_t lblk;
+		lblk = (page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits)) +
+			((num_clusters - 1) << sbi->s_cluster_bits);
+		if (sbi->s_cluster_ratio == 1 ||
+		    !ext4_find_delalloc_cluster(inode, lblk, 1))
+			ext4_da_release_space(inode, 1);
+
+		num_clusters--;
+	}
 }
 
 /*
@@ -1352,7 +1371,8 @@ static void ext4_print_free_blocks(struct inode *inode)
 	       (long long) EXT4_C2B(EXT4_SB(inode->i_sb),
 		percpu_counter_sum(&sbi->s_freeclusters_counter)));
 	printk(KERN_CRIT "dirty_blocks=%lld\n",
-	       (long long) percpu_counter_sum(&sbi->s_dirtyclusters_counter));
+	       (long long) EXT4_C2B(EXT4_SB(inode->i_sb),
+		percpu_counter_sum(&sbi->s_dirtyclusters_counter)));
 	printk(KERN_CRIT "Block reservation details\n");
 	printk(KERN_CRIT "i_reserved_data_blocks=%u\n",
 	       EXT4_I(inode)->i_reserved_data_blocks);
@@ -1626,10 +1646,14 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 		/*
 		 * XXX: __block_write_begin() unmaps passed block, is it OK?
 		 */
-		ret = ext4_da_reserve_space(inode, iblock);
-		if (ret)
-			/* not enough space to reserve */
-			return ret;
+		/* If the block was allocated from previously allocated cluster,
+		 * then we dont need to reserve it again. */
+		if (!(map.m_flags & EXT4_MAP_FROM_CLUSTER)) {
+			ret = ext4_da_reserve_space(inode, iblock);
+			if (ret)
+				/* not enough space to reserve */
+				return ret;
+		}
 
 		map_bh(bh, inode->i_sb, invalid_block);
 		set_buffer_new(bh);

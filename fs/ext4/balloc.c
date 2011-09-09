@@ -485,7 +485,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
  * @handle:             handle to this transaction
  * @inode:              file inode
  * @goal:               given target block(filesystem wide)
- * @count:		pointer to total number of blocks needed
+ * @count:		pointer to total number of clusters needed
  * @errp:               error code
  *
  * Return 1st allocated block number on success, *count stores total account
@@ -517,7 +517,8 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 		spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 		EXT4_I(inode)->i_allocated_meta_blocks += ar.len;
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
-		dquot_alloc_block_nofail(inode, ar.len);
+		dquot_alloc_block_nofail(inode,
+				EXT4_C2B(EXT4_SB(inode->i_sb), ar.len));
 	}
 	return ret;
 }
