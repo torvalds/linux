@@ -898,16 +898,15 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	if (!cp)
 		return;
 
-	hci_dev_lock(hdev);
-
 	if (cp->enable == 0x01) {
 		del_timer(&hdev->adv_timer);
+
+		hci_dev_lock(hdev);
 		hci_adv_entries_clear(hdev);
+		hci_dev_unlock(hdev);
 	} else if (cp->enable == 0x00) {
 		mod_timer(&hdev->adv_timer, jiffies + ADV_CLEAR_TIMEOUT);
 	}
-
-	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_le_ltk_reply(struct hci_dev *hdev, struct sk_buff *skb)
