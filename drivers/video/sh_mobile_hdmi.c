@@ -1008,11 +1008,9 @@ static void sh_hdmi_display_on(void *arg, struct fb_info *info)
 	 * FB_EVENT_FB_UNBIND notify is also called with info->lock held
 	 */
 	struct sh_hdmi *hdmi = arg;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
 	struct sh_mobile_lcdc_chan *ch = info->par;
 
-	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__,
-		pdata->lcd_dev, info->state);
+	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__, hdmi, info->state);
 
 	/* No need to lock */
 	hdmi->info = info;
@@ -1040,9 +1038,8 @@ static void sh_hdmi_display_on(void *arg, struct fb_info *info)
 static void sh_hdmi_display_off(void *arg)
 {
 	struct sh_hdmi *hdmi = arg;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
 
-	dev_dbg(hdmi->dev, "%s(%p)\n", __func__, pdata->lcd_dev);
+	dev_dbg(hdmi->dev, "%s(%p)\n", __func__, hdmi);
 	/* PS mode e->a */
 	hdmi_write(hdmi, 0x10, HDMI_SYSTEM_CTRL);
 }
@@ -1114,15 +1111,11 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 {
 	struct sh_hdmi *hdmi = container_of(work, struct sh_hdmi, edid_work.work);
 	struct fb_info *info;
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
 	struct sh_mobile_lcdc_chan *ch;
 	int ret;
 
-	dev_dbg(hdmi->dev, "%s(%p): begin, hotplug status %d\n", __func__,
-		pdata->lcd_dev, hdmi->hp_state);
-
-	if (!pdata->lcd_dev)
-		return;
+	dev_dbg(hdmi->dev, "%s(%p): begin, hotplug status %d\n", __func__, hdmi,
+		hdmi->hp_state);
 
 	mutex_lock(&hdmi->mutex);
 
@@ -1198,7 +1191,7 @@ out:
 		hdmi->hp_state = HDMI_HOTPLUG_DISCONNECTED;
 	mutex_unlock(&hdmi->mutex);
 
-	dev_dbg(hdmi->dev, "%s(%p): end\n", __func__, pdata->lcd_dev);
+	dev_dbg(hdmi->dev, "%s(%p): end\n", __func__, hdmi);
 }
 
 static int sh_hdmi_notify(struct notifier_block *nb,
