@@ -572,22 +572,32 @@ int line_config(struct line *lines, unsigned int num, char *str,
 {
 	struct line *line;
 	char *new;
-	int n;
+	char *end;
+	int n, err;
 
 	if (*str == '=') {
 		*error_out = "Can't configure all devices from mconsole";
 		return -EINVAL;
 	}
 
-	new = kstrdup(str, GFP_KERNEL);
+	n = simple_strtoul(str, &end, 0);
+	if (*end++ != '=') {
+		*error_out = "Couldn't parse device number";
+		return -EINVAL;
+	}
+	if (n >= num) {
+		*error_out = "Device number out of range";
+		return -EINVAL;
+	}
+
+	new = kstrdup(end, GFP_KERNEL);
 	if (new == NULL) {
 		*error_out = "Failed to allocate memory";
 		return -ENOMEM;
 	}
-	n = line_setup(lines, num, new, error_out);
-	if (n < 0)
-		return n;
-
+	err = setup_one_line(lines, n, new, INIT_ONE, error_out);
+	if (err)
+		return err;
 	line = &lines[n];
 	return parse_chan_pair(line->init_str, line, n, opts, error_out);
 }
