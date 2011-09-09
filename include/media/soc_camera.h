@@ -269,11 +269,6 @@ static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(const struct video_d
 	return soc_camera_to_subdev(icd);
 }
 
-static inline struct soc_camera_device *soc_camera_from_i2c(const struct i2c_client *client)
-{
-	return client->dev.platform_data;
-}
-
 static inline struct soc_camera_device *soc_camera_from_vb2q(const struct vb2_queue *vq)
 {
 	return container_of(vq, struct soc_camera_device, vb2_vidq);

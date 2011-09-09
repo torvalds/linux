@@ -601,15 +601,9 @@ static int mt9m001_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	const struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = soc_camera_from_i2c(client);
 	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
-	/*
-	 * Cannot use icd->current_fmt->host_fmt->bits_per_sample, because that
-	 * is the number of bits, that the host has to sample, not the number of
-	 * bits, that we have to send. See mx3_camera.c for an example of 10-bit
-	 * formats being truncated to 8 bits by the host.
-	 */
-	unsigned int bps = soc_mbus_get_fmtdesc(icd->current_fmt->code)->bits_per_sample;
+	struct mt9m001 *mt9m001 = to_mt9m001(client);
+	unsigned int bps = soc_mbus_get_fmtdesc(mt9m001->fmt->code)->bits_per_sample;
 
 	if (icl->set_bus_param)
 		return icl->set_bus_param(icl, 1 << (bps - 1));
