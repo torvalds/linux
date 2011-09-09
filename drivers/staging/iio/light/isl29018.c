@@ -51,7 +51,7 @@
 
 #define ISL29018_REG_ADD_DATA_LSB	0x02
 #define ISL29018_REG_ADD_DATA_MSB	0x03
-#define ISL29018_MAX_REGS		ISL29018_REG_ADD_DATA_MSB
+#define ISL29018_MAX_REGS		(ISL29018_REG_ADD_DATA_MSB+1)
 
 #define ISL29018_REG_TEST		0x08
 #define ISL29018_TEST_SHIFT		0
@@ -70,22 +70,27 @@ struct isl29018_chip {
 static int isl29018_write_data(struct i2c_client *client, u8 reg,
 			u8 val, u8 mask, u8 shift)
 {
-	u8 regval;
-	int ret = 0;
+	u8 regval = val;
+	int ret;
 	struct isl29018_chip *chip = iio_priv(i2c_get_clientdata(client));
 
-	regval = chip->reg_cache[reg];
-	regval &= ~mask;
-	regval |= val << shift;
+	/* don't cache or mask REG_TEST */
+	if (reg < ISL29018_MAX_REGS) {
+		regval = chip->reg_cache[reg];
+		regval &= ~mask;
+		regval |= val << shift;
+	}
 
 	ret = i2c_smbus_write_byte_data(client, reg, regval);
 	if (ret) {
 		dev_err(&client->dev, "Write to device fails status %x\n", ret);
-		return ret;
+	} else {
+		/* don't update cache on err */
+		if (reg < ISL29018_MAX_REGS)
+			chip->reg_cache[reg] = regval;
 	}
-	chip->reg_cache[reg] = regval;
 
-	return 0;
+	return ret;
 }
 
 static int isl29018_set_range(struct i2c_client *client, unsigned long range,
