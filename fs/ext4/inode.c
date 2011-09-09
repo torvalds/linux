@@ -281,7 +281,7 @@ void ext4_da_update_reserve_space(struct inode *inode,
 	/* Update per-inode reservations */
 	ei->i_reserved_data_blocks -= used;
 	ei->i_reserved_meta_blocks -= ei->i_allocated_meta_blocks;
-	percpu_counter_sub(&sbi->s_dirtyblocks_counter,
+	percpu_counter_sub(&sbi->s_dirtyclusters_counter,
 			   used + ei->i_allocated_meta_blocks);
 	ei->i_allocated_meta_blocks = 0;
 
@@ -291,7 +291,7 @@ void ext4_da_update_reserve_space(struct inode *inode,
 		 * only when we have written all of the delayed
 		 * allocation blocks.
 		 */
-		percpu_counter_sub(&sbi->s_dirtyblocks_counter,
+		percpu_counter_sub(&sbi->s_dirtyclusters_counter,
 				   ei->i_reserved_meta_blocks);
 		ei->i_reserved_meta_blocks = 0;
 		ei->i_da_metadata_calc_len = 0;
@@ -1119,14 +1119,14 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 		 * only when we have written all of the delayed
 		 * allocation blocks.
 		 */
-		percpu_counter_sub(&sbi->s_dirtyblocks_counter,
+		percpu_counter_sub(&sbi->s_dirtyclusters_counter,
 				   ei->i_reserved_meta_blocks);
 		ei->i_reserved_meta_blocks = 0;
 		ei->i_da_metadata_calc_len = 0;
 	}
 
 	/* update fs dirty data blocks counter */
-	percpu_counter_sub(&sbi->s_dirtyblocks_counter, to_free);
+	percpu_counter_sub(&sbi->s_dirtyclusters_counter, to_free);
 
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 
@@ -1349,9 +1349,10 @@ static void ext4_print_free_blocks(struct inode *inode)
 	       ext4_count_free_blocks(inode->i_sb));
 	printk(KERN_CRIT "Free/Dirty block details\n");
 	printk(KERN_CRIT "free_blocks=%lld\n",
-	       (long long) percpu_counter_sum(&sbi->s_freeblocks_counter));
+	       (long long) EXT4_C2B(EXT4_SB(inode->i_sb),
+		percpu_counter_sum(&sbi->s_freeclusters_counter)));
 	printk(KERN_CRIT "dirty_blocks=%lld\n",
-	       (long long) percpu_counter_sum(&sbi->s_dirtyblocks_counter));
+	       (long long) percpu_counter_sum(&sbi->s_dirtyclusters_counter));
 	printk(KERN_CRIT "Block reservation details\n");
 	printk(KERN_CRIT "i_reserved_data_blocks=%u\n",
 	       EXT4_I(inode)->i_reserved_data_blocks);
@@ -2226,8 +2227,9 @@ static int ext4_nonda_switch(struct super_block *sb)
 	 * Delalloc need an accurate free block accounting. So switch
 	 * to non delalloc when we are near to error range.
 	 */
-	free_blocks  = percpu_counter_read_positive(&sbi->s_freeblocks_counter);
-	dirty_blocks = percpu_counter_read_positive(&sbi->s_dirtyblocks_counter);
+	free_blocks  = EXT4_C2B(sbi,
+		percpu_counter_read_positive(&sbi->s_freeclusters_counter));
+	dirty_blocks = percpu_counter_read_positive(&sbi->s_dirtyclusters_counter);
 	if (2 * free_blocks < 3 * dirty_blocks ||
 		free_blocks < (dirty_blocks + EXT4_FREEBLOCKS_WATERMARK)) {
 		/*

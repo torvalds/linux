@@ -414,16 +414,16 @@ static int ext4_has_free_blocks(struct ext4_sb_info *sbi,
 				s64 nblocks, unsigned int flags)
 {
 	s64 free_blocks, dirty_blocks, root_blocks;
-	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
-	struct percpu_counter *dbc = &sbi->s_dirtyblocks_counter;
+	struct percpu_counter *fcc = &sbi->s_freeclusters_counter;
+	struct percpu_counter *dbc = &sbi->s_dirtyclusters_counter;
 
-	free_blocks  = percpu_counter_read_positive(fbc);
+	free_blocks  = percpu_counter_read_positive(fcc);
 	dirty_blocks = percpu_counter_read_positive(dbc);
 	root_blocks = ext4_r_blocks_count(sbi->s_es);
 
 	if (free_blocks - (nblocks + root_blocks + dirty_blocks) <
 						EXT4_FREEBLOCKS_WATERMARK) {
-		free_blocks  = percpu_counter_sum_positive(fbc);
+		free_blocks  = EXT4_C2B(sbi, percpu_counter_sum_positive(fcc));
 		dirty_blocks = percpu_counter_sum_positive(dbc);
 	}
 	/* Check whether we have space after
@@ -449,7 +449,7 @@ int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
 			   s64 nblocks, unsigned int flags)
 {
 	if (ext4_has_free_blocks(sbi, nblocks, flags)) {
-		percpu_counter_add(&sbi->s_dirtyblocks_counter, nblocks);
+		percpu_counter_add(&sbi->s_dirtyclusters_counter, nblocks);
 		return 0;
 	} else
 		return -ENOSPC;
