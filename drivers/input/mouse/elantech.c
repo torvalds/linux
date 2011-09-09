@@ -290,15 +290,15 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		/* pass through... */
 	case 1:
 		/*
-		 * byte 1:  .   .   .   .   .  x10 x9  x8
+		 * byte 1:  .   .   .   .  x11 x10 x9  x8
 		 * byte 2: x7  x6  x5  x4  x4  x2  x1  x0
 		 */
-		x1 = ((packet[1] & 0x07) << 8) | packet[2];
+		x1 = ((packet[1] & 0x0f) << 8) | packet[2];
 		/*
-		 * byte 4:  .   .   .   .   .   .  y9  y8
+		 * byte 4:  .   .   .   .  y11 y10 y9  y8
 		 * byte 5: y7  y6  y5  y4  y3  y2  y1  y0
 		 */
-		y1 = ETP_YMAX_V2 - (((packet[4] & 0x03) << 8) | packet[5]);
+		y1 = ETP_YMAX_V2 - (((packet[4] & 0x0f) << 8) | packet[5]);
 
 		input_report_abs(dev, ABS_X, x1);
 		input_report_abs(dev, ABS_Y, y1);

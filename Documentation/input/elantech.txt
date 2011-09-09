@@ -389,14 +389,14 @@ byte 0:
 byte 1:
 
    bit   7   6   5   4   3   2   1   0
-	 p7  p6  p5  p4  .  x10 x9  x8
+	 p7  p6  p5  p4 x11 x10 x9  x8
 
 byte 2:
 
    bit   7   6   5   4   3   2   1   0
 	 x7  x6  x5  x4  x3  x2  x1  x0
 
-         x10..x0 = absolute x value (horizontal)
+         x11..x0 = absolute x value (horizontal)
 
 byte 3:
 
@@ -420,7 +420,7 @@ byte 3:
 byte 4:
 
    bit   7   6   5   4   3   2   1   0
-        p3  p1  p2  p0   .   .  y9  y8
+        p3  p1  p2  p0  y11 y10 y9  y8
 
 	 p7..p0 = pressure (not EF113)
 
@@ -429,7 +429,7 @@ byte 5:
    bit   7   6   5   4   3   2   1   0
         y7  y6  y5  y4  y3  y2  y1  y0
 
-         y9..y0 = absolute y value (vertical)
+         y11..y0 = absolute y value (vertical)
 
 
 4.2.2 Two finger touch
