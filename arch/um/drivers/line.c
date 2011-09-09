@@ -489,7 +489,7 @@ void close_lines(struct line *lines, int nlines)
 		close_chan(&lines[i].chan_list, 0);
 }
 
-static int setup_one_line(struct line *lines, int n, char *init, int init_prio,
+static int setup_one_line(struct line *lines, int n, char *init,
 			  char **error_out)
 {
 	struct line *line = &lines[n];
@@ -502,14 +502,11 @@ static int setup_one_line(struct line *lines, int n, char *init, int init_prio,
 		goto out;
 	}
 
-	if (line->init_pri <= init_prio) {
-		line->init_pri = init_prio;
-		if (!strcmp(init, "none"))
-			line->valid = 0;
-		else {
-			line->init_str = init;
-			line->valid = 1;
-		}
+	if (!strcmp(init, "none"))
+		line->valid = 0;
+	else {
+		line->init_str = init;
+		line->valid = 1;
 	}
 	err = 0;
 out:
@@ -524,47 +521,37 @@ out:
  * @error_out is an error string in the case of failure;
  */
 
-int line_setup(struct line *lines, unsigned int num, char *init,
-	       char **error_out)
+int line_setup(char **conf, unsigned int num, char **def,
+	       char *init, char *name)
 {
-	int i, n, err;
-	char *end;
+	char *error;
 
 	if (*init == '=') {
 		/*
 		 * We said con=/ssl= instead of con#=, so we are configuring all
 		 * consoles at once.
 		 */
-		n = -1;
-	}
-	else {
-		n = simple_strtoul(init, &end, 0);
-		if (*end != '=') {
-			*error_out = "Couldn't parse device number";
-			return -EINVAL;
-		}
-		init = end;
-	}
-	init++;
+		*def = init + 1;
+	} else {
+		char *end;
+		unsigned n = simple_strtoul(init, &end, 0);
 
-	if (n >= (signed int) num) {
-		*error_out = "Device number out of range";
-		return -EINVAL;
-	}
-	else if (n >= 0) {
-		err = setup_one_line(lines, n, init, INIT_ONE, error_out);
-		if (err)
-			return err;
-	}
-	else {
-		for(i = 0; i < num; i++) {
-			err = setup_one_line(lines, i, init, INIT_ALL,
-					     error_out);
-			if (err)
-				return err;
+		if (*end != '=') {
+			error = "Couldn't parse device number";
+			goto out;
 		}
+		if (n >= num) {
+			error = "Device number out of range";
+			goto out;
+		}
+		conf[n] = end + 1;
 	}
-	return n == -1 ? num : n;
+	return 0;
+
+out:
+	printk(KERN_ERR "Failed to set up %s with "
+	       "configuration string \"%s\" : %s\n", name, init, error);
+	return -EINVAL;
 }
 
 int line_config(struct line *lines, unsigned int num, char *str,
@@ -595,7 +582,7 @@ int line_config(struct line *lines, unsigned int num, char *str,
 		*error_out = "Failed to allocate memory";
 		return -ENOMEM;
 	}
-	err = setup_one_line(lines, n, new, INIT_ONE, error_out);
+	err = setup_one_line(lines, n, new, error_out);
 	if (err)
 		return err;
 	line = &lines[n];
@@ -654,7 +641,7 @@ int line_remove(struct line *lines, unsigned int num, int n, char **error_out)
 		*error_out = "Device number out of range";
 		return -EINVAL;
 	}
-	return setup_one_line(lines, n, "none", INIT_ONE, error_out);
+	return setup_one_line(lines, n, "none", error_out);
 }
 
 struct tty_driver *register_lines(struct line_driver *line_driver,

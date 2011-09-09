@@ -76,9 +76,9 @@ static struct line_driver driver = {
 /* The array is initialized by line_init, at initcall time.  The
  * elements are locked individually as needed.
  */
-static struct line vts[MAX_TTYS] = { LINE_INIT(CONFIG_CON_ZERO_CHAN, &driver),
-				     [ 1 ... MAX_TTYS - 1 ] =
-				     LINE_INIT(CONFIG_CON_CHAN, &driver) };
+static char *vt_conf[MAX_TTYS];
+static char *def_conf;
+static struct line vts[MAX_TTYS];
 
 static int con_config(char *str, char **error_out)
 {
@@ -160,7 +160,22 @@ static struct console stdiocons = {
 static int stdio_init(void)
 {
 	char *new_title;
+	int i;
 
+	for (i = 0; i < MAX_TTYS; i++) {
+		char *s = vt_conf[i];
+		if (!s)
+			s = def_conf;
+		if (!s)
+			s = i ? CONFIG_CON_CHAN : CONFIG_CON_ZERO_CHAN;
+		if (s && strcmp(s, "none") != 0) {
+			vts[i].init_str = s;
+			vts[i].valid = 1;
+		}
+		spin_lock_init(&vts[i].lock);
+		spin_lock_init(&vts[i].count_lock);
+		vts[i].driver = &driver;
+	}
 	console_driver = register_lines(&driver, &console_ops, vts,
 					ARRAY_SIZE(vts));
 	if (console_driver == NULL)
@@ -189,14 +204,7 @@ __uml_exitcall(console_exit);
 
 static int console_chan_setup(char *str)
 {
-	char *error;
-	int ret;
-
-	ret = line_setup(vts, ARRAY_SIZE(vts), str, &error);
-	if(ret < 0)
-		printk(KERN_ERR "Failed to set up console with "
-		       "configuration string \"%s\" : %s\n", str, error);
-
+	line_setup(vt_conf, MAX_TTYS, &def_conf, str, "console");
 	return 1;
 }
 __setup("con", console_chan_setup);

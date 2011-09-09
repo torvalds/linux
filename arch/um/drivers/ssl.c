@@ -71,8 +71,9 @@ static struct line_driver driver = {
 /* The array is initialized by line_init, at initcall time.  The
  * elements are locked individually as needed.
  */
-static struct line serial_lines[NR_PORTS] =
-	{ [0 ... NR_PORTS - 1] = LINE_INIT(CONFIG_SSL_CHAN, &driver) };
+static char *conf[NR_PORTS];
+static char *def_conf = CONFIG_SSL_CHAN;
+static struct line serial_lines[NR_PORTS];
 
 static int ssl_config(char *str, char **error_out)
 {
@@ -186,9 +187,23 @@ static struct console ssl_cons = {
 static int ssl_init(void)
 {
 	char *new_title;
+	int i;
 
 	printk(KERN_INFO "Initializing software serial port version %d\n",
 	       ssl_version);
+
+	for (i = 0; i < NR_PORTS; i++) {
+		char *s = conf[i];
+		if (!s)
+			s = def_conf;
+		if (s && strcmp(s, "none") != 0) {
+			serial_lines[i].init_str = s;
+			serial_lines[i].valid = 1;
+		}
+		spin_lock_init(&serial_lines[i].lock);
+		spin_lock_init(&serial_lines[i].count_lock);
+		serial_lines[i].driver = &driver;
+	}
 	ssl_driver = register_lines(&driver, &ssl_ops, serial_lines,
 				    ARRAY_SIZE(serial_lines));
 
@@ -214,14 +229,7 @@ __uml_exitcall(ssl_exit);
 
 static int ssl_chan_setup(char *str)
 {
-	char *error;
-	int ret;
-
-	ret = line_setup(serial_lines, ARRAY_SIZE(serial_lines), str, &error);
-	if(ret < 0)
-		printk(KERN_ERR "Failed to set up serial line with "
-		       "configuration string \"%s\" : %s\n", str, error);
-
+	line_setup(conf, NR_PORTS, &def_conf, str, "serial line");
 	return 1;
 }
 

@@ -37,7 +37,6 @@ struct line {
 	int valid;
 
 	char *init_str;
-	int init_pri;
 	struct list_head chan_list;
 
 	/*This lock is actually, mostly, local to*/
@@ -58,18 +57,10 @@ struct line {
 	int have_irq;
 };
 
-#define LINE_INIT(str, d) \
-	{ .count_lock =	__SPIN_LOCK_UNLOCKED((str).count_lock), \
-	  .init_str =	str,	\
-	  .init_pri =	INIT_STATIC, \
-	  .valid =	1, \
-	  .lock =	__SPIN_LOCK_UNLOCKED((str).lock), \
-	  .driver =	d }
-
 extern void line_close(struct tty_struct *tty, struct file * filp);
 extern int line_open(struct line *lines, struct tty_struct *tty);
-extern int line_setup(struct line *lines, unsigned int sizeof_lines,
-		      char *init, char **error_out);
+extern int line_setup(char **conf, unsigned nlines, char **def,
+		      char *init, char *name);
 extern int line_write(struct tty_struct *tty, const unsigned char *buf,
 		      int len);
 extern int line_put_char(struct tty_struct *tty, unsigned char ch);
