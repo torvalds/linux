@@ -31,7 +31,6 @@
 
 int tegra_powergate_power_on(int id);
 int tegra_powergate_power_off(int id);
-bool tegra_powergate_is_powered(int id);
 int tegra_powergate_remove_clamping(int id);
 
 /* Must be called with clk disabled, and returns with clk enabled */
