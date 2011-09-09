@@ -201,7 +201,7 @@ static int ssl_init(void)
 			serial_lines[i].valid = 1;
 		}
 		spin_lock_init(&serial_lines[i].lock);
-		spin_lock_init(&serial_lines[i].count_lock);
+		mutex_init(&serial_lines[i].count_lock);
 		serial_lines[i].driver = &driver;
 	}
 	ssl_driver = register_lines(&driver, &ssl_ops, serial_lines,

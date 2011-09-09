@@ -173,7 +173,7 @@ static int stdio_init(void)
 			vts[i].valid = 1;
 		}
 		spin_lock_init(&vts[i].lock);
-		spin_lock_init(&vts[i].count_lock);
+		mutex_init(&vts[i].count_lock);
 		vts[i].driver = &driver;
 	}
 	console_driver = register_lines(&driver, &console_ops, vts,

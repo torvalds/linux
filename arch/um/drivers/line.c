@@ -409,7 +409,7 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	struct line *line = &lines[tty->index];
 	int err = -ENODEV;
 
-	spin_lock(&line->count_lock);
+	mutex_lock(&line->count_lock);
 	if (!line->valid)
 		goto out_unlock;
 
@@ -421,10 +421,9 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	tty->driver_data = line;
 	line->tty = tty;
 
-	spin_unlock(&line->count_lock);
 	err = enable_chan(line);
 	if (err) /* line_close() will be called by our caller */
-		return err;
+		goto out_unlock;
 
 	INIT_DELAYED_WORK(&line->task, line_timer_cb);
 
@@ -435,11 +434,8 @@ int line_open(struct line *lines, struct tty_struct *tty)
 
 	chan_window_size(&line->chan_list, &tty->winsize.ws_row,
 			 &tty->winsize.ws_col);
-
-	return 0;
-
 out_unlock:
-	spin_unlock(&line->count_lock);
+	mutex_unlock(&line->count_lock);
 	return err;
 }
 
@@ -459,7 +455,7 @@ void line_close(struct tty_struct *tty, struct file * filp)
 	/* We ignore the error anyway! */
 	flush_buffer(line);
 
-	spin_lock(&line->count_lock);
+	mutex_lock(&line->count_lock);
 	BUG_ON(!line->valid);
 
 	if (--line->count)
@@ -468,17 +464,13 @@ void line_close(struct tty_struct *tty, struct file * filp)
 	line->tty = NULL;
 	tty->driver_data = NULL;
 
-	spin_unlock(&line->count_lock);
-
 	if (line->sigio) {
 		unregister_winch(tty);
 		line->sigio = 0;
 	}
 
-	return;
-
 out_unlock:
-	spin_unlock(&line->count_lock);
+	mutex_unlock(&line->count_lock);
 }
 
 void close_lines(struct line *lines, int nlines)
@@ -495,7 +487,7 @@ static int setup_one_line(struct line *lines, int n, char *init,
 	struct line *line = &lines[n];
 	int err = -EINVAL;
 
-	spin_lock(&line->count_lock);
+	mutex_lock(&line->count_lock);
 
 	if (line->count) {
 		*error_out = "Device is already open";
@@ -510,7 +502,7 @@ static int setup_one_line(struct line *lines, int n, char *init,
 	}
 	err = 0;
 out:
-	spin_unlock(&line->count_lock);
+	mutex_unlock(&line->count_lock);
 	return err;
 }
 
@@ -609,13 +601,13 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 
 	line = &lines[dev];
 
-	spin_lock(&line->count_lock);
+	mutex_lock(&line->count_lock);
 	if (!line->valid)
 		CONFIG_CHUNK(str, size, n, "none", 1);
 	else if (line->tty == NULL)
 		CONFIG_CHUNK(str, size, n, line->init_str, 1);
 	else n = chan_config_string(&line->chan_list, str, size, error_out);
-	spin_unlock(&line->count_lock);
+	mutex_unlock(&line->count_lock);
 
 	return n;
 }
