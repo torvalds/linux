@@ -37,6 +37,7 @@ MODULE_LICENSE("GPL");
 #define	PM_MAX_LENGTH	6
 #define	PM_MAX_MTSLOT	16
 #define	PM_3000_MTSLOT	2
+#define	PM_6250_MTSLOT	12
 
 /*
  * Multi-touch slot
@@ -150,6 +151,21 @@ static irqreturn_t pm_interrupt(struct serio *serio,
 			}
 		}
 		break;
+
+	case 0x6250:
+		if ((pm->data[0] & 0xb0) == 0x30) {
+			if (pm->packetsize == ++pm->idx) {
+				if (pm_checkpacket(pm->data)) {
+					int slotnum = pm->data[0] & 0x0f;
+					pm->slots[slotnum].active = pm->data[0] & 0x40;
+					pm->slots[slotnum].x = pm->data[2] * 256 + pm->data[1];
+					pm->slots[slotnum].y = pm->data[4] * 256 + pm->data[3];
+					pm_mtevent(pm, dev);
+				}
+				pm->idx = 0;
+			}
+		}
+		break;
 	}
 
 	return IRQ_HANDLED;
@@ -226,6 +242,13 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 		input_dev->id.product = 0x3000;
 		max_x = max_y = 0x7ff;
 		pm->maxcontacts = PM_3000_MTSLOT;
+		break;
+
+	case 3:
+		pm->packetsize = 6;
+		input_dev->id.product = 0x6250;
+		max_x = max_y = 0x3ff;
+		pm->maxcontacts = PM_6250_MTSLOT;
 		break;
 	}
 
