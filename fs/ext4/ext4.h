@@ -1978,8 +1978,8 @@ extern ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
 				      struct ext4_group_desc *bg);
 extern ext4_fsblk_t ext4_inode_table(struct super_block *sb,
 				     struct ext4_group_desc *bg);
-extern __u32 ext4_free_blks_count(struct super_block *sb,
-				struct ext4_group_desc *bg);
+extern __u32 ext4_free_group_clusters(struct super_block *sb,
+				      struct ext4_group_desc *bg);
 extern __u32 ext4_free_inodes_count(struct super_block *sb,
 				 struct ext4_group_desc *bg);
 extern __u32 ext4_used_dirs_count(struct super_block *sb,
@@ -1992,8 +1992,9 @@ extern void ext4_inode_bitmap_set(struct super_block *sb,
 				  struct ext4_group_desc *bg, ext4_fsblk_t blk);
 extern void ext4_inode_table_set(struct super_block *sb,
 				 struct ext4_group_desc *bg, ext4_fsblk_t blk);
-extern void ext4_free_blks_set(struct super_block *sb,
-			       struct ext4_group_desc *bg, __u32 count);
+extern void ext4_free_group_clusters_set(struct super_block *sb,
+					 struct ext4_group_desc *bg,
+					 __u32 count);
 extern void ext4_free_inodes_set(struct super_block *sb,
 				struct ext4_group_desc *bg, __u32 count);
 extern void ext4_used_dirs_set(struct super_block *sb,
