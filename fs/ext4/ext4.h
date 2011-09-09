@@ -1775,7 +1775,7 @@ extern ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 					 int *errp);
 extern int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
 				  s64 nblocks, unsigned int flags);
-extern ext4_fsblk_t ext4_count_free_blocks(struct super_block *);
+extern ext4_fsblk_t ext4_count_free_clusters(struct super_block *);
 extern void ext4_check_blocks_bitmap(struct super_block *);
 extern struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
 						    ext4_group_t block_group,

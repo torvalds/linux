@@ -2153,7 +2153,8 @@ static int ext4_check_descriptors(struct super_block *sb,
 	if (NULL != first_not_zeroed)
 		*first_not_zeroed = grp;
 
-	ext4_free_blocks_count_set(sbi->s_es, ext4_count_free_blocks(sb));
+	ext4_free_blocks_count_set(sbi->s_es,
+				   EXT4_C2B(sbi, ext4_count_free_clusters(sb)));
 	sbi->s_es->s_free_inodes_count =cpu_to_le32(ext4_count_free_inodes(sb));
 	return 1;
 }
@@ -3577,7 +3578,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_err_report.data = (unsigned long) sb;
 
 	err = percpu_counter_init(&sbi->s_freeclusters_counter,
-			ext4_count_free_blocks(sb));
+			ext4_count_free_clusters(sb));
 	if (!err) {
 		err = percpu_counter_init(&sbi->s_freeinodes_counter,
 				ext4_count_free_inodes(sb));
@@ -3703,7 +3704,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * need to update the global counters.
 	 */
 	percpu_counter_set(&sbi->s_freeclusters_counter,
-			   ext4_count_free_blocks(sb));
+			   ext4_count_free_clusters(sb));
 	percpu_counter_set(&sbi->s_freeinodes_counter,
 			   ext4_count_free_inodes(sb));
 	percpu_counter_set(&sbi->s_dirs_counter,
