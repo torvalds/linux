@@ -102,74 +102,73 @@ static unsigned int num_blocks_in_group(struct super_block *sb,
 		return EXT4_BLOCKS_PER_GROUP(sb);
 }
 
-/* Initializes an uninitialized block bitmap if given, and returns the
- * number of blocks free in the group. */
-unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
-		 ext4_group_t block_group, struct ext4_group_desc *gdp)
+/* Initializes an uninitialized block bitmap */
+void ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
+			    ext4_group_t block_group,
+			    struct ext4_group_desc *gdp)
 {
 	unsigned int bit, bit_max = num_base_meta_blocks(sb, block_group);
-	ext4_group_t ngroups = ext4_get_groups_count(sb);
-	unsigned group_blocks = num_blocks_in_group(sb, block_group);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	ext4_fsblk_t start, tmp;
+	int flex_bg = 0;
 
-	if (bh) {
-		J_ASSERT_BH(bh, buffer_locked(bh));
+	J_ASSERT_BH(bh, buffer_locked(bh));
 
-		/* If checksum is bad mark all blocks used to prevent allocation
-		 * essentially implementing a per-group read-only flag. */
-		if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
-			ext4_error(sb, "Checksum bad for group %u",
-					block_group);
-			ext4_free_blks_set(sb, gdp, 0);
-			ext4_free_inodes_set(sb, gdp, 0);
-			ext4_itable_unused_set(sb, gdp, 0);
-			memset(bh->b_data, 0xff, sb->s_blocksize);
-			return 0;
-		}
-		memset(bh->b_data, 0, sb->s_blocksize);
+	/* If checksum is bad mark all blocks used to prevent allocation
+	 * essentially implementing a per-group read-only flag. */
+	if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
+		ext4_error(sb, "Checksum bad for group %u", block_group);
+		ext4_free_blks_set(sb, gdp, 0);
+		ext4_free_inodes_set(sb, gdp, 0);
+		ext4_itable_unused_set(sb, gdp, 0);
+		memset(bh->b_data, 0xff, sb->s_blocksize);
+		return;
 	}
+	memset(bh->b_data, 0, sb->s_blocksize);
 
-	if (bh) {
-		ext4_fsblk_t start, tmp;
-		int flex_bg = 0;
+	for (bit = 0; bit < bit_max; bit++)
+		ext4_set_bit(bit, bh->b_data);
 
-		for (bit = 0; bit < bit_max; bit++)
-			ext4_set_bit(bit, bh->b_data);
+	start = ext4_group_first_block_no(sb, block_group);
 
-		start = ext4_group_first_block_no(sb, block_group);
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG))
+		flex_bg = 1;
 
-		if (EXT4_HAS_INCOMPAT_FEATURE(sb,
-					      EXT4_FEATURE_INCOMPAT_FLEX_BG))
-			flex_bg = 1;
+	/* Set bits for block and inode bitmaps, and inode table */
+	tmp = ext4_block_bitmap(sb, gdp);
+	if (!flex_bg || ext4_block_in_group(sb, tmp, block_group))
+		ext4_set_bit(tmp - start, bh->b_data);
 
-		/* Set bits for block and inode bitmaps, and inode table */
-		tmp = ext4_block_bitmap(sb, gdp);
+	tmp = ext4_inode_bitmap(sb, gdp);
+	if (!flex_bg || ext4_block_in_group(sb, tmp, block_group))
+		ext4_set_bit(tmp - start, bh->b_data);
+
+	tmp = ext4_inode_table(sb, gdp);
+	for (; tmp < ext4_inode_table(sb, gdp) +
+		     sbi->s_itb_per_group; tmp++) {
 		if (!flex_bg || ext4_block_in_group(sb, tmp, block_group))
 			ext4_set_bit(tmp - start, bh->b_data);
-
-		tmp = ext4_inode_bitmap(sb, gdp);
-		if (!flex_bg || ext4_block_in_group(sb, tmp, block_group))
-			ext4_set_bit(tmp - start, bh->b_data);
-
-		tmp = ext4_inode_table(sb, gdp);
-		for (; tmp < ext4_inode_table(sb, gdp) +
-				sbi->s_itb_per_group; tmp++) {
-			if (!flex_bg ||
-				ext4_block_in_group(sb, tmp, block_group))
-				ext4_set_bit(tmp - start, bh->b_data);
-		}
-		/*
-		 * Also if the number of blocks within the group is
-		 * less than the blocksize * 8 ( which is the size
-		 * of bitmap ), set rest of the block bitmap to 1
-		 */
-		ext4_mark_bitmap_end(group_blocks, sb->s_blocksize * 8,
-				     bh->b_data);
 	}
-	return group_blocks - bit_max -
-		ext4_group_used_meta_blocks(sb, block_group, gdp);
+	/*
+	 * Also if the number of blocks within the group is less than
+	 * the blocksize * 8 ( which is the size of bitmap ), set rest
+	 * of the block bitmap to 1
+	 */
+	ext4_mark_bitmap_end(num_blocks_in_group(sb, block_group),
+			     sb->s_blocksize * 8, bh->b_data);
 }
 
+/* Return the number of free blocks in a block group.  It is used when
+ * the block bitmap is uninitialized, so we can't just count the bits
+ * in the bitmap. */
+unsigned ext4_free_blocks_after_init(struct super_block *sb,
+				     ext4_group_t block_group,
+				     struct ext4_group_desc *gdp)
+{
+	return num_blocks_in_group(sb, block_group) -
+		num_base_meta_blocks(sb, block_group) -
+		ext4_group_used_meta_blocks(sb, block_group, gdp);
+}
 
 /*
  * The free blocks are managed by bitmaps.  A file system contains several

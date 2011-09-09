@@ -816,7 +816,6 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
 	int ret2, err = 0;
 	struct inode *ret;
 	ext4_group_t i;
-	int free = 0;
 	static int once = 1;
 	ext4_group_t flex_group;
 
@@ -950,26 +949,21 @@ got:
 			goto fail;
 		}
 
-		free = 0;
-		ext4_lock_group(sb, group);
+		BUFFER_TRACE(block_bitmap_bh, "dirty block bitmap");
+		err = ext4_handle_dirty_metadata(handle, NULL, block_bitmap_bh);
+		brelse(block_bitmap_bh);
+
 		/* recheck and clear flag under lock if we still need to */
+		ext4_lock_group(sb, group);
 		if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
-			free = ext4_free_blocks_after_init(sb, group, gdp);
 			gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
-			ext4_free_blks_set(sb, gdp, free);
+			ext4_free_blks_set(sb, gdp,
+				ext4_free_blocks_after_init(sb, group, gdp));
 			gdp->bg_checksum = ext4_group_desc_csum(sbi, group,
 								gdp);
 		}
 		ext4_unlock_group(sb, group);
 
-		/* Don't need to dirty bitmap block if we didn't change it */
-		if (free) {
-			BUFFER_TRACE(block_bitmap_bh, "dirty block bitmap");
-			err = ext4_handle_dirty_metadata(handle,
-							NULL, block_bitmap_bh);
-		}
-
-		brelse(block_bitmap_bh);
 		if (err)
 			goto fail;
 	}
