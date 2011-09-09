@@ -37,7 +37,7 @@ static inline void cache_wait_way(void __iomem *reg, unsigned long mask)
 {
 	/* wait for cache operation by line or way to complete */
 	while (readl_relaxed(reg) & mask)
-		;
+		cpu_relax();
 }
 
 #ifdef CONFIG_CACHE_PL310
