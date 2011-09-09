@@ -2339,4 +2339,6 @@ extern void ext4_resize_end(struct super_block *sb);
 
 #endif	/* __KERNEL__ */
 
+#include "ext4_extents.h"
+
 #endif	/* _EXT4_H */
