@@ -791,6 +791,42 @@ static int elantech_reconnect(struct psmouse *psmouse)
 }
 
 /*
+ * determine hardware version and set some properties according to it.
+ */
+static void elantech_set_properties(struct elantech_data *etd)
+{
+	/*
+	 * Assume every version greater than 0x020030 is new EeePC style
+	 * hardware with 6 byte packets, except 0x020600
+	 */
+	if (etd->fw_version < 0x020030 || etd->fw_version == 0x020600)
+		etd->hw_version = 1;
+	else
+		etd->hw_version = 2;
+
+	/*
+	 * Turn on packet checking by default.
+	 */
+	etd->paritycheck = 1;
+
+	/*
+	 * This firmware suffers from misreporting coordinates when
+	 * a touch action starts causing the mouse cursor or scrolled page
+	 * to jump. Enable a workaround.
+	 */
+	etd->jumpy_cursor =
+		(etd->fw_version == 0x020022 || etd->fw_version == 0x020600);
+
+	if (etd->hw_version == 2) {
+		/* For now show extra debug information */
+		etd->debug = 1;
+
+		if (etd->fw_version >= 0x020800)
+			etd->reports_pressure = true;
+	}
+}
+
+/*
  * Initialize the touchpad and create sysfs entries
  */
 int elantech_init(struct psmouse *psmouse)
@@ -816,26 +852,9 @@ int elantech_init(struct psmouse *psmouse)
 	}
 
 	etd->fw_version = (param[0] << 16) | (param[1] << 8) | param[2];
-
-	/*
-	 * Assume every version greater than this is new EeePC style
-	 * hardware with 6 byte packets
-	 */
-	if (etd->fw_version >= 0x020030) {
-		etd->hw_version = 2;
-		/* For now show extra debug information */
-		etd->debug = 1;
-		etd->paritycheck = 1;
-
-		if (etd->fw_version >= 0x020800)
-			etd->reports_pressure = true;
-
-	} else {
-		etd->hw_version = 1;
-		etd->paritycheck = 1;
-	}
-
-	pr_info("assuming hardware version %d, firmware version %d.%d.%d\n",
+	elantech_set_properties(etd);
+	pr_info("assuming hardware version %d "
+		"(with firmware version 0x%02x%02x%02x)\n",
 		etd->hw_version, param[0], param[1], param[2]);
 
 	if (synaptics_send_cmd(psmouse, ETP_CAPABILITIES_QUERY,
@@ -846,16 +865,6 @@ int elantech_init(struct psmouse *psmouse)
 	pr_info("Synaptics capabilities query result 0x%02x, 0x%02x, 0x%02x.\n",
 		etd->capabilities[0], etd->capabilities[1],
 		etd->capabilities[2]);
-
-	/*
-	 * This firmware suffers from misreporting coordinates when
-	 * a touch action starts causing the mouse cursor or scrolled page
-	 * to jump. Enable a workaround.
-	 */
-	if (etd->fw_version == 0x020022 || etd->fw_version == 0x020600) {
-		pr_info("firmware version 2.0.34/2.6.0 detected, enabling jumpy cursor workaround\n");
-		etd->jumpy_cursor = true;
-	}
 
 	if (elantech_set_absolute_mode(psmouse)) {
 		pr_err("failed to put touchpad into absolute mode.\n");
