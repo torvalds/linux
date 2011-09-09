@@ -2,6 +2,7 @@
  * Penmount serial touchscreen driver
  *
  * Copyright (c) 2006 Rick Koch <n1gp@hotmail.com>
+ * Copyright (c) 2011 John Sung <penmount.touch@gmail.com>
  *
  * Based on ELO driver (drivers/input/touchscreen/elo.c)
  * Copyright (c) 2004 Vojtech Pavlik
@@ -21,9 +22,10 @@
 #include <linux/serio.h>
 #include <linux/init.h>
 
-#define DRIVER_DESC	"Penmount serial touchscreen driver"
+#define DRIVER_DESC	"PenMount serial touchscreen driver"
 
 MODULE_AUTHOR("Rick Koch <n1gp@hotmail.com>");
+MODULE_AUTHOR("John Sung <penmount.touch@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
@@ -55,8 +57,8 @@ static irqreturn_t pm_interrupt(struct serio *serio,
 
 	if (pm->data[0] & 0x80) {
 		if (PM_MAX_LENGTH == ++pm->idx) {
-			input_report_abs(dev, ABS_X, pm->data[2] * 128 + pm->data[1]);
-			input_report_abs(dev, ABS_Y, pm->data[4] * 128 + pm->data[3]);
+			input_report_abs(dev, ABS_X, pm->data[1] * 128 + pm->data[2]);
+			input_report_abs(dev, ABS_Y, pm->data[3] * 128 + pm->data[4]);
 			input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
 			input_sync(dev);
 			pm->idx = 0;
@@ -84,7 +86,7 @@ static void pm_disconnect(struct serio *serio)
 
 /*
  * pm_connect() is the routine that is called when someone adds a
- * new serio device that supports Gunze protocol and registers it as
+ * new serio device that supports PenMount protocol and registers it as
  * an input device.
  */
 
@@ -105,7 +107,7 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	pm->dev = input_dev;
 	snprintf(pm->phys, sizeof(pm->phys), "%s/input0", serio->phys);
 
-	input_dev->name = "Penmount Serial TouchScreen";
+	input_dev->name = "PenMount Serial TouchScreen";
 	input_dev->phys = pm->phys;
 	input_dev->id.bustype = BUS_RS232;
 	input_dev->id.vendor = SERIO_PENMOUNT;
@@ -155,7 +157,7 @@ MODULE_DEVICE_TABLE(serio, pm_serio_ids);
 
 static struct serio_driver pm_drv = {
 	.driver		= {
-		.name	= "penmountlpc",
+		.name	= "serio-penmount",
 	},
 	.description	= DRIVER_DESC,
 	.id_table	= pm_serio_ids,
