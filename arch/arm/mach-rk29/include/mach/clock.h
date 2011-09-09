@@ -68,6 +68,8 @@ struct clk_notifier_data {
 #define CLK_POST_DISABLE		8
 #define CLK_ABORT_DISABLE		9
 
+struct notifier_block;
+
 extern int clk_notifier_register(struct clk *clk, struct notifier_block *nb);
 extern int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
 
