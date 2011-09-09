@@ -2154,6 +2154,54 @@ static void f71882fg_remove_sysfs_files(struct platform_device *pdev,
 		device_remove_file(&pdev->dev, &attr[i].dev_attr);
 }
 
+static int __devinit f71882fg_create_fan_sysfs_files(
+	struct platform_device *pdev, int idx, bool pwm_auto_point)
+{
+	struct f71882fg_data *data = platform_get_drvdata(pdev);
+	int err;
+
+	err = f71882fg_create_sysfs_files(pdev, &fxxxx_fan_attr[idx][0],
+					  ARRAY_SIZE(fxxxx_fan_attr[0]));
+	if (err)
+		return err;
+
+	if (f71882fg_fan_has_beep[data->type]) {
+		err = f71882fg_create_sysfs_files(pdev,
+						  &fxxxx_fan_beep_attr[idx],
+						  1);
+		if (err)
+			return err;
+	}
+
+	if (!pwm_auto_point)
+		return 0; /* All done */
+
+	switch (data->type) {
+	case f71862fg:
+		err = f71882fg_create_sysfs_files(pdev,
+					&f71862fg_auto_pwm_attr[idx][0],
+					ARRAY_SIZE(f71862fg_auto_pwm_attr[0]));
+		break;
+	case f71808e:
+	case f71869:
+		err = f71882fg_create_sysfs_files(pdev,
+					&f71869_auto_pwm_attr[idx][0],
+					ARRAY_SIZE(f71869_auto_pwm_attr[0]));
+		break;
+	case f8000:
+		err = f71882fg_create_sysfs_files(pdev,
+					&f8000_auto_pwm_attr[idx][0],
+					ARRAY_SIZE(f8000_auto_pwm_attr[0]));
+		break;
+	default:
+		err = f71882fg_create_sysfs_files(pdev,
+					&fxxxx_auto_pwm_attr[idx][0],
+					ARRAY_SIZE(fxxxx_auto_pwm_attr[0]));
+	}
+
+	return err;
+}
+
 static int __devinit f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
@@ -2247,6 +2295,8 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 	}
 
 	if (start_reg & 0x02) {
+		bool pwm_auto_point = true;
+
 		switch (data->type) {
 		case f71808e:
 		case f71808a:
@@ -2298,18 +2348,6 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 			goto exit_unregister_sysfs;
 		}
 
-		err = f71882fg_create_sysfs_files(pdev, &fxxxx_fan_attr[0][0],
-				ARRAY_SIZE(fxxxx_fan_attr[0]) * nr_fans);
-		if (err)
-			goto exit_unregister_sysfs;
-
-		if (f71882fg_fan_has_beep[data->type]) {
-			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_fan_beep_attr, nr_fans);
-			if (err)
-				goto exit_unregister_sysfs;
-		}
-
 		switch (data->type) {
 		case f71808e:
 		case f71808a:
@@ -2331,59 +2369,41 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 					 "Auto pwm controlled by raw digital "
 					 "data, disabling pwm auto_point "
 					 "sysfs attributes\n");
-				goto no_pwm_auto_point;
+				pwm_auto_point = false;
 			}
 			break;
 		default:
 			break;
 		}
 
+		for (i = 0; i < nr_fans; i++) {
+			err = f71882fg_create_fan_sysfs_files(pdev, i,
+							      pwm_auto_point);
+			if (err)
+				goto exit_unregister_sysfs;
+
+			dev_info(&pdev->dev, "Fan: %d is in %s mode\n", i + 1,
+				 (data->pwm_enable & (1 << 2 * i)) ?
+				 "duty-cycle" : "RPM");
+		}
+
+		/* Some types have 1 extra fan with limited functionality */
 		switch (data->type) {
 		case f71808a:
 			err = f71882fg_create_sysfs_files(pdev,
-				&fxxxx_auto_pwm_attr[0][0],
-				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
-			if (err)
-				goto exit_unregister_sysfs;
-			err = f71882fg_create_sysfs_files(pdev,
 					f71808a_fan3_attr,
 					ARRAY_SIZE(f71808a_fan3_attr));
-			break;
-		case f71862fg:
-			err = f71882fg_create_sysfs_files(pdev,
-				&f71862fg_auto_pwm_attr[0][0],
-				ARRAY_SIZE(f71862fg_auto_pwm_attr[0]) *
-					nr_fans);
-			break;
-		case f71808e:
-		case f71869:
-			err = f71882fg_create_sysfs_files(pdev,
-				&f71869_auto_pwm_attr[0][0],
-				ARRAY_SIZE(f71869_auto_pwm_attr[0]) * nr_fans);
 			break;
 		case f8000:
 			err = f71882fg_create_sysfs_files(pdev,
 					f8000_fan_attr,
 					ARRAY_SIZE(f8000_fan_attr));
-			if (err)
-				goto exit_unregister_sysfs;
-			err = f71882fg_create_sysfs_files(pdev,
-				&f8000_auto_pwm_attr[0][0],
-				ARRAY_SIZE(f8000_auto_pwm_attr[0]) * nr_fans);
 			break;
 		default:
-			err = f71882fg_create_sysfs_files(pdev,
-				&fxxxx_auto_pwm_attr[0][0],
-				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
+			break;
 		}
 		if (err)
 			goto exit_unregister_sysfs;
-
-no_pwm_auto_point:
-		for (i = 0; i < nr_fans; i++)
-			dev_info(&pdev->dev, "Fan: %d is in %s mode\n", i + 1,
-				 (data->pwm_enable & (1 << 2 * i)) ?
-				 "duty-cycle" : "RPM");
 	}
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
