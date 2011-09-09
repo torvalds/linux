@@ -566,6 +566,55 @@ static int mtd_blkpg_ioctl(struct mtd_info *mtd,
 	}
 }
 
+static int mtd_write_ioctl(struct mtd_info *mtd,
+		struct mtd_write_req __user *argp)
+{
+	struct mtd_write_req req;
+	struct mtd_oob_ops ops;
+	void __user *usr_data, *usr_oob;
+	int ret;
+
+	if (copy_from_user(&req, argp, sizeof(req)) ||
+			!access_ok(VERIFY_READ, req.usr_data, req.len) ||
+			!access_ok(VERIFY_READ, req.usr_oob, req.ooblen))
+		return -EFAULT;
+	if (!mtd->write_oob)
+		return -EOPNOTSUPP;
+
+	ops.mode = req.mode;
+	ops.len = (size_t)req.len;
+	ops.ooblen = (size_t)req.ooblen;
+	ops.ooboffs = 0;
+
+	usr_data = (void __user *)(uintptr_t)req.usr_data;
+	usr_oob = (void __user *)(uintptr_t)req.usr_oob;
+
+	if (req.usr_data) {
+		ops.datbuf = memdup_user(usr_data, ops.len);
+		if (IS_ERR(ops.datbuf))
+			return PTR_ERR(ops.datbuf);
+	} else {
+		ops.datbuf = NULL;
+	}
+
+	if (req.usr_oob) {
+		ops.oobbuf = memdup_user(usr_oob, ops.ooblen);
+		if (IS_ERR(ops.oobbuf)) {
+			kfree(ops.datbuf);
+			return PTR_ERR(ops.oobbuf);
+		}
+	} else {
+		ops.oobbuf = NULL;
+	}
+
+	ret = mtd->write_oob(mtd, (loff_t)req.start, &ops);
+
+	kfree(ops.datbuf);
+	kfree(ops.oobbuf);
+
+	return ret;
+}
+
 static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 {
 	struct mtd_file_info *mfi = file->private_data;
@@ -750,6 +799,13 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 			ret = mtd_do_readoob(file, mtd, buf.start, buf.length,
 				(void __user *)(uintptr_t)buf.usr_ptr,
 				&buf_user->length);
+		break;
+	}
+
+	case MEMWRITE:
+	{
+		ret = mtd_write_ioctl(mtd,
+		      (struct mtd_write_req __user *)arg);
 		break;
 	}
 
