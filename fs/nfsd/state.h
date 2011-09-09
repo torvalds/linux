@@ -113,6 +113,11 @@ struct nfs4_cb_conn {
 	struct svc_xprt		*cb_xprt;	/* minorversion 1 only */
 };
 
+static inline struct nfs4_delegation *delegstateid(struct nfs4_stid *s)
+{
+	return container_of(s, struct nfs4_delegation, dl_stid);
+}
+
 /* Maximum number of slots per session. 160 is useful for long haul TCP */
 #define NFSD_MAX_SLOTS_PER_SESSION     160
 /* Maximum number of operations per session compound */
