@@ -82,14 +82,37 @@
 #define ETP_WMAX_V2			15
 
 /*
- * v3 hardware has 2 kinds of packet types.
+ * v3 hardware has 2 kinds of packet types,
+ * v4 hardware has 3.
  */
 #define PACKET_UNKNOWN			0x01
 #define PACKET_DEBOUNCE			0x02
 #define PACKET_V3_HEAD			0x03
 #define PACKET_V3_TAIL			0x04
+#define PACKET_V4_HEAD			0x05
+#define PACKET_V4_MOTION		0x06
+#define PACKET_V4_STATUS		0x07
+
+/*
+ * track up to 5 fingers for v4 hardware
+ */
+#define ETP_MAX_FINGERS			5
+
+/*
+ * weight value for v4 hardware
+ */
+#define ETP_WEIGHT_VALUE		5
+
+/*
+ * The base position for one finger, v4 hardware
+ */
+struct finger_pos {
+	unsigned int x;
+	unsigned int y;
+};
 
 struct elantech_data {
+	unsigned char reg_07;
 	unsigned char reg_10;
 	unsigned char reg_11;
 	unsigned char reg_20;
@@ -108,8 +131,8 @@ struct elantech_data {
 	unsigned int fw_version;
 	unsigned int single_finger_reports;
 	unsigned int y_max;
-	unsigned int prev_x;
-	unsigned int prev_y;
+	unsigned int width;
+	struct finger_pos mt[ETP_MAX_FINGERS];
 	unsigned char parity[256];
 };
 

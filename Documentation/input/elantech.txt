@@ -32,6 +32,12 @@ Contents
     6.2 Native absolute mode 6 byte packet format
         6.2.1 One/Three finger touch
         6.2.2 Two finger touch
+ 7. Hardware version 4
+    7.1 Registers
+    7.2 Native absolute mode 6 byte packet format
+        7.2.1 Status packet
+        7.2.2 Head packet
+        7.2.3 Motion packet
 
 
 
@@ -573,3 +579,167 @@ The packet format is exactly the same for two finger touch, except the hardware
 sends two 6 byte packets. The first packet contains data for the first finger,
 the second packet has data for the second finger. So for two finger touch a
 total of 12 bytes are sent.
+
+/////////////////////////////////////////////////////////////////////////////
+
+7. Hardware version 4
+   ==================
+
+7.1 Registers
+    ~~~~~~~~~
+* reg_07
+
+   bit   7   6   5   4   3   2   1   0
+         0   0   0   0   0   0   0   A
+
+         A: 1 = enable absolute tracking
+
+7.2 Native absolute mode 6 byte packet format
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+v4 hardware is a true multitouch touchpad, capable of tracking up to 5 fingers.
+Unfortunately, due to PS/2's limited bandwidth, its packet format is rather
+complex.
+
+Whenever the numbers or identities of the fingers changes, the hardware sends a
+status packet to indicate how many and which fingers is on touchpad, followed by
+head packets or motion packets. A head packet contains data of finger id, finger
+position (absolute x, y values), width, and pressure. A motion packet contains
+two fingers' position delta.
+
+For example, when status packet tells there are 2 fingers on touchpad, then we
+can expect two following head packets. If the finger status doesn't change,
+the following packets would be motion packets, only sending delta of finger
+position, until we receive a status packet.
+
+One exception is one finger touch. when a status packet tells us there is only
+one finger, the hardware would just send head packets afterwards.
+
+7.2.1 Status packet
+      ~~~~~~~~~~~~~
+
+byte 0:
+
+   bit   7   6   5   4   3   2   1   0
+         .   .   .   .   0   1   R   L
+
+         L, R = 1 when Left, Right mouse button pressed
+
+byte 1:
+
+   bit   7   6   5   4   3   2   1   0
+         .   .   . ft4 ft3 ft2 ft1 ft0
+
+         ft4 ft3 ft2 ft1 ft0 ftn = 1 when finger n is on touchpad
+
+byte 2: not used
+
+byte 3:
+
+   bit   7   6   5   4   3   2   1   0
+         .   .   .   1   0   0   0   0
+
+         constant bits
+
+byte 4:
+
+   bit   7   6   5   4   3   2   1   0
+         p   .   .   .   .   .   .   .
+
+         p = 1 for palm
+
+byte 5: not used
+
+7.2.2 Head packet
+      ~~~~~~~~~~~
+
+byte 0:
+
+   bit   7   6   5   4   3   2   1   0
+        w3  w2  w1  w0   0   1   R   L
+
+        L, R = 1 when Left, Right mouse button pressed
+        w3..w0 = finger width (spans how many trace lines)
+
+byte 1:
+
+   bit   7   6   5   4   3   2   1   0
+        p7  p6  p5  p4 x11 x10  x9  x8
+
+byte 2:
+
+   bit   7   6   5   4   3   2   1   0
+        x7  x6  x5  x4  x3  x2  x1  x0
+
+        x11..x0 = absolute x value (horizontal)
+
+byte 3:
+
+   bit   7   6   5   4   3   2   1   0
+       id2 id1 id0   1   0   0   0   1
+
+       id2..id0 = finger id
+
+byte 4:
+
+   bit   7   6   5   4   3   2   1   0
+        p3  p1  p2  p0  y11 y10 y9  y8
+
+        p7..p0 = pressure
+
+byte 5:
+
+   bit   7   6   5   4   3   2   1   0
+        y7  y6  y5  y4  y3  y2  y1  y0
+
+        y11..y0 = absolute y value (vertical)
+
+7.2.3 Motion packet
+      ~~~~~~~~~~~~~
+
+byte 0:
+
+   bit   7   6   5   4   3   2   1   0
+       id2 id1 id0   w   0   1   R   L
+
+       L, R = 1 when Left, Right mouse button pressed
+       id2..id0 = finger id
+       w = 1 when delta overflows (> 127 or < -128), in this case
+       firmware sends us (delta x / 5) and (delta y  / 5)
+
+byte 1:
+
+   bit   7   6   5   4   3   2   1   0
+        x7  x6  x5  x4  x3  x2  x1  x0
+
+        x7..x0 = delta x (two's complement)
+
+byte 2:
+
+   bit   7   6   5   4   3   2   1   0
+        y7  y6  y5  y4  y3  y2  y1  y0
+
+        y7..y0 = delta y (two's complement)
+
+byte 3:
+
+   bit   7   6   5   4   3   2   1   0
+       id2 id1 id0   1   0   0   1   0
+
+       id2..id0 = finger id
+
+byte 4:
+
+   bit   7   6   5   4   3   2   1   0
+        x7  x6  x5  x4  x3  x2  x1  x0
+
+        x7..x0 = delta x (two's complement)
+
+byte 5:
+
+   bit   7   6   5   4   3   2   1   0
+        y7  y6  y5  y4  y3  y2  y1  y0
+
+        y7..y0 = delta y (two's complement)
+
+        byte 0 ~ 2 for one finger
+        byte 3 ~ 5 for another
