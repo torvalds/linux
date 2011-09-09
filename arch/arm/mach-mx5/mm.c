@@ -35,6 +35,7 @@ static struct map_desc mx50_io_desc[] __initdata = {
  * Define the MX51 memory map.
  */
 static struct map_desc mx51_io_desc[] __initdata = {
+	imx_map_entry(MX51, TZIC, MT_DEVICE),
 	imx_map_entry(MX51, IRAM, MT_DEVICE),
 	imx_map_entry(MX51, AIPS1, MT_DEVICE),
 	imx_map_entry(MX51, SPBA0, MT_DEVICE),
@@ -45,6 +46,7 @@ static struct map_desc mx51_io_desc[] __initdata = {
  * Define the MX53 memory map.
  */
 static struct map_desc mx53_io_desc[] __initdata = {
+	imx_map_entry(MX53, TZIC, MT_DEVICE),
 	imx_map_entry(MX53, AIPS1, MT_DEVICE),
 	imx_map_entry(MX53, SPBA0, MT_DEVICE),
 	imx_map_entry(MX53, AIPS2, MT_DEVICE),
@@ -98,33 +100,12 @@ void __init mx50_init_irq(void)
 
 void __init mx51_init_irq(void)
 {
-	unsigned long tzic_addr;
-	void __iomem *tzic_virt;
-
-	if (mx51_revision() < IMX_CHIP_REVISION_2_0)
-		tzic_addr = MX51_TZIC_BASE_ADDR_TO1;
-	else
-		tzic_addr = MX51_TZIC_BASE_ADDR;
-
-	tzic_virt = ioremap(tzic_addr, SZ_16K);
-	if (!tzic_virt)
-		panic("unable to map TZIC interrupt controller\n");
-
-	tzic_init_irq(tzic_virt);
+	tzic_init_irq(MX51_IO_ADDRESS(MX51_TZIC_BASE_ADDR));
 }
 
 void __init mx53_init_irq(void)
 {
-	unsigned long tzic_addr;
-	void __iomem *tzic_virt;
-
-	tzic_addr = MX53_TZIC_BASE_ADDR;
-
-	tzic_virt = ioremap(tzic_addr, SZ_16K);
-	if (!tzic_virt)
-		panic("unable to map TZIC interrupt controller\n");
-
-	tzic_init_irq(tzic_virt);
+	tzic_init_irq(MX53_IO_ADDRESS(MX53_TZIC_BASE_ADDR));
 }
 
 static struct sdma_script_start_addrs imx51_sdma_script __initdata = {

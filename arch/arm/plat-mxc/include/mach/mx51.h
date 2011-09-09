@@ -120,6 +120,7 @@
 
 #define MX51_GPU2D_BASE_ADDR		0xd0000000
 #define MX51_TZIC_BASE_ADDR		0xe0000000
+#define MX51_TZIC_SIZE			SZ_16K
 
 #define MX51_IO_P2V(x)			IMX_IO_P2V(x)
 #define MX51_IO_ADDRESS(x)		IOMEM(MX51_IO_P2V(x))
@@ -337,8 +338,5 @@
 extern int mx51_revision(void);
 extern void mx51_display_revision(void);
 #endif
-
-/* tape-out 1 defines */
-#define MX51_TZIC_BASE_ADDR_TO1		0x8fffc000
 
 #endif	/* ifndef __MACH_MX51_H__ */
