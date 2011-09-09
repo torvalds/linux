@@ -800,20 +800,22 @@ static int wacom_bpt_touch(struct wacom_wac *wacom)
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		int p = data[9 * i + 2];
-		bool touch = p && !wacom->shared->stylus_in_proximity;
+		int offset = (data[1] & 0x80) ? (8 * i) : (9 * i);
+		bool touch = data[offset + 3] & 0x80;
 
-		input_mt_slot(input, i);
-		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
 		/*
 		 * Touch events need to be disabled while stylus is
 		 * in proximity because user's hand is resting on touchpad
 		 * and sending unwanted events.  User expects tablet buttons
 		 * to continue working though.
 		 */
+		touch = touch && !wacom->shared->stylus_in_proximity;
+
+		input_mt_slot(input, i);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
 		if (touch) {
-			int x = get_unaligned_be16(&data[9 * i + 3]) & 0x7ff;
-			int y = get_unaligned_be16(&data[9 * i + 5]) & 0x7ff;
+			int x = get_unaligned_be16(&data[offset + 3]) & 0x7ff;
+			int y = get_unaligned_be16(&data[offset + 5]) & 0x7ff;
 			if (features->quirks & WACOM_QUIRK_BBTOUCH_LOWRES) {
 				x <<= 5;
 				y <<= 5;
