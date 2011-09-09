@@ -408,9 +408,9 @@ static unsigned long lpj_gpll;
 static const struct arm_pll_set arm_pll[] = {
 	// rate = 24 * NF / (NR * NO)
 	//      rate NR  NF NO adiv hdiv pdiv
-	ARM_PLL(1200, 1, 50, 1, 21, 21, 81),
-	ARM_PLL(1176, 2, 98, 1, 21, 21, 81),
-	ARM_PLL(1104, 1, 46, 1, 21, 21, 81),
+	ARM_PLL(1200, 1, 50, 1, 31, 21, 81),
+	ARM_PLL(1176, 2, 98, 1, 31, 21, 81),
+	ARM_PLL(1104, 1, 46, 1, 31, 21, 81),
 	ARM_PLL(1008, 1, 42, 1, 21, 21, 81),
 	ARM_PLL( 912, 1, 38, 1, 21, 21, 81),
 	ARM_PLL( 888, 2, 74, 1, 21, 21, 81),
