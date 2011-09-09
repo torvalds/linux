@@ -13,10 +13,10 @@
 #include <linux/log2.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>

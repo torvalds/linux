@@ -18,10 +18,10 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
