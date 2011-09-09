@@ -72,7 +72,7 @@ int debug_level = 7;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   1500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.2.06 The last modify date is 2011-09-01,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.2.07 The last modify date is 2011-09-09,modifyed by XBW." 
 
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
 #define RK29_CTRL_SDIO1_ID   1  //mainly used by sdio-wifi
@@ -752,6 +752,9 @@ static void send_stop_cmd(struct rk29_sdmmc *host)
     }
     
     host->cmdr = rk29_sdmmc_prepare_command(&host->stopcmd);
+    
+    rk29_sdmmc_wait_unbusy(host);
+    
     rk29_sdmmc_start_command(host, &host->stopcmd, host->cmdr);    
 }
 
@@ -1588,6 +1591,9 @@ void  rk29_sdmmc_set_frq(struct rk29_sdmmc *host)
 
 static void rk29_sdmmc_dealwith_timeout(struct rk29_sdmmc *host)
 { 
+    if(0 == host->mmc->doneflag)
+        return; //not to generate error flag if the command has been over.
+        
     switch(host->state)
     {
         case STATE_IDLE:
@@ -1799,11 +1805,17 @@ start_request_Err:
     }
 
     host->state = STATE_IDLE;  //modifyed by xbw  at 2011-08-15
-    spin_unlock_irqrestore(&host->lock, iflags);
-
+    
     if(host->mrq && host->mmc->doneflag)
     {
+        host->mmc->doneflag = 0;
+        spin_unlock_irqrestore(&host->lock, iflags);
+        
         mmc_request_done(host->mmc, host->mrq);
+    }
+    else
+    {
+        spin_unlock_irqrestore(&host->lock, iflags);
     }
     
     return ret; 
@@ -1868,7 +1880,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
         	    }
         	    else
         	    {
-        	        if(host->error_times++ % (RK29_ERROR_PRINTK_INTERVAL*2) ==0)
+        	        if(host->error_times++ % (RK29_ERROR_PRINTK_INTERVAL*3) ==0)
         	        {
                 		printk("%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  3==xbw[%s]==\n", \
                     		    __FUNCTION__, mrq->cmd->opcode, mrq->cmd->arg, host->dma_name);
@@ -2390,12 +2402,14 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 	struct rk29_sdmmc	*host = (struct rk29_sdmmc *)priv;
 	struct mmc_data		*data = host->cmd->data;
 	enum rk29_sdmmc_state	state = host->state;
-	int pending_flag;
+	int pending_flag, stopflag;
     
 	spin_lock(&host->lock);
 	
 	state = host->state;
 	pending_flag = 0;
+	stopflag = 0;
+	
 	do 
 	{
         switch (state) 
@@ -2441,8 +2455,12 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
                         xbwprintk(7, "%s..%d..  cmderr, so call send_stop_cmd() ====xbw[%s]====\n", \
 								__FUNCTION__, __LINE__, host->dma_name);
 
+                        #if 0
                         state = STATE_SENDING_CMD;//STATE_SENDING_STOP; 
-                        send_stop_cmd(host);                        
+                        send_stop_cmd(host);
+                        #else
+                        stopflag = 1;  //Moidfyed by xbw at 2011-09-08
+                        #endif
                         break;
                     }
 
@@ -2482,9 +2500,14 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 
                 xbwprintk(7, "%s..%d..  after DATA_COMPLETE, so call send_stop_cmd() ====xbw[%s]====\n", \
 						__FUNCTION__, __LINE__, host->dma_name);
-                
+
+                #if 0
                 state = STATE_SENDING_CMD;
                 send_stop_cmd(host);
+                #else
+                stopflag = 1; //Moidfyed by xbw at 2011-09-08
+                #endif
+                
                 break;
             }
 
@@ -2525,9 +2548,15 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
                         
 	} while(pending_flag && ++host->retryfunc); //while(0);
 
+	 if(1==stopflag)
+    {
+        state = STATE_SENDING_CMD;
+        send_stop_cmd(host);   //Moidfyed by xbw at 2011-09-08
+    }
+
 	host->state = state;
 		
-unlock:	
+unlock:	  
     if(0==host->complete_done)
     {
         spin_unlock(&host->lock);
@@ -2535,11 +2564,17 @@ unlock:
     }
     
 	 host->state = STATE_IDLE;
-	 spin_unlock(&host->lock);
-
+	 
 	 if(host->mrq && host->mmc->doneflag)
 	 {
+	    host->mmc->doneflag = 0;
+	    spin_unlock(&host->lock);
+	    
 	    mmc_request_done(host->mmc, host->mrq);
+	 }
+	 else
+	 {
+	    spin_unlock(&host->lock);
 	 }
 }
 
