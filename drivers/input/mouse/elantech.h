@@ -93,13 +93,14 @@ struct elantech_data {
 	unsigned char reg_25;
 	unsigned char reg_26;
 	unsigned char debug;
-	unsigned char capabilities;
+	unsigned char capabilities[3];
 	bool paritycheck;
 	bool jumpy_cursor;
 	bool reports_pressure;
 	unsigned char hw_version;
 	unsigned int fw_version;
 	unsigned int single_finger_reports;
+	unsigned int y_max;
 	unsigned char parity[256];
 };
 
