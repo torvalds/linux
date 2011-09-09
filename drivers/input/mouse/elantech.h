@@ -66,16 +66,13 @@
 #define ETP_YMAX_V1			(384 - ETP_EDGE_FUZZ_V1)
 
 /*
- * It seems the resolution for hardware version 2 doubled.
- * Hence the X and Y ranges are doubled too.
- * The bezel around the pad also appears to be smaller
+ * The resolution for older v2 hardware doubled.
+ * (newer v2's firmware provides command so we can query)
  */
-#define ETP_EDGE_FUZZ_V2		8
-
-#define ETP_XMIN_V2			(   0 + ETP_EDGE_FUZZ_V2)
-#define ETP_XMAX_V2			(1152 - ETP_EDGE_FUZZ_V2)
-#define ETP_YMIN_V2			(   0 + ETP_EDGE_FUZZ_V2)
-#define ETP_YMAX_V2			( 768 - ETP_EDGE_FUZZ_V2)
+#define ETP_XMIN_V2			0
+#define ETP_XMAX_V2			1152
+#define ETP_YMIN_V2			0
+#define ETP_YMAX_V2			768
 
 #define ETP_PMIN_V2			0
 #define ETP_PMAX_V2			255
