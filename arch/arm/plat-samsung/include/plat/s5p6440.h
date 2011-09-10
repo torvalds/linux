@@ -1,4 +1,4 @@
-/* arch/arm/plat-s5p/include/plat/s5p6440.h
+/* linux/arch/arm/plat-samsung/include/plat/s5p6440.h
  *
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/

@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/include/plat/exynos4.h
+/* linux/arch/arm/plat-samsung/include/plat/exynos4.h
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com

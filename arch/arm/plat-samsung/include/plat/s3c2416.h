@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/plat-s3c24xx/s3c2443.h
+/* linux/arch/arm/plat-samsung/include/plat/s3c2416.h
  *
  * Copyright (c) 2009 Yauhen Kharuzhy <jekhor@gmail.com>
  *

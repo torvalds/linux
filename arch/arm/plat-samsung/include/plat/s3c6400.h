@@ -1,4 +1,4 @@
-/* arch/arm/mach-s3c64xx/include/macht/s3c6400.h
+/* linux/arch/arm/plat-samsung/include/plat/s3c6400.h
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
