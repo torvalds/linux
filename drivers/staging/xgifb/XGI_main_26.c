@@ -2424,13 +2424,19 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	if (register_framebuffer(fb_info) < 0) {
 		ret = -EINVAL;
-		goto error_1;
+		goto error_mtrr;
 	}
 
 	dumpVGAReg();
 
 	return 0;
 
+error_mtrr:
+#ifdef CONFIG_MTRR
+	if (xgi_video_info.mtrr >= 0)
+		mtrr_del(xgi_video_info.mtrr, xgi_video_info.video_base,
+			xgi_video_info.video_size);
+#endif /* CONFIG_MTRR */
 error_1:
 	iounmap(xgi_video_info.mmio_vbase);
 	iounmap(xgi_video_info.video_vbase);
@@ -2451,6 +2457,11 @@ error:
 static void __devexit xgifb_remove(struct pci_dev *pdev)
 {
 	unregister_framebuffer(fb_info);
+#ifdef CONFIG_MTRR
+	if (xgi_video_info.mtrr >= 0)
+		mtrr_del(xgi_video_info.mtrr, xgi_video_info.video_base,
+			xgi_video_info.video_size);
+#endif /* CONFIG_MTRR */
 	iounmap(xgi_video_info.mmio_vbase);
 	iounmap(xgi_video_info.video_vbase);
 	release_mem_region(xgi_video_info.mmio_base, xgi_video_info.mmio_size);
