@@ -383,7 +383,6 @@ int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
 					line_write_interrupt, flags,
 					driver->write_irq_name, data);
-	line->have_irq = 1;
 	return err;
 }
 

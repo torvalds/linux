@@ -56,7 +56,6 @@ struct line {
 	int sigio;
 	struct delayed_work task;
 	const struct line_driver *driver;
-	int have_irq;
 };
 
 extern void line_close(struct tty_struct *tty, struct file * filp);
