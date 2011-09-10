@@ -44,10 +44,27 @@ const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 	[TOMOYO_MAC_FILE_MOUNT]      = "mount",
 	[TOMOYO_MAC_FILE_UMOUNT]     = "unmount",
 	[TOMOYO_MAC_FILE_PIVOT_ROOT] = "pivot_root",
+	/* CONFIG::network group */
+	[TOMOYO_MAC_NETWORK_INET_STREAM_BIND]       = "inet_stream_bind",
+	[TOMOYO_MAC_NETWORK_INET_STREAM_LISTEN]     = "inet_stream_listen",
+	[TOMOYO_MAC_NETWORK_INET_STREAM_CONNECT]    = "inet_stream_connect",
+	[TOMOYO_MAC_NETWORK_INET_DGRAM_BIND]        = "inet_dgram_bind",
+	[TOMOYO_MAC_NETWORK_INET_DGRAM_SEND]        = "inet_dgram_send",
+	[TOMOYO_MAC_NETWORK_INET_RAW_BIND]          = "inet_raw_bind",
+	[TOMOYO_MAC_NETWORK_INET_RAW_SEND]          = "inet_raw_send",
+	[TOMOYO_MAC_NETWORK_UNIX_STREAM_BIND]       = "unix_stream_bind",
+	[TOMOYO_MAC_NETWORK_UNIX_STREAM_LISTEN]     = "unix_stream_listen",
+	[TOMOYO_MAC_NETWORK_UNIX_STREAM_CONNECT]    = "unix_stream_connect",
+	[TOMOYO_MAC_NETWORK_UNIX_DGRAM_BIND]        = "unix_dgram_bind",
+	[TOMOYO_MAC_NETWORK_UNIX_DGRAM_SEND]        = "unix_dgram_send",
+	[TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_BIND]    = "unix_seqpacket_bind",
+	[TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_LISTEN]  = "unix_seqpacket_listen",
+	[TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_CONNECT] = "unix_seqpacket_connect",
 	/* CONFIG::misc group */
 	[TOMOYO_MAC_ENVIRON] = "env",
 	/* CONFIG group */
 	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_FILE] = "file",
+	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_NETWORK] = "network",
 	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_MISC] = "misc",
 };
 
@@ -135,11 +152,20 @@ const char * const tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
 	[TOMOYO_TYPE_UMOUNT]     = "unmount",
 };
 
+/* String table for socket's operation. */
+const char * const tomoyo_socket_keyword[TOMOYO_MAX_NETWORK_OPERATION] = {
+	[TOMOYO_NETWORK_BIND]    = "bind",
+	[TOMOYO_NETWORK_LISTEN]  = "listen",
+	[TOMOYO_NETWORK_CONNECT] = "connect",
+	[TOMOYO_NETWORK_SEND]    = "send",
+};
+
 /* String table for categories. */
 static const char * const tomoyo_category_keywords
 [TOMOYO_MAX_MAC_CATEGORY_INDEX] = {
-	[TOMOYO_MAC_CATEGORY_FILE] = "file",
-	[TOMOYO_MAC_CATEGORY_MISC] = "misc",
+	[TOMOYO_MAC_CATEGORY_FILE]    = "file",
+	[TOMOYO_MAC_CATEGORY_NETWORK] = "network",
+	[TOMOYO_MAC_CATEGORY_MISC]    = "misc",
 };
 
 /* Permit policy management by non-root user? */
@@ -1042,8 +1068,10 @@ static int tomoyo_write_domain2(struct tomoyo_policy_namespace *ns,
 	static const struct {
 		const char *keyword;
 		int (*write) (struct tomoyo_acl_param *);
-	} tomoyo_callback[2] = {
+	} tomoyo_callback[4] = {
 		{ "file ", tomoyo_write_file },
+		{ "network inet ", tomoyo_write_inet_network },
+		{ "network unix ", tomoyo_write_unix_network },
 		{ "misc ", tomoyo_write_misc },
 	};
 	u8 i;
@@ -1375,6 +1403,60 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		tomoyo_print_number_union(head, &ptr->mode);
 		tomoyo_print_number_union(head, &ptr->major);
 		tomoyo_print_number_union(head, &ptr->minor);
+	} else if (acl_type == TOMOYO_TYPE_INET_ACL) {
+		struct tomoyo_inet_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+		const u8 perm = ptr->perm;
+
+		for (bit = 0; bit < TOMOYO_MAX_NETWORK_OPERATION; bit++) {
+			if (!(perm & (1 << bit)))
+				continue;
+			if (first) {
+				tomoyo_set_group(head, "network inet ");
+				tomoyo_set_string(head, tomoyo_proto_keyword
+						  [ptr->protocol]);
+				tomoyo_set_space(head);
+				first = false;
+			} else {
+				tomoyo_set_slash(head);
+			}
+			tomoyo_set_string(head, tomoyo_socket_keyword[bit]);
+		}
+		if (first)
+			return true;
+		tomoyo_set_space(head);
+		if (ptr->address.group) {
+			tomoyo_set_string(head, "@");
+			tomoyo_set_string(head, ptr->address.group->group_name
+					  ->name);
+		} else {
+			char buf[128];
+			tomoyo_print_ip(buf, sizeof(buf), &ptr->address);
+			tomoyo_io_printf(head, "%s", buf);
+		}
+		tomoyo_print_number_union(head, &ptr->port);
+	} else if (acl_type == TOMOYO_TYPE_UNIX_ACL) {
+		struct tomoyo_unix_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+		const u8 perm = ptr->perm;
+
+		for (bit = 0; bit < TOMOYO_MAX_NETWORK_OPERATION; bit++) {
+			if (!(perm & (1 << bit)))
+				continue;
+			if (first) {
+				tomoyo_set_group(head, "network unix ");
+				tomoyo_set_string(head, tomoyo_proto_keyword
+						  [ptr->protocol]);
+				tomoyo_set_space(head);
+				first = false;
+			} else {
+				tomoyo_set_slash(head);
+			}
+			tomoyo_set_string(head, tomoyo_socket_keyword[bit]);
+		}
+		if (first)
+			return true;
+		tomoyo_print_name_union(head, &ptr->name);
 	} else if (acl_type == TOMOYO_TYPE_MOUNT_ACL) {
 		struct tomoyo_mount_acl *ptr =
 			container_of(acl, typeof(*ptr), head);
@@ -1548,8 +1630,9 @@ static const char *tomoyo_transition_type[TOMOYO_MAX_TRANSITION_TYPE] = {
 
 /* String table for grouping keywords. */
 static const char *tomoyo_group_name[TOMOYO_MAX_GROUP] = {
-	[TOMOYO_PATH_GROUP]   = "path_group ",
-	[TOMOYO_NUMBER_GROUP] = "number_group ",
+	[TOMOYO_PATH_GROUP]    = "path_group ",
+	[TOMOYO_NUMBER_GROUP]  = "number_group ",
+	[TOMOYO_ADDRESS_GROUP] = "address_group ",
 };
 
 /**
@@ -1591,7 +1674,7 @@ static int tomoyo_write_exception(struct tomoyo_io_buffer *head)
 }
 
 /**
- * tomoyo_read_group - Read "struct tomoyo_path_group"/"struct tomoyo_number_group" list.
+ * tomoyo_read_group - Read "struct tomoyo_path_group"/"struct tomoyo_number_group"/"struct tomoyo_address_group" list.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  * @idx:  Index number.
@@ -1628,6 +1711,15 @@ static bool tomoyo_read_group(struct tomoyo_io_buffer *head, const int idx)
 							  (ptr,
 						   struct tomoyo_number_group,
 							   head)->number);
+			} else if (idx == TOMOYO_ADDRESS_GROUP) {
+				char buffer[128];
+
+				struct tomoyo_address_group *member =
+					container_of(ptr, typeof(*member),
+						     head);
+				tomoyo_print_ip(buffer, sizeof(buffer),
+						&member->address);
+				tomoyo_io_printf(head, " %s", buffer);
 			}
 			tomoyo_set_lf(head);
 		}
