@@ -664,9 +664,9 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	struct tomoyo_domain_info *domain = NULL;
 	const char *original_name = bprm->filename;
 	int retval = -ENOMEM;
-	bool need_kfree = false;
 	bool reject_on_transition_failure = false;
-	struct tomoyo_path_info rn = { }; /* real name */
+	const struct tomoyo_path_info *candidate;
+	struct tomoyo_path_info exename;
 	struct tomoyo_execve *ee = kzalloc(sizeof(*ee), GFP_NOFS);
 
 	if (!ee)
@@ -682,40 +682,33 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	ee->bprm = bprm;
 	ee->r.obj = &ee->obj;
 	ee->obj.path1 = bprm->file->f_path;
- retry:
-	if (need_kfree) {
-		kfree(rn.name);
-		need_kfree = false;
-	}
 	/* Get symlink's pathname of program. */
 	retval = -ENOENT;
-	rn.name = tomoyo_realpath_nofollow(original_name);
-	if (!rn.name)
+	exename.name = tomoyo_realpath_nofollow(original_name);
+	if (!exename.name)
 		goto out;
-	tomoyo_fill_path_info(&rn);
-	need_kfree = true;
-
+	tomoyo_fill_path_info(&exename);
+retry:
 	/* Check 'aggregator' directive. */
 	{
 		struct tomoyo_aggregator *ptr;
 		struct list_head *list =
 			&old_domain->ns->policy_list[TOMOYO_ID_AGGREGATOR];
 		/* Check 'aggregator' directive. */
+		candidate = &exename;
 		list_for_each_entry_rcu(ptr, list, head.list) {
 			if (ptr->head.is_deleted ||
-			    !tomoyo_path_matches_pattern(&rn,
+			    !tomoyo_path_matches_pattern(&exename,
 							 ptr->original_name))
 				continue;
-			kfree(rn.name);
-			need_kfree = false;
-			/* This is OK because it is read only. */
-			rn = *ptr->aggregated_name;
+			candidate = ptr->aggregated_name;
 			break;
 		}
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_path_permission(&ee->r, TOMOYO_TYPE_EXECUTE, &rn);
+	retval = tomoyo_path_permission(&ee->r, TOMOYO_TYPE_EXECUTE,
+					candidate);
 	if (retval == TOMOYO_RETRY_REQUEST)
 		goto retry;
 	if (retval < 0)
@@ -726,20 +719,16 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	 * wildcard) rather than the pathname passed to execve()
 	 * (which never contains wildcard).
 	 */
-	if (ee->r.param.path.matched_path) {
-		if (need_kfree)
-			kfree(rn.name);
-		need_kfree = false;
-		/* This is OK because it is read only. */
-		rn = *ee->r.param.path.matched_path;
-	}
+	if (ee->r.param.path.matched_path)
+		candidate = ee->r.param.path.matched_path;
 
 	/* Calculate domain to transit to. */
 	switch (tomoyo_transition_type(old_domain->ns, old_domain->domainname,
-				       &rn)) {
+				       candidate)) {
 	case TOMOYO_TRANSITION_CONTROL_RESET:
 		/* Transit to the root of specified namespace. */
-		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>", rn.name);
+		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>",
+			 candidate->name);
 		/*
 		 * Make do_execve() fail if domain transition across namespaces
 		 * has failed.
@@ -749,7 +738,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	case TOMOYO_TRANSITION_CONTROL_INITIALIZE:
 		/* Transit to the child of current namespace's root. */
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
-			 old_domain->ns->name, rn.name);
+			 old_domain->ns->name, candidate->name);
 		break;
 	case TOMOYO_TRANSITION_CONTROL_KEEP:
 		/* Keep current domain. */
@@ -765,11 +754,11 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 			 * before /sbin/init.
 			 */
 			domain = old_domain;
-		} else {
-			/* Normal domain transition. */
-			snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
-				 old_domain->domainname->name, rn.name);
+			break;
 		}
+		/* Normal domain transition. */
+		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
+			 old_domain->domainname->name, candidate->name);
 		break;
 	}
 	if (!domain)
@@ -799,8 +788,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	/* Update reference count on "struct tomoyo_domain_info". */
 	atomic_inc(&domain->users);
 	bprm->cred->security = domain;
-	if (need_kfree)
-		kfree(rn.name);
+	kfree(exename.name);
 	if (!retval) {
 		ee->r.domain = domain;
 		retval = tomoyo_environ(ee);
