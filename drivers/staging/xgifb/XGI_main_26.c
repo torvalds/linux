@@ -2418,8 +2418,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		(unsigned int) xgi_video_info.video_base,
 		(unsigned int) xgi_video_info.video_size,
 		MTRR_TYPE_WRCOMB, 1);
-	if (xgi_video_info.mtrr)
-		printk(KERN_INFO "XGIfb: Added MTRRs\n");
+	if (xgi_video_info.mtrr >= 0)
+		dev_info(&pdev->dev, "added MTRR\n");
 #endif
 
 	if (register_framebuffer(fb_info) < 0) {
