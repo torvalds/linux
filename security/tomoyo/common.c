@@ -1272,6 +1272,10 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 		head->r.cond_step++;
 		/* fall through */
 	case 3:
+		if (cond->grant_log != TOMOYO_GRANTLOG_AUTO)
+			tomoyo_io_printf(head, " grant_log=%s",
+					 tomoyo_yesno(cond->grant_log ==
+						      TOMOYO_GRANTLOG_YES));
 		tomoyo_set_lf(head);
 		return true;
 	}

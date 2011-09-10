@@ -348,6 +348,7 @@ static inline bool tomoyo_same_condition(const struct tomoyo_condition *a,
 		a->numbers_count == b->numbers_count &&
 		a->names_count == b->names_count &&
 		a->argc == b->argc && a->envc == b->envc &&
+		a->grant_log == b->grant_log &&
 		!memcmp(a + 1, b + 1, a->size - sizeof(*a));
 }
 
@@ -486,6 +487,20 @@ rerun:
 			goto out;
 		dprintk(KERN_WARNING "%u: <%s>%s=<%s>\n", __LINE__, left_word,
 			is_not ? "!" : "", right_word);
+		if (!strcmp(left_word, "grant_log")) {
+			if (entry) {
+				if (is_not ||
+				    entry->grant_log != TOMOYO_GRANTLOG_AUTO)
+					goto out;
+				else if (!strcmp(right_word, "yes"))
+					entry->grant_log = TOMOYO_GRANTLOG_YES;
+				else if (!strcmp(right_word, "no"))
+					entry->grant_log = TOMOYO_GRANTLOG_NO;
+				else
+					goto out;
+			}
+			continue;
+		}
 		if (!strncmp(left_word, "exec.argv[", 10)) {
 			if (!argv) {
 				e.argc++;

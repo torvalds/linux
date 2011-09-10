@@ -179,6 +179,16 @@ enum tomoyo_domain_info_flags_index {
 	TOMOYO_MAX_DOMAIN_INFO_FLAGS
 };
 
+/* Index numbers for audit type. */
+enum tomoyo_grant_log {
+	/* Follow profile's configuration. */
+	TOMOYO_GRANTLOG_AUTO,
+	/* Do not generate grant log. */
+	TOMOYO_GRANTLOG_NO,
+	/* Generate grant_log. */
+	TOMOYO_GRANTLOG_YES,
+};
+
 /* Index numbers for group entries. */
 enum tomoyo_group_id {
 	TOMOYO_PATH_GROUP,
@@ -471,6 +481,7 @@ struct tomoyo_request_info {
 			int need_dev;
 		} mount;
 	} param;
+	struct tomoyo_acl_info *matched_acl;
 	u8 param_type;
 	bool granted;
 	u8 retry;
@@ -635,6 +646,7 @@ struct tomoyo_condition {
 	u16 names_count; /* Number of "struct tomoyo_name_union names". */
 	u16 argc; /* Number of "struct tomoyo_argv". */
 	u16 envc; /* Number of "struct tomoyo_envp". */
+	u8 grant_log; /* One of values in "enum tomoyo_grant_log". */
 	/*
 	 * struct tomoyo_condition_element condition[condc];
 	 * struct tomoyo_number_union values[numbers_count];

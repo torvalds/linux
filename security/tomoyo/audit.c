@@ -313,6 +313,7 @@ static unsigned int tomoyo_log_count;
  */
 static bool tomoyo_get_audit(const struct tomoyo_policy_namespace *ns,
 			     const u8 profile, const u8 index,
+			     const struct tomoyo_acl_info *matched_acl,
 			     const bool is_granted)
 {
 	u8 mode;
@@ -324,6 +325,9 @@ static bool tomoyo_get_audit(const struct tomoyo_policy_namespace *ns,
 	p = tomoyo_profile(ns, profile);
 	if (tomoyo_log_count >= p->pref[TOMOYO_PREF_MAX_AUDIT_LOG])
 		return false;
+	if (is_granted && matched_acl && matched_acl->cond &&
+	    matched_acl->cond->grant_log != TOMOYO_GRANTLOG_AUTO)
+		return matched_acl->cond->grant_log == TOMOYO_GRANTLOG_YES;
 	mode = p->config[index];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
 		mode = p->config[category];
@@ -350,7 +354,8 @@ void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 	char *buf;
 	struct tomoyo_log *entry;
 	bool quota_exceeded = false;
-	if (!tomoyo_get_audit(r->domain->ns, r->profile, r->type, r->granted))
+	if (!tomoyo_get_audit(r->domain->ns, r->profile, r->type,
+			      r->matched_acl, r->granted))
 		goto out;
 	buf = tomoyo_init_log(r, len, fmt, args);
 	if (!buf)

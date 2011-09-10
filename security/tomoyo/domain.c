@@ -157,6 +157,7 @@ retry:
 			continue;
 		if (!tomoyo_condition(r, ptr->cond))
 			continue;
+		r->matched_acl = ptr;
 		r->granted = true;
 		return;
 	}
