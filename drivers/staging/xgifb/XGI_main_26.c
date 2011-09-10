@@ -2414,10 +2414,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	fb_alloc_cmap(&fb_info->cmap, 256 , 0);
 
 #ifdef CONFIG_MTRR
-	xgi_video_info.mtrr = mtrr_add(
-		(unsigned int) xgi_video_info.video_base,
-		(unsigned int) xgi_video_info.video_size,
-		MTRR_TYPE_WRCOMB, 1);
+	xgi_video_info.mtrr = mtrr_add(xgi_video_info.video_base,
+		xgi_video_info.video_size, MTRR_TYPE_WRCOMB, 1);
 	if (xgi_video_info.mtrr >= 0)
 		dev_info(&pdev->dev, "added MTRR\n");
 #endif
