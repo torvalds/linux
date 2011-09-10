@@ -195,8 +195,7 @@ config VECTORS_BASE
 	  The base address of exception vectors.
 
 config ARM_PATCH_PHYS_VIRT
-	bool "Patch physical to virtual translations at runtime (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Patch physical to virtual translations at runtime"
 	depends on !XIP_KERNEL && MMU
 	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help
@@ -1271,6 +1270,18 @@ config ARM_ERRATA_754327
 	  continuously polls a memory location waiting to observe an update.
 	  This workaround defines cpu_relax() as smp_mb(), preventing correctly
 	  written polling loops from denying visibility of updates to memory.
+
+config ARM_ERRATA_364296
+	bool "ARM errata: Possible cache data corruption with hit-under-miss enabled"
+	depends on CPU_V6 && !SMP
+	help
+	  This options enables the workaround for the 364296 ARM1136
+	  r0p2 erratum (possible cache data corruption with
+	  hit-under-miss enabled). It sets the undocumented bit 31 in
+	  the auxiliary control register and the FI bit in the control
+	  register, thus disabling hit-under-miss without putting the
+	  processor into full low interrupt latency mode. ARM11MPCore
+	  is not affected.
 
 endmenu
 

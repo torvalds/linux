@@ -521,8 +521,6 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	native_smp_prepare_cpus(max_cpus);
 	WARN_ON(xen_smp_intr_init(0));
 
-	if (!xen_have_vector_callback)
-		return;
 	xen_init_lock_cpu(0);
 	xen_init_spinlocks();
 }
@@ -546,6 +544,8 @@ static void xen_hvm_cpu_die(unsigned int cpu)
 
 void __init xen_hvm_smp_init(void)
 {
+	if (!xen_have_vector_callback)
+		return;
 	smp_ops.smp_prepare_cpus = xen_hvm_smp_prepare_cpus;
 	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
 	smp_ops.cpu_up = xen_hvm_cpu_up;

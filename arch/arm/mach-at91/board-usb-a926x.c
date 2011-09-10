@@ -1,9 +1,10 @@
 /*
- * linux/arch/arm/mach-at91/board-usb-a9263.c
+ * linux/arch/arm/mach-at91/board-usb-a926x.c
  *
  *  Copyright (C) 2005 SAN People
  *  Copyright (C) 2007 Atmel Corporation.
  *  Copyright (C) 2007 Calao-systems
+ *  Copyright (C) 2011 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +29,7 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/spi/mmc_spi.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -74,10 +76,42 @@ static struct at91_udc_data __initdata ek_udc_data = {
 	.pullup_pin	= 0,		/* pull-up driven by UDC */
 };
 
+static void __init ek_add_device_udc(void)
+{
+	if (machine_is_usb_a9260() || machine_is_usb_a9g20())
+		ek_udc_data.vbus_pin = AT91_PIN_PC5;
+
+	at91_add_device_udc(&ek_udc_data);
+}
+
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+#define MMC_SPI_CARD_DETECT_INT AT91_PIN_PC4
+static int at91_mmc_spi_init(struct device *dev,
+	irqreturn_t (*detect_int)(int, void *), void *data)
+{
+	/* Configure Interrupt pin as input, no pull-up */
+	at91_set_gpio_input(MMC_SPI_CARD_DETECT_INT, 0);
+	return request_irq(gpio_to_irq(MMC_SPI_CARD_DETECT_INT), detect_int,
+		IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+		"mmc-spi-detect", data);
+}
+
+static void at91_mmc_spi_exit(struct device *dev, void *data)
+{
+	free_irq(gpio_to_irq(MMC_SPI_CARD_DETECT_INT), data);
+}
+
+static struct mmc_spi_platform_data at91_mmc_spi_pdata = {
+	.init = at91_mmc_spi_init,
+	.exit = at91_mmc_spi_exit,
+	.detect_delay = 100, /* msecs */
+};
+#endif
+
 /*
  * SPI devices.
  */
-static struct spi_board_info ek_spi_devices[] = {
+static struct spi_board_info usb_a9263_spi_devices[] = {
 #if !defined(CONFIG_MMC_AT91)
 	{	/* DataFlash chip */
 		.modalias	= "mtd_dataflash",
@@ -88,6 +122,27 @@ static struct spi_board_info ek_spi_devices[] = {
 #endif
 };
 
+static struct spi_board_info usb_a9g20_spi_devices[] = {
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+	{
+		.modalias = "mmc_spi",
+		.max_speed_hz = 20000000,	/* max spi clock (SCK) speed in HZ */
+		.bus_num = 1,
+		.chip_select = 0,
+		.platform_data = &at91_mmc_spi_pdata,
+		.mode = SPI_MODE_3,
+	},
+#endif
+};
+
+static void __init ek_add_device_spi(void)
+{
+	if (machine_is_usb_a9263())
+		at91_add_device_spi(usb_a9263_spi_devices, ARRAY_SIZE(usb_a9263_spi_devices));
+	else if (machine_is_usb_a9g20())
+		at91_add_device_spi(usb_a9g20_spi_devices, ARRAY_SIZE(usb_a9g20_spi_devices));
+}
+
 /*
  * MACB Ethernet device
  */
@@ -96,24 +151,42 @@ static struct at91_eth_data __initdata ek_macb_data = {
 	.is_rmii	= 1,
 };
 
+static void __init ek_add_device_eth(void)
+{
+	if (machine_is_usb_a9260() || machine_is_usb_a9g20())
+		ek_macb_data.phy_irq_pin = AT91_PIN_PA31;
+
+	at91_add_device_eth(&ek_macb_data);
+}
+
 /*
  * NAND flash
  */
 static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
-		.name	= "Linux Kernel",
+		.name	= "barebox",
 		.offset	= 0,
-		.size	= SZ_16M,
-	},
-	{
-		.name	= "Root FS",
+		.size	= 3 * SZ_128K,
+	}, {
+		.name	= "bareboxenv",
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= SZ_128K,
+	}, {
+		.name	= "bareboxenv2",
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= SZ_128K,
+	}, {
+		.name	= "kernel",
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= 4 * SZ_1M,
+	}, {
+		.name	= "rootfs",
 		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= 120 * SZ_1M,
-	},
-	{
-		.name	= "FS",
+	}, {
+		.name	= "data",
 		.offset	= MTDPART_OFS_NXTBLK,
-		.size	= 120 * SZ_1M,
+		.size	= MTDPART_SIZ_FULL,
 	}
 };
 
@@ -132,7 +205,7 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 	.partition_info	= nand_partitions,
 };
 
-static struct sam9_smc_config __initdata ek_nand_smc_config = {
+static struct sam9_smc_config __initdata usb_a9260_nand_smc_config = {
 	.ncs_read_setup		= 0,
 	.nrd_setup		= 1,
 	.ncs_write_setup	= 0,
@@ -150,10 +223,36 @@ static struct sam9_smc_config __initdata ek_nand_smc_config = {
 	.tdf_cycles		= 2,
 };
 
+static struct sam9_smc_config __initdata usb_a9g20_nand_smc_config = {
+	.ncs_read_setup		= 0,
+	.nrd_setup		= 2,
+	.ncs_write_setup	= 0,
+	.nwe_setup		= 2,
+
+	.ncs_read_pulse		= 4,
+	.nrd_pulse		= 4,
+	.ncs_write_pulse	= 4,
+	.nwe_pulse		= 4,
+
+	.read_cycle		= 7,
+	.write_cycle		= 7,
+
+	.mode			= AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE | AT91_SMC_DBW_8,
+	.tdf_cycles		= 3,
+};
+
 static void __init ek_add_device_nand(void)
 {
+	if (machine_is_usb_a9260() || machine_is_usb_a9g20()) {
+		ek_nand_data.rdy_pin	= AT91_PIN_PC13;
+		ek_nand_data.enable_pin	= AT91_PIN_PC14;
+	}
+
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &ek_nand_smc_config);
+	if (machine_is_usb_a9g20())
+		sam9_smc_configure(3, &usb_a9g20_nand_smc_config);
+	else
+		sam9_smc_configure(3, &usb_a9260_nand_smc_config);
 
 	at91_add_device_nand(&ek_nand_data);
 }
@@ -210,6 +309,19 @@ static struct gpio_led ek_leds[] = {
 	}
 };
 
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("rv3029c2", 0x56),
+	},
+};
+
+static void __init ek_add_device_leds(void)
+{
+	if (machine_is_usb_a9260() || machine_is_usb_a9g20())
+		ek_leds[0].active_low = 0;
+
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+}
 
 static void __init ek_board_init(void)
 {
@@ -218,26 +330,51 @@ static void __init ek_board_init(void)
 	/* USB Host */
 	at91_add_device_usbh(&ek_usbh_data);
 	/* USB Device */
-	at91_add_device_udc(&ek_udc_data);
+	ek_add_device_udc();
 	/* SPI */
-	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
+	ek_add_device_spi();
 	/* Ethernet */
-	at91_add_device_eth(&ek_macb_data);
+	ek_add_device_eth();
 	/* NAND */
 	ek_add_device_nand();
-	/* I2C */
-	at91_add_device_i2c(NULL, 0);
 	/* Push Buttons */
 	ek_add_device_buttons();
 	/* LEDs */
-	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
-	/* shutdown controller, wakeup button (5 msec low) */
-	at91_sys_write(AT91_SHDW_MR, AT91_SHDW_CPTWK0_(10) | AT91_SHDW_WKMODE0_LOW
+	ek_add_device_leds();
+
+	if (machine_is_usb_a9g20()) {
+		/* I2C */
+		at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
+	} else {
+		/* I2C */
+		at91_add_device_i2c(NULL, 0);
+		/* shutdown controller, wakeup button (5 msec low) */
+		at91_sys_write(AT91_SHDW_MR, AT91_SHDW_CPTWK0_(10)
+				| AT91_SHDW_WKMODE0_LOW
 				| AT91_SHDW_RTTWKEN);
+	}
 }
 
 MACHINE_START(USB_A9263, "CALAO USB_A9263")
 	/* Maintainer: calao-systems */
+	.timer		= &at91sam926x_timer,
+	.map_io		= at91_map_io,
+	.init_early	= ek_init_early,
+	.init_irq	= at91_init_irq_default,
+	.init_machine	= ek_board_init,
+MACHINE_END
+
+MACHINE_START(USB_A9260, "CALAO USB_A9260")
+	/* Maintainer: calao-systems */
+	.timer		= &at91sam926x_timer,
+	.map_io		= at91_map_io,
+	.init_early	= ek_init_early,
+	.init_irq	= at91_init_irq_default,
+	.init_machine	= ek_board_init,
+MACHINE_END
+
+MACHINE_START(USB_A9G20, "CALAO USB_A92G0")
+	/* Maintainer: Jean-Christophe PLAGNIOL-VILLARD */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
 	.init_early	= ek_init_early,

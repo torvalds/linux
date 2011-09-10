@@ -112,9 +112,16 @@ struct rtsx_dev {
 	/* locks */
 	spinlock_t 		reg_lock;
 
+	struct task_struct	*ctl_thread;	 /* the control thread   */
+	struct task_struct	*polling_thread; /* the polling thread   */
+
 	/* mutual exclusion and synchronization structures */
-	struct semaphore	sema;		 /* to sleep thread on	    */
+	struct completion	cmnd_ready;	 /* to sleep thread on	    */
+	struct completion	control_exit;	 /* control thread exit	    */
+	struct completion	polling_exit;	 /* polling thread exit	    */
 	struct completion	notify;		 /* thread begin/end	    */
+	struct completion	scanning_done;	 /* wait for scan thread    */
+
 	wait_queue_head_t	delay_wait;	 /* wait during scan, reset */
 	struct mutex		dev_mutex;
 

@@ -2253,9 +2253,11 @@ static int ext4_symlink(struct inode *dir,
 		/*
 		 * For non-fast symlinks, we just allocate inode and put it on
 		 * orphan list in the first transaction => we need bitmap,
-		 * group descriptor, sb, inode block, quota blocks.
+		 * group descriptor, sb, inode block, quota blocks, and
+		 * possibly selinux xattr blocks.
 		 */
-		credits = 4 + EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb);
+		credits = 4 + EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb) +
+			  EXT4_XATTR_TRANS_BLOCKS;
 	} else {
 		/*
 		 * Fast symlink. We have to add entry to directory

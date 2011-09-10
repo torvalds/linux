@@ -1209,5 +1209,5 @@ module_exit(max3107_exit);
 
 MODULE_DESCRIPTION("MAX3107 driver");
 MODULE_AUTHOR("Aavamobile");
-MODULE_ALIAS("max3107-spi");
+MODULE_ALIAS("spi:max3107");
 MODULE_LICENSE("GPL v2");

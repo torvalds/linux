@@ -182,6 +182,11 @@ config MACH_ECO920
 	help
 	  Select this if you are using the eco920 board
 
+config MACH_RSI_EWS
+	bool "RSI Embedded Webserver"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using RSIs EWS board.
 endif
 
 # ----------------------------------------------------------
@@ -381,6 +386,14 @@ config MACH_GSIA18S
 	  This enables support for the GS_IA18_S board
 	  produced by GeoSIG Ltd company. This is an internet accelerograph.
 	  <http://www.geosig.com>
+
+config MACH_USB_A9G20
+	bool "CALAO USB-A9G20"
+	depends on ARCH_AT91SAM9G20
+	help
+	  Select this if you are using a Calao Systems USB-A9G20.
+	  <http://www.calao-systems.com>
+
 endif
 
 if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)

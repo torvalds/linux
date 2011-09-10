@@ -424,7 +424,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_getresuid		3
 	sys	sys_ni_syscall		0	/* was sys_query_module */
 	sys	sys_poll		3
-	sys	sys_nfsservctl		3
+	sys	sys_ni_syscall		0	/* was nfsservctl */
 	sys	sys_setresgid		3	/* 4190 */
 	sys	sys_getresgid		3
 	sys	sys_prctl		5

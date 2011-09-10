@@ -18,9 +18,6 @@
  *  use the vDSO.
  */
 
-/* Disable profiling for userspace code: */
-#define DISABLE_BRANCH_PROFILING
-
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -50,11 +47,35 @@
 #include <asm/vgtod.h>
 #include <asm/traps.h>
 
+#define CREATE_TRACE_POINTS
+#include "vsyscall_trace.h"
+
 DEFINE_VVAR(int, vgetcpu_mode);
 DEFINE_VVAR(struct vsyscall_gtod_data, vsyscall_gtod_data) =
 {
 	.lock = __SEQLOCK_UNLOCKED(__vsyscall_gtod_data.lock),
 };
+
+static enum { EMULATE, NATIVE, NONE } vsyscall_mode = EMULATE;
+
+static int __init vsyscall_setup(char *str)
+{
+	if (str) {
+		if (!strcmp("emulate", str))
+			vsyscall_mode = EMULATE;
+		else if (!strcmp("native", str))
+			vsyscall_mode = NATIVE;
+		else if (!strcmp("none", str))
+			vsyscall_mode = NONE;
+		else
+			return -EINVAL;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+early_param("vsyscall", vsyscall_setup);
 
 void update_vsyscall_tz(void)
 {
@@ -100,7 +121,7 @@ static void warn_bad_vsyscall(const char *level, struct pt_regs *regs,
 
 	printk("%s%s[%d] %s ip:%lx cs:%lx sp:%lx ax:%lx si:%lx di:%lx\n",
 	       level, tsk->comm, task_pid_nr(tsk),
-	       message, regs->ip - 2, regs->cs,
+	       message, regs->ip, regs->cs,
 	       regs->sp, regs->ax, regs->si, regs->di);
 }
 
@@ -118,46 +139,39 @@ static int addr_to_vsyscall_nr(unsigned long addr)
 	return nr;
 }
 
-void dotraplinkage do_emulate_vsyscall(struct pt_regs *regs, long error_code)
+bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 {
 	struct task_struct *tsk;
 	unsigned long caller;
 	int vsyscall_nr;
 	long ret;
 
-	local_irq_enable();
-
 	/*
-	 * Real 64-bit user mode code has cs == __USER_CS.  Anything else
-	 * is bogus.
+	 * No point in checking CS -- the only way to get here is a user mode
+	 * trap to a high address, which means that we're in 64-bit user code.
 	 */
-	if (regs->cs != __USER_CS) {
-		/*
-		 * If we trapped from kernel mode, we might as well OOPS now
-		 * instead of returning to some random address and OOPSing
-		 * then.
-		 */
-		BUG_ON(!user_mode(regs));
 
-		/* Compat mode and non-compat 32-bit CS should both segfault. */
-		warn_bad_vsyscall(KERN_WARNING, regs,
-				  "illegal int 0xcc from 32-bit mode");
-		goto sigsegv;
+	WARN_ON_ONCE(address != regs->ip);
+
+	if (vsyscall_mode == NONE) {
+		warn_bad_vsyscall(KERN_INFO, regs,
+				  "vsyscall attempted with vsyscall=none");
+		return false;
 	}
 
-	/*
-	 * x86-ism here: regs->ip points to the instruction after the int 0xcc,
-	 * and int 0xcc is two bytes long.
-	 */
-	vsyscall_nr = addr_to_vsyscall_nr(regs->ip - 2);
+	vsyscall_nr = addr_to_vsyscall_nr(address);
+
+	trace_emulate_vsyscall(vsyscall_nr);
+
 	if (vsyscall_nr < 0) {
 		warn_bad_vsyscall(KERN_WARNING, regs,
-				  "illegal int 0xcc (exploit attempt?)");
+				  "misaligned vsyscall (exploit attempt or buggy program) -- look up the vsyscall kernel parameter if you need a workaround");
 		goto sigsegv;
 	}
 
 	if (get_user(caller, (unsigned long __user *)regs->sp) != 0) {
-		warn_bad_vsyscall(KERN_WARNING, regs, "int 0xcc with bad stack (exploit attempt?)");
+		warn_bad_vsyscall(KERN_WARNING, regs,
+				  "vsyscall with bad stack (exploit attempt?)");
 		goto sigsegv;
 	}
 
@@ -202,13 +216,11 @@ void dotraplinkage do_emulate_vsyscall(struct pt_regs *regs, long error_code)
 	regs->ip = caller;
 	regs->sp += 8;
 
-	local_irq_disable();
-	return;
+	return true;
 
 sigsegv:
-	regs->ip -= 2;  /* The faulting instruction should be the int 0xcc. */
 	force_sig(SIGSEGV, current);
-	local_irq_disable();
+	return true;
 }
 
 /*
@@ -256,15 +268,21 @@ cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
 
 void __init map_vsyscall(void)
 {
-	extern char __vsyscall_0;
-	unsigned long physaddr_page0 = __pa_symbol(&__vsyscall_0);
+	extern char __vsyscall_page;
+	unsigned long physaddr_vsyscall = __pa_symbol(&__vsyscall_page);
 	extern char __vvar_page;
 	unsigned long physaddr_vvar_page = __pa_symbol(&__vvar_page);
 
-	/* Note that VSYSCALL_MAPPED_PAGES must agree with the code below. */
-	__set_fixmap(VSYSCALL_FIRST_PAGE, physaddr_page0, PAGE_KERNEL_VSYSCALL);
+	__set_fixmap(VSYSCALL_FIRST_PAGE, physaddr_vsyscall,
+		     vsyscall_mode == NATIVE
+		     ? PAGE_KERNEL_VSYSCALL
+		     : PAGE_KERNEL_VVAR);
+	BUILD_BUG_ON((unsigned long)__fix_to_virt(VSYSCALL_FIRST_PAGE) !=
+		     (unsigned long)VSYSCALL_START);
+
 	__set_fixmap(VVAR_PAGE, physaddr_vvar_page, PAGE_KERNEL_VVAR);
-	BUILD_BUG_ON((unsigned long)__fix_to_virt(VVAR_PAGE) != (unsigned long)VVAR_ADDRESS);
+	BUILD_BUG_ON((unsigned long)__fix_to_virt(VVAR_PAGE) !=
+		     (unsigned long)VVAR_ADDRESS);
 }
 
 static int __init vsyscall_init(void)

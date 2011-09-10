@@ -1854,7 +1854,7 @@ redo:
 
 	new.frozen = 0;
 
-	if (!new.inuse && n->nr_partial < s->min_partial)
+	if (!new.inuse && n->nr_partial > s->min_partial)
 		m = M_FREE;
 	else if (new.freelist) {
 		m = M_PARTIAL;
