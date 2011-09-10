@@ -158,8 +158,7 @@ static int ath6kl_set_auth_type(struct ath6kl *ar,
 		break;
 
 	case NL80211_AUTHTYPE_AUTOMATIC:
-		ar->dot11_auth_mode = OPEN_AUTH;
-		ar->auto_auth_stage = AUTH_OPEN_IN_PROGRESS;
+		ar->dot11_auth_mode = OPEN_AUTH | SHARED_AUTH;
 		break;
 
 	default:
@@ -446,8 +445,6 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	assoc_req_len -= assoc_req_ie_offset;
 	assoc_resp_len -= assoc_resp_ie_offset;
 
-	ar->auto_auth_stage = AUTH_IDLE;
-
 	if (nw_type & ADHOC_NETWORK) {
 		if (ar->wdev->iftype != NL80211_IFTYPE_ADHOC) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
@@ -599,9 +596,6 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 				      u8 *bssid, u8 assoc_resp_len,
 				      u8 *assoc_info, u16 proto_reason)
 {
-	struct ath6kl_key *key = NULL;
-	u16 status;
-
 	if (ar->scan_req) {
 		cfg80211_scan_done(ar->scan_req, true);
 		ar->scan_req = NULL;
@@ -643,64 +637,20 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 	if (reason != DISCONNECT_CMD)
 		return;
 
-	if (!ar->auto_auth_stage) {
-		clear_bit(CONNECT_PEND, &ar->flag);
+	clear_bit(CONNECT_PEND, &ar->flag);
 
-		if (ar->sme_state == SME_CONNECTING) {
-			cfg80211_connect_result(ar->net_dev,
-						bssid, NULL, 0,
-						NULL, 0,
-						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
-		} else if (ar->sme_state == SME_CONNECTED) {
-			cfg80211_disconnected(ar->net_dev, reason,
-					      NULL, 0, GFP_KERNEL);
-		}
-
-		ar->sme_state = SME_DISCONNECTED;
-		return;
+	if (ar->sme_state == SME_CONNECTING) {
+		cfg80211_connect_result(ar->net_dev,
+				bssid, NULL, 0,
+				NULL, 0,
+				WLAN_STATUS_UNSPECIFIED_FAILURE,
+				GFP_KERNEL);
+	} else if (ar->sme_state == SME_CONNECTED) {
+		cfg80211_disconnected(ar->net_dev, reason,
+				NULL, 0, GFP_KERNEL);
 	}
 
-	if (ar->dot11_auth_mode != OPEN_AUTH)
-		return;
-
-	/*
-	 * If the current auth algorithm is open, try shared and
-	 * make autoAuthStage idle. We do not make it leap for now
-	 * being.
-	 */
-	key = &ar->keys[ar->def_txkey_index];
-	if (down_interruptible(&ar->sem)) {
-		ath6kl_err("busy, couldn't get access\n");
-		return;
-	}
-
-	ar->dot11_auth_mode = SHARED_AUTH;
-	ar->auto_auth_stage = AUTH_IDLE;
-
-	ath6kl_wmi_addkey_cmd(ar->wmi,
-			      ar->def_txkey_index,
-			      ar->prwise_crypto,
-			      GROUP_USAGE | TX_USAGE,
-			      key->key_len, NULL,
-			      key->key,
-			      KEY_OP_INIT_VAL, NULL,
-			      NO_SYNC_WMIFLAG);
-
-	status = ath6kl_wmi_connect_cmd(ar->wmi,
-					ar->nw_type,
-					ar->dot11_auth_mode,
-					ar->auth_mode,
-					ar->prwise_crypto,
-					ar->prwise_crypto_len,
-					ar->grp_crypto,
-					ar->grp_crypto_len,
-					ar->ssid_len,
-					ar->ssid,
-					ar->req_bssid,
-					ar->ch_hint,
-					ar->connect_ctrl_flags);
-	up(&ar->sem);
+	ar->sme_state = SME_DISCONNECTED;
 }
 
 static inline bool is_ch_11a(u16 ch)

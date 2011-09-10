@@ -586,7 +586,6 @@ struct ath6kl *ath6kl_core_alloc(struct device *sdev)
 	SET_NETDEV_DEV(dev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = dev;
 	ar->sme_state = SME_DISCONNECTED;
-	ar->auto_auth_stage = AUTH_IDLE;
 
 	init_netdev(dev);
 

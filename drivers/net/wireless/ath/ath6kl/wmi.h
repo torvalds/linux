@@ -566,11 +566,6 @@ enum dot11_auth_mode {
 	LEAP_AUTH = 0x04,
 };
 
-enum {
-	AUTH_IDLE,
-	AUTH_OPEN_IN_PROGRESS,
-};
-
 enum auth_mode {
 	NONE_AUTH = 0x01,
 	WPA_AUTH = 0x02,

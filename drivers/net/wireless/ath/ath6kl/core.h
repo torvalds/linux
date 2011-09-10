@@ -466,8 +466,6 @@ struct ath6kl {
 	enum wlan_low_pwr_state wlan_pwr_state;
 	struct wmi_scan_params_cmd sc_params;
 #define AR_MCAST_FILTER_MAC_ADDR_SIZE  4
-	u8 auto_auth_stage;
-
 	struct {
 		void *rx_report;
 		size_t rx_report_len;
