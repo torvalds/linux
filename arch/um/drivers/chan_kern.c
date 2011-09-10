@@ -146,11 +146,21 @@ void chan_enable_winch(struct chan *chan, struct tty_struct *tty)
 		register_winch(chan->fd, tty);
 }
 
+static void line_timer_cb(struct work_struct *work)
+{
+	struct line *line = container_of(work, struct line, task.work);
+
+	if (!line->throttled)
+		chan_interrupt(line, line->tty, line->driver->read_irq);
+}
+
 int enable_chan(struct line *line)
 {
 	struct list_head *ele;
 	struct chan *chan;
 	int err;
+
+	INIT_DELAYED_WORK(&line->task, line_timer_cb);
 
 	list_for_each(ele, &line->chan_list) {
 		chan = list_entry(ele, struct chan, list);
@@ -552,8 +562,7 @@ int parse_chan_pair(char *str, struct line *line, int device,
 	return 0;
 }
 
-void chan_interrupt(struct line *line, struct delayed_work *task,
-		    struct tty_struct *tty, int irq)
+void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 {
 	struct chan *chan = line->chan_in;
 	int err;
@@ -564,7 +573,7 @@ void chan_interrupt(struct line *line, struct delayed_work *task,
 
 	do {
 		if (tty && !tty_buffer_request_room(tty, 1)) {
-			schedule_delayed_work(task, 1);
+			schedule_delayed_work(&line->task, 1);
 			goto out;
 		}
 		err = chan->ops->read(chan->fd, &c, chan->data);

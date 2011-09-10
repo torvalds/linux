@@ -27,7 +27,7 @@ struct chan {
 	void *data;
 };
 
-extern void chan_interrupt(struct line *line, struct delayed_work *task,
+extern void chan_interrupt(struct line *line,
 			   struct tty_struct *tty, int irq);
 extern int parse_chan_pair(char *str, struct line *line, int device,
 			   const struct chan_opts *opts, char **error_out);

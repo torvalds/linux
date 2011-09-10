@@ -21,17 +21,8 @@ static irqreturn_t line_interrupt(int irq, void *data)
 	struct line *line = chan->line;
 
 	if (line)
-		chan_interrupt(line, &line->task, line->tty, irq);
+		chan_interrupt(line, line->tty, irq);
 	return IRQ_HANDLED;
-}
-
-static void line_timer_cb(struct work_struct *work)
-{
-	struct line *line = container_of(work, struct line, task.work);
-
-	if (!line->throttled)
-		chan_interrupt(line, &line->task, line->tty,
-			       line->driver->read_irq);
 }
 
 /*
@@ -327,8 +318,7 @@ void line_unthrottle(struct tty_struct *tty)
 	struct line *line = tty->driver_data;
 
 	line->throttled = 0;
-	chan_interrupt(line, &line->task, tty,
-		       line->driver->read_irq);
+	chan_interrupt(line, tty, line->driver->read_irq);
 
 	/*
 	 * Maybe there is enough stuff pending that calling the interrupt
@@ -423,8 +413,6 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	err = enable_chan(line);
 	if (err) /* line_close() will be called by our caller */
 		goto out_unlock;
-
-	INIT_DELAYED_WORK(&line->task, line_timer_cb);
 
 	if (!line->sigio) {
 		chan_enable_winch(line->chan_out, tty);
