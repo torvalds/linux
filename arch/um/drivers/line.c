@@ -509,8 +509,10 @@ int setup_one_line(struct line *lines, int n, char *init,
 			*error_out = "Failed to allocate memory";
 			return -ENOMEM;
 		}
-		if (line->valid)
+		if (line->valid) {
 			tty_unregister_device(driver, n);
+			kfree(line->init_str);
+		}
 		line->init_str = new;
 		line->valid = 1;
 		err = parse_chan_pair(new, line, n, opts, error_out);
