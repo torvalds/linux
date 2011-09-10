@@ -481,8 +481,8 @@ void close_lines(struct line *lines, int nlines)
 		close_chan(&lines[i].chan_list, 0);
 }
 
-static int setup_one_line(struct line *lines, int n, char *init,
-			  const struct chan_opts *opts, char **error_out)
+int setup_one_line(struct line *lines, int n, char *init,
+		   const struct chan_opts *opts, char **error_out)
 {
 	struct line *line = &lines[n];
 	struct tty_driver *driver = line->driver->driver;
@@ -658,6 +658,7 @@ int register_lines(struct line_driver *line_driver,
 {
 	struct tty_driver *driver = alloc_tty_driver(nlines);
 	int err;
+	int i;
 
 	if (!driver)
 		return -ENOMEM;
@@ -670,6 +671,13 @@ int register_lines(struct line_driver *line_driver,
 	driver->subtype = line_driver->subtype;
 	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	driver->init_termios = tty_std_termios;
+	
+	for (i = 0; i < nlines; i++) {
+		spin_lock_init(&lines[i].lock);
+		mutex_init(&lines[i].count_lock);
+		lines[i].driver = line_driver;
+		INIT_LIST_HEAD(&lines[i].chan_list);
+	}
 	tty_set_operations(driver, ops);
 
 	err = tty_register_driver(driver);
@@ -687,25 +695,6 @@ int register_lines(struct line_driver *line_driver,
 
 static DEFINE_SPINLOCK(winch_handler_lock);
 static LIST_HEAD(winch_handlers);
-
-void lines_init(struct line *lines, int nlines, struct chan_opts *opts)
-{
-	struct line *line;
-	char *error;
-	int i;
-
-	for(i = 0; i < nlines; i++) {
-		line = &lines[i];
-		INIT_LIST_HEAD(&line->chan_list);
-
-		if (line->init_str == NULL)
-			continue;
-
-		if (setup_one_line(lines, i, line->init_str, opts, &error))
-			printk(KERN_ERR "setup_one_line failed for "
-			       "device %d : %s\n", i, error);
-	}
-}
 
 struct winch {
 	struct list_head list;

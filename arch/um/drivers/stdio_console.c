@@ -157,29 +157,28 @@ static int stdio_init(void)
 	int err;
 	int i;
 
-	for (i = 0; i < MAX_TTYS; i++) {
-		char *s = vt_conf[i];
-		if (!s)
-			s = def_conf;
-		if (!s)
-			s = i ? CONFIG_CON_CHAN : CONFIG_CON_ZERO_CHAN;
-		if (s && strcmp(s, "none") != 0)
-			vts[i].init_str = s;
-		spin_lock_init(&vts[i].lock);
-		mutex_init(&vts[i].count_lock);
-		vts[i].driver = &driver;
-	}
 	err = register_lines(&driver, &console_ops, vts,
 					ARRAY_SIZE(vts));
 	if (err)
 		return err;
+
 	printk(KERN_INFO "Initialized stdio console driver\n");
 
 	new_title = add_xterm_umid(opts.xterm_title);
 	if(new_title != NULL)
 		opts.xterm_title = new_title;
 
-	lines_init(vts, ARRAY_SIZE(vts), &opts);
+	for (i = 0; i < MAX_TTYS; i++) {
+		char *error;
+		char *s = vt_conf[i];
+		if (!s)
+			s = def_conf;
+		if (!s)
+			s = i ? CONFIG_CON_CHAN : CONFIG_CON_ZERO_CHAN;
+		if (setup_one_line(vts, i, s, &opts, &error))
+			printk(KERN_ERR "setup_one_line failed for "
+			       "device %d : %s\n", i, error);
+	}
 
 	con_init_done = 1;
 	register_console(&stdiocons);

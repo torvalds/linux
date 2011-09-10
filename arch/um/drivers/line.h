@@ -82,7 +82,8 @@ extern void line_close_chan(struct line *line);
 extern int register_lines(struct line_driver *line_driver,
 			  const struct tty_operations *driver,
 			  struct line *lines, int nlines);
-extern void lines_init(struct line *lines, int nlines, struct chan_opts *opts);
+extern int setup_one_line(struct line *lines, int n, char *init,
+			  const struct chan_opts *opts, char **error_out);
 extern void close_lines(struct line *lines, int nlines);
 
 extern int line_config(struct line *lines, unsigned int sizeof_lines,

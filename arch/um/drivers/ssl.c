@@ -187,16 +187,6 @@ static int ssl_init(void)
 	printk(KERN_INFO "Initializing software serial port version %d\n",
 	       ssl_version);
 
-	for (i = 0; i < NR_PORTS; i++) {
-		char *s = conf[i];
-		if (!s)
-			s = def_conf;
-		if (s && strcmp(s, "none") != 0)
-			serial_lines[i].init_str = s;
-		spin_lock_init(&serial_lines[i].lock);
-		mutex_init(&serial_lines[i].count_lock);
-		serial_lines[i].driver = &driver;
-	}
 	err = register_lines(&driver, &ssl_ops, serial_lines,
 				    ARRAY_SIZE(serial_lines));
 	if (err)
@@ -206,7 +196,15 @@ static int ssl_init(void)
 	if (new_title != NULL)
 		opts.xterm_title = new_title;
 
-	lines_init(serial_lines, ARRAY_SIZE(serial_lines), &opts);
+	for (i = 0; i < NR_PORTS; i++) {
+		char *error;
+		char *s = conf[i];
+		if (!s)
+			s = def_conf;
+		if (setup_one_line(serial_lines, i, s, &opts, &error))
+			printk(KERN_ERR "setup_one_line failed for "
+			       "device %d : %s\n", i, error);
+	}
 
 	ssl_init_done = 1;
 	register_console(&ssl_cons);
