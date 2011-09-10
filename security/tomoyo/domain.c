@@ -563,6 +563,92 @@ out:
 }
 
 /**
+ * tomoyo_environ - Check permission for environment variable names.
+ *
+ * @ee: Pointer to "struct tomoyo_execve".
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_environ(struct tomoyo_execve *ee)
+{
+	struct tomoyo_request_info *r = &ee->r;
+	struct linux_binprm *bprm = ee->bprm;
+	/* env_page.data is allocated by tomoyo_dump_page(). */
+	struct tomoyo_page_dump env_page = { };
+	char *arg_ptr; /* Size is TOMOYO_EXEC_TMPSIZE bytes */
+	int arg_len = 0;
+	unsigned long pos = bprm->p;
+	int offset = pos % PAGE_SIZE;
+	int argv_count = bprm->argc;
+	int envp_count = bprm->envc;
+	int error = -ENOMEM;
+
+	ee->r.type = TOMOYO_MAC_ENVIRON;
+	ee->r.profile = r->domain->profile;
+	ee->r.mode = tomoyo_get_mode(r->domain->ns, ee->r.profile,
+				     TOMOYO_MAC_ENVIRON);
+	if (!r->mode || !envp_count)
+		return 0;
+	arg_ptr = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
+	if (!arg_ptr)
+		goto out;
+	while (error == -ENOMEM) {
+		if (!tomoyo_dump_page(bprm, pos, &env_page))
+			goto out;
+		pos += PAGE_SIZE - offset;
+		/* Read. */
+		while (argv_count && offset < PAGE_SIZE) {
+			if (!env_page.data[offset++])
+				argv_count--;
+		}
+		if (argv_count) {
+			offset = 0;
+			continue;
+		}
+		while (offset < PAGE_SIZE) {
+			const unsigned char c = env_page.data[offset++];
+
+			if (c && arg_len < TOMOYO_EXEC_TMPSIZE - 10) {
+				if (c == '=') {
+					arg_ptr[arg_len++] = '\0';
+				} else if (c == '\\') {
+					arg_ptr[arg_len++] = '\\';
+					arg_ptr[arg_len++] = '\\';
+				} else if (c > ' ' && c < 127) {
+					arg_ptr[arg_len++] = c;
+				} else {
+					arg_ptr[arg_len++] = '\\';
+					arg_ptr[arg_len++] = (c >> 6) + '0';
+					arg_ptr[arg_len++]
+						= ((c >> 3) & 7) + '0';
+					arg_ptr[arg_len++] = (c & 7) + '0';
+				}
+			} else {
+				arg_ptr[arg_len] = '\0';
+			}
+			if (c)
+				continue;
+			if (tomoyo_env_perm(r, arg_ptr)) {
+				error = -EPERM;
+				break;
+			}
+			if (!--envp_count) {
+				error = 0;
+				break;
+			}
+			arg_len = 0;
+		}
+		offset = 0;
+	}
+out:
+	if (r->mode != TOMOYO_CONFIG_ENFORCING)
+		error = 0;
+	kfree(env_page.data);
+	kfree(arg_ptr);
+	return error;
+}
+
+/**
  * tomoyo_find_next_domain - Find a domain.
  *
  * @bprm: Pointer to "struct linux_binprm".
@@ -581,6 +667,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	bool reject_on_transition_failure = false;
 	struct tomoyo_path_info rn = { }; /* real name */
 	struct tomoyo_execve *ee = kzalloc(sizeof(*ee), GFP_NOFS);
+
 	if (!ee)
 		return -ENOMEM;
 	ee->tmp = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
@@ -713,6 +800,10 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	bprm->cred->security = domain;
 	if (need_kfree)
 		kfree(rn.name);
+	if (!retval) {
+		ee->r.domain = domain;
+		retval = tomoyo_environ(ee);
+	}
 	kfree(ee->tmp);
 	kfree(ee->dump.data);
 	kfree(ee);
@@ -732,7 +823,8 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 		      struct tomoyo_page_dump *dump)
 {
 	struct page *page;
-	/* dump->data is released by tomoyo_finish_execve(). */
+
+	/* dump->data is released by tomoyo_find_next_domain(). */
 	if (!dump->data) {
 		dump->data = kzalloc(PAGE_SIZE, GFP_NOFS);
 		if (!dump->data)
@@ -753,6 +845,7 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 		 * So do I.
 		 */
 		char *kaddr = kmap_atomic(page, KM_USER0);
+
 		dump->page = page;
 		memcpy(dump->data + offset, kaddr + offset,
 		       PAGE_SIZE - offset);

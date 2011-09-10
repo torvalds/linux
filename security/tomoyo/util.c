@@ -42,6 +42,8 @@ const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
 	[TOMOYO_MAC_FILE_MOUNT]      = TOMOYO_MAC_CATEGORY_FILE,
 	[TOMOYO_MAC_FILE_UMOUNT]     = TOMOYO_MAC_CATEGORY_FILE,
 	[TOMOYO_MAC_FILE_PIVOT_ROOT] = TOMOYO_MAC_CATEGORY_FILE,
+	/* CONFIG::misc group */
+	[TOMOYO_MAC_ENVIRON]         = TOMOYO_MAC_CATEGORY_MISC,
 };
 
 /**
@@ -920,15 +922,17 @@ int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
 		    const u8 index)
 {
 	u8 mode;
-	const u8 category = TOMOYO_MAC_CATEGORY_FILE;
+	struct tomoyo_profile *p;
+
 	if (!tomoyo_policy_loaded)
 		return TOMOYO_CONFIG_DISABLED;
-	mode = tomoyo_profile(ns, profile)->config[index];
+	p = tomoyo_profile(ns, profile);
+	mode = p->config[index];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
-		mode = tomoyo_profile(ns, profile)->config
-			[category + TOMOYO_MAX_MAC_INDEX];
+		mode = p->config[tomoyo_index2category[index]
+				 + TOMOYO_MAX_MAC_INDEX];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
-		mode = tomoyo_profile(ns, profile)->default_config;
+		mode = p->default_config;
 	return mode & 3;
 }
 

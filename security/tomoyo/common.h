@@ -196,6 +196,7 @@ enum tomoyo_acl_entry_type_index {
 	TOMOYO_TYPE_PATH_NUMBER_ACL,
 	TOMOYO_TYPE_MKDEV_ACL,
 	TOMOYO_TYPE_MOUNT_ACL,
+	TOMOYO_TYPE_ENV_ACL,
 };
 
 /* Index numbers for access controls with one pathname. */
@@ -300,12 +301,14 @@ enum tomoyo_mac_index {
 	TOMOYO_MAC_FILE_MOUNT,
 	TOMOYO_MAC_FILE_UMOUNT,
 	TOMOYO_MAC_FILE_PIVOT_ROOT,
+	TOMOYO_MAC_ENVIRON,
 	TOMOYO_MAX_MAC_INDEX
 };
 
 /* Index numbers for category of functionality. */
 enum tomoyo_mac_category_index {
 	TOMOYO_MAC_CATEGORY_FILE,
+	TOMOYO_MAC_CATEGORY_MISC,
 	TOMOYO_MAX_MAC_CATEGORY_INDEX
 };
 
@@ -396,6 +399,9 @@ struct tomoyo_request_info {
 			 */
 			u8 operation;
 		} path_number;
+		struct {
+			const struct tomoyo_path_info *name;
+		} environ;
 		struct {
 			const struct tomoyo_path_info *type;
 			const struct tomoyo_path_info *dir;
@@ -638,6 +644,12 @@ struct tomoyo_mount_acl {
 	struct tomoyo_number_union flags;
 };
 
+/* Structure for "misc env" directive in domain policy. */
+struct tomoyo_env_acl {
+	struct tomoyo_acl_info head;        /* type = TOMOYO_TYPE_ENV_ACL  */
+	const struct tomoyo_path_info *env; /* environment variable */
+};
+
 /* Structure for holding a line from /sys/kernel/security/tomoyo/ interface. */
 struct tomoyo_acl_param {
 	char *data;
@@ -820,6 +832,7 @@ const struct tomoyo_path_info *tomoyo_path_matches_group
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
 int tomoyo_close_control(struct tomoyo_io_buffer *head);
+int tomoyo_env_perm(struct tomoyo_request_info *r, const char *env);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
 int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
 		    const u8 index);
@@ -860,6 +873,7 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 int tomoyo_write_aggregator(struct tomoyo_acl_param *param);
 int tomoyo_write_file(struct tomoyo_acl_param *param);
 int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type);
+int tomoyo_write_misc(struct tomoyo_acl_param *param);
 int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
 				    const u8 type);
 ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,

@@ -20,6 +20,7 @@ const char * const tomoyo_mode[TOMOYO_CONFIG_MAX_MODE] = {
 /* String table for /sys/kernel/security/tomoyo/profile */
 const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 				       + TOMOYO_MAX_MAC_CATEGORY_INDEX] = {
+	/* CONFIG::file group */
 	[TOMOYO_MAC_FILE_EXECUTE]    = "execute",
 	[TOMOYO_MAC_FILE_OPEN]       = "open",
 	[TOMOYO_MAC_FILE_CREATE]     = "create",
@@ -43,7 +44,11 @@ const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 	[TOMOYO_MAC_FILE_MOUNT]      = "mount",
 	[TOMOYO_MAC_FILE_UMOUNT]     = "unmount",
 	[TOMOYO_MAC_FILE_PIVOT_ROOT] = "pivot_root",
+	/* CONFIG::misc group */
+	[TOMOYO_MAC_ENVIRON] = "env",
+	/* CONFIG group */
 	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_FILE] = "file",
+	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_MISC] = "misc",
 };
 
 /* String table for conditions. */
@@ -133,7 +138,8 @@ const char * const tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
 /* String table for categories. */
 static const char * const tomoyo_category_keywords
 [TOMOYO_MAX_MAC_CATEGORY_INDEX] = {
-	[TOMOYO_MAC_CATEGORY_FILE]       = "file",
+	[TOMOYO_MAC_CATEGORY_FILE] = "file",
+	[TOMOYO_MAC_CATEGORY_MISC] = "misc",
 };
 
 /* Permit policy management by non-root user? */
@@ -1036,11 +1042,13 @@ static int tomoyo_write_domain2(struct tomoyo_policy_namespace *ns,
 	static const struct {
 		const char *keyword;
 		int (*write) (struct tomoyo_acl_param *);
-	} tomoyo_callback[1] = {
+	} tomoyo_callback[2] = {
 		{ "file ", tomoyo_write_file },
+		{ "misc ", tomoyo_write_misc },
 	};
 	u8 i;
-	for (i = 0; i < 1; i++) {
+
+	for (i = 0; i < ARRAY_SIZE(tomoyo_callback); i++) {
 		if (!tomoyo_str_starts(&param.data,
 				       tomoyo_callback[i].keyword))
 			continue;
@@ -1375,6 +1383,12 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		tomoyo_print_name_union(head, &ptr->dir_name);
 		tomoyo_print_name_union(head, &ptr->fs_type);
 		tomoyo_print_number_union(head, &ptr->flags);
+	} else if (acl_type == TOMOYO_TYPE_ENV_ACL) {
+		struct tomoyo_env_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+
+		tomoyo_set_group(head, "misc env ");
+		tomoyo_set_string(head, ptr->env->name);
 	}
 	if (acl->cond) {
 		head->r.print_cond_part = true;

@@ -36,6 +36,7 @@ static const u8 tomoyo_acl_size[] = {
 	[TOMOYO_TYPE_PATH_NUMBER_ACL] = sizeof(struct tomoyo_path_number_acl),
 	[TOMOYO_TYPE_MKDEV_ACL] = sizeof(struct tomoyo_mkdev_acl),
 	[TOMOYO_TYPE_MOUNT_ACL] = sizeof(struct tomoyo_mount_acl),
+	[TOMOYO_TYPE_ENV_ACL] = sizeof(struct tomoyo_env_acl),
 };
 
 /**
@@ -291,6 +292,14 @@ static void tomoyo_del_acl(struct list_head *element)
 			tomoyo_put_name_union(&entry->dir_name);
 			tomoyo_put_name_union(&entry->fs_type);
 			tomoyo_put_number_union(&entry->flags);
+		}
+		break;
+	case TOMOYO_TYPE_ENV_ACL:
+		{
+			struct tomoyo_env_acl *entry =
+				container_of(acl, typeof(*entry), head);
+
+			tomoyo_put_name(entry->env);
 		}
 		break;
 	}
