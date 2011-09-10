@@ -1011,6 +1011,48 @@ static bool tomoyo_select_domain(struct tomoyo_io_buffer *head,
 }
 
 /**
+ * tomoyo_same_task_acl - Check for duplicated "struct tomoyo_task_acl" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_info".
+ * @b: Pointer to "struct tomoyo_acl_info".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
+static bool tomoyo_same_task_acl(const struct tomoyo_acl_info *a,
+			      const struct tomoyo_acl_info *b)
+{
+	const struct tomoyo_task_acl *p1 = container_of(a, typeof(*p1), head);
+	const struct tomoyo_task_acl *p2 = container_of(b, typeof(*p2), head);
+	return p1->domainname == p2->domainname;
+}
+
+/**
+ * tomoyo_write_task - Update task related list.
+ *
+ * @param: Pointer to "struct tomoyo_acl_param".
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+static int tomoyo_write_task(struct tomoyo_acl_param *param)
+{
+	int error = -EINVAL;
+	if (tomoyo_str_starts(&param->data, "manual_domain_transition ")) {
+		struct tomoyo_task_acl e = {
+			.head.type = TOMOYO_TYPE_MANUAL_TASK_ACL,
+			.domainname = tomoyo_get_domainname(param),
+		};
+		if (e.domainname)
+			error = tomoyo_update_domain(&e.head, sizeof(e), param,
+						     tomoyo_same_task_acl,
+						     NULL);
+		tomoyo_put_name(e.domainname);
+	}
+	return error;
+}
+
+/**
  * tomoyo_delete_domain - Delete a domain.
  *
  * @domainname: The name of domain.
@@ -1068,11 +1110,12 @@ static int tomoyo_write_domain2(struct tomoyo_policy_namespace *ns,
 	static const struct {
 		const char *keyword;
 		int (*write) (struct tomoyo_acl_param *);
-	} tomoyo_callback[4] = {
+	} tomoyo_callback[5] = {
 		{ "file ", tomoyo_write_file },
 		{ "network inet ", tomoyo_write_inet_network },
 		{ "network unix ", tomoyo_write_unix_network },
 		{ "misc ", tomoyo_write_misc },
+		{ "task ", tomoyo_write_task },
 	};
 	u8 i;
 
@@ -1343,6 +1386,12 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		if (first)
 			return true;
 		tomoyo_print_name_union(head, &ptr->name);
+	} else if (acl_type == TOMOYO_TYPE_MANUAL_TASK_ACL) {
+		struct tomoyo_task_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+		tomoyo_set_group(head, "task ");
+		tomoyo_set_string(head, "manual_domain_transition ");
+		tomoyo_set_string(head, ptr->domainname->name);
 	} else if (head->r.print_transition_related_only) {
 		return true;
 	} else if (acl_type == TOMOYO_TYPE_PATH2_ACL) {
@@ -2178,26 +2227,6 @@ static void tomoyo_read_version(struct tomoyo_io_buffer *head)
 	}
 }
 
-/**
- * tomoyo_read_self_domain - Get the current process's domainname.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns the current process's domainname.
- */
-static void tomoyo_read_self_domain(struct tomoyo_io_buffer *head)
-{
-	if (!head->r.eof) {
-		/*
-		 * tomoyo_domain()->domainname != NULL
-		 * because every process belongs to a domain and
-		 * the domain's name cannot be NULL.
-		 */
-		tomoyo_io_printf(head, "%s", tomoyo_domain()->domainname->name);
-		head->r.eof = true;
-	}
-}
-
 /* String table for /sys/kernel/security/tomoyo/stat interface. */
 static const char * const tomoyo_policy_headers[TOMOYO_MAX_POLICY_STAT] = {
 	[TOMOYO_STAT_POLICY_UPDATES]    = "update:",
@@ -2327,10 +2356,6 @@ int tomoyo_open_control(const u8 type, struct file *file)
 		/* /sys/kernel/security/tomoyo/audit */
 		head->poll = tomoyo_poll_log;
 		head->read = tomoyo_read_log;
-		break;
-	case TOMOYO_SELFDOMAIN:
-		/* /sys/kernel/security/tomoyo/self_domain */
-		head->read = tomoyo_read_self_domain;
 		break;
 	case TOMOYO_PROCESS_STATUS:
 		/* /sys/kernel/security/tomoyo/.process_status */

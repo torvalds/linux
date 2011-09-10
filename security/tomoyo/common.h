@@ -227,6 +227,7 @@ enum tomoyo_acl_entry_type_index {
 	TOMOYO_TYPE_INET_ACL,
 	TOMOYO_TYPE_UNIX_ACL,
 	TOMOYO_TYPE_ENV_ACL,
+	TOMOYO_TYPE_MANUAL_TASK_ACL,
 };
 
 /* Index numbers for access controls with one pathname. */
@@ -295,7 +296,6 @@ enum tomoyo_securityfs_interface_index {
 	TOMOYO_EXCEPTIONPOLICY,
 	TOMOYO_PROCESS_STATUS,
 	TOMOYO_STAT,
-	TOMOYO_SELFDOMAIN,
 	TOMOYO_AUDIT,
 	TOMOYO_VERSION,
 	TOMOYO_PROFILE,
@@ -480,6 +480,9 @@ struct tomoyo_request_info {
 			unsigned long flags;
 			int need_dev;
 		} mount;
+		struct {
+			const struct tomoyo_path_info *domainname;
+		} task;
 	} param;
 	struct tomoyo_acl_info *matched_acl;
 	u8 param_type;
@@ -677,6 +680,15 @@ struct tomoyo_domain_info {
 	bool is_deleted;   /* Delete flag.           */
 	bool flags[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
 	atomic_t users; /* Number of referring credentials. */
+};
+
+/*
+ * Structure for "task manual_domain_transition" directive.
+ */
+struct tomoyo_task_acl {
+	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_MANUAL_TASK_ACL */
+	/* Pointer to domainname. */
+	const struct tomoyo_path_info *domainname;
 };
 
 /*
@@ -935,6 +947,8 @@ const char *tomoyo_get_exe(void);
 const char *tomoyo_yesno(const unsigned int value);
 const struct tomoyo_path_info *tomoyo_compare_name_union
 (const struct tomoyo_path_info *name, const struct tomoyo_name_union *ptr);
+const struct tomoyo_path_info *tomoyo_get_domainname
+(struct tomoyo_acl_param *param);
 const struct tomoyo_path_info *tomoyo_get_name(const char *name);
 const struct tomoyo_path_info *tomoyo_path_matches_group
 (const struct tomoyo_path_info *pathname, const struct tomoyo_group *group);

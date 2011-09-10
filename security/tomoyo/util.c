@@ -159,6 +159,31 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param)
 }
 
 /**
+ * tomoyo_get_domainname - Read a domainname from a line.
+ *
+ * @param: Pointer to "struct tomoyo_acl_param".
+ *
+ * Returns a domainname on success, NULL otherwise.
+ */
+const struct tomoyo_path_info *tomoyo_get_domainname
+(struct tomoyo_acl_param *param)
+{
+	char *start = param->data;
+	char *pos = start;
+	while (*pos) {
+		if (*pos++ != ' ' || *pos++ == '/')
+			continue;
+		pos -= 2;
+		*pos++ = '\0';
+		break;
+	}
+	param->data = pos;
+	if (tomoyo_correct_domain(start))
+		return tomoyo_get_name(start);
+	return NULL;
+}
+
+/**
  * tomoyo_parse_ulong - Parse an "unsigned long" value.
  *
  * @result: Pointer to "unsigned long".
