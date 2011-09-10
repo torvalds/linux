@@ -1132,13 +1132,12 @@ retry_write:
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 
-	/* Remove the bias on 'remaining' */
-	one_write_done(r10_bio);
-
-	/* In case raid10d snuck in to freeze_array */
-	wake_up(&conf->wait_barrier);
+	/* Don't remove the bias on 'remaining' (one_write_done) until
+	 * after checking if we need to go around again.
+	 */
 
 	if (sectors_handled < (bio->bi_size >> 9)) {
+		one_write_done(r10_bio);
 		/* We need another r10_bio.  It has already been counted
 		 * in bio->bi_phys_segments.
 		 */
@@ -1152,6 +1151,10 @@ retry_write:
 		r10_bio->state = 0;
 		goto retry_write;
 	}
+	one_write_done(r10_bio);
+
+	/* In case raid10d snuck in to freeze_array */
+	wake_up(&conf->wait_barrier);
 
 	if (do_sync || !mddev->bitmap || !plugged)
 		md_wakeup_thread(mddev->thread);
