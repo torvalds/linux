@@ -185,7 +185,7 @@ int enable_chan(struct line *line)
 	return 0;
 
  out_close:
-	close_chan(&line->chan_list, 0);
+	close_chan(line);
 	return err;
 }
 
@@ -246,7 +246,7 @@ static void close_one_chan(struct chan *chan, int delay_free_irq)
 	chan->fd = -1;
 }
 
-void close_chan(struct list_head *chans, int delay_free_irq)
+void close_chan(struct line *line)
 {
 	struct chan *chan;
 
@@ -255,8 +255,8 @@ void close_chan(struct list_head *chans, int delay_free_irq)
 	 * state.  Then, the first one opened will have the original state,
 	 * so it must be the last closed.
 	 */
-	list_for_each_entry_reverse(chan, chans, list) {
-		close_one_chan(chan, delay_free_irq);
+	list_for_each_entry_reverse(chan, &line->chan_list, list) {
+		close_one_chan(chan, 0);
 	}
 }
 
@@ -587,10 +587,12 @@ void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 		if (chan->primary) {
 			if (tty != NULL)
 				tty_hangup(tty);
-			close_chan(&line->chan_list, 1);
-			return;
+			if (line->chan_out != chan)
+				close_one_chan(line->chan_out, 1);
 		}
-		else close_one_chan(chan, 1);
+		close_one_chan(chan, 1);
+		if (chan->primary)
+			return;
 	}
  out:
 	if (tty)

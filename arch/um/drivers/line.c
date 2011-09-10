@@ -465,7 +465,7 @@ void close_lines(struct line *lines, int nlines)
 	int i;
 
 	for(i = 0; i < nlines; i++)
-		close_chan(&lines[i].chan_list, 0);
+		close_chan(&lines[i]);
 }
 
 int setup_one_line(struct line *lines, int n, char *init,
