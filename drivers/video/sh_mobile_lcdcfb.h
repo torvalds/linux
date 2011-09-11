@@ -14,9 +14,23 @@ enum { LDDCKPAT1R, LDDCKPAT2R, LDMT1R, LDMT2R, LDMT3R, LDDFR, LDSM1R,
 
 #define PALETTE_NR 16
 
-struct sh_mobile_lcdc_priv;
-struct fb_info;
 struct backlight_device;
+struct fb_info;
+struct module;
+struct sh_mobile_lcdc_entity;
+struct sh_mobile_lcdc_priv;
+
+struct sh_mobile_lcdc_entity_ops {
+	/* Display */
+	int (*display_on)(struct sh_mobile_lcdc_entity *entity,
+			  struct fb_info *info);
+	void (*display_off)(struct sh_mobile_lcdc_entity *entity);
+};
+
+struct sh_mobile_lcdc_entity {
+	struct module *owner;
+	const struct sh_mobile_lcdc_entity_ops *ops;
+};
 
 /*
  * struct sh_mobile_lcdc_chan - LCDC display channel
