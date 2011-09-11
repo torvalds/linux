@@ -142,7 +142,7 @@ iounmap_base:
 	return ret;
 }
 
-static int omap_hwspinlock_remove(struct platform_device *pdev)
+static int __devexit omap_hwspinlock_remove(struct platform_device *pdev)
 {
 	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
 	void __iomem *io_base = bank->lock[0].priv - LOCK_BASE_OFFSET;
@@ -163,7 +163,7 @@ static int omap_hwspinlock_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_hwspinlock_driver = {
 	.probe		= omap_hwspinlock_probe,
-	.remove		= omap_hwspinlock_remove,
+	.remove		= __devexit_p(omap_hwspinlock_remove),
 	.driver		= {
 		.name	= "omap_hwspinlock",
 		.owner	= THIS_MODULE,
