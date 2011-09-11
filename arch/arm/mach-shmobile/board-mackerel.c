@@ -318,8 +318,14 @@ static struct sh_mobile_meram_info mackerel_meram_info = {
 
 static struct resource meram_resources[] = {
 	[0] = {
-		.name	= "MERAM",
+		.name	= "regs",
 		.start	= 0xe8000000,
+		.end	= 0xe807ffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "meram",
+		.start	= 0xe8080000,
 		.end	= 0xe81fffff,
 		.flags	= IORESOURCE_MEM,
 	},
