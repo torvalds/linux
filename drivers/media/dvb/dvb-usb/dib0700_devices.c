@@ -892,12 +892,12 @@ static int stk7700p_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
 
 static int stk70x0p_pid_filter(struct dvb_usb_adapter *adapter, int index, u16 pid, int onoff)
 {
-    return dib7000p_pid_filter(adapter->fe_adap[0].fe, index, pid, onoff);
+	return dib7000p_pid_filter(adapter->fe_adap[0].fe, index, pid, onoff);
 }
 
 static int stk70x0p_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
 {
-    return dib7000p_pid_filter_ctrl(adapter->fe_adap[0].fe, onoff);
+	return dib7000p_pid_filter_ctrl(adapter->fe_adap[0].fe, onoff);
 }
 
 static struct dibx000_bandwidth_config dib7070_bw_config_12_mhz = {
