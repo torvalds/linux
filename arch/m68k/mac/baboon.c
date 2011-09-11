@@ -21,9 +21,6 @@
 
 /* #define DEBUG_IRQS */
 
-extern void mac_enable_irq(unsigned int);
-extern void mac_disable_irq(unsigned int);
-
 int baboon_present;
 static volatile struct baboon *baboon;
 static unsigned char baboon_disabled;
@@ -111,7 +108,7 @@ void baboon_irq_enable(int irq)
 
 	baboon_disabled &= ~(1 << irq_idx);
 	if (!baboon_disabled)
-		mac_enable_irq(IRQ_NUBUS_C);
+		mac_irq_enable(irq_get_irq_data(IRQ_NUBUS_C));
 }
 
 void baboon_irq_disable(int irq)
@@ -124,7 +121,7 @@ void baboon_irq_disable(int irq)
 
 	baboon_disabled |= 1 << irq_idx;
 	if (baboon_disabled)
-		mac_disable_irq(IRQ_NUBUS_C);
+		mac_irq_disable(irq_get_irq_data(IRQ_NUBUS_C));
 }
 
 void baboon_irq_clear(int irq)

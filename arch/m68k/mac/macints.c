@@ -190,19 +190,6 @@ irqreturn_t mac_debug_handler(int, void *);
 
 /* #define DEBUG_MACINTS */
 
-void mac_enable_irq(unsigned int irq);
-void mac_disable_irq(unsigned int irq);
-
-static void mac_irq_enable(struct irq_data *data)
-{
-	mac_enable_irq(data->irq);
-}
-
-static void mac_irq_disable(struct irq_data *data)
-{
-	mac_disable_irq(data->irq);
-}
-
 static struct irq_chip mac_irq_chip = {
 	.name		= "mac",
 	.irq_enable	= mac_irq_enable,
@@ -250,16 +237,17 @@ void __init mac_init_IRQ(void)
 }
 
 /*
- *  mac_enable_irq - enable an interrupt source
- * mac_disable_irq - disable an interrupt source
+ *  mac_irq_enable - enable an interrupt source
+ * mac_irq_disable - disable an interrupt source
  *   mac_clear_irq - clears a pending interrupt
- * mac_pending_irq - Returns the pending status of an IRQ (nonzero = pending)
+ * mac_irq_pending - returns the pending status of an IRQ (nonzero = pending)
  *
  * These routines are just dispatchers to the VIA/OSS/PSC routines.
  */
 
-void mac_enable_irq(unsigned int irq)
+void mac_irq_enable(struct irq_data *data)
 {
+	int irq = data->irq;
 	int irq_src = IRQ_SRC(irq);
 
 	switch(irq_src) {
@@ -292,8 +280,9 @@ void mac_enable_irq(unsigned int irq)
 	}
 }
 
-void mac_disable_irq(unsigned int irq)
+void mac_irq_disable(struct irq_data *data)
 {
+	int irq = data->irq;
 	int irq_src = IRQ_SRC(irq);
 
 	switch(irq_src) {
