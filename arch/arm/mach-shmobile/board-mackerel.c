@@ -389,8 +389,10 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.interface_type		= RGB24,
 		.clock_divider		= 3,
 		.flags			= 0,
-		.lcd_size_cfg.width	= 152,
-		.lcd_size_cfg.height	= 91,
+		.panel_cfg = {
+			.width		= 152,
+			.height		= 91,
+		},
 		.bl_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,

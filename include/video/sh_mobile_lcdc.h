@@ -147,18 +147,15 @@ struct sh_mobile_lcdc_sys_bus_ops {
 	unsigned long (*read_data)(void *handle);
 };
 
-struct sh_mobile_lcdc_board_cfg {
+struct sh_mobile_lcdc_panel_cfg {
+	unsigned long width;		/* Panel width in mm */
+	unsigned long height;		/* Panel height in mm */
 	int (*setup_sys)(void *sys_ops_handle,
 			 struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
 	void (*start_transfer)(void *sys_ops_handle,
 			       struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
 	void (*display_on)(void);
 	void (*display_off)(void);
-};
-
-struct sh_mobile_lcdc_lcd_size_cfg { /* width and height of panel in mm */
-	unsigned long width;
-	unsigned long height;
 };
 
 /* backlight info */
@@ -178,8 +175,7 @@ struct sh_mobile_lcdc_chan_cfg {
 	unsigned long flags; /* LCDC_FLAGS_... */
 	const struct fb_videomode *lcd_cfg;
 	int num_cfg;
-	struct sh_mobile_lcdc_lcd_size_cfg lcd_size_cfg;
-	struct sh_mobile_lcdc_board_cfg board_cfg;
+	struct sh_mobile_lcdc_panel_cfg panel_cfg;
 	struct sh_mobile_lcdc_bl_info bl_info;
 	struct sh_mobile_lcdc_sys_bus_cfg sys_bus_cfg; /* only for SYSn I/F */
 	struct sh_mobile_meram_cfg *meram_cfg;

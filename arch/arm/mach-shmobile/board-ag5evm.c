@@ -252,12 +252,12 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 		.interface_type = RGB24,
 		.clock_divider = 1,
 		.flags = LCDC_FLAGS_DWPOL,
-		.lcd_size_cfg.width = 44,
-		.lcd_size_cfg.height = 79,
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.lcd_cfg = lcdc0_modes,
 		.num_cfg = ARRAY_SIZE(lcdc0_modes),
-		.board_cfg = {
+		.panel_cfg = {
+			.width = 44,
+			.height = 79,
 			.display_on = lcd_backlight_on,
 			.display_off = lcd_backlight_reset,
 		},

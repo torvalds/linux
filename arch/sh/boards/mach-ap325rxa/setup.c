@@ -213,11 +213,9 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.clock_divider = 1,
 		.lcd_cfg = ap325rxa_lcdc_modes,
 		.num_cfg = ARRAY_SIZE(ap325rxa_lcdc_modes),
-		.lcd_size_cfg = { /* 7.0 inch */
-			.width = 152,
+		.panel_cfg = {
+			.width = 152,	/* 7.0 inch */
 			.height = 91,
-		},
-		.board_cfg = {
 			.display_on = ap320_wvga_power_on,
 			.display_off = ap320_wvga_power_off,
 		},

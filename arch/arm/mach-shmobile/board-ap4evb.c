@@ -1360,8 +1360,8 @@ static void __init ap4evb_init(void)
 	lcdc_info.ch[0].interface_type		= RGB24;
 	lcdc_info.ch[0].clock_divider		= 1;
 	lcdc_info.ch[0].flags			= LCDC_FLAGS_DWPOL;
-	lcdc_info.ch[0].lcd_size_cfg.width	= 44;
-	lcdc_info.ch[0].lcd_size_cfg.height	= 79;
+	lcdc_info.ch[0].panel_cfg.width		= 44;
+	lcdc_info.ch[0].panel_cfg.height	= 79;
 
 	platform_add_devices(qhd_devices, ARRAY_SIZE(qhd_devices));
 
@@ -1402,8 +1402,8 @@ static void __init ap4evb_init(void)
 	lcdc_info.ch[0].interface_type		= RGB18;
 	lcdc_info.ch[0].clock_divider		= 3;
 	lcdc_info.ch[0].flags			= 0;
-	lcdc_info.ch[0].lcd_size_cfg.width	= 152;
-	lcdc_info.ch[0].lcd_size_cfg.height	= 91;
+	lcdc_info.ch[0].panel_cfg.width		= 152;
+	lcdc_info.ch[0].panel_cfg.height	= 91;
 
 	/* enable TouchScreen */
 	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);

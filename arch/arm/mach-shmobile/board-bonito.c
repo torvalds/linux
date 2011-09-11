@@ -247,7 +247,7 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 		.flags			= 0,
 		.lcd_cfg		= &lcdc0_mode,
 		.num_cfg		= 1,
-		.lcd_size_cfg = {
+		.panel_cfg = {
 			.width	= 152,
 			.height = 91,
 		},

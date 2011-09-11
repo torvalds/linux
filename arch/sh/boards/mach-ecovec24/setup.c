@@ -327,7 +327,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.interface_type = RGB18,
 		.chan = LCDC_CHAN_MAINLCD,
 		.fourcc = V4L2_PIX_FMT_RGB565,
-		.lcd_size_cfg = { /* 7.0 inch */
+		.panel_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
 		},
