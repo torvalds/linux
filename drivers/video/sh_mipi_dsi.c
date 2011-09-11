@@ -58,10 +58,6 @@ struct sh_mipi {
 	void __iomem	*linkbase;
 	struct clk	*dsit_clk;
 	struct platform_device *pdev;
-
-	void	*next_board_data;
-	void	(*next_display_on)(void *board_data, struct fb_info *info);
-	void	(*next_display_off)(void *board_data);
 };
 
 #define to_sh_mipi(e)	container_of(e, struct sh_mipi, entity)
@@ -398,8 +394,8 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	return 0;
 }
 
-static int __mipi_display_on(struct sh_mobile_lcdc_entity *entity,
-			     struct fb_info *info)
+static int mipi_display_on(struct sh_mobile_lcdc_entity *entity,
+			   struct fb_info *info)
 {
 	struct sh_mipi *mipi = to_sh_mipi(entity);
 	struct sh_mipi_dsi_info *pdata = mipi->pdev->dev.platform_data;
@@ -427,21 +423,7 @@ mipi_display_on_fail2:
 	return ret;
 }
 
-static void mipi_display_on(void *arg, struct fb_info *info)
-{
-	struct sh_mobile_lcdc_entity *entity = arg;
-	struct sh_mipi *mipi = to_sh_mipi(entity);
-	int ret;
-
-	ret = __mipi_display_on(entity, info);
-	if (ret < 0)
-		return;
-
-	if (mipi->next_display_on)
-		mipi->next_display_on(mipi->next_board_data, info);
-}
-
-static void __mipi_display_off(struct sh_mobile_lcdc_entity *entity)
+static void mipi_display_off(struct sh_mobile_lcdc_entity *entity)
 {
 	struct sh_mipi *mipi = to_sh_mipi(entity);
 	struct sh_mipi_dsi_info *pdata = mipi->pdev->dev.platform_data;
@@ -453,20 +435,9 @@ static void __mipi_display_off(struct sh_mobile_lcdc_entity *entity)
 	pm_runtime_put_sync(&mipi->pdev->dev);
 }
 
-static void mipi_display_off(void *arg)
-{
-	struct sh_mobile_lcdc_entity *entity = arg;
-	struct sh_mipi *mipi = to_sh_mipi(entity);
-
-	if (mipi->next_display_off)
-		mipi->next_display_off(mipi->next_board_data);
-
-	__mipi_display_off(entity);
-}
-
 static const struct sh_mobile_lcdc_entity_ops mipi_ops = {
-	.display_on = __mipi_display_on,
-	.display_off = __mipi_display_off,
+	.display_on = mipi_display_on,
+	.display_off = mipi_display_off,
 };
 
 static int __init sh_mipi_probe(struct platform_device *pdev)
@@ -559,17 +530,6 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 	mutex_unlock(&array_lock);
 	platform_set_drvdata(pdev, &mipi->entity);
 
-	/* Save original LCDC callbacks */
-	mipi->next_board_data = pdata->lcd_chan->board_cfg.board_data;
-	mipi->next_display_on = pdata->lcd_chan->board_cfg.display_on;
-	mipi->next_display_off = pdata->lcd_chan->board_cfg.display_off;
-
-	/* Set up LCDC callbacks */
-	pdata->lcd_chan->board_cfg.board_data = &mipi->entity;
-	pdata->lcd_chan->board_cfg.display_on = mipi_display_on;
-	pdata->lcd_chan->board_cfg.display_off = mipi_display_off;
-	pdata->lcd_chan->board_cfg.owner = THIS_MODULE;
-
 	return 0;
 
 eclkton:
@@ -594,7 +554,6 @@ efindslot:
 
 static int __exit sh_mipi_remove(struct platform_device *pdev)
 {
-	struct sh_mipi_dsi_info *pdata = pdev->dev.platform_data;
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct resource *res2 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	struct sh_mipi *mipi = to_sh_mipi(platform_get_drvdata(pdev));
@@ -616,11 +575,6 @@ static int __exit sh_mipi_remove(struct platform_device *pdev)
 
 	if (ret < 0)
 		return ret;
-
-	pdata->lcd_chan->board_cfg.owner = NULL;
-	pdata->lcd_chan->board_cfg.display_on = NULL;
-	pdata->lcd_chan->board_cfg.display_off = NULL;
-	pdata->lcd_chan->board_cfg.board_data = NULL;
 
 	pm_runtime_disable(&pdev->dev);
 	clk_disable(mipi->dsit_clk);
