@@ -2541,8 +2541,10 @@ enum nl80211_hidden_ssid {
 /**
  * enum nl80211_sta_wme_attr - station WME attributes
  * @__NL80211_STA_WME_INVALID: invalid number for nested attribute
- * @NL80211_STA_WME_QUEUES: bitmap of uapsd queues.
- * @NL80211_STA_WME_MAX_SP: max service period.
+ * @NL80211_STA_WME_UAPSD_QUEUES: bitmap of uapsd queues. the format
+ *	is the same as the AC bitmap in the QoS info field.
+ * @NL80211_STA_WME_MAX_SP: max service period. the format is the same
+ *	as the MAX_SP field in the QoS info field (but already shifted down).
  * @__NL80211_STA_WME_AFTER_LAST: internal
  * @NL80211_STA_WME_MAX: highest station WME attribute
  */

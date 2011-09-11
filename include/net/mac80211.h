@@ -955,6 +955,9 @@ enum set_key_cmd {
  * @wme: indicates whether the STA supports WME. Only valid during AP-mode.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
+ * @uapsd_queues: bitmap of queues configured for uapsd. Only valid
+ *	if wme is supported.
+ * @max_sp: max Service Period. Only valid if wme is supported.
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];

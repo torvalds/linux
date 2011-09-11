@@ -441,6 +441,10 @@ enum plink_actions {
  * @plink_action: plink action to take
  * @plink_state: set the peer link state for a station
  * @ht_capa: HT capabilities of station
+ * @uapsd_queues: bitmap of queues configured for uapsd. same format
+ *	as the AC bitmap in the QoS info field
+ * @max_sp: max Service Period. same format as the MAX_SP in the
+ *	QoS info field (but already shifted down)
  */
 struct station_parameters {
 	u8 *supported_rates;
