@@ -220,12 +220,12 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.board_cfg = {
 			.display_on = ap320_wvga_power_on,
 			.display_off = ap320_wvga_power_off,
-			.set_brightness = ap320_wvga_set_brightness,
-			.get_brightness = ap320_wvga_get_brightness,
 		},
 		.bl_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
+			.set_brightness = ap320_wvga_set_brightness,
+			.get_brightness = ap320_wvga_get_brightness,
 		},
 	}
 };

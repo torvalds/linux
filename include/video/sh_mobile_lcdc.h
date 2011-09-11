@@ -154,8 +154,6 @@ struct sh_mobile_lcdc_board_cfg {
 			       struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
 	void (*display_on)(void);
 	void (*display_off)(void);
-	int (*set_brightness)(int brightness);
-	int (*get_brightness)(void);
 };
 
 struct sh_mobile_lcdc_lcd_size_cfg { /* width and height of panel in mm */
@@ -167,6 +165,8 @@ struct sh_mobile_lcdc_lcd_size_cfg { /* width and height of panel in mm */
 struct sh_mobile_lcdc_bl_info {
 	const char *name;
 	int max_brightness;
+	int (*set_brightness)(int brightness);
+	int (*get_brightness)(void);
 };
 
 struct sh_mobile_lcdc_chan_cfg {

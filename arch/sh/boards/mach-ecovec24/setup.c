@@ -331,13 +331,11 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.width = 152,
 			.height = 91,
 		},
-		.board_cfg = {
-			.set_brightness = ecovec24_set_brightness,
-			.get_brightness = ecovec24_get_brightness,
-		},
 		.bl_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
+			.set_brightness = ecovec24_set_brightness,
+			.get_brightness = ecovec24_get_brightness,
 		},
 	}
 };

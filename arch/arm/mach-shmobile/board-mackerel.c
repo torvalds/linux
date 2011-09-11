@@ -391,13 +391,11 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.flags			= 0,
 		.lcd_size_cfg.width	= 152,
 		.lcd_size_cfg.height	= 91,
-		.board_cfg = {
-			.set_brightness = mackerel_set_brightness,
-			.get_brightness = mackerel_get_brightness,
-		},
 		.bl_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
+			.set_brightness = mackerel_set_brightness,
+			.get_brightness = mackerel_get_brightness,
 		},
 		.meram_cfg = &lcd_meram_cfg,
 	}

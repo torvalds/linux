@@ -1317,22 +1317,20 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 static int sh_mobile_lcdc_update_bl(struct backlight_device *bdev)
 {
 	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
-	struct sh_mobile_lcdc_board_cfg *cfg = &ch->cfg.board_cfg;
 	int brightness = bdev->props.brightness;
 
 	if (bdev->props.power != FB_BLANK_UNBLANK ||
 	    bdev->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
 		brightness = 0;
 
-	return cfg->set_brightness(brightness);
+	return ch->cfg.bl_info.set_brightness(brightness);
 }
 
 static int sh_mobile_lcdc_get_brightness(struct backlight_device *bdev)
 {
 	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
-	struct sh_mobile_lcdc_board_cfg *cfg = &ch->cfg.board_cfg;
 
-	return cfg->get_brightness();
+	return ch->cfg.bl_info.get_brightness();
 }
 
 static int sh_mobile_lcdc_check_fb(struct backlight_device *bdev,
