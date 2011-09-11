@@ -2228,6 +2228,12 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	    !IS_ALIGNED(destoff, bs))
 		goto out_unlock;
 
+	if (destoff > inode->i_size) {
+		ret = btrfs_cont_expand(inode, inode->i_size, destoff);
+		if (ret)
+			goto out_unlock;
+	}
+
 	/* do any pending delalloc/csum calc on src, one way or
 	   another, and lock file content */
 	while (1) {
