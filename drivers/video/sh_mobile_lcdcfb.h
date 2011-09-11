@@ -41,6 +41,8 @@ struct sh_mobile_lcdc_entity {
  */
 struct sh_mobile_lcdc_chan {
 	struct sh_mobile_lcdc_priv *lcdc;
+	struct sh_mobile_lcdc_entity *tx_dev;
+
 	unsigned long *reg_offs;
 	unsigned long ldmt1r_value;
 	unsigned long enabled; /* ME and SE in LDCNT2R */

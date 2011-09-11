@@ -339,6 +339,11 @@ static void sh_mobile_lcdc_display_on(struct sh_mobile_lcdc_chan *ch)
 {
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
 
+	if (ch->tx_dev) {
+		if (ch->tx_dev->ops->display_on(ch->tx_dev, ch->info) < 0)
+			return;
+	}
+
 	/* HDMI must be enabled before LCDC configuration */
 	if (board_cfg->display_on && try_module_get(board_cfg->owner)) {
 		board_cfg->display_on(board_cfg->board_data, ch->info);
@@ -354,6 +359,9 @@ static void sh_mobile_lcdc_display_off(struct sh_mobile_lcdc_chan *ch)
 		board_cfg->display_off(board_cfg->board_data);
 		module_put(board_cfg->owner);
 	}
+
+	if (ch->tx_dev)
+		ch->tx_dev->ops->display_off(ch->tx_dev);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1490,18 +1498,21 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	sh_mobile_lcdc_stop(priv);
 
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++) {
-		info = priv->ch[i].info;
+		struct sh_mobile_lcdc_chan *ch = &priv->ch[i];
 
+		info = ch->info;
 		if (!info || !info->device)
 			continue;
 
-		if (priv->ch[i].sglist)
-			vfree(priv->ch[i].sglist);
+		if (ch->tx_dev)
+			module_put(ch->cfg.tx_dev->dev.driver->owner);
+
+		if (ch->sglist)
+			vfree(ch->sglist);
 
 		if (info->screen_base)
 			dma_free_coherent(&pdev->dev, info->fix.smem_len,
-					  info->screen_base,
-					  priv->ch[i].dma_handle);
+					  info->screen_base, ch->dma_handle);
 		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}
@@ -1594,6 +1605,16 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 	info->par = ch;
 	info->pseudo_palette = &ch->pseudo_palette;
 	info->flags = FBINFO_FLAG_DEFAULT;
+
+	if (cfg->tx_dev) {
+		if (!cfg->tx_dev->dev.driver ||
+		    !try_module_get(cfg->tx_dev->dev.driver->owner)) {
+			dev_warn(priv->dev,
+				 "unable to get transmitter device\n");
+			return -EINVAL;
+		}
+		ch->tx_dev = platform_get_drvdata(cfg->tx_dev);
+	}
 
 	/* Iterate through the modes to validate them and find the highest
 	 * resolution.
