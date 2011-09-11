@@ -162,7 +162,7 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 	int ret = 0;
 
 	if (st->usb_buffer == NULL) {
-		st->usb_buffer = kmalloc(512, GFP_KERNEL);
+		st->usb_buffer = kmalloc(64, GFP_KERNEL);
 		if (st->usb_buffer == NULL) {
 			info("MEM Error no memory");
 			return -ENOMEM;
@@ -175,8 +175,8 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 	if (ret < 0)
 		return -EAGAIN;
 
-	/* the read/write capped at 512 */
-	memcpy(buff, wbuf, (wlen > 512) ? 512 : wlen);
+	/* the read/write capped at 64 */
+	memcpy(buff, wbuf, (wlen < 64) ? wlen : 64);
 
 	ret |= usb_clear_halt(d->udev, usb_sndbulkpipe(d->udev, 0x01));
 
@@ -186,8 +186,8 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 
 	ret |= usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, 0x01));
 
-	ret |= lme2510_bulk_read(d->udev, buff, (rlen > 512) ?
-			512 : rlen , 0x01);
+	ret |= lme2510_bulk_read(d->udev, buff, (rlen < 64) ?
+			rlen : 64 , 0x01);
 
 	if (rlen > 0)
 		memcpy(rbuf, buff, rlen);
@@ -580,7 +580,7 @@ static int lme2510_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	struct lme2510_state *st = d->priv;
-	static u8 obuf[64], ibuf[512];
+	static u8 obuf[64], ibuf[64];
 	int i, read, read_o;
 	u16 len;
 	u8 gate = st->i2c_gate;
@@ -621,7 +621,7 @@ static int lme2510_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			len = msg[i].len+3;
 		}
 
-		if (lme2510_msg(d, obuf, len, ibuf, 512) < 0) {
+		if (lme2510_msg(d, obuf, len, ibuf, 64) < 0) {
 			deb_info(1, "i2c transfer failed.");
 			return -EAGAIN;
 		}
@@ -1312,5 +1312,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.89");
+MODULE_VERSION("1.90");
 MODULE_LICENSE("GPL");
