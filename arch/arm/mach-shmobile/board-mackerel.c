@@ -427,10 +427,7 @@ static struct platform_device lcdc_device = {
 };
 
 /* HDMI */
-static struct sh_mobile_lcdc_info hdmi_lcdc_info;
-
 static struct sh_mobile_hdmi_info hdmi_info = {
-	.lcd_chan	= &hdmi_lcdc_info.ch[0],
 	.flags		= HDMI_SND_SRC_SPDIF,
 };
 
