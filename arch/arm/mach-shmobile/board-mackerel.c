@@ -369,7 +369,7 @@ static int mackerel_get_brightness(void)
 	return gpio_get_value(GPIO_PORT31);
 }
 
-static struct sh_mobile_meram_cfg lcd_meram_cfg = {
+static const struct sh_mobile_meram_cfg lcd_meram_cfg = {
 	.icb[0] = {
 		.meram_size     = 0x40,
 	},
@@ -455,7 +455,7 @@ static struct platform_device hdmi_device = {
 	},
 };
 
-static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
+static const struct sh_mobile_meram_cfg hdmi_meram_cfg = {
 	.icb[0] = {
 		.meram_size     = 0x100,
 	},

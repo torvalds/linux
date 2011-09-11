@@ -579,7 +579,8 @@ static const struct fb_videomode ap4evb_lcdc_modes[] = {
 #endif
 	},
 };
-static struct sh_mobile_meram_cfg lcd_meram_cfg = {
+
+static const struct sh_mobile_meram_cfg lcd_meram_cfg = {
 	.icb[0] = {
 		.meram_size     = 0x40,
 	},
@@ -856,7 +857,7 @@ static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
 	return error;
 }
 
-static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
+static const struct sh_mobile_meram_cfg hdmi_meram_cfg = {
 	.icb[0] = {
 		.meram_size     = 0x100,
 	},
