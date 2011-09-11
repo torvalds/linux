@@ -118,6 +118,62 @@ static inline void dma_direct_unmap_page(struct device *dev,
 	__dma_sync(dma_address, size, direction);
 }
 
+static inline void
+dma_direct_sync_single_for_cpu(struct device *dev,
+			       dma_addr_t dma_handle, size_t size,
+			       enum dma_data_direction direction)
+{
+	/*
+	 * It's pointless to flush the cache as the memory segment
+	 * is given to the CPU
+	 */
+
+	if (direction == DMA_FROM_DEVICE)
+		__dma_sync(dma_handle, size, direction);
+}
+
+static inline void
+dma_direct_sync_single_for_device(struct device *dev,
+				  dma_addr_t dma_handle, size_t size,
+				  enum dma_data_direction direction)
+{
+	/*
+	 * It's pointless to invalidate the cache if the device isn't
+	 * supposed to write to the relevant region
+	 */
+
+	if (direction == DMA_TO_DEVICE)
+		__dma_sync(dma_handle, size, direction);
+}
+
+static inline void
+dma_direct_sync_sg_for_cpu(struct device *dev,
+			   struct scatterlist *sgl, int nents,
+			   enum dma_data_direction direction)
+{
+	struct scatterlist *sg;
+	int i;
+
+	/* FIXME this part of code is untested */
+	if (direction == DMA_FROM_DEVICE)
+		for_each_sg(sgl, sg, nents, i)
+			__dma_sync(sg->dma_address, sg->length, direction);
+}
+
+static inline void
+dma_direct_sync_sg_for_device(struct device *dev,
+			      struct scatterlist *sgl, int nents,
+			      enum dma_data_direction direction)
+{
+	struct scatterlist *sg;
+	int i;
+
+	/* FIXME this part of code is untested */
+	if (direction == DMA_TO_DEVICE)
+		for_each_sg(sgl, sg, nents, i)
+			__dma_sync(sg->dma_address, sg->length, direction);
+}
+
 struct dma_map_ops dma_direct_ops = {
 	.alloc_coherent	= dma_direct_alloc_coherent,
 	.free_coherent	= dma_direct_free_coherent,
@@ -126,6 +182,10 @@ struct dma_map_ops dma_direct_ops = {
 	.dma_supported	= dma_direct_dma_supported,
 	.map_page	= dma_direct_map_page,
 	.unmap_page	= dma_direct_unmap_page,
+	.sync_single_for_cpu		= dma_direct_sync_single_for_cpu,
+	.sync_single_for_device		= dma_direct_sync_single_for_device,
+	.sync_sg_for_cpu		= dma_direct_sync_sg_for_cpu,
+	.sync_sg_for_device		= dma_direct_sync_sg_for_device,
 };
 EXPORT_SYMBOL(dma_direct_ops);
 
