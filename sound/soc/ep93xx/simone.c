@@ -39,53 +39,61 @@ static struct snd_soc_card snd_soc_simone = {
 };
 
 static struct platform_device *simone_snd_ac97_device;
-static struct platform_device *simone_snd_device;
+
+static int __devinit simone_probe(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = &snd_soc_simone;
+	int ret;
+
+	simone_snd_ac97_device = platform_device_register_simple("ac97-codec",
+								 -1, NULL, 0);
+	if (IS_ERR(simone_snd_ac97_device))
+		return PTR_ERR(simone_snd_ac97_device);
+
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
+	if (ret) {
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
+		platform_device_unregister(simone_snd_ac97_device);
+	}
+
+	return ret;
+}
+
+static int __devexit simone_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+	platform_device_unregister(simone_snd_ac97_device);
+
+	return 0;
+}
+
+static struct platform_driver simone_driver = {
+	.driver		= {
+		.name	= "simone-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= simone_probe,
+	.remove		= __devexit_p(simone_remove),
+};
 
 static int __init simone_init(void)
 {
-	int ret;
-
-	if (!machine_is_sim_one())
-		return -ENODEV;
-
-	simone_snd_ac97_device = platform_device_alloc("ac97-codec", -1);
-	if (!simone_snd_ac97_device)
-		return -ENOMEM;
-
-	ret = platform_device_add(simone_snd_ac97_device);
-	if (ret)
-		goto fail1;
-
-	simone_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!simone_snd_device) {
-		ret = -ENOMEM;
-		goto fail2;
-	}
-
-	platform_set_drvdata(simone_snd_device, &snd_soc_simone);
-	ret = platform_device_add(simone_snd_device);
-	if (ret)
-		goto fail3;
-
-	return 0;
-
-fail3:
-	platform_device_put(simone_snd_device);
-fail2:
-	platform_device_del(simone_snd_ac97_device);
-fail1:
-	platform_device_put(simone_snd_ac97_device);
-	return ret;
+	return platform_driver_register(&simone_driver);
 }
 module_init(simone_init);
 
 static void __exit simone_exit(void)
 {
-	platform_device_unregister(simone_snd_device);
-	platform_device_unregister(simone_snd_ac97_device);
+	platform_driver_unregister(&simone_driver);
 }
 module_exit(simone_exit);
 
 MODULE_DESCRIPTION("ALSA SoC Simplemachines Sim.One");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@iki.fi>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:simone-audio");
