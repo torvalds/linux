@@ -351,14 +351,14 @@ static struct fb_videomode mackerel_lcdc_modes[] = {
 	},
 };
 
-static int mackerel_set_brightness(void *board_data, int brightness)
+static int mackerel_set_brightness(int brightness)
 {
 	gpio_set_value(GPIO_PORT31, brightness);
 
 	return 0;
 }
 
-static int mackerel_get_brightness(void *board_data)
+static int mackerel_get_brightness(void)
 {
 	return gpio_get_value(GPIO_PORT31);
 }

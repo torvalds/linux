@@ -315,14 +315,12 @@ static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 		/* trigger panel update */
 		dma_map_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
 		if (bcfg->start_transfer)
-			bcfg->start_transfer(bcfg->board_data, ch,
-					     &sh_mobile_lcdc_sys_bus_ops);
+			bcfg->start_transfer(ch, &sh_mobile_lcdc_sys_bus_ops);
 		lcdc_write_chan(ch, LDSM2R, LDSM2R_OSTRG);
 		dma_unmap_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
 	} else {
 		if (bcfg->start_transfer)
-			bcfg->start_transfer(bcfg->board_data, ch,
-					     &sh_mobile_lcdc_sys_bus_ops);
+			bcfg->start_transfer(ch, &sh_mobile_lcdc_sys_bus_ops);
 		lcdc_write_chan(ch, LDSM2R, LDSM2R_OSTRG);
 	}
 }
@@ -346,7 +344,7 @@ static void sh_mobile_lcdc_display_on(struct sh_mobile_lcdc_chan *ch)
 
 	/* HDMI must be enabled before LCDC configuration */
 	if (board_cfg->display_on)
-		board_cfg->display_on(board_cfg->board_data, ch->info);
+		board_cfg->display_on();
 }
 
 static void sh_mobile_lcdc_display_off(struct sh_mobile_lcdc_chan *ch)
@@ -354,7 +352,7 @@ static void sh_mobile_lcdc_display_off(struct sh_mobile_lcdc_chan *ch)
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
 
 	if (board_cfg->display_off)
-		board_cfg->display_off(board_cfg->board_data);
+		board_cfg->display_off();
 
 	if (ch->tx_dev)
 		ch->tx_dev->ops->display_off(ch->tx_dev);
@@ -697,7 +695,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		board_cfg = &ch->cfg.board_cfg;
 		if (board_cfg->setup_sys) {
-			ret = board_cfg->setup_sys(board_cfg->board_data, ch,
+			ret = board_cfg->setup_sys(ch,
 						   &sh_mobile_lcdc_sys_bus_ops);
 			if (ret)
 				return ret;
@@ -1326,7 +1324,7 @@ static int sh_mobile_lcdc_update_bl(struct backlight_device *bdev)
 	    bdev->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
 		brightness = 0;
 
-	return cfg->set_brightness(cfg->board_data, brightness);
+	return cfg->set_brightness(brightness);
 }
 
 static int sh_mobile_lcdc_get_brightness(struct backlight_device *bdev)
@@ -1334,7 +1332,7 @@ static int sh_mobile_lcdc_get_brightness(struct backlight_device *bdev)
 	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
 	struct sh_mobile_lcdc_board_cfg *cfg = &ch->cfg.board_cfg;
 
-	return cfg->get_brightness(cfg->board_data);
+	return cfg->get_brightness();
 }
 
 static int sh_mobile_lcdc_check_fb(struct backlight_device *bdev,

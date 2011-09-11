@@ -310,14 +310,14 @@ static const struct fb_videomode ecovec_dvi_modes[] = {
 	},
 };
 
-static int ecovec24_set_brightness(void *board_data, int brightness)
+static int ecovec24_set_brightness(int brightness)
 {
 	gpio_set_value(GPIO_PTR1, brightness);
 
 	return 0;
 }
 
-static int ecovec24_get_brightness(void *board_data)
+static int ecovec24_get_brightness(void)
 {
 	return gpio_get_value(GPIO_PTR1);
 }

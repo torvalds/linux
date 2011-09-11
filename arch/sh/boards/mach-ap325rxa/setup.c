@@ -157,7 +157,7 @@ static struct platform_device nand_flash_device = {
 #define PORT_DRVCRA	0xA405018A
 #define PORT_DRVCRB	0xA405018C
 
-static int ap320_wvga_set_brightness(void *board_data, int brightness)
+static int ap320_wvga_set_brightness(int brightness)
 {
 	if (brightness) {
 		gpio_set_value(GPIO_PTS3, 0);
@@ -170,12 +170,12 @@ static int ap320_wvga_set_brightness(void *board_data, int brightness)
 	return 0;
 }
 
-static int ap320_wvga_get_brightness(void *board_data)
+static int ap320_wvga_get_brightness(void)
 {
 	return gpio_get_value(GPIO_PTS3);
 }
 
-static void ap320_wvga_power_on(void *board_data, struct fb_info *info)
+static void ap320_wvga_power_on(void)
 {
 	msleep(100);
 
@@ -183,7 +183,7 @@ static void ap320_wvga_power_on(void *board_data, struct fb_info *info)
 	__raw_writew(FPGA_LCDREG_VAL, FPGA_LCDREG);
 }
 
-static void ap320_wvga_power_off(void *board_data)
+static void ap320_wvga_power_off(void)
 {
 	/* ASD AP-320/325 LCD OFF */
 	__raw_writew(0, FPGA_LCDREG);

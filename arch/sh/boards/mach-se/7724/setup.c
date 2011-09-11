@@ -186,8 +186,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.width = 152,
 			.height = 91,
 		},
-		.board_cfg = {
-		},
 	}
 };
 

@@ -229,16 +229,6 @@ static void lcd_backlight_reset(void)
 	gpio_set_value(GPIO_PORT235, 1);
 }
 
-static void lcd_on(void *board_data, struct fb_info *info)
-{
-	lcd_backlight_on();
-}
-
-static void lcd_off(void *board_data)
-{
-	lcd_backlight_reset();
-}
-
 /* LCDC0 */
 static const struct fb_videomode lcdc0_modes[] = {
 	{
@@ -268,8 +258,8 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 		.lcd_cfg = lcdc0_modes,
 		.num_cfg = ARRAY_SIZE(lcdc0_modes),
 		.board_cfg = {
-			.display_on = lcd_on,
-			.display_off = lcd_off,
+			.display_on = lcd_backlight_on,
+			.display_off = lcd_backlight_reset,
 		},
 	}
 };
