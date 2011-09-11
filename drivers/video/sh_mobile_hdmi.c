@@ -208,6 +208,8 @@ enum hotplug_state {
 };
 
 struct sh_hdmi {
+	struct sh_mobile_lcdc_entity entity;
+
 	void __iomem *base;
 	enum hotplug_state hp_state;	/* hot-plug status */
 	u8 preprogrammed_vic;		/* use a pre-programmed VIC or
@@ -225,6 +227,7 @@ struct sh_hdmi {
 	struct notifier_block notifier;
 };
 
+#define entity_to_sh_hdmi(e)	container_of(e, struct sh_hdmi, entity)
 #define notifier_to_hdmi(n)	container_of(n, struct sh_hdmi, notifier)
 
 static void hdmi_write(struct sh_hdmi *hdmi, u8 data, u8 reg)
@@ -1001,13 +1004,14 @@ static irqreturn_t sh_hdmi_hotplug(int irq, void *dev_id)
 }
 
 /* locking:	called with info->lock held, or before register_framebuffer() */
-static void sh_hdmi_display_on(void *arg, struct fb_info *info)
+static int __sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity,
+				struct fb_info *info)
 {
 	/*
 	 * info is guaranteed to be valid, when we are called, because our
 	 * FB_EVENT_FB_UNBIND notify is also called with info->lock held
 	 */
-	struct sh_hdmi *hdmi = arg;
+	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
 	struct sh_mobile_lcdc_chan *ch = info->par;
 
 	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__, hdmi, info->state);
@@ -1032,17 +1036,34 @@ static void sh_hdmi_display_on(void *arg, struct fb_info *info)
 	default:
 		hdmi->var = ch->display_var;
 	}
+
+	return 0;
+}
+
+static void sh_hdmi_display_on(void *arg, struct fb_info *info)
+{
+	__sh_hdmi_display_on(arg, info);
 }
 
 /* locking: called with info->lock held */
-static void sh_hdmi_display_off(void *arg)
+static void __sh_hdmi_display_off(struct sh_mobile_lcdc_entity *entity)
 {
-	struct sh_hdmi *hdmi = arg;
+	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
 
 	dev_dbg(hdmi->dev, "%s(%p)\n", __func__, hdmi);
 	/* PS mode e->a */
 	hdmi_write(hdmi, 0x10, HDMI_SYSTEM_CTRL);
 }
+
+static void sh_hdmi_display_off(void *arg)
+{
+	__sh_hdmi_display_off(arg);
+}
+
+static const struct sh_mobile_lcdc_entity_ops sh_hdmi_ops = {
+	.display_on = __sh_hdmi_display_on,
+	.display_off = __sh_hdmi_display_off,
+};
 
 static bool sh_hdmi_must_reconfigure(struct sh_hdmi *hdmi)
 {
@@ -1157,7 +1178,7 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 				 */
 				info->var.width = hdmi->var.width;
 				info->var.height = hdmi->var.height;
-				sh_hdmi_display_on(hdmi, info);
+				__sh_hdmi_display_on(&hdmi->entity, info);
 			} else {
 				/* New monitor or have to wake up */
 				fb_set_suspend(info, 0);
@@ -1251,6 +1272,8 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 	mutex_init(&hdmi->mutex);
 
 	hdmi->dev = &pdev->dev;
+	hdmi->entity.owner = THIS_MODULE;
+	hdmi->entity.ops = &sh_hdmi_ops;
 
 	hdmi->hdmi_clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(hdmi->hdmi_clk)) {
@@ -1290,12 +1313,12 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto emap;
 	}
 
-	platform_set_drvdata(pdev, hdmi);
+	platform_set_drvdata(pdev, &hdmi->entity);
 
 	/* Set up LCDC callbacks */
 	board_cfg = &pdata->lcd_chan->board_cfg;
 	board_cfg->owner = THIS_MODULE;
-	board_cfg->board_data = hdmi;
+	board_cfg->board_data = &hdmi->entity;
 	board_cfg->display_on = sh_hdmi_display_on;
 	board_cfg->display_off = sh_hdmi_display_off;
 
@@ -1349,7 +1372,7 @@ egetclk:
 static int __exit sh_hdmi_remove(struct platform_device *pdev)
 {
 	struct sh_mobile_hdmi_info *pdata = pdev->dev.platform_data;
-	struct sh_hdmi *hdmi = platform_get_drvdata(pdev);
+	struct sh_hdmi *hdmi = entity_to_sh_hdmi(platform_get_drvdata(pdev));
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &pdata->lcd_chan->board_cfg;
 	int irq = platform_get_irq(pdev, 0);
