@@ -1375,7 +1375,7 @@ static void fimc_destroy_capture_subdev(struct fimc_dev *fimc)
 	media_entity_cleanup(&sd->entity);
 	v4l2_device_unregister_subdev(sd);
 	kfree(sd);
-	sd = NULL;
+	fimc->vid_cap.subdev = NULL;
 }
 
 /* Set default format at the sensor and host interface */
