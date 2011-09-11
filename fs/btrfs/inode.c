@@ -3510,15 +3510,19 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			err = btrfs_drop_extents(trans, inode, cur_offset,
 						 cur_offset + hole_size,
 						 &hint_byte, 1);
-			if (err)
+			if (err) {
+				btrfs_end_transaction(trans, root);
 				break;
+			}
 
 			err = btrfs_insert_file_extent(trans, root,
 					btrfs_ino(inode), cur_offset, 0,
 					0, hole_size, 0, hole_size,
 					0, 0, 0);
-			if (err)
+			if (err) {
+				btrfs_end_transaction(trans, root);
 				break;
+			}
 
 			btrfs_drop_extent_cache(inode, hole_start,
 					last_byte - 1, 0);
