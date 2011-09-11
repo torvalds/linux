@@ -302,7 +302,7 @@ struct rcu_data {
 	struct rcu_state *rsp;
 };
 
-/* Values for signaled field in struct rcu_state. */
+/* Values for fqs_state field in struct rcu_state. */
 #define RCU_GP_IDLE		0	/* No grace period in progress. */
 #define RCU_GP_INIT		1	/* Grace period being initialized. */
 #define RCU_SAVE_DYNTICK	2	/* Need to scan dyntick state. */
@@ -361,7 +361,7 @@ struct rcu_state {
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
-	u8	signaled ____cacheline_internodealigned_in_smp;
+	u8	fqs_state ____cacheline_internodealigned_in_smp;
 						/* Force QS state. */
 	u8	fqs_active;			/* force_quiescent_state() */
 						/*  is running. */

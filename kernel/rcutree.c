@@ -69,7 +69,7 @@ static struct lock_class_key rcu_node_class[NUM_RCU_LVLS];
 		NUM_RCU_LVL_3, \
 		NUM_RCU_LVL_4, /* == MAX_RCU_LVLS */ \
 	}, \
-	.signaled = RCU_GP_IDLE, \
+	.fqs_state = RCU_GP_IDLE, \
 	.gpnum = -300, \
 	.completed = -300, \
 	.onofflock = __RAW_SPIN_LOCK_UNLOCKED(&structname##_state.onofflock), \
@@ -866,8 +866,8 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	/* Advance to a new grace period and initialize state. */
 	rsp->gpnum++;
 	trace_rcu_grace_period(rsp->name, rsp->gpnum, "start");
-	WARN_ON_ONCE(rsp->signaled == RCU_GP_INIT);
-	rsp->signaled = RCU_GP_INIT; /* Hold off force_quiescent_state. */
+	WARN_ON_ONCE(rsp->fqs_state == RCU_GP_INIT);
+	rsp->fqs_state = RCU_GP_INIT; /* Hold off force_quiescent_state. */
 	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
 	record_gp_stall_check_time(rsp);
 
@@ -877,7 +877,7 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 		rnp->qsmask = rnp->qsmaskinit;
 		rnp->gpnum = rsp->gpnum;
 		rnp->completed = rsp->completed;
-		rsp->signaled = RCU_SIGNAL_INIT; /* force_quiescent_state OK. */
+		rsp->fqs_state = RCU_SIGNAL_INIT; /* force_quiescent_state OK */
 		rcu_start_gp_per_cpu(rsp, rnp, rdp);
 		rcu_preempt_boost_start_gp(rnp);
 		trace_rcu_grace_period_init(rsp->name, rnp->gpnum,
@@ -927,7 +927,7 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 
 	rnp = rcu_get_root(rsp);
 	raw_spin_lock(&rnp->lock);		/* irqs already disabled. */
-	rsp->signaled = RCU_SIGNAL_INIT; /* force_quiescent_state now OK. */
+	rsp->fqs_state = RCU_SIGNAL_INIT; /* force_quiescent_state now OK. */
 	raw_spin_unlock(&rnp->lock);		/* irqs remain disabled. */
 	raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
 }
@@ -991,7 +991,7 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 
 	rsp->completed = rsp->gpnum;  /* Declare the grace period complete. */
 	trace_rcu_grace_period(rsp->name, rsp->completed, "end");
-	rsp->signaled = RCU_GP_IDLE;
+	rsp->fqs_state = RCU_GP_IDLE;
 	rcu_start_gp(rsp, flags);  /* releases root node's rnp->lock. */
 }
 
@@ -1457,7 +1457,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		goto unlock_fqs_ret;  /* no GP in progress, time updated. */
 	}
 	rsp->fqs_active = 1;
-	switch (rsp->signaled) {
+	switch (rsp->fqs_state) {
 	case RCU_GP_IDLE:
 	case RCU_GP_INIT:
 
@@ -1473,7 +1473,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		force_qs_rnp(rsp, dyntick_save_progress_counter);
 		raw_spin_lock(&rnp->lock);  /* irqs already disabled */
 		if (rcu_gp_in_progress(rsp))
-			rsp->signaled = RCU_FORCE_QS;
+			rsp->fqs_state = RCU_FORCE_QS;
 		break;
 
 	case RCU_FORCE_QS:
