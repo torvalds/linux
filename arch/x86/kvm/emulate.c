@@ -1670,6 +1670,8 @@ static int em_grp3(struct x86_emulate_ctxt *ctxt)
 	switch (ctxt->modrm_reg) {
 	case 0 ... 1:	/* test */
 		emulate_2op_SrcV(ctxt, "test");
+		/* Disable writeback. */
+		ctxt->dst.type = OP_NONE;
 		break;
 	case 2:	/* not */
 		ctxt->dst.val = ~ctxt->dst.val;
@@ -2513,6 +2515,8 @@ static int em_cmp(struct x86_emulate_ctxt *ctxt)
 static int em_test(struct x86_emulate_ctxt *ctxt)
 {
 	emulate_2op_SrcV(ctxt, "test");
+	/* Disable writeback. */
+	ctxt->dst.type = OP_NONE;
 	return X86EMUL_CONTINUE;
 }
 
