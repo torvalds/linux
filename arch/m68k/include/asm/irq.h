@@ -62,67 +62,6 @@
 #define IRQ_FLG_STD	(0x8000)	/* internally used		*/
 #endif
 
-#ifndef CONFIG_GENERIC_HARDIRQS
-
-#include <linux/linkage.h>
-#include <linux/hardirq.h>
-#include <linux/irqreturn.h>
-#include <linux/spinlock_types.h>
-
-struct pt_regs;
-
-/*
- * This structure is used to chain together the ISRs for a particular
- * interrupt source (if it supports chaining).
- */
-struct irq_data {
-	unsigned int	irq;
-	irqreturn_t	(*handler)(int, void *);
-	void		*dev_id;
-	struct irq_data *next;
-	unsigned long	flags;
-	const char	*devname;
-};
-
-/*
- * This structure has only 4 elements for speed reasons
- */
-struct irq_handler {
-	int		(*handler)(int, void *);
-	unsigned long	flags;
-	void		*dev_id;
-	const char	*devname;
-};
-
-struct irq_chip {
-	const char *name;
-	unsigned int (*irq_startup)(struct irq_data *data);
-	void (*irq_shutdown)(struct irq_data *data);
-	void (*irq_enable)(struct irq_data *data);
-	void (*irq_disable)(struct irq_data *data);
-};
-
-extern unsigned int m68k_irq_startup(struct irq_data *data);
-extern unsigned int m68k_irq_startup_irq(unsigned int irq);
-extern void m68k_irq_shutdown(struct irq_data *data);
-
-/*
- * This function returns a new struct irq_data
- */
-extern struct irq_data *new_irq_node(void);
-
-extern void m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_regs *));
-extern void m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
-				      void (*handler)(unsigned int, struct pt_regs *));
-extern void m68k_setup_irq_chip(struct irq_chip *, unsigned int, unsigned int);
-#define m68k_setup_irq_controller(chip, dummy, irq, cnt) \
-	m68k_setup_irq_chip((chip), (irq), (cnt))
-
-extern void generic_handle_irq(unsigned int);
-asmlinkage void do_IRQ(int irq, struct pt_regs *regs);
-
-#else /* CONFIG_GENERIC_HARDIRQS */
-
 struct irq_data;
 struct irq_chip;
 struct irq_desc;
@@ -138,8 +77,6 @@ extern void m68k_setup_irq_controller(struct irq_chip *,
 				      void (*handle)(unsigned int irq,
 						     struct irq_desc *desc),
 				      unsigned int irq, unsigned int cnt);
-
-#endif /* CONFIG_GENERIC_HARDIRQS */
 
 extern unsigned int irq_canonicalize(unsigned int irq);
 

@@ -31,20 +31,6 @@ extern u32 auto_irqhandler_fixup[];
 extern u32 user_irqhandler_fixup[];
 extern u16 user_irqvec_fixup[];
 
-#ifndef CONFIG_GENERIC_HARDIRQS
-/* table for system interrupt handlers */
-static struct irq_data *irq_list[NR_IRQS];
-static struct irq_chip *irq_chip[NR_IRQS];
-static int irq_depth[NR_IRQS];
-
-static inline int irq_set_chip(unsigned int irq, struct irq_chip *chip)
-{
-	irq_chip[irq] = chip;
-	return 0;
-}
-#define irq_set_chip_and_handler(irq, chip, dummy)	irq_set_chip(irq, chip)
-#endif /* !CONFIG_GENERIC_HARDIRQS */
-
 static int m68k_first_user_vec;
 
 static struct irq_chip auto_irq_chip = {
@@ -58,11 +44,6 @@ static struct irq_chip user_irq_chip = {
 	.irq_startup	= m68k_irq_startup,
 	.irq_shutdown	= m68k_irq_shutdown,
 };
-
-#ifndef CONFIG_GENERIC_HARDIRQS
-#define NUM_IRQ_NODES 100
-static struct irq_data nodes[NUM_IRQ_NODES];
-#endif /* !CONFIG_GENERIC_HARDIRQS */
 
 /*
  * void init_IRQ(void)
@@ -133,8 +114,6 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 	flush_icache();
 }
 
-#ifdef CONFIG_GENERIC_HARDIRQS
-
 /**
  * m68k_setup_irq_controller
  * @chip: irq chip which controls specified irq
@@ -159,198 +138,6 @@ void m68k_setup_irq_controller(struct irq_chip *chip,
 			irq_set_handler(irq + i, handle);
 	}
 }
-
-#else /* !CONFIG_GENERIC_HARDIRQS */
-
-/**
- * m68k_setup_irq_chip
- * @contr: irq controller which controls specified irq
- * @irq: first irq to be managed by the controller
- *
- * Change the controller for the specified range of irq, which will be used to
- * manage these irq. auto/user irq already have a default controller, which can
- * be changed as well, but the controller probably should use m68k_irq_startup/
- * m68k_irq_shutdown.
- */
-void m68k_setup_irq_chip(struct irq_chip *contr, unsigned int irq,
-			       unsigned int cnt)
-{
-	int i;
-
-	for (i = 0; i < cnt; i++)
-		irq_set_chip(irq + i, contr);
-}
-
-struct irq_data *new_irq_node(void)
-{
-	struct irq_data *node;
-	short i;
-
-	for (node = nodes, i = NUM_IRQ_NODES-1; i >= 0; node++, i--) {
-		if (!node->handler) {
-			memset(node, 0, sizeof(*node));
-			return node;
-		}
-	}
-
-	printk ("new_irq_node: out of nodes\n");
-	return NULL;
-}
-
-static int m68k_setup_irq(unsigned int irq, struct irq_data *node)
-{
-	struct irq_chip *contr;
-	struct irq_data **prev;
-	unsigned long flags;
-
-	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
-		printk("%s: Incorrect IRQ %d from %s\n",
-		       __func__, irq, node->devname);
-		return -ENXIO;
-	}
-
-	local_irq_save(flags);
-
-	prev = irq_list + irq;
-	if (*prev) {
-		/* Can't share interrupts unless both agree to */
-		if (!((*prev)->flags & node->flags & IRQF_SHARED)) {
-			local_irq_restore(flags);
-			return -EBUSY;
-		}
-		while (*prev)
-			prev = &(*prev)->next;
-	}
-
-	if (!irq_list[irq]) {
-		if (contr->irq_startup)
-			contr->irq_startup(node);
-		else
-			contr->irq_enable(node);
-	}
-	node->next = NULL;
-	*prev = node;
-
-	local_irq_restore(flags);
-
-	return 0;
-}
-
-int request_irq(unsigned int irq,
-		irq_handler_t handler,
-		unsigned long flags, const char *devname, void *dev_id)
-{
-	struct irq_data *node;
-	int res;
-
-	node = new_irq_node();
-	if (!node)
-		return -ENOMEM;
-
-	node->irq     = irq;
-	node->handler = handler;
-	node->flags   = flags;
-	node->dev_id  = dev_id;
-	node->devname = devname;
-
-	res = m68k_setup_irq(irq, node);
-	if (res)
-		node->handler = NULL;
-
-	return res;
-}
-
-EXPORT_SYMBOL(request_irq);
-
-void free_irq(unsigned int irq, void *dev_id)
-{
-	struct irq_chip *contr;
-	struct irq_data **p, *node;
-	unsigned long flags;
-
-	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
-		printk("%s: Incorrect IRQ %d\n", __func__, irq);
-		return;
-	}
-
-	local_irq_save(flags);
-
-	p = irq_list + irq;
-	while ((node = *p)) {
-		if (node->dev_id == dev_id)
-			break;
-		p = &node->next;
-	}
-
-	if (node) {
-		*p = node->next;
-		node->handler = NULL;
-	} else
-		printk("%s: Removing probably wrong IRQ %d\n",
-		       __func__, irq);
-
-	if (!irq_list[irq]) {
-		if (contr->irq_shutdown)
-			contr->irq_shutdown(node);
-		else
-			contr->irq_disable(node);
-	}
-
-	local_irq_restore(flags);
-}
-
-EXPORT_SYMBOL(free_irq);
-
-void enable_irq(unsigned int irq)
-{
-	struct irq_chip *contr;
-	unsigned long flags;
-
-	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
-		printk("%s: Incorrect IRQ %d\n",
-		       __func__, irq);
-		return;
-	}
-
-	local_irq_save(flags);
-	if (irq_depth[irq]) {
-		if (!--irq_depth[irq]) {
-			if (contr->irq_enable)
-				contr->irq_enable(irq_list[irq]);
-		}
-	} else
-		WARN_ON(1);
-	local_irq_restore(flags);
-}
-
-EXPORT_SYMBOL(enable_irq);
-
-void disable_irq(unsigned int irq)
-{
-	struct irq_chip *contr;
-	unsigned long flags;
-
-	if (irq >= NR_IRQS || !(contr = irq_chip[irq])) {
-		printk("%s: Incorrect IRQ %d\n",
-		       __func__, irq);
-		return;
-	}
-
-	local_irq_save(flags);
-	if (!irq_depth[irq]++) {
-		if (contr->irq_disable)
-			contr->irq_disable(irq_list[irq]);
-	}
-	local_irq_restore(flags);
-}
-
-EXPORT_SYMBOL(disable_irq);
-
-void disable_irq_nosync(unsigned int irq) __attribute__((alias("disable_irq")));
-
-EXPORT_SYMBOL(disable_irq_nosync);
-
-#endif /* !CONFIG_GENERIC_HARDIRQS */
 
 unsigned int m68k_irq_startup_irq(unsigned int irq)
 {
@@ -377,36 +164,6 @@ void m68k_irq_shutdown(struct irq_data *data)
 }
 
 
-#ifndef CONFIG_GENERIC_HARDIRQS
-
-/*
- * Do we need these probe functions on the m68k?
- *
- *  ... may be useful with ISA devices
- */
-unsigned long probe_irq_on (void)
-{
-#ifdef CONFIG_Q40
-	if (MACH_IS_Q40)
-		return q40_probe_irq_on();
-#endif
-	return 0;
-}
-
-EXPORT_SYMBOL(probe_irq_on);
-
-int probe_irq_off (unsigned long irqs)
-{
-#ifdef CONFIG_Q40
-	if (MACH_IS_Q40)
-		return q40_probe_irq_off(irqs);
-#endif
-	return 0;
-}
-
-EXPORT_SYMBOL(probe_irq_off);
-#endif /* CONFIG_GENERIC_HARDIRQS */
-
 unsigned int irq_canonicalize(unsigned int irq)
 {
 #ifdef CONFIG_Q40
@@ -418,63 +175,9 @@ unsigned int irq_canonicalize(unsigned int irq)
 
 EXPORT_SYMBOL(irq_canonicalize);
 
-#ifndef CONFIG_GENERIC_HARDIRQS
-void generic_handle_irq(unsigned int irq)
-{
-	struct irq_data *node;
-	kstat_cpu(0).irqs[irq]++;
-	node = irq_list[irq];
-	do {
-		node->handler(irq, node->dev_id);
-		node = node->next;
-	} while (node);
-}
-
-asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
-{
-	struct pt_regs *old_regs;
-	old_regs = set_irq_regs(regs);
-	generic_handle_irq(irq);
-	set_irq_regs(old_regs);
-}
-
-asmlinkage void handle_badint(struct pt_regs *regs)
-{
-	kstat_cpu(0).irqs[0]++;
-	printk("unexpected interrupt from %u\n", regs->vector);
-}
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	struct irq_chip *contr;
-	struct irq_data *node;
-	int i = *(loff_t *) v;
-
-	/* autovector interrupts */
-	if (irq_list[i]) {
-		contr = irq_chip[i];
-		node = irq_list[i];
-		seq_printf(p, "%-8s %3u: %10u %s", contr->name, i, kstat_cpu(0).irqs[i], node->devname);
-		while ((node = node->next))
-			seq_printf(p, ", %s", node->devname);
-		seq_puts(p, "\n");
-	}
-	return 0;
-}
-
-#ifdef CONFIG_PROC_FS
-void init_irq_proc(void)
-{
-	/* Insert /proc/irq driver here */
-}
-#endif
-
-#else /* CONFIG_GENERIC_HARDIRQS */
 
 asmlinkage void handle_badint(struct pt_regs *regs)
 {
 	atomic_inc(&irq_err_count);
 	pr_warn("unexpected interrupt from %u\n", regs->vector);
 }
-
-#endif /* CONFIG_GENERIC_HARDIRQS */

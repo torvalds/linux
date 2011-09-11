@@ -19,9 +19,7 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#ifdef CONFIG_GENERIC_HARDIRQS
 #include <linux/irq.h>
-#endif
 
 #include <asm/bootinfo.h>
 #include <asm/macintosh.h>
@@ -32,11 +30,7 @@
 int oss_present;
 volatile struct mac_oss *oss;
 
-#ifdef CONFIG_GENERIC_HARDIRQS
 extern void via1_irq(unsigned int irq, struct irq_desc *desc);
-#else
-extern irqreturn_t via1_irq(int, void *);
-#endif
 
 /*
  * Initialize the OSS
@@ -76,7 +70,6 @@ void __init oss_nubus_init(void)
  * and SCSI; everything else is routed to its own autovector IRQ.
  */
 
-#ifdef CONFIG_GENERIC_HARDIRQS
 static void oss_irq(unsigned int irq, struct irq_desc *desc)
 {
 	int events;
@@ -103,35 +96,6 @@ static void oss_irq(unsigned int irq, struct irq_desc *desc)
 		/* FIXME: error check here? */
 	}
 }
-#else
-static irqreturn_t oss_irq(int irq, void *dev_id)
-{
-	int events;
-
-	events = oss->irq_pending & (OSS_IP_SOUND|OSS_IP_SCSI);
-	if (!events)
-		return IRQ_NONE;
-
-#ifdef DEBUG_IRQS
-	if ((console_loglevel == 10) && !(events & OSS_IP_SCSI)) {
-		printk("oss_irq: irq %d events = 0x%04X\n", irq,
-			(int) oss->irq_pending);
-	}
-#endif
-	/* FIXME: how do you clear a pending IRQ?    */
-
-	if (events & OSS_IP_SOUND) {
-		oss->irq_pending &= ~OSS_IP_SOUND;
-		/* FIXME: call sound handler */
-	} else if (events & OSS_IP_SCSI) {
-		oss->irq_pending &= ~OSS_IP_SCSI;
-		generic_handle_irq(IRQ_MAC_SCSI);
-	} else {
-		/* FIXME: error check here? */
-	}
-	return IRQ_HANDLED;
-}
-#endif
 
 /*
  * Nubus IRQ handler, OSS style
@@ -139,7 +103,6 @@ static irqreturn_t oss_irq(int irq, void *dev_id)
  * Unlike the VIA/RBV this is on its own autovector interrupt level.
  */
 
-#ifdef CONFIG_GENERIC_HARDIRQS
 static void oss_nubus_irq(unsigned int irq, struct irq_desc *desc)
 {
 	int events, irq_bit, i;
@@ -166,35 +129,6 @@ static void oss_nubus_irq(unsigned int irq, struct irq_desc *desc)
 		}
 	} while(events & (irq_bit - 1));
 }
-#else
-static irqreturn_t oss_nubus_irq(int irq, void *dev_id)
-{
-	int events, irq_bit, i;
-
-	events = oss->irq_pending & OSS_IP_NUBUS;
-	if (!events)
-		return IRQ_NONE;
-
-#ifdef DEBUG_NUBUS_INT
-	if (console_loglevel > 7) {
-		printk("oss_nubus_irq: events = 0x%04X\n", events);
-	}
-#endif
-	/* There are only six slots on the OSS, not seven */
-
-	i = 6;
-	irq_bit = 0x40;
-	do {
-		--i;
-		irq_bit >>= 1;
-		if (events & irq_bit) {
-			oss->irq_pending &= ~irq_bit;
-			generic_handle_irq(NUBUS_SOURCE_BASE + i);
-		}
-	} while(events & (irq_bit - 1));
-	return IRQ_HANDLED;
-}
-#endif
 
 /*
  * Register the OSS and NuBus interrupt dispatchers.
@@ -202,22 +136,10 @@ static irqreturn_t oss_nubus_irq(int irq, void *dev_id)
 
 void __init oss_register_interrupts(void)
 {
-#ifdef CONFIG_GENERIC_HARDIRQS
 	irq_set_chained_handler(OSS_IRQLEV_SCSI, oss_irq);
 	irq_set_chained_handler(OSS_IRQLEV_NUBUS, oss_nubus_irq);
 	irq_set_chained_handler(OSS_IRQLEV_SOUND, oss_irq);
 	irq_set_chained_handler(OSS_IRQLEV_VIA1, via1_irq);
-#else /* !CONFIG_GENERIC_HARDIRQS */
-	if (request_irq(OSS_IRQLEV_SCSI, oss_irq, 0, "scsi", (void *)oss))
-		pr_err("Couldn't register %s interrupt\n", "scsi");
-	if (request_irq(OSS_IRQLEV_NUBUS, oss_nubus_irq, 0, "nubus",
-			(void *)oss))
-		pr_err("Couldn't register %s interrupt\n", "nubus");
-	if (request_irq(OSS_IRQLEV_SOUND, oss_irq, 0, "sound", (void *)oss))
-		pr_err("Couldn't register %s interrupt\n", "sound");
-	if (request_irq(OSS_IRQLEV_VIA1, via1_irq, 0, "via1", (void *)via1))
-		pr_err("Couldn't register %s interrupt\n", "via1");
-#endif /* !CONFIG_GENERIC_HARDIRQS */
 }
 
 /*
