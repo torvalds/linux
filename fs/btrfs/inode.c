@@ -1786,7 +1786,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 			  &ordered_extent->list);
 
 	ret = btrfs_ordered_update_i_size(inode, 0, ordered_extent);
-	if (!ret) {
+	if (!ret || !test_bit(BTRFS_ORDERED_PREALLOC, &ordered_extent->flags)) {
 		ret = btrfs_update_inode(trans, root, inode);
 		BUG_ON(ret);
 	}
@@ -5788,7 +5788,7 @@ again:
 
 	add_pending_csums(trans, inode, ordered->file_offset, &ordered->list);
 	ret = btrfs_ordered_update_i_size(inode, 0, ordered);
-	if (!ret)
+	if (!ret || !test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags))
 		btrfs_update_inode(trans, root, inode);
 	ret = 0;
 out_unlock:
