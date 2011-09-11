@@ -168,9 +168,9 @@ static unsigned int file_hashval(struct inode *ino)
 	return hash_ptr(ino, FILE_HASH_BITS);
 }
 
-static unsigned int stateid_hashval(u32 owner_id, u32 file_id)
+static unsigned int stateid_hashval(stateid_t *s)
 {
-	return (owner_id + file_id) & STATEID_HASH_MASK;
+	return opaque_hashval(&s->si_opaque, sizeof(stateid_opaque_t)) & STATEID_HASH_MASK;
 }
 
 static struct list_head file_hashtbl[FILE_HASH_SIZE];
@@ -221,7 +221,7 @@ static inline void hash_stid(struct nfs4_stid *stid)
 	stateid_t *s = &stid->sc_stateid;
 	unsigned int hashval;
 
-	hashval = stateid_hashval(s->si_stateownerid, s->si_fileid);
+	hashval = stateid_hashval(s);
 	list_add(&stid->sc_hash, &stateid_hashtbl[hashval]);
 }
 
@@ -1083,7 +1083,7 @@ static struct nfs4_stid *find_stateid(stateid_t *t)
 	struct nfs4_stid *s;
 	unsigned int hashval;
 
-	hashval = stateid_hashval(t->si_stateownerid, t->si_fileid);
+	hashval = stateid_hashval(t);
 	list_for_each_entry(s, &stateid_hashtbl[hashval], sc_hash)
 		if (same_stateid(&s->sc_stateid, t))
 			return s;
