@@ -345,20 +345,16 @@ static void sh_mobile_lcdc_display_on(struct sh_mobile_lcdc_chan *ch)
 	}
 
 	/* HDMI must be enabled before LCDC configuration */
-	if (board_cfg->display_on && try_module_get(board_cfg->owner)) {
+	if (board_cfg->display_on)
 		board_cfg->display_on(board_cfg->board_data, ch->info);
-		module_put(board_cfg->owner);
-	}
 }
 
 static void sh_mobile_lcdc_display_off(struct sh_mobile_lcdc_chan *ch)
 {
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
 
-	if (board_cfg->display_off && try_module_get(board_cfg->owner)) {
+	if (board_cfg->display_off)
 		board_cfg->display_off(board_cfg->board_data);
-		module_put(board_cfg->owner);
-	}
 
 	if (ch->tx_dev)
 		ch->tx_dev->ops->display_off(ch->tx_dev);
