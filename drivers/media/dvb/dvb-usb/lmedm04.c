@@ -333,7 +333,7 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 	if (lme_int->lme_urb == NULL)
 			return -ENOMEM;
 
-	lme_int->buffer = usb_alloc_coherent(adap->dev->udev, 5000, GFP_ATOMIC,
+	lme_int->buffer = usb_alloc_coherent(adap->dev->udev, 128, GFP_ATOMIC,
 					&lme_int->lme_urb->transfer_dma);
 
 	if (lme_int->buffer == NULL)
@@ -343,10 +343,10 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 				adap->dev->udev,
 				usb_rcvintpipe(adap->dev->udev, 0xa),
 				lme_int->buffer,
-				4096,
+				128,
 				lme2510_int_response,
 				adap,
-				11);
+				8);
 
 	lme_int->lme_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -1261,7 +1261,7 @@ static void *lme2510_exit_int(struct dvb_usb_device *d)
 
 	if (st->lme_urb != NULL) {
 		usb_kill_urb(st->lme_urb);
-		usb_free_coherent(d->udev, 5000, st->buffer,
+		usb_free_coherent(d->udev, 128, st->buffer,
 				  st->lme_urb->transfer_dma);
 		info("Interrupt Service Stopped");
 	}
@@ -1312,5 +1312,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.88");
+MODULE_VERSION("1.89");
 MODULE_LICENSE("GPL");
