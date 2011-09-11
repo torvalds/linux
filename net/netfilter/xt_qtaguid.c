@@ -1947,8 +1947,15 @@ static int ctrl_cmd_tag(const char *input)
 		spin_lock_bh(&uid_tag_data_tree_lock);
 		pqd_entry = proc_qtu_data_tree_search(
 			&proc_qtu_data_tree, current->tgid);
-		/* TODO: remove if() test, do BUG_ON() */
-		WARN_ON(IS_ERR_OR_NULL(pqd_entry));
+		/*
+		 * TODO: remove if, and start failing.
+		 * At first, we want to catch user-space code that is not
+		 * opening the /dev/xt_qtaguid.
+		 */
+		WARN_ONCE(IS_ERR_OR_NULL(pqd_entry),
+			  "qtaguid: User space forgot to open /dev/xt_qtaguid? "
+			  "pid=%u tgid=%u uid=%u\n",
+			  current->pid, current->tgid, current_fsuid());
 		if (!IS_ERR_OR_NULL(pqd_entry)) {
 			list_add(&sock_tag_entry->list,
 				 &pqd_entry->sock_tag_list);
@@ -2027,8 +2034,15 @@ static int ctrl_cmd_untag(const char *input)
 	spin_lock_bh(&uid_tag_data_tree_lock);
 	pqd_entry = proc_qtu_data_tree_search(
 		&proc_qtu_data_tree, current->tgid);
-	/* TODO: remove if() test, do BUG_ON() */
-	WARN_ON(IS_ERR_OR_NULL(pqd_entry));
+	/*
+	 * TODO: remove if, and start failing.
+	 * At first, we want to catch user-space code that is not
+	 * opening the /dev/xt_qtaguid.
+	 */
+	WARN_ONCE(IS_ERR_OR_NULL(pqd_entry),
+		  "qtaguid: User space forgot to open /dev/xt_qtaguid? "
+		  "pid=%u tgid=%u uid=%u\n",
+		  current->pid, current->tgid, current_fsuid());
 	if (!IS_ERR_OR_NULL(pqd_entry))
 		list_del(&sock_tag_entry->list);
 	spin_unlock_bh(&uid_tag_data_tree_lock);
