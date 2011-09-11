@@ -28,7 +28,6 @@
 #endif
 
 extern u32 auto_irqhandler_fixup[];
-extern u32 user_irqhandler_fixup[];
 extern u16 user_irqvec_fixup[];
 
 static int m68k_first_user_vec;
@@ -91,16 +90,12 @@ void __init m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_re
  * m68k_setup_user_interrupt
  * @vec: first user vector interrupt to handle
  * @cnt: number of active user vector interrupts
- * @handler: called from user vector interrupts
  *
  * setup user vector interrupts, this includes activating the specified range
  * of interrupts, only then these interrupts can be requested (note: this is
- * different from auto vector interrupts). An optional handler can be installed
- * to be called instead of the default do_IRQ(), it will be called
- * with irq numbers starting from IRQ_USER.
+ * different from auto vector interrupts).
  */
-void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
-				      void (*handler)(unsigned int, struct pt_regs *))
+void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt)
 {
 	int i;
 
@@ -109,8 +104,6 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 	for (i = 0; i < cnt; i++)
 		irq_set_chip(IRQ_USER + i, &user_irq_chip);
 	*user_irqvec_fixup = vec - IRQ_USER;
-	if (handler)
-		*user_irqhandler_fixup = (u32)handler;
 	flush_icache();
 }
 

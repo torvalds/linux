@@ -137,7 +137,7 @@ static struct irq_chip atari_irq_chip = {
 
 void __init atari_init_IRQ(void)
 {
-	m68k_setup_user_interrupt(VEC_USER, NUM_ATARI_SOURCES - IRQ_USER, NULL);
+	m68k_setup_user_interrupt(VEC_USER, NUM_ATARI_SOURCES - IRQ_USER);
 	m68k_setup_irq_controller(&atari_irq_chip, handle_simple_irq, 1,
 				  NUM_ATARI_SOURCES - 1);
 

@@ -81,7 +81,7 @@ static void mvme147_get_model(char *model)
 
 void __init mvme147_init_IRQ(void)
 {
-	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
+	m68k_setup_user_interrupt(VEC_USER, 192);
 }
 
 void __init config_mvme147(void)

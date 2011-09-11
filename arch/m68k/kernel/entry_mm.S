@@ -48,7 +48,7 @@
 .globl sys_fork, sys_clone, sys_vfork
 .globl ret_from_interrupt, bad_interrupt
 .globl auto_irqhandler_fixup
-.globl user_irqvec_fixup, user_irqhandler_fixup
+.globl user_irqvec_fixup
 
 .text
 ENTRY(buserr)
@@ -240,7 +240,6 @@ user_irqvec_fixup = . + 2
 
 	movel	%sp,%sp@-
 	movel	%d0,%sp@-		|  put vector # on stack
-user_irqhandler_fixup = . + 2
 	jsr	do_IRQ			|  process the IRQ
 	addql	#8,%sp			|  pop parameters off stack
 
