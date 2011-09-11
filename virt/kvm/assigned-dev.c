@@ -86,13 +86,9 @@ static irqreturn_t kvm_assigned_dev_thread(int irq, void *dev_id)
 /* Ack the irq line for an assigned device */
 static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 {
-	struct kvm_assigned_dev_kernel *dev;
-
-	if (kian->gsi == -1)
-		return;
-
-	dev = container_of(kian, struct kvm_assigned_dev_kernel,
-			   ack_notifier);
+	struct kvm_assigned_dev_kernel *dev =
+		container_of(kian, struct kvm_assigned_dev_kernel,
+			     ack_notifier);
 
 	kvm_set_irq(dev->kvm, dev->irq_source_id, dev->guest_irq, 0);
 
@@ -110,8 +106,9 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 static void deassign_guest_irq(struct kvm *kvm,
 			       struct kvm_assigned_dev_kernel *assigned_dev)
 {
-	kvm_unregister_irq_ack_notifier(kvm, &assigned_dev->ack_notifier);
-	assigned_dev->ack_notifier.gsi = -1;
+	if (assigned_dev->ack_notifier.gsi != -1)
+		kvm_unregister_irq_ack_notifier(kvm,
+						&assigned_dev->ack_notifier);
 
 	kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
 		    assigned_dev->guest_irq, 0);
@@ -404,7 +401,8 @@ static int assign_guest_irq(struct kvm *kvm,
 
 	if (!r) {
 		dev->irq_requested_type |= guest_irq_type;
-		kvm_register_irq_ack_notifier(kvm, &dev->ack_notifier);
+		if (dev->ack_notifier.gsi != -1)
+			kvm_register_irq_ack_notifier(kvm, &dev->ack_notifier);
 	} else
 		kvm_free_irq_source_id(kvm, dev->irq_source_id);
 
