@@ -143,7 +143,7 @@ static void deassign_host_irq(struct kvm *kvm,
 
 		for (i = 0; i < assigned_dev->entries_nr; i++)
 			free_irq(assigned_dev->host_msix_entries[i].vector,
-				 (void *)assigned_dev);
+				 assigned_dev);
 
 		assigned_dev->entries_nr = 0;
 		kfree(assigned_dev->host_msix_entries);
@@ -153,7 +153,7 @@ static void deassign_host_irq(struct kvm *kvm,
 		/* Deal with MSI and INTx */
 		disable_irq(assigned_dev->host_irq);
 
-		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
+		free_irq(assigned_dev->host_irq, assigned_dev);
 
 		if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSI)
 			pci_disable_msi(assigned_dev->dev);
@@ -237,7 +237,7 @@ static int assigned_device_enable_host_intx(struct kvm *kvm,
 	 * are going to be long delays in accepting, acking, etc.
 	 */
 	if (request_threaded_irq(dev->host_irq, NULL, kvm_assigned_dev_thread,
-				 IRQF_ONESHOT, dev->irq_name, (void *)dev))
+				 IRQF_ONESHOT, dev->irq_name, dev))
 		return -EIO;
 	return 0;
 }
@@ -256,7 +256,7 @@ static int assigned_device_enable_host_msi(struct kvm *kvm,
 
 	dev->host_irq = dev->dev->irq;
 	if (request_threaded_irq(dev->host_irq, NULL, kvm_assigned_dev_thread,
-				 0, dev->irq_name, (void *)dev)) {
+				 0, dev->irq_name, dev)) {
 		pci_disable_msi(dev->dev);
 		return -EIO;
 	}
@@ -283,7 +283,7 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 	for (i = 0; i < dev->entries_nr; i++) {
 		r = request_threaded_irq(dev->host_msix_entries[i].vector,
 					 NULL, kvm_assigned_dev_thread,
-					 0, dev->irq_name, (void *)dev);
+					 0, dev->irq_name, dev);
 		if (r)
 			goto err;
 	}
@@ -291,7 +291,7 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 	return 0;
 err:
 	for (i -= 1; i >= 0; i--)
-		free_irq(dev->host_msix_entries[i].vector, (void *)dev);
+		free_irq(dev->host_msix_entries[i].vector, dev);
 	pci_disable_msix(dev->dev);
 	return r;
 }
