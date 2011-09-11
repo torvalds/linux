@@ -11,7 +11,6 @@
 #include <linux/gfp.h>
 #include <linux/dma-debug.h>
 #include <asm/bug.h>
-#include <asm/cacheflush.h>
 
 /*
  * Generic direct DMA implementation
@@ -21,21 +20,6 @@
  * can set archdata.dma_data to an unsigned long holding the offset. By
  * default the offset is PCI_DRAM_OFFSET.
  */
-static inline void __dma_sync_page(unsigned long paddr, unsigned long offset,
-				size_t size, enum dma_data_direction direction)
-{
-	switch (direction) {
-	case DMA_TO_DEVICE:
-	case DMA_BIDIRECTIONAL:
-		flush_dcache_range(paddr + offset, paddr + offset + size);
-		break;
-	case DMA_FROM_DEVICE:
-		invalidate_dcache_range(paddr + offset, paddr + offset + size);
-		break;
-	default:
-		BUG();
-	}
-}
 
 static unsigned long get_dma_direct_offset(struct device *dev)
 {
@@ -91,7 +75,7 @@ static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
 	/* FIXME this part of code is untested */
 	for_each_sg(sgl, sg, nents, i) {
 		sg->dma_address = sg_phys(sg) + get_dma_direct_offset(dev);
-		__dma_sync_page(page_to_phys(sg_page(sg)), sg->offset,
+		__dma_sync(page_to_phys(sg_page(sg)) + sg->offset,
 							sg->length, direction);
 	}
 
@@ -116,7 +100,7 @@ static inline dma_addr_t dma_direct_map_page(struct device *dev,
 					     enum dma_data_direction direction,
 					     struct dma_attrs *attrs)
 {
-	__dma_sync_page(page_to_phys(page), offset, size, direction);
+	__dma_sync(page_to_phys(page) + offset, size, direction);
 	return page_to_phys(page) + offset + get_dma_direct_offset(dev);
 }
 
@@ -131,7 +115,7 @@ static inline void dma_direct_unmap_page(struct device *dev,
  * phys_to_virt is here because in __dma_sync_page is __virt_to_phys and
  * dma_address is physical address
  */
-	__dma_sync_page(dma_address, 0 , size, direction);
+	__dma_sync(dma_address, size, direction);
 }
 
 struct dma_map_ops dma_direct_ops = {
