@@ -426,57 +426,8 @@ static struct platform_device lcdc_device = {
 	},
 };
 
-static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
-	.icb[0] = {
-		.marker_icb     = 30,
-		.cache_icb      = 26,
-		.meram_offset   = 0x80,
-		.meram_size     = 0x100,
-	},
-	.icb[1] = {
-		.marker_icb     = 31,
-		.cache_icb      = 27,
-		.meram_offset   = 0x180,
-		.meram_size     = 0x100,
-	},
-};
 /* HDMI */
-static struct sh_mobile_lcdc_info hdmi_lcdc_info = {
-	.meram_dev = &mackerel_meram_info,
-	.clock_source = LCDC_CLK_EXTERNAL,
-	.ch[0] = {
-		.chan = LCDC_CHAN_MAINLCD,
-		.fourcc = V4L2_PIX_FMT_RGB565,
-		.interface_type = RGB24,
-		.clock_divider = 1,
-		.flags = LCDC_FLAGS_DWPOL,
-		.meram_cfg = &hdmi_meram_cfg,
-	}
-};
-
-static struct resource hdmi_lcdc_resources[] = {
-	[0] = {
-		.name	= "LCDC1",
-		.start	= 0xfe944000,
-		.end	= 0xfe947fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= intcs_evt2irq(0x1780),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device hdmi_lcdc_device = {
-	.name		= "sh_mobile_lcdc_fb",
-	.num_resources	= ARRAY_SIZE(hdmi_lcdc_resources),
-	.resource	= hdmi_lcdc_resources,
-	.id		= 1,
-	.dev	= {
-		.platform_data	= &hdmi_lcdc_info,
-		.coherent_dma_mask = ~0,
-	},
-};
+static struct sh_mobile_lcdc_info hdmi_lcdc_info;
 
 static struct sh_mobile_hdmi_info hdmi_info = {
 	.lcd_chan	= &hdmi_lcdc_info.ch[0],
@@ -504,6 +455,59 @@ static struct platform_device hdmi_device = {
 	.id             = -1,
 	.dev	= {
 		.platform_data	= &hdmi_info,
+	},
+};
+
+static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
+	.icb[0] = {
+		.marker_icb     = 30,
+		.cache_icb      = 26,
+		.meram_offset   = 0x80,
+		.meram_size     = 0x100,
+	},
+	.icb[1] = {
+		.marker_icb     = 31,
+		.cache_icb      = 27,
+		.meram_offset   = 0x180,
+		.meram_size     = 0x100,
+	},
+};
+
+static struct sh_mobile_lcdc_info hdmi_lcdc_info = {
+	.meram_dev = &mackerel_meram_info,
+	.clock_source = LCDC_CLK_EXTERNAL,
+	.ch[0] = {
+		.chan = LCDC_CHAN_MAINLCD,
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.interface_type = RGB24,
+		.clock_divider = 1,
+		.flags = LCDC_FLAGS_DWPOL,
+		.meram_cfg = &hdmi_meram_cfg,
+		.tx_dev = &hdmi_device,
+	}
+};
+
+static struct resource hdmi_lcdc_resources[] = {
+	[0] = {
+		.name	= "LCDC1",
+		.start	= 0xfe944000,
+		.end	= 0xfe947fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= intcs_evt2irq(0x1780),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device hdmi_lcdc_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(hdmi_lcdc_resources),
+	.resource	= hdmi_lcdc_resources,
+	.id		= 1,
+	.dev	= {
+		.platform_data	= &hdmi_lcdc_info,
+		.coherent_dma_mask = ~0,
 	},
 };
 
@@ -1275,8 +1279,8 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&sh_mmcif_device,
 	&ceu_device,
 	&mackerel_camera,
-	&hdmi_lcdc_device,
 	&hdmi_device,
+	&hdmi_lcdc_device,
 	&meram_device,
 };
 

@@ -437,82 +437,6 @@ static struct platform_device usb1_host_device = {
 	.resource	= usb1_host_resources,
 };
 
-static const struct fb_videomode ap4evb_lcdc_modes[] = {
-	{
-#ifdef CONFIG_AP4EVB_QHD
-		.name		= "R63302(QHD)",
-		.xres		= 544,
-		.yres		= 961,
-		.left_margin	= 72,
-		.right_margin	= 600,
-		.hsync_len	= 16,
-		.upper_margin	= 8,
-		.lower_margin	= 8,
-		.vsync_len	= 2,
-		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
-#else
-		.name		= "WVGA Panel",
-		.xres		= 800,
-		.yres		= 480,
-		.left_margin	= 220,
-		.right_margin	= 110,
-		.hsync_len	= 70,
-		.upper_margin	= 20,
-		.lower_margin	= 5,
-		.vsync_len	= 5,
-		.sync		= 0,
-#endif
-	},
-};
-static struct sh_mobile_meram_cfg lcd_meram_cfg = {
-	.icb[0] = {
-		.marker_icb     = 28,
-		.cache_icb      = 24,
-		.meram_offset   = 0x0,
-		.meram_size     = 0x40,
-	},
-	.icb[1] = {
-		.marker_icb     = 29,
-		.cache_icb      = 25,
-		.meram_offset   = 0x40,
-		.meram_size     = 0x40,
-	},
-};
-
-static struct sh_mobile_lcdc_info lcdc_info = {
-	.meram_dev = &meram_info,
-	.ch[0] = {
-		.chan = LCDC_CHAN_MAINLCD,
-		.fourcc = V4L2_PIX_FMT_RGB565,
-		.lcd_cfg = ap4evb_lcdc_modes,
-		.num_cfg = ARRAY_SIZE(ap4evb_lcdc_modes),
-		.meram_cfg = &lcd_meram_cfg,
-	}
-};
-
-static struct resource lcdc_resources[] = {
-	[0] = {
-		.name	= "LCDC",
-		.start	= 0xfe940000, /* P4-only space */
-		.end	= 0xfe943fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= intcs_evt2irq(0x580),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device lcdc_device = {
-	.name		= "sh_mobile_lcdc_fb",
-	.num_resources	= ARRAY_SIZE(lcdc_resources),
-	.resource	= lcdc_resources,
-	.dev	= {
-		.platform_data	= &lcdc_info,
-		.coherent_dma_mask = ~0,
-	},
-};
-
 /*
  * QHD display
  */
@@ -593,6 +517,8 @@ static struct resource mipidsi0_resources[] = {
 	},
 };
 
+static struct sh_mobile_lcdc_info lcdc_info;
+
 static struct sh_mipi_dsi_info mipidsi0_info = {
 	.data_format	= MIPI_RGB888,
 	.lcd_chan	= &lcdc_info.ch[0],
@@ -618,6 +544,86 @@ static struct platform_device *qhd_devices[] __initdata = {
 	&keysc_device,
 };
 #endif /* CONFIG_AP4EVB_QHD */
+
+/* LCDC0 */
+static const struct fb_videomode ap4evb_lcdc_modes[] = {
+	{
+#ifdef CONFIG_AP4EVB_QHD
+		.name		= "R63302(QHD)",
+		.xres		= 544,
+		.yres		= 961,
+		.left_margin	= 72,
+		.right_margin	= 600,
+		.hsync_len	= 16,
+		.upper_margin	= 8,
+		.lower_margin	= 8,
+		.vsync_len	= 2,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+#else
+		.name		= "WVGA Panel",
+		.xres		= 800,
+		.yres		= 480,
+		.left_margin	= 220,
+		.right_margin	= 110,
+		.hsync_len	= 70,
+		.upper_margin	= 20,
+		.lower_margin	= 5,
+		.vsync_len	= 5,
+		.sync		= 0,
+#endif
+	},
+};
+static struct sh_mobile_meram_cfg lcd_meram_cfg = {
+	.icb[0] = {
+		.marker_icb     = 28,
+		.cache_icb      = 24,
+		.meram_offset   = 0x0,
+		.meram_size     = 0x40,
+	},
+	.icb[1] = {
+		.marker_icb     = 29,
+		.cache_icb      = 25,
+		.meram_offset   = 0x40,
+		.meram_size     = 0x40,
+	},
+};
+
+static struct sh_mobile_lcdc_info lcdc_info = {
+	.meram_dev = &meram_info,
+	.ch[0] = {
+		.chan = LCDC_CHAN_MAINLCD,
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.lcd_cfg = ap4evb_lcdc_modes,
+		.num_cfg = ARRAY_SIZE(ap4evb_lcdc_modes),
+		.meram_cfg = &lcd_meram_cfg,
+#ifdef CONFIG_AP4EVB_QHD
+		.tx_dev = &mipidsi0_device,
+#endif
+	}
+};
+
+static struct resource lcdc_resources[] = {
+	[0] = {
+		.name	= "LCDC",
+		.start	= 0xfe940000, /* P4-only space */
+		.end	= 0xfe943fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= intcs_evt2irq(0x580),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device lcdc_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(lcdc_resources),
+	.resource	= lcdc_resources,
+	.dev	= {
+		.platform_data	= &lcdc_info,
+		.coherent_dma_mask = ~0,
+	},
+};
 
 /* FSI */
 #define IRQ_FSI		evt2irq(0x1840)
@@ -798,61 +804,11 @@ static struct platform_device fsi_ak4643_device = {
 	},
 };
 
-static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
-	.icb[0] = {
-		.marker_icb     = 30,
-		.cache_icb      = 26,
-		.meram_offset   = 0x80,
-		.meram_size     = 0x100,
-	},
-	.icb[1] = {
-		.marker_icb     = 31,
-		.cache_icb      = 27,
-		.meram_offset   = 0x180,
-		.meram_size     = 0x100,
-	},
-};
-
-static struct sh_mobile_lcdc_info sh_mobile_lcdc1_info = {
-	.clock_source = LCDC_CLK_EXTERNAL,
-	.meram_dev = &meram_info,
-	.ch[0] = {
-		.chan = LCDC_CHAN_MAINLCD,
-		.fourcc = V4L2_PIX_FMT_RGB565,
-		.interface_type = RGB24,
-		.clock_divider = 1,
-		.flags = LCDC_FLAGS_DWPOL,
-		.meram_cfg = &hdmi_meram_cfg,
-	}
-};
-
-static struct resource lcdc1_resources[] = {
-	[0] = {
-		.name	= "LCDC1",
-		.start	= 0xfe944000,
-		.end	= 0xfe947fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= intcs_evt2irq(0x1780),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device lcdc1_device = {
-	.name		= "sh_mobile_lcdc_fb",
-	.num_resources	= ARRAY_SIZE(lcdc1_resources),
-	.resource	= lcdc1_resources,
-	.id             = 1,
-	.dev	= {
-		.platform_data	= &sh_mobile_lcdc1_info,
-		.coherent_dma_mask = ~0,
-	},
-};
-
+/* LCDC1 */
 static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
 				unsigned long *parent_freq);
 
+static struct sh_mobile_lcdc_info sh_mobile_lcdc1_info;
 
 static struct sh_mobile_hdmi_info hdmi_info = {
 	.lcd_chan = &sh_mobile_lcdc1_info.ch[0],
@@ -884,10 +840,6 @@ static struct platform_device hdmi_device = {
 	},
 };
 
-static struct platform_device fsi_hdmi_device = {
-	.name		= "sh_fsi2_b_hdmi",
-};
-
 static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
 				unsigned long *parent_freq)
 {
@@ -906,6 +858,63 @@ static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
 
 	return error;
 }
+
+static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
+	.icb[0] = {
+		.marker_icb     = 30,
+		.cache_icb      = 26,
+		.meram_offset   = 0x80,
+		.meram_size     = 0x100,
+	},
+	.icb[1] = {
+		.marker_icb     = 31,
+		.cache_icb      = 27,
+		.meram_offset   = 0x180,
+		.meram_size     = 0x100,
+	},
+};
+
+static struct sh_mobile_lcdc_info sh_mobile_lcdc1_info = {
+	.clock_source = LCDC_CLK_EXTERNAL,
+	.meram_dev = &meram_info,
+	.ch[0] = {
+		.chan = LCDC_CHAN_MAINLCD,
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.interface_type = RGB24,
+		.clock_divider = 1,
+		.flags = LCDC_FLAGS_DWPOL,
+		.meram_cfg = &hdmi_meram_cfg,
+		.tx_dev = &hdmi_device,
+	}
+};
+
+static struct resource lcdc1_resources[] = {
+	[0] = {
+		.name	= "LCDC1",
+		.start	= 0xfe944000,
+		.end	= 0xfe947fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= intcs_evt2irq(0x1780),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device lcdc1_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(lcdc1_resources),
+	.resource	= lcdc1_resources,
+	.id             = 1,
+	.dev	= {
+		.platform_data	= &sh_mobile_lcdc1_info,
+		.coherent_dma_mask = ~0,
+	},
+};
+
+static struct platform_device fsi_hdmi_device = {
+	.name		= "sh_fsi2_b_hdmi",
+};
 
 static struct gpio_led ap4evb_leds[] = {
 	{
@@ -1041,9 +1050,9 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&fsi_ak4643_device,
 	&fsi_hdmi_device,
 	&sh_mmcif_device,
-	&lcdc1_device,
-	&lcdc_device,
 	&hdmi_device,
+	&lcdc_device,
+	&lcdc1_device,
 	&ceu_device,
 	&ap4evb_camera,
 	&meram_device,
