@@ -210,20 +210,6 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	}
 	brcms_c_bsscfg_ID_assign(wlc, wlc->cfg);
 
-	wlc->wsec_def_keys[0] =
-		kzalloc(sizeof(struct wsec_key) * BRCMS_DEFAULT_KEYS,
-			GFP_ATOMIC);
-	if (wlc->wsec_def_keys[0] == NULL) {
-		*err = 1015;
-		goto fail;
-	} else {
-		int i;
-		for (i = 1; i < BRCMS_DEFAULT_KEYS; i++)
-			wlc->wsec_def_keys[i] = (struct wsec_key *)
-			    ((unsigned long)wlc->wsec_def_keys[0] +
-			     (sizeof(struct wsec_key) * i));
-	}
-
 	wlc->protection = kzalloc(sizeof(struct brcms_protection),
 				  GFP_ATOMIC);
 	if (wlc->protection == NULL) {
@@ -280,7 +266,6 @@ void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 	brcms_c_pub_mfree(wlc->pub);
 	kfree(wlc->modulecb);
 	kfree(wlc->default_bss);
-	kfree(wlc->wsec_def_keys[0]);
 	kfree(wlc->protection);
 	kfree(wlc->stf);
 	kfree(wlc->bandstate[0]);

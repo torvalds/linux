@@ -128,16 +128,6 @@ struct brcms_c_rateset {
 	u8 mcs[MCSSET_LEN];	/* supported mcs index bit map */
 };
 
-struct rsn_parms {
-	u8 flags;		/* misc booleans (e.g., supported) */
-	u8 multicast;	/* multicast cipher */
-	u8 ucount;		/* count of unicast ciphers */
-	u8 unicast[4];	/* unicast ciphers */
-	u8 acount;		/* count of auth modes */
-	u8 auth[4];		/* Authentication modes */
-	u8 PAD[4];		/* padding for future growth */
-};
-
 /* All the HT-specific default advertised capabilities (including AMPDU)
  * should be grouped here at one place
  */
@@ -160,8 +150,6 @@ struct brcms_bss_info {
 	s8 phy_noise;		/* noise right after tx (in dBm) */
 	u16 capability;	/* Capability information */
 	u8 wme_qosinfo;	/* QoS Info from WME IE; valid if BSS_WME flag set */
-	struct rsn_parms wpa;
-	struct rsn_parms wpa2;
 	u16 qbss_load_aac;	/* qbss load available admission capacity */
 	/* qbss_load_chan_free <- (0xff - chan utilization of qbss_load_ie_t) */
 	u8 qbss_load_chan_free;	/* indicates how free the channel is */

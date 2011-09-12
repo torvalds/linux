@@ -237,44 +237,6 @@ struct brcms_stf {
 #define BRCMS_CHAN_CHANNEL(x)     (((x) & RXS_CHAN_ID_MASK) \
 				   >> RXS_CHAN_ID_SHIFT)
 
-/* Maximum # of keys that wl driver supports in S/W.
- * Keys supported in H/W is less than or equal to WSEC_MAX_KEYS.
- */
-#define WSEC_MAX_KEYS		54 /* Max # of keys (50 + 4 default keys) */
-#define BRCMS_DEFAULT_KEYS	4 /* Default # of keys */
-
-/*
-* Max # of keys currently supported:
-*
-*     s/w keys if WSEC_SW(wlc->wsec).
-*     h/w keys otherwise.
-*/
-
-struct wsec_iv {
-	u32 hi;		/* upper 32 bits of IV */
-	u16 lo;		/* lower 16 bits of IV */
-};
-
-#define BRCMS_NUMRXIVS	16	/* # rx IVs (one per 802.11e TID) */
-
-struct wsec_key {
-	u8 ea[ETH_ALEN];	/* per station */
-	u8 idx;		/* key index in wsec_keys array */
-	u8 id;		/* key ID [0-3] */
-	u8 algo;	/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
-	u8 rcmta;	/* rcmta entry index, same as idx by default */
-	u16 flags;	/* misc flags */
-	u8 algo_hw;	/* cache for hw register */
-	u8 aes_mode;	/* cache for hw register */
-	s8 iv_len;	/* IV length */
-	s8 icv_len;	/* ICV length */
-	u32 len;	/* key length..don't move this var */
-	/* data is 4byte aligned */
-	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
-	struct wsec_iv rxiv[BRCMS_NUMRXIVS];	/* Rx IV (one per TID) */
-	struct wsec_iv txiv;		/* Tx IV */
-};
-
 /*
  * core state (mac)
  */
@@ -575,10 +537,6 @@ struct brcms_txq_info {
  * bsscfg: set of BSS configurations, idx 0 is default and always valid.
  * cfg: the primary bsscfg (can be AP or STA).
  * tx_queues: common TX Queue list.
- * wsec_keys[WSEC_MAX_KEYS]: dynamic key storage.
- * wsec_def_keys[BRCMS_DEFAULT_KEYS]: default key storage.
- * wsec_swkeys: indicates that all keys should be treated as
- *		sw keys (used for debugging).
  * modulecb:
  * mimoft: SIGN or 11N.
  * cck_40txbw: 11N, cck tx b/w override when in 40MHZ mode.
@@ -718,10 +676,6 @@ struct brcms_c_info {
 	/* tx queue */
 	struct brcms_txq_info *tx_queues;
 
-	/* security */
-	struct wsec_key *wsec_keys[WSEC_MAX_KEYS];
-	struct wsec_key *wsec_def_keys[BRCMS_DEFAULT_KEYS];
-	bool wsec_swkeys;
 	struct modulecb *modulecb;
 
 	u8 mimoft;
@@ -808,28 +762,6 @@ struct antsel_info {
  * nmac: # of entries on maclist array
  * macmode: allow/deny stations on maclist array
  * maclist: list of source MAC addrs to match
-
- * security
- * --------
- * wsec: wireless security bitvec
- * auth: 802.11 authentication: Open, Shared Key, WPA
- * openshared: try Open auth first, then Shared Key
- * wsec_restrict: drop unencrypted packets if wsec is enabled
- * eap_restrict: restrict data until 802.1X auth succeeds
- * WPA_auth: WPA authenticated key management
- * wpa2_preauth: default is true, wpa_cap sets value
- * wsec_portopen: indicates keys are plumbed
- * wpa_none_txiv: global txiv for WPA_NONE, tkip and aes
- * wsec_index: 0-3: default tx key, -1: not set
- * bss_def_keys: default key storage
- *
- * TKIP countermeasures
- * --------------------
- * tkip_countermeasures: flags TKIP no-assoc period
- * tk_cm_dt: detect timer
- * tk_cm_bt: blocking timer
- * tk_cm_bt_tmstmp: Timestamp when TKIP BT is activated
- * tk_cm_activate: activate countermeasures after EAPOL-Key sent
  *
  * BSSID: BSSID (associated)
  * cur_etheraddr: h/w address
@@ -839,12 +771,7 @@ struct antsel_info {
  * bcn: AP beacon
  * bcn_len: AP beacon length
  * ar_disassoc: disassociated in associated recreation
- * auth_atmptd: auth type (open/shared) attempted
  *
- * pmkid_cand: PMKID candidate list
- * npmkid_cand: num PMKID candidates
- * pmkid: PMKID cache
- * npmkid: num cached PMKIDs
  * current_bss: BSS parms in ASSOCIATED state
  *
  * PM states
@@ -853,8 +780,6 @@ struct antsel_info {
  * PMpending: waiting for tx status with PM indicated set
  * priorPMstate: Detecting PM state transitions
  * PSpoll: flags there is an outstanding PS-Poll frame
- *
- * rcmta: BSSID entry in RCMTA, use the wsec key to manage the RCMTA entries.
  *
  * ID: 'unique' ID of this bsscfg, assigned at bsscfg allocation
  *
@@ -875,22 +800,6 @@ struct brcms_bss_cfg {
 	uint nmac;
 	int macmode;
 	struct ether_addr *maclist;
-	u32 wsec;
-	s16 auth;
-	s16 openshared;
-	bool wsec_restrict;
-	bool eap_restrict;
-	u16 WPA_auth;
-	bool wpa2_preauth;
-	bool wsec_portopen;
-	struct wsec_iv wpa_none_txiv;
-	int wsec_index;
-	struct wsec_key *bss_def_keys[BRCMS_DEFAULT_KEYS];
-	bool tkip_countermeasures;
-	u32 tk_cm_dt;
-	u32 tk_cm_bt;
-	u32 tk_cm_bt_tmstmp;
-	bool tk_cm_activate;
 	u8 BSSID[ETH_ALEN];
 	u8 cur_etheraddr[ETH_ALEN];
 	u16 bcmc_fid;
@@ -899,17 +808,11 @@ struct brcms_bss_cfg {
 	u8 *bcn;
 	uint bcn_len;
 	bool ar_disassoc;
-	int auth_atmptd;
-	struct pmkid_cand pmkid_cand[MAXPMKID];
-	uint npmkid_cand;
-	struct pmkid pmkid[MAXPMKID];
-	uint npmkid;
 	struct brcms_bss_info *current_bss;
 	bool PMawakebcn;
 	bool PMpending;
 	bool priorPMstate;
 	bool PSpoll;
-	struct wsec_key *rcmta;
 	u16 ID;
 	uint txrspecidx;
 	u32 txrspec[NTXRATE][2];

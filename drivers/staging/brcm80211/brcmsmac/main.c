@@ -32,16 +32,6 @@
 #include "ucode_loader.h"
 #include "main.h"
 
-
-/*
- * WPA(2) definitions
- */
-#define RSN_CAP_4_REPLAY_CNTRS		2
-#define RSN_CAP_16_REPLAY_CNTRS		3
-
-#define WPA_CAP_4_REPLAY_CNTRS		RSN_CAP_4_REPLAY_CNTRS
-#define WPA_CAP_16_REPLAY_CNTRS		RSN_CAP_16_REPLAY_CNTRS
-
 /*
  * Indication for txflowcontrol that all priority bits in
  * TXQ_STOP_FOR_PRIOFC_MASK are to be considered.
@@ -180,9 +170,6 @@
 #define TXQ_STOP_FOR_PKT_DRAIN		0x00000100
 /* stop txq enqueue for ampdu flow control */
 #define TXQ_STOP_FOR_AMPDU_FLOW_CNTRL	0x00000200
-
-/* number of 802.11 default (non-paired, group keys) */
-#define WSEC_MAX_DEFAULT_KEYS	4	/* # of default keys */
 
 #define	BRCMS_HWRXOFF		38	/* chip rx buffer offset */
 
@@ -376,18 +363,7 @@
 #define BRCMS_TX_FIFO_ENAB(wlc, fifo) \
 			((wlc)->tx_prec_map |= (wlc)->fifo2prec_map[fifo])
 
-/*
- * if wpa is in use then portopen is true when the
- * group key is plumbed otherwise it is always true
- */
-#define WSEC_ENABLED(wsec) ((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED))
-
-#define BRCMS_SW_KEYS(wlc, bsscfg) ((((wlc)->wsec_swkeys) || \
-	((bsscfg)->wsec & WSEC_SWFLAG)))
-
-#define BRCMS_PORTOPEN(cfg) \
-	(((cfg)->WPA_auth != WPA_AUTH_DISABLED && WSEC_ENABLED((cfg)->wsec)) ? \
-	(cfg)->wsec_portopen : true)
+#define BRCMS_PORTOPEN(cfg) true
 
 #define brcms_b_copyfrom_shm(wlc_hw, offset, buf, len)                 \
 	brcms_b_copyfrom_objmem(wlc_hw, offset, buf, len, OBJADDR_SHM_SEL)
@@ -4325,8 +4301,6 @@ static void brcms_b_watchdog(void *arg)
 static void brcms_c_watchdog(void *arg)
 {
 	struct brcms_c_info *wlc = (struct brcms_c_info *) arg;
-	int i;
-	struct brcms_bss_cfg *cfg;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
@@ -4371,14 +4345,6 @@ static void brcms_c_watchdog(void *arg)
 	 */
 	if ((wlc->pub->now % SW_TIMER_MAC_STAT_UPD) == 0)
 		brcms_c_statsupd(wlc);
-
-	/* Manage TKIP countermeasures timers */
-	FOREACH_BSS(wlc, i, cfg)
-		if (cfg->tk_cm_dt)
-			cfg->tk_cm_dt--;
-		if (cfg->tk_cm_bt)
-			cfg->tk_cm_bt--;
-	END_FOREACH_BSS()
 
 	if (BRCMS_ISNPHY(wlc->band) && !wlc->pub->tempsense_disable &&
 	    ((wlc->pub->now - wlc->tempsense_lasttime) >=
@@ -4468,15 +4434,6 @@ void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 	/* default mac retry limits */
 	wlc->SRL = RETRY_SHORT_DEF;
 	wlc->LRL = RETRY_LONG_DEF;
-
-	/* Set flag to indicate that hw keys should be used when available. */
-	wlc->wsec_swkeys = false;
-
-	/* init the 4 static WEP default keys */
-	for (i = 0; i < WSEC_MAX_DEFAULT_KEYS; i++) {
-		wlc->wsec_keys[i] = wlc->wsec_def_keys[i];
-		wlc->wsec_keys[i]->idx = (u8) i;
-	}
 
 	/* WME QoS mode is Auto by default */
 	wlc->pub->_wme = AUTO;
@@ -7128,7 +7085,7 @@ static u16
 brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		     struct sk_buff *p, struct scb *scb, uint frag,
 		     uint nfrags, uint queue, uint next_frag_len,
-		     struct wsec_key *key, u32 rspec_override)
+		     u32 rspec_override)
 {
 	struct ieee80211_hdr *h;
 	struct d11txh *txh;
@@ -7170,14 +7127,6 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	/* compute length of frame in bytes for use in PLCP computations */
 	len = brcmu_pkttotlen(p);
 	phylen = len + FCS_LEN;
-
-	/* If WEP enabled, add room in phylen for the additional bytes of
-	 * ICV which MAC generates.  We do NOT add the additional bytes to
-	 * the packet itself, thus phylen = packet length + ICV_LEN + FCS_LEN
-	 * in this case
-	 */
-	if (key)
-		phylen += key->icv_len;
 
 	/* Get tx_info */
 	tx_info = IEEE80211_SKB_CB(p);
@@ -7796,9 +7745,7 @@ void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 	prio = ieee80211_is_data(d11_header->frame_control) ? sdu->priority :
 		MAXPRIO;
 	fifo = prio2fifo[prio];
-	if (unlikely
-	    (brcms_c_d11hdrs_mac80211(
-		wlc, hw, sdu, scb, 0, 1, fifo, 0, NULL, 0)))
+	if (brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0, 0))
 		return;
 	brcms_c_txq_enq(wlc, scb, sdu, BRCMS_PRIO_TO_PREC(prio));
 	brcms_c_send_q(wlc);
