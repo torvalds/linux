@@ -68,6 +68,9 @@
 #define VEC_POS(v) ((v) & (32 - 1))
 #define REG_POS(v) (((v) >> 5) << 4)
 
+static unsigned int min_timer_period_us = 500;
+module_param(min_timer_period_us, uint, S_IRUGO | S_IWUSR);
+
 static inline u32 apic_get_reg(struct kvm_lapic *apic, int reg_off)
 {
 	return *((u32 *) (apic->regs + reg_off));
@@ -677,8 +680,16 @@ static void start_apic_timer(struct kvm_lapic *apic)
 	 * scheduler.
 	 */
 	if (apic_lvtt_period(apic)) {
-		if (apic->lapic_timer.period < NSEC_PER_MSEC/2)
-			apic->lapic_timer.period = NSEC_PER_MSEC/2;
+		s64 min_period = min_timer_period_us * 1000LL;
+
+		if (apic->lapic_timer.period < min_period) {
+			pr_info_ratelimited(
+				"kvm: vcpu %i: requested %lld ns "
+				"lapic timer period limited to %lld ns\n",
+				apic->vcpu->vcpu_id, apic->lapic_timer.period,
+				min_period);
+			apic->lapic_timer.period = min_period;
+		}
 	}
 
 	hrtimer_start(&apic->lapic_timer.timer,
