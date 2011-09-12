@@ -34,6 +34,7 @@
 #include "endpoint.h"
 #include "pcm.h"
 #include "clock.h"
+#include "stream.h"
 
 /*
  * handle the quirks for the contained interfaces
@@ -106,7 +107,7 @@ static int create_standard_audio_quirk(struct snd_usb_audio *chip,
 
 	alts = &iface->altsetting[0];
 	altsd = get_iface_desc(alts);
-	err = snd_usb_parse_audio_endpoints(chip, altsd->bInterfaceNumber);
+	err = snd_usb_parse_audio_interface(chip, altsd->bInterfaceNumber);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot setup if %d: error %d\n",
 			   altsd->bInterfaceNumber, err);
@@ -147,7 +148,7 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 
 	stream = (fp->endpoint & USB_DIR_IN)
 		? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
-	err = snd_usb_add_audio_endpoint(chip, stream, fp);
+	err = snd_usb_add_audio_stream(chip, stream, fp);
 	if (err < 0) {
 		kfree(fp);
 		kfree(rate_table);
@@ -254,7 +255,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 
 	stream = (fp->endpoint & USB_DIR_IN)
 		? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
-	err = snd_usb_add_audio_endpoint(chip, stream, fp);
+	err = snd_usb_add_audio_stream(chip, stream, fp);
 	if (err < 0) {
 		kfree(fp);
 		return err;
