@@ -96,11 +96,12 @@ static const unsigned int csi2_input_fmts[] = {
 	V4L2_MBUS_FMT_SBGGR10_DPCM8_1X8,
 	V4L2_MBUS_FMT_SGBRG10_1X10,
 	V4L2_MBUS_FMT_SGBRG10_DPCM8_1X8,
+	V4L2_MBUS_FMT_YUYV8_2X8,
 };
 
 /* To set the format on the CSI2 requires a mapping function that takes
  * the following inputs:
- * - 2 different formats (at this time)
+ * - 3 different formats (at this time)
  * - 2 destinations (mem, vp+mem) (vp only handled separately)
  * - 2 decompression options (on, off)
  * - 2 isp revisions (certain format must be handled differently on OMAP3630)
@@ -108,7 +109,7 @@ static const unsigned int csi2_input_fmts[] = {
  * Array indices as follows: [format][dest][decompr][is_3630]
  * Not all combinations are valid. 0 means invalid.
  */
-static const u16 __csi2_fmt_map[2][2][2][2] = {
+static const u16 __csi2_fmt_map[3][2][2][2] = {
 	/* RAW10 formats */
 	{
 		/* Output to memory */
@@ -147,6 +148,25 @@ static const u16 __csi2_fmt_map[2][2][2][2] = {
 			  CSI2_USERDEF_8BIT_DATA1_DPCM10_VP },
 		},
 	},
+	/* YUYV8 2X8 formats */
+	{
+		/* Output to memory */
+		{
+			/* No DPCM decompression */
+			{ CSI2_PIX_FMT_YUV422_8BIT,
+			  CSI2_PIX_FMT_YUV422_8BIT },
+			/* DPCM decompression */
+			{ 0, 0 },
+		},
+		/* Output to both */
+		{
+			/* No DPCM decompression */
+			{ CSI2_PIX_FMT_YUV422_8BIT_VP,
+			  CSI2_PIX_FMT_YUV422_8BIT_VP },
+			/* DPCM decompression */
+			{ 0, 0 },
+		},
+	},
 };
 
 /*
@@ -172,6 +192,9 @@ static u16 csi2_ctx_map_format(struct isp_csi2_device *csi2)
 	case V4L2_MBUS_FMT_SBGGR10_DPCM8_1X8:
 	case V4L2_MBUS_FMT_SGBRG10_DPCM8_1X8:
 		fmtidx = 1;
+		break;
+	case V4L2_MBUS_FMT_YUYV8_2X8:
+		fmtidx = 2;
 		break;
 	default:
 		WARN(1, KERN_ERR "CSI2: pixel format %08x unsupported!\n",
