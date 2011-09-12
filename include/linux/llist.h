@@ -138,6 +138,11 @@ static inline bool llist_empty(const struct llist_head *head)
 	return ACCESS_ONCE(head->first) == NULL;
 }
 
+static inline struct llist_node *llist_next(struct llist_node *node)
+{
+	return node->next;
+}
+
 /**
  * llist_add - add a new entry
  * @new:	new entry to be added
