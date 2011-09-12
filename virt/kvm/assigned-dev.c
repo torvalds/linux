@@ -58,8 +58,6 @@ static int find_index_from_host_irq(struct kvm_assigned_dev_kernel
 static irqreturn_t kvm_assigned_dev_thread(int irq, void *dev_id)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev = dev_id;
-	u32 vector;
-	int index;
 
 	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_INTX) {
 		spin_lock(&assigned_dev->intx_lock);
@@ -68,20 +66,28 @@ static irqreturn_t kvm_assigned_dev_thread(int irq, void *dev_id)
 		spin_unlock(&assigned_dev->intx_lock);
 	}
 
-	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
-		index = find_index_from_host_irq(assigned_dev, irq);
-		if (index >= 0) {
-			vector = assigned_dev->
-					guest_msix_entries[index].vector;
-			kvm_set_irq(assigned_dev->kvm,
-				    assigned_dev->irq_source_id, vector, 1);
-		}
-	} else
-		kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
-			    assigned_dev->guest_irq, 1);
+	kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
+		    assigned_dev->guest_irq, 1);
 
 	return IRQ_HANDLED;
 }
+
+#ifdef __KVM_HAVE_MSIX
+static irqreturn_t kvm_assigned_dev_thread_msix(int irq, void *dev_id)
+{
+	struct kvm_assigned_dev_kernel *assigned_dev = dev_id;
+	int index = find_index_from_host_irq(assigned_dev, irq);
+	u32 vector;
+
+	if (index >= 0) {
+		vector = assigned_dev->guest_msix_entries[index].vector;
+		kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
+			    vector, 1);
+	}
+
+	return IRQ_HANDLED;
+}
+#endif
 
 /* Ack the irq line for an assigned device */
 static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
@@ -279,7 +285,7 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 
 	for (i = 0; i < dev->entries_nr; i++) {
 		r = request_threaded_irq(dev->host_msix_entries[i].vector,
-					 NULL, kvm_assigned_dev_thread,
+					 NULL, kvm_assigned_dev_thread_msix,
 					 0, dev->irq_name, dev);
 		if (r)
 			goto err;
