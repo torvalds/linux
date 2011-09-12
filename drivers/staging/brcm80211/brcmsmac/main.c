@@ -1058,7 +1058,7 @@ static void brcms_b_info_init(struct brcms_hardware *wlc_hw)
 	/* default mac retry limits */
 	wlc_hw->SRL = RETRY_SHORT_DEF;
 	wlc_hw->LRL = RETRY_LONG_DEF;
-	wlc_hw->chanspec = CH20MHZ_CHSPEC(1);
+	wlc_hw->chanspec = ch20mhz_chspec(1);
 }
 
 static void brcms_b_wait_for_wake(struct brcms_hardware *wlc_hw)
@@ -3266,7 +3266,7 @@ static brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec,
 	macintmask = brcms_intrsoff(wlc->wl);
 
 	/* set up the specified band and chanspec */
-	brcms_c_setxband(wlc_hw, CHSPEC_BANDUNIT(chanspec));
+	brcms_c_setxband(wlc_hw, chspec_bandunit(chanspec));
 	wlc_phy_chanspec_radio_set(wlc_hw->band->pi, chanspec);
 
 	/* do one-time phy inits and calibration */
@@ -3366,7 +3366,7 @@ static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 		band_order[0] = band_order[1] = parkband;
 	} else {
 		/* park on the band of the specified chanspec */
-		parkband = CHSPEC_BANDUNIT(chanspec);
+		parkband = chspec_bandunit(chanspec);
 
 		/* order so that parkband initialize last */
 		band_order[0] = parkband ^ 1;
@@ -3815,7 +3815,7 @@ brcms_b_set_chanspec(struct brcms_hardware *wlc_hw, u16 chanspec,
 
 	/* Switch bands if necessary */
 	if (wlc_hw->_nbands > 1) {
-		bandunit = CHSPEC_BANDUNIT(chanspec);
+		bandunit = chspec_bandunit(chanspec);
 		if (wlc_hw->band->bandunit != bandunit) {
 			/* brcms_b_setband disables other bandunit,
 			 *  use light band switch if not up yet
@@ -3885,7 +3885,7 @@ void brcms_c_set_chanspec(struct brcms_c_info *wlc, u16 chanspec)
 
 	/* Switch bands if necessary */
 	if (wlc->pub->_nbands > 1) {
-		bandunit = CHSPEC_BANDUNIT(chanspec);
+		bandunit = chspec_bandunit(chanspec);
 		if (wlc->band->bandunit != bandunit || wlc->bandinit_pending) {
 			switchband = true;
 			if (wlc->bandlocked) {
@@ -4428,7 +4428,7 @@ void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 	wlc->device_present = true;
 
 	/* Save our copy of the chanspec */
-	wlc->chanspec = CH20MHZ_CHSPEC(1);
+	wlc->chanspec = ch20mhz_chspec(1);
 
 	/* various 802.11g modes */
 	wlc->shortslot = false;
@@ -4974,13 +4974,13 @@ static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 	/* fill the default channel as the first valid channel
 	 * starting from the 2G channels
 	 */
-	chanspec = CH20MHZ_CHSPEC(1);
+	chanspec = ch20mhz_chspec(1);
 	wlc->home_chanspec = bi->chanspec = chanspec;
 
 	/* find the band of our default channel */
 	band = wlc->band;
 	if (wlc->pub->_nbands > 1 &&
-	    band->bandunit != CHSPEC_BANDUNIT(chanspec))
+	    band->bandunit != chspec_bandunit(chanspec))
 		band = wlc->bandstate[OTHERBANDUNIT(wlc)];
 
 	/* init bss rates to the band specific default rate set */
@@ -6222,7 +6222,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 	switch (cmd) {
 
 	case BRCM_SET_CHANNEL:{
-			u16 chspec = CH20MHZ_CHSPEC(val);
+			u16 chspec = ch20mhz_chspec(val);
 
 			if (val < 0 || val > MAXCHANNEL) {
 				bcmerror = -EINVAL;
@@ -6236,7 +6236,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 
 			if (!wlc->pub->up && IS_MBAND_UNLOCKED(wlc)) {
 				if (wlc->band->bandunit !=
-				    CHSPEC_BANDUNIT(chspec))
+				    chspec_bandunit(chspec))
 					wlc->bandinit_pending = true;
 				else
 					wlc->bandinit_pending = false;
@@ -6787,7 +6787,7 @@ brcms_c_prec_enq_head(struct brcms_c_info *wlc, struct pktq *q,
 	if (eprec >= 0) {
 		bool discard_oldest;
 
-		discard_oldest = AC_BITMAP_TST(wlc->wme_dp, eprec);
+		discard_oldest = ac_bitmap_tst(wlc->wme_dp, eprec);
 
 		/* Refuse newer packet unless configured to discard oldest */
 		if (eprec == prec && !discard_oldest) {

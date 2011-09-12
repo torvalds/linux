@@ -389,10 +389,6 @@ extern const u8 wlc_prio2prec_map[];
 
 #define	MAXBANDS		2	/* Maximum #of bands */
 
-/* bandstate array indices */
-#define BAND_2G_INDEX		0	/* wlc->bandstate[x] index */
-#define BAND_5G_INDEX		1	/* wlc->bandstate[x] index */
-
 /* max number of antenna configurations */
 #define ANT_SELCFG_MAX		4
 

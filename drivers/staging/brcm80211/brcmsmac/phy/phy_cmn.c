@@ -596,7 +596,7 @@ wlc_phy_attach(struct shared_phy *sh, struct d11regs *regs, int bandtype,
 
 	pi->bw = WL_CHANSPEC_BW_20;
 	pi->radio_chanspec = (bandtype == BRCM_BAND_2G) ?
-			     CH20MHZ_CHSPEC(1) : CH20MHZ_CHSPEC(36);
+			     ch20mhz_chspec(1) : ch20mhz_chspec(36);
 
 	pi->rxiq_samps = PHY_NOISE_SAMPLE_LOG_NUM_NPHY;
 	pi->rxiq_antsel = ANT_RX_DIV_DEF;
@@ -1375,7 +1375,7 @@ u16 wlc_phy_chanspec_band_firstch(struct brcms_phy_pub *ppi, uint band)
 			if (j == ARRAY_SIZE(chan_info_all))
 				continue;
 
-			channel = UPPER_20_SB(channel);
+			channel = upper_20_sb(channel);
 			chspec =  channel | WL_CHANSPEC_BW_40 |
 				  WL_CHANSPEC_CTL_SB_LOWER;
 			if (band == BRCM_BAND_2G)
@@ -1383,7 +1383,7 @@ u16 wlc_phy_chanspec_band_firstch(struct brcms_phy_pub *ppi, uint band)
 			else
 				chspec |= WL_CHANSPEC_BAND_5G;
 		} else
-			chspec = CH20MHZ_CHSPEC(channel);
+			chspec = ch20mhz_chspec(channel);
 
 		if ((pi->a_band_high_disable) && (channel >= FIRST_REF5_CHANNUM)
 		    && (channel <= LAST_REF5_CHANNUM))
@@ -1650,9 +1650,9 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 	if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_NONE)
 		target_chan = CHSPEC_CHANNEL(chspec);
 	else if (CHSPEC_CTL_SB(chspec) == WL_CHANSPEC_CTL_SB_UPPER)
-		target_chan = UPPER_20_SB(CHSPEC_CHANNEL(chspec));
+		target_chan = upper_20_sb(CHSPEC_CHANNEL(chspec));
 	else
-		target_chan = LOWER_20_SB(CHSPEC_CHANNEL(chspec));
+		target_chan = lower_20_sb(CHSPEC_CHANNEL(chspec));
 
 	pactrl = 0;
 	if (ISLCNPHY(pi)) {

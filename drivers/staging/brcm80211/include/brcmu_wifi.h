@@ -35,6 +35,10 @@
 #define CH_MAX_2G_CHANNEL		14	/* Max channel in 2G band */
 #define BRCM_MAX_2G_CHANNEL	CH_MAX_2G_CHANNEL	/* legacy define */
 
+/* bandstate array indices */
+#define BAND_2G_INDEX		0	/* wlc->bandstate[x] index */
+#define BAND_5G_INDEX		1	/* wlc->bandstate[x] index */
+
 /*
  * max # supported channels. The max channel no is 216, this is that + 1
  * rounded up to a multiple of NBBY (8). DO NOT MAKE it > 255: channels are
@@ -67,31 +71,6 @@
 #define WF_CHAN_FACTOR_2_4_G		4814	/* 2.4 GHz band, 2407 MHz */
 #define WF_CHAN_FACTOR_5_G		10000	/* 5   GHz band, 5000 MHz */
 #define WF_CHAN_FACTOR_4_G		8000	/* 4.9 GHz band for Japan */
-
-/* channel defines */
-#define LOWER_20_SB(channel) \
-	(((channel) > CH_10MHZ_APART) ? ((channel) - CH_10MHZ_APART) : 0)
-
-#define UPPER_20_SB(channel) \
-	(((channel) < (MAXCHANNEL - CH_10MHZ_APART)) ? \
-	 ((channel) + CH_10MHZ_APART) : 0)
-
-#define CHSPEC_BANDUNIT(chspec) \
-	(CHSPEC_IS5G(chspec) ? BAND_5G_INDEX : BAND_2G_INDEX)
-
-#define CH20MHZ_CHSPEC(channel) \
-	(u16)((u16)(channel) | WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE | \
-		    (((channel) <= CH_MAX_2G_CHANNEL) ? \
-		    WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G))
-
-#define NEXT_20MHZ_CHAN(channel) \
-	(((channel) < (MAXCHANNEL - CH_20MHZ_APART)) ? \
-	 ((channel) + CH_20MHZ_APART) : 0)
-
-#define CH40MHZ_CHSPEC(channel, ctlsb) \
-	(u16)((channel) | (ctlsb) | WL_CHANSPEC_BW_40 | \
-	      ((channel) <= CH_MAX_2G_CHANNEL ? \
-		WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G))
 
 #define CHSPEC_CHANNEL(chspec)	((u8)((chspec) & WL_CHANSPEC_CHAN_MASK))
 #define CHSPEC_BAND(chspec)	((chspec) & WL_CHANSPEC_BAND_MASK)
@@ -127,12 +106,43 @@
 
 #define CHSPEC_CTL_CHAN(chspec) \
 	((CHSPEC_SB_LOWER(chspec)) ? \
-	(LOWER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))) : \
-	(UPPER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))))
+	(lower_20_sb(((chspec) & WL_CHANSPEC_CHAN_MASK))) : \
+	(upper_20_sb(((chspec) & WL_CHANSPEC_CHAN_MASK))))
 
 #define CHSPEC2BAND(chspec) (CHSPEC_IS5G(chspec) ? BRCM_BAND_5G : BRCM_BAND_2G)
 
 #define CHANSPEC_STR_LEN    8
+
+static inline int lower_20_sb(int channel)
+{
+	return channel > CH_10MHZ_APART ? (channel - CH_10MHZ_APART) : 0;
+}
+
+static inline int upper_20_sb(int channel)
+{
+	return (channel < (MAXCHANNEL - CH_10MHZ_APART)) ?
+	       channel + CH_10MHZ_APART : 0;
+}
+
+static inline int chspec_bandunit(u16 chspec)
+{
+	return CHSPEC_IS5G(chspec) ? BAND_5G_INDEX : BAND_2G_INDEX;
+}
+
+static inline u16 ch20mhz_chspec(int channel)
+{
+	u16 rc = channel <= CH_MAX_2G_CHANNEL ?
+		 WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G;
+
+	return	(u16)((u16)channel | WL_CHANSPEC_BW_20 |
+		      WL_CHANSPEC_CTL_SB_NONE | rc);
+}
+
+static inline int next_20mhz_chan(int channel)
+{
+	return channel < (MAXCHANNEL - CH_20MHZ_APART) ?
+	       channel + CH_20MHZ_APART : 0;
+}
 
 /* defined rate in 500kbps */
 #define BRCM_MAXRATE	108	/* in 500kbps units */
@@ -153,7 +163,10 @@
 
 #define MCSSET_LEN	16
 
-#define AC_BITMAP_TST(ab, ac)	(((ab) & (1 << (ac))) != 0)
+static inline bool ac_bitmap_tst(u8 bitmap, int prec)
+{
+	return (bitmap & (1 << (prec))) != 0;
+}
 
 /*
  * Verify the chanspec is using a legal set of parameters, i.e. that the

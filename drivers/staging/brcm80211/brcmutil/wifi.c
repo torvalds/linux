@@ -65,13 +65,13 @@ u8 brcmu_chspec_ctlchan(u16 chspec)
 			 * control chan is the upper 20 MHZ SB of the
 			 * 40MHZ channel
 			 */
-			ctl_chan = UPPER_20_SB(CHSPEC_CHANNEL(chspec));
+			ctl_chan = upper_20_sb(CHSPEC_CHANNEL(chspec));
 		else
 			/*
 			 * control chan is the lower 20 MHZ SB of the
 			 * 40MHZ channel
 			 */
-			ctl_chan = LOWER_20_SB(CHSPEC_CHANNEL(chspec));
+			ctl_chan = lower_20_sb(CHSPEC_CHANNEL(chspec));
 	}
 
 	return ctl_chan;

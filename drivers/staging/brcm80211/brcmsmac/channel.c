@@ -1141,9 +1141,9 @@ brcms_c_quiet_chanspec(struct brcms_cm_info *wlc_cm, u16 chspec)
 	return (wlc_cm->wlc->pub->_n_enab & SUPPORT_11N) &&
 		CHSPEC_IS40(chspec) ?
 		(isset(wlc_cm->quiet_channels.vec,
-		       LOWER_20_SB(CHSPEC_CHANNEL(chspec))) ||
+		       lower_20_sb(CHSPEC_CHANNEL(chspec))) ||
 		 isset(wlc_cm->quiet_channels.vec,
-		       UPPER_20_SB(CHSPEC_CHANNEL(chspec)))) :
+		       upper_20_sb(CHSPEC_CHANNEL(chspec)))) :
 		isset(wlc_cm->quiet_channels.vec, CHSPEC_CHANNEL(chspec));
 }
 
@@ -1310,7 +1310,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	}
 
 	chan = CHSPEC_CHANNEL(chanspec);
-	band = wlc->bandstate[CHSPEC_BANDUNIT(chanspec)];
+	band = wlc->bandstate[chspec_bandunit(chanspec)];
 	li = (band->bandtype == BRCM_BAND_5G) ?
 	    brcms_c_get_locale_5g(country->locale_5G) :
 	    brcms_c_get_locale_2g(country->locale_2G);
@@ -1516,7 +1516,7 @@ brcms_c_valid_chanspec_ext(struct brcms_cm_info *wlc_cm, u16 chspec,
 	}
 
 	if (CHANNEL_BANDUNIT(wlc_cm->wlc, channel) !=
-	    CHSPEC_BANDUNIT(chspec))
+	    chspec_bandunit(chspec))
 		return false;
 
 	/* Check a 20Mhz channel */
@@ -1538,26 +1538,26 @@ brcms_c_valid_chanspec_ext(struct brcms_cm_info *wlc_cm, u16 chspec,
 		u8 num_ch20_entries =
 		    sizeof(chan20_info) / sizeof(struct chan20_info);
 
-		if (!VALID_40CHANSPEC_IN_BAND(wlc, CHSPEC_BANDUNIT(chspec)))
+		if (!VALID_40CHANSPEC_IN_BAND(wlc, chspec_bandunit(chspec)))
 			return false;
 
 		if (dualband) {
 			if (!brcms_c_valid_channel20_db(wlc->cmi,
-							LOWER_20_SB(channel)) ||
+							lower_20_sb(channel)) ||
 			    !brcms_c_valid_channel20_db(wlc->cmi,
-							UPPER_20_SB(channel)))
+							upper_20_sb(channel)))
 				return false;
 		} else {
 			if (!brcms_c_valid_channel20(wlc->cmi,
-						     LOWER_20_SB(channel)) ||
+						     lower_20_sb(channel)) ||
 			    !brcms_c_valid_channel20(wlc->cmi,
-						     UPPER_20_SB(channel)))
+						     upper_20_sb(channel)))
 				return false;
 		}
 
 		/* find the lower sideband info in the sideband array */
 		for (idx = 0; idx < num_ch20_entries; idx++) {
-			if (chan20_info[idx].sb == LOWER_20_SB(channel))
+			if (chan20_info[idx].sb == lower_20_sb(channel))
 				upper_sideband = chan20_info[idx].adj_sbs;
 		}
 		/* check that the lower sideband allows an upper sideband */
