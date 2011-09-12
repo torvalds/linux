@@ -669,135 +669,18 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	return generic_file_aio_write(iocb, iov, nr_segs, pos);
 }
 
-static int empty_write_end(struct page *page, unsigned from,
-			   unsigned to, int mode)
-{
-	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct buffer_head *bh;
-	unsigned offset, blksize = 1 << inode->i_blkbits;
-	pgoff_t end_index = i_size_read(inode) >> PAGE_CACHE_SHIFT;
-
-	zero_user(page, from, to-from);
-	mark_page_accessed(page);
-
-	if (page->index < end_index || !(mode & FALLOC_FL_KEEP_SIZE)) {
-		if (!gfs2_is_writeback(ip))
-			gfs2_page_add_databufs(ip, page, from, to);
-
-		block_commit_write(page, from, to);
-		return 0;
-	}
-
-	offset = 0;
-	bh = page_buffers(page);
-	while (offset < to) {
-		if (offset >= from) {
-			set_buffer_uptodate(bh);
-			mark_buffer_dirty(bh);
-			clear_buffer_new(bh);
-			write_dirty_buffer(bh, WRITE);
-		}
-		offset += blksize;
-		bh = bh->b_this_page;
-	}
-
-	offset = 0;
-	bh = page_buffers(page);
-	while (offset < to) {
-		if (offset >= from) {
-			wait_on_buffer(bh);
-			if (!buffer_uptodate(bh))
-				return -EIO;
-		}
-		offset += blksize;
-		bh = bh->b_this_page;
-	}
-	return 0;
-}
-
-static int needs_empty_write(sector_t block, struct inode *inode)
-{
-	int error;
-	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
-
-	bh_map.b_size = 1 << inode->i_blkbits;
-	error = gfs2_block_map(inode, block, &bh_map, 0);
-	if (unlikely(error))
-		return error;
-	return !buffer_mapped(&bh_map);
-}
-
-static int write_empty_blocks(struct page *page, unsigned from, unsigned to,
-			      int mode)
-{
-	struct inode *inode = page->mapping->host;
-	unsigned start, end, next, blksize;
-	sector_t block = page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-	int ret;
-
-	blksize = 1 << inode->i_blkbits;
-	next = end = 0;
-	while (next < from) {
-		next += blksize;
-		block++;
-	}
-	start = next;
-	do {
-		next += blksize;
-		ret = needs_empty_write(block, inode);
-		if (unlikely(ret < 0))
-			return ret;
-		if (ret == 0) {
-			if (end) {
-				ret = __block_write_begin(page, start, end - start,
-							  gfs2_block_map);
-				if (unlikely(ret))
-					return ret;
-				ret = empty_write_end(page, start, end, mode);
-				if (unlikely(ret))
-					return ret;
-				end = 0;
-			}
-			start = next;
-		}
-		else
-			end = next;
-		block++;
-	} while (next < to);
-
-	if (end) {
-		ret = __block_write_begin(page, start, end - start, gfs2_block_map);
-		if (unlikely(ret))
-			return ret;
-		ret = empty_write_end(page, start, end, mode);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	return 0;
-}
-
 static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 			   int mode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct buffer_head *dibh;
 	int error;
-	u64 start = offset >> PAGE_CACHE_SHIFT;
-	unsigned int start_offset = offset & ~PAGE_CACHE_MASK;
-	u64 end = (offset + len - 1) >> PAGE_CACHE_SHIFT;
-	pgoff_t curr;
-	struct page *page;
-	unsigned int end_offset = (offset + len) & ~PAGE_CACHE_MASK;
-	unsigned int from, to;
-
-	if (!end_offset)
-		end_offset = PAGE_CACHE_SIZE;
+	unsigned int nr_blks;
+	sector_t lblock = offset >> inode->i_blkbits;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (unlikely(error))
-		goto out;
+		return error;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 
@@ -807,39 +690,31 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 			goto out;
 	}
 
-	curr = start;
-	offset = start << PAGE_CACHE_SHIFT;
-	from = start_offset;
-	to = PAGE_CACHE_SIZE;
-	while (curr <= end) {
-		page = grab_cache_page_write_begin(inode->i_mapping, curr,
-						   AOP_FLAG_NOFS);
-		if (unlikely(!page)) {
-			error = -ENOMEM;
-			goto out;
-		}
+	while (len) {
+		struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
+		bh_map.b_size = len;
+		set_buffer_zeronew(&bh_map);
 
-		if (curr == end)
-			to = end_offset;
-		error = write_empty_blocks(page, from, to, mode);
-		if (!error && offset + to > inode->i_size &&
-		    !(mode & FALLOC_FL_KEEP_SIZE)) {
-			i_size_write(inode, offset + to);
-		}
-		unlock_page(page);
-		page_cache_release(page);
-		if (error)
+		error = gfs2_block_map(inode, lblock, &bh_map, 1);
+		if (unlikely(error))
 			goto out;
-		curr++;
-		offset += PAGE_CACHE_SIZE;
-		from = 0;
+		len -= bh_map.b_size;
+		nr_blks = bh_map.b_size >> inode->i_blkbits;
+		lblock += nr_blks;
+		if (!buffer_new(&bh_map))
+			continue;
+		if (unlikely(!buffer_zeronew(&bh_map))) {
+			error = -EIO;
+			goto out;
+		}
 	}
+	if (offset + len > inode->i_size && !(mode & FALLOC_FL_KEEP_SIZE))
+		i_size_write(inode, offset + len);
 
 	mark_inode_dirty(inode);
 
-	brelse(dibh);
-
 out:
+	brelse(dibh);
 	return error;
 }
 
@@ -879,6 +754,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	int error;
 	loff_t bsize_mask = ~((loff_t)sdp->sd_sb.sb_bsize - 1);
 	loff_t next = (offset + len - 1) >> sdp->sd_sb.sb_bsize_shift;
+	loff_t max_chunk_size = UINT_MAX & bsize_mask;
 	next = (next + 1) << sdp->sd_sb.sb_bsize_shift;
 
 	/* We only support the FALLOC_FL_KEEP_SIZE mode */
@@ -932,7 +808,8 @@ retry:
 			goto out_qunlock;
 		}
 		max_bytes = bytes;
-		calc_max_reserv(ip, len, &max_bytes, &data_blocks, &ind_blocks);
+		calc_max_reserv(ip, (len > max_chunk_size)? max_chunk_size: len,
+				&max_bytes, &data_blocks, &ind_blocks);
 		al->al_requested = data_blocks + ind_blocks;
 
 		rblocks = RES_DINODE + ind_blocks + RES_STATFS + RES_QUOTA +

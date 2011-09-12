@@ -10,6 +10,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/blkdev.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 
@@ -427,12 +428,14 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct super_block *sb = sdp->sd_vfs;
 	struct buffer_head *dibh = mp->mp_bh[0];
 	u64 bn, dblock = 0;
 	unsigned n, i, blks, alloced = 0, iblks = 0, branch_start = 0;
 	unsigned dblks = 0;
 	unsigned ptrs_per_blk;
 	const unsigned end_of_metadata = height - 1;
+	int ret;
 	int eob = 0;
 	enum alloc_state state;
 	__be64 *ptr;
@@ -535,6 +538,15 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 			dblock = bn;
 			while (n-- > 0)
 				*ptr++ = cpu_to_be64(bn++);
+			if (buffer_zeronew(bh_map)) {
+				ret = sb_issue_zeroout(sb, dblock, dblks,
+						       GFP_NOFS);
+				if (ret) {
+					fs_err(sdp,
+					       "Failed to zero data buffers\n");
+					clear_buffer_zeronew(bh_map);
+				}
+			}
 			break;
 		}
 	} while ((state != ALLOC_DATA) || !dblock);
