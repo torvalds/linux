@@ -49,7 +49,6 @@ bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 		entry = cmpxchg(&head->first, old_entry, new_first);
 		if (entry == old_entry)
 			break;
-		cpu_relax();
 	}
 
 	return old_entry == NULL;
@@ -83,7 +82,6 @@ struct llist_node *llist_del_first(struct llist_head *head)
 		entry = cmpxchg(&head->first, old_entry, next);
 		if (entry == old_entry)
 			break;
-		cpu_relax();
 	}
 
 	return entry;

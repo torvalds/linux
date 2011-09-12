@@ -161,7 +161,6 @@ static inline bool llist_add(struct llist_node *new, struct llist_head *head)
 		entry = cmpxchg(&head->first, old_entry, new);
 		if (entry == old_entry)
 			break;
-		cpu_relax();
 	}
 
 	return old_entry == NULL;
