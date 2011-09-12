@@ -226,7 +226,6 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		err = wdd->ops->set_timeout(wdd, val);
 		if (err < 0)
 			return err;
-		wdd->timeout = val;
 		/* If the watchdog is active then we send a keepalive ping
 		 * to make sure that the watchdog keep's running (and if
 		 * possible that it takes the new timeout) */

@@ -117,9 +117,10 @@ they are supported. These optional routines/operations are:
   status of the device is reported with watchdog WDIOF_* status flags/bits.
 * set_timeout: this routine checks and changes the timeout of the watchdog
   timer device. It returns 0 on success, -EINVAL for "parameter out of range"
-  and -EIO for "could not write value to the watchdog". On success the timeout
-  value of the watchdog_device will be changed to the value that was just used
-  to re-program the watchdog timer device.
+  and -EIO for "could not write value to the watchdog". On success this
+  routine should set the timeout value of the watchdog_device to the
+  achieved timeout value (which may be different from the requested one
+  because the watchdog does not necessarily has a 1 second resolution).
   (Note: the WDIOF_SETTIMEOUT needs to be set in the options field of the
   watchdog's info structure).
 * ioctl: if this routine is present then it will be called first before we do
