@@ -2384,9 +2384,7 @@ static void brcms_b_mute(struct brcms_hardware *wlc_hw, bool on, u32 flags)
 				       null_ether_addr);
 	} else {
 		/* resume tx fifos */
-		if (!wlc_hw->wlc->tx_suspended)
-			brcms_b_tx_fifo_resume(wlc_hw, TX_DATA_FIFO);
-
+		brcms_b_tx_fifo_resume(wlc_hw, TX_DATA_FIFO);
 		brcms_b_tx_fifo_resume(wlc_hw, TX_CTL_FIFO);
 		brcms_b_tx_fifo_resume(wlc_hw, TX_AC_BK_FIFO);
 		brcms_b_tx_fifo_resume(wlc_hw, TX_AC_VI_FIFO);
@@ -2773,10 +2771,6 @@ void brcms_c_coredisable(struct brcms_hardware *wlc_hw)
 
 	/* turn off PHYPLL to save power */
 	brcms_b_core_phypll_ctl(wlc_hw, false);
-
-	/* remove gpio controls */
-	if (wlc_hw->ucode_dbgsel)
-		ai_gpiocontrol(wlc_hw->sih, ~0, 0, GPIO_DRV_PRIORITY);
 
 	wlc_hw->clk = false;
 	ai_core_disable(wlc_hw->sih, 0);
@@ -3601,9 +3595,6 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	/* clear tx flow control */
 	brcms_c_txflowcontrol_reset(wlc);
 
-	/* clear tx data fifo suspends */
-	wlc->tx_suspended = false;
-
 	/* enable the RF Disable Delay timer */
 	W_REG(&wlc->regs->rfdisabledly, RFDISABLE_DEFAULT);
 
@@ -4380,8 +4371,6 @@ bool brcms_c_timers_init(struct brcms_c_info *wlc, int unit)
 void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 {
 	int i;
-	/* Assume the device is there until proven otherwise */
-	wlc->device_present = true;
 
 	/* Save our copy of the chanspec */
 	wlc->chanspec = ch20mhz_chspec(1);

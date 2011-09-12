@@ -382,7 +382,6 @@ struct brcms_hardware {
 	u32 boardflags2;	/* More board flags if sromrev >= 4 */
 	u32 machwcap;	/* MAC capabilities */
 	u32 machwcap_backup;	/* backup of machwcap */
-	u16 ucode_dbgsel;	/* dbgsel for ucode debug(config gpio) */
 
 	struct si_pub *sih;	/* SI handle (cookie for siutils calls) */
 	char *vars;		/* "environment" name=value */
@@ -416,14 +415,11 @@ struct brcms_hardware {
 	u32 wake_override;	/* bit flags to force MAC to WAKE mode */
 	u32 mute_override;	/* Prevent ucode from sending beacons */
 	u8 etheraddr[ETH_ALEN];	/* currently configured ethernet address */
-	u32 led_gpio_mask;	/* LED GPIO Mask */
 	bool noreset;		/* true= do not reset hw, used by WLC_OUT */
 	bool forcefastclk;	/* true if h/w is forcing to use fast clk */
 	bool clk;		/* core is out of reset and has clock */
 	bool sbclk;		/* sb has clock */
-	struct bmac_pmq *bmac_pmq; /*  bmac PM states derived from ucode PMQ */
 	bool phyclk;		/* phy is out of reset and has clock */
-	bool dma_lpbk;		/* core is in DMA loopback */
 
 	bool ucode_loaded;	/* true after ucode downloaded */
 
@@ -463,14 +459,12 @@ struct brcms_txq_info {
  * macintstatus: bit channel between isr and dpc.
  * macintmask: sw runtime master macintmask value.
  * defmacintmask: default "on" macintmask value.
- * device_present: (removable) device is present.
  * clk: core is out of reset and has clock.
  * core: pointer to active io core.
  * band: pointer to active per-band state.
  * corestate: per-core state (one per hw core).
  * bandstate: per-band state (one per phy/radio).
  * war16165: PCI slow clock 16165 war flag.
- * tx_suspended: data fifos need to remain suspended.
  * txpend16165war: PCI slow clock 16165 war flag.
  * qvalid: DirFrmQValid and BcMcFrmQValid.
  * txpwr_local_max: regulatory local txpwr max.
@@ -559,16 +553,12 @@ struct brcms_c_info {
 	struct brcms_hardware *hw;
 
 	/* clock */
-	int clkreq_override;
 	u16 fastpwrup_dly;
 
 	/* interrupt */
 	u32 macintstatus;
 	u32 macintmask;
 	u32 defmacintmask;
-
-	/* up and down */
-	bool device_present;
 
 	bool clk;
 
@@ -579,9 +569,6 @@ struct brcms_c_info {
 	struct brcms_band *bandstate[MAXBANDS];
 
 	bool war16165;
-
-	bool tx_suspended;
-
 	uint txpend16165war;
 
 	/* packet queue */
