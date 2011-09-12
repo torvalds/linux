@@ -68,7 +68,7 @@ nv10_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag)
 
 	value = NVReadCRTC(dev, 0, reg) >> shift;
 
-	return (ent->invert ? 1 : 0) ^ (value & 1);
+	return (value & 1) == ent->state[1];
 }
 
 int
@@ -83,7 +83,7 @@ nv10_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state)
 	if (!get_gpio_location(ent, &reg, &shift, &mask))
 		return -ENODEV;
 
-	value = ((ent->invert ? 1 : 0) ^ (state ? 1 : 0)) << shift;
+	value = ent->state[state & 1] << shift;
 	mask = ~(mask << shift);
 
 	NVWriteCRTC(dev, 0, reg, value | (NVReadCRTC(dev, 0, reg) & mask));

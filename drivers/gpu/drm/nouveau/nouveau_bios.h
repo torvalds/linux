@@ -65,7 +65,6 @@ enum dcb_gpio_tag {
 struct dcb_gpio_entry {
 	enum dcb_gpio_tag tag;
 	int line;
-	bool invert;
 	uint32_t entry;
 	uint8_t state_default;
 	uint8_t state[2];

@@ -5834,7 +5834,8 @@ parse_dcb_gpio_table(struct nvbios *bios)
 			e = new_gpio_entry(bios);
 			e->tag = DCB_GPIO_TVDAC0;
 			e->line = tvdac_gpio[1] >> 4;
-			e->invert = tvdac_gpio[0] & 2;
+			e->state[0] = !!(tvdac_gpio[0] & 2);
+			e->state[1] = !e->state[0];
 		}
 
 		goto no_table;
@@ -5858,7 +5859,8 @@ parse_dcb_gpio_table(struct nvbios *bios)
 			}
 
 			e->line = (e->entry & 0x001f);
-			e->invert = ((e->entry & 0xf800) >> 11) != 4;
+			e->state[0] = ((e->entry & 0xf800) >> 11) != 4;
+			e->state[1] = !e->state[0];
 		} else {
 			e->entry = ROM32(entry[0]);
 			e->tag = (e->entry & 0x0000ff00) >> 8;
