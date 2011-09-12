@@ -539,7 +539,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			return -ENODEV;
 		sdiodev->func[2] = func;
 
-		brcmf_cfg80211_sdio_func(func);
 		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_probe...\n");
 		ret = brcmf_sdio_probe(sdiodev);
 	}

@@ -4317,6 +4317,11 @@ void brcmf_bus_unregister(void)
 	brcmf_sdio_unregister();
 }
 
+struct device *brcmf_bus_get_device(struct brcmf_bus *bus)
+{
+	return &bus->sdiodev->func[2]->dev;
+}
+
 static int brcmf_sdbrcm_download_code_file(struct brcmf_bus *bus)
 {
 	int offset = 0;

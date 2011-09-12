@@ -23,7 +23,6 @@
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
-#include <linux/mmc/sdio_func.h>
 #include <linux/uaccess.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
@@ -37,8 +36,6 @@
 #define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
 	(sizeof(struct brcmf_assoc_params) - sizeof(u16))
 
-static struct sdio_func *cfg80211_sdio_func;
-static struct brcmf_cfg80211_dev *cfg80211_dev;
 static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 
 static u32 brcmf_dbg_level = WL_DBG_ERR;
@@ -146,11 +143,6 @@ static s32 brcmf_bss_roaming_done(struct brcmf_cfg80211_priv *cfg_priv,
 static s32 brcmf_notify_mic_status(struct brcmf_cfg80211_priv *cfg_priv,
 				   struct net_device *ndev,
 				   const struct brcmf_event_msg *e, void *data);
-
-/*
-** register/deregister sdio function
-*/
-static void brcmf_clear_sdio_func(void);
 
 /*
 ** ioctl utilites
@@ -312,9 +304,10 @@ static int
 brcmf_debugfs_add_netdev_params(struct brcmf_cfg80211_priv *cfg_priv);
 static void brcmf_debugfs_remove_netdev(struct brcmf_cfg80211_priv *cfg_priv);
 
-static struct brcmf_cfg80211_priv *brcmf_priv_get(void)
+static
+struct brcmf_cfg80211_priv *brcmf_priv_get(struct brcmf_cfg80211_dev *cfg_dev)
 {
-	struct brcmf_cfg80211_iface *ci = brcmf_get_drvdata(cfg80211_dev);
+	struct brcmf_cfg80211_iface *ci = brcmf_get_drvdata(cfg_dev);
 	return ci->cfg_priv;
 }
 
@@ -3430,27 +3423,31 @@ static void wl_deinit_priv(struct brcmf_cfg80211_priv *cfg_priv)
 	brcmf_deinit_priv_mem(cfg_priv);
 }
 
-s32 brcmf_cfg80211_attach(struct net_device *ndev, void *data)
+struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
+						 struct device *busdev,
+						 void *data)
 {
 	struct wireless_dev *wdev;
 	struct brcmf_cfg80211_priv *cfg_priv;
 	struct brcmf_cfg80211_iface *ci;
+	struct brcmf_cfg80211_dev *cfg_dev;
 	s32 err = 0;
 
 	if (unlikely(!ndev)) {
 		WL_ERR("ndev is invalid\n");
-		return -ENODEV;
+		return NULL;
 	}
-	cfg80211_dev = kzalloc(sizeof(struct brcmf_cfg80211_dev), GFP_KERNEL);
-	if (unlikely(!cfg80211_dev)) {
+	cfg_dev = kzalloc(sizeof(struct brcmf_cfg80211_dev), GFP_KERNEL);
+	if (unlikely(!cfg_dev)) {
 		WL_ERR("wl_cfg80211_dev is invalid\n");
-		return -ENOMEM;
+		return NULL;
 	}
-	WL_INFO("func %p\n", brcmf_cfg80211_get_sdio_func());
-	wdev = brcmf_alloc_wdev(sizeof(struct brcmf_cfg80211_iface),
-				&brcmf_cfg80211_get_sdio_func()->dev);
-	if (IS_ERR(wdev))
-		return -ENOMEM;
+
+	wdev = brcmf_alloc_wdev(sizeof(struct brcmf_cfg80211_iface), busdev);
+	if (IS_ERR(wdev)) {
+		kfree(cfg_dev);
+		return NULL;
+	}
 
 	wdev->iftype = brcmf_mode_to_nl80211_iftype(WL_MODE_BSS);
 	cfg_priv = wdev_to_cfg(wdev);
@@ -3466,27 +3463,26 @@ s32 brcmf_cfg80211_attach(struct net_device *ndev, void *data)
 		WL_ERR("Failed to init iwm_priv (%d)\n", err);
 		goto cfg80211_attach_out;
 	}
-	brcmf_set_drvdata(cfg80211_dev, ci);
+	brcmf_set_drvdata(cfg_dev, ci);
 
-	return err;
+	return cfg_dev;
 
 cfg80211_attach_out:
 	brcmf_free_wdev(cfg_priv);
-	return err;
+	kfree(cfg_dev);
+	return NULL;
 }
 
-void brcmf_cfg80211_detach(void)
+void brcmf_cfg80211_detach(struct brcmf_cfg80211_dev *cfg_dev)
 {
 	struct brcmf_cfg80211_priv *cfg_priv;
 
-	cfg_priv = brcmf_priv_get();
+	cfg_priv = brcmf_priv_get(cfg_dev);
 
 	wl_deinit_priv(cfg_priv);
 	brcmf_free_wdev(cfg_priv);
-	brcmf_set_drvdata(cfg80211_dev, NULL);
-	kfree(cfg80211_dev);
-	cfg80211_dev = NULL;
-	brcmf_clear_sdio_func();
+	brcmf_set_drvdata(cfg_dev, NULL);
+	kfree(cfg_dev);
 }
 
 static void brcmf_wakeup_event(struct brcmf_cfg80211_priv *cfg_priv)
@@ -3618,21 +3614,6 @@ brcmf_enq_event(struct brcmf_cfg80211_priv *cfg_priv, u32 event,
 static void brcmf_put_event(struct brcmf_cfg80211_event_q *e)
 {
 	kfree(e);
-}
-
-void brcmf_cfg80211_sdio_func(void *func)
-{
-	cfg80211_sdio_func = (struct sdio_func *)func;
-}
-
-static void brcmf_clear_sdio_func(void)
-{
-	cfg80211_sdio_func = NULL;
-}
-
-struct sdio_func *brcmf_cfg80211_get_sdio_func(void)
-{
-	return cfg80211_sdio_func;
 }
 
 static s32 brcmf_dongle_mode(struct net_device *ndev, s32 iftype)
@@ -3951,12 +3932,12 @@ static s32 __brcmf_cfg80211_down(struct brcmf_cfg80211_priv *cfg_priv)
 	return 0;
 }
 
-s32 brcmf_cfg80211_up(void)
+s32 brcmf_cfg80211_up(struct brcmf_cfg80211_dev *cfg_dev)
 {
 	struct brcmf_cfg80211_priv *cfg_priv;
 	s32 err = 0;
 
-	cfg_priv = brcmf_priv_get();
+	cfg_priv = brcmf_priv_get(cfg_dev);
 	mutex_lock(&cfg_priv->usr_sync);
 	err = __brcmf_cfg80211_up(cfg_priv);
 	mutex_unlock(&cfg_priv->usr_sync);
@@ -3964,12 +3945,12 @@ s32 brcmf_cfg80211_up(void)
 	return err;
 }
 
-s32 brcmf_cfg80211_down(void)
+s32 brcmf_cfg80211_down(struct brcmf_cfg80211_dev *cfg_dev)
 {
 	struct brcmf_cfg80211_priv *cfg_priv;
 	s32 err = 0;
 
-	cfg_priv = brcmf_priv_get();
+	cfg_priv = brcmf_priv_get(cfg_dev);
 	mutex_lock(&cfg_priv->usr_sync);
 	err = __brcmf_cfg80211_down(cfg_priv);
 	mutex_unlock(&cfg_priv->usr_sync);

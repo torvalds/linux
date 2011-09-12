@@ -540,6 +540,7 @@ struct brcmf_ioctl {
 struct brcmf_bus;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_info;	/* device driver info */
+struct brcmf_cfg80211_dev; /* cfg80211 device info */
 
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
@@ -547,6 +548,7 @@ struct brcmf_pub {
 	struct brcmf_bus *bus;
 	struct brcmf_proto *prot;
 	struct brcmf_info *info;
+	struct brcmf_cfg80211_dev *config;
 
 	/* Internal brcmf items */
 	bool up;		/* Driver up/down (to OS) */
