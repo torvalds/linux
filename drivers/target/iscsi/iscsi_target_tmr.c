@@ -318,7 +318,7 @@ static int iscsit_task_reassign_complete_read(
 		pr_debug("READ ITT: 0x%08x: t_state: %d never sent to"
 			" transport\n", cmd->init_task_tag,
 			cmd->se_cmd.t_state);
-		transport_generic_handle_cdb(se_cmd);
+		transport_handle_cdb_direct(se_cmd);
 		return 0;
 	}
 
