@@ -825,7 +825,7 @@ static void unfreeze_array(conf_t *conf)
 	spin_unlock_irq(&conf->resync_lock);
 }
 
-static int make_request(mddev_t *mddev, struct bio * bio)
+static void make_request(mddev_t *mddev, struct bio * bio)
 {
 	conf_t *conf = mddev->private;
 	mirror_info_t *mirror;
@@ -844,7 +844,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 
 	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bio);
-		return 0;
+		return;
 	}
 
 	/* If this request crosses a chunk boundary, we need to
@@ -876,10 +876,8 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		conf->nr_waiting++;
 		spin_unlock_irq(&conf->resync_lock);
 
-		if (make_request(mddev, &bp->bio1))
-			generic_make_request(&bp->bio1);
-		if (make_request(mddev, &bp->bio2))
-			generic_make_request(&bp->bio2);
+		make_request(mddev, &bp->bio1);
+		make_request(mddev, &bp->bio2);
 
 		spin_lock_irq(&conf->resync_lock);
 		conf->nr_waiting--;
@@ -887,14 +885,14 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		spin_unlock_irq(&conf->resync_lock);
 
 		bio_pair_release(bp);
-		return 0;
+		return;
 	bad_map:
 		printk("md/raid10:%s: make_request bug: can't convert block across chunks"
 		       " or bigger than %dk %llu %d\n", mdname(mddev), chunk_sects/2,
 		       (unsigned long long)bio->bi_sector, bio->bi_size >> 10);
 
 		bio_io_error(bio);
-		return 0;
+		return;
 	}
 
 	md_write_start(mddev, bio);
@@ -937,7 +935,7 @@ read_again:
 		slot = r10_bio->read_slot;
 		if (disk < 0) {
 			raid_end_bio_io(r10_bio);
-			return 0;
+			return;
 		}
 		mirror = conf->mirrors + disk;
 
@@ -985,7 +983,7 @@ read_again:
 			goto read_again;
 		} else
 			generic_make_request(read_bio);
-		return 0;
+		return;
 	}
 
 	/*
@@ -1157,7 +1155,6 @@ retry_write:
 
 	if (do_sync || !mddev->bitmap || !plugged)
 		md_wakeup_thread(mddev->thread);
-	return 0;
 }
 
 static void status(struct seq_file *seq, mddev_t *mddev)

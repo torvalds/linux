@@ -193,7 +193,7 @@ struct request_pm_state
 #include <linux/elevator.h>
 
 typedef void (request_fn_proc) (struct request_queue *q);
-typedef int (make_request_fn) (struct request_queue *q, struct bio *bio);
+typedef void (make_request_fn) (struct request_queue *q, struct bio *bio);
 typedef int (prep_rq_fn) (struct request_queue *, struct request *);
 typedef void (unprep_rq_fn) (struct request_queue *, struct request *);
 
@@ -675,7 +675,7 @@ extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			 struct scsi_ioctl_command __user *);
 
-extern int blk_queue_bio(struct request_queue *q, struct bio *bio);
+extern void blk_queue_bio(struct request_queue *q, struct bio *bio);
 
 /*
  * A queue has just exitted congestion.  Note this in the global counter of
