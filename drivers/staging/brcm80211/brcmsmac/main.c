@@ -5982,8 +5982,6 @@ int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
 		for (i = 0; i < wlc->pub->_nbands; i++) {
 			memset(wlc->bandstate[i]->hw_rateset.mcs, 0,
 			       MCSSET_LEN);
-			if (IS_MCS(0))
-				brcms_c_reprate_init(wlc);
 		}
 		break;
 
