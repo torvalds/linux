@@ -1146,9 +1146,21 @@ static int ath6kl_upload_otp(struct ath6kl *ar)
 		return ret;
 	}
 
+	/* read firmware start address */
+	ret = ath6kl_bmi_read(ar,
+			      ath6kl_get_hi_item_addr(ar,
+						      HI_ITEM(hi_app_start)),
+			      (u8 *) &address, sizeof(address));
+
+	if (ret) {
+		ath6kl_err("Failed to read hi_app_start: %d\n", ret);
+		return ret;
+	}
+
+	ar->hw.app_start_override_addr = address;
+
 	/* execute the OTP code */
 	param = 0;
-	address = ar->hw.app_start_override_addr;
 	ath6kl_bmi_execute(ar, address, &param);
 
 	return ret;
@@ -1343,21 +1355,18 @@ static int ath6kl_init_hw_params(struct ath6kl *ar)
 	case AR6003_REV2_VERSION:
 		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
 		ar->hw.app_load_addr = AR6003_REV2_APP_LOAD_ADDRESS;
-		ar->hw.app_start_override_addr = AR6003_REV2_APP_START_OVERRIDE;
 		ar->hw.board_ext_data_addr = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
 		ar->hw.reserved_ram_size = AR6003_REV2_RAM_RESERVE_SIZE;
 		break;
 	case AR6003_REV3_VERSION:
 		ar->hw.dataset_patch_addr = AR6003_REV3_DATASET_PATCH_ADDRESS;
 		ar->hw.app_load_addr = 0x1234;
-		ar->hw.app_start_override_addr = AR6003_REV3_APP_START_OVERRIDE;
 		ar->hw.board_ext_data_addr = AR6003_REV3_BOARD_EXT_DATA_ADDRESS;
 		ar->hw.reserved_ram_size = AR6003_REV3_RAM_RESERVE_SIZE;
 		break;
 	case AR6004_REV1_VERSION:
 		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
 		ar->hw.app_load_addr = AR6003_REV3_APP_LOAD_ADDRESS;
-		ar->hw.app_start_override_addr = AR6003_REV3_APP_START_OVERRIDE;
 		ar->hw.board_ext_data_addr = AR6004_REV1_BOARD_EXT_DATA_ADDRESS;
 		ar->hw.reserved_ram_size = AR6004_REV1_RAM_RESERVE_SIZE;
 		break;
