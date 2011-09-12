@@ -759,8 +759,10 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	/* authentication */
 	monc->auth = ceph_auth_init(cl->options->name,
 				    cl->options->key);
-	if (IS_ERR(monc->auth))
-		return PTR_ERR(monc->auth);
+	if (IS_ERR(monc->auth)) {
+		err = PTR_ERR(monc->auth);
+		goto out_con;
+	}
 	monc->auth->want_keys =
 		CEPH_ENTITY_TYPE_AUTH | CEPH_ENTITY_TYPE_MON |
 		CEPH_ENTITY_TYPE_OSD | CEPH_ENTITY_TYPE_MDS;
@@ -771,7 +773,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 				     sizeof(struct ceph_mon_subscribe_ack),
 				     GFP_NOFS, true);
 	if (!monc->m_subscribe_ack)
-		goto out_con;
+		goto out_auth;
 
 	monc->m_subscribe = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 96, GFP_NOFS,
 					 true);
@@ -809,6 +811,8 @@ out_subscribe:
 	ceph_msg_put(monc->m_subscribe);
 out_subscribe_ack:
 	ceph_msg_put(monc->m_subscribe_ack);
+out_auth:
+	ceph_auth_destroy(monc->auth);
 out_con:
 	monc->con->ops->put(monc->con);
 out_monmap:
