@@ -334,7 +334,6 @@ struct ieee80211_tx_queue_params;
 struct brcms_info;
 struct brcms_c_info;
 struct brcms_hardware;
-struct brcms_c_if;
 struct brcmu_strbuf;
 struct brcms_txq_info;
 struct brcms_band;

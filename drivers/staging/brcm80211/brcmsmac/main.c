@@ -6060,13 +6060,13 @@ brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcms_c_rateset *rs_arg)
 /* simplified integer set interface for common ioctl handler */
 int brcms_c_set(struct brcms_c_info *wlc, int cmd, int arg)
 {
-	return brcms_c_ioctl(wlc, cmd, (void *)&arg, sizeof(arg), NULL);
+	return brcms_c_ioctl(wlc, cmd, (void *)&arg, sizeof(arg));
 }
 
 /* simplified integer get interface for common ioctl handler */
 int brcms_c_get(struct brcms_c_info *wlc, int cmd, int *arg)
 {
-	return brcms_c_ioctl(wlc, cmd, arg, sizeof(int), NULL);
+	return brcms_c_ioctl(wlc, cmd, arg, sizeof(int));
 }
 
 static void brcms_c_ofdm_rateset_war(struct brcms_c_info *wlc)
@@ -6086,8 +6086,7 @@ static void brcms_c_ofdm_rateset_war(struct brcms_c_info *wlc)
 
 /* common ioctl handler. return: 0=ok, -1=error, positive=particular error */
 static int
-_brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
-	       struct brcms_c_if *wlcif)
+_brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len)
 {
 	int val, *pval;
 	bool bool_val;
@@ -6335,10 +6334,9 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 }
 
 int
-brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
-	      struct brcms_c_if *wlcif)
+brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len)
 {
-	return _brcms_c_ioctl(wlc, cmd, arg, len, wlcif);
+	return _brcms_c_ioctl(wlc, cmd, arg, len);
 }
 
 /*

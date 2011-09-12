@@ -510,7 +510,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		/* retrieve the current rates */
 		LOCK(wl);
 		error = brcms_c_ioctl(wl->wlc, BRCM_GET_CURR_RATESET,
-				  &rs, sizeof(rs), NULL);
+				  &rs, sizeof(rs));
 		UNLOCK(wl);
 		if (error) {
 			wiphy_err(wiphy, "%s: retrieve rateset failed: %d\n",
@@ -530,7 +530,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 		/* update the rate set */
 		LOCK(wl);
-		brcms_c_ioctl(wl->wlc, BRCM_SET_RATESET, &rs, sizeof(rs), NULL);
+		brcms_c_ioctl(wl->wlc, BRCM_SET_RATESET, &rs, sizeof(rs));
 		UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {

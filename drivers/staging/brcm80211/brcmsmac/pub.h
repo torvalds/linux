@@ -327,8 +327,7 @@ extern bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded);
 extern void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
 				     struct sk_buff *sdu,
 				     struct ieee80211_hw *hw);
-extern int brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
-			 struct brcms_c_if *wlcif);
+extern int brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len);
 extern bool brcms_c_aggregatable(struct brcms_c_info *wlc, u8 tid);
 
 /* helper functions */

@@ -320,8 +320,7 @@ struct modulecb {
 	 */
 	int (*iovar_fn)(void *handle, const struct brcmu_iovar *vi,
 			u32 actionid, const char *name, void *params,
-			uint plen, void *arg, int alen, int vsize,
-			struct brcms_c_if *wlcif);
+			uint plen, void *arg, int alen, int vsize);
 
 	int (*down_fn)(void *handle); /* down handler. Note: the int returned
 				       * by the down function is a count of the
@@ -346,25 +345,6 @@ struct wme_param_ie {
 	u8 rsvd;
 	struct edcf_acparam acparam[AC_COUNT];
 } __packed;
-
-/* virtual interface */
-struct brcms_c_if {
-	struct brcms_c_if *next;
-	u8 type;	/* BSS or WDS */
-	u8 index;	/* assigned in wl_add_if(), index of the wlif if any,
-			 * not necessarily corresponding to bsscfg._idx or
-			 * AID2PVBMAP(scb).
-			 */
-	u8 flags;		/* flags for the interface */
-	struct brcms_if *wlif;		/* pointer to wlif */
-	struct brcms_txq_info *qi;	/* pointer to associated tx queue */
-	union {
-		/* pointer to scb if WDS */
-		struct scb *scb;
-		/* pointer to bsscfg if BSS */
-		struct brcms_bss_cfg *bsscfg;
-	} u;
-};
 
 struct brcms_hw_band {
 	int bandtype;		/* BRCM_BAND_2G, BRCM_BAND_5G */
