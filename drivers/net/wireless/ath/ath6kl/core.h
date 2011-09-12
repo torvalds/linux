@@ -68,7 +68,17 @@ enum ath6kl_fw_ie_type {
 	ATH6KL_FW_IE_FW_IMAGE = 3,
 	ATH6KL_FW_IE_PATCH_IMAGE = 4,
 	ATH6KL_FW_IE_RESERVED_RAM_SIZE = 5,
+	ATH6KL_FW_IE_CAPABILITIES = 6,
 };
+
+enum ath6kl_fw_capability {
+	ATH6KL_FW_CAPABILITY_HOST_P2P = 0,
+
+	/* this needs to be last */
+	ATH6KL_FW_CAPABILITY_MAX,
+};
+
+#define ATH6KL_CAPABILITY_LEN (ALIGN(ATH6KL_FW_CAPABILITY_MAX, 32) / 32)
 
 struct ath6kl_fw_ie {
 	__le32 id;
@@ -490,6 +500,8 @@ struct ath6kl {
 
 	u8 *fw_patch;
 	size_t fw_patch_len;
+
+	unsigned long fw_capabilities[ATH6KL_CAPABILITY_LEN];
 
 	struct workqueue_struct *ath6kl_wq;
 
