@@ -281,46 +281,14 @@ struct brcms_band {
 
 	u16 CWmin; /* minimum size of contention window, in unit of aSlotTime */
 	u16 CWmax; /* maximum size of contention window, in unit of aSlotTime */
-	u16 bcntsfoff;	/* beacon tsf offset */
-};
-
-struct pkt_cb {
-	/* function to call when tx frame completes */
-	/* tx completion callback takes 3 args */
-	void (*fn)(struct brcms_c_info *wlc, uint txstatus, void *arg);
-
-	void *arg;		/* void arg for fn */
-	u8 nextidx;		/* index of next call back if threading */
-	bool entered;		/* recursion check */
 };
 
 /* module control blocks */
 struct modulecb {
 	/* module name : NULL indicates empty array member */
 	char name[32];
-	/* iovar table */
-	const struct brcmu_iovar *iovars;
 	/* handle passed when handler 'doiovar' is called */
 	struct brcms_info *hdl;
-
-	/* IOVar handler
-	 *
-	 * handle - a pointer value registered with the function
-	 * vi - iovar_info that was looked up
-	 * actionid - action ID, calculated by IOV_GVAL() and IOV_SVAL()
-	 *    based on varid.
-	 * name - the actual iovar name
-	 * params/plen - parameters and length for a get, input only.
-	 * arg/len - buffer and length for value to be set or retrieved,
-	 *      input or output.
-	 * vsize - value size, valid for integer type only.
-	 * wlcif - interface context (brcms_c_if pointer)
-	 *
-	 * All pointers may point into the same buffer.
-	 */
-	int (*iovar_fn)(void *handle, const struct brcmu_iovar *vi,
-			u32 actionid, const char *name, void *params,
-			uint plen, void *arg, int alen, int vsize);
 
 	int (*down_fn)(void *handle); /* down handler. Note: the int returned
 				       * by the down function is a count of the
@@ -488,16 +456,12 @@ struct brcms_txq_info {
  * wdtimer: timer for watchdog routine.
  * radio_timer: timer for hw radio button monitor routine.
  * monitor: monitor (MPDU sniffing) mode.
- * bcnmisc_ibss: bcns promisc mode override for IBSS.
- * bcnmisc_scan: bcns promisc mode override for scan.
  * bcnmisc_monitor: bcns promisc mode override for monitor.
  * _rifs: enable per-packet rifs.
- * sgi_tx: sgi tx.
  * bcn_li_bcn: beacon listen interval in # beacons.
  * bcn_li_dtim: beacon listen interval in # dtims.
  * WDarmed: watchdog timer is armed.
  * WDlast: last time wlc_watchdog() was called.
- * wme_dp: AC bitmap. Discard (oldest first) policy per AC.
  * edcf_txop[AC_COUNT]: current txop for each ac.
  * wme_param_ie: on STA contains parameters in use locally, and on AP
  *		 contains parameters advertised
@@ -519,7 +483,6 @@ struct brcms_txq_info {
  * autocountry_default: initial country for 802.11d auto-country mode.
  * prb_resp_timeout: do not send prb resp if request older
  *		     than this, 0 = disable.
- * sup_rates_override: use only these rates in 11g supported rates if specified.
  * home_chanspec: shared home chanspec.
  * chanspec: target operational channel.
  * usr_fragthresh: user configured fragmentation threshold.
@@ -539,9 +502,6 @@ struct brcms_txq_info {
  * tx_duty_cycle_ofdm: maximum allowed duty cycle for OFDM.
  * tx_duty_cycle_cck: maximum allowed duty cycle for CCK.
  * pkt_queue: txq for transmit packets.
- * mpc_dur: total time (ms) in mpc mode except for the portion since
- *	    radio is turned off last time.
- * mpc_laston_ts: timestamp (ms) when radio is turned off last time.
  * wiphy:
  */
 struct brcms_c_info {
@@ -603,13 +563,10 @@ struct brcms_c_info {
 
 	/* promiscuous */
 	bool monitor;
-	bool bcnmisc_ibss;
-	bool bcnmisc_scan;
 	bool bcnmisc_monitor;
 
 	/* driver feature */
 	bool _rifs;
-	s8 sgi_tx;
 
 	/* AP-STA synchronization, power save */
 	u8 bcn_li_bcn;
@@ -619,7 +576,6 @@ struct brcms_c_info {
 	u32 WDlast;
 
 	/* WME */
-	u8 wme_dp;
 	u16 edcf_txop[AC_COUNT];
 
 	struct wme_param_ie wme_param_ie;
@@ -648,7 +604,6 @@ struct brcms_c_info {
 	char country_default[BRCM_CNTRY_BUF_SZ];
 	char autocountry_default[BRCM_CNTRY_BUF_SZ];
 	u16 prb_resp_timeout;
-	struct brcms_c_rateset sup_rates_override;
 
 	u16 home_chanspec;
 
@@ -680,8 +635,6 @@ struct brcms_c_info {
 	u16 tx_duty_cycle_cck;
 
 	struct brcms_txq_info *pkt_queue;
-	u32 mpc_dur;
-	u32 mpc_laston_ts;
 	struct wiphy *wiphy;
 };
 

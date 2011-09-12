@@ -168,8 +168,6 @@
 
 #define	BRCMS_HWRXOFF		38	/* chip rx buffer offset */
 
-#define OSL_SYSUPTIME()		((u32)jiffies * (1000 / HZ))
-
 /*
  * driver maintains internal 'tick'(wlc->pub->now) which increments in 1s
  * OS timer(soft watchdog) it is not a wall clock and won't increment when
@@ -3359,8 +3357,7 @@ static void brcms_c_ucode_mac_upd(struct brcms_c_info *wlc)
 			 * inits to populate a bogus beacon.
 			 */
 			if (BRCMS_PHY_11N_CAP(wlc->band))
-				brcms_c_write_shm(wlc, M_BCN_TXTSF_OFFSET,
-					      wlc->band->bcntsfoff);
+				brcms_c_write_shm(wlc, M_BCN_TXTSF_OFFSET, 0);
 		}
 	} else {
 		/* disable an active IBSS if we are not on the home channel */
@@ -3593,7 +3590,7 @@ void brcms_c_mac_bcn_promisc_change(struct brcms_c_info *wlc, bool promisc)
 
 void brcms_c_mac_bcn_promisc(struct brcms_c_info *wlc)
 {
-	if (wlc->bcnmisc_ibss || wlc->bcnmisc_scan || wlc->bcnmisc_monitor)
+	if (wlc->bcnmisc_monitor)
 		brcms_c_mctrl(wlc, MCTL_BCNS_PROMISC, MCTL_BCNS_PROMISC);
 	else
 		brcms_c_mctrl(wlc, MCTL_BCNS_PROMISC, 0);
@@ -4275,7 +4272,6 @@ static void brcms_c_watchdog(void *arg)
 				 WL_RADIO_MPC_DISABLE);
 			if (wlc->mpc && brcms_c_ismpc(wlc))
 				wlc->mpc_offcnt = 0;
-			wlc->mpc_laston_ts = OSL_SYSUPTIME();
 		}
 	}
 
@@ -5167,21 +5163,14 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	if (BRCMS_SGI_CAP_PHY(wlc)) {
 		brcms_c_ht_update_sgi_rx(wlc, (BRCMS_N_SGI_20 |
 					       BRCMS_N_SGI_40));
-		wlc->sgi_tx = AUTO;
 	} else if (BRCMS_ISSSLPNPHY(wlc->band)) {
 		brcms_c_ht_update_sgi_rx(wlc, (BRCMS_N_SGI_20 |
 					       BRCMS_N_SGI_40));
-		wlc->sgi_tx = AUTO;
 	} else {
 		brcms_c_ht_update_sgi_rx(wlc, 0);
-		wlc->sgi_tx = OFF;
 	}
 
 	/* *******nvram 11n config overrides Start ********* */
-
-	/* apply the sgi override from nvram conf */
-	if (n_disabled & WLFEATURE_DISABLE_11N_SGI_TX)
-		wlc->sgi_tx = OFF;
 
 	if (n_disabled & WLFEATURE_DISABLE_11N_SGI_RX)
 		brcms_c_ht_update_sgi_rx(wlc, 0);
@@ -5402,7 +5391,6 @@ void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc)
 			wlc->mpc_dlycnt = BRCMS_MPC_MAX_DELAYCNT;
 		else
 			wlc->mpc_dlycnt = BRCMS_MPC_MIN_DELAYCNT;
-		wlc->mpc_dur += OSL_SYSUPTIME() - wlc->mpc_laston_ts;
 	}
 	/*
 	 * Below logic is meant to capture the transition from mpc off
@@ -5824,9 +5812,6 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	/* update configuration value */
 	if (config == true)
 		brcms_c_protection_upd(wlc, BRCMS_PROT_G_USER, gmode);
-
-	/* Clear supported rates filter */
-	memset(&wlc->sup_rates_override, 0, sizeof(struct brcms_c_rateset));
 
 	/* Clear rateset override */
 	memset(&rs, 0, sizeof(struct brcms_c_rateset));
@@ -6663,7 +6648,7 @@ brcms_c_prec_enq_head(struct brcms_c_info *wlc, struct pktq *q,
 	if (eprec >= 0) {
 		bool discard_oldest;
 
-		discard_oldest = ac_bitmap_tst(wlc->wme_dp, eprec);
+		discard_oldest = ac_bitmap_tst(0, eprec);
 
 		/* Refuse newer packet unless configured to discard oldest */
 		if (eprec == prec && !discard_oldest) {
