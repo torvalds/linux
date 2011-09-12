@@ -390,7 +390,8 @@ update_existing_head_ref(struct btrfs_delayed_ref_node *existing,
  * this does all the dirty work in terms of maintaining the correct
  * overall modification count.
  */
-static noinline int add_delayed_ref_head(struct btrfs_trans_handle *trans,
+static noinline int add_delayed_ref_head(struct btrfs_fs_info *fs_info,
+					struct btrfs_trans_handle *trans,
 					struct btrfs_delayed_ref_node *ref,
 					u64 bytenr, u64 num_bytes,
 					int action, int is_data)
@@ -468,10 +469,12 @@ static noinline int add_delayed_ref_head(struct btrfs_trans_handle *trans,
 /*
  * helper to insert a delayed tree ref into the rbtree.
  */
-static noinline int add_delayed_tree_ref(struct btrfs_trans_handle *trans,
+static noinline int add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
+					 struct btrfs_trans_handle *trans,
 					 struct btrfs_delayed_ref_node *ref,
 					 u64 bytenr, u64 num_bytes, u64 parent,
-					 u64 ref_root, int level, int action)
+					 u64 ref_root, int level, int action,
+					 int for_cow)
 {
 	struct btrfs_delayed_ref_node *existing;
 	struct btrfs_delayed_tree_ref *full_ref;
@@ -522,11 +525,12 @@ static noinline int add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 /*
  * helper to insert a delayed data ref into the rbtree.
  */
-static noinline int add_delayed_data_ref(struct btrfs_trans_handle *trans,
+static noinline int add_delayed_data_ref(struct btrfs_fs_info *fs_info,
+					 struct btrfs_trans_handle *trans,
 					 struct btrfs_delayed_ref_node *ref,
 					 u64 bytenr, u64 num_bytes, u64 parent,
 					 u64 ref_root, u64 owner, u64 offset,
-					 int action)
+					 int action, int for_cow)
 {
 	struct btrfs_delayed_ref_node *existing;
 	struct btrfs_delayed_data_ref *full_ref;
@@ -554,6 +558,7 @@ static noinline int add_delayed_data_ref(struct btrfs_trans_handle *trans,
 		full_ref->root = ref_root;
 		ref->type = BTRFS_EXTENT_DATA_REF_KEY;
 	}
+
 	full_ref->objectid = owner;
 	full_ref->offset = offset;
 
@@ -580,10 +585,12 @@ static noinline int add_delayed_data_ref(struct btrfs_trans_handle *trans,
  * to make sure the delayed ref is eventually processed before this
  * transaction commits.
  */
-int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
+int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
+			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes, u64 parent,
 			       u64 ref_root,  int level, int action,
-			       struct btrfs_delayed_extent_op *extent_op)
+			       struct btrfs_delayed_extent_op *extent_op,
+			       int for_cow)
 {
 	struct btrfs_delayed_tree_ref *ref;
 	struct btrfs_delayed_ref_head *head_ref;
@@ -610,12 +617,13 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	 * insert both the head node and the new ref without dropping
 	 * the spin lock
 	 */
-	ret = add_delayed_ref_head(trans, &head_ref->node, bytenr, num_bytes,
-				   action, 0);
+	ret = add_delayed_ref_head(fs_info, trans, &head_ref->node, bytenr,
+				   num_bytes, action, 0);
 	BUG_ON(ret);
 
-	ret = add_delayed_tree_ref(trans, &ref->node, bytenr, num_bytes,
-				   parent, ref_root, level, action);
+	ret = add_delayed_tree_ref(fs_info, trans, &ref->node, bytenr,
+				   num_bytes, parent, ref_root, level, action,
+				   for_cow);
 	BUG_ON(ret);
 	spin_unlock(&delayed_refs->lock);
 	return 0;
@@ -624,11 +632,13 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 /*
  * add a delayed data ref. it's similar to btrfs_add_delayed_tree_ref.
  */
-int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
+int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
+			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes,
 			       u64 parent, u64 ref_root,
 			       u64 owner, u64 offset, int action,
-			       struct btrfs_delayed_extent_op *extent_op)
+			       struct btrfs_delayed_extent_op *extent_op,
+			       int for_cow)
 {
 	struct btrfs_delayed_data_ref *ref;
 	struct btrfs_delayed_ref_head *head_ref;
@@ -655,18 +665,20 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	 * insert both the head node and the new ref without dropping
 	 * the spin lock
 	 */
-	ret = add_delayed_ref_head(trans, &head_ref->node, bytenr, num_bytes,
-				   action, 1);
+	ret = add_delayed_ref_head(fs_info, trans, &head_ref->node, bytenr,
+				   num_bytes, action, 1);
 	BUG_ON(ret);
 
-	ret = add_delayed_data_ref(trans, &ref->node, bytenr, num_bytes,
-				   parent, ref_root, owner, offset, action);
+	ret = add_delayed_data_ref(fs_info, trans, &ref->node, bytenr,
+				   num_bytes, parent, ref_root, owner, offset,
+				   action, for_cow);
 	BUG_ON(ret);
 	spin_unlock(&delayed_refs->lock);
 	return 0;
 }
 
-int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
+int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
+				struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes,
 				struct btrfs_delayed_extent_op *extent_op)
 {
@@ -683,7 +695,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 	delayed_refs = &trans->transaction->delayed_refs;
 	spin_lock(&delayed_refs->lock);
 
-	ret = add_delayed_ref_head(trans, &head_ref->node, bytenr,
+	ret = add_delayed_ref_head(fs_info, trans, &head_ref->node, bytenr,
 				   num_bytes, BTRFS_UPDATE_DELAYED_HEAD,
 				   extent_op->is_data);
 	BUG_ON(ret);

@@ -1393,9 +1393,9 @@ int btrfs_clean_old_snapshots(struct btrfs_root *root)
 
 		if (btrfs_header_backref_rev(root->node) <
 		    BTRFS_MIXED_BACKREF_REV)
-			btrfs_drop_snapshot(root, NULL, 0);
+			btrfs_drop_snapshot(root, NULL, 0, 0);
 		else
-			btrfs_drop_snapshot(root, NULL, 1);
+			btrfs_drop_snapshot(root, NULL, 1, 0);
 	}
 	return 0;
 }
