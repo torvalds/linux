@@ -310,7 +310,7 @@ static int ov6550_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	struct v4l2_subdev *sd = &priv->subdev;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	uint8_t reg, reg2;
-	int ret = 0;
+	int ret;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
@@ -342,7 +342,7 @@ static int ov6550_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct ov6650 *priv = container_of(ctrl->handler, struct ov6650, hdl);
 	struct v4l2_subdev *sd = &priv->subdev;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
+	int ret;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
@@ -370,10 +370,8 @@ static int ov6550_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_BRIGHTNESS:
 		return ov6650_reg_write(client, REG_BRT, ctrl->val);
 	case V4L2_CID_EXPOSURE_AUTO:
-		if (ctrl->val == V4L2_EXPOSURE_AUTO)
-			ret = ov6650_reg_rmw(client, REG_COMB, COMB_AEC, 0);
-		else
-			ret = ov6650_reg_rmw(client, REG_COMB, 0, COMB_AEC);
+		ret = ov6650_reg_rmw(client, REG_COMB, ctrl->val ==
+				V4L2_EXPOSURE_AUTO ? COMB_AEC : 0, COMB_AEC);
 		if (!ret && ctrl->val == V4L2_EXPOSURE_MANUAL)
 			ret = ov6650_reg_write(client, REG_AECH,
 						priv->exposure->val);
@@ -983,8 +981,8 @@ static int ov6650_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&priv->hdl, &ov6550_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 0xff, 1, 0x80);
 	priv->autoexposure = v4l2_ctrl_new_std_menu(&priv->hdl,
-			&ov6550_ctrl_ops, V4L2_CID_EXPOSURE_AUTO, 1, 0,
-			V4L2_EXPOSURE_AUTO);
+			&ov6550_ctrl_ops, V4L2_CID_EXPOSURE_AUTO,
+			V4L2_EXPOSURE_MANUAL, 0, V4L2_EXPOSURE_AUTO);
 	priv->exposure = v4l2_ctrl_new_std(&priv->hdl, &ov6550_ctrl_ops,
 			V4L2_CID_EXPOSURE, 0, 0xff, 1, DEF_AECH);
 	v4l2_ctrl_new_std(&priv->hdl, &ov6550_ctrl_ops,
