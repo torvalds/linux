@@ -171,7 +171,6 @@ void *transport_kmap_first_data_page(struct se_cmd *cmd);
 void transport_kunmap_first_data_page(struct se_cmd *cmd);
 extern void transport_free_se_cmd(struct se_cmd *);
 extern int transport_generic_allocate_tasks(struct se_cmd *, unsigned char *);
-extern int transport_generic_handle_cdb(struct se_cmd *);
 extern int transport_handle_cdb_direct(struct se_cmd *);
 extern int transport_generic_handle_cdb_map(struct se_cmd *);
 extern int transport_generic_handle_data(struct se_cmd *);

@@ -1728,24 +1728,6 @@ int transport_generic_allocate_tasks(
 }
 EXPORT_SYMBOL(transport_generic_allocate_tasks);
 
-/*
- * Used by fabric module frontends not defining a TFO->new_cmd_map()
- * to queue up a newly setup se_cmd w/ TRANSPORT_NEW_CMD statis
- */
-int transport_generic_handle_cdb(
-	struct se_cmd *cmd)
-{
-	if (!cmd->se_lun) {
-		dump_stack();
-		pr_err("cmd->se_lun is NULL\n");
-		return -EINVAL;
-	}
-
-	transport_add_cmd_to_queue(cmd, TRANSPORT_NEW_CMD);
-	return 0;
-}
-EXPORT_SYMBOL(transport_generic_handle_cdb);
-
 static void transport_generic_request_failure(struct se_cmd *,
 			struct se_device *, int, int);
 /*
@@ -5205,6 +5187,9 @@ get_cmd:
 			continue;
 
 		switch (cmd->t_state) {
+		case TRANSPORT_NEW_CMD:
+			BUG();
+			break;
 		case TRANSPORT_NEW_CMD_MAP:
 			if (!cmd->se_tfo->new_cmd_map) {
 				pr_err("cmd->se_tfo->new_cmd_map is"
@@ -5219,8 +5204,6 @@ get_cmd:
 						    DMA_TO_DEVICE));
 				break;
 			}
-			/* Fall through */
-		case TRANSPORT_NEW_CMD:
 			ret = transport_generic_new_cmd(cmd);
 			if (ret == -EAGAIN)
 				break;
