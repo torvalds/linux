@@ -20,61 +20,12 @@
 #include "main.h"
 #include "alloc.h"
 
-/* Max # of entries in Tx FIFO based on 4kb page size */
-#define NTXD		256
-/* Max # of entries in Rx FIFO based on 4kb page size */
-#define NRXD		256
-/* try to keep this # rbufs posted to the chip */
-#define	NRXBUFPOST	32
-/* Maximum SCBs in cache for STA */
-#define MAXSCB		32
-
-/* Count of packet callback structures. either of following
- * 1. Set to the number of SCBs since a STA
- * can queue up a rate callback for each IBSS STA it knows about, and an AP can
- * queue up an "are you there?" Null Data callback for each associated STA
- * 2. controlled by tunable config file
- */
-#define MAXPKTCB	MAXSCB	/* Max number of packet callbacks */
-
-/* Number of BSS handled in ucode bcn/prb */
-#define BRCMS_MAX_UCODE_BSS	(16)
-/* Number of BSS handled in sw bcn/prb */
-#define BRCMS_MAX_UCODE_BSS4	(4)
-
-/* data msg txq hiwat mark */
-#define BRCMS_DATAHIWAT		50
-#define BRCMS_AMPDUDATAHIWAT 255
-
-/* bounded rx loops */
-#define RXBND		8 /* max # frames to process in brcms_c_recv() */
-#define TXSBND		8 /* max # tx status to process in wlc_txstatus() */
-
-static void brcms_c_tunables_init(struct brcms_tunables *tunables, uint devid)
-{
-	tunables->ntxd = NTXD;
-	tunables->nrxd = NRXD;
-	tunables->rxbufsz = RXBUFSZ;
-	tunables->nrxbufpost = NRXBUFPOST;
-	tunables->maxscb = MAXSCB;
-	tunables->ampdunummpdu = AMPDU_NUM_MPDU;
-	tunables->maxpktcb = MAXPKTCB;
-	tunables->maxucodebss = BRCMS_MAX_UCODE_BSS;
-	tunables->maxucodebss4 = BRCMS_MAX_UCODE_BSS4;
-	tunables->maxbss = MAXBSS;
-	tunables->datahiwat = BRCMS_DATAHIWAT;
-	tunables->ampdudatahiwat = BRCMS_AMPDUDATAHIWAT;
-	tunables->rxbnd = RXBND;
-	tunables->txsbnd = TXSBND;
-}
-
 static void brcms_c_pub_mfree(struct brcms_pub *pub)
 {
 	if (pub == NULL)
 		return;
 
 	kfree(pub->multicast);
-	kfree(pub->tunables);
 	kfree(pub);
 }
 
@@ -87,15 +38,6 @@ static struct brcms_pub *brcms_c_pub_malloc(uint unit, uint *err, uint devid)
 		*err = 1001;
 		goto fail;
 	}
-
-	pub->tunables = kzalloc(sizeof(struct brcms_tunables), GFP_ATOMIC);
-	if (pub->tunables == NULL) {
-		*err = 1028;
-		goto fail;
-	}
-
-	/* need to init the tunables now */
-	brcms_c_tunables_init(pub->tunables, devid);
 
 	pub->multicast = kzalloc(ETH_ALEN * MAXMULTILIST, GFP_ATOMIC);
 	if (pub->multicast == NULL) {

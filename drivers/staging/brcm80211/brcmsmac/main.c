@@ -320,6 +320,21 @@
 
 #define MAX_DMA_SEGS 4
 
+/* Max # of entries in Tx FIFO based on 4kb page size */
+#define NTXD		256
+/* Max # of entries in Rx FIFO based on 4kb page size */
+#define NRXD		256
+
+/* try to keep this # rbufs posted to the chip */
+#define	NRXBUFPOST	32
+
+/* data msg txq hiwat mark */
+#define BRCMS_DATAHIWAT		50
+
+/* bounded rx loops */
+#define RXBND		8 /* max # frames to process in brcms_c_recv() */
+#define TXSBND		8 /* max # tx status to process in wlc_txstatus() */
+
 /*
  * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
  */
@@ -646,7 +661,7 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 	struct sk_buff *head = NULL;
 	struct sk_buff *tail = NULL;
 	uint n = 0;
-	uint bound_limit = bound ? wlc_hw->wlc->pub->tunables->rxbnd : -1;
+	uint bound_limit = bound ? RXBND : -1;
 	struct brcms_d11rxhdr *wlc_rxhdr = NULL;
 
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
@@ -718,7 +733,7 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 	 * Param 'max_tx_num' indicates max. # tx status to process before
 	 * break out.
 	 */
-	uint max_tx_num = bound ? wlc->pub->tunables->txsbnd : -1;
+	uint max_tx_num = bound ? TXSBND : -1;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
@@ -925,7 +940,6 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 	u16 pio_mhf2 = 0;
 	struct brcms_hardware *wlc_hw = wlc->hw;
 	uint unit = wlc_hw->unit;
-	struct brcms_tunables *tune = wlc->pub->tunables;
 	struct wiphy *wiphy = wlc->wiphy;
 
 	/* name and offsets for dma_attach */
@@ -942,8 +956,8 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		wlc_hw->di[0] = dma_attach(name, wlc_hw->sih,
 					   (wme ? DMAREG(wlc_hw, DMA_TX, 0) :
 					    NULL), DMAREG(wlc_hw, DMA_RX, 0),
-					   (wme ? tune->ntxd : 0), tune->nrxd,
-					   tune->rxbufsz, -1, tune->nrxbufpost,
+					   (wme ? NTXD : 0), NRXD,
+					   RXBUFSZ, -1, NRXBUFPOST,
 					   BRCMS_HWRXOFF, &brcm_msg_level);
 		dma_attach_err |= (NULL == wlc_hw->di[0]);
 
@@ -955,7 +969,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 */
 		wlc_hw->di[1] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 1), NULL,
-					   tune->ntxd, 0, 0, -1, 0, 0,
+					   NTXD, 0, 0, -1, 0, 0,
 					   &brcm_msg_level);
 		dma_attach_err |= (NULL == wlc_hw->di[1]);
 
@@ -966,7 +980,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 */
 		wlc_hw->di[2] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 2), NULL,
-					   tune->ntxd, 0, 0, -1, 0, 0,
+					   NTXD, 0, 0, -1, 0, 0,
 					   &brcm_msg_level);
 		dma_attach_err |= (NULL == wlc_hw->di[2]);
 		/*
@@ -976,7 +990,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 */
 		wlc_hw->di[3] = dma_attach(name, wlc_hw->sih,
 					   DMAREG(wlc_hw, DMA_TX, 3),
-					   NULL, tune->ntxd, 0, 0, -1,
+					   NULL, NTXD, 0, 0, -1,
 					   0, 0, &brcm_msg_level);
 		dma_attach_err |= (NULL == wlc_hw->di[3]);
 /* Cleaner to leave this as if with AP defined */
@@ -4963,7 +4977,7 @@ static struct brcms_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc)
 		 * will remain the same
 		 */
 		brcmu_pktq_init(&qi->q, BRCMS_PREC_COUNT,
-			  (2 * wlc->pub->tunables->datahiwat) + PKTQ_LEN_DEFAULT
+			  2 * BRCMS_DATAHIWAT + PKTQ_LEN_DEFAULT
 			  + wlc->pub->psq_pkts_total);
 
 		/* add this queue to the the global list */
@@ -6798,11 +6812,10 @@ void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
 	 */
 	if (!EDCF_ENAB(wlc->pub)
 	    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL)) {
-		if (pktq_len(q) >= wlc->pub->tunables->datahiwat)
+		if (pktq_len(q) >= BRCMS_DATAHIWAT)
 			brcms_c_txflowcontrol(wlc, qi, ON, ALLPRIO);
 	} else if (wlc->pub->_priofc) {
-		if (pktq_plen(q, wlc_prio2prec_map[prio]) >=
-		    wlc->pub->tunables->datahiwat)
+		if (pktq_plen(q, wlc_prio2prec_map[prio]) >= BRCMS_DATAHIWAT)
 			brcms_c_txflowcontrol(wlc, qi, ON, prio);
 	}
 }
@@ -7806,14 +7819,14 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 	if (!EDCF_ENAB(wlc->pub)
 	    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL)) {
 		if (brcms_c_txflowcontrol_prio_isset(wlc, qi, ALLPRIO)
-		    && (pktq_len(q) < wlc->pub->tunables->datahiwat / 2))
+		    && (pktq_len(q) < BRCMS_DATAHIWAT / 2))
 			brcms_c_txflowcontrol(wlc, qi, OFF, ALLPRIO);
 	} else if (wlc->pub->_priofc) {
 		int prio;
 		for (prio = MAXPRIO; prio >= 0; prio--) {
 			if (brcms_c_txflowcontrol_prio_isset(wlc, qi, prio) &&
 			    q->q[wlc_prio2prec_map[prio]].len <
-			    wlc->pub->tunables->datahiwat / 2)
+			    BRCMS_DATAHIWAT / 2)
 				brcms_c_txflowcontrol(wlc, qi, OFF, prio);
 		}
 	}

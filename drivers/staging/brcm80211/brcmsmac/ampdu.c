@@ -62,6 +62,9 @@
 
 #define AMPDU_DELIMITER_LEN	4
 
+/* max allowed number of mpdus in an ampdu (2 streams) */
+#define AMPDU_NUM_MPDU		16
+
 #define TX_SEQ_TO_INDEX(seq) ((seq) % AMPDU_TX_BA_MAX_WSIZE)
 
 /* max possible overhead per mpdu in the ampdu; 3 is for roundup if needed */
@@ -287,7 +290,7 @@ static void brcms_c_scb_ampdu_update_config(struct ampdu_info *ampdu,
 	struct scb_ampdu *scb_ampdu = &scb->scb_ampdu;
 	int i;
 
-	scb_ampdu->max_pdu = (u8) ampdu->wlc->pub->tunables->ampdunummpdu;
+	scb_ampdu->max_pdu = AMPDU_NUM_MPDU;
 
 	/* go back to legacy size if some preloading is occurring */
 	for (i = 0; i < NUM_FFPLD_FIFO; i++) {

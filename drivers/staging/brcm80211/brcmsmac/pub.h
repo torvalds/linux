@@ -102,24 +102,6 @@
 
 #define MAX_STREAMS_SUPPORTED	4	/* max number of streams supported */
 
-struct brcms_tunables {
-	int ntxd;	/* size of tx descriptor table */
-	int nrxd;	/* size of rx descriptor table */
-	int rxbufsz;	/* size of rx buffers to post */
-	int nrxbufpost;	/* # of rx buffers to post */
-	int maxscb;	/* # of SCBs supported */
-	int ampdunummpdu;	/* max number of mpdu in an ampdu */
-	int maxpktcb;	/* max # of packet callbacks */
-	int maxucodebss;/* max # of BSS handled in ucode bcn/prb */
-	int maxucodebss4;	/* max # of BSS handled in sw bcn/prb */
-	int maxbss;	/* max # of bss info elements in scan list */
-	int datahiwat;	/* data msg txq hiwat mark */
-	int ampdudatahiwat;	/* AMPDU msg txq hiwat mark */
-	int rxbnd;	/* max # rx bufs to process before deferring to dpc */
-	int txsbnd;	/* max # tx status to process in wlc_txstatus() */
-	int memreserved;/* memory reserved for BMAC's USB dma rx */
-};
-
 struct brcms_c_rateset {
 	uint count;		/* number of rates in rates[] */
 	 /* rates in 500kbps units w/hi bit set if basic */
@@ -176,8 +158,6 @@ struct brcms_pub {
 	char *vars;		/* "environment" name=value */
 	bool up;		/* interface up and running */
 	bool hw_off;		/* HW is off */
-	/* tunables: ntxd, nrxd, maxscb, etc. */
-	struct brcms_tunables *tunables;
 	bool hw_up;		/* one time hw up/down */
 	bool _piomode;		/* true if pio mode */
 	uint _nbands;		/* # bands supported */

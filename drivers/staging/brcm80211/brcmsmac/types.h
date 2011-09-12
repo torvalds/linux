@@ -244,26 +244,10 @@
  * ********************************************************************
  */
 
-/*************************************************
- * Defaults for tunables (e.g. sizing constants)
- *
- * For each new tunable, add a member to the end
- * of struct brcms_tunables in brcms_c_pub.h to enable
- * runtime checks of tunable values. (Directly
- * using the macros in code invalidates ROM code)
- *
- * ***********************************************
- */
-
-/* max allowed number of mpdus in an ampdu (2 streams) */
-#define AMPDU_NUM_MPDU		16
-
 /* NetBSD also needs to keep track of this */
 
 /* max # BSS configs */
 #define BRCMS_MAXBSSCFG		(1)
-/* max # available networks */
-#define MAXBSS		64
 
 #define BCMMSG(dev, fmt, args...)		\
 do {						\
