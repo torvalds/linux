@@ -237,11 +237,7 @@ struct brcms_pub {
 					 */
 	bool align_wd_tbtt;	/* Align watchdog with tbtt indication
 				 * handling. This flag is cleared by default
-				 * and is set by per port code explicitly and
-				 * you need to make sure the OSL_SYSUPTIME()
-				 * is implemented properly in osl of that port
-				 * when it enables this Power Save feature.
-				 */
+				 * and is set explicitly */
 
 	u16 boardrev;	/* version # of particular board */
 	u8 sromrev;		/* version # of the srom */

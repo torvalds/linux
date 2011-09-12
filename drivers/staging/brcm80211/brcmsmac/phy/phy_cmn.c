@@ -13,7 +13,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
+#include <linux/kernel.h>
 #include <linux/delay.h>
 
 #include <brcm_hw_ids.h>
@@ -36,6 +36,16 @@
 #define VALID_RADIO(pi, radioid)        ( \
 		(ISNPHY(pi) ? VALID_N_RADIO(radioid) : false) || \
 		(ISLCNPHY(pi) ? VALID_LCN_RADIO(radioid) : false))
+
+/* basic mux operation - can be optimized on several architectures */
+#define MUX(pred, true, false) ((pred) ? (true) : (false))
+
+/* modulo inc/dec - assumes x E [0, bound - 1] */
+#define MODINC(x, bound) MUX((x) == (bound) - 1, 0, (x) + 1)
+
+/* modulo inc/dec, bound = 2^k */
+#define MODDEC_POW2(x, bound) (((x) - 1) & ((bound) - 1))
+#define MODINC_POW2(x, bound) (((x) + 1) & ((bound) - 1))
 
 struct chan_info_basic {
 	u16 chan;
@@ -2879,7 +2889,7 @@ u8 wlc_phy_nbits(s32 value)
 	s32 abs_val;
 	u8 nbits = 0;
 
-	abs_val = ABS(value);
+	abs_val = abs(value);
 	while ((abs_val >> nbits) > 0)
 		nbits++;
 

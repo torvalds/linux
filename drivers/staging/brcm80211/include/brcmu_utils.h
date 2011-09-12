@@ -48,6 +48,34 @@ struct brcmu_strbuf {
 #define PKTQ_LEN_DEFAULT        128	/* Max 128 packets */
 #define PKTQ_MAX_PREC           16	/* Maximum precedence levels */
 
+#define BCME_STRLEN		64	/* Max string length for BCM errors */
+
+/* the largest reasonable packet buffer driver uses for ethernet MTU in bytes */
+#define	PKTBUFSZ	2048
+
+#ifndef setbit
+#ifndef NBBY			/* the BSD family defines NBBY */
+#define	NBBY	8		/* 8 bits per byte */
+#endif				/* #ifndef NBBY */
+#define	setbit(a, i)	(((u8 *)a)[(i)/NBBY] |= 1<<((i)%NBBY))
+#define	clrbit(a, i)	(((u8 *)a)[(i)/NBBY] &= ~(1<<((i)%NBBY)))
+#define	isset(a, i)	(((const u8 *)a)[(i)/NBBY] & (1<<((i)%NBBY)))
+#define	isclr(a, i)	((((const u8 *)a)[(i)/NBBY] & (1<<((i)%NBBY))) == 0)
+#endif				/* setbit */
+
+#define	NBITS(type)	(sizeof(type) * 8)
+#define NBITVAL(nbits)	(1 << (nbits))
+#define MAXBITVAL(nbits)	((1 << (nbits)) - 1)
+#define	NBITMASK(nbits)	MAXBITVAL(nbits)
+#define MAXNBVAL(nbyte)	MAXBITVAL((nbyte) * 8)
+
+/* crc defines */
+#define CRC16_INIT_VALUE 0xffff	/* Initial CRC16 checksum value */
+#define CRC16_GOOD_VALUE 0xf0b8	/* Good final CRC16 checksum value */
+
+/* 18-bytes of Ethernet address buffer length */
+#define ETHER_ADDR_STR_LEN	18
+
 struct pktq_prec {
 	struct sk_buff *head;	/* first packet to dequeue */
 	struct sk_buff *tail;	/* last packet to dequeue */
@@ -70,14 +98,35 @@ struct pktq {
 
 /* operations on a specific precedence in packet queue */
 
-#define pktq_psetmax(pq, prec, _max)    ((pq)->q[prec].max = (_max))
-#define pktq_plen(pq, prec)             ((pq)->q[prec].len)
-#define pktq_pavail(pq, prec)           ((pq)->q[prec].max - (pq)->q[prec].len)
-#define pktq_pfull(pq, prec)            ((pq)->q[prec].len >= (pq)->q[prec].max)
-#define pktq_pempty(pq, prec)           ((pq)->q[prec].len == 0)
+static inline int pktq_plen(struct pktq *pq, int prec)
+{
+	return pq->q[prec].len;
+}
 
-#define pktq_ppeek(pq, prec)            ((pq)->q[prec].head)
-#define pktq_ppeek_tail(pq, prec)       ((pq)->q[prec].tail)
+static inline int pktq_pavail(struct pktq *pq, int prec)
+{
+	return pq->q[prec].max - pq->q[prec].len;
+}
+
+static inline bool pktq_pfull(struct pktq *pq, int prec)
+{
+	return pq->q[prec].len >= pq->q[prec].max;
+}
+
+static inline bool pktq_pempty(struct pktq *pq, int prec)
+{
+	return pq->q[prec].len == 0;
+}
+
+static inline struct sk_buff *pktq_ppeek(struct pktq *pq, int prec)
+{
+	return pq->q[prec].head;
+}
+
+static inline struct sk_buff *pktq_ppeek_tail(struct pktq *pq, int prec)
+{
+	return pq->q[prec].tail;
+}
 
 extern struct sk_buff *brcmu_pktq_penq(struct pktq *pq, int prec,
 				 struct sk_buff *p);
@@ -103,19 +152,30 @@ extern struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 
 /* operations on packet queue as a whole */
 
-#define pktq_len(pq)                    ((int)(pq)->len)
-#define pktq_max(pq)                    ((int)(pq)->max)
-#define pktq_avail(pq)                  ((int)((pq)->max - (pq)->len))
-#define pktq_full(pq)                   ((pq)->len >= (pq)->max)
-#define pktq_empty(pq)                  ((pq)->len == 0)
+static inline int pktq_len(struct pktq *pq)
+{
+	return (int)pq->len;
+}
 
-/* operations for single precedence queues */
-#define pktenq(pq, p)		brcmu_pktq_penq(((struct pktq *)pq), 0, (p))
-#define pktenq_head(pq, p)\
-	brcmu_pktq_penq_head(((struct pktq *)pq), 0, (p))
-#define pktdeq(pq)		brcmu_pktq_pdeq(((struct pktq *)pq), 0)
-#define pktdeq_tail(pq)		brcmu_pktq_pdeq_tail(((struct pktq *)pq), 0)
-#define pktqinit(pq, len)	brcmu_pktq_init(((struct pktq *)pq), 1, len)
+static inline int pktq_max(struct pktq *pq)
+{
+	return (int)pq->max;
+}
+
+static inline int pktq_avail(struct pktq *pq)
+{
+	return (int)(pq->max - pq->len);
+}
+
+static inline bool pktq_full(struct pktq *pq)
+{
+	return pq->len >= pq->max;
+}
+
+static inline bool pktq_empty(struct pktq *pq)
+{
+	return pq->len == 0;
+}
 
 extern void brcmu_pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
@@ -182,66 +242,6 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 #define IOVT_INT32	6	/* int 32 bits */
 #define IOVT_UINT32	7	/* unsigned int 32 bits */
 #define IOVT_BUFFER	8	/* buffer is size-checked as per minlen */
-#define BCM_IOVT_VALID(type) (((unsigned int)(type)) <= IOVT_BUFFER)
-
-/* ** driver/apps-shared section ** */
-
-#define BCME_STRLEN		64	/* Max string length for BCM errors */
-
-#define	ABS(a)			(((a) < 0) ? -(a) : (a))
-
-#define CEIL(x, y)		(((x) + ((y)-1)) / (y))
-#define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
-
-/* map physical to virtual I/O */
-#define REG_MAP(pa, size)       ioremap_nocache((unsigned long)(pa), \
-					(unsigned long)(size))
-
-/* the largest reasonable packet buffer driver uses for ethernet MTU in bytes */
-#define	PKTBUFSZ	2048
-
-#define OSL_SYSUPTIME()		((u32)jiffies * (1000 / HZ))
-
-#ifndef setbit
-#ifndef NBBY			/* the BSD family defines NBBY */
-#define	NBBY	8		/* 8 bits per byte */
-#endif				/* #ifndef NBBY */
-#define	setbit(a, i)	(((u8 *)a)[(i)/NBBY] |= 1<<((i)%NBBY))
-#define	clrbit(a, i)	(((u8 *)a)[(i)/NBBY] &= ~(1<<((i)%NBBY)))
-#define	isset(a, i)	(((const u8 *)a)[(i)/NBBY] & (1<<((i)%NBBY)))
-#define	isclr(a, i)	((((const u8 *)a)[(i)/NBBY] & (1<<((i)%NBBY))) == 0)
-#endif				/* setbit */
-
-#define	NBITS(type)	(sizeof(type) * 8)
-#define NBITVAL(nbits)	(1 << (nbits))
-#define MAXBITVAL(nbits)	((1 << (nbits)) - 1)
-#define	NBITMASK(nbits)	MAXBITVAL(nbits)
-#define MAXNBVAL(nbyte)	MAXBITVAL((nbyte) * 8)
-
-/* basic mux operation - can be optimized on several architectures */
-#define MUX(pred, true, false) ((pred) ? (true) : (false))
-
-/* modulo inc/dec - assumes x E [0, bound - 1] */
-#define MODDEC(x, bound) MUX((x) == 0, (bound) - 1, (x) - 1)
-#define MODINC(x, bound) MUX((x) == (bound) - 1, 0, (x) + 1)
-
-/* modulo inc/dec, bound = 2^k */
-#define MODDEC_POW2(x, bound) (((x) - 1) & ((bound) - 1))
-#define MODINC_POW2(x, bound) (((x) + 1) & ((bound) - 1))
-
-/* modulo add/sub - assumes x, y E [0, bound - 1] */
-#define MODADD(x, y, bound) \
-	MUX((x) + (y) >= (bound), (x) + (y) - (bound), (x) + (y))
-#define MODSUB(x, y, bound) \
-	MUX(((int)(x)) - ((int)(y)) < 0, (x) - (y) + (bound), (x) - (y))
-
-/* module add/sub, bound = 2^k */
-#define MODADD_POW2(x, y, bound) (((x) + (y)) & ((bound) - 1))
-#define MODSUB_POW2(x, y, bound) (((x) - (y)) & ((bound) - 1))
-
-/* crc defines */
-#define CRC16_INIT_VALUE 0xffff	/* Initial CRC16 checksum value */
-#define CRC16_GOOD_VALUE 0xf0b8	/* Good final CRC16 checksum value */
 
 /* brcmu_format_flags() bit description structure */
 struct brcmu_bit_desc {
@@ -255,9 +255,6 @@ struct brcmu_tlv {
 	u8 len;
 	u8 data[1];
 };
-
-/* 18-bytes of Ethernet address buffer length */
-#define ETHER_ADDR_STR_LEN	18
 
 /* externs */
 /* format/print */

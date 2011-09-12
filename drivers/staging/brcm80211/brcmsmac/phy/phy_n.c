@@ -14,6 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/cordic.h>
 
@@ -22648,7 +22649,7 @@ static void wlc_phy_rssi_cal_nphy_rev3(struct brcms_phy *pi)
 					poll_results[vcm_final][result_idx];
 				if (fine_digital_offset[result_idx] < 0) {
 					fine_digital_offset[result_idx] =
-						ABS(fine_digital_offset
+						abs(fine_digital_offset
 						    [result_idx]);
 					fine_digital_offset[result_idx] +=
 						(NPHY_RSSICAL_NPOLL / 2);
@@ -22727,7 +22728,7 @@ static void wlc_phy_rssi_cal_nphy_rev3(struct brcms_phy *pi)
 					if (fine_digital_offset[result_idx] <
 					    0) {
 						fine_digital_offset[result_idx]
-							= ABS(
+							= abs(
 							    fine_digital_offset
 							    [result_idx]);
 						fine_digital_offset[result_idx]
@@ -23004,7 +23005,7 @@ static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type)
 		min_vcm = 0;
 		min_poll = NPHY_RSSICAL_MAXREAD * NPHY_RSSICAL_NPOLL + 1;
 		for (vcm = 0; vcm < 4; vcm++) {
-			curr_d = ABS(((rssi_type == NPHY_RSSI_SEL_NB) ?
+			curr_d = abs(((rssi_type == NPHY_RSSI_SEL_NB) ?
 				      poll_results[vcm][result_idx] :
 				      poll_miniq[vcm][result_idx / 2]) -
 				     (target_code * NPHY_RSSICAL_NPOLL));
@@ -23028,7 +23029,7 @@ static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type)
 			poll_results[vcm_final[result_idx]][result_idx];
 		if (fine_digital_offset[result_idx] < 0) {
 			fine_digital_offset[result_idx] =
-				ABS(fine_digital_offset[result_idx]);
+				abs(fine_digital_offset[result_idx]);
 			fine_digital_offset[result_idx] +=
 				(NPHY_RSSICAL_NPOLL / 2);
 			fine_digital_offset[result_idx] /= NPHY_RSSICAL_NPOLL;
@@ -27422,9 +27423,9 @@ wlc_phy_rc_sweep_nphy(struct brcms_phy *pi, u8 core_idx, u8 loopback_type)
 
 		if (rccal_stepsize == -1) {
 			best_rccal_val =
-				(ABS((int)last_pwr_ratio -
+				(abs((int)last_pwr_ratio -
 				     (int)target_pwr_ratio) <
-				 ABS((int)pwr_ratio -
+				 abs((int)pwr_ratio -
 				     (int)target_pwr_ratio)) ? last_rccal_val :
 				rccal_val;
 
@@ -28324,10 +28325,10 @@ void wlc_phy_txpwr_papd_cal_nphy(struct brcms_phy *pi)
 		|| (wlc_phy_txpwr_ison_nphy(pi)
 		    &&
 		    (((u32)
-		      ABS(wlc_phy_txpwr_idx_cur_get_nphy(pi, 0) -
+		      abs(wlc_phy_txpwr_idx_cur_get_nphy(pi, 0) -
 			  pi->nphy_papd_tx_gain_at_last_cal[0]) >= 4)
 		     || ((u32)
-			 ABS(wlc_phy_txpwr_idx_cur_get_nphy(pi, 1) -
+			 abs(wlc_phy_txpwr_idx_cur_get_nphy(pi, 1) -
 			     pi->nphy_papd_tx_gain_at_last_cal[1]) >= 4)))))
 		wlc_phy_a4(pi, true);
 }

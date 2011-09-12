@@ -186,6 +186,8 @@
 
 #define	BRCMS_HWRXOFF		38	/* chip rx buffer offset */
 
+#define OSL_SYSUPTIME()		((u32)jiffies * (1000 / HZ))
+
 /*
  * driver maintains internal 'tick'(wlc->pub->now) which increments in 1s
  * OS timer(soft watchdog) it is not a wall clock and won't increment when
@@ -7863,8 +7865,8 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 		int prio;
 		for (prio = MAXPRIO; prio >= 0; prio--) {
 			if (brcms_c_txflowcontrol_prio_isset(wlc, qi, prio) &&
-			    (pktq_plen(q, wlc_prio2prec_map[prio]) <
-			    wlc->pub->tunables->datahiwat / 2))
+			    q->q[wlc_prio2prec_map[prio]].len <
+			    wlc->pub->tunables->datahiwat / 2)
 				brcms_c_txflowcontrol(wlc, qi, OFF, prio);
 		}
 	}

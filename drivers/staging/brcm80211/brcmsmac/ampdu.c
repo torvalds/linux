@@ -69,6 +69,10 @@
 	AMPDU_DELIMITER_LEN + 3\
 	+ DOT11_A4_HDR_LEN + DOT11_QOS_LEN + DOT11_IV_MAX_LEN)
 
+/* modulo add/sub, bound = 2^k */
+#define MODADD_POW2(x, y, bound) (((x) + (y)) & ((bound) - 1))
+#define MODSUB_POW2(x, y, bound) (((x) - (y)) & ((bound) - 1))
+
 /* structure to hold tx fifo information and pre-loading state
  * counters specific to tx underflows of ampdus
  * some counters might be redundant with the ones in wlc or ampdu structures.

@@ -14,6 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/cordic.h>
 
@@ -3378,9 +3379,9 @@ wlc_lcnphy_start_tx_tone(struct brcms_phy *pi, s32 f_kHz, u16 max_val,
 		k = 1;
 		do {
 			bw = phy_bw * 1000 * k;
-			num_samps = bw / ABS(f_kHz);
+			num_samps = bw / abs(f_kHz);
 			k++;
-		} while ((num_samps * (u32) (ABS(f_kHz))) != bw);
+		} while ((num_samps * (u32) (abs(f_kHz))) != bw);
 	} else
 		num_samps = 2;
 
@@ -3894,7 +3895,7 @@ static void wlc_lcnphy_txpwrtbl_iqlo_cal(struct brcms_phy *pi)
 	}
 
 	wlc_lcnphy_get_radio_loft(pi, &ei0, &eq0, &fi0, &fq0);
-	if ((ABS((s8) fi0) == 15) && (ABS((s8) fq0) == 15)) {
+	if ((abs((s8) fi0) == 15) && (abs((s8) fq0) == 15)) {
 		if (CHSPEC_IS5G(pi->radio_chanspec)) {
 			target_gains.gm_gain = 255;
 			target_gains.pga_gain = 255;

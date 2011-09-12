@@ -341,6 +341,8 @@ do {						\
 #define mboolisset(mb, bit)		(((mb) & (bit)) != 0)
 #define	mboolmaskset(mb, mask, val)	((mb) = (((mb) & ~(mask)) | (val)))
 
+#define CEIL(x, y)		(((x) + ((y)-1)) / (y))
+
 /* forward declarations */
 struct wiphy;
 struct ieee80211_sta;
