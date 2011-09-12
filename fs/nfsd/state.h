@@ -371,7 +371,8 @@ struct nfs4_openowner {
 	struct list_head        oo_perclient;
 	struct list_head	oo_close_lru; /* tail queue */
 	time_t			oo_time; /* time of placement on so_close_lru */
-	int                     oo_confirmed; /* successful OPEN_CONFIRM? */
+#define NFS4_OO_CONFIRMED   1
+	unsigned char		oo_flags;
 };
 
 struct nfs4_lockowner {

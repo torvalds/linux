@@ -2322,7 +2322,7 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 		return NULL;
 	oo->oo_owner.so_is_open_owner = 1;
 	oo->oo_owner.so_seqid = open->op_seqid;
-	oo->oo_confirmed = 0;
+	oo->oo_flags = 0;
 	oo->oo_time = 0;
 	INIT_LIST_HEAD(&oo->oo_close_lru);
 	hash_openowner(oo, clp, strhashval);
@@ -2549,7 +2549,7 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 			return nfserr_expired;
 		goto renew;
 	}
-	if (!oo->oo_confirmed) {
+	if (!(oo->oo_flags & NFS4_OO_CONFIRMED)) {
 		/* Replace unconfirmed owners without checking for replay. */
 		clp = oo->oo_owner.so_client;
 		release_openowner(oo);
@@ -2616,7 +2616,7 @@ out:
 		return nfs_ok;
 	if (status)
 		return status;
-	open->op_openowner->oo_confirmed = 1;
+	open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 	return nfs_ok;
 }
 
@@ -2749,7 +2749,7 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *c
 static void
 nfs4_set_claim_prev(struct nfsd4_open *open)
 {
-	open->op_openowner->oo_confirmed = 1;
+	open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 	open->op_openowner->oo_owner.so_client->cl_firststate = 1;
 }
 
@@ -2853,7 +2853,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_ol_
 			 * had the chance to reclaim theirs.... */
 			if (locks_in_grace())
 				goto out;
-			if (!cb_up || !oo->oo_confirmed)
+			if (!cb_up || !(oo->oo_flags & NFS4_OO_CONFIRMED))
 				goto out;
 			if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
 				flag = NFS4_OPEN_DELEGATE_WRITE;
@@ -2952,7 +2952,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	memcpy(&open->op_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
 
 	if (nfsd4_has_session(&resp->cstate))
-		open->op_openowner->oo_confirmed = 1;
+		open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 
 	/*
 	* Attempt to hand out a delegation. No error return, because the
@@ -2973,7 +2973,7 @@ out:
 	* To finish the open response, we just need to set the rflags.
 	*/
 	open->op_rflags = NFS4_OPEN_RESULT_LOCKTYPE_POSIX;
-	if (!open->op_openowner->oo_confirmed &&
+	if (!(open->op_openowner->oo_flags & NFS4_OO_CONFIRMED) &&
 	    !nfsd4_has_session(&resp->cstate))
 		open->op_rflags |= NFS4_OPEN_RESULT_CONFIRM;
 
@@ -3264,7 +3264,7 @@ __be32 nfs4_validate_stateid(stateid_t *stateid, bool has_session)
 		return nfs_ok;
 	ols = openlockstateid(s);
 	if (ols->st_stateowner->so_is_open_owner
-	    && !openowner(ols->st_stateowner)->oo_confirmed)
+	    && !(openowner(ols->st_stateowner)->oo_flags & NFS4_OO_CONFIRMED))
 		return nfserr_bad_stateid;
 	return nfs_ok;
 }
@@ -3323,7 +3323,7 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		if (nfs4_check_fh(current_fh, stp))
 			goto out;
 		if (stp->st_stateowner->so_is_open_owner
-		    && !openowner(stp->st_stateowner)->oo_confirmed)
+		    && !(openowner(stp->st_stateowner)->oo_flags & NFS4_OO_CONFIRMED))
 			goto out;
 		status = nfs4_check_openmode(stp, flags);
 		if (status)
@@ -3476,7 +3476,7 @@ static __be32 nfs4_preprocess_confirmed_seqid_op(struct nfsd4_compound_state *cs
 	if (status)
 		return status;
 	oo = openowner((*stpp)->st_stateowner);
-	if (!oo->oo_confirmed)
+	if (!(oo->oo_flags & NFS4_OO_CONFIRMED))
 		return nfserr_bad_stateid;
 	return nfs_ok;
 }
@@ -3506,9 +3506,9 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 	oo = openowner(stp->st_stateowner);
 	status = nfserr_bad_stateid;
-	if (oo->oo_confirmed)
+	if (oo->oo_flags & NFS4_OO_CONFIRMED)
 		goto out;
-	oo->oo_confirmed = 1;
+	oo->oo_flags |= NFS4_OO_CONFIRMED;
 	update_stateid(&stp->st_stid.sc_stateid);
 	memcpy(&oc->oc_resp_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
 	dprintk("NFSD: %s: success, seqid=%d stateid=" STATEID_FMT "\n",
