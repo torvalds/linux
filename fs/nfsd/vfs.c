@@ -168,6 +168,8 @@ int nfsd_mountpoint(struct dentry *dentry, struct svc_export *exp)
 {
 	if (d_mountpoint(dentry))
 		return 1;
+	if (nfsd4_is_junction(dentry))
+		return 1;
 	if (!(exp->ex_flags & NFSEXP_V4ROOT))
 		return 0;
 	return dentry->d_inode != NULL;
@@ -592,6 +594,22 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_ac
 	return error;
 }
 
+#define NFSD_XATTR_JUNCTION_PREFIX XATTR_TRUSTED_PREFIX "junction."
+#define NFSD_XATTR_JUNCTION_TYPE NFSD_XATTR_JUNCTION_PREFIX "type"
+int nfsd4_is_junction(struct dentry *dentry)
+{
+	struct inode *inode = dentry->d_inode;
+
+	if (inode == NULL)
+		return 0;
+	if (inode->i_mode & S_IXUGO)
+		return 0;
+	if (!(inode->i_mode & S_ISVTX))
+		return 0;
+	if (vfs_getxattr(dentry, NFSD_XATTR_JUNCTION_TYPE, NULL, 0) <= 0)
+		return 0;
+	return 1;
+}
 #endif /* defined(CONFIG_NFSD_V4) */
 
 #ifdef CONFIG_NFSD_V3

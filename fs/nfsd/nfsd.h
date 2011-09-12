@@ -361,6 +361,13 @@ static inline u32 nfsd_suppattrs2(u32 minorversion)
 #define NFSD_SUPPATTR_EXCLCREAT_WORD2 \
 	NFSD_WRITEABLE_ATTRS_WORD2
 
+extern int nfsd4_is_junction(struct dentry *dentry);
+#else
+static inline int nfsd4_is_junction(struct dentry *dentry)
+{
+	return 0;
+}
+
 #endif /* CONFIG_NFSD_V4 */
 
 #endif /* LINUX_NFSD_NFSD_H */
