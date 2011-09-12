@@ -2857,26 +2857,25 @@ EXPORT_SYMBOL(tcp_gro_complete);
 
 #ifdef CONFIG_TCP_MD5SIG
 static unsigned long tcp_md5sig_users;
-static struct tcp_md5sig_pool * __percpu *tcp_md5sig_pool;
+static struct tcp_md5sig_pool __percpu *tcp_md5sig_pool;
 static DEFINE_SPINLOCK(tcp_md5sig_pool_lock);
 
-static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool * __percpu *pool)
+static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool __percpu *pool)
 {
 	int cpu;
+
 	for_each_possible_cpu(cpu) {
-		struct tcp_md5sig_pool *p = *per_cpu_ptr(pool, cpu);
-		if (p) {
-			if (p->md5_desc.tfm)
-				crypto_free_hash(p->md5_desc.tfm);
-			kfree(p);
-		}
+		struct tcp_md5sig_pool *p = per_cpu_ptr(pool, cpu);
+
+		if (p->md5_desc.tfm)
+			crypto_free_hash(p->md5_desc.tfm);
 	}
 	free_percpu(pool);
 }
 
 void tcp_free_md5sig_pool(void)
 {
-	struct tcp_md5sig_pool * __percpu *pool = NULL;
+	struct tcp_md5sig_pool __percpu *pool = NULL;
 
 	spin_lock_bh(&tcp_md5sig_pool_lock);
 	if (--tcp_md5sig_users == 0) {
@@ -2889,30 +2888,24 @@ void tcp_free_md5sig_pool(void)
 }
 EXPORT_SYMBOL(tcp_free_md5sig_pool);
 
-static struct tcp_md5sig_pool * __percpu *
+static struct tcp_md5sig_pool __percpu *
 __tcp_alloc_md5sig_pool(struct sock *sk)
 {
 	int cpu;
-	struct tcp_md5sig_pool * __percpu *pool;
+	struct tcp_md5sig_pool __percpu *pool;
 
-	pool = alloc_percpu(struct tcp_md5sig_pool *);
+	pool = alloc_percpu(struct tcp_md5sig_pool);
 	if (!pool)
 		return NULL;
 
 	for_each_possible_cpu(cpu) {
-		struct tcp_md5sig_pool *p;
 		struct crypto_hash *hash;
-
-		p = kzalloc(sizeof(*p), sk->sk_allocation);
-		if (!p)
-			goto out_free;
-		*per_cpu_ptr(pool, cpu) = p;
 
 		hash = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
 		if (!hash || IS_ERR(hash))
 			goto out_free;
 
-		p->md5_desc.tfm = hash;
+		per_cpu_ptr(pool, cpu)->md5_desc.tfm = hash;
 	}
 	return pool;
 out_free:
@@ -2920,9 +2913,9 @@ out_free:
 	return NULL;
 }
 
-struct tcp_md5sig_pool * __percpu *tcp_alloc_md5sig_pool(struct sock *sk)
+struct tcp_md5sig_pool __percpu *tcp_alloc_md5sig_pool(struct sock *sk)
 {
-	struct tcp_md5sig_pool * __percpu *pool;
+	struct tcp_md5sig_pool __percpu *pool;
 	int alloc = 0;
 
 retry:
@@ -2941,7 +2934,7 @@ retry:
 
 	if (alloc) {
 		/* we cannot hold spinlock here because this may sleep. */
-		struct tcp_md5sig_pool * __percpu *p;
+		struct tcp_md5sig_pool __percpu *p;
 
 		p = __tcp_alloc_md5sig_pool(sk);
 		spin_lock_bh(&tcp_md5sig_pool_lock);
@@ -2974,7 +2967,7 @@ EXPORT_SYMBOL(tcp_alloc_md5sig_pool);
  */
 struct tcp_md5sig_pool *tcp_get_md5sig_pool(void)
 {
-	struct tcp_md5sig_pool * __percpu *p;
+	struct tcp_md5sig_pool __percpu *p;
 
 	local_bh_disable();
 
@@ -2985,7 +2978,7 @@ struct tcp_md5sig_pool *tcp_get_md5sig_pool(void)
 	spin_unlock(&tcp_md5sig_pool_lock);
 
 	if (p)
-		return *this_cpu_ptr(p);
+		return this_cpu_ptr(p);
 
 	local_bh_enable();
 	return NULL;
