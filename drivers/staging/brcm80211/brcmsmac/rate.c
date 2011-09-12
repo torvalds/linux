@@ -447,7 +447,7 @@ brcms_c_rateset_default(struct brcms_c_rateset *rs_tgt,
 	    (PHYTYPE_IS(phy_type, PHY_TYPE_N)) ||
 	    (PHYTYPE_IS(phy_type, PHY_TYPE_LCN)) ||
 	    (PHYTYPE_IS(phy_type, PHY_TYPE_SSN))) {
-		if (BAND_5G(bandtype))
+		if (bandtype == BRCM_BAND_5G)
 			rs_dflt = (bw == BRCMS_20_MHZ ?
 				   &ofdm_mimo_rates : &ofdm_40bw_mimo_rates);
 		else
@@ -455,7 +455,8 @@ brcms_c_rateset_default(struct brcms_c_rateset *rs_tgt,
 				   &cck_ofdm_mimo_rates :
 				   &cck_ofdm_40bw_mimo_rates);
 	} else if (PHYTYPE_IS(phy_type, PHY_TYPE_LP)) {
-		rs_dflt = (BAND_5G(bandtype)) ? &ofdm_rates : &cck_ofdm_rates;
+		rs_dflt = (bandtype == BRCM_BAND_5G) ?
+			  &ofdm_rates : &cck_ofdm_rates;
 	} else if (PHYTYPE_IS(phy_type, PHY_TYPE_A)) {
 		rs_dflt = &ofdm_rates;
 	} else if (PHYTYPE_IS(phy_type, PHY_TYPE_G)) {

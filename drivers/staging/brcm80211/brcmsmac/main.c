@@ -329,6 +329,8 @@
 #define NRATE_STF_STBC	2	/* stf mode STBC */
 #define NRATE_STF_SDM	3	/* stf mode SDM */
 
+#define MAX_DMA_SEGS 4
+
 /*
  * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
  */
@@ -1585,9 +1587,8 @@ static void brcms_b_bsinit(struct brcms_c_info *wlc, u16 chanspec)
 	brcms_b_set_cwmax(wlc_hw, wlc_hw->band->CWmax);
 
 	brcms_b_update_slot_timing(wlc_hw,
-				    BAND_5G(wlc_hw->band->
-					    bandtype) ? true : wlc_hw->
-				    shortslot);
+				   wlc_hw->band->bandtype == BRCM_BAND_5G ?
+				   true : wlc_hw->shortslot);
 
 	/* write phytype and phyvers */
 	brcms_b_write_shm(wlc_hw, M_PHYTYPE, (u16) wlc_hw->band->phytype);
@@ -3738,7 +3739,7 @@ static void brcms_b_set_shortslot(struct brcms_hardware *wlc_hw, bool shortslot)
 {
 	wlc_hw->shortslot = shortslot;
 
-	if (BAND_2G(brcms_b_bandtype(wlc_hw)) && wlc_hw->up) {
+	if (brcms_b_bandtype(wlc_hw) == BRCM_BAND_2G && wlc_hw->up) {
 		brcms_c_suspend_mac_and_wait(wlc_hw->wlc);
 		brcms_b_update_slot_timing(wlc_hw, shortslot);
 		brcms_c_enable_mac(wlc_hw->wlc);
@@ -4929,10 +4930,10 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 	bandtype = wlc->band->bandtype;
 
 	/* get antennas available */
-	aa = (s8) getintvar(vars, (BAND_5G(bandtype) ? "aa5g" : "aa2g"));
+	aa = (s8) getintvar(vars, bandtype == BRCM_BAND_5G ? "aa5g" : "aa2g");
 	if (aa == 0)
 		aa = (s8) getintvar(vars,
-				      (BAND_5G(bandtype) ? "aa1" : "aa0"));
+				    bandtype == BRCM_BAND_5G ? "aa1" : "aa0");
 	if ((aa < 1) || (aa > 15)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: Invalid antennas available in"
 			  " srom (0x%x), using 3\n", unit, __func__, aa);
@@ -4951,7 +4952,7 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 
 	/* Compute Antenna Gain */
 	wlc->band->antgain =
-	    (s8) getintvar(vars, (BAND_5G(bandtype) ? "ag1" : "ag0"));
+	    (s8) getintvar(vars, bandtype == BRCM_BAND_5G ? "ag1" : "ag0");
 	brcms_c_attach_antgain_init(wlc);
 
 	return true;
@@ -5169,7 +5170,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		wlc->band->CWmax = PHY_CWMAX;
 
 		/* init gmode value */
-		if (BAND_2G(wlc->band->bandtype)) {
+		if (wlc->band->bandtype == BRCM_BAND_2G) {
 			wlc->band->gmode = GMODE_AUTO;
 			brcms_c_protection_upd(wlc, BRCMS_PROT_G_USER,
 					   wlc->band->gmode);
@@ -6382,7 +6383,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 		/* shortslot is an 11g feature, so no more work if we are
 		 * currently on the 5G band
 		 */
-		if (BAND_5G(wlc->band->bandtype))
+		if (wlc->band->bandtype == BRCM_BAND_5G)
 			break;
 
 		if (wlc->pub->up && wlc->pub->associated) {
@@ -6965,7 +6966,7 @@ brcms_c_calc_frame_len(struct brcms_c_info *wlc, u32 ratespec,
 		int tot_streams = MCS_TXS(mcs) + RSPEC_STC(ratespec);
 		dur -= PREN_PREAMBLE + (tot_streams * PREN_PREAMBLE_EXT);
 		/* payload calculation matches that of regular ofdm */
-		if (BAND_2G(wlc->band->bandtype))
+		if (wlc->band->bandtype == BRCM_BAND_2G)
 			dur -= DOT11_OFDM_SIGNAL_EXTENSION;
 		/* kNdbps = kbps * 4 */
 		kNdps =
@@ -7466,7 +7467,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	if (!is_multicast_ether_addr(h->addr1))
 		mcl |= TXC_IMMEDACK;
 
-	if (BAND_5G(wlc->band->bandtype))
+	if (wlc->band->bandtype == BRCM_BAND_5G)
 		mcl |= TXC_FREQBAND_5G;
 
 	if (CHSPEC_IS40(wlc_phy_chanspec_get(wlc->band->pi)))
@@ -8243,7 +8244,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs, u32 frm_tx2)
 	mcl = le16_to_cpu(txh->MacTxControlLow);
 
 	if (txs->phyerr) {
-		if (WL_ERROR_ON()) {
+		if (brcm_msg_level & LOG_ERROR_VAL) {
 			wiphy_err(wlc->wiphy, "phyerr 0x%x, rate 0x%x\n",
 				  txs->phyerr, txh->MainRates);
 			brcms_c_print_txdesc(txh);
@@ -8772,7 +8773,7 @@ brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 				  APHY_TAIL_NBITS) * 1000, 2 * kNdps);
 
 		dur += APHY_SYMBOL_TIME * nsyms;
-		if (BAND_2G(wlc->band->bandtype))
+		if (wlc->band->bandtype == BRCM_BAND_2G)
 			dur += DOT11_OFDM_SIGNAL_EXTENSION;
 	} else if (IS_OFDM(rate)) {
 		dur = APHY_PREAMBLE_TIME;
@@ -8784,7 +8785,7 @@ brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 		    CEIL((APHY_SERVICE_NBITS + 8 * mac_len + APHY_TAIL_NBITS),
 			 Ndps);
 		dur += APHY_SYMBOL_TIME * nsyms;
-		if (BAND_2G(wlc->band->bandtype))
+		if (wlc->band->bandtype == BRCM_BAND_2G)
 			dur += DOT11_OFDM_SIGNAL_EXTENSION;
 	} else {
 		/*
@@ -8937,7 +8938,7 @@ brcms_c_rateset_get_hwrs(struct brcms_c_info *wlc)
 	const struct brcms_c_rateset *rs_dflt;
 
 	if (BRCMS_PHY_11N_CAP(wlc->band)) {
-		if (BAND_5G(wlc->band->bandtype))
+		if (wlc->band->bandtype == BRCM_BAND_5G)
 			rs_dflt = &ofdm_mimo_rates;
 		else
 			rs_dflt = &cck_ofdm_mimo_rates;

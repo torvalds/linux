@@ -911,7 +911,7 @@ static void brcms_c_channels_commit(struct brcms_cm_info *wlc_cm)
 	 * Now that the country abbreviation is set, if the radio supports 2G,
 	 * then set channel 14 restrictions based on the new locale.
 	 */
-	if (wlc->pub->_nbands > 1 || BAND_2G(wlc->band->bandtype))
+	if (wlc->pub->_nbands > 1 || wlc->band->bandtype == BRCM_BAND_2G)
 		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
 						     brcms_c_japan(wlc) ? true :
 						     false);
@@ -939,11 +939,11 @@ brcms_c_channels_init(struct brcms_cm_info *wlc_cm,
 	for (i = 0; i < wlc->pub->_nbands;
 	     i++, band = wlc->bandstate[OTHERBANDUNIT(wlc)]) {
 
-		li = BAND_5G(band->bandtype) ?
+		li = (band->bandtype == BRCM_BAND_5G) ?
 		    brcms_c_get_locale_5g(country->locale_5G) :
 		    brcms_c_get_locale_2g(country->locale_2G);
 		wlc_cm->bandstate[band->bandunit].locale_flags = li->flags;
-		li_mimo = BAND_5G(band->bandtype) ?
+		li_mimo = (band->bandtype == BRCM_BAND_5G) ?
 		    brcms_c_get_mimo_5g(country->locale_mimo_5G) :
 		    brcms_c_get_mimo_2g(country->locale_mimo_2G);
 
@@ -1311,11 +1311,11 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 
 	chan = CHSPEC_CHANNEL(chanspec);
 	band = wlc->bandstate[CHSPEC_BANDUNIT(chanspec)];
-	li = BAND_5G(band->bandtype) ?
+	li = (band->bandtype == BRCM_BAND_5G) ?
 	    brcms_c_get_locale_5g(country->locale_5G) :
 	    brcms_c_get_locale_2g(country->locale_2G);
 
-	li_mimo = BAND_5G(band->bandtype) ?
+	li_mimo = (band->bandtype == BRCM_BAND_5G) ?
 	    brcms_c_get_mimo_5g(country->locale_mimo_5G) :
 	    brcms_c_get_mimo_2g(country->locale_mimo_2G);
 
@@ -1333,7 +1333,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	}
 
 	/* CCK txpwr limits for 2.4G band */
-	if (BAND_2G(band->bandtype)) {
+	if (band->bandtype == BRCM_BAND_2G) {
 		maxpwr = li->maxpwr[CHANNEL_POWER_IDX_2G_CCK(chan)];
 
 		maxpwr = maxpwr - delta;
@@ -1345,7 +1345,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	}
 
 	/* OFDM txpwr limits for 2.4G or 5G bands */
-	if (BAND_2G(band->bandtype))
+	if (band->bandtype == BRCM_BAND_2G)
 		maxpwr = li->maxpwr[CHANNEL_POWER_IDX_2G_OFDM(chan)];
 	else
 		maxpwr = li->maxpwr[CHANNEL_POWER_IDX_5G(chan)];
@@ -1355,7 +1355,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	maxpwr = min(maxpwr, conducted_ofdm_max);
 
 	/* Keep OFDM lmit below CCK limit */
-	if (BAND_2G(band->bandtype))
+	if (band->bandtype == BRCM_BAND_2G)
 		maxpwr = min_t(int, maxpwr, txpwr->cck[0]);
 
 	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++)
@@ -1385,7 +1385,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 			delta = band->antgain - QDB(6);	/* Excess over 6 dB */
 	}
 
-	if (BAND_2G(band->bandtype))
+	if (band->bandtype == BRCM_BAND_2G)
 		maxpwr_idx = (chan - 1);
 	else
 		maxpwr_idx = CHANNEL_POWER_IDX_5G(chan);

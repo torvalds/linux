@@ -990,7 +990,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				  "error (0x%x)\n", wlc->pub->unit,
 				  txs->phyerr);
 
-			if (WL_ERROR_ON()) {
+			if (brcm_msg_level & LOG_ERROR_VAL) {
 				brcmu_prpkt("txpkt (AMPDU)", p);
 				brcms_c_print_txdesc((struct d11txh *) p->data);
 			}

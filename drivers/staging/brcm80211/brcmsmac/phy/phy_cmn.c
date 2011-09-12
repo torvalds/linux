@@ -512,7 +512,7 @@ wlc_phy_attach(struct shared_phy *sh, struct d11regs *regs, int bandtype,
 	else
 		sflags = ai_core_sflags(sh->sih, 0, 0);
 
-	if (BAND_5G(bandtype)) {
+	if (bandtype == BRCM_BAND_5G) {
 		if ((sflags & (SISF_5G_PHY | SISF_DB_PHY)) == 0)
 			return NULL;
 	}
@@ -541,7 +541,7 @@ wlc_phy_attach(struct shared_phy *sh, struct d11regs *regs, int bandtype,
 
 	pi->phycal_tempdelta = 0;
 
-	if (BAND_2G(bandtype) && (sflags & SISF_2G_PHY))
+	if (bandtype == BRCM_BAND_2G && (sflags & SISF_2G_PHY))
 		pi->pubpi.coreflags = SICF_GMODE;
 
 	wlapi_bmac_corereset(pi->sh->physhim, pi->pubpi.coreflags);
@@ -561,7 +561,7 @@ wlc_phy_attach(struct shared_phy *sh, struct d11regs *regs, int bandtype,
 	    !pi->pubpi.phy_type == PHY_TYPE_LCN)
 		goto err;
 
-	if (BAND_5G(bandtype)) {
+	if (bandtype == BRCM_BAND_5G) {
 		if (!ISNPHY(pi))
 			goto err;
 	} else if (!ISNPHY(pi) && !ISLCNPHY(pi)) {
@@ -585,8 +585,8 @@ wlc_phy_attach(struct shared_phy *sh, struct d11regs *regs, int bandtype,
 	wlc_set_phy_uninitted(pi);
 
 	pi->bw = WL_CHANSPEC_BW_20;
-	pi->radio_chanspec =
-		BAND_2G(bandtype) ? CH20MHZ_CHSPEC(1) : CH20MHZ_CHSPEC(36);
+	pi->radio_chanspec = (bandtype == BRCM_BAND_2G) ?
+			     CH20MHZ_CHSPEC(1) : CH20MHZ_CHSPEC(36);
 
 	pi->rxiq_samps = PHY_NOISE_SAMPLE_LOG_NUM_NPHY;
 	pi->rxiq_antsel = ANT_RX_DIV_DEF;

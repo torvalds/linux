@@ -25,8 +25,6 @@
 #define WL_CHAN_FREQ_RANGE_5GM     2
 #define WL_CHAN_FREQ_RANGE_5GH     3
 
-#define MAX_DMA_SEGS 4
-
 /* boardflags */
 
 /* Board has gpio 9 controlling the PA */
@@ -257,54 +255,21 @@
  * ***********************************************
  */
 
-/* Max # of entries in Tx FIFO based on 4kb page size */
-#define NTXD		256
-/* Max # of entries in Rx FIFO based on 4kb page size */
-#define NRXD		256
-/* try to keep this # rbufs posted to the chip */
-#define	NRXBUFPOST	32
-/* Maximum SCBs in cache for STA */
-#define MAXSCB		32
-
 /* max allowed number of mpdus in an ampdu (2 streams) */
 #define AMPDU_NUM_MPDU		16
 
-/* Count of packet callback structures. either of following
- * 1. Set to the number of SCBs since a STA
- * can queue up a rate callback for each IBSS STA it knows about, and an AP can
- * queue up an "are you there?" Null Data callback for each associated STA
- * 2. controlled by tunable config file
- */
-#define MAXPKTCB	MAXSCB	/* Max number of packet callbacks */
-
 /* NetBSD also needs to keep track of this */
 
-/* Number of BSS handled in ucode bcn/prb */
-#define BRCMS_MAX_UCODE_BSS	(16)
-/* Number of BSS handled in sw bcn/prb */
-#define BRCMS_MAX_UCODE_BSS4	(4)
 /* max # BSS configs */
 #define BRCMS_MAXBSSCFG		(1)
 /* max # available networks */
 #define MAXBSS		64
-/* data msg txq hiwat mark */
-#define BRCMS_DATAHIWAT		50
-#define BRCMS_AMPDUDATAHIWAT 255
-
-/* bounded rx loops */
-#define RXBND		8 /* max # frames to process in brcms_c_recv() */
-#define TXSBND		8 /* max # tx status to process in wlc_txstatus() */
-
-#define BAND_5G(bt)	((bt) == BRCM_BAND_5G)
-#define BAND_2G(bt)	((bt) == BRCM_BAND_2G)
 
 #define BCMMSG(dev, fmt, args...)		\
 do {						\
 	if (brcm_msg_level & LOG_TRACE_VAL)	\
 		wiphy_err(dev, "%s: " fmt, __func__, ##args);	\
 } while (0)
-
-#define WL_ERROR_ON()		(brcm_msg_level & LOG_ERROR_VAL)
 
 /*
  * Register access macros.
