@@ -1427,7 +1427,7 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	struct mapped_device *md = q->queuedata;
 
 	if (dm_request_based(md))
-		return __make_request(q, bio);
+		return blk_queue_bio(q, bio);
 
 	return _dm_request(q, bio);
 }

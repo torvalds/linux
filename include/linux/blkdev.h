@@ -675,7 +675,7 @@ extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			 struct scsi_ioctl_command __user *);
 
-extern int __make_request(struct request_queue *q, struct bio *bio);
+extern int blk_queue_bio(struct request_queue *q, struct bio *bio);
 
 /*
  * A queue has just exitted congestion.  Note this in the global counter of
