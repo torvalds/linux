@@ -271,8 +271,6 @@ struct brcms_band {
 	/* band-specific copy of default_bss.rateset */
 	struct brcms_c_rateset defrateset;
 
-	u32 rspec_override;	/* 802.11 rate override */
-	u32 mrspec_override;	/* multicast rate override */
 	u8 band_stf_ss_mode;	/* Configured STF type, 0:siso; 1:cdd */
 	s8 band_stf_stbc_tx;	/* STBC TX 0:off; 1:force on; -1:auto */
 	/* rates supported by chip (phy-specific) */

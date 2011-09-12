@@ -5913,12 +5913,6 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	 */
 	if ((gmode == GMODE_LEGACY_B) && (band->gmode != GMODE_LEGACY_B)) {
 		band->gmode = gmode;
-		if (band->rspec_override && !IS_CCK(band->rspec_override)) {
-			band->rspec_override = 0;
-			brcms_c_reprate_init(wlc);
-		}
-		if (band->mrspec_override && !IS_CCK(band->mrspec_override))
-			band->mrspec_override = 0;
 	}
 
 	band->gmode = gmode;
@@ -5988,12 +5982,8 @@ int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
 		for (i = 0; i < wlc->pub->_nbands; i++) {
 			memset(wlc->bandstate[i]->hw_rateset.mcs, 0,
 			       MCSSET_LEN);
-			if (IS_MCS(wlc->band->rspec_override)) {
-				wlc->bandstate[i]->rspec_override = 0;
+			if (IS_MCS(0))
 				brcms_c_reprate_init(wlc);
-			}
-			if (IS_MCS(wlc->band->mrspec_override))
-				wlc->bandstate[i]->mrspec_override = 0;
 		}
 		break;
 
@@ -7052,8 +7042,7 @@ done:
 static u16
 brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		     struct sk_buff *p, struct scb *scb, uint frag,
-		     uint nfrags, uint queue, uint next_frag_len,
-		     u32 rspec_override)
+		     uint nfrags, uint queue, uint next_frag_len)
 {
 	struct ieee80211_hdr *h;
 	struct d11txh *txh;
@@ -7713,7 +7702,7 @@ void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 	prio = ieee80211_is_data(d11_header->frame_control) ? sdu->priority :
 		MAXPRIO;
 	fifo = prio2fifo[prio];
-	if (brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0, 0))
+	if (brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0))
 		return;
 	brcms_c_txq_enq(wlc, scb, sdu, BRCMS_PRIO_TO_PREC(prio));
 	brcms_c_send_q(wlc);

@@ -293,26 +293,22 @@ int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 
 	if (txstreams == 1) {
 		for (i = 0; i < wlc->pub->_nbands; i++)
-			if ((RSPEC_STF(wlc->bandstate[i]->rspec_override) !=
+			if ((RSPEC_STF(0) !=
 			     PHY_TXC1_MODE_SISO)
-			    || (RSPEC_STF(wlc->bandstate[i]->mrspec_override) !=
+			    || (RSPEC_STF(0) !=
 				PHY_TXC1_MODE_SISO)) {
 				if (!force)
 					return -EBADE;
 
 				/* over-write the override rspec */
-				if (RSPEC_STF(wlc->bandstate[i]->rspec_override)
+				if (RSPEC_STF(0)
 				    != PHY_TXC1_MODE_SISO) {
-					wlc->bandstate[i]->rspec_override = 0;
 					wiphy_err(wlc->wiphy, "%s(): temp "
 						  "sense override non-SISO "
 						  "rspec_override\n",
 						  __func__);
 				}
-				if (RSPEC_STF
-				    (wlc->bandstate[i]->mrspec_override) !=
-				    PHY_TXC1_MODE_SISO) {
-					wlc->bandstate[i]->mrspec_override = 0;
+				if (RSPEC_STF(0) != PHY_TXC1_MODE_SISO) {
 					wiphy_err(wlc->wiphy, "%s(): temp "
 						  "sense override non-SISO "
 						  "mrspec_override\n",
