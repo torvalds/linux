@@ -316,8 +316,8 @@ int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda)
 			result = 1;
 		break;
 	default:
-		printk(KERN_WARNING "Bad DFR vcpu %d: %08x\n",
-		       apic->vcpu->vcpu_id, apic_get_reg(apic, APIC_DFR));
+		apic_debug("Bad DFR vcpu %d: %08x\n",
+			   apic->vcpu->vcpu_id, apic_get_reg(apic, APIC_DFR));
 		break;
 	}
 
@@ -354,8 +354,8 @@ int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 		result = (target != source);
 		break;
 	default:
-		printk(KERN_WARNING "Bad dest shorthand value %x\n",
-		       short_hand);
+		apic_debug("kvm: apic: Bad dest shorthand value %x\n",
+			   short_hand);
 		break;
 	}
 
@@ -401,11 +401,11 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		break;
 
 	case APIC_DM_REMRD:
-		printk(KERN_DEBUG "Ignoring delivery mode 3\n");
+		apic_debug("Ignoring delivery mode 3\n");
 		break;
 
 	case APIC_DM_SMI:
-		printk(KERN_DEBUG "Ignoring guest SMI\n");
+		apic_debug("Ignoring guest SMI\n");
 		break;
 
 	case APIC_DM_NMI:
@@ -565,8 +565,7 @@ static u32 __apic_read(struct kvm_lapic *apic, unsigned int offset)
 			val = kvm_apic_id(apic) << 24;
 		break;
 	case APIC_ARBPRI:
-		printk(KERN_WARNING "Access APIC ARBPRI register "
-		       "which is for P6\n");
+		apic_debug("Access APIC ARBPRI register which is for P6\n");
 		break;
 
 	case APIC_TMCCT:	/* Timer CCR */
@@ -804,14 +803,14 @@ static int apic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 
 	case APIC_TDCR:
 		if (val & 4)
-			printk(KERN_ERR "KVM_WRITE:TDCR %x\n", val);
+			apic_debug("KVM_WRITE:TDCR %x\n", val);
 		apic_set_reg(apic, APIC_TDCR, val);
 		update_divide_count(apic);
 		break;
 
 	case APIC_ESR:
 		if (apic_x2apic_mode(apic) && val != 0) {
-			printk(KERN_ERR "KVM_WRITE:ESR not zero %x\n", val);
+			apic_debug("KVM_WRITE:ESR not zero %x\n", val);
 			ret = 1;
 		}
 		break;
