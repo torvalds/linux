@@ -205,11 +205,6 @@ extern int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw,
 /* Issue an abort to the specified function */
 extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
-/* Miscellaneous knob tweaker. */
-extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_dev *sdiodev,
-				 const char *name, void *params, int plen,
-				 void *arg, int len, bool set);
-
 /* platform specific/high level functions */
 extern int brcmf_sdio_function_init(void);
 extern int brcmf_sdio_register(void);

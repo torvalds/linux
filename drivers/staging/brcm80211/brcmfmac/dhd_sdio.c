@@ -4196,17 +4196,9 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
 	bus->blocksize = bus->sdiodev->func[2]->cur_blksize;
 	bus->roundup = min(max_roundup, bus->blocksize);
 
-	/* Query if bus module supports packet chaining,
-		 default to use if supported */
-	if (brcmf_sdcard_iovar_op(bus->sdiodev, "sd_rxchain", NULL, 0,
-			    &bus->sd_rxchain, sizeof(s32),
-			    false) != 0)
-		bus->sd_rxchain = false;
-	else
-		brcmf_dbg(INFO, "bus module (through sdiocard API) %s chaining\n",
-			  bus->sd_rxchain ? "supports" : "does not support");
-
-	bus->use_rxchain = (bool) bus->sd_rxchain;
+	/* bus module does not support packet chaining */
+	bus->use_rxchain = false;
+	bus->sd_rxchain = false;
 
 	return true;
 }

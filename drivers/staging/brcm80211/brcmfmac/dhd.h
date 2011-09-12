@@ -88,9 +88,6 @@
 #define TOE_TX_CSUM_OL		0x00000001
 #define TOE_RX_CSUM_OL		0x00000002
 
-/* maximum channels returned by the get valid channels iovar */
-#define WL_NUMCHANNELS		64
-
 #define	BRCMF_BSS_INFO_VERSION	108 /* current ver of brcmf_bss_info struct */
 
 /* size of brcmf_scan_params not including variable length array */
@@ -810,9 +807,6 @@ struct brcmf_c_ioctl {
 
 /* Enter idle immediately (no timeout) */
 #define BRCMF_IDLE_IMMEDIATE	(-1)
-
-/* Values for idleclock iovar: other values are the sd_divisor to use
-	 when idle */
 #define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
 				 when idle */
 

@@ -198,51 +198,6 @@ extern void brcmu_prpkt(const char *msg, struct sk_buff *p0);
 #define brcmu_prpkt(a, b)
 #endif				/* BCMDBG */
 
-/* Support for sharing code across in-driver iovar implementations.
- * The intent is that a driver use this structure to map iovar names
- * to its (private) iovar identifiers, and the lookup function to
- * find the entry.  Macros are provided to map ids and get/set actions
- * into a single number space for a switch statement.
- */
-
-/* iovar structure */
-struct brcmu_iovar {
-	const char *name;	/* name for lookup and display */
-	u16 varid;	/* id for switch */
-	u16 flags;	/* driver-specific flag bits */
-	u16 type;	/* base type of argument */
-	u16 minlen;	/* min length for buffer vars */
-};
-
-/* varid definitions are per-driver, may use these get/set bits */
-
-/* IOVar action bits for id mapping */
-#define IOV_GET 0		/* Get an iovar */
-#define IOV_SET 1		/* Set an iovar */
-
-/* Varid to actionid mapping */
-#define IOV_GVAL(id)		((id)*2)
-#define IOV_SVAL(id)		(((id)*2)+IOV_SET)
-#define IOV_ISSET(actionid)	((actionid & IOV_SET) == IOV_SET)
-#define IOV_ID(actionid)	(actionid >> 1)
-
-extern const struct
-brcmu_iovar *brcmu_iovar_lookup(const struct brcmu_iovar *table,
-				const char *name);
-extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
-				int len, bool set);
-
-/* Base type definitions */
-#define IOVT_VOID	0	/* no value (implictly set only) */
-#define IOVT_BOOL	1	/* any value ok (zero/nonzero) */
-#define IOVT_INT8	2	/* integer values are range-checked */
-#define IOVT_UINT8	3	/* unsigned int 8 bits */
-#define IOVT_INT16	4	/* int 16 bits */
-#define IOVT_UINT16	5	/* unsigned int 16 bits */
-#define IOVT_INT32	6	/* int 32 bits */
-#define IOVT_UINT32	7	/* unsigned int 32 bits */
-#define IOVT_BUFFER	8	/* buffer is size-checked as per minlen */
-
 /* brcmu_format_flags() bit description structure */
 struct brcmu_bit_desc {
 	u32 bit;
