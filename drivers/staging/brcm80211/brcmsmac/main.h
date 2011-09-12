@@ -467,8 +467,6 @@ struct brcms_txq_info {
  * war16165: PCI slow clock 16165 war flag.
  * txpend16165war: PCI slow clock 16165 war flag.
  * qvalid: DirFrmQValid and BcMcFrmQValid.
- * txpwr_local_max: regulatory local txpwr max.
- * txpwr_local_constraint: local power contraint in dB.
  * ampdu: ampdu module handler.
  * asi: antsel module handler.
  * cmi: channel manager module handler.
@@ -573,11 +571,6 @@ struct brcms_c_info {
 
 	/* packet queue */
 	uint qvalid;
-
-	/* Regulatory power limits */
-	s8 txpwr_local_max;
-	u8 txpwr_local_constraint;
-
 
 	struct ampdu_info *ampdu;
 	struct antsel_info *asi;

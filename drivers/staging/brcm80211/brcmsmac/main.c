@@ -3275,44 +3275,14 @@ static brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec,
 		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
 }
 
-static u8 brcms_c_local_constraint_qdbm(struct brcms_c_info *wlc)
-{
-	u8 local;
-	s16 local_max;
-
-	local = BRCMS_TXPWR_MAX;
-	if (wlc->pub->associated &&
-	    (brcmu_chspec_ctlchan(wlc->chanspec) ==
-	     brcmu_chspec_ctlchan(wlc->home_chanspec))) {
-
-		/* get the local power constraint if we are on the AP's
-		 * channel [802.11h, 7.3.2.13]
-		 */
-		/* Clamp the value between 0 and BRCMS_TXPWR_MAX w/o
-		 * overflowing the target */
-		local_max =
-		    (wlc->txpwr_local_max -
-		     wlc->txpwr_local_constraint) * BRCMS_TXPWR_DB_FACTOR;
-		if (local_max > 0 && local_max < BRCMS_TXPWR_MAX)
-			return (u8) local_max;
-		if (local_max < 0)
-			return 0;
-	}
-
-	return local;
-}
-
 static void brcms_c_set_phy_chanspec(struct brcms_c_info *wlc,
 				     u16 chanspec)
 {
 	/* Save our copy of the chanspec */
 	wlc->chanspec = chanspec;
 
-	/* Set the chanspec and power limits for this locale after computing
-	 * any 11h local tx power constraints.
-	 */
-	brcms_c_channel_set_chanspec(wlc->cmi, chanspec,
-				 brcms_c_local_constraint_qdbm(wlc));
+	/* Set the chanspec and power limits for this locale */
+	brcms_c_channel_set_chanspec(wlc->cmi, chanspec, BRCMS_TXPWR_MAX);
 
 	if (wlc->stf->ss_algosel_auto)
 		brcms_c_stf_ss_algo_channel_get(wlc, &wlc->stf->ss_algo_channel,
