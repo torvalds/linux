@@ -639,7 +639,7 @@ static void ft_send_work(struct work_struct *work)
 		transport_generic_free_cmd(se_cmd, 0, 0);
 		return;
 	}
-	transport_generic_handle_cdb(se_cmd);
+	transport_handle_cdb_direct(se_cmd);
 	return;
 
 err:
