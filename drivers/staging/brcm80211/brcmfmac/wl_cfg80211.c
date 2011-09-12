@@ -271,7 +271,6 @@ static s32 brcmf_dongle_roam(struct net_device *ndev, u32 roamvar,
 static void brcmf_iscan_timer(unsigned long data);
 static void brcmf_term_iscan(struct brcmf_cfg80211_priv *cfg_priv);
 static s32 brcmf_init_iscan(struct brcmf_cfg80211_priv *cfg_priv);
-static s32 brcmf_iscan_thread(void *data);
 static s32 brcmf_dev_iovar_setbuf(struct net_device *dev, s8 *iovar,
 				 void *param, s32 paramlen, void *bufptr,
 				 s32 buflen);
@@ -3151,18 +3150,15 @@ static void brcmf_term_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 	struct brcmf_cfg80211_iscan_ctrl *iscan = cfg_to_iscan(cfg_priv);
 	struct brcmf_ssid ssid;
 
-	if (cfg_priv->iscan_on && iscan->tsk) {
+	if (cfg_priv->iscan_on) {
 		iscan->state = WL_ISCAN_STATE_IDLE;
-		send_sig(SIGTERM, iscan->tsk, 1);
 
-		/*
-		 * The iscan task may want to acquire the rtnl_lock
-		 * so release it here upon stopping the task.
-		 */
-		rtnl_unlock();
-		kthread_stop(iscan->tsk);
-		rtnl_lock();
-		iscan->tsk = NULL;
+		if (iscan->timer_on) {
+			del_timer_sync(&iscan->timer);
+			iscan->timer_on = 0;
+		}
+
+		cancel_work_sync(&iscan->work);
 
 		/* Abort iscan running in FW */
 		memset(&ssid, 0, sizeof(ssid));
@@ -3195,7 +3191,7 @@ static s32 brcmf_wakeup_iscan(struct brcmf_cfg80211_iscan_ctrl *iscan)
 {
 	if (likely(iscan->state != WL_ISCAN_STATE_IDLE)) {
 		WL_SCAN("wake up iscan\n");
-		wake_up(&iscan->waitq);
+		schedule_work(&iscan->work);
 		return 0;
 	}
 
@@ -3294,50 +3290,28 @@ static s32 brcmf_iscan_aborted(struct brcmf_cfg80211_priv *cfg_priv)
 	return err;
 }
 
-static s32 brcmf_iscan_thread(void *data)
+static void brcmf_cfg80211_iscan_handler(struct work_struct *work)
 {
-	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1 };
 	struct brcmf_cfg80211_iscan_ctrl *iscan =
-			(struct brcmf_cfg80211_iscan_ctrl *)data;
+			container_of(work, struct brcmf_cfg80211_iscan_ctrl,
+				     work);
 	struct brcmf_cfg80211_priv *cfg_priv = iscan_to_cfg(iscan);
 	struct brcmf_cfg80211_iscan_eloop *el = &iscan->el;
-	DECLARE_WAITQUEUE(wait, current);
-	u32 status;
-	int err = 0;
+	u32 status = BRCMF_SCAN_RESULTS_PARTIAL;
 
-	sched_setscheduler(current, SCHED_FIFO, &param);
-	allow_signal(SIGTERM);
-	status = BRCMF_SCAN_RESULTS_PARTIAL;
-	add_wait_queue(&iscan->waitq, &wait);
-	while (1) {
-		prepare_to_wait(&iscan->waitq, &wait, TASK_INTERRUPTIBLE);
-
-		schedule();
-
-		if (kthread_should_stop())
-			break;
-		if (iscan->timer_on) {
-			del_timer_sync(&iscan->timer);
-			iscan->timer_on = 0;
-		}
-		rtnl_lock();
-		err = brcmf_get_iscan_results(iscan, &status,
-					      &cfg_priv->bss_list);
-		if (unlikely(err)) {
-			status = BRCMF_SCAN_RESULTS_ABORTED;
-			WL_ERR("Abort iscan\n");
-		}
-		rtnl_unlock();
-		el->handler[status](cfg_priv);
-	}
-	finish_wait(&iscan->waitq, &wait);
 	if (iscan->timer_on) {
 		del_timer_sync(&iscan->timer);
 		iscan->timer_on = 0;
 	}
-	WL_SCAN("ISCAN thread terminated\n");
 
-	return 0;
+	rtnl_lock();
+	if (brcmf_get_iscan_results(iscan, &status, &cfg_priv->bss_list)) {
+		status = BRCMF_SCAN_RESULTS_ABORTED;
+		WL_ERR("Abort iscan\n");
+	}
+	rtnl_unlock();
+
+	el->handler[status](cfg_priv);
 }
 
 static void brcmf_iscan_timer(unsigned long data)
@@ -3356,15 +3330,9 @@ static s32 brcmf_invoke_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct brcmf_cfg80211_iscan_ctrl *iscan = cfg_to_iscan(cfg_priv);
 
-	if (cfg_priv->iscan_on && !iscan->tsk) {
+	if (cfg_priv->iscan_on) {
 		iscan->state = WL_ISCAN_STATE_IDLE;
-		init_waitqueue_head(&iscan->waitq);
-		iscan->tsk = kthread_run(brcmf_iscan_thread, iscan, "wl_iscan");
-		if (IS_ERR(iscan->tsk)) {
-			WL_ERR("Could not create iscan thread\n");
-			iscan->tsk = NULL;
-			return -ENOMEM;
-		}
+		INIT_WORK(&iscan->work, brcmf_cfg80211_iscan_handler);
 	}
 
 	return 0;

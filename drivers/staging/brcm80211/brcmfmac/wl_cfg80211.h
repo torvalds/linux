@@ -248,8 +248,7 @@ struct brcmf_cfg80211_iscan_ctrl {
 	u32 timer_ms;
 	u32 timer_on;
 	s32 state;
-	struct task_struct *tsk;
-	wait_queue_head_t waitq;
+	struct work_struct work;
 	struct brcmf_cfg80211_iscan_eloop el;
 	void *data;
 	s8 ioctl_buf[BRCMF_C_IOCTL_SMLEN];
