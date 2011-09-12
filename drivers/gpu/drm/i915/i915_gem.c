@@ -1476,7 +1476,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 		obj->pages[i] = page;
 	}
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 
 	return 0;
@@ -1498,7 +1498,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 
 	BUG_ON(obj->madv == __I915_MADV_PURGED);
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj);
 
 	if (obj->madv == I915_MADV_DONTNEED)
