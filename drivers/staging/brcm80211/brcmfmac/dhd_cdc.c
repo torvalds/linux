@@ -338,11 +338,15 @@ done:
 	return ret;
 }
 
-#define PKTSUMNEEDED(skb) \
-		(((struct sk_buff *)(skb))->ip_summed == CHECKSUM_PARTIAL)
-#define PKTSETSUMGOOD(skb, x) \
-		(((struct sk_buff *)(skb))->ip_summed = \
-		((x) ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE))
+static bool pkt_sum_needed(struct sk_buff *skb)
+{
+	return skb->ip_summed == CHECKSUM_PARTIAL;
+}
+
+static void pkt_set_sum_good(struct sk_buff *skb, bool x)
+{
+	skb->ip_summed = (x ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
+}
 
 void brcmf_proto_dump(struct brcmf_pub *drvr, struct brcmu_strbuf *strbuf)
 {
@@ -363,7 +367,7 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 	h = (struct brcmf_proto_bdc_header *)(pktbuf->data);
 
 	h->flags = (BDC_PROTO_VER << BDC_FLAG_VER_SHIFT);
-	if (PKTSUMNEEDED(pktbuf))
+	if (pkt_sum_needed(pktbuf))
 		h->flags |= BDC_FLAG_SUM_NEEDED;
 
 	h->priority = (pktbuf->priority & BDC_PRIORITY_MASK);
@@ -405,7 +409,7 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, int *ifidx,
 	if (h->flags & BDC_FLAG_SUM_GOOD) {
 		brcmf_dbg(INFO, "%s: BDC packet received with good rx-csum, flags 0x%x\n",
 			  brcmf_ifname(drvr, *ifidx), h->flags);
-		PKTSETSUMGOOD(pktbuf, true);
+		pkt_set_sum_good(pktbuf, true);
 	}
 
 	pktbuf->priority = h->priority & BDC_PRIORITY_MASK;

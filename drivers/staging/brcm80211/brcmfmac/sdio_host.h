@@ -202,9 +202,6 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 /* Async request (vs. sync request) */
 #define SDIO_REQ_ASYNC	0x4
 
-/* Pending (non-error) return code */
-#define BCME_PENDING	1
-
 /* Read/write to memory block (F1, no FIFO) via CMD53 (sync only).
  *   rw:       read or write (0/1)
  *   addr:     direct SDIO address

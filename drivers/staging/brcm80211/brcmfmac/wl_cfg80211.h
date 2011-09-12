@@ -319,15 +319,39 @@ struct brcmf_cfg80211_priv {
 	u8 ci[0] __aligned(NETDEV_ALIGN);
 };
 
-#define cfg_to_wiphy(w) (w->wdev->wiphy)
-#define wiphy_to_cfg(w) ((struct brcmf_cfg80211_priv *)(wiphy_priv(w)))
-#define cfg_to_wdev(w) (w->wdev)
-#define wdev_to_cfg(w) ((struct brcmf_cfg80211_priv *)(wdev_priv(w)))
-#define cfg_to_ndev(w) (w->wdev->netdev)
-#define ndev_to_cfg(n) (wdev_to_cfg(n->ieee80211_ptr))
+static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_priv *w)
+{
+	return w->wdev->wiphy;
+}
+
+static inline struct brcmf_cfg80211_priv *wiphy_to_cfg(struct wiphy *w)
+{
+	return (struct brcmf_cfg80211_priv *)(wiphy_priv(w));
+}
+
+static inline struct brcmf_cfg80211_priv *wdev_to_cfg(struct wireless_dev *wd)
+{
+	return (struct brcmf_cfg80211_priv *)(wdev_priv(wd));
+}
+
+static inline struct net_device *cfg_to_ndev(struct brcmf_cfg80211_priv *cfg)
+{
+	return cfg->wdev->netdev;
+}
+
+static inline struct brcmf_cfg80211_priv *ndev_to_cfg(struct net_device *ndev)
+{
+	return wdev_to_cfg(ndev->ieee80211_ptr);
+}
+
 #define iscan_to_cfg(i) ((struct brcmf_cfg80211_priv *)(i->data))
 #define cfg_to_iscan(w) (w->iscan)
-#define cfg_to_conn(w) (&w->conn_info)
+
+static inline struct
+brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_priv *cfg)
+{
+	return &cfg->conn_info;
+}
 
 static inline struct brcmf_bss_info *next_bss(struct brcmf_scan_results *list,
 					   struct brcmf_bss_info *bss)

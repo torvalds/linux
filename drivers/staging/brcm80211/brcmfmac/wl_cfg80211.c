@@ -34,6 +34,9 @@
 #include "dhd.h"
 #include "wl_cfg80211.h"
 
+#define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
+	(sizeof(struct brcmf_assoc_params) - sizeof(u16))
+
 static struct sdio_func *cfg80211_sdio_func;
 static struct brcmf_cfg80211_dev *cfg80211_dev;
 static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
@@ -309,25 +312,22 @@ static int
 brcmf_debugfs_add_netdev_params(struct brcmf_cfg80211_priv *cfg_priv);
 static void brcmf_debugfs_remove_netdev(struct brcmf_cfg80211_priv *cfg_priv);
 
-#define WL_PRIV_GET()							\
-	({								\
-	struct brcmf_cfg80211_iface *ci = brcmf_get_drvdata(cfg80211_dev); \
-	if (unlikely(!ci)) {						\
-		WL_ERR("wl_cfg80211_dev is unavailable\n");		\
-		BUG();							\
-	}								\
-	ci->cfg_priv;							\
-})
+static struct brcmf_cfg80211_priv *brcmf_priv_get(void)
+{
+	struct brcmf_cfg80211_iface *ci = brcmf_get_drvdata(cfg80211_dev);
+	return ci->cfg_priv;
+}
 
-#define CHECK_SYS_UP()							\
-do {									\
-	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);	\
-	if (unlikely(!test_bit(WL_STATUS_READY, &cfg_priv->status))) {	\
-		WL_INFO("device is not ready : status (%d)\n",		\
-			(int)cfg_priv->status);				\
-		return -EIO;						\
-	}								\
-} while (0)
+static bool check_sys_up(struct wiphy *wiphy)
+{
+	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
+	if (!test_bit(WL_STATUS_READY, &cfg_priv->status)) {
+		WL_INFO("device is not ready : status (%d)\n",
+			(int)cfg_priv->status);
+		return false;
+	}
+	return true;
+}
 
 #define CHAN2G(_channel, _freq, _flags) {			\
 	.band			= IEEE80211_BAND_2GHZ,		\
@@ -560,7 +560,8 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
@@ -815,7 +816,8 @@ brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 
 	WL_TRACE("Enter\n");
 
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	err = __brcmf_cfg80211_scan(wiphy, ndev, request, NULL);
 	if (unlikely(err))
@@ -910,7 +912,8 @@ static s32 brcmf_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD &&
 	    (cfg_priv->conf->rts_threshold != wiphy->rts_threshold)) {
@@ -958,7 +961,8 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	s32 bcnprd;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	if (params->ssid)
 		WL_CONN("SSID: %s\n", params->ssid);
@@ -1099,7 +1103,8 @@ brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	brcmf_link_down(cfg_priv);
 
@@ -1372,7 +1377,8 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	if (unlikely(!sme->ssid)) {
 		WL_ERR("Invalid ssid\n");
@@ -1459,7 +1465,8 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 
 	WL_TRACE("Enter. Reason code = %d\n", reason_code);
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	clear_bit(WL_STATUS_CONNECTED, &cfg_priv->status);
 
@@ -1489,7 +1496,8 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
 	s32 disable = 0;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	switch (type) {
 	case NL80211_TX_POWER_AUTOMATIC:
@@ -1541,7 +1549,8 @@ static s32 brcmf_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm)
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	err = brcmf_dev_intvar_get(ndev, "qtxpower", &txpwrdbm);
 	if (unlikely(err)) {
@@ -1567,7 +1576,8 @@ brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
 
 	WL_TRACE("Enter\n");
 	WL_CONN("key index (%d)\n", key_idx);
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	err = brcmf_dev_ioctl(dev, BRCMF_C_GET_WSEC, &wsec, sizeof(wsec));
 	if (unlikely(err)) {
@@ -1690,7 +1700,8 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 	WL_TRACE("Enter\n");
 	WL_CONN("key index (%d)\n", key_idx);
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	if (mac_addr) {
 		WL_TRACE("Exit");
@@ -1781,7 +1792,9 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	s32 wsec;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
+
 	memset(&key, 0, sizeof(key));
 
 	key.index = (u32) key_idx;
@@ -1850,7 +1863,8 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 
 	WL_TRACE("Enter\n");
 	WL_CONN("key index (%d)\n", key_idx);
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	memset(&key, 0, sizeof(key));
 	key.index = key_idx;
@@ -1904,7 +1918,6 @@ brcmf_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 {
 	WL_INFO("Not supported\n");
 
-	CHECK_SYS_UP();
 	return -EOPNOTSUPP;
 }
 
@@ -1920,7 +1933,8 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	u8 *bssid = brcmf_read_prof(cfg_priv, WL_PROF_BSSID);
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	if (unlikely
 	    (memcmp(mac, bssid, ETH_ALEN))) {
@@ -2017,7 +2031,8 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	/* addr param is always NULL. ignore it */
 	/* Get current rateset */
@@ -2171,7 +2186,8 @@ brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	int i;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	for (i = 0; i < pmkids->npmkid; i++)
 		if (!memcmp(pmksa->bssid, pmkids->pmkid[i].BSSID, ETH_ALEN))
@@ -2205,7 +2221,9 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	int i;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
+
 	memcpy(&pmkid.pmkid[0].BSSID, pmksa->bssid, ETH_ALEN);
 	memcpy(&pmkid.pmkid[0].PMKID, pmksa->pmkid, WLAN_PMKID_LEN);
 
@@ -2250,7 +2268,8 @@ brcmf_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *dev)
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
-	CHECK_SYS_UP();
+	if (!check_sys_up(wiphy))
+		return -EIO;
 
 	memset(cfg_priv->pmk_list, 0, sizeof(*cfg_priv->pmk_list));
 	err = brcmf_update_pmklist(dev, cfg_priv->pmk_list, err);
@@ -2358,7 +2377,7 @@ wiphy_new_out:
 
 static void brcmf_free_wdev(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	struct wireless_dev *wdev = cfg_to_wdev(cfg_priv);
+	struct wireless_dev *wdev = cfg_priv->wdev;
 
 	if (unlikely(!wdev)) {
 		WL_ERR("wdev is invalid\n");
@@ -2367,7 +2386,7 @@ static void brcmf_free_wdev(struct brcmf_cfg80211_priv *cfg_priv)
 	wiphy_unregister(wdev->wiphy);
 	wiphy_free(wdev->wiphy);
 	kfree(wdev);
-	cfg_to_wdev(cfg_priv) = NULL;
+	cfg_priv->wdev = NULL;
 }
 
 static s32 brcmf_inform_bss(struct brcmf_cfg80211_priv *cfg_priv)
@@ -3460,7 +3479,7 @@ void brcmf_cfg80211_detach(void)
 {
 	struct brcmf_cfg80211_priv *cfg_priv;
 
-	cfg_priv = WL_PRIV_GET();
+	cfg_priv = brcmf_priv_get();
 
 	wl_deinit_priv(cfg_priv);
 	brcmf_free_wdev(cfg_priv);
@@ -3937,7 +3956,7 @@ s32 brcmf_cfg80211_up(void)
 	struct brcmf_cfg80211_priv *cfg_priv;
 	s32 err = 0;
 
-	cfg_priv = WL_PRIV_GET();
+	cfg_priv = brcmf_priv_get();
 	mutex_lock(&cfg_priv->usr_sync);
 	err = __brcmf_cfg80211_up(cfg_priv);
 	mutex_unlock(&cfg_priv->usr_sync);
@@ -3950,7 +3969,7 @@ s32 brcmf_cfg80211_down(void)
 	struct brcmf_cfg80211_priv *cfg_priv;
 	s32 err = 0;
 
-	cfg_priv = WL_PRIV_GET();
+	cfg_priv = brcmf_priv_get();
 	mutex_lock(&cfg_priv->usr_sync);
 	err = __brcmf_cfg80211_down(cfg_priv);
 	mutex_unlock(&cfg_priv->usr_sync);

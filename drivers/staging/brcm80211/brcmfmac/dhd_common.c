@@ -35,6 +35,10 @@ int brcmf_msg_level;
 
 #define MSGTRACE_VERSION	1
 
+#define BRCMF_PKT_FILTER_FIXED_LEN	offsetof(struct brcmf_pkt_filter, u)
+#define BRCMF_PKT_FILTER_PATTERN_FIXED_LEN	\
+	offsetof(struct brcmf_pkt_filter_pattern, mask_and_pattern)
+
 #ifdef BCMDBG
 static const char brcmf_version[] =
 	"Dongle Host Driver, version " BRCMF_VERSION_STR "\nCompiled on "

@@ -322,29 +322,6 @@ struct rte_console {
 
 #define SDPCM_GLOMDESC(p)	(((u8 *)p)[1] & 0x80)
 
-/* For TEST_CHANNEL packets, define another 4-byte header */
-#define SDPCM_TEST_HDRLEN	4	/*
-					 * Generally: Cmd(1), Ext(1), Len(2);
-					 * Semantics of Ext byte depend on
-					 * command. Len is current or requested
-					 * frame length, not including test
-					 * header; sent little-endian.
-					 */
-#define SDPCM_TEST_DISCARD	0x01	/* Receiver discards. Ext:pattern id. */
-#define SDPCM_TEST_ECHOREQ	0x02	/* Echo request. Ext:pattern id. */
-#define SDPCM_TEST_ECHORSP	0x03	/* Echo response. Ext:pattern id. */
-#define SDPCM_TEST_BURST	0x04	/*
-					 * Receiver to send a burst.
-					 * Ext is a frame count
-					 */
-#define SDPCM_TEST_SEND		0x05	/*
-					 * Receiver sets send mode.
-					 * Ext is boolean on/off
-					 */
-
-/* Handy macro for filling in datagen packets with a pattern */
-#define SDPCM_TEST_FILL(byteno, id)	((u8)(id + byteno))
-
 /*
  * Shared structure between dongle and the host.
  * The structure contains pointers to trap or assert information.
@@ -354,7 +331,6 @@ struct rte_console {
 #define SDPCM_SHARED_ASSERT_BUILT  0x0100
 #define SDPCM_SHARED_ASSERT        0x0200
 #define SDPCM_SHARED_TRAP          0x0400
-
 
 /* Space for header read, limit for data packets */
 #define MAX_HDR_READ	(1 << 6)
@@ -425,9 +401,11 @@ struct rte_console {
 /*
  * Conversion of 802.1D priority to precedence level
  */
-#define PRIO2PREC(prio) \
-	(((prio) == PRIO_8021D_NONE || (prio) == PRIO_8021D_BE) ? \
-	((prio^2)) : (prio))
+static uint prio2prec(u32 prio)
+{
+	return (prio == PRIO_8021D_NONE || prio == PRIO_8021D_BE) ?
+	       (prio^2) : prio;
+}
 
 /*
  * Core reg address translation.
@@ -809,15 +787,15 @@ static bool forcealign;
 
 #define ALIGNMENT  4
 
-#define PKTALIGN(_p, _len, _align)				\
-	do {								\
-		uint datalign;						\
-		datalign = (unsigned long)((_p)->data);			\
-		datalign = roundup(datalign, (_align)) - datalign;	\
-		if (datalign)						\
-			skb_pull((_p), datalign);			\
-		__skb_trim((_p), (_len));				\
-	} while (0)
+static void pkt_align(struct sk_buff *p, int len, int align)
+{
+	uint datalign;
+	datalign = (unsigned long)(p->data);
+	datalign = roundup(datalign, (align)) - datalign;
+	if (datalign)
+		skb_pull(p, datalign);
+	__skb_trim(p, len);
+}
 
 /* Limit on rounding up frames */
 static const uint max_roundup = 512;
@@ -826,9 +804,11 @@ static const uint max_roundup = 512;
 static bool brcmf_readahead;
 
 /* To check if there's window offered */
-#define DATAOK(bus) \
-	(((u8)(bus->tx_max - bus->tx_seq) != 0) && \
-	(((u8)(bus->tx_max - bus->tx_seq) & 0x80) == 0))
+static bool data_ok(struct brcmf_bus *bus)
+{
+	return (u8)(bus->tx_max - bus->tx_seq) != 0 &&
+	       ((u8)(bus->tx_max - bus->tx_seq) & 0x80) == 0;
+}
 
 /*
  * Reads a register in the SDIO hardware block. This block occupies a series of
@@ -1232,11 +1212,11 @@ static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 	return 0;
 }
 
-#define BUS_WAKE(bus) \
-	do { \
-		if ((bus)->sleeping) \
-			brcmf_sdbrcm_bussleep((bus), false); \
-	} while (0);
+static void bus_wake(struct brcmf_bus *bus)
+{
+	if (bus->sleeping)
+		brcmf_sdbrcm_bussleep(bus, false);
+}
 
 /* Writes a HW/SW header into the packet and sends it. */
 /* Assumes: (a) header space already there, (b) caller holds lock */
@@ -1275,7 +1255,7 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt,
 				goto done;
 			}
 
-			PKTALIGN(new, pkt->len, BRCMF_SDALIGN);
+			pkt_align(new, pkt->len, BRCMF_SDALIGN);
 			memcpy(new->data, pkt->data, pkt->len);
 			if (free_pkt)
 				brcmu_pkt_buf_free_skb(pkt);
@@ -1401,12 +1381,12 @@ int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *pkt)
 	skb_push(pkt, SDPCM_HDRLEN);
 	/* precondition: IS_ALIGNED((unsigned long)(pkt->data), 2) */
 
-	prec = PRIO2PREC((pkt->priority & PRIOMASK));
+	prec = prio2prec((pkt->priority & PRIOMASK));
 
 	/* Check for existing queue, current flow-control,
 			 pending event, or pending clock */
 	if (brcmf_deferred_tx || bus->fcstate || pktq_len(&bus->txq)
-	    || bus->dpc_sched || (!DATAOK(bus))
+	    || bus->dpc_sched || (!data_ok(bus))
 	    || (bus->flowcontrol & NBITVAL(prec))
 	    || (bus->clkstate != CLK_AVAIL)) {
 		brcmf_dbg(TRACE, "deferring pktq len %d\n",
@@ -1444,7 +1424,7 @@ int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *pkt)
 		brcmf_sdbrcm_sdlock(bus);
 
 		/* Otherwise, send it now */
-		BUS_WAKE(bus);
+		bus_wake(bus);
 		/* Make sure back plane ht clk is on, no pending allowed */
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, true);
 
@@ -1484,7 +1464,7 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_bus *bus, uint maxframes)
 	tx_prec_map = ~bus->flowcontrol;
 
 	/* Send frames until the limit or some other event */
-	for (cnt = 0; (cnt < maxframes) && DATAOK(bus); cnt++) {
+	for (cnt = 0; (cnt < maxframes) && data_ok(bus); cnt++) {
 		spin_lock_bh(&bus->txqlock);
 		pkt = brcmu_pktq_mdeq(&bus->txq, tx_prec_map, &prec_out);
 		if (pkt == NULL) {
@@ -1573,7 +1553,7 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	/* Need to lock here to protect txseq and SDIO tx calls */
 	brcmf_sdbrcm_sdlock(bus);
 
-	BUS_WAKE(bus);
+	bus_wake(bus);
 
 	/* Make sure backplane clock is on */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
@@ -1591,7 +1571,7 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	put_unaligned_le32(swheader, frame + SDPCM_FRAMETAG_LEN);
 	put_unaligned_le32(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 
-	if (!DATAOK(bus)) {
+	if (!data_ok(bus)) {
 		brcmf_dbg(INFO, "No bus credit bus->tx_max %d, bus->tx_seq %d\n",
 			  bus->tx_max, bus->tx_seq);
 		bus->ctrl_frame_stat = true;
@@ -2364,7 +2344,7 @@ static int brcmf_sdbrcm_doiovar(struct brcmf_bus *bus,
 
 	/* Request clock to allow SDIO accesses */
 	if (!bus->drvr->dongle_reset) {
-		BUS_WAKE(bus);
+		bus_wake(bus);
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 	}
 
@@ -2899,7 +2879,7 @@ brcmf_sdbrcm_bus_iovar_op(struct brcmf_pub *drvr, const char *name,
 	if (vi == NULL) {
 		brcmf_sdbrcm_sdlock(bus);
 
-		BUS_WAKE(bus);
+		bus_wake(bus);
 
 		/* Turn on clock in case SD command needs backplane */
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
@@ -2956,7 +2936,7 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex)
 	if (enforce_mutex)
 		brcmf_sdbrcm_sdlock(bus);
 
-	BUS_WAKE(bus);
+	bus_wake(bus);
 
 	/* Enable clock for device interrupts */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
@@ -3358,7 +3338,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 			}
 
 			/* Adhere to start alignment requirements */
-			PKTALIGN(pnext, sublen, BRCMF_SDALIGN);
+			pkt_align(pnext, sublen, BRCMF_SDALIGN);
 		}
 
 		/* If all allocations succeeded, save packet chain
@@ -3748,7 +3728,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 					  len, rdlen, rxseq);
 				continue;
 			} else {
-				PKTALIGN(pkt, rdlen, BRCMF_SDALIGN);
+				pkt_align(pkt, rdlen, BRCMF_SDALIGN);
 				rxbuf = (u8 *) (pkt->data);
 				/* Read the entire frame */
 				sdret = brcmf_sdcard_recv_buf(bus->sdiodev,
@@ -4052,7 +4032,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 
 		/* Leave room for what we already read, and align remainder */
 		skb_pull(pkt, firstread);
-		PKTALIGN(pkt, rdlen, BRCMF_SDALIGN);
+		pkt_align(pkt, rdlen, BRCMF_SDALIGN);
 
 		/* Read the remaining frame data */
 		sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
@@ -4287,7 +4267,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
 		}
 	}
 
-	BUS_WAKE(bus);
+	bus_wake(bus);
 
 	/* Make sure backplane clock is on */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, true);
@@ -4377,7 +4357,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
 	bus->intstatus = intstatus;
 
 clkwait:
-	if (DATAOK(bus) && bus->ctrl_frame_stat &&
+	if (data_ok(bus) && bus->ctrl_frame_stat &&
 		(bus->clkstate == CLK_AVAIL)) {
 		int ret, i;
 
@@ -4425,7 +4405,7 @@ clkwait:
 	/* Send queued frames (limit 1 if rx may still be pending) */
 	else if ((bus->clkstate == CLK_AVAIL) && !bus->fcstate &&
 		 brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol) && txlimit
-		 && DATAOK(bus)) {
+		 && data_ok(bus)) {
 		framecnt = rxdone ? txlimit : min(txlimit, brcmf_txminmax);
 		framecnt = brcmf_sdbrcm_sendfromq(bus, framecnt);
 		txlimit -= framecnt;
@@ -4446,7 +4426,7 @@ clkwait:
 		resched = true;
 	} else if (bus->intstatus || bus->ipend ||
 		(!bus->fcstate && brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol)
-		 && DATAOK(bus)) || PKT_AVAILABLE()) {
+		 && data_ok(bus)) || PKT_AVAILABLE()) {
 		resched = true;
 	}
 
@@ -4605,7 +4585,7 @@ static int brcmf_sdbrcm_bus_console_in(struct brcmf_pub *drvr,
 	}
 
 	/* Request clock to allow SDIO accesses */
-	BUS_WAKE(bus);
+	bus_wake(bus);
 	/* No pend allowed since txpkt is called later, ht clk has to be on */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 

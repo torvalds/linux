@@ -83,10 +83,6 @@
 #define	WLC_PHY_TYPE_LCN	8
 #define	WLC_PHY_TYPE_NULL	0xf
 
-#define BRCMF_PKT_FILTER_FIXED_LEN	offsetof(struct brcmf_pkt_filter, u)
-#define BRCMF_PKT_FILTER_PATTERN_FIXED_LEN	\
-	offsetof(struct brcmf_pkt_filter_pattern, mask_and_pattern)
-
 #define BRCMF_EVENTING_MASK_LEN	16
 
 #define TOE_TX_CSUM_OL		0x00000001
@@ -478,8 +474,6 @@ struct brcmf_assoc_params {
 	/* list of chanspecs */
 	u16 chanspec_list[1];
 };
-#define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
-	(sizeof(struct brcmf_assoc_params) - sizeof(u16))
 
 /* used for join with or without a specific bssid and channel list */
 struct brcmf_join_params {
