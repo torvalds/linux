@@ -20,44 +20,11 @@
 #include "main.h"
 #include "alloc.h"
 
-static void brcms_c_pub_mfree(struct brcms_pub *pub)
-{
-	if (pub == NULL)
-		return;
-
-	kfree(pub->multicast);
-	kfree(pub);
-}
-
-static struct brcms_pub *brcms_c_pub_malloc(uint unit, uint *err, uint devid)
-{
-	struct brcms_pub *pub;
-
-	pub = kzalloc(sizeof(struct brcms_pub), GFP_ATOMIC);
-	if (pub == NULL) {
-		*err = 1001;
-		goto fail;
-	}
-
-	pub->multicast = kzalloc(ETH_ALEN * MAXMULTILIST, GFP_ATOMIC);
-	if (pub->multicast == NULL) {
-		*err = 1003;
-		goto fail;
-	}
-
-	return pub;
-
- fail:
-	brcms_c_pub_mfree(pub);
-	return NULL;
-}
-
 static void brcms_c_bsscfg_mfree(struct brcms_bss_cfg *cfg)
 {
 	if (cfg == NULL)
 		return;
 
-	kfree(cfg->maclist);
 	kfree(cfg->current_bss);
 	kfree(cfg);
 }
@@ -81,13 +48,6 @@ static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit)
 	return NULL;
 }
 
-static void brcms_c_bsscfg_ID_assign(struct brcms_c_info *wlc,
-				 struct brcms_bss_cfg *bsscfg)
-{
-	bsscfg->ID = wlc->next_bsscfg_ID;
-	wlc->next_bsscfg_ID++;
-}
-
 /*
  * The common driver entry routine. Error codes should be unique
  */
@@ -102,7 +62,7 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	}
 
 	/* allocate struct brcms_c_pub state structure */
-	wlc->pub = brcms_c_pub_malloc(unit, err, devid);
+	wlc->pub = kzalloc(sizeof(struct brcms_pub), GFP_ATOMIC);
 	if (wlc->pub == NULL) {
 		*err = 1003;
 		goto fail;
@@ -150,7 +110,6 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 		*err = 1011;
 		goto fail;
 	}
-	brcms_c_bsscfg_ID_assign(wlc, wlc->cfg);
 
 	wlc->protection = kzalloc(sizeof(struct brcms_protection),
 				  GFP_ATOMIC);
@@ -205,7 +164,7 @@ void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 		return;
 
 	brcms_c_bsscfg_mfree(wlc->cfg);
-	brcms_c_pub_mfree(wlc->pub);
+	kfree(wlc->pub);
 	kfree(wlc->modulecb);
 	kfree(wlc->default_bss);
 	kfree(wlc->protection);

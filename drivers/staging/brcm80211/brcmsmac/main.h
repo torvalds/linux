@@ -568,7 +568,6 @@ struct brcms_txq_info {
  * tempsense_lasttime;
  * tx_duty_cycle_ofdm: maximum allowed duty cycle for OFDM.
  * tx_duty_cycle_cck: maximum allowed duty cycle for CCK.
- * next_bsscfg_ID;
  * pkt_queue: txq for transmit packets.
  * mpc_dur: total time (ms) in mpc mode except for the portion since
  *	    radio is turned off last time.
@@ -722,8 +721,6 @@ struct brcms_c_info {
 	u16 tx_duty_cycle_ofdm;
 	u16 tx_duty_cycle_cck;
 
-	u16 next_bsscfg_ID;
-
 	struct brcms_txq_info *pkt_queue;
 	u32 mpc_dur;
 	u32 mpc_laston_ts;
@@ -757,11 +754,6 @@ struct antsel_info {
  * bcmc_scb: one bcmc_scb per band
  * _idx: the index of this bsscfg, assigned at wlc_bsscfg_alloc()
  *
- * MAC filter
- * ----------
- * nmac: # of entries on maclist array
- * macmode: allow/deny stations on maclist array
- * maclist: list of source MAC addrs to match
  *
  * BSSID: BSSID (associated)
  * cur_etheraddr: h/w address
@@ -797,9 +789,6 @@ struct brcms_bss_cfg {
 	u8 SSID[IEEE80211_MAX_SSID_LEN];
 	struct scb *bcmc_scb[MAXBANDS];
 	s8 _idx;
-	uint nmac;
-	int macmode;
-	struct ether_addr *maclist;
 	u8 BSSID[ETH_ALEN];
 	u8 cur_etheraddr[ETH_ALEN];
 	u16 bcmc_fid;

@@ -22,7 +22,6 @@
 #include "defs.h"
 
 #define	BRCMS_NUMRATES	16	/* max # of rates in a rateset */
-#define	MAXMULTILIST	32	/* max # multicast addresses */
 #define	D11_PHY_HDR_LEN	6	/* Phy header length - 6 bytes */
 
 /* phy types */
@@ -124,19 +123,8 @@ struct brcms_bss_info {
 	s16 RSSI;		/* receive signal strength (in dBm) */
 	s16 SNR;		/* receive signal SNR in dB */
 	u16 beacon_period;	/* units are Kusec */
-	u16 atim_window;	/* units are Kusec */
 	u16 chanspec;	/* Channel num, bw, ctrl_sb and band */
-	s8 infra;		/* 0=IBSS, 1=infrastructure, 2=unknown */
 	struct brcms_c_rateset rateset;	/* supported rates */
-	u8 dtim_period;	/* DTIM period */
-	s8 phy_noise;		/* noise right after tx (in dBm) */
-	u16 capability;	/* Capability information */
-	u8 wme_qosinfo;	/* QoS Info from WME IE; valid if BSS_WME flag set */
-	u16 qbss_load_aac;	/* qbss load available admission capacity */
-	/* qbss_load_chan_free <- (0xff - chan utilization of qbss_load_ie_t) */
-	u8 qbss_load_chan_free;	/* indicates how free the channel is */
-	u8 mcipher;		/* multicast cipher */
-	u8 wpacfg;		/* wpa config index */
 };
 
 #define MAC80211_PROMISC_BCNS	(1 << 0)
@@ -165,76 +153,26 @@ struct brcms_pub {
 
 	bool promisc;		/* promiscuous destination address */
 	bool delayed_down;	/* down delayed */
-	bool _ap;		/* AP mode enabled */
-	bool _apsta;		/* simultaneous AP/STA mode enabled */
-	bool _assoc_recreate;	/* association recreation on up transitions */
 	int _wme;		/* WME QoS mode */
-	u8 _mbss;		/* MBSS mode on */
-	bool allmulti;		/* enable all multicasts */
 	bool associated;	/* true:part of [I]BSS, false: not */
 	/* (union of stas_associated, aps_associated) */
-	bool phytest_on;	/* whether a PHY test is running */
-	bool bf_preempt_4306;	/* True to enable 'darwin' mode */
 	bool _ampdu;		/* ampdu enabled or not */
-	bool _cac;		/* 802.11e CAC enabled */
 	u8 _n_enab;		/* bitmap of 11N + HT support */
-	bool _n_reqd;		/* N support required for clients */
-
-	s8 _coex;	/* 20/40 MHz BSS Management AUTO, ENAB, DISABLE */
-	bool _priofc;		/* Priority-based flowcontrol */
 
 	u8 cur_etheraddr[ETH_ALEN];	/* our local ethernet address */
-
-	u8 *multicast;	/* ptr to list of multicast addresses */
-	uint nmulticast;	/* # enabled multicast addresses */
-
-	u32 wlfeatureflag;	/* Flags to control sw features from registry */
-	int psq_pkts_total;	/* total num of ps pkts */
-
-	u16 txmaxpkts;	/* max number of large pkts allowed to be pending */
-
-	/* s/w decryption counters */
-	u32 swdecrypt;	/* s/w decrypt attempts */
 
 	int bcmerror;		/* last bcm error */
 
 	u32 radio_disabled;	/* bit vector for radio disabled reasons */
-	bool radio_active;	/* radio on/off state */
-	u16 roam_time_thresh;	/* Max. # secs. of not hearing beacons
-					 * before roaming.
-					 */
-	bool align_wd_tbtt;	/* Align watchdog with tbtt indication
-				 * handling. This flag is cleared by default
-				 * and is set explicitly */
 
 	u16 boardrev;	/* version # of particular board */
 	u8 sromrev;		/* version # of the srom */
 	char srom_ccode[BRCM_CNTRY_BUF_SZ];	/* Country Code in SROM */
 	u32 boardflags;	/* Board specific flags from srom */
 	u32 boardflags2;	/* More board flags if sromrev >= 4 */
-	bool tempsense_disable;	/* disable periodic tempsense check */
 	bool phy_11ncapable;	/* the PHY/HW is capable of 802.11N */
-	bool _ampdumac;		/* mac assist ampdu enabled or not */
 
 	struct wl_cnt *_cnt;	/* low-level counters in driver */
-};
-
-/* wl_monitor rx status per packet */
-struct wl_rxsts {
-	uint pkterror;		/* error flags per pkt */
-	uint phytype;		/* 802.11 A/B/G ... */
-	uint channel;		/* channel */
-	uint datarate;		/* rate in 500kbps */
-	uint antenna;		/* antenna pkts received on */
-	uint pktlength;		/* pkt length minus bcm phy hdr */
-	u32 mactime;		/* time stamp from mac, count per 1us */
-	uint sq;		/* signal quality */
-	s32 signal;		/* in dbm */
-	s32 noise;		/* in dbm */
-	uint preamble;		/* Unknown, short, long */
-	uint encoding;		/* Unknown, CCK, PBCC, OFDM */
-	uint nfrmtype;		/* special 802.11n frames(AMPDU, AMSDU) */
-	struct brcms_if *wlif;	/* wl interface */
 };
 
 enum wlc_par_id {

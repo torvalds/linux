@@ -70,11 +70,6 @@
 
 #define	TBTT_ALIGN_LEEWAY_US	100	/* min leeway before first TBTT in us */
 
-/* Software feature flag defines used by wlfeatureflag */
-#define WL_SWFL_NOHWRADIO	0x0004
-#define WL_SWFL_FLOWCONTROL     0x0008	/* Enable backpressure to OS stack */
-#define WL_SWFL_WLBSSSORT	0x0010	/* Per-port supports sorting of BSS */
-
 /* n-mode support capability */
 /* 2x2 includes both 1x1 & 2x2 devices
  * reserved #define 2 for future when we want to separate 1x1 & 2x2 and
@@ -2779,11 +2774,6 @@ void brcms_c_coredisable(struct brcms_hardware *wlc_hw)
 	/* turn off PHYPLL to save power */
 	brcms_b_core_phypll_ctl(wlc_hw, false);
 
-	/* No need to set wlc->pub->radio_active = OFF
-	 * because this function needs down capability and
-	 * radio_active is designed for BCMNODOWN.
-	 */
-
 	/* remove gpio controls */
 	if (wlc_hw->ucode_dbgsel)
 		ai_gpiocontrol(wlc_hw->sih, ~0, 0, GPIO_DRV_PRIORITY);
@@ -3744,9 +3734,6 @@ static void brcms_b_set_shortslot(struct brcms_hardware *wlc_hw, bool shortslot)
  */
 void brcms_c_switch_shortslot(struct brcms_c_info *wlc, bool shortslot)
 {
-	int idx;
-	struct brcms_bss_cfg *cfg;
-
 	/* use the override if it is set */
 	if (wlc->shortslot_override != BRCMS_SHORTSLOT_AUTO)
 		shortslot = (wlc->shortslot_override == BRCMS_SHORTSLOT_ON);
@@ -3755,17 +3742,6 @@ void brcms_c_switch_shortslot(struct brcms_c_info *wlc, bool shortslot)
 		return;
 
 	wlc->shortslot = shortslot;
-
-	/* update the capability based on current shortslot mode */
-	FOREACH_BSS(wlc, idx, cfg)
-		if (!cfg->associated)
-			continue;
-		cfg->current_bss->capability &=
-					~WLAN_CAPABILITY_SHORT_SLOT_TIME;
-		if (wlc->shortslot)
-			cfg->current_bss->capability |=
-					WLAN_CAPABILITY_SHORT_SLOT_TIME;
-	END_FOREACH_BSS()
 
 	brcms_b_set_shortslot(wlc->hw, shortslot);
 }
@@ -4193,7 +4169,7 @@ static void brcms_c_down_led_upd(struct brcms_c_info *wlc)
 static bool brcms_c_radio_monitor_start(struct brcms_c_info *wlc)
 {
 	/* Don't start the timer if HWRADIO feature is disabled */
-	if (wlc->radio_monitor || (wlc->pub->wlfeatureflag & WL_SWFL_NOHWRADIO))
+	if (wlc->radio_monitor)
 		return true;
 
 	wlc->radio_monitor = true;
@@ -4238,7 +4214,7 @@ bool brcms_c_radio_monitor_stop(struct brcms_c_info *wlc)
 /* read hwdisable state and propagate to wlc flag */
 static void brcms_c_radio_hwdisable_upd(struct brcms_c_info *wlc)
 {
-	if (wlc->pub->wlfeatureflag & WL_SWFL_NOHWRADIO || wlc->pub->hw_off)
+	if (wlc->pub->hw_off)
 		return;
 
 	if (brcms_b_radio_read_hwdisabled(wlc->hw))
@@ -4360,7 +4336,7 @@ static void brcms_c_watchdog(void *arg)
 	if ((wlc->pub->now % SW_TIMER_MAC_STAT_UPD) == 0)
 		brcms_c_statsupd(wlc);
 
-	if (BRCMS_ISNPHY(wlc->band) && !wlc->pub->tempsense_disable &&
+	if (BRCMS_ISNPHY(wlc->band) &&
 	    ((wlc->pub->now - wlc->tempsense_lasttime) >=
 	     BRCMS_TEMPSENSE_PERIOD)) {
 		wlc->tempsense_lasttime = wlc->pub->now;
@@ -4453,7 +4429,6 @@ void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 	wlc->pub->_wme = AUTO;
 	wlc->pub->_ampdu = AMPDU_AGG_HOST;
 	wlc->pub->bcmerror = 0;
-	wlc->pub->_coex = ON;
 
 	/* initialize mpc delay */
 	wlc->mpc_delay_off = wlc->mpc_dlycnt = BRCMS_MPC_MIN_DELAYCNT;
@@ -4940,7 +4915,6 @@ static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 	/* init default and target BSS with some sane initial values */
 	memset((char *)(bi), 0, sizeof(struct brcms_bss_info));
 	bi->beacon_period = BEACON_INTERVAL_DEFAULT;
-	bi->dtim_period = DTIM_INTERVAL_DEFAULT;
 
 	/* fill the default channel as the first valid channel
 	 * starting from the 2G channels
@@ -4977,8 +4951,7 @@ static struct brcms_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc)
 		 * will remain the same
 		 */
 		brcmu_pktq_init(&qi->q, BRCMS_PREC_COUNT,
-			  2 * BRCMS_DATAHIWAT + PKTQ_LEN_DEFAULT
-			  + wlc->pub->psq_pkts_total);
+			  2 * BRCMS_DATAHIWAT + PKTQ_LEN_DEFAULT);
 
 		/* add this queue to the the global list */
 		p = wlc->tx_queues;
@@ -5220,7 +5193,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	wlc->bsscfg[0] = wlc->cfg;
 	wlc->cfg->_idx = 0;
 	wlc->cfg->wlc = wlc;
-	pub->txmaxpkts = MAXTXPKTS;
 
 	brcms_c_wme_initparams_sta(wlc, &wlc->wme_param_ie);
 
@@ -5952,18 +5924,6 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	band->gmode = gmode;
 
 	wlc->shortslot_override = shortslot;
-
-	if (preamble == BRCMS_PLCP_SHORT)
-		wlc->default_bss->capability |= WLAN_CAPABILITY_SHORT_PREAMBLE;
-	else
-		wlc->default_bss->capability &= ~WLAN_CAPABILITY_SHORT_PREAMBLE;
-
-	/* Update shortslot capability bit for AP and IBSS */
-	if (shortslot == BRCMS_SHORTSLOT_ON)
-		wlc->default_bss->capability |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
-	else
-		wlc->default_bss->capability &=
-					~WLAN_CAPABILITY_SHORT_SLOT_TIME;
 
 	/* Use the default 11g rateset */
 	if (!rs.count)
@@ -6792,8 +6752,7 @@ void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
 	prio = sdu->priority;
 
 	if (!brcms_c_prec_enq(wlc, q, sdu, prec)) {
-		if (!EDCF_ENAB(wlc->pub)
-		    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL))
+		if (!EDCF_ENAB(wlc->pub))
 			wiphy_err(wlc->wiphy, "wl%d: txq_enq: txq overflow"
 				  "\n", wlc->pub->unit);
 
@@ -6810,13 +6769,9 @@ void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
 	 * would make the decision on what to drop instead of relying on
 	 * stack to make the right decision
 	 */
-	if (!EDCF_ENAB(wlc->pub)
-	    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL)) {
+	if (!EDCF_ENAB(wlc->pub)) {
 		if (pktq_len(q) >= BRCMS_DATAHIWAT)
 			brcms_c_txflowcontrol(wlc, qi, ON, ALLPRIO);
-	} else if (wlc->pub->_priofc) {
-		if (pktq_plen(q, wlc_prio2prec_map[prio]) >= BRCMS_DATAHIWAT)
-			brcms_c_txflowcontrol(wlc, qi, ON, prio);
 	}
 }
 
@@ -7816,19 +7771,10 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 	 * Check if flow control needs to be turned off after
 	 * sending the packet
 	 */
-	if (!EDCF_ENAB(wlc->pub)
-	    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL)) {
+	if (!EDCF_ENAB(wlc->pub)) {
 		if (brcms_c_txflowcontrol_prio_isset(wlc, qi, ALLPRIO)
 		    && (pktq_len(q) < BRCMS_DATAHIWAT / 2))
 			brcms_c_txflowcontrol(wlc, qi, OFF, ALLPRIO);
-	} else if (wlc->pub->_priofc) {
-		int prio;
-		for (prio = MAXPRIO; prio >= 0; prio--) {
-			if (brcms_c_txflowcontrol_prio_isset(wlc, qi, prio) &&
-			    q->q[wlc_prio2prec_map[prio]].len <
-			    BRCMS_DATAHIWAT / 2)
-				brcms_c_txflowcontrol(wlc, qi, OFF, prio);
-		}
 	}
 	in_send_q = false;
 }
