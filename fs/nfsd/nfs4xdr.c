@@ -1696,36 +1696,89 @@ static __be32 nfsd4_encode_fs_location4(struct nfsd4_fs_location *location,
 }
 
 /*
- * Return the path to an export point in the pseudo filesystem namespace
- * Returned string is safe to use as long as the caller holds a reference
- * to @exp.
+ * Encode a path in RFC3530 'pathname4' format
  */
-static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp, __be32 *stat)
+static __be32 nfsd4_encode_path(const struct path *root,
+		const struct path *path, __be32 **pp, int *buflen)
 {
-	struct svc_fh tmp_fh;
-	char *path = NULL, *rootpath;
-	size_t rootlen;
+	struct path cur = {
+		.mnt = path->mnt,
+		.dentry = path->dentry,
+	};
+	__be32 *p = *pp;
+	struct dentry **components = NULL;
+	unsigned int ncomponents = 0;
+	__be32 err = nfserr_jukebox;
 
-	fh_init(&tmp_fh, NFS4_FHSIZE);
-	*stat = exp_pseudoroot(rqstp, &tmp_fh);
-	if (*stat)
-		return NULL;
-	rootpath = tmp_fh.fh_export->ex_pathname;
+	dprintk("nfsd4_encode_components(");
 
-	path = exp->ex_pathname;
-
-	rootlen = strlen(rootpath);
-	if (strncmp(path, rootpath, rootlen)) {
-		dprintk("nfsd: fs_locations failed;"
-			"%s is not contained in %s\n", path, rootpath);
-		*stat = nfserr_notsupp;
-		path = NULL;
-		goto out;
+	path_get(&cur);
+	/* First walk the path up to the nfsd root, and store the
+	 * dentries/path components in an array.
+	 */
+	for (;;) {
+		if (cur.dentry == root->dentry && cur.mnt == root->mnt)
+			break;
+		if (cur.dentry == cur.mnt->mnt_root) {
+			if (follow_up(&cur))
+				continue;
+			goto out_free;
+		}
+		if ((ncomponents & 15) == 0) {
+			struct dentry **new;
+			new = krealloc(components,
+					sizeof(*new) * (ncomponents + 16),
+					GFP_KERNEL);
+			if (!new)
+				goto out_free;
+			components = new;
+		}
+		components[ncomponents++] = cur.dentry;
+		cur.dentry = dget_parent(cur.dentry);
 	}
-	path += rootlen;
-out:
-	fh_put(&tmp_fh);
-	return path;
+
+	*buflen -= 4;
+	if (*buflen < 0)
+		goto out_free;
+	WRITE32(ncomponents);
+
+	while (ncomponents) {
+		struct dentry *dentry = components[ncomponents - 1];
+		unsigned int len = dentry->d_name.len;
+
+		*buflen -= 4 + (XDR_QUADLEN(len) << 2);
+		if (*buflen < 0)
+			goto out_free;
+		WRITE32(len);
+		WRITEMEM(dentry->d_name.name, len);
+		dprintk("/%s", dentry->d_name.name);
+		dput(dentry);
+		ncomponents--;
+	}
+
+	*pp = p;
+	err = 0;
+out_free:
+	dprintk(")\n");
+	while (ncomponents)
+		dput(components[--ncomponents]);
+	kfree(components);
+	path_put(&cur);
+	return err;
+}
+
+static __be32 nfsd4_encode_fsloc_fsroot(struct svc_rqst *rqstp,
+		const struct path *path, __be32 **pp, int *buflen)
+{
+	struct svc_export *exp_ps;
+	__be32 res;
+
+	exp_ps = rqst_find_fsidzero_export(rqstp);
+	if (IS_ERR(exp_ps))
+		return nfserrno(PTR_ERR(exp_ps));
+	res = nfsd4_encode_path(&exp_ps->ex_path, path, pp, buflen);
+	exp_put(exp_ps);
+	return res;
 }
 
 /*
@@ -1739,11 +1792,8 @@ static __be32 nfsd4_encode_fs_locations(struct svc_rqst *rqstp,
 	int i;
 	__be32 *p = *pp;
 	struct nfsd4_fs_locations *fslocs = &exp->ex_fslocs;
-	char *root = nfsd4_path(rqstp, exp, &status);
 
-	if (status)
-		return status;
-	status = nfsd4_encode_components('/', root, &p, buflen);
+	status = nfsd4_encode_fsloc_fsroot(rqstp, &exp->ex_path, &p, buflen);
 	if (status)
 		return status;
 	if ((*buflen -= 4) < 0)
