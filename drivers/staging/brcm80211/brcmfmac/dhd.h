@@ -789,7 +789,6 @@ struct brcmf_c_ioctl {
 #define	BRCMF_IOCTL_MAXLEN	8192	/* max length ioctl buffer required */
 
 /* common ioctl definitions */
-#define BRCMF_GET_MAGIC				0
 #define BRCMF_GET_VERSION				1
 #define BRCMF_GET_VAR				2
 #define BRCMF_SET_VAR				3

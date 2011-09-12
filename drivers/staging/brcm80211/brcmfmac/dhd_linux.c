@@ -1012,15 +1012,6 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 		goto done;
 	}
 
-	/* check for local brcmf ioctl and handle it */
-	if (driver == BRCMF_IOCTL_MAGIC) {
-		bcmerror = brcmf_c_ioctl((void *)&drvr_priv->pub, &ioc,
-					 buf, buflen);
-		if (bcmerror)
-			drvr_priv->pub.bcmerror = bcmerror;
-		goto done;
-	}
-
 	/* send to dongle (must be up, and wl) */
 	if ((drvr_priv->pub.busstate != BRCMF_BUS_DATA)) {
 		brcmf_dbg(ERROR, "DONGLE_DOWN\n");

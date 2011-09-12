@@ -348,11 +348,6 @@ static void pkt_set_sum_good(struct sk_buff *skb, bool x)
 	skb->ip_summed = (x ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 }
 
-void brcmf_proto_dump(struct brcmf_pub *drvr, struct brcmu_strbuf *strbuf)
-{
-	brcmu_bprintf(strbuf, "Protocol CDC: reqid %d\n", drvr->prot->reqid);
-}
-
 void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 			 struct sk_buff *pktbuf)
 {

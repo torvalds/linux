@@ -52,15 +52,8 @@ extern int brcmf_proto_hdrpull(struct brcmf_pub *, int *ifidx,
 extern int brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx,
 			     struct brcmf_ioctl *ioc, void *buf, int len);
 
-/* Add prot dump output to a buffer */
-extern void brcmf_proto_dump(struct brcmf_pub *drvr,
-			     struct brcmu_strbuf *strbuf);
-
 /* Update local copy of dongle statistics */
 extern void brcmf_proto_dstats(struct brcmf_pub *drvr);
-
-extern int brcmf_c_ioctl(struct brcmf_pub *drvr, struct brcmf_c_ioctl *ioc,
-			 void *buf, uint buflen);
 
 extern int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr);
 

@@ -149,16 +149,6 @@ extern u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint func,
 extern void brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint func,
 				   u32 addr, u8 data, int *err);
 
-/* Read CIS content for specified function.
- *   fn:     function whose CIS is being requested (0 is common CIS)
- *   cis:    pointer to memory location to place results
- *   length: number of bytes to read
- * Internally, this routine uses the values from the cis base regs (0x9-0xB)
- * to form an SDIO-space address to read the data from.
- */
-extern int brcmf_sdcard_cis_read(struct brcmf_sdio_dev *sdiodev, uint func,
-				 u8 *cis, uint length);
-
 /* Synchronous access to device (client) core registers via CMD53 to F1.
  *   addr: backplane address (i.e. >= regsva from attach)
  *   size: register width in bytes (2 or 4)
@@ -254,10 +244,6 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 			   uint fix_inc, uint rw, uint fnc_num,
 			   u32 addr, uint regwidth,
 			   u32 buflen, u8 *buffer, struct sk_buff *pkt);
-
-/* get cis data */
-extern int brcmf_sdioh_cis_read(struct brcmf_sdio_dev *sdiodev, uint fuc,
-				u8 *cis, u32 length);
 
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,

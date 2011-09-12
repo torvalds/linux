@@ -423,39 +423,6 @@ static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 	return scratch;
 }
 
-int brcmf_sdioh_cis_read(struct brcmf_sdio_dev *sdiodev, uint func,
-			 u8 *cisd, u32 length)
-{
-	u32 count;
-	int offset;
-	u32 foo;
-	u8 *cis = cisd;
-
-	brcmf_dbg(TRACE, "Func = %d\n", func);
-
-	if (!sdiodev->func_cis_ptr[func]) {
-		memset(cis, 0, length);
-		brcmf_dbg(ERROR, "no func_cis_ptr[%d]\n", func);
-		return -ENOTSUPP;
-	}
-
-	brcmf_dbg(ERROR, "func_cis_ptr[%d]=0x%04x\n",
-		  func, sdiodev->func_cis_ptr[func]);
-
-	for (count = 0; count < length; count++) {
-		offset = sdiodev->func_cis_ptr[func] + count;
-		if (brcmf_sdioh_card_regread(sdiodev, 0, offset, 1, &foo) < 0) {
-			brcmf_dbg(ERROR, "regread failed: Can't read CIS\n");
-			return -EIO;
-		}
-
-		*cis = (u8) (foo & 0xff);
-		cis++;
-	}
-
-	return 0;
-}
-
 static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
 {
 	int err_ret;

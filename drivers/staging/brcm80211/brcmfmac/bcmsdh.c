@@ -235,39 +235,6 @@ brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 		  fnc_num, addr, data);
 }
 
-int brcmf_sdcard_cis_read(struct brcmf_sdio_dev *sdiodev, uint func, u8 * cis,
-			  uint length)
-{
-	int status;
-
-	u8 *tmp_buf, *tmp_ptr;
-	u8 *ptr;
-	bool ascii = func & ~0xf;
-	func &= 0x7;
-
-	status = brcmf_sdioh_cis_read(sdiodev, func, cis, length);
-
-	if (ascii) {
-		/* Move binary bits to tmp and format them
-			 into the provided buffer. */
-		tmp_buf = kmalloc(length, GFP_ATOMIC);
-		if (tmp_buf == NULL) {
-			brcmf_dbg(ERROR, "out of memory\n");
-			return -ENOMEM;
-		}
-		memcpy(tmp_buf, cis, length);
-		for (tmp_ptr = tmp_buf, ptr = cis; ptr < (cis + length - 4);
-		     tmp_ptr++) {
-			ptr += sprintf((char *)ptr, "%.2x ", *tmp_ptr & 0xff);
-			if ((((tmp_ptr - tmp_buf) + 1) & 0xf) == 0)
-				ptr += sprintf((char *)ptr, "\n");
-		}
-		kfree(tmp_buf);
-	}
-
-	return status;
-}
-
 int
 brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 {

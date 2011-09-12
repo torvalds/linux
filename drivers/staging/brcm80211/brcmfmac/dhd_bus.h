@@ -56,18 +56,6 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen);
 extern int
 brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen);
 
-/* Check for and handle local prot-specific iovar commands */
-extern int brcmf_sdbrcm_bus_iovar_op(struct brcmf_pub *drvr, const char *name,
-			    void *params, int plen, void *arg, int len,
-			    bool set);
-
-/* Add bus dump output to a buffer */
-extern void brcmf_sdbrcm_bus_dump(struct brcmf_pub *drvr,
-				  struct brcmu_strbuf *strbuf);
-
-/* Clear any bus counters */
-extern void brcmf_bus_clearcounts(struct brcmf_pub *drvr);
-
 extern void brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick);
 
 #endif				/* _BRCMF_BUS_H_ */
