@@ -133,7 +133,6 @@ struct noon010_info {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
-	const struct noon010pc30_platform_data *pdata;
 	struct regulator_bulk_data supply[NOON010_NUM_SUPPLIES];
 	u32 gpio_nreset;
 	u32 gpio_nstby;
@@ -299,8 +298,10 @@ static int noon010_power_ctrl(struct v4l2_subdev *sd, bool reset, bool sleep)
 	u8 reg = sleep ? 0xF1 : 0xF0;
 	int ret = 0;
 
-	if (reset)
+	if (reset) {
 		ret = cam_i2c_write(sd, POWER_CTRL_REG, reg | 0x02);
+		udelay(20);
+	}
 	if (!ret) {
 		ret = cam_i2c_write(sd, POWER_CTRL_REG, reg);
 		if (reset && !ret)
@@ -573,45 +574,37 @@ static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return ret;
 }
 
+/* Called with struct noon010_info.lock mutex held */
 static int noon010_base_config(struct v4l2_subdev *sd)
 {
-	struct noon010_info *info = to_noon010(sd);
-	int ret;
-
-	ret = noon010_bulk_write_reg(sd, noon010_base_regs);
-	if (!ret) {
-		info->curr_fmt = &noon010_formats[0];
-		info->curr_win = &noon010_sizes[0];
+	int ret = noon010_bulk_write_reg(sd, noon010_base_regs);
+	if (!ret)
 		ret = noon010_set_params(sd);
-	}
 	if (!ret)
 		ret = noon010_set_flip(sd, 1, 0);
 
-	/* sync the handler and the registers state */
-	v4l2_ctrl_handler_setup(&to_noon010(sd)->hdl);
 	return ret;
 }
 
 static int noon010_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct noon010_info *info = to_noon010(sd);
-	const struct noon010pc30_platform_data *pdata = info->pdata;
-	int ret = 0;
+	int ret;
 
-	if (WARN(pdata == NULL, "No platform data!\n"))
-		return -ENOMEM;
-
+	mutex_lock(&info->lock);
 	if (on) {
 		ret = power_enable(info);
-		if (ret)
-			return ret;
-		ret = noon010_base_config(sd);
+		if (!ret)
+			ret = noon010_base_config(sd);
 	} else {
 		noon010_power_ctrl(sd, false, true);
 		ret = power_disable(info);
-		info->curr_win = NULL;
-		info->curr_fmt = NULL;
 	}
+	mutex_unlock(&info->lock);
+
+	/* Restore the controls state */
+	if (!ret && on)
+		ret = v4l2_ctrl_handler_setup(&info->hdl);
 
 	return ret;
 }
@@ -762,10 +755,11 @@ static int noon010_probe(struct i2c_client *client,
 	if (ret)
 		goto np_err;
 
-	info->pdata		= client->dev.platform_data;
 	info->i2c_reg_page	= -1;
 	info->gpio_nreset	= -EINVAL;
 	info->gpio_nstby	= -EINVAL;
+	info->curr_fmt		= &noon010_formats[0];
+	info->curr_win		= &noon010_sizes[0];
 
 	if (gpio_is_valid(pdata->gpio_nreset)) {
 		ret = gpio_request(pdata->gpio_nreset, "NOON010PC30 NRST");
