@@ -654,6 +654,7 @@ struct brcmf_bus {
 	struct completion watchdog_wait;
 	struct task_struct *watchdog_tsk;
 	bool wd_timer_valid;
+	uint save_ms;
 
 	struct tasklet_struct tasklet;
 	struct task_struct *dpc_tsk;
@@ -5031,8 +5032,6 @@ brcmf_sdbrcm_watchdog(unsigned long data)
 void
 brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick)
 {
-	static uint save_ms;
-
 	/* don't start the wd until fw is loaded */
 	if (bus->drvr->busstate == BRCMF_BUS_DOWN)
 		return;
@@ -5041,14 +5040,14 @@ brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick)
 	if (!wdtick && bus->wd_timer_valid == true) {
 		del_timer_sync(&bus->timer);
 		bus->wd_timer_valid = false;
-		save_ms = wdtick;
+		bus->save_ms = wdtick;
 		return;
 	}
 
 	if (wdtick) {
 		brcmf_watchdog_ms = (uint) wdtick;
 
-		if (save_ms != brcmf_watchdog_ms) {
+		if (bus->save_ms != brcmf_watchdog_ms) {
 			if (bus->wd_timer_valid == true)
 				/* Stop timer and restart at new value */
 				del_timer_sync(&bus->timer);
@@ -5067,7 +5066,7 @@ brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick)
 		}
 
 		bus->wd_timer_valid = true;
-		save_ms = wdtick;
+		bus->save_ms = wdtick;
 	}
 }
 
