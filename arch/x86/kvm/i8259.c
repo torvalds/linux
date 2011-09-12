@@ -34,6 +34,9 @@
 #include <linux/kvm_host.h>
 #include "trace.h"
 
+#define pr_pic_unimpl(fmt, ...)	\
+	pr_err_ratelimited("kvm: pic: " fmt, ## __VA_ARGS__)
+
 static void pic_irq_request(struct kvm *kvm, int level);
 
 static void pic_lock(struct kvm_pic *s)
@@ -306,10 +309,10 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 			}
 			s->init_state = 1;
 			if (val & 0x02)
-				printk(KERN_ERR "single mode not supported");
+				pr_pic_unimpl("single mode not supported");
 			if (val & 0x08)
-				printk(KERN_ERR
-				       "level sensitive irq not supported");
+				pr_pic_unimpl(
+					"level sensitive irq not supported");
 		} else if (val & 0x08) {
 			if (val & 0x04)
 				s->poll = 1;
@@ -467,8 +470,7 @@ static int picdev_write(struct kvm_pic *s,
 		return -EOPNOTSUPP;
 
 	if (len != 1) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "PIC: non byte write\n");
+		pr_pic_unimpl("non byte write\n");
 		return 0;
 	}
 	pic_lock(s);
@@ -496,8 +498,7 @@ static int picdev_read(struct kvm_pic *s,
 		return -EOPNOTSUPP;
 
 	if (len != 1) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "PIC: non byte read\n");
+		pr_pic_unimpl("non byte read\n");
 		return 0;
 	}
 	pic_lock(s);

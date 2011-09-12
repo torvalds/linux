@@ -2762,8 +2762,8 @@ static void enter_lmode(struct kvm_vcpu *vcpu)
 
 	guest_tr_ar = vmcs_read32(GUEST_TR_AR_BYTES);
 	if ((guest_tr_ar & AR_TYPE_MASK) != AR_TYPE_BUSY_64_TSS) {
-		printk(KERN_DEBUG "%s: tss fixup for long mode. \n",
-		       __func__);
+		pr_debug_ratelimited("%s: tss fixup for long mode. \n",
+				     __func__);
 		vmcs_write32(GUEST_TR_AR_BYTES,
 			     (guest_tr_ar & ~AR_TYPE_MASK)
 			     | AR_TYPE_BUSY_64_TSS);
@@ -5634,8 +5634,8 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		return 0;
 
 	if (unlikely(vmx->fail)) {
-		printk(KERN_INFO "%s failed vm entry %x\n",
-		       __func__, vmcs_read32(VM_INSTRUCTION_ERROR));
+		pr_info_ratelimited("%s failed vm entry %x\n", __func__,
+				    vmcs_read32(VM_INSTRUCTION_ERROR));
 		return 1;
 	}
 
@@ -6612,9 +6612,8 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	if (vmcs12->vm_entry_msr_load_count > 0 ||
 	    vmcs12->vm_exit_msr_load_count > 0 ||
 	    vmcs12->vm_exit_msr_store_count > 0) {
-		if (printk_ratelimit())
-			printk(KERN_WARNING
-			  "%s: VMCS MSR_{LOAD,STORE} unsupported\n", __func__);
+		pr_warn_ratelimited("%s: VMCS MSR_{LOAD,STORE} unsupported\n",
+				    __func__);
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}

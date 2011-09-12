@@ -18,6 +18,7 @@
 #include <linux/msi.h>
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
+#include <linux/ratelimit.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -282,11 +283,8 @@ struct kvm {
 
 /* The guest did something we don't support. */
 #define pr_unimpl(vcpu, fmt, ...)					\
- do {									\
-	if (printk_ratelimit())						\
-		printk(KERN_ERR "kvm: %i: cpu%i " fmt,			\
-		       current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__); \
- } while (0)
+	pr_err_ratelimited("kvm: %i: cpu%i " fmt,			\
+			   current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__)
 
 #define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
 #define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
