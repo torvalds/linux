@@ -180,9 +180,6 @@ struct mapped_device {
 	/* forced geometry settings */
 	struct hd_geometry geometry;
 
-	/* For saving the address of __make_request for request based dm */
-	make_request_fn *saved_make_request_fn;
-
 	/* sysfs handle */
 	struct kobject kobj;
 
@@ -1420,13 +1417,6 @@ static int _dm_request(struct request_queue *q, struct bio *bio)
 	return 0;
 }
 
-static int dm_make_request(struct request_queue *q, struct bio *bio)
-{
-	struct mapped_device *md = q->queuedata;
-
-	return md->saved_make_request_fn(q, bio); /* call __make_request() */
-}
-
 static int dm_request_based(struct mapped_device *md)
 {
 	return blk_queue_stackable(md->queue);
@@ -1437,7 +1427,7 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	struct mapped_device *md = q->queuedata;
 
 	if (dm_request_based(md))
-		return dm_make_request(q, bio);
+		return __make_request(q, bio);
 
 	return _dm_request(q, bio);
 }
@@ -2172,7 +2162,6 @@ static int dm_init_request_based_queue(struct mapped_device *md)
 		return 0;
 
 	md->queue = q;
-	md->saved_make_request_fn = md->queue->make_request_fn;
 	dm_init_md_queue(md);
 	blk_queue_softirq_done(md->queue, dm_softirq_done);
 	blk_queue_prep_rq(md->queue, dm_prep_fn);
