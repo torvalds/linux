@@ -610,7 +610,6 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			if (!(isr & 1))
 				continue;
 
-#ifdef CONFIG_ARCH_OMAP1
 			/*
 			 * Some chips can't respond to both rising and falling
 			 * at the same time.  If this irq was requested with
@@ -620,7 +619,6 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			 */
 			if (bank->toggle_mask & (1 << gpio_index))
 				_toggle_gpio_edge_triggering(bank, gpio_index);
-#endif
 
 			generic_handle_irq(gpio_irq);
 		}
@@ -898,62 +896,30 @@ static void __init omap_gpio_show_rev(struct gpio_bank *bank)
  */
 static struct lock_class_key gpio_lock_class;
 
-/* TODO: Cleanup cpu_is_* checks */
 static void omap_gpio_mod_init(struct gpio_bank *bank)
 {
-	if (cpu_class_is_omap2()) {
-		if (cpu_is_omap44xx()) {
-			__raw_writel(0xffffffff, bank->base +
-					OMAP4_GPIO_IRQSTATUSCLR0);
-			__raw_writel(0x00000000, bank->base +
-					 OMAP4_GPIO_DEBOUNCENABLE);
-			/* Initialize interface clk ungated, module enabled */
-			__raw_writel(0, bank->base + OMAP4_GPIO_CTRL);
-		} else if (cpu_is_omap34xx()) {
-			__raw_writel(0x00000000, bank->base +
-					OMAP24XX_GPIO_IRQENABLE1);
-			__raw_writel(0xffffffff, bank->base +
-					OMAP24XX_GPIO_IRQSTATUS1);
-			__raw_writel(0x00000000, bank->base +
-					OMAP24XX_GPIO_DEBOUNCE_EN);
+	void __iomem *base = bank->base;
+	u32 l = 0xffffffff;
 
-			/* Initialize interface clk ungated, module enabled */
-			__raw_writel(0, bank->base + OMAP24XX_GPIO_CTRL);
-		}
-	} else if (cpu_class_is_omap1()) {
-		if (bank_is_mpuio(bank)) {
-			__raw_writew(0xffff, bank->base +
-				OMAP_MPUIO_GPIO_MASKIT / bank->stride);
-			mpuio_init(bank);
-		}
-		if (cpu_is_omap15xx() && bank->method == METHOD_GPIO_1510) {
-			__raw_writew(0xffff, bank->base
-						+ OMAP1510_GPIO_INT_MASK);
-			__raw_writew(0x0000, bank->base
-						+ OMAP1510_GPIO_INT_STATUS);
-		}
-		if (cpu_is_omap16xx() && bank->method == METHOD_GPIO_1610) {
-			__raw_writew(0x0000, bank->base
-						+ OMAP1610_GPIO_IRQENABLE1);
-			__raw_writew(0xffff, bank->base
-						+ OMAP1610_GPIO_IRQSTATUS1);
-			__raw_writew(0x0014, bank->base
-						+ OMAP1610_GPIO_SYSCONFIG);
+	if (bank->width == 16)
+		l = 0xffff;
 
-			/*
-			 * Enable system clock for GPIO module.
-			 * The CAM_CLK_CTRL *is* really the right place.
-			 */
-			omap_writel(omap_readl(ULPD_CAM_CLK_CTRL) | 0x04,
-						ULPD_CAM_CLK_CTRL);
-		}
-		if (cpu_is_omap7xx() && bank->method == METHOD_GPIO_7XX) {
-			__raw_writel(0xffffffff, bank->base
-						+ OMAP7XX_GPIO_INT_MASK);
-			__raw_writel(0x00000000, bank->base
-						+ OMAP7XX_GPIO_INT_STATUS);
-		}
+	if (bank_is_mpuio(bank)) {
+		__raw_writel(l, bank->base + bank->regs->irqenable);
+		return;
 	}
+
+	_gpio_rmw(base, bank->regs->irqenable, l, bank->regs->irqenable_inv);
+	_gpio_rmw(base, bank->regs->irqstatus, l,
+					bank->regs->irqenable_inv == false);
+	_gpio_rmw(base, bank->regs->irqenable, l, bank->regs->debounce_en != 0);
+	_gpio_rmw(base, bank->regs->irqenable, l, bank->regs->ctrl != 0);
+	if (bank->regs->debounce_en)
+		_gpio_rmw(base, bank->regs->debounce_en, 0, 1);
+
+	 /* Initialize interface clk ungated, module enabled */
+	if (bank->regs->ctrl)
+		_gpio_rmw(base, bank->regs->ctrl, 0, 1);
 }
 
 static __init void
@@ -1103,6 +1069,9 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(bank->dev);
 	pm_runtime_get_sync(bank->dev);
+
+	if (bank_is_mpuio(bank))
+		mpuio_init(bank);
 
 	omap_gpio_mod_init(bank);
 	omap_gpio_chip_init(bank);
