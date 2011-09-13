@@ -3087,7 +3087,7 @@ static int
 qlcnic_check_health(struct qlcnic_adapter *adapter)
 {
 	u32 state = 0, heartbeat;
-	struct net_device *netdev = adapter->netdev;
+	u32 peg_status;
 
 	if (qlcnic_check_temp(adapter))
 		goto detach;
@@ -3127,8 +3127,8 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 	if (auto_fw_reset)
 		clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state);
 
-	dev_info(&netdev->dev, "firmware hang detected\n");
-	dev_info(&adapter->pdev->dev, "Dumping hw/fw registers\n"
+	dev_err(&adapter->pdev->dev, "firmware hang detected\n");
+	dev_err(&adapter->pdev->dev, "Dumping hw/fw registers\n"
 			"PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n"
 			"PEG_NET_0_PC: 0x%x, PEG_NET_1_PC: 0x%x,\n"
 			"PEG_NET_2_PC: 0x%x, PEG_NET_3_PC: 0x%x,\n"
@@ -3140,6 +3140,11 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 			QLCRD32(adapter, QLCNIC_CRB_PEG_NET_2 + 0x3c),
 			QLCRD32(adapter, QLCNIC_CRB_PEG_NET_3 + 0x3c),
 			QLCRD32(adapter, QLCNIC_CRB_PEG_NET_4 + 0x3c));
+	peg_status = QLCRD32(adapter, QLCNIC_PEG_HALT_STATUS1);
+	if (LSW(MSB(peg_status)) == 0x67)
+		dev_err(&adapter->pdev->dev,
+			"Firmware aborted with error code 0x00006700. "
+				"Device is being reset.\n");
 detach:
 	adapter->dev_state = (state == QLCNIC_DEV_NEED_QUISCENT) ? state :
 		QLCNIC_DEV_NEED_RESET;
