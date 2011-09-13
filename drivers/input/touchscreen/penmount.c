@@ -61,6 +61,7 @@ struct pm {
 	unsigned char packetsize;
 	unsigned char maxcontacts;
 	struct mt_slot slots[PM_MAX_MTSLOT];
+	void (*parse_packet)(struct pm *);
 };
 
 /*
@@ -100,73 +101,76 @@ static bool pm_checkpacket(unsigned char *packet)
 	return packet[5] == (unsigned char)~(total & 0xff);
 }
 
+static void pm_parse_9000(struct pm *pm)
+{
+	struct input_dev *dev = pm->dev;
+
+	if ((pm->data[0] & 0x80) && pm->packetsize == ++pm->idx) {
+		input_report_abs(dev, ABS_X, pm->data[1] * 128 + pm->data[2]);
+		input_report_abs(dev, ABS_Y, pm->data[3] * 128 + pm->data[4]);
+		input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
+		input_sync(dev);
+		pm->idx = 0;
+	}
+}
+
+static void pm_parse_6000(struct pm *pm)
+{
+	struct input_dev *dev = pm->dev;
+
+	if ((pm->data[0] & 0xbf) == 0x30 && pm->packetsize == ++pm->idx) {
+		if (pm_checkpacket(pm->data)) {
+			input_report_abs(dev, ABS_X,
+					pm->data[2] * 256 + pm->data[1]);
+			input_report_abs(dev, ABS_Y,
+					pm->data[4] * 256 + pm->data[3]);
+			input_report_key(dev, BTN_TOUCH, pm->data[0] & 0x40);
+			input_sync(dev);
+		}
+		pm->idx = 0;
+	}
+}
+
+static void pm_parse_3000(struct pm *pm)
+{
+	struct input_dev *dev = pm->dev;
+
+	if ((pm->data[0] & 0xce) == 0x40 && pm->packetsize == ++pm->idx) {
+		if (pm_checkpacket(pm->data)) {
+			int slotnum = pm->data[0] & 0x0f;
+			pm->slots[slotnum].active = pm->data[0] & 0x30;
+			pm->slots[slotnum].x = pm->data[2] * 256 + pm->data[1];
+			pm->slots[slotnum].y = pm->data[4] * 256 + pm->data[3];
+			pm_mtevent(pm, dev);
+		}
+		pm->idx = 0;
+	}
+}
+
+static void pm_parse_6250(struct pm *pm)
+{
+	struct input_dev *dev = pm->dev;
+
+	if ((pm->data[0] & 0xb0) == 0x30 && pm->packetsize == ++pm->idx) {
+		if (pm_checkpacket(pm->data)) {
+			int slotnum = pm->data[0] & 0x0f;
+			pm->slots[slotnum].active = pm->data[0] & 0x40;
+			pm->slots[slotnum].x = pm->data[2] * 256 + pm->data[1];
+			pm->slots[slotnum].y = pm->data[4] * 256 + pm->data[3];
+			pm_mtevent(pm, dev);
+		}
+		pm->idx = 0;
+	}
+}
+
 static irqreturn_t pm_interrupt(struct serio *serio,
 		unsigned char data, unsigned int flags)
 {
 	struct pm *pm = serio_get_drvdata(serio);
-	struct input_dev *dev = pm->dev;
 
 	pm->data[pm->idx] = data;
 
-	switch (pm->dev->id.product) {
-	case 0x9000:
-		if (pm->data[0] & 0x80) {
-			if (pm->packetsize == ++pm->idx) {
-				input_report_abs(dev, ABS_X, pm->data[1] * 128 + pm->data[2]);
-				input_report_abs(dev, ABS_Y, pm->data[3] * 128 + pm->data[4]);
-				input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
-				input_sync(dev);
-				pm->idx = 0;
-			}
-		}
-		break;
-
-	case 0x6000:
-		if ((pm->data[0] & 0xbf) == 0x30) {
-			if (pm->packetsize == ++pm->idx) {
-				if (pm_checkpacket(pm->data)) {
-					input_report_abs(dev, ABS_X,
-							pm->data[2] * 256 + pm->data[1]);
-					input_report_abs(dev, ABS_Y,
-							pm->data[4] * 256 + pm->data[3]);
-					input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
-					input_sync(dev);
-				}
-				pm->idx = 0;
-			}
-		}
-		break;
-
-	case 0x3000:
-		if ((pm->data[0] & 0xce) == 0x40) {
-			if (pm->packetsize == ++pm->idx) {
-				if (pm_checkpacket(pm->data)) {
-					int slotnum = pm->data[0] & 0x0f;
-					pm->slots[slotnum].active = pm->data[0] & 0x30;
-					pm->slots[slotnum].x = pm->data[2] * 256 + pm->data[1];
-					pm->slots[slotnum].y = pm->data[4] * 256 + pm->data[3];
-					pm_mtevent(pm, dev);
-				}
-				pm->idx = 0;
-			}
-		}
-		break;
-
-	case 0x6250:
-		if ((pm->data[0] & 0xb0) == 0x30) {
-			if (pm->packetsize == ++pm->idx) {
-				if (pm_checkpacket(pm->data)) {
-					int slotnum = pm->data[0] & 0x0f;
-					pm->slots[slotnum].active = pm->data[0] & 0x40;
-					pm->slots[slotnum].x = pm->data[2] * 256 + pm->data[1];
-					pm->slots[slotnum].y = pm->data[4] * 256 + pm->data[3];
-					pm_mtevent(pm, dev);
-				}
-				pm->idx = 0;
-			}
-		}
-		break;
-	}
+	pm->parse_packet(pm);
 
 	return IRQ_HANDLED;
 }
@@ -227,18 +231,21 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	default:
 	case 0:
 		pm->packetsize = 5;
+		pm->parse_packet = pm_parse_9000;
 		input_dev->id.product = 0x9000;
 		max_x = max_y = 0x3ff;
 		break;
 
 	case 1:
 		pm->packetsize = 6;
+		pm->parse_packet = pm_parse_6000;
 		input_dev->id.product = 0x6000;
 		max_x = max_y = 0x3ff;
 		break;
 
 	case 2:
 		pm->packetsize = 6;
+		pm->parse_packet = pm_parse_3000;
 		input_dev->id.product = 0x3000;
 		max_x = max_y = 0x7ff;
 		pm->maxcontacts = PM_3000_MTSLOT;
@@ -246,6 +253,7 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 
 	case 3:
 		pm->packetsize = 6;
+		pm->parse_packet = pm_parse_6250;
 		input_dev->id.product = 0x6250;
 		max_x = max_y = 0x3ff;
 		pm->maxcontacts = PM_6250_MTSLOT;
