@@ -51,6 +51,12 @@
 #define OpImmFAddr        17ull  /* Immediate far address */
 #define OpMemFAddr        18ull  /* Far address in memory */
 #define OpImmU16          19ull  /* Immediate operand, 16 bits, zero extended */
+#define OpES              20ull  /* ES */
+#define OpCS              21ull  /* CS */
+#define OpSS              22ull  /* SS */
+#define OpDS              23ull  /* DS */
+#define OpFS              24ull  /* FS */
+#define OpGS              25ull  /* GS */
 
 #define OpBits             5  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
@@ -126,6 +132,12 @@
 #define Src2ImmByte (OpImmByte << Src2Shift)
 #define Src2One     (OpOne << Src2Shift)
 #define Src2Imm     (OpImm << Src2Shift)
+#define Src2ES      (OpES << Src2Shift)
+#define Src2CS      (OpCS << Src2Shift)
+#define Src2SS      (OpSS << Src2Shift)
+#define Src2DS      (OpDS << Src2Shift)
+#define Src2FS      (OpFS << Src2Shift)
+#define Src2GS      (OpGS << Src2Shift)
 #define Src2Mask    (OpMask << Src2Shift)
 
 #define X2(x...) x, x
@@ -3101,16 +3113,19 @@ static struct gprefix pfx_0f_6f_0f_7f = {
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	I6ALU(Lock, em_add),
-	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
+	D(ImplicitOps | Stack | No64 | Src2ES),
+	D(ImplicitOps | Stack | No64 | Src2ES),
 	/* 0x08 - 0x0F */
 	I6ALU(Lock, em_or),
-	D(ImplicitOps | Stack | No64), N,
+	D(ImplicitOps | Stack | No64 | Src2CS), N,
 	/* 0x10 - 0x17 */
 	I6ALU(Lock, em_adc),
-	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
+	D(ImplicitOps | Stack | No64 | Src2SS),
+	D(ImplicitOps | Stack | No64 | Src2SS),
 	/* 0x18 - 0x1F */
 	I6ALU(Lock, em_sbb),
-	D(ImplicitOps | Stack | No64), D(ImplicitOps | Stack | No64),
+	D(ImplicitOps | Stack | No64 | Src2DS),
+	D(ImplicitOps | Stack | No64 | Src2DS),
 	/* 0x20 - 0x27 */
 	I6ALU(Lock, em_and), N, N,
 	/* 0x28 - 0x2F */
@@ -3178,7 +3193,8 @@ static struct opcode opcode_table[256] = {
 	D2bv(DstMem | SrcImmByte | ModRM),
 	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
 	I(ImplicitOps | Stack, em_ret),
-	D(DstReg | SrcMemFAddr | ModRM | No64), D(DstReg | SrcMemFAddr | ModRM | No64),
+	D(DstReg | SrcMemFAddr | ModRM | No64 | Src2ES),
+	D(DstReg | SrcMemFAddr | ModRM | No64 | Src2DS),
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
 	N, N, N, I(ImplicitOps | Stack, em_ret_far),
@@ -3253,20 +3269,22 @@ static struct opcode twobyte_table[256] = {
 	/* 0x90 - 0x9F */
 	X16(D(ByteOp | DstMem | SrcNone | ModRM| Mov)),
 	/* 0xA0 - 0xA7 */
-	D(ImplicitOps | Stack), D(ImplicitOps | Stack),
+	D(Stack | Src2FS), D(Stack | Src2FS),
 	DI(ImplicitOps, cpuid), D(DstMem | SrcReg | ModRM | BitOp),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM), N, N,
 	/* 0xA8 - 0xAF */
-	D(ImplicitOps | Stack), D(ImplicitOps | Stack),
+	D(Stack | Src2GS), D(Stack | Src2GS),
 	DI(ImplicitOps, rsm), D(DstMem | SrcReg | ModRM | BitOp | Lock),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM),
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	D2bv(DstMem | SrcReg | ModRM | Lock),
-	D(DstReg | SrcMemFAddr | ModRM), D(DstMem | SrcReg | ModRM | BitOp | Lock),
-	D(DstReg | SrcMemFAddr | ModRM), D(DstReg | SrcMemFAddr | ModRM),
+	D(DstReg | SrcMemFAddr | ModRM | Src2SS),
+	D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	D(DstReg | SrcMemFAddr | ModRM | Src2FS),
+	D(DstReg | SrcMemFAddr | ModRM | Src2GS),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
@@ -3436,6 +3454,24 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 	case OpMemFAddr:
 		ctxt->memop.bytes = ctxt->op_bytes + 2;
 		goto mem_common;
+	case OpES:
+		op->val = VCPU_SREG_ES;
+		break;
+	case OpCS:
+		op->val = VCPU_SREG_CS;
+		break;
+	case OpSS:
+		op->val = VCPU_SREG_SS;
+		break;
+	case OpDS:
+		op->val = VCPU_SREG_DS;
+		break;
+	case OpFS:
+		op->val = VCPU_SREG_FS;
+		break;
+	case OpGS:
+		op->val = VCPU_SREG_GS;
+		break;
 	case OpImplicit:
 		/* Special instructions do their own operand decoding. */
 	default:
@@ -3803,26 +3839,15 @@ special_insn:
 
 	switch (ctxt->b) {
 	case 0x06:		/* push es */
-		rc = emulate_push_sreg(ctxt, VCPU_SREG_ES);
+	case 0x0e:		/* push cs */
+	case 0x16:		/* push ss */
+	case 0x1e:		/* push ds */
+		rc = emulate_push_sreg(ctxt, ctxt->src2.val);
 		break;
 	case 0x07:		/* pop es */
-		rc = emulate_pop_sreg(ctxt, VCPU_SREG_ES);
-		break;
-	case 0x0e:		/* push cs */
-		rc = emulate_push_sreg(ctxt, VCPU_SREG_CS);
-		break;
-	case 0x16:		/* push ss */
-		rc = emulate_push_sreg(ctxt, VCPU_SREG_SS);
-		break;
 	case 0x17:		/* pop ss */
-		rc = emulate_pop_sreg(ctxt, VCPU_SREG_SS);
-		break;
-	case 0x1e:		/* push ds */
-		rc = emulate_push_sreg(ctxt, VCPU_SREG_DS);
-		break;
 	case 0x1f:		/* pop ds */
-		rc = emulate_pop_sreg(ctxt, VCPU_SREG_DS);
-		break;
+		rc = emulate_pop_sreg(ctxt, ctxt->src2.val);
 	case 0x40 ... 0x47: /* inc r16/r32 */
 		emulate_1op(ctxt, "inc");
 		break;
@@ -3869,10 +3894,8 @@ special_insn:
 		rc = em_grp2(ctxt);
 		break;
 	case 0xc4:		/* les */
-		rc = emulate_load_segment(ctxt, VCPU_SREG_ES);
-		break;
 	case 0xc5:		/* lds */
-		rc = emulate_load_segment(ctxt, VCPU_SREG_DS);
+		rc = emulate_load_segment(ctxt, ctxt->src2.val);
 		break;
 	case 0xcc:		/* int3 */
 		rc = emulate_int(ctxt, 3);
@@ -4078,10 +4101,12 @@ twobyte_insn:
 		ctxt->dst.val = test_cc(ctxt->b, ctxt->eflags);
 		break;
 	case 0xa0:	  /* push fs */
-		rc = emulate_push_sreg(ctxt, VCPU_SREG_FS);
+	case 0xa8:	  /* push gs */
+		rc = emulate_push_sreg(ctxt, ctxt->src2.val);
 		break;
 	case 0xa1:	 /* pop fs */
-		rc = emulate_pop_sreg(ctxt, VCPU_SREG_FS);
+	case 0xa9:	 /* pop gs */
+		rc = emulate_pop_sreg(ctxt, ctxt->src2.val);
 		break;
 	case 0xa3:
 	      bt:		/* bt */
@@ -4093,12 +4118,6 @@ twobyte_insn:
 	case 0xa4: /* shld imm8, r, r/m */
 	case 0xa5: /* shld cl, r, r/m */
 		emulate_2op_cl(ctxt, "shld");
-		break;
-	case 0xa8:	/* push gs */
-		rc = emulate_push_sreg(ctxt, VCPU_SREG_GS);
-		break;
-	case 0xa9:	/* pop gs */
-		rc = emulate_pop_sreg(ctxt, VCPU_SREG_GS);
 		break;
 	case 0xab:
 	      bts:		/* bts */
@@ -4128,17 +4147,13 @@ twobyte_insn:
 		}
 		break;
 	case 0xb2:		/* lss */
-		rc = emulate_load_segment(ctxt, VCPU_SREG_SS);
+	case 0xb4:		/* lfs */
+	case 0xb5:		/* lgs */
+		rc = emulate_load_segment(ctxt, ctxt->src2.val);
 		break;
 	case 0xb3:
 	      btr:		/* btr */
 		emulate_2op_SrcV_nobyte(ctxt, "btr");
-		break;
-	case 0xb4:		/* lfs */
-		rc = emulate_load_segment(ctxt, VCPU_SREG_FS);
-		break;
-	case 0xb5:		/* lgs */
-		rc = emulate_load_segment(ctxt, VCPU_SREG_GS);
 		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		ctxt->dst.bytes = ctxt->op_bytes;
