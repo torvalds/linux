@@ -380,7 +380,6 @@ static const uint max_roundup = 512;
 /* Try doing readahead */
 static bool dhd_readahead;
 
-
 /* To check if there's window offered */
 #define DATAOK(bus) \
 	(((uint8)(bus->tx_max - bus->tx_seq) > 2) && \
@@ -2021,7 +2020,8 @@ dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 			bcm_bprintf(&strbuf,
 			"Dongle trap type 0x%x @ epc 0x%x, cpsr 0x%x, spsr 0x%x, sp 0x%x,"
 			"lp 0x%x, rpc 0x%x Trap offset 0x%x, "
-			"r0 0x%x, r1 0x%x, r2 0x%x, r3 0x%x, r4 0x%x, r5 0x%x, r6 0x%x, r7 0x%x\n\n",
+			"r0 0x%x, r1 0x%x, r2 0x%x, r3 0x%x, "
+			"r4 0x%x, r5 0x%x, r6 0x%x, r7 0x%x\n\n",
 			ltoh32(tr.type), ltoh32(tr.epc), ltoh32(tr.cpsr), ltoh32(tr.spsr),
 			ltoh32(tr.r13), ltoh32(tr.r14), ltoh32(tr.pc),
 			ltoh32(sdpcm_shared.trap_addr),
@@ -2029,30 +2029,35 @@ dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 			ltoh32(tr.r4), ltoh32(tr.r5), ltoh32(tr.r6), ltoh32(tr.r7));
 
 			addr = sdpcm_shared.console_addr + OFFSETOF(hndrte_cons_t, log);
-			if ((rv = dhdsdio_membytes(bus, FALSE, addr, (uint8 *)&console_ptr, sizeof(console_ptr))) < 0)
+			if ((rv = dhdsdio_membytes(bus, FALSE, addr,
+				(uint8 *)&console_ptr, sizeof(console_ptr))) < 0)
 				goto printbuf;
 
 			addr = sdpcm_shared.console_addr + OFFSETOF(hndrte_cons_t, log.buf_size);
-			if ((rv = dhdsdio_membytes(bus, FALSE, addr, (uint8 *)&console_size, sizeof(console_size))) < 0)
+			if ((rv = dhdsdio_membytes(bus, FALSE, addr,
+				(uint8 *)&console_size, sizeof(console_size))) < 0)
 				goto printbuf;
 
 			addr = sdpcm_shared.console_addr + OFFSETOF(hndrte_cons_t, log.idx);
-			if ((rv = dhdsdio_membytes(bus, FALSE, addr, (uint8 *)&console_index, sizeof(console_index))) < 0)
+			if ((rv = dhdsdio_membytes(bus, FALSE, addr,
+				(uint8 *)&console_index, sizeof(console_index))) < 0)
 				goto printbuf;
 
 			console_ptr = ltoh32(console_ptr);
 			console_size = ltoh32(console_size);
 			console_index = ltoh32(console_index);
 
-			if (console_size > CONSOLE_BUFFER_MAX || !(console_buffer = MALLOC(bus->dhd->osh, console_size)))
+			if (console_size > CONSOLE_BUFFER_MAX ||
+				!(console_buffer = MALLOC(bus->dhd->osh, console_size)))
 				goto printbuf;
 
-			if ((rv = dhdsdio_membytes(bus, FALSE, console_ptr, (uint8 *)console_buffer, console_size)) < 0)
+			if ((rv = dhdsdio_membytes(bus, FALSE, console_ptr,
+				(uint8 *)console_buffer, console_size)) < 0)
 				goto printbuf;
 
-			for ( i = 0, n = 0; i < console_size; i += n + 1 ) {
+			for (i = 0, n = 0; i < console_size; i += n + 1) {
 				for (n = 0; n < CONSOLE_LINE_MAX - 2; n++) {
-					ch = console_buffer[ (console_index + i + n) % console_size];
+					ch = console_buffer[(console_index + i + n) % console_size];
 					if (ch == '\n')
 						break;
 					line[n] = ch;
@@ -2063,8 +2068,10 @@ dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 					if (line[n - 1] == '\r')
 						n--;
 					line[n] = 0;
-					/* Don't use DHD_ERROR macro since we print a lot of information quickly */
-					/* The macro will truncate a lot of the printfs */
+					/* Don't use DHD_ERROR macro since we print
+					 * a lot of information quickly. The macro
+					 * will truncate a lot of the printfs
+					 */
 
 					if (dhd_msg_level & DHD_ERROR_VAL)
 						printf("CONSOLE: %s\n", line);
@@ -3541,7 +3548,7 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 		if ((uint8)(txmax - bus->tx_seq) > 0x40) {
 			DHD_ERROR(("%s: got unlikely tx max %d with tx_seq %d\n",
 			           __FUNCTION__, txmax, bus->tx_seq));
-			txmax = bus->tx_seq + 2;
+			txmax = bus->tx_seq;
 		}
 		bus->tx_max = txmax;
 
@@ -3962,7 +3969,7 @@ dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			if ((uint8)(txmax - bus->tx_seq) > 0x40) {
 					DHD_ERROR(("%s: got unlikely tx max %d with tx_seq %d\n",
 						__FUNCTION__, txmax, bus->tx_seq));
-					txmax = bus->tx_seq + 2;
+					txmax = bus->tx_seq;
 			}
 			bus->tx_max = txmax;
 
@@ -4119,7 +4126,7 @@ dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		if ((uint8)(txmax - bus->tx_seq) > 0x40) {
 			DHD_ERROR(("%s: got unlikely tx max %d with tx_seq %d\n",
 			           __FUNCTION__, txmax, bus->tx_seq));
-			txmax = bus->tx_seq + 2;
+			txmax = bus->tx_seq;
 		}
 		bus->tx_max = txmax;
 
@@ -6182,8 +6189,9 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 
 		if (bus->dhd->dongle_reset) {
 			/* Turn on WLAN */
+#ifdef DHDTHREAD
 			dhd_os_sdlock(dhdp);
-
+#endif /* DHDTHREAD */
 			/* Reset SD client */
 			bcmsdh_reset(bus->sdh);
 
@@ -6223,7 +6231,9 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 			} else
 				bcmerror = BCME_SDIO_ERROR;
 
+#ifdef DHDTHREAD
 			dhd_os_sdunlock(dhdp);
+#endif /* DHDTHREAD */
 		} else {
 			bcmerror = BCME_SDIO_ERROR;
 			DHD_INFO(("%s called when dongle is not in reset\n",

@@ -52,11 +52,11 @@ struct wl_ibss;
 #define dtohchanspec(i) i
 
 #define WL_DBG_NONE	0
+#define WL_DBG_TRACE	(1 << 4)
 #define WL_DBG_SCAN 	(1 << 3)
 #define WL_DBG_DBG 	(1 << 2)
 #define WL_DBG_INFO	(1 << 1)
 #define WL_DBG_ERR	(1 << 0)
-#define WL_DBG_MASK ((WL_DBG_DBG | WL_DBG_INFO | WL_DBG_ERR) << 1)
 
 /* 0 invalidates all debug messages.  default is 1 */
 #define WL_DBG_LEVEL 0xFF
@@ -82,6 +82,13 @@ do {									\
 		printk args;							\
 	}									\
 } while (0)
+#define	WL_TRACE(args)								\
+do {									\
+	if (wl_dbg_level & WL_DBG_TRACE) {			\
+		printk(KERN_ERR "CFG80211-TRACE) %s :", __func__);	\
+		printk args;							\
+	}									\
+} while (0)
 #if (WL_DBG_LEVEL > 0)
 #define	WL_DBG(args)								\
 do {									\
@@ -93,6 +100,7 @@ do {									\
 #else				/* !(WL_DBG_LEVEL > 0) */
 #define	WL_DBG(args)
 #endif				/* (WL_DBG_LEVEL > 0) */
+
 
 #define WL_SCAN_RETRY_MAX	3	/* used for ibss scan */
 #define WL_NUM_PMKIDS_MAX	MAXPMKID	/* will be used
@@ -122,6 +130,9 @@ do {									\
 #define WL_FILE_NAME_MAX		256
 #define WL_DWELL_TIME 	200
 #define VWDEV_CNT 3
+
+#define WL_SCAN_TIMER_INTERVAL_MS	8000 /* Scan timeout */
+
 /* dongle status */
 enum wl_status {
 	WL_STATUS_READY = 0,
@@ -195,7 +206,6 @@ struct wl_conf {
 
 typedef s32(*EVENT_HANDLER) (struct wl_priv *wl,
                             struct net_device *ndev, const wl_event_msg_t *e, void *data);
-
 
 /* bss inform structure for cfg80211 interface */
 struct wl_cfg80211_bss_info {
@@ -408,6 +418,7 @@ struct wl_priv {
 	struct p2p_info *p2p;
 	bool p2p_supported;
 	struct btcoex_info *btcoex_info;
+	struct timer_list scan_timeout;   /* Timer for catch scan event timeout */
 };
 
 #define wl_to_wiphy(w) (w->wdev->wiphy)

@@ -53,7 +53,7 @@
 				 * defined in dhd_sdio.c (amount of header tha might be added)
 				 * plus any space that might be needed for alignment padding.
 				 */
-#define ROUND_UP_MARGIN	2048 	/* Biggest SDIO block size possible for
+#define ROUND_UP_MARGIN	2048	/* Biggest SDIO block size possible for
 				 * round off at the end of buffer
 				 */
 
@@ -68,6 +68,7 @@ typedef struct dhd_wlfc_commit_info {
 	void*					p;
 } dhd_wlfc_commit_info_t;
 #endif /* PROP_TXSTATUS */
+
 typedef struct dhd_prot {
 	uint16 reqid;
 	uint8 pending;
@@ -218,6 +219,7 @@ dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 	DHD_CTL(("%s: cmd %d len %d\n", __FUNCTION__, cmd, len));
+
 	if (dhd->busstate == DHD_BUS_DOWN) {
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
 		return -EIO;
@@ -286,7 +288,6 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len)
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
 		goto done;
 	}
-
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -1333,6 +1334,7 @@ _dhd_wlfc_borrow_credit(athost_wl_status_info_t* ctx, uint8 available_credit_map
 
 	return rc;
 }
+
 int
 dhd_wlfc_interface_entry_update(void* state,
 	ewlfc_mac_entry_action_t action, uint8 ifid, uint8 iftype, uint8* ea)
@@ -1444,6 +1446,7 @@ _dhd_wlfc_handle_packet_commit(athost_wl_status_info_t* ctx, int ac,
 
 	return rc;
 }
+
 int
 dhd_wlfc_commit_packets(void* state, f_commitpkt_t fcommit, void* commit_ctx)
 {
@@ -1808,6 +1811,7 @@ dhd_wlfc_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info)
 	/* pick up the implicit credit from this packet */
 	if (DHD_PKTTAG_CREDITCHECK(PKTTAG(pktbuf))) {
 		if (wlfc->proptxstatus_mode == WLFC_FCMODE_IMPLIED_CREDIT) {
+
 			int lender, credit_returned = 0; /* Note that borrower is fifo_id */
 
 			/* Return credits to highest priority lender first */
@@ -2227,7 +2231,7 @@ dhd_wlfc_enable(dhd_pub_t *dhd)
 		wlfc->hostif_flow_state[i] = OFF;
 	}
 
-	/* 
+	/*
 	create the SENDQ containing
 	sub-queues for all AC precedences + 1 for bc/mc traffic
 	*/
@@ -2497,7 +2501,6 @@ dhd_prot_init(dhd_pub_t *dhd)
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 
-
 	/* Get the device rev info */
 	memset(&revinfo, 0, sizeof(revinfo));
 	ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_REVINFO, &revinfo, sizeof(revinfo), FALSE, 0);
@@ -2509,7 +2512,7 @@ dhd_prot_init(dhd_pub_t *dhd)
 	ret = dhd_wlfc_init(dhd);
 #endif
 
-#ifndef WL_CFG80211
+#if !defined(WL_CFG80211)
 	ret = dhd_preinit_ioctls(dhd);
 #endif /* WL_CFG80211 */
 

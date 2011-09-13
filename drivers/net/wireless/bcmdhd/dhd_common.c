@@ -1432,7 +1432,8 @@ dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
 		__FUNCTION__, arp_enable));
 }
 
-void dhd_aoe_arp_clr(dhd_pub_t *dhd)
+void
+dhd_aoe_arp_clr(dhd_pub_t *dhd)
 {
 	int ret = 0;
 	int iov_len = 0;
@@ -1445,7 +1446,8 @@ void dhd_aoe_arp_clr(dhd_pub_t *dhd)
 		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
 }
 
-void dhd_aoe_hostip_clr(dhd_pub_t *dhd)
+void
+dhd_aoe_hostip_clr(dhd_pub_t *dhd)
 {
 	int ret = 0;
 	int iov_len = 0;
@@ -1458,7 +1460,8 @@ void dhd_aoe_hostip_clr(dhd_pub_t *dhd)
 		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
 }
 
-void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr)
+void
+dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr)
 {
 	int iov_len = 0;
 	char iovbuf[32];
@@ -1475,7 +1478,8 @@ void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr)
 		__FUNCTION__));
 }
 
-int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen)
+int
+dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen)
 {
 	int retcode, i;
 	int iov_len = 0;

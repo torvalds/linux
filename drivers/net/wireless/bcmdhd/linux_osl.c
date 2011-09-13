@@ -68,6 +68,7 @@ typedef struct bcm_static_pkt {
 	struct semaphore osl_pkt_sem;
 	unsigned char pkt_use[STATIC_PKT_MAX_NUM * 2];
 } bcm_static_pkt_t;
+
 static bcm_static_pkt_t *bcm_static_skb = 0;
 #endif 
 
@@ -169,10 +170,14 @@ osl_t *
 osl_attach(void *pdev, uint bustype, bool pkttag)
 {
 	osl_t *osh;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	gfp_t flags;
 
 	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
 	osh = kmalloc(sizeof(osl_t), flags);
+#else
+	osh = kmalloc(sizeof(osl_t), GFP_ATOMIC);
+#endif 
 	ASSERT(osh);
 
 	bzero(osh, sizeof(osl_t));
@@ -218,13 +223,10 @@ osl_attach(void *pdev, uint bustype, bool pkttag)
 
 		sema_init(&bcm_static_buf->static_sem, 1);
 
-
 		bcm_static_buf->buf_ptr = (unsigned char *)bcm_static_buf + STATIC_BUF_SIZE;
-
 	}
 
-	if (!bcm_static_skb)
-	{
+	if (!bcm_static_skb) {
 		int i;
 		void *skb_buff_ptr = 0;
 		bcm_static_skb = (bcm_static_pkt_t *)((char *)bcm_static_buf + 2048);
@@ -251,7 +253,7 @@ osl_detach(osl_t *osh)
 	kfree(osh);
 }
 
-struct sk_buff *osl_alloc_skb(unsigned int len)
+static struct sk_buff *osl_alloc_skb(unsigned int len)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
 	gfp_t flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
@@ -325,10 +327,14 @@ osl_ctfpool_replenish(osl_t *osh, uint thresh)
 int32
 osl_ctfpool_init(osl_t *osh, uint numobj, uint size)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	gfp_t flags;
 
 	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
 	osh->ctfpool = kmalloc(sizeof(ctfpool_t), flags);
+#else
+	osh->ctfpool = kmalloc(sizeof(ctfpool_t), GFP_ATOMIC);
+#endif 
 	ASSERT(osh->ctfpool);
 	bzero(osh->ctfpool, sizeof(ctfpool_t));
 
@@ -543,19 +549,16 @@ osl_pktfree(osl_t *osh, void *p, bool send)
 }
 
 #ifdef DHD_USE_STATIC_BUF
-void*
+void *
 osl_pktget_static(osl_t *osh, uint len)
 {
-	int i = 0;
+	int i;
 	struct sk_buff *skb;
-
 
 	if (len > (PAGE_SIZE * 2)) {
 		printk("%s: attempt to allocate huge packet (0x%x)\n", __FUNCTION__, len);
-		printk("Do we really need this big skb??\n");
 		return osl_pktget(osh, len);
 	}
-
 
 	down(&bcm_static_skb->osl_pkt_sem);
 
@@ -614,7 +617,6 @@ osl_pktfree_static(osl_t *osh, void *p, bool send)
 			down(&bcm_static_skb->osl_pkt_sem);
 			bcm_static_skb->pkt_use[i + STATIC_PKT_MAX_NUM] = 0;
 			up(&bcm_static_skb->osl_pkt_sem);
-
 			return;
 		}
 	}
@@ -622,6 +624,7 @@ osl_pktfree_static(osl_t *osh, void *p, bool send)
 	return osl_pktfree(osh, p, send);
 }
 #endif 
+
 uint32
 osl_pci_read_config(osl_t *osh, uint offset, uint size)
 {
@@ -702,13 +705,18 @@ void *
 osl_malloc(osl_t *osh, uint size)
 {
 	void *addr;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	gfp_t flags;
+
 	
 	if (osh)
 		ASSERT(osh->magic == OS_HANDLE_MAGIC);
 
 	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
 	if ((addr = kmalloc(size, flags)) == NULL) {
+#else
+	if ((addr = kmalloc(size, GFP_ATOMIC)) == NULL) {
+#endif 
 		if (osh)
 			osh->failed++;
 		return (NULL);
@@ -836,10 +844,14 @@ void *
 osl_pktdup(osl_t *osh, void *skb)
 {
 	void * p;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	gfp_t flags;
 
 	flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
 	if ((p = skb_clone((struct sk_buff *)skb, flags)) == NULL)
+#else
+	if ((p = skb_clone((struct sk_buff*)skb, GFP_ATOMIC)) == NULL)
+#endif 
 		return NULL;
 
 #ifdef CTFPOOL

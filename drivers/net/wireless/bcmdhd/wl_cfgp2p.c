@@ -59,7 +59,7 @@ wl_cfgp2p_has_ie(u8 *ie, u8 **tlvs, u32 *tlvs_len, const u8 *oui, u32 oui_len, u
 static s32
 wl_cfgp2p_vndr_ie(struct net_device *ndev, s32 bssidx, s32 pktflag,
             s8 *oui, s32 ie_id, s8 *data, s32 data_len, s32 delete);
-/* 
+/*
  *  Initialize variables related to P2P
  *
  */
@@ -99,7 +99,7 @@ wl_cfgp2p_init_priv(struct wl_priv *wl)
 	wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE) = 0;
 	wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION) = NULL;
 	wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_CONNECTION) = 0;
-
+	spin_lock_init(&wl->p2p->timer_lock);
 	return BCME_OK;
 
 }
@@ -129,9 +129,9 @@ wl_cfgp2p_set_firm_p2p(struct wl_priv *wl)
 	wldev_iovar_getint(ndev, "apsta", &val);
 	if (val == 0) {
 		val = 1;
-		wldev_ioctl(ndev, WLC_DOWN, &val, sizeof(s32), false);
+		wldev_ioctl(ndev, WLC_DOWN, &val, sizeof(s32), true);
 		wldev_iovar_setint(ndev, "apsta", val);
-		wldev_ioctl(ndev, WLC_UP, &val, sizeof(s32), false);
+		wldev_ioctl(ndev, WLC_UP, &val, sizeof(s32), true);
 	}
 	val = 1;
 	/* Disable firmware roaming for P2P  */
@@ -958,13 +958,15 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 	CFGP2P_DBG((" Enter\n"));
 	if (wl_get_p2p_status(wl, LISTEN_EXPIRED) == 0) {
 		wl_set_p2p_status(wl, LISTEN_EXPIRED);
-
-		if (wl->p2p->listen_timer)
-			del_timer_sync(wl->p2p->listen_timer);
-
+		if (timer_pending(&wl->p2p->listen_timer)) {
+			spin_lock_bh(&wl->p2p->timer_lock);
+			del_timer_sync(&wl->p2p->listen_timer);
+			spin_unlock_bh(&wl->p2p->timer_lock);
+		}
 		cfg80211_remain_on_channel_expired(ndev, wl->cache_cookie, &wl->remain_on_chan,
 		    wl->remain_on_chan_type, GFP_KERNEL);
-	}
+	} else
+		wl_clr_p2p_status(wl, LISTEN_EXPIRED);
 
 	return ret;
 
@@ -972,7 +974,7 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 
 /*
  *  Timer expire callback function for LISTEN
- *  We can't report cfg80211_remain_on_channel_expired from Timer ISR context, 
+ *  We can't report cfg80211_remain_on_channel_expired from Timer ISR context,
  *  so lets do it from thread context.
  */
 static void
@@ -986,7 +988,7 @@ wl_cfgp2p_listen_expired(unsigned long data)
 	wl_cfg80211_event(wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_DEVICE), &msg, NULL);
 }
 
-/* 
+/*
  * Do a P2P Listen on the given channel for the given duration.
  * A listen consists of sitting idle and responding to P2P probe requests
  * with a P2P probe response.
@@ -1010,6 +1012,7 @@ wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms)
 	} while (0);
 
 	s32 ret = BCME_OK;
+	struct timer_list *_timer;
 	CFGP2P_DBG((" Enter Channel : %d, Duration : %d\n", channel, duration_ms));
 	if (unlikely(wl_get_p2p_status(wl, DISCOVERY_ON) == 0)) {
 
@@ -1018,26 +1021,24 @@ wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms)
 		ret = BCME_NOTREADY;
 		goto exit;
 	}
-
+	if (!wl_get_p2p_status(wl, LISTEN_EXPIRED)) {
+		wl_set_p2p_status(wl, LISTEN_EXPIRED);
+		if (timer_pending(&wl->p2p->listen_timer)) {
+			spin_lock_bh(&wl->p2p->timer_lock);
+			del_timer_sync(&wl->p2p->listen_timer);
+			spin_unlock_bh(&wl->p2p->timer_lock);
+		}
+	} else
 	wl_clr_p2p_status(wl, LISTEN_EXPIRED);
 
 	wl_cfgp2p_set_p2p_mode(wl, WL_P2P_DISC_ST_LISTEN, channel, (u16) duration_ms,
 	            wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE));
+	_timer = &wl->p2p->listen_timer;
 
-	if (wl->p2p->listen_timer)
-		del_timer_sync(wl->p2p->listen_timer);
-
-	wl->p2p->listen_timer = kmalloc(sizeof(struct timer_list), GFP_KERNEL);
-
-	if (wl->p2p->listen_timer == NULL) {
-		CFGP2P_ERR(("listen_timer allocation failed\n"));
-		return -ENOMEM;
-	}
-
-	/*  We will wait to receive WLC_E_P2P_DISC_LISTEN_COMPLETE from dongle , 
+	/*  We will wait to receive WLC_E_P2P_DISC_LISTEN_COMPLETE from dongle ,
 	 *  otherwise we will wait up to duration_ms + 200ms
 	 */
-	INIT_TIMER(wl->p2p->listen_timer, wl_cfgp2p_listen_expired, duration_ms, 200);
+	INIT_TIMER(_timer, wl_cfgp2p_listen_expired, duration_ms, 200);
 
 #undef INIT_TIMER
 exit:
@@ -1308,7 +1309,7 @@ wl_cfgp2p_supported(struct wl_priv *wl, struct net_device *ndev)
 s32
 wl_cfgp2p_down(struct wl_priv *wl)
 {
-	if (wl->p2p->listen_timer)
-		del_timer_sync(wl->p2p->listen_timer);
+	if (timer_pending(&wl->p2p->listen_timer))
+		del_timer_sync(&wl->p2p->listen_timer);
 	return 0;
 }

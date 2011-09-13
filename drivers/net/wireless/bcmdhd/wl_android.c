@@ -110,7 +110,8 @@ void dhd_dev_init_ioctl(struct net_device *dev);
 int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr);
 int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command);
 #else
-int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr) { return 0; }
+int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr)
+{ return 0; }
 #endif
 
 extern bool ap_fw_loaded;
@@ -158,6 +159,7 @@ static int wl_android_get_rssi(struct net_device *net, char *command, int total_
 	error = wldev_get_rssi(net, &rssi);
 	if (error)
 		return -1;
+
 	error = wldev_get_ssid(net, &ssid);
 	if (error)
 		return -1;
@@ -187,7 +189,7 @@ static int wl_android_set_suspendopt(struct net_device *dev, char *command, int 
 	if (ret_now != suspend_flag) {
 		if (!(ret = net_os_set_suspend(dev, ret_now)))
 			DHD_INFO(("%s: Suspend Flag %d -> %d\n",
-					__FUNCTION__, ret_now, suspend_flag));
+				__FUNCTION__, ret_now, suspend_flag));
 		else
 			DHD_ERROR(("%s: failed %d\n", __FUNCTION__, ret));
 	}
@@ -220,12 +222,41 @@ static int wl_android_set_pno_setup(struct net_device *dev, char *command, int t
 	int pno_repeat = 0;
 	int pno_freq_expo_max = 0;
 
+#ifdef PNO_SET_DEBUG
+	int i;
+	char pno_in_example[] = {
+		'P', 'N', 'O', 'S', 'E', 'T', 'U', 'P', ' ',
+		'S', '1', '2', '0',
+		'S',
+		0x05,
+		'd', 'l', 'i', 'n', 'k',
+		'S',
+		0x04,
+		'G', 'O', 'O', 'G',
+		'T',
+		'0', 'B',
+		'R',
+		'2',
+		'M',
+		'2',
+		0x00
+		};
+#endif /* PNO_SET_DEBUG */
+
 	DHD_INFO(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
 
 	if (total_len < (strlen(CMD_PNOSETUP_SET) + sizeof(cmd_tlv_t))) {
 		DHD_ERROR(("%s argument=%d less min size\n", __FUNCTION__, total_len));
 		goto exit_proc;
 	}
+
+#ifdef PNO_SET_DEBUG
+	memcpy(command, pno_in_example, sizeof(pno_in_example));
+	for (i = 0; i < sizeof(pno_in_example); i++)
+		printf("%02X ", command[i]);
+	printf("\n");
+	total_len = sizeof(pno_in_example);
+#endif
 
 	str_ptr = command + strlen(CMD_PNOSETUP_SET);
 	tlv_size_left = total_len - strlen(CMD_PNOSETUP_SET);
@@ -448,7 +479,6 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		/* TBD: BTCOEXSCAN-STOP */
 	}
 	else if (strnicmp(command, CMD_BTCOEXMODE, strlen(CMD_BTCOEXMODE)) == 0) {
-		/* TBD: BTCOEXMODE */
 		uint mode = *(command + strlen(CMD_BTCOEXMODE) + 1) - '0';
 
 		if (mode == 1)
@@ -527,8 +557,10 @@ int wl_android_init(void)
 	dhd_download_fw_on_driverload = FALSE;
 #endif /* ENABLE_INSMOD_NO_FW_LOAD */
 #ifdef CUSTOMER_HW2
-	if (!iface_name[0])
+	if (!iface_name[0]) {
+		memset(iface_name, 0, IFNAMSIZ);
 		bcm_strncpy_s(iface_name, IFNAMSIZ, "wlan", IFNAMSIZ);
+	}
 #endif /* CUSTOMER_HW2 */
 	return ret;
 }
@@ -542,12 +574,24 @@ int wl_android_exit(void)
 
 int wl_android_post_init(void)
 {
+	struct net_device *ndev;
 	int ret = 0;
+	char buf[IFNAMSIZ];
 	if (!dhd_download_fw_on_driverload) {
 		/* Call customer gpio to turn off power with WL_REG_ON signal */
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 		g_wifi_on = 0;
-
+	} else {
+		memset(buf, 0, IFNAMSIZ);
+#ifdef CUSTOMER_HW2
+		snprintf(buf, IFNAMSIZ, "%s%d", iface_name, 0);
+#else
+		snprintf(buf, IFNAMSIZ, "%s%d", "eth", 0);
+#endif
+		if ((ndev = dev_get_by_name (&init_net, buf)) != NULL) {
+			dhd_dev_init_ioctl(ndev);
+			dev_put(ndev);
+		}
 	}
 	return ret;
 }
