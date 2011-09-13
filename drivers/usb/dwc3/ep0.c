@@ -261,6 +261,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 {
 	struct dwc3_ep		*dep;
 	u32			recip;
+	u32			reg;
 	u16			usb_status = 0;
 	__le16			*response_pkt;
 
@@ -268,10 +269,18 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 	switch (recip) {
 	case USB_RECIP_DEVICE:
 		/*
-		 * We are self-powered. U1/U2/LTM will be set later
-		 * once we handle this states. RemoteWakeup is 0 on SS
+		 * LTM will be set once we know how to set this in HW.
 		 */
 		usb_status |= dwc->is_selfpowered << USB_DEVICE_SELF_POWERED;
+
+		if (dwc->speed == DWC3_DSTS_SUPERSPEED) {
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (reg & DWC3_DCTL_INITU1ENA)
+				usb_status |= 1 << USB_DEV_STAT_U1_ENABLED;
+			if (reg & DWC3_DCTL_INITU2ENA)
+				usb_status |= 1 << USB_DEV_STAT_U2_ENABLED;
+		}
+
 		break;
 
 	case USB_RECIP_INTERFACE:
@@ -312,6 +321,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	u32			recip;
 	u32			wValue;
 	u32			wIndex;
+	u32			reg;
 	int			ret;
 
 	wValue = le16_to_cpu(ctrl->wValue);
@@ -320,29 +330,43 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	switch (recip) {
 	case USB_RECIP_DEVICE:
 
+		switch (wValue) {
+		case USB_DEVICE_REMOTE_WAKEUP:
+			break;
 		/*
 		 * 9.4.1 says only only for SS, in AddressState only for
 		 * default control pipe
 		 */
-		switch (wValue) {
 		case USB_DEVICE_U1_ENABLE:
-		case USB_DEVICE_U2_ENABLE:
-		case USB_DEVICE_LTM_ENABLE:
 			if (dwc->dev_state != DWC3_CONFIGURED_STATE)
 				return -EINVAL;
 			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
 				return -EINVAL;
-		}
 
-		/* XXX add U[12] & LTM */
-		switch (wValue) {
-		case USB_DEVICE_REMOTE_WAKEUP:
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (set)
+				reg |= DWC3_DCTL_INITU1ENA;
+			else
+				reg &= ~DWC3_DCTL_INITU1ENA;
+			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 			break;
-		case USB_DEVICE_U1_ENABLE:
-			break;
+
 		case USB_DEVICE_U2_ENABLE:
+			if (dwc->dev_state != DWC3_CONFIGURED_STATE)
+				return -EINVAL;
+			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
+				return -EINVAL;
+
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (set)
+				reg |= DWC3_DCTL_INITU2ENA;
+			else
+				reg &= ~DWC3_DCTL_INITU2ENA;
+			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 			break;
+
 		case USB_DEVICE_LTM_ENABLE:
+			return -EINVAL;
 			break;
 
 		case USB_DEVICE_TEST_MODE:
