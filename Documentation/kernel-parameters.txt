@@ -2086,9 +2086,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Override pmtimer IOPort with a hex value.
 			e.g. pmtmr=0x508
 
-	pnp.debug	[PNP]
-			Enable PNP debug messages.  This depends on the
-			CONFIG_PNP_DEBUG_MESSAGES option.
+	pnp.debug=1	[PNP]
+			Enable PNP debug messages (depends on the
+			CONFIG_PNP_DEBUG_MESSAGES option).  Change at run-time
+			via /sys/module/pnp/parameters/debug.  We always show
+			current resource usage; turning this on also shows
+			possible settings and some assignment information.
 
 	pnpacpi=	[ACPI]
 			{ off }
