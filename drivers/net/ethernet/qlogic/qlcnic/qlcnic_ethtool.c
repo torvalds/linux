@@ -659,7 +659,7 @@ static int qlcnic_irq_test(struct net_device *netdev)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int max_sds_rings = adapter->max_sds_rings;
 	int ret;
-	u32 *rd_args[3];
+	struct qlcnic_cmd_args cmd;
 
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EIO;
@@ -669,10 +669,12 @@ static int qlcnic_irq_test(struct net_device *netdev)
 		goto clear_it;
 
 	adapter->diag_cnt = 0;
-	memset(rd_args, 0, sizeof(rd_args));
-	ret = qlcnic_issue_cmd(adapter, adapter->ahw->pci_func,
-			adapter->fw_hal_version, adapter->ahw->pci_func,
-			0, 0, 0x00000011, rd_args);
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.req.cmd = QLCNIC_CDRP_CMD_INTRPT_TEST;
+	cmd.req.arg1 = adapter->ahw->pci_func;
+	qlcnic_issue_cmd(adapter, &cmd);
+	ret = cmd.rsp.cmd;
+
 	if (ret)
 		goto done;
 
