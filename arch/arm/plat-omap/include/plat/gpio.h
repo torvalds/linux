@@ -189,6 +189,7 @@ struct omap_gpio_reg_offs {
 	u16 debounce;
 	u16 debounce_en;
 	u16 ctrl;
+	u16 wkup_en;
 
 	bool irqenable_inv;
 };
