@@ -950,13 +950,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 				    int cmd)
 {
 	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(net);
-	struct brcmf_c_ioctl ioc;
-	int bcmerror = 0;
-	int buflen = 0;
-	void *buf = NULL;
-	uint driver = 0;
 	int ifidx;
-	bool is_set_key_cmd;
 
 	ifidx = brcmf_net2idx(drvr_priv, net);
 	brcmf_dbg(TRACE, "ifidx %d, cmd 0x%04x\n", ifidx, cmd);
@@ -967,8 +961,22 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	if (cmd == SIOCETHTOOL)
 		return brcmf_ethtool(drvr_priv, ifr->ifr_data);
 
-	if (cmd != SIOCDEVPRIVATE)
-		return -EOPNOTSUPP;
+	return -EOPNOTSUPP;
+}
+
+/* called only from within this driver, handles cmd == SIOCDEVPRIVATE */
+int brcmf_netdev_ioctl_priv(struct net_device *net, struct ifreq *ifr)
+{
+	struct brcmf_c_ioctl ioc;
+	int bcmerror = 0;
+	int buflen = 0;
+	void *buf = NULL;
+	uint driver = 0;
+	bool is_set_key_cmd;
+	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(net);
+	int ifidx;
+
+	ifidx = brcmf_net2idx(drvr_priv, net);
 
 	memset(&ioc, 0, sizeof(ioc));
 
