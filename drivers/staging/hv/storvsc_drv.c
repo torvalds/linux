@@ -1359,17 +1359,20 @@ static struct scsi_host_template scsi_driver = {
 	.dma_boundary =		PAGE_SIZE-1,
 };
 
-/*
- * The storvsc_probe function assumes that the IDE guid
- * is the second entry.
- */
+enum {
+	SCSI_GUID,
+	IDE_GUID,
+};
+
 static const struct hv_vmbus_device_id id_table[] = {
 	/* SCSI guid */
 	{ VMBUS_DEVICE(0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
-		       0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f) },
+		       0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f)
+	  .driver_data = SCSI_GUID },
 	/* IDE guid */
 	{ VMBUS_DEVICE(0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
-		       0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5) },
+		       0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5)
+	  .driver_data = IDE_GUID },
 	{ },
 };
 
@@ -1387,14 +1390,9 @@ static int storvsc_probe(struct hv_device *device,
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
 	struct storvsc_device_info device_info;
-	bool dev_is_ide;
+	bool dev_is_ide = ((dev_id->driver_data == IDE_GUID) ? true : false);
 	int path = 0;
 	int target = 0;
-
-	if (!memcmp(&device->dev_type.b, id_table[1].guid, sizeof(uuid_le)))
-		dev_is_ide = true;
-	else
-		dev_is_ide = false;
 
 	host = scsi_host_alloc(&scsi_driver,
 			       sizeof(struct hv_host_device));
