@@ -3547,7 +3547,7 @@ get_immediate:
 					iscsit_release_cmd(cmd);
 				else
 					transport_generic_free_cmd(&cmd->se_cmd,
-								1, 0);
+								1);
 				goto get_immediate;
 			case ISTATE_SEND_NOPIN_WANT_RESPONSE:
 				spin_unlock_bh(&cmd->istate_lock);

@@ -200,7 +200,7 @@ static void tcm_loop_check_stop_free(struct se_cmd *se_cmd)
 	 * Release the struct se_cmd, which will make a callback to release
 	 * struct tcm_loop_cmd * in tcm_loop_deallocate_core_cmd()
 	 */
-	transport_generic_free_cmd(se_cmd, 0, 0);
+	transport_generic_free_cmd(se_cmd, 0);
 }
 
 static void tcm_loop_release_cmd(struct se_cmd *se_cmd)
@@ -388,7 +388,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 		SUCCESS : FAILED;
 release:
 	if (se_cmd)
-		transport_generic_free_cmd(se_cmd, 1, 0);
+		transport_generic_free_cmd(se_cmd, 1);
 	else
 		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 	kfree(tl_tmr);

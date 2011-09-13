@@ -114,7 +114,7 @@ void ft_release_cmd(struct se_cmd *se_cmd)
 
 void ft_check_stop_free(struct se_cmd *se_cmd)
 {
-	transport_generic_free_cmd(se_cmd, 0, 0);
+	transport_generic_free_cmd(se_cmd, 0);
 }
 
 /*
@@ -269,7 +269,7 @@ static void ft_recv_seq(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 		/* XXX need to find cmd if queued */
 		cmd->se_cmd.t_state = TRANSPORT_REMOVE;
 		cmd->seq = NULL;
-		transport_generic_free_cmd(&cmd->se_cmd, 0, 0);
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		return;
 	}
 
@@ -287,7 +287,7 @@ static void ft_recv_seq(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 		       __func__, fh->fh_r_ctl);
 		ft_invl_hw_context(cmd);
 		fc_frame_free(fp);
-		transport_generic_free_cmd(&cmd->se_cmd, 0, 0);
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		break;
 	}
 }
@@ -420,7 +420,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 			sess = cmd->sess;
 			transport_send_check_condition_and_sense(&cmd->se_cmd,
 				cmd->se_cmd.scsi_sense_reason, 0);
-			transport_generic_free_cmd(&cmd->se_cmd, 0, 0);
+			transport_generic_free_cmd(&cmd->se_cmd, 0);
 			ft_sess_put(sess);
 			return;
 		}
@@ -627,7 +627,7 @@ static void ft_send_work(struct work_struct *work)
 	if (ret == -ENOMEM) {
 		transport_send_check_condition_and_sense(se_cmd,
 				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
-		transport_generic_free_cmd(se_cmd, 0, 0);
+		transport_generic_free_cmd(se_cmd, 0);
 		return;
 	}
 	if (ret == -EINVAL) {
@@ -636,7 +636,7 @@ static void ft_send_work(struct work_struct *work)
 		else
 			transport_send_check_condition_and_sense(se_cmd,
 					se_cmd->scsi_sense_reason, 0);
-		transport_generic_free_cmd(se_cmd, 0, 0);
+		transport_generic_free_cmd(se_cmd, 0);
 		return;
 	}
 	transport_handle_cdb_direct(se_cmd);

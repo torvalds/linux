@@ -4331,42 +4331,25 @@ void transport_release_cmd(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(transport_release_cmd);
 
-/*	transport_generic_free_cmd():
- *
- *	Called from processing frontend to release storage engine resources
- */
-void transport_generic_free_cmd(
-	struct se_cmd *cmd,
-	int wait_for_tasks,
-	int session_reinstatement)
+bool transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD))
 		transport_release_cmd(cmd);
 	else {
 		core_dec_lacl_count(cmd->se_sess->se_node_acl, cmd);
 
-		if (cmd->se_lun) {
-#if 0
-			pr_debug("cmd: %p ITT: 0x%08x contains"
-				" cmd->se_lun\n", cmd,
-				cmd->se_tfo->get_task_tag(cmd));
-#endif
+		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
-		}
 
 		if (wait_for_tasks && cmd->transport_wait_for_tasks)
 			cmd->transport_wait_for_tasks(cmd, 0, 0);
 
 		transport_free_dev_tasks(cmd);
 
-		if (!transport_put_cmd(cmd) && session_reinstatement) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			transport_all_task_dev_remove_state(cmd);
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		}
+		return transport_put_cmd(cmd);
 	}
+
+	return true;
 }
 EXPORT_SYMBOL(transport_generic_free_cmd);
 
@@ -4631,7 +4614,13 @@ remove:
 	if (!remove_cmd)
 		return;
 
-	transport_generic_free_cmd(cmd, 0, session_reinstatement);
+	if (!transport_generic_free_cmd(cmd, 0) && session_reinstatement) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&cmd->t_state_lock, flags);
+		transport_all_task_dev_remove_state(cmd);
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+	}
 }
 
 static int transport_get_sense_codes(
@@ -5181,7 +5170,7 @@ get_cmd:
 			transport_put_cmd(cmd);
 			break;
 		case TRANSPORT_FREE_CMD_INTR:
-			transport_generic_free_cmd(cmd, 0, 0);
+			transport_generic_free_cmd(cmd, 0);
 			break;
 		case TRANSPORT_PROCESS_TMR:
 			transport_generic_do_tmr(cmd);
