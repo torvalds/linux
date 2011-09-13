@@ -88,7 +88,7 @@ static u32 transport_allocate_tasks(struct se_cmd *cmd,
 static int transport_generic_get_mem(struct se_cmd *cmd);
 static int transport_generic_remove(struct se_cmd *cmd,
 		int session_reinstatement);
-static void transport_release_fe_cmd(struct se_cmd *cmd);
+static bool transport_put_cmd(struct se_cmd *cmd);
 static void transport_remove_cmd_from_queue(struct se_cmd *cmd,
 		struct se_queue_obj *qobj);
 static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
@@ -1074,7 +1074,7 @@ static void transport_release_all_cmds(struct se_device *dev)
 			cmd->se_tfo->get_task_tag(cmd),
 			cmd->se_tfo->get_cmd_state(cmd), t_state);
 
-		transport_release_fe_cmd(cmd);
+		transport_put_cmd(cmd);
 		bug_out = 1;
 
 		spin_lock_irqsave(&dev->dev_queue_obj.cmd_queue_lock, flags);
@@ -3762,12 +3762,18 @@ static inline int transport_dec_and_check(struct se_cmd *cmd)
 	return 0;
 }
 
-static void transport_release_fe_cmd(struct se_cmd *cmd)
+/**
+ * transport_put_cmd - release a reference to a command
+ * @cmd:       command to release
+ *
+ * This routine releases our reference to the command and frees it if possible.
+ */
+static bool transport_put_cmd(struct se_cmd *cmd)
 {
 	unsigned long flags;
 
 	if (transport_dec_and_check(cmd))
-		return;
+		return false;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	if (!atomic_read(&cmd->transport_dev_active)) {
@@ -3779,9 +3785,12 @@ static void transport_release_fe_cmd(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	transport_release_tasks(cmd);
+	return true;
+
 free_pages:
 	transport_free_pages(cmd);
 	transport_release_cmd(cmd);
+	return true;
 }
 
 static int
@@ -3789,7 +3798,7 @@ transport_generic_remove(struct se_cmd *cmd, int session_reinstatement)
 {
 	unsigned long flags;
 
-	if (transport_dec_and_check(cmd)) {
+	if (!transport_put_cmd(cmd)) {
 		if (session_reinstatement) {
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
 			transport_all_task_dev_remove_state(cmd);
@@ -3799,20 +3808,6 @@ transport_generic_remove(struct se_cmd *cmd, int session_reinstatement)
 		return 1;
 	}
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (!atomic_read(&cmd->transport_dev_active)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		goto free_pages;
-	}
-	atomic_set(&cmd->transport_dev_active, 0);
-	transport_all_task_dev_remove_state(cmd);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	transport_release_tasks(cmd);
-
-free_pages:
-	transport_free_pages(cmd);
-	transport_release_cmd(cmd);
 	return 0;
 }
 
