@@ -1810,6 +1810,22 @@ static int xhci_check_tt_bw_table(struct xhci_hcd *xhci,
 	return 0;
 }
 
+static int xhci_check_ss_bw(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev)
+{
+	unsigned int bw_reserved;
+
+	bw_reserved = DIV_ROUND_UP(SS_BW_RESERVED*SS_BW_LIMIT_IN, 100);
+	if (virt_dev->bw_table->ss_bw_in > (SS_BW_LIMIT_IN - bw_reserved))
+		return -ENOMEM;
+
+	bw_reserved = DIV_ROUND_UP(SS_BW_RESERVED*SS_BW_LIMIT_OUT, 100);
+	if (virt_dev->bw_table->ss_bw_out > (SS_BW_LIMIT_OUT - bw_reserved))
+		return -ENOMEM;
+
+	return 0;
+}
+
 /*
  * This algorithm is a very conservative estimate of the worst-case scheduling
  * scenario for any one interval.  The hardware dynamically schedules the
@@ -1865,6 +1881,9 @@ static int xhci_check_bw_table(struct xhci_hcd *xhci,
 	unsigned int packets_transmitted = 0;
 	unsigned int packets_remaining = 0;
 	unsigned int i;
+
+	if (virt_dev->udev->speed == USB_SPEED_SUPER)
+		return xhci_check_ss_bw(xhci, virt_dev);
 
 	if (virt_dev->udev->speed == USB_SPEED_HIGH) {
 		max_bandwidth = HS_BW_LIMIT;
@@ -2028,6 +2047,25 @@ static bool xhci_is_async_ep(unsigned int ep_type)
 					ep_type != INT_IN_EP);
 }
 
+static bool xhci_is_sync_in_ep(unsigned int ep_type)
+{
+	return (ep_type == ISOC_IN_EP || ep_type != INT_IN_EP);
+}
+
+static unsigned int xhci_get_ss_bw_consumed(struct xhci_bw_info *ep_bw)
+{
+	unsigned int mps = DIV_ROUND_UP(ep_bw->max_packet_size, SS_BLOCK);
+
+	if (ep_bw->ep_interval == 0)
+		return SS_OVERHEAD_BURST +
+			(ep_bw->mult * ep_bw->num_packets *
+					(SS_OVERHEAD + mps));
+	return DIV_ROUND_UP(ep_bw->mult * ep_bw->num_packets *
+				(SS_OVERHEAD + mps + SS_OVERHEAD_BURST),
+				1 << ep_bw->ep_interval);
+
+}
+
 void xhci_drop_ep_from_interval_table(struct xhci_hcd *xhci,
 		struct xhci_bw_info *ep_bw,
 		struct xhci_interval_bw_table *bw_table,
@@ -2038,10 +2076,24 @@ void xhci_drop_ep_from_interval_table(struct xhci_hcd *xhci,
 	struct xhci_interval_bw	*interval_bw;
 	int normalized_interval;
 
-	if (xhci_is_async_ep(ep_bw->type) ||
-			list_empty(&virt_ep->bw_endpoint_list))
+	if (xhci_is_async_ep(ep_bw->type))
 		return;
 
+	if (udev->speed == USB_SPEED_SUPER) {
+		if (xhci_is_sync_in_ep(ep_bw->type))
+			xhci->devs[udev->slot_id]->bw_table->ss_bw_in -=
+				xhci_get_ss_bw_consumed(ep_bw);
+		else
+			xhci->devs[udev->slot_id]->bw_table->ss_bw_out -=
+				xhci_get_ss_bw_consumed(ep_bw);
+		return;
+	}
+
+	/* SuperSpeed endpoints never get added to intervals in the table, so
+	 * this check is only valid for HS/FS/LS devices.
+	 */
+	if (list_empty(&virt_ep->bw_endpoint_list))
+		return;
 	/* For LS/FS devices, we need to translate the interval expressed in
 	 * microframes to frames.
 	 */
@@ -2090,6 +2142,16 @@ static void xhci_add_ep_to_interval_table(struct xhci_hcd *xhci,
 
 	if (xhci_is_async_ep(ep_bw->type))
 		return;
+
+	if (udev->speed == USB_SPEED_SUPER) {
+		if (xhci_is_sync_in_ep(ep_bw->type))
+			xhci->devs[udev->slot_id]->bw_table->ss_bw_in +=
+				xhci_get_ss_bw_consumed(ep_bw);
+		else
+			xhci->devs[udev->slot_id]->bw_table->ss_bw_out +=
+				xhci_get_ss_bw_consumed(ep_bw);
+		return;
+	}
 
 	/* For LS/FS devices, we need to translate the interval expressed in
 	 * microframes to frames.
@@ -2168,9 +2230,6 @@ static int xhci_reserve_bandwidth(struct xhci_hcd *xhci,
 	int i;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	int old_active_eps = 0;
-
-	if (virt_dev->udev->speed == USB_SPEED_SUPER)
-		return 0;
 
 	if (virt_dev->tt_info)
 		old_active_eps = virt_dev->tt_info->active_eps;

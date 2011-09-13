@@ -799,6 +799,7 @@ struct xhci_bw_info {
 /* Percentage of bus bandwidth reserved for non-periodic transfers */
 #define FS_BW_RESERVED		10
 #define HS_BW_RESERVED		20
+#define SS_BW_RESERVED		10
 
 struct xhci_virt_ep {
 	struct xhci_ring		*ring;
@@ -869,6 +870,8 @@ struct xhci_interval_bw_table {
 	struct xhci_interval_bw	interval_bw[XHCI_MAX_INTERVAL];
 	/* Includes reserved bandwidth for async endpoints */
 	unsigned int		bw_used;
+	unsigned int		ss_bw_in;
+	unsigned int		ss_bw_out;
 };
 
 
