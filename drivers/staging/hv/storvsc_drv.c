@@ -651,41 +651,6 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size)
 	return ret;
 }
 
-static int storvsc_dev_add(struct hv_device *device,
-					void *additional_info)
-{
-	struct storvsc_device *stor_device;
-	struct storvsc_device_info *device_info;
-	int ret = 0;
-
-	device_info = (struct storvsc_device_info *)additional_info;
-	stor_device = alloc_stor_device(device);
-	if (!stor_device)
-		return -ENOMEM;
-
-	/* Save the channel properties to our storvsc channel */
-
-	/*
-	 * If we support more than 1 scsi channel, we need to set the
-	 * port number here to the scsi channel but how do we get the
-	 * scsi channel prior to the bus scan.
-	 *
-	 * The host does not support this.
-	 */
-
-	stor_device->port_number = device_info->port_number;
-	/* Send it back up */
-	ret = storvsc_connect_to_vsp(device, device_info->ring_buffer_size);
-	if (ret) {
-		kfree(stor_device);
-		return ret;
-	}
-	device_info->path_id = stor_device->path_id;
-	device_info->target_id = stor_device->target_id;
-
-	return ret;
-}
-
 static int storvsc_dev_remove(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
@@ -1389,10 +1354,10 @@ static int storvsc_probe(struct hv_device *device,
 	int ret;
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
-	struct storvsc_device_info device_info;
 	bool dev_is_ide = ((dev_id->driver_data == IDE_GUID) ? true : false);
 	int path = 0;
 	int target = 0;
+	struct storvsc_device *stor_device;
 
 	host = scsi_host_alloc(&scsi_driver,
 			       sizeof(struct hv_host_device));
@@ -1417,22 +1382,27 @@ static int storvsc_probe(struct hv_device *device,
 		return -ENOMEM;
 	}
 
-	device_info.port_number = host->host_no;
-	device_info.ring_buffer_size  = storvsc_ringbuffer_size;
-	/* Call to the vsc driver to add the device */
-	ret = storvsc_dev_add(device, (void *)&device_info);
-
-	if (ret != 0) {
+	stor_device = alloc_stor_device(device);
+	if (!stor_device) {
 		kmem_cache_destroy(host_dev->request_pool);
 		scsi_host_put(host);
-		return -ENODEV;
+		return -ENOMEM;
+	}
+
+	stor_device->port_number = host->host_no;
+	ret = storvsc_connect_to_vsp(device, storvsc_ringbuffer_size);
+	if (ret) {
+		kmem_cache_destroy(host_dev->request_pool);
+		scsi_host_put(host);
+		kfree(stor_device);
+		return ret;
 	}
 
 	if (dev_is_ide)
 		storvsc_get_ide_info(device, &target, &path);
 
-	host_dev->path = device_info.path_id;
-	host_dev->target = device_info.target_id;
+	host_dev->path = stor_device->path_id;
+	host_dev->target = stor_device->target_id;
 
 	/* max # of devices per target */
 	host->max_lun = STORVSC_MAX_LUNS_PER_TARGET;
