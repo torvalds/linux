@@ -1663,37 +1663,49 @@ static int em_grp2(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_grp3(struct x86_emulate_ctxt *ctxt)
+static int em_not(struct x86_emulate_ctxt *ctxt)
+{
+	ctxt->dst.val = ~ctxt->dst.val;
+	return X86EMUL_CONTINUE;
+}
+
+static int em_neg(struct x86_emulate_ctxt *ctxt)
+{
+	emulate_1op(ctxt, "neg");
+	return X86EMUL_CONTINUE;
+}
+
+static int em_mul_ex(struct x86_emulate_ctxt *ctxt)
+{
+	u8 ex = 0;
+
+	emulate_1op_rax_rdx(ctxt, "mul", ex);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_imul_ex(struct x86_emulate_ctxt *ctxt)
+{
+	u8 ex = 0;
+
+	emulate_1op_rax_rdx(ctxt, "imul", ex);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_div_ex(struct x86_emulate_ctxt *ctxt)
 {
 	u8 de = 0;
 
-	switch (ctxt->modrm_reg) {
-	case 0 ... 1:	/* test */
-		emulate_2op_SrcV(ctxt, "test");
-		/* Disable writeback. */
-		ctxt->dst.type = OP_NONE;
-		break;
-	case 2:	/* not */
-		ctxt->dst.val = ~ctxt->dst.val;
-		break;
-	case 3:	/* neg */
-		emulate_1op(ctxt, "neg");
-		break;
-	case 4: /* mul */
-		emulate_1op_rax_rdx(ctxt, "mul", de);
-		break;
-	case 5: /* imul */
-		emulate_1op_rax_rdx(ctxt, "imul", de);
-		break;
-	case 6: /* div */
-		emulate_1op_rax_rdx(ctxt, "div", de);
-		break;
-	case 7: /* idiv */
-		emulate_1op_rax_rdx(ctxt, "idiv", de);
-		break;
-	default:
-		return X86EMUL_UNHANDLEABLE;
-	}
+	emulate_1op_rax_rdx(ctxt, "div", de);
+	if (de)
+		return emulate_de(ctxt);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_idiv_ex(struct x86_emulate_ctxt *ctxt)
+{
+	u8 de = 0;
+
+	emulate_1op_rax_rdx(ctxt, "idiv", de);
 	if (de)
 		return emulate_de(ctxt);
 	return X86EMUL_CONTINUE;
@@ -2989,9 +3001,14 @@ static struct opcode group1A[] = {
 };
 
 static struct opcode group3[] = {
-	D(DstMem | SrcImm | ModRM), D(DstMem | SrcImm | ModRM),
-	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
-	X4(D(SrcMem | ModRM)),
+	I(DstMem | SrcImm | ModRM, em_test),
+	I(DstMem | SrcImm | ModRM, em_test),
+	I(DstMem | SrcNone | ModRM | Lock, em_not),
+	I(DstMem | SrcNone | ModRM | Lock, em_neg),
+	I(SrcMem | ModRM, em_mul_ex),
+	I(SrcMem | ModRM, em_imul_ex),
+	I(SrcMem | ModRM, em_div_ex),
+	I(SrcMem | ModRM, em_idiv_ex),
 };
 
 static struct opcode group4[] = {
@@ -3916,9 +3933,6 @@ special_insn:
 	case 0xf5:	/* cmc */
 		/* complement carry flag from eflags reg */
 		ctxt->eflags ^= EFLG_CF;
-		break;
-	case 0xf6 ... 0xf7:	/* Grp3 */
-		rc = em_grp3(ctxt);
 		break;
 	case 0xf8: /* clc */
 		ctxt->eflags &= ~EFLG_CF;
