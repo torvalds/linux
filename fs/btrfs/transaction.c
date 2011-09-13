@@ -345,6 +345,7 @@ again:
 	h->transaction = cur_trans;
 	h->blocks_used = 0;
 	h->bytes_reserved = 0;
+	h->root = root;
 	h->delayed_ref_updates = 0;
 	h->use_count = 1;
 	h->block_rsv = NULL;
@@ -511,6 +512,11 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
+	/*
+	 * the same root has to be passed to start_transaction and
+	 * end_transaction. Subvolume quota depends on this.
+	 */
+	WARN_ON(trans->root != root);
 	while (count < 2) {
 		unsigned long cur = trans->delayed_ref_updates;
 		trans->delayed_ref_updates = 0;
