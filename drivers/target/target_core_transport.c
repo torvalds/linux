@@ -1640,19 +1640,6 @@ static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 	return 0;
 }
 
-void transport_free_se_cmd(
-	struct se_cmd *se_cmd)
-{
-	if (se_cmd->se_tmr_req)
-		core_tmr_release_req(se_cmd->se_tmr_req);
-	/*
-	 * Check and free any extended CDB buffer that was allocated
-	 */
-	if (se_cmd->t_task_cdb != se_cmd->__t_task_cdb)
-		kfree(se_cmd->t_task_cdb);
-}
-EXPORT_SYMBOL(transport_free_se_cmd);
-
 static void transport_generic_wait_for_tasks(struct se_cmd *, int, int);
 
 /*	transport_generic_allocate_tasks():
@@ -4371,11 +4358,21 @@ queue_full:
 	return ret;
 }
 
+/**
+ * transport_release_cmd - free a command
+ * @cmd:       command to free
+ *
+ * This routine unconditionally frees a command, and reference counting
+ * or list removal must be done in the caller.
+ */
 void transport_release_cmd(struct se_cmd *cmd)
 {
 	BUG_ON(!cmd->se_tfo);
 
-	transport_free_se_cmd(cmd);
+	if (cmd->se_tmr_req)
+		core_tmr_release_req(cmd->se_tmr_req);
+	if (cmd->t_task_cdb != cmd->__t_task_cdb)
+		kfree(cmd->t_task_cdb);
 	cmd->se_tfo->release_cmd(cmd);
 }
 EXPORT_SYMBOL(transport_release_cmd);
