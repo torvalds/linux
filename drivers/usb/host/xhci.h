@@ -1526,9 +1526,7 @@ static inline void xhci_write_64(struct xhci_hcd *xhci,
 
 static inline int xhci_link_trb_quirk(struct xhci_hcd *xhci)
 {
-	u32 temp = xhci_readl(xhci, &xhci->cap_regs->hc_capbase);
-	return ((HC_VERSION(temp) == 0x95) &&
-			(xhci->quirks & XHCI_LINK_TRB_QUIRK));
+	return xhci->quirks & XHCI_LINK_TRB_QUIRK;
 }
 
 /* xHCI debugging */

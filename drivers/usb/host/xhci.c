@@ -316,7 +316,7 @@ int xhci_init(struct usb_hcd *hcd)
 
 	xhci_dbg(xhci, "xhci_init\n");
 	spin_lock_init(&xhci->lock);
-	if (link_quirk) {
+	if (xhci->hci_version == 0x95 && link_quirk) {
 		xhci_dbg(xhci, "QUIRK: Not clearing Link TRB chain bits.\n");
 		xhci->quirks |= XHCI_LINK_TRB_QUIRK;
 	} else {
