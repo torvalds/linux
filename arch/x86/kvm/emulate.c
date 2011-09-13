@@ -31,18 +31,18 @@
 /*
  * Operand types
  */
-#define OpNone             0
-#define OpImplicit         1  /* No generic decode */
-#define OpReg              2  /* Register */
-#define OpMem              3  /* Memory */
-#define OpAcc              4  /* Accumulator: AL/AX/EAX/RAX */
-#define OpDI               5  /* ES:DI/EDI/RDI */
-#define OpMem64            6  /* Memory, 64-bit */
-#define OpImmUByte         7  /* Zero-extended 8-bit immediate */
-#define OpDX               8  /* DX register */
+#define OpNone             0ull
+#define OpImplicit         1ull  /* No generic decode */
+#define OpReg              2ull  /* Register */
+#define OpMem              3ull  /* Memory */
+#define OpAcc              4ull  /* Accumulator: AL/AX/EAX/RAX */
+#define OpDI               5ull  /* ES:DI/EDI/RDI */
+#define OpMem64            6ull  /* Memory, 64-bit */
+#define OpImmUByte         7ull  /* Zero-extended 8-bit immediate */
+#define OpDX               8ull  /* DX register */
 
 #define OpBits             4  /* Width of operand field */
-#define OpMask             ((1 << OpBits) - 1)
+#define OpMask             ((1ull << OpBits) - 1)
 
 /*
  * Opcode effective-address decode tables.
@@ -108,12 +108,12 @@
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
 #define No64	    (1<<28)
 /* Source 2 operand type */
-#define Src2None    (0<<29)
-#define Src2CL      (1<<29)
-#define Src2ImmByte (2<<29)
-#define Src2One     (3<<29)
-#define Src2Imm     (4<<29)
-#define Src2Mask    (7<<29)
+#define Src2None    (0u<<29)
+#define Src2CL      (1u<<29)
+#define Src2ImmByte (2u<<29)
+#define Src2One     (3u<<29)
+#define Src2Imm     (4u<<29)
+#define Src2Mask    (7u<<29)
 
 #define X2(x...) x, x
 #define X3(x...) X2(x), x
@@ -125,8 +125,8 @@
 #define X16(x...) X8(x), X8(x)
 
 struct opcode {
-	u32 flags;
-	u8 intercept;
+	u64 flags : 56;
+	u64 intercept : 8;
 	union {
 		int (*execute)(struct x86_emulate_ctxt *ctxt);
 		struct opcode *group;
@@ -3530,7 +3530,7 @@ done_prefixes:
 			return EMULATION_FAILED;
 		}
 
-		ctxt->d &= ~GroupMask;
+		ctxt->d &= ~(u64)GroupMask;
 		ctxt->d |= opcode.flags;
 	}
 

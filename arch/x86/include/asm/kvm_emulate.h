@@ -262,7 +262,7 @@ struct x86_emulate_ctxt {
 	struct operand dst;
 	bool has_seg_override;
 	u8 seg_override;
-	unsigned int d;
+	u64 d;
 	int (*execute)(struct x86_emulate_ctxt *ctxt);
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 	/* modrm */
