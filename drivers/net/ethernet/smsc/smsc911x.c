@@ -2121,6 +2121,8 @@ static int __devinit smsc911x_probe_config_dt(
 	of_property_read_u32(np, "reg-io-width", &width);
 	if (width == 4)
 		config->flags |= SMSC911X_USE_32BIT;
+	else
+		config->flags |= SMSC911X_USE_16BIT;
 
 	if (of_get_property(np, "smsc,irq-active-high", NULL))
 		config->irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_HIGH;
