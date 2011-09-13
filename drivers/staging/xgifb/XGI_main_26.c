@@ -498,48 +498,38 @@ invalid:
 static int XGIfb_GetXG21LVDSData(void)
 {
 	u8 tmp;
-	unsigned char *pData;
+	void __iomem *data = xgi_video_info.mmio_vbase + 0x20000;
 	int i, j, k;
 
 	tmp = xgifb_reg_get(XGISR, 0x1e);
 	xgifb_reg_set(XGISR, 0x1e, tmp | 4);
 
-	pData = xgi_video_info.mmio_vbase + 0x20000;
-	if ((pData[0x0] == 0x55) &&
-	    (pData[0x1] == 0xAA) &&
-	    (pData[0x65] & 0x1)) {
-		i = pData[0x316] | (pData[0x317] << 8);
-		j = pData[i - 1];
+	if ((readb(data) == 0x55) &&
+	    (readb(data + 1) == 0xAA) &&
+	    (readb(data + 0x65) & 0x1)) {
+		i = readw(data + 0x316);
+		j = readb(data + i - 1);
 		if (j == 0xff)
 			j = 1;
 
 		k = 0;
 		do {
-			XGI21_LCDCapList[k].LVDS_Capability = pData[i]
-					| (pData[i + 1] << 8);
-			XGI21_LCDCapList[k].LVDSHT = pData[i + 2] | (pData[i
-					+ 3] << 8);
-			XGI21_LCDCapList[k].LVDSVT = pData[i + 4] | (pData[i
-					+ 5] << 8);
-			XGI21_LCDCapList[k].LVDSHDE = pData[i + 6] | (pData[i
-					+ 7] << 8);
-			XGI21_LCDCapList[k].LVDSVDE = pData[i + 8] | (pData[i
-					+ 9] << 8);
-			XGI21_LCDCapList[k].LVDSHFP = pData[i + 10] | (pData[i
-					+ 11] << 8);
-			XGI21_LCDCapList[k].LVDSVFP = pData[i + 12] | (pData[i
-					+ 13] << 8);
-			XGI21_LCDCapList[k].LVDSHSYNC = pData[i + 14]
-					| (pData[i + 15] << 8);
-			XGI21_LCDCapList[k].LVDSVSYNC = pData[i + 16]
-					| (pData[i + 17] << 8);
-			XGI21_LCDCapList[k].VCLKData1 = pData[i + 18];
-			XGI21_LCDCapList[k].VCLKData2 = pData[i + 19];
-			XGI21_LCDCapList[k].PSC_S1 = pData[i + 20];
-			XGI21_LCDCapList[k].PSC_S2 = pData[i + 21];
-			XGI21_LCDCapList[k].PSC_S3 = pData[i + 22];
-			XGI21_LCDCapList[k].PSC_S4 = pData[i + 23];
-			XGI21_LCDCapList[k].PSC_S5 = pData[i + 24];
+			XGI21_LCDCapList[k].LVDS_Capability = readw(data + i);
+			XGI21_LCDCapList[k].LVDSHT = readw(data + i + 2);
+			XGI21_LCDCapList[k].LVDSVT = readw(data + i + 4);
+			XGI21_LCDCapList[k].LVDSHDE = readw(data + i + 6);
+			XGI21_LCDCapList[k].LVDSVDE = readw(data + i + 8);
+			XGI21_LCDCapList[k].LVDSHFP = readw(data + i + 10);
+			XGI21_LCDCapList[k].LVDSVFP = readw(data + i + 12);
+			XGI21_LCDCapList[k].LVDSHSYNC = readw(data + i + 14);
+			XGI21_LCDCapList[k].LVDSVSYNC = readw(data + i + 16);
+			XGI21_LCDCapList[k].VCLKData1 = readb(data + i + 18);
+			XGI21_LCDCapList[k].VCLKData2 = readb(data + i + 19);
+			XGI21_LCDCapList[k].PSC_S1 = readb(data + i + 20);
+			XGI21_LCDCapList[k].PSC_S2 = readb(data + i + 21);
+			XGI21_LCDCapList[k].PSC_S3 = readb(data + i + 22);
+			XGI21_LCDCapList[k].PSC_S4 = readb(data + i + 23);
+			XGI21_LCDCapList[k].PSC_S5 = readb(data + i + 24);
 			i += 25;
 			j--;
 			k++;

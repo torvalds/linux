@@ -59,7 +59,7 @@ struct video_info {
 	char	      *video_vbase;
 	unsigned long mmio_base;
 	unsigned long mmio_size;
-	char	      *mmio_vbase;
+	void __iomem *mmio_vbase;
 	unsigned long vga_base;
 	unsigned long mtrr;
 
