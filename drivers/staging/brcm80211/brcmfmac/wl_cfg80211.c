@@ -247,17 +247,6 @@ static const u32 __wl_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_AES_CMAC,
 };
 
-static void convert_key_from_CPU(struct brcmf_wsec_key *key)
-{
-	key->index = cpu_to_le32(key->index);
-	key->len = cpu_to_le32(key->len);
-	key->algo = cpu_to_le32(key->algo);
-	key->flags = cpu_to_le32(key->flags);
-	key->rxiv.hi = cpu_to_le32(key->rxiv.hi);
-	key->rxiv.lo = cpu_to_le16(key->rxiv.lo);
-	key->iv_initialized = cpu_to_le32(key->iv_initialized);
-}
-
 static s32
 brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 {
@@ -275,6 +264,33 @@ brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 	err = brcmf_netdev_ioctl_priv(dev, &ioc);
 	set_fs(fs);
 
+	return err;
+}
+
+static void convert_key_from_CPU(struct brcmf_wsec_key *key,
+				 struct brcmf_wsec_key_le *key_le)
+{
+	key_le->index = cpu_to_le32(key->index);
+	key_le->len = cpu_to_le32(key->len);
+	key_le->algo = cpu_to_le32(key->algo);
+	key_le->flags = cpu_to_le32(key->flags);
+	key_le->rxiv.hi = cpu_to_le32(key->rxiv.hi);
+	key_le->rxiv.lo = cpu_to_le16(key->rxiv.lo);
+	key_le->iv_initialized = cpu_to_le32(key->iv_initialized);
+	memcpy(key_le->data, key->data, sizeof(key->data));
+	memcpy(key_le->ea, key->ea, sizeof(key->ea));
+}
+
+static int send_key_to_dongle(struct net_device *dev,
+			      struct brcmf_wsec_key *key)
+{
+	int err;
+	struct brcmf_wsec_key_le key_le;
+
+	convert_key_from_CPU(key, &key_le);
+	err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key_le, sizeof(key_le));
+	if (err)
+		WL_ERR("WLC_SET_KEY error (%d)\n", err);
 	return err;
 }
 
@@ -1200,13 +1216,10 @@ brcmf_set_set_sharedkey(struct net_device *dev,
 			WL_CONN("key length (%d) key index (%d) algo (%d)\n",
 			       key.len, key.index, key.algo);
 			WL_CONN("key \"%s\"\n", key.data);
-			convert_key_from_CPU(&key);
-			err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key,
-					sizeof(key));
-			if (unlikely(err)) {
-				WL_ERR("WLC_SET_KEY error (%d)\n", err);
+			err = send_key_to_dongle(dev, &key);
+			if (err)
 				return err;
-			}
+
 			if (sec->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM) {
 				WL_CONN("set auth_type to shared key\n");
 				val = 1;	/* shared key */
@@ -1461,6 +1474,7 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
 {
 	struct brcmf_wsec_key key;
+	struct brcmf_wsec_key_le key_le;
 	s32 err = 0;
 
 	memset(&key, 0, sizeof(key));
@@ -1473,12 +1487,9 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	/* check for key index change */
 	if (key.len == 0) {
 		/* key delete */
-		convert_key_from_CPU(&key);
-		err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
-		if (unlikely(err)) {
-			WL_ERR("key delete error (%d)\n", err);
+		err = send_key_to_dongle(dev, &key);
+		if (err)
 			return err;
-		}
 	} else {
 		if (key.len > sizeof(key.data)) {
 			WL_ERR("Invalid key length (%d)\n", key.len);
@@ -1531,10 +1542,11 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 			WL_ERR("Invalid cipher (0x%x)\n", params->cipher);
 			return -EINVAL;
 		}
-		convert_key_from_CPU(&key);
+		convert_key_from_CPU(&key, &key_le);
 
 		brcmf_netdev_wait_pend8021x(dev);
-		err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
+		err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key_le,
+				      sizeof(key_le));
 		if (unlikely(err)) {
 			WL_ERR("WLC_SET_KEY error (%d)\n", err);
 			return err;
@@ -1606,13 +1618,9 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		goto done;
 	}
 
-	/* Set the new key/index */
-	convert_key_from_CPU(&key);
-	err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
-	if (unlikely(err)) {
-		WL_ERR("WLC_SET_KEY error (%d)\n", err);
+	err = send_key_to_dongle(dev, &key); /* Set the new key/index */
+	if (err)
 		goto done;
-	}
 
 	val = WEP_ENABLED;
 	err = brcmf_dev_intvar_get(dev, "wsec", &wsec);
@@ -1658,17 +1666,15 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	key.algo = CRYPTO_ALGO_OFF;
 
 	WL_CONN("key index (%d)\n", key_idx);
+
 	/* Set the new key/index */
-	convert_key_from_CPU(&key);
-	err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
-	if (unlikely(err)) {
+	err = send_key_to_dongle(dev, &key);
+	if (err) {
 		if (err == -EINVAL) {
 			if (key.index >= DOT11_MAX_DEFAULT_KEYS)
 				/* we ignore this key index in this case */
 				WL_ERR("invalid key index (%d)\n", key_idx);
-		} else
-			WL_ERR("WLC_SET_KEY error (%d)\n", err);
-
+		}
 		/* Ignore this error, may happen during DISASSOC */
 		err = -EAGAIN;
 		goto done;

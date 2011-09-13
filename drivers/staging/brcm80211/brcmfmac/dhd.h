@@ -405,6 +405,11 @@ struct brcmf_ssid {
 	unsigned char SSID[32];
 };
 
+struct brcmf_ssid_le {
+	__le32 SSID_len;
+	unsigned char SSID[32];
+};
+
 struct brcmf_scan_params {
 	struct brcmf_ssid ssid;	/* default: {0, ""} */
 	u8 bssid[ETH_ALEN];	/* default: bcast */
@@ -500,16 +505,37 @@ struct brcmf_wsec_key {
 	u32 pad_1[18];
 	u32 algo;	/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
 	u32 flags;	/* misc flags */
-	u32 pad_2[2];
-	int pad_3;
-	int iv_initialized;	/* has IV been initialized already? */
-	int pad_4;
+	u32 pad_2[3];
+	u32 iv_initialized;	/* has IV been initialized already? */
+	u32 pad_3;
 	/* Rx IV */
 	struct {
 		u32 hi;	/* upper 32 bits of IV */
 		u16 lo;	/* lower 16 bits of IV */
 	} rxiv;
-	u32 pad_5[2];
+	u32 pad_4[2];
+	u8 ea[ETH_ALEN];	/* per station */
+};
+
+/*
+ * dongle requires same struct as above but with fields in little endian order
+ */
+struct brcmf_wsec_key_le {
+	__le32 index;		/* key index */
+	__le32 len;		/* key length */
+	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
+	__le32 pad_1[18];
+	__le32 algo;	/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
+	__le32 flags;	/* misc flags */
+	__le32 pad_2[3];
+	__le32 iv_initialized;	/* has IV been initialized already? */
+	__le32 pad_3;
+	/* Rx IV */
+	struct {
+		__le32 hi;	/* upper 32 bits of IV */
+		__le16 lo;	/* lower 16 bits of IV */
+	} rxiv;
+	__le32 pad_4[2];
 	u8 ea[ETH_ALEN];	/* per station */
 };
 
