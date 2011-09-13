@@ -216,8 +216,6 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 	int ratio_shift, master;
 	int i;
 
-	iface = 0;
-
 	switch (dai->driver->id) {
 	case WM8776_DAI_DAC:
 		iface_reg = WM8776_DACIFCTRL;
@@ -233,20 +231,23 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-
 	/* Set word length */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (snd_pcm_format_width(params_format(params))) {
+	case 16:
+		iface = 0;
+	case 20:
+		iface = 0x10;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		iface |= 0x10;
+	case 24:
+		iface = 0x20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		iface |= 0x20;
+	case 32:
+		iface = 0x30;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		iface |= 0x30;
-		break;
+	default:
+		dev_err(codec->dev, "Unsupported sample size: %i\n",
+			snd_pcm_format_width(params_format(params)));
+		return -EINVAL;
 	}
 
 	/* Only need to set MCLK/LRCLK ratio if we're master */
