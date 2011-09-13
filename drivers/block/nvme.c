@@ -996,11 +996,11 @@ static int nvme_map_user_pages(struct nvme_dev *dev, int write,
 
 	sg = kcalloc(count, sizeof(*sg), GFP_KERNEL);
 	sg_init_table(sg, count);
-	sg_set_page(&sg[0], pages[0], PAGE_SIZE - offset, offset);
-	length -= (PAGE_SIZE - offset);
-	for (i = 1; i < count; i++) {
-		sg_set_page(&sg[i], pages[i], min_t(int, length, PAGE_SIZE), 0);
-		length -= PAGE_SIZE;
+	for (i = 0; i < count; i++) {
+		sg_set_page(&sg[i], pages[i],
+				min_t(int, length, PAGE_SIZE - offset), offset);
+		length -= (PAGE_SIZE - offset);
+		offset = 0;
 	}
 
 	err = -ENOMEM;
