@@ -19,23 +19,17 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/serial_reg.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/serial_8250.h>
 #include <linux/pm_runtime.h>
 #include <linux/console.h>
 
-#ifdef CONFIG_SERIAL_OMAP
 #include <plat/omap-serial.h>
-#endif
-
 #include "common.h"
 #include <plat/board.h>
-#include <plat/clock.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
@@ -47,10 +41,8 @@
 #include "control.h"
 #include "mux.h"
 
-#define UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV	0x52
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
 
-#define UART_ERRATA_FIFO_FULL_ABORT	(0x1 << 0)
 #define UART_ERRATA_i202_MDR1_ACCESS	(0x1 << 1)
 
 /*
@@ -533,41 +525,6 @@ static void omap_uart_block_sleep(struct omap_uart_state *uart)
 #define DEV_CREATE_FILE(dev, attr)
 #endif /* CONFIG_PM */
 
-#ifndef CONFIG_SERIAL_OMAP
-/*
- * Override the default 8250 read handler: mem_serial_in()
- * Empty RX fifo read causes an abort on omap3630 and omap4
- * This function makes sure that an empty rx fifo is not read on these silicons
- * (OMAP1/2/3430 are not affected)
- */
-static unsigned int serial_in_override(struct uart_port *up, int offset)
-{
-	if (UART_RX == offset) {
-		unsigned int lsr;
-		lsr = __serial_read_reg(up, UART_LSR);
-		if (!(lsr & UART_LSR_DR))
-			return -EPERM;
-	}
-
-	return __serial_read_reg(up, offset);
-}
-
-static void serial_out_override(struct uart_port *up, int offset, int value)
-{
-	unsigned int status, tmout = 10000;
-
-	status = __serial_read_reg(up, UART_LSR);
-	while (!(status & UART_LSR_THRE)) {
-		/* Wait up to 10ms for the character(s) to be sent. */
-		if (--tmout == 0)
-			break;
-		udelay(1);
-		status = __serial_read_reg(up, UART_LSR);
-	}
-	__serial_write_reg(up, offset, value);
-}
-#endif
-
 static int __init omap_serial_early_init(void)
 {
 	int i = 0;
@@ -628,15 +585,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 	void *pdata = NULL;
 	u32 pdata_size = 0;
 	char *name;
-#ifndef CONFIG_SERIAL_OMAP
-	struct plat_serial8250_port ports[2] = {
-		{},
-		{.flags = 0},
-	};
-	struct plat_serial8250_port *p = &ports[0];
-#else
 	struct omap_uart_port_info omap_up;
-#endif
 
 	if (WARN_ON(!bdata))
 		return;
@@ -651,51 +600,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 
 	oh = uart->oh;
 	uart->dma_enabled = 0;
-#ifndef CONFIG_SERIAL_OMAP
-	name = "serial8250";
-
-	/*
-	 * !! 8250 driver does not use standard IORESOURCE* It
-	 * has it's own custom pdata that can be taken from
-	 * the hwmod resource data.  But, this needs to be
-	 * done after the build.
-	 *
-	 * ?? does it have to be done before the register ??
-	 * YES, because platform_device_data_add() copies
-	 * pdata, it does not use a pointer.
-	 */
-	p->flags = UPF_BOOT_AUTOCONF;
-	p->iotype = UPIO_MEM;
-	p->regshift = 2;
-	p->uartclk = OMAP24XX_BASE_BAUD * 16;
-	p->irq = oh->mpu_irqs[0].irq;
-	p->mapbase = oh->slaves[0]->addr->pa_start;
-	p->membase = omap_hwmod_get_mpu_rt_va(oh);
-	p->irqflags = IRQF_SHARED;
-	p->private_data = uart;
-
-	/*
-	 * omap44xx, ti816x: Never read empty UART fifo
-	 * omap3xxx: Never read empty UART fifo on UARTs
-	 * with IP rev >=0x52
-	 */
-	uart->regshift = p->regshift;
-	uart->membase = p->membase;
-	if (cpu_is_omap44xx() || cpu_is_ti81xx())
-		uart->errata |= UART_ERRATA_FIFO_FULL_ABORT;
-	else if ((serial_read_reg(uart, UART_OMAP_MVER) & 0xFF)
-			>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV)
-		uart->errata |= UART_ERRATA_FIFO_FULL_ABORT;
-
-	if (uart->errata & UART_ERRATA_FIFO_FULL_ABORT) {
-		p->serial_in = serial_in_override;
-		p->serial_out = serial_out_override;
-	}
-
-	pdata = &ports[0];
-	pdata_size = 2 * sizeof(struct plat_serial8250_port);
-#else
-
 	name = DRIVER_NAME;
 
 	omap_up.dma_enabled = uart->dma_enabled;
@@ -707,7 +611,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 
 	pdata = &omap_up;
 	pdata_size = sizeof(struct omap_uart_port_info);
-#endif
 
 	if (WARN_ON(!oh))
 		return;
