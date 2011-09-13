@@ -210,6 +210,16 @@ static const enum omap_color_mode omap4_dss_supported_color_modes[] = {
 	OMAP_DSS_COLOR_ARGB16 | OMAP_DSS_COLOR_XRGB16_1555 |
 	OMAP_DSS_COLOR_ARGB32 | OMAP_DSS_COLOR_RGBX16 |
 	OMAP_DSS_COLOR_RGBX32,
+
+	/* OMAP_DSS_VIDEO3 */
+	OMAP_DSS_COLOR_RGB16 | OMAP_DSS_COLOR_RGB12U |
+	OMAP_DSS_COLOR_YUV2 | OMAP_DSS_COLOR_ARGB16_1555 |
+	OMAP_DSS_COLOR_RGBA32 | OMAP_DSS_COLOR_NV12 |
+	OMAP_DSS_COLOR_RGBA16 | OMAP_DSS_COLOR_RGB24U |
+	OMAP_DSS_COLOR_RGB24P | OMAP_DSS_COLOR_UYVY |
+	OMAP_DSS_COLOR_ARGB16 | OMAP_DSS_COLOR_XRGB16_1555 |
+	OMAP_DSS_COLOR_ARGB32 | OMAP_DSS_COLOR_RGBX16 |
+	OMAP_DSS_COLOR_RGBX32,
 };
 
 static const enum omap_overlay_caps omap2_dss_overlay_caps[] = {
@@ -256,6 +266,10 @@ static const enum omap_overlay_caps omap4_dss_overlay_caps[] = {
 		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_ZORDER,
 
 	/* OMAP_DSS_VIDEO2 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
+		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_ZORDER,
+
+	/* OMAP_DSS_VIDEO3 */
 	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
 		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_ZORDER,
 };
@@ -401,7 +415,7 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 		FEAT_ALPHA_FREE_ZORDER,
 
 	.num_mgrs = 3,
-	.num_ovls = 3,
+	.num_ovls = 4,
 	.supported_displays = omap4_dss_supported_displays,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
@@ -425,7 +439,7 @@ static const struct omap_dss_features omap4_dss_features = {
 		FEAT_PRELOAD | FEAT_FIR_COEF_V | FEAT_ALPHA_FREE_ZORDER,
 
 	.num_mgrs = 3,
-	.num_ovls = 3,
+	.num_ovls = 4,
 	.supported_displays = omap4_dss_supported_displays,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,

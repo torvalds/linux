@@ -751,7 +751,7 @@ static void dispc_ovl_set_pre_mult_alpha(enum omap_plane plane, bool enable)
 
 static void dispc_ovl_setup_global_alpha(enum omap_plane plane, u8 global_alpha)
 {
-	static const unsigned shifts[] = { 0, 8, 16, };
+	static const unsigned shifts[] = { 0, 8, 16, 24, };
 	int shift;
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 
@@ -866,6 +866,7 @@ static void dispc_ovl_set_channel_out(enum omap_plane plane,
 		break;
 	case OMAP_DSS_VIDEO1:
 	case OMAP_DSS_VIDEO2:
+	case OMAP_DSS_VIDEO3:
 		shift = 16;
 		break;
 	default:
@@ -903,7 +904,7 @@ static void dispc_ovl_set_channel_out(enum omap_plane plane,
 static void dispc_ovl_set_burst_size(enum omap_plane plane,
 		enum omap_burst_size burst_size)
 {
-	static const unsigned shifts[] = { 6, 14, 14, };
+	static const unsigned shifts[] = { 6, 14, 14, 14, };
 	int shift;
 
 	shift = shifts[plane];
@@ -988,7 +989,7 @@ static void dispc_ovl_set_vid_color_conv(enum omap_plane plane, bool enable)
 
 static void dispc_ovl_enable_replication(enum omap_plane plane, bool enable)
 {
-	static const unsigned shifts[] = { 5, 10, 10 };
+	static const unsigned shifts[] = { 5, 10, 10, 10 };
 	int shift;
 
 	shift = shifts[plane];
@@ -2558,6 +2559,10 @@ void dispc_dump_irqs(struct seq_file *s)
 	PIS(VID1_END_WIN);
 	PIS(VID2_FIFO_UNDERFLOW);
 	PIS(VID2_END_WIN);
+	if (dss_feat_get_num_ovls() > 3) {
+		PIS(VID3_FIFO_UNDERFLOW);
+		PIS(VID3_END_WIN);
+	}
 	PIS(SYNC_LOST);
 	PIS(SYNC_LOST_DIGIT);
 	PIS(WAKEUP);
@@ -2583,6 +2588,7 @@ void dispc_dump_regs(struct seq_file *s)
 		[OMAP_DSS_GFX]		= "GFX",
 		[OMAP_DSS_VIDEO1]	= "VID1",
 		[OMAP_DSS_VIDEO2]	= "VID2",
+		[OMAP_DSS_VIDEO3]	= "VID3",
 	};
 	const char **p_names;
 
@@ -2985,6 +2991,8 @@ static void print_irq_status(u32 status)
 	PIS(OCP_ERR);
 	PIS(VID1_FIFO_UNDERFLOW);
 	PIS(VID2_FIFO_UNDERFLOW);
+	if (dss_feat_get_num_ovls() > 3)
+		PIS(VID3_FIFO_UNDERFLOW);
 	PIS(SYNC_LOST);
 	PIS(SYNC_LOST_DIGIT);
 	if (dss_has_feature(FEAT_MGR_LCD2))
@@ -3082,6 +3090,7 @@ static void dispc_error_worker(struct work_struct *work)
 		DISPC_IRQ_GFX_FIFO_UNDERFLOW,
 		DISPC_IRQ_VID1_FIFO_UNDERFLOW,
 		DISPC_IRQ_VID2_FIFO_UNDERFLOW,
+		DISPC_IRQ_VID3_FIFO_UNDERFLOW,
 	};
 
 	static const unsigned sync_lost_bits[] = {
@@ -3257,6 +3266,8 @@ static void _omap_dispc_initialize_irq(void)
 	dispc.irq_error_mask = DISPC_IRQ_MASK_ERROR;
 	if (dss_has_feature(FEAT_MGR_LCD2))
 		dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST2;
+	if (dss_feat_get_num_ovls() > 3)
+		dispc.irq_error_mask |= DISPC_IRQ_VID3_FIFO_UNDERFLOW;
 
 	/* there's SYNC_LOST_DIGIT waiting after enabling the DSS,
 	 * so clear it */

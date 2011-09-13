@@ -615,6 +615,11 @@ void dss_init_overlays(struct platform_device *pdev)
 			ovl->id = OMAP_DSS_VIDEO2;
 			ovl->info.global_alpha = 255;
 			break;
+		case 3:
+			ovl->name = "vid3";
+			ovl->id = OMAP_DSS_VIDEO3;
+			ovl->info.global_alpha = 255;
+			break;
 		}
 
 		ovl->set_manager = &omap_dss_set_manager;
