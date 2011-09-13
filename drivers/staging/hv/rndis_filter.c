@@ -690,11 +690,11 @@ int rndis_filter_device_add(struct hv_device *dev,
 {
 	int ret;
 	struct netvsc_device *net_device;
-	struct rndis_device *rndisDevice;
+	struct rndis_device *rndis_device;
 	struct netvsc_device_info *deviceInfo = additional_info;
 
-	rndisDevice = get_rndis_device();
-	if (!rndisDevice)
+	rndis_device = get_rndis_device();
+	if (!rndis_device)
 		return -ENODEV;
 
 	/*
@@ -704,7 +704,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	 */
 	ret = netvsc_device_add(dev, additional_info);
 	if (ret != 0) {
-		kfree(rndisDevice);
+		kfree(rndis_device);
 		return ret;
 	}
 
@@ -712,11 +712,11 @@ int rndis_filter_device_add(struct hv_device *dev,
 	/* Initialize the rndis device */
 	net_device = hv_get_drvdata(dev);
 
-	net_device->extension = rndisDevice;
-	rndisDevice->net_dev = net_device;
+	net_device->extension = rndis_device;
+	rndis_device->net_dev = net_device;
 
 	/* Send the rndis initialization message */
-	ret = rndis_filter_init_device(rndisDevice);
+	ret = rndis_filter_init_device(rndis_device);
 	if (ret != 0) {
 		/*
 		 * TODO: If rndis init failed, we will need to shut down the
@@ -725,21 +725,21 @@ int rndis_filter_device_add(struct hv_device *dev,
 	}
 
 	/* Get the mac address */
-	ret = rndis_filter_query_device_mac(rndisDevice);
+	ret = rndis_filter_query_device_mac(rndis_device);
 	if (ret != 0) {
 		/*
 		 * TODO: shutdown rndis device and the channel
 		 */
 	}
 
-	memcpy(deviceInfo->mac_adr, rndisDevice->hw_mac_adr, ETH_ALEN);
+	memcpy(deviceInfo->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
 
-	rndis_filter_query_device_link_status(rndisDevice);
+	rndis_filter_query_device_link_status(rndis_device);
 
-	deviceInfo->link_state = rndisDevice->link_stat;
+	deviceInfo->link_state = rndis_device->link_stat;
 
 	dev_info(&dev->device, "Device MAC %pM link state %s",
-		 rndisDevice->hw_mac_adr,
+		 rndis_device->hw_mac_adr,
 		 ((deviceInfo->link_state) ? ("down\n") : ("up\n")));
 
 	return ret;
