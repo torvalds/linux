@@ -847,7 +847,7 @@ static int dib7770p_tuner_attach(struct dvb_usb_adapter *adap)
 			 DIBX000_I2C_INTERFACE_TUNER, 1);
 
 	 if (dvb_attach(dib0070_attach, adap->fe_adap[0].fe, tun_i2c,
-				 &dib7770p_dib0070_config) == NULL)
+			&dib7770p_dib0070_config) == NULL)
 		 return -ENODEV;
 
 	 st->set_param_save = adap->fe_adap[0].fe->ops.tuner_ops.set_params;
