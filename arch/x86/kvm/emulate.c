@@ -88,10 +88,6 @@
 #define SrcImmU16   (0xe<<5)    /* Immediate operand, unsigned, 16 bits */
 #define SrcDX       (0xf<<5)	/* Source is in DX register */
 #define SrcMask     (0xf<<5)
-/* Generic ModRM decode. */
-#define ModRM       (1<<9)
-/* Destination is only written; never read. */
-#define Mov         (1<<10)
 #define BitOp       (1<<11)
 #define MemAbs      (1<<12)      /* Memory operand is absolute displacement */
 #define String      (1<<13)     /* String instruction (rep capable) */
@@ -102,6 +98,10 @@
 #define Prefix      (3<<15)     /* Instruction varies with 66/f2/f3 prefix */
 #define RMExt       (4<<15)     /* Opcode extension in ModRM r/m if mod == 3 */
 #define Sse         (1<<18)     /* SSE Vector instruction */
+/* Generic ModRM decode. */
+#define ModRM       (1<<19)
+/* Destination is only written; never read. */
+#define Mov         (1<<20)
 /* Misc flags */
 #define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
 #define VendorSpecific (1<<22) /* Vendor specific instruction */
