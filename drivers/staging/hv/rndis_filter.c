@@ -41,7 +41,7 @@ struct rndis_device {
 	struct netvsc_device *net_dev;
 
 	enum rndis_device_state state;
-	u32 link_stat;
+	bool link_state;
 	atomic_t new_req_id;
 
 	spinlock_t request_lock;
@@ -511,10 +511,15 @@ static int rndis_filter_query_device_mac(struct rndis_device *dev)
 static int rndis_filter_query_device_link_status(struct rndis_device *dev)
 {
 	u32 size = sizeof(u32);
+	u32 link_status;
+	int ret;
 
-	return rndis_filter_query_device(dev,
+	ret = rndis_filter_query_device(dev,
 				      RNDIS_OID_GEN_MEDIA_CONNECT_STATUS,
-				      &dev->link_stat, &size);
+				      &link_status, &size);
+	dev->link_state = (link_status != 0) ? true : false;
+
+	return ret;
 }
 
 static int rndis_filter_set_packet_filter(struct rndis_device *dev,
@@ -736,11 +741,11 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	rndis_filter_query_device_link_status(rndis_device);
 
-	device_info->link_state = rndis_device->link_stat;
+	device_info->link_state = rndis_device->link_state;
 
-	dev_info(&dev->device, "Device MAC %pM link state %s",
+	dev_info(&dev->device, "Device MAC %pM link state %s\n",
 		 rndis_device->hw_mac_adr,
-		 ((device_info->link_state) ? ("down\n") : ("up\n")));
+		 device_info->link_state ? "down" : "up");
 
 	return ret;
 }
