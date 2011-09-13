@@ -2917,7 +2917,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		retval = em28xx_audio_setup(dev);
 		if (retval)
 			return -ENODEV;
-		em28xx_add_into_devlist(dev);
 		em28xx_init_extension(dev);
 
 		return 0;
