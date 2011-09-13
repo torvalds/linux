@@ -574,6 +574,8 @@ static int v4l_stk_release(struct file *fp)
 	if (dev->owner == fp) {
 		stk_stop_stream(dev);
 		stk_free_buffers(dev);
+		stk_camera_write_reg(dev, 0x0, 0x48); /* turn off the LED */
+		unset_initialised(dev);
 		dev->owner = NULL;
 	}
 
