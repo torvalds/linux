@@ -49,12 +49,10 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 
-#ifdef CONFIG_PM_SLEEP
 static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_byte_wait);
 static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_word_wait);
 static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_packet_wait);
 static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_buffer_wait);
-#endif		/* CONFIG_PM_SLEEP */
 
 static bool
 brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
