@@ -3794,8 +3794,7 @@ static void transport_release_fe_cmd(struct se_cmd *cmd)
 	transport_release_tasks(cmd);
 free_pages:
 	transport_free_pages(cmd);
-	transport_free_se_cmd(cmd);
-	cmd->se_tfo->release_cmd(cmd);
+	transport_release_cmd(cmd);
 }
 
 static int
