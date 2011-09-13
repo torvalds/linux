@@ -269,26 +269,35 @@ static void vpu_service_power_off_work_func(unsigned long data)
 	vpu_service_power_off();
 }
 
-static void vpu_service_power_on(void)
+static void vpu_service_power_maintain(void)
 {
 	if (service.enabled) {
 		mod_timer(&service.timer, jiffies + POWER_OFF_DELAY);
-		return;
+	} else {
+		pr_err("maintain power when power is off!\n");
 	}
-	service.enabled = true;
-	printk("vpu: power on\n");
+}
 
-	clk_enable(aclk_vepu);
-	clk_enable(hclk_vepu);
-	clk_enable(hclk_cpu_vcodec);
-	udelay(10);
-	pmu_set_power_domain(PD_VCODEC, true);
-	udelay(10);
-	clk_enable(aclk_ddr_vepu);
-	init_timer(&service.timer);
-	service.timer.expires = jiffies + POWER_OFF_DELAY;
-	service.timer.function = vpu_service_power_off_work_func;
-	add_timer(&service.timer);
+static void vpu_service_power_on(void)
+{
+	if (!service.enabled) {
+		service.enabled = true;
+		printk("vpu: power on\n");
+
+		clk_enable(aclk_vepu);
+		clk_enable(hclk_vepu);
+		clk_enable(hclk_cpu_vcodec);
+		udelay(10);
+		pmu_set_power_domain(PD_VCODEC, true);
+		udelay(10);
+		clk_enable(aclk_ddr_vepu);
+		init_timer(&service.timer);
+		service.timer.expires = jiffies + POWER_OFF_DELAY;
+		service.timer.function = vpu_service_power_off_work_func;
+		add_timer(&service.timer);
+	} else {
+		vpu_service_power_maintain();
+	}
 }
 
 static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long size)
@@ -470,12 +479,12 @@ static void try_set_reg(void)
 	if (!list_empty(&service.waiting)) {
 		vpu_reg *reg = list_entry(service.waiting.next, vpu_reg, status_link);
 
+		vpu_service_power_maintain();
 		if (((VPU_DEC_PP == reg->type) && (NULL == service.reg_codec) && (NULL == service.reg_pproc)) ||
 			((VPU_DEC == reg->type) && (NULL == service.reg_codec)) ||
 			((VPU_PP  == reg->type) && (NULL == service.reg_pproc)) ||
 			((VPU_ENC == reg->type) && (NULL == service.reg_codec))) {
 			reg_from_wait_to_run(reg);
-			vpu_service_power_on();
 			reg_copy_to_hw(reg);
 		}
 	}
@@ -561,6 +570,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		if (NULL == reg) {
 			return -EFAULT;
 		} else {
+			vpu_service_power_on();
 			try_set_reg();
 		}
 
@@ -777,6 +787,7 @@ static int vpu_service_resume(struct platform_device *pdev)
 	if (service.enabled) {
 		service.enabled = false;
 		vpu_service_power_on();
+		try_set_reg();
 	}
 	return 0;
 }
