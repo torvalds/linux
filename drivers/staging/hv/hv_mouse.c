@@ -196,7 +196,7 @@ static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 	atomic_cmpxchg(&input_dev->ref_count, 0, 2);
 
 	input_dev->device = device;
-	device->ext = input_dev;
+	hv_set_drvdata(device, input_dev);
 
 	return input_dev;
 }
@@ -214,7 +214,7 @@ static struct mousevsc_dev *get_input_device(struct hv_device *device)
 {
 	struct mousevsc_dev *input_dev;
 
-	input_dev = (struct mousevsc_dev *)device->ext;
+	input_dev = hv_get_drvdata(device);
 
 /*
  *	FIXME
@@ -240,7 +240,7 @@ static struct mousevsc_dev *must_get_input_device(struct hv_device *device)
 {
 	struct mousevsc_dev *input_dev;
 
-	input_dev = (struct mousevsc_dev *)device->ext;
+	input_dev = hv_get_drvdata(device);
 
 	if (input_dev && atomic_read(&input_dev->ref_count))
 		atomic_inc(&input_dev->ref_count);
@@ -254,7 +254,7 @@ static void put_input_device(struct hv_device *device)
 {
 	struct mousevsc_dev *input_dev;
 
-	input_dev = (struct mousevsc_dev *)device->ext;
+	input_dev = hv_get_drvdata(device);
 
 	atomic_dec(&input_dev->ref_count);
 }
@@ -266,7 +266,7 @@ static struct mousevsc_dev *release_input_device(struct hv_device *device)
 {
 	struct mousevsc_dev *input_dev;
 
-	input_dev = (struct mousevsc_dev *)device->ext;
+	input_dev = hv_get_drvdata(device);
 
 	/* Busy wait until the ref drop to 2, then set it to 1  */
 	while (atomic_cmpxchg(&input_dev->ref_count, 2, 1) != 2)
@@ -282,13 +282,13 @@ static struct mousevsc_dev *final_release_input_device(struct hv_device *device)
 {
 	struct mousevsc_dev *input_dev;
 
-	input_dev = (struct mousevsc_dev *)device->ext;
+	input_dev = hv_get_drvdata(device);
 
 	/* Busy wait until the ref drop to 1, then set it to 0  */
 	while (atomic_cmpxchg(&input_dev->ref_count, 1, 0) != 1)
 		udelay(100);
 
-	device->ext = NULL;
+	hv_set_drvdata(device, NULL);
 	return input_dev;
 }
 
@@ -790,7 +790,7 @@ static int mousevsc_on_device_remove(struct hv_device *device)
 	int ret = 0;
 
 	pr_info("disabling input device (%p)...",
-		    device->ext);
+		    hv_get_drvdata(device));
 
 	input_dev = release_input_device(device);
 
@@ -808,7 +808,7 @@ static int mousevsc_on_device_remove(struct hv_device *device)
 		udelay(100);
 	}
 
-	pr_info("removing input device (%p)...", device->ext);
+	pr_info("removing input device (%p)...", hv_get_drvdata(device));
 
 	input_dev = final_release_input_device(device);
 
