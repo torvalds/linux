@@ -27,7 +27,7 @@
 #define AMPDU_MAX_SCB_TID	NUMPRIO
 
 /* scb flags */
-#define SCB_WMECAP		0x0040	/* may ONLY be set if pub->_wme!=OFF */
+#define SCB_WMECAP		0x0040
 #define SCB_HTCAP		0x10000	/* HT (MIMO) capable device */
 #define SCB_IS40		0x80000	/* 40MHz capable */
 #define SCB_STBCCAP		0x40000000	/* STBC Capable */

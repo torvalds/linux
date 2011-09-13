@@ -153,7 +153,6 @@ struct brcms_pub {
 
 	bool promisc;		/* promiscuous destination address */
 	bool delayed_down;	/* down delayed */
-	int _wme;		/* WME QoS mode */
 	bool associated;	/* true:part of [I]BSS, false: not */
 	/* (union of stas_associated, aps_associated) */
 	bool _ampdu;		/* ampdu enabled or not */
@@ -196,9 +195,6 @@ enum wlc_par_id {
 
 /* WL11N Support */
 #define AMPDU_AGG_HOST	1
-
-#define EDCF_ENAB(pub) ((pub)->_wme != OFF)
-#define QOS_ENAB(pub) ((pub)->_wme != OFF || (pub)->_n_enab & SUPPORT_11N)
 
 /* pri is priority encoded in the packet. This maps the Packet priority to
  * enqueue precedence as defined in wlc_prec_map

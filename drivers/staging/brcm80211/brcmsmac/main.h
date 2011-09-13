@@ -849,8 +849,6 @@ extern void brcms_c_set_home_chanspec(struct brcms_c_info *wlc,
 				      u16 chanspec);
 extern bool brcms_c_ps_allowed(struct brcms_c_info *wlc);
 extern bool brcms_c_stay_awake(struct brcms_c_info *wlc);
-extern void brcms_c_wme_initparams_sta(struct brcms_c_info *wlc,
-				       struct wme_param_ie *pe);
 
 extern void brcms_b_antsel_type_set(struct brcms_hardware *wlc_hw,
 				     u8 antsel_type);

@@ -3579,19 +3579,10 @@ static void brcms_c_tx_prec_map_init(struct brcms_c_info *wlc)
 	wlc->tx_prec_map = BRCMS_PREC_BMP_ALL;
 	memset(wlc->fifo2prec_map, 0, NFIFO * sizeof(u16));
 
-	/*
-	 * For non-WME, both fifos have overlapping MAXPRIO. So just
-	 * disable all precedences if either is full.
-	 */
-	if (!EDCF_ENAB(wlc->pub)) {
-		wlc->fifo2prec_map[TX_DATA_FIFO] = BRCMS_PREC_BMP_ALL;
-		wlc->fifo2prec_map[TX_CTL_FIFO] = BRCMS_PREC_BMP_ALL;
-	} else {
-		wlc->fifo2prec_map[TX_AC_BK_FIFO] = BRCMS_PREC_BMP_AC_BK;
-		wlc->fifo2prec_map[TX_AC_BE_FIFO] = BRCMS_PREC_BMP_AC_BE;
-		wlc->fifo2prec_map[TX_AC_VI_FIFO] = BRCMS_PREC_BMP_AC_VI;
-		wlc->fifo2prec_map[TX_AC_VO_FIFO] = BRCMS_PREC_BMP_AC_VO;
-	}
+	wlc->fifo2prec_map[TX_AC_BK_FIFO] = BRCMS_PREC_BMP_AC_BK;
+	wlc->fifo2prec_map[TX_AC_BE_FIFO] = BRCMS_PREC_BMP_AC_BE;
+	wlc->fifo2prec_map[TX_AC_VI_FIFO] = BRCMS_PREC_BMP_AC_VI;
+	wlc->fifo2prec_map[TX_AC_VO_FIFO] = BRCMS_PREC_BMP_AC_VO;
 }
 
 static void
@@ -3698,10 +3689,8 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	brcms_c_bsinit(wlc);
 
 	/* Enable EDCF mode (while the MAC is suspended) */
-	if (EDCF_ENAB(wlc->pub)) {
-		OR_REG(&regs->ifs_ctl, IFS_USEEDCF);
-		brcms_c_edcf_setparams(wlc, false);
-	}
+	OR_REG(&regs->ifs_ctl, IFS_USEEDCF);
+	brcms_c_edcf_setparams(wlc, false);
 
 	/* Init precedence maps for empty FIFOs */
 	brcms_c_tx_prec_map_init(wlc);
@@ -4538,7 +4527,6 @@ void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 	wlc->LRL = RETRY_LONG_DEF;
 
 	/* WME QoS mode is Auto by default */
-	wlc->pub->_wme = AUTO;
 	wlc->pub->_ampdu = AMPDU_AGG_HOST;
 	wlc->pub->bcmerror = 0;
 
@@ -5745,10 +5733,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	brcms_c_radio_monitor_stop(wlc);
 
 	/* Set EDCF hostflags */
-	if (EDCF_ENAB(wlc->pub))
-		brcms_c_mhf(wlc, MHF1, MHF1_EDCF, MHF1_EDCF, BRCM_BAND_ALL);
-	else
-		brcms_c_mhf(wlc, MHF1, MHF1_EDCF, 0, BRCM_BAND_ALL);
+	brcms_c_mhf(wlc, MHF1, MHF1_EDCF, MHF1_EDCF, BRCM_BAND_ALL);
 
 	if (BRCMS_WAR16165(wlc))
 		brcms_c_mhf(wlc, MHF2, MHF2_PCISLOWCLKWAR, MHF2_PCISLOWCLKWAR,
@@ -6715,26 +6700,11 @@ void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
 	prio = sdu->priority;
 
 	if (!brcms_c_prec_enq(wlc, q, sdu, prec)) {
-		if (!EDCF_ENAB(wlc->pub))
-			wiphy_err(wlc->wiphy, "wl%d: txq_enq: txq overflow"
-				  "\n", wlc->pub->unit);
-
 		/*
 		 * we might hit this condtion in case
 		 * packet flooding from mac80211 stack
 		 */
 		brcmu_pkt_buf_free_skb(sdu);
-	}
-
-	/*
-	 * Check if flow control needs to be turned on after enqueuing the
-	 * packet. Don't turn on flow control if EDCF is enabled. Driver
-	 * would make the decision on what to drop instead of relying on
-	 * stack to make the right decision
-	 */
-	if (!EDCF_ENAB(wlc->pub)) {
-		if (pktq_len(q) >= BRCMS_DATAHIWAT)
-			brcms_c_txflowcontrol(wlc, qi, ON, ALLPRIO);
 	}
 }
 
@@ -7729,15 +7699,6 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 		}
 	}
 
-	/*
-	 * Check if flow control needs to be turned off after
-	 * sending the packet
-	 */
-	if (!EDCF_ENAB(wlc->pub)) {
-		if (brcms_c_txflowcontrol_prio_isset(wlc, qi, ALLPRIO)
-		    && (pktq_len(q) < BRCMS_DATAHIWAT / 2))
-			brcms_c_txflowcontrol(wlc, qi, OFF, ALLPRIO);
-	}
 	in_send_q = false;
 }
 
