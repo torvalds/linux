@@ -3046,7 +3046,14 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 
     if(RK29_CTRL_SDMMC_ID== host->pdev->id)
     {
-        clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+        if(rk29_sdmmc_get_cd(host->mmc))
+        {
+            set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+        }
+        else
+        {
+            clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+        }
     }
 
 
