@@ -1458,15 +1458,18 @@ static int em_popf(struct x86_emulate_ctxt *ctxt)
 	return emulate_popf(ctxt, &ctxt->dst.val, ctxt->op_bytes);
 }
 
-static int emulate_push_sreg(struct x86_emulate_ctxt *ctxt, int seg)
+static int em_push_sreg(struct x86_emulate_ctxt *ctxt)
 {
+	int seg = ctxt->src2.val;
+
 	ctxt->src.val = get_segment_selector(ctxt, seg);
 
 	return em_push(ctxt);
 }
 
-static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt, int seg)
+static int em_pop_sreg(struct x86_emulate_ctxt *ctxt)
 {
+	int seg = ctxt->src2.val;
 	unsigned long selector;
 	int rc;
 
@@ -3114,19 +3117,20 @@ static struct gprefix pfx_0f_6f_0f_7f = {
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	I6ALU(Lock, em_add),
-	D(ImplicitOps | Stack | No64 | Src2ES),
-	D(ImplicitOps | Stack | No64 | Src2ES),
+	I(ImplicitOps | Stack | No64 | Src2ES, em_push_sreg),
+	I(ImplicitOps | Stack | No64 | Src2ES, em_pop_sreg),
 	/* 0x08 - 0x0F */
 	I6ALU(Lock, em_or),
-	D(ImplicitOps | Stack | No64 | Src2CS), N,
+	I(ImplicitOps | Stack | No64 | Src2CS, em_push_sreg),
+	N,
 	/* 0x10 - 0x17 */
 	I6ALU(Lock, em_adc),
-	D(ImplicitOps | Stack | No64 | Src2SS),
-	D(ImplicitOps | Stack | No64 | Src2SS),
+	I(ImplicitOps | Stack | No64 | Src2SS, em_push_sreg),
+	I(ImplicitOps | Stack | No64 | Src2SS, em_pop_sreg),
 	/* 0x18 - 0x1F */
 	I6ALU(Lock, em_sbb),
-	D(ImplicitOps | Stack | No64 | Src2DS),
-	D(ImplicitOps | Stack | No64 | Src2DS),
+	I(ImplicitOps | Stack | No64 | Src2DS, em_push_sreg),
+	I(ImplicitOps | Stack | No64 | Src2DS, em_pop_sreg),
 	/* 0x20 - 0x27 */
 	I6ALU(Lock, em_and), N, N,
 	/* 0x28 - 0x2F */
@@ -3270,12 +3274,12 @@ static struct opcode twobyte_table[256] = {
 	/* 0x90 - 0x9F */
 	X16(D(ByteOp | DstMem | SrcNone | ModRM| Mov)),
 	/* 0xA0 - 0xA7 */
-	D(Stack | Src2FS), D(Stack | Src2FS),
+	I(Stack | Src2FS, em_push_sreg), I(Stack | Src2FS, em_pop_sreg),
 	DI(ImplicitOps, cpuid), D(DstMem | SrcReg | ModRM | BitOp),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM), N, N,
 	/* 0xA8 - 0xAF */
-	D(Stack | Src2GS), D(Stack | Src2GS),
+	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
 	DI(ImplicitOps, rsm), D(DstMem | SrcReg | ModRM | BitOp | Lock),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM),
@@ -3839,16 +3843,6 @@ special_insn:
 		goto twobyte_insn;
 
 	switch (ctxt->b) {
-	case 0x06:		/* push es */
-	case 0x0e:		/* push cs */
-	case 0x16:		/* push ss */
-	case 0x1e:		/* push ds */
-		rc = emulate_push_sreg(ctxt, ctxt->src2.val);
-		break;
-	case 0x07:		/* pop es */
-	case 0x17:		/* pop ss */
-	case 0x1f:		/* pop ds */
-		rc = emulate_pop_sreg(ctxt, ctxt->src2.val);
 	case 0x40 ... 0x47: /* inc r16/r32 */
 		emulate_1op(ctxt, "inc");
 		break;
@@ -4096,14 +4090,6 @@ twobyte_insn:
 		break;
 	case 0x90 ... 0x9f:     /* setcc r/m8 */
 		ctxt->dst.val = test_cc(ctxt->b, ctxt->eflags);
-		break;
-	case 0xa0:	  /* push fs */
-	case 0xa8:	  /* push gs */
-		rc = emulate_push_sreg(ctxt, ctxt->src2.val);
-		break;
-	case 0xa1:	 /* pop fs */
-	case 0xa9:	 /* pop gs */
-		rc = emulate_pop_sreg(ctxt, ctxt->src2.val);
 		break;
 	case 0xa3:
 	      bt:		/* bt */
