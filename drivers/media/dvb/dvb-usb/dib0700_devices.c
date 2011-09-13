@@ -125,8 +125,9 @@ static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 		adap->dev->udev->descriptor.idProduct == cpu_to_le16(USB_PID_HAUPPAUGE_NOVA_T_500_2)) {
 		if (!eeprom_read(prim_i2c,0x59 + adap->id,&a)) if1=1220+a;
 	}
-	return dvb_attach(mt2060_attach,adap->fe_adap[0].fe, tun_i2c,&bristol_mt2060_config[adap->id],
-		if1) == NULL ? -ENODEV : 0;
+	return dvb_attach(mt2060_attach, adap->fe_adap[0].fe, tun_i2c,
+			  &bristol_mt2060_config[adap->id], if1) == NULL ?
+			  -ENODEV : 0;
 }
 
 /* STK7700D: Pinnacle/Terratec/Hauppauge Dual DVB-T Diversity */
