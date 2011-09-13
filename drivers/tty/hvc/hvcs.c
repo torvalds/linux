@@ -1532,7 +1532,7 @@ static int __devinit hvcs_initialize(void)
 		goto register_fail;
 	}
 
-	hvcs_pi_buff = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	hvcs_pi_buff = (unsigned long *) __get_free_page(GFP_KERNEL);
 	if (!hvcs_pi_buff) {
 		rc = -ENOMEM;
 		goto buff_alloc_fail;
@@ -1548,7 +1548,7 @@ static int __devinit hvcs_initialize(void)
 	return 0;
 
 kthread_fail:
-	kfree(hvcs_pi_buff);
+	free_page((unsigned long)hvcs_pi_buff);
 buff_alloc_fail:
 	tty_unregister_driver(hvcs_tty_driver);
 register_fail:
@@ -1597,7 +1597,7 @@ static void __exit hvcs_module_exit(void)
 	kthread_stop(hvcs_task);
 
 	spin_lock(&hvcs_pi_lock);
-	kfree(hvcs_pi_buff);
+	free_page((unsigned long)hvcs_pi_buff);
 	hvcs_pi_buff = NULL;
 	spin_unlock(&hvcs_pi_lock);
 
