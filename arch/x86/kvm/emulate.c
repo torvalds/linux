@@ -3361,11 +3361,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		rc = decode_imm(ctxt, op, 1, false);
 		break;
 	case OpMem:
-	case OpMem64:
-		if (d == OpMem64)
-			ctxt->memop.bytes = 8;
-		else
-			ctxt->memop.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+		ctxt->memop.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 	mem_common:
 		*op = ctxt->memop;
 		ctxt->memopp = op;
@@ -3373,6 +3369,9 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 			fetch_bit_operand(ctxt);
 		op->orig_val = op->val;
 		break;
+	case OpMem64:
+		ctxt->memop.bytes = 8;
+		goto mem_common;
 	case OpAcc:
 		op->type = OP_REG;
 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
