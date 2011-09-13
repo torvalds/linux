@@ -449,8 +449,7 @@ static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
 			mpu_irq[dev] = -1;
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_CS4232,
 					mpu_port[dev], 0,
-					mpu_irq[dev],
-					mpu_irq[dev] >= 0 ? IRQF_DISABLED : 0, NULL) < 0)
+					mpu_irq[dev], NULL) < 0)
 			printk(KERN_WARNING IDENT ": MPU401 not detected\n");
 	}
 

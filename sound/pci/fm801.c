@@ -1306,8 +1306,9 @@ static int __devinit snd_card_fm801_probe(struct pci_dev *pci,
 	}
 	if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_FM801,
 				       FM801_REG(chip, MPU401_DATA),
-				       MPU401_INFO_INTEGRATED,
-				       chip->irq, 0, &chip->rmidi)) < 0) {
+				       MPU401_INFO_INTEGRATED |
+				       MPU401_INFO_IRQ_HOOK,
+				       -1, &chip->rmidi)) < 0) {
 		snd_card_free(card);
 		return err;
 	}

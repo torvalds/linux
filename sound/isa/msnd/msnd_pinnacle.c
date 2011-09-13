@@ -600,7 +600,7 @@ static int __devinit snd_msnd_attach(struct snd_card *card)
 					  mpu_io[0],
 					  MPU401_MODE_INPUT |
 					  MPU401_MODE_OUTPUT,
-					  mpu_irq[0], IRQF_DISABLED,
+					  mpu_irq[0],
 					  &chip->rmidi);
 		if (err < 0) {
 			printk(KERN_ERR LOGNAME

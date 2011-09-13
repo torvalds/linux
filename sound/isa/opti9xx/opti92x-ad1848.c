@@ -914,7 +914,7 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 		rmidi = NULL;
 	else {
 		error = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-				mpu_port, 0, mpu_irq, IRQF_DISABLED, &rmidi);
+				mpu_port, 0, mpu_irq, &rmidi);
 		if (error)
 			snd_printk(KERN_WARNING "no MPU-401 device at 0x%lx?\n",
 				   mpu_port);

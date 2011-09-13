@@ -449,8 +449,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	if (cs4232_mpu_port[dev] > 0 && cs4232_mpu_port[dev] != SNDRV_AUTO_PORT) {
 		err = snd_mpu401_uart_new(card, midi_dev, MPU401_HW_CS4232,
 					  cs4232_mpu_port[dev], 0,
-					  cs4232_mpu_irq[dev], IRQF_DISABLED,
-					  NULL);
+					  cs4232_mpu_irq[dev], NULL);
 		if (err < 0) {
 			snd_printk (KERN_ERR "can't allocate CS4232 MPU-401 device\n");
 			return err;
