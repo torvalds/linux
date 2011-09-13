@@ -382,7 +382,10 @@ int netvsc_device_remove(struct hv_device *device)
 	hv_set_drvdata(device, NULL);
 	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
-	/* At this point, no one should be accessing netDevice except in here */
+	/*
+	 * At this point, no one should be accessing net_device
+	 * except in here
+	 */
 	dev_notice(&device->device, "net device safe to remove\n");
 
 	/* Now, we can close the channel safely */
