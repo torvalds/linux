@@ -26,9 +26,18 @@
 #define IOMMU_CACHE	(4) /* DMA cache coherency */
 
 struct device;
+struct iommu_domain;
+
+/* iommu fault flags */
+#define IOMMU_FAULT_READ	0x0
+#define IOMMU_FAULT_WRITE	0x1
+
+typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
+				struct device *, unsigned long, int);
 
 struct iommu_domain {
 	void *priv;
+	iommu_fault_handler_t handler;
 };
 
 #define IOMMU_CAP_CACHE_COHERENCY	0x1
@@ -67,6 +76,43 @@ extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,
 				      unsigned long iova);
 extern int iommu_domain_has_cap(struct iommu_domain *domain,
 				unsigned long cap);
+extern void iommu_set_fault_handler(struct iommu_domain *domain,
+					iommu_fault_handler_t handler);
+
+/**
+ * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
+ * @domain: the iommu domain where the fault has happened
+ * @dev: the device where the fault has happened
+ * @iova: the faulting address
+ * @flags: mmu fault flags (e.g. IOMMU_FAULT_READ/IOMMU_FAULT_WRITE/...)
+ *
+ * This function should be called by the low-level IOMMU implementations
+ * whenever IOMMU faults happen, to allow high-level users, that are
+ * interested in such events, to know about them.
+ *
+ * This event may be useful for several possible use cases:
+ * - mere logging of the event
+ * - dynamic TLB/PTE loading
+ * - if restarting of the faulting device is required
+ *
+ * Returns 0 on success and an appropriate error code otherwise (if dynamic
+ * PTE/TLB loading will one day be supported, implementations will be able
+ * to tell whether it succeeded or not according to this return value).
+ */
+static inline int report_iommu_fault(struct iommu_domain *domain,
+		struct device *dev, unsigned long iova, int flags)
+{
+	int ret = 0;
+
+	/*
+	 * if upper layers showed interest and installed a fault handler,
+	 * invoke it.
+	 */
+	if (domain->handler)
+		ret = domain->handler(domain, dev, iova, flags);
+
+	return ret;
+}
 
 #else /* CONFIG_IOMMU_API */
 
@@ -121,6 +167,11 @@ static inline int domain_has_cap(struct iommu_domain *domain,
 				 unsigned long cap)
 {
 	return 0;
+}
+
+static inline void iommu_set_fault_handler(struct iommu_domain *domain,
+					iommu_fault_handler_t handler)
+{
 }
 
 #endif /* CONFIG_IOMMU_API */

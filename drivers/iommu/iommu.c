@@ -39,6 +39,19 @@ bool iommu_found(void)
 }
 EXPORT_SYMBOL_GPL(iommu_found);
 
+/**
+ * iommu_set_fault_handler() - set a fault handler for an iommu domain
+ * @domain: iommu domain
+ * @handler: fault handler
+ */
+void iommu_set_fault_handler(struct iommu_domain *domain,
+					iommu_fault_handler_t handler)
+{
+	BUG_ON(!domain);
+
+	domain->handler = handler;
+}
+
 struct iommu_domain *iommu_domain_alloc(void)
 {
 	struct iommu_domain *domain;
