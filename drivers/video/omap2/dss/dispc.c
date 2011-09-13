@@ -427,6 +427,14 @@ static inline bool dispc_mgr_is_lcd(enum omap_channel channel)
 		return false;
 }
 
+static struct omap_dss_device *dispc_mgr_get_device(enum omap_channel channel)
+{
+	struct omap_overlay_manager *mgr =
+		omap_dss_get_overlay_manager(channel);
+
+	return mgr ? mgr->device : NULL;
+}
+
 bool dispc_mgr_go_busy(enum omap_channel channel)
 {
 	int bit;
@@ -1619,7 +1627,6 @@ static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
 		enum omap_color_mode color_mode)
 {
 	u32 fclk = 0;
-	/* FIXME venc pclk? */
 	u64 tmp, pclk = dispc_mgr_pclk_rate(channel);
 
 	if (height > out_height) {
@@ -1676,7 +1683,6 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 	else
 		vf = 1;
 
-	/* FIXME venc pclk? */
 	return dispc_mgr_pclk_rate(channel) * vf * hf;
 }
 
@@ -2415,17 +2421,32 @@ unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 
 unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 {
-	int pcd;
 	unsigned long r;
-	u32 l;
 
-	l = dispc_read_reg(DISPC_DIVISORo(channel));
+	if (dispc_mgr_is_lcd(channel)) {
+		int pcd;
+		u32 l;
 
-	pcd = FLD_GET(l, 7, 0);
+		l = dispc_read_reg(DISPC_DIVISORo(channel));
 
-	r = dispc_mgr_lclk_rate(channel);
+		pcd = FLD_GET(l, 7, 0);
 
-	return r / pcd;
+		r = dispc_mgr_lclk_rate(channel);
+
+		return r / pcd;
+	} else {
+		struct omap_dss_device *dssdev =
+			dispc_mgr_get_device(channel);
+
+		switch (dssdev->type) {
+		case OMAP_DISPLAY_TYPE_VENC:
+			return venc_get_pixel_clock();
+		case OMAP_DISPLAY_TYPE_HDMI:
+			return hdmi_get_pixel_clock();
+		default:
+			BUG();
+		}
+	}
 }
 
 void dispc_dump_clocks(struct seq_file *s)

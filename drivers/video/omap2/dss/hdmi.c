@@ -266,6 +266,12 @@ static void update_hdmi_timings(struct hdmi_config *cfg,
 	cfg->timings.hsync_pol = cea_vesa_timings[code].hsync_pol;
 }
 
+unsigned long hdmi_get_pixel_clock(void)
+{
+	/* HDMI Pixel Clock in Mhz */
+	return hdmi.ip_data.cfg.timings.timings.pixel_clock * 10000;
+}
+
 static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
 		struct hdmi_pll_info *pi)
 {
