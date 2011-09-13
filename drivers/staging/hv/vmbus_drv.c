@@ -272,6 +272,22 @@ static inline bool is_null_guid(const __u8 *guid)
 	return true;
 }
 
+/*
+ * Return a matching hv_vmbus_device_id pointer.
+ * If there is no match, return NULL.
+ */
+static const struct hv_vmbus_device_id *hv_vmbus_get_id(
+					const struct hv_vmbus_device_id *id,
+					__u8 *guid)
+{
+	for (; !is_null_guid(id->guid); id++)
+		if (!memcmp(&id->guid, guid, sizeof(uuid_le)))
+			return id;
+
+	return NULL;
+}
+
+
 
 /*
  * vmbus_match - Attempt to match the specified device to the specified driver
@@ -280,12 +296,9 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 {
 	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct hv_device *hv_dev = device_to_hv_device(device);
-	const struct hv_vmbus_device_id *id_array = drv->id_table;
 
-	for (; !is_null_guid(id_array->guid); id_array++)
-		if (!memcmp(&id_array->guid, &hv_dev->dev_type.b,
-				sizeof(uuid_le)))
-			return 1;
+	if (hv_vmbus_get_id(drv->id_table, hv_dev->dev_type.b))
+		return 1;
 
 	return 0;
 }
