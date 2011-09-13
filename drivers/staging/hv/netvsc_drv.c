@@ -203,8 +203,12 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				       unsigned int status)
 {
-	struct net_device *net = dev_get_drvdata(&device_obj->device);
+	struct net_device *net;
 	struct net_device_context *ndev_ctx;
+	struct netvsc_device *net_device;
+
+	net_device = hv_get_drvdata(device_obj);
+	net = net_device->ndev;
 
 	if (!net) {
 		netdev_err(net, "got link status but net device "
@@ -236,6 +240,10 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	void *data;
 	int i;
 	unsigned long flags;
+	struct netvsc_device *net_device;
+
+	net_device = hv_get_drvdata(device_obj);
+	net = net_device->ndev;
 
 	if (!net) {
 		netdev_err(net, "got receive callback but net device"
@@ -322,9 +330,11 @@ static void netvsc_send_garp(struct work_struct *w)
 {
 	struct net_device_context *ndev_ctx;
 	struct net_device *net;
+	struct netvsc_device *net_device;
 
 	ndev_ctx = container_of(w, struct net_device_context, dwork.work);
-	net = dev_get_drvdata(&ndev_ctx->device_ctx->device);
+	net_device = hv_get_drvdata(ndev_ctx->device_ctx);
+	net = net_device->ndev;
 	netif_notify_peers(net);
 }
 
@@ -347,7 +357,7 @@ static int netvsc_probe(struct hv_device *dev,
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = dev;
 	atomic_set(&net_device_ctx->avail, ring_size);
-	dev_set_drvdata(&dev->device, net);
+	hv_set_drvdata(dev, net);
 	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_send_garp);
 
 	net->netdev_ops = &device_ops;
@@ -373,7 +383,7 @@ static int netvsc_probe(struct hv_device *dev,
 		netdev_err(net, "unable to add netvsc device (ret %d)\n", ret);
 		unregister_netdev(net);
 		free_netdev(net);
-		dev_set_drvdata(&dev->device, NULL);
+		hv_set_drvdata(dev, NULL);
 		return ret;
 	}
 	memcpy(net->dev_addr, device_info.mac_adr, ETH_ALEN);
@@ -386,8 +396,12 @@ out:
 
 static int netvsc_remove(struct hv_device *dev)
 {
-	struct net_device *net = dev_get_drvdata(&dev->device);
+	struct net_device *net;
 	struct net_device_context *ndev_ctx;
+	struct netvsc_device *net_device;
+
+	net_device = hv_get_drvdata(dev);
+	net = net_device->ndev;
 
 	if (net == NULL) {
 		dev_err(&dev->device, "No net device to remove\n");

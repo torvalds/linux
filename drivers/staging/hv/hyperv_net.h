@@ -392,6 +392,8 @@ struct netvsc_device {
 	struct nvsp_message revoke_packet;
 	/* unsigned char HwMacAddr[HW_MACADDR_LEN]; */
 
+	struct net_device *ndev;
+
 	/* Holds rndis device info */
 	void *extension;
 };

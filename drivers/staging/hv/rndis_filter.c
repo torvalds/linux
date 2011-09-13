@@ -141,7 +141,11 @@ static void put_rndis_request(struct rndis_device *dev,
 static void dump_rndis_message(struct hv_device *hv_dev,
 			struct rndis_message *rndis_msg)
 {
-	struct net_device *netdev = dev_get_drvdata(&hv_dev->device);
+	struct net_device *netdev;
+	struct netvsc_device *net_device;
+
+	net_device = hv_get_drvdata(hv_dev);
+	netdev = net_device->ndev;
 
 	switch (rndis_msg->ndis_msg_type) {
 	case REMOTE_NDIS_PACKET_MSG:
@@ -249,7 +253,9 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 	struct rndis_request *request = NULL;
 	bool found = false;
 	unsigned long flags;
-	struct net_device *ndev = dev_get_drvdata(&dev->net_dev->dev->device);
+	struct net_device *ndev;
+
+	ndev = dev->net_dev->ndev;
 
 	spin_lock_irqsave(&dev->request_lock, flags);
 	list_for_each_entry(request, &dev->req_list, list_ent) {
@@ -356,11 +362,13 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 int rndis_filter_receive(struct hv_device *dev,
 				struct hv_netvsc_packet	*pkt)
 {
-	struct netvsc_device *net_dev = dev->ext;
+	struct netvsc_device *net_dev = hv_get_drvdata(dev);
 	struct rndis_device *rndis_dev;
 	struct rndis_message rndis_msg;
 	struct rndis_message *rndis_hdr;
-	struct net_device *ndev = dev_get_drvdata(&dev->device);
+	struct net_device *ndev;
+
+	ndev = net_dev->ndev;
 
 	if (!net_dev)
 		return -EINVAL;
@@ -517,7 +525,9 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	struct rndis_set_complete *set_complete;
 	u32 status;
 	int ret, t;
-	struct net_device *ndev = dev_get_drvdata(&dev->net_dev->dev->device);
+	struct net_device *ndev;
+
+	ndev = dev->net_dev->ndev;
 
 	request = get_rndis_request(dev, REMOTE_NDIS_SET_MSG,
 			RNDIS_MESSAGE_SIZE(struct rndis_set_request) +
@@ -700,7 +710,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 
 	/* Initialize the rndis device */
-	netDevice = dev->ext;
+	netDevice = hv_get_drvdata(dev);
 
 	netDevice->extension = rndisDevice;
 	rndisDevice->net_dev = netDevice;
@@ -737,7 +747,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 void rndis_filter_device_remove(struct hv_device *dev)
 {
-	struct netvsc_device *net_dev = dev->ext;
+	struct netvsc_device *net_dev = hv_get_drvdata(dev);
 	struct rndis_device *rndis_dev = net_dev->extension;
 
 	/* Halt and release the rndis device */
@@ -752,7 +762,7 @@ void rndis_filter_device_remove(struct hv_device *dev)
 
 int rndis_filter_open(struct hv_device *dev)
 {
-	struct netvsc_device *netDevice = dev->ext;
+	struct netvsc_device *netDevice = hv_get_drvdata(dev);
 
 	if (!netDevice)
 		return -EINVAL;
@@ -762,7 +772,7 @@ int rndis_filter_open(struct hv_device *dev)
 
 int rndis_filter_close(struct hv_device *dev)
 {
-	struct netvsc_device *netDevice = dev->ext;
+	struct netvsc_device *netDevice = hv_get_drvdata(dev);
 
 	if (!netDevice)
 		return -EINVAL;
