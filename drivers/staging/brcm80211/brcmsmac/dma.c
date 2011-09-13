@@ -24,8 +24,8 @@
 #include "dma.h"
 
 /*
- * Each descriptor ring must be 8kB aligned, and fit within a
- * contiguous 8kB physical address.
+ * DMA hardware requires each descriptor ring to be 8kB aligned, and fit within
+ * a contiguous 8kB physical address.
  */
 #define D64RINGALIGN_BITS	13
 #define	D64MAXRINGSZ		(1 << D64RINGALIGN_BITS)
@@ -440,6 +440,10 @@ static bool _dma_descriptor_align(struct dma_info *di)
 	return true;
 }
 
+/*
+ * Descriptor table must start at the DMA hardware dictated alignment, so
+ * allocated memory must be large enough to support this requirement.
+ */
 static void *dma_alloc_consistent(struct pci_dev *pdev, uint size,
 				  u16 align_bits, uint *alloced,
 				  dma_addr_t *pap)
