@@ -1278,7 +1278,6 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.membase = omap_up_info->membase;
 	up->port.mapbase = omap_up_info->mapbase;
 	up->port.flags = omap_up_info->flags;
-	up->port.irqflags = omap_up_info->irqflags;
 	up->port.uartclk = omap_up_info->uartclk;
 	up->uart_dma.uart_base = mem->start;
 

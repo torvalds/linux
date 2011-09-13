@@ -61,7 +61,6 @@ struct omap_uart_port_info {
 	unsigned int		uartclk;	/* UART clock rate */
 	void __iomem		*membase;	/* ioremap cookie or NULL */
 	resource_size_t		mapbase;	/* resource base */
-	unsigned long		irqflags;	/* request_irq flags */
 	upf_t			flags;		/* UPF_* flags */
 };
 
