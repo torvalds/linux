@@ -220,6 +220,7 @@ static struct v4l2_subdev *fimc_md_register_sensor(struct fimc_md *fmd,
 	sd = v4l2_i2c_new_subdev_board(&fmd->v4l2_dev, adapter,
 				       s_info->pdata->board_info, NULL);
 	if (IS_ERR_OR_NULL(sd)) {
+		i2c_put_adapter(adapter);
 		v4l2_err(&fmd->v4l2_dev, "Failed to acquire subdev\n");
 		return NULL;
 	}
@@ -234,12 +235,15 @@ static struct v4l2_subdev *fimc_md_register_sensor(struct fimc_md *fmd,
 static void fimc_md_unregister_sensor(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct i2c_adapter *adapter;
 
 	if (!client)
 		return;
 	v4l2_device_unregister_subdev(sd);
+	adapter = client->adapter;
 	i2c_unregister_device(client);
-	i2c_put_adapter(client->adapter);
+	if (adapter)
+		i2c_put_adapter(adapter);
 }
 
 static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
