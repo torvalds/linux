@@ -3323,8 +3323,9 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	int def_op_bytes, def_ad_bytes, goffset, simd_prefix;
 	bool op_prefix = false;
 	struct opcode opcode;
-	struct operand memop = { .type = OP_NONE }, *memopp = NULL;
 
+	ctxt->memop.type = OP_NONE;
+	ctxt->memopp = NULL;
 	ctxt->_eip = ctxt->eip;
 	ctxt->fetch.start = ctxt->_eip;
 	ctxt->fetch.end = ctxt->fetch.start + insn_len;
@@ -3482,21 +3483,21 @@ done_prefixes:
 
 	/* ModRM and SIB bytes. */
 	if (ctxt->d & ModRM) {
-		rc = decode_modrm(ctxt, &memop);
+		rc = decode_modrm(ctxt, &ctxt->memop);
 		if (!ctxt->has_seg_override)
 			set_seg_override(ctxt, ctxt->modrm_seg);
 	} else if (ctxt->d & MemAbs)
-		rc = decode_abs(ctxt, &memop);
+		rc = decode_abs(ctxt, &ctxt->memop);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
 	if (!ctxt->has_seg_override)
 		set_seg_override(ctxt, VCPU_SREG_DS);
 
-	memop.addr.mem.seg = seg_override(ctxt);
+	ctxt->memop.addr.mem.seg = seg_override(ctxt);
 
-	if (memop.type == OP_MEM && ctxt->ad_bytes != 8)
-		memop.addr.mem.ea = (u32)memop.addr.mem.ea;
+	if (ctxt->memop.type == OP_MEM && ctxt->ad_bytes != 8)
+		ctxt->memop.addr.mem.ea = (u32)ctxt->memop.addr.mem.ea;
 
 	/*
 	 * Decode and fetch the source operand: register, memory
@@ -3509,17 +3510,16 @@ done_prefixes:
 		decode_register_operand(ctxt, &ctxt->src, 0);
 		break;
 	case SrcMem16:
-		memop.bytes = 2;
+		ctxt->memop.bytes = 2;
 		goto srcmem_common;
 	case SrcMem32:
-		memop.bytes = 4;
+		ctxt->memop.bytes = 4;
 		goto srcmem_common;
 	case SrcMem:
-		memop.bytes = (ctxt->d & ByteOp) ? 1 :
-							   ctxt->op_bytes;
+		ctxt->memop.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
 	srcmem_common:
-		ctxt->src = memop;
-		memopp = &ctxt->src;
+		ctxt->src = ctxt->memop;
+		ctxt->memopp = &ctxt->src;
 		break;
 	case SrcImmU16:
 		rc = decode_imm(ctxt, &ctxt->src, 2, false);
@@ -3561,7 +3561,7 @@ done_prefixes:
 		insn_fetch_arr(ctxt->src.valptr, ctxt->src.bytes, ctxt);
 		break;
 	case SrcMemFAddr:
-		memop.bytes = ctxt->op_bytes + 2;
+		ctxt->memop.bytes = ctxt->op_bytes + 2;
 		goto srcmem_common;
 		break;
 	case SrcDX:
@@ -3615,8 +3615,8 @@ done_prefixes:
 		break;
 	case DstMem:
 	case DstMem64:
-		ctxt->dst = memop;
-		memopp = &ctxt->dst;
+		ctxt->dst = ctxt->memop;
+		ctxt->memopp = &ctxt->dst;
 		if ((ctxt->d & DstMask) == DstMem64)
 			ctxt->dst.bytes = 8;
 		else
@@ -3654,8 +3654,8 @@ done_prefixes:
 	}
 
 done:
-	if (memopp && memopp->type == OP_MEM && ctxt->rip_relative)
-		memopp->addr.mem.ea += ctxt->_eip;
+	if (ctxt->memopp && ctxt->memopp->type == OP_MEM && ctxt->rip_relative)
+		ctxt->memopp->addr.mem.ea += ctxt->_eip;
 
 	return (rc != X86EMUL_CONTINUE) ? EMULATION_FAILED : EMULATION_OK;
 }

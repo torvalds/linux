@@ -275,6 +275,8 @@ struct x86_emulate_ctxt {
 	unsigned long _eip;
 	/* Fields above regs are cleared together. */
 	unsigned long regs[NR_VCPU_REGS];
+	struct operand memop;
+	struct operand *memopp;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;
