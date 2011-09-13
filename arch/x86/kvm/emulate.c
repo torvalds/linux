@@ -44,8 +44,15 @@
 #define OpImmByte         10ull  /* 8-bit sign extended immediate */
 #define OpOne             11ull  /* Implied 1 */
 #define OpImm             12ull  /* Sign extended immediate */
+#define OpMem16           13ull  /* Memory operand (16-bit). */
+#define OpMem32           14ull  /* Memory operand (32-bit). */
+#define OpImmU            15ull  /* Immediate operand, zero extended */
+#define OpSI              16ull  /* SI/ESI/RSI */
+#define OpImmFAddr        17ull  /* Immediate far address */
+#define OpMemFAddr        18ull  /* Far address in memory */
+#define OpImmU16          19ull  /* Immediate operand, 16 bits, zero extended */
 
-#define OpBits             4  /* Width of operand field */
+#define OpBits             5  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
 
 /*
@@ -71,23 +78,24 @@
 #define DstDX       (OpDX << DstShift)
 #define DstMask     (OpMask << DstShift)
 /* Source operand type. */
-#define SrcNone     (0<<5)	/* No source operand. */
-#define SrcReg      (1<<5)	/* Register operand. */
-#define SrcMem      (2<<5)	/* Memory operand. */
-#define SrcMem16    (3<<5)	/* Memory operand (16-bit). */
-#define SrcMem32    (4<<5)	/* Memory operand (32-bit). */
-#define SrcImm      (5<<5)	/* Immediate operand. */
-#define SrcImmByte  (6<<5)	/* 8-bit sign-extended immediate operand. */
-#define SrcOne      (7<<5)	/* Implied '1' */
-#define SrcImmUByte (8<<5)      /* 8-bit unsigned immediate operand. */
-#define SrcImmU     (9<<5)      /* Immediate operand, unsigned */
-#define SrcSI       (0xa<<5)	/* Source is in the DS:RSI */
-#define SrcImmFAddr (0xb<<5)	/* Source is immediate far address */
-#define SrcMemFAddr (0xc<<5)	/* Source is far address in memory */
-#define SrcAcc      (0xd<<5)	/* Source Accumulator */
-#define SrcImmU16   (0xe<<5)    /* Immediate operand, unsigned, 16 bits */
-#define SrcDX       (0xf<<5)	/* Source is in DX register */
-#define SrcMask     (0xf<<5)
+#define SrcShift    6
+#define SrcNone     (OpNone << SrcShift)
+#define SrcReg      (OpReg << SrcShift)
+#define SrcMem      (OpMem << SrcShift)
+#define SrcMem16    (OpMem16 << SrcShift)
+#define SrcMem32    (OpMem32 << SrcShift)
+#define SrcImm      (OpImm << SrcShift)
+#define SrcImmByte  (OpImmByte << SrcShift)
+#define SrcOne      (OpOne << SrcShift)
+#define SrcImmUByte (OpImmUByte << SrcShift)
+#define SrcImmU     (OpImmU << SrcShift)
+#define SrcSI       (OpSI << SrcShift)
+#define SrcImmFAddr (OpImmFAddr << SrcShift)
+#define SrcMemFAddr (OpMemFAddr << SrcShift)
+#define SrcAcc      (OpAcc << SrcShift)
+#define SrcImmU16   (OpImmU16 << SrcShift)
+#define SrcDX       (OpDX << SrcShift)
+#define SrcMask     (OpMask << SrcShift)
 #define BitOp       (1<<11)
 #define MemAbs      (1<<12)      /* Memory operand is absolute displacement */
 #define String      (1<<13)     /* String instruction (rep capable) */
@@ -3354,13 +3362,14 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		break;
 	case OpMem:
 	case OpMem64:
+		if (d == OpMem64)
+			ctxt->memop.bytes = 8;
+		else
+			ctxt->memop.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+	mem_common:
 		*op = ctxt->memop;
 		ctxt->memopp = op;
-		if (d == OpMem64)
-			op->bytes = 8;
-		else
-			op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		if (ctxt->d & BitOp)
+		if ((ctxt->d & BitOp) && op == &ctxt->dst)
 			fetch_bit_operand(ctxt);
 		op->orig_val = op->val;
 		break;
@@ -3399,6 +3408,35 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 	case OpImm:
 		rc = decode_imm(ctxt, op, imm_size(ctxt), true);
 		break;
+	case OpMem16:
+		ctxt->memop.bytes = 2;
+		goto mem_common;
+	case OpMem32:
+		ctxt->memop.bytes = 4;
+		goto mem_common;
+	case OpImmU16:
+		rc = decode_imm(ctxt, op, 2, false);
+		break;
+	case OpImmU:
+		rc = decode_imm(ctxt, op, imm_size(ctxt), false);
+		break;
+	case OpSI:
+		op->type = OP_MEM;
+		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+		op->addr.mem.ea =
+			register_address(ctxt, ctxt->regs[VCPU_REGS_RSI]);
+		op->addr.mem.seg = seg_override(ctxt);
+		op->val = 0;
+		break;
+	case OpImmFAddr:
+		op->type = OP_IMM;
+		op->addr.mem.ea = ctxt->_eip;
+		op->bytes = ctxt->op_bytes + 2;
+		insn_fetch_arr(op->valptr, op->bytes, ctxt);
+		break;
+	case OpMemFAddr:
+		ctxt->memop.bytes = ctxt->op_bytes + 2;
+		goto mem_common;
 	case OpImplicit:
 		/* Special instructions do their own operand decoding. */
 	default:
@@ -3597,75 +3635,7 @@ done_prefixes:
 	 * Decode and fetch the source operand: register, memory
 	 * or immediate.
 	 */
-	switch (ctxt->d & SrcMask) {
-	case SrcNone:
-		break;
-	case SrcReg:
-		decode_register_operand(ctxt, &ctxt->src, 0);
-		break;
-	case SrcMem16:
-		ctxt->memop.bytes = 2;
-		goto srcmem_common;
-	case SrcMem32:
-		ctxt->memop.bytes = 4;
-		goto srcmem_common;
-	case SrcMem:
-		ctxt->memop.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-	srcmem_common:
-		ctxt->src = ctxt->memop;
-		ctxt->memopp = &ctxt->src;
-		break;
-	case SrcImmU16:
-		rc = decode_imm(ctxt, &ctxt->src, 2, false);
-		break;
-	case SrcImm:
-		rc = decode_imm(ctxt, &ctxt->src, imm_size(ctxt), true);
-		break;
-	case SrcImmU:
-		rc = decode_imm(ctxt, &ctxt->src, imm_size(ctxt), false);
-		break;
-	case SrcImmByte:
-		rc = decode_imm(ctxt, &ctxt->src, 1, true);
-		break;
-	case SrcImmUByte:
-		rc = decode_imm(ctxt, &ctxt->src, 1, false);
-		break;
-	case SrcAcc:
-		ctxt->src.type = OP_REG;
-		ctxt->src.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		ctxt->src.addr.reg = &ctxt->regs[VCPU_REGS_RAX];
-		fetch_register_operand(&ctxt->src);
-		break;
-	case SrcOne:
-		ctxt->src.bytes = 1;
-		ctxt->src.val = 1;
-		break;
-	case SrcSI:
-		ctxt->src.type = OP_MEM;
-		ctxt->src.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		ctxt->src.addr.mem.ea =
-			register_address(ctxt, ctxt->regs[VCPU_REGS_RSI]);
-		ctxt->src.addr.mem.seg = seg_override(ctxt);
-		ctxt->src.val = 0;
-		break;
-	case SrcImmFAddr:
-		ctxt->src.type = OP_IMM;
-		ctxt->src.addr.mem.ea = ctxt->_eip;
-		ctxt->src.bytes = ctxt->op_bytes + 2;
-		insn_fetch_arr(ctxt->src.valptr, ctxt->src.bytes, ctxt);
-		break;
-	case SrcMemFAddr:
-		ctxt->memop.bytes = ctxt->op_bytes + 2;
-		goto srcmem_common;
-		break;
-	case SrcDX:
-		ctxt->src.type = OP_REG;
-		ctxt->src.bytes = 2;
-		ctxt->src.addr.reg = &ctxt->regs[VCPU_REGS_RDX];
-		fetch_register_operand(&ctxt->src);
-		break;
-	}
-
+	rc = decode_operand(ctxt, &ctxt->src, (ctxt->d >> SrcShift) & OpMask);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
