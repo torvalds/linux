@@ -431,6 +431,12 @@ struct brcms_b_state {
 	u32 preamble_ovr;	/* preamble override */
 };
 
+struct edcf_acparam {
+	u8 ACI;
+	u8 ECW;
+	u16 TXOP;
+} __packed;
+
 const u8 prio2fifo[NUMPRIO] = {
 	TX_AC_BE_FIFO,		/* 0    BE      AC_BE   Best Effort */
 	TX_AC_BK_FIFO,		/* 1    BK      AC_BK   Background */
@@ -4124,34 +4130,6 @@ static void brcms_c_ht_update_ldpc(struct brcms_c_info *wlc, s8 val)
 	}
 }
 
-/*
- * Initialize a WME Parameter Info Element with default
- * STA parameters from WMM Spec, Table 12
- */
-void
-brcms_c_wme_initparams_sta(struct brcms_c_info *wlc, struct wme_param_ie *pe)
-{
-	static const struct wme_param_ie stadef = {
-		WME_OUI,
-		WME_TYPE,
-		WME_SUBTYPE_PARAM_IE,
-		WME_VER,
-		0,
-		0,
-		{
-		 {EDCF_AC_BE_ACI_STA, EDCF_AC_BE_ECW_STA,
-		  cpu_to_le16(EDCF_AC_BE_TXOP_STA)},
-		 {EDCF_AC_BK_ACI_STA, EDCF_AC_BK_ECW_STA,
-		  cpu_to_le16(EDCF_AC_BK_TXOP_STA)},
-		 {EDCF_AC_VI_ACI_STA, EDCF_AC_VI_ECW_STA,
-		  cpu_to_le16(EDCF_AC_VI_TXOP_STA)},
-		 {EDCF_AC_VO_ACI_STA, EDCF_AC_VO_ECW_STA,
-		  cpu_to_le16(EDCF_AC_VO_TXOP_STA)}
-		 }
-	};
-	memcpy(pe, &stadef, sizeof(*pe));
-}
-
 void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 		       const struct ieee80211_tx_queue_params *params,
 		       bool suspend)
@@ -4222,18 +4200,19 @@ void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 {
 	u16 aci;
 	int i_ac;
-	struct edcf_acparam *edcf_acp;
-
 	struct ieee80211_tx_queue_params txq_pars;
 	struct ieee80211_tx_queue_params *params = &txq_pars;
-
-	/*
-	 * AP uses AC params from wme_param_ie_ap.
-	 * AP advertises AC params from wme_param_ie.
-	 * STA uses AC params from wme_param_ie.
-	 */
-
-	edcf_acp = (struct edcf_acparam *) &wlc->wme_param_ie.acparam[0];
+	static struct edcf_acparam default_edcf_acparams[] = {
+		 {EDCF_AC_BE_ACI_STA, EDCF_AC_BE_ECW_STA,
+		  cpu_to_le16(EDCF_AC_BE_TXOP_STA)},
+		 {EDCF_AC_BK_ACI_STA, EDCF_AC_BK_ECW_STA,
+		  cpu_to_le16(EDCF_AC_BK_TXOP_STA)},
+		 {EDCF_AC_VI_ACI_STA, EDCF_AC_VI_ECW_STA,
+		  cpu_to_le16(EDCF_AC_VI_TXOP_STA)},
+		 {EDCF_AC_VO_ACI_STA, EDCF_AC_VO_ECW_STA,
+		  cpu_to_le16(EDCF_AC_VO_TXOP_STA)}
+	}; /* ucode needs these parameters during its initialization */
+	struct edcf_acparam *edcf_acp = &default_edcf_acparams[0];
 
 	for (i_ac = 0; i_ac < AC_COUNT; i_ac++, edcf_acp++) {
 		/* find out which ac this set of params applies to */
@@ -5293,8 +5272,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	wlc->bsscfg[0] = wlc->cfg;
 	wlc->cfg->_idx = 0;
 	wlc->cfg->wlc = wlc;
-
-	brcms_c_wme_initparams_sta(wlc, &wlc->wme_param_ie);
 
 	wlc->mimoft = FT_HT;
 	wlc->ht_cap.cap_info = HT_CAP;

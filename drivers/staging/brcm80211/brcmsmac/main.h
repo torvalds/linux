@@ -298,22 +298,6 @@ struct modulecb {
 
 };
 
-struct edcf_acparam {
-	u8 ACI;
-	u8 ECW;
-	u16 TXOP;
-} __packed;
-
-struct wme_param_ie {
-	u8 oui[3];
-	u8 type;
-	u8 subtype;
-	u8 version;
-	u8 qosinfo;
-	u8 rsvd;
-	struct edcf_acparam acparam[AC_COUNT];
-} __packed;
-
 struct brcms_hw_band {
 	int bandtype;		/* BRCM_BAND_2G, BRCM_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
@@ -463,8 +447,6 @@ struct brcms_txq_info {
  * WDarmed: watchdog timer is armed.
  * WDlast: last time wlc_watchdog() was called.
  * edcf_txop[AC_COUNT]: current txop for each ac.
- * wme_param_ie: on STA contains parameters in use locally, and on AP
- *		 contains parameters advertised
  * wme_retries: per-AC retry limits.
  * tx_prec_map: Precedence map based on HW FIFO space.
  * fifo2prec_map[NFIFO]: pointer to fifo2_prec map based on WME.
@@ -578,7 +560,6 @@ struct brcms_c_info {
 	/* WME */
 	u16 edcf_txop[AC_COUNT];
 
-	struct wme_param_ie wme_param_ie;
 	u16 wme_retries[AC_COUNT];
 	u16 tx_prec_map;
 	u16 fifo2prec_map[NFIFO];
