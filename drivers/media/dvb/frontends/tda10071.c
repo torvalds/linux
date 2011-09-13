@@ -167,7 +167,7 @@ static int tda10071_cmd_execute(struct tda10071_priv *priv,
 		if (ret)
 			goto error;
 
-		msleep(1);
+		usleep_range(200, 5000);
 	}
 
 	dbg("%s: loop=%d", __func__, i);
@@ -298,7 +298,7 @@ static int tda10071_diseqc_send_master_cmd(struct dvb_frontend *fe,
 		if (ret)
 			goto error;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 
 	dbg("%s: loop=%d", __func__, i);
@@ -352,7 +352,7 @@ static int tda10071_diseqc_recv_slave_reply(struct dvb_frontend *fe,
 		if (ret)
 			goto error;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 
 	dbg("%s: loop=%d", __func__, i);
@@ -423,7 +423,7 @@ static int tda10071_diseqc_send_burst(struct dvb_frontend *fe,
 		if (ret)
 			goto error;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 
 	dbg("%s: loop=%d", __func__, i);
