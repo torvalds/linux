@@ -239,7 +239,8 @@ static void heartbeat_onchannelcallback(void *context)
  * The devices managed by the util driver don't need any additional
  * setup.
  */
-static int util_probe(struct hv_device *dev)
+static int util_probe(struct hv_device *dev,
+			const struct hv_vmbus_device_id *dev_id)
 {
 	return 0;
 }

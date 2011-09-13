@@ -810,7 +810,7 @@ struct hv_driver {
 
 	struct device_driver driver;
 
-	int (*probe)(struct hv_device *);
+	int (*probe)(struct hv_device *, const struct hv_vmbus_device_id *);
 	int (*remove)(struct hv_device *);
 	void (*shutdown)(struct hv_device *);
 

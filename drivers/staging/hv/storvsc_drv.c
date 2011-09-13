@@ -1380,7 +1380,8 @@ MODULE_DEVICE_TABLE(vmbus, id_table);
  * storvsc_probe - Add a new device for this driver
  */
 
-static int storvsc_probe(struct hv_device *device)
+static int storvsc_probe(struct hv_device *device,
+			const struct hv_vmbus_device_id *dev_id)
 {
 	int ret;
 	struct Scsi_Host *host;

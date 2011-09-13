@@ -823,7 +823,8 @@ static int mousevsc_on_device_remove(struct hv_device *device)
 }
 
 
-static int mousevsc_probe(struct hv_device *dev)
+static int mousevsc_probe(struct hv_device *dev,
+			const struct hv_vmbus_device_id *dev_id)
 {
 	int ret = 0;
 

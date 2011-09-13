@@ -329,7 +329,8 @@ static void netvsc_send_garp(struct work_struct *w)
 }
 
 
-static int netvsc_probe(struct hv_device *dev)
+static int netvsc_probe(struct hv_device *dev,
+			const struct hv_vmbus_device_id *dev_id)
 {
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
