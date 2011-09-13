@@ -60,39 +60,57 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-/*
- * Please use this file (iwl-agn-hw.h) only for hardware-related definitions.
+#ifndef __iwl_pci_h__
+#define __iwl_pci_h__
+
+
+/* This file includes the declaration that are internal to the PCI
+ * implementation of the bus layer
  */
 
-#ifndef __iwl_agn_hw_h__
-#define __iwl_agn_hw_h__
+/* configuration for the _agn devices */
+extern struct iwl_cfg iwl5300_agn_cfg;
+extern struct iwl_cfg iwl5100_agn_cfg;
+extern struct iwl_cfg iwl5350_agn_cfg;
+extern struct iwl_cfg iwl5100_bgn_cfg;
+extern struct iwl_cfg iwl5100_abg_cfg;
+extern struct iwl_cfg iwl5150_agn_cfg;
+extern struct iwl_cfg iwl5150_abg_cfg;
+extern struct iwl_cfg iwl6005_2agn_cfg;
+extern struct iwl_cfg iwl6005_2abg_cfg;
+extern struct iwl_cfg iwl6005_2bg_cfg;
+extern struct iwl_cfg iwl6005_2agn_sff_cfg;
+extern struct iwl_cfg iwl1030_bgn_cfg;
+extern struct iwl_cfg iwl1030_bg_cfg;
+extern struct iwl_cfg iwl6030_2agn_cfg;
+extern struct iwl_cfg iwl6030_2abg_cfg;
+extern struct iwl_cfg iwl6030_2bgn_cfg;
+extern struct iwl_cfg iwl6030_2bg_cfg;
+extern struct iwl_cfg iwl6000i_2agn_cfg;
+extern struct iwl_cfg iwl6000i_2abg_cfg;
+extern struct iwl_cfg iwl6000i_2bg_cfg;
+extern struct iwl_cfg iwl6000_3agn_cfg;
+extern struct iwl_cfg iwl6050_2agn_cfg;
+extern struct iwl_cfg iwl6050_2abg_cfg;
+extern struct iwl_cfg iwl6150_bgn_cfg;
+extern struct iwl_cfg iwl6150_bg_cfg;
+extern struct iwl_cfg iwl1000_bgn_cfg;
+extern struct iwl_cfg iwl1000_bg_cfg;
+extern struct iwl_cfg iwl100_bgn_cfg;
+extern struct iwl_cfg iwl100_bg_cfg;
+extern struct iwl_cfg iwl130_bgn_cfg;
+extern struct iwl_cfg iwl130_bg_cfg;
+extern struct iwl_cfg iwl2000_2bgn_cfg;
+extern struct iwl_cfg iwl2000_2bg_cfg;
+extern struct iwl_cfg iwl2000_2bgn_d_cfg;
+extern struct iwl_cfg iwl2030_2bgn_cfg;
+extern struct iwl_cfg iwl2030_2bg_cfg;
+extern struct iwl_cfg iwl6035_2agn_cfg;
+extern struct iwl_cfg iwl6035_2abg_cfg;
+extern struct iwl_cfg iwl6035_2bg_cfg;
+extern struct iwl_cfg iwl105_bg_cfg;
+extern struct iwl_cfg iwl105_bgn_cfg;
+extern struct iwl_cfg iwl135_bg_cfg;
+extern struct iwl_cfg iwl135_bgn_cfg;
 
-#define IWLAGN_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWLAGN_RTC_INST_UPPER_BOUND		(0x020000)
-
-#define IWLAGN_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWLAGN_RTC_DATA_UPPER_BOUND		(0x80C000)
-
-#define IWLAGN_RTC_INST_SIZE (IWLAGN_RTC_INST_UPPER_BOUND - \
-				IWLAGN_RTC_INST_LOWER_BOUND)
-#define IWLAGN_RTC_DATA_SIZE (IWLAGN_RTC_DATA_UPPER_BOUND - \
-				IWLAGN_RTC_DATA_LOWER_BOUND)
-
-/* RSSI to dBm */
-#define IWLAGN_RSSI_OFFSET	44
-
-#define IWLAGN_DEFAULT_TX_RETRY  15
-
-/* Limit range of txpower output target to be between these values */
-#define IWLAGN_TX_POWER_TARGET_POWER_MIN	(0)	/* 0 dBm: 1 milliwatt */
-#define IWLAGN_TX_POWER_TARGET_POWER_MAX	(16)	/* 16 dBm */
-
-/* EEPROM */
-#define IWLAGN_EEPROM_IMG_SIZE		2048
-
-#define IWLAGN_CMD_FIFO_NUM		7
-#define IWLAGN_NUM_QUEUES		20
-#define IWLAGN_NUM_AMPDU_QUEUES		9
-#define IWLAGN_FIRST_AMPDU_QUEUE	11
-
-#endif /* __iwl_agn_hw_h__ */
+#endif /* __iwl_pci_h__ */

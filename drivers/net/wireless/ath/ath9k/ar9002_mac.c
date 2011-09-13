@@ -273,7 +273,7 @@ static int ar9002_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 
 static void ar9002_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 				    u32 pktLen, enum ath9k_pkt_type type,
-				    u32 txPower, u32 keyIx,
+				    u32 txPower, u8 keyIx,
 				    enum ath9k_key_type keyType, u32 flags)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);

@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
+#include <asm/div64.h>
 
 #include <net/mac80211.h>
 
@@ -582,10 +583,13 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	if (chan) {
 		struct survey_info *survey = &priv->survey[chan->hw_value];
 		survey->noise = clamp_t(s8, priv->noise, -128, 127);
-		survey->channel_time = priv->survey_raw.active / 1024;
-		survey->channel_time_tx = priv->survey_raw.tx / 1024;
-		survey->channel_time_busy = priv->survey_raw.cca / 1024 +
-			survey->channel_time_tx;
+		survey->channel_time = priv->survey_raw.active;
+		survey->channel_time_tx = priv->survey_raw.tx;
+		survey->channel_time_busy = priv->survey_raw.tx +
+			priv->survey_raw.cca;
+		do_div(survey->channel_time, 1024);
+		do_div(survey->channel_time_tx, 1024);
+		do_div(survey->channel_time_busy, 1024);
 	}
 
 	tmp = p54_find_and_unlink_skb(priv, hdr->req_id);

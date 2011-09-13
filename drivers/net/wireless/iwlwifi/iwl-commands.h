@@ -69,6 +69,9 @@
 #ifndef __iwl_commands_h__
 #define __iwl_commands_h__
 
+#include <linux/etherdevice.h>
+#include <linux/ieee80211.h>
+
 struct iwl_priv;
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */
@@ -670,7 +673,6 @@ struct iwl_rxon_assoc_cmd {
 
 #define IWL_CONN_MAX_LISTEN_INTERVAL	10
 #define IWL_MAX_UCODE_BEACON_INTERVAL	4 /* 4096 */
-#define IWL39_MAX_UCODE_BEACON_INTERVAL	1 /* 1024 */
 
 /*
  * REPLY_RXON_TIMING = 0x14 (command, has simple generic response)
@@ -806,6 +808,7 @@ struct iwl_qosparam_cmd {
 #define	IWLAGN_STATION_COUNT	16
 
 #define	IWL_INVALID_STATION 	255
+#define IWL_MAX_TID_COUNT	9
 
 #define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2)
 #define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8)
@@ -3909,6 +3912,7 @@ struct iwlagn_wowlan_kek_kck_material_cmd {
  * Union of all expected notifications/responses:
  *
  *****************************************************************************/
+#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
 
 struct iwl_rx_packet {
 	/*

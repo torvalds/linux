@@ -127,7 +127,7 @@ static int iwl_rx_queue_space(const struct iwl_rx_queue *q)
 /**
  * iwl_rx_queue_update_write_ptr - Update the write pointer for the RX queue
  */
-void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
+void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 			struct iwl_rx_queue *q)
 {
 	unsigned long flags;
@@ -138,34 +138,34 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 	if (q->need_update == 0)
 		goto exit_unlock;
 
-	if (priv->cfg->base_params->shadow_reg_enable) {
+	if (hw_params(trans).shadow_reg_enable) {
 		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
-		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write_actual);
+		iwl_write32(bus(trans), FH_RSCSR_CHNL0_WPTR, q->write_actual);
 	} else {
 		/* If power-saving is in use, make sure device is awake */
-		if (test_bit(STATUS_POWER_PMI, &priv->status)) {
-			reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
+		if (test_bit(STATUS_POWER_PMI, &trans->shrd->status)) {
+			reg = iwl_read32(bus(trans), CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-				IWL_DEBUG_INFO(priv,
+				IWL_DEBUG_INFO(trans,
 					"Rx queue requesting wakeup,"
 					" GP1 = 0x%x\n", reg);
-				iwl_set_bit(priv, CSR_GP_CNTRL,
+				iwl_set_bit(bus(trans), CSR_GP_CNTRL,
 					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 				goto exit_unlock;
 			}
 
 			q->write_actual = (q->write & ~0x7);
-			iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
+			iwl_write_direct32(bus(trans), FH_RSCSR_CHNL0_WPTR,
 					q->write_actual);
 
 		/* Else device is assumed to be awake */
 		} else {
 			/* Device expects a multiple of 8 */
 			q->write_actual = (q->write & ~0x7);
-			iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
+			iwl_write_direct32(bus(trans), FH_RSCSR_CHNL0_WPTR,
 				q->write_actual);
 		}
 	}
@@ -178,8 +178,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 /**
  * iwlagn_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
  */
-static inline __le32 iwlagn_dma_addr2rbd_ptr(struct iwl_priv *priv,
-					  dma_addr_t dma_addr)
+static inline __le32 iwlagn_dma_addr2rbd_ptr(dma_addr_t dma_addr)
 {
 	return cpu_to_le32((u32)(dma_addr >> 8));
 }
@@ -195,9 +194,12 @@ static inline __le32 iwlagn_dma_addr2rbd_ptr(struct iwl_priv *priv,
  * also updates the memory address in the firmware to reference the new
  * target buffer.
  */
-static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
+static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 {
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
@@ -214,8 +216,7 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
 		list_del(element);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
-		rxq->bd[rxq->write] = iwlagn_dma_addr2rbd_ptr(priv,
-							      rxb->page_dma);
+		rxq->bd[rxq->write] = iwlagn_dma_addr2rbd_ptr(rxb->page_dma);
 		rxq->queue[rxq->write] = rxb;
 		rxq->write = (rxq->write + 1) & RX_QUEUE_MASK;
 		rxq->free_count--;
@@ -224,7 +225,7 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
 	/* If the pre-allocated buffer pool is dropping low, schedule to
 	 * refill it */
 	if (rxq->free_count <= RX_LOW_WATERMARK)
-		queue_work(priv->workqueue, &priv->rx_replenish);
+		queue_work(trans->shrd->workqueue, &trans_pcie->rx_replenish);
 
 
 	/* If we've added more space for the firmware to place data, tell it.
@@ -233,7 +234,7 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
 		spin_lock_irqsave(&rxq->lock, flags);
 		rxq->need_update = 1;
 		spin_unlock_irqrestore(&rxq->lock, flags);
-		iwl_rx_queue_update_write_ptr(priv, rxq);
+		iwl_rx_queue_update_write_ptr(trans, rxq);
 	}
 }
 
@@ -245,9 +246,12 @@ static void iwlagn_rx_queue_restock(struct iwl_priv *priv)
  * Also restock the Rx queue via iwl_rx_queue_restock.
  * This is called as a scheduled work item (except for during initialization)
  */
-static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
+static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 {
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	struct page *page;
@@ -265,20 +269,21 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		if (rxq->free_count > RX_LOW_WATERMARK)
 			gfp_mask |= __GFP_NOWARN;
 
-		if (priv->hw_params.rx_page_order > 0)
+		if (hw_params(trans).rx_page_order > 0)
 			gfp_mask |= __GFP_COMP;
 
 		/* Alloc a new receive buffer */
-		page = alloc_pages(gfp_mask, priv->hw_params.rx_page_order);
+		page = alloc_pages(gfp_mask,
+				  hw_params(trans).rx_page_order);
 		if (!page) {
 			if (net_ratelimit())
-				IWL_DEBUG_INFO(priv, "alloc_pages failed, "
-					       "order: %d\n",
-					       priv->hw_params.rx_page_order);
+				IWL_DEBUG_INFO(trans, "alloc_pages failed, "
+					   "order: %d\n",
+					   hw_params(trans).rx_page_order);
 
 			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
 			    net_ratelimit())
-				IWL_CRIT(priv, "Failed to alloc_pages with %s."
+				IWL_CRIT(trans, "Failed to alloc_pages with %s."
 					 "Only %u free buffers remaining.\n",
 					 priority == GFP_ATOMIC ?
 					 "GFP_ATOMIC" : "GFP_KERNEL",
@@ -293,7 +298,7 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock_irqrestore(&rxq->lock, flags);
-			__free_pages(page, priv->hw_params.rx_page_order);
+			__free_pages(page, hw_params(trans).rx_page_order);
 			return;
 		}
 		element = rxq->rx_used.next;
@@ -305,8 +310,8 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		BUG_ON(rxb->page);
 		rxb->page = page;
 		/* Get physical address of the RB */
-		rxb->page_dma = dma_map_page(priv->bus->dev, page, 0,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
+		rxb->page_dma = dma_map_page(bus(trans)->dev, page, 0,
+				PAGE_SIZE << hw_params(trans).rx_page_order,
 				DMA_FROM_DEVICE);
 		/* dma address must be no more than 36 bits */
 		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
@@ -322,35 +327,36 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 	}
 }
 
-void iwlagn_rx_replenish(struct iwl_priv *priv)
+void iwlagn_rx_replenish(struct iwl_trans *trans)
 {
 	unsigned long flags;
 
-	iwlagn_rx_allocate(priv, GFP_KERNEL);
+	iwlagn_rx_allocate(trans, GFP_KERNEL);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	iwlagn_rx_queue_restock(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_lock_irqsave(&trans->shrd->lock, flags);
+	iwlagn_rx_queue_restock(trans);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 }
 
-static void iwlagn_rx_replenish_now(struct iwl_priv *priv)
+static void iwlagn_rx_replenish_now(struct iwl_trans *trans)
 {
-	iwlagn_rx_allocate(priv, GFP_ATOMIC);
+	iwlagn_rx_allocate(trans, GFP_ATOMIC);
 
-	iwlagn_rx_queue_restock(priv);
+	iwlagn_rx_queue_restock(trans);
 }
 
 void iwl_bg_rx_replenish(struct work_struct *data)
 {
-	struct iwl_priv *priv =
-	    container_of(data, struct iwl_priv, rx_replenish);
+	struct iwl_trans_pcie *trans_pcie =
+	    container_of(data, struct iwl_trans_pcie, rx_replenish);
+	struct iwl_trans *trans = trans_pcie->trans;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &trans->shrd->status))
 		return;
 
-	mutex_lock(&priv->mutex);
-	iwlagn_rx_replenish(priv);
-	mutex_unlock(&priv->mutex);
+	mutex_lock(&trans->shrd->mutex);
+	iwlagn_rx_replenish(trans);
+	mutex_unlock(&trans->shrd->mutex);
 }
 
 /**
@@ -360,11 +366,13 @@ void iwl_bg_rx_replenish(struct work_struct *data)
  * the appropriate handlers, including command responses,
  * frame-received notifications, and other notifications.
  */
-static void iwl_rx_handle(struct iwl_priv *priv)
+static void iwl_rx_handle(struct iwl_trans *trans)
 {
 	struct iwl_rx_mem_buffer *rxb;
 	struct iwl_rx_packet *pkt;
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	u32 r, i;
 	int reclaim;
 	unsigned long flags;
@@ -379,7 +387,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IWL_DEBUG_RX(priv, "r = %d, i = %d\n", r, i);
+		IWL_DEBUG_RX(trans, "r = %d, i = %d\n", r, i);
 
 	/* calculate total frames need to be restock after handling RX */
 	total_empty = r - rxq->write_actual;
@@ -404,17 +412,17 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 
 		rxq->queue[i] = NULL;
 
-		dma_unmap_page(priv->bus->dev, rxb->page_dma,
-			       PAGE_SIZE << priv->hw_params.rx_page_order,
+		dma_unmap_page(bus(trans)->dev, rxb->page_dma,
+			       PAGE_SIZE << hw_params(trans).rx_page_order,
 			       DMA_FROM_DEVICE);
 		pkt = rxb_addr(rxb);
 
-		IWL_DEBUG_RX(priv, "r = %d, i = %d, %s, 0x%02x\n", r,
+		IWL_DEBUG_RX(trans, "r = %d, i = %d, %s, 0x%02x\n", r,
 			i, get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
 
 		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */
-		trace_iwlwifi_dev_rx(priv, pkt, len);
+		trace_iwlwifi_dev_rx(priv(trans), pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
@@ -430,7 +438,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
 			(pkt->hdr.cmd != REPLY_TX);
 
-		iwl_rx_dispatch(priv, rxb);
+		iwl_rx_dispatch(priv(trans), rxb);
 
 		/*
 		 * XXX: After here, we should always check rxb->page
@@ -442,12 +450,12 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		if (reclaim) {
 			/* Invoke any callbacks, transfer the buffer to caller,
 			 * and fire off the (possibly) blocking
-			 * trans_send_cmd()
+			 * iwl_trans_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb->page)
-				iwl_tx_cmd_complete(priv, rxb);
+				iwl_tx_cmd_complete(priv(trans), rxb);
 			else
-				IWL_WARN(priv, "Claim null rxb?\n");
+				IWL_WARN(trans, "Claim null rxb?\n");
 		}
 
 		/* Reuse the page if possible. For notification packets and
@@ -455,8 +463,9 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		 * rx_free list for reuse later. */
 		spin_lock_irqsave(&rxq->lock, flags);
 		if (rxb->page != NULL) {
-			rxb->page_dma = dma_map_page(priv->bus->dev, rxb->page,
-				0, PAGE_SIZE << priv->hw_params.rx_page_order,
+			rxb->page_dma = dma_map_page(bus(trans)->dev, rxb->page,
+				0, PAGE_SIZE <<
+				    hw_params(trans).rx_page_order,
 				DMA_FROM_DEVICE);
 			list_add_tail(&rxb->list, &rxq->rx_free);
 			rxq->free_count++;
@@ -472,7 +481,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 			count++;
 			if (count >= 8) {
 				rxq->read = i;
-				iwlagn_rx_replenish_now(priv);
+				iwlagn_rx_replenish_now(trans);
 				count = 0;
 			}
 		}
@@ -481,13 +490,415 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 	/* Backtrack one entry */
 	rxq->read = i;
 	if (fill_rx)
-		iwlagn_rx_replenish_now(priv);
+		iwlagn_rx_replenish_now(trans);
 	else
-		iwlagn_rx_queue_restock(priv);
+		iwlagn_rx_queue_restock(trans);
+}
+
+static const char * const desc_lookup_text[] = {
+	"OK",
+	"FAIL",
+	"BAD_PARAM",
+	"BAD_CHECKSUM",
+	"NMI_INTERRUPT_WDG",
+	"SYSASSERT",
+	"FATAL_ERROR",
+	"BAD_COMMAND",
+	"HW_ERROR_TUNE_LOCK",
+	"HW_ERROR_TEMPERATURE",
+	"ILLEGAL_CHAN_FREQ",
+	"VCC_NOT_STABLE",
+	"FH_ERROR",
+	"NMI_INTERRUPT_HOST",
+	"NMI_INTERRUPT_ACTION_PT",
+	"NMI_INTERRUPT_UNKNOWN",
+	"UCODE_VERSION_MISMATCH",
+	"HW_ERROR_ABS_LOCK",
+	"HW_ERROR_CAL_LOCK_FAIL",
+	"NMI_INTERRUPT_INST_ACTION_PT",
+	"NMI_INTERRUPT_DATA_ACTION_PT",
+	"NMI_TRM_HW_ER",
+	"NMI_INTERRUPT_TRM",
+	"NMI_INTERRUPT_BREAK_POINT",
+	"DEBUG_0",
+	"DEBUG_1",
+	"DEBUG_2",
+	"DEBUG_3",
+};
+
+static struct { char *name; u8 num; } advanced_lookup[] = {
+	{ "NMI_INTERRUPT_WDG", 0x34 },
+	{ "SYSASSERT", 0x35 },
+	{ "UCODE_VERSION_MISMATCH", 0x37 },
+	{ "BAD_COMMAND", 0x38 },
+	{ "NMI_INTERRUPT_DATA_ACTION_PT", 0x3C },
+	{ "FATAL_ERROR", 0x3D },
+	{ "NMI_TRM_HW_ERR", 0x46 },
+	{ "NMI_INTERRUPT_TRM", 0x4C },
+	{ "NMI_INTERRUPT_BREAK_POINT", 0x54 },
+	{ "NMI_INTERRUPT_WDG_RXF_FULL", 0x5C },
+	{ "NMI_INTERRUPT_WDG_NO_RBD_RXF_FULL", 0x64 },
+	{ "NMI_INTERRUPT_HOST", 0x66 },
+	{ "NMI_INTERRUPT_ACTION_PT", 0x7C },
+	{ "NMI_INTERRUPT_UNKNOWN", 0x84 },
+	{ "NMI_INTERRUPT_INST_ACTION_PT", 0x86 },
+	{ "ADVANCED_SYSASSERT", 0 },
+};
+
+static const char *desc_lookup(u32 num)
+{
+	int i;
+	int max = ARRAY_SIZE(desc_lookup_text);
+
+	if (num < max)
+		return desc_lookup_text[num];
+
+	max = ARRAY_SIZE(advanced_lookup) - 1;
+	for (i = 0; i < max; i++) {
+		if (advanced_lookup[i].num == num)
+			break;
+	}
+	return advanced_lookup[i].name;
+}
+
+#define ERROR_START_OFFSET  (1 * sizeof(u32))
+#define ERROR_ELEM_SIZE     (7 * sizeof(u32))
+
+static void iwl_dump_nic_error_log(struct iwl_trans *trans)
+{
+	u32 base;
+	struct iwl_error_event_table table;
+	struct iwl_priv *priv = priv(trans);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	base = priv->device_pointers.error_event_table;
+	if (priv->ucode_type == IWL_UCODE_INIT) {
+		if (!base)
+			base = priv->init_errlog_ptr;
+	} else {
+		if (!base)
+			base = priv->inst_errlog_ptr;
+	}
+
+	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
+		IWL_ERR(trans,
+			"Not valid error log pointer 0x%08X for %s uCode\n",
+			base,
+			(priv->ucode_type == IWL_UCODE_INIT)
+					? "Init" : "RT");
+		return;
+	}
+
+	iwl_read_targ_mem_words(bus(priv), base, &table, sizeof(table));
+
+	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
+		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
+		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
+			trans->shrd->status, table.valid);
+	}
+
+	trans_pcie->isr_stats.err_code = table.error_id;
+
+	trace_iwlwifi_dev_ucode_error(priv, table.error_id, table.tsf_low,
+				      table.data1, table.data2, table.line,
+				      table.blink1, table.blink2, table.ilink1,
+				      table.ilink2, table.bcon_time, table.gp1,
+				      table.gp2, table.gp3, table.ucode_ver,
+				      table.hw_ver, table.brd_ver);
+	IWL_ERR(trans, "0x%08X | %-28s\n", table.error_id,
+		desc_lookup(table.error_id));
+	IWL_ERR(trans, "0x%08X | uPc\n", table.pc);
+	IWL_ERR(trans, "0x%08X | branchlink1\n", table.blink1);
+	IWL_ERR(trans, "0x%08X | branchlink2\n", table.blink2);
+	IWL_ERR(trans, "0x%08X | interruptlink1\n", table.ilink1);
+	IWL_ERR(trans, "0x%08X | interruptlink2\n", table.ilink2);
+	IWL_ERR(trans, "0x%08X | data1\n", table.data1);
+	IWL_ERR(trans, "0x%08X | data2\n", table.data2);
+	IWL_ERR(trans, "0x%08X | line\n", table.line);
+	IWL_ERR(trans, "0x%08X | beacon time\n", table.bcon_time);
+	IWL_ERR(trans, "0x%08X | tsf low\n", table.tsf_low);
+	IWL_ERR(trans, "0x%08X | tsf hi\n", table.tsf_hi);
+	IWL_ERR(trans, "0x%08X | time gp1\n", table.gp1);
+	IWL_ERR(trans, "0x%08X | time gp2\n", table.gp2);
+	IWL_ERR(trans, "0x%08X | time gp3\n", table.gp3);
+	IWL_ERR(trans, "0x%08X | uCode version\n", table.ucode_ver);
+	IWL_ERR(trans, "0x%08X | hw version\n", table.hw_ver);
+	IWL_ERR(trans, "0x%08X | board version\n", table.brd_ver);
+	IWL_ERR(trans, "0x%08X | hcmd\n", table.hcmd);
+}
+
+/**
+ * iwl_irq_handle_error - called for HW or SW error interrupt from card
+ */
+static void iwl_irq_handle_error(struct iwl_trans *trans)
+{
+	struct iwl_priv *priv = priv(trans);
+	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
+	if (priv->cfg->internal_wimax_coex &&
+	    (!(iwl_read_prph(bus(trans), APMG_CLK_CTRL_REG) &
+			APMS_CLK_VAL_MRB_FUNC_MODE) ||
+	     (iwl_read_prph(bus(trans), APMG_PS_CTRL_REG) &
+			APMG_PS_CTRL_VAL_RESET_REQ))) {
+		/*
+		 * Keep the restart process from trying to send host
+		 * commands by clearing the ready bit.
+		 */
+		clear_bit(STATUS_READY, &trans->shrd->status);
+		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
+		wake_up_interruptible(&priv->wait_command_queue);
+		IWL_ERR(trans, "RF is used by WiMAX\n");
+		return;
+	}
+
+	IWL_ERR(trans, "Loaded firmware version: %s\n",
+		priv->hw->wiphy->fw_version);
+
+	iwl_dump_nic_error_log(trans);
+	iwl_dump_csr(trans);
+	iwl_dump_fh(trans, NULL, false);
+	iwl_dump_nic_event_log(trans, false, NULL, false);
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_get_debug_level(trans->shrd) & IWL_DL_FW_ERRORS)
+		iwl_print_rx_config_cmd(priv,
+					&priv->contexts[IWL_RXON_CTX_BSS]);
+#endif
+
+	iwlagn_fw_error(priv, false);
+}
+
+#define EVENT_START_OFFSET  (4 * sizeof(u32))
+
+/**
+ * iwl_print_event_log - Dump error event log to syslog
+ *
+ */
+static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
+			       u32 num_events, u32 mode,
+			       int pos, char **buf, size_t bufsz)
+{
+	u32 i;
+	u32 base;       /* SRAM byte address of event log header */
+	u32 event_size; /* 2 u32s, or 3 u32s if timestamp recorded */
+	u32 ptr;        /* SRAM byte address of log data */
+	u32 ev, time, data; /* event log data */
+	unsigned long reg_flags;
+	struct iwl_priv *priv = priv(trans);
+
+	if (num_events == 0)
+		return pos;
+
+	base = priv->device_pointers.log_event_table;
+	if (priv->ucode_type == IWL_UCODE_INIT) {
+		if (!base)
+			base = priv->init_evtlog_ptr;
+	} else {
+		if (!base)
+			base = priv->inst_evtlog_ptr;
+	}
+
+	if (mode == 0)
+		event_size = 2 * sizeof(u32);
+	else
+		event_size = 3 * sizeof(u32);
+
+	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
+
+	/* Make sure device is powered up for SRAM reads */
+	spin_lock_irqsave(&bus(priv)->reg_lock, reg_flags);
+	iwl_grab_nic_access(bus(priv));
+
+	/* Set starting address; reads will auto-increment */
+	iwl_write32(bus(priv), HBUS_TARG_MEM_RADDR, ptr);
+	rmb();
+
+	/* "time" is actually "data" for mode 0 (no timestamp).
+	* place event id # at far right for easier visual parsing. */
+	for (i = 0; i < num_events; i++) {
+		ev = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+		time = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+		if (mode == 0) {
+			/* data, ev */
+			if (bufsz) {
+				pos += scnprintf(*buf + pos, bufsz - pos,
+						"EVT_LOG:0x%08x:%04u\n",
+						time, ev);
+			} else {
+				trace_iwlwifi_dev_ucode_event(priv, 0,
+					time, ev);
+				IWL_ERR(trans, "EVT_LOG:0x%08x:%04u\n",
+					time, ev);
+			}
+		} else {
+			data = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+			if (bufsz) {
+				pos += scnprintf(*buf + pos, bufsz - pos,
+						"EVT_LOGT:%010u:0x%08x:%04u\n",
+						 time, data, ev);
+			} else {
+				IWL_ERR(trans, "EVT_LOGT:%010u:0x%08x:%04u\n",
+					time, data, ev);
+				trace_iwlwifi_dev_ucode_event(priv, time,
+					data, ev);
+			}
+		}
+	}
+
+	/* Allow device to power down */
+	iwl_release_nic_access(bus(priv));
+	spin_unlock_irqrestore(&bus(priv)->reg_lock, reg_flags);
+	return pos;
+}
+
+/**
+ * iwl_print_last_event_logs - Dump the newest # of event log to syslog
+ */
+static int iwl_print_last_event_logs(struct iwl_trans *trans, u32 capacity,
+				    u32 num_wraps, u32 next_entry,
+				    u32 size, u32 mode,
+				    int pos, char **buf, size_t bufsz)
+{
+	/*
+	 * display the newest DEFAULT_LOG_ENTRIES entries
+	 * i.e the entries just before the next ont that uCode would fill.
+	 */
+	if (num_wraps) {
+		if (next_entry < size) {
+			pos = iwl_print_event_log(trans,
+						capacity - (size - next_entry),
+						size - next_entry, mode,
+						pos, buf, bufsz);
+			pos = iwl_print_event_log(trans, 0,
+						  next_entry, mode,
+						  pos, buf, bufsz);
+		} else
+			pos = iwl_print_event_log(trans, next_entry - size,
+						  size, mode, pos, buf, bufsz);
+	} else {
+		if (next_entry < size) {
+			pos = iwl_print_event_log(trans, 0, next_entry,
+						  mode, pos, buf, bufsz);
+		} else {
+			pos = iwl_print_event_log(trans, next_entry - size,
+						  size, mode, pos, buf, bufsz);
+		}
+	}
+	return pos;
+}
+
+#define DEFAULT_DUMP_EVENT_LOG_ENTRIES (20)
+
+int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
+			    char **buf, bool display)
+{
+	u32 base;       /* SRAM byte address of event log header */
+	u32 capacity;   /* event log capacity in # entries */
+	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
+	u32 num_wraps;  /* # times uCode wrapped to top of log */
+	u32 next_entry; /* index of next entry to be written by uCode */
+	u32 size;       /* # entries that we'll print */
+	u32 logsize;
+	int pos = 0;
+	size_t bufsz = 0;
+	struct iwl_priv *priv = priv(trans);
+
+	base = priv->device_pointers.log_event_table;
+	if (priv->ucode_type == IWL_UCODE_INIT) {
+		logsize = priv->init_evtlog_size;
+		if (!base)
+			base = priv->init_evtlog_ptr;
+	} else {
+		logsize = priv->inst_evtlog_size;
+		if (!base)
+			base = priv->inst_evtlog_ptr;
+	}
+
+	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
+		IWL_ERR(trans,
+			"Invalid event log pointer 0x%08X for %s uCode\n",
+			base,
+			(priv->ucode_type == IWL_UCODE_INIT)
+					? "Init" : "RT");
+		return -EINVAL;
+	}
+
+	/* event log header */
+	capacity = iwl_read_targ_mem(bus(priv), base);
+	mode = iwl_read_targ_mem(bus(priv), base + (1 * sizeof(u32)));
+	num_wraps = iwl_read_targ_mem(bus(priv), base + (2 * sizeof(u32)));
+	next_entry = iwl_read_targ_mem(bus(priv), base + (3 * sizeof(u32)));
+
+	if (capacity > logsize) {
+		IWL_ERR(trans, "Log capacity %d is bogus, limit to %d "
+			"entries\n", capacity, logsize);
+		capacity = logsize;
+	}
+
+	if (next_entry > logsize) {
+		IWL_ERR(trans, "Log write index %d is bogus, limit to %d\n",
+			next_entry, logsize);
+		next_entry = logsize;
+	}
+
+	size = num_wraps ? capacity : next_entry;
+
+	/* bail out if nothing in log */
+	if (size == 0) {
+		IWL_ERR(trans, "Start IWL Event Log Dump: nothing in log\n");
+		return pos;
+	}
+
+	/* enable/disable bt channel inhibition */
+	priv->bt_ch_announce = iwlagn_mod_params.bt_ch_announce;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (!(iwl_get_debug_level(trans->shrd) & IWL_DL_FW_ERRORS) && !full_log)
+		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
+			? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
+#else
+	size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
+		? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
+#endif
+	IWL_ERR(trans, "Start IWL Event Log Dump: display last %u entries\n",
+		size);
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (display) {
+		if (full_log)
+			bufsz = capacity * 48;
+		else
+			bufsz = size * 48;
+		*buf = kmalloc(bufsz, GFP_KERNEL);
+		if (!*buf)
+			return -ENOMEM;
+	}
+	if ((iwl_get_debug_level(trans->shrd) & IWL_DL_FW_ERRORS) || full_log) {
+		/*
+		 * if uCode has wrapped back to top of log,
+		 * start at the oldest entry,
+		 * i.e the next one that uCode would fill.
+		 */
+		if (num_wraps)
+			pos = iwl_print_event_log(trans, next_entry,
+						capacity - next_entry, mode,
+						pos, buf, bufsz);
+		/* (then/else) start at top of log */
+		pos = iwl_print_event_log(trans, 0,
+					  next_entry, mode, pos, buf, bufsz);
+	} else
+		pos = iwl_print_last_event_logs(trans, capacity, num_wraps,
+						next_entry, size, mode,
+						pos, buf, bufsz);
+#else
+	pos = iwl_print_last_event_logs(trans, capacity, num_wraps,
+					next_entry, size, mode,
+					pos, buf, bufsz);
+#endif
+	return pos;
 }
 
 /* tasklet for iwlagn interrupt */
-void iwl_irq_tasklet(struct iwl_priv *priv)
+void iwl_irq_tasklet(struct iwl_trans *trans)
 {
 	u32 inta = 0;
 	u32 handled = 0;
@@ -497,7 +908,12 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	u32 inta_mask;
 #endif
 
-	spin_lock_irqsave(&priv->lock, flags);
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
+
+
+	spin_lock_irqsave(&trans->shrd->lock, flags);
 
 	/* Ack/clear/reset pending uCode interrupts.
 	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
@@ -510,33 +926,34 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	 * hardware bugs here by ACKing all the possible interrupts so that
 	 * interrupt coalescing can still be achieved.
 	 */
-	iwl_write32(priv, CSR_INT, priv->inta | ~priv->inta_mask);
+	iwl_write32(bus(trans), CSR_INT,
+		trans_pcie->inta | ~trans_pcie->inta_mask);
 
-	inta = priv->inta;
+	inta = trans_pcie->inta;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
+	if (iwl_get_debug_level(trans->shrd) & IWL_DL_ISR) {
 		/* just for debug */
-		inta_mask = iwl_read32(priv, CSR_INT_MASK);
-		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x\n ",
+		inta_mask = iwl_read32(bus(trans), CSR_INT_MASK);
+		IWL_DEBUG_ISR(trans, "inta 0x%08x, enabled 0x%08x\n ",
 				inta, inta_mask);
 	}
 #endif
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 
-	/* saved interrupt in inta variable now we can reset priv->inta */
-	priv->inta = 0;
+	/* saved interrupt in inta variable now we can reset trans_pcie->inta */
+	trans_pcie->inta = 0;
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IWL_ERR(priv, "Hardware error detected.  Restarting.\n");
+		IWL_ERR(trans, "Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
-		iwl_disable_interrupts(priv);
+		iwl_disable_interrupts(trans);
 
-		priv->isr_stats.hw++;
-		iwl_irq_handle_error(priv);
+		isr_stats->hw++;
+		iwl_irq_handle_error(trans);
 
 		handled |= CSR_INT_BIT_HW_ERR;
 
@@ -544,18 +961,18 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(trans->shrd) & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
-			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
+			IWL_DEBUG_ISR(trans, "Scheduler finished to transmit "
 				      "the frame/frames.\n");
-			priv->isr_stats.sch++;
+			isr_stats->sch++;
 		}
 
 		/* Alive notification via Rx interrupt will do the real work */
 		if (inta & CSR_INT_BIT_ALIVE) {
-			IWL_DEBUG_ISR(priv, "Alive interrupt\n");
-			priv->isr_stats.alive++;
+			IWL_DEBUG_ISR(trans, "Alive interrupt\n");
+			isr_stats->alive++;
 		}
 	}
 #endif
@@ -565,26 +982,29 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	/* HW RF KILL switch toggled */
 	if (inta & CSR_INT_BIT_RF_KILL) {
 		int hw_rf_kill = 0;
-		if (!(iwl_read32(priv, CSR_GP_CNTRL) &
+		if (!(iwl_read32(bus(trans), CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
-		IWL_WARN(priv, "RF_KILL bit toggled to %s.\n",
+		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio" : "enable radio");
 
-		priv->isr_stats.rfkill++;
+		isr_stats->rfkill++;
 
 		/* driver only loads ucode once setting the interface up.
 		 * the driver allows loading the ucode even if the radio
 		 * is killed. Hence update the killswitch state here. The
 		 * rfkill handler will care about restarting if needed.
 		 */
-		if (!test_bit(STATUS_ALIVE, &priv->status)) {
+		if (!test_bit(STATUS_ALIVE, &trans->shrd->status)) {
 			if (hw_rf_kill)
-				set_bit(STATUS_RF_KILL_HW, &priv->status);
+				set_bit(STATUS_RF_KILL_HW,
+					&trans->shrd->status);
 			else
-				clear_bit(STATUS_RF_KILL_HW, &priv->status);
-			wiphy_rfkill_set_hw_state(priv->hw->wiphy, hw_rf_kill);
+				clear_bit(STATUS_RF_KILL_HW,
+					  &trans->shrd->status);
+			wiphy_rfkill_set_hw_state(priv(trans)->hw->wiphy,
+						  hw_rf_kill);
 		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
@@ -592,28 +1012,29 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 
 	/* Chip got too hot and stopped itself */
 	if (inta & CSR_INT_BIT_CT_KILL) {
-		IWL_ERR(priv, "Microcode CT kill error detected.\n");
-		priv->isr_stats.ctkill++;
+		IWL_ERR(trans, "Microcode CT kill error detected.\n");
+		isr_stats->ctkill++;
 		handled |= CSR_INT_BIT_CT_KILL;
 	}
 
 	/* Error detected by uCode */
 	if (inta & CSR_INT_BIT_SW_ERR) {
-		IWL_ERR(priv, "Microcode SW error detected. "
+		IWL_ERR(trans, "Microcode SW error detected. "
 			" Restarting 0x%X.\n", inta);
-		priv->isr_stats.sw++;
-		iwl_irq_handle_error(priv);
+		isr_stats->sw++;
+		iwl_irq_handle_error(trans);
 		handled |= CSR_INT_BIT_SW_ERR;
 	}
 
 	/* uCode wakes up after power-down sleep */
 	if (inta & CSR_INT_BIT_WAKEUP) {
-		IWL_DEBUG_ISR(priv, "Wakeup interrupt\n");
-		iwl_rx_queue_update_write_ptr(priv, &priv->rxq);
-		for (i = 0; i < priv->hw_params.max_txq_num; i++)
-			iwl_txq_update_write_ptr(priv, &priv->txq[i]);
+		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
+		iwl_rx_queue_update_write_ptr(trans, &trans_pcie->rxq);
+		for (i = 0; i < hw_params(trans).max_txq_num; i++)
+			iwl_txq_update_write_ptr(trans,
+						 &trans_pcie->txq[i]);
 
-		priv->isr_stats.wakeup++;
+		isr_stats->wakeup++;
 
 		handled |= CSR_INT_BIT_WAKEUP;
 	}
@@ -623,15 +1044,16 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 	 * notifications from uCode come through here*/
 	if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX |
 			CSR_INT_BIT_RX_PERIODIC)) {
-		IWL_DEBUG_ISR(priv, "Rx interrupt\n");
+		IWL_DEBUG_ISR(trans, "Rx interrupt\n");
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
 			handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
-			iwl_write32(priv, CSR_FH_INT_STATUS,
+			iwl_write32(bus(trans), CSR_FH_INT_STATUS,
 					CSR_FH_INT_RX_MASK);
 		}
 		if (inta & CSR_INT_BIT_RX_PERIODIC) {
 			handled |= CSR_INT_BIT_RX_PERIODIC;
-			iwl_write32(priv, CSR_INT, CSR_INT_BIT_RX_PERIODIC);
+			iwl_write32(bus(trans),
+				CSR_INT, CSR_INT_BIT_RX_PERIODIC);
 		}
 		/* Sending RX interrupt require many steps to be done in the
 		 * the device:
@@ -645,9 +1067,9 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 		 */
 
 		/* Disable periodic interrupt; we use it as just a one-shot. */
-		iwl_write8(priv, CSR_INT_PERIODIC_REG,
+		iwl_write8(bus(trans), CSR_INT_PERIODIC_REG,
 			    CSR_INT_PERIODIC_DIS);
-		iwl_rx_handle(priv);
+		iwl_rx_handle(trans);
 
 		/*
 		 * Enable periodic interrupt in 8 msec only if we received
@@ -657,40 +1079,40 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 		 * to extend the periodic interrupt; one-shot is enough.
 		 */
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX))
-			iwl_write8(priv, CSR_INT_PERIODIC_REG,
+			iwl_write8(bus(trans), CSR_INT_PERIODIC_REG,
 				    CSR_INT_PERIODIC_ENA);
 
-		priv->isr_stats.rx++;
+		isr_stats->rx++;
 	}
 
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta & CSR_INT_BIT_FH_TX) {
-		iwl_write32(priv, CSR_FH_INT_STATUS, CSR_FH_INT_TX_MASK);
-		IWL_DEBUG_ISR(priv, "uCode load interrupt\n");
-		priv->isr_stats.tx++;
+		iwl_write32(bus(trans), CSR_FH_INT_STATUS, CSR_FH_INT_TX_MASK);
+		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
+		isr_stats->tx++;
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
-		priv->ucode_write_complete = 1;
-		wake_up_interruptible(&priv->wait_command_queue);
+		priv(trans)->ucode_write_complete = 1;
+		wake_up_interruptible(&priv(trans)->wait_command_queue);
 	}
 
 	if (inta & ~handled) {
-		IWL_ERR(priv, "Unhandled INTA bits 0x%08x\n", inta & ~handled);
-		priv->isr_stats.unhandled++;
+		IWL_ERR(trans, "Unhandled INTA bits 0x%08x\n", inta & ~handled);
+		isr_stats->unhandled++;
 	}
 
-	if (inta & ~(priv->inta_mask)) {
-		IWL_WARN(priv, "Disabled INTA bits 0x%08x were pending\n",
-			 inta & ~priv->inta_mask);
+	if (inta & ~(trans_pcie->inta_mask)) {
+		IWL_WARN(trans, "Disabled INTA bits 0x%08x were pending\n",
+			 inta & ~trans_pcie->inta_mask);
 	}
 
 	/* Re-enable all interrupts */
 	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &priv->status))
-		iwl_enable_interrupts(priv);
+	if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status))
+		iwl_enable_interrupts(trans);
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
-		iwl_enable_rfkill_int(priv);
+		iwl_enable_rfkill_int(priv(trans));
 }
 
 /******************************************************************************
@@ -701,18 +1123,21 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 #define ICT_COUNT (PAGE_SIZE/sizeof(u32))
 
 /* Free dram table */
-void iwl_free_isr_ict(struct iwl_priv *priv)
+void iwl_free_isr_ict(struct iwl_trans *trans)
 {
-	if (priv->ict_tbl_vir) {
-		dma_free_coherent(priv->bus->dev,
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (trans_pcie->ict_tbl_vir) {
+		dma_free_coherent(bus(trans)->dev,
 				  (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
-				  priv->ict_tbl_vir,
-				  priv->ict_tbl_dma);
-		priv->ict_tbl_vir = NULL;
-		memset(&priv->ict_tbl_dma, 0,
-			sizeof(priv->ict_tbl_dma));
-		memset(&priv->aligned_ict_tbl_dma, 0,
-			sizeof(priv->aligned_ict_tbl_dma));
+				  trans_pcie->ict_tbl_vir,
+				  trans_pcie->ict_tbl_dma);
+		trans_pcie->ict_tbl_vir = NULL;
+		memset(&trans_pcie->ict_tbl_dma, 0,
+			sizeof(trans_pcie->ict_tbl_dma));
+		memset(&trans_pcie->aligned_ict_tbl_dma, 0,
+			sizeof(trans_pcie->aligned_ict_tbl_dma));
 	}
 }
 
@@ -720,157 +1145,168 @@ void iwl_free_isr_ict(struct iwl_priv *priv)
 /* allocate dram shared table it is a PAGE_SIZE aligned
  * also reset all data related to ICT table interrupt.
  */
-int iwl_alloc_isr_ict(struct iwl_priv *priv)
+int iwl_alloc_isr_ict(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	/* allocate shrared data table */
-	priv->ict_tbl_vir =
-		dma_alloc_coherent(priv->bus->dev,
+	trans_pcie->ict_tbl_vir =
+		dma_alloc_coherent(bus(trans)->dev,
 				   (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
-				   &priv->ict_tbl_dma, GFP_KERNEL);
-	if (!priv->ict_tbl_vir)
+				   &trans_pcie->ict_tbl_dma, GFP_KERNEL);
+	if (!trans_pcie->ict_tbl_vir)
 		return -ENOMEM;
 
 	/* align table to PAGE_SIZE boundary */
-	priv->aligned_ict_tbl_dma =
-		ALIGN(priv->ict_tbl_dma, PAGE_SIZE);
+	trans_pcie->aligned_ict_tbl_dma =
+		ALIGN(trans_pcie->ict_tbl_dma, PAGE_SIZE);
 
-	IWL_DEBUG_ISR(priv, "ict dma addr %Lx dma aligned %Lx diff %d\n",
-			     (unsigned long long)priv->ict_tbl_dma,
-			     (unsigned long long)priv->aligned_ict_tbl_dma,
-			     (int)(priv->aligned_ict_tbl_dma -
-			     priv->ict_tbl_dma));
+	IWL_DEBUG_ISR(trans, "ict dma addr %Lx dma aligned %Lx diff %d\n",
+			   (unsigned long long)trans_pcie->ict_tbl_dma,
+			   (unsigned long long)trans_pcie->aligned_ict_tbl_dma,
+			   (int)(trans_pcie->aligned_ict_tbl_dma -
+			   trans_pcie->ict_tbl_dma));
 
-	priv->ict_tbl =  priv->ict_tbl_vir +
-			  (priv->aligned_ict_tbl_dma -
-			  priv->ict_tbl_dma);
+	trans_pcie->ict_tbl =  trans_pcie->ict_tbl_vir +
+			  (trans_pcie->aligned_ict_tbl_dma -
+			  trans_pcie->ict_tbl_dma);
 
-	IWL_DEBUG_ISR(priv, "ict vir addr %p vir aligned %p diff %d\n",
-			     priv->ict_tbl, priv->ict_tbl_vir,
-			(int)(priv->aligned_ict_tbl_dma -
-			    priv->ict_tbl_dma));
+	IWL_DEBUG_ISR(trans, "ict vir addr %p vir aligned %p diff %d\n",
+			     trans_pcie->ict_tbl, trans_pcie->ict_tbl_vir,
+			(int)(trans_pcie->aligned_ict_tbl_dma -
+			    trans_pcie->ict_tbl_dma));
 
 	/* reset table and index to all 0 */
-	memset(priv->ict_tbl_vir, 0,
+	memset(trans_pcie->ict_tbl_vir, 0,
 		(sizeof(u32) * ICT_COUNT) + PAGE_SIZE);
-	priv->ict_index = 0;
+	trans_pcie->ict_index = 0;
 
 	/* add periodic RX interrupt */
-	priv->inta_mask |= CSR_INT_BIT_RX_PERIODIC;
+	trans_pcie->inta_mask |= CSR_INT_BIT_RX_PERIODIC;
 	return 0;
 }
 
 /* Device is going up inform it about using ICT interrupt table,
  * also we need to tell the driver to start using ICT interrupt.
  */
-int iwl_reset_ict(struct iwl_priv *priv)
+int iwl_reset_ict(struct iwl_trans *trans)
 {
 	u32 val;
 	unsigned long flags;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (!priv->ict_tbl_vir)
+	if (!trans_pcie->ict_tbl_vir)
 		return 0;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_disable_interrupts(priv);
+	spin_lock_irqsave(&trans->shrd->lock, flags);
+	iwl_disable_interrupts(trans);
 
-	memset(&priv->ict_tbl[0], 0, sizeof(u32) * ICT_COUNT);
+	memset(&trans_pcie->ict_tbl[0], 0, sizeof(u32) * ICT_COUNT);
 
-	val = priv->aligned_ict_tbl_dma >> PAGE_SHIFT;
+	val = trans_pcie->aligned_ict_tbl_dma >> PAGE_SHIFT;
 
 	val |= CSR_DRAM_INT_TBL_ENABLE;
 	val |= CSR_DRAM_INIT_TBL_WRAP_CHECK;
 
-	IWL_DEBUG_ISR(priv, "CSR_DRAM_INT_TBL_REG =0x%X "
+	IWL_DEBUG_ISR(trans, "CSR_DRAM_INT_TBL_REG =0x%X "
 			"aligned dma address %Lx\n",
 			val,
-			(unsigned long long)priv->aligned_ict_tbl_dma);
+			(unsigned long long)trans_pcie->aligned_ict_tbl_dma);
 
-	iwl_write32(priv, CSR_DRAM_INT_TBL_REG, val);
-	priv->use_ict = true;
-	priv->ict_index = 0;
-	iwl_write32(priv, CSR_INT, priv->inta_mask);
-	iwl_enable_interrupts(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	iwl_write32(bus(trans), CSR_DRAM_INT_TBL_REG, val);
+	trans_pcie->use_ict = true;
+	trans_pcie->ict_index = 0;
+	iwl_write32(bus(trans), CSR_INT, trans_pcie->inta_mask);
+	iwl_enable_interrupts(trans);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 
 	return 0;
 }
 
 /* Device is going down disable ict interrupt usage */
-void iwl_disable_ict(struct iwl_priv *priv)
+void iwl_disable_ict(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->use_ict = false;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_lock_irqsave(&trans->shrd->lock, flags);
+	trans_pcie->use_ict = false;
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 }
 
 static irqreturn_t iwl_isr(int irq, void *data)
 {
-	struct iwl_priv *priv = data;
+	struct iwl_trans *trans = data;
+	struct iwl_trans_pcie *trans_pcie;
 	u32 inta, inta_mask;
 	unsigned long flags;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_fh;
 #endif
-	if (!priv)
+	if (!trans)
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	spin_lock_irqsave(&trans->shrd->lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
 	 * If we have something to service, the tasklet will re-enable ints.
 	 * If we *don't* have something, we'll re-enable before leaving here. */
-	inta_mask = iwl_read32(priv, CSR_INT_MASK);  /* just for debug */
-	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
+	inta_mask = iwl_read32(bus(trans), CSR_INT_MASK);  /* just for debug */
+	iwl_write32(bus(trans), CSR_INT_MASK, 0x00000000);
 
 	/* Discover which interrupts are active/pending */
-	inta = iwl_read32(priv, CSR_INT);
+	inta = iwl_read32(bus(trans), CSR_INT);
 
 	/* Ignore interrupt if there's nothing in NIC to service.
 	 * This may be due to IRQ shared with another device,
 	 * or due to sporadic interrupts thrown from our NIC. */
 	if (!inta) {
-		IWL_DEBUG_ISR(priv, "Ignore interrupt, inta == 0\n");
+		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
 		goto none;
 	}
 
 	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
 		/* Hardware disappeared. It might have already raised
 		 * an interrupt */
-		IWL_WARN(priv, "HARDWARE GONE?? INTA == 0x%08x\n", inta);
+		IWL_WARN(trans, "HARDWARE GONE?? INTA == 0x%08x\n", inta);
 		goto unplugged;
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
-		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
-		IWL_DEBUG_ISR(priv, "ISR inta 0x%08x, enabled 0x%08x, "
+	if (iwl_get_debug_level(trans->shrd) & (IWL_DL_ISR)) {
+		inta_fh = iwl_read32(bus(trans), CSR_FH_INT_STATUS);
+		IWL_DEBUG_ISR(trans, "ISR inta 0x%08x, enabled 0x%08x, "
 			      "fh 0x%08x\n", inta, inta_mask, inta_fh);
 	}
 #endif
 
-	priv->inta |= inta;
+	trans_pcie->inta |= inta;
 	/* iwl_irq_tasklet() will service interrupts and re-enable them */
 	if (likely(inta))
-		tasklet_schedule(&priv->irq_tasklet);
-	else if (test_bit(STATUS_INT_ENABLED, &priv->status) &&
-			!priv->inta)
-		iwl_enable_interrupts(priv);
+		tasklet_schedule(&trans_pcie->irq_tasklet);
+	else if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
+			!trans_pcie->inta)
+		iwl_enable_interrupts(trans);
 
  unplugged:
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 	return IRQ_HANDLED;
 
  none:
 	/* re-enable interrupts here since we don't have anything to service. */
 	/* only Re-enable if disabled by irq  and no schedules tasklet. */
-	if (test_bit(STATUS_INT_ENABLED, &priv->status) && !priv->inta)
-		iwl_enable_interrupts(priv);
+	if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
+		!trans_pcie->inta)
+		iwl_enable_interrupts(trans);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 	return IRQ_NONE;
 }
 
@@ -884,50 +1320,53 @@ static irqreturn_t iwl_isr(int irq, void *data)
  */
 irqreturn_t iwl_isr_ict(int irq, void *data)
 {
-	struct iwl_priv *priv = data;
+	struct iwl_trans *trans = data;
+	struct iwl_trans_pcie *trans_pcie;
 	u32 inta, inta_mask;
 	u32 val = 0;
 	unsigned long flags;
 
-	if (!priv)
+	if (!trans)
 		return IRQ_NONE;
+
+	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	/* dram interrupt table not set yet,
 	 * use legacy interrupt.
 	 */
-	if (!priv->use_ict)
+	if (!trans_pcie->use_ict)
 		return iwl_isr(irq, data);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&trans->shrd->lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 * back-to-back ISRs and sporadic interrupts from our NIC.
 	 * If we have something to service, the tasklet will re-enable ints.
 	 * If we *don't* have something, we'll re-enable before leaving here.
 	 */
-	inta_mask = iwl_read32(priv, CSR_INT_MASK);  /* just for debug */
-	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
+	inta_mask = iwl_read32(bus(trans), CSR_INT_MASK);  /* just for debug */
+	iwl_write32(bus(trans), CSR_INT_MASK, 0x00000000);
 
 
 	/* Ignore interrupt if there's nothing in NIC to service.
 	 * This may be due to IRQ shared with another device,
 	 * or due to sporadic interrupts thrown from our NIC. */
-	if (!priv->ict_tbl[priv->ict_index]) {
-		IWL_DEBUG_ISR(priv, "Ignore interrupt, inta == 0\n");
+	if (!trans_pcie->ict_tbl[trans_pcie->ict_index]) {
+		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
 		goto none;
 	}
 
 	/* read all entries that not 0 start with ict_index */
-	while (priv->ict_tbl[priv->ict_index]) {
+	while (trans_pcie->ict_tbl[trans_pcie->ict_index]) {
 
-		val |= le32_to_cpu(priv->ict_tbl[priv->ict_index]);
-		IWL_DEBUG_ISR(priv, "ICT index %d value 0x%08X\n",
-				priv->ict_index,
+		val |= le32_to_cpu(trans_pcie->ict_tbl[trans_pcie->ict_index]);
+		IWL_DEBUG_ISR(trans, "ICT index %d value 0x%08X\n",
+				trans_pcie->ict_index,
 				le32_to_cpu(
-				    priv->ict_tbl[priv->ict_index]));
-		priv->ict_tbl[priv->ict_index] = 0;
-		priv->ict_index = iwl_queue_inc_wrap(priv->ict_index,
-						     ICT_COUNT);
+				  trans_pcie->ict_tbl[trans_pcie->ict_index]));
+		trans_pcie->ict_tbl[trans_pcie->ict_index] = 0;
+		trans_pcie->ict_index =
+			iwl_queue_inc_wrap(trans_pcie->ict_index, ICT_COUNT);
 
 	}
 
@@ -946,34 +1385,35 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 		val |= 0x8000;
 
 	inta = (0xff & val) | ((0xff00 & val) << 16);
-	IWL_DEBUG_ISR(priv, "ISR inta 0x%08x, enabled 0x%08x ict 0x%08x\n",
+	IWL_DEBUG_ISR(trans, "ISR inta 0x%08x, enabled 0x%08x ict 0x%08x\n",
 			inta, inta_mask, val);
 
-	inta &= priv->inta_mask;
-	priv->inta |= inta;
+	inta &= trans_pcie->inta_mask;
+	trans_pcie->inta |= inta;
 
 	/* iwl_irq_tasklet() will service interrupts and re-enable them */
 	if (likely(inta))
-		tasklet_schedule(&priv->irq_tasklet);
-	else if (test_bit(STATUS_INT_ENABLED, &priv->status) &&
-			!priv->inta) {
+		tasklet_schedule(&trans_pcie->irq_tasklet);
+	else if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
+			!trans_pcie->inta) {
 		/* Allow interrupt if was disabled by this handler and
 		 * no tasklet was schedules, We should not enable interrupt,
 		 * tasklet will enable it.
 		 */
-		iwl_enable_interrupts(priv);
+		iwl_enable_interrupts(trans);
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 	return IRQ_HANDLED;
 
  none:
 	/* re-enable interrupts here since we don't have anything to service.
 	 * only Re-enable if disabled by irq.
 	 */
-	if (test_bit(STATUS_INT_ENABLED, &priv->status) && !priv->inta)
-		iwl_enable_interrupts(priv);
+	if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
+		!trans_pcie->inta)
+		iwl_enable_interrupts(trans);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 	return IRQ_NONE;
 }

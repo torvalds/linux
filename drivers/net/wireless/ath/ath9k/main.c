@@ -546,6 +546,7 @@ set_timer:
 	* The interval must be the shortest necessary to satisfy ANI,
 	* short calibration and long calibration.
 	*/
+	ath9k_debug_samp_bb_mac(sc);
 	cal_interval = ATH_LONG_CALINTERVAL;
 	if (sc->sc_ah->config.enable_ani)
 		cal_interval = min(cal_interval,
@@ -978,6 +979,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	sc->hw_busy_count = 0;
 
+	ath9k_debug_samp_bb_mac(sc);
 	/* Stop ANI */
 
 	del_timer_sync(&common->ani.timer);

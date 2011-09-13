@@ -71,11 +71,6 @@
 struct iwl_host_cmd;
 struct iwl_cmd;
 
-
-#define IWLWIFI_VERSION "in-tree:"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2011 Intel Corporation"
-#define DRV_AUTHOR     "<ilw@linux.intel.com>"
-
 #define TIME_UNIT		1024
 
 #define IWL_CMD(x) case x: return #x
@@ -99,23 +94,6 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	void (*temperature)(struct iwl_priv *priv);
-};
-
-struct iwl_mod_params {
-	int sw_crypto;		/* def: 0 = using hardware encryption */
-	int num_of_queues;	/* def: HW dependent */
-	int disable_11n;	/* def: 0 = 11n capabilities enabled */
-	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
-	int antenna;  		/* def: 0 = both antennas (use diversity) */
-	int restart_fw;		/* def: 1 = restart firmware */
-	bool plcp_check;	/* def: true = enable plcp health check */
-	bool ack_check;		/* def: false = disable ack health check */
-	bool wd_disable;	/* def: false = enable stuck queue check */
-	bool bt_coex_active;	/* def: true = enable bt coex */
-	int led_mode;		/* def: 0 = system default */
-	bool no_sleep_autoadjust; /* def: true = disable autoadjust */
-	bool power_save;	/* def: false = disable power save */
-	int power_level;	/* def: 1 = power level */
 };
 
 /*
@@ -222,16 +200,7 @@ struct iwl_ht_params {
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
  * highest and @ucode_api_min the lowest). Firmware will only be loaded if
- * it has a supported API version. The firmware's API version will be
- * stored in @iwl_priv, enabling the driver to make runtime changes based
- * on firmware version used.
- *
- * For example,
- * if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
- *	Driver interacts with Firmware API version >= 2.
- * } else {
- *	Driver interacts with Firmware API version 1.
- * }
+ * it has a supported API version.
  *
  * The ideal usage of this infrastructure is to treat a new ucode API
  * release as a new hardware revision.
@@ -292,7 +261,6 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
 				   struct iwl_rxon_context *ctx);
 void iwl_set_rate(struct iwl_priv *priv);
-void iwl_irq_handle_error(struct iwl_priv *priv);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
@@ -398,22 +366,10 @@ u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
-#ifdef CONFIG_PM
-int iwl_suspend(struct iwl_priv *priv);
-int iwl_resume(struct iwl_priv *priv);
-#endif /* !CONFIG_PM */
-
-int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg);
-void __devexit iwl_remove(struct iwl_priv * priv);
 
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/
-void iwl_dump_nic_error_log(struct iwl_priv *priv);
-int iwl_dump_nic_event_log(struct iwl_priv *priv,
-			   bool full_log, char **buf, bool display);
-void iwl_dump_csr(struct iwl_priv *priv);
-int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
@@ -424,79 +380,11 @@ static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
-void iwl_clear_isr_stats(struct iwl_priv *priv);
-
 /*****************************************************
 *  GEOS
 ******************************************************/
-int iwlcore_init_geos(struct iwl_priv *priv);
-void iwlcore_free_geos(struct iwl_priv *priv);
-
-/*************** DRIVER STATUS FUNCTIONS   *****/
-
-#define STATUS_HCMD_ACTIVE	0	/* host command in progress */
-/* 1 is unused (used to be STATUS_HCMD_SYNC_ACTIVE) */
-#define STATUS_INT_ENABLED	2
-#define STATUS_RF_KILL_HW	3
-#define STATUS_CT_KILL		4
-#define STATUS_INIT		5
-#define STATUS_ALIVE		6
-#define STATUS_READY		7
-#define STATUS_TEMPERATURE	8
-#define STATUS_GEO_CONFIGURED	9
-#define STATUS_EXIT_PENDING	10
-#define STATUS_STATISTICS	12
-#define STATUS_SCANNING		13
-#define STATUS_SCAN_ABORTING	14
-#define STATUS_SCAN_HW		15
-#define STATUS_POWER_PMI	16
-#define STATUS_FW_ERROR		17
-#define STATUS_DEVICE_ENABLED	18
-#define STATUS_CHANNEL_SWITCH_PENDING 19
-
-
-static inline int iwl_is_ready(struct iwl_priv *priv)
-{
-	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
-	 * set but EXIT_PENDING is not */
-	return test_bit(STATUS_READY, &priv->status) &&
-	       test_bit(STATUS_GEO_CONFIGURED, &priv->status) &&
-	       !test_bit(STATUS_EXIT_PENDING, &priv->status);
-}
-
-static inline int iwl_is_alive(struct iwl_priv *priv)
-{
-	return test_bit(STATUS_ALIVE, &priv->status);
-}
-
-static inline int iwl_is_init(struct iwl_priv *priv)
-{
-	return test_bit(STATUS_INIT, &priv->status);
-}
-
-static inline int iwl_is_rfkill_hw(struct iwl_priv *priv)
-{
-	return test_bit(STATUS_RF_KILL_HW, &priv->status);
-}
-
-static inline int iwl_is_rfkill(struct iwl_priv *priv)
-{
-	return iwl_is_rfkill_hw(priv);
-}
-
-static inline int iwl_is_ctkill(struct iwl_priv *priv)
-{
-	return test_bit(STATUS_CT_KILL, &priv->status);
-}
-
-static inline int iwl_is_ready_rf(struct iwl_priv *priv)
-{
-
-	if (iwl_is_rfkill(priv))
-		return 0;
-
-	return iwl_is_ready(priv);
-}
+int iwl_init_geos(struct iwl_priv *priv);
+void iwl_free_geos(struct iwl_priv *priv);
 
 extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,

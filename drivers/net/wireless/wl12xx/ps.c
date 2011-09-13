@@ -226,8 +226,8 @@ void wl1271_ps_link_start(struct wl1271 *wl, u8 hlid, bool clean_queues)
 	if (test_bit(hlid, &wl->ap_ps_map))
 		return;
 
-	wl1271_debug(DEBUG_PSM, "start mac80211 PSM on hlid %d blks %d "
-		     "clean_queues %d", hlid, wl->links[hlid].allocated_blks,
+	wl1271_debug(DEBUG_PSM, "start mac80211 PSM on hlid %d pkts %d "
+		     "clean_queues %d", hlid, wl->links[hlid].allocated_pkts,
 		     clean_queues);
 
 	rcu_read_lock();

@@ -63,6 +63,8 @@
 #ifndef __iwl_fh_h__
 #define __iwl_fh_h__
 
+#include <linux/types.h>
+
 /****************************/
 /* Flow Handler Definitions */
 /****************************/
@@ -266,8 +268,6 @@
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL    (0x00000000)
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL  (0x00001000)
 
-#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
-
 /**
  * Rx Shared Status Registers (RSSR)
  *
@@ -422,10 +422,6 @@
 #define RX_FREE_BUFFERS 64
 #define RX_LOW_WATERMARK 8
 
-/* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE_4K (4 * 1024)
-#define IWL_RX_BUF_SIZE_8K (8 * 1024)
-
 /**
  * struct iwl_rb_status - reseve buffer status
  * 	host memory mapped FH registers
@@ -507,5 +503,17 @@ struct iwl_tfd {
 
 /* Keep Warm Size */
 #define IWL_KW_SIZE 0x1000	/* 4k */
+
+/* Fixed (non-configurable) rx data from phy */
+
+/**
+ * struct iwlagn_schedq_bc_tbl scheduler byte count table
+ *	base physical address provided by SCD_DRAM_BASE_ADDR
+ * @tfd_offset  0-12 - tx command byte count
+ *	       12-16 - station index
+ */
+struct iwlagn_scd_bc_tbl {
+	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
+} __packed;
 
 #endif /* !__iwl_fh_h__ */

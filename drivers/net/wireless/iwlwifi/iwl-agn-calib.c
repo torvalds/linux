@@ -93,12 +93,12 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 	};
 
 	for (i = 0; i < IWL_CALIB_MAX; i++) {
-		if ((BIT(i) & priv->hw_params.calib_init_cfg) &&
+		if ((BIT(i) & hw_params(priv).calib_init_cfg) &&
 		    priv->calib_results[i].buf) {
 			hcmd.len[0] = priv->calib_results[i].buf_len;
 			hcmd.data[0] = priv->calib_results[i].buf;
 			hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
-			ret = trans_send_cmd(&priv->trans, &hcmd);
+			ret = iwl_trans_send_cmd(trans(priv), &hcmd);
 			if (ret) {
 				IWL_ERR(priv, "Error %d iteration %d\n",
 					ret, i);
@@ -174,7 +174,7 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 	u32 max_false_alarms = MAX_FA_CCK * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_CCK * rx_enable_time;
 	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct iwl_sensitivity_ranges *ranges = hw_params(priv).sens;
 
 	data = &(priv->sensitivity_data);
 
@@ -357,7 +357,7 @@ static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
 	u32 max_false_alarms = MAX_FA_OFDM * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_OFDM * rx_enable_time;
 	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct iwl_sensitivity_ranges *ranges = hw_params(priv).sens;
 
 	data = &(priv->sensitivity_data);
 
@@ -484,7 +484,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
 
-	return trans_send_cmd(&priv->trans, &cmd_out);
+	return iwl_trans_send_cmd(trans(priv), &cmd_out);
 }
 
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
@@ -573,7 +573,7 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 	       &(cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX]),
 	       sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES);
 
-	return trans_send_cmd(&priv->trans, &cmd_out);
+	return iwl_trans_send_cmd(trans(priv), &cmd_out);
 }
 
 void iwl_init_sensitivity(struct iwl_priv *priv)
@@ -581,7 +581,7 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	int ret = 0;
 	int i;
 	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct iwl_sensitivity_ranges *ranges = hw_params(priv).sens;
 
 	if (priv->disable_sens_cal)
 		return;
@@ -658,13 +658,13 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 		return;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	rx_info = &priv->statistics.rx_non_phy;
 	ofdm = &priv->statistics.rx_ofdm;
 	cck = &priv->statistics.rx_cck;
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, "<< invalid data.\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 		return;
 	}
 
@@ -688,7 +688,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 	statis.beacon_energy_c =
 			le32_to_cpu(rx_info->beacon_energy_c);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	IWL_DEBUG_CALIB(priv, "rx_enable_time = %u usecs\n", rx_enable_time);
 
@@ -821,21 +821,21 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 	 * To be safe, simply mask out any chains that we know
 	 * are not on the device.
 	 */
-	active_chains &= priv->hw_params.valid_rx_ant;
+	active_chains &= hw_params(priv).valid_rx_ant;
 
 	num_tx_chains = 0;
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		/* loops on all the bits of
 		 * priv->hw_setting.valid_tx_ant */
 		u8 ant_msk = (1 << i);
-		if (!(priv->hw_params.valid_tx_ant & ant_msk))
+		if (!(hw_params(priv).valid_tx_ant & ant_msk))
 			continue;
 
 		num_tx_chains++;
 		if (data->disconn_array[i] == 0)
 			/* there is a Tx antenna connected */
 			break;
-		if (num_tx_chains == priv->hw_params.tx_chains_num &&
+		if (num_tx_chains == hw_params(priv).tx_chains_num &&
 		    data->disconn_array[i]) {
 			/*
 			 * If all chains are disconnected
@@ -852,12 +852,13 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 		}
 	}
 
-	if (active_chains != priv->hw_params.valid_rx_ant &&
+	if (active_chains != hw_params(priv).valid_rx_ant &&
 	    active_chains != priv->chain_noise_data.active_chains)
 		IWL_DEBUG_CALIB(priv,
 				"Detected that not all antennas are connected! "
 				"Connected: %#x, valid: %#x.\n",
-				active_chains, priv->hw_params.valid_rx_ant);
+				active_chains,
+				hw_params(priv).valid_rx_ant);
 
 	/* Save for use within RXON, TX, SCAN commands, etc. */
 	data->active_chains = active_chains;
@@ -917,7 +918,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 			priv->phy_calib_chain_noise_gain_cmd);
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
-		trans_send_cmd_pdu(&priv->trans, REPLY_PHY_CALIBRATION_CMD,
+		iwl_trans_send_cmd_pdu(trans(priv), REPLY_PHY_CALIBRATION_CMD,
 			CMD_ASYNC, sizeof(cmd), &cmd);
 
 		data->radio_write = 1;
@@ -975,13 +976,13 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 		return;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	rx_info = &priv->statistics.rx_non_phy;
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 		return;
 	}
 
@@ -996,7 +997,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	if ((rxon_chnum != stat_chnum) || (rxon_band24 != stat_band24)) {
 		IWL_DEBUG_CALIB(priv, "Stats not from chan=%d, band24=%d\n",
 				rxon_chnum, rxon_band24);
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 		return;
 	}
 
@@ -1015,7 +1016,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	chain_sig_b = le32_to_cpu(rx_info->beacon_rssi_b) & IN_BAND_FILTER;
 	chain_sig_c = le32_to_cpu(rx_info->beacon_rssi_c) & IN_BAND_FILTER;
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	data->beacon_count++;
 
@@ -1046,7 +1047,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Disable disconnected antenna algorithm for advanced
 		   bt coex, assuming valid antennas are connected */
-		data->active_chains = priv->hw_params.valid_rx_ant;
+		data->active_chains = hw_params(priv).valid_rx_ant;
 		for (i = 0; i < NUM_RX_CHAINS; i++)
 			if (!(data->active_chains & (1<<i)))
 				data->disconn_array[i] = 1;

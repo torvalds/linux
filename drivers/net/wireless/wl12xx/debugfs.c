@@ -339,10 +339,11 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 #define DRIVER_STATE_PRINT_HEX(x)  DRIVER_STATE_PRINT(x, "0x%x")
 
 	DRIVER_STATE_PRINT_INT(tx_blocks_available);
-	DRIVER_STATE_PRINT_INT(tx_allocated_blocks[0]);
-	DRIVER_STATE_PRINT_INT(tx_allocated_blocks[1]);
-	DRIVER_STATE_PRINT_INT(tx_allocated_blocks[2]);
-	DRIVER_STATE_PRINT_INT(tx_allocated_blocks[3]);
+	DRIVER_STATE_PRINT_INT(tx_allocated_blocks);
+	DRIVER_STATE_PRINT_INT(tx_allocated_pkts[0]);
+	DRIVER_STATE_PRINT_INT(tx_allocated_pkts[1]);
+	DRIVER_STATE_PRINT_INT(tx_allocated_pkts[2]);
+	DRIVER_STATE_PRINT_INT(tx_allocated_pkts[3]);
 	DRIVER_STATE_PRINT_INT(tx_frames_cnt);
 	DRIVER_STATE_PRINT_LHEX(tx_frames_map[0]);
 	DRIVER_STATE_PRINT_INT(tx_queue_count[0]);
@@ -352,10 +353,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_INT(tx_packets_count);
 	DRIVER_STATE_PRINT_INT(tx_results_count);
 	DRIVER_STATE_PRINT_LHEX(flags);
-	DRIVER_STATE_PRINT_INT(tx_blocks_freed[0]);
-	DRIVER_STATE_PRINT_INT(tx_blocks_freed[1]);
-	DRIVER_STATE_PRINT_INT(tx_blocks_freed[2]);
-	DRIVER_STATE_PRINT_INT(tx_blocks_freed[3]);
+	DRIVER_STATE_PRINT_INT(tx_blocks_freed);
 	DRIVER_STATE_PRINT_INT(tx_security_last_seq_lsb);
 	DRIVER_STATE_PRINT_INT(rx_counter);
 	DRIVER_STATE_PRINT_INT(session_counter);
@@ -369,9 +367,6 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_INT(beacon_int);
 	DRIVER_STATE_PRINT_INT(psm_entry_retry);
 	DRIVER_STATE_PRINT_INT(ps_poll_failures);
-	DRIVER_STATE_PRINT_HEX(filters);
-	DRIVER_STATE_PRINT_HEX(rx_config);
-	DRIVER_STATE_PRINT_HEX(rx_filter);
 	DRIVER_STATE_PRINT_INT(power_level);
 	DRIVER_STATE_PRINT_INT(rssi_thold);
 	DRIVER_STATE_PRINT_INT(last_rssi_event);
