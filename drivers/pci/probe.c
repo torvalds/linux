@@ -1351,7 +1351,8 @@ static int pcie_find_smpss(struct pci_dev *dev, void *data)
 	 * will occur as normal.
 	 */
 	if (dev->is_hotplug_bridge && (!list_is_singular(&dev->bus->devices) ||
-	    dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT))
+	     (dev->bus->self &&
+	      dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT)))
 		*smpss = 0;
 
 	if (*smpss > dev->pcie_mpss)
