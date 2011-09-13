@@ -102,15 +102,16 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 		src |= cfg->src_info.data_width << D40_SREG_CFG_ESIZE_POS;
 		dst |= cfg->dst_info.data_width << D40_SREG_CFG_ESIZE_POS;
 
+		/* Set the priority bit to high for the physical channel */
+		if (cfg->high_priority) {
+			src |= 1 << D40_SREG_CFG_PRI_POS;
+			dst |= 1 << D40_SREG_CFG_PRI_POS;
+		}
+
 	} else {
 		/* Logical channel */
 		dst |= 1 << D40_SREG_CFG_LOG_GIM_POS;
 		src |= 1 << D40_SREG_CFG_LOG_GIM_POS;
-	}
-
-	if (cfg->high_priority) {
-		src |= 1 << D40_SREG_CFG_PRI_POS;
-		dst |= 1 << D40_SREG_CFG_PRI_POS;
 	}
 
 	if (cfg->src_info.big_endian)
