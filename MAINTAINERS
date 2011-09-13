@@ -1246,6 +1246,14 @@ W:	http://wireless.kernel.org/en/users/Drivers/ath5k
 S:	Maintained
 F:	drivers/net/wireless/ath/ath5k/
 
+ATHEROS ATH6KL WIRELESS DRIVER
+M:	Kalle Valo <kvalo@qca.qualcomm.com>
+L:	linux-wireless@vger.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/ath6kl
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath6kl.git
+S:	Supported
+F:	drivers/net/wireless/ath/ath6kl/
+
 ATHEROS ATH9K WIRELESS DRIVER
 M:	"Luis R. Rodriguez" <mcgrof@qca.qualcomm.com>
 M:	Jouni Malinen <jouni@qca.qualcomm.com>
@@ -6121,12 +6129,6 @@ STAGING - ASUS OLED
 M:	Jakub Schmidtke <sjakub@gmail.com>
 S:	Odd Fixes
 F:	drivers/staging/asus_oled/
-
-STAGING - ATHEROS ATH6KL WIRELESS DRIVER
-M:	Luis R. Rodriguez <mcgrof@gmail.com>
-M:	Naveen Singh <nsingh@atheros.com>
-S:	Odd Fixes
-F:	drivers/staging/ath6kl/
 
 STAGING - COMEDI
 M:	Ian Abbott <abbotti@mev.co.uk>
