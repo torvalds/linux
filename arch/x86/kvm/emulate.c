@@ -40,6 +40,10 @@
 #define OpMem64            6ull  /* Memory, 64-bit */
 #define OpImmUByte         7ull  /* Zero-extended 8-bit immediate */
 #define OpDX               8ull  /* DX register */
+#define OpCL               9ull  /* CL register (for shifts) */
+#define OpImmByte         10ull  /* 8-bit sign extended immediate */
+#define OpOne             11ull  /* Implied 1 */
+#define OpImm             12ull  /* Sign extended immediate */
 
 #define OpBits             4  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
@@ -108,12 +112,13 @@
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
 #define No64	    (1<<28)
 /* Source 2 operand type */
-#define Src2None    (0u<<29)
-#define Src2CL      (1u<<29)
-#define Src2ImmByte (2u<<29)
-#define Src2One     (3u<<29)
-#define Src2Imm     (4u<<29)
-#define Src2Mask    (7u<<29)
+#define Src2Shift   (29)
+#define Src2None    (OpNone << Src2Shift)
+#define Src2CL      (OpCL << Src2Shift)
+#define Src2ImmByte (OpImmByte << Src2Shift)
+#define Src2One     (OpOne << Src2Shift)
+#define Src2Imm     (OpImm << Src2Shift)
+#define Src2Mask    (OpMask << Src2Shift)
 
 #define X2(x...) x, x
 #define X3(x...) X2(x), x
@@ -3382,6 +3387,20 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->addr.reg = &ctxt->regs[VCPU_REGS_RDX];
 		fetch_register_operand(op);
 		break;
+	case OpCL:
+		op->bytes = 1;
+		op->val = ctxt->regs[VCPU_REGS_RCX] & 0xff;
+		break;
+	case OpImmByte:
+		rc = decode_imm(ctxt, op, 1, true);
+		break;
+	case OpOne:
+		op->bytes = 1;
+		op->val = 1;
+		break;
+	case OpImm:
+		rc = decode_imm(ctxt, op, imm_size(ctxt), true);
+		break;
 	case OpImplicit:
 		/* Special instructions do their own operand decoding. */
 	default:
@@ -3656,25 +3675,7 @@ done_prefixes:
 	 * Decode and fetch the second source operand: register, memory
 	 * or immediate.
 	 */
-	switch (ctxt->d & Src2Mask) {
-	case Src2None:
-		break;
-	case Src2CL:
-		ctxt->src2.bytes = 1;
-		ctxt->src2.val = ctxt->regs[VCPU_REGS_RCX] & 0xff;
-		break;
-	case Src2ImmByte:
-		rc = decode_imm(ctxt, &ctxt->src2, 1, true);
-		break;
-	case Src2One:
-		ctxt->src2.bytes = 1;
-		ctxt->src2.val = 1;
-		break;
-	case Src2Imm:
-		rc = decode_imm(ctxt, &ctxt->src2, imm_size(ctxt), true);
-		break;
-	}
-
+	rc = decode_operand(ctxt, &ctxt->src2, (ctxt->d >> Src2Shift) & OpMask);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
