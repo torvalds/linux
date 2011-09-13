@@ -258,17 +258,6 @@ static void convert_key_from_CPU(struct brcmf_wsec_key *key)
 	key->iv_initialized = cpu_to_le32(key->iv_initialized);
 }
 
-static void convert_key_to_CPU(struct brcmf_wsec_key *key)
-{
-	key->index = le32_to_cpu(key->index);
-	key->len = le32_to_cpu(key->len);
-	key->algo = le32_to_cpu(key->algo);
-	key->flags = le32_to_cpu(key->flags);
-	key->rxiv.hi = le32_to_cpu(key->rxiv.hi);
-	key->rxiv.lo = le16_to_cpu(key->rxiv.lo);
-	key->iv_initialized = le32_to_cpu(key->iv_initialized);
-}
-
 static s32
 brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 {
@@ -1722,7 +1711,6 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 		    void (*callback) (void *cookie, struct key_params * params))
 {
 	struct key_params params;
-	struct brcmf_wsec_key key;
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	struct brcmf_cfg80211_security *sec;
 	s32 wsec;
@@ -1733,12 +1721,7 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	if (!check_sys_up(wiphy))
 		return -EIO;
 
-	memset(&key, 0, sizeof(key));
-	key.index = key_idx;
-	convert_key_to_CPU(&key);
 	memset(&params, 0, sizeof(params));
-	params.key_len = (u8) min_t(u8, WLAN_MAX_KEY_LEN, key.len);
-	memcpy(params.key, key.data, params.key_len);
 
 	err = brcmf_dev_ioctl(dev, BRCMF_C_GET_WSEC, &wsec, sizeof(wsec));
 	if (unlikely(err)) {
