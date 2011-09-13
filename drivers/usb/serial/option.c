@@ -495,6 +495,10 @@ static const struct option_blacklist_info zte_k3765_z_blacklist = {
 	.sendsetup = BIT(0) | BIT(1) | BIT(2),
 };
 
+static const struct option_blacklist_info huawei_cdc12_blacklist = {
+	.reserved = BIT(1) | BIT(2),
+};
+
 static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
@@ -592,12 +596,15 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E143D, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E143E, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E143F, 0xff, 0xff, 0xff) },
-	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K4505, 0xff, 0xff, 0xff) },
-	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K3765, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K4505, 0xff, 0xff, 0xff),
+		.driver_info = (kernel_ulong_t) &huawei_cdc12_blacklist },
+	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K3765, 0xff, 0xff, 0xff),
+		.driver_info = (kernel_ulong_t) &huawei_cdc12_blacklist },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_ETS1220, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E14AC, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K3806, 0xff, 0xff, 0xff) },
-	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K4605, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K4605, 0xff, 0xff, 0xff),
+		.driver_info = (kernel_ulong_t) &huawei_cdc12_blacklist },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K3770, 0xff, 0x02, 0x31) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K3770, 0xff, 0x02, 0x32) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_K3771, 0xff, 0x02, 0x31) },
@@ -1207,47 +1214,6 @@ static void __exit option_exit(void)
 module_init(option_init);
 module_exit(option_exit);
 
-static int option_probe(struct usb_serial *serial,
-			const struct usb_device_id *id)
-{
-	struct usb_wwan_intf_private *data;
-	/* D-Link DWM 652 still exposes CD-Rom emulation interface in modem mode */
-	if (serial->dev->descriptor.idVendor == DLINK_VENDOR_ID &&
-		serial->dev->descriptor.idProduct == DLINK_PRODUCT_DWM_652 &&
-		serial->interface->cur_altsetting->desc.bInterfaceClass == 0x8)
-		return -ENODEV;
-
-	/* Bandrich modem and AT command interface is 0xff */
-	if ((serial->dev->descriptor.idVendor == BANDRICH_VENDOR_ID ||
-		serial->dev->descriptor.idVendor == PIRELLI_VENDOR_ID) &&
-		serial->interface->cur_altsetting->desc.bInterfaceClass != 0xff)
-		return -ENODEV;
-
-	/* Don't bind network interfaces on Huawei K3765, K4505 & K4605 */
-	if (serial->dev->descriptor.idVendor == HUAWEI_VENDOR_ID &&
-		(serial->dev->descriptor.idProduct == HUAWEI_PRODUCT_K3765 ||
-			serial->dev->descriptor.idProduct == HUAWEI_PRODUCT_K4505 ||
-			serial->dev->descriptor.idProduct == HUAWEI_PRODUCT_K4605) &&
-		(serial->interface->cur_altsetting->desc.bInterfaceNumber == 1 ||
-			serial->interface->cur_altsetting->desc.bInterfaceNumber == 2))
-		return -ENODEV;
-
-	/* Don't bind network interface on Samsung GT-B3730, it is handled by a separate module */
-	if (serial->dev->descriptor.idVendor == SAMSUNG_VENDOR_ID &&
-		serial->dev->descriptor.idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
-		serial->interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA)
-		return -ENODEV;
-
-	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
-
-	if (!data)
-		return -ENOMEM;
-	data->send_setup = option_send_setup;
-	spin_lock_init(&data->susp_lock);
-	data->private = (void *)id->driver_info;
-	return 0;
-}
-
 static bool is_blacklisted(const u8 ifnum, enum option_blacklist_reason reason,
 			   const struct option_blacklist_info *blacklist)
 {
@@ -1270,6 +1236,47 @@ static bool is_blacklisted(const u8 ifnum, enum option_blacklist_reason reason,
 		}
 	}
 	return false;
+}
+
+static int option_probe(struct usb_serial *serial,
+			const struct usb_device_id *id)
+{
+	struct usb_wwan_intf_private *data;
+
+	/* D-Link DWM 652 still exposes CD-Rom emulation interface in modem mode */
+	if (serial->dev->descriptor.idVendor == DLINK_VENDOR_ID &&
+		serial->dev->descriptor.idProduct == DLINK_PRODUCT_DWM_652 &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass == 0x8)
+		return -ENODEV;
+
+	/* Bandrich modem and AT command interface is 0xff */
+	if ((serial->dev->descriptor.idVendor == BANDRICH_VENDOR_ID ||
+		serial->dev->descriptor.idVendor == PIRELLI_VENDOR_ID) &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass != 0xff)
+		return -ENODEV;
+
+	/* Don't bind reserved interfaces (like network ones) which often have
+	 * the same class/subclass/protocol as the serial interfaces.  Look at
+	 * the Windows driver .INF files for reserved interface numbers.
+	 */
+	if (is_blacklisted(
+		serial->interface->cur_altsetting->desc.bInterfaceNumber,
+		OPTION_BLACKLIST_RESERVED_IF,
+		(const struct option_blacklist_info *) id->driver_info))
+
+	/* Don't bind network interface on Samsung GT-B3730, it is handled by a separate module */
+	if (serial->dev->descriptor.idVendor == SAMSUNG_VENDOR_ID &&
+		serial->dev->descriptor.idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA)
+		return -ENODEV;
+
+	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	data->send_setup = option_send_setup;
+	spin_lock_init(&data->susp_lock);
+	data->private = (void *)id->driver_info;
+	return 0;
 }
 
 static void option_instat_callback(struct urb *urb)
