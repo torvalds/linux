@@ -796,6 +796,9 @@
 #define AR_SREV_VERSION_9340		0x300
 #define AR_SREV_VERSION_9580		0x1C0
 #define AR_SREV_REVISION_9580_10	4 /* AR9580 1.0 */
+#define AR_SREV_VERSION_9480		0x280
+#define AR_SREV_REVISION_9480_10	0
+#define AR_SREV_REVISION_9480_20	2
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -895,6 +898,21 @@
 #define AR_SREV_9285E_20(_ah) \
     (AR_SREV_9285_12_OR_LATER(_ah) && \
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
+
+#define AR_SREV_9480(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9480))
+
+#define AR_SREV_9480_10(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9480) && \
+	((_ah)->hw_version.macRev == AR_SREV_REVISION_9480_10))
+
+#define AR_SREV_9480_20(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9480) && \
+	((_ah)->hw_version.macRev == AR_SREV_REVISION_9480_20))
+
+#define AR_SREV_9480_20_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9480) && \
+	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9480_20))
 
 #define AR_SREV_9580(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9580) && \
@@ -1779,6 +1797,7 @@ enum {
 #define AR_TXOP_12_15  0x81fc
 
 #define AR_NEXT_NDP2_TIMER                  0x8180
+#define AR_GEN_TIMER_BANK_1_LEN			8
 #define AR_FIRST_NDP_TIMER                  7
 #define AR_NDP2_PERIOD                      0x81a0
 #define AR_NDP2_TIMER_MODE                  0x81c0
@@ -1867,9 +1886,10 @@ enum {
 #define AR_PCU_MISC_MODE2_HWWAR2                       0x02000000
 #define AR_PCU_MISC_MODE2_RESERVED2                    0xFFFE0000
 
-#define AR_MAC_PCU_ASYNC_FIFO_REG3                     0x8358
-#define AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL        0x00000400
-#define AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET          0x80000000
+#define AR_MAC_PCU_ASYNC_FIFO_REG3			0x8358
+#define AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL		0x00000400
+#define AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET		0x80000000
+#define AR_MAC_PCU_GEN_TIMER_TSF_SEL			0x83d8
 
 
 #define AR_AES_MUTE_MASK0       0x805c
@@ -1919,5 +1939,39 @@ enum {
 #define AR_PHY_AGC_CONTROL_CLC_SUCCESS		0x00080000  /* carrier leak calibration done */
 #define AR_PHY_AGC_CONTROL_YCOK_MAX		0x000003c0
 #define AR_PHY_AGC_CONTROL_YCOK_MAX_S		6
+
+/* MCI Registers */
+#define AR_MCI_INTERRUPT_RX_MSG_EN		0x183c
+#define AR_MCI_INTERRUPT_RX_MSG_REMOTE_RESET    0x00000001
+#define AR_MCI_INTERRUPT_RX_MSG_REMOTE_RESET_S  0
+#define AR_MCI_INTERRUPT_RX_MSG_LNA_CONTROL     0x00000002
+#define AR_MCI_INTERRUPT_RX_MSG_LNA_CONTROL_S   1
+#define AR_MCI_INTERRUPT_RX_MSG_CONT_NACK       0x00000004
+#define AR_MCI_INTERRUPT_RX_MSG_CONT_NACK_S     2
+#define AR_MCI_INTERRUPT_RX_MSG_CONT_INFO       0x00000008
+#define AR_MCI_INTERRUPT_RX_MSG_CONT_INFO_S     3
+#define AR_MCI_INTERRUPT_RX_MSG_CONT_RST        0x00000010
+#define AR_MCI_INTERRUPT_RX_MSG_CONT_RST_S      4
+#define AR_MCI_INTERRUPT_RX_MSG_SCHD_INFO       0x00000020
+#define AR_MCI_INTERRUPT_RX_MSG_SCHD_INFO_S     5
+#define AR_MCI_INTERRUPT_RX_MSG_CPU_INT         0x00000040
+#define AR_MCI_INTERRUPT_RX_MSG_CPU_INT_S       6
+#define AR_MCI_INTERRUPT_RX_MSG_GPM             0x00000100
+#define AR_MCI_INTERRUPT_RX_MSG_GPM_S           8
+#define AR_MCI_INTERRUPT_RX_MSG_LNA_INFO        0x00000200
+#define AR_MCI_INTERRUPT_RX_MSG_LNA_INFO_S      9
+#define AR_MCI_INTERRUPT_RX_MSG_SYS_SLEEPING    0x00000400
+#define AR_MCI_INTERRUPT_RX_MSG_SYS_SLEEPING_S  10
+#define AR_MCI_INTERRUPT_RX_MSG_SYS_WAKING      0x00000800
+#define AR_MCI_INTERRUPT_RX_MSG_SYS_WAKING_S    11
+#define AR_MCI_INTERRUPT_RX_MSG_REQ_WAKE        0x00001000
+#define AR_MCI_INTERRUPT_RX_MSG_REQ_WAKE_S      12
+#define AR_MCI_INTERRUPT_RX_HW_MSG_MASK	(AR_MCI_INTERRUPT_RX_MSG_SCHD_INFO  | \
+					  AR_MCI_INTERRUPT_RX_MSG_LNA_CONTROL| \
+					  AR_MCI_INTERRUPT_RX_MSG_LNA_INFO   | \
+					  AR_MCI_INTERRUPT_RX_MSG_CONT_NACK  | \
+					  AR_MCI_INTERRUPT_RX_MSG_CONT_INFO  | \
+					  AR_MCI_INTERRUPT_RX_MSG_CONT_RST)
+
 
 #endif

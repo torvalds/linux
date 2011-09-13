@@ -46,6 +46,7 @@
 #define AR9300_DEVID_AR9340	0x0031
 #define AR9300_DEVID_AR9485_PCIE 0x0032
 #define AR9300_DEVID_AR9580	0x0033
+#define AR9300_DEVID_AR9480	0x0034
 #define AR9300_DEVID_AR9330	0x0035
 
 #define AR5416_AR9100_DEVID	0x000b
@@ -827,11 +828,14 @@ struct ath_hw {
 	struct ar5416IniArray iniModes_9271_1_0_only;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
+	struct ar5416IniArray ini_japan2484;
 	struct ar5416IniArray iniCommon_normal_cck_fir_coeff_9271;
 	struct ar5416IniArray iniCommon_japan_2484_cck_fir_coeff_9271;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray iniModes_high_power_tx_gain_9271;
 	struct ar5416IniArray iniModes_normal_power_tx_gain_9271;
+	struct ar5416IniArray ini_radio_post_sys2ant;
+	struct ar5416IniArray ini_BTCOEX_MAX_TXPWR;
 
 	struct ar5416IniArray iniMac[ATH_INI_NUM_SPLIT];
 	struct ar5416IniArray iniBB[ATH_INI_NUM_SPLIT];
