@@ -350,10 +350,6 @@ extern void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 			    struct ieee80211_sta *sta, u16 tid);
 extern void brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
 					 u8 ba_wsize, uint max_rx_ampdu_bytes);
-extern int brcms_c_set_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,
-			   int val);
-extern int brcms_c_get_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,
-			   int *ret_int_ptr);
 extern char *getvar(char *vars, const char *name);
 extern int getintvar(char *vars, const char *name);
 
@@ -384,6 +380,10 @@ int brcms_c_set_beacon_period(struct brcms_c_info *wlc, u16 period);
 u16 brcms_c_get_phy_type(struct brcms_c_info *wlc, int phyidx);
 void brcms_c_set_shortslot_override(struct brcms_c_info *wlc,
 				    s8 sslot_override);
+void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc, u8 interval);
+int brcms_c_set_tx_power(struct brcms_c_info *wlc, int txpwr);
+int brcms_c_get_tx_power(struct brcms_c_info *wlc);
+void brcms_c_set_radio_mpc(struct brcms_c_info *wlc, bool mpc);
 
 /* helper functions */
 extern bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc);

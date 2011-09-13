@@ -1463,7 +1463,7 @@ int wlc_phy_txpower_set(struct brcms_phy_pub *ppi, uint qdbm, bool override)
 	int i;
 
 	if (qdbm > 127)
-		return 5;
+		return -EINVAL;
 
 	for (i = 0; i < TXP_NUM_RATES; i++)
 		pi->tx_user_target[i] = (u8) qdbm;

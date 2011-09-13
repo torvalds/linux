@@ -9375,74 +9375,37 @@ void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc, bool drop)
 		brcms_msleep(wlc->wl, 1);
 }
 
-int brcms_c_set_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,
-		    int int_val)
+void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc, u8 interval)
 {
-	int err = 0;
-
-	switch (par_id) {
-	case IOV_BCN_LI_BCN:
-		wlc->bcn_li_bcn = (u8) int_val;
-		if (wlc->pub->up)
-			brcms_c_bcn_li_upd(wlc);
-		break;
-		/* As long as override is false, this only sets the *user*
-		   targets. User can twiddle this all he wants with no harm.
-		   wlc_phy_txpower_set() explicitly sets override to false if
-		   not internal or test.
-		 */
-	case IOV_QTXPOWER:{
-		u8 qdbm;
-		bool override;
-
-		/* Remove override bit and clip to max qdbm value */
-		qdbm = (u8)min_t(u32, (int_val & ~WL_TXPWR_OVERRIDE), 0xff);
-		/* Extract override setting */
-		override = (int_val & WL_TXPWR_OVERRIDE) ? true : false;
-		err =
-		    wlc_phy_txpower_set(wlc->band->pi, qdbm, override);
-		break;
-		}
-	case IOV_MPC:
-		wlc->mpc = (bool)int_val;
-		brcms_c_radio_mpc_upd(wlc);
-		break;
-	default:
-		err = -ENOTSUPP;
-	}
-	return err;
+	wlc->bcn_li_bcn = interval;
+	if (wlc->pub->up)
+		brcms_c_bcn_li_upd(wlc);
 }
 
-int brcms_c_get_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,
-		    int *ret_int_ptr)
+int brcms_c_set_tx_power(struct brcms_c_info *wlc, int txpwr)
 {
-	int err = 0;
+	uint qdbm;
 
-	switch (par_id) {
-	case IOV_BCN_LI_BCN:
-		*ret_int_ptr = wlc->bcn_li_bcn;
-		break;
-	case IOV_QTXPOWER: {
-		uint qdbm;
-		bool override;
+	/* Remove override bit and clip to max qdbm value */
+	qdbm = min_t(uint, txpwr * BRCMS_TXPWR_DB_FACTOR, 0xff);
+	return wlc_phy_txpower_set(wlc->band->pi, qdbm, false);
+}
 
-		err = wlc_phy_txpower_get(wlc->band->pi, &qdbm,
-			&override);
-		if (err != 0)
-			return err;
+int brcms_c_get_tx_power(struct brcms_c_info *wlc)
+{
+	uint qdbm;
+	bool override;
 
-		/* Return qdbm units */
-		*ret_int_ptr =
-		    qdbm | (override ? WL_TXPWR_OVERRIDE : 0);
-		break;
-		}
-	case IOV_MPC:
-		*ret_int_ptr = (s32) wlc->mpc;
-		break;
-	default:
-		err = -ENOTSUPP;
-	}
-	return err;
+	wlc_phy_txpower_get(wlc->band->pi, &qdbm, &override);
+
+	/* Return qdbm units */
+	return (int)(qdbm / BRCMS_TXPWR_DB_FACTOR);
+}
+
+void brcms_c_set_radio_mpc(struct brcms_c_info *wlc, bool mpc)
+{
+	wlc->mpc = mpc;
+	brcms_c_radio_mpc_upd(wlc);
 }
 
 /*

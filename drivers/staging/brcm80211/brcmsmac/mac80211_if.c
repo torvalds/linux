@@ -373,14 +373,8 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 
 	LOCK(wl);
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {
-		if (brcms_c_set_par(wl->wlc, IOV_BCN_LI_BCN,
-				    conf->listen_interval) < 0) {
-			wiphy_err(wiphy, "%s: Error setting listen_interval\n",
-				  __func__);
-			err = -EIO;
-			goto config_out;
-		}
-		brcms_c_get_par(wl->wlc, IOV_BCN_LI_BCN, &new_int);
+		brcms_c_set_beacon_listen_interval(wl->wlc,
+						   conf->listen_interval);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR)
 		wiphy_err(wiphy, "%s: change monitor mode: %s (implement)\n",
@@ -392,17 +386,16 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 			  "true" : "false");
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		if (brcms_c_set_par(wl->wlc, IOV_QTXPOWER,
-				    conf->power_level * 4) < 0) {
+		err = brcms_c_set_tx_power(wl->wlc, conf->power_level);
+		if (err < 0) {
 			wiphy_err(wiphy, "%s: Error setting power_level\n",
 				  __func__);
-			err = -EIO;
 			goto config_out;
 		}
-		brcms_c_get_par(wl->wlc, IOV_QTXPOWER, &new_int);
-		if (new_int != (conf->power_level * 4))
+		new_int = brcms_c_get_tx_power(wl->wlc);
+		if (new_int != conf->power_level)
 			wiphy_err(wiphy, "%s: Power level req != actual, %d %d"
-				  "\n", __func__, conf->power_level * 4,
+				  "\n", __func__, conf->power_level,
 				  new_int);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
@@ -1177,9 +1170,8 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 
 	wl->pub->ieee_hw = hw;
 
-	if (brcms_c_set_par(wl->wlc, IOV_MPC, 0) < 0)
-		wiphy_err(wl->wiphy, "wl%d: Error setting MPC variable to 0\n",
-			  unit);
+	/* disable mpc */
+	brcms_c_set_radio_mpc(wl->wlc, false);
 
 	/* register our interrupt handler */
 	if (request_irq(irq, brcms_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
