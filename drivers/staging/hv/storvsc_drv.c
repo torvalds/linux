@@ -245,7 +245,6 @@ enum storvsc_request_type {
 
 
 struct hv_storvsc_request {
-	struct hv_storvsc_request *request;
 	struct hv_device *device;
 
 	/* Synchronize the request/response if needed */
@@ -257,14 +256,6 @@ struct hv_storvsc_request {
 	struct hv_multipage_buffer data_buffer;
 
 	struct vstor_packet vstor_packet;
-};
-
-
-struct storvsc_device_info {
-	u32 ring_buffer_size;
-	unsigned int port_number;
-	unsigned char path_id;
-	unsigned char target_id;
 };
 
 
