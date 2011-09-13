@@ -678,12 +678,13 @@ static int XGINew_ReadWriteRest(unsigned short StopAddr,
 {
 	int i;
 	unsigned long Position = 0;
+	void __iomem *fbaddr = pVBInfo->FBAddr;
 
-	*((unsigned long *) (pVBInfo->FBAddr + Position)) = Position;
+	writel(Position, fbaddr + Position);
 
 	for (i = StartAddr; i <= StopAddr; i++) {
 		Position = 1 << i;
-		*((unsigned long *) (pVBInfo->FBAddr + Position)) = Position;
+		writel(Position, fbaddr + Position);
 	}
 
 	udelay(500); /* [Vicent] 2004/04/16.
@@ -691,13 +692,12 @@ static int XGINew_ReadWriteRest(unsigned short StopAddr,
 
 	Position = 0;
 
-	if ((*(unsigned long *) (pVBInfo->FBAddr + Position)) != Position)
+	if (readl(fbaddr + Position) != Position)
 		return 0;
 
 	for (i = StartAddr; i <= StopAddr; i++) {
 		Position = 1 << i;
-		if ((*(unsigned long *) (pVBInfo->FBAddr + Position)) !=
-		    Position)
+		if (readl(fbaddr + Position) != Position)
 			return 0;
 	}
 	return 1;

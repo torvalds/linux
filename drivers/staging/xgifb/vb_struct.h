@@ -300,7 +300,7 @@ struct vb_device_info {
 	unsigned short   SelectCRT2Rate;
 
 	unsigned char *ROMAddr;
-	unsigned char *FBAddr;
+	void __iomem *FBAddr;
 	unsigned long BaseAddr;
 	unsigned long RelIO;
 

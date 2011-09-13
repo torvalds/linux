@@ -56,7 +56,7 @@ struct video_info {
 	int           chip_id;
 	unsigned int  video_size;
 	unsigned long video_base;
-	char	      *video_vbase;
+	void __iomem *video_vbase;
 	unsigned long mmio_base;
 	unsigned long mmio_size;
 	void __iomem *mmio_vbase;
