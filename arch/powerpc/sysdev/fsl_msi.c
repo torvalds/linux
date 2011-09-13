@@ -296,7 +296,7 @@ static int __devinit fsl_msi_setup_hwirq(struct fsl_msi *msi,
 	}
 
 	msi->msi_virqs[irq_index] = virt_msir;
-	cascade_data->index = offset + irq_index;
+	cascade_data->index = offset;
 	cascade_data->msi_data = msi;
 	irq_set_handler_data(virt_msir, cascade_data);
 	irq_set_chained_handler(virt_msir, fsl_msi_cascade);
@@ -376,8 +376,10 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 		goto error_out;
 	}
 
-	if (!p)
+	if (!p) {
 		p = all_avail;
+		len = sizeof(all_avail);
+	}
 
 	for (irq_index = 0, i = 0; i < len / (2 * sizeof(u32)); i++) {
 		if (p[i * 2] % IRQS_PER_MSI_REG ||
@@ -393,7 +395,7 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 		count = p[i * 2 + 1] / IRQS_PER_MSI_REG;
 
 		for (j = 0; j < count; j++, irq_index++) {
-			err = fsl_msi_setup_hwirq(msi, dev, offset, irq_index);
+			err = fsl_msi_setup_hwirq(msi, dev, offset + j, irq_index);
 			if (err)
 				goto error_out;
 		}
