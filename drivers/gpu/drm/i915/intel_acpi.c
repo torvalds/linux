@@ -208,7 +208,7 @@ static bool intel_dsm_pci_probe(struct pci_dev *pdev)
 
 	ret = intel_dsm(dhandle, INTEL_DSM_FN_SUPPORTED_FUNCTIONS, 0);
 	if (ret < 0) {
-		DRM_ERROR("failed to get supported _DSM functions\n");
+		DRM_DEBUG_KMS("failed to get supported _DSM functions\n");
 		return false;
 	}
 
