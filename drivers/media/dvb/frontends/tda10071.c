@@ -839,7 +839,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 {
 	struct tda10071_priv *priv = fe->demodulator_priv;
 	struct tda10071_cmd cmd;
-	int ret, i, len, remaining;
+	int ret, i, len, remaining, fw_size;
 	const struct firmware *fw;
 	u8 *fw_file = TDA10071_DEFAULT_FIRMWARE;
 	u8 tmp, buf[4];
@@ -968,14 +968,17 @@ static int tda10071_init(struct dvb_frontend *fe)
 
 		info("downloading firmware from file '%s'", fw_file);
 
-		for (remaining = fw->size; remaining > 0;
+		/* do not download last byte */
+		fw_size = fw->size - 1;
+
+		for (remaining = fw_size; remaining > 0;
 			remaining -= (priv->cfg.i2c_wr_max - 1)) {
 			len = remaining;
 			if (len > (priv->cfg.i2c_wr_max - 1))
 				len = (priv->cfg.i2c_wr_max - 1);
 
 			ret = tda10071_wr_regs(priv, 0xfa,
-				(u8 *) &fw->data[fw->size - remaining], len);
+				(u8 *) &fw->data[fw_size - remaining], len);
 			if (ret) {
 				err("firmware download failed=%d", ret);
 				if (ret)
