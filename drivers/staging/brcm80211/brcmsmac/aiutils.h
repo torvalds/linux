@@ -369,9 +369,6 @@ extern bool ai_is_sprom_available(struct si_pub *sih);
  * Return 0 on success, nonzero otherwise.
  */
 extern int ai_devpath(struct si_pub *sih, char *path, int size);
-/* Read variable with prepending the devpath to the name */
-extern char *ai_getdevpathvar(struct si_pub *sih, const char *name);
-extern int ai_getdevpathintvar(struct si_pub *sih, const char *name);
 
 extern void ai_pci_sleep(struct si_pub *sih);
 extern void ai_pci_down(struct si_pub *sih);
@@ -381,7 +378,5 @@ extern int ai_pci_fixcfg(struct si_pub *sih);
 extern void ai_chipcontrl_epa4331(struct si_pub *sih, bool on);
 /* Enable Ex-PA for 4313 */
 extern void ai_epa_4313war(struct si_pub *sih);
-
-char *ai_getnvramflvar(struct si_pub *sih, const char *name);
 
 #endif				/* _BRCM_AIUTILS_H_ */

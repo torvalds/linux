@@ -1018,17 +1018,9 @@ static __used void ai_nvram_process(struct si_info *sii, char *pvars)
 
 	/* do a pci config read to get subsystem id and subvendor id */
 	pci_read_config_dword(sii->pbus, PCI_SUBSYSTEM_VENDOR_ID, &w);
-	/* Let nvram variables override subsystem Vend/ID */
-	sii->pub.boardvendor = (u16)ai_getdevpathintvar(&sii->pub,
-							"boardvendor");
-	if (sii->pub.boardvendor == 0)
-		sii->pub.boardvendor = w & 0xffff;
 
-	sii->pub.boardtype = (u16)ai_getdevpathintvar(&sii->pub,
-		"boardtype");
-	if (sii->pub.boardtype == 0)
-		sii->pub.boardtype = (w >> 16) & 0xffff;
-
+	sii->pub.boardvendor = w & 0xffff;
+	sii->pub.boardtype = (w >> 16) & 0xffff;
 	sii->pub.boardflags = getintvar(pvars, "boardflags");
 }
 
@@ -1862,56 +1854,6 @@ int ai_devpath(struct si_pub *sih, char *path, int size)
 	}
 
 	return 0;
-}
-
-/* Concatenate the dev path with a varname into the given 'var' buffer
- * and return the 'var' pointer. Nothing is done to the arguments if
- * len == 0 or var is NULL, var is still returned. On overflow, the
- * first char will be set to '\0'.
- */
-static char *ai_devpathvar(struct si_pub *sih, char *var, int len,
-			   const char *name)
-{
-	uint path_len;
-
-	if (!var || len <= 0)
-		return var;
-
-	if (ai_devpath(sih, var, len) == 0) {
-		path_len = strlen(var);
-
-		if (strlen(name) + 1 > (uint) (len - path_len))
-			var[0] = '\0';
-		else
-			strncpy(var + path_len, name, len - path_len - 1);
-	}
-
-	return var;
-}
-
-/* Get a variable, but only if it has a devpath prefix */
-char *ai_getdevpathvar(struct si_pub *sih, const char *name)
-{
-	char varname[SI_DEVPATH_BUFSZ + 32];
-
-	ai_devpathvar(sih, varname, sizeof(varname), name);
-
-	return getvar(NULL, varname);
-}
-
-/* Get a variable, but only if it has a devpath prefix */
-int ai_getdevpathintvar(struct si_pub *sih, const char *name)
-{
-	char varname[SI_DEVPATH_BUFSZ + 32];
-
-	ai_devpathvar(sih, varname, sizeof(varname), name);
-
-	return getintvar(NULL, varname);
-}
-
-char *ai_getnvramflvar(struct si_pub *sih, const char *name)
-{
-	return getvar(NULL, name);
 }
 
 bool ai_pci_war16165(struct si_pub *sih)
