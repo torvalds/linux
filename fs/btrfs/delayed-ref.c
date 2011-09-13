@@ -155,16 +155,22 @@ static struct btrfs_delayed_ref_node *tree_insert(struct rb_root *root,
 
 /*
  * find an head entry based on bytenr. This returns the delayed ref
- * head if it was able to find one, or NULL if nothing was in that spot
+ * head if it was able to find one, or NULL if nothing was in that spot.
+ * If return_bigger is given, the next bigger entry is returned if no exact
+ * match is found.
  */
 static struct btrfs_delayed_ref_node *find_ref_head(struct rb_root *root,
 				  u64 bytenr,
-				  struct btrfs_delayed_ref_node **last)
+				  struct btrfs_delayed_ref_node **last,
+				  int return_bigger)
 {
-	struct rb_node *n = root->rb_node;
+	struct rb_node *n;
 	struct btrfs_delayed_ref_node *entry;
-	int cmp;
+	int cmp = 0;
 
+again:
+	n = root->rb_node;
+	entry = NULL;
 	while (n) {
 		entry = rb_entry(n, struct btrfs_delayed_ref_node, rb_node);
 		WARN_ON(!entry->in_tree);
@@ -186,6 +192,19 @@ static struct btrfs_delayed_ref_node *find_ref_head(struct rb_root *root,
 			n = n->rb_right;
 		else
 			return entry;
+	}
+	if (entry && return_bigger) {
+		if (cmp > 0) {
+			n = rb_next(&entry->rb_node);
+			if (!n)
+				n = rb_first(root);
+			entry = rb_entry(n, struct btrfs_delayed_ref_node,
+					 rb_node);
+			bytenr = entry->bytenr;
+			return_bigger = 0;
+			goto again;
+		}
+		return entry;
 	}
 	return NULL;
 }
@@ -246,20 +265,8 @@ int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
 		node = rb_first(&delayed_refs->root);
 	} else {
 		ref = NULL;
-		find_ref_head(&delayed_refs->root, start, &ref);
+		find_ref_head(&delayed_refs->root, start + 1, &ref, 1);
 		if (ref) {
-			struct btrfs_delayed_ref_node *tmp;
-
-			node = rb_prev(&ref->rb_node);
-			while (node) {
-				tmp = rb_entry(node,
-					       struct btrfs_delayed_ref_node,
-					       rb_node);
-				if (tmp->bytenr < start)
-					break;
-				ref = tmp;
-				node = rb_prev(&ref->rb_node);
-			}
 			node = &ref->rb_node;
 		} else
 			node = rb_first(&delayed_refs->root);
@@ -748,7 +755,7 @@ btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr)
 	struct btrfs_delayed_ref_root *delayed_refs;
 
 	delayed_refs = &trans->transaction->delayed_refs;
-	ref = find_ref_head(&delayed_refs->root, bytenr, NULL);
+	ref = find_ref_head(&delayed_refs->root, bytenr, NULL, 0);
 	if (ref)
 		return btrfs_delayed_node_to_head(ref);
 	return NULL;
