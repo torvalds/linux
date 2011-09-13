@@ -29,6 +29,22 @@
 #include "tss.h"
 
 /*
+ * Operand types
+ */
+#define OpNone             0
+#define OpImplicit         1  /* No generic decode */
+#define OpReg              2  /* Register */
+#define OpMem              3  /* Memory */
+#define OpAcc              4  /* Accumulator: AL/AX/EAX/RAX */
+#define OpDI               5  /* ES:DI/EDI/RDI */
+#define OpMem64            6  /* Memory, 64-bit */
+#define OpImmUByte         7  /* Zero-extended 8-bit immediate */
+#define OpDX               8  /* DX register */
+
+#define OpBits             4  /* Width of operand field */
+#define OpMask             ((1 << OpBits) - 1)
+
+/*
  * Opcode effective-address decode tables.
  * Note that we only emulate instructions that have at least one memory
  * operand (excluding implicit stack references). We assume that stack
@@ -40,15 +56,16 @@
 /* Operand sizes: 8-bit operands or specified/overridden size. */
 #define ByteOp      (1<<0)	/* 8-bit operands. */
 /* Destination operand type. */
-#define ImplicitOps (1<<1)	/* Implicit in opcode. No generic decode. */
-#define DstReg      (2<<1)	/* Register operand. */
-#define DstMem      (3<<1)	/* Memory operand. */
-#define DstAcc      (4<<1)	/* Destination Accumulator */
-#define DstDI       (5<<1)	/* Destination is in ES:(E)DI */
-#define DstMem64    (6<<1)	/* 64bit memory operand */
-#define DstImmUByte (7<<1)	/* 8-bit unsigned immediate operand */
-#define DstDX       (8<<1)	/* Destination is in DX register */
-#define DstMask     (0xf<<1)
+#define DstShift    1
+#define ImplicitOps (OpImplicit << DstShift)
+#define DstReg      (OpReg << DstShift)
+#define DstMem      (OpMem << DstShift)
+#define DstAcc      (OpAcc << DstShift)
+#define DstDI       (OpDI << DstShift)
+#define DstMem64    (OpMem64 << DstShift)
+#define DstImmUByte (OpImmUByte << DstShift)
+#define DstDX       (OpDX << DstShift)
+#define DstMask     (OpMask << DstShift)
 /* Source operand type. */
 #define SrcNone     (0<<5)	/* No source operand. */
 #define SrcReg      (1<<5)	/* Register operand. */
@@ -3316,6 +3333,66 @@ done:
 	return rc;
 }
 
+static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
+			  unsigned d)
+{
+	int rc = X86EMUL_CONTINUE;
+
+	switch (d) {
+	case OpReg:
+		decode_register_operand(ctxt, op,
+			 ctxt->twobyte && (ctxt->b == 0xb6 || ctxt->b == 0xb7));
+		break;
+	case OpImmUByte:
+		op->type = OP_IMM;
+		op->addr.mem.ea = ctxt->_eip;
+		op->bytes = 1;
+		op->val = insn_fetch(u8, ctxt);
+		break;
+	case OpMem:
+	case OpMem64:
+		*op = ctxt->memop;
+		ctxt->memopp = op;
+		if (d == OpMem64)
+			op->bytes = 8;
+		else
+			op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+		if (ctxt->d & BitOp)
+			fetch_bit_operand(ctxt);
+		op->orig_val = op->val;
+		break;
+	case OpAcc:
+		op->type = OP_REG;
+		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+		op->addr.reg = &ctxt->regs[VCPU_REGS_RAX];
+		fetch_register_operand(op);
+		op->orig_val = op->val;
+		break;
+	case OpDI:
+		op->type = OP_MEM;
+		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+		op->addr.mem.ea =
+			register_address(ctxt, ctxt->regs[VCPU_REGS_RDI]);
+		op->addr.mem.seg = VCPU_SREG_ES;
+		op->val = 0;
+		break;
+	case OpDX:
+		op->type = OP_REG;
+		op->bytes = 2;
+		op->addr.reg = &ctxt->regs[VCPU_REGS_RDX];
+		fetch_register_operand(op);
+		break;
+	case OpImplicit:
+		/* Special instructions do their own operand decoding. */
+	default:
+		op->type = OP_NONE; /* Disable writeback. */
+		break;
+	}
+
+done:
+	return rc;
+}
+
 int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 {
 	int rc = X86EMUL_CONTINUE;
@@ -3602,56 +3679,7 @@ done_prefixes:
 		goto done;
 
 	/* Decode and fetch the destination operand: register or memory. */
-	switch (ctxt->d & DstMask) {
-	case DstReg:
-		decode_register_operand(ctxt, &ctxt->dst,
-			 ctxt->twobyte && (ctxt->b == 0xb6 || ctxt->b == 0xb7));
-		break;
-	case DstImmUByte:
-		ctxt->dst.type = OP_IMM;
-		ctxt->dst.addr.mem.ea = ctxt->_eip;
-		ctxt->dst.bytes = 1;
-		ctxt->dst.val = insn_fetch(u8, ctxt);
-		break;
-	case DstMem:
-	case DstMem64:
-		ctxt->dst = ctxt->memop;
-		ctxt->memopp = &ctxt->dst;
-		if ((ctxt->d & DstMask) == DstMem64)
-			ctxt->dst.bytes = 8;
-		else
-			ctxt->dst.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		if (ctxt->d & BitOp)
-			fetch_bit_operand(ctxt);
-		ctxt->dst.orig_val = ctxt->dst.val;
-		break;
-	case DstAcc:
-		ctxt->dst.type = OP_REG;
-		ctxt->dst.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		ctxt->dst.addr.reg = &ctxt->regs[VCPU_REGS_RAX];
-		fetch_register_operand(&ctxt->dst);
-		ctxt->dst.orig_val = ctxt->dst.val;
-		break;
-	case DstDI:
-		ctxt->dst.type = OP_MEM;
-		ctxt->dst.bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
-		ctxt->dst.addr.mem.ea =
-			register_address(ctxt, ctxt->regs[VCPU_REGS_RDI]);
-		ctxt->dst.addr.mem.seg = VCPU_SREG_ES;
-		ctxt->dst.val = 0;
-		break;
-	case DstDX:
-		ctxt->dst.type = OP_REG;
-		ctxt->dst.bytes = 2;
-		ctxt->dst.addr.reg = &ctxt->regs[VCPU_REGS_RDX];
-		fetch_register_operand(&ctxt->dst);
-		break;
-	case ImplicitOps:
-		/* Special instructions do their own operand decoding. */
-	default:
-		ctxt->dst.type = OP_NONE; /* Disable writeback. */
-		break;
-	}
+	rc = decode_operand(ctxt, &ctxt->dst, (ctxt->d >> DstShift) & OpMask);
 
 done:
 	if (ctxt->memopp && ctxt->memopp->type == OP_MEM && ctxt->rip_relative)
