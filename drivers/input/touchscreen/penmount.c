@@ -183,12 +183,12 @@ static void pm_disconnect(struct serio *serio)
 {
 	struct pm *pm = serio_get_drvdata(serio);
 
-	input_get_device(pm->dev);
-	input_unregister_device(pm->dev);
 	serio_close(serio);
-	serio_set_drvdata(serio, NULL);
-	input_put_device(pm->dev);
+
+	input_unregister_device(pm->dev);
 	kfree(pm);
+
+	serio_set_drvdata(serio, NULL);
 }
 
 /*
