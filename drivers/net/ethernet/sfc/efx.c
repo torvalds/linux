@@ -898,10 +898,8 @@ static void efx_mac_work(struct work_struct *data)
 	struct efx_nic *efx = container_of(data, struct efx_nic, mac_work);
 
 	mutex_lock(&efx->mac_lock);
-	if (efx->port_enabled) {
-		efx->type->push_multicast_hash(efx);
+	if (efx->port_enabled)
 		efx->type->reconfigure_mac(efx);
-	}
 	mutex_unlock(&efx->mac_lock);
 }
 
@@ -968,7 +966,6 @@ static void efx_start_port(struct efx_nic *efx)
 
 	/* efx_mac_work() might have been scheduled after efx_stop_port(),
 	 * and then cancelled by efx_flush_all() */
-	efx->type->push_multicast_hash(efx);
 	efx->type->reconfigure_mac(efx);
 
 	mutex_unlock(&efx->mac_lock);

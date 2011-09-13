@@ -115,12 +115,14 @@ int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
 {
 	int rc;
 
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
+
 	rc = efx_mcdi_set_mac(efx);
 	if (rc != 0)
 		return rc;
 
-	/* Restore the multicast hash registers. */
-	efx->type->push_multicast_hash(efx);
-
-	return 0;
+	return efx_mcdi_rpc(efx, MC_CMD_SET_MCAST_HASH,
+			    efx->multicast_hash.byte,
+			    sizeof(efx->multicast_hash),
+			    NULL, 0, NULL);
 }

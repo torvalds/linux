@@ -826,9 +826,9 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @stop_stats: Stop the regular fetching of statistics
  * @set_id_led: Set state of identifying LED or revert to automatic function
  * @push_irq_moderation: Apply interrupt moderation value
- * @push_multicast_hash: Apply multicast hash table
  * @reconfigure_port: Push loopback/power/txdis changes to the MAC and PHY
- * @reconfigure_mac: Reconfigure MAC only. Serialised by the mac_lock
+ * @reconfigure_mac: Push MAC address, MTU, flow control and filter settings
+ *	to the hardware.  Serialised by the mac_lock.
  * @check_mac_fault: Check MAC fault state. True if fault present.
  * @get_wol: Get WoL configuration from driver state
  * @set_wol: Push WoL configuration to the NIC
@@ -872,7 +872,6 @@ struct efx_nic_type {
 	void (*stop_stats)(struct efx_nic *efx);
 	void (*set_id_led)(struct efx_nic *efx, enum efx_led_mode mode);
 	void (*push_irq_moderation)(struct efx_channel *channel);
-	void (*push_multicast_hash)(struct efx_nic *efx);
 	int (*reconfigure_port)(struct efx_nic *efx);
 	int (*reconfigure_mac)(struct efx_nic *efx);
 	bool (*check_mac_fault)(struct efx_nic *efx);

@@ -52,15 +52,6 @@ static void siena_push_irq_moderation(struct efx_channel *channel)
 			       channel->channel);
 }
 
-static void siena_push_multicast_hash(struct efx_nic *efx)
-{
-	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-
-	efx_mcdi_rpc(efx, MC_CMD_SET_MCAST_HASH,
-		     efx->multicast_hash.byte, sizeof(efx->multicast_hash),
-		     NULL, 0, NULL);
-}
-
 static int siena_mdio_write(struct net_device *net_dev,
 			    int prtad, int devad, u16 addr, u16 value)
 {
@@ -629,7 +620,6 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.stop_stats = siena_stop_nic_stats,
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = siena_push_irq_moderation,
-	.push_multicast_hash = siena_push_multicast_hash,
 	.reconfigure_mac = efx_mcdi_mac_reconfigure,
 	.check_mac_fault = efx_mcdi_mac_check_fault,
 	.reconfigure_port = efx_mcdi_phy_reconfigure,
