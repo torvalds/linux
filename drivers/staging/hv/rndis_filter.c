@@ -691,7 +691,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	int ret;
 	struct netvsc_device *net_device;
 	struct rndis_device *rndis_device;
-	struct netvsc_device_info *deviceInfo = additional_info;
+	struct netvsc_device_info *device_info = additional_info;
 
 	rndis_device = get_rndis_device();
 	if (!rndis_device)
@@ -732,15 +732,15 @@ int rndis_filter_device_add(struct hv_device *dev,
 		 */
 	}
 
-	memcpy(deviceInfo->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
+	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
 
 	rndis_filter_query_device_link_status(rndis_device);
 
-	deviceInfo->link_state = rndis_device->link_stat;
+	device_info->link_state = rndis_device->link_stat;
 
 	dev_info(&dev->device, "Device MAC %pM link state %s",
 		 rndis_device->hw_mac_adr,
-		 ((deviceInfo->link_state) ? ("down\n") : ("up\n")));
+		 ((device_info->link_state) ? ("down\n") : ("up\n")));
 
 	return ret;
 }
