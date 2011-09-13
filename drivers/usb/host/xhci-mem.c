@@ -1473,11 +1473,12 @@ void xhci_update_bw_info(struct xhci_hcd *xhci,
 			/* Added or changed endpoint */
 			bw_info->ep_interval = CTX_TO_EP_INTERVAL(
 					le32_to_cpu(ep_ctx->ep_info));
-			bw_info->mult = CTX_TO_EP_MULT(
-					le32_to_cpu(ep_ctx->ep_info));
-			/* Number of packets is zero-based in the input context,
-			 * but we want one-based for the interval table.
+			/* Number of packets and mult are zero-based in the
+			 * input context, but we want one-based for the
+			 * interval table.
 			 */
+			bw_info->mult = CTX_TO_EP_MULT(
+					le32_to_cpu(ep_ctx->ep_info)) + 1;
 			bw_info->num_packets = CTX_TO_MAX_BURST(
 					le32_to_cpu(ep_ctx->ep_info2)) + 1;
 			bw_info->max_packet_size = MAX_PACKET_DECODED(

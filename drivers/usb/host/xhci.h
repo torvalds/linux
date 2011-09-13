@@ -747,8 +747,9 @@ struct xhci_stream_info {
  * (DMI) also limits the total bandwidth (across all domains) that can be used.
  */
 struct xhci_bw_info {
+	/* ep_interval is zero-based */
 	unsigned int		ep_interval;
-	/* mult and num_packets are zero-based */
+	/* mult and num_packets are one-based */
 	unsigned int		mult;
 	unsigned int		num_packets;
 	unsigned int		max_packet_size;
