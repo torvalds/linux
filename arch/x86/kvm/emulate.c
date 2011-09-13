@@ -3346,6 +3346,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 	switch (d) {
 	case OpReg:
 		decode_register_operand(ctxt, op,
+			 op == &ctxt->dst &&
 			 ctxt->twobyte && (ctxt->b == 0xb6 || ctxt->b == 0xb7));
 		break;
 	case OpImmUByte:
