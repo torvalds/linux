@@ -266,6 +266,7 @@ struct storvsc_device {
 	bool	 destroy;
 	bool	 drain_notify;
 	atomic_t num_outstanding_req;
+	struct Scsi_Host *host;
 
 	wait_queue_head_t waiting_to_drain;
 
@@ -306,7 +307,7 @@ static inline struct storvsc_device *get_out_stor_device(
 {
 	struct storvsc_device *stor_device;
 
-	stor_device = (struct storvsc_device *)device->ext;
+	stor_device = hv_get_drvdata(device);
 
 	if (stor_device && stor_device->destroy)
 		stor_device = NULL;
@@ -328,7 +329,7 @@ static inline struct storvsc_device *get_in_stor_device(
 {
 	struct storvsc_device *stor_device;
 
-	stor_device = (struct storvsc_device *)device->ext;
+	stor_device = hv_get_drvdata(device);
 
 	if (!stor_device)
 		goto get_in_err;
@@ -480,8 +481,7 @@ static void storvsc_on_io_completion(struct hv_device *device,
 	struct storvsc_device *stor_device;
 	struct vstor_packet *stor_pkt;
 
-	stor_device = (struct storvsc_device *)device->ext;
-
+	stor_device = hv_get_drvdata(device);
 	stor_pkt = &request->vstor_packet;
 
 	/*
@@ -630,7 +630,7 @@ static int storvsc_dev_remove(struct hv_device *device)
 	struct storvsc_device *stor_device;
 	unsigned long flags;
 
-	stor_device = (struct storvsc_device *)device->ext;
+	stor_device = hv_get_drvdata(device);
 
 	spin_lock_irqsave(&device->channel->inbound_lock, flags);
 	stor_device->destroy = true;
@@ -652,7 +652,7 @@ static int storvsc_dev_remove(struct hv_device *device)
 	 * allow incoming packets.
 	 */
 	spin_lock_irqsave(&device->channel->inbound_lock, flags);
-	device->ext = NULL;
+	hv_set_drvdata(device, NULL);
 	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
 
 	/* Close the channel */
@@ -962,7 +962,8 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 
 static int storvsc_remove(struct hv_device *dev)
 {
-	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
+	struct storvsc_device *stor_device = hv_get_drvdata(dev);
+	struct Scsi_Host *host = stor_device->host;
 	struct hv_host_device *host_dev =
 			(struct hv_host_device *)host->hostdata;
 
@@ -1338,8 +1339,6 @@ static int storvsc_probe(struct hv_device *device,
 	if (!host)
 		return -ENOMEM;
 
-	dev_set_drvdata(&device->device, host);
-
 	host_dev = (struct hv_host_device *)host->hostdata;
 	memset(host_dev, 0, sizeof(struct hv_host_device));
 
@@ -1366,7 +1365,8 @@ static int storvsc_probe(struct hv_device *device,
 	stor_device->destroy = false;
 	init_waitqueue_head(&stor_device->waiting_to_drain);
 	stor_device->device = device;
-	device->ext = stor_device;
+	stor_device->host = host;
+	hv_set_drvdata(device, stor_device);
 
 	stor_device->port_number = host->host_no;
 	ret = storvsc_connect_to_vsp(device, storvsc_ringbuffer_size);
