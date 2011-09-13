@@ -1828,8 +1828,9 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
-static int emulate_load_segment(struct x86_emulate_ctxt *ctxt, int seg)
+static int em_lseg(struct x86_emulate_ctxt *ctxt)
 {
+	int seg = ctxt->src2.val;
 	unsigned short sel;
 	int rc;
 
@@ -3193,8 +3194,8 @@ static struct opcode opcode_table[256] = {
 	D2bv(DstMem | SrcImmByte | ModRM),
 	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
 	I(ImplicitOps | Stack, em_ret),
-	D(DstReg | SrcMemFAddr | ModRM | No64 | Src2ES),
-	D(DstReg | SrcMemFAddr | ModRM | No64 | Src2DS),
+	I(DstReg | SrcMemFAddr | ModRM | No64 | Src2ES, em_lseg),
+	I(DstReg | SrcMemFAddr | ModRM | No64 | Src2DS, em_lseg),
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
 	N, N, N, I(ImplicitOps | Stack, em_ret_far),
@@ -3281,10 +3282,10 @@ static struct opcode twobyte_table[256] = {
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	D2bv(DstMem | SrcReg | ModRM | Lock),
-	D(DstReg | SrcMemFAddr | ModRM | Src2SS),
+	I(DstReg | SrcMemFAddr | ModRM | Src2SS, em_lseg),
 	D(DstMem | SrcReg | ModRM | BitOp | Lock),
-	D(DstReg | SrcMemFAddr | ModRM | Src2FS),
-	D(DstReg | SrcMemFAddr | ModRM | Src2GS),
+	I(DstReg | SrcMemFAddr | ModRM | Src2FS, em_lseg),
+	I(DstReg | SrcMemFAddr | ModRM | Src2GS, em_lseg),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
@@ -3893,10 +3894,6 @@ special_insn:
 	case 0xc0 ... 0xc1:
 		rc = em_grp2(ctxt);
 		break;
-	case 0xc4:		/* les */
-	case 0xc5:		/* lds */
-		rc = emulate_load_segment(ctxt, ctxt->src2.val);
-		break;
 	case 0xcc:		/* int3 */
 		rc = emulate_int(ctxt, 3);
 		break;
@@ -4145,11 +4142,6 @@ twobyte_insn:
 			ctxt->dst.type = OP_REG;
 			ctxt->dst.addr.reg = (unsigned long *)&ctxt->regs[VCPU_REGS_RAX];
 		}
-		break;
-	case 0xb2:		/* lss */
-	case 0xb4:		/* lfs */
-	case 0xb5:		/* lgs */
-		rc = emulate_load_segment(ctxt, ctxt->src2.val);
 		break;
 	case 0xb3:
 	      btr:		/* btr */
