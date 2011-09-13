@@ -313,20 +313,11 @@ static void __devinit mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 
 static int __devinit mac_onboard_sonic_probe(struct net_device *dev)
 {
-	/* Bwahahaha */
-	static int once_is_more_than_enough;
 	struct sonic_local* lp = netdev_priv(dev);
 	int sr;
 	int commslot = 0;
 
-	if (once_is_more_than_enough)
-		return -ENODEV;
-	once_is_more_than_enough = 1;
-
 	if (!MACH_IS_MAC)
-		return -ENODEV;
-
-	if (macintosh_config->ether_type != MAC_ETHER_SONIC)
 		return -ENODEV;
 
 	printk(KERN_INFO "Checking for internal Macintosh ethernet (SONIC).. ");

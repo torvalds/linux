@@ -31,9 +31,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/gfp.h>
+#include <linux/interrupt.h>
 #include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_psc.h>
 #include <asm/page.h>
@@ -203,13 +202,7 @@ static int __devinit mace_probe(struct platform_device *pdev)
 	unsigned char *addr;
 	struct net_device *dev;
 	unsigned char checksum = 0;
-	static int found = 0;
 	int err;
-
-	if (found || macintosh_config->ether_type != MAC_ETHER_MACE)
-		return -ENODEV;
-
-	found = 1;	/* prevent 'finding' one on every device probe */
 
 	dev = alloc_etherdev(PRIV_BYTES);
 	if (!dev)
