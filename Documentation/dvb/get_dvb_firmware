@@ -28,7 +28,7 @@ use IO::Handle;
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
 		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5", "tda10071",
-                "it9135" );
+		"it9135" );
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
