@@ -386,7 +386,8 @@ void brcms_c_get_current_rateset(struct brcms_c_info *wlc,
 int brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcm_rateset *rs);
 int brcms_c_set_beacon_period(struct brcms_c_info *wlc, u16 period);
 u16 brcms_c_get_phy_type(struct brcms_c_info *wlc, int phyidx);
-int brcms_c_set_shortslot_override(struct brcms_c_info *wlc, s8 sslot_override);
+void brcms_c_set_shortslot_override(struct brcms_c_info *wlc,
+				    s8 sslot_override);
 
 /* helper functions */
 extern bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc);

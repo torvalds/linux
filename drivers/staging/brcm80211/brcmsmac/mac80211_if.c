@@ -363,34 +363,6 @@ brcms_ops_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	UNLOCK(wl);
 }
 
-/*
- * precondition: perimeter lock has been acquired
- */
-static int
-ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
-		 enum nl80211_channel_type type)
-{
-	struct brcms_info *wl = hw->priv;
-	int err;
-
-	switch (type) {
-	case NL80211_CHAN_HT20:
-	case NL80211_CHAN_NO_HT:
-		err = brcms_c_set_channel(wl->wlc, chan->hw_value);
-		break;
-	case NL80211_CHAN_HT40MINUS:
-	case NL80211_CHAN_HT40PLUS:
-		wiphy_err(hw->wiphy,
-			  "%s: Need to implement 40 Mhz Channels!\n", __func__);
-		err = -ENOTSUPP;
-		break;
-	default:
-		err = -EINVAL;
-	}
-
-	return err;
-}
-
 static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ieee80211_conf *conf = &hw->conf;
@@ -433,9 +405,14 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 				  "\n", __func__, conf->power_level * 4,
 				  new_int);
 	}
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
-		err = ieee_set_channel(hw, conf->channel, conf->channel_type);
-
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		if (conf->channel_type == NL80211_CHAN_HT20 ||
+		    conf->channel_type == NL80211_CHAN_NO_HT)
+			err = brcms_c_set_channel(wl->wlc,
+						  conf->channel->hw_value);
+		else
+			err = -ENOTSUPP;
+	}
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		err = brcms_c_set_rate_limit(wl->wlc,
 					     conf->short_frame_max_tx_count,

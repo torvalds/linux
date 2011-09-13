@@ -6288,14 +6288,8 @@ u16 brcms_c_get_phy_type(struct brcms_c_info *wlc, int phyidx)
 	return wlc->band->phytype;
 }
 
-int brcms_c_set_shortslot_override(struct brcms_c_info *wlc, s8 sslot_override)
+void brcms_c_set_shortslot_override(struct brcms_c_info *wlc, s8 sslot_override)
 {
-	if (sslot_override != BRCMS_SHORTSLOT_AUTO &&
-	    sslot_override != BRCMS_SHORTSLOT_OFF &&
-	    sslot_override != BRCMS_SHORTSLOT_ON) {
-		return -EINVAL;
-	}
-
 	wlc->shortslot_override = sslot_override;
 
 	/*
@@ -6303,7 +6297,7 @@ int brcms_c_set_shortslot_override(struct brcms_c_info *wlc, s8 sslot_override)
 	 * currently on the 5G band
 	 */
 	if (wlc->band->bandtype == BRCM_BAND_5G)
-		return 0;
+		return;
 
 	if (wlc->pub->up && wlc->pub->associated) {
 		/* let watchdog or beacon processing update shortslot */
@@ -6320,7 +6314,6 @@ int brcms_c_set_shortslot_override(struct brcms_c_info *wlc, s8 sslot_override)
 			    (wlc->shortslot_override ==
 			     BRCMS_SHORTSLOT_ON);
 	}
-	return 0;
 }
 
 /*
