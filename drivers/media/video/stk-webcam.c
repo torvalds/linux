@@ -518,7 +518,7 @@ static int stk_prepare_sio_buffers(struct stk_camera *dev, unsigned n_sbufs)
 			return -ENOMEM;
 		for (i = 0; i < n_sbufs; i++) {
 			if (stk_setup_siobuf(dev, i))
-				return (dev->n_sbufs > 1)? 0 : -ENOMEM;
+				return (dev->n_sbufs > 1 ? 0 : -ENOMEM);
 			dev->n_sbufs = i+1;
 		}
 	}
@@ -558,9 +558,8 @@ static int v4l_stk_open(struct file *fp)
 	vdev = video_devdata(fp);
 	dev = vdev_to_camera(vdev);
 
-	if (dev == NULL || !is_present(dev)) {
+	if (dev == NULL || !is_present(dev))
 		return -ENXIO;
-	}
 	fp->private_data = dev;
 	usb_autopm_get_interface(dev->interface);
 
@@ -579,7 +578,7 @@ static int v4l_stk_release(struct file *fp)
 		dev->owner = NULL;
 	}
 
-	if(is_present(dev))
+	if (is_present(dev))
 		usb_autopm_put_interface(dev->interface);
 
 	return 0;
@@ -656,7 +655,7 @@ static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
 		return POLLERR;
 
 	if (!list_empty(&dev->sio_full))
-		return (POLLIN | POLLRDNORM);
+		return POLLIN | POLLRDNORM;
 
 	return 0;
 }
@@ -893,9 +892,9 @@ static int stk_vidioc_g_fmt_vid_cap(struct file *filp,
 	struct stk_camera *dev = priv;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(stk_sizes)
-			&& stk_sizes[i].m != dev->vsettings.mode;
-		i++);
+	for (i = 0; i < ARRAY_SIZE(stk_sizes) &&
+			stk_sizes[i].m != dev->vsettings.mode; i++)
+		;
 	if (i == ARRAY_SIZE(stk_sizes)) {
 		STK_ERROR("ERROR: mode invalid\n");
 		return -EINVAL;
@@ -1307,9 +1306,8 @@ static int stk_camera_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, dev);
 
 	err = stk_register_video_device(dev);
-	if (err) {
+	if (err)
 		goto error;
-	}
 
 	return 0;
 
