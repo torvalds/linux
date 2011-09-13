@@ -421,7 +421,7 @@ static u16 _brcms_c_stf_phytxchain_sel(struct brcms_c_info *wlc,
 {
 	u16 phytxant = wlc->stf->phytxant;
 
-	if (RSPEC_STF(rspec) != PHY_TXC1_MODE_SISO)
+	if (rspec_stf(rspec) != PHY_TXC1_MODE_SISO)
 		phytxant = wlc->stf->txchain << PHY_TXC_ANT_SHIFT;
 	else if (wlc->stf->txant == ANT_TX_DEF)
 		phytxant = wlc->stf->txchain << PHY_TXC_ANT_SHIFT;

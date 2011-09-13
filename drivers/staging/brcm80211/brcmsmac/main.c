@@ -170,7 +170,7 @@
 /* Find basic rate for a given rate */
 static u8 brcms_basic_rate(struct brcms_c_info *wlc, u32 rspec)
 {
-	if (IS_MCS(rspec))
+	if (is_mcs_rate(rspec))
 		return wlc->band->basic_rate[mcs_table[rspec & RSPEC_RATE_MASK]
 		       .leg_ofdm];
 	return wlc->band->basic_rate[rspec & RSPEC_RATE_MASK];
@@ -178,9 +178,9 @@ static u8 brcms_basic_rate(struct brcms_c_info *wlc, u32 rspec)
 
 static u16 frametype(u32 rspec, u8 mimoframe)
 {
-	if (IS_MCS(rspec))
+	if (is_mcs_rate(rspec))
 		return mimoframe;
-	return IS_CCK(rspec) ? FT_CCK : FT_OFDM;
+	return is_cck_rate(rspec) ? FT_CCK : FT_OFDM;
 }
 
 /* rfdisable delay timer 500 ms, runs of ALP clock */
@@ -4001,7 +4001,7 @@ u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
 	 * pick siso/cdd as default for OFDM (note no basic
 	 * rate MCSs are supported yet)
 	 */
-	if (IS_OFDM(lowest_basic_rspec))
+	if (is_ofdm_rate(lowest_basic_rspec))
 		lowest_basic_rspec |= (wlc->stf->ss_opmode << RSPEC_STF_SHIFT);
 
 	return lowest_basic_rspec;
@@ -6560,7 +6560,7 @@ u16 brcms_b_rate_shm_offset(struct brcms_hardware *wlc_hw, u8 rate)
 	u8 phy_rate, index;
 
 	/* get the phy specific rate encoding for the PLCP SIGNAL field */
-	if (IS_OFDM(rate))
+	if (is_ofdm_rate(rate))
 		table_ptr = M_RT_DIRMAP_A;
 	else
 		table_ptr = M_RT_DIRMAP_B;
@@ -6772,27 +6772,26 @@ brcms_c_calc_frame_len(struct brcms_c_info *wlc, u32 ratespec,
 		   u8 preamble_type, uint dur)
 {
 	uint nsyms, mac_len, Ndps, kNdps;
-	uint rate = RSPEC2RATE(ratespec);
+	uint rate = rspec2rate(ratespec);
 
 	BCMMSG(wlc->wiphy, "wl%d: rspec 0x%x, preamble_type %d, dur %d\n",
 		 wlc->pub->unit, ratespec, preamble_type, dur);
 
-	if (IS_MCS(ratespec)) {
+	if (is_mcs_rate(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
-		int tot_streams = MCS_TXS(mcs) + RSPEC_STC(ratespec);
+		int tot_streams = mcs_2_txstreams(mcs) + rspec_stc(ratespec);
 		dur -= PREN_PREAMBLE + (tot_streams * PREN_PREAMBLE_EXT);
 		/* payload calculation matches that of regular ofdm */
 		if (wlc->band->bandtype == BRCM_BAND_2G)
 			dur -= DOT11_OFDM_SIGNAL_EXTENSION;
 		/* kNdbps = kbps * 4 */
-		kNdps =
-		    MCS_RATE(mcs, RSPEC_IS40MHZ(ratespec),
-			     RSPEC_ISSGI(ratespec)) * 4;
+		kNdps =	mcs_2_rate(mcs, rspec_is40mhz(ratespec),
+				   rspec_issgi(ratespec)) * 4;
 		nsyms = dur / APHY_SYMBOL_TIME;
 		mac_len =
 		    ((nsyms * kNdps) -
 		     ((APHY_SERVICE_NBITS + APHY_TAIL_NBITS) * 1000)) / 8000;
-	} else if (IS_OFDM(ratespec)) {
+	} else if (is_ofdm_rate(ratespec)) {
 		dur -= APHY_PREAMBLE_TIME;
 		dur -= APHY_SIGNAL_TIME;
 		/* Ndbps = Mbps * 4 = rate(500Kbps) * 2 */
@@ -6872,14 +6871,14 @@ mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 				goto done;
 			}
 		}
-	} else if (IS_OFDM(rate)) {
+	} else if (is_ofdm_rate(rate)) {
 		if ((stf != PHY_TXC1_MODE_CDD) && (stf != PHY_TXC1_MODE_SISO)) {
 			wiphy_err(wlc->wiphy, "wl%d: %s: Invalid OFDM\n",
 				  wlc->pub->unit, __func__);
 			bcmerror = -EINVAL;
 			goto done;
 		}
-	} else if (IS_CCK(rate)) {
+	} else if (is_cck_rate(rate)) {
 		if ((cur_band->bandtype != BRCM_BAND_2G)
 		    || (stf != PHY_TXC1_MODE_SISO)) {
 			wiphy_err(wlc->wiphy, "wl%d: %s: Invalid CCK\n",
@@ -7074,7 +7073,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		 *   determine and validate primary rate
 		 *   and fallback rates
 		 */
-		if (!RSPEC_ACTIVE(rspec[k])) {
+		if (!rspec_active(rspec[k])) {
 			rspec[k] = BRCM_RATE_1M;
 		} else {
 			if (!is_multicast_ether_addr(h->addr1)) {
@@ -7093,15 +7092,15 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 			 * apply siso/cdd to single stream mcs's or ofdm
 			 * if rspec is auto selected
 			 */
-			if (((IS_MCS(rspec[k]) &&
-			      IS_SINGLE_STREAM(rspec[k] & RSPEC_RATE_MASK)) ||
-			     IS_OFDM(rspec[k]))
+			if (((is_mcs_rate(rspec[k]) &&
+			      is_single_stream(rspec[k] & RSPEC_RATE_MASK)) ||
+			     is_ofdm_rate(rspec[k]))
 			    && ((rspec[k] & RSPEC_OVERRIDE_MCS_ONLY)
 				|| !(rspec[k] & RSPEC_OVERRIDE))) {
 				rspec[k] &= ~(RSPEC_STF_MASK | RSPEC_STC_MASK);
 
 				/* For SISO MCS use STBC if possible */
-				if (IS_MCS(rspec[k])
+				if (is_mcs_rate(rspec[k])
 				    && BRCMS_STF_SS_STBC_TX(wlc, scb)) {
 					u8 stc;
 
@@ -7126,7 +7125,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 								 wlc->band->pi))
 				   ? PHY_TXC1_BW_20MHZ_UP : PHY_TXC1_BW_20MHZ;
 
-				if (IS_MCS(rspec[k])) {
+				if (is_mcs_rate(rspec[k])) {
 					/* mcs 32 must be 40b/w DUP */
 					if ((rspec[k] & RSPEC_RATE_MASK)
 					    == 32) {
@@ -7138,7 +7137,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 					/* else check if dst is using 40 Mhz */
 					else if (scb->flags & SCB_IS40)
 						mimo_txbw = PHY_TXC1_BW_40MHZ;
-				} else if (IS_OFDM(rspec[k])) {
+				} else if (is_ofdm_rate(rspec[k])) {
 					if (wlc->ofdm_40txbw != AUTO)
 						mimo_txbw = wlc->ofdm_40txbw;
 				} else if (wlc->cck_40txbw != AUTO) {
@@ -7159,7 +7158,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 			/* Set channel width */
 			rspec[k] &= ~RSPEC_BW_MASK;
-			if ((k == 0) || ((k > 0) && IS_MCS(rspec[k])))
+			if ((k == 0) || ((k > 0) && is_mcs_rate(rspec[k])))
 				rspec[k] |= (mimo_txbw << RSPEC_BW_SHIFT);
 			else
 				rspec[k] |= (mimo_ctlchbw << RSPEC_BW_SHIFT);
@@ -7172,13 +7171,13 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				mimo_preamble_type = BRCMS_GF_PREAMBLE;
 
 			if ((txrate[k]->flags & IEEE80211_TX_RC_MCS)
-			    && (!IS_MCS(rspec[k]))) {
+			    && (!is_mcs_rate(rspec[k]))) {
 				wiphy_err(wlc->wiphy, "wl%d: %s: IEEE80211_TX_"
-					  "RC_MCS != IS_MCS(rspec)\n",
+					  "RC_MCS != is_mcs_rate(rspec)\n",
 					  wlc->pub->unit, __func__);
 			}
 
-			if (IS_MCS(rspec[k])) {
+			if (is_mcs_rate(rspec[k])) {
 				preamble_type[k] = mimo_preamble_type;
 
 				/*
@@ -7186,13 +7185,13 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				 * for single stream
 				 */
 				if ((rspec[k] & RSPEC_SHORT_GI)
-				    && IS_SINGLE_STREAM(rspec[k] &
+				    && is_single_stream(rspec[k] &
 							RSPEC_RATE_MASK))
 					preamble_type[k] = BRCMS_MM_PREAMBLE;
 			}
 
 			/* should be better conditionalized */
-			if (!IS_MCS(rspec[0])
+			if (!is_mcs_rate(rspec[0])
 			    && (tx_info->control.rates[0].
 				flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
 				preamble_type[k] = BRCMS_SHORT_PREAMBLE;
@@ -7204,7 +7203,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 			rspec[k] |= (PHY_TXC1_BW_20MHZ << RSPEC_BW_SHIFT);
 
 			/* for nphy, stf of ofdm frames must follow policies */
-			if (BRCMS_ISNPHY(wlc->band) && IS_OFDM(rspec[k])) {
+			if (BRCMS_ISNPHY(wlc->band) && is_ofdm_rate(rspec[k])) {
 				rspec[k] &= ~RSPEC_STF_MASK;
 				rspec[k] |= phyctl1_stf << RSPEC_STF_SHIFT;
 			}
@@ -7229,13 +7228,13 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	       plcp_fallback, sizeof(txh->FragPLCPFallback));
 
 	/* Length field now put in CCK FBR CRC field */
-	if (IS_CCK(rspec[1])) {
+	if (is_cck_rate(rspec[1])) {
 		txh->FragPLCPFallback[4] = phylen & 0xff;
 		txh->FragPLCPFallback[5] = (phylen & 0xff00) >> 8;
 	}
 
 	/* MIMO-RATE: need validation ?? */
-	mainrates = IS_OFDM(rspec[0]) ?
+	mainrates = is_ofdm_rate(rspec[0]) ?
 			D11A_PHY_HDR_GRATE((struct ofdm_phy_hdr *) plcp) :
 			plcp[0];
 
@@ -7292,7 +7291,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	/* Set fallback rate preamble type */
 	if ((preamble_type[1] == BRCMS_SHORT_PREAMBLE) ||
 	    (preamble_type[1] == BRCMS_GF_PREAMBLE)) {
-		if (RSPEC2RATE(rspec[1]) != BRCM_RATE_1M)
+		if (rspec2rate(rspec[1]) != BRCM_RATE_1M)
 			mch |= TXC_PREAMBLE_DATA_FB_SHORT;
 	}
 
@@ -7336,15 +7335,15 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 							      mimo_ctlchbw);
 		}
 
-		if (!IS_OFDM(rts_rspec[0]) &&
-		    !((RSPEC2RATE(rts_rspec[0]) == BRCM_RATE_1M) ||
+		if (!is_ofdm_rate(rts_rspec[0]) &&
+		    !((rspec2rate(rts_rspec[0]) == BRCM_RATE_1M) ||
 		      (wlc->PLCPHdr_override == BRCMS_PLCP_LONG))) {
 			rts_preamble_type[0] = BRCMS_SHORT_PREAMBLE;
 			mch |= TXC_PREAMBLE_RTS_MAIN_SHORT;
 		}
 
-		if (!IS_OFDM(rts_rspec[1]) &&
-		    !((RSPEC2RATE(rts_rspec[1]) == BRCM_RATE_1M) ||
+		if (!is_ofdm_rate(rts_rspec[1]) &&
+		    !((rspec2rate(rts_rspec[1]) == BRCM_RATE_1M) ||
 		      (wlc->PLCPHdr_override == BRCMS_PLCP_LONG))) {
 			rts_preamble_type[1] = BRCMS_SHORT_PREAMBLE;
 			mch |= TXC_PREAMBLE_RTS_FB_SHORT;
@@ -7403,7 +7402,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		 *    low 8 bits: main frag rate/mcs,
 		 *    high 8 bits: rts/cts rate/mcs
 		 */
-		mainrates |= (IS_OFDM(rts_rspec[0]) ?
+		mainrates |= (is_ofdm_rate(rts_rspec[0]) ?
 				D11A_PHY_HDR_GRATE(
 					(struct ofdm_phy_hdr *) rts_plcp) :
 				rts_plcp[0]) << 8;
@@ -7418,7 +7417,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 #ifdef SUPPORT_40MHZ
 	/* add null delimiter count */
-	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && IS_MCS(rspec))
+	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && is_mcs_rate(rspec))
 		txh->RTSPLCPFallback[AMPDU_FBR_NULL_DELIM] =
 		   brcm_c_ampdu_null_delim_cnt(wlc->ampdu, scb, rspec, phylen);
 
@@ -7448,7 +7447,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	phyctl = frametype(rspec[0], wlc->mimoft);
 	if ((preamble_type[0] == BRCMS_SHORT_PREAMBLE) ||
 	    (preamble_type[0] == BRCMS_GF_PREAMBLE)) {
-		if (RSPEC2RATE(rspec[0]) != BRCM_RATE_1M)
+		if (rspec2rate(rspec[0]) != BRCM_RATE_1M)
 			phyctl |= PHY_TXC_SHORT_HDR;
 	}
 
@@ -7477,14 +7476,14 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		 * is going to be set, fill in non-zero MModeLen and/or
 		 * MModeFbrLen it will be unnecessary if they are separated
 		 */
-		if (IS_MCS(rspec[0]) &&
+		if (is_mcs_rate(rspec[0]) &&
 		    (preamble_type[0] == BRCMS_MM_PREAMBLE)) {
 			u16 mmodelen =
 			    brcms_c_calc_lsig_len(wlc, rspec[0], phylen);
 			txh->MModeLen = cpu_to_le16(mmodelen);
 		}
 
-		if (IS_MCS(rspec[1]) &&
+		if (is_mcs_rate(rspec[1]) &&
 		    (preamble_type[1] == BRCMS_MM_PREAMBLE)) {
 			u16 mmodefbrlen =
 			    brcms_c_calc_lsig_len(wlc, rspec[1], phylen);
@@ -7570,7 +7569,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				wiphy_err(wlc->wiphy, "wl%d: %s txop invalid "
 					  "for rate %d\n",
 					  wlc->pub->unit, fifo_names[queue],
-					  RSPEC2RATE(rspec[0]));
+					  rspec2rate(rspec[0]));
 			}
 
 			if (dur > wlc->edcf_txop[ac])
@@ -7772,10 +7771,10 @@ static void brcms_c_compute_mimo_plcp(u32 rspec, uint length, u8 *plcp)
 {
 	u8 mcs = (u8) (rspec & RSPEC_RATE_MASK);
 	plcp[0] = mcs;
-	if (RSPEC_IS40MHZ(rspec) || (mcs == 32))
+	if (rspec_is40mhz(rspec) || (mcs == 32))
 		plcp[0] |= MIMO_PLCP_40MHZ;
 	BRCMS_SET_MIMO_PLCP_LEN(plcp, length);
-	plcp[3] = RSPEC_MIMOPLCP3(rspec); /* rspec already holds this byte */
+	plcp[3] = rspec_mimoplcp3(rspec); /* rspec already holds this byte */
 	plcp[3] |= 0x7; /* set smoothing, not sounding ppdu & reserved */
 	plcp[4] = 0; /* number of extension spatial streams bit 0 & 1 */
 	plcp[5] = 0;
@@ -7787,7 +7786,7 @@ brcms_c_compute_ofdm_plcp(u32 rspec, u32 length, u8 *plcp)
 {
 	u8 rate_signal;
 	u32 tmp = 0;
-	int rate = RSPEC2RATE(rspec);
+	int rate = rspec2rate(rspec);
 
 	/*
 	 * encode rate per 802.11a-1999 sec 17.3.4.1, with lsb
@@ -7809,7 +7808,7 @@ brcms_c_compute_ofdm_plcp(u32 rspec, u32 length, u8 *plcp)
 static void brcms_c_compute_cck_plcp(struct brcms_c_info *wlc, u32 rspec,
 				 uint length, u8 *plcp)
 {
-	int rate = RSPEC2RATE(rspec);
+	int rate = rspec2rate(rspec);
 
 	brcms_c_cck_plcp_set(wlc, rate, length, plcp);
 }
@@ -7818,9 +7817,9 @@ void
 brcms_c_compute_plcp(struct brcms_c_info *wlc, u32 rspec,
 		     uint length, u8 *plcp)
 {
-	if (IS_MCS(rspec))
+	if (is_mcs_rate(rspec))
 		brcms_c_compute_mimo_plcp(rspec, length, plcp);
-	else if (IS_OFDM(rspec))
+	else if (is_ofdm_rate(rspec))
 		brcms_c_compute_ofdm_plcp(rspec, length, plcp);
 	else
 		brcms_c_compute_cck_plcp(wlc, rspec, length, plcp);
@@ -7881,7 +7880,7 @@ u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, u32 rspec)
 	if (BRCMS_ISLCNPHY(wlc->band)) {
 		bw = PHY_TXC1_BW_20MHZ;
 	} else {
-		bw = RSPEC_GET_BW(rspec);
+		bw = rspec_get_bw(rspec);
 		/* 10Mhz is not supported yet */
 		if (bw < PHY_TXC1_BW_20MHZ) {
 			wiphy_err(wlc->wiphy, "phytxctl1_calc: bw %d is "
@@ -7890,14 +7889,14 @@ u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, u32 rspec)
 		}
 	}
 
-	if (IS_MCS(rspec)) {
+	if (is_mcs_rate(rspec)) {
 		uint mcs = rspec & RSPEC_RATE_MASK;
 
-		/* bw, stf, coding-type is part of RSPEC_PHYTXBYTE2 returns */
-		phyctl1 = RSPEC_PHYTXBYTE2(rspec);
+		/* bw, stf, coding-type is part of rspec_phytxbyte2 returns */
+		phyctl1 = rspec_phytxbyte2(rspec);
 		/* set the upper byte of phyctl1 */
 		phyctl1 |= (mcs_table[mcs].tx_phy_ctl3 << 8);
-	} else if (IS_CCK(rspec) && !BRCMS_ISLCNPHY(wlc->band)
+	} else if (is_cck_rate(rspec) && !BRCMS_ISLCNPHY(wlc->band)
 		   && !BRCMS_ISSSLPNPHY(wlc->band)) {
 		/*
 		 * In CCK mode LPPHY overloads OFDM Modulation bits with CCK
@@ -7905,11 +7904,11 @@ u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, u32 rspec)
 		 * this format
 		 */
 		/* 0 = 1Mbps; 1 = 2Mbps; 2 = 5.5Mbps; 3 = 11Mbps */
-		phyctl1 = (bw | (RSPEC_STF(rspec) << PHY_TXC1_MODE_SHIFT));
+		phyctl1 = (bw | (rspec_stf(rspec) << PHY_TXC1_MODE_SHIFT));
 	} else {		/* legacy OFDM/CCK */
 		s16 phycfg;
 		/* get the phyctl byte from rate phycfg table */
-		phycfg = brcms_c_rate_legacy_phyctl(RSPEC2RATE(rspec));
+		phycfg = brcms_c_rate_legacy_phyctl(rspec2rate(rspec));
 		if (phycfg == -1) {
 			wiphy_err(wlc->wiphy, "phytxctl1_calc: wrong "
 				  "legacy OFDM/CCK rate\n");
@@ -7918,7 +7917,7 @@ u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, u32 rspec)
 		/* set the upper byte of phyctl1 */
 		phyctl1 =
 		    (bw | (phycfg << 8) |
-		     (RSPEC_STF(rspec) << PHY_TXC1_MODE_SHIFT));
+		     (rspec_stf(rspec) << PHY_TXC1_MODE_SHIFT));
 	}
 	return phyctl1;
 }
@@ -7932,7 +7931,7 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, u32 rspec,
 	if (use_rspec)
 		/* use frame rate as rts rate */
 		rts_rspec = rspec;
-	else if (wlc->band->gmode && wlc->protection->_g && !IS_CCK(rspec))
+	else if (wlc->band->gmode && wlc->protection->_g && !is_cck_rate(rspec))
 		/* Use 11Mbps as the g protection RTS target rate and fallback.
 		 * Use the brcms_basic_rate() lookup to find the best basic rate
 		 * under the target in case 11 Mbps is not Basic.
@@ -7956,13 +7955,13 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, u32 rspec,
 		 * if rspec/rspec_fallback is 40MHz, then send RTS on both
 		 * 20MHz channel (DUP), otherwise send RTS on control channel
 		 */
-		if (RSPEC_IS40MHZ(rspec) && !IS_CCK(rts_rspec))
+		if (rspec_is40mhz(rspec) && !is_cck_rate(rts_rspec))
 			rts_rspec |= (PHY_TXC1_BW_40MHZ_DUP << RSPEC_BW_SHIFT);
 		else
 			rts_rspec |= (mimo_ctlchbw << RSPEC_BW_SHIFT);
 
 		/* pick siso/cdd as default for ofdm */
-		if (IS_OFDM(rts_rspec)) {
+		if (is_ofdm_rate(rts_rspec)) {
 			rts_rspec &= ~RSPEC_STF_MASK;
 			rts_rspec |= (wlc->stf->ss_opmode << RSPEC_STF_SHIFT);
 		}
@@ -8269,13 +8268,13 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 	plcp = p->data;
 
 	rspec = brcms_c_compute_rspec(rxh, plcp);
-	if (IS_MCS(rspec)) {
+	if (is_mcs_rate(rspec)) {
 		rx_status->rate_idx = rspec & RSPEC_RATE_MASK;
 		rx_status->flag |= RX_FLAG_HT;
-		if (RSPEC_IS40MHZ(rspec))
+		if (rspec_is40mhz(rspec))
 			rx_status->flag |= RX_FLAG_40MHZ;
 	} else {
-		switch (RSPEC2RATE(rspec)) {
+		switch (rspec2rate(rspec)) {
 		case BRCM_RATE_1M:
 			rx_status->rate_idx = 0;
 			break;
@@ -8326,10 +8325,10 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 
 		/* Determine short preamble and rate_idx */
 		preamble = 0;
-		if (IS_CCK(rspec)) {
+		if (is_cck_rate(rspec)) {
 			if (rxh->PhyRxStatus_0 & PRXS0_SHORTH)
 				rx_status->flag |= RX_FLAG_SHORTPRE;
-		} else if (IS_OFDM(rspec)) {
+		} else if (is_ofdm_rate(rspec)) {
 			rx_status->flag |= RX_FLAG_SHORTPRE;
 		} else {
 			wiphy_err(wlc->wiphy, "%s: Unknown modulation\n",
@@ -8337,7 +8336,7 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 		}
 	}
 
-	if (PLCP3_ISSGI(plcp[3]))
+	if (plcp3_issgi(plcp[3]))
 		rx_status->flag |= RX_FLAG_SHORT_GI;
 
 	if (rxh->RxStatus1 & RXS_DECERR) {
@@ -8479,23 +8478,22 @@ brcms_c_calc_lsig_len(struct brcms_c_info *wlc, u32 ratespec,
 	uint nsyms, len = 0, kNdps;
 
 	BCMMSG(wlc->wiphy, "wl%d: rate %d, len%d\n",
-		 wlc->pub->unit, RSPEC2RATE(ratespec), mac_len);
+		 wlc->pub->unit, rspec2rate(ratespec), mac_len);
 
-	if (IS_MCS(ratespec)) {
+	if (is_mcs_rate(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
-		/* MCS_TXS(mcs) returns num tx streams - 1 */
-		int tot_streams = (MCS_TXS(mcs) + 1) + RSPEC_STC(ratespec);
+		int tot_streams = (mcs_2_txstreams(mcs) + 1) +
+				  rspec_stc(ratespec);
 
 		/*
 		 * the payload duration calculation matches that
 		 * of regular ofdm
 		 */
 		/* 1000Ndbps = kbps * 4 */
-		kNdps =
-		    MCS_RATE(mcs, RSPEC_IS40MHZ(ratespec),
-			     RSPEC_ISSGI(ratespec)) * 4;
+		kNdps = mcs_2_rate(mcs, rspec_is40mhz(ratespec),
+				   rspec_issgi(ratespec)) * 4;
 
-		if (RSPEC_STC(ratespec) == 0)
+		if (rspec_stc(ratespec) == 0)
 			nsyms =
 			    CEIL((APHY_SERVICE_NBITS + 8 * mac_len +
 				  APHY_TAIL_NBITS) * 1000, kNdps);
@@ -8527,7 +8525,7 @@ brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 			u8 preamble_type, uint mac_len)
 {
 	uint nsyms, dur = 0, Ndps, kNdps;
-	uint rate = RSPEC2RATE(ratespec);
+	uint rate = rspec2rate(ratespec);
 
 	if (rate == 0) {
 		wiphy_err(wlc->wiphy, "wl%d: WAR: using rate of 1 mbps\n",
@@ -8538,19 +8536,18 @@ brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 	BCMMSG(wlc->wiphy, "wl%d: rspec 0x%x, preamble_type %d, len%d\n",
 		 wlc->pub->unit, ratespec, preamble_type, mac_len);
 
-	if (IS_MCS(ratespec)) {
+	if (is_mcs_rate(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
-		int tot_streams = MCS_TXS(mcs) + RSPEC_STC(ratespec);
+		int tot_streams = mcs_2_txstreams(mcs) + rspec_stc(ratespec);
 
 		dur = PREN_PREAMBLE + (tot_streams * PREN_PREAMBLE_EXT);
 		if (preamble_type == BRCMS_MM_PREAMBLE)
 			dur += PREN_MM_EXT;
 		/* 1000Ndbps = kbps * 4 */
-		kNdps =
-		    MCS_RATE(mcs, RSPEC_IS40MHZ(ratespec),
-			     RSPEC_ISSGI(ratespec)) * 4;
+		kNdps = mcs_2_rate(mcs, rspec_is40mhz(ratespec),
+				   rspec_issgi(ratespec)) * 4;
 
-		if (RSPEC_STC(ratespec) == 0)
+		if (rspec_stc(ratespec) == 0)
 			nsyms =
 			    CEIL((APHY_SERVICE_NBITS + 8 * mac_len +
 				  APHY_TAIL_NBITS) * 1000, kNdps);
@@ -8564,7 +8561,7 @@ brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 		dur += APHY_SYMBOL_TIME * nsyms;
 		if (wlc->band->bandtype == BRCM_BAND_2G)
 			dur += DOT11_OFDM_SIGNAL_EXTENSION;
-	} else if (IS_OFDM(rate)) {
+	} else if (is_ofdm_rate(rate)) {
 		dur = APHY_PREAMBLE_TIME;
 		dur += APHY_SIGNAL_TIME;
 		/* Ndbps = Mbps * 4 = rate(500Kbps) * 2 */
@@ -8649,7 +8646,7 @@ void brcms_c_rate_lookup_init(struct brcms_c_info *wlc,
 			 * Keep track of the best basic rate so far by
 			 * modulation type.
 			 */
-			if (IS_OFDM(rate))
+			if (is_ofdm_rate(rate))
 				ofdm_basic = rate;
 			else
 				cck_basic = rate;
@@ -8662,12 +8659,12 @@ void brcms_c_rate_lookup_init(struct brcms_c_info *wlc,
 		 * the hole in the table
 		 */
 
-		br[rate] = IS_OFDM(rate) ? ofdm_basic : cck_basic;
+		br[rate] = is_ofdm_rate(rate) ? ofdm_basic : cck_basic;
 
 		if (br[rate] != 0)
 			continue;
 
-		if (IS_OFDM(rate)) {
+		if (is_ofdm_rate(rate)) {
 			/*
 			 * In 11g and 11a, the OFDM mandatory rates
 			 * are 6, 12, and 24 Mbps
@@ -8696,10 +8693,10 @@ static void brcms_c_write_rate_shm(struct brcms_c_info *wlc, u8 rate,
 	u16 basic_ptr;
 
 	/* Shared memory address for the table we are reading */
-	dir_table = IS_OFDM(basic_rate) ? M_RT_DIRMAP_A : M_RT_DIRMAP_B;
+	dir_table = is_ofdm_rate(basic_rate) ? M_RT_DIRMAP_A : M_RT_DIRMAP_B;
 
 	/* Shared memory address for the table we are writing */
-	basic_table = IS_OFDM(rate) ? M_RT_BBRSMAP_A : M_RT_BBRSMAP_B;
+	basic_table = is_ofdm_rate(rate) ? M_RT_BBRSMAP_A : M_RT_BBRSMAP_B;
 
 	/*
 	 * for a given rate, the LS-nibble of the PLCP SIGNAL field is
@@ -8788,15 +8785,15 @@ bool brcms_c_valid_rate(struct brcms_c_info *wlc, u32 rspec, int band,
 		return false;
 
 	/* check if this is a mimo rate */
-	if (IS_MCS(rspec)) {
-		if (!VALID_MCS((rspec & RSPEC_RATE_MASK)))
+	if (is_mcs_rate(rspec)) {
+		if ((rspec & RSPEC_RATE_MASK) >= MCS_TABLE_SIZE)
 			goto error;
 
 		return isset(hw_rateset->mcs, (rspec & RSPEC_RATE_MASK));
 	}
 
 	for (i = 0; i < hw_rateset->count; i++)
-		if (hw_rateset->rates[i] == RSPEC2RATE(rspec))
+		if (hw_rateset->rates[i] == rspec2rate(rspec))
 			return true;
  error:
 	if (verbose)

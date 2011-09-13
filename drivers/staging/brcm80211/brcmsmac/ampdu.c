@@ -158,16 +158,16 @@ static void brcms_c_scb_ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
 	for (mcs = 0; mcs < MCS_TABLE_SIZE; mcs++) {
 		/* rate is in Kbps; dur is in msec ==> len = (rate * dur) / 8 */
 		/* 20MHz, No SGI */
-		rate = MCS_RATE(mcs, false, false);
+		rate = mcs_2_rate(mcs, false, false);
 		ampdu->max_txlen[mcs][0][0] = (rate * dur) >> 3;
 		/* 40 MHz, No SGI */
-		rate = MCS_RATE(mcs, true, false);
+		rate = mcs_2_rate(mcs, true, false);
 		ampdu->max_txlen[mcs][1][0] = (rate * dur) >> 3;
 		/* 20MHz, SGI */
-		rate = MCS_RATE(mcs, false, true);
+		rate = mcs_2_rate(mcs, false, true);
 		ampdu->max_txlen[mcs][0][1] = (rate * dur) >> 3;
 		/* 40 MHz, SGI */
-		rate = MCS_RATE(mcs, true, true);
+		rate = mcs_2_rate(mcs, true, true);
 		ampdu->max_txlen[mcs][1][1] = (rate * dur) >> 3;
 	}
 }
@@ -330,7 +330,7 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 	/* note : we divide/multiply by 100 to avoid integer overflows */
 	max_mpdu = min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS],
 			 AMPDU_NUM_MPDU_LEGACY);
-	phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, false);
+	phy_rate = mcs_2_rate(FFPLD_MAX_MCS, true, false);
 	dma_rate =
 	    (((phy_rate / 100) *
 	      (max_mpdu * FFPLD_MPDU_SIZE - fifo->ampdu_pld_size))
@@ -341,7 +341,7 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 	dma_rate = dma_rate >> 7;
 	for (i = 0; i < FFPLD_MAX_MCS; i++) {
 		/* shifting to keep it within integer range */
-		phy_rate = MCS_RATE(i, true, false) >> 7;
+		phy_rate = mcs_2_rate(i, true, false) >> 7;
 		if (phy_rate > dma_rate) {
 			tmp = ((fifo->ampdu_pld_size * phy_rate) /
 			       ((phy_rate - dma_rate) * FFPLD_MPDU_SIZE)) + 1;
@@ -360,7 +360,7 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 {
 	struct ampdu_info *ampdu = wlc->ampdu;
-	u32 phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, false);
+	u32 phy_rate = mcs_2_rate(FFPLD_MAX_MCS, true, false);
 	u32 txunfl_ratio;
 	u8 max_mpdu;
 	u32 current_ampdu_cnt = 0;
@@ -678,7 +678,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 
 			}
 			is40 = (plcp0 & MIMO_PLCP_40MHZ) ? 1 : 0;
-			sgi = PLCP3_ISSGI(plcp3) ? 1 : 0;
+			sgi = plcp3_issgi(plcp3) ? 1 : 0;
 			mcs = plcp0 & ~MIMO_PLCP_40MHZ;
 			max_ampdu_bytes =
 			    min(scb_ampdu->max_rx_ampdu_bytes,
@@ -697,9 +697,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 				rspec |= (PHY_TXC1_BW_40MHZ << RSPEC_BW_SHIFT);
 
 			if (fbr_iscck)	/* CCK */
-				rspec_fallback =
-				    CCK_RSPEC(CCK_PHY2MAC_RATE
-					      (txh->FragPLCPFallback[0]));
+				rspec_fallback = cck_rspec(cck_phy2mac_rate
+						    (txh->FragPLCPFallback[0]));
 			else {	/* MIMO */
 				rspec_fallback = RSPEC_MIMORATE;
 				rspec_fallback |=
@@ -722,7 +721,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 
 		/* if (first mpdu for host agg) */
 		/* test whether to add more */
-		if ((MCS_RATE(mcs, true, false) >= f->dmaxferrate) &&
+		if ((mcs_2_rate(mcs, true, false) >= f->dmaxferrate) &&
 		    (count == f->mcs2ampdu_table[mcs])) {
 			BCMMSG(wlc->wiphy, "wl%d: PR 37644: stopping"
 				" ampdu at %d for mcs %d\n",
@@ -816,7 +815,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		}
 
 		/* set the preload length */
-		if (MCS_RATE(mcs, true, false) >= f->dmaxferrate) {
+		if (mcs_2_rate(mcs, true, false) >= f->dmaxferrate) {
 			dma_len = min(dma_len, f->ampdu_pld_size);
 			txh->PreloadSize = cpu_to_le16(dma_len);
 		} else

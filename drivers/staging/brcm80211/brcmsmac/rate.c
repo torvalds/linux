@@ -353,12 +353,12 @@ u32 brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
 		switch (rxh->PhyRxStatus_0 & PRXS0_FT_MASK) {
 		case PRXS0_CCK:
 			rspec =
-			    CCK_PHY2MAC_RATE(
+				cck_phy2mac_rate(
 				((struct cck_phy_hdr *) plcp)->signal);
 			break;
 		case PRXS0_OFDM:
 			rspec =
-			    OFDM_PHY2MAC_RATE(
+			    ofdm_phy2mac_rate(
 				((struct ofdm_phy_hdr *) plcp)->rlpt[0]);
 			break;
 		case PRXS0_PREN:
@@ -375,14 +375,14 @@ u32 brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
 			/* not supported, error condition */
 			break;
 		}
-		if (PLCP3_ISSGI(plcp[3]))
+		if (plcp3_issgi(plcp[3]))
 			rspec |= RSPEC_SHORT_GI;
 	} else
 	    if ((phy_type == PHY_TYPE_A) || (rxh->PhyRxStatus_0 & PRXS0_OFDM))
-		rspec = OFDM_PHY2MAC_RATE(
+		rspec = ofdm_phy2mac_rate(
 				((struct ofdm_phy_hdr *) plcp)->rlpt[0]);
 	else
-		rspec = CCK_PHY2MAC_RATE(
+		rspec = cck_phy2mac_rate(
 				((struct cck_phy_hdr *) plcp)->signal);
 
 	return rspec;
@@ -417,9 +417,11 @@ brcms_c_rateset_filter(struct brcms_c_rateset *src, struct brcms_c_rateset *dst,
 		r = src->rates[i];
 		if (basic_only && !(r & BRCMS_RATE_FLAG))
 			continue;
-		if (rates == BRCMS_RATES_CCK && IS_OFDM((r & BRCMS_RATE_MASK)))
+		if (rates == BRCMS_RATES_CCK &&
+		    is_ofdm_rate((r & BRCMS_RATE_MASK)))
 			continue;
-		if (rates == BRCMS_RATES_OFDM && IS_CCK((r & BRCMS_RATE_MASK)))
+		if (rates == BRCMS_RATES_OFDM &&
+		    is_cck_rate((r & BRCMS_RATE_MASK)))
 			continue;
 		dst->rates[count++] = r & xmask;
 	}

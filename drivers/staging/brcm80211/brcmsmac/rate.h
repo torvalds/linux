@@ -18,6 +18,7 @@
 #define _BRCM_RATE_H_
 
 #include "types.h"
+#include "d11.h"
 
 extern const u8 rate_info[];
 extern const struct brcms_c_rateset cck_ofdm_mimo_rates;
@@ -48,32 +49,30 @@ struct brcms_mcs_info {
 #define MCS_TABLE_SIZE	33	/* Number of mcs entries in the table */
 extern const struct brcms_mcs_info mcs_table[];
 
-#define MCS_INVALID	0xFF
-#define MCS_CR_MASK	0x07	/* Code Rate bit mask */
-#define MCS_MOD_MASK	0x38	/* Modulation bit shift */
-#define MCS_MOD_SHIFT	3	/* MOdulation bit shift */
 #define MCS_TXS_MASK	0xc0	/* num tx streams - 1 bit mask */
 #define MCS_TXS_SHIFT	6	/* num tx streams - 1 bit shift */
-#define MCS_CR(_mcs)	(mcs_table[_mcs].tx_phy_ctl3 & MCS_CR_MASK)
 
-#define MCS_MOD(_mcs) \
-	((mcs_table[_mcs].tx_phy_ctl3 & MCS_MOD_MASK) >> MCS_MOD_SHIFT)
+/* returns num tx streams - 1 */
+static inline u8 mcs_2_txstreams(u8 mcs)
+{
+	return (mcs_table[mcs].tx_phy_ctl3 & MCS_TXS_MASK) >> MCS_TXS_SHIFT;
+}
 
-#define MCS_TXS(_mcs) \
-	((mcs_table[_mcs].tx_phy_ctl3 & MCS_TXS_MASK) >> MCS_TXS_SHIFT)
+static inline uint mcs_2_rate(u8 mcs, bool is40, bool sgi)
+{
+	if (sgi) {
+		if (is40)
+			return mcs_table[mcs].phy_rate_40_sgi;
+		return mcs_table[mcs].phy_rate_20_sgi;
+	}
+	if (is40)
+		return mcs_table[mcs].phy_rate_40;
 
-#define MCS_RATE(_mcs, _is40, _sgi)	(_sgi ? \
-	(_is40 ? mcs_table[_mcs].phy_rate_40_sgi : \
-		 mcs_table[_mcs].phy_rate_20_sgi) : \
-	(_is40 ? mcs_table[_mcs].phy_rate_40 : mcs_table[_mcs].phy_rate_20))
-
-#define VALID_MCS(_mcs)	((_mcs < MCS_TABLE_SIZE))
+	return mcs_table[mcs].phy_rate_20;
+}
 
 /* Macro to use the rate_info table */
 #define	BRCMS_RATE_MASK_FULL 0xff /* Rate value mask with basic rate flag */
-
-/* convert 500kbps to bps */
-#define BRCMS_RATE_500K_TO_BPS(rate)	((rate) * 500000)
 
 /*
  * rate spec : holds rate and mode specific information required to generate a
@@ -113,65 +112,104 @@ extern const struct brcms_mcs_info mcs_table[];
 /* bit indicates override rate only */
 #define RSPEC_OVERRIDE_MCS_ONLY 0x40000000
 
-#define BRCMS_HTPHY		127	/* HT PHY Membership */
+static inline bool rspec_active(u32 rspec)
+{
+	return rspec & (RSPEC_RATE_MASK | RSPEC_MIMORATE);
+}
 
-#define RSPEC_ACTIVE(rspec)	(rspec & (RSPEC_RATE_MASK | RSPEC_MIMORATE))
+static inline u8 rspec_phytxbyte2(u32 rspec)
+{
+	return (rspec & 0xff00) >> 8;
+}
 
-#define RSPEC2RATE(rspec) \
-	((rspec & RSPEC_MIMORATE) ? \
-	MCS_RATE((rspec & RSPEC_RATE_MASK), RSPEC_IS40MHZ(rspec), \
-		  RSPEC_ISSGI(rspec)) : \
-	(rspec & RSPEC_RATE_MASK))
+static inline u32 rspec_get_bw(u32 rspec)
+{
+	return (rspec & RSPEC_BW_MASK) >> RSPEC_BW_SHIFT;
+}
 
-#define RSPEC_PHYTXBYTE2(rspec)	((rspec & 0xff00) >> 8)
+static inline bool rspec_issgi(u32 rspec)
+{
+	return (rspec & RSPEC_SHORT_GI) == RSPEC_SHORT_GI;
+}
 
-#define RSPEC_GET_BW(rspec)	((rspec & RSPEC_BW_MASK) >> RSPEC_BW_SHIFT)
+static inline bool rspec_is40mhz(u32 rspec)
+{
+	u32 bw = rspec_get_bw(rspec);
 
-#define RSPEC_IS40MHZ(rspec) \
-	((((rspec & RSPEC_BW_MASK) >> RSPEC_BW_SHIFT) == PHY_TXC1_BW_40MHZ) || \
-	 (((rspec & RSPEC_BW_MASK) >> RSPEC_BW_SHIFT) == PHY_TXC1_BW_40MHZ_DUP))
+	return bw == PHY_TXC1_BW_40MHZ || bw == PHY_TXC1_BW_40MHZ_DUP;
+}
 
-#define RSPEC_ISSGI(rspec)	((rspec & RSPEC_SHORT_GI) == RSPEC_SHORT_GI)
-#define RSPEC_MIMOPLCP3(rspec)	((rspec & 0xf00000) >> 16)
-#define PLCP3_ISSGI(plcp)	(plcp & (RSPEC_SHORT_GI >> 16))
-#define RSPEC_STC(rspec)	((rspec & RSPEC_STC_MASK) >> RSPEC_STC_SHIFT)
-#define RSPEC_STF(rspec)	((rspec & RSPEC_STF_MASK) >> RSPEC_STF_SHIFT)
-#define PLCP3_ISSTBC(plcp)	((plcp & (RSPEC_STC_MASK) >> 16) == 0x10)
-#define PLCP3_STC_MASK          0x30
-#define PLCP3_STC_SHIFT         4
+static inline uint rspec2rate(u32 rspec)
+{
+	if (rspec & RSPEC_MIMORATE)
+		return mcs_2_rate(rspec & RSPEC_RATE_MASK, rspec_is40mhz(rspec),
+				  rspec_issgi(rspec));
+	return rspec & RSPEC_RATE_MASK;
+}
 
-/* Rate info table; takes a legacy rate or u32 */
-#define	IS_MCS(r)	(r & RSPEC_MIMORATE)
+static inline u8 rspec_mimoplcp3(u32 rspec)
+{
+	return (rspec & 0xf00000) >> 16;
+}
 
-#define	IS_OFDM(r)	(!IS_MCS(r) && (rate_info[(r) & RSPEC_RATE_MASK] & \
-					BRCMS_RATE_FLAG))
+static inline bool plcp3_issgi(u8 plcp)
+{
+	return (plcp & (RSPEC_SHORT_GI >> 16)) != 0;
+}
 
-#define	IS_CCK(r)	(!IS_MCS(r) && ( \
-			 ((r) & BRCMS_RATE_MASK) == BRCM_RATE_1M || \
-			 ((r) & BRCMS_RATE_MASK) == BRCM_RATE_2M || \
-			 ((r) & BRCMS_RATE_MASK) == BRCM_RATE_5M5 || \
-			 ((r) & BRCMS_RATE_MASK) == BRCM_RATE_11M))
+static inline uint rspec_stc(u32 rspec)
+{
+	return (rspec & RSPEC_STC_MASK) >> RSPEC_STC_SHIFT;
+}
 
-#define IS_SINGLE_STREAM(mcs) \
-	(((mcs) <= HIGHEST_SINGLE_STREAM_MCS) || ((mcs) == 32))
+static inline uint rspec_stf(u32 rspec)
+{
+	return (rspec & RSPEC_STF_MASK) >> RSPEC_STF_SHIFT;
+}
 
-#define CCK_RSPEC(cck)		((cck) & RSPEC_RATE_MASK)
+static inline bool is_mcs_rate(u32 ratespec)
+{
+	return (ratespec & RSPEC_MIMORATE) != 0;
+}
 
-#define OFDM_RSPEC(ofdm)	(((ofdm) & RSPEC_RATE_MASK) |\
-	(PHY_TXC1_MODE_CDD << RSPEC_STF_SHIFT))
+static inline bool is_ofdm_rate(u32 ratespec)
+{
+	return !is_mcs_rate(ratespec) &&
+	       (rate_info[ratespec & RSPEC_RATE_MASK] & BRCMS_RATE_FLAG);
+}
 
-#define LEGACY_RSPEC(rate) \
-	(IS_CCK(rate) ? CCK_RSPEC(rate) : OFDM_RSPEC(rate))
+static inline bool is_cck_rate(u32 ratespec)
+{
+	u32 rate = (ratespec & BRCMS_RATE_MASK);
 
-#define MCS_RSPEC(mcs)		(((mcs) & RSPEC_RATE_MASK) | RSPEC_MIMORATE | \
-	(IS_SINGLE_STREAM(mcs) ? (PHY_TXC1_MODE_CDD << RSPEC_STF_SHIFT) : \
-	(PHY_TXC1_MODE_SDM << RSPEC_STF_SHIFT)))
+	return !is_mcs_rate(ratespec) && (
+			rate == BRCM_RATE_1M || rate == BRCM_RATE_2M ||
+			rate == BRCM_RATE_5M5 || rate == BRCM_RATE_11M);
+}
+
+static inline bool is_single_stream(u8 mcs)
+{
+	return mcs <= HIGHEST_SINGLE_STREAM_MCS || mcs == 32;
+}
+
+static inline u8 cck_rspec(u8 cck)
+{
+	return cck & RSPEC_RATE_MASK;
+}
 
 /* Convert encoded rate value in plcp header to numerical rates in 500 KHz
  * increments */
 extern const u8 ofdm_rate_lookup[];
-#define OFDM_PHY2MAC_RATE(rlpt)		(ofdm_rate_lookup[rlpt & 0x7])
-#define CCK_PHY2MAC_RATE(signal)	(signal/5)
+
+static inline u8 ofdm_phy2mac_rate(u8 rlpt)
+{
+	return ofdm_rate_lookup[rlpt & 0x7];
+}
+
+static inline u8 cck_phy2mac_rate(u8 signal)
+{
+	return signal/5;
+}
 
 /* Rates specified in brcms_c_rateset_filter() */
 #define BRCMS_RATES_CCK_OFDM	0
