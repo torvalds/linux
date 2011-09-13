@@ -580,6 +580,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	case AR_SREV_VERSION_9330:
 	case AR_SREV_VERSION_9485:
 	case AR_SREV_VERSION_9340:
+	case AR_SREV_VERSION_9480:
 		break;
 	default:
 		ath_err(common,
@@ -664,6 +665,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9330:
 	case AR9300_DEVID_AR9340:
 	case AR9300_DEVID_AR9580:
+	case AR9300_DEVID_AR9480:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -1340,6 +1342,7 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type)
 {
+
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		REG_WRITE(ah, AR_WA, ah->WARegVal);
 		udelay(10);
@@ -1743,25 +1746,41 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 {
 	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	if (setChip) {
+		if (AR_SREV_9480(ah)) {
+			REG_WRITE(ah, AR_TIMER_MODE,
+				  REG_READ(ah, AR_TIMER_MODE) & 0xFFFFFF00);
+			REG_WRITE(ah, AR_NDP2_TIMER_MODE, REG_READ(ah,
+				  AR_NDP2_TIMER_MODE) & 0xFFFFFF00);
+			REG_WRITE(ah, AR_SLP32_INC,
+				  REG_READ(ah, AR_SLP32_INC) & 0xFFF00000);
+			/* xxx Required for WLAN only case ? */
+			REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_EN, 0);
+			udelay(100);
+		}
+
 		/*
 		 * Clear the RTC force wake bit to allow the
 		 * mac to go to sleep.
 		 */
-		REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE,
-			    AR_RTC_FORCE_WAKE_EN);
+		REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN);
+
+		if (AR_SREV_9480(ah))
+			udelay(100);
+
 		if (!AR_SREV_9100(ah) && !AR_SREV_9300_20_OR_LATER(ah))
 			REG_WRITE(ah, AR_RC, AR_RC_AHB | AR_RC_HOSTIF);
 
 		/* Shutdown chip. Active low */
-		if (!AR_SREV_5416(ah) && !AR_SREV_9271(ah))
-			REG_CLR_BIT(ah, (AR_RTC_RESET),
-				    AR_RTC_RESET_EN);
+		if (!AR_SREV_5416(ah) &&
+				!AR_SREV_9271(ah) && !AR_SREV_9480_10(ah)) {
+			REG_CLR_BIT(ah, AR_RTC_RESET, AR_RTC_RESET_EN);
+			udelay(2);
+		}
 	}
 
 	/* Clear Bit 14 of AR_WA after putting chip into Full Sleep mode. */
-	if (AR_SREV_9300_20_OR_LATER(ah))
-		REG_WRITE(ah, AR_WA,
-			  ah->WARegVal & ~AR_WA_D3_L1_DISABLE);
+	if (!AR_SREV_9480(ah))
+		REG_WRITE(ah, AR_WA, ah->WARegVal & ~AR_WA_D3_L1_DISABLE);
 }
 
 /*
@@ -1771,6 +1790,8 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
  */
 static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 {
+	u32 val;
+
 	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	if (setChip) {
 		struct ath9k_hw_capabilities *pCap = &ah->caps;
@@ -1780,12 +1801,30 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 			REG_WRITE(ah, AR_RTC_FORCE_WAKE,
 				  AR_RTC_FORCE_WAKE_ON_INT);
 		} else {
+
+			/* When chip goes into network sleep, it could be waken
+			 * up by MCI_INT interrupt caused by BT's HW messages
+			 * (LNA_xxx, CONT_xxx) which chould be in a very fast
+			 * rate (~100us). This will cause chip to leave and
+			 * re-enter network sleep mode frequently, which in
+			 * consequence will have WLAN MCI HW to generate lots of
+			 * SYS_WAKING and SYS_SLEEPING messages which will make
+			 * BT CPU to busy to process.
+			 */
+			if (AR_SREV_9480(ah)) {
+				val = REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_EN) &
+					~AR_MCI_INTERRUPT_RX_HW_MSG_MASK;
+				REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_EN, val);
+			}
 			/*
 			 * Clear the RTC force wake bit to allow the
 			 * mac to go to sleep.
 			 */
 			REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE,
 				    AR_RTC_FORCE_WAKE_EN);
+
+			if (AR_SREV_9480(ah))
+				udelay(30);
 		}
 	}
 
@@ -2404,6 +2443,9 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits)
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
+	if (AR_SREV_9480(ah))
+		bits |= ATH9K_RX_FILTER_CONTROL_WRAPPER;
+
 	REG_WRITE(ah, AR_RX_FILTER, bits);
 
 	phybits = 0;
@@ -2660,6 +2702,20 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 	REG_SET_BIT(ah, gen_tmr_configuration[timer->index].mode_addr,
 		    gen_tmr_configuration[timer->index].mode_mask);
 
+	if (AR_SREV_9480(ah)) {
+		/*
+		 * Starting from AR9480, each generic timer can select which tsf
+		 * to use. But we still follow the old rule, 0 - 7 use tsf and
+		 * 8 - 15  use tsf2.
+		 */
+		if ((timer->index < AR_GEN_TIMER_BANK_1_LEN))
+			REG_CLR_BIT(ah, AR_MAC_PCU_GEN_TIMER_TSF_SEL,
+				       (1 << timer->index));
+		else
+			REG_SET_BIT(ah, AR_MAC_PCU_GEN_TIMER_TSF_SEL,
+				       (1 << timer->index));
+	}
+
 	/* Enable both trigger and thresh interrupt masks */
 	REG_SET_BIT(ah, AR_IMR_S5,
 		(SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_THRESH) |
@@ -2765,6 +2821,7 @@ static struct {
 	{ AR_SREV_VERSION_9330,         "9330" },
 	{ AR_SREV_VERSION_9340,		"9340" },
 	{ AR_SREV_VERSION_9485,         "9485" },
+	{ AR_SREV_VERSION_9480,         "9480" },
 };
 
 /* For devices with external radios */
