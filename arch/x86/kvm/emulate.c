@@ -3349,10 +3349,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 			 ctxt->twobyte && (ctxt->b == 0xb6 || ctxt->b == 0xb7));
 		break;
 	case OpImmUByte:
-		op->type = OP_IMM;
-		op->addr.mem.ea = ctxt->_eip;
-		op->bytes = 1;
-		op->val = insn_fetch(u8, ctxt);
+		rc = decode_imm(ctxt, op, 1, false);
 		break;
 	case OpMem:
 	case OpMem64:
