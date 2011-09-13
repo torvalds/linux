@@ -3732,36 +3732,6 @@ static inline void transport_free_pages(struct se_cmd *cmd)
 	cmd->t_bidi_data_nents = 0;
 }
 
-static inline void transport_release_tasks(struct se_cmd *cmd)
-{
-	transport_free_dev_tasks(cmd);
-}
-
-static inline int transport_dec_and_check(struct se_cmd *cmd)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (atomic_read(&cmd->t_fe_count)) {
-		if (!atomic_dec_and_test(&cmd->t_fe_count)) {
-			spin_unlock_irqrestore(&cmd->t_state_lock,
-					flags);
-			return 1;
-		}
-	}
-
-	if (atomic_read(&cmd->t_se_count)) {
-		if (!atomic_dec_and_test(&cmd->t_se_count)) {
-			spin_unlock_irqrestore(&cmd->t_state_lock,
-					flags);
-			return 1;
-		}
-	}
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	return 0;
-}
-
 /**
  * transport_put_cmd - release a reference to a command
  * @cmd:       command to release
@@ -3771,26 +3741,35 @@ static inline int transport_dec_and_check(struct se_cmd *cmd)
 static bool transport_put_cmd(struct se_cmd *cmd)
 {
 	unsigned long flags;
-
-	if (transport_dec_and_check(cmd))
-		return false;
+	int free_tasks = 0;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (!atomic_read(&cmd->transport_dev_active)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		goto free_pages;
+	if (atomic_read(&cmd->t_fe_count)) {
+		if (!atomic_dec_and_test(&cmd->t_fe_count))
+			goto out_busy;
 	}
-	atomic_set(&cmd->transport_dev_active, 0);
-	transport_all_task_dev_remove_state(cmd);
+
+	if (atomic_read(&cmd->t_se_count)) {
+		if (!atomic_dec_and_test(&cmd->t_se_count))
+			goto out_busy;
+	}
+
+	if (atomic_read(&cmd->transport_dev_active)) {
+		atomic_set(&cmd->transport_dev_active, 0);
+		transport_all_task_dev_remove_state(cmd);
+		free_tasks = 1;
+	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	transport_release_tasks(cmd);
-	return true;
+	if (free_tasks != 0)
+		transport_free_dev_tasks(cmd);
 
-free_pages:
 	transport_free_pages(cmd);
 	transport_release_cmd(cmd);
 	return true;
+out_busy:
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+	return false;
 }
 
 static int
