@@ -228,7 +228,6 @@ struct ath_buf {
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;	/* physical addr of data buffer, for DMA */
 	bool bf_stale;
-	u16 bf_flags;
 	struct ath_buf_state bf_state;
 };
 

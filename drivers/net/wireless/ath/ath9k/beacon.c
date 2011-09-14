@@ -73,45 +73,39 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_desc *ds;
-	struct ath9k_11n_rate_series series[4];
-	int flags, ctsrate = 0, ctsduration = 0;
+	struct ath_tx_info info;
 	struct ieee80211_supported_band *sband;
+	u8 chainmask = ah->txchainmask;
 	u8 rate = 0;
 
 	ath9k_reset_beacon_status(sc);
-
-	ds = bf->bf_desc;
-	flags = ATH9K_TXDESC_NOACK;
-
-	ds->ds_link = 0;
 
 	sband = &sc->sbands[common->hw->conf.channel->band];
 	rate = sband->bitrates[rateidx].hw_value;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
 		rate |= sband->bitrates[rateidx].hw_value_short;
 
-	ath9k_hw_set11n_txdesc(ah, ds, skb->len + FCS_LEN,
-			       ATH9K_PKT_TYPE_BEACON,
-			       MAX_RATE_POWER,
-			       ATH9K_TXKEYIX_INVALID,
-			       ATH9K_KEY_TYPE_CLEAR,
-			       flags);
+	memset(&info, 0, sizeof(info));
+	info.pkt_len = skb->len + FCS_LEN;
+	info.type = ATH9K_PKT_TYPE_BEACON;
+	info.txpower = MAX_RATE_POWER;
+	info.keyix = ATH9K_TXKEYIX_INVALID;
+	info.keytype = ATH9K_KEY_TYPE_CLEAR;
+	info.flags = ATH9K_TXDESC_NOACK;
 
-	/* NB: beacon's BufLen must be a multiple of 4 bytes */
-	ath9k_hw_filltxdesc(ah, ds, roundup(skb->len, 4),
-			    true, true, ds, bf->bf_buf_addr,
-			    sc->beacon.beaconq);
+	info.buf_addr[0] = bf->bf_buf_addr;
+	info.buf_len[0] = roundup(skb->len, 4);
 
-	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
-	series[0].Tries = 1;
-	series[0].Rate = rate;
-	series[0].ChSel = ath_txchainmask_reduction(sc,
-			ah->txchainmask, series[0].Rate);
-	series[0].RateFlags = (ctsrate) ? ATH9K_RATESERIES_RTS_CTS : 0;
-	ath9k_hw_set11n_ratescenario(ah, ds, ds, 0, ctsrate, ctsduration,
-				     series, 4, 0);
-	ath9k_hw_set_desc_link(ah, ds, 0);
+	info.is_first = true;
+	info.is_last = true;
+
+	info.qcu = sc->beacon.beaconq;
+
+	info.rates[0].Tries = 1;
+	info.rates[0].Rate = rate;
+	info.rates[0].ChSel = ath_txchainmask_reduction(sc, chainmask, rate);
+
+	ath9k_hw_set_txdesc(ah, bf->bf_desc, &info);
 }
 
 static void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb)
