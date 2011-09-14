@@ -59,7 +59,7 @@ static void pxav2_set_private_registers(struct sdhci_host *host, u8 mask)
 		 * tune timing of read data/command when crc error happen
 		 * no performance impact
 		 */
-		if (pdata->clk_delay_sel == 1) {
+		if (pdata && pdata->clk_delay_sel == 1) {
 			tmp = readw(host->ioaddr + SD_CLOCK_BURST_SIZE_SETUP);
 
 			tmp &= ~(SDCLK_DELAY_MASK << SDCLK_DELAY_SHIFT);
@@ -71,7 +71,7 @@ static void pxav2_set_private_registers(struct sdhci_host *host, u8 mask)
 			writew(tmp, host->ioaddr + SD_CLOCK_BURST_SIZE_SETUP);
 		}
 
-		if (pdata->flags & PXA_FLAG_ENABLE_CLOCK_GATING) {
+		if (pdata && (pdata->flags & PXA_FLAG_ENABLE_CLOCK_GATING)) {
 			tmp = readw(host->ioaddr + SD_FIFO_PARAM);
 			tmp &= ~CLK_GATE_SETTING_BITS;
 			writew(tmp, host->ioaddr + SD_FIFO_PARAM);
