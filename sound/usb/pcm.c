@@ -28,7 +28,7 @@
 #include "card.h"
 #include "quirks.h"
 #include "debug.h"
-#include "urb.h"
+#include "endpoint.h"
 #include "helper.h"
 #include "pcm.h"
 #include "clock.h"

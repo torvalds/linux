@@ -29,7 +29,6 @@
 #include "proc.h"
 #include "quirks.h"
 #include "endpoint.h"
-#include "urb.h"
 #include "pcm.h"
 #include "helper.h"
 #include "format.h"
