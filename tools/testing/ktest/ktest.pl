@@ -862,9 +862,12 @@ sub get_grub_index {
     open(IN, "$ssh_grub |")
 	or die "unable to get menu.lst";
 
+    my $found = 0;
+
     while (<IN>) {
 	if (/^\s*title\s+$grub_menu\s*$/) {
 	    $grub_number++;
+	    $found = 1;
 	    last;
 	} elsif (/^\s*title\s/) {
 	    $grub_number++;
@@ -873,7 +876,7 @@ sub get_grub_index {
     close(IN);
 
     die "Could not find '$grub_menu' in /boot/grub/menu on $machine"
-	if ($grub_number < 0);
+	if (!$found);
     doprint "$grub_number\n";
 }
 
