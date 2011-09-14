@@ -461,6 +461,7 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 #define ATH_LED_PIN_9287		8
 #define ATH_LED_PIN_9300		10
 #define ATH_LED_PIN_9485		6
+#define ATH_LED_PIN_9480		0
 
 #ifdef CONFIG_MAC80211_LEDS
 void ath_init_leds(struct ath_softc *sc);
