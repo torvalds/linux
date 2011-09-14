@@ -114,8 +114,8 @@ config OMAP_IOMMU
 	select IOMMU_API
 
 config OMAP_IOVMM
-	tristate
-	select OMAP_IOMMU
+	tristate "OMAP IO Virtual Memory Manager Support"
+	depends on OMAP_IOMMU
 
 config OMAP_IOMMU_DEBUG
        tristate "Export OMAP IOMMU/IOVMM internals in DebugFS"
