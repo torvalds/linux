@@ -111,24 +111,29 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 void ath9k_ps_restore(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	enum ath9k_power_mode mode;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
-	spin_lock(&common->cc_lock);
-	ath_hw_cycle_counters_update(common);
-	spin_unlock(&common->cc_lock);
-
 	if (sc->ps_idle)
-		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
+		mode = ATH9K_PM_FULL_SLEEP;
 	else if (sc->ps_enabled &&
 		 !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
 			      PS_WAIT_FOR_CAB |
 			      PS_WAIT_FOR_PSPOLL_DATA |
 			      PS_WAIT_FOR_TX_ACK)))
-		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+		mode = ATH9K_PM_NETWORK_SLEEP;
+	else
+		goto unlock;
+
+	spin_lock(&common->cc_lock);
+	ath_hw_cycle_counters_update(common);
+	spin_unlock(&common->cc_lock);
+
+	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
 
  unlock:
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
