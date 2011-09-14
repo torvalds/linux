@@ -44,13 +44,6 @@
 
 int omap_type(void);
 
-struct omap_chip_id {
-	u16 oc;
-	u8 type;
-};
-
-#define OMAP_CHIP_INIT(x)	{ .oc = x }
-
 /*
  * omap_rev bits:
  * CPU id bits	(0730, 1510, 1710, 2422...)	[31:16]
@@ -402,61 +395,6 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define OMAP446X_CLASS		0x44600044
 #define OMAP4460_REV_ES1_0	(OMAP446X_CLASS | (0x10 << 8))
 
-/*
- * omap_chip bits
- *
- * CHIP_IS_OMAP{2420,2430,3430} indicate that a particular structure is
- * valid on all chips of that type.  CHIP_IS_OMAP3430ES{1,2} indicates
- * something that is only valid on that particular ES revision.
- *
- * These bits may be ORed together to indicate structures that are
- * available on multiple chip types.
- *
- * To test whether a particular structure matches the current OMAP chip type,
- * use omap_chip_is().
- *
- */
-#define CHIP_IS_OMAP2420		(1 << 0)
-#define CHIP_IS_OMAP2430		(1 << 1)
-#define CHIP_IS_OMAP3430		(1 << 2)
-#define CHIP_IS_OMAP3430ES1		(1 << 3)
-#define CHIP_IS_OMAP3430ES2		(1 << 4)
-#define CHIP_IS_OMAP3430ES3_0		(1 << 5)
-#define CHIP_IS_OMAP3430ES3_1		(1 << 6)
-#define CHIP_IS_OMAP3630ES1		(1 << 7)
-#define CHIP_IS_OMAP4430ES1		(1 << 8)
-#define CHIP_IS_OMAP3630ES1_1           (1 << 9)
-#define CHIP_IS_OMAP3630ES1_2           (1 << 10)
-#define CHIP_IS_OMAP4430ES2		(1 << 11)
-#define CHIP_IS_OMAP4430ES2_1		(1 << 12)
-#define CHIP_IS_OMAP4430ES2_2		(1 << 13)
-#define CHIP_IS_TI816X			(1 << 14)
-#define CHIP_IS_OMAP4460ES1_0		(1 << 15)
-
-#define CHIP_IS_OMAP24XX		(CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
-
-#define CHIP_IS_OMAP4430		(CHIP_IS_OMAP4430ES1 |		\
-					 CHIP_IS_OMAP4430ES2 |		\
-					 CHIP_IS_OMAP4430ES2_1 |	\
-					 CHIP_IS_OMAP4430ES2_2 |	\
-					 CHIP_IS_OMAP4460ES1_0)
-
-/*
- * "GE" here represents "greater than or equal to" in terms of ES
- * levels.  So CHIP_GE_OMAP3430ES2 is intended to match all OMAP3430
- * chips at ES2 and beyond, but not, for example, any OMAP lines after
- * OMAP3.
- */
-#define CHIP_GE_OMAP3430ES2		(CHIP_IS_OMAP3430ES2 | \
-					 CHIP_IS_OMAP3430ES3_0 | \
-					 CHIP_GE_OMAP3430ES3_1)
-#define CHIP_GE_OMAP3430ES3_1		(CHIP_IS_OMAP3430ES3_1 | \
-					 CHIP_IS_OMAP3630ES1 | \
-					 CHIP_GE_OMAP3630ES1_1)
-#define CHIP_GE_OMAP3630ES1_1		(CHIP_IS_OMAP3630ES1_1 | \
-					 CHIP_IS_OMAP3630ES1_2)
-
-int omap_chip_is(struct omap_chip_id oci);
 void omap2_check_revision(void);
 
 /*

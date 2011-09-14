@@ -28,7 +28,6 @@
 
 #include "control.h"
 
-static struct omap_chip_id omap_chip;
 static unsigned int omap_revision;
 
 u32 omap_features;
@@ -38,19 +37,6 @@ unsigned int omap_rev(void)
 	return omap_revision;
 }
 EXPORT_SYMBOL(omap_rev);
-
-/**
- * omap_chip_is - test whether currently running OMAP matches a chip type
- * @oc: omap_chip_t to test against
- *
- * Test whether the currently-running OMAP chip matches the supplied
- * chip type 'oc'.  Returns 1 upon a match; 0 upon failure.
- */
-int omap_chip_is(struct omap_chip_id oci)
-{
-	return (oci.oc & omap_chip.oc) ? 1 : 0;
-}
-EXPORT_SYMBOL(omap_chip_is);
 
 int omap_type(void)
 {
@@ -248,8 +234,6 @@ static void __init omap3_check_revision(const char **cpu_rev)
 	u16 hawkeye;
 	u8 rev;
 
-	omap_chip.oc = CHIP_IS_OMAP3430;
-
 	/*
 	 * We cannot access revision registers on ES1.0.
 	 * If the processor type is Cortex-A8 and the revision is 0x0
@@ -258,7 +242,6 @@ static void __init omap3_check_revision(const char **cpu_rev)
 	cpuid = read_cpuid(CPUID_ID);
 	if ((((cpuid >> 4) & 0xfff) == 0xc08) && ((cpuid & 0xf) == 0x0)) {
 		omap_revision = OMAP3430_REV_ES1_0;
-		omap_chip.oc |= CHIP_IS_OMAP3430ES1;
 		*cpu_rev = "1.0";
 		return;
 	}
@@ -280,22 +263,18 @@ static void __init omap3_check_revision(const char **cpu_rev)
 		case 0: /* Take care of early samples */
 		case 1:
 			omap_revision = OMAP3430_REV_ES2_0;
-			omap_chip.oc |= CHIP_IS_OMAP3430ES2;
 			*cpu_rev = "2.0";
 			break;
 		case 2:
 			omap_revision = OMAP3430_REV_ES2_1;
-			omap_chip.oc |= CHIP_IS_OMAP3430ES2;
 			*cpu_rev = "2.1";
 			break;
 		case 3:
 			omap_revision = OMAP3430_REV_ES3_0;
-			omap_chip.oc |= CHIP_IS_OMAP3430ES3_0;
 			*cpu_rev = "3.0";
 			break;
 		case 4:
 			omap_revision = OMAP3430_REV_ES3_1;
-			omap_chip.oc |= CHIP_IS_OMAP3430ES3_1;
 			*cpu_rev = "3.1";
 			break;
 		case 7:
@@ -303,9 +282,6 @@ static void __init omap3_check_revision(const char **cpu_rev)
 		default:
 			/* Use the latest known revision as default */
 			omap_revision = OMAP3430_REV_ES3_1_2;
-
-			/* REVISIT: Add CHIP_IS_OMAP3430ES3_1_2? */
-			omap_chip.oc |= CHIP_IS_OMAP3430ES3_1;
 			*cpu_rev = "3.1.2";
 		}
 		break;
@@ -315,8 +291,6 @@ static void __init omap3_check_revision(const char **cpu_rev)
 		 *
 		 * Set the device to be OMAP3517 here. Actual device
 		 * is identified later based on the features.
-		 *
-		 * REVISIT: AM3505/AM3517 should have their own CHIP_IS
 		 */
 		switch (rev) {
 		case 0:
@@ -329,11 +303,9 @@ static void __init omap3_check_revision(const char **cpu_rev)
 			omap_revision = OMAP3517_REV_ES1_1;
 			*cpu_rev = "1.1";
 		}
-		omap_chip.oc |= CHIP_IS_OMAP3430ES3_1;
 		break;
 	case 0xb891:
 		/* Handle 36xx devices */
-		omap_chip.oc |= CHIP_IS_OMAP3630ES1;
 
 		switch(rev) {
 		case 0: /* Take care of early samples */
@@ -342,20 +314,16 @@ static void __init omap3_check_revision(const char **cpu_rev)
 			break;
 		case 1:
 			omap_revision = OMAP3630_REV_ES1_1;
-			omap_chip.oc |= CHIP_IS_OMAP3630ES1_1;
 			*cpu_rev = "1.1";
 			break;
 		case 2:
 		/* FALLTHROUGH */
 		default:
 			omap_revision = OMAP3630_REV_ES1_2;
-			omap_chip.oc |= CHIP_IS_OMAP3630ES1_2;
 			*cpu_rev = "1.2";
 		}
 		break;
 	case 0xb81e:
-		omap_chip.oc = CHIP_IS_TI816X;
-
 		switch (rev) {
 		case 0:
 			omap_revision = TI8168_REV_ES1_0;
@@ -372,7 +340,6 @@ static void __init omap3_check_revision(const char **cpu_rev)
 	default:
 		/* Unknown default to latest silicon rev as default */
 		omap_revision = OMAP3630_REV_ES1_2;
-		omap_chip.oc |= CHIP_IS_OMAP3630ES1_2;
 		*cpu_rev = "1.2";
 		pr_warn("Warning: unknown chip type; assuming OMAP3630ES1.2\n");
 	}
@@ -407,24 +374,20 @@ static void __init omap4_check_revision(void)
 		switch (rev) {
 		case 0:
 			omap_revision = OMAP4430_REV_ES1_0;
-			omap_chip.oc |= CHIP_IS_OMAP4430ES1;
 			break;
 		case 1:
 		default:
 			omap_revision = OMAP4430_REV_ES2_0;
-			omap_chip.oc |= CHIP_IS_OMAP4430ES2;
 		}
 		break;
 	case 0xb95c:
 		switch (rev) {
 		case 3:
 			omap_revision = OMAP4430_REV_ES2_1;
-			omap_chip.oc |= CHIP_IS_OMAP4430ES2_1;
 			break;
 		case 4:
 		default:
 			omap_revision = OMAP4430_REV_ES2_2;
-			omap_chip.oc |= CHIP_IS_OMAP4430ES2_2;
 		}
 		break;
 	case 0xb94e:
@@ -432,14 +395,12 @@ static void __init omap4_check_revision(void)
 		case 0:
 		default:
 			omap_revision = OMAP4460_REV_ES1_0;
-			omap_chip.oc |= CHIP_IS_OMAP4460ES1_0;
 			break;
 		}
 		break;
 	default:
 		/* Unknown default to latest silicon rev as default */
 		omap_revision = OMAP4430_REV_ES2_2;
-		omap_chip.oc |= CHIP_IS_OMAP4430ES2_2;
 	}
 
 	pr_info("OMAP%04x ES%d.%d\n", omap_rev() >> 16,
@@ -523,22 +484,6 @@ void __init omap2_check_revision(void)
 	} else {
 		pr_err("OMAP revision unknown, please fix!\n");
 	}
-
-	/*
-	 * OK, now we know the exact revision. Initialize omap_chip bits
-	 * for powerdowmain and clockdomain code.
-	 */
-	if (cpu_is_omap243x()) {
-		/* Currently only supports 2430ES2.1 and 2430-all */
-		omap_chip.oc |= CHIP_IS_OMAP2430;
-		return;
-	} else if (cpu_is_omap242x()) {
-		/* Currently only supports 2420ES2.1.1 and 2420-all */
-		omap_chip.oc |= CHIP_IS_OMAP2420;
-		return;
-	}
-
-	pr_err("Uninitialized omap_chip, please fix!\n");
 }
 
 /*
