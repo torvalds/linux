@@ -98,7 +98,7 @@ static u8 g_receive_buf[BU92725GUW_FIFO_SIZE];
 #define IRDA_DBG_RECV(x...)
 #endif
 
-#if 1
+#if 0
 #define IRDA_DBG_SENT(x...) printk(x)
 #else
 #define IRDA_DBG_SENT(x...)
@@ -283,6 +283,7 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 		irda_hw_set_moderx();
 	}
 
+#if 0
 	/* error */
 	if (irq_src & REG_INT_TO) {
 		printk("[%s][%d]: do timeout err\n", __FUNCTION__, __LINE__);
@@ -293,7 +294,7 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 			s->tx_empty = 1;
 		}
 	}
-	
+#endif	
 	return IRQ_HANDLED;
 }
 
@@ -528,7 +529,7 @@ bu92747_irda_set_termios(struct uart_port *port, struct ktermios *termios,
 	case 115200:
 	case 4000000:
 		if (s->baud!=baud) {
-			//printk("func %s:irda set baudrate %d........\n", __FUNCTION__, baud);
+			IRDA_DBG_RECV("func %s:irda set baudrate %d........\n", __FUNCTION__, baud);
 			irda_hw_set_speed(baud);
 			s->baud = baud;
 			s->tx_empty = 1;
