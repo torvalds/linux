@@ -517,6 +517,7 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 	/* Set the computed AP beacon timers */
 
 	ath9k_hw_disable_interrupts(ah);
+	sc->sc_flags |= SC_OP_TSF_RESET;
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(ah, ah->imask);
