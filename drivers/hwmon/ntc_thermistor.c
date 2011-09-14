@@ -211,8 +211,7 @@ static int lookup_comp(struct ntc_data *data,
 	if (data->comp[mid].ohm <= ohm) {
 		*i_low = mid;
 		*i_high = mid - 1;
-	}
-	if (data->comp[mid].ohm > ohm) {
+	} else {
 		*i_low = mid + 1;
 		*i_high = mid;
 	}

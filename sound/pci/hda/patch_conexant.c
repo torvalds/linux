@@ -3348,6 +3348,8 @@ static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t pin,
 
 #define MAX_AUTO_DACS	5
 
+#define DAC_SLAVE_FLAG	0x8000	/* filled dac is a slave */
+
 /* fill analog DAC list from the widget tree */
 static int fill_cx_auto_dacs(struct hda_codec *codec, hda_nid_t *dacs)
 {
@@ -3370,16 +3372,26 @@ static int fill_cx_auto_dacs(struct hda_codec *codec, hda_nid_t *dacs)
 /* fill pin_dac_pair list from the pin and dac list */
 static int fill_dacs_for_pins(struct hda_codec *codec, hda_nid_t *pins,
 			      int num_pins, hda_nid_t *dacs, int *rest,
-			      struct pin_dac_pair *filled, int type)
+			      struct pin_dac_pair *filled, int nums, 
+			      int type)
 {
-	int i, nums;
+	int i, start = nums;
 
-	nums = 0;
-	for (i = 0; i < num_pins; i++) {
+	for (i = 0; i < num_pins; i++, nums++) {
 		filled[nums].pin = pins[i];
 		filled[nums].type = type;
 		filled[nums].dac = get_unassigned_dac(codec, pins[i], dacs, rest);
-		nums++;
+		if (filled[nums].dac) 
+			continue;
+		if (filled[start].dac && get_connection_index(codec, pins[i], filled[start].dac) >= 0) {
+			filled[nums].dac = filled[start].dac | DAC_SLAVE_FLAG;
+			continue;
+		}
+		if (filled[0].dac && get_connection_index(codec, pins[i], filled[0].dac) >= 0) {
+			filled[nums].dac = filled[0].dac | DAC_SLAVE_FLAG;
+			continue;
+		}
+		snd_printdd("Failed to find a DAC for pin 0x%x", pins[i]);
 	}
 	return nums;
 }
@@ -3395,19 +3407,19 @@ static void cx_auto_parse_output(struct hda_codec *codec)
 	rest = fill_cx_auto_dacs(codec, dacs);
 	/* parse all analog output pins */
 	nums = fill_dacs_for_pins(codec, cfg->line_out_pins, cfg->line_outs,
-				  dacs, &rest, spec->dac_info,
-				  AUTO_PIN_LINE_OUT);
-	nums += fill_dacs_for_pins(codec, cfg->hp_pins, cfg->hp_outs,
-				  dacs, &rest, spec->dac_info + nums,
-				  AUTO_PIN_HP_OUT);
-	nums += fill_dacs_for_pins(codec, cfg->speaker_pins, cfg->speaker_outs,
-				  dacs, &rest, spec->dac_info + nums,
-				  AUTO_PIN_SPEAKER_OUT);
+			  dacs, &rest, spec->dac_info, 0,
+			  AUTO_PIN_LINE_OUT);
+	nums = fill_dacs_for_pins(codec, cfg->hp_pins, cfg->hp_outs,
+			  dacs, &rest, spec->dac_info, nums,
+			  AUTO_PIN_HP_OUT);
+	nums = fill_dacs_for_pins(codec, cfg->speaker_pins, cfg->speaker_outs,
+			  dacs, &rest, spec->dac_info, nums,
+			  AUTO_PIN_SPEAKER_OUT);
 	spec->dac_info_filled = nums;
 	/* fill multiout struct */
 	for (i = 0; i < nums; i++) {
 		hda_nid_t dac = spec->dac_info[i].dac;
-		if (!dac)
+		if (!dac || (dac & DAC_SLAVE_FLAG))
 			continue;
 		switch (spec->dac_info[i].type) {
 		case AUTO_PIN_LINE_OUT:
@@ -3862,7 +3874,7 @@ static void cx_auto_parse_input(struct hda_codec *codec)
 	}
 	if (imux->num_items >= 2 && cfg->num_inputs == imux->num_items)
 		cx_auto_check_auto_mic(codec);
-	if (imux->num_items > 1 && !spec->auto_mic) {
+	if (imux->num_items > 1) {
 		for (i = 1; i < imux->num_items; i++) {
 			if (spec->imux_info[i].adc != spec->imux_info[0].adc) {
 				spec->adc_switching = 1;
@@ -4035,6 +4047,8 @@ static void cx_auto_init_output(struct hda_codec *codec)
 		nid = spec->dac_info[i].dac;
 		if (!nid)
 			nid = spec->multiout.dac_nids[0];
+		else if (nid & DAC_SLAVE_FLAG)
+			nid &= ~DAC_SLAVE_FLAG;
 		select_connection(codec, spec->dac_info[i].pin, nid);
 	}
 	if (spec->auto_mute) {
@@ -4167,9 +4181,11 @@ static int try_add_pb_volume(struct hda_codec *codec, hda_nid_t dac,
 			     hda_nid_t pin, const char *name, int idx)
 {
 	unsigned int caps;
-	caps = query_amp_caps(codec, dac, HDA_OUTPUT);
-	if (caps & AC_AMPCAP_NUM_STEPS)
-		return cx_auto_add_pb_volume(codec, dac, name, idx);
+	if (dac && !(dac & DAC_SLAVE_FLAG)) {
+		caps = query_amp_caps(codec, dac, HDA_OUTPUT);
+		if (caps & AC_AMPCAP_NUM_STEPS)
+			return cx_auto_add_pb_volume(codec, dac, name, idx);
+	}
 	caps = query_amp_caps(codec, pin, HDA_OUTPUT);
 	if (caps & AC_AMPCAP_NUM_STEPS)
 		return cx_auto_add_pb_volume(codec, pin, name, idx);
@@ -4191,8 +4207,7 @@ static int cx_auto_build_output_controls(struct hda_codec *codec)
 	for (i = 0; i < spec->dac_info_filled; i++) {
 		const char *label;
 		int idx, type;
-		if (!spec->dac_info[i].dac)
-			continue;
+		hda_nid_t dac = spec->dac_info[i].dac;
 		type = spec->dac_info[i].type;
 		if (type == AUTO_PIN_LINE_OUT)
 			type = spec->autocfg.line_out_type;
@@ -4211,7 +4226,7 @@ static int cx_auto_build_output_controls(struct hda_codec *codec)
 			idx = num_spk++;
 			break;
 		}
-		err = try_add_pb_volume(codec, spec->dac_info[i].dac,
+		err = try_add_pb_volume(codec, dac,
 					spec->dac_info[i].pin,
 					label, idx);
 		if (err < 0)

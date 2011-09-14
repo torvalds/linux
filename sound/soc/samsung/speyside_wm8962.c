@@ -23,6 +23,9 @@ static int speyside_wm8962_set_bias_level(struct snd_soc_card *card,
 	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
 	int ret;
 
+	if (dapm->dev != codec_dai->dev)
+		return 0;
+
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
@@ -56,6 +59,9 @@ static int speyside_wm8962_set_bias_level_post(struct snd_soc_card *card,
 {
 	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
 	int ret;
+
+	if (dapm->dev != codec_dai->dev)
+		return 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
