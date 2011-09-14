@@ -331,4 +331,6 @@ struct kvm_book3e_206_tlb_params {
 	__u32 reserved[8];
 };
 
+#define KVM_REG_PPC_HIOR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x1)
+
 #endif /* __LINUX_KVM_POWERPC_H */

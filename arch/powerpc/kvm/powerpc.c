@@ -212,6 +212,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_BOOKE_SREGS:
 #else
 	case KVM_CAP_PPC_SEGSTATE:
+	case KVM_CAP_PPC_HIOR:
 	case KVM_CAP_PPC_PAPR:
 #endif
 	case KVM_CAP_PPC_UNSET_IRQ:
@@ -652,6 +653,11 @@ static int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
 	int r = -EINVAL;
 
 	switch (reg->id) {
+#ifdef CONFIG_PPC_BOOK3S
+	case KVM_REG_PPC_HIOR:
+		r = put_user(to_book3s(vcpu)->hior, (u64 __user *)reg->addr);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -665,6 +671,13 @@ static int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 	int r = -EINVAL;
 
 	switch (reg->id) {
+#ifdef CONFIG_PPC_BOOK3S
+	case KVM_ONE_REG_PPC_HIOR:
+		r = get_user(to_book3s(vcpu)->hior, (u64 __user *)reg->addr);
+		if (!r)
+			to_book3s(vcpu)->hior_explicit = true;
+		break;
+#endif
 	default:
 		break;
 	}
