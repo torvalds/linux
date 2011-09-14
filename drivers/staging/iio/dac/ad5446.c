@@ -105,7 +105,7 @@ static ssize_t ad5446_show_scale(struct device *dev,
 
 	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
 }
-static IIO_DEVICE_ATTR(out_scale, S_IRUGO, ad5446_show_scale, NULL, 0);
+static IIO_DEVICE_ATTR(out_voltage_scale, S_IRUGO, ad5446_show_scale, NULL, 0);
 
 static ssize_t ad5446_write_powerdown_mode(struct device *dev,
 				       struct device_attribute *attr,
@@ -177,23 +177,23 @@ static ssize_t ad5446_write_dac_powerdown(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(out_powerdown_mode, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage_powerdown_mode, S_IRUGO | S_IWUSR,
 			ad5446_read_powerdown_mode,
 			ad5446_write_powerdown_mode, 0);
 
-static IIO_CONST_ATTR(out_powerdown_mode_available,
+static IIO_CONST_ATTR(out_voltage_powerdown_mode_available,
 			"1kohm_to_gnd 100kohm_to_gnd three_state");
 
-static IIO_DEVICE_ATTR(out0_powerdown, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_powerdown, S_IRUGO | S_IWUSR,
 			ad5446_read_dac_powerdown,
 			ad5446_write_dac_powerdown, 0);
 
 static struct attribute *ad5446_attributes[] = {
-	&iio_dev_attr_out0_raw.dev_attr.attr,
-	&iio_dev_attr_out_scale.dev_attr.attr,
-	&iio_dev_attr_out0_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_powerdown_mode.dev_attr.attr,
-	&iio_const_attr_out_powerdown_mode_available.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage_powerdown_mode.dev_attr.attr,
+	&iio_const_attr_out_voltage_powerdown_mode_available.dev_attr.attr,
 	NULL,
 };
 
@@ -207,10 +207,12 @@ static mode_t ad5446_attr_is_visible(struct kobject *kobj,
 	mode_t mode = attr->mode;
 
 	if (!st->chip_info->store_pwr_down &&
-		(attr == &iio_dev_attr_out0_powerdown.dev_attr.attr ||
-		attr == &iio_dev_attr_out_powerdown_mode.dev_attr.attr ||
+		(attr == &iio_dev_attr_out_voltage0_powerdown.dev_attr.attr ||
+		attr == &iio_dev_attr_out_voltage_powerdown_mode.
+		 dev_attr.attr ||
 		attr ==
-		&iio_const_attr_out_powerdown_mode_available.dev_attr.attr))
+		&iio_const_attr_out_voltage_powerdown_mode_available.
+		 dev_attr.attr))
 		mode = 0;
 
 	return mode;

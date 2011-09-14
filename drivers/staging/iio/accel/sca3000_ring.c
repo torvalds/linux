@@ -229,7 +229,7 @@ static ssize_t sca3000_show_buffer_scale(struct device *dev,
 	return sprintf(buf, "0.%06d\n", 4*st->info->scale);
 }
 
-static IIO_DEVICE_ATTR(accel_scale,
+static IIO_DEVICE_ATTR(in_accel_scale,
 		       S_IRUGO,
 		       sca3000_show_buffer_scale,
 		       NULL,
@@ -247,7 +247,7 @@ static struct attribute *sca3000_ring_attributes[] = {
 	&dev_attr_enable.attr,
 	&iio_dev_attr_50_percent.dev_attr.attr,
 	&iio_dev_attr_75_percent.dev_attr.attr,
-	&iio_dev_attr_accel_scale.dev_attr.attr,
+	&iio_dev_attr_in_accel_scale.dev_attr.attr,
 	NULL,
 };
 

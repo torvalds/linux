@@ -325,7 +325,7 @@ err_ret:
 	return ret;
 }
 
-static IIO_DEVICE_ATTR(accel_xyz_squared_peak_raw, S_IRUGO,
+static IIO_DEVICE_ATTR(in_accel_xyz_squared_peak_raw, S_IRUGO,
 		       adis16240_read_12bit_signed, NULL,
 		       ADIS16240_XYZPEAK_OUT);
 
@@ -500,7 +500,7 @@ static struct iio_chan_spec adis16240_channels[] = {
 };
 
 static struct attribute *adis16240_attributes[] = {
-	&iio_dev_attr_accel_xyz_squared_peak_raw.dev_attr.attr,
+	&iio_dev_attr_in_accel_xyz_squared_peak_raw.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
 	NULL

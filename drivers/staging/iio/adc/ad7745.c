@@ -131,21 +131,21 @@ static int ad774x_i2c_write(struct ad774x_chip_info *chip, u8 reg, u8 data)
 #define IIO_DEV_ATTR_CONVERSION_MODE(_mode, _show, _store)              \
 	IIO_DEVICE_ATTR(conversion_mode, _mode, _show, _store, 0)
 #define IIO_DEV_ATTR_CAP_SETUP(_mode, _show, _store)		\
-	IIO_DEVICE_ATTR(cap_setup, _mode, _show, _store, 0)
+	IIO_DEVICE_ATTR(in_capacitance_setup, _mode, _show, _store, 0)
 #define IIO_DEV_ATTR_VT_SETUP(_mode, _show, _store)              \
-	IIO_DEVICE_ATTR(in0_setup, _mode, _show, _store, 0)
+	IIO_DEVICE_ATTR(in_voltage0_setup, _mode, _show, _store, 0)
 #define IIO_DEV_ATTR_EXEC_SETUP(_mode, _show, _store)              \
 	IIO_DEVICE_ATTR(exec_setup, _mode, _show, _store, 0)
 #define IIO_DEV_ATTR_VOLT_GAIN(_mode, _show, _store)		\
-	IIO_DEVICE_ATTR(in0_gain, _mode, _show, _store, 0)
+	IIO_DEVICE_ATTR(in_voltage0_gain, _mode, _show, _store, 0)
 #define IIO_DEV_ATTR_CAP_OFFS(_mode, _show, _store)		\
-	IIO_DEVICE_ATTR(cap_offs, _mode, _show, _store, 0)
+	IIO_DEVICE_ATTR(in_capacitance_offs, _mode, _show, _store, 0)
 #define IIO_DEV_ATTR_CAP_GAIN(_mode, _show, _store)		\
-	IIO_DEVICE_ATTR(cap_gain, _mode, _show, _store, 0)
+	IIO_DEVICE_ATTR(in_capacitance_gain, _mode, _show, _store, 0)
 #define IIO_DEV_ATTR_CAP_DATA(_show)		\
-	IIO_DEVICE_ATTR(cap0_raw, S_IRUGO, _show, NULL, 0)
+	IIO_DEVICE_ATTR(in_capacitance0_raw, S_IRUGO, _show, NULL, 0)
 #define IIO_DEV_ATTR_VT_DATA(_show)		\
-	IIO_DEVICE_ATTR(in0_raw, S_IRUGO, _show, NULL, 0)
+	IIO_DEVICE_ATTR(in_voltage0_raw, S_IRUGO, _show, NULL, 0)
 
 static ssize_t ad774x_show_conversion_modes(struct device *dev,
 		struct device_attribute *attr,
@@ -241,12 +241,12 @@ static ssize_t ad774x_store_dac_value(struct device *dev,
 	return -EINVAL;
 }
 
-static IIO_DEVICE_ATTR(capdac0_raw, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_capacitance0_raw, S_IRUGO | S_IWUSR,
 			ad774x_show_dac_value,
 			ad774x_store_dac_value,
 			AD774X_CAPDACA);
 
-static IIO_DEVICE_ATTR(capdac1_raw, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_capacitance1_raw, S_IRUGO | S_IWUSR,
 			ad774x_show_dac_value,
 			ad774x_store_dac_value,
 			AD774X_CAPDACB);
@@ -501,16 +501,16 @@ static IIO_DEV_ATTR_CAP_GAIN(S_IRUGO | S_IWUSR,
 static struct attribute *ad774x_attributes[] = {
 	&iio_dev_attr_available_conversion_modes.dev_attr.attr,
 	&iio_dev_attr_conversion_mode.dev_attr.attr,
-	&iio_dev_attr_cap_setup.dev_attr.attr,
-	&iio_dev_attr_in0_setup.dev_attr.attr,
+	&iio_dev_attr_in_capacitance_setup.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_setup.dev_attr.attr,
 	&iio_dev_attr_exec_setup.dev_attr.attr,
-	&iio_dev_attr_cap_offs.dev_attr.attr,
-	&iio_dev_attr_cap_gain.dev_attr.attr,
-	&iio_dev_attr_in0_gain.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_dev_attr_cap0_raw.dev_attr.attr,
-	&iio_dev_attr_capdac0_raw.dev_attr.attr,
-	&iio_dev_attr_capdac1_raw.dev_attr.attr,
+	&iio_dev_attr_in_capacitance_offs.dev_attr.attr,
+	&iio_dev_attr_in_capacitance_gain.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_gain.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_raw.dev_attr.attr,
+	&iio_dev_attr_in_capacitance0_raw.dev_attr.attr,
+	&iio_dev_attr_out_capacitance0_raw.dev_attr.attr,
+	&iio_dev_attr_out_capacitance1_raw.dev_attr.attr,
 	NULL,
 };
 

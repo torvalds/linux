@@ -454,8 +454,8 @@ out:
 }
 
 static IIO_DEV_ATTR_TEMP_RAW(ade7753_read_8bit);
-static IIO_CONST_ATTR(temp_offset, "-25 C");
-static IIO_CONST_ATTR(temp_scale, "0.67 C");
+static IIO_CONST_ATTR(in_temp_offset, "-25 C");
+static IIO_CONST_ATTR(in_temp_scale, "0.67 C");
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ade7753_read_frequency,
@@ -466,9 +466,9 @@ static IIO_DEV_ATTR_RESET(ade7753_write_reset);
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("27900 14000 7000 3500");
 
 static struct attribute *ade7753_attributes[] = {
-	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_const_attr_temp_offset.dev_attr.attr,
-	&iio_const_attr_temp_scale.dev_attr.attr,
+	&iio_dev_attr_in_temp_raw.dev_attr.attr,
+	&iio_const_attr_in_temp_offset.dev_attr.attr,
+	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,

@@ -308,12 +308,12 @@ static ssize_t ad5933_store_frequency(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(out0_freq_start, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_freq_start, S_IRUGO | S_IWUSR,
 			ad5933_show_frequency,
 			ad5933_store_frequency,
 			AD5933_REG_FREQ_START);
 
-static IIO_DEVICE_ATTR(out0_freq_increment, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_freq_increment, S_IRUGO | S_IWUSR,
 			ad5933_show_frequency,
 			ad5933_store_frequency,
 			AD5933_REG_FREQ_INC);
@@ -431,32 +431,32 @@ static ssize_t ad5933_store(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(out0_scale, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_scale, S_IRUGO | S_IWUSR,
 			ad5933_show,
 			ad5933_store,
 			AD5933_OUT_RANGE);
 
-static IIO_DEVICE_ATTR(out0_scale_available, S_IRUGO,
+static IIO_DEVICE_ATTR(out_voltage0_scale_available, S_IRUGO,
 			ad5933_show,
 			NULL,
 			AD5933_OUT_RANGE_AVAIL);
 
-static IIO_DEVICE_ATTR(in0_scale, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(in_voltage0_scale, S_IRUGO | S_IWUSR,
 			ad5933_show,
 			ad5933_store,
 			AD5933_IN_PGA_GAIN);
 
-static IIO_DEVICE_ATTR(in0_scale_available, S_IRUGO,
+static IIO_DEVICE_ATTR(in_voltage0_scale_available, S_IRUGO,
 			ad5933_show,
 			NULL,
 			AD5933_IN_PGA_GAIN_AVAIL);
 
-static IIO_DEVICE_ATTR(out0_freq_points, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_freq_points, S_IRUGO | S_IWUSR,
 			ad5933_show,
 			ad5933_store,
 			AD5933_FREQ_POINTS);
 
-static IIO_DEVICE_ATTR(out0_settling_cycles, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_settling_cycles, S_IRUGO | S_IWUSR,
 			ad5933_show,
 			ad5933_store,
 			AD5933_OUT_SETTLING_CYCLES);
@@ -467,14 +467,14 @@ static IIO_DEVICE_ATTR(out0_settling_cycles, S_IRUGO | S_IWUSR,
  * don't create dedicated sysfs channel attributes for out0 and in0.
  */
 static struct attribute *ad5933_attributes[] = {
-	&iio_dev_attr_out0_scale.dev_attr.attr,
-	&iio_dev_attr_out0_scale_available.dev_attr.attr,
-	&iio_dev_attr_out0_freq_start.dev_attr.attr,
-	&iio_dev_attr_out0_freq_increment.dev_attr.attr,
-	&iio_dev_attr_out0_freq_points.dev_attr.attr,
-	&iio_dev_attr_out0_settling_cycles.dev_attr.attr,
-	&iio_dev_attr_in0_scale.dev_attr.attr,
-	&iio_dev_attr_in0_scale_available.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_scale_available.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_freq_start.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_freq_increment.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_freq_points.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_settling_cycles.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_scale.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_scale_available.dev_attr.attr,
 	NULL
 };
 

@@ -350,73 +350,73 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-static IIO_DEVICE_ATTR(in0_thresh_low_value,
+static IIO_DEVICE_ATTR(in_voltage0_thresh_low_value,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_DATALOW_CH1_REG);
 
-static IIO_DEVICE_ATTR(in0_thresh_high_value,
+static IIO_DEVICE_ATTR(in_voltage0_thresh_high_value,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_DATAHIGH_CH1_REG);
 
-static IIO_DEVICE_ATTR(in0_thresh_both_hyst_raw,
+static IIO_DEVICE_ATTR(in_voltage0_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_HYST_CH1_REG);
 
-static IIO_DEVICE_ATTR(in1_thresh_low_value,
+static IIO_DEVICE_ATTR(in_voltage1_thresh_low_value,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_DATALOW_CH2_REG);
 
-static IIO_DEVICE_ATTR(in1_thresh_high_value,
+static IIO_DEVICE_ATTR(in_voltage1_thresh_high_value,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_DATAHIGH_CH2_REG);
 
-static IIO_DEVICE_ATTR(in1_thresh_both_hyst_raw,
+static IIO_DEVICE_ATTR(in_voltage1_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_HYST_CH2_REG);
 
-static IIO_DEVICE_ATTR(in2_thresh_low_value,
+static IIO_DEVICE_ATTR(in_voltage2_thresh_low_value,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_DATALOW_CH3_REG);
 
-static IIO_DEVICE_ATTR(in2_thresh_high_value,
+static IIO_DEVICE_ATTR(in_voltage2_thresh_high_value,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_DATAHIGH_CH3_REG);
 
-static IIO_DEVICE_ATTR(in2_thresh_both_hyst_raw,
+static IIO_DEVICE_ATTR(in_voltage2_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_HYST_CH3_REG);
 
-static IIO_DEVICE_ATTR(in3_thresh_low_value,
+static IIO_DEVICE_ATTR(in_voltage3_thresh_low_value,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_DATALOW_CH4_REG);
 
-static IIO_DEVICE_ATTR(in3_thresh_high_value,
+static IIO_DEVICE_ATTR(in_voltage3_thresh_high_value,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
 		       AD7998_DATAHIGH_CH4_REG);
 
-static IIO_DEVICE_ATTR(in3_thresh_both_hyst_raw,
+static IIO_DEVICE_ATTR(in_voltage3_thresh_both_hyst_raw,
 		       S_IRUGO | S_IWUSR,
 		       ad799x_read_channel_config,
 		       ad799x_write_channel_config,
@@ -428,18 +428,18 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("15625 7812 3906 1953 976 488 244 0");
 
 static struct attribute *ad7993_4_7_8_event_attributes[] = {
-	&iio_dev_attr_in0_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_in0_thresh_high_value.dev_attr.attr,
-	&iio_dev_attr_in0_thresh_both_hyst_raw.dev_attr.attr,
-	&iio_dev_attr_in1_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_in1_thresh_high_value.dev_attr.attr,
-	&iio_dev_attr_in1_thresh_both_hyst_raw.dev_attr.attr,
-	&iio_dev_attr_in2_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_in2_thresh_high_value.dev_attr.attr,
-	&iio_dev_attr_in2_thresh_both_hyst_raw.dev_attr.attr,
-	&iio_dev_attr_in3_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_in3_thresh_high_value.dev_attr.attr,
-	&iio_dev_attr_in3_thresh_both_hyst_raw.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_thresh_both_hyst_raw.dev_attr.attr,
+	&iio_dev_attr_in_voltage1_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage1_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage1_thresh_both_hyst_raw.dev_attr.attr,
+	&iio_dev_attr_in_voltage2_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage2_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage2_thresh_both_hyst_raw.dev_attr.attr,
+	&iio_dev_attr_in_voltage3_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage3_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage3_thresh_both_hyst_raw.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	NULL,
@@ -451,12 +451,12 @@ static struct attribute_group ad7993_4_7_8_event_attrs_group = {
 };
 
 static struct attribute *ad7992_event_attributes[] = {
-	&iio_dev_attr_in0_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_in0_thresh_high_value.dev_attr.attr,
-	&iio_dev_attr_in0_thresh_both_hyst_raw.dev_attr.attr,
-	&iio_dev_attr_in1_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_in1_thresh_high_value.dev_attr.attr,
-	&iio_dev_attr_in1_thresh_both_hyst_raw.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage0_thresh_both_hyst_raw.dev_attr.attr,
+	&iio_dev_attr_in_voltage1_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage1_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in_voltage1_thresh_both_hyst_raw.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	NULL,

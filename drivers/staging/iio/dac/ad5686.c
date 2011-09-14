@@ -247,11 +247,12 @@ static ssize_t ad5686_write_dac_powerdown(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_CONST_ATTR(out_powerdown_mode_available,
+static IIO_CONST_ATTR(out_voltage_powerdown_mode_available,
 			"1kohm_to_gnd 100kohm_to_gnd three_state");
 
-#define IIO_DEV_ATTR_DAC_POWERDOWN_MODE(_num) \
-	IIO_DEVICE_ATTR(out##_num##_powerdown_mode, S_IRUGO | S_IWUSR,	\
+#define IIO_DEV_ATTR_DAC_POWERDOWN_MODE(_num)				\
+	IIO_DEVICE_ATTR(out_voltage##_num##_powerdown_mode,		\
+			S_IRUGO | S_IWUSR,				\
 			ad5686_read_powerdown_mode,			\
 			ad5686_write_powerdown_mode, _num)
 
@@ -260,8 +261,9 @@ static IIO_DEV_ATTR_DAC_POWERDOWN_MODE(1);
 static IIO_DEV_ATTR_DAC_POWERDOWN_MODE(2);
 static IIO_DEV_ATTR_DAC_POWERDOWN_MODE(3);
 
-#define IIO_DEV_ATTR_DAC_POWERDOWN(_num)	\
-	IIO_DEVICE_ATTR(out##_num##_powerdown, S_IRUGO | S_IWUSR,	\
+#define IIO_DEV_ATTR_DAC_POWERDOWN(_num)				\
+	IIO_DEVICE_ATTR(out_voltage##_num##_powerdown,			\
+			S_IRUGO | S_IWUSR,				\
 			ad5686_read_dac_powerdown,			\
 			ad5686_write_dac_powerdown, _num)
 
@@ -271,15 +273,15 @@ static IIO_DEV_ATTR_DAC_POWERDOWN(2);
 static IIO_DEV_ATTR_DAC_POWERDOWN(3);
 
 static struct attribute *ad5686_attributes[] = {
-	&iio_dev_attr_out0_powerdown.dev_attr.attr,
-	&iio_dev_attr_out1_powerdown.dev_attr.attr,
-	&iio_dev_attr_out2_powerdown.dev_attr.attr,
-	&iio_dev_attr_out3_powerdown.dev_attr.attr,
-	&iio_dev_attr_out0_powerdown_mode.dev_attr.attr,
-	&iio_dev_attr_out1_powerdown_mode.dev_attr.attr,
-	&iio_dev_attr_out2_powerdown_mode.dev_attr.attr,
-	&iio_dev_attr_out3_powerdown_mode.dev_attr.attr,
-	&iio_const_attr_out_powerdown_mode_available.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage2_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage3_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_powerdown_mode.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_powerdown_mode.dev_attr.attr,
+	&iio_dev_attr_out_voltage2_powerdown_mode.dev_attr.attr,
+	&iio_dev_attr_out_voltage3_powerdown_mode.dev_attr.attr,
+	&iio_const_attr_out_voltage_powerdown_mode_available.dev_attr.attr,
 	NULL,
 };
 

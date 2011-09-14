@@ -747,10 +747,11 @@ static ssize_t ad7192_show_scale_available(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR_NAMED(in_m_in_scale_available, in-in_scale_available,
+static IIO_DEVICE_ATTR_NAMED(in_v_m_v_scale_available,
+			     in_voltage-voltage_scale_available,
 			     S_IRUGO, ad7192_show_scale_available, NULL, 0);
 
-static IIO_DEVICE_ATTR(in_scale_available, S_IRUGO,
+static IIO_DEVICE_ATTR(in_voltage_scale_available, S_IRUGO,
 		       ad7192_show_scale_available, NULL, 0);
 
 static ssize_t ad7192_show_ac_excitation(struct device *dev,
@@ -830,8 +831,8 @@ static IIO_DEVICE_ATTR(ac_excitation_en, S_IRUGO | S_IWUSR,
 
 static struct attribute *ad7192_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_dev_attr_in_m_in_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_v_m_v_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage_scale_available.dev_attr.attr,
 	&iio_dev_attr_bridge_switch_en.dev_attr.attr,
 	&iio_dev_attr_ac_excitation_en.dev_attr.attr,
 	NULL

@@ -106,13 +106,13 @@ struct iio_const_attr {
 	IIO_CONST_ATTR(sampling_frequency_available, _string)
 
 #define IIO_DEV_ATTR_TEMP_RAW(_show)			\
-	IIO_DEVICE_ATTR(temp_raw, S_IRUGO, _show, NULL, 0)
+	IIO_DEVICE_ATTR(in_temp_raw, S_IRUGO, _show, NULL, 0)
 
 #define IIO_CONST_ATTR_TEMP_OFFSET(_string)		\
-	IIO_CONST_ATTR(temp_offset, _string)
+	IIO_CONST_ATTR(in_temp_offset, _string)
 
 #define IIO_CONST_ATTR_TEMP_SCALE(_string)		\
-	IIO_CONST_ATTR(temp_scale, _string)
+	IIO_CONST_ATTR(in_temp_scale, _string)
 
 enum iio_event_type {
 	IIO_EV_TYPE_THRESH,

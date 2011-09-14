@@ -169,10 +169,10 @@ static ssize_t ad5504_show_scale(struct device *dev,
 
 	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
 }
-static IIO_DEVICE_ATTR(out_scale, S_IRUGO, ad5504_show_scale, NULL, 0);
+static IIO_DEVICE_ATTR(out_voltage_scale, S_IRUGO, ad5504_show_scale, NULL, 0);
 
 #define IIO_DEV_ATTR_OUT_RW_RAW(_num, _show, _store, _addr)		\
-	IIO_DEVICE_ATTR(out##_num##_raw,				\
+	IIO_DEVICE_ATTR(out_voltage##_num##_raw,			\
 			S_IRUGO | S_IWUSR, _show, _store, _addr)
 
 static IIO_DEV_ATTR_OUT_RW_RAW(0, ad5504_read_dac,
@@ -184,17 +184,16 @@ static IIO_DEV_ATTR_OUT_RW_RAW(2, ad5504_read_dac,
 static IIO_DEV_ATTR_OUT_RW_RAW(3, ad5504_read_dac,
 	ad5504_write_dac, AD5504_ADDR_DAC3);
 
-static IIO_DEVICE_ATTR(out_powerdown_mode, S_IRUGO |
+static IIO_DEVICE_ATTR(out_voltage_powerdown_mode, S_IRUGO |
 			S_IWUSR, ad5504_read_powerdown_mode,
 			ad5504_write_powerdown_mode, 0);
 
-static IIO_CONST_ATTR(out_powerdown_mode_available,
+static IIO_CONST_ATTR(out_voltage_powerdown_mode_available,
 			"20kohm_to_gnd three_state");
 
 #define IIO_DEV_ATTR_DAC_POWERDOWN(_num, _show, _store, _addr)		\
-	IIO_DEVICE_ATTR(out##_num##_powerdown,				\
+	IIO_DEVICE_ATTR(out_voltage##_num##_powerdown,			\
 			S_IRUGO | S_IWUSR, _show, _store, _addr)
-
 static IIO_DEV_ATTR_DAC_POWERDOWN(0, ad5504_read_dac_powerdown,
 				   ad5504_write_dac_powerdown, 0);
 static IIO_DEV_ATTR_DAC_POWERDOWN(1, ad5504_read_dac_powerdown,
@@ -205,17 +204,17 @@ static IIO_DEV_ATTR_DAC_POWERDOWN(3, ad5504_read_dac_powerdown,
 				   ad5504_write_dac_powerdown, 3);
 
 static struct attribute *ad5504_attributes[] = {
-	&iio_dev_attr_out0_raw.dev_attr.attr,
-	&iio_dev_attr_out1_raw.dev_attr.attr,
-	&iio_dev_attr_out2_raw.dev_attr.attr,
-	&iio_dev_attr_out3_raw.dev_attr.attr,
-	&iio_dev_attr_out0_powerdown.dev_attr.attr,
-	&iio_dev_attr_out1_powerdown.dev_attr.attr,
-	&iio_dev_attr_out2_powerdown.dev_attr.attr,
-	&iio_dev_attr_out3_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_powerdown_mode.dev_attr.attr,
-	&iio_const_attr_out_powerdown_mode_available.dev_attr.attr,
-	&iio_dev_attr_out_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage2_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage3_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage2_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage3_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage_powerdown_mode.dev_attr.attr,
+	&iio_const_attr_out_voltage_powerdown_mode_available.dev_attr.attr,
+	&iio_dev_attr_out_voltage_scale.dev_attr.attr,
 	NULL,
 };
 
@@ -224,11 +223,11 @@ static const struct attribute_group ad5504_attribute_group = {
 };
 
 static struct attribute *ad5501_attributes[] = {
-	&iio_dev_attr_out0_raw.dev_attr.attr,
-	&iio_dev_attr_out0_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_powerdown_mode.dev_attr.attr,
-	&iio_const_attr_out_powerdown_mode_available.dev_attr.attr,
-	&iio_dev_attr_out_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage_powerdown_mode.dev_attr.attr,
+	&iio_const_attr_out_voltage_powerdown_mode_available.dev_attr.attr,
+	&iio_dev_attr_out_voltage_scale.dev_attr.attr,
 	NULL,
 };
 

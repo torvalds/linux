@@ -445,7 +445,7 @@ exit:
 	return count;
 
 }
-static IIO_DEVICE_ATTR(magn_range,
+static IIO_DEVICE_ATTR(in_magn_range,
 			S_IWUSR | S_IRUGO,
 			show_range,
 			set_range,
@@ -490,7 +490,7 @@ static struct attribute *hmc5843_attributes[] = {
 	&iio_dev_attr_meas_conf.dev_attr.attr,
 	&iio_dev_attr_operating_mode.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_dev_attr_magn_range.dev_attr.attr,
+	&iio_dev_attr_in_magn_range.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	NULL
 };

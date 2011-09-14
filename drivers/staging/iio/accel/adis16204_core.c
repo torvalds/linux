@@ -301,15 +301,15 @@ err_ret:
 
 /* Unique to this driver currently */
 #define IIO_DEV_ATTR_ACCEL_XY(_show, _addr)			\
-	IIO_DEVICE_ATTR(accel_xy, S_IRUGO, _show, NULL, _addr)
+	IIO_DEVICE_ATTR(in_accel_xy, S_IRUGO, _show, NULL, _addr)
 #define IIO_DEV_ATTR_ACCEL_XYPEAK(_show, _addr)		\
-	IIO_DEVICE_ATTR(accel_xypeak, S_IRUGO, _show, NULL, _addr)
+	IIO_DEVICE_ATTR(in_accel_xypeak, S_IRUGO, _show, NULL, _addr)
 
 static IIO_DEV_ATTR_ACCEL_XY(adis16204_read_14bit_signed,
 		ADIS16204_XY_RSS_OUT);
 static IIO_DEV_ATTR_ACCEL_XYPEAK(adis16204_read_14bit_signed,
 		ADIS16204_XY_PEAK_OUT);
-static IIO_CONST_ATTR(accel_xy_scale, "0.017125");
+static IIO_CONST_ATTR(in_accel_xy_scale, "0.017125");
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16204_write_reset, 0);
 
@@ -475,9 +475,9 @@ static struct iio_chan_spec adis16204_channels[] = {
 
 static struct attribute *adis16204_attributes[] = {
 	&iio_dev_attr_reset.dev_attr.attr,
-	&iio_dev_attr_accel_xy.dev_attr.attr,
-	&iio_dev_attr_accel_xypeak.dev_attr.attr,
-	&iio_const_attr_accel_xy_scale.dev_attr.attr,
+	&iio_dev_attr_in_accel_xy.dev_attr.attr,
+	&iio_dev_attr_in_accel_xypeak.dev_attr.attr,
+	&iio_const_attr_in_accel_xy_scale.dev_attr.attr,
 	NULL
 };
 

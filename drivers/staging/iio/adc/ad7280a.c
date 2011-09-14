@@ -736,26 +736,26 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 }
 
 static IIO_DEVICE_ATTR_NAMED(in_thresh_low_value,
-		in-in_thresh_low_value,
+		in_voltage-voltage_thresh_low_value,
 		S_IRUGO | S_IWUSR,
 		ad7280_read_channel_config,
 		ad7280_write_channel_config,
 		AD7280A_CELL_UNDERVOLTAGE);
 
 static IIO_DEVICE_ATTR_NAMED(in_thresh_high_value,
-		in-in_thresh_high_value,
+		in_voltage-voltage_thresh_high_value,
 		S_IRUGO | S_IWUSR,
 		ad7280_read_channel_config,
 		ad7280_write_channel_config,
 		AD7280A_CELL_OVERVOLTAGE);
 
-static IIO_DEVICE_ATTR(temp_thresh_low_value,
+static IIO_DEVICE_ATTR(in_temp_thresh_low_value,
 		S_IRUGO | S_IWUSR,
 		ad7280_read_channel_config,
 		ad7280_write_channel_config,
 		AD7280A_AUX_ADC_UNDERVOLTAGE);
 
-static IIO_DEVICE_ATTR(temp_thresh_high_value,
+static IIO_DEVICE_ATTR(in_temp_thresh_high_value,
 		S_IRUGO | S_IWUSR,
 		ad7280_read_channel_config,
 		ad7280_write_channel_config,
@@ -765,8 +765,8 @@ static IIO_DEVICE_ATTR(temp_thresh_high_value,
 static struct attribute *ad7280_event_attributes[] = {
 	&iio_dev_attr_in_thresh_low_value.dev_attr.attr,
 	&iio_dev_attr_in_thresh_high_value.dev_attr.attr,
-	&iio_dev_attr_temp_thresh_low_value.dev_attr.attr,
-	&iio_dev_attr_temp_thresh_high_value.dev_attr.attr,
+	&iio_dev_attr_in_temp_thresh_low_value.dev_attr.attr,
+	&iio_dev_attr_in_temp_thresh_high_value.dev_attr.attr,
 	NULL,
 };
 
