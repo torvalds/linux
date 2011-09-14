@@ -2454,6 +2454,24 @@ static struct platform_device gpio_wave_device = {
 static void __init rk29_board_iomux_init(void)
 {
 	int err;
+
+#ifdef CONFIG_UART1_RK29
+	//disable uart1 pull down
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_GPIO2A5);			
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_GPIO2A4);		
+
+	gpio_request(RK29_PIN2_PA5, NULL);
+	gpio_request(RK29_PIN2_PA4, NULL);
+
+	gpio_pull_updown(RK29_PIN2_PA5, PullDisable);
+	gpio_pull_updown(RK29_PIN2_PA4, PullDisable);
+
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_UART1_SOUT);			
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_UART1_SIN); 
+
+	gpio_free(RK29_PIN2_PA5);
+	gpio_free(RK29_PIN2_PA4);
+#endif
 	#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
 	#endif
