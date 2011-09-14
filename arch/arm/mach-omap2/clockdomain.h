@@ -166,8 +166,11 @@ struct clkdm_ops {
 	int	(*clkdm_clk_disable)(struct clockdomain *clkdm);
 };
 
-void clkdm_init(struct clockdomain **clkdms, struct clkdm_autodep *autodeps,
-			struct clkdm_ops *custom_funcs);
+int clkdm_register_platform_funcs(struct clkdm_ops *co);
+int clkdm_register_autodeps(struct clkdm_autodep *ia);
+int clkdm_register_clkdms(struct clockdomain **c);
+int clkdm_complete_init(void);
+
 struct clockdomain *clkdm_lookup(const char *name);
 
 int clkdm_for_each(int (*fn)(struct clockdomain *clkdm, void *user),

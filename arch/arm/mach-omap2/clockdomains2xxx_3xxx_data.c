@@ -857,12 +857,21 @@ static struct clockdomain *clockdomains_omap2[] __initdata = {
 	NULL,
 };
 
+static void __init omap2_3_clockdomains_init(void)
+{
+	clkdm_register_clkdms(clockdomains_omap2);
+	clkdm_register_autodeps(clkdm_autodeps);
+	clkdm_complete_init();
+}
+
 void __init omap2xxx_clockdomains_init(void)
 {
-	clkdm_init(clockdomains_omap2, clkdm_autodeps, &omap2_clkdm_operations);
+	clkdm_register_platform_funcs(&omap2_clkdm_operations);
+	omap2_3_clockdomains_init();
 }
 
 void __init omap3xxx_clockdomains_init(void)
 {
-	clkdm_init(clockdomains_omap2, clkdm_autodeps, &omap3_clkdm_operations);
+	clkdm_register_platform_funcs(&omap3_clkdm_operations);
+	omap2_3_clockdomains_init();
 }
