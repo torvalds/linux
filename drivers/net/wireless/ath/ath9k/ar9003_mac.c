@@ -207,8 +207,7 @@ static void ar9003_hw_fill_txdesc(struct ath_hw *ah, void *ds, u32 seglen,
 	ads->ctl3 &= AR_BufLen;
 
 	/* Fill in pointer checksum and descriptor id */
-	ads->ctl10 = ar9003_calc_ptr_chksum(ads);
-	ads->ctl10 |= (descid << AR_TxDescId_S);
+	ads->ctl10 = (descid << AR_TxDescId_S);
 
 	if (is_firstseg) {
 		ads->ctl12 |= (is_lastseg ? 0 : AR_TxMore);
