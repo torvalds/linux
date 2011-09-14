@@ -164,7 +164,8 @@ config DDR_SDRAM_FREQ
 	default 400
 
 config DDR_FREQ
-	bool "Enable DDR frequency scaling (EXPERIMENTAL)"
+	bool "Enable DDR frequency scaling"
+	default y
 
 config DDR_RECONFIG
 	bool "Enable dynamic DDR reconfiguration (EXPERIMENTAL)"
