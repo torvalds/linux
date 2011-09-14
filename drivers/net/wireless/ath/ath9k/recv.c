@@ -1839,7 +1839,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * If we're asked to flush receive queue, directly
 		 * chain it back at the queue without processing it.
 		 */
-		if (flush)
+		if (sc->sc_flags & SC_OP_RXFLUSH)
 			goto requeue_drop_frag;
 
 		retval = ath9k_rx_skb_preprocess(common, hw, hdr, &rs,
@@ -1967,7 +1967,8 @@ requeue:
 		} else {
 			list_move_tail(&bf->list, &sc->rx.rxbuf);
 			ath_rx_buf_link(sc, bf);
-			ath9k_hw_rxena(ah);
+			if (!flush)
+				ath9k_hw_rxena(ah);
 		}
 	} while (1);
 

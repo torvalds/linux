@@ -247,8 +247,8 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 
 	if (!flush) {
 		if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
-			ath_rx_tasklet(sc, 0, true);
-		ath_rx_tasklet(sc, 0, false);
+			ath_rx_tasklet(sc, 1, true);
+		ath_rx_tasklet(sc, 1, false);
 	} else {
 		ath_flushrecv(sc);
 	}
