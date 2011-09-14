@@ -322,7 +322,6 @@ void __iomem *omap_irq_base;
 static void __init omap_common_init_early(void)
 {
 	omap2_check_revision();
-	omap_ioremap_init();
 	omap_init_consistent_dma_size();
 }
 

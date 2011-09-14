@@ -66,3 +66,10 @@ void __init omap_reserve(void)
 	omap_vram_reserve_sdram_memblock();
 	omap_dsp_reserve_sdram_memblock();
 }
+
+void __init omap_init_consistent_dma_size(void)
+{
+#ifdef CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE
+	init_consistent_dma_size(CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE << 20);
+#endif
+}
