@@ -747,9 +747,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 					   info->gd->disk_name);
 				error = -EOPNOTSUPP;
 				info->feature_discard = 0;
-				spin_lock(rq->queue_lock);
 				queue_flag_clear(QUEUE_FLAG_DISCARD, rq);
-				spin_unlock(rq->queue_lock);
 			}
 			__blk_end_request_all(req, error);
 			break;
