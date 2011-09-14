@@ -380,8 +380,12 @@ memory_probe_store(struct class *class, struct class_attribute *attr,
 	u64 phys_addr;
 	int nid;
 	int i, ret;
+	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
 
 	phys_addr = simple_strtoull(buf, NULL, 0);
+
+	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
+		return -EINVAL;
 
 	for (i = 0; i < sections_per_block; i++) {
 		nid = memory_add_physaddr_to_nid(phys_addr);
