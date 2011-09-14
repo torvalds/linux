@@ -971,7 +971,7 @@ static void dispc_ovl_set_vid_color_conv(enum omap_plane plane, bool enable)
 	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), val);
 }
 
-void dispc_ovl_enable_replication(enum omap_plane plane, bool enable)
+static void dispc_ovl_enable_replication(enum omap_plane plane, bool enable)
 {
 	static const unsigned shifts[] = { 5, 10, 10 };
 	int shift;
@@ -1019,7 +1019,8 @@ u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
 	return dispc.fifo_size[plane];
 }
 
-void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
+static void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low,
+		u32 high)
 {
 	u8 hi_start, hi_end, lo_start, lo_end;
 	u32 unit;
@@ -1675,7 +1676,8 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 }
 
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool ilace, enum omap_channel channel)
+		bool ilace, enum omap_channel channel, bool replication,
+		u32 fifo_low, u32 fifo_high)
 {
 	const int maxdownscale = cpu_is_omap34xx() ? 4 : 2;
 	bool five_taps = 0;
@@ -1688,10 +1690,11 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	unsigned int field_offset = 0;
 
 	DSSDBG("dispc_ovl_setup %d, pa %x, pa_uv %x, sw %d, %d,%d, %dx%d -> "
-		"%dx%d, cmode %x, rot %d, mir %d, ilace %d chan %d\n",
-		plane, oi->paddr, oi->p_uv_addr, oi->screen_width, oi->pos_x,
-		oi->pos_y, oi->width, oi->height, oi->out_width, oi->out_height,
-		oi->color_mode, oi->rotation, oi->mirror, ilace, channel);
+		"%dx%d, cmode %x, rot %d, mir %d, ilace %d chan %d repl %d "
+		"fifo_low %d fifo high %d\n", plane, oi->paddr, oi->p_uv_addr,
+		oi->screen_width, oi->pos_x, oi->pos_y, oi->width, oi->height,
+		oi->out_width, oi->out_height, oi->color_mode, oi->rotation,
+		oi->mirror, ilace, channel, replication, fifo_low, fifo_high);
 
 	if (oi->paddr == 0)
 		return -EINVAL;
@@ -1838,6 +1841,9 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	dispc_ovl_setup_global_alpha(plane, oi->global_alpha);
 
 	dispc_ovl_set_channel_out(plane, channel);
+
+	dispc_ovl_enable_replication(plane, replication);
+	dispc_ovl_set_fifo_threshold(plane, fifo_low, fifo_high);
 
 	return 0;
 }

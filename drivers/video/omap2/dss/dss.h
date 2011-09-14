@@ -400,12 +400,11 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 
 
 u32 dispc_ovl_get_fifo_size(enum omap_plane plane);
-void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 u32 dispc_ovl_get_burst_size(enum omap_plane plane);
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool ilace, enum omap_channel channel);
+		bool ilace, enum omap_channel channel, bool replication,
+		u32 fifo_low, u32 fifo_high);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
-void dispc_ovl_enable_replication(enum omap_plane plane, bool enable);
 
 
 void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable);

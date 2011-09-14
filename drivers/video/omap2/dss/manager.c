@@ -940,17 +940,14 @@ static int configure_overlay(enum omap_plane plane)
 	new_oi.out_height = outh;
 	new_oi.paddr = paddr;
 
-	r = dispc_ovl_setup(plane, &new_oi, c->ilace, c->channel);
+	r = dispc_ovl_setup(plane, &new_oi, c->ilace, c->channel,
+		c->replication, c->fifo_low, c->fifo_high);
 	if (r) {
 		/* this shouldn't happen */
 		DSSERR("dispc_ovl_setup failed for ovl %d\n", plane);
 		dispc_ovl_enable(plane, 0);
 		return r;
 	}
-
-	dispc_ovl_enable_replication(plane, c->replication);
-
-	dispc_ovl_set_fifo_threshold(plane, c->fifo_low, c->fifo_high);
 
 	dispc_ovl_enable(plane, 1);
 
