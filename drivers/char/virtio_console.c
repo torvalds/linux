@@ -152,6 +152,10 @@ struct ports_device {
 	int chr_major;
 };
 
+struct port_stats {
+	unsigned long bytes_sent, bytes_received, bytes_discarded;
+};
+
 /* This struct holds the per-port data */
 struct port {
 	/* Next port in the list, head is in the ports_device */
@@ -178,6 +182,13 @@ struct port {
 
 	/* File in the debugfs directory that exposes this port's information */
 	struct dentry *debugfs_file;
+
+	/*
+	 * Keep count of the bytes sent, received and discarded for
+	 * this port for accounting and debugging purposes.  These
+	 * counts are not reset across port open / close events.
+	 */
+	struct port_stats stats;
 
 	/*
 	 * The entries in this struct will be valid if this port is
@@ -360,6 +371,7 @@ static struct port_buffer *get_inbuf(struct port *port)
 	if (buf) {
 		buf->len = len;
 		buf->offset = 0;
+		port->stats.bytes_received += len;
 	}
 	return buf;
 }
@@ -396,6 +408,7 @@ static void discard_port_data(struct port *port)
 
 	err = 0;
 	while (buf) {
+		port->stats.bytes_discarded += buf->len - buf->offset;
 		if (add_inbuf(port->in_vq, buf) < 0) {
 			err++;
 			free_buf(buf);
@@ -519,6 +532,8 @@ static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count,
 		cpu_relax();
 done:
 	spin_unlock_irqrestore(&port->outvq_lock, flags);
+
+	port->stats.bytes_sent += in_count;
 	/*
 	 * We're expected to return the amount of data we wrote -- all
 	 * of it
@@ -1049,6 +1064,14 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf,
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "outvq_full: %d\n", port->outvq_full);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "bytes_sent: %lu\n", port->stats.bytes_sent);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "bytes_received: %lu\n",
+			       port->stats.bytes_received);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "bytes_discarded: %lu\n",
+			       port->stats.bytes_discarded);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "is_console: %s\n",
 			       is_console_port(port) ? "yes" : "no");
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
@@ -1133,6 +1156,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	port->cons.ws.ws_row = port->cons.ws.ws_col = 0;
 
 	port->host_connected = port->guest_connected = false;
+	port->stats = (struct port_stats) { 0 };
 
 	port->outvq_full = false;
 
