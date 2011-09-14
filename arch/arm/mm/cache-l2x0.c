@@ -437,7 +437,7 @@ static void __init pl310_of_setup(const struct device_node *np,
 
 	of_property_read_u32_array(np, "arm,filter-ranges",
 				   filter, ARRAY_SIZE(filter));
-	if (filter[0] && filter[1]) {
+	if (filter[1]) {
 		writel_relaxed(ALIGN(filter[0] + filter[1], SZ_1M),
 			       l2x0_base + L2X0_ADDR_FILTER_END);
 		writel_relaxed((filter[0] & ~(SZ_1M - 1)) | L2X0_ADDR_FILTER_EN,
