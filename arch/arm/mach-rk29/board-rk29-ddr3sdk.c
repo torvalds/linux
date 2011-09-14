@@ -754,7 +754,7 @@ static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
 	.start		= PMEM_UI_BASE,
 	.size		= PMEM_UI_SIZE,
-	.no_allocator	= 0,
+	.no_allocator	= 1,
 	.cached		= 1,
 };
 
