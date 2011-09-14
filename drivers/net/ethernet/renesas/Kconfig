@@ -9,6 +9,7 @@ config SH_ETH
 		 CPU_SUBTYPE_SH7763 || CPU_SUBTYPE_SH7619 || \
 		 CPU_SUBTYPE_SH7724 || CPU_SUBTYPE_SH7757)
 	select CRC32
+	select NET_CORE
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB

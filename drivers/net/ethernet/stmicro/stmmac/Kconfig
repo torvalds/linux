@@ -1,6 +1,7 @@
 config STMMAC_ETH
 	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
 	depends on HAS_IOMEM
+	select NET_CORE
 	select MII
 	select PHYLIB
 	select CRC32

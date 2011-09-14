@@ -5,6 +5,7 @@
 config PCH_GBE
 	tristate "OKI SEMICONDUCTOR ML7223 IOH GbE (Intel EG20T PCH)"
 	depends on PCI
+	select NET_CORE
 	select MII
 	---help---
 	  This is a gigabit ethernet driver for EG20T PCH.

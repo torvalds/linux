@@ -22,6 +22,7 @@ config VIA_RHINE
 	tristate "VIA Rhine support"
 	depends on PCI
 	select CRC32
+	select NET_CORE
 	select MII
 	---help---
 	  If you have a VIA "Rhine" based network card (Rhine-I (VT86C100A),
@@ -47,6 +48,7 @@ config VIA_VELOCITY
 	depends on PCI
 	select CRC32
 	select CRC_CCITT
+	select NET_CORE
 	select MII
 	---help---
 	  If you have a VIA "Velocity" based network card say Y here.

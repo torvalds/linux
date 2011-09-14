@@ -6,6 +6,7 @@ config DM9000
 	tristate "DM9000 support"
 	depends on ARM || BLACKFIN || MIPS
 	select CRC32
+	select NET_CORE
 	select MII
 	---help---
 	  Support for DM9000 chipset.
