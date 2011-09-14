@@ -387,8 +387,7 @@ static void discard_port_data(struct port *port)
 {
 	struct port_buffer *buf;
 	struct virtqueue *vq;
-	unsigned int len;
-	int ret;
+	unsigned int len, err;
 
 	if (!port->portdev) {
 		/* Device has been unplugged.  vqs are already gone. */
@@ -400,18 +399,18 @@ static void discard_port_data(struct port *port)
 	else
 		buf = virtqueue_get_buf(vq, &len);
 
-	ret = 0;
+	err = 0;
 	while (buf) {
 		if (add_inbuf(vq, buf) < 0) {
-			ret++;
+			err++;
 			free_buf(buf);
 		}
 		buf = virtqueue_get_buf(vq, &len);
 	}
 	port->inbuf = NULL;
-	if (ret)
+	if (err)
 		dev_warn(port->dev, "Errors adding %d buffers back to vq\n",
-			 ret);
+			 err);
 }
 
 static bool port_has_data(struct port *port)
