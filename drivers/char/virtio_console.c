@@ -351,11 +351,12 @@ fail:
 static struct port_buffer *get_inbuf(struct port *port)
 {
 	struct port_buffer *buf;
-	struct virtqueue *vq;
 	unsigned int len;
 
-	vq = port->in_vq;
-	buf = virtqueue_get_buf(vq, &len);
+	if (port->inbuf)
+		return port->inbuf;
+
+	buf = virtqueue_get_buf(port->in_vq, &len);
 	if (buf) {
 		buf->len = len;
 		buf->offset = 0;
@@ -418,18 +419,12 @@ static bool port_has_data(struct port *port)
 	unsigned long flags;
 	bool ret;
 
-	spin_lock_irqsave(&port->inbuf_lock, flags);
-	if (port->inbuf) {
-		ret = true;
-		goto out;
-	}
-	port->inbuf = get_inbuf(port);
-	if (port->inbuf) {
-		ret = true;
-		goto out;
-	}
 	ret = false;
-out:
+	spin_lock_irqsave(&port->inbuf_lock, flags);
+	port->inbuf = get_inbuf(port);
+	if (port->inbuf)
+		ret = true;
+
 	spin_unlock_irqrestore(&port->inbuf_lock, flags);
 	return ret;
 }
@@ -1489,8 +1484,7 @@ static void in_intr(struct virtqueue *vq)
 		return;
 
 	spin_lock_irqsave(&port->inbuf_lock, flags);
-	if (!port->inbuf)
-		port->inbuf = get_inbuf(port);
+	port->inbuf = get_inbuf(port);
 
 	/*
 	 * Don't queue up data when port is closed.  This condition
