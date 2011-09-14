@@ -163,22 +163,24 @@ static void android_work(struct work_struct *data)
 	char *disconnected[2] = { "USB_STATE=DISCONNECTED", NULL };
 	char *connected[2]    = { "USB_STATE=CONNECTED", NULL };
 	char *configured[2]   = { "USB_STATE=CONFIGURED", NULL };
+	char **uevent_envp = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cdev->lock, flags);
         if (cdev->config) {
-		spin_unlock_irqrestore(&cdev->lock, flags);
-		kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE,
-							configured);
-		return;
-	}
-	if (dev->connected != dev->sw_connected) {
+		uevent_envp = configured;
+	} else if (dev->connected != dev->sw_connected) {
 		dev->sw_connected = dev->connected;
-		spin_unlock_irqrestore(&cdev->lock, flags);
-		kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE,
-				dev->sw_connected ? connected : disconnected);
+		uevent_envp = dev->sw_connected ? connected : disconnected;
+	}
+	spin_unlock_irqrestore(&cdev->lock, flags);
+
+	if (uevent_envp) {
+		kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE, uevent_envp);
+		pr_info("%s: sent uevent %s\n", __func__, uevent_envp[0]);
 	} else {
-		spin_unlock_irqrestore(&cdev->lock, flags);
+		pr_info("%s: did not send uevent (%d %d %p)\n", __func__,
+			 dev->connected, dev->sw_connected, cdev->config);
 	}
 }
 
