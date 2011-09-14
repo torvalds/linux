@@ -345,7 +345,7 @@ void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns)
 		INIT_LIST_HEAD(&ns->group_list[idx]);
 	for (idx = 0; idx < TOMOYO_MAX_POLICY; idx++)
 		INIT_LIST_HEAD(&ns->policy_list[idx]);
-	ns->profile_version = 20100903;
+	ns->profile_version = 20110903;
 	tomoyo_namespace_enabled = !list_empty(&tomoyo_namespace_list);
 	list_add_tail_rcu(&ns->namespace_list, &tomoyo_namespace_list);
 }
@@ -2222,7 +2222,7 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 static void tomoyo_read_version(struct tomoyo_io_buffer *head)
 {
 	if (!head->r.eof) {
-		tomoyo_io_printf(head, "2.4.0");
+		tomoyo_io_printf(head, "2.5.0");
 		head->r.eof = true;
 	}
 }
@@ -2694,11 +2694,11 @@ void tomoyo_check_profile(void)
 	struct tomoyo_domain_info *domain;
 	const int idx = tomoyo_read_lock();
 	tomoyo_policy_loaded = true;
-	printk(KERN_INFO "TOMOYO: 2.4.0\n");
+	printk(KERN_INFO "TOMOYO: 2.5.0\n");
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		const u8 profile = domain->profile;
 		const struct tomoyo_policy_namespace *ns = domain->ns;
-		if (ns->profile_version != 20100903)
+		if (ns->profile_version != 20110903)
 			printk(KERN_ERR
 			       "Profile version %u is not supported.\n",
 			       ns->profile_version);
@@ -2709,9 +2709,9 @@ void tomoyo_check_profile(void)
 		else
 			continue;
 		printk(KERN_ERR
-		       "Userland tools for TOMOYO 2.4 must be installed and "
+		       "Userland tools for TOMOYO 2.5 must be installed and "
 		       "policy must be initialized.\n");
-		printk(KERN_ERR "Please see http://tomoyo.sourceforge.jp/2.4/ "
+		printk(KERN_ERR "Please see http://tomoyo.sourceforge.jp/2.5/ "
 		       "for more information.\n");
 		panic("STOP!");
 	}

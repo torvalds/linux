@@ -3,7 +3,7 @@
  *
  * Header file for TOMOYO.
  *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #ifndef _SECURITY_TOMOYO_COMMON_H
@@ -901,7 +901,7 @@ struct tomoyo_policy_namespace {
 	struct list_head acl_group[TOMOYO_MAX_ACL_GROUPS];
 	/* List for connecting to tomoyo_namespace_list list. */
 	struct list_head namespace_list;
-	/* Profile version. Currently only 20100903 is defined. */
+	/* Profile version. Currently only 20110903 is defined. */
 	unsigned int profile_version;
 	/* Name of this namespace (e.g. "<kernel>", "</usr/sbin/httpd>" ). */
 	const char *name;

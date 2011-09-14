@@ -27,7 +27,7 @@ $(obj)/policy/stat.conf:
 	@touch $@
 
 $(obj)/builtin-policy.h: $(obj)/policy/profile.conf $(obj)/policy/exception_policy.conf $(obj)/policy/domain_policy.conf $(obj)/policy/manager.conf $(obj)/policy/stat.conf
-	@echo Generating built-in policy for TOMOYO 2.4.x.
+	@echo Generating built-in policy for TOMOYO 2.5.x.
 	@echo "static char tomoyo_builtin_profile[] __initdata =" > $@.tmp
 	@sed -e 's/\\/\\\\/g' -e 's/\"/\\"/g' -e 's/\(.*\)/"\1\\n"/' < $(obj)/policy/profile.conf >> $@.tmp
 	@echo "\"\";" >> $@.tmp
