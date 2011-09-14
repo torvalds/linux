@@ -3685,19 +3685,23 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		return -ENODEV;
 	}
 
-	if (!rt2x00_rf(rt2x00dev, RF2820) &&
-	    !rt2x00_rf(rt2x00dev, RF2850) &&
-	    !rt2x00_rf(rt2x00dev, RF2720) &&
-	    !rt2x00_rf(rt2x00dev, RF2750) &&
-	    !rt2x00_rf(rt2x00dev, RF3020) &&
-	    !rt2x00_rf(rt2x00dev, RF2020) &&
-	    !rt2x00_rf(rt2x00dev, RF3021) &&
-	    !rt2x00_rf(rt2x00dev, RF3022) &&
-	    !rt2x00_rf(rt2x00dev, RF3052) &&
-	    !rt2x00_rf(rt2x00dev, RF3320) &&
-	    !rt2x00_rf(rt2x00dev, RF5370) &&
-	    !rt2x00_rf(rt2x00dev, RF5390)) {
-		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
+	switch (rt2x00dev->chip.rf) {
+	case RF2820:
+	case RF2850:
+	case RF2720:
+	case RF2750:
+	case RF3020:
+	case RF2020:
+	case RF3021:
+	case RF3022:
+	case RF3052:
+	case RF3320:
+	case RF5370:
+	case RF5390:
+		break;
+	default:
+		ERROR(rt2x00dev, "Invalid RF chipset 0x%x detected.\n",
+		      rt2x00dev->chip.rf);
 		return -ENODEV;
 	}
 
