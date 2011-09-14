@@ -21,6 +21,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/freezer.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -633,8 +634,8 @@ static ssize_t port_fops_read(struct file *filp, char __user *ubuf,
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
-		ret = wait_event_interruptible(port->waitqueue,
-					       !will_read_block(port));
+		ret = wait_event_freezable(port->waitqueue,
+					   !will_read_block(port));
 		if (ret < 0)
 			return ret;
 	}
@@ -677,8 +678,8 @@ static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 		if (nonblock)
 			return -EAGAIN;
 
-		ret = wait_event_interruptible(port->waitqueue,
-					       !will_write_block(port));
+		ret = wait_event_freezable(port->waitqueue,
+					   !will_write_block(port));
 		if (ret < 0)
 			return ret;
 	}
