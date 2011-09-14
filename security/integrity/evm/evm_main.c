@@ -66,7 +66,7 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 					     struct integrity_iint_cache *iint)
 {
 	struct evm_ima_xattr_data xattr_data;
-	enum integrity_status evm_status;
+	enum integrity_status evm_status = INTEGRITY_PASS;
 	int rc;
 
 	if (iint && iint->evm_status == INTEGRITY_PASS)
@@ -76,25 +76,18 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 
 	rc = evm_calc_hmac(dentry, xattr_name, xattr_value,
 			   xattr_value_len, xattr_data.digest);
-	if (rc < 0)
-		goto err_out;
+	if (rc < 0) {
+		evm_status = (rc == -ENODATA)
+		    ? INTEGRITY_NOXATTRS : INTEGRITY_FAIL;
+		goto out;
+	}
 
 	xattr_data.type = EVM_XATTR_HMAC;
 	rc = vfs_xattr_cmp(dentry, XATTR_NAME_EVM, (u8 *)&xattr_data,
 			   sizeof xattr_data, GFP_NOFS);
 	if (rc < 0)
-		goto err_out;
-	evm_status = INTEGRITY_PASS;
-	goto out;
-
-err_out:
-	switch (rc) {
-	case -ENODATA:		/* file not labelled */
-		evm_status = INTEGRITY_NOLABEL;
-		break;
-	default:
-		evm_status = INTEGRITY_FAIL;
-	}
+		evm_status = (rc == -ENODATA)
+		    ? INTEGRITY_NOLABEL : INTEGRITY_FAIL;
 out:
 	if (iint)
 		iint->evm_status = evm_status;
@@ -159,21 +152,6 @@ enum integrity_status evm_verifyxattr(struct dentry *dentry,
 EXPORT_SYMBOL_GPL(evm_verifyxattr);
 
 /*
- * evm_protect_xattr - protect the EVM extended attribute
- *
- * Prevent security.evm from being modified or removed.
- */
-static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
-			     const void *xattr_value, size_t xattr_value_len)
-{
-	if (strcmp(xattr_name, XATTR_NAME_EVM) == 0) {
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-	}
-	return 0;
-}
-
-/*
  * evm_verify_current_integrity - verify the dentry's metadata integrity
  * @dentry: pointer to the affected dentry
  *
@@ -189,6 +167,39 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 	return evm_verify_hmac(dentry, NULL, NULL, 0, NULL);
 }
 
+/*
+ * evm_protect_xattr - protect the EVM extended attribute
+ *
+ * Prevent security.evm from being modified or removed without the
+ * necessary permissions or when the existing value is invalid.
+ *
+ * The posix xattr acls are 'system' prefixed, which normally would not
+ * affect security.evm.  An interesting side affect of writing posix xattr
+ * acls is their modifying of the i_mode, which is included in security.evm.
+ * For posix xattr acls only, permit security.evm, even if it currently
+ * doesn't exist, to be updated.
+ */
+static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
+			     const void *xattr_value, size_t xattr_value_len)
+{
+	enum integrity_status evm_status;
+
+	if (strcmp(xattr_name, XATTR_NAME_EVM) == 0) {
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+	} else if (!evm_protected_xattr(xattr_name)) {
+		if (!posix_xattr_acl(xattr_name))
+			return 0;
+		evm_status = evm_verify_current_integrity(dentry);
+		if ((evm_status == INTEGRITY_PASS) ||
+		    (evm_status == INTEGRITY_NOXATTRS))
+			return 0;
+		return -EPERM;
+	}
+	evm_status = evm_verify_current_integrity(dentry);
+	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
+}
+
 /**
  * evm_inode_setxattr - protect the EVM extended attribute
  * @dentry: pointer to the affected dentry
@@ -202,16 +213,8 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len)
 {
-
-	enum integrity_status evm_status;
-	int ret;
-
-	ret = evm_protect_xattr(dentry, xattr_name, xattr_value,
-				xattr_value_len);
-	if (ret)
-		return ret;
-	evm_status = evm_verify_current_integrity(dentry);
-	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
+	return evm_protect_xattr(dentry, xattr_name, xattr_value,
+				 xattr_value_len);
 }
 
 /**
@@ -224,14 +227,7 @@ int evm_inode_setxattr(struct dentry *dentry, const char *xattr_name,
  */
 int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 {
-	enum integrity_status evm_status;
-	int ret;
-
-	ret = evm_protect_xattr(dentry, xattr_name, NULL, 0);
-	if (ret)
-		return ret;
-	evm_status = evm_verify_current_integrity(dentry);
-	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
+	return evm_protect_xattr(dentry, xattr_name, NULL, 0);
 }
 
 /**
@@ -250,7 +246,8 @@ int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
 			     const void *xattr_value, size_t xattr_value_len)
 {
-	if (!evm_initialized || !evm_protected_xattr(xattr_name))
+	if (!evm_initialized || (!evm_protected_xattr(xattr_name)
+				 && !posix_xattr_acl(xattr_name)))
 		return;
 
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
@@ -286,10 +283,13 @@ int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
 	unsigned int ia_valid = attr->ia_valid;
 	enum integrity_status evm_status;
 
-	if (ia_valid & ~(ATTR_MODE | ATTR_UID | ATTR_GID))
+	if (!(ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID)))
 		return 0;
 	evm_status = evm_verify_current_integrity(dentry);
-	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
+	if ((evm_status == INTEGRITY_PASS) ||
+	    (evm_status == INTEGRITY_NOXATTRS))
+		return 0;
+	return -EPERM;
 }
 
 /**
