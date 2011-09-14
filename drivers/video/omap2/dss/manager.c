@@ -809,7 +809,7 @@ static int configure_overlay(enum omap_plane plane)
 {
 	struct overlay_cache_data *c;
 	struct manager_cache_data *mc;
-	struct omap_overlay_info *oi;
+	struct omap_overlay_info *oi, new_oi;
 	struct omap_overlay_manager_info *mi;
 	u16 outw, outh;
 	u16 x, y, w, h;
@@ -929,22 +929,18 @@ static int configure_overlay(enum omap_plane plane)
 		}
 	}
 
-	r = dispc_ovl_setup(plane,
-			paddr,
-			oi->screen_width,
-			x, y,
-			w, h,
-			outw, outh,
-			oi->color_mode,
-			c->ilace,
-			oi->rotation_type,
-			oi->rotation,
-			oi->mirror,
-			oi->global_alpha,
-			oi->pre_mult_alpha,
-			c->channel,
-			oi->p_uv_addr);
+	new_oi = *oi;
 
+	/* update new_oi members which could have been possibly updated */
+	new_oi.pos_x = x;
+	new_oi.pos_y = y;
+	new_oi.width = w;
+	new_oi.height = h;
+	new_oi.out_width = outw;
+	new_oi.out_height = outh;
+	new_oi.paddr = paddr;
+
+	r = dispc_ovl_setup(plane, &new_oi, c->ilace, c->channel);
 	if (r) {
 		/* this shouldn't happen */
 		DSSERR("dispc_ovl_setup failed for ovl %d\n", plane);

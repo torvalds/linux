@@ -402,18 +402,8 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 u32 dispc_ovl_get_fifo_size(enum omap_plane plane);
 void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 u32 dispc_ovl_get_burst_size(enum omap_plane plane);
-int dispc_ovl_setup(enum omap_plane plane,
-		      u32 paddr, u16 screen_width,
-		      u16 pos_x, u16 pos_y,
-		      u16 width, u16 height,
-		      u16 out_width, u16 out_height,
-		      enum omap_color_mode color_mode,
-		      bool ilace,
-		      enum omap_dss_rotation_type rotation_type,
-		      u8 rotation, bool mirror,
-		      u8 global_alpha, u8 pre_mult_alpha,
-		      enum omap_channel channel,
-		      u32 puv_addr);
+int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
+		bool ilace, enum omap_channel channel);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
 void dispc_ovl_enable_replication(enum omap_plane plane, bool enable);
 
