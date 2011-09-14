@@ -826,7 +826,8 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 }
 
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
-		       struct ath_tx_status *ts, struct ath_txq *txq)
+		       struct ath_tx_status *ts, struct ath_txq *txq,
+		       unsigned int flags)
 {
 #define TX_SAMP_DBG(c) (sc->debug.bb_mac_samp[sc->debug.sampidx].ts\
 			[sc->debug.tsidx].c)
@@ -836,12 +837,12 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
 
 	if (bf_isampdu(bf)) {
-		if (bf_isxretried(bf))
+		if (flags & ATH_TX_BAR)
 			TX_STAT_INC(qnum, a_xretries);
 		else
 			TX_STAT_INC(qnum, a_completed);
 	} else {
-		if (bf_isxretried(bf))
+		if (ts->ts_status & ATH9K_TXERR_XRETRY)
 			TX_STAT_INC(qnum, xretries);
 		else
 			TX_STAT_INC(qnum, completed);

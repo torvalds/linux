@@ -390,7 +390,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		while (bf) {
 			bf_next = bf->bf_next;
 
-			bf->bf_state.bf_type |= BUF_XRETRY;
 			if (!bf->bf_stale || bf_next != NULL)
 				list_move_tail(&bf->list, &bf_head);
 
@@ -470,7 +469,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				clear_filter = true;
 				txpending = 1;
 			} else {
-				bf->bf_state.bf_type |= BUF_XRETRY;
 				txfail = 1;
 				sendbar = 1;
 				txfail_cnt++;
@@ -523,13 +521,11 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 						ath_tx_update_baw(sc, tid, seqno);
 						spin_unlock_bh(&txq->axq_lock);
 
-						bf->bf_state.bf_type |=
-							BUF_XRETRY;
 						ath_tx_rc_status(sc, bf, ts, nframes,
 								nbad, 0, false);
 						ath_tx_complete_buf(sc, bf, txq,
 								    &bf_head,
-								    ts, 0, 0);
+								    ts, 0, 1);
 						break;
 					}
 
@@ -1953,10 +1949,9 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	if (tx_flags & ATH_TX_BAR)
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
-	if (!(tx_flags & (ATH_TX_ERROR | ATH_TX_XRETRY))) {
+	if (!(tx_flags & ATH_TX_ERROR))
 		/* Frame was ACKed */
 		tx_info->flags |= IEEE80211_TX_STAT_ACK;
-	}
 
 	padpos = ath9k_cmn_padpos(hdr->frame_control);
 	padsize = padpos & 3;
@@ -2006,12 +2001,8 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 	if (sendbar)
 		tx_flags = ATH_TX_BAR;
 
-	if (!txok) {
+	if (!txok)
 		tx_flags |= ATH_TX_ERROR;
-
-		if (bf_isxretried(bf))
-			tx_flags |= ATH_TX_XRETRY;
-	}
 
 	dma_unmap_single(sc->dev, bf->bf_buf_addr, skb->len, DMA_TO_DEVICE);
 	bf->bf_buf_addr = 0;
@@ -2024,7 +2015,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 		else
 			complete(&sc->paprd_complete);
 	} else {
-		ath_debug_stat_tx(sc, bf, ts, txq);
+		ath_debug_stat_tx(sc, bf, ts, txq, tx_flags);
 		ath_tx_complete(sc, skb, tx_flags, txq);
 	}
 	/* At this point, skb (bf->bf_mpdu) is consumed...make sure we don't
@@ -2115,12 +2106,6 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	spin_unlock_bh(&txq->axq_lock);
 
 	if (!bf_isampdu(bf)) {
-		/*
-		 * This frame is sent out as a single frame.
-		 * Use hardware retry status for this frame.
-		 */
-		if (ts->ts_status & ATH9K_TXERR_XRETRY)
-			bf->bf_state.bf_type |= BUF_XRETRY;
 		ath_tx_rc_status(sc, bf, ts, 1, txok ? 0 : 1, txok, true);
 		ath_tx_complete_buf(sc, bf, txq, bf_head, ts, txok, 0);
 	} else

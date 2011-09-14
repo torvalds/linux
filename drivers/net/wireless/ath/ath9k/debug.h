@@ -230,7 +230,8 @@ int ath9k_init_debug(struct ath_hw *ah);
 void ath9k_debug_samp_bb_mac(struct ath_softc *sc);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
-		       struct ath_tx_status *ts, struct ath_txq *txq);
+		       struct ath_tx_status *ts, struct ath_txq *txq,
+		       unsigned int flags);
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 
 #else
@@ -252,7 +253,8 @@ static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_buf *bf,
 				     struct ath_tx_status *ts,
-				     struct ath_txq *txq)
+				     struct ath_txq *txq,
+				     unsigned int flags)
 {
 }
 

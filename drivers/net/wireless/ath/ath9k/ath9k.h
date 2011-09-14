@@ -87,17 +87,14 @@ struct ath_config {
  * @BUF_AMPDU: This buffer is an ampdu, as part of an aggregate (during TX)
  * @BUF_AGGR: Indicates whether the buffer can be aggregated
  *	(used in aggregation scheduling)
- * @BUF_XRETRY: To denote excessive retries of the buffer
  */
 enum buffer_type {
 	BUF_AMPDU		= BIT(0),
 	BUF_AGGR		= BIT(1),
-	BUF_XRETRY		= BIT(2),
 };
 
 #define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
 #define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
-#define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
 
 #define ATH_TXSTATUS_RING_SIZE 64
 
@@ -277,8 +274,7 @@ struct ath_tx_control {
 };
 
 #define ATH_TX_ERROR        0x01
-#define ATH_TX_XRETRY       0x02
-#define ATH_TX_BAR          0x04
+#define ATH_TX_BAR          0x02
 
 /**
  * @txq_map:  Index is mac80211 queue number.  This is
