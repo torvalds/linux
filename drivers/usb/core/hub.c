@@ -2029,6 +2029,17 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
 #define HUB_LONG_RESET_TIME	200
 #define HUB_RESET_TIMEOUT	500
 
+static int hub_port_reset(struct usb_hub *hub, int port1,
+			struct usb_device *udev, unsigned int delay, bool warm);
+
+/* Is a USB 3.0 port in the Inactive state? */
+static bool hub_port_inactive(struct usb_hub *hub, u16 portstatus)
+{
+	return hub_is_superspeed(hub->hdev) &&
+		(portstatus & USB_PORT_STAT_LINK_STATE) ==
+		USB_SS_PORT_LS_SS_INACTIVE;
+}
+
 static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 			struct usb_device *udev, unsigned int delay, bool warm)
 {
@@ -2052,6 +2063,38 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 		 * when the port appears not to be connected.
 		 */
 		if (!warm) {
+			/*
+			 * Some buggy devices can cause an NEC host controller
+			 * to transition to the "Error" state after a hot port
+			 * reset.  This will show up as the port state in
+			 * "Inactive", and the port may also report a
+			 * disconnect.  Forcing a warm port reset seems to make
+			 * the device work.
+			 *
+			 * See https://bugzilla.kernel.org/show_bug.cgi?id=41752
+			 */
+			if (hub_port_inactive(hub, portstatus)) {
+				int ret;
+
+				if ((portchange & USB_PORT_STAT_C_CONNECTION))
+					clear_port_feature(hub->hdev, port1,
+							USB_PORT_FEAT_C_CONNECTION);
+				if (portchange & USB_PORT_STAT_C_LINK_STATE)
+					clear_port_feature(hub->hdev, port1,
+							USB_PORT_FEAT_C_PORT_LINK_STATE);
+				if (portchange & USB_PORT_STAT_C_RESET)
+					clear_port_feature(hub->hdev, port1,
+							USB_PORT_FEAT_C_RESET);
+				dev_dbg(hub->intfdev, "hot reset failed, warm reset port %d\n",
+						port1);
+				ret = hub_port_reset(hub, port1,
+						udev, HUB_BH_RESET_TIME,
+						true);
+				if ((portchange & USB_PORT_STAT_C_CONNECTION))
+					clear_port_feature(hub->hdev, port1,
+							USB_PORT_FEAT_C_CONNECTION);
+				return ret;
+			}
 			/* Device went away? */
 			if (!(portstatus & USB_PORT_STAT_CONNECTION))
 				return -ENOTCONN;
