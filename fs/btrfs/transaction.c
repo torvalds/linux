@@ -990,6 +990,14 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		}
 	}
 
+	ret = btrfs_qgroup_inherit(trans, fs_info, root->root_key.objectid,
+				   objectid, pending->inherit);
+	kfree(pending->inherit);
+	if (ret) {
+		pending->error = ret;
+		goto fail;
+	}
+
 	key.objectid = objectid;
 	key.offset = (u64)-1;
 	key.type = BTRFS_ROOT_ITEM_KEY;
