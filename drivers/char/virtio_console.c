@@ -1394,6 +1394,13 @@ static void handle_control_message(struct ports_device *portdev,
 		break;
 	case VIRTIO_CONSOLE_PORT_NAME:
 		/*
+		 * If we woke up after hibernation, we can get this
+		 * again.  Skip it in that case.
+		 */
+		if (port->name)
+			break;
+
+		/*
 		 * Skip the size of the header and the cpkt to get the size
 		 * of the name that was sent
 		 */
