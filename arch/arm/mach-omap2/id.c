@@ -312,7 +312,15 @@ static void __init omap3_check_revision(void)
 		 *
 		 * REVISIT: AM3505/AM3517 should have their own CHIP_IS
 		 */
-		omap_revision = OMAP3517_REV(rev);
+		switch (rev) {
+		case 0:
+			omap_revision = OMAP3517_REV_ES1_0;
+			break;
+		case 1:
+		/* FALLTHROUGH */
+		default:
+			omap_revision = OMAP3517_REV_ES1_1;
+		}
 		omap_chip.oc |= CHIP_IS_OMAP3430ES3_1;
 		break;
 	case 0xb891:
