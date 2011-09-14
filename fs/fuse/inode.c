@@ -812,6 +812,9 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 			if (arg->minor >= 17) {
 				if (!(arg->flags & FUSE_FLOCK_LOCKS))
 					fc->no_flock = 1;
+			} else {
+				if (!(arg->flags & FUSE_POSIX_LOCKS))
+					fc->no_flock = 1;
 			}
 			if (arg->flags & FUSE_ATOMIC_O_TRUNC)
 				fc->atomic_o_trunc = 1;

@@ -123,7 +123,7 @@ struct regulator_bulk_data {
 	const char *supply;
 	struct regulator *consumer;
 
-	/* Internal use */
+	/* private: Internal use */
 	int ret;
 };
 

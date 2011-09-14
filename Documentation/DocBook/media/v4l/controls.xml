@@ -1455,7 +1455,7 @@ Applicable to the H264 encoder.</entry>
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-h264-vui-sar-idc">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC</constant>&nbsp;</entry>
 		<entry>enum&nbsp;v4l2_mpeg_video_h264_vui_sar_idc</entry>
 	      </row>
@@ -1561,7 +1561,7 @@ Applicable to the H264 encoder.</entry>
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-h264-level">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_LEVEL</constant>&nbsp;</entry>
 		<entry>enum&nbsp;v4l2_mpeg_video_h264_level</entry>
 	      </row>
@@ -1641,7 +1641,7 @@ Possible values are:</entry>
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-mpeg4-level">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL</constant>&nbsp;</entry>
 		<entry>enum&nbsp;v4l2_mpeg_video_mpeg4_level</entry>
 	      </row>
@@ -1689,9 +1689,9 @@ Possible values are:</entry>
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-h264-profile">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_PROFILE</constant>&nbsp;</entry>
-		<entry>enum&nbsp;v4l2_mpeg_h264_profile</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_h264_profile</entry>
 	      </row>
 	      <row><entry spanname="descr">The profile information for H264.
 Applicable to the H264 encoder.
@@ -1774,9 +1774,9 @@ Possible values are:</entry>
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-mpeg4-profile">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE</constant>&nbsp;</entry>
-		<entry>enum&nbsp;v4l2_mpeg_mpeg4_profile</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_mpeg4_profile</entry>
 	      </row>
 	      <row><entry spanname="descr">The profile information for MPEG4.
 Applicable to the MPEG4 encoder.
@@ -1820,9 +1820,9 @@ Applicable to the encoder.
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-multi-slice-mode">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE</constant>&nbsp;</entry>
-		<entry>enum&nbsp;v4l2_mpeg_multi_slice_mode</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_multi_slice_mode</entry>
 	      </row>
 	      <row><entry spanname="descr">Determines how the encoder should handle division of frame into slices.
 Applicable to the encoder.
@@ -1868,9 +1868,9 @@ Applicable to the encoder.</entry>
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-h264-loop-filter-mode">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE</constant>&nbsp;</entry>
-		<entry>enum&nbsp;v4l2_mpeg_h264_loop_filter_mode</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_h264_loop_filter_mode</entry>
 	      </row>
 	      <row><entry spanname="descr">Loop filter mode for H264 encoder.
 Possible values are:</entry>
@@ -1913,9 +1913,9 @@ Applicable to the H264 encoder.</entry>
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-h264-entropy-mode">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE</constant>&nbsp;</entry>
-		<entry>enum&nbsp;v4l2_mpeg_h264_symbol_mode</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_h264_entropy_mode</entry>
 	      </row>
 	      <row><entry spanname="descr">Entropy coding mode for H264 - CABAC/CAVALC.
 Applicable to the H264 encoder.
@@ -2140,9 +2140,9 @@ previous frames. Applicable to the H264 encoder.</entry>
 	      </row>
 
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-video-header-mode">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_HEADER_MODE</constant>&nbsp;</entry>
-		<entry>enum&nbsp;v4l2_mpeg_header_mode</entry>
+		<entry>enum&nbsp;v4l2_mpeg_video_header_mode</entry>
 	      </row>
 	      <row><entry spanname="descr">Determines whether the header is returned as the first buffer or is
 it returned together with the first frame. Applicable to encoders.
@@ -2320,9 +2320,9 @@ Valid only when H.264 and macroblock level RC is enabled (<constant>V4L2_CID_MPE
 Applicable to the H264 encoder.</entry>
 	      </row>
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-mfc51-video-frame-skip-mode">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE</constant>&nbsp;</entry>
-		<entry>enum&nbsp;v4l2_mpeg_mfc51_frame_skip_mode</entry>
+		<entry>enum&nbsp;v4l2_mpeg_mfc51_video_frame_skip_mode</entry>
 	      </row>
 	      <row><entry spanname="descr">
 Indicates in what conditions the encoder should skip frames. If encoding a frame would cause the encoded stream to be larger then
@@ -2361,9 +2361,9 @@ the stream will meet tight bandwidth contraints. Applicable to encoders.
 </entry>
 	      </row>
 	      <row><entry></entry></row>
-	      <row>
+	      <row id="v4l2-mpeg-mfc51-video-force-frame-type">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE</constant>&nbsp;</entry>
-		<entry>enum&nbsp;v4l2_mpeg_mfc51_force_frame_type</entry>
+		<entry>enum&nbsp;v4l2_mpeg_mfc51_video_force_frame_type</entry>
 	      </row>
 	      <row><entry spanname="descr">Force a frame type for the next queued buffer. Applicable to encoders.
 Possible values are:</entry>
