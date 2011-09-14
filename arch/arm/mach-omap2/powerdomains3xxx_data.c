@@ -1,7 +1,7 @@
 /*
  * OMAP3 powerdomain definitions
  *
- * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2008, 2011 Texas Instruments, Inc.
  * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Paul Walmsley, Jouni Högander
@@ -13,6 +13,8 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+
+#include <plat/cpu.h>
 
 #include "powerdomain.h"
 #include "powerdomains2xxx_3xxx_data.h"
@@ -27,8 +29,6 @@
  * 34XX-specific powerdomains, dependencies
  */
 
-#ifdef CONFIG_ARCH_OMAP3
-
 /*
  * Powerdomains
  */
@@ -36,7 +36,6 @@
 static struct powerdomain iva2_pwrdm = {
 	.name		  = "iva2_pwrdm",
 	.prcm_offs	  = OMAP3430_IVA2_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	.banks		  = 4,
@@ -57,7 +56,6 @@ static struct powerdomain iva2_pwrdm = {
 static struct powerdomain mpu_3xxx_pwrdm = {
 	.name		  = "mpu_pwrdm",
 	.prcm_offs	  = MPU_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	.flags		  = PWRDM_HAS_MPU_QUIRK,
@@ -83,10 +81,6 @@ static struct powerdomain mpu_3xxx_pwrdm = {
 static struct powerdomain core_3xxx_pre_es3_1_pwrdm = {
 	.name		  = "core_pwrdm",
 	.prcm_offs	  = CORE_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES1 |
-					   CHIP_IS_OMAP3430ES2 |
-					   CHIP_IS_OMAP3430ES3_0 |
-					   CHIP_IS_OMAP3630ES1),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	.banks		  = 2,
@@ -103,8 +97,6 @@ static struct powerdomain core_3xxx_pre_es3_1_pwrdm = {
 static struct powerdomain core_3xxx_es3_1_pwrdm = {
 	.name		  = "core_pwrdm",
 	.prcm_offs	  = CORE_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES3_1 |
-					  CHIP_GE_OMAP3630ES1_1),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	/*
@@ -125,7 +117,6 @@ static struct powerdomain core_3xxx_es3_1_pwrdm = {
 
 static struct powerdomain dss_pwrdm = {
 	.name		  = "dss_pwrdm",
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.prcm_offs	  = OMAP3430_DSS_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_RET,
@@ -146,7 +137,6 @@ static struct powerdomain dss_pwrdm = {
 static struct powerdomain sgx_pwrdm = {
 	.name		  = "sgx_pwrdm",
 	.prcm_offs	  = OMAP3430ES2_SGX_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 	/* XXX This is accurate for 3430 SGX, but what about GFX? */
 	.pwrsts		  = PWRSTS_OFF_ON,
 	.pwrsts_logic_ret = PWRSTS_RET,
@@ -161,7 +151,6 @@ static struct powerdomain sgx_pwrdm = {
 
 static struct powerdomain cam_pwrdm = {
 	.name		  = "cam_pwrdm",
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.prcm_offs	  = OMAP3430_CAM_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_RET,
@@ -177,7 +166,6 @@ static struct powerdomain cam_pwrdm = {
 static struct powerdomain per_pwrdm = {
 	.name		  = "per_pwrdm",
 	.prcm_offs	  = OMAP3430_PER_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	.banks		  = 1,
@@ -192,13 +180,11 @@ static struct powerdomain per_pwrdm = {
 static struct powerdomain emu_pwrdm = {
 	.name		= "emu_pwrdm",
 	.prcm_offs	= OMAP3430_EMU_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
 static struct powerdomain neon_pwrdm = {
 	.name		  = "neon_pwrdm",
 	.prcm_offs	  = OMAP3430_NEON_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_RET,
 };
@@ -206,7 +192,6 @@ static struct powerdomain neon_pwrdm = {
 static struct powerdomain usbhost_pwrdm = {
 	.name		  = "usbhost_pwrdm",
 	.prcm_offs	  = OMAP3430ES2_USBHOST_MOD,
-	.omap_chip	  = OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_RET,
 	/*
@@ -228,62 +213,92 @@ static struct powerdomain usbhost_pwrdm = {
 static struct powerdomain dpll1_pwrdm = {
 	.name		= "dpll1_pwrdm",
 	.prcm_offs	= MPU_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
 static struct powerdomain dpll2_pwrdm = {
 	.name		= "dpll2_pwrdm",
 	.prcm_offs	= OMAP3430_IVA2_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
 static struct powerdomain dpll3_pwrdm = {
 	.name		= "dpll3_pwrdm",
 	.prcm_offs	= PLL_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
 static struct powerdomain dpll4_pwrdm = {
 	.name		= "dpll4_pwrdm",
 	.prcm_offs	= PLL_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
 static struct powerdomain dpll5_pwrdm = {
 	.name		= "dpll5_pwrdm",
 	.prcm_offs	= PLL_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 };
 
 /* As powerdomains are added or removed above, this list must also be changed */
-static struct powerdomain *powerdomains_omap3xxx[] __initdata = {
-
+static struct powerdomain *powerdomains_omap3430_common[] __initdata = {
 	&wkup_omap2_pwrdm,
-	&gfx_omap2_pwrdm,
 	&iva2_pwrdm,
 	&mpu_3xxx_pwrdm,
 	&neon_pwrdm,
-	&core_3xxx_pre_es3_1_pwrdm,
-	&core_3xxx_es3_1_pwrdm,
 	&cam_pwrdm,
 	&dss_pwrdm,
 	&per_pwrdm,
 	&emu_pwrdm,
-	&sgx_pwrdm,
-	&usbhost_pwrdm,
 	&dpll1_pwrdm,
 	&dpll2_pwrdm,
 	&dpll3_pwrdm,
 	&dpll4_pwrdm,
-	&dpll5_pwrdm,
-#endif
 	NULL
 };
 
+static struct powerdomain *powerdomains_omap3430es1[] __initdata = {
+	&gfx_omap2_pwrdm,
+	&core_3xxx_pre_es3_1_pwrdm,
+	NULL
+};
+
+/* also includes 3630ES1.0 */
+static struct powerdomain *powerdomains_omap3430es2_es3_0[] __initdata = {
+	&core_3xxx_pre_es3_1_pwrdm,
+	&sgx_pwrdm,
+	&usbhost_pwrdm,
+	&dpll5_pwrdm,
+	NULL
+};
+
+/* also includes 3630ES1.1+ */
+static struct powerdomain *powerdomains_omap3430es3_1plus[] __initdata = {
+	&core_3xxx_es3_1_pwrdm,
+	&sgx_pwrdm,
+	&usbhost_pwrdm,
+	&dpll5_pwrdm,
+	NULL
+};
 
 void __init omap3xxx_powerdomains_init(void)
 {
+	unsigned int rev;
+
+	if (!cpu_is_omap34xx())
+		return;
+
 	pwrdm_register_platform_funcs(&omap3_pwrdm_operations);
-	pwrdm_register_pwrdms(powerdomains_omap3xxx);
+	pwrdm_register_pwrdms(powerdomains_omap3430_common);
+
+	rev = omap_rev();
+
+	if (rev == OMAP3430_REV_ES1_0)
+		pwrdm_register_pwrdms(powerdomains_omap3430es1);
+	else if (rev == OMAP3430_REV_ES2_0 || rev == OMAP3430_REV_ES2_1 ||
+		 rev == OMAP3430_REV_ES3_0 || rev == OMAP3630_REV_ES1_0)
+		pwrdm_register_pwrdms(powerdomains_omap3430es2_es3_0);
+	else if (rev == OMAP3430_REV_ES3_1 || rev == OMAP3430_REV_ES3_1_2 ||
+		 rev == OMAP3517_REV_ES1_0 || rev == OMAP3517_REV_ES1_1 ||
+		 rev == OMAP3630_REV_ES1_1 || rev == OMAP3630_REV_ES1_2)
+		pwrdm_register_pwrdms(powerdomains_omap3430es3_1plus);
+	else
+		WARN(1, "OMAP3 powerdomain init: unknown chip type\n");
+
 	pwrdm_complete_init();
 }
