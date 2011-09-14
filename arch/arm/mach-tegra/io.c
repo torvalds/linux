@@ -60,24 +60,3 @@ void __init tegra_map_common_io(void)
 {
 	iotable_init(tegra_io_desc, ARRAY_SIZE(tegra_io_desc));
 }
-
-/*
- * Intercept ioremap() requests for addresses in our fixed mapping regions.
- */
-void __iomem *tegra_ioremap(unsigned long p, size_t size, unsigned int type)
-{
-	void __iomem *v = IO_ADDRESS(p);
-	if (v == NULL)
-		v = __arm_ioremap(p, size, type);
-	return v;
-}
-EXPORT_SYMBOL(tegra_ioremap);
-
-void tegra_iounmap(volatile void __iomem *addr)
-{
-	unsigned long virt = (unsigned long)addr;
-
-	if (virt >= VMALLOC_START && virt < VMALLOC_END)
-		__iounmap(addr);
-}
-EXPORT_SYMBOL(tegra_iounmap);
