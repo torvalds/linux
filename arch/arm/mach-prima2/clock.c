@@ -481,6 +481,7 @@ static void __init sirfsoc_clk_init(void)
 
 static struct of_device_id clkc_ids[] = {
 	{ .compatible = "sirf,prima2-clkc" },
+	{},
 };
 
 void __init sirfsoc_of_clk_init(void)
