@@ -167,12 +167,11 @@ static void android_work(struct work_struct *data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cdev->lock, flags);
-        if (cdev->config) {
+        if (cdev->config)
 		uevent_envp = configured;
-	} else if (dev->connected != dev->sw_connected) {
-		dev->sw_connected = dev->connected;
-		uevent_envp = dev->sw_connected ? connected : disconnected;
-	}
+	else if (dev->connected != dev->sw_connected)
+		uevent_envp = dev->connected ? connected : disconnected;
+	dev->sw_connected = dev->connected;
 	spin_unlock_irqrestore(&cdev->lock, flags);
 
 	if (uevent_envp) {
