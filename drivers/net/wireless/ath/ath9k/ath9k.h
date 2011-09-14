@@ -213,6 +213,7 @@ struct ath_frame_info {
 struct ath_buf_state {
 	u8 bf_type;
 	u8 bfs_paprd;
+	u8 ndelim;
 	u16 seqno;
 	unsigned long bfs_paprd_timestamp;
 };
