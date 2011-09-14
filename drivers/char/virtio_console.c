@@ -348,7 +348,7 @@ fail:
 }
 
 /* Callers should take appropriate locks */
-static void *get_inbuf(struct port *port)
+static struct port_buffer *get_inbuf(struct port *port)
 {
 	struct port_buffer *buf;
 	struct virtqueue *vq;
