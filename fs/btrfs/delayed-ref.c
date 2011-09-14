@@ -495,13 +495,12 @@ static noinline int add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	ref->in_tree = 1;
 
 	full_ref = btrfs_delayed_node_to_tree_ref(ref);
-	if (parent) {
-		full_ref->parent = parent;
+	full_ref->parent = parent;
+	full_ref->root = ref_root;
+	if (parent)
 		ref->type = BTRFS_SHARED_BLOCK_REF_KEY;
-	} else {
-		full_ref->root = ref_root;
+	else
 		ref->type = BTRFS_TREE_BLOCK_REF_KEY;
-	}
 	full_ref->level = level;
 
 	trace_btrfs_delayed_tree_ref(ref, full_ref, action);
@@ -551,13 +550,12 @@ static noinline int add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	ref->in_tree = 1;
 
 	full_ref = btrfs_delayed_node_to_data_ref(ref);
-	if (parent) {
-		full_ref->parent = parent;
+	full_ref->parent = parent;
+	full_ref->root = ref_root;
+	if (parent)
 		ref->type = BTRFS_SHARED_DATA_REF_KEY;
-	} else {
-		full_ref->root = ref_root;
+	else
 		ref->type = BTRFS_EXTENT_DATA_REF_KEY;
-	}
 
 	full_ref->objectid = owner;
 	full_ref->offset = offset;
