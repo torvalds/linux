@@ -111,6 +111,7 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	series[0].RateFlags = (ctsrate) ? ATH9K_RATESERIES_RTS_CTS : 0;
 	ath9k_hw_set11n_ratescenario(ah, ds, ds, 0, ctsrate, ctsduration,
 				     series, 4, 0);
+	ath9k_hw_set_desc_link(ah, ds, 0);
 }
 
 static void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb)
