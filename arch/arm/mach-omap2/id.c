@@ -304,14 +304,15 @@ static void __init omap3_check_revision(void)
 		}
 		break;
 	case 0xb868:
-		/* Handle OMAP35xx/AM35xx devices
+		/*
+		 * Handle OMAP/AM 3505/3517 devices
 		 *
-		 * Set the device to be OMAP3505 here. Actual device
+		 * Set the device to be OMAP3517 here. Actual device
 		 * is identified later based on the features.
 		 *
 		 * REVISIT: AM3505/AM3517 should have their own CHIP_IS
 		 */
-		omap_revision = OMAP3505_REV(rev);
+		omap_revision = OMAP3517_REV(rev);
 		omap_chip.oc |= CHIP_IS_OMAP3430ES3_1;
 		break;
 	case 0xb891:
@@ -438,30 +439,24 @@ static void __init omap3_cpuinfo(void)
 	 */
 	if (cpu_is_omap3630()) {
 		strcpy(cpu_name, "OMAP3630");
-	} else if (cpu_is_omap3505()) {
+	} else if (cpu_is_omap3517()) {
 		/*
 		 * AM35xx devices
 		 */
-		if (omap3_has_sgx()) {
-			omap_revision = OMAP3517_REV(rev);
+		if (omap3_has_sgx())
 			strcpy(cpu_name, "AM3517");
-		} else {
-			/* Already set in omap3_check_revision() */
+		else
 			strcpy(cpu_name, "AM3505");
-		}
 	} else if (cpu_is_ti816x()) {
 		strcpy(cpu_name, "TI816X");
 	} else if (omap3_has_iva() && omap3_has_sgx()) {
 		/* OMAP3430, OMAP3525, OMAP3515, OMAP3503 devices */
 		strcpy(cpu_name, "OMAP3430/3530");
 	} else if (omap3_has_iva()) {
-		omap_revision = OMAP3525_REV(rev);
 		strcpy(cpu_name, "OMAP3525");
 	} else if (omap3_has_sgx()) {
-		omap_revision = OMAP3515_REV(rev);
 		strcpy(cpu_name, "OMAP3515");
 	} else {
-		omap_revision = OMAP3503_REV(rev);
 		strcpy(cpu_name, "OMAP3503");
 	}
 
