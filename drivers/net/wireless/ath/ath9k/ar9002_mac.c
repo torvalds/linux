@@ -170,6 +170,106 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 	return true;
 }
 
+static void
+ar9002_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+	u32 ctl1, ctl6;
+
+	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
+	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
+	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
+	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
+	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
+
+	ACCESS_ONCE(ads->ds_link) = i->link;
+	ACCESS_ONCE(ads->ds_data) = i->buf_addr[0];
+
+	ctl1 = i->buf_len[0] | (i->is_last ? 0 : AR_TxMore);
+	ctl6 = SM(i->keytype, AR_EncrType);
+
+	if (AR_SREV_9285(ah)) {
+		ads->ds_ctl8 = 0;
+		ads->ds_ctl9 = 0;
+		ads->ds_ctl10 = 0;
+		ads->ds_ctl11 = 0;
+	}
+
+	if ((i->is_first || i->is_last) &&
+	    i->aggr != AGGR_BUF_MIDDLE && i->aggr != AGGR_BUF_LAST) {
+		ACCESS_ONCE(ads->ds_ctl2) = set11nTries(i->rates, 0)
+			| set11nTries(i->rates, 1)
+			| set11nTries(i->rates, 2)
+			| set11nTries(i->rates, 3)
+			| (i->dur_update ? AR_DurUpdateEna : 0)
+			| SM(0, AR_BurstDur);
+
+		ACCESS_ONCE(ads->ds_ctl3) = set11nRate(i->rates, 0)
+			| set11nRate(i->rates, 1)
+			| set11nRate(i->rates, 2)
+			| set11nRate(i->rates, 3);
+	} else {
+		ACCESS_ONCE(ads->ds_ctl2) = 0;
+		ACCESS_ONCE(ads->ds_ctl3) = 0;
+	}
+
+	if (!i->is_first) {
+		ACCESS_ONCE(ads->ds_ctl0) = 0;
+		ACCESS_ONCE(ads->ds_ctl1) = ctl1;
+		ACCESS_ONCE(ads->ds_ctl6) = ctl6;
+		return;
+	}
+
+	ctl1 |= (i->keyix != ATH9K_TXKEYIX_INVALID ? SM(i->keyix, AR_DestIdx) : 0)
+		| SM(i->type, AR_FrameType)
+		| (i->flags & ATH9K_TXDESC_NOACK ? AR_NoAck : 0)
+		| (i->flags & ATH9K_TXDESC_EXT_ONLY ? AR_ExtOnly : 0)
+		| (i->flags & ATH9K_TXDESC_EXT_AND_CTL ? AR_ExtAndCtl : 0);
+
+	switch (i->aggr) {
+	case AGGR_BUF_FIRST:
+		ctl6 |= SM(i->aggr_len, AR_AggrLen);
+		/* fall through */
+	case AGGR_BUF_MIDDLE:
+		ctl1 |= AR_IsAggr | AR_MoreAggr;
+		ctl6 |= SM(i->ndelim, AR_PadDelim);
+		break;
+	case AGGR_BUF_LAST:
+		ctl1 |= AR_IsAggr;
+		break;
+	case AGGR_BUF_NONE:
+		break;
+	}
+
+	ACCESS_ONCE(ads->ds_ctl0) = (i->pkt_len & AR_FrameLen)
+		| (i->flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
+		| SM(i->txpower, AR_XmitPower)
+		| (i->flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
+		| (i->flags & ATH9K_TXDESC_INTREQ ? AR_TxIntrReq : 0)
+		| (i->keyix != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
+		| (i->flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
+		| (i->flags & ATH9K_TXDESC_RTSENA ? AR_RTSEnable :
+		   (i->flags & ATH9K_TXDESC_CTSENA ? AR_CTSEnable : 0));
+
+	ACCESS_ONCE(ads->ds_ctl1) = ctl1;
+	ACCESS_ONCE(ads->ds_ctl6) = ctl6;
+
+	if (i->aggr == AGGR_BUF_MIDDLE || i->aggr == AGGR_BUF_LAST)
+		return;
+
+	ACCESS_ONCE(ads->ds_ctl4) = set11nPktDurRTSCTS(i->rates, 0)
+		| set11nPktDurRTSCTS(i->rates, 1);
+
+	ACCESS_ONCE(ads->ds_ctl5) = set11nPktDurRTSCTS(i->rates, 2)
+		| set11nPktDurRTSCTS(i->rates, 3);
+
+	ACCESS_ONCE(ads->ds_ctl7) = set11nRateFlags(i->rates, 0)
+		| set11nRateFlags(i->rates, 1)
+		| set11nRateFlags(i->rates, 2)
+		| set11nRateFlags(i->rates, 3)
+		| SM(i->rtscts_rate, AR_RTSCTSRate);
+}
+
 static void ar9002_hw_fill_txdesc(struct ath_hw *ah, void *ds, u32 seglen,
 				  bool is_firstseg, bool is_lastseg,
 				  const void *ds0, dma_addr_t buf_addr,
@@ -433,6 +533,7 @@ void ar9002_hw_attach_mac_ops(struct ath_hw *ah)
 	ops->rx_enable = ar9002_hw_rx_enable;
 	ops->set_desc_link = ar9002_hw_set_desc_link;
 	ops->get_isr = ar9002_hw_get_isr;
+	ops->set_txdesc = ar9002_set_txdesc;
 	ops->fill_txdesc = ar9002_hw_fill_txdesc;
 	ops->proc_txdesc = ar9002_hw_proc_txdesc;
 	ops->set11n_txdesc = ar9002_hw_set11n_txdesc;

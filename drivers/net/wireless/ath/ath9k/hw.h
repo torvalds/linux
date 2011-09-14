@@ -616,6 +616,8 @@ struct ath_hw_ops {
 			  u8 rxchainmask,
 			  bool longcal);
 	bool (*get_isr)(struct ath_hw *ah, enum ath9k_int *masked);
+	void (*set_txdesc)(struct ath_hw *ah, void *ds,
+			   struct ath_tx_info *i);
 	void (*fill_txdesc)(struct ath_hw *ah, void *ds, u32 seglen,
 			    bool is_firstseg, bool is_is_lastseg,
 			    const void *ds0, dma_addr_t buf_addr,

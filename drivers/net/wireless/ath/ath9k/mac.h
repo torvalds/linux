@@ -263,7 +263,11 @@ struct ath_desc {
 #define ATH9K_TXDESC_VMF		0x0100
 #define ATH9K_TXDESC_FRAG_IS_ON 	0x0200
 #define ATH9K_TXDESC_LOWRXCHAIN		0x0400
-#define ATH9K_TXDESC_LDPC		0x00010000
+#define ATH9K_TXDESC_LDPC		0x0800
+#define ATH9K_TXDESC_CLRDMASK		0x1000
+
+#define ATH9K_TXDESC_PAPRD		0x70000
+#define ATH9K_TXDESC_PAPRD_S		16
 
 #define ATH9K_RXDESC_INTREQ		0x0020
 
@@ -660,11 +664,45 @@ struct ath9k_11n_rate_series {
 	u32 RateFlags;
 };
 
+enum aggr_type {
+	AGGR_BUF_NONE,
+	AGGR_BUF_FIRST,
+	AGGR_BUF_MIDDLE,
+	AGGR_BUF_LAST,
+};
+
 enum ath9k_key_type {
 	ATH9K_KEY_TYPE_CLEAR,
 	ATH9K_KEY_TYPE_WEP,
 	ATH9K_KEY_TYPE_AES,
 	ATH9K_KEY_TYPE_TKIP,
+};
+
+struct ath_tx_info {
+	u8 qcu;
+
+	bool is_first;
+	bool is_last;
+
+	enum aggr_type aggr;
+	u8 ndelim;
+	u16 aggr_len;
+
+	dma_addr_t link;
+	int pkt_len;
+	u32 flags;
+
+	dma_addr_t buf_addr[4];
+	int buf_len[4];
+
+	struct ath9k_11n_rate_series rates[4];
+	u8 rtscts_rate;
+	bool dur_update;
+
+	enum ath9k_pkt_type type;
+	enum ath9k_key_type keytype;
+	u8 keyix;
+	u8 txpower;
 };
 
 struct ath_hw;

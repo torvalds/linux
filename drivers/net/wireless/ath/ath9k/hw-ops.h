@@ -54,6 +54,12 @@ static inline bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 	return ath9k_hw_ops(ah)->get_isr(ah, masked);
 }
 
+static inline void ath9k_hw_set_txdesc(struct ath_hw *ah, void *ds,
+				       struct ath_tx_info *i)
+{
+	return ath9k_hw_ops(ah)->set_txdesc(ah, ds, i);
+}
+
 static inline void ath9k_hw_filltxdesc(struct ath_hw *ah, void *ds, u32 seglen,
 				  bool is_firstseg, bool is_lastseg,
 				  const void *ds0, dma_addr_t buf_addr,
