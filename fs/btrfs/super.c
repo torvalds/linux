@@ -419,7 +419,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		u64 *subvol_rootid, struct btrfs_fs_devices **fs_devices)
 {
 	substring_t args[MAX_OPT_ARGS];
-	char *opts, *orig, *p;
+	char *device_name, *opts, *orig, *p;
 	int error = 0;
 	int intarg;
 
@@ -470,8 +470,14 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			}
 			break;
 		case Opt_device:
-			error = btrfs_scan_one_device(match_strdup(&args[0]),
+			device_name = match_strdup(&args[0]);
+			if (!device_name) {
+				error = -ENOMEM;
+				goto out;
+			}
+			error = btrfs_scan_one_device(device_name,
 					flags, holder, fs_devices);
+			kfree(device_name);
 			if (error)
 				goto out;
 			break;
