@@ -613,6 +613,80 @@ static void bq20z75_delayed_work(struct work_struct *work)
 	}
 }
 
+#if defined(CONFIG_OF)
+
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+
+static const struct of_device_id bq20z75_dt_ids[] = {
+	{ .compatible = "ti,bq20z75" },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, bq20z75_dt_ids);
+
+static struct bq20z75_platform_data *bq20z75_of_populate_pdata(
+		struct i2c_client *client)
+{
+	struct device_node *of_node = client->dev.of_node;
+	struct bq20z75_platform_data *pdata = client->dev.platform_data;
+	enum of_gpio_flags gpio_flags;
+	int rc;
+	u32 prop;
+
+	/* verify this driver matches this device */
+	if (!of_node)
+		return NULL;
+
+	/* if platform data is set, honor it */
+	if (pdata)
+		return pdata;
+
+	/* first make sure at least one property is set, otherwise
+	 * it won't change behavior from running without pdata.
+	 */
+	if (!of_get_property(of_node, "ti,i2c-retry-count", NULL) &&
+		!of_get_property(of_node, "ti,poll-retry-count", NULL) &&
+		!of_get_property(of_node, "ti,battery-detect-gpios", NULL))
+		goto of_out;
+
+	pdata = devm_kzalloc(&client->dev, sizeof(struct bq20z75_platform_data),
+				GFP_KERNEL);
+	if (!pdata)
+		goto of_out;
+
+	rc = of_property_read_u32(of_node, "ti,i2c-retry-count", &prop);
+	if (!rc)
+		pdata->i2c_retry_count = prop;
+
+	rc = of_property_read_u32(of_node, "ti,poll-retry-count", &prop);
+	if (!rc)
+		pdata->poll_retry_count = prop;
+
+	if (!of_get_property(of_node, "ti,battery-detect-gpios", NULL)) {
+		pdata->battery_detect = -1;
+		goto of_out;
+	}
+
+	pdata->battery_detect = of_get_named_gpio_flags(of_node,
+			"ti,battery-detect-gpios", 0, &gpio_flags);
+
+	if (gpio_flags & OF_GPIO_ACTIVE_LOW)
+		pdata->battery_detect_present = 0;
+	else
+		pdata->battery_detect_present = 1;
+
+of_out:
+	return pdata;
+}
+#else
+#define bq20z75_dt_ids NULL
+static struct bq20z75_platform_data *bq20z75_of_populate_pdata(
+	struct i2c_client *client)
+{
+	return client->dev.platform_data;
+}
+#endif
+
 static int __devinit bq20z75_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
@@ -641,6 +715,8 @@ static int __devinit bq20z75_probe(struct i2c_client *client,
 	bq20z75_device->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
 	bq20z75_device->power_supply.external_power_changed =
 		bq20z75_external_power_changed;
+
+	pdata = bq20z75_of_populate_pdata(client);
 
 	if (pdata) {
 		bq20z75_device->gpio_detect =
@@ -775,6 +851,7 @@ static struct i2c_driver bq20z75_battery_driver = {
 	.id_table	= bq20z75_id,
 	.driver = {
 		.name	= "bq20z75-battery",
+		.of_match_table = bq20z75_dt_ids,
 	},
 };
 
