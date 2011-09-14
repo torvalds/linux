@@ -1801,6 +1801,18 @@ config ARM_APPENDED_DTB
 	  location into r2 of a bootloader provided DTB is always preferable
 	  to this option.
 
+config ARM_ATAG_DTB_COMPAT
+	bool "Supplement the appended DTB with traditional ATAG information"
+	depends on ARM_APPENDED_DTB
+	help
+	  Some old bootloaders can't be updated to a DTB capable one, yet
+	  they provide ATAGs with memory configuration, the ramdisk address,
+	  the kernel cmdline string, etc.  Such information is dynamically
+	  provided by the bootloader and can't always be stored in a static
+	  DTB.  To allow a device tree enabled kernel to be used with such
+	  bootloaders, this option allows zImage to extract the information
+	  from the ATAG list and store it at run time into the appended DTB.
+
 config CMDLINE
 	string "Default kernel command string"
 	default ""

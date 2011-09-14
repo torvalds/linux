@@ -93,19 +93,36 @@ suffix_$(CONFIG_KERNEL_GZIP) = gzip
 suffix_$(CONFIG_KERNEL_LZO)  = lzo
 suffix_$(CONFIG_KERNEL_LZMA) = lzma
 
+# Borrowed libfdt files for the ATAG compatibility mode
+
+libfdt		:= fdt_rw.c fdt_ro.c fdt_wip.c fdt.c
+libfdt_hdrs	:= fdt.h libfdt.h libfdt_internal.h
+
+libfdt_objs	:= $(addsuffix .o, $(basename $(libfdt)))
+
+$(addprefix $(obj)/,$(libfdt) $(libfdt_hdrs)): $(obj)/%: $(srctree)/scripts/dtc/libfdt/%
+	$(call cmd,shipped)
+
+$(addprefix $(obj)/,$(libfdt_objs) atags_to_fdt.o): \
+	$(addprefix $(obj)/,$(libfdt_hdrs))
+
+ifeq ($(CONFIG_ARM_ATAG_DTB_COMPAT),y)
+OBJS	+= $(libfdt_objs) atags_to_fdt.o
+endif
+
 targets       := vmlinux vmlinux.lds \
 		 piggy.$(suffix_y) piggy.$(suffix_y).o \
 		 font.o font.c head.o misc.o $(OBJS)
 
 # Make sure files are removed during clean
-extra-y       += piggy.gzip piggy.lzo piggy.lzma lib1funcs.S
+extra-y       += piggy.gzip piggy.lzo piggy.lzma lib1funcs.S $(libfdt) $(libfdt_hdrs)
 
 ifeq ($(CONFIG_FUNCTION_TRACER),y)
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst -pg, , $(ORIG_CFLAGS))
 endif
 
-ccflags-y := -fpic -fno-builtin
+ccflags-y := -fpic -fno-builtin -I$(obj)
 asflags-y := -Wa,-march=all
 
 # Supply kernel BSS size to the decompressor via a linker symbol.
