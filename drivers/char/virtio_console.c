@@ -386,28 +386,23 @@ static int add_inbuf(struct virtqueue *vq, struct port_buffer *buf)
 static void discard_port_data(struct port *port)
 {
 	struct port_buffer *buf;
-	struct virtqueue *vq;
-	unsigned int len, err;
+	unsigned int err;
 
 	if (!port->portdev) {
 		/* Device has been unplugged.  vqs are already gone. */
 		return;
 	}
-	vq = port->in_vq;
-	if (port->inbuf)
-		buf = port->inbuf;
-	else
-		buf = virtqueue_get_buf(vq, &len);
+	buf = get_inbuf(port);
 
 	err = 0;
 	while (buf) {
-		if (add_inbuf(vq, buf) < 0) {
+		if (add_inbuf(port->in_vq, buf) < 0) {
 			err++;
 			free_buf(buf);
 		}
-		buf = virtqueue_get_buf(vq, &len);
+		port->inbuf = NULL;
+		buf = get_inbuf(port);
 	}
-	port->inbuf = NULL;
 	if (err)
 		dev_warn(port->dev, "Errors adding %d buffers back to vq\n",
 			 err);
