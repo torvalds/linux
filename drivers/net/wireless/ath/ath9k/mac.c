@@ -62,18 +62,6 @@ void ath9k_hw_txstart(struct ath_hw *ah, u32 q)
 }
 EXPORT_SYMBOL(ath9k_hw_txstart);
 
-void ath9k_hw_cleartxdesc(struct ath_hw *ah, void *ds)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
-	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
-	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
-	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
-	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
-}
-EXPORT_SYMBOL(ath9k_hw_cleartxdesc);
-
 u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q)
 {
 	u32 npend;
