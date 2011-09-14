@@ -669,14 +669,14 @@ void ath9k_tasklet(unsigned long data)
 	u32 status = sc->intrstatus;
 	u32 rxmask;
 
+	ath9k_ps_wakeup(sc);
+	spin_lock(&sc->sc_pcu_lock);
+
 	if ((status & ATH9K_INT_FATAL) ||
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
-		return;
+		goto out;
 	}
-
-	ath9k_ps_wakeup(sc);
-	spin_lock(&sc->sc_pcu_lock);
 
 	/*
 	 * Only run the baseband hang check if beacons stop working in AP or
@@ -725,6 +725,7 @@ void ath9k_tasklet(unsigned long data)
 		if (status & ATH9K_INT_GENTIMER)
 			ath_gen_timer_isr(sc->sc_ah);
 
+out:
 	/* re-enable hardware interrupt */
 	ath9k_hw_enable_interrupts(ah);
 
