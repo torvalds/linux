@@ -1533,7 +1533,7 @@ following algorithm:
 Some guests configure the LINT1 NMI input to cause a panic, aiding in
 debugging.
 
-4.64 KVM_S390_UCAS_MAP
+4.65 KVM_S390_UCAS_MAP
 
 Capability: KVM_CAP_S390_UCONTROL
 Architectures: s390
@@ -1552,7 +1552,7 @@ This ioctl maps the memory at "user_addr" with the length "length" to
 the vcpu's address space starting at "vcpu_addr". All parameters need to
 be alligned by 1 megabyte.
 
-4.65 KVM_S390_UCAS_UNMAP
+4.66 KVM_S390_UCAS_UNMAP
 
 Capability: KVM_CAP_S390_UCONTROL
 Architectures: s390
@@ -1571,7 +1571,7 @@ This ioctl unmaps the memory in the vcpu's address space starting at
 "vcpu_addr" with the length "length". The field "user_addr" is ignored.
 All parameters need to be alligned by 1 megabyte.
 
-4.66 KVM_S390_VCPU_FAULT
+4.67 KVM_S390_VCPU_FAULT
 
 Capability: KVM_CAP_S390_UCONTROL
 Architectures: s390
@@ -1586,6 +1586,46 @@ thus it's recommended to access subject memory page via the user page
 table upfront. This is useful to handle validity intercepts for user
 controlled virtual machines to fault in the virtual cpu's lowcore pages
 prior to calling the KVM_RUN ioctl.
+
+4.68 KVM_SET_ONE_REG
+
+Capability: KVM_CAP_ONE_REG
+Architectures: all
+Type: vcpu ioctl
+Parameters: struct kvm_one_reg (in)
+Returns: 0 on success, negative value on failure
+
+struct kvm_one_reg {
+       __u64 id;
+       __u64 addr;
+};
+
+Using this ioctl, a single vcpu register can be set to a specific value
+defined by user space with the passed in struct kvm_one_reg, where id
+refers to the register identifier as described below and addr is a pointer
+to a variable with the respective size. There can be architecture agnostic
+and architecture specific registers. Each have their own range of operation
+and their own constants and width. To keep track of the implemented
+registers, find a list below:
+
+  Arch  |       Register        | Width (bits)
+        |                       |
+
+4.69 KVM_GET_ONE_REG
+
+Capability: KVM_CAP_ONE_REG
+Architectures: all
+Type: vcpu ioctl
+Parameters: struct kvm_one_reg (in and out)
+Returns: 0 on success, negative value on failure
+
+This ioctl allows to receive the value of a single register implemented
+in a vcpu. The register to read is indicated by the "id" field of the
+kvm_one_reg struct passed in. On success, the register value can be found
+at the memory location pointed to by "addr".
+
+The list of registers accessible using this interface is identical to the
+list in 4.64.
 
 5. The kvm_run structure
 
