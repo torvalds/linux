@@ -790,8 +790,7 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		}
 
 		tx_info = IEEE80211_SKB_CB(bf->bf_mpdu);
-		if (nframes && ((tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) ||
-			!(tx_info->control.rates[0].flags & IEEE80211_TX_RC_MCS)))
+		if (nframes && (tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE))
 			break;
 
 		/* do not exceed subframe limit */
