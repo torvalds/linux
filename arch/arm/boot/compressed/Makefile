@@ -26,6 +26,10 @@ HEAD	= head.o
 OBJS	+= misc.o decompress.o
 FONTC	= $(srctree)/drivers/video/console/font_acorn_8x8.c
 
+# string library code (-Os is enforced to keep it much smaller)
+OBJS		+= string.o
+CFLAGS_string.o	:= -Os
+
 #
 # Architecture dependencies
 #
