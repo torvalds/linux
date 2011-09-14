@@ -1563,7 +1563,7 @@ static int init_vqs(struct ports_device *portdev)
 	portdev->out_vqs = kmalloc(nr_ports * sizeof(struct virtqueue *),
 				   GFP_KERNEL);
 	if (!vqs || !io_callbacks || !io_names || !portdev->in_vqs ||
-			!portdev->out_vqs) {
+	    !portdev->out_vqs) {
 		err = -ENOMEM;
 		goto free;
 	}
