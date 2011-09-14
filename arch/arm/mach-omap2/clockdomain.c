@@ -73,9 +73,6 @@ static int _clkdm_register(struct clockdomain *clkdm)
 	if (!clkdm || !clkdm->name)
 		return -EINVAL;
 
-	if (!omap_chip_is(clkdm->omap_chip))
-		return -EINVAL;
-
 	pwrdm = pwrdm_lookup(clkdm->pwrdm.name);
 	if (!pwrdm) {
 		pr_err("clockdomain: %s: powerdomain %s does not exist\n",
@@ -105,13 +102,10 @@ static struct clkdm_dep *_clkdm_deps_lookup(struct clockdomain *clkdm,
 {
 	struct clkdm_dep *cd;
 
-	if (!clkdm || !deps || !omap_chip_is(clkdm->omap_chip))
+	if (!clkdm || !deps)
 		return ERR_PTR(-EINVAL);
 
 	for (cd = deps; cd->clkdm_name; cd++) {
-		if (!omap_chip_is(cd->omap_chip))
-			continue;
-
 		if (!cd->clkdm && cd->clkdm_name)
 			cd->clkdm = _clkdm_lookup(cd->clkdm_name);
 
@@ -148,9 +142,6 @@ static void _autodep_lookup(struct clkdm_autodep *autodep)
 	if (!autodep)
 		return;
 
-	if (!omap_chip_is(autodep->omap_chip))
-		return;
-
 	clkdm = clkdm_lookup(autodep->clkdm.name);
 	if (!clkdm) {
 		pr_err("clockdomain: autodeps: clockdomain %s does not exist\n",
@@ -180,9 +171,6 @@ void _clkdm_add_autodeps(struct clockdomain *clkdm)
 
 	for (autodep = autodeps; autodep->clkdm.ptr; autodep++) {
 		if (IS_ERR(autodep->clkdm.ptr))
-			continue;
-
-		if (!omap_chip_is(autodep->omap_chip))
 			continue;
 
 		pr_debug("clockdomain: adding %s sleepdep/wkdep for "
@@ -216,9 +204,6 @@ void _clkdm_del_autodeps(struct clockdomain *clkdm)
 		if (IS_ERR(autodep->clkdm.ptr))
 			continue;
 
-		if (!omap_chip_is(autodep->omap_chip))
-			continue;
-
 		pr_debug("clockdomain: removing %s sleepdep/wkdep for "
 			 "clkdm %s\n", autodep->clkdm.ptr->name,
 			 clkdm->name);
@@ -243,8 +228,6 @@ static void _resolve_clkdm_deps(struct clockdomain *clkdm,
 	struct clkdm_dep *cd;
 
 	for (cd = clkdm_deps; cd && cd->clkdm_name; cd++) {
-		if (!omap_chip_is(cd->omap_chip))
-			continue;
 		if (cd->clkdm)
 			continue;
 		cd->clkdm = _clkdm_lookup(cd->clkdm_name);
