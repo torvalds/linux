@@ -1200,6 +1200,7 @@ static int __devinit install_fb(struct fb_info *info)
 
 	if (fsl_diu_check_var(&info->var, info)) {
 		dev_err(info->dev, "fsl_diu_check_var failed\n");
+		unmap_video_memory(info);
 		fb_dealloc_cmap(&info->cmap);
 		return -EINVAL;
 	}
