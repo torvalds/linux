@@ -398,6 +398,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 
 	while (i != r) {
 		int len;
+		u16 txq_id, sequence;
 
 		rxb = rxq->queue[i];
 
@@ -436,6 +437,17 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 			(pkt->hdr.cmd != REPLY_COMPRESSED_BA) &&
 			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
 			(pkt->hdr.cmd != REPLY_TX);
+
+		sequence = le16_to_cpu(pkt->hdr.sequence);
+		txq_id = SEQ_TO_QUEUE(le16_to_cpu(pkt->hdr.sequence));
+
+		/* warn if this is cmd response / notification and the uCode
+		 * didn't set the SEQ_RX_FRAME for a frame that is
+		 * uCode-originated*/
+		WARN(txq_id == trans->shrd->cmd_queue && reclaim == false &&
+		     (!(pkt->hdr.sequence & SEQ_RX_FRAME)),
+		     "reclaim is false, SEQ_RX_FRAME unset: %s\n",
+		     get_cmd_string(pkt->hdr.cmd));
 
 		iwl_rx_dispatch(priv(trans), rxb);
 
