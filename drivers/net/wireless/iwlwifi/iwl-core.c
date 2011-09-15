@@ -1876,3 +1876,12 @@ void iwl_nic_config(struct iwl_priv *priv)
 	priv->cfg->lib->nic_config(priv);
 
 }
+
+void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info;
+
+	info = IEEE80211_SKB_CB(skb);
+	kmem_cache_free(priv->tx_cmd_pool, (info->driver_data[1]));
+	dev_kfree_skb_any(skb);
+}

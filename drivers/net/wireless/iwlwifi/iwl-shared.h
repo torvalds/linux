@@ -390,6 +390,7 @@ void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
 				u8 sta_id, u8 tid);
 void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
 void iwl_nic_config(struct iwl_priv *priv);
+void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb);
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);

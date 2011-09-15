@@ -225,9 +225,12 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 
 		skb = txq->skbs[index];
 
-		/* can be called from irqs-disabled context */
+		/* Can be called from irqs-disabled context
+		 * If skb is not NULL, it means that the whole queue is being
+		 * freed and that the queue is not empty - free the skb
+		 */
 		if (skb) {
-			dev_kfree_skb_any(skb);
+			iwl_free_skb(priv(trans), skb);
 			txq->skbs[index] = NULL;
 		}
 	}

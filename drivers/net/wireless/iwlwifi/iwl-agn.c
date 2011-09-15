@@ -1522,6 +1522,8 @@ static void __iwl_down(struct iwl_priv *priv)
 	if (priv->shrd->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
 
+	iwl_trans_stop_device(trans(priv));
+
 	/* Clear out all status bits but a few that are stable across reset */
 	priv->shrd->status &=
 			test_bit(STATUS_RF_KILL_HW, &priv->shrd->status) <<
@@ -1532,8 +1534,6 @@ static void __iwl_down(struct iwl_priv *priv)
 				STATUS_FW_ERROR |
 			test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) <<
 				STATUS_EXIT_PENDING;
-
-	iwl_trans_stop_device(trans(priv));
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
