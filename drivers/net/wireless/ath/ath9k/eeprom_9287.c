@@ -942,11 +942,6 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 	REGWRITE_BUFFER_FLUSH(ah);
 }
 
-static void ath9k_hw_ar9287_set_addac(struct ath_hw *ah,
-				      struct ath9k_channel *chan)
-{
-}
-
 static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -1098,7 +1093,6 @@ const struct eeprom_ops eep_ar9287_ops = {
 	.get_eeprom_ver		= ath9k_hw_ar9287_get_eeprom_ver,
 	.get_eeprom_rev		= ath9k_hw_ar9287_get_eeprom_rev,
 	.set_board_values	= ath9k_hw_ar9287_set_board_values,
-	.set_addac		= ath9k_hw_ar9287_set_addac,
 	.set_txpower		= ath9k_hw_ar9287_set_txpower,
 	.get_spur_channel	= ath9k_hw_ar9287_get_spur_channel
 };

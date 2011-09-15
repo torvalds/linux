@@ -801,7 +801,8 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 
 	/* Write ADDAC shifts */
 	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
-	ah->eep_ops->set_addac(ah, chan);
+	if (ah->eep_ops->set_addac)
+		ah->eep_ops->set_addac(ah, chan);
 
 	if (AR_SREV_5416_22_OR_LATER(ah)) {
 		REG_WRITE_ARRAY(&ah->iniAddac, 1, regWrites);
