@@ -557,17 +557,13 @@ err: ;
 /************************************************************************************************/
 
 #ifdef HCF_SLEEP
-#if defined MSF_WAIT
-err: MSF should no longer supply this macro;
+#define MSF_WAIT(x) do {						\
+		PROT_CNT_INI;						\
+		HCF_WAIT_WHILE((IPW(HREG_IO) & HREG_IO_WOKEN_UP) == 0); \
+		HCFASSERT( prot_cnt, IPW( HREG_IO ) );			\
+	} while (0)
 #else
-#define MSF_WAIT(x)							\
-	{ PROT_CNT_INI							\
-			HCF_WAIT_WHILE( ( IPW( HREG_IO ) & HREG_IO_WOKEN_UP ) == 0 ); \
-		HCFASSERT( prot_cnt, IPW( HREG_IO ) )			\
-			}
-#endif // MSF_WAIT
-#else
-#define MSF_WAIT(x) /*NOP*/
+#define MSF_WAIT(x) do { } while (0)
 #endif // HCF_SLEEP
 
 #define LOF(x)          (sizeof(x)/sizeof(hcf_16)-1)
@@ -583,13 +579,14 @@ err: MSF should no longer supply this macro;
 #endif //     HCF_STATIC
 
 #if ( (HCF_TYPE) & HCF_TYPE_HII5 ) == 0
-#define DAWA_ACK( mask) {						\
+#define DAWA_ACK( mask) do {						\
 		OPW( HREG_EV_ACK, mask | HREG_EV_ACK_REG_READY );	\
-		OPW( HREG_EV_ACK, (mask & ~HREG_EV_ALLOC) | HREG_EV_ACK_REG_READY );    }
-#define DAWA_ZERO_FID(reg) OPW( reg, 0 );
+		OPW( HREG_EV_ACK, (mask & ~HREG_EV_ALLOC) | HREG_EV_ACK_REG_READY ); \
+	} while (0)
+#define DAWA_ZERO_FID(reg) OPW( reg, 0 )
 #else
-#define DAWA_ACK( mask)   OPW( HREG_EV_ACK, mask );
-#define DAWA_ZERO_FID(reg)
+#define DAWA_ACK( mask)   OPW( HREG_EV_ACK, mask )
+#define DAWA_ZERO_FID(reg) do { } while (0)
 #endif // HCF_TYPE_HII5
 
 #if (HCF_TYPE) & HCF_TYPE_WPA
@@ -607,22 +604,22 @@ err: MSF should no longer supply this macro;
 #endif // HCF_TYPE_WPA
 
 #if HCF_TALLIES & HCF_TALLIES_HCF       //HCF tally support
-#define IF_TALLY(x)  x
+#define IF_TALLY(x) do { x; } while (0)
 #else
-#define IF_TALLY(x)
+#define IF_TALLY(x) do { } while (0)
 #endif // HCF_TALLIES_HCF
 
 
 #if HCF_DMA
-#define IF_DMA(x)           x
-#define IF_NOT_DMA(x)
-#define IF_USE_DMA(x)       if (   ifbp->IFB_CntlOpt & USE_DMA  ) x
-#define IF_NOT_USE_DMA(x)   if ( !(ifbp->IFB_CntlOpt & USE_DMA) ) x
+#define IF_DMA(x)           do { x; } while(0)
+#define IF_NOT_DMA(x)       do { } while(0)
+#define IF_USE_DMA(x)       if (   ifbp->IFB_CntlOpt & USE_DMA  ) { x; }
+#define IF_NOT_USE_DMA(x)   if ( !(ifbp->IFB_CntlOpt & USE_DMA) ) { x; }
 #else
-#define IF_DMA(x)
-#define IF_NOT_DMA(x)       x
-#define IF_USE_DMA(x)
-#define IF_NOT_USE_DMA(x)   x
+#define IF_DMA(x)           do { } while(0)
+#define IF_NOT_DMA(x)       do { x; } while(0)
+#define IF_USE_DMA(x)       do { } while(0)
+#define IF_NOT_USE_DMA(x)   do { x; } while(0)
 #endif // HCF_DMA
 
 
@@ -632,16 +629,16 @@ err: MSF should no longer supply this macro;
  * in a row and that when one fails all subsequent fail immediately without reinitialization of prot_cnt
  */
 #if HCF_PROT_TIME == 0
-#define PROT_CNT_INI
-#define IF_PROT_TIME(x)
+#define PROT_CNT_INI    do { } while(0)
+#define IF_PROT_TIME(x) do { } while(0)
 #if defined HCF_YIELD
-#define HCF_WAIT_WHILE( x ) while ( (x) && (HCF_YIELD) ) /*NOP*/;
+#define HCF_WAIT_WHILE( x ) do { } while( (x) && (HCF_YIELD) )
 #else
-#define HCF_WAIT_WHILE( x ) while ( x ) /*NOP*/;
+#define HCF_WAIT_WHILE( x ) do { } while ( x )
 #endif // HCF_YIELD
 #else
-#define PROT_CNT_INI    hcf_32 prot_cnt = ifbp->IFB_TickIni;
-#define IF_PROT_TIME(x) x
+#define PROT_CNT_INI    hcf_32 prot_cnt = ifbp->IFB_TickIni
+#define IF_PROT_TIME(x) do { x; } while(0)
 #if defined HCF_YIELD
 #define HCF_WAIT_WHILE( x ) while ( prot_cnt && (x) && (HCF_YIELD) ) prot_cnt--;
 #else
@@ -684,32 +681,32 @@ err: someone redefined these macros while the implemenation assumes they are equ
  * on the if-statement
  */
 #if HCF_ASSERT
-#define HCFASSERT(x,q) {if (!(x)) {mdd_assert(        ifbp, __LINE__                   , q );}}
+#define HCFASSERT(x,q) do { if (!(x)) {mdd_assert(ifbp, __LINE__, q );} } while(0)
 #define MMDASSERT(x,q) {if (!(x)) {mdd_assert( assert_ifbp, __LINE__ + FILE_NAME_OFFSET, q );}}
 
-#define HCFLOGENTRY( where, what )					\
-	{if ( (ifbp->IFB_AssertWhere = where) <= 15 ) {			\
+#define HCFLOGENTRY( where, what ) do {					\
+		if ( (ifbp->IFB_AssertWhere = where) <= 15 ) {		\
 			HCF_ENTRY( ifbp );				\
 			HCFASSERT( (ifbp->IFB_AssertTrace & 1<<((where)&0xF)) == 0, ifbp->IFB_AssertTrace ); \
 			ifbp->IFB_AssertTrace |= 1<<((where)&0xF);	\
 		}							\
-		HCFTRACE(ifbp, where )					\
-			HCFTRACEVALUE(ifbp, what )			\
-			}
+		HCFTRACE(ifbp, where );					\
+		HCFTRACEVALUE(ifbp, what );				\
+	} while (0)
 
-#define HCFLOGEXIT( where )						\
-	{if ( (ifbp->IFB_AssertWhere = where) <= 15 ) {			\
+#define HCFLOGEXIT( where ) do {					\
+		if ( (ifbp->IFB_AssertWhere = where) <= 15 ) {		\
 			HCF_EXIT( ifbp );				\
 			ifbp->IFB_AssertTrace &= ~(1<<((where)&0xF));	\
 		}							\
-		HCFTRACE(ifbp, (where)|HCF_TRACE_EXIT )			\
-			}
+		HCFTRACE(ifbp, (where)|HCF_TRACE_EXIT );		\
+	} while (0)
 
 #else // HCF_ASSERT
-#define HCFASSERT( x, q )
+#define HCFASSERT( x, q ) do { } while(0)
 #define MMDASSERT( x, q )
-#define HCFLOGENTRY( where, what )      {HCF_ENTRY( ifbp );}
-#define HCFLOGEXIT( where )             {HCF_EXIT( ifbp );}
+#define HCFLOGENTRY( where, what )      do {HCF_ENTRY( ifbp );} while (0)
+#define HCFLOGEXIT( where )             do {HCF_EXIT( ifbp );} while(0)
 #endif // HCF_ASSERT
 
 #if HCF_INT_ON
@@ -727,13 +724,13 @@ err: someone redefined these macros while the implemenation assumes they are equ
 
 
 #if defined HCF_TRACE
-#define HCFTRACE(ifbp, where )     {OPW( HREG_SW_1, where );}
+#define HCFTRACE(ifbp, where )     do {OPW( HREG_SW_1, where );} while(0)
 //#define HCFTRACE(ifbp, where )       {HCFASSERT( DO_ASSERT, where );}
-#define HCFTRACEVALUE(ifbp, what ) {OPW( HREG_SW_2, what  );}
+#define HCFTRACEVALUE(ifbp, what ) do {OPW( HREG_SW_2, what  );} while (0)
 //#define HCFTRACEVALUE(ifbp, what ) {HCFASSERT( DO_ASSERT, what  );}
 #else
-#define HCFTRACE(ifbp, where )
-#define HCFTRACEVALUE(ifbp, what )
+#define HCFTRACE(ifbp, where )     do { } while(0)
+#define HCFTRACEVALUE(ifbp, what ) do { } while(0)
 #endif // HCF_TRACE
 
 
