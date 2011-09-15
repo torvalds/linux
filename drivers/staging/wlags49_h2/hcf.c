@@ -3766,7 +3766,7 @@ download( IFBP ifbp, CFG_PROG_STRCT FAR *ltvp )                     //Hermes-II 
 #if 0   //;? as long as the next if contains a hard coded 0, might as well leave it out even more obvious
 		if ( 0 /*len is definitely not want we want;?*/ && ltvp->mode == CFG_PROG_SEEPROM_READBACK ) {
 			OPW( HREG_PARAM_1, (hcf_16)(ltvp->nic_addr >> 16) );
-			OPW( HREG_PARAM_2, MUL_BY_2(ltvp->len - 4));
+			OPW( HREG_PARAM_2, (hcf_16)((ltvp->len - 4) << 1) );
 			                        //.  .  perform Hermes prog cmd with appropriate mode bits
 			rc = cmd_exe( ifbp, HCMD_PROGRAM | ltvp->mode, (hcf_16)ltvp->nic_addr );
 			                        //.  .  set up NIC RAM addressability according Resp0-1

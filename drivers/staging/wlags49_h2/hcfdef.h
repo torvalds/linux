@@ -568,9 +568,6 @@ err: ;
 
 #define LOF(x)          (sizeof(x)/sizeof(hcf_16)-1)
 
-#define MUL_BY_2( x )   ( (x) << 1 )                        //used to multiply by 2
-#define DIV_BY_2( x )   ( (x) >> 1 )                        //used to divide by 2
-
 //resolve problems on for some 16 bits compilers to create 32 bit values
 #define MERGE_2( hw, lw )   ( ( ((hcf_32)(hw)) << 16 ) | ((hcf_16)(lw)) )
 
