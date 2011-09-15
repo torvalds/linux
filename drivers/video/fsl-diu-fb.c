@@ -1265,14 +1265,14 @@ static irqreturn_t fsl_diu_isr(int irq, void *dev_id)
 
 static int request_irq_local(int irq)
 {
-	unsigned long status, ints;
+	u32 ints;
 	struct diu *hw;
 	int ret;
 
 	hw = dr.diu_reg;
 
 	/* Read to clear the status */
-	status = in_be32(&hw->int_status);
+	in_be32(&hw->int_status);
 
 	ret = request_irq(irq, fsl_diu_isr, 0, "diu", NULL);
 	if (!ret) {
@@ -1285,7 +1285,7 @@ static int request_irq_local(int irq)
 			ints |= INT_VSYNC_WB;
 
 		/* Read to clear the status */
-		status = in_be32(&hw->int_status);
+		in_be32(&hw->int_status);
 		out_be32(&hw->int_mask, ints);
 	}
 
@@ -1336,23 +1336,20 @@ static int fsl_diu_resume(struct platform_device *ofdev)
 static int allocate_buf(struct device *dev, struct diu_addr *buf, u32 size,
 			u32 bytes_align)
 {
-	u32 offset, ssize;
-	u32 mask;
-	dma_addr_t paddr = 0;
+	u32 offset;
+	dma_addr_t mask;
 
-	ssize = size + bytes_align;
-	buf->vaddr = dma_alloc_coherent(dev, ssize, &paddr, GFP_DMA |
-							     __GFP_ZERO);
+	buf->vaddr =
+		dma_alloc_coherent(dev, size + bytes_align, &buf->paddr,
+				   GFP_DMA | __GFP_ZERO);
 	if (!buf->vaddr)
 		return -ENOMEM;
 
-	buf->paddr = (__u32) paddr;
-
 	mask = bytes_align - 1;
-	offset = (u32)buf->paddr & mask;
+	offset = buf->paddr & mask;
 	if (offset) {
 		buf->offset = bytes_align - offset;
-		buf->paddr = (u32)buf->paddr + offset;
+		buf->paddr = buf->paddr + offset;
 	} else
 		buf->offset = 0;
 
