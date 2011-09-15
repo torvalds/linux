@@ -185,11 +185,12 @@ static int iwlagn_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 				     EEPROM_KELVIN_TEMPERATURE);
 	__le16 *offset_calib_low =
 		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_RAW_TEMPERATURE);
-	__le16 *voltage_reading =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_VOLTAGE_READING);
+	struct iwl_eeprom_calib_hdr *hdr;
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
+	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
+							EEPROM_CALIB_ALL);
 	memcpy(&cmd.radio_sensor_offset_high, offset_calib_high,
 		sizeof(offset_calib_high));
 	memcpy(&cmd.radio_sensor_offset_low, offset_calib_low,
@@ -199,8 +200,8 @@ static int iwlagn_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 		cmd.radio_sensor_offset_low = DEFAULT_RADIO_SENSOR_OFFSET;
 		cmd.radio_sensor_offset_high = DEFAULT_RADIO_SENSOR_OFFSET;
 	}
-	memcpy(&cmd.burntVoltageRef, voltage_reading,
-		sizeof(voltage_reading));
+	memcpy(&cmd.burntVoltageRef, &hdr->voltage,
+		sizeof(hdr->voltage));
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset high: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset_high));

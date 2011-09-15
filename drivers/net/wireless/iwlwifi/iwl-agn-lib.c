@@ -96,11 +96,7 @@ void iwlagn_temperature(struct iwl_priv *priv)
 
 u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv)
 {
-	struct iwl_eeprom_calib_hdr {
-		u8 version;
-		u8 pa_type;
-		u16 voltage;
-	} *hdr;
+	struct iwl_eeprom_calib_hdr *hdr;
 
 	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
 							EEPROM_CALIB_ALL);
