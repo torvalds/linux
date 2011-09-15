@@ -66,7 +66,7 @@
 #include <linux/gfp.h>
 
 #include "iwl-trans.h"
-#include "iwl-trans-int-pcie.h"
+#include "iwl-trans-pcie-int.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-shared.h"
@@ -142,9 +142,7 @@ static void iwl_trans_rx_hw_init(struct iwl_trans *trans,
 {
 	u32 rb_size;
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
-	u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT for all devices? */
-
-	rb_timeout = RX_RB_TIMEOUT;
+	u32 rb_timeout = RX_RB_TIMEOUT; /* FIXME: RX_RB_TIMEOUT for all devices? */
 
 	if (iwlagn_mod_params.amsdu_size_8K)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
@@ -308,8 +306,8 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 
 	txq->q.n_window = slots_num;
 
-	txq->meta = kcalloc(slots_num, sizeof(txq->meta[0]), GFP_KERNEL);
-	txq->cmd = kcalloc(slots_num, sizeof(txq->cmd[0]), GFP_KERNEL);
+	txq->meta = kzalloc(sizeof(txq->meta[0]) * slots_num, GFP_KERNEL);
+	txq->cmd = kzalloc(sizeof(txq->cmd[0]) * slots_num, GFP_KERNEL);
 
 	if (!txq->meta || !txq->cmd)
 		goto error;
@@ -1995,4 +1993,3 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.suspend = iwl_trans_pcie_suspend,
 	.resume = iwl_trans_pcie_resume,
 };
-

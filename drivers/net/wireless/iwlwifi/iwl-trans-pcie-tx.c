@@ -38,7 +38,7 @@
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
 #include "iwl-helpers.h"
-#include "iwl-trans-int-pcie.h"
+#include "iwl-trans-pcie-int.h"
 
 #define IWL_TX_CRC_SIZE 4
 #define IWL_TX_DELIMITER_SIZE 4
@@ -544,7 +544,7 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tid_data *tid_data;
 	unsigned long flags;
-	int txq_id;
+	u16 txq_id;
 
 	txq_id = iwlagn_txq_ctx_activate_free(trans);
 	if (txq_id == -1) {
