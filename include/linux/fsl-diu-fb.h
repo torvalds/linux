@@ -20,11 +20,6 @@
 #ifndef __FSL_DIU_FB_H__
 #define __FSL_DIU_FB_H__
 
-/* Arbitrary threshold to determine the allocation method
- * See mpc8610fb_set_par(), map_video_memory(), and unmap_video_memory()
- */
-#define MEM_ALLOC_THRESHOLD (1024*768*4+32)
-
 #include <linux/types.h>
 
 struct mfb_chroma_key {
