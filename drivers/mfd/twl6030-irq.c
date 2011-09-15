@@ -341,7 +341,7 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	/* install an irq handler to demultiplex the TWL6030 interrupt */
 	init_completion(&irq_event);
 
-	status = request_irq(irq_num, handle_twl6030_pih, IRQF_DISABLED,
+	status = request_irq(irq_num, handle_twl6030_pih, 0,
 				"TWL6030-PIH", &irq_event);
 	if (status < 0) {
 		pr_err("twl6030: could not claim irq%d: %d\n", irq_num, status);
