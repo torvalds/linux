@@ -885,6 +885,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	if (txiqcal_done)
 		ar9003_hw_tx_iq_cal_post_proc(ah);
 
+	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);
 
 	/* Initialize list pointers */
