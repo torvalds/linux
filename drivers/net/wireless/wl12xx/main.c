@@ -3069,6 +3069,20 @@ static int wl1271_ssid_set(struct wl1271 *wl, struct sk_buff *skb,
 	return 0;
 }
 
+static void wl12xx_remove_ie(struct sk_buff *skb, u8 eid, int ieoffset)
+{
+	int len;
+	const u8 *next, *end = skb->data + skb->len;
+	u8 *ie = (u8 *)cfg80211_find_ie(eid, skb->data + ieoffset,
+					skb->len - ieoffset);
+	if (!ie)
+		return;
+	len = ie[1] + 2;
+	next = ie + len;
+	memmove(ie, next, end - next);
+	skb_trim(skb, skb->len - len);
+}
+
 static int wl1271_bss_erp_info_changed(struct wl1271 *wl,
 				       struct ieee80211_bss_conf *bss_conf,
 				       u32 changed)
@@ -3150,6 +3164,9 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 			dev_kfree_skb(beacon);
 			goto out;
 		}
+
+		/* remove TIM ie from probe response */
+		wl12xx_remove_ie(beacon, WLAN_EID_TIM, ieoffset);
 
 		hdr = (struct ieee80211_hdr *) beacon->data;
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
