@@ -2596,28 +2596,6 @@ hcf_send_msg( IFBP ifbp, DESC_STRCT *descp, hcf_16 tx_cntl )
 
 	if ( descp ) ifbp->IFB_TxFID = 0;               //cancel a pre-put message
 
-#if (HCF_EXT) & HCF_EXT_TX_CONT             // Continuous transmit test
-	if ( tx_cntl == HFS_TX_CNTL_TX_CONT ) {
-		fid = get_fid(ifbp);
-		if (fid != 0 ) {
-			                        //setup BAP to begin of TxFS
-			(void)setup_bap( ifbp, fid, 0, IO_OUT );
-			                        //copy all the fragments in a transparent fashion
-			for ( p = descp; p; p = p->next_desc_addr ) {
-				/* obnoxious warning C4769: conversion of near pointer to long integer */
-				HCFASSERT( ((hcf_32)p & 3 ) == 0, (hcf_32)p );
-				put_frag( ifbp, p->buf_addr, p->BUF_CNT BE_PAR(0) );
-			}
-			rc = cmd_exe( ifbp, HCMD_THESEUS | HCMD_BUSY | HCMD_STARTPREAMBLE, fid );
-			if ( ifbp->IFB_RscInd == 0 ) {
-				ifbp->IFB_RscInd = get_fid( ifbp );
-			}
-		}
-		                                // een slecht voorbeeld doet goed volgen ;?
-		HCFLOGEXIT( HCF_TRACE_SEND_MSG );
-		return rc;
-	}
-#endif // HCF_EXT_TX_CONT
 	/* the following initialization code is redundant for a pre-put message
 	 * but moving it inside the "if fid" logic makes the merging with the
 	 * USB flow awkward
