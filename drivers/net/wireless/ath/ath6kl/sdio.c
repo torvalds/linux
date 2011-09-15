@@ -25,6 +25,7 @@
 #include "hif-ops.h"
 #include "target.h"
 #include "debug.h"
+#include "cfg80211.h"
 
 struct ath6kl_sdio {
 	struct sdio_func *func;
@@ -816,7 +817,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 			ath6kl_err("Failed to enable 4-bit async irq mode %d\n",
 				   ret);
 			sdio_release_host(func);
-			goto err_dma;
+			goto err_cfg80211;
 		}
 
 		ath6kl_dbg(ATH6KL_DBG_TRC, "4-bit async irq mode enabled\n");
@@ -829,7 +830,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 
 	ret = ath6kl_sdio_power_on(ar_sdio);
 	if (ret)
-		goto err_dma;
+		goto err_cfg80211;
 
 	sdio_claim_host(func);
 
@@ -853,6 +854,8 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 
 err_off:
 	ath6kl_sdio_power_off(ar_sdio);
+err_cfg80211:
+	ath6kl_cfg80211_deinit(ar_sdio->ar);
 err_dma:
 	kfree(ar_sdio->dma_buffer);
 err_hif:
