@@ -278,17 +278,19 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 
 		if (!acked && ieee80211_is_back_req(fc)) {
+			u16 control;
+
 			/*
-			 * BAR failed, let's tear down the BA session as a
-			 * last resort as some STAs (Intel 5100 on Windows)
-			 * can get stuck when the BA window isn't flushed
-			 * correctly.
+			 * BAR failed, store the last SSN and retry sending
+			 * the BAR when the next unicast transmission on the
+			 * same TID succeeds.
 			 */
 			bar = (struct ieee80211_bar *) skb->data;
-			if (!(bar->control & IEEE80211_BAR_CTRL_MULTI_TID)) {
+			control = le16_to_cpu(bar->control);
+			if (!(control & IEEE80211_BAR_CTRL_MULTI_TID)) {
 				u16 ssn = le16_to_cpu(bar->start_seq_num);
 
-				tid = (bar->control &
+				tid = (control &
 				       IEEE80211_BAR_CTRL_TID_INFO_MASK) >>
 				      IEEE80211_BAR_CTRL_TID_INFO_SHIFT;
 
