@@ -1136,7 +1136,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	WREG32(GRBM_SOFT_RESET, 0);
 	RREG32(GRBM_SOFT_RESET);
 
-	WREG32(CP_SEM_WAIT_TIMER, 0x4);
+	WREG32(CP_SEM_WAIT_TIMER, 0x0);
 
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
@@ -1557,6 +1557,7 @@ void cayman_fini(struct radeon_device *rdev)
 	cayman_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
+	radeon_semaphore_driver_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);

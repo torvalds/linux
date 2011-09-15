@@ -69,6 +69,9 @@ int r100_irq_set(struct radeon_device *rdev);
 int r100_irq_process(struct radeon_device *rdev);
 void r100_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence);
+void r100_semaphore_ring_emit(struct radeon_device *rdev,
+			      struct radeon_semaphore *semaphore,
+			      unsigned ring, bool emit_wait);
 int r100_cs_parse(struct radeon_cs_parser *p);
 void r100_pll_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 uint32_t r100_pll_rreg(struct radeon_device *rdev, uint32_t reg);
@@ -300,6 +303,9 @@ void r600_pciep_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 int r600_cs_parse(struct radeon_cs_parser *p);
 void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence);
+void r600_semaphore_ring_emit(struct radeon_device *rdev,
+			      struct radeon_semaphore *semaphore,
+			      unsigned ring, bool emit_wait);
 bool r600_gpu_is_lockup(struct radeon_device *rdev);
 int r600_asic_reset(struct radeon_device *rdev);
 int r600_set_surface_reg(struct radeon_device *rdev, int reg,

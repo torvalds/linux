@@ -832,6 +832,14 @@ void r100_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, RADEON_SW_INT_FIRE);
 }
 
+void r100_semaphore_ring_emit(struct radeon_device *rdev,
+			      struct radeon_semaphore *semaphore,
+			      unsigned ring, bool emit_wait)
+{
+	/* Unused on older asics, since we don't have semaphores or multiple rings */
+	BUG();
+}
+
 int r100_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,

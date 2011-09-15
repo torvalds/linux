@@ -2190,7 +2190,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 	tmp |= BUF_SWAP_32BIT;
 #endif
 	WREG32(CP_RB_CNTL, tmp);
-	WREG32(CP_SEM_WAIT_TIMER, 0x4);
+	WREG32(CP_SEM_WAIT_TIMER, 0x0);
 
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
@@ -2355,6 +2355,18 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 		radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
 		radeon_ring_write(rdev, RB_INT_STAT);
 	}
+}
+
+void r600_semaphore_ring_emit(struct radeon_device *rdev,
+			      struct radeon_semaphore *semaphore,
+			      unsigned ring, bool emit_wait)
+{
+	uint64_t addr = semaphore->gpu_addr;
+	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
+
+	radeon_ring_write(rdev, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
+	radeon_ring_write(rdev, addr & 0xffffffff);
+	radeon_ring_write(rdev, (upper_32_bits(addr) & 0xff) | sel);
 }
 
 int r600_copy_blit(struct radeon_device *rdev,
@@ -2649,6 +2661,7 @@ void r600_fini(struct radeon_device *rdev)
 	r600_vram_scratch_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_gem_fini(rdev);
+	radeon_semaphore_driver_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);

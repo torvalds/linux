@@ -726,9 +726,11 @@ int radeon_device_init(struct radeon_device *rdev,
 	mutex_init(&rdev->pm.mutex);
 	mutex_init(&rdev->vram_mutex);
 	rwlock_init(&rdev->fence_lock);
+	rwlock_init(&rdev->semaphore_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
+	INIT_LIST_HEAD(&rdev->semaphore_drv.free);
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
