@@ -194,6 +194,13 @@
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
 #define  MI_SEMAPHORE_COMPARE	    (1<<20)
 #define  MI_SEMAPHORE_REGISTER	    (1<<18)
+#define  MI_SEMAPHORE_SYNC_RV	    (2<<16)
+#define  MI_SEMAPHORE_SYNC_RB	    (0<<16)
+#define  MI_SEMAPHORE_SYNC_VR	    (0<<16)
+#define  MI_SEMAPHORE_SYNC_VB	    (2<<16)
+#define  MI_SEMAPHORE_SYNC_BR	    (2<<16)
+#define  MI_SEMAPHORE_SYNC_BV	    (0<<16)
+#define  MI_SEMAPHORE_SYNC_INVALID  (1<<0)
 /*
  * 3D instructions used by the kernel
  */
@@ -296,6 +303,12 @@
 #define RING_CTL(base)		((base)+0x3c)
 #define RING_SYNC_0(base)	((base)+0x40)
 #define RING_SYNC_1(base)	((base)+0x44)
+#define GEN6_RVSYNC (RING_SYNC_0(RENDER_RING_BASE))
+#define GEN6_RBSYNC (RING_SYNC_1(RENDER_RING_BASE))
+#define GEN6_VRSYNC (RING_SYNC_1(GEN6_BSD_RING_BASE))
+#define GEN6_VBSYNC (RING_SYNC_0(GEN6_BSD_RING_BASE))
+#define GEN6_BRSYNC (RING_SYNC_0(BLT_RING_BASE))
+#define GEN6_BVSYNC (RING_SYNC_1(BLT_RING_BASE))
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
