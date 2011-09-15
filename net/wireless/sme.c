@@ -118,6 +118,8 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 			     i++, j++)
 				request->channels[i] =
 					&wdev->wiphy->bands[band]->channels[j];
+			request->rates[band] =
+				(1 << wdev->wiphy->bands[band]->n_bitrates) - 1;
 		}
 	}
 	request->n_channels = n_channels;
