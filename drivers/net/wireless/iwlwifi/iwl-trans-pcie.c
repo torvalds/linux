@@ -1971,7 +1971,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.wake_any_queue = iwl_trans_pcie_wake_any_queue,
 
 	.send_cmd = iwl_trans_pcie_send_cmd,
-	.send_cmd_pdu = iwl_trans_pcie_send_cmd_pdu,
 
 	.tx = iwl_trans_pcie_tx,
 	.reclaim = iwl_trans_pcie_reclaim,

@@ -151,7 +151,6 @@ struct iwl_host_cmd {
  * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
  * @send_cmd:send a host command
- * @send_cmd_pdu:send a host command: flags can be CMD_*
  * @tx: send an skb
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  * @tx_agg_alloc: allocate resources for a TX BA session
@@ -183,8 +182,6 @@ struct iwl_trans_ops {
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
-	int (*send_cmd_pdu)(struct iwl_trans *trans, u8 id, u32 flags, u16 len,
-		     const void *data);
 	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
 		u8 sta_id);
@@ -270,11 +267,8 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 	return trans->ops->send_cmd(trans, cmd);
 }
 
-static inline int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
-					u32 flags, u16 len, const void *data)
-{
-	return trans->ops->send_cmd_pdu(trans, id, flags, len, data);
-}
+int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
+			   u32 flags, u16 len, const void *data);
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
