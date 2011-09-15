@@ -336,9 +336,6 @@ typedef struct  {
 #endif // HCF_ASSERT_PRINTF
 #endif // HCF_ASSERT
   hcf_16 volatile IFB_IntOffCnt;		// 0xFFFF based HCF_ACT_INT_OFF nesting counter, DeepSleep flag
-#if (HCF_TYPE) & HCF_TYPE_CCX
-  hcf_16         IFB_CKIPStat;			// CKIP Status flag
-#endif // HCF_TYPE_CCX
 #if (HCF_TALLIES) & ( HCF_TALLIES_NIC | HCF_TALLIES_HCF )	//Hermes and/or HCF tally support
   hcf_32		IFB_Silly_you_should_align;	//;?
   hcf_16		IFB_TallyLen;			// Tally length (to build an LTV)
