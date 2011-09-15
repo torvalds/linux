@@ -272,7 +272,6 @@ static void convert_key_to_CPU(struct brcmf_wsec_key *key)
 static s32
 brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 {
-	struct ifreq ifr;
 	struct brcmf_ioctl ioc;
 	mm_segment_t fs;
 	s32 err = 0;
@@ -281,12 +280,10 @@ brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 	ioc.cmd = cmd;
 	ioc.buf = arg;
 	ioc.len = len;
-	strcpy(ifr.ifr_name, dev->name);
-	ifr.ifr_data = (char __user *)&ioc;
 
 	fs = get_fs();
 	set_fs(get_ds());
-	err = brcmf_netdev_ioctl_priv(dev, &ifr);
+	err = brcmf_netdev_ioctl_priv(dev, &ioc);
 	set_fs(fs);
 
 	return err;

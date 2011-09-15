@@ -964,61 +964,19 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	return -EOPNOTSUPP;
 }
 
-/* called only from within this driver, handles cmd == SIOCDEVPRIVATE */
-int brcmf_netdev_ioctl_priv(struct net_device *net, struct ifreq *ifr)
+/* called only from within this driver */
+int brcmf_netdev_ioctl_priv(struct net_device *net, struct brcmf_ioctl *ioc)
 {
-	struct brcmf_c_ioctl ioc;
 	int bcmerror = 0;
 	int buflen = 0;
-	void *buf = NULL;
-	uint driver = 0;
 	bool is_set_key_cmd;
 	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(net);
 	int ifidx;
 
 	ifidx = brcmf_net2idx(drvr_priv, net);
 
-	memset(&ioc, 0, sizeof(ioc));
-
-	/* Copy the ioc control structure part of ioctl request */
-	if (copy_from_user(&ioc, ifr->ifr_data, sizeof(struct brcmf_ioctl))) {
-		bcmerror = -EINVAL;
-		goto done;
-	}
-
-	/* Copy out any buffer passed */
-	if (ioc.buf) {
-		buflen = min_t(int, ioc.len, BRCMF_IOCTL_MAXLEN);
-		/* optimization for direct ioctl calls from kernel */
-		/*
-		   if (segment_eq(get_fs(), KERNEL_DS)) {
-		   buf = ioc.buf;
-		   } else {
-		 */
-		{
-			buf = kmalloc(buflen, GFP_ATOMIC);
-			if (!buf) {
-				bcmerror = -ENOMEM;
-				goto done;
-			}
-			if (copy_from_user(buf, ioc.buf, buflen)) {
-				bcmerror = -EINVAL;
-				goto done;
-			}
-		}
-	}
-
-	/* To differentiate read 4 more byes */
-	if ((copy_from_user(&driver, (char __user *)ifr->ifr_data +
-			    sizeof(struct brcmf_ioctl), sizeof(uint)) != 0)) {
-		bcmerror = -EINVAL;
-		goto done;
-	}
-
-	if (!capable(CAP_NET_ADMIN)) {
-		bcmerror = -EPERM;
-		goto done;
-	}
+	if (ioc->buf != NULL)
+		buflen = min_t(uint, ioc->len, BRCMF_IOCTL_MAXLEN);
 
 	/* send to dongle (must be up, and wl) */
 	if ((drvr_priv->pub.busstate != BRCMF_BUS_DATA)) {
@@ -1036,25 +994,18 @@ int brcmf_netdev_ioctl_priv(struct net_device *net, struct ifreq *ifr)
 	 * Intercept BRCMF_C_SET_KEY IOCTL - serialize M4 send and
 	 * set key IOCTL to prevent M4 encryption.
 	 */
-	is_set_key_cmd = ((ioc.cmd == BRCMF_C_SET_KEY) ||
-			  ((ioc.cmd == BRCMF_C_SET_VAR) &&
-			   !(strncmp("wsec_key", ioc.buf, 9))) ||
-			  ((ioc.cmd == BRCMF_C_SET_VAR) &&
-			   !(strncmp("bsscfg:wsec_key", ioc.buf, 15))));
+	is_set_key_cmd = ((ioc->cmd == BRCMF_C_SET_KEY) ||
+			  ((ioc->cmd == BRCMF_C_SET_VAR) &&
+			   !(strncmp("wsec_key", ioc->buf, 9))) ||
+			  ((ioc->cmd == BRCMF_C_SET_VAR) &&
+			   !(strncmp("bsscfg:wsec_key", ioc->buf, 15))));
 	if (is_set_key_cmd)
 		brcmf_netdev_wait_pend8021x(net);
 
 	bcmerror = brcmf_proto_ioctl(&drvr_priv->pub, ifidx,
-				     (struct brcmf_ioctl *)&ioc, buf, buflen);
+				     ioc, ioc->buf, buflen);
 
 done:
-	if (!bcmerror && buf && ioc.buf) {
-		if (copy_to_user(ioc.buf, buf, buflen))
-			bcmerror = -EFAULT;
-	}
-
-	kfree(buf);
-
 	if (bcmerror > 0)
 		bcmerror = 0;
 

@@ -715,7 +715,8 @@ extern struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus,
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *dev);
 
-extern int brcmf_netdev_ioctl_priv(struct net_device *net, struct ifreq *ifr);
+extern int brcmf_netdev_ioctl_priv(struct net_device *net,
+				   struct brcmf_ioctl *ioc);
 
 /* Indication from bus module regarding removal/absence of dongle */
 extern void brcmf_detach(struct brcmf_pub *drvr);
@@ -770,17 +771,6 @@ extern int brcmf_bus_start(struct brcmf_pub *drvr);
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 					     int enable, int master_mode);
-
-/* Linux network driver ioctl encoding */
-struct brcmf_c_ioctl {
-	uint cmd;		/* common ioctl definition */
-	void __user *buf;	/* pointer to user buffer */
-	uint len;		/* length of user buffer */
-	bool set;		/* get or set request (optional) */
-	uint used;		/* bytes read or written (optional) */
-	uint needed;		/* bytes needed (optional) */
-	uint driver;		/* to identify target driver */
-};
 
 /* per-driver magic numbers */
 #define BRCMF_IOCTL_MAGIC		0x00444944
