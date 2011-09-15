@@ -187,9 +187,9 @@ static int iwlagn_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
 							EEPROM_CALIB_ALL);
 	memcpy(&cmd.radio_sensor_offset_high, offset_calib_high,
-		sizeof(offset_calib_high));
+		sizeof(*offset_calib_high));
 	memcpy(&cmd.radio_sensor_offset_low, offset_calib_low,
-		sizeof(offset_calib_low));
+		sizeof(*offset_calib_low));
 	if (!(cmd.radio_sensor_offset_low)) {
 		IWL_DEBUG_CALIB(priv, "no info in EEPROM, use default\n");
 		cmd.radio_sensor_offset_low = DEFAULT_RADIO_SENSOR_OFFSET;
