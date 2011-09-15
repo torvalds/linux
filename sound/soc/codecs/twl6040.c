@@ -118,8 +118,8 @@ static const u8 twl6040_reg[TWL6040_CACHEREGNUM] = {
 	0x4A, /* TWL6040_LPPLLDIV	0x09	*/
 	0x00, /* TWL6040_AMICBCTL	0x0A	*/
 	0x00, /* TWL6040_DMICBCTL	0x0B	*/
-	0x18, /* TWL6040_MICLCTL	0x0C	- No input selected on Left Mic */
-	0x18, /* TWL6040_MICRCTL	0x0D	- No input selected on Right Mic */
+	0x00, /* TWL6040_MICLCTL	0x0C	*/
+	0x00, /* TWL6040_MICRCTL	0x0D	*/
 	0x00, /* TWL6040_MICGAIN	0x0E	*/
 	0x1B, /* TWL6040_LINEGAIN	0x0F	*/
 	0x00, /* TWL6040_HSLCTL		0x10	*/
@@ -265,6 +265,10 @@ static void twl6040_init_chip(struct snd_soc_codec *codec)
 	val = twl6040_get_revid(twl6040);
 	twl6040_write_reg_cache(codec, TWL6040_REG_ASICREV, val);
 
+	/* Change chip defaults */
+	/* No imput selected for microphone amplifiers */
+	twl6040_write_reg_cache(codec, TWL6040_REG_MICLCTL, 0x18);
+	twl6040_write_reg_cache(codec, TWL6040_REG_MICRCTL, 0x18);
 }
 
 static void twl6040_restore_regs(struct snd_soc_codec *codec)
