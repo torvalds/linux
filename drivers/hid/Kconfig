@@ -245,6 +245,15 @@ config HID_LOGITECH
 	---help---
 	Support for Logitech devices that are not fully compliant with HID standard.
 
+config HID_LOGITECH_DJ
+	tristate "Logitech Unifying receivers full support"
+	depends on HID_LOGITECH
+	default m
+	---help---
+	Say Y if you want support for Logitech Unifying receivers and devices.
+	Unifying receivers are capable of pairing up to 6 Logitech compliant
+	devices to the same receiver.
+
 config LOGITECH_FF
 	bool "Logitech force feedback support"
 	depends on HID_LOGITECH
