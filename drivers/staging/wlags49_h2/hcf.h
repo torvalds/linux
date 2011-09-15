@@ -335,9 +335,7 @@ typedef struct  {
    CFG_FW_PRINTF_BUFFER_LOCATION_STRCT IFB_FwPfBuff;
 #endif // HCF_ASSERT_PRINTF
 #endif // HCF_ASSERT
-#if ! defined HCF_INT_OFF
   hcf_16 volatile IFB_IntOffCnt;		// 0xFFFF based HCF_ACT_INT_OFF nesting counter, DeepSleep flag
-#endif // HCF_INT_OFF
 #if (HCF_TYPE) & HCF_TYPE_CCX
   hcf_16         IFB_CKIPStat;			// CKIP Status flag
 #endif // HCF_TYPE_CCX

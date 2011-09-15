@@ -447,16 +447,6 @@ typedef unsigned long			hcf_32;
 #define  IN_PORT_STRING_8_16(port, addr, len)	IN_PORT_STRING_16(port, addr, len)
 #define  OUT_PORT_STRING_8_16(port, addr, len)	OUT_PORT_STRING_16(port, addr, len)
 
-
-#ifndef OUTPUTDEBUGMSG
-#define OUTPUTDEBUGMSG(dprintf_exp)
-#endif
-
-
-#ifndef ASSERTDEBUGMSG
-#define ASSERTDEBUGMSG(cond, dprintf_exp)
-#endif
-
 #ifndef CFG_SCAN_CHANNELS_2GHZ
 #define CFG_SCAN_CHANNELS_2GHZ 0xFCC2
 #endif /* CFG_SCAN_CHANNELS_2GHZ */
@@ -486,14 +476,6 @@ typedef unsigned long			hcf_32;
 #if ! defined	HCF_ENCAP
 #define			HCF_ENCAP			HCF_ENC
 #endif //		HCF_ENCAP
-
-#if ! defined	HCF_ENTRY
-#define			HCF_ENTRY( ifbp )
-#endif //		HCF_ENTRY
-
-#if ! defined	HCF_EXIT
-#define			HCF_EXIT( ifbp )
-#endif //		HCF_EXIT
 
 #if ! defined	HCF_EXT
 #define			HCF_EXT				0
@@ -711,21 +693,9 @@ err: primary variants 1 and 2 correspond with H-I only;
 #define			TEXT(x)	x
 #endif //		TEXT
 
-#if !defined	_TCHAR_DEFINED
-#define 		TCHAR	char
-#endif //		_TCHAR_DEFINED
-
 /************************************************************************************************************/
 /*********************** C O N F L I C T   D E T E C T I O N  &  R E S O L U T I O N ************************/
 /************************************************************************************************************/
-#if defined HCF_LITTLE_ENDIAN
-err: HCF_LITTLE_ENDIAN is obsolete;
-#endif // 	HCF_LITTLE_ENDIAN
-
-#if defined HCF_INT_OFF
-err: HCF_INT_OFF is obsolete;
-#endif //HCF_INT_OFF
-
 #if HCF_ALIGN != 1 && HCF_ALIGN != 2 && HCF_ALIGN != 4 && HCF_ALIGN != 8
 err: invalid value for HCF_ALIGN;
 #endif // HCF_ALIGN

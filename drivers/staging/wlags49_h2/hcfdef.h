@@ -686,7 +686,6 @@ err: someone redefined these macros while the implemenation assumes they are equ
 
 #define HCFLOGENTRY( where, what ) do {					\
 		if ( (ifbp->IFB_AssertWhere = where) <= 15 ) {		\
-			HCF_ENTRY( ifbp );				\
 			HCFASSERT( (ifbp->IFB_AssertTrace & 1<<((where)&0xF)) == 0, ifbp->IFB_AssertTrace ); \
 			ifbp->IFB_AssertTrace |= 1<<((where)&0xF);	\
 		}							\
@@ -696,7 +695,6 @@ err: someone redefined these macros while the implemenation assumes they are equ
 
 #define HCFLOGEXIT( where ) do {					\
 		if ( (ifbp->IFB_AssertWhere = where) <= 15 ) {		\
-			HCF_EXIT( ifbp );				\
 			ifbp->IFB_AssertTrace &= ~(1<<((where)&0xF));	\
 		}							\
 		HCFTRACE(ifbp, (where)|HCF_TRACE_EXIT );		\
@@ -705,8 +703,8 @@ err: someone redefined these macros while the implemenation assumes they are equ
 #else // HCF_ASSERT
 #define HCFASSERT( x, q ) do { } while(0)
 #define MMDASSERT( x, q )
-#define HCFLOGENTRY( where, what )      do {HCF_ENTRY( ifbp );} while (0)
-#define HCFLOGEXIT( where )             do {HCF_EXIT( ifbp );} while(0)
+#define HCFLOGENTRY( where, what ) do { } while(0)
+#define HCFLOGEXIT( where )        do { } while(0)
 #endif // HCF_ASSERT
 
 #if HCF_INT_ON

@@ -437,7 +437,7 @@ static struct /*CFG_HCF_OPT_STRCT*/ {
 	hcf_16  v17;                        // HCF_NIC_TAL_CNT
 	hcf_16  v18;                        // HCF_HCF_TAL_CNT
 	hcf_16  v19;                        // offset tallies
-	TCHAR   val[sizeof(HCF_VERSION)];
+	char    val[sizeof(HCF_VERSION)];
 } BASED cfg_hcf_opt = {
 	sizeof(cfg_hcf_opt)/sizeof(hcf_16) -1,
 	CFG_HCF_OPT,                // (0x082C)
@@ -472,10 +472,6 @@ static struct /*CFG_HCF_OPT_STRCT*/ {
 	HCF_VERSION
 }; // cfg_hcf_opt
 #endif // MSF_COMPONENT_ID
-
-#if defined HCF_TALLIES_EXTRA
-	replaced by HCF_EXT_TALLIES_FW ;
-#endif // HCF_TALLIES_EXTRA
 
 #if defined MSF_COMPONENT_ID || (HCF_EXT) & HCF_EXT_MB
 #if (HCF_EXT) & HCF_EXT_MB
