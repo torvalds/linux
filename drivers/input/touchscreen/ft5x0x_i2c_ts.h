@@ -13,8 +13,8 @@
 #define CFG_NUMOFKEYS                    0x4    //number of touch keys
 
 #ifdef CONFIG_FTS_CUSTOME_ENV  
-#define SCREEN_MAX_X           1024
-#define SCREEN_MAX_Y           600
+#define SCREEN_MAX_X           1044//1024
+#define SCREEN_MAX_Y           620//600
 #else
 #define SCREEN_MAX_X           800
 #define SCREEN_MAX_Y           480
