@@ -508,8 +508,8 @@ out_close_cat_tree:
 out_close_ext_tree:
 	hfs_btree_close(sbi->ext_tree);
 out_free_vhdr:
-	kfree(sbi->s_vhdr);
-	kfree(sbi->s_backup_vhdr);
+	kfree(sbi->s_vhdr_buf);
+	kfree(sbi->s_backup_vhdr_buf);
 out_unload_nls:
 	unload_nls(sbi->nls);
 	unload_nls(nls);
