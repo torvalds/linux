@@ -146,19 +146,29 @@ char *pp_iface_stat(struct iface_stat *is)
 	return kasprintf(GFP_ATOMIC, "iface_stat@%p{"
 			 "list=list_head{...}, "
 			 "ifname=%s, "
-			 "rx_bytes=%llu, "
-			 "rx_packets=%llu, "
-			 "tx_bytes=%llu, "
-			 "tx_packets=%llu, "
+			 "total={rx={bytes=%llu, "
+			 "packets=%llu}, "
+			 "tx={bytes=%llu, "
+			 "packets=%llu}}, "
+			 "last_known_valid=%d, "
+			 "last_known={rx={bytes=%llu, "
+			 "packets=%llu}, "
+			 "tx={bytes=%llu, "
+			 "packets=%llu}}, "
 			 "active=%d, "
 			 "proc_ptr=%p, "
 			 "tag_stat_tree=rb_root{...}}",
 			 is,
 			 is->ifname,
-			 is->rx_bytes,
-			 is->rx_packets,
-			 is->tx_bytes,
-			 is->tx_packets,
+			 is->totals[IFS_RX].bytes,
+			 is->totals[IFS_RX].packets,
+			 is->totals[IFS_TX].bytes,
+			 is->totals[IFS_TX].packets,
+			 is->last_known_valid,
+			 is->last_known[IFS_RX].bytes,
+			 is->last_known[IFS_RX].packets,
+			 is->last_known[IFS_TX].bytes,
+			 is->last_known[IFS_TX].packets,
 			 is->active,
 			 is->proc_ptr);
 }
@@ -394,4 +404,37 @@ void prdebug_iface_stat_list(int indent_level,
 	indent_level--;
 	str = "}";
 	CT_DEBUG("%*d: %s\n", indent_level*2, indent_level, str);
+}
+
+/*------------------------------------------*/
+static const char * const netdev_event_strings[] = {
+	"netdev_unknown",
+	"NETDEV_UP",
+	"NETDEV_DOWN",
+	"NETDEV_REBOOT",
+	"NETDEV_CHANGE",
+	"NETDEV_REGISTER",
+	"NETDEV_UNREGISTER",
+	"NETDEV_CHANGEMTU",
+	"NETDEV_CHANGEADDR",
+	"NETDEV_GOING_DOWN",
+	"NETDEV_CHANGENAME",
+	"NETDEV_FEAT_CHANGE",
+	"NETDEV_BONDING_FAILOVER",
+	"NETDEV_PRE_UP",
+	"NETDEV_PRE_TYPE_CHANGE",
+	"NETDEV_POST_TYPE_CHANGE",
+	"NETDEV_POST_INIT",
+	"NETDEV_UNREGISTER_BATCH",
+	"NETDEV_RELEASE",
+	"NETDEV_NOTIFY_PEERS",
+	"NETDEV_JOIN",
+};
+
+const char *netdev_evt_str(int netdev_event)
+{
+	if (netdev_event < 0
+	    || netdev_event >= ARRAY_SIZE(netdev_event_strings))
+		return "bad event num";
+	return netdev_event_strings[netdev_event];
 }

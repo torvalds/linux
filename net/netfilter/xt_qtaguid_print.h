@@ -36,4 +36,7 @@ void prdebug_tag_stat_tree(int indent_level,
 			   struct rb_root *tag_stat_tree);
 void prdebug_iface_stat_list(int indent_level,
 			     struct list_head *iface_stat_list);
+
+/*------------------------------------------*/
+const char *netdev_evt_str(int netdev_event);
 #endif  /* ifndef __XT_QTAGUID_PRINT_H__ */
