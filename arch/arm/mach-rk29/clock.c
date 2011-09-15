@@ -1,6 +1,6 @@
 /* arch/arm/mach-rk29/clock.c
  *
- * Copyright (C) 2010 ROCKCHIP, Inc.
+ * Copyright (C) 2010, 2011 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -408,9 +408,9 @@ static unsigned long lpj_gpll;
 static const struct arm_pll_set arm_pll[] = {
 	// rate = 24 * NF / (NR * NO)
 	//      rate NR  NF NO adiv hdiv pdiv
-	ARM_PLL(1200, 1, 50, 1, 21, 21, 81),
-	ARM_PLL(1176, 2, 98, 1, 21, 21, 81),
-	ARM_PLL(1104, 1, 46, 1, 21, 21, 81),
+	ARM_PLL(1200, 1, 50, 1, 31, 21, 81),
+	ARM_PLL(1176, 2, 98, 1, 31, 21, 81),
+	ARM_PLL(1104, 1, 46, 1, 31, 21, 81),
 	ARM_PLL(1008, 1, 42, 1, 21, 21, 81),
 	ARM_PLL( 912, 1, 38, 1, 21, 21, 81),
 	ARM_PLL( 888, 2, 74, 1, 21, 21, 81),
@@ -2714,7 +2714,7 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
-	printk(KERN_CONT " (20110826)\n");
+	printk(KERN_CONT " (20110909)\n");
 
 	preset_lpj = loops_per_jiffy;
 }
@@ -2903,7 +2903,7 @@ late_initcall(clk_proc_init);
 /**
  * struct clk_notifier - associate a clk with a notifier
  * @clk: struct clk * to associate the notifier with
- * @notifier_head: a atomic_notifier_head for this clk
+ * @notifier_head: a raw_notifier_head for this clk
  * @node: linked list pointers
  *
  * A list of struct clk_notifier is maintained by the notifier code.
@@ -2913,7 +2913,7 @@ late_initcall(clk_proc_init);
  */
 struct clk_notifier {
 	struct clk			*clk;
-	struct atomic_notifier_head	notifier_head;
+	struct raw_notifier_head	notifier_head;
 	struct list_head		node;
 };
 
@@ -2954,13 +2954,15 @@ static void clk_notify(struct clk *clk, unsigned long msg,
 	cnd.old_rate = old_rate;
 	cnd.new_rate = new_rate;
 
+	UNLOCK();
 	list_for_each_entry(cn, &clk_notifier_list, node) {
 		if (cn->clk == clk) {
 			pr_debug("%s msg %lu rate %lu -> %lu\n", clk->name, msg, old_rate, new_rate);
-			atomic_notifier_call_chain(&cn->notifier_head, msg, &cnd);
+			raw_notifier_call_chain(&cn->notifier_head, msg, &cnd);
 			break;
 		}
 	}
+	LOCK();
 }
 
 /**
@@ -3001,13 +3003,13 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 		};
 
 		cn_new->clk = clk;
-		ATOMIC_INIT_NOTIFIER_HEAD(&cn_new->notifier_head);
+		RAW_INIT_NOTIFIER_HEAD(&cn_new->notifier_head);
 
 		list_add(&cn_new->node, &clk_notifier_list);
 		cn = cn_new;
 	}
 
-	r = atomic_notifier_chain_register(&cn->notifier_head, nb);
+	r = raw_notifier_chain_register(&cn->notifier_head, nb);
 	if (!IS_ERR_VALUE(r)) {
 		clkp = clk;
 		do {
@@ -3054,7 +3056,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 		goto cnu_out;
 	};
 
-	r = atomic_notifier_chain_unregister(&cn->notifier_head, nb);
+	r = raw_notifier_chain_unregister(&cn->notifier_head, nb);
 	if (!IS_ERR_VALUE(r)) {
 		clkp = clk;
 		do {

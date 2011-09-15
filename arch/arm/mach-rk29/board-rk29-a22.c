@@ -2487,7 +2487,25 @@ struct platform_device rk29_device_vibrator ={
 
 static void __init rk29_board_iomux_init(void)
 {
-		int err;
+	int err;
+
+#ifdef CONFIG_UART1_RK29
+	//disable uart1 pull down
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_GPIO2A5); 			
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_GPIO2A4); 		
+
+	gpio_request(RK29_PIN2_PA5, NULL);
+	gpio_request(RK29_PIN2_PA4, NULL);
+
+	gpio_pull_updown(RK29_PIN2_PA5, PullDisable);
+	gpio_pull_updown(RK29_PIN2_PA4, PullDisable);
+
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_UART1_SOUT); 			
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_UART1_SIN); 
+
+	gpio_free(RK29_PIN2_PA5);
+	gpio_free(RK29_PIN2_PA4);
+#endif
 
 	#if CONFIG_ANDROID_TIMED_GPIO
 	rk29_mux_api_set(GPIO1B5_PWM0_NAME, GPIO1L_GPIO1B5);//for timed gpio

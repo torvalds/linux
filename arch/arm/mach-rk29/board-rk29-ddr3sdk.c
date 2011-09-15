@@ -50,6 +50,8 @@
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
 
+#include <linux/regulator/act8891.h>
+
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c-gpio.h>
@@ -754,7 +756,7 @@ static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
 	.start		= PMEM_UI_BASE,
 	.size		= PMEM_UI_SIZE,
-	.no_allocator	= 0,
+	.no_allocator	= 1,
 	.cached		= 1,
 };
 
@@ -995,6 +997,281 @@ struct bq27510_platform_data bq27510_info = {
 };
 #endif
 
+/*************************************PMU ACT8891****************************************/
+
+#if defined (CONFIG_REGULATOR_ACT8891) 
+		/*dcdc mode*/
+/*act8891 in REGULATOR_MODE_STANDBY mode is said DCDC is in PMF mode is can save power,when in REGULATOR_MODE_NORMAL 
+mode is said DCDC is in PWM mode , General default is in REGULATOR_MODE_STANDBY mode*/
+		/*ldo mode */
+/*act8891 in REGULATOR_MODE_STANDBY mode is said LDO is in low power mode is can save power,when in REGULATOR_MODE_NORMAL 
+mode is said DCDC is in nomal mode , General default is in REGULATOR_MODE_STANDBY mode*/
+/*set dcdc and ldo voltage by regulator_set_voltage()*/
+static struct act8891 *act8891;
+int act8891_set_init(struct act8891 *act8891)
+{
+	int tmp = 0;
+	struct regulator *act_ldo1,*act_ldo2,*act_ldo3,*act_ldo4;
+	struct regulator *act_dcdc1,*act_dcdc2,*act_dcdc3;
+
+	/*init ldo1*/
+	act_ldo1 = regulator_get(NULL, "act_ldo1");
+	regulator_enable(act_ldo1); 
+	regulator_set_voltage(act_ldo1,1800000,1800000);
+	tmp = regulator_get_voltage(act_ldo1);
+	regulator_set_mode(act_ldo1,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_ldo1,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: ldo1 vcc =%d\n",tmp);
+	regulator_put(act_ldo1);
+	 
+	/*init ldo2*/
+	act_ldo2 = regulator_get(NULL, "act_ldo2");
+	regulator_enable(act_ldo2);
+	regulator_set_voltage(act_ldo2,1200000,1200000);
+	tmp = regulator_get_voltage(act_ldo2);
+	regulator_set_mode(act_ldo2,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_ldo2,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: ldo2 vcc =%d\n",tmp);
+	regulator_put(act_ldo2);
+
+	/*init ldo3*/
+	act_ldo3 = regulator_get(NULL, "act_ldo3");
+	regulator_enable(act_ldo3);
+	regulator_set_voltage(act_ldo3,3300000,3300000);
+	tmp = regulator_get_voltage(act_ldo3);
+	regulator_set_mode(act_ldo3,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_ldo3,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: ldo3 vcc =%d\n",tmp);
+	regulator_put(act_ldo3);
+
+	/*init ldo4*/
+	act_ldo4 = regulator_get(NULL, "act_ldo4");
+	regulator_enable(act_ldo4);
+	regulator_set_voltage(act_ldo4,2500000,2500000);
+	tmp = regulator_get_voltage(act_ldo4);
+	regulator_set_mode(act_ldo4,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_ldo4,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: ldo4 vcc =%d\n",tmp);
+	regulator_put(act_ldo4);
+
+	/*init dcdc1*/
+	act_dcdc1 = regulator_get(NULL, "act_dcdc1");
+	regulator_enable(act_dcdc1);
+	regulator_set_voltage(act_dcdc1,3000000,3000000);
+	tmp = regulator_get_voltage(act_dcdc1);
+	regulator_set_mode(act_dcdc1,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_dcdc1,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: dcdc1 vcc =%d\n",tmp); 
+	regulator_put(act_dcdc1);
+
+	/*init dcdc2*/
+	act_dcdc2 = regulator_get(NULL, "act_dcdc2");
+	regulator_enable(act_dcdc2);
+	regulator_set_voltage(act_dcdc2,1500000,1500000);
+	tmp = regulator_get_voltage(act_dcdc2);
+	regulator_set_mode(act_dcdc2,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_dcdc2,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: dcdc2 vcc =%d\n",tmp);
+	regulator_put(act_dcdc2);
+
+		/*init dcdc3*/
+	act_dcdc3 = regulator_get(NULL, "act_dcdc3");
+	regulator_enable(act_dcdc3);
+	regulator_set_voltage(act_dcdc3,1200000,1200000);
+	tmp = regulator_get_voltage(act_dcdc3);
+	regulator_set_mode(act_dcdc3,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_dcdc3,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: dcdc3 vcc =%d\n",tmp);
+	regulator_put(act_dcdc3);
+
+	return(0);
+}
+
+static struct regulator_consumer_supply act8891_ldo1_consumers[] = {
+	{
+		.supply = "act_ldo1",
+	}
+};
+
+static struct regulator_init_data act8891_ldo1_data = {
+	.constraints = {
+		.name = "ACT_LDO1",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_ldo1_consumers),
+	.consumer_supplies = act8891_ldo1_consumers,
+};
+
+/**/
+static struct regulator_consumer_supply act8891_ldo2_consumers[] = {
+	{
+		.supply = "act_ldo2",
+	}
+};
+
+static struct regulator_init_data act8891_ldo2_data = {
+	.constraints = {
+		.name = "ACT_LDO2",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,	
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_ldo2_consumers),
+	.consumer_supplies = act8891_ldo2_consumers,
+};
+
+/*ldo3 VCC_NAND WIFI/BT/FM_BCM4325*/
+static struct regulator_consumer_supply act8891_ldo3_consumers[] = {
+	{
+		.supply = "act_ldo3",
+	}
+};
+
+static struct regulator_init_data act8891_ldo3_data = {
+	.constraints = {
+		.name = "ACT_LDO3",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_ldo3_consumers),
+	.consumer_supplies = act8891_ldo3_consumers,
+};
+
+/*ldo4 VCCA CODEC_WM8994*/
+static struct regulator_consumer_supply act8891_ldo4_consumers[] = {
+	{
+		.supply = "act_ldo4",
+	}
+};
+
+static struct regulator_init_data act8891_ldo4_data = {
+	.constraints = {
+		.name = "ACT_LDO4",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_ldo4_consumers),
+	.consumer_supplies = act8891_ldo4_consumers,
+};
+/*buck1 vcc Core*/
+static struct regulator_consumer_supply act8891_dcdc1_consumers[] = {
+	{
+		.supply = "act_dcdc1",
+	}
+};
+
+static struct regulator_init_data act8891_dcdc1_data = {
+	.constraints = {
+		.name = "ACT_DCDC1",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		//.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_dcdc1_consumers),
+	.consumer_supplies = act8891_dcdc1_consumers
+};
+
+/*buck2 VDDDR MobileDDR VCC*/
+static struct regulator_consumer_supply act8891_dcdc2_consumers[] = {
+	{
+		.supply = "act_dcdc2",
+	}
+};
+
+static struct regulator_init_data act8891_dcdc2_data = {
+	.constraints = {
+		.name = "ACT_DCDC2",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		//.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_dcdc2_consumers),
+	.consumer_supplies = act8891_dcdc2_consumers
+};
+
+/*buck3 vdd Core*/
+static struct regulator_consumer_supply act8891_dcdc3_consumers[] = {
+	{
+		.supply = "act_dcdc3",
+	}
+};
+
+static struct regulator_init_data act8891_dcdc3_data = {
+	.constraints = {
+		.name = "ACT_DCDC3",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		//.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_dcdc3_consumers),
+	.consumer_supplies = act8891_dcdc3_consumers
+};
+
+struct act8891_regulator_subdev act8891_regulator_subdev_id[] = {
+	{
+		.id=0,
+		.initdata=&act8891_ldo1_data,		
+	 },
+
+	{
+		.id=1,
+		.initdata=&act8891_ldo2_data,		
+	 },
+
+	{
+		.id=2,
+		.initdata=&act8891_ldo3_data,		
+	 },
+
+	{
+		.id=3,
+		.initdata=&act8891_ldo4_data,		
+	 },
+
+	{
+		.id=4,
+		.initdata=&act8891_dcdc1_data,		
+	 },
+
+	{
+		.id=5,
+		.initdata=&act8891_dcdc2_data,		
+	 },
+	{
+		.id=6,
+		.initdata=&act8891_dcdc3_data,		
+	 },
+
+};
+
+struct act8891_platform_data act8891_data={
+	.set_init=act8891_set_init,
+	.num_regulators=7,
+	.regulators=act8891_regulator_subdev_id,
+	
+};
+#endif
 
 /*****************************************************************************************
  * i2c devices
@@ -1323,6 +1600,15 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 		.platform_data  = &bq27541_info,
 	},
 #endif
+#if defined (CONFIG_REGULATOR_ACT8891)
+	{
+		.type    		= "act8891",
+		.addr           = 0x5b, 
+		.flags			= 0,
+		.platform_data=&act8891_data,
+	},
+#endif
+
 };
 #endif
 

@@ -672,7 +672,7 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 }
 
 #if defined(CONFIG_RK29_MEM_SIZE_M) && CONFIG_RK29_MEM_SIZE_M >= 1024
-static unsigned long __initdata vmalloc_reserve = SZ_256M;
+static unsigned long __initdata vmalloc_reserve = SZ_512M;
 #else
 static unsigned long __initdata vmalloc_reserve = SZ_128M;
 #endif

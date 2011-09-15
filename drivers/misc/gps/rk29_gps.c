@@ -34,8 +34,14 @@ static int rk29_gps_uart_to_gpio(int uart_id)
 		gpio_request(RK29_PIN2_PB3, NULL);
 		gpio_request(RK29_PIN2_PB2, NULL);
 
+		gpio_pull_updown(RK29_PIN2_PB3, PullDisable);
+		gpio_pull_updown(RK29_PIN2_PB2, PullDisable);
+
 		gpio_direction_output(RK29_PIN2_PB3, GPIO_LOW);
 		gpio_direction_output(RK29_PIN2_PB2, GPIO_LOW);
+
+		gpio_free(RK29_PIN2_PB3);
+		gpio_free(RK29_PIN2_PB2);
 	}
 	else if(uart_id == 2) {
 		rk29_mux_api_set(GPIO2B1_UART2SOUT_NAME, GPIO2L_GPIO2B1); 			

@@ -155,7 +155,7 @@ int smc0_write(u32 addr, u16 data)
     u16 *p = rank0_vir_base + addr;
 	int readdata;
     *p = data;
-	udelay(5);
+	udelay(2);
 	//readdata = *p;
 	//mdelay(5);
 	//mdelay(10);
