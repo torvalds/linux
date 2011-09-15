@@ -167,7 +167,6 @@ struct iwl_mod_params {
  * @valid_rx_ant: usable antennas for RX
  * @max_stations: the maximal number of stations
  * @ht40_channel: is 40MHz width possible: BIT(IEEE80211_BAND_XXX)
- * @beacon_time_tsf_bits: number of valid tsf bits for beacon time
  * @sku: sku read from EEPROM
  * @rx_page_order: Rx buffer page order
  * @max_inst_size: for ucode use
@@ -190,7 +189,6 @@ struct iwl_hw_params {
 	u8  max_stations;
 	u8  ht40_channel;
 	bool shadow_reg_enable;
-	u16 beacon_time_tsf_bits;
 	u16 sku;
 	u32 rx_page_order;
 	u32 max_inst_size;

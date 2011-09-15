@@ -161,8 +161,6 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 	if (priv->cfg->need_dc_calib)
 		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_DC);
 
-	hw_params(priv).beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
-
 	return 0;
 }
 

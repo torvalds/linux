@@ -1803,13 +1803,12 @@ u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval)
 		return 0;
 
 	quot = (usec / interval) &
-		(iwl_beacon_time_mask_high(priv,
-		hw_params(priv).beacon_time_tsf_bits) >>
-		hw_params(priv).beacon_time_tsf_bits);
+		(iwl_beacon_time_mask_high(priv, IWLAGN_EXT_BEACON_TIME_POS) >>
+		IWLAGN_EXT_BEACON_TIME_POS);
 	rem = (usec % interval) & iwl_beacon_time_mask_low(priv,
-				   hw_params(priv).beacon_time_tsf_bits);
+				   IWLAGN_EXT_BEACON_TIME_POS);
 
-	return (quot << hw_params(priv).beacon_time_tsf_bits) + rem;
+	return (quot << IWLAGN_EXT_BEACON_TIME_POS) + rem;
 }
 
 /* base is usually what we get from ucode with each received frame,
@@ -1819,22 +1818,22 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval)
 {
 	u32 base_low = base & iwl_beacon_time_mask_low(priv,
-				hw_params(priv).beacon_time_tsf_bits);
+				IWLAGN_EXT_BEACON_TIME_POS);
 	u32 addon_low = addon & iwl_beacon_time_mask_low(priv,
-				hw_params(priv).beacon_time_tsf_bits);
+				IWLAGN_EXT_BEACON_TIME_POS);
 	u32 interval = beacon_interval * TIME_UNIT;
 	u32 res = (base & iwl_beacon_time_mask_high(priv,
-				hw_params(priv).beacon_time_tsf_bits)) +
+				IWLAGN_EXT_BEACON_TIME_POS)) +
 				(addon & iwl_beacon_time_mask_high(priv,
-				hw_params(priv).beacon_time_tsf_bits));
+				IWLAGN_EXT_BEACON_TIME_POS));
 
 	if (base_low > addon_low)
 		res += base_low - addon_low;
 	else if (base_low < addon_low) {
 		res += interval + base_low - addon_low;
-		res += (1 << hw_params(priv).beacon_time_tsf_bits);
+		res += (1 << IWLAGN_EXT_BEACON_TIME_POS);
 	} else
-		res += (1 << hw_params(priv).beacon_time_tsf_bits);
+		res += (1 << IWLAGN_EXT_BEACON_TIME_POS);
 
 	return cpu_to_le32(res);
 }
