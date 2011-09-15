@@ -225,4 +225,9 @@ unsigned int twl6040_get_sysclk(struct twl6040 *twl6040);
 int twl6040_irq_init(struct twl6040 *twl6040);
 void twl6040_irq_exit(struct twl6040 *twl6040);
 
+static inline int twl6040_get_revid(struct twl6040 *twl6040)
+{
+	return twl6040->rev;
+}
+
 #endif  /* End of __TWL6040_CODEC_H__ */

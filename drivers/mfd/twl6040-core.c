@@ -491,7 +491,7 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	}
 
 	/* ERRATA: Automatic power-up is not possible in ES1.0 */
-	if (twl6040->rev == TWL6040_REV_ES1_0)
+	if (twl6040_get_revid(twl6040) == TWL6040_REV_ES1_0)
 		twl6040->audpwron = -EINVAL;
 
 	/* codec interrupt */
