@@ -1041,7 +1041,8 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 }
 
 static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_device_cmd *dev_cmd, u8 ctx, u8 sta_id)
+		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
+		u8 sta_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -1413,7 +1414,7 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 #endif /* CONFIG_PM */
 
 static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
-					  u8 ctx)
+					  enum iwl_rxon_context_id ctx)
 {
 	u8 ac, txq_id;
 	struct iwl_trans_pcie *trans_pcie =

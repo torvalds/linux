@@ -178,14 +178,16 @@ struct iwl_trans_ops {
 	void (*stop_device)(struct iwl_trans *trans);
 	void (*tx_start)(struct iwl_trans *trans);
 
-	void (*wake_any_queue)(struct iwl_trans *trans, u8 ctx);
+	void (*wake_any_queue)(struct iwl_trans *trans,
+			       enum iwl_rxon_context_id ctx);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
 	int (*send_cmd_pdu)(struct iwl_trans *trans, u8 id, u32 flags, u16 len,
 		     const void *data);
 	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_device_cmd *dev_cmd, u8 ctx, u8 sta_id);
+		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
+		u8 sta_id);
 	void (*reclaim)(struct iwl_trans *trans, int sta_id, int tid,
 			int txq_id, int ssn, u32 status,
 			struct sk_buff_head *skbs);
@@ -255,7 +257,8 @@ static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 	trans->ops->tx_start(trans);
 }
 
-static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans, u8 ctx)
+static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
+					    enum iwl_rxon_context_id ctx)
 {
 	trans->ops->wake_any_queue(trans, ctx);
 }
@@ -274,7 +277,8 @@ static inline int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
 }
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_device_cmd *dev_cmd, u8 ctx, u8 sta_id)
+		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
+		u8 sta_id)
 {
 	return trans->ops->tx(trans, skb, dev_cmd, ctx, sta_id);
 }
