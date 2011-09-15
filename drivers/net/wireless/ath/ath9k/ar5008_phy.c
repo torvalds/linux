@@ -704,8 +704,7 @@ static void ar5008_hw_override_ini(struct ath_hw *ah,
 		REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
 	}
 
-	if (!AR_SREV_5416_20_OR_LATER(ah) ||
-	    AR_SREV_9280_20_OR_LATER(ah))
+	if (AR_SREV_9280_20_OR_LATER(ah))
 		return;
 	/*
 	 * Disable BB clock gating

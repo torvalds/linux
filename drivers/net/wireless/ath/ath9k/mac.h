@@ -17,10 +17,6 @@
 #ifndef MAC_H
 #define MAC_H
 
-#define RXSTATUS_RATE(ah, ads) (AR_SREV_5416_20_OR_LATER(ah) ?		\
-				MS(ads->ds_rxstatus0, AR_RxRate) :	\
-				(ads->ds_rxstatus3 >> 2) & 0xFF)
-
 #define set11nTries(_series, _index) \
 	(SM((_series)[_index].Tries, AR_XmitDataTries##_index))
 
