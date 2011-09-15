@@ -44,7 +44,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-shared.h"
-#include "iwl-pci.h"
+#include "iwl-cfg.h"
 
 /* Highest firmware API version supported */
 #define IWL1000_UCODE_API_MAX 6
