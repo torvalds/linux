@@ -719,7 +719,7 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, u16 mask)
 {
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
-	int i, ret;
+	int ret;
 	unsigned long timeout = 200;
 
 	snd_soc_write(codec, WM8996_DC_SERVO_2, mask);
@@ -734,15 +734,12 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, u16 mask)
 
 		} else {
 			msleep(1);
-			if (--i) {
-				timeout = 0;
-				break;
-			}
+			timeout--;
 		}
 
 		ret = snd_soc_read(codec, WM8996_DC_SERVO_2);
 		dev_dbg(codec->dev, "DC servo state: %x\n", ret);
-	} while (ret & mask);
+	} while (timeout && ret & mask);
 
 	if (timeout == 0)
 		dev_err(codec->dev, "DC servo timed out for %x\n", mask);
