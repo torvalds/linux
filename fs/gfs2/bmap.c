@@ -831,7 +831,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *bh = NULL;
-	__be64 *top, *bottom;
+	__be64 *top, *bottom, *t2;
 	u64 bn;
 	int error;
 	int mh_size = sizeof(struct gfs2_meta_header);
@@ -859,7 +859,27 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 	if (error)
 		goto out;
 
-	if (height < ip->i_height - 1)
+	if (height < ip->i_height - 1) {
+		struct buffer_head *rabh;
+
+		for (t2 = top; t2 < bottom; t2++, first = 0) {
+			if (!*t2)
+				continue;
+
+			bn = be64_to_cpu(*t2);
+			rabh = gfs2_getbuf(ip->i_gl, bn, CREATE);
+			if (trylock_buffer(rabh)) {
+				if (buffer_uptodate(rabh)) {
+					unlock_buffer(rabh);
+					brelse(rabh);
+					continue;
+				}
+				rabh->b_end_io = end_buffer_read_sync;
+				submit_bh(READA | REQ_META, rabh);
+				continue;
+			}
+			brelse(rabh);
+		}
 		for (; top < bottom; top++, first = 0) {
 			if (!*top)
 				continue;
@@ -871,7 +891,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 			if (error)
 				break;
 		}
-
+	}
 out:
 	brelse(bh);
 	return error;
