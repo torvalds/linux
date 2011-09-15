@@ -1887,6 +1887,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 		skb_push(skb, padsize);
 		memmove(skb->data, skb->data + padsize, padpos);
+		hdr = (struct ieee80211_hdr *) skb->data;
 	}
 
 	if ((vif && vif->type != NL80211_IFTYPE_AP &&
