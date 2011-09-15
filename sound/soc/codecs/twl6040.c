@@ -1399,7 +1399,7 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
-		.channels_max = 2,
+		.channels_max = 5,
 		.rates = TWL6040_RATES,
 		.formats = TWL6040_FORMATS,
 	},
