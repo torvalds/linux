@@ -420,11 +420,6 @@ enum iwl_rxon_context_id {
 	NUM_IWL_RXON_CTX
 };
 
-#ifdef CONFIG_PM
-int iwl_suspend(struct iwl_priv *priv);
-int iwl_resume(struct iwl_priv *priv);
-#endif /* !CONFIG_PM */
-
 int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
