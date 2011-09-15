@@ -371,23 +371,23 @@ ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 		 enum nl80211_channel_type type)
 {
 	struct brcms_info *wl = hw->priv;
-	int err = 0;
+	int err;
 
 	switch (type) {
 	case NL80211_CHAN_HT20:
 	case NL80211_CHAN_NO_HT:
-		err = brcms_c_set(wl->wlc, BRCM_SET_CHANNEL, chan->hw_value);
+		err = brcms_c_set_channel(wl->wlc, chan->hw_value);
 		break;
 	case NL80211_CHAN_HT40MINUS:
 	case NL80211_CHAN_HT40PLUS:
 		wiphy_err(hw->wiphy,
 			  "%s: Need to implement 40 Mhz Channels!\n", __func__);
-		err = 1;
+		err = -ENOTSUPP;
 		break;
+	default:
+		err = -EINVAL;
 	}
 
-	if (err)
-		return -EIO;
 	return err;
 }
 
@@ -436,21 +436,10 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
 		err = ieee_set_channel(hw, conf->channel, conf->channel_type);
 
-	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
-		if (brcms_c_set
-		    (wl->wlc, BRCM_SET_SRL,
-		     conf->short_frame_max_tx_count) < 0) {
-			wiphy_err(wiphy, "%s: Error setting srl\n", __func__);
-			err = -EIO;
-			goto config_out;
-		}
-		if (brcms_c_set(wl->wlc, BRCM_SET_LRL,
-				conf->long_frame_max_tx_count) < 0) {
-			wiphy_err(wiphy, "%s: Error setting lrl\n", __func__);
-			err = -EIO;
-			goto config_out;
-		}
-	}
+	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
+		err = brcms_c_set_rate_limit(wl->wlc,
+					     conf->short_frame_max_tx_count,
+					     conf->long_frame_max_tx_count);
 
  config_out:
 	UNLOCK(wl);
@@ -464,7 +453,6 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct brcms_info *wl = hw->priv;
 	struct wiphy *wiphy = hw->wiphy;
-	int val;
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		/* association status changed (associated/disassociated)
@@ -477,13 +465,15 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_ERP_SLOT) {
+		s8 val;
+
 		/* slot timing changed */
 		if (info->use_short_slot)
 			val = 1;
 		else
 			val = 0;
 		LOCK(wl);
-		brcms_c_set(wl->wlc, BRCMS_SET_SHORTSLOT_OVERRIDE, val);
+		brcms_c_set_shortslot_override(wl->wlc, val);
 		UNLOCK(wl);
 	}
 
@@ -509,14 +499,9 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 		/* retrieve the current rates */
 		LOCK(wl);
-		error = brcms_c_ioctl(wl->wlc, BRCM_GET_CURR_RATESET,
-				  &rs, sizeof(rs));
+		brcms_c_get_current_rateset(wl->wlc, &rs);
 		UNLOCK(wl);
-		if (error) {
-			wiphy_err(wiphy, "%s: retrieve rateset failed: %d\n",
-				  __func__, error);
-			return;
-		}
+
 		br_mask = info->basic_rates;
 		bi = hw->wiphy->bands[brcms_c_get_curband(wl->wlc)];
 		for (i = 0; i < bi->n_bitrates; i++) {
@@ -530,20 +515,22 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 		/* update the rate set */
 		LOCK(wl);
-		brcms_c_ioctl(wl->wlc, BRCM_SET_RATESET, &rs, sizeof(rs));
+		error = brcms_c_set_rateset(wl->wlc, &rs);
 		UNLOCK(wl);
+		if (error)
+			wiphy_err(wiphy, "changing basic rates failed: %d\n",
+				  error);
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/* Beacon interval changed */
 		LOCK(wl);
-		brcms_c_set(wl->wlc, BRCM_SET_BCNPRD, info->beacon_int);
+		brcms_c_set_beacon_period(wl->wlc, info->beacon_int);
 		UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BSSID) {
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
 		LOCK(wl);
-		brcms_c_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET,
-				  info->bssid);
+		brcms_c_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET, info->bssid);
 		UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BEACON)
@@ -1086,18 +1073,16 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 {
 	struct brcms_info *wl = hw->priv;
 	int has_5g;
-	char phy_list[4];
+	u16 phy_type;
 
 	has_5g = 0;
 
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
 	hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
-	if (brcms_c_get(wl->wlc, BRCM_GET_PHYLIST, (int *)&phy_list) < 0)
-		wiphy_err(hw->wiphy, "Phy list failed\n");
-
-	if (phy_list[0] == 'n' || phy_list[0] == 'c') {
-		if (phy_list[0] == 'c') {
+	phy_type = brcms_c_get_phy_type(wl->wlc, 0);
+	if (phy_type == PHY_TYPE_N || phy_type == PHY_TYPE_LCN) {
+		if (phy_type == PHY_TYPE_LCN) {
 			/* Single stream */
 			brcms_band_2GHz_nphy.ht_cap.mcs.rx_mask[1] = 0;
 			brcms_band_2GHz_nphy.ht_cap.mcs.rx_highest = 72;
@@ -1110,7 +1095,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	/* Assume all bands use the same phy.  True for 11n devices. */
 	if (wl->pub->_nbands > 1) {
 		has_5g++;
-		if (phy_list[0] == 'n' || phy_list[0] == 'c')
+		if (phy_type == PHY_TYPE_N || phy_type == PHY_TYPE_LCN)
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			    &brcms_band_5GHz_nphy;
 		else

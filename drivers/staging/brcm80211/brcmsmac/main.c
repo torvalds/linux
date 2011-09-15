@@ -5252,7 +5252,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		/* init per-band default rateset, depend on band->gmode */
 		brcms_default_rateset(wlc, &wlc->band->defrateset);
 
-		/* fill in hw_rateset (used early by BRCM_SET_RATESET) */
+		/* fill in hw_rateset */
 		brcms_c_rateset_filter(&wlc->band->defrateset,
 				   &wlc->band->hw_rateset, false,
 				   BRCMS_RATES_CCK_OFDM, BRCMS_RATE_MASK,
@@ -6116,7 +6116,8 @@ int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
 }
 
 static int
-brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcms_c_rateset *rs_arg)
+brcms_c_set_internal_rateset(struct brcms_c_info *wlc,
+			     struct brcms_c_rateset *rs_arg)
 {
 	struct brcms_c_rateset rs, new;
 	uint bandunit;
@@ -6158,18 +6159,6 @@ brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcms_c_rateset *rs_arg)
 	return 0;
 }
 
-/* simplified integer set interface for common ioctl handler */
-int brcms_c_set(struct brcms_c_info *wlc, int cmd, int arg)
-{
-	return brcms_c_ioctl(wlc, cmd, (void *)&arg, sizeof(arg));
-}
-
-/* simplified integer get interface for common ioctl handler */
-int brcms_c_get(struct brcms_c_info *wlc, int cmd, int *arg)
-{
-	return brcms_c_ioctl(wlc, cmd, arg, sizeof(int));
-}
-
 static void brcms_c_ofdm_rateset_war(struct brcms_c_info *wlc)
 {
 	u8 r;
@@ -6185,259 +6174,153 @@ static void brcms_c_ofdm_rateset_war(struct brcms_c_info *wlc)
 	return;
 }
 
-/* common ioctl handler. return: 0=ok, -1=error, positive=particular error */
-static int
-_brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len)
+int brcms_c_set_channel(struct brcms_c_info *wlc, u16 channel)
 {
-	int val, *pval;
-	bool bool_val;
-	int bcmerror;
-	struct scb *nextscb;
-	bool ta_ok;
-	uint band;
-	struct brcms_bss_cfg *bsscfg;
-	struct brcms_bss_info *current_bss;
+	u16 chspec = ch20mhz_chspec(channel);
 
-	/* update bsscfg pointer */
-	bsscfg = wlc->cfg;
-	current_bss = bsscfg->current_bss;
+	if (channel < 0 || channel > MAXCHANNEL)
+		return -EINVAL;
 
-	/* initialize the following to get rid of compiler warning */
-	nextscb = NULL;
-	ta_ok = false;
-	band = 0;
+	if (!brcms_c_valid_chanspec_db(wlc->cmi, chspec))
+		return -EINVAL;
 
-	/* If the device is turned off, then it's not "removed" */
-	if (!wlc->pub->hw_off && DEVICEREMOVED(wlc)) {
-		wiphy_err(wlc->wiphy, "wl%d: %s: dead chip\n", wlc->pub->unit,
-			  __func__);
-		brcms_down(wlc->wl);
-		return -EBADE;
-	}
 
-	/* default argument is generic integer */
-	pval = arg ? (int *)arg : NULL;
-
-	/*
-	 * This will prevent misaligned access. The (void *) cast prevents a
-	 * memcpy alignment issue on e.g. Sparc64 platforms.
-	 */
-	if (pval && (u32) len >= sizeof(val))
-		memcpy((void *)&val, (void *)pval, sizeof(val));
-	else
-		val = 0;
-
-	/* bool conversion to avoid duplication below */
-	bool_val = val != 0;
-	bcmerror = 0;
-
-	if ((arg == NULL) || (len <= 0)) {
-		wiphy_err(wlc->wiphy, "wl%d: %s: Command %d needs arguments\n",
-			  wlc->pub->unit, __func__, cmd);
-		bcmerror = -EINVAL;
-		goto done;
-	}
-
-	switch (cmd) {
-
-	case BRCM_SET_CHANNEL:{
-			u16 chspec = ch20mhz_chspec(val);
-
-			if (val < 0 || val > MAXCHANNEL) {
-				bcmerror = -EINVAL;
-				break;
-			}
-
-			if (!brcms_c_valid_chanspec_db(wlc->cmi, chspec)) {
-				bcmerror = -EINVAL;
-				break;
-			}
-
-			if (!wlc->pub->up && IS_MBAND_UNLOCKED(wlc)) {
-				if (wlc->band->bandunit !=
-				    chspec_bandunit(chspec))
-					wlc->bandinit_pending = true;
-				else
-					wlc->bandinit_pending = false;
-			}
-
-			wlc->default_bss->chanspec = chspec;
-			/* brcms_c_BSSinit() will sanitize the rateset before
-			 * using it.. */
-			if (wlc->pub->up &&
-			    (wlc_phy_chanspec_get(wlc->band->pi) != chspec)) {
-				brcms_c_set_home_chanspec(wlc, chspec);
-				brcms_c_suspend_mac_and_wait(wlc);
-				brcms_c_set_chanspec(wlc, chspec);
-				brcms_c_enable_mac(wlc);
-			}
-			break;
-		}
-
-	case BRCM_SET_SRL:
-		if (val >= 1 && val <= RETRY_SHORT_MAX) {
-			int ac;
-			wlc->SRL = (u16) val;
-
-			brcms_b_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
-
-			for (ac = 0; ac < AC_COUNT; ac++)
-				BRCMS_WME_RETRY_SHORT_SET(wlc, ac, wlc->SRL);
-
-			brcms_c_wme_retries_write(wlc);
-		} else
-			bcmerror = -EINVAL;
-		break;
-
-	case BRCM_SET_LRL:
-		if (val >= 1 && val <= 255) {
-			int ac;
-			wlc->LRL = (u16) val;
-
-			brcms_b_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
-
-			for (ac = 0; ac < AC_COUNT; ac++)
-				BRCMS_WME_RETRY_LONG_SET(wlc, ac, wlc->LRL);
-
-			brcms_c_wme_retries_write(wlc);
-		} else
-			bcmerror = -EINVAL;
-		break;
-
-	case BRCM_GET_CURR_RATESET:{
-			struct brcm_rateset *ret_rs =
-						(struct brcm_rateset *) arg;
-			struct brcms_c_rateset *rs;
-
-			if (wlc->pub->associated)
-				rs = &current_bss->rateset;
-			else
-				rs = &wlc->default_bss->rateset;
-
-			if (len < (int)(rs->count + sizeof(rs->count))) {
-				bcmerror = -EOVERFLOW;
-				break;
-			}
-
-			/* Copy only legacy rateset section */
-			ret_rs->count = rs->count;
-			memcpy(&ret_rs->rates, &rs->rates, rs->count);
-			break;
-		}
-
-	case BRCM_SET_RATESET:{
-			struct brcms_c_rateset rs;
-			struct brcm_rateset *in_rs =
-						(struct brcm_rateset *) arg;
-
-			if (len < (int)(in_rs->count + sizeof(in_rs->count))) {
-				bcmerror = -EOVERFLOW;
-				break;
-			}
-
-			if (in_rs->count > BRCMS_NUMRATES) {
-				bcmerror = -ENOBUFS;
-				break;
-			}
-
-			memset(&rs, 0, sizeof(struct brcms_c_rateset));
-
-			/* Copy only legacy rateset section */
-			rs.count = in_rs->count;
-			memcpy(&rs.rates, &in_rs->rates, rs.count);
-
-			/* merge rateset coming in with the current mcsset */
-			if (wlc->pub->_n_enab & SUPPORT_11N) {
-				struct brcms_bss_info *mcsset_bss;
-				if (bsscfg->associated)
-					mcsset_bss = current_bss;
-				else
-					mcsset_bss = wlc->default_bss;
-				memcpy(rs.mcs, &mcsset_bss->rateset.mcs[0],
-				       MCSSET_LEN);
-			}
-
-			bcmerror = brcms_c_set_rateset(wlc, &rs);
-
-			if (!bcmerror)
-				brcms_c_ofdm_rateset_war(wlc);
-
-			break;
-		}
-
-	case BRCM_SET_BCNPRD:
-		/* range [1, 0xffff] */
-		if (val >= DOT11_MIN_BEACON_PERIOD
-		    && val <= DOT11_MAX_BEACON_PERIOD)
-			wlc->default_bss->beacon_period = (u16) val;
+	if (!wlc->pub->up && IS_MBAND_UNLOCKED(wlc)) {
+		if (wlc->band->bandunit != chspec_bandunit(chspec))
+			wlc->bandinit_pending = true;
 		else
-			bcmerror = -EINVAL;
-		break;
-
-	case BRCM_GET_PHYLIST:
-		{
-			unsigned char *cp = arg;
-			if (len < 3) {
-				bcmerror = -EOVERFLOW;
-				break;
-			}
-
-			if (BRCMS_ISNPHY(wlc->band))
-				*cp++ = 'n';
-			else if (BRCMS_ISLCNPHY(wlc->band))
-				*cp++ = 'c';
-			else if (BRCMS_ISSSLPNPHY(wlc->band))
-				*cp++ = 's';
-			*cp = '\0';
-			break;
-		}
-
-	case BRCMS_SET_SHORTSLOT_OVERRIDE:
-		if (val != BRCMS_SHORTSLOT_AUTO && val != BRCMS_SHORTSLOT_OFF &&
-		    val != BRCMS_SHORTSLOT_ON) {
-			bcmerror = -EINVAL;
-			break;
-		}
-
-		wlc->shortslot_override = (s8) val;
-
-		/* shortslot is an 11g feature, so no more work if we are
-		 * currently on the 5G band
-		 */
-		if (wlc->band->bandtype == BRCM_BAND_5G)
-			break;
-
-		if (wlc->pub->up && wlc->pub->associated) {
-			/* let watchdog or beacon processing update shortslot */
-		} else if (wlc->pub->up) {
-			/* unassociated shortslot is off */
-			brcms_c_switch_shortslot(wlc, false);
-		} else {
-			/* driver is down, so just update the brcms_c_info
-			 * value */
-			if (wlc->shortslot_override == BRCMS_SHORTSLOT_AUTO)
-				wlc->shortslot = false;
-			else
-				wlc->shortslot =
-				    (wlc->shortslot_override ==
-				     BRCMS_SHORTSLOT_ON);
-		}
-
-		break;
-
+			wlc->bandinit_pending = false;
 	}
- done:
 
-	if (bcmerror)
-		wlc->pub->bcmerror = bcmerror;
+	wlc->default_bss->chanspec = chspec;
+	/* brcms_c_BSSinit() will sanitize the rateset before
+	 * using it.. */
+	if (wlc->pub->up && (wlc_phy_chanspec_get(wlc->band->pi) != chspec)) {
+		brcms_c_set_home_chanspec(wlc, chspec);
+		brcms_c_suspend_mac_and_wait(wlc);
+		brcms_c_set_chanspec(wlc, chspec);
+		brcms_c_enable_mac(wlc);
+	}
+	return 0;
+}
+
+int brcms_c_set_rate_limit(struct brcms_c_info *wlc, u16 srl, u16 lrl)
+{
+	int ac;
+
+	if (srl < 1 || srl > RETRY_SHORT_MAX ||
+	    lrl < 1 || lrl > RETRY_SHORT_MAX)
+		return -EINVAL;
+
+	wlc->SRL = srl;
+	wlc->LRL = lrl;
+
+	brcms_b_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
+
+	for (ac = 0; ac < AC_COUNT; ac++) {
+		BRCMS_WME_RETRY_SHORT_SET(wlc, ac, srl);
+		BRCMS_WME_RETRY_LONG_SET(wlc, ac, lrl);
+	}
+	brcms_c_wme_retries_write(wlc);
+
+	return 0;
+}
+
+void brcms_c_get_current_rateset(struct brcms_c_info *wlc,
+				 struct brcm_rateset *currs)
+{
+	struct brcms_c_rateset *rs;
+
+	if (wlc->pub->associated)
+		rs = &wlc->cfg->current_bss->rateset;
+	else
+		rs = &wlc->default_bss->rateset;
+
+	/* Copy only legacy rateset section */
+	currs->count = rs->count;
+	memcpy(&currs->rates, &rs->rates, rs->count);
+}
+
+int brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcm_rateset *rs)
+{
+	struct brcms_c_rateset internal_rs;
+	int bcmerror;
+
+	if (rs->count > BRCMS_NUMRATES)
+		return -ENOBUFS;
+
+	memset(&internal_rs, 0, sizeof(struct brcms_c_rateset));
+
+	/* Copy only legacy rateset section */
+	internal_rs.count = rs->count;
+	memcpy(&internal_rs.rates, &rs->rates, internal_rs.count);
+
+	/* merge rateset coming in with the current mcsset */
+	if (wlc->pub->_n_enab & SUPPORT_11N) {
+		struct brcms_bss_info *mcsset_bss;
+		if (wlc->cfg->associated)
+			mcsset_bss = wlc->cfg->current_bss;
+		else
+			mcsset_bss = wlc->default_bss;
+		memcpy(internal_rs.mcs, &mcsset_bss->rateset.mcs[0],
+		       MCSSET_LEN);
+	}
+
+	bcmerror = brcms_c_set_internal_rateset(wlc, &internal_rs);
+	if (!bcmerror)
+		brcms_c_ofdm_rateset_war(wlc);
 
 	return bcmerror;
 }
 
-int
-brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len)
+int brcms_c_set_beacon_period(struct brcms_c_info *wlc, u16 period)
 {
-	return _brcms_c_ioctl(wlc, cmd, arg, len);
+	if (period < DOT11_MIN_BEACON_PERIOD ||
+	    period > DOT11_MAX_BEACON_PERIOD)
+		return -EINVAL;
+
+	wlc->default_bss->beacon_period = period;
+	return 0;
+}
+
+u16 brcms_c_get_phy_type(struct brcms_c_info *wlc, int phyidx)
+{
+	return wlc->band->phytype;
+}
+
+int brcms_c_set_shortslot_override(struct brcms_c_info *wlc, s8 sslot_override)
+{
+	if (sslot_override != BRCMS_SHORTSLOT_AUTO &&
+	    sslot_override != BRCMS_SHORTSLOT_OFF &&
+	    sslot_override != BRCMS_SHORTSLOT_ON) {
+		return -EINVAL;
+	}
+
+	wlc->shortslot_override = sslot_override;
+
+	/*
+	 * shortslot is an 11g feature, so no more work if we are
+	 * currently on the 5G band
+	 */
+	if (wlc->band->bandtype == BRCM_BAND_5G)
+		return 0;
+
+	if (wlc->pub->up && wlc->pub->associated) {
+		/* let watchdog or beacon processing update shortslot */
+	} else if (wlc->pub->up) {
+		/* unassociated shortslot is off */
+		brcms_c_switch_shortslot(wlc, false);
+	} else {
+		/* driver is down, so just update the brcms_c_info
+		 * value */
+		if (wlc->shortslot_override == BRCMS_SHORTSLOT_AUTO)
+			wlc->shortslot = false;
+		else
+			wlc->shortslot =
+			    (wlc->shortslot_override ==
+			     BRCMS_SHORTSLOT_ON);
+	}
+	return 0;
 }
 
 /*

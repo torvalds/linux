@@ -57,14 +57,13 @@ struct brcm_rateset {
 
 #define BRCM_CNTRY_BUF_SZ	4	/* Country string is 3 bytes + NUL */
 
-#define BRCM_SET_CHANNEL				30
-#define BRCM_SET_SRL				32
-#define BRCM_SET_LRL				34
+#define BRCM_SET_CHANNEL	30
+#define BRCM_SET_SRL		32
+#define BRCM_SET_LRL		34
+#define BRCM_SET_BCNPRD		76
 
-#define BRCM_SET_RATESET				72
-#define BRCM_SET_BCNPRD				76
-#define BRCM_GET_CURR_RATESET			114	/* current rateset */
-#define BRCM_GET_PHYLIST				180
+#define BRCM_GET_CURR_RATESET	114	/* current rateset */
+#define BRCM_GET_PHYLIST	180
 
 /* Bit masks for radio disabled status - returned by WL_GET_RADIO */
 

@@ -312,8 +312,6 @@ extern uint brcms_c_detach(struct brcms_c_info *wlc);
 extern int brcms_c_up(struct brcms_c_info *wlc);
 extern uint brcms_c_down(struct brcms_c_info *wlc);
 
-extern int brcms_c_set(struct brcms_c_info *wlc, int cmd, int arg);
-extern int brcms_c_get(struct brcms_c_info *wlc, int cmd, int *arg);
 extern bool brcms_c_chipmatch(u16 vendor, u16 device);
 extern void brcms_c_init(struct brcms_c_info *wlc);
 extern void brcms_c_reset(struct brcms_c_info *wlc);
@@ -327,7 +325,6 @@ extern bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded);
 extern void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
 				     struct sk_buff *sdu,
 				     struct ieee80211_hw *hw);
-extern int brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len);
 extern bool brcms_c_aggregatable(struct brcms_c_info *wlc, u8 tid);
 
 /* helper functions */
@@ -381,6 +378,15 @@ extern void brcms_c_scan_stop(struct brcms_c_info *wlc);
 extern int brcms_c_get_curband(struct brcms_c_info *wlc);
 extern void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc,
 					   bool drop);
+
+int brcms_c_set_channel(struct brcms_c_info *wlc, u16 channel);
+int brcms_c_set_rate_limit(struct brcms_c_info *wlc, u16 srl, u16 lrl);
+void brcms_c_get_current_rateset(struct brcms_c_info *wlc,
+				 struct brcm_rateset *currs);
+int brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcm_rateset *rs);
+int brcms_c_set_beacon_period(struct brcms_c_info *wlc, u16 period);
+u16 brcms_c_get_phy_type(struct brcms_c_info *wlc, int phyidx);
+int brcms_c_set_shortslot_override(struct brcms_c_info *wlc, s8 sslot_override);
 
 /* helper functions */
 extern bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc);
