@@ -1114,7 +1114,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 
 		midch->chan.device = &dma->common;
 		midch->chan.cookie =  1;
-		midch->chan.chan_id = i;
 		midch->ch_id = dma->chan_base + i;
 		pr_debug("MDMA:Init CH %d, ID %d\n", i, midch->ch_id);
 
@@ -1150,7 +1149,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 	dma_cap_set(DMA_SLAVE, dma->common.cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma->common.cap_mask);
 	dma->common.dev = &pdev->dev;
-	dma->common.chancnt = dma->max_chan;
 
 	dma->common.device_alloc_chan_resources =
 					intel_mid_dma_alloc_chan_resources;

@@ -926,7 +926,6 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 	}
 
 	pd->dma.dev = &pdev->dev;
-	pd->dma.chancnt = nr_channels;
 
 	INIT_LIST_HEAD(&pd->dma.channels);
 
@@ -935,7 +934,6 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 
 		pd_chan->chan.device = &pd->dma;
 		pd_chan->chan.cookie = 1;
-		pd_chan->chan.chan_id = i;
 
 		pd_chan->membase = &regs->desc[i];
 

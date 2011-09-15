@@ -1268,12 +1268,11 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	/* initialize channels related values */
 	INIT_LIST_HEAD(&atdma->dma_common.channels);
-	for (i = 0; i < pdata->nr_channels; i++, atdma->dma_common.chancnt++) {
+	for (i = 0; i < pdata->nr_channels; i++) {
 		struct at_dma_chan	*atchan = &atdma->chan[i];
 
 		atchan->chan_common.device = &atdma->dma_common;
 		atchan->chan_common.cookie = atchan->completed_cookie = 1;
-		atchan->chan_common.chan_id = i;
 		list_add_tail(&atchan->chan_common.device_node,
 				&atdma->dma_common.channels);
 
@@ -1314,7 +1313,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s), %d channels\n",
 	  dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask) ? "cpy " : "",
 	  dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)  ? "slave " : "",
-	  atdma->dma_common.chancnt);
+	  pdata->nr_channels);
 
 	dma_async_device_register(&atdma->dma_common);
 
