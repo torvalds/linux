@@ -1,7 +1,7 @@
 /*
  * OMAP powerdomain control
  *
- * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2008, 2011 Texas Instruments, Inc.
  * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Written by Paul Walmsley
@@ -79,9 +79,6 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	int i;
 
 	if (!pwrdm || !pwrdm->name)
-		return -EINVAL;
-
-	if (!omap_chip_is(pwrdm->omap_chip))
 		return -EINVAL;
 
 	if (cpu_is_omap44xx() &&
@@ -194,29 +191,76 @@ static int _pwrdm_post_transition_cb(struct powerdomain *pwrdm, void *unused)
 /* Public functions */
 
 /**
- * pwrdm_init - set up the powerdomain layer
- * @pwrdm_list: array of struct powerdomain pointers to register
- * @custom_funcs: func pointers for arch specific implementations
+ * pwrdm_register_platform_funcs - register powerdomain implementation fns
+ * @po: func pointers for arch specific implementations
  *
- * Loop through the array of powerdomains @pwrdm_list, registering all
- * that are available on the current CPU. If pwrdm_list is supplied
- * and not null, all of the referenced powerdomains will be
- * registered.  No return value.  XXX pwrdm_list is not really a
- * "list"; it is an array.  Rename appropriately.
+ * Register the list of function pointers used to implement the
+ * powerdomain functions on different OMAP SoCs.  Should be called
+ * before any other pwrdm_register*() function.  Returns -EINVAL if
+ * @po is null, -EEXIST if platform functions have already been
+ * registered, or 0 upon success.
  */
-void pwrdm_init(struct powerdomain **pwrdm_list, struct pwrdm_ops *custom_funcs)
+int pwrdm_register_platform_funcs(struct pwrdm_ops *po)
+{
+	if (!po)
+		return -EINVAL;
+
+	if (arch_pwrdm)
+		return -EEXIST;
+
+	arch_pwrdm = po;
+
+	return 0;
+}
+
+/**
+ * pwrdm_register_pwrdms - register SoC powerdomains
+ * @ps: pointer to an array of struct powerdomain to register
+ *
+ * Register the powerdomains available on a particular OMAP SoC.  Must
+ * be called after pwrdm_register_platform_funcs().  May be called
+ * multiple times.  Returns -EACCES if called before
+ * pwrdm_register_platform_funcs(); -EINVAL if the argument @ps is
+ * null; or 0 upon success.
+ */
+int pwrdm_register_pwrdms(struct powerdomain **ps)
 {
 	struct powerdomain **p = NULL;
 
-	if (!custom_funcs)
-		WARN(1, "powerdomain: No custom pwrdm functions registered\n");
-	else
-		arch_pwrdm = custom_funcs;
+	if (!arch_pwrdm)
+		return -EEXIST;
 
-	if (pwrdm_list) {
-		for (p = pwrdm_list; *p; p++)
-			_pwrdm_register(*p);
-	}
+	if (!ps)
+		return -EINVAL;
+
+	for (p = ps; *p; p++)
+		_pwrdm_register(*p);
+
+	return 0;
+}
+
+/**
+ * pwrdm_complete_init - set up the powerdomain layer
+ *
+ * Do whatever is necessary to initialize registered powerdomains and
+ * powerdomain code.  Currently, this programs the next power state
+ * for each powerdomain to ON.  This prevents powerdomains from
+ * unexpectedly losing context or entering high wakeup latency modes
+ * with non-power-management-enabled kernels.  Must be called after
+ * pwrdm_register_pwrdms().  Returns -EACCES if called before
+ * pwrdm_register_pwrdms(), or 0 upon success.
+ */
+int pwrdm_complete_init(void)
+{
+	struct powerdomain *temp_p;
+
+	if (list_empty(&pwrdm_list))
+		return -EACCES;
+
+	list_for_each_entry(temp_p, &pwrdm_list, node)
+		pwrdm_set_next_pwrst(temp_p, PWRDM_POWER_ON);
+
+	return 0;
 }
 
 /**

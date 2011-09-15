@@ -389,17 +389,18 @@ void transport_deregister_session(struct se_session *se_sess)
 {
 	struct se_portal_group *se_tpg = se_sess->se_tpg;
 	struct se_node_acl *se_nacl;
+	unsigned long flags;
 
 	if (!se_tpg) {
 		transport_free_session(se_sess);
 		return;
 	}
 
-	spin_lock_bh(&se_tpg->session_lock);
+	spin_lock_irqsave(&se_tpg->session_lock, flags);
 	list_del(&se_sess->sess_list);
 	se_sess->se_tpg = NULL;
 	se_sess->fabric_sess_ptr = NULL;
-	spin_unlock_bh(&se_tpg->session_lock);
+	spin_unlock_irqrestore(&se_tpg->session_lock, flags);
 
 	/*
 	 * Determine if we need to do extra work for this initiator node's
@@ -407,22 +408,22 @@ void transport_deregister_session(struct se_session *se_sess)
 	 */
 	se_nacl = se_sess->se_node_acl;
 	if (se_nacl) {
-		spin_lock_bh(&se_tpg->acl_node_lock);
+		spin_lock_irqsave(&se_tpg->acl_node_lock, flags);
 		if (se_nacl->dynamic_node_acl) {
 			if (!se_tpg->se_tpg_tfo->tpg_check_demo_mode_cache(
 					se_tpg)) {
 				list_del(&se_nacl->acl_list);
 				se_tpg->num_node_acls--;
-				spin_unlock_bh(&se_tpg->acl_node_lock);
+				spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 
 				core_tpg_wait_for_nacl_pr_ref(se_nacl);
 				core_free_device_list_for_node(se_nacl, se_tpg);
 				se_tpg->se_tpg_tfo->tpg_release_fabric_acl(se_tpg,
 						se_nacl);
-				spin_lock_bh(&se_tpg->acl_node_lock);
+				spin_lock_irqsave(&se_tpg->acl_node_lock, flags);
 			}
 		}
-		spin_unlock_bh(&se_tpg->acl_node_lock);
+		spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 	}
 
 	transport_free_session(se_sess);
@@ -2053,8 +2054,14 @@ static void transport_generic_request_failure(
 		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		break;
 	}
-
-	if (!sc)
+	/*
+	 * If a fabric does not define a cmd->se_tfo->new_cmd_map caller,
+	 * make the call to transport_send_check_condition_and_sense()
+	 * directly.  Otherwise expect the fabric to make the call to
+	 * transport_send_check_condition_and_sense() after handling
+	 * possible unsoliticied write data payloads.
+	 */
+	if (!sc && !cmd->se_tfo->new_cmd_map)
 		transport_new_cmd_failure(cmd);
 	else {
 		ret = transport_send_check_condition_and_sense(cmd,
@@ -2847,12 +2854,42 @@ static int transport_cmd_get_valid_sectors(struct se_cmd *cmd)
 			" transport_dev_end_lba(): %llu\n",
 			cmd->t_task_lba, sectors,
 			transport_dev_end_lba(dev));
-		pr_err("  We should return CHECK_CONDITION"
-		       " but we don't yet\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	return sectors;
+	return 0;
+}
+
+static int target_check_write_same_discard(unsigned char *flags, struct se_device *dev)
+{
+	/*
+	 * Determine if the received WRITE_SAME is used to for direct
+	 * passthrough into Linux/SCSI with struct request via TCM/pSCSI
+	 * or we are signaling the use of internal WRITE_SAME + UNMAP=1
+	 * emulation for -> Linux/BLOCK disbard with TCM/IBLOCK code.
+	 */
+	int passthrough = (dev->transport->transport_type ==
+				TRANSPORT_PLUGIN_PHBA_PDEV);
+
+	if (!passthrough) {
+		if ((flags[0] & 0x04) || (flags[0] & 0x02)) {
+			pr_err("WRITE_SAME PBDATA and LBDATA"
+				" bits not supported for Block Discard"
+				" Emulation\n");
+			return -ENOSYS;
+		}
+		/*
+		 * Currently for the emulated case we only accept
+		 * tpws with the UNMAP=1 bit set.
+		 */
+		if (!(flags[0] & 0x08)) {
+			pr_err("WRITE_SAME w/o UNMAP bit not"
+				" supported for Block Discard Emulation\n");
+			return -ENOSYS;
+		}
+	}
+
+	return 0;
 }
 
 /*	transport_generic_cmd_sequencer():
@@ -3065,7 +3102,7 @@ static int transport_generic_cmd_sequencer(
 				goto out_unsupported_cdb;
 
 			if (sectors)
-				size = transport_get_size(sectors, cdb, cmd);
+				size = transport_get_size(1, cdb, cmd);
 			else {
 				pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not"
 				       " supported\n");
@@ -3075,27 +3112,9 @@ static int transport_generic_cmd_sequencer(
 			cmd->t_task_lba = get_unaligned_be64(&cdb[12]);
 			cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 
-			/*
-			 * Skip the remaining assignments for TCM/PSCSI passthrough
-			 */
-			if (passthrough)
-				break;
+			if (target_check_write_same_discard(&cdb[10], dev) < 0)
+				goto out_invalid_cdb_field;
 
-			if ((cdb[10] & 0x04) || (cdb[10] & 0x02)) {
-				pr_err("WRITE_SAME PBDATA and LBDATA"
-					" bits not supported for Block Discard"
-					" Emulation\n");
-				goto out_invalid_cdb_field;
-			}
-			/*
-			 * Currently for the emulated case we only accept
-			 * tpws with the UNMAP=1 bit set.
-			 */
-			if (!(cdb[10] & 0x08)) {
-				pr_err("WRITE_SAME w/o UNMAP bit not"
-					" supported for Block Discard Emulation\n");
-				goto out_invalid_cdb_field;
-			}
 			break;
 		default:
 			pr_err("VARIABLE_LENGTH_CMD service action"
@@ -3330,10 +3349,12 @@ static int transport_generic_cmd_sequencer(
 		cmd->se_cmd_flags |= SCF_EMULATE_CDB_ASYNC;
 		/*
 		 * Check to ensure that LBA + Range does not exceed past end of
-		 * device.
+		 * device for IBLOCK and FILEIO ->do_sync_cache() backend calls
 		 */
-		if (!transport_cmd_get_valid_sectors(cmd))
-			goto out_invalid_cdb_field;
+		if ((cmd->t_task_lba != 0) || (sectors != 0)) {
+			if (transport_cmd_get_valid_sectors(cmd) < 0)
+				goto out_invalid_cdb_field;
+		}
 		break;
 	case UNMAP:
 		size = get_unaligned_be16(&cdb[7]);
@@ -3345,40 +3366,38 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 
 		if (sectors)
-			size = transport_get_size(sectors, cdb, cmd);
+			size = transport_get_size(1, cdb, cmd);
 		else {
 			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
 			goto out_invalid_cdb_field;
 		}
 
 		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
-		passthrough = (dev->transport->transport_type ==
-				TRANSPORT_PLUGIN_PHBA_PDEV);
-		/*
-		 * Determine if the received WRITE_SAME_16 is used to for direct
-		 * passthrough into Linux/SCSI with struct request via TCM/pSCSI
-		 * or we are signaling the use of internal WRITE_SAME + UNMAP=1
-		 * emulation for -> Linux/BLOCK disbard with TCM/IBLOCK and
-		 * TCM/FILEIO subsystem plugin backstores.
-		 */
-		if (!passthrough) {
-			if ((cdb[1] & 0x04) || (cdb[1] & 0x02)) {
-				pr_err("WRITE_SAME PBDATA and LBDATA"
-					" bits not supported for Block Discard"
-					" Emulation\n");
-				goto out_invalid_cdb_field;
-			}
-			/*
-			 * Currently for the emulated case we only accept
-			 * tpws with the UNMAP=1 bit set.
-			 */
-			if (!(cdb[1] & 0x08)) {
-				pr_err("WRITE_SAME w/o UNMAP bit not "
-					" supported for Block Discard Emulation\n");
-				goto out_invalid_cdb_field;
-			}
-		}
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+
+		if (target_check_write_same_discard(&cdb[1], dev) < 0)
+			goto out_invalid_cdb_field;
+		break;
+	case WRITE_SAME:
+		sectors = transport_get_sectors_10(cdb, cmd, &sector_ret);
+		if (sector_ret)
+			goto out_unsupported_cdb;
+
+		if (sectors)
+			size = transport_get_size(1, cdb, cmd);
+		else {
+			pr_err("WSNZ=1, WRITE_SAME w/sectors=0 not supported\n");
+			goto out_invalid_cdb_field;
+		}
+
+		cmd->t_task_lba = get_unaligned_be32(&cdb[2]);
+		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
+		/*
+		 * Follow sbcr26 with WRITE_SAME (10) and check for the existence
+		 * of byte 1 bit 3 UNMAP instead of original reserved field
+		 */
+		if (target_check_write_same_discard(&cdb[1], dev) < 0)
+			goto out_invalid_cdb_field;
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
 	case GPCMD_CLOSE_TRACK:
@@ -3873,9 +3892,7 @@ EXPORT_SYMBOL(transport_generic_map_mem_to_cmd);
 static int transport_new_cmd_obj(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	u32 task_cdbs;
-	u32 rc;
-	int set_counts = 1;
+	int set_counts = 1, rc, task_cdbs;
 
 	/*
 	 * Setup any BIDI READ tasks and memory from
@@ -3893,7 +3910,7 @@ static int transport_new_cmd_obj(struct se_cmd *cmd)
 			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			cmd->scsi_sense_reason =
 				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-			return PYX_TRANSPORT_LU_COMM_FAILURE;
+			return -EINVAL;
 		}
 		atomic_inc(&cmd->t_fe_count);
 		atomic_inc(&cmd->t_se_count);
@@ -3912,7 +3929,7 @@ static int transport_new_cmd_obj(struct se_cmd *cmd)
 		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		cmd->scsi_sense_reason =
 			TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
+		return -EINVAL;
 	}
 
 	if (set_counts) {
@@ -4028,8 +4045,6 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 		if (!task->task_sg)
 			continue;
 
-		BUG_ON(!task->task_padded_sg);
-
 		if (!sg_first) {
 			sg_first = task->task_sg;
 			chained_nents = task->task_sg_nents;
@@ -4037,9 +4052,19 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 			sg_chain(sg_prev, sg_prev_nents, task->task_sg);
 			chained_nents += task->task_sg_nents;
 		}
+		/*
+		 * For the padded tasks, use the extra SGL vector allocated
+		 * in transport_allocate_data_tasks() for the sg_prev_nents
+		 * offset into sg_chain() above..  The last task of a
+		 * multi-task list, or a single task will not have
+		 * task->task_sg_padded set..
+		 */
+		if (task->task_padded_sg)
+			sg_prev_nents = (task->task_sg_nents + 1);
+		else
+			sg_prev_nents = task->task_sg_nents;
 
 		sg_prev = task->task_sg;
-		sg_prev_nents = task->task_sg_nents;
 	}
 	/*
 	 * Setup the starting pointer and total t_tasks_sg_linked_no including
@@ -4091,7 +4116,7 @@ static int transport_allocate_data_tasks(
 	
 	cmd_sg = sgl;
 	for (i = 0; i < task_count; i++) {
-		unsigned int task_size;
+		unsigned int task_size, task_sg_nents_padded;
 		int count;
 
 		task = transport_generic_get_task(cmd, data_direction);
@@ -4110,30 +4135,33 @@ static int transport_allocate_data_tasks(
 
 		/* Update new cdb with updated lba/sectors */
 		cmd->transport_split_cdb(task->task_lba, task->task_sectors, cdb);
-
+		/*
+		 * This now assumes that passed sg_ents are in PAGE_SIZE chunks
+		 * in order to calculate the number per task SGL entries
+		 */
+		task->task_sg_nents = DIV_ROUND_UP(task->task_size, PAGE_SIZE);
 		/*
 		 * Check if the fabric module driver is requesting that all
 		 * struct se_task->task_sg[] be chained together..  If so,
 		 * then allocate an extra padding SG entry for linking and
-		 * marking the end of the chained SGL.
-		 * Possibly over-allocate task sgl size by using cmd sgl size.
-		 * It's so much easier and only a waste when task_count > 1.
-		 * That is extremely rare.
+		 * marking the end of the chained SGL for every task except
+		 * the last one for (task_count > 1) operation, or skipping
+		 * the extra padding for the (task_count == 1) case.
 		 */
-		task->task_sg_nents = sgl_nents;
-		if (cmd->se_tfo->task_sg_chaining) {
-			task->task_sg_nents++;
+		if (cmd->se_tfo->task_sg_chaining && (i < (task_count - 1))) {
+			task_sg_nents_padded = (task->task_sg_nents + 1);
 			task->task_padded_sg = 1;
-		}
+		} else
+			task_sg_nents_padded = task->task_sg_nents;
 
 		task->task_sg = kmalloc(sizeof(struct scatterlist) *
-					task->task_sg_nents, GFP_KERNEL);
+					task_sg_nents_padded, GFP_KERNEL);
 		if (!task->task_sg) {
 			cmd->se_dev->transport->free_task(task);
 			return -ENOMEM;
 		}
 
-		sg_init_table(task->task_sg, task->task_sg_nents);
+		sg_init_table(task->task_sg, task_sg_nents_padded);
 
 		task_size = task->task_size;
 
@@ -4230,10 +4258,13 @@ static u32 transport_allocate_tasks(
 	struct scatterlist *sgl,
 	unsigned int sgl_nents)
 {
-	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+		if (transport_cmd_get_valid_sectors(cmd) < 0)
+			return -EINVAL;
+
 		return transport_allocate_data_tasks(cmd, lba, data_direction,
 						     sgl, sgl_nents);
-	else
+	} else
 		return transport_allocate_control_task(cmd);
 
 }
@@ -4726,6 +4757,13 @@ int transport_send_check_condition_and_sense(
 	 */
 	switch (reason) {
 	case TCM_NON_EXISTENT_LUN:
+		/* CURRENT ERROR */
+		buffer[offset] = 0x70;
+		/* ILLEGAL REQUEST */
+		buffer[offset+SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
+		/* LOGICAL UNIT NOT SUPPORTED */
+		buffer[offset+SPC_ASC_KEY_OFFSET] = 0x25;
+		break;
 	case TCM_UNSUPPORTED_SCSI_OPCODE:
 	case TCM_SECTOR_COUNT_TOO_MANY:
 		/* CURRENT ERROR */
