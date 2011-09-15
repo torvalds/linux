@@ -1010,14 +1010,6 @@ static void ar5008_restore_chainmask(struct ath_hw *ah)
 	}
 }
 
-static u32 ar9100_hw_compute_pll_control(struct ath_hw *ah,
-					 struct ath9k_channel *chan)
-{
-	if (chan && IS_CHAN_5GHZ(chan))
-		return 0x1450;
-	return 0x1458;
-}
-
 static u32 ar9160_hw_compute_pll_control(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
@@ -1656,9 +1648,7 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 	} else
 		priv_ops->ani_control = ar5008_hw_ani_control_old;
 
-	if (AR_SREV_9100(ah))
-		priv_ops->compute_pll_control = ar9100_hw_compute_pll_control;
-	else if (AR_SREV_9160_10_OR_LATER(ah))
+	if (AR_SREV_9100(ah) || AR_SREV_9160_10_OR_LATER(ah))
 		priv_ops->compute_pll_control = ar9160_hw_compute_pll_control;
 	else
 		priv_ops->compute_pll_control = ar5008_hw_compute_pll_control;
