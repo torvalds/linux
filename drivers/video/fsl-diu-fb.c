@@ -1429,7 +1429,7 @@ static int __devinit fsl_diu_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct mfb_info *mfbi;
-	phys_addr_t dummy_ad_addr;
+	phys_addr_t dummy_ad_addr = 0;
 	int ret, i, error = 0;
 	struct resource res;
 	struct fsl_diu_data *machine_data;
