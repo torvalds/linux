@@ -24,6 +24,7 @@
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/auxadc.h>
 #include <linux/mfd/wm831x/otp.h>
+#include <linux/mfd/wm831x/pmu.h>
 #include <linux/mfd/wm831x/regulator.h>
 
 /* Current settings - values are 2*2^(reg_val/4) microamps.  These are
@@ -1305,6 +1306,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
 	dev_set_drvdata(wm831x->dev, wm831x);
+	wm831x->soft_shutdown = pdata->soft_shutdown;
 
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
 	if (ret < 0) {
@@ -1603,6 +1605,15 @@ int wm831x_device_suspend(struct wm831x *wm831x)
 
 	return 0;
 }
+
+void wm831x_device_shutdown(struct wm831x *wm831x)
+{
+	if (wm831x->soft_shutdown) {
+		dev_info(wm831x->dev, "Initiating shutdown...\n");
+		wm831x_set_bits(wm831x, WM831X_POWER_STATE, WM831X_CHIP_ON, 0);
+	}
+}
+EXPORT_SYMBOL_GPL(wm831x_device_shutdown);
 
 MODULE_DESCRIPTION("Core support for the WM831X AudioPlus PMIC");
 MODULE_LICENSE("GPL");

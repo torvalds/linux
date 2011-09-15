@@ -109,6 +109,13 @@ static int wm831x_i2c_suspend(struct device *dev)
 	return wm831x_device_suspend(wm831x);
 }
 
+static void wm831x_i2c_shutdown(struct i2c_client *i2c)
+{
+	struct wm831x *wm831x = i2c_get_clientdata(i2c);
+
+	wm831x_device_shutdown(wm831x);
+}
+
 static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8310", WM8310 },
 	{ "wm8311", WM8311 },
@@ -133,6 +140,7 @@ static struct i2c_driver wm831x_i2c_driver = {
 	},
 	.probe = wm831x_i2c_probe,
 	.remove = wm831x_i2c_remove,
+	.shutdown = wm831x_i2c_shutdown,
 	.id_table = wm831x_i2c_id,
 };
 
