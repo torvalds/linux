@@ -904,6 +904,20 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		}
 	}
 
+	if (ar->next_mode == AP_NETWORK && key_type == WEP_CRYPT &&
+	    !test_bit(CONNECTED, &ar->flag)) {
+		/*
+		 * Store the key locally so that it can be re-configured after
+		 * the AP mode has properly started
+		 * (ath6kl_install_statioc_wep_keys).
+		 */
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delay WEP key configuration "
+			   "until AP mode has been started\n");
+		ar->wep_key_list[key_index].key_len = key->key_len;
+		memcpy(ar->wep_key_list[key_index].key, key->key, key->key_len);
+		return 0;
+	}
+
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, ar->def_txkey_index,
 				       key_type, key_usage, key->key_len,
 				       key->seq, key->key, KEY_OP_INIT_VAL,
@@ -1018,7 +1032,7 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	if (multicast)
 		key_type = ar->grp_crypto;
 
-	if (ar->nw_type == AP_NETWORK && !test_bit(CONNECTED, &ar->flag))
+	if (ar->next_mode == AP_NETWORK && !test_bit(CONNECTED, &ar->flag))
 		return 0; /* Delay until AP mode has been started */
 
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, ar->def_txkey_index,
