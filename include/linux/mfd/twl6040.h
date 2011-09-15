@@ -70,9 +70,6 @@
 
 #define TWL6040_CACHEREGNUM		(TWL6040_REG_STATUS + 1)
 
-#define TWL6040_VIOREGNUM		18
-#define TWL6040_VDDREGNUM		21
-
 /* INTID (0x03) fields */
 
 #define TWL6040_THINT			0x01
