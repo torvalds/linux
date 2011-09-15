@@ -173,6 +173,11 @@ config RK2818_REGULATOR_LP8725
 	depends on I2C
 	help
 	  Say Y to enable support for the voltage regulators pmic lp8725 on the RK2818.
+config REGULATOR_ACT8891
+	tristate "Active Semi ACT8891 PMIC regulators"
+	depends on I2C
+	help
+	  Support the voltage and current regulators of the ACT8891 series of PMIC devices.
 config RK29_PWM_REGULATOR
 	tristate "rk2918 pwm voltage regulator"
 	help
