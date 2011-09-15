@@ -1274,7 +1274,7 @@ static int request_irq_local(int irq)
 	/* Read to clear the status */
 	in_be32(&hw->int_status);
 
-	ret = request_irq(irq, fsl_diu_isr, 0, "diu", NULL);
+	ret = request_irq(irq, fsl_diu_isr, 0, "fsl-diu-fb", NULL);
 	if (!ret) {
 		ints = INT_PARERR | INT_LS_BF_VS;
 #if !defined(CONFIG_NOT_COHERENT_CACHE)
@@ -1634,7 +1634,7 @@ MODULE_DEVICE_TABLE(of, fsl_diu_match);
 
 static struct platform_driver fsl_diu_driver = {
 	.driver = {
-		.name = "fsl_diu",
+		.name = "fsl-diu-fb",
 		.owner = THIS_MODULE,
 		.of_match_table = fsl_diu_match,
 	},
