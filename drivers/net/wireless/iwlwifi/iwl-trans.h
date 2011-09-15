@@ -208,9 +208,10 @@ struct iwl_trans_ops {
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*check_stuck_queue)(struct iwl_trans *trans, int q);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
-
+#ifdef CONFIG_PM_SLEEP
 	int (*suspend)(struct iwl_trans *trans);
 	int (*resume)(struct iwl_trans *trans);
+#endif
 };
 
 /**
@@ -337,6 +338,7 @@ static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
 	return trans->ops->dbgfs_register(trans, dir);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static inline int iwl_trans_suspend(struct iwl_trans *trans)
 {
 	return trans->ops->suspend(trans);
@@ -346,6 +348,7 @@ static inline int iwl_trans_resume(struct iwl_trans *trans)
 {
 	return trans->ops->resume(trans);
 }
+#endif
 
 /*****************************************************
 * Transport layers implementations

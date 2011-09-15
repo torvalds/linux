@@ -1363,8 +1363,7 @@ static void iwl_trans_pcie_free(struct iwl_trans *trans)
 	kfree(trans);
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 {
 	/*
@@ -1402,14 +1401,7 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 
 	return 0;
 }
-#else /* CONFIG_PM */
-static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
-{ return 0; }
-
-static int iwl_trans_pcie_resume(struct iwl_trans *trans)
-{ return 0; }
-
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
 					  enum iwl_rxon_context_id ctx)
@@ -1989,6 +1981,8 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_tx_queue_empty,
 	.check_stuck_queue = iwl_trans_pcie_check_stuck_queue,
 
+#ifdef CONFIG_PM_SLEEP
 	.suspend = iwl_trans_pcie_suspend,
 	.resume = iwl_trans_pcie_resume,
+#endif
 };
