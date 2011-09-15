@@ -308,10 +308,8 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 
 	txq->q.n_window = slots_num;
 
-	txq->meta = kzalloc(sizeof(txq->meta[0]) * slots_num,
-			    GFP_KERNEL);
-	txq->cmd = kzalloc(sizeof(txq->cmd[0]) * slots_num,
-			   GFP_KERNEL);
+	txq->meta = kcalloc(slots_num, sizeof(txq->meta[0]), GFP_KERNEL);
+	txq->cmd = kcalloc(slots_num, sizeof(txq->cmd[0]), GFP_KERNEL);
 
 	if (!txq->meta || !txq->cmd)
 		goto error;
