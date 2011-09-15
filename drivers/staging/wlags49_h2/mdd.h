@@ -893,20 +893,20 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 
 //HFS_TX_CNTL
 /* Note that the HCF_.... System Constants influence the HFS_.... values below
- * 								H-I		H-I	 |	H-II	H-II	H-II.5
- *										WPA	 |			WPA
- * HFS_TX_CNTL_TX_OK			0002	0002 |	0002	0002	 N/A	<<<<<<<<deprecated
- * HFS_TX_CNTL_TX_EX			0004	0004 |	0004	0004	 N/A
- * HFS_TX_CNTL_MIC				 N/A	0010 |	 N/A	0010	 N/A
- * HFS_TX_CNTL_TID				 N/A	 N/A |	 N/A	 N/A	000F
- * HFS_TX_CNTL_SERVICE_CLASS	 N/A	 N/A |	 N/A	 N/A	00C0
- * HFS_TX_CNTL_PORT				0700	0700 |	0700	0700	0700
- * HFS_TX_CNTL_MIC_KEY_ID		1800	1800 |	0000	1800	 N/A
- * HFS_TX_CNTL_CKIP				0000	0000 |	0000	2000	2000
- * HFS_TX_CNTL_TX_DELAY			4000	4000 |	4000	4000	 N/A
- * HFS_TX_CNTL_ACTION			 N/A	 N/A |	 N/A	 N/A	4000
- * 								====	==== |	====	====	====
- * 								5F06	5F16 |	4706	7F06	67CF
+ *                              H-I     H-I  |  H-II    H-II    H-II.5
+ *                                      WPA  |          WPA
+ * HFS_TX_CNTL_TX_OK            0002    0002 |  0002    0002     N/A    <<<<<<<<deprecated
+ * HFS_TX_CNTL_TX_EX            0004    0004 |  0004    0004     N/A
+ * HFS_TX_CNTL_MIC               N/A    0010 |   N/A    0010     N/A
+ * HFS_TX_CNTL_TID               N/A     N/A |   N/A     N/A    000F
+ * HFS_TX_CNTL_SERVICE_CLASS     N/A     N/A |   N/A     N/A    00C0
+ * HFS_TX_CNTL_PORT             0700    0700 |  0700    0700    0700
+ * HFS_TX_CNTL_MIC_KEY_ID       1800    1800 |  0000    1800     N/A
+ * HFS_TX_CNTL_CKIP             0000    0000 |  0000    2000    2000
+ * HFS_TX_CNTL_TX_DELAY         4000    4000 |  4000    4000     N/A
+ * HFS_TX_CNTL_ACTION            N/A     N/A |   N/A     N/A    4000
+ *                              ====    ==== |  ====    ====    ====
+ *                              5F06    5F16 |  4706    7F06    67CF
  *
  * HCF_TX_CNTL_MASK specifies the bits allowed on the Host I/F
  * note: bit 0x4000 has different meaning for H-II and H-II.5
