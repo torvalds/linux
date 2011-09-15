@@ -902,9 +902,6 @@ static int fsl_diu_setcolreg(unsigned int regno, unsigned int red,
 			ret = 0;
 		}
 		break;
-	case FB_VISUAL_STATIC_PSEUDOCOLOR:
-	case FB_VISUAL_PSEUDOCOLOR:
-		break;
 	}
 
 	return ret;
@@ -1055,15 +1052,6 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 		/* get graphic window information */
 		if (copy_to_user(buf, ad, sizeof(*ad)))
 			return -EFAULT;
-		break;
-	case FBIOGET_HWCINFO:
-		pr_debug("FBIOGET_HWCINFO:0x%08x\n", FBIOGET_HWCINFO);
-		break;
-	case FBIOPUT_MODEINFO:
-		pr_debug("FBIOPUT_MODEINFO:0x%08x\n", FBIOPUT_MODEINFO);
-		break;
-	case FBIOGET_DISPINFO:
-		pr_debug("FBIOGET_DISPINFO:0x%08x\n", FBIOGET_DISPINFO);
 		break;
 
 	default:

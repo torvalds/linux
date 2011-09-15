@@ -27,11 +27,6 @@
 
 #include <linux/types.h>
 
-struct mfb_alpha {
-	int enable;
-	int alpha;
-};
-
 struct mfb_chroma_key {
 	int enable;
 	__u8  red_max;
