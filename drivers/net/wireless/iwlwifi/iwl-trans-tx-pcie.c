@@ -207,17 +207,17 @@ static void iwlagn_unmap_tfd(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
  * @trans - transport private data
  * @txq - tx queue
  * @index - the index of the TFD to be freed
+ *@dma_dir - the direction of the DMA mapping
  *
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
 void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
-	int index)
+	int index, enum dma_data_direction dma_dir)
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
 
-	iwlagn_unmap_tfd(trans, &txq->meta[index], &tfd_tmp[index],
-			 DMA_TO_DEVICE);
+	iwlagn_unmap_tfd(trans, &txq->meta[index], &tfd_tmp[index], dma_dir);
 
 	/* free SKB */
 	if (txq->skbs) {
@@ -1119,6 +1119,10 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 	int last_to_free;
 	int freed = 0;
 
+	/* This function is not meant to release cmd queue*/
+	if (WARN_ON(txq_id == trans->shrd->cmd_queue))
+		return 0;
+
 	/*Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used */
 	last_to_free = iwl_queue_dec_wrap(index, q->n_bd);
@@ -1151,7 +1155,7 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 
 		iwlagn_txq_inval_byte_cnt_tbl(trans, txq);
 
-		iwlagn_txq_free_tfd(trans, txq, txq->q.read_ptr);
+		iwlagn_txq_free_tfd(trans, txq, txq->q.read_ptr, DMA_TO_DEVICE);
 		freed++;
 	}
 	return freed;

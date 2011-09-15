@@ -411,13 +411,23 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
+	enum dma_data_direction dma_dir;
 
 	if (!q->n_bd)
 		return;
 
+	/* In the command queue, all the TBs are mapped as BIDI
+	 * so unmap them as such.
+	 */
+	if (txq_id == trans->shrd->cmd_queue)
+		dma_dir = DMA_BIDIRECTIONAL;
+	else
+		dma_dir = DMA_TO_DEVICE;
+
 	while (q->write_ptr != q->read_ptr) {
 		/* The read_ptr needs to bound by q->n_window */
-		iwlagn_txq_free_tfd(trans, txq, get_cmd_index(q, q->read_ptr));
+		iwlagn_txq_free_tfd(trans, txq, get_cmd_index(q, q->read_ptr),
+				    dma_dir);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 }
