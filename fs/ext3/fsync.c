@@ -30,6 +30,7 @@
 #include <linux/jbd.h>
 #include <linux/ext3_fs.h>
 #include <linux/ext3_jbd.h>
+#include <trace/events/ext3.h>
 
 /*
  * akpm: A new design for ext3_sync_file().
@@ -51,12 +52,14 @@ int ext3_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	int ret, needs_barrier = 0;
 	tid_t commit_tid;
 
+	trace_ext3_sync_file_enter(file, datasync);
+
 	if (inode->i_sb->s_flags & MS_RDONLY)
 		return 0;
 
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (ret)
-		return ret;
+		goto out;
 
 	/*
 	 * Taking the mutex here just to keep consistent with how fsync was
@@ -83,7 +86,8 @@ int ext3_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	if (ext3_should_journal_data(inode)) {
 		mutex_unlock(&inode->i_mutex);
-		return ext3_force_commit(inode->i_sb);
+		ret = ext3_force_commit(inode->i_sb);
+		goto out;
 	}
 
 	if (datasync)
@@ -104,6 +108,9 @@ int ext3_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	if (needs_barrier)
 		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+
 	mutex_unlock(&inode->i_mutex);
+out:
+	trace_ext3_sync_file_exit(inode, ret);
 	return ret;
 }

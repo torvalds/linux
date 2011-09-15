@@ -113,7 +113,11 @@ Supported chips:
     Prefix: 'w83l771'
     Addresses scanned: I2C 0x4c
     Datasheet: Not publicly available, can be requested from Nuvoton
-
+  * Philips/NXP SA56004X
+    Prefix: 'sa56004'
+    Addresses scanned: I2C 0x48 through 0x4F
+    Datasheet: Publicly available at NXP website
+               http://ics.nxp.com/products/interface/datasheet/sa56004x.pdf
 
 Author: Jean Delvare <khali@linux-fr.org>
 
@@ -192,6 +196,9 @@ W83L771AWG/ASG
   * Successor of the W83L771W/G, same features.
   * The AWG and ASG variants only differ in package format.
   * Diode ideality factor configuration (remote sensor) at 0xE3
+
+SA56004X:
+  * Better local resolution
 
 All temperature values are given in degrees Celsius. Resolution
 is 1.0 degree for the local temperature, 0.125 degree for the remote

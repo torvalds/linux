@@ -32,7 +32,7 @@
 #include <linux/sht15.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /* Commands */
 #define SHT15_MEASURE_TEMP		0x03

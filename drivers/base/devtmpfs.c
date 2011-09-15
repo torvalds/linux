@@ -166,7 +166,7 @@ static int create_path(const char *nodepath)
 {
 	char *path;
 	char *s;
-	int err;
+	int err = 0;
 
 	/* parent directories do not exist, create them */
 	path = kstrdup(nodepath, GFP_KERNEL);
@@ -376,7 +376,7 @@ int devtmpfs_mount(const char *mntdir)
 	return err;
 }
 
-static __initdata DECLARE_COMPLETION(setup_done);
+static DECLARE_COMPLETION(setup_done);
 
 static int handle(const char *name, mode_t mode, struct device *dev)
 {

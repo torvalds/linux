@@ -778,6 +778,7 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 								(cc_rb_backend_disable >> 16));
 
 	rdev->config.rv770.tile_config = gb_tiling_config;
+	rdev->config.rv770.backend_map = backend_map;
 	gb_tiling_config |= BACKEND_MAP(backend_map);
 
 	WREG32(GB_TILING_CONFIG, gb_tiling_config);

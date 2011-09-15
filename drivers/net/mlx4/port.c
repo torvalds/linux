@@ -258,9 +258,12 @@ void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, int qpn)
 	if (validate_index(dev, table, index))
 		goto out;
 
-	table->entries[index] = 0;
-	mlx4_set_port_mac_table(dev, port, table->entries);
-	--table->total;
+	/* Check whether this address has reference count */
+	if (!(--table->refs[index])) {
+		table->entries[index] = 0;
+		mlx4_set_port_mac_table(dev, port, table->entries);
+		--table->total;
+	}
 out:
 	mutex_unlock(&table->mutex);
 }

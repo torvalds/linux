@@ -31,7 +31,7 @@
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>

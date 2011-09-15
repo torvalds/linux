@@ -1596,7 +1596,7 @@ static void pn533_disconnect(struct usb_interface *interface)
 	usb_free_urb(dev->out_urb);
 	kfree(dev);
 
-	nfc_dev_info(&dev->interface->dev, "NXP PN533 NFC device disconnected");
+	nfc_dev_info(&interface->dev, "NXP PN533 NFC device disconnected");
 }
 
 static struct usb_driver pn533_driver = {

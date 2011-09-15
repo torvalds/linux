@@ -692,6 +692,24 @@ xfs_da_join(xfs_da_state_t *state)
 	return(error);
 }
 
+#ifdef	DEBUG
+static void
+xfs_da_blkinfo_onlychild_validate(struct xfs_da_blkinfo *blkinfo, __u16 level)
+{
+	__be16	magic = blkinfo->magic;
+
+	if (level == 1) {
+		ASSERT(magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
+		       magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
+	} else
+		ASSERT(magic == cpu_to_be16(XFS_DA_NODE_MAGIC));
+	ASSERT(!blkinfo->forw);
+	ASSERT(!blkinfo->back);
+}
+#else	/* !DEBUG */
+#define	xfs_da_blkinfo_onlychild_validate(blkinfo, level)
+#endif	/* !DEBUG */
+
 /*
  * We have only one entry in the root.  Copy the only remaining child of
  * the old root to block 0 as the new root node.
@@ -700,8 +718,6 @@ STATIC int
 xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 {
 	xfs_da_intnode_t *oldroot;
-	/* REFERENCED */
-	xfs_da_blkinfo_t *blkinfo;
 	xfs_da_args_t *args;
 	xfs_dablk_t child;
 	xfs_dabuf_t *bp;
@@ -732,15 +748,9 @@ xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 	if (error)
 		return(error);
 	ASSERT(bp != NULL);
-	blkinfo = bp->data;
-	if (be16_to_cpu(oldroot->hdr.level) == 1) {
-		ASSERT(blkinfo->magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
-		       blkinfo->magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
-	} else {
-		ASSERT(blkinfo->magic == cpu_to_be16(XFS_DA_NODE_MAGIC));
-	}
-	ASSERT(!blkinfo->forw);
-	ASSERT(!blkinfo->back);
+	xfs_da_blkinfo_onlychild_validate(bp->data,
+					be16_to_cpu(oldroot->hdr.level));
+
 	memcpy(root_blk->bp->data, bp->data, state->blocksize);
 	xfs_da_log_buf(args->trans, root_blk->bp, 0, state->blocksize - 1);
 	error = xfs_da_shrink_inode(args, child, bp);
@@ -2040,7 +2050,7 @@ xfs_da_do_buf(
 		case 0:
 			bp = xfs_trans_get_buf(trans, mp->m_ddev_targp,
 				mappedbno, nmapped, 0);
-			error = bp ? XFS_BUF_GETERROR(bp) : XFS_ERROR(EIO);
+			error = bp ? bp->b_error : XFS_ERROR(EIO);
 			break;
 		case 1:
 		case 2:
@@ -2258,7 +2268,7 @@ xfs_da_buf_make(int nbuf, xfs_buf_t **bps)
 		dabuf->nbuf = 1;
 		bp = bps[0];
 		dabuf->bbcount = (short)BTOBB(XFS_BUF_COUNT(bp));
-		dabuf->data = XFS_BUF_PTR(bp);
+		dabuf->data = bp->b_addr;
 		dabuf->bps[0] = bp;
 	} else {
 		dabuf->nbuf = nbuf;
@@ -2269,7 +2279,7 @@ xfs_da_buf_make(int nbuf, xfs_buf_t **bps)
 		dabuf->data = kmem_alloc(BBTOB(dabuf->bbcount), KM_SLEEP);
 		for (i = off = 0; i < nbuf; i++, off += XFS_BUF_COUNT(bp)) {
 			bp = bps[i];
-			memcpy((char *)dabuf->data + off, XFS_BUF_PTR(bp),
+			memcpy((char *)dabuf->data + off, bp->b_addr,
 				XFS_BUF_COUNT(bp));
 		}
 	}
@@ -2292,8 +2302,8 @@ xfs_da_buf_clean(xfs_dabuf_t *dabuf)
 		for (i = off = 0; i < dabuf->nbuf;
 				i++, off += XFS_BUF_COUNT(bp)) {
 			bp = dabuf->bps[i];
-			memcpy(XFS_BUF_PTR(bp), (char *)dabuf->data + off,
-				XFS_BUF_COUNT(bp));
+			memcpy(bp->b_addr, dabuf->data + off,
+						XFS_BUF_COUNT(bp));
 		}
 	}
 }
@@ -2330,7 +2340,7 @@ xfs_da_log_buf(xfs_trans_t *tp, xfs_dabuf_t *dabuf, uint first, uint last)
 
 	ASSERT(dabuf->nbuf && dabuf->data && dabuf->bbcount && dabuf->bps[0]);
 	if (dabuf->nbuf == 1) {
-		ASSERT(dabuf->data == (void *)XFS_BUF_PTR(dabuf->bps[0]));
+		ASSERT(dabuf->data == dabuf->bps[0]->b_addr);
 		xfs_trans_log_buf(tp, dabuf->bps[0], first, last);
 		return;
 	}

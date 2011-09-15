@@ -8,7 +8,7 @@
 #ifdef CONFIG_SMP
 
 #include <linux/spinlock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/current.h>
 #include <asm/percpu.h>
 

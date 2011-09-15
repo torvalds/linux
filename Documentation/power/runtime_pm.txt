@@ -54,11 +54,10 @@ referred to as subsystem-level callbacks in what follows.
 By default, the callbacks are always invoked in process context with interrupts
 enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function
 to tell the PM core that a device's ->runtime_suspend() and ->runtime_resume()
-callbacks should be invoked in atomic context with interrupts disabled
-(->runtime_idle() is still invoked the default way).  This implies that these
-callback routines must not block or sleep, but it also means that the
-synchronous helper functions listed at the end of Section 4 can be used within
-an interrupt handler or in an atomic context.
+callbacks should be invoked in atomic context with interrupts disabled.
+This implies that these callback routines must not block or sleep, but it also
+means that the synchronous helper functions listed at the end of Section 4 can
+be used within an interrupt handler or in an atomic context.
 
 The subsystem-level suspend callback is _entirely_ _responsible_ for handling
 the suspend of the device as appropriate, which may, but need not include
@@ -432,8 +431,7 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
 
   void pm_runtime_irq_safe(struct device *dev);
     - set the power.irq_safe flag for the device, causing the runtime-PM
-      suspend and resume callbacks (but not the idle callback) to be invoked
-      with interrupts disabled
+      callbacks to be invoked with interrupts off
 
   void pm_runtime_mark_last_busy(struct device *dev);
     - set the power.last_busy field to the current time
@@ -483,6 +481,7 @@ pm_runtime_suspend()
 pm_runtime_autosuspend()
 pm_runtime_resume()
 pm_runtime_get_sync()
+pm_runtime_put_sync()
 pm_runtime_put_sync_suspend()
 
 5. Runtime PM Initialization, Device Probing and Removal

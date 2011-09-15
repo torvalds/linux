@@ -1213,7 +1213,7 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 	struct bnx2i_conn *bnx2i_conn = conn->dd_data;
 	struct scsi_cmnd *sc = task->sc;
 	struct bnx2i_cmd *cmd = task->dd_data;
-	struct iscsi_cmd *hdr = (struct iscsi_cmd *) task->hdr;
+	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)task->hdr;
 
 	if (atomic_read(&bnx2i_conn->ep->num_active_cmds) + 1  >
 	    hba->max_sqes)

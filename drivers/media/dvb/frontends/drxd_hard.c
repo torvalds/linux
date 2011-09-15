@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/version.h>
 #include <asm/div64.h>
 
 #include "dvb_frontend.h"
@@ -233,7 +232,7 @@ static int i2c_read(struct i2c_adapter *adap,
 	return 0;
 }
 
-inline u32 MulDiv32(u32 a, u32 b, u32 c)
+static inline u32 MulDiv32(u32 a, u32 b, u32 c)
 {
 	u64 tmp64;
 
@@ -910,14 +909,16 @@ static int load_firmware(struct drxd_state *state, const char *fw_name)
 		return -EIO;
 	}
 
-	state->microcode = kzalloc(fw->size, GFP_KERNEL);
+	state->microcode = kmalloc(fw->size, GFP_KERNEL);
 	if (state->microcode == NULL) {
-		printk(KERN_ERR "drxd: firmware load failure: nomemory\n");
+		release_firmware(fw);
+		printk(KERN_ERR "drxd: firmware load failure: no memory\n");
 		return -ENOMEM;
 	}
 
 	memcpy(state->microcode, fw->data, fw->size);
 	state->microcode_length = fw->size;
+	release_firmware(fw);
 	return 0;
 }
 

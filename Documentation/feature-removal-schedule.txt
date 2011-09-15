@@ -296,15 +296,6 @@ Who:	Ravikiran Thirumalai <kiran@scalex86.org>
 
 ---------------------------
 
-What:	CONFIG_THERMAL_HWMON
-When:	January 2009
-Why:	This option was introduced just to allow older lm-sensors userspace
-	to keep working over the upgrade to 2.6.26. At the scheduled time of
-	removal fixed lm-sensors (2.x or 3.x) should be readily available.
-Who:	Rene Herman <rene.herman@gmail.com>
-
----------------------------
-
 What:	Code that is now under CONFIG_WIRELESS_EXT_SYSFS
 	(in net/core/net-sysfs.c)
 When:	After the only user (hal) has seen a release with the patches
@@ -460,13 +451,6 @@ Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 
 ----------------------------
 
-What: 	DMA_xxBIT_MASK macros
-When:	Jun 2011
-Why:	DMA_xxBIT_MASK macros were replaced with DMA_BIT_MASK() macros.
-Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-
-----------------------------
-
 What:	iwlwifi disable_hw_scan module parameters
 When:	3.0
 Why:	Hareware scan is the prefer method for iwlwifi devices for
@@ -534,6 +518,41 @@ Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 ----------------------------
 
+What:	Support for driver specific ioctls in the pwc driver (everything
+	defined in media/pwc-ioctl.h)
+When:	3.3
+Why:	This stems from the v4l1 era, with v4l2 everything can be done with
+	standardized v4l2 API calls
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Driver specific sysfs API in the pwc driver
+When:	3.3
+Why:	Setting pan/tilt should be done with v4l2 controls, like with other
+	cams. The button is available as a standard input device
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Driver specific use of pixfmt.priv in the pwc driver
+When:	3.3
+Why:	The .priv field never was intended for this, setting a framerate is
+	support using the standardized S_PARM ioctl
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	Software emulation of arbritary resolutions in the pwc driver
+When:	3.3
+Why:	The pwc driver claims to support any resolution between 160x120
+	and 640x480, but emulates this by simply drawing a black border
+	around the image. Userspace can draw its own black border if it
+	really wants one.
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
 What:	For VIDIOC_S_FREQUENCY the type field must match the device node's type.
 	If not, return -EINVAL.
 When:	3.2
@@ -562,3 +581,22 @@ Why:	This driver has been superseded by g_mass_storage.
 Who:	Alan Stern <stern@rowland.harvard.edu>
 
 ----------------------------
+
+What:   threeg and interface sysfs files in /sys/devices/platform/acer-wmi
+When:   2012
+Why:    In 3.0, we can now autodetect internal 3G device and already have
+	the threeg rfkill device. So, we plan to remove threeg sysfs support
+	for it's no longer necessary.
+
+	We also plan to remove interface sysfs file that exposed which ACPI-WMI
+	interface that was used by acer-wmi driver. It will replaced by
+	information log when acer-wmi initial.
+Who:    Lee, Chun-Yi <jlee@novell.com>
+
+----------------------------
+What:	The XFS nodelaylog mount option
+When:	3.3
+Why:	The delaylog mode that has been the default since 2.6.39 has proven
+	stable, and the old code is in the way of additional improvements in
+	the log code.
+Who:	Christoph Hellwig <hch@lst.de>

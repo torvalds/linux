@@ -388,12 +388,8 @@ static void gfar_init_mac(struct net_device *ndev)
 	if (priv->hwts_rx_en)
 		rctrl |= RCTRL_PRSDEP_INIT | RCTRL_TS_ENABLE;
 
-	/* keep vlan related bits if it's enabled */
-	if (ndev->features & NETIF_F_HW_VLAN_TX)
-		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
-
 	if (ndev->features & NETIF_F_HW_VLAN_RX)
-		tctrl |= TCTRL_VLINS;
+		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
 
 	/* Init rctrl based on our settings */
 	gfar_write(&regs->rctrl, rctrl);
@@ -2714,8 +2710,13 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	/* Tell the skb what kind of packet this is */
 	skb->protocol = eth_type_trans(skb, dev);
 
-	/* Set vlan tag */
-	if (fcb->flags & RXFCB_VLN)
+	/*
+	 * There's need to check for NETIF_F_HW_VLAN_RX here.
+	 * Even if vlan rx accel is disabled, on some chips
+	 * RXFCB_VLN is pseudo randomly set.
+	 */
+	if (dev->features & NETIF_F_HW_VLAN_RX &&
+	    fcb->flags & RXFCB_VLN)
 		__vlan_hwaccel_put_tag(skb, fcb->vlctl);
 
 	/* Send the packet up the stack */

@@ -5798,6 +5798,12 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 
 	DP(BNX2X_MSG_MCP, "starting common init  func %d\n", BP_ABS_FUNC(bp));
 
+	/*
+	 * take the UNDI lock to protect undi_unload flow from accessing
+	 * registers while we're resetting the chip
+	 */
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+
 	bnx2x_reset_common(bp);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, 0xffffffff);
 
@@ -5807,6 +5813,8 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		val |= MISC_REGISTERS_RESET_REG_2_MSTAT1;
 	}
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET, val);
+
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 
 	bnx2x_init_block(bp, BLOCK_MISC, PHASE_COMMON);
 
@@ -10251,10 +10259,17 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	/* clean indirect addresses */
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
 			       PCICFG_VENDOR_ID_OFFSET);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_88_F0 + BP_PORT(bp)*16, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F0 + BP_PORT(bp)*16, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0 + BP_PORT(bp)*16, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0 + BP_PORT(bp)*16, 0);
+	/* Clean the following indirect addresses for all functions since it
+	 * is not used by the driver.
+	 */
+	REG_WR(bp, PXP2_REG_PGL_ADDR_88_F0, 0);
+	REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F0, 0);
+	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0, 0);
+	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0, 0);
+	REG_WR(bp, PXP2_REG_PGL_ADDR_88_F1, 0);
+	REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F1, 0);
+	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F1, 0);
+	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F1, 0);
 
 	/*
 	 * Enable internal target-read (in case we are probed after PF FLR).

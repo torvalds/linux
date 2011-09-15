@@ -440,9 +440,8 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		reg |= WM8993_HPOUT1L_DLY | WM8993_HPOUT1R_DLY;
 		snd_soc_write(codec, WM8993_ANALOGUE_HP_0, reg);
 
-		/* Smallest supported update interval */
 		snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
-				    WM8993_DCS_TIMER_PERIOD_01_MASK, 1);
+				    WM8993_DCS_TIMER_PERIOD_01_MASK, 0);
 
 		calibrate_dc_servo(codec);
 

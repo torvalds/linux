@@ -52,30 +52,24 @@ struct rt_sigframe {
 static int restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 {
 	unsigned int err = 0;
-	unsigned long old_usp;
 
 	/* Alwys make any pending restarted system call return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
-	/* restore the regs from &sc->regs (same as sc, since regs is first)
+	/*
+	 * Restore the regs from &sc->regs.
 	 * (sc is already checked for VERIFY_READ since the sigframe was
 	 *  checked in sys_sigreturn previously)
 	 */
-
-	if (__copy_from_user(regs, sc, sizeof(struct pt_regs)))
+	if (__copy_from_user(regs, sc->regs.gpr, 32 * sizeof(unsigned long)))
+		goto badframe;
+	if (__copy_from_user(&regs->pc, &sc->regs.pc, sizeof(unsigned long)))
+		goto badframe;
+	if (__copy_from_user(&regs->sr, &sc->regs.sr, sizeof(unsigned long)))
 		goto badframe;
 
 	/* make sure the SM-bit is cleared so user-mode cannot fool us */
 	regs->sr &= ~SPR_SR_SM;
-
-	/* restore the old USP as it was before we stacked the sc etc.
-	 * (we cannot just pop the sigcontext since we aligned the sp and
-	 *  stuff after pushing it)
-	 */
-
-	err |= __get_user(old_usp, &sc->usp);
-
-	regs->sp = old_usp;
 
 	/* TODO: the other ports use regs->orig_XX to disable syscall checks
 	 * after this completes, but we don't use that mechanism. maybe we can
@@ -137,17 +131,16 @@ static int setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 			    unsigned long mask)
 {
 	int err = 0;
-	unsigned long usp = regs->sp;
 
-	/* copy the regs. they are first in sc so we can use sc directly */
+	/* copy the regs */
 
-	err |= __copy_to_user(sc, regs, sizeof(struct pt_regs));
+	err |= __copy_to_user(sc->regs.gpr, regs, 32 * sizeof(unsigned long));
+	err |= __copy_to_user(&sc->regs.pc, &regs->pc, sizeof(unsigned long));
+	err |= __copy_to_user(&sc->regs.sr, &regs->sr, sizeof(unsigned long));
 
 	/* then some other stuff */
 
 	err |= __put_user(mask, &sc->oldmask);
-
-	err |= __put_user(usp, &sc->usp);
 
 	return err;
 }

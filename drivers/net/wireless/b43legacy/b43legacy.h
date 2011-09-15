@@ -8,7 +8,7 @@
 #include <linux/stringify.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/io.h>
 
 #include <linux/ssb/ssb.h>

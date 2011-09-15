@@ -231,6 +231,7 @@ EXPORT_SYMBOL(eth_header_parse);
  * eth_header_cache - fill cache entry from neighbour
  * @neigh: source neighbour
  * @hh: destination cache entry
+ * @type: Ethernet type field
  * Create an Ethernet header template from the neighbour.
  */
 int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh, __be16 type)
@@ -339,6 +340,7 @@ void ether_setup(struct net_device *dev)
 	dev->addr_len		= ETH_ALEN;
 	dev->tx_queue_len	= 1000;	/* Ethernet wants good queues */
 	dev->flags		= IFF_BROADCAST|IFF_MULTICAST;
+	dev->priv_flags		= IFF_TX_SKB_SHARING;
 
 	memset(dev->broadcast, 0xFF, ETH_ALEN);
 

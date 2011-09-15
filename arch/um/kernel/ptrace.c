@@ -50,21 +50,9 @@ long arch_ptrace(struct task_struct *child, long request,
 	void __user *vp = p;
 
 	switch (request) {
-	/* read word at location addr. */
-	case PTRACE_PEEKTEXT:
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR:
 		ret = peek_user(child, addr, data);
-		break;
-
-	/* write the word at location addr. */
-	case PTRACE_POKETEXT:
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
 
 	/* write the word at location addr in the USER area */
@@ -107,16 +95,6 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 	}
 #endif
-#ifdef PTRACE_GETFPREGS
-	case PTRACE_GETFPREGS: /* Get the child FPU state. */
-		ret = get_fpregs(vp, child);
-		break;
-#endif
-#ifdef PTRACE_SETFPREGS
-	case PTRACE_SETFPREGS: /* Set the child FPU state. */
-		ret = set_fpregs(vp, child);
-		break;
-#endif
 	case PTRACE_GET_THREAD_AREA:
 		ret = ptrace_get_thread_area(child, addr, vp);
 		break;
@@ -153,12 +131,6 @@ long arch_ptrace(struct task_struct *child, long request,
 		ret = -EIO;
 		break;
 	}
-#endif
-#ifdef PTRACE_ARCH_PRCTL
-	case PTRACE_ARCH_PRCTL:
-		/* XXX Calls ptrace on the host - needs some SMP thinking */
-		ret = arch_prctl(child, data, (void __user *) addr);
-		break;
 #endif
 	default:
 		ret = ptrace_request(child, request, addr, data);

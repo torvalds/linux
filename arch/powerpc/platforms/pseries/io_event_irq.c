@@ -212,17 +212,15 @@ static int __init ioei_init(void)
 	struct device_node *np;
 
 	ioei_check_exception_token = rtas_token("check-exception");
-	if (ioei_check_exception_token == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("IO Event IRQ not supported on this system !\n");
+	if (ioei_check_exception_token == RTAS_UNKNOWN_SERVICE)
 		return -ENODEV;
-	}
+
 	np = of_find_node_by_path("/event-sources/ibm,io-events");
 	if (np) {
 		request_event_sources_irqs(np, ioei_interrupt, "IO_EVENT");
+		pr_info("IBM I/O event interrupts enabled\n");
 		of_node_put(np);
 	} else {
-		pr_err("io_event_irq: No ibm,io-events on system! "
-		       "IO Event interrupt disabled.\n");
 		return -ENODEV;
 	}
 	return 0;

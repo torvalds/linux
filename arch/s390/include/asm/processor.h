@@ -119,14 +119,12 @@ struct stack_frame {
  * Do necessary setup to start up a new thread.
  */
 #define start_thread(regs, new_psw, new_stackp) do {		\
-	set_fs(USER_DS);					\
 	regs->psw.mask	= psw_user_bits;			\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;		\
 	regs->gprs[15]	= new_stackp;				\
 } while (0)
 
 #define start_thread31(regs, new_psw, new_stackp) do {		\
-	set_fs(USER_DS);					\
 	regs->psw.mask	= psw_user32_bits;			\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;		\
 	regs->gprs[15]	= new_stackp;				\

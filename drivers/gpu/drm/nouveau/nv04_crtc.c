@@ -781,10 +781,19 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv04_crtc_reg *regp = &dev_priv->mode_reg.crtc_reg[nv_crtc->index];
-	struct drm_framebuffer *drm_fb = nv_crtc->base.fb;
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
+	struct drm_framebuffer *drm_fb;
+	struct nouveau_framebuffer *fb;
 	int arb_burst, arb_lwm;
 	int ret;
+
+	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
+
+	/* no fb bound */
+	if (!atomic && !crtc->fb) {
+		NV_DEBUG_KMS(dev, "No FB bound\n");
+		return 0;
+	}
+
 
 	/* If atomic, we want to switch to the fb we were passed, so
 	 * now we update pointers to do that.  (We don't pin; just
@@ -794,6 +803,8 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		drm_fb = passed_fb;
 		fb = nouveau_framebuffer(passed_fb);
 	} else {
+		drm_fb = crtc->fb;
+		fb = nouveau_framebuffer(crtc->fb);
 		/* If not atomic, we can go ahead and pin, and unpin the
 		 * old fb we were passed.
 		 */
@@ -1035,7 +1046,7 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	drm_crtc_helper_add(&nv_crtc->base, &nv04_crtc_helper_funcs);
 	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 
-	ret = nouveau_bo_new(dev, NULL, 64*64*4, 0x100, TTM_PL_FLAG_VRAM,
+	ret = nouveau_bo_new(dev, 64*64*4, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, &nv_crtc->cursor.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);

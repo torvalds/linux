@@ -51,7 +51,7 @@
 #include <linux/cpu.h>
 #include <linux/reboot.h>
 #include <net/iucv/iucv.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
 #include <asm/irq.h>

@@ -37,7 +37,7 @@
 #include <linux/completion.h>
 #include <linux/radix-tree.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define MAX_MSIX_P_PORT		17
 #define MAX_MSIX		64

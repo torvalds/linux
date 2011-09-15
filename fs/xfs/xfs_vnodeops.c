@@ -83,7 +83,9 @@ xfs_readlink_bmap(
 
 		bp = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt),
 				  XBF_LOCK | XBF_MAPPED | XBF_DONT_BLOCK);
-		error = XFS_BUF_GETERROR(bp);
+		if (!bp)
+			return XFS_ERROR(ENOMEM);
+		error = bp->b_error;
 		if (error) {
 			xfs_ioerror_alert("xfs_readlink",
 				  ip->i_mount, bp, XFS_BUF_ADDR(bp));
@@ -94,7 +96,7 @@ xfs_readlink_bmap(
 			byte_cnt = pathlen;
 		pathlen -= byte_cnt;
 
-		memcpy(link, XFS_BUF_PTR(bp), byte_cnt);
+		memcpy(link, bp->b_addr, byte_cnt);
 		xfs_buf_relse(bp);
 	}
 
@@ -121,7 +123,7 @@ xfs_readlink(
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 
-	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFLNK);
+	ASSERT(S_ISLNK(ip->i_d.di_mode));
 	ASSERT(ip->i_d.di_size <= MAXPATHLEN);
 
 	pathlen = ip->i_d.di_size;
@@ -529,7 +531,7 @@ xfs_release(
 	if (ip->i_d.di_nlink == 0)
 		return 0;
 
-	if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
+	if ((S_ISREG(ip->i_d.di_mode) &&
 	     ((ip->i_size > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
 	       ip->i_delayed_blks > 0)) &&
 	     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
@@ -610,7 +612,7 @@ xfs_inactive(
 	truncate = ((ip->i_d.di_nlink == 0) &&
 	    ((ip->i_d.di_size != 0) || (ip->i_size != 0) ||
 	     (ip->i_d.di_nextents > 0) || (ip->i_delayed_blks > 0)) &&
-	    ((ip->i_d.di_mode & S_IFMT) == S_IFREG));
+	    S_ISREG(ip->i_d.di_mode));
 
 	mp = ip->i_mount;
 
@@ -621,7 +623,7 @@ xfs_inactive(
 		goto out;
 
 	if (ip->i_d.di_nlink != 0) {
-		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
+		if ((S_ISREG(ip->i_d.di_mode) &&
                      ((ip->i_size > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
                        ip->i_delayed_blks > 0)) &&
 		      (ip->i_df.if_flags & XFS_IFEXTENTS) &&
@@ -669,7 +671,7 @@ xfs_inactive(
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
 			return VN_INACTIVE_CACHE;
 		}
-	} else if ((ip->i_d.di_mode & S_IFMT) == S_IFLNK) {
+	} else if (S_ISLNK(ip->i_d.di_mode)) {
 
 		/*
 		 * If we get an error while cleaning up a
@@ -1648,13 +1650,13 @@ xfs_symlink(
 			byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
 			bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
 					       BTOBB(byte_cnt), 0);
-			ASSERT(bp && !XFS_BUF_GETERROR(bp));
+			ASSERT(!xfs_buf_geterror(bp));
 			if (pathlen < byte_cnt) {
 				byte_cnt = pathlen;
 			}
 			pathlen -= byte_cnt;
 
-			memcpy(XFS_BUF_PTR(bp), cur_chunk, byte_cnt);
+			memcpy(bp->b_addr, cur_chunk, byte_cnt);
 			cur_chunk += byte_cnt;
 
 			xfs_trans_log_buf(tp, bp, 0, byte_cnt - 1);
@@ -1999,7 +2001,7 @@ xfs_zero_remaining_bytes(
 					  mp, bp, XFS_BUF_ADDR(bp));
 			break;
 		}
-		memset(XFS_BUF_PTR(bp) +
+		memset(bp->b_addr +
 			(offset - XFS_FSB_TO_B(mp, imap.br_startoff)),
 		      0, lastoffset - offset + 1);
 		XFS_BUF_UNDONE(bp);

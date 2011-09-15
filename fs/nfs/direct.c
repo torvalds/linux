@@ -53,7 +53,7 @@
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "internal.h"
 #include "iostat.h"

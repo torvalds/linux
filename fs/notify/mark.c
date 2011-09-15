@@ -92,7 +92,7 @@
 #include <linux/spinlock.h>
 #include <linux/srcu.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"

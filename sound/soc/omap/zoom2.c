@@ -32,7 +32,7 @@
 #include <plat/mcbsp.h>
 
 /* Register descriptions for twl4030 codec part */
-#include <linux/mfd/twl4030-codec.h>
+#include <linux/mfd/twl4030-audio.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"

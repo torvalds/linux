@@ -414,7 +414,7 @@ xfs_bmap_add_attrfork_local(
 
 	if (ip->i_df.if_bytes <= XFS_IFORK_DSIZE(ip))
 		return 0;
-	if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
+	if (S_ISDIR(ip->i_d.di_mode)) {
 		mp = ip->i_mount;
 		memset(&dargs, 0, sizeof(dargs));
 		dargs.dp = ip;
@@ -3344,8 +3344,7 @@ xfs_bmap_local_to_extents(
 	 * We don't want to deal with the case of keeping inode data inline yet.
 	 * So sending the data fork of a regular inode is invalid.
 	 */
-	ASSERT(!((ip->i_d.di_mode & S_IFMT) == S_IFREG &&
-		 whichfork == XFS_DATA_FORK));
+	ASSERT(!(S_ISREG(ip->i_d.di_mode) && whichfork == XFS_DATA_FORK));
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	ASSERT(XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_LOCAL);
 	flags = 0;
@@ -3384,8 +3383,7 @@ xfs_bmap_local_to_extents(
 		ASSERT(args.len == 1);
 		*firstblock = args.fsbno;
 		bp = xfs_btree_get_bufl(args.mp, tp, args.fsbno, 0);
-		memcpy((char *)XFS_BUF_PTR(bp), ifp->if_u1.if_data,
-			ifp->if_bytes);
+		memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);
 		xfs_trans_log_buf(tp, bp, 0, ifp->if_bytes - 1);
 		xfs_bmap_forkoff_reset(args.mp, ip, whichfork);
 		xfs_idata_realloc(ip, -ifp->if_bytes, whichfork);
@@ -4052,7 +4050,7 @@ xfs_bmap_one_block(
 
 #ifndef DEBUG
 	if (whichfork == XFS_DATA_FORK) {
-		return ((ip->i_d.di_mode & S_IFMT) == S_IFREG) ?
+		return S_ISREG(ip->i_d.di_mode) ?
 			(ip->i_size == ip->i_mount->m_sb.sb_blocksize) :
 			(ip->i_d.di_size == ip->i_mount->m_sb.sb_blocksize);
 	}

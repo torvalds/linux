@@ -760,15 +760,13 @@ static void i915_restore_display(struct drm_device *dev)
 	/* FIXME: restore TV & SDVO state */
 
 	/* only restore FBC info on the platform that supports FBC*/
+	intel_disable_fbc(dev);
 	if (I915_HAS_FBC(dev)) {
 		if (HAS_PCH_SPLIT(dev)) {
-			ironlake_disable_fbc(dev);
 			I915_WRITE(ILK_DPFC_CB_BASE, dev_priv->saveDPFC_CB_BASE);
 		} else if (IS_GM45(dev)) {
-			g4x_disable_fbc(dev);
 			I915_WRITE(DPFC_CB_BASE, dev_priv->saveDPFC_CB_BASE);
 		} else {
-			i8xx_disable_fbc(dev);
 			I915_WRITE(FBC_CFB_BASE, dev_priv->saveFBC_CFB_BASE);
 			I915_WRITE(FBC_LL_BASE, dev_priv->saveFBC_LL_BASE);
 			I915_WRITE(FBC_CONTROL2, dev_priv->saveFBC_CONTROL2);
@@ -814,6 +812,7 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveFDI_RXB_IMR = I915_READ(_FDI_RXB_IMR);
 		dev_priv->saveMCHBAR_RENDER_STANDBY =
 			I915_READ(RSTDBYCTL);
+		dev_priv->savePCH_PORT_HOTPLUG = I915_READ(PCH_PORT_HOTPLUG);
 	} else {
 		dev_priv->saveIER = I915_READ(IER);
 		dev_priv->saveIMR = I915_READ(IMR);
@@ -865,21 +864,25 @@ int i915_restore_state(struct drm_device *dev)
 		I915_WRITE(GTIMR, dev_priv->saveGTIMR);
 		I915_WRITE(_FDI_RXA_IMR, dev_priv->saveFDI_RXA_IMR);
 		I915_WRITE(_FDI_RXB_IMR, dev_priv->saveFDI_RXB_IMR);
+		I915_WRITE(PCH_PORT_HOTPLUG, dev_priv->savePCH_PORT_HOTPLUG);
 	} else {
 		I915_WRITE(IER, dev_priv->saveIER);
 		I915_WRITE(IMR, dev_priv->saveIMR);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	intel_init_clock_gating(dev);
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		intel_init_clock_gating(dev);
 
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
 		intel_init_emon(dev);
 	}
 
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev)) {
 		gen6_enable_rps(dev_priv);
+		gen6_update_ring_freq(dev_priv);
+	}
 
 	mutex_lock(&dev->struct_mutex);
 

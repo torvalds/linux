@@ -95,6 +95,48 @@ struct platform_device lpc32xx_i2c2_device = {
 	},
 };
 
+/* TSC (Touch Screen Controller) */
+
+static struct resource lpc32xx_tsc_resources[] = {
+	{
+		.start = LPC32XX_ADC_BASE,
+		.end = LPC32XX_ADC_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = IRQ_LPC32XX_TS_IRQ,
+		.end = IRQ_LPC32XX_TS_IRQ,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device lpc32xx_tsc_device = {
+	.name =  "ts-lpc32xx",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(lpc32xx_tsc_resources),
+	.resource = lpc32xx_tsc_resources,
+};
+
+/* RTC */
+
+static struct resource lpc32xx_rtc_resources[] = {
+	{
+		.start = LPC32XX_RTC_BASE,
+		.end = LPC32XX_RTC_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},{
+		.start = IRQ_LPC32XX_RTC,
+		.end = IRQ_LPC32XX_RTC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device lpc32xx_rtc_device = {
+	.name =  "rtc-lpc32xx",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(lpc32xx_rtc_resources),
+	.resource = lpc32xx_rtc_resources,
+};
+
 /*
  * Returns the unique ID for the device
  */

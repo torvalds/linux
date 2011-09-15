@@ -39,7 +39,7 @@
 #include <asm/udbg.h>
 #include <asm/syscalls.h>
 #include <asm/smp.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/time.h>
 #include <asm/mmu.h>
 #include <asm/topology.h>

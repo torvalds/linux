@@ -685,6 +685,18 @@ static void __remove_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 	put_osd(osd);
 }
 
+static void remove_all_osds(struct ceph_osd_client *osdc)
+{
+	dout("__remove_old_osds %p\n", osdc);
+	mutex_lock(&osdc->request_mutex);
+	while (!RB_EMPTY_ROOT(&osdc->osds)) {
+		struct ceph_osd *osd = rb_entry(rb_first(&osdc->osds),
+						struct ceph_osd, o_node);
+		__remove_osd(osdc, osd);
+	}
+	mutex_unlock(&osdc->request_mutex);
+}
+
 static void __move_osd_to_lru(struct ceph_osd_client *osdc,
 			      struct ceph_osd *osd)
 {
@@ -701,14 +713,14 @@ static void __remove_osd_from_lru(struct ceph_osd *osd)
 		list_del_init(&osd->o_osd_lru);
 }
 
-static void remove_old_osds(struct ceph_osd_client *osdc, int remove_all)
+static void remove_old_osds(struct ceph_osd_client *osdc)
 {
 	struct ceph_osd *osd, *nosd;
 
 	dout("__remove_old_osds %p\n", osdc);
 	mutex_lock(&osdc->request_mutex);
 	list_for_each_entry_safe(osd, nosd, &osdc->osd_lru, o_osd_lru) {
-		if (!remove_all && time_before(jiffies, osd->lru_ttl))
+		if (time_before(jiffies, osd->lru_ttl))
 			break;
 		__remove_osd(osdc, osd);
 	}
@@ -751,6 +763,7 @@ static void __insert_osd(struct ceph_osd_client *osdc, struct ceph_osd *new)
 	struct rb_node *parent = NULL;
 	struct ceph_osd *osd = NULL;
 
+	dout("__insert_osd %p osd%d\n", new, new->o_osd);
 	while (*p) {
 		parent = *p;
 		osd = rb_entry(parent, struct ceph_osd, o_node);
@@ -1085,7 +1098,13 @@ static void handle_timeout(struct work_struct *work)
 		req = list_entry(osdc->req_lru.next, struct ceph_osd_request,
 				 r_req_lru_item);
 
+		/* hasn't been long enough since we sent it? */
 		if (time_before(jiffies, req->r_stamp + timeout))
+			break;
+
+		/* hasn't been long enough since it was acked? */
+		if (req->r_request->ack_stamp == 0 ||
+		    time_before(jiffies, req->r_request->ack_stamp + timeout))
 			break;
 
 		BUG_ON(req == last_req && req->r_stamp == last_stamp);
@@ -1138,7 +1157,7 @@ static void handle_osds_timeout(struct work_struct *work)
 
 	dout("osds timeout\n");
 	down_read(&osdc->map_sem);
-	remove_old_osds(osdc, 0);
+	remove_old_osds(osdc);
 	up_read(&osdc->map_sem);
 
 	schedule_delayed_work(&osdc->osds_timeout_work,
@@ -1856,8 +1875,7 @@ void ceph_osdc_stop(struct ceph_osd_client *osdc)
 		ceph_osdmap_destroy(osdc->osdmap);
 		osdc->osdmap = NULL;
 	}
-	remove_old_osds(osdc, 1);
-	WARN_ON(!RB_EMPTY_ROOT(&osdc->osds));
+	remove_all_osds(osdc);
 	mempool_destroy(osdc->req_mempool);
 	ceph_msgpool_destroy(&osdc->msgpool_op);
 	ceph_msgpool_destroy(&osdc->msgpool_op_reply);

@@ -11,7 +11,6 @@
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <asm/xen/pci.h>
-#include <linux/workqueue.h>
 #include "pciback.h"
 
 #define	DRV_NAME	"xen-pciback"

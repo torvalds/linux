@@ -19,7 +19,7 @@
 #include <linux/nmi.h>
 #include <asm/processor.h>
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/intctl-regs.h>
 #include <asm/rtc-regs.h>
 #include <asm/div64.h>

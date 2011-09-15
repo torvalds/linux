@@ -812,7 +812,7 @@ int AthCreateCommandList(struct ps_cmd_packet **HciPacketList, u32 *numPackets)
     for(count = 0; count < Patch_Count; count++) {
 
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Freeing Patch Buffer %d \r\n",count));
-        kfree(RamPatch[Patch_Count].Data);
+	kfree(RamPatch[count].Data);
     }
 
     for(count = 0; count < Tag_Count; count++) {

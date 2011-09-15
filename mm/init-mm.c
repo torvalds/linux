@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include <linux/cpumask.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 

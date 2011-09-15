@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/system.h>

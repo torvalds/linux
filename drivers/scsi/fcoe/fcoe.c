@@ -431,6 +431,8 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
 
+	rtnl_lock();
+
 	/*
 	 * Don't listen for Ethernet packets anymore.
 	 * synchronize_net() ensures that the packet handlers are not running
@@ -460,6 +462,8 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 					" specific feature for LLD.\n");
 	}
 
+	rtnl_unlock();
+
 	/* Release the self-reference taken during fcoe_interface_create() */
 	fcoe_interface_put(fcoe);
 }
@@ -486,6 +490,19 @@ static int fcoe_fip_recv(struct sk_buff *skb, struct net_device *netdev,
 }
 
 /**
+ * fcoe_port_send() - Send an Ethernet-encapsulated FIP/FCoE frame
+ * @port: The FCoE port
+ * @skb: The FIP/FCoE packet to be sent
+ */
+static void fcoe_port_send(struct fcoe_port *port, struct sk_buff *skb)
+{
+	if (port->fcoe_pending_queue.qlen)
+		fcoe_check_wait_queue(port->lport, skb);
+	else if (fcoe_start_io(skb))
+		fcoe_check_wait_queue(port->lport, skb);
+}
+
+/**
  * fcoe_fip_send() - Send an Ethernet-encapsulated FIP frame
  * @fip: The FCoE controller
  * @skb: The FIP packet to be sent
@@ -493,7 +510,7 @@ static int fcoe_fip_recv(struct sk_buff *skb, struct net_device *netdev,
 static void fcoe_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	skb->dev = fcoe_from_ctlr(fip)->netdev;
-	dev_queue_xmit(skb);
+	fcoe_port_send(lport_priv(fip->lp), skb);
 }
 
 /**
@@ -1256,30 +1273,20 @@ static int fcoe_cpu_callback(struct notifier_block *nfb,
 /**
  * fcoe_select_cpu() - Selects CPU to handle post-processing of incoming
  *			command.
- * @curr_cpu:   CPU which received request
  *
- * This routine selects next CPU based on cpumask.
+ * This routine selects next CPU based on cpumask to distribute
+ * incoming requests in round robin.
  *
- * Returns: int (CPU number). Caller to verify if returned CPU is online or not.
+ * Returns: int CPU number
  */
-static unsigned int fcoe_select_cpu(unsigned int curr_cpu)
+static inline unsigned int fcoe_select_cpu(void)
 {
 	static unsigned int selected_cpu;
 
-	if (num_online_cpus() == 1)
-		return curr_cpu;
-	/*
-	 * Doing following check, to skip "curr_cpu (smp_processor_id)"
-	 * from selection of CPU is intentional. This is to avoid same CPU
-	 * doing post-processing of command. "curr_cpu" to just receive
-	 * incoming request in case where rx_id is UNKNOWN and all other
-	 * CPU to actually process the command(s)
-	 */
-	do {
-		selected_cpu = cpumask_next(selected_cpu, cpu_online_mask);
-		if (selected_cpu >= nr_cpu_ids)
-			selected_cpu = cpumask_first(cpu_online_mask);
-	} while (selected_cpu == curr_cpu);
+	selected_cpu = cpumask_next(selected_cpu, cpu_online_mask);
+	if (selected_cpu >= nr_cpu_ids)
+		selected_cpu = cpumask_first(cpu_online_mask);
+
 	return selected_cpu;
 }
 
@@ -1349,30 +1356,26 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 
 	fr = fcoe_dev_from_skb(skb);
 	fr->fr_dev = lport;
-	fr->ptype = ptype;
 
 	/*
 	 * In case the incoming frame's exchange is originated from
 	 * the initiator, then received frame's exchange id is ANDed
 	 * with fc_cpu_mask bits to get the same cpu on which exchange
-	 * was originated, otherwise just use the current cpu.
+	 * was originated, otherwise select cpu using rx exchange id
+	 * or fcoe_select_cpu().
 	 */
 	if (ntoh24(fh->fh_f_ctl) & FC_FC_EX_CTX)
 		cpu = ntohs(fh->fh_ox_id) & fc_cpu_mask;
 	else {
-		cpu = smp_processor_id();
-
-		if ((fh->fh_type == FC_TYPE_FCP) &&
-		    (ntohs(fh->fh_rx_id) == FC_XID_UNKNOWN)) {
-			do {
-				cpu = fcoe_select_cpu(cpu);
-			} while (!cpu_online(cpu));
-		} else  if ((fh->fh_type == FC_TYPE_FCP) &&
-			    (ntohs(fh->fh_rx_id) != FC_XID_UNKNOWN)) {
+		if (ntohs(fh->fh_rx_id) == FC_XID_UNKNOWN)
+			cpu = fcoe_select_cpu();
+		else
 			cpu = ntohs(fh->fh_rx_id) & fc_cpu_mask;
-		} else
-			cpu = smp_processor_id();
 	}
+
+	if (cpu >= nr_cpu_ids)
+		goto err;
+
 	fps = &per_cpu(fcoe_percpu, cpu);
 	spin_lock_bh(&fps->fcoe_rx_list.lock);
 	if (unlikely(!fps->thread)) {
@@ -1571,11 +1574,7 @@ int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 
 	/* send down to lld */
 	fr_dev(fp) = lport;
-	if (port->fcoe_pending_queue.qlen)
-		fcoe_check_wait_queue(lport, skb);
-	else if (fcoe_start_io(skb))
-		fcoe_check_wait_queue(lport, skb);
-
+	fcoe_port_send(port, skb);
 	return 0;
 }
 
@@ -1955,11 +1954,8 @@ static void fcoe_destroy_work(struct work_struct *work)
 	fcoe_if_destroy(port->lport);
 
 	/* Do not tear down the fcoe interface for NPIV port */
-	if (!npiv) {
-		rtnl_lock();
+	if (!npiv)
 		fcoe_interface_cleanup(fcoe);
-		rtnl_unlock();
-	}
 
 	mutex_unlock(&fcoe_config_mutex);
 }
@@ -2013,8 +2009,9 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 		printk(KERN_ERR "fcoe: Failed to create interface (%s)\n",
 		       netdev->name);
 		rc = -EIO;
+		rtnl_unlock();
 		fcoe_interface_cleanup(fcoe);
-		goto out_nodev;
+		goto out_nortnl;
 	}
 
 	/* Make this the "master" N_Port */
@@ -2031,6 +2028,7 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 
 out_nodev:
 	rtnl_unlock();
+out_nortnl:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }

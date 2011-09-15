@@ -88,6 +88,7 @@
  */
 
 #include <linux/timer.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
@@ -1029,8 +1030,16 @@ static void fc_lport_enter_reset(struct fc_lport *lport)
 			   FCH_EVT_LIPRESET, 0);
 	fc_vports_linkchange(lport);
 	fc_lport_reset_locked(lport);
-	if (lport->link_up)
+	if (lport->link_up) {
+		/*
+		 * Wait upto resource allocation time out before
+		 * doing re-login since incomplete FIP exchanged
+		 * from last session may collide with exchanges
+		 * in new session.
+		 */
+		msleep(lport->r_a_tov);
 		fc_lport_enter_flogi(lport);
+	}
 }
 
 /**
@@ -1352,7 +1361,6 @@ static void fc_lport_timeout(struct work_struct *work)
 		WARN_ON(1);
 		break;
 	case LPORT_ST_READY:
-		WARN_ON(1);
 		break;
 	case LPORT_ST_RESET:
 		break;

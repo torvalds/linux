@@ -64,13 +64,36 @@ bfa_hwct_reqq_ack(struct bfa_s *bfa, int reqq)
 	writel(r32, bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq]);
 }
 
+/*
+ * Actions to respond RME Interrupt for Catapult ASIC:
+ * - Write 1 to Interrupt Status register (INTx only - done in bfa_intx())
+ * - Acknowledge by writing to RME Queue Control register
+ * - Update CI
+ */
 void
-bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq)
+bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci)
 {
 	u32	r32;
 
 	r32 = readl(bfa->iocfc.bfa_regs.rme_q_ctrl[rspq]);
 	writel(r32, bfa->iocfc.bfa_regs.rme_q_ctrl[rspq]);
+
+	bfa_rspq_ci(bfa, rspq) = ci;
+	writel(ci, bfa->iocfc.bfa_regs.rme_q_ci[rspq]);
+	mmiowb();
+}
+
+/*
+ * Actions to respond RME Interrupt for Catapult2 ASIC:
+ * - Write 1 to Interrupt Status register (INTx only - done in bfa_intx())
+ * - Update CI
+ */
+void
+bfa_hwct2_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci)
+{
+	bfa_rspq_ci(bfa, rspq) = ci;
+	writel(ci, bfa->iocfc.bfa_regs.rme_q_ci[rspq]);
+	mmiowb();
 }
 
 void

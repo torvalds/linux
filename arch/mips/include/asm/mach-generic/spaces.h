@@ -82,4 +82,8 @@
 #define PAGE_OFFSET		(CAC_BASE + PHYS_OFFSET)
 #endif
 
+#ifndef FIXADDR_TOP
+#define FIXADDR_TOP		((unsigned long)(long)(int)0xfffe0000)
+#endif
+
 #endif /* __ASM_MACH_GENERIC_SPACES_H */

@@ -59,6 +59,11 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_memory();
 
+#ifdef CONFIG_EARLY_PRINTK
+	/* remap early console to virtual address */
+	remap_early_printk();
+#endif
+
 	xilinx_pci_init();
 
 #if defined(CONFIG_SELFMOD_INTC) || defined(CONFIG_SELFMOD_TIMER)

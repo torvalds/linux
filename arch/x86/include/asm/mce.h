@@ -124,7 +124,7 @@ extern struct atomic_notifier_head x86_mce_decoder_chain;
 
 #include <linux/percpu.h>
 #include <linux/init.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 extern int mce_disabled;
 extern int mce_p5_enabled;

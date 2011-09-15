@@ -186,7 +186,7 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 
 	mdelay(10);
 
-	return mx51_initialize_usb_hw(0, MXC_EHCI_ITC_NO_THRESHOLD);
+	return mx51_initialize_usb_hw(pdev->id, MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
 static struct mxc_usbh_platform_data usbh1_config = {
@@ -260,8 +260,8 @@ static struct regulator_consumer_supply vvideo_consumers[] = {
 };
 
 static struct regulator_consumer_supply vsd_consumers[] = {
-	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx.0"),
-	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx.1"),
+	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx51.0"),
+	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx51.1"),
 };
 
 static struct regulator_consumer_supply pwgt1_consumer[] = {

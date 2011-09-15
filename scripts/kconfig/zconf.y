@@ -11,7 +11,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define LKC_DIRECT_LINK
 #include "lkc.h"
 
 #define printd(mask, fmt...) if (cdebug & (mask)) printf(fmt)

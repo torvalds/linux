@@ -37,6 +37,8 @@
 #define IPR(i)			(((i) < 32) ? (0x01c + ((i) << 2)) :		\
 				((i) < 64) ? (0x0b0 + (((i) - 32) << 2)) :	\
 				      (0x144 + (((i) - 64) << 2)))
+#define ICHP_VAL_IRQ		(1 << 31)
+#define ICHP_IRQ(i)		(((i) >> 16) & 0x7fff)
 #define IPR_VALID		(1 << 31)
 #define IRQ_BIT(n)		(((n) - PXA_IRQ(0)) & 0x1f)
 
@@ -64,7 +66,7 @@ static inline void __iomem *irq_base(int i)
 	return (void __iomem *)io_p2v(phys_base[i]);
 }
 
-static void pxa_mask_irq(struct irq_data *d)
+void pxa_mask_irq(struct irq_data *d)
 {
 	void __iomem *base = irq_data_get_irq_chip_data(d);
 	uint32_t icmr = __raw_readl(base + ICMR);
@@ -73,7 +75,7 @@ static void pxa_mask_irq(struct irq_data *d)
 	__raw_writel(icmr, base + ICMR);
 }
 
-static void pxa_unmask_irq(struct irq_data *d)
+void pxa_unmask_irq(struct irq_data *d)
 {
 	void __iomem *base = irq_data_get_irq_chip_data(d);
 	uint32_t icmr = __raw_readl(base + ICMR);
@@ -126,6 +128,36 @@ static struct irq_chip pxa_low_gpio_chip = {
 	.irq_unmask	= pxa_unmask_irq,
 	.irq_set_type	= pxa_set_low_gpio_type,
 };
+
+asmlinkage void __exception_irq_entry icip_handle_irq(struct pt_regs *regs)
+{
+	uint32_t icip, icmr, mask;
+
+	do {
+		icip = __raw_readl(IRQ_BASE + ICIP);
+		icmr = __raw_readl(IRQ_BASE + ICMR);
+		mask = icip & icmr;
+
+		if (mask == 0)
+			break;
+
+		handle_IRQ(PXA_IRQ(fls(mask) - 1), regs);
+	} while (1);
+}
+
+asmlinkage void __exception_irq_entry ichp_handle_irq(struct pt_regs *regs)
+{
+	uint32_t ichp;
+
+	do {
+		__asm__ __volatile__("mrc p6, 0, %0, c5, c0, 0\n": "=r"(ichp));
+
+		if ((ichp & ICHP_VAL_IRQ) == 0)
+			break;
+
+		handle_IRQ(PXA_IRQ(ICHP_IRQ(ichp)), regs);
+	} while (1);
+}
 
 static void __init pxa_init_low_gpio_irq(set_wake_t fn)
 {

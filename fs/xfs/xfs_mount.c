@@ -1331,7 +1331,7 @@ xfs_mountfs(
 
 	ASSERT(rip != NULL);
 
-	if (unlikely((rip->i_d.di_mode & S_IFMT) != S_IFDIR)) {
+	if (unlikely(!S_ISDIR(rip->i_d.di_mode))) {
 		xfs_warn(mp, "corrupted root inode %llu: not a directory",
 			(unsigned long long)rip->i_ino);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
@@ -1615,7 +1615,7 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 		XFS_BUF_UNDELAYWRITE(sbp);
 		XFS_BUF_WRITE(sbp);
 		XFS_BUF_UNASYNC(sbp);
-		ASSERT(XFS_BUF_TARGET(sbp) == mp->m_ddev_targp);
+		ASSERT(sbp->b_target == mp->m_ddev_targp);
 		xfsbdstrat(mp, sbp);
 		error = xfs_buf_iowait(sbp);
 		if (error)
@@ -1938,7 +1938,7 @@ xfs_getsb(
 		xfs_buf_lock(bp);
 	}
 
-	XFS_BUF_HOLD(bp);
+	xfs_buf_hold(bp);
 	ASSERT(XFS_BUF_ISDONE(bp));
 	return bp;
 }

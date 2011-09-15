@@ -1117,6 +1117,8 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 	info->port = port;
 	mlx4_init_mac_table(dev, &info->mac_table);
 	mlx4_init_vlan_table(dev, &info->vlan_table);
+	info->base_qpn = dev->caps.reserved_qps_base[MLX4_QP_REGION_ETH_ADDR] +
+			(port - 1) * (1 << log_num_mac);
 
 	sprintf(info->dev_name, "mlx4_port%d", port);
 	info->port_attr.attr.name = info->dev_name;

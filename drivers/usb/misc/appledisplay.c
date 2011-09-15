@@ -29,7 +29,7 @@
 #include <linux/backlight.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define APPLE_VENDOR_ID		0x05AC
 

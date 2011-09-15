@@ -326,7 +326,7 @@ static struct page_address_slot {
 	spinlock_t lock;			/* Protect this bucket's list */
 } ____cacheline_aligned_in_smp page_address_htable[1<<PA_HASH_ORDER];
 
-static struct page_address_slot *page_slot(struct page *page)
+static struct page_address_slot *page_slot(const struct page *page)
 {
 	return &page_address_htable[hash_ptr(page, PA_HASH_ORDER)];
 }
@@ -337,7 +337,7 @@ static struct page_address_slot *page_slot(struct page *page)
  *
  * Returns the page's virtual address.
  */
-void *page_address(struct page *page)
+void *page_address(const struct page *page)
 {
 	unsigned long flags;
 	void *ret;

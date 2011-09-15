@@ -9,7 +9,7 @@
 #include <linux/sonet.h>
 #include <linux/bitops.h>
 #include <linux/errno.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 int atm_charge(struct atm_vcc *vcc, int truesize)
 {

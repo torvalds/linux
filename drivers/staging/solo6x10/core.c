@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/videodev2.h>
 #include "solo6x10.h"
 #include "tw28.h"

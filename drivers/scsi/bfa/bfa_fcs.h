@@ -675,6 +675,7 @@ struct bfa_fcs_s {
 	struct bfa_fcs_fabric_s fabric; /*  base fabric state machine */
 	struct bfa_fcs_stats_s	stats;	/*  FCS statistics */
 	struct bfa_wc_s		wc;	/*  waiting counter */
+	int			fcs_aen_seq;
 };
 
 /*

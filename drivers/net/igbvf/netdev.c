@@ -1226,6 +1226,7 @@ static void igbvf_configure_tx(struct igbvf_adapter *adapter)
 	/* disable transmits */
 	txdctl = er32(TXDCTL(0));
 	ew32(TXDCTL(0), txdctl & ~E1000_TXDCTL_QUEUE_ENABLE);
+	e1e_flush();
 	msleep(10);
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
@@ -1306,6 +1307,7 @@ static void igbvf_configure_rx(struct igbvf_adapter *adapter)
 	/* disable receives */
 	rxdctl = er32(RXDCTL(0));
 	ew32(RXDCTL(0), rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
+	e1e_flush();
 	msleep(10);
 
 	rdlen = rx_ring->count * sizeof(union e1000_adv_rx_desc);

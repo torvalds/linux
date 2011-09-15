@@ -61,9 +61,7 @@ nvc0_vram_new(struct drm_device *dev, u64 size, u32 align, u32 ncmin,
 	      u32 type, struct nouveau_mem **pmem)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
-	struct ttm_mem_type_manager *man = &bdev->man[TTM_PL_VRAM];
-	struct nouveau_mm *mm = man->priv;
+	struct nouveau_mm *mm = dev_priv->engine.vram.mm;
 	struct nouveau_mm_node *r;
 	struct nouveau_mem *mem;
 	int ret;
@@ -105,9 +103,15 @@ int
 nvc0_vram_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
+	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
+	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
+	u32 length;
 
 	dev_priv->vram_size  = nv_rd32(dev, 0x10f20c) << 20;
 	dev_priv->vram_size *= nv_rd32(dev, 0x121c74);
-	dev_priv->vram_rblock_size = 4096;
-	return 0;
+
+	length = (dev_priv->vram_size >> 12) - rsvd_head - rsvd_tail;
+
+	return nouveau_mm_init(&vram->mm, rsvd_head, length, 1);
 }

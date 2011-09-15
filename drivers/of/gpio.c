@@ -127,8 +127,8 @@ EXPORT_SYMBOL(of_gpio_count);
  * gpio chips. This function performs only one sanity check: whether gpio
  * is less than ngpios (that is specified in the gpio_chip).
  */
-static int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
-				const void *gpio_spec, u32 *flags)
+int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
+			 const void *gpio_spec, u32 *flags)
 {
 	const __be32 *gpio = gpio_spec;
 	const u32 n = be32_to_cpup(gpio);
@@ -152,6 +152,7 @@ static int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
 
 	return n;
 }
+EXPORT_SYMBOL(of_gpio_simple_xlate);
 
 /**
  * of_mm_gpiochip_add - Add memory mapped GPIO chip (bank)

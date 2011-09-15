@@ -263,7 +263,7 @@ typedef struct xfs_inode {
 	struct inode		i_vnode;	/* embedded VFS inode */
 } xfs_inode_t;
 
-#define XFS_ISIZE(ip)	(((ip)->i_d.di_mode & S_IFMT) == S_IFREG) ? \
+#define XFS_ISIZE(ip)	S_ISREG((ip)->i_d.di_mode) ? \
 				(ip)->i_size : (ip)->i_d.di_size;
 
 /* Convert from vfs inode to xfs inode */

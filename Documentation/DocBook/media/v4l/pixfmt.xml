@@ -1,0 +1,1007 @@
+  <title>Image Formats</title>
+
+  <para>The V4L2 API was primarily designed for devices exchanging
+image data with applications. The
+<structname>v4l2_pix_format</structname> and <structname>v4l2_pix_format_mplane
+</structname> structures define the format and layout of an image in memory.
+The former is used with the single-planar API, while the latter is used with the
+multi-planar version (see <xref linkend="planar-apis"/>). Image formats are
+negotiated with the &VIDIOC-S-FMT; ioctl. (The explanations here focus on video
+capturing and output, for overlay frame buffer formats see also
+&VIDIOC-G-FBUF;.)</para>
+
+<section>
+  <title>Single-planar format structure</title>
+  <table pgwide="1" frame="none" id="v4l2-pix-format">
+    <title>struct <structname>v4l2_pix_format</structname></title>
+    <tgroup cols="3">
+      &cs-str;
+      <tbody valign="top">
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>width</structfield></entry>
+	  <entry>Image width in pixels.</entry>
+	</row>
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>height</structfield></entry>
+	  <entry>Image height in pixels.</entry>
+	</row>
+	<row>
+	  <entry spanname="hspan">Applications set these fields to
+request an image size, drivers return the closest possible values. In
+case of planar formats the <structfield>width</structfield> and
+<structfield>height</structfield> applies to the largest plane. To
+avoid ambiguities drivers must return values rounded up to a multiple
+of the scale factor of any smaller planes. For example when the image
+format is YUV 4:2:0, <structfield>width</structfield> and
+<structfield>height</structfield> must be multiples of two.</entry>
+	</row>
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>pixelformat</structfield></entry>
+	  <entry>The pixel format or type of compression, set by the
+application. This is a little endian <link
+linkend="v4l2-fourcc">four character code</link>. V4L2 defines
+standard RGB formats in <xref linkend="rgb-formats" />, YUV formats in <xref
+linkend="yuv-formats" />, and reserved codes in <xref
+linkend="reserved-formats" /></entry>
+	</row>
+	<row>
+	  <entry>&v4l2-field;</entry>
+	  <entry><structfield>field</structfield></entry>
+	  <entry>Video images are typically interlaced. Applications
+can request to capture or output only the top or bottom field, or both
+fields interlaced or sequentially stored in one buffer or alternating
+in separate buffers. Drivers return the actual field order selected.
+For details see <xref linkend="field-order" />.</entry>
+	</row>
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>bytesperline</structfield></entry>
+	  <entry>Distance in bytes between the leftmost pixels in two
+adjacent lines.</entry>
+	</row>
+	<row>
+	  <entry spanname="hspan"><para>Both applications and drivers
+can set this field to request padding bytes at the end of each line.
+Drivers however may ignore the value requested by the application,
+returning <structfield>width</structfield> times bytes per pixel or a
+larger value required by the hardware. That implies applications can
+just set this field to zero to get a reasonable
+default.</para><para>Video hardware may access padding bytes,
+therefore they must reside in accessible memory. Consider cases where
+padding bytes after the last line of an image cross a system page
+boundary. Input devices may write padding bytes, the value is
+undefined. Output devices ignore the contents of padding
+bytes.</para><para>When the image format is planar the
+<structfield>bytesperline</structfield> value applies to the largest
+plane and is divided by the same factor as the
+<structfield>width</structfield> field for any smaller planes. For
+example the Cb and Cr planes of a YUV 4:2:0 image have half as many
+padding bytes following each line as the Y plane. To avoid ambiguities
+drivers must return a <structfield>bytesperline</structfield> value
+rounded up to a multiple of the scale factor.</para></entry>
+	</row>
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>sizeimage</structfield></entry>
+	  <entry>Size in bytes of the buffer to hold a complete image,
+set by the driver. Usually this is
+<structfield>bytesperline</structfield> times
+<structfield>height</structfield>. When the image consists of variable
+length compressed data this is the maximum number of bytes required to
+hold an image.</entry>
+	</row>
+	<row>
+	  <entry>&v4l2-colorspace;</entry>
+	  <entry><structfield>colorspace</structfield></entry>
+	  <entry>This information supplements the
+<structfield>pixelformat</structfield> and must be set by the driver,
+see <xref linkend="colorspaces" />.</entry>
+	</row>
+	<row>
+	  <entry>__u32</entry>
+	  <entry><structfield>priv</structfield></entry>
+	  <entry>Reserved for custom (driver defined) additional
+information about formats. When not used drivers and applications must
+set this field to zero.</entry>
+	</row>
+      </tbody>
+    </tgroup>
+  </table>
+</section>
+
+<section>
+  <title>Multi-planar format structures</title>
+  <para>The <structname>v4l2_plane_pix_format</structname> structures define
+    size and layout for each of the planes in a multi-planar format.
+    The <structname>v4l2_pix_format_mplane</structname> structure contains
+    information common to all planes (such as image width and height) and
+    an array of <structname>v4l2_plane_pix_format</structname> structures,
+    describing all planes of that format.</para>
+  <table pgwide="1" frame="none" id="v4l2-plane-pix-format">
+    <title>struct <structname>v4l2_plane_pix_format</structname></title>
+    <tgroup cols="3">
+      &cs-str;
+      <tbody valign="top">
+        <row>
+          <entry>__u32</entry>
+          <entry><structfield>sizeimage</structfield></entry>
+          <entry>Maximum size in bytes required for image data in this plane.
+          </entry>
+        </row>
+        <row>
+          <entry>__u16</entry>
+          <entry><structfield>bytesperline</structfield></entry>
+          <entry>Distance in bytes between the leftmost pixels in two adjacent
+            lines.</entry>
+        </row>
+        <row>
+          <entry>__u16</entry>
+          <entry><structfield>reserved[7]</structfield></entry>
+          <entry>Reserved for future extensions. Should be zeroed by the
+           application.</entry>
+        </row>
+      </tbody>
+    </tgroup>
+  </table>
+  <table pgwide="1" frame="none" id="v4l2-pix-format-mplane">
+    <title>struct <structname>v4l2_pix_format_mplane</structname></title>
+    <tgroup cols="3">
+      &cs-str;
+      <tbody valign="top">
+        <row>
+          <entry>__u32</entry>
+          <entry><structfield>width</structfield></entry>
+          <entry>Image width in pixels.</entry>
+        </row>
+        <row>
+          <entry>__u32</entry>
+          <entry><structfield>height</structfield></entry>
+          <entry>Image height in pixels.</entry>
+        </row>
+        <row>
+          <entry>__u32</entry>
+          <entry><structfield>pixelformat</structfield></entry>
+          <entry>The pixel format. Both single- and multi-planar four character
+codes can be used.</entry>
+        </row>
+        <row>
+          <entry>&v4l2-field;</entry>
+          <entry><structfield>field</structfield></entry>
+          <entry>See &v4l2-pix-format;.</entry>
+        </row>
+        <row>
+          <entry>&v4l2-colorspace;</entry>
+          <entry><structfield>colorspace</structfield></entry>
+          <entry>See &v4l2-pix-format;.</entry>
+        </row>
+        <row>
+          <entry>&v4l2-plane-pix-format;</entry>
+          <entry><structfield>plane_fmt[VIDEO_MAX_PLANES]</structfield></entry>
+          <entry>An array of structures describing format of each plane this
+          pixel format consists of. The number of valid entries in this array
+          has to be put in the <structfield>num_planes</structfield>
+          field.</entry>
+        </row>
+        <row>
+          <entry>__u8</entry>
+          <entry><structfield>num_planes</structfield></entry>
+          <entry>Number of planes (i.e. separate memory buffers) for this format
+          and the number of valid entries in the
+          <structfield>plane_fmt</structfield> array.</entry>
+        </row>
+        <row>
+          <entry>__u8</entry>
+          <entry><structfield>reserved[11]</structfield></entry>
+          <entry>Reserved for future extensions. Should be zeroed by the
+           application.</entry>
+        </row>
+      </tbody>
+    </tgroup>
+  </table>
+</section>
+
+  <section>
+    <title>Standard Image Formats</title>
+
+    <para>In order to exchange images between drivers and
+applications, it is necessary to have standard image data formats
+which both sides will interpret the same way. V4L2 includes several
+such formats, and this section is intended to be an unambiguous
+specification of the standard image data formats in V4L2.</para>
+
+    <para>V4L2 drivers are not limited to these formats, however.
+Driver-specific formats are possible. In that case the application may
+depend on a codec to convert images to one of the standard formats
+when needed. But the data can still be stored and retrieved in the
+proprietary format. For example, a device may support a proprietary
+compressed format. Applications can still capture and save the data in
+the compressed format, saving much disk space, and later use a codec
+to convert the images to the X Windows screen format when the video is
+to be displayed.</para>
+
+    <para>Even so, ultimately, some standard formats are needed, so
+the V4L2 specification would not be complete without well-defined
+standard formats.</para>
+
+    <para>The V4L2 standard formats are mainly uncompressed formats. The
+pixels are always arranged in memory from left to right, and from top
+to bottom. The first byte of data in the image buffer is always for
+the leftmost pixel of the topmost row. Following that is the pixel
+immediately to its right, and so on until the end of the top row of
+pixels. Following the rightmost pixel of the row there may be zero or
+more bytes of padding to guarantee that each row of pixel data has a
+certain alignment. Following the pad bytes, if any, is data for the
+leftmost pixel of the second row from the top, and so on. The last row
+has just as many pad bytes after it as the other rows.</para>
+
+    <para>In V4L2 each format has an identifier which looks like
+<constant>PIX_FMT_XXX</constant>, defined in the <link
+linkend="videodev">videodev.h</link> header file. These identifiers
+represent <link linkend="v4l2-fourcc">four character (FourCC) codes</link>
+which are also listed below, however they are not the same as those
+used in the Windows world.</para>
+
+    <para>For some formats, data is stored in separate, discontiguous
+memory buffers. Those formats are identified by a separate set of FourCC codes
+and are referred to as "multi-planar formats". For example, a YUV422 frame is
+normally stored in one memory buffer, but it can also be placed in two or three
+separate buffers, with Y component in one buffer and CbCr components in another
+in the 2-planar version or with each component in its own buffer in the
+3-planar case. Those sub-buffers are referred to as "planes".</para>
+  </section>
+
+  <section id="colorspaces">
+    <title>Colorspaces</title>
+
+    <para>[intro]</para>
+
+    <!-- See proposal by Billy Biggs, video4linux-list@redhat.com
+on 11 Oct 2002, subject: "Re: [V4L] Re: v4l2 api", and
+http://vektor.theorem.ca/graphics/ycbcr/ and
+http://www.poynton.com/notes/colour_and_gamma/ColorFAQ.html -->
+
+    <para>
+      <variablelist>
+	<varlistentry>
+	  <term>Gamma Correction</term>
+	  <listitem>
+	    <para>[to do]</para>
+	    <para>E'<subscript>R</subscript> = f(R)</para>
+	    <para>E'<subscript>G</subscript> = f(G)</para>
+	    <para>E'<subscript>B</subscript> = f(B)</para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>Construction of luminance and color-difference
+signals</term>
+	  <listitem>
+	    <para>[to do]</para>
+	    <para>E'<subscript>Y</subscript> =
+Coeff<subscript>R</subscript> E'<subscript>R</subscript>
++ Coeff<subscript>G</subscript> E'<subscript>G</subscript>
++ Coeff<subscript>B</subscript> E'<subscript>B</subscript></para>
+	    <para>(E'<subscript>R</subscript> - E'<subscript>Y</subscript>) = E'<subscript>R</subscript>
+- Coeff<subscript>R</subscript> E'<subscript>R</subscript>
+- Coeff<subscript>G</subscript> E'<subscript>G</subscript>
+- Coeff<subscript>B</subscript> E'<subscript>B</subscript></para>
+	    <para>(E'<subscript>B</subscript> - E'<subscript>Y</subscript>) = E'<subscript>B</subscript>
+- Coeff<subscript>R</subscript> E'<subscript>R</subscript>
+- Coeff<subscript>G</subscript> E'<subscript>G</subscript>
+- Coeff<subscript>B</subscript> E'<subscript>B</subscript></para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>Re-normalized color-difference signals</term>
+	  <listitem>
+	    <para>The color-difference signals are scaled back to unity
+range [-0.5;+0.5]:</para>
+	    <para>K<subscript>B</subscript> = 0.5 / (1 - Coeff<subscript>B</subscript>)</para>
+	    <para>K<subscript>R</subscript> = 0.5 / (1 - Coeff<subscript>R</subscript>)</para>
+	    <para>P<subscript>B</subscript> =
+K<subscript>B</subscript> (E'<subscript>B</subscript> - E'<subscript>Y</subscript>) =
+  0.5 (Coeff<subscript>R</subscript> / Coeff<subscript>B</subscript>) E'<subscript>R</subscript>
++ 0.5 (Coeff<subscript>G</subscript> / Coeff<subscript>B</subscript>) E'<subscript>G</subscript>
++ 0.5 E'<subscript>B</subscript></para>
+	    <para>P<subscript>R</subscript> =
+K<subscript>R</subscript> (E'<subscript>R</subscript> - E'<subscript>Y</subscript>) =
+  0.5 E'<subscript>R</subscript>
++ 0.5 (Coeff<subscript>G</subscript> / Coeff<subscript>R</subscript>) E'<subscript>G</subscript>
++ 0.5 (Coeff<subscript>B</subscript> / Coeff<subscript>R</subscript>) E'<subscript>B</subscript></para>
+	  </listitem>
+	</varlistentry>
+	<varlistentry>
+	  <term>Quantization</term>
+	  <listitem>
+	    <para>[to do]</para>
+	    <para>Y' = (Lum. Levels - 1) &middot; E'<subscript>Y</subscript> + Lum. Offset</para>
+	    <para>C<subscript>B</subscript> = (Chrom. Levels - 1)
+&middot; P<subscript>B</subscript> + Chrom. Offset</para>
+	    <para>C<subscript>R</subscript> = (Chrom. Levels - 1)
+&middot; P<subscript>R</subscript> + Chrom. Offset</para>
+	    <para>Rounding to the nearest integer and clamping to the range
+[0;255] finally yields the digital color components Y'CbCr
+stored in YUV images.</para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+    </para>
+
+    <example>
+      <title>ITU-R Rec. BT.601 color conversion</title>
+
+      <para>Forward Transformation</para>
+
+      <programlisting>
+int ER, EG, EB;         /* gamma corrected RGB input [0;255] */
+int Y1, Cb, Cr;         /* output [0;255] */
+
+double r, g, b;         /* temporaries */
+double y1, pb, pr;
+
+int
+clamp (double x)
+{
+	int r = x;      /* round to nearest */
+
+	if (r &lt; 0)         return 0;
+	else if (r &gt; 255)  return 255;
+	else               return r;
+}
+
+r = ER / 255.0;
+g = EG / 255.0;
+b = EB / 255.0;
+
+y1  =  0.299  * r + 0.587 * g + 0.114  * b;
+pb  = -0.169  * r - 0.331 * g + 0.5    * b;
+pr  =  0.5    * r - 0.419 * g - 0.081  * b;
+
+Y1 = clamp (219 * y1 + 16);
+Cb = clamp (224 * pb + 128);
+Cr = clamp (224 * pr + 128);
+
+/* or shorter */
+
+y1 = 0.299 * ER + 0.587 * EG + 0.114 * EB;
+
+Y1 = clamp ( (219 / 255.0)                    *       y1  + 16);
+Cb = clamp (((224 / 255.0) / (2 - 2 * 0.114)) * (EB - y1) + 128);
+Cr = clamp (((224 / 255.0) / (2 - 2 * 0.299)) * (ER - y1) + 128);
+      </programlisting>
+
+      <para>Inverse Transformation</para>
+
+      <programlisting>
+int Y1, Cb, Cr;         /* gamma pre-corrected input [0;255] */
+int ER, EG, EB;         /* output [0;255] */
+
+double r, g, b;         /* temporaries */
+double y1, pb, pr;
+
+int
+clamp (double x)
+{
+	int r = x;      /* round to nearest */
+
+	if (r &lt; 0)         return 0;
+	else if (r &gt; 255)  return 255;
+	else               return r;
+}
+
+y1 = (255 / 219.0) * (Y1 - 16);
+pb = (255 / 224.0) * (Cb - 128);
+pr = (255 / 224.0) * (Cr - 128);
+
+r = 1.0 * y1 + 0     * pb + 1.402 * pr;
+g = 1.0 * y1 - 0.344 * pb - 0.714 * pr;
+b = 1.0 * y1 + 1.772 * pb + 0     * pr;
+
+ER = clamp (r * 255); /* [ok? one should prob. limit y1,pb,pr] */
+EG = clamp (g * 255);
+EB = clamp (b * 255);
+      </programlisting>
+    </example>
+
+    <table pgwide="1" id="v4l2-colorspace" orient="land">
+      <title>enum v4l2_colorspace</title>
+      <tgroup cols="11" align="center">
+	<colspec align="left" />
+	<colspec align="center" />
+	<colspec align="left" />
+	<colspec colname="cr" />
+	<colspec colname="cg" />
+	<colspec colname="cb" />
+	<colspec colname="wp" />
+	<colspec colname="gc" />
+	<colspec colname="lum" />
+	<colspec colname="qy" />
+	<colspec colname="qc" />
+	<spanspec namest="cr" nameend="cb" spanname="chrom" />
+	<spanspec namest="qy" nameend="qc" spanname="quant" />
+	<spanspec namest="lum" nameend="qc" spanname="spam" />
+	<thead>
+	  <row>
+	    <entry morerows="1">Identifier</entry>
+	    <entry morerows="1">Value</entry>
+	    <entry morerows="1">Description</entry>
+	    <entry spanname="chrom">Chromaticities<footnote>
+		<para>The coordinates of the color primaries are
+given in the CIE system (1931)</para>
+	      </footnote></entry>
+	    <entry morerows="1">White Point</entry>
+	    <entry morerows="1">Gamma Correction</entry>
+	    <entry morerows="1">Luminance E'<subscript>Y</subscript></entry>
+	    <entry spanname="quant">Quantization</entry>
+	  </row>
+	  <row>
+	    <entry>Red</entry>
+	    <entry>Green</entry>
+	    <entry>Blue</entry>
+	    <entry>Y'</entry>
+	    <entry>Cb, Cr</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_SMPTE170M</constant></entry>
+	    <entry>1</entry>
+	    <entry>NTSC/PAL according to <xref linkend="smpte170m" />,
+<xref linkend="itu601" /></entry>
+	    <entry>x&nbsp;=&nbsp;0.630, y&nbsp;=&nbsp;0.340</entry>
+	    <entry>x&nbsp;=&nbsp;0.310, y&nbsp;=&nbsp;0.595</entry>
+	    <entry>x&nbsp;=&nbsp;0.155, y&nbsp;=&nbsp;0.070</entry>
+	    <entry>x&nbsp;=&nbsp;0.3127, y&nbsp;=&nbsp;0.3290,
+	    Illuminant D<subscript>65</subscript></entry>
+	    <entry>E' = 4.5&nbsp;I&nbsp;for&nbsp;I&nbsp;&le;0.018,
+1.099&nbsp;I<superscript>0.45</superscript>&nbsp;-&nbsp;0.099&nbsp;for&nbsp;0.018&nbsp;&lt;&nbsp;I</entry>
+	    <entry>0.299&nbsp;E'<subscript>R</subscript>
++&nbsp;0.587&nbsp;E'<subscript>G</subscript>
++&nbsp;0.114&nbsp;E'<subscript>B</subscript></entry>
+	    <entry>219&nbsp;E'<subscript>Y</subscript>&nbsp;+&nbsp;16</entry>
+	    <entry>224&nbsp;P<subscript>B,R</subscript>&nbsp;+&nbsp;128</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_SMPTE240M</constant></entry>
+	    <entry>2</entry>
+	    <entry>1125-Line (US) HDTV, see <xref
+linkend="smpte240m" /></entry>
+	    <entry>x&nbsp;=&nbsp;0.630, y&nbsp;=&nbsp;0.340</entry>
+	    <entry>x&nbsp;=&nbsp;0.310, y&nbsp;=&nbsp;0.595</entry>
+	    <entry>x&nbsp;=&nbsp;0.155, y&nbsp;=&nbsp;0.070</entry>
+	    <entry>x&nbsp;=&nbsp;0.3127, y&nbsp;=&nbsp;0.3290,
+	    Illuminant D<subscript>65</subscript></entry>
+	    <entry>E' = 4&nbsp;I&nbsp;for&nbsp;I&nbsp;&le;0.0228,
+1.1115&nbsp;I<superscript>0.45</superscript>&nbsp;-&nbsp;0.1115&nbsp;for&nbsp;0.0228&nbsp;&lt;&nbsp;I</entry>
+	    <entry>0.212&nbsp;E'<subscript>R</subscript>
++&nbsp;0.701&nbsp;E'<subscript>G</subscript>
++&nbsp;0.087&nbsp;E'<subscript>B</subscript></entry>
+	    <entry>219&nbsp;E'<subscript>Y</subscript>&nbsp;+&nbsp;16</entry>
+	    <entry>224&nbsp;P<subscript>B,R</subscript>&nbsp;+&nbsp;128</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_REC709</constant></entry>
+	    <entry>3</entry>
+	    <entry>HDTV and modern devices, see <xref
+linkend="itu709" /></entry>
+	    <entry>x&nbsp;=&nbsp;0.640, y&nbsp;=&nbsp;0.330</entry>
+	    <entry>x&nbsp;=&nbsp;0.300, y&nbsp;=&nbsp;0.600</entry>
+	    <entry>x&nbsp;=&nbsp;0.150, y&nbsp;=&nbsp;0.060</entry>
+	    <entry>x&nbsp;=&nbsp;0.3127, y&nbsp;=&nbsp;0.3290,
+	    Illuminant D<subscript>65</subscript></entry>
+	    <entry>E' = 4.5&nbsp;I&nbsp;for&nbsp;I&nbsp;&le;0.018,
+1.099&nbsp;I<superscript>0.45</superscript>&nbsp;-&nbsp;0.099&nbsp;for&nbsp;0.018&nbsp;&lt;&nbsp;I</entry>
+	    <entry>0.2125&nbsp;E'<subscript>R</subscript>
++&nbsp;0.7154&nbsp;E'<subscript>G</subscript>
++&nbsp;0.0721&nbsp;E'<subscript>B</subscript></entry>
+	    <entry>219&nbsp;E'<subscript>Y</subscript>&nbsp;+&nbsp;16</entry>
+	    <entry>224&nbsp;P<subscript>B,R</subscript>&nbsp;+&nbsp;128</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_BT878</constant></entry>
+	    <entry>4</entry>
+	    <entry>Broken Bt878 extents<footnote>
+		<para>The ubiquitous Bt878 video capture chip
+quantizes E'<subscript>Y</subscript> to 238 levels, yielding a range
+of Y' = 16 &hellip; 253, unlike Rec. 601 Y' = 16 &hellip;
+235. This is not a typo in the Bt878 documentation, it has been
+implemented in silicon. The chroma extents are unclear.</para>
+	      </footnote>, <xref linkend="itu601" /></entry>
+	    <entry>?</entry>
+	    <entry>?</entry>
+	    <entry>?</entry>
+	    <entry>?</entry>
+	    <entry>?</entry>
+	    <entry>0.299&nbsp;E'<subscript>R</subscript>
++&nbsp;0.587&nbsp;E'<subscript>G</subscript>
++&nbsp;0.114&nbsp;E'<subscript>B</subscript></entry>
+	    <entry><emphasis>237</emphasis>&nbsp;E'<subscript>Y</subscript>&nbsp;+&nbsp;16</entry>
+	    <entry>224&nbsp;P<subscript>B,R</subscript>&nbsp;+&nbsp;128 (probably)</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_470_SYSTEM_M</constant></entry>
+	    <entry>5</entry>
+	    <entry>M/NTSC<footnote>
+		<para>No identifier exists for M/PAL which uses
+the chromaticities of M/NTSC, the remaining parameters are equal to B and
+G/PAL.</para>
+	      </footnote> according to <xref linkend="itu470" />, <xref
+		linkend="itu601" /></entry>
+	    <entry>x&nbsp;=&nbsp;0.67, y&nbsp;=&nbsp;0.33</entry>
+	    <entry>x&nbsp;=&nbsp;0.21, y&nbsp;=&nbsp;0.71</entry>
+	    <entry>x&nbsp;=&nbsp;0.14, y&nbsp;=&nbsp;0.08</entry>
+	    <entry>x&nbsp;=&nbsp;0.310, y&nbsp;=&nbsp;0.316, Illuminant C</entry>
+	    <entry>?</entry>
+	    <entry>0.299&nbsp;E'<subscript>R</subscript>
++&nbsp;0.587&nbsp;E'<subscript>G</subscript>
++&nbsp;0.114&nbsp;E'<subscript>B</subscript></entry>
+	    <entry>219&nbsp;E'<subscript>Y</subscript>&nbsp;+&nbsp;16</entry>
+	    <entry>224&nbsp;P<subscript>B,R</subscript>&nbsp;+&nbsp;128</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_470_SYSTEM_BG</constant></entry>
+	    <entry>6</entry>
+	    <entry>625-line PAL and SECAM systems according to <xref
+linkend="itu470" />, <xref linkend="itu601" /></entry>
+	    <entry>x&nbsp;=&nbsp;0.64, y&nbsp;=&nbsp;0.33</entry>
+	    <entry>x&nbsp;=&nbsp;0.29, y&nbsp;=&nbsp;0.60</entry>
+	    <entry>x&nbsp;=&nbsp;0.15, y&nbsp;=&nbsp;0.06</entry>
+	    <entry>x&nbsp;=&nbsp;0.313, y&nbsp;=&nbsp;0.329,
+Illuminant D<subscript>65</subscript></entry>
+	    <entry>?</entry>
+	    <entry>0.299&nbsp;E'<subscript>R</subscript>
++&nbsp;0.587&nbsp;E'<subscript>G</subscript>
++&nbsp;0.114&nbsp;E'<subscript>B</subscript></entry>
+	    <entry>219&nbsp;E'<subscript>Y</subscript>&nbsp;+&nbsp;16</entry>
+	    <entry>224&nbsp;P<subscript>B,R</subscript>&nbsp;+&nbsp;128</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_JPEG</constant></entry>
+	    <entry>7</entry>
+	    <entry>JPEG Y'CbCr, see <xref linkend="jfif" />, <xref linkend="itu601" /></entry>
+	    <entry>?</entry>
+	    <entry>?</entry>
+	    <entry>?</entry>
+	    <entry>?</entry>
+	    <entry>?</entry>
+	    <entry>0.299&nbsp;E'<subscript>R</subscript>
++&nbsp;0.587&nbsp;E'<subscript>G</subscript>
++&nbsp;0.114&nbsp;E'<subscript>B</subscript></entry>
+	    <entry>256&nbsp;E'<subscript>Y</subscript>&nbsp;+&nbsp;16<footnote>
+		<para>Note JFIF quantizes
+Y'P<subscript>B</subscript>P<subscript>R</subscript> in range [0;+1] and
+[-0.5;+0.5] to <emphasis>257</emphasis> levels, however Y'CbCr signals
+are still clamped to [0;255].</para>
+	      </footnote></entry>
+	    <entry>256&nbsp;P<subscript>B,R</subscript>&nbsp;+&nbsp;128</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_SRGB</constant></entry>
+	    <entry>8</entry>
+	    <entry>[?]</entry>
+	    <entry>x&nbsp;=&nbsp;0.640, y&nbsp;=&nbsp;0.330</entry>
+	    <entry>x&nbsp;=&nbsp;0.300, y&nbsp;=&nbsp;0.600</entry>
+	    <entry>x&nbsp;=&nbsp;0.150, y&nbsp;=&nbsp;0.060</entry>
+	    <entry>x&nbsp;=&nbsp;0.3127, y&nbsp;=&nbsp;0.3290,
+	    Illuminant D<subscript>65</subscript></entry>
+	    <entry>E' = 4.5&nbsp;I&nbsp;for&nbsp;I&nbsp;&le;0.018,
+1.099&nbsp;I<superscript>0.45</superscript>&nbsp;-&nbsp;0.099&nbsp;for&nbsp;0.018&nbsp;&lt;&nbsp;I</entry>
+	    <entry spanname="spam">n/a</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </section>
+
+  <section id="pixfmt-indexed">
+    <title>Indexed Format</title>
+
+    <para>In this format each pixel is represented by an 8 bit index
+into a 256 entry ARGB palette. It is intended for <link
+linkend="osd">Video Output Overlays</link> only. There are no ioctls to
+access the palette, this must be done with ioctls of the Linux framebuffer API.</para>
+
+    <table pgwide="0" frame="none">
+      <title>Indexed Image Format</title>
+      <tgroup cols="37" align="center">
+	<colspec colname="id" align="left" />
+	<colspec colname="fourcc" />
+	<colspec colname="bit" />
+
+	<colspec colnum="4" colname="b07" align="center" />
+	<colspec colnum="5" colname="b06" align="center" />
+	<colspec colnum="6" colname="b05" align="center" />
+	<colspec colnum="7" colname="b04" align="center" />
+	<colspec colnum="8" colname="b03" align="center" />
+	<colspec colnum="9" colname="b02" align="center" />
+	<colspec colnum="10" colname="b01" align="center" />
+	<colspec colnum="11" colname="b00" align="center" />
+
+	<spanspec namest="b07" nameend="b00" spanname="b0" />
+	<spanspec namest="b17" nameend="b10" spanname="b1" />
+	<spanspec namest="b27" nameend="b20" spanname="b2" />
+	<spanspec namest="b37" nameend="b30" spanname="b3" />
+	<thead>
+	  <row>
+	    <entry>Identifier</entry>
+	    <entry>Code</entry>
+	    <entry>&nbsp;</entry>
+	    <entry spanname="b0">Byte&nbsp;0</entry>
+	  </row>
+	  <row>
+	    <entry>&nbsp;</entry>
+	    <entry>&nbsp;</entry>
+	    <entry>Bit</entry>
+	    <entry>7</entry>
+	    <entry>6</entry>
+	    <entry>5</entry>
+	    <entry>4</entry>
+	    <entry>3</entry>
+	    <entry>2</entry>
+	    <entry>1</entry>
+	    <entry>0</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	  <row id="V4L2-PIX-FMT-PAL8">
+	    <entry><constant>V4L2_PIX_FMT_PAL8</constant></entry>
+	    <entry>'PAL8'</entry>
+	    <entry></entry>
+	    <entry>i<subscript>7</subscript></entry>
+	    <entry>i<subscript>6</subscript></entry>
+	    <entry>i<subscript>5</subscript></entry>
+	    <entry>i<subscript>4</subscript></entry>
+	    <entry>i<subscript>3</subscript></entry>
+	    <entry>i<subscript>2</subscript></entry>
+	    <entry>i<subscript>1</subscript></entry>
+	    <entry>i<subscript>0</subscript></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </section>
+
+  <section id="pixfmt-rgb">
+    <title>RGB Formats</title>
+
+    &sub-packed-rgb;
+    &sub-sbggr8;
+    &sub-sgbrg8;
+    &sub-sgrbg8;
+    &sub-srggb8;
+    &sub-sbggr16;
+    &sub-srggb10;
+    &sub-srggb12;
+  </section>
+
+  <section id="yuv-formats">
+    <title>YUV Formats</title>
+
+    <para>YUV is the format native to TV broadcast and composite video
+signals. It separates the brightness information (Y) from the color
+information (U and V or Cb and Cr). The color information consists of
+red and blue <emphasis>color difference</emphasis> signals, this way
+the green component can be reconstructed by subtracting from the
+brightness component. See <xref linkend="colorspaces" /> for conversion
+examples. YUV was chosen because early television would only transmit
+brightness information. To add color in a way compatible with existing
+receivers a new signal carrier was added to transmit the color
+difference signals. Secondary in the YUV format the U and V components
+usually have lower resolution than the Y component. This is an analog
+video compression technique taking advantage of a property of the
+human visual system, being more sensitive to brightness
+information.</para>
+
+    &sub-packed-yuv;
+    &sub-grey;
+    &sub-y10;
+    &sub-y12;
+    &sub-y10b;
+    &sub-y16;
+    &sub-yuyv;
+    &sub-uyvy;
+    &sub-yvyu;
+    &sub-vyuy;
+    &sub-y41p;
+    &sub-yuv420;
+    &sub-yuv420m;
+    &sub-yuv410;
+    &sub-yuv422p;
+    &sub-yuv411p;
+    &sub-nv12;
+    &sub-nv12m;
+    &sub-nv12mt;
+    &sub-nv16;
+    &sub-m420;
+  </section>
+
+  <section>
+    <title>Compressed Formats</title>
+
+    <table pgwide="1" frame="none" id="compressed-formats">
+      <title>Compressed Image Formats</title>
+      <tgroup cols="3" align="left">
+	&cs-def;
+	<thead>
+	  <row>
+	    <entry>Identifier</entry>
+	    <entry>Code</entry>
+	    <entry>Details</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	 <row id="V4L2-PIX-FMT-JPEG">
+	    <entry><constant>V4L2_PIX_FMT_JPEG</constant></entry>
+	    <entry>'JPEG'</entry>
+	    <entry>TBD. See also &VIDIOC-G-JPEGCOMP;,
+	    &VIDIOC-S-JPEGCOMP;.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MPEG">
+	    <entry><constant>V4L2_PIX_FMT_MPEG</constant></entry>
+	    <entry>'MPEG'</entry>
+	    <entry>MPEG multiplexed stream. The actual format is determined by
+extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
+<xref linkend="mpeg-control-id" />.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-H264">
+		<entry><constant>V4L2_PIX_FMT_H264</constant></entry>
+		<entry>'H264'</entry>
+		<entry>H264 video elementary stream with start codes.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-H264-NO-SC">
+		<entry><constant>V4L2_PIX_FMT_H264_NO_SC</constant></entry>
+		<entry>'AVC1'</entry>
+		<entry>H264 video elementary stream without start codes.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-H263">
+		<entry><constant>V4L2_PIX_FMT_H263</constant></entry>
+		<entry>'H263'</entry>
+		<entry>H263 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MPEG1">
+		<entry><constant>V4L2_PIX_FMT_MPEG1</constant></entry>
+		<entry>'MPG1'</entry>
+		<entry>MPEG1 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MPEG2">
+		<entry><constant>V4L2_PIX_FMT_MPEG2</constant></entry>
+		<entry>'MPG2'</entry>
+		<entry>MPEG2 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MPEG4">
+		<entry><constant>V4L2_PIX_FMT_MPEG4</constant></entry>
+		<entry>'MPG4'</entry>
+		<entry>MPEG4 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-XVID">
+		<entry><constant>V4L2_PIX_FMT_XVID</constant></entry>
+		<entry>'XVID'</entry>
+		<entry>Xvid video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-VC1-ANNEX-G">
+		<entry><constant>V4L2_PIX_FMT_VC1_ANNEX_G</constant></entry>
+		<entry>'VC1G'</entry>
+		<entry>VC1, SMPTE 421M Annex G compliant stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-VC1-ANNEX-L">
+		<entry><constant>V4L2_PIX_FMT_VC1_ANNEX_L</constant></entry>
+		<entry>'VC1L'</entry>
+		<entry>VC1, SMPTE 421M Annex L compliant stream.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </section>
+
+  <section id="pixfmt-reserved">
+    <title>Reserved Format Identifiers</title>
+
+    <para>These formats are not defined by this specification, they
+are just listed for reference and to avoid naming conflicts. If you
+want to register your own format, send an e-mail to the linux-media mailing
+list &v4l-ml; for inclusion in the <filename>videodev2.h</filename>
+file. If you want to share your format with other developers add a
+link to your documentation and send a copy to the linux-media mailing list
+for inclusion in this section. If you think your format should be listed
+in a standard format section please make a proposal on the linux-media mailing
+list.</para>
+
+    <table pgwide="1" frame="none" id="reserved-formats">
+      <title>Reserved Image Formats</title>
+      <tgroup cols="3" align="left">
+	&cs-def;
+	<thead>
+	  <row>
+	    <entry>Identifier</entry>
+	    <entry>Code</entry>
+	    <entry>Details</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	  <row id="V4L2-PIX-FMT-DV">
+	    <entry><constant>V4L2_PIX_FMT_DV</constant></entry>
+	    <entry>'dvsd'</entry>
+	    <entry>unknown</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-ET61X251">
+	    <entry><constant>V4L2_PIX_FMT_ET61X251</constant></entry>
+	    <entry>'E625'</entry>
+	    <entry>Compressed format of the ET61X251 driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-HI240">
+	    <entry><constant>V4L2_PIX_FMT_HI240</constant></entry>
+	    <entry>'HI24'</entry>
+	    <entry><para>8 bit RGB format used by the BTTV driver.</para></entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-HM12">
+	    <entry><constant>V4L2_PIX_FMT_HM12</constant></entry>
+	    <entry>'HM12'</entry>
+	    <entry><para>YUV 4:2:0 format used by the
+IVTV driver, <ulink url="http://www.ivtvdriver.org/">
+http://www.ivtvdriver.org/</ulink></para><para>The format is documented in the
+kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm12</filename>
+</para></entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-CPIA1">
+	    <entry><constant>V4L2_PIX_FMT_CPIA1</constant></entry>
+	    <entry>'CPIA'</entry>
+	    <entry>YUV format used by the gspca cpia1 driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-JPGL">
+	    <entry><constant>V4L2_PIX_FMT_JPGL</constant></entry>
+	    <entry>'JPGL'</entry>
+	    <entry>JPEG-Light format (Pegasus Lossless JPEG)
+			used in Divio webcams NW 80x.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SPCA501">
+	    <entry><constant>V4L2_PIX_FMT_SPCA501</constant></entry>
+	    <entry>'S501'</entry>
+	    <entry>YUYV per line used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SPCA505">
+	    <entry><constant>V4L2_PIX_FMT_SPCA505</constant></entry>
+	    <entry>'S505'</entry>
+	    <entry>YYUV per line used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SPCA508">
+	    <entry><constant>V4L2_PIX_FMT_SPCA508</constant></entry>
+	    <entry>'S508'</entry>
+	    <entry>YUVY per line used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SPCA561">
+	    <entry><constant>V4L2_PIX_FMT_SPCA561</constant></entry>
+	    <entry>'S561'</entry>
+	    <entry>Compressed GBRG Bayer format used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SGRBG10DPCM8">
+	    <entry><constant>V4L2_PIX_FMT_SGRBG10DPCM8</constant></entry>
+	    <entry>'DB10'</entry>
+	    <entry>10 bit raw Bayer DPCM compressed to 8 bits.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-PAC207">
+	    <entry><constant>V4L2_PIX_FMT_PAC207</constant></entry>
+	    <entry>'P207'</entry>
+	    <entry>Compressed BGGR Bayer format used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MR97310A">
+	    <entry><constant>V4L2_PIX_FMT_MR97310A</constant></entry>
+	    <entry>'M310'</entry>
+	    <entry>Compressed BGGR Bayer format used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-OV511">
+	    <entry><constant>V4L2_PIX_FMT_OV511</constant></entry>
+	    <entry>'O511'</entry>
+	    <entry>OV511 JPEG format used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-OV518">
+	    <entry><constant>V4L2_PIX_FMT_OV518</constant></entry>
+	    <entry>'O518'</entry>
+	    <entry>OV518 JPEG format used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-PJPG">
+	    <entry><constant>V4L2_PIX_FMT_PJPG</constant></entry>
+	    <entry>'PJPG'</entry>
+	    <entry>Pixart 73xx JPEG format used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SE401">
+	    <entry><constant>V4L2_PIX_FMT_SE401</constant></entry>
+	    <entry>'S401'</entry>
+	    <entry>Compressed RGB format used by the gspca se401 driver</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SQ905C">
+	    <entry><constant>V4L2_PIX_FMT_SQ905C</constant></entry>
+	    <entry>'905C'</entry>
+	    <entry>Compressed RGGB bayer format used by the gspca driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MJPEG">
+	    <entry><constant>V4L2_PIX_FMT_MJPEG</constant></entry>
+	    <entry>'MJPG'</entry>
+	    <entry>Compressed format used by the Zoran driver</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-PWC1">
+	    <entry><constant>V4L2_PIX_FMT_PWC1</constant></entry>
+	    <entry>'PWC1'</entry>
+	    <entry>Compressed format of the PWC driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-PWC2">
+	    <entry><constant>V4L2_PIX_FMT_PWC2</constant></entry>
+	    <entry>'PWC2'</entry>
+	    <entry>Compressed format of the PWC driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SN9C10X">
+	    <entry><constant>V4L2_PIX_FMT_SN9C10X</constant></entry>
+	    <entry>'S910'</entry>
+	    <entry>Compressed format of the SN9C102 driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SN9C20X-I420">
+	    <entry><constant>V4L2_PIX_FMT_SN9C20X_I420</constant></entry>
+	    <entry>'S920'</entry>
+	    <entry>YUV 4:2:0 format of the gspca sn9c20x driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SN9C2028">
+	    <entry><constant>V4L2_PIX_FMT_SN9C2028</constant></entry>
+	    <entry>'SONX'</entry>
+	    <entry>Compressed GBRG bayer format of the gspca sn9c2028 driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-STV0680">
+	    <entry><constant>V4L2_PIX_FMT_STV0680</constant></entry>
+	    <entry>'S680'</entry>
+	    <entry>Bayer format of the gspca stv0680 driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-WNVA">
+	    <entry><constant>V4L2_PIX_FMT_WNVA</constant></entry>
+	    <entry>'WNVA'</entry>
+	    <entry><para>Used by the Winnov Videum driver, <ulink
+url="http://www.thedirks.org/winnov/">
+http://www.thedirks.org/winnov/</ulink></para></entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-TM6000">
+	    <entry><constant>V4L2_PIX_FMT_TM6000</constant></entry>
+	    <entry>'TM60'</entry>
+	    <entry><para>Used by Trident tm6000</para></entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-CIT-YYVYUY">
+	    <entry><constant>V4L2_PIX_FMT_CIT_YYVYUY</constant></entry>
+	    <entry>'CITV'</entry>
+	    <entry><para>Used by xirlink CIT, found at IBM webcams.</para>
+	           <para>Uses one line of Y then 1 line of VYUY</para>
+	    </entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-KONICA420">
+	    <entry><constant>V4L2_PIX_FMT_KONICA420</constant></entry>
+	    <entry>'KONI'</entry>
+	    <entry><para>Used by Konica webcams.</para>
+	           <para>YUV420 planar in blocks of 256 pixels.</para>
+	    </entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-YYUV">
+	    <entry><constant>V4L2_PIX_FMT_YYUV</constant></entry>
+	    <entry>'YYUV'</entry>
+	    <entry>unknown</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-Y4">
+	    <entry><constant>V4L2_PIX_FMT_Y4</constant></entry>
+	    <entry>'Y04 '</entry>
+	    <entry>Old 4-bit greyscale format. Only the least significant 4 bits of each byte are used,
+the other bits are set to 0.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-Y6">
+	    <entry><constant>V4L2_PIX_FMT_Y6</constant></entry>
+	    <entry>'Y06 '</entry>
+	    <entry>Old 6-bit greyscale format. Only the least significant 6 bits of each byte are used,
+the other bits are set to 0.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </section>
+
+  <!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+  -->

@@ -18,12 +18,6 @@
 #include <media/v4l2-device.h>
 #include <media/ir-kbd-i2c.h>
 
-#define HDPVR_MAJOR_VERSION 0
-#define HDPVR_MINOR_VERSION 2
-#define HDPVR_RELEASE 0
-#define HDPVR_VERSION \
-	KERNEL_VERSION(HDPVR_MAJOR_VERSION, HDPVR_MINOR_VERSION, HDPVR_RELEASE)
-
 #define HDPVR_MAX 8
 #define HDPVR_I2C_MAX_SIZE 128
 

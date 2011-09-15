@@ -39,7 +39,7 @@
 #include <linux/random.h>
 #include <linux/jiffies.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>

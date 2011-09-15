@@ -78,6 +78,14 @@
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
 
+#define GEN6_MBCUNIT_SNPCR	0x900c /* for LLC config */
+#define   GEN6_MBC_SNPCR_SHIFT	21
+#define   GEN6_MBC_SNPCR_MASK	(3<<21)
+#define   GEN6_MBC_SNPCR_MAX	(0<<21)
+#define   GEN6_MBC_SNPCR_MED	(1<<21)
+#define   GEN6_MBC_SNPCR_LOW	(2<<21)
+#define   GEN6_MBC_SNPCR_MIN	(3<<21) /* only 1/16th of the cache is shared */
+
 #define GEN6_GDRST	0x941c
 #define  GEN6_GRDOM_FULL		(1 << 0)
 #define  GEN6_GRDOM_RENDER		(1 << 1)
@@ -367,12 +375,16 @@
 # define MI_FLUSH_ENABLE				(1 << 11)
 
 #define GFX_MODE	0x02520
+#define GFX_MODE_GEN7	0x0229c
 #define   GFX_RUN_LIST_ENABLE		(1<<15)
 #define   GFX_TLB_INVALIDATE_ALWAYS	(1<<13)
 #define   GFX_SURFACE_FAULT_ENABLE	(1<<12)
 #define   GFX_REPLAY_MODE		(1<<11)
 #define   GFX_PSMI_GRANULARITY		(1<<10)
 #define   GFX_PPGTT_ENABLE		(1<<9)
+
+#define GFX_MODE_ENABLE(bit) (((bit) << 16) | (bit))
+#define GFX_MODE_DISABLE(bit) (((bit) << 16) | (0))
 
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
@@ -579,6 +591,7 @@
 #define   DPFC_CTL_PLANEA	(0<<30)
 #define   DPFC_CTL_PLANEB	(1<<30)
 #define   DPFC_CTL_FENCE_EN	(1<<29)
+#define   DPFC_CTL_PERSISTENT_MODE	(1<<25)
 #define   DPFC_SR_EN		(1<<10)
 #define   DPFC_CTL_LIMIT_1X	(0<<6)
 #define   DPFC_CTL_LIMIT_2X	(1<<6)
@@ -1309,6 +1322,7 @@
 #define   ADPA_PIPE_SELECT_MASK	(1<<30)
 #define   ADPA_PIPE_A_SELECT	0
 #define   ADPA_PIPE_B_SELECT	(1<<30)
+#define   ADPA_PIPE_SELECT(pipe) ((pipe) << 30)
 #define   ADPA_USE_VGA_HVPOLARITY (1<<15)
 #define   ADPA_SETS_HVPOLARITY	0
 #define   ADPA_VSYNC_CNTL_DISABLE (1<<11)
@@ -1451,6 +1465,7 @@
 /* Selects pipe B for LVDS data.  Must be set on pre-965. */
 #define   LVDS_PIPEB_SELECT		(1 << 30)
 #define   LVDS_PIPE_MASK		(1 << 30)
+#define   LVDS_PIPE(pipe)		((pipe) << 30)
 /* LVDS dithering flag on 965/g4x platform */
 #define   LVDS_ENABLE_DITHER		(1 << 25)
 /* LVDS sync polarity flags. Set to invert (i.e. negative) */
@@ -1490,9 +1505,6 @@
 #define   LVDS_B0B3_POWER_DOWN		(0 << 2)
 #define   LVDS_B0B3_POWER_UP		(3 << 2)
 
-#define LVDS_PIPE_ENABLED(V, P) \
-	(((V) & (LVDS_PIPE_MASK | LVDS_PORT_EN)) == ((P) << 30 | LVDS_PORT_EN))
-
 /* Video Data Island Packet control */
 #define VIDEO_DIP_DATA		0x61178
 #define VIDEO_DIP_CTL		0x61170
@@ -1505,6 +1517,7 @@
 #define   VIDEO_DIP_SELECT_AVI		(0 << 19)
 #define   VIDEO_DIP_SELECT_VENDOR	(1 << 19)
 #define   VIDEO_DIP_SELECT_SPD		(3 << 19)
+#define   VIDEO_DIP_SELECT_MASK		(3 << 19)
 #define   VIDEO_DIP_FREQ_ONCE		(0 << 16)
 #define   VIDEO_DIP_FREQ_VSYNC		(1 << 16)
 #define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
@@ -2082,9 +2095,6 @@
 #define   DP_PORT_EN			(1 << 31)
 #define   DP_PIPEB_SELECT		(1 << 30)
 #define   DP_PIPE_MASK			(1 << 30)
-
-#define DP_PIPE_ENABLED(V, P) \
-	(((V) & (DP_PIPE_MASK | DP_PORT_EN)) == ((P) << 30 | DP_PORT_EN))
 
 /* Link training mode - select a suitable mode for each stage */
 #define   DP_LINK_TRAIN_PAT_1		(0 << 28)
@@ -3023,6 +3033,20 @@
 #define _TRANSA_DP_LINK_M2       0xe0048
 #define _TRANSA_DP_LINK_N2       0xe004c
 
+/* Per-transcoder DIP controls */
+
+#define _VIDEO_DIP_CTL_A         0xe0200
+#define _VIDEO_DIP_DATA_A        0xe0208
+#define _VIDEO_DIP_GCP_A         0xe0210
+
+#define _VIDEO_DIP_CTL_B         0xe1200
+#define _VIDEO_DIP_DATA_B        0xe1208
+#define _VIDEO_DIP_GCP_B         0xe1210
+
+#define TVIDEO_DIP_CTL(pipe) _PIPE(pipe, _VIDEO_DIP_CTL_A, _VIDEO_DIP_CTL_B)
+#define TVIDEO_DIP_DATA(pipe) _PIPE(pipe, _VIDEO_DIP_DATA_A, _VIDEO_DIP_DATA_B)
+#define TVIDEO_DIP_GCP(pipe) _PIPE(pipe, _VIDEO_DIP_GCP_A, _VIDEO_DIP_GCP_B)
+
 #define _TRANS_HTOTAL_B          0xe1000
 #define _TRANS_HBLANK_B          0xe1004
 #define _TRANS_HSYNC_B           0xe1008
@@ -3075,6 +3099,16 @@
 #define  TRANS_6BPC             (2<<5)
 #define  TRANS_12BPC            (3<<5)
 
+#define _TRANSA_CHICKEN2	 0xf0064
+#define _TRANSB_CHICKEN2	 0xf1064
+#define TRANS_CHICKEN2(pipe) _PIPE(pipe, _TRANSA_CHICKEN2, _TRANSB_CHICKEN2)
+#define   TRANS_AUTOTRAIN_GEN_STALL_DIS	(1<<31)
+
+#define SOUTH_CHICKEN1		0xc2000
+#define  FDIA_PHASE_SYNC_SHIFT_OVR	19
+#define  FDIA_PHASE_SYNC_SHIFT_EN	18
+#define FDI_PHASE_SYNC_OVR(pipe) (1<<(FDIA_PHASE_SYNC_SHIFT_OVR - ((pipe) * 2)))
+#define FDI_PHASE_SYNC_EN(pipe) (1<<(FDIA_PHASE_SYNC_SHIFT_EN - ((pipe) * 2)))
 #define SOUTH_CHICKEN2		0xc2004
 #define  DPLS_EDP_PPS_FIX_DIS	(1<<0)
 
@@ -3225,14 +3259,12 @@
 #define  ADPA_CRT_HOTPLUG_VOLREF_475MV  (1<<17)
 #define  ADPA_CRT_HOTPLUG_FORCE_TRIGGER (1<<16)
 
-#define ADPA_PIPE_ENABLED(V, P) \
-	(((V) & (ADPA_TRANS_SELECT_MASK | ADPA_DAC_ENABLE)) == ((P) << 30 | ADPA_DAC_ENABLE))
-
 /* or SDVOB */
 #define HDMIB   0xe1140
 #define  PORT_ENABLE    (1 << 31)
 #define  TRANSCODER_A   (0)
 #define  TRANSCODER_B   (1 << 30)
+#define  TRANSCODER(pipe)	((pipe) << 30)
 #define  TRANSCODER_MASK   (1 << 30)
 #define  COLOR_FORMAT_8bpc      (0)
 #define  COLOR_FORMAT_12bpc     (3 << 26)
@@ -3248,9 +3280,6 @@
 #define  VSYNC_ACTIVE_HIGH      (1 << 4)
 #define  HSYNC_ACTIVE_HIGH      (1 << 3)
 #define  PORT_DETECTED          (1 << 2)
-
-#define HDMI_PIPE_ENABLED(V, P) \
-	(((V) & (TRANSCODER_MASK | PORT_ENABLE)) == ((P) << 30 | PORT_ENABLE))
 
 /* PCH SDVOB multiplex with HDMIB */
 #define PCH_SDVOB	HDMIB
@@ -3318,6 +3347,7 @@
 #define  PORT_TRANS_B_SEL_CPT	(1<<29)
 #define  PORT_TRANS_C_SEL_CPT	(2<<29)
 #define  PORT_TRANS_SEL_MASK	(3<<29)
+#define  PORT_TRANS_SEL_CPT(pipe)	((pipe) << 29)
 
 #define TRANS_DP_CTL_A		0xe0300
 #define TRANS_DP_CTL_B		0xe1300
@@ -3360,6 +3390,7 @@
 #define  FORCEWAKE_ACK				0x130090
 
 #define  GT_FIFO_FREE_ENTRIES			0x120008
+#define    GT_FIFO_NUM_RESERVED_ENTRIES		20
 
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
@@ -3434,7 +3465,9 @@
 #define GEN6_PCODE_MAILBOX			0x138124
 #define   GEN6_PCODE_READY			(1<<31)
 #define   GEN6_READ_OC_PARAMS			0xc
-#define   GEN6_PCODE_WRITE_MIN_FREQ_TABLE	0x9
+#define   GEN6_PCODE_WRITE_MIN_FREQ_TABLE	0x8
+#define   GEN6_PCODE_READ_MIN_FREQ_TABLE	0x9
 #define GEN6_PCODE_DATA				0x138128
+#define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 
 #endif /* _I915_REG_H_ */

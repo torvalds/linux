@@ -46,7 +46,7 @@
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/tlbflush.h>
 #include <asm/uncached.h>
 #include <asm/sn/addrs.h>

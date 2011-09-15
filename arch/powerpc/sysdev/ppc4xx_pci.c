@@ -655,8 +655,6 @@ struct ppc4xx_pciex_hwops
 
 static struct ppc4xx_pciex_hwops *ppc4xx_pciex_hwops;
 
-#ifdef CONFIG_44x
-
 static int __init ppc4xx_pciex_wait_on_sdr(struct ppc4xx_pciex_port *port,
 					   unsigned int sdr_offset,
 					   unsigned int mask,
@@ -688,6 +686,7 @@ static int __init ppc4xx_pciex_port_reset_sdr(struct ppc4xx_pciex_port *port)
 	return 0;
 }
 
+
 static void __init ppc4xx_pciex_check_link_sdr(struct ppc4xx_pciex_port *port)
 {
 	printk(KERN_INFO "PCIE%d: Checking link...\n", port->index);
@@ -717,6 +716,8 @@ static void __init ppc4xx_pciex_check_link_sdr(struct ppc4xx_pciex_port *port)
 	} else
 		printk(KERN_INFO "PCIE%d: No device detected.\n", port->index);
 }
+
+#ifdef CONFIG_44x
 
 /* Check various reset bits of the 440SPe PCIe core */
 static int __init ppc440spe_pciex_check_reset(struct device_node *np)
@@ -1977,7 +1978,7 @@ static int __init ppc4xx_pci_find_bridges(void)
 {
 	struct device_node *np;
 
-	ppc_pci_flags |= PPC_PCI_ENABLE_PROC_DOMAINS | PPC_PCI_COMPAT_DOMAIN_0;
+	pci_add_flags(PCI_ENABLE_PROC_DOMAINS | PCI_COMPAT_DOMAIN_0);
 
 #ifdef CONFIG_PPC4xx_PCI_EXPRESS
 	for_each_compatible_node(np, NULL, "ibm,plb-pciex")

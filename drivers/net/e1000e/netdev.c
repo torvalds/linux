@@ -31,12 +31,12 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/interrupt.h>
 #include <linux/tcp.h>
 #include <linux/ipv6.h>
 #include <linux/slab.h>
@@ -56,7 +56,7 @@
 
 #define DRV_EXTRAVERSION "-k"
 
-#define DRV_VERSION "1.3.16" DRV_EXTRAVERSION
+#define DRV_VERSION "1.4.4" DRV_EXTRAVERSION
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -519,6 +519,63 @@ static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
 }
 
 /**
+ * e1000e_update_tail_wa - helper function for e1000e_update_[rt]dt_wa()
+ * @hw: pointer to the HW structure
+ * @tail: address of tail descriptor register
+ * @i: value to write to tail descriptor register
+ *
+ * When updating the tail register, the ME could be accessing Host CSR
+ * registers at the same time.  Normally, this is handled in h/w by an
+ * arbiter but on some parts there is a bug that acknowledges Host accesses
+ * later than it should which could result in the descriptor register to
+ * have an incorrect value.  Workaround this by checking the FWSM register
+ * which has bit 24 set while ME is accessing Host CSR registers, wait
+ * if it is set and try again a number of times.
+ **/
+static inline s32 e1000e_update_tail_wa(struct e1000_hw *hw, u8 __iomem * tail,
+					unsigned int i)
+{
+	unsigned int j = 0;
+
+	while ((j++ < E1000_ICH_FWSM_PCIM2PCI_COUNT) &&
+	       (er32(FWSM) & E1000_ICH_FWSM_PCIM2PCI))
+		udelay(50);
+
+	writel(i, tail);
+
+	if ((j == E1000_ICH_FWSM_PCIM2PCI_COUNT) && (i != readl(tail)))
+		return E1000_ERR_SWFW_SYNC;
+
+	return 0;
+}
+
+static void e1000e_update_rdt_wa(struct e1000_adapter *adapter, unsigned int i)
+{
+	u8 __iomem *tail = (adapter->hw.hw_addr + adapter->rx_ring->tail);
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (e1000e_update_tail_wa(hw, tail, i)) {
+		u32 rctl = er32(RCTL);
+		ew32(RCTL, rctl & ~E1000_RCTL_EN);
+		e_err("ME firmware caused invalid RDT - resetting\n");
+		schedule_work(&adapter->reset_task);
+	}
+}
+
+static void e1000e_update_tdt_wa(struct e1000_adapter *adapter, unsigned int i)
+{
+	u8 __iomem *tail = (adapter->hw.hw_addr + adapter->tx_ring->tail);
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (e1000e_update_tail_wa(hw, tail, i)) {
+		u32 tctl = er32(TCTL);
+		ew32(TCTL, tctl & ~E1000_TCTL_EN);
+		e_err("ME firmware caused invalid TDT - resetting\n");
+		schedule_work(&adapter->reset_task);
+	}
+}
+
+/**
  * e1000_alloc_rx_buffers - Replace used receive buffers; legacy & extended
  * @adapter: address of board private structure
  **/
@@ -573,7 +630,10 @@ map_skb:
 			 * such as IA-64).
 			 */
 			wmb();
-			writel(i, adapter->hw.hw_addr + rx_ring->tail);
+			if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+				e1000e_update_rdt_wa(adapter, i);
+			else
+				writel(i, adapter->hw.hw_addr + rx_ring->tail);
 		}
 		i++;
 		if (i == rx_ring->count)
@@ -673,7 +733,11 @@ static void e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 			 * such as IA-64).
 			 */
 			wmb();
-			writel(i << 1, adapter->hw.hw_addr + rx_ring->tail);
+			if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+				e1000e_update_rdt_wa(adapter, i << 1);
+			else
+				writel(i << 1,
+				       adapter->hw.hw_addr + rx_ring->tail);
 		}
 
 		i++;
@@ -756,7 +820,10 @@ check_page:
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64). */
 		wmb();
-		writel(i, adapter->hw.hw_addr + rx_ring->tail);
+		if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+			e1000e_update_rdt_wa(adapter, i);
+		else
+			writel(i, adapter->hw.hw_addr + rx_ring->tail);
 	}
 }
 
@@ -2915,7 +2982,8 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 
 	/* disable receives while setting up the descriptors */
 	rctl = er32(RCTL);
-	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+	if (!(adapter->flags2 & FLAG2_NO_DISABLE_RX))
+		ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	e1e_flush();
 	usleep_range(10000, 20000);
 
@@ -3394,7 +3462,8 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	/* disable receives in the hardware */
 	rctl = er32(RCTL);
-	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+	if (!(adapter->flags2 & FLAG2_NO_DISABLE_RX))
+		ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
 	netif_stop_queue(netdev);
@@ -3403,6 +3472,7 @@ void e1000e_down(struct e1000_adapter *adapter)
 	tctl = er32(TCTL);
 	tctl &= ~E1000_TCTL_EN;
 	ew32(TCTL, tctl);
+
 	/* flush both disables and wait for them to finish */
 	e1e_flush();
 	usleep_range(10000, 20000);
@@ -4686,7 +4756,12 @@ static void e1000_tx_queue(struct e1000_adapter *adapter,
 	wmb();
 
 	tx_ring->next_to_use = i;
-	writel(i, adapter->hw.hw_addr + tx_ring->tail);
+
+	if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+		e1000e_update_tdt_wa(adapter, i);
+	else
+		writel(i, adapter->hw.hw_addr + tx_ring->tail);
+
 	/*
 	 * we need this if more than one processor can write to our tail
 	 * at a time, it synchronizes IO on IA64/Altix systems

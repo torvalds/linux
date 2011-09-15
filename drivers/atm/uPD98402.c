@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "uPD98402.h"
 

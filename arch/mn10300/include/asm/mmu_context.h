@@ -22,7 +22,7 @@
 #ifndef _ASM_MMU_CONTEXT_H
 #define _ASM_MMU_CONTEXT_H
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm-generic/mm_hooks.h>

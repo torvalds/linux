@@ -82,6 +82,7 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 		return;
 
 	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 	case CX23885_BOARD_TEVII_S470:
@@ -133,6 +134,7 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 
 	v4l2_subdev_call(dev->sd_ir, ir, rx_g_parameters, &params);
 	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
@@ -229,6 +231,9 @@ static void cx23885_input_ir_stop(struct cx23885_dev *dev)
 		v4l2_subdev_call(dev->sd_ir, ir, rx_s_parameters, &params);
 		v4l2_subdev_call(dev->sd_ir, ir, rx_g_parameters, &params);
 	}
+	flush_work_sync(&dev->cx25840_work);
+	flush_work_sync(&dev->ir_rx_work);
+	flush_work_sync(&dev->ir_tx_work);
 }
 
 static void cx23885_input_ir_close(struct rc_dev *rc)
@@ -257,6 +262,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 		return -ENODEV;
 
 	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:

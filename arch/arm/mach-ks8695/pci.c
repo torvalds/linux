@@ -317,6 +317,9 @@ void __init ks8695_init_pci(struct ks8695_pci_cfg *cfg)
 		return;
 	}
 
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0;
+
 	printk(KERN_INFO "PCI: Initialising\n");
 	ks8695_show_pciregs();
 

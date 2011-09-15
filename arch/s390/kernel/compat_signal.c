@@ -380,20 +380,13 @@ asmlinkage long sys32_sigreturn(void)
 		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE32))
 		goto badframe;
-
 	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
+	set_current_blocked(&set);
 	if (restore_sigregs32(regs, &frame->sregs))
 		goto badframe;
 	if (restore_sigregs_gprs_high(regs, frame->gprs_high))
 		goto badframe;
-
 	return regs->gprs[2];
-
 badframe:
 	force_sig(SIGSEGV, current);
 	return 0;
@@ -413,31 +406,22 @@ asmlinkage long sys32_rt_sigreturn(void)
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
-
 	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
+	set_current_blocked(&set);
 	if (restore_sigregs32(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 	if (restore_sigregs_gprs_high(regs, frame->gprs_high))
 		goto badframe;
-
 	err = __get_user(ss_sp, &frame->uc.uc_stack.ss_sp);
 	st.ss_sp = compat_ptr(ss_sp);
 	err |= __get_user(st.ss_size, &frame->uc.uc_stack.ss_size);
 	err |= __get_user(st.ss_flags, &frame->uc.uc_stack.ss_flags);
 	if (err)
 		goto badframe; 
-
 	set_fs (KERNEL_DS);
 	do_sigaltstack((stack_t __force __user *)&st, NULL, regs->gprs[15]);
 	set_fs (old_fs);
-
 	return regs->gprs[2];
-
 badframe:
 	force_sig(SIGSEGV, current);
 	return 0;
@@ -605,10 +589,10 @@ give_sigsegv:
  * OK, we're invoking a handler
  */	
 
-int
-handle_signal32(unsigned long sig, struct k_sigaction *ka,
-		siginfo_t *info, sigset_t *oldset, struct pt_regs * regs)
+int handle_signal32(unsigned long sig, struct k_sigaction *ka,
+		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
 {
+	sigset_t blocked;
 	int ret;
 
 	/* Set up the stack frame */
@@ -616,15 +600,12 @@ handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		ret = setup_rt_frame32(sig, ka, info, oldset, regs);
 	else
 		ret = setup_frame32(sig, ka, oldset, regs);
-
-	if (ret == 0) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-		if (!(ka->sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked,sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
-	return ret;
+	if (ret)
+		return ret;
+	sigorsets(&blocked, &current->blocked, &ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
+		sigaddset(&blocked, sig);
+	set_current_blocked(&blocked);
+	return 0;
 }
 

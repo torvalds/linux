@@ -1557,8 +1557,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 			if (slave_dev->type != ARPHRD_ETHER)
 				bond_setup_by_slave(bond_dev, slave_dev);
-			else
+			else {
 				ether_setup(bond_dev);
+				bond_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+			}
 
 			netdev_bonding_change(bond_dev,
 					      NETDEV_POST_TYPE_CHANGE);
@@ -3417,8 +3419,26 @@ static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
 static int bond_open(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *slave;
+	int i;
 
 	bond->kill_timers = 0;
+
+	/* reset slave->backup and slave->inactive */
+	read_lock(&bond->lock);
+	if (bond->slave_cnt > 0) {
+		read_lock(&bond->curr_slave_lock);
+		bond_for_each_slave(bond, slave, i) {
+			if ((bond->params.mode == BOND_MODE_ACTIVEBACKUP)
+				&& (slave != bond->curr_active_slave)) {
+				bond_set_slave_inactive_flags(slave);
+			} else {
+				bond_set_slave_active_flags(slave);
+			}
+		}
+		read_unlock(&bond->curr_slave_lock);
+	}
+	read_unlock(&bond->lock);
 
 	INIT_DELAYED_WORK(&bond->mcast_work, bond_resend_igmp_join_requests_delayed);
 
@@ -4330,7 +4350,7 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_dev->tx_queue_len = 0;
 	bond_dev->flags |= IFF_MASTER|IFF_MULTICAST;
 	bond_dev->priv_flags |= IFF_BONDING;
-	bond_dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
+	bond_dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
 
 	/* At first, we block adding VLANs. That's the only way to
 	 * prevent problems that occur when adding VLANs over an
@@ -4691,7 +4711,7 @@ static int bond_check_params(struct bond_params *params)
 		/* miimon and arp_interval not set, we need one so things
 		 * work as expected, see bonding.txt for details
 		 */
-		pr_warning("Warning: either miimon or arp_interval and arp_ip_target module parameters must be specified, otherwise bonding will not detect link failures! see bonding.txt for details.\n");
+		pr_debug("Warning: either miimon or arp_interval and arp_ip_target module parameters must be specified, otherwise bonding will not detect link failures! see bonding.txt for details.\n");
 	}
 
 	if (primary && !USES_PRIMARY(bond_mode)) {

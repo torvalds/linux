@@ -3186,8 +3186,17 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
 
 		/* (assignments unknown, please report if found) */
+		KEY_UNKNOWN, KEY_UNKNOWN,
+
+		/*
+		 * The mic mute button only sends 0x1a.  It does not
+		 * automatically mute the mic or change the mute light.
+		 */
+		KEY_MICMUTE,	/* 0x1a: Mic mute (since ?400 or so) */
+
+		/* (assignments unknown, please report if found) */
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+		KEY_UNKNOWN,
 		},
 	};
 

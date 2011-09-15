@@ -1018,13 +1018,13 @@ hostdata_error:
 		fsname++;
 	if (lm->lm_mount == NULL) {
 		fs_info(sdp, "Now mounting FS...\n");
-		complete(&sdp->sd_locking_init);
+		complete_all(&sdp->sd_locking_init);
 		return 0;
 	}
 	ret = lm->lm_mount(sdp, fsname);
 	if (ret == 0)
 		fs_info(sdp, "Joined cluster. Now mounting FS...\n");
-	complete(&sdp->sd_locking_init);
+	complete_all(&sdp->sd_locking_init);
 	return ret;
 }
 

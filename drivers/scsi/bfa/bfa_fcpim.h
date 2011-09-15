@@ -79,14 +79,22 @@ bfa_ioim_get_index(u32 n) {
 	if (n >= (1UL)<<22)
 		return BFA_IOBUCKET_MAX - 1;
 	n >>= 8;
-	if (n >= (1UL)<<16)
-		n >>= 16; pos += 16;
-	if (n >= 1 << 8)
-		n >>= 8; pos += 8;
-	if (n >= 1 << 4)
-		n >>= 4; pos += 4;
-	if (n >= 1 << 2)
-		n >>= 2; pos += 2;
+	if (n >= (1UL)<<16) {
+		n >>= 16;
+		pos += 16;
+	}
+	if (n >= 1 << 8) {
+		n >>= 8;
+		pos += 8;
+	}
+	if (n >= 1 << 4) {
+		n >>= 4;
+		pos += 4;
+	}
+	if (n >= 1 << 2) {
+		n >>= 2;
+		pos += 2;
+	}
 	if (n >= 1 << 1)
 		pos += 1;
 
@@ -102,6 +110,7 @@ struct bfad_ioim_s;
 struct bfad_tskim_s;
 
 typedef void    (*bfa_fcpim_profile_t) (struct bfa_ioim_s *ioim);
+typedef bfa_boolean_t (*bfa_ioim_lm_proc_rsp_data_t) (struct bfa_ioim_s *ioim);
 
 struct bfa_fcpim_s {
 	struct bfa_s		*bfa;
@@ -115,7 +124,7 @@ struct bfa_fcpim_s {
 	u32			path_tov;
 	u16			q_depth;
 	u8			reqq;		/*  Request queue to be used */
-	u8			rsvd;
+	u8			lun_masking_pending;
 	struct list_head	itnim_q;	/*  queue of active itnim */
 	struct list_head	ioim_resfree_q; /*  IOs waiting for f/w */
 	struct list_head	ioim_comp_q;	/*  IO global comp Q	*/
@@ -170,7 +179,9 @@ struct bfa_ioim_s {
 	bfa_cb_cbfn_t		io_cbfn;	/*  IO completion handler */
 	struct bfa_ioim_sp_s	*iosp;		/*  slow-path IO handling */
 	u8			reqq;		/*  Request queue for I/O */
+	u8			mode;		/*  IO is passthrough or not */
 	u64			start_time;	/*  IO's Profile start val */
+	bfa_ioim_lm_proc_rsp_data_t proc_rsp_data; /* RSP data adjust */
 };
 
 struct bfa_ioim_sp_s {
@@ -250,6 +261,10 @@ struct bfa_itnim_s {
 	(__ioim)->iotag |= k << BFA_IOIM_RETRY_TAG_OFFSET;		\
 } while (0)
 
+#define BFA_IOIM_TO_LPS(__ioim)		\
+	BFA_LPS_FROM_TAG(BFA_LPS_MOD(__ioim->bfa),	\
+		__ioim->itnim->rport->rport_info.lp_tag)
+
 static inline bfa_boolean_t
 bfa_ioim_maxretry_reached(struct bfa_ioim_s *ioim)
 {
@@ -297,6 +312,8 @@ bfa_status_t bfa_fcpim_port_iostats(struct bfa_s *bfa,
 			struct bfa_itnim_iostats_s *stats, u8 lp_tag);
 void bfa_fcpim_add_stats(struct bfa_itnim_iostats_s *fcpim_stats,
 			struct bfa_itnim_iostats_s *itnim_stats);
+bfa_status_t bfa_fcpim_profile_on(struct bfa_s *bfa, u32 time);
+bfa_status_t bfa_fcpim_profile_off(struct bfa_s *bfa);
 
 #define bfa_fcpim_ioredirect_enabled(__bfa)				\
 	(((struct bfa_fcpim_s *)(BFA_FCPIM(__bfa)))->ioredirect)
@@ -396,5 +413,15 @@ void bfa_tskim_start(struct bfa_tskim_s *tskim,
 			enum fcp_tm_cmnd tm, u8 t_secs);
 void bfa_cb_tskim_done(void *bfad, struct bfad_tskim_s *dtsk,
 			enum bfi_tskim_status tsk_status);
+
+void	bfa_fcpim_lunmask_rp_update(struct bfa_s *bfa, wwn_t lp_wwn,
+			wwn_t rp_wwn, u16 rp_tag, u8 lp_tag);
+bfa_status_t	bfa_fcpim_lunmask_update(struct bfa_s *bfa, u32 on_off);
+bfa_status_t	bfa_fcpim_lunmask_query(struct bfa_s *bfa, void *buf);
+bfa_status_t	bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id,
+				wwn_t *pwwn, wwn_t rpwwn, struct scsi_lun lun);
+bfa_status_t	bfa_fcpim_lunmask_add(struct bfa_s *bfa, u16 vf_id,
+				wwn_t *pwwn, wwn_t rpwwn, struct scsi_lun lun);
+bfa_status_t	bfa_fcpim_lunmask_clear(struct bfa_s *bfa);
 
 #endif /* __BFA_FCPIM_H__ */

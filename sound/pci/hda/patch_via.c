@@ -1708,7 +1708,7 @@ static void via_unsol_event(struct hda_codec *codec,
 		via_gpio_control(codec);
 }
 
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 static int via_suspend(struct hda_codec *codec, pm_message_t state)
 {
 	struct via_spec *spec = codec->spec;
@@ -1736,7 +1736,7 @@ static const struct hda_codec_ops via_patch_ops = {
 	.init = via_init,
 	.free = via_free,
 	.unsol_event = via_unsol_event,
-#ifdef SND_HDA_NEEDS_RESUME
+#ifdef CONFIG_PM
 	.suspend = via_suspend,
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -2084,7 +2084,7 @@ static int via_auto_create_speaker_ctls(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	struct nid_path *path;
 	bool check_dac;
-	hda_nid_t pin, dac;
+	hda_nid_t pin, dac = 0;
 	int err;
 
 	pin = spec->autocfg.speaker_pins[0];

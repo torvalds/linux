@@ -12,7 +12,7 @@
  *
  */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <crypto/if_alg.h>
 #include <linux/crypto.h>
 #include <linux/init.h>

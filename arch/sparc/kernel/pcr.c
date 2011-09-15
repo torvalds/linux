@@ -80,8 +80,11 @@ static void n2_pcr_write(u64 val)
 {
 	unsigned long ret;
 
-	ret = sun4v_niagara2_setperf(HV_N2_PERF_SPARC_CTL, val);
-	if (ret != HV_EOK)
+	if (val & PCR_N2_HTRACE) {
+		ret = sun4v_niagara2_setperf(HV_N2_PERF_SPARC_CTL, val);
+		if (ret != HV_EOK)
+			write_pcr(val);
+	} else
 		write_pcr(val);
 }
 
@@ -104,6 +107,10 @@ static int __init register_perf_hsvc(void)
 
 		case SUN4V_CHIP_NIAGARA2:
 			perf_hsvc_group = HV_GRP_N2_CPU;
+			break;
+
+		case SUN4V_CHIP_NIAGARA3:
+			perf_hsvc_group = HV_GRP_KT_CPU;
 			break;
 
 		default:

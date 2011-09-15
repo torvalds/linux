@@ -624,12 +624,13 @@ DEFINE_CLOCK1(csi_clk,     0, NULL,   0, parent, &csi_clk1, &per4_clk);
 	},
 
 static struct clk_lookup lookups[] = {
-	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
-	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
-	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
-	_REGISTER_CLOCK("imx-uart.3", NULL, uart4_clk)
-	_REGISTER_CLOCK("imx-uart.4", NULL, uart5_clk)
-	_REGISTER_CLOCK("imx-uart.5", NULL, uart6_clk)
+	/* i.mx27 has the i.mx21 type uart */
+	_REGISTER_CLOCK("imx21-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
+	_REGISTER_CLOCK("imx21-uart.3", NULL, uart4_clk)
+	_REGISTER_CLOCK("imx21-uart.4", NULL, uart5_clk)
+	_REGISTER_CLOCK("imx21-uart.5", NULL, uart6_clk)
 	_REGISTER_CLOCK(NULL, "gpt1", gpt1_clk)
 	_REGISTER_CLOCK(NULL, "gpt2", gpt2_clk)
 	_REGISTER_CLOCK(NULL, "gpt3", gpt3_clk)
@@ -662,7 +663,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "brom", brom_clk)
 	_REGISTER_CLOCK(NULL, "emma", emma_clk)
 	_REGISTER_CLOCK(NULL, "slcdc", slcdc_clk)
-	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	_REGISTER_CLOCK("imx27-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
 	_REGISTER_CLOCK(NULL, "sahara2", sahara2_clk)
 	_REGISTER_CLOCK(NULL, "ata", ata_clk)
