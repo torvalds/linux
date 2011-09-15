@@ -301,13 +301,11 @@ typedef struct  {
 #if (HCF_EXT) & HCF_EXT_INT_TICK
   int			IFB_TickCnt;			// Hermes Timer Tick Counter
 #endif // HCF_EXT_INT_TICK
-#if (HCF_EXT) & HCF_EXT_MB
   hcf_16 	   *IFB_MBp;				// pointer to the MailBox
   hcf_16		IFB_MBSize;				// size of the MailBox
   hcf_16		IFB_MBWp;				// zero-based write index into the MailBox
   hcf_16		IFB_MBRp;				// zero-based read  index into the MailBox
   hcf_16		IFB_MBInfoLen;			// contents of L-field of the oldest available MailBoxInfoBlock
-#endif // HCF_EXT_MB
 #if (HCF_TYPE) & HCF_TYPE_WPA
   hcf_16		IFB_MICTxCntl;			// MIC bit and Key index in TxControl field of TxFS
   hcf_32		IFB_MICTxKey[2];		// calculating key
