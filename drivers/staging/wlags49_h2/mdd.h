@@ -444,7 +444,7 @@ XX1( CFG_DEFAULT_KEYS,			KEY_STRCT, key[4]			 )	/*defines set of encryption keys
 		 tx_mic_key[4], rx_mic_key[4] 						 )	/*										       		*/
  X6( CFG_ADD_TKIP_MAPPED_KEY,	bssid[3], tkip_key[8], 		 \
 		 tsc[4], rsc[4], tx_mic_key[4], rx_mic_key[4] 		 )	/*										       		*/
- X1( CFG_SET_SSN_AUTHENTICATION_SUITE, 						 \
+ X1( CFG_SET_WPA_AUTHENTICATION_SUITE, 						 \
 		 ssn_authentication_suite							 )	/*											   		*/
  X1( CFG_REMOVE_TKIP_DEFAULT_KEY,tkip_key_id				 )	/*											   		*/
  X1( CFG_TICK_TIME,				tick_time					 )	/*Auxiliary Timer tick interval						*/
@@ -525,7 +525,7 @@ X2( CFG_WOL_PATTERNS, nPatterns, buffer[WOL_BUF_SIZE]		 )  /*[STA] WakeOnLan pat
  X1( CFG_OWN_MAC_ADDR,			mac_addr[3]							 ) /*[AP] Unique local node MAC Address						*/
  X3( CFG_PCF_INFO,				medium_occupancy_limit, 			 \
 		 						cfp_period, cfp_max_duration 		 ) /*[AP] Point Coordination Function capability info		*/
- X1( CFG_CUR_SSN_INFO_ELEMENT, ssn_info_element[1]				 	 ) /*    													*/
+ X1( CFG_CUR_WPA_INFO_ELEMENT, ssn_info_element[1]				 	 ) /*    													*/
  X4( CFG_CUR_TKIP_IV_INFO, 											 \
 		 tkip_seq_cnt0[4], tkip_seq_cnt1[4], 						 \
 		 tkip_seq_cnt2[4], tkip_seq_cnt3[4]  						 ) /*    													*/
@@ -802,7 +802,7 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_PCF_INFO					0xFD87	//[AP] Point Coordination Function capability info
 //*RESERVED* #define CFG_HIGHEST_BASIC_RATE			0xFD88	//
 #define CFG_CUR_COUNTRY_INFO			0xFD89	//
-#define CFG_CUR_SSN_INFO_ELEMENT		0xFD8A	//
+#define CFG_CUR_WPA_INFO_ELEMENT		0xFD8A	//
 #define CFG_CUR_TKIP_IV_INFO			0xFD8B	//
 #define CFG_CUR_ASSOC_REQ_INFO			0xFD8C	//
 #define CFG_CUR_ASSOC_RESP_INFO			0xFD8D	//

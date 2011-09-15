@@ -2329,7 +2329,7 @@ hcf_put_info( IFBP ifbp, LTVP ltvp )
  *               of frame).
  *
  *.RETURNS
- *   HCF_SUCCESS         No SSN error ( or HCF_ERR_MIC already reported by hcf_service_nic)
+ *   HCF_SUCCESS         No WPA error ( or HCF_ERR_MIC already reported by hcf_service_nic)
  *   HCF_ERR_MIC         message contains an erroneous MIC ( HCF_SUCCESS is reported if HCF_ERR_MIC is already
  *                       reported by hcf_service_nic)
  *   HCF_ERR_NO_NIC      NIC removed during data retrieval
@@ -2592,10 +2592,10 @@ hcf_rcv_msg( IFBP ifbp, DESC_STRCT *descp, unsigned int offset )
  *7: The ControlField of the TxFS is written.  Since put_frag can only return the fatal Defunct or "No NIC", the
  *   return status can be ignored because when it fails, cmd_wait will fail as well.  (see also the note on the
  *   need for a return code below).
- *   Note that HFS_TX_CNTL has different values for H-I, H-I/SSN and H-II and HFS_ADDR_DEST has different
- *   values for H-I (regardless of SSN) and H-II.
+ *   Note that HFS_TX_CNTL has different values for H-I, H-I/WPA and H-II and HFS_ADDR_DEST has different
+ *   values for H-I (regardless of WPA) and H-II.
  *   By writing 17, 1 or 2 ( implying 16, 0 or 1 garbage word after HFS_TX_CNTL) the BAP just gets to
- *   HFS_ADDR_DEST for H-I, H-I/SSN and H-II respectively.
+ *   HFS_ADDR_DEST for H-I, H-I/WPA and H-II respectively.
  *10: if neither encapsulation nor MIC calculation is needed, splitting the first fragment in two does not
  *   really help but it makes the flow easier to follow to do not optimize on this difference
  *
@@ -2985,7 +2985,7 @@ or
 *   compensated for the SNAP header length.
 *   The 22 bytes needed for decapsulation are (more than) sufficient for the exceptional handling of the
 *   MIC algorithm of the L-field (replacing the 2 byte L-field with 4 0x00 bytes).
-*30: The 12 in the no-SSN branch corresponds with the get_frag, the 2 with the IPW of the SSN branch
+*30: The 12 in the no-WPA branch corresponds with the get_frag, the 2 with the IPW of the WPA branch
 *32: If Hermes reported MIC-presence, than the MIC engine is initialized with the non-dummy MIC calculation
 *   routine address and appropriate key.
 *34: The 8 bytes after the DA, SA, L are read and it is checked whether decapsulation is needed i.e.:

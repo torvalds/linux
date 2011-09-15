@@ -592,15 +592,11 @@ err: ;
 #if (HCF_TYPE) & HCF_TYPE_WPA
 #define CALC_RX_MIC( p, len ) calc_mic_rx_frag( ifbp, p, len )
 #define CALC_TX_MIC( p, len ) calc_mic_tx_frag( ifbp, p, len )
-#define IF_SSN(x)  x
-#define IF_NOT_SSN(x)
 #else
 #define CALC_RX_MIC( p, len )
 #define CALC_TX_MIC( p, len )
 #define MIC_RX_RTN( mic, dw )
 #define MIC_TX_RTN( mic, dw )
-#define IF_SSN(x)
-#define IF_NOT_SSN(x) x
 #endif // HCF_TYPE_WPA
 
 #if HCF_TALLIES & HCF_TALLIES_HCF       //HCF tally support
