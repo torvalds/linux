@@ -45,24 +45,20 @@ typedef struct {
 } clientid_t;
 
 typedef struct {
-	u32             so_boot;
-	u32             so_stateownerid;
-	u32             so_fileid;
+	clientid_t	so_clid;
+	u32		so_id;
 } stateid_opaque_t;
 
 typedef struct {
 	u32                     si_generation;
 	stateid_opaque_t        si_opaque;
 } stateid_t;
-#define si_boot           si_opaque.so_boot
-#define si_stateownerid   si_opaque.so_stateownerid
-#define si_fileid         si_opaque.so_fileid
 
 #define STATEID_FMT	"(%08x/%08x/%08x/%08x)"
 #define STATEID_VAL(s) \
-	(s)->si_boot, \
-	(s)->si_stateownerid, \
-	(s)->si_fileid, \
+	(s)->si_opaque.so_clid.cl_boot, \
+	(s)->si_opaque.so_clid.cl_id, \
+	(s)->si_opaque.so_id, \
 	(s)->si_generation
 
 struct nfsd4_callback {
@@ -353,11 +349,9 @@ struct nfs4_replay {
 */
 
 struct nfs4_stateowner {
-	struct list_head        so_idhash;   /* hash by so_id */
 	struct list_head        so_strhash;   /* hash by op_name */
 	struct list_head        so_stateids;
 	int			so_is_open_owner; /* 1=openowner,0=lockowner */
-	u32                     so_id;
 	struct nfs4_client *    so_client;
 	/* after increment in ENCODE_SEQID_OP_TAIL, represents the next
 	 * sequence id expected from the client: */
@@ -415,8 +409,6 @@ struct nfs4_file {
 	struct file_lock	*fi_lease;
 	atomic_t		fi_delegees;
 	struct inode		*fi_inode;
-	u32                     fi_id;      /* used with stateowner->so_id 
-					     * for stateid_hashtbl hash */
 	bool			fi_had_conflict;
 };
 
