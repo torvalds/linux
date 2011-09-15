@@ -3,7 +3,7 @@ obj-$(CONFIG_IWLAGN)	+= iwlagn.o
 iwlagn-objs		:= iwl-agn.o iwl-agn-rs.o
 iwlagn-objs		+= iwl-agn-ucode.o iwl-agn-tx.o
 iwlagn-objs		+= iwl-agn-lib.o iwl-agn-calib.o iwl-io.o
-iwlagn-objs		+= iwl-agn-tt.o iwl-agn-sta.o iwl-agn-eeprom.o
+iwlagn-objs		+= iwl-agn-tt.o iwl-agn-sta.o
 
 iwlagn-objs 		+= iwl-core.o iwl-eeprom.o iwl-power.o
 iwlagn-objs 		+= iwl-rx.o iwl-sta.o
