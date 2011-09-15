@@ -58,6 +58,7 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 #include <linux/export.h>
+#include <linux/moduleparam.h>
 
 #include <linux/module.h>
 #include <linux/seq_file.h>

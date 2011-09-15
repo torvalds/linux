@@ -150,6 +150,7 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>
+#include <linux/moduleparam.h>
 #include "i2400m.h"
 
 

@@ -79,6 +79,7 @@
 #include <linux/slab.h>
 #include <linux/wimax/i2400m.h>
 #include <linux/export.h>
+#include <linux/moduleparam.h>
 
 
 #define D_SUBMODULE control

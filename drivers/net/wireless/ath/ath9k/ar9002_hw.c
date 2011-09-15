@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/moduleparam.h>
 #include "hw.h"
 #include "ar5008_initvals.h"
 #include "ar9001_initvals.h"
