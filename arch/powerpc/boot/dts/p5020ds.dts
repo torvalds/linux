@@ -147,8 +147,8 @@
 		};
 
 		board-control@3,0 {
-			compatible = "fsl,p5020ds-pixis";
-			reg = <3 0 0x20>;
+			compatible = "fsl,p5020ds-fpga", "fsl,fpga-ngpixis";
+			reg = <3 0 0x30>;
 		};
 	};
 

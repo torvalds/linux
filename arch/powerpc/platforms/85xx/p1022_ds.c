@@ -128,17 +128,20 @@ static void p1022ds_set_gamma_table(int monitor_port, char *gamma_table_base)
  */
 static void p1022ds_set_monitor_port(int monitor_port)
 {
-	struct device_node *pixis_node;
+	struct device_node *np;
 	void __iomem *pixis;
 	u8 __iomem *brdcfg1;
 
-	pixis_node = of_find_compatible_node(NULL, NULL, "fsl,p1022ds-pixis");
-	if (!pixis_node) {
+	np = of_find_compatible_node(NULL, NULL, "fsl,p1022ds-fpga");
+	if (!np)
+		/* older device trees used "fsl,p1022ds-pixis" */
+		np = of_find_compatible_node(NULL, NULL, "fsl,p1022ds-pixis");
+	if (!np) {
 		pr_err("p1022ds: missing ngPIXIS node\n");
 		return;
 	}
 
-	pixis = of_iomap(pixis_node, 0);
+	pixis = of_iomap(np, 0);
 	if (!pixis) {
 		pr_err("p1022ds: could not map ngPIXIS registers\n");
 		return;

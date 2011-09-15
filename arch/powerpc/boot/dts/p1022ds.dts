@@ -150,7 +150,7 @@
 		};
 
 		board-control@3,0 {
-			compatible = "fsl,p1022ds-pixis";
+			compatible = "fsl,p1022ds-fpga", "fsl,fpga-ngpixis";
 			reg = <3 0 0x30>;
 			interrupt-parent = <&mpic>;
 			/*
