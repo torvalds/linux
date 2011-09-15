@@ -51,23 +51,23 @@ static loff_t lseek_execute(struct file *file, struct inode *inode,
 }
 
 /**
- * generic_file_llseek - generic llseek implementation for regular files
+ * generic_file_llseek_size - generic llseek implementation for regular files
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @origin:	type of seek
+ * @size:	max size of file system
  *
- * This is a generic implemenation of ->llseek usable for all normal local
- * filesystems.  It just updates the file offset to the value specified by
- * @offset and @origin under i_mutex.
+ * This is a variant of generic_file_llseek that allows passing in a custom
+ * file size.
  *
  * Synchronization:
- * SEEK_SET is unsynchronized (but atomic on 64bit platforms)
+ * SEEK_SET and SEEK_END are unsynchronized (but atomic on 64bit platforms)
  * SEEK_CUR is synchronized against other SEEK_CURs, but not read/writes.
  * read/writes behave like SEEK_SET against seeks.
- * SEEK_END
  */
 loff_t
-generic_file_llseek(struct file *file, loff_t offset, int origin)
+generic_file_llseek_size(struct file *file, loff_t offset, int origin,
+		loff_t maxsize)
 {
 	struct inode *inode = file->f_mapping->host;
 
@@ -91,7 +91,7 @@ generic_file_llseek(struct file *file, loff_t offset, int origin)
 		 */
 		spin_lock(&file->f_lock);
 		offset = lseek_execute(file, inode, file->f_pos + offset,
-				       inode->i_sb->s_maxbytes);
+				       maxsize);
 		spin_unlock(&file->f_lock);
 		return offset;
 	case SEEK_DATA:
@@ -113,7 +113,26 @@ generic_file_llseek(struct file *file, loff_t offset, int origin)
 		break;
 	}
 
-	return lseek_execute(file, inode, offset, inode->i_sb->s_maxbytes);
+	return lseek_execute(file, inode, offset, maxsize);
+}
+EXPORT_SYMBOL(generic_file_llseek_size);
+
+/**
+ * generic_file_llseek - generic llseek implementation for regular files
+ * @file:	file structure to seek on
+ * @offset:	file offset to seek to
+ * @origin:	type of seek
+ *
+ * This is a generic implemenation of ->llseek useable for all normal local
+ * filesystems.  It just updates the file offset to the value specified by
+ * @offset and @origin under i_mutex.
+ */
+loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
+{
+	struct inode *inode = file->f_mapping->host;
+
+	return generic_file_llseek_size(file, offset, origin,
+					inode->i_sb->s_maxbytes);
 }
 EXPORT_SYMBOL(generic_file_llseek);
 
