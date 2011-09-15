@@ -2459,6 +2459,24 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb);
 const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
 
 /**
+ * cfg80211_find_vendor_ie - find vendor specific information element in data
+ *
+ * @oui: vendor OUI
+ * @oui_type: vendor-specific OUI type
+ * @ies: data consisting of IEs
+ * @len: length of data
+ *
+ * This function will return %NULL if the vendor specific element ID
+ * could not be found or if the element is invalid (claims to be
+ * longer than the given data), or a pointer to the first byte
+ * of the requested element, that is the byte containing the
+ * element ID. There are no checks on the element length
+ * other than having to fit into the given data.
+ */
+const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
+				  const u8 *ies, int len);
+
+/**
  * DOC: Regulatory enforcement infrastructure
  *
  * TODO
