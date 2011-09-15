@@ -1205,18 +1205,42 @@ static void win1_check_work_func(struct work_struct *work)
 {
     struct rk29fb_inf *inf = platform_get_drvdata(g_pdev);
     struct fb_info *fb0_inf = inf->fb0;
+     struct fb_var_screeninfo *var = &fb0_inf->var;
     int i=0;
     int *p = NULL;
     int blank_data,total_data;
-
+    int format = 0;
     u16 xres_virtual = fb0_inf->var.xres_virtual;      //virtual screen size
     u16 xpos_virtual = fb0_inf->var.xoffset;           //visiable offset in virtual screen
     u16 ypos_virtual = fb0_inf->var.yoffset;
 
-    int offset = (ypos_virtual*xres_virtual + xpos_virtual)*((inf->fb0_color_deepth || fb0_inf->var.bits_per_pixel==32)? 4:2)/4;  
+    int offset = 0;//(ypos_virtual*xres_virtual + xpos_virtual)*((inf->fb0_color_deepth || fb0_inf->var.bits_per_pixel==32)? 4:2)/4;  
+    switch(var->bits_per_pixel)
+    {
+        case 16: 
+            format = 1;
+            offset = (ypos_virtual*xres_virtual + xpos_virtual)*(inf->fb0_color_deepth ? 4:2);
+            if(ypos_virtual == 3*var->yres && inf->fb0_color_deepth)
+                offset -= var->yres * var->xres *2;
+            break;
+        default:
+            format = 0;
+            offset = (ypos_virtual*xres_virtual + xpos_virtual)*4;            
+            if(ypos_virtual >= 2*var->yres)
+            {
+                format = 1;
+                if(ypos_virtual == 3*var->yres)
+                {            
+                    offset -= var->yres * var->xres *2;
+                }
+            }
+            break;
+    }
     p = (int*)fb0_inf->screen_base + offset; 
     blank_data = (inf->fb0_color_deepth==32) ? 0xff000000 : 0;
-    total_data = fb0_inf->var.xres*fb0_inf->var.yres*fb0_inf->var.bits_per_pixel/32;
+    total_data = fb0_inf->var.xres * fb0_inf->var.yres / (format+1);
+    
+   // printk("var->bits_per_pixel=%d,ypos_virtual=%d, var->yres=%d,offset=%d,total_data=%d\n",var->bits_per_pixel,ypos_virtual,var->yres,offset,total_data);
     
     for(i=0; i < total_data; i++)
     {
