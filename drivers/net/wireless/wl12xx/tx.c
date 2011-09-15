@@ -81,8 +81,7 @@ static int wl1271_tx_update_filters(struct wl1271 *wl,
 	struct ieee80211_hdr *hdr;
 	int ret;
 
-	hdr = (struct ieee80211_hdr *)(skb->data +
-				       sizeof(struct wl1271_tx_hw_descr));
+	hdr = (struct ieee80211_hdr *)skb->data;
 
 	/*
 	 * stop bssid-based filtering before transmitting authentication
@@ -181,14 +180,20 @@ u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct sk_buff *skb)
 
 static u8 wl1271_tx_get_hlid(struct wl1271 *wl, struct sk_buff *skb)
 {
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
 	if (wl12xx_is_dummy_packet(wl, skb))
 		return wl->system_hlid;
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS)
 		return wl12xx_tx_get_hlid_ap(wl, skb);
 
-	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
-	    test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))
+	wl1271_tx_update_filters(wl, skb);
+
+	if ((test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
+	     test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags)) &&
+	    !ieee80211_is_auth(hdr->frame_control) &&
+	    !ieee80211_is_assoc_req(hdr->frame_control))
 		return wl->sta_hlid;
 	else
 		return wl->dev_hlid;
@@ -423,8 +428,6 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		wl1271_tx_ap_update_inconnection_sta(wl, skb);
 		wl1271_tx_regulate_link(wl, hlid);
-	} else {
-		wl1271_tx_update_filters(wl, skb);
 	}
 
 	/*
