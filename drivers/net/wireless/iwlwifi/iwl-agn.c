@@ -3186,9 +3186,9 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	priv = hw->priv;
 	priv->bus = bus;
 	priv->shrd = &priv->_shrd;
+	bus->shrd = priv->shrd;
 	priv->shrd->bus = bus;
 	priv->shrd->priv = priv;
-	bus_set_drv_data(priv->bus, priv->shrd);
 
 	priv->shrd->trans = trans_ops->alloc(priv->shrd);
 	if (priv->shrd->trans == NULL) {
@@ -3386,8 +3386,6 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_free_traffic_mem(priv);
 
 	iwl_trans_free(trans(priv));
-
-	bus_set_drv_data(priv->bus, NULL);
 
 	iwl_uninit_drv(priv);
 
