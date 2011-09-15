@@ -164,7 +164,7 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_temperature_offset_cmd cmd;
 	__le16 *offset_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_TEMPERATURE);
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_RAW_TEMPERATURE);
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
@@ -174,6 +174,41 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset));
+	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
+			     (u8 *)&cmd, sizeof(cmd));
+}
+
+static int iwlagn_set_temperature_offset_calib_v2(struct iwl_priv *priv)
+{
+	struct iwl_calib_temperature_offset_v2_cmd cmd;
+	__le16 *offset_calib_high = (__le16 *)iwl_eeprom_query_addr(priv,
+				     EEPROM_KELVIN_TEMPERATURE);
+	__le16 *offset_calib_low =
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_RAW_TEMPERATURE);
+	__le16 *voltage_reading =
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_VOLTAGE_READING);
+
+	memset(&cmd, 0, sizeof(cmd));
+	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
+	memcpy(&cmd.radio_sensor_offset_high, offset_calib_high,
+		sizeof(offset_calib_high));
+	memcpy(&cmd.radio_sensor_offset_low, offset_calib_low,
+		sizeof(offset_calib_low));
+	if (!(cmd.radio_sensor_offset_low)) {
+		IWL_DEBUG_CALIB(priv, "no info in EEPROM, use default\n");
+		cmd.radio_sensor_offset_low = DEFAULT_RADIO_SENSOR_OFFSET;
+		cmd.radio_sensor_offset_high = DEFAULT_RADIO_SENSOR_OFFSET;
+	}
+	memcpy(&cmd.burntVoltageRef, voltage_reading,
+		sizeof(voltage_reading));
+
+	IWL_DEBUG_CALIB(priv, "Radio sensor offset high: %d\n",
+			le16_to_cpu(cmd.radio_sensor_offset_high));
+	IWL_DEBUG_CALIB(priv, "Radio sensor offset low: %d\n",
+			le16_to_cpu(cmd.radio_sensor_offset_low));
+	IWL_DEBUG_CALIB(priv, "Voltage Ref: %d\n",
+			le16_to_cpu(cmd.burntVoltageRef));
+
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
 			     (u8 *)&cmd, sizeof(cmd));
 }
@@ -263,8 +298,12 @@ int iwlagn_init_alive_start(struct iwl_priv *priv)
 	 * temperature offset calibration is only needed for runtime ucode,
 	 * so prepare the value now.
 	 */
-	if (priv->cfg->need_temp_offset_calib)
-		return iwlagn_set_temperature_offset_calib(priv);
+	if (priv->cfg->need_temp_offset_calib) {
+		if (priv->cfg->temp_offset_v2)
+			return iwlagn_set_temperature_offset_calib_v2(priv);
+		else
+			return iwlagn_set_temperature_offset_calib(priv);
+	}
 
 	return 0;
 }

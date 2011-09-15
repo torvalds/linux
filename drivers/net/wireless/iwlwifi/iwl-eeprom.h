@@ -167,7 +167,10 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_XTAL		((2*0x128) | EEPROM_CALIB_ALL)
 
 /* temperature */
-#define EEPROM_TEMPERATURE ((2*0x12A) | EEPROM_CALIB_ALL)
+#define EEPROM_VOLTAGE_READING		((2*0x1) | EEPROM_CALIB_ALL)
+#define EEPROM_KELVIN_TEMPERATURE	((2*0x12A) | EEPROM_CALIB_ALL)
+#define EEPROM_RAW_TEMPERATURE		((2*0x12B) | EEPROM_CALIB_ALL)
+
 
 /* agn links */
 #define EEPROM_LINK_HOST             (2*0x64)
