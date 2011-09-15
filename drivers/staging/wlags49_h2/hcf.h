@@ -382,9 +382,6 @@ typedef IFB_STRCT*	IFBP;
 
 EXTERN_C int		 hcf_action			(IFBP ifbp, hcf_16 cmd );
 EXTERN_C int		 hcf_connect		(IFBP ifbp, hcf_io io_base );
-#if (HCF_ENCAP) & HCF_ENC_SUP
-EXTERN_C hcf_8 		 hcf_encap			(wci_bufp type );
-#endif // HCF_ENC_SUP
 EXTERN_C int		 hcf_get_info		(IFBP ifbp, LTVP ltvp );
 EXTERN_C int		 hcf_service_nic	(IFBP ifbp, wci_bufp bufp, unsigned int len );
 EXTERN_C int		 hcf_cntl			(IFBP ifbp, hcf_16 cmd );
