@@ -162,7 +162,7 @@ struct diu_hw {
 };
 
 struct diu_addr {
-	__u8 __iomem *vaddr;	/* Virtual address */
+	void *vaddr;		/* Virtual address */
 	dma_addr_t paddr;	/* Physical address */
 	__u32 	   offset;
 };
