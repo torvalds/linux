@@ -1021,13 +1021,12 @@ static int nvme_map_user_pages(struct nvme_dev *dev, int write,
 }
 
 static void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
-				unsigned long addr, int length,
-				struct scatterlist *sg, int nents)
+			unsigned long addr, int length, struct scatterlist *sg)
 {
 	int i, count;
 
 	count = DIV_ROUND_UP(offset_in_page(addr) + length, PAGE_SIZE);
-	dma_unmap_sg(&dev->pci_dev->dev, sg, nents, DMA_FROM_DEVICE);
+	dma_unmap_sg(&dev->pci_dev->dev, sg, count, DMA_FROM_DEVICE);
 
 	for (i = 0; i < count; i++)
 		put_page(sg_page(&sg[i]));
@@ -1089,7 +1088,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	else
 		status = nvme_submit_sync_cmd(nvmeq, &c, NULL, IO_TIMEOUT);
 
-	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg, nents);
+	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg);
 	nvme_free_prps(dev, prps);
 	return status;
 }
@@ -1135,8 +1134,7 @@ static int nvme_user_admin_cmd(struct nvme_ns *ns,
 	else
 		status = nvme_submit_admin_cmd(dev, &c, NULL);
 	if (cmd.data_len) {
-		nvme_unmap_user_pages(dev, 0, cmd.addr, cmd.data_len, sg,
-									nents);
+		nvme_unmap_user_pages(dev, 0, cmd.addr, cmd.data_len, sg);
 		nvme_free_prps(dev, prps);
 	}
 	return status;
