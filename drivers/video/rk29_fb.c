@@ -2220,7 +2220,8 @@ int fb1_release(struct fb_info *info, int user)
         par->par_seted = 0;
         par->addr_seted = 0;
         win1_blank(FB_BLANK_NORMAL, info);
-        fb0_set_par(inf->fb0);
+        if(inf->cur_screen->type != SCREEN_HDMI)
+            fb0_set_par(inf->fb0);
 
         // unmap memory
         info->screen_base = 0;
@@ -2303,10 +2304,10 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                 ipp_req.src0.fmt = 3;
                 ipp_req.src0.YrgbMst = yuv_phy[0];
                 ipp_req.src0.CbrMst = yuv_phy[1];
-          	  ipp_req.src0.w = var->xres ;
+          	    ipp_req.src0.w = var->xres ;
                 ipp_req.src0.h = var->yres ;
-  		 ipp_req.src_vir_w= (var->xres + 15) & (~15);
-		 ipp_req.dst_vir_w=screen->x_res;
+  		        ipp_req.src_vir_w= (var->xres + 15) & (~15);
+		        ipp_req.dst_vir_w=screen->x_res;
 
                 ipp_req.dst0.fmt = 3;
                 ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
