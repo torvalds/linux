@@ -1160,13 +1160,11 @@ static void mmc_power_up(struct mmc_host *host)
 		bit = fls(host->ocr_avail) - 1;
 
 	host->ios.vdd = bit;
-	if (mmc_host_is_spi(host)) {
+	if (mmc_host_is_spi(host))
 		host->ios.chip_select = MMC_CS_HIGH;
-		host->ios.bus_mode = MMC_BUSMODE_PUSHPULL;
-	} else {
+	else
 		host->ios.chip_select = MMC_CS_DONTCARE;
-		host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
-	}
+	host->ios.bus_mode = MMC_BUSMODE_PUSHPULL;
 	host->ios.power_mode = MMC_POWER_UP;
 	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ios.timing = MMC_TIMING_LEGACY;

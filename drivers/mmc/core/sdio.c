@@ -408,8 +408,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		 */
 		if (oldcard)
 			oldcard->rca = card->rca;
-
-		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
 
 	/*
