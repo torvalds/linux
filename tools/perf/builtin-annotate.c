@@ -273,6 +273,8 @@ static const struct option options[] = {
 		    "Interleave source code with assembly code (default)"),
 	OPT_BOOLEAN('0', "asm-raw", &symbol_conf.annotate_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
+		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_END()
 };
 
