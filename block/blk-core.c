@@ -1412,31 +1412,8 @@ static inline int bio_check_eod(struct bio *bio, unsigned int nr_sectors)
 	return 0;
 }
 
-/**
- * generic_make_request - hand a buffer to its device driver for I/O
- * @bio:  The bio describing the location in memory and on the device.
- *
- * generic_make_request() is used to make I/O requests of block
- * devices. It is passed a &struct bio, which describes the I/O that needs
- * to be done.
- *
- * generic_make_request() does not return any status.  The
- * success/failure status of the request, along with notification of
- * completion, is delivered asynchronously through the bio->bi_end_io
- * function described (one day) else where.
- *
- * The caller of generic_make_request must make sure that bi_io_vec
- * are set to describe the memory buffer, and that bi_dev and bi_sector are
- * set to describe the device address, and the
- * bi_end_io and optionally bi_private are set to describe how
- * completion notification should be signaled.
- *
- * generic_make_request and the drivers it calls may use bi_next if this
- * bio happens to be merged with someone else, and may change bi_dev and
- * bi_sector for remaps as it sees fit.  So the values of these fields
- * should NOT be depended on after the call to generic_make_request.
- */
-static inline void __generic_make_request(struct bio *bio)
+static noinline_for_stack bool
+generic_make_request_checks(struct bio *bio)
 {
 	struct request_queue *q;
 	int nr_sectors = bio_sectors(bio);
@@ -1515,35 +1492,62 @@ static inline void __generic_make_request(struct bio *bio)
 
 	/* if bio = NULL, bio has been throttled and will be submitted later. */
 	if (!bio)
-		return;
+		return false;
+
 	trace_block_bio_queue(q, bio);
-	q->make_request_fn(q, bio);
-	return;
+	return true;
 
 end_io:
 	bio_endio(bio, err);
+	return false;
 }
 
-/*
- * We only want one ->make_request_fn to be active at a time,
- * else stack usage with stacked devices could be a problem.
- * So use current->bio_list to keep a list of requests
- * submited by a make_request_fn function.
- * current->bio_list is also used as a flag to say if
- * generic_make_request is currently active in this task or not.
- * If it is NULL, then no make_request is active.  If it is non-NULL,
- * then a make_request is active, and new requests should be added
- * at the tail
+/**
+ * generic_make_request - hand a buffer to its device driver for I/O
+ * @bio:  The bio describing the location in memory and on the device.
+ *
+ * generic_make_request() is used to make I/O requests of block
+ * devices. It is passed a &struct bio, which describes the I/O that needs
+ * to be done.
+ *
+ * generic_make_request() does not return any status.  The
+ * success/failure status of the request, along with notification of
+ * completion, is delivered asynchronously through the bio->bi_end_io
+ * function described (one day) else where.
+ *
+ * The caller of generic_make_request must make sure that bi_io_vec
+ * are set to describe the memory buffer, and that bi_dev and bi_sector are
+ * set to describe the device address, and the
+ * bi_end_io and optionally bi_private are set to describe how
+ * completion notification should be signaled.
+ *
+ * generic_make_request and the drivers it calls may use bi_next if this
+ * bio happens to be merged with someone else, and may resubmit the bio to
+ * a lower device by calling into generic_make_request recursively, which
+ * means the bio should NOT be touched after the call to ->make_request_fn.
  */
 void generic_make_request(struct bio *bio)
 {
 	struct bio_list bio_list_on_stack;
 
+	if (!generic_make_request_checks(bio))
+		return;
+
+	/*
+	 * We only want one ->make_request_fn to be active at a time, else
+	 * stack usage with stacked devices could be a problem.  So use
+	 * current->bio_list to keep a list of requests submited by a
+	 * make_request_fn function.  current->bio_list is also used as a
+	 * flag to say if generic_make_request is currently active in this
+	 * task or not.  If it is NULL, then no make_request is active.  If
+	 * it is non-NULL, then a make_request is active, and new requests
+	 * should be added at the tail
+	 */
 	if (current->bio_list) {
-		/* make_request is active */
 		bio_list_add(current->bio_list, bio);
 		return;
 	}
+
 	/* following loop may be a bit non-obvious, and so deserves some
 	 * explanation.
 	 * Before entering the loop, bio->bi_next is NULL (as all callers
@@ -1551,22 +1555,21 @@ void generic_make_request(struct bio *bio)
 	 * We pretend that we have just taken it off a longer list, so
 	 * we assign bio_list to a pointer to the bio_list_on_stack,
 	 * thus initialising the bio_list of new bios to be
-	 * added.  __generic_make_request may indeed add some more bios
+	 * added.  ->make_request() may indeed add some more bios
 	 * through a recursive call to generic_make_request.  If it
 	 * did, we find a non-NULL value in bio_list and re-enter the loop
 	 * from the top.  In this case we really did just take the bio
 	 * of the top of the list (no pretending) and so remove it from
-	 * bio_list, and call into __generic_make_request again.
-	 *
-	 * The loop was structured like this to make only one call to
-	 * __generic_make_request (which is important as it is large and
-	 * inlined) and to keep the structure simple.
+	 * bio_list, and call into ->make_request() again.
 	 */
 	BUG_ON(bio->bi_next);
 	bio_list_init(&bio_list_on_stack);
 	current->bio_list = &bio_list_on_stack;
 	do {
-		__generic_make_request(bio);
+		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+
+		q->make_request_fn(q, bio);
+
 		bio = bio_list_pop(current->bio_list);
 	} while (bio);
 	current->bio_list = NULL; /* deactivate */
