@@ -75,7 +75,7 @@
 #define IWL105_MODULE_FIRMWARE(api) IWL105_FW_PRE __stringify(api) ".ucode"
 
 #define IWL135_FW_PRE "iwlwifi-135-"
-#define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE #api ".ucode"
+#define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE __stringify(api) ".ucode"
 
 static void iwl2000_set_ct_threshold(struct iwl_priv *priv)
 {
