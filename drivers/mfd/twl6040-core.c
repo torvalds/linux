@@ -470,7 +470,6 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, twl6040);
 
 	twl6040->dev = &pdev->dev;
-	twl6040->audpwron = pdata->audpwron_gpio;
 	twl6040->irq = pdata->naudint_irq;
 	twl6040->irq_base = pdata->irq_base;
 
@@ -479,6 +478,12 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	init_completion(&twl6040->ready);
 
 	twl6040->rev = twl6040_reg_read(twl6040, TWL6040_REG_ASICREV);
+
+	/* ERRATA: Automatic power-up is not possible in ES1.0 */
+	if (twl6040_get_revid(twl6040) > TWL6040_REV_ES1_0)
+		twl6040->audpwron = pdata->audpwron_gpio;
+	else
+		twl6040->audpwron = -EINVAL;
 
 	if (gpio_is_valid(twl6040->audpwron)) {
 		ret = gpio_request(twl6040->audpwron, "audpwron");
@@ -489,10 +494,6 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 		if (ret)
 			goto gpio2_err;
 	}
-
-	/* ERRATA: Automatic power-up is not possible in ES1.0 */
-	if (twl6040_get_revid(twl6040) == TWL6040_REV_ES1_0)
-		twl6040->audpwron = -EINVAL;
 
 	/* codec interrupt */
 	ret = twl6040_irq_init(twl6040);
