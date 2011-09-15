@@ -495,6 +495,8 @@ static int run_perf_stat(int argc __used, const char **argv)
 	if (forks) {
 		close(go_pipe[1]);
 		wait(&status);
+		if (WIFSIGNALED(status))
+			psignal(WTERMSIG(status), argv[0]);
 	} else {
 		while(!done) sleep(1);
 	}

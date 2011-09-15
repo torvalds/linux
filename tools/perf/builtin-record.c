@@ -73,6 +73,7 @@ static off_t			post_processing_offset;
 
 static struct perf_session	*session;
 static const char		*cpu_list;
+static const char               *progname;
 
 static void advance_output(size_t size)
 {
@@ -137,17 +138,29 @@ static void mmap_read(struct perf_mmap *md)
 
 static volatile int done = 0;
 static volatile int signr = -1;
+static volatile int child_finished = 0;
 
 static void sig_handler(int sig)
 {
+	if (sig == SIGCHLD)
+		child_finished = 1;
+
 	done = 1;
 	signr = sig;
 }
 
 static void sig_atexit(void)
 {
-	if (child_pid > 0)
-		kill(child_pid, SIGTERM);
+	int status;
+
+	if (child_pid > 0) {
+		if (!child_finished)
+			kill(child_pid, SIGTERM);
+
+		wait(&status);
+		if (WIFSIGNALED(status))
+			psignal(WTERMSIG(status), progname);
+	}
 
 	if (signr == -1 || signr == SIGUSR1)
 		return;
@@ -444,6 +457,8 @@ static int __cmd_record(int argc, const char **argv)
 	const bool forks = argc > 0;
 	char buf;
 	struct machine *machine;
+
+	progname = argv[0];
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
