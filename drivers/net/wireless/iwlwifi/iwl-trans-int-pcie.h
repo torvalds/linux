@@ -375,12 +375,9 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (unlikely(!trans->shrd->mac80211_registered))
-		return;
-
 	if (test_and_clear_bit(hwq, trans_pcie->queue_stopped))
 		if (atomic_dec_return(&trans_pcie->queue_stop_count[ac]) <= 0)
-			ieee80211_wake_queue(trans->shrd->hw, ac);
+			iwl_wake_sw_queue(priv(trans), ac);
 }
 
 static inline void iwl_stop_queue(struct iwl_trans *trans,
@@ -392,12 +389,9 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (unlikely(!trans->shrd->mac80211_registered))
-		return;
-
 	if (!test_and_set_bit(hwq, trans_pcie->queue_stopped))
 		if (atomic_inc_return(&trans_pcie->queue_stop_count[ac]) > 0)
-			ieee80211_stop_queue(trans->shrd->hw, ac);
+			iwl_stop_sw_queue(priv(trans), ac);
 }
 
 #ifdef ieee80211_stop_queue

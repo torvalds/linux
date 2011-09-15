@@ -958,6 +958,8 @@ struct iwl_priv {
 	struct iwl_station_entry stations[IWLAGN_STATION_COUNT];
 	unsigned long ucode_key_table;
 
+	u8 mac80211_registered;
+
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
 

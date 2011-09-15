@@ -246,12 +246,6 @@ struct iwl_shared {
 	spinlock_t sta_lock;
 	struct mutex mutex;
 
-	/*these 2 shouldn't really be here, but they are needed for
-	 * iwl_queue_stop, which is called from the upper layer too
-	 */
-	u8 mac80211_registered;
-	struct ieee80211_hw *hw;
-
 	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 
 	wait_queue_head_t wait_command_queue;
@@ -396,6 +390,9 @@ int iwl_apm_init(struct iwl_priv *priv);
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
 const char *get_cmd_string(u8 cmd);
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);
+
+void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac);
+void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_reset_traffic_log(struct iwl_priv *priv);
