@@ -5,17 +5,17 @@ iwlagn-objs		+= iwl-agn-ucode.o iwl-agn-tx.o
 iwlagn-objs		+= iwl-agn-lib.o iwl-agn-calib.o iwl-io.o
 iwlagn-objs		+= iwl-agn-tt.o iwl-agn-sta.o
 
-iwlagn-objs 		+= iwl-core.o iwl-eeprom.o iwl-power.o
-iwlagn-objs 		+= iwl-rx.o iwl-sta.o
-iwlagn-objs 		+= iwl-scan.o iwl-led.o
-iwlagn-objs             += iwl-agn-rxon.o
-iwlagn-objs             += iwl-5000.o
-iwlagn-objs             += iwl-6000.o
-iwlagn-objs             += iwl-1000.o
-iwlagn-objs             += iwl-2000.o
-iwlagn-objs             += iwl-pci.o
+iwlagn-objs		+= iwl-core.o iwl-eeprom.o iwl-power.o
+iwlagn-objs		+= iwl-rx.o iwl-sta.o
+iwlagn-objs		+= iwl-scan.o iwl-led.o
+iwlagn-objs		+= iwl-agn-rxon.o
+iwlagn-objs		+= iwl-5000.o
+iwlagn-objs		+= iwl-6000.o
+iwlagn-objs		+= iwl-1000.o
+iwlagn-objs		+= iwl-2000.o
+iwlagn-objs		+= iwl-pci.o
 iwlagn-objs		+= iwl-trans.o
-iwlagn-objs             += iwl-trans-pcie.o iwl-trans-pcie-rx.o iwl-trans-pcie-tx.o
+iwlagn-objs		+= iwl-trans-pcie.o iwl-trans-pcie-rx.o iwl-trans-pcie-tx.o
 
 iwlagn-$(CONFIG_IWLWIFI_DEBUGFS) += iwl-debugfs.o
 iwlagn-$(CONFIG_IWLWIFI_DEVICE_TRACING) += iwl-devtrace.o
