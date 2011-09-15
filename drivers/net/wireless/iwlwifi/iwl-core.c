@@ -869,7 +869,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	 * commands by clearing the ready bit */
 	clear_bit(STATUS_READY, &priv->shrd->status);
 
-	wake_up_interruptible(&priv->shrd->wait_command_queue);
+	wake_up(&priv->shrd->wait_command_queue);
 
 	if (!ondemand) {
 		/*
