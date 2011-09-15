@@ -1543,9 +1543,9 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	for (i = ARRAY_SIZE(machine_data->fsl_diu_info);
-		i > 0; i--)
-		uninstall_fb(machine_data->fsl_diu_info[i - 1]);
+	for (i = 0; i < ARRAY_SIZE(machine_data->fsl_diu_info); i++)
+		uninstall_fb(machine_data->fsl_diu_info[i]);
+
 	if (pool.ad.vaddr)
 		free_buf(&pdev->dev, &pool.ad,
 			 sizeof(struct diu_ad) * FSL_AOI_NUM, 8);
@@ -1575,8 +1575,8 @@ static int fsl_diu_remove(struct platform_device *pdev)
 	machine_data = dev_get_drvdata(&pdev->dev);
 	disable_lcdc(machine_data->fsl_diu_info[0]);
 	free_irq_local(machine_data->irq);
-	for (i = ARRAY_SIZE(machine_data->fsl_diu_info); i > 0; i--)
-		uninstall_fb(machine_data->fsl_diu_info[i - 1]);
+	for (i = 0; i < ARRAY_SIZE(machine_data->fsl_diu_info); i++)
+		uninstall_fb(machine_data->fsl_diu_info[i]);
 	if (pool.ad.vaddr)
 		free_buf(&pdev->dev, &pool.ad,
 			 sizeof(struct diu_ad) * FSL_AOI_NUM, 8);
