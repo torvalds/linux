@@ -901,7 +901,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			   ba_resp->scd_ssn);
 
 	/* Mark that the expected block-ack response arrived */
-	agg->wait_for_ba = 0;
+	agg->wait_for_ba = false;
 
 	/* Sanity check values reported by uCode */
 	if (ba_resp->txed_2_done > ba_resp->txed) {

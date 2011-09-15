@@ -1300,6 +1300,8 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 						    sta_id, tid);
 		}
 		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -1326,10 +1328,10 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
+	enum iwl_agg_state agg_state;
 	/* n_bd is usually 256 => n_bd - 1 = 0xff */
 	int tfd_num = ssn & (txq->q.n_bd - 1);
 	int freed = 0;
-	u8 agg_state;
 	bool cond;
 
 	txq->time_stamp = jiffies;
