@@ -479,10 +479,6 @@ typedef unsigned long			hcf_32;
 #define 		HCF_BIG_ENDIAN		0
 #endif // 		HCF_BIG_ENDIAN
 
-#if ! defined	HCF_DL_ONLY
-#define 		HCF_DL_ONLY			0
-#endif // 		HCF_DL_ONLY
-
 #if ! defined	HCF_DMA
 #define 		HCF_DMA				0
 #endif // 		HCF_DMA
@@ -539,11 +535,6 @@ typedef unsigned long			hcf_32;
 #undef			HCF_BIG_ENDIAN
 #define			HCF_BIG_ENDIAN		1		//just for convenience of generating cfg_hcf_opt
 #endif //	 	HCF_BIG_ENDIAN
-
-#if				HCF_DL_ONLY
-#undef			HCF_DL_ONLY
-#define			HCF_DL_ONLY			1		//just for convenience of generating cfg_hcf_opt
-#endif //		HCF_DL_ONLY
 
 #if				HCF_DMA
 #undef			HCF_DMA
@@ -751,10 +742,6 @@ err: these macros are not used consistently;
 #if HCF_BIG_ENDIAN != 0 && HCF_BIG_ENDIAN != 1
 err: invalid value for HCF_BIG_ENDIAN;
 #endif // HCF_BIG_ENDIAN
-
-#if HCF_DL_ONLY != 0 && HCF_DL_ONLY != 1
-err: invalid value for HCF_DL_ONLY;
-#endif // HCF_DL_ONLY
 
 #if HCF_DMA != 0 && HCF_DMA != 1
 err: invalid value for HCF_DMA;
