@@ -262,6 +262,7 @@ static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
 			     struct sk_buff *skb)
 {
 	struct ath_frame_info *fi = get_frame_info(skb);
+	struct ath_buf *bf = fi->bf;
 	struct ieee80211_hdr *hdr;
 
 	TX_STAT_INC(txq->axq_qnum, a_retries);
@@ -270,6 +271,8 @@ static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_RETRY);
+	dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
+		sizeof(*hdr), DMA_TO_DEVICE);
 }
 
 static struct ath_buf *ath_tx_get_buffer(struct ath_softc *sc)
