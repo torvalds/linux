@@ -2021,6 +2021,7 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 		/* Stop ANI */
 		sc->sc_flags &= ~SC_OP_ANI_RUN;
 		del_timer_sync(&common->ani.timer);
+		memset(&sc->caldata, 0, sizeof(sc->caldata));
 	}
 }
 
