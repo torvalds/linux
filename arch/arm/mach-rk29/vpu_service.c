@@ -190,9 +190,7 @@ static void vpu_reset(void)
 static void reg_deinit(vpu_reg *reg);
 static void vpu_service_session_clear(vpu_session *session)
 {
-	unsigned long flag;
 	vpu_reg *reg, *n;
-	spin_lock_irqsave(&service.lock, flag);
 	list_for_each_entry_safe(reg, n, &session->waiting, session_link) {
 		reg_deinit(reg);
 	}
@@ -202,17 +200,14 @@ static void vpu_service_session_clear(vpu_session *session)
 	list_for_each_entry_safe(reg, n, &session->done, session_link) {
 		reg_deinit(reg);
 	}
-	spin_unlock_irqrestore(&service.lock, flag);
 }
 
 static void vpu_service_dump(void)
 {
 	int running;
-	unsigned long flag;
 	vpu_reg *reg, *reg_tmp;
 	vpu_session *session, *session_tmp;
 
-	spin_lock_irqsave(&service.lock, flag);
 	running = atomic_read(&service.total_running);
 	printk("total_running %d\n", running);
 
@@ -234,7 +229,6 @@ static void vpu_service_dump(void)
 			printk("done    register set 0x%.8x\n", (unsigned int)reg);
 		}
 	}
-	spin_unlock_irqrestore(&service.lock, flag);
 }
 
 static void vpu_service_power_off(void)
@@ -394,6 +388,7 @@ static void reg_from_run_to_done(vpu_reg *reg)
 	}
 	}
 	atomic_sub(1, &reg->session->task_running);
+	atomic_sub(1, &service.total_running);
 	wake_up_interruptible_sync(&reg->session->wait);
 	spin_unlock(&service.lock);
 }
@@ -591,18 +586,22 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 				pr_err("pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
 				ret = -ETIMEDOUT;
 			}
+			spin_lock_irqsave(&service.lock, flag);
 			if (ret < 0) {
 				int task_running = atomic_read(&session->task_running);
 				vpu_service_dump();
 				if (task_running) {
 					atomic_set(&session->task_running, 0);
+					atomic_sub(task_running, &service.total_running);
 					printk("%d task is running but not return, reset hardware...", task_running);
 					vpu_reset();
 					printk("done\n");
 				}
 				vpu_service_session_clear(session);
+				spin_unlock_irqrestore(&service.lock, flag);
 				return ret;
 			}
+			spin_unlock_irqrestore(&service.lock, flag);
 		}
 		spin_lock_irqsave(&service.lock, flag);
 		reg = list_entry(session->done.next, vpu_reg, session_link);
@@ -726,6 +725,7 @@ static int vpu_service_open(struct inode *inode, struct file *filp)
 static int vpu_service_release(struct inode *inode, struct file *filp)
 {
 	int task_running;
+	unsigned long flag;
 	vpu_session *session = (vpu_session *)filp->private_data;
 	if (NULL == session)
 		return -EINVAL;
@@ -737,6 +737,7 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 	}
 	wake_up_interruptible_sync(&session->wait);
 
+	spin_lock_irqsave(&service.lock, flag);
 	/* remove this filp from the asynchronusly notified filp's */
 	//vpu_service_fasync(-1, filp, 0);
 	list_del(&session->list_session);
@@ -744,6 +745,7 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 	vpu_service_session_clear(session);
 
 	kfree(session);
+	spin_unlock_irqrestore(&service.lock, flag);
 
 	pr_debug("dev closed\n");
 	return 0;
@@ -1001,7 +1003,6 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 		/* clear dec IRQ */
 		writel(irq_status_dec & (~DEC_INTERRUPT_BIT), dev->hwregs + DEC_INTERRUPT_REGISTER);
 		pr_debug("DEC IRQ received!\n");
-		atomic_sub(1, &service.total_running);
 		if (NULL == service.reg_codec) {
 			pr_err("dec isr with no task waiting\n");
 		} else {
@@ -1013,7 +1014,6 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 		/* clear pp IRQ */
 		writel(irq_status_pp & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
 		pr_debug("PP IRQ received!\n");
-		atomic_sub(1, &service.total_running);
 		if (NULL == service.reg_pproc) {
 			pr_err("pp isr with no task waiting\n");
 		} else {
@@ -1035,7 +1035,6 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 		/* clear enc IRQ */
 		writel(irq_status & (~ENC_INTERRUPT_BIT), dev->hwregs + ENC_INTERRUPT_REGISTER);
 		pr_debug("ENC IRQ received!\n");
-		atomic_sub(1, &service.total_running);
 		if (NULL == service.reg_codec) {
 			pr_err("enc isr with no task waiting\n");
 		} else {
