@@ -642,13 +642,28 @@ void __cpuinit early_init_mmu_secondary(void)
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
-	/* On Embedded 64-bit, we adjust the RMA size to match
+	/* On non-FSL Embedded 64-bit, we adjust the RMA size to match
 	 * the bolted TLB entry. We know for now that only 1G
 	 * entries are supported though that may eventually
-	 * change. We crop it to the size of the first MEMBLOCK to
+	 * change.
+	 *
+	 * on FSL Embedded 64-bit, we adjust the RMA size to match the
+	 * first bolted TLB entry size.  We still limit max to 1G even if
+	 * the TLB could cover more.  This is due to what the early init
+	 * code is setup to do.
+	 *
+	 * We crop it to the size of the first MEMBLOCK to
 	 * avoid going over total available memory just in case...
 	 */
-	ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	if (mmu_has_feature(MMU_FTR_TYPE_FSL_E)) {
+		unsigned long linear_sz;
+		linear_sz = calc_cam_sz(first_memblock_size, PAGE_OFFSET,
+					first_memblock_base);
+		ppc64_rma_size = min_t(u64, linear_sz, 0x40000000);
+	} else
+#endif
+		ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
 
 	/* Finally limit subsequent allocations */
 	memblock_set_current_limit(first_memblock_base + ppc64_rma_size);

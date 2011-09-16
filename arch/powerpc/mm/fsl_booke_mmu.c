@@ -146,29 +146,36 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 	loadcam_entry(index);
 }
 
+unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
+			  phys_addr_t phys)
+{
+	unsigned int camsize = __ilog2(ram) & ~1U;
+	unsigned int align = __ffs(virt | phys) & ~1U;
+	unsigned long max_cam = (mfspr(SPRN_TLB1CFG) >> 16) & 0xf;
+
+	/* Convert (4^max) kB to (2^max) bytes */
+	max_cam = max_cam * 2 + 10;
+
+	if (camsize > align)
+		camsize = align;
+	if (camsize > max_cam)
+		camsize = max_cam;
+
+	return 1UL << camsize;
+}
+
 unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx)
 {
 	int i;
 	unsigned long virt = PAGE_OFFSET;
 	phys_addr_t phys = memstart_addr;
 	unsigned long amount_mapped = 0;
-	unsigned long max_cam = (mfspr(SPRN_TLB1CFG) >> 16) & 0xf;
-
-	/* Convert (4^max) kB to (2^max) bytes */
-	max_cam = max_cam * 2 + 10;
 
 	/* Calculate CAM values */
 	for (i = 0; ram && i < max_cam_idx; i++) {
-		unsigned int camsize = __ilog2(ram) & ~1U;
-		unsigned int align = __ffs(virt | phys) & ~1U;
 		unsigned long cam_sz;
 
-		if (camsize > align)
-			camsize = align;
-		if (camsize > max_cam)
-			camsize = max_cam;
-
-		cam_sz = 1UL << camsize;
+		cam_sz = calc_cam_sz(ram, virt, phys);
 		settlbcam(i, virt, phys, cam_sz, PAGE_KERNEL_X, 0);
 
 		ram -= cam_sz;
