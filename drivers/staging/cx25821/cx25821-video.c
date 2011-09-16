@@ -830,26 +830,25 @@ static int video_open(struct file *file)
 		return -ENODEV;
 	}
 
-       file->private_data = fh;
-       fh->dev = dev;
-       fh->type = type;
-       fh->width = 720;
-    fh->channel_id = ch_id;
+	file->private_data = fh;
+	fh->dev = dev;
+	fh->type = type;
+	fh->width = 720;
+	fh->channel_id = ch_id;
 
-       if (dev->tvnorm & V4L2_STD_PAL_BG || dev->tvnorm & V4L2_STD_PAL_DK)
-	       fh->height = 576;
-       else
-	       fh->height = 480;
+	if (dev->tvnorm & V4L2_STD_PAL_BG || dev->tvnorm & V4L2_STD_PAL_DK)
+		fh->height = 576;
+	else
+		fh->height = 480;
 
-       dev->channel_opened = fh->channel_id;
-       pix_format =
-	   (dev->channels[ch_id].pixel_formats ==
-	    PIXEL_FRMT_411) ? V4L2_PIX_FMT_Y41P : V4L2_PIX_FMT_YUYV;
-       fh->fmt = cx25821_format_by_fourcc(pix_format);
+	dev->channel_opened = fh->channel_id;
+	pix_format = (dev->channels[ch_id].pixel_formats == PIXEL_FRMT_411) ?
+			V4L2_PIX_FMT_Y41P : V4L2_PIX_FMT_YUYV;
+	fh->fmt = cx25821_format_by_fourcc(pix_format);
 
-       v4l2_prio_open(&dev->channels[ch_id].prio, &fh->prio);
+	v4l2_prio_open(&dev->channels[ch_id].prio, &fh->prio);
 
-       videobuf_queue_sg_init(&fh->vidq, &cx25821_video_qops,
+	videobuf_queue_sg_init(&fh->vidq, &cx25821_video_qops,
 			      &dev->pci->dev, &dev->slock,
 			      V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			      V4L2_FIELD_INTERLACED,
