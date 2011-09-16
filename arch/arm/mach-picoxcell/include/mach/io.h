@@ -19,11 +19,4 @@
 /* No PCI possible on picoxcell. */
 #define __mem_pci(a)		(a)
 
-#define __arch_ioremap	picoxcell_ioremap
-#define __arch_iounmap	picoxcell_iounmap
-
-extern void __iomem *picoxcell_ioremap(unsigned long phys, size_t size,
-				       unsigned int type);
-extern void picoxcell_iounmap(volatile void __iomem *addr);
-
 #endif /* __ASM_ARM_ARCH_IO_H */

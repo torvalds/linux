@@ -30,27 +30,3 @@ void __init picoxcell_map_io(void)
 
 	iotable_init(&io_map, 1);
 }
-
-void __iomem *picoxcell_ioremap(unsigned long p, size_t size,
-				unsigned int type)
-{
-	if (unlikely(size == 0))
-		return NULL;
-
-	if (p >= PICOXCELL_PERIPH_BASE &&
-	    p < PICOXCELL_PERIPH_BASE + PICOXCELL_PERIPH_LENGTH)
-		return IO_ADDRESS(p);
-
-	return __arm_ioremap_caller(p, size, type,
-				    __builtin_return_address(0));
-}
-EXPORT_SYMBOL_GPL(picoxcell_ioremap);
-
-void picoxcell_iounmap(volatile void __iomem *addr)
-{
-	unsigned long virt = (unsigned long)addr;
-
-	if (virt >= VMALLOC_START && virt < VMALLOC_END)
-		__iounmap(addr);
-}
-EXPORT_SYMBOL_GPL(picoxcell_iounmap);
