@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/input.h>
 #include <linux/pwm_backlight.h>
+#include <linux/gpio_keys.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -97,6 +98,62 @@ static void __init origen_ehci_init(void)
 	s5p_ehci_set_platdata(pdata);
 }
 
+static struct gpio_keys_button origen_gpio_keys_table[] = {
+	{
+		.code			= KEY_MENU,
+		.gpio			= EXYNOS4_GPX1(5),
+		.desc			= "gpio-keys: KEY_MENU",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.wakeup			= 1,
+		.debounce_interval	= 1,
+	}, {
+		.code			= KEY_HOME,
+		.gpio			= EXYNOS4_GPX1(6),
+		.desc			= "gpio-keys: KEY_HOME",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.wakeup			= 1,
+		.debounce_interval	= 1,
+	}, {
+		.code			= KEY_BACK,
+		.gpio			= EXYNOS4_GPX1(7),
+		.desc			= "gpio-keys: KEY_BACK",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.wakeup			= 1,
+		.debounce_interval	= 1,
+	}, {
+		.code			= KEY_UP,
+		.gpio			= EXYNOS4_GPX2(0),
+		.desc			= "gpio-keys: KEY_UP",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.wakeup			= 1,
+		.debounce_interval	= 1,
+	}, {
+		.code			= KEY_DOWN,
+		.gpio			= EXYNOS4_GPX2(1),
+		.desc			= "gpio-keys: KEY_DOWN",
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.wakeup			= 1,
+		.debounce_interval	= 1,
+	},
+};
+
+static struct gpio_keys_platform_data origen_gpio_keys_data = {
+	.buttons	= origen_gpio_keys_table,
+	.nbuttons	= ARRAY_SIZE(origen_gpio_keys_table),
+};
+
+static struct platform_device origen_device_gpiokeys = {
+	.name		= "gpio-keys",
+	.dev		= {
+		.platform_data	= &origen_gpio_keys_data,
+	},
+};
+
 static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc0,
@@ -107,6 +164,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
 	&s5p_device_fimc3,
+	&origen_device_gpiokeys,
 };
 
 /* LCD Backlight data */
