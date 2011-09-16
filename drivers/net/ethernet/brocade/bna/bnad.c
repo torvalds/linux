@@ -1875,10 +1875,10 @@ bnad_cleanup_rx(struct bnad *bnad, u32 rx_id)
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_rx_destroy(rx_info->rx);
-	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	rx_info->rx = NULL;
 	rx_info->rx_id = 0;
+	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	bnad_rx_res_free(bnad, res_info);
 }
@@ -1932,12 +1932,13 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	rx = bna_rx_create(&bnad->bna, bnad, rx_config, &rx_cbfn, res_info,
 			rx_info);
-	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 	if (!rx) {
 		err = -ENOMEM;
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 		goto err_return;
 	}
 	rx_info->rx = rx;
+	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	/*
 	 * Init NAPI, so that state is set to NAPI_STATE_SCHED,
