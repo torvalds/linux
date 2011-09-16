@@ -1782,42 +1782,41 @@ static long video_ioctl_upstream10(struct file *file, unsigned int cmd,
 static long video_ioctl_upstream11(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
-       struct cx25821_fh *fh = file->private_data;
-       struct cx25821_dev *dev = fh->dev;
-       int command = 0;
-       struct upstream_user_struct *data_from_user;
+	struct cx25821_fh *fh = file->private_data;
+	struct cx25821_dev *dev = fh->dev;
+	int command = 0;
+	struct upstream_user_struct *data_from_user;
 
-       data_from_user = (struct upstream_user_struct *)arg;
+	data_from_user = (struct upstream_user_struct *)arg;
 
 	if (!data_from_user) {
 		pr_err("%s(): Upstream data is INVALID. Returning\n", __func__);
 		return 0;
 	}
 
-       command = data_from_user->command;
+	command = data_from_user->command;
 
-       if (command != UPSTREAM_START_AUDIO &&
-	       command != UPSTREAM_STOP_AUDIO)
-	       return 0;
+	if (command != UPSTREAM_START_AUDIO && command != UPSTREAM_STOP_AUDIO)
+		return 0;
 
-       dev->input_filename = data_from_user->input_filename;
-       dev->input_audiofilename = data_from_user->input_filename;
-       dev->vid_stdname = data_from_user->vid_stdname;
-       dev->pixel_format = data_from_user->pixel_format;
-       dev->channel_select = data_from_user->channel_select;
-       dev->command = data_from_user->command;
+	dev->input_filename = data_from_user->input_filename;
+	dev->input_audiofilename = data_from_user->input_filename;
+	dev->vid_stdname = data_from_user->vid_stdname;
+	dev->pixel_format = data_from_user->pixel_format;
+	dev->channel_select = data_from_user->channel_select;
+	dev->command = data_from_user->command;
 
-       switch (command) {
-       case UPSTREAM_START_AUDIO:
-	       cx25821_start_upstream_audio(dev, data_from_user);
-	       break;
+	switch (command) {
+	case UPSTREAM_START_AUDIO:
+		cx25821_start_upstream_audio(dev, data_from_user);
+		break;
 
-       case UPSTREAM_STOP_AUDIO:
-	       cx25821_stop_upstream_audio(dev);
-	       break;
-       }
+	case UPSTREAM_STOP_AUDIO:
+		cx25821_stop_upstream_audio(dev);
+		break;
+	}
 
-       return 0;
+	return 0;
 }
 
 static long video_ioctl_set(struct file *file, unsigned int cmd,
