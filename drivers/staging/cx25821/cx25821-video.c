@@ -230,14 +230,14 @@ int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh,
 
 	/* is it free? */
 	mutex_lock(&dev->lock);
-       if (dev->channels[fh->channel_id].resources & bit) {
+	if (dev->channels[fh->channel_id].resources & bit) {
 		/* no, someone else uses it */
 		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	fh->resources |= bit;
-       dev->channels[fh->channel_id].resources |= bit;
+	dev->channels[fh->channel_id].resources |= bit;
 	dprintk(1, "res: get %d\n", bit);
 	mutex_unlock(&dev->lock);
 	return 1;
@@ -250,7 +250,7 @@ int cx25821_res_check(struct cx25821_fh *fh, unsigned int bit)
 
 int cx25821_res_locked(struct cx25821_fh *fh, unsigned int bit)
 {
-       return fh->dev->channels[fh->channel_id].resources & bit;
+	return fh->dev->channels[fh->channel_id].resources & bit;
 }
 
 void cx25821_res_free(struct cx25821_dev *dev, struct cx25821_fh *fh,
@@ -261,7 +261,7 @@ void cx25821_res_free(struct cx25821_dev *dev, struct cx25821_fh *fh,
 
 	mutex_lock(&dev->lock);
 	fh->resources &= ~bits;
-       dev->channels[fh->channel_id].resources &= ~bits;
+	dev->channels[fh->channel_id].resources &= ~bits;
 	dprintk(1, "res: put %d\n", bits);
 	mutex_unlock(&dev->lock);
 }
@@ -355,7 +355,7 @@ int cx25821_restart_video_queue(struct cx25821_dev *dev,
 			buf->vb.state = VIDEOBUF_ACTIVE;
 			buf->count = q->count++;
 			prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
-			prev->risc.jmp[2] = cpu_to_le32(0);	/* Bits 63 - 32 */
+			prev->risc.jmp[2] = cpu_to_le32(0); /* Bits 63 - 32 */
 		} else {
 			return 0;
 		}
@@ -368,11 +368,11 @@ void cx25821_vid_timeout(unsigned long data)
 	struct cx25821_data *timeout_data = (struct cx25821_data *)data;
 	struct cx25821_dev *dev = timeout_data->dev;
 	struct sram_channel *channel = timeout_data->channel;
-       struct cx25821_dmaqueue *q = &dev->channels[channel->i].vidq;
+	struct cx25821_dmaqueue *q = &dev->channels[channel->i].vidq;
 	struct cx25821_buffer *buf;
 	unsigned long flags;
 
-       /* cx25821_sram_channel_dump(dev, channel); */
+	/* cx25821_sram_channel_dump(dev, channel); */
 	cx_clear(channel->dma_ctl, 0x11);
 
 	spin_lock_irqsave(&dev->slock, flags);
@@ -394,7 +394,7 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 	u32 count = 0;
 	int handled = 0;
 	u32 mask;
-       struct sram_channel *channel = dev->channels[chan_num].sram_channels;
+	struct sram_channel *channel = dev->channels[chan_num].sram_channels;
 
 	mask = cx_read(channel->int_msk);
 	if (0 == (status & mask))
@@ -414,8 +414,8 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 	if (status & FLD_VID_DST_RISC1) {
 		spin_lock(&dev->slock);
 		count = cx_read(channel->gpcnt);
-	       cx25821_video_wakeup(dev,
-		       &dev->channels[channel->i].vidq, count);
+		cx25821_video_wakeup(dev, &dev->channels[channel->i].vidq,
+				count);
 		spin_unlock(&dev->slock);
 		handled++;
 	}
