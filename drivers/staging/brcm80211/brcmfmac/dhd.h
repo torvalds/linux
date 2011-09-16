@@ -462,20 +462,20 @@ struct brcmf_scan_results {
 };
 
 /* used for association with a specific BSSID and chanspec list */
-struct brcmf_assoc_params {
+struct brcmf_assoc_params_le {
 	/* 00:00:00:00:00:00: broadcast scan */
 	u8 bssid[ETH_ALEN];
 	/* 0: all available channels, otherwise count of chanspecs in
 	 * chanspec_list */
-	s32 chanspec_num;
+	__le32 chanspec_num;
 	/* list of chanspecs */
-	u16 chanspec_list[1];
+	__le16 chanspec_list[1];
 };
 
 /* used for join with or without a specific bssid and channel list */
 struct brcmf_join_params {
-	struct brcmf_ssid ssid;
-	struct brcmf_assoc_params params;
+	struct brcmf_ssid_le ssid_le;
+	struct brcmf_assoc_params_le params_le;
 };
 
 /* size of brcmf_scan_results not including variable length array */
