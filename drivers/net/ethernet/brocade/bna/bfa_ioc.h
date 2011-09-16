@@ -199,7 +199,7 @@ struct bfa_ioc {
 	struct bfi_ioc_attr	*attr;
 	struct bfa_ioc_cbfn	*cbfn;
 	struct bfa_ioc_mbox_mod	mbox_mod;
-	struct bfa_ioc_hwif	*ioc_hwif;
+	const struct bfa_ioc_hwif *ioc_hwif;
 	struct bfa_iocpf	iocpf;
 	enum bfi_asic_gen	asic_gen;
 	enum bfi_asic_mode	asic_mode;

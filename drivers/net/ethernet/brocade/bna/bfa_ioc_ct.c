@@ -49,21 +49,21 @@ static bool bfa_ioc_ct_sync_complete(struct bfa_ioc *ioc);
 static enum bfa_status bfa_ioc_ct_pll_init(void __iomem *rb,
 				enum bfi_asic_mode asic_mode);
 
-static struct bfa_ioc_hwif nw_hwif_ct;
-
-static void
-bfa_ioc_set_ctx_hwif(struct bfa_ioc *ioc, struct bfa_ioc_hwif *hwif)
-{
-	hwif->ioc_firmware_lock = bfa_ioc_ct_firmware_lock;
-	hwif->ioc_firmware_unlock = bfa_ioc_ct_firmware_unlock;
-	hwif->ioc_notify_fail = bfa_ioc_ct_notify_fail;
-	hwif->ioc_ownership_reset = bfa_ioc_ct_ownership_reset;
-	hwif->ioc_sync_start = bfa_ioc_ct_sync_start;
-	hwif->ioc_sync_join = bfa_ioc_ct_sync_join;
-	hwif->ioc_sync_leave = bfa_ioc_ct_sync_leave;
-	hwif->ioc_sync_ack = bfa_ioc_ct_sync_ack;
-	hwif->ioc_sync_complete = bfa_ioc_ct_sync_complete;
-}
+static const struct bfa_ioc_hwif nw_hwif_ct = {
+	.ioc_pll_init	     = bfa_ioc_ct_pll_init,
+	.ioc_firmware_lock   = bfa_ioc_ct_firmware_lock,
+	.ioc_firmware_unlock = bfa_ioc_ct_firmware_unlock,
+	.ioc_reg_init	     = bfa_ioc_ct_reg_init,
+	.ioc_map_port	     = bfa_ioc_ct_map_port,
+	.ioc_isr_mode_set    = bfa_ioc_ct_isr_mode_set,
+	.ioc_notify_fail     = bfa_ioc_ct_notify_fail,
+	.ioc_ownership_reset = bfa_ioc_ct_ownership_reset,
+	.ioc_sync_start      = bfa_ioc_ct_sync_start,
+	.ioc_sync_join       = bfa_ioc_ct_sync_join,
+	.ioc_sync_leave	     = bfa_ioc_ct_sync_leave,
+	.ioc_sync_ack	     = bfa_ioc_ct_sync_ack,
+	.ioc_sync_complete   = bfa_ioc_ct_sync_complete,
+};
 
 /**
  * Called from bfa_ioc_attach() to map asic specific calls.
@@ -71,12 +71,6 @@ bfa_ioc_set_ctx_hwif(struct bfa_ioc *ioc, struct bfa_ioc_hwif *hwif)
 void
 bfa_nw_ioc_set_ct_hwif(struct bfa_ioc *ioc)
 {
-	bfa_ioc_set_ctx_hwif(ioc, &nw_hwif_ct);
-
-	nw_hwif_ct.ioc_pll_init = bfa_ioc_ct_pll_init;
-	nw_hwif_ct.ioc_reg_init = bfa_ioc_ct_reg_init;
-	nw_hwif_ct.ioc_map_port = bfa_ioc_ct_map_port;
-	nw_hwif_ct.ioc_isr_mode_set = bfa_ioc_ct_isr_mode_set;
 	ioc->ioc_hwif = &nw_hwif_ct;
 }
 

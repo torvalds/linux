@@ -453,7 +453,7 @@ void bna_tx_res_req(int num_txq, int txq_depth,
 		    struct bna_res_info *res_info);
 struct bna_tx *bna_tx_create(struct bna *bna, struct bnad *bnad,
 			       struct bna_tx_config *tx_cfg,
-			       struct bna_tx_event_cbfn *tx_cbfn,
+			       const struct bna_tx_event_cbfn *tx_cbfn,
 			       struct bna_res_info *res_info, void *priv);
 void bna_tx_destroy(struct bna_tx *tx);
 void bna_tx_enable(struct bna_tx *tx);
@@ -490,7 +490,7 @@ void bna_rx_res_req(struct bna_rx_config *rx_config,
 		    struct bna_res_info *res_info);
 struct bna_rx *bna_rx_create(struct bna *bna, struct bnad *bnad,
 			       struct bna_rx_config *rx_cfg,
-			       struct bna_rx_event_cbfn *rx_cbfn,
+			       const struct bna_rx_event_cbfn *rx_cbfn,
 			       struct bna_res_info *res_info, void *priv);
 void bna_rx_destroy(struct bna_rx *rx);
 void bna_rx_enable(struct bna_rx *rx);
