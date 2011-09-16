@@ -1000,21 +1000,21 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			return err;
 	}
 
-       dprintk(2, "%s()\n", __func__);
-       err = cx25821_vidioc_try_fmt_vid_cap(file, priv, f);
+	dprintk(2, "%s()\n", __func__);
+	err = cx25821_vidioc_try_fmt_vid_cap(file, priv, f);
 
-       if (0 != err)
-	       return err;
+	if (0 != err)
+		return err;
 
-       fh->fmt = cx25821_format_by_fourcc(f->fmt.pix.pixelformat);
-       fh->vidq.field = f->fmt.pix.field;
+	fh->fmt = cx25821_format_by_fourcc(f->fmt.pix.pixelformat);
+	fh->vidq.field = f->fmt.pix.field;
 
-       /* check if width and height is valid based on set standard */
-       if (cx25821_is_valid_width(f->fmt.pix.width, dev->tvnorm))
-	       fh->width = f->fmt.pix.width;
+	/* check if width and height is valid based on set standard */
+	if (cx25821_is_valid_width(f->fmt.pix.width, dev->tvnorm))
+		fh->width = f->fmt.pix.width;
 
-       if (cx25821_is_valid_height(f->fmt.pix.height, dev->tvnorm))
-	       fh->height = f->fmt.pix.height;
+	if (cx25821_is_valid_height(f->fmt.pix.height, dev->tvnorm))
+		fh->height = f->fmt.pix.height;
 
        if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_Y41P)
 	       pix_format = PIXEL_FRMT_411;
