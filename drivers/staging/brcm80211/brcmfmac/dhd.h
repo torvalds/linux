@@ -665,16 +665,6 @@ struct bcmevent_name {
 	const char *name;
 };
 
-/*
- * Insmod parameters for debug/test
- */
-
-/* ARP offload agent mode */
-extern uint brcmf_arp_mode;
-
-/* ARP offload enable */
-extern uint brcmf_arp_enable;
-
 /* Override to force tx queueing all the time */
 extern uint brcmf_force_tx_queueing;
 

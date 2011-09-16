@@ -82,15 +82,6 @@ struct brcmf_info {
 /* Error bits */
 module_param(brcmf_msg_level, int, 0);
 
-/* ARP offload agent mode : Enable ARP Host Auto-Reply
-and ARP Peer Auto-Reply */
-uint brcmf_arp_mode = 0xb;
-module_param(brcmf_arp_mode, uint, 0);
-
-/* ARP offload enable */
-uint brcmf_arp_enable = true;
-module_param(brcmf_arp_enable, uint, 0);
-
 /* Network inteface name */
 char iface_name[IFNAMSIZ] = "wlan";
 module_param_string(iface_name, iface_name, IFNAMSIZ, 0);

@@ -30,6 +30,7 @@
 #define DOT11_OUI_LEN			3
 #define BCMILCP_BCM_SUBTYPE_EVENT	1
 #define PKTFILTER_BUF_SIZE		2048
+#define BRCMF_ARPOL_MODE		0xb	/* agent|snoop|peer_autoreply */
 
 int brcmf_msg_level;
 
@@ -859,9 +860,8 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 			 (char *)&scan_unassoc_time, sizeof(scan_unassoc_time));
 
 	/* Set and enable ARP offload feature */
-	if (brcmf_arp_enable)
-		brcmf_c_arp_offload_set(drvr, brcmf_arp_mode);
-	brcmf_c_arp_offload_enable(drvr, brcmf_arp_enable);
+	brcmf_c_arp_offload_set(drvr, BRCMF_ARPOL_MODE);
+	brcmf_c_arp_offload_enable(drvr, true);
 
 	/* Set up pkt filter */
 	for (i = 0; i < drvr->pktfilter_count; i++) {
