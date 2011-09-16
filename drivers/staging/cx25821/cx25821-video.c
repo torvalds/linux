@@ -679,7 +679,7 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 
 	return 0;
 
-      fail:
+fail:
 	cx25821_free_buffer(q, buf);
 	return rc;
 }
