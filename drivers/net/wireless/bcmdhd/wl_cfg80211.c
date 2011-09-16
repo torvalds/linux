@@ -2881,6 +2881,7 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
 static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 #endif
 {
+#ifdef DHD_CLEAR_ON_SUSPEND
 	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct net_device *ndev = wl_to_prmry_ndev(wl);
 	unsigned long flags;
@@ -2893,11 +2894,6 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 
 	wl_set_drv_status(wl, SCAN_ABORTING);
 	wl_term_iscan(wl);
-	if (wl_get_drv_status(wl, CONNECTING)) {
-		wl_bss_connect_done(wl, ndev, NULL, NULL, false);
-		wl_delay(500);
-		return -EAGAIN;
-	}
 	flags = dhd_os_spin_lock((dhd_pub_t *)(wl->pub));
 	if (wl->scan_request) {
 		cfg80211_scan_done(wl->scan_request, true);
@@ -2906,6 +2902,13 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 	wl_clr_drv_status(wl, SCANNING);
 	wl_clr_drv_status(wl, SCAN_ABORTING);
 	dhd_os_spin_unlock((dhd_pub_t *)(wl->pub), flags);
+
+	if (wl_get_drv_status(wl, CONNECTING)) {
+		wl_bss_connect_done(wl, ndev, NULL, NULL, false);
+		wl_delay(500);
+		return -EAGAIN;
+	}
+#endif
 	return 0;
 }
 
