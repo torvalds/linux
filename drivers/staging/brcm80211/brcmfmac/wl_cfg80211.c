@@ -359,9 +359,10 @@ static s32 brcmf_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
 	s8 buf[BRCMF_C_IOCTL_SMLEN];
 	u32 len;
 	s32 err = 0;
+	__le32 val_le;
 
-	val = cpu_to_le32(val);
-	len = brcmu_mkiovar(name, (char *)(&val), sizeof(val), buf,
+	val_le = cpu_to_le32(val);
+	len = brcmu_mkiovar(name, (char *)(&val_le), sizeof(val_le), buf,
 			    sizeof(buf));
 	BUG_ON(!len);
 
@@ -411,25 +412,19 @@ static void brcmf_set_mpc(struct net_device *ndev, int mpc)
 	}
 }
 
-static void wl_iscan_prep(struct brcmf_scan_params *params,
+static void wl_iscan_prep(struct brcmf_scan_params_le *params_le,
 			  struct brcmf_ssid *ssid)
 {
-	memcpy(params->bssid, ether_bcast, ETH_ALEN);
-	params->bss_type = DOT11_BSSTYPE_ANY;
-	params->scan_type = 0;
-	params->nprobes = -1;
-	params->active_time = -1;
-	params->passive_time = -1;
-	params->home_time = -1;
-	params->channel_num = 0;
-
-	params->nprobes = cpu_to_le32(params->nprobes);
-	params->active_time = cpu_to_le32(params->active_time);
-	params->passive_time = cpu_to_le32(params->passive_time);
-	params->home_time = cpu_to_le32(params->home_time);
+	memcpy(params_le->bssid, ether_bcast, ETH_ALEN);
+	params_le->bss_type = DOT11_BSSTYPE_ANY;
+	params_le->scan_type = 0;
+	params_le->channel_num = 0;
+	params_le->nprobes = cpu_to_le32(-1);
+	params_le->active_time = cpu_to_le32(-1);
+	params_le->passive_time = cpu_to_le32(-1);
+	params_le->home_time = cpu_to_le32(-1);
 	if (ssid && ssid->SSID_len)
-		memcpy(&params->ssid, ssid, sizeof(struct brcmf_ssid));
-
+		memcpy(&params_le->ssid_le, ssid, sizeof(struct brcmf_ssid));
 }
 
 static s32
@@ -460,9 +455,9 @@ static s32
 brcmf_run_iscan(struct brcmf_cfg80211_iscan_ctrl *iscan,
 		struct brcmf_ssid *ssid, u16 action)
 {
-	s32 params_size = (BRCMF_SCAN_PARAMS_FIXED_SIZE +
-				offsetof(struct brcmf_iscan_params, params));
-	struct brcmf_iscan_params *params;
+	s32 params_size = BRCMF_SCAN_PARAMS_FIXED_SIZE +
+			  offsetof(struct brcmf_iscan_params_le, params_le);
+	struct brcmf_iscan_params_le *params;
 	s32 err = 0;
 
 	if (ssid && ssid->SSID_len)
@@ -472,13 +467,12 @@ brcmf_run_iscan(struct brcmf_cfg80211_iscan_ctrl *iscan,
 		return -ENOMEM;
 	BUG_ON(params_size >= BRCMF_C_IOCTL_SMLEN);
 
-	wl_iscan_prep(&params->params, ssid);
+	wl_iscan_prep(&params->params_le, ssid);
 
 	params->version = cpu_to_le32(BRCMF_ISCAN_REQ_VERSION);
 	params->action = cpu_to_le16(action);
 	params->scan_duration = cpu_to_le16(0);
 
-	/* params_size += offsetof(struct brcmf_iscan_params, params); */
 	err = brcmf_dev_iovar_setbuf(iscan->dev, "iscan", params, params_size,
 				iscan->ioctl_buf, BRCMF_C_IOCTL_SMLEN);
 	if (unlikely(err)) {
@@ -537,6 +531,7 @@ __brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	bool iscan_req;
 	bool spec_scan;
 	s32 err = 0;
+	u32 SSID_len;
 
 	if (unlikely(test_bit(WL_STATUS_SCANNING, &cfg_priv->status))) {
 		WL_ERR("Scanning already : status (%lu)\n", cfg_priv->status);
@@ -577,12 +572,12 @@ __brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	} else {
 		WL_SCAN("ssid \"%s\", ssid_len (%d)\n",
 		       ssids->ssid, ssids->ssid_len);
-		memset(&sr->ssid, 0, sizeof(sr->ssid));
-		sr->ssid.SSID_len =
-			    min_t(u8, sizeof(sr->ssid.SSID), ssids->ssid_len);
-		if (sr->ssid.SSID_len) {
-			memcpy(sr->ssid.SSID, ssids->ssid, sr->ssid.SSID_len);
-			sr->ssid.SSID_len = cpu_to_le32(sr->ssid.SSID_len);
+		memset(&sr->ssid_le, 0, sizeof(sr->ssid_le));
+		SSID_len = min_t(u8, sizeof(sr->ssid_le.SSID), ssids->ssid_len);
+		sr->ssid_le.SSID_len = cpu_to_le32(0);
+		if (SSID_len) {
+			memcpy(sr->ssid_le.SSID, ssids->ssid, SSID_len);
+			sr->ssid_le.SSID_len = cpu_to_le32(SSID_len);
 			spec_scan = true;
 		} else {
 			WL_SCAN("Broadcast scan\n");
@@ -596,12 +591,12 @@ __brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			goto scan_out;
 		}
 		brcmf_set_mpc(ndev, 0);
-		err = brcmf_dev_ioctl(ndev, BRCMF_C_SCAN, &sr->ssid,
-				sizeof(sr->ssid));
+		err = brcmf_dev_ioctl(ndev, BRCMF_C_SCAN, &sr->ssid_le,
+				      sizeof(sr->ssid_le));
 		if (err) {
 			if (err == -EBUSY)
 				WL_INFO("system busy : scan for \"%s\" "
-					"canceled\n", sr->ssid.SSID);
+					"canceled\n", sr->ssid_le.SSID);
 			else
 				WL_ERR("WLC_SCAN error (%d)\n", err);
 

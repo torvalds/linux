@@ -188,7 +188,7 @@ struct brcmf_cfg80211_dev {
 
 /* basic structure of scan request */
 struct brcmf_cfg80211_scan_req {
-	struct brcmf_ssid ssid;
+	struct brcmf_ssid_le ssid_le;
 };
 
 /* basic structure of information element */

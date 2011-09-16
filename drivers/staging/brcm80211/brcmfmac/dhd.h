@@ -410,24 +410,24 @@ struct brcmf_ssid_le {
 	unsigned char SSID[32];
 };
 
-struct brcmf_scan_params {
-	struct brcmf_ssid ssid;	/* default: {0, ""} */
+struct brcmf_scan_params_le {
+	struct brcmf_ssid_le ssid_le;	/* default: {0, ""} */
 	u8 bssid[ETH_ALEN];	/* default: bcast */
 	s8 bss_type;		/* default: any,
 				 * DOT11_BSSTYPE_ANY/INFRASTRUCTURE/INDEPENDENT
 				 */
 	u8 scan_type;	/* flags, 0 use default */
-	s32 nprobes;	  /* -1 use default, number of probes per channel */
-	s32 active_time;	/* -1 use default, dwell time per channel for
+	__le32 nprobes;	  /* -1 use default, number of probes per channel */
+	__le32 active_time;	/* -1 use default, dwell time per channel for
 				 * active scanning
 				 */
-	s32 passive_time;	/* -1 use default, dwell time per channel
+	__le32 passive_time;	/* -1 use default, dwell time per channel
 				 * for passive scanning
 				 */
-	s32 home_time;	/* -1 use default, dwell time for the home channel
-				 * between channel scans
+	__le32 home_time;	/* -1 use default, dwell time for the
+				 * home channel between channel scans
 				 */
-	s32 channel_num;	/* count of channels and ssids that follow
+	__le32 channel_num;	/* count of channels and ssids that follow
 				 *
 				 * low half is count of channels in
 				 * channel_list, 0 means default (use all
@@ -443,21 +443,16 @@ struct brcmf_scan_params {
 				 * fixed parameter portion is assumed, otherwise
 				 * ssid in the fixed portion is ignored
 				 */
-	u16 channel_list[1];	/* list of chanspecs */
+	__le16 channel_list[1];	/* list of chanspecs */
 };
 
 /* incremental scan struct */
-struct brcmf_iscan_params {
-	u32 version;
-	u16 action;
-	u16 scan_duration;
-	struct brcmf_scan_params params;
+struct brcmf_iscan_params_le {
+	__le32 version;
+	__le16 action;
+	__le16 scan_duration;
+	struct brcmf_scan_params_le params_le;
 };
-
-/* 3 fields + size of brcmf_scan_params, not including variable length array */
-#define BRCMF_ISCAN_PARAMS_FIXED_SIZE \
-	(offsetof(struct brcmf_iscan_params, params) + \
-	 sizeof(struct brcmf_ssid))
 
 struct brcmf_scan_results {
 	u32 buflen;
