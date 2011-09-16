@@ -554,6 +554,8 @@ struct nouveau_pm_engine {
 
 	int (*voltage_get)(struct drm_device *);
 	int (*voltage_set)(struct drm_device *, int voltage);
+	int (*pwm_get)(struct drm_device *, struct dcb_gpio_entry*, u32*, u32*);
+	int (*pwm_set)(struct drm_device *, struct dcb_gpio_entry*, u32, u32);
 	int (*fanspeed_get)(struct drm_device *);
 	int (*fanspeed_set)(struct drm_device *, int fanspeed);
 	int (*temp_get)(struct drm_device *);

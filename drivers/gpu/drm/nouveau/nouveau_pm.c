@@ -35,6 +35,74 @@
 #include <linux/hwmon-sysfs.h>
 
 static int
+nouveau_pwmfan_get(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct dcb_gpio_entry *gpio;
+	u32 divs, duty;
+	int ret;
+
+	if (!pm->pwm_get) {
+		if (pm->fanspeed_get)
+			return pm->fanspeed_get(dev);
+		return -ENODEV;
+	}
+
+	gpio = nouveau_bios_gpio_entry(dev, DCB_GPIO_PWM_FAN);
+	if (gpio) {
+		ret = pm->pwm_get(dev, gpio, &divs, &duty);
+		if (ret == 0) {
+			divs = max(divs, duty);
+			if (dev_priv->card_type <= NV_40 ||
+			    (gpio->state[0] & 1))
+				duty = divs - duty;
+			return (duty * 100) / divs;
+		}
+
+		return pgpio->get(dev, gpio->tag) * 100;
+	}
+
+	return -ENODEV;
+}
+
+static int
+nouveau_pwmfan_set(struct drm_device *dev, int percent)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct dcb_gpio_entry *gpio;
+	u32 divs, duty;
+
+	if (!pm->pwm_set) {
+		if (pm->fanspeed_set)
+			return pm->fanspeed_set(dev, percent);
+		return -ENODEV;
+	}
+
+	gpio = nouveau_bios_gpio_entry(dev, DCB_GPIO_PWM_FAN);
+	if (gpio) {
+		divs = pm->pwm_divisor;
+		if (pm->fan.pwm_freq) {
+			/*XXX: PNVIO clock more than likely... */
+			divs = 135000 / pm->fan.pwm_freq;
+			if (dev_priv->chipset < 0xa3)
+				divs /= 4;
+		}
+
+		duty = ((divs * percent) + 99) / 100;
+		if (dev_priv->card_type <= NV_40 ||
+		    (gpio->state[0] & 1))
+			duty = divs - duty;
+
+		return pm->pwm_set(dev, gpio, divs, duty);
+	}
+
+	return -ENODEV;
+}
+
+static int
 nouveau_pm_clock_set(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 		     u8 id, u32 khz)
 {
@@ -68,9 +136,9 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	 *     on recent boards..  or maybe on some other factor we don't
 	 *     know about?
 	 */
-	if (pm->fanspeed_set && perflvl->fanspeed) {
-		ret = pm->fanspeed_set(dev, perflvl->fanspeed);
-		if (ret)
+	if (perflvl->fanspeed) {
+		ret = nouveau_pwmfan_set(dev, perflvl->fanspeed);
+		if (ret && ret != -ENODEV)
 			NV_ERROR(dev, "set fanspeed failed: %d\n", ret);
 	}
 
@@ -171,11 +239,9 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		}
 	}
 
-	if (pm->fanspeed_get) {
-		ret = pm->fanspeed_get(dev);
-		if (ret > 0)
-			perflvl->fanspeed = ret;
-	}
+	ret = nouveau_pwmfan_get(dev);
+	if (ret > 0)
+		perflvl->fanspeed = ret;
 
 	return 0;
 }
@@ -471,12 +537,9 @@ static ssize_t
 nouveau_hwmon_get_pwm0(struct device *d, struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	int ret = -ENODEV;
+	int ret;
 
-	if (pm->fanspeed_get)
-		ret = pm->fanspeed_get(dev);
+	ret = nouveau_pwmfan_get(dev);
 	if (ret < 0)
 		return ret;
 
@@ -504,8 +567,7 @@ nouveau_hwmon_set_pwm0(struct device *d, struct device_attribute *a,
 	if (value > pm->fan.max_duty)
 		value = pm->fan.max_duty;
 
-	if (pm->fanspeed_set)
-		ret = pm->fanspeed_set(dev, value);
+	ret = nouveau_pwmfan_set(dev, value);
 	if (ret)
 		return ret;
 
@@ -660,7 +722,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	/*XXX: incorrect, need better detection for this, some boards have
 	 *     the gpio entries for pwm fan control even when there's no
 	 *     actual fan connected to it... therm table? */
-	if (pm->fanspeed_get && pm->fanspeed_get(dev) >= 0) {
+	if (nouveau_pwmfan_get(dev) >= 0) {
 		ret = sysfs_create_group(&dev->pdev->dev.kobj,
 					 &hwmon_pwm_fan_attrgroup);
 		if (ret)
