@@ -1016,30 +1016,30 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (cx25821_is_valid_height(f->fmt.pix.height, dev->tvnorm))
 		fh->height = f->fmt.pix.height;
 
-       if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_Y41P)
-	       pix_format = PIXEL_FRMT_411;
-       else if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
-	       pix_format = PIXEL_FRMT_422;
-       else
-	       return -EINVAL;
+	if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_Y41P)
+		pix_format = PIXEL_FRMT_411;
+	else if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
+		pix_format = PIXEL_FRMT_422;
+	else
+		return -EINVAL;
 
-       cx25821_set_pixel_format(dev, SRAM_CH00, pix_format);
+	cx25821_set_pixel_format(dev, SRAM_CH00, pix_format);
 
-       /* check if cif resolution */
-       if (fh->width == 320 || fh->width == 352)
-	       dev->channels[fh->channel_id].use_cif_resolution = 1;
-       else
-	       dev->channels[fh->channel_id].use_cif_resolution = 0;
+	/* check if cif resolution */
+	if (fh->width == 320 || fh->width == 352)
+		dev->channels[fh->channel_id].use_cif_resolution = 1;
+	else
+		dev->channels[fh->channel_id].use_cif_resolution = 0;
 
-       dev->channels[fh->channel_id].cif_width = fh->width;
-       medusa_set_resolution(dev, fh->width, SRAM_CH00);
+	dev->channels[fh->channel_id].cif_width = fh->width;
+	medusa_set_resolution(dev, fh->width, SRAM_CH00);
 
 	dprintk(2, "%s(): width=%d height=%d field=%d\n", __func__, fh->width,
 		fh->height, fh->vidq.field);
 	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
 	cx25821_call_all(dev, video, s_mbus_fmt, &mbus_fmt);
 
-       return 0;
+	return 0;
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
