@@ -1822,25 +1822,25 @@ static long video_ioctl_upstream11(struct file *file, unsigned int cmd,
 static long video_ioctl_set(struct file *file, unsigned int cmd,
 			   unsigned long arg)
 {
-       struct cx25821_fh *fh = file->private_data;
-       struct cx25821_dev *dev = fh->dev;
-       struct downstream_user_struct *data_from_user;
-       int command;
-       int width = 720;
-       int selected_channel = 0, pix_format = 0, i = 0;
-       int cif_enable = 0, cif_width = 0;
-       u32 value = 0;
+	struct cx25821_fh *fh = file->private_data;
+	struct cx25821_dev *dev = fh->dev;
+	struct downstream_user_struct *data_from_user;
+	int command;
+	int width = 720;
+	int selected_channel = 0, pix_format = 0, i = 0;
+	int cif_enable = 0, cif_width = 0;
+	u32 value = 0;
 
-       data_from_user = (struct downstream_user_struct *)arg;
+	data_from_user = (struct downstream_user_struct *)arg;
 
 	if (!data_from_user) {
 		pr_err("%s(): User data is INVALID. Returning\n", __func__);
 		return 0;
 	}
 
-       command = data_from_user->command;
+	command = data_from_user->command;
 
-       if (command != SET_VIDEO_STD && command != SET_PIXEL_FORMAT
+	if (command != SET_VIDEO_STD && command != SET_PIXEL_FORMAT
 	   && command != ENABLE_CIF_RESOLUTION && command != REG_READ
 	   && command != REG_WRITE && command != MEDUSA_READ
 	   && command != MEDUSA_WRITE) {
