@@ -374,7 +374,6 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 
 static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 {
-	/* The 100C is default for both mobile and non mobile CPUs */
 	int err;
 	u32 eax, edx;
 	u32 val;
@@ -385,7 +384,8 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	 */
 	err = rdmsr_safe_on_cpu(id, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (err) {
-		dev_warn(dev, "Unable to read TjMax from CPU.\n");
+		if (c->x86_model > 0xe && c->x86_model != 0x1c)
+			dev_warn(dev, "Unable to read TjMax from CPU %u\n", id);
 	} else {
 		val = (eax >> 16) & 0xff;
 		/*
@@ -393,7 +393,7 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 		 * will be used
 		 */
 		if (val) {
-			dev_info(dev, "TjMax is %d C.\n", val);
+			dev_dbg(dev, "TjMax is %d degrees C\n", val);
 			return val * 1000;
 		}
 	}
@@ -412,21 +412,6 @@ static void __devinit get_ucode_rev_on_cpu(void *edx)
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 	sync_core();
 	rdmsr(MSR_IA32_UCODE_REV, eax, *(u32 *)edx);
-}
-
-static int get_pkg_tjmax(unsigned int cpu, struct device *dev)
-{
-	int err;
-	u32 eax, edx, val;
-
-	err = rdmsr_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
-	if (!err) {
-		val = (eax >> 16) & 0xff;
-		if (val)
-			return val * 1000;
-	}
-	dev_warn(dev, "Unable to read Pkg-TjMax from CPU:%u\n", cpu);
-	return 100000; /* Default TjMax: 100 degree celsius */
 }
 
 static int create_name_attr(struct platform_data *pdata, struct device *dev)
@@ -588,10 +573,7 @@ static int create_core_data(struct platform_data *pdata,
 		goto exit_free;
 
 	/* We can access status register. Get Critical Temperature */
-	if (pkg_flag)
-		tdata->tjmax = get_pkg_tjmax(pdev->id, &pdev->dev);
-	else
-		tdata->tjmax = get_tjmax(c, cpu, &pdev->dev);
+	tdata->tjmax = get_tjmax(c, cpu, &pdev->dev);
 
 	/*
 	 * Test if we can access the intrpt register. If so, increase the
