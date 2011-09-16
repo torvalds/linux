@@ -2355,21 +2355,23 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 }
 
 int r600_copy_blit(struct radeon_device *rdev,
-		   uint64_t src_offset, uint64_t dst_offset,
-		   unsigned num_pages, struct radeon_fence *fence)
+		   uint64_t src_offset,
+		   uint64_t dst_offset,
+		   unsigned num_gpu_pages,
+		   struct radeon_fence *fence)
 {
 	int r;
 
 	mutex_lock(&rdev->r600_blit.mutex);
 	rdev->r600_blit.vb_ib = NULL;
-	r = r600_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
+	r = r600_blit_prepare_copy(rdev, num_gpu_pages * RADEON_GPU_PAGE_SIZE);
 	if (r) {
 		if (rdev->r600_blit.vb_ib)
 			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 		mutex_unlock(&rdev->r600_blit.mutex);
 		return r;
 	}
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * RADEON_GPU_PAGE_SIZE);
+	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages * RADEON_GPU_PAGE_SIZE);
 	r600_blit_done_copy(rdev, fence);
 	mutex_unlock(&rdev->r600_blit.mutex);
 	return 0;

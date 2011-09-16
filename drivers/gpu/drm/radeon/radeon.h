@@ -322,6 +322,7 @@ union radeon_gart_table {
 
 #define RADEON_GPU_PAGE_SIZE 4096
 #define RADEON_GPU_PAGE_MASK (RADEON_GPU_PAGE_SIZE - 1)
+#define RADEON_GPU_PAGE_SHIFT 12
 
 struct radeon_gart {
 	dma_addr_t			table_addr;
@@ -914,17 +915,17 @@ struct radeon_asic {
 	int (*copy_blit)(struct radeon_device *rdev,
 			 uint64_t src_offset,
 			 uint64_t dst_offset,
-			 unsigned num_pages,
+			 unsigned num_gpu_pages,
 			 struct radeon_fence *fence);
 	int (*copy_dma)(struct radeon_device *rdev,
 			uint64_t src_offset,
 			uint64_t dst_offset,
-			unsigned num_pages,
+			unsigned num_gpu_pages,
 			struct radeon_fence *fence);
 	int (*copy)(struct radeon_device *rdev,
 		    uint64_t src_offset,
 		    uint64_t dst_offset,
-		    unsigned num_pages,
+		    unsigned num_gpu_pages,
 		    struct radeon_fence *fence);
 	uint32_t (*get_engine_clock)(struct radeon_device *rdev);
 	void (*set_engine_clock)(struct radeon_device *rdev, uint32_t eng_clock);
