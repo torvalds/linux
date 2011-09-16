@@ -1580,19 +1580,19 @@ int cx25821_set_control(struct cx25821_dev *dev,
 
 	switch (ctl->id) {
 	case V4L2_CID_BRIGHTNESS:
-	       dev->channels[chan_num].ctl_bright = ctl->value;
+		dev->channels[chan_num].ctl_bright = ctl->value;
 		medusa_set_brightness(dev, ctl->value, chan_num);
 		break;
 	case V4L2_CID_HUE:
-	       dev->channels[chan_num].ctl_hue = ctl->value;
+		dev->channels[chan_num].ctl_hue = ctl->value;
 		medusa_set_hue(dev, ctl->value, chan_num);
 		break;
 	case V4L2_CID_CONTRAST:
-	       dev->channels[chan_num].ctl_contrast = ctl->value;
+		dev->channels[chan_num].ctl_contrast = ctl->value;
 		medusa_set_contrast(dev, ctl->value, chan_num);
 		break;
 	case V4L2_CID_SATURATION:
-	       dev->channels[chan_num].ctl_saturation = ctl->value;
+		dev->channels[chan_num].ctl_saturation = ctl->value;
 		medusa_set_saturation(dev, ctl->value, chan_num);
 		break;
 	}
@@ -1625,9 +1625,9 @@ int cx25821_vidioc_cropcap(struct file *file, void *priv,
 	cropcap->bounds.width = 720;
 	cropcap->bounds.height = dev->tvnorm == V4L2_STD_PAL_BG ? 576 : 480;
 	cropcap->pixelaspect.numerator =
-	    dev->tvnorm == V4L2_STD_PAL_BG ? 59 : 10;
+		dev->tvnorm == V4L2_STD_PAL_BG ? 59 : 10;
 	cropcap->pixelaspect.denominator =
-	    dev->tvnorm == V4L2_STD_PAL_BG ? 54 : 11;
+		dev->tvnorm == V4L2_STD_PAL_BG ? 54 : 11;
 	cropcap->defrect = cropcap->bounds;
 	return 0;
 }
@@ -1639,24 +1639,24 @@ int cx25821_vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 	int err;
 
 	if (fh) {
-	       err = v4l2_prio_check(&dev->channels[fh->channel_id].
-					       prio, fh->prio);
+		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
+				      fh->prio);
 		if (0 != err)
 			return err;
 	}
-       /* cx25821_vidioc_s_crop not supported */
+	/* cx25821_vidioc_s_crop not supported */
 	return -EINVAL;
 }
 
 int cx25821_vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 {
-       /* cx25821_vidioc_g_crop not supported */
+	/* cx25821_vidioc_g_crop not supported */
 	return -EINVAL;
 }
 
 int cx25821_vidioc_querystd(struct file *file, void *priv, v4l2_std_id * norm)
 {
-       /* medusa does not support video standard sensing of current input */
+	/* medusa does not support video standard sensing of current input */
 	*norm = CX25821_NORMS;
 
 	return 0;
