@@ -36,10 +36,19 @@
 #include <linux/cpu.h>
 #include <linux/pci.h>
 #include <linux/smp.h>
+#include <linux/moduleparam.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
 
 #define DRVNAME	"coretemp"
+
+/*
+ * force_tjmax only matters when TjMax can't be read from the CPU itself.
+ * When set, it replaces the driver's suboptimal heuristic.
+ */
+static int force_tjmax;
+module_param_named(tjmax, force_tjmax, int, 0444);
+MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 
 #define BASE_SYSFS_ATTR_NO	2	/* Sysfs Base attr no for coretemp */
 #define NUM_REAL_CORES		16	/* Number of Real cores per cpu */
@@ -396,6 +405,12 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 			dev_dbg(dev, "TjMax is %d degrees C\n", val);
 			return val * 1000;
 		}
+	}
+
+	if (force_tjmax) {
+		dev_notice(dev, "TjMax forced to %d degrees C by user\n",
+			   force_tjmax);
+		return force_tjmax * 1000;
 	}
 
 	/*
