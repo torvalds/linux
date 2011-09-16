@@ -759,28 +759,26 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 		if (prev->vb.width == buf->vb.width
 		   && prev->vb.height == buf->vb.height
 		   && prev->fmt == buf->fmt) {
-		       list_add_tail(&buf->vb.queue, &q->active);
-		       buf->vb.state = VIDEOBUF_ACTIVE;
-		       buf->count = q->count++;
-		       prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
+			list_add_tail(&buf->vb.queue, &q->active);
+			buf->vb.state = VIDEOBUF_ACTIVE;
+			buf->count = q->count++;
+			prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 
-		       /* 64 bit bits 63-32 */
-		       prev->risc.jmp[2] = cpu_to_le32(0);
-		       dprintk(2,
-			       "[%p/%d] buffer_queue - append to active, \
-			       buf->count=%d\n",
-			       buf, buf->vb.i, buf->count);
+			/* 64 bit bits 63-32 */
+			prev->risc.jmp[2] = cpu_to_le32(0);
+			dprintk(2, "[%p/%d] buffer_queue - append to active, buf->count=%d\n",
+					buf, buf->vb.i, buf->count);
 
-	       } else {
-		       list_add_tail(&buf->vb.queue, &q->queued);
-		       buf->vb.state = VIDEOBUF_QUEUED;
-		       dprintk(2, "[%p/%d] buffer_queue - first queued\n", buf,
-			       buf->vb.i);
-	       }
-       }
+		} else {
+			list_add_tail(&buf->vb.queue, &q->queued);
+			buf->vb.state = VIDEOBUF_QUEUED;
+			dprintk(2, "[%p/%d] buffer_queue - first queued\n", buf,
+					buf->vb.i);
+		}
+	}
 
-       if (list_empty(&q->active))
-	       dprintk(2, "active queue empty!\n");
+	if (list_empty(&q->active))
+		dprintk(2, "active queue empty!\n");
 }
 
 static struct videobuf_queue_ops cx25821_video_qops = {
