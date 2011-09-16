@@ -949,20 +949,20 @@ static int video_release(struct file *file)
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-       struct cx25821_fh *fh = priv;
-       struct cx25821_dev *dev = fh->dev;
+	struct cx25821_fh *fh = priv;
+	struct cx25821_dev *dev = fh->dev;
 
-       if (unlikely(fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE))
-	       return -EINVAL;
+	if (unlikely(fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE))
+		return -EINVAL;
 
-       if (unlikely(i != fh->type))
-	       return -EINVAL;
+	if (unlikely(i != fh->type))
+		return -EINVAL;
 
-       if (unlikely(!cx25821_res_get(dev, fh,
-		       cx25821_get_resource(fh, RESOURCE_VIDEO0))))
-	       return -EBUSY;
+	if (unlikely(!cx25821_res_get(dev, fh, cx25821_get_resource(fh,
+						RESOURCE_VIDEO0))))
+		return -EBUSY;
 
-       return videobuf_streamon(get_queue(fh));
+	return videobuf_streamon(get_queue(fh));
 }
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
