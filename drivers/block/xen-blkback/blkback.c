@@ -823,9 +823,9 @@ static int __init xen_blkif_init(void)
 
 	mmap_pages = xen_blkif_reqs * BLKIF_MAX_SEGMENTS_PER_REQUEST;
 
-	blkbk->pending_reqs          = kmalloc(sizeof(blkbk->pending_reqs[0]) *
+	blkbk->pending_reqs          = kzalloc(sizeof(blkbk->pending_reqs[0]) *
 					xen_blkif_reqs, GFP_KERNEL);
-	blkbk->pending_grant_handles = kzalloc(sizeof(blkbk->pending_grant_handles[0]) *
+	blkbk->pending_grant_handles = kmalloc(sizeof(blkbk->pending_grant_handles[0]) *
 					mmap_pages, GFP_KERNEL);
 	blkbk->pending_pages         = kzalloc(sizeof(blkbk->pending_pages[0]) *
 					mmap_pages, GFP_KERNEL);
@@ -847,8 +847,6 @@ static int __init xen_blkif_init(void)
 	rc = xen_blkif_interface_init();
 	if (rc)
 		goto failed_init;
-
-	memset(blkbk->pending_reqs, 0, sizeof(blkbk->pending_reqs));
 
 	INIT_LIST_HEAD(&blkbk->pending_free);
 	spin_lock_init(&blkbk->pending_free_lock);
