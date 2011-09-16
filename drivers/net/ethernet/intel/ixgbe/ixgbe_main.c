@@ -79,59 +79,32 @@ static const struct ixgbe_info *ixgbe_info_tbl[] = {
  *   Class, Class Mask, private data (not used) }
  */
 static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_DUAL_PORT),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_SINGLE_PORT),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT2),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_CX4),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_CX4_DUAL_PORT),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_DA_DUAL_PORT),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_XF_LR),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_SFP_LOM),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_BX),
-	 board_82598 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_XAUI_LOM),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KR),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_EM),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4_MEZZ),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_CX4),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_BACKPLANE_FCOE),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_FCOE),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_T3_LOM),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_COMBO_BACKPLANE),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T),
-	 board_X540 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF2),
-	 board_82599 },
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS),
-	 board_82599 },
-
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_DUAL_PORT), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_SINGLE_PORT), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT2), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_CX4), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_CX4_DUAL_PORT), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_DA_DUAL_PORT), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_XF_LR), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_SFP_LOM), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_BX), board_82598 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_XAUI_LOM), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KR), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_EM), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4_MEZZ), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_CX4), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_BACKPLANE_FCOE), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_FCOE), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_T3_LOM), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_COMBO_BACKPLANE), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T), board_X540 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF2), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS), board_82599 },
 	/* required last entry */
 	{0, }
 };
@@ -804,7 +777,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	struct ixgbe_tx_buffer *tx_buffer;
 	union ixgbe_adv_tx_desc *tx_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
-	u16 budget = q_vector->tx.work_limit;
+	unsigned int budget = q_vector->tx.work_limit;
 	u16 i = tx_ring->next_to_clean;
 
 	tx_buffer = &tx_ring->tx_buffer_info[i];
@@ -891,7 +864,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		ixgbe_tx_timeout_reset(adapter);
 
 		/* the adapter is about to reset, no point in enabling stuff */
-		return budget;
+		return true;
 	}
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
@@ -908,7 +881,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		}
 	}
 
-	return budget;
+	return !!budget;
 }
 
 #ifdef CONFIG_IXGBE_DCA
@@ -924,12 +897,12 @@ static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
 		rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK;
-		rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
+		rxctrl |= dca3_get_tag(rx_ring->dev, cpu);
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
 		rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK_82599;
-		rxctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
+		rxctrl |= (dca3_get_tag(rx_ring->dev, cpu) <<
 			   IXGBE_DCA_RXCTRL_CPUID_SHIFT_82599);
 		break;
 	default:
@@ -953,7 +926,7 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 	case ixgbe_mac_82598EB:
 		txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(reg_idx));
 		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK;
-		txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
+		txctrl |= dca3_get_tag(tx_ring->dev, cpu);
 		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(reg_idx), txctrl);
 		break;
@@ -961,7 +934,7 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 	case ixgbe_mac_X540:
 		txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(reg_idx));
 		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK_82599;
-		txctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
+		txctrl |= (dca3_get_tag(tx_ring->dev, cpu) <<
 			   IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599);
 		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(reg_idx), txctrl);
@@ -1297,9 +1270,9 @@ static inline bool ixgbe_get_rsc_state(union ixgbe_adv_rx_desc *rx_desc)
 		IXGBE_RXDADV_RSCCNT_MASK);
 }
 
-static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
+static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			       struct ixgbe_ring *rx_ring,
-			       int *work_done, int work_to_do)
+			       int budget)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 	union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
@@ -1479,11 +1452,11 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 #endif /* IXGBE_FCOE */
 		ixgbe_receive_skb(q_vector, skb, staterr, rx_ring, rx_desc);
 
+		budget--;
 next_desc:
 		rx_desc->wb.upper.status_error = 0;
 
-		(*work_done)++;
-		if (*work_done >= work_to_do)
+		if (!budget)
 			break;
 
 		/* return some buffers to hardware, one at a time is too slow */
@@ -1524,9 +1497,10 @@ next_desc:
 	u64_stats_update_end(&rx_ring->syncp);
 	q_vector->rx.total_packets += total_rx_packets;
 	q_vector->rx.total_bytes += total_rx_bytes;
+
+	return !!budget;
 }
 
-static int ixgbe_clean_rxonly(struct napi_struct *, int);
 /**
  * ixgbe_configure_msix - Configure MSI-X hardware
  * @adapter: board private structure
@@ -1541,6 +1515,12 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 	u32 mask;
 
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+
+	/* Populate MSIX to EITR Select */
+	if (adapter->num_vfs > 32) {
+		u32 eitrsel = (1 << (adapter->num_vfs - 32)) - 1;
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, eitrsel);
+	}
 
 	/*
 	 * Populate the IVAR table and set the ITR values to the
@@ -1564,20 +1544,6 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 			q_vector->eitr = adapter->rx_eitr_param;
 
 		ixgbe_write_eitr(q_vector);
-		/* If ATR is enabled, set interrupt affinity */
-		if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
-			/*
-			 * Allocate the affinity_hint cpumask, assign the mask
-			 * for this vector, and set our affinity_hint for
-			 * this irq.
-			 */
-			if (!alloc_cpumask_var(&q_vector->affinity_mask,
-			                       GFP_KERNEL))
-				return;
-			cpumask_set_cpu(v_idx, q_vector->affinity_mask);
-			irq_set_affinity_hint(adapter->msix_entries[v_idx].vector,
-			                      q_vector->affinity_mask);
-		}
 	}
 
 	switch (adapter->hw.mac.type) {
@@ -1862,72 +1828,6 @@ static void ixgbe_check_lsc(struct ixgbe_adapter *adapter)
 	}
 }
 
-static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
-{
-	struct ixgbe_adapter *adapter = data;
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 eicr;
-
-	/*
-	 * Workaround for Silicon errata.  Use clear-by-write instead
-	 * of clear-by-read.  Reading with EICS will return the
-	 * interrupt causes without clearing, which later be done
-	 * with the write to EICR.
-	 */
-	eicr = IXGBE_READ_REG(hw, IXGBE_EICS);
-	IXGBE_WRITE_REG(hw, IXGBE_EICR, eicr);
-
-	if (eicr & IXGBE_EICR_LSC)
-		ixgbe_check_lsc(adapter);
-
-	if (eicr & IXGBE_EICR_MAILBOX)
-		ixgbe_msg_task(adapter);
-
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-		/* Handle Flow Director Full threshold interrupt */
-		if (eicr & IXGBE_EICR_FLOW_DIR) {
-			int reinit_count = 0;
-			int i;
-			for (i = 0; i < adapter->num_tx_queues; i++) {
-				struct ixgbe_ring *ring = adapter->tx_ring[i];
-				if (test_and_clear_bit(__IXGBE_TX_FDIR_INIT_DONE,
-						       &ring->state))
-					reinit_count++;
-			}
-			if (reinit_count) {
-				/* no more flow director interrupts until after init */
-				IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_FLOW_DIR);
-				eicr &= ~IXGBE_EICR_FLOW_DIR;
-				adapter->flags2 |= IXGBE_FLAG2_FDIR_REQUIRES_REINIT;
-				ixgbe_service_event_schedule(adapter);
-			}
-		}
-		ixgbe_check_sfp_event(adapter, eicr);
-		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
-			if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
-				adapter->interrupt_event = eicr;
-				adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
-				ixgbe_service_event_schedule(adapter);
-			}
-		}
-		break;
-	default:
-		break;
-	}
-
-	ixgbe_check_fan_failure(adapter, eicr);
-
-	/* re-enable the original interrupt state, no lsc, no queues */
-	if (!test_bit(__IXGBE_DOWN, &adapter->state))
-		IXGBE_WRITE_REG(hw, IXGBE_EIMS, eicr &
-		                ~(IXGBE_EIMS_LSC | IXGBE_EIMS_RTX_QUEUE));
-
-	return IRQ_HANDLED;
-}
-
 static inline void ixgbe_irq_enable_queues(struct ixgbe_adapter *adapter,
 					   u64 qmask)
 {
@@ -1980,165 +1880,122 @@ static inline void ixgbe_irq_disable_queues(struct ixgbe_adapter *adapter,
 	/* skip the flush */
 }
 
-static irqreturn_t ixgbe_msix_clean_tx(int irq, void *data)
-{
-	struct ixgbe_q_vector *q_vector = data;
-
-	if (!q_vector->tx.count)
-		return IRQ_HANDLED;
-
-	/* EIAM disabled interrupts (on this vector) for us */
-	napi_schedule(&q_vector->napi);
-
-	return IRQ_HANDLED;
-}
-
 /**
- * ixgbe_msix_clean_rx - single unshared vector rx clean (all queues)
- * @irq: unused
- * @data: pointer to our q_vector struct for this interrupt vector
+ * ixgbe_irq_enable - Enable default interrupt generation settings
+ * @adapter: board private structure
  **/
-static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
+static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
+				    bool flush)
 {
-	struct ixgbe_q_vector *q_vector = data;
+	u32 mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
 
-	if (!q_vector->rx.count)
-		return IRQ_HANDLED;
+	/* don't reenable LSC while waiting for link */
+	if (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE)
+		mask &= ~IXGBE_EIMS_LSC;
 
-	/* EIAM disabled interrupts (on this vector) for us */
-	napi_schedule(&q_vector->napi);
+	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
+		mask |= IXGBE_EIMS_GPI_SDP0;
+	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
+		mask |= IXGBE_EIMS_GPI_SDP1;
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		mask |= IXGBE_EIMS_ECC;
+		mask |= IXGBE_EIMS_GPI_SDP1;
+		mask |= IXGBE_EIMS_GPI_SDP2;
+		mask |= IXGBE_EIMS_MAILBOX;
+		break;
+	default:
+		break;
+	}
+	if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) &&
+	    !(adapter->flags2 & IXGBE_FLAG2_FDIR_REQUIRES_REINIT))
+		mask |= IXGBE_EIMS_FLOW_DIR;
 
-	return IRQ_HANDLED;
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, mask);
+	if (queues)
+		ixgbe_irq_enable_queues(adapter, ~0);
+	if (flush)
+		IXGBE_WRITE_FLUSH(&adapter->hw);
 }
 
-static irqreturn_t ixgbe_msix_clean_many(int irq, void *data)
+static irqreturn_t ixgbe_msix_other(int irq, void *data)
 {
-	struct ixgbe_q_vector *q_vector = data;
+	struct ixgbe_adapter *adapter = data;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 eicr;
 
-	if (!q_vector->tx.count && !q_vector->rx.count)
-		return IRQ_HANDLED;
+	/*
+	 * Workaround for Silicon errata.  Use clear-by-write instead
+	 * of clear-by-read.  Reading with EICS will return the
+	 * interrupt causes without clearing, which later be done
+	 * with the write to EICR.
+	 */
+	eicr = IXGBE_READ_REG(hw, IXGBE_EICS);
+	IXGBE_WRITE_REG(hw, IXGBE_EICR, eicr);
 
-	/* EIAM disabled interrupts (on this vector) for us */
-	napi_schedule(&q_vector->napi);
+	if (eicr & IXGBE_EICR_LSC)
+		ixgbe_check_lsc(adapter);
 
-	return IRQ_HANDLED;
-}
+	if (eicr & IXGBE_EICR_MAILBOX)
+		ixgbe_msg_task(adapter);
 
-/**
- * ixgbe_clean_rxonly - msix (aka one shot) rx clean routine
- * @napi: napi struct with our devices info in it
- * @budget: amount of work driver is allowed to do this pass, in packets
- *
- * This function is optimized for cleaning one queue only on a single
- * q_vector!!!
- **/
-static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
-{
-	struct ixgbe_q_vector *q_vector =
-			       container_of(napi, struct ixgbe_q_vector, napi);
-	struct ixgbe_adapter *adapter = q_vector->adapter;
-	int work_done = 0;
-
-#ifdef CONFIG_IXGBE_DCA
-	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-		ixgbe_update_dca(q_vector);
-#endif
-
-	ixgbe_clean_rx_irq(q_vector, q_vector->rx.ring, &work_done, budget);
-
-	/* If all Rx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete(napi);
-		if (adapter->rx_itr_setting & 1)
-			ixgbe_set_itr(q_vector);
-		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			ixgbe_irq_enable_queues(adapter,
-						((u64)1 << q_vector->v_idx));
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		if (eicr & IXGBE_EICR_ECC)
+			e_info(link, "Received unrecoverable ECC Err, please "
+			       "reboot\n");
+		/* Handle Flow Director Full threshold interrupt */
+		if (eicr & IXGBE_EICR_FLOW_DIR) {
+			int reinit_count = 0;
+			int i;
+			for (i = 0; i < adapter->num_tx_queues; i++) {
+				struct ixgbe_ring *ring = adapter->tx_ring[i];
+				if (test_and_clear_bit(__IXGBE_TX_FDIR_INIT_DONE,
+						       &ring->state))
+					reinit_count++;
+			}
+			if (reinit_count) {
+				/* no more flow director interrupts until after init */
+				IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_FLOW_DIR);
+				adapter->flags2 |= IXGBE_FLAG2_FDIR_REQUIRES_REINIT;
+				ixgbe_service_event_schedule(adapter);
+			}
+		}
+		ixgbe_check_sfp_event(adapter, eicr);
+		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
+		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
+			if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
+				adapter->interrupt_event = eicr;
+				adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
+				ixgbe_service_event_schedule(adapter);
+			}
+		}
+		break;
+	default:
+		break;
 	}
 
-	return work_done;
-}
+	ixgbe_check_fan_failure(adapter, eicr);
 
-/**
- * ixgbe_clean_rxtx_many - msix (aka one shot) rx clean routine
- * @napi: napi struct with our devices info in it
- * @budget: amount of work driver is allowed to do this pass, in packets
- *
- * This function will clean more than one rx queue associated with a
- * q_vector.
- **/
-static int ixgbe_clean_rxtx_many(struct napi_struct *napi, int budget)
-{
-	struct ixgbe_q_vector *q_vector =
-			       container_of(napi, struct ixgbe_q_vector, napi);
-	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct ixgbe_ring *ring;
-	int work_done = 0;
-	bool clean_complete = true;
-
-#ifdef CONFIG_IXGBE_DCA
-	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-		ixgbe_update_dca(q_vector);
-#endif
-
-	for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
-		clean_complete &= ixgbe_clean_tx_irq(q_vector, ring);
-
-	/* attempt to distribute budget to each queue fairly, but don't allow
-	 * the budget to go below 1 because we'll exit polling */
-	budget /= (q_vector->rx.count ?: 1);
-	budget = max(budget, 1);
-
-	for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
-		ixgbe_clean_rx_irq(q_vector, ring, &work_done, budget);
-
-	if (!clean_complete)
-		work_done = budget;
-
-	/* If all Rx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete(napi);
-		if (adapter->rx_itr_setting & 1)
-			ixgbe_set_itr(q_vector);
-		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			ixgbe_irq_enable_queues(adapter,
-						((u64)1 << q_vector->v_idx));
-		return 0;
-	}
-
-	return work_done;
-}
-
-/**
- * ixgbe_clean_txonly - msix (aka one shot) tx clean routine
- * @napi: napi struct with our devices info in it
- * @budget: amount of work driver is allowed to do this pass, in packets
- *
- * This function is optimized for cleaning one queue only on a single
- * q_vector!!!
- **/
-static int ixgbe_clean_txonly(struct napi_struct *napi, int budget)
-{
-	struct ixgbe_q_vector *q_vector =
-			       container_of(napi, struct ixgbe_q_vector, napi);
-	struct ixgbe_adapter *adapter = q_vector->adapter;
-
-#ifdef CONFIG_IXGBE_DCA
-	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-		ixgbe_update_dca(q_vector);
-#endif
-
-	if (!ixgbe_clean_tx_irq(q_vector, q_vector->tx.ring))
-		return budget;
-
-	/* If all Tx work done, exit the polling mode */
-	napi_complete(napi);
-	if (adapter->tx_itr_setting & 1)
-		ixgbe_set_itr(q_vector);
+	/* re-enable the original interrupt state, no lsc, no queues */
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
-		ixgbe_irq_enable_queues(adapter, ((u64)1 << q_vector->v_idx));
+		ixgbe_irq_enable(adapter, false, false);
 
-	return 0;
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ixgbe_msix_clean_rings(int irq, void *data)
+{
+	struct ixgbe_q_vector *q_vector = data;
+
+	/* EIAM disabled interrupts (on this vector) for us */
+
+	if (q_vector->rx.ring || q_vector->tx.ring)
+		napi_schedule(&q_vector->napi);
+
+	return IRQ_HANDLED;
 }
 
 static inline void map_vector_to_rxq(struct ixgbe_adapter *a, int v_idx,
@@ -2176,59 +2033,41 @@ static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
  * group the rings as "efficiently" as possible.  You would add new
  * mapping configurations in here.
  **/
-static int ixgbe_map_rings_to_vectors(struct ixgbe_adapter *adapter)
+static void ixgbe_map_rings_to_vectors(struct ixgbe_adapter *adapter)
 {
-	int q_vectors;
+	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int rxr_remaining = adapter->num_rx_queues, rxr_idx = 0;
+	int txr_remaining = adapter->num_tx_queues, txr_idx = 0;
 	int v_start = 0;
-	int rxr_idx = 0, txr_idx = 0;
-	int rxr_remaining = adapter->num_rx_queues;
-	int txr_remaining = adapter->num_tx_queues;
-	int i, j;
-	int rqpv, tqpv;
-	int err = 0;
 
-	/* No mapping required if MSI-X is disabled. */
+	/* only one q_vector if MSI-X is disabled. */
 	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED))
-		goto out;
-
-	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+		q_vectors = 1;
 
 	/*
-	 * The ideal configuration...
-	 * We have enough vectors to map one per queue.
+	 * If we don't have enough vectors for a 1-to-1 mapping, we'll have to
+	 * group them so there are multiple queues per vector.
+	 *
+	 * Re-adjusting *qpv takes care of the remainder.
 	 */
-	if (q_vectors == adapter->num_rx_queues + adapter->num_tx_queues) {
-		for (; rxr_idx < rxr_remaining; v_start++, rxr_idx++)
+	for (; v_start < q_vectors && rxr_remaining; v_start++) {
+		int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors - v_start);
+		for (; rqpv; rqpv--, rxr_idx++, rxr_remaining--)
 			map_vector_to_rxq(adapter, v_start, rxr_idx);
-
-		for (; txr_idx < txr_remaining; v_start++, txr_idx++)
-			map_vector_to_txq(adapter, v_start, txr_idx);
-
-		goto out;
 	}
 
 	/*
-	 * If we don't have enough vectors for a 1-to-1
-	 * mapping, we'll have to group them so there are
-	 * multiple queues per vector.
+	 * If there are not enough q_vectors for each ring to have it's own
+	 * vector then we must pair up Rx/Tx on a each vector
 	 */
-	/* Re-adjusting *qpv takes care of the remainder. */
-	for (i = v_start; i < q_vectors; i++) {
-		rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors - i);
-		for (j = 0; j < rqpv; j++) {
-			map_vector_to_rxq(adapter, i, rxr_idx);
-			rxr_idx++;
-			rxr_remaining--;
-		}
-		tqpv = DIV_ROUND_UP(txr_remaining, q_vectors - i);
-		for (j = 0; j < tqpv; j++) {
-			map_vector_to_txq(adapter, i, txr_idx);
-			txr_idx++;
-			txr_remaining--;
-		}
+	if ((v_start + txr_remaining) > q_vectors)
+		v_start = 0;
+
+	for (; v_start < q_vectors && txr_remaining; v_start++) {
+		int tqpv = DIV_ROUND_UP(txr_remaining, q_vectors - v_start);
+		for (; tqpv; tqpv--, txr_idx++, txr_remaining--)
+			map_vector_to_txq(adapter, v_start, txr_idx);
 	}
-out:
-	return err;
 }
 
 /**
@@ -2241,53 +2080,45 @@ out:
 static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	irqreturn_t (*handler)(int, void *);
-	int i, vector, q_vectors, err;
+	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int vector, err;
 	int ri = 0, ti = 0;
 
-	/* Decrement for Other and TCP Timer vectors */
-	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-
-	err = ixgbe_map_rings_to_vectors(adapter);
-	if (err)
-		return err;
-
-#define SET_HANDLER(_v) (((_v)->rx.count && (_v)->tx.count)        \
-					  ? &ixgbe_msix_clean_many : \
-			  (_v)->rx.count ? &ixgbe_msix_clean_rx   : \
-			  (_v)->tx.count ? &ixgbe_msix_clean_tx   : \
-			  NULL)
 	for (vector = 0; vector < q_vectors; vector++) {
 		struct ixgbe_q_vector *q_vector = adapter->q_vector[vector];
-		handler = SET_HANDLER(q_vector);
+		struct msix_entry *entry = &adapter->msix_entries[vector];
 
-		if (handler == &ixgbe_msix_clean_rx) {
+		if (q_vector->tx.ring && q_vector->rx.ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-			         "%s-%s-%d", netdev->name, "rx", ri++);
-		} else if (handler == &ixgbe_msix_clean_tx) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-			         "%s-%s-%d", netdev->name, "tx", ti++);
-		} else if (handler == &ixgbe_msix_clean_many) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-			         "%s-%s-%d", netdev->name, "TxRx", ri++);
+				 "%s-%s-%d", netdev->name, "TxRx", ri++);
 			ti++;
+		} else if (q_vector->rx.ring) {
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+				 "%s-%s-%d", netdev->name, "rx", ri++);
+		} else if (q_vector->tx.ring) {
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+				 "%s-%s-%d", netdev->name, "tx", ti++);
 		} else {
 			/* skip this unused q_vector */
 			continue;
 		}
-		err = request_irq(adapter->msix_entries[vector].vector,
-				  handler, 0, q_vector->name,
-				  q_vector);
+		err = request_irq(entry->vector, &ixgbe_msix_clean_rings, 0,
+				  q_vector->name, q_vector);
 		if (err) {
 			e_err(probe, "request_irq failed for MSIX interrupt "
 			      "Error: %d\n", err);
 			goto free_queue_irqs;
 		}
+		/* If Flow Director is enabled, set interrupt affinity */
+		if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
+			/* assign the mask for this irq */
+			irq_set_affinity_hint(entry->vector,
+					      q_vector->affinity_mask);
+		}
 	}
 
-	sprintf(adapter->lsc_int_name, "%s:lsc", netdev->name);
 	err = request_irq(adapter->msix_entries[vector].vector,
-			  ixgbe_msix_lsc, 0, adapter->lsc_int_name, adapter);
+			  ixgbe_msix_other, 0, netdev->name, adapter);
 	if (err) {
 		e_err(probe, "request_irq for msix_lsc failed: %d\n", err);
 		goto free_queue_irqs;
@@ -2296,55 +2127,18 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 	return 0;
 
 free_queue_irqs:
-	for (i = vector - 1; i >= 0; i--)
-		free_irq(adapter->msix_entries[--vector].vector,
-			 adapter->q_vector[i]);
+	while (vector) {
+		vector--;
+		irq_set_affinity_hint(adapter->msix_entries[vector].vector,
+				      NULL);
+		free_irq(adapter->msix_entries[vector].vector,
+			 adapter->q_vector[vector]);
+	}
 	adapter->flags &= ~IXGBE_FLAG_MSIX_ENABLED;
 	pci_disable_msix(adapter->pdev);
 	kfree(adapter->msix_entries);
 	adapter->msix_entries = NULL;
 	return err;
-}
-
-/**
- * ixgbe_irq_enable - Enable default interrupt generation settings
- * @adapter: board private structure
- **/
-static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
-				    bool flush)
-{
-	u32 mask;
-
-	mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
-	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
-		mask |= IXGBE_EIMS_GPI_SDP0;
-	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
-		mask |= IXGBE_EIMS_GPI_SDP1;
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-		mask |= IXGBE_EIMS_ECC;
-		mask |= IXGBE_EIMS_GPI_SDP1;
-		mask |= IXGBE_EIMS_GPI_SDP2;
-		if (adapter->num_vfs)
-			mask |= IXGBE_EIMS_MAILBOX;
-		break;
-	default:
-		break;
-	}
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
-		mask |= IXGBE_EIMS_FLOW_DIR;
-
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, mask);
-	if (queues)
-		ixgbe_irq_enable_queues(adapter, ~0);
-	if (flush)
-		IXGBE_WRITE_FLUSH(&adapter->hw);
-
-	if (adapter->num_vfs > 32) {
-		u32 eitrsel = (1 << (adapter->num_vfs - 32)) - 1;
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, eitrsel);
-	}
 }
 
 /**
@@ -2455,18 +2249,24 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	int err;
 
-	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
+	/* map all of the rings to the q_vectors */
+	ixgbe_map_rings_to_vectors(adapter);
+
+	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
 		err = ixgbe_request_msix_irqs(adapter);
-	} else if (adapter->flags & IXGBE_FLAG_MSI_ENABLED) {
+	else if (adapter->flags & IXGBE_FLAG_MSI_ENABLED)
 		err = request_irq(adapter->pdev->irq, ixgbe_intr, 0,
 				  netdev->name, adapter);
-	} else {
+	else
 		err = request_irq(adapter->pdev->irq, ixgbe_intr, IRQF_SHARED,
 				  netdev->name, adapter);
-	}
 
-	if (err)
+	if (err) {
 		e_err(probe, "request_irq failed, Error %d\n", err);
+
+		/* place q_vectors and rings back into a known good state */
+		ixgbe_reset_q_vectors(adapter);
+	}
 
 	return err;
 }
@@ -2477,25 +2277,29 @@ static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
 		int i, q_vectors;
 
 		q_vectors = adapter->num_msix_vectors;
-
 		i = q_vectors - 1;
 		free_irq(adapter->msix_entries[i].vector, adapter);
-
 		i--;
+
 		for (; i >= 0; i--) {
 			/* free only the irqs that were actually requested */
-			if (!adapter->q_vector[i]->rx.count &&
-			    !adapter->q_vector[i]->tx.count)
+			if (!adapter->q_vector[i]->rx.ring &&
+			    !adapter->q_vector[i]->tx.ring)
 				continue;
+
+			/* clear the affinity_mask in the IRQ descriptor */
+			irq_set_affinity_hint(adapter->msix_entries[i].vector,
+					      NULL);
 
 			free_irq(adapter->msix_entries[i].vector,
 				 adapter->q_vector[i]);
 		}
-
-		ixgbe_reset_q_vectors(adapter);
 	} else {
 		free_irq(adapter->pdev->irq, adapter);
 	}
+
+	/* clear q_vector state information */
+	ixgbe_reset_q_vectors(adapter);
 }
 
 /**
@@ -2513,8 +2317,6 @@ static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, 0xFFFF0000);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(0), ~0);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(1), ~0);
-		if (adapter->num_vfs > 32)
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, 0);
 		break;
 	default:
 		break;
@@ -2543,9 +2345,6 @@ static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
 	ixgbe_set_ivar(adapter, 0, 0, 0);
 	ixgbe_set_ivar(adapter, 1, 0, 0);
 
-	map_vector_to_rxq(adapter, 0, 0);
-	map_vector_to_txq(adapter, 0, 0);
-
 	e_info(hw, "Legacy interrupt IVAR setup done\n");
 }
 
@@ -2562,13 +2361,11 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	u64 tdba = ring->dma;
 	int wait_loop = 10;
-	u32 txdctl;
+	u32 txdctl = IXGBE_TXDCTL_ENABLE;
 	u8 reg_idx = ring->reg_idx;
 
 	/* disable queue to avoid issues while updating state */
-	txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(reg_idx));
-	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx),
-			txdctl & ~IXGBE_TXDCTL_ENABLE);
+	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), 0);
 	IXGBE_WRITE_FLUSH(hw);
 
 	IXGBE_WRITE_REG(hw, IXGBE_TDBAL(reg_idx),
@@ -2580,18 +2377,22 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_TDT(reg_idx), 0);
 	ring->tail = hw->hw_addr + IXGBE_TDT(reg_idx);
 
-	/* configure fetching thresholds */
-	if (adapter->rx_itr_setting == 0) {
-		/* cannot set wthresh when itr==0 */
-		txdctl &= ~0x007F0000;
-	} else {
-		/* enable WTHRESH=8 descriptors, to encourage burst writeback */
-		txdctl |= (8 << 16);
-	}
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		/* PThresh workaround for Tx hang with DFP enabled. */
-		txdctl |= 32;
-	}
+	/*
+	 * set WTHRESH to encourage burst writeback, it should not be set
+	 * higher than 1 when ITR is 0 as it could cause false TX hangs
+	 *
+	 * In order to avoid issues WTHRESH + PTHRESH should always be equal
+	 * to or less than the number of on chip descriptors, which is
+	 * currently 40.
+	 */
+	if (!adapter->tx_itr_setting || !adapter->rx_itr_setting)
+		txdctl |= (1 << 16);	/* WTHRESH = 1 */
+	else
+		txdctl |= (8 << 16);	/* WTHRESH = 8 */
+
+	/* PTHRESH=32 is needed to avoid a Tx hang with DFP enabled. */
+	txdctl |= (1 << 8) |	/* HTHRESH = 1 */
+		   32;		/* PTHRESH = 32 */
 
 	/* reinitialize flowdirector state */
 	if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) &&
@@ -2606,7 +2407,6 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	clear_bit(__IXGBE_HANG_CHECK_ARMED, &ring->state);
 
 	/* enable queue */
-	txdctl |= IXGBE_TXDCTL_ENABLE;
 	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), txdctl);
 
 	/* TXDCTL.EN will return 0 on 82598 if link is down, so skip it */
@@ -3478,19 +3278,8 @@ static void ixgbe_napi_enable_all(struct ixgbe_adapter *adapter)
 		q_vectors = 1;
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
-		struct napi_struct *napi;
 		q_vector = adapter->q_vector[q_idx];
-		napi = &q_vector->napi;
-		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-			if (!q_vector->rx.count || !q_vector->tx.count) {
-				if (q_vector->tx.count == 1)
-					napi->poll = &ixgbe_clean_txonly;
-				else if (q_vector->rx.count == 1)
-					napi->poll = &ixgbe_clean_rxonly;
-			}
-		}
-
-		napi_enable(napi);
+		napi_enable(&q_vector->napi);
 	}
 }
 
@@ -4045,7 +3834,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 rxctrl;
 	int i;
-	int num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
 	/* signal that we are down to the interrupt handler */
 	set_bit(__IXGBE_DOWN, &adapter->state);
@@ -4077,26 +3865,19 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	del_timer_sync(&adapter->service_timer);
 
-	/* disable receive for all VFs and wait one second */
 	if (adapter->num_vfs) {
+		/* Clear EITR Select mapping */
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, 0);
+
+		/* Mark all the VFs as inactive */
+		for (i = 0 ; i < adapter->num_vfs; i++)
+			adapter->vfinfo[i].clear_to_send = 0;
+
 		/* ping all the active vfs to let them know we are going down */
 		ixgbe_ping_all_vfs(adapter);
 
 		/* Disable all VFTE/VFRE TX/RX */
 		ixgbe_disable_tx_rx(adapter);
-
-		/* Mark all the VFs as inactive */
-		for (i = 0 ; i < adapter->num_vfs; i++)
-			adapter->vfinfo[i].clear_to_send = 0;
-	}
-
-	/* Cleanup the affinity_hint CPU mask memory and callback */
-	for (i = 0; i < num_q_vectors; i++) {
-		struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
-		/* clear the affinity_mask in the IRQ descriptor */
-		irq_set_affinity_hint(adapter->msix_entries[i]. vector, NULL);
-		/* release the CPU mask memory */
-		free_cpumask_var(q_vector->affinity_mask);
 	}
 
 	/* disable transmits in the hardware now that interrupts are off */
@@ -4148,28 +3929,41 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 	struct ixgbe_q_vector *q_vector =
 				container_of(napi, struct ixgbe_q_vector, napi);
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	int tx_clean_complete, work_done = 0;
+	struct ixgbe_ring *ring;
+	int per_ring_budget;
+	bool clean_complete = true;
 
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
 		ixgbe_update_dca(q_vector);
 #endif
 
-	tx_clean_complete = ixgbe_clean_tx_irq(q_vector, adapter->tx_ring[0]);
-	ixgbe_clean_rx_irq(q_vector, adapter->rx_ring[0], &work_done, budget);
+	for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
+		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring);
 
-	if (!tx_clean_complete)
-		work_done = budget;
+	/* attempt to distribute budget to each queue fairly, but don't allow
+	 * the budget to go below 1 because we'll exit polling */
+	if (q_vector->rx.count > 1)
+		per_ring_budget = max(budget/q_vector->rx.count, 1);
+	else
+		per_ring_budget = budget;
 
-	/* If budget not fully consumed, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete(napi);
-		if (adapter->rx_itr_setting & 1)
-			ixgbe_set_itr(q_vector);
-		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			ixgbe_irq_enable_queues(adapter, IXGBE_EIMS_RTX_QUEUE);
-	}
-	return work_done;
+	for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
+		clean_complete &= ixgbe_clean_rx_irq(q_vector, ring,
+						     per_ring_budget);
+
+	/* If all work not completed, return budget and keep polling */
+	if (!clean_complete)
+		return budget;
+
+	/* all work done, exit the polling mode */
+	napi_complete(napi);
+	if (adapter->rx_itr_setting & 1)
+		ixgbe_set_itr(q_vector);
+	if (!test_bit(__IXGBE_DOWN, &adapter->state))
+		ixgbe_irq_enable_queues(adapter, ((u64)1 << q_vector->v_idx));
+
+	return 0;
 }
 
 /**
@@ -4810,19 +4604,15 @@ out:
  **/
 static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 {
-	int q_idx, num_q_vectors;
+	int v_idx, num_q_vectors;
 	struct ixgbe_q_vector *q_vector;
-	int (*poll)(struct napi_struct *, int);
 
-	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
+	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
 		num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-		poll = &ixgbe_clean_rxtx_many;
-	} else {
+	else
 		num_q_vectors = 1;
-		poll = &ixgbe_poll;
-	}
 
-	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
+	for (v_idx = 0; v_idx < num_q_vectors; v_idx++) {
 		q_vector = kzalloc_node(sizeof(struct ixgbe_q_vector),
 					GFP_KERNEL, adapter->node);
 		if (!q_vector)
@@ -4830,25 +4620,35 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 					   GFP_KERNEL);
 		if (!q_vector)
 			goto err_out;
+
 		q_vector->adapter = adapter;
+		q_vector->v_idx = v_idx;
+
+		/* Allocate the affinity_hint cpumask, configure the mask */
+		if (!alloc_cpumask_var(&q_vector->affinity_mask, GFP_KERNEL))
+			goto err_out;
+		cpumask_set_cpu(v_idx, q_vector->affinity_mask);
+
 		if (q_vector->tx.count && !q_vector->rx.count)
 			q_vector->eitr = adapter->tx_eitr_param;
 		else
 			q_vector->eitr = adapter->rx_eitr_param;
-		q_vector->v_idx = q_idx;
-		netif_napi_add(adapter->netdev, &q_vector->napi, (*poll), 64);
-		adapter->q_vector[q_idx] = q_vector;
+
+		netif_napi_add(adapter->netdev, &q_vector->napi,
+			       ixgbe_poll, 64);
+		adapter->q_vector[v_idx] = q_vector;
 	}
 
 	return 0;
 
 err_out:
-	while (q_idx) {
-		q_idx--;
-		q_vector = adapter->q_vector[q_idx];
+	while (v_idx) {
+		v_idx--;
+		q_vector = adapter->q_vector[v_idx];
 		netif_napi_del(&q_vector->napi);
+		free_cpumask_var(q_vector->affinity_mask);
 		kfree(q_vector);
-		adapter->q_vector[q_idx] = NULL;
+		adapter->q_vector[v_idx] = NULL;
 	}
 	return -ENOMEM;
 }
@@ -4863,17 +4663,18 @@ err_out:
  **/
 static void ixgbe_free_q_vectors(struct ixgbe_adapter *adapter)
 {
-	int q_idx, num_q_vectors;
+	int v_idx, num_q_vectors;
 
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
 		num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 	else
 		num_q_vectors = 1;
 
-	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		struct ixgbe_q_vector *q_vector = adapter->q_vector[q_idx];
-		adapter->q_vector[q_idx] = NULL;
+	for (v_idx = 0; v_idx < num_q_vectors; v_idx++) {
+		struct ixgbe_q_vector *q_vector = adapter->q_vector[v_idx];
+		adapter->q_vector[v_idx] = NULL;
 		netif_napi_del(&q_vector->napi);
+		free_cpumask_var(q_vector->affinity_mask);
 		kfree(q_vector);
 	}
 }
@@ -5091,7 +4892,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->rx_ring_count = IXGBE_DEFAULT_RXD;
 
 	/* set default work limits */
-	adapter->tx_work_limit = adapter->tx_ring_count;
+	adapter->tx_work_limit = IXGBE_DEFAULT_TX_WORK;
 
 	/* initialize eeprom parameters */
 	if (ixgbe_init_eeprom_params_generic(hw)) {
@@ -6959,7 +6760,7 @@ static void ixgbe_netpoll(struct net_device *netdev)
 		int num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 		for (i = 0; i < num_q_vectors; i++) {
 			struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
-			ixgbe_msix_clean_many(0, q_vector);
+			ixgbe_msix_clean_rings(0, q_vector);
 		}
 	} else {
 		ixgbe_intr(adapter->pdev->irq, netdev);

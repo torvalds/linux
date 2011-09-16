@@ -53,6 +53,7 @@
 
 /* TX/RX descriptor defines */
 #define IXGBE_DEFAULT_TXD		    512
+#define IXGBE_DEFAULT_TX_WORK		    256
 #define IXGBE_MAX_TXD			   4096
 #define IXGBE_MIN_TXD			     64
 
@@ -490,7 +491,6 @@ struct ixgbe_adapter {
 	int node;
 	u32 led_reg;
 	u32 interrupt_event;
-	char lsc_int_name[IFNAMSIZ + 9];
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
