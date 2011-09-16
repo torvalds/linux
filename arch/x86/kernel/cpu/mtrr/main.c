@@ -149,7 +149,6 @@ struct set_mtrr_data {
  */
 static int mtrr_rendezvous_handler(void *info)
 {
-#ifdef CONFIG_SMP
 	struct set_mtrr_data *data = info;
 
 	/*
@@ -171,7 +170,6 @@ static int mtrr_rendezvous_handler(void *info)
 	} else if (mtrr_aps_delayed_init || !cpu_online(smp_processor_id())) {
 		mtrr_if->set_all();
 	}
-#endif
 	return 0;
 }
 

@@ -17,30 +17,16 @@
 #include "helpers/sysfs.h"
 #include "helpers/bitmask.h"
 
-void set_help(void)
-{
-	printf(_("Usage: cpupower set [ -b val ] [ -m val ] [ -s val ]\n"));
-	printf(_("Options:\n"));
-	printf(_("  -b, --perf-bias [VAL]    Sets CPU's power vs performance policy on some\n"
-	       "                           Intel models [0-15], see manpage for details\n"));
-	printf(_("  -m, --sched-mc  [VAL]    Sets the kernel's multi core scheduler policy.\n"));
-	printf(_("  -s, --sched-smt [VAL]    Sets the kernel's thread sibling scheduler policy.\n"));
-	printf(_("  -h, --help               Prints out this screen\n"));
-	printf("\n");
-}
-
 static struct option set_opts[] = {
 	{ .name = "perf-bias",	.has_arg = optional_argument,	.flag = NULL,	.val = 'b'},
 	{ .name = "sched-mc",	.has_arg = optional_argument,	.flag = NULL,	.val = 'm'},
 	{ .name = "sched-smt",	.has_arg = optional_argument,	.flag = NULL,	.val = 's'},
-	{ .name = "help",	.has_arg = no_argument,		.flag = NULL,	.val = 'h'},
 	{ },
 };
 
 static void print_wrong_arg_exit(void)
 {
 	printf(_("invalid or unknown argument\n"));
-	set_help();
 	exit(EXIT_FAILURE);
 }
 
@@ -66,12 +52,9 @@ int cmd_set(int argc, char **argv)
 
 	params.params = 0;
 	/* parameter parsing */
-	while ((ret = getopt_long(argc, argv, "m:s:b:h",
+	while ((ret = getopt_long(argc, argv, "m:s:b:",
 						set_opts, NULL)) != -1) {
 		switch (ret) {
-		case 'h':
-			set_help();
-			return 0;
 		case 'b':
 			if (params.perf_bias)
 				print_wrong_arg_exit();
@@ -110,10 +93,8 @@ int cmd_set(int argc, char **argv)
 		}
 	};
 
-	if (!params.params) {
-		set_help();
-		return -EINVAL;
-	}
+	if (!params.params)
+		print_wrong_arg_exit();
 
 	if (params.sched_mc) {
 		ret = sysfs_set_sched("mc", sched_mc);
