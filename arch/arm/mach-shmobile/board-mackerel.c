@@ -642,6 +642,8 @@ static struct usbhs_private usbhs0_private = {
 		},
 		.driver_param = {
 			.buswait_bwait	= 4,
+			.d0_tx_id	= SHDMA_SLAVE_USB0_TX,
+			.d1_rx_id	= SHDMA_SLAVE_USB0_RX,
 		},
 	},
 };
@@ -811,6 +813,8 @@ static struct usbhs_private usbhs1_private = {
 			.buswait_bwait	= 4,
 			.pipe_type	= usbhs1_pipe_cfg,
 			.pipe_size	= ARRAY_SIZE(usbhs1_pipe_cfg),
+			.d0_tx_id	= SHDMA_SLAVE_USB1_TX,
+			.d1_rx_id	= SHDMA_SLAVE_USB1_RX,
 		},
 	},
 };
