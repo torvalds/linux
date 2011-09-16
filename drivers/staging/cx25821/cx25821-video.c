@@ -810,25 +810,25 @@ static int video_open(struct file *file)
 
 	mutex_lock(&cx25821_devlist_mutex);
 
-       list_for_each(list, &cx25821_devlist)
-       {
-	       h = list_entry(list, struct cx25821_dev, devlist);
+	list_for_each(list, &cx25821_devlist)
+	{
+		h = list_entry(list, struct cx25821_dev, devlist);
 
-	       for (i = 0; i < MAX_VID_CHANNEL_NUM; i++) {
-		       if (h->channels[i].video_dev &&
+		for (i = 0; i < MAX_VID_CHANNEL_NUM; i++) {
+			if (h->channels[i].video_dev &&
 			   h->channels[i].video_dev->minor == minor) {
-			       dev = h;
-			       ch_id = i;
-			       type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		       }
-	       }
-       }
+				dev = h;
+				ch_id = i;
+				type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			}
+		}
+	}
 
-       if (NULL == dev) {
+	if (NULL == dev) {
 		mutex_unlock(&cx25821_devlist_mutex);
 		kfree(fh);
 		return -ENODEV;
-       }
+	}
 
        file->private_data = fh;
        fh->dev = dev;
