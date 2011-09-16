@@ -348,54 +348,46 @@ resume:
 }
 
 int
-nv40_pm_fanspeed_get(struct drm_device *dev)
+nv40_pm_pwm_get(struct drm_device *dev, struct dcb_gpio_entry *gpio,
+		u32 *divs, u32 *duty)
 {
-	u32 reg = nv_rd32(dev, 0x0010f0);
-	if (reg & 0x80000000) {
-		u32 duty = (reg & 0x7fff0000) >> 16;
-		u32 divs = (reg & 0x00007fff);
-		if (divs && divs >= duty)
-			return ((divs - duty) * 100) / divs;
+	if (gpio->line == 2) {
+		u32 reg = nv_rd32(dev, 0x0010f0);
+		if (reg & 0x80000000) {
+			*duty = (reg & 0x7fff0000) >> 16;
+			*divs = (reg & 0x00007fff);
+			return 0;
+		}
+	} else
+	if (gpio->line == 9) {
+		u32 reg = nv_rd32(dev, 0x0015f4);
+		if (reg & 0x80000000) {
+			*divs = nv_rd32(dev, 0x0015f8);
+			*duty = (reg & 0x7fffffff);
+			return 0;
+		}
+	} else {
+		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", gpio->line);
+		return -ENODEV;
 	}
 
-	return 100;
+	return -EINVAL;
 }
 
 int
-nv40_pm_fanspeed_set(struct drm_device *dev, int percent)
+nv40_pm_pwm_set(struct drm_device *dev, struct dcb_gpio_entry *gpio,
+		u32 divs, u32 duty)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	u32 divs = pm->pwm_divisor;
-	u32 duty = ((100 - percent) * divs) / 100;
-
-	nv_wr32(dev, 0x0010f0, 0x80000000 | (duty << 16) | divs);
-	return 0;
-}
-
-int
-nv41_pm_fanspeed_get(struct drm_device *dev)
-{
-	u32 reg = nv_rd32(dev, 0x0015f4);
-	if (reg & 0x80000000) {
-		u32 divs = nv_rd32(dev, 0x0015f8);
-		u32 duty = (reg & 0x7fffffff);
-		if (divs && divs >= duty)
-			return ((divs - duty) * 100) / divs;
+	if (gpio->line == 2) {
+		nv_wr32(dev, 0x0010f0, 0x80000000 | (duty << 16) | divs);
+	} else
+	if (gpio->line == 9) {
+		nv_wr32(dev, 0x0015f8, divs);
+		nv_wr32(dev, 0x0015f4, duty | 0x80000000);
+	} else {
+		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", gpio->line);
+		return -ENODEV;
 	}
 
-	return 100;
-}
-
-int
-nv41_pm_fanspeed_set(struct drm_device *dev, int percent)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	u32 divs = pm->pwm_divisor;
-	u32 duty = ((100 - percent) * divs) / 100;
-
-	nv_wr32(dev, 0x0015f8, divs);
-	nv_wr32(dev, 0x0015f4, duty | 0x80000000);
 	return 0;
 }
