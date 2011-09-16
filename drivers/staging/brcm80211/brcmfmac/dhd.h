@@ -366,36 +366,37 @@ struct brcmf_pkt_filter_enable {
  * next bss_info structure in a vector (in struct brcmf_scan_results)
  */
 struct brcmf_bss_info {
-	u32 version;		/* version field */
-	u32 length;		/* byte length of data in this record,
+	__le32 version;		/* version field */
+	__le32 length;		/* byte length of data in this record,
 				 * starting at version and including IEs
 				 */
 	u8 BSSID[ETH_ALEN];
-	u16 beacon_period;	/* units are Kusec */
-	u16 capability;	/* Capability information */
+	__le16 beacon_period;	/* units are Kusec */
+	__le16 capability;	/* Capability information */
 	u8 SSID_len;
 	u8 SSID[32];
 	struct {
-		uint count;   /* # rates in this set */
+		__le32 count;   /* # rates in this set */
 		u8 rates[16]; /* rates in 500kbps units w/hi bit set if basic */
 	} rateset;		/* supported rates */
-	u16 chanspec;	/* chanspec for bss */
-	u16 atim_window;	/* units are Kusec */
+	__le16 chanspec;	/* chanspec for bss */
+	__le16 atim_window;	/* units are Kusec */
 	u8 dtim_period;	/* DTIM period */
-	s16 RSSI;		/* receive signal strength (in dBm) */
+	__le16 RSSI;		/* receive signal strength (in dBm) */
 	s8 phy_noise;		/* noise (in dBm) */
 
 	u8 n_cap;		/* BSS is 802.11N Capable */
-	u32 nbss_cap;	/* 802.11N BSS Capabilities (based on HT_CAP_*) */
+	/* 802.11N BSS Capabilities (based on HT_CAP_*): */
+	__le32 nbss_cap;
 	u8 ctl_ch;		/* 802.11N BSS control channel number */
-	u32 reserved32[1];	/* Reserved for expansion of BSS properties */
+	__le32 reserved32[1];	/* Reserved for expansion of BSS properties */
 	u8 flags;		/* flags */
 	u8 reserved[3];	/* Reserved for expansion of BSS properties */
 	u8 basic_mcs[MCSSET_LEN];	/* 802.11N BSS required MCS set */
 
-	u16 ie_offset;	/* offset at which IEs start, from beginning */
-	u32 ie_length;	/* byte length of Information Elements */
-	s16 SNR;		/* average SNR of during frame reception */
+	__le16 ie_offset;	/* offset at which IEs start, from beginning */
+	__le32 ie_length;	/* byte length of Information Elements */
+	__le16 SNR;		/* average SNR of during frame reception */
 	/* Add new fields here */
 	/* variable length Information Elements */
 };

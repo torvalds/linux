@@ -1955,7 +1955,7 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
 	notify_capability = le16_to_cpu(bi->capability);
 	notify_interval = le16_to_cpu(bi->beacon_period);
 	notify_ie = (u8 *)bi + le16_to_cpu(bi->ie_offset);
-	notify_ielen = le16_to_cpu(bi->ie_length);
+	notify_ielen = le32_to_cpu(bi->ie_length);
 	notify_signal = (s16)le16_to_cpu(bi->RSSI) * 100;
 
 	WL_CONN("bssid: %2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
@@ -2054,7 +2054,7 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 	notify_capability = le16_to_cpu(bi->capability);
 	notify_interval = le16_to_cpu(bi->beacon_period);
 	notify_ie = (u8 *)bi + le16_to_cpu(bi->ie_offset);
-	notify_ielen = le16_to_cpu(bi->ie_length);
+	notify_ielen = le32_to_cpu(bi->ie_length);
 	notify_signal = (s16)le16_to_cpu(bi->RSSI) * 100;
 
 	WL_CONN("channel: %d(%d)\n", channel, freq);
@@ -2111,9 +2111,9 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_priv *cfg_priv)
 	if (unlikely(err))
 		goto update_bss_info_out;
 
-	ie = ((u8 *)bi) + bi->ie_offset;
-	ie_len = bi->ie_length;
-	beacon_interval = cpu_to_le16(bi->beacon_period);
+	ie = ((u8 *)bi) + le16_to_cpu(bi->ie_offset);
+	ie_len = le32_to_cpu(bi->ie_length);
+	beacon_interval = le16_to_cpu(bi->beacon_period);
 
 	tim = brcmu_parse_tlvs(ie, ie_len, WLAN_EID_TIM);
 	if (tim)
