@@ -113,6 +113,9 @@ static struct regulator_consumer_supply lp3974_buck1_consumer =
 static struct regulator_consumer_supply lp3974_buck2_consumer =
 	REGULATOR_SUPPLY("vddg3d", NULL);
 
+static struct regulator_consumer_supply lp3974_buck3_consumer =
+	REGULATOR_SUPPLY("vdet", "s5p-sdo");
+
 static struct regulator_init_data lp3974_buck1_data = {
 	.constraints	= {
 		.name		= "VINT_1.1V",
@@ -156,6 +159,8 @@ static struct regulator_init_data lp3974_buck3_data = {
 			.enabled	= 1,
 		},
 	},
+	.num_consumer_supplies = 1,
+	.consumer_supplies = &lp3974_buck3_consumer,
 };
 
 static struct regulator_init_data lp3974_buck4_data = {
@@ -184,6 +189,11 @@ static struct regulator_init_data lp3974_ldo2_data = {
 	},
 };
 
+static struct regulator_consumer_supply lp3974_ldo3_consumer[] = {
+	REGULATOR_SUPPLY("vdd", "exynos4-hdmi"),
+	REGULATOR_SUPPLY("vdd_pll", "exynos4-hdmi"),
+};
+
 static struct regulator_init_data lp3974_ldo3_data = {
 	.constraints	= {
 		.name		= "VUSB+MIPI_1.1V",
@@ -195,6 +205,12 @@ static struct regulator_init_data lp3974_ldo3_data = {
 			.disabled	= 1,
 		},
 	},
+	.num_consumer_supplies = ARRAY_SIZE(lp3974_ldo3_consumer),
+	.consumer_supplies = lp3974_ldo3_consumer,
+};
+
+static struct regulator_consumer_supply lp3974_ldo4_consumer[] = {
+	REGULATOR_SUPPLY("vdd_osc", "exynos4-hdmi"),
 };
 
 static struct regulator_init_data lp3974_ldo4_data = {
@@ -208,6 +224,8 @@ static struct regulator_init_data lp3974_ldo4_data = {
 			.disabled	= 1,
 		},
 	},
+	.num_consumer_supplies = ARRAY_SIZE(lp3974_ldo4_consumer),
+	.consumer_supplies = lp3974_ldo4_consumer,
 };
 
 static struct regulator_init_data lp3974_ldo5_data = {
@@ -249,6 +267,10 @@ static struct regulator_init_data lp3974_ldo7_data = {
 	},
 };
 
+static struct regulator_consumer_supply lp3974_ldo8_consumer[] = {
+	REGULATOR_SUPPLY("vdd33a_dac", "s5p-sdo"),
+};
+
 static struct regulator_init_data lp3974_ldo8_data = {
 	.constraints	= {
 		.name		= "VUSB+VDAC_3.3V",
@@ -260,6 +282,8 @@ static struct regulator_init_data lp3974_ldo8_data = {
 			.disabled	= 1,
 		},
 	},
+	.num_consumer_supplies = ARRAY_SIZE(lp3974_ldo8_consumer),
+	.consumer_supplies = lp3974_ldo8_consumer,
 };
 
 static struct regulator_init_data lp3974_ldo9_data = {
@@ -473,6 +497,34 @@ static struct max8998_platform_data universal_lp3974_pdata = {
 	.buck2_set3		= EXYNOS4_GPE2(0),
 	.buck2_default_idx	= 0,
 	.wakeup			= true,
+};
+
+static struct regulator_consumer_supply hdmi_fixed_consumer =
+	REGULATOR_SUPPLY("hdmi-en", "exynos4-hdmi");
+
+static struct regulator_init_data hdmi_fixed_voltage_init_data = {
+	.constraints		= {
+		.name		= "HDMI_5V",
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &hdmi_fixed_consumer,
+};
+
+static struct fixed_voltage_config hdmi_fixed_voltage_config = {
+	.supply_name		= "HDMI_EN1",
+	.microvolts		= 5000000,
+	.gpio			= EXYNOS4_GPE0(1),
+	.enable_high		= true,
+	.init_data		= &hdmi_fixed_voltage_init_data,
+};
+
+static struct platform_device hdmi_fixed_voltage = {
+	.name			= "reg-fixed-voltage",
+	.id			= 6,
+	.dev			= {
+		.platform_data	= &hdmi_fixed_voltage_config,
+	},
 };
 
 /* GPIO I2C 5 (PMIC) */
@@ -743,6 +795,12 @@ static struct platform_device *universal_devices[] __initdata = {
 	&s3c_device_hsmmc3,
 	&s3c_device_i2c3,
 	&s3c_device_i2c5,
+	&s5p_device_i2c_hdmiphy,
+	&hdmi_fixed_voltage,
+	&exynos4_device_pd[PD_TV],
+	&s5p_device_hdmi,
+	&s5p_device_sdo,
+	&s5p_device_mixer,
 
 	/* Universal Devices */
 	&i2c_gpio12,
@@ -763,6 +821,20 @@ static void __init universal_map_io(void)
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
 }
 
+void s5p_tv_setup(void)
+{
+	/* direct HPD to HDMI chip */
+	gpio_request(EXYNOS4_GPX3(7), "hpd-plug");
+
+	gpio_direction_input(EXYNOS4_GPX3(7));
+	s3c_gpio_cfgpin(EXYNOS4_GPX3(7), S3C_GPIO_SFN(0x3));
+	s3c_gpio_setpull(EXYNOS4_GPX3(7), S3C_GPIO_PULL_NONE);
+
+	/* setup dependencies between TV devices */
+	s5p_device_hdmi.dev.parent = &exynos4_device_pd[PD_TV].dev;
+	s5p_device_mixer.dev.parent = &exynos4_device_pd[PD_TV].dev;
+}
+
 static void __init universal_reserve(void)
 {
 	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
@@ -771,6 +843,7 @@ static void __init universal_reserve(void)
 static void __init universal_machine_init(void)
 {
 	universal_sdhci_init();
+	s5p_tv_setup();
 
 	i2c_register_board_info(0, i2c0_devs, ARRAY_SIZE(i2c0_devs));
 	i2c_register_board_info(1, i2c1_devs, ARRAY_SIZE(i2c1_devs));
@@ -780,6 +853,7 @@ static void __init universal_machine_init(void)
 	i2c_register_board_info(3, i2c3_devs, ARRAY_SIZE(i2c3_devs));
 
 	s3c_i2c5_set_platdata(NULL);
+	s5p_i2c_hdmiphy_set_platdata(NULL);
 	i2c_register_board_info(5, i2c5_devs, ARRAY_SIZE(i2c5_devs));
 
 	s5p_fimd0_set_platdata(&universal_lcd_pdata);
