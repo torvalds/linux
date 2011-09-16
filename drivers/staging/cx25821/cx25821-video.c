@@ -782,32 +782,31 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 }
 
 static struct videobuf_queue_ops cx25821_video_qops = {
-       .buf_setup = cx25821_buffer_setup,
-       .buf_prepare = cx25821_buffer_prepare,
-       .buf_queue = buffer_queue,
-       .buf_release = cx25821_buffer_release,
+	.buf_setup = cx25821_buffer_setup,
+	.buf_prepare = cx25821_buffer_prepare,
+	.buf_queue = buffer_queue,
+	.buf_release = cx25821_buffer_release,
 };
 
 static int video_open(struct file *file)
 {
-       struct video_device *vdev = video_devdata(file);
-       struct cx25821_dev *h, *dev = video_drvdata(file);
-       struct cx25821_fh *fh;
-       struct list_head *list;
-       int minor = video_devdata(file)->minor;
-       enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-       u32 pix_format;
-       int ch_id = 0;
-       int i;
+	struct video_device *vdev = video_devdata(file);
+	struct cx25821_dev *h, *dev = video_drvdata(file);
+	struct cx25821_fh *fh;
+	struct list_head *list;
+	int minor = video_devdata(file)->minor;
+	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	u32 pix_format;
+	int ch_id = 0;
+	int i;
 
-       dprintk(1, "open dev=%s type=%s\n",
-		       video_device_node_name(vdev),
-		       v4l2_type_names[type]);
+	dprintk(1, "open dev=%s type=%s\n", video_device_node_name(vdev),
+			v4l2_type_names[type]);
 
-       /* allocate + initialize per filehandle data */
-       fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-       if (NULL == fh)
-	       return -ENOMEM;
+	/* allocate + initialize per filehandle data */
+	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	if (NULL == fh)
+		return -ENOMEM;
 
 	mutex_lock(&cx25821_devlist_mutex);
 
