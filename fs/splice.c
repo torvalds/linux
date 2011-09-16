@@ -25,7 +25,6 @@
 #include <linux/mm_inline.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
-#include <linux/buffer_head.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/uio.h>

@@ -17,7 +17,6 @@
 #include <linux/ctype.h>
 #include <linux/major.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 #include <linux/hdreg.h>
 #include <linux/async.h>
 #include <linux/mutex.h>
