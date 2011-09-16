@@ -293,6 +293,52 @@ static int rts51x_bulk_transport(struct us_data *us, u8 lun,
 	return USB_STOR_TRANSPORT_ERROR;
 }
 
+static int rts51x_bulk_transport_special(struct us_data *us, u8 lun,
+				 u8 *cmd, int cmd_len, u8 *buf, int buf_len,
+				 enum dma_data_direction dir, int *act_len)
+{
+	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
+	struct bulk_cs_wrap *bcs = (struct bulk_cs_wrap *) us->iobuf;
+	int result;
+	unsigned int cswlen;
+	unsigned int cbwlen = US_BULK_CB_WRAP_LEN;
+
+	/* set up the command wrapper */
+	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
+	bcb->DataTransferLength = cpu_to_le32(buf_len);
+	bcb->Flags = (dir == DMA_FROM_DEVICE) ? 1 << 7 : 0;
+	bcb->Tag = ++us->tag;
+	bcb->Lun = lun;
+	bcb->Length = cmd_len;
+
+	/* copy the command payload */
+	memset(bcb->CDB, 0, sizeof(bcb->CDB));
+	memcpy(bcb->CDB, cmd, bcb->Length);
+
+	/* send it to out endpoint */
+	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
+				bcb, cbwlen, NULL);
+	if (result != USB_STOR_XFER_GOOD)
+		return USB_STOR_TRANSPORT_ERROR;
+
+	/* DATA STAGE */
+	/* send/receive data payload, if there is any */
+
+	if (buf && buf_len) {
+		unsigned int pipe = (dir == DMA_FROM_DEVICE) ?
+				us->recv_bulk_pipe : us->send_bulk_pipe;
+		result = usb_stor_bulk_transfer_buf(us, pipe,
+				buf, buf_len, NULL);
+		if (result == USB_STOR_XFER_ERROR)
+			return USB_STOR_TRANSPORT_ERROR;
+	}
+
+	/* get CSW for device status */
+	result = usb_bulk_msg(us->pusb_dev, us->recv_bulk_pipe, bcs,
+			US_BULK_CS_WRAP_LEN, &cswlen, 250);
+	return result;
+}
+
 /* Determine what the maximum LUN supported is */
 static int rts51x_get_max_lun(struct us_data *us)
 {
@@ -459,6 +505,29 @@ static int enable_oscillator(struct us_data *us)
 	return 0;
 }
 
+static int __do_config_autodelink(struct us_data *us, u8 *data, u16 len)
+{
+	int retval;
+	u16 addr = 0xFE47;
+	u8 cmnd[12] = {0};
+
+	US_DEBUGP("%s, addr = 0x%x, len = %d\n", __FUNCTION__, addr, len);
+
+	cmnd[0] = 0xF0;
+	cmnd[1] = 0x0E;
+	cmnd[2] = (u8)(addr >> 8);
+	cmnd[3] = (u8)addr;
+	cmnd[4] = (u8)(len >> 8);
+	cmnd[5] = (u8)len;
+
+	retval = rts51x_bulk_transport_special(us, 0, cmnd, 12, data, len, DMA_TO_DEVICE, NULL);
+	if (retval != USB_STOR_TRANSPORT_GOOD) {
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int do_config_autodelink(struct us_data *us, int enable, int force)
 {
 	int retval;
@@ -479,7 +548,8 @@ static int do_config_autodelink(struct us_data *us, int enable, int force)
 
 	US_DEBUGP("In %s,set 0xfe47 to 0x%x\n", __func__, value);
 
-	retval = rts51x_write_mem(us, 0xFE47, &value, 1);
+	/* retval = rts51x_write_mem(us, 0xFE47, &value, 1); */
+	retval = __do_config_autodelink(us, &value, 1);
 	if (retval < 0)
 		return -EIO;
 
@@ -511,7 +581,8 @@ static int config_autodelink_after_power_on(struct us_data *us)
 
 		SET_BIT(value, 7);
 
-		retval = rts51x_write_mem(us, 0xFE47, &value, 1);
+		/* retval = rts51x_write_mem(us, 0xFE47, &value, 1); */
+		retval = __do_config_autodelink(us, &value, 1);
 		if (retval < 0)
 			return -EIO;
 
@@ -532,7 +603,8 @@ static int config_autodelink_after_power_on(struct us_data *us)
 			CLR_BIT(value, 7);
 		}
 
-		retval = rts51x_write_mem(us, 0xFE47, &value, 1);
+		/* retval = rts51x_write_mem(us, 0xFE47, &value, 1); */
+		retval = __do_config_autodelink(us, &value, 1);
 		if (retval < 0)
 			return -EIO;
 
@@ -609,7 +681,8 @@ static int config_autodelink_before_power_down(struct us_data *us)
 			if (CHECK_ID(chip, 0x0138, 0x3882))
 				SET_BIT(value, 2);
 
-			retval = rts51x_write_mem(us, 0xFE47, &value, 1);
+			/* retval = rts51x_write_mem(us, 0xFE47, &value, 1); */
+			retval = __do_config_autodelink(us, &value, 1);
 			if (retval < 0)
 				return -EIO;
 		}
