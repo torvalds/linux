@@ -784,8 +784,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 
 			len = this_frag->size;
 			mapping = dma_map_single(&cp->pdev->dev,
-						 ((void *) page_address(this_frag->page) +
-						  this_frag->page_offset),
+						 skb_frag_address(this_frag),
 						 len, PCI_DMA_TODEVICE);
 			eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
 

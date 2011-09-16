@@ -1765,12 +1765,11 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 				MAX_TX_BUF_LEN : buf_len;
 			buf_len -= tx_buffer->length;
 
-			tx_buffer->dma =
-				pci_map_page(adapter->pdev, frag->page,
-						frag->page_offset +
-						(i * MAX_TX_BUF_LEN),
-						tx_buffer->length,
-						PCI_DMA_TODEVICE);
+			tx_buffer->dma = skb_frag_dma_map(&adapter->pdev->dev,
+							  frag,
+							  (i * MAX_TX_BUF_LEN),
+							  tx_buffer->length,
+							  PCI_DMA_TODEVICE);
 			ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_PAGE);
 			use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
 			use_tpd->word2 = (use_tpd->word2 & (~TPD_BUFLEN_MASK)) |
