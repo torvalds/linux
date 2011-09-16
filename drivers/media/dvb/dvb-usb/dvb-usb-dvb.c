@@ -41,9 +41,10 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	adap->feedcount = newfeedcount;
 
 	/* activate the pid on the device specific pid_filter */
-	deb_ts("setting pid (%s): %5d %04x at index %d '%s'\n",adap->fe_adap[adap->active_fe].pid_filtering ?
-		"yes" : "no", dvbdmxfeed->pid,dvbdmxfeed->pid,dvbdmxfeed->index,onoff ?
-		"on" : "off");
+	deb_ts("setting pid (%s): %5d %04x at index %d '%s'\n",
+		adap->fe_adap[adap->active_fe].pid_filtering ?
+		"yes" : "no", dvbdmxfeed->pid, dvbdmxfeed->pid,
+		dvbdmxfeed->index, onoff ? "on" : "off");
 	if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 		adap->fe_adap[adap->active_fe].pid_filtering &&
 		adap->props.fe[adap->active_fe].pid_filter != NULL)
