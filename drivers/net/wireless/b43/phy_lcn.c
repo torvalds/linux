@@ -20,6 +20,14 @@
   the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
   Boston, MA 02110-1301, USA.
 
+  This file incorporates work covered by the following copyright and
+  permission notice:
+
+      Copyright (c) 2010 Broadcom Corporation
+
+      Permission to use, copy, modify, and/or distribute this software for any
+      purpose with or without fee is hereby granted, provided that the above
+      copyright notice and this permission notice appear in all copies.
 */
 
 #include <linux/slab.h>
@@ -278,14 +286,50 @@ static void b43_phy_lcn_sense_setup(struct b43_wldev *dev)
  * Channel switching ops.
  **************************************************/
 
+/* wlc_lcnphy_set_chanspec_tweaks */
+static void b43_phy_lcn_set_channel_tweaks(struct b43_wldev *dev, int channel)
+{
+	struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
+
+	b43_phy_maskset(dev, 0x448, ~0x300, (channel == 14) ? 0x200 : 0x100);
+
+	if (channel == 1 || channel == 2 || channel == 3 || channel == 4 ||
+	    channel == 9 || channel == 10 || channel == 11 || channel == 12) {
+		bcma_chipco_pll_write(cc, 0x2, 0x03000c04);
+		bcma_chipco_pll_maskset(cc, 0x3, 0x00ffffff, 0x0);
+		bcma_chipco_pll_write(cc, 0x4, 0x200005c0);
+
+		bcma_cc_set32(cc, BCMA_CC_PMU_CTL, 0x400);
+
+		b43_phy_write(dev, 0x942, 0);
+
+		/* b43_phy_lcn_txrx_spur_avoidance_mode(dev, false); */
+		b43_phy_maskset(dev, 0x424, (u16) ~0xff00, 0x1b00);
+		b43_phy_write(dev, 0x425, 0x5907);
+	} else {
+		bcma_chipco_pll_write(cc, 0x2, 0x03140c04);
+		bcma_chipco_pll_maskset(cc, 0x3, 0x00ffffff, 0x333333);
+		bcma_chipco_pll_write(cc, 0x4, 0x202c2820);
+
+		bcma_cc_set32(cc, BCMA_CC_PMU_CTL, 0x400);
+
+		b43_phy_write(dev, 0x942, 0);
+
+		/* b43_phy_lcn_txrx_spur_avoidance_mode(dev, true); */
+		b43_phy_maskset(dev, 0x424, (u16) ~0xff00, 0x1f00);
+		b43_phy_write(dev, 0x425, 0x590a);
+	}
+
+	b43_phy_set(dev, 0x44a, 0x44);
+	b43_phy_write(dev, 0x44a, 0x80);
+}
+
+/* wlc_phy_chanspec_set_lcnphy */
 static int b43_phy_lcn_set_channel(struct b43_wldev *dev,
 				   struct ieee80211_channel *channel,
 				   enum nl80211_channel_type channel_type)
 {
-	/* TODO: PLL and PHY ops */
-
-	b43_phy_set(dev, 0x44a, 0x44);
-	b43_phy_write(dev, 0x44a, 0x80);
+	b43_phy_lcn_set_channel_tweaks(dev, channel->hw_value);
 
 	b43_phy_set(dev, 0x44a, 0x44);
 	b43_phy_write(dev, 0x44a, 0x80);
@@ -336,6 +380,8 @@ static void b43_phy_lcn_op_prepare_structs(struct b43_wldev *dev)
 /* wlc_phy_init_lcnphy */
 static int b43_phy_lcn_op_init(struct b43_wldev *dev)
 {
+	struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
+
 	b43_phy_set(dev, 0x44a, 0x80);
 	b43_phy_mask(dev, 0x44a, 0x7f);
 	b43_phy_set(dev, 0x6d1, 0x80);
@@ -358,6 +404,19 @@ static int b43_phy_lcn_op_init(struct b43_wldev *dev)
 		B43_WARN_ON(1);
 
 	b43_phy_lcn_sense_setup(dev);
+
+	b43_switch_channel(dev, dev->phy.channel);
+
+	bcma_chipco_regctl_maskset(cc, 0, 0xf, 0x9);
+	bcma_chipco_chipctl_maskset(cc, 0, 0, 0x03cddddd);
+
+	/* TODO */
+
+	b43_phy_set(dev, 0x448, 0x4000);
+	udelay(100);
+	b43_phy_mask(dev, 0x448, ~0x4000);
+
+	/* TODO */
 
 	return 0;
 }
