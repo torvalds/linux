@@ -424,9 +424,8 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 	if (status & 0x10) {
 		dprintk(2, "stopper video\n");
 		spin_lock(&dev->slock);
-	       cx25821_restart_video_queue(dev,
-			       &dev->channels[channel->i].vidq,
-				       channel);
+		cx25821_restart_video_queue(dev,
+				&dev->channels[channel->i].vidq, channel);
 		spin_unlock(&dev->slock);
 		handled++;
 	}
@@ -449,18 +448,18 @@ void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
 {
 	cx_clear(PCI_INT_MSK, 1);
 
-       if (dev->channels[chan_num].video_dev) {
-	       if (video_is_registered(dev->channels[chan_num].video_dev))
-		       video_unregister_device(
-			       dev->channels[chan_num].video_dev);
+	if (dev->channels[chan_num].video_dev) {
+		if (video_is_registered(dev->channels[chan_num].video_dev))
+			video_unregister_device(
+					dev->channels[chan_num].video_dev);
 		else
-		       video_device_release(
-			       dev->channels[chan_num].video_dev);
+			video_device_release(
+					dev->channels[chan_num].video_dev);
 
-	       dev->channels[chan_num].video_dev = NULL;
+		dev->channels[chan_num].video_dev = NULL;
 
-	       btcx_riscmem_free(dev->pci,
-		       &dev->channels[chan_num].vidq.stopper);
+		btcx_riscmem_free(dev->pci,
+				&dev->channels[chan_num].vidq.stopper);
 
 		pr_warn("device %d released!\n", chan_num);
 	}
