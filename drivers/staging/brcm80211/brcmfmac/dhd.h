@@ -707,18 +707,6 @@ static inline void MUTEX_UNLOCK(struct brcmf_pub *drvr)
 {
 }
 
-static inline void MUTEX_LOCK_SOFTAP_SET_INIT(struct brcmf_pub *drvr)
-{
-}
-
-static inline void MUTEX_LOCK_SOFTAP_SET(struct brcmf_pub *drvr)
-{
-}
-
-static inline void MUTEX_UNLOCK_SOFTAP_SET(struct brcmf_pub *drvr)
-{
-}
-
 static inline void MUTEX_LOCK_WL_SCAN_SET_INIT(void)
 {
 }

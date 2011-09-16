@@ -314,10 +314,6 @@ _brcmf_set_mac_address(struct brcmf_info *drvr_priv, int ifidx, u8 *addr)
 	return ret;
 }
 
-#ifdef SOFTAP
-static struct net_device *ap_net_dev;
-#endif
-
 /* Virtual interfaces only ((ifp && ifp->info && ifp->idx == true) */
 static void brcmf_op_if(struct brcmf_if *ifp)
 {
@@ -357,18 +353,6 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 					  err);
 				ret = -EOPNOTSUPP;
 			} else {
-#ifdef SOFTAP
-				/* semaphore that the soft AP CODE
-					 waits on */
-				struct semaphore ap_eth_sema;
-
-				/* save ptr to wl0.1 netdev for use
-					 in wl_iw.c  */
-				ap_net_dev = ifp->net;
-				/* signal to the SOFTAP 'sleeper' thread,
-					 wl0.1 is ready */
-				up(&ap_eth_sema);
-#endif
 				brcmf_dbg(TRACE, " ==== pid:%x, net_device for if:%s created ===\n",
 					  current->pid, ifp->net->name);
 				ifp->state = 0;
@@ -395,11 +379,6 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 
 		drvr_priv->iflist[ifp->idx] = NULL;
 		kfree(ifp);
-#ifdef SOFTAP
-		if (ifp->net == ap_net_dev)
-			ap_net_dev = NULL;	/*  NULL  SOFTAP global
-							 wl0.1 as well */
-#endif				/*  SOFTAP */
 	}
 }
 
