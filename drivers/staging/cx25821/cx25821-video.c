@@ -1867,69 +1867,68 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 			cx25821_set_pixel_format(dev, selected_channel,
 						pix_format);
 
-	       break;
+		break;
 
-       case ENABLE_CIF_RESOLUTION:
-	       selected_channel = data_from_user->decoder_select;
-	       cif_enable = data_from_user->cif_resolution_enable;
-	       cif_width = data_from_user->cif_width;
+	case ENABLE_CIF_RESOLUTION:
+		selected_channel = data_from_user->decoder_select;
+		cif_enable = data_from_user->cif_resolution_enable;
+		cif_width = data_from_user->cif_width;
 
-	       if (cif_enable) {
-		       if (dev->tvnorm & V4L2_STD_PAL_BG
-			   || dev->tvnorm & V4L2_STD_PAL_DK)
-			       width = 352;
-		       else
-			       width = (cif_width == 320
-					|| cif_width == 352) ? cif_width : 320;
-	       }
+		if (cif_enable) {
+			if (dev->tvnorm & V4L2_STD_PAL_BG
+			    || dev->tvnorm & V4L2_STD_PAL_DK)
+				width = 352;
+			else
+				width = (cif_width == 320 || cif_width == 352) ?
+							cif_width : 320;
+		}
 
-	       if (!(selected_channel <= 7 && selected_channel >= 0)) {
-		       selected_channel -= 4;
-		       selected_channel = selected_channel % 8;
-	       }
+		if (!(selected_channel <= 7 && selected_channel >= 0)) {
+			selected_channel -= 4;
+			selected_channel = selected_channel % 8;
+		}
 
-	       if (selected_channel <= 7 && selected_channel >= 0) {
-		       dev->channels[selected_channel].
-			       use_cif_resolution = cif_enable;
-		       dev->channels[selected_channel].cif_width = width;
-	       } else {
-		       for (i = 0; i < VID_CHANNEL_NUM; i++) {
-			       dev->channels[i].use_cif_resolution =
-				       cif_enable;
-			       dev->channels[i].cif_width = width;
-		       }
-	       }
+		if (selected_channel <= 7 && selected_channel >= 0) {
+			dev->channels[selected_channel].
+				use_cif_resolution = cif_enable;
+			dev->channels[selected_channel].cif_width = width;
+		} else {
+			for (i = 0; i < VID_CHANNEL_NUM; i++) {
+				dev->channels[i].use_cif_resolution =
+					cif_enable;
+				dev->channels[i].cif_width = width;
+			}
+		}
 
-	       medusa_set_resolution(dev, width, selected_channel);
-	       break;
-       case REG_READ:
-	       data_from_user->reg_data = cx_read(data_from_user->reg_address);
-	       break;
-       case REG_WRITE:
-	       cx_write(data_from_user->reg_address, data_from_user->reg_data);
-	       break;
-       case MEDUSA_READ:
-	       value =
-		   cx25821_i2c_read(&dev->i2c_bus[0],
-				    (u16) data_from_user->reg_address,
-				    &data_from_user->reg_data);
-	       break;
-       case MEDUSA_WRITE:
-	       cx25821_i2c_write(&dev->i2c_bus[0],
-				 (u16) data_from_user->reg_address,
-				 data_from_user->reg_data);
-	       break;
-       }
+		medusa_set_resolution(dev, width, selected_channel);
+		break;
+	case REG_READ:
+		data_from_user->reg_data = cx_read(data_from_user->reg_address);
+		break;
+	case REG_WRITE:
+		cx_write(data_from_user->reg_address, data_from_user->reg_data);
+		break;
+	case MEDUSA_READ:
+		value = cx25821_i2c_read(&dev->i2c_bus[0],
+					 (u16) data_from_user->reg_address,
+					 &data_from_user->reg_data);
+		break;
+	case MEDUSA_WRITE:
+		cx25821_i2c_write(&dev->i2c_bus[0],
+				  (u16) data_from_user->reg_address,
+				  data_from_user->reg_data);
+		break;
+	}
 
-       return 0;
+	return 0;
 }
 
 static long cx25821_video_ioctl(struct file *file,
-			       unsigned int cmd, unsigned long arg)
+				unsigned int cmd, unsigned long arg)
 {
-       int  ret = 0;
+	int  ret = 0;
 
-       struct cx25821_fh  *fh  = file->private_data;
+	struct cx25821_fh  *fh  = file->private_data;
 
        /* check to see if it's the video upstream */
        if (fh->channel_id == SRAM_CH09) {
