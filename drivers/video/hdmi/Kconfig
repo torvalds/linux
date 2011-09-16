@@ -4,7 +4,8 @@
 menu "HDMI"
 config HDMI
 	bool "HDMI support"
-
+    select FB_WORK_IPP
+	select FB_SCALING_OSD
 if HDMI
 source "drivers/video/hdmi/chips/Kconfig"
 
