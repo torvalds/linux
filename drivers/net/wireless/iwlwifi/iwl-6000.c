@@ -45,6 +45,8 @@
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
 #include "iwl-trans.h"
+#include "iwl-shared.h"
+#include "iwl-pci.h"
 
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 4
@@ -74,15 +76,15 @@
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
 	/* want Celsius */
-	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD;
-	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
+	hw_params(priv).ct_kill_threshold = CT_KILL_THRESHOLD;
+	hw_params(priv).ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
 }
 
 static void iwl6050_additional_nic_config(struct iwl_priv *priv)
 {
 	/* Indicate calibration version to uCode. */
 	if (iwlagn_eeprom_calib_version(priv) >= 6)
-		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
 				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 }
 
@@ -90,9 +92,9 @@ static void iwl6150_additional_nic_config(struct iwl_priv *priv)
 {
 	/* Indicate calibration version to uCode. */
 	if (iwlagn_eeprom_calib_version(priv) >= 6)
-		iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
 				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
-	iwl_set_bit(priv, CSR_GP_DRIVER_REG,
+	iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
 		    CSR_GP_DRIVER_REG_BIT_6050_1x2);
 }
 
@@ -104,7 +106,7 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 	/* no locking required for register write */
 	if (priv->cfg->pa_type == IWL_PA_INTERNAL) {
 		/* 2x2 IPA phy type */
-		iwl_write32(priv, CSR_GP_DRIVER_REG,
+		iwl_write32(bus(priv), CSR_GP_DRIVER_REG,
 			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
 	}
 	/* do additional nic configuration if needed */
@@ -144,45 +146,41 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 		priv->cfg->base_params->num_of_queues =
 			iwlagn_mod_params.num_of_queues;
 
-	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
-	priv->hw_params.scd_bc_tbls_size =
-			priv->cfg->base_params->num_of_queues *
-			sizeof(struct iwlagn_scd_bc_tbl);
-	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
-	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
+	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
+	hw_params(priv).max_stations = IWLAGN_STATION_COUNT;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
-	priv->hw_params.max_data_size = IWL60_RTC_DATA_SIZE;
-	priv->hw_params.max_inst_size = IWL60_RTC_INST_SIZE;
+	hw_params(priv).max_data_size = IWL60_RTC_DATA_SIZE;
+	hw_params(priv).max_inst_size = IWL60_RTC_INST_SIZE;
 
-	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
+	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
+	hw_params(priv).tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	if (priv->cfg->rx_with_siso_diversity)
-		priv->hw_params.rx_chains_num = 1;
+		hw_params(priv).rx_chains_num = 1;
 	else
-		priv->hw_params.rx_chains_num =
+		hw_params(priv).rx_chains_num =
 			num_of_ant(priv->cfg->valid_rx_ant);
-	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
-	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
+	hw_params(priv).valid_tx_ant = priv->cfg->valid_tx_ant;
+	hw_params(priv).valid_rx_ant = priv->cfg->valid_rx_ant;
 
 	iwl6000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
-	priv->hw_params.sens = &iwl6000_sensitivity;
-	priv->hw_params.calib_init_cfg =
+	hw_params(priv).sens = &iwl6000_sensitivity;
+	hw_params(priv).calib_init_cfg =
 		BIT(IWL_CALIB_XTAL)		|
 		BIT(IWL_CALIB_LO)		|
 		BIT(IWL_CALIB_TX_IQ)		|
 		BIT(IWL_CALIB_BASE_BAND);
 	if (priv->cfg->need_dc_calib)
-		priv->hw_params.calib_rt_cfg |= IWL_CALIB_CFG_DC_IDX;
+		hw_params(priv).calib_rt_cfg |= IWL_CALIB_CFG_DC_IDX;
 	if (priv->cfg->need_temp_offset_calib)
-		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_TEMP_OFFSET);
+		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_TEMP_OFFSET);
 
-	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
+	hw_params(priv).beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
 	return 0;
 }
@@ -255,7 +253,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 		return -EFAULT;
 	}
 
-	return trans_send_cmd(&priv->trans, &hcmd);
+	return iwl_trans_send_cmd(trans(priv), &hcmd);
 }
 
 static struct iwl_lib_ops iwl6000_lib = {
@@ -272,7 +270,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
+		.update_enhanced_txpower = iwl_eeprom_enhanced_txpower,
 	},
 	.temperature = iwlagn_temperature,
 };
@@ -294,7 +292,7 @@ static struct iwl_lib_ops iwl6030_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
+		.update_enhanced_txpower = iwl_eeprom_enhanced_txpower,
 	},
 	.temperature = iwlagn_temperature,
 };
@@ -393,6 +391,12 @@ struct iwl_cfg iwl6005_2abg_cfg = {
 struct iwl_cfg iwl6005_2bg_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6205 BG",
 	IWL_DEVICE_6005,
+};
+
+struct iwl_cfg iwl6005_2agn_sff_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6205S AGN",
+	IWL_DEVICE_6005,
+	.ht_params = &iwl6000_ht_params,
 };
 
 #define IWL_DEVICE_6030						\

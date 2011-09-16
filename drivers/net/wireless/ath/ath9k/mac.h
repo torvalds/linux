@@ -146,6 +146,7 @@ struct ath_rx_status {
 	u8 rs_moreaggr;
 	u8 rs_num_delims;
 	u8 rs_flags;
+	bool is_mybeacon;
 	u32 evm0;
 	u32 evm1;
 	u32 evm2;
@@ -194,7 +195,7 @@ struct ath_htc_rx_status {
 #define ATH9K_RX_DECRYPT_BUSY     0x40
 
 #define ATH9K_RXKEYIX_INVALID	((u8)-1)
-#define ATH9K_TXKEYIX_INVALID	((u32)-1)
+#define ATH9K_TXKEYIX_INVALID	((u8)-1)
 
 enum ath9k_phyerr {
 	ATH9K_PHYERR_UNDERRUN             = 0,  /* Transmit underrun */

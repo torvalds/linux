@@ -206,16 +206,17 @@ struct ath_atx_ac {
 };
 
 struct ath_frame_info {
+	struct ath_buf *bf;
 	int framelen;
-	u32 keyix;
 	enum ath9k_key_type keytype;
+	u8 keyix;
 	u8 retries;
-	u16 seqno;
 };
 
 struct ath_buf_state {
 	u8 bf_type;
 	u8 bfs_paprd;
+	u16 seqno;
 	unsigned long bfs_paprd_timestamp;
 };
 
@@ -235,7 +236,7 @@ struct ath_buf {
 
 struct ath_atx_tid {
 	struct list_head list;
-	struct list_head buf_q;
+	struct sk_buff_head buf_q;
 	struct ath_node *an;
 	struct ath_atx_ac *ac;
 	unsigned long tx_buf[BITS_TO_LONGS(ATH_TID_MAX_BUFS)];

@@ -440,7 +440,7 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	if (AR_SREV_9100(ah))
 		ah->sta_id1_defaults |= AR_STA_ID1_AR9100_BA_FIX;
 	ah->enable_32kHz_clock = DONT_USE_32KHZ;
-	ah->slottime = 20;
+	ah->slottime = ATH9K_SLOT_TIME_9;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 }
@@ -997,8 +997,14 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		slottime = 21;
 		sifstime = 64;
 	} else {
-		eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS)/common->clockrate;
-		reg = REG_READ(ah, AR_USEC);
+		if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah)) {
+			eifs = AR_D_GBL_IFS_EIFS_ASYNC_FIFO;
+			reg = AR_USEC_ASYNC_FIFO;
+		} else {
+			eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS)/
+				common->clockrate;
+			reg = REG_READ(ah, AR_USEC);
+		}
 		rx_lat = MS(reg, AR_USEC_RX_LAT);
 		tx_lat = MS(reg, AR_USEC_TX_LAT);
 
@@ -2754,6 +2760,7 @@ static struct {
 	{ AR_SREV_VERSION_9271,         "9271" },
 	{ AR_SREV_VERSION_9300,         "9300" },
 	{ AR_SREV_VERSION_9330,         "9330" },
+	{ AR_SREV_VERSION_9340,		"9340" },
 	{ AR_SREV_VERSION_9485,         "9485" },
 };
 

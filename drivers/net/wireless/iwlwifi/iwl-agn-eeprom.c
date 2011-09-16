@@ -195,7 +195,7 @@ static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
 }
 
 static void
-iwlcore_eeprom_enh_txp_read_element(struct iwl_priv *priv,
+iwl_eeprom_enh_txp_read_element(struct iwl_priv *priv,
 				    struct iwl_eeprom_enhanced_txpwr *txp,
 				    s8 max_txpower_avg)
 {
@@ -235,7 +235,7 @@ iwlcore_eeprom_enh_txp_read_element(struct iwl_priv *priv,
 #define TXP_CHECK_AND_PRINT(x) ((txp->flags & IWL_EEPROM_ENH_TXP_FL_##x) \
 			    ? # x " " : "")
 
-void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
+void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 {
 	struct iwl_eeprom_enhanced_txpwr *txp_array, *txp;
 	int idx, entries;
@@ -294,6 +294,6 @@ void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
 		if (max_txp_avg_halfdbm > priv->tx_power_lmt_in_half_dbm)
 			priv->tx_power_lmt_in_half_dbm = max_txp_avg_halfdbm;
 
-		iwlcore_eeprom_enh_txp_read_element(priv, txp, max_txp_avg);
+		iwl_eeprom_enh_txp_read_element(priv, txp, max_txp_avg);
 	}
 }

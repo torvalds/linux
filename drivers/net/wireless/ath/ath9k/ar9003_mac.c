@@ -312,7 +312,7 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 
 static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 		u32 pktlen, enum ath9k_pkt_type type, u32 txpower,
-		u32 keyIx, enum ath9k_key_type keyType, u32 flags)
+		u8 keyIx, enum ath9k_key_type keyType, u32 flags)
 {
 	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
 

@@ -60,16 +60,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_pci_h__
-#define __iwl_pci_h__
+#ifndef __iwl_bus_h__
+#define __iwl_bus_h__
 
+/*This file includes the declaration that are exported from the bus layer */
+
+#include <linux/types.h>
+#include <linux/spinlock.h>
+
+struct iwl_shared;
 struct iwl_bus;
 
 /**
  * struct iwl_bus_ops - bus specific operations
  * @get_pm_support: must returns true if the bus can go to sleep
  * @apm_config: will be called during the config of the APM configuration
- * @set_drv_data: set the drv_data pointer to the bus layer
+ * @set_drv_data: set the shared data pointer to the bus layer
  * @get_hw_id: prints the hw_id in the provided buffer
  * @write8: write a byte to register at offset ofs
  * @write32: write a dword to register at offset ofs
@@ -78,20 +84,29 @@ struct iwl_bus;
 struct iwl_bus_ops {
 	bool (*get_pm_support)(struct iwl_bus *bus);
 	void (*apm_config)(struct iwl_bus *bus);
-	void (*set_drv_data)(struct iwl_bus *bus, void *drv_data);
+	void (*set_drv_data)(struct iwl_bus *bus, struct iwl_shared *shrd);
 	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
 	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
 	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
 };
 
+/**
+ * struct iwl_bus - bus common data
+ * @dev - pointer to struct device * that represent the device
+ * @ops - pointer to iwl_bus_ops
+ * @shrd - pointer to iwl_shared which holds shared data from the upper layer
+ * @irq - the irq number for the device
+ * @reg_lock - protect hw register access
+ */
 struct iwl_bus {
 	/* Common data to all buses */
-	void *drv_data; /* driver's context */
 	struct device *dev;
-	struct iwl_bus_ops *ops;
+	const struct iwl_bus_ops *ops;
+	struct iwl_shared *shrd;
 
 	unsigned int irq;
+	spinlock_t reg_lock;
 
 	/* pointer to bus specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -108,9 +123,10 @@ static inline void bus_apm_config(struct iwl_bus *bus)
 	bus->ops->apm_config(bus);
 }
 
-static inline void bus_set_drv_data(struct iwl_bus *bus, void *drv_data)
+static inline void bus_set_drv_data(struct iwl_bus *bus,
+				struct iwl_shared *shrd)
 {
-	bus->ops->set_drv_data(bus, drv_data);
+	bus->ops->set_drv_data(bus, shrd);
 }
 
 static inline void bus_get_hw_id(struct iwl_bus *bus, char buf[], int buf_len)
@@ -136,4 +152,4 @@ static inline u32 bus_read32(struct iwl_bus *bus, u32 ofs)
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
 
-#endif
+#endif /* __iwl_bus_h__ */

@@ -40,449 +40,7 @@
 #include "iwl-agn.h"
 #include "iwl-sta.h"
 #include "iwl-trans.h"
-
-static inline u32 iwlagn_get_scd_ssn(struct iwlagn_tx_resp *tx_resp)
-{
-	return le32_to_cpup((__le32 *)&tx_resp->status +
-			    tx_resp->frame_count) & MAX_SN;
-}
-
-static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
-{
-	status &= TX_STATUS_MSK;
-
-	switch (status) {
-	case TX_STATUS_POSTPONE_DELAY:
-		priv->reply_tx_stats.pp_delay++;
-		break;
-	case TX_STATUS_POSTPONE_FEW_BYTES:
-		priv->reply_tx_stats.pp_few_bytes++;
-		break;
-	case TX_STATUS_POSTPONE_BT_PRIO:
-		priv->reply_tx_stats.pp_bt_prio++;
-		break;
-	case TX_STATUS_POSTPONE_QUIET_PERIOD:
-		priv->reply_tx_stats.pp_quiet_period++;
-		break;
-	case TX_STATUS_POSTPONE_CALC_TTAK:
-		priv->reply_tx_stats.pp_calc_ttak++;
-		break;
-	case TX_STATUS_FAIL_INTERNAL_CROSSED_RETRY:
-		priv->reply_tx_stats.int_crossed_retry++;
-		break;
-	case TX_STATUS_FAIL_SHORT_LIMIT:
-		priv->reply_tx_stats.short_limit++;
-		break;
-	case TX_STATUS_FAIL_LONG_LIMIT:
-		priv->reply_tx_stats.long_limit++;
-		break;
-	case TX_STATUS_FAIL_FIFO_UNDERRUN:
-		priv->reply_tx_stats.fifo_underrun++;
-		break;
-	case TX_STATUS_FAIL_DRAIN_FLOW:
-		priv->reply_tx_stats.drain_flow++;
-		break;
-	case TX_STATUS_FAIL_RFKILL_FLUSH:
-		priv->reply_tx_stats.rfkill_flush++;
-		break;
-	case TX_STATUS_FAIL_LIFE_EXPIRE:
-		priv->reply_tx_stats.life_expire++;
-		break;
-	case TX_STATUS_FAIL_DEST_PS:
-		priv->reply_tx_stats.dest_ps++;
-		break;
-	case TX_STATUS_FAIL_HOST_ABORTED:
-		priv->reply_tx_stats.host_abort++;
-		break;
-	case TX_STATUS_FAIL_BT_RETRY:
-		priv->reply_tx_stats.bt_retry++;
-		break;
-	case TX_STATUS_FAIL_STA_INVALID:
-		priv->reply_tx_stats.sta_invalid++;
-		break;
-	case TX_STATUS_FAIL_FRAG_DROPPED:
-		priv->reply_tx_stats.frag_drop++;
-		break;
-	case TX_STATUS_FAIL_TID_DISABLE:
-		priv->reply_tx_stats.tid_disable++;
-		break;
-	case TX_STATUS_FAIL_FIFO_FLUSHED:
-		priv->reply_tx_stats.fifo_flush++;
-		break;
-	case TX_STATUS_FAIL_INSUFFICIENT_CF_POLL:
-		priv->reply_tx_stats.insuff_cf_poll++;
-		break;
-	case TX_STATUS_FAIL_PASSIVE_NO_RX:
-		priv->reply_tx_stats.fail_hw_drop++;
-		break;
-	case TX_STATUS_FAIL_NO_BEACON_ON_RADAR:
-		priv->reply_tx_stats.sta_color_mismatch++;
-		break;
-	default:
-		priv->reply_tx_stats.unknown++;
-		break;
-	}
-}
-
-static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
-{
-	status &= AGG_TX_STATUS_MSK;
-
-	switch (status) {
-	case AGG_TX_STATE_UNDERRUN_MSK:
-		priv->reply_agg_tx_stats.underrun++;
-		break;
-	case AGG_TX_STATE_BT_PRIO_MSK:
-		priv->reply_agg_tx_stats.bt_prio++;
-		break;
-	case AGG_TX_STATE_FEW_BYTES_MSK:
-		priv->reply_agg_tx_stats.few_bytes++;
-		break;
-	case AGG_TX_STATE_ABORT_MSK:
-		priv->reply_agg_tx_stats.abort++;
-		break;
-	case AGG_TX_STATE_LAST_SENT_TTL_MSK:
-		priv->reply_agg_tx_stats.last_sent_ttl++;
-		break;
-	case AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK:
-		priv->reply_agg_tx_stats.last_sent_try++;
-		break;
-	case AGG_TX_STATE_LAST_SENT_BT_KILL_MSK:
-		priv->reply_agg_tx_stats.last_sent_bt_kill++;
-		break;
-	case AGG_TX_STATE_SCD_QUERY_MSK:
-		priv->reply_agg_tx_stats.scd_query++;
-		break;
-	case AGG_TX_STATE_TEST_BAD_CRC32_MSK:
-		priv->reply_agg_tx_stats.bad_crc32++;
-		break;
-	case AGG_TX_STATE_RESPONSE_MSK:
-		priv->reply_agg_tx_stats.response++;
-		break;
-	case AGG_TX_STATE_DUMP_TX_MSK:
-		priv->reply_agg_tx_stats.dump_tx++;
-		break;
-	case AGG_TX_STATE_DELAY_TX_MSK:
-		priv->reply_agg_tx_stats.delay_tx++;
-		break;
-	default:
-		priv->reply_agg_tx_stats.unknown++;
-		break;
-	}
-}
-
-static void iwlagn_set_tx_status(struct iwl_priv *priv,
-				 struct ieee80211_tx_info *info,
-				 struct iwl_rxon_context *ctx,
-				 struct iwlagn_tx_resp *tx_resp,
-				 int txq_id, bool is_agg)
-{
-	u16  status = le16_to_cpu(tx_resp->status.status);
-
-	info->status.rates[0].count = tx_resp->failure_frame + 1;
-	if (is_agg)
-		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-	info->flags |= iwl_tx_status_to_mac80211(status);
-	iwlagn_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
-				    info);
-	if (!iwl_is_tx_success(status))
-		iwlagn_count_tx_err_status(priv, status);
-
-	if (status == TX_STATUS_FAIL_PASSIVE_NO_RX &&
-	    iwl_is_associated_ctx(ctx) && ctx->vif &&
-	    ctx->vif->type == NL80211_IFTYPE_STATION) {
-		ctx->last_tx_rejected = true;
-		iwl_stop_queue(priv, &priv->txq[txq_id]);
-	}
-
-	IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x) rate_n_flags "
-			   "0x%x retries %d\n",
-			   txq_id,
-			   iwl_get_tx_fail_reason(status), status,
-			   le32_to_cpu(tx_resp->rate_n_flags),
-			   tx_resp->failure_frame);
-}
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-#define AGG_TX_STATE_FAIL(x) case AGG_TX_STATE_ ## x: return #x
-
-const char *iwl_get_agg_tx_fail_reason(u16 status)
-{
-	status &= AGG_TX_STATUS_MSK;
-	switch (status) {
-	case AGG_TX_STATE_TRANSMITTED:
-		return "SUCCESS";
-		AGG_TX_STATE_FAIL(UNDERRUN_MSK);
-		AGG_TX_STATE_FAIL(BT_PRIO_MSK);
-		AGG_TX_STATE_FAIL(FEW_BYTES_MSK);
-		AGG_TX_STATE_FAIL(ABORT_MSK);
-		AGG_TX_STATE_FAIL(LAST_SENT_TTL_MSK);
-		AGG_TX_STATE_FAIL(LAST_SENT_TRY_CNT_MSK);
-		AGG_TX_STATE_FAIL(LAST_SENT_BT_KILL_MSK);
-		AGG_TX_STATE_FAIL(SCD_QUERY_MSK);
-		AGG_TX_STATE_FAIL(TEST_BAD_CRC32_MSK);
-		AGG_TX_STATE_FAIL(RESPONSE_MSK);
-		AGG_TX_STATE_FAIL(DUMP_TX_MSK);
-		AGG_TX_STATE_FAIL(DELAY_TX_MSK);
-	}
-
-	return "UNKNOWN";
-}
-#endif /* CONFIG_IWLWIFI_DEBUG */
-
-static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
-				      struct iwl_ht_agg *agg,
-				      struct iwlagn_tx_resp *tx_resp,
-				      int txq_id, u16 start_idx)
-{
-	u16 status;
-	struct agg_tx_status *frame_status = &tx_resp->status;
-	struct ieee80211_hdr *hdr = NULL;
-	int i, sh, idx;
-	u16 seq;
-
-	if (agg->wait_for_ba)
-		IWL_DEBUG_TX_REPLY(priv, "got tx response w/o block-ack\n");
-
-	agg->frame_count = tx_resp->frame_count;
-	agg->start_idx = start_idx;
-	agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
-	agg->bitmap = 0;
-
-	/* # frames attempted by Tx command */
-	if (agg->frame_count == 1) {
-		struct iwl_tx_info *txb;
-
-		/* Only one frame was attempted; no block-ack will arrive */
-		idx = start_idx;
-
-		IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
-				   agg->frame_count, agg->start_idx, idx);
-		txb = &priv->txq[txq_id].txb[idx];
-		iwlagn_set_tx_status(priv, IEEE80211_SKB_CB(txb->skb),
-				     txb->ctx, tx_resp, txq_id, true);
-		agg->wait_for_ba = 0;
-	} else {
-		/* Two or more frames were attempted; expect block-ack */
-		u64 bitmap = 0;
-
-		/*
-		 * Start is the lowest frame sent. It may not be the first
-		 * frame in the batch; we figure this out dynamically during
-		 * the following loop.
-		 */
-		int start = agg->start_idx;
-
-		/* Construct bit-map of pending frames within Tx window */
-		for (i = 0; i < agg->frame_count; i++) {
-			u16 sc;
-			status = le16_to_cpu(frame_status[i].status);
-			seq  = le16_to_cpu(frame_status[i].sequence);
-			idx = SEQ_TO_INDEX(seq);
-			txq_id = SEQ_TO_QUEUE(seq);
-
-			if (status & AGG_TX_STATUS_MSK)
-				iwlagn_count_agg_tx_err_status(priv, status);
-
-			if (status & (AGG_TX_STATE_FEW_BYTES_MSK |
-				      AGG_TX_STATE_ABORT_MSK))
-				continue;
-
-			IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, txq_id=%d idx=%d\n",
-					   agg->frame_count, txq_id, idx);
-			IWL_DEBUG_TX_REPLY(priv, "status %s (0x%08x), "
-					   "try-count (0x%08x)\n",
-					   iwl_get_agg_tx_fail_reason(status),
-					   status & AGG_TX_STATUS_MSK,
-					   status & AGG_TX_TRY_MSK);
-
-			hdr = iwl_tx_queue_get_hdr(priv, txq_id, idx);
-			if (!hdr) {
-				IWL_ERR(priv,
-					"BUG_ON idx doesn't point to valid skb"
-					" idx=%d, txq_id=%d\n", idx, txq_id);
-				return -1;
-			}
-
-			sc = le16_to_cpu(hdr->seq_ctrl);
-			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
-				IWL_ERR(priv,
-					"BUG_ON idx doesn't match seq control"
-					" idx=%d, seq_idx=%d, seq=%d\n",
-					  idx, SEQ_TO_SN(sc),
-					  hdr->seq_ctrl);
-				return -1;
-			}
-
-			IWL_DEBUG_TX_REPLY(priv, "AGG Frame i=%d idx %d seq=%d\n",
-					   i, idx, SEQ_TO_SN(sc));
-
-			/*
-			 * sh -> how many frames ahead of the starting frame is
-			 * the current one?
-			 *
-			 * Note that all frames sent in the batch must be in a
-			 * 64-frame window, so this number should be in [0,63].
-			 * If outside of this window, then we've found a new
-			 * "first" frame in the batch and need to change start.
-			 */
-			sh = idx - start;
-
-			/*
-			 * If >= 64, out of window. start must be at the front
-			 * of the circular buffer, idx must be near the end of
-			 * the buffer, and idx is the new "first" frame. Shift
-			 * the indices around.
-			 */
-			if (sh >= 64) {
-				/* Shift bitmap by start - idx, wrapped */
-				sh = 0x100 - idx + start;
-				bitmap = bitmap << sh;
-				/* Now idx is the new start so sh = 0 */
-				sh = 0;
-				start = idx;
-			/*
-			 * If <= -64 then wraps the 256-pkt circular buffer
-			 * (e.g., start = 255 and idx = 0, sh should be 1)
-			 */
-			} else if (sh <= -64) {
-				sh  = 0x100 - start + idx;
-			/*
-			 * If < 0 but > -64, out of window. idx is before start
-			 * but not wrapped. Shift the indices around.
-			 */
-			} else if (sh < 0) {
-				/* Shift by how far start is ahead of idx */
-				sh = start - idx;
-				bitmap = bitmap << sh;
-				/* Now idx is the new start so sh = 0 */
-				start = idx;
-				sh = 0;
-			}
-			/* Sequence number start + sh was sent in this batch */
-			bitmap |= 1ULL << sh;
-			IWL_DEBUG_TX_REPLY(priv, "start=%d bitmap=0x%llx\n",
-					   start, (unsigned long long)bitmap);
-		}
-
-		/*
-		 * Store the bitmap and possibly the new start, if we wrapped
-		 * the buffer above
-		 */
-		agg->bitmap = bitmap;
-		agg->start_idx = start;
-		IWL_DEBUG_TX_REPLY(priv, "Frames %d start_idx=%d bitmap=0x%llx\n",
-				   agg->frame_count, agg->start_idx,
-				   (unsigned long long)agg->bitmap);
-
-		if (bitmap)
-			agg->wait_for_ba = 1;
-	}
-	return 0;
-}
-
-void iwl_check_abort_status(struct iwl_priv *priv,
-			    u8 frame_count, u32 status)
-{
-	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
-		IWL_ERR(priv, "Tx flush command to flush out all frames\n");
-		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
-			queue_work(priv->workqueue, &priv->tx_flush);
-	}
-}
-
-void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
-	int txq_id = SEQ_TO_QUEUE(sequence);
-	int index = SEQ_TO_INDEX(sequence);
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct ieee80211_tx_info *info;
-	struct iwlagn_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
-	struct ieee80211_hdr *hdr;
-	struct iwl_tx_info *txb;
-	u32 status = le16_to_cpu(tx_resp->status.status);
-	int tid;
-	int sta_id;
-	int freed;
-	unsigned long flags;
-
-	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
-		IWL_ERR(priv, "%s: Read index for DMA queue txq_id (%d) "
-			  "index %d is out of range [0-%d] %d %d\n", __func__,
-			  txq_id, index, txq->q.n_bd, txq->q.write_ptr,
-			  txq->q.read_ptr);
-		return;
-	}
-
-	txq->time_stamp = jiffies;
-	txb = &txq->txb[txq->q.read_ptr];
-	info = IEEE80211_SKB_CB(txb->skb);
-	memset(&info->status, 0, sizeof(info->status));
-
-	tid = (tx_resp->ra_tid & IWLAGN_TX_RES_TID_MSK) >>
-		IWLAGN_TX_RES_TID_POS;
-	sta_id = (tx_resp->ra_tid & IWLAGN_TX_RES_RA_MSK) >>
-		IWLAGN_TX_RES_RA_POS;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-
-	hdr = (void *)txb->skb->data;
-	if (!ieee80211_is_data_qos(hdr->frame_control))
-		priv->last_seq_ctl = tx_resp->seq_ctl;
-
-	if (txq->sched_retry) {
-		const u32 scd_ssn = iwlagn_get_scd_ssn(tx_resp);
-		struct iwl_ht_agg *agg;
-
-		agg = &priv->stations[sta_id].tid[tid].agg;
-		/*
-		 * If the BT kill count is non-zero, we'll get this
-		 * notification again.
-		 */
-		if (tx_resp->bt_kill_count && tx_resp->frame_count == 1 &&
-		    priv->cfg->bt_params &&
-		    priv->cfg->bt_params->advanced_bt_coexist) {
-			IWL_DEBUG_COEX(priv, "receive reply tx with bt_kill\n");
-		}
-		iwlagn_tx_status_reply_tx(priv, agg, tx_resp, txq_id, index);
-
-		/* check if BAR is needed */
-		if ((tx_resp->frame_count == 1) && !iwl_is_tx_success(status))
-			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
-
-		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
-			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
-			IWL_DEBUG_TX_REPLY(priv, "Retry scheduler reclaim "
-					"scd_ssn=%d idx=%d txq=%d swq=%d\n",
-					scd_ssn , index, txq_id, txq->swq_id);
-
-			freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
-			iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
-
-			if (priv->mac80211_registered &&
-			    (iwl_queue_space(&txq->q) > txq->q.low_mark) &&
-			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
-				iwl_wake_queue(priv, txq);
-		}
-	} else {
-		iwlagn_set_tx_status(priv, info, txb->ctx, tx_resp,
-				     txq_id, false);
-		freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
-		iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
-
-		if (priv->mac80211_registered &&
-		    iwl_queue_space(&txq->q) > txq->q.low_mark &&
-		    status != TX_STATUS_FAIL_PASSIVE_NO_RX)
-			iwl_wake_queue(priv, txq);
-	}
-
-	iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
-
-	iwl_check_abort_status(priv, tx_resp->frame_count, status);
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-}
+#include "iwl-shared.h"
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr)
 {
@@ -495,7 +53,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	struct iwlagn_tx_power_dbm_cmd tx_power_cmd;
 	u8 tx_ant_cfg_cmd;
 
-	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->shrd->status),
 		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
@@ -525,7 +83,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
 
-	return trans_send_cmd_pdu(&priv->trans, tx_ant_cfg_cmd, CMD_SYNC,
+	return iwl_trans_send_cmd_pdu(trans(priv), tx_ant_cfg_cmd, CMD_SYNC,
 			sizeof(tx_power_cmd), &tx_power_cmd);
 }
 
@@ -609,6 +167,9 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.bt_coex_active = true,
 	.no_sleep_autoadjust = true,
 	.power_level = IWL_POWER_INDEX_1,
+	.bt_ch_announce = true,
+	.wanted_ucode_alternative = 1,
+	.auto_agg = true,
 	/* the rest are 0 by default */
 };
 
@@ -767,15 +328,15 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	u16 rx_chain = 0;
 	enum ieee80211_band band;
 	u8 n_probes = 0;
-	u8 rx_ant = priv->hw_params.valid_rx_ant;
+	u8 rx_ant = hw_params(priv).valid_rx_ant;
 	u8 rate;
 	bool is_active = false;
 	int  chan_mod;
 	u8 active_chains;
-	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
+	u8 scan_tx_antennas = hw_params(priv).valid_tx_ant;
 	int ret;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	if (vif)
 		ctx = iwl_rxon_ctx_from_vif(vif);
@@ -942,7 +503,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 
 	/* In power save mode use one chain, otherwise use all chains */
-	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+	if (test_bit(STATUS_POWER_PMI, &priv->shrd->status)) {
 		/* rx_ant has been set to all valid chains previously */
 		active_chains = rx_ant &
 				((u8)(priv->chain_noise_data.active_chains));
@@ -962,7 +523,8 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	}
 
 	/* MIMO is not used here, but value is required */
-	rx_chain |= priv->hw_params.valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
+	rx_chain |=
+		hw_params(priv).valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
@@ -1044,15 +606,15 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->len = cpu_to_le16(cmd.len[0]);
 
 	/* set scan bit here for PAN params */
-	set_bit(STATUS_SCAN_HW, &priv->status);
+	set_bit(STATUS_SCAN_HW, &priv->shrd->status);
 
 	ret = iwlagn_set_pan_params(priv);
 	if (ret)
 		return ret;
 
-	ret = trans_send_cmd(&priv->trans, &cmd);
+	ret = iwl_trans_send_cmd(trans(priv), &cmd);
 	if (ret) {
-		clear_bit(STATUS_SCAN_HW, &priv->status);
+		clear_bit(STATUS_SCAN_HW, &priv->shrd->status);
 		iwlagn_set_pan_params(priv);
 	}
 
@@ -1071,52 +633,6 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
 				  vif->bss_conf.bssid);
 }
-
-void iwl_free_tfds_in_queue(struct iwl_priv *priv,
-			    int sta_id, int tid, int freed)
-{
-	lockdep_assert_held(&priv->sta_lock);
-
-	if (priv->stations[sta_id].tid[tid].tfds_in_queue >= freed)
-		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
-	else {
-		IWL_DEBUG_TX(priv, "free more than tfds_in_queue (%u:%d)\n",
-			priv->stations[sta_id].tid[tid].tfds_in_queue,
-			freed);
-		priv->stations[sta_id].tid[tid].tfds_in_queue = 0;
-	}
-}
-
-#define IWL_FLUSH_WAIT_MS	2000
-
-int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv)
-{
-	struct iwl_tx_queue *txq;
-	struct iwl_queue *q;
-	int cnt;
-	unsigned long now = jiffies;
-	int ret = 0;
-
-	/* waiting for all the tx frames complete might take a while */
-	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
-		if (cnt == priv->cmd_queue)
-			continue;
-		txq = &priv->txq[cnt];
-		q = &txq->q;
-		while (q->read_ptr != q->write_ptr && !time_after(jiffies,
-		       now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS)))
-				msleep(1);
-
-		if (q->read_ptr != q->write_ptr) {
-			IWL_ERR(priv, "fail to flush all tx fifo queues\n");
-			ret = -ETIMEDOUT;
-			break;
-		}
-	}
-	return ret;
-}
-
-#define IWL_TX_QUEUE_MSK	0xfffff
 
 /**
  * iwlagn_txfifo_flush: send REPLY_TXFIFO_FLUSH command to uCode
@@ -1156,22 +672,22 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		       flush_cmd.fifo_control);
 	flush_cmd.flush_control = cpu_to_le16(flush_control);
 
-	return trans_send_cmd(&priv->trans, &cmd);
+	return iwl_trans_send_cmd(trans(priv), &cmd);
 }
 
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 {
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 	ieee80211_stop_queues(priv->hw);
 	if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
 		IWL_ERR(priv, "flush request fail\n");
 		goto done;
 	}
 	IWL_DEBUG_INFO(priv, "wait transmit/flush all frames\n");
-	iwlagn_wait_tx_queue_empty(priv);
+	iwl_trans_wait_tx_queue_empty(trans(priv));
 done:
 	ieee80211_wake_queues(priv->hw);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 /*
@@ -1350,12 +866,12 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	if (priv->cfg->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_2000.basic, &basic,
 			sizeof(basic));
-		ret = trans_send_cmd_pdu(&priv->trans, REPLY_BT_CONFIG,
+		ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
 			CMD_SYNC, sizeof(bt_cmd_2000), &bt_cmd_2000);
 	} else {
 		memcpy(&bt_cmd_6000.basic, &basic,
 			sizeof(basic));
-		ret = trans_send_cmd_pdu(&priv->trans, REPLY_BT_CONFIG,
+		ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
 			CMD_SYNC, sizeof(bt_cmd_6000), &bt_cmd_6000);
 	}
 	if (ret)
@@ -1368,7 +884,7 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena)
 	struct iwl_rxon_context *ctx, *found_ctx = NULL;
 	bool found_ap = false;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	/* Check whether AP or GO mode is active. */
 	if (rssi_ena) {
@@ -1481,7 +997,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 		break;
 	}
 
-	mutex_lock(&priv->mutex);
+	mutex_lock(&priv->shrd->mutex);
 
 	/*
 	 * We can not send command to firmware while scanning. When the scan
@@ -1490,7 +1006,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	 * STATUS_SCANNING to avoid race when queue_work two times from
 	 * different notifications, but quit and not perform any work at all.
 	 */
-	if (test_bit(STATUS_SCAN_HW, &priv->status))
+	if (test_bit(STATUS_SCAN_HW, &priv->shrd->status))
 		goto out;
 
 	iwl_update_chain_flags(priv);
@@ -1509,7 +1025,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	 */
 	iwlagn_bt_coex_rssi_monitor(priv);
 out:
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&priv->shrd->mutex);
 }
 
 /*
@@ -1616,7 +1132,7 @@ static void iwlagn_set_kill_msk(struct iwl_priv *priv,
 		priv->kill_cts_mask = bt_kill_cts_msg[kill_msk];
 
 		/* schedule to send runtime bt_config */
-		queue_work(priv->workqueue, &priv->bt_runtime_config);
+		queue_work(priv->shrd->workqueue, &priv->bt_runtime_config);
 	}
 }
 
@@ -1660,7 +1176,7 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 					IWL_BT_COEX_TRAFFIC_LOAD_NONE;
 			}
 			priv->bt_status = coex->bt_status;
-			queue_work(priv->workqueue,
+			queue_work(priv->shrd->workqueue,
 				   &priv->bt_traffic_change_work);
 		}
 	}
@@ -1669,9 +1185,9 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 
 	/* FIXME: based on notification, adjust the prio_boost */
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	priv->bt_ci_compliance = coex->bt_ci_compliance;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 }
 
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv)
@@ -1771,7 +1287,7 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	bool is_single = is_single_rx_stream(priv);
-	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
+	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->shrd->status);
 	u8 idle_rx_cnt, active_rx_cnt, valid_rx_cnt;
 	u32 active_chains;
 	u16 rx_chain;
@@ -1783,7 +1299,7 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (priv->chain_noise_data.active_chains)
 		active_chains = priv->chain_noise_data.active_chains;
 	else
-		active_chains = priv->hw_params.valid_rx_ant;
+		active_chains = hw_params(priv).valid_rx_ant;
 
 	if (priv->cfg->bt_params &&
 	    priv->cfg->bt_params->advanced_bt_coexist &&
@@ -1846,136 +1362,6 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant, u8 valid)
 			return ind;
 	}
 	return ant;
-}
-
-static const char *get_csr_string(int cmd)
-{
-	switch (cmd) {
-	IWL_CMD(CSR_HW_IF_CONFIG_REG);
-	IWL_CMD(CSR_INT_COALESCING);
-	IWL_CMD(CSR_INT);
-	IWL_CMD(CSR_INT_MASK);
-	IWL_CMD(CSR_FH_INT_STATUS);
-	IWL_CMD(CSR_GPIO_IN);
-	IWL_CMD(CSR_RESET);
-	IWL_CMD(CSR_GP_CNTRL);
-	IWL_CMD(CSR_HW_REV);
-	IWL_CMD(CSR_EEPROM_REG);
-	IWL_CMD(CSR_EEPROM_GP);
-	IWL_CMD(CSR_OTP_GP_REG);
-	IWL_CMD(CSR_GIO_REG);
-	IWL_CMD(CSR_GP_UCODE_REG);
-	IWL_CMD(CSR_GP_DRIVER_REG);
-	IWL_CMD(CSR_UCODE_DRV_GP1);
-	IWL_CMD(CSR_UCODE_DRV_GP2);
-	IWL_CMD(CSR_LED_REG);
-	IWL_CMD(CSR_DRAM_INT_TBL_REG);
-	IWL_CMD(CSR_GIO_CHICKEN_BITS);
-	IWL_CMD(CSR_ANA_PLL_CFG);
-	IWL_CMD(CSR_HW_REV_WA_REG);
-	IWL_CMD(CSR_DBG_HPET_MEM_REG);
-	default:
-		return "UNKNOWN";
-	}
-}
-
-void iwl_dump_csr(struct iwl_priv *priv)
-{
-	int i;
-	static const u32 csr_tbl[] = {
-		CSR_HW_IF_CONFIG_REG,
-		CSR_INT_COALESCING,
-		CSR_INT,
-		CSR_INT_MASK,
-		CSR_FH_INT_STATUS,
-		CSR_GPIO_IN,
-		CSR_RESET,
-		CSR_GP_CNTRL,
-		CSR_HW_REV,
-		CSR_EEPROM_REG,
-		CSR_EEPROM_GP,
-		CSR_OTP_GP_REG,
-		CSR_GIO_REG,
-		CSR_GP_UCODE_REG,
-		CSR_GP_DRIVER_REG,
-		CSR_UCODE_DRV_GP1,
-		CSR_UCODE_DRV_GP2,
-		CSR_LED_REG,
-		CSR_DRAM_INT_TBL_REG,
-		CSR_GIO_CHICKEN_BITS,
-		CSR_ANA_PLL_CFG,
-		CSR_HW_REV_WA_REG,
-		CSR_DBG_HPET_MEM_REG
-	};
-	IWL_ERR(priv, "CSR values:\n");
-	IWL_ERR(priv, "(2nd byte of CSR_INT_COALESCING is "
-		"CSR_INT_PERIODIC_REG)\n");
-	for (i = 0; i <  ARRAY_SIZE(csr_tbl); i++) {
-		IWL_ERR(priv, "  %25s: 0X%08x\n",
-			get_csr_string(csr_tbl[i]),
-			iwl_read32(priv, csr_tbl[i]));
-	}
-}
-
-static const char *get_fh_string(int cmd)
-{
-	switch (cmd) {
-	IWL_CMD(FH_RSCSR_CHNL0_STTS_WPTR_REG);
-	IWL_CMD(FH_RSCSR_CHNL0_RBDCB_BASE_REG);
-	IWL_CMD(FH_RSCSR_CHNL0_WPTR);
-	IWL_CMD(FH_MEM_RCSR_CHNL0_CONFIG_REG);
-	IWL_CMD(FH_MEM_RSSR_SHARED_CTRL_REG);
-	IWL_CMD(FH_MEM_RSSR_RX_STATUS_REG);
-	IWL_CMD(FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV);
-	IWL_CMD(FH_TSSR_TX_STATUS_REG);
-	IWL_CMD(FH_TSSR_TX_ERROR_REG);
-	default:
-		return "UNKNOWN";
-	}
-}
-
-int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display)
-{
-	int i;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	int pos = 0;
-	size_t bufsz = 0;
-#endif
-	static const u32 fh_tbl[] = {
-		FH_RSCSR_CHNL0_STTS_WPTR_REG,
-		FH_RSCSR_CHNL0_RBDCB_BASE_REG,
-		FH_RSCSR_CHNL0_WPTR,
-		FH_MEM_RCSR_CHNL0_CONFIG_REG,
-		FH_MEM_RSSR_SHARED_CTRL_REG,
-		FH_MEM_RSSR_RX_STATUS_REG,
-		FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV,
-		FH_TSSR_TX_STATUS_REG,
-		FH_TSSR_TX_ERROR_REG
-	};
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (display) {
-		bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
-		*buf = kmalloc(bufsz, GFP_KERNEL);
-		if (!*buf)
-			return -ENOMEM;
-		pos += scnprintf(*buf + pos, bufsz - pos,
-				"FH register values:\n");
-		for (i = 0; i < ARRAY_SIZE(fh_tbl); i++) {
-			pos += scnprintf(*buf + pos, bufsz - pos,
-				"  %34s: 0X%08x\n",
-				get_fh_string(fh_tbl[i]),
-				iwl_read_direct32(priv, fh_tbl[i]));
-		}
-		return pos;
-	}
-#endif
-	IWL_ERR(priv, "FH register values:\n");
-	for (i = 0; i <  ARRAY_SIZE(fh_tbl); i++) {
-		IWL_ERR(priv, "  %34s: 0X%08x\n",
-			get_fh_string(fh_tbl[i]),
-			iwl_read_direct32(priv, fh_tbl[i]));
-	}
-	return 0;
 }
 
 /* notification wait support */

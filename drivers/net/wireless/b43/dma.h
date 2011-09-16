@@ -161,7 +161,8 @@ struct b43_dmadesc_generic {
 } __packed;
 
 /* Misc DMA constants */
-#define B43_DMA_RINGMEMSIZE		PAGE_SIZE
+#define B43_DMA32_RINGMEMSIZE		4096
+#define B43_DMA64_RINGMEMSIZE		8192
 /* Offset of frame with actual data */
 #define B43_DMA0_RX_FW598_FO		38
 #define B43_DMA0_RX_FW351_FO		30

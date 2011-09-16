@@ -40,6 +40,7 @@
 #include "iwl-agn.h"
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
+#include "iwl-fh.h"
 
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
@@ -84,29 +85,29 @@ static int iwlagn_load_section(struct iwl_priv *priv, const char *name,
 
 	priv->ucode_write_complete = 0;
 
-	iwl_write_direct32(priv,
+	iwl_write_direct32(bus(priv),
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
 
-	iwl_write_direct32(priv,
+	iwl_write_direct32(bus(priv),
 		FH_SRVC_CHNL_SRAM_ADDR_REG(FH_SRVC_CHNL), dst_addr);
 
-	iwl_write_direct32(priv,
+	iwl_write_direct32(bus(priv),
 		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
 		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
 
-	iwl_write_direct32(priv,
+	iwl_write_direct32(bus(priv),
 		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
 		(iwl_get_dma_hi_addr(phy_addr)
 			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
 
-	iwl_write_direct32(priv,
+	iwl_write_direct32(bus(priv),
 		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
 		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
 		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
 		FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
 
-	iwl_write_direct32(priv,
+	iwl_write_direct32(bus(priv),
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
@@ -193,7 +194,7 @@ static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 	calib_cfg_cmd.ucd_calib_cfg.flags =
 		IWL_CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_MSK;
 
-	return trans_send_cmd(&priv->trans, &cmd);
+	return iwl_trans_send_cmd(trans(priv), &cmd);
 }
 
 void iwlagn_rx_calib_result(struct iwl_priv *priv,
@@ -291,7 +292,7 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 		/* coexistence is disabled */
 		memset(&coex_cmd, 0, sizeof(coex_cmd));
 	}
-	return trans_send_cmd_pdu(&priv->trans,
+	return iwl_trans_send_cmd_pdu(trans(priv),
 				COEX_PRIORITY_TABLE_CMD, CMD_SYNC,
 				sizeof(coex_cmd), &coex_cmd);
 }
@@ -324,7 +325,7 @@ void iwlagn_send_prio_tbl(struct iwl_priv *priv)
 
 	memcpy(prio_tbl_cmd.prio_tbl, iwlagn_bt_prio_tbl,
 		sizeof(iwlagn_bt_prio_tbl));
-	if (trans_send_cmd_pdu(&priv->trans,
+	if (iwl_trans_send_cmd_pdu(trans(priv),
 				REPLY_BT_COEX_PRIO_TABLE, CMD_SYNC,
 				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
@@ -337,7 +338,7 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 	env_cmd.action = action;
 	env_cmd.type = type;
-	ret = trans_send_cmd_pdu(&priv->trans,
+	ret = iwl_trans_send_cmd_pdu(trans(priv),
 			       REPLY_BT_COEX_PROT_ENV, CMD_SYNC,
 			       sizeof(env_cmd), &env_cmd);
 	if (ret)
@@ -350,7 +351,16 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
 {
 	int ret;
 
-	trans_tx_start(&priv->trans);
+	if (!priv->tx_cmd_pool)
+		priv->tx_cmd_pool =
+			kmem_cache_create("iwlagn_dev_cmd",
+					  sizeof(struct iwl_device_cmd),
+					  sizeof(void *), 0, NULL);
+
+	if (!priv->tx_cmd_pool)
+		return -ENOMEM;
+
+	iwl_trans_tx_start(trans(priv));
 
 	ret = iwlagn_send_wimax_coex(priv);
 	if (ret)
@@ -369,7 +379,7 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
  *   using sample data 100 bytes apart.  If these sample points are good,
  *   it's a pretty good bet that everything between them is good, too.
  */
-static int iwlcore_verify_inst_sparse(struct iwl_priv *priv,
+static int iwl_verify_inst_sparse(struct iwl_priv *priv,
 				      struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
@@ -383,9 +393,9 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv,
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
-		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
+		iwl_write_direct32(bus(priv), HBUS_TARG_MEM_RADDR,
 			i + IWLAGN_RTC_INST_LOWER_BOUND);
-		val = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image))
 			return -EIO;
 	}
@@ -404,14 +414,14 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
 
 	IWL_DEBUG_FW(priv, "ucode inst image size is %u\n", len);
 
-	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
+	iwl_write_direct32(bus(priv), HBUS_TARG_MEM_RADDR,
 			   IWLAGN_RTC_INST_LOWER_BOUND);
 
 	for (offs = 0;
 	     offs < len && errors < 20;
 	     offs += sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
-		val = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			IWL_ERR(priv, "uCode INST section at "
 				"offset 0x%x, is 0x%x, s/b 0x%x\n",
@@ -427,7 +437,7 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
  */
 static int iwl_verify_ucode(struct iwl_priv *priv, struct fw_img *img)
 {
-	if (!iwlcore_verify_inst_sparse(priv, &img->code)) {
+	if (!iwl_verify_inst_sparse(priv, &img->code)) {
 		IWL_DEBUG_FW(priv, "uCode is good in inst SRAM\n");
 		return 0;
 	}
@@ -478,7 +488,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	int ret;
 	enum iwlagn_ucode_type old_type;
 
-	ret = trans_start_device(&priv->trans);
+	ret = iwl_trans_start_device(trans(priv));
 	if (ret)
 		return ret;
 
@@ -495,7 +505,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 		return ret;
 	}
 
-	trans_kick_nic(&priv->trans);
+	iwl_trans_kick_nic(trans(priv));
 
 	/*
 	 * Some things may run in the background now, but we
@@ -545,7 +555,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	struct iwl_notification_wait calib_wait;
 	int ret;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
 	if (!priv->ucode_init.code.len)
@@ -580,6 +590,6 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	iwlagn_remove_notification(priv, &calib_wait);
  out:
 	/* Whatever happened, stop the device */
-	trans_stop_device(&priv->trans);
+	iwl_trans_stop_device(trans(priv));
 	return ret;
 }

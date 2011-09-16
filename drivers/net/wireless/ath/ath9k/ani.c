@@ -643,7 +643,7 @@ static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
 	listenTime = ath_hw_get_listen_time(common);
 
 	if (listenTime <= 0) {
-		ah->stats.ast_ani_lneg++;
+		ah->stats.ast_ani_lneg_or_lzero++;
 		ath9k_ani_restart(ah);
 		return false;
 	}
