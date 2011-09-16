@@ -285,6 +285,7 @@ static struct regulator_consumer_supply goni_ldo5_consumers[] = {
 
 static struct regulator_consumer_supply goni_ldo8_consumers[] = {
 	REGULATOR_SUPPLY("vusb_d", "s3c-hsotg"),
+	REGULATOR_SUPPLY("vdd33a_dac", "s5p-sdo"),
 };
 
 static struct regulator_consumer_supply goni_ldo11_consumers[] = {
@@ -475,6 +476,10 @@ static struct regulator_consumer_supply buck1_consumer =
 static struct regulator_consumer_supply buck2_consumer =
 	REGULATOR_SUPPLY("vddint", NULL);
 
+static struct regulator_consumer_supply buck3_consumer =
+	REGULATOR_SUPPLY("vdet", "s5p-sdo");
+
+
 static struct regulator_init_data goni_buck1_data = {
 	.constraints	= {
 		.name		= "VARM_1.2V",
@@ -511,6 +516,8 @@ static struct regulator_init_data goni_buck3_data = {
 			.enabled = 1,
 		},
 	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &buck3_consumer,
 };
 
 static struct regulator_init_data goni_buck4_data = {
@@ -812,6 +819,8 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
+	&s5p_device_mixer,
+	&s5p_device_sdo,
 	&s3c_device_i2c0,
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
