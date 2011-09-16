@@ -24,6 +24,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/ctype.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 
@@ -154,6 +155,37 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
+static void
+target_parse_naa_6h_vendor_specific(struct se_device *dev, unsigned char *buf_off)
+{
+	unsigned char *p = &dev->se_sub_dev->t10_wwn.unit_serial[0];
+	unsigned char *buf = buf_off;
+	int cnt = 0, next = 1;
+	/*
+	 * Generate up to 36 bits of VENDOR SPECIFIC IDENTIFIER starting on
+	 * byte 3 bit 3-0 for NAA IEEE Registered Extended DESIGNATOR field
+	 * format, followed by 64 bits of VENDOR SPECIFIC IDENTIFIER EXTENSION
+	 * to complete the payload.  These are based from VPD=0x80 PRODUCT SERIAL
+	 * NUMBER set via vpd_unit_serial in target_core_configfs.c to ensure
+	 * per device uniqeness.
+	 */
+	while (*p != '\0') {
+		if (cnt >= 13)
+			break;
+		if (!isxdigit(*p)) {
+			p++;
+			continue;
+		}
+		if (next != 0) {
+			buf[cnt++] |= hex_to_bin(*p++);
+			next = 0;
+		} else {
+			buf[cnt] = hex_to_bin(*p++) << 4;
+			next = 1;
+		}
+	}
+}
+
 /*
  * Device identification VPD, for a complete list of
  * DESIGNATOR TYPEs see spc4r17 Table 459.
@@ -219,8 +251,7 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	 * VENDOR_SPECIFIC_IDENTIFIER and
 	 * VENDOR_SPECIFIC_IDENTIFIER_EXTENTION
 	 */
-	buf[off++] |= hex_to_bin(dev->se_sub_dev->t10_wwn.unit_serial[0]);
-	hex2bin(&buf[off], &dev->se_sub_dev->t10_wwn.unit_serial[1], 12);
+	target_parse_naa_6h_vendor_specific(dev, &buf[off]);
 
 	len = 20;
 	off = (len + 4);
