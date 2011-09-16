@@ -40,15 +40,12 @@ nouveau_pwmfan_get(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	struct dcb_gpio_entry *gpio;
+	struct dcb_gpio_entry *gpio = NULL;
 	u32 divs, duty;
 	int ret;
 
-	if (!pm->pwm_get) {
-		if (pm->fanspeed_get)
-			return pm->fanspeed_get(dev);
+	if (!pm->pwm_get)
 		return -ENODEV;
-	}
 
 	gpio = nouveau_bios_gpio_entry(dev, DCB_GPIO_PWM_FAN);
 	if (gpio) {
@@ -75,11 +72,8 @@ nouveau_pwmfan_set(struct drm_device *dev, int percent)
 	struct dcb_gpio_entry *gpio;
 	u32 divs, duty;
 
-	if (!pm->pwm_set) {
-		if (pm->fanspeed_set)
-			return pm->fanspeed_set(dev, percent);
+	if (!pm->pwm_set)
 		return -ENODEV;
-	}
 
 	gpio = nouveau_bios_gpio_entry(dev, DCB_GPIO_PWM_FAN);
 	if (gpio) {
