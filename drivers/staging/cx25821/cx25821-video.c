@@ -98,9 +98,8 @@ struct cx25821_fmt *cx25821_format_by_fourcc(unsigned int fourcc)
 {
 	unsigned int i;
 
-	if (fourcc == V4L2_PIX_FMT_Y41P || fourcc == V4L2_PIX_FMT_YUV411P) {
+	if (fourcc == V4L2_PIX_FMT_Y41P || fourcc == V4L2_PIX_FMT_YUV411P)
 		return formats + 1;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++)
 		if (formats[i].fourcc == fourcc)
@@ -147,9 +146,8 @@ void cx25821_video_wakeup(struct cx25821_dev *dev, struct cx25821_dmaqueue *q,
 		/* count comes from the hw and it is 16bit wide --
 		 * this trick handles wrap-arounds correctly for
 		 * up to 32767 buffers in flight... */
-		if ((s16) (count - buf->count) < 0) {
+		if ((s16) (count - buf->count) < 0)
 			break;
-		}
 
 		do_gettimeofday(&buf->vb.ts);
 		buf->vb.state = VIDEOBUF_DONE;
