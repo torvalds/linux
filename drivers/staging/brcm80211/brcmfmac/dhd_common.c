@@ -794,6 +794,7 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 	char buf[128], *ptr;
 	u32 dongle_align = BRCMF_SDALIGN;
 	u32 glom = 0;
+	u32 roaming = 1;
 	uint bcn_timeout = 3;
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;
@@ -838,7 +839,7 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take
 		 of romaing */
-	brcmu_mkiovar("roam_off", (char *)&brcmf_roam, 4,
+	brcmu_mkiovar("roam_off", (char *)&roaming, 4,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
