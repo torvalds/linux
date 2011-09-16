@@ -650,11 +650,6 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 	    (ixgbe_validate_link_ready(hw) != 0))
 		*link_up = false;
 
-	/* if link is down, zero out the current_mode */
-	if (*link_up == false) {
-		hw->fc.current_mode = ixgbe_fc_none;
-		hw->fc.fc_was_autonegged = false;
-	}
 out:
 	return 0;
 }

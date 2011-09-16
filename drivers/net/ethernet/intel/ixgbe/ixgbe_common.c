@@ -3095,12 +3095,6 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	else
 		*speed = IXGBE_LINK_SPEED_UNKNOWN;
 
-	/* if link is down, zero out the current_mode */
-	if (*link_up == false) {
-		hw->fc.current_mode = ixgbe_fc_none;
-		hw->fc.fc_was_autonegged = false;
-	}
-
 	return 0;
 }
 
