@@ -599,8 +599,8 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	if (init_buffer) {
 
 		channel_opened = dev->channel_opened;
-		channel_opened = (channel_opened < 0
-				  || channel_opened > 7) ? 7 : channel_opened;
+		if (channel_opened < 0 || channel_opened > 7)
+			channel_opened = 7;
 
 		if (dev->channels[channel_opened].pixel_formats ==
 				PIXEL_FRMT_411)
@@ -840,8 +840,10 @@ static int video_open(struct file *file)
 		fh->height = 480;
 
 	dev->channel_opened = fh->channel_id;
-	pix_format = (dev->channels[ch_id].pixel_formats == PIXEL_FRMT_411) ?
-			V4L2_PIX_FMT_Y41P : V4L2_PIX_FMT_YUYV;
+	if (dev->channels[ch_id].pixel_formats == PIXEL_FRMT_411)
+		pix_format = V4L2_PIX_FMT_Y41P;
+	else
+		pix_format = V4L2_PIX_FMT_YUYV;
 	fh->fmt = cx25821_format_by_fourcc(pix_format);
 
 	v4l2_prio_open(&dev->channels[ch_id].prio, &fh->prio);
@@ -1124,8 +1126,10 @@ int cx25821_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	maxh = 576;
 
 	if (V4L2_FIELD_ANY == field) {
-		field = (f->fmt.pix.height > maxh / 2)
-		    ? V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
+		if (f->fmt.pix.height > maxh / 2)
+			field = V4L2_FIELD_INTERLACED;
+		else
+			field = V4L2_FIELD_TOP;
 	}
 
 	switch (field) {
@@ -1847,8 +1851,10 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 
 	switch (command) {
 	case SET_VIDEO_STD:
-		dev->tvnorm = !strcmp(data_from_user->vid_stdname, "PAL") ?
-					V4L2_STD_PAL_BG : V4L2_STD_NTSC_M;
+		if (!strcmp(data_from_user->vid_stdname, "PAL"))
+			dev->tvnorm = V4L2_STD_PAL_BG;
+		else
+			dev->tvnorm = V4L2_STD_NTSC_M;
 		medusa_set_videostandard(dev);
 		break;
 
@@ -1874,11 +1880,13 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 
 		if (cif_enable) {
 			if (dev->tvnorm & V4L2_STD_PAL_BG
-			    || dev->tvnorm & V4L2_STD_PAL_DK)
+			    || dev->tvnorm & V4L2_STD_PAL_DK) {
 				width = 352;
-			else
-				width = (cif_width == 320 || cif_width == 352) ?
-							cif_width : 320;
+			} else {
+				width = cif_width;
+				if (cif_width != 320 && cif_width != 352)
+					width = 320;
+			}
 		}
 
 		if (!(selected_channel <= 7 && selected_channel >= 0)) {
