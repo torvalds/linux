@@ -434,14 +434,13 @@ static void x25_asy_disconnected(struct net_device *dev, int reason)
 	netif_rx(skb);
 }
 
-static struct lapb_register_struct x25_asy_callbacks = {
+static const struct lapb_register_struct x25_asy_callbacks = {
 	.connect_confirmation = x25_asy_connected,
 	.connect_indication = x25_asy_connected,
 	.disconnect_confirmation = x25_asy_disconnected,
 	.disconnect_indication = x25_asy_disconnected,
 	.data_indication = x25_asy_data_indication,
 	.data_transmit = x25_asy_data_transmit,
-
 };
 
 
