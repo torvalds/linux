@@ -42,6 +42,39 @@ struct lcn_tx_iir_filter {
 	u16 values[16];
 };
 
+/* In theory it's PHY common function, move if needed */
+/* brcms_b_switch_macfreq */
+static void b43_phy_switch_macfreq(struct b43_wldev *dev, u8 spurmode)
+{
+	if (dev->dev->chip_id == 43224 || dev->dev->chip_id == 43225) {
+		switch (spurmode) {
+		case 2:		/* 126 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x2082);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		case 1:		/* 123 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x5341);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		default:	/* 120 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x8889);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+			break;
+		}
+	} else if (dev->phy.type == B43_PHYTYPE_LCN) {
+		switch (spurmode) {
+		case 1:		/* 82 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0x7CE0);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0xC);
+			break;
+		default:	/* 80 Mhz */
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, 0xCCCD);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0xC);
+			break;
+		}
+	}
+}
+
 /**************************************************
  * Radio 2064.
  **************************************************/
@@ -367,6 +400,27 @@ static bool b43_phy_lcn_load_tx_iir_ofdm_filter(struct b43_wldev *dev,
 	return false;
 }
 
+/* wlc_lcnphy_txrx_spur_avoidance_mode */
+static void b43_phy_lcn_txrx_spur_avoidance_mode(struct b43_wldev *dev,
+						 bool enable)
+{
+	if (enable) {
+		b43_phy_write(dev, 0x942, 0x7);
+		b43_phy_write(dev, 0x93b, ((1 << 13) + 23));
+		b43_phy_write(dev, 0x93c, ((1 << 13) + 1989));
+
+		b43_phy_write(dev, 0x44a, 0x084);
+		b43_phy_write(dev, 0x44a, 0x080);
+		b43_phy_write(dev, 0x6d3, 0x2222);
+		b43_phy_write(dev, 0x6d3, 0x2220);
+	} else {
+		b43_phy_write(dev, 0x942, 0x0);
+		b43_phy_write(dev, 0x93b, ((0 << 13) + 23));
+		b43_phy_write(dev, 0x93c, ((0 << 13) + 1989));
+	}
+	b43_phy_switch_macfreq(dev, enable);
+}
+
 /**************************************************
  * Channel switching ops.
  **************************************************/
@@ -388,7 +442,7 @@ static void b43_phy_lcn_set_channel_tweaks(struct b43_wldev *dev, int channel)
 
 		b43_phy_write(dev, 0x942, 0);
 
-		/* b43_phy_lcn_txrx_spur_avoidance_mode(dev, false); */
+		b43_phy_lcn_txrx_spur_avoidance_mode(dev, false);
 		b43_phy_maskset(dev, 0x424, (u16) ~0xff00, 0x1b00);
 		b43_phy_write(dev, 0x425, 0x5907);
 	} else {
@@ -400,7 +454,7 @@ static void b43_phy_lcn_set_channel_tweaks(struct b43_wldev *dev, int channel)
 
 		b43_phy_write(dev, 0x942, 0);
 
-		/* b43_phy_lcn_txrx_spur_avoidance_mode(dev, true); */
+		b43_phy_lcn_txrx_spur_avoidance_mode(dev, true);
 		b43_phy_maskset(dev, 0x424, (u16) ~0xff00, 0x1f00);
 		b43_phy_write(dev, 0x425, 0x590a);
 	}
