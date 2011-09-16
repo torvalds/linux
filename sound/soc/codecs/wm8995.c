@@ -1573,9 +1573,7 @@ static int wm8995_resume(struct snd_soc_codec *codec)
 static int wm8995_remove(struct snd_soc_codec *codec)
 {
 	struct wm8995_priv *wm8995;
-	struct i2c_client *i2c;
 
-	i2c = container_of(codec->dev, struct i2c_client, dev);
 	wm8995 = snd_soc_codec_get_drvdata(codec);
 	wm8995_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
