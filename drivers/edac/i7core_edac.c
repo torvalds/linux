@@ -746,6 +746,10 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 
 			csr->edac_mode = mode;
 			csr->mtype = mtype;
+			snprintf(csr->channels[0].label,
+					sizeof(csr->channels[0].label),
+					"CPU#%uChannel#%u_DIMM#%u",
+					pvt->i7core_dev->socket, i, j);
 
 			csrow++;
 		}
