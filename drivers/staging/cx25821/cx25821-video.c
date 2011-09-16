@@ -967,21 +967,21 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-       struct cx25821_fh *fh = priv;
-       struct cx25821_dev *dev = fh->dev;
-       int err, res;
+	struct cx25821_fh *fh = priv;
+	struct cx25821_dev *dev = fh->dev;
+	int err, res;
 
-       if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-	       return -EINVAL;
-       if (i != fh->type)
-	       return -EINVAL;
+	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	if (i != fh->type)
+		return -EINVAL;
 
-       res = cx25821_get_resource(fh, RESOURCE_VIDEO0);
-       err = videobuf_streamoff(get_queue(fh));
-       if (err < 0)
-	       return err;
-       cx25821_res_free(dev, fh, res);
-       return 0;
+	res = cx25821_get_resource(fh, RESOURCE_VIDEO0);
+	err = videobuf_streamoff(get_queue(fh));
+	if (err < 0)
+		return err;
+	cx25821_res_free(dev, fh, res);
+	return 0;
 }
 
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
