@@ -162,8 +162,7 @@ void cx25821_video_wakeup(struct cx25821_dev *dev, struct cx25821_dmaqueue *q,
 	else
 		mod_timer(&q->timeout, jiffies + BUFFER_TIMEOUT);
 	if (bc != 1)
-		pr_err("%s: %d buffers handled (should be 1)\n",
-		       __func__, bc);
+		pr_err("%s: %d buffers handled (should be 1)\n", __func__, bc);
 }
 
 #ifdef TUNER_FLAG
