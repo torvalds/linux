@@ -273,15 +273,15 @@ void __init at91sam9260_set_console_clock(int id)
 static struct at91_gpio_bank at91sam9260_gpio[] = {
 	{
 		.id		= AT91SAM9260_ID_PIOA,
-		.offset		= AT91_PIOA,
+		.regbase	= AT91SAM9260_BASE_PIOA,
 		.clock		= &pioA_clk,
 	}, {
 		.id		= AT91SAM9260_ID_PIOB,
-		.offset		= AT91_PIOB,
+		.regbase	= AT91SAM9260_BASE_PIOB,
 		.clock		= &pioB_clk,
 	}, {
 		.id		= AT91SAM9260_ID_PIOC,
-		.offset		= AT91_PIOC,
+		.regbase	= AT91SAM9260_BASE_PIOC,
 		.clock		= &pioC_clk,
 	}
 };

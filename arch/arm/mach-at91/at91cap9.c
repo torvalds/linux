@@ -296,19 +296,19 @@ void __init at91cap9_set_console_clock(int id)
 static struct at91_gpio_bank at91cap9_gpio[] = {
 	{
 		.id		= AT91CAP9_ID_PIOABCD,
-		.offset		= AT91_PIOA,
+		.regbase	= AT91CAP9_BASE_PIOA,
 		.clock		= &pioABCD_clk,
 	}, {
 		.id		= AT91CAP9_ID_PIOABCD,
-		.offset		= AT91_PIOB,
+		.regbase	= AT91CAP9_BASE_PIOB,
 		.clock		= &pioABCD_clk,
 	}, {
 		.id		= AT91CAP9_ID_PIOABCD,
-		.offset		= AT91_PIOC,
+		.regbase	= AT91CAP9_BASE_PIOC,
 		.clock		= &pioABCD_clk,
 	}, {
 		.id		= AT91CAP9_ID_PIOABCD,
-		.offset		= AT91_PIOD,
+		.regbase	= AT91CAP9_BASE_PIOD,
 		.clock		= &pioABCD_clk,
 	}
 };
