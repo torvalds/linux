@@ -1044,37 +1044,37 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-       int ret_val = 0;
-       struct cx25821_fh *fh = priv;
-       struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
+	int ret_val = 0;
+	struct cx25821_fh *fh = priv;
+	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 
-       ret_val = videobuf_dqbuf(get_queue(fh), p, file->f_flags & O_NONBLOCK);
+	ret_val = videobuf_dqbuf(get_queue(fh), p, file->f_flags & O_NONBLOCK);
 
-    p->sequence = dev->channels[fh->channel_id].vidq.count;
+	p->sequence = dev->channels[fh->channel_id].vidq.count;
 
-       return ret_val;
+	return ret_val;
 }
 
 static int vidioc_log_status(struct file *file, void *priv)
 {
-       struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
-       struct cx25821_fh *fh = priv;
-       char name[32 + 2];
+	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
+	struct cx25821_fh *fh = priv;
+	char name[32 + 2];
 
-       struct sram_channel *sram_ch = dev->channels[fh->channel_id]
-						       .sram_channels;
-       u32 tmp = 0;
+	struct sram_channel *sram_ch = dev->channels[fh->channel_id]
+								.sram_channels;
+	u32 tmp = 0;
 
-       snprintf(name, sizeof(name), "%s/2", dev->name);
+	snprintf(name, sizeof(name), "%s/2", dev->name);
 	pr_info("%s/2: ============  START LOG STATUS  ============\n",
 		dev->name);
-       cx25821_call_all(dev, core, log_status);
-       tmp = cx_read(sram_ch->dma_ctl);
+	cx25821_call_all(dev, core, log_status);
+	tmp = cx_read(sram_ch->dma_ctl);
 	pr_info("Video input 0 is %s\n",
 		(tmp & 0x11) ? "streaming" : "stopped");
 	pr_info("%s/2: =============  END LOG STATUS  =============\n",
 		dev->name);
-       return 0;
+	return 0;
 }
 
 static int vidioc_s_ctrl(struct file *file, void *priv,
