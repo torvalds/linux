@@ -507,7 +507,7 @@ static int exact_lock(dev_t devt, void *data)
 	return 0;
 }
 
-void register_disk(struct gendisk *disk)
+static void register_disk(struct gendisk *disk)
 {
 	struct device *ddev = disk_to_dev(disk);
 	struct block_device *bdev;
