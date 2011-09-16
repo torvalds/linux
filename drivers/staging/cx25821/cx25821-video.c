@@ -469,30 +469,29 @@ void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
 int cx25821_video_register(struct cx25821_dev *dev)
 {
 	int err;
-       int i;
+	int i;
 
-       struct video_device cx25821_video_device = {
-	       .name = "cx25821-video",
-	       .fops = &video_fops,
-	       .minor = -1,
-	       .ioctl_ops = &video_ioctl_ops,
-	       .tvnorms = CX25821_NORMS,
-	       .current_norm = V4L2_STD_NTSC_M,
-       };
+	struct video_device cx25821_video_device = {
+		.name = "cx25821-video",
+		.fops = &video_fops,
+		.minor = -1,
+		.ioctl_ops = &video_ioctl_ops,
+		.tvnorms = CX25821_NORMS,
+		.current_norm = V4L2_STD_NTSC_M,
+	};
 
 	spin_lock_init(&dev->slock);
 
-    for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; ++i) {
-	       cx25821_init_controls(dev, i);
+	for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; ++i) {
+		cx25821_init_controls(dev, i);
 
-	       cx25821_risc_stopper(dev->pci,
-			       &dev->channels[i].vidq.stopper,
-			       dev->channels[i].sram_channels->dma_ctl,
-			       0x11, 0);
+		cx25821_risc_stopper(dev->pci, &dev->channels[i].vidq.stopper,
+				dev->channels[i].sram_channels->dma_ctl,
+				0x11, 0);
 
-	       dev->channels[i].sram_channels = &cx25821_sram_channels[i];
-	       dev->channels[i].video_dev = NULL;
-	       dev->channels[i].resources = 0;
+		dev->channels[i].sram_channels = &cx25821_sram_channels[i];
+		dev->channels[i].video_dev = NULL;
+		dev->channels[i].resources = 0;
 
 	       cx_write(dev->channels[i].sram_channels->int_stat,
 			       0xffffffff);
