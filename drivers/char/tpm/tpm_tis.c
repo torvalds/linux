@@ -201,7 +201,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 	u8 status;
 
 	/* check current status */
-	status = tpm_tis_status(chip);
+	status = chip->vendor.status(chip);
 	if ((status & mask) == mask)
 		return 0;
 
@@ -213,9 +213,9 @@ again:
 		if ((long)timeout <= 0)
 			return -ETIME;
 		rc = wait_event_interruptible_timeout(*queue,
-						      ((tpm_tis_status
-							(chip) & mask) ==
-						       mask), timeout);
+						      ((chip->vendor.status(chip)
+						      & mask) == mask),
+						      timeout);
 		if (rc > 0)
 			return 0;
 		if (rc == -ERESTARTSYS && freezing(current)) {
@@ -225,7 +225,7 @@ again:
 	} else {
 		do {
 			msleep(TPM_TIMEOUT);
-			status = tpm_tis_status(chip);
+			status = chip->vendor.status(chip);
 			if ((status & mask) == mask)
 				return 0;
 		} while (time_before(jiffies, stop));
