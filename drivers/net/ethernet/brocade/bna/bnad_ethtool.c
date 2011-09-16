@@ -471,16 +471,17 @@ bnad_set_ringparam(struct net_device *netdev,
 			current_err = bnad_setup_rx(bnad, i);
 			if (current_err && !err)
 				err = current_err;
-			if (!err)
-				bnad_restore_vlans(bnad, i);
 		}
 
 		if (!err && bnad->rx_info[0].rx) {
 			/* restore rx configuration */
+			bnad_restore_vlans(bnad, 0);
 			bnad_enable_default_bcast(bnad);
 			spin_lock_irqsave(&bnad->bna_lock, flags);
 			bnad_mac_addr_set_locked(bnad, netdev->dev_addr);
 			spin_unlock_irqrestore(&bnad->bna_lock, flags);
+			bnad->cfg_flags &= ~(BNAD_CF_ALLMULTI |
+					     BNAD_CF_PROMISC);
 			bnad_set_rx_mode(netdev);
 		}
 	}
