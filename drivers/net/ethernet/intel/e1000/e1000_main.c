@@ -1814,8 +1814,8 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 
 	rctl &= ~(3 << E1000_RCTL_MO_SHIFT);
 
-	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM |
-		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
+	rctl |= E1000_RCTL_BAM | E1000_RCTL_LBM_NO |
+		E1000_RCTL_RDMTS_HALF |
 		(hw->mc_filter_type << E1000_RCTL_MO_SHIFT);
 
 	if (hw->tbi_compatibility_on == 1)
@@ -1917,7 +1917,7 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	}
 
 	/* Enable Receives */
-	ew32(RCTL, rctl);
+	ew32(RCTL, rctl | E1000_RCTL_EN);
 }
 
 /**
