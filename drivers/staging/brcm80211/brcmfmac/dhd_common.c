@@ -845,9 +845,7 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 				  sizeof(iovbuf));
 
 	/* Force STA UP */
-	if (brcmf_radio_up)
-		brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_UP, (char *)&up,
-					  sizeof(up));
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_UP, (char *)&up, sizeof(up));
 
 	/* Setup event_msgs */
 	brcmu_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,

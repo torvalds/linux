@@ -673,9 +673,6 @@ extern uint brcmf_arp_mode;
 /* ARP offload enable */
 extern uint brcmf_arp_enable;
 
-/* Roaming mode control */
-extern uint brcmf_radio_up;
-
 /* Override to force tx queueing all the time */
 extern uint brcmf_force_tx_queueing;
 
