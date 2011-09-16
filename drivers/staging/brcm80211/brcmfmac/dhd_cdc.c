@@ -271,7 +271,7 @@ done:
 
 int
 brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx, struct brcmf_ioctl *ioc,
-		  void *buf, int len)
+		  int len)
 {
 	struct brcmf_proto *prot = drvr->prot;
 	int ret = -1;
@@ -293,7 +293,7 @@ brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx, struct brcmf_ioctl *ioc,
 			  (unsigned long)prot->lastcmd);
 		if ((ioc->cmd == BRCMF_C_SET_VAR) ||
 		    (ioc->cmd == BRCMF_C_GET_VAR))
-			brcmf_dbg(TRACE, "iovar cmd=%s\n", (char *)buf);
+			brcmf_dbg(TRACE, "iovar cmd=%s\n", (char *)ioc->buf);
 
 		goto done;
 	}
@@ -302,10 +302,10 @@ brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx, struct brcmf_ioctl *ioc,
 	prot->lastcmd = ioc->cmd;
 	if (ioc->set)
 		ret = brcmf_proto_cdc_set_ioctl(drvr, ifidx, ioc->cmd,
-						buf, len);
+						ioc->buf, len);
 	else {
 		ret = brcmf_proto_cdc_query_ioctl(drvr, ifidx, ioc->cmd,
-						  buf, len);
+						  ioc->buf, len);
 		if (ret > 0)
 			ioc->used = ret - sizeof(struct brcmf_proto_cdc_ioctl);
 	}
@@ -321,12 +321,12 @@ brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx, struct brcmf_ioctl *ioc,
 
 	/* Intercept the wme_dp ioctl here */
 	if (!ret && ioc->cmd == BRCMF_C_SET_VAR &&
-	    !strcmp(buf, "wme_dp")) {
+	    !strcmp(ioc->buf, "wme_dp")) {
 		int slen, val = 0;
 
 		slen = strlen("wme_dp") + 1;
 		if (len >= (int)(slen + sizeof(int)))
-			memcpy(&val, (char *)buf + slen, sizeof(int));
+			memcpy(&val, (char *)ioc->buf + slen, sizeof(int));
 		drvr->wme_dp = (u8) le32_to_cpu(val);
 	}
 

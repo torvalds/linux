@@ -200,7 +200,7 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 	ioc.len = buflen;
 	ioc.set = true;
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set mcast_list failed, cnt %d\n",
 			  brcmf_ifname(&drvr_priv->pub, ifidx), cnt);
@@ -238,7 +238,7 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 	ioc.len = buflen;
 	ioc.set = true;
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set allmulti %d failed\n",
 			  brcmf_ifname(&drvr_priv->pub, ifidx),
@@ -259,7 +259,7 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 	ioc.len = sizeof(allmulti);
 	ioc.set = true;
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set promisc %d failed\n",
 			  brcmf_ifname(&drvr_priv->pub, ifidx),
@@ -286,7 +286,7 @@ _brcmf_set_mac_address(struct brcmf_info *drvr_priv, int ifidx, u8 *addr)
 	ioc.len = 32;
 	ioc.set = true;
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
 	if (ret < 0)
 		brcmf_dbg(ERROR, "%s: set cur_etheraddr failed\n",
 			  brcmf_ifname(&drvr_priv->pub, ifidx));
@@ -718,7 +718,7 @@ static int brcmf_toe_get(struct brcmf_info *drvr_priv, int ifidx, u32 *toe_ol)
 	ioc.set = false;
 
 	strcpy(buf, "toe_ol");
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
 	if (ret < 0) {
 		/* Check for older dongle image that doesn't support toe_ol */
 		if (ret == -EIO) {
@@ -756,7 +756,7 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 	strcpy(buf, "toe_ol");
 	memcpy(&buf[sizeof("toe_ol")], &toe_ol, sizeof(u32));
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: could not set toe_ol: ret=%d\n",
 			  brcmf_ifname(&drvr_priv->pub, ifidx), ret);
@@ -770,7 +770,7 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 	strcpy(buf, "toe");
 	memcpy(&buf[sizeof("toe")], &toe, sizeof(u32));
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: could not set toe: ret=%d\n",
 			  brcmf_ifname(&drvr_priv->pub, ifidx), ret);
@@ -963,8 +963,7 @@ int brcmf_netdev_ioctl_priv(struct net_device *net, struct brcmf_ioctl *ioc)
 	if (is_set_key_cmd)
 		brcmf_netdev_wait_pend8021x(net);
 
-	bcmerror = brcmf_proto_ioctl(&drvr_priv->pub, ifidx,
-				     ioc, ioc->buf, buflen);
+	bcmerror = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, ioc, buflen);
 
 done:
 	if (bcmerror > 0)

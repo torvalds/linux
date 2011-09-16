@@ -50,7 +50,7 @@ extern int brcmf_proto_hdrpull(struct brcmf_pub *, int *ifidx,
 
 /* Use protocol to issue ioctl to dongle */
 extern int brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx,
-			     struct brcmf_ioctl *ioc, void *buf, int len);
+			     struct brcmf_ioctl *ioc, int len);
 
 /* Update local copy of dongle statistics */
 extern void brcmf_proto_dstats(struct brcmf_pub *drvr);
