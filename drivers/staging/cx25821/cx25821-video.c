@@ -1930,20 +1930,20 @@ static long cx25821_video_ioctl(struct file *file,
 
 	struct cx25821_fh  *fh  = file->private_data;
 
-       /* check to see if it's the video upstream */
-       if (fh->channel_id == SRAM_CH09) {
-	       ret = video_ioctl_upstream9(file, cmd, arg);
-	       return ret;
-       } else if (fh->channel_id == SRAM_CH10) {
-	       ret = video_ioctl_upstream10(file, cmd, arg);
-	       return ret;
-       } else if (fh->channel_id == SRAM_CH11) {
-	       ret = video_ioctl_upstream11(file, cmd, arg);
-	       ret = video_ioctl_set(file, cmd, arg);
-	       return ret;
-       }
+	/* check to see if it's the video upstream */
+	if (fh->channel_id == SRAM_CH09) {
+		ret = video_ioctl_upstream9(file, cmd, arg);
+		return ret;
+	} else if (fh->channel_id == SRAM_CH10) {
+		ret = video_ioctl_upstream10(file, cmd, arg);
+		return ret;
+	} else if (fh->channel_id == SRAM_CH11) {
+		ret = video_ioctl_upstream11(file, cmd, arg);
+		ret = video_ioctl_set(file, cmd, arg);
+		return ret;
+	}
 
-    return video_ioctl2(file, cmd, arg);
+	return video_ioctl2(file, cmd, arg);
 }
 
 /* exported stuff */
