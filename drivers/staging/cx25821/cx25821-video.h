@@ -63,7 +63,7 @@ do {									\
 #define REG_READ		    900
 #define REG_WRITE		    901
 #define MEDUSA_READ		    910
-#define MEDUSA_WRITE		911
+#define MEDUSA_WRITE		    911
 
 extern struct sram_channel *channel0;
 extern struct sram_channel *channel1;
