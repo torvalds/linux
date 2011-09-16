@@ -23,7 +23,7 @@ int dibusb_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	if (adap->priv != NULL) {
 		struct dibusb_state *st = adap->priv;
 		if (st->ops.fifo_ctrl != NULL)
-			if (st->ops.fifo_ctrl(adap->fe_adap[0].fe,onoff)) {
+			if (st->ops.fifo_ctrl(adap->fe_adap[0].fe, onoff)) {
 				err("error while controlling the fifo of the demod.");
 				return -ENODEV;
 			}
@@ -37,7 +37,8 @@ int dibusb_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onof
 	if (adap->priv != NULL) {
 		struct dibusb_state *st = adap->priv;
 		if (st->ops.pid_ctrl != NULL)
-			st->ops.pid_ctrl(adap->fe_adap[0].fe,index,pid,onoff);
+			st->ops.pid_ctrl(adap->fe_adap[0].fe,
+					 index, pid, onoff);
 	}
 	return 0;
 }
@@ -48,7 +49,7 @@ int dibusb_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	if (adap->priv != NULL) {
 		struct dibusb_state *st = adap->priv;
 		if (st->ops.pid_parse != NULL)
-			if (st->ops.pid_parse(adap->fe_adap[0].fe,onoff) < 0)
+			if (st->ops.pid_parse(adap->fe_adap[0].fe, onoff) < 0)
 				err("could not handle pid_parser");
 	}
 	return 0;
