@@ -1689,6 +1689,20 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* Added support for Roland UM-ONE which differs from UM-1 */
+	USB_DEVICE(0x0582, 0x012a),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "ROLAND", */
+		/* .product_name = "UM-ONE", */
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const struct snd_usb_midi_endpoint_info) {
+			.out_cables = 0x0001,
+			.in_cables  = 0x0003
+		}
+	}
+},
+{
 	USB_DEVICE(0x0582, 0x011e),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "BOSS", */
