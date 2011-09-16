@@ -1203,6 +1203,10 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 	case 0:
 		head->r.cond_index = 0;
 		head->r.cond_step++;
+		if (cond->transit) {
+			tomoyo_set_space(head);
+			tomoyo_set_string(head, cond->transit->name);
+		}
 		/* fall through */
 	case 1:
 		{

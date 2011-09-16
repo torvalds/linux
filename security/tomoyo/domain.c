@@ -102,6 +102,15 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 		new_entry->cond = tomoyo_get_condition(param);
 		if (!new_entry->cond)
 			return -EINVAL;
+		/*
+		 * Domain transition preference is allowed for only
+		 * "file execute" entries.
+		 */
+		if (new_entry->cond->transit &&
+		    !(new_entry->type == TOMOYO_TYPE_PATH_ACL &&
+		      container_of(new_entry, struct tomoyo_path_acl, head)
+		      ->perm == 1 << TOMOYO_TYPE_EXECUTE))
+			goto out;
 	}
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
@@ -707,8 +716,7 @@ retry:
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_path_permission(&ee->r, TOMOYO_TYPE_EXECUTE,
-					candidate);
+	retval = tomoyo_execute_permission(&ee->r, candidate);
 	if (retval == TOMOYO_RETRY_REQUEST)
 		goto retry;
 	if (retval < 0)
@@ -722,10 +730,45 @@ retry:
 	if (ee->r.param.path.matched_path)
 		candidate = ee->r.param.path.matched_path;
 
-	/* Calculate domain to transit to. */
+	/*
+	 * Check for domain transition preference if "file execute" matched.
+	 * If preference is given, make do_execve() fail if domain transition
+	 * has failed, for domain transition preference should be used with
+	 * destination domain defined.
+	 */
+	if (ee->transition) {
+		const char *domainname = ee->transition->name;
+		reject_on_transition_failure = true;
+		if (!strcmp(domainname, "keep"))
+			goto force_keep_domain;
+		if (!strcmp(domainname, "child"))
+			goto force_child_domain;
+		if (!strcmp(domainname, "reset"))
+			goto force_reset_domain;
+		if (!strcmp(domainname, "initialize"))
+			goto force_initialize_domain;
+		if (!strcmp(domainname, "parent")) {
+			char *cp;
+			strncpy(ee->tmp, old_domain->domainname->name,
+				TOMOYO_EXEC_TMPSIZE - 1);
+			cp = strrchr(ee->tmp, ' ');
+			if (cp)
+				*cp = '\0';
+		} else if (*domainname == '<')
+			strncpy(ee->tmp, domainname, TOMOYO_EXEC_TMPSIZE - 1);
+		else
+			snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
+				 old_domain->domainname->name, domainname);
+		goto force_jump_domain;
+	}
+	/*
+	 * No domain transition preference specified.
+	 * Calculate domain to transit to.
+	 */
 	switch (tomoyo_transition_type(old_domain->ns, old_domain->domainname,
 				       candidate)) {
 	case TOMOYO_TRANSITION_CONTROL_RESET:
+force_reset_domain:
 		/* Transit to the root of specified namespace. */
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>",
 			 candidate->name);
@@ -736,11 +779,13 @@ retry:
 		reject_on_transition_failure = true;
 		break;
 	case TOMOYO_TRANSITION_CONTROL_INITIALIZE:
+force_initialize_domain:
 		/* Transit to the child of current namespace's root. */
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
 			 old_domain->ns->name, candidate->name);
 		break;
 	case TOMOYO_TRANSITION_CONTROL_KEEP:
+force_keep_domain:
 		/* Keep current domain. */
 		domain = old_domain;
 		break;
@@ -756,11 +801,13 @@ retry:
 			domain = old_domain;
 			break;
 		}
+force_child_domain:
 		/* Normal domain transition. */
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
 			 old_domain->domainname->name, candidate->name);
 		break;
 	}
+force_jump_domain:
 	if (!domain)
 		domain = tomoyo_assign_domain(ee->tmp, true);
 	if (domain)

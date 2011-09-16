@@ -615,6 +615,7 @@ struct tomoyo_execve {
 	struct tomoyo_request_info r;
 	struct tomoyo_obj_info obj;
 	struct linux_binprm *bprm;
+	const struct tomoyo_path_info *transition;
 	/* For dumping argv[] and envp[]. */
 	struct tomoyo_page_dump dump;
 	/* For temporary use. */
@@ -650,6 +651,7 @@ struct tomoyo_condition {
 	u16 argc; /* Number of "struct tomoyo_argv". */
 	u16 envc; /* Number of "struct tomoyo_envp". */
 	u8 grant_log; /* One of values in "enum tomoyo_grant_log". */
+	const struct tomoyo_path_info *transit; /* Maybe NULL. */
 	/*
 	 * struct tomoyo_condition_element condition[condc];
 	 * struct tomoyo_number_union values[numbers_count];
@@ -956,6 +958,8 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
 int tomoyo_close_control(struct tomoyo_io_buffer *head);
 int tomoyo_env_perm(struct tomoyo_request_info *r, const char *env);
+int tomoyo_execute_permission(struct tomoyo_request_info *r,
+			      const struct tomoyo_path_info *filename);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
 int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
 		    const u8 index);
