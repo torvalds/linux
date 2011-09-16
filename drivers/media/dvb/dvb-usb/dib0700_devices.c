@@ -280,8 +280,10 @@ static int stk7700P2_frontend_attach(struct dvb_usb_adapter *adap)
 		}
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,0x80+(adap->id << 1),
-				&stk7700d_dib7000p_mt2266_config[adap->id]);
+	adap->fe_adap[0].fe =
+		dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,
+			   0x80 + (adap->id << 1),
+			   &stk7700d_dib7000p_mt2266_config[adap->id]);
 
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
@@ -307,8 +309,10 @@ static int stk7700d_frontend_attach(struct dvb_usb_adapter *adap)
 		}
 	}
 
-	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,0x80+(adap->id << 1),
-				&stk7700d_dib7000p_mt2266_config[adap->id]);
+	adap->fe_adap[0].fe =
+		dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,
+			   0x80 + (adap->id << 1),
+			   &stk7700d_dib7000p_mt2266_config[adap->id]);
 
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
