@@ -493,20 +493,19 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		dev->channels[i].video_dev = NULL;
 		dev->channels[i].resources = 0;
 
-	       cx_write(dev->channels[i].sram_channels->int_stat,
-			       0xffffffff);
+		cx_write(dev->channels[i].sram_channels->int_stat, 0xffffffff);
 
-	       INIT_LIST_HEAD(&dev->channels[i].vidq.active);
-	       INIT_LIST_HEAD(&dev->channels[i].vidq.queued);
+		INIT_LIST_HEAD(&dev->channels[i].vidq.active);
+		INIT_LIST_HEAD(&dev->channels[i].vidq.queued);
 
-	       dev->channels[i].timeout_data.dev = dev;
-	       dev->channels[i].timeout_data.channel =
-				       &cx25821_sram_channels[i];
-	       dev->channels[i].vidq.timeout.function =
-				       cx25821_vid_timeout;
-	       dev->channels[i].vidq.timeout.data =
-		       (unsigned long)&dev->channels[i].timeout_data;
-	       init_timer(&dev->channels[i].vidq.timeout);
+		dev->channels[i].timeout_data.dev = dev;
+		dev->channels[i].timeout_data.channel =
+			&cx25821_sram_channels[i];
+		dev->channels[i].vidq.timeout.function =
+			cx25821_vid_timeout;
+		dev->channels[i].vidq.timeout.data =
+			(unsigned long)&dev->channels[i].timeout_data;
+		init_timer(&dev->channels[i].vidq.timeout);
 
 	       /* register v4l devices */
 	       dev->channels[i].video_dev = cx25821_vdev_init(dev,
