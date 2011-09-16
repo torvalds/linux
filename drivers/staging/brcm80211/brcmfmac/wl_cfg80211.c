@@ -1993,8 +1993,8 @@ static s32 brcmf_inform_bss(struct brcmf_cfg80211_priv *cfg_priv)
 		return -EOPNOTSUPP;
 	}
 	WL_SCAN("scanned AP count (%d)\n", bss_list->count);
-	bi = next_bss(bss_list, bi);
-	for_each_bss(bss_list, bi, i) {
+	for (i = 0; i < bss_list->count && i < WL_AP_MAX; i++) {
+		bi = next_bss(bss_list, bi);
 		err = brcmf_inform_single_bss(cfg_priv, bi);
 		if (unlikely(err))
 			break;

@@ -362,10 +362,6 @@ static inline struct brcmf_bss_info *next_bss(struct brcmf_scan_results *list,
 		list->bss_info;
 }
 
-#define for_each_bss(list, bss, __i)	\
-	for (__i = 0; __i < list->count && __i < WL_AP_MAX; __i++, \
-		bss = next_bss(list, bss))
-
 extern struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
 							struct device *busdev,
 							void *data);
