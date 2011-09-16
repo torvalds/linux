@@ -1358,14 +1358,14 @@ int cx25821_vidioc_s_frequency(struct file *file, void *priv,
 	int err;
 
 	if (fh) {
-	       dev = fh->dev;
-	       err = v4l2_prio_check(&dev->channels[fh->channel_id]
-					       .prio, fh->prio);
+		dev = fh->dev;
+		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
+				      fh->prio);
 		if (0 != err)
 			return err;
-       } else {
-	       pr_err("Invalid fh pointer!\n");
-	       return -EINVAL;
+	} else {
+		pr_err("Invalid fh pointer!\n");
+		return -EINVAL;
 	}
 
 	return cx25821_set_freq(dev, f);
@@ -1427,8 +1427,8 @@ int cx25821_vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	int err;
 
 	if (fh) {
-	       err = v4l2_prio_check(&dev->channels[fh->channel_id]
-					       .prio, fh->prio);
+		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
+				      fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -1527,7 +1527,7 @@ int cx25821_vidioc_g_ctrl(struct file *file, void *priv,
 			  struct v4l2_control *ctl)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
-       struct cx25821_fh *fh = priv;
+	struct cx25821_fh *fh = priv;
 
 	const struct v4l2_queryctrl *ctrl;
 
@@ -1537,16 +1537,16 @@ int cx25821_vidioc_g_ctrl(struct file *file, void *priv,
 		return -EINVAL;
 	switch (ctl->id) {
 	case V4L2_CID_BRIGHTNESS:
-	       ctl->value = dev->channels[fh->channel_id].ctl_bright;
+		ctl->value = dev->channels[fh->channel_id].ctl_bright;
 		break;
 	case V4L2_CID_HUE:
-	       ctl->value = dev->channels[fh->channel_id].ctl_hue;
+		ctl->value = dev->channels[fh->channel_id].ctl_hue;
 		break;
 	case V4L2_CID_CONTRAST:
-	       ctl->value = dev->channels[fh->channel_id].ctl_contrast;
+		ctl->value = dev->channels[fh->channel_id].ctl_contrast;
 		break;
 	case V4L2_CID_SATURATION:
-	       ctl->value = dev->channels[fh->channel_id].ctl_saturation;
+		ctl->value = dev->channels[fh->channel_id].ctl_saturation;
 		break;
 	}
 	return 0;
