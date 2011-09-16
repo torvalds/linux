@@ -62,6 +62,7 @@ extern struct platform_device s3c_device_i2c4;
 extern struct platform_device s3c_device_i2c5;
 extern struct platform_device s3c_device_i2c6;
 extern struct platform_device s3c_device_i2c7;
+extern struct platform_device s5p_device_i2c_hdmiphy;
 extern struct platform_device s3c_device_rtc;
 extern struct platform_device s3c_device_adc;
 extern struct platform_device s3c_device_sdi;

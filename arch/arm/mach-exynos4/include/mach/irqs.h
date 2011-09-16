@@ -93,6 +93,8 @@
 #define IRQ_2D			IRQ_SPI(89)
 #define IRQ_PCIE		IRQ_SPI(90)
 
+#define IRQ_IIC_HDMIPHY		IRQ_SPI(93)
+
 #define IRQ_MFC			IRQ_SPI(94)
 
 #define IRQ_AUDIO_SS		IRQ_SPI(96)
