@@ -42,6 +42,7 @@
 
 	aliases {
 		ccsr = &soc;
+		dcsr = &dcsr;
 
 		serial0 = &serial0;
 		serial1 = &serial1;
@@ -98,6 +99,69 @@
 		};
 	};
 
+	dcsr: dcsr@f00000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,dcsr", "simple-bus";
+
+		dcsr-epu@0 {
+			compatible = "fsl,dcsr-epu";
+			interrupts = <52 2 0 0
+				      84 2 0 0
+				      85 2 0 0>;
+			interrupt-parent = <&mpic>;
+			reg = <0x0 0x1000>;
+		};
+		dcsr-npc {
+			compatible = "fsl,dcsr-npc";
+			reg = <0x1000 0x1000 0x1000000 0x8000>;
+		};
+		dcsr-nxc@2000 {
+			compatible = "fsl,dcsr-nxc";
+			reg = <0x2000 0x1000>;
+		};
+		dcsr-corenet {
+			compatible = "fsl,dcsr-corenet";
+			reg = <0x8000 0x1000 0xB0000 0x1000>;
+		};
+		dcsr-dpaa@9000 {
+			compatible = "fsl,p5020-dcsr-dpaa", "fsl,dcsr-dpaa";
+			reg = <0x9000 0x1000>;
+		};
+		dcsr-ocn@11000 {
+			compatible = "fsl,p5020-dcsr-ocn", "fsl,dcsr-ocn";
+			reg = <0x11000 0x1000>;
+		};
+		dcsr-ddr@12000 {
+			compatible = "fsl,dcsr-ddr";
+			dev-handle = <&ddr1>;
+			reg = <0x12000 0x1000>;
+		};
+		dcsr-ddr@13000 {
+			compatible = "fsl,dcsr-ddr";
+			dev-handle = <&ddr2>;
+			reg = <0x13000 0x1000>;
+		};
+		dcsr-nal@18000 {
+			compatible = "fsl,p5020-dcsr-nal", "fsl,dcsr-nal";
+			reg = <0x18000 0x1000>;
+		};
+		dcsr-rcpm@22000 {
+			compatible = "fsl,p5020-dcsr-rcpm", "fsl,dcsr-rcpm";
+			reg = <0x22000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@40000 {
+			compatible = "fsl,dcsr-e5500-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu0>;
+			reg = <0x40000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@41000 {
+			compatible = "fsl,dcsr-e5500-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu1>;
+			reg = <0x41000 0x1000>;
+		};
+	};
+
 	soc: soc@ffe000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -117,13 +181,13 @@
 			fsl,num-laws = <32>;
 		};
 
-		memory-controller@8000 {
+		ddr1: memory-controller@8000 {
 			compatible = "fsl,qoriq-memory-controller-v4.5", "fsl,qoriq-memory-controller";
 			reg = <0x8000 0x1000>;
 			interrupts = <16 2 1 23>;
 		};
 
-		memory-controller@9000 {
+		ddr2: memory-controller@9000 {
 			compatible = "fsl,qoriq-memory-controller-v4.5", "fsl,qoriq-memory-controller";
 			reg = <0x9000 0x1000>;
 			interrupts = <16 2 1 22>;

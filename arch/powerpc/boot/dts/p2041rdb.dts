@@ -45,6 +45,10 @@
 		device_type = "memory";
 	};
 
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01008000>;
+	};
+
 	soc: soc@ffe000000 {
 		spi@110000 {
 			flash@0 {
