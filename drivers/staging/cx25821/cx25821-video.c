@@ -1080,18 +1080,18 @@ static int vidioc_log_status(struct file *file, void *priv)
 static int vidioc_s_ctrl(struct file *file, void *priv,
 			struct v4l2_control *ctl)
 {
-       struct cx25821_fh *fh = priv;
-       struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
-       int err;
+	struct cx25821_fh *fh = priv;
+	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
+	int err;
 
-       if (fh) {
-	       err = v4l2_prio_check(&dev->channels[fh->channel_id]
-					       .prio, fh->prio);
-	       if (0 != err)
-		       return err;
-       }
+	if (fh) {
+		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
+				      fh->prio);
+		if (0 != err)
+			return err;
+	}
 
-       return cx25821_set_control(dev, ctl, fh->channel_id);
+	return cx25821_set_control(dev, ctl, fh->channel_id);
 }
 
 /* VIDEO IOCTLS */
