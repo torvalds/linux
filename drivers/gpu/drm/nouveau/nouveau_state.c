@@ -386,8 +386,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->pm.temp_get	= nv84_temp_get;
 		else
 			engine->pm.temp_get	= nv40_temp_get;
-		engine->pm.fanspeed_get		= nv50_pm_fanspeed_get;
-		engine->pm.fanspeed_set		= nv50_pm_fanspeed_set;
+		engine->pm.pwm_get		= nv50_pm_pwm_get;
+		engine->pm.pwm_set		= nv50_pm_pwm_set;
 		engine->vram.init		= nv50_vram_init;
 		engine->vram.takedown		= nv50_vram_fini;
 		engine->vram.get		= nv50_vram_new;
@@ -443,8 +443,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clocks_get		= nvc0_pm_clocks_get;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
-		engine->pm.fanspeed_get		= nv50_pm_fanspeed_get;
-		engine->pm.fanspeed_set		= nv50_pm_fanspeed_set;
+		engine->pm.pwm_get		= nv50_pm_pwm_get;
+		engine->pm.pwm_set		= nv50_pm_pwm_set;
 		break;
 	case 0xd0:
 		engine->instmem.init		= nvc0_instmem_init;

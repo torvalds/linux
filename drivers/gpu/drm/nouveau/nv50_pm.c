@@ -144,87 +144,59 @@ nv50_pm_clock_set(struct drm_device *dev, void *pre_state)
 	kfree(state);
 }
 
-struct pwm_info {
-	int id;
-	int invert;
-	u8  tag;
-	u32 ctrl;
-	int line;
-};
-
 static int
-nv50_pm_fanspeed_pwm(struct drm_device *dev, struct pwm_info *pwm)
+pwm_info(struct drm_device *dev, struct dcb_gpio_entry *gpio,
+	 int *ctrl, int *line, int *indx)
 {
-	struct dcb_gpio_entry *gpio;
-
-	gpio = nouveau_bios_gpio_entry(dev, 0x09);
-	if (gpio) {
-		pwm->tag = gpio->tag;
-		pwm->id = (gpio->line == 9) ? 1 : 0;
-		pwm->invert = gpio->state[0] & 1;
-		pwm->ctrl = (gpio->line < 16) ? 0xe100 : 0xe28c;
-		pwm->line = (gpio->line & 0xf);
-		return 0;
+	if (gpio->line == 0x04) {
+		*ctrl = 0x00e100;
+		*line = 4;
+		*indx = 0;
+	} else
+	if (gpio->line == 0x09) {
+		*ctrl = 0x00e100;
+		*line = 9;
+		*indx = 1;
+	} else
+	if (gpio->line == 0x10) {
+		*ctrl = 0x00e28c;
+		*line = 0;
+		*indx = 0;
+	} else {
+		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", gpio->line);
+		return -ENODEV;
 	}
 
-	return -ENOENT;
+	return 0;
 }
 
 int
-nv50_pm_fanspeed_get(struct drm_device *dev)
+nv50_pm_pwm_get(struct drm_device *dev, struct dcb_gpio_entry *gpio,
+		u32 *divs, u32 *duty)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
-	struct pwm_info pwm;
-	int ret;
-
-	ret = nv50_pm_fanspeed_pwm(dev, &pwm);
+	int ctrl, line, id, ret = pwm_info(dev, gpio, &ctrl, &line, &id);
 	if (ret)
 		return ret;
 
-	if (nv_rd32(dev, pwm.ctrl) & (0x00000001 << pwm.line)) {
-		u32 divs = nv_rd32(dev, 0x00e114 + (pwm.id * 8));
-		u32 duty = nv_rd32(dev, 0x00e118 + (pwm.id * 8));
-		if (divs) {
-			divs = max(divs, duty);
-			if (pwm.invert)
-				duty = divs - duty;
-			return (duty * 100) / divs;
-		}
-
+	if (nv_rd32(dev, ctrl) & (1 << line)) {
+		*divs = nv_rd32(dev, 0x00e114 + (id * 8));
+		*duty = nv_rd32(dev, 0x00e118 + (id * 8));
 		return 0;
 	}
 
-	return pgpio->get(dev, pwm.tag) * 100;
+	return -EINVAL;
 }
 
 int
-nv50_pm_fanspeed_set(struct drm_device *dev, int percent)
+nv50_pm_pwm_set(struct drm_device *dev, struct dcb_gpio_entry *gpio,
+		u32 divs, u32 duty)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	struct pwm_info pwm;
-	u32 divs, duty;
-	int ret;
-
-	ret = nv50_pm_fanspeed_pwm(dev, &pwm);
+	int ctrl, line, id, ret = pwm_info(dev, gpio, &ctrl, &line, &id);
 	if (ret)
 		return ret;
 
-	divs = pm->pwm_divisor;
-	if (pm->fan.pwm_freq) {
-		/*XXX: PNVIO clock more than likely... */
-		divs = 1350000 / pm->fan.pwm_freq;
-		if (dev_priv->chipset < 0xa3)
-			divs /= 4;
-	}
-
-	duty = ((divs * percent) + 99) / 100;
-	if (pwm.invert)
-		duty = divs - duty;
-
-	nv_mask(dev, pwm.ctrl, 0x00010001 << pwm.line, 0x00000001 << pwm.line);
-	nv_wr32(dev, 0x00e114 + (pwm.id * 8), divs);
-	nv_wr32(dev, 0x00e118 + (pwm.id * 8), 0x80000000 | duty);
+	nv_mask(dev, ctrl, 0x00010001 << line, 0x00000001 << line);
+	nv_wr32(dev, 0x00e114 + (id * 8), divs);
+	nv_wr32(dev, 0x00e118 + (id * 8), duty | 0x80000000);
 	return 0;
 }
