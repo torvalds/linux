@@ -1742,30 +1742,29 @@ static long video_ioctl_upstream9(struct file *file, unsigned int cmd,
 static long video_ioctl_upstream10(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
-       struct cx25821_fh *fh = file->private_data;
-       struct cx25821_dev *dev = fh->dev;
-       int command = 0;
-       struct upstream_user_struct *data_from_user;
+	struct cx25821_fh *fh = file->private_data;
+	struct cx25821_dev *dev = fh->dev;
+	int command = 0;
+	struct upstream_user_struct *data_from_user;
 
-       data_from_user = (struct upstream_user_struct *)arg;
+	data_from_user = (struct upstream_user_struct *)arg;
 
 	if (!data_from_user) {
 		pr_err("%s(): Upstream data is INVALID. Returning\n", __func__);
 		return 0;
 	}
 
-       command = data_from_user->command;
+	command = data_from_user->command;
 
-       if (command != UPSTREAM_START_VIDEO &&
-	       command != UPSTREAM_STOP_VIDEO)
-	       return 0;
+	if (command != UPSTREAM_START_VIDEO && command != UPSTREAM_STOP_VIDEO)
+		return 0;
 
-       dev->input_filename_ch2 = data_from_user->input_filename;
-       dev->input_audiofilename = data_from_user->input_filename;
-       dev->vid_stdname_ch2 = data_from_user->vid_stdname;
-       dev->pixel_format_ch2 = data_from_user->pixel_format;
-       dev->channel_select_ch2 = data_from_user->channel_select;
-       dev->command_ch2 = data_from_user->command;
+	dev->input_filename_ch2 = data_from_user->input_filename;
+	dev->input_audiofilename = data_from_user->input_filename;
+	dev->vid_stdname_ch2 = data_from_user->vid_stdname;
+	dev->pixel_format_ch2 = data_from_user->pixel_format;
+	dev->channel_select_ch2 = data_from_user->channel_select;
+	dev->command_ch2 = data_from_user->command;
 
        switch (command) {
        case UPSTREAM_START_VIDEO:
