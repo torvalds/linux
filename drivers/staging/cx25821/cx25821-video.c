@@ -882,41 +882,41 @@ static ssize_t video_read(struct file *file, char __user * data, size_t count,
 static unsigned int video_poll(struct file *file,
 			      struct poll_table_struct *wait)
 {
-       struct cx25821_fh *fh = file->private_data;
-       struct cx25821_buffer *buf;
+	struct cx25821_fh *fh = file->private_data;
+	struct cx25821_buffer *buf;
 
-       if (cx25821_res_check(fh, RESOURCE_VIDEO0)) {
-	       /* streaming capture */
-	       if (list_empty(&fh->vidq.stream))
-		       return POLLERR;
-	       buf = list_entry(fh->vidq.stream.next,
+	if (cx25821_res_check(fh, RESOURCE_VIDEO0)) {
+		/* streaming capture */
+		if (list_empty(&fh->vidq.stream))
+			return POLLERR;
+		buf = list_entry(fh->vidq.stream.next,
 				struct cx25821_buffer, vb.stream);
-       } else {
-	       /* read() capture */
-	       buf = (struct cx25821_buffer *)fh->vidq.read_buf;
-	       if (NULL == buf)
-		       return POLLERR;
-       }
+	} else {
+		/* read() capture */
+		buf = (struct cx25821_buffer *)fh->vidq.read_buf;
+		if (NULL == buf)
+			return POLLERR;
+	}
 
-       poll_wait(file, &buf->vb.done, wait);
-       if (buf->vb.state == VIDEOBUF_DONE || buf->vb.state == VIDEOBUF_ERROR) {
-	       if (buf->vb.state == VIDEOBUF_DONE) {
-		       struct cx25821_dev *dev = fh->dev;
+	poll_wait(file, &buf->vb.done, wait);
+	if (buf->vb.state == VIDEOBUF_DONE || buf->vb.state == VIDEOBUF_ERROR) {
+		if (buf->vb.state == VIDEOBUF_DONE) {
+			struct cx25821_dev *dev = fh->dev;
 
-		       if (dev && dev->channels[fh->channel_id]
-					       .use_cif_resolution) {
-			       u8 cam_id = *((char *)buf->vb.baddr + 3);
-			       memcpy((char *)buf->vb.baddr,
+			if (dev && dev->channels[fh->channel_id]
+					.use_cif_resolution) {
+				u8 cam_id = *((char *)buf->vb.baddr + 3);
+				memcpy((char *)buf->vb.baddr,
 				      (char *)buf->vb.baddr + (fh->width * 2),
 				      (fh->width * 2));
-			       *((char *)buf->vb.baddr + 3) = cam_id;
-		       }
-	       }
+				*((char *)buf->vb.baddr + 3) = cam_id;
+			}
+		}
 
-	       return POLLIN | POLLRDNORM;
-       }
+		return POLLIN | POLLRDNORM;
+	}
 
-       return 0;
+	return 0;
 }
 
 static int video_release(struct file *file)
