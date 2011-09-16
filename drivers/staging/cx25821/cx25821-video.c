@@ -1844,28 +1844,27 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 	   && command != ENABLE_CIF_RESOLUTION && command != REG_READ
 	   && command != REG_WRITE && command != MEDUSA_READ
 	   && command != MEDUSA_WRITE) {
-	       return 0;
-       }
+		return 0;
+	}
 
-       switch (command) {
-       case SET_VIDEO_STD:
-	       dev->tvnorm =
-		   !strcmp(data_from_user->vid_stdname,
-			   "PAL") ? V4L2_STD_PAL_BG : V4L2_STD_NTSC_M;
-	       medusa_set_videostandard(dev);
-	       break;
+	switch (command) {
+	case SET_VIDEO_STD:
+		dev->tvnorm = !strcmp(data_from_user->vid_stdname, "PAL") ?
+					V4L2_STD_PAL_BG : V4L2_STD_NTSC_M;
+		medusa_set_videostandard(dev);
+		break;
 
-       case SET_PIXEL_FORMAT:
-	       selected_channel = data_from_user->decoder_select;
-	       pix_format = data_from_user->pixel_format;
+	case SET_PIXEL_FORMAT:
+		selected_channel = data_from_user->decoder_select;
+		pix_format = data_from_user->pixel_format;
 
-	       if (!(selected_channel <= 7 && selected_channel >= 0)) {
-		       selected_channel -= 4;
-		       selected_channel = selected_channel % 8;
-	       }
+		if (!(selected_channel <= 7 && selected_channel >= 0)) {
+			selected_channel -= 4;
+			selected_channel = selected_channel % 8;
+		}
 
-	       if (selected_channel >= 0)
-		       cx25821_set_pixel_format(dev, selected_channel,
+		if (selected_channel >= 0)
+			cx25821_set_pixel_format(dev, selected_channel,
 						pix_format);
 
 	       break;
