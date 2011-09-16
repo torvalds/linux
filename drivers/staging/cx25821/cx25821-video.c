@@ -507,31 +507,31 @@ int cx25821_video_register(struct cx25821_dev *dev)
 			(unsigned long)&dev->channels[i].timeout_data;
 		init_timer(&dev->channels[i].vidq.timeout);
 
-	       /* register v4l devices */
-	       dev->channels[i].video_dev = cx25821_vdev_init(dev,
-		       dev->pci, &cx25821_video_device, "video");
+		/* register v4l devices */
+		dev->channels[i].video_dev = cx25821_vdev_init(dev,
+				dev->pci, &cx25821_video_device, "video");
 
-	       err = video_register_device(dev->channels[i].video_dev,
-			       VFL_TYPE_GRABBER, video_nr[dev->nr]);
+		err = video_register_device(dev->channels[i].video_dev,
+				VFL_TYPE_GRABBER, video_nr[dev->nr]);
 
-	       if (err < 0)
-		       goto fail_unreg;
+		if (err < 0)
+			goto fail_unreg;
 
 	}
 
-    /* set PCI interrupt */
+	/* set PCI interrupt */
 	cx_set(PCI_INT_MSK, 0xff);
 
 	/* initial device configuration */
 	mutex_lock(&dev->lock);
 #ifdef TUNER_FLAG
-       dev->tvnorm = cx25821_video_device.current_norm;
+	dev->tvnorm = cx25821_video_device.current_norm;
 	cx25821_set_tvnorm(dev, dev->tvnorm);
 #endif
 	mutex_unlock(&dev->lock);
 
 
-    return 0;
+	return 0;
 
 fail_unreg:
        cx25821_video_unregister(dev, i);
