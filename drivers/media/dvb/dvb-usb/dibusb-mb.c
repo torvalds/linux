@@ -79,7 +79,7 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_adapter *adap)
 	msg[0].addr = msg[1].addr = st->tuner_addr = 0x60;
 
 	if (adap->fe_adap[0].fe->ops.i2c_gate_ctrl)
-		adap->fe_adap[0].fe->ops.i2c_gate_ctrl(adap->fe_adap[0].fe,1);
+		adap->fe_adap[0].fe->ops.i2c_gate_ctrl(adap->fe_adap[0].fe, 1);
 
 	if (i2c_transfer(&adap->dev->i2c_adap, msg, 2) != 2) {
 		err("tuner i2c write failed.");
@@ -87,7 +87,7 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_adapter *adap)
 	}
 
 	if (adap->fe_adap[0].fe->ops.i2c_gate_ctrl)
-		adap->fe_adap[0].fe->ops.i2c_gate_ctrl(adap->fe_adap[0].fe,0);
+		adap->fe_adap[0].fe->ops.i2c_gate_ctrl(adap->fe_adap[0].fe, 0);
 
 	if (b2[0] == 0xfe) {
 		info("This device has the Thomson Cable onboard. Which is default.");
