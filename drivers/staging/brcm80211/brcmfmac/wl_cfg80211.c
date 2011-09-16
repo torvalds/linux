@@ -251,7 +251,6 @@ static s32
 brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 {
 	struct brcmf_ioctl ioc;
-	mm_segment_t fs;
 	s32 err = 0;
 
 	memset(&ioc, 0, sizeof(ioc));
@@ -259,10 +258,7 @@ brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 	ioc.buf = arg;
 	ioc.len = len;
 
-	fs = get_fs();
-	set_fs(get_ds());
 	err = brcmf_netdev_ioctl_priv(dev, &ioc);
-	set_fs(fs);
 
 	return err;
 }
