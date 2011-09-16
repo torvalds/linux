@@ -1201,13 +1201,13 @@ bfa_nw_ioc_sem_get(void __iomem *sem_reg)
 	if (!(r32 & 1))
 		return true;
 
-	BUG_ON(!(cnt < BFA_SEM_SPINCNT));
 	return false;
 }
 
 void
 bfa_nw_ioc_sem_release(void __iomem *sem_reg)
 {
+	readl(sem_reg);
 	writel(1, sem_reg);
 }
 
