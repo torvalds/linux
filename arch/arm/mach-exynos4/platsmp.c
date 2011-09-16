@@ -30,9 +30,12 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-pmu.h>
 
+#include <plat/cpu.h>
+
 extern void exynos4_secondary_startup(void);
 
-#define CPU1_BOOT_REG S5P_VA_SYSRAM
+#define CPU1_BOOT_REG		(samsung_rev() == EXYNOS4210_REV_1_1 ? \
+				S5P_INFORM5 : S5P_VA_SYSRAM)
 
 /*
  * control for which core is the next to come out of the secondary
@@ -218,5 +221,6 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)), S5P_VA_SYSRAM);
+	__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)),
+			CPU1_BOOT_REG);
 }
