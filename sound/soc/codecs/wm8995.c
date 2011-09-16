@@ -1642,6 +1642,7 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 
 	if (ret != 0x8995) {
 		dev_err(codec->dev, "Invalid device ID: %#x\n", ret);
+		ret = -EINVAL;
 		goto err_reg_enable;
 	}
 
