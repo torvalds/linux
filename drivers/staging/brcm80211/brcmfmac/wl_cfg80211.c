@@ -1327,7 +1327,7 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		       u16 reason_code)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
-	struct brcmf_scb_val scbval;
+	struct brcmf_scb_val_le scbval;
 	s32 err = 0;
 
 	WL_TRACE("Enter. Reason code = %d\n", reason_code);
@@ -1336,11 +1336,10 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 
 	clear_bit(WL_STATUS_CONNECTED, &cfg_priv->status);
 
-	scbval.val = reason_code;
 	memcpy(&scbval.ea, brcmf_read_prof(cfg_priv, WL_PROF_BSSID), ETH_ALEN);
-	scbval.val = cpu_to_le32(scbval.val);
+	scbval.val = cpu_to_le32(reason_code);
 	err = brcmf_dev_ioctl(dev, BRCMF_C_DISASSOC, &scbval,
-			sizeof(struct brcmf_scb_val));
+			      sizeof(struct brcmf_scb_val_le));
 	if (unlikely(err))
 		WL_ERR("error (%d)\n", err);
 
@@ -1771,7 +1770,7 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 			u8 *mac, struct station_info *sinfo)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
-	struct brcmf_scb_val scb_val;
+	struct brcmf_scb_val_le scb_val;
 	int rssi;
 	s32 rate;
 	s32 err = 0;
@@ -1803,9 +1802,9 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (test_bit(WL_STATUS_CONNECTED, &cfg_priv->status)) {
-		scb_val.val = 0;
+		scb_val.val = cpu_to_le32(0);
 		err = brcmf_dev_ioctl(dev, BRCMF_C_GET_RSSI, &scb_val,
-				sizeof(struct brcmf_scb_val));
+				      sizeof(struct brcmf_scb_val_le));
 		if (unlikely(err))
 			WL_ERR("Could not get rssi (%d)\n", err);
 

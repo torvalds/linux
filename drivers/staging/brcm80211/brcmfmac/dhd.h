@@ -535,8 +535,8 @@ struct brcmf_wsec_key_le {
 };
 
 /* Used to get specific STA parameters */
-struct brcmf_scb_val {
-	u32 val;
+struct brcmf_scb_val_le {
+	__le32 val;
 	u8 ea[ETH_ALEN];
 };
 
