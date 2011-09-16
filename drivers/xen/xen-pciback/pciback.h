@@ -29,7 +29,7 @@ struct pci_dev_entry {
 
 struct xen_pcibk_device {
 	void *pci_dev_data;
-	spinlock_t dev_lock;
+	struct mutex dev_lock;
 	struct xenbus_device *xdev;
 	struct xenbus_watch be_watch;
 	u8 be_watching;
