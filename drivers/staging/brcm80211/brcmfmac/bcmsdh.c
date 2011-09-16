@@ -37,10 +37,6 @@
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
-/* Module parameters specific to each host-controller driver */
-
-module_param(sd_f2_blocksize, int, 0);
-
 static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 {
 	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);

@@ -244,8 +244,6 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
 				    bool enable);
 
-extern uint sd_f2_blocksize;
-
 extern void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 				u32 regsva, struct brcmf_sdio_dev *sdiodev);
 extern void brcmf_sdbrcm_disconnect(void *ptr);

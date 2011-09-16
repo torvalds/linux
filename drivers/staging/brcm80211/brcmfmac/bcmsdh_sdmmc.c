@@ -40,7 +40,8 @@
 
 #define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
 
-uint sd_f2_blocksize = 512;	/* Default blocksize */
+#define SDIO_FUNC1_BLOCKSIZE		64
+#define SDIO_FUNC2_BLOCKSIZE		512
 
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
@@ -466,7 +467,7 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->num_funcs = 2;
 
 	sdio_claim_host(sdiodev->func[1]);
-	err_ret = sdio_set_block_size(sdiodev->func[1], 64);
+	err_ret = sdio_set_block_size(sdiodev->func[1], SDIO_FUNC1_BLOCKSIZE);
 	sdio_release_host(sdiodev->func[1]);
 	if (err_ret) {
 		brcmf_dbg(ERROR, "Failed to set F1 blocksize\n");
@@ -474,11 +475,10 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 	}
 
 	sdio_claim_host(sdiodev->func[2]);
-	err_ret = sdio_set_block_size(sdiodev->func[2], sd_f2_blocksize);
+	err_ret = sdio_set_block_size(sdiodev->func[2], SDIO_FUNC2_BLOCKSIZE);
 	sdio_release_host(sdiodev->func[2]);
 	if (err_ret) {
-		brcmf_dbg(ERROR, "Failed to set F2 blocksize to %d\n",
-			  sd_f2_blocksize);
+		brcmf_dbg(ERROR, "Failed to set F2 blocksize\n");
 		goto out;
 	}
 
