@@ -987,18 +987,18 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-       struct cx25821_fh *fh = priv;
-       struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
+	struct cx25821_fh *fh = priv;
+	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 	struct v4l2_mbus_framefmt mbus_fmt;
-       int err;
-       int pix_format = PIXEL_FRMT_422;
+	int err;
+	int pix_format = PIXEL_FRMT_422;
 
-       if (fh) {
-	       err = v4l2_prio_check(&dev->channels[fh->channel_id]
-					       .prio, fh->prio);
-	       if (0 != err)
-		       return err;
-       }
+	if (fh) {
+		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
+				      fh->prio);
+		if (0 != err)
+			return err;
+	}
 
        dprintk(2, "%s()\n", __func__);
        err = cx25821_vidioc_try_fmt_vid_cap(file, priv, f);
