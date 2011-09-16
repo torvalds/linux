@@ -127,7 +127,7 @@ ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 	nf_conntrack_alter_reply(ct, &new_tuple);
 }
 
-int ip_vs_confirm_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp)
+int ip_vs_confirm_conntrack(struct sk_buff *skb)
 {
 	return nf_conntrack_confirm(skb);
 }
