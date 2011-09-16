@@ -60,7 +60,7 @@ int sysctl_max_noreply_time = 12;
  * Default is 10us which means using the unmodified value given by the
  * peer except if it's 0 (0 is likely a bug in the other stack).
  */
-unsigned sysctl_min_tx_turn_time = 10;
+unsigned int sysctl_min_tx_turn_time = 10;
 /*
  * Maximum data size to be used in transmission in payload of LAP frame.
  * There is a bit of confusion in the IrDA spec :
@@ -75,13 +75,13 @@ unsigned sysctl_min_tx_turn_time = 10;
  * bytes frames or all negotiated frame sizes, but you can use the sysctl
  * to play with this value anyway.
  * Jean II */
-unsigned sysctl_max_tx_data_size = 2042;
+unsigned int sysctl_max_tx_data_size = 2042;
 /*
  * Maximum transmit window, i.e. number of LAP frames between turn-around.
  * This allow to override what the peer told us. Some peers are buggy and
  * don't always support what they tell us.
  * Jean II */
-unsigned sysctl_max_tx_window = 7;
+unsigned int sysctl_max_tx_window = 7;
 
 static int irlap_param_baud_rate(void *instance, irda_param_t *param, int get);
 static int irlap_param_link_disconnect(void *instance, irda_param_t *parm,
