@@ -18,20 +18,40 @@ static u32 bcma_chipco_pll_read(struct bcma_drv_cc *cc, u32 offset)
 	return bcma_cc_read32(cc, BCMA_CC_PLLCTL_DATA);
 }
 
-static void bcma_chipco_chipctl_maskset(struct bcma_drv_cc *cc,
-					u32 offset, u32 mask, u32 set)
+void bcma_chipco_pll_write(struct bcma_drv_cc *cc, u32 offset, u32 value)
 {
-	u32 value;
+	bcma_cc_write32(cc, BCMA_CC_PLLCTL_ADDR, offset);
+	bcma_cc_read32(cc, BCMA_CC_PLLCTL_ADDR);
+	bcma_cc_write32(cc, BCMA_CC_PLLCTL_DATA, value);
+}
+EXPORT_SYMBOL_GPL(bcma_chipco_pll_write);
 
-	bcma_cc_read32(cc, BCMA_CC_CHIPCTL_ADDR);
+void bcma_chipco_pll_maskset(struct bcma_drv_cc *cc, u32 offset, u32 mask,
+			     u32 set)
+{
+	bcma_cc_write32(cc, BCMA_CC_PLLCTL_ADDR, offset);
+	bcma_cc_read32(cc, BCMA_CC_PLLCTL_ADDR);
+	bcma_cc_maskset32(cc, BCMA_CC_PLLCTL_DATA, mask, set);
+}
+EXPORT_SYMBOL_GPL(bcma_chipco_pll_maskset);
+
+void bcma_chipco_chipctl_maskset(struct bcma_drv_cc *cc,
+				 u32 offset, u32 mask, u32 set)
+{
 	bcma_cc_write32(cc, BCMA_CC_CHIPCTL_ADDR, offset);
 	bcma_cc_read32(cc, BCMA_CC_CHIPCTL_ADDR);
-	value = bcma_cc_read32(cc, BCMA_CC_CHIPCTL_DATA);
-	value &= mask;
-	value |= set;
-	bcma_cc_write32(cc, BCMA_CC_CHIPCTL_DATA, value);
-	bcma_cc_read32(cc, BCMA_CC_CHIPCTL_DATA);
+	bcma_cc_maskset32(cc, BCMA_CC_CHIPCTL_DATA, mask, set);
 }
+EXPORT_SYMBOL_GPL(bcma_chipco_chipctl_maskset);
+
+void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc, u32 offset, u32 mask,
+				u32 set)
+{
+	bcma_cc_write32(cc, BCMA_CC_REGCTL_ADDR, offset);
+	bcma_cc_read32(cc, BCMA_CC_REGCTL_ADDR);
+	bcma_cc_maskset32(cc, BCMA_CC_REGCTL_DATA, mask, set);
+}
+EXPORT_SYMBOL_GPL(bcma_chipco_regctl_maskset);
 
 static void bcma_pmu_pll_init(struct bcma_drv_cc *cc)
 {
