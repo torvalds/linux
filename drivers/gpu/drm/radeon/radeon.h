@@ -102,7 +102,7 @@ extern int radeon_pcie_gen2;
 #define RADEON_FENCE_JIFFIES_TIMEOUT	(HZ / 2)
 /* RADEON_IB_POOL_SIZE must be a power of 2 */
 #define RADEON_IB_POOL_SIZE		16
-#define RADEON_DEBUGFS_MAX_NUM_FILES	32
+#define RADEON_DEBUGFS_MAX_COMPONENTS	32
 #define RADEONFB_CONN_LIMIT		4
 #define RADEON_BIOS_NUM_SCRATCH		8
 

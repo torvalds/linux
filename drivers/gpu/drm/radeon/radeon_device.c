@@ -981,7 +981,7 @@ struct radeon_debugfs {
 	struct drm_info_list	*files;
 	unsigned		num_files;
 };
-static struct radeon_debugfs _radeon_debugfs[RADEON_DEBUGFS_MAX_NUM_FILES];
+static struct radeon_debugfs _radeon_debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
 static unsigned _radeon_debugfs_count = 0;
 
 int radeon_debugfs_add_files(struct radeon_device *rdev,
@@ -996,14 +996,17 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 			return 0;
 		}
 	}
-	if ((_radeon_debugfs_count + nfiles) > RADEON_DEBUGFS_MAX_NUM_FILES) {
-		DRM_ERROR("Reached maximum number of debugfs files.\n");
-		DRM_ERROR("Report so we increase RADEON_DEBUGFS_MAX_NUM_FILES.\n");
+
+	i = _radeon_debugfs_count + 1;
+	if (i > RADEON_DEBUGFS_MAX_COMPONENTS) {
+		DRM_ERROR("Reached maximum number of debugfs components.\n");
+		DRM_ERROR("Report so we increase "
+		          "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
 	_radeon_debugfs[_radeon_debugfs_count].files = files;
 	_radeon_debugfs[_radeon_debugfs_count].num_files = nfiles;
-	_radeon_debugfs_count++;
+	_radeon_debugfs_count = i;
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(files, nfiles,
 				 rdev->ddev->control->debugfs_root,
