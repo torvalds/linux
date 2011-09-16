@@ -1636,6 +1636,7 @@ static void encode_seqid_op_tail(struct nfsd4_compoundres *resp, __be32 *save, _
 			  (char *)resp->p - (char *)save;
 		memcpy(stateowner->so_replay.rp_buf, save,
 			stateowner->so_replay.rp_buflen);
+		nfsd4_purge_closed_stateid(stateowner);
 	}
 }
 

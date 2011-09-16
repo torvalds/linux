@@ -370,8 +370,10 @@ struct nfs4_openowner {
 	struct nfs4_stateowner	oo_owner; /* must be first field */
 	struct list_head        oo_perclient;
 	struct list_head	oo_close_lru; /* tail queue */
+	struct nfs4_ol_stateid *oo_last_closed_stid;
 	time_t			oo_time; /* time of placement on so_close_lru */
 #define NFS4_OO_CONFIRMED   1
+#define NFS4_OO_PURGE_CLOSE 2
 	unsigned char		oo_flags;
 };
 
@@ -514,5 +516,6 @@ extern int nfsd4_create_clid_dir(struct nfs4_client *clp);
 extern void nfsd4_remove_clid_dir(struct nfs4_client *clp);
 extern void release_session_client(struct nfsd4_session *);
 extern __be32 nfs4_validate_stateid(stateid_t *, bool);
+extern void nfsd4_purge_closed_stateid(struct nfs4_stateowner *);
 
 #endif   /* NFSD4_STATE_H */
