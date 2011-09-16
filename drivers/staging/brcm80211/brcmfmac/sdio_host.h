@@ -130,6 +130,11 @@ struct brcmf_sdio_dev {
 	bool regfail;			/* status of last reg_r/w call */
 	void *bus;
 	atomic_t suspend;		/* suspend flag */
+	wait_queue_head_t request_byte_wait;
+	wait_queue_head_t request_word_wait;
+	wait_queue_head_t request_packet_wait;
+	wait_queue_head_t request_buffer_wait;
+
 };
 
 /* Register/deregister device interrupt handler. */

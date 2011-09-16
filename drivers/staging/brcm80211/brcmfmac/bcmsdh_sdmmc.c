@@ -50,11 +50,6 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 
-static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_byte_wait);
-static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_word_wait);
-static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_packet_wait);
-static DECLARE_WAIT_QUEUE_HEAD(sdioh_request_buffer_wait);
-
 static bool
 brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
 {
@@ -66,12 +61,12 @@ brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
 }
 
 static void
-brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev, wait_queue_head_t wq)
+brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev, wait_queue_head_t *wq)
 {
 #ifdef CONFIG_PM_SLEEP
 	int retry = 0;
 	while (atomic_read(&sdiodev->suspend) && retry++ != 30)
-		wait_event_timeout(wq, false, HZ/100);
+		wait_event_timeout(*wq, false, HZ/100);
 #endif
 }
 
@@ -82,7 +77,7 @@ int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw, uint func,
 
 	brcmf_dbg(INFO, "rw=%d, func=%d, addr=0x%05x\n", rw, func, regaddr);
 
-	brcmf_pm_resume_wait(sdiodev, sdioh_request_byte_wait);
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_byte_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
 	if (rw) {		/* CMD52 Write */
@@ -185,7 +180,7 @@ int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 	brcmf_dbg(INFO, "rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
 		  rw, func, addr, nbytes);
 
-	brcmf_pm_resume_wait(sdiodev, sdioh_request_word_wait);
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_word_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
 	/* Claim host controller */
@@ -235,7 +230,7 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	brcmf_pm_resume_wait(sdiodev, sdioh_request_packet_wait);
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_packet_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
 
@@ -312,7 +307,7 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	brcmf_pm_resume_wait(sdiodev, sdioh_request_buffer_wait);
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
 	/* Case 1: we don't have a packet. */
@@ -529,6 +524,10 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		dev_set_drvdata(&func->card->dev, sdiodev);
 
 		atomic_set(&sdiodev->suspend, false);
+		init_waitqueue_head(&sdiodev->request_byte_wait);
+		init_waitqueue_head(&sdiodev->request_word_wait);
+		init_waitqueue_head(&sdiodev->request_packet_wait);
+		init_waitqueue_head(&sdiodev->request_buffer_wait);
 	}
 
 	if (func->num == 2) {
