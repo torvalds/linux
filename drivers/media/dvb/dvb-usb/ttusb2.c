@@ -472,7 +472,7 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 					}
 				}
 			}
-		},{
+		}, {
 			.streaming_ctrl   = NULL,
 
 			.frontend_attach  = ttusb2_frontend_tda10023_attach,
