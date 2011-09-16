@@ -1766,17 +1766,17 @@ static long video_ioctl_upstream10(struct file *file, unsigned int cmd,
 	dev->channel_select_ch2 = data_from_user->channel_select;
 	dev->command_ch2 = data_from_user->command;
 
-       switch (command) {
-       case UPSTREAM_START_VIDEO:
-	       cx25821_start_upstream_video_ch2(dev, data_from_user);
-	       break;
+	switch (command) {
+	case UPSTREAM_START_VIDEO:
+		cx25821_start_upstream_video_ch2(dev, data_from_user);
+		break;
 
-       case UPSTREAM_STOP_VIDEO:
-	       cx25821_stop_upstream_video_ch2(dev);
-	       break;
-       }
+	case UPSTREAM_STOP_VIDEO:
+		cx25821_stop_upstream_video_ch2(dev);
+		break;
+	}
 
-       return 0;
+	return 0;
 }
 
 static long video_ioctl_upstream11(struct file *file, unsigned int cmd,
