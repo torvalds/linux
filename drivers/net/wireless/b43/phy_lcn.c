@@ -307,12 +307,30 @@ static void b43_phy_lcn_bu_tweaks(struct b43_wldev *dev)
 
 	b43_phy_write(dev, 0x7d6, 0x0902);
 
-	/* TODO: more ops */
+	b43_phy_maskset(dev, 0x429, ~0xf, 0x9);
+	b43_phy_maskset(dev, 0x429, ~(0x3f << 4), 0xe << 4);
 
 	if (dev->phy.rev == 1) {
-		/* TODO: more ops */
+		b43_phy_maskset(dev, 0x423, ~0xff, 0x46);
+		b43_phy_maskset(dev, 0x411, ~0xff, 1);
+		b43_phy_set(dev, 0x434, 0xff); /* FIXME: update to wl */
+
+		/* TODO: wl operates on PHY 0x416, brcmsmac is outdated here */
+
+		b43_phy_maskset(dev, 0x656, ~0xf, 2);
+		b43_phy_set(dev, 0x44d, 4);
+
+		b43_radio_set(dev, 0x0f7, 0x4);
+		b43_radio_mask(dev, 0x0f1, ~0x3);
+		b43_radio_maskset(dev, 0x0f2, ~0xf8, 0x90);
+		b43_radio_maskset(dev, 0x0f3, ~0x3, 0x2);
+		b43_radio_maskset(dev, 0x0f3, ~0xf0, 0xa0);
+
+		b43_radio_set(dev, 0x11f, 0x2);
 
 		b43_phy_lcn_clear_tx_power_offsets(dev);
+
+		/* TODO: something more? */
 	}
 }
 
