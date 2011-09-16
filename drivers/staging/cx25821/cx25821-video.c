@@ -1208,9 +1208,9 @@ int cx25821_vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 int cx25821_vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)f)->dev;
-       struct cx25821_fh *fh = f;
+	struct cx25821_fh *fh = f;
 
-       *p = v4l2_prio_max(&dev->channels[fh->channel_id].prio);
+	*p = v4l2_prio_max(&dev->channels[fh->channel_id].prio);
 
 	return 0;
 }
@@ -1221,8 +1221,8 @@ int cx25821_vidioc_s_priority(struct file *file, void *f,
 	struct cx25821_fh *fh = f;
 	struct cx25821_dev *dev = ((struct cx25821_fh *)f)->dev;
 
-       return v4l2_prio_change(&dev->channels[fh->channel_id]
-				       .prio, &fh->prio, prio);
+	return v4l2_prio_change(&dev->channels[fh->channel_id].prio, &fh->prio,
+			prio);
 }
 
 #ifdef TUNER_FLAG
@@ -1235,15 +1235,14 @@ int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id * tvnorms)
 	dprintk(1, "%s()\n", __func__);
 
 	if (fh) {
-	       err = v4l2_prio_check(&dev->channels[fh->channel_id]
-					       .prio, fh->prio);
+		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
+				      fh->prio);
 		if (0 != err)
 			return err;
 	}
 
-	if (dev->tvnorm == *tvnorms) {
+	if (dev->tvnorm == *tvnorms)
 		return 0;
-	}
 
 	mutex_lock(&dev->lock);
 	cx25821_set_tvnorm(dev, *tvnorms);
@@ -1257,7 +1256,7 @@ int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id * tvnorms)
 
 int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i)
 {
-	static const char *iname[] = {
+	static const char * const iname[] = {
 		[CX25821_VMUX_COMPOSITE] = "Composite",
 		[CX25821_VMUX_SVIDEO] = "S-Video",
 		[CX25821_VMUX_DEBUG] = "for debug only",
@@ -1305,8 +1304,8 @@ int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	dprintk(1, "%s(%d)\n", __func__, i);
 
 	if (fh) {
-	       err = v4l2_prio_check(&dev->channels[fh->channel_id]
-					       .prio, fh->prio);
+		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
+				      fh->prio);
 		if (0 != err)
 			return err;
 	}
