@@ -1256,7 +1256,7 @@ int iscsit_fe_sendpage_sg(
 	struct kvec iov;
 	u32 tx_hdr_size, data_len;
 	u32 offset = cmd->first_data_sg_off;
-	int tx_sent;
+	int tx_sent, iov_off;
 
 send_hdr:
 	tx_hdr_size = ISCSI_HDR_LEN;
@@ -1276,9 +1276,19 @@ send_hdr:
 	}
 
 	data_len = cmd->tx_size - tx_hdr_size - cmd->padding;
-	if (conn->conn_ops->DataDigest)
+	/*
+	 * Set iov_off used by padding and data digest tx_data() calls below
+	 * in order to determine proper offset into cmd->iov_data[]
+	 */
+	if (conn->conn_ops->DataDigest) {
 		data_len -= ISCSI_CRC_LEN;
-
+		if (cmd->padding)
+			iov_off = (cmd->iov_data_count - 2);
+		else
+			iov_off = (cmd->iov_data_count - 1);
+	} else {
+		iov_off = (cmd->iov_data_count - 1);
+	}
 	/*
 	 * Perform sendpage() for each page in the scatterlist
 	 */
@@ -1307,8 +1317,7 @@ send_pg:
 
 send_padding:
 	if (cmd->padding) {
-		struct kvec *iov_p =
-			&cmd->iov_data[cmd->iov_data_count-1];
+		struct kvec *iov_p = &cmd->iov_data[iov_off++];
 
 		tx_sent = tx_data(conn, iov_p, 1, cmd->padding);
 		if (cmd->padding != tx_sent) {
@@ -1322,8 +1331,7 @@ send_padding:
 
 send_datacrc:
 	if (conn->conn_ops->DataDigest) {
-		struct kvec *iov_d =
-			&cmd->iov_data[cmd->iov_data_count];
+		struct kvec *iov_d = &cmd->iov_data[iov_off];
 
 		tx_sent = tx_data(conn, iov_d, 1, ISCSI_CRC_LEN);
 		if (ISCSI_CRC_LEN != tx_sent) {
