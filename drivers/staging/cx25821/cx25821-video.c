@@ -534,7 +534,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 	return 0;
 
 fail_unreg:
-       cx25821_video_unregister(dev, i);
+	cx25821_video_unregister(dev, i);
 	return err;
 }
 
@@ -565,7 +565,7 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	u32 line0_offset, line1_offset;
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
 	int bpl_local = LINE_SIZE_D1;
-       int channel_opened = fh->channel_id;
+	int channel_opened = fh->channel_id;
 
 	BUG_ON(NULL == fh->fmt);
 	if (fh->width < 48 || fh->width > 720 ||
@@ -604,21 +604,21 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		channel_opened = (channel_opened < 0
 				  || channel_opened > 7) ? 7 : channel_opened;
 
-	       if (dev->channels[channel_opened]
-		       .pixel_formats == PIXEL_FRMT_411)
+		if (dev->channels[channel_opened].pixel_formats ==
+				PIXEL_FRMT_411)
 			buf->bpl = (buf->fmt->depth * buf->vb.width) >> 3;
 		else
 			buf->bpl = (buf->fmt->depth >> 3) * (buf->vb.width);
 
-	       if (dev->channels[channel_opened]
-		       .pixel_formats == PIXEL_FRMT_411) {
+		if (dev->channels[channel_opened].pixel_formats ==
+				PIXEL_FRMT_411) {
 			bpl_local = buf->bpl;
 		} else {
-		       bpl_local = buf->bpl;   /* Default */
+			bpl_local = buf->bpl;   /* Default */
 
 			if (channel_opened >= 0 && channel_opened <= 7) {
-			       if (dev->channels[channel_opened]
-					       .use_cif_resolution) {
+				if (dev->channels[channel_opened]
+						.use_cif_resolution) {
 					if (dev->tvnorm & V4L2_STD_PAL_BG
 					    || dev->tvnorm & V4L2_STD_PAL_DK)
 						bpl_local = 352 << 1;
@@ -724,7 +724,7 @@ int cx25821_video_mmap(struct file *file, struct vm_area_struct *vma)
 
 static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
-       struct cx25821_buffer *buf =
+	struct cx25821_buffer *buf =
 	   container_of(vb, struct cx25821_buffer, vb);
        struct cx25821_buffer *prev;
        struct cx25821_fh *fh = vq->priv_data;
