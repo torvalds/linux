@@ -726,40 +726,37 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
 	struct cx25821_buffer *buf =
 	   container_of(vb, struct cx25821_buffer, vb);
-       struct cx25821_buffer *prev;
-       struct cx25821_fh *fh = vq->priv_data;
-       struct cx25821_dev *dev = fh->dev;
-       struct cx25821_dmaqueue *q = &dev->channels[fh->channel_id].vidq;
+	struct cx25821_buffer *prev;
+	struct cx25821_fh *fh = vq->priv_data;
+	struct cx25821_dev *dev = fh->dev;
+	struct cx25821_dmaqueue *q = &dev->channels[fh->channel_id].vidq;
 
-       /* add jump to stopper */
-       buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
-       buf->risc.jmp[1] = cpu_to_le32(q->stopper.dma);
-       buf->risc.jmp[2] = cpu_to_le32(0);      /* bits 63-32 */
+	/* add jump to stopper */
+	buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
+	buf->risc.jmp[1] = cpu_to_le32(q->stopper.dma);
+	buf->risc.jmp[2] = cpu_to_le32(0);      /* bits 63-32 */
 
-       dprintk(2, "jmp to stopper (0x%x)\n", buf->risc.jmp[1]);
+	dprintk(2, "jmp to stopper (0x%x)\n", buf->risc.jmp[1]);
 
-       if (!list_empty(&q->queued)) {
-	       list_add_tail(&buf->vb.queue, &q->queued);
-	       buf->vb.state = VIDEOBUF_QUEUED;
-	       dprintk(2, "[%p/%d] buffer_queue - append to queued\n", buf,
-		       buf->vb.i);
+	if (!list_empty(&q->queued)) {
+		list_add_tail(&buf->vb.queue, &q->queued);
+		buf->vb.state = VIDEOBUF_QUEUED;
+		dprintk(2, "[%p/%d] buffer_queue - append to queued\n", buf,
+				buf->vb.i);
 
-       } else if (list_empty(&q->active)) {
-	       list_add_tail(&buf->vb.queue, &q->active);
-	       cx25821_start_video_dma(dev, q, buf,
-				       dev->channels[fh->channel_id].
-				       sram_channels);
-	       buf->vb.state = VIDEOBUF_ACTIVE;
-	       buf->count = q->count++;
-	       mod_timer(&q->timeout, jiffies + BUFFER_TIMEOUT);
-	       dprintk(2,
-		       "[%p/%d] buffer_queue - first active, buf cnt = %d, \
-		       q->count = %d\n",
-		       buf, buf->vb.i, buf->count, q->count);
-       } else {
-	       prev =
-		   list_entry(q->active.prev, struct cx25821_buffer, vb.queue);
-	       if (prev->vb.width == buf->vb.width
+	} else if (list_empty(&q->active)) {
+		list_add_tail(&buf->vb.queue, &q->active);
+		cx25821_start_video_dma(dev, q, buf,
+				dev->channels[fh->channel_id].sram_channels);
+		buf->vb.state = VIDEOBUF_ACTIVE;
+		buf->count = q->count++;
+		mod_timer(&q->timeout, jiffies + BUFFER_TIMEOUT);
+		dprintk(2, "[%p/%d] buffer_queue - first active, buf cnt = %d, q->count = %d\n",
+				buf, buf->vb.i, buf->count, q->count);
+	} else {
+		prev = list_entry(q->active.prev, struct cx25821_buffer,
+				vb.queue);
+		if (prev->vb.width == buf->vb.width
 		   && prev->vb.height == buf->vb.height
 		   && prev->fmt == buf->fmt) {
 		       list_add_tail(&buf->vb.queue, &q->active);
