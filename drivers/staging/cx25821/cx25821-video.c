@@ -921,30 +921,30 @@ static unsigned int video_poll(struct file *file,
 
 static int video_release(struct file *file)
 {
-       struct cx25821_fh *fh = file->private_data;
-       struct cx25821_dev *dev = fh->dev;
+	struct cx25821_fh *fh = file->private_data;
+	struct cx25821_dev *dev = fh->dev;
 
-       /* stop the risc engine and fifo */
-       cx_write(channel0->dma_ctl, 0); /* FIFO and RISC disable */
+	/* stop the risc engine and fifo */
+	cx_write(channel0->dma_ctl, 0); /* FIFO and RISC disable */
 
-       /* stop video capture */
-       if (cx25821_res_check(fh, RESOURCE_VIDEO0)) {
-	       videobuf_queue_cancel(&fh->vidq);
-	       cx25821_res_free(dev, fh, RESOURCE_VIDEO0);
-       }
+	/* stop video capture */
+	if (cx25821_res_check(fh, RESOURCE_VIDEO0)) {
+		videobuf_queue_cancel(&fh->vidq);
+		cx25821_res_free(dev, fh, RESOURCE_VIDEO0);
+	}
 
-       if (fh->vidq.read_buf) {
-	       cx25821_buffer_release(&fh->vidq, fh->vidq.read_buf);
-	       kfree(fh->vidq.read_buf);
-       }
+	if (fh->vidq.read_buf) {
+		cx25821_buffer_release(&fh->vidq, fh->vidq.read_buf);
+		kfree(fh->vidq.read_buf);
+	}
 
-       videobuf_mmap_free(&fh->vidq);
+	videobuf_mmap_free(&fh->vidq);
 
-       v4l2_prio_close(&dev->channels[fh->channel_id].prio, fh->prio);
-       file->private_data = NULL;
-       kfree(fh);
+	v4l2_prio_close(&dev->channels[fh->channel_id].prio, fh->prio);
+	file->private_data = NULL;
+	kfree(fh);
 
-       return 0;
+	return 0;
 }
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
