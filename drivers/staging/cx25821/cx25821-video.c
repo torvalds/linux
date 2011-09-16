@@ -203,19 +203,19 @@ struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
 /*
 static int cx25821_ctrl_query(struct v4l2_queryctrl *qctrl)
 {
-    int i;
+	int i;
 
-    if (qctrl->id < V4L2_CID_BASE || qctrl->id >= V4L2_CID_LASTP1)
-	return -EINVAL;
-    for (i = 0; i < CX25821_CTLS; i++)
-	if (cx25821_ctls[i].v.id == qctrl->id)
-	    break;
-    if (i == CX25821_CTLS) {
-	*qctrl = no_ctl;
+	if (qctrl->id < V4L2_CID_BASE || qctrl->id >= V4L2_CID_LASTP1)
+		return -EINVAL;
+	for (i = 0; i < CX25821_CTLS; i++)
+		if (cx25821_ctls[i].v.id == qctrl->id)
+			break;
+	if (i == CX25821_CTLS) {
+		*qctrl = no_ctl;
+		return 0;
+	}
+	*qctrl = cx25821_ctls[i].v;
 	return 0;
-    }
-    *qctrl = cx25821_ctls[i].v;
-    return 0;
 }
 */
 
