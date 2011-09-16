@@ -48,13 +48,6 @@
 
 #define WL_NUMRATES		16	/* max # of rates in a rateset */
 
-struct brcm_rateset {
-	/* # rates in this set */
-	u32 count;
-	/* rates in 500kbps units w/hi bit set if basic */
-	u8 rates[WL_NUMRATES];
-};
-
 #define BRCM_CNTRY_BUF_SZ	4	/* Country string is 3 bytes + NUL */
 
 #define BRCM_SET_CHANNEL	30

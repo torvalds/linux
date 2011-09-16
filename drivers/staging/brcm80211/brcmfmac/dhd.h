@@ -400,6 +400,13 @@ struct brcmf_bss_info {
 	/* variable length Information Elements */
 };
 
+struct brcm_rateset_le {
+	/* # rates in this set */
+	__le32 count;
+	/* rates in 500kbps units w/hi bit set if basic */
+	u8 rates[WL_NUMRATES];
+};
+
 struct brcmf_ssid {
 	u32 SSID_len;
 	unsigned char SSID[32];

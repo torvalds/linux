@@ -101,6 +101,13 @@
 
 #define MAX_STREAMS_SUPPORTED	4	/* max number of streams supported */
 
+struct brcm_rateset {
+	/* # rates in this set */
+	u32 count;
+	/* rates in 500kbps units w/hi bit set if basic */
+	u8 rates[WL_NUMRATES];
+};
+
 struct brcms_c_rateset {
 	uint count;		/* number of rates in rates[] */
 	 /* rates in 500kbps units w/hi bit set if basic */

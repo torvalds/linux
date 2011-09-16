@@ -1864,7 +1864,7 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 			     const u8 *addr,
 			     const struct cfg80211_bitrate_mask *mask)
 {
-	struct brcm_rateset rateset;
+	struct brcm_rateset_le rateset_le;
 	s32 rate;
 	s32 val;
 	s32 err_bg;
@@ -1878,14 +1878,12 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 
 	/* addr param is always NULL. ignore it */
 	/* Get current rateset */
-	err = brcmf_dev_ioctl(dev, BRCM_GET_CURR_RATESET, &rateset,
-			sizeof(rateset));
+	err = brcmf_dev_ioctl(dev, BRCM_GET_CURR_RATESET, &rateset_le,
+			      sizeof(rateset_le));
 	if (unlikely(err)) {
 		WL_ERR("could not get current rateset (%d)\n", err);
 		goto done;
 	}
-
-	rateset.count = le32_to_cpu(rateset.count);
 
 	legacy = ffs(mask->control[IEEE80211_BAND_2GHZ].legacy & 0xFFFF);
 	if (!legacy)
@@ -1894,9 +1892,9 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 
 	val = wl_g_rates[legacy - 1].bitrate * 100000;
 
-	if (val < rateset.count)
+	if (val < le32_to_cpu(rateset_le.count))
 		/* Select rate by rateset index */
-		rate = rateset.rates[val] & 0x7f;
+		rate = rateset_le.rates[val] & 0x7f;
 	else
 		/* Specified rate in bps */
 		rate = val / 500000;
