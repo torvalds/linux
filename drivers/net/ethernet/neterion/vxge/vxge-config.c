@@ -1342,9 +1342,7 @@ vxge_hw_device_initialize(
 	hldev->bar0 = attr->bar0;
 	hldev->pdev = attr->pdev;
 
-	hldev->uld_callbacks.link_up = attr->uld_callbacks.link_up;
-	hldev->uld_callbacks.link_down = attr->uld_callbacks.link_down;
-	hldev->uld_callbacks.crit_err = attr->uld_callbacks.crit_err;
+	hldev->uld_callbacks = attr->uld_callbacks;
 
 	__vxge_hw_device_pci_e_init(hldev);
 
@@ -2633,7 +2631,7 @@ __vxge_hw_mempool_create(struct __vxge_hw_device *devh,
 			 u32 items_priv_size,
 			 u32 items_initial,
 			 u32 items_max,
-			 struct vxge_hw_mempool_cbs *mp_callback,
+			 const struct vxge_hw_mempool_cbs *mp_callback,
 			 void *userdata)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
@@ -2817,7 +2815,9 @@ __vxge_hw_ring_create(struct __vxge_hw_vpath_handle *vp,
 	struct vxge_hw_ring_config *config;
 	struct __vxge_hw_device *hldev;
 	u32 vp_id;
-	struct vxge_hw_mempool_cbs ring_mp_callback;
+	static const struct vxge_hw_mempool_cbs ring_mp_callback = {
+		.item_func_alloc = __vxge_hw_ring_mempool_item_alloc,
+	};
 
 	if ((vp == NULL) || (attr == NULL)) {
 		status = VXGE_HW_FAIL;
@@ -2872,7 +2872,6 @@ __vxge_hw_ring_create(struct __vxge_hw_vpath_handle *vp,
 
 	/* calculate actual RxD block private size */
 	ring->rxdblock_priv_size = ring->rxd_priv_size * ring->rxds_per_block;
-	ring_mp_callback.item_func_alloc = __vxge_hw_ring_mempool_item_alloc;
 	ring->mempool = __vxge_hw_mempool_create(hldev,
 				VXGE_HW_BLOCK_SIZE,
 				VXGE_HW_BLOCK_SIZE,

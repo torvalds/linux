@@ -4284,6 +4284,12 @@ static int __devinit is_sriov_initialized(struct pci_dev *pdev)
 	return 0;
 }
 
+static const struct vxge_hw_uld_cbs vxge_callbacks = {
+	.link_up = vxge_callback_link_up,
+	.link_down = vxge_callback_link_down,
+	.crit_err = vxge_callback_crit_err,
+};
+
 /**
  * vxge_probe
  * @pdev : structure containing the PCI related information of the device.
@@ -4494,9 +4500,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	}
 
 	/* Setting driver callbacks */
-	attr.uld_callbacks.link_up = vxge_callback_link_up;
-	attr.uld_callbacks.link_down = vxge_callback_link_down;
-	attr.uld_callbacks.crit_err = vxge_callback_crit_err;
+	attr.uld_callbacks = &vxge_callbacks;
 
 	status = vxge_hw_device_initialize(&hldev, &attr, device_config);
 	if (status != VXGE_HW_OK) {

@@ -532,8 +532,8 @@ __vxge_hw_device_handle_error(struct __vxge_hw_device *hldev, u32 vp_id,
 	}
 
 	/* notify driver */
-	if (hldev->uld_callbacks.crit_err)
-		hldev->uld_callbacks.crit_err(
+	if (hldev->uld_callbacks->crit_err)
+		hldev->uld_callbacks->crit_err(
 			(struct __vxge_hw_device *)hldev,
 			type, vp_id);
 out:
@@ -560,8 +560,8 @@ __vxge_hw_device_handle_link_down_ind(struct __vxge_hw_device *hldev)
 	hldev->link_state = VXGE_HW_LINK_DOWN;
 
 	/* notify driver */
-	if (hldev->uld_callbacks.link_down)
-		hldev->uld_callbacks.link_down(hldev);
+	if (hldev->uld_callbacks->link_down)
+		hldev->uld_callbacks->link_down(hldev);
 exit:
 	return VXGE_HW_OK;
 }
@@ -585,8 +585,8 @@ __vxge_hw_device_handle_link_up_ind(struct __vxge_hw_device *hldev)
 	hldev->link_state = VXGE_HW_LINK_UP;
 
 	/* notify driver */
-	if (hldev->uld_callbacks.link_up)
-		hldev->uld_callbacks.link_up(hldev);
+	if (hldev->uld_callbacks->link_up)
+		hldev->uld_callbacks->link_up(hldev);
 exit:
 	return VXGE_HW_OK;
 }

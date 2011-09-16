@@ -740,7 +740,7 @@ struct __vxge_hw_device {
 	struct vxge_hw_device_config	config;
 	enum vxge_hw_device_link_state	link_state;
 
-	struct vxge_hw_uld_cbs		uld_callbacks;
+	const struct vxge_hw_uld_cbs	*uld_callbacks;
 
 	u32				host_type;
 	u32				func_id;
@@ -840,7 +840,7 @@ struct vxge_hw_device_hw_info {
 struct vxge_hw_device_attr {
 	void __iomem		*bar0;
 	struct pci_dev 		*pdev;
-	struct vxge_hw_uld_cbs	uld_callbacks;
+	const struct vxge_hw_uld_cbs *uld_callbacks;
 };
 
 #define VXGE_HW_DEVICE_LINK_STATE_SET(hldev, ls)	(hldev->link_state = ls)
