@@ -1095,3 +1095,14 @@ void cfg80211_gtk_rekey_notify(struct net_device *dev, const u8 *bssid,
 	nl80211_gtk_rekey_notify(rdev, dev, bssid, replay_ctr, gfp);
 }
 EXPORT_SYMBOL(cfg80211_gtk_rekey_notify);
+
+void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
+				     const u8 *bssid, bool preauth, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_pmksa_candidate_notify(rdev, dev, index, bssid, preauth, gfp);
+}
+EXPORT_SYMBOL(cfg80211_pmksa_candidate_notify);
