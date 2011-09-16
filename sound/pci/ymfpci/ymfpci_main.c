@@ -906,6 +906,9 @@ static int snd_ymfpci_playback_open_1(struct snd_pcm_substream *substream)
 					   5334, UINT_MAX);
 	if (err < 0)
 		return err;
+	err = snd_pcm_hw_rule_noresample(runtime, 48000);
+	if (err < 0)
+		return err;
 
 	ypcm = kzalloc(sizeof(*ypcm), GFP_KERNEL);
 	if (ypcm == NULL)
@@ -1026,6 +1029,9 @@ static int snd_ymfpci_capture_open(struct snd_pcm_substream *substream,
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
 					   5334, UINT_MAX);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_rule_noresample(runtime, 48000);
 	if (err < 0)
 		return err;
 
