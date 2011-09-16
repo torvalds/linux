@@ -762,7 +762,7 @@ config VIDEO_VIA_CAMERA
 
 config VIDEO_NOON010PC30
 	tristate "NOON010PC30 CIF camera sensor support"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_V4L2 && EXPERIMENTAL && VIDEO_V4L2_SUBDEV_API
 	---help---
 	  This driver supports NOON010PC30 CIF camera from Siliconfile
 
