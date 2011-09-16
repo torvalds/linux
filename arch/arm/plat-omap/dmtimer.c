@@ -170,7 +170,8 @@ static spinlock_t dm_timer_lock;
  */
 static inline u32 omap_dm_timer_read_reg(struct omap_dm_timer *timer, u32 reg)
 {
-	return __omap_dm_timer_read(timer->io_base, reg, timer->posted);
+	WARN_ON((reg & 0xff) < _OMAP_TIMER_WAKEUP_EN_OFFSET);
+	return __omap_dm_timer_read(timer, reg, timer->posted);
 }
 
 /*
@@ -182,15 +183,19 @@ static inline u32 omap_dm_timer_read_reg(struct omap_dm_timer *timer, u32 reg)
 static void omap_dm_timer_write_reg(struct omap_dm_timer *timer, u32 reg,
 						u32 value)
 {
-	__omap_dm_timer_write(timer->io_base, reg, value, timer->posted);
+	WARN_ON((reg & 0xff) < _OMAP_TIMER_WAKEUP_EN_OFFSET);
+	__omap_dm_timer_write(timer, reg, value, timer->posted);
 }
 
 static void omap_dm_timer_wait_for_reset(struct omap_dm_timer *timer)
 {
 	int c;
 
+	if (!timer->sys_stat)
+		return;
+
 	c = 0;
-	while (!(omap_dm_timer_read_reg(timer, OMAP_TIMER_SYS_STAT_REG) & 1)) {
+	while (!(__raw_readl(timer->sys_stat) & 1)) {
 		c++;
 		if (c > 100000) {
 			printk(KERN_ERR "Timer failed to reset\n");
@@ -219,7 +224,7 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 	if (cpu_class_is_omap2())
 		wakeup = 1;
 
-	__omap_dm_timer_reset(timer->io_base, autoidle, wakeup);
+	__omap_dm_timer_reset(timer, autoidle, wakeup);
 	timer->posted = 1;
 }
 
@@ -401,7 +406,7 @@ void omap_dm_timer_stop(struct omap_dm_timer *timer)
 	rate = clk_get_rate(timer->fclk);
 #endif
 
-	__omap_dm_timer_stop(timer->io_base, timer->posted, rate);
+	__omap_dm_timer_stop(timer, timer->posted, rate);
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_stop);
 
@@ -466,7 +471,7 @@ void omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload,
 	}
 	l |= OMAP_TIMER_CTRL_ST;
 
-	__omap_dm_timer_load_start(timer->io_base, l, load, timer->posted);
+	__omap_dm_timer_load_start(timer, l, load, timer->posted);
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_set_load_start);
 
@@ -519,7 +524,7 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_set_prescaler);
 void omap_dm_timer_set_int_enable(struct omap_dm_timer *timer,
 				  unsigned int value)
 {
-	__omap_dm_timer_int_enable(timer->io_base, value);
+	__omap_dm_timer_int_enable(timer, value);
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_set_int_enable);
 
@@ -527,7 +532,7 @@ unsigned int omap_dm_timer_read_status(struct omap_dm_timer *timer)
 {
 	unsigned int l;
 
-	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_STAT_REG);
+	l = __raw_readl(timer->irq_stat);
 
 	return l;
 }
@@ -535,13 +540,13 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_read_status);
 
 void omap_dm_timer_write_status(struct omap_dm_timer *timer, unsigned int value)
 {
-	__omap_dm_timer_write_status(timer->io_base, value);
+	__omap_dm_timer_write_status(timer, value);
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_write_status);
 
 unsigned int omap_dm_timer_read_counter(struct omap_dm_timer *timer)
 {
-	return __omap_dm_timer_read_counter(timer->io_base, timer->posted);
+	return __omap_dm_timer_read_counter(timer, timer->posted);
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_read_counter);
 
@@ -601,6 +606,9 @@ static int __init omap_dm_timer_init(void)
 		dm_timer_count = omap4_dm_timer_count;
 		dm_source_names = omap4_dm_source_names;
 		dm_source_clocks = omap4_dm_source_clocks;
+
+		pr_err("dmtimers disabled for omap4 until hwmod conversion\n");
+		return -ENODEV;
 	}
 
 	if (cpu_class_is_omap2())
@@ -630,8 +638,12 @@ static int __init omap_dm_timer_init(void)
 		if (sys_timer_reserved & (1  << i)) {
 			timer->reserved = 1;
 			timer->posted = 1;
+			continue;
 		}
 #endif
+		omap_dm_timer_enable(timer);
+		__omap_dm_timer_init_regs(timer);
+		omap_dm_timer_disable(timer);
 	}
 
 	return 0;

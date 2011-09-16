@@ -78,7 +78,7 @@ static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = &clockevent_gpt;
 
-	__omap_dm_timer_write_status(clkev.io_base, OMAP_TIMER_INT_OVERFLOW);
+	__omap_dm_timer_write_status(&clkev, OMAP_TIMER_INT_OVERFLOW);
 
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
@@ -93,7 +93,7 @@ static struct irqaction omap2_gp_timer_irq = {
 static int omap2_gp_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
 {
-	__omap_dm_timer_load_start(clkev.io_base, OMAP_TIMER_CTRL_ST,
+	__omap_dm_timer_load_start(&clkev, OMAP_TIMER_CTRL_ST,
 						0xffffffff - cycles, 1);
 
 	return 0;
@@ -104,16 +104,16 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 {
 	u32 period;
 
-	__omap_dm_timer_stop(clkev.io_base, 1, clkev.rate);
+	__omap_dm_timer_stop(&clkev, 1, clkev.rate);
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		period = clkev.rate / HZ;
 		period -= 1;
 		/* Looks like we need to first set the load value separately */
-		__omap_dm_timer_write(clkev.io_base, OMAP_TIMER_LOAD_REG,
+		__omap_dm_timer_write(&clkev, OMAP_TIMER_LOAD_REG,
 					0xffffffff - period, 1);
-		__omap_dm_timer_load_start(clkev.io_base,
+		__omap_dm_timer_load_start(&clkev,
 					OMAP_TIMER_CTRL_AR | OMAP_TIMER_CTRL_ST,
 						0xffffffff - period, 1);
 		break;
@@ -189,7 +189,8 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 			clk_put(src);
 		}
 	}
-	__omap_dm_timer_reset(timer->io_base, 1, 1);
+	__omap_dm_timer_init_regs(timer);
+	__omap_dm_timer_reset(timer, 1, 1);
 	timer->posted = 1;
 
 	timer->rate = clk_get_rate(timer->fclk);
@@ -210,7 +211,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 	omap2_gp_timer_irq.dev_id = (void *)&clkev;
 	setup_irq(clkev.irq, &omap2_gp_timer_irq);
 
-	__omap_dm_timer_int_enable(clkev.io_base, OMAP_TIMER_INT_OVERFLOW);
+	__omap_dm_timer_int_enable(&clkev, OMAP_TIMER_INT_OVERFLOW);
 
 	clockevent_gpt.mult = div_sc(clkev.rate, NSEC_PER_SEC,
 				     clockevent_gpt.shift);
@@ -251,7 +252,7 @@ static struct omap_dm_timer clksrc;
 static DEFINE_CLOCK_DATA(cd);
 static cycle_t clocksource_read_cycles(struct clocksource *cs)
 {
-	return (cycle_t)__omap_dm_timer_read_counter(clksrc.io_base, 1);
+	return (cycle_t)__omap_dm_timer_read_counter(&clksrc, 1);
 }
 
 static struct clocksource clocksource_gpt = {
@@ -266,7 +267,7 @@ static void notrace dmtimer_update_sched_clock(void)
 {
 	u32 cyc;
 
-	cyc = __omap_dm_timer_read_counter(clksrc.io_base, 1);
+	cyc = __omap_dm_timer_read_counter(&clksrc, 1);
 
 	update_sched_clock(&cd, cyc, (u32)~0);
 }
@@ -276,7 +277,7 @@ unsigned long long notrace sched_clock(void)
 	u32 cyc = 0;
 
 	if (clksrc.reserved)
-		cyc = __omap_dm_timer_read_counter(clksrc.io_base, 1);
+		cyc = __omap_dm_timer_read_counter(&clksrc, 1);
 
 	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
 }
@@ -293,7 +294,7 @@ static void __init omap2_gp_clocksource_init(int gptimer_id,
 	pr_info("OMAP clocksource: GPTIMER%d at %lu Hz\n",
 		gptimer_id, clksrc.rate);
 
-	__omap_dm_timer_load_start(clksrc.io_base,
+	__omap_dm_timer_load_start(&clksrc,
 			OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR, 0, 1);
 	init_sched_clock(&cd, dmtimer_update_sched_clock, 32, clksrc.rate);
 
