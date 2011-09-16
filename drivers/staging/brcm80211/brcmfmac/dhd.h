@@ -673,15 +673,6 @@ extern uint brcmf_arp_mode;
 /* ARP offload enable */
 extern uint brcmf_arp_enable;
 
-/* Pkt filte enable control */
-extern uint brcmf_pkt_filter_enable;
-
-/*  Pkt filter init setup */
-extern uint brcmf_pkt_filter_init;
-
-/* Pkt filter mode control */
-extern uint brcmf_master_mode;
-
 /* Roaming mode control */
 extern uint brcmf_roam;
 

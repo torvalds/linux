@@ -865,15 +865,10 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 	brcmf_c_arp_offload_enable(drvr, brcmf_arp_enable);
 
 	/* Set up pkt filter */
-	if (brcmf_pkt_filter_enable) {
-		for (i = 0; i < drvr->pktfilter_count; i++) {
-			brcmf_c_pktfilter_offload_set(drvr,
-						  drvr->pktfilter[i]);
-			brcmf_c_pktfilter_offload_enable(drvr,
-			     drvr->pktfilter[i],
-			     brcmf_pkt_filter_init,
-			     brcmf_master_mode);
-		}
+	for (i = 0; i < drvr->pktfilter_count; i++) {
+		brcmf_c_pktfilter_offload_set(drvr, drvr->pktfilter[i]);
+		brcmf_c_pktfilter_offload_enable(drvr, drvr->pktfilter[i],
+						 0, true);
 	}
 
 	brcmf_os_proto_unblock(drvr);

@@ -98,18 +98,6 @@ module_param(brcmf_arp_mode, uint, 0);
 uint brcmf_arp_enable = true;
 module_param(brcmf_arp_enable, uint, 0);
 
-/* Global Pkt filter enable control */
-uint brcmf_pkt_filter_enable = true;
-module_param(brcmf_pkt_filter_enable, uint, 0);
-
-/*  Pkt filter init setup */
-uint brcmf_pkt_filter_init;
-module_param(brcmf_pkt_filter_init, uint, 0);
-
-/* Pkt filter mode control */
-uint brcmf_master_mode = true;
-module_param(brcmf_master_mode, uint, 0);
-
 /* Contorl fw roaming */
 uint brcmf_roam = 1;
 
