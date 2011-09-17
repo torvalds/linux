@@ -263,9 +263,9 @@ static struct stv0299_config opera1_stv0299_config = {
 
 static int opera1_frontend_attach(struct dvb_usb_adapter *d)
 {
-	if ((d->fe_adap[0].fe =
-	     dvb_attach(stv0299_attach, &opera1_stv0299_config,
-			&d->dev->i2c_adap)) != NULL) {
+	d->fe_adap[0].fe = dvb_attach(stv0299_attach, &opera1_stv0299_config,
+				      &d->dev->i2c_adap);
+	if ((d->fe_adap[0].fe) != NULL) {
 		d->fe_adap[0].fe->ops.set_voltage = opera1_set_voltage;
 		return 0;
 	}
