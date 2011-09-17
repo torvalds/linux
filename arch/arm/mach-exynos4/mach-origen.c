@@ -164,6 +164,9 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
 	&s5p_device_fimc3,
+	&s5p_device_hdmi,
+	&s5p_device_i2c_hdmiphy,
+	&s5p_device_mixer,
 	&origen_device_gpiokeys,
 };
 
@@ -196,6 +199,8 @@ static void __init origen_machine_init(void)
 
 	origen_ehci_init();
 	clk_xusbxti.rate = 24000000;
+
+	s5p_i2c_hdmiphy_set_platdata(NULL);
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 
