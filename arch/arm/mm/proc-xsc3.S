@@ -406,7 +406,7 @@ ENTRY(cpu_xsc3_set_pte_ext)
 	.align
 
 .globl	cpu_xsc3_suspend_size
-.equ	cpu_xsc3_suspend_size, 4 * 8
+.equ	cpu_xsc3_suspend_size, 4 * 7
 #ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_xsc3_do_suspend)
 	stmfd	sp!, {r4 - r10, lr}
@@ -418,12 +418,12 @@ ENTRY(cpu_xsc3_do_suspend)
 	mrc	p15, 0, r9, c1, c0, 1	@ auxiliary control reg
 	mrc 	p15, 0, r10, c1, c0, 0	@ control reg
 	bic	r4, r4, #2		@ clear frequency change bit
-	stmia	r0, {r1, r4 - r10}	@ store v:p offset + cp regs
+	stmia	r0, {r4 - r10}		@ store cp regs
 	ldmia	sp!, {r4 - r10, pc}
 ENDPROC(cpu_xsc3_do_suspend)
 
 ENTRY(cpu_xsc3_do_resume)
-	ldmia	r0, {r1, r4 - r10}	@ load v:p offset + cp regs
+	ldmia	r0, {r4 - r10}		@ load cp regs
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I & D caches, BTB
 	mcr	p15, 0, ip, c7, c10, 4	@ drain write (&fill) buffer

@@ -39,7 +39,7 @@ typedef struct xpaddr {
     ((unsigned long)((u64)CONFIG_XEN_MAX_DOMAIN_MEMORY * 1024 * 1024 * 1024 / PAGE_SIZE))
 
 extern unsigned long *machine_to_phys_mapping;
-extern unsigned int   machine_to_phys_order;
+extern unsigned long  machine_to_phys_nr;
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
@@ -87,7 +87,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return mfn;
 
-	if (unlikely((mfn >> machine_to_phys_order) != 0)) {
+	if (unlikely(mfn >= machine_to_phys_nr)) {
 		pfn = ~0;
 		goto try_override;
 	}

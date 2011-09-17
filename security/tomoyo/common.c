@@ -710,8 +710,10 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 		      head->r.index++)
 			if (ns->profile_ptr[head->r.index])
 				break;
-		if (head->r.index == TOMOYO_MAX_PROFILES)
+		if (head->r.index == TOMOYO_MAX_PROFILES) {
+			head->r.eof = true;
 			return;
+		}
 		head->r.step++;
 		break;
 	case 2:
@@ -723,6 +725,7 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 			tomoyo_io_printf(head, "%u-COMMENT=", index);
 			tomoyo_set_string(head, comment ? comment->name : "");
 			tomoyo_set_lf(head);
+			tomoyo_print_namespace(head);
 			tomoyo_io_printf(head, "%u-PREFERENCE={ ", index);
 			for (i = 0; i < TOMOYO_MAX_PREF; i++)
 				tomoyo_io_printf(head, "%s=%u ",

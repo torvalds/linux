@@ -446,7 +446,18 @@ static inline void legacy_pty_init(void) { }
 int pty_limit = NR_UNIX98_PTY_DEFAULT;
 static int pty_limit_min;
 static int pty_limit_max = NR_UNIX98_PTY_MAX;
+static int tty_count;
 static int pty_count;
+
+static inline void pty_inc_count(void)
+{
+	pty_count = (++tty_count) / 2;
+}
+
+static inline void pty_dec_count(void)
+{
+	pty_count = (--tty_count) / 2;
+}
 
 static struct cdev ptmx_cdev;
 
@@ -542,6 +553,7 @@ static struct tty_struct *pts_unix98_lookup(struct tty_driver *driver,
 
 static void pty_unix98_shutdown(struct tty_struct *tty)
 {
+	tty_driver_remove_tty(tty->driver, tty);
 	/* We have our own method as we don't use the tty index */
 	kfree(tty->termios);
 }
@@ -588,7 +600,8 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 	 */
 	tty_driver_kref_get(driver);
 	tty->count++;
-	pty_count++;
+	pty_inc_count(); /* tty */
+	pty_inc_count(); /* tty->link */
 	return 0;
 err_free_mem:
 	deinitialize_tty_struct(o_tty);
@@ -602,7 +615,7 @@ err_free_tty:
 
 static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 {
-	pty_count--;
+	pty_dec_count();
 }
 
 static const struct tty_operations ptm_unix98_ops = {

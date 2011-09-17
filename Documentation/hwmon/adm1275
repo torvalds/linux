@@ -43,8 +43,8 @@ Documentation/hwmon/pmbus for details.
 Sysfs entries
 -------------
 
-The following attributes are supported. Limits are read-write; all other
-attributes are read-only.
+The following attributes are supported. Limits are read-write, history reset
+attributes are write-only, all other attributes are read-only.
 
 in1_label		"vin1" or "vout1" depending on chip variant and
 			configuration.
@@ -53,8 +53,12 @@ in1_min			Minumum Voltage. From VOUT_UV_WARN_LIMIT register.
 in1_max			Maximum voltage. From VOUT_OV_WARN_LIMIT register.
 in1_min_alarm		Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in1_max_alarm		Voltage high alarm. From VOLTAGE_OV_WARNING status.
+in1_highest		Historical maximum voltage.
+in1_reset_history	Write any value to reset history.
 
 curr1_label		"iout1"
 curr1_input		Measured current. From READ_IOUT register.
 curr1_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
 curr1_max_alarm		Current high alarm. From IOUT_OC_WARN_LIMIT register.
+curr1_highest		Historical maximum current.
+curr1_reset_history	Write any value to reset history.

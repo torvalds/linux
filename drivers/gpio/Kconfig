@@ -103,6 +103,22 @@ config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
 
+config GPIO_MSM_V1
+	tristate "Qualcomm MSM GPIO v1"
+	depends on GPIOLIB && ARCH_MSM
+	help
+	  Say yes here to support the GPIO interface on ARM v6 based
+	  Qualcomm MSM chips.  Most of the pins on the MSM can be
+	  selected for GPIO, and are controlled by this driver.
+
+config GPIO_MSM_V2
+	tristate "Qualcomm MSM GPIO v2"
+	depends on GPIOLIB && ARCH_MSM
+	help
+	  Say yes here to support the GPIO interface on ARM v7 based
+	  Qualcomm MSM chips.  Most of the pins on the MSM can be
+	  selected for GPIO, and are controlled by this driver.
+
 config GPIO_MXC
 	def_bool y
 	depends on ARCH_MXC
@@ -279,6 +295,12 @@ config GPIO_TC3589X
 	help
 	  This enables support for the GPIOs found on the TC3589X
 	  I/O Expander.
+
+config GPIO_TPS65912
+	tristate "TI TPS65912 GPIO"
+	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
+	help
+	  This driver supports TPS65912 gpio chip
 
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"

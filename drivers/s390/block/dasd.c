@@ -24,6 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
 
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
@@ -888,11 +889,11 @@ char *dasd_get_user_string(const char __user *user_buf, size_t user_len)
 {
 	char *buffer;
 
-	buffer = kmalloc(user_len + 1, GFP_KERNEL);
+	buffer = vmalloc(user_len + 1);
 	if (buffer == NULL)
 		return ERR_PTR(-ENOMEM);
 	if (copy_from_user(buffer, user_buf, user_len) != 0) {
-		kfree(buffer);
+		vfree(buffer);
 		return ERR_PTR(-EFAULT);
 	}
 	/* got the string, now strip linefeed. */
@@ -930,7 +931,7 @@ static ssize_t dasd_stats_write(struct file *file,
 		dasd_profile_off(prof);
 	} else
 		rc = -EINVAL;
-	kfree(buffer);
+	vfree(buffer);
 	return rc;
 }
 
@@ -1042,7 +1043,7 @@ static ssize_t dasd_stats_global_write(struct file *file,
 		dasd_global_profile_level = DASD_PROFILE_OFF;
 	} else
 		rc = -EINVAL;
-	kfree(buffer);
+	vfree(buffer);
 	return rc;
 }
 

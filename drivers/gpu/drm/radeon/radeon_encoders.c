@@ -2323,6 +2323,9 @@ radeon_add_atom_encoder(struct drm_device *dev,
 	default:
 		encoder->possible_crtcs = 0x3;
 		break;
+	case 4:
+		encoder->possible_crtcs = 0xf;
+		break;
 	case 6:
 		encoder->possible_crtcs = 0x3f;
 		break;

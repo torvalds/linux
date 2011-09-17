@@ -128,6 +128,24 @@ static struct hash_cell *__get_uuid_cell(const char *str)
 	return NULL;
 }
 
+static struct hash_cell *__get_dev_cell(uint64_t dev)
+{
+	struct mapped_device *md;
+	struct hash_cell *hc;
+
+	md = dm_get_md(huge_decode_dev(dev));
+	if (!md)
+		return NULL;
+
+	hc = dm_get_mdptr(md);
+	if (!hc) {
+		dm_put(md);
+		return NULL;
+	}
+
+	return hc;
+}
+
 /*-----------------------------------------------------------------
  * Inserting, removing and renaming a device.
  *---------------------------------------------------------------*/
@@ -718,25 +736,45 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
  */
 static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 {
-	struct mapped_device *md;
-	void *mdptr = NULL;
+	struct hash_cell *hc = NULL;
 
-	if (*param->uuid)
-		return __get_uuid_cell(param->uuid);
+	if (*param->uuid) {
+		if (*param->name || param->dev)
+			return NULL;
 
-	if (*param->name)
-		return __get_name_cell(param->name);
+		hc = __get_uuid_cell(param->uuid);
+		if (!hc)
+			return NULL;
+	} else if (*param->name) {
+		if (param->dev)
+			return NULL;
 
-	md = dm_get_md(huge_decode_dev(param->dev));
-	if (!md)
-		goto out;
+		hc = __get_name_cell(param->name);
+		if (!hc)
+			return NULL;
+	} else if (param->dev) {
+		hc = __get_dev_cell(param->dev);
+		if (!hc)
+			return NULL;
+	} else
+		return NULL;
 
-	mdptr = dm_get_mdptr(md);
-	if (!mdptr)
-		dm_put(md);
+	/*
+	 * Sneakily write in both the name and the uuid
+	 * while we have the cell.
+	 */
+	strlcpy(param->name, hc->name, sizeof(param->name));
+	if (hc->uuid)
+		strlcpy(param->uuid, hc->uuid, sizeof(param->uuid));
+	else
+		param->uuid[0] = '\0';
 
-out:
-	return mdptr;
+	if (hc->new_map)
+		param->flags |= DM_INACTIVE_PRESENT_FLAG;
+	else
+		param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
+
+	return hc;
 }
 
 static struct mapped_device *find_device(struct dm_ioctl *param)
@@ -746,24 +784,8 @@ static struct mapped_device *find_device(struct dm_ioctl *param)
 
 	down_read(&_hash_lock);
 	hc = __find_device_hash_cell(param);
-	if (hc) {
+	if (hc)
 		md = hc->md;
-
-		/*
-		 * Sneakily write in both the name and the uuid
-		 * while we have the cell.
-		 */
-		strlcpy(param->name, hc->name, sizeof(param->name));
-		if (hc->uuid)
-			strlcpy(param->uuid, hc->uuid, sizeof(param->uuid));
-		else
-			param->uuid[0] = '\0';
-
-		if (hc->new_map)
-			param->flags |= DM_INACTIVE_PRESENT_FLAG;
-		else
-			param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
-	}
 	up_read(&_hash_lock);
 
 	return md;
@@ -1399,6 +1421,11 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 	r = dm_split_args(&argc, &argv, tmsg->message);
 	if (r) {
 		DMWARN("Failed to split target message parameters");
+		goto out;
+	}
+
+	if (!argc) {
+		DMWARN("Empty message received.");
 		goto out;
 	}
 

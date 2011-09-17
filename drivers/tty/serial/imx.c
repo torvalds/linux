@@ -1286,22 +1286,17 @@ static int serial_imx_resume(struct platform_device *dev)
 static int serial_imx_probe_dt(struct imx_port *sport,
 		struct platform_device *pdev)
 {
+	static int portnum = 0;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
 			of_match_device(imx_uart_dt_ids, &pdev->dev);
-	int ret;
 
 	if (!np)
 		return -ENODEV;
 
-	ret = of_alias_get_id(np, "serial");
-	if (ret < 0) {
-		pr_err("%s: failed to get alias id, errno %d\n",
-			__func__, ret);
-		return -ENODEV;
-	} else {
-		sport->port.line = ret;
-	}
+	sport->port.line = portnum++;
+	if (sport->port.line >= UART_NR)
+		return -EINVAL;
 
 	if (of_get_property(np, "fsl,uart-has-rtscts", NULL))
 		sport->have_rtscts = 1;

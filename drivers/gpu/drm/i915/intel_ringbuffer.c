@@ -290,6 +290,10 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		if (IS_GEN6(dev) || IS_GEN7(dev))
 			mode |= MI_FLUSH_ENABLE << 16 | MI_FLUSH_ENABLE;
 		I915_WRITE(MI_MODE, mode);
+		if (IS_GEN7(dev))
+			I915_WRITE(GFX_MODE_GEN7,
+				   GFX_MODE_DISABLE(GFX_TLB_INVALIDATE_ALWAYS) |
+				   GFX_MODE_ENABLE(GFX_REPLAY_MODE));
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6) {
@@ -1320,6 +1324,9 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 		ring->add_request = pc_render_add_request;
 		ring->get_seqno = pc_render_get_seqno;
 	}
+
+	if (!I915_NEED_GFX_HWS(dev))
+		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
 
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);

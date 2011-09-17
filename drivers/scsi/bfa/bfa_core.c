@@ -33,6 +33,7 @@ static struct bfa_module_s *hal_mods[] = {
 	&hal_mod_uf,
 	&hal_mod_rport,
 	&hal_mod_fcp,
+	&hal_mod_dconf,
 	NULL
 };
 
@@ -237,8 +238,6 @@ bfa_isr_rspq(struct bfa_s *bfa, int qid)
 	u32	pi, ci;
 	struct list_head *waitq;
 
-	bfa_isr_rspq_ack(bfa, qid);
-
 	ci = bfa_rspq_ci(bfa, qid);
 	pi = bfa_rspq_pi(bfa, qid);
 
@@ -251,11 +250,9 @@ bfa_isr_rspq(struct bfa_s *bfa, int qid)
 	}
 
 	/*
-	 * update CI
+	 * acknowledge RME completions and update CI
 	 */
-	bfa_rspq_ci(bfa, qid) = pi;
-	writel(pi, bfa->iocfc.bfa_regs.rme_q_ci[qid]);
-	mmiowb();
+	bfa_isr_rspq_ack(bfa, qid, ci);
 
 	/*
 	 * Resume any pending requests in the corresponding reqq.
@@ -325,23 +322,19 @@ bfa_intx(struct bfa_s *bfa)
 	int queue;
 
 	intr = readl(bfa->iocfc.bfa_regs.intr_status);
-	if (!intr)
-		return BFA_FALSE;
 
 	qintr = intr & (__HFN_INT_RME_MASK | __HFN_INT_CPE_MASK);
 	if (qintr)
 		writel(qintr, bfa->iocfc.bfa_regs.intr_status);
 
 	/*
-	 * RME completion queue interrupt
+	 * Unconditional RME completion queue interrupt
 	 */
-	qintr = intr & __HFN_INT_RME_MASK;
-	if (qintr && bfa->queue_process) {
+	if (bfa->queue_process) {
 		for (queue = 0; queue < BFI_IOC_MAX_CQS; queue++)
 			bfa_isr_rspq(bfa, queue);
 	}
 
-	intr &= ~qintr;
 	if (!intr)
 		return BFA_TRUE;
 
@@ -432,7 +425,8 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 				   __HFN_INT_MBOX_LPU1_CT2);
 		intr    &= __HFN_INT_ERR_MASK_CT2;
 	} else {
-		halt_isr = intr & __HFN_INT_LL_HALT;
+		halt_isr = bfa_asic_id_ct(bfa->ioc.pcidev.device_id) ?
+					  (intr & __HFN_INT_LL_HALT) : 0;
 		pss_isr  = intr & __HFN_INT_ERR_PSS;
 		lpu_isr  = intr & (__HFN_INT_MBOX_LPU0 | __HFN_INT_MBOX_LPU1);
 		intr    &= __HFN_INT_ERR_MASK;
@@ -578,7 +572,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	} else {
 		iocfc->hwif.hw_reginit = bfa_hwcb_reginit;
 		iocfc->hwif.hw_reqq_ack = NULL;
-		iocfc->hwif.hw_rspq_ack = NULL;
+		iocfc->hwif.hw_rspq_ack = bfa_hwcb_rspq_ack;
 		iocfc->hwif.hw_msix_init = bfa_hwcb_msix_init;
 		iocfc->hwif.hw_msix_ctrl_install = bfa_hwcb_msix_ctrl_install;
 		iocfc->hwif.hw_msix_queue_install = bfa_hwcb_msix_queue_install;
@@ -595,7 +589,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	if (bfa_asic_id_ct2(bfa_ioc_devid(&bfa->ioc))) {
 		iocfc->hwif.hw_reginit = bfa_hwct2_reginit;
 		iocfc->hwif.hw_isr_mode_set = NULL;
-		iocfc->hwif.hw_rspq_ack = NULL;
+		iocfc->hwif.hw_rspq_ack = bfa_hwct2_rspq_ack;
 	}
 
 	iocfc->hwif.hw_reginit(bfa);
@@ -685,7 +679,7 @@ bfa_iocfc_start_submod(struct bfa_s *bfa)
 
 	bfa->queue_process = BFA_TRUE;
 	for (i = 0; i < BFI_IOC_MAX_CQS; i++)
-		bfa_isr_rspq_ack(bfa, i);
+		bfa_isr_rspq_ack(bfa, i, bfa_rspq_ci(bfa, i));
 
 	for (i = 0; hal_mods[i]; i++)
 		hal_mods[i]->start(bfa);
@@ -709,7 +703,7 @@ bfa_iocfc_init_cb(void *bfa_arg, bfa_boolean_t complete)
 	struct bfa_s	*bfa = bfa_arg;
 
 	if (complete) {
-		if (bfa->iocfc.cfgdone)
+		if (bfa->iocfc.cfgdone && BFA_DCONF_MOD(bfa)->flashdone)
 			bfa_cb_init(bfa->bfad, BFA_STATUS_OK);
 		else
 			bfa_cb_init(bfa->bfad, BFA_STATUS_FAILED);
@@ -822,9 +816,11 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	 */
 	bfa_fcport_init(bfa);
 
-	if (iocfc->action == BFA_IOCFC_ACT_INIT)
-		bfa_cb_queue(bfa, &iocfc->init_hcb_qe, bfa_iocfc_init_cb, bfa);
-	else {
+	if (iocfc->action == BFA_IOCFC_ACT_INIT) {
+		if (BFA_DCONF_MOD(bfa)->flashdone == BFA_TRUE)
+			bfa_cb_queue(bfa, &iocfc->init_hcb_qe,
+				bfa_iocfc_init_cb, bfa);
+	} else {
 		if (bfa->iocfc.action == BFA_IOCFC_ACT_ENABLE)
 			bfa_cb_queue(bfa, &bfa->iocfc.en_hcb_qe,
 					bfa_iocfc_enable_cb, bfa);
@@ -1045,6 +1041,7 @@ bfa_iocfc_enable_cbfn(void *bfa_arg, enum bfa_status status)
 	}
 
 	bfa_iocfc_send_cfg(bfa);
+	bfa_dconf_modinit(bfa);
 }
 
 /*
@@ -1207,7 +1204,9 @@ bfa_iocfc_stop(struct bfa_s *bfa)
 	bfa->iocfc.action = BFA_IOCFC_ACT_STOP;
 
 	bfa->queue_process = BFA_FALSE;
-	bfa_ioc_disable(&bfa->ioc);
+	bfa_dconf_modexit(bfa);
+	if (BFA_DCONF_MOD(bfa)->flashdone == BFA_TRUE)
+		bfa_ioc_disable(&bfa->ioc);
 }
 
 void
@@ -1540,10 +1539,17 @@ bfa_comp_process(struct bfa_s *bfa, struct list_head *comp_q)
 	struct list_head		*qe;
 	struct list_head		*qen;
 	struct bfa_cb_qe_s	*hcb_qe;
+	bfa_cb_cbfn_status_t	cbfn;
 
 	list_for_each_safe(qe, qen, comp_q) {
 		hcb_qe = (struct bfa_cb_qe_s *) qe;
-		hcb_qe->cbfn(hcb_qe->cbarg, BFA_TRUE);
+		if (hcb_qe->pre_rmv) {
+			/* qe is invalid after return, dequeue before cbfn() */
+			list_del(qe);
+			cbfn = (bfa_cb_cbfn_status_t)(hcb_qe->cbfn);
+			cbfn(hcb_qe->cbarg, hcb_qe->fw_status);
+		} else
+			hcb_qe->cbfn(hcb_qe->cbarg, BFA_TRUE);
 	}
 }
 
@@ -1556,10 +1562,20 @@ bfa_comp_free(struct bfa_s *bfa, struct list_head *comp_q)
 	while (!list_empty(comp_q)) {
 		bfa_q_deq(comp_q, &qe);
 		hcb_qe = (struct bfa_cb_qe_s *) qe;
+		WARN_ON(hcb_qe->pre_rmv);
 		hcb_qe->cbfn(hcb_qe->cbarg, BFA_FALSE);
 	}
 }
 
+void
+bfa_iocfc_cb_dconf_modinit(struct bfa_s *bfa, bfa_status_t status)
+{
+	if (bfa->iocfc.action == BFA_IOCFC_ACT_INIT) {
+		if (bfa->iocfc.cfgdone == BFA_TRUE)
+			bfa_cb_queue(bfa, &bfa->iocfc.init_hcb_qe,
+				bfa_iocfc_init_cb, bfa);
+	}
+}
 
 /*
  * Return the list of PCI vendor/device id lists supported by this

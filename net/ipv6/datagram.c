@@ -33,6 +33,11 @@
 #include <linux/errqueue.h>
 #include <asm/uaccess.h>
 
+static inline int ipv6_mapped_addr_any(const struct in6_addr *a)
+{
+	return (ipv6_addr_v4mapped(a) && (a->s6_addr32[3] == 0));
+}
+
 int ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct sockaddr_in6	*usin = (struct sockaddr_in6 *) uaddr;
@@ -102,10 +107,12 @@ ipv4_connected:
 
 		ipv6_addr_set_v4mapped(inet->inet_daddr, &np->daddr);
 
-		if (ipv6_addr_any(&np->saddr))
+		if (ipv6_addr_any(&np->saddr) ||
+		    ipv6_mapped_addr_any(&np->saddr))
 			ipv6_addr_set_v4mapped(inet->inet_saddr, &np->saddr);
 
-		if (ipv6_addr_any(&np->rcv_saddr)) {
+		if (ipv6_addr_any(&np->rcv_saddr) ||
+		    ipv6_mapped_addr_any(&np->rcv_saddr)) {
 			ipv6_addr_set_v4mapped(inet->inet_rcv_saddr,
 					       &np->rcv_saddr);
 			if (sk->sk_prot->rehash)

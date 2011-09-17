@@ -80,7 +80,6 @@ static void genpd_set_active(struct generic_pm_domain *genpd)
 int pm_genpd_poweron(struct generic_pm_domain *genpd)
 {
 	struct generic_pm_domain *parent = genpd->parent;
-	DEFINE_WAIT(wait);
 	int ret = 0;
 
  start:
@@ -112,7 +111,7 @@ int pm_genpd_poweron(struct generic_pm_domain *genpd)
 	}
 
 	if (genpd->power_on) {
-		int ret = genpd->power_on(genpd);
+		ret = genpd->power_on(genpd);
 		if (ret)
 			goto out;
 	}
@@ -459,6 +458,21 @@ static int pm_genpd_runtime_resume(struct device *dev)
 		genpd->start_device(dev);
 
 	return 0;
+}
+
+/**
+ * pm_genpd_poweroff_unused - Power off all PM domains with no devices in use.
+ */
+void pm_genpd_poweroff_unused(void)
+{
+	struct generic_pm_domain *genpd;
+
+	mutex_lock(&gpd_list_lock);
+
+	list_for_each_entry(genpd, &gpd_list, gpd_list_node)
+		genpd_queue_power_off_work(genpd);
+
+	mutex_unlock(&gpd_list_lock);
 }
 
 #else
@@ -1254,20 +1268,5 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.complete = pm_genpd_complete;
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
-	mutex_unlock(&gpd_list_lock);
-}
-
-/**
- * pm_genpd_poweroff_unused - Power off all PM domains with no devices in use.
- */
-void pm_genpd_poweroff_unused(void)
-{
-	struct generic_pm_domain *genpd;
-
-	mutex_lock(&gpd_list_lock);
-
-	list_for_each_entry(genpd, &gpd_list, gpd_list_node)
-		genpd_queue_power_off_work(genpd);
-
 	mutex_unlock(&gpd_list_lock);
 }

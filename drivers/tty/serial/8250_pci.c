@@ -1599,11 +1599,6 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.device         = 0x800D,
 		.init		= pci_eg20t_init,
 	},
-	{
-		.vendor         = 0x10DB,
-		.device         = 0x800D,
-		.init		= pci_eg20t_init,
-	},
 	/*
 	 * Cronyx Omega PCI (PLX-chip based)
 	 */
@@ -4021,12 +4016,16 @@ static struct pci_device_id serial_pci_tbl[] = {
 		0, 0, pbn_NETMOS9900_2s_115200 },
 
 	/*
-	 * Best Connectivity PCI Multi I/O cards
+	 * Best Connectivity and Rosewill PCI Multi I/O cards
 	 */
 
 	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9865,
 		0xA000, 0x1000,
 		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9865,
+		0xA000, 0x3002,
+		0, 0, pbn_b0_bt_2_115200 },
 
 	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9865,
 		0xA000, 0x3004,

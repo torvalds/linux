@@ -297,6 +297,7 @@ struct bfa_rport_s {
 	void		*rport_drv;	/*  fcs/driver rport object	    */
 	u16	fw_handle;	/*  firmware rport handle	    */
 	u16	rport_tag;	/*  BFA rport tag		    */
+	u8	lun_mask;	/*  LUN mask flag		    */
 	struct bfa_rport_info_s rport_info; /*  rport info from fcs/driver */
 	struct bfa_reqq_wait_s reqq_wait; /*  to wait for room in reqq     */
 	struct bfa_cb_qe_s hcb_qe;	/*  BFA callback qelem		    */
@@ -404,6 +405,7 @@ struct bfa_lps_s {
 	u8		bb_scn;		/*  local BB_SCN		*/
 	u8		lsrjt_rsn;	/*  LSRJT reason		*/
 	u8		lsrjt_expl;	/*  LSRJT explanation		*/
+	u8		lun_mask;	/*  LUN mask flag		*/
 	wwn_t		pwwn;		/*  port wwn of lport		*/
 	wwn_t		nwwn;		/*  node wwn of lport		*/
 	wwn_t		pr_pwwn;	/*  port wwn of lport peer	*/
@@ -441,7 +443,6 @@ void	bfa_lps_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
  */
 
 #define BFA_FCPORT(_bfa)	(&((_bfa)->modules.port))
-typedef void (*bfa_cb_port_t) (void *cbarg, enum bfa_status status);
 
 /*
  * Link notification data structure
@@ -495,13 +496,11 @@ struct bfa_fcport_s {
 	u8			*stats_kva;
 	u64		stats_pa;
 	union bfa_fcport_stats_u *stats;
-	union bfa_fcport_stats_u *stats_ret; /*  driver stats location */
 	bfa_status_t		stats_status; /*  stats/statsclr status */
-	bfa_boolean_t		stats_busy; /*  outstanding stats/statsclr */
+	struct list_head	stats_pending_q;
+	struct list_head	statsclr_pending_q;
 	bfa_boolean_t		stats_qfull;
 	u32		stats_reset_time; /*  stats reset time stamp */
-	bfa_cb_port_t		stats_cbfn; /*  driver callback function */
-	void			*stats_cbarg; /* *!< user callback arg */
 	bfa_boolean_t		diag_busy; /*  diag busy status */
 	bfa_boolean_t		beacon; /*  port beacon status */
 	bfa_boolean_t		link_e2e_beacon; /*  link beacon status */
@@ -552,10 +551,9 @@ void bfa_fcport_beacon(void *dev, bfa_boolean_t beacon,
 			bfa_boolean_t link_e2e_beacon);
 bfa_boolean_t	bfa_fcport_is_linkup(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_get_stats(struct bfa_s *bfa,
-				  union bfa_fcport_stats_u *stats,
-				  bfa_cb_port_t cbfn, void *cbarg);
-bfa_status_t bfa_fcport_clear_stats(struct bfa_s *bfa, bfa_cb_port_t cbfn,
-				    void *cbarg);
+			struct bfa_cb_pending_q_s *cb);
+bfa_status_t bfa_fcport_clear_stats(struct bfa_s *bfa,
+			struct bfa_cb_pending_q_s *cb);
 bfa_boolean_t bfa_fcport_is_qos_enabled(struct bfa_s *bfa);
 bfa_boolean_t bfa_fcport_is_trunk_enabled(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_is_pbcdisabled(struct bfa_s *bfa);
@@ -576,6 +574,19 @@ void bfa_cb_rport_qos_scn_flowid(void *rport,
 void bfa_cb_rport_qos_scn_prio(void *rport,
 			       struct bfa_rport_qos_attr_s old_qos_attr,
 			       struct bfa_rport_qos_attr_s new_qos_attr);
+
+/*
+ *	Rport LUN masking related
+ */
+#define BFA_RPORT_TAG_INVALID	0xffff
+#define BFA_LP_TAG_INVALID	0xff
+void	bfa_rport_set_lunmask(struct bfa_s *bfa, struct bfa_rport_s *rp);
+void	bfa_rport_unset_lunmask(struct bfa_s *bfa, struct bfa_rport_s *rp);
+bfa_boolean_t	bfa_rport_lunmask_active(struct bfa_rport_s *rp);
+wwn_t	bfa_rport_get_pwwn(struct bfa_s *bfa, struct bfa_rport_s *rp);
+struct bfa_rport_s *bfa_rport_get_by_wwn(struct bfa_s *bfa, u16 vf_id,
+					 wwn_t *lpwwn, wwn_t rpwwn);
+void *bfa_cb_get_rp_by_wwn(void *arg, u16 vf_id, wwn_t *lpwwn, wwn_t rpwwn);
 
 /*
  * bfa fcxp API functions

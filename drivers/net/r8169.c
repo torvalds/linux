@@ -239,6 +239,7 @@ static DEFINE_PCI_DEVICE_TABLE(rtl8169_pci_tbl) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8168), 0, 0, RTL_CFG_1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8169), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK,	0x4300), 0, 0, RTL_CFG_0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK,	0x4302), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AT,		0xc107), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(0x16ec,			0x0116), 0, 0, RTL_CFG_0 },
 	{ PCI_VENDOR_ID_LINKSYS,		0x1032,
@@ -1089,6 +1090,21 @@ rtl_w1w0_eri(void __iomem *ioaddr, int addr, u32 mask, u32 p, u32 m, int type)
 
 	val = rtl_eri_read(ioaddr, addr, type);
 	rtl_eri_write(ioaddr, addr, mask, (val & ~m) | p, type);
+}
+
+struct exgmac_reg {
+	u16 addr;
+	u16 mask;
+	u32 val;
+};
+
+static void rtl_write_exgmac_batch(void __iomem *ioaddr,
+				   const struct exgmac_reg *r, int len)
+{
+	while (len-- > 0) {
+		rtl_eri_write(ioaddr, r->addr, r->mask, r->val, ERIAR_EXGMAC);
+		r++;
+	}
 }
 
 static u8 rtl8168d_efuse_read(void __iomem *ioaddr, int reg_addr)
@@ -3115,6 +3131,18 @@ static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
 
 	RTL_W32(MAC0, low);
 	RTL_R32(MAC0);
+
+	if (tp->mac_version == RTL_GIGA_MAC_VER_34) {
+		const struct exgmac_reg e[] = {
+			{ .addr = 0xe0, ERIAR_MASK_1111, .val = low },
+			{ .addr = 0xe4, ERIAR_MASK_1111, .val = high },
+			{ .addr = 0xf0, ERIAR_MASK_1111, .val = low << 16 },
+			{ .addr = 0xf4, ERIAR_MASK_1111, .val = high << 16 |
+								low  >> 16 },
+		};
+
+		rtl_write_exgmac_batch(ioaddr, e, ARRAY_SIZE(e));
+	}
 
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 

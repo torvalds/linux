@@ -19,6 +19,7 @@
 #include <linux/rtc.h>
 #include <linux/ioport.h>
 #include <linux/pfn.h>
+#include <linux/pstore.h>
 
 #include <asm/page.h>
 #include <asm/system.h>
@@ -231,6 +232,9 @@ typedef efi_status_t efi_query_capsule_caps_t(efi_capsule_header_t **capsules,
 
 #define UV_SYSTEM_TABLE_GUID \
     EFI_GUID(  0x3b13a7d4, 0x633e, 0x11dd, 0x93, 0xec, 0xda, 0x25, 0x56, 0xd8, 0x95, 0x93 )
+
+#define LINUX_EFI_CRASH_GUID \
+    EFI_GUID(  0xcfc8fc79, 0xbe2e, 0x4ddc, 0x97, 0xf0, 0x9f, 0x98, 0xbf, 0xe2, 0x98, 0xa0 )
 
 typedef struct {
 	efi_guid_t guid;
@@ -458,6 +462,8 @@ struct efivars {
 	struct kset *kset;
 	struct bin_attribute *new_var, *del_var;
 	const struct efivar_operations *ops;
+	struct efivar_entry *walk_entry;
+	struct pstore_info efi_pstore_info;
 };
 
 int register_efivars(struct efivars *efivars,

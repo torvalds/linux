@@ -915,12 +915,11 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 {
 	struct r600_cs_track *track = (struct r600_cs_track *)p->track;
 	struct radeon_cs_reloc *reloc;
-	u32 last_reg = ARRAY_SIZE(r600_reg_safe_bm);
 	u32 m, i, tmp, *ib;
 	int r;
 
 	i = (reg >> 7);
-	if (i > last_reg) {
+	if (i >= ARRAY_SIZE(r600_reg_safe_bm)) {
 		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
 		return -EINVAL;
 	}
