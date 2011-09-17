@@ -837,8 +837,9 @@ static int cxusb_cx22702_frontend_attach(struct dvb_usb_adapter *adap)
 
 	cxusb_ctrl_msg(adap->dev, CMD_DIGITAL, NULL, 0, &b, 1);
 
-	if ((adap->fe_adap[0].fe = dvb_attach(cx22702_attach, &cxusb_cx22702_config,
-				   &adap->dev->i2c_adap)) != NULL)
+	adap->fe_adap[0].fe = dvb_attach(cx22702_attach, &cxusb_cx22702_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL)
 		return 0;
 
 	return -EIO;
@@ -851,8 +852,10 @@ static int cxusb_lgdt3303_frontend_attach(struct dvb_usb_adapter *adap)
 
 	cxusb_ctrl_msg(adap->dev, CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((adap->fe_adap[0].fe = dvb_attach(lgdt330x_attach, &cxusb_lgdt3303_config,
-				   &adap->dev->i2c_adap)) != NULL)
+	adap->fe_adap[0].fe = dvb_attach(lgdt330x_attach,
+					 &cxusb_lgdt3303_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL)
 		return 0;
 
 	return -EIO;
@@ -876,8 +879,9 @@ static int cxusb_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 
 	cxusb_ctrl_msg(adap->dev, CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((adap->fe_adap[0].fe = dvb_attach(mt352_attach, &cxusb_mt352_config,
-				   &adap->dev->i2c_adap)) != NULL)
+	adap->fe_adap[0].fe = dvb_attach(mt352_attach, &cxusb_mt352_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL)
 		return 0;
 
 	return -EIO;
@@ -890,11 +894,15 @@ static int cxusb_dee1601_frontend_attach(struct dvb_usb_adapter *adap)
 
 	cxusb_ctrl_msg(adap->dev, CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if (((adap->fe_adap[0].fe = dvb_attach(mt352_attach, &cxusb_dee1601_config,
-				    &adap->dev->i2c_adap)) != NULL) ||
-		((adap->fe_adap[0].fe = dvb_attach(zl10353_attach,
-					&cxusb_zl10353_dee1601_config,
-					&adap->dev->i2c_adap)) != NULL))
+	adap->fe_adap[0].fe = dvb_attach(mt352_attach, &cxusb_dee1601_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL)
+		return 0;
+
+	adap->fe_adap[0].fe = dvb_attach(zl10353_attach,
+					 &cxusb_zl10353_dee1601_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL)
 		return 0;
 
 	return -EIO;
@@ -917,9 +925,11 @@ static int cxusb_dualdig4_frontend_attach(struct dvb_usb_adapter *adap)
 	cxusb_bluebird_gpio_pulse(adap->dev, 0x01, 1);
 	cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1);
 
-	if ((adap->fe_adap[0].fe = dvb_attach(zl10353_attach,
-				   &cxusb_zl10353_xc3028_config_no_i2c_gate,
-				   &adap->dev->i2c_adap)) == NULL)
+	adap->fe_adap[0].fe =
+		dvb_attach(zl10353_attach,
+			   &cxusb_zl10353_xc3028_config_no_i2c_gate,
+			   &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) == NULL)
 		return -EIO;
 
 	/* try to determine if there is no IR decoder on the I2C bus */
@@ -1108,14 +1118,16 @@ static int cxusb_nano2_frontend_attach(struct dvb_usb_adapter *adap)
 	cxusb_bluebird_gpio_pulse(adap->dev, 0x01, 1);
 	cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1);
 
-	if ((adap->fe_adap[0].fe = dvb_attach(zl10353_attach,
-				   &cxusb_zl10353_xc3028_config,
-				   &adap->dev->i2c_adap)) != NULL)
+	adap->fe_adap[0].fe = dvb_attach(zl10353_attach,
+					 &cxusb_zl10353_xc3028_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL)
 		return 0;
 
-	if ((adap->fe_adap[0].fe = dvb_attach(mt352_attach,
-				   &cxusb_mt352_xc3028_config,
-				   &adap->dev->i2c_adap)) != NULL)
+	adap->fe_adap[0].fe = dvb_attach(mt352_attach,
+					 &cxusb_mt352_xc3028_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL)
 		return 0;
 
 	return -EIO;
