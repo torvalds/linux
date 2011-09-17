@@ -802,11 +802,11 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev,
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		vaddr = kmap_atomic(page, KM_USER0);
+		vaddr = kmap_atomic(page);
 		ret = __copy_from_user_inatomic(vaddr + page_offset,
 						user_data,
 						page_length);
-		kunmap_atomic(vaddr, KM_USER0);
+		kunmap_atomic(vaddr);
 
 		set_page_dirty(page);
 		mark_page_accessed(page);
