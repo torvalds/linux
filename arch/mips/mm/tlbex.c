@@ -1962,7 +1962,8 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 			uasm_i_andi(&p, wr.r3, wr.r3, 2);
 			uasm_il_beqz(&p, &r, wr.r3, label_tlbl_goaround2);
 		}
-
+		if (PM_DEFAULT_MASK == 0)
+			uasm_i_nop(&p);
 		/*
 		 * We clobbered C0_PAGEMASK, restore it.  On the other branch
 		 * it is restored in build_huge_tlb_write_entry.
