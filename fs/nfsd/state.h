@@ -76,7 +76,9 @@ struct nfs4_stid {
 #define NFS4_OPEN_STID 1
 #define NFS4_LOCK_STID 2
 #define NFS4_DELEG_STID 4
-	char sc_type;
+/* For an open stateid kept around *only* to process close replays: */
+#define NFS4_CLOSED_STID 8
+	unsigned char sc_type;
 	struct list_head sc_hash;
 	stateid_t sc_stateid;
 };
