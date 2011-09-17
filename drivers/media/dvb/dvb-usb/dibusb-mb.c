@@ -31,8 +31,9 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 
 	demod_cfg.demod_address = 0x8;
 
-	if ((adap->fe_adap[0].fe = dvb_attach(dib3000mb_attach, &demod_cfg,
-				   &adap->dev->i2c_adap, &st->ops)) == NULL)
+	adap->fe_adap[0].fe = dvb_attach(dib3000mb_attach, &demod_cfg,
+					 &adap->dev->i2c_adap, &st->ops);
+	if ((adap->fe_adap[0].fe) == NULL)
 		return -ENODEV;
 
 	adap->fe_adap[0].fe->ops.i2c_gate_ctrl = dib3000mb_i2c_gate_ctrl;
