@@ -501,9 +501,10 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if ((adap->fe_adap[0].fe = dvb_attach(mt352_attach,
-				   &m920x_mt352_config,
-				   &adap->dev->i2c_adap)) == NULL)
+	adap->fe_adap[0].fe = dvb_attach(mt352_attach,
+					 &m920x_mt352_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) == NULL)
 		return -EIO;
 
 	return 0;
@@ -513,9 +514,10 @@ static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if ((adap->fe_adap[0].fe = dvb_attach(tda10046_attach,
-				   &m920x_tda10046_08_config,
-				   &adap->dev->i2c_adap)) == NULL)
+	adap->fe_adap[0].fe = dvb_attach(tda10046_attach,
+					 &m920x_tda10046_08_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) == NULL)
 		return -EIO;
 
 	return 0;
@@ -525,9 +527,10 @@ static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if ((adap->fe_adap[0].fe = dvb_attach(tda10046_attach,
-				   &m920x_tda10046_0b_config,
-				   &adap->dev->i2c_adap)) == NULL)
+	adap->fe_adap[0].fe = dvb_attach(tda10046_attach,
+					 &m920x_tda10046_0b_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) == NULL)
 		return -EIO;
 
 	return 0;
