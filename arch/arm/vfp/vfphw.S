@@ -82,22 +82,19 @@ ENTRY(vfp_support_entry)
 	ldr	r4, [r3, r11, lsl #2]	@ vfp_current_hw_state pointer
 	bic	r5, r1, #FPEXC_EX	@ make sure exceptions are disabled
 	cmp	r4, r10			@ this thread owns the hw context?
-#ifndef CONFIG_SMP
-	@ For UP, checking that this thread owns the hw context is
-	@ sufficient to determine that the hardware state is valid.
 	beq	vfp_hw_state_valid
-
-	@ On UP, we lazily save the VFP context.  As a different
-	@ thread wants ownership of the VFP hardware, save the old
-	@ state if there was a previous (valid) owner.
 
 	VFPFMXR	FPEXC, r5		@ enable VFP, disable any pending
 					@ exceptions, so we can get at the
 					@ rest of it
 
+#ifndef CONFIG_SMP
+	@ Save out the current registers to the old thread state
+	@ No need for SMP since this is not done lazily
+
 	DBGSTR1	"save old state %p", r4
-	cmp	r4, #0			@ if the vfp_current_hw_state is NULL
-	beq	vfp_reload_hw		@ then the hw state needs reloading
+	cmp	r4, #0
+	beq	no_old_VFP_process
 	VFPFSTMIA r4, r5		@ save the working registers
 	VFPFMRX	r5, FPSCR		@ current status
 #ifndef CONFIG_CPU_FEROCEON
@@ -110,33 +107,11 @@ ENTRY(vfp_support_entry)
 1:
 #endif
 	stmia	r4, {r1, r5, r6, r8}	@ save FPEXC, FPSCR, FPINST, FPINST2
-vfp_reload_hw:
-
-#else
-	@ For SMP, if this thread does not own the hw context, then we
-	@ need to reload it.  No need to save the old state as on SMP,
-	@ we always save the state when we switch away from a thread.
-	bne	vfp_reload_hw
-
-	@ This thread has ownership of the current hardware context.
-	@ However, it may have been migrated to another CPU, in which
-	@ case the saved state is newer than the hardware context.
-	@ Check this by looking at the CPU number which the state was
-	@ last loaded onto.
-	ldr	ip, [r10, #VFP_CPU]
-	teq	ip, r11
-	beq	vfp_hw_state_valid
-
-vfp_reload_hw:
-	@ We're loading this threads state into the VFP hardware. Update
-	@ the CPU number which contains the most up to date VFP context.
-	str	r11, [r10, #VFP_CPU]
-
-	VFPFMXR	FPEXC, r5		@ enable VFP, disable any pending
-					@ exceptions, so we can get at the
-					@ rest of it
+					@ and point r4 at the word at the
+					@ start of the register dump
 #endif
 
+no_old_VFP_process:
 	DBGSTR1	"load state %p", r10
 	str	r10, [r3, r11, lsl #2]	@ update the vfp_current_hw_state pointer
 					@ Load the saved state back into the VFP
