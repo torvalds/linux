@@ -24,7 +24,7 @@
 #ifndef __LOCAL_NFC_H
 #define __LOCAL_NFC_H
 
-#include <net/nfc.h>
+#include <net/nfc/nfc.h>
 #include <net/sock.h>
 
 __attribute__((format (printf, 2, 3)))

@@ -4508,7 +4508,7 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	net/nfc/
 F:	include/linux/nfc.h
-F:	include/net/nfc.h
+F:	include/net/nfc/
 F:	drivers/nfc/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
