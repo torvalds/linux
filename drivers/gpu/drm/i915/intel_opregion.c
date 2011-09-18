@@ -227,7 +227,6 @@ void intel_opregion_asle_intr(struct drm_device *dev)
 	asle->aslc = asle_stat;
 }
 
-/* Only present on Ironlake+ */
 void intel_opregion_gse_intr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;

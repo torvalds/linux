@@ -150,6 +150,8 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	spin_lock(&root->fs_info->defrag_inodes_lock);
 	if (!BTRFS_I(inode)->in_defrag)
 		__btrfs_add_inode_defrag(inode, defrag);
+	else
+		kfree(defrag);
 	spin_unlock(&root->fs_info->defrag_inodes_lock);
 	return 0;
 }
@@ -1073,12 +1075,6 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 	start_pos = pos & ~((u64)root->sectorsize - 1);
 	last_pos = ((u64)index + num_pages) << PAGE_CACHE_SHIFT;
 
-	if (start_pos > inode->i_size) {
-		err = btrfs_cont_expand(inode, i_size_read(inode), start_pos);
-		if (err)
-			return err;
-	}
-
 again:
 	for (i = 0; i < num_pages; i++) {
 		pages[i] = find_or_create_page(inode->i_mapping, index + i,
@@ -1336,6 +1332,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	loff_t *ppos = &iocb->ki_pos;
+	u64 start_pos;
 	ssize_t num_written = 0;
 	ssize_t err = 0;
 	size_t count, ocount;
@@ -1383,6 +1380,15 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 
 	file_update_time(file);
 	BTRFS_I(inode)->sequence++;
+
+	start_pos = round_down(pos, root->sectorsize);
+	if (start_pos > i_size_read(inode)) {
+		err = btrfs_cont_expand(inode, i_size_read(inode), start_pos);
+		if (err) {
+			mutex_unlock(&inode->i_mutex);
+			goto out;
+		}
+	}
 
 	if (unlikely(file->f_flags & O_DIRECT)) {
 		num_written = __btrfs_direct_write(iocb, iov, nr_segs,
@@ -1638,11 +1644,15 @@ static long btrfs_fallocate(struct file *file, int mode,
 
 	cur_offset = alloc_start;
 	while (1) {
+		u64 actual_end;
+
 		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
 				      alloc_end - cur_offset, 0);
 		BUG_ON(IS_ERR_OR_NULL(em));
 		last_byte = min(extent_map_end(em), alloc_end);
+		actual_end = min_t(u64, extent_map_end(em), offset + len);
 		last_byte = (last_byte + mask) & ~mask;
+
 		if (em->block_start == EXTENT_MAP_HOLE ||
 		    (cur_offset >= inode->i_size &&
 		     !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
@@ -1655,6 +1665,16 @@ static long btrfs_fallocate(struct file *file, int mode,
 				free_extent_map(em);
 				break;
 			}
+		} else if (actual_end > inode->i_size &&
+			   !(mode & FALLOC_FL_KEEP_SIZE)) {
+			/*
+			 * We didn't need to allocate any more space, but we
+			 * still extended the size of the file so we need to
+			 * update i_size.
+			 */
+			inode->i_ctime = CURRENT_TIME;
+			i_size_write(inode, actual_end);
+			btrfs_ordered_update_i_size(inode, actual_end, NULL);
 		}
 		free_extent_map(em);
 
@@ -1804,10 +1824,14 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int origin)
 		}
 	}
 
-	if (offset < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET))
-		return -EINVAL;
-	if (offset > inode->i_sb->s_maxbytes)
-		return -EINVAL;
+	if (offset < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	if (offset > inode->i_sb->s_maxbytes) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	/* Special lock needed here? */
 	if (offset != file->f_pos) {

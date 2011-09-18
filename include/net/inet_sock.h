@@ -238,7 +238,7 @@ static inline __u8 inet_sk_flowi_flags(const struct sock *sk)
 {
 	__u8 flags = 0;
 
-	if (inet_sk(sk)->transparent)
+	if (inet_sk(sk)->transparent || inet_sk(sk)->hdrincl)
 		flags |= FLOWI_FLAG_ANYSRC;
 	if (sk->sk_protocol == IPPROTO_TCP)
 		flags |= FLOWI_FLAG_PRECOW_METRICS;

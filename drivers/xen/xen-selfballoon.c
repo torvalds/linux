@@ -70,6 +70,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/module.h>
 #include <linux/workqueue.h>
 #include <xen/balloon.h>
 #include <xen/tmem.h>

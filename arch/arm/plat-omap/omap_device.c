@@ -615,6 +615,9 @@ static int _od_resume_noirq(struct device *dev)
 
 	return pm_generic_resume_noirq(dev);
 }
+#else
+#define _od_suspend_noirq NULL
+#define _od_resume_noirq NULL
 #endif
 
 static struct dev_pm_domain omap_device_pm_domain = {
@@ -622,7 +625,8 @@ static struct dev_pm_domain omap_device_pm_domain = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   _od_runtime_idle)
 		USE_PLATFORM_PM_SLEEP_OPS
-		SET_SYSTEM_SLEEP_PM_OPS(_od_suspend_noirq, _od_resume_noirq)
+		.suspend_noirq = _od_suspend_noirq,
+		.resume_noirq = _od_resume_noirq,
 	}
 };
 

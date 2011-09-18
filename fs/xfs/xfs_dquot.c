@@ -318,10 +318,9 @@ xfs_qm_init_dquot_blk(
 	int		curid, i;
 
 	ASSERT(tp);
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(xfs_buf_islocked(bp));
 
-	d = (xfs_dqblk_t *)XFS_BUF_PTR(bp);
+	d = bp->b_addr;
 
 	/*
 	 * ID of the first dquot in the block - id's are zero based.
@@ -403,7 +402,7 @@ xfs_qm_dqalloc(
 			       dqp->q_blkno,
 			       mp->m_quotainfo->qi_dqchunklen,
 			       0);
-	if (!bp || (error = XFS_BUF_GETERROR(bp)))
+	if (!bp || (error = xfs_buf_geterror(bp)))
 		goto error1;
 	/*
 	 * Make a chunk of dquots out of this buffer and log
@@ -534,13 +533,12 @@ xfs_qm_dqtobp(
 			return XFS_ERROR(error);
 	}
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(xfs_buf_islocked(bp));
 
 	/*
 	 * calculate the location of the dquot inside the buffer.
 	 */
-	ddq = (struct xfs_disk_dquot *)(XFS_BUF_PTR(bp) + dqp->q_bufoffset);
+	ddq = bp->b_addr + dqp->q_bufoffset;
 
 	/*
 	 * A simple sanity check in case we got a corrupted dquot...
@@ -553,7 +551,6 @@ xfs_qm_dqtobp(
 			xfs_trans_brelse(tp, bp);
 			return XFS_ERROR(EIO);
 		}
-		XFS_BUF_BUSY(bp); /* We dirtied this */
 	}
 
 	*O_bpp = bp;
@@ -622,7 +619,6 @@ xfs_qm_dqread(
 	 * this particular dquot was repaired. We still aren't afraid to
 	 * brelse it because we have the changes incore.
 	 */
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(xfs_buf_islocked(bp));
 	xfs_trans_brelse(tp, bp);
 
@@ -1204,7 +1200,7 @@ xfs_qm_dqflush(
 	/*
 	 * Calculate the location of the dquot inside the buffer.
 	 */
-	ddqp = (struct xfs_disk_dquot *)(XFS_BUF_PTR(bp) + dqp->q_bufoffset);
+	ddqp = bp->b_addr + dqp->q_bufoffset;
 
 	/*
 	 * A simple sanity check in case we got a corrupted dquot..
@@ -1240,7 +1236,7 @@ xfs_qm_dqflush(
 	 * If the buffer is pinned then push on the log so we won't
 	 * get stuck waiting in the write for too long.
 	 */
-	if (XFS_BUF_ISPINNED(bp)) {
+	if (xfs_buf_ispinned(bp)) {
 		trace_xfs_dqflush_force(dqp);
 		xfs_log_force(mp, 0);
 	}
@@ -1447,7 +1443,7 @@ xfs_qm_dqflock_pushbuf_wait(
 		goto out_lock;
 
 	if (XFS_BUF_ISDELAYWRITE(bp)) {
-		if (XFS_BUF_ISPINNED(bp))
+		if (xfs_buf_ispinned(bp))
 			xfs_log_force(mp, 0);
 		xfs_buf_delwri_promote(bp);
 		wake_up_process(bp->b_target->bt_task);

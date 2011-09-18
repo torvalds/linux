@@ -3007,11 +3007,27 @@
 /* [R 6] Debug only: Number of used entries in the data FIFO */
 #define PXP2_REG_HST_DATA_FIFO_STATUS				 0x12047c
 /* [R 7] Debug only: Number of used entries in the header FIFO */
-#define PXP2_REG_HST_HEADER_FIFO_STATUS 			 0x120478
-#define PXP2_REG_PGL_ADDR_88_F0 				 0x120534
-#define PXP2_REG_PGL_ADDR_8C_F0 				 0x120538
-#define PXP2_REG_PGL_ADDR_90_F0 				 0x12053c
-#define PXP2_REG_PGL_ADDR_94_F0 				 0x120540
+#define PXP2_REG_HST_HEADER_FIFO_STATUS				 0x120478
+#define PXP2_REG_PGL_ADDR_88_F0					 0x120534
+/* [R 32] GRC address for configuration access to PCIE config address 0x88.
+ * any write to this PCIE address will cause a GRC write access to the
+ * address that's in t this register */
+#define PXP2_REG_PGL_ADDR_88_F1					 0x120544
+#define PXP2_REG_PGL_ADDR_8C_F0					 0x120538
+/* [R 32] GRC address for configuration access to PCIE config address 0x8c.
+ * any write to this PCIE address will cause a GRC write access to the
+ * address that's in t this register */
+#define PXP2_REG_PGL_ADDR_8C_F1					 0x120548
+#define PXP2_REG_PGL_ADDR_90_F0					 0x12053c
+/* [R 32] GRC address for configuration access to PCIE config address 0x90.
+ * any write to this PCIE address will cause a GRC write access to the
+ * address that's in t this register */
+#define PXP2_REG_PGL_ADDR_90_F1					 0x12054c
+#define PXP2_REG_PGL_ADDR_94_F0					 0x120540
+/* [R 32] GRC address for configuration access to PCIE config address 0x94.
+ * any write to this PCIE address will cause a GRC write access to the
+ * address that's in t this register */
+#define PXP2_REG_PGL_ADDR_94_F1					 0x120550
 #define PXP2_REG_PGL_CONTROL0					 0x120490
 #define PXP2_REG_PGL_CONTROL1					 0x120514
 #define PXP2_REG_PGL_DEBUG					 0x120520

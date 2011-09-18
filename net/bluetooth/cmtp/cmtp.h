@@ -81,6 +81,7 @@ struct cmtp_session {
 
 	char name[BTNAMSIZ];
 
+	atomic_t terminate;
 	struct task_struct *task;
 
 	wait_queue_head_t wait;

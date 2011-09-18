@@ -67,6 +67,7 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
+	struct se_portal_group *tpg = lun->lun_sep->sep_tpg;
 	unsigned char *buf;
 
 	/*
@@ -81,9 +82,13 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 
 	buf = transport_kmap_first_data_page(cmd);
 
-	buf[0] = dev->transport->get_device_type(dev);
-	if (buf[0] == TYPE_TAPE)
-		buf[1] = 0x80;
+	if (dev == tpg->tpg_virt_lun0.lun_se_dev) {
+		buf[0] = 0x3f; /* Not connected */
+	} else {
+		buf[0] = dev->transport->get_device_type(dev);
+		if (buf[0] == TYPE_TAPE)
+			buf[1] = 0x80;
+	}
 	buf[2] = dev->transport->get_device_rev(dev);
 
 	/*
@@ -915,8 +920,8 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 		length += target_modesense_control(dev, &buf[offset+length]);
 		break;
 	default:
-		pr_err("Got Unknown Mode Page: 0x%02x\n",
-				cdb[2] & 0x3f);
+		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
+		       cdb[2] & 0x3f, cdb[3]);
 		return PYX_TRANSPORT_UNKNOWN_MODE_PAGE;
 	}
 	offset += length;
@@ -1072,8 +1077,6 @@ target_emulate_unmap(struct se_task *task)
 		size -= 16;
 	}
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
 err:
 	transport_kunmap_first_data_page(cmd);
 
@@ -1085,24 +1088,17 @@ err:
  * Note this is not used for TCM/pSCSI passthrough
  */
 static int
-target_emulate_write_same(struct se_task *task, int write_same32)
+target_emulate_write_same(struct se_task *task, u32 num_blocks)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	sector_t range;
 	sector_t lba = cmd->t_task_lba;
-	unsigned int num_blocks;
 	int ret;
 	/*
-	 * Extract num_blocks from the WRITE_SAME_* CDB.  Then use the explict
-	 * range when non zero is supplied, otherwise calculate the remaining
-	 * range based on ->get_blocks() - starting LBA.
+	 * Use the explicit range when non zero is supplied, otherwise calculate
+	 * the remaining range based on ->get_blocks() - starting LBA.
 	 */
-	if (write_same32)
-		num_blocks = get_unaligned_be32(&cmd->t_task_cdb[28]);
-	else
-		num_blocks = get_unaligned_be32(&cmd->t_task_cdb[10]);
-
 	if (num_blocks != 0)
 		range = num_blocks;
 	else
@@ -1117,8 +1113,6 @@ target_emulate_write_same(struct se_task *task, int write_same32)
 		return ret;
 	}
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -1165,13 +1159,23 @@ transport_emulate_control_cdb(struct se_task *task)
 		}
 		ret = target_emulate_unmap(task);
 		break;
+	case WRITE_SAME:
+		if (!dev->transport->do_discard) {
+			pr_err("WRITE_SAME emulation not supported"
+					" for: %s\n", dev->transport->name);
+			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		}
+		ret = target_emulate_write_same(task,
+				get_unaligned_be16(&cmd->t_task_cdb[7]));
+		break;
 	case WRITE_SAME_16:
 		if (!dev->transport->do_discard) {
 			pr_err("WRITE_SAME_16 emulation not supported"
 					" for: %s\n", dev->transport->name);
 			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 		}
-		ret = target_emulate_write_same(task, 0);
+		ret = target_emulate_write_same(task,
+				get_unaligned_be32(&cmd->t_task_cdb[10]));
 		break;
 	case VARIABLE_LENGTH_CMD:
 		service_action =
@@ -1184,7 +1188,8 @@ transport_emulate_control_cdb(struct se_task *task)
 					dev->transport->name);
 				return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 			}
-			ret = target_emulate_write_same(task, 1);
+			ret = target_emulate_write_same(task,
+				get_unaligned_be32(&cmd->t_task_cdb[28]));
 			break;
 		default:
 			pr_err("Unsupported VARIABLE_LENGTH_CMD SA:"
@@ -1219,8 +1224,14 @@ transport_emulate_control_cdb(struct se_task *task)
 
 	if (ret < 0)
 		return ret;
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	/*
+	 * Handle the successful completion here unless a caller
+	 * has explictly requested an asychronous completion.
+	 */
+	if (!(cmd->se_cmd_flags & SCF_EMULATE_CDB_ASYNC)) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
 
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }

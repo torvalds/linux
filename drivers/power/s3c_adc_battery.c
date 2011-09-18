@@ -20,6 +20,7 @@
 #include <linux/s3c_adc_battery.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <plat/adc.h>
 

@@ -162,7 +162,6 @@ config IA64_GENERIC
 	select ACPI_NUMA
 	select SWIOTLB
 	select PCI_MSI
-	select DMAR
 	help
 	  This selects the system type of your hardware.  A "generic" kernel
 	  will run on any supported IA-64 system.  However, if you configure

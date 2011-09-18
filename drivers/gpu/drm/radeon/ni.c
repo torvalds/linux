@@ -39,6 +39,7 @@ extern int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
 extern void evergreen_mc_program(struct radeon_device *rdev);
 extern void evergreen_irq_suspend(struct radeon_device *rdev);
 extern int evergreen_mc_init(struct radeon_device *rdev);
+extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
 
 #define EVERGREEN_PFP_UCODE_SIZE 1120
 #define EVERGREEN_PM4_UCODE_SIZE 1376
@@ -669,6 +670,8 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	WREG32(GRBM_CNTL, GRBM_READ_TIMEOUT(0xff));
 
+	evergreen_fix_pci_max_read_req_size(rdev);
+
 	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
 	mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
 
@@ -1159,6 +1162,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 				 SOFT_RESET_PA |
 				 SOFT_RESET_SH |
 				 SOFT_RESET_VGT |
+				 SOFT_RESET_SPI |
 				 SOFT_RESET_SX));
 	RREG32(GRBM_SOFT_RESET);
 	mdelay(15);
