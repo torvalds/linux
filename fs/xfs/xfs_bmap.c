@@ -4969,58 +4969,6 @@ error0:
 }
 
 /*
- * Map file blocks to filesystem blocks, simple version.
- * One block (extent) only, read-only.
- * For flags, only the XFS_BMAPI_ATTRFORK flag is examined.
- * For the other flag values, the effect is as if XFS_BMAPI_METADATA
- * was set and all the others were clear.
- */
-int						/* error */
-xfs_bmapi_single(
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_inode_t	*ip,		/* incore inode */
-	int		whichfork,	/* data or attr fork */
-	xfs_fsblock_t	*fsb,		/* output: mapped block */
-	xfs_fileoff_t	bno)		/* starting file offs. mapped */
-{
-	int		eof;		/* we've hit the end of extents */
-	int		error;		/* error return */
-	xfs_bmbt_irec_t	got;		/* current file extent record */
-	xfs_ifork_t	*ifp;		/* inode fork pointer */
-	xfs_extnum_t	lastx;		/* last useful extent number */
-	xfs_bmbt_irec_t	prev;		/* previous file extent record */
-
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	if (unlikely(
-	    XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE &&
-	    XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_EXTENTS)) {
-	       XFS_ERROR_REPORT("xfs_bmapi_single", XFS_ERRLEVEL_LOW,
-				ip->i_mount);
-	       return XFS_ERROR(EFSCORRUPTED);
-	}
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return XFS_ERROR(EIO);
-	XFS_STATS_INC(xs_blk_mapr);
-	if (!(ifp->if_flags & XFS_IFEXTENTS) &&
-	    (error = xfs_iread_extents(tp, ip, whichfork)))
-		return error;
-	(void)xfs_bmap_search_extents(ip, bno, whichfork, &eof, &lastx, &got,
-		&prev);
-	/*
-	 * Reading past eof, act as though there's a hole
-	 * up to end.
-	 */
-	if (eof || got.br_startoff > bno) {
-		*fsb = NULLFSBLOCK;
-		return 0;
-	}
-	ASSERT(!isnullstartblock(got.br_startblock));
-	ASSERT(bno < got.br_startoff + got.br_blockcount);
-	*fsb = got.br_startblock + (bno - got.br_startoff);
-	return 0;
-}
-
-/*
  * Unmap (remove) blocks from a file.
  * If nexts is nonzero then the number of extents to remove is limited to
  * that value.  If not all extents in the block range can be removed then

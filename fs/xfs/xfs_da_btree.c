@@ -1975,32 +1975,16 @@ xfs_da_do_buf(
 		/*
 		 * Optimize the one-block case.
 		 */
-		if (nfsb == 1) {
-			xfs_fsblock_t	fsb;
-
-			if ((error =
-			    xfs_bmapi_single(trans, dp, whichfork, &fsb,
-				    (xfs_fileoff_t)bno))) {
-				return error;
-			}
+		if (nfsb == 1)
 			mapp = &map;
-			if (fsb == NULLFSBLOCK) {
-				nmap = 0;
-			} else {
-				map.br_startblock = fsb;
-				map.br_startoff = (xfs_fileoff_t)bno;
-				map.br_blockcount = 1;
-				nmap = 1;
-			}
-		} else {
+		else
 			mapp = kmem_alloc(sizeof(*mapp) * nfsb, KM_SLEEP);
-			nmap = nfsb;
-			error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb,
-					       mapp, &nmap,
-					       xfs_bmapi_aflag(whichfork));
-			if (error)
-				goto exit0;
-		}
+
+		nmap = nfsb;
+		error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb, mapp,
+				       &nmap, xfs_bmapi_aflag(whichfork));
+		if (error)
+			goto exit0;
 	} else {
 		map.br_startblock = XFS_DADDR_TO_FSB(mp, mappedbno);
 		map.br_startoff = (xfs_fileoff_t)bno;

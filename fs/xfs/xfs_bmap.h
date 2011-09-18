@@ -299,21 +299,6 @@ int	xfs_bmapi_read(struct xfs_inode *ip, xfs_fileoff_t bno,
 		int *nmap, int flags);
 
 /*
- * Map file blocks to filesystem blocks, simple version.
- * One block only, read-only.
- * For flags, only the XFS_BMAPI_ATTRFORK flag is examined.
- * For the other flag values, the effect is as if XFS_BMAPI_METADATA
- * was set and all the others were clear.
- */
-int						/* error */
-xfs_bmapi_single(
-	struct xfs_trans	*tp,		/* transaction pointer */
-	struct xfs_inode	*ip,		/* incore inode */
-	int			whichfork,	/* data or attr fork */
-	xfs_fsblock_t		*fsb,		/* output: mapped block */
-	xfs_fileoff_t		bno);		/* starting file offs. mapped */
-
-/*
  * Unmap (remove) blocks from a file.
  * If nexts is nonzero then the number of extents to remove is limited to
  * that value.  If not all extents in the block range can be removed then

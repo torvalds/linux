@@ -856,33 +856,23 @@ xfs_rtbuf_get(
 	xfs_buf_t	**bpp)		/* output: buffer for the block */
 {
 	xfs_buf_t	*bp;		/* block buffer, result */
-	xfs_daddr_t	d;		/* disk addr of block */
-	int		error;		/* error value */
-	xfs_fsblock_t	fsb;		/* fs block number for block */
 	xfs_inode_t	*ip;		/* bitmap or summary inode */
+	xfs_bmbt_irec_t	map;
+	int		nmap;
+	int		error;		/* error value */
 
 	ip = issum ? mp->m_rsumip : mp->m_rbmip;
-	/*
-	 * Map from the file offset (block) and inode number to the
-	 * file system block.
-	 */
-	error = xfs_bmapi_single(tp, ip, XFS_DATA_FORK, &fsb, block);
-	if (error) {
+
+	error = xfs_bmapi_read(ip, block, 1, &map, &nmap, XFS_DATA_FORK);
+	if (error)
 		return error;
-	}
-	ASSERT(fsb != NULLFSBLOCK);
-	/*
-	 * Convert to disk address for buffer cache.
-	 */
-	d = XFS_FSB_TO_DADDR(mp, fsb);
-	/*
-	 * Read the buffer.
-	 */
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, d,
+
+	ASSERT(map.br_startblock != NULLFSBLOCK);
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
+				   XFS_FSB_TO_DADDR(mp, map.br_startblock),
 				   mp->m_bsize, 0, &bp);
-	if (error) {
+	if (error)
 		return error;
-	}
 	ASSERT(!xfs_buf_geterror(bp));
 	*bpp = bp;
 	return 0;
