@@ -682,7 +682,7 @@ xfs_filestream_new_ag(
 	ip = ap->ip;
 	mp = ip->i_mount;
 	cache = mp->m_filestream;
-	minlen = ap->alen;
+	minlen = ap->length;
 	*agp = NULLAGNUMBER;
 
 	/*
