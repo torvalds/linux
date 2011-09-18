@@ -145,8 +145,6 @@ struct mc13xxx_platform_data {
 #define MC13XXX_USE_CODEC	(1 << 1)
 #define MC13XXX_USE_ADC		(1 << 2)
 #define MC13XXX_USE_RTC		(1 << 3)
-#define MC13XXX_USE_REGULATOR	(1 << 4)
-#define MC13XXX_USE_LED		(1 << 5)
 	unsigned int flags;
 
 	struct mc13xxx_regulator_platform_data regulators;
