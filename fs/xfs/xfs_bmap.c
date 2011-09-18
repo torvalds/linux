@@ -4294,7 +4294,6 @@ xfs_bmapi(
 	xfs_mount_t	*mp;		/* xfs mount structure */
 	int		n;		/* current extent index */
 	int		nallocs;	/* number of extents alloc'd */
-	xfs_extnum_t	nextents;	/* number of extents in file */
 	xfs_fileoff_t	obno;		/* old block number (offset) */
 	xfs_bmbt_irec_t	prev;		/* previous file extent record */
 	int		tmp_logflags;	/* temp flags holder */
@@ -4380,7 +4379,6 @@ xfs_bmapi(
 		goto error0;
 	ep = xfs_bmap_search_extents(ip, bno, whichfork, &eof, &lastx, &got,
 		&prev);
-	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
 	n = 0;
 	end = bno + len;
 	obno = bno;
@@ -4622,7 +4620,6 @@ xfs_bmapi(
 			if (error)
 				goto error0;
 			ep = xfs_iext_get_ext(ifp, lastx);
-			nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
 			xfs_bmbt_get_all(ep, &got);
 			ASSERT(got.br_startoff <= aoff);
 			ASSERT(got.br_startoff + got.br_blockcount >=
@@ -4723,7 +4720,6 @@ xfs_bmapi(
 			if (error)
 				goto error0;
 			ep = xfs_iext_get_ext(ifp, lastx);
-			nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
 			xfs_bmbt_get_all(ep, &got);
 			/*
 			 * We may have combined previously unwritten
@@ -4781,7 +4777,7 @@ xfs_bmapi(
 		 * Else go on to the next record.
 		 */
 		prev = got;
-		if (++lastx < nextents) {
+		if (++lastx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t)) {
 			ep = xfs_iext_get_ext(ifp, lastx);
 			xfs_bmbt_get_all(ep, &got);
 		} else {
