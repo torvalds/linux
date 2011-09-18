@@ -1000,16 +1000,11 @@ static irqreturn_t sh_hdmi_hotplug(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* locking:	called with info->lock held, or before register_framebuffer() */
-static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity,
-			      struct fb_info *info)
+static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity)
 {
-	/*
-	 * info is guaranteed to be valid, when we are called, because our
-	 * FB_EVENT_FB_UNBIND notify is also called with info->lock held
-	 */
 	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
 	struct sh_mobile_lcdc_chan *ch = entity->lcdc;
+	struct fb_info *info = ch->info;
 
 	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__, hdmi, info->state);
 
@@ -1156,7 +1151,7 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 				 */
 				info->var.width = hdmi->var.width;
 				info->var.height = hdmi->var.height;
-				sh_hdmi_display_on(&hdmi->entity, info);
+				sh_hdmi_display_on(&hdmi->entity);
 			} else {
 				/* New monitor or have to wake up */
 				fb_set_suspend(info, 0);

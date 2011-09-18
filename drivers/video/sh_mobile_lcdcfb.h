@@ -23,8 +23,7 @@ struct sh_mobile_lcdc_chan;
 
 struct sh_mobile_lcdc_entity_ops {
 	/* Display */
-	int (*display_on)(struct sh_mobile_lcdc_entity *entity,
-			  struct fb_info *info);
+	int (*display_on)(struct sh_mobile_lcdc_entity *entity);
 	void (*display_off)(struct sh_mobile_lcdc_entity *entity);
 };
 

@@ -338,7 +338,7 @@ static void sh_mobile_lcdc_display_on(struct sh_mobile_lcdc_chan *ch)
 	struct sh_mobile_lcdc_panel_cfg *panel = &ch->cfg.panel_cfg;
 
 	if (ch->tx_dev) {
-		if (ch->tx_dev->ops->display_on(ch->tx_dev, ch->info) < 0)
+		if (ch->tx_dev->ops->display_on(ch->tx_dev) < 0)
 			return;
 	}
 

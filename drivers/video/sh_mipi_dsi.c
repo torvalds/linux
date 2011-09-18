@@ -394,8 +394,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	return 0;
 }
 
-static int mipi_display_on(struct sh_mobile_lcdc_entity *entity,
-			   struct fb_info *info)
+static int mipi_display_on(struct sh_mobile_lcdc_entity *entity)
 {
 	struct sh_mipi *mipi = to_sh_mipi(entity);
 	struct sh_mipi_dsi_info *pdata = mipi->pdev->dev.platform_data;
