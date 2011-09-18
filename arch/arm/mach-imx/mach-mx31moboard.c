@@ -270,8 +270,7 @@ static struct mc13xxx_platform_data moboard_pmic = {
 		.num_regulators = ARRAY_SIZE(moboard_regulators),
 	},
 	.leds = &moboard_leds,
-	.flags = MC13XXX_USE_REGULATOR | MC13XXX_USE_RTC |
-		MC13XXX_USE_ADC | MC13XXX_USE_LED,
+	.flags = MC13XXX_USE_RTC | MC13XXX_USE_ADC,
 };
 
 static struct spi_board_info moboard_spi_board_info[] __initdata = {

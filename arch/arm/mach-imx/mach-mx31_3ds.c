@@ -494,7 +494,7 @@ static struct mc13xxx_platform_data mc13783_pdata = {
 		.regulators = mx31_3ds_regulators,
 		.num_regulators = ARRAY_SIZE(mx31_3ds_regulators),
 	},
-	.flags  = MC13XXX_USE_REGULATOR | MC13XXX_USE_TOUCHSCREEN,
+	.flags  = MC13XXX_USE_TOUCHSCREEN,
 };
 
 /* SPI */
