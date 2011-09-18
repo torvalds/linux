@@ -690,6 +690,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		if (IoBuffer.InputLength < sizeof(struct link_request))
 			return -EINVAL;
 
+		if (IoBuffer.InputLength > MAX_CNTL_PKT_SIZE)
+			return -EINVAL;
+
 		pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
 		if (!pvBuffer)
 			return -ENOMEM;

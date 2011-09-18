@@ -421,6 +421,10 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
 				pLeader->PLength = pktlen;
 			}
 		}
+
+		if (pktlen + LEADER_SIZE > MAX_CNTL_PKT_SIZE)
+			return -EINVAL;
+
 		memset(ctrl_buff, 0, pktlen+LEADER_SIZE);
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Copying the Control Packet Buffer with length=%d\n", pLeader->PLength);
 		*(PLEADER)ctrl_buff=*pLeader;
