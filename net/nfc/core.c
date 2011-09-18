@@ -53,6 +53,80 @@ int nfc_printk(const char *level, const char *format, ...)
 EXPORT_SYMBOL(nfc_printk);
 
 /**
+ * nfc_dev_up - turn on the NFC device
+ *
+ * @dev: The nfc device to be turned on
+ *
+ * The device remains up until the nfc_dev_down function is called.
+ */
+int nfc_dev_up(struct nfc_dev *dev)
+{
+	int rc = 0;
+
+	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (dev->dev_up) {
+		rc = -EALREADY;
+		goto error;
+	}
+
+	if (dev->ops->dev_up)
+		rc = dev->ops->dev_up(dev);
+
+	if (!rc)
+		dev->dev_up = true;
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
+/**
+ * nfc_dev_down - turn off the NFC device
+ *
+ * @dev: The nfc device to be turned off
+ */
+int nfc_dev_down(struct nfc_dev *dev)
+{
+	int rc = 0;
+
+	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->dev_up) {
+		rc = -EALREADY;
+		goto error;
+	}
+
+	if (dev->polling || dev->remote_activated) {
+		rc = -EBUSY;
+		goto error;
+	}
+
+	if (dev->ops->dev_down)
+		dev->ops->dev_down(dev);
+
+	dev->dev_up = false;
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
+/**
  * nfc_start_poll - start polling for nfc targets
  *
  * @dev: The nfc device that must start polling
@@ -144,6 +218,8 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 	}
 
 	rc = dev->ops->activate_target(dev, target_idx, protocol);
+	if (!rc)
+		dev->remote_activated = true;
 
 error:
 	device_unlock(&dev->dev);
@@ -170,6 +246,7 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
 	}
 
 	dev->ops->deactivate_target(dev, target_idx);
+	dev->remote_activated = false;
 
 error:
 	device_unlock(&dev->dev);

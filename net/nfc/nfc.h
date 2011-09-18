@@ -101,6 +101,10 @@ static inline void nfc_device_iter_exit(struct class_dev_iter *iter)
 	class_dev_iter_exit(iter);
 }
 
+int nfc_dev_up(struct nfc_dev *dev);
+
+int nfc_dev_down(struct nfc_dev *dev);
+
 int nfc_start_poll(struct nfc_dev *dev, u32 protocols);
 
 int nfc_stop_poll(struct nfc_dev *dev);

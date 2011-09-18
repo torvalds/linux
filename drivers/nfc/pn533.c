@@ -1432,6 +1432,8 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 }
 
 struct nfc_ops pn533_nfc_ops = {
+	.dev_up = NULL,
+	.dev_down = NULL,
 	.start_poll = pn533_start_poll,
 	.stop_poll = pn533_stop_poll,
 	.activate_target = pn533_activate_target,
