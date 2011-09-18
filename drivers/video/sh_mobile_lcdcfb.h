@@ -30,6 +30,12 @@ struct sh_mobile_lcdc_entity_ops {
 	void (*display_off)(struct sh_mobile_lcdc_entity *entity);
 };
 
+enum sh_mobile_lcdc_entity_event {
+	SH_MOBILE_LCDC_EVENT_DISPLAY_CONNECT,
+	SH_MOBILE_LCDC_EVENT_DISPLAY_DISCONNECT,
+	SH_MOBILE_LCDC_EVENT_DISPLAY_MODE,
+};
+
 struct sh_mobile_lcdc_entity {
 	struct module *owner;
 	const struct sh_mobile_lcdc_entity_ops *ops;
@@ -70,6 +76,10 @@ struct sh_mobile_lcdc_chan {
 	unsigned long base_addr_y;
 	unsigned long base_addr_c;
 	unsigned int pitch;
+
+	int (*notify)(struct sh_mobile_lcdc_chan *ch,
+		      enum sh_mobile_lcdc_entity_event event,
+		      struct fb_var_screeninfo *var);
 };
 
 #endif

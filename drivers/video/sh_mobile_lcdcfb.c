@@ -364,6 +364,89 @@ static void sh_mobile_lcdc_display_off(struct sh_mobile_lcdc_chan *ch)
 		ch->tx_dev->ops->display_off(ch->tx_dev);
 }
 
+static bool
+sh_mobile_lcdc_must_reconfigure(struct sh_mobile_lcdc_chan *ch,
+				const struct fb_var_screeninfo *new_var)
+{
+	struct fb_var_screeninfo *old_var = &ch->display_var;
+	struct fb_videomode old_mode;
+	struct fb_videomode new_mode;
+
+	fb_var_to_videomode(&old_mode, old_var);
+	fb_var_to_videomode(&new_mode, new_var);
+
+	dev_dbg(ch->info->dev, "Old %ux%u, new %ux%u\n",
+		old_mode.xres, old_mode.yres, new_mode.xres, new_mode.yres);
+
+	if (fb_mode_is_equal(&old_mode, &new_mode)) {
+		/* It can be a different monitor with an equal video-mode */
+		old_var->width = new_var->width;
+		old_var->height = new_var->height;
+		return false;
+	}
+
+	dev_dbg(ch->info->dev, "Switching %u -> %u lines\n",
+		old_mode.yres, new_mode.yres);
+	*old_var = *new_var;
+
+	return true;
+}
+
+static int sh_mobile_check_var(struct fb_var_screeninfo *var,
+			       struct fb_info *info);
+
+static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
+					 enum sh_mobile_lcdc_entity_event event,
+					 struct fb_var_screeninfo *var)
+{
+	struct fb_info *info = ch->info;
+	int ret = 0;
+
+	switch (event) {
+	case SH_MOBILE_LCDC_EVENT_DISPLAY_CONNECT:
+		/* HDMI plug in */
+		if (lock_fb_info(info)) {
+			console_lock();
+
+			if (!sh_mobile_lcdc_must_reconfigure(ch, var) &&
+			    info->state == FBINFO_STATE_RUNNING) {
+				/* First activation with the default monitor.
+				 * Just turn on, if we run a resume here, the
+				 * logo disappears.
+				 */
+				info->var.width = var->width;
+				info->var.height = var->height;
+				sh_mobile_lcdc_display_on(ch);
+			} else {
+				/* New monitor or have to wake up */
+				fb_set_suspend(info, 0);
+			}
+
+			console_unlock();
+			unlock_fb_info(info);
+		}
+		break;
+
+	case SH_MOBILE_LCDC_EVENT_DISPLAY_DISCONNECT:
+		/* HDMI disconnect */
+		if (lock_fb_info(info)) {
+			console_lock();
+			fb_set_suspend(info, 1);
+			console_unlock();
+			unlock_fb_info(info);
+		}
+		break;
+
+	case SH_MOBILE_LCDC_EVENT_DISPLAY_MODE:
+		/* Validate a proposed new mode */
+		var->bits_per_pixel = info->var.bits_per_pixel;
+		ret = sh_mobile_check_var(var, info);
+		break;
+	}
+
+	return ret;
+}
+
 /* -----------------------------------------------------------------------------
  * Format helpers
  */
@@ -1591,6 +1674,7 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 	int i;
 
 	mutex_init(&ch->open_lock);
+	ch->notify = sh_mobile_lcdc_display_notify;
 
 	/* Allocate the frame buffer device. */
 	ch->info = framebuffer_alloc(0, priv->dev);
