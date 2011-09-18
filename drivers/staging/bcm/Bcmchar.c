@@ -687,7 +687,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 			return -EFAULT;
 
-		/* FIXME: don't accept any length from user */
+		if (IoBuffer.InputLength < sizeof(struct link_request))
+			return -EINVAL;
+
 		pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
 		if (!pvBuffer)
 			return -ENOMEM;
