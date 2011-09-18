@@ -31,6 +31,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/moduleparam.h>
 #include <linux/gfp.h>
 #include <net/sock.h>
 #include <linux/in.h>

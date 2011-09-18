@@ -42,6 +42,7 @@
 #include <linux/ctype.h>
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
+#include <linux/moduleparam.h>
 #include <net/cfg80211.h>
 #include "core.h"
 #include "reg.h"

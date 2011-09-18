@@ -16,6 +16,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
+#include <linux/moduleparam.h>
 #include <linux/rtnetlink.h>
 #include <linux/pm_qos.h>
 #include <linux/crc32.h>
