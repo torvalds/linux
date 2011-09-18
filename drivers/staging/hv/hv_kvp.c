@@ -177,6 +177,13 @@ kvp_respond_to_host(char *key, char *value, int error)
 	channel = kvp_transaction.recv_channel;
 	req_id = kvp_transaction.recv_req_id;
 
+	if (channel->onchannel_callback == NULL)
+		/*
+		 * We have raced with util driver being unloaded;
+		 * silently return.
+		 */
+		return;
+
 	icmsghdrp = (struct icmsg_hdr *)
 			&recv_buffer[sizeof(struct vmbuspipe_hdr)];
 	kvp_msg = (struct hv_kvp_msg *)

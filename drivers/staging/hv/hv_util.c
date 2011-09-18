@@ -269,19 +269,32 @@ static int util_probe(struct hv_device *dev,
 	if (srv->util_init) {
 		ret = srv->util_init(srv);
 		if (ret) {
-			kfree(srv->recv_buffer);
-			return -ENODEV;
+			ret = -ENODEV;
+			goto error1;
 		}
 	}
 
+	ret = vmbus_open(dev->channel, 2 * PAGE_SIZE, 2 * PAGE_SIZE, NULL, 0,
+			srv->util_cb, dev->channel);
+	if (ret)
+		goto error;
+
 	hv_set_drvdata(dev, srv);
 	return 0;
+
+error:
+	if (srv->util_deinit)
+		srv->util_deinit();
+error1:
+	kfree(srv->recv_buffer);
+	return ret;
 }
 
 static int util_remove(struct hv_device *dev)
 {
 	struct hv_util_service *srv = hv_get_drvdata(dev);
 
+	vmbus_close(dev->channel);
 	if (srv->util_deinit)
 		srv->util_deinit();
 	kfree(srv->recv_buffer);
@@ -321,50 +334,14 @@ static  struct hv_driver util_drv = {
 
 static int __init init_hyperv_utils(void)
 {
-	int ret;
 	pr_info("Registering HyperV Utility Driver\n");
 
-
-	ret = vmbus_driver_register(&util_drv);
-
-	if (ret != 0)
-		return ret;
-
-	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &shutdown_onchannelcallback;
-
-	hv_cb_utils[HV_TIMESYNC_MSG].callback = &timesync_onchannelcallback;
-
-	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &heartbeat_onchannelcallback;
-
-	hv_cb_utils[HV_KVP_MSG].callback = &hv_kvp_onchannelcallback;
-
-	return 0;
-
+	return vmbus_driver_register(&util_drv);
 }
 
 static void exit_hyperv_utils(void)
 {
 	pr_info("De-Registered HyperV Utility Driver\n");
-
-	if (hv_cb_utils[HV_SHUTDOWN_MSG].channel != NULL)
-		hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
-			&chn_cb_negotiate;
-	hv_cb_utils[HV_SHUTDOWN_MSG].callback = NULL;
-
-	if (hv_cb_utils[HV_TIMESYNC_MSG].channel != NULL)
-		hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
-			&chn_cb_negotiate;
-	hv_cb_utils[HV_TIMESYNC_MSG].callback = NULL;
-
-	if (hv_cb_utils[HV_HEARTBEAT_MSG].channel != NULL)
-		hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
-			&chn_cb_negotiate;
-	hv_cb_utils[HV_HEARTBEAT_MSG].callback = NULL;
-
-	if (hv_cb_utils[HV_KVP_MSG].channel != NULL)
-		hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
-			&chn_cb_negotiate;
-	hv_cb_utils[HV_KVP_MSG].callback = NULL;
 
 	vmbus_driver_unregister(&util_drv);
 }

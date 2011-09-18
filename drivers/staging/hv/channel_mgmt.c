@@ -181,24 +181,6 @@ void chn_cb_negotiate(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct icmsg_negotiate *negop = NULL;
 
-	if (channel->util_index >= 0) {
-		/*
-		 * This is a properly initialized util channel.
-		 * Route this callback appropriately and setup state
-		 * so that we don't need to reroute again.
-		 */
-		if (hv_cb_utils[channel->util_index].callback != NULL) {
-			/*
-			 * The util driver has established a handler for
-			 * this service; do the magic.
-			 */
-			channel->onchannel_callback =
-			hv_cb_utils[channel->util_index].callback;
-			(hv_cb_utils[channel->util_index].callback)(channel);
-			return;
-		}
-	}
-
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
 
@@ -348,7 +330,6 @@ static void vmbus_process_offer(struct work_struct *work)
 	struct vmbus_channel *channel;
 	bool fnew = true;
 	int ret;
-	int cnt;
 	unsigned long flags;
 
 	/* The next possible work is rescind handling */
@@ -410,23 +391,6 @@ static void vmbus_process_offer(struct work_struct *work)
 		 * can cleanup properly
 		 */
 		newchannel->state = CHANNEL_OPEN_STATE;
-		newchannel->util_index = -1; /* Invalid index */
-
-		/* Open IC channels */
-		for (cnt = 0; cnt < MAX_MSG_TYPES; cnt++) {
-			if (!uuid_le_cmp(newchannel->offermsg.offer.if_type,
-				   hv_cb_utils[cnt].data) &&
-				vmbus_open(newchannel, 2 * PAGE_SIZE,
-						 2 * PAGE_SIZE, NULL, 0,
-						 chn_cb_negotiate,
-						 newchannel) == 0) {
-				hv_cb_utils[cnt].channel = newchannel;
-				newchannel->util_index = cnt;
-
-				pr_info("%s\n", hv_cb_utils[cnt].log_msg);
-
-			}
-		}
 	}
 }
 
