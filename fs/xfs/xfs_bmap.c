@@ -4249,6 +4249,107 @@ xfs_bmap_validate_ret(
 
 
 /*
+ * Trim the returned map to the required bounds
+ */
+STATIC void
+xfs_bmapi_trim_map(
+	struct xfs_bmbt_irec	*mval,
+	struct xfs_bmbt_irec	*got,
+	xfs_fileoff_t		*bno,
+	xfs_filblks_t		len,
+	xfs_fileoff_t		obno,
+	xfs_fileoff_t		end,
+	int			n,
+	int			flags)
+{
+	if ((flags & XFS_BMAPI_ENTIRE) ||
+	    got->br_startoff + got->br_blockcount <= obno) {
+		*mval = *got;
+		if (isnullstartblock(got->br_startblock))
+			mval->br_startblock = DELAYSTARTBLOCK;
+		return;
+	}
+
+	if (obno > *bno)
+		*bno = obno;
+	ASSERT((*bno >= obno) || (n == 0));
+	ASSERT(*bno < end);
+	mval->br_startoff = *bno;
+	if (isnullstartblock(got->br_startblock))
+		mval->br_startblock = DELAYSTARTBLOCK;
+	else
+		mval->br_startblock = got->br_startblock +
+					(*bno - got->br_startoff);
+	/*
+	 * Return the minimum of what we got and what we asked for for
+	 * the length.  We can use the len variable here because it is
+	 * modified below and we could have been there before coming
+	 * here if the first part of the allocation didn't overlap what
+	 * was asked for.
+	 */
+	mval->br_blockcount = XFS_FILBLKS_MIN(end - *bno,
+			got->br_blockcount - (*bno - got->br_startoff));
+	mval->br_state = got->br_state;
+	ASSERT(mval->br_blockcount <= len);
+	return;
+}
+
+/*
+ * Update and validate the extent map to return
+ */
+STATIC void
+xfs_bmapi_update_map(
+	struct xfs_bmbt_irec	**map,
+	xfs_fileoff_t		*bno,
+	xfs_filblks_t		*len,
+	xfs_fileoff_t		obno,
+	xfs_fileoff_t		end,
+	int			*n,
+	int			flags)
+{
+	xfs_bmbt_irec_t	*mval = *map;
+
+	ASSERT((flags & XFS_BMAPI_ENTIRE) ||
+	       ((mval->br_startoff + mval->br_blockcount) <= end));
+	ASSERT((flags & XFS_BMAPI_ENTIRE) || (mval->br_blockcount <= *len) ||
+	       (mval->br_startoff < obno));
+
+	*bno = mval->br_startoff + mval->br_blockcount;
+	*len = end - *bno;
+	if (*n > 0 && mval->br_startoff == mval[-1].br_startoff) {
+		/* update previous map with new information */
+		ASSERT(mval->br_startblock == mval[-1].br_startblock);
+		ASSERT(mval->br_blockcount > mval[-1].br_blockcount);
+		ASSERT(mval->br_state == mval[-1].br_state);
+		mval[-1].br_blockcount = mval->br_blockcount;
+		mval[-1].br_state = mval->br_state;
+	} else if (*n > 0 && mval->br_startblock != DELAYSTARTBLOCK &&
+		   mval[-1].br_startblock != DELAYSTARTBLOCK &&
+		   mval[-1].br_startblock != HOLESTARTBLOCK &&
+		   mval->br_startblock == mval[-1].br_startblock +
+					  mval[-1].br_blockcount &&
+		   ((flags & XFS_BMAPI_IGSTATE) ||
+			mval[-1].br_state == mval->br_state)) {
+		ASSERT(mval->br_startoff ==
+		       mval[-1].br_startoff + mval[-1].br_blockcount);
+		mval[-1].br_blockcount += mval->br_blockcount;
+	} else if (*n > 0 &&
+		   mval->br_startblock == DELAYSTARTBLOCK &&
+		   mval[-1].br_startblock == DELAYSTARTBLOCK &&
+		   mval->br_startoff ==
+		   mval[-1].br_startoff + mval[-1].br_blockcount) {
+		mval[-1].br_blockcount += mval->br_blockcount;
+		mval[-1].br_state = mval->br_state;
+	} else if (!((*n == 0) &&
+		     ((mval->br_startoff + mval->br_blockcount) <=
+		      obno))) {
+		mval++;
+		(*n)++;
+	}
+	*map = mval;
+}
+
+/*
  * Map file blocks to filesystem blocks.
  * File range is given by the bno/len pair.
  * Adds blocks to file if a write ("flags & XFS_BMAPI_WRITE" set)
@@ -4650,44 +4751,9 @@ xfs_bmapi(
 			n++;
 			continue;
 		}
-		/*
-		 * Then deal with the allocated space we found.
-		 */
-		ASSERT(ep != NULL);
-		if (!(flags & XFS_BMAPI_ENTIRE) &&
-		    (got.br_startoff + got.br_blockcount > obno)) {
-			if (obno > bno)
-				bno = obno;
-			ASSERT((bno >= obno) || (n == 0));
-			ASSERT(bno < end);
-			mval->br_startoff = bno;
-			if (isnullstartblock(got.br_startblock)) {
-				ASSERT(!wr || (flags & XFS_BMAPI_DELAY));
-				mval->br_startblock = DELAYSTARTBLOCK;
-			} else
-				mval->br_startblock =
-					got.br_startblock +
-					(bno - got.br_startoff);
-			/*
-			 * Return the minimum of what we got and what we
-			 * asked for for the length.  We can use the len
-			 * variable here because it is modified below
-			 * and we could have been there before coming
-			 * here if the first part of the allocation
-			 * didn't overlap what was asked for.
-			 */
-			mval->br_blockcount =
-				XFS_FILBLKS_MIN(end - bno, got.br_blockcount -
-					(bno - got.br_startoff));
-			mval->br_state = got.br_state;
-			ASSERT(mval->br_blockcount <= len);
-		} else {
-			*mval = got;
-			if (isnullstartblock(mval->br_startblock)) {
-				ASSERT(!wr || (flags & XFS_BMAPI_DELAY));
-				mval->br_startblock = DELAYSTARTBLOCK;
-			}
-		}
+
+		/* Deal with the allocated space we found.  */
+		xfs_bmapi_trim_map(mval, &got, &bno, len, obno, end, n, flags);
 
 		/*
 		 * Check if writing previously allocated but
@@ -4730,42 +4796,9 @@ xfs_bmapi(
 				continue;
 		}
 
-		ASSERT((flags & XFS_BMAPI_ENTIRE) ||
-		       ((mval->br_startoff + mval->br_blockcount) <= end));
-		ASSERT((flags & XFS_BMAPI_ENTIRE) ||
-		       (mval->br_blockcount <= len) ||
-		       (mval->br_startoff < obno));
-		bno = mval->br_startoff + mval->br_blockcount;
-		len = end - bno;
-		if (n > 0 && mval->br_startoff == mval[-1].br_startoff) {
-			ASSERT(mval->br_startblock == mval[-1].br_startblock);
-			ASSERT(mval->br_blockcount > mval[-1].br_blockcount);
-			ASSERT(mval->br_state == mval[-1].br_state);
-			mval[-1].br_blockcount = mval->br_blockcount;
-			mval[-1].br_state = mval->br_state;
-		} else if (n > 0 && mval->br_startblock != DELAYSTARTBLOCK &&
-			   mval[-1].br_startblock != DELAYSTARTBLOCK &&
-			   mval[-1].br_startblock != HOLESTARTBLOCK &&
-			   mval->br_startblock ==
-			   mval[-1].br_startblock + mval[-1].br_blockcount &&
-			   ((flags & XFS_BMAPI_IGSTATE) ||
-				mval[-1].br_state == mval->br_state)) {
-			ASSERT(mval->br_startoff ==
-			       mval[-1].br_startoff + mval[-1].br_blockcount);
-			mval[-1].br_blockcount += mval->br_blockcount;
-		} else if (n > 0 &&
-			   mval->br_startblock == DELAYSTARTBLOCK &&
-			   mval[-1].br_startblock == DELAYSTARTBLOCK &&
-			   mval->br_startoff ==
-			   mval[-1].br_startoff + mval[-1].br_blockcount) {
-			mval[-1].br_blockcount += mval->br_blockcount;
-			mval[-1].br_state = mval->br_state;
-		} else if (!((n == 0) &&
-			     ((mval->br_startoff + mval->br_blockcount) <=
-			      obno))) {
-			mval++;
-			n++;
-		}
+		/* update the extent map to return */
+		xfs_bmapi_update_map(&mval, &bno, &len, obno, end, &n, flags);
+
 		/*
 		 * If we're done, stop now.  Stop when we've allocated
 		 * XFS_BMAP_MAX_NMAP extents no matter what.  Otherwise
