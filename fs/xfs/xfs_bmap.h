@@ -65,7 +65,6 @@ typedef	struct xfs_bmap_free
  * Flags for xfs_bmapi
  */
 #define	XFS_BMAPI_WRITE		0x001	/* write operation: allocate space */
-#define XFS_BMAPI_DELAY		0x002	/* delayed write operation */
 #define XFS_BMAPI_ENTIRE	0x004	/* return entire extent, not trimmed */
 #define XFS_BMAPI_METADATA	0x008	/* mapping metadata not user data */
 #define XFS_BMAPI_ATTRFORK	0x010	/* use attribute fork not data */
@@ -82,7 +81,6 @@ typedef	struct xfs_bmap_free
 
 #define XFS_BMAPI_FLAGS \
 	{ XFS_BMAPI_WRITE,	"WRITE" }, \
-	{ XFS_BMAPI_DELAY,	"DELAY" }, \
 	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
 	{ XFS_BMAPI_METADATA,	"METADATA" }, \
 	{ XFS_BMAPI_ATTRFORK,	"ATTRFORK" }, \
@@ -295,6 +293,9 @@ xfs_bmapi(
 	xfs_bmap_free_t		*flist);	/* i/o: list extents to free */
 
 int	xfs_bmapi_read(struct xfs_inode *ip, xfs_fileoff_t bno,
+		xfs_filblks_t len, struct xfs_bmbt_irec *mval,
+		int *nmap, int flags);
+int	xfs_bmapi_delay(struct xfs_inode *ip, xfs_fileoff_t bno,
 		xfs_filblks_t len, struct xfs_bmbt_irec *mval,
 		int *nmap, int flags);
 

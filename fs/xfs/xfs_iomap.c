@@ -381,7 +381,6 @@ xfs_iomap_write_delay(
 	xfs_fileoff_t	last_fsb;
 	xfs_off_t	aligned_offset;
 	xfs_fileoff_t	ioalign;
-	xfs_fsblock_t	firstblock;
 	xfs_extlen_t	extsz;
 	int		nimaps;
 	xfs_bmbt_irec_t imap[XFS_WRITE_IMAPS];
@@ -425,12 +424,8 @@ retry:
 	}
 
 	nimaps = XFS_WRITE_IMAPS;
-	firstblock = NULLFSBLOCK;
-	error = xfs_bmapi(NULL, ip, offset_fsb,
-			  (xfs_filblks_t)(last_fsb - offset_fsb),
-			  XFS_BMAPI_DELAY | XFS_BMAPI_WRITE |
-			  XFS_BMAPI_ENTIRE, &firstblock, 1, imap,
-			  &nimaps, NULL);
+	error = xfs_bmapi_delay(ip, offset_fsb, last_fsb - offset_fsb,
+				imap, &nimaps, XFS_BMAPI_ENTIRE);
 	switch (error) {
 	case 0:
 	case ENOSPC:
