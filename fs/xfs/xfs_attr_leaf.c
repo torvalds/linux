@@ -2926,9 +2926,8 @@ xfs_attr_leaf_freextent(xfs_trans_t **trans, xfs_inode_t *dp,
 		 * Try to remember where we decided to put the value.
 		 */
 		nmap = 1;
-		error = xfs_bmapi(*trans, dp, (xfs_fileoff_t)tblkno, tblkcnt,
-					XFS_BMAPI_ATTRFORK | XFS_BMAPI_METADATA,
-					NULL, 0, &map, &nmap, NULL);
+		error = xfs_bmapi_read(dp, (xfs_fileoff_t)tblkno, tblkcnt,
+				       &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error) {
 			return(error);
 		}

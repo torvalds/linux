@@ -1995,11 +1995,10 @@ xfs_da_do_buf(
 		} else {
 			mapp = kmem_alloc(sizeof(*mapp) * nfsb, KM_SLEEP);
 			nmap = nfsb;
-			if ((error = xfs_bmapi(trans, dp, (xfs_fileoff_t)bno,
-					nfsb,
-					XFS_BMAPI_METADATA |
-						xfs_bmapi_aflag(whichfork),
-					NULL, 0, mapp, &nmap, NULL)))
+			error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb,
+					       mapp, &nmap,
+					       xfs_bmapi_aflag(whichfork));
+			if (error)
 				goto exit0;
 		}
 	} else {

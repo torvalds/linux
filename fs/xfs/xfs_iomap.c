@@ -300,8 +300,8 @@ xfs_iomap_eof_want_preallocate(
 	while (count_fsb > 0) {
 		imaps = nimaps;
 		firstblock = NULLFSBLOCK;
-		error = xfs_bmapi(NULL, ip, start_fsb, count_fsb, 0,
-				  &firstblock, 0, imap, &imaps, NULL);
+		error = xfs_bmapi_read(ip, start_fsb, count_fsb, imap, &imaps,
+				       0);
 		if (error)
 			return error;
 		for (n = 0; n < imaps; n++) {

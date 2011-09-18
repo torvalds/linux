@@ -294,6 +294,10 @@ xfs_bmapi(
 	int			*nmap,		/* i/o: mval size/count */
 	xfs_bmap_free_t		*flist);	/* i/o: list extents to free */
 
+int	xfs_bmapi_read(struct xfs_inode *ip, xfs_fileoff_t bno,
+		xfs_filblks_t len, struct xfs_bmbt_irec *mval,
+		int *nmap, int flags);
+
 /*
  * Map file blocks to filesystem blocks, simple version.
  * One block only, read-only.

@@ -1347,11 +1347,8 @@ xfs_qm_dqiterate(
 		 * the inode is never added to the transaction.
 		 */
 		xfs_ilock(qip, XFS_ILOCK_SHARED);
-		error = xfs_bmapi(NULL, qip, lblkno,
-				  maxlblkcnt - lblkno,
-				  XFS_BMAPI_METADATA,
-				  NULL,
-				  0, map, &nmaps, NULL);
+		error = xfs_bmapi_read(qip, lblkno, maxlblkcnt - lblkno,
+				       map, &nmaps, 0);
 		xfs_iunlock(qip, XFS_ILOCK_SHARED);
 		if (error)
 			break;

@@ -509,11 +509,9 @@ xfs_zero_last_block(
 
 	last_fsb = XFS_B_TO_FSBT(mp, isize);
 	nimaps = 1;
-	error = xfs_bmapi(NULL, ip, last_fsb, 1, 0, NULL, 0, &imap,
-			  &nimaps, NULL);
-	if (error) {
+	error = xfs_bmapi_read(ip, last_fsb, 1, &imap, &nimaps, 0);
+	if (error)
 		return error;
-	}
 	ASSERT(nimaps > 0);
 	/*
 	 * If the block underlying isize is just a hole, then there
@@ -604,8 +602,8 @@ xfs_zero_eof(
 	while (start_zero_fsb <= end_zero_fsb) {
 		nimaps = 1;
 		zero_count_fsb = end_zero_fsb - start_zero_fsb + 1;
-		error = xfs_bmapi(NULL, ip, start_zero_fsb, zero_count_fsb,
-				  0, NULL, 0, &imap, &nimaps, NULL);
+		error = xfs_bmapi_read(ip, start_zero_fsb, zero_count_fsb,
+					  &imap, &nimaps, 0);
 		if (error) {
 			ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
 			return error;

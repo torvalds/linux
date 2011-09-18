@@ -488,9 +488,8 @@ xfs_qm_dqtobp(
 	/*
 	 * Find the block map; no allocations yet
 	 */
-	error = xfs_bmapi(NULL, quotip, dqp->q_fileoffset,
-			  XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
-			  NULL, 0, &map, &nmaps, NULL);
+	error = xfs_bmapi_read(quotip, dqp->q_fileoffset,
+			       XFS_DQUOT_CLUSTER_SIZE_FSB, &map, &nmaps, 0);
 
 	xfs_iunlock(quotip, XFS_ILOCK_SHARED);
 	if (error)

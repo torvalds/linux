@@ -4350,6 +4350,98 @@ xfs_bmapi_update_map(
 }
 
 /*
+ * Map file blocks to filesystem blocks without allocation.
+ */
+int
+xfs_bmapi_read(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		bno,
+	xfs_filblks_t		len,
+	struct xfs_bmbt_irec	*mval,
+	int			*nmap,
+	int			flags)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_ifork	*ifp;
+	struct xfs_bmbt_irec	got;
+	struct xfs_bmbt_irec	prev;
+	xfs_fileoff_t		obno;
+	xfs_fileoff_t		end;
+	xfs_extnum_t		lastx;
+	int			error;
+	int			eof;
+	int			n = 0;
+	int			whichfork = (flags & XFS_BMAPI_ATTRFORK) ?
+						XFS_ATTR_FORK : XFS_DATA_FORK;
+
+	ASSERT(*nmap >= 1);
+	ASSERT(!(flags & ~(XFS_BMAPI_ATTRFORK|XFS_BMAPI_ENTIRE|
+			   XFS_BMAPI_IGSTATE)));
+
+	if (unlikely(XFS_TEST_ERROR(
+	    (XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_EXTENTS &&
+	     XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE),
+	     mp, XFS_ERRTAG_BMAPIFORMAT, XFS_RANDOM_BMAPIFORMAT))) {
+		XFS_ERROR_REPORT("xfs_bmapi_read", XFS_ERRLEVEL_LOW, mp);
+		return XFS_ERROR(EFSCORRUPTED);
+	}
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return XFS_ERROR(EIO);
+
+	XFS_STATS_INC(xs_blk_mapr);
+
+	ifp = XFS_IFORK_PTR(ip, whichfork);
+	ASSERT(ifp->if_ext_max ==
+	       XFS_IFORK_SIZE(ip, whichfork) / (uint)sizeof(xfs_bmbt_rec_t));
+
+	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
+		error = xfs_iread_extents(NULL, ip, whichfork);
+		if (error)
+			return error;
+	}
+
+	xfs_bmap_search_extents(ip, bno, whichfork, &eof, &lastx, &got, &prev);
+	end = bno + len;
+	obno = bno;
+
+	while (bno < end && n < *nmap) {
+		/* Reading past eof, act as though there's a hole up to end. */
+		if (eof)
+			got.br_startoff = end;
+		if (got.br_startoff > bno) {
+			/* Reading in a hole.  */
+			mval->br_startoff = bno;
+			mval->br_startblock = HOLESTARTBLOCK;
+			mval->br_blockcount =
+				XFS_FILBLKS_MIN(len, got.br_startoff - bno);
+			mval->br_state = XFS_EXT_NORM;
+			bno += mval->br_blockcount;
+			len -= mval->br_blockcount;
+			mval++;
+			n++;
+			continue;
+		}
+
+		/* set up the extent map to return. */
+		xfs_bmapi_trim_map(mval, &got, &bno, len, obno, end, n, flags);
+		xfs_bmapi_update_map(&mval, &bno, &len, obno, end, &n, flags);
+
+		/* If we're done, stop now. */
+		if (bno >= end || n >= *nmap)
+			break;
+
+		/* Else go on to the next record. */
+		if (++lastx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t))
+			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, lastx), &got);
+		else
+			eof = 1;
+	}
+	*nmap = n;
+	return 0;
+}
+
+/*
  * Map file blocks to filesystem blocks.
  * File range is given by the bno/len pair.
  * Adds blocks to file if a write ("flags & XFS_BMAPI_WRITE" set)
@@ -5490,10 +5582,9 @@ xfs_getbmap(
 
 	do {
 		nmap = (nexleft > subnex) ? subnex : nexleft;
-		error = xfs_bmapi(NULL, ip, XFS_BB_TO_FSBT(mp, bmv->bmv_offset),
-				  XFS_BB_TO_FSB(mp, bmv->bmv_length),
-				  bmapi_flags, NULL, 0, map, &nmap,
-				  NULL);
+		error = xfs_bmapi_read(ip, XFS_BB_TO_FSBT(mp, bmv->bmv_offset),
+				       XFS_BB_TO_FSB(mp, bmv->bmv_length),
+				       map, &nmap, bmapi_flags);
 		if (error)
 			goto out_free_map;
 		ASSERT(nmap <= subnex);
@@ -6084,9 +6175,8 @@ xfs_bmap_punch_delalloc_range(
 		 * trying to remove a real extent (which requires a
 		 * transaction) or a hole, which is probably a bad idea...
 		 */
-		error = xfs_bmapi(NULL, ip, start_fsb, 1,
-				XFS_BMAPI_ENTIRE,  NULL, 0, &imap,
-				&nimaps, NULL);
+		error = xfs_bmapi_read(ip, start_fsb, 1, &imap, &nimaps,
+				       XFS_BMAPI_ENTIRE);
 
 		if (error) {
 			/* something screwed, just bail */
