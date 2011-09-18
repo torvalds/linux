@@ -12,6 +12,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
