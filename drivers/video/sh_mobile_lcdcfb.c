@@ -1495,8 +1495,10 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 		if (!info || !info->device)
 			continue;
 
-		if (ch->tx_dev)
+		if (ch->tx_dev) {
+			ch->tx_dev->lcdc = NULL;
 			module_put(ch->cfg.tx_dev->dev.driver->owner);
+		}
 
 		if (ch->sglist)
 			vfree(ch->sglist);
@@ -1605,6 +1607,7 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 			return -EINVAL;
 		}
 		ch->tx_dev = platform_get_drvdata(cfg->tx_dev);
+		ch->tx_dev->lcdc = ch;
 	}
 
 	/* Iterate through the modes to validate them and find the highest

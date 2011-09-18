@@ -19,6 +19,7 @@ struct fb_info;
 struct module;
 struct sh_mobile_lcdc_entity;
 struct sh_mobile_lcdc_priv;
+struct sh_mobile_lcdc_chan;
 
 struct sh_mobile_lcdc_entity_ops {
 	/* Display */
@@ -30,6 +31,7 @@ struct sh_mobile_lcdc_entity_ops {
 struct sh_mobile_lcdc_entity {
 	struct module *owner;
 	const struct sh_mobile_lcdc_entity_ops *ops;
+	struct sh_mobile_lcdc_chan *lcdc;
 };
 
 /*
