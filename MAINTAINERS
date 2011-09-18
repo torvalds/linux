@@ -1278,7 +1278,6 @@ F:	drivers/input/misc/ati_remote2.c
 ATLX ETHERNET DRIVERS
 M:	Jay Cliburn <jcliburn@gmail.com>
 M:	Chris Snook <chris.snook@gmail.com>
-M:	Jie Yang <jie.yang@atheros.com>
 L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/atl1
 W:	http://atl1.sourceforge.net
@@ -1574,7 +1573,6 @@ F:	drivers/scsi/bfa/
 
 BROCADE BNA 10 GIGABIT ETHERNET DRIVER
 M:	Rasesh Mody <rmody@brocade.com>
-M:	Debashis Dutt <ddutt@brocade.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/bna/
@@ -1758,7 +1756,6 @@ F:	Documentation/zh_CN/
 
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
-M:	Vasanthy Kolluri <vkolluri@cisco.com>
 M:	Roopa Prabhu <roprabhu@cisco.com>
 M:	David Wang <dwang2@cisco.com>
 S:	Supported
@@ -4415,7 +4412,8 @@ L:	netfilter@vger.kernel.org
 L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kaber/nf-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf-next-2.6.git
 S:	Supported
 F:	include/linux/netfilter*
 F:	include/linux/netfilter/

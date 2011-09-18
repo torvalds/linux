@@ -857,7 +857,7 @@ static __exit void can_exit(void)
 	struct net_device *dev;
 
 	if (stats_timer)
-		del_timer(&can_stattimer);
+		del_timer_sync(&can_stattimer);
 
 	can_remove_proc();
 

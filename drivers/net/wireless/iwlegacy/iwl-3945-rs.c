@@ -822,12 +822,15 @@ static void iwl3945_rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 
  out:
 
-	rs_sta->last_txrate_idx = index;
-	if (sband->band == IEEE80211_BAND_5GHZ)
-		info->control.rates[0].idx = rs_sta->last_txrate_idx -
-				IWL_FIRST_OFDM_RATE;
-	else
+	if (sband->band == IEEE80211_BAND_5GHZ) {
+		if (WARN_ON_ONCE(index < IWL_FIRST_OFDM_RATE))
+			index = IWL_FIRST_OFDM_RATE;
+		rs_sta->last_txrate_idx = index;
+		info->control.rates[0].idx = index - IWL_FIRST_OFDM_RATE;
+	} else {
+		rs_sta->last_txrate_idx = index;
 		info->control.rates[0].idx = rs_sta->last_txrate_idx;
+	}
 
 	IWL_DEBUG_RATE(priv, "leave: %d\n", index);
 }
