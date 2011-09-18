@@ -102,17 +102,6 @@ xfs_bmap_add_extent_delay_real(
 
 /*
  * Called by xfs_bmap_add_extent to handle cases converting a hole
- * to a delayed allocation.
- */
-STATIC int				/* error */
-xfs_bmap_add_extent_hole_delay(
-	xfs_inode_t		*ip,	/* incore inode pointer */
-	xfs_extnum_t		*idx,	/* extent number to update/insert */
-	xfs_bmbt_irec_t		*new,	/* new data to add to file extents */
-	int			*logflagsp); /* inode logging flags */
-
-/*
- * Called by xfs_bmap_add_extent to handle cases converting a hole
  * to a real allocation.
  */
 STATIC int				/* error */
@@ -431,8 +420,7 @@ xfs_bmap_add_attrfork_local(
 }
 
 /*
- * Called by xfs_bmapi to update file extent records and the btree
- * after allocating space (or doing a delayed allocation).
+ * Update file extent records and the btree after allocating space.
  */
 STATIC int				/* error */
 xfs_bmap_add_extent(
@@ -464,21 +452,12 @@ xfs_bmap_add_extent(
 
 	ASSERT(*idx >= 0);
 	ASSERT(*idx <= nextents);
+	ASSERT(!isnullstartblock(new->br_startblock));
 
-	/*
-	 * Any kind of new delayed allocation goes here.
-	 */
-	if (isnullstartblock(new->br_startblock)) {
-		if (cur)
-			ASSERT((cur->bc_private.b.flags &
-				XFS_BTCUR_BPRV_WASDEL) == 0);
-		error = xfs_bmap_add_extent_hole_delay(ip, idx, new,
-						       &logflags);
-	}
 	/*
 	 * Real allocation off the end of the file.
 	 */
-	else if (*idx == nextents) {
+	if (*idx == nextents) {
 		if (cur)
 			ASSERT((cur->bc_private.b.flags &
 				XFS_BTCUR_BPRV_WASDEL) == 0);
@@ -1581,16 +1560,13 @@ done:
 }
 
 /*
- * Called by xfs_bmap_add_extent to handle cases converting a hole
- * to a delayed allocation.
+ * Convert a hole to a delayed allocation.
  */
-/*ARGSUSED*/
-STATIC int				/* error */
+STATIC void
 xfs_bmap_add_extent_hole_delay(
 	xfs_inode_t		*ip,	/* incore inode pointer */
 	xfs_extnum_t		*idx,	/* extent number to update/insert */
-	xfs_bmbt_irec_t		*new,	/* new data to add to file extents */
-	int			*logflagsp) /* inode logging flags */
+	xfs_bmbt_irec_t		*new)	/* new data to add to file extents */
 {
 	xfs_ifork_t		*ifp;	/* inode fork pointer */
 	xfs_bmbt_irec_t		left;	/* left neighbor extent entry */
@@ -1725,8 +1701,6 @@ xfs_bmap_add_extent_hole_delay(
 		 * Nothing to do for disk quota accounting here.
 		 */
 	}
-	*logflagsp = 0;
-	return 0;
 }
 
 /*
@@ -4455,9 +4429,6 @@ xfs_bmapi_reserve_delalloc(
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
 	xfs_extlen_t		alen;
 	xfs_extlen_t		indlen;
-	xfs_fsblock_t		firstblock = NULLFSBLOCK;
-	struct xfs_btree_cur	*cur = NULL;
-	int			tmp_logflags = 0;
 	char			rt = XFS_IS_REALTIME_INODE(ip);
 	xfs_extlen_t		extsz;
 	int			error;
@@ -4524,16 +4495,11 @@ xfs_bmapi_reserve_delalloc(
 	got->br_startblock = nullstartblock(indlen);
 	got->br_blockcount = alen;
 	got->br_state = XFS_EXT_NORM;
-
-	error = xfs_bmap_add_extent(NULL, ip, lastx, &cur, got, &firstblock,
-				    NULL, &tmp_logflags, XFS_DATA_FORK);
-	ASSERT(!error);
-	ASSERT(!tmp_logflags);
-	ASSERT(!cur);
+	xfs_bmap_add_extent_hole_delay(ip, lastx, got);
 
 	/*
-	 * Update our extent pointer, given that xfs_bmap_add_extent might
-	 * have merged it into one of the neighbouring ones.
+	 * Update our extent pointer, given that xfs_bmap_add_extent_hole_delay
+	 * might have merged it into one of the neighbouring ones.
 	 */
 	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, *lastx), got);
 
