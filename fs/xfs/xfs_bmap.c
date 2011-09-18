@@ -1217,10 +1217,11 @@ xfs_bmap_add_extent_unwritten_real(
 				goto done;
 			if ((error = xfs_btree_decrement(cur, 0, &i)))
 				goto done;
-			if (xfs_bmbt_update(cur, LEFT.br_startoff,
+			error = xfs_bmbt_update(cur, LEFT.br_startoff,
 				LEFT.br_startblock,
 				LEFT.br_blockcount + new->br_blockcount,
-				LEFT.br_state))
+				LEFT.br_state);
+			if (error)
 				goto done;
 		}
 		break;
