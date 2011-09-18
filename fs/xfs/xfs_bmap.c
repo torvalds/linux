@@ -4607,9 +4607,7 @@ xfs_bmapi_delay(
 STATIC int
 xfs_bmapi_allocate(
 	struct xfs_bmalloca	*bma,
-	xfs_extnum_t		*lastx,
 	int			flags,
-	int			*nallocs,
 	int			*logflags)
 {
 	struct xfs_mount	*mp = bma->ip->i_mount;
@@ -4628,8 +4626,8 @@ xfs_bmapi_allocate(
 	if (bma->wasdel) {
 		bma->length = (xfs_extlen_t)bma->got.br_blockcount;
 		bma->offset = bma->got.br_startoff;
-		if (*lastx != NULLEXTNUM && *lastx) {
-			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, *lastx - 1),
+		if (bma->idx != NULLEXTNUM && bma->idx) {
+			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, bma->idx - 1),
 					 &bma->prev);
 		}
 	} else {
@@ -4680,7 +4678,7 @@ xfs_bmapi_allocate(
 	 * Bump the number of extents we've allocated
 	 * in this call.
 	 */
-	(*nallocs)++;
+	bma->nallocs++;
 
 	if (bma->cur)
 		bma->cur->bc_private.b.flags =
@@ -4700,13 +4698,14 @@ xfs_bmapi_allocate(
 		bma->got.br_state = XFS_EXT_UNWRITTEN;
 
 	if (bma->wasdel) {
-		error = xfs_bmap_add_extent_delay_real(bma->tp, bma->ip, lastx,
-				&bma->cur, &bma->got, bma->firstblock,
-				bma->flist, logflags);
+		error = xfs_bmap_add_extent_delay_real(bma->tp, bma->ip,
+				&bma->idx, &bma->cur, &bma->got,
+				bma->firstblock, bma->flist, logflags);
 	} else {
-		error = xfs_bmap_add_extent_hole_real(bma->tp, bma->ip, lastx,
-				&bma->cur, &bma->got, bma->firstblock,
-				bma->flist, logflags, whichfork);
+		error = xfs_bmap_add_extent_hole_real(bma->tp, bma->ip,
+				&bma->idx, &bma->cur, &bma->got,
+				bma->firstblock, bma->flist, logflags,
+				whichfork);
 	}
 
 	if (error)
@@ -4717,7 +4716,7 @@ xfs_bmapi_allocate(
 	 * or xfs_bmap_add_extent_hole_real might have merged it into one of
 	 * the neighbouring ones.
 	 */
-	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, *lastx), &bma->got);
+	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, bma->idx), &bma->got);
 
 	ASSERT(bma->got.br_startoff <= bma->offset);
 	ASSERT(bma->got.br_startoff + bma->got.br_blockcount >=
@@ -4732,7 +4731,6 @@ xfs_bmapi_convert_unwritten(
 	struct xfs_bmalloca	*bma,
 	struct xfs_bmbt_irec	*mval,
 	xfs_filblks_t		len,
-	xfs_extnum_t		*lastx,
 	int			flags,
 	int			*logflags)
 {
@@ -4767,7 +4765,7 @@ xfs_bmapi_convert_unwritten(
 	mval->br_state = (mval->br_state == XFS_EXT_UNWRITTEN)
 				? XFS_EXT_NORM : XFS_EXT_UNWRITTEN;
 
-	error = xfs_bmap_add_extent_unwritten_real(bma->tp, bma->ip, lastx,
+	error = xfs_bmap_add_extent_unwritten_real(bma->tp, bma->ip, &bma->idx,
 			&bma->cur, mval, bma->firstblock, bma->flist, logflags);
 	if (error)
 		return error;
@@ -4777,7 +4775,7 @@ xfs_bmapi_convert_unwritten(
 	 * xfs_bmap_add_extent_unwritten_real might have merged it into one
 	 * of the neighbouring ones.
 	 */
-	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, *lastx), &bma->got);
+	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, bma->idx), &bma->got);
 
 	/*
 	 * We may have combined previously unwritten space with written space,
@@ -4820,10 +4818,8 @@ xfs_bmapi_write(
 	xfs_fileoff_t		end;		/* end of mapped file region */
 	int			eof;		/* after the end of extents */
 	int			error;		/* error return */
-	xfs_extnum_t		lastx;		/* last useful extent number */
 	int			logflags;	/* flags for transaction logging */
 	int			n;		/* current extent index */
-	int			nallocs;	/* number of extents alloc'd */
 	xfs_fileoff_t		obno;		/* old block number (offset) */
 	int			tmp_logflags;	/* temp flags holder */
 	int			whichfork;	/* data or attr fork */
@@ -4871,7 +4867,6 @@ xfs_bmapi_write(
 	XFS_STATS_INC(xs_blk_mapw);
 
 	logflags = 0;
-	nallocs = 0;
 
 	if (XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_LOCAL) {
 		error = xfs_bmap_local_to_extents(tp, ip, firstblock, total,
@@ -4895,7 +4890,7 @@ xfs_bmapi_write(
 			goto error0;
 	}
 
-	xfs_bmap_search_extents(ip, bno, whichfork, &eof, &lastx, &bma.got,
+	xfs_bmap_search_extents(ip, bno, whichfork, &eof, &bma.idx, &bma.got,
 				&bma.prev);
 	n = 0;
 	end = bno + len;
@@ -4923,8 +4918,7 @@ xfs_bmapi_write(
 			bma.length = len;
 			bma.offset = bno;
 
-			error = xfs_bmapi_allocate(&bma, &lastx, flags,
-					&nallocs, &tmp_logflags);
+			error = xfs_bmapi_allocate(&bma, flags, &tmp_logflags);
 			logflags |= tmp_logflags;
 			if (error)
 				goto error0;
@@ -4937,7 +4931,7 @@ xfs_bmapi_write(
 							end, n, flags);
 
 		/* Execute unwritten extent conversion if necessary */
-		error = xfs_bmapi_convert_unwritten(&bma, mval, len, &lastx,
+		error = xfs_bmapi_convert_unwritten(&bma, mval, len,
 						    flags, &tmp_logflags);
 		logflags |= tmp_logflags;
 		if (error == EAGAIN)
@@ -4953,14 +4947,15 @@ xfs_bmapi_write(
 		 * XFS_BMAP_MAX_NMAP extents no matter what.  Otherwise
 		 * the transaction may get too big.
 		 */
-		if (bno >= end || n >= *nmap || nallocs >= *nmap)
+		if (bno >= end || n >= *nmap || bma.nallocs >= *nmap)
 			break;
 
 		/* Else go on to the next record. */
 		bma.prev = bma.got;
-		if (++lastx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t))
-			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, lastx), &bma.got);
-		else
+		if (++bma.idx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t)) {
+			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, bma.idx),
+					 &bma.got);
+		} else
 			eof = 1;
 	}
 	*nmap = n;
