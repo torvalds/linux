@@ -2185,6 +2185,11 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	if (!(src_file->f_mode & FMODE_READ))
 		goto out_fput;
 
+	/* don't make the dst file partly checksummed */
+	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
+	    (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM))
+		goto out_fput;
+
 	ret = -EISDIR;
 	if (S_ISDIR(src->i_mode) || S_ISDIR(inode->i_mode))
 		goto out_fput;
