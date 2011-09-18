@@ -1081,8 +1081,8 @@ void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data) {}
 
 static struct resource rtt_resources[] = {
 	{
-		.start	= AT91_BASE_SYS + AT91_RTT,
-		.end	= AT91_BASE_SYS + AT91_RTT + SZ_16 - 1,
+		.start	= AT91SAM9G45_BASE_RTT,
+		.end	= AT91SAM9G45_BASE_RTT + SZ_16 - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };

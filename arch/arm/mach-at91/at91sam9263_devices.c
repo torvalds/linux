@@ -956,8 +956,8 @@ static void __init at91_add_device_tc(void) { }
 
 static struct resource rtt0_resources[] = {
 	{
-		.start	= AT91_BASE_SYS + AT91_RTT0,
-		.end	= AT91_BASE_SYS + AT91_RTT0 + SZ_16 - 1,
+		.start	= AT91SAM9263_BASE_RTT0,
+		.end	= AT91SAM9263_BASE_RTT0 + SZ_16 - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
@@ -971,8 +971,8 @@ static struct platform_device at91sam9263_rtt0_device = {
 
 static struct resource rtt1_resources[] = {
 	{
-		.start	= AT91_BASE_SYS + AT91_RTT1,
-		.end	= AT91_BASE_SYS + AT91_RTT1 + SZ_16 - 1,
+		.start	= AT91SAM9263_BASE_RTT1,
+		.end	= AT91SAM9263_BASE_RTT1 + SZ_16 - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
