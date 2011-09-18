@@ -466,26 +466,9 @@ xfs_bmap_add_extent(
 	ASSERT(*idx <= nextents);
 
 	/*
-	 * This is the first extent added to a new/empty file.
-	 * Special case this one, so other routines get to assume there are
-	 * already extents in the list.
-	 */
-	if (nextents == 0) {
-		xfs_iext_insert(ip, *idx, 1, new,
-				whichfork == XFS_ATTR_FORK ? BMAP_ATTRFORK : 0);
-
-		ASSERT(cur == NULL);
-
-		if (!isnullstartblock(new->br_startblock)) {
-			XFS_IFORK_NEXT_SET(ip, whichfork, 1);
-			logflags = XFS_ILOG_CORE | xfs_ilog_fext(whichfork);
-		} else
-			logflags = 0;
-	}
-	/*
 	 * Any kind of new delayed allocation goes here.
 	 */
-	else if (isnullstartblock(new->br_startblock)) {
+	if (isnullstartblock(new->br_startblock)) {
 		if (cur)
 			ASSERT((cur->bc_private.b.flags &
 				XFS_BTCUR_BPRV_WASDEL) == 0);
