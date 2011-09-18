@@ -37,11 +37,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/dwc3-omap.h>
 #include <linux/dma-mapping.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
@@ -74,7 +76,22 @@
 /* SYSCONFIG REGISTER */
 #define USBOTGSS_SYSCONFIG_DMADISABLE		(1 << 16)
 #define USBOTGSS_SYSCONFIG_STANDBYMODE(x)	((x) << 4)
+
+#define USBOTGSS_STANDBYMODE_FORCE_STANDBY	0
+#define USBOTGSS_STANDBYMODE_NO_STANDBY		1
+#define USBOTGSS_STANDBYMODE_SMART_STANDBY	2
+#define USBOTGSS_STANDBYMODE_SMART_WAKEUP	3
+
+#define USBOTGSS_STANDBYMODE_MASK		(0x03 << 4)
+
 #define USBOTGSS_SYSCONFIG_IDLEMODE(x)		((x) << 2)
+
+#define USBOTGSS_IDLEMODE_FORCE_IDLE		0
+#define USBOTGSS_IDLEMODE_NO_IDLE		1
+#define USBOTGSS_IDLEMODE_SMART_IDLE		2
+#define USBOTGSS_IDLEMODE_SMART_WAKEUP		3
+
+#define USBOTGSS_IDLEMODE_MASK			(0x03 << 2)
 
 /* IRQ_EOI REGISTER */
 #define USBOTGSS_IRQ_EOI_LINE_NUMBER		(1 << 0)
@@ -125,106 +142,51 @@ struct dwc3_omap {
 	u32			dma_status:1;
 };
 
-#ifdef CONFIG_PM
-static int dwc3_omap_suspend(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-
-	memcpy_fromio(omap->context, omap->base, omap->resource_size);
-
-	return 0;
-}
-
-static int dwc3_omap_resume(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-
-	memcpy_toio(omap->base, omap->context, omap->resource_size);
-
-	return 0;
-}
-
-static int dwc3_omap_idle(struct device *dev)
-{
-	struct dwc3_omap	*omap = dev_get_drvdata(dev);
-	u32			reg;
-
-	/* stop DMA Engine */
-	reg = dwc3_readl(omap->base, USBOTGSS_SYSCONFIG);
-	reg &= ~(USBOTGSS_SYSCONFIG_DMADISABLE);
-	dwc3_writel(omap->base, USBOTGSS_SYSCONFIG, reg);
-
-	return 0;
-}
-
-static UNIVERSAL_DEV_PM_OPS(dwc3_omap_pm_ops, dwc3_omap_suspend,
-		dwc3_omap_resume, dwc3_omap_idle);
-
-#define DEV_PM_OPS	(&dwc3_omap_pm_ops)
-#else
-#define DEV_PM_OPS	NULL
-#endif
-
 static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 {
 	struct dwc3_omap	*omap = _omap;
 	u32			reg;
-	u32			ctrl;
 
 	spin_lock(&omap->lock);
 
 	reg = dwc3_readl(omap->base, USBOTGSS_IRQSTATUS_1);
-	ctrl = dwc3_readl(omap->base, USBOTGSS_UTMI_OTG_CTRL);
 
 	if (reg & USBOTGSS_IRQ1_DMADISABLECLR) {
-		dev_dbg(omap->base, "DMA Disable was Cleared\n");
+		dev_dbg(omap->dev, "DMA Disable was Cleared\n");
 		omap->dma_status = false;
 	}
 
 	if (reg & USBOTGSS_IRQ1_OEVT)
-		dev_dbg(omap->base, "OTG Event\n");
+		dev_dbg(omap->dev, "OTG Event\n");
 
-	if (reg & USBOTGSS_IRQ1_DRVVBUS_RISE) {
-		dev_dbg(omap->base, "DRVVBUS Rise\n");
-		ctrl |= USBOTGSS_UTMI_OTG_CTRL_DRVVBUS;
-	}
+	if (reg & USBOTGSS_IRQ1_DRVVBUS_RISE)
+		dev_dbg(omap->dev, "DRVVBUS Rise\n");
 
-	if (reg & USBOTGSS_IRQ1_CHRGVBUS_RISE) {
-		dev_dbg(omap->base, "CHRGVBUS Rise\n");
-		ctrl |= USBOTGSS_UTMI_OTG_CTRL_CHRGVBUS;
-	}
+	if (reg & USBOTGSS_IRQ1_CHRGVBUS_RISE)
+		dev_dbg(omap->dev, "CHRGVBUS Rise\n");
 
-	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_RISE) {
-		dev_dbg(omap->base, "DISCHRGVBUS Rise\n");
-		ctrl |= USBOTGSS_UTMI_OTG_CTRL_DISCHRGVBUS;
-	}
+	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_RISE)
+		dev_dbg(omap->dev, "DISCHRGVBUS Rise\n");
 
-	if (reg & USBOTGSS_IRQ1_IDPULLUP_RISE) {
-		dev_dbg(omap->base, "IDPULLUP Rise\n");
-		ctrl |= USBOTGSS_UTMI_OTG_CTRL_IDPULLUP;
-	}
+	if (reg & USBOTGSS_IRQ1_IDPULLUP_RISE)
+		dev_dbg(omap->dev, "IDPULLUP Rise\n");
 
-	if (reg & USBOTGSS_IRQ1_DRVVBUS_FALL) {
-		dev_dbg(omap->base, "DRVVBUS Fall\n");
-		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_DRVVBUS;
-	}
+	if (reg & USBOTGSS_IRQ1_DRVVBUS_FALL)
+		dev_dbg(omap->dev, "DRVVBUS Fall\n");
 
-	if (reg & USBOTGSS_IRQ1_CHRGVBUS_FALL) {
-		dev_dbg(omap->base, "CHRGVBUS Fall\n");
-		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_CHRGVBUS;
-	}
+	if (reg & USBOTGSS_IRQ1_CHRGVBUS_FALL)
+		dev_dbg(omap->dev, "CHRGVBUS Fall\n");
 
-	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_FALL) {
-		dev_dbg(omap->base, "DISCHRGVBUS Fall\n");
-		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_DISCHRGVBUS;
-	}
+	if (reg & USBOTGSS_IRQ1_DISCHRGVBUS_FALL)
+		dev_dbg(omap->dev, "DISCHRGVBUS Fall\n");
 
-	if (reg & USBOTGSS_IRQ1_IDPULLUP_FALL) {
-		dev_dbg(omap->base, "IDPULLUP Fall\n");
-		ctrl &= ~USBOTGSS_UTMI_OTG_CTRL_IDPULLUP;
-	}
+	if (reg & USBOTGSS_IRQ1_IDPULLUP_FALL)
+		dev_dbg(omap->dev, "IDPULLUP Fall\n");
 
-	dwc3_writel(omap->base, USBOTGSS_UTMI_OTG_CTRL, ctrl);
+	dwc3_writel(omap->base, USBOTGSS_IRQSTATUS_1, reg);
+
+	reg = dwc3_readl(omap->base, USBOTGSS_IRQSTATUS_0);
+	dwc3_writel(omap->base, USBOTGSS_IRQSTATUS_0, reg);
 
 	spin_unlock(&omap->lock);
 
@@ -233,6 +195,7 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 
 static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 {
+	struct dwc3_omap_data	*pdata = pdev->dev.platform_data;
 	struct platform_device	*dwc3;
 	struct dwc3_omap	*omap;
 	struct resource		*res;
@@ -298,12 +261,41 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	omap->base	= base;
 	omap->dwc3	= dwc3;
 
+	reg = dwc3_readl(omap->base, USBOTGSS_UTMI_OTG_STATUS);
+
+	if (!pdata) {
+		dev_dbg(&pdev->dev, "missing platform data\n");
+	} else {
+		switch (pdata->utmi_mode) {
+		case DWC3_OMAP_UTMI_MODE_SW:
+			reg |= USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
+			break;
+		case DWC3_OMAP_UTMI_MODE_HW:
+			reg &= ~USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
+			break;
+		default:
+			dev_dbg(&pdev->dev, "UNKNOWN utmi mode %d\n",
+					pdata->utmi_mode);
+		}
+	}
+
+	dwc3_writel(omap->base, USBOTGSS_UTMI_OTG_STATUS, reg);
+
 	/* check the DMA Status */
 	reg = dwc3_readl(omap->base, USBOTGSS_SYSCONFIG);
 	omap->dma_status = !!(reg & USBOTGSS_SYSCONFIG_DMADISABLE);
 
+	/* Set No-Idle and No-Standby */
+	reg &= ~(USBOTGSS_STANDBYMODE_MASK
+			| USBOTGSS_IDLEMODE_MASK);
+
+	reg |= (USBOTGSS_SYSCONFIG_STANDBYMODE(USBOTGSS_STANDBYMODE_NO_STANDBY)
+		| USBOTGSS_SYSCONFIG_IDLEMODE(USBOTGSS_IDLEMODE_NO_IDLE));
+
+	dwc3_writel(omap->base, USBOTGSS_SYSCONFIG, reg);
+
 	ret = request_irq(omap->irq, dwc3_omap_interrupt, 0,
-			"dwc3-wrapper", omap);
+			"dwc3-omap", omap);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request IRQ #%d --> %d\n",
 				omap->irq, ret);
@@ -311,10 +303,10 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	}
 
 	/* enable all IRQs */
-	dwc3_writel(omap->base, USBOTGSS_IRQENABLE_SET_0, 0x01);
+	reg = USBOTGSS_IRQO_COREIRQ_ST;
+	dwc3_writel(omap->base, USBOTGSS_IRQENABLE_SET_0, reg);
 
-	reg = (USBOTGSS_IRQ1_DMADISABLECLR |
-			USBOTGSS_IRQ1_OEVT |
+	reg = (USBOTGSS_IRQ1_OEVT |
 			USBOTGSS_IRQ1_DRVVBUS_RISE |
 			USBOTGSS_IRQ1_CHRGVBUS_RISE |
 			USBOTGSS_IRQ1_DISCHRGVBUS_RISE |
@@ -388,7 +380,6 @@ static struct platform_driver dwc3_omap_driver = {
 	.remove		= __devexit_p(dwc3_omap_remove),
 	.driver		= {
 		.name	= "omap-dwc3",
-		.pm	= DEV_PM_OPS,
 		.of_match_table	= of_dwc3_matach,
 	},
 };

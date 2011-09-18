@@ -62,33 +62,19 @@ static const char *dwc3_ep0_state_string(enum dwc3_ep0_state state)
 	switch (state) {
 	case EP0_UNCONNECTED:
 		return "Unconnected";
-	case EP0_IDLE:
-		return "Idle";
-	case EP0_IN_DATA_PHASE:
-		return "IN Data Phase";
-	case EP0_OUT_DATA_PHASE:
-		return "OUT Data Phase";
-	case EP0_IN_WAIT_GADGET:
-		return "IN Wait Gadget";
-	case EP0_OUT_WAIT_GADGET:
-		return "OUT Wait Gadget";
-	case EP0_IN_WAIT_NRDY:
-		return "IN Wait NRDY";
-	case EP0_OUT_WAIT_NRDY:
-		return "OUT Wait NRDY";
-	case EP0_IN_STATUS_PHASE:
-		return "IN Status Phase";
-	case EP0_OUT_STATUS_PHASE:
-		return "OUT Status Phase";
-	case EP0_STALL:
-		return "Stall";
+	case EP0_SETUP_PHASE:
+		return "Setup Phase";
+	case EP0_DATA_PHASE:
+		return "Data Phase";
+	case EP0_STATUS_PHASE:
+		return "Status Phase";
 	default:
 		return "UNKNOWN";
 	}
 }
 
 static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
-		u32 len)
+		u32 len, u32 type)
 {
 	struct dwc3_gadget_ep_cmd_params params;
 	struct dwc3_trb_hw		*trb_hw;
@@ -98,52 +84,15 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 	int				ret;
 
 	dep = dwc->eps[epnum];
+	if (dep->flags & DWC3_EP_BUSY) {
+		dev_vdbg(dwc->dev, "%s: still busy\n", dep->name);
+		return 0;
+	}
 
 	trb_hw = dwc->ep0_trb;
 	memset(&trb, 0, sizeof(trb));
 
-	switch (dwc->ep0state) {
-	case EP0_IDLE:
-		trb.trbctl = DWC3_TRBCTL_CONTROL_SETUP;
-		break;
-
-	case EP0_IN_WAIT_NRDY:
-	case EP0_OUT_WAIT_NRDY:
-	case EP0_IN_STATUS_PHASE:
-	case EP0_OUT_STATUS_PHASE:
-		if (dwc->three_stage_setup)
-			trb.trbctl = DWC3_TRBCTL_CONTROL_STATUS3;
-		else
-			trb.trbctl = DWC3_TRBCTL_CONTROL_STATUS2;
-
-		if (dwc->ep0state == EP0_IN_WAIT_NRDY)
-			dwc->ep0state = EP0_IN_STATUS_PHASE;
-		else if (dwc->ep0state == EP0_OUT_WAIT_NRDY)
-			dwc->ep0state = EP0_OUT_STATUS_PHASE;
-		break;
-
-	case EP0_IN_WAIT_GADGET:
-		dwc->ep0state = EP0_IN_WAIT_NRDY;
-		return 0;
-		break;
-
-	case EP0_OUT_WAIT_GADGET:
-		dwc->ep0state = EP0_OUT_WAIT_NRDY;
-		return 0;
-
-		break;
-
-	case EP0_IN_DATA_PHASE:
-	case EP0_OUT_DATA_PHASE:
-		trb.trbctl = DWC3_TRBCTL_CONTROL_DATA;
-		break;
-
-	default:
-		dev_err(dwc->dev, "%s() can't in state %d\n", __func__,
-				dwc->ep0state);
-		return -EINVAL;
-	}
-
+	trb.trbctl = type;
 	trb.bplh = buf_dma;
 	trb.length = len;
 
@@ -167,8 +116,11 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 		return ret;
 	}
 
+	dep->flags |= DWC3_EP_BUSY;
 	dep->res_trans_idx = dwc3_gadget_ep_get_transfer_index(dwc,
 			dep->number);
+
+	dwc->ep0_next_event = DWC3_EP0_COMPLETE;
 
 	return 0;
 }
@@ -176,22 +128,46 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 		struct dwc3_request *req)
 {
-	struct dwc3		*dwc = dep->dwc;
-	int			ret;
+	int			ret = 0;
 
 	req->request.actual	= 0;
 	req->request.status	= -EINPROGRESS;
-	req->direction		= dep->direction;
 	req->epnum		= dep->number;
 
 	list_add_tail(&req->list, &dep->request_list);
-	dwc3_map_buffer_to_dma(req);
 
-	ret = dwc3_ep0_start_trans(dwc, dep->number, req->request.dma,
-			req->request.length);
-	if (ret < 0) {
-		list_del(&req->list);
-		dwc3_unmap_buffer_from_dma(req);
+	/*
+	 * Gadget driver might not be quick enough to queue a request
+	 * before we get a Transfer Not Ready event on this endpoint.
+	 *
+	 * In that case, we will set DWC3_EP_PENDING_REQUEST. When that
+	 * flag is set, it's telling us that as soon as Gadget queues the
+	 * required request, we should kick the transfer here because the
+	 * IRQ we were waiting for is long gone.
+	 */
+	if (dep->flags & DWC3_EP_PENDING_REQUEST) {
+		struct dwc3	*dwc = dep->dwc;
+		unsigned	direction;
+		u32		type;
+
+		direction = !!(dep->flags & DWC3_EP0_DIR_IN);
+
+		if (dwc->ep0state == EP0_STATUS_PHASE) {
+			type = dwc->three_stage_setup
+				? DWC3_TRBCTL_CONTROL_STATUS3
+				: DWC3_TRBCTL_CONTROL_STATUS2;
+		} else if (dwc->ep0state == EP0_DATA_PHASE) {
+			type = DWC3_TRBCTL_CONTROL_DATA;
+		} else {
+			/* should never happen */
+			WARN_ON(1);
+			return 0;
+		}
+
+		ret = dwc3_ep0_start_trans(dwc, direction,
+				req->request.dma, req->request.length, type);
+		dep->flags &= ~(DWC3_EP_PENDING_REQUEST |
+				DWC3_EP0_DIR_IN);
 	}
 
 	return ret;
@@ -207,24 +183,6 @@ int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
 	unsigned long			flags;
 
 	int				ret;
-
-	switch (dwc->ep0state) {
-	case EP0_IN_DATA_PHASE:
-	case EP0_IN_WAIT_GADGET:
-	case EP0_IN_WAIT_NRDY:
-	case EP0_IN_STATUS_PHASE:
-		dep = dwc->eps[1];
-		break;
-
-	case EP0_OUT_DATA_PHASE:
-	case EP0_OUT_WAIT_GADGET:
-	case EP0_OUT_WAIT_NRDY:
-	case EP0_OUT_STATUS_PHASE:
-		dep = dwc->eps[0];
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	if (!dep->desc) {
@@ -256,51 +214,30 @@ out:
 
 static void dwc3_ep0_stall_and_restart(struct dwc3 *dwc)
 {
+	struct dwc3_ep		*dep = dwc->eps[0];
+
 	/* stall is always issued on EP0 */
 	__dwc3_gadget_ep_set_halt(dwc->eps[0], 1);
-	dwc->eps[0]->flags &= ~DWC3_EP_STALL;
-	dwc->ep0state = EP0_IDLE;
+	dwc->eps[0]->flags = DWC3_EP_ENABLED;
+
+	if (!list_empty(&dep->request_list)) {
+		struct dwc3_request	*req;
+
+		req = next_request(&dep->request_list);
+		dwc3_gadget_giveback(dep, req, -ECONNRESET);
+	}
+
+	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
 }
 
 void dwc3_ep0_out_start(struct dwc3 *dwc)
 {
-	struct dwc3_ep			*dep;
 	int				ret;
 
-	dep = dwc->eps[0];
-
-	ret = dwc3_ep0_start_trans(dwc, 0, dwc->ctrl_req_addr, 8);
+	ret = dwc3_ep0_start_trans(dwc, 0, dwc->ctrl_req_addr, 8,
+			DWC3_TRBCTL_CONTROL_SETUP);
 	WARN_ON(ret < 0);
-}
-
-/*
- * Send a zero length packet for the status phase of the control transfer
- */
-static void dwc3_ep0_do_setup_status(struct dwc3 *dwc,
-		const struct dwc3_event_depevt *event)
-{
-	struct dwc3_ep			*dep;
-	int				ret;
-	u32				epnum;
-
-	epnum = event->endpoint_number;
-	dep = dwc->eps[epnum];
-
-	if (epnum)
-		dwc->ep0state = EP0_IN_STATUS_PHASE;
-	else
-		dwc->ep0state = EP0_OUT_STATUS_PHASE;
-
-	/*
-	 * Not sure Why I need a buffer for a zero transfer. Maybe the
-	 * HW reacts strange on a NULL pointer
-	 */
-	ret = dwc3_ep0_start_trans(dwc, epnum, dwc->ctrl_req_addr, 0);
-	if (ret) {
-		dev_dbg(dwc->dev, "failed to start transfer, stalling\n");
-		dwc3_ep0_stall_and_restart(dwc);
-	}
 }
 
 static struct dwc3_ep *dwc3_wIndex_to_dep(struct dwc3 *dwc, __le16 wIndex_le)
@@ -322,16 +259,9 @@ static struct dwc3_ep *dwc3_wIndex_to_dep(struct dwc3 *dwc, __le16 wIndex_le)
 
 static void dwc3_ep0_send_status_response(struct dwc3 *dwc)
 {
-	u32 epnum;
-
-	if (dwc->ep0state == EP0_IN_DATA_PHASE)
-		epnum = 1;
-	else
-		epnum = 0;
-
-	dwc3_ep0_start_trans(dwc, epnum, dwc->ctrl_req_addr,
-			dwc->ep0_usb_req.length);
-	dwc->ep0_status_pending = 1;
+	dwc3_ep0_start_trans(dwc, 1, dwc->setup_buf_addr,
+			dwc->ep0_usb_req.length,
+			DWC3_TRBCTL_CONTROL_DATA);
 }
 
 /*
@@ -376,7 +306,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl
 	response_pkt = (__le16 *) dwc->setup_buf;
 	*response_pkt = cpu_to_le16(usb_status);
 	dwc->ep0_usb_req.length = sizeof(*response_pkt);
-	dwc3_ep0_send_status_response(dwc);
+	dwc->ep0_status_pending = 1;
 
 	return 0;
 }
@@ -486,8 +416,6 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 		return -EINVAL;
 	};
 
-	dwc->ep0state = EP0_IN_WAIT_NRDY;
-
 	return 0;
 }
 
@@ -522,7 +450,7 @@ static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		ret = -EINVAL;
 		break;
 	}
-	dwc->ep0state = EP0_IN_WAIT_NRDY;
+
 	return ret;
 }
 
@@ -610,15 +538,14 @@ static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 
 	len = le16_to_cpu(ctrl->wLength);
 	if (!len) {
-		dwc->ep0state = EP0_IN_WAIT_GADGET;
 		dwc->three_stage_setup = 0;
+		dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
 	} else {
 		dwc->three_stage_setup = 1;
-		if (ctrl->bRequestType & USB_DIR_IN)
-			dwc->ep0state = EP0_IN_DATA_PHASE;
-		else
-			dwc->ep0state = EP0_OUT_DATA_PHASE;
+		dwc->ep0_next_event = DWC3_EP0_NRDY_DATA;
 	}
+
+	dwc->ep0_expect_in = !!(ctrl->bRequestType & USB_DIR_IN);
 
 	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD)
 		ret = dwc3_ep0_std_request(dwc, ctrl);
@@ -639,14 +566,16 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	struct usb_request	*ur;
 	struct dwc3_trb		trb;
 	struct dwc3_ep		*dep;
-	u32			transfered;
+	u32			transferred;
 	u8			epnum;
 
 	epnum = event->endpoint_number;
 	dep = dwc->eps[epnum];
 
+	dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
+
 	if (!dwc->ep0_status_pending) {
-		r = next_request(&dep->request_list);
+		r = next_request(&dwc->eps[0]->request_list);
 		ur = &r->request;
 	} else {
 		ur = &dwc->ep0_usb_req;
@@ -655,8 +584,17 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 	dwc3_trb_to_nat(dwc->ep0_trb, &trb);
 
-	transfered = ur->length - trb.length;
-	ur->actual += transfered;
+	if (dwc->ep0_bounced) {
+		struct dwc3_ep	*ep0 = dwc->eps[0];
+
+		transferred = min_t(u32, ur->length,
+				ep0->endpoint.maxpacket - trb.length);
+		memcpy(ur->buf, dwc->ep0_bounce, transferred);
+		dwc->ep0_bounced = false;
+	} else {
+		transferred = ur->length - trb.length;
+		ur->actual += transferred;
+	}
 
 	if ((epnum & 1) && ur->actual < ur->length) {
 		/* for some reason we did not get everything out */
@@ -668,12 +606,6 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 		 * handle the case where we have to send a zero packet. This
 		 * seems to be case when req.length > maxpacket. Could it be?
 		 */
-		/* The transfer is complete, wait for HOST */
-		if (epnum & 1)
-			dwc->ep0state = EP0_IN_WAIT_NRDY;
-		else
-			dwc->ep0state = EP0_OUT_WAIT_NRDY;
-
 		if (r)
 			dwc3_gadget_giveback(dep, r, 0);
 	}
@@ -684,10 +616,8 @@ static void dwc3_ep0_complete_req(struct dwc3 *dwc,
 {
 	struct dwc3_request	*r;
 	struct dwc3_ep		*dep;
-	u8			epnum;
 
-	epnum = event->endpoint_number;
-	dep = dwc->eps[epnum];
+	dep = dwc->eps[0];
 
 	if (!list_empty(&dep->request_list)) {
 		r = next_request(&dep->request_list);
@@ -695,62 +625,170 @@ static void dwc3_ep0_complete_req(struct dwc3 *dwc,
 		dwc3_gadget_giveback(dep, r, 0);
 	}
 
-	dwc->ep0state = EP0_IDLE;
+	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
 }
 
 static void dwc3_ep0_xfer_complete(struct dwc3 *dwc,
 			const struct dwc3_event_depevt *event)
 {
+	struct dwc3_ep		*dep = dwc->eps[event->endpoint_number];
+
+	dep->flags &= ~DWC3_EP_BUSY;
+
 	switch (dwc->ep0state) {
-	case EP0_IDLE:
+	case EP0_SETUP_PHASE:
+		dev_vdbg(dwc->dev, "Inspecting Setup Bytes\n");
 		dwc3_ep0_inspect_setup(dwc, event);
 		break;
 
-	case EP0_IN_DATA_PHASE:
-	case EP0_OUT_DATA_PHASE:
+	case EP0_DATA_PHASE:
+		dev_vdbg(dwc->dev, "Data Phase\n");
 		dwc3_ep0_complete_data(dwc, event);
 		break;
 
-	case EP0_IN_STATUS_PHASE:
-	case EP0_OUT_STATUS_PHASE:
+	case EP0_STATUS_PHASE:
+		dev_vdbg(dwc->dev, "Status Phase\n");
 		dwc3_ep0_complete_req(dwc, event);
 		break;
-
-	case EP0_IN_WAIT_NRDY:
-	case EP0_OUT_WAIT_NRDY:
-	case EP0_IN_WAIT_GADGET:
-	case EP0_OUT_WAIT_GADGET:
-	case EP0_UNCONNECTED:
-	case EP0_STALL:
-		break;
+	default:
+		WARN(true, "UNKNOWN ep0state %d\n", dwc->ep0state);
 	}
+}
+
+static void dwc3_ep0_do_control_setup(struct dwc3 *dwc,
+		const struct dwc3_event_depevt *event)
+{
+	dwc->ep0state = EP0_SETUP_PHASE;
+	dwc3_ep0_out_start(dwc);
+}
+
+static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
+		const struct dwc3_event_depevt *event)
+{
+	struct dwc3_ep		*dep;
+	struct dwc3_request	*req;
+	int			ret;
+
+	dep = dwc->eps[0];
+	dwc->ep0state = EP0_DATA_PHASE;
+
+	if (dwc->ep0_status_pending) {
+		dwc3_ep0_send_status_response(dwc);
+		return;
+	}
+
+	if (list_empty(&dep->request_list)) {
+		dev_vdbg(dwc->dev, "pending request for EP0 Data phase\n");
+		dep->flags |= DWC3_EP_PENDING_REQUEST;
+
+		if (event->endpoint_number)
+			dep->flags |= DWC3_EP0_DIR_IN;
+		return;
+	}
+
+	req = next_request(&dep->request_list);
+	req->direction = !!event->endpoint_number;
+
+	dwc->ep0state = EP0_DATA_PHASE;
+	if (req->request.length == 0) {
+		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
+				dwc->ctrl_req_addr, 0,
+				DWC3_TRBCTL_CONTROL_DATA);
+	} else if ((req->request.length % dep->endpoint.maxpacket)
+			&& (event->endpoint_number == 0)) {
+		dwc3_map_buffer_to_dma(req);
+
+		WARN_ON(req->request.length > dep->endpoint.maxpacket);
+
+		dwc->ep0_bounced = true;
+
+		/*
+		 * REVISIT in case request length is bigger than EP0
+		 * wMaxPacketSize, we will need two chained TRBs to handle
+		 * the transfer.
+		 */
+		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
+				dwc->ep0_bounce_addr, dep->endpoint.maxpacket,
+				DWC3_TRBCTL_CONTROL_DATA);
+	} else {
+		dwc3_map_buffer_to_dma(req);
+
+		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
+				req->request.dma, req->request.length,
+				DWC3_TRBCTL_CONTROL_DATA);
+	}
+
+	WARN_ON(ret < 0);
+}
+
+static void dwc3_ep0_do_control_status(struct dwc3 *dwc,
+		const struct dwc3_event_depevt *event)
+{
+	u32			type;
+	int			ret;
+
+	dwc->ep0state = EP0_STATUS_PHASE;
+
+	type = dwc->three_stage_setup ? DWC3_TRBCTL_CONTROL_STATUS3
+		: DWC3_TRBCTL_CONTROL_STATUS2;
+
+	ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
+			dwc->ctrl_req_addr, 0, type);
+
+	WARN_ON(ret < 0);
 }
 
 static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
-	switch (dwc->ep0state) {
-	case EP0_IN_WAIT_GADGET:
-		dwc->ep0state = EP0_IN_WAIT_NRDY;
-		break;
-	case EP0_OUT_WAIT_GADGET:
-		dwc->ep0state = EP0_OUT_WAIT_NRDY;
+	switch (event->status) {
+	case DEPEVT_STATUS_CONTROL_SETUP:
+		dev_vdbg(dwc->dev, "Control Setup\n");
+		dwc3_ep0_do_control_setup(dwc, event);
 		break;
 
-	case EP0_IN_WAIT_NRDY:
-	case EP0_OUT_WAIT_NRDY:
-		dwc3_ep0_do_setup_status(dwc, event);
+	case DEPEVT_STATUS_CONTROL_DATA:
+		dev_vdbg(dwc->dev, "Control Data\n");
+
+		if (dwc->ep0_next_event != DWC3_EP0_NRDY_DATA) {
+			dev_vdbg(dwc->dev, "Expected %d got %d\n",
+					DEPEVT_STATUS_CONTROL_DATA,
+					event->status);
+
+			dwc3_ep0_stall_and_restart(dwc);
+			return;
+		}
+
+		/*
+		 * One of the possible error cases is when Host _does_
+		 * request for Data Phase, but it does so on the wrong
+		 * direction.
+		 *
+		 * Here, we already know ep0_next_event is DATA (see above),
+		 * so we only need to check for direction.
+		 */
+		if (dwc->ep0_expect_in != event->endpoint_number) {
+			dev_vdbg(dwc->dev, "Wrong direction for Data phase\n");
+			dwc3_ep0_stall_and_restart(dwc);
+			return;
+		}
+
+		dwc3_ep0_do_control_data(dwc, event);
 		break;
 
-	case EP0_IDLE:
-	case EP0_IN_STATUS_PHASE:
-	case EP0_OUT_STATUS_PHASE:
-	case EP0_IN_DATA_PHASE:
-	case EP0_OUT_DATA_PHASE:
-	case EP0_UNCONNECTED:
-	case EP0_STALL:
-		break;
+	case DEPEVT_STATUS_CONTROL_STATUS:
+		dev_vdbg(dwc->dev, "Control Status\n");
+
+		if (dwc->ep0_next_event != DWC3_EP0_NRDY_STATUS) {
+			dev_vdbg(dwc->dev, "Expected %d got %d\n",
+					DEPEVT_STATUS_CONTROL_STATUS,
+					event->status);
+
+			dwc3_ep0_stall_and_restart(dwc);
+			return;
+		}
+		dwc3_ep0_do_control_status(dwc, event);
 	}
 }
 
