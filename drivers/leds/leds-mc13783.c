@@ -183,7 +183,7 @@ static int __devinit mc13783_led_setup(struct mc13783_led *led, int max_current)
 
 static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mc13xxx *dev = dev_get_drvdata(pdev->dev.parent);
 	int ret = 0;
 	int reg = 0;
@@ -264,8 +264,8 @@ out:
 
 static int __devinit mc13783_led_probe(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct mc13783_led_platform_data *led_cur;
+	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct mc13xxx_led_platform_data *led_cur;
 	struct mc13783_led *led, *led_dat;
 	int ret, i;
 	int init_led = 0;
@@ -351,7 +351,7 @@ err_free:
 
 static int __devexit mc13783_led_remove(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mc13783_led *led = platform_get_drvdata(pdev);
 	struct mc13xxx *dev = dev_get_drvdata(pdev->dev.parent);
 	int i;
