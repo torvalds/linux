@@ -4607,13 +4607,13 @@ xfs_bmapi_delay(
 STATIC int
 xfs_bmapi_allocate(
 	struct xfs_bmalloca	*bma,
-	int			flags,
-	int			*logflags)
+	int			flags)
 {
 	struct xfs_mount	*mp = bma->ip->i_mount;
 	int			whichfork = (flags & XFS_BMAPI_ATTRFORK) ?
 						XFS_ATTR_FORK : XFS_DATA_FORK;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(bma->ip, whichfork);
+	int			tmp_logflags = 0;
 	int			error;
 	int			rt;
 
@@ -4700,14 +4700,15 @@ xfs_bmapi_allocate(
 	if (bma->wasdel) {
 		error = xfs_bmap_add_extent_delay_real(bma->tp, bma->ip,
 				&bma->idx, &bma->cur, &bma->got,
-				bma->firstblock, bma->flist, logflags);
+				bma->firstblock, bma->flist, &tmp_logflags);
 	} else {
 		error = xfs_bmap_add_extent_hole_real(bma->tp, bma->ip,
 				&bma->idx, &bma->cur, &bma->got,
-				bma->firstblock, bma->flist, logflags,
+				bma->firstblock, bma->flist, &tmp_logflags,
 				whichfork);
 	}
 
+	bma->logflags |= tmp_logflags;
 	if (error)
 		return error;
 
@@ -4731,15 +4732,13 @@ xfs_bmapi_convert_unwritten(
 	struct xfs_bmalloca	*bma,
 	struct xfs_bmbt_irec	*mval,
 	xfs_filblks_t		len,
-	int			flags,
-	int			*logflags)
+	int			flags)
 {
 	int			whichfork = (flags & XFS_BMAPI_ATTRFORK) ?
 						XFS_ATTR_FORK : XFS_DATA_FORK;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(bma->ip, whichfork);
+	int			tmp_logflags = 0;
 	int			error;
-
-	*logflags = 0;
 
 	/* check if we need to do unwritten->real conversion */
 	if (mval->br_state == XFS_EXT_UNWRITTEN &&
@@ -4766,7 +4765,9 @@ xfs_bmapi_convert_unwritten(
 				? XFS_EXT_NORM : XFS_EXT_UNWRITTEN;
 
 	error = xfs_bmap_add_extent_unwritten_real(bma->tp, bma->ip, &bma->idx,
-			&bma->cur, mval, bma->firstblock, bma->flist, logflags);
+			&bma->cur, mval, bma->firstblock, bma->flist,
+			&tmp_logflags);
+	bma->logflags |= tmp_logflags;
 	if (error)
 		return error;
 
@@ -4818,10 +4819,8 @@ xfs_bmapi_write(
 	xfs_fileoff_t		end;		/* end of mapped file region */
 	int			eof;		/* after the end of extents */
 	int			error;		/* error return */
-	int			logflags;	/* flags for transaction logging */
 	int			n;		/* current extent index */
 	xfs_fileoff_t		obno;		/* old block number (offset) */
-	int			tmp_logflags;	/* temp flags holder */
 	int			whichfork;	/* data or attr fork */
 	char			inhole;		/* current location is hole in file */
 	char			wasdelay;	/* old extent was delayed */
@@ -4866,11 +4865,9 @@ xfs_bmapi_write(
 
 	XFS_STATS_INC(xs_blk_mapw);
 
-	logflags = 0;
-
 	if (XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_LOCAL) {
 		error = xfs_bmap_local_to_extents(tp, ip, firstblock, total,
-						  &logflags, whichfork);
+						  &bma.logflags, whichfork);
 		if (error)
 			goto error0;
 	}
@@ -4918,8 +4915,7 @@ xfs_bmapi_write(
 			bma.length = len;
 			bma.offset = bno;
 
-			error = xfs_bmapi_allocate(&bma, flags, &tmp_logflags);
-			logflags |= tmp_logflags;
+			error = xfs_bmapi_allocate(&bma, flags);
 			if (error)
 				goto error0;
 			if (bma.blkno == NULLFSBLOCK)
@@ -4931,9 +4927,7 @@ xfs_bmapi_write(
 							end, n, flags);
 
 		/* Execute unwritten extent conversion if necessary */
-		error = xfs_bmapi_convert_unwritten(&bma, mval, len,
-						    flags, &tmp_logflags);
-		logflags |= tmp_logflags;
+		error = xfs_bmapi_convert_unwritten(&bma, mval, len, flags);
 		if (error == EAGAIN)
 			continue;
 		if (error)
@@ -4965,10 +4959,12 @@ xfs_bmapi_write(
 	 */
 	if (XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_BTREE &&
 	    XFS_IFORK_NEXTENTS(ip, whichfork) <= ifp->if_ext_max) {
+		int		tmp_logflags = 0;
+
 		ASSERT(bma.cur);
 		error = xfs_bmap_btree_to_extents(tp, ip, bma.cur,
 			&tmp_logflags, whichfork);
-		logflags |= tmp_logflags;
+		bma.logflags |= tmp_logflags;
 		if (error)
 			goto error0;
 	}
@@ -4982,19 +4978,19 @@ error0:
 	 * Log everything.  Do this after conversion, there's no point in
 	 * logging the extent records if we've converted to btree format.
 	 */
-	if ((logflags & xfs_ilog_fext(whichfork)) &&
+	if ((bma.logflags & xfs_ilog_fext(whichfork)) &&
 	    XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_EXTENTS)
-		logflags &= ~xfs_ilog_fext(whichfork);
-	else if ((logflags & xfs_ilog_fbroot(whichfork)) &&
+		bma.logflags &= ~xfs_ilog_fext(whichfork);
+	else if ((bma.logflags & xfs_ilog_fbroot(whichfork)) &&
 		 XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE)
-		logflags &= ~xfs_ilog_fbroot(whichfork);
+		bma.logflags &= ~xfs_ilog_fbroot(whichfork);
 	/*
 	 * Log whatever the flags say, even if error.  Otherwise we might miss
 	 * detecting a case where the data is changed, there's an error,
 	 * and it's not logged so we don't shutdown when we should.
 	 */
-	if (logflags)
-		xfs_trans_log_inode(tp, ip, logflags);
+	if (bma.logflags)
+		xfs_trans_log_inode(tp, ip, bma.logflags);
 
 	if (bma.cur) {
 		if (!error) {

@@ -123,6 +123,7 @@ typedef struct xfs_bmalloca {
 	struct xfs_btree_cur	*cur;	/* btree cursor */
 	xfs_extnum_t		idx;	/* current extent index */
 	int			nallocs;/* number of extents alloc'd */
+	int			logflags;/* flags for transaction logging */
 
 	xfs_extlen_t		total;	/* total blocks needed for xaction */
 	xfs_extlen_t		minlen;	/* minimum allocation size (blocks) */
