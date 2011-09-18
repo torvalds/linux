@@ -703,6 +703,11 @@ static int mc13xxx_probe(struct spi_device *spi)
 	enum mc13xxx_id id;
 	int ret;
 
+	if (!pdata) {
+		dev_err(&spi->dev, "invalid platform data\n");
+		return -EINVAL;
+	}
+
 	mc13xxx = kzalloc(sizeof(*mc13xxx), GFP_KERNEL);
 	if (!mc13xxx)
 		return -ENOMEM;
@@ -762,6 +767,10 @@ err_revision:
 	if (pdata->leds)
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-led",
 				pdata->leds, sizeof(*pdata->leds));
+
+	if (pdata->buttons)
+		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-pwrbutton",
+				pdata->buttons, sizeof(*pdata->buttons));
 
 	return 0;
 }
