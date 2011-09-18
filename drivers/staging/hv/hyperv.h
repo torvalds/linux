@@ -581,11 +581,6 @@ struct vmbus_channel {
 	struct work_struct work;
 
 	enum vmbus_channel_state state;
-	/*
-	 * For util channels, stash the
-	 * the service index for easy access.
-	 */
-	s8 util_index;
 
 	struct vmbus_channel_offer_channel offermsg;
 	/*
@@ -960,12 +955,6 @@ struct ictimesync_data {
 	u8 flags;
 } __packed;
 
-/* Index for each IC struct in array hv_cb_utils[] */
-#define HV_SHUTDOWN_MSG		0
-#define HV_TIMESYNC_MSG		1
-#define HV_HEARTBEAT_MSG	2
-#define HV_KVP_MSG		3
-
 struct hyperv_service_callback {
 	u8 msg_type;
 	char *log_msg;
@@ -976,7 +965,5 @@ struct hyperv_service_callback {
 
 extern void prep_negotiate_resp(struct icmsg_hdr *,
 				struct icmsg_negotiate *, u8 *);
-extern void chn_cb_negotiate(void *);
-extern struct hyperv_service_callback hv_cb_utils[];
 
 #endif /* _HYPERV_H */
