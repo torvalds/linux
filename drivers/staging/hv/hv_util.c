@@ -30,9 +30,27 @@
 #include "hyperv.h"
 #include "hv_kvp.h"
 
-static u8 *shut_txf_buf;
-static u8 *time_txf_buf;
-static u8 *hbeat_txf_buf;
+
+static void shutdown_onchannelcallback(void *context);
+static struct hv_util_service util_shutdown = {
+	.util_cb = shutdown_onchannelcallback,
+};
+
+static void timesync_onchannelcallback(void *context);
+static struct hv_util_service util_timesynch = {
+	.util_cb = timesync_onchannelcallback,
+};
+
+static void heartbeat_onchannelcallback(void *context);
+static struct hv_util_service util_heartbeat = {
+	.util_cb = heartbeat_onchannelcallback,
+};
+
+static struct hv_util_service util_kvp = {
+	.util_cb = hv_kvp_onchannelcallback,
+	.util_init = hv_kvp_init,
+	.util_deinit = hv_kvp_deinit,
+};
 
 static void shutdown_onchannelcallback(void *context)
 {
@@ -40,6 +58,7 @@ static void shutdown_onchannelcallback(void *context)
 	u32 recvlen;
 	u64 requestid;
 	u8  execute_shutdown = false;
+	u8  *shut_txf_buf = util_shutdown.recv_buffer;
 
 	struct shutdown_msg_data *shutdown_msg;
 
@@ -169,6 +188,7 @@ static void timesync_onchannelcallback(void *context)
 	u64 requestid;
 	struct icmsg_hdr *icmsghdrp;
 	struct ictimesync_data *timedatap;
+	u8 *time_txf_buf = util_timesynch.recv_buffer;
 
 	vmbus_recvpacket(channel, time_txf_buf,
 			 PAGE_SIZE, &recvlen, &requestid);
@@ -207,6 +227,7 @@ static void heartbeat_onchannelcallback(void *context)
 	u64 requestid;
 	struct icmsg_hdr *icmsghdrp;
 	struct heartbeat_msg_data *heartbeat_msg;
+	u8 *hbeat_txf_buf = util_heartbeat.recv_buffer;
 
 	vmbus_recvpacket(channel, hbeat_txf_buf,
 			 PAGE_SIZE, &recvlen, &requestid);
@@ -235,34 +256,56 @@ static void heartbeat_onchannelcallback(void *context)
 	}
 }
 
-/*
- * The devices managed by the util driver don't need any additional
- * setup.
- */
 static int util_probe(struct hv_device *dev,
 			const struct hv_vmbus_device_id *dev_id)
 {
+	struct hv_util_service *srv =
+		(struct hv_util_service *)dev_id->driver_data;
+	int ret;
+
+	srv->recv_buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!srv->recv_buffer)
+		return -ENOMEM;
+	if (srv->util_init) {
+		ret = srv->util_init(srv);
+		if (ret) {
+			kfree(srv->recv_buffer);
+			return -ENODEV;
+		}
+	}
+
+	hv_set_drvdata(dev, srv);
 	return 0;
 }
 
 static int util_remove(struct hv_device *dev)
 {
+	struct hv_util_service *srv = hv_get_drvdata(dev);
+
+	if (srv->util_deinit)
+		srv->util_deinit();
+	kfree(srv->recv_buffer);
+
 	return 0;
 }
 
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Shutdown guid */
 	{ VMBUS_DEVICE(0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
-		       0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB) },
+		       0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB)
+	  .driver_data = (unsigned long)&util_shutdown },
 	/* Time synch guid */
 	{ VMBUS_DEVICE(0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
-		       0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf) },
+		       0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf)
+	  .driver_data = (unsigned long)&util_timesynch },
 	/* Heartbeat guid */
 	{ VMBUS_DEVICE(0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
-		       0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d) },
+		       0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d)
+	  .driver_data = (unsigned long)&util_heartbeat },
 	/* KVP guid */
 	{ VMBUS_DEVICE(0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
-		       0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6) },
+		       0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6)
+	  .driver_data = (unsigned long)&util_kvp },
 	{ },
 };
 
@@ -281,24 +324,11 @@ static int __init init_hyperv_utils(void)
 	int ret;
 	pr_info("Registering HyperV Utility Driver\n");
 
-	if (hv_kvp_init())
-		return -ENODEV;
-
-
-	shut_txf_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	time_txf_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	hbeat_txf_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-
-	if (!shut_txf_buf || !time_txf_buf || !hbeat_txf_buf) {
-		pr_info("Unable to allocate memory for receive buffer\n");
-		ret = -ENOMEM;
-		goto err;
-	}
 
 	ret = vmbus_driver_register(&util_drv);
 
 	if (ret != 0)
-		goto err;
+		return ret;
 
 	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &shutdown_onchannelcallback;
 
@@ -310,12 +340,6 @@ static int __init init_hyperv_utils(void)
 
 	return 0;
 
-err:
-	kfree(shut_txf_buf);
-	kfree(time_txf_buf);
-	kfree(hbeat_txf_buf);
-
-	return ret;
 }
 
 static void exit_hyperv_utils(void)
@@ -342,11 +366,6 @@ static void exit_hyperv_utils(void)
 			&chn_cb_negotiate;
 	hv_cb_utils[HV_KVP_MSG].callback = NULL;
 
-	hv_kvp_deinit();
-
-	kfree(shut_txf_buf);
-	kfree(time_txf_buf);
-	kfree(hbeat_txf_buf);
 	vmbus_driver_unregister(&util_drv);
 }
 

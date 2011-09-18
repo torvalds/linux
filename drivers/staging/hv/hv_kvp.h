@@ -175,7 +175,7 @@ struct hv_kvp_msg {
 	struct hv_kvp_msg_enumerate	kvp_data;
 };
 
-int hv_kvp_init(void);
+int hv_kvp_init(struct hv_util_service *);
 void hv_kvp_deinit(void);
 void hv_kvp_onchannelcallback(void *);
 

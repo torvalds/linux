@@ -889,6 +889,19 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 #define HV_ERROR_NOT_SUPPORTED		0x80070032
 #define HV_ERROR_MACHINE_LOCKED		0x800704F7
 
+/*
+ * While we want to handle util services as regular devices,
+ * there is only one instance of each of these services; so
+ * we statically allocate the service specific state.
+ */
+
+struct hv_util_service {
+	u8 *recv_buffer;
+	void (*util_cb)(void *);
+	int (*util_init)(struct hv_util_service *);
+	void (*util_deinit)(void);
+};
+
 struct vmbuspipe_hdr {
 	u32 flags;
 	u32 msgsize;
