@@ -3867,22 +3867,21 @@ xfs_bmap_last_extent(
  * blocks at the end of the file which do not start at the previous data block,
  * we will try to align the new blocks at stripe unit boundaries.
  *
- * Returns 0 in *aeof if the file (fork) is empty as any new write will be at,
- * or past the EOF.
+ * Returns 0 in bma->aeof if the file (fork) is empty as any new write will be
+ * at, or past the EOF.
  */
 STATIC int
 xfs_bmap_isaeof(
-	struct xfs_inode	*ip,
-	xfs_fileoff_t		off,
-	int			whichfork,
-	char			*aeof)
+	struct xfs_bmalloca	*bma,
+	int			whichfork)
 {
 	struct xfs_bmbt_irec	rec;
 	int			is_empty;
 	int			error;
 
-	*aeof = 0;
-	error = xfs_bmap_last_extent(NULL, ip, whichfork, &rec, &is_empty);
+	bma->aeof = 0;
+	error = xfs_bmap_last_extent(NULL, bma->ip, whichfork, &rec,
+				     &is_empty);
 	if (error || is_empty)
 		return error;
 
@@ -3890,8 +3889,9 @@ xfs_bmap_isaeof(
 	 * Check if we are allocation or past the last extent, or at least into
 	 * the last delayed allocated extent.
 	 */
-	*aeof = off >= rec.br_startoff + rec.br_blockcount ||
-		(off >= rec.br_startoff && isnullstartblock(rec.br_startblock));
+	bma->aeof = bma->off >= rec.br_startoff + rec.br_blockcount ||
+		(bma->off >= rec.br_startoff &&
+		 isnullstartblock(rec.br_startblock));
 	return 0;
 }
 
@@ -4658,7 +4658,7 @@ xfs_bmapi_allocate(
 	 */
 	if (mp->m_dalign && alen >= mp->m_dalign &&
 	    !(flags & XFS_BMAPI_METADATA) && whichfork == XFS_DATA_FORK) {
-		error = xfs_bmap_isaeof(bma->ip, aoff, whichfork, &bma->aeof);
+		error = xfs_bmap_isaeof(bma, whichfork);
 		if (error)
 			return error;
 	}
