@@ -733,12 +733,11 @@ static unsigned long sh_hdmi_rate_error(struct sh_hdmi *hdmi,
 static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 			     unsigned long *parent_rate)
 {
-	struct fb_info *info = hdmi->entity.lcdc
-			     ? hdmi->entity.lcdc->info : NULL;
-	struct fb_var_screeninfo tmpvar;
-	struct fb_var_screeninfo *var = &tmpvar;
+	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
+	struct fb_info *info = ch ? ch->info : NULL;
+	struct fb_var_screeninfo var;
 	const struct fb_videomode *mode, *found = NULL;
-	struct fb_modelist *modelist = NULL;
+	const struct fb_modelist *modelist = NULL;
 	unsigned int f_width = 0, f_height = 0, f_refresh = 0;
 	unsigned long found_rate_error = ULONG_MAX; /* silly compiler... */
 	bool scanning = false, preferred_bad = false;
@@ -856,12 +855,10 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 		}
 
 		/* Check if supported: sufficient fb memory, supported clock-rate */
-		fb_videomode_to_var(var, mode);
+		fb_videomode_to_var(&var, mode);
 
-		var->bits_per_pixel = info->var.bits_per_pixel;
-
-		if (info && info->fbops->fb_check_var &&
-		    info->fbops->fb_check_var(var, info)) {
+		if (ch && ch->notify &&
+		    ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_MODE, &var)) {
 			scanning = true;
 			preferred_bad = true;
 			continue;
@@ -1044,32 +1041,6 @@ static const struct sh_mobile_lcdc_entity_ops sh_hdmi_ops = {
 	.display_off = sh_hdmi_display_off,
 };
 
-static bool sh_hdmi_must_reconfigure(struct sh_hdmi *hdmi)
-{
-	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
-	struct fb_var_screeninfo *new_var = &hdmi->var, *old_var = &ch->display_var;
-	struct fb_videomode mode1, mode2;
-
-	fb_var_to_videomode(&mode1, old_var);
-	fb_var_to_videomode(&mode2, new_var);
-
-	dev_dbg(hdmi->dev, "Old %ux%u, new %ux%u\n",
-		mode1.xres, mode1.yres, mode2.xres, mode2.yres);
-
-	if (fb_mode_is_equal(&mode1, &mode2)) {
-		/* It can be a different monitor with an equal video-mode */
-		old_var->width = new_var->width;
-		old_var->height = new_var->height;
-		return false;
-	}
-
-	dev_dbg(hdmi->dev, "Switching %u -> %u lines\n",
-		mode1.yres, mode2.yres);
-	*old_var = *new_var;
-
-	return true;
-}
-
 /**
  * sh_hdmi_clk_configure() - set HDMI clock frequency and enable the clock
  * @hdmi:		driver context
@@ -1110,7 +1081,6 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 {
 	struct sh_hdmi *hdmi = container_of(work, struct sh_hdmi, edid_work.work);
 	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
-	struct fb_info *info;
 	int ret;
 
 	dev_dbg(hdmi->dev, "%s(%p): begin, hotplug status %d\n", __func__, hdmi,
@@ -1135,52 +1105,19 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 		/* Switched to another (d) power-save mode */
 		msleep(10);
 
-		if (ch == NULL)
-			goto out;
-
-		info = ch->info;
-
-		if (lock_fb_info(info)) {
-			console_lock();
-
-			/* HDMI plug in */
-			if (!sh_hdmi_must_reconfigure(hdmi) &&
-			    info->state == FBINFO_STATE_RUNNING) {
-				/*
-				 * First activation with the default monitor - just turn
-				 * on, if we run a resume here, the logo disappears
-				 */
-				info->var.width = hdmi->var.width;
-				info->var.height = hdmi->var.height;
-				sh_hdmi_display_on(&hdmi->entity);
-			} else {
-				/* New monitor or have to wake up */
-				fb_set_suspend(info, 0);
-			}
-
-			console_unlock();
-			unlock_fb_info(info);
-		}
+		if (ch && ch->notify)
+			ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_CONNECT,
+				   &hdmi->var);
 	} else {
-		ret = 0;
-		if (ch == NULL)
-			goto out;
-
-		info = ch->info;
-
 		hdmi->monspec.modedb_len = 0;
 		fb_destroy_modedb(hdmi->monspec.modedb);
 		hdmi->monspec.modedb = NULL;
 
-		if (lock_fb_info(info)) {
-			console_lock();
+		if (ch && ch->notify)
+			ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_DISCONNECT,
+				   NULL);
 
-			/* HDMI disconnect */
-			fb_set_suspend(info, 1);
-
-			console_unlock();
-			unlock_fb_info(info);
-		}
+		ret = 0;
 	}
 
 out:
