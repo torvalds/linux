@@ -109,7 +109,8 @@ static inline void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp)
  * Argument structure for xfs_bmap_alloc.
  */
 typedef struct xfs_bmalloca {
-	xfs_fsblock_t		firstblock; /* i/o first block allocated */
+	xfs_fsblock_t		*firstblock; /* i/o first block allocated */
+	struct xfs_bmap_free	*flist;	/* bmap freelist */
 	xfs_fsblock_t		rval;	/* starting block of new extent */
 	xfs_fileoff_t		off;	/* offset in file filling in */
 	struct xfs_trans	*tp;	/* transaction pointer */
@@ -123,7 +124,6 @@ typedef struct xfs_bmalloca {
 	char			eof;	/* set if allocating past last extent */
 	char			wasdel;	/* replacing a delayed allocation */
 	char			userdata;/* set if is user data */
-	char			low;	/* low on space, using seq'l ags */
 	char			aeof;	/* allocated space at eof */
 	char			conv;	/* overwriting unwritten extents */
 } xfs_bmalloca_t;

@@ -761,7 +761,7 @@ xfs_filestream_new_ag(
 	 */
 	ag = (ag == NULLAGNUMBER) ? 0 : (ag + 1) % mp->m_sb.sb_agcount;
 	flags = (ap->userdata ? XFS_PICK_USERDATA : 0) |
-	        (ap->low ? XFS_PICK_LOWSPACE : 0);
+	        (ap->flist->xbf_low ? XFS_PICK_LOWSPACE : 0);
 
 	err = _xfs_filestream_pick_ag(mp, ag, agp, flags, minlen);
 	if (err || *agp == NULLAGNUMBER)
