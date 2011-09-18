@@ -219,16 +219,12 @@ struct sh_hdmi {
 	u8 edid_blocks;
 	struct clk *hdmi_clk;
 	struct device *dev;
-	struct fb_info *info;
-	struct mutex mutex;		/* Protect the info pointer */
 	struct delayed_work edid_work;
 	struct fb_var_screeninfo var;
 	struct fb_monspecs monspec;
-	struct notifier_block notifier;
 };
 
 #define entity_to_sh_hdmi(e)	container_of(e, struct sh_hdmi, entity)
-#define notifier_to_hdmi(n)	container_of(n, struct sh_hdmi, notifier)
 
 static void hdmi_write(struct sh_hdmi *hdmi, u8 data, u8 reg)
 {
@@ -737,10 +733,11 @@ static unsigned long sh_hdmi_rate_error(struct sh_hdmi *hdmi,
 static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 			     unsigned long *parent_rate)
 {
+	struct fb_info *info = hdmi->entity.lcdc
+			     ? hdmi->entity.lcdc->info : NULL;
 	struct fb_var_screeninfo tmpvar;
 	struct fb_var_screeninfo *var = &tmpvar;
 	const struct fb_videomode *mode, *found = NULL;
-	struct fb_info *info = hdmi->info;
 	struct fb_modelist *modelist = NULL;
 	unsigned int f_width = 0, f_height = 0, f_refresh = 0;
 	unsigned long found_rate_error = ULONG_MAX; /* silly compiler... */
@@ -1012,12 +1009,9 @@ static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity,
 	 * FB_EVENT_FB_UNBIND notify is also called with info->lock held
 	 */
 	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
-	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_chan *ch = entity->lcdc;
 
 	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__, hdmi, info->state);
-
-	/* No need to lock */
-	hdmi->info = info;
 
 	/*
 	 * hp_state can be set to
@@ -1040,7 +1034,6 @@ static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity,
 	return 0;
 }
 
-/* locking: called with info->lock held */
 static void sh_hdmi_display_off(struct sh_mobile_lcdc_entity *entity)
 {
 	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
@@ -1057,15 +1050,14 @@ static const struct sh_mobile_lcdc_entity_ops sh_hdmi_ops = {
 
 static bool sh_hdmi_must_reconfigure(struct sh_hdmi *hdmi)
 {
-	struct fb_info *info = hdmi->info;
-	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
 	struct fb_var_screeninfo *new_var = &hdmi->var, *old_var = &ch->display_var;
 	struct fb_videomode mode1, mode2;
 
 	fb_var_to_videomode(&mode1, old_var);
 	fb_var_to_videomode(&mode2, new_var);
 
-	dev_dbg(info->dev, "Old %ux%u, new %ux%u\n",
+	dev_dbg(hdmi->dev, "Old %ux%u, new %ux%u\n",
 		mode1.xres, mode1.yres, mode2.xres, mode2.yres);
 
 	if (fb_mode_is_equal(&mode1, &mode2)) {
@@ -1075,7 +1067,7 @@ static bool sh_hdmi_must_reconfigure(struct sh_hdmi *hdmi)
 		return false;
 	}
 
-	dev_dbg(info->dev, "Switching %u -> %u lines\n",
+	dev_dbg(hdmi->dev, "Switching %u -> %u lines\n",
 		mode1.yres, mode2.yres);
 	*old_var = *new_var;
 
@@ -1121,16 +1113,12 @@ static long sh_hdmi_clk_configure(struct sh_hdmi *hdmi, unsigned long hdmi_rate,
 static void sh_hdmi_edid_work_fn(struct work_struct *work)
 {
 	struct sh_hdmi *hdmi = container_of(work, struct sh_hdmi, edid_work.work);
+	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
 	struct fb_info *info;
-	struct sh_mobile_lcdc_chan *ch;
 	int ret;
 
 	dev_dbg(hdmi->dev, "%s(%p): begin, hotplug status %d\n", __func__, hdmi,
 		hdmi->hp_state);
-
-	mutex_lock(&hdmi->mutex);
-
-	info = hdmi->info;
 
 	if (hdmi->hp_state == HDMI_HOTPLUG_CONNECTED) {
 		unsigned long parent_rate = 0, hdmi_rate;
@@ -1151,10 +1139,10 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 		/* Switched to another (d) power-save mode */
 		msleep(10);
 
-		if (!info)
+		if (ch == NULL)
 			goto out;
 
-		ch = info->par;
+		info = ch->info;
 
 		if (lock_fb_info(info)) {
 			console_lock();
@@ -1179,8 +1167,10 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 		}
 	} else {
 		ret = 0;
-		if (!info)
+		if (ch == NULL)
 			goto out;
+
+		info = ch->info;
 
 		hdmi->monspec.modedb_len = 0;
 		fb_destroy_modedb(hdmi->monspec.modedb);
@@ -1200,45 +1190,8 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 out:
 	if (ret < 0 && ret != -EAGAIN)
 		hdmi->hp_state = HDMI_HOTPLUG_DISCONNECTED;
-	mutex_unlock(&hdmi->mutex);
 
 	dev_dbg(hdmi->dev, "%s(%p): end\n", __func__, hdmi);
-}
-
-static int sh_hdmi_notify(struct notifier_block *nb,
-			  unsigned long action, void *data)
-{
-	struct fb_event *event = data;
-	struct fb_info *info = event->info;
-	struct sh_hdmi *hdmi = notifier_to_hdmi(nb);
-
-	if (hdmi->info != info)
-		return NOTIFY_DONE;
-
-	switch(action) {
-	case FB_EVENT_FB_REGISTERED:
-		/* Unneeded, activation taken care by sh_hdmi_display_on() */
-		break;
-	case FB_EVENT_FB_UNREGISTERED:
-		/*
-		 * We are called from unregister_framebuffer() with the
-		 * info->lock held. This is bad for us, because we can race with
-		 * the scheduled work, which has to call fb_set_suspend(), which
-		 * takes info->lock internally, so, sh_hdmi_edid_work_fn()
-		 * cannot take and hold info->lock for the whole function
-		 * duration. Using an additional lock creates a classical AB-BA
-		 * lock up. Therefore, we have to release the info->lock
-		 * temporarily, synchronise with the work queue and re-acquire
-		 * the info->lock.
-		 */
-		unlock_fb_info(info);
-		mutex_lock(&hdmi->mutex);
-		hdmi->info = NULL;
-		mutex_unlock(&hdmi->mutex);
-		lock_fb_info(info);
-		return NOTIFY_OK;
-	}
-	return NOTIFY_DONE;
 }
 
 static int __init sh_hdmi_probe(struct platform_device *pdev)
@@ -1257,8 +1210,6 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Cannot allocate device data\n");
 		return -ENOMEM;
 	}
-
-	mutex_init(&hdmi->mutex);
 
 	hdmi->dev = &pdev->dev;
 	hdmi->entity.owner = THIS_MODULE;
@@ -1327,9 +1278,6 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto ecodec;
 	}
 
-	hdmi->notifier.notifier_call = sh_hdmi_notify;
-	fb_register_client(&hdmi->notifier);
-
 	return 0;
 
 ecodec:
@@ -1345,7 +1293,6 @@ ereqreg:
 erate:
 	clk_put(hdmi->hdmi_clk);
 egetclk:
-	mutex_destroy(&hdmi->mutex);
 	kfree(hdmi);
 
 	return ret;
@@ -1359,8 +1306,6 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_codec(&pdev->dev);
 
-	fb_unregister_client(&hdmi->notifier);
-
 	/* No new work will be scheduled, wait for running ISR */
 	free_irq(irq, hdmi);
 	/* Wait for already scheduled work */
@@ -1371,7 +1316,6 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	clk_put(hdmi->hdmi_clk);
 	iounmap(hdmi->base);
 	release_mem_region(res->start, resource_size(res));
-	mutex_destroy(&hdmi->mutex);
 	kfree(hdmi);
 
 	return 0;
