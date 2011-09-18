@@ -114,8 +114,8 @@ typedef struct xfs_bmalloca {
 	xfs_fileoff_t		off;	/* offset in file filling in */
 	struct xfs_trans	*tp;	/* transaction pointer */
 	struct xfs_inode	*ip;	/* incore inode pointer */
-	struct xfs_bmbt_irec	*prevp;	/* extent before the new one */
-	struct xfs_bmbt_irec	*gotp;	/* extent after, or delayed */
+	struct xfs_bmbt_irec	prev;	/* extent before the new one */
+	struct xfs_bmbt_irec	got;	/* extent after, or delayed */
 	xfs_extlen_t		alen;	/* i/o length asked/allocated */
 	xfs_extlen_t		total;	/* total blocks needed for xaction */
 	xfs_extlen_t		minlen;	/* minimum allocation size (blocks) */
