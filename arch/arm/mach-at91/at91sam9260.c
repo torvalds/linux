@@ -327,6 +327,7 @@ static void __init at91sam9260_map_io(void)
 
 static void __init at91sam9260_ioremap_registers(void)
 {
+	at91sam926x_ioremap_pit(AT91SAM9260_BASE_PIT);
 }
 
 static void __init at91sam9260_initialize(void)

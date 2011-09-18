@@ -29,6 +29,7 @@ extern void __init at91_aic_init(unsigned int priority[]);
  /* Timer */
 struct sys_timer;
 extern struct sys_timer at91rm9200_timer;
+extern void at91sam926x_ioremap_pit(u32 addr);
 extern struct sys_timer at91sam926x_timer;
 extern struct sys_timer at91x40_timer;
 

@@ -292,6 +292,7 @@ static void __init at91sam9rl_map_io(void)
 
 static void __init at91sam9rl_ioremap_registers(void)
 {
+	at91sam926x_ioremap_pit(AT91SAM9RL_BASE_PIT);
 }
 
 static void __init at91sam9rl_initialize(void)
