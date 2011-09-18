@@ -4441,6 +4441,120 @@ xfs_bmapi_read(
 	return 0;
 }
 
+STATIC int
+xfs_bmapi_reserve_delalloc(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		aoff,
+	xfs_filblks_t		len,
+	struct xfs_bmbt_irec	*got,
+	struct xfs_bmbt_irec	*prev,
+	xfs_extnum_t		*lastx,
+	int			eof)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	xfs_extlen_t		alen;
+	xfs_extlen_t		indlen;
+	xfs_fsblock_t		firstblock = NULLFSBLOCK;
+	struct xfs_btree_cur	*cur = NULL;
+	int			tmp_logflags = 0;
+	char			rt = XFS_IS_REALTIME_INODE(ip);
+	xfs_extlen_t		extsz;
+	int			error;
+
+	alen = XFS_FILBLKS_MIN(len, MAXEXTLEN);
+	if (!eof)
+		alen = XFS_FILBLKS_MIN(alen, got->br_startoff - aoff);
+
+	/* Figure out the extent size, adjust alen */
+	extsz = xfs_get_extsz_hint(ip);
+	if (extsz) {
+		/*
+		 * Make sure we don't exceed a single extent length when we
+		 * align the extent by reducing length we are going to
+		 * allocate by the maximum amount extent size aligment may
+		 * require.
+		 */
+		alen = XFS_FILBLKS_MIN(len, MAXEXTLEN - (2 * extsz - 1));
+		error = xfs_bmap_extsize_align(mp, got, prev, extsz, rt, eof,
+					       1, 0, &aoff, &alen);
+		ASSERT(!error);
+	}
+
+	if (rt)
+		extsz = alen / mp->m_sb.sb_rextsize;
+
+	/*
+	 * Make a transaction-less quota reservation for delayed allocation
+	 * blocks.  This number gets adjusted later.  We return if we haven't
+	 * allocated blocks already inside this loop.
+	 */
+	error = xfs_trans_reserve_quota_nblks(NULL, ip, (long)alen, 0,
+			rt ? XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
+	if (error)
+		return error;
+
+	/*
+	 * Split changing sb for alen and indlen since they could be coming
+	 * from different places.
+	 */
+	indlen = (xfs_extlen_t)xfs_bmap_worst_indlen(ip, alen);
+	ASSERT(indlen > 0);
+
+	if (rt) {
+		error = xfs_mod_incore_sb(mp, XFS_SBS_FREXTENTS,
+					  -((int64_t)extsz), 0);
+	} else {
+		error = xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
+						 -((int64_t)alen), 0);
+	}
+
+	if (error)
+		goto out_unreserve_quota;
+
+	error = xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
+					 -((int64_t)indlen), 0);
+	if (error)
+		goto out_unreserve_blocks;
+
+
+	ip->i_delayed_blks += alen;
+
+	got->br_startoff = aoff;
+	got->br_startblock = nullstartblock(indlen);
+	got->br_blockcount = alen;
+	got->br_state = XFS_EXT_NORM;
+
+	error = xfs_bmap_add_extent(NULL, ip, lastx, &cur, got, &firstblock,
+				    NULL, &tmp_logflags, XFS_DATA_FORK);
+	ASSERT(!error);
+	ASSERT(!tmp_logflags);
+	ASSERT(!cur);
+
+	/*
+	 * Update our extent pointer, given that xfs_bmap_add_extent might
+	 * have merged it into one of the neighbouring ones.
+	 */
+	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, *lastx), got);
+
+	ASSERT(got->br_startoff <= aoff);
+	ASSERT(got->br_startoff + got->br_blockcount >= aoff + alen);
+	ASSERT(isnullstartblock(got->br_startblock));
+	ASSERT(got->br_state == XFS_EXT_NORM);
+	return 0;
+
+out_unreserve_blocks:
+	if (rt)
+		xfs_mod_incore_sb(mp, XFS_SBS_FREXTENTS, extsz, 0);
+	else
+		xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS, alen, 0);
+out_unreserve_quota:
+	if (XFS_IS_QUOTA_ON(mp))
+		xfs_trans_unreserve_quota_nblks(NULL, ip, alen, 0, rt ?
+				XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
+	return error;
+}
+
 /*
  * Map file blocks to filesystem blocks.
  * File range is given by the bno/len pair.
@@ -4479,7 +4593,6 @@ xfs_bmapi(
 	int		error;		/* error return */
 	xfs_bmbt_irec_t	got;		/* current file extent record */
 	xfs_ifork_t	*ifp;		/* inode fork pointer */
-	xfs_extlen_t	indlen;		/* indirect blocks length */
 	xfs_extnum_t	lastx;		/* last useful extent number */
 	int		logflags;	/* flags for transaction logging */
 	xfs_extlen_t	minleft;	/* min blocks left after allocation */
@@ -4615,43 +4728,8 @@ xfs_bmapi(
 			}
 			minlen = (flags & XFS_BMAPI_CONTIG) ? alen : 1;
 			if (flags & XFS_BMAPI_DELAY) {
-				xfs_extlen_t	extsz;
-
-				/* Figure out the extent size, adjust alen */
-				extsz = xfs_get_extsz_hint(ip);
-				if (extsz) {
-					/*
-					 * make sure we don't exceed a single
-					 * extent length when we align the
-					 * extent by reducing length we are
-					 * going to allocate by the maximum
-					 * amount extent size aligment may
-					 * require.
-					 */
-					alen = XFS_FILBLKS_MIN(len,
-						   MAXEXTLEN - (2 * extsz - 1));
-					error = xfs_bmap_extsize_align(mp,
-							&got, &prev, extsz,
-							rt, eof,
-							flags&XFS_BMAPI_DELAY,
-							flags&XFS_BMAPI_CONVERT,
-							&aoff, &alen);
-					ASSERT(!error);
-				}
-
-				if (rt)
-					extsz = alen / mp->m_sb.sb_rextsize;
-
-				/*
-				 * Make a transaction-less quota reservation for
-				 * delayed allocation blocks. This number gets
-				 * adjusted later.  We return if we haven't
-				 * allocated blocks already inside this loop.
-				 */
-				error = xfs_trans_reserve_quota_nblks(
-						NULL, ip, (long)alen, 0,
-						rt ? XFS_QMOPT_RES_RTBLKS :
-						     XFS_QMOPT_RES_REGBLKS);
+				error = xfs_bmapi_reserve_delalloc(ip, bno, len, &got,
+								   &prev, &lastx, eof);
 				if (error) {
 					if (n == 0) {
 						*nmap = 0;
@@ -4661,51 +4739,7 @@ xfs_bmapi(
 					break;
 				}
 
-				/*
-				 * Split changing sb for alen and indlen since
-				 * they could be coming from different places.
-				 */
-				indlen = (xfs_extlen_t)
-					xfs_bmap_worst_indlen(ip, alen);
-				ASSERT(indlen > 0);
-
-				if (rt) {
-					error = xfs_mod_incore_sb(mp,
-							XFS_SBS_FREXTENTS,
-							-((int64_t)extsz), 0);
-				} else {
-					error = xfs_icsb_modify_counters(mp,
-							XFS_SBS_FDBLOCKS,
-							-((int64_t)alen), 0);
-				}
-				if (!error) {
-					error = xfs_icsb_modify_counters(mp,
-							XFS_SBS_FDBLOCKS,
-							-((int64_t)indlen), 0);
-					if (error && rt)
-						xfs_mod_incore_sb(mp,
-							XFS_SBS_FREXTENTS,
-							(int64_t)extsz, 0);
-					else if (error)
-						xfs_icsb_modify_counters(mp,
-							XFS_SBS_FDBLOCKS,
-							(int64_t)alen, 0);
-				}
-
-				if (error) {
-					if (XFS_IS_QUOTA_ON(mp))
-						/* unreserve the blocks now */
-						(void)
-						xfs_trans_unreserve_quota_nblks(
-							NULL, ip,
-							(long)alen, 0, rt ?
-							XFS_QMOPT_RES_RTBLKS :
-							XFS_QMOPT_RES_REGBLKS);
-					break;
-				}
-
-				ip->i_delayed_blks += alen;
-				abno = nullstartblock(indlen);
+				goto trim_extent;
 			} else {
 				/*
 				 * If first time, allocate and fill in
@@ -4843,7 +4877,7 @@ xfs_bmapi(
 			n++;
 			continue;
 		}
-
+trim_extent:
 		/* Deal with the allocated space we found.  */
 		xfs_bmapi_trim_map(mval, &got, &bno, len, obno, end, n, flags);
 
