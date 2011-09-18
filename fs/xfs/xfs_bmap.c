@@ -1045,34 +1045,15 @@ xfs_bmap_add_extent_delay_real(
 		temp2 = xfs_bmap_worst_indlen(ip, temp2);
 		diff = (int)(temp + temp2 - startblockval(PREV.br_startblock) -
 			(cur ? cur->bc_private.b.allocated : 0));
-		if (diff > 0 &&
-		    xfs_icsb_modify_counters(ip->i_mount, XFS_SBS_FDBLOCKS,
-					     -((int64_t)diff), 0)) {
-			/*
-			 * Ick gross gag me with a spoon.
-			 */
-			ASSERT(0);	/* want to see if this ever happens! */
-			while (diff > 0) {
-				if (temp) {
-					temp--;
-					diff--;
-					if (!diff ||
-					    !xfs_icsb_modify_counters(ip->i_mount,
-						    XFS_SBS_FDBLOCKS,
-						    -((int64_t)diff), 0))
-						break;
-				}
-				if (temp2) {
-					temp2--;
-					diff--;
-					if (!diff ||
-					    !xfs_icsb_modify_counters(ip->i_mount,
-						    XFS_SBS_FDBLOCKS,
-						    -((int64_t)diff), 0))
-						break;
-				}
-			}
+		if (diff > 0) {
+			error = xfs_icsb_modify_counters(ip->i_mount,
+					XFS_SBS_FDBLOCKS,
+					-((int64_t)diff), 0);
+			ASSERT(!error);
+			if (error)
+				goto done;
 		}
+
 		ep = xfs_iext_get_ext(ifp, *idx);
 		xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
