@@ -502,11 +502,7 @@ static struct fwnet_peer *fwnet_peer_find_by_node_id(struct fwnet_device *dev,
 static unsigned fwnet_max_payload(unsigned max_rec, unsigned speed)
 {
 	max_rec = min(max_rec, speed + 8);
-	max_rec = min(max_rec, 0xbU); /* <= 4096 */
-	if (max_rec < 8) {
-		fw_notify("max_rec %x out of range\n", max_rec);
-		max_rec = 8;
-	}
+	max_rec = clamp(max_rec, 8U, 11U); /* 512...4096 */
 
 	return (1 << (max_rec + 1)) - RFC2374_FRAG_HDR_SIZE;
 }

@@ -1046,8 +1046,8 @@ static void update_split_timeout(struct fw_card *card)
 
 	cycles = card->split_timeout_hi * 8000 + (card->split_timeout_lo >> 19);
 
-	cycles = max(cycles, 800u); /* minimum as per the spec */
-	cycles = min(cycles, 3u * 8000u); /* maximum OHCI timeout */
+	/* minimum per IEEE 1394, maximum which doesn't overflow OHCI */
+	cycles = clamp(cycles, 800u, 3u * 8000u);
 
 	card->split_timeout_cycles = cycles;
 	card->split_timeout_jiffies = DIV_ROUND_UP(cycles * HZ, 8000);

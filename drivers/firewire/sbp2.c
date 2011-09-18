@@ -1164,8 +1164,8 @@ static int sbp2_probe(struct device *dev)
 	 * specifies the max payload size as 2 ^ (max_payload + 2), so
 	 * if we set this to max_speed + 7, we get the right value.
 	 */
-	tgt->max_payload = min(device->max_speed + 7, 10U);
-	tgt->max_payload = min(tgt->max_payload, device->card->max_receive - 1);
+	tgt->max_payload = min3(device->max_speed + 7, 10U,
+				device->card->max_receive - 1);
 
 	/* Do the login in a workqueue so we can easily reschedule retries. */
 	list_for_each_entry(lu, &tgt->lu_list, link)
