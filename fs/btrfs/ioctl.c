@@ -2455,7 +2455,6 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			if (endoff > inode->i_size)
 				btrfs_i_size_write(inode, endoff);
 
-			BTRFS_I(inode)->flags = BTRFS_I(src)->flags;
 			ret = btrfs_update_inode(trans, root, inode);
 			BUG_ON(ret);
 			btrfs_end_transaction(trans, root);
