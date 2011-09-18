@@ -325,7 +325,7 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", AR/selfID endianess = "	__stringify(QUIRK_BE_HEADERS)
 	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
 	", disable MSI = "		__stringify(QUIRK_NO_MSI)
-	", workaround for TI SLLZ059 errata = "	__stringify(QUIRK_TI_SLLZ059)
+	", TI SLLZ059 erratum = "	__stringify(QUIRK_TI_SLLZ059)
 	")");
 
 #define OHCI_PARAM_DEBUG_AT_AR		1
@@ -1730,12 +1730,8 @@ static int get_status_for_port(struct fw_ohci *ohci, int port_index)
 
 	mutex_lock(&ohci->phy_reg_mutex);
 	reg = write_phy_reg(ohci, 7, port_index);
-	mutex_unlock(&ohci->phy_reg_mutex);
-	if (reg < 0)
-		return reg;
-
-	mutex_lock(&ohci->phy_reg_mutex);
-	reg = read_phy_reg(ohci, 8);
+	if (reg >= 0)
+		reg = read_phy_reg(ohci, 8);
 	mutex_unlock(&ohci->phy_reg_mutex);
 	if (reg < 0)
 		return reg;
@@ -1754,6 +1750,7 @@ static int get_self_id_pos(struct fw_ohci *ohci, u32 self_id,
 {
 	int i;
 	u32 entry;
+
 	for (i = 0; i < self_id_count; i++) {
 		entry = ohci->self_id_buffer[i];
 		if ((self_id & 0xff000000) == (entry & 0xff000000))
@@ -1765,33 +1762,16 @@ static int get_self_id_pos(struct fw_ohci *ohci, u32 self_id,
 }
 
 /*
- * This function implements a work around for the Texas Instruments PHY
- * TSB41BA3D. This phy has a bug at least in combination with the TI
- * LLCs TSB82AA2B and TSB12LV26. The selfid coming from the locally
- * connected phy is not propagated into the selfid buffer of the OHCI
- * (see http://www.ti.com/litv/pdf/sllz059 for details).
- * The main idea is to construct the selfid ourselves.
+ * TI TSB82AA2B and TSB12LV26 do not receive the selfID of a locally
+ * attached TSB41BA3D phy; see http://www.ti.com/litv/pdf/sllz059.
+ * Construct the selfID from phy register contents.
+ * FIXME:  How to determine the selfID.i flag?
  */
-
 static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 {
-	int reg;
-	int i;
-	int pos;
-	int status;
-	u32 self_id;
-
-/*
- * preset bits in self_id
- *
- * link active: 0b1
- * speed: 0b11
- * bridge: 0b00
- * contender: 0b1
- * initiated reset: 0b0
- * more packets: 0b0
- */
-	self_id = 0x8040C800;
+	int reg, i, pos, status;
+	/* link active 1, speed 3, bridge 0, contender 1, more packets 0 */
+	u32 self_id = 0x8040c800;
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
@@ -1800,16 +1780,12 @@ static int find_and_insert_self_id(struct fw_ohci *ohci, int self_id_count)
 	}
 	self_id |= ((reg & 0x3f) << 24); /* phy ID */
 
-	mutex_lock(&ohci->phy_reg_mutex);
-	reg = read_phy_reg(ohci, 4);
-	mutex_unlock(&ohci->phy_reg_mutex);
+	reg = ohci_read_phy_reg(&ohci->card, 4);
 	if (reg < 0)
 		return reg;
 	self_id |= ((reg & 0x07) << 8); /* power class */
 
-	mutex_lock(&ohci->phy_reg_mutex);
-	reg = read_phy_reg(ohci, 1);
-	mutex_unlock(&ohci->phy_reg_mutex);
+	reg = ohci_read_phy_reg(&ohci->card, 1);
 	if (reg < 0)
 		return reg;
 	self_id |= ((reg & 0x3f) << 16); /* gap count */
@@ -1894,7 +1870,7 @@ static void bus_reset_work(struct work_struct *work)
 	if (ohci->quirks & QUIRK_TI_SLLZ059) {
 		self_id_count = find_and_insert_self_id(ohci, self_id_count);
 		if (self_id_count < 0) {
-			fw_notify("could not construct local self IDs\n");
+			fw_notify("could not construct local self ID\n");
 			return;
 		}
 	}
@@ -2188,10 +2164,7 @@ static int configure_1394a_enhancements(struct fw_ohci *ohci)
 
 static int probe_tsb41ba3d(struct fw_ohci *ohci)
 {
-	int reg;
-	int i;
-	int vendor_id;
-	int product_id;
+	int reg, i, vendor_id, product_id;
 
 	reg = read_phy_reg(ohci, 2);
 	if (reg < 0)
@@ -2214,7 +2187,7 @@ static int probe_tsb41ba3d(struct fw_ohci *ohci)
 		}
 
 		if ((vendor_id == TSB41BA3D_VID) &&
-			(product_id == TSB41BA3D_PID))
+		    (product_id == TSB41BA3D_PID))
 			return 1;
 	}
 	return 0;
@@ -2226,7 +2199,7 @@ static int ohci_enable(struct fw_card *card,
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
 	u32 lps, seconds, version, irqs;
-	int i, ret, tsb41ba3d_found;
+	int i, ret;
 
 	if (software_reset(ohci)) {
 		fw_error("Failed to reset ohci card.\n");
@@ -2258,14 +2231,13 @@ static int ohci_enable(struct fw_card *card,
 	}
 
 	if (ohci->quirks & QUIRK_TI_SLLZ059) {
-		tsb41ba3d_found = probe_tsb41ba3d(ohci);
-		if (tsb41ba3d_found < 0)
-			return tsb41ba3d_found;
-		if (!tsb41ba3d_found) {
-			fw_notify("No TSB41BA3D found, "
-				  "resetting QUIRK_TI_SLLZ059\n");
+		ret = probe_tsb41ba3d(ohci);
+		if (ret < 0)
+			return ret;
+		if (ret)
+			fw_notify("local TSB41BA3D phy\n");
+		else
 			ohci->quirks &= ~QUIRK_TI_SLLZ059;
-		}
 	}
 
 	reg_write(ohci, OHCI1394_HCControlClear,
