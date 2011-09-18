@@ -1633,10 +1633,9 @@ xfs_symlink(
 		first_fsb = 0;
 		nmaps = SYMLINK_MAPS;
 
-		error = xfs_bmapi(tp, ip, first_fsb, fs_blocks,
-				  XFS_BMAPI_WRITE | XFS_BMAPI_METADATA,
-				  &first_block, resblks, mval, &nmaps,
-				  &free_list);
+		error = xfs_bmapi_write(tp, ip, first_fsb, fs_blocks,
+				  XFS_BMAPI_METADATA, &first_block, resblks,
+				  mval, &nmaps, &free_list);
 		if (error)
 			goto error2;
 
@@ -1782,7 +1781,6 @@ xfs_alloc_file_space(
 	xfs_fileoff_t		startoffset_fsb;
 	xfs_fsblock_t		firstfsb;
 	int			nimaps;
-	int			bmapi_flag;
 	int			quota_flag;
 	int			rt;
 	xfs_trans_t		*tp;
@@ -1810,7 +1808,6 @@ xfs_alloc_file_space(
 	count = len;
 	imapp = &imaps[0];
 	nimaps = 1;
-	bmapi_flag = XFS_BMAPI_WRITE | alloc_type;
 	startoffset_fsb	= XFS_B_TO_FSBT(mp, offset);
 	allocatesize_fsb = XFS_B_TO_FSB(mp, count);
 
@@ -1883,14 +1880,10 @@ xfs_alloc_file_space(
 
 		xfs_trans_ijoin(tp, ip);
 
-		/*
-		 * Issue the xfs_bmapi() call to allocate the blocks
-		 */
 		xfs_bmap_init(&free_list, &firstfsb);
-		error = xfs_bmapi(tp, ip, startoffset_fsb,
-				  allocatesize_fsb, bmapi_flag,
-				  &firstfsb, 0, imapp, &nimaps,
-				  &free_list);
+		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
+					allocatesize_fsb, alloc_type, &firstfsb,
+					0, imapp, &nimaps, &free_list);
 		if (error) {
 			goto error0;
 		}

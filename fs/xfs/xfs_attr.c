@@ -2039,10 +2039,9 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 		 */
 		xfs_bmap_init(args->flist, args->firstblock);
 		nmap = 1;
-		error = xfs_bmapi(args->trans, dp, (xfs_fileoff_t)lblkno,
+		error = xfs_bmapi_write(args->trans, dp, (xfs_fileoff_t)lblkno,
 				  blkcnt,
-				  XFS_BMAPI_ATTRFORK | XFS_BMAPI_METADATA |
-							XFS_BMAPI_WRITE,
+				  XFS_BMAPI_ATTRFORK | XFS_BMAPI_METADATA,
 				  args->firstblock, args->total, &map, &nmap,
 				  args->flist);
 		if (!error) {

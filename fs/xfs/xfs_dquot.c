@@ -379,14 +379,12 @@ xfs_qm_dqalloc(
 
 	xfs_trans_ijoin_ref(tp, quotip, XFS_ILOCK_EXCL);
 	nmaps = 1;
-	if ((error = xfs_bmapi(tp, quotip,
-			      offset_fsb, XFS_DQUOT_CLUSTER_SIZE_FSB,
-			      XFS_BMAPI_METADATA | XFS_BMAPI_WRITE,
-			      &firstblock,
-			      XFS_QM_DQALLOC_SPACE_RES(mp),
-			      &map, &nmaps, &flist))) {
+	error = xfs_bmapi_write(tp, quotip, offset_fsb,
+				XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
+				&firstblock, XFS_QM_DQALLOC_SPACE_RES(mp),
+				&map, &nmaps, &flist);
+	if (error)
 		goto error0;
-	}
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);
 	ASSERT(nmaps == 1);
 	ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&

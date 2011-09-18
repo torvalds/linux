@@ -62,25 +62,23 @@ typedef	struct xfs_bmap_free
 #define	XFS_BMAP_MAX_NMAP	4
 
 /*
- * Flags for xfs_bmapi
+ * Flags for xfs_bmapi_*
  */
-#define	XFS_BMAPI_WRITE		0x001	/* write operation: allocate space */
-#define XFS_BMAPI_ENTIRE	0x004	/* return entire extent, not trimmed */
-#define XFS_BMAPI_METADATA	0x008	/* mapping metadata not user data */
-#define XFS_BMAPI_ATTRFORK	0x010	/* use attribute fork not data */
-#define	XFS_BMAPI_PREALLOC	0x040	/* preallocation op: unwritten space */
-#define	XFS_BMAPI_IGSTATE	0x080	/* Ignore state - */
+#define XFS_BMAPI_ENTIRE	0x001	/* return entire extent, not trimmed */
+#define XFS_BMAPI_METADATA	0x002	/* mapping metadata not user data */
+#define XFS_BMAPI_ATTRFORK	0x004	/* use attribute fork not data */
+#define XFS_BMAPI_PREALLOC	0x008	/* preallocation op: unwritten space */
+#define XFS_BMAPI_IGSTATE	0x010	/* Ignore state - */
 					/* combine contig. space */
-#define	XFS_BMAPI_CONTIG	0x100	/* must allocate only one extent */
+#define XFS_BMAPI_CONTIG	0x020	/* must allocate only one extent */
 /*
  * unwritten extent conversion - this needs write cache flushing and no additional
  * allocation alignments. When specified with XFS_BMAPI_PREALLOC it converts
  * from written to unwritten, otherwise convert from unwritten to written.
  */
-#define XFS_BMAPI_CONVERT	0x200
+#define XFS_BMAPI_CONVERT	0x040
 
 #define XFS_BMAPI_FLAGS \
-	{ XFS_BMAPI_WRITE,	"WRITE" }, \
 	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
 	{ XFS_BMAPI_METADATA,	"METADATA" }, \
 	{ XFS_BMAPI_ATTRFORK,	"ATTRFORK" }, \
@@ -265,39 +263,17 @@ xfs_bmap_read_extents(
 	struct xfs_inode	*ip,		/* incore inode */
 	int			whichfork);	/* data or attr fork */
 
-/*
- * Map file blocks to filesystem blocks.
- * File range is given by the bno/len pair.
- * Adds blocks to file if a write ("flags & XFS_BMAPI_WRITE" set)
- * into a hole or past eof.
- * Only allocates blocks from a single allocation group,
- * to avoid locking problems.
- * The returned value in "firstblock" from the first call in a transaction
- * must be remembered and presented to subsequent calls in "firstblock".
- * An upper bound for the number of blocks to be allocated is supplied to
- * the first call in "total"; if no allocation group has that many free
- * blocks then the call will fail (return NULLFSBLOCK in "firstblock").
- */
-int						/* error */
-xfs_bmapi(
-	struct xfs_trans	*tp,		/* transaction pointer */
-	struct xfs_inode	*ip,		/* incore inode */
-	xfs_fileoff_t		bno,		/* starting file offs. mapped */
-	xfs_filblks_t		len,		/* length to map in file */
-	int			flags,		/* XFS_BMAPI_... */
-	xfs_fsblock_t		*firstblock,	/* first allocated block
-						   controls a.g. for allocs */
-	xfs_extlen_t		total,		/* total blocks needed */
-	struct xfs_bmbt_irec	*mval,		/* output: map values */
-	int			*nmap,		/* i/o: mval size/count */
-	xfs_bmap_free_t		*flist);	/* i/o: list extents to free */
-
 int	xfs_bmapi_read(struct xfs_inode *ip, xfs_fileoff_t bno,
 		xfs_filblks_t len, struct xfs_bmbt_irec *mval,
 		int *nmap, int flags);
 int	xfs_bmapi_delay(struct xfs_inode *ip, xfs_fileoff_t bno,
 		xfs_filblks_t len, struct xfs_bmbt_irec *mval,
 		int *nmap, int flags);
+int	xfs_bmapi_write(struct xfs_trans *tp, struct xfs_inode *ip,
+		xfs_fileoff_t bno, xfs_filblks_t len, int flags,
+		xfs_fsblock_t *firstblock, xfs_extlen_t total,
+		struct xfs_bmbt_irec *mval, int *nmap,
+		struct xfs_bmap_free *flist);
 
 /*
  * Unmap (remove) blocks from a file.
