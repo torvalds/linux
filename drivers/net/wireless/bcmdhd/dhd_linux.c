@@ -3001,12 +3001,14 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* enable dongle roaming event */
 	setbit(eventmask, WLC_E_ROAM);
 #ifdef WL_CFG80211
-	setbit(eventmask, WLC_E_ACTION_FRAME_RX);
-	setbit(eventmask, WLC_E_ACTION_FRAME_COMPLETE);
-	setbit(eventmask, WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE);
-	setbit(eventmask, WLC_E_P2P_PROBREQ_MSG);
-	setbit(eventmask, WLC_E_P2P_DISC_LISTEN_COMPLETE);
 	setbit(eventmask, WLC_E_ESCAN_RESULT);
+	if ((dhd->op_mode & WFD_MASK) == WFD_MASK) {
+		setbit(eventmask, WLC_E_ACTION_FRAME_RX);
+		setbit(eventmask, WLC_E_ACTION_FRAME_COMPLETE);
+		setbit(eventmask, WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE);
+		setbit(eventmask, WLC_E_P2P_PROBREQ_MSG);
+		setbit(eventmask, WLC_E_P2P_DISC_LISTEN_COMPLETE);
+	}
 #endif /* WL_CFG80211 */
 
 	/* Write updated Event mask */
