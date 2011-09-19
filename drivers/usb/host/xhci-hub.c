@@ -761,7 +761,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	memset(buf, 0, retval);
 	status = 0;
 
-	mask = PORT_CSC | PORT_PEC | PORT_OCC | PORT_PLC;
+	mask = PORT_CSC | PORT_PEC | PORT_OCC | PORT_PLC | PORT_WRC;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* For each port, did anything change?  If so, set that bit in buf. */
