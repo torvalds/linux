@@ -31,7 +31,6 @@ ath6kl-y += init.o
 ath6kl-y += main.o
 ath6kl-y += txrx.o
 ath6kl-y += wmi.o
-ath6kl-y += node.o
 ath6kl-y += sdio.o
 ath6kl-$(CONFIG_NL80211_TESTMODE) += testmode.o
 

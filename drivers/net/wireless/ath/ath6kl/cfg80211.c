@@ -626,55 +626,6 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 	ar->sme_state = SME_DISCONNECTED;
 }
 
-static inline bool is_ch_11a(u16 ch)
-{
-	return (!((ch >= 2412) && (ch <= 2484)));
-}
-
-/* struct ath6kl_node_table::nt_nodelock is locked when calling this */
-void ath6kl_cfg80211_scan_node(struct wiphy *wiphy, struct bss *ni)
-{
-	struct ieee80211_mgmt *mgmt;
-	struct ieee80211_channel *channel;
-	struct ieee80211_supported_band *band;
-	struct ath6kl_common_ie *cie;
-	s32 signal;
-	int freq;
-
-	cie = &ni->ni_cie;
-
-	if (is_ch_11a(cie->ie_chan))
-		band = wiphy->bands[IEEE80211_BAND_5GHZ]; /* 11a */
-	else if ((cie->ie_erp) || (cie->ie_xrates))
-		band = wiphy->bands[IEEE80211_BAND_2GHZ]; /* 11g */
-	else
-		band = wiphy->bands[IEEE80211_BAND_2GHZ]; /* 11b */
-
-	freq = cie->ie_chan;
-	channel = ieee80211_get_channel(wiphy, freq);
-	signal = ni->ni_snr * 100;
-
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
-		   "%s: bssid %pM ch %d freq %d size %d\n", __func__,
-		   ni->ni_macaddr, channel->hw_value, freq, ni->ni_framelen);
-	/*
-	 * Both Beacon and Probe Response frames have same payload structure,
-	 * so it is fine to share the parser for both.
-	 */
-	if (ni->ni_framelen < 8 + 2 + 2)
-		return;
-	mgmt = (struct ieee80211_mgmt *) (ni->ni_buf -
-					  offsetof(struct ieee80211_mgmt, u));
-	cfg80211_inform_bss(wiphy, channel, ni->ni_macaddr,
-			    le64_to_cpu(mgmt->u.beacon.timestamp),
-			    le16_to_cpu(mgmt->u.beacon.capab_info),
-			    le16_to_cpu(mgmt->u.beacon.beacon_int),
-			    mgmt->u.beacon.variable,
-			    ni->ni_buf + ni->ni_framelen -
-			    mgmt->u.beacon.variable,
-			    signal, GFP_ATOMIC);
-}
-
 static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 				struct cfg80211_scan_request *request)
 {
@@ -767,9 +718,6 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status)
 		cfg80211_scan_done(ar->scan_req, true);
 		goto out;
 	}
-
-	/* Translate data to cfg80211 mgmt format */
-	wlan_iterate_nodes(&ar->scan_table, ar->wdev->wiphy);
 
 	cfg80211_scan_done(ar->scan_req, false);
 

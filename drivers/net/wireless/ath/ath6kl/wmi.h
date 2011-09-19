@@ -2181,8 +2181,6 @@ int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, struct sk_buff *skb,
 				       u8 *ac);
 
 int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb);
-struct bss *ath6kl_wmi_find_node(struct wmi *wmi, const u8 *mac_addr);
-void ath6kl_wmi_node_free(struct wmi *wmi, const u8 *mac_addr);
 
 int ath6kl_wmi_cmd_send(struct wmi *wmi, struct sk_buff *skb,
 			enum wmi_cmd_id cmd_id, enum wmi_sync_flag sync_flag);
@@ -2252,12 +2250,6 @@ s32 ath6kl_wmi_get_rate(s8 rate_index);
 
 int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd);
 int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);
-
-struct bss *ath6kl_wmi_find_ssid_node(struct wmi *wmi, u8 *ssid,
-				      u32 ssid_len, bool is_wpa2,
-				      bool match_ssid);
-
-void ath6kl_wmi_node_return(struct wmi *wmi, struct bss *bss);
 
 /* AP mode */
 int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, struct wmi_connect_cmd *p);

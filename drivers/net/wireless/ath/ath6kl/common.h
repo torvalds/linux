@@ -75,93 +75,10 @@ enum crypto_type {
 	AES_CRYPT           = 0x08,
 };
 
-#define ATH6KL_NODE_HASHSIZE 32
-/* simple hash is enough for variation of macaddr */
-#define ATH6KL_NODE_HASH(addr)   \
-	(((const u8 *)(addr))[ETH_ALEN - 1] % \
-	 ATH6KL_NODE_HASHSIZE)
-
-/*
- * Table of ath6kl_node instances.  Each ieee80211com
- * has at least one for holding the scan candidates.
- * When operating as an access point or in ibss mode there
- * is a second table for associated stations or neighbors.
- */
-struct ath6kl_node_table {
-	spinlock_t nt_nodelock;	/* on node table */
-	struct bss *nt_node_first;	/* information of all nodes */
-	struct bss *nt_node_last;	/* information of all nodes */
-	struct bss *nt_hash[ATH6KL_NODE_HASHSIZE];
-	const char *nt_name;	/* for debugging */
-	u32 nt_node_age;		/* node aging time */
-};
-
-#define WLAN_NODE_INACT_TIMEOUT_MSEC    120000
-#define WLAN_NODE_INACT_CNT		4
-
-struct ath6kl_common_ie {
-	u16 ie_chan;
-	u8 *ie_tstamp;
-	u8 *ie_ssid;
-	u8 *ie_rates;
-	u8 *ie_xrates;
-	u8 *ie_country;
-	u8 *ie_wpa;
-	u8 *ie_rsn;
-	u8 *ie_wmm;
-	u8 *ie_ath;
-	u16 ie_capInfo;
-	u16 ie_beaconInt;
-	u8 *ie_tim;
-	u8 *ie_chswitch;
-	u8 ie_erp;
-	u8 *ie_wsc;
-	u8 *ie_htcap;
-	u8 *ie_htop;
-};
-
-struct bss {
-	u8 ni_macaddr[ETH_ALEN];
-	u8 ni_snr;
-	s16 ni_rssi;
-	struct bss *ni_list_next;
-	struct bss *ni_list_prev;
-	struct bss *ni_hash_next;
-	struct bss *ni_hash_prev;
-	struct ath6kl_common_ie ni_cie;
-	u8 *ni_buf;
-	u16 ni_framelen;
-	struct ath6kl_node_table *ni_table;
-	u32 ni_refcnt;
-
-	u32 ni_tstamp;
-	u32 ni_actcnt;
-};
-
 struct htc_endpoint_credit_dist;
 struct ath6kl;
 enum htc_credit_dist_reason;
 struct htc_credit_state_info;
-
-struct bss *wlan_node_alloc(int wh_size);
-void wlan_node_free(struct bss *ni);
-void wlan_setup_node(struct ath6kl_node_table *nt, struct bss *ni,
-		     const u8 *mac_addr);
-struct bss *wlan_find_node(struct ath6kl_node_table *nt,
-			   const u8 *mac_addr);
-void wlan_node_reclaim(struct ath6kl_node_table *nt, struct bss *ni);
-void wlan_free_allnodes(struct ath6kl_node_table *nt);
-void wlan_iterate_nodes(struct ath6kl_node_table *nt, void *arg);
-
-void wlan_node_table_init(struct ath6kl_node_table *nt);
-void wlan_node_table_cleanup(struct ath6kl_node_table *nt);
-
-void wlan_refresh_inactive_nodes(struct ath6kl *ar);
-
-struct bss *wlan_find_ssid_node(struct ath6kl_node_table *nt, u8 *ssid,
-				  u32 ssid_len, bool is_wpa2, bool match_ssid);
-
-void wlan_node_return(struct ath6kl_node_table *nt, struct bss *ni);
 
 int ath6k_setup_credit_dist(void *htc_handle,
 			    struct htc_credit_state_info *cred_info);

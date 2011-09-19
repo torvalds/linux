@@ -2457,43 +2457,6 @@ s32 ath6kl_wmi_get_rate(s8 rate_index)
 	return wmi_rate_tbl[(u32) rate_index][0];
 }
 
-void ath6kl_wmi_node_return(struct wmi *wmi, struct bss *bss)
-{
-	if (bss)
-		wlan_node_return(&wmi->parent_dev->scan_table, bss);
-}
-
-struct bss *ath6kl_wmi_find_ssid_node(struct wmi *wmi, u8 * ssid,
-				      u32 ssid_len, bool is_wpa2,
-				      bool match_ssid)
-{
-	struct bss *node = NULL;
-
-	node = wlan_find_ssid_node(&wmi->parent_dev->scan_table, ssid,
-				  ssid_len, is_wpa2, match_ssid);
-	return node;
-}
-
-struct bss *ath6kl_wmi_find_node(struct wmi *wmi, const u8 * mac_addr)
-{
-	struct bss *ni = NULL;
-
-	ni = wlan_find_node(&wmi->parent_dev->scan_table, mac_addr);
-
-	return ni;
-}
-
-void ath6kl_wmi_node_free(struct wmi *wmi, const u8 * mac_addr)
-{
-	struct bss *ni = NULL;
-
-	ni = wlan_find_node(&wmi->parent_dev->scan_table, mac_addr);
-	if (ni != NULL)
-		wlan_node_reclaim(&wmi->parent_dev->scan_table, ni);
-
-	return;
-}
-
 static int ath6kl_wmi_get_pmkid_list_event_rx(struct wmi *wmi, u8 *datap,
 					      u32 len)
 {
