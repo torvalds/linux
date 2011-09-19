@@ -40,7 +40,8 @@ static void __init pnv_setup_arch(void)
 	/* Initialize SMP */
 	pnv_smp_init();
 
-	/* XXX PCI */
+	/* Setup PCI */
+	pnv_pci_init();
 
 	/* Setup RTC and NVRAM callbacks */
 	if (firmware_has_feature(FW_FEATURE_OPAL))
