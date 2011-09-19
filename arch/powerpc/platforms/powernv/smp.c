@@ -30,6 +30,7 @@
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
+#include <asm/opal.h>
 
 #include "powernv.h"
 
@@ -60,6 +61,28 @@ static int pnv_smp_cpu_bootable(unsigned int nr)
 	}
 
 	return 1;
+}
+
+int __devinit pnv_smp_kick_cpu(int nr)
+{
+	unsigned int pcpu = get_hard_smp_processor_id(nr);
+	unsigned long start_here = __pa(*((unsigned long *)
+					  generic_secondary_smp_init));
+	long rc;
+
+	BUG_ON(nr < 0 || nr >= NR_CPUS);
+
+	/* On OPAL v2 the CPU are still spinning inside OPAL itself,
+	 * get them back now
+	 */
+	if (firmware_has_feature(FW_FEATURE_OPALv2)) {
+		pr_devel("OPAL: Starting CPU %d (HW 0x%x)...\n", nr, pcpu);
+		rc = opal_start_cpu(pcpu, start_here);
+		if (rc != OPAL_SUCCESS)
+			pr_warn("OPAL Error %ld starting CPU %d\n",
+				rc, nr);
+	}
+	return smp_generic_kick_cpu(nr);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -127,7 +150,7 @@ static struct smp_ops_t pnv_smp_ops = {
 	.message_pass	= smp_muxed_ipi_message_pass,
 	.cause_ipi	= NULL,	/* Filled at runtime by xics_smp_probe() */
 	.probe		= xics_smp_probe,
-	.kick_cpu	= smp_generic_kick_cpu,
+	.kick_cpu	= pnv_smp_kick_cpu,
 	.setup_cpu	= pnv_smp_setup_cpu,
 	.cpu_bootable	= pnv_smp_cpu_bootable,
 #ifdef CONFIG_HOTPLUG_CPU

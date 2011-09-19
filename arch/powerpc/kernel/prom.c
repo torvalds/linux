@@ -54,6 +54,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/phyp_dump.h>
 #include <asm/kexec.h>
+#include <asm/opal.h>
+
 #include <mm/mmu_decl.h>
 
 #ifdef DEBUG
@@ -705,6 +707,11 @@ void __init early_init_devtree(void *params)
 #ifdef CONFIG_PPC_RTAS
 	/* Some machines might need RTAS info for debugging, grab it now. */
 	of_scan_flat_dt(early_init_dt_scan_rtas, NULL);
+#endif
+
+#ifdef CONFIG_PPC_POWERNV
+	/* Some machines might need OPAL info for debugging, grab it now. */
+	of_scan_flat_dt(early_init_dt_scan_opal, NULL);
 #endif
 
 #ifdef CONFIG_PHYP_DUMP
