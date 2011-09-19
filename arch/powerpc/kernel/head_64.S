@@ -674,9 +674,9 @@ _GLOBAL(enable_64b_mode)
 _GLOBAL(relative_toc)
 	mflr	r0
 	bcl	20,31,$+4
-0:	mflr	r9
-	ld	r2,(p_toc - 0b)(r9)
-	add	r2,r2,r9
+0:	mflr	r11
+	ld	r2,(p_toc - 0b)(r11)
+	add	r2,r2,r11
 	mtlr	r0
 	blr
 
