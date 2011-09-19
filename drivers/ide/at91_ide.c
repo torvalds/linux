@@ -314,7 +314,7 @@ static int __init at91_ide_probe(struct platform_device *pdev)
 	apply_timings(board->chipselect, 0, ide_timing_find_mode(XFER_PIO_0), 0);
 
 	/* with GPIO interrupt we have to do quirks in handler */
-	if (board->irq_pin >= PIN_BASE)
+	if (gpio_is_valid(board->irq_pin))
 		host->irq_handler = at91_irq_handler;
 
 	host->ports[0]->select_data = board->chipselect;
