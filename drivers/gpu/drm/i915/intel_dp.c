@@ -279,6 +279,24 @@ intel_hrawclk(struct drm_device *dev)
 	}
 }
 
+static void
+intel_dp_check_edp(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_status, pp_control;
+	if (!is_edp(intel_dp))
+		return;
+	pp_status = I915_READ(PCH_PP_STATUS);
+	pp_control = I915_READ(PCH_PP_CONTROL);
+	if ((pp_status & PP_ON) == 0 && (pp_control & EDP_FORCE_VDD) == 0) {
+		WARN(1, "eDP powered off while attempting aux channel communication.\n");
+		DRM_DEBUG_KMS("Status 0x%08x Control 0x%08x\n",
+			      pp_status,
+			      I915_READ(PCH_PP_CONTROL));
+	}
+}
+
 static int
 intel_dp_aux_ch(struct intel_dp *intel_dp,
 		uint8_t *send, int send_bytes,
@@ -295,6 +313,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	uint32_t aux_clock_divider;
 	int try, precharge;
 
+	intel_dp_check_edp(intel_dp);
 	/* The clock divider is based off the hrawclk,
 	 * and would like to run at 2MHz. So, take the
 	 * hrawclk value and divide by 2 and use that
@@ -408,6 +427,7 @@ intel_dp_aux_native_write(struct intel_dp *intel_dp,
 	int msg_bytes;
 	uint8_t	ack;
 
+	intel_dp_check_edp(intel_dp);
 	if (send_bytes > 16)
 		return -1;
 	msg[0] = AUX_NATIVE_WRITE << 4;
@@ -450,6 +470,7 @@ intel_dp_aux_native_read(struct intel_dp *intel_dp,
 	uint8_t ack;
 	int ret;
 
+	intel_dp_check_edp(intel_dp);
 	msg[0] = AUX_NATIVE_READ << 4;
 	msg[1] = address >> 8;
 	msg[2] = address & 0xff;
@@ -493,6 +514,7 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	int reply_bytes;
 	int ret;
 
+	intel_dp_check_edp(intel_dp);
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
 		msg[0] = AUX_I2C_READ << 4;
