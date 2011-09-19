@@ -381,25 +381,6 @@ int ath6kl_wmi_dot3_2_dix(struct sk_buff *skb)
 	return 0;
 }
 
-static void ath6kl_wmi_convert_bssinfo_hdr2_to_hdr(struct sk_buff *skb,
-						   u8 *datap)
-{
-	struct wmi_bss_info_hdr2 bih2;
-	struct wmi_bss_info_hdr *bih;
-
-	memcpy(&bih2, datap, sizeof(struct wmi_bss_info_hdr2));
-
-	skb_push(skb, 4);
-	bih = (struct wmi_bss_info_hdr *) skb->data;
-
-	bih->ch = bih2.ch;
-	bih->frame_type = bih2.frame_type;
-	bih->snr = bih2.snr;
-	bih->rssi = a_cpu_to_sle16(bih2.snr - 95);
-	bih->ie_mask = cpu_to_le32(le16_to_cpu(bih2.ie_mask));
-	memcpy(bih->bssid, bih2.bssid, ETH_ALEN);
-}
-
 static int ath6kl_wmi_tx_complete_event_rx(u8 *datap, int len)
 {
 	struct tx_complete_msg_v1 *msg_v1;
@@ -912,24 +893,24 @@ static int ath6kl_wmi_tkip_micerr_event_rx(struct wmi *wmi, u8 *datap, int len)
 
 static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 {
-	struct wmi_bss_info_hdr *bih;
+	struct wmi_bss_info_hdr2 *bih;
 	u8 *buf;
 	struct ieee80211_channel *channel;
 	struct ath6kl *ar = wmi->parent_dev;
 	struct ieee80211_mgmt *mgmt;
 	struct cfg80211_bss *bss;
 
-	if (len <= sizeof(struct wmi_bss_info_hdr))
+	if (len <= sizeof(struct wmi_bss_info_hdr2))
 		return -EINVAL;
 
-	bih = (struct wmi_bss_info_hdr *) datap;
-	buf = datap + sizeof(struct wmi_bss_info_hdr);
-	len -= sizeof(struct wmi_bss_info_hdr);
+	bih = (struct wmi_bss_info_hdr2 *) datap;
+	buf = datap + sizeof(struct wmi_bss_info_hdr2);
+	len -= sizeof(struct wmi_bss_info_hdr2);
 
 	ath6kl_dbg(ATH6KL_DBG_WMI,
 		   "bss info evt - ch %u, snr %d, rssi %d, bssid \"%pM\" "
 		   "frame_type=%d\n",
-		   bih->ch, bih->snr, a_sle16_to_cpu(bih->rssi), bih->bssid,
+		   bih->ch, bih->snr, bih->snr - 95, bih->bssid,
 		   bih->frame_type);
 
 	if (bih->frame_type != BEACON_FTYPE &&
@@ -973,7 +954,8 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 	memcpy(&mgmt->u.beacon, buf, len);
 
 	bss = cfg80211_inform_bss_frame(ar->wdev->wiphy, channel, mgmt,
-					24 + len, bih->snr * 100, GFP_ATOMIC);
+					24 + len, (bih->snr - 95) * 100,
+					GFP_ATOMIC);
 	kfree(mgmt);
 	if (bss == NULL)
 		return -ENOMEM;
@@ -2859,8 +2841,7 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_BSSINFO_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_BSSINFO_EVENTID\n");
-		ath6kl_wmi_convert_bssinfo_hdr2_to_hdr(skb, datap);
-		ret = ath6kl_wmi_bssinfo_event_rx(wmi, skb->data, skb->len);
+		ret = ath6kl_wmi_bssinfo_event_rx(wmi, datap, len);
 		break;
 	case WMI_REGDOMAIN_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_REGDOMAIN_EVENTID\n");

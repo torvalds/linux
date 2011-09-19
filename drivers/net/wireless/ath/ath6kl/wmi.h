@@ -1393,33 +1393,14 @@ struct roam_ctrl_cmd {
 	u8 roam_ctrl;
 } __packed;
 
-struct wmi_bss_info_hdr {
-	__le16 ch;
-
-	/* see, enum wmi_bi_ftype */
-	u8 frame_type;
-
-	u8 snr;
-	a_sle16 rssi;
-	u8 bssid[ETH_ALEN];
-	__le32 ie_mask;
-} __packed;
-
-/*
- * BSS INFO HDR version 2.0
- * With 6 bytes HTC header and 6 bytes of WMI header
- * WMI_BSS_INFO_HDR cannot be accommodated in the removed 802.11 management
- * header space.
- * - Reduce the ie_mask to 2 bytes as only two bit flags are used
- * - Remove rssi and compute it on the host. rssi = snr - 95
- */
+/* BSS INFO HDR version 2.0 */
 struct wmi_bss_info_hdr2 {
-	__le16 ch;
+	__le16 ch; /* frequency in MHz */
 
 	/* see, enum wmi_bi_ftype */
 	u8 frame_type;
 
-	u8 snr;
+	u8 snr; /* note: rssi = snr - 95 dBm */
 	u8 bssid[ETH_ALEN];
 	__le16 ie_mask;
 } __packed;
