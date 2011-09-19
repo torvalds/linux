@@ -29,7 +29,9 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/xics.h>
+#include <asm/rtas.h>
 #include <asm/opal.h>
+#include <asm/xics.h>
 
 #include "powernv.h"
 
@@ -40,7 +42,9 @@ static void __init pnv_setup_arch(void)
 
 	/* XXX PCI */
 
-	/* XXX NVRAM */
+	/* Setup RTC and NVRAM callbacks */
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		opal_nvram_init();
 
 	/* Enable NAP mode */
 	powersave_nap = 1;
@@ -118,20 +122,6 @@ static void __noreturn pnv_halt(void)
 	pnv_power_off();
 }
 
-static unsigned long __init pnv_get_boot_time(void)
-{
-	return 0;
-}
-
-static void pnv_get_rtc_time(struct rtc_time *rtc_tm)
-{
-}
-
-static int pnv_set_rtc_time(struct rtc_time *tm)
-{
-	return 0;
-}
-
 static void pnv_progress(char *s, unsigned short hex)
 {
 }
@@ -143,6 +133,30 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 }
 #endif /* CONFIG_KEXEC */
 
+static void __init pnv_setup_machdep_opal(void)
+{
+	ppc_md.get_boot_time = opal_get_boot_time;
+	ppc_md.get_rtc_time = opal_get_rtc_time;
+	ppc_md.set_rtc_time = opal_set_rtc_time;
+	ppc_md.restart = pnv_restart;
+	ppc_md.power_off = pnv_power_off;
+	ppc_md.halt = pnv_halt;
+}
+
+#ifdef CONFIG_PPC_POWERNV_RTAS
+static void __init pnv_setup_machdep_rtas(void)
+{
+	if (rtas_token("get-time-of-day") != RTAS_UNKNOWN_SERVICE) {
+		ppc_md.get_boot_time = rtas_get_boot_time;
+		ppc_md.get_rtc_time = rtas_get_rtc_time;
+		ppc_md.set_rtc_time = rtas_set_rtc_time;
+	}
+	ppc_md.restart = rtas_restart;
+	ppc_md.power_off = rtas_power_off;
+	ppc_md.halt = rtas_halt;
+}
+#endif /* CONFIG_PPC_POWERNV_RTAS */
+
 static int __init pnv_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
@@ -152,6 +166,13 @@ static int __init pnv_probe(void)
 
 	hpte_init_native();
 
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		pnv_setup_machdep_opal();
+#ifdef CONFIG_PPC_POWERNV_RTAS
+	else if (rtas.base)
+		pnv_setup_machdep_rtas();
+#endif /* CONFIG_PPC_POWERNV_RTAS */
+
 	pr_debug("PowerNV detected !\n");
 
 	return 1;
@@ -160,16 +181,10 @@ static int __init pnv_probe(void)
 define_machine(powernv) {
 	.name			= "PowerNV",
 	.probe			= pnv_probe,
-	.setup_arch		= pnv_setup_arch,
 	.init_early		= pnv_init_early,
+	.setup_arch		= pnv_setup_arch,
 	.init_IRQ		= pnv_init_IRQ,
 	.show_cpuinfo		= pnv_show_cpuinfo,
-	.restart		= pnv_restart,
-	.power_off		= pnv_power_off,
-	.halt			= pnv_halt,
-	.get_boot_time		= pnv_get_boot_time,
-	.get_rtc_time		= pnv_get_rtc_time,
-	.set_rtc_time		= pnv_set_rtc_time,
 	.progress		= pnv_progress,
 	.power_save             = power7_idle,
 	.calibrate_decr		= generic_calibrate_decr,

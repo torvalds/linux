@@ -430,6 +430,12 @@ extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
 
 extern void hvc_opal_init_early(void);
 
+struct rtc_time;
+extern int opal_set_rtc_time(struct rtc_time *tm);
+extern void opal_get_rtc_time(struct rtc_time *tm);
+extern unsigned long opal_get_boot_time(void);
+extern void opal_nvram_init(void);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __OPAL_H */
