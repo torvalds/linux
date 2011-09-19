@@ -156,7 +156,7 @@ static inline unsigned long meram_read_reg(void __iomem *base, int off)
  */
 
 static inline int meram_check_overlap(struct sh_mobile_meram_priv *priv,
-				      struct sh_mobile_meram_icb *new)
+				      struct sh_mobile_meram_icb_cfg *new)
 {
 	int i;
 	int used_start, used_end, meram_start, meram_end;
@@ -188,7 +188,7 @@ static inline int meram_check_overlap(struct sh_mobile_meram_priv *priv,
  */
 
 static inline void meram_mark(struct sh_mobile_meram_priv *priv,
-			      struct sh_mobile_meram_icb *new)
+			      struct sh_mobile_meram_icb_cfg *new)
 {
 	int n;
 
@@ -211,7 +211,7 @@ static inline void meram_mark(struct sh_mobile_meram_priv *priv,
  */
 
 static inline void meram_unmark(struct sh_mobile_meram_priv *priv,
-				struct sh_mobile_meram_icb *icb)
+				struct sh_mobile_meram_icb_cfg *icb)
 {
 	int i;
 	unsigned long pattern;
@@ -303,7 +303,7 @@ static inline void meram_get_next_icb_addr(struct sh_mobile_meram_info *pdata,
  */
 
 static int meram_init(struct sh_mobile_meram_priv *priv,
-		      struct sh_mobile_meram_icb *icb,
+		      struct sh_mobile_meram_icb_cfg *icb,
 		      int xres, int yres, int *out_pitch)
 {
 	unsigned long total_byte_count = MERAM_CALC_BYTECOUNT(xres, yres);
@@ -370,7 +370,7 @@ static int meram_init(struct sh_mobile_meram_priv *priv,
 }
 
 static void meram_deinit(struct sh_mobile_meram_priv *priv,
-			struct sh_mobile_meram_icb *icb)
+			 struct sh_mobile_meram_icb_cfg *icb)
 {
 	/* disable ICB */
 	meram_write_icb(priv->base, icb->cache_icb,  MExxCTL,

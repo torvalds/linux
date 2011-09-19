@@ -25,17 +25,17 @@ struct sh_mobile_meram_info {
 };
 
 /* icb config */
-struct sh_mobile_meram_icb {
-	int marker_icb;		/* ICB # for Marker ICB */
-	int cache_icb;		/* ICB # for Cache ICB */
-	int meram_offset;	/* MERAM Buffer Offset to use */
-	int meram_size;		/* MERAM Buffer Size to use */
+struct sh_mobile_meram_icb_cfg {
+	unsigned int marker_icb;	/* ICB # for Marker ICB */
+	unsigned int cache_icb;		/* ICB # for Cache ICB */
+	unsigned int meram_offset;	/* MERAM Buffer Offset to use */
+	unsigned int meram_size;	/* MERAM Buffer Size to use */
 
-	int cache_unit;		/* bytes to cache per ICB */
+	unsigned int cache_unit;	/* bytes to cache per ICB */
 };
 
 struct sh_mobile_meram_cfg {
-	struct sh_mobile_meram_icb	icb[2];
+	struct sh_mobile_meram_icb_cfg	icb[2];
 	int				pixelformat;
 	int				current_reg;
 };
