@@ -1,6 +1,6 @@
-/* linux/arch/arm/mach-s5p64x0/include/mach/pwm-clock.h
+/* linux/arch/arm/plat-samsung/include/plat/pwm-clock.h
  *
- * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Copyright 2008 Openmoko, Inc.
@@ -8,15 +8,15 @@
  *      Ben Dooks <ben@simtec.co.uk>
  *      http://armlinux.simtec.co.uk/
  *
- * S5P64X0 - pwm clock and timer support
+ * SAMSUNG - pwm clock and timer support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_ARCH_PWMCLK_H
-#define __ASM_ARCH_PWMCLK_H __FILE__
+#ifndef __ASM_PLAT_PWM_CLOCK_H
+#define __ASM_PLAT_PWM_CLOCK_H __FILE__
 
 /**
  * pwm_cfg_src_is_tclk() - return whether the given mux config is a tclk
@@ -27,7 +27,14 @@
  */
 static inline int pwm_cfg_src_is_tclk(unsigned long tcfg)
 {
-	return 0;
+	if (soc_is_s3c24xx())
+		return tcfg == S3C2410_TCFG1_MUX_TCLK;
+	else if (soc_is_s3c64xx() || soc_is_s5pc100())
+		return tcfg >= S3C64XX_TCFG1_MUX_TCLK;
+	else if (soc_is_s5p6440() || soc_is_s5p6450())
+		return 0;
+	else
+		return tcfg == S3C64XX_TCFG1_MUX_TCLK;
 }
 
 /**
@@ -39,7 +46,10 @@ static inline int pwm_cfg_src_is_tclk(unsigned long tcfg)
  */
 static inline unsigned long tcfg_to_divisor(unsigned long tcfg1)
 {
-	return 1 << tcfg1;
+	if (soc_is_s3c24xx())
+		return 1 << (tcfg1 + 1);
+	else
+		return 1 << tcfg1;
 }
 
 /**
@@ -49,7 +59,10 @@ static inline unsigned long tcfg_to_divisor(unsigned long tcfg1)
  */
 static inline unsigned int pwm_tdiv_has_div1(void)
 {
-	return 1;
+	if (soc_is_s3c24xx())
+		return 0;
+	else
+		return 1;
 }
 
 /**
@@ -60,9 +73,9 @@ static inline unsigned int pwm_tdiv_has_div1(void)
  */
 static inline unsigned long pwm_tdiv_div_bits(unsigned int div)
 {
-	return ilog2(div);
+	if (soc_is_s3c24xx())
+		return ilog2(div) - 1;
+	else
+		return ilog2(div);
 }
-
-#define S3C_TCFG1_MUX_TCLK 0
-
-#endif /* __ASM_ARCH_PWMCLK_H */
+#endif /* __ASM_PLAT_PWM_CLOCK_H */
