@@ -35,6 +35,8 @@
 #include "powernv.h"
 #include "pci.h"
 
+/* Delay in usec */
+#define PCI_RESET_DELAY_US	3000000
 
 #define cfg_dbg(fmt...)	do { } while(0)
 //#define cfg_dbg(fmt...)	printk(fmt)
@@ -354,6 +356,35 @@ static void __devinit pnv_pci_dma_dev_setup(struct pci_dev *pdev)
 		pnv_pci_dma_fallback_setup(hose, pdev);
 }
 
+static int pnv_pci_probe_mode(struct pci_bus *bus)
+{
+	struct pci_controller *hose = pci_bus_to_host(bus);
+	const __be64 *tstamp;
+	u64 now, target;
+
+
+	/* We hijack this as a way to ensure we have waited long
+	 * enough since the reset was lifted on the PCI bus
+	 */
+	if (bus != hose->bus)
+		return PCI_PROBE_NORMAL;
+	tstamp = of_get_property(hose->dn, "reset-clear-timestamp", NULL);
+	if (!tstamp || !*tstamp)
+		return PCI_PROBE_NORMAL;
+
+	now = mftb() / tb_ticks_per_usec;
+	target = (be64_to_cpup(tstamp) / tb_ticks_per_usec)
+		+ PCI_RESET_DELAY_US;
+
+	pr_devel("pci %04d: Reset target: 0x%llx now: 0x%llx\n",
+		 hose->global_number, target, now);
+
+	if (now < target)
+		msleep((target - now + 999) / 1000);
+
+	return PCI_PROBE_NORMAL;
+}
+
 void __init pnv_pci_init(void)
 {
 	struct device_node *np;
@@ -384,6 +415,7 @@ void __init pnv_pci_init(void)
 	ppc_md.pci_dma_dev_setup = pnv_pci_dma_dev_setup;
 	ppc_md.tce_build = pnv_tce_build;
 	ppc_md.tce_free = pnv_tce_free;
+	ppc_md.pci_probe_mode = pnv_pci_probe_mode;
 	set_pci_dma_ops(&dma_iommu_ops);
 
 	/* Configure MSIs */
