@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/interrupt.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
@@ -135,9 +136,22 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	return written;
 }
 
+static irqreturn_t opal_interrupt(int irq, void *data)
+{
+	uint64_t events;
+
+	opal_handle_interrupt(virq_to_hw(irq), &events);
+
+	/* XXX TODO: Do something with the events */
+
+	return IRQ_HANDLED;
+}
+
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
+	const u32 *irqs;
+	int rc, i, irqlen;
 
 	opal_node = of_find_node_by_path("/ibm,opal");
 	if (!opal_node) {
@@ -156,6 +170,23 @@ static int __init opal_init(void)
 		of_platform_device_create(np, NULL, NULL);
 	}
 	of_node_put(consoles);
+
+	/* Find all OPAL interrupts and request them */
+	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
+	pr_debug("opal: Found %d interrupts reserved for OPAL\n",
+		 irqs ? (irqlen / 4) : 0);
+	for (i = 0; irqs && i < (irqlen / 4); i++, irqs++) {
+		unsigned int hwirq = be32_to_cpup(irqs);
+		unsigned int irq = irq_create_mapping(NULL, hwirq);
+		if (irq == NO_IRQ) {
+			pr_warning("opal: Failed to map irq 0x%x\n", hwirq);
+			continue;
+		}
+		rc = request_irq(irq, opal_interrupt, 0, "opal", NULL);
+		if (rc)
+			pr_warning("opal: Error %d requesting irq %d"
+				   " (0x%x)\n", rc, irq, hwirq);
+	}
 	return 0;
 }
 subsys_initcall(opal_init);
