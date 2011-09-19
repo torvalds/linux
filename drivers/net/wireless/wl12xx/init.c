@@ -103,6 +103,7 @@ static int wl1271_ap_init_deauth_template(struct wl1271 *wl)
 {
 	struct wl12xx_disconn_template *tmpl;
 	int ret;
+	u32 rate;
 
 	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
 	if (!tmpl) {
@@ -113,9 +114,9 @@ static int wl1271_ap_init_deauth_template(struct wl1271 *wl)
 	tmpl->header.frame_ctl = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					     IEEE80211_STYPE_DEAUTH);
 
+	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_DEAUTH_AP,
-				      tmpl, sizeof(*tmpl), 0,
-				      wl1271_tx_min_rate_get(wl));
+				      tmpl, sizeof(*tmpl), 0, rate);
 
 out:
 	kfree(tmpl);
@@ -126,6 +127,7 @@ static int wl1271_ap_init_null_template(struct wl1271 *wl)
 {
 	struct ieee80211_hdr_3addr *nullfunc;
 	int ret;
+	u32 rate;
 
 	nullfunc = kzalloc(sizeof(*nullfunc), GFP_KERNEL);
 	if (!nullfunc) {
@@ -142,9 +144,9 @@ static int wl1271_ap_init_null_template(struct wl1271 *wl)
 	memcpy(nullfunc->addr2, wl->mac_addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, wl->mac_addr, ETH_ALEN);
 
+	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, nullfunc,
-				      sizeof(*nullfunc), 0,
-				      wl1271_tx_min_rate_get(wl));
+				      sizeof(*nullfunc), 0, rate);
 
 out:
 	kfree(nullfunc);
@@ -155,6 +157,7 @@ static int wl1271_ap_init_qos_null_template(struct wl1271 *wl)
 {
 	struct ieee80211_qos_hdr *qosnull;
 	int ret;
+	u32 rate;
 
 	qosnull = kzalloc(sizeof(*qosnull), GFP_KERNEL);
 	if (!qosnull) {
@@ -171,9 +174,9 @@ static int wl1271_ap_init_qos_null_template(struct wl1271 *wl)
 	memcpy(qosnull->addr2, wl->mac_addr, ETH_ALEN);
 	memcpy(qosnull->addr3, wl->mac_addr, ETH_ALEN);
 
+	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, qosnull,
-				      sizeof(*qosnull), 0,
-				      wl1271_tx_min_rate_get(wl));
+				      sizeof(*qosnull), 0, rate);
 
 out:
 	kfree(qosnull);
@@ -498,7 +501,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl)
 		return ret;
 
 	/* use the min basic rate for AP broadcast/multicast */
-	rc.enabled_rates = wl1271_tx_min_rate_get(wl);
+	rc.enabled_rates = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	rc.short_retry_limit = 10;
 	rc.long_retry_limit = 10;
 	rc.aflags = 0;

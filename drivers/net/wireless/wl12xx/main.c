@@ -2099,6 +2099,8 @@ deinit:
 	wl->time_offset = 0;
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
+	wl->bitrate_masks[IEEE80211_BAND_2GHZ] = wl->conf.tx.basic_rate;
+	wl->bitrate_masks[IEEE80211_BAND_5GHZ] = wl->conf.tx.basic_rate_5;
 	wl->vif = NULL;
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl1271_free_ap_keys(wl);
@@ -2237,14 +2239,8 @@ out:
 
 static void wl1271_set_band_rate(struct wl1271 *wl)
 {
-	if (wl->band == IEEE80211_BAND_2GHZ) {
-		wl->basic_rate_set = wl->conf.tx.basic_rate;
-		wl->rate_set = wl->conf.tx.basic_rate;
-	} else {
-		wl->basic_rate_set = wl->conf.tx.basic_rate_5;
-		wl->rate_set = wl->conf.tx.basic_rate_5;
-	}
-
+	wl->basic_rate_set = wl->bitrate_masks[wl->band];
+	wl->rate_set = wl->basic_rate_set;
 }
 
 static bool wl12xx_is_roc(struct wl1271 *wl)
@@ -2273,7 +2269,7 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, bool idle)
 			if (ret < 0)
 				goto out;
 		}
-		wl->rate_set = wl1271_tx_min_rate_get(wl);
+		wl->rate_set = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 		ret = wl1271_acx_sta_rate_policies(wl);
 		if (ret < 0)
 			goto out;
@@ -2370,7 +2366,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 				wl1271_set_band_rate(wl);
 
-			wl->basic_rate = wl1271_tx_min_rate_get(wl);
+			wl->basic_rate =
+				wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				wl1271_warning("rate policy for channel "
@@ -3214,6 +3211,7 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 
 	if ((changed & BSS_CHANGED_BEACON)) {
 		struct ieee80211_hdr *hdr;
+		u32 min_rate;
 		int ieoffset = offsetof(struct ieee80211_mgmt,
 					u.beacon.variable);
 		struct sk_buff *beacon = ieee80211_beacon_get(wl->hw, vif);
@@ -3229,12 +3227,13 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 			dev_kfree_skb(beacon);
 			goto out;
 		}
+		min_rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 		tmpl_id = is_ap ? CMD_TEMPL_AP_BEACON :
 				  CMD_TEMPL_BEACON;
 		ret = wl1271_cmd_template_set(wl, tmpl_id,
 					      beacon->data,
 					      beacon->len, 0,
-					      wl1271_tx_min_rate_get(wl));
+					      min_rate);
 		if (ret < 0) {
 			dev_kfree_skb(beacon);
 			goto out;
@@ -3261,13 +3260,13 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 			ret = wl1271_ap_set_probe_resp_tmpl(wl,
 						beacon->data,
 						beacon->len,
-						wl1271_tx_min_rate_get(wl));
+						min_rate);
 		else
 			ret = wl1271_cmd_template_set(wl,
 						CMD_TEMPL_PROBE_RESPONSE,
 						beacon->data,
 						beacon->len, 0,
-						wl1271_tx_min_rate_get(wl));
+						min_rate);
 		dev_kfree_skb(beacon);
 		if (ret < 0)
 			goto out;
@@ -3288,8 +3287,10 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 	if ((changed & BSS_CHANGED_BASIC_RATES)) {
 		u32 rates = bss_conf->basic_rates;
 
-		wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl, rates);
-		wl->basic_rate = wl1271_tx_min_rate_get(wl);
+		wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl, rates,
+								 wl->band);
+		wl->basic_rate = wl1271_tx_min_rate_get(wl,
+							wl->basic_rate_set);
 
 		ret = wl1271_init_ap_rates(wl);
 		if (ret < 0) {
@@ -3471,12 +3472,15 @@ sta_not_found:
 			 * to use with control frames.
 			 */
 			rates = bss_conf->basic_rates;
-			wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl,
-									 rates);
-			wl->basic_rate = wl1271_tx_min_rate_get(wl);
+			wl->basic_rate_set =
+				wl1271_tx_enabled_rates_get(wl, rates,
+							    wl->band);
+			wl->basic_rate =
+				wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 			if (sta_rate_set)
 				wl->rate_set = wl1271_tx_enabled_rates_get(wl,
-								sta_rate_set);
+								sta_rate_set,
+								wl->band);
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				goto out;
@@ -3523,7 +3527,8 @@ sta_not_found:
 
 			/* revert back to minimum rates for the current band */
 			wl1271_set_band_rate(wl);
-			wl->basic_rate = wl1271_tx_min_rate_get(wl);
+			wl->basic_rate =
+				wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				goto out;
@@ -3574,9 +3579,11 @@ sta_not_found:
 
 		if (bss_conf->ibss_joined) {
 			u32 rates = bss_conf->basic_rates;
-			wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl,
-									 rates);
-			wl->basic_rate = wl1271_tx_min_rate_get(wl);
+			wl->basic_rate_set =
+				wl1271_tx_enabled_rates_get(wl, rates,
+							    wl->band);
+			wl->basic_rate =
+				wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 
 			/* by default, use 11b + OFDM rates */
 			wl->rate_set = CONF_TX_IBSS_DEFAULT_RATES;
@@ -4098,6 +4105,29 @@ out:
 	return ret;
 }
 
+static int wl12xx_set_bitrate_mask(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   const struct cfg80211_bitrate_mask *mask)
+{
+	struct wl1271 *wl = hw->priv;
+	int i;
+
+	wl1271_debug(DEBUG_MAC80211, "mac80211 set_bitrate_mask 0x%x 0x%x",
+		mask->control[NL80211_BAND_2GHZ].legacy,
+		mask->control[NL80211_BAND_5GHZ].legacy);
+
+	mutex_lock(&wl->mutex);
+
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+		wl->bitrate_masks[i] =
+			wl1271_tx_enabled_rates_get(wl,
+						    mask->control[i].legacy,
+						    i);
+	mutex_unlock(&wl->mutex);
+
+	return 0;
+}
+
 static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
@@ -4373,6 +4403,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.sta_remove = wl1271_op_sta_remove,
 	.ampdu_action = wl1271_op_ampdu_action,
 	.tx_frames_pending = wl1271_tx_frames_pending,
+	.set_bitrate_mask = wl12xx_set_bitrate_mask,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
@@ -4793,6 +4824,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	/* Apply default driver configuration. */
 	wl1271_conf_init(wl);
+	wl->bitrate_masks[IEEE80211_BAND_2GHZ] = wl->conf.tx.basic_rate;
+	wl->bitrate_masks[IEEE80211_BAND_5GHZ] = wl->conf.tx.basic_rate_5;
 
 	order = get_order(WL1271_AGGR_BUFFER_SIZE);
 	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);

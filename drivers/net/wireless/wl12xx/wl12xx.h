@@ -526,6 +526,7 @@ struct wl1271 {
 	u32 basic_rate_set;
 	u32 basic_rate;
 	u32 rate_set;
+	u32 bitrate_masks[IEEE80211_NUM_BANDS];
 
 	/* The current band */
 	enum ieee80211_band band;

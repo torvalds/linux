@@ -450,13 +450,14 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 	return total_len;
 }
 
-u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
+u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set,
+				enum ieee80211_band rate_band)
 {
 	struct ieee80211_supported_band *band;
 	u32 enabled_rates = 0;
 	int bit;
 
-	band = wl->hw->wiphy->bands[wl->band];
+	band = wl->hw->wiphy->bands[rate_band];
 	for (bit = 0; bit < band->n_bitrates; bit++) {
 		if (rate_set & 0x1)
 			enabled_rates |= band->bitrates[bit].hw_value;
@@ -989,20 +990,10 @@ void wl1271_tx_flush(struct wl1271 *wl)
 	wl1271_warning("Unable to flush all TX buffers, timed out.");
 }
 
-u32 wl1271_tx_min_rate_get(struct wl1271 *wl)
+u32 wl1271_tx_min_rate_get(struct wl1271 *wl, u32 rate_set)
 {
-	int i;
-	u32 rate = 0;
+	if (WARN_ON(!rate_set))
+		return 0;
 
-	if (!wl->basic_rate_set) {
-		WARN_ON(1);
-		wl->basic_rate_set = wl->conf.tx.basic_rate;
-	}
-
-	for (i = 0; !rate; i++) {
-		if ((wl->basic_rate_set >> i) & 0x1)
-			rate = 1 << i;
-	}
-
-	return rate;
+	return BIT(__ffs(rate_set));
 }

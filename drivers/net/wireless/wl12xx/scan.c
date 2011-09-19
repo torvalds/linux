@@ -28,6 +28,7 @@
 #include "scan.h"
 #include "acx.h"
 #include "ps.h"
+#include "tx.h"
 
 void wl1271_scan_complete_work(struct work_struct *work)
 {
@@ -243,14 +244,17 @@ out:
 void wl1271_scan_stm(struct wl1271 *wl)
 {
 	int ret = 0;
+	enum ieee80211_band band;
+	u32 rate;
 
 	switch (wl->scan.state) {
 	case WL1271_SCAN_STATE_IDLE:
 		break;
 
 	case WL1271_SCAN_STATE_2GHZ_ACTIVE:
-		ret = wl1271_scan_send(wl, IEEE80211_BAND_2GHZ, false,
-				       wl->conf.tx.basic_rate);
+		band = IEEE80211_BAND_2GHZ;
+		rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
+		ret = wl1271_scan_send(wl, band, false, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_2GHZ_PASSIVE;
 			wl1271_scan_stm(wl);
@@ -259,8 +263,9 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_2GHZ_PASSIVE:
-		ret = wl1271_scan_send(wl, IEEE80211_BAND_2GHZ, true,
-				       wl->conf.tx.basic_rate);
+		band = IEEE80211_BAND_2GHZ;
+		rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
+		ret = wl1271_scan_send(wl, band, true, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
 			if (wl->enable_11a)
 				wl->scan.state = WL1271_SCAN_STATE_5GHZ_ACTIVE;
@@ -272,8 +277,9 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_5GHZ_ACTIVE:
-		ret = wl1271_scan_send(wl, IEEE80211_BAND_5GHZ, false,
-				       wl->conf.tx.basic_rate_5);
+		band = IEEE80211_BAND_5GHZ;
+		rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
+		ret = wl1271_scan_send(wl, band, false, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_5GHZ_PASSIVE;
 			wl1271_scan_stm(wl);
@@ -282,8 +288,9 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_5GHZ_PASSIVE:
-		ret = wl1271_scan_send(wl, IEEE80211_BAND_5GHZ, true,
-				       wl->conf.tx.basic_rate_5);
+		band = IEEE80211_BAND_5GHZ;
+		rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
+		ret = wl1271_scan_send(wl, band, true, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_DONE;
 			wl1271_scan_stm(wl);
