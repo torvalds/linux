@@ -596,13 +596,12 @@ static struct sh_mobile_meram_ops sh_mobile_meram_ops = {
  * initialize MERAM
  */
 
-static int sh_mobile_meram_remove(struct platform_device *pdev);
-
 static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_meram_priv *priv;
 	struct sh_mobile_meram_info *pdata = pdev->dev.platform_data;
-	struct resource *res;
+	struct resource *regs;
+	struct resource *meram;
 	int error;
 
 	if (!pdata) {
@@ -610,8 +609,9 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	meram = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (regs == NULL || meram == NULL) {
 		dev_err(&pdev->dev, "cannot get platform resources\n");
 		return -ENOENT;
 	}
@@ -622,32 +622,50 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(pdev, priv);
-
 	/* initialize private data */
 	mutex_init(&priv->lock);
-	priv->base = ioremap_nocache(res->start, resource_size(res));
-	if (!priv->base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		error = -EFAULT;
-		goto err;
-	}
 	pdata->ops = &sh_mobile_meram_ops;
 	pdata->priv = priv;
 	pdata->pdev = pdev;
+
+	if (!request_mem_region(regs->start, resource_size(regs), pdev->name)) {
+		dev_err(&pdev->dev, "MERAM registers region already claimed\n");
+		error = -EBUSY;
+		goto err_req_regs;
+	}
+
+	if (!request_mem_region(meram->start, resource_size(meram),
+				pdev->name)) {
+		dev_err(&pdev->dev, "MERAM memory region already claimed\n");
+		error = -EBUSY;
+		goto err_req_meram;
+	}
+
+	priv->base = ioremap_nocache(regs->start, resource_size(regs));
+	if (!priv->base) {
+		dev_err(&pdev->dev, "ioremap failed\n");
+		error = -EFAULT;
+		goto err_ioremap;
+	}
 
 	/* initialize ICB addressing mode */
 	if (pdata->addr_mode == SH_MOBILE_MERAM_MODE1)
 		meram_write_reg(priv->base, MEVCR1, MEVCR1_AMD1);
 
+	platform_set_drvdata(pdev, priv);
 	pm_runtime_enable(&pdev->dev);
 
 	dev_info(&pdev->dev, "sh_mobile_meram initialized.");
 
 	return 0;
 
-err:
-	sh_mobile_meram_remove(pdev);
+err_ioremap:
+	release_mem_region(meram->start, resource_size(meram));
+err_req_meram:
+	release_mem_region(regs->start, resource_size(regs));
+err_req_regs:
+	mutex_destroy(&priv->lock);
+	kfree(priv);
 
 	return error;
 }
@@ -656,11 +674,14 @@ err:
 static int sh_mobile_meram_remove(struct platform_device *pdev)
 {
 	struct sh_mobile_meram_priv *priv = platform_get_drvdata(pdev);
+	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *meram = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 
 	pm_runtime_disable(&pdev->dev);
 
-	if (priv->base)
-		iounmap(priv->base);
+	iounmap(priv->base);
+	release_mem_region(meram->start, resource_size(meram));
+	release_mem_region(regs->start, resource_size(regs));
 
 	mutex_destroy(&priv->lock);
 
