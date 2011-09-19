@@ -137,6 +137,7 @@ xfs_file_fsync(
 	struct xfs_trans	*tp;
 	int			error = 0;
 	int			log_flushed = 0;
+	xfs_lsn_t		lsn = 0;
 
 	trace_xfs_file_fsync(ip);
 
@@ -214,9 +215,9 @@ xfs_file_fsync(
 		 */
 		xfs_trans_ijoin(tp, ip);
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-		xfs_trans_set_sync(tp);
-		error = _xfs_trans_commit(tp, 0, &log_flushed);
+		error = xfs_trans_commit(tp, 0);
 
+		lsn = ip->i_itemp->ili_last_lsn;
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	} else {
 		/*
@@ -227,13 +228,13 @@ xfs_file_fsync(
 		 * disk yet, the inode will be still be pinned.  If it is,
 		 * force the log.
 		 */
-		if (xfs_ipincount(ip)) {
-			error = _xfs_log_force_lsn(mp,
-					ip->i_itemp->ili_last_lsn,
-					XFS_LOG_SYNC, &log_flushed);
-		}
+		if (xfs_ipincount(ip))
+			lsn = ip->i_itemp->ili_last_lsn;
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	}
+
+	if (!error && lsn)
+		error = _xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, &log_flushed);
 
 	/*
 	 * If we only have a single device, and the log force about was
