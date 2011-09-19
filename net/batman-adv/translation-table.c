@@ -735,9 +735,10 @@ void tt_global_del_orig(struct bat_priv *bat_priv,
 			if (tt_global_entry->orig_node == orig_node) {
 				bat_dbg(DBG_TT, bat_priv,
 					"Deleting global tt entry %pM "
-					"(via %pM): originator time out\n",
+					"(via %pM): %s\n",
 					tt_global_entry->addr,
-					tt_global_entry->orig_node->orig);
+					tt_global_entry->orig_node->orig,
+					message);
 				hlist_del_rcu(node);
 				tt_global_entry_free_ref(tt_global_entry);
 			}
