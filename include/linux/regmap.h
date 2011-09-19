@@ -140,4 +140,5 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 int regmap_update_bits(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val);
 
+int regcache_sync(struct regmap *map);
 #endif
