@@ -1326,7 +1326,6 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 			     u8 assoc_resp_len, u8 *assoc_info,
 			     u16 prot_reason_status)
 {
-	struct bss *wmi_ssid_node = NULL;
 	unsigned long flags;
 
 	if (ar->nw_type == AP_NETWORK) {
@@ -1384,33 +1383,6 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 			set_bit(CONNECTED, &ar->flag);
 			return;
 		}
-	}
-
-	if ((reason == NO_NETWORK_AVAIL) && test_bit(WMI_READY, &ar->flag))  {
-		ath6kl_wmi_node_free(ar->wmi, bssid);
-
-		/*
-		 * In case any other same SSID nodes are present remove it,
-		 * since those nodes also not available now.
-		 */
-		do {
-			/*
-			 * Find the nodes based on SSID and remove it
-			 *
-			 * Note: This case will not work out for
-			 * Hidden-SSID
-			 */
-			wmi_ssid_node = ath6kl_wmi_find_ssid_node(ar->wmi,
-								  ar->ssid,
-								  ar->ssid_len,
-								  false,
-								  true);
-
-			if (wmi_ssid_node)
-				ath6kl_wmi_node_free(ar->wmi,
-						     wmi_ssid_node->ni_macaddr);
-
-		} while (wmi_ssid_node);
 	}
 
 	/* update connect & link status atomically */
