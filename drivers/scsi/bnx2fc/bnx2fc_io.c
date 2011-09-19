@@ -1568,6 +1568,8 @@ static int bnx2fc_split_bd(struct bnx2fc_cmd *io_req, u64 addr, int sg_len,
 
 static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req)
 {
+	struct bnx2fc_interface *interface = io_req->port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct scsi_cmnd *sc = io_req->sc_cmd;
 	struct fcoe_bd_ctx *bd = io_req->bd_tbl->bd_tbl;
 	struct scatterlist *sg;
@@ -1579,7 +1581,8 @@ static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req)
 	u64 addr;
 	int i;
 
-	sg_count = scsi_dma_map(sc);
+	sg_count = dma_map_sg(&hba->pcidev->dev, scsi_sglist(sc),
+			      scsi_sg_count(sc), sc->sc_data_direction);
 	scsi_for_each_sg(sc, sg, sg_count, i) {
 		sg_len = sg_dma_len(sg);
 		addr = sg_dma_address(sg);
