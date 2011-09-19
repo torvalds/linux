@@ -1755,7 +1755,16 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 
 	/* if eDP has no EDID, try to use fixed panel mode from VBT */
 	if (is_edp(intel_dp)) {
-		if (dev_priv->panel_fixed_mode != NULL) {
+		/* initialize panel mode from VBT if available for eDP */
+		if (dev_priv->panel_fixed_mode == NULL && dev_priv->lfp_lvds_vbt_mode != NULL) {
+			dev_priv->panel_fixed_mode =
+				drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
+			if (dev_priv->panel_fixed_mode) {
+				dev_priv->panel_fixed_mode->type |=
+					DRM_MODE_TYPE_PREFERRED;
+			}
+		}
+		if (dev_priv->panel_fixed_mode) {
 			struct drm_display_mode *mode;
 			mode = drm_mode_duplicate(dev, dev_priv->panel_fixed_mode);
 			drm_mode_probed_add(connector, mode);
@@ -2068,15 +2077,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
 	if (is_edp(intel_dp)) {
-		/* initialize panel mode from VBT if available for eDP */
-		if (dev_priv->lfp_lvds_vbt_mode) {
-			dev_priv->panel_fixed_mode =
-				drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
-			if (dev_priv->panel_fixed_mode) {
-				dev_priv->panel_fixed_mode->type |=
-					DRM_MODE_TYPE_PREFERRED;
-			}
-		}
 		dev_priv->int_edp_connector = connector;
 		intel_panel_setup_backlight(dev);
 	}
