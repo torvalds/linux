@@ -259,8 +259,8 @@ static inline void meram_set_next_addr(struct sh_mobile_meram_priv *priv,
 {
 	unsigned long target;
 
-	target = (cfg->current_reg) ? MExxSARA : MExxSARB;
 	cfg->current_reg ^= 1;
+	target = cfg->current_reg ? MExxSARB : MExxSARA;
 
 	/* set the next address to fetch */
 	meram_write_icb(priv->base, cfg->icb[0].cache_icb,  target,
