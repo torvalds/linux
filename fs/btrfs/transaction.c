@@ -427,16 +427,25 @@ int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
+	struct btrfs_block_rsv *rsv = trans->block_rsv;
 	int updates;
 
 	smp_mb();
 	if (cur_trans->blocked || cur_trans->delayed_refs.flushing)
 		return 1;
 
+	/*
+	 * We need to do this in case we're deleting csums so the global block
+	 * rsv get's used instead of the csum block rsv.
+	 */
+	trans->block_rsv = NULL;
+
 	updates = trans->delayed_ref_updates;
 	trans->delayed_ref_updates = 0;
 	if (updates)
 		btrfs_run_delayed_refs(trans, root, updates);
+
+	trans->block_rsv = rsv;
 
 	return should_end_transaction(trans, root);
 }
@@ -1166,6 +1175,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	int flush_on_commit = btrfs_test_opt(root, FLUSHONCOMMIT);
 
 	btrfs_run_ordered_operations(root, 0);
+
+	trans->block_rsv = NULL;
 
 	/* make a pass through all the delayed refs we have so far
 	 * any runnings procs may add more while we are here
