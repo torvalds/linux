@@ -7266,7 +7266,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			spin_unlock(&block_group->lock);
 		}
 		/* One for our lookup ref */
-		iput(inode);
+		btrfs_add_delayed_iput(inode);
 	}
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
