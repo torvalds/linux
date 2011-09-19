@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/rwsem.h>
 #include <linux/vmalloc.h>
+#include <linux/hugetlb.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_e500.h>
 
@@ -673,12 +674,31 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 				pfn &= ~(tsize_pages - 1);
 				break;
 			}
+		} else if (vma && hva >= vma->vm_start &&
+			   (vma->vm_flags & VM_HUGETLB)) {
+			unsigned long psize = vma_kernel_pagesize(vma);
+
+			tsize = (gtlbe->mas1 & MAS1_TSIZE_MASK) >>
+				MAS1_TSIZE_SHIFT;
+
+			/*
+			 * Take the largest page size that satisfies both host
+			 * and guest mapping
+			 */
+			tsize = min(__ilog2(psize) - 10, tsize);
+
+			/*
+			 * e500 doesn't implement the lowest tsize bit,
+			 * or 1K pages.
+			 */
+			tsize = max(BOOK3E_PAGESZ_4K, tsize & ~1);
 		}
 
 		up_read(&current->mm->mmap_sem);
 	}
 
 	if (likely(!pfnmap)) {
+		unsigned long tsize_pages = 1 << (tsize + 10 - PAGE_SHIFT);
 		pfn = gfn_to_pfn_memslot(vcpu_e500->vcpu.kvm, slot, gfn);
 		if (is_error_pfn(pfn)) {
 			printk(KERN_ERR "Couldn't get real page for gfn %lx!\n",
@@ -686,6 +706,10 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 			kvm_release_pfn_clean(pfn);
 			return;
 		}
+
+		/* Align guest and physical address to page map boundaries */
+		pfn &= ~(tsize_pages - 1);
+		gvaddr &= ~((tsize_pages << PAGE_SHIFT) - 1);
 	}
 
 	/* Drop old ref and setup new one. */
