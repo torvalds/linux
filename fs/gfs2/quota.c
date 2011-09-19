@@ -645,8 +645,11 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	int err, nbytes;
 	u64 size;
 
-	if (gfs2_is_stuffed(ip))
-		gfs2_unstuff_dinode(ip, NULL);
+	if (gfs2_is_stuffed(ip)) {
+		err = gfs2_unstuff_dinode(ip, NULL);
+		if (err)
+			return err;
+	}
 
 	memset(&q, 0, sizeof(struct gfs2_quota));
 	err = gfs2_internal_read(ip, NULL, (char *)&q, &loc, sizeof(q));
@@ -927,7 +930,9 @@ int gfs2_quota_lock(struct gfs2_inode *ip, u32 uid, u32 gid)
 	unsigned int x;
 	int error = 0;
 
-	gfs2_quota_hold(ip, uid, gid);
+	error = gfs2_quota_hold(ip, uid, gid);
+	if (error)
+		return error;
 
 	if (capable(CAP_SYS_RESOURCE) ||
 	    sdp->sd_args.ar_quota != GFS2_QUOTA_ON)

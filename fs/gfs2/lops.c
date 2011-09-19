@@ -695,8 +695,6 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 		brelse(bh_log);
 		brelse(bh_ip);
-		if (error)
-			break;
 
 		sdp->sd_replayed_blocks++;
 	}
