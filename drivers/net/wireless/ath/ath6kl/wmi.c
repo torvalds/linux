@@ -1185,44 +1185,6 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 	return 0;
 }
 
-static int ath6kl_wmi_opt_frame_event_rx(struct wmi *wmi, u8 *datap, int len)
-{
-	struct bss *bss;
-	struct wmi_opt_rx_info_hdr *bih;
-	u8 *buf;
-
-	if (len <= sizeof(struct wmi_opt_rx_info_hdr))
-		return -EINVAL;
-
-	bih = (struct wmi_opt_rx_info_hdr *) datap;
-	buf = datap + sizeof(struct wmi_opt_rx_info_hdr);
-	len -= sizeof(struct wmi_opt_rx_info_hdr);
-
-	ath6kl_dbg(ATH6KL_DBG_WMI, "opt frame event %2.2x:%2.2x\n",
-		   bih->bssid[4], bih->bssid[5]);
-
-	bss = wlan_find_node(&wmi->parent_dev->scan_table, bih->bssid);
-	if (bss != NULL) {
-		/* Free up the node. We are about to allocate a new node. */
-		wlan_node_reclaim(&wmi->parent_dev->scan_table, bss);
-	}
-
-	bss = wlan_node_alloc(len);
-	if (!bss)
-		return -ENOMEM;
-
-	bss->ni_snr = bih->snr;
-	bss->ni_cie.ie_chan = le16_to_cpu(bih->ch);
-
-	if (WARN_ON(!bss->ni_buf))
-		return -EINVAL;
-
-	memcpy(bss->ni_buf, buf, len);
-	wlan_setup_node(&wmi->parent_dev->scan_table, bss, bih->bssid);
-
-	return 0;
-}
-
 /* Inactivity timeout of a fatpipe(pstream) at the target */
 static int ath6kl_wmi_pstream_timeout_event_rx(struct wmi *wmi, u8 *datap,
 					       int len)
@@ -3175,7 +3137,7 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_OPT_RX_FRAME_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_OPT_RX_FRAME_EVENTID\n");
-		ret = ath6kl_wmi_opt_frame_event_rx(wmi, datap, len);
+		/* this event has been deprecated */
 		break;
 	case WMI_REPORT_ROAM_TBL_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_REPORT_ROAM_TBL_EVENTID\n");
