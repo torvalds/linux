@@ -204,9 +204,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	u32 len;
 	u32 total_blocks;
 	int id, ret = -EBUSY, ac;
-
-	/* we use 1 spare block */
-	u32 spare_blocks = 1;
+	u32 spare_blocks = wl->tx_spare_blocks;
 
 	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
 		return -EAGAIN;
@@ -219,6 +217,10 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	/* approximate the number of blocks required for this packet
 	   in the firmware */
 	len = wl12xx_calc_packet_alignment(wl, total_len);
+
+	/* in case of a dummy packet, use default amount of spare mem blocks */
+	if (unlikely(wl12xx_is_dummy_packet(wl, skb)))
+		spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 
 	total_blocks = (len + TX_HW_BLOCK_SIZE - 1) / TX_HW_BLOCK_SIZE +
 		spare_blocks;

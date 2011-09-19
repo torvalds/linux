@@ -30,12 +30,18 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 
-#include "iwl-agn.h"
+/* TODO: remove include to iwl-dev.h */
 #include "iwl-dev.h"
-#include "iwl-core.h"
+#include "iwl-debug.h"
+#include "iwl-csr.h"
+#include "iwl-prph.h"
 #include "iwl-io.h"
+#include "iwl-agn-hw.h"
 #include "iwl-helpers.h"
 #include "iwl-trans-int-pcie.h"
+
+#define IWL_TX_CRC_SIZE 4
+#define IWL_TX_DELIMITER_SIZE 4
 
 /**
  * iwl_trans_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
@@ -535,8 +541,7 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tid_data *tid_data;
 	unsigned long flags;
-	u16 txq_id;
-	struct iwl_priv *priv = priv(trans);
+	int txq_id;
 
 	txq_id = iwlagn_txq_ctx_activate_free(trans);
 	if (txq_id == -1) {
@@ -560,7 +565,7 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 			     "queue\n", tid_data->tfds_in_queue);
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 
 	return 0;
 }
@@ -856,16 +861,16 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
  * need to be reclaimed. As result, some free space forms.  If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
-static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int idx)
+static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
+				   int idx)
 {
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans(priv));
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	int nfreed = 0;
 
 	if ((idx >= q->n_bd) || (iwl_queue_used(q, idx) == 0)) {
-		IWL_ERR(priv, "%s: Read index for DMA queue txq id (%d), "
+		IWL_ERR(trans, "%s: Read index for DMA queue txq id (%d), "
 			  "index %d is out of range [0-%d] %d %d.\n", __func__,
 			  txq_id, idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
@@ -875,9 +880,9 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int idx)
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		if (nfreed++ > 0) {
-			IWL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", idx,
+			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
-			iwlagn_fw_error(priv, false);
+			iwlagn_fw_error(priv(trans), false);
 		}
 
 	}
@@ -891,7 +896,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int idx)
  * will be executed.  The attached skb (if present) will only be freed
  * if the callback returns 1
  */
-void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
+void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -900,7 +905,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	int cmd_index;
 	struct iwl_device_cmd *cmd;
 	struct iwl_cmd_meta *meta;
-	struct iwl_trans *trans = trans(priv);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[trans->shrd->cmd_queue];
 	unsigned long flags;
@@ -913,7 +917,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		  txq_id, trans->shrd->cmd_queue, sequence,
 		  trans_pcie->txq[trans->shrd->cmd_queue].q.read_ptr,
 		  trans_pcie->txq[trans->shrd->cmd_queue].q.write_ptr)) {
-		iwl_print_hex_error(priv, pkt, 32);
+		iwl_print_hex_error(trans, pkt, 32);
 		return;
 	}
 
@@ -929,17 +933,17 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		meta->source->reply_page = (unsigned long)rxb_addr(rxb);
 		rxb->page = NULL;
 	} else if (meta->callback)
-		meta->callback(priv, cmd, pkt);
+		meta->callback(trans->shrd, cmd, pkt);
 
 	spin_lock_irqsave(&trans->hcmd_lock, flags);
 
-	iwl_hcmd_queue_reclaim(priv, txq_id, index);
+	iwl_hcmd_queue_reclaim(trans, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
-		wake_up_interruptible(&priv->wait_command_queue);
+		wake_up_interruptible(&trans->shrd->wait_command_queue);
 	}
 
 	meta->flags = 0;
@@ -947,96 +951,14 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	spin_unlock_irqrestore(&trans->hcmd_lock, flags);
 }
 
-const char *get_cmd_string(u8 cmd)
-{
-	switch (cmd) {
-		IWL_CMD(REPLY_ALIVE);
-		IWL_CMD(REPLY_ERROR);
-		IWL_CMD(REPLY_RXON);
-		IWL_CMD(REPLY_RXON_ASSOC);
-		IWL_CMD(REPLY_QOS_PARAM);
-		IWL_CMD(REPLY_RXON_TIMING);
-		IWL_CMD(REPLY_ADD_STA);
-		IWL_CMD(REPLY_REMOVE_STA);
-		IWL_CMD(REPLY_REMOVE_ALL_STA);
-		IWL_CMD(REPLY_TXFIFO_FLUSH);
-		IWL_CMD(REPLY_WEPKEY);
-		IWL_CMD(REPLY_TX);
-		IWL_CMD(REPLY_LEDS_CMD);
-		IWL_CMD(REPLY_TX_LINK_QUALITY_CMD);
-		IWL_CMD(COEX_PRIORITY_TABLE_CMD);
-		IWL_CMD(COEX_MEDIUM_NOTIFICATION);
-		IWL_CMD(COEX_EVENT_CMD);
-		IWL_CMD(REPLY_QUIET_CMD);
-		IWL_CMD(REPLY_CHANNEL_SWITCH);
-		IWL_CMD(CHANNEL_SWITCH_NOTIFICATION);
-		IWL_CMD(REPLY_SPECTRUM_MEASUREMENT_CMD);
-		IWL_CMD(SPECTRUM_MEASURE_NOTIFICATION);
-		IWL_CMD(POWER_TABLE_CMD);
-		IWL_CMD(PM_SLEEP_NOTIFICATION);
-		IWL_CMD(PM_DEBUG_STATISTIC_NOTIFIC);
-		IWL_CMD(REPLY_SCAN_CMD);
-		IWL_CMD(REPLY_SCAN_ABORT_CMD);
-		IWL_CMD(SCAN_START_NOTIFICATION);
-		IWL_CMD(SCAN_RESULTS_NOTIFICATION);
-		IWL_CMD(SCAN_COMPLETE_NOTIFICATION);
-		IWL_CMD(BEACON_NOTIFICATION);
-		IWL_CMD(REPLY_TX_BEACON);
-		IWL_CMD(WHO_IS_AWAKE_NOTIFICATION);
-		IWL_CMD(QUIET_NOTIFICATION);
-		IWL_CMD(REPLY_TX_PWR_TABLE_CMD);
-		IWL_CMD(MEASURE_ABORT_NOTIFICATION);
-		IWL_CMD(REPLY_BT_CONFIG);
-		IWL_CMD(REPLY_STATISTICS_CMD);
-		IWL_CMD(STATISTICS_NOTIFICATION);
-		IWL_CMD(REPLY_CARD_STATE_CMD);
-		IWL_CMD(CARD_STATE_NOTIFICATION);
-		IWL_CMD(MISSED_BEACONS_NOTIFICATION);
-		IWL_CMD(REPLY_CT_KILL_CONFIG_CMD);
-		IWL_CMD(SENSITIVITY_CMD);
-		IWL_CMD(REPLY_PHY_CALIBRATION_CMD);
-		IWL_CMD(REPLY_RX_PHY_CMD);
-		IWL_CMD(REPLY_RX_MPDU_CMD);
-		IWL_CMD(REPLY_RX);
-		IWL_CMD(REPLY_COMPRESSED_BA);
-		IWL_CMD(CALIBRATION_CFG_CMD);
-		IWL_CMD(CALIBRATION_RES_NOTIFICATION);
-		IWL_CMD(CALIBRATION_COMPLETE_NOTIFICATION);
-		IWL_CMD(REPLY_TX_POWER_DBM_CMD);
-		IWL_CMD(TEMPERATURE_NOTIFICATION);
-		IWL_CMD(TX_ANT_CONFIGURATION_CMD);
-		IWL_CMD(REPLY_BT_COEX_PROFILE_NOTIF);
-		IWL_CMD(REPLY_BT_COEX_PRIO_TABLE);
-		IWL_CMD(REPLY_BT_COEX_PROT_ENV);
-		IWL_CMD(REPLY_WIPAN_PARAMS);
-		IWL_CMD(REPLY_WIPAN_RXON);
-		IWL_CMD(REPLY_WIPAN_RXON_TIMING);
-		IWL_CMD(REPLY_WIPAN_RXON_ASSOC);
-		IWL_CMD(REPLY_WIPAN_QOS_PARAM);
-		IWL_CMD(REPLY_WIPAN_WEPKEY);
-		IWL_CMD(REPLY_WIPAN_P2P_CHANNEL_SWITCH);
-		IWL_CMD(REPLY_WIPAN_NOA_NOTIFICATION);
-		IWL_CMD(REPLY_WIPAN_DEACTIVATION_COMPLETE);
-		IWL_CMD(REPLY_WOWLAN_PATTERNS);
-		IWL_CMD(REPLY_WOWLAN_WAKEUP_FILTER);
-		IWL_CMD(REPLY_WOWLAN_TSC_RSC_PARAMS);
-		IWL_CMD(REPLY_WOWLAN_TKIP_PARAMS);
-		IWL_CMD(REPLY_WOWLAN_KEK_KCK_MATERIAL);
-		IWL_CMD(REPLY_WOWLAN_GET_STATUS);
-	default:
-		return "UNKNOWN";
-
-	}
-}
-
 #define HOST_COMPLETE_TIMEOUT (2 * HZ)
 
-static void iwl_generic_cmd_callback(struct iwl_priv *priv,
+static void iwl_generic_cmd_callback(struct iwl_shared *shrd,
 				     struct iwl_device_cmd *cmd,
 				     struct iwl_rx_packet *pkt)
 {
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(priv, "Bad return from %s (0x%08X)\n",
+		IWL_ERR(shrd->trans, "Bad return from %s (0x%08X)\n",
 			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		return;
 	}
@@ -1045,11 +967,11 @@ static void iwl_generic_cmd_callback(struct iwl_priv *priv,
 	switch (cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IWL_DEBUG_HC_DUMP(priv, "back from %s (0x%08X)\n",
+		IWL_DEBUG_HC_DUMP(shrd->trans, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		break;
 	default:
-		IWL_DEBUG_HC(priv, "back from %s (0x%08X)\n",
+		IWL_DEBUG_HC(shrd->trans, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 	}
 #endif
@@ -1107,7 +1029,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return ret;
 	}
 
-	ret = wait_event_interruptible_timeout(priv(trans)->wait_command_queue,
+	ret = wait_event_interruptible_timeout(trans->shrd->wait_command_queue,
 			!test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {

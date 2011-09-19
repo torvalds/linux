@@ -65,14 +65,13 @@
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 
-#include "iwl-dev.h"
 #include "iwl-trans.h"
-#include "iwl-core.h"
-#include "iwl-helpers.h"
 #include "iwl-trans-int-pcie.h"
-/*TODO remove uneeded includes when the transport layer tx_free will be here */
-#include "iwl-agn.h"
+#include "iwl-csr.h"
+#include "iwl-prph.h"
 #include "iwl-shared.h"
+#include "iwl-eeprom.h"
+#include "iwl-agn-hw.h"
 
 static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 {
@@ -604,9 +603,8 @@ error:
 	return ret;
 }
 
-static void iwl_set_pwr_vmain(struct iwl_priv *priv)
+static void iwl_set_pwr_vmain(struct iwl_trans *trans)
 {
-	struct iwl_trans *trans = trans(priv);
 /*
  * (for documentation purposes)
  * to set power to V_AUX, do:
@@ -625,11 +623,10 @@ static void iwl_set_pwr_vmain(struct iwl_priv *priv)
 static int iwl_nic_init(struct iwl_trans *trans)
 {
 	unsigned long flags;
-	struct iwl_priv *priv = priv(trans);
 
 	/* nic_init */
 	spin_lock_irqsave(&trans->shrd->lock, flags);
-	iwl_apm_init(priv);
+	iwl_apm_init(priv(trans));
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	iwl_write8(bus(trans), CSR_INT_COALESCING,
@@ -637,9 +634,9 @@ static int iwl_nic_init(struct iwl_trans *trans)
 
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 
-	iwl_set_pwr_vmain(priv);
+	iwl_set_pwr_vmain(trans);
 
-	priv->cfg->lib->nic_config(priv);
+	iwl_nic_config(priv(trans));
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	iwl_rx_init(trans);
@@ -764,7 +761,6 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
 static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 {
 	int ret;
-	struct iwl_priv *priv = priv(trans);
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -792,7 +788,7 @@ static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 		set_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
 
 	if (iwl_is_rfkill(trans->shrd)) {
-		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
+		iwl_set_hw_rfkill_state(priv(trans), true);
 		iwl_enable_interrupts(trans);
 		return -ERFKILL;
 	}
@@ -833,8 +829,6 @@ static void iwl_trans_txq_set_sched(struct iwl_trans *trans, u32 mask)
 static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 {
 	const struct queue_to_fifo_ac *queue_to_fifo;
-	struct iwl_rxon_context *ctx;
-	struct iwl_priv *priv = priv(trans);
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 a;
@@ -902,7 +896,7 @@ static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 	iwl_trans_txq_set_sched(trans, IWL_MASK(0, 7));
 
 	/* map queues to FIFOs */
-	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+	if (trans->shrd->valid_contexts != BIT(IWL_RXON_CTX_BSS))
 		queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
 	else
 		queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
@@ -914,8 +908,6 @@ static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 		sizeof(trans_pcie->queue_stopped));
 	for (i = 0; i < 4; i++)
 		atomic_set(&trans_pcie->queue_stop_count[i], 0);
-	for_each_context(priv, ctx)
-		ctx->last_tx_rejected = false;
 
 	/* reset to 0 to enable all the queue first */
 	trans_pcie->txq_ctx_active_msk = 0;
@@ -1397,7 +1389,7 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 	else
 		clear_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
 
-	wiphy_rfkill_set_hw_state(priv(trans)->hw->wiphy, hw_rfkill);
+	iwl_set_hw_rfkill_state(priv(trans), hw_rfkill);
 
 	return 0;
 }
@@ -1505,10 +1497,142 @@ static int iwl_trans_pcie_check_stuck_queue(struct iwl_trans *trans, int cnt)
 	if (time_after(jiffies, timeout)) {
 		IWL_ERR(trans, "Queue %d stuck for %u ms.\n", q->id,
 			hw_params(trans).wd_timeout);
+		IWL_ERR(trans, "Current read_ptr %d write_ptr %d\n",
+			q->read_ptr, q->write_ptr);
 		return 1;
 	}
 
 	return 0;
+}
+
+static const char *get_fh_string(int cmd)
+{
+	switch (cmd) {
+	IWL_CMD(FH_RSCSR_CHNL0_STTS_WPTR_REG);
+	IWL_CMD(FH_RSCSR_CHNL0_RBDCB_BASE_REG);
+	IWL_CMD(FH_RSCSR_CHNL0_WPTR);
+	IWL_CMD(FH_MEM_RCSR_CHNL0_CONFIG_REG);
+	IWL_CMD(FH_MEM_RSSR_SHARED_CTRL_REG);
+	IWL_CMD(FH_MEM_RSSR_RX_STATUS_REG);
+	IWL_CMD(FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV);
+	IWL_CMD(FH_TSSR_TX_STATUS_REG);
+	IWL_CMD(FH_TSSR_TX_ERROR_REG);
+	default:
+		return "UNKNOWN";
+	}
+}
+
+int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display)
+{
+	int i;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	int pos = 0;
+	size_t bufsz = 0;
+#endif
+	static const u32 fh_tbl[] = {
+		FH_RSCSR_CHNL0_STTS_WPTR_REG,
+		FH_RSCSR_CHNL0_RBDCB_BASE_REG,
+		FH_RSCSR_CHNL0_WPTR,
+		FH_MEM_RCSR_CHNL0_CONFIG_REG,
+		FH_MEM_RSSR_SHARED_CTRL_REG,
+		FH_MEM_RSSR_RX_STATUS_REG,
+		FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV,
+		FH_TSSR_TX_STATUS_REG,
+		FH_TSSR_TX_ERROR_REG
+	};
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (display) {
+		bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
+		*buf = kmalloc(bufsz, GFP_KERNEL);
+		if (!*buf)
+			return -ENOMEM;
+		pos += scnprintf(*buf + pos, bufsz - pos,
+				"FH register values:\n");
+		for (i = 0; i < ARRAY_SIZE(fh_tbl); i++) {
+			pos += scnprintf(*buf + pos, bufsz - pos,
+				"  %34s: 0X%08x\n",
+				get_fh_string(fh_tbl[i]),
+				iwl_read_direct32(bus(trans), fh_tbl[i]));
+		}
+		return pos;
+	}
+#endif
+	IWL_ERR(trans, "FH register values:\n");
+	for (i = 0; i <  ARRAY_SIZE(fh_tbl); i++) {
+		IWL_ERR(trans, "  %34s: 0X%08x\n",
+			get_fh_string(fh_tbl[i]),
+			iwl_read_direct32(bus(trans), fh_tbl[i]));
+	}
+	return 0;
+}
+
+static const char *get_csr_string(int cmd)
+{
+	switch (cmd) {
+	IWL_CMD(CSR_HW_IF_CONFIG_REG);
+	IWL_CMD(CSR_INT_COALESCING);
+	IWL_CMD(CSR_INT);
+	IWL_CMD(CSR_INT_MASK);
+	IWL_CMD(CSR_FH_INT_STATUS);
+	IWL_CMD(CSR_GPIO_IN);
+	IWL_CMD(CSR_RESET);
+	IWL_CMD(CSR_GP_CNTRL);
+	IWL_CMD(CSR_HW_REV);
+	IWL_CMD(CSR_EEPROM_REG);
+	IWL_CMD(CSR_EEPROM_GP);
+	IWL_CMD(CSR_OTP_GP_REG);
+	IWL_CMD(CSR_GIO_REG);
+	IWL_CMD(CSR_GP_UCODE_REG);
+	IWL_CMD(CSR_GP_DRIVER_REG);
+	IWL_CMD(CSR_UCODE_DRV_GP1);
+	IWL_CMD(CSR_UCODE_DRV_GP2);
+	IWL_CMD(CSR_LED_REG);
+	IWL_CMD(CSR_DRAM_INT_TBL_REG);
+	IWL_CMD(CSR_GIO_CHICKEN_BITS);
+	IWL_CMD(CSR_ANA_PLL_CFG);
+	IWL_CMD(CSR_HW_REV_WA_REG);
+	IWL_CMD(CSR_DBG_HPET_MEM_REG);
+	default:
+		return "UNKNOWN";
+	}
+}
+
+void iwl_dump_csr(struct iwl_trans *trans)
+{
+	int i;
+	static const u32 csr_tbl[] = {
+		CSR_HW_IF_CONFIG_REG,
+		CSR_INT_COALESCING,
+		CSR_INT,
+		CSR_INT_MASK,
+		CSR_FH_INT_STATUS,
+		CSR_GPIO_IN,
+		CSR_RESET,
+		CSR_GP_CNTRL,
+		CSR_HW_REV,
+		CSR_EEPROM_REG,
+		CSR_EEPROM_GP,
+		CSR_OTP_GP_REG,
+		CSR_GIO_REG,
+		CSR_GP_UCODE_REG,
+		CSR_GP_DRIVER_REG,
+		CSR_UCODE_DRV_GP1,
+		CSR_UCODE_DRV_GP2,
+		CSR_LED_REG,
+		CSR_DRAM_INT_TBL_REG,
+		CSR_GIO_CHICKEN_BITS,
+		CSR_ANA_PLL_CFG,
+		CSR_HW_REV_WA_REG,
+		CSR_DBG_HPET_MEM_REG
+	};
+	IWL_ERR(trans, "CSR values:\n");
+	IWL_ERR(trans, "(2nd byte of CSR_INT_COALESCING is "
+		"CSR_INT_PERIODIC_REG)\n");
+	for (i = 0; i <  ARRAY_SIZE(csr_tbl); i++) {
+		IWL_ERR(trans, "  %25s: 0X%08x\n",
+			get_csr_string(csr_tbl[i]),
+			iwl_read32(bus(trans), csr_tbl[i]));
+	}
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1563,118 +1687,12 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.llseek = generic_file_llseek,					\
 };
 
-static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
-					 char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_trans *trans = file->private_data;
-	struct iwl_priv *priv = priv(trans);
-	int pos = 0, ofs = 0;
-	int cnt = 0, entry;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq;
-	struct iwl_queue *q;
-	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
-	char *buf;
-	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-		(hw_params(trans).max_txq_num * 32 * 8) + 400;
-	const u8 *ptr;
-	ssize_t ret;
-
-	if (!trans_pcie->txq) {
-		IWL_ERR(trans, "txq not ready\n");
-		return -EAGAIN;
-	}
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(trans, "Can not allocate buffer\n");
-		return -ENOMEM;
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
-	for (cnt = 0; cnt < hw_params(trans).max_txq_num; cnt++) {
-		txq = &trans_pcie->txq[cnt];
-		q = &txq->q;
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"q[%d]: read_ptr: %u, write_ptr: %u\n",
-				cnt, q->read_ptr, q->write_ptr);
-	}
-	if (priv->tx_traffic &&
-		(iwl_get_debug_level(trans->shrd) & IWL_DL_TX)) {
-		ptr = priv->tx_traffic;
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"Tx Traffic idx: %u\n", priv->tx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
-			     entry++,  ofs += 16) {
-				pos += scnprintf(buf + pos, bufsz - pos,
-						"0x%.4x ", ofs);
-				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
-						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf + pos);
-				if (bufsz - pos > 0)
-					buf[pos++] = '\n';
-			}
-		}
-	}
-
-	pos += scnprintf(buf + pos, bufsz - pos, "Rx Queue\n");
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"read: %u, write: %u\n",
-			 rxq->read, rxq->write);
-
-	if (priv->rx_traffic &&
-		(iwl_get_debug_level(trans->shrd) & IWL_DL_RX)) {
-		ptr = priv->rx_traffic;
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"Rx Traffic idx: %u\n", priv->rx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
-			     entry++,  ofs += 16) {
-				pos += scnprintf(buf + pos, bufsz - pos,
-						"0x%.4x ", ofs);
-				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
-						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf + pos);
-				if (bufsz - pos > 0)
-					buf[pos++] = '\n';
-			}
-		}
-	}
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
-					 const char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_trans *trans = file->private_data;
-	char buf[8];
-	int buf_size;
-	int traffic_log;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &traffic_log) != 1)
-		return -EFAULT;
-	if (traffic_log == 0)
-		iwl_reset_traffic_log(priv(trans));
-
-	return count;
-}
-
 static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos)
 {
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_priv *priv = priv(trans);
 	struct iwl_tx_queue *txq;
 	struct iwl_queue *q;
 	char *buf;
@@ -1684,7 +1702,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	const size_t bufsz = sizeof(char) * 64 * hw_params(trans).max_txq_num;
 
 	if (!trans_pcie->txq) {
-		IWL_ERR(priv, "txq not ready\n");
+		IWL_ERR(trans, "txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -1864,75 +1882,6 @@ static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
 	return count;
 }
 
-static const char *get_csr_string(int cmd)
-{
-	switch (cmd) {
-	IWL_CMD(CSR_HW_IF_CONFIG_REG);
-	IWL_CMD(CSR_INT_COALESCING);
-	IWL_CMD(CSR_INT);
-	IWL_CMD(CSR_INT_MASK);
-	IWL_CMD(CSR_FH_INT_STATUS);
-	IWL_CMD(CSR_GPIO_IN);
-	IWL_CMD(CSR_RESET);
-	IWL_CMD(CSR_GP_CNTRL);
-	IWL_CMD(CSR_HW_REV);
-	IWL_CMD(CSR_EEPROM_REG);
-	IWL_CMD(CSR_EEPROM_GP);
-	IWL_CMD(CSR_OTP_GP_REG);
-	IWL_CMD(CSR_GIO_REG);
-	IWL_CMD(CSR_GP_UCODE_REG);
-	IWL_CMD(CSR_GP_DRIVER_REG);
-	IWL_CMD(CSR_UCODE_DRV_GP1);
-	IWL_CMD(CSR_UCODE_DRV_GP2);
-	IWL_CMD(CSR_LED_REG);
-	IWL_CMD(CSR_DRAM_INT_TBL_REG);
-	IWL_CMD(CSR_GIO_CHICKEN_BITS);
-	IWL_CMD(CSR_ANA_PLL_CFG);
-	IWL_CMD(CSR_HW_REV_WA_REG);
-	IWL_CMD(CSR_DBG_HPET_MEM_REG);
-	default:
-		return "UNKNOWN";
-	}
-}
-
-void iwl_dump_csr(struct iwl_trans *trans)
-{
-	int i;
-	static const u32 csr_tbl[] = {
-		CSR_HW_IF_CONFIG_REG,
-		CSR_INT_COALESCING,
-		CSR_INT,
-		CSR_INT_MASK,
-		CSR_FH_INT_STATUS,
-		CSR_GPIO_IN,
-		CSR_RESET,
-		CSR_GP_CNTRL,
-		CSR_HW_REV,
-		CSR_EEPROM_REG,
-		CSR_EEPROM_GP,
-		CSR_OTP_GP_REG,
-		CSR_GIO_REG,
-		CSR_GP_UCODE_REG,
-		CSR_GP_DRIVER_REG,
-		CSR_UCODE_DRV_GP1,
-		CSR_UCODE_DRV_GP2,
-		CSR_LED_REG,
-		CSR_DRAM_INT_TBL_REG,
-		CSR_GIO_CHICKEN_BITS,
-		CSR_ANA_PLL_CFG,
-		CSR_HW_REV_WA_REG,
-		CSR_DBG_HPET_MEM_REG
-	};
-	IWL_ERR(trans, "CSR values:\n");
-	IWL_ERR(trans, "(2nd byte of CSR_INT_COALESCING is "
-		"CSR_INT_PERIODIC_REG)\n");
-	for (i = 0; i <  ARRAY_SIZE(csr_tbl); i++) {
-		IWL_ERR(trans, "  %25s: 0X%08x\n",
-			get_csr_string(csr_tbl[i]),
-			iwl_read32(bus(trans), csr_tbl[i]));
-	}
-}
-
 static ssize_t iwl_dbgfs_csr_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
@@ -1954,67 +1903,6 @@ static ssize_t iwl_dbgfs_csr_write(struct file *file,
 	return count;
 }
 
-static const char *get_fh_string(int cmd)
-{
-	switch (cmd) {
-	IWL_CMD(FH_RSCSR_CHNL0_STTS_WPTR_REG);
-	IWL_CMD(FH_RSCSR_CHNL0_RBDCB_BASE_REG);
-	IWL_CMD(FH_RSCSR_CHNL0_WPTR);
-	IWL_CMD(FH_MEM_RCSR_CHNL0_CONFIG_REG);
-	IWL_CMD(FH_MEM_RSSR_SHARED_CTRL_REG);
-	IWL_CMD(FH_MEM_RSSR_RX_STATUS_REG);
-	IWL_CMD(FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV);
-	IWL_CMD(FH_TSSR_TX_STATUS_REG);
-	IWL_CMD(FH_TSSR_TX_ERROR_REG);
-	default:
-		return "UNKNOWN";
-	}
-}
-
-int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display)
-{
-	int i;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	int pos = 0;
-	size_t bufsz = 0;
-#endif
-	static const u32 fh_tbl[] = {
-		FH_RSCSR_CHNL0_STTS_WPTR_REG,
-		FH_RSCSR_CHNL0_RBDCB_BASE_REG,
-		FH_RSCSR_CHNL0_WPTR,
-		FH_MEM_RCSR_CHNL0_CONFIG_REG,
-		FH_MEM_RSSR_SHARED_CTRL_REG,
-		FH_MEM_RSSR_RX_STATUS_REG,
-		FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV,
-		FH_TSSR_TX_STATUS_REG,
-		FH_TSSR_TX_ERROR_REG
-	};
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (display) {
-		bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
-		*buf = kmalloc(bufsz, GFP_KERNEL);
-		if (!*buf)
-			return -ENOMEM;
-		pos += scnprintf(*buf + pos, bufsz - pos,
-				"FH register values:\n");
-		for (i = 0; i < ARRAY_SIZE(fh_tbl); i++) {
-			pos += scnprintf(*buf + pos, bufsz - pos,
-				"  %34s: 0X%08x\n",
-				get_fh_string(fh_tbl[i]),
-				iwl_read_direct32(bus(trans), fh_tbl[i]));
-		}
-		return pos;
-	}
-#endif
-	IWL_ERR(trans, "FH register values:\n");
-	for (i = 0; i <  ARRAY_SIZE(fh_tbl); i++) {
-		IWL_ERR(trans, "  %34s: 0X%08x\n",
-			get_fh_string(fh_tbl[i]),
-			iwl_read_direct32(bus(trans), fh_tbl[i]));
-	}
-	return 0;
-}
-
 static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
@@ -2034,7 +1922,6 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 	return ret;
 }
 
-DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
 DEBUGFS_READ_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(fh_reg);
@@ -2049,7 +1936,6 @@ DEBUGFS_WRITE_FILE_OPS(csr);
 static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 					struct dentry *dir)
 {
-	DEBUGFS_ADD_FILE(traffic_log, dir, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_queue, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(log_event, dir, S_IWUSR | S_IRUSR);

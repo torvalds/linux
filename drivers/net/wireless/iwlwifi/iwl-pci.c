@@ -483,9 +483,13 @@ out_no_pci:
 	return err;
 }
 
-static void iwl_pci_down(struct iwl_bus *bus)
+static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
-	struct iwl_pci_bus *pci_bus = (struct iwl_pci_bus *) bus->bus_specific;
+	struct iwl_shared *shrd = pci_get_drvdata(pdev);
+	struct iwl_bus *bus = shrd->bus;
+	struct iwl_pci_bus *pci_bus = IWL_BUS_GET_PCI_BUS(bus);
+
+	iwl_remove(shrd->priv);
 
 	pci_disable_msi(pci_bus->pci_dev);
 	pci_iounmap(pci_bus->pci_dev, pci_bus->hw_base);
@@ -494,16 +498,6 @@ static void iwl_pci_down(struct iwl_bus *bus)
 	pci_set_drvdata(pci_bus->pci_dev, NULL);
 
 	kfree(bus);
-}
-
-static void __devexit iwl_pci_remove(struct pci_dev *pdev)
-{
-	struct iwl_shared *shrd = pci_get_drvdata(pdev);
-	struct iwl_bus *bus = shrd->bus;
-
-	iwl_remove(shrd->priv);
-
-	iwl_pci_down(bus);
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -67,6 +67,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
+#include <linux/mm.h> /* for page_address */
 #include <net/mac80211.h>
 
 #include "iwl-commands.h"
@@ -212,6 +213,7 @@ struct iwl_tid_data {
  * @ucode_owner: IWL_OWNERSHIP_*
  * @cmd_queue: command queue number
  * @status: STATUS_*
+ * @valid_contexts: microcode/device supports multiple contexts
  * @bus: pointer to the bus layer data
  * @priv: pointer to the upper layer data
  * @hw_params: see struct iwl_hw_params
@@ -232,6 +234,7 @@ struct iwl_shared {
 	u8 cmd_queue;
 	unsigned long status;
 	bool wowlan;
+	u8 valid_contexts;
 
 	struct iwl_bus *bus;
 	struct iwl_priv *priv;
@@ -250,6 +253,8 @@ struct iwl_shared {
 	struct ieee80211_hw *hw;
 
 	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
+
+	wait_queue_head_t wait_command_queue;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
@@ -283,6 +288,26 @@ static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
 static inline void iwl_free_pages(struct iwl_shared *shrd, unsigned long page)
 {
 	free_pages(page, shrd->hw_params.rx_page_order);
+}
+
+/**
+ * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
+ * @index -- current index
+ * @n_bd -- total number of entries in queue (must be power of 2)
+ */
+static inline int iwl_queue_inc_wrap(int index, int n_bd)
+{
+	return ++index & (n_bd - 1);
+}
+
+/**
+ * iwl_queue_dec_wrap - decrement queue index, wrap back to end
+ * @index -- current index
+ * @n_bd -- total number of entries in queue (must be power of 2)
+ */
+static inline int iwl_queue_dec_wrap(int index, int n_bd)
+{
+	return --index & (n_bd - 1);
 }
 
 struct iwl_rx_mem_buffer {
@@ -355,12 +380,39 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
 
+void iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
+int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
 				 enum iwl_rxon_context_id ctx,
 				 u8 sta_id, u8 tid);
 void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
 				enum iwl_rxon_context_id ctx,
 				u8 sta_id, u8 tid);
+void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
+void iwl_nic_config(struct iwl_priv *priv);
+void iwl_apm_stop(struct iwl_priv *priv);
+int iwl_apm_init(struct iwl_priv *priv);
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
+const char *get_cmd_string(u8 cmd);
+bool iwl_check_for_ct_kill(struct iwl_priv *priv);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void iwl_reset_traffic_log(struct iwl_priv *priv);
+#endif /* CONFIG_IWLWIFI_DEBUGFS */
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+void iwl_print_rx_config_cmd(struct iwl_priv *priv, u8 ctxid);
+#else
+static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv, u8 ctxid)
+{
+}
+#endif
+
+#define IWL_CMD(x) case x: return #x
+#define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
+
+#define IWL_TRAFFIC_ENTRIES	(256)
+#define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS

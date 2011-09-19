@@ -200,10 +200,9 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	}
 
 	p = kmem_cache_alloc(rm_cache, GFP_ATOMIC);
-	if (!p) {
-		printk(KERN_DEBUG "o11s: could not allocate RMC entry\n");
+	if (!p)
 		return 0;
-	}
+
 	p->seqnum = seqnum;
 	p->exp_time = jiffies + RMC_TIMEOUT;
 	memcpy(p->sa, sa, ETH_ALEN);
@@ -464,8 +463,7 @@ int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
 		memcpy(hdr->addr3, meshsa, ETH_ALEN);
 		return 24;
 	} else {
-		*fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
-				IEEE80211_FCTL_TODS);
+		*fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 		/* RA TA DA SA */
 		memset(hdr->addr1, 0, ETH_ALEN);   /* RA is resolved later */
 		memcpy(hdr->addr2, meshsa, ETH_ALEN);

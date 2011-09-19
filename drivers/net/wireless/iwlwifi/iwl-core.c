@@ -817,9 +817,9 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-void iwl_print_rx_config_cmd(struct iwl_priv *priv,
-			     struct iwl_rxon_context *ctx)
+void iwl_print_rx_config_cmd(struct iwl_priv *priv, u8 ctxid)
 {
+	struct iwl_rxon_context *ctx = &priv->contexts[ctxid];
 	struct iwl_rxon_cmd *rxon = &ctx->staging;
 
 	IWL_DEBUG_RADIO(priv, "RX CONFIG:\n");
@@ -868,7 +868,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	 * commands by clearing the ready bit */
 	clear_bit(STATUS_READY, &priv->shrd->status);
 
-	wake_up_interruptible(&priv->wait_command_queue);
+	wake_up_interruptible(&priv->shrd->wait_command_queue);
 
 	if (!ondemand) {
 		/*
@@ -1842,7 +1842,7 @@ void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
 				 enum iwl_rxon_context_id ctx,
 				 u8 sta_id, u8 tid)
 {
-	struct ieee80211_vif *vif = priv->contexts[ctx].vif;
+	struct ieee80211_vif *vif;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 
 	if (ctx == NUM_IWL_RXON_CTX)
@@ -1864,4 +1864,15 @@ void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
 	vif = priv->contexts[ctx].vif;
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
+}
+
+void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state)
+{
+	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
+}
+
+void iwl_nic_config(struct iwl_priv *priv)
+{
+	priv->cfg->lib->nic_config(priv);
+
 }

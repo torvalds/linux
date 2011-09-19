@@ -114,7 +114,7 @@ static int iwlagn_load_section(struct iwl_priv *priv, const char *name,
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
 	IWL_DEBUG_FW(priv, "%s uCode section being loaded...\n", name);
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+	ret = wait_event_interruptible_timeout(priv->shrd->wait_command_queue,
 					priv->ucode_write_complete, 5 * HZ);
 	if (ret == -ERESTARTSYS) {
 		IWL_ERR(priv, "Could not load the %s uCode section due "
@@ -349,6 +349,7 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 static int iwlagn_alive_notify(struct iwl_priv *priv)
 {
+	struct iwl_rxon_context *ctx;
 	int ret;
 
 	if (!priv->tx_cmd_pool)
@@ -361,6 +362,8 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
 		return -ENOMEM;
 
 	iwl_trans_tx_start(trans(priv));
+	for_each_context(priv, ctx)
+		ctx->last_tx_rejected = false;
 
 	ret = iwlagn_send_wimax_coex(priv);
 	if (ret)

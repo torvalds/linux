@@ -615,11 +615,10 @@ static void ar9003_hw_detect_outlier(int *mp_coeff, int nmeasurement,
 {
 	int mp_max = -64, max_idx = 0;
 	int mp_min = 63, min_idx = 0;
-	int mp_avg = 0, i, outlier_idx = 0;
+	int mp_avg = 0, i, outlier_idx = 0, mp_count = 0;
 
 	/* find min/max mismatch across all calibrated gains */
 	for (i = 0; i < nmeasurement; i++) {
-		mp_avg += mp_coeff[i];
 		if (mp_coeff[i] > mp_max) {
 			mp_max = mp_coeff[i];
 			max_idx = i;
@@ -632,10 +631,20 @@ static void ar9003_hw_detect_outlier(int *mp_coeff, int nmeasurement,
 	/* find average (exclude max abs value) */
 	for (i = 0; i < nmeasurement; i++) {
 		if ((abs(mp_coeff[i]) < abs(mp_max)) ||
-		    (abs(mp_coeff[i]) < abs(mp_min)))
+		    (abs(mp_coeff[i]) < abs(mp_min))) {
 			mp_avg += mp_coeff[i];
+			mp_count++;
+		}
 	}
-	mp_avg /= (nmeasurement - 1);
+
+	/*
+	 * finding mean magnitude/phase if possible, otherwise
+	 * just use the last value as the mean
+	 */
+	if (mp_count)
+		mp_avg /= mp_count;
+	else
+		mp_avg = mp_coeff[nmeasurement - 1];
 
 	/* detect outlier */
 	if (abs(mp_max - mp_min) > max_delta) {

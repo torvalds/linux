@@ -311,7 +311,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	int slot0 = 300, slot1 = 0;
 	int ret;
 
-	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
+	if (priv->shrd->valid_contexts == BIT(IWL_RXON_CTX_BSS))
 		return 0;
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
@@ -456,7 +456,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
-	iwl_print_rx_config_cmd(priv, ctx);
+	iwl_print_rx_config_cmd(priv, ctx->ctxid);
 	ret = iwl_check_rxon_cmd(priv, ctx);
 	if (ret) {
 		IWL_ERR(priv, "Invalid RXON configuration. Not committing.\n");

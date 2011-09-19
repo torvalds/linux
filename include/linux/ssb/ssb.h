@@ -25,7 +25,7 @@ struct ssb_sprom {
 	u8 et1phyaddr;		/* MII address for enet1 */
 	u8 et0mdcport;		/* MDIO for enet0 */
 	u8 et1mdcport;		/* MDIO for enet1 */
-	u8 board_rev;		/* Board revision number from SPROM. */
+	u16 board_rev;		/* Board revision number from SPROM. */
 	u8 country_code;	/* Country Code */
 	u16 leddc_on_time;	/* LED Powersave Duty Cycle On Count */
 	u16 leddc_off_time;	/* LED Powersave Duty Cycle Off Count */

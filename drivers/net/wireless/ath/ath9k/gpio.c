@@ -48,6 +48,8 @@ void ath_init_leds(struct ath_softc *sc)
 			sc->sc_ah->led_pin = ATH_LED_PIN_9485;
 		else if (AR_SREV_9300(sc->sc_ah))
 			sc->sc_ah->led_pin = ATH_LED_PIN_9300;
+		else if (AR_SREV_9480(sc->sc_ah))
+			sc->sc_ah->led_pin = ATH_LED_PIN_9480;
 		else
 			sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
 	}
