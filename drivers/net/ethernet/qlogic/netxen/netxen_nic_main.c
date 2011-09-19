@@ -400,6 +400,63 @@ static void netxen_set_port_mode(struct netxen_adapter *adapter)
 	}
 }
 
+#define PCI_CAP_ID_GEN  0x10
+
+static void netxen_pcie_strap_init(struct netxen_adapter *adapter)
+{
+	u32 pdevfuncsave;
+	u32 c8c9value = 0;
+	u32 chicken = 0;
+	u32 control = 0;
+	int i, pos;
+	struct pci_dev *pdev;
+
+	pdev = adapter->pdev;
+
+	chicken = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_CHICKEN3));
+	/* clear chicken3.25:24 */
+	chicken &= 0xFCFFFFFF;
+	/*
+	 * if gen1 and B0, set F1020 - if gen 2, do nothing
+	 * if gen2 set to F1000
+	 */
+	pos = pci_find_capability(pdev, PCI_CAP_ID_GEN);
+	if (pos == 0xC0) {
+		pci_read_config_dword(pdev, pos + 0x10, &control);
+		if ((control & 0x000F0000) != 0x00020000) {
+			/*  set chicken3.24 if gen1 */
+			chicken |= 0x01000000;
+		}
+		dev_info(&adapter->pdev->dev, "Gen2 strapping detected\n");
+		c8c9value = 0xF1000;
+	} else {
+		/* set chicken3.24 if gen1 */
+		chicken |= 0x01000000;
+		dev_info(&adapter->pdev->dev, "Gen1 strapping detected\n");
+		if (adapter->ahw.revision_id == NX_P3_B0)
+			c8c9value = 0xF1020;
+		else
+			c8c9value = 0;
+	}
+
+	NXWR32(adapter, NETXEN_PCIE_REG(PCIE_CHICKEN3), chicken);
+
+	if (!c8c9value)
+		return;
+
+	pdevfuncsave = pdev->devfn;
+	if (pdevfuncsave & 0x07)
+		return;
+
+	for (i = 0; i < 8; i++) {
+		pci_read_config_dword(pdev, pos + 8, &control);
+		pci_read_config_dword(pdev, pos + 8, &control);
+		pci_write_config_dword(pdev, pos + 8, c8c9value);
+		pdev->devfn++;
+	}
+	pdev->devfn = pdevfuncsave;
+}
+
 static void netxen_set_msix_bit(struct pci_dev *pdev, int enable)
 {
 	u32 control;
@@ -867,7 +924,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 	if (err < 0)
 		goto err_out;
 	if (err == 0)
-		goto wait_init;
+		goto pcie_strap_init;
 
 	if (first_boot != 0x55555555) {
 		NXWR32(adapter, CRB_CMDPEG_STATE, 0);
@@ -909,6 +966,10 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 		| ((_NETXEN_NIC_LINUX_MINOR << 8))
 		| (_NETXEN_NIC_LINUX_SUBVERSION);
 	NXWR32(adapter, CRB_DRIVER_VERSION, val);
+
+pcie_strap_init:
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netxen_pcie_strap_init(adapter);
 
 wait_init:
 	/* Handshake with the card before we register the devices. */
