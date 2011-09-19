@@ -33,7 +33,14 @@
 
 #include "powernv.h"
 
-static void __devinit pnv_smp_setup_cpu(int cpu)
+#ifdef DEBUG
+#include <asm/udbg.h>
+#define DBG(fmt...) udbg_printf(fmt)
+#else
+#define DBG(fmt...)
+#endif
+
+static void __cpuinit pnv_smp_setup_cpu(int cpu)
 {
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
@@ -55,6 +62,67 @@ static int pnv_smp_cpu_bootable(unsigned int nr)
 	return 1;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+
+static int pnv_smp_cpu_disable(void)
+{
+	int cpu = smp_processor_id();
+
+	/* This is identical to pSeries... might consolidate by
+	 * moving migrate_irqs_away to a ppc_md with default to
+	 * the generic fixup_irqs. --BenH.
+	 */
+	set_cpu_online(cpu, false);
+	vdso_data->processorCount--;
+	if (cpu == boot_cpuid)
+		boot_cpuid = cpumask_any(cpu_online_mask);
+	xics_migrate_irqs_away();
+	return 0;
+}
+
+static void pnv_smp_cpu_kill_self(void)
+{
+	unsigned int cpu;
+
+	/* If powersave_nap is enabled, use NAP mode, else just
+	 * spin aimlessly
+	 */
+	if (!powersave_nap) {
+		generic_mach_cpu_die();
+		return;
+	}
+
+	/* Standard hot unplug procedure */
+	local_irq_disable();
+	idle_task_exit();
+	current->active_mm = NULL; /* for sanity */
+	cpu = smp_processor_id();
+	DBG("CPU%d offline\n", cpu);
+	generic_set_cpu_dead(cpu);
+	smp_wmb();
+
+	/* We don't want to take decrementer interrupts while we are offline,
+	 * so clear LPCR:PECE1. We keep PECE2 enabled.
+	 */
+	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
+	while (!generic_check_cpu_restart(cpu)) {
+		power7_idle();
+		if (!generic_check_cpu_restart(cpu)) {
+			DBG("CPU%d Unexpected exit while offline !\n", cpu);
+			/* We may be getting an IPI, so we re-enable
+			 * interrupts to process it, it will be ignored
+			 * since we aren't online (hopefully)
+			 */
+			local_irq_enable();
+			local_irq_disable();
+		}
+	}
+	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_PECE1);
+	DBG("CPU%d coming online...\n", cpu);
+}
+
+#endif /* CONFIG_HOTPLUG_CPU */
+
 static struct smp_ops_t pnv_smp_ops = {
 	.message_pass	= smp_muxed_ipi_message_pass,
 	.cause_ipi	= NULL,	/* Filled at runtime by xics_smp_probe() */
@@ -62,6 +130,10 @@ static struct smp_ops_t pnv_smp_ops = {
 	.kick_cpu	= smp_generic_kick_cpu,
 	.setup_cpu	= pnv_smp_setup_cpu,
 	.cpu_bootable	= pnv_smp_cpu_bootable,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_disable	= pnv_smp_cpu_disable,
+	.cpu_die	= generic_cpu_die,
+#endif /* CONFIG_HOTPLUG_CPU */
 };
 
 /* This is called very early during platform setup_arch */
@@ -80,4 +152,8 @@ void __init pnv_smp_init(void)
 		smp_ops->take_timebase = rtas_take_timebase;
 	}
 #endif /* CONFIG_PPC_RTAS */
+
+#ifdef CONFIG_HOTPLUG_CPU
+	ppc_md.cpu_die	= pnv_smp_cpu_kill_self;
+#endif
 }
