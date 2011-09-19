@@ -17,7 +17,7 @@
 static int bnx2fc_split_bd(struct bnx2fc_cmd *io_req, u64 addr, int sg_len,
 			   int bd_index);
 static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req);
-static void bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req);
+static int bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req);
 static void bnx2fc_unmap_sg_list(struct bnx2fc_cmd *io_req);
 static void bnx2fc_free_mp_resc(struct bnx2fc_cmd *io_req);
 static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
@@ -1607,20 +1607,24 @@ static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req)
 	return bd_count;
 }
 
-static void bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req)
+static int bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req)
 {
 	struct scsi_cmnd *sc = io_req->sc_cmd;
 	struct fcoe_bd_ctx *bd = io_req->bd_tbl->bd_tbl;
 	int bd_count;
 
-	if (scsi_sg_count(sc))
+	if (scsi_sg_count(sc)) {
 		bd_count = bnx2fc_map_sg(io_req);
-	else {
+		if (bd_count == 0)
+			return -ENOMEM;
+	} else {
 		bd_count = 0;
 		bd[0].buf_addr_lo = bd[0].buf_addr_hi = 0;
 		bd[0].buf_len = bd[0].flags = 0;
 	}
 	io_req->bd_tbl->bd_valid = bd_count;
+
+	return 0;
 }
 
 static void bnx2fc_unmap_sg_list(struct bnx2fc_cmd *io_req)
@@ -1942,7 +1946,13 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	xid = io_req->xid;
 
 	/* Build buffer descriptor list for firmware from sg list */
-	bnx2fc_build_bd_list_from_sg(io_req);
+	if (bnx2fc_build_bd_list_from_sg(io_req)) {
+		printk(KERN_ERR PFX "BD list creation failed\n");
+		spin_lock_bh(&tgt->tgt_lock);
+		kref_put(&io_req->refcount, bnx2fc_cmd_release);
+		spin_unlock_bh(&tgt->tgt_lock);
+		return -EAGAIN;
+	}
 
 	task_idx = xid / BNX2FC_TASKS_PER_PAGE;
 	index = xid % BNX2FC_TASKS_PER_PAGE;
