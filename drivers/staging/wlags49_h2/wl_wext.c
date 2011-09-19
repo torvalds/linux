@@ -77,11 +77,6 @@
 
 
 
-/* If WIRELESS_EXT is not defined (as a result of HAS_WIRELESS_EXTENSIONS
-   #including linux/wireless.h), then these functions do not need to be included
-   in the build. */
-#ifdef WIRELESS_EXT
-
 #define IWE_STREAM_ADD_EVENT(info, buf, end, iwe, len) \
     iwe_stream_add_event(info, buf, end, iwe, len)
 #define IWE_STREAM_ADD_POINT(info, buf, end, iwe, msg) \
@@ -324,16 +319,8 @@ static int wireless_get_frequency(struct net_device *dev, struct iw_request_info
 	if( ret == HCF_SUCCESS ) {
 		hcf_16 channel = CNV_LITTLE_TO_INT( lp->ltvRecord.u.u16[0] );
 
-#ifdef USE_FREQUENCY
-
 		freq->m = wl_get_freq_from_chan( channel ) * 100000;
 		freq->e = 1;
-#else
-
-		freq->m = channel;
-		freq->e = 0;
-
-#endif /* USE_FREQUENCY */
 	}
 
     	wl_act_int_on( lp );
@@ -460,8 +447,6 @@ retry:
 
 
 	/* Link quality */
-#ifdef USE_DBM
-
 	range->max_qual.qual     = (u_char)HCF_MAX_COMM_QUALITY;
 
 	/* If the value returned in /proc/net/wireless is greater than the maximum range,
@@ -470,13 +455,6 @@ retry:
 
 	range->max_qual.level   = (u_char)( dbm( HCF_MIN_SIGNAL_LEVEL ) - 1 );
 	range->max_qual.noise   = (u_char)( dbm( HCF_MIN_NOISE_LEVEL ) - 1 );
-#else
-
-	range->max_qual.qual    = 100;
-	range->max_qual.level   = 100;
-	range->max_qual.noise   = 100;
-
-#endif /* USE_DBM */
 
 
 	/* Set available rates */
@@ -508,8 +486,6 @@ retry:
 
 	/* Encryption */
 
-#if WIRELESS_EXT > 8
-
 	/* Holding the lock too long, make a gap to allow other processes */
 	wl_unlock(lp, &flags);
 	wl_lock( lp, &flags );
@@ -526,25 +502,16 @@ retry:
 		range->max_encoding_tokens   = MAX_KEYS;
 	}
 
-#endif /* WIRELESS_EXT > 8 */
-
 	/* Tx Power Info */
 	range->txpower_capa  = IW_TXPOW_MWATT;
 	range->num_txpower   = 1;
 	range->txpower[0]    = RADIO_TX_POWER_MWATT;
-
-#if WIRELESS_EXT > 10
 
 	/* Wireless Extension Info */
 	range->we_version_compiled   = WIRELESS_EXT;
 	range->we_version_source     = WIRELESS_SUPPORT;
 
 	// Retry Limits and Lifetime - NOT SUPPORTED
-
-#endif
-
-
-#if WIRELESS_EXT > 11
 
 	/* Holding the lock too long, make a gap to allow other processes */
 	wl_unlock(lp, &flags);
@@ -554,8 +521,6 @@ retry:
 	wl_wireless_stats( lp->dev );
 	range->avg_qual = lp->wstats.qual;
 	DBG_TRACE( DbgInfo, "wl_wireless_stats done\n" );
-
-#endif
 
 	/* Event capability (kernel + driver) */
 	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
@@ -1087,7 +1052,6 @@ static int wireless_get_essid(struct net_device *dev, struct iw_request_info *in
 
 #if 1 //;? (HCF_TYPE) & HCF_TYPE_STA
 					//;?should we return an error status in AP mode
-#ifdef RETURN_CURRENT_NETWORKNAME
 
 		/* if desired is null ("any"), return current or "any" */
 		if( pName->name[0] == '\0' ) {
@@ -1116,7 +1080,6 @@ static int wireless_get_essid(struct net_device *dev, struct iw_request_info *in
 			}
 		}
 
-#endif // RETURN_CURRENT_NETWORKNAME
 #endif // HCF_STA
 
 		data->length--;
@@ -1170,10 +1133,7 @@ static int wireless_set_encode(struct net_device *dev, struct iw_request_info *i
 	struct wl_private *lp = wl_priv(dev);
 	unsigned long flags;
 	int     ret = 0;
-
-#if 1 //;? #if WIRELESS_EXT > 8 - used unconditionally in the rest of the code...
 	hcf_8   encryption_state;
-#endif // WIRELESS_EXT > 8
 	/*------------------------------------------------------------------------*/
 
 
@@ -2023,11 +1983,9 @@ static int wireless_set_rts_threshold (struct net_device *dev, struct iw_request
 		goto out;
 	}
 
-#if WIRELESS_EXT > 8
 	if( rts->disabled ) {
 		rthr = 2347;
 	}
-#endif /* WIRELESS_EXT > 8 */
 
 	if(( rthr < 256 ) || ( rthr > 2347 )) {
 		ret = -EINVAL;
@@ -2095,11 +2053,7 @@ static int wireless_get_rts_threshold (struct net_device *dev, struct iw_request
 
 	rts->value = lp->RTSThreshold;
 
-#if WIRELESS_EXT > 8
-
 	rts->disabled = ( rts->value == 2347 );
-
-#endif /* WIRELESS_EXT > 8 */
 
 	rts->fixed = 1;
 
@@ -2527,8 +2481,6 @@ out:
 
 
 
-#if WIRELESS_EXT > 13
-
 /*******************************************************************************
  *	wireless_set_scan()
  *******************************************************************************
@@ -2810,7 +2762,6 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 		buf = IWE_STREAM_ADD_EVENT(info, buf, buf_end, &iwe, IW_EV_FREQ_LEN);
 
 
-#if WIRELESS_EXT > 14
 		/* Custom info (Beacon Interval) */
 		memset( &iwe, 0, sizeof( iwe ));
 		memset( msg, 0, sizeof( msg ));
@@ -2839,7 +2790,6 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 		}
 
 		/* Add other custom info in formatted string format as needed... */
-#endif
 	}
 
 	data->length = buf - extra;
@@ -2856,10 +2806,7 @@ out:
 } // wireless_get_scan
 /*============================================================================*/
 
-#endif  // WIRELESS_EXT > 13
 
-
-#if WIRELESS_EXT > 17
 
 static int wireless_set_auth(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -3261,8 +3208,6 @@ out:
 /*============================================================================*/
 
 
-#endif // WIRELESS_EXT > 17
-
 /*******************************************************************************
  *	wl_wireless_stats()
  *******************************************************************************
@@ -3316,7 +3261,6 @@ struct iw_statistics * wl_wireless_stats( struct net_device *dev )
 		if( status == HCF_SUCCESS ) {
 			pQual = (CFG_COMMS_QUALITY_STRCT *)&( lp->ltvRecord );
 
-#ifdef USE_DBM
 			pStats->qual.qual  = (u_char) CNV_LITTLE_TO_INT( pQual->coms_qual );
 			pStats->qual.level = (u_char) dbm( CNV_LITTLE_TO_INT( pQual->signal_lvl ));
 			pStats->qual.noise = (u_char) dbm( CNV_LITTLE_TO_INT( pQual->noise_lvl ));
@@ -3325,23 +3269,6 @@ struct iw_statistics * wl_wireless_stats( struct net_device *dev )
                                                  IW_QUAL_LEVEL_UPDATED |
                                                  IW_QUAL_NOISE_UPDATED |
                                                  IW_QUAL_DBM);
-#else
-			pStats->qual.qual = percent( CNV_LITTLE_TO_INT( pQual->coms_qual ),
-						     HCF_MIN_COMM_QUALITY,
-						     HCF_MAX_COMM_QUALITY );
-
-			pStats->qual.level = percent( CNV_LITTLE_TO_INT( pQual->signal_lvl ),
-						      HCF_MIN_SIGNAL_LEVEL,
-						      HCF_MAX_SIGNAL_LEVEL );
-
-			pStats->qual.noise = percent( CNV_LITTLE_TO_INT( pQual->noise_lvl ),
-						      HCF_MIN_NOISE_LEVEL,
-						      HCF_MAX_NOISE_LEVEL );
-
-			pStats->qual.updated |= (IW_QUAL_QUAL_UPDATED  |
-                                                 IW_QUAL_LEVEL_UPDATED |
-                                                 IW_QUAL_NOISE_UPDATED);
-#endif /* USE_DBM */
 		} else {
 			memset( &( pStats->qual ), 0, sizeof( pStats->qual ));
 		}
@@ -3512,7 +3439,6 @@ inline void wl_spy_gather( struct net_device *dev, u_char *mac )
  ******************************************************************************/
 void wl_wext_event_freq( struct net_device *dev )
 {
-#if WIRELESS_EXT > 13
 	union iwreq_data wrqu;
 	struct wl_private *lp = wl_priv(dev);
 	/*------------------------------------------------------------------------*/
@@ -3524,7 +3450,6 @@ void wl_wext_event_freq( struct net_device *dev )
 	wrqu.freq.e = 0;
 
 	wireless_send_event( dev, SIOCSIWFREQ, &wrqu, NULL );
-#endif /* WIRELESS_EXT > 13 */
 
 	return;
 } // wl_wext_event_freq
@@ -3554,7 +3479,6 @@ void wl_wext_event_freq( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_mode( struct net_device *dev )
 {
-#if WIRELESS_EXT > 13
 	union iwreq_data wrqu;
 	struct wl_private *lp = wl_priv(dev);
 	/*------------------------------------------------------------------------*/
@@ -3569,7 +3493,6 @@ void wl_wext_event_mode( struct net_device *dev )
 	}
 
 	wireless_send_event( dev, SIOCSIWMODE, &wrqu, NULL );
-#endif /* WIRELESS_EXT > 13 */
 
 	return;
 } // wl_wext_event_mode
@@ -3599,7 +3522,6 @@ void wl_wext_event_mode( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_essid( struct net_device *dev )
 {
-#if WIRELESS_EXT > 13
 	union iwreq_data wrqu;
 	struct wl_private *lp = wl_priv(dev);
 	/*------------------------------------------------------------------------*/
@@ -3616,7 +3538,6 @@ void wl_wext_event_essid( struct net_device *dev )
 	wrqu.essid.flags   = 1;
 
 	wireless_send_event( dev, SIOCSIWESSID, &wrqu, lp->NetworkName );
-#endif /* WIRELESS_EXT > 13 */
 
 	return;
 } // wl_wext_event_essid
@@ -3646,7 +3567,6 @@ void wl_wext_event_essid( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_encode( struct net_device *dev )
 {
-#if WIRELESS_EXT > 13
 	union iwreq_data wrqu;
 	struct wl_private *lp = wl_priv(dev);
 	int index = 0;
@@ -3688,7 +3608,6 @@ void wl_wext_event_encode( struct net_device *dev )
 
 	wireless_send_event( dev, SIOCSIWENCODE, &wrqu,
 						 lp->DefaultKeys.key[index].key );
-#endif /* WIRELESS_EXT > 13 */
 
 	return;
 } // wl_wext_event_encode
@@ -3718,7 +3637,6 @@ void wl_wext_event_encode( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_ap( struct net_device *dev )
 {
-#if WIRELESS_EXT > 13
 	union iwreq_data wrqu;
 	struct wl_private *lp = wl_priv(dev);
 	int status;
@@ -3747,8 +3665,6 @@ void wl_wext_event_ap( struct net_device *dev )
 		wireless_send_event( dev, SIOCGIWAP, &wrqu, NULL );
 	}
 
-#endif /* WIRELESS_EXT > 13 */
-
 	return;
 } // wl_wext_event_ap
 /*============================================================================*/
@@ -3776,7 +3692,6 @@ void wl_wext_event_ap( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_scan_complete( struct net_device *dev )
 {
-#if WIRELESS_EXT > 13
 	union iwreq_data wrqu;
 	/*------------------------------------------------------------------------*/
 
@@ -3785,7 +3700,6 @@ void wl_wext_event_scan_complete( struct net_device *dev )
 
 	wrqu.addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event( dev, SIOCGIWSCAN, &wrqu, NULL );
-#endif /* WIRELESS_EXT > 13 */
 
 	return;
 } // wl_wext_event_scan_complete
@@ -3815,7 +3729,6 @@ void wl_wext_event_scan_complete( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_new_sta( struct net_device *dev )
 {
-#if WIRELESS_EXT > 14
 	union iwreq_data wrqu;
 	/*------------------------------------------------------------------------*/
 
@@ -3826,7 +3739,6 @@ void wl_wext_event_new_sta( struct net_device *dev )
 	memcpy( wrqu.addr.sa_data, dev->dev_addr, ETH_ALEN );
 	wrqu.addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event( dev, IWEVREGISTERED, &wrqu, NULL );
-#endif /* WIRELESS_EXT > 14 */
 
 	return;
 } // wl_wext_event_new_sta
@@ -3856,7 +3768,6 @@ void wl_wext_event_new_sta( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_expired_sta( struct net_device *dev )
 {
-#if WIRELESS_EXT > 14
 	union iwreq_data wrqu;
 	/*------------------------------------------------------------------------*/
 
@@ -3866,7 +3777,6 @@ void wl_wext_event_expired_sta( struct net_device *dev )
 	memcpy( wrqu.addr.sa_data, dev->dev_addr, ETH_ALEN );
 	wrqu.addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event( dev, IWEVEXPIRED, &wrqu, NULL );
-#endif /* WIRELESS_EXT > 14 */
 
 	return;
 } // wl_wext_event_expired_sta
@@ -3895,7 +3805,6 @@ void wl_wext_event_expired_sta( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_mic_failed( struct net_device *dev )
 {
-#if WIRELESS_EXT > 14
 	char               msg[512];
 	union iwreq_data   wrqu;
 	struct wl_private *lp = wl_priv(dev);
@@ -3944,7 +3853,6 @@ void wl_wext_event_mic_failed( struct net_device *dev )
 #endif
 	wrqu.data.length = strlen( msg );
 	wireless_send_event( dev, IWEVCUSTOM, &wrqu, msg );
-#endif /* WIRELESS_EXT > 14 */
 
 	return;
 } // wl_wext_event_mic_failed
@@ -3974,7 +3882,6 @@ void wl_wext_event_mic_failed( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_assoc_ie( struct net_device *dev )
 {
-#if WIRELESS_EXT > 14
 	char               msg[512];
 	union iwreq_data   wrqu;
 	struct wl_private *lp = wl_priv(dev);
@@ -4016,7 +3923,6 @@ void wl_wext_event_assoc_ie( struct net_device *dev )
 			wireless_send_event( dev, IWEVCUSTOM, &wrqu, msg );
 		}
 	}
-#endif /* WIRELESS_EXT > 14 */
 
 	return;
 }  // wl_wext_event_assoc_ie
@@ -4120,5 +4026,3 @@ const struct iw_handler_def wl_iw_handler_def =
         .standard           = (iw_handler *) wl_handler,
         .get_wireless_stats = wl_get_wireless_stats,
 };
-
-#endif // WIRELESS_EXT

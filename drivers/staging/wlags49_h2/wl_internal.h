@@ -74,15 +74,8 @@
 #include <pcmcia/ds.h>
 #endif  // BUS_PCMCIA
 
-#ifdef HAS_WIRELESS_EXTENSIONS
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 13
 #include <net/iw_handler.h>
-#endif // WIRELESS_EXT > 13
-#define USE_DBM
-#define RETURN_CURRENT_NETWORKNAME
-#define USE_FREQUENCY
-#endif // HAS_WIRELESS_EXTENSIONS/
 
 #include <linux/list.h>
 

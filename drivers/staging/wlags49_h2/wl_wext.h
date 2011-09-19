@@ -62,9 +62,6 @@
 #define __WL_WEXT_H__
 
 
-#ifdef WIRELESS_EXT
-
-
 /*******************************************************************************
  *  function protoypes
  ******************************************************************************/
@@ -87,10 +84,5 @@ void wl_wext_event_mic_failed( struct net_device *dev );
 void wl_wext_event_assoc_ie( struct net_device *dev );
 
 extern const struct iw_handler_def wl_iw_handler_def;
-
-#else
-#error WIRELESS_EXT
-#endif // WIRELESS_EXT
-
 
 #endif  // __WL_WEXT_H__

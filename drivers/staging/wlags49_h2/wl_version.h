@@ -157,9 +157,6 @@ err: define bus type;
  * There doesn't seem to be a difference for PCMCIA and PCI anymore, at least
  * for PCMCIA the same defines are needed now as previously only used for PCI
  */
-#if USE_WEXT
-#define HAS_WIRELESS_EXTENSIONS
-#endif  // USE_WEXT
 
 #define NEW_MULTICAST
 #define ALLOC_SKB(len)   dev_alloc_skb(len+2)
