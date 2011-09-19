@@ -130,13 +130,13 @@ config MMC_SDHCI_CNS3XXX
 	  If unsure, say N.
 
 config MMC_SDHCI_ESDHC_IMX
-	tristate "SDHCI platform support for the Freescale eSDHC i.MX controller"
+	tristate "SDHCI support for the Freescale eSDHC/uSDHC i.MX controller"
 	depends on ARCH_MXC
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
 	help
-	  This selects the Freescale eSDHC controller support on the platform
-	  bus, found on i.MX25, i.MX35 and i.MX5x.
+	  This selects the Freescale eSDHC/uSDHC controller support
+	  found on i.MX25, i.MX35 i.MX5x and i.MX6x.
 
 	  If you have a controller with this interface, say Y or M here.
 

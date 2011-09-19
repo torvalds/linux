@@ -32,6 +32,7 @@
 /* VENDOR SPEC register */
 #define SDHCI_VENDOR_SPEC		0xC0
 #define  SDHCI_VENDOR_SPEC_SDIO_QUIRK	0x00000002
+#define SDHCI_MIX_CTRL			0x48
 
 /*
  * There is an INT DMA ERR mis-match between eSDHC and STD SDHC SPEC:
@@ -59,6 +60,7 @@ enum imx_esdhc_type {
 	IMX35_ESDHC,
 	IMX51_ESDHC,
 	IMX53_ESDHC,
+	IMX6Q_USDHC,
 };
 
 struct pltfm_imx_data {
@@ -82,6 +84,9 @@ static struct platform_device_id imx_esdhc_devtype[] = {
 		.name = "sdhci-esdhc-imx53",
 		.driver_data = IMX53_ESDHC,
 	}, {
+		.name = "sdhci-usdhc-imx6q",
+		.driver_data = IMX6Q_USDHC,
+	}, {
 		/* sentinel */
 	}
 };
@@ -92,6 +97,7 @@ static const struct of_device_id imx_esdhc_dt_ids[] = {
 	{ .compatible = "fsl,imx35-esdhc", .data = &imx_esdhc_devtype[IMX35_ESDHC], },
 	{ .compatible = "fsl,imx51-esdhc", .data = &imx_esdhc_devtype[IMX51_ESDHC], },
 	{ .compatible = "fsl,imx53-esdhc", .data = &imx_esdhc_devtype[IMX53_ESDHC], },
+	{ .compatible = "fsl,imx6q-usdhc", .data = &imx_esdhc_devtype[IMX6Q_USDHC], },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_esdhc_dt_ids);
@@ -114,6 +120,11 @@ static inline int is_imx51_esdhc(struct pltfm_imx_data *data)
 static inline int is_imx53_esdhc(struct pltfm_imx_data *data)
 {
 	return data->devtype == IMX53_ESDHC;
+}
+
+static inline int is_imx6q_usdhc(struct pltfm_imx_data *data)
+{
+	return data->devtype == IMX6Q_USDHC;
 }
 
 static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, int reg)
@@ -220,8 +231,16 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 
 static u16 esdhc_readw_le(struct sdhci_host *host, int reg)
 {
-	if (unlikely(reg == SDHCI_HOST_VERSION))
-		reg ^= 2;
+	if (unlikely(reg == SDHCI_HOST_VERSION)) {
+		u16 val = readw(host->ioaddr + (reg ^ 2));
+		/*
+		 * uSDHC supports SDHCI v3.0, but it's encoded as value
+		 * 0x3 in host controller version register, which violates
+		 * SDHCI_SPEC_300 definition.  Work it around here.
+		 */
+		if ((val & SDHCI_SPEC_VER_MASK) == 3)
+			return --val;
+	}
 
 	return readw(host->ioaddr + reg);
 }
@@ -252,8 +271,17 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		if ((host->cmd->opcode == MMC_STOP_TRANSMISSION)
 			&& (imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
 			val |= SDHCI_CMD_ABORTCMD;
-		writel(val << 16 | imx_data->scratchpad,
-			host->ioaddr + SDHCI_TRANSFER_MODE);
+
+		if (is_imx6q_usdhc(imx_data)) {
+			u32 m = readl(host->ioaddr + SDHCI_MIX_CTRL);
+			m = imx_data->scratchpad | (m & 0xffff0000);
+			writel(m, host->ioaddr + SDHCI_MIX_CTRL);
+			writel(val << 16,
+			       host->ioaddr + SDHCI_TRANSFER_MODE);
+		} else {
+			writel(val << 16 | imx_data->scratchpad,
+			       host->ioaddr + SDHCI_TRANSFER_MODE);
+		}
 		return;
 	case SDHCI_BLOCK_SIZE:
 		val &= ~SDHCI_MAKE_BLKSZ(0x7, 0);
