@@ -188,8 +188,15 @@ static void nfs4_file_put_fd(struct nfs4_file *fp, int oflag)
 static void __nfs4_file_put_access(struct nfs4_file *fp, int oflag)
 {
 	if (atomic_dec_and_test(&fp->fi_access[oflag])) {
-		nfs4_file_put_fd(fp, O_RDWR);
 		nfs4_file_put_fd(fp, oflag);
+		/*
+		 * It's also safe to get rid of the RDWR open *if*
+		 * we no longer have need of the other kind of access
+		 * or if we already have the other kind of open:
+		 */
+		if (fp->fi_fds[1-oflag]
+			|| atomic_read(&fp->fi_access[1 - oflag]) == 0)
+			nfs4_file_put_fd(fp, O_RDWR);
 	}
 }
 
@@ -3381,8 +3388,9 @@ static inline void nfs4_file_downgrade(struct nfs4_stateid *stp, unsigned int to
 	int i;
 
 	for (i = 1; i < 4; i++) {
-		if (test_bit(i, &stp->st_access_bmap) && !(i & to_access)) {
-			nfs4_file_put_access(stp->st_file, i);
+		if (test_bit(i, &stp->st_access_bmap)
+					&& ((i & to_access) != i)) {
+			nfs4_file_put_access(stp->st_file, nfs4_access_to_omode(i));
 			__clear_bit(i, &stp->st_access_bmap);
 		}
 	}
