@@ -425,6 +425,11 @@ extern void hvc_opal_init_early(void);
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
 				   int depth, void *data);
 
+extern int opal_get_chars(uint32_t vtermno, char *buf, int count);
+extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
+
+extern void hvc_opal_init_early(void);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __OPAL_H */

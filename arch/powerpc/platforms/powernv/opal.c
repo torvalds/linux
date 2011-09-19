@@ -67,7 +67,7 @@ int opal_get_chars(uint32_t vtermno, char *buf, int count)
 	u64 evt;
 
 	if (!opal.entry)
-		return 0;
+		return -ENODEV;
 	opal_poll_events(&evt);
 	if ((evt & OPAL_EVENT_CONSOLE_INPUT) == 0)
 		return 0;
@@ -81,31 +81,38 @@ int opal_get_chars(uint32_t vtermno, char *buf, int count)
 int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 {
 	int written = 0;
-	s64 len, rc = OPAL_BUSY;
+	s64 len, rc;
 	unsigned long flags;
 	u64 evt;
 
 	if (!opal.entry)
-		return 0;
+		return -ENODEV;
 
 	/* We want put_chars to be atomic to avoid mangling of hvsi
 	 * packets. To do that, we first test for room and return
-	 * -EAGAIN if there isn't enough
+	 * -EAGAIN if there isn't enough.
+	 *
+	 * Unfortunately, opal_console_write_buffer_space() doesn't
+	 * appear to work on opal v1, so we just assume there is
+	 * enough room and be done with it
 	 */
 	spin_lock_irqsave(&opal_write_lock, flags);
-	rc = opal_console_write_buffer_space(vtermno, &len);
-	if (rc || len < total_len) {
-		spin_unlock_irqrestore(&opal_write_lock, flags);
-		/* Closed -> drop characters */
-		if (rc)
-			return total_len;
-		opal_poll_events(&evt);
-		return -EAGAIN;
+	if (firmware_has_feature(FW_FEATURE_OPALv2)) {
+		rc = opal_console_write_buffer_space(vtermno, &len);
+		if (rc || len < total_len) {
+			spin_unlock_irqrestore(&opal_write_lock, flags);
+			/* Closed -> drop characters */
+			if (rc)
+				return total_len;
+			opal_poll_events(&evt);
+			return -EAGAIN;
+		}
 	}
 
 	/* We still try to handle partial completions, though they
 	 * should no longer happen.
 	 */
+	rc = OPAL_BUSY;
 	while(total_len > 0 && (rc == OPAL_BUSY ||
 				rc == OPAL_BUSY_EVENT || rc == OPAL_SUCCESS)) {
 		len = total_len;

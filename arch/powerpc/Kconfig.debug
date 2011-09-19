@@ -265,7 +265,26 @@ config PPC_EARLY_DEBUG_PS3GELIC
 	  Select this to enable early debugging for the PlayStation3 via
 	  UDP broadcasts sent out through the Ethernet port.
 
+config PPC_EARLY_DEBUG_OPAL_RAW
+	bool "OPAL raw console"
+	depends on HVC_OPAL
+	help
+	  Select this to enable early debugging for the PowerNV platform
+	  using a "raw" console
+
+config PPC_EARLY_DEBUG_OPAL_HVSI
+	bool "OPAL hvsi console"
+	depends on HVC_OPAL
+	help
+	  Select this to enable early debugging for the PowerNV platform
+	  using an "hvsi" console
+
 endchoice
+
+config PPC_EARLY_DEBUG_OPAL
+	def_bool y
+	depends on PPC_EARLY_DEBUG_OPAL_RAW || PPC_EARLY_DEBUG_OPAL_HVSI
+
 
 config PPC_EARLY_DEBUG_HVSI_VTERMNO
 	hex "vterm number to use with early debug HVSI"
@@ -274,6 +293,18 @@ config PPC_EARLY_DEBUG_HVSI_VTERMNO
 	help
 	  You probably want 0x30000000 for your first serial port and
 	  0x30000001 for your second one
+
+config PPC_EARLY_DEBUG_OPAL_VTERMNO
+	hex "vterm number to use with OPAL early debug"
+	depends on PPC_EARLY_DEBUG_OPAL
+	default "0"
+	help
+	  This correspond to which /dev/hvcN you want to use for early
+	  debug.
+
+	  On OPAL v1 (takeover) this should always be 0
+	  On OPAL v2, this will be 0 for network console and 1 or 2 for
+	  the machine built-in serial ports.
 
 config PPC_EARLY_DEBUG_44x_PHYSLOW
 	hex "Low 32 bits of early debug UART physical address"

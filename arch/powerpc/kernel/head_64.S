@@ -53,7 +53,8 @@
  *   2. The kernel is entered at __start
  * -or- For OPAL entry:
  *   1. The MMU is off, processor in HV mode, primary CPU enters at 0
- *      with device-tree in gpr3
+ *      with device-tree in gpr3. We also get OPAL base in r8 and
+ *	entry in r9 for debugging purposes
  *   2. Secondary processors enter at 0x60 with PIR in gpr3
  *
  *  For iSeries:
@@ -335,6 +336,11 @@ _GLOBAL(__start_initialization_multiplatform)
 	/* Save parameters */
 	mr	r31,r3
 	mr	r30,r4
+#ifdef CONFIG_PPC_EARLY_DEBUG_OPAL
+	/* Save OPAL entry */
+	mr	r28,r8
+	mr	r29,r9
+#endif
 
 #ifdef CONFIG_PPC_BOOK3E
 	bl	.start_initialization_book3e
@@ -710,6 +716,12 @@ _INIT_STATIC(start_here_multiplatform)
 3:	stdu	r0,8(r8)
 	bdnz	3b
 4:
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_OPAL
+	/* Setup OPAL entry */
+	std	r28,0(r11);
+	std	r29,8(r11);
+#endif
 
 #ifndef CONFIG_PPC_BOOK3E
 	mfmsr	r6

@@ -29,17 +29,12 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/xics.h>
+#include <asm/opal.h>
 
 #include "powernv.h"
 
 static void __init pnv_setup_arch(void)
 {
-	/* Force console to hvc for now until we have sorted out the
-	 * real console situation for the platform. This will make
-	 * hvc_udbg work at least.
-	 */
-	add_preferred_console("hvc", 0, NULL);
-
 	/* Initialize SMP */
 	pnv_smp_init();
 
@@ -55,7 +50,12 @@ static void __init pnv_setup_arch(void)
 
 static void __init pnv_init_early(void)
 {
-	/* XXX IOMMU */
+#ifdef CONFIG_HVC_OPAL
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		hvc_opal_init_early();
+	else
+#endif
+		add_preferred_console("hvc", 0, NULL);
 }
 
 static void __init pnv_init_IRQ(void)
