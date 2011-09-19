@@ -147,6 +147,7 @@ static struct clk init_clocks_off[] = {
 		.ctrlbit	= (1 << 8),
 	}, {
 		.name		= "dma",
+		.devname	= "dma-pl330",
 		.parent		= &clk_hclk_low.clk,
 		.enable		= s5p64x0_hclk0_ctrl,
 		.ctrlbit	= (1 << 12),
