@@ -1620,7 +1620,7 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	int index;
 	u16 lro_length, length, data_offset;
 	u32 seq_number;
-	u8 vhdr_len;
+	u8 vhdr_len = 0;
 
 	if (unlikely(ring > adapter->max_rds_rings))
 		return NULL;
