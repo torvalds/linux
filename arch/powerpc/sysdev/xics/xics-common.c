@@ -409,14 +409,10 @@ void __init xics_init(void)
 	int rc = -1;
 
 	/* Fist locate ICP */
-#ifdef CONFIG_PPC_ICP_HV
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		rc = icp_hv_init();
-#endif
-#ifdef CONFIG_PPC_ICP_NATIVE
 	if (rc < 0)
 		rc = icp_native_init();
-#endif
 	if (rc < 0) {
 		pr_warning("XICS: Cannot find a Presentation Controller !\n");
 		return;
@@ -429,9 +425,9 @@ void __init xics_init(void)
 	xics_ipi_chip.irq_eoi = icp_ops->eoi;
 
 	/* Now locate ICS */
-#ifdef CONFIG_PPC_ICS_RTAS
 	rc = ics_rtas_init();
-#endif
+	if (rc < 0)
+		rc = ics_opal_init();
 	if (rc < 0)
 		pr_warning("XICS: Cannot find a Source Controller !\n");
 
