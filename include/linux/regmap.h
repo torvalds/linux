@@ -24,6 +24,7 @@ struct spi_device;
 enum regcache_type {
 	REGCACHE_NONE,
 	REGCACHE_INDEXED,
+	REGCACHE_RBTREE,
 };
 
 /**

@@ -119,4 +119,5 @@ int regcache_insert_reg(struct regmap *map, unsigned int reg,
 			unsigned int val);
 
 extern struct regcache_ops regcache_indexed_ops;
+extern struct regcache_ops regcache_rbtree_ops;
 #endif
