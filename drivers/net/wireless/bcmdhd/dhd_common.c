@@ -1988,7 +1988,7 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 				return err;
 			}
 			else
-				DHD_ERROR(("%s set OK with PNO time=%d repeat=%d max_adjust=%d\n",
+				DHD_TRACE(("%s set OK with PNO time=%d repeat=%d max_adjust=%d\n",
 					__FUNCTION__, pfn_param.scan_freq,
 					pfn_param.repeat, pfn_param.exp));
 		}
