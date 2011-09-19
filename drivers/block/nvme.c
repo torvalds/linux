@@ -1457,7 +1457,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 	list_for_each_entry(ns, &dev->namespaces, list)
 		add_disk(ns->disk);
 
-	dma_free_coherent(&dev->pci_dev->dev, 4096, id, dma_addr);
+	dma_free_coherent(&dev->pci_dev->dev, 8192, id, dma_addr);
 	return 0;
 
  out_free:
@@ -1466,7 +1466,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 		nvme_ns_free(ns);
 	}
 
-	dma_free_coherent(&dev->pci_dev->dev, 4096, id, dma_addr);
+	dma_free_coherent(&dev->pci_dev->dev, 8192, mem, dma_addr);
 	return res;
 }
 
