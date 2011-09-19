@@ -30,14 +30,10 @@ struct sh_mobile_meram_icb_cfg {
 	unsigned int cache_icb;		/* ICB # for Cache ICB */
 	unsigned int meram_offset;	/* MERAM Buffer Offset to use */
 	unsigned int meram_size;	/* MERAM Buffer Size to use */
-
-	unsigned int cache_unit;	/* bytes to cache per ICB */
 };
 
 struct sh_mobile_meram_cfg {
-	struct sh_mobile_meram_icb_cfg	icb[2];
-	int				pixelformat;
-	int				current_reg;
+	struct sh_mobile_meram_icb_cfg icb[2];
 };
 
 struct module;
@@ -45,7 +41,7 @@ struct sh_mobile_meram_ops {
 	struct module	*module;
 	/* register usage of meram */
 	int (*meram_register)(struct sh_mobile_meram_info *meram_dev,
-			      struct sh_mobile_meram_cfg *cfg,
+			      const struct sh_mobile_meram_cfg *cfg,
 			      unsigned int xres, unsigned int yres,
 			      unsigned int pixelformat,
 			      unsigned long base_addr_y,
@@ -56,11 +52,11 @@ struct sh_mobile_meram_ops {
 
 	/* unregister usage of meram */
 	int (*meram_unregister)(struct sh_mobile_meram_info *meram_dev,
-				struct sh_mobile_meram_cfg *cfg);
+				const struct sh_mobile_meram_cfg *cfg);
 
 	/* update meram settings */
 	int (*meram_update)(struct sh_mobile_meram_info *meram_dev,
-			    struct sh_mobile_meram_cfg *cfg,
+			    const struct sh_mobile_meram_cfg *cfg,
 			    unsigned long base_addr_y,
 			    unsigned long base_addr_c,
 			    unsigned long *icb_addr_y,
