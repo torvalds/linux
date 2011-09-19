@@ -106,6 +106,30 @@ DEFINE_EVENT(regmap_block, regmap_hw_write_done,
 	TP_ARGS(dev, reg, count)
 );
 
+TRACE_EVENT(regcache_sync,
+
+	TP_PROTO(struct device *dev, const char *type,
+		 const char *status),
+
+	TP_ARGS(dev, type, status),
+
+	TP_STRUCT__entry(
+		__string(       name,           dev_name(dev)   )
+		__string(	status,		status		)
+		__string(	type,		type		)
+		__field(	int,		type		)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, dev_name(dev));
+		__assign_str(status, status);
+		__assign_str(type, type);
+	),
+
+	TP_printk("%s type=%s status=%s", __get_str(name),
+		  __get_str(type), __get_str(status))
+);
+
 #endif /* _TRACE_REGMAP_H */
 
 /* This part must be outside protection */

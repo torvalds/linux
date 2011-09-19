@@ -221,12 +221,18 @@ EXPORT_SYMBOL_GPL(regcache_write);
  */
 int regcache_sync(struct regmap *map)
 {
+	int ret;
+	const char *name;
+
 	BUG_ON(!map->cache_ops);
 
 	if (map->cache_ops->sync) {
 		dev_dbg(map->dev, "Syncing %s cache\n",
 			map->cache_ops->name);
-		return map->cache_ops->sync(map);
+		name = map->cache_ops->name;
+		trace_regcache_sync(map->dev, name, "start");
+		ret = map->cache_ops->sync(map);
+		trace_regcache_sync(map->dev, name, "stop");
 	}
 	return 0;
 }
