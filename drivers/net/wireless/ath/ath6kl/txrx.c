@@ -1230,9 +1230,15 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			ath6kl_data_tx(skb1, ar->net_dev);
 	}
 
-	if (!aggr_process_recv_frm(ar->aggr_cntxt, tid, seq_no,
-				   is_amsdu, skb))
-		ath6kl_deliver_frames_to_nw_stack(ar->net_dev, skb);
+	datap = (struct ethhdr *) skb->data;
+
+	if (is_unicast_ether_addr(datap->h_dest) &&
+	    aggr_process_recv_frm(ar->aggr_cntxt, tid, seq_no,
+				  is_amsdu, skb))
+		/* aggregation code will handle the skb */
+		return;
+
+	ath6kl_deliver_frames_to_nw_stack(ar->net_dev, skb);
 }
 
 static void aggr_timeout(unsigned long arg)
@@ -1249,10 +1255,6 @@ static void aggr_timeout(unsigned long arg)
 		if (!rxtid->aggr || !rxtid->timer_mon || rxtid->progress)
 			continue;
 
-		/*
-		 * FIXME: these timeouts happen quite fruently, something
-		 * line once within 60 seconds. Investigate why.
-		 */
 		stats->num_timeouts++;
 		ath6kl_dbg(ATH6KL_DBG_AGGR,
 			   "aggr timeout (st %d end %d)\n",
