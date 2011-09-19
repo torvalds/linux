@@ -373,6 +373,9 @@ void userspace(struct uml_pt_regs *regs)
 		if (ptrace(PTRACE_SETREGS, pid, 0, regs->gp))
 			fatal_sigsegv();
 
+		if (put_fp_registers(pid, regs->fp))
+			fatal_sigsegv();
+
 		/* Now we set local_using_sysemu to be used for one loop */
 		local_using_sysemu = get_using_sysemu();
 
@@ -395,6 +398,12 @@ void userspace(struct uml_pt_regs *regs)
 		regs->is_user = 1;
 		if (ptrace(PTRACE_GETREGS, pid, 0, regs->gp)) {
 			printk(UM_KERN_ERR "userspace - PTRACE_GETREGS failed, "
+			       "errno = %d\n", errno);
+			fatal_sigsegv();
+		}
+
+		if (get_fp_registers(pid, regs->fp)) {
+			printk(UM_KERN_ERR "userspace -  get_fp_registers failed, "
 			       "errno = %d\n", errno);
 			fatal_sigsegv();
 		}
@@ -457,10 +466,11 @@ void userspace(struct uml_pt_regs *regs)
 }
 
 static unsigned long thread_regs[MAX_REG_NR];
+static unsigned long thread_fp_regs[FP_SIZE];
 
 static int __init init_thread_regs(void)
 {
-	get_safe_registers(thread_regs);
+	get_safe_registers(thread_regs, thread_fp_regs);
 	/* Set parent's instruction pointer to start of clone-stub */
 	thread_regs[REGS_IP_INDEX] = STUB_CODE +
 				(unsigned long) stub_clone_handler -
@@ -500,6 +510,13 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 		err = -errno;
 		printk(UM_KERN_ERR "copy_context_skas0 : PTRACE_SETREGS "
 		       "failed, pid = %d, errno = %d\n", pid, -err);
+		return err;
+	}
+
+	err = put_fp_registers(pid, thread_fp_regs);
+	if (err < 0) {
+		printk(UM_KERN_ERR "copy_context_skas0 : put_fp_registers "
+		       "failed, pid = %d, err = %d\n", pid, err);
 		return err;
 	}
 

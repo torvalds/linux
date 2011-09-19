@@ -407,8 +407,8 @@ u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
 	opcode |= (DMAE_CMD_SRC_RESET | DMAE_CMD_DST_RESET);
 
 	opcode |= (BP_PORT(bp) ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0);
-	opcode |= ((BP_E1HVN(bp) << DMAE_CMD_E1HVN_SHIFT) |
-		   (BP_E1HVN(bp) << DMAE_COMMAND_DST_VN_SHIFT));
+	opcode |= ((BP_VN(bp) << DMAE_CMD_E1HVN_SHIFT) |
+		   (BP_VN(bp) << DMAE_COMMAND_DST_VN_SHIFT));
 	opcode |= (DMAE_COM_SET_ERR << DMAE_COMMAND_ERR_POLICY_SHIFT);
 
 #ifdef __BIG_ENDIAN
@@ -1419,7 +1419,7 @@ static void bnx2x_hc_int_enable(struct bnx2x *bp)
 	if (!CHIP_IS_E1(bp)) {
 		/* init leading/trailing edge */
 		if (IS_MF(bp)) {
-			val = (0xee0f | (1 << (BP_E1HVN(bp) + 4)));
+			val = (0xee0f | (1 << (BP_VN(bp) + 4)));
 			if (bp->port.pmf)
 				/* enable nig and gpio3 attention */
 				val |= 0x1100;
@@ -1471,7 +1471,7 @@ static void bnx2x_igu_int_enable(struct bnx2x *bp)
 
 	/* init leading/trailing edge */
 	if (IS_MF(bp)) {
-		val = (0xee0f | (1 << (BP_E1HVN(bp) + 4)));
+		val = (0xee0f | (1 << (BP_VN(bp) + 4)));
 		if (bp->port.pmf)
 			/* enable nig and gpio3 attention */
 			val |= 0x1100;
@@ -2287,7 +2287,7 @@ static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
 	int vn;
 
 	bp->vn_weight_sum = 0;
-	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
+	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
 		u32 vn_cfg = bp->mf_config[vn];
 		u32 vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
 				   FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
@@ -2320,12 +2320,18 @@ static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
 					CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 }
 
+/* returns func by VN for current port */
+static inline int func_by_vn(struct bnx2x *bp, int vn)
+{
+	return 2 * vn + BP_PORT(bp);
+}
+
 static void bnx2x_init_vn_minmax(struct bnx2x *bp, int vn)
 {
 	struct rate_shaping_vars_per_vn m_rs_vn;
 	struct fairness_vars_per_vn m_fair_vn;
 	u32 vn_cfg = bp->mf_config[vn];
-	int func = 2*vn + BP_PORT(bp);
+	int func = func_by_vn(bp, vn);
 	u16 vn_min_rate, vn_max_rate;
 	int i;
 
@@ -2422,7 +2428,7 @@ void bnx2x_read_mf_cfg(struct bnx2x *bp)
 	 *
 	 *      and there are 2 functions per port
 	 */
-	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
+	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
 		int /*abs*/func = n * (2 * vn + BP_PORT(bp)) + BP_PATH(bp);
 
 		if (func >= E1H_FUNC_MAX)
@@ -2454,7 +2460,7 @@ static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 
 		/* calculate and set min-max rate for each vn */
 		if (bp->port.pmf)
-			for (vn = VN_0; vn < E1HVN_MAX; vn++)
+			for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++)
 				bnx2x_init_vn_minmax(bp, vn);
 
 		/* always enable rate shaping and fairness */
@@ -2473,16 +2479,15 @@ static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 
 static inline void bnx2x_link_sync_notify(struct bnx2x *bp)
 {
-	int port = BP_PORT(bp);
 	int func;
 	int vn;
 
 	/* Set the attention towards other drivers on the same port */
-	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
-		if (vn == BP_E1HVN(bp))
+	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
+		if (vn == BP_VN(bp))
 			continue;
 
-		func = ((vn << 1) | port);
+		func = func_by_vn(bp, vn);
 		REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_0 +
 		       (LINK_SYNC_ATTENTION_BIT_FUNC_0 + func)*4, 1);
 	}
@@ -2577,7 +2582,7 @@ static void bnx2x_pmf_update(struct bnx2x *bp)
 	bnx2x_dcbx_pmf_update(bp);
 
 	/* enable nig attention */
-	val = (0xff0f | (1 << (BP_E1HVN(bp) + 4)));
+	val = (0xff0f | (1 << (BP_VN(bp) + 4)));
 	if (bp->common.int_block == INT_BLOCK_HC) {
 		REG_WR(bp, HC_REG_TRAILING_EDGE_0 + port*8, val);
 		REG_WR(bp, HC_REG_LEADING_EDGE_0 + port*8, val);
@@ -2756,8 +2761,14 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	u16 tpa_agg_size = 0;
 
 	if (!fp->disable_tpa) {
-		pause->sge_th_hi = 250;
-		pause->sge_th_lo = 150;
+		pause->sge_th_lo = SGE_TH_LO(bp);
+		pause->sge_th_hi = SGE_TH_HI(bp);
+
+		/* validate SGE ring has enough to cross high threshold */
+		WARN_ON(bp->dropless_fc &&
+				pause->sge_th_hi + FW_PREFETCH_CNT >
+				MAX_RX_SGE_CNT * NUM_RX_SGE_PAGES);
+
 		tpa_agg_size = min_t(u32,
 			(min_t(u32, 8, MAX_SKB_FRAGS) *
 			SGE_PAGE_SIZE * PAGES_PER_SGE), 0xffff);
@@ -2771,10 +2782,21 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 
 	/* pause - not for e1 */
 	if (!CHIP_IS_E1(bp)) {
-		pause->bd_th_hi = 350;
-		pause->bd_th_lo = 250;
-		pause->rcq_th_hi = 350;
-		pause->rcq_th_lo = 250;
+		pause->bd_th_lo = BD_TH_LO(bp);
+		pause->bd_th_hi = BD_TH_HI(bp);
+
+		pause->rcq_th_lo = RCQ_TH_LO(bp);
+		pause->rcq_th_hi = RCQ_TH_HI(bp);
+		/*
+		 * validate that rings have enough entries to cross
+		 * high thresholds
+		 */
+		WARN_ON(bp->dropless_fc &&
+				pause->bd_th_hi + FW_PREFETCH_CNT >
+				bp->rx_ring_size);
+		WARN_ON(bp->dropless_fc &&
+				pause->rcq_th_hi + FW_PREFETCH_CNT >
+				NUM_RCQ_RINGS * MAX_RCQ_DESC_CNT);
 
 		pause->pri_map = 1;
 	}
@@ -2802,9 +2824,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	 * For PF Clients it should be the maximum avaliable number.
 	 * VF driver(s) may want to define it to a smaller value.
 	 */
-	rxq_init->max_tpa_queues =
-		(CHIP_IS_E1(bp) ? ETH_MAX_AGGREGATION_QUEUES_E1 :
-		ETH_MAX_AGGREGATION_QUEUES_E1H_E2);
+	rxq_init->max_tpa_queues = MAX_AGG_QS(bp);
 
 	rxq_init->cache_line_log = BNX2X_RX_ALIGN_SHIFT;
 	rxq_init->fw_sb_id = fp->fw_sb_id;
@@ -4808,6 +4828,37 @@ void bnx2x_setup_ndsb_state_machine(struct hc_status_block_sm *hc_sm,
 	hc_sm->time_to_expire = 0xFFFFFFFF;
 }
 
+
+/* allocates state machine ids. */
+static inline
+void bnx2x_map_sb_state_machines(struct hc_index_data *index_data)
+{
+	/* zero out state machine indices */
+	/* rx indices */
+	index_data[HC_INDEX_ETH_RX_CQ_CONS].flags &= ~HC_INDEX_DATA_SM_ID;
+
+	/* tx indices */
+	index_data[HC_INDEX_OOO_TX_CQ_CONS].flags &= ~HC_INDEX_DATA_SM_ID;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS0].flags &= ~HC_INDEX_DATA_SM_ID;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS1].flags &= ~HC_INDEX_DATA_SM_ID;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS2].flags &= ~HC_INDEX_DATA_SM_ID;
+
+	/* map indices */
+	/* rx indices */
+	index_data[HC_INDEX_ETH_RX_CQ_CONS].flags |=
+		SM_RX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+
+	/* tx indices */
+	index_data[HC_INDEX_OOO_TX_CQ_CONS].flags |=
+		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS0].flags |=
+		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS1].flags |=
+		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+	index_data[HC_INDEX_ETH_TX_CQ_CONS_COS2].flags |=
+		SM_TX_ID << HC_INDEX_DATA_SM_ID_SHIFT;
+}
+
 static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 			  u8 vf_valid, int fw_sb_id, int igu_sb_id)
 {
@@ -4839,6 +4890,7 @@ static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 		hc_sm_p = sb_data_e2.common.state_machine;
 		sb_data_p = (u32 *)&sb_data_e2;
 		data_size = sizeof(struct hc_status_block_data_e2)/sizeof(u32);
+		bnx2x_map_sb_state_machines(sb_data_e2.index_data);
 	} else {
 		memset(&sb_data_e1x, 0,
 		       sizeof(struct hc_status_block_data_e1x));
@@ -4853,6 +4905,7 @@ static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 		hc_sm_p = sb_data_e1x.common.state_machine;
 		sb_data_p = (u32 *)&sb_data_e1x;
 		data_size = sizeof(struct hc_status_block_data_e1x)/sizeof(u32);
+		bnx2x_map_sb_state_machines(sb_data_e1x.index_data);
 	}
 
 	bnx2x_setup_ndsb_state_machine(&hc_sm_p[SM_RX_ID],
@@ -5802,7 +5855,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	 * take the UNDI lock to protect undi_unload flow from accessing
 	 * registers while we're resetting the chip
 	 */
-	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 
 	bnx2x_reset_common(bp);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, 0xffffffff);
@@ -5814,7 +5867,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	}
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET, val);
 
-	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 
 	bnx2x_init_block(bp, BLOCK_MISC, PHASE_COMMON);
 
@@ -6671,12 +6724,16 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 			if (CHIP_MODE_IS_4_PORT(bp))
 				dsb_idx = BP_FUNC(bp);
 			else
-				dsb_idx = BP_E1HVN(bp);
+				dsb_idx = BP_VN(bp);
 
 			prod_offset = (CHIP_INT_MODE_IS_BC(bp) ?
 				       IGU_BC_BASE_DSB_PROD + dsb_idx :
 				       IGU_NORM_BASE_DSB_PROD + dsb_idx);
 
+			/*
+			 * igu prods come in chunks of E1HVN_MAX (4) -
+			 * does not matters what is the current chip mode
+			 */
 			for (i = 0; i < (num_segs * E1HVN_MAX);
 			     i += E1HVN_MAX) {
 				addr = IGU_REG_PROD_CONS_MEMORY +
@@ -7570,7 +7627,7 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		u32 val;
 		/* The mac address is written to entries 1-4 to
 		   preserve entry 0 which is used by the PMF */
-		u8 entry = (BP_E1HVN(bp) + 1)*8;
+		u8 entry = (BP_VN(bp) + 1)*8;
 
 		val = (mac_addr[0] << 8) | mac_addr[1];
 		EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + entry, val);
@@ -8546,10 +8603,12 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 	/* Check if there is any driver already loaded */
 	val = REG_RD(bp, MISC_REG_UNPREPARED);
 	if (val == 0x1) {
-		/* Check if it is the UNDI driver
+
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
+		/*
+		 * Check if it is the UNDI driver
 		 * UNDI driver initializes CID offset for normal bell to 0x7
 		 */
-		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 		val = REG_RD(bp, DORQ_REG_NORM_CID_OFST);
 		if (val == 0x7) {
 			u32 reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
@@ -8586,9 +8645,6 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 
 				bnx2x_fw_command(bp, reset_code, 0);
 			}
-
-			/* now it's safe to release the lock */
-			bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 
 			bnx2x_undi_int_disable(bp);
 			port = BP_PORT(bp);
@@ -8639,8 +8695,10 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			bp->fw_seq =
 			      (SHMEM_RD(bp, func_mb[bp->pf_num].drv_mb_header) &
 				DRV_MSG_SEQ_NUMBER_MASK);
-		} else
-			bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+		}
+
+		/* now it's safe to release the lock */
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 	}
 }
 
@@ -8777,13 +8835,13 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 {
 	int pfid = BP_FUNC(bp);
-	int vn = BP_E1HVN(bp);
 	int igu_sb_id;
 	u32 val;
 	u8 fid, igu_sb_cnt = 0;
 
 	bp->igu_base_sb = 0xff;
 	if (CHIP_INT_MODE_IS_BC(bp)) {
+		int vn = BP_VN(bp);
 		igu_sb_cnt = bp->igu_sb_cnt;
 		bp->igu_base_sb = (CHIP_MODE_IS_4_PORT(bp) ? pfid : vn) *
 			FP_SB_MAX_E1x;
@@ -9416,6 +9474,10 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 		bp->igu_base_sb = 0;
 	} else {
 		bp->common.int_block = INT_BLOCK_IGU;
+
+		/* do not allow device reset during IGU info preocessing */
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
+
 		val = REG_RD(bp, IGU_REG_BLOCK_CONFIGURATION);
 
 		if (val & IGU_BLOCK_CONFIGURATION_REG_BACKWARD_COMP_EN) {
@@ -9447,6 +9509,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 		bnx2x_get_igu_cam_info(bp);
 
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 	}
 
 	/*
@@ -9473,7 +9536,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 	bp->mf_ov = 0;
 	bp->mf_mode = 0;
-	vn = BP_E1HVN(bp);
+	vn = BP_VN(bp);
 
 	if (!CHIP_IS_E1(bp) && !BP_NOMCP(bp)) {
 		BNX2X_DEV_INFO("shmem2base 0x%x, size %d, mfcfg offset %d\n",
@@ -9592,13 +9655,6 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 	/* port info */
 	bnx2x_get_port_hwinfo(bp);
-
-	if (!BP_NOMCP(bp)) {
-		bp->fw_seq =
-			(SHMEM_RD(bp, func_mb[BP_FW_MB_IDX(bp)].drv_mb_header) &
-			 DRV_MSG_SEQ_NUMBER_MASK);
-		BNX2X_DEV_INFO("fw_seq 0x%08x\n", bp->fw_seq);
-	}
 
 	/* Get MAC addresses */
 	bnx2x_get_mac_hwinfo(bp);
@@ -9764,6 +9820,14 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	/* need to reset chip if undi was active */
 	if (!BP_NOMCP(bp))
 		bnx2x_undi_unload(bp);
+
+	/* init fw_seq after undi_unload! */
+	if (!BP_NOMCP(bp)) {
+		bp->fw_seq =
+			(SHMEM_RD(bp, func_mb[BP_FW_MB_IDX(bp)].drv_mb_header) &
+			 DRV_MSG_SEQ_NUMBER_MASK);
+		BNX2X_DEV_INFO("fw_seq 0x%08x\n", bp->fw_seq);
+	}
 
 	if (CHIP_REV_IS_FPGA(bp))
 		dev_err(&bp->pdev->dev, "FPGA detected\n");
@@ -10259,17 +10323,21 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	/* clean indirect addresses */
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
 			       PCICFG_VENDOR_ID_OFFSET);
-	/* Clean the following indirect addresses for all functions since it
+	/*
+	 * Clean the following indirect addresses for all functions since it
 	 * is not used by the driver.
 	 */
 	REG_WR(bp, PXP2_REG_PGL_ADDR_88_F0, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F0, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_88_F1, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F1, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F1, 0);
-	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F1, 0);
+
+	if (CHIP_IS_E1x(bp)) {
+		REG_WR(bp, PXP2_REG_PGL_ADDR_88_F1, 0);
+		REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F1, 0);
+		REG_WR(bp, PXP2_REG_PGL_ADDR_90_F1, 0);
+		REG_WR(bp, PXP2_REG_PGL_ADDR_94_F1, 0);
+	}
 
 	/*
 	 * Enable internal target-read (in case we are probed after PF FLR).

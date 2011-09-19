@@ -671,7 +671,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		REG_WRITE_ARRAY(&ah->iniModesAdditional,
 				modesIndex, regWrites);
 
-	if (AR_SREV_9300(ah))
+	if (AR_SREV_9330(ah))
 		REG_WRITE_ARRAY(&ah->iniModesAdditional, 1, regWrites);
 
 	if (AR_SREV_9340(ah) && !ah->is_clk_25mhz)

@@ -272,9 +272,9 @@ reread:
 	return 0;
 
 out_free_backup_vhdr:
-	kfree(sbi->s_backup_vhdr);
+	kfree(sbi->s_backup_vhdr_buf);
 out_free_vhdr:
-	kfree(sbi->s_vhdr);
+	kfree(sbi->s_vhdr_buf);
 out:
 	return error;
 }
