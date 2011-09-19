@@ -2903,12 +2903,13 @@
 #define SDEIER  0xc400c
 
 /* digital port hotplug */
-#define PCH_PORT_HOTPLUG        0xc4030
+#define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */
 #define PORTD_HOTPLUG_ENABLE            (1 << 20)
 #define PORTD_PULSE_DURATION_2ms        (0)
 #define PORTD_PULSE_DURATION_4_5ms      (1 << 18)
 #define PORTD_PULSE_DURATION_6ms        (2 << 18)
 #define PORTD_PULSE_DURATION_100ms      (3 << 18)
+#define PORTD_PULSE_DURATION_MASK	(3 << 18)
 #define PORTD_HOTPLUG_NO_DETECT         (0)
 #define PORTD_HOTPLUG_SHORT_DETECT      (1 << 16)
 #define PORTD_HOTPLUG_LONG_DETECT       (1 << 17)
@@ -2917,6 +2918,7 @@
 #define PORTC_PULSE_DURATION_4_5ms      (1 << 10)
 #define PORTC_PULSE_DURATION_6ms        (2 << 10)
 #define PORTC_PULSE_DURATION_100ms      (3 << 10)
+#define PORTC_PULSE_DURATION_MASK	(3 << 10)
 #define PORTC_HOTPLUG_NO_DETECT         (0)
 #define PORTC_HOTPLUG_SHORT_DETECT      (1 << 8)
 #define PORTC_HOTPLUG_LONG_DETECT       (1 << 9)
@@ -2925,6 +2927,7 @@
 #define PORTB_PULSE_DURATION_4_5ms      (1 << 2)
 #define PORTB_PULSE_DURATION_6ms        (2 << 2)
 #define PORTB_PULSE_DURATION_100ms      (3 << 2)
+#define PORTB_PULSE_DURATION_MASK	(3 << 2)
 #define PORTB_HOTPLUG_NO_DETECT         (0)
 #define PORTB_HOTPLUG_SHORT_DETECT      (1 << 0)
 #define PORTB_HOTPLUG_LONG_DETECT       (1 << 1)
