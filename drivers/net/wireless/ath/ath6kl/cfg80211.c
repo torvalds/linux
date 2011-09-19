@@ -483,6 +483,13 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	assoc_req_len -= assoc_req_ie_offset;
 	assoc_resp_len -= assoc_resp_ie_offset;
 
+	/*
+	 * Store Beacon interval here; DTIM period will be available only once
+	 * a Beacon frame from the AP is seen.
+	 */
+	ar->assoc_bss_beacon_int = beacon_intvl;
+	clear_bit(DTIM_PERIOD_AVAIL, &ar->flag);
+
 	if (nw_type & ADHOC_NETWORK) {
 		if (ar->wdev->iftype != NL80211_IFTYPE_ADHOC) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
@@ -1365,6 +1372,15 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	sinfo->filled |= STATION_INFO_TX_BITRATE;
+
+	if (test_bit(CONNECTED, &ar->flag) &&
+	    test_bit(DTIM_PERIOD_AVAIL, &ar->flag) &&
+	    ar->nw_type == INFRA_NETWORK) {
+		sinfo->filled |= STATION_INFO_BSS_PARAM;
+		sinfo->bss_param.flags = 0;
+		sinfo->bss_param.dtim_period = ar->assoc_bss_dtim_period;
+		sinfo->bss_param.beacon_interval = ar->assoc_bss_beacon_int;
+	}
 
 	return 0;
 }

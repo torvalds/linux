@@ -930,6 +930,17 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 	if (len < 8 + 2 + 2)
 		return -EINVAL;
 
+	if (bih->frame_type == BEACON_FTYPE && test_bit(CONNECTED, &ar->flag) &&
+	    memcmp(bih->bssid, ar->bssid, ETH_ALEN) == 0) {
+		const u8 *tim;
+		tim = cfg80211_find_ie(WLAN_EID_TIM, buf + 8 + 2 + 2,
+				       len - 8 - 2 - 2);
+		if (tim && tim[1] >= 2) {
+			ar->assoc_bss_dtim_period = tim[3];
+			set_bit(DTIM_PERIOD_AVAIL, &ar->flag);
+		}
+	}
+
 	/*
 	 * In theory, use of cfg80211_inform_bss() would be more natural here
 	 * since we do not have the full frame. However, at least for now,
