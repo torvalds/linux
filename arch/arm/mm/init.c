@@ -381,8 +381,6 @@ void __init bootmem_init(void)
 	 */
 	arm_bootmem_free(min, max_low, max_high);
 
-	high_memory = __va(((phys_addr_t)max_low << PAGE_SHIFT) - 1) + 1;
-
 	/*
 	 * This doesn't seem to be used by the Linux memory manager any
 	 * more, but is used by ll_rw_block.  If we can get rid of it, we

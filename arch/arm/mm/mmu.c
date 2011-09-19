@@ -860,6 +860,7 @@ void __init sanity_check_meminfo(void)
 	}
 #endif
 	meminfo.nr_banks = j;
+	high_memory = __va(lowmem_limit - 1) + 1;
 	memblock_set_current_limit(lowmem_limit);
 }
 
