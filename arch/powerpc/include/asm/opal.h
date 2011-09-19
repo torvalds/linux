@@ -436,6 +436,8 @@ extern void opal_get_rtc_time(struct rtc_time *tm);
 extern unsigned long opal_get_boot_time(void);
 extern void opal_nvram_init(void);
 
+extern int opal_machine_check(struct pt_regs *regs);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __OPAL_H */

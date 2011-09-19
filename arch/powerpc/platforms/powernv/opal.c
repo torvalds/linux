@@ -27,12 +27,14 @@ struct opal {
 
 static struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
+extern u64 opal_mc_secondary_handler[];
 
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
 {
 	const void *basep, *entryp;
 	unsigned long basesz, entrysz;
+	u64 glue;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
@@ -58,6 +60,19 @@ int __init early_init_dt_scan_opal(unsigned long node,
 	} else {
 		printk("OPAL V1 detected !\n");
 	}
+
+	/* Hookup some exception handlers. We use the fwnmi area at 0x7000
+	 * to provide the glue space to OPAL
+	 */
+	glue = 0x7000;
+	opal_register_exception_handler(OPAL_MACHINE_CHECK_HANDLER,
+					__pa(opal_mc_secondary_handler[0]),
+					glue);
+	glue += 128;
+	opal_register_exception_handler(OPAL_HYPERVISOR_MAINTENANCE_HANDLER,
+					0, glue);
+	glue += 128;
+	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
 
 	return 1;
 }
@@ -134,6 +149,121 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 	}
 	spin_unlock_irqrestore(&opal_write_lock, flags);
 	return written;
+}
+
+int opal_machine_check(struct pt_regs *regs)
+{
+	struct opal_machine_check_event *opal_evt = get_paca()->opal_mc_evt;
+	struct opal_machine_check_event evt;
+	const char *level, *sevstr, *subtype;
+	static const char *opal_mc_ue_types[] = {
+		"Indeterminate",
+		"Instruction fetch",
+		"Page table walk ifetch",
+		"Load/Store",
+		"Page table walk Load/Store",
+	};
+	static const char *opal_mc_slb_types[] = {
+		"Indeterminate",
+		"Parity",
+		"Multihit",
+	};
+	static const char *opal_mc_erat_types[] = {
+		"Indeterminate",
+		"Parity",
+		"Multihit",
+	};
+	static const char *opal_mc_tlb_types[] = {
+		"Indeterminate",
+		"Parity",
+		"Multihit",
+	};
+
+	/* Copy the event structure and release the original */
+	evt = *opal_evt;
+	opal_evt->in_use = 0;
+
+	/* Print things out */
+	if (evt.version != OpalMCE_V1) {
+		pr_err("Machine Check Exception, Unknown event version %d !\n",
+		       evt.version);
+		return 0;
+	}
+	switch(evt.severity) {
+	case OpalMCE_SEV_NO_ERROR:
+		level = KERN_INFO;
+		sevstr = "Harmless";
+		break;
+	case OpalMCE_SEV_WARNING:
+		level = KERN_WARNING;
+		sevstr = "";
+		break;
+	case OpalMCE_SEV_ERROR_SYNC:
+		level = KERN_ERR;
+		sevstr = "Severe";
+		break;
+	case OpalMCE_SEV_FATAL:
+	default:
+		level = KERN_ERR;
+		sevstr = "Fatal";
+		break;
+	}
+
+	printk("%s%s Machine check interrupt [%s]\n", level, sevstr,
+	       evt.disposition == OpalMCE_DISPOSITION_RECOVERED ?
+	       "Recovered" : "[Not recovered");
+	printk("%s  Initiator: %s\n", level,
+	       evt.initiator == OpalMCE_INITIATOR_CPU ? "CPU" : "Unknown");
+	switch(evt.error_type) {
+	case OpalMCE_ERROR_TYPE_UE:
+		subtype = evt.u.ue_error.ue_error_type <
+			ARRAY_SIZE(opal_mc_ue_types) ?
+			opal_mc_ue_types[evt.u.ue_error.ue_error_type]
+			: "Unknown";
+		printk("%s  Error type: UE [%s]\n", level, subtype);
+		if (evt.u.ue_error.effective_address_provided)
+			printk("%s    Effective address: %016llx\n",
+			       level, evt.u.ue_error.effective_address);
+		if (evt.u.ue_error.physical_address_provided)
+			printk("%s      Physial address: %016llx\n",
+			       level, evt.u.ue_error.physical_address);
+		break;
+	case OpalMCE_ERROR_TYPE_SLB:
+		subtype = evt.u.slb_error.slb_error_type <
+			ARRAY_SIZE(opal_mc_slb_types) ?
+			opal_mc_slb_types[evt.u.slb_error.slb_error_type]
+			: "Unknown";
+		printk("%s  Error type: SLB [%s]\n", level, subtype);
+		if (evt.u.slb_error.effective_address_provided)
+			printk("%s    Effective address: %016llx\n",
+			       level, evt.u.slb_error.effective_address);
+		break;
+	case OpalMCE_ERROR_TYPE_ERAT:
+		subtype = evt.u.erat_error.erat_error_type <
+			ARRAY_SIZE(opal_mc_erat_types) ?
+			opal_mc_erat_types[evt.u.erat_error.erat_error_type]
+			: "Unknown";
+		printk("%s  Error type: ERAT [%s]\n", level, subtype);
+		if (evt.u.erat_error.effective_address_provided)
+			printk("%s    Effective address: %016llx\n",
+			       level, evt.u.erat_error.effective_address);
+		break;
+	case OpalMCE_ERROR_TYPE_TLB:
+		subtype = evt.u.tlb_error.tlb_error_type <
+			ARRAY_SIZE(opal_mc_tlb_types) ?
+			opal_mc_tlb_types[evt.u.tlb_error.tlb_error_type]
+			: "Unknown";
+		printk("%s  Error type: TLB [%s]\n", level, subtype);
+		if (evt.u.tlb_error.effective_address_provided)
+			printk("%s    Effective address: %016llx\n",
+			       level, evt.u.tlb_error.effective_address);
+		break;
+	default:
+	case OpalMCE_ERROR_TYPE_UNKNOWN:
+		printk("%s  Error type: Unknown\n", level);
+		break;
+	}
+	return evt.severity == OpalMCE_SEV_FATAL ? 0 : 1;
 }
 
 static irqreturn_t opal_interrupt(int irq, void *data)

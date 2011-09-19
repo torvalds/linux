@@ -43,6 +43,7 @@ extern unsigned int debug_smp_processor_id(void); /* from linux/smp.h */
 #define get_slb_shadow()	(get_paca()->slb_shadow_ptr)
 
 struct task_struct;
+struct opal_machine_check_event;
 
 /*
  * Defines the layout of the paca.
@@ -134,6 +135,13 @@ struct paca_struct {
 	u8 hard_enabled;		/* set if irqs are enabled in MSR */
 	u8 io_sync;			/* writel() needs spin_unlock sync */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
+
+#ifdef CONFIG_PPC_POWERNV
+	/* Pointer to OPAL machine check event structure set by the
+	 * early exception handler for use by high level C handler
+	 */
+	struct opal_machine_check_event *opal_mc_evt;
+#endif
 
 	/* Stuff for accurate time accounting */
 	u64 user_time;			/* accumulated usermode TB ticks */
