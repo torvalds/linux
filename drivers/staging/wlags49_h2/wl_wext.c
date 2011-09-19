@@ -3805,9 +3805,9 @@ void wl_wext_event_expired_sta( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_mic_failed( struct net_device *dev )
 {
-	char               msg[512];
 	union iwreq_data   wrqu;
 	struct wl_private *lp = wl_priv(dev);
+	struct iw_michaelmicfailure wxmic;
 	int                key_idx;
 	char              *addr1;
 	char              *addr2;
@@ -3829,30 +3829,17 @@ void wl_wext_event_mic_failed( struct net_device *dev )
 	DBG_PRINT( "MIC FAIL - KEY USED : %d, STATUS : 0x%04x\n", key_idx,
 			   hdr->status );
 
-	memset( &wrqu, 0, sizeof( wrqu ));
-	memset( msg, 0, sizeof( msg ));
+	memset(&wrqu, 0, sizeof(wrqu));
+	memset(&wxmic, 0, sizeof(wxmic));
 
+	wxmic.flags = key_idx & IW_MICFAILURE_KEY_ID;
+	wxmic.flags |= (addr1[0] & 1) ?
+		IW_MICFAILURE_GROUP : IW_MICFAILURE_PAIRWISE;
+	wxmic.src_addr.sa_family = ARPHRD_ETHER;
+	memcpy(wxmic.src_addr.sa_data, addr2, ETH_ALEN);
 
-	/* Because MIC failures are not part of the Wireless Extensions yet, they
-	   must be passed as a string using an IWEVCUSTOM event. In order for the
-	   event to be effective, the string format must be known by both the
-	   driver and the supplicant. The following is the string format used by the
-	   hostap project's WPA supplicant, and will be used here until the Wireless
-	   Extensions interface adds this support:
-
-	   MLME-MICHAELMICFAILURE.indication(keyid=# broadcast/unicast addr=addr2)
-   */
-
-	/* NOTE: Format of MAC address (using colons to separate bytes) may cause
-			 a problem in future versions of the supplicant, if they ever
-			 actually parse these parameters */
-#if DBG
-	sprintf(msg, "MLME-MICHAELMICFAILURE.indication(keyid=%d %scast "
-			"addr=%pM)", key_idx, addr1[0] & 0x01 ? "broad" : "uni",
-			addr2);
-#endif
-	wrqu.data.length = strlen( msg );
-	wireless_send_event( dev, IWEVCUSTOM, &wrqu, msg );
+	wrqu.data.length = sizeof(wxmic);
+	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&wxmic);
 
 	return;
 } // wl_wext_event_mic_failed
@@ -3882,7 +3869,6 @@ void wl_wext_event_mic_failed( struct net_device *dev )
  ******************************************************************************/
 void wl_wext_event_assoc_ie( struct net_device *dev )
 {
-	char               msg[512];
 	union iwreq_data   wrqu;
 	struct wl_private *lp = wl_priv(dev);
 	int status;
@@ -3893,7 +3879,6 @@ void wl_wext_event_assoc_ie( struct net_device *dev )
 
 
 	memset( &wrqu, 0, sizeof( wrqu ));
-	memset( msg, 0, sizeof( msg ));
 
 	/* Retrieve the Association Request IE */
 	lp->ltvRecord.len = 45;
@@ -3906,21 +3891,16 @@ void wl_wext_event_assoc_ie( struct net_device *dev )
 		memcpy( &data.rawData, &( lp->ltvRecord.u.u8[1] ), 88 );
 		wpa_ie = wl_parse_wpa_ie( &data, &length );
 
-		/* Because this event (Association WPA-IE) is not part of the Wireless
-		Extensions yet, it must be passed as a string using an IWEVCUSTOM event.
-		In order for the event to be effective, the string format must be known
-		by both the driver and the supplicant. The following is the string format
-		used by the hostap project's WPA supplicant, and will be used here until
-		the Wireless Extensions interface adds this support:
-
-		ASSOCINFO(ReqIEs=WPA-IE RespIEs=WPA-IE)
-		*/
-
 		if( length != 0 )
 		{
-			sprintf( msg, "ASSOCINFO(ReqIEs=%s)", wl_print_wpa_ie( wpa_ie, length ));
-			wrqu.data.length = strlen( msg );
-			wireless_send_event( dev, IWEVCUSTOM, &wrqu, msg );
+			wrqu.data.length = wpa_ie[1] + 2;
+			wireless_send_event(dev, IWEVASSOCREQIE,
+					    &wrqu, wpa_ie);
+
+			/* This bit is a hack. We send the respie
+			 * event at the same time */
+			wireless_send_event(dev, IWEVASSOCRESPIE,
+					    &wrqu, wpa_ie);
 		}
 	}
 
