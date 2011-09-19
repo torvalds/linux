@@ -16,6 +16,7 @@
 #include "internal.h"
 
 static const struct regcache_ops *cache_types[] = {
+	&regcache_indexed_ops,
 };
 
 static int regcache_hw_init(struct regmap *map)
