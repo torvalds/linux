@@ -377,7 +377,7 @@ xfs_qm_dqalloc(
 		return (ESRCH);
 	}
 
-	xfs_trans_ijoin_ref(tp, quotip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
 	nmaps = 1;
 	error = xfs_bmapi_write(tp, quotip, offset_fsb,
 				XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,

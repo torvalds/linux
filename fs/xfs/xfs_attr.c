@@ -319,7 +319,7 @@ xfs_attr_set_int(
 		return (error);
 	}
 
-	xfs_trans_ijoin(args.trans, dp);
+	xfs_trans_ijoin(args.trans, dp, 0);
 
 	/*
 	 * If the attribute list is non-existent or a shortform list,
@@ -389,7 +389,7 @@ xfs_attr_set_int(
 		 * a new one.  We need the inode to be in all transactions.
 		 */
 		if (committed)
-			xfs_trans_ijoin(args.trans, dp);
+			xfs_trans_ijoin(args.trans, dp, 0);
 
 		/*
 		 * Commit the leaf transformation.  We'll need another (linked)
@@ -537,7 +537,7 @@ xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 	 * No need to make quota reservations here. We expect to release some
 	 * blocks not allocate in the common case.
 	 */
-	xfs_trans_ijoin(args.trans, dp);
+	xfs_trans_ijoin(args.trans, dp, 0);
 
 	/*
 	 * Decide on what work routines to call based on the inode size.
@@ -809,7 +809,7 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	 * No need to make quota reservations here. We expect to release some
 	 * blocks, not allocate, in the common case.
 	 */
-	xfs_trans_ijoin(trans, dp);
+	xfs_trans_ijoin(trans, dp, 0);
 
 	/*
 	 * Decide on what work routines to call based on the inode size.
@@ -961,7 +961,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		 * a new one.  We need the inode to be in all transactions.
 		 */
 		if (committed)
-			xfs_trans_ijoin(args->trans, dp);
+			xfs_trans_ijoin(args->trans, dp, 0);
 
 		/*
 		 * Commit the current trans (including the inode) and start
@@ -1063,7 +1063,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 			 * in all transactions.
 			 */
 			if (committed)
-				xfs_trans_ijoin(args->trans, dp);
+				xfs_trans_ijoin(args->trans, dp, 0);
 		} else
 			xfs_da_buf_done(bp);
 
@@ -1137,7 +1137,7 @@ xfs_attr_leaf_removename(xfs_da_args_t *args)
 		 * a new one.  We need the inode to be in all transactions.
 		 */
 		if (committed)
-			xfs_trans_ijoin(args->trans, dp);
+			xfs_trans_ijoin(args->trans, dp, 0);
 	} else
 		xfs_da_buf_done(bp);
 	return(0);
@@ -1291,7 +1291,7 @@ restart:
 			 * in all transactions.
 			 */
 			if (committed)
-				xfs_trans_ijoin(args->trans, dp);
+				xfs_trans_ijoin(args->trans, dp, 0);
 
 			/*
 			 * Commit the node conversion and start the next
@@ -1328,7 +1328,7 @@ restart:
 		 * a new one.  We need the inode to be in all transactions.
 		 */
 		if (committed)
-			xfs_trans_ijoin(args->trans, dp);
+			xfs_trans_ijoin(args->trans, dp, 0);
 	} else {
 		/*
 		 * Addition succeeded, update Btree hashvals.
@@ -1440,7 +1440,7 @@ restart:
 			 * in all transactions.
 			 */
 			if (committed)
-				xfs_trans_ijoin(args->trans, dp);
+				xfs_trans_ijoin(args->trans, dp, 0);
 		}
 
 		/*
@@ -1572,7 +1572,7 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 		 * a new one.  We need the inode to be in all transactions.
 		 */
 		if (committed)
-			xfs_trans_ijoin(args->trans, dp);
+			xfs_trans_ijoin(args->trans, dp, 0);
 
 		/*
 		 * Commit the Btree join operation and start a new trans.
@@ -1623,7 +1623,7 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 			 * in all transactions.
 			 */
 			if (committed)
-				xfs_trans_ijoin(args->trans, dp);
+				xfs_trans_ijoin(args->trans, dp, 0);
 		} else
 			xfs_da_brelse(args->trans, bp);
 	}
@@ -2060,7 +2060,7 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 		 * a new one.  We need the inode to be in all transactions.
 		 */
 		if (committed)
-			xfs_trans_ijoin(args->trans, dp);
+			xfs_trans_ijoin(args->trans, dp, 0);
 
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
@@ -2207,7 +2207,7 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 		 * a new one.  We need the inode to be in all transactions.
 		 */
 		if (committed)
-			xfs_trans_ijoin(args->trans, args->dp);
+			xfs_trans_ijoin(args->trans, args->dp, 0);
 
 		/*
 		 * Close out trans and start the next one in the chain.

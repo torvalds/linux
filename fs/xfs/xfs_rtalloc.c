@@ -112,7 +112,7 @@ xfs_growfs_rt_alloc(
 		 * Lock the inode.
 		 */
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_trans_ijoin_ref(tp, ip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
 		xfs_bmap_init(&flist, &firstblock);
 		/*
@@ -155,7 +155,7 @@ xfs_growfs_rt_alloc(
 			 * Lock the bitmap inode.
 			 */
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
-			xfs_trans_ijoin_ref(tp, ip, XFS_ILOCK_EXCL);
+			xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 			/*
 			 * Get a buffer for the block.
 			 */
@@ -1960,7 +1960,7 @@ xfs_growfs_rt(
 		 * Lock out other callers by grabbing the bitmap inode lock.
 		 */
 		xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL);
-		xfs_trans_ijoin_ref(tp, mp->m_rbmip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, mp->m_rbmip, XFS_ILOCK_EXCL);
 		/*
 		 * Update the bitmap inode's size.
 		 */
@@ -1972,7 +1972,7 @@ xfs_growfs_rt(
 		 * Get the summary inode into the transaction.
 		 */
 		xfs_ilock(mp->m_rsumip, XFS_ILOCK_EXCL);
-		xfs_trans_ijoin_ref(tp, mp->m_rsumip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, mp->m_rsumip, XFS_ILOCK_EXCL);
 		/*
 		 * Update the summary inode's size.
 		 */
@@ -2143,7 +2143,7 @@ xfs_rtfree_extent(
 	 * Synchronize by locking the bitmap inode.
 	 */
 	xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin_ref(tp, mp->m_rbmip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, mp->m_rbmip, XFS_ILOCK_EXCL);
 
 #if defined(__KERNEL__) && defined(DEBUG)
 	/*
