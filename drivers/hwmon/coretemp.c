@@ -601,7 +601,12 @@ static int create_core_data(struct platform_data *pdata,
 	err = rdmsr_safe_on_cpu(cpu, tdata->intrpt_reg, &eax, &edx);
 	if (!err) {
 		tdata->attr_size += MAX_THRESH_ATTRS;
-		tdata->ttarget = tdata->tjmax - ((eax >> 16) & 0x7f) * 1000;
+		tdata->tmin = tdata->tjmax -
+			      ((eax & THERM_MASK_THRESHOLD0) >>
+			       THERM_SHIFT_THRESHOLD0) * 1000;
+		tdata->ttarget = tdata->tjmax -
+				 ((eax & THERM_MASK_THRESHOLD1) >>
+				  THERM_SHIFT_THRESHOLD1) * 1000;
 	}
 
 	pdata->core_data[attr_no] = tdata;

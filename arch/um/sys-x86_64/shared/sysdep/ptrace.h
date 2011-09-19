@@ -85,6 +85,7 @@
 
 struct uml_pt_regs {
 	unsigned long gp[MAX_REG_NR];
+	unsigned long fp[HOST_FP_SIZE];
 	struct faultinfo faultinfo;
 	long syscall;
 	int is_user;
