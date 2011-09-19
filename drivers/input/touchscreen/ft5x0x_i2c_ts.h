@@ -80,12 +80,6 @@ typedef enum
     u8        touch_point;
 };
 
-struct FTS_TS_DATA_T {
-    struct input_dev    *input_dev;
-    struct FTS_TS_EVENT_T        event;
-    struct work_struct     pen_event_work;
-    struct workqueue_struct *ts_workqueue;
-};
 
 
 

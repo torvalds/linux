@@ -608,7 +608,10 @@ int laibao_init_platform_hw(void)
 struct laibao_platform_data laibao_info = {
   .model= 1003,
   .init_platform_hw= laibao_init_platform_hw,
-
+  .lcd_disp_on_pin = RK29_PIN6_PD0,
+  .disp_on_value = GPIO_HIGH,
+  .lcd_cs_pin = RK29_PIN6_PD1,
+  .lcd_cs_value = GPIO_HIGH,
 };
 #endif
 
@@ -1364,7 +1367,7 @@ static int rk29_backlight_pwm_suspend(void)
 		return -1;
 	}
 	gpio_direction_output(PWM_GPIO, GPIO_LOW);
-   #ifdef  LCD_DISP_ON_PIN
+   #if 0//def  LCD_DISP_ON_PIN
     gpio_direction_output(BL_EN_PIN, 0);
     gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
    #endif
@@ -1376,7 +1379,7 @@ static int rk29_backlight_pwm_resume(void)
 	gpio_free(PWM_GPIO);
 	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 
-    #ifdef  LCD_DISP_ON_PIN
+    #if 0//def  LCD_DISP_ON_PIN
     msleep(30);
     gpio_direction_output(BL_EN_PIN, 1);
     gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
