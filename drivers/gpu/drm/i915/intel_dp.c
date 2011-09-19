@@ -64,6 +64,7 @@ struct intel_dp {
 	int panel_power_cycle_delay;
 	int backlight_on_delay;
 	int backlight_off_delay;
+	struct drm_display_mode *panel_fixed_mode;  /* for eDP */
 };
 
 /**
@@ -205,16 +206,14 @@ intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
 	int max_lanes = intel_dp_max_lane_count(intel_dp);
 
-	if (is_edp(intel_dp) && dev_priv->panel_fixed_mode) {
-		if (mode->hdisplay > dev_priv->panel_fixed_mode->hdisplay)
+	if (is_edp(intel_dp) && intel_dp->panel_fixed_mode) {
+		if (mode->hdisplay > intel_dp->panel_fixed_mode->hdisplay)
 			return MODE_PANEL;
 
-		if (mode->vdisplay > dev_priv->panel_fixed_mode->vdisplay)
+		if (mode->vdisplay > intel_dp->panel_fixed_mode->vdisplay)
 			return MODE_PANEL;
 	}
 
@@ -633,22 +632,21 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	int lane_count, clock;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
 	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
 
-	if (is_edp(intel_dp) && dev_priv->panel_fixed_mode) {
-		intel_fixed_panel_mode(dev_priv->panel_fixed_mode, adjusted_mode);
+	if (is_edp(intel_dp) && intel_dp->panel_fixed_mode) {
+		intel_fixed_panel_mode(intel_dp->panel_fixed_mode, adjusted_mode);
 		intel_pch_panel_fitting(dev, DRM_MODE_SCALE_FULLSCREEN,
 					mode, adjusted_mode);
 		/*
 		 * the mode->clock is used to calculate the Data&Link M/N
 		 * of the pipe. For the eDP the fixed clock should be used.
 		 */
-		mode->clock = dev_priv->panel_fixed_mode->clock;
+		mode->clock = intel_dp->panel_fixed_mode->clock;
 	}
 
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
@@ -1841,35 +1839,34 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 
 	ret = intel_dp_get_edid_modes(connector, &intel_dp->adapter);
 	if (ret) {
-		if (is_edp(intel_dp) && !dev_priv->panel_fixed_mode) {
+		if (is_edp(intel_dp) && !intel_dp->panel_fixed_mode) {
 			struct drm_display_mode *newmode;
 			list_for_each_entry(newmode, &connector->probed_modes,
 					    head) {
-				if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
-					dev_priv->panel_fixed_mode =
+				if ((newmode->type & DRM_MODE_TYPE_PREFERRED)) {
+					intel_dp->panel_fixed_mode =
 						drm_mode_duplicate(dev, newmode);
 					break;
 				}
 			}
 		}
-
 		return ret;
 	}
 
 	/* if eDP has no EDID, try to use fixed panel mode from VBT */
 	if (is_edp(intel_dp)) {
 		/* initialize panel mode from VBT if available for eDP */
-		if (dev_priv->panel_fixed_mode == NULL && dev_priv->lfp_lvds_vbt_mode != NULL) {
-			dev_priv->panel_fixed_mode =
+		if (intel_dp->panel_fixed_mode == NULL && dev_priv->lfp_lvds_vbt_mode != NULL) {
+			intel_dp->panel_fixed_mode =
 				drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
-			if (dev_priv->panel_fixed_mode) {
-				dev_priv->panel_fixed_mode->type |=
+			if (intel_dp->panel_fixed_mode) {
+				intel_dp->panel_fixed_mode->type |=
 					DRM_MODE_TYPE_PREFERRED;
 			}
 		}
-		if (dev_priv->panel_fixed_mode) {
+		if (intel_dp->panel_fixed_mode) {
 			struct drm_display_mode *mode;
-			mode = drm_mode_duplicate(dev, dev_priv->panel_fixed_mode);
+			mode = drm_mode_duplicate(dev, intel_dp->panel_fixed_mode);
 			drm_mode_probed_add(connector, mode);
 			return 1;
 		}
