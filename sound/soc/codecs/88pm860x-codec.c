@@ -1179,6 +1179,9 @@ static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Enable Audio PLL & Audio section */
+			data = AUDIO_PLL | AUDIO_SECTION_ON;
+			pm860x_reg_write(codec->control_data, REG_MISC2, data);
+			udelay(300);
 			data = AUDIO_PLL | AUDIO_SECTION_RESET
 				| AUDIO_SECTION_ON;
 			pm860x_reg_write(codec->control_data, REG_MISC2, data);
