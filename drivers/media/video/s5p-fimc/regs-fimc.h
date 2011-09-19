@@ -61,6 +61,7 @@
 #define S5P_CIGCTRL_CSC_ITU601_709	(1 << 5)
 #define S5P_CIGCTRL_INVPOLHSYNC		(1 << 4)
 #define S5P_CIGCTRL_SELCAM_MIPI		(1 << 3)
+#define S5P_CIGCTRL_INVPOLFIELD		(1 << 1)
 #define S5P_CIGCTRL_INTERLACE		(1 << 0)
 
 /* Window offset 2 */
