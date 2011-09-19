@@ -36,7 +36,7 @@
 
 static int fsl_pcie_bus_fixup, is_mpc83xx_pci;
 
-static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
+static void __devinit quirk_fsl_pcie_header(struct pci_dev *dev)
 {
 	u8 progif;
 
