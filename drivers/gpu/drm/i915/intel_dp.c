@@ -840,6 +840,8 @@ static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 		msleep(dev_priv->panel_t3);
 
 	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~PANEL_UNLOCK_MASK;
+	pp |= PANEL_UNLOCK_REGS;
 	pp |= EDP_FORCE_VDD;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
@@ -852,6 +854,8 @@ static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp)
 	u32 pp;
 
 	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~PANEL_UNLOCK_MASK;
+	pp |= PANEL_UNLOCK_REGS;
 	pp &= ~EDP_FORCE_VDD;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
@@ -871,13 +875,15 @@ static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 		return true;
 
 	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~PANEL_UNLOCK_MASK;
+	pp |= PANEL_UNLOCK_REGS;
 
 	/* ILK workaround: disable reset around power sequence */
 	pp &= ~PANEL_POWER_RESET;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
 
-	pp |= PANEL_UNLOCK_REGS | POWER_TARGET_ON;
+	pp |= POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
 
@@ -900,6 +906,8 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 		PP_CYCLE_DELAY_ACTIVE | PP_SEQUENCE_STATE_MASK;
 
 	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~PANEL_UNLOCK_MASK;
+	pp |= PANEL_UNLOCK_REGS;
 
 	/* ILK workaround: disable reset around power sequence */
 	pp &= ~PANEL_POWER_RESET;
@@ -933,6 +941,8 @@ static void ironlake_edp_backlight_on (struct drm_device *dev)
 	 */
 	msleep(300);
 	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~PANEL_UNLOCK_MASK;
+	pp |= PANEL_UNLOCK_REGS;
 	pp |= EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 }
@@ -944,6 +954,8 @@ static void ironlake_edp_backlight_off (struct drm_device *dev)
 
 	DRM_DEBUG_KMS("\n");
 	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~PANEL_UNLOCK_MASK;
+	pp |= PANEL_UNLOCK_REGS;
 	pp &= ~EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 }
