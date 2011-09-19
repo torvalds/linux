@@ -2159,38 +2159,26 @@ static int configure_1394a_enhancements(struct fw_ohci *ohci)
 	return 0;
 }
 
-#define TSB41BA3D_VID 0x00080028
-#define TSB41BA3D_PID 0x00833005
-
 static int probe_tsb41ba3d(struct fw_ohci *ohci)
 {
-	int reg, i, vendor_id, product_id;
+	/* TI vendor ID = 0x080028, TSB41BA3D product ID = 0x833005 (sic) */
+	static const u8 id[] = { 0x08, 0x00, 0x28, 0x83, 0x30, 0x05, };
+	int reg, i;
 
 	reg = read_phy_reg(ohci, 2);
 	if (reg < 0)
 		return reg;
+	if ((reg & PHY_EXTENDED_REGISTERS) != PHY_EXTENDED_REGISTERS)
+		return 0;
 
-	if ((reg & PHY_EXTENDED_REGISTERS) == PHY_EXTENDED_REGISTERS) {
-		vendor_id = 0;
-		for (i = 10; i < 13; i++) {
-			reg = read_paged_phy_reg(ohci, 1, i);
-			if (reg < 0)
-				return reg;
-			vendor_id = (vendor_id << 8) | reg;
-		}
-		product_id = 0;
-		for (i = 13; i < 16; i++) {
-			reg = read_paged_phy_reg(ohci, 1, i);
-			if (reg < 0)
-				return reg;
-			product_id = (product_id << 8) | reg;
-		}
-
-		if ((vendor_id == TSB41BA3D_VID) &&
-		    (product_id == TSB41BA3D_PID))
-			return 1;
+	for (i = ARRAY_SIZE(id) - 1; i >= 0; i--) {
+		reg = read_paged_phy_reg(ohci, 1, i + 10);
+		if (reg < 0)
+			return reg;
+		if (reg != id[i])
+			return 0;
 	}
-	return 0;
+	return 1;
 }
 
 static int ohci_enable(struct fw_card *card,
