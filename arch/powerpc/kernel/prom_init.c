@@ -1449,6 +1449,10 @@ static void prom_opal_takeover(void)
 		opal_addr = top_addr;
 	args->hal_addr = opal_addr;
 
+	/* Copy the command line to the kernel image */
+	strlcpy(RELOC(boot_command_line), RELOC(prom_cmd_line),
+		COMMAND_LINE_SIZE);
+
 	prom_debug("  k_image    = 0x%lx\n", args->k_image);
 	prom_debug("  k_size     = 0x%lx\n", args->k_size);
 	prom_debug("  k_entry    = 0x%lx\n", args->k_entry);
