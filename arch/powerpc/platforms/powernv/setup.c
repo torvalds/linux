@@ -83,19 +83,39 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 	of_node_put(root);
 }
 
-static void pnv_restart(char *cmd)
+static void  __noreturn pnv_restart(char *cmd)
 {
-	for (;;);
+	long rc = OPAL_BUSY;
+
+	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+		rc = opal_cec_reboot();
+		if (rc == OPAL_BUSY_EVENT)
+			opal_poll_events(NULL);
+		else
+			mdelay(10);
+	}
+	for (;;)
+		opal_poll_events(NULL);
 }
 
-static void pnv_power_off(void)
+static void __noreturn pnv_power_off(void)
 {
-	for (;;);
+	long rc = OPAL_BUSY;
+
+	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+		rc = opal_cec_power_down(0);
+		if (rc == OPAL_BUSY_EVENT)
+			opal_poll_events(NULL);
+		else
+			mdelay(10);
+	}
+	for (;;)
+		opal_poll_events(NULL);
 }
 
-static void pnv_halt(void)
+static void __noreturn pnv_halt(void)
 {
-	for (;;);
+	pnv_power_off();
 }
 
 static unsigned long __init pnv_get_boot_time(void)
