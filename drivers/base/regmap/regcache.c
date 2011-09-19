@@ -240,6 +240,24 @@ int regcache_sync(struct regmap *map)
 }
 EXPORT_SYMBOL_GPL(regcache_sync);
 
+/**
+ * regcache_cache_only: Put a register map into cache only mode
+ *
+ * @map: map to configure
+ * @cache_only: flag if changes should be written to the hardware
+ *
+ * When a register map is marked as cache only writes to the register
+ * map API will only update the register cache, they will not cause
+ * any hardware changes.  This is useful for allowing portions of
+ * drivers to act as though the device were functioning as normal when
+ * it is disabled for power saving reasons.
+ */
+void regcache_cache_only(struct regmap *map, bool enable)
+{
+	map->cache_only = enable;
+}
+EXPORT_SYMBOL_GPL(regcache_cache_only);
+
 bool regcache_set_val(void *base, unsigned int idx,
 		      unsigned int val, unsigned int word_size)
 {
