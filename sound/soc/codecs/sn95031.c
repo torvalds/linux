@@ -658,7 +658,7 @@ static int sn95031_pcm_spkr_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-int sn95031_pcm_hw_params(struct snd_pcm_substream *substream,
+static int sn95031_pcm_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
 	unsigned int format, rate;
