@@ -146,6 +146,13 @@ struct regmap *regmap_init(struct device *dev,
 	map->readable_reg = config->readable_reg;
 	map->volatile_reg = config->volatile_reg;
 	map->precious_reg = config->precious_reg;
+	map->cache_type = config->cache_type;
+	map->reg_defaults = config->reg_defaults;
+	map->num_reg_defaults = config->num_reg_defaults;
+	map->num_reg_defaults_raw = config->num_reg_defaults_raw;
+	map->reg_defaults_raw = config->reg_defaults_raw;
+	map->cache_size_raw = (config->val_bits / 8) * config->num_reg_defaults_raw;
+	map->cache_word_size = config->val_bits / 8;
 
 	if (config->read_flag_mask || config->write_flag_mask) {
 		map->read_flag_mask = config->read_flag_mask;
@@ -208,6 +215,10 @@ struct regmap *regmap_init(struct device *dev,
 		goto err_map;
 	}
 
+	ret = regcache_init(map);
+	if (ret < 0)
+		goto err_map;
+
 	regmap_debugfs_init(map);
 
 	return map;
@@ -224,6 +235,7 @@ EXPORT_SYMBOL_GPL(regmap_init);
  */
 void regmap_exit(struct regmap *map)
 {
+	regcache_exit(map);
 	regmap_debugfs_exit(map);
 	kfree(map->work_buf);
 	kfree(map);
@@ -289,6 +301,14 @@ static int _regmap_write(struct regmap *map, unsigned int reg,
 {
 	int ret;
 	BUG_ON(!map->format.format_write && !map->format.format_val);
+
+	if (!map->cache_bypass) {
+		ret = regcache_write(map, reg, val);
+		if (ret != 0)
+			return ret;
+		if (map->cache_only)
+			return 0;
+	}
 
 	trace_regmap_reg_write(map->dev, reg, val);
 
@@ -403,6 +423,15 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 	if (!map->format.parse_val)
 		return -EINVAL;
 
+	if (!map->cache_bypass) {
+		ret = regcache_read(map, reg, val);
+		if (ret == 0)
+			return 0;
+	}
+
+	if (map->cache_only)
+		return -EBUSY;
+
 	ret = _regmap_raw_read(map, reg, map->work_buf, map->format.val_bytes);
 	if (ret == 0) {
 		*val = map->format.parse_val(map->work_buf);
@@ -478,6 +507,8 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 {
 	int ret, i;
 	size_t val_bytes = map->format.val_bytes;
+
+	WARN_ON(map->cache_type != REGCACHE_NONE);
 
 	if (!map->format.parse_val)
 		return -EINVAL;
