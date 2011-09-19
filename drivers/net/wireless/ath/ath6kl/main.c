@@ -1011,8 +1011,10 @@ void ath6kl_scan_complete_evt(struct ath6kl *ar, int status)
 {
 	ath6kl_cfg80211_scan_complete_event(ar, status);
 
-	if (!ar->usr_bss_filter)
+	if (!ar->usr_bss_filter) {
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
 		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+	}
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_SCAN, "scan complete: %d\n", status);
 }
@@ -1056,8 +1058,10 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 		ar->next_ep_id = ENDPOINT_2;
 	}
 
-	if (!ar->usr_bss_filter)
-		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+	if (!ar->usr_bss_filter) {
+		set_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+		ath6kl_wmi_bssfilter_cmd(ar->wmi, CURRENT_BSS_FILTER, 0);
+	}
 }
 
 void ath6kl_tkip_micerr_event(struct ath6kl *ar, u8 keyid, bool ismcast)

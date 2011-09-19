@@ -917,6 +917,12 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 	    bih->frame_type != PROBERESP_FTYPE)
 		return 0; /* Only update BSS table for now */
 
+	if (bih->frame_type == BEACON_FTYPE &&
+	    test_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag)) {
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+	}
+
 	channel = ieee80211_get_channel(ar->wdev->wiphy, le16_to_cpu(bih->ch));
 	if (channel == NULL)
 		return -EINVAL;

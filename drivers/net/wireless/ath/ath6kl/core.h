@@ -394,6 +394,7 @@ struct ath6kl_req_key {
 #define SKIP_SCAN	     11
 #define WLAN_ENABLED	     12
 #define TESTMODE	     13
+#define CLEAR_BSSFILTER_ON_BEACON 14
 
 struct ath6kl {
 	struct device *dev;
