@@ -1986,6 +1986,7 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 		/* Clear SK and CS */
 		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
 		ew32(EECD, eecd);
+		e1e_flush();
 		udelay(1);
 
 		/*

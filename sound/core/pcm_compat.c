@@ -342,7 +342,7 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 			kfree(bufs);
 			return -EFAULT;
 		}
-		bufs[ch] = compat_ptr(ptr);
+		bufs[i] = compat_ptr(ptr);
 		bufptr++;
 	}
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK)

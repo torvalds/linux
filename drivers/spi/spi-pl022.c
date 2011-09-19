@@ -2267,17 +2267,13 @@ static int __devexit
 pl022_remove(struct amba_device *adev)
 {
 	struct pl022 *pl022 = amba_get_drvdata(adev);
-	int status = 0;
+
 	if (!pl022)
 		return 0;
 
 	/* Remove the queue */
-	status = destroy_queue(pl022);
-	if (status != 0) {
-		dev_err(&adev->dev,
-			"queue remove failed (%d)\n", status);
-		return status;
-	}
+	if (destroy_queue(pl022) != 0)
+		dev_err(&adev->dev, "queue remove failed\n");
 	load_ssp_default_config(pl022);
 	pl022_dma_remove(pl022);
 	free_irq(adev->irq[0], pl022);
@@ -2289,7 +2285,6 @@ pl022_remove(struct amba_device *adev)
 	spi_unregister_master(pl022->master);
 	spi_master_put(pl022->master);
 	amba_set_drvdata(adev, NULL);
-	dev_dbg(&adev->dev, "remove succeeded\n");
 	return 0;
 }
 

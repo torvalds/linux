@@ -147,8 +147,6 @@ static struct clk *sh4202_onchip_clocks[] = {
 	&sh4202_shoc_clk,
 };
 
-#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
-
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("emi_clk", &sh4202_emi_clk),

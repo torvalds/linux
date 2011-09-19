@@ -204,9 +204,15 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
+	rcu_read_lock();
 	neigh = dst_get_neighbour(dst);
-	if (neigh)
-		return neigh_output(neigh, skb);
+	if (neigh) {
+		int res = neigh_output(neigh, skb);
+
+		rcu_read_unlock();
+		return res;
+	}
+	rcu_read_unlock();
 
 	if (net_ratelimit())
 		printk(KERN_DEBUG "ip_finish_output2: No header cache and no neighbour!\n");

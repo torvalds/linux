@@ -16,55 +16,91 @@
 	 */
 
 NGcopy_user_page:	/* %o0=dest, %o1=src, %o2=vaddr */
-	prefetch	[%o1 + 0x00], #one_read
-	mov		8, %g1
-	mov		16, %g2
-	mov		24, %g3
+	save		%sp, -192, %sp
+	rd		%asi, %g3
+	wr		%g0, ASI_BLK_INIT_QUAD_LDD_P, %asi
 	set		PAGE_SIZE, %g7
+	prefetch	[%i1 + 0x00], #one_read
+	prefetch	[%i1 + 0x40], #one_read
 
-1:	ldda		[%o1 + %g0] ASI_BLK_INIT_QUAD_LDD_P, %o2
-	ldda		[%o1 + %g2] ASI_BLK_INIT_QUAD_LDD_P, %o4
-	prefetch	[%o1 + 0x40], #one_read
-	add		%o1, 32, %o1
-	stxa		%o2, [%o0 + %g0] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%o3, [%o0 + %g1] ASI_BLK_INIT_QUAD_LDD_P
-	ldda		[%o1 + %g0] ASI_BLK_INIT_QUAD_LDD_P, %o2
-	stxa		%o4, [%o0 + %g2] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%o5, [%o0 + %g3] ASI_BLK_INIT_QUAD_LDD_P
-	ldda		[%o1 + %g2] ASI_BLK_INIT_QUAD_LDD_P, %o4
-	add		%o1, 32, %o1
-	add		%o0, 32, %o0
-	stxa		%o2, [%o0 + %g0] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%o3, [%o0 + %g1] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%o4, [%o0 + %g2] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%o5, [%o0 + %g3] ASI_BLK_INIT_QUAD_LDD_P
-	subcc		%g7, 64, %g7
+1:	prefetch	[%i1 + 0x80], #one_read
+	prefetch	[%i1 + 0xc0], #one_read
+	ldda		[%i1 + 0x00] %asi, %o2
+	ldda		[%i1 + 0x10] %asi, %o4
+	ldda		[%i1 + 0x20] %asi, %l2
+	ldda		[%i1 + 0x30] %asi, %l4
+	stxa		%o2, [%i0 + 0x00] %asi
+	stxa		%o3, [%i0 + 0x08] %asi
+	stxa		%o4, [%i0 + 0x10] %asi
+	stxa		%o5, [%i0 + 0x18] %asi
+	stxa		%l2, [%i0 + 0x20] %asi
+	stxa		%l3, [%i0 + 0x28] %asi
+	stxa		%l4, [%i0 + 0x30] %asi
+	stxa		%l5, [%i0 + 0x38] %asi
+	ldda		[%i1 + 0x40] %asi, %o2
+	ldda		[%i1 + 0x50] %asi, %o4
+	ldda		[%i1 + 0x60] %asi, %l2
+	ldda		[%i1 + 0x70] %asi, %l4
+	stxa		%o2, [%i0 + 0x40] %asi
+	stxa		%o3, [%i0 + 0x48] %asi
+	stxa		%o4, [%i0 + 0x50] %asi
+	stxa		%o5, [%i0 + 0x58] %asi
+	stxa		%l2, [%i0 + 0x60] %asi
+	stxa		%l3, [%i0 + 0x68] %asi
+	stxa		%l4, [%i0 + 0x70] %asi
+	stxa		%l5, [%i0 + 0x78] %asi
+	add		%i1, 128, %i1
+	subcc		%g7, 128, %g7
 	bne,pt		%xcc, 1b
-	 add		%o0, 32, %o0
+	 add		%i0, 128, %i0
+	wr		%g3, 0x0, %asi
 	membar		#Sync
-	retl
-	 nop
+	ret
+	 restore
 
-	.globl		NGclear_page, NGclear_user_page
+	.align		32
 NGclear_page:		/* %o0=dest */
 NGclear_user_page:	/* %o0=dest, %o1=vaddr */
-	mov		8, %g1
-	mov		16, %g2
-	mov		24, %g3
+	rd		%asi, %g3
+	wr		%g0, ASI_BLK_INIT_QUAD_LDD_P, %asi
 	set		PAGE_SIZE, %g7
 
-1:	stxa		%g0, [%o0 + %g0] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%g0, [%o0 + %g1] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%g0, [%o0 + %g2] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%g0, [%o0 + %g3] ASI_BLK_INIT_QUAD_LDD_P
-	add		%o0, 32, %o0
-	stxa		%g0, [%o0 + %g0] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%g0, [%o0 + %g1] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%g0, [%o0 + %g2] ASI_BLK_INIT_QUAD_LDD_P
-	stxa		%g0, [%o0 + %g3] ASI_BLK_INIT_QUAD_LDD_P
-	subcc		%g7, 64, %g7
+1:	stxa		%g0, [%o0 + 0x00] %asi
+	stxa		%g0, [%o0 + 0x08] %asi
+	stxa		%g0, [%o0 + 0x10] %asi
+	stxa		%g0, [%o0 + 0x18] %asi
+	stxa		%g0, [%o0 + 0x20] %asi
+	stxa		%g0, [%o0 + 0x28] %asi
+	stxa		%g0, [%o0 + 0x30] %asi
+	stxa		%g0, [%o0 + 0x38] %asi
+	stxa		%g0, [%o0 + 0x40] %asi
+	stxa		%g0, [%o0 + 0x48] %asi
+	stxa		%g0, [%o0 + 0x50] %asi
+	stxa		%g0, [%o0 + 0x58] %asi
+	stxa		%g0, [%o0 + 0x60] %asi
+	stxa		%g0, [%o0 + 0x68] %asi
+	stxa		%g0, [%o0 + 0x70] %asi
+	stxa		%g0, [%o0 + 0x78] %asi
+	stxa		%g0, [%o0 + 0x80] %asi
+	stxa		%g0, [%o0 + 0x88] %asi
+	stxa		%g0, [%o0 + 0x90] %asi
+	stxa		%g0, [%o0 + 0x98] %asi
+	stxa		%g0, [%o0 + 0xa0] %asi
+	stxa		%g0, [%o0 + 0xa8] %asi
+	stxa		%g0, [%o0 + 0xb0] %asi
+	stxa		%g0, [%o0 + 0xb8] %asi
+	stxa		%g0, [%o0 + 0xc0] %asi
+	stxa		%g0, [%o0 + 0xc8] %asi
+	stxa		%g0, [%o0 + 0xd0] %asi
+	stxa		%g0, [%o0 + 0xd8] %asi
+	stxa		%g0, [%o0 + 0xe0] %asi
+	stxa		%g0, [%o0 + 0xe8] %asi
+	stxa		%g0, [%o0 + 0xf0] %asi
+	stxa		%g0, [%o0 + 0xf8] %asi
+	subcc		%g7, 256, %g7
 	bne,pt		%xcc, 1b
-	 add		%o0, 32, %o0
+	 add		%o0, 256, %o0
+	wr		%g3, 0x0, %asi
 	membar		#Sync
 	retl
 	 nop

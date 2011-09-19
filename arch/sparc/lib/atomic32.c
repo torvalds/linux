@@ -65,7 +65,7 @@ int __atomic_add_unless(atomic_t *v, int a, int u)
 	if (ret != u)
 		v->counter += a;
 	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
-	return ret != u;
+	return ret;
 }
 EXPORT_SYMBOL(__atomic_add_unless);
 

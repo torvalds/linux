@@ -181,7 +181,7 @@ struct se_tpg_np *lio_target_call_addnptotpg(
 		return ERR_PTR(-EOVERFLOW);
 	}
 	memset(buf, 0, MAX_PORTAL_LEN + 1);
-	snprintf(buf, MAX_PORTAL_LEN, "%s", name);
+	snprintf(buf, MAX_PORTAL_LEN + 1, "%s", name);
 
 	memset(&sockaddr, 0, sizeof(struct __kernel_sockaddr_storage));
 

@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/input-polldev.h>
+#include <linux/of_device.h>
 
 #define MMA8450_DRV_NAME	"mma8450"
 
@@ -229,10 +230,17 @@ static const struct i2c_device_id mma8450_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mma8450_id);
 
+static const struct of_device_id mma8450_dt_ids[] = {
+	{ .compatible = "fsl,mma8450", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(i2c, mma8450_dt_ids);
+
 static struct i2c_driver mma8450_driver = {
 	.driver = {
 		.name	= MMA8450_DRV_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = mma8450_dt_ids,
 	},
 	.probe		= mma8450_probe,
 	.remove		= __devexit_p(mma8450_remove),

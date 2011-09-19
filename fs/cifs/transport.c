@@ -362,6 +362,8 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	mid = AllocMidQEntry(hdr, server);
 	if (mid == NULL) {
 		mutex_unlock(&server->srv_mutex);
+		atomic_dec(&server->inFlight);
+		wake_up(&server->request_q);
 		return -ENOMEM;
 	}
 

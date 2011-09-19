@@ -1,4 +1,5 @@
 #include <linux/ftrace.h>
+#include <xen/interface/xen.h>
 
 #define N(x)	[__HYPERVISOR_##x] = "("#x")"
 static const char *xen_hypercall_names[] = {

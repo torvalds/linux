@@ -206,7 +206,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	int err = 0;
 	gid_t gid;
 	int flags;
-	mode_t mode;
+	umode_t mode;
 	char *name = NULL;
 	struct file *filp;
 	struct p9_qid qid;
@@ -348,7 +348,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	struct p9_fid *fid = NULL, *dfid = NULL;
 	gid_t gid;
 	char *name;
-	mode_t mode;
+	umode_t mode;
 	struct inode *inode;
 	struct p9_qid qid;
 	struct dentry *dir_dentry;
@@ -751,7 +751,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	int err;
 	gid_t gid;
 	char *name;
-	mode_t mode;
+	umode_t mode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid = NULL, *dfid = NULL;
 	struct inode *inode;

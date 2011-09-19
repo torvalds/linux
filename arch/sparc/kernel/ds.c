@@ -15,11 +15,14 @@
 #include <linux/reboot.h>
 #include <linux/cpu.h>
 
+#include <asm/hypervisor.h>
 #include <asm/ldc.h>
 #include <asm/vio.h>
 #include <asm/mdesc.h>
 #include <asm/head.h>
 #include <asm/irq.h>
+
+#include "kernel.h"
 
 #define DRV_MODULE_NAME		"ds"
 #define PFX DRV_MODULE_NAME	": "
@@ -828,18 +831,32 @@ void ldom_set_var(const char *var, const char *value)
 	}
 }
 
+static char full_boot_str[256] __attribute__((aligned(32)));
+static int reboot_data_supported;
+
 void ldom_reboot(const char *boot_command)
 {
 	/* Don't bother with any of this if the boot_command
 	 * is empty.
 	 */
 	if (boot_command && strlen(boot_command)) {
-		char full_boot_str[256];
+		unsigned long len;
 
 		strcpy(full_boot_str, "boot ");
 		strcpy(full_boot_str + strlen("boot "), boot_command);
+		len = strlen(full_boot_str);
 
-		ldom_set_var("reboot-command", full_boot_str);
+		if (reboot_data_supported) {
+			unsigned long ra = kimage_addr_to_ra(full_boot_str);
+			unsigned long hv_ret;
+
+			hv_ret = sun4v_reboot_data_set(ra, len);
+			if (hv_ret != HV_EOK)
+				pr_err("SUN4V: Unable to set reboot data "
+				       "hv_ret=%lu\n", hv_ret);
+		} else {
+			ldom_set_var("reboot-command", full_boot_str);
+		}
 	}
 	sun4v_mach_sir();
 }
@@ -1237,6 +1254,15 @@ static struct vio_driver ds_driver = {
 
 static int __init ds_init(void)
 {
+	unsigned long hv_ret, major, minor;
+
+	hv_ret = sun4v_get_version(HV_GRP_REBOOT_DATA, &major, &minor);
+	if (hv_ret == HV_EOK) {
+		pr_info("SUN4V: Reboot data supported (maj=%lu,min=%lu).\n",
+			major, minor);
+		reboot_data_supported = 1;
+	}
+
 	kthread_run(ds_thread, NULL, "kldomd");
 
 	return vio_register_driver(&ds_driver);

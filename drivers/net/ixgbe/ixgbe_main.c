@@ -184,6 +184,7 @@ static inline void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	vmdctl = IXGBE_READ_REG(hw, IXGBE_VT_CTL);
 	vmdctl &= ~IXGBE_VT_CTL_POOL_MASK;
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl);
+	IXGBE_WRITE_FLUSH(hw);
 
 	/* take a breather then clean up driver data */
 	msleep(100);
@@ -1005,7 +1006,7 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 	struct ixgbe_adapter *adapter = dev_get_drvdata(dev);
 	unsigned long event = *(unsigned long *)data;
 
-	if (!(adapter->flags & IXGBE_FLAG_DCA_ENABLED))
+	if (!(adapter->flags & IXGBE_FLAG_DCA_CAPABLE))
 		return 0;
 
 	switch (event) {

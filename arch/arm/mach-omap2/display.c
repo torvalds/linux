@@ -25,6 +25,7 @@
 #include <video/omapdss.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
+#include <plat/omap-pm.h>
 
 static struct platform_device omap_display_device = {
 	.name          = "omapdss",
@@ -41,20 +42,6 @@ static struct omap_device_pm_latency omap_dss_latency[] = {
 		.flags			= OMAP_DEVICE_LATENCY_AUTO_ADJUST,
 	},
 };
-
-/* oh_core is used for getting opt-clocks */
-static struct omap_hwmod	*oh_core;
-
-static bool opt_clock_available(const char *clk_role)
-{
-	int i;
-
-	for (i = 0; i < oh_core->opt_clks_cnt; i++) {
-		if (!strcmp(oh_core->opt_clks[i].role, clk_role))
-			return true;
-	}
-	return false;
-}
 
 struct omap_dss_hwmod_data {
 	const char *oh_name;
@@ -109,16 +96,9 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 		oh_count = ARRAY_SIZE(omap4_dss_hwmod_data);
 	}
 
-	/* opt_clks are always associated with dss hwmod */
-	oh_core = omap_hwmod_lookup("dss_core");
-	if (!oh_core) {
-		pr_err("Could not look up dss_core.\n");
-		return -ENODEV;
-	}
-
 	pdata.board_data = board_data;
-	pdata.board_data->get_last_off_on_transaction_id = NULL;
-	pdata.opt_clock_available = opt_clock_available;
+	pdata.board_data->get_context_loss_count =
+		omap_pm_get_dev_context_loss_count;
 
 	for (i = 0; i < oh_count; i++) {
 		oh = omap_hwmod_lookup(curr_dss_hwmod[i].oh_name);

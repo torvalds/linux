@@ -80,7 +80,6 @@ static void genpd_set_active(struct generic_pm_domain *genpd)
 int pm_genpd_poweron(struct generic_pm_domain *genpd)
 {
 	struct generic_pm_domain *parent = genpd->parent;
-	DEFINE_WAIT(wait);
 	int ret = 0;
 
  start:
@@ -112,7 +111,7 @@ int pm_genpd_poweron(struct generic_pm_domain *genpd)
 	}
 
 	if (genpd->power_on) {
-		int ret = genpd->power_on(genpd);
+		ret = genpd->power_on(genpd);
 		if (ret)
 			goto out;
 	}

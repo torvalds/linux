@@ -396,6 +396,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   , cpu_data(0).clock_tick
 #endif
 		);
+	cpucap_info(m);
 #ifdef CONFIG_SMP
 	smp_bogo(m);
 #endif

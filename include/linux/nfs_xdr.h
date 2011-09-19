@@ -122,6 +122,7 @@ struct nfs_fsinfo {
 	struct timespec		time_delta; /* server time granularity */
 	__u32			lease_time; /* in seconds */
 	__u32			layouttype; /* supported pnfs layout driver */
+	__u32			blksize; /* preferred pnfs io block size */
 };
 
 struct nfs_fsstat {
@@ -235,6 +236,17 @@ struct nfs4_layoutget {
 	gfp_t gfp_flags;
 };
 
+struct nfs4_getdevicelist_args {
+	const struct nfs_fh *fh;
+	u32 layoutclass;
+	struct nfs4_sequence_args seq_args;
+};
+
+struct nfs4_getdevicelist_res {
+	struct pnfs_devicelist *devlist;
+	struct nfs4_sequence_res seq_res;
+};
+
 struct nfs4_getdeviceinfo_args {
 	struct pnfs_device *pdev;
 	struct nfs4_sequence_args seq_args;
@@ -257,12 +269,13 @@ struct nfs4_layoutcommit_res {
 	struct nfs_fattr *fattr;
 	const struct nfs_server *server;
 	struct nfs4_sequence_res seq_res;
+	int status;
 };
 
 struct nfs4_layoutcommit_data {
 	struct rpc_task task;
 	struct nfs_fattr fattr;
-	struct pnfs_layout_segment *lseg;
+	struct list_head lseg_list;
 	struct rpc_cred *cred;
 	struct nfs4_layoutcommit_args args;
 	struct nfs4_layoutcommit_res res;
@@ -760,6 +773,11 @@ struct nfs3_getaclres {
 	struct posix_acl *	acl_default;
 };
 
+struct nfs4_string {
+	unsigned int len;
+	char *data;
+};
+
 #ifdef CONFIG_NFS_V4
 
 typedef u64 clientid4;
@@ -943,16 +961,11 @@ struct nfs4_server_caps_arg {
 };
 
 struct nfs4_server_caps_res {
-	u32				attr_bitmask[2];
+	u32				attr_bitmask[3];
 	u32				acl_bitmask;
 	u32				has_links;
 	u32				has_symlinks;
 	struct nfs4_sequence_res	seq_res;
-};
-
-struct nfs4_string {
-	unsigned int len;
-	char *data;
 };
 
 #define NFS4_PATHNAME_MAXCOMPONENTS 512
