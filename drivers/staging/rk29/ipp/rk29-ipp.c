@@ -139,7 +139,6 @@ struct ipp_context
 static inline void ipp_write( uint32_t b, uint32_t r)
 {
 	__raw_writel(b, drvdata->ipp_base + r);
-	dsb();
 }
 
 static inline uint32_t ipp_read( uint32_t r)
@@ -888,6 +887,8 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	ipp_write(8, IPP_INT);		
 
 	ipp_write(1, IPP_PROCESS_ST);
+
+	dsb();
 	dmac_clean_range(drvdata->ipp_base,drvdata->ipp_base+0x54);
 #ifdef IPP_TEST
 	hw_start = ktime_get(); 
