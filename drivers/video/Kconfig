@@ -2016,6 +2016,7 @@ config FB_SH_MOBILE_HDMI
 config FB_SH_MOBILE_MERAM
 	tristate "SuperH Mobile MERAM read ahead support for LCDC"
 	depends on FB_SH_MOBILE_LCDC
+	select GENERIC_ALLOCATOR
 	default y
 	---help---
 	  Enable MERAM support for the SH-Mobile LCD controller.

@@ -10,6 +10,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/genalloc.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -105,15 +106,17 @@ static const unsigned long icb_regs[] = {
 /*
  * sh_mobile_meram_icb - MERAM ICB information
  * @regs: Registers cache
- * @region: Start and end addresses of the MERAM region
+ * @offset: MERAM block offset
+ * @size: MERAM block size in bytes
  * @cache_unit: Bytes to cache per ICB
  * @pixelformat: Video pixel format of the data stored in the ICB
  * @current_reg: Which of Start Address Register A (0) or B (1) is in use
  */
 struct sh_mobile_meram_icb {
 	unsigned long regs[ICB_REGS_SIZE];
+	unsigned long offset;
+	unsigned int size;
 
-	unsigned long region;
 	unsigned int cache_unit;
 	unsigned int pixelformat;
 	unsigned int current_reg;
@@ -124,21 +127,27 @@ struct sh_mobile_meram_icb {
 /*
  * sh_mobile_meram_priv - MERAM device
  * @base: Registers base address
+ * @meram: MERAM physical address
  * @regs: Registers cache
  * @lock: Protects used_icb and icbs
  * @used_icb: Bitmask of used ICBs
  * @icbs: ICBs
+ * @pool: Allocation pool to manage the MERAM
  */
 struct sh_mobile_meram_priv {
 	void __iomem *base;
+	unsigned long meram;
 	unsigned long regs[MERAM_REGS_SIZE];
 
 	struct mutex lock;
 	unsigned long used_icb;
 	struct sh_mobile_meram_icb icbs[MERAM_ICB_NUM];
+
+	struct gen_pool *pool;
 };
 
 /* settings */
+#define MERAM_GRANULARITY		1024
 #define MERAM_SEC_LINE			15
 #define MERAM_LINE_WIDTH		2048
 
@@ -175,18 +184,10 @@ static inline unsigned long meram_read_reg(void __iomem *base, unsigned int off)
  * Allocation
  */
 
-#define MERAM_CACHE_START(p)	 ((p) >> 16)
-#define MERAM_CACHE_END(p)	 ((p) & 0xffff)
-#define MERAM_CACHE_SET(o, s)	 ((((o) & 0xffff) << 16) | \
-				  (((o) + (s) - 1) & 0xffff))
-
 /* Check if there's no overlaps in MERAM allocation. */
 static int meram_check_overlap(struct sh_mobile_meram_priv *priv,
 			       const struct sh_mobile_meram_icb_cfg *new)
 {
-	unsigned int used_start, used_end, meram_start, meram_end;
-	unsigned int i;
-
 	/* valid ICB? */
 	if (new->marker_icb & ~0x1f || new->cache_icb & ~0x1f)
 		return 1;
@@ -195,43 +196,40 @@ static int meram_check_overlap(struct sh_mobile_meram_priv *priv,
 	    test_bit(new->cache_icb,  &priv->used_icb))
 		return  1;
 
-	for (i = 0; i < MERAM_ICB_NUM; i++) {
-		if (!test_bit(i, &priv->used_icb))
-			continue;
+	return 0;
+}
 
-		used_start = MERAM_CACHE_START(priv->icbs[i].region);
-		used_end   = MERAM_CACHE_END(priv->icbs[i].region);
-		meram_start = new->meram_offset;
-		meram_end   = new->meram_offset + new->meram_size;
+/* Allocate memory for the ICBs and mark them as used. */
+static int meram_alloc(struct sh_mobile_meram_priv *priv,
+		       const struct sh_mobile_meram_icb_cfg *new,
+		       int pixelformat)
+{
+	struct sh_mobile_meram_icb *marker = &priv->icbs[new->marker_icb];
+	unsigned long mem;
 
-		if ((meram_start >= used_start && meram_start < used_end) ||
-		    (meram_end > used_start && meram_end < used_end))
-			return 1;
-	}
+	mem = gen_pool_alloc(priv->pool, new->meram_size * 1024);
+	if (mem == 0)
+		return -ENOMEM;
+
+	__set_bit(new->marker_icb, &priv->used_icb);
+	__set_bit(new->cache_icb, &priv->used_icb);
+
+	marker->offset = mem - priv->meram;
+	marker->size = new->meram_size * 1024;
+	marker->current_reg = 1;
+	marker->pixelformat = pixelformat;
 
 	return 0;
 }
 
-/* Mark the specified ICB as used. */
-static void meram_mark(struct sh_mobile_meram_priv *priv,
-		       const struct sh_mobile_meram_icb_cfg *new,
-		       int pixelformat)
-{
-	__set_bit(new->marker_icb, &priv->used_icb);
-	__set_bit(new->cache_icb, &priv->used_icb);
-
-	priv->icbs[new->marker_icb].region = MERAM_CACHE_SET(new->meram_offset,
-							     new->meram_size);
-	priv->icbs[new->cache_icb].region = MERAM_CACHE_SET(new->meram_offset,
-							    new->meram_size);
-	priv->icbs[new->marker_icb].current_reg = 1;
-	priv->icbs[new->marker_icb].pixelformat = pixelformat;
-}
-
 /* Unmark the specified ICB as used. */
-static void meram_unmark(struct sh_mobile_meram_priv *priv,
-			 const struct sh_mobile_meram_icb_cfg *icb)
+static void meram_free(struct sh_mobile_meram_priv *priv,
+		       const struct sh_mobile_meram_icb_cfg *icb)
 {
+	struct sh_mobile_meram_icb *marker = &priv->icbs[icb->marker_icb];
+
+	gen_pool_free(priv->pool, priv->meram + marker->offset, marker->size);
+
 	__clear_bit(icb->marker_icb, &priv->used_icb);
 	__clear_bit(icb->cache_icb, &priv->used_icb);
 }
@@ -302,6 +300,7 @@ static int meram_init(struct sh_mobile_meram_priv *priv,
 		      unsigned int xres, unsigned int yres,
 		      unsigned int *out_pitch)
 {
+	struct sh_mobile_meram_icb *marker = &priv->icbs[icb->marker_icb];
 	unsigned long total_byte_count = MERAM_CALC_BYTECOUNT(xres, yres);
 	unsigned long bnm;
 	unsigned int lcdc_pitch;
@@ -356,11 +355,11 @@ static int meram_init(struct sh_mobile_meram_priv *priv,
 	 * we also split the allocated MERAM buffer between two ICBs.
 	 */
 	meram_write_icb(priv->base, icb->cache_icb, MExxCTL,
-			MERAM_MExxCTL_VAL(icb->marker_icb, icb->meram_offset) |
+			MERAM_MExxCTL_VAL(icb->marker_icb, marker->offset) |
 			MExxCTL_WD1 | MExxCTL_WD0 | MExxCTL_WS | MExxCTL_CM |
 			MExxCTL_MD_FB);
 	meram_write_icb(priv->base, icb->marker_icb, MExxCTL,
-			MERAM_MExxCTL_VAL(icb->cache_icb, icb->meram_offset +
+			MERAM_MExxCTL_VAL(icb->cache_icb, marker->offset +
 					  icb->meram_size / 2) |
 			MExxCTL_WD1 | MExxCTL_WD0 | MExxCTL_WS | MExxCTL_CM |
 			MExxCTL_MD_FB);
@@ -454,10 +453,18 @@ static int sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 		goto err;
 	}
 
-	/* we now register the ICB */
-	meram_mark(priv, &cfg->icb[0], pixelformat);
-	if (is_nvcolor(pixelformat))
-		meram_mark(priv, &cfg->icb[1], pixelformat);
+	/* We now register the ICBs and allocate the MERAM regions. */
+	error = meram_alloc(priv, &cfg->icb[0], pixelformat);
+	if (error < 0)
+		goto err;
+
+	if (is_nvcolor(pixelformat)) {
+		error = meram_alloc(priv, &cfg->icb[1], pixelformat);
+		if (error < 0) {
+			meram_free(priv, &cfg->icb[0]);
+			goto err;
+		}
+	}
 
 	/* initialize MERAM */
 	meram_init(priv, &cfg->icb[0], xres, yres, &out_pitch);
@@ -497,10 +504,10 @@ static int sh_mobile_meram_unregister(struct sh_mobile_meram_info *pdata,
 	/* deinit & unmark */
 	if (is_nvcolor(icb->pixelformat)) {
 		meram_deinit(priv, &cfg->icb[1]);
-		meram_unmark(priv, &cfg->icb[1]);
+		meram_free(priv, &cfg->icb[1]);
 	}
 	meram_deinit(priv, &cfg->icb[0]);
-	meram_unmark(priv, &cfg->icb[0]);
+	meram_free(priv, &cfg->icb[0]);
 
 	mutex_unlock(&priv->lock);
 
@@ -626,6 +633,7 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 	pdata->priv = priv;
 	pdata->pdev = pdev;
 
+	/* Request memory regions and remap the registers. */
 	if (!request_mem_region(regs->start, resource_size(regs), pdev->name)) {
 		dev_err(&pdev->dev, "MERAM registers region already claimed\n");
 		error = -EBUSY;
@@ -646,6 +654,20 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 		goto err_ioremap;
 	}
 
+	priv->meram = meram->start;
+
+	/* Create and initialize the MERAM memory pool. */
+	priv->pool = gen_pool_create(ilog2(MERAM_GRANULARITY), -1);
+	if (priv->pool == NULL) {
+		error = -ENOMEM;
+		goto err_genpool;
+	}
+
+	error = gen_pool_add(priv->pool, meram->start, resource_size(meram),
+			     -1);
+	if (error < 0)
+		goto err_genpool;
+
 	/* initialize ICB addressing mode */
 	if (pdata->addr_mode == SH_MOBILE_MERAM_MODE1)
 		meram_write_reg(priv->base, MEVCR1, MEVCR1_AMD1);
@@ -657,6 +679,10 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_genpool:
+	if (priv->pool)
+		gen_pool_destroy(priv->pool);
+	iounmap(priv->base);
 err_ioremap:
 	release_mem_region(meram->start, resource_size(meram));
 err_req_meram:
@@ -676,6 +702,8 @@ static int sh_mobile_meram_remove(struct platform_device *pdev)
 	struct resource *meram = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 
 	pm_runtime_disable(&pdev->dev);
+
+	gen_pool_destroy(priv->pool);
 
 	iounmap(priv->base);
 	release_mem_region(meram->start, resource_size(meram));

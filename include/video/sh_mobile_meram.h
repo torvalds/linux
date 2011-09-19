@@ -28,7 +28,6 @@ struct sh_mobile_meram_info {
 struct sh_mobile_meram_icb_cfg {
 	unsigned int marker_icb;	/* ICB # for Marker ICB */
 	unsigned int cache_icb;		/* ICB # for Cache ICB */
-	unsigned int meram_offset;	/* MERAM Buffer Offset to use */
 	unsigned int meram_size;	/* MERAM Buffer Size to use */
 };
 

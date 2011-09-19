@@ -583,13 +583,11 @@ static struct sh_mobile_meram_cfg lcd_meram_cfg = {
 	.icb[0] = {
 		.marker_icb     = 28,
 		.cache_icb      = 24,
-		.meram_offset   = 0x0,
 		.meram_size     = 0x40,
 	},
 	.icb[1] = {
 		.marker_icb     = 29,
 		.cache_icb      = 25,
-		.meram_offset   = 0x40,
 		.meram_size     = 0x40,
 	},
 };
@@ -866,13 +864,11 @@ static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
 	.icb[0] = {
 		.marker_icb     = 30,
 		.cache_icb      = 26,
-		.meram_offset   = 0x80,
 		.meram_size     = 0x100,
 	},
 	.icb[1] = {
 		.marker_icb     = 31,
 		.cache_icb      = 27,
-		.meram_offset   = 0x180,
 		.meram_size     = 0x100,
 	},
 };
