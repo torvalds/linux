@@ -61,8 +61,6 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci, gfp_t flag
 
 static void xhci_segment_free(struct xhci_hcd *xhci, struct xhci_segment *seg)
 {
-	if (!seg)
-		return;
 	if (seg->trbs) {
 		xhci_dbg(xhci, "Freeing DMA segment at %p (virtual) 0x%llx (DMA)\n",
 				seg->trbs, (unsigned long long)seg->dma);
