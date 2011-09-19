@@ -139,6 +139,7 @@ struct ipp_context
 static inline void ipp_write( uint32_t b, uint32_t r)
 {
 	__raw_writel(b, drvdata->ipp_base + r);
+	dsb();
 }
 
 static inline uint32_t ipp_read( uint32_t r)
@@ -884,10 +885,10 @@ int ipp_blit(const struct rk29_ipp_req *req)
 
 
 	/* Start the operation */
-	ipp_write(8, IPP_INT);//		
-	dsb();
+	ipp_write(8, IPP_INT);		
+
 	ipp_write(1, IPP_PROCESS_ST);
-	
+	dmac_clean_range(drvdata->ipp_base,drvdata->ipp_base+0x54);
 #ifdef IPP_TEST
 	hw_start = ktime_get(); 
 #endif	
@@ -967,41 +968,35 @@ int ipp_blit_sync(const struct rk29_ipp_req *req)
 #endif				
 		if (wait_ret <= 0)
 		{
-			printk("%s wait_ret=%d,wait_event_timeout \n",__FUNCTION__,wait_ret);
-	
-#ifdef IPP_TEST
-			//print all register's value
-			printk("wait_ret: %d\n", wait_ret);
-			printk("wq_condition: %d\n", wq_condition);
-			printk("IPP_CONFIG: %x\n",ipp_read(IPP_CONFIG));
-			printk("IPP_SRC_IMG_INFO: %x\n",ipp_read(IPP_SRC_IMG_INFO));
-			printk("IPP_DST_IMG_INFO: %x\n",ipp_read(IPP_DST_IMG_INFO));
-			printk("IPP_IMG_VIR: %x\n",ipp_read(IPP_IMG_VIR));
-			printk("IPP_INT: %x\n",ipp_read(IPP_INT));
-			printk("IPP_SRC0_Y_MST: %x\n",ipp_read(IPP_SRC0_Y_MST));
-			printk("IPP_SRC0_CBR_MST: %x\n",ipp_read(IPP_SRC0_CBR_MST));
-			printk("IPP_SRC1_Y_MST: %x\n",ipp_read(IPP_SRC1_Y_MST));
-			printk("IPP_SRC1_CBR_MST: %x\n",ipp_read(IPP_SRC1_CBR_MST));
-			printk("IPP_DST0_Y_MST: %x\n",ipp_read(IPP_DST0_Y_MST));
-			printk("IPP_DST0_CBR_MST: %x\n",ipp_read(IPP_DST0_CBR_MST));
-			printk("IPP_DST1_Y_MST: %x\n",ipp_read(IPP_DST1_Y_MST));
-			printk("IPP_DST1_CBR_MST: %x\n",ipp_read(IPP_DST1_CBR_MST));
-			printk("IPP_PRE_SCL_PARA: %x\n",ipp_read(IPP_PRE_SCL_PARA));
-			printk("IPP_POST_SCL_PARA: %x\n",ipp_read(IPP_POST_SCL_PARA));
-			printk("IPP_SWAP_CTRL: %x\n",ipp_read(IPP_SWAP_CTRL));
-			printk("IPP_PRE_IMG_INFO: %x\n",ipp_read(IPP_PRE_IMG_INFO));
-			printk("IPP_AXI_ID: %x\n",ipp_read(IPP_AXI_ID));
-			printk("IPP_SRESET: %x\n",ipp_read(IPP_SRESET));
-			printk("IPP_PROCESS_ST: %x\n",ipp_read(IPP_PROCESS_ST));
-	
-			while(1)
+			printk("%s wait_ret=%d,wq_condition =%d,wait_event_timeout! \n",__FUNCTION__,wait_ret,wq_condition);
+
+			if(wq_condition==0)
 			{
-	
+				//print all register's value
+				printk("IPP_CONFIG: %x\n",ipp_read(IPP_CONFIG));
+				printk("IPP_SRC_IMG_INFO: %x\n",ipp_read(IPP_SRC_IMG_INFO));
+				printk("IPP_DST_IMG_INFO: %x\n",ipp_read(IPP_DST_IMG_INFO));
+				printk("IPP_IMG_VIR: %x\n",ipp_read(IPP_IMG_VIR));
+				printk("IPP_INT: %x\n",ipp_read(IPP_INT));
+				printk("IPP_SRC0_Y_MST: %x\n",ipp_read(IPP_SRC0_Y_MST));
+				printk("IPP_SRC0_CBR_MST: %x\n",ipp_read(IPP_SRC0_CBR_MST));
+				printk("IPP_SRC1_Y_MST: %x\n",ipp_read(IPP_SRC1_Y_MST));
+				printk("IPP_SRC1_CBR_MST: %x\n",ipp_read(IPP_SRC1_CBR_MST));
+				printk("IPP_DST0_Y_MST: %x\n",ipp_read(IPP_DST0_Y_MST));
+				printk("IPP_DST0_CBR_MST: %x\n",ipp_read(IPP_DST0_CBR_MST));
+				printk("IPP_DST1_Y_MST: %x\n",ipp_read(IPP_DST1_Y_MST));
+				printk("IPP_DST1_CBR_MST: %x\n",ipp_read(IPP_DST1_CBR_MST));
+				printk("IPP_PRE_SCL_PARA: %x\n",ipp_read(IPP_PRE_SCL_PARA));
+				printk("IPP_POST_SCL_PARA: %x\n",ipp_read(IPP_POST_SCL_PARA));
+				printk("IPP_SWAP_CTRL: %x\n",ipp_read(IPP_SWAP_CTRL));
+				printk("IPP_PRE_IMG_INFO: %x\n",ipp_read(IPP_PRE_IMG_INFO));
+				printk("IPP_AXI_ID: %x\n",ipp_read(IPP_AXI_ID));
+				printk("IPP_SRESET: %x\n",ipp_read(IPP_SRESET));
+				printk("IPP_PROCESS_ST: %x\n",ipp_read(IPP_PROCESS_ST));
+		
+				ipp_soft_reset();
+				drvdata->ipp_result = -EAGAIN;
 			}
-#endif
-			
-			ipp_soft_reset();
-			drvdata->ipp_result = -EAGAIN;
 		}
 
 		ipp_power_off(NULL);
