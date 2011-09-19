@@ -51,6 +51,10 @@
  *  For pSeries or server processors:
  *   1. The MMU is off & open firmware is running in real mode.
  *   2. The kernel is entered at __start
+ * -or- For OPAL entry:
+ *   1. The MMU is off, processor in HV mode, primary CPU enters at 0
+ *      with device-tree in gpr3
+ *   2. Secondary processors enter at 0x60 with PIR in gpr3
  *
  *  For iSeries:
  *   1. The MMU is on (as it always is for iSeries)

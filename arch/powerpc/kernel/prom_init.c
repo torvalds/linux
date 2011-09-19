@@ -43,6 +43,7 @@
 #include <asm/btext.h>
 #include <asm/sections.h>
 #include <asm/machdep.h>
+#include <asm/opal.h>
 
 #include <linux/linux_logo.h>
 
@@ -185,6 +186,7 @@ static unsigned long __initdata prom_tce_alloc_end;
 #define PLATFORM_LPAR		0x0001
 #define PLATFORM_POWERMAC	0x0400
 #define PLATFORM_GENERIC	0x0500
+#define PLATFORM_OPAL		0x0600
 
 static int __initdata of_platform;
 
@@ -644,7 +646,7 @@ static void __init early_cmdline_parse(void)
 	}
 }
 
-#ifdef CONFIG_PPC_PSERIES
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 /*
  * There are two methods for telling firmware what our capabilities are.
  * Newer machines have an "ibm,client-architecture-support" method on the
@@ -1274,6 +1276,195 @@ static void __init prom_init_mem(void)
 	prom_printf("  ram_top      : %x\n", RELOC(ram_top));
 }
 
+static void __init prom_close_stdin(void)
+{
+	struct prom_t *_prom = &RELOC(prom);
+	ihandle val;
+
+	if (prom_getprop(_prom->chosen, "stdin", &val, sizeof(val)) > 0)
+		call_prom("close", 1, 0, val);
+}
+
+#ifdef CONFIG_PPC_POWERNV
+
+static u64 __initdata prom_opal_size;
+static u64 __initdata prom_opal_align;
+static int __initdata prom_rtas_start_cpu;
+static u64 __initdata prom_rtas_data;
+static u64 __initdata prom_rtas_entry;
+
+/* XXX Don't change this structure without updating opal-takeover.S */
+static struct opal_secondary_data {
+	s64				ack;	/*  0 */
+	u64				go;	/*  8 */
+	struct opal_takeover_args	args;	/* 16 */
+} opal_secondary_data;
+
+extern char opal_secondary_entry;
+
+static void prom_query_opal(void)
+{
+	long rc;
+
+	prom_printf("Querying for OPAL presence... ");
+	rc = opal_query_takeover(&RELOC(prom_opal_size),
+				 &RELOC(prom_opal_align));
+	prom_debug("(rc = %ld) ", rc);
+	if (rc != 0) {
+		prom_printf("not there.\n");
+		return;
+	}
+	RELOC(of_platform) = PLATFORM_OPAL;
+	prom_printf(" there !\n");
+	prom_debug("  opal_size  = 0x%lx\n", RELOC(prom_opal_size));
+	prom_debug("  opal_align = 0x%lx\n", RELOC(prom_opal_align));
+	if (RELOC(prom_opal_align) < 0x10000)
+		RELOC(prom_opal_align) = 0x10000;
+}
+
+static int prom_rtas_call(int token, int nargs, int nret, int *outputs, ...)
+{
+	struct rtas_args rtas_args;
+	va_list list;
+	int i;
+
+	rtas_args.token = token;
+	rtas_args.nargs = nargs;
+	rtas_args.nret  = nret;
+	rtas_args.rets  = (rtas_arg_t *)&(rtas_args.args[nargs]);
+	va_start(list, outputs);
+	for (i = 0; i < nargs; ++i)
+		rtas_args.args[i] = va_arg(list, rtas_arg_t);
+	va_end(list);
+
+	for (i = 0; i < nret; ++i)
+		rtas_args.rets[i] = 0;
+
+	opal_enter_rtas(&rtas_args, RELOC(prom_rtas_data),
+			RELOC(prom_rtas_entry));
+
+	if (nret > 1 && outputs != NULL)
+		for (i = 0; i < nret-1; ++i)
+			outputs[i] = rtas_args.rets[i+1];
+	return (nret > 0)? rtas_args.rets[0]: 0;
+}
+
+static void __init prom_opal_hold_cpus(void)
+{
+	int i, cnt, cpu, rc;
+	long j;
+	phandle node;
+	char type[64];
+	u32 servers[8];
+	struct prom_t *_prom = &RELOC(prom);
+	void *entry = (unsigned long *)&RELOC(opal_secondary_entry);
+	struct opal_secondary_data *data = &RELOC(opal_secondary_data);
+
+	prom_debug("prom_opal_hold_cpus: start...\n");
+	prom_debug("    - entry       = 0x%x\n", entry);
+	prom_debug("    - data        = 0x%x\n", data);
+
+	data->ack = -1;
+	data->go = 0;
+
+	/* look for cpus */
+	for (node = 0; prom_next_node(&node); ) {
+		type[0] = 0;
+		prom_getprop(node, "device_type", type, sizeof(type));
+		if (strcmp(type, RELOC("cpu")) != 0)
+			continue;
+
+		/* Skip non-configured cpus. */
+		if (prom_getprop(node, "status", type, sizeof(type)) > 0)
+			if (strcmp(type, RELOC("okay")) != 0)
+				continue;
+
+		cnt = prom_getprop(node, "ibm,ppc-interrupt-server#s", servers,
+			     sizeof(servers));
+		if (cnt == PROM_ERROR)
+			break;
+		cnt >>= 2;
+		for (i = 0; i < cnt; i++) {
+			cpu = servers[i];
+			prom_debug("CPU %d ... ", cpu);
+			if (cpu == _prom->cpu) {
+				prom_debug("booted !\n");
+				continue;
+			}
+			prom_debug("starting ... ");
+
+			/* Init the acknowledge var which will be reset by
+			 * the secondary cpu when it awakens from its OF
+			 * spinloop.
+			 */
+			data->ack = -1;
+			rc = prom_rtas_call(RELOC(prom_rtas_start_cpu), 3, 1,
+					    NULL, cpu, entry, data);
+			prom_debug("rtas rc=%d ...", rc);
+
+			for (j = 0; j < 100000000 && data->ack == -1; j++) {
+				HMT_low();
+				mb();
+			}
+			HMT_medium();
+			if (data->ack != -1)
+				prom_debug("done, PIR=0x%x\n", data->ack);
+			else
+				prom_debug("timeout !\n");
+		}
+	}
+	prom_debug("prom_opal_hold_cpus: end...\n");
+}
+
+static void prom_opal_takeover(void)
+{
+	struct opal_secondary_data *data = &RELOC(opal_secondary_data);
+	struct opal_takeover_args *args = &data->args;
+	u64 align = RELOC(prom_opal_align);
+	u64 top_addr, opal_addr;
+
+	args->k_image	= (u64)RELOC(_stext);
+	args->k_size	= _end - _stext;
+	args->k_entry	= 0;
+	args->k_entry2	= 0x60;
+
+	top_addr = _ALIGN_UP(args->k_size, align);
+
+	if (RELOC(prom_initrd_start) != 0) {
+		args->rd_image = RELOC(prom_initrd_start);
+		args->rd_size = RELOC(prom_initrd_end) - args->rd_image;
+		args->rd_loc = top_addr;
+		top_addr = _ALIGN_UP(args->rd_loc + args->rd_size, align);
+	}
+
+	/* Pickup an address for the HAL. We want to go really high
+	 * up to avoid problem with future kexecs. On the other hand
+	 * we don't want to be all over the TCEs on P5IOC2 machines
+	 * which are going to be up there too. We assume the machine
+	 * has plenty of memory, and we ask for the HAL for now to
+	 * be just below the 1G point, or above the initrd
+	 */
+	opal_addr = _ALIGN_DOWN(0x40000000 - RELOC(prom_opal_size), align);
+	if (opal_addr < top_addr)
+		opal_addr = top_addr;
+	args->hal_addr = opal_addr;
+
+	prom_debug("  k_image    = 0x%lx\n", args->k_image);
+	prom_debug("  k_size     = 0x%lx\n", args->k_size);
+	prom_debug("  k_entry    = 0x%lx\n", args->k_entry);
+	prom_debug("  k_entry2   = 0x%lx\n", args->k_entry2);
+	prom_debug("  hal_addr   = 0x%lx\n", args->hal_addr);
+	prom_debug("  rd_image   = 0x%lx\n", args->rd_image);
+	prom_debug("  rd_size    = 0x%lx\n", args->rd_size);
+	prom_debug("  rd_loc     = 0x%lx\n", args->rd_loc);
+	prom_printf("Performing OPAL takeover,this can take a few minutes..\n");
+	prom_close_stdin();
+	mb();
+	data->go = 1;
+	for (;;)
+		opal_do_takeover(args);
+}
+#endif /* CONFIG_PPC_POWERNV */
 
 /*
  * Allocate room for and instantiate RTAS
@@ -1326,6 +1517,12 @@ static void __init prom_instantiate_rtas(void)
 	prom_setprop(rtas_node, "/rtas", "linux,rtas-entry",
 		     &entry, sizeof(entry));
 
+#ifdef CONFIG_PPC_POWERNV
+	/* PowerVN takeover hack */
+	RELOC(prom_rtas_data) = base;
+	RELOC(prom_rtas_entry) = entry;
+	prom_getprop(rtas_node, "start-cpu", &RELOC(prom_rtas_start_cpu), 4);
+#endif
 	prom_debug("rtas base     = 0x%x\n", base);
 	prom_debug("rtas entry    = 0x%x\n", entry);
 	prom_debug("rtas size     = 0x%x\n", (long)size);
@@ -1543,7 +1740,7 @@ static void __init prom_hold_cpus(void)
 		*acknowledge = (unsigned long)-1;
 
 		if (reg != _prom->cpu) {
-			/* Primary Thread of non-boot cpu */
+			/* Primary Thread of non-boot cpu or any thread */
 			prom_printf("starting cpu hw idx %lu... ", reg);
 			call_prom("start-cpu", 3, 0, node,
 				  secondary_hold, reg);
@@ -1650,15 +1847,6 @@ static void __init prom_init_stdout(void)
 	prom_getprop(val, "device_type", type, sizeof(type));
 	if (strcmp(type, RELOC("display")) == 0)
 		prom_setprop(val, path, "linux,boot-display", NULL, 0);
-}
-
-static void __init prom_close_stdin(void)
-{
-	struct prom_t *_prom = &RELOC(prom);
-	ihandle val;
-
-	if (prom_getprop(_prom->chosen, "stdin", &val, sizeof(val)) > 0)
-		call_prom("close", 1, 0, val);
 }
 
 static int __init prom_find_machine_type(void)
@@ -2504,6 +2692,7 @@ static void __init prom_check_initrd(unsigned long r3, unsigned long r4)
 #endif /* CONFIG_BLK_DEV_INITRD */
 }
 
+
 /*
  * We enter here early on, when the Open Firmware prom is still
  * handling exceptions and the MMU hash table for us.
@@ -2565,7 +2754,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_check_initrd(r3, r4);
 
-#ifdef CONFIG_PPC_PSERIES
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 	/*
 	 * On pSeries, inform the firmware about our capabilities
 	 */
@@ -2611,14 +2800,30 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 #endif
 
 	/*
-	 * On non-powermacs, try to instantiate RTAS and puts all CPUs
-	 * in spin-loops. PowerMacs don't have a working RTAS and use
-	 * a different way to spin CPUs
+	 * On non-powermacs, try to instantiate RTAS. PowerMacs don't
+	 * have a usable RTAS implementation.
 	 */
-	if (RELOC(of_platform) != PLATFORM_POWERMAC) {
+	if (RELOC(of_platform) != PLATFORM_POWERMAC)
 		prom_instantiate_rtas();
-		prom_hold_cpus();
+
+#ifdef CONFIG_PPC_POWERNV
+	/* Detect HAL and try instanciating it & doing takeover */
+	if (RELOC(of_platform) == PLATFORM_PSERIES_LPAR) {
+		prom_query_opal();
+		if (RELOC(of_platform) == PLATFORM_OPAL) {
+			prom_opal_hold_cpus();
+			prom_opal_takeover();
+		}
 	}
+#endif
+
+	/*
+	 * On non-powermacs, put all CPUs in spin-loops.
+	 *
+	 * PowerMacs use a different mechanism to spin CPUs
+	 */
+	if (RELOC(of_platform) != PLATFORM_POWERMAC)
+		prom_hold_cpus();
 
 	/*
 	 * Fill in some infos for use by the kernel later on
