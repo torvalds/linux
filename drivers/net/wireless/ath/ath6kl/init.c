@@ -1487,6 +1487,8 @@ static int ath6kl_init(struct net_device *dev)
 	ar->conf_flags = ATH6KL_CONF_IGNORE_ERP_BARKER |
 			 ATH6KL_CONF_ENABLE_11N | ATH6KL_CONF_ENABLE_TX_BURST;
 
+	ar->wdev->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM;
+
 	status = ath6kl_target_config_wlan_params(ar);
 	if (!status)
 		goto ath6kl_init_done;
