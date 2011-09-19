@@ -171,19 +171,26 @@ static void wl1271_event_rssi_trigger(struct wl1271 *wl,
 	wl->last_rssi_event = event;
 }
 
-static void wl1271_stop_ba_event(struct wl1271 *wl, u8 ba_allowed)
+static void wl1271_stop_ba_event(struct wl1271 *wl)
 {
-	/* Convert the value to bool */
-	wl->ba_allowed = !!ba_allowed;
+	if (wl->bss_type != BSS_TYPE_AP_BSS) {
+		if (!wl->ba_rx_bitmap)
+			return;
+		ieee80211_stop_rx_ba_session(wl->vif, wl->ba_rx_bitmap,
+					     wl->bssid);
+	} else {
+		int i;
+		struct wl1271_link *lnk;
+		for (i = WL1271_AP_STA_HLID_START; i < WL12XX_MAX_LINKS; i++) {
+			lnk = &wl->links[i];
+			if (!wl1271_is_active_sta(wl, i) || !lnk->ba_bitmap)
+				continue;
 
-	/*
-	 * Return in case:
-	 * there are not BA open or the event indication is to allowed BA
-	 */
-	if ((!wl->ba_rx_bitmap) || (wl->ba_allowed))
-		return;
-
-	ieee80211_stop_rx_ba_session(wl->vif, wl->ba_rx_bitmap, wl->bssid);
+			ieee80211_stop_rx_ba_session(wl->vif,
+						     lnk->ba_bitmap,
+						     lnk->addr);
+		}
+	}
 }
 
 static void wl12xx_event_soft_gemini_sense(struct wl1271 *wl,
@@ -283,12 +290,14 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			wl1271_event_rssi_trigger(wl, mbox);
 	}
 
-	if ((vector & BA_SESSION_RX_CONSTRAINT_EVENT_ID) && !is_ap) {
+	if ((vector & BA_SESSION_RX_CONSTRAINT_EVENT_ID)) {
 		wl1271_debug(DEBUG_EVENT, "BA_SESSION_RX_CONSTRAINT_EVENT_ID. "
 			     "ba_allowed = 0x%x", mbox->rx_ba_allowed);
 
-		if (wl->vif)
-			wl1271_stop_ba_event(wl, mbox->rx_ba_allowed);
+		wl->ba_allowed = !!mbox->rx_ba_allowed;
+
+		if (wl->vif && !wl->ba_allowed)
+			wl1271_stop_ba_event(wl);
 	}
 
 	if ((vector & DUMMY_PACKET_EVENT_ID)) {

@@ -199,15 +199,19 @@ static void wl1271_ps_filter_frames(struct wl1271 *wl, u8 hlid)
 	unsigned long flags;
 	int filtered[NUM_TX_QUEUES];
 
-	/* filter all frames currently the low level queus for this hlid */
+	/* filter all frames currently in the low level queues for this hlid */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		filtered[i] = 0;
 		while ((skb = skb_dequeue(&wl->links[hlid].tx_queue[i]))) {
+			filtered[i]++;
+
+			if (WARN_ON(wl12xx_is_dummy_packet(wl, skb)))
+				continue;
+
 			info = IEEE80211_SKB_CB(skb);
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 			info->status.rates[0].idx = -1;
 			ieee80211_tx_status_ni(wl->hw, skb);
-			filtered[i]++;
 		}
 	}
 
