@@ -71,6 +71,7 @@ struct wm8996_priv {
 	struct regulator_bulk_data supplies[WM8996_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8996_NUM_SUPPLIES];
 	struct regulator *cpvdd;
+	int bg_ena;
 
 	struct wm8996_pdata pdata;
 
@@ -666,14 +667,40 @@ SOC_SINGLE_TLV("DSP2 EQ B5 Volume", WM8996_DSP2_RX_EQ_GAINS_2, 6, 31, 0,
 	       eq_tlv),
 };
 
+static void wm8996_bg_enable(struct snd_soc_codec *codec)
+{
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+
+	wm8996->bg_ena++;
+	if (wm8996->bg_ena == 1) {
+		snd_soc_update_bits(codec, WM8996_POWER_MANAGEMENT_1,
+				    WM8996_BG_ENA, WM8996_BG_ENA);
+		msleep(2);
+	}
+}
+
+static void wm8996_bg_disable(struct snd_soc_codec *codec)
+{
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+
+	wm8996->bg_ena--;
+	if (!wm8996->bg_ena)
+		snd_soc_update_bits(codec, WM8996_POWER_MANAGEMENT_1,
+				    WM8996_BG_ENA, 0);
+}
+
 static int bg_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = w->codec;
 	int ret = 0;
 
 	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		msleep(2);
+	case SND_SOC_DAPM_PRE_PMU:
+		wm8996_bg_enable(codec);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		wm8996_bg_disable(codec);
 		break;
 	default:
 		BUG();
@@ -1014,10 +1041,9 @@ SND_SOC_DAPM_SUPPLY_S("SYSCLK", 1, WM8996_AIF_CLOCKING_1, 0, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("SYSDSPCLK", 2, WM8996_CLOCKING_1, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("AIFCLK", 2, WM8996_CLOCKING_1, 2, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("Charge Pump", 2, WM8996_CHARGE_PUMP_1, 15, 0, cp_event,
-		      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-		      SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("Bandgap", WM8996_POWER_MANAGEMENT_1, WM8996_BG_ENA_SHIFT,
-		    0, bg_event, SND_SOC_DAPM_POST_PMU),
+		      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+SND_SOC_DAPM_SUPPLY("Bandgap", SND_SOC_NOPM, 0, 0, bg_event,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("LDO2", WM8996_POWER_MANAGEMENT_2, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICB1 Audio", WM8996_MICBIAS_1, 4, 1, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICB2 Audio", WM8996_MICBIAS_2, 4, 1, NULL, 0),
@@ -2096,6 +2122,8 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		snd_soc_update_bits(codec, WM8996_FLL_CONTROL_1,
 				    WM8996_FLL_ENA, 0);
 
+		wm8996_bg_disable(codec);
+
 		return 0;
 	}
 
@@ -2149,6 +2177,11 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			    fll_div.fll_loop_gain);
 
 	snd_soc_write(codec, WM8996_FLL_EFS_1, fll_div.lambda);
+
+	/* Enable the bandgap if it's not already enabled */
+	ret = snd_soc_read(codec, WM8996_FLL_CONTROL_1);
+	if (!(ret & WM8996_FLL_ENA))
+		wm8996_bg_enable(codec);
 
 	/* Clear any pending completions (eg, from failed startups) */
 	try_wait_for_completion(&wm8996->fll_lock);
