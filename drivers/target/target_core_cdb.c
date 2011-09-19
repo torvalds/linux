@@ -24,7 +24,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/ctype.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 
@@ -156,11 +155,12 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 }
 
 static void
-target_parse_naa_6h_vendor_specific(struct se_device *dev, unsigned char *buf_off)
+target_parse_naa_6h_vendor_specific(struct se_device *dev, unsigned char *buf)
 {
 	unsigned char *p = &dev->se_sub_dev->t10_wwn.unit_serial[0];
-	unsigned char *buf = buf_off;
-	int cnt = 0, next = 1;
+	int cnt;
+	bool next = true;
+
 	/*
 	 * Generate up to 36 bits of VENDOR SPECIFIC IDENTIFIER starting on
 	 * byte 3 bit 3-0 for NAA IEEE Registered Extended DESIGNATOR field
@@ -169,19 +169,18 @@ target_parse_naa_6h_vendor_specific(struct se_device *dev, unsigned char *buf_of
 	 * NUMBER set via vpd_unit_serial in target_core_configfs.c to ensure
 	 * per device uniqeness.
 	 */
-	while (*p != '\0') {
-		if (cnt >= 13)
-			break;
-		if (!isxdigit(*p)) {
-			p++;
+	for (cnt = 0; *p && cnt < 13; p++) {
+		int val = hex_to_bin(*p);
+
+		if (val < 0)
 			continue;
-		}
-		if (next != 0) {
-			buf[cnt++] |= hex_to_bin(*p++);
-			next = 0;
+
+		if (next) {
+			next = false;
+			buf[cnt++] |= val;
 		} else {
-			buf[cnt] = hex_to_bin(*p++) << 4;
-			next = 1;
+			next = true;
+			buf[cnt] = val << 4;
 		}
 	}
 }
