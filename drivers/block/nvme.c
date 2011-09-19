@@ -812,6 +812,34 @@ static int adapter_delete_sq(struct nvme_dev *dev, u16 sqid)
 	return adapter_delete_queue(dev, nvme_admin_delete_sq, sqid);
 }
 
+static int nvme_identify(struct nvme_dev *dev, unsigned nsid, unsigned cns,
+							dma_addr_t dma_addr)
+{
+	struct nvme_command c;
+
+	memset(&c, 0, sizeof(c));
+	c.identify.opcode = nvme_admin_identify;
+	c.identify.nsid = cpu_to_le32(nsid);
+	c.identify.prp1 = cpu_to_le64(dma_addr);
+	c.identify.cns = cpu_to_le32(cns);
+
+	return nvme_submit_admin_cmd(dev, &c, NULL);
+}
+
+static int nvme_get_features(struct nvme_dev *dev, unsigned fid,
+			unsigned dword11, dma_addr_t dma_addr, u32 *result)
+{
+	struct nvme_command c;
+
+	memset(&c, 0, sizeof(c));
+	c.features.opcode = nvme_admin_get_features;
+	c.features.prp1 = cpu_to_le64(dma_addr);
+	c.features.fid = cpu_to_le32(fid);
+	c.features.dword11 = cpu_to_le32(dword11);
+
+	return nvme_submit_admin_cmd(dev, &c, result);
+}
+
 static void nvme_free_queue(struct nvme_dev *dev, int qid)
 {
 	struct nvme_queue *nvmeq = dev->queues[qid];
@@ -1318,15 +1346,10 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 {
 	int status;
 	u32 result;
-	struct nvme_command c;
 	u32 q_count = (count - 1) | ((count - 1) << 16);
 
-	memset(&c, 0, sizeof(c));
-	c.features.opcode = nvme_admin_get_features;
-	c.features.fid = cpu_to_le32(NVME_FEAT_NUM_QUEUES);
-	c.features.dword11 = cpu_to_le32(q_count);
-
-	status = nvme_submit_admin_cmd(dev, &c, &result);
+	status = nvme_get_features(dev, NVME_FEAT_NUM_QUEUES, q_count, 0,
+								&result);
 	if (status)
 		return -EIO;
 	return min(result & 0xffff, result >> 16) + 1;
@@ -1400,65 +1423,51 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 	int res, nn, i;
 	struct nvme_ns *ns, *next;
 	struct nvme_id_ctrl *ctrl;
-	void *id;
+	struct nvme_id_ns *id_ns;
+	void *mem;
 	dma_addr_t dma_addr;
-	struct nvme_command cid, crt;
 
 	res = nvme_setup_io_queues(dev);
 	if (res)
 		return res;
 
-	/* XXX: Switch to a SG list once prp2 works */
-	id = dma_alloc_coherent(&dev->pci_dev->dev, 8192, &dma_addr,
+	mem = dma_alloc_coherent(&dev->pci_dev->dev, 8192, &dma_addr,
 								GFP_KERNEL);
 
-	memset(&cid, 0, sizeof(cid));
-	cid.identify.opcode = nvme_admin_identify;
-	cid.identify.nsid = 0;
-	cid.identify.prp1 = cpu_to_le64(dma_addr);
-	cid.identify.cns = cpu_to_le32(1);
-
-	res = nvme_submit_admin_cmd(dev, &cid, NULL);
+	res = nvme_identify(dev, 0, 1, dma_addr);
 	if (res) {
 		res = -EIO;
 		goto out_free;
 	}
 
-	ctrl = id;
+	ctrl = mem;
 	nn = le32_to_cpup(&ctrl->nn);
 	memcpy(dev->serial, ctrl->sn, sizeof(ctrl->sn));
 	memcpy(dev->model, ctrl->mn, sizeof(ctrl->mn));
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
 
-	cid.identify.cns = 0;
-	memset(&crt, 0, sizeof(crt));
-	crt.features.opcode = nvme_admin_get_features;
-	crt.features.prp1 = cpu_to_le64(dma_addr + 4096);
-	crt.features.fid = cpu_to_le32(NVME_FEAT_LBA_RANGE);
-
+	id_ns = mem;
 	for (i = 0; i <= nn; i++) {
-		cid.identify.nsid = cpu_to_le32(i);
-		res = nvme_submit_admin_cmd(dev, &cid, NULL);
+		res = nvme_identify(dev, i, 0, dma_addr);
 		if (res)
 			continue;
 
-		if (((struct nvme_id_ns *)id)->ncap == 0)
+		if (id_ns->ncap == 0)
 			continue;
 
-		crt.features.nsid = cpu_to_le32(i);
-		res = nvme_submit_admin_cmd(dev, &crt, NULL);
+		res = nvme_get_features(dev, NVME_FEAT_LBA_RANGE, i,
+							dma_addr + 4096, NULL);
 		if (res)
 			continue;
 
-		ns = nvme_alloc_ns(dev, i, id, id + 4096);
+		ns = nvme_alloc_ns(dev, i, mem, mem + 4096);
 		if (ns)
 			list_add_tail(&ns->list, &dev->namespaces);
 	}
 	list_for_each_entry(ns, &dev->namespaces, list)
 		add_disk(ns->disk);
 
-	dma_free_coherent(&dev->pci_dev->dev, 8192, id, dma_addr);
-	return 0;
+	goto out;
 
  out_free:
 	list_for_each_entry_safe(ns, next, &dev->namespaces, list) {
@@ -1466,6 +1475,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 		nvme_ns_free(ns);
 	}
 
+ out:
 	dma_free_coherent(&dev->pci_dev->dev, 8192, mem, dma_addr);
 	return res;
 }
