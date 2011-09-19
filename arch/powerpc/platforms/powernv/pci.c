@@ -19,6 +19,7 @@
 #include <linux/bootmem.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/msi.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -38,6 +39,108 @@
 #define cfg_dbg(fmt...)	do { } while(0)
 //#define cfg_dbg(fmt...)	printk(fmt)
 
+#ifdef CONFIG_PCI_MSI
+static int pnv_msi_check_device(struct pci_dev* pdev, int nvec, int type)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+
+	return (phb && phb->msi_map) ? 0 : -ENODEV;
+}
+
+static unsigned int pnv_get_one_msi(struct pnv_phb *phb)
+{
+	unsigned int id;
+
+	spin_lock(&phb->lock);
+	id = find_next_zero_bit(phb->msi_map, phb->msi_count, phb->msi_next);
+	if (id >= phb->msi_count && phb->msi_next)
+		id = find_next_zero_bit(phb->msi_map, phb->msi_count, 0);
+	if (id >= phb->msi_count) {
+		spin_unlock(&phb->lock);
+		return 0;
+	}
+	__set_bit(id, phb->msi_map);
+	spin_unlock(&phb->lock);
+	return id + phb->msi_base;
+}
+
+static void pnv_put_msi(struct pnv_phb *phb, unsigned int hwirq)
+{
+	unsigned int id;
+
+	if (WARN_ON(hwirq < phb->msi_base ||
+		    hwirq >= (phb->msi_base + phb->msi_count)))
+		return;
+	id = hwirq - phb->msi_base;
+	spin_lock(&phb->lock);
+	__clear_bit(id, phb->msi_map);
+	spin_unlock(&phb->lock);
+}
+
+static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct msi_desc *entry;
+	struct msi_msg msg;
+	unsigned int hwirq, virq;
+	int rc;
+
+	if (WARN_ON(!phb))
+		return -ENODEV;
+
+	list_for_each_entry(entry, &pdev->msi_list, list) {
+		if (!entry->msi_attrib.is_64 && !phb->msi32_support) {
+			pr_warn("%s: Supports only 64-bit MSIs\n",
+				pci_name(pdev));
+			return -ENXIO;
+		}
+		hwirq = pnv_get_one_msi(phb);
+		if (!hwirq) {
+			pr_warn("%s: Failed to find a free MSI\n",
+				pci_name(pdev));
+			return -ENOSPC;
+		}
+		virq = irq_create_mapping(NULL, hwirq);
+		if (virq == NO_IRQ) {
+			pr_warn("%s: Failed to map MSI to linux irq\n",
+				pci_name(pdev));
+			pnv_put_msi(phb, hwirq);
+			return -ENOMEM;
+		}
+		rc = phb->msi_setup(phb, pdev, hwirq, entry->msi_attrib.is_64,
+				    &msg);
+		if (rc) {
+			pr_warn("%s: Failed to setup MSI\n", pci_name(pdev));
+			irq_dispose_mapping(virq);
+			pnv_put_msi(phb, hwirq);
+			return rc;
+		}
+		irq_set_msi_desc(virq, entry);
+		write_msi_msg(virq, &msg);
+	}
+	return 0;
+}
+
+static void pnv_teardown_msi_irqs(struct pci_dev *pdev)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct msi_desc *entry;
+
+	if (WARN_ON(!phb))
+		return;
+
+	list_for_each_entry(entry, &pdev->msi_list, list) {
+		if (entry->irq == NO_IRQ)
+			continue;
+		irq_set_msi_desc(entry->irq, NULL);
+		pnv_put_msi(phb, virq_to_hw(entry->irq));
+		irq_dispose_mapping(entry->irq);
+	}
+}
+#endif /* CONFIG_PCI_MSI */
 
 static void pnv_pci_config_check_eeh(struct pnv_phb *phb, struct pci_bus *bus,
 				     u32 bdfn)
@@ -283,4 +386,10 @@ void __init pnv_pci_init(void)
 	ppc_md.tce_free = pnv_tce_free;
 	set_pci_dma_ops(&dma_iommu_ops);
 
+	/* Configure MSIs */
+#ifdef CONFIG_PCI_MSI
+	ppc_md.msi_check_device = pnv_msi_check_device;
+	ppc_md.setup_msi_irqs = pnv_setup_msi_irqs;
+	ppc_md.teardown_msi_irqs = pnv_teardown_msi_irqs;
+#endif
 }

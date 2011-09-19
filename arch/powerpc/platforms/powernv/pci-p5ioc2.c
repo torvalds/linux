@@ -19,6 +19,7 @@
 #include <linux/bootmem.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/msi.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -38,6 +39,51 @@
  * hub, 16M will do
  */
 #define P5IOC2_TCE_MEMORY	0x01000000
+
+#ifdef CONFIG_PCI_MSI
+static int pnv_pci_p5ioc2_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
+				    unsigned int hwirq, unsigned int is_64,
+				    struct msi_msg *msg)
+{
+	if (WARN_ON(!is_64))
+		return -ENXIO;
+	msg->data = hwirq - phb->msi_base;
+	msg->address_hi = 0x10000000;
+	msg->address_lo = 0;
+
+	return 0;
+}
+
+static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb)
+{
+	unsigned int bmap_size;
+	const __be32 *prop = of_get_property(phb->hose->dn,
+					     "ibm,opal-msi-ranges", NULL);
+	if (!prop)
+		return;
+
+	/* Don't do MSI's on p5ioc2 PCI-X are they are not properly
+	 * verified in HW
+	 */
+	if (of_device_is_compatible(phb->hose->dn, "ibm,p5ioc2-pcix"))
+		return;
+	phb->msi_base = be32_to_cpup(prop);
+	phb->msi_count = be32_to_cpup(prop + 1);
+	bmap_size = BITS_TO_LONGS(phb->msi_count) * sizeof(unsigned long);
+	phb->msi_map = zalloc_maybe_bootmem(bmap_size, GFP_KERNEL);
+	if (!phb->msi_map) {
+		pr_err("PCI %d: Failed to allocate MSI bitmap !\n",
+		       phb->hose->global_number);
+		return;
+	}
+	phb->msi_setup = pnv_pci_p5ioc2_msi_setup;
+	phb->msi32_support = 0;
+	pr_info(" Allocated bitmap for %d MSIs (base IRQ 0x%x)\n",
+		phb->msi_count, phb->msi_base);
+}
+#else
+static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb) { }
+#endif /* CONFIG_PCI_MSI */
 
 static void __devinit pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
 						   struct pci_dev *pdev)
@@ -116,6 +162,9 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np,
 	primary = 0;
 
 	phb->hose->ops = &pnv_pci_ops;
+
+	/* Setup MSI support */
+	pnv_pci_init_p5ioc2_msis(phb);
 
 	/* Setup TCEs */
 	phb->dma_dev_setup = pnv_pci_p5ioc2_dma_dev_setup;
