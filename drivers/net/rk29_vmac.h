@@ -183,6 +183,10 @@ struct	vmac_priv {
 	int speed;
 	int duplex;
 
+	int open_flag;
+	int suspending;
+	struct wake_lock resume_lock;
+
 	/* debug */
 	int shutdown;
 };
