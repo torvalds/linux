@@ -1242,7 +1242,7 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *bufsize, bool raw,
 	int ret = 0;
 
 	BUG_ON(!is_ephemeral(pool));
-	zbud_decompress(virt_to_page(data), pampd);
+	zbud_decompress((struct page *)(data), pampd);
 	zbud_free_and_delist((struct zbud_hdr *)pampd);
 	atomic_dec(&zcache_curr_eph_pampd_count);
 	return ret;
