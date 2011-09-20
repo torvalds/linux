@@ -3050,8 +3050,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	int r;
 
 	/* enable pcie gen2 link */
-	if (!ASIC_IS_DCE5(rdev))
-		evergreen_pcie_gen2_enable(rdev);
+	evergreen_pcie_gen2_enable(rdev);
 
 	if (ASIC_IS_DCE5(rdev)) {
 		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
