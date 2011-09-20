@@ -761,8 +761,7 @@ int sas_target_alloc(struct scsi_target *starget)
 	return 0;
 }
 
-#define SAS_DEF_QD 32
-#define SAS_MAX_QD 64
+#define SAS_DEF_QD 256
 
 int sas_slave_configure(struct scsi_device *scsi_dev)
 {
@@ -805,31 +804,29 @@ void sas_slave_destroy(struct scsi_device *scsi_dev)
 		dev->sata_dev.ap->link.device[0].class = ATA_DEV_NONE;
 }
 
-int sas_change_queue_depth(struct scsi_device *scsi_dev, int new_depth,
-			   int reason)
+int sas_change_queue_depth(struct scsi_device *sdev, int depth, int reason)
 {
-	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
-	int res = min(new_depth, SAS_MAX_QD);
+	struct domain_device *dev = sdev_to_domain_dev(sdev);
 
 	if (dev_is_sata(dev))
-		return __ata_change_queue_depth(dev->sata_dev.ap, scsi_dev,
-						new_depth, reason);
+		return __ata_change_queue_depth(dev->sata_dev.ap, sdev, depth,
+						reason);
 
-	if (reason != SCSI_QDEPTH_DEFAULT)
+	switch (reason) {
+	case SCSI_QDEPTH_DEFAULT:
+	case SCSI_QDEPTH_RAMP_UP:
+		if (!sdev->tagged_supported)
+			depth = 1;
+		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		break;
+	case SCSI_QDEPTH_QFULL:
+		scsi_track_queue_full(sdev, depth);
+		break;
+	default:
 		return -EOPNOTSUPP;
-
-	if (scsi_dev->tagged_supported)
-		scsi_adjust_queue_depth(scsi_dev, scsi_get_tag_type(scsi_dev),
-					res);
-	else {
-		sas_printk("device %llx LUN %x queue depth changed to 1\n",
-			   SAS_ADDR(dev->sas_addr),
-			   scsi_dev->lun);
-		scsi_adjust_queue_depth(scsi_dev, 0, 1);
-		res = 1;
 	}
 
-	return res;
+	return depth;
 }
 
 int sas_change_queue_type(struct scsi_device *scsi_dev, int qt)
