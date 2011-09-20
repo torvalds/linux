@@ -231,9 +231,8 @@ struct omap_dm_timer {
 	unsigned long phys_base;
 	int id;
 	int irq;
-#ifdef CONFIG_ARCH_OMAP2PLUS
 	struct clk *iclk, *fclk;
-#endif
+
 	void __iomem	*io_base;
 	void __iomem	*sys_stat;	/* TISTAT timer status */
 	void __iomem	*irq_stat;	/* TISR/IRQSTATUS interrupt status */
@@ -251,7 +250,7 @@ struct omap_dm_timer {
 };
 
 extern u32 sys_timer_reserved;
-void omap_dm_timer_prepare(struct omap_dm_timer *timer);
+int omap_dm_timer_prepare(struct omap_dm_timer *timer);
 
 static inline u32 __omap_dm_timer_read(struct omap_dm_timer *timer, u32 reg,
 						int posted)

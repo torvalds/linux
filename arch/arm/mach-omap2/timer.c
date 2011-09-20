@@ -478,3 +478,23 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 
 	return ret;
 }
+
+/**
+ * omap2_dm_timer_init - top level regular device initialization
+ *
+ * Uses dedicated hwmod api to parse through hwmod database for
+ * given class name and then build and register the timer device.
+ */
+static int __init omap2_dm_timer_init(void)
+{
+	int ret;
+
+	ret = omap_hwmod_for_each_by_class("timer", omap_timer_init, NULL);
+	if (unlikely(ret)) {
+		pr_err("%s: device registration failed.\n", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+arch_initcall(omap2_dm_timer_init);
