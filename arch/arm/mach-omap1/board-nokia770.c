@@ -31,7 +31,6 @@
 #include <plat/board.h>
 #include <plat/keypad.h>
 #include "common.h"
-#include <plat/hwa742.h>
 #include <plat/lcd_mipid.h>
 #include <plat/mmc.h>
 #include <plat/clock.h>
@@ -150,14 +149,9 @@ static struct spi_board_info nokia770_spi_board_info[] __initdata = {
 	},
 };
 
-static struct hwa742_platform_data nokia770_hwa742_platform_data = {
-	.te_connected		= 1,
-};
-
 static void __init hwa742_dev_init(void)
 {
 	clk_add_alias("hwa_sys_ck", NULL, "bclk", NULL);
-	omapfb_set_ctrl_platform_data(&nokia770_hwa742_platform_data);
 }
 
 /* assume no Mini-AB port */
