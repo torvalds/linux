@@ -1799,6 +1799,7 @@ static void intel_update_fbc(struct drm_device *dev)
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
+	int enable_fbc;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -1839,8 +1840,15 @@ static void intel_update_fbc(struct drm_device *dev)
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
-	if (!i915_enable_fbc) {
-		DRM_DEBUG_KMS("fbc disabled per module param (default off)\n");
+	enable_fbc = i915_enable_fbc;
+	if (enable_fbc < 0) {
+		DRM_DEBUG_KMS("fbc set to per-chip default\n");
+		enable_fbc = 1;
+		if (INTEL_INFO(dev)->gen <= 5)
+			enable_fbc = 0;
+	}
+	if (!enable_fbc) {
+		DRM_DEBUG_KMS("fbc disabled per module param\n");
 		dev_priv->no_fbc_reason = FBC_MODULE_PARAM;
 		goto out_disable;
 	}
