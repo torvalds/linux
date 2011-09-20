@@ -889,7 +889,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	struct net_device_stats *stats = &t->dev->stats;
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	struct ipv6_tel_txoption opt;
-	struct dst_entry *dst, *ndst = NULL;
+	struct dst_entry *dst = NULL, *ndst = NULL;
 	struct net_device *tdev;
 	int mtu;
 	unsigned int max_headroom = sizeof(struct ipv6hdr);
@@ -897,7 +897,8 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	int err = -1;
 	int pkt_len;
 
-	dst = ip6_tnl_dst_check(t);
+	if (!fl6->flowi6_mark)
+		dst = ip6_tnl_dst_check(t);
 	if (!dst) {
 		ndst = ip6_route_output(net, NULL, fl6);
 
@@ -955,8 +956,12 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		skb = new_skb;
 	}
 	skb_dst_drop(skb);
-	skb_dst_set_noref(skb, dst);
-
+	if (fl6->flowi6_mark) {
+		skb_dst_set(skb, dst);
+		ndst = NULL;
+	} else {
+		skb_dst_set_noref(skb, dst);
+	}
 	skb->transport_header = skb->network_header;
 
 	proto = fl6->flowi6_proto;
@@ -1021,9 +1026,11 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dsfield = ipv4_get_dsfield(iph);
 
-	if ((t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS))
+	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
 		fl6.flowlabel |= htonl((__u32)iph->tos << IPV6_TCLASS_SHIFT)
 					  & IPV6_TCLASS_MASK;
+	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
+		fl6.flowi6_mark = skb->mark;
 
 	err = ip6_tnl_xmit2(skb, dev, dsfield, &fl6, encap_limit, &mtu);
 	if (err != 0) {
@@ -1070,10 +1077,12 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	fl6.flowi6_proto = IPPROTO_IPV6;
 
 	dsfield = ipv6_get_dsfield(ipv6h);
-	if ((t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS))
+	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
 		fl6.flowlabel |= (*(__be32 *) ipv6h & IPV6_TCLASS_MASK);
-	if ((t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL))
+	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL)
 		fl6.flowlabel |= (*(__be32 *) ipv6h & IPV6_FLOWLABEL_MASK);
+	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
+		fl6.flowi6_mark = skb->mark;
 
 	err = ip6_tnl_xmit2(skb, dev, dsfield, &fl6, encap_limit, &mtu);
 	if (err != 0) {
