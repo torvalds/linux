@@ -979,6 +979,7 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->backlight_dev = NULL;
 		goto error;
 	}
+	dev->backlight_dev->props.brightness = get_lcd(dev->backlight_dev);
 
 	/* Register rfkill switch for Bluetooth */
 	if (hci_get_bt_present(dev, &bt_present) == HCI_SUCCESS && bt_present) {
