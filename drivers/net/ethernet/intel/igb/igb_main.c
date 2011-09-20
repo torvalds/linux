@@ -122,7 +122,7 @@ static void igb_set_rx_mode(struct net_device *);
 static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
-static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb, struct net_device *);
+static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
 static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *dev,
 						 struct rtnl_link_stats64 *stats);
 static int igb_change_mtu(struct net_device *, int);
@@ -138,7 +138,7 @@ static void igb_setup_dca(struct igb_adapter *);
 #endif /* CONFIG_IGB_DCA */
 static bool igb_clean_tx_irq(struct igb_q_vector *);
 static int igb_poll(struct napi_struct *, int);
-static bool igb_clean_rx_irq_adv(struct igb_q_vector *, int *, int);
+static bool igb_clean_rx_irq(struct igb_q_vector *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
 static void igb_reset_task(struct work_struct *);
@@ -413,7 +413,7 @@ static void igb_dump(struct igb_adapter *adapter)
 			"leng  ntw timestamp        bi->skb\n");
 
 		for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
-			tx_desc = E1000_TX_DESC_ADV(*tx_ring, i);
+			tx_desc = IGB_TX_DESC(tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
 			u0 = (struct my_u0 *)tx_desc;
 			printk(KERN_INFO "T [0x%03X]    %016llX %016llX %016llX"
@@ -494,7 +494,7 @@ rx_ring_summary:
 
 		for (i = 0; i < rx_ring->count; i++) {
 			buffer_info = &rx_ring->buffer_info[i];
-			rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
+			rx_desc = IGB_RX_DESC(rx_ring, i);
 			u0 = (struct my_u0 *)rx_desc;
 			staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 			if (staterr & E1000_RXD_STAT_DD) {
@@ -517,16 +517,14 @@ rx_ring_summary:
 						DUMP_PREFIX_ADDRESS,
 						16, 1,
 						phys_to_virt(buffer_info->dma),
-						rx_ring->rx_buffer_len, true);
-					if (rx_ring->rx_buffer_len
-						< IGB_RXBUFFER_1024)
-						print_hex_dump(KERN_INFO, "",
-						  DUMP_PREFIX_ADDRESS,
-						  16, 1,
-						  phys_to_virt(
-						    buffer_info->page_dma +
-						    buffer_info->page_offset),
-						  PAGE_SIZE/2, true);
+						IGB_RX_HDR_LEN, true);
+					print_hex_dump(KERN_INFO, "",
+					  DUMP_PREFIX_ADDRESS,
+					  16, 1,
+					  phys_to_virt(
+					    buffer_info->page_dma +
+					    buffer_info->page_offset),
+					  PAGE_SIZE/2, true);
 				}
 			}
 
@@ -707,7 +705,6 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->queue_index = i;
 		ring->dev = &adapter->pdev->dev;
 		ring->netdev = adapter->netdev;
-		ring->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 		ring->flags = IGB_RING_FLAG_RX_CSUM; /* enable rx checksum */
 		/* set flag indicating ring supports SCTP checksum offload */
 		if (adapter->hw.mac.type >= e1000_82576)
@@ -1439,7 +1436,7 @@ static void igb_configure(struct igb_adapter *adapter)
 	 * next_to_use != next_to_clean */
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *ring = adapter->rx_ring[i];
-		igb_alloc_rx_buffers_adv(ring, igb_desc_unused(ring));
+		igb_alloc_rx_buffers(ring, igb_desc_unused(ring));
 	}
 }
 
@@ -1787,7 +1784,7 @@ static int igb_set_features(struct net_device *netdev, u32 features)
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
-	.ndo_start_xmit		= igb_xmit_frame_adv,
+	.ndo_start_xmit		= igb_xmit_frame,
 	.ndo_get_stats64	= igb_get_stats64,
 	.ndo_set_rx_mode	= igb_set_rx_mode,
 	.ndo_set_mac_address	= igb_set_mac,
@@ -1878,7 +1875,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	err = -ENOMEM;
 	netdev = alloc_etherdev_mq(sizeof(struct igb_adapter),
-	                           IGB_ABS_MAX_TX_QUEUES);
+				   IGB_MAX_TX_QUEUES);
 	if (!netdev)
 		goto err_alloc_etherdev;
 
@@ -2396,7 +2393,8 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	adapter->rx_itr_setting = IGB_DEFAULT_ITR;
 	adapter->tx_itr_setting = IGB_DEFAULT_ITR;
 
-	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
+				  VLAN_HLEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	spin_lock_init(&adapter->stats64_lock);
@@ -2622,10 +2620,6 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 		}
 	}
 
-	for (i = 0; i < IGB_ABS_MAX_TX_QUEUES; i++) {
-		int r_idx = i % adapter->num_tx_queues;
-		adapter->multi_tx_table[i] = adapter->tx_ring[r_idx];
-	}
 	return err;
 }
 
@@ -2666,14 +2660,12 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
                            struct igb_ring *ring)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 txdctl;
+	u32 txdctl = 0;
 	u64 tdba = ring->dma;
 	int reg_idx = ring->reg_idx;
 
 	/* disable the queue */
-	txdctl = rd32(E1000_TXDCTL(reg_idx));
-	wr32(E1000_TXDCTL(reg_idx),
-	                txdctl & ~E1000_TXDCTL_QUEUE_ENABLE);
+	wr32(E1000_TXDCTL(reg_idx), 0);
 	wrfl();
 	mdelay(10);
 
@@ -2683,9 +2675,8 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
 	                tdba & 0x00000000ffffffffULL);
 	wr32(E1000_TDBAH(reg_idx), tdba >> 32);
 
-	ring->head = hw->hw_addr + E1000_TDH(reg_idx);
 	ring->tail = hw->hw_addr + E1000_TDT(reg_idx);
-	writel(0, ring->head);
+	wr32(E1000_TDH(reg_idx), 0);
 	writel(0, ring->tail);
 
 	txdctl |= IGB_TX_PTHRESH;
@@ -2964,16 +2955,19 @@ static inline int igb_set_vf_rlpml(struct igb_adapter *adapter, int size,
  **/
 static void igb_rlpml_set(struct igb_adapter *adapter)
 {
-	u32 max_frame_size;
+	u32 max_frame_size = adapter->max_frame_size;
 	struct e1000_hw *hw = &adapter->hw;
 	u16 pf_id = adapter->vfs_allocated_count;
 
-	max_frame_size = adapter->max_frame_size + VLAN_TAG_SIZE;
-
-	/* if vfs are enabled we set RLPML to the largest possible request
-	 * size and set the VMOLR RLPML to the size we need */
 	if (pf_id) {
 		igb_set_vf_rlpml(adapter, max_frame_size, pf_id);
+		/*
+		 * If we're in VMDQ or SR-IOV mode, then set global RLPML
+		 * to our max jumbo frame size, in case we need to enable
+		 * jumbo frames on one of the rings later.
+		 * This will not pass over-length frames into the default
+		 * queue because it's gated by the VMOLR.RLPML.
+		 */
 		max_frame_size = MAX_JUMBO_FRAME_SIZE;
 	}
 
@@ -3028,12 +3022,10 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	struct e1000_hw *hw = &adapter->hw;
 	u64 rdba = ring->dma;
 	int reg_idx = ring->reg_idx;
-	u32 srrctl, rxdctl;
+	u32 srrctl = 0, rxdctl = 0;
 
 	/* disable the queue */
-	rxdctl = rd32(E1000_RXDCTL(reg_idx));
-	wr32(E1000_RXDCTL(reg_idx),
-	                rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
+	wr32(E1000_RXDCTL(reg_idx), 0);
 
 	/* Set DMA base address registers */
 	wr32(E1000_RDBAL(reg_idx),
@@ -3043,28 +3035,18 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	               ring->count * sizeof(union e1000_adv_rx_desc));
 
 	/* initialize head and tail */
-	ring->head = hw->hw_addr + E1000_RDH(reg_idx);
 	ring->tail = hw->hw_addr + E1000_RDT(reg_idx);
-	writel(0, ring->head);
+	wr32(E1000_RDH(reg_idx), 0);
 	writel(0, ring->tail);
 
 	/* set descriptor configuration */
-	if (ring->rx_buffer_len < IGB_RXBUFFER_1024) {
-		srrctl = ALIGN(ring->rx_buffer_len, 64) <<
-		         E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
+	srrctl = IGB_RX_HDR_LEN << E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
 #if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
-		srrctl |= IGB_RXBUFFER_16384 >>
-		          E1000_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= IGB_RXBUFFER_16384 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 #else
-		srrctl |= (PAGE_SIZE / 2) >>
-		          E1000_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= (PAGE_SIZE / 2) >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 #endif
-		srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
-	} else {
-		srrctl = ALIGN(ring->rx_buffer_len, 1024) >>
-		         E1000_SRRCTL_BSIZEPKT_SHIFT;
-		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
-	}
+	srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
 	if (hw->mac.type == e1000_82580)
 		srrctl |= E1000_SRRCTL_TIMESTAMP;
 	/* Only set Drop Enable if we are supporting multiple queues */
@@ -3076,13 +3058,12 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	/* set filtering for VMDQ pools */
 	igb_set_vmolr(adapter, reg_idx & 0x7, true);
 
-	/* enable receive descriptor fetching */
-	rxdctl = rd32(E1000_RXDCTL(reg_idx));
-	rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
-	rxdctl &= 0xFFF00000;
 	rxdctl |= IGB_RX_PTHRESH;
 	rxdctl |= IGB_RX_HTHRESH << 8;
 	rxdctl |= IGB_RX_WTHRESH << 16;
+
+	/* enable receive descriptor fetching */
+	rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
 	wr32(E1000_RXDCTL(reg_idx), rxdctl);
 }
 
@@ -3256,20 +3237,19 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
  **/
 static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 {
-	struct igb_buffer *buffer_info;
 	unsigned long size;
-	unsigned int i;
+	u16 i;
 
 	if (!rx_ring->buffer_info)
 		return;
 
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
-		buffer_info = &rx_ring->buffer_info[i];
+		struct igb_buffer *buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
 			dma_unmap_single(rx_ring->dev,
 			                 buffer_info->dma,
-					 rx_ring->rx_buffer_len,
+					 IGB_RX_HDR_LEN,
 					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
 		}
@@ -3971,8 +3951,8 @@ set_itr_now:
 #define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
 #define IGB_TX_FLAGS_VLAN_SHIFT		        16
 
-static inline int igb_tso_adv(struct igb_ring *tx_ring,
-			      struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
+static inline int igb_tso(struct igb_ring *tx_ring,
+			  struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
 	unsigned int i;
@@ -4009,7 +3989,7 @@ static inline int igb_tso_adv(struct igb_ring *tx_ring,
 	i = tx_ring->next_to_use;
 
 	buffer_info = &tx_ring->buffer_info[i];
-	context_desc = E1000_TX_CTXTDESC_ADV(*tx_ring, i);
+	context_desc = IGB_TX_CTXTDESC(tx_ring, i);
 	/* VLAN MACLEN IPLEN */
 	if (tx_flags & IGB_TX_FLAGS_VLAN)
 		info |= (tx_flags & IGB_TX_FLAGS_VLAN_MASK);
@@ -4051,8 +4031,8 @@ static inline int igb_tso_adv(struct igb_ring *tx_ring,
 	return true;
 }
 
-static inline bool igb_tx_csum_adv(struct igb_ring *tx_ring,
-				   struct sk_buff *skb, u32 tx_flags)
+static inline bool igb_tx_csum(struct igb_ring *tx_ring,
+			       struct sk_buff *skb, u32 tx_flags)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
 	struct device *dev = tx_ring->dev;
@@ -4064,7 +4044,7 @@ static inline bool igb_tx_csum_adv(struct igb_ring *tx_ring,
 	    (tx_flags & IGB_TX_FLAGS_VLAN)) {
 		i = tx_ring->next_to_use;
 		buffer_info = &tx_ring->buffer_info[i];
-		context_desc = E1000_TX_CTXTDESC_ADV(*tx_ring, i);
+		context_desc = IGB_TX_CTXTDESC(tx_ring, i);
 
 		if (tx_flags & IGB_TX_FLAGS_VLAN)
 			info |= (tx_flags & IGB_TX_FLAGS_VLAN_MASK);
@@ -4136,8 +4116,8 @@ static inline bool igb_tx_csum_adv(struct igb_ring *tx_ring,
 #define IGB_MAX_TXD_PWR	16
 #define IGB_MAX_DATA_PER_TXD	(1<<IGB_MAX_TXD_PWR)
 
-static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
-				 unsigned int first)
+static inline int igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
+			     unsigned int first)
 {
 	struct igb_buffer *buffer_info;
 	struct device *dev = tx_ring->dev;
@@ -4212,9 +4192,9 @@ dma_error:
 	return 0;
 }
 
-static inline void igb_tx_queue_adv(struct igb_ring *tx_ring,
-				    u32 tx_flags, int count, u32 paylen,
-				    u8 hdr_len)
+static inline void igb_tx_queue(struct igb_ring *tx_ring,
+				u32 tx_flags, int count, u32 paylen,
+				u8 hdr_len)
 {
 	union e1000_adv_tx_desc *tx_desc;
 	struct igb_buffer *buffer_info;
@@ -4254,7 +4234,7 @@ static inline void igb_tx_queue_adv(struct igb_ring *tx_ring,
 
 	do {
 		buffer_info = &tx_ring->buffer_info[i];
-		tx_desc = E1000_TX_DESC_ADV(*tx_ring, i);
+		tx_desc = IGB_TX_DESC(tx_ring, i);
 		tx_desc->read.buffer_addr = cpu_to_le64(buffer_info->dma);
 		tx_desc->read.cmd_type_len =
 			cpu_to_le32(cmd_type_len | buffer_info->length);
@@ -4312,8 +4292,8 @@ static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 	return __igb_maybe_stop_tx(tx_ring, size);
 }
 
-netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
-				    struct igb_ring *tx_ring)
+netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
+				struct igb_ring *tx_ring)
 {
 	int tso = 0, count;
 	u32 tx_flags = 0;
@@ -4345,7 +4325,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	first = tx_ring->next_to_use;
 	if (skb_is_gso(skb)) {
-		tso = igb_tso_adv(tx_ring, skb, tx_flags, &hdr_len);
+		tso = igb_tso(tx_ring, skb, tx_flags, &hdr_len);
 
 		if (tso < 0) {
 			dev_kfree_skb_any(skb);
@@ -4355,7 +4335,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	if (tso)
 		tx_flags |= IGB_TX_FLAGS_TSO;
-	else if (igb_tx_csum_adv(tx_ring, skb, tx_flags) &&
+	else if (igb_tx_csum(tx_ring, skb, tx_flags) &&
 	         (skb->ip_summed == CHECKSUM_PARTIAL))
 		tx_flags |= IGB_TX_FLAGS_CSUM;
 
@@ -4363,7 +4343,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	 * count reflects descriptors mapped, if 0 or less then mapping error
 	 * has occurred and we need to rewind the descriptor queue
 	 */
-	count = igb_tx_map_adv(tx_ring, skb, first);
+	count = igb_tx_map(tx_ring, skb, first);
 	if (!count) {
 		dev_kfree_skb_any(skb);
 		tx_ring->buffer_info[first].time_stamp = 0;
@@ -4371,7 +4351,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	igb_tx_queue_adv(tx_ring, tx_flags, count, skb->len, hdr_len);
+	igb_tx_queue(tx_ring, tx_flags, count, skb->len, hdr_len);
 
 	/* Make sure there is space in the ring for the next send. */
 	igb_maybe_stop_tx(tx_ring, MAX_SKB_FRAGS + 4);
@@ -4379,12 +4359,21 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb,
-				      struct net_device *netdev)
+static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
+						    struct sk_buff *skb)
+{
+	unsigned int r_idx = skb->queue_mapping;
+
+	if (r_idx >= adapter->num_tx_queues)
+		r_idx = r_idx % adapter->num_tx_queues;
+
+	return adapter->tx_ring[r_idx];
+}
+
+static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
+				  struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct igb_ring *tx_ring;
-	int r_idx = 0;
 
 	if (test_bit(__IGB_DOWN, &adapter->state)) {
 		dev_kfree_skb_any(skb);
@@ -4396,14 +4385,17 @@ static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	r_idx = skb->queue_mapping & (IGB_ABS_MAX_TX_QUEUES - 1);
-	tx_ring = adapter->multi_tx_table[r_idx];
+	/*
+	 * The minimum packet size with TCTL.PSP set is 17 so pad the skb
+	 * in order to meet this minimum size requirement.
+	 */
+	if (skb->len < 17) {
+		if (skb_padto(skb, 17))
+			return NETDEV_TX_OK;
+		skb->len = 17;
+	}
 
-	/* This goes back to the question of how to logically map a tx queue
-	 * to a flow.  Right now, performance is impacted slightly negatively
-	 * if using multiple tx queues.  If the stack breaks away from a
-	 * single qdisc implementation, we can look at this again. */
-	return igb_xmit_frame_ring_adv(skb, tx_ring);
+	return igb_xmit_frame_ring(skb, igb_tx_queue_mapping(adapter, skb));
 }
 
 /**
@@ -4466,14 +4458,14 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct pci_dev *pdev = adapter->pdev;
-	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
-	u32 rx_buffer_len, i;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 
 	if ((new_mtu < 68) || (max_frame > MAX_JUMBO_FRAME_SIZE)) {
 		dev_err(&pdev->dev, "Invalid MTU setting\n");
 		return -EINVAL;
 	}
 
+#define MAX_STD_JUMBO_FRAME_SIZE 9238
 	if (max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
 		dev_err(&pdev->dev, "MTU > 9216 not supported.\n");
 		return -EINVAL;
@@ -4485,39 +4477,12 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	/* igb_down has a dependency on max_frame_size */
 	adapter->max_frame_size = max_frame;
 
-	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
-	 * means we reserve 2 more, this pushes us to allocate from the next
-	 * larger slab size.
-	 * i.e. RXBUFFER_2048 --> size-4096 slab
-	 */
-
-	if (adapter->hw.mac.type == e1000_82580)
-		max_frame += IGB_TS_HDR_LEN;
-
-	if (max_frame <= IGB_RXBUFFER_1024)
-		rx_buffer_len = IGB_RXBUFFER_1024;
-	else if (max_frame <= MAXIMUM_ETHERNET_VLAN_SIZE)
-		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
-	else
-		rx_buffer_len = IGB_RXBUFFER_128;
-
-	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN + IGB_TS_HDR_LEN) ||
-	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE + IGB_TS_HDR_LEN))
-		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE + IGB_TS_HDR_LEN;
-
-	if ((adapter->hw.mac.type == e1000_82580) &&
-	    (rx_buffer_len == IGB_RXBUFFER_128))
-		rx_buffer_len += IGB_RXBUFFER_64;
-
 	if (netif_running(netdev))
 		igb_down(adapter);
 
 	dev_info(&pdev->dev, "changing MTU from %d to %d\n",
 		 netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
-
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		adapter->rx_ring[i]->rx_buffer_len = rx_buffer_len;
 
 	if (netif_running(netdev))
 		igb_up(adapter);
@@ -5524,28 +5489,27 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	struct igb_q_vector *q_vector = container_of(napi,
 	                                             struct igb_q_vector,
 	                                             napi);
-	int tx_clean_complete = 1, work_done = 0;
+	bool clean_complete = true;
 
 #ifdef CONFIG_IGB_DCA
 	if (q_vector->adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_dca(q_vector);
 #endif
 	if (q_vector->tx_ring)
-		tx_clean_complete = igb_clean_tx_irq(q_vector);
+		clean_complete = !!igb_clean_tx_irq(q_vector);
 
 	if (q_vector->rx_ring)
-		igb_clean_rx_irq_adv(q_vector, &work_done, budget);
+		clean_complete &= igb_clean_rx_irq(q_vector, budget);
 
-	if (!tx_clean_complete)
-		work_done = budget;
+	/* If all work not completed, return budget and keep polling */
+	if (!clean_complete)
+		return budget;
 
 	/* If not enough Rx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete(napi);
-		igb_ring_irq_enable(q_vector);
-	}
+	napi_complete(napi);
+	igb_ring_irq_enable(q_vector);
 
-	return work_done;
+	return 0;
 }
 
 /**
@@ -5624,13 +5588,13 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->buffer_info[i].next_to_watch;
-	eop_desc = E1000_TX_DESC_ADV(*tx_ring, eop);
+	eop_desc = IGB_TX_DESC(tx_ring, eop);
 
 	while ((eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
 		rmb();	/* read buffer_info after eop_desc status */
 		for (cleaned = false; !cleaned; count++) {
-			tx_desc = E1000_TX_DESC_ADV(*tx_ring, i);
+			tx_desc = IGB_TX_DESC(tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
 			cleaned = (i == eop);
 
@@ -5649,7 +5613,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				i = 0;
 		}
 		eop = tx_ring->buffer_info[i].next_to_watch;
-		eop_desc = E1000_TX_DESC_ADV(*tx_ring, eop);
+		eop_desc = IGB_TX_DESC(tx_ring, eop);
 	}
 
 	tx_ring->next_to_clean = i;
@@ -5694,7 +5658,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				"  jiffies              <%lx>\n"
 				"  desc.status          <%x>\n",
 				tx_ring->queue_index,
-				readl(tx_ring->head),
+				rd32(E1000_TDH(tx_ring->reg_idx)),
 				readl(tx_ring->tail),
 				tx_ring->next_to_use,
 				tx_ring->next_to_clean,
@@ -5714,8 +5678,8 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 	return count < tx_ring->count;
 }
 
-static inline void igb_rx_checksum_adv(struct igb_ring *ring,
-				       u32 status_err, struct sk_buff *skb)
+static inline void igb_rx_checksum(struct igb_ring *ring,
+				   u32 status_err, struct sk_buff *skb)
 {
 	skb_checksum_none_assert(skb);
 
@@ -5781,8 +5745,7 @@ static void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
 
 	igb_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
 }
-static inline u16 igb_get_hlen(struct igb_ring *rx_ring,
-                               union e1000_adv_rx_desc *rx_desc)
+static inline u16 igb_get_hlen(union e1000_adv_rx_desc *rx_desc)
 {
 	/* HW will not DMA in data larger than the given buffer, even if it
 	 * parses the (NFS, of course) header to be larger.  In that case, it
@@ -5790,76 +5753,65 @@ static inline u16 igb_get_hlen(struct igb_ring *rx_ring,
 	 */
 	u16 hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
 	           E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
-	if (hlen > rx_ring->rx_buffer_len)
-		hlen = rx_ring->rx_buffer_len;
+	if (hlen > IGB_RX_HDR_LEN)
+		hlen = IGB_RX_HDR_LEN;
 	return hlen;
 }
 
-static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
-                                 int *work_done, int budget)
+static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 {
 	struct igb_ring *rx_ring = q_vector->rx_ring;
-	struct net_device *netdev = rx_ring->netdev;
-	struct device *dev = rx_ring->dev;
-	union e1000_adv_rx_desc *rx_desc , *next_rxd;
-	struct igb_buffer *buffer_info , *next_buffer;
-	struct sk_buff *skb;
-	bool cleaned = false;
-	int cleaned_count = 0;
-	int current_node = numa_node_id();
+	union e1000_adv_rx_desc *rx_desc;
+	const int current_node = numa_node_id();
 	unsigned int total_bytes = 0, total_packets = 0;
-	unsigned int i;
 	u32 staterr;
-	u16 length;
+	u16 cleaned_count = igb_desc_unused(rx_ring);
+	u16 i = rx_ring->next_to_clean;
 
-	i = rx_ring->next_to_clean;
-	buffer_info = &rx_ring->buffer_info[i];
-	rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
+	rx_desc = IGB_RX_DESC(rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
 	while (staterr & E1000_RXD_STAT_DD) {
-		if (*work_done >= budget)
-			break;
-		(*work_done)++;
-		rmb(); /* read descriptor and rx_buffer_info after status DD */
+		struct igb_buffer *buffer_info = &rx_ring->buffer_info[i];
+		struct sk_buff *skb = buffer_info->skb;
+		union e1000_adv_rx_desc *next_rxd;
 
-		skb = buffer_info->skb;
-		prefetch(skb->data - NET_IP_ALIGN);
 		buffer_info->skb = NULL;
+		prefetch(skb->data);
 
 		i++;
 		if (i == rx_ring->count)
 			i = 0;
 
-		next_rxd = E1000_RX_DESC_ADV(*rx_ring, i);
+		next_rxd = IGB_RX_DESC(rx_ring, i);
 		prefetch(next_rxd);
-		next_buffer = &rx_ring->buffer_info[i];
 
-		length = le16_to_cpu(rx_desc->wb.upper.length);
-		cleaned = true;
-		cleaned_count++;
+		/*
+		 * This memory barrier is needed to keep us from reading
+		 * any other fields out of the rx_desc until we know the
+		 * RXD_STAT_DD bit is set
+		 */
+		rmb();
 
-		if (buffer_info->dma) {
-			dma_unmap_single(dev, buffer_info->dma,
-					 rx_ring->rx_buffer_len,
+		if (!skb_is_nonlinear(skb)) {
+			__skb_put(skb, igb_get_hlen(rx_desc));
+			dma_unmap_single(rx_ring->dev, buffer_info->dma,
+					 IGB_RX_HDR_LEN,
 					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
-			if (rx_ring->rx_buffer_len >= IGB_RXBUFFER_1024) {
-				skb_put(skb, length);
-				goto send_up;
-			}
-			skb_put(skb, igb_get_hlen(rx_ring, rx_desc));
 		}
 
-		if (length) {
-			dma_unmap_page(dev, buffer_info->page_dma,
-				       PAGE_SIZE / 2, DMA_FROM_DEVICE);
-			buffer_info->page_dma = 0;
+		if (rx_desc->wb.upper.length) {
+			u16 length = le16_to_cpu(rx_desc->wb.upper.length);
 
 			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
 						buffer_info->page,
 						buffer_info->page_offset,
 						length);
+
+			skb->len += length;
+			skb->data_len += length;
+			skb->truesize += length;
 
 			if ((page_count(buffer_info->page) != 1) ||
 			    (page_to_nid(buffer_info->page) != current_node))
@@ -5867,21 +5819,23 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 			else
 				get_page(buffer_info->page);
 
-			skb->len += length;
-			skb->data_len += length;
-			skb->truesize += length;
+			dma_unmap_page(rx_ring->dev, buffer_info->page_dma,
+				       PAGE_SIZE / 2, DMA_FROM_DEVICE);
+			buffer_info->page_dma = 0;
 		}
 
 		if (!(staterr & E1000_RXD_STAT_EOP)) {
+			struct igb_buffer *next_buffer;
+			next_buffer = &rx_ring->buffer_info[i];
 			buffer_info->skb = next_buffer->skb;
 			buffer_info->dma = next_buffer->dma;
 			next_buffer->skb = skb;
 			next_buffer->dma = 0;
 			goto next_desc;
 		}
-send_up:
+
 		if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
-			dev_kfree_skb_irq(skb);
+			dev_kfree_skb_any(skb);
 			goto next_desc;
 		}
 
@@ -5890,10 +5844,9 @@ send_up:
 		total_bytes += skb->len;
 		total_packets++;
 
-		igb_rx_checksum_adv(rx_ring, staterr, skb);
+		igb_rx_checksum(rx_ring, staterr, skb);
 
-		skb->protocol = eth_type_trans(skb, netdev);
-		skb_record_rx_queue(skb, rx_ring->queue_index);
+		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 		if (staterr & E1000_RXD_STAT_VP) {
 			u16 vid = le16_to_cpu(rx_desc->wb.upper.vlan);
@@ -5902,135 +5855,148 @@ send_up:
 		}
 		napi_gro_receive(&q_vector->napi, skb);
 
+		budget--;
 next_desc:
-		rx_desc->wb.upper.status_error = 0;
+		if (!budget)
+			break;
 
+		cleaned_count++;
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IGB_RX_BUFFER_WRITE) {
-			igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
+			igb_alloc_rx_buffers(rx_ring, cleaned_count);
 			cleaned_count = 0;
 		}
 
 		/* use prefetched values */
 		rx_desc = next_rxd;
-		buffer_info = next_buffer;
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
 	rx_ring->next_to_clean = i;
-	cleaned_count = igb_desc_unused(rx_ring);
-
-	if (cleaned_count)
-		igb_alloc_rx_buffers_adv(rx_ring, cleaned_count);
-
-	rx_ring->total_packets += total_packets;
-	rx_ring->total_bytes += total_bytes;
 	u64_stats_update_begin(&rx_ring->rx_syncp);
 	rx_ring->rx_stats.packets += total_packets;
 	rx_ring->rx_stats.bytes += total_bytes;
 	u64_stats_update_end(&rx_ring->rx_syncp);
-	return cleaned;
+	rx_ring->total_packets += total_packets;
+	rx_ring->total_bytes += total_bytes;
+
+	if (cleaned_count)
+		igb_alloc_rx_buffers(rx_ring, cleaned_count);
+
+	return !!budget;
+}
+
+static bool igb_alloc_mapped_skb(struct igb_ring *rx_ring,
+				 struct igb_buffer *bi)
+{
+	struct sk_buff *skb = bi->skb;
+	dma_addr_t dma = bi->dma;
+
+	if (dma)
+		return true;
+
+	if (likely(!skb)) {
+		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
+						IGB_RX_HDR_LEN);
+		bi->skb = skb;
+		if (!skb) {
+			rx_ring->rx_stats.alloc_failed++;
+			return false;
+		}
+
+		/* initialize skb for ring */
+		skb_record_rx_queue(skb, rx_ring->queue_index);
+	}
+
+	dma = dma_map_single(rx_ring->dev, skb->data,
+			     IGB_RX_HDR_LEN, DMA_FROM_DEVICE);
+
+	if (dma_mapping_error(rx_ring->dev, dma)) {
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
+	}
+
+	bi->dma = dma;
+	return true;
+}
+
+static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
+				  struct igb_buffer *bi)
+{
+	struct page *page = bi->page;
+	dma_addr_t page_dma = bi->page_dma;
+	unsigned int page_offset = bi->page_offset ^ (PAGE_SIZE / 2);
+
+	if (page_dma)
+		return true;
+
+	if (!page) {
+		page = netdev_alloc_page(rx_ring->netdev);
+		bi->page = page;
+		if (unlikely(!page)) {
+			rx_ring->rx_stats.alloc_failed++;
+			return false;
+		}
+	}
+
+	page_dma = dma_map_page(rx_ring->dev, page,
+				page_offset, PAGE_SIZE / 2,
+				DMA_FROM_DEVICE);
+
+	if (dma_mapping_error(rx_ring->dev, page_dma)) {
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
+	}
+
+	bi->page_dma = page_dma;
+	bi->page_offset = page_offset;
+	return true;
 }
 
 /**
- * igb_alloc_rx_buffers_adv - Replace used receive buffers; packet split
+ * igb_alloc_rx_buffers - Replace used receive buffers; packet split
  * @adapter: address of board private structure
  **/
-void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, int cleaned_count)
+void igb_alloc_rx_buffers(struct igb_ring *rx_ring, u16 cleaned_count)
 {
-	struct net_device *netdev = rx_ring->netdev;
 	union e1000_adv_rx_desc *rx_desc;
-	struct igb_buffer *buffer_info;
-	struct sk_buff *skb;
-	unsigned int i;
-	int bufsz;
+	struct igb_buffer *bi;
+	u16 i = rx_ring->next_to_use;
 
-	i = rx_ring->next_to_use;
-	buffer_info = &rx_ring->buffer_info[i];
-
-	bufsz = rx_ring->rx_buffer_len;
+	rx_desc = IGB_RX_DESC(rx_ring, i);
+	bi = &rx_ring->buffer_info[i];
+	i -= rx_ring->count;
 
 	while (cleaned_count--) {
-		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
+		if (!igb_alloc_mapped_skb(rx_ring, bi))
+			break;
 
-		if ((bufsz < IGB_RXBUFFER_1024) && !buffer_info->page_dma) {
-			if (!buffer_info->page) {
-				buffer_info->page = netdev_alloc_page(netdev);
-				if (unlikely(!buffer_info->page)) {
-					u64_stats_update_begin(&rx_ring->rx_syncp);
-					rx_ring->rx_stats.alloc_failed++;
-					u64_stats_update_end(&rx_ring->rx_syncp);
-					goto no_buffers;
-				}
-				buffer_info->page_offset = 0;
-			} else {
-				buffer_info->page_offset ^= PAGE_SIZE / 2;
-			}
-			buffer_info->page_dma =
-				dma_map_page(rx_ring->dev, buffer_info->page,
-					     buffer_info->page_offset,
-					     PAGE_SIZE / 2,
-					     DMA_FROM_DEVICE);
-			if (dma_mapping_error(rx_ring->dev,
-					      buffer_info->page_dma)) {
-				buffer_info->page_dma = 0;
-				u64_stats_update_begin(&rx_ring->rx_syncp);
-				rx_ring->rx_stats.alloc_failed++;
-				u64_stats_update_end(&rx_ring->rx_syncp);
-				goto no_buffers;
-			}
-		}
+		/* Refresh the desc even if buffer_addrs didn't change
+		 * because each write-back erases this info. */
+		rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
 
-		skb = buffer_info->skb;
-		if (!skb) {
-			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
-			if (unlikely(!skb)) {
-				u64_stats_update_begin(&rx_ring->rx_syncp);
-				rx_ring->rx_stats.alloc_failed++;
-				u64_stats_update_end(&rx_ring->rx_syncp);
-				goto no_buffers;
-			}
+		if (!igb_alloc_mapped_page(rx_ring, bi))
+			break;
 
-			buffer_info->skb = skb;
-		}
-		if (!buffer_info->dma) {
-			buffer_info->dma = dma_map_single(rx_ring->dev,
-			                                  skb->data,
-							  bufsz,
-							  DMA_FROM_DEVICE);
-			if (dma_mapping_error(rx_ring->dev,
-					      buffer_info->dma)) {
-				buffer_info->dma = 0;
-				u64_stats_update_begin(&rx_ring->rx_syncp);
-				rx_ring->rx_stats.alloc_failed++;
-				u64_stats_update_end(&rx_ring->rx_syncp);
-				goto no_buffers;
-			}
-		}
-		/* Refresh the desc even if buffer_addrs didn't change because
-		 * each write-back erases this info. */
-		if (bufsz < IGB_RXBUFFER_1024) {
-			rx_desc->read.pkt_addr =
-			     cpu_to_le64(buffer_info->page_dma);
-			rx_desc->read.hdr_addr = cpu_to_le64(buffer_info->dma);
-		} else {
-			rx_desc->read.pkt_addr = cpu_to_le64(buffer_info->dma);
-			rx_desc->read.hdr_addr = 0;
-		}
+		rx_desc->read.pkt_addr = cpu_to_le64(bi->page_dma);
 
+		rx_desc++;
+		bi++;
 		i++;
-		if (i == rx_ring->count)
-			i = 0;
-		buffer_info = &rx_ring->buffer_info[i];
+		if (unlikely(!i)) {
+			rx_desc = IGB_RX_DESC(rx_ring, 0);
+			bi = rx_ring->buffer_info;
+			i -= rx_ring->count;
+		}
+
+		/* clear the hdr_addr for the next_to_use descriptor */
+		rx_desc->read.hdr_addr = 0;
 	}
 
-no_buffers:
+	i += rx_ring->count;
+
 	if (rx_ring->next_to_use != i) {
 		rx_ring->next_to_use = i;
-		if (i == 0)
-			i = (rx_ring->count - 1);
-		else
-			i--;
 
 		/* Force memory writes to complete before letting h/w
 		 * know there are new descriptors to fetch.  (Only

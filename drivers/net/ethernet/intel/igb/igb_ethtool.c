@@ -1368,7 +1368,6 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	rx_ring->count = IGB_DEFAULT_RXD;
 	rx_ring->dev = &adapter->pdev->dev;
 	rx_ring->netdev = adapter->netdev;
-	rx_ring->rx_buffer_len = IGB_RXBUFFER_2048;
 	rx_ring->reg_idx = adapter->vfs_allocated_count;
 
 	if (igb_setup_rx_resources(rx_ring)) {
@@ -1383,7 +1382,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	igb_setup_rctl(adapter);
 	igb_configure_rx_ring(adapter, rx_ring);
 
-	igb_alloc_rx_buffers_adv(rx_ring, igb_desc_unused(rx_ring));
+	igb_alloc_rx_buffers(rx_ring, igb_desc_unused(rx_ring));
 
 	return 0;
 
@@ -1587,7 +1586,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
 	tx_ntc = tx_ring->next_to_clean;
-	rx_desc = E1000_RX_DESC_ADV(*rx_ring, rx_ntc);
+	rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
 	while (staterr & E1000_RXD_STAT_DD) {
@@ -1597,7 +1596,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
 		dma_unmap_single(rx_ring->dev,
 		                 buffer_info->dma,
-				 rx_ring->rx_buffer_len,
+				 IGB_RX_HDR_LEN,
 				 DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
@@ -1618,12 +1617,12 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 			tx_ntc = 0;
 
 		/* fetch next descriptor */
-		rx_desc = E1000_RX_DESC_ADV(*rx_ring, rx_ntc);
+		rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
 	/* re-map buffers to ring, store next to clean values */
-	igb_alloc_rx_buffers_adv(rx_ring, count);
+	igb_alloc_rx_buffers(rx_ring, count);
 	rx_ring->next_to_clean = rx_ntc;
 	tx_ring->next_to_clean = tx_ntc;
 
@@ -1635,7 +1634,7 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 	struct igb_ring *tx_ring = &adapter->test_tx_ring;
 	struct igb_ring *rx_ring = &adapter->test_rx_ring;
 	int i, j, lc, good_cnt, ret_val = 0;
-	unsigned int size = 1024;
+	unsigned int size = IGB_RX_HDR_LEN;
 	netdev_tx_t tx_ret_val;
 	struct sk_buff *skb;
 
@@ -1666,7 +1665,7 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 		/* place 64 packets on the transmit queue*/
 		for (i = 0; i < 64; i++) {
 			skb_get(skb);
-			tx_ret_val = igb_xmit_frame_ring_adv(skb, tx_ring);
+			tx_ret_val = igb_xmit_frame_ring(skb, tx_ring);
 			if (tx_ret_val == NETDEV_TX_OK)
 				good_cnt++;
 		}

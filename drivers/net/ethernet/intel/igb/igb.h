@@ -63,8 +63,7 @@ struct igb_adapter;
 /* Transmit and receive queues */
 #define IGB_MAX_RX_QUEUES                  (adapter->vfs_allocated_count ? 2 : \
                                            (hw->mac.type > e1000_82575 ? 8 : 4))
-#define IGB_ABS_MAX_TX_QUEUES              8
-#define IGB_MAX_TX_QUEUES                  IGB_MAX_RX_QUEUES
+#define IGB_MAX_TX_QUEUES                  16
 
 #define IGB_MAX_VF_MC_ENTRIES              30
 #define IGB_MAX_VF_FUNCTIONS               8
@@ -100,23 +99,20 @@ struct vf_data_storage {
  */
 #define IGB_RX_PTHRESH                     8
 #define IGB_RX_HTHRESH                     8
-#define IGB_RX_WTHRESH                     1
 #define IGB_TX_PTHRESH                     8
 #define IGB_TX_HTHRESH                     1
+#define IGB_RX_WTHRESH                     ((hw->mac.type == e1000_82576 && \
+					     adapter->msix_entries) ? 1 : 4)
 #define IGB_TX_WTHRESH                     ((hw->mac.type == e1000_82576 && \
-                                             adapter->msix_entries) ? 1 : 16)
+					     adapter->msix_entries) ? 1 : 16)
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 
 /* Supported Rx Buffer Sizes */
-#define IGB_RXBUFFER_64    64     /* Used for packet split */
-#define IGB_RXBUFFER_128   128    /* Used for packet split */
-#define IGB_RXBUFFER_1024  1024
-#define IGB_RXBUFFER_2048  2048
+#define IGB_RXBUFFER_512   512
 #define IGB_RXBUFFER_16384 16384
-
-#define MAX_STD_JUMBO_FRAME_SIZE 9234
+#define IGB_RX_HDR_LEN     IGB_RXBUFFER_512
 
 /* How many Tx Descriptors do we need to call netif_wake_queue ? */
 #define IGB_TX_QUEUE_WAKE	16
@@ -190,25 +186,25 @@ struct igb_q_vector {
 };
 
 struct igb_ring {
-	struct igb_q_vector *q_vector; /* backlink to q_vector */
-	struct net_device *netdev;     /* back pointer to net_device */
-	struct device *dev;            /* device pointer for dma mapping */
-	dma_addr_t dma;                /* phys address of the ring */
-	void *desc;                    /* descriptor ring memory */
-	unsigned int size;             /* length of desc. ring in bytes */
-	u16 count;                     /* number of desc. in the ring */
+	struct igb_q_vector *q_vector;	/* backlink to q_vector */
+	struct net_device *netdev;	/* back pointer to net_device */
+	struct device *dev;		/* device pointer for dma mapping */
+	struct igb_buffer *buffer_info;	/* array of buffer info structs */
+	void *desc;			/* descriptor ring memory */
+	unsigned long flags;		/* ring specific flags */
+	void __iomem *tail;		/* pointer to ring tail register */
+
+	u16 count;			/* number of desc. in the ring */
+	u8 queue_index;			/* logical index of the ring*/
+	u8 reg_idx;			/* physical index of the ring */
+	u32 size;			/* length of desc. ring in bytes */
+
+	/* everything past this point are written often */
+	u16 next_to_clean ____cacheline_aligned_in_smp;
 	u16 next_to_use;
-	u16 next_to_clean;
-	u8 queue_index;
-	u8 reg_idx;
-	void __iomem *head;
-	void __iomem *tail;
-	struct igb_buffer *buffer_info; /* array of buffer info structs */
 
 	unsigned int total_bytes;
 	unsigned int total_packets;
-
-	u32 flags;
 
 	union {
 		/* TX */
@@ -222,9 +218,10 @@ struct igb_ring {
 		struct {
 			struct igb_rx_queue_stats rx_stats;
 			struct u64_stats_sync rx_syncp;
-			u32 rx_buffer_len;
 		};
 	};
+	/* Items past this point are only used during ring alloc / free */
+	dma_addr_t dma;                /* phys address of the ring */
 };
 
 #define IGB_RING_FLAG_RX_CSUM        0x00000001 /* RX CSUM enabled */
@@ -234,12 +231,12 @@ struct igb_ring {
 
 #define IGB_ADVTXD_DCMD (E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS)
 
-#define E1000_RX_DESC_ADV(R, i)	    \
-	(&(((union e1000_adv_rx_desc *)((R).desc))[i]))
-#define E1000_TX_DESC_ADV(R, i)	    \
-	(&(((union e1000_adv_tx_desc *)((R).desc))[i]))
-#define E1000_TX_CTXTDESC_ADV(R, i)	    \
-	(&(((struct e1000_adv_tx_context_desc *)((R).desc))[i]))
+#define IGB_RX_DESC(R, i)	    \
+	(&(((union e1000_adv_rx_desc *)((R)->desc))[i]))
+#define IGB_TX_DESC(R, i)	    \
+	(&(((union e1000_adv_tx_desc *)((R)->desc))[i]))
+#define IGB_TX_CTXTDESC(R, i)	    \
+	(&(((struct e1000_adv_tx_context_desc *)((R)->desc))[i]))
 
 /* igb_desc_unused - calculate if we have unused descriptors */
 static inline int igb_desc_unused(struct igb_ring *ring)
@@ -252,21 +249,43 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 
 /* board specific private data structure */
 struct igb_adapter {
-	struct timer_list watchdog_timer;
-	struct timer_list phy_info_timer;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	u16 mng_vlan_id;
-	u32 bd_number;
-	u32 wol;
-	u32 en_mng_pt;
-	u16 link_speed;
-	u16 link_duplex;
+
+	struct net_device *netdev;
+
+	unsigned long state;
+	unsigned int flags;
+
+	unsigned int num_q_vectors;
+	struct msix_entry *msix_entries;
 
 	/* Interrupt Throttle Rate */
 	u32 rx_itr_setting;
 	u32 tx_itr_setting;
 	u16 tx_itr;
 	u16 rx_itr;
+
+	/* TX */
+	u32 tx_timeout_count;
+	int num_tx_queues;
+	struct igb_ring *tx_ring[16];
+
+	/* RX */
+	int num_rx_queues;
+	struct igb_ring *rx_ring[16];
+
+	u32 max_frame_size;
+	u32 min_frame_size;
+
+	struct timer_list watchdog_timer;
+	struct timer_list phy_info_timer;
+
+	u16 mng_vlan_id;
+	u32 bd_number;
+	u32 wol;
+	u32 en_mng_pt;
+	u16 link_speed;
+	u16 link_duplex;
 
 	struct work_struct reset_task;
 	struct work_struct watchdog_task;
@@ -275,20 +294,7 @@ struct igb_adapter {
 	struct timer_list blink_timer;
 	unsigned long led_status;
 
-	/* TX */
-	struct igb_ring *tx_ring[16];
-	u32 tx_timeout_count;
-
-	/* RX */
-	struct igb_ring *rx_ring[16];
-	int num_tx_queues;
-	int num_rx_queues;
-
-	u32 max_frame_size;
-	u32 min_frame_size;
-
 	/* OS defined structs */
-	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct cyclecounter cycles;
 	struct timecounter clock;
@@ -310,18 +316,13 @@ struct igb_adapter {
 
 	int msg_enable;
 
-	unsigned int num_q_vectors;
 	struct igb_q_vector *q_vector[MAX_Q_VECTORS];
-	struct msix_entry *msix_entries;
 	u32 eims_enable_mask;
 	u32 eims_other;
 
 	/* to not mess up cache alignment, always add to the bottom */
-	unsigned long state;
-	unsigned int flags;
 	u32 eeprom_wol;
 
-	struct igb_ring *multi_tx_table[IGB_ABS_MAX_TX_QUEUES];
 	u16 tx_ring_count;
 	u16 rx_ring_count;
 	unsigned int vfs_allocated_count;
@@ -371,10 +372,10 @@ extern void igb_configure_tx_ring(struct igb_adapter *, struct igb_ring *);
 extern void igb_configure_rx_ring(struct igb_adapter *, struct igb_ring *);
 extern void igb_setup_tctl(struct igb_adapter *);
 extern void igb_setup_rctl(struct igb_adapter *);
-extern netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *, struct igb_ring *);
+extern netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
 extern void igb_unmap_and_free_tx_resource(struct igb_ring *,
 					   struct igb_buffer *);
-extern void igb_alloc_rx_buffers_adv(struct igb_ring *, int);
+extern void igb_alloc_rx_buffers(struct igb_ring *, u16);
 extern void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
