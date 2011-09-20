@@ -324,7 +324,7 @@ static int handle_remove(const char *nodename, struct device *dev)
 			mutex_lock(&dentry->d_inode->i_mutex);
 			notify_change(dentry, &newattrs);
 			mutex_unlock(&dentry->d_inode->i_mutex);
-			err = vfs_unlink(parent.dentry->d_inode, dentry);
+			err = vfs_unlink(parent.dentry->d_inode, dentry, NULL);
 			if (!err || err == -ENOENT)
 				deleted = 1;
 		}
