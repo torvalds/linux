@@ -506,7 +506,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 
 error:
 	if (sound_device)
-		platform_device_unregister(sound_device);
+		platform_device_put(sound_device);
 
 	kfree(mdata);
 error_put:
