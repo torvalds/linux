@@ -867,7 +867,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 
 	if (fbdev->ctrl->setup_mem == NULL)
 		return -ENODEV;
-	if (mi->type > OMAPFB_MEMTYPE_MAX)
+	if (mi->type != OMAPFB_MEMTYPE_SDRAM)
 		return -EINVAL;
 
 	size = PAGE_ALIGN(mi->size);
