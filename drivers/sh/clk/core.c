@@ -173,6 +173,26 @@ long clk_rate_div_range_round(struct clk *clk, unsigned int div_min,
 	return clk_rate_round_helper(&div_range_round);
 }
 
+static long clk_rate_mult_range_iter(unsigned int pos,
+				      struct clk_rate_round_data *rounder)
+{
+	return clk_get_rate(rounder->arg) * pos;
+}
+
+long clk_rate_mult_range_round(struct clk *clk, unsigned int mult_min,
+			       unsigned int mult_max, unsigned long rate)
+{
+	struct clk_rate_round_data mult_range_round = {
+		.min	= mult_min,
+		.max	= mult_max,
+		.func	= clk_rate_mult_range_iter,
+		.arg	= clk_get_parent(clk),
+		.rate	= rate,
+	};
+
+	return clk_rate_round_helper(&mult_range_round);
+}
+
 int clk_rate_table_find(struct clk *clk,
 			struct cpufreq_frequency_table *freq_table,
 			unsigned long rate)
