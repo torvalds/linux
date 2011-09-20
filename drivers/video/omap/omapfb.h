@@ -207,11 +207,7 @@ struct omapfb_device {
 	struct platform_device	*dssdev;	/* dummy dev for clocks */
 };
 
-#ifdef CONFIG_ARCH_OMAP1
 extern struct lcd_ctrl omap1_lcd_ctrl;
-#else
-extern struct lcd_ctrl omap2_disp_ctrl;
-#endif
 
 extern void omapfb_register_panel(struct lcd_panel *panel);
 extern void omapfb_write_first_pixel(struct omapfb_device *fbdev, u16 pixval);

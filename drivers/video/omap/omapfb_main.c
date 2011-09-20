@@ -34,7 +34,6 @@
 
 #include "omapfb.h"
 #include "lcdc.h"
-#include "dispc.h"
 
 #define MODULE_NAME	"omapfb"
 
@@ -106,11 +105,7 @@ static struct platform_device omapdss_device = {
 extern struct lcd_ctrl hwa742_ctrl;
 
 static const struct lcd_ctrl *ctrls[] = {
-#ifdef CONFIG_ARCH_OMAP1
 	&omap1_int_ctrl,
-#else
-	&omap2_int_ctrl,
-#endif
 
 #ifdef CONFIG_FB_OMAP_LCDC_HWA742
 	&hwa742_ctrl,
@@ -118,11 +113,7 @@ static const struct lcd_ctrl *ctrls[] = {
 };
 
 #ifdef CONFIG_FB_OMAP_LCDC_EXTERNAL
-#ifdef CONFIG_ARCH_OMAP1
 extern struct lcd_ctrl_extif omap1_ext_if;
-#else
-extern struct lcd_ctrl_extif omap2_ext_if;
-#endif
 #endif
 
 static void omapfb_rqueue_lock(struct omapfb_device *fbdev)
@@ -1717,16 +1708,9 @@ static int omapfb_do_probe(struct platform_device *pdev,
 
 	mutex_init(&fbdev->rqueue_mutex);
 
-#ifdef CONFIG_ARCH_OMAP1
 	fbdev->int_ctrl = &omap1_int_ctrl;
 #ifdef CONFIG_FB_OMAP_LCDC_EXTERNAL
 	fbdev->ext_if = &omap1_ext_if;
-#endif
-#else	/* OMAP2 */
-	fbdev->int_ctrl = &omap2_int_ctrl;
-#ifdef CONFIG_FB_OMAP_LCDC_EXTERNAL
-	fbdev->ext_if = &omap2_ext_if;
-#endif
 #endif
 	if (omapfb_find_ctrl(fbdev) < 0) {
 		dev_err(fbdev->dev,
