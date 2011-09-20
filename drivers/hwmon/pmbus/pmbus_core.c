@@ -978,6 +978,8 @@ static void pmbus_find_max_attr(struct i2c_client *client,
 struct pmbus_limit_attr {
 	u16 reg;		/* Limit register */
 	bool update;		/* True if register needs updates */
+	bool low;		/* True if low limit; for limits with compare
+				   functions only */
 	const char *attr;	/* Attribute name */
 	const char *alarm;	/* Alarm attribute name */
 	u32 sbit;		/* Alarm attribute status bit */
@@ -1029,7 +1031,8 @@ static bool pmbus_add_limit_attrs(struct i2c_client *client,
 				if (attr->compare) {
 					pmbus_add_boolean_cmp(data, name,
 						l->alarm, index,
-						cbase, cindex,
+						l->low ? cindex : cbase,
+						l->low ? cbase : cindex,
 						attr->sbase + page, l->sbit);
 				} else {
 					pmbus_add_boolean_reg(data, name,
@@ -1366,11 +1369,13 @@ static const struct pmbus_sensor_attr power_attributes[] = {
 static const struct pmbus_limit_attr temp_limit_attrs[] = {
 	{
 		.reg = PMBUS_UT_WARN_LIMIT,
+		.low = true,
 		.attr = "min",
 		.alarm = "min_alarm",
 		.sbit = PB_TEMP_UT_WARNING,
 	}, {
 		.reg = PMBUS_UT_FAULT_LIMIT,
+		.low = true,
 		.attr = "lcrit",
 		.alarm = "lcrit_alarm",
 		.sbit = PB_TEMP_UT_FAULT,
@@ -1399,11 +1404,13 @@ static const struct pmbus_limit_attr temp_limit_attrs[] = {
 static const struct pmbus_limit_attr temp_limit_attrs23[] = {
 	{
 		.reg = PMBUS_UT_WARN_LIMIT,
+		.low = true,
 		.attr = "min",
 		.alarm = "min_alarm",
 		.sbit = PB_TEMP_UT_WARNING,
 	}, {
 		.reg = PMBUS_UT_FAULT_LIMIT,
+		.low = true,
 		.attr = "lcrit",
 		.alarm = "lcrit_alarm",
 		.sbit = PB_TEMP_UT_FAULT,

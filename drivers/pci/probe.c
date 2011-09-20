@@ -1351,7 +1351,8 @@ static int pcie_find_smpss(struct pci_dev *dev, void *data)
 	 * will occur as normal.
 	 */
 	if (dev->is_hotplug_bridge && (!list_is_singular(&dev->bus->devices) ||
-	    dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT))
+	     (dev->bus->self &&
+	      dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT)))
 		*smpss = 0;
 
 	if (*smpss > dev->pcie_mpss)
@@ -1396,34 +1397,37 @@ static void pcie_write_mps(struct pci_dev *dev, int mps)
 
 static void pcie_write_mrrs(struct pci_dev *dev, int mps)
 {
-	int rc, mrrs;
+	int rc, mrrs, dev_mpss;
 
-	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
-		int dev_mpss = 128 << dev->pcie_mpss;
+	/* In the "safe" case, do not configure the MRRS.  There appear to be
+	 * issues with setting MRRS to 0 on a number of devices.
+	 */
 
-		/* For Max performance, the MRRS must be set to the largest
-		 * supported value.  However, it cannot be configured larger
-		 * than the MPS the device or the bus can support.  This assumes
-		 * that the largest MRRS available on the device cannot be
-		 * smaller than the device MPSS.
-		 */
-		mrrs = mps < dev_mpss ? mps : dev_mpss;
-	} else
-		/* In the "safe" case, configure the MRRS for fairness on the
-		 * bus by making all devices have the same size
-		 */
-		mrrs = mps;
+	if (pcie_bus_config != PCIE_BUS_PERFORMANCE)
+		return;
 
+	dev_mpss = 128 << dev->pcie_mpss;
+
+	/* For Max performance, the MRRS must be set to the largest supported
+	 * value.  However, it cannot be configured larger than the MPS the
+	 * device or the bus can support.  This assumes that the largest MRRS
+	 * available on the device cannot be smaller than the device MPSS.
+	 */
+	mrrs = min(mps, dev_mpss);
 
 	/* MRRS is a R/W register.  Invalid values can be written, but a
-	 * subsiquent read will verify if the value is acceptable or not.
+	 * subsequent read will verify if the value is acceptable or not.
 	 * If the MRRS value provided is not acceptable (e.g., too large),
 	 * shrink the value until it is acceptable to the HW.
  	 */
 	while (mrrs != pcie_get_readrq(dev) && mrrs >= 128) {
+		dev_warn(&dev->dev, "Attempting to modify the PCI-E MRRS value"
+			 " to %d.  If any issues are encountered, please try "
+			 "running with pci=pcie_bus_safe\n", mrrs);
 		rc = pcie_set_readrq(dev, mrrs);
 		if (rc)
-			dev_err(&dev->dev, "Failed attempting to set the MRRS\n");
+			dev_err(&dev->dev,
+				"Failed attempting to set the MRRS\n");
 
 		mrrs /= 2;
 	}
@@ -1436,13 +1440,13 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 	if (!pci_is_pcie(dev))
 		return 0;
 
-	dev_info(&dev->dev, "Dev MPS %d MPSS %d MRRS %d\n",
+	dev_dbg(&dev->dev, "Dev MPS %d MPSS %d MRRS %d\n",
 		 pcie_get_mps(dev), 128<<dev->pcie_mpss, pcie_get_readrq(dev));
 
 	pcie_write_mps(dev, mps);
 	pcie_write_mrrs(dev, mps);
 
-	dev_info(&dev->dev, "Dev MPS %d MPSS %d MRRS %d\n",
+	dev_dbg(&dev->dev, "Dev MPS %d MPSS %d MRRS %d\n",
 		 pcie_get_mps(dev), 128<<dev->pcie_mpss, pcie_get_readrq(dev));
 
 	return 0;
@@ -1455,9 +1459,6 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 void pcie_bus_configure_settings(struct pci_bus *bus, u8 mpss)
 {
 	u8 smpss = mpss;
-
-	if (!bus->self)
-		return;
 
 	if (!pci_is_pcie(bus->self))
 		return;

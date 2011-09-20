@@ -875,40 +875,6 @@ void iscsit_inc_session_usage_count(struct iscsi_session *sess)
 }
 
 /*
- *	Used before iscsi_do[rx,tx]_data() to determine iov and [rx,tx]_marker
- *	array counts needed for sync and steering.
- */
-static int iscsit_determine_sync_and_steering_counts(
-	struct iscsi_conn *conn,
-	struct iscsi_data_count *count)
-{
-	u32 length = count->data_length;
-	u32 marker, markint;
-
-	count->sync_and_steering = 1;
-
-	marker = (count->type == ISCSI_RX_DATA) ?
-			conn->of_marker : conn->if_marker;
-	markint = (count->type == ISCSI_RX_DATA) ?
-			(conn->conn_ops->OFMarkInt * 4) :
-			(conn->conn_ops->IFMarkInt * 4);
-	count->ss_iov_count = count->iov_count;
-
-	while (length > 0) {
-		if (length >= marker) {
-			count->ss_iov_count += 3;
-			count->ss_marker_count += 2;
-
-			length -= marker;
-			marker = markint;
-		} else
-			length = 0;
-	}
-
-	return 0;
-}
-
-/*
  *	Setup conn->if_marker and conn->of_marker values based upon
  *	the initial marker-less interval. (see iSCSI v19 A.2)
  */
@@ -1290,7 +1256,7 @@ int iscsit_fe_sendpage_sg(
 	struct kvec iov;
 	u32 tx_hdr_size, data_len;
 	u32 offset = cmd->first_data_sg_off;
-	int tx_sent;
+	int tx_sent, iov_off;
 
 send_hdr:
 	tx_hdr_size = ISCSI_HDR_LEN;
@@ -1310,9 +1276,19 @@ send_hdr:
 	}
 
 	data_len = cmd->tx_size - tx_hdr_size - cmd->padding;
-	if (conn->conn_ops->DataDigest)
+	/*
+	 * Set iov_off used by padding and data digest tx_data() calls below
+	 * in order to determine proper offset into cmd->iov_data[]
+	 */
+	if (conn->conn_ops->DataDigest) {
 		data_len -= ISCSI_CRC_LEN;
-
+		if (cmd->padding)
+			iov_off = (cmd->iov_data_count - 2);
+		else
+			iov_off = (cmd->iov_data_count - 1);
+	} else {
+		iov_off = (cmd->iov_data_count - 1);
+	}
 	/*
 	 * Perform sendpage() for each page in the scatterlist
 	 */
@@ -1341,8 +1317,7 @@ send_pg:
 
 send_padding:
 	if (cmd->padding) {
-		struct kvec *iov_p =
-			&cmd->iov_data[cmd->iov_data_count-1];
+		struct kvec *iov_p = &cmd->iov_data[iov_off++];
 
 		tx_sent = tx_data(conn, iov_p, 1, cmd->padding);
 		if (cmd->padding != tx_sent) {
@@ -1356,8 +1331,7 @@ send_padding:
 
 send_datacrc:
 	if (conn->conn_ops->DataDigest) {
-		struct kvec *iov_d =
-			&cmd->iov_data[cmd->iov_data_count];
+		struct kvec *iov_d = &cmd->iov_data[iov_off];
 
 		tx_sent = tx_data(conn, iov_d, 1, ISCSI_CRC_LEN);
 		if (ISCSI_CRC_LEN != tx_sent) {
@@ -1431,8 +1405,7 @@ static int iscsit_do_rx_data(
 	struct iscsi_data_count *count)
 {
 	int data = count->data_length, rx_loop = 0, total_rx = 0, iov_len;
-	u32 rx_marker_val[count->ss_marker_count], rx_marker_iov = 0;
-	struct kvec iov[count->ss_iov_count], *iov_p;
+	struct kvec *iov_p;
 	struct msghdr msg;
 
 	if (!conn || !conn->sock || !conn->conn_ops)
@@ -1440,93 +1413,8 @@ static int iscsit_do_rx_data(
 
 	memset(&msg, 0, sizeof(struct msghdr));
 
-	if (count->sync_and_steering) {
-		int size = 0;
-		u32 i, orig_iov_count = 0;
-		u32 orig_iov_len = 0, orig_iov_loc = 0;
-		u32 iov_count = 0, per_iov_bytes = 0;
-		u32 *rx_marker, old_rx_marker = 0;
-		struct kvec *iov_record;
-
-		memset(&rx_marker_val, 0,
-				count->ss_marker_count * sizeof(u32));
-		memset(&iov, 0, count->ss_iov_count * sizeof(struct kvec));
-
-		iov_record = count->iov;
-		orig_iov_count = count->iov_count;
-		rx_marker = &conn->of_marker;
-
-		i = 0;
-		size = data;
-		orig_iov_len = iov_record[orig_iov_loc].iov_len;
-		while (size > 0) {
-			pr_debug("rx_data: #1 orig_iov_len %u,"
-			" orig_iov_loc %u\n", orig_iov_len, orig_iov_loc);
-			pr_debug("rx_data: #2 rx_marker %u, size"
-				" %u\n", *rx_marker, size);
-
-			if (orig_iov_len >= *rx_marker) {
-				iov[iov_count].iov_len = *rx_marker;
-				iov[iov_count++].iov_base =
-					(iov_record[orig_iov_loc].iov_base +
-						per_iov_bytes);
-
-				iov[iov_count].iov_len = (MARKER_SIZE / 2);
-				iov[iov_count++].iov_base =
-					&rx_marker_val[rx_marker_iov++];
-				iov[iov_count].iov_len = (MARKER_SIZE / 2);
-				iov[iov_count++].iov_base =
-					&rx_marker_val[rx_marker_iov++];
-				old_rx_marker = *rx_marker;
-
-				/*
-				 * OFMarkInt is in 32-bit words.
-				 */
-				*rx_marker = (conn->conn_ops->OFMarkInt * 4);
-				size -= old_rx_marker;
-				orig_iov_len -= old_rx_marker;
-				per_iov_bytes += old_rx_marker;
-
-				pr_debug("rx_data: #3 new_rx_marker"
-					" %u, size %u\n", *rx_marker, size);
-			} else {
-				iov[iov_count].iov_len = orig_iov_len;
-				iov[iov_count++].iov_base =
-					(iov_record[orig_iov_loc].iov_base +
-						per_iov_bytes);
-
-				per_iov_bytes = 0;
-				*rx_marker -= orig_iov_len;
-				size -= orig_iov_len;
-
-				if (size)
-					orig_iov_len =
-					iov_record[++orig_iov_loc].iov_len;
-
-				pr_debug("rx_data: #4 new_rx_marker"
-					" %u, size %u\n", *rx_marker, size);
-			}
-		}
-		data += (rx_marker_iov * (MARKER_SIZE / 2));
-
-		iov_p	= &iov[0];
-		iov_len	= iov_count;
-
-		if (iov_count > count->ss_iov_count) {
-			pr_err("iov_count: %d, count->ss_iov_count:"
-				" %d\n", iov_count, count->ss_iov_count);
-			return -1;
-		}
-		if (rx_marker_iov > count->ss_marker_count) {
-			pr_err("rx_marker_iov: %d, count->ss_marker"
-				"_count: %d\n", rx_marker_iov,
-				count->ss_marker_count);
-			return -1;
-		}
-	} else {
-		iov_p = count->iov;
-		iov_len	= count->iov_count;
-	}
+	iov_p = count->iov;
+	iov_len	= count->iov_count;
 
 	while (total_rx < data) {
 		rx_loop = kernel_recvmsg(conn->sock, &msg, iov_p, iov_len,
@@ -1541,16 +1429,6 @@ static int iscsit_do_rx_data(
 				rx_loop, total_rx, data);
 	}
 
-	if (count->sync_and_steering) {
-		int j;
-		for (j = 0; j < rx_marker_iov; j++) {
-			pr_debug("rx_data: #5 j: %d, offset: %d\n",
-				j, rx_marker_val[j]);
-			conn->of_marker_offset = rx_marker_val[j];
-		}
-		total_rx -= (rx_marker_iov * (MARKER_SIZE / 2));
-	}
-
 	return total_rx;
 }
 
@@ -1559,8 +1437,7 @@ static int iscsit_do_tx_data(
 	struct iscsi_data_count *count)
 {
 	int data = count->data_length, total_tx = 0, tx_loop = 0, iov_len;
-	u32 tx_marker_val[count->ss_marker_count], tx_marker_iov = 0;
-	struct kvec iov[count->ss_iov_count], *iov_p;
+	struct kvec *iov_p;
 	struct msghdr msg;
 
 	if (!conn || !conn->sock || !conn->conn_ops)
@@ -1573,98 +1450,8 @@ static int iscsit_do_tx_data(
 
 	memset(&msg, 0, sizeof(struct msghdr));
 
-	if (count->sync_and_steering) {
-		int size = 0;
-		u32 i, orig_iov_count = 0;
-		u32 orig_iov_len = 0, orig_iov_loc = 0;
-		u32 iov_count = 0, per_iov_bytes = 0;
-		u32 *tx_marker, old_tx_marker = 0;
-		struct kvec *iov_record;
-
-		memset(&tx_marker_val, 0,
-			count->ss_marker_count * sizeof(u32));
-		memset(&iov, 0, count->ss_iov_count * sizeof(struct kvec));
-
-		iov_record = count->iov;
-		orig_iov_count = count->iov_count;
-		tx_marker = &conn->if_marker;
-
-		i = 0;
-		size = data;
-		orig_iov_len = iov_record[orig_iov_loc].iov_len;
-		while (size > 0) {
-			pr_debug("tx_data: #1 orig_iov_len %u,"
-			" orig_iov_loc %u\n", orig_iov_len, orig_iov_loc);
-			pr_debug("tx_data: #2 tx_marker %u, size"
-				" %u\n", *tx_marker, size);
-
-			if (orig_iov_len >= *tx_marker) {
-				iov[iov_count].iov_len = *tx_marker;
-				iov[iov_count++].iov_base =
-					(iov_record[orig_iov_loc].iov_base +
-						per_iov_bytes);
-
-				tx_marker_val[tx_marker_iov] =
-						(size - *tx_marker);
-				iov[iov_count].iov_len = (MARKER_SIZE / 2);
-				iov[iov_count++].iov_base =
-					&tx_marker_val[tx_marker_iov++];
-				iov[iov_count].iov_len = (MARKER_SIZE / 2);
-				iov[iov_count++].iov_base =
-					&tx_marker_val[tx_marker_iov++];
-				old_tx_marker = *tx_marker;
-
-				/*
-				 * IFMarkInt is in 32-bit words.
-				 */
-				*tx_marker = (conn->conn_ops->IFMarkInt * 4);
-				size -= old_tx_marker;
-				orig_iov_len -= old_tx_marker;
-				per_iov_bytes += old_tx_marker;
-
-				pr_debug("tx_data: #3 new_tx_marker"
-					" %u, size %u\n", *tx_marker, size);
-				pr_debug("tx_data: #4 offset %u\n",
-					tx_marker_val[tx_marker_iov-1]);
-			} else {
-				iov[iov_count].iov_len = orig_iov_len;
-				iov[iov_count++].iov_base
-					= (iov_record[orig_iov_loc].iov_base +
-						per_iov_bytes);
-
-				per_iov_bytes = 0;
-				*tx_marker -= orig_iov_len;
-				size -= orig_iov_len;
-
-				if (size)
-					orig_iov_len =
-					iov_record[++orig_iov_loc].iov_len;
-
-				pr_debug("tx_data: #5 new_tx_marker"
-					" %u, size %u\n", *tx_marker, size);
-			}
-		}
-
-		data += (tx_marker_iov * (MARKER_SIZE / 2));
-
-		iov_p = &iov[0];
-		iov_len = iov_count;
-
-		if (iov_count > count->ss_iov_count) {
-			pr_err("iov_count: %d, count->ss_iov_count:"
-				" %d\n", iov_count, count->ss_iov_count);
-			return -1;
-		}
-		if (tx_marker_iov > count->ss_marker_count) {
-			pr_err("tx_marker_iov: %d, count->ss_marker"
-				"_count: %d\n", tx_marker_iov,
-				count->ss_marker_count);
-			return -1;
-		}
-	} else {
-		iov_p = count->iov;
-		iov_len = count->iov_count;
-	}
+	iov_p = count->iov;
+	iov_len = count->iov_count;
 
 	while (total_tx < data) {
 		tx_loop = kernel_sendmsg(conn->sock, &msg, iov_p, iov_len,
@@ -1678,9 +1465,6 @@ static int iscsit_do_tx_data(
 		pr_debug("tx_loop: %d, total_tx: %d, data: %d\n",
 					tx_loop, total_tx, data);
 	}
-
-	if (count->sync_and_steering)
-		total_tx -= (tx_marker_iov * (MARKER_SIZE / 2));
 
 	return total_tx;
 }
@@ -1702,12 +1486,6 @@ int rx_data(
 	c.data_length = data;
 	c.type = ISCSI_RX_DATA;
 
-	if (conn->conn_ops->OFMarker &&
-	   (conn->conn_state >= TARG_CONN_STATE_LOGGED_IN)) {
-		if (iscsit_determine_sync_and_steering_counts(conn, &c) < 0)
-			return -1;
-	}
-
 	return iscsit_do_rx_data(conn, &c);
 }
 
@@ -1727,12 +1505,6 @@ int tx_data(
 	c.iov_count = iov_count;
 	c.data_length = data;
 	c.type = ISCSI_TX_DATA;
-
-	if (conn->conn_ops->IFMarker &&
-	   (conn->conn_state >= TARG_CONN_STATE_LOGGED_IN)) {
-		if (iscsit_determine_sync_and_steering_counts(conn, &c) < 0)
-			return -1;
-	}
 
 	return iscsit_do_tx_data(conn, &c);
 }
