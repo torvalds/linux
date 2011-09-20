@@ -882,7 +882,7 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 		struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
 
 		mutex_lock(&lower_dentry->d_inode->i_mutex);
-		rc = notify_change(lower_dentry, &lower_ia);
+		rc = notify_change(lower_dentry, &lower_ia, NULL);
 		mutex_unlock(&lower_dentry->d_inode->i_mutex);
 	}
 	return rc;
@@ -983,7 +983,7 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 		lower_ia.ia_valid &= ~ATTR_MODE;
 
 	mutex_lock(&lower_dentry->d_inode->i_mutex);
-	rc = notify_change(lower_dentry, &lower_ia);
+	rc = notify_change(lower_dentry, &lower_ia, NULL);
 	mutex_unlock(&lower_dentry->d_inode->i_mutex);
 out:
 	fsstack_copy_attr_all(inode, lower_inode);
