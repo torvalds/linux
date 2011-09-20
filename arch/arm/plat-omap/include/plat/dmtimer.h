@@ -229,6 +229,7 @@ int omap_dm_timers_active(void);
 
 struct omap_dm_timer {
 	unsigned long phys_base;
+	int id;
 	int irq;
 #ifdef CONFIG_ARCH_OMAP2PLUS
 	struct clk *iclk, *fclk;
@@ -246,6 +247,7 @@ struct omap_dm_timer {
 	unsigned enabled:1;
 	unsigned posted:1;
 	struct platform_device *pdev;
+	struct list_head node;
 };
 
 extern u32 sys_timer_reserved;
