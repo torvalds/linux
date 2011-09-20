@@ -877,30 +877,31 @@ struct numa_maps_private {
 	struct numa_maps md;
 };
 
-static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty)
+static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty,
+			unsigned long nr_pages)
 {
 	int count = page_mapcount(page);
 
-	md->pages++;
+	md->pages += nr_pages;
 	if (pte_dirty || PageDirty(page))
-		md->dirty++;
+		md->dirty += nr_pages;
 
 	if (PageSwapCache(page))
-		md->swapcache++;
+		md->swapcache += nr_pages;
 
 	if (PageActive(page) || PageUnevictable(page))
-		md->active++;
+		md->active += nr_pages;
 
 	if (PageWriteback(page))
-		md->writeback++;
+		md->writeback += nr_pages;
 
 	if (PageAnon(page))
-		md->anon++;
+		md->anon += nr_pages;
 
 	if (count > md->mapcount_max)
 		md->mapcount_max = count;
 
-	md->node[page_to_nid(page)]++;
+	md->node[page_to_nid(page)] += nr_pages;
 }
 
 static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
@@ -931,7 +932,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
 		if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
 			continue;
 
-		gather_stats(page, md, pte_dirty(*pte));
+		gather_stats(page, md, pte_dirty(*pte), 1);
 
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap_unlock(orig_pte, ptl);
@@ -952,7 +953,7 @@ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
 		return 0;
 
 	md = walk->private;
-	gather_stats(page, md, pte_dirty(*pte));
+	gather_stats(page, md, pte_dirty(*pte), 1);
 	return 0;
 }
 
