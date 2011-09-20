@@ -1029,7 +1029,7 @@ struct iwl_priv {
 	struct delayed_work hw_roc_disable_work;
 	enum nl80211_channel_type hw_roc_chantype;
 	int hw_roc_duration;
-	bool hw_roc_setup;
+	bool hw_roc_setup, hw_roc_start_notified;
 
 	/* bt coex */
 	u8 bt_enable_flag;

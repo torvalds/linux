@@ -218,8 +218,11 @@ static void iwl_rx_scan_start_notif(struct iwl_priv *priv,
 		       le32_to_cpu(notif->tsf_low),
 		       notif->status, notif->beacon_timer);
 
-	if (priv->scan_type == IWL_SCAN_ROC)
+	if (priv->scan_type == IWL_SCAN_ROC &&
+	    !priv->hw_roc_start_notified) {
 		ieee80211_ready_on_channel(priv->hw);
+		priv->hw_roc_start_notified = true;
+	}
 }
 
 /* Service SCAN_RESULTS_NOTIFICATION (0x83) */
@@ -310,34 +313,38 @@ static u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 			IWL_ACTIVE_DWELL_FACTOR_24GHZ * (n_probes + 1);
 }
 
+static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
+{
+	struct iwl_rxon_context *ctx;
+
+	/*
+	 * If we're associated, we clamp the dwell time 98%
+	 * of the smallest beacon interval (minus 2 * channel
+	 * tune time)
+	 */
+	for_each_context(priv, ctx) {
+		u16 value;
+
+		if (!iwl_is_associated_ctx(ctx))
+			continue;
+		value = ctx->beacon_int;
+		if (!value)
+			value = IWL_PASSIVE_DWELL_BASE;
+		value = (value * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
+		dwell_time = min(value, dwell_time);
+	}
+
+	return dwell_time;
+}
+
 static u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 				      enum ieee80211_band band)
 {
-	struct iwl_rxon_context *ctx;
 	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_52;
 
-	if (iwl_is_any_associated(priv)) {
-		/*
-		 * If we're associated, we clamp the maximum passive
-		 * dwell time to be 98% of the smallest beacon interval
-		 * (minus 2 * channel tune time)
-		 */
-		for_each_context(priv, ctx) {
-			u16 value;
-
-			if (!iwl_is_associated_ctx(ctx))
-				continue;
-			value = ctx->vif ? ctx->vif->bss_conf.beacon_int : 0;
-			if ((value > IWL_PASSIVE_DWELL_BASE) || !value)
-				value = IWL_PASSIVE_DWELL_BASE;
-			value = (value * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
-			passive = min(value, passive);
-		}
-	}
-
-	return passive;
+	return iwl_limit_dwell(priv, passive);
 }
 
 static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
@@ -716,29 +723,43 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		break;
 	case IWL_SCAN_ROC: {
 		struct iwl_scan_channel *scan_ch;
+		int n_chan, i;
+		u16 dwell;
 
-		scan->channel_count = 1;
+		dwell = iwl_limit_dwell(priv, priv->hw_roc_duration);
+		n_chan = DIV_ROUND_UP(priv->hw_roc_duration, dwell);
+
+		scan->channel_count = n_chan;
 
 		scan_ch = (void *)&scan->data[cmd_len];
-		scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
-		scan_ch->channel =
-			cpu_to_le16(priv->hw_roc_channel->hw_value);
-		scan_ch->active_dwell =
-		scan_ch->passive_dwell =
-			cpu_to_le16(priv->hw_roc_duration);
 
-		/* Set txpower levels to defaults */
-		scan_ch->dsp_atten = 110;
+		for (i = 0; i < n_chan; i++) {
+			scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
+			scan_ch->channel =
+				cpu_to_le16(priv->hw_roc_channel->hw_value);
 
-		/* NOTE: if we were doing 6Mb OFDM for scans we'd use
-		 * power level:
-		 * scan_ch->tx_gain = ((1 << 5) | (2 << 3)) | 3;
-		 */
-		if (priv->hw_roc_channel->band == IEEE80211_BAND_5GHZ)
-			scan_ch->tx_gain = ((1 << 5) | (3 << 3)) | 3;
-		else
-			scan_ch->tx_gain = ((1 << 5) | (5 << 3));
+			if (i == n_chan - 1)
+				dwell = priv->hw_roc_duration - i * dwell;
+
+			scan_ch->active_dwell =
+			scan_ch->passive_dwell = cpu_to_le16(dwell);
+
+			/* Set txpower levels to defaults */
+			scan_ch->dsp_atten = 110;
+
+			/* NOTE: if we were doing 6Mb OFDM for scans we'd use
+			 * power level:
+			 * scan_ch->tx_gain = ((1 << 5) | (2 << 3)) | 3;
+			 */
+			if (priv->hw_roc_channel->band == IEEE80211_BAND_5GHZ)
+				scan_ch->tx_gain = ((1 << 5) | (3 << 3)) | 3;
+			else
+				scan_ch->tx_gain = ((1 << 5) | (5 << 3));
+
+			scan_ch++;
 		}
+		}
+
 		break;
 	}
 
