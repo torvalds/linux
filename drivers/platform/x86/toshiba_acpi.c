@@ -191,7 +191,7 @@ static int write_acpi_int(const char *methodName, int val)
 	in_objs[0].integer.value = val;
 
 	status = acpi_evaluate_object(NULL, (char *)methodName, &params, NULL);
-	return (status == AE_OK);
+	return (status == AE_OK) ? 0 : -EIO;
 }
 
 /* Perform a raw HCI call.  Here we don't care about input or output buffer
@@ -419,7 +419,7 @@ static int bt_rfkill_set_block(void *data, bool blocked)
 
 	mutex_lock(&dev->mutex);
 	if (hci_get_radio_state(dev, &radio_state) != HCI_SUCCESS) {
-		err = -EBUSY;
+		err = -EIO;
 		goto out;
 	}
 
@@ -432,7 +432,7 @@ static int bt_rfkill_set_block(void *data, bool blocked)
 	hci_write2(dev, HCI_WIRELESS, value, HCI_WIRELESS_BT_ATTACH, &result2);
 
 	if (result1 != HCI_SUCCESS || result2 != HCI_SUCCESS)
-		err = -EBUSY;
+		err = -EIO;
 	else
 		err = 0;
  out:
@@ -478,10 +478,10 @@ static int get_lcd(struct backlight_device *bd)
 	u32 value;
 
 	hci_read1(dev, HCI_LCD_BRIGHTNESS, &value, &hci_result);
-	if (hci_result == HCI_SUCCESS) {
+	if (hci_result == HCI_SUCCESS)
 		return (value >> HCI_LCD_BRIGHTNESS_SHIFT);
-	} else
-		return -EFAULT;
+
+	return -EIO;
 }
 
 static int lcd_proc_show(struct seq_file *m, void *v)
@@ -497,11 +497,11 @@ static int lcd_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "brightness:              %d\n", value);
 		seq_printf(m, "brightness_levels:       %d\n",
 			     HCI_LCD_BRIGHTNESS_LEVELS);
-	} else {
-		pr_err("Error reading LCD brightness\n");
+		return 0;
 	}
 
-	return 0;
+	pr_err("Error reading LCD brightness\n");
+	return -EIO;
 }
 
 static int lcd_proc_open(struct inode *inode, struct file *file)
@@ -515,10 +515,7 @@ static int set_lcd(struct toshiba_acpi_dev *dev, int value)
 
 	value = value << HCI_LCD_BRIGHTNESS_SHIFT;
 	hci_write1(dev, HCI_LCD_BRIGHTNESS, value, &hci_result);
-	if (hci_result != HCI_SUCCESS)
-		return -EFAULT;
-
-	return 0;
+	return hci_result == HCI_SUCCESS ? 0 : -EIO;
 }
 
 static int set_lcd_status(struct backlight_device *bd)
@@ -575,11 +572,10 @@ static int video_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "lcd_out:                 %d\n", is_lcd);
 		seq_printf(m, "crt_out:                 %d\n", is_crt);
 		seq_printf(m, "tv_out:                  %d\n", is_tv);
-	} else {
-		pr_err("Error reading video out status\n");
+		return 0;
 	}
 
-	return 0;
+	return -EIO;
 }
 
 static int video_proc_open(struct inode *inode, struct file *file)
@@ -592,6 +588,7 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 {
 	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
 	char *cmd, *buffer;
+	int ret = 0;
 	int value;
 	int remain = count;
 	int lcd_out = -1;
@@ -644,12 +641,12 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 		/* To avoid unnecessary video disruption, only write the new
 		 * video setting if something changed. */
 		if (new_video_out != video_out)
-			write_acpi_int(METHOD_VIDEO_OUT, new_video_out);
+			ret = write_acpi_int(METHOD_VIDEO_OUT, new_video_out);
 	} else {
-		return -EFAULT;
+		ret = -EIO;
 	}
 
-	return count;
+	return ret ? ret : count;
 }
 
 static const struct file_operations video_proc_fops = {
@@ -671,11 +668,10 @@ static int fan_proc_show(struct seq_file *m, void *v)
 	if (hci_result == HCI_SUCCESS) {
 		seq_printf(m, "running:                 %d\n", (value > 0));
 		seq_printf(m, "force_on:                %d\n", dev->force_fan);
-	} else {
-		pr_err("Error reading fan status\n");
+		return 0;
 	}
 
-	return 0;
+	return -EIO;
 }
 
 static int fan_proc_open(struct inode *inode, struct file *file)
@@ -701,7 +697,7 @@ static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 	    value >= 0 && value <= 1) {
 		hci_write1(dev, HCI_FAN, value, &hci_result);
 		if (hci_result != HCI_SUCCESS)
-			return -EFAULT;
+			return -EIO;
 		else
 			dev->force_fan = value;
 	} else {
@@ -741,13 +737,12 @@ static int keys_proc_show(struct seq_file *m, void *v)
 			pr_notice("Re-enabled hotkeys\n");
 		} else {
 			pr_err("Error reading hotkey status\n");
-			goto end;
+			return -EIO;
 		}
 	}
 
 	seq_printf(m, "hotkey_ready:            %d\n", dev->key_event_valid);
 	seq_printf(m, "hotkey:                  0x%04x\n", dev->last_key_event);
-end:
 	return 0;
 }
 
