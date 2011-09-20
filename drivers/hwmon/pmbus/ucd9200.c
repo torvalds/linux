@@ -68,13 +68,11 @@ static int ucd9200_probe(struct i2c_client *client,
 	block_buffer[ret] = '\0';
 	dev_info(&client->dev, "Device ID %s\n", block_buffer);
 
-	mid = NULL;
-	for (i = 0; i < ARRAY_SIZE(ucd9200_id); i++) {
-		mid = &ucd9200_id[i];
+	for (mid = ucd9200_id; mid->name[0]; mid++) {
 		if (!strncasecmp(mid->name, block_buffer, strlen(mid->name)))
 			break;
 	}
-	if (!mid || !strlen(mid->name)) {
+	if (!mid->name[0]) {
 		dev_err(&client->dev, "Unsupported device\n");
 		return -ENODEV;
 	}

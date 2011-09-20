@@ -335,9 +335,9 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 #define DBGKEY(key)  ((char *)(key))
 #define DBGKEY1(key) ((char *)(key))
 
-#define ubifs_dbg_msg(fmt, ...) do {               \
-	if (0)                                     \
-		pr_debug(fmt "\n", ##__VA_ARGS__); \
+#define ubifs_dbg_msg(fmt, ...) do {                        \
+	if (0)                                              \
+		printk(KERN_DEBUG fmt "\n", ##__VA_ARGS__); \
 } while (0)
 
 #define dbg_dump_stack()

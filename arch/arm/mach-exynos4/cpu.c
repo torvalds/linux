@@ -44,11 +44,6 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 		.length		= SZ_4K,
 		.type	 	= MT_DEVICE,
 	}, {
-		.virtual	= (unsigned long)S5P_VA_SYSRAM,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_SYSRAM),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= (unsigned long)S5P_VA_CMU,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_CMU),
 		.length		= SZ_128K,
@@ -121,6 +116,24 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 	},
 };
 
+static struct map_desc exynos4_iodesc0[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_SYSRAM,
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_SYSRAM0),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	},
+};
+
+static struct map_desc exynos4_iodesc1[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_SYSRAM,
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_SYSRAM1),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	},
+};
+
 static void exynos4_idle(void)
 {
 	if (!need_resched())
@@ -142,6 +155,11 @@ static void exynos4_sw_reset(void)
 void __init exynos4_map_io(void)
 {
 	iotable_init(exynos4_iodesc, ARRAY_SIZE(exynos4_iodesc));
+
+	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_0)
+		iotable_init(exynos4_iodesc0, ARRAY_SIZE(exynos4_iodesc0));
+	else
+		iotable_init(exynos4_iodesc1, ARRAY_SIZE(exynos4_iodesc1));
 
 	/* initialize device information early */
 	exynos4_default_sdhci0();
@@ -170,6 +188,12 @@ void __init exynos4_init_clocks(int xtal)
 
 	s3c24xx_register_baseclocks(xtal);
 	s5p_register_clocks(xtal);
+
+	if (soc_is_exynos4210())
+		exynos4210_register_clocks();
+	else if (soc_is_exynos4212())
+		exynos4212_register_clocks();
+
 	exynos4_register_clocks();
 	exynos4_setup_clocks();
 }
@@ -223,7 +247,11 @@ static int __init exynos4_l2x0_cache_init(void)
 {
 	/* TAG, Data Latency Control: 2cycle */
 	__raw_writel(0x110, S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
-	__raw_writel(0x110, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
+
+	if (soc_is_exynos4210())
+		__raw_writel(0x110, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
+	else if (soc_is_exynos4212())
+		__raw_writel(0x120, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
 
 	/* L2X0 Prefetch Control */
 	__raw_writel(0x30000007, S5P_VA_L2CC + L2X0_PREFETCH_CTRL);

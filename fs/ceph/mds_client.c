@@ -1595,7 +1595,7 @@ static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
 		r = build_dentry_path(rdentry, ppath, pathlen, ino, freepath);
 		dout(" dentry %p %llx/%.*s\n", rdentry, *ino, *pathlen,
 		     *ppath);
-	} else if (rpath) {
+	} else if (rpath || rino) {
 		*ino = rino;
 		*ppath = rpath;
 		*pathlen = strlen(rpath);
