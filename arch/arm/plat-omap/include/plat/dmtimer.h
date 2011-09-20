@@ -243,7 +243,6 @@ struct omap_dm_timer {
 
 	unsigned long rate;
 	unsigned reserved:1;
-	unsigned enabled:1;
 	unsigned posted:1;
 	struct platform_device *pdev;
 	struct list_head node;
