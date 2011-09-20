@@ -49,6 +49,7 @@
 #define KVM_REQ_EVENT             11
 #define KVM_REQ_APF_HALT          12
 #define KVM_REQ_STEAL_UPDATE      13
+#define KVM_REQ_NMI               14
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 

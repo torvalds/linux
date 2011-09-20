@@ -413,8 +413,9 @@ struct kvm_vcpu_arch {
 	u32  tsc_catchup_mult;
 	s8   tsc_catchup_shift;
 
-	bool nmi_pending;
-	bool nmi_injected;
+	atomic_t nmi_queued;  /* unprocessed asynchronous NMIs */
+	unsigned nmi_pending; /* NMI queued after currently running handler */
+	bool nmi_injected;    /* Trying to inject an NMI this entry */
 
 	struct mtrr_state_type mtrr_state;
 	u32 pat;

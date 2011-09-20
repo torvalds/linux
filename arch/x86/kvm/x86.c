@@ -83,6 +83,7 @@ static u64 __read_mostly efer_reserved_bits = ~((u64)EFER_SCE);
 static void update_cr8_intercept(struct kvm_vcpu *vcpu);
 static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 				    struct kvm_cpuid_entry2 __user *entries);
+static void process_nmi(struct kvm_vcpu *vcpu);
 
 struct kvm_x86_ops *kvm_x86_ops;
 EXPORT_SYMBOL_GPL(kvm_x86_ops);
@@ -359,8 +360,8 @@ void kvm_propagate_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu)
 {
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
-	vcpu->arch.nmi_pending = 1;
+	atomic_inc(&vcpu->arch.nmi_queued);
+	kvm_make_request(KVM_REQ_NMI, vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_inject_nmi);
 
@@ -2827,6 +2828,7 @@ static int kvm_vcpu_ioctl_x86_set_mce(struct kvm_vcpu *vcpu,
 static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 					       struct kvm_vcpu_events *events)
 {
+	process_nmi(vcpu);
 	events->exception.injected =
 		vcpu->arch.exception.pending &&
 		!kvm_exception_is_soft(vcpu->arch.exception.nr);
@@ -2844,7 +2846,7 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 			KVM_X86_SHADOW_INT_MOV_SS | KVM_X86_SHADOW_INT_STI);
 
 	events->nmi.injected = vcpu->arch.nmi_injected;
-	events->nmi.pending = vcpu->arch.nmi_pending;
+	events->nmi.pending = vcpu->arch.nmi_pending != 0;
 	events->nmi.masked = kvm_x86_ops->get_nmi_mask(vcpu);
 	events->nmi.pad = 0;
 
@@ -2864,6 +2866,7 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 			      | KVM_VCPUEVENT_VALID_SHADOW))
 		return -EINVAL;
 
+	process_nmi(vcpu);
 	vcpu->arch.exception.pending = events->exception.injected;
 	vcpu->arch.exception.nr = events->exception.nr;
 	vcpu->arch.exception.has_error_code = events->exception.has_error_code;
@@ -4763,7 +4766,7 @@ int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 	kvm_set_rflags(vcpu, ctxt->eflags);
 
 	if (irq == NMI_VECTOR)
-		vcpu->arch.nmi_pending = false;
+		vcpu->arch.nmi_pending = 0;
 	else
 		vcpu->arch.interrupt.pending = false;
 
@@ -5572,7 +5575,7 @@ static void inject_pending_event(struct kvm_vcpu *vcpu)
 	/* try to inject new event if pending */
 	if (vcpu->arch.nmi_pending) {
 		if (kvm_x86_ops->nmi_allowed(vcpu)) {
-			vcpu->arch.nmi_pending = false;
+			--vcpu->arch.nmi_pending;
 			vcpu->arch.nmi_injected = true;
 			kvm_x86_ops->set_nmi(vcpu);
 		}
@@ -5604,10 +5607,26 @@ static void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu)
 	}
 }
 
+static void process_nmi(struct kvm_vcpu *vcpu)
+{
+	unsigned limit = 2;
+
+	/*
+	 * x86 is limited to one NMI running, and one NMI pending after it.
+	 * If an NMI is already in progress, limit further NMIs to just one.
+	 * Otherwise, allow two (and we'll inject the first one immediately).
+	 */
+	if (kvm_x86_ops->get_nmi_mask(vcpu) || vcpu->arch.nmi_injected)
+		limit = 1;
+
+	vcpu->arch.nmi_pending += atomic_xchg(&vcpu->arch.nmi_queued, 0);
+	vcpu->arch.nmi_pending = min(vcpu->arch.nmi_pending, limit);
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
+}
+
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 {
 	int r;
-	bool nmi_pending;
 	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
 		vcpu->run->request_interrupt_window;
 
@@ -5647,6 +5666,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		}
 		if (kvm_check_request(KVM_REQ_STEAL_UPDATE, vcpu))
 			record_steal_time(vcpu);
+		if (kvm_check_request(KVM_REQ_NMI, vcpu))
+			process_nmi(vcpu);
 
 	}
 
@@ -5654,19 +5675,11 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (unlikely(r))
 		goto out;
 
-	/*
-	 * An NMI can be injected between local nmi_pending read and
-	 * vcpu->arch.nmi_pending read inside inject_pending_event().
-	 * But in that case, KVM_REQ_EVENT will be set, which makes
-	 * the race described above benign.
-	 */
-	nmi_pending = ACCESS_ONCE(vcpu->arch.nmi_pending);
-
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
 		inject_pending_event(vcpu);
 
 		/* enable NMI/IRQ window open exits if needed */
-		if (nmi_pending)
+		if (vcpu->arch.nmi_pending)
 			kvm_x86_ops->enable_nmi_window(vcpu);
 		else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
 			kvm_x86_ops->enable_irq_window(vcpu);
@@ -6374,7 +6387,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.nmi_pending = false;
+	atomic_set(&vcpu->arch.nmi_queued, 0);
+	vcpu->arch.nmi_pending = 0;
 	vcpu->arch.nmi_injected = false;
 
 	vcpu->arch.switch_db_regs = 0;
@@ -6649,7 +6663,7 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 		!vcpu->arch.apf.halted)
 		|| !list_empty_careful(&vcpu->async_pf.done)
 		|| vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED
-		|| vcpu->arch.nmi_pending ||
+		|| atomic_read(&vcpu->arch.nmi_queued) ||
 		(kvm_arch_interrupt_allowed(vcpu) &&
 		 kvm_cpu_has_interrupt(vcpu));
 }
