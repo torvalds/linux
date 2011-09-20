@@ -290,12 +290,6 @@ static struct omap_board_config_kernel h4_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&h4_lcd_config },
 };
 
-static void __init omap_h4_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
-}
-
 static void __init omap_h4_init_irq(void)
 {
 	omap2_init_irq();
@@ -371,6 +365,7 @@ static void __init omap_h4_init(void)
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
 	omap2_usbfs_init(&h4_usb_config);
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	h4_init_flash();
 }
 
@@ -385,7 +380,7 @@ MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap_h4_map_io,
-	.init_early	= omap_h4_init_early,
+	.init_early	= omap2420_init_early,
 	.init_irq	= omap_h4_init_irq,
 	.init_machine	= omap_h4_init,
 	.timer		= &omap2_timer,

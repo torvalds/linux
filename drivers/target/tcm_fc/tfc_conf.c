@@ -256,7 +256,7 @@ struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
 	struct se_portal_group *se_tpg = &tpg->se_tpg;
 	struct se_node_acl *se_acl;
 
-	spin_lock_bh(&se_tpg->acl_node_lock);
+	spin_lock_irq(&se_tpg->acl_node_lock);
 	list_for_each_entry(se_acl, &se_tpg->acl_node_list, acl_list) {
 		acl = container_of(se_acl, struct ft_node_acl, se_node_acl);
 		pr_debug("acl %p port_name %llx\n",
@@ -270,7 +270,7 @@ struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
 			break;
 		}
 	}
-	spin_unlock_bh(&se_tpg->acl_node_lock);
+	spin_unlock_irq(&se_tpg->acl_node_lock);
 	return found;
 }
 
@@ -655,9 +655,7 @@ static void __exit ft_exit(void)
 	synchronize_rcu();
 }
 
-#ifdef MODULE
 MODULE_DESCRIPTION("FC TCM fabric driver " FT_VERSION);
 MODULE_LICENSE("GPL");
 module_init(ft_init);
 module_exit(ft_exit);
-#endif /* MODULE */

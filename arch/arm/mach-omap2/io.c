@@ -341,12 +341,12 @@ void __init omap2_init_common_infrastructure(void)
 	u8 postsetup_state;
 
 	if (cpu_is_omap242x()) {
-		omap2xxx_powerdomains_init();
-		omap2xxx_clockdomains_init();
+		omap242x_powerdomains_init();
+		omap242x_clockdomains_init();
 		omap2420_hwmod_init();
 	} else if (cpu_is_omap243x()) {
-		omap2xxx_powerdomains_init();
-		omap2xxx_clockdomains_init();
+		omap243x_powerdomains_init();
+		omap243x_clockdomains_init();
 		omap2430_hwmod_init();
 	} else if (cpu_is_omap34xx()) {
 		omap3xxx_powerdomains_init();
@@ -376,7 +376,7 @@ void __init omap2_init_common_infrastructure(void)
 	 * omap_hwmod_late_init(), so boards that desire full watchdog
 	 * coverage of kernel initialization can reprogram the
 	 * postsetup_state between the calls to
-	 * omap2_init_common_infra() and omap2_init_common_devices().
+	 * omap2_init_common_infra() and omap_sdrc_init().
 	 *
 	 * XXX ideally we could detect whether the MPU WDT was currently
 	 * enabled here and make this conditional
@@ -400,7 +400,47 @@ void __init omap2_init_common_infrastructure(void)
 		pr_err("Could not init clock framework - unknown SoC\n");
 }
 
-void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
+void __init omap2420_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap2430_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap3430_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap35xx_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap3630_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init am35xx_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init ti816x_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap4430_init_early(void)
+{
+	omap2_init_common_infrastructure();
+}
+
+void __init omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1)
 {
 	if (cpu_is_omap24xx() || omap3_has_sdrc()) {
