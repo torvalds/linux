@@ -1076,6 +1076,11 @@ sie_loop:
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 	tm	__TI_flags+7(%r14),_TIF_EXIT_SIE
 	jnz	sie_exit
+	lg	%r14,__LC_GMAP			# get gmap pointer
+	ltgr	%r14,%r14
+	jz	sie_gmap
+	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
+sie_gmap:
 	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
 	SPP	__SF_EMPTY(%r15)		# set guest id
 	sie	0(%r14)
@@ -1083,6 +1088,7 @@ sie_done:
 	SPP	__LC_CMF_HPP			# set host id
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 sie_exit:
+	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	ni	__TI_flags+6(%r14),255-(_TIF_SIE>>8)
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
