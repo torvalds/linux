@@ -48,6 +48,8 @@
 
 #include <trace/events/asoc.h>
 
+#define DAPM_UPDATE_STAT(widget, val) widget->dapm->card->dapm_stats.val++;
+
 /* dapm power sequences - make this per codec in the future */
 static int dapm_up_seq[] = {
 	[snd_soc_dapm_pre] = 0,
@@ -649,6 +651,8 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 	struct snd_soc_dapm_path *path;
 	int con = 0;
 
+	DAPM_UPDATE_STAT(widget, path_checks);
+
 	if (widget->id == snd_soc_dapm_supply)
 		return 0;
 
@@ -696,6 +700,8 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_path *path;
 	int con = 0;
+
+	DAPM_UPDATE_STAT(widget, path_checks);
 
 	if (widget->id == snd_soc_dapm_supply)
 		return 0;
@@ -767,6 +773,8 @@ static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
 {
 	int in, out;
 
+	DAPM_UPDATE_STAT(w, power_checks);
+
 	in = is_connected_input_ep(w);
 	dapm_clear_walk(w->dapm);
 	out = is_connected_output_ep(w);
@@ -778,6 +786,8 @@ static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
 static int dapm_adc_check_power(struct snd_soc_dapm_widget *w)
 {
 	int in;
+
+	DAPM_UPDATE_STAT(w, power_checks);
 
 	if (w->active) {
 		in = is_connected_input_ep(w);
@@ -793,6 +803,8 @@ static int dapm_dac_check_power(struct snd_soc_dapm_widget *w)
 {
 	int out;
 
+	DAPM_UPDATE_STAT(w, power_checks);
+
 	if (w->active) {
 		out = is_connected_output_ep(w);
 		dapm_clear_walk(w->dapm);
@@ -807,6 +819,8 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_dapm_path *path;
 	int power = 0;
+
+	DAPM_UPDATE_STAT(w, power_checks);
 
 	/* Check if one of our outputs is connected */
 	list_for_each_entry(path, &w->sinks, list_source) {
@@ -1208,6 +1222,8 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 		}
 	}
 
+	memset(&card->dapm_stats, 0, sizeof(card->dapm_stats));
+
 	/* Check which widgets we need to power and store them in
 	 * lists indicating if they should be powered up or down.
 	 */
@@ -1299,6 +1315,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	list_for_each_entry(d, &card->dapm_list, list)
 		d->target_bias_level = bias;
 
+	trace_snd_soc_dapm_walk_done(card);
 
 	/* Run all the bias changes in parallel */
 	list_for_each_entry(d, &dapm->card->dapm_list, list)
