@@ -86,6 +86,16 @@ char *smack_onlycap;
  */
 
 LIST_HEAD(smk_netlbladdr_list);
+
+/*
+ * Rule lists are maintained for each label.
+ * This master list is just for reading /smack/load.
+ */
+struct smack_master_list {
+	struct list_head	list;
+	struct smack_rule	*smk_rule;
+};
+
 LIST_HEAD(smack_rule_list);
 
 static int smk_cipso_doi_value = SMACK_CIPSO_DOI_DEFAULT;
@@ -93,7 +103,10 @@ static int smk_cipso_doi_value = SMACK_CIPSO_DOI_DEFAULT;
 const char *smack_cipso_option = SMACK_CIPSO_OPTION;
 
 
+#define	SEQ_READ_FINISHED	((loff_t)-1)
+/*
 #define	SEQ_READ_FINISHED	1
+*/
 
 /*
  * Values for parsing cipso rules
@@ -160,9 +173,13 @@ static int smk_set_access(struct smack_rule *srp, struct list_head *rule_list,
 
 	mutex_lock(rule_lock);
 
+	/*
+	 * Because the object label is less likely to match
+	 * than the subject label check it first
+	 */
 	list_for_each_entry_rcu(sp, rule_list, list) {
-		if (sp->smk_subject == srp->smk_subject &&
-		    sp->smk_object == srp->smk_object) {
+		if (sp->smk_object == srp->smk_object &&
+		    sp->smk_subject == srp->smk_subject) {
 			found = 1;
 			sp->smk_access = srp->smk_access;
 			break;
@@ -273,9 +290,12 @@ static ssize_t smk_write_load_list(struct file *file, const char __user *buf,
 				struct list_head *rule_list,
 				struct mutex *rule_lock)
 {
+	struct smack_master_list *smlp;
+	struct smack_known *skp;
 	struct smack_rule *rule;
 	char *data;
 	int rc = -EINVAL;
+	int load = 0;
 
 	/*
 	 * No partial writes.
@@ -313,13 +333,27 @@ static ssize_t smk_write_load_list(struct file *file, const char __user *buf,
 	if (smk_parse_rule(data, rule))
 		goto out_free_rule;
 
+	if (rule_list == NULL) {
+		load = 1;
+		skp = smk_find_entry(rule->smk_subject);
+		rule_list = &skp->smk_rules;
+		rule_lock = &skp->smk_rules_lock;
+	}
+
 	rc = count;
 	/*
 	 * smk_set_access returns true if there was already a rule
 	 * for the subject/object pair, and false if it was new.
 	 */
-	if (!smk_set_access(rule, rule_list, rule_lock))
+	if (!smk_set_access(rule, rule_list, rule_lock)) {
+		smlp = kzalloc(sizeof(*smlp), GFP_KERNEL);
+		if (smlp != NULL) {
+			smlp->smk_rule = rule;
+			list_add_rcu(&smlp->list, &smack_rule_list);
+		} else
+			rc = -ENOMEM;
 		goto out;
+	}
 
 out_free_rule:
 	kfree(rule);
@@ -335,11 +369,24 @@ out:
 
 static void *load_seq_start(struct seq_file *s, loff_t *pos)
 {
-	if (*pos == SEQ_READ_FINISHED)
+	struct list_head *list;
+
+	/*
+	 * This is 0 the first time through.
+	 */
+	if (s->index == 0)
+		s->private = &smack_rule_list;
+
+	if (s->private == NULL)
 		return NULL;
-	if (list_empty(&smack_rule_list))
+
+	list = s->private;
+	if (list_empty(list))
 		return NULL;
-	return smack_rule_list.next;
+
+	if (s->index == 0)
+		return list->next;
+	return list;
 }
 
 static void *load_seq_next(struct seq_file *s, void *v, loff_t *pos)
@@ -347,17 +394,19 @@ static void *load_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	struct list_head *list = v;
 
 	if (list_is_last(list, &smack_rule_list)) {
-		*pos = SEQ_READ_FINISHED;
+		s->private = NULL;
 		return NULL;
 	}
+	s->private = list->next;
 	return list->next;
 }
 
 static int load_seq_show(struct seq_file *s, void *v)
 {
 	struct list_head *list = v;
-	struct smack_rule *srp =
-		 list_entry(list, struct smack_rule, list);
+	struct smack_master_list *smlp =
+		 list_entry(list, struct smack_master_list, list);
+	struct smack_rule *srp = smlp->smk_rule;
 
 	seq_printf(s, "%s %s", (char *)srp->smk_subject,
 		   (char *)srp->smk_object);
@@ -426,8 +475,11 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
 
+/*
 	return smk_write_load_list(file, buf, count, ppos, &smack_rule_list,
 					&smack_list_lock);
+*/
+	return smk_write_load_list(file, buf, count, ppos, NULL, NULL);
 }
 
 static const struct file_operations smk_load_ops = {
@@ -1587,6 +1639,20 @@ static int __init init_smk_fs(void)
 
 	smk_cipso_doi();
 	smk_unlbl_ambient(NULL);
+
+	mutex_init(&smack_known_floor.smk_rules_lock);
+	mutex_init(&smack_known_hat.smk_rules_lock);
+	mutex_init(&smack_known_huh.smk_rules_lock);
+	mutex_init(&smack_known_invalid.smk_rules_lock);
+	mutex_init(&smack_known_star.smk_rules_lock);
+	mutex_init(&smack_known_web.smk_rules_lock);
+
+	INIT_LIST_HEAD(&smack_known_floor.smk_rules);
+	INIT_LIST_HEAD(&smack_known_hat.smk_rules);
+	INIT_LIST_HEAD(&smack_known_huh.smk_rules);
+	INIT_LIST_HEAD(&smack_known_invalid.smk_rules);
+	INIT_LIST_HEAD(&smack_known_star.smk_rules);
+	INIT_LIST_HEAD(&smack_known_web.smk_rules);
 
 	return err;
 }

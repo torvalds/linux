@@ -41,9 +41,9 @@ struct superblock_smack {
 };
 
 struct socket_smack {
-	char		*smk_out;			/* outbound label */
-	char		*smk_in;			/* inbound label */
-	char		smk_packet[SMK_LABELLEN];	/* TCP peer label */
+	char		*smk_out;	/* outbound label */
+	char		*smk_in;	/* inbound label */
+	char		*smk_packet;	/* TCP peer label */
 };
 
 /*
@@ -116,13 +116,19 @@ struct smk_netlbladdr {
  * If there is a cipso value associated with the label it
  * gets stored here, too. This will most likely be rare as
  * the cipso direct mapping in used internally.
+ *
+ * Keep the access rules for this subject label here so that
+ * the entire set of rules does not need to be examined every
+ * time.
  */
 struct smack_known {
 	struct list_head	list;
 	char			smk_known[SMK_LABELLEN];
 	u32			smk_secid;
 	struct smack_cipso	*smk_cipso;
-	spinlock_t		smk_cipsolock; /* for changing cipso map */
+	spinlock_t		smk_cipsolock;	/* for changing cipso map */
+	struct list_head	smk_rules;	/* access rules */
+	struct mutex		smk_rules_lock;	/* lock for the rules */
 };
 
 /*
@@ -201,10 +207,11 @@ int smk_access_entry(char *, char *, struct list_head *);
 int smk_access(char *, char *, int, struct smk_audit_info *);
 int smk_curacc(char *, u32, struct smk_audit_info *);
 int smack_to_cipso(const char *, struct smack_cipso *);
-void smack_from_cipso(u32, char *, char *);
+char *smack_from_cipso(u32, char *);
 char *smack_from_secid(const u32);
 char *smk_import(const char *, int);
 struct smack_known *smk_import_entry(const char *, int);
+struct smack_known *smk_find_entry(const char *);
 u32 smack_to_secid(const char *);
 
 /*
@@ -223,7 +230,6 @@ extern struct smack_known smack_known_star;
 extern struct smack_known smack_known_web;
 
 extern struct list_head smack_known_list;
-extern struct list_head smack_rule_list;
 extern struct list_head smk_netlbladdr_list;
 
 extern struct security_operations smack_ops;
