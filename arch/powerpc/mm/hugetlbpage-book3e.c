@@ -52,7 +52,7 @@ void book3e_hugetlb_preload(struct mm_struct *mm, unsigned long ea, pte_t pte)
 	if (unlikely(is_kernel_addr(ea)))
 		return;
 
-#ifdef CONFIG_MM_SLICES
+#ifdef CONFIG_PPC_MM_SLICES
 	psize = mmu_get_tsize(get_slice_psize(mm, ea));
 	tsize = mmu_get_psize(psize);
 	shift = mmu_psize_defs[psize].shift;
