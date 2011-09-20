@@ -510,13 +510,12 @@ void hidraw_disconnect(struct hid_device *hid)
 {
 	struct hidraw *hidraw = hid->hidraw;
 
+	mutex_lock(&minors_lock);
 	hidraw->exist = 0;
 
 	device_destroy(hidraw_class, MKDEV(hidraw_major, hidraw->minor));
 
-	mutex_lock(&minors_lock);
 	hidraw_table[hidraw->minor] = NULL;
-	mutex_unlock(&minors_lock);
 
 	if (hidraw->open) {
 		hid_hw_close(hid);
@@ -524,6 +523,7 @@ void hidraw_disconnect(struct hid_device *hid)
 	} else {
 		kfree(hidraw);
 	}
+	mutex_unlock(&minors_lock);
 }
 EXPORT_SYMBOL_GPL(hidraw_disconnect);
 
