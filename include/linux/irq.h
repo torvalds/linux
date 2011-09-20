@@ -23,13 +23,13 @@
 #include <linux/errno.h>
 #include <linux/topology.h>
 #include <linux/wait.h>
-#include <linux/module.h>
 
 #include <asm/irq.h>
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
 
 struct seq_file;
+struct module;
 struct irq_desc;
 struct irq_data;
 typedef	void (*irq_flow_handler_t)(unsigned int irq,
@@ -567,29 +567,21 @@ static inline struct msi_desc *irq_data_get_msi(struct irq_data *d)
 int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		struct module *owner);
 
-static inline int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt,
-		int node)
-{
-	return __irq_alloc_descs(irq, from, cnt, node, THIS_MODULE);
-}
+/* use macros to avoid needing export.h for THIS_MODULE */
+#define irq_alloc_descs(irq, from, cnt, node)	\
+	__irq_alloc_descs(irq, from, cnt, node, THIS_MODULE)
+
+#define irq_alloc_desc(node)			\
+	irq_alloc_descs(-1, 0, 1, node)
+
+#define irq_alloc_desc_at(at, node)		\
+	irq_alloc_descs(at, at, 1, node)
+
+#define irq_alloc_desc_from(from, node)		\
+	irq_alloc_descs(-1, from, 1, node)
 
 void irq_free_descs(unsigned int irq, unsigned int cnt);
 int irq_reserve_irqs(unsigned int from, unsigned int cnt);
-
-static inline int irq_alloc_desc(int node)
-{
-	return irq_alloc_descs(-1, 0, 1, node);
-}
-
-static inline int irq_alloc_desc_at(unsigned int at, int node)
-{
-	return irq_alloc_descs(at, at, 1, node);
-}
-
-static inline int irq_alloc_desc_from(unsigned int from, int node)
-{
-	return irq_alloc_descs(-1, from, 1, node);
-}
 
 static inline void irq_free_desc(unsigned int irq)
 {
