@@ -102,7 +102,7 @@ static inline int iwl_sta_id(struct ieee80211_sta *sta)
 	if (WARN_ON(!sta))
 		return IWL_INVALID_STATION;
 
-	return ((struct iwl_station_priv_common *)sta->drv_priv)->sta_id;
+	return ((struct iwl_station_priv *)sta->drv_priv)->sta_id;
 }
 
 /**

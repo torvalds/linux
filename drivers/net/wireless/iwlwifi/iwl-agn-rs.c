@@ -346,7 +346,7 @@ static void rs_program_fix_rate(struct iwl_priv *priv,
 {
 	struct iwl_station_priv *sta_priv =
 		container_of(lq_sta, struct iwl_station_priv, lq_sta);
-	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
 	lq_sta->active_legacy_rate = 0x0FFF;	/* 1 - 54 MBits, includes CCK */
 	lq_sta->active_siso_rate   = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
@@ -710,7 +710,7 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 static bool rs_use_green(struct ieee80211_sta *sta)
 {
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
 	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
 		!(ctx->ht.non_gf_sta_present);
@@ -917,7 +917,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	struct iwl_scale_tbl_info tbl_type;
 	struct iwl_scale_tbl_info *curr_tbl, *other_tbl, *tmp_tbl;
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
 	IWL_DEBUG_RATE_LIMIT(priv, "get frame ack response, update rate scale window\n");
 
@@ -1283,7 +1283,7 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	s32 rate;
 	s8 is_green = lq_sta->is_green;
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
@@ -1339,7 +1339,7 @@ static int rs_switch_to_mimo3(struct iwl_priv *priv,
 	s32 rate;
 	s8 is_green = lq_sta->is_green;
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
@@ -1396,7 +1396,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	u8 is_green = lq_sta->is_green;
 	s32 rate;
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
@@ -2263,7 +2263,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	u8 tid = IWL_MAX_TID_COUNT;
 	struct iwl_tid_data *tid_data;
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct iwl_rxon_context *ctx = sta_priv->common.ctx;
+	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
 	IWL_DEBUG_RATE(priv, "rate scale calculate new rate for skb\n");
 
@@ -2706,7 +2706,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 		return;
 
 	sta_priv = (void *)sta->drv_priv;
-	ctx = sta_priv->common.ctx;
+	ctx = sta_priv->ctx;
 
 	i = lq_sta->last_txrate_idx;
 

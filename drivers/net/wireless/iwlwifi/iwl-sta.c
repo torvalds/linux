@@ -305,7 +305,7 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	station->ctxid = ctx->ctxid;
 
 	if (sta) {
-		struct iwl_station_priv_common *sta_priv;
+		struct iwl_station_priv *sta_priv;
 
 		sta_priv = (void *)sta->drv_priv;
 		sta_priv->ctx = ctx;
@@ -821,7 +821,7 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 		       struct ieee80211_sta *sta)
 {
 	struct iwl_priv *priv = hw->priv;
-	struct iwl_station_priv_common *sta_common = (void *)sta->drv_priv;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	int ret;
 
 	IWL_DEBUG_INFO(priv, "received request to remove station %pM\n",
@@ -829,7 +829,7 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 	mutex_lock(&priv->shrd->mutex);
 	IWL_DEBUG_INFO(priv, "proceeding to remove station %pM\n",
 			sta->addr);
-	ret = iwl_remove_station(priv, sta_common->sta_id, sta->addr);
+	ret = iwl_remove_station(priv, sta_priv->sta_id, sta->addr);
 	if (ret)
 		IWL_ERR(priv, "Error removing station %pM\n",
 			sta->addr);

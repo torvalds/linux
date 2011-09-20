@@ -2513,7 +2513,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	mutex_lock(&priv->shrd->mutex);
 	IWL_DEBUG_INFO(priv, "proceeding to add station %pM\n",
 			sta->addr);
-	sta_priv->common.sta_id = IWL_INVALID_STATION;
+	sta_priv->sta_id = IWL_INVALID_STATION;
 
 	atomic_set(&sta_priv->pending_frames, 0);
 	if (vif->type == NL80211_IFTYPE_AP)
@@ -2529,7 +2529,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		return ret;
 	}
 
-	sta_priv->common.sta_id = sta_id;
+	sta_priv->sta_id = sta_id;
 
 	/* Initialize rate scaling */
 	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",

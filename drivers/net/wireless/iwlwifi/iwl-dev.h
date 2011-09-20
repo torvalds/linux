@@ -202,11 +202,6 @@ struct iwl_station_entry {
 	struct iwl_link_quality_cmd *lq;
 };
 
-struct iwl_station_priv_common {
-	struct iwl_rxon_context *ctx;
-	u8 sta_id;
-};
-
 /*
  * iwl_station_priv: Driver's private station information
  *
@@ -215,12 +210,13 @@ struct iwl_station_priv_common {
  * space.
  */
 struct iwl_station_priv {
-	struct iwl_station_priv_common common;
+	struct iwl_rxon_context *ctx;
 	struct iwl_lq_sta lq_sta;
 	atomic_t pending_frames;
 	bool client;
 	bool asleep;
 	u8 max_agg_bufsize;
+	u8 sta_id;
 };
 
 /**
