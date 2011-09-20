@@ -184,7 +184,7 @@ void ixgbe_dcb_unpack_pfc(struct ixgbe_dcb_config *cfg, u8 *pfc_en)
 
 	*pfc_en = 0;
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-		*pfc_en |= (cfg->tc_config[i].dcb_pfc & 0xF) << i;
+		*pfc_en |= !!(cfg->tc_config[i].dcb_pfc & 0xF) << i;
 }
 
 void ixgbe_dcb_unpack_refill(struct ixgbe_dcb_config *cfg, int direction,
