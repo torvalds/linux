@@ -233,17 +233,11 @@ static struct platform_device kp_device = {
 	.resource	= kp_resources,
 };
 
-static struct platform_device lcd_device = {
-	.name		= "lcd_p2",
-	.id		= -1,
-};
-
 static struct platform_device *devices[] __initdata = {
 	&nor_device,
 	&nand_device,
 	&smc91x_device,
 	&kp_device,
-	&lcd_device,
 };
 
 static struct omap_lcd_config perseus2_lcd_config __initdata = {

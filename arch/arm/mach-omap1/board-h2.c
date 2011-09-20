@@ -326,18 +326,12 @@ static struct platform_device h2_irda_device = {
 	.resource	= h2_irda_resources,
 };
 
-static struct platform_device h2_lcd_device = {
-	.name		= "lcd_h2",
-	.id		= -1,
-};
-
 static struct platform_device *h2_devices[] __initdata = {
 	&h2_nor_device,
 	&h2_nand_device,
 	&h2_smc91x_device,
 	&h2_irda_device,
 	&h2_kp_device,
-	&h2_lcd_device,
 };
 
 static void __init h2_init_smc91x(void)

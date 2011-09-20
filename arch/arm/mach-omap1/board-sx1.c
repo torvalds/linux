@@ -356,11 +356,6 @@ static struct omap_usb_config sx1_usb_config __initdata = {
 
 /*----------- LCD -------------------------*/
 
-static struct platform_device sx1_lcd_device = {
-	.name		= "lcd_sx1",
-	.id		= -1,
-};
-
 static struct omap_lcd_config sx1_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
@@ -369,7 +364,6 @@ static struct omap_lcd_config sx1_lcd_config __initdata = {
 static struct platform_device *sx1_devices[] __initdata = {
 	&sx1_flash_device,
 	&sx1_kp_device,
-	&sx1_lcd_device,
 	&sx1_irda_device,
 };
 
