@@ -113,10 +113,14 @@ struct toshiba_acpi_dev {
 	struct input_dev *hotkey_dev;
 	struct backlight_device *backlight_dev;
 	struct led_classdev led_dev;
-	int illumination_installed;
+
 	int force_fan;
 	int last_key_event;
 	int key_event_valid;
+
+	int illumination_supported:1;
+	int video_supported:1;
+	int fan_supported:1;
 
 	struct mutex mutex;
 };
@@ -545,24 +549,31 @@ static const struct file_operations lcd_proc_fops = {
 	.write		= lcd_proc_write,
 };
 
+static int get_video_status(struct toshiba_acpi_dev *dev, u32 *status)
+{
+	u32 hci_result;
+
+	hci_read1(dev, HCI_VIDEO_OUT, status, &hci_result);
+	return hci_result == HCI_SUCCESS ? 0 : -EIO;
+}
+
 static int video_proc_show(struct seq_file *m, void *v)
 {
 	struct toshiba_acpi_dev *dev = m->private;
-	u32 hci_result;
 	u32 value;
+	int ret;
 
-	hci_read1(dev, HCI_VIDEO_OUT, &value, &hci_result);
-	if (hci_result == HCI_SUCCESS) {
+	ret = get_video_status(dev, &value);
+	if (!ret) {
 		int is_lcd = (value & HCI_VIDEO_OUT_LCD) ? 1 : 0;
 		int is_crt = (value & HCI_VIDEO_OUT_CRT) ? 1 : 0;
 		int is_tv = (value & HCI_VIDEO_OUT_TV) ? 1 : 0;
 		seq_printf(m, "lcd_out:                 %d\n", is_lcd);
 		seq_printf(m, "crt_out:                 %d\n", is_crt);
 		seq_printf(m, "tv_out:                  %d\n", is_tv);
-		return 0;
 	}
 
-	return -EIO;
+	return ret;
 }
 
 static int video_proc_open(struct inode *inode, struct file *file)
@@ -575,13 +586,12 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 {
 	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
 	char *cmd, *buffer;
-	int ret = 0;
+	int ret;
 	int value;
 	int remain = count;
 	int lcd_out = -1;
 	int crt_out = -1;
 	int tv_out = -1;
-	u32 hci_result;
 	u32 video_out;
 
 	cmd = kmalloc(count + 1, GFP_KERNEL);
@@ -616,8 +626,8 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 
 	kfree(cmd);
 
-	hci_read1(dev, HCI_VIDEO_OUT, &video_out, &hci_result);
-	if (hci_result == HCI_SUCCESS) {
+	ret = get_video_status(dev, &video_out);
+	if (!ret) {
 		unsigned int new_video_out = video_out;
 		if (lcd_out != -1)
 			_set_bit(&new_video_out, HCI_VIDEO_OUT_LCD, lcd_out);
@@ -629,8 +639,6 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 		 * video setting if something changed. */
 		if (new_video_out != video_out)
 			ret = write_acpi_int(METHOD_VIDEO_OUT, new_video_out);
-	} else {
-		ret = -EIO;
 	}
 
 	return ret ? ret : count;
@@ -645,20 +653,27 @@ static const struct file_operations video_proc_fops = {
 	.write		= video_proc_write,
 };
 
+static int get_fan_status(struct toshiba_acpi_dev *dev, u32 *status)
+{
+	u32 hci_result;
+
+	hci_read1(dev, HCI_FAN, status, &hci_result);
+	return hci_result == HCI_SUCCESS ? 0 : -EIO;
+}
+
 static int fan_proc_show(struct seq_file *m, void *v)
 {
 	struct toshiba_acpi_dev *dev = m->private;
-	u32 hci_result;
+	int ret;
 	u32 value;
 
-	hci_read1(dev, HCI_FAN, &value, &hci_result);
-	if (hci_result == HCI_SUCCESS) {
+	ret = get_fan_status(dev, &value);
+	if (!ret) {
 		seq_printf(m, "running:                 %d\n", (value > 0));
 		seq_printf(m, "force_on:                %d\n", dev->force_fan);
-		return 0;
 	}
 
-	return -EIO;
+	return ret;
 }
 
 static int fan_proc_open(struct inode *inode, struct file *file)
@@ -797,24 +812,32 @@ static const struct file_operations version_proc_fops = {
 static void __devinit
 create_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 {
-	proc_create_data("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-			 &lcd_proc_fops, dev);
-	proc_create_data("video", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-			 &video_proc_fops, dev);
-	proc_create_data("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-			 &fan_proc_fops, dev);
-	proc_create_data("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir,
-			 &keys_proc_fops, dev);
+	if (dev->backlight_dev)
+		proc_create_data("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir,
+				 &lcd_proc_fops, dev);
+	if (dev->video_supported)
+		proc_create_data("video", S_IRUGO | S_IWUSR, toshiba_proc_dir,
+				 &video_proc_fops, dev);
+	if (dev->fan_supported)
+		proc_create_data("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir,
+				 &fan_proc_fops, dev);
+	if (dev->hotkey_dev)
+		proc_create_data("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir,
+				 &keys_proc_fops, dev);
 	proc_create_data("version", S_IRUGO, toshiba_proc_dir,
 			 &version_proc_fops, dev);
 }
 
-static void remove_toshiba_proc_entries(void)
+static void remove_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 {
-	remove_proc_entry("lcd", toshiba_proc_dir);
-	remove_proc_entry("video", toshiba_proc_dir);
-	remove_proc_entry("fan", toshiba_proc_dir);
-	remove_proc_entry("keys", toshiba_proc_dir);
+	if (dev->backlight_dev)
+		remove_proc_entry("lcd", toshiba_proc_dir);
+	if (dev->video_supported)
+		remove_proc_entry("video", toshiba_proc_dir);
+	if (dev->fan_supported)
+		remove_proc_entry("fan", toshiba_proc_dir);
+	if (dev->hotkey_dev)
+		remove_proc_entry("keys", toshiba_proc_dir);
 	remove_proc_entry("version", toshiba_proc_dir);
 }
 
@@ -869,7 +892,7 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 
-	remove_toshiba_proc_entries();
+	remove_toshiba_proc_entries(dev);
 
 	if (dev->hotkey_dev) {
 		input_unregister_device(dev->hotkey_dev);
@@ -884,7 +907,7 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 	if (dev->backlight_dev)
 		backlight_device_unregister(dev->backlight_dev);
 
-	if (dev->illumination_installed)
+	if (dev->illumination_supported)
 		led_classdev_unregister(&dev->led_dev);
 
 	kfree(dev);
@@ -913,6 +936,7 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 	struct toshiba_acpi_dev *dev;
 	const char *hci_method;
 	u32 hci_result;
+	u32 dummy;
 	bool bt_present;
 	int ret = 0;
 	struct backlight_properties props;
@@ -940,8 +964,6 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	/* enable event fifo */
 	hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
-
-	create_toshiba_proc_entries(dev);
 
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
@@ -985,8 +1007,18 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 		dev->led_dev.brightness_set = toshiba_illumination_set;
 		dev->led_dev.brightness_get = toshiba_illumination_get;
 		if (!led_classdev_register(&acpi_dev->dev, &dev->led_dev))
-			dev->illumination_installed = 1;
+			dev->illumination_supported = 1;
 	}
+
+	/* Determine whether or not BIOS supports fan and video interfaces */
+
+	ret = get_video_status(dev, &dummy);
+	dev->video_supported = !ret;
+
+	ret = get_fan_status(dev, &dummy);
+	dev->fan_supported = !ret;
+
+	create_toshiba_proc_entries(dev);
 
 	return 0;
 
