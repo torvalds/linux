@@ -113,14 +113,6 @@ config LEDS_WRAP
 	help
 	  This option enables support for the PCEngines WRAP programmable LEDs.
 
-config LEDS_ALIX2
-	tristate "LED Support for ALIX.2 and ALIX.3 series"
-	depends on LEDS_CLASS
-	depends on X86 && !GPIO_CS5535 && !CS5535_GPIO
-	help
-	  This option enables support for the PCEngines ALIX.2 and ALIX.3 LEDs.
-	  You have to set leds-alix2.force=1 for boards with Award BIOS.
-
 config LEDS_COBALT_QUBE
 	tristate "LED Support for the Cobalt Qube series front LED"
 	depends on LEDS_CLASS
