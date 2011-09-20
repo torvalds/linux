@@ -197,6 +197,9 @@ struct iface_stat {
 	struct list_head list;  /* in iface_stat_list */
 	char *ifname;
 	bool active;
+	/* net_dev is only valid for active iface_stat */
+	struct net_device *net_dev;
+
 	struct byte_packet_counters totals[IFS_MAX_DIRECTIONS];
 	/*
 	 * We keep the last_known, because some devices reset their counters

@@ -111,6 +111,8 @@ module_param(debug_mask, uint, S_IRUGO | S_IWUSR);
 /*---------------------------------------------------------------------------*/
 static const char *iface_stat_procdirname = "iface_stat";
 static struct proc_dir_entry *iface_stat_procdir;
+static const char *iface_stat_all_procfilename = "iface_stat_all";
+static struct proc_dir_entry *iface_stat_all_procfile;
 
 /*
  * Ordering of locks:
@@ -751,6 +753,72 @@ done:
 	return iface_entry;
 }
 
+static int iface_stat_all_proc_read(char *page, char **num_items_returned,
+				    off_t items_to_skip, int char_count,
+				    int *eof, void *data)
+{
+	char *outp = page;
+	int item_index = 0;
+	int len;
+	struct iface_stat *iface_entry;
+	struct rtnl_link_stats64 dev_stats, *stats;
+	struct rtnl_link_stats64 no_dev_stats = {0};
+
+	if (unlikely(module_passive)) {
+		*eof = 1;
+		return 0;
+	}
+
+	CT_DEBUG("qtaguid:proc iface_stat_all "
+		 "page=%p *num_items_returned=%p off=%ld "
+		 "char_count=%d *eof=%d\n", page, *num_items_returned,
+		 items_to_skip, char_count, *eof);
+
+	if (*eof)
+		return 0;
+
+	/*
+	 * This lock will prevent iface_stat_update() from changing active,
+	 * and in turn prevent an interface from unregistering itself.
+	 */
+	spin_lock_bh(&iface_stat_list_lock);
+	list_for_each_entry(iface_entry, &iface_stat_list, list) {
+		if (item_index++ < items_to_skip)
+			continue;
+
+		if (iface_entry->active) {
+			stats = dev_get_stats(iface_entry->net_dev,
+					      &dev_stats);
+		} else {
+			stats = &no_dev_stats;
+		}
+		len = snprintf(outp, char_count,
+			       "%s %d "
+			       "%llu %llu %llu %llu "
+			       "%llu %llu %llu %llu\n",
+			       iface_entry->ifname,
+			       iface_entry->active,
+			       iface_entry->totals[IFS_RX].bytes,
+			       iface_entry->totals[IFS_RX].packets,
+			       iface_entry->totals[IFS_TX].bytes,
+			       iface_entry->totals[IFS_TX].packets,
+			       stats->rx_bytes, stats->rx_packets,
+			       stats->tx_bytes, stats->tx_packets);
+		if (len >= char_count) {
+			spin_unlock_bh(&iface_stat_list_lock);
+			*outp = '\0';
+			return outp - page;
+		}
+		outp += len;
+		char_count -= len;
+		(*num_items_returned)++;
+	}
+	spin_unlock_bh(&iface_stat_list_lock);
+
+	*eof = 1;
+	return outp - page;
+}
+
 static void iface_create_proc_worker(struct work_struct *work)
 {
 	struct proc_dir_entry *proc_entry;
@@ -784,8 +852,34 @@ static void iface_create_proc_worker(struct work_struct *work)
 	kfree(isw);
 }
 
+/*
+ * Will set the entry's active state, and
+ * update the net_dev accordingly also.
+ */
+static void _iface_stat_set_active(struct iface_stat *entry,
+				   struct net_device *net_dev,
+				   bool activate)
+{
+	if (activate) {
+		entry->net_dev = net_dev;
+		entry->active = true;
+		IF_DEBUG("qtaguid: %s(%s): "
+			 "enable tracking. rfcnt=%d\n", __func__,
+			 entry->ifname,
+			 percpu_read(*net_dev->pcpu_refcnt));
+	} else {
+		entry->active = false;
+		entry->net_dev = NULL;
+		IF_DEBUG("qtaguid: %s(%s): "
+			 "disable tracking. rfcnt=%d\n", __func__,
+			 entry->ifname,
+			 percpu_read(*net_dev->pcpu_refcnt));
+
+	}
+}
+
 /* Caller must hold iface_stat_list_lock */
-static struct iface_stat *iface_alloc(const char *ifname)
+static struct iface_stat *iface_alloc(struct net_device *net_dev)
 {
 	struct iface_stat *new_iface;
 	struct iface_stat_work *isw;
@@ -793,19 +887,19 @@ static struct iface_stat *iface_alloc(const char *ifname)
 	new_iface = kzalloc(sizeof(*new_iface), GFP_ATOMIC);
 	if (new_iface == NULL) {
 		pr_err("qtaguid: iface_stat: create(%s): "
-		       "iface_stat alloc failed\n", ifname);
+		       "iface_stat alloc failed\n", net_dev->name);
 		return NULL;
 	}
-	new_iface->ifname = kstrdup(ifname, GFP_ATOMIC);
+	new_iface->ifname = kstrdup(net_dev->name, GFP_ATOMIC);
 	if (new_iface->ifname == NULL) {
 		pr_err("qtaguid: iface_stat: create(%s): "
-		       "ifname alloc failed\n", ifname);
+		       "ifname alloc failed\n", net_dev->name);
 		kfree(new_iface);
 		return NULL;
 	}
 	spin_lock_init(&new_iface->tag_stat_list_lock);
-	new_iface->active = true;
 	new_iface->tag_stat_tree = RB_ROOT;
+	_iface_stat_set_active(new_iface, net_dev, true);
 
 	/*
 	 * ipv6 notifier chains are atomic :(
@@ -815,6 +909,7 @@ static struct iface_stat *iface_alloc(const char *ifname)
 	if (!isw) {
 		pr_err("qtaguid: iface_stat: create(%s): "
 		       "work alloc failed\n", new_iface->ifname);
+		_iface_stat_set_active(new_iface, net_dev, false);
 		kfree(new_iface->ifname);
 		kfree(new_iface);
 		return NULL;
@@ -918,20 +1013,14 @@ static void iface_stat_create(struct net_device *net_dev,
 	spin_lock_bh(&iface_stat_list_lock);
 	entry = get_iface_entry(ifname);
 	if (entry != NULL) {
+		bool activate = !ipv4_is_loopback(ipaddr);
 		IF_DEBUG("qtaguid: iface_stat: create(%s): entry=%p\n",
 			 ifname, entry);
 		iface_check_stats_reset_and_adjust(net_dev, entry);
-		if (ipv4_is_loopback(ipaddr)) {
-			entry->active = false;
-			IF_DEBUG("qtaguid: iface_stat: create(%s): "
-				 "disable tracking of loopback dev\n",
-				 ifname);
-		} else {
-			entry->active = true;
-			IF_DEBUG("qtaguid: iface_stat: create(%s): "
-				 "enable tracking. ip=%pI4\n",
-				 ifname, &ipaddr);
-		}
+		_iface_stat_set_active(entry, net_dev, activate);
+		IF_DEBUG("qtaguid: %s(%s): "
+			 "tracking now %d on ip=%pI4\n", __func__,
+			 entry->ifname, activate, &ipaddr);
 		goto done_unlock_put;
 	} else if (ipv4_is_loopback(ipaddr)) {
 		IF_DEBUG("qtaguid: iface_stat: create(%s): "
@@ -939,10 +1028,9 @@ static void iface_stat_create(struct net_device *net_dev,
 		goto done_unlock_put;
 	}
 
-	new_iface = iface_alloc(ifname);
+	new_iface = iface_alloc(net_dev);
 	IF_DEBUG("qtaguid: iface_stat: create(%s): done "
 		 "entry=%p ip=%pI4\n", ifname, new_iface, &ipaddr);
-
 done_unlock_put:
 	spin_unlock_bh(&iface_stat_list_lock);
 done_put:
@@ -987,29 +1075,23 @@ static void iface_stat_create_ipv6(struct net_device *net_dev,
 	spin_lock_bh(&iface_stat_list_lock);
 	entry = get_iface_entry(ifname);
 	if (entry != NULL) {
-		IF_DEBUG("qtaguid: iface_stat: create6(%s): entry=%p\n",
+		bool activate = !(addr_type & IPV6_ADDR_LOOPBACK);
+		IF_DEBUG("qtaguid: %s(%s): entry=%p\n", __func__,
 			 ifname, entry);
 		iface_check_stats_reset_and_adjust(net_dev, entry);
-		if (addr_type & IPV6_ADDR_LOOPBACK) {
-			entry->active = false;
-			IF_DEBUG("qtaguid: iface_stat: create6(%s): "
-				 "disable tracking of loopback dev\n",
-				 ifname);
-		} else {
-			entry->active = true;
-			IF_DEBUG("qtaguid: iface_stat: create6(%s): "
-				 "enable tracking. ip=%pI6c\n",
-				 ifname, &ifa->addr);
-		}
+		_iface_stat_set_active(entry, net_dev, activate);
+		IF_DEBUG("qtaguid: %s(%s): "
+			 "tracking now %d on ip=%pI6c\n", __func__,
+			 entry->ifname, activate, &ifa->addr);
 		goto done_unlock_put;
 	} else if (addr_type & IPV6_ADDR_LOOPBACK) {
-		IF_DEBUG("qtaguid: iface_stat: create6(%s): "
-			 "ignore loopback dev. ip=%pI6c\n",
+		IF_DEBUG("qtaguid: %s(%s): "
+			 "ignore loopback dev. ip=%pI6c\n", __func__,
 			 ifname, &ifa->addr);
 		goto done_unlock_put;
 	}
 
-	new_iface = iface_alloc(ifname);
+	new_iface = iface_alloc(net_dev);
 	IF_DEBUG("qtaguid: iface_stat: create6(%s): done "
 		 "entry=%p ip=%pI6c\n", ifname, new_iface, &ifa->addr);
 
@@ -1061,26 +1143,26 @@ data_counters_update(struct data_counters *dc, int set,
  * does not exist (when a device was never configured with an IP address).
  * Called when an device is being unregistered.
  */
-static void iface_stat_update(struct net_device *dev, bool stash_only)
+static void iface_stat_update(struct net_device *net_dev, bool stash_only)
 {
 	struct rtnl_link_stats64 dev_stats, *stats;
 	struct iface_stat *entry;
 
-	stats = dev_get_stats(dev, &dev_stats);
+	stats = dev_get_stats(net_dev, &dev_stats);
 	spin_lock_bh(&iface_stat_list_lock);
-	entry = get_iface_entry(dev->name);
+	entry = get_iface_entry(net_dev->name);
 	if (entry == NULL) {
 		IF_DEBUG("qtaguid: iface_stat: update(%s): not tracked\n",
-			 dev->name);
+			 net_dev->name);
 		spin_unlock_bh(&iface_stat_list_lock);
 		return;
 	}
 
-	IF_DEBUG("qtaguid: iface_stat: update(%s): entry=%p\n",
-		 dev->name, entry);
+	IF_DEBUG("qtaguid: %s(%s): entry=%p\n", __func__,
+		 net_dev->name, entry);
 	if (!entry->active) {
-		IF_DEBUG("qtaguid: iface_stat: update(%s): already disabled\n",
-			 dev->name);
+		IF_DEBUG("qtaguid: %s(%s): already disabled\n", __func__,
+			 net_dev->name);
 		spin_unlock_bh(&iface_stat_list_lock);
 		return;
 	}
@@ -1091,9 +1173,9 @@ static void iface_stat_update(struct net_device *dev, bool stash_only)
 		entry->last_known[IFS_RX].bytes = stats->rx_bytes;
 		entry->last_known[IFS_RX].packets = stats->rx_packets;
 		entry->last_known_valid = true;
-		IF_DEBUG("qtaguid: iface_stat: update(%s): "
-			 "dev stats stashed rx/tx=%llu/%llu\n",
-			 dev->name, stats->rx_bytes, stats->tx_bytes);
+		IF_DEBUG("qtaguid: %s(%s): "
+			 "dev stats stashed rx/tx=%llu/%llu\n", __func__,
+			 net_dev->name, stats->rx_bytes, stats->tx_bytes);
 		spin_unlock_bh(&iface_stat_list_lock);
 		return;
 	}
@@ -1103,10 +1185,10 @@ static void iface_stat_update(struct net_device *dev, bool stash_only)
 	entry->totals[IFS_RX].packets += stats->rx_packets;
 	/* We don't need the last_known[] anymore */
 	entry->last_known_valid = false;
-	entry->active = false;
-	IF_DEBUG("qtaguid: iface_stat: update(%s): "
-		 "disable tracking. rx/tx=%llu/%llu\n",
-		 dev->name, stats->rx_bytes, stats->tx_bytes);
+	_iface_stat_set_active(entry, net_dev, false);
+	IF_DEBUG("qtaguid: %s(%s): "
+		 "disable tracking. rx/tx=%llu/%llu\n", __func__,
+		 net_dev->name, stats->rx_bytes, stats->tx_bytes);
 	spin_unlock_bh(&iface_stat_list_lock);
 }
 
@@ -1340,11 +1422,24 @@ static int __init iface_stat_init(struct proc_dir_entry *parent_procdir)
 		err = -1;
 		goto err;
 	}
+
+	iface_stat_all_procfile = create_proc_entry(iface_stat_all_procfilename,
+						    proc_iface_perms,
+						    parent_procdir);
+	if (!iface_stat_all_procfile) {
+		pr_err("qtaguid: iface_stat: init "
+		       " failed to create stat_all proc entry\n");
+		err = -1;
+		goto err_zap_entry;
+	}
+	iface_stat_all_procfile->read_proc = iface_stat_all_proc_read;
+
+
 	err = register_netdevice_notifier(&iface_netdev_notifier_blk);
 	if (err) {
 		pr_err("qtaguid: iface_stat: init "
 		       "failed to register dev event handler\n");
-		goto err_zap_entry;
+		goto err_zap_all_stats_entry;
 	}
 	err = register_inetaddr_notifier(&iface_inetaddr_notifier_blk);
 	if (err) {
@@ -1365,6 +1460,8 @@ err_unreg_ip4_addr:
 	unregister_inetaddr_notifier(&iface_inetaddr_notifier_blk);
 err_unreg_nd:
 	unregister_netdevice_notifier(&iface_netdev_notifier_blk);
+err_zap_all_stats_entry:
+	remove_proc_entry(iface_stat_all_procfilename, parent_procdir);
 err_zap_entry:
 	remove_proc_entry(iface_stat_procdirname, parent_procdir);
 err:

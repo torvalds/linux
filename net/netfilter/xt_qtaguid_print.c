@@ -156,6 +156,7 @@ char *pp_iface_stat(struct iface_stat *is)
 			 "tx={bytes=%llu, "
 			 "packets=%llu}}, "
 			 "active=%d, "
+			 "net_dev=%p, "
 			 "proc_ptr=%p, "
 			 "tag_stat_tree=rb_root{...}}",
 			 is,
@@ -170,6 +171,7 @@ char *pp_iface_stat(struct iface_stat *is)
 			 is->last_known[IFS_TX].bytes,
 			 is->last_known[IFS_TX].packets,
 			 is->active,
+			 is->net_dev,
 			 is->proc_ptr);
 }
 
