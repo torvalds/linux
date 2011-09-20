@@ -388,12 +388,15 @@ _AllocateMemory(
     while ((*Pool == gcvPOOL_DEFAULT)
     ||     (*Pool == gcvPOOL_LOCAL)
     ||     (*Pool == gcvPOOL_UNIFIED)
+    ||     ((*Pool == gcvPOOL_SYSTEM) && (pool==gcvPOOL_CONTIGUOUS))
     );
 
     if (gcmIS_SUCCESS(status))
     {
         /* Return pool used for allocation. */
         *Pool = pool;
+    } else {
+        printk("_AllocateMemory fail! pool=%d, Bytes=%d, Type=%d\n", pool, (int)Bytes, Type);
     }
 
     /* Return status. */
