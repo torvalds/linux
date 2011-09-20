@@ -173,18 +173,40 @@ void tipc_named_withdraw(struct publication *publ)
  * tipc_named_node_up - tell specified node about all publications by this node
  */
 
-void tipc_named_node_up(unsigned long node)
+void tipc_named_node_up(unsigned long nodearg)
 {
+	struct tipc_node *n_ptr;
+	struct link *l_ptr;
 	struct publication *publ;
 	struct distr_item *item = NULL;
 	struct sk_buff *buf = NULL;
+	struct list_head message_list;
+	u32 node = (u32)nodearg;
 	u32 left = 0;
 	u32 rest;
-	u32 max_item_buf;
+	u32 max_item_buf = 0;
+
+	/* compute maximum amount of publication data to send per message */
+
+	read_lock_bh(&tipc_net_lock);
+	n_ptr = tipc_node_find(node);
+	if (n_ptr) {
+		tipc_node_lock(n_ptr);
+		l_ptr = n_ptr->active_links[0];
+		if (l_ptr)
+			max_item_buf = ((l_ptr->max_pkt - INT_H_SIZE) /
+				ITEM_SIZE) * ITEM_SIZE;
+		tipc_node_unlock(n_ptr);
+	}
+	read_unlock_bh(&tipc_net_lock);
+	if (!max_item_buf)
+		return;
+
+	/* create list of publication messages, then send them as a unit */
+
+	INIT_LIST_HEAD(&message_list);
 
 	read_lock_bh(&tipc_nametbl_lock);
-	max_item_buf = TIPC_MAX_USER_MSG_SIZE / ITEM_SIZE;
-	max_item_buf *= ITEM_SIZE;
 	rest = publ_cnt * ITEM_SIZE;
 
 	list_for_each_entry(publ, &publ_root, local_list) {
@@ -202,13 +224,14 @@ void tipc_named_node_up(unsigned long node)
 		item++;
 		left -= ITEM_SIZE;
 		if (!left) {
-			msg_set_link_selector(buf_msg(buf), node);
-			tipc_link_send(buf, node, node);
+			list_add_tail((struct list_head *)buf, &message_list);
 			buf = NULL;
 		}
 	}
 exit:
 	read_unlock_bh(&tipc_nametbl_lock);
+
+	tipc_link_send_names(&message_list, (u32)node);
 }
 
 /**
