@@ -2044,6 +2044,10 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(GTIMR, 0xffffffff);
 	I915_WRITE(GTIER, 0x0);
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
+
+	I915_WRITE(SDEIMR, 0xffffffff);
+	I915_WRITE(SDEIER, 0x0);
+	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
 }
 
 static void i915_driver_irq_uninstall(struct drm_device * dev)
