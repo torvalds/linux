@@ -322,7 +322,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		goto drop_unlock_sta;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
-	tx_cmd = &dev_cmd->cmd.tx;
+	tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
