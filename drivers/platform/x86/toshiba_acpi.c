@@ -62,11 +62,7 @@ MODULE_DESCRIPTION("Toshiba Laptop ACPI Extras Driver");
 MODULE_LICENSE("GPL");
 
 /* Toshiba ACPI method paths */
-#define METHOD_LCD_BRIGHTNESS	"\\_SB_.PCI0.VGA_.LCD_._BCM"
-#define TOSH_INTERFACE_1	"\\_SB_.VALD"
-#define TOSH_INTERFACE_2	"\\_SB_.VALZ"
 #define METHOD_VIDEO_OUT	"\\_SB_.VALX.DSSX"
-#define GHCI_METHOD		".GHCI"
 
 /* Toshiba HCI interface definitions
  *
@@ -121,7 +117,6 @@ struct toshiba_acpi_dev {
 	int force_fan;
 	int last_key_event;
 	int key_event_valid;
-	acpi_handle handle;
 
 	struct mutex mutex;
 };
@@ -170,15 +165,6 @@ static __inline__ void _set_bit(u32 * word, u32 mask, int value)
 /* acpi interface wrappers
  */
 
-static int is_valid_acpi_path(const char *methodName)
-{
-	acpi_handle handle;
-	acpi_status status;
-
-	status = acpi_get_handle(NULL, (char *)methodName, &handle);
-	return !ACPI_FAILURE(status);
-}
-
 static int write_acpi_int(const char *methodName, int val)
 {
 	struct acpi_object_list params;
@@ -217,7 +203,8 @@ static acpi_status hci_raw(struct toshiba_acpi_dev *dev,
 	results.length = sizeof(out_objs);
 	results.pointer = out_objs;
 
-	status = acpi_evaluate_object(NULL, (char *)dev->method_hci, &params,
+	status = acpi_evaluate_object(dev->acpi_dev->handle,
+				      (char *)dev->method_hci, &params,
 				      &results);
 	if ((status == AE_OK) && (out_objs->package.count <= HCI_WORDS)) {
 		for (i = 0; i < out_objs->package.count; ++i) {
@@ -836,17 +823,10 @@ static const struct backlight_ops toshiba_backlight_data = {
         .update_status  = set_lcd_status,
 };
 
-static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev,
-						 char *device_path)
+static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 {
 	acpi_status status;
 	int error;
-
-	status = acpi_get_handle(NULL, device_path, &dev->handle);
-	if (ACPI_FAILURE(status)) {
-		pr_info("Unable to get notification device\n");
-		return -ENODEV;
-	}
 
 	dev->hotkey_dev = input_allocate_device();
 	if (!dev->hotkey_dev) {
@@ -855,14 +835,14 @@ static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev,
 	}
 
 	dev->hotkey_dev->name = "Toshiba input device";
-	dev->hotkey_dev->phys = device_path;
+	dev->hotkey_dev->phys = "toshiba_acpi/input0";
 	dev->hotkey_dev->id.bustype = BUS_HOST;
 
 	error = sparse_keymap_setup(dev->hotkey_dev, toshiba_acpi_keymap, NULL);
 	if (error)
 		goto err_free_dev;
 
-	status = acpi_evaluate_object(dev->handle, "ENAB", NULL, NULL);
+	status = acpi_evaluate_object(dev->acpi_dev->handle, "ENAB", NULL, NULL);
 	if (ACPI_FAILURE(status)) {
 		pr_info("Unable to enable hotkeys\n");
 		error = -ENODEV;
@@ -915,6 +895,8 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev;
+	acpi_status status;
+	acpi_handle handle;
 	u32 hci_result;
 	bool bt_present;
 	int ret = 0;
@@ -923,27 +905,20 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 	pr_info("Toshiba Laptop ACPI Extras version %s\n",
 	       TOSHIBA_ACPI_VERSION);
 
+	/* simple device detection: look for HCI method */
+	status = acpi_get_handle(acpi_dev->handle, "GHCI", &handle);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 	dev->acpi_dev = acpi_dev;
+	dev->method_hci = "GHCI";
 	acpi_dev->driver_data = dev;
 
-	/* simple device detection: look for HCI method */
-	if (is_valid_acpi_path(TOSH_INTERFACE_1 GHCI_METHOD)) {
-		dev->method_hci = TOSH_INTERFACE_1 GHCI_METHOD;
-		if (toshiba_acpi_setup_keyboard(dev, TOSH_INTERFACE_1))
-			pr_info("Unable to activate hotkeys\n");
-	} else if (is_valid_acpi_path(TOSH_INTERFACE_2 GHCI_METHOD)) {
-		dev->method_hci = TOSH_INTERFACE_2 GHCI_METHOD;
-		if (toshiba_acpi_setup_keyboard(dev, TOSH_INTERFACE_2))
-			pr_info("Unable to activate hotkeys\n");
-	} else {
-		ret = -ENODEV;
-		goto error;
-	}
-
-	pr_info("HCI method: %s\n", dev->method_hci);
+	if (toshiba_acpi_setup_keyboard(dev))
+		pr_info("Unable to activate hotkeys\n");
 
 	mutex_init(&dev->mutex);
 
