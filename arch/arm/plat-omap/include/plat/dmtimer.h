@@ -35,6 +35,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #ifndef __ASM_ARCH_DMTIMER_H
 #define __ASM_ARCH_DMTIMER_H
@@ -61,6 +62,12 @@
 #define OMAP_TIMER_IP_VERSION_1                        0x1
 struct omap_dm_timer;
 struct clk;
+
+struct dmtimer_platform_data {
+	int (*set_timer_src)(struct platform_device *pdev, int source);
+	int timer_ip_version;
+	u32 needs_manual_reset:1;
+};
 
 struct omap_dm_timer *omap_dm_timer_request(void);
 struct omap_dm_timer *omap_dm_timer_request_specific(int timer_id);
@@ -228,6 +235,7 @@ struct omap_dm_timer {
 	unsigned reserved:1;
 	unsigned enabled:1;
 	unsigned posted:1;
+	struct platform_device *pdev;
 };
 
 extern u32 sys_timer_reserved;
