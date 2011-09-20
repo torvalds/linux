@@ -395,7 +395,7 @@ static inline struct sk_buff *ibmveth_rxq_get_buffer(struct ibmveth_adapter *ada
 }
 
 /* recycle the current buffer on the rx queue */
-static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
+static int ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 {
 	u32 q_index = adapter->rx_queue.index;
 	u64 correlator = adapter->rx_queue.queue_addr[q_index].correlator;
@@ -403,6 +403,7 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 	unsigned int index = correlator & 0xffffffffUL;
 	union ibmveth_buf_desc desc;
 	unsigned long lpar_rc;
+	int ret = 1;
 
 	BUG_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
 	BUG_ON(index >= adapter->rx_buff_pool[pool].size);
@@ -410,7 +411,7 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 	if (!adapter->rx_buff_pool[pool].active) {
 		ibmveth_rxq_harvest_buffer(adapter);
 		ibmveth_free_buffer_pool(adapter, &adapter->rx_buff_pool[pool]);
-		return;
+		goto out;
 	}
 
 	desc.fields.flags_len = IBMVETH_BUF_VALID |
@@ -423,12 +424,16 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 		netdev_dbg(adapter->netdev, "h_add_logical_lan_buffer failed "
 			   "during recycle rc=%ld", lpar_rc);
 		ibmveth_remove_buffer_from_pool(adapter, adapter->rx_queue.queue_addr[adapter->rx_queue.index].correlator);
+		ret = 0;
 	}
 
 	if (++adapter->rx_queue.index == adapter->rx_queue.num_slots) {
 		adapter->rx_queue.index = 0;
 		adapter->rx_queue.toggle = !adapter->rx_queue.toggle;
 	}
+
+out:
+	return ret;
 }
 
 static void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter)
@@ -1084,8 +1089,9 @@ restart_poll:
 				if (rx_flush)
 					ibmveth_flush_buffer(skb->data,
 						length + offset);
+				if (!ibmveth_rxq_recycle_buffer(adapter))
+					kfree_skb(skb);
 				skb = new_skb;
-				ibmveth_rxq_recycle_buffer(adapter);
 			} else {
 				ibmveth_rxq_harvest_buffer(adapter);
 				skb_reserve(skb, offset);

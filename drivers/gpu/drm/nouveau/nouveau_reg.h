@@ -826,9 +826,12 @@
 #define NV50_PDISPLAY_SOR_DPMS_STATE_ACTIVE                          0x00030000
 #define NV50_PDISPLAY_SOR_DPMS_STATE_BLANKED                         0x00080000
 #define NV50_PDISPLAY_SOR_DPMS_STATE_WAIT                            0x10000000
-#define NV50_PDISPLAY_SOR_BACKLIGHT                                  0x0061c084
-#define NV50_PDISPLAY_SOR_BACKLIGHT_ENABLE                           0x80000000
-#define NV50_PDISPLAY_SOR_BACKLIGHT_LEVEL                            0x00000fff
+#define NV50_PDISP_SOR_PWM_DIV(i)                     (0x0061c080 + (i) * 0x800)
+#define NV50_PDISP_SOR_PWM_CTL(i)                     (0x0061c084 + (i) * 0x800)
+#define NV50_PDISP_SOR_PWM_CTL_NEW                                   0x80000000
+#define NVA3_PDISP_SOR_PWM_CTL_UNK                                   0x40000000
+#define NV50_PDISP_SOR_PWM_CTL_VAL                                   0x000007ff
+#define NVA3_PDISP_SOR_PWM_CTL_VAL                                   0x00ffffff
 #define NV50_SOR_DP_CTRL(i, l)           (0x0061c10c + (i) * 0x800 + (l) * 0x80)
 #define NV50_SOR_DP_CTRL_ENABLED                                     0x00000001
 #define NV50_SOR_DP_CTRL_ENHANCED_FRAME_ENABLED                      0x00004000
@@ -843,7 +846,7 @@
 #define NV50_SOR_DP_CTRL_TRAINING_PATTERN_2                          0x02000000
 #define NV50_SOR_DP_UNK118(i, l)         (0x0061c118 + (i) * 0x800 + (l) * 0x80)
 #define NV50_SOR_DP_UNK120(i, l)         (0x0061c120 + (i) * 0x800 + (l) * 0x80)
-#define NV50_SOR_DP_UNK128(i, l)         (0x0061c128 + (i) * 0x800 + (l) * 0x80)
+#define NV50_SOR_DP_SCFG(i, l)           (0x0061c128 + (i) * 0x800 + (l) * 0x80)
 #define NV50_SOR_DP_UNK130(i, l)         (0x0061c130 + (i) * 0x800 + (l) * 0x80)
 
 #define NV50_PDISPLAY_USER(i)                        ((i) * 0x1000 + 0x00640000)

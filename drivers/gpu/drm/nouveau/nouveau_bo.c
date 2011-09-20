@@ -956,7 +956,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			break;
 		}
 
-		if (dev_priv->card_type == NV_C0)
+		if (dev_priv->card_type >= NV_C0)
 			page_shift = node->page_shift;
 		else
 			page_shift = 12;

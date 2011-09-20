@@ -51,7 +51,7 @@ struct nouveau_vma {
 
 struct nouveau_vm {
 	struct drm_device *dev;
-	struct nouveau_mm *mm;
+	struct nouveau_mm mm;
 	int refcount;
 
 	struct list_head pgd_list;

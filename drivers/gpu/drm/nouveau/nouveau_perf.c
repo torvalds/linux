@@ -127,11 +127,55 @@ nouveau_perf_timing(struct drm_device *dev, struct bit_entry *P,
 
 	entry += ramcfg * recordlen;
 	if (entry[1] >= pm->memtimings.nr_timing) {
-		NV_WARN(dev, "timingset %d does not exist\n", entry[1]);
+		if (entry[1] != 0xff)
+			NV_WARN(dev, "timingset %d does not exist\n", entry[1]);
 		return NULL;
 	}
 
 	return &pm->memtimings.timing[entry[1]];
+}
+
+static void
+nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
+		     struct nouveau_pm_level *perflvl)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	u8 *vmap;
+	int id;
+
+	id = perflvl->volt_min;
+	perflvl->volt_min = 0;
+
+	/* boards using voltage table version <0x40 store the voltage
+	 * level directly in the perflvl entry as a multiple of 10mV
+	 */
+	if (dev_priv->engine.pm.voltage.version < 0x40) {
+		perflvl->volt_min = id * 10000;
+		perflvl->volt_max = perflvl->volt_min;
+		return;
+	}
+
+	/* on newer ones, the perflvl stores an index into yet another
+	 * vbios table containing a min/max voltage value for the perflvl
+	 */
+	if (P->version != 2 || P->length < 34) {
+		NV_DEBUG(dev, "where's our volt map table ptr? %d %d\n",
+			 P->version, P->length);
+		return;
+	}
+
+	vmap = ROMPTR(bios, P->data[32]);
+	if (!vmap) {
+		NV_DEBUG(dev, "volt map table pointer invalid\n");
+		return;
+	}
+
+	if (id < vmap[3]) {
+		vmap += vmap[1] + (vmap[2] * id);
+		perflvl->volt_min = ROM32(vmap[0]);
+		perflvl->volt_max = ROM32(vmap[4]);
+	}
 }
 
 void
@@ -141,6 +185,8 @@ nouveau_perf_init(struct drm_device *dev)
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nvbios *bios = &dev_priv->vbios;
 	struct bit_entry P;
+	struct nouveau_pm_memtimings *memtimings = &pm->memtimings;
+	struct nouveau_pm_tbl_header mt_hdr;
 	u8 version, headerlen, recordlen, entries;
 	u8 *perf, *entry;
 	int vid, i;
@@ -188,6 +234,22 @@ nouveau_perf_init(struct drm_device *dev)
 	}
 
 	entry = perf + headerlen;
+
+	/* For version 0x15, initialize memtiming table */
+	if(version == 0x15) {
+		memtimings->timing =
+				kcalloc(entries, sizeof(*memtimings->timing), GFP_KERNEL);
+		if(!memtimings) {
+			NV_WARN(dev,"Could not allocate memtiming table\n");
+			return;
+		}
+
+		mt_hdr.entry_cnt = entries;
+		mt_hdr.entry_len = 14;
+		mt_hdr.version = version;
+		mt_hdr.header_len = 4;
+	}
+
 	for (i = 0; i < entries; i++) {
 		struct nouveau_pm_level *perflvl = &pm->perflvl[pm->nr_perflvl];
 
@@ -203,7 +265,8 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x13:
 		case 0x15:
 			perflvl->fanspeed = entry[55];
-			perflvl->voltage = (recordlen > 56) ? entry[56] : 0;
+			if (recordlen > 56)
+				perflvl->volt_min = entry[56];
 			perflvl->core = ROM32(entry[1]) * 10;
 			perflvl->memory = ROM32(entry[5]) * 20;
 			break;
@@ -211,9 +274,10 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x23:
 		case 0x24:
 			perflvl->fanspeed = entry[4];
-			perflvl->voltage = entry[5];
-			perflvl->core = ROM16(entry[6]) * 1000;
-
+			perflvl->volt_min = entry[5];
+			perflvl->shader = ROM16(entry[6]) * 1000;
+			perflvl->core = perflvl->shader;
+			perflvl->core += (signed char)entry[8] * 1000;
 			if (dev_priv->chipset == 0x49 ||
 			    dev_priv->chipset == 0x4b)
 				perflvl->memory = ROM16(entry[11]) * 1000;
@@ -223,7 +287,7 @@ nouveau_perf_init(struct drm_device *dev)
 			break;
 		case 0x25:
 			perflvl->fanspeed = entry[4];
-			perflvl->voltage = entry[5];
+			perflvl->volt_min = entry[5];
 			perflvl->core = ROM16(entry[6]) * 1000;
 			perflvl->shader = ROM16(entry[10]) * 1000;
 			perflvl->memory = ROM16(entry[12]) * 1000;
@@ -232,7 +296,7 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->memscript = ROM16(entry[2]);
 		case 0x35:
 			perflvl->fanspeed = entry[6];
-			perflvl->voltage = entry[7];
+			perflvl->volt_min = entry[7];
 			perflvl->core = ROM16(entry[8]) * 1000;
 			perflvl->shader = ROM16(entry[10]) * 1000;
 			perflvl->memory = ROM16(entry[12]) * 1000;
@@ -240,30 +304,34 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->unk05 = ROM16(entry[16]) * 1000;
 			break;
 		case 0x40:
-#define subent(n) entry[perf[2] + ((n) * perf[3])]
+#define subent(n) (ROM16(entry[perf[2] + ((n) * perf[3])]) & 0xfff) * 1000
 			perflvl->fanspeed = 0; /*XXX*/
-			perflvl->voltage = entry[2];
+			perflvl->volt_min = entry[2];
 			if (dev_priv->card_type == NV_50) {
-				perflvl->core = ROM16(subent(0)) & 0xfff;
-				perflvl->shader = ROM16(subent(1)) & 0xfff;
-				perflvl->memory = ROM16(subent(2)) & 0xfff;
+				perflvl->core   = subent(0);
+				perflvl->shader = subent(1);
+				perflvl->memory = subent(2);
+				perflvl->vdec   = subent(3);
+				perflvl->unka0  = subent(4);
 			} else {
-				perflvl->shader = ROM16(subent(3)) & 0xfff;
+				perflvl->hub06  = subent(0);
+				perflvl->hub01  = subent(1);
+				perflvl->copy   = subent(2);
+				perflvl->shader = subent(3);
+				perflvl->rop    = subent(4);
+				perflvl->memory = subent(5);
+				perflvl->vdec   = subent(6);
+				perflvl->daemon = subent(10);
+				perflvl->hub07  = subent(11);
 				perflvl->core   = perflvl->shader / 2;
-				perflvl->unk0a  = ROM16(subent(4)) & 0xfff;
-				perflvl->memory = ROM16(subent(5)) & 0xfff;
 			}
-
-			perflvl->core *= 1000;
-			perflvl->shader *= 1000;
-			perflvl->memory *= 1000;
-			perflvl->unk0a *= 1000;
 			break;
 		}
 
 		/* make sure vid is valid */
-		if (pm->voltage.supported && perflvl->voltage) {
-			vid = nouveau_volt_vid_lookup(dev, perflvl->voltage);
+		nouveau_perf_voltage(dev, &P, perflvl);
+		if (pm->voltage.supported && perflvl->volt_min) {
+			vid = nouveau_volt_vid_lookup(dev, perflvl->volt_min);
 			if (vid < 0) {
 				NV_DEBUG(dev, "drop perflvl %d, bad vid\n", i);
 				entry += recordlen;
@@ -272,7 +340,11 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 
 		/* get the corresponding memory timings */
-		if (version > 0x15) {
+		if (version == 0x15) {
+			memtimings->timing[i].id = i;
+			nv30_mem_timing_entry(dev,&mt_hdr,(struct nouveau_pm_tbl_entry*) &entry[41],0,&memtimings->timing[i]);
+			perflvl->timing = &memtimings->timing[i];
+		} else if (version > 0x15) {
 			/* last 3 args are for < 0x40, ignored for >= 0x40 */
 			perflvl->timing =
 				nouveau_perf_timing(dev, &P,
