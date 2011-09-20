@@ -51,6 +51,7 @@
 #define PTP_CLASS_V2_VLAN (PTP_CLASS_V2 | PTP_CLASS_VLAN)
 
 #define PTP_EV_PORT 319
+#define PTP_GEN_BIT 0x08 /* indicates general message, if set in message type */
 
 #define OFF_ETYPE	12
 #define OFF_IHL		14
@@ -116,14 +117,20 @@ static inline int ptp_filter_init(struct sock_filter *f, int len)
 	{OP_OR,		0,   0, PTP_CLASS_IPV6		}, /*              */ \
 	{OP_RETA,	0,   0, 0			}, /*              */ \
 /*L3x*/	{OP_RETK,	0,   0, PTP_CLASS_NONE		}, /*              */ \
-/*L40*/	{OP_JEQ,	0,   6, ETH_P_8021Q		}, /* f goto L50   */ \
+/*L40*/	{OP_JEQ,	0,   9, ETH_P_8021Q		}, /* f goto L50   */ \
 	{OP_LDH,	0,   0, OFF_ETYPE + 4		}, /*              */ \
-	{OP_JEQ,	0,   9, ETH_P_1588		}, /* f goto L60   */ \
+	{OP_JEQ,	0,  15, ETH_P_1588		}, /* f goto L60   */ \
+	{OP_LDB,	0,   0, ETH_HLEN + VLAN_HLEN	}, /*              */ \
+	{OP_AND,	0,   0, PTP_GEN_BIT		}, /*              */ \
+	{OP_JEQ,	0,  12, 0			}, /* f goto L6x   */ \
 	{OP_LDH,	0,   0, ETH_HLEN + VLAN_HLEN	}, /*              */ \
 	{OP_AND,	0,   0, PTP_CLASS_VMASK		}, /*              */ \
 	{OP_OR,		0,   0, PTP_CLASS_VLAN		}, /*              */ \
 	{OP_RETA,	0,   0, 0			}, /*              */ \
-/*L50*/	{OP_JEQ,	0,   4, ETH_P_1588		}, /* f goto L61   */ \
+/*L50*/	{OP_JEQ,	0,   7, ETH_P_1588		}, /* f goto L61   */ \
+	{OP_LDB,	0,   0, ETH_HLEN		}, /*              */ \
+	{OP_AND,	0,   0, PTP_GEN_BIT		}, /*              */ \
+	{OP_JEQ,	0,   4, 0			}, /* f goto L6x   */ \
 	{OP_LDH,	0,   0, ETH_HLEN		}, /*              */ \
 	{OP_AND,	0,   0, PTP_CLASS_VMASK		}, /*              */ \
 	{OP_OR,		0,   0, PTP_CLASS_L2		}, /*              */ \
