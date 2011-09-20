@@ -116,6 +116,19 @@ static struct mxc_irq_chip mxc_avic_chip = {
 #endif
 };
 
+asmlinkage void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
+{
+	u32 nivector;
+
+	do {
+		nivector = __raw_readl(avic_base + AVIC_NIVECSR) >> 16;
+		if (nivector == 0xffff)
+			break;
+
+		handle_IRQ(nivector, regs);
+	} while (1);
+}
+
 /*
  * This function initializes the AVIC hardware and disables all the
  * interrupts. It registers the interrupt enable and disable functions
