@@ -423,8 +423,11 @@ enum iwl_rxon_context_id {
 int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
+struct iwl_device_cmd;
+int __must_check iwl_rx_dispatch(struct iwl_priv *priv,
+				 struct iwl_rx_mem_buffer *rxb,
+				 struct iwl_device_cmd *cmd);
 
-void iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
 				 enum iwl_rxon_context_id ctx,

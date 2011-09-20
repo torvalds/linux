@@ -762,8 +762,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	memset(out_meta, 0, sizeof(*out_meta));	/* re-initialize to NULL */
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;
-	if (cmd->flags & CMD_ASYNC)
-		out_meta->callback = cmd->callback;
 
 	/* set up the header */
 
@@ -894,12 +892,15 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
 /**
  * iwl_tx_cmd_complete - Pull unused buffers off the queue and reclaim them
  * @rxb: Rx buffer to reclaim
+ * @handler_status: return value of the handler of the command
+ *	(put in setup_rx_handlers)
  *
  * If an Rx buffer has an async callback associated with it the callback
  * will be executed.  The attached skb (if present) will only be freed
  * if the callback returns 1
  */
-void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
+void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
+			 int handler_status)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -936,9 +937,9 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
 		meta->source->reply_page = (unsigned long)rxb_addr(rxb);
+		meta->source->handler_status = handler_status;
 		rxb->page = NULL;
-	} else if (meta->callback)
-		meta->callback(trans->shrd, cmd, pkt);
+	}
 
 	spin_lock_irqsave(&trans->hcmd_lock, flags);
 
@@ -958,30 +959,6 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
 
 #define HOST_COMPLETE_TIMEOUT (2 * HZ)
 
-static void iwl_generic_cmd_callback(struct iwl_shared *shrd,
-				     struct iwl_device_cmd *cmd,
-				     struct iwl_rx_packet *pkt)
-{
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(shrd->trans, "Bad return from %s (0x%08X)\n",
-			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-		return;
-	}
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	switch (cmd->hdr.cmd) {
-	case REPLY_TX_LINK_QUALITY_CMD:
-	case SENSITIVITY_CMD:
-		IWL_DEBUG_HC_DUMP(shrd->trans, "back from %s (0x%08X)\n",
-				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-		break;
-	default:
-		IWL_DEBUG_HC(shrd->trans, "back from %s (0x%08X)\n",
-				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-	}
-#endif
-}
-
 static int iwl_send_cmd_async(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
 	int ret;
@@ -990,9 +967,6 @@ static int iwl_send_cmd_async(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (WARN_ON(cmd->flags & CMD_WANT_SKB))
 		return -EINVAL;
 
-	/* Assign a generic callback if one is not provided */
-	if (!cmd->callback)
-		cmd->callback = iwl_generic_cmd_callback;
 
 	if (test_bit(STATUS_EXIT_PENDING, &trans->shrd->status))
 		return -EBUSY;
@@ -1013,10 +987,6 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	int ret;
 
 	lockdep_assert_held(&trans->shrd->mutex);
-
-	 /* A synchronous command can not have a callback set. */
-	if (WARN_ON(cmd->callback))
-		return -EINVAL;
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));

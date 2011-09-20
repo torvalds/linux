@@ -189,8 +189,9 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 }
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
-static void iwl_rx_reply_scan(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
+static int iwl_rx_reply_scan(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb,
+			      struct iwl_device_cmd *cmd)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
@@ -199,11 +200,13 @@ static void iwl_rx_reply_scan(struct iwl_priv *priv,
 
 	IWL_DEBUG_SCAN(priv, "Scan request status = 0x%x\n", notif->status);
 #endif
+	return 0;
 }
 
 /* Service SCAN_START_NOTIFICATION (0x82) */
-static void iwl_rx_scan_start_notif(struct iwl_priv *priv,
-				    struct iwl_rx_mem_buffer *rxb)
+static int iwl_rx_scan_start_notif(struct iwl_priv *priv,
+				    struct iwl_rx_mem_buffer *rxb,
+				    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scanstart_notification *notif =
@@ -223,11 +226,14 @@ static void iwl_rx_scan_start_notif(struct iwl_priv *priv,
 		ieee80211_ready_on_channel(priv->hw);
 		priv->hw_roc_start_notified = true;
 	}
+
+	return 0;
 }
 
 /* Service SCAN_RESULTS_NOTIFICATION (0x83) */
-static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
-				      struct iwl_rx_mem_buffer *rxb)
+static int iwl_rx_scan_results_notif(struct iwl_priv *priv,
+				      struct iwl_rx_mem_buffer *rxb,
+				      struct iwl_device_cmd *cmd)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
@@ -245,11 +251,13 @@ static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
 		       le32_to_cpu(notif->statistics[0]),
 		       le32_to_cpu(notif->tsf_low) - priv->scan_start_tsf);
 #endif
+	return 0;
 }
 
 /* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
-static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
-				       struct iwl_rx_mem_buffer *rxb)
+static int iwl_rx_scan_complete_notif(struct iwl_priv *priv,
+				       struct iwl_rx_mem_buffer *rxb,
+				       struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
@@ -289,6 +297,7 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 		queue_work(priv->shrd->workqueue,
 			   &priv->bt_traffic_change_work);
 	}
+	return 0;
 }
 
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv)

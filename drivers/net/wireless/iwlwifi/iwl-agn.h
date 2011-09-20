@@ -88,8 +88,9 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     u32 changes);
 
 /* uCode */
-void iwlagn_rx_calib_result(struct iwl_priv *priv,
-			 struct iwl_rx_mem_buffer *rxb);
+int iwlagn_rx_calib_result(struct iwl_priv *priv,
+			    struct iwl_rx_mem_buffer *rxb,
+			    struct iwl_device_cmd *cmd);
 int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwlagn_send_prio_tbl(struct iwl_priv *priv);
 int iwlagn_run_init_ucode(struct iwl_priv *priv);
@@ -116,9 +117,11 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
-void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb);
-void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
+int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
+				   struct iwl_rx_mem_buffer *rxb,
+				   struct iwl_device_cmd *cmd);
+int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
+			       struct iwl_device_cmd *cmd);
 
 static inline u32 iwl_tx_status_to_mac80211(u32 status)
 {
@@ -155,8 +158,9 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);
-void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
-				  struct iwl_rx_mem_buffer *rxb);
+int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
+				  struct iwl_rx_mem_buffer *rxb,
+				  struct iwl_device_cmd *cmd);
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv);
 void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);

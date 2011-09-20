@@ -228,8 +228,9 @@ static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 	return iwl_trans_send_cmd(trans(priv), &cmd);
 }
 
-void iwlagn_rx_calib_result(struct iwl_priv *priv,
-			     struct iwl_rx_mem_buffer *rxb)
+int iwlagn_rx_calib_result(struct iwl_priv *priv,
+			    struct iwl_rx_mem_buffer *rxb,
+			    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->u.raw;
@@ -262,9 +263,10 @@ void iwlagn_rx_calib_result(struct iwl_priv *priv,
 	default:
 		IWL_ERR(priv, "Unknown calibration notification %d\n",
 			  hdr->op_code);
-		return;
+		return -1;
 	}
 	iwl_calib_set(&priv->calib_results[index], pkt->u.raw, len);
+	return 0;
 }
 
 int iwlagn_init_alive_start(struct iwl_priv *priv)

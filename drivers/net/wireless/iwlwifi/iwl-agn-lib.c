@@ -705,8 +705,9 @@ static void iwlagn_set_kill_msk(struct iwl_priv *priv,
 	}
 }
 
-void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
-					     struct iwl_rx_mem_buffer *rxb)
+int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
+				  struct iwl_rx_mem_buffer *rxb,
+				  struct iwl_device_cmd *cmd)
 {
 	unsigned long flags;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
@@ -715,7 +716,7 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 
 	if (priv->bt_enable_flag == IWLAGN_BT_FLAG_COEX_MODE_DISABLED) {
 		/* bt coex disabled */
-		return;
+		return 0;
 	}
 
 	IWL_DEBUG_COEX(priv, "BT Coex notification:\n");
@@ -757,6 +758,7 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 	spin_lock_irqsave(&priv->shrd->lock, flags);
 	priv->bt_ci_compliance = coex->bt_ci_compliance;
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+	return 0;
 }
 
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv)

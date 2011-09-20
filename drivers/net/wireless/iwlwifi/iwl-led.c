@@ -104,7 +104,6 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 		.len = { sizeof(struct iwl_led_cmd), },
 		.data = { led_cmd, },
 		.flags = CMD_ASYNC,
-		.callback = NULL,
 	};
 	u32 reg;
 

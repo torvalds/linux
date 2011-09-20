@@ -736,7 +736,8 @@ static void iwl_check_abort_status(struct iwl_priv *priv,
 	}
 }
 
-void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
+int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
+			       struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -824,6 +825,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	return 0;
 }
 
 /**
@@ -832,8 +834,9 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
  * Handles block-acknowledge notification from device, which reports success
  * of frames sent via aggregation.
  */
-void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
-					   struct iwl_rx_mem_buffer *rxb)
+int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
+				   struct iwl_rx_mem_buffer *rxb,
+				   struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
@@ -857,7 +860,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	if (scd_flow >= hw_params(priv).max_txq_num) {
 		IWL_ERR(priv,
 			"BUG_ON scd_flow is bigger than number of queues\n");
-		return;
+		return 0;
 	}
 
 	sta_id = ba_resp->sta_id;
@@ -877,14 +880,14 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			"BA scd_flow %d does not match txq_id %d\n",
 			scd_flow, agg->txq_id);
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
-		return;
+		return 0;
 	}
 
 	if (unlikely(!agg->wait_for_ba)) {
 		if (unlikely(ba_resp->bitmap))
 			IWL_ERR(priv, "Received BA when not expected\n");
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
-		return;
+		return 0;
 	}
 
 	IWL_DEBUG_TX_REPLY(priv, "REPLY_COMPRESSED_BA [%d] Received from %pM, "
@@ -955,4 +958,5 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	}
 
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	return 0;
 }

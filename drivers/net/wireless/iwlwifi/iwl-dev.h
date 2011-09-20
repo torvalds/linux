@@ -841,8 +841,9 @@ struct iwl_priv {
 
 	void (*pre_rx_handler)(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
-	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
-				       struct iwl_rx_mem_buffer *rxb);
+	int (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
+				       struct iwl_rx_mem_buffer *rxb,
+				       struct iwl_device_cmd *cmd);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
