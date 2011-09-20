@@ -226,9 +226,6 @@ struct omapfb_platform_data {
 	struct omap_lcd_config		lcd;
 };
 
-/* in arch/arm/plat-omap/fb.c */
-extern void omapfb_set_platform_data(struct omapfb_platform_data *data);
-
 #endif
 
 #endif /* __OMAPFB_H */
