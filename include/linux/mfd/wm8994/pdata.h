@@ -59,6 +59,9 @@ struct wm8994_retune_mobile_cfg {
         u16 regs[WM8994_EQ_REGS];
 };
 
+#define PCM_BB 1
+#define NO_PCM_BB 0
+
 struct wm8994_pdata {
 	int gpio_base;
 
@@ -94,16 +97,20 @@ struct wm8994_pdata {
         unsigned int jd_thr:2;
 
 		//for phonepad
-		unsigned int phone_pad:1;      // =0  is not phone_pad,  =1   is phone_pad
+		unsigned int no_earpiece:1;      // =1  don't have a earpiece,  =0   has a earpiece
+		unsigned int sp_hp_same_channel:1;
 		
 		//BB input can be differential or single ended
 		unsigned int BB_input_diff:1;   //  =0  single ended     =1  differential
+		unsigned int BB_class:1;//PCM_BB= 1  NO_PCM_BB=0
 		
 		//If an external amplifier speakers wm8994		enable>0 disable=0
 		unsigned int PA_control_pin;
 
 		//wm8994 LDO1_ENA and LDO2_ENA
 		unsigned int Power_EN_Pin;
+		char	PowerEN_iomux_name[50];
+		int		PowerEN_iomux_mode;	
 
 	//volume
 	int speaker_incall_vol;			//max = 6, min = -21
