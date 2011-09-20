@@ -761,6 +761,41 @@ static void decode_status_frame(struct dp83640_private *dp83640,
 	}
 }
 
+static int is_sync(struct sk_buff *skb, int type)
+{
+	u8 *data = skb->data, *msgtype;
+	unsigned int offset = 0;
+
+	switch (type) {
+	case PTP_CLASS_V1_IPV4:
+	case PTP_CLASS_V2_IPV4:
+		offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
+		break;
+	case PTP_CLASS_V1_IPV6:
+	case PTP_CLASS_V2_IPV6:
+		offset = OFF_PTP6;
+		break;
+	case PTP_CLASS_V2_L2:
+		offset = ETH_HLEN;
+		break;
+	case PTP_CLASS_V2_VLAN:
+		offset = ETH_HLEN + VLAN_HLEN;
+		break;
+	default:
+		return 0;
+	}
+
+	if (type & PTP_CLASS_V1)
+		offset += OFF_PTP_CONTROL;
+
+	if (skb->len < offset + 1)
+		return 0;
+
+	msgtype = data + offset;
+
+	return (*msgtype & 0xf) == 0;
+}
+
 static int match(struct sk_buff *skb, unsigned int type, struct rxts *rxts)
 {
 	u16 *seqid;
@@ -1010,16 +1045,10 @@ static int dp83640_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 	if (cfg.flags) /* reserved for future extensions */
 		return -EINVAL;
 
-	switch (cfg.tx_type) {
-	case HWTSTAMP_TX_OFF:
-		dp83640->hwts_tx_en = 0;
-		break;
-	case HWTSTAMP_TX_ON:
-		dp83640->hwts_tx_en = 1;
-		break;
-	default:
+	if (cfg.tx_type < 0 || cfg.tx_type > HWTSTAMP_TX_ONESTEP_SYNC)
 		return -ERANGE;
-	}
+
+	dp83640->hwts_tx_en = cfg.tx_type;
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
@@ -1073,6 +1102,9 @@ static int dp83640_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 
 	if (dp83640->hwts_tx_en)
 		txcfg0 |= TX_TS_EN;
+
+	if (dp83640->hwts_tx_en == HWTSTAMP_TX_ONESTEP_SYNC)
+		txcfg0 |= SYNC_1STEP | CHK_1STEP;
 
 	if (dp83640->hwts_rx_en)
 		rxcfg0 |= RX_TS_EN;
@@ -1156,12 +1188,24 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 {
 	struct dp83640_private *dp83640 = phydev->priv;
 
-	if (!dp83640->hwts_tx_en) {
+	switch (dp83640->hwts_tx_en) {
+
+	case HWTSTAMP_TX_ONESTEP_SYNC:
+		if (is_sync(skb, type)) {
+			kfree_skb(skb);
+			return;
+		}
+		/* fall through */
+	case HWTSTAMP_TX_ON:
+		skb_queue_tail(&dp83640->tx_queue, skb);
+		schedule_work(&dp83640->ts_work);
+		break;
+
+	case HWTSTAMP_TX_OFF:
+	default:
 		kfree_skb(skb);
-		return;
+		break;
 	}
-	skb_queue_tail(&dp83640->tx_queue, skb);
-	schedule_work(&dp83640->ts_work);
 }
 
 static struct phy_driver dp83640_driver = {
