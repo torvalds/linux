@@ -81,6 +81,7 @@ MACHINE_START(IMX27LITE, "LogicPD i.MX27LITE")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
+	.handle_irq = imx27_handle_irq,
 	.timer = &mx27lite_timer,
 	.init_machine = mx27lite_init,
 MACHINE_END

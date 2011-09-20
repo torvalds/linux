@@ -284,6 +284,7 @@ MACHINE_START(MX51_EFIKAMX, "Genesi EfikaMX nettop")
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
+	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_efikamx_timer,
 	.init_machine = mx51_efikamx_init,
 MACHINE_END

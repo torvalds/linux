@@ -257,6 +257,7 @@ MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	.map_io = mx25_map_io,
 	.init_early = imx25_init_early,
 	.init_irq = mx25_init_irq,
+	.handle_irq = imx25_handle_irq,
 	.timer = &mx25pdk_timer,
 	.init_machine = mx25pdk_init,
 MACHINE_END
