@@ -271,7 +271,7 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
                         return -EINVAL;
         }
         I2S_DBG("Enter::%s----%d, I2S_TXCR=0x%X\n",__FUNCTION__,__LINE__,tx_ctl);
-#if defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
+#if 0//defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
         rx_ctl = tx_ctl;
         rx_ctl &= ~I2S_MODE_MASK;   
         rx_ctl |= I2S_SLAVE_MODE;  // set tx slave, rx master
@@ -345,7 +345,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 
         writel(dmarc, &(pheadi2s->I2S_DMACR));
         I2S_DBG("Enter %s, %d I2S_TXCR=0x%08X\n", __func__, __LINE__, iismod);  
-#if defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
+#if 0//defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
         dmarc = iismod;
         dmarc &= ~I2S_MODE_MASK;   
         dmarc |= I2S_SLAVE_MODE;     // set tx slave, rx master
