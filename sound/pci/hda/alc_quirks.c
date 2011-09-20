@@ -453,6 +453,19 @@ static void setup_preset(struct hda_codec *codec,
 	alc_fixup_autocfg_pin_nums(codec);
 }
 
+static void alc_simple_setup_automute(struct alc_spec *spec, int mode)
+{
+	int lo_pin = spec->autocfg.line_out_pins[0];
+
+	if (lo_pin == spec->autocfg.speaker_pins[0] ||
+		lo_pin == spec->autocfg.hp_pins[0])
+		lo_pin = 0;
+	spec->automute_mode = mode;
+	spec->detect_hp = !!spec->autocfg.hp_pins[0];
+	spec->detect_lo = !!lo_pin;
+	spec->automute_lo = spec->automute_lo_possible = !!lo_pin;
+	spec->automute_speaker = spec->automute_speaker_possible = !!spec->autocfg.speaker_pins[0];
+}
 
 /* auto-toggle front mic */
 static void alc88x_simple_mic_automute(struct hda_codec *codec)

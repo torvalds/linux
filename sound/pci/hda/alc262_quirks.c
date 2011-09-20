@@ -61,10 +61,6 @@ static const struct snd_kcontrol_new alc262_base_mixer[] = {
 };
 
 /* bind hp and internal speaker mute (with plug check) as master switch */
-static void alc262_hippo_master_update(struct hda_codec *codec)
-{
-	update_speakers(codec);
-}
 
 static int alc262_hippo_master_sw_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
@@ -85,7 +81,7 @@ static int alc262_hippo_master_sw_put(struct snd_kcontrol *kcontrol,
 	if (val == spec->master_mute)
 		return 0;
 	spec->master_mute = val;
-	alc262_hippo_master_update(codec);
+	update_outputs(codec);
 	return 1;
 }
 
@@ -147,8 +143,7 @@ static void alc262_hippo_setup(struct hda_codec *codec)
 
 	spec->autocfg.hp_pins[0] = 0x15;
 	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_AMP;
+	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
 
 static void alc262_hippo1_setup(struct hda_codec *codec)
@@ -157,8 +152,7 @@ static void alc262_hippo1_setup(struct hda_codec *codec)
 
 	spec->autocfg.hp_pins[0] = 0x1b;
 	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_AMP;
+	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
 
 
@@ -221,8 +215,7 @@ static void alc262_tyan_setup(struct hda_codec *codec)
 
 	spec->autocfg.hp_pins[0] = 0x1b;
 	spec->autocfg.speaker_pins[0] = 0x15;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_AMP;
+	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
 
 
@@ -364,8 +357,7 @@ static void alc262_toshiba_s06_setup(struct hda_codec *codec)
 	spec->ext_mic_pin = 0x18;
 	spec->int_mic_pin = 0x12;
 	spec->auto_mic = 1;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
+	alc_simple_setup_automute(spec, ALC_AUTOMUTE_PIN);
 }
 
 /*
@@ -446,8 +438,7 @@ static void alc262_fujitsu_setup(struct hda_codec *codec)
 	spec->autocfg.hp_pins[0] = 0x14;
 	spec->autocfg.hp_pins[1] = 0x1b;
 	spec->autocfg.speaker_pins[0] = 0x15;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_AMP;
+	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
 
 /* bind volumes of both NID 0x0c and 0x0d */
@@ -493,8 +484,7 @@ static void alc262_lenovo_3000_setup(struct hda_codec *codec)
 	spec->autocfg.hp_pins[0] = 0x1b;
 	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->autocfg.speaker_pins[1] = 0x16;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_AMP;
+	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
 
 static const struct snd_kcontrol_new alc262_lenovo_3000_mixer[] = {
@@ -599,8 +589,8 @@ static void alc262_ultra_automute(struct hda_codec *codec)
 	mute = 0;
 	/* auto-mute only when HP is used as HP */
 	if (!spec->cur_mux[0]) {
-		spec->jack_present = snd_hda_jack_detect(codec, 0x15);
-		if (spec->jack_present)
+		spec->hp_jack_present = snd_hda_jack_detect(codec, 0x15);
+		if (spec->hp_jack_present)
 			mute = HDA_AMP_MUTE;
 	}
 	/* mute/unmute internal speaker */
