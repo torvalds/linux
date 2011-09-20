@@ -198,12 +198,6 @@ static struct platform_device *real6410_devices[] __initdata = {
 	&s3c_device_ohci,
 };
 
-static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
-	.delay			= 10000,
-	.presc			= 49,
-	.oversampling_shift	= 2,
-};
-
 static void __init real6410_map_io(void)
 {
 	u32 tmp;
@@ -300,7 +294,7 @@ static void __init real6410_machine_init(void)
 
 	s3c_fb_set_platdata(&real6410_lcd_pdata);
 	s3c_nand_set_platdata(&real6410_nand_info);
-	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+	s3c24xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 

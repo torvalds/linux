@@ -43,8 +43,17 @@ struct platform_device s3c_device_ts = {
 	.resource	= s3c_ts_resource,
 };
 
+static struct s3c2410_ts_mach_info default_ts_data __initdata = {
+	.delay			= 10000,
+	.presc			= 49,
+	.oversampling_shift	= 2,
+};
+
 void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *pd)
 {
+	if (!pd)
+		pd = &default_ts_data;
+
 	s3c_set_platdata(pd, sizeof(struct s3c2410_ts_mach_info),
 			 &s3c_device_ts);
 }
