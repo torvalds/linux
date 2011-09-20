@@ -4018,7 +4018,8 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		memcpy(&location, dentry->d_fsdata, sizeof(struct btrfs_key));
 		kfree(dentry->d_fsdata);
 		dentry->d_fsdata = NULL;
-		d_clear_need_lookup(dentry);
+		/* This thing is hashed, drop it for now */
+		d_drop(dentry);
 	} else {
 		ret = btrfs_inode_by_name(dir, dentry, &location);
 	}
@@ -4085,7 +4086,15 @@ static void btrfs_dentry_release(struct dentry *dentry)
 static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 				   struct nameidata *nd)
 {
-	return d_splice_alias(btrfs_lookup_dentry(dir, dentry), dentry);
+	struct dentry *ret;
+
+	ret = d_splice_alias(btrfs_lookup_dentry(dir, dentry), dentry);
+	if (unlikely(d_need_lookup(dentry))) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags &= ~DCACHE_NEED_LOOKUP;
+		spin_unlock(&dentry->d_lock);
+	}
+	return ret;
 }
 
 unsigned char btrfs_filetype_table[] = {
@@ -4125,7 +4134,8 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 
 	/* special case for "." */
 	if (filp->f_pos == 0) {
-		over = filldir(dirent, ".", 1, 1, btrfs_ino(inode), DT_DIR);
+		over = filldir(dirent, ".", 1,
+			       filp->f_pos, btrfs_ino(inode), DT_DIR);
 		if (over)
 			return 0;
 		filp->f_pos = 1;
@@ -4134,7 +4144,7 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 	if (filp->f_pos == 1) {
 		u64 pino = parent_ino(filp->f_path.dentry);
 		over = filldir(dirent, "..", 2,
-			       2, pino, DT_DIR);
+			       filp->f_pos, pino, DT_DIR);
 		if (over)
 			return 0;
 		filp->f_pos = 2;
