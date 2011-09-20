@@ -16,6 +16,7 @@
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
 #include <asm/prom.h>
+#include <asm/uaccess.h>
 #include <asm/oplib.h>
 #include <asm/smp.h>
 
