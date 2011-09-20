@@ -56,7 +56,7 @@ static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_rate(params)) {
 	case 48000:
-		clk = 12288000;
+		clk = 24576000;
 		break;
 	}
 
@@ -103,7 +103,7 @@ static struct snd_soc_dai_link bf5xx_ad193x_dai[] = {
 		.cpu_dai_name = "bfin-tdm.0",
 		.codec_dai_name ="ad193x-hifi",
 		.platform_name = "bfin-tdm-pcm-audio",
-		.codec_name = "ad193x.5",
+		.codec_name = "spi0.5",
 		.ops = &bf5xx_ad193x_ops,
 	},
 	{
@@ -112,7 +112,7 @@ static struct snd_soc_dai_link bf5xx_ad193x_dai[] = {
 		.cpu_dai_name = "bfin-tdm.1",
 		.codec_dai_name ="ad193x-hifi",
 		.platform_name = "bfin-tdm-pcm-audio",
-		.codec_name = "ad193x.5",
+		.codec_name = "spi0.5",
 		.ops = &bf5xx_ad193x_ops,
 	},
 };
