@@ -254,7 +254,6 @@ struct omapfb_platform_data {
 
 /* in arch/arm/plat-omap/fb.c */
 extern void omapfb_set_platform_data(struct omapfb_platform_data *data);
-extern void omapfb_reserve_sdram_memblock(void);
 
 #endif
 
