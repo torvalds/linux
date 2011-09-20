@@ -83,8 +83,6 @@ static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 	memset(&trans_pcie->rxq, 0, sizeof(trans_pcie->rxq));
 
 	spin_lock_init(&rxq->lock);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
 
 	if (WARN_ON(rxq->bd || rxq->rb_stts))
 		return -EINVAL;
