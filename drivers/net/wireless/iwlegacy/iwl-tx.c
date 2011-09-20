@@ -625,6 +625,8 @@ iwl_legacy_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	cmd = txq->cmd[cmd_index];
 	meta = &txq->meta[cmd_index];
 
+	txq->time_stamp = jiffies;
+
 	pci_unmap_single(priv->pci_dev,
 			 dma_unmap_addr(meta, mapping),
 			 dma_unmap_len(meta, len),
