@@ -892,11 +892,26 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 	return 0;
 }
 
+static const char * __devinit find_hci_method(acpi_handle handle)
+{
+	acpi_status status;
+	acpi_handle hci_handle;
+
+	status = acpi_get_handle(handle, "GHCI", &hci_handle);
+	if (ACPI_SUCCESS(status))
+		return "GHCI";
+
+	status = acpi_get_handle(handle, "SPFC", &hci_handle);
+	if (ACPI_SUCCESS(status))
+		return "SPFC";
+
+	return NULL;
+}
+
 static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev;
-	acpi_status status;
-	acpi_handle handle;
+	const char *hci_method;
 	u32 hci_result;
 	bool bt_present;
 	int ret = 0;
@@ -905,16 +920,17 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 	pr_info("Toshiba Laptop ACPI Extras version %s\n",
 	       TOSHIBA_ACPI_VERSION);
 
-	/* simple device detection: look for HCI method */
-	status = acpi_get_handle(acpi_dev->handle, "GHCI", &handle);
-	if (ACPI_FAILURE(status))
+	hci_method = find_hci_method(acpi_dev->handle);
+	if (!hci_method) {
+		pr_err("HCI interface not found\n");
 		return -ENODEV;
+	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 	dev->acpi_dev = acpi_dev;
-	dev->method_hci = "GHCI";
+	dev->method_hci = hci_method;
 	acpi_dev->driver_data = dev;
 
 	if (toshiba_acpi_setup_keyboard(dev))
