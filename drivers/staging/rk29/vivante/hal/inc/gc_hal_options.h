@@ -310,7 +310,7 @@
     gcdPAGE_ALLOC_LIMIT         限制Page申请
     gcdPAGE_ALLOC_LIMIT_SIZE    限制Page申请的大小,单位为M
 */
-#define gcdPAGE_ALLOC_LIMIT                 1
+#define gcdPAGE_ALLOC_LIMIT                 0
 #define gcdPAGE_ALLOC_LIMIT_SIZE            0
 
 

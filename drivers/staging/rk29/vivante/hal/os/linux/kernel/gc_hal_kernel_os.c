@@ -3032,7 +3032,7 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
             }
         }
 #else
-        addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA | __GFP_NOWARN, GetOrder(numPages));
+        addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA | __GFP_NOWARN | __GFP_NO_KSWAPD, GetOrder(numPages));
 #endif
     }
     else
