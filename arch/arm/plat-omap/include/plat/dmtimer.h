@@ -73,11 +73,38 @@ struct omap_timer_capability_dev_attr {
 struct omap_dm_timer;
 struct clk;
 
+struct timer_regs {
+	u32 tidr;
+	u32 tiocp_cfg;
+	u32 tistat;
+	u32 tisr;
+	u32 tier;
+	u32 twer;
+	u32 tclr;
+	u32 tcrr;
+	u32 tldr;
+	u32 ttrg;
+	u32 twps;
+	u32 tmar;
+	u32 tcar1;
+	u32 tsicr;
+	u32 tcar2;
+	u32 tpir;
+	u32 tnir;
+	u32 tcvr;
+	u32 tocr;
+	u32 towr;
+};
+
 struct dmtimer_platform_data {
 	int (*set_timer_src)(struct platform_device *pdev, int source);
 	int timer_ip_version;
 	u32 needs_manual_reset:1;
 	bool reserved;
+
+	bool loses_context;
+
+	u32 (*get_context_loss_count)(struct device *dev);
 };
 
 struct omap_dm_timer *omap_dm_timer_request(void);
@@ -245,8 +272,14 @@ struct omap_dm_timer {
 	unsigned long rate;
 	unsigned reserved:1;
 	unsigned posted:1;
+	struct timer_regs context;
+	bool loses_context;
+	int ctx_loss_count;
+	int revision;
 	struct platform_device *pdev;
 	struct list_head node;
+
+	u32 (*get_context_loss_count)(struct device *dev);
 };
 
 int omap_dm_timer_prepare(struct omap_dm_timer *timer);
@@ -278,6 +311,7 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 	/* Assume v1 ip if bits [31:16] are zero */
 	tidr = __raw_readl(timer->io_base);
 	if (!(tidr >> 16)) {
+		timer->revision = 1;
 		timer->sys_stat = timer->io_base +
 				OMAP_TIMER_V1_SYS_STAT_OFFSET;
 		timer->irq_stat = timer->io_base + OMAP_TIMER_V1_STAT_OFFSET;
@@ -286,6 +320,7 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 		timer->pend = timer->io_base + _OMAP_TIMER_WRITE_PEND_OFFSET;
 		timer->func_base = timer->io_base;
 	} else {
+		timer->revision = 2;
 		timer->sys_stat = 0;
 		timer->irq_stat = timer->io_base + OMAP_TIMER_V2_IRQSTATUS;
 		timer->irq_ena = timer->io_base + OMAP_TIMER_V2_IRQENABLE_SET;
