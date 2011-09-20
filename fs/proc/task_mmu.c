@@ -904,6 +904,29 @@ static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty,
 	md->node[page_to_nid(page)] += nr_pages;
 }
 
+static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
+		unsigned long addr)
+{
+	struct page *page;
+	int nid;
+
+	if (!pte_present(pte))
+		return NULL;
+
+	page = vm_normal_page(vma, addr, pte);
+	if (!page)
+		return NULL;
+
+	if (PageReserved(page))
+		return NULL;
+
+	nid = page_to_nid(page);
+	if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
+		return NULL;
+
+	return page;
+}
+
 static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
 		unsigned long end, struct mm_walk *walk)
 {
@@ -915,23 +938,9 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
 	md = walk->private;
 	orig_pte = pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
 	do {
-		struct page *page;
-		int nid;
-
-		if (!pte_present(*pte))
-			continue;
-
-		page = vm_normal_page(md->vma, addr, *pte);
+		struct page *page = can_gather_numa_stats(*pte, md->vma, addr);
 		if (!page)
 			continue;
-
-		if (PageReserved(page))
-			continue;
-
-		nid = page_to_nid(page);
-		if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
-			continue;
-
 		gather_stats(page, md, pte_dirty(*pte), 1);
 
 	} while (pte++, addr += PAGE_SIZE, addr != end);
