@@ -27,6 +27,8 @@
 
 #define DJ_MAX_PAIRED_DEVICES			6
 #define DJ_MAX_NUMBER_NOTIFICATIONS		8
+#define DJ_DEVICE_INDEX_MIN 			1
+#define DJ_DEVICE_INDEX_MAX 			6
 
 #define DJREPORT_SHORT_LENGTH			15
 #define DJREPORT_LONG_LENGTH			32
@@ -94,7 +96,8 @@ struct dj_report {
 
 struct dj_receiver_dev {
 	struct hid_device *hdev;
-	struct dj_device *paired_dj_devices[DJ_MAX_PAIRED_DEVICES];
+	struct dj_device *paired_dj_devices[DJ_MAX_PAIRED_DEVICES +
+					    DJ_DEVICE_INDEX_MIN];
 	struct work_struct work;
 	struct kfifo notif_fifo;
 	spinlock_t lock;

@@ -179,9 +179,6 @@ static const u8 hid_reportid_size_map[NUMBER_OF_HID_REPORTS] = {
 
 #define LOGITECH_DJ_INTERFACE_NUMBER 0x02
 
-#define DJ_DEVICE_INDEX_MIN 1
-#define DJ_DEVICE_INDEX_MAX 6
-
 static struct hid_ll_driver logi_dj_ll_driver;
 
 static int logi_dj_output_hidraw_report(struct hid_device *hid, u8 * buf,
@@ -823,7 +820,7 @@ static void logi_dj_remove(struct hid_device *hdev)
 	 * have finished and no more raw_event callbacks should arrive after
 	 * the remove callback was triggered so no locks are put around the
 	 * code below */
-	for (i = 0; i < DJ_MAX_PAIRED_DEVICES; i++) {
+	for (i = 0; i < (DJ_MAX_PAIRED_DEVICES + DJ_DEVICE_INDEX_MIN); i++) {
 		dj_dev = djrcv_dev->paired_dj_devices[i];
 		if (dj_dev != NULL) {
 			hid_destroy_device(dj_dev->hdev);
