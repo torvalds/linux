@@ -808,7 +808,12 @@ void sas_slave_destroy(struct scsi_device *scsi_dev)
 int sas_change_queue_depth(struct scsi_device *scsi_dev, int new_depth,
 			   int reason)
 {
+	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
 	int res = min(new_depth, SAS_MAX_QD);
+
+	if (dev_is_sata(dev))
+		return __ata_change_queue_depth(dev->sata_dev.ap, scsi_dev,
+						new_depth, reason);
 
 	if (reason != SCSI_QDEPTH_DEFAULT)
 		return -EOPNOTSUPP;
@@ -817,7 +822,6 @@ int sas_change_queue_depth(struct scsi_device *scsi_dev, int new_depth,
 		scsi_adjust_queue_depth(scsi_dev, scsi_get_tag_type(scsi_dev),
 					res);
 	else {
-		struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
 		sas_printk("device %llx LUN %x queue depth changed to 1\n",
 			   SAS_ADDR(dev->sas_addr),
 			   scsi_dev->lun);
@@ -830,6 +834,11 @@ int sas_change_queue_depth(struct scsi_device *scsi_dev, int new_depth,
 
 int sas_change_queue_type(struct scsi_device *scsi_dev, int qt)
 {
+	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
+
+	if (dev_is_sata(dev))
+		return -EINVAL;
+
 	if (!scsi_dev->tagged_supported)
 		return 0;
 
