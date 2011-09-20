@@ -246,7 +246,6 @@ struct gfs2_glock {
 
 struct gfs2_alloc {
 	/* Quota stuff */
-
 	struct gfs2_quota_data *al_qd[2*MAXQUOTAS];
 	struct gfs2_holder al_qd_ghs[2*MAXQUOTAS];
 	unsigned int al_qd_num;
@@ -255,9 +254,6 @@ struct gfs2_alloc {
 	u32 al_alloced; /* Filled in by gfs2_alloc_*() */
 
 	/* Filled in by gfs2_inplace_reserve() */
-
-	unsigned int al_line;
-	char *al_file;
 	struct gfs2_holder al_rgd_gh;
 };
 

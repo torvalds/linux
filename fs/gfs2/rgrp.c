@@ -1024,14 +1024,13 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 }
 
 /**
- * gfs2_inplace_reserve_i - Reserve space in the filesystem
+ * gfs2_inplace_reserve - Reserve space in the filesystem
  * @ip: the inode to reserve space for
  *
  * Returns: errno
  */
 
-int gfs2_inplace_reserve_i(struct gfs2_inode *ip,
-			   char *file, unsigned int line)
+int gfs2_inplace_reserve(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = ip->i_alloc;
@@ -1057,14 +1056,7 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip,
 		gfs2_log_flush(sdp, NULL);
 	} while (tries++ < 3);
 
-	if (error)
-		return error;
-
-	/* no error, so we have the rgrp set in the inode's allocation. */
-	al->al_file = file;
-	al->al_line = line;
-
-	return 0;
+	return error;
 }
 
 /**
