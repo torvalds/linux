@@ -250,12 +250,10 @@ struct omapfb_mem_desc {
 struct omapfb_platform_data {
 	struct omap_lcd_config		lcd;
 	struct omapfb_mem_desc		mem_desc;
-	void				*ctrl_platform_data;
 };
 
 /* in arch/arm/plat-omap/fb.c */
 extern void omapfb_set_platform_data(struct omapfb_platform_data *data);
-extern void omapfb_set_ctrl_platform_data(void *pdata);
 extern void omapfb_reserve_sdram_memblock(void);
 
 #endif
