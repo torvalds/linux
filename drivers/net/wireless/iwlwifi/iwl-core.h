@@ -330,12 +330,6 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external);
 u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 		       const u8 *ta, const u8 *ie, int ie_len, int left);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
-u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
-			      enum ieee80211_band band,
-			      u8 n_probes);
-u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
-			       enum ieee80211_band band,
-			       struct ieee80211_vif *vif);
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
 void iwl_cancel_scan_deferred_work(struct iwl_priv *priv);
 int __must_check iwl_scan_initiate(struct iwl_priv *priv,
