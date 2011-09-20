@@ -1440,7 +1440,11 @@ struct platform_device rk29_device_gps = {
  *****************************************************************************************/
 struct wm8994_pdata wm8994_platdata = {	
 	.BB_input_diff = 0,
-	.phone_pad = 0,	
+	.BB_class = NO_PCM_BB,
+	
+	.no_earpiece = 0,
+	.sp_hp_same_channel = 0,
+
 	.PA_control_pin = RK29_PIN6_PD3,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
 	
