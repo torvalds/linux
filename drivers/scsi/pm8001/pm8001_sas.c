@@ -216,20 +216,6 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	return rc;
 }
 
-int pm8001_slave_alloc(struct scsi_device *scsi_dev)
-{
-	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
-	if (dev_is_sata(dev)) {
-		/* We don't need to rescan targets
-		* if REPORT_LUNS request is failed
-		*/
-		if (scsi_dev->lun > 0)
-			return -ENXIO;
-		scsi_dev->tagged_supported = 1;
-	}
-	return sas_slave_alloc(scsi_dev);
-}
-
 /**
   * pm8001_scan_start - we should enable all HBA phys by sending the phy_start
   * command to HBA.
@@ -314,22 +300,7 @@ static int pm8001_task_prep_ssp(struct pm8001_hba_info *pm8001_ha,
 {
 	return PM8001_CHIP_DISP->ssp_io_req(pm8001_ha, ccb);
 }
-int pm8001_slave_configure(struct scsi_device *sdev)
-{
-	struct domain_device *dev = sdev_to_domain_dev(sdev);
-	int ret = sas_slave_configure(sdev);
-	if (ret)
-		return ret;
-	if (dev_is_sata(dev)) {
-	#ifdef PM8001_DISABLE_NCQ
-		struct ata_port *ap = dev->sata_dev.ap;
-		struct ata_device *adev = ap->link.device;
-		adev->flags |= ATA_DFLAG_NCQ_OFF;
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, 1);
-	#endif
-	}
-	return 0;
-}
+
  /* Find the local port id that's attached to this device */
 static int sas_find_local_port_id(struct domain_device *dev)
 {
