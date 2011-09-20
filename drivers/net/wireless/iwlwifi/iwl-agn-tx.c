@@ -313,6 +313,9 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
 	}
 
+	if (info->flags & IEEE80211_TX_CTL_AMPDU)
+		is_agg = true;
+
 	/* irqs already disabled/saved above when locking priv->shrd->lock */
 	spin_lock(&priv->shrd->sta_lock);
 
