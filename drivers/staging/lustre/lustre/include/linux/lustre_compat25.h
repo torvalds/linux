@@ -105,8 +105,8 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 #define ll_vfs_unlink(inode,entry,mnt)	  vfs_unlink(inode,entry)
 #define ll_vfs_mknod(dir,entry,mnt,mode,dev)    vfs_mknod(dir,entry,mode,dev)
 #define ll_security_inode_unlink(dir,entry,mnt) security_inode_unlink(dir,entry)
-#define ll_vfs_rename(old,old_dir,mnt,new,new_dir,mnt1) \
-		vfs_rename(old,old_dir,new,new_dir)
+#define ll_vfs_rename(old,old_dir,mnt,new,new_dir,mnt1,delegated_inode) \
+		vfs_rename(old,old_dir,new,new_dir,delegated_inode)
 
 #define cfs_bio_io_error(a,b)   bio_io_error((a))
 #define cfs_bio_endio(a,b,c)    bio_endio((a),(c))
