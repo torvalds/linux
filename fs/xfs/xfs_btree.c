@@ -970,7 +970,8 @@ xfs_btree_get_buf_block(
 	*bpp = xfs_trans_get_buf(cur->bc_tp, mp->m_ddev_targp, d,
 				 mp->m_bsize, flags);
 
-	ASSERT(!xfs_buf_geterror(*bpp));
+	if (!*bpp)
+		return ENOMEM;
 
 	*block = XFS_BUF_TO_BLOCK(*bpp);
 	return 0;

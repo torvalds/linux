@@ -308,6 +308,10 @@ xfs_inactive_symlink_rmt(
 		bp = xfs_trans_get_buf(tp, mp->m_ddev_targp,
 			XFS_FSB_TO_DADDR(mp, mval[i].br_startblock),
 			XFS_FSB_TO_BB(mp, mval[i].br_blockcount), 0);
+		if (!bp) {
+			error = ENOMEM;
+			goto error1;
+		}
 		xfs_trans_binval(tp, bp);
 	}
 	/*
@@ -1648,7 +1652,10 @@ xfs_symlink(
 			byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
 			bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
 					       BTOBB(byte_cnt), 0);
-			ASSERT(!xfs_buf_geterror(bp));
+			if (!bp) {
+				error = ENOMEM;
+				goto error2;
+			}
 			if (pathlen < byte_cnt) {
 				byte_cnt = pathlen;
 			}

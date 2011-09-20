@@ -1644,7 +1644,7 @@ xfs_iunlink_remove(
  * inodes that are in memory - they all must be marked stale and attached to
  * the cluster buffer.
  */
-STATIC void
+STATIC int
 xfs_ifree_cluster(
 	xfs_inode_t	*free_ip,
 	xfs_trans_t	*tp,
@@ -1690,6 +1690,8 @@ xfs_ifree_cluster(
 					mp->m_bsize * blks_per_cluster,
 					XBF_LOCK);
 
+		if (!bp)
+			return ENOMEM;
 		/*
 		 * Walk the inodes already attached to the buffer and mark them
 		 * stale. These will all have the flush locks held, so an
@@ -1799,6 +1801,7 @@ retry:
 	}
 
 	xfs_perag_put(pag);
+	return 0;
 }
 
 /*
@@ -1878,10 +1881,10 @@ xfs_ifree(
 	dip->di_mode = 0;
 
 	if (delete) {
-		xfs_ifree_cluster(ip, tp, first_ino);
+		error = xfs_ifree_cluster(ip, tp, first_ino);
 	}
 
-	return 0;
+	return error;
 }
 
 /*
