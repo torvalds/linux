@@ -249,7 +249,6 @@ struct omapfb_mem_desc {
 
 struct omapfb_platform_data {
 	struct omap_lcd_config		lcd;
-	struct omapfb_mem_desc		mem_desc;
 };
 
 /* in arch/arm/plat-omap/fb.c */

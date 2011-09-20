@@ -1614,23 +1614,6 @@ static int omapfb_allocate_all_fbs(struct omapfb2_device *fbdev)
 		memset(&vram_paddrs, 0, sizeof(vram_paddrs));
 	}
 
-	if (fbdev->dev->platform_data) {
-		struct omapfb_platform_data *opd;
-		opd = fbdev->dev->platform_data;
-		for (i = 0; i < opd->mem_desc.region_cnt; ++i) {
-			if (!vram_sizes[i]) {
-				unsigned long size;
-				unsigned long paddr;
-
-				size = opd->mem_desc.region[i].size;
-				paddr = opd->mem_desc.region[i].paddr;
-
-				vram_sizes[i] = size;
-				vram_paddrs[i] = paddr;
-			}
-		}
-	}
-
 	for (i = 0; i < fbdev->num_fbs; i++) {
 		/* allocate memory automatically only for fb0, or if
 		 * excplicitly defined with vram or plat data option */
@@ -1827,32 +1810,6 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi)
 	var->bits_per_pixel = 0;
 
 	var->rotate = def_rotate;
-
-	/*
-	 * Check if there is a default color format set in the board file,
-	 * and use this format instead the default deducted from the
-	 * display bpp.
-	 */
-	if (fbdev->dev->platform_data) {
-		struct omapfb_platform_data *opd;
-		int id = ofbi->id;
-
-		opd = fbdev->dev->platform_data;
-		if (opd->mem_desc.region[id].format_used) {
-			enum omap_color_mode mode;
-			enum omapfb_color_format format;
-
-			format = opd->mem_desc.region[id].format;
-			mode = fb_format_to_dss_mode(format);
-			if (mode < 0) {
-				r = mode;
-				goto err;
-			}
-			r = dss_mode_to_fb_mode(mode, var);
-			if (r < 0)
-				goto err;
-		}
-	}
 
 	if (display) {
 		u16 w, h;

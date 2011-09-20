@@ -157,11 +157,6 @@ static int ctrl_init(struct omapfb_device *fbdev)
 			fbdev->mem_desc.region[i].size =
 				PAGE_ALIGN(def_vram[i]);
 		fbdev->mem_desc.region_cnt = i;
-	} else {
-		struct omapfb_platform_data *conf;
-
-		conf = fbdev->dev->platform_data;
-		fbdev->mem_desc = conf->mem_desc;
 	}
 
 	if (!fbdev->mem_desc.region_cnt) {
