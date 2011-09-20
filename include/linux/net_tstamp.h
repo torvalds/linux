@@ -60,6 +60,15 @@ enum {
 	 * before sending the packet.
 	 */
 	HWTSTAMP_TX_ON,
+
+	/*
+	 * Enables time stamping for outgoing packets just as
+	 * HWTSTAMP_TX_ON does, but also enables time stamp insertion
+	 * directly into Sync packets. In this case, transmitted Sync
+	 * packets will not received a time stamp via the socket error
+	 * queue.
+	 */
+	HWTSTAMP_TX_ONESTEP_SYNC,
 };
 
 /* possible values for hwtstamp_config->rx_filter */
