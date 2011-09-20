@@ -135,6 +135,7 @@
 #include <linux/cpu_rmap.h>
 #include <linux/if_tunnel.h>
 #include <linux/if_pppox.h>
+#include <linux/ppp_defs.h>
 
 #include "net-sysfs.h"
 
@@ -2556,6 +2557,7 @@ void __skb_get_rxhash(struct sk_buff *skb)
 again:
 	switch (proto) {
 	case __constant_htons(ETH_P_IP):
+ip:
 		if (!pskb_may_pull(skb, sizeof(*ip) + nhoff))
 			goto done;
 
@@ -2569,6 +2571,7 @@ again:
 		nhoff += ip->ihl * 4;
 		break;
 	case __constant_htons(ETH_P_IPV6):
+ipv6:
 		if (!pskb_may_pull(skb, sizeof(*ip6) + nhoff))
 			goto done;
 
@@ -2591,7 +2594,14 @@ again:
 		proto = *((__be16 *) (skb->data + nhoff +
 				      sizeof(struct pppoe_hdr)));
 		nhoff += PPPOE_SES_HLEN;
-		goto again;
+		switch (proto) {
+		case __constant_htons(PPP_IP):
+			goto ip;
+		case __constant_htons(PPP_IPV6):
+			goto ipv6;
+		default:
+			goto done;
+		}
 	default:
 		goto done;
 	}
