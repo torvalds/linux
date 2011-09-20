@@ -39,7 +39,7 @@
 
 static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
-static void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
+void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 
 void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 {
@@ -3317,7 +3317,7 @@ void evergreen_fini(struct radeon_device *rdev)
 	rdev->bios = NULL;
 }
 
-static void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
+void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 {
 	u32 link_width_cntl, speed_cntl;
 
