@@ -1321,8 +1321,8 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		if (ring_is_rsc_enabled(rx_ring))
 			pkt_is_rsc = ixgbe_get_rsc_state(rx_desc);
 
-		/* if this is a skb from previous receive DMA will be 0 */
-		if (rx_buffer_info->dma) {
+		/* linear means we are building an skb from multiple pages */
+		if (!skb_is_nonlinear(skb)) {
 			u16 hlen;
 			if (pkt_is_rsc &&
 			    !(staterr & IXGBE_RXD_STAT_EOP) &&
