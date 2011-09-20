@@ -898,7 +898,7 @@
 #define AR_PHY_TPC_19_B1_ALPHA_THERM		0xff
 #define AR_PHY_TPC_19_B1_ALPHA_THERM_S		0
 #define AR_PHY_TX_IQCAL_STATUS_B1   (AR_SM1_BASE + 0x48c)
-#define AR_PHY_TX_IQCAL_CORR_COEFF_B1(_i)    (AR_SM_BASE + 0x450 + ((_i) << 2))
+#define AR_PHY_TX_IQCAL_CORR_COEFF_B1(_i)    (AR_SM1_BASE + 0x450 + ((_i) << 2))
 
 /* SM 1 AIC Registers */
 

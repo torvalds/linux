@@ -1729,6 +1729,8 @@ ath5k_beacon_setup(struct ath5k_hw *ah, struct ath5k_buf *bf)
 
 	if (dma_mapping_error(ah->dev, bf->skbaddr)) {
 		ATH5K_ERR(ah, "beacon DMA mapping failed\n");
+		dev_kfree_skb_any(skb);
+		bf->skb = NULL;
 		return -EIO;
 	}
 
@@ -1813,8 +1815,6 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	ath5k_txbuf_free_skb(ah, avf->bbuf);
 	avf->bbuf->skb = skb;
 	ret = ath5k_beacon_setup(ah, avf->bbuf);
-	if (ret)
-		avf->bbuf->skb = NULL;
 out:
 	return ret;
 }
@@ -1834,6 +1834,7 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 	struct ath5k_vif *avf;
 	struct ath5k_buf *bf;
 	struct sk_buff *skb;
+	int err;
 
 	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_BEACON, "in beacon_send\n");
 
@@ -1882,11 +1883,6 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 
 	avf = (void *)vif->drv_priv;
 	bf = avf->bbuf;
-	if (unlikely(bf->skb == NULL || ah->opmode == NL80211_IFTYPE_STATION ||
-		     ah->opmode == NL80211_IFTYPE_MONITOR)) {
-		ATH5K_WARN(ah, "bf=%p bf_skb=%p\n", bf, bf ? bf->skb : NULL);
-		return;
-	}
 
 	/*
 	 * Stop any current dma and put the new frame on the queue.
@@ -1900,8 +1896,17 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 
 	/* refresh the beacon for AP or MESH mode */
 	if (ah->opmode == NL80211_IFTYPE_AP ||
-	    ah->opmode == NL80211_IFTYPE_MESH_POINT)
-		ath5k_beacon_update(ah->hw, vif);
+	    ah->opmode == NL80211_IFTYPE_MESH_POINT) {
+		err = ath5k_beacon_update(ah->hw, vif);
+		if (err)
+			return;
+	}
+
+	if (unlikely(bf->skb == NULL || ah->opmode == NL80211_IFTYPE_STATION ||
+		     ah->opmode == NL80211_IFTYPE_MONITOR)) {
+		ATH5K_WARN(ah, "bf=%p bf_skb=%p\n", bf, bf->skb);
+		return;
+	}
 
 	trace_ath5k_tx(ah, bf->skb, &ah->txqs[ah->bhalq]);
 

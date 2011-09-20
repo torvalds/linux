@@ -483,15 +483,16 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_bus *bus = pci_get_drvdata(pdev);
 	struct iwl_pci_bus *pci_bus = IWL_BUS_GET_PCI_BUS(bus);
+	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
 	struct iwl_shared *shrd = bus->shrd;
 
 	iwl_remove(shrd->priv);
 
-	pci_disable_msi(pci_bus->pci_dev);
-	pci_iounmap(pci_bus->pci_dev, pci_bus->hw_base);
-	pci_release_regions(pci_bus->pci_dev);
-	pci_disable_device(pci_bus->pci_dev);
-	pci_set_drvdata(pci_bus->pci_dev, NULL);
+	pci_disable_msi(pci_dev);
+	pci_iounmap(pci_dev, pci_bus->hw_base);
+	pci_release_regions(pci_dev);
+	pci_disable_device(pci_dev);
+	pci_set_drvdata(pci_dev, NULL);
 
 	kfree(bus);
 }
