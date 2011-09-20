@@ -98,15 +98,16 @@ static struct mipid_platform_data nokia770_mipid_platform_data = {
 	.shutdown = mipid_shutdown,
 };
 
+static struct omap_lcd_config nokia770_lcd_config __initdata = {
+	.ctrl_name	= "hwa742",
+};
+
 static void __init mipid_dev_init(void)
 {
-	const struct omap_lcd_config *conf;
+	nokia770_mipid_platform_data.nreset_gpio = 13;
+	nokia770_mipid_platform_data.data_lines = 16;
 
-	conf = omap_get_config(OMAP_TAG_LCD, struct omap_lcd_config);
-	if (conf != NULL) {
-		nokia770_mipid_platform_data.nreset_gpio = conf->nreset_gpio;
-		nokia770_mipid_platform_data.data_lines = conf->data_lines;
-	}
+	omapfb_set_lcd_config(&nokia770_lcd_config);
 }
 
 static void __init ads7846_dev_init(void)

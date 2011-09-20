@@ -27,6 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/errno.h>
 #include <linux/export.h>
+#include <linux/omapfb.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -371,11 +372,6 @@ static struct platform_device *sx1_devices[] __initdata = {
 	&sx1_lcd_device,
 	&sx1_irda_device,
 };
-/*-----------------------------------------*/
-
-static struct omap_board_config_kernel sx1_config[] __initdata = {
-	{ OMAP_TAG_LCD,	&sx1_lcd_config },
-};
 
 /*-----------------------------------------*/
 
@@ -391,8 +387,6 @@ static void __init omap_sx1_init(void)
 
 	platform_add_devices(sx1_devices, ARRAY_SIZE(sx1_devices));
 
-	omap_board_config = sx1_config;
-	omap_board_config_size = ARRAY_SIZE(sx1_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	omap1_usb_init(&sx1_usb_config);
@@ -406,6 +400,8 @@ static void __init omap_sx1_init(void)
 	gpio_direction_output(1, 1);	/*A_IRDA_OFF = 1 */
 	gpio_direction_output(11, 0);	/*A_SWITCH = 0 */
 	gpio_direction_output(15, 0);	/*A_USB_ON = 0 */
+
+	omapfb_set_lcd_config(&sx1_lcd_config);
 }
 
 MACHINE_START(SX1, "OMAP310 based Siemens SX1")

@@ -226,6 +226,8 @@ struct omapfb_platform_data {
 	struct omap_lcd_config		lcd;
 };
 
+void __init omapfb_set_lcd_config(const struct omap_lcd_config *config);
+
 #endif
 
 #endif /* __OMAPFB_H */

@@ -21,6 +21,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/smc91x.h>
+#include <linux/omapfb.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -290,10 +291,6 @@ static struct omap_lcd_config fsample_lcd_config = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel fsample_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&fsample_lcd_config },
-};
-
 static void __init omap_fsample_init(void)
 {
 	/* Early, board-dependent init */
@@ -352,10 +349,10 @@ static void __init omap_fsample_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	omap_board_config = fsample_config;
-	omap_board_config_size = ARRAY_SIZE(fsample_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
+
+	omapfb_set_lcd_config(&fsample_lcd_config);
 }
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */

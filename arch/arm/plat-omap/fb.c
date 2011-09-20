@@ -37,6 +37,7 @@
 
 #if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
 
+static bool omapfb_lcd_configured;
 static struct omapfb_platform_data omapfb_config;
 
 static u64 omap_fb_dma_mask = ~(u32)0;
@@ -52,15 +53,20 @@ static struct platform_device omap_fb_device = {
 	.num_resources = 0,
 };
 
+void __init omapfb_set_lcd_config(const struct omap_lcd_config *config)
+{
+	omapfb_config.lcd = *config;
+	omapfb_lcd_configured = true;
+}
+
 static int __init omap_init_fb(void)
 {
-	const struct omap_lcd_config *conf;
-
-	conf = omap_get_config(OMAP_TAG_LCD, struct omap_lcd_config);
-	if (conf == NULL)
+	/*
+	 * If the board file has not set the lcd config with
+	 * omapfb_set_lcd_config(), don't bother registering the omapfb device
+	 */
+	if (!omapfb_lcd_configured)
 		return 0;
-
-	omapfb_config.lcd = *conf;
 
 	return platform_device_register(&omap_fb_device);
 }
@@ -89,5 +95,9 @@ static int __init omap_init_fb(void)
 }
 
 arch_initcall(omap_init_fb);
+
+#else
+
+void __init omapfb_set_lcd_config(omap_lcd_config *config) { }
 
 #endif

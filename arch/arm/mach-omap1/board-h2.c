@@ -30,6 +30,7 @@
 #include <linux/input.h>
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
+#include <linux/omapfb.h>
 
 #include <mach/hardware.h>
 
@@ -391,10 +392,6 @@ static struct omap_lcd_config h2_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel h2_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&h2_lcd_config },
-};
-
 static void __init h2_init(void)
 {
 	h2_init_smc91x();
@@ -438,13 +435,13 @@ static void __init h2_init(void)
 	omap_cfg_reg(N19_1610_KBR5);
 
 	platform_add_devices(h2_devices, ARRAY_SIZE(h2_devices));
-	omap_board_config = h2_config;
-	omap_board_config_size = ARRAY_SIZE(h2_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
 			      ARRAY_SIZE(h2_i2c_board_info));
 	omap1_usb_init(&h2_usb_config);
 	h2_mmc_init();
+
+	omapfb_set_lcd_config(&h2_lcd_config);
 }
 
 MACHINE_START(OMAP_H2, "TI-H2")
