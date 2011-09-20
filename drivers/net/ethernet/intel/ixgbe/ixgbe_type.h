@@ -1710,8 +1710,6 @@ enum {
 #define IXGBE_NVM_POLL_WRITE       1  /* Flag for polling for write complete */
 #define IXGBE_NVM_POLL_READ        0  /* Flag for polling for read complete */
 
-#define IXGBE_ETH_LENGTH_OF_ADDRESS   6
-
 #define IXGBE_EEPROM_PAGE_SIZE_MAX       128
 #define IXGBE_EEPROM_RD_BUFFER_MAX_COUNT 512 /* EEPROM words # read in burst */
 #define IXGBE_EEPROM_WR_BUFFER_MAX_COUNT 256 /* EEPROM words # wr in burst */
@@ -2802,9 +2800,9 @@ struct ixgbe_eeprom_info {
 struct ixgbe_mac_info {
 	struct ixgbe_mac_operations     ops;
 	enum ixgbe_mac_type             type;
-	u8                              addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
-	u8                              perm_addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
-	u8                              san_addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
+	u8                              addr[ETH_ALEN];
+	u8                              perm_addr[ETH_ALEN];
+	u8                              san_addr[ETH_ALEN];
 	/* prefix for World Wide Node Name (WWNN) */
 	u16                             wwnn_prefix;
 	/* prefix for World Wide Port Name (WWPN) */

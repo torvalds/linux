@@ -448,7 +448,6 @@ void e1000_io_write(struct e1000_hw *hw, unsigned long port, u32 value);
 #define E1000_DEV_ID_INTEL_CE4100_GBE    0x2E6E
 
 #define NODE_ADDRESS_SIZE 6
-#define ETH_LENGTH_OF_ADDRESS 6
 
 /* MAC decode size is 128K - This is the size of BAR0 */
 #define MAC_DECODE_SIZE (128 * 1024)
