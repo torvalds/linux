@@ -121,7 +121,7 @@ static void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 static void intel_dp_link_down(struct intel_dp *intel_dp);
 
 void
-intel_edp_link_config (struct intel_encoder *intel_encoder,
+intel_edp_link_config(struct intel_encoder *intel_encoder,
 		       int *lane_num, int *link_bw)
 {
 	struct intel_dp *intel_dp = container_of(intel_encoder, struct intel_dp, base);
@@ -337,7 +337,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		for (i = 0; i < send_bytes; i += 4)
 			I915_WRITE(ch_data + i,
 				   pack_aux(send + i, send_bytes - i));
-	
+
 		/* Send the command and wait for it to complete */
 		I915_WRITE(ch_ctl,
 			   DP_AUX_CH_CTL_SEND_BUSY |
@@ -354,7 +354,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 				break;
 			udelay(100);
 		}
-	
+
 		/* Clear done status and any errors */
 		I915_WRITE(ch_ctl,
 			   status |
@@ -390,7 +390,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		      DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT);
 	if (recv_bytes > recv_size)
 		recv_bytes = recv_size;
-	
+
 	for (i = 0; i < recv_bytes; i += 4)
 		unpack_aux(I915_READ(ch_data + i),
 			   recv + i, recv_bytes - i);
@@ -582,10 +582,10 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	intel_dp->algo.address = 0;
 	intel_dp->algo.aux_ch = intel_dp_i2c_aux_ch;
 
-	memset(&intel_dp->adapter, '\0', sizeof (intel_dp->adapter));
+	memset(&intel_dp->adapter, '\0', sizeof(intel_dp->adapter));
 	intel_dp->adapter.owner = THIS_MODULE;
 	intel_dp->adapter.class = I2C_CLASS_DDC;
-	strncpy (intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
+	strncpy(intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
 	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
 	intel_dp->adapter.algo_data = &intel_dp->algo;
 	intel_dp->adapter.dev.parent = &intel_connector->base.kdev;
@@ -839,7 +839,7 @@ static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp)
 }
 
 /* Returns true if the panel was already on when called */
-static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
+static bool ironlake_edp_panel_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -871,7 +871,7 @@ static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 	return false;
 }
 
-static void ironlake_edp_panel_off (struct drm_device *dev)
+static void ironlake_edp_panel_off(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp, idle_off_mask = PP_ON | PP_SEQUENCE_MASK |
@@ -897,7 +897,7 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 	POSTING_READ(PCH_PP_CONTROL);
 }
 
-static void ironlake_edp_backlight_on (struct drm_device *dev)
+static void ironlake_edp_backlight_on(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
@@ -915,7 +915,7 @@ static void ironlake_edp_backlight_on (struct drm_device *dev)
 	I915_WRITE(PCH_PP_CONTROL, pp);
 }
 
-static void ironlake_edp_backlight_off (struct drm_device *dev)
+static void ironlake_edp_backlight_off(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
@@ -1584,7 +1584,7 @@ static bool
 intel_dp_get_dpcd(struct intel_dp *intel_dp)
 {
 	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
-					   sizeof (intel_dp->dpcd)) &&
+					   sizeof(intel_dp->dpcd)) &&
 	    (intel_dp->dpcd[DP_DPCD_REV] != 0)) {
 		return true;
 	}
@@ -1839,7 +1839,7 @@ done:
 }
 
 static void
-intel_dp_destroy (struct drm_connector *connector)
+intel_dp_destroy(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
@@ -1896,7 +1896,7 @@ intel_dp_hot_plug(struct intel_encoder *intel_encoder)
 
 /* Return which DP Port should be selected for Transcoder DP control */
 int
-intel_trans_dp_port_sel (struct drm_crtc *crtc)
+intel_trans_dp_port_sel(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;

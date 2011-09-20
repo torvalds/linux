@@ -72,7 +72,7 @@ i915_verify_lists(struct drm_device *dev)
 			break;
 		} else if (!obj->active ||
 			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS) == 0 ||
-			   list_empty(&obj->gpu_write_list)){
+			   list_empty(&obj->gpu_write_list)) {
 			DRM_ERROR("invalid flushing %p (a %d w %x gwl %d)\n",
 				  obj,
 				  obj->active,

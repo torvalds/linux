@@ -294,7 +294,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
 #define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
 
-void intel_detect_pch (struct drm_device *dev)
+void intel_detect_pch(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pch;
@@ -377,7 +377,7 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 
 void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
-	if (dev_priv->gt_fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES ) {
+	if (dev_priv->gt_fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
 		int loop = 500;
 		u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
 		while (fifo <= GT_FIFO_NUM_RESERVED_ENTRIES && loop--) {
@@ -770,12 +770,12 @@ static int i915_pm_poweroff(struct device *dev)
 }
 
 static const struct dev_pm_ops i915_pm_ops = {
-     .suspend = i915_pm_suspend,
-     .resume = i915_pm_resume,
-     .freeze = i915_pm_freeze,
-     .thaw = i915_pm_thaw,
-     .poweroff = i915_pm_poweroff,
-     .restore = i915_pm_resume,
+	.suspend = i915_pm_suspend,
+	.resume = i915_pm_resume,
+	.freeze = i915_pm_freeze,
+	.thaw = i915_pm_thaw,
+	.poweroff = i915_pm_poweroff,
+	.restore = i915_pm_resume,
 };
 
 static struct vm_operations_struct i915_gem_vm_ops = {

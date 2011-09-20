@@ -711,7 +711,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 	page_count = src->base.size / PAGE_SIZE;
 
-	dst = kmalloc(sizeof(*dst) + page_count * sizeof (u32 *), GFP_ATOMIC);
+	dst = kmalloc(sizeof(*dst) + page_count * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
@@ -1493,7 +1493,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
-				    DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+				    DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -1541,7 +1541,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
-				     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+				     DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 

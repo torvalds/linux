@@ -240,7 +240,7 @@ struct bdb_general_definitions {
 	 * And the device num is related with the size of general definition
 	 * block. It is obtained by using the following formula:
 	 * number = (block_size - sizeof(bdb_general_definitions))/
-	 * 		sizeof(child_device_config);
+	 *	     sizeof(child_device_config);
 	 */
 	struct child_device_config devices[0];
 } __attribute__((packed));
