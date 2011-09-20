@@ -340,11 +340,6 @@ static int __init omap_ethernet_init(void)
 	return status;
 }
 
-static struct platform_device sdp4430_lcd_device = {
-	.name		= "sdp4430_lcd",
-	.id		= -1,
-};
-
 static struct regulator_consumer_supply sdp4430_vbat_supply[] = {
 	REGULATOR_SUPPLY("vddvibl", "twl6040-vibra"),
 	REGULATOR_SUPPLY("vddvibr", "twl6040-vibra"),
@@ -374,19 +369,10 @@ static struct platform_device sdp4430_vbat = {
 };
 
 static struct platform_device *sdp4430_devices[] __initdata = {
-	&sdp4430_lcd_device,
 	&sdp4430_gpio_keys_device,
 	&sdp4430_leds_gpio,
 	&sdp4430_leds_pwm,
 	&sdp4430_vbat,
-};
-
-static struct omap_lcd_config sdp4430_lcd_config __initdata = {
-	.ctrl_name	= "internal",
-};
-
-static struct omap_board_config_kernel sdp4430_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&sdp4430_lcd_config },
 };
 
 static void __init omap_4430sdp_init_early(void)
@@ -792,9 +778,6 @@ static void __init omap_4430sdp_init(void)
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		package = OMAP_PACKAGE_CBL;
 	omap4_mux_init(board_mux, NULL, package);
-
-	omap_board_config = sdp4430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
 
 	omap4_i2c_init();
 	omap_sfh7741prox_init();
