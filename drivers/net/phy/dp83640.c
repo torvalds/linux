@@ -589,7 +589,7 @@ static void decode_rxts(struct dp83640_private *dp83640,
 	prune_rx_ts(dp83640);
 
 	if (list_empty(&dp83640->rxpool)) {
-		pr_warning("dp83640: rx timestamp pool is empty\n");
+		pr_debug("dp83640: rx timestamp pool is empty\n");
 		goto out;
 	}
 	rxts = list_first_entry(&dp83640->rxpool, struct rxts, list);
@@ -612,7 +612,7 @@ static void decode_txts(struct dp83640_private *dp83640,
 	skb = skb_dequeue(&dp83640->tx_queue);
 
 	if (!skb) {
-		pr_warning("dp83640: have timestamp but tx_queue empty\n");
+		pr_debug("dp83640: have timestamp but tx_queue empty\n");
 		return;
 	}
 	ns = phy2txts(phy_txts);
