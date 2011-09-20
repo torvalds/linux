@@ -496,6 +496,20 @@ config VIDEO_TCM825X
 	  This is a driver for the Toshiba TCM825x VGA camera sensor.
 	  It is used for example in Nokia N800.
 
+config VIDEO_SR030PC30
+	tristate "Siliconfile SR030PC30 sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This driver supports SR030PC30 VGA camera from Siliconfile
+
+config VIDEO_NOON010PC30
+	tristate "Siliconfile NOON010PC30 sensor support"
+	depends on I2C && VIDEO_V4L2 && EXPERIMENTAL && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This driver supports NOON010PC30 CIF camera from Siliconfile
+
+source "drivers/media/video/m5mols/Kconfig"
+
 comment "Flash devices"
 
 config VIDEO_ADP1653
@@ -744,12 +758,6 @@ config VIDEO_M32R_AR_M64278
 	  To compile this driver as a module, choose M here: the
 	  module will be called arv.
 
-config VIDEO_SR030PC30
-	tristate "SR030PC30 VGA camera sensor support"
-	depends on I2C && VIDEO_V4L2
-	---help---
-	  This driver supports SR030PC30 VGA camera from Siliconfile
-
 config VIDEO_VIA_CAMERA
 	tristate "VIAFB camera controller support"
 	depends on FB_VIA
@@ -759,14 +767,6 @@ config VIDEO_VIA_CAMERA
 	   Driver support for the integrated camera controller in VIA
 	   Chrome9 chipsets.  Currently only tested on OLPC xo-1.5 systems
 	   with ov7670 sensors.
-
-config VIDEO_NOON010PC30
-	tristate "NOON010PC30 CIF camera sensor support"
-	depends on I2C && VIDEO_V4L2 && EXPERIMENTAL && VIDEO_V4L2_SUBDEV_API
-	---help---
-	  This driver supports NOON010PC30 CIF camera from Siliconfile
-
-source "drivers/media/video/m5mols/Kconfig"
 
 config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support (EXPERIMENTAL)"
