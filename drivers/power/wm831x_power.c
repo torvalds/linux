@@ -620,7 +620,7 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		//ret = wm831x_power_read_voltage(wm831x, WM831X_AUX_BATT, val);
-		val->intval = wm831x_power->batt_info.voltage;
+		val->intval = wm831x_power->batt_info.voltage*1000;//uV
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		//ret = wm831x_bat_check_health(wm831x, &val->intval);
