@@ -509,12 +509,19 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 
 	timer->id = pdev->id;
 	timer->irq = irq->start;
+	timer->reserved = pdata->reserved;
 	timer->pdev = pdev;
 
 	/* Skip pm_runtime_enable for OMAP1 */
 	if (!pdata->needs_manual_reset) {
 		pm_runtime_enable(&pdev->dev);
 		pm_runtime_irq_safe(&pdev->dev);
+	}
+
+	if (!timer->reserved) {
+		pm_runtime_get_sync(&pdev->dev);
+		__omap_dm_timer_init_regs(timer);
+		pm_runtime_put(&pdev->dev);
 	}
 
 	/* add the timer element to the list */

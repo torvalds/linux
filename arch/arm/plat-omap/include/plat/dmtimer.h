@@ -77,6 +77,7 @@ struct dmtimer_platform_data {
 	int (*set_timer_src)(struct platform_device *pdev, int source);
 	int timer_ip_version;
 	u32 needs_manual_reset:1;
+	bool reserved;
 };
 
 struct omap_dm_timer *omap_dm_timer_request(void);
@@ -248,7 +249,6 @@ struct omap_dm_timer {
 	struct list_head node;
 };
 
-extern u32 sys_timer_reserved;
 int omap_dm_timer_prepare(struct omap_dm_timer *timer);
 
 static inline u32 __omap_dm_timer_read(struct omap_dm_timer *timer, u32 reg,

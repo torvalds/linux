@@ -69,7 +69,7 @@
 /* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
 #define MAX_GPTIMER_ID		12
 
-u32 sys_timer_reserved;
+static u32 sys_timer_reserved;
 
 /* Clockevent code */
 
@@ -462,6 +462,10 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 
 	pdata->set_timer_src = omap2_dm_timer_set_src;
 	pdata->timer_ip_version = oh->class->rev;
+
+	/* Mark clocksource and clockevent timers as reserved */
+	if ((sys_timer_reserved >> (id - 1)) & 0x1)
+		pdata->reserved = 1;
 
 	od = omap_device_build(name, id, oh, pdata, sizeof(*pdata),
 			omap2_dmtimer_latency,
