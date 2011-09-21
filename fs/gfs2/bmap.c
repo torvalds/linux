@@ -269,6 +269,30 @@ static inline __be64 *metapointer(unsigned int height, const struct metapath *mp
 	return ((__be64 *)(bh->b_data + head_size)) + mp->mp_list[height];
 }
 
+static void gfs2_metapath_ra(struct gfs2_glock *gl,
+			     const struct buffer_head *bh, const __be64 *pos)
+{
+	struct buffer_head *rabh;
+	const __be64 *endp = (const __be64 *)(bh->b_data + bh->b_size);
+	const __be64 *t;
+
+	for (t = pos; t < endp; t++) {
+		if (!*t)
+			continue;
+
+		rabh = gfs2_getbuf(gl, be64_to_cpu(*t), CREATE);
+		if (trylock_buffer(rabh)) {
+			if (!buffer_uptodate(rabh)) {
+				rabh->b_end_io = end_buffer_read_sync;
+				submit_bh(READA | REQ_META, rabh);
+				continue;
+			}
+			unlock_buffer(rabh);
+		}
+		brelse(rabh);
+	}
+}
+
 /**
  * lookup_metapath - Walk the metadata tree to a specific point
  * @ip: The inode
@@ -843,7 +867,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *bh = NULL;
-	__be64 *top, *bottom, *t2;
+	__be64 *top, *bottom;
 	u64 bn;
 	int error;
 	int mh_size = sizeof(struct gfs2_meta_header);
@@ -872,26 +896,9 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 		goto out;
 
 	if (height < ip->i_height - 1) {
-		struct buffer_head *rabh;
 
-		for (t2 = top; t2 < bottom; t2++, first = 0) {
-			if (!*t2)
-				continue;
+		gfs2_metapath_ra(ip->i_gl, bh, top);
 
-			bn = be64_to_cpu(*t2);
-			rabh = gfs2_getbuf(ip->i_gl, bn, CREATE);
-			if (trylock_buffer(rabh)) {
-				if (buffer_uptodate(rabh)) {
-					unlock_buffer(rabh);
-					brelse(rabh);
-					continue;
-				}
-				rabh->b_end_io = end_buffer_read_sync;
-				submit_bh(READA | REQ_META, rabh);
-				continue;
-			}
-			brelse(rabh);
-		}
 		for (; top < bottom; top++, first = 0) {
 			if (!*top)
 				continue;
