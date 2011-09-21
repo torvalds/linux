@@ -152,6 +152,7 @@ struct isptables_update {
  * @subdev: V4L2 subdevice
  * @pads: Media entity pads
  * @formats: Active formats at the subdev pad
+ * @crop: Active crop rectangle
  * @input: Module currently connected to the input pad
  * @output: Bitmask of the active output
  * @video_in: Input video entity
@@ -170,6 +171,7 @@ struct isp_prev_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[PREV_PADS_NUM];
 	struct v4l2_mbus_framefmt formats[PREV_PADS_NUM];
+	struct v4l2_rect crop;
 
 	struct v4l2_ctrl_handler ctrls;
 
