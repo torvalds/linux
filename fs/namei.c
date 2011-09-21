@@ -2035,10 +2035,7 @@ static int may_open(struct path *path, int acc_mode, int flag)
 	if (flag & O_NOATIME && !inode_owner_or_capable(inode))
 		return -EPERM;
 
-	/*
-	 * Ensure there are no outstanding leases on the file.
-	 */
-	return break_lease(inode, flag);
+	return 0;
 }
 
 static int handle_truncate(struct file *filp)
