@@ -1228,7 +1228,6 @@ static void preview_init_params(struct isp_prev_device *prev)
 	/* Init values */
 	params->contrast = ISPPRV_CONTRAST_DEF * ISPPRV_CONTRAST_UNITS;
 	params->brightness = ISPPRV_BRIGHT_DEF * ISPPRV_BRIGHT_UNITS;
-	params->average = NO_AVE;
 	params->cfa.format = OMAP3ISP_CFAFMT_BAYER;
 	memcpy(params->cfa.table, cfa_coef_table,
 	       sizeof(params->cfa.table));
@@ -1297,7 +1296,6 @@ static void preview_configure(struct isp_prev_device *prev)
 	struct isp_device *isp = to_isp_device(prev);
 	struct v4l2_mbus_framefmt *format;
 	unsigned int max_out_width;
-	unsigned int format_avg;
 
 	preview_setup_hw(prev);
 
@@ -1337,8 +1335,7 @@ static void preview_configure(struct isp_prev_device *prev)
 
 	max_out_width = preview_max_out_width(prev);
 
-	format_avg = fls(DIV_ROUND_UP(format->width, max_out_width) - 1);
-	preview_config_averager(prev, format_avg);
+	preview_config_averager(prev, 0);
 	preview_config_ycpos(prev, format->code);
 }
 
@@ -1642,7 +1639,7 @@ static void preview_try_format(struct isp_prev_device *prev,
 		 */
 		if (prev->input == PREVIEW_INPUT_MEMORY) {
 			fmt->width = clamp_t(u32, fmt->width, PREV_MIN_WIDTH,
-					     max_out_width * 8);
+					     max_out_width);
 			fmt->height = clamp_t(u32, fmt->height, PREV_MIN_HEIGHT,
 					      PREV_MAX_HEIGHT);
 		}
@@ -1688,17 +1685,6 @@ static void preview_try_format(struct isp_prev_device *prev,
 		 */
 		if (prev->input == PREVIEW_INPUT_CCDC)
 			fmt->width -= 4;
-
-		/* The preview module can output a maximum of 3312 pixels
-		 * horizontally due to fixed memory-line sizes. Compute the
-		 * horizontal averaging factor accordingly. Note that the limit
-		 * applies to the noise filter and CFA interpolation blocks, so
-		 * it doesn't take cropping by further blocks into account.
-		 *
-		 * ES 1.0 hardware revision is limited to 1280 pixels
-		 * horizontally.
-		 */
-		fmt->width >>= fls(DIV_ROUND_UP(fmt->width, max_out_width) - 1);
 
 		/* Assume that all blocks are enabled and crop pixels and lines
 		 * accordingly. See preview_config_input_size() for more
