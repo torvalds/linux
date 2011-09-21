@@ -860,17 +860,23 @@ struct request_queue *blk_alloc_queue_node(gfp_t, int);
 extern void blk_put_queue(struct request_queue *);
 
 /*
- * Note: Code in between changing the blk_plug list/cb_list or element of such
- * lists is preemptable, but such code can't do sleep (or be very careful),
- * otherwise data is corrupted. For details, please check schedule() where
- * blk_schedule_flush_plug() is called.
+ * blk_plug permits building a queue of related requests by holding the I/O
+ * fragments for a short period. This allows merging of sequential requests
+ * into single larger request. As the requests are moved from a per-task list to
+ * the device's request_queue in a batch, this results in improved scalability
+ * as the lock contention for request_queue lock is reduced.
+ *
+ * It is ok not to disable preemption when adding the request to the plug list
+ * or when attempting a merge, because blk_schedule_flush_list() will only flush
+ * the plug list when the task sleeps by itself. For details, please see
+ * schedule() where blk_schedule_flush_plug() is called.
  */
 struct blk_plug {
-	unsigned long magic;
-	struct list_head list;
-	struct list_head cb_list;
-	unsigned int should_sort;
-	unsigned int count;
+	unsigned long magic; /* detect uninitialized use-cases */
+	struct list_head list; /* requests */
+	struct list_head cb_list; /* md requires an unplug callback */
+	unsigned int should_sort; /* list to be sorted before flushing? */
+	unsigned int count; /* number of queued requests */
 };
 #define BLK_MAX_REQUEST_COUNT 16
 
