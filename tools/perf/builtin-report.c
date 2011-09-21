@@ -229,10 +229,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct hists *hists = &pos->hists;
-		const char *evname = NULL;
-
-		if (rb_first(&hists->entries) != rb_last(&hists->entries))
-			evname = event_name(pos);
+		const char *evname = event_name(pos);
 
 		hists__fprintf_nr_sample_events(hists, evname, stdout);
 		hists__fprintf(hists, NULL, false, stdout);
