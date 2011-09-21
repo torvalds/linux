@@ -67,6 +67,8 @@ struct hdmi_device {
 	struct v4l2_device v4l2_dev;
 	/** subdev of HDMIPHY interface */
 	struct v4l2_subdev *phy_sd;
+	/** subdev of MHL interface */
+	struct v4l2_subdev *mhl_sd;
 	/** configuration of current graphic mode */
 	const struct hdmi_preset_conf *cur_conf;
 	/** current preset */
@@ -572,7 +574,15 @@ static int hdmi_streamon(struct hdmi_device *hdev)
 	if (tries == 0) {
 		dev_err(dev, "hdmiphy's pll could not reach steady state.\n");
 		v4l2_subdev_call(hdev->phy_sd, video, s_stream, 0);
-		hdmi_dumpregs(hdev, "s_stream");
+		hdmi_dumpregs(hdev, "hdmiphy - s_stream");
+		return -EIO;
+	}
+
+	/* starting MHL */
+	ret = v4l2_subdev_call(hdev->mhl_sd, video, s_stream, 1);
+	if (hdev->mhl_sd && ret) {
+		v4l2_subdev_call(hdev->phy_sd, video, s_stream, 0);
+		hdmi_dumpregs(hdev, "mhl - s_stream");
 		return -EIO;
 	}
 
@@ -603,6 +613,7 @@ static int hdmi_streamoff(struct hdmi_device *hdev)
 	clk_set_parent(res->sclk_hdmi, res->sclk_pixel);
 	clk_enable(res->sclk_hdmi);
 
+	v4l2_subdev_call(hdev->mhl_sd, video, s_stream, 0);
 	v4l2_subdev_call(hdev->phy_sd, video, s_stream, 0);
 
 	hdmi_dumpregs(hdev, "streamoff");
@@ -724,6 +735,7 @@ static int hdmi_runtime_suspend(struct device *dev)
 	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
 
 	dev_dbg(dev, "%s\n", __func__);
+	v4l2_subdev_call(hdev->mhl_sd, core, s_power, 0);
 	hdmi_resource_poweroff(&hdev->res);
 	return 0;
 }
@@ -740,6 +752,11 @@ static int hdmi_runtime_resume(struct device *dev)
 
 	ret = hdmi_conf_apply(hdev);
 	if (ret)
+		goto fail;
+
+	/* starting MHL */
+	ret = v4l2_subdev_call(hdev->mhl_sd, core, s_power, 1);
+	if (hdev->mhl_sd && ret)
 		goto fail;
 
 	dev_dbg(dev, "poweron succeed\n");
@@ -852,7 +869,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	struct i2c_adapter *phy_adapter;
+	struct i2c_adapter *adapter;
 	struct v4l2_subdev *sd;
 	struct hdmi_device *hdmi_dev = NULL;
 	struct s5p_hdmi_platform_data *pdata = dev->platform_data;
@@ -927,21 +944,42 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		goto fail_vdev;
 	}
 
-	phy_adapter = i2c_get_adapter(pdata->hdmiphy_bus);
-	if (phy_adapter == NULL) {
-		dev_err(dev, "adapter request failed\n");
+	adapter = i2c_get_adapter(pdata->hdmiphy_bus);
+	if (adapter == NULL) {
+		dev_err(dev, "hdmiphy adapter request failed\n");
 		ret = -ENXIO;
 		goto fail_vdev;
 	}
 
 	hdmi_dev->phy_sd = v4l2_i2c_new_subdev_board(&hdmi_dev->v4l2_dev,
-		phy_adapter, pdata->hdmiphy_info, NULL);
+		adapter, pdata->hdmiphy_info, NULL);
 	/* on failure or not adapter is no longer useful */
-	i2c_put_adapter(phy_adapter);
+	i2c_put_adapter(adapter);
 	if (hdmi_dev->phy_sd == NULL) {
 		dev_err(dev, "missing subdev for hdmiphy\n");
 		ret = -ENODEV;
 		goto fail_vdev;
+	}
+
+	/* initialization of MHL interface if present */
+	if (pdata->mhl_info) {
+		adapter = i2c_get_adapter(pdata->mhl_bus);
+		if (adapter == NULL) {
+			dev_err(dev, "MHL adapter request failed\n");
+			ret = -ENXIO;
+			goto fail_vdev;
+		}
+
+		hdmi_dev->mhl_sd = v4l2_i2c_new_subdev_board(
+			&hdmi_dev->v4l2_dev, adapter,
+			pdata->mhl_info, NULL);
+		/* on failure or not adapter is no longer useful */
+		i2c_put_adapter(adapter);
+		if (hdmi_dev->mhl_sd == NULL) {
+			dev_err(dev, "missing subdev for MHL\n");
+			ret = -ENODEV;
+			goto fail_vdev;
+		}
 	}
 
 	clk_enable(hdmi_dev->res.hdmi);
