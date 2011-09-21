@@ -540,6 +540,7 @@ struct snd_soc_dapm_widget_list {
 struct snd_soc_dapm_stats {
 	int power_checks;
 	int path_checks;
+	int neighbour_checks;
 };
 
 #endif
