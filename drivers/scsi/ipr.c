@@ -2901,7 +2901,7 @@ static void ipr_get_ioa_dump(struct ipr_ioa_cfg *ioa_cfg, struct ipr_dump *dump)
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 
-	if (ioa_cfg->sdt_state != GET_DUMP) {
+	if (ioa_cfg->sdt_state != READ_DUMP) {
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 		return;
 	}
@@ -3097,7 +3097,7 @@ static void ipr_worker_thread(struct work_struct *work)
 	ENTER;
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 
-	if (ioa_cfg->sdt_state == GET_DUMP) {
+	if (ioa_cfg->sdt_state == READ_DUMP) {
 		dump = ioa_cfg->dump;
 		if (!dump) {
 			spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
@@ -7449,6 +7449,8 @@ static int ipr_reset_wait_for_dump(struct ipr_cmnd *ipr_cmd)
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 
 	if (ioa_cfg->sdt_state == GET_DUMP)
+		ioa_cfg->sdt_state = WAIT_FOR_DUMP;
+	else if (ioa_cfg->sdt_state == READ_DUMP)
 		ioa_cfg->sdt_state = ABORT_DUMP;
 
 	ipr_cmd->job_step = ipr_reset_alert;
@@ -7614,6 +7616,7 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 		ipr_cmd->job_step = ipr_reset_enable_ioa;
 
 		if (GET_DUMP == ioa_cfg->sdt_state) {
+			ioa_cfg->sdt_state = READ_DUMP;
 			if (ioa_cfg->sis64)
 				ipr_reset_start_timer(ipr_cmd, IPR_SIS64_DUMP_TIMEOUT);
 			else
@@ -8003,8 +8006,12 @@ static void ipr_initiate_ioa_reset(struct ipr_ioa_cfg *ioa_cfg,
 	if (ioa_cfg->ioa_is_dead)
 		return;
 
-	if (ioa_cfg->in_reset_reload && ioa_cfg->sdt_state == GET_DUMP)
-		ioa_cfg->sdt_state = ABORT_DUMP;
+	if (ioa_cfg->in_reset_reload) {
+		if (ioa_cfg->sdt_state == GET_DUMP)
+			ioa_cfg->sdt_state = WAIT_FOR_DUMP;
+		else if (ioa_cfg->sdt_state == READ_DUMP)
+			ioa_cfg->sdt_state = ABORT_DUMP;
+	}
 
 	if (ioa_cfg->reset_retries++ >= IPR_NUM_RESET_RELOAD_RETRIES) {
 		dev_err(&ioa_cfg->pdev->dev,

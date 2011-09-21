@@ -1360,6 +1360,7 @@ enum ipr_sdt_state {
 	INACTIVE,
 	WAIT_FOR_DUMP,
 	GET_DUMP,
+	READ_DUMP,
 	ABORT_DUMP,
 	DUMP_OBTAINED
 };
