@@ -386,7 +386,7 @@ static int lis3l02dq_ring_postenable(struct iio_dev *indio_dev)
 	if (ret)
 		goto error_ret;
 
-	return iio_triggered_ring_postenable(indio_dev);
+	return iio_triggered_buffer_postenable(indio_dev);
 error_ret:
 	return ret;
 }
@@ -397,7 +397,7 @@ static int lis3l02dq_ring_predisable(struct iio_dev *indio_dev)
 	u8 t;
 	int ret;
 
-	ret = iio_triggered_ring_predisable(indio_dev);
+	ret = iio_triggered_buffer_predisable(indio_dev);
 	if (ret)
 		goto error_ret;
 

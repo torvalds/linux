@@ -121,8 +121,8 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 
 static const struct iio_ring_setup_ops ade7758_ring_setup_ops = {
 	.preenable = &ade7758_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 void ade7758_unconfigure_ring(struct iio_dev *indio_dev)

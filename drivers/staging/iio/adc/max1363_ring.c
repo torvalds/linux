@@ -150,9 +150,9 @@ done:
 }
 
 static const struct iio_ring_setup_ops max1363_ring_setup_ops = {
-	.postenable = &iio_triggered_ring_postenable,
+	.postenable = &iio_triggered_buffer_postenable,
 	.preenable = &max1363_ring_preenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)

@@ -564,8 +564,8 @@ static irqreturn_t ad7192_trigger_handler(int irq, void *p)
 
 static const struct iio_ring_setup_ops ad7192_ring_setup_ops = {
 	.preenable = &ad7192_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad7192_ring_postdisable,
 };
 

@@ -488,20 +488,20 @@ void iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
 		iio_put_trigger(dev_info->trig);
 }
 
-int iio_triggered_ring_postenable(struct iio_dev *indio_dev)
+int iio_triggered_buffer_postenable(struct iio_dev *indio_dev)
 {
 	return indio_dev->trig
 		? iio_trigger_attach_poll_func(indio_dev->trig,
 					       indio_dev->pollfunc)
 		: 0;
 }
-EXPORT_SYMBOL(iio_triggered_ring_postenable);
+EXPORT_SYMBOL(iio_triggered_buffer_postenable);
 
-int iio_triggered_ring_predisable(struct iio_dev *indio_dev)
+int iio_triggered_buffer_predisable(struct iio_dev *indio_dev)
 {
 	return indio_dev->trig
 		? iio_trigger_dettach_poll_func(indio_dev->trig,
 						indio_dev->pollfunc)
 		: 0;
 }
-EXPORT_SYMBOL(iio_triggered_ring_predisable);
+EXPORT_SYMBOL(iio_triggered_buffer_predisable);

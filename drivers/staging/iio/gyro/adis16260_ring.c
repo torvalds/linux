@@ -98,8 +98,8 @@ void adis16260_unconfigure_ring(struct iio_dev *indio_dev)
 
 static const struct iio_ring_setup_ops adis16260_ring_setup_ops = {
 	.preenable = &iio_sw_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int adis16260_configure_ring(struct iio_dev *indio_dev)

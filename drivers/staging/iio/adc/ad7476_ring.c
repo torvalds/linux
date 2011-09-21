@@ -107,8 +107,8 @@ done:
 
 static const struct iio_ring_setup_ops ad7476_ring_setup_ops = {
 	.preenable = &ad7476_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
