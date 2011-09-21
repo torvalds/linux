@@ -2758,8 +2758,8 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-			map = pci_map_page(hw->pdev, frag->page, frag->page_offset,
-					   frag->size, PCI_DMA_TODEVICE);
+			map = skb_frag_dma_map(&hw->pdev->dev, frag, 0,
+					       frag->size, PCI_DMA_TODEVICE);
 
 			e = e->next;
 			e->skb = skb;
