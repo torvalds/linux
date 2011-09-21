@@ -1436,13 +1436,13 @@ static int omap1_cam_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
-static int omap1_cam_set_bus_param(struct soc_camera_device *icd,
-		__u32 pixfmt)
+static int omap1_cam_set_bus_param(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct omap1_cam_dev *pcdev = ici->priv;
+	u32 pixfmt = icd->current_fmt->host_fmt->fourcc;
 	const struct soc_camera_format_xlate *xlate;
 	const struct soc_mbus_pixelfmt *fmt;
 	struct v4l2_mbus_config cfg = {.type = V4L2_MBUS_PARALLEL,};

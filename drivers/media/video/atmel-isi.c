@@ -803,7 +803,7 @@ static int isi_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
-static int isi_camera_set_bus_param(struct soc_camera_device *icd, u32 pixfmt)
+static int isi_camera_set_bus_param(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);

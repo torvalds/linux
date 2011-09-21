@@ -487,7 +487,7 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 		icd->user_width, icd->user_height);
 
 	/* set physical bus parameters */
-	return ici->ops->set_bus_param(icd, pix->pixelformat);
+	return ici->ops->set_bus_param(icd);
 }
 
 static int soc_camera_open(struct file *file)

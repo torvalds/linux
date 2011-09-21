@@ -766,8 +766,7 @@ static void mx27_camera_emma_buf_init(struct soc_camera_device *icd,
 			pcdev->base_emma + PRP_INTR_CNTL);
 }
 
-static int mx2_camera_set_bus_param(struct soc_camera_device *icd,
-		__u32 pixfmt)
+static int mx2_camera_set_bus_param(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);

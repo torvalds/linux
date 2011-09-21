@@ -982,12 +982,13 @@ static int mx3_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
-static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
+static int mx3_camera_set_bus_param(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_mbus_config cfg = {.type = V4L2_MBUS_PARALLEL,};
+	u32 pixfmt = icd->current_fmt->host_fmt->fourcc;
 	unsigned long bus_flags, common_flags;
 	u32 dw, sens_conf;
 	const struct soc_mbus_pixelfmt *fmt;
