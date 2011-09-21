@@ -336,8 +336,7 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 	} else {
 		if (purge_orig_neighbors(bat_priv, orig_node,
 							&best_neigh_node)) {
-			update_routes(bat_priv, orig_node,
-				      best_neigh_node);
+			update_route(bat_priv, orig_node, best_neigh_node);
 		}
 	}
 
@@ -493,10 +492,8 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 
 	data_ptr = kmalloc(max_if_num * sizeof(unsigned long) * NUM_WORDS,
 			   GFP_ATOMIC);
-	if (!data_ptr) {
-		pr_err("Can't resize orig: out of memory\n");
+	if (!data_ptr)
 		return -1;
-	}
 
 	memcpy(data_ptr, orig_node->bcast_own,
 	       (max_if_num - 1) * sizeof(unsigned long) * NUM_WORDS);
@@ -504,10 +501,8 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 	orig_node->bcast_own = data_ptr;
 
 	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
-	if (!data_ptr) {
-		pr_err("Can't resize orig: out of memory\n");
+	if (!data_ptr)
 		return -1;
-	}
 
 	memcpy(data_ptr, orig_node->bcast_own_sum,
 	       (max_if_num - 1) * sizeof(uint8_t));
@@ -562,10 +557,8 @@ static int orig_node_del_if(struct orig_node *orig_node,
 
 	chunk_size = sizeof(unsigned long) * NUM_WORDS;
 	data_ptr = kmalloc(max_if_num * chunk_size, GFP_ATOMIC);
-	if (!data_ptr) {
-		pr_err("Can't resize orig: out of memory\n");
+	if (!data_ptr)
 		return -1;
-	}
 
 	/* copy first part */
 	memcpy(data_ptr, orig_node->bcast_own, del_if_num * chunk_size);
@@ -583,10 +576,8 @@ free_bcast_own:
 		goto free_own_sum;
 
 	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
-	if (!data_ptr) {
-		pr_err("Can't resize orig: out of memory\n");
+	if (!data_ptr)
 		return -1;
-	}
 
 	memcpy(data_ptr, orig_node->bcast_own_sum,
 	       del_if_num * sizeof(uint8_t));

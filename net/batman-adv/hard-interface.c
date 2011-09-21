@@ -28,6 +28,7 @@
 #include "bat_sysfs.h"
 #include "originator.h"
 #include "hash.h"
+#include "bat_ogm.h"
 
 #include <linux/if_arp.h>
 
@@ -131,7 +132,6 @@ static void primary_if_select(struct bat_priv *bat_priv,
 			      struct hard_iface *new_hard_iface)
 {
 	struct hard_iface *curr_hard_iface;
-	struct batman_packet *batman_packet;
 
 	ASSERT_RTNL();
 
@@ -147,10 +147,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	if (!new_hard_iface)
 		return;
 
-	batman_packet = (struct batman_packet *)(new_hard_iface->packet_buff);
-	batman_packet->flags = PRIMARIES_FIRST_HOP;
-	batman_packet->ttl = TTL;
-
+	bat_ogm_init_primary(new_hard_iface);
 	primary_if_update_addr(bat_priv);
 }
 
@@ -160,14 +157,6 @@ static bool hardif_is_iface_up(const struct hard_iface *hard_iface)
 		return true;
 
 	return false;
-}
-
-static void update_mac_addresses(struct hard_iface *hard_iface)
-{
-	memcpy(((struct batman_packet *)(hard_iface->packet_buff))->orig,
-	       hard_iface->net_dev->dev_addr, ETH_ALEN);
-	memcpy(((struct batman_packet *)(hard_iface->packet_buff))->prev_sender,
-	       hard_iface->net_dev->dev_addr, ETH_ALEN);
 }
 
 static void check_known_mac_addr(const struct net_device *net_dev)
@@ -244,7 +233,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	update_mac_addresses(hard_iface);
+	bat_ogm_update_mac(hard_iface);
 	hard_iface->if_status = IF_TO_BE_ACTIVATED;
 
 	/**
@@ -283,7 +272,6 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 			    const char *iface_name)
 {
 	struct bat_priv *bat_priv;
-	struct batman_packet *batman_packet;
 	struct net_device *soft_iface;
 	int ret;
 
@@ -318,8 +306,8 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
-	hard_iface->packet_len = BAT_PACKET_LEN;
-	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
+
+	bat_ogm_init(hard_iface);
 
 	if (!hard_iface->packet_buff) {
 		bat_err(hard_iface->soft_iface, "Can't add interface packet "
@@ -327,15 +315,6 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 		ret = -ENOMEM;
 		goto err;
 	}
-
-	batman_packet = (struct batman_packet *)(hard_iface->packet_buff);
-	batman_packet->packet_type = BAT_PACKET;
-	batman_packet->version = COMPAT_VERSION;
-	batman_packet->flags = NO_FLAGS;
-	batman_packet->ttl = 2;
-	batman_packet->tq = TQ_MAX_VALUE;
-	batman_packet->tt_num_changes = 0;
-	batman_packet->ttvn = 0;
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
@@ -381,7 +360,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 			hard_iface->net_dev->name);
 
 	/* begin scheduling originator messages on that interface */
-	schedule_own_packet(hard_iface);
+	schedule_bat_ogm(hard_iface);
 
 out:
 	return 0;
@@ -455,11 +434,8 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 	dev_hold(net_dev);
 
 	hard_iface = kmalloc(sizeof(*hard_iface), GFP_ATOMIC);
-	if (!hard_iface) {
-		pr_err("Can't add interface (%s): out of memory\n",
-		       net_dev->name);
+	if (!hard_iface)
 		goto release_dev;
-	}
 
 	ret = sysfs_add_hardif(&hard_iface->hardif_obj, net_dev);
 	if (ret)
@@ -551,7 +527,7 @@ static int hard_if_event(struct notifier_block *this,
 			goto hardif_put;
 
 		check_known_mac_addr(hard_iface->net_dev);
-		update_mac_addresses(hard_iface);
+		bat_ogm_update_mac(hard_iface);
 
 		bat_priv = netdev_priv(hard_iface->soft_iface);
 		primary_if = primary_if_get_selected(bat_priv);
@@ -580,7 +556,7 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct net_device *orig_dev)
 {
 	struct bat_priv *bat_priv;
-	struct batman_packet *batman_packet;
+	struct batman_ogm_packet *batman_ogm_packet;
 	struct hard_iface *hard_iface;
 	int ret;
 
@@ -612,22 +588,22 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (hard_iface->if_status != IF_ACTIVE)
 		goto err_free;
 
-	batman_packet = (struct batman_packet *)skb->data;
+	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
 
-	if (batman_packet->version != COMPAT_VERSION) {
+	if (batman_ogm_packet->version != COMPAT_VERSION) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: incompatible batman version (%i)\n",
-			batman_packet->version);
+			batman_ogm_packet->version);
 		goto err_free;
 	}
 
 	/* all receive handlers return whether they received or reused
 	 * the supplied skb. if not, we have to free the skb. */
 
-	switch (batman_packet->packet_type) {
+	switch (batman_ogm_packet->packet_type) {
 		/* batman originator packet */
-	case BAT_PACKET:
-		ret = recv_bat_packet(skb, hard_iface);
+	case BAT_OGM:
+		ret = recv_bat_ogm_packet(skb, hard_iface);
 		break;
 
 		/* batman icmp packet */

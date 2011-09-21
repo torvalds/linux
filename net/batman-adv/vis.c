@@ -887,10 +887,8 @@ int vis_init(struct bat_priv *bat_priv)
 	}
 
 	bat_priv->my_vis_info = kmalloc(MAX_VIS_PACKET_SIZE, GFP_ATOMIC);
-	if (!bat_priv->my_vis_info) {
-		pr_err("Can't initialize vis packet\n");
+	if (!bat_priv->my_vis_info)
 		goto err;
-	}
 
 	bat_priv->my_vis_info->skb_packet = dev_alloc_skb(sizeof(*packet) +
 							  MAX_VIS_PACKET_SIZE +

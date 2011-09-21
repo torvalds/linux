@@ -19,27 +19,17 @@
  *
  */
 
-#ifndef _NET_BATMAN_ADV_AGGREGATION_H_
-#define _NET_BATMAN_ADV_AGGREGATION_H_
+#ifndef _NET_BATMAN_ADV_OGM_H_
+#define _NET_BATMAN_ADV_OGM_H_
 
 #include "main.h"
 
-/* is there another aggregated packet here? */
-static inline int aggregated_packet(int buff_pos, int packet_len,
-				    int tt_num_changes)
-{
-	int next_buff_pos = buff_pos + BAT_PACKET_LEN + tt_len(tt_num_changes);
+void bat_ogm_init(struct hard_iface *hard_iface);
+void bat_ogm_init_primary(struct hard_iface *hard_iface);
+void bat_ogm_update_mac(struct hard_iface *hard_iface);
+void bat_ogm_schedule(struct hard_iface *hard_iface, int tt_num_changes);
+void bat_ogm_emit(struct forw_packet *forw_packet);
+void bat_ogm_receive(const struct ethhdr *ethhdr, unsigned char *packet_buff,
+		     int packet_len, struct hard_iface *if_incoming);
 
-	return (next_buff_pos <= packet_len) &&
-		(next_buff_pos <= MAX_AGGREGATION_BYTES);
-}
-
-void add_bat_packet_to_list(struct bat_priv *bat_priv,
-			    unsigned char *packet_buff, int packet_len,
-			    struct hard_iface *if_incoming, int own_packet,
-			    unsigned long send_time);
-void receive_aggr_bat_packet(const struct ethhdr *ethhdr,
-			     unsigned char *packet_buff, int packet_len,
-			     struct hard_iface *if_incoming);
-
-#endif /* _NET_BATMAN_ADV_AGGREGATION_H_ */
+#endif /* _NET_BATMAN_ADV_OGM_H_ */
