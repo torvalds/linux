@@ -882,7 +882,7 @@ static inline int nand_memory_bbt(struct mtd_info *mtd, struct nand_bbt_descr *b
  */
 static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr *bd)
 {
-	int i, chips, writeops, create, chipsel, res;
+	int i, chips, writeops, create, chipsel, res, res2;
 	struct nand_chip *this = mtd->priv;
 	struct nand_bbt_descr *td = this->bbt_td;
 	struct nand_bbt_descr *md = this->bbt_md;
@@ -899,6 +899,7 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		create = 0;
 		rd = NULL;
 		rd2 = NULL;
+		res = res2 = 0;
 		/* Per chip or per device? */
 		chipsel = (td->options & NAND_BBT_PERCHIP) ? i : -1;
 		/* Mirrored table available? */
@@ -951,11 +952,29 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		}
 
 		/* Read back first? */
-		if (rd)
-			read_abs_bbt(mtd, buf, rd, chipsel);
+		if (rd) {
+			res = read_abs_bbt(mtd, buf, rd, chipsel);
+			if (mtd_is_eccerr(res)) {
+				/* Mark table as invalid */
+				rd->pages[i] = -1;
+				i--;
+				continue;
+			}
+		}
 		/* If they weren't versioned, read both */
-		if (rd2)
-			read_abs_bbt(mtd, buf, rd2, chipsel);
+		if (rd2) {
+			res2 = read_abs_bbt(mtd, buf, rd2, chipsel);
+			if (mtd_is_eccerr(res2)) {
+				/* Mark table as invalid */
+				rd2->pages[i] = -1;
+				i--;
+				continue;
+			}
+		}
+
+		/* Scrub the flash table(s)? */
+		if (mtd_is_bitflip(res) || mtd_is_bitflip(res2))
+			writeops = 0x03;
 
 		/* Write the bad block table to the device? */
 		if ((writeops & 0x01) && (td->options & NAND_BBT_WRITE)) {
