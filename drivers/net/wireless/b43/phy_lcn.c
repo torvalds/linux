@@ -433,7 +433,7 @@ static void b43_phy_lcn_sense_setup(struct b43_wldev *dev,
 	b43_phy_set(dev, 0x4d0, 0x20);
 	b43_radio_write(dev, 0x112, 0x6);
 
-	/* TODO: dummy transmission? */
+	b43_dummy_transmission(dev, true, false);
 	/* Wait if not done */
 	if (!(b43_phy_read(dev, 0x476) & 0x8000))
 		udelay(10);
