@@ -755,7 +755,7 @@ static int __devinit dw_i2c_probe(struct platform_device *pdev)
 	i2c_dw_init(dev);
 
 	writel(0, dev->base + DW_IC_INTR_MASK); /* disable IRQ */
-	r = request_irq(dev->irq, i2c_dw_isr, IRQF_DISABLED, pdev->name, dev);
+	r = request_irq(dev->irq, i2c_dw_isr, 0, pdev->name, dev);
 	if (r) {
 		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
 		goto err_iounmap;
