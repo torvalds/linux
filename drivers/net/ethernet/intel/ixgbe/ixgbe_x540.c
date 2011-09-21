@@ -870,6 +870,7 @@ static struct ixgbe_phy_operations phy_ops_X540 = {
 	.read_i2c_eeprom        = &ixgbe_read_i2c_eeprom_generic,
 	.write_i2c_eeprom       = &ixgbe_write_i2c_eeprom_generic,
 	.check_overtemp         = &ixgbe_tn_check_overtemp,
+	.get_firmware_version   = &ixgbe_get_phy_firmware_version_generic,
 };
 
 struct ixgbe_info ixgbe_X540_info = {
