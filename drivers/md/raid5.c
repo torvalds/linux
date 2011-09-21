@@ -5162,8 +5162,7 @@ static int run(mddev_t *mddev)
 
 	return 0;
 abort:
-	md_unregister_thread(mddev->thread);
-	mddev->thread = NULL;
+	md_unregister_thread(&mddev->thread);
 	if (conf) {
 		print_raid5_conf(conf);
 		free_conf(conf);
@@ -5177,8 +5176,7 @@ static int stop(mddev_t *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
 
-	md_unregister_thread(mddev->thread);
-	mddev->thread = NULL;
+	md_unregister_thread(&mddev->thread);
 	if (mddev->queue)
 		mddev->queue->backing_dev_info.congested_fn = NULL;
 	free_conf(conf);
