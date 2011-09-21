@@ -271,13 +271,23 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 		reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
 
 		if (hw->mac.type == ixgbe_mac_X540) {
-			reg &= ~(IXGBE_MFLCN_RPFCE_MASK | 0x10);
+			reg &= ~IXGBE_MFLCN_RPFCE_MASK;
 			reg |= pfc_en << IXGBE_MFLCN_RPFCE_SHIFT;
 		}
 
 		IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
 
 	} else {
+		/* X540 devices have a RX bit that should be cleared
+		 * if PFC is disabled on all TCs but PFC features is
+		 * enabled.
+		 */
+		if (hw->mac.type == ixgbe_mac_X540) {
+			reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
+			reg &= ~IXGBE_MFLCN_RPFCE_MASK;
+			IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
+		}
+
 		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
 			hw->mac.ops.fc_enable(hw, i);
 	}
