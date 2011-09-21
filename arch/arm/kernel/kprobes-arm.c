@@ -60,6 +60,7 @@
 
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
+#include <linux/module.h>
 
 #include "kprobes.h"
 
@@ -971,6 +972,9 @@ const union decode_item kprobe_decode_arm_table[] = {
 
 	DECODE_END
 };
+#ifdef CONFIG_ARM_KPROBES_TEST_MODULE
+EXPORT_SYMBOL_GPL(kprobe_decode_arm_table);
+#endif
 
 static void __kprobes arm_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
