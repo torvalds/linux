@@ -178,7 +178,7 @@ static u32 add_marker_len(struct nand_bbt_descr *td)
 static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 		struct nand_bbt_descr *td, int offs)
 {
-	int res, i, j, act = 0;
+	int res, ret = 0, i, j, act = 0;
 	struct nand_chip *this = mtd->priv;
 	size_t retlen, len, totlen;
 	loff_t from;
@@ -204,11 +204,18 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 		}
 		res = mtd->read(mtd, from, len, &retlen, buf);
 		if (res < 0) {
-			if (retlen != len) {
-				pr_info("nand_bbt: error reading bad block table\n");
+			if (mtd_is_eccerr(res)) {
+				pr_info("nand_bbt: ECC error in BBT at "
+					"0x%012llx\n", from & ~mtd->writesize);
+				return res;
+			} else if (mtd_is_bitflip(res)) {
+				pr_info("nand_bbt: corrected error in BBT at "
+					"0x%012llx\n", from & ~mtd->writesize);
+				ret = res;
+			} else {
+				pr_info("nand_bbt: error reading BBT\n");
 				return res;
 			}
-			pr_warn("nand_bbt: ECC error while reading bad block table\n");
 		}
 
 		/* Analyse data */
@@ -242,7 +249,7 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 		totlen -= len;
 		from += len;
 	}
-	return 0;
+	return ret;
 }
 
 /**
