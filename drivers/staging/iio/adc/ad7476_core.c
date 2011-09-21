@@ -45,7 +45,7 @@ static int ad7476_read_raw(struct iio_dev *dev_info,
 	switch (m) {
 	case 0:
 		mutex_lock(&dev_info->mlock);
-		if (iio_ring_enabled(dev_info))
+		if (iio_buffer_enabled(dev_info))
 			ret = ad7476_scan_from_ring(dev_info);
 		else
 			ret = ad7476_scan_direct(st);
@@ -179,9 +179,9 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       st->chip_info->channel,
-				       ARRAY_SIZE(st->chip_info->channel));
+	ret = iio_buffer_register(indio_dev,
+				  st->chip_info->channel,
+				  ARRAY_SIZE(st->chip_info->channel));
 	if (ret)
 		goto error_cleanup_ring;
 
@@ -191,7 +191,7 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	return 0;
 
 error_ring_unregister:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	ad7476_ring_cleanup(indio_dev);
 error_disable_reg:
@@ -211,7 +211,7 @@ static int ad7476_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7476_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	ad7476_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);

@@ -625,20 +625,20 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_dev;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       indio_dev->channels,
-				       ARRAY_SIZE(adis16260_channels_x));
+	ret = iio_buffer_register(indio_dev,
+				  indio_dev->channels,
+				  ARRAY_SIZE(adis16260_channels_x));
 	if (ret) {
 		printk(KERN_ERR "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
 	}
-	if (indio_dev->ring) {
+	if (indio_dev->buffer) {
 		/* Set default scan mode */
-		iio_scan_mask_set(indio_dev->ring, ADIS16260_SCAN_SUPPLY);
-		iio_scan_mask_set(indio_dev->ring, ADIS16260_SCAN_GYRO);
-		iio_scan_mask_set(indio_dev->ring, ADIS16260_SCAN_AUX_ADC);
-		iio_scan_mask_set(indio_dev->ring, ADIS16260_SCAN_TEMP);
-		iio_scan_mask_set(indio_dev->ring, ADIS16260_SCAN_ANGL);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_SUPPLY);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_GYRO);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_AUX_ADC);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_TEMP);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_ANGL);
 	}
 	if (spi->irq) {
 		ret = adis16260_probe_trigger(indio_dev);
@@ -659,7 +659,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 error_remove_trigger:
 	adis16260_remove_trigger(indio_dev);
 error_uninitialize_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_unreg_ring_funcs:
 	adis16260_unconfigure_ring(indio_dev);
 error_free_dev:
@@ -680,7 +680,7 @@ static int adis16260_remove(struct spi_device *spi)
 	flush_scheduled_work();
 
 	adis16260_remove_trigger(indio_dev);
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	adis16260_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
 

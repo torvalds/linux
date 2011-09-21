@@ -812,7 +812,7 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 	if (ret)
 		goto done;
 
-	sca3000_ring_int_process(val, indio_dev->ring);
+	sca3000_ring_int_process(val, indio_dev->buffer);
 
 	if (val & SCA3000_INT_STATUS_FREE_FALL)
 		iio_push_event(indio_dev,
@@ -1156,15 +1156,15 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	if (ret < 0)
 		goto error_free_dev;
 	regdone = 1;
-	ret = iio_ring_buffer_register(indio_dev,
-				       sca3000_channels,
-				       ARRAY_SIZE(sca3000_channels));
+	ret = iio_buffer_register(indio_dev,
+				  sca3000_channels,
+				  ARRAY_SIZE(sca3000_channels));
 	if (ret < 0)
 		goto error_unregister_dev;
-	if (indio_dev->ring) {
-		iio_scan_mask_set(indio_dev->ring, 0);
-		iio_scan_mask_set(indio_dev->ring, 1);
-		iio_scan_mask_set(indio_dev->ring, 2);
+	if (indio_dev->buffer) {
+		iio_scan_mask_set(indio_dev->buffer, 0);
+		iio_scan_mask_set(indio_dev->buffer, 1);
+		iio_scan_mask_set(indio_dev->buffer, 2);
 	}
 
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
@@ -1187,7 +1187,7 @@ error_free_irq:
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		free_irq(spi->irq, indio_dev);
 error_unregister_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_unregister_dev:
 error_free_dev:
 	if (regdone)
@@ -1228,7 +1228,7 @@ static int sca3000_remove(struct spi_device *spi)
 		return ret;
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		free_irq(spi->irq, indio_dev);
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	sca3000_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
 

@@ -20,7 +20,7 @@
 
 int ad7606_scan_from_ring(struct iio_dev *indio_dev, unsigned ch)
 {
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	int ret;
 	u16 *ring_data;
 
@@ -52,7 +52,7 @@ error_ret:
 static int ad7606_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size;
 
 	d_size = st->chip_info->num_channels *
@@ -101,7 +101,7 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	struct ad7606_state *st = container_of(work_s, struct ad7606_state,
 						poll_work);
 	struct iio_dev *indio_dev = iio_priv_to_dev(st);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	s64 time_ns;
 	__u8 *buf;
 	int ret;
@@ -140,14 +140,14 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 		memcpy(buf + st->d_size - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 
-	ring->access->store_to(indio_dev->ring, buf, time_ns);
+	ring->access->store_to(indio_dev->buffer, buf, time_ns);
 done:
 	gpio_set_value(st->pdata->gpio_convst, 0);
 	iio_trigger_notify_done(indio_dev->trig);
 	kfree(buf);
 }
 
-static const struct iio_ring_setup_ops ad7606_ring_setup_ops = {
+static const struct iio_buffer_setup_ops ad7606_ring_setup_ops = {
 	.preenable = &ad7606_ring_preenable,
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
@@ -158,14 +158,14 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
 
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring) {
+	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &ring_sw_access_funcs;
+	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->pollfunc = iio_alloc_pollfunc(&ad7606_trigger_handler_th_bh,
 						 &ad7606_trigger_handler_th_bh,
 						 0,
@@ -180,8 +180,8 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 
 	/* Ring buffer functions - here trigger setup related */
 
-	indio_dev->ring->setup_ops = &ad7606_ring_setup_ops;
-	indio_dev->ring->scan_timestamp = true ;
+	indio_dev->buffer->setup_ops = &ad7606_ring_setup_ops;
+	indio_dev->buffer->scan_timestamp = true ;
 
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
@@ -190,7 +190,7 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	return 0;
 
 error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -198,5 +198,5 @@ error_ret:
 void ad7606_ring_cleanup(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }

@@ -495,7 +495,7 @@ static int ad5933_read_raw(struct iio_dev *dev_info,
 	mutex_lock(&dev_info->mlock);
 	switch (m) {
 	case 0:
-		if (iio_ring_enabled(dev_info)) {
+		if (iio_buffer_enabled(dev_info)) {
 			ret = -EBUSY;
 			goto out;
 		}
@@ -536,7 +536,7 @@ static const struct iio_info ad5933_info = {
 static int ad5933_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad5933_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size;
 	int ret;
 
@@ -546,9 +546,9 @@ static int ad5933_ring_preenable(struct iio_dev *indio_dev)
 	d_size = ring->scan_count *
 		 ad5933_channels[1].scan_type.storagebits / 8;
 
-	if (indio_dev->ring->access->set_bytes_per_datum)
-		indio_dev->ring->access->set_bytes_per_datum(indio_dev->ring,
-							     d_size);
+	if (indio_dev->buffer->access->set_bytes_per_datum)
+		indio_dev->buffer->access->
+			set_bytes_per_datum(indio_dev->buffer, d_size);
 
 	ret = ad5933_reset(st);
 	if (ret < 0)
@@ -594,7 +594,7 @@ static int ad5933_ring_postdisable(struct iio_dev *indio_dev)
 	return ad5933_cmd(st, AD5933_CTRL_POWER_DOWN);
 }
 
-static const struct iio_ring_setup_ops ad5933_ring_setup_ops = {
+static const struct iio_buffer_setup_ops ad5933_ring_setup_ops = {
 	.preenable = &ad5933_ring_preenable,
 	.postenable = &ad5933_ring_postenable,
 	.postdisable = &ad5933_ring_postdisable,
@@ -602,15 +602,15 @@ static const struct iio_ring_setup_ops ad5933_ring_setup_ops = {
 
 static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring)
+	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	if (!indio_dev->buffer)
 		return -ENOMEM;
 
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &ring_sw_access_funcs;
+	indio_dev->buffer->access = &ring_sw_access_funcs;
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->setup_ops = &ad5933_ring_setup_ops;
+	indio_dev->buffer->setup_ops = &ad5933_ring_setup_ops;
 
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
@@ -622,7 +622,7 @@ static void ad5933_work(struct work_struct *work)
 	struct ad5933_state *st = container_of(work,
 		struct ad5933_state, work.work);
 	struct iio_dev *indio_dev = i2c_get_clientdata(st->client);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	signed short buf[2];
 	unsigned char status;
 
@@ -728,13 +728,13 @@ static int __devinit ad5933_probe(struct i2c_client *client,
 		goto error_disable_reg;
 
 	/* skip temp0_input, register in0_(real|imag)_raw */
-	ret = iio_ring_buffer_register(indio_dev, &ad5933_channels[1], 2);
+	ret = iio_buffer_register(indio_dev, &ad5933_channels[1], 2);
 	if (ret)
 		goto error_unreg_ring;
 
 	/* enable both REAL and IMAG channels by default */
-	iio_scan_mask_set(indio_dev->ring, 0);
-	iio_scan_mask_set(indio_dev->ring, 1);
+	iio_scan_mask_set(indio_dev->buffer, 0);
+	iio_scan_mask_set(indio_dev->buffer, 1);
 
 	ret = ad5933_setup(st);
 	if (ret)
@@ -747,9 +747,9 @@ static int __devinit ad5933_probe(struct i2c_client *client,
 	return 0;
 
 error_uninitialize_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_unreg_ring:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
@@ -767,8 +767,8 @@ static __devexit int ad5933_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ad5933_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_buffer_unregister(indio_dev);
+	iio_sw_rb_free(indio_dev->buffer);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);

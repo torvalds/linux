@@ -1058,23 +1058,23 @@ void iio_free_device(struct iio_dev *dev)
 EXPORT_SYMBOL(iio_free_device);
 
 /**
- * iio_chrdev_open() - chrdev file open for ring buffer access and ioctls
+ * iio_chrdev_open() - chrdev file open for buffer access and ioctls
  **/
 static int iio_chrdev_open(struct inode *inode, struct file *filp)
 {
 	struct iio_dev *dev_info = container_of(inode->i_cdev,
 						struct iio_dev, chrdev);
 	filp->private_data = dev_info;
-	iio_chrdev_ring_open(dev_info);
+	iio_chrdev_buffer_open(dev_info);
 	return 0;
 }
 
 /**
- * iio_chrdev_release() - chrdev file close ring buffer access and ioctls
+ * iio_chrdev_release() - chrdev file close buffer access and ioctls
  **/
 static int iio_chrdev_release(struct inode *inode, struct file *filp)
 {
-	iio_chrdev_ring_release(container_of(inode->i_cdev,
+	iio_chrdev_buffer_release(container_of(inode->i_cdev,
 					     struct iio_dev, chrdev));
 	return 0;
 }
@@ -1096,11 +1096,11 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
-static const struct file_operations iio_ring_fileops = {
-	.read = iio_ring_read_first_n_outer_addr,
+static const struct file_operations iio_buffer_fileops = {
+	.read = iio_buffer_read_first_n_outer_addr,
 	.release = iio_chrdev_release,
 	.open = iio_chrdev_open,
-	.poll = iio_ring_poll_addr,
+	.poll = iio_buffer_poll_addr,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 	.unlocked_ioctl = iio_ioctl,
@@ -1132,7 +1132,7 @@ int iio_device_register(struct iio_dev *dev_info)
 	ret = device_add(&dev_info->dev);
 	if (ret < 0)
 		goto error_unreg_eventset;
-	cdev_init(&dev_info->chrdev, &iio_ring_fileops);
+	cdev_init(&dev_info->chrdev, &iio_buffer_fileops);
 	dev_info->chrdev.owner = dev_info->info->driver_module;
 	ret = cdev_add(&dev_info->chrdev, dev_info->dev.devt, 1);
 	if (ret < 0)

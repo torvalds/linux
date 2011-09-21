@@ -90,7 +90,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 	switch (m) {
 	case 0:
 		mutex_lock(&indio_dev->mlock);
-		if (iio_ring_enabled(indio_dev))
+		if (iio_buffer_enabled(indio_dev))
 			ret = ad7606_scan_from_ring(indio_dev, chan->address);
 		else
 			ret = ad7606_scan_direct(indio_dev, chan->address);
@@ -416,7 +416,7 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 	struct iio_dev *indio_dev = dev_id;
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	if (iio_ring_enabled(indio_dev)) {
+	if (iio_buffer_enabled(indio_dev)) {
 		if (!work_pending(&st->poll_work))
 			schedule_work(&st->poll_work);
 	} else {
@@ -502,9 +502,9 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	if (ret)
 		goto error_free_irq;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       indio_dev->channels,
-				       indio_dev->num_channels);
+	ret = iio_buffer_register(indio_dev,
+				  indio_dev->channels,
+				  indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 	ret = iio_device_register(indio_dev);
@@ -513,7 +513,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 
 	return indio_dev;
 error_unregister_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 
 error_cleanup_ring:
 	ad7606_ring_cleanup(indio_dev);
@@ -539,7 +539,7 @@ int ad7606_remove(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	ad7606_ring_cleanup(indio_dev);
 
 	free_irq(st->irq, indio_dev);

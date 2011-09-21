@@ -276,13 +276,13 @@ struct iio_info {
  * @dev:		[DRIVER] device structure, should be assigned a parent
  *			and owner
  * @event_interface:	[INTERN] event chrdevs associated with interrupt lines
- * @ring:		[DRIVER] any ring buffer present
+ * @buffer:		[DRIVER] any buffer present
  * @mlock:		[INTERN] lock used to prevent simultaneous device state
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @masklength:		[INTERN] the length of the mask established from
  *			channels
- * @trig:		[INTERN] current device trigger (ring buffer modes)
+ * @trig:		[INTERN] current device trigger (buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @channels:		[DRIVER] channel specification structure table
  * @num_channels:	[DRIVER] number of chanels specified in @channels.
@@ -304,7 +304,7 @@ struct iio_dev {
 
 	struct iio_event_interface	*event_interface;
 
-	struct iio_ring_buffer		*ring;
+	struct iio_buffer		*buffer;
 	struct mutex			mlock;
 
 	unsigned long			*available_scan_masks;
@@ -383,10 +383,10 @@ static inline struct iio_dev *iio_priv_to_dev(void *priv)
 void iio_free_device(struct iio_dev *dev);
 
 /**
- * iio_ring_enabled() - helper function to test if any form of ring is enabled
+ * iio_buffer_enabled() - helper function to test if the buffer is enabled
  * @dev_info:		IIO device info structure for device
  **/
-static inline bool iio_ring_enabled(struct iio_dev *dev_info)
+static inline bool iio_buffer_enabled(struct iio_dev *dev_info)
 {
 	return dev_info->currentmode
 		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE);

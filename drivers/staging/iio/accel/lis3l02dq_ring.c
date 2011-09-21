@@ -40,7 +40,7 @@ irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
 /**
  * lis3l02dq_read_accel_from_ring() individual acceleration read from ring
  **/
-ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
+ssize_t lis3l02dq_read_accel_from_ring(struct iio_buffer *ring,
 				       int index,
 				       int *val)
 {
@@ -86,7 +86,7 @@ static const u8 read_all_tx_array[] = {
  **/
 static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 {
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 	struct spi_transfer *xfers;
 	struct spi_message msg;
@@ -145,13 +145,13 @@ static int lis3l02dq_get_ring_element(struct iio_dev *indio_dev,
 	u8 *rx_array ;
 	s16 *data = (s16 *)buf;
 
-	rx_array = kzalloc(4 * (indio_dev->ring->scan_count), GFP_KERNEL);
+	rx_array = kzalloc(4 * (indio_dev->buffer->scan_count), GFP_KERNEL);
 	if (rx_array == NULL)
 		return -ENOMEM;
 	ret = lis3l02dq_read_all(indio_dev, rx_array);
 	if (ret < 0)
 		return ret;
-	for (i = 0; i < indio_dev->ring->scan_count; i++)
+	for (i = 0; i < indio_dev->buffer->scan_count; i++)
 		data[i] = combine_8_to_16(rx_array[i*4+1],
 					rx_array[i*4+3]);
 	kfree(rx_array);
@@ -163,7 +163,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	int len = 0;
 	size_t datasize = ring->access->get_bytes_per_datum(ring);
 	char *data = kmalloc(datasize, GFP_KERNEL);
@@ -346,7 +346,7 @@ void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	lis3l02dq_free_buf(indio_dev->ring);
+	lis3l02dq_free_buf(indio_dev->buffer);
 }
 
 static int lis3l02dq_ring_postenable(struct iio_dev *indio_dev)
@@ -362,17 +362,17 @@ static int lis3l02dq_ring_postenable(struct iio_dev *indio_dev)
 	if (ret)
 		goto error_ret;
 
-	if (iio_scan_mask_query(indio_dev->ring, 0)) {
+	if (iio_scan_mask_query(indio_dev->buffer, 0)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
 		oneenabled = true;
 	} else
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
-	if (iio_scan_mask_query(indio_dev->ring, 1)) {
+	if (iio_scan_mask_query(indio_dev->buffer, 1)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
 		oneenabled = true;
 	} else
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
-	if (iio_scan_mask_query(indio_dev->ring, 2)) {
+	if (iio_scan_mask_query(indio_dev->buffer, 2)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
 		oneenabled = true;
 	} else
@@ -418,8 +418,8 @@ error_ret:
 	return ret;
 }
 
-static const struct iio_ring_setup_ops lis3l02dq_ring_setup_ops = {
-	.preenable = &iio_sw_ring_preenable,
+static const struct iio_buffer_setup_ops lis3l02dq_ring_setup_ops = {
+	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &lis3l02dq_ring_postenable,
 	.predisable = &lis3l02dq_ring_predisable,
 };
@@ -427,15 +427,15 @@ static const struct iio_ring_setup_ops lis3l02dq_ring_setup_ops = {
 int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct iio_ring_buffer *ring;
+	struct iio_buffer *ring;
 
 	ring = lis3l02dq_alloc_buf(indio_dev);
 	if (!ring)
 		return -ENOMEM;
 
-	indio_dev->ring = ring;
+	indio_dev->buffer = ring;
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &lis3l02dq_access_funcs;
+	indio_dev->buffer->access = &lis3l02dq_access_funcs;
 	ring->bpe = 2;
 
 	ring->scan_timestamp = true;
@@ -459,6 +459,6 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	return 0;
 
 error_iio_sw_rb_free:
-	lis3l02dq_free_buf(indio_dev->ring);
+	lis3l02dq_free_buf(indio_dev->buffer);
 	return ret;
 }

@@ -149,7 +149,7 @@ static int ad799x_read_raw(struct iio_dev *dev_info,
 	switch (m) {
 	case 0:
 		mutex_lock(&dev_info->mlock);
-		if (iio_ring_enabled(dev_info))
+		if (iio_buffer_enabled(dev_info))
 			ret = ad799x_single_channel_from_ring(st,
 							      chan->address);
 		else
@@ -701,9 +701,9 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       indio_dev->channels,
-				       indio_dev->num_channels);
+	ret = iio_buffer_register(indio_dev,
+				  indio_dev->channels,
+				  indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 
@@ -747,7 +747,7 @@ static __devexit int ad799x_remove(struct i2c_client *client)
 	if (client->irq > 0)
 		free_irq(client->irq, indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	ad799x_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);

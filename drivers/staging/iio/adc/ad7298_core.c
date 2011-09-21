@@ -122,7 +122,7 @@ static int ad7298_read_raw(struct iio_dev *dev_info,
 	switch (m) {
 	case 0:
 		mutex_lock(&dev_info->mlock);
-		if (iio_ring_enabled(dev_info)) {
+		if (iio_buffer_enabled(dev_info)) {
 			if (chan->address == AD7298_CH_TEMP)
 				ret = -ENODEV;
 			else
@@ -218,9 +218,9 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       &ad7298_channels[1], /* skip temp0 */
-				       ARRAY_SIZE(ad7298_channels) - 1);
+	ret = iio_buffer_register(indio_dev,
+				  &ad7298_channels[1], /* skip temp0 */
+				  ARRAY_SIZE(ad7298_channels) - 1);
 	if (ret)
 		goto error_cleanup_ring;
 	ret = iio_device_register(indio_dev);
@@ -230,7 +230,7 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	return 0;
 
 error_unregister_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	ad7298_ring_cleanup(indio_dev);
 error_disable_reg:
@@ -249,7 +249,7 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7298_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	ad7298_ring_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
 	if (!IS_ERR(st->reg)) {

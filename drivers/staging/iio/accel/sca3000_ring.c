@@ -81,10 +81,10 @@ error_ret:
  * can only be inferred approximately from ring buffer events such as 50% full
  * and knowledge of when buffer was last emptied.  This is left to userspace.
  **/
-static int sca3000_read_first_n_hw_rb(struct iio_ring_buffer *r,
+static int sca3000_read_first_n_hw_rb(struct iio_buffer *r,
 				      size_t count, char __user *buf)
 {
-	struct iio_hw_ring_buffer *hw_ring = iio_to_hw_ring_buf(r);
+	struct iio_hw_buffer *hw_ring = iio_to_hw_buf(r);
 	struct iio_dev *indio_dev = hw_ring->private;
 	struct sca3000_state *st = iio_priv(indio_dev);
 	u8 *rx;
@@ -134,20 +134,20 @@ error_ret:
 }
 
 /* This is only valid with all 3 elements enabled */
-static int sca3000_ring_get_length(struct iio_ring_buffer *r)
+static int sca3000_ring_get_length(struct iio_buffer *r)
 {
 	return 64;
 }
 
 /* only valid if resolution is kept at 11bits */
-static int sca3000_ring_get_bytes_per_datum(struct iio_ring_buffer *r)
+static int sca3000_ring_get_bytes_per_datum(struct iio_buffer *r)
 {
 	return 6;
 }
 
-static IIO_RING_ENABLE_ATTR;
-static IIO_RING_BYTES_PER_DATUM_ATTR;
-static IIO_RING_LENGTH_ATTR;
+static IIO_BUFFER_ENABLE_ATTR;
+static IIO_BUFFER_BYTES_PER_DATUM_ATTR;
+static IIO_BUFFER_LENGTH_ATTR;
 
 /**
  * sca3000_query_ring_int() is the hardware ring status interrupt enabled
@@ -158,7 +158,7 @@ static ssize_t sca3000_query_ring_int(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret, val;
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_buffer *ring = dev_get_drvdata(dev);
 	struct iio_dev *indio_dev = ring->indio_dev;
 	struct sca3000_state *st = iio_priv(indio_dev);
 
@@ -180,7 +180,7 @@ static ssize_t sca3000_set_ring_int(struct device *dev,
 				      const char *buf,
 				      size_t len)
 {
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_buffer *ring = dev_get_drvdata(dev);
 	struct iio_dev *indio_dev = ring->indio_dev;
 	struct sca3000_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
@@ -222,7 +222,7 @@ static ssize_t sca3000_show_buffer_scale(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_buffer *ring = dev_get_drvdata(dev);
 	struct iio_dev *indio_dev = ring->indio_dev;
 	struct sca3000_state *st = iio_priv(indio_dev);
 
@@ -256,10 +256,10 @@ static struct attribute_group sca3000_ring_attr = {
 	.name = "buffer",
 };
 
-static struct iio_ring_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
+static struct iio_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 {
-	struct iio_ring_buffer *buf;
-	struct iio_hw_ring_buffer *ring;
+	struct iio_buffer *buf;
+	struct iio_hw_buffer *ring;
 
 	ring = kzalloc(sizeof *ring, GFP_KERNEL);
 	if (!ring)
@@ -269,17 +269,17 @@ static struct iio_ring_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 	buf = &ring->buf;
 	buf->stufftoread = 0;
 	buf->attrs = &sca3000_ring_attr;
-	iio_ring_buffer_init(buf, indio_dev);
+	iio_buffer_init(buf, indio_dev);
 
 	return buf;
 }
 
-static inline void sca3000_rb_free(struct iio_ring_buffer *r)
+static inline void sca3000_rb_free(struct iio_buffer *r)
 {
-	kfree(iio_to_hw_ring_buf(r));
+	kfree(iio_to_hw_buf(r));
 }
 
-static const struct iio_ring_access_funcs sca3000_ring_access_funcs = {
+static const struct iio_buffer_access_funcs sca3000_ring_access_funcs = {
 	.read_first_n = &sca3000_read_first_n_hw_rb,
 	.get_length = &sca3000_ring_get_length,
 	.get_bytes_per_datum = &sca3000_ring_get_bytes_per_datum,
@@ -287,19 +287,19 @@ static const struct iio_ring_access_funcs sca3000_ring_access_funcs = {
 
 int sca3000_configure_ring(struct iio_dev *indio_dev)
 {
-	indio_dev->ring = sca3000_rb_allocate(indio_dev);
-	if (indio_dev->ring == NULL)
+	indio_dev->buffer = sca3000_rb_allocate(indio_dev);
+	if (indio_dev->buffer == NULL)
 		return -ENOMEM;
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
-	indio_dev->ring->access = &sca3000_ring_access_funcs;
+	indio_dev->buffer->access = &sca3000_ring_access_funcs;
 
 	return 0;
 }
 
 void sca3000_unconfigure_ring(struct iio_dev *indio_dev)
 {
-	sca3000_rb_free(indio_dev->ring);
+	sca3000_rb_free(indio_dev->buffer);
 }
 
 static inline
@@ -343,14 +343,14 @@ static int sca3000_hw_ring_postdisable(struct iio_dev *indio_dev)
 	return __sca3000_hw_ring_state_set(indio_dev, 0);
 }
 
-static const struct iio_ring_setup_ops sca3000_ring_setup_ops = {
+static const struct iio_buffer_setup_ops sca3000_ring_setup_ops = {
 	.preenable = &sca3000_hw_ring_preenable,
 	.postdisable = &sca3000_hw_ring_postdisable,
 };
 
 void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
 {
-	indio_dev->ring->setup_ops = &sca3000_ring_setup_ops;
+	indio_dev->buffer->setup_ops = &sca3000_ring_setup_ops;
 }
 
 /**
@@ -359,7 +359,7 @@ void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
  * This is only split from the main interrupt handler so as to
  * reduce the amount of code if the ring buffer is not enabled.
  **/
-void sca3000_ring_int_process(u8 val, struct iio_ring_buffer *ring)
+void sca3000_ring_int_process(u8 val, struct iio_buffer *ring)
 {
 	if (val & (SCA3000_INT_STATUS_THREE_QUARTERS |
 		   SCA3000_INT_STATUS_HALF)) {

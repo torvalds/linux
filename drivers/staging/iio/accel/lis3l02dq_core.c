@@ -260,7 +260,7 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 		/* Take the iio_dev status lock */
 		mutex_lock(&indio_dev->mlock);
 		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED)
-			ret = lis3l02dq_read_accel_from_ring(indio_dev->ring,
+			ret = lis3l02dq_read_accel_from_ring(indio_dev->buffer,
 							     chan->scan_index,
 							     val);
 		else {
@@ -690,9 +690,9 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_dev;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       lis3l02dq_channels,
-				       ARRAY_SIZE(lis3l02dq_channels));
+	ret = iio_buffer_register(indio_dev,
+				  lis3l02dq_channels,
+				  ARRAY_SIZE(lis3l02dq_channels));
 	if (ret) {
 		printk(KERN_ERR "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
@@ -731,7 +731,7 @@ error_free_interrupt:
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		free_irq(st->us->irq, indio_dev);
 error_uninitialize_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_unreg_ring_funcs:
 	lis3l02dq_unconfigure_ring(indio_dev);
 error_free_dev:
@@ -785,7 +785,7 @@ static int lis3l02dq_remove(struct spi_device *spi)
 		free_irq(st->us->irq, indio_dev);
 
 	lis3l02dq_remove_trigger(indio_dev);
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_ring(indio_dev);
 
 	iio_device_unregister(indio_dev);

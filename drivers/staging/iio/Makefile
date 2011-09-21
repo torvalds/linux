@@ -4,7 +4,7 @@
 
 obj-$(CONFIG_IIO) += industrialio.o
 industrialio-y := industrialio-core.o
-industrialio-$(CONFIG_IIO_BUFFER) += industrialio-ring.o
+industrialio-$(CONFIG_IIO_BUFFER) += industrialio-buffer.o
 industrialio-$(CONFIG_IIO_TRIGGER) += industrialio-trigger.o
 
 obj-$(CONFIG_IIO_SW_RING) += ring_sw.o

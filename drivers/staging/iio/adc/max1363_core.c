@@ -205,7 +205,7 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 	}
 
 	/* If ring buffer capture is occurring, query the buffer */
-	if (iio_ring_enabled(indio_dev)) {
+	if (iio_buffer_enabled(indio_dev)) {
 		mask = max1363_mode_table[chan->address].modemask;
 		data = max1363_single_channel_from_ring(mask, st);
 		if (data < 0) {
@@ -1292,9 +1292,9 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_free_available_scan_masks;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       st->chip_info->channels,
-				       st->chip_info->num_channels);
+	ret = iio_buffer_register(indio_dev,
+				  st->chip_info->channels,
+				  st->chip_info->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 
@@ -1318,7 +1318,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 error_free_irq:
 	free_irq(st->client->irq, indio_dev);
 error_uninit_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	max1363_ring_cleanup(indio_dev);
 error_free_available_scan_masks:
@@ -1341,7 +1341,7 @@ static int max1363_remove(struct i2c_client *client)
 
 	if (client->irq)
 		free_irq(st->client->irq, indio_dev);
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	max1363_ring_cleanup(indio_dev);
 	kfree(indio_dev->available_scan_masks);
 	if (!IS_ERR(reg)) {

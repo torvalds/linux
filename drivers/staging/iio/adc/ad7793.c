@@ -317,7 +317,7 @@ out:
 
 static int ad7793_scan_from_ring(struct ad7793_state *st, unsigned ch, int *val)
 {
-	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
+	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
 	int ret;
 	s64 dat64[2];
 	u32 *dat32 = (u32 *)dat64;
@@ -337,7 +337,7 @@ static int ad7793_scan_from_ring(struct ad7793_state *st, unsigned ch, int *val)
 static int ad7793_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size;
 	unsigned channel;
 
@@ -357,9 +357,9 @@ static int ad7793_ring_preenable(struct iio_dev *indio_dev)
 			d_size += sizeof(s64) - (d_size % sizeof(s64));
 	}
 
-	if (indio_dev->ring->access->set_bytes_per_datum)
-		indio_dev->ring->access->set_bytes_per_datum(indio_dev->ring,
-							     d_size);
+	if (indio_dev->buffer->access->set_bytes_per_datum)
+		indio_dev->buffer->access->
+			set_bytes_per_datum(indio_dev->buffer, d_size);
 
 	st->mode  = (st->mode & ~AD7793_MODE_SEL(-1)) |
 		    AD7793_MODE_SEL(AD7793_MODE_CONT);
@@ -405,7 +405,7 @@ static irqreturn_t ad7793_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	struct ad7793_state *st = iio_priv(indio_dev);
 	s64 dat64[2];
 	s32 *dat32 = (s32 *)dat64;
@@ -428,7 +428,7 @@ static irqreturn_t ad7793_trigger_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static const struct iio_ring_setup_ops ad7793_ring_setup_ops = {
+static const struct iio_buffer_setup_ops ad7793_ring_setup_ops = {
 	.preenable = &ad7793_ring_preenable,
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
@@ -439,13 +439,13 @@ static int ad7793_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	int ret;
 
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring) {
+	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &ring_sw_access_funcs;
+	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &ad7793_trigger_handler,
 						 IRQF_ONESHOT,
@@ -458,14 +458,14 @@ static int ad7793_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->setup_ops = &ad7793_ring_setup_ops;
+	indio_dev->buffer->setup_ops = &ad7793_ring_setup_ops;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
 error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -473,7 +473,7 @@ error_ret:
 static void ad7793_ring_cleanup(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }
 
 /**
@@ -570,7 +570,7 @@ static ssize_t ad7793_write_frequency(struct device *dev,
 	int i, ret;
 
 	mutex_lock(&indio_dev->mlock);
-	if (iio_ring_enabled(indio_dev)) {
+	if (iio_buffer_enabled(indio_dev)) {
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}
@@ -647,7 +647,7 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 	switch (m) {
 	case 0:
 		mutex_lock(&indio_dev->mlock);
-		if (iio_ring_enabled(indio_dev))
+		if (iio_buffer_enabled(indio_dev))
 			ret = ad7793_scan_from_ring(st,
 					chan->scan_index, &smpl);
 		else
@@ -709,7 +709,7 @@ static int ad7793_write_raw(struct iio_dev *indio_dev,
 	unsigned int tmp;
 
 	mutex_lock(&indio_dev->mlock);
-	if (iio_ring_enabled(indio_dev)) {
+	if (iio_buffer_enabled(indio_dev)) {
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}
@@ -974,9 +974,9 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	if (ret)
 		goto error_unreg_ring;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       indio_dev->channels,
-				       indio_dev->num_channels);
+	ret = iio_buffer_register(indio_dev,
+				  indio_dev->channels,
+				  indio_dev->num_channels);
 	if (ret)
 		goto error_remove_trigger;
 
@@ -991,7 +991,7 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	return 0;
 
 error_uninitialize_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_remove_trigger:
 	ad7793_remove_trigger(indio_dev);
 error_unreg_ring:
@@ -1013,7 +1013,7 @@ static int ad7793_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7793_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	ad7793_remove_trigger(indio_dev);
 	ad7793_ring_cleanup(indio_dev);
 

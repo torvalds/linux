@@ -775,9 +775,9 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_tx;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       &ade7758_channels[0],
-				       ARRAY_SIZE(ade7758_channels));
+	ret = iio_buffer_register(indio_dev,
+				  &ade7758_channels[0],
+				  ARRAY_SIZE(ade7758_channels));
 	if (ret) {
 		dev_err(&spi->dev, "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;

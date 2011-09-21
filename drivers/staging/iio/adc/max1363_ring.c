@@ -23,7 +23,7 @@
 
 int max1363_single_channel_from_ring(const long *mask, struct max1363_state *st)
 {
-	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
+	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
 	int count = 0, ret, index;
 	u8 *ring_data;
 	index = find_first_bit(mask, MAX1363_MAX_CHANNELS);
@@ -68,7 +68,7 @@ error_ret:
 static int max1363_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size = 0;
 	unsigned long numvals;
 
@@ -141,7 +141,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 
 	memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
 
-	indio_dev->ring->access->store_to(indio_dev->ring, rxbuf, time_ns);
+	indio_dev->buffer->access->store_to(indio_dev->buffer, rxbuf, time_ns);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 	kfree(rxbuf);
@@ -149,7 +149,7 @@ done:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_ring_setup_ops max1363_ring_setup_ops = {
+static const struct iio_buffer_setup_ops max1363_ring_setup_ops = {
 	.postenable = &iio_triggered_buffer_postenable,
 	.preenable = &max1363_ring_preenable,
 	.predisable = &iio_triggered_buffer_predisable,
@@ -160,8 +160,8 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	struct max1363_state *st = iio_priv(indio_dev);
 	int ret = 0;
 
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring) {
+	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -177,9 +177,9 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_deallocate_sw_rb;
 	}
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &ring_sw_access_funcs;
+	indio_dev->buffer->access = &ring_sw_access_funcs;
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->setup_ops = &max1363_ring_setup_ops;
+	indio_dev->buffer->setup_ops = &max1363_ring_setup_ops;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
@@ -187,7 +187,7 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	return 0;
 
 error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -196,5 +196,5 @@ void max1363_ring_cleanup(struct iio_dev *indio_dev)
 {
 	/* ensure that the trigger has been detached */
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }

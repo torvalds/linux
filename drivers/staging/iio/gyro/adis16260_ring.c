@@ -62,7 +62,7 @@ static irqreturn_t adis16260_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16260_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	int i = 0;
 	s16 *data;
 	size_t datasize = ring->access->get_bytes_per_datum(ring);
@@ -93,11 +93,11 @@ static irqreturn_t adis16260_trigger_handler(int irq, void *p)
 void adis16260_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }
 
-static const struct iio_ring_setup_ops adis16260_ring_setup_ops = {
-	.preenable = &iio_sw_ring_preenable,
+static const struct iio_buffer_setup_ops adis16260_ring_setup_ops = {
+	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 };
@@ -105,14 +105,14 @@ static const struct iio_ring_setup_ops adis16260_ring_setup_ops = {
 int adis16260_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret = 0;
-	struct iio_ring_buffer *ring;
+	struct iio_buffer *ring;
 
 	ring = iio_sw_rb_allocate(indio_dev);
 	if (!ring) {
 		ret = -ENOMEM;
 		return ret;
 	}
-	indio_dev->ring = ring;
+	indio_dev->buffer = ring;
 	/* Effectively select the ring buffer implementation */
 	ring->access = &ring_sw_access_funcs;
 	ring->bpe = 2;
@@ -135,6 +135,6 @@ int adis16260_configure_ring(struct iio_dev *indio_dev)
 	return 0;
 
 error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 	return ret;
 }

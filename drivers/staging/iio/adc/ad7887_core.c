@@ -44,7 +44,7 @@ static int ad7887_read_raw(struct iio_dev *dev_info,
 	switch (m) {
 	case 0:
 		mutex_lock(&dev_info->mlock);
-		if (iio_ring_enabled(dev_info))
+		if (iio_buffer_enabled(dev_info))
 			ret = ad7887_scan_from_ring(st, 1 << chan->address);
 		else
 			ret = ad7887_scan_direct(st, chan->address);
@@ -189,9 +189,9 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_ring_buffer_register(indio_dev,
-				       indio_dev->channels,
-				       indio_dev->num_channels);
+	ret = iio_buffer_register(indio_dev,
+				  indio_dev->channels,
+				  indio_dev->num_channels);
 	if (ret)
 		goto error_cleanup_ring;
 
@@ -201,7 +201,7 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 
 	return 0;
 error_unregister_ring:
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	ad7887_ring_cleanup(indio_dev);
 error_disable_reg:
@@ -220,7 +220,7 @@ static int ad7887_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7887_state *st = iio_priv(indio_dev);
 
-	iio_ring_buffer_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	ad7887_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);

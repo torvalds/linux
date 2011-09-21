@@ -33,27 +33,27 @@ int __iio_add_chan_devattr(const char *postfix,
 #ifdef CONFIG_IIO_BUFFER
 struct poll_table_struct;
 
-void iio_chrdev_ring_open(struct iio_dev *indio_dev);
-void iio_chrdev_ring_release(struct iio_dev *indio_dev);
+void iio_chrdev_buffer_open(struct iio_dev *indio_dev);
+void iio_chrdev_buffer_release(struct iio_dev *indio_dev);
 
-unsigned int iio_ring_poll(struct file *filp,
-			   struct poll_table_struct *wait);
-ssize_t iio_ring_read_first_n_outer(struct file *filp, char __user *buf,
-				    size_t n, loff_t *f_ps);
+unsigned int iio_buffer_poll(struct file *filp,
+			     struct poll_table_struct *wait);
+ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
+				      size_t n, loff_t *f_ps);
 
 
-#define iio_ring_poll_addr (&iio_ring_poll)
-#define iio_ring_read_first_n_outer_addr (&iio_ring_read_first_n_outer)
+#define iio_buffer_poll_addr (&iio_buffer_poll)
+#define iio_buffer_read_first_n_outer_addr (&iio_buffer_read_first_n_outer)
 
 #else
 
-static inline void iio_chrdev_ring_open(struct iio_dev *indio_dev)
+static inline void iio_chrdev_buffer_open(struct iio_dev *indio_dev)
 {}
-static inline void iio_chrdev_ring_release(struct iio_dev *indio_dev)
+static inline void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
 {}
 
-#define iio_ring_poll_addr NULL
-#define iio_ring_read_first_n_outer_addr NULL
+#define iio_buffer_poll_addr NULL
+#define iio_buffer_read_first_n_outer_addr NULL
 
 #endif
 
