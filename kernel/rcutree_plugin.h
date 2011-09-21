@@ -312,6 +312,7 @@ static noinline void rcu_read_unlock_special(struct task_struct *t)
 {
 	int empty;
 	int empty_exp;
+	int empty_exp_now;
 	unsigned long flags;
 	struct list_head *np;
 #ifdef CONFIG_RCU_BOOST
@@ -382,8 +383,10 @@ static noinline void rcu_read_unlock_special(struct task_struct *t)
 		/*
 		 * If this was the last task on the current list, and if
 		 * we aren't waiting on any CPUs, report the quiescent state.
-		 * Note that rcu_report_unblock_qs_rnp() releases rnp->lock.
+		 * Note that rcu_report_unblock_qs_rnp() releases rnp->lock,
+		 * so we must take a snapshot of the expedited state.
 		 */
+		empty_exp_now = !rcu_preempted_readers_exp(rnp);
 		if (!empty && !rcu_preempt_blocked_readers_cgp(rnp)) {
 			trace_rcu_quiescent_state_report("preempt_rcu",
 							 rnp->gpnum,
@@ -406,7 +409,7 @@ static noinline void rcu_read_unlock_special(struct task_struct *t)
 		 * If this was the last task on the expedited lists,
 		 * then we need to report up the rcu_node hierarchy.
 		 */
-		if (!empty_exp && !rcu_preempted_readers_exp(rnp))
+		if (!empty_exp && empty_exp_now)
 			rcu_report_exp_rnp(&rcu_preempt_state, rnp);
 	} else {
 		local_irq_restore(flags);
