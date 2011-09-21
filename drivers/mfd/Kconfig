@@ -757,6 +757,15 @@ config MFD_AAT2870_CORE
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
+config MFD_INTEL_MSIC
+	bool "Support for Intel MSIC"
+	depends on INTEL_SCU_IPC
+	select MFD_CORE
+	help
+	  Select this option to enable access to Intel MSIC (Avatele
+	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
+	  devices used in Intel Medfield platforms.
+
 endmenu
 endif
 
