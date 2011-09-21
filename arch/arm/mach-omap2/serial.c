@@ -65,6 +65,7 @@ static LIST_HEAD(uart_list);
 static u8 num_uarts;
 static u8 console_uart_id = -1;
 static u8 no_console_suspend;
+static u8 uart_debug;
 
 #define DEFAULT_RXDMA_POLLRATE		1	/* RX DMA polling rate (us) */
 #define DEFAULT_RXDMA_BUFSIZE		4096	/* RX DMA buffer size */
@@ -300,6 +301,13 @@ static int __init omap_serial_early_init(void)
 		if (cmdline_find_option(uart_name)) {
 			console_uart_id = uart->num;
 
+			if (console_loglevel >= 10) {
+				uart_debug = true;
+				pr_info("%s used as console in debug mode"
+						" uart%d clocks will not be"
+						" gated", uart_name, uart->num);
+			}
+
 			if (cmdline_find_option("no_console_suspend"))
 				no_console_suspend = true;
 
@@ -399,7 +407,8 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 
 	oh->dev_attr = uart;
 
-	if ((cpu_is_omap34xx() || cpu_is_omap44xx()) && bdata->pads)
+	if (((cpu_is_omap34xx() || cpu_is_omap44xx()) && bdata->pads)
+			&& !uart_debug)
 		device_init_wakeup(&pdev->dev, true);
 }
 
