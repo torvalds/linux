@@ -203,6 +203,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		beacon_ie = kmemdup(bss->information_elements,
 					bss->len_beacon_ies, GFP_KERNEL);
 		if (!beacon_ie) {
+			kfree(bss_desc);
 			dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
 			return -ENOMEM;
 		}
