@@ -14,7 +14,7 @@
 #include <linux/spi/spi.h>
 
 #include "../iio.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 #include "../ring_sw.h"
 #include "../trigger_consumer.h"
 

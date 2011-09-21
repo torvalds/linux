@@ -20,7 +20,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 #include "../ring_sw.h"
 
 #include "ad5933.h"

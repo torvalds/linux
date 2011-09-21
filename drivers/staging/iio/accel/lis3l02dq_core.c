@@ -25,7 +25,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 
 #include "lis3l02dq.h"
 

@@ -7,8 +7,8 @@
  * the Free Software Foundation.
  */
 
-#ifndef _IIO_RING_GENERIC_H_
-#define _IIO_RING_GENERIC_H_
+#ifndef _IIO_BUFFER_GENERIC_H_
+#define _IIO_BUFFER_GENERIC_H_
 #include <linux/sysfs.h>
 #include "iio.h"
 #include "chrdev.h"
@@ -223,4 +223,4 @@ static inline void iio_ring_buffer_unregister(struct iio_dev *indio_dev)
 
 #endif /* CONFIG_IIO_BUFFER */
 
-#endif /* _IIO_RING_GENERIC_H_ */
+#endif /* _IIO_BUFFER_GENERIC_H_ */

@@ -19,7 +19,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 #include "../ring_sw.h"
 #include "../trigger.h"
 #include "../trigger_consumer.h"

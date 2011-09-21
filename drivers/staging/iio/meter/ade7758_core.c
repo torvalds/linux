@@ -21,7 +21,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 #include "meter.h"
 #include "ade7758.h"
 

@@ -1,7 +1,7 @@
 
 #include <linux/kfifo.h>
 #include "iio.h"
-#include "ring_generic.h"
+#include "buffer_generic.h"
 
 extern const struct iio_ring_access_funcs kfifo_access_funcs;
 
