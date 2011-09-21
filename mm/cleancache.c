@@ -25,14 +25,14 @@
  * disabled), so is preferred to the slower alternative: a function
  * call that checks a non-global.
  */
-int cleancache_enabled;
+int cleancache_enabled __read_mostly;
 EXPORT_SYMBOL(cleancache_enabled);
 
 /*
  * cleancache_ops is set by cleancache_ops_register to contain the pointers
  * to the cleancache "backend" implementation functions.
  */
-static struct cleancache_ops cleancache_ops;
+static struct cleancache_ops cleancache_ops __read_mostly;
 
 /*
  * Counters available via /sys/kernel/debug/frontswap (if debugfs is
