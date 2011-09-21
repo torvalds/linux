@@ -1097,6 +1097,35 @@ static int ath6kl_wmi_scan_complete_rx(struct wmi *wmi, u8 *datap, int len)
 	return 0;
 }
 
+static int ath6kl_wmi_neighbor_report_event_rx(struct wmi *wmi, u8 *datap,
+					       int len)
+{
+	struct wmi_neighbor_report_event *ev;
+	u8 i;
+
+	if (len < sizeof(*ev))
+		return -EINVAL;
+	ev = (struct wmi_neighbor_report_event *) datap;
+	if (sizeof(*ev) + ev->num_neighbors * sizeof(struct wmi_neighbor_info)
+	    > len) {
+		ath6kl_dbg(ATH6KL_DBG_WMI, "truncated neighbor event "
+			   "(num=%d len=%d)\n", ev->num_neighbors, len);
+		return -EINVAL;
+	}
+	for (i = 0; i < ev->num_neighbors; i++) {
+		ath6kl_dbg(ATH6KL_DBG_WMI, "neighbor %d/%d - %pM 0x%x\n",
+			   i + 1, ev->num_neighbors, ev->neighbor[i].bssid,
+			   ev->neighbor[i].bss_flags);
+		cfg80211_pmksa_candidate_notify(wmi->parent_dev->net_dev, i,
+						ev->neighbor[i].bssid,
+						!!(ev->neighbor[i].bss_flags &
+						   WMI_PREAUTH_CAPABLE_BSS),
+						GFP_ATOMIC);
+	}
+
+	return 0;
+}
+
 /*
  * Target is reporting a programming error.  This is for
  * developer aid only.  Target only checks a few common violations
@@ -2870,6 +2899,7 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_NEIGHBOR_REPORT_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_NEIGHBOR_REPORT_EVENTID\n");
+		ret = ath6kl_wmi_neighbor_report_event_rx(wmi, datap, len);
 		break;
 	case WMI_SCAN_COMPLETE_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_SCAN_COMPLETE_EVENTID\n");

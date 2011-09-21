@@ -1439,6 +1439,16 @@ enum wmi_bss_flags {
 	WMI_PMKID_VALID_BSS = 0x02,
 };
 
+struct wmi_neighbor_info {
+	u8 bssid[ETH_ALEN];
+	u8 bss_flags; /* enum wmi_bss_flags */
+} __packed;
+
+struct wmi_neighbor_report_event {
+	u8 num_neighbors;
+	struct wmi_neighbor_info neighbor[0];
+} __packed;
+
 /* TKIP MIC Error Event */
 struct wmi_tkip_micerr_event {
 	u8 key_id;
