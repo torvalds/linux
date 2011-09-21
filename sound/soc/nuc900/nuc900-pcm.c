@@ -227,7 +227,7 @@ static int nuc900_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-int nuc900_dma_getposition(struct snd_pcm_substream *substream,
+static int nuc900_dma_getposition(struct snd_pcm_substream *substream,
 					dma_addr_t *src, dma_addr_t *dst)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
