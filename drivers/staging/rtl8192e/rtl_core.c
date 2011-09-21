@@ -1283,7 +1283,7 @@ static short rtl8192_get_channel_map(struct net_device *dev)
 		return -1;
 	}
 
-	if (priv->ChannelPlan > COUNTRY_CODE_MAX) {
+	if (priv->ChannelPlan >= COUNTRY_CODE_MAX) {
 		printk(KERN_INFO "rtl819x_init:Error channel plan! Set to "
 		       "default.\n");
 		priv->ChannelPlan = COUNTRY_CODE_FCC;
