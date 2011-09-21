@@ -30,6 +30,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 
+#include <media/s5p_hdmi.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -72,10 +73,6 @@ struct hdmi_device {
 	u32 cur_preset;
 	/** other resources */
 	struct hdmi_resources res;
-};
-
-struct hdmi_driver_data {
-	int hdmiphy_bus;
 };
 
 struct hdmi_tg_regs {
@@ -129,23 +126,11 @@ struct hdmi_preset_conf {
 	struct v4l2_mbus_framefmt mbus_fmt;
 };
 
-/* I2C module and id for HDMIPHY */
-static struct i2c_board_info hdmiphy_info = {
-	I2C_BOARD_INFO("hdmiphy", 0x38),
-};
-
-static struct hdmi_driver_data hdmi_driver_data[] = {
-	{ .hdmiphy_bus = 3 },
-	{ .hdmiphy_bus = 8 },
-};
-
 static struct platform_device_id hdmi_driver_types[] = {
 	{
 		.name		= "s5pv210-hdmi",
-		.driver_data	= (unsigned long)&hdmi_driver_data[0],
 	}, {
 		.name		= "exynos4-hdmi",
-		.driver_data	= (unsigned long)&hdmi_driver_data[1],
 	}, {
 		/* end node */
 	}
@@ -870,10 +855,16 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	struct i2c_adapter *phy_adapter;
 	struct v4l2_subdev *sd;
 	struct hdmi_device *hdmi_dev = NULL;
-	struct hdmi_driver_data *drv_data;
+	struct s5p_hdmi_platform_data *pdata = dev->platform_data;
 	int ret;
 
 	dev_dbg(dev, "probe start\n");
+
+	if (!pdata) {
+		dev_err(dev, "platform data is missing\n");
+		ret = -ENODEV;
+		goto fail;
+	}
 
 	hdmi_dev = devm_kzalloc(&pdev->dev, sizeof(*hdmi_dev), GFP_KERNEL);
 	if (!hdmi_dev) {
@@ -929,9 +920,14 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		goto fail_init;
 	}
 
-	drv_data = (struct hdmi_driver_data *)
-		platform_get_device_id(pdev)->driver_data;
-	phy_adapter = i2c_get_adapter(drv_data->hdmiphy_bus);
+	/* testing if hdmiphy info is present */
+	if (!pdata->hdmiphy_info) {
+		dev_err(dev, "hdmiphy info is missing in platform data\n");
+		ret = -ENXIO;
+		goto fail_vdev;
+	}
+
+	phy_adapter = i2c_get_adapter(pdata->hdmiphy_bus);
 	if (phy_adapter == NULL) {
 		dev_err(dev, "adapter request failed\n");
 		ret = -ENXIO;
@@ -939,7 +935,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	}
 
 	hdmi_dev->phy_sd = v4l2_i2c_new_subdev_board(&hdmi_dev->v4l2_dev,
-		phy_adapter, &hdmiphy_info, NULL);
+		phy_adapter, pdata->hdmiphy_info, NULL);
 	/* on failure or not adapter is no longer useful */
 	i2c_put_adapter(phy_adapter);
 	if (hdmi_dev->phy_sd == NULL) {
