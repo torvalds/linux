@@ -873,7 +873,6 @@ struct blk_plug {
 	struct list_head list;
 	struct list_head cb_list;
 	unsigned int should_sort;
-	unsigned int count;
 };
 #define BLK_MAX_REQUEST_COUNT 16
 
