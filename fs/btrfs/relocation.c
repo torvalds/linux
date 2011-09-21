@@ -2921,6 +2921,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	unsigned long last_index;
 	struct page *page;
 	struct file_ra_state *ra;
+	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	int nr = 0;
 	int ret = 0;
 
@@ -2955,7 +2956,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 						  ra, NULL, index,
 						  last_index + 1 - index);
 			page = find_or_create_page(inode->i_mapping, index,
-						   GFP_NOFS);
+						   mask);
 			if (!page) {
 				btrfs_delalloc_release_metadata(inode,
 							PAGE_CACHE_SIZE);

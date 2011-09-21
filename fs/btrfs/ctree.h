@@ -30,6 +30,7 @@
 #include <linux/kobject.h>
 #include <trace/events/btrfs.h>
 #include <asm/kmap_types.h>
+#include <linux/pagemap.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
@@ -2115,6 +2116,11 @@ static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 {
 	return ((space_info->flags & BTRFS_BLOCK_GROUP_METADATA) &&
 		(space_info->flags & BTRFS_BLOCK_GROUP_DATA));
+}
+
+static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
+{
+	return mapping_gfp_mask(mapping) & ~__GFP_FS;
 }
 
 /* extent-tree.c */

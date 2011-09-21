@@ -1069,6 +1069,7 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
 	struct inode *inode = fdentry(file)->d_inode;
+	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	int err = 0;
 	int faili = 0;
 	u64 start_pos;
@@ -1080,7 +1081,7 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 again:
 	for (i = 0; i < num_pages; i++) {
 		pages[i] = find_or_create_page(inode->i_mapping, index + i,
-					       GFP_NOFS);
+					       mask);
 		if (!pages[i]) {
 			faili = i - 1;
 			err = -ENOMEM;

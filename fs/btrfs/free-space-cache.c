@@ -254,6 +254,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	u64 num_bitmaps;
 	u64 generation;
 	pgoff_t index = 0;
+	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	int ret = 0;
 
 	INIT_LIST_HEAD(&bitmaps);
@@ -310,7 +311,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 		if (!num_entries && !num_bitmaps)
 			break;
 
-		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
+		page = find_or_create_page(inode->i_mapping, index, mask);
 		if (!page)
 			goto free_cache;
 
@@ -563,6 +564,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	u64 start, end, len;
 	u64 bytes = 0;
 	u32 crc = ~(u32)0;
+	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	int index = 0, num_pages = 0;
 	int entries = 0;
 	int bitmaps = 0;
@@ -612,7 +614,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 * know and don't freak out.
 	 */
 	while (index < num_pages) {
-		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
+		page = find_or_create_page(inode->i_mapping, index, mask);
 		if (!page) {
 			int i;
 

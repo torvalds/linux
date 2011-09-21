@@ -843,6 +843,7 @@ static int cluster_pages_for_defrag(struct inode *inode,
 	int i_done;
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
+	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 
 	if (isize == 0)
 		return 0;
@@ -860,7 +861,7 @@ again:
 	for (i = 0; i < num_pages; i++) {
 		struct page *page;
 		page = find_or_create_page(inode->i_mapping,
-					    start_index + i, GFP_NOFS);
+					    start_index + i, mask);
 		if (!page)
 			break;
 

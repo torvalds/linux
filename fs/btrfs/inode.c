@@ -3282,6 +3282,7 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 	pgoff_t index = from >> PAGE_CACHE_SHIFT;
 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
 	struct page *page;
+	gfp_t mask = btrfs_alloc_write_mask(mapping);
 	int ret = 0;
 	u64 page_start;
 	u64 page_end;
@@ -3294,7 +3295,7 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 
 	ret = -ENOMEM;
 again:
-	page = find_or_create_page(mapping, index, GFP_NOFS);
+	page = find_or_create_page(mapping, index, mask);
 	if (!page) {
 		btrfs_delalloc_release_space(inode, PAGE_CACHE_SIZE);
 		goto out;
