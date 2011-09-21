@@ -455,11 +455,11 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 }
 
 /**
- * blk_cleanup_queue: - release a &struct request_queue when it is no longer needed
- * @kobj:    the kobj belonging of the request queue to be released
+ * blk_release_queue: - release a &struct request_queue when it is no longer needed
+ * @kobj:    the kobj belonging to the request queue to be released
  *
  * Description:
- *     blk_cleanup_queue is the pair to blk_init_queue() or
+ *     blk_release_queue is the pair to blk_init_queue() or
  *     blk_queue_make_request().  It should be called when a request queue is
  *     being released; typically when a block device is being de-registered.
  *     Currently, its primary task it to free all the &struct request
