@@ -35,7 +35,7 @@
  */
 /* direct copy of the irq_default_primary_handler */
 #ifndef CONFIG_IIO_BUFFER
-static irqreturn_t lis3l02dq_noring(int irq, void *private)
+static irqreturn_t lis3l02dq_nobuffer(int irq, void *private)
 {
 	return IRQ_WAKE_THREAD;
 }
@@ -260,9 +260,10 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 		/* Take the iio_dev status lock */
 		mutex_lock(&indio_dev->mlock);
 		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED)
-			ret = lis3l02dq_read_accel_from_ring(indio_dev->buffer,
-							     chan->scan_index,
-							     val);
+			ret = lis3l02dq_read_accel_from_buffer(indio_dev->
+							       buffer,
+							       chan->scan_index,
+							       val);
 		else {
 			reg = lis3l02dq_axis_map
 				[LIS3L02DQ_ACCEL][chan->address];
@@ -686,7 +687,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = lis3l02dq_configure_ring(indio_dev);
+	ret = lis3l02dq_configure_buffer(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
@@ -694,8 +695,8 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 				  lis3l02dq_channels,
 				  ARRAY_SIZE(lis3l02dq_channels));
 	if (ret) {
-		printk(KERN_ERR "failed to initialize the ring\n");
-		goto error_unreg_ring_funcs;
+		printk(KERN_ERR "failed to initialize the buffer\n");
+		goto error_unreg_buffer_funcs;
 	}
 
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
@@ -706,7 +707,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 					   "lis3l02dq",
 					   indio_dev);
 		if (ret)
-			goto error_uninitialize_ring;
+			goto error_uninitialize_buffer;
 
 		ret = lis3l02dq_probe_trigger(indio_dev);
 		if (ret)
@@ -730,10 +731,10 @@ error_remove_trigger:
 error_free_interrupt:
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		free_irq(st->us->irq, indio_dev);
-error_uninitialize_ring:
+error_uninitialize_buffer:
 	iio_buffer_unregister(indio_dev);
-error_unreg_ring_funcs:
-	lis3l02dq_unconfigure_ring(indio_dev);
+error_unreg_buffer_funcs:
+	lis3l02dq_unconfigure_buffer(indio_dev);
 error_free_dev:
 		iio_free_device(indio_dev);
 error_ret:
@@ -786,7 +787,7 @@ static int lis3l02dq_remove(struct spi_device *spi)
 
 	lis3l02dq_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
-	lis3l02dq_unconfigure_ring(indio_dev);
+	lis3l02dq_unconfigure_buffer(indio_dev);
 
 	iio_device_unregister(indio_dev);
 
