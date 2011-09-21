@@ -1583,7 +1583,7 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 		 * In autoclear mode, stop the loop thread
 		 * and remove configuration after last close.
 		 */
-		err = loop_clr_fd(lo, NULL);
+		err = loop_clr_fd(lo, lo->lo_device);
 		if (!err)
 			goto out_unlocked;
 	} else {
