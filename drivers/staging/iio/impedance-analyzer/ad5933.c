@@ -612,7 +612,7 @@ static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	/* Ring buffer functions - here trigger setup related */
 	indio_dev->ring->setup_ops = &ad5933_ring_setup_ops;
 
-	indio_dev->modes |= INDIO_RING_HARDWARE_BUFFER;
+	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
 	return 0;
 }

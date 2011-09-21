@@ -259,7 +259,7 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		/* Take the iio_dev status lock */
 		mutex_lock(&indio_dev->mlock);
-		if (indio_dev->currentmode == INDIO_RING_TRIGGERED)
+		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED)
 			ret = lis3l02dq_read_accel_from_ring(indio_dev->ring,
 							     chan->scan_index,
 							     val);
@@ -725,7 +725,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (indio_dev->modes & INDIO_RING_TRIGGERED)
+	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		lis3l02dq_remove_trigger(indio_dev);
 error_free_interrupt:
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)

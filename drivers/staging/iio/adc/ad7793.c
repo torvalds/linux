@@ -461,7 +461,7 @@ static int ad7793_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->ring->setup_ops = &ad7793_ring_setup_ops;
 
 	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
 error_deallocate_sw_rb:

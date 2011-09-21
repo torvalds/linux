@@ -290,7 +290,7 @@ int sca3000_configure_ring(struct iio_dev *indio_dev)
 	indio_dev->ring = sca3000_rb_allocate(indio_dev);
 	if (indio_dev->ring == NULL)
 		return -ENOMEM;
-	indio_dev->modes |= INDIO_RING_HARDWARE_BUFFER;
+	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
 	indio_dev->ring->access = &sca3000_ring_access_funcs;
 

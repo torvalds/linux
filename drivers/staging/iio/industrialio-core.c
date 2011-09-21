@@ -998,7 +998,7 @@ static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *dev_info = container_of(device, struct iio_dev, dev);
 	cdev_del(&dev_info->chrdev);
-	if (dev_info->modes & INDIO_RING_TRIGGERED)
+	if (dev_info->modes & INDIO_BUFFER_TRIGGERED)
 		iio_device_unregister_trigger_consumer(dev_info);
 	iio_device_unregister_eventset(dev_info);
 	iio_device_unregister_sysfs(dev_info);
@@ -1126,7 +1126,7 @@ int iio_device_register(struct iio_dev *dev_info)
 			"Failed to register event set\n");
 		goto error_free_sysfs;
 	}
-	if (dev_info->modes & INDIO_RING_TRIGGERED)
+	if (dev_info->modes & INDIO_BUFFER_TRIGGERED)
 		iio_device_register_trigger_consumer(dev_info);
 
 	ret = device_add(&dev_info->dev);

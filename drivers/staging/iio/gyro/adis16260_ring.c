@@ -131,7 +131,7 @@ int adis16260_configure_ring(struct iio_dev *indio_dev)
 		goto error_iio_sw_rb_free;
 	}
 
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
 error_iio_sw_rb_free:

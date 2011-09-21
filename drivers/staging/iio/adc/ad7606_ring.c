@@ -186,7 +186,7 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
 	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
 error_deallocate_sw_rb:

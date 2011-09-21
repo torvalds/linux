@@ -189,10 +189,11 @@ static inline s64 iio_get_time_ns(void)
 
 /* Device operating modes */
 #define INDIO_DIRECT_MODE		0x01
-#define INDIO_RING_TRIGGERED		0x02
-#define INDIO_RING_HARDWARE_BUFFER	0x08
+#define INDIO_BUFFER_TRIGGERED		0x02
+#define INDIO_BUFFER_HARDWARE		0x08
 
-#define INDIO_ALL_RING_MODES (INDIO_RING_TRIGGERED | INDIO_RING_HARDWARE_BUFFER)
+#define INDIO_ALL_BUFFER_MODES					\
+	(INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE)
 
 /* Vast majority of this is set by the industrialio subsystem on a
  * call to iio_device_register. */
@@ -388,8 +389,7 @@ void iio_free_device(struct iio_dev *dev);
 static inline bool iio_ring_enabled(struct iio_dev *dev_info)
 {
 	return dev_info->currentmode
-		& (INDIO_RING_TRIGGERED
-		   | INDIO_RING_HARDWARE_BUFFER);
+		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE);
 };
 
 #endif /* _INDUSTRIAL_IO_H_ */

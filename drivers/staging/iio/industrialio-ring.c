@@ -150,7 +150,7 @@ static ssize_t iio_scan_el_store(struct device *dev,
 
 	state = !(buf[0] == '0');
 	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_RING_TRIGGERED) {
+	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -193,7 +193,7 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 
 	state = !(buf[0] == '0');
 	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_RING_TRIGGERED) {
+	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -430,7 +430,7 @@ ssize_t iio_store_ring_enable(struct device *dev,
 	mutex_lock(&dev_info->mlock);
 	previous_mode = dev_info->currentmode;
 	requested_state = !(buf[0] == '0');
-	current_state = !!(previous_mode & INDIO_ALL_RING_MODES);
+	current_state = !!(previous_mode & INDIO_ALL_BUFFER_MODES);
 	if (current_state == requested_state) {
 		printk(KERN_INFO "iio-ring, current state requested again\n");
 		goto done;
@@ -457,7 +457,7 @@ ssize_t iio_store_ring_enable(struct device *dev,
 		if (ring->access->mark_in_use)
 			ring->access->mark_in_use(ring);
 		/* Definitely possible for devices to support both of these.*/
-		if (dev_info->modes & INDIO_RING_TRIGGERED) {
+		if (dev_info->modes & INDIO_BUFFER_TRIGGERED) {
 			if (!dev_info->trig) {
 				printk(KERN_INFO
 				       "Buffer not started: no trigger\n");
@@ -466,9 +466,9 @@ ssize_t iio_store_ring_enable(struct device *dev,
 					ring->access->unmark_in_use(ring);
 				goto error_ret;
 			}
-			dev_info->currentmode = INDIO_RING_TRIGGERED;
-		} else if (dev_info->modes & INDIO_RING_HARDWARE_BUFFER)
-			dev_info->currentmode = INDIO_RING_HARDWARE_BUFFER;
+			dev_info->currentmode = INDIO_BUFFER_TRIGGERED;
+		} else if (dev_info->modes & INDIO_BUFFER_HARDWARE)
+			dev_info->currentmode = INDIO_BUFFER_HARDWARE;
 		else { /* should never be reached */
 			ret = -EINVAL;
 			goto error_ret;
@@ -519,7 +519,7 @@ ssize_t iio_show_ring_enable(struct device *dev,
 {
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", !!(dev_info->currentmode
-				       & INDIO_ALL_RING_MODES));
+				       & INDIO_ALL_BUFFER_MODES));
 }
 EXPORT_SYMBOL(iio_show_ring_enable);
 
