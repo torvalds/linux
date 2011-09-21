@@ -299,7 +299,7 @@ static void jz4740_pcm_free(struct snd_pcm *pcm)
 
 static u64 jz4740_pcm_dmamask = DMA_BIT_MASK(32);
 
-int jz4740_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int jz4740_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
