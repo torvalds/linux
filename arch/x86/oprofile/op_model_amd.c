@@ -29,8 +29,6 @@
 #include "op_x86_model.h"
 #include "op_counter.h"
 
-#define NUM_COUNTERS		4
-#define NUM_COUNTERS_F15H	6
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 #define NUM_VIRT_COUNTERS	32
 #else
@@ -68,35 +66,6 @@ struct ibs_state {
 
 static struct ibs_config ibs_config;
 static struct ibs_state ibs_state;
-
-/*
- * IBS cpuid feature detection
- */
-
-#define IBS_CPUID_FEATURES		0x8000001b
-
-/*
- * Same bit mask as for IBS cpuid feature flags (Fn8000_001B_EAX), but
- * bit 0 is used to indicate the existence of IBS.
- */
-#define IBS_CAPS_AVAIL			(1U<<0)
-#define IBS_CAPS_FETCHSAM		(1U<<1)
-#define IBS_CAPS_OPSAM			(1U<<2)
-#define IBS_CAPS_RDWROPCNT		(1U<<3)
-#define IBS_CAPS_OPCNT			(1U<<4)
-#define IBS_CAPS_BRNTRGT		(1U<<5)
-#define IBS_CAPS_OPCNTEXT		(1U<<6)
-
-#define IBS_CAPS_DEFAULT		(IBS_CAPS_AVAIL		\
-					 | IBS_CAPS_FETCHSAM	\
-					 | IBS_CAPS_OPSAM)
-
-/*
- * IBS APIC setup
- */
-#define IBSCTL				0x1cc
-#define IBSCTL_LVT_OFFSET_VALID		(1ULL<<8)
-#define IBSCTL_LVT_OFFSET_MASK		0x0F
 
 /*
  * IBS randomization macros
@@ -439,7 +408,7 @@ static int op_amd_fill_in_addresses(struct op_msrs * const msrs)
 			goto fail;
 		}
 		/* both registers must be reserved */
-		if (num_counters == NUM_COUNTERS_F15H) {
+		if (num_counters == AMD64_NUM_COUNTERS_F15H) {
 			msrs->counters[i].addr = MSR_F15H_PERF_CTR + (i << 1);
 			msrs->controls[i].addr = MSR_F15H_PERF_CTL + (i << 1);
 		} else {
@@ -741,9 +710,9 @@ static int op_amd_init(struct oprofile_operations *ops)
 	ops->create_files = setup_ibs_files;
 
 	if (boot_cpu_data.x86 == 0x15) {
-		num_counters = NUM_COUNTERS_F15H;
+		num_counters = AMD64_NUM_COUNTERS_F15H;
 	} else {
-		num_counters = NUM_COUNTERS;
+		num_counters = AMD64_NUM_COUNTERS;
 	}
 
 	op_amd_spec.num_counters = num_counters;
