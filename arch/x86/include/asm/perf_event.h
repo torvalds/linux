@@ -159,6 +159,8 @@ union cpuid10_edx {
 #define IBS_OP_MAX_CNT		0x0000FFFFULL
 #define IBS_OP_MAX_CNT_EXT	0x007FFFFFULL	/* not a register bit mask */
 
+extern u32 get_ibs_caps(void);
+
 #ifdef CONFIG_PERF_EVENTS
 extern void perf_events_lapic_init(void);
 
