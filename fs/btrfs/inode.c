@@ -2285,9 +2285,25 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		found_key.type = BTRFS_INODE_ITEM_KEY;
 		found_key.offset = 0;
 		inode = btrfs_iget(root->fs_info->sb, &found_key, root, NULL);
-		if (IS_ERR(inode)) {
-			ret = PTR_ERR(inode);
+		ret = PTR_RET(inode);
+		if (ret && ret != -ESTALE)
 			goto out;
+
+		/*
+		 * Inode is already gone but the orphan item is still there,
+		 * kill the orphan item.
+		 */
+		if (ret == -ESTALE) {
+			trans = btrfs_start_transaction(root, 1);
+			if (IS_ERR(trans)) {
+				ret = PTR_ERR(trans);
+				goto out;
+			}
+			ret = btrfs_del_orphan_item(trans, root,
+						    found_key.objectid);
+			BUG_ON(ret);
+			btrfs_end_transaction(trans, root);
+			continue;
 		}
 
 		/*
@@ -2297,24 +2313,6 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		spin_lock(&root->orphan_lock);
 		list_add(&BTRFS_I(inode)->i_orphan, &root->orphan_list);
 		spin_unlock(&root->orphan_lock);
-
-		/*
-		 * if this is a bad inode, means we actually succeeded in
-		 * removing the inode, but not the orphan record, which means
-		 * we need to manually delete the orphan since iput will just
-		 * do a destroy_inode
-		 */
-		if (is_bad_inode(inode)) {
-			trans = btrfs_start_transaction(root, 0);
-			if (IS_ERR(trans)) {
-				ret = PTR_ERR(trans);
-				goto out;
-			}
-			btrfs_orphan_del(trans, inode);
-			btrfs_end_transaction(trans, root);
-			iput(inode);
-			continue;
-		}
 
 		/* if we have links, this was a truncate, lets do that */
 		if (inode->i_nlink) {
