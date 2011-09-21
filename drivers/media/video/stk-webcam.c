@@ -55,6 +55,8 @@ MODULE_AUTHOR("Jaime Velasco Juan <jsagarribay@gmail.com> and Nicolas VIVIEN");
 MODULE_DESCRIPTION("Syntek DC1125 webcam driver");
 
 
+/* bool for webcam LED management */
+int first_init = 1;
 
 /* Some cameras have audio interfaces, we aren't interested in those */
 static struct usb_device_id stkwebcam_table[] = {
@@ -560,6 +562,12 @@ static int v4l_stk_open(struct file *fp)
 
 	if (dev == NULL || !is_present(dev))
 		return -ENXIO;
+
+	if (!first_init)
+		stk_camera_write_reg(dev, 0x0, 0x24);
+	else
+		first_init = 0;
+
 	fp->private_data = dev;
 	usb_autopm_get_interface(dev->interface);
 
@@ -573,7 +581,7 @@ static int v4l_stk_release(struct file *fp)
 	if (dev->owner == fp) {
 		stk_stop_stream(dev);
 		stk_free_buffers(dev);
-		stk_camera_write_reg(dev, 0x0, 0x48); /* turn off the LED */
+		stk_camera_write_reg(dev, 0x0, 0x49); /* turn off the LED */
 		unset_initialised(dev);
 		dev->owner = NULL;
 	}
@@ -1350,6 +1358,7 @@ static int stk_camera_resume(struct usb_interface *intf)
 		return 0;
 	unset_initialised(dev);
 	stk_initialise(dev);
+	stk_camera_write_reg(dev, 0x0, 0x49);
 	stk_setup_format(dev);
 	if (is_streaming(dev))
 		stk_start_stream(dev);
