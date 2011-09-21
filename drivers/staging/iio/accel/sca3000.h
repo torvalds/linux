@@ -221,7 +221,7 @@ int sca3000_read_data_short(struct sca3000_state *st,
  **/
 int sca3000_write_reg(struct sca3000_state *st, u8 address, u8 val);
 
-#ifdef CONFIG_IIO_RING_BUFFER
+#ifdef CONFIG_IIO_BUFFER
 /**
  * sca3000_register_ring_funcs() setup the ring state change functions
  **/

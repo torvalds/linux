@@ -90,7 +90,7 @@ enum adis16204_scan {
 	ADIS16204_SCAN_TEMP,
 };
 
-#ifdef CONFIG_IIO_RING_BUFFER
+#ifdef CONFIG_IIO_BUFFER
 void adis16204_remove_trigger(struct iio_dev *indio_dev);
 int adis16204_probe_trigger(struct iio_dev *indio_dev);
 
@@ -101,7 +101,7 @@ ssize_t adis16204_read_data_from_ring(struct device *dev,
 int adis16204_configure_ring(struct iio_dev *indio_dev);
 void adis16204_unconfigure_ring(struct iio_dev *indio_dev);
 
-#else /* CONFIG_IIO_RING_BUFFER */
+#else /* CONFIG_IIO_BUFFER */
 
 static inline void adis16204_remove_trigger(struct iio_dev *indio_dev)
 {
@@ -129,5 +129,5 @@ static inline void adis16204_unconfigure_ring(struct iio_dev *indio_dev)
 {
 }
 
-#endif /* CONFIG_IIO_RING_BUFFER */
+#endif /* CONFIG_IIO_BUFFER */
 #endif /* SPI_ADIS16204_H_ */

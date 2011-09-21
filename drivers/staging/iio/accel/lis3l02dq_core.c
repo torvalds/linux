@@ -34,7 +34,7 @@
  * This means that use cannot be made of spi_write etc.
  */
 /* direct copy of the irq_default_primary_handler */
-#ifndef CONFIG_IIO_RING_BUFFER
+#ifndef CONFIG_IIO_BUFFER
 static irqreturn_t lis3l02dq_noring(int irq, void *private)
 {
 	return IRQ_WAKE_THREAD;

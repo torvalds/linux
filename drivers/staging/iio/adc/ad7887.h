@@ -82,11 +82,11 @@ enum ad7887_supported_device_ids {
 	ID_AD7887
 };
 
-#ifdef CONFIG_IIO_RING_BUFFER
+#ifdef CONFIG_IIO_BUFFER
 int ad7887_scan_from_ring(struct ad7887_state *st, int channum);
 int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad7887_ring_cleanup(struct iio_dev *indio_dev);
-#else /* CONFIG_IIO_RING_BUFFER */
+#else /* CONFIG_IIO_BUFFER */
 static inline int ad7887_scan_from_ring(struct ad7887_state *st, int channum)
 {
 	return 0;
@@ -101,5 +101,5 @@ ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 static inline void ad7887_ring_cleanup(struct iio_dev *indio_dev)
 {
 }
-#endif /* CONFIG_IIO_RING_BUFFER */
+#endif /* CONFIG_IIO_BUFFER */
 #endif /* IIO_ADC_AD7887_H_ */

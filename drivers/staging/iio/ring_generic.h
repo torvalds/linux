@@ -13,7 +13,7 @@
 #include "iio.h"
 #include "chrdev.h"
 
-#ifdef CONFIG_IIO_RING_BUFFER
+#ifdef CONFIG_IIO_BUFFER
 
 struct iio_ring_buffer;
 
@@ -209,7 +209,7 @@ ssize_t iio_show_ring_enable(struct device *dev,
 
 int iio_sw_ring_preenable(struct iio_dev *indio_dev);
 
-#else /* CONFIG_IIO_RING_BUFFER */
+#else /* CONFIG_IIO_BUFFER */
 
 static inline int iio_ring_buffer_register(struct iio_dev *indio_dev,
 					   struct iio_chan_spec *channels,
@@ -221,6 +221,6 @@ static inline int iio_ring_buffer_register(struct iio_dev *indio_dev,
 static inline void iio_ring_buffer_unregister(struct iio_dev *indio_dev)
 {};
 
-#endif /* CONFIG_IIO_RING_BUFFER */
+#endif /* CONFIG_IIO_BUFFER */
 
 #endif /* _IIO_RING_GENERIC_H_ */

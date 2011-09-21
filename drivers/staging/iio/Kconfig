@@ -12,13 +12,13 @@ menuconfig IIO
 	  drivers/staging/iio/Documentation for more information.
 if IIO
 
-config IIO_RING_BUFFER
+config IIO_BUFFER
 	bool "Enable buffer support within IIO"
 	help
 	  Provide core support for various buffer based data
 	  acquisition methods.
 
-if IIO_RING_BUFFER
+if IIO_BUFFER
 
 config IIO_SW_RING
        select IIO_TRIGGER
@@ -38,7 +38,7 @@ config IIO_KFIFO_BUF
 	  no buffer events so it is up to userspace to work out how
 	  often to read from the buffer.
 
-endif # IIO_RINGBUFFER
+endif # IIO_BUFFER
 
 config IIO_TRIGGER
 	boolean "Enable triggered sampling support"

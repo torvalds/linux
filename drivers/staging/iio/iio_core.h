@@ -30,7 +30,7 @@ int __iio_add_chan_devattr(const char *postfix,
 /* Event interface flags */
 #define IIO_BUSY_BIT_POS 1
 
-#ifdef CONFIG_IIO_RING_BUFFER
+#ifdef CONFIG_IIO_BUFFER
 struct poll_table_struct;
 
 void iio_chrdev_ring_open(struct iio_dev *indio_dev);

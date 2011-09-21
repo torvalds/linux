@@ -6,7 +6,7 @@ menu "Network Analyzer, Impedance Converters"
 config AD5933
 	tristate "Analog Devices AD5933, AD5934 driver"
 	depends on I2C
-	select IIO_RING_BUFFER
+	select IIO_BUFFER
 	select IIO_SW_RING
 	help
 	  Say yes here to build support for Analog Devices Impedance Converter,
