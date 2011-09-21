@@ -738,7 +738,8 @@ void b43_dummy_transmission(struct b43_wldev *dev, bool ofdm, bool pa_on)
 
 	value = (ofdm ? 0x41 : 0x40);
 	b43_write16(dev, B43_MMIO_TXE0_PHYCTL, value);
-	if ((phy->type == B43_PHYTYPE_N) || (phy->type == B43_PHYTYPE_LP))
+	if (phy->type == B43_PHYTYPE_N || phy->type == B43_PHYTYPE_LP ||
+	    phy->type == B43_PHYTYPE_LCN)
 		b43_write16(dev, B43_MMIO_TXE0_PHYCTL1, 0x1A02);
 
 	b43_write16(dev, B43_MMIO_TXE0_WM_0, 0x0000);
@@ -748,12 +749,13 @@ void b43_dummy_transmission(struct b43_wldev *dev, bool ofdm, bool pa_on)
 	b43_write16(dev, B43_MMIO_XMTTXCNT, 0x0014);
 	b43_write16(dev, B43_MMIO_XMTSEL, 0x0826);
 	b43_write16(dev, B43_MMIO_TXE0_CTL, 0x0000);
-	if (!pa_on && (phy->type == B43_PHYTYPE_N)) {
-		//SPEC TODO
-	}
+
+	if (!pa_on && phy->type == B43_PHYTYPE_N)
+		; /*b43_nphy_pa_override(dev, false) */
 
 	switch (phy->type) {
 	case B43_PHYTYPE_N:
+	case B43_PHYTYPE_LCN:
 		b43_write16(dev, B43_MMIO_TXE0_AUX, 0x00D0);
 		break;
 	case B43_PHYTYPE_LP:
@@ -762,6 +764,7 @@ void b43_dummy_transmission(struct b43_wldev *dev, bool ofdm, bool pa_on)
 	default:
 		b43_write16(dev, B43_MMIO_TXE0_AUX, 0x0030);
 	}
+	b43_read16(dev, B43_MMIO_TXE0_AUX);
 
 	if (phy->radio_ver == 0x2050 && phy->radio_rev <= 0x5)
 		b43_radio_write16(dev, 0x0051, 0x0017);
