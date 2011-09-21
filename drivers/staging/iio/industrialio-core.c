@@ -1065,8 +1065,8 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 	struct iio_dev *dev_info = container_of(inode->i_cdev,
 						struct iio_dev, chrdev);
 	filp->private_data = dev_info;
-	iio_chrdev_buffer_open(dev_info);
-	return 0;
+
+	return iio_chrdev_buffer_open(dev_info);
 }
 
 /**

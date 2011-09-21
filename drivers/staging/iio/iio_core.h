@@ -33,7 +33,7 @@ int __iio_add_chan_devattr(const char *postfix,
 #ifdef CONFIG_IIO_BUFFER
 struct poll_table_struct;
 
-void iio_chrdev_buffer_open(struct iio_dev *indio_dev);
+int iio_chrdev_buffer_open(struct iio_dev *indio_dev);
 void iio_chrdev_buffer_release(struct iio_dev *indio_dev);
 
 unsigned int iio_buffer_poll(struct file *filp,
@@ -47,8 +47,11 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 
 #else
 
-static inline void iio_chrdev_buffer_open(struct iio_dev *indio_dev)
-{}
+static inline int iio_chrdev_buffer_open(struct iio_dev *indio_dev)
+{
+	return -EINVAL;
+}
+
 static inline void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
 {}
 

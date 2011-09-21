@@ -63,11 +63,14 @@ unsigned int iio_buffer_poll(struct file *filp,
 	return 0;
 }
 
-void iio_chrdev_buffer_open(struct iio_dev *indio_dev)
+int iio_chrdev_buffer_open(struct iio_dev *indio_dev)
 {
 	struct iio_buffer *rb = indio_dev->buffer;
-	if (rb && rb->access->mark_in_use)
+	if (!rb)
+		return -EINVAL;
+	if (rb->access->mark_in_use)
 		rb->access->mark_in_use(rb);
+	return 0;
 }
 
 void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
@@ -77,7 +80,6 @@ void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
 	clear_bit(IIO_BUSY_BIT_POS, &rb->flags);
 	if (rb->access->unmark_in_use)
 		rb->access->unmark_in_use(rb);
-
 }
 
 void iio_buffer_init(struct iio_buffer *buffer, struct iio_dev *dev_info)
