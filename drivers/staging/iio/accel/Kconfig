@@ -1,7 +1,7 @@
 #
 # Accelerometer drivers
 #
-comment "Accelerometers"
+menu "Accelerometers"
 
 config ADIS16201
 	tristate "Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer"
@@ -100,3 +100,5 @@ config SCA3000
 	help
 	  Say yes here to build support for the VTI SCA3000 series of SPI
 	  accelerometers. These devices use a hardware ring buffer.
+
+endmenu

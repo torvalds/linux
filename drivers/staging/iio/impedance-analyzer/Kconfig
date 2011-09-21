@@ -1,7 +1,7 @@
 #
 # Impedance Converter, Network Analyzer drivers
 #
-comment "Network Analyzer, Impedance Converters"
+menu "Network Analyzer, Impedance Converters"
 
 config AD5933
 	tristate "Analog Devices AD5933, AD5934 driver"
@@ -14,3 +14,5 @@ config AD5933
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5933.
+
+endmenu

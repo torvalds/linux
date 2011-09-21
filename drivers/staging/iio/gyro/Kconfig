@@ -1,7 +1,7 @@
 #
 # IIO Digital Gyroscope Sensor drivers configuration
 #
-comment "Digital gyroscope sensors"
+menu "Digital gyroscope sensors"
 
 config ADIS16060
 	tristate "Analog Devices ADIS16060 Yaw Rate Gyroscope with SPI driver"
@@ -45,3 +45,5 @@ config ADXRS450
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called adxrs450.
+
+endmenu

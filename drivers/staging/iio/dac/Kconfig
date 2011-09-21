@@ -1,7 +1,7 @@
 #
 # DAC drivers
 #
-comment "Digital to analog convertors"
+menu "Digital to analog convertors"
 
 config AD5624R_SPI
 	tristate "Analog Devices AD5624/44/64R DAC spi driver"
@@ -62,3 +62,5 @@ config MAX517
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max517.
+
+endmenu

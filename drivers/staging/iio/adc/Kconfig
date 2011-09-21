@@ -1,7 +1,7 @@
 #
 # ADC drivers
 #
-comment "Analog to digital convertors"
+menu "Analog to digital convertors"
 
 config AD7150
 	tristate "Analog Devices ad7150/1/6 capacitive sensor driver"
@@ -229,3 +229,5 @@ config MAX1363_RING_BUFFER
 	help
 	  Say yes here to include ring buffer support in the MAX1363
 	  ADC driver.
+
+endmenu

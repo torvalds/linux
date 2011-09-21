@@ -1,7 +1,7 @@
 #
 # IIO meter drivers configuration
 #
-comment "Active energy metering IC"
+menu "Active energy metering IC"
 
 config ADE7753
 	tristate "Analog Devices ADE7753/6 Single-Phase Multifunction Metering IC Driver"
@@ -59,3 +59,5 @@ config ADE7854_SPI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ade7854-spi.
+
+endmenu
