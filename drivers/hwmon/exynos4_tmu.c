@@ -394,7 +394,7 @@ static int __devinit exynos4_tmu_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(data->irq, exynos4_tmu_irq,
-		IRQF_DISABLED | IRQF_TRIGGER_RISING,
+		IRQF_TRIGGER_RISING,
 		"exynos4-tmu", data);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
