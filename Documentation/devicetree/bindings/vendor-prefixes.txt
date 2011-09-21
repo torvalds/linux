@@ -7,6 +7,7 @@ adi	Analog Devices, Inc.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
+atmel	Atmel Corporation
 chrp	Common Hardware Reference Platform
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 denx	Denx Software Engineering
@@ -28,6 +29,7 @@ nintendo	Nintendo
 nvidia	NVIDIA
 nxp	NXP Semiconductors
 powervr	Imagination Technologies
+qcom	Qualcomm, Inc.
 ramtron	Ramtron International
 samsung	Samsung Semiconductor
 schindler	Schindler
