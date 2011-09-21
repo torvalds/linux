@@ -104,6 +104,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm1250_ev1 = {
 	.num_dapm_routes = ARRAY_SIZE(wm1250_ev1_dapm_routes),
 
 	.set_bias_level = wm1250_ev1_set_bias_level,
+	.idle_bias_off = true,
 };
 
 static int __devinit wm1250_ev1_pdata(struct i2c_client *i2c)
