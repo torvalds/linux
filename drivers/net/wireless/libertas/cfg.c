@@ -695,7 +695,7 @@ static void lbs_scan_worker(struct work_struct *work)
 	tlv = scan_cmd->tlvbuffer;
 
 	/* add SSID TLV */
-	if (priv->scan_req->n_ssids)
+	if (priv->scan_req->n_ssids && priv->scan_req->ssids[0].ssid_len > 0)
 		tlv += lbs_add_ssid_tlv(tlv,
 					priv->scan_req->ssids[0].ssid,
 					priv->scan_req->ssids[0].ssid_len);
@@ -736,7 +736,6 @@ static void lbs_scan_worker(struct work_struct *work)
 			cfg80211_scan_done(priv->scan_req, false);
 
 		priv->scan_req = NULL;
-		priv->last_scan = jiffies;
 	}
 
 	/* Restart network */
@@ -1302,24 +1301,26 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	if (!sme->bssid) {
-		/* Run a scan if one isn't in-progress already and if the last
-		 * scan was done more than 2 seconds ago.
+		struct cfg80211_scan_request *creq;
+
+		/*
+		 * Scan for the requested network after waiting for existing
+		 * scans to finish.
 		 */
-		if (priv->scan_req == NULL &&
-		    time_after(jiffies, priv->last_scan + (2 * HZ))) {
-			struct cfg80211_scan_request *creq;
+		lbs_deb_assoc("assoc: waiting for existing scans\n");
+		wait_event_interruptible_timeout(priv->scan_q,
+						 (priv->scan_req == NULL),
+						 (15 * HZ));
 
-			creq = _new_connect_scan_req(wiphy, sme);
-			if (!creq) {
-				ret = -EINVAL;
-				goto done;
-			}
-
-			lbs_deb_assoc("assoc: scanning for compatible AP\n");
-			_internal_start_scan(priv, true, creq);
+		creq = _new_connect_scan_req(wiphy, sme);
+		if (!creq) {
+			ret = -EINVAL;
+			goto done;
 		}
 
-		/* Wait for any in-progress scan to complete */
+		lbs_deb_assoc("assoc: scanning for compatible AP\n");
+		_internal_start_scan(priv, true, creq);
+
 		lbs_deb_assoc("assoc: waiting for scan to complete\n");
 		wait_event_interruptible_timeout(priv->scan_q,
 						 (priv->scan_req == NULL),
