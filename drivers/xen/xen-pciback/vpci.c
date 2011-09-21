@@ -12,7 +12,6 @@
 #include "pciback.h"
 
 #define PCI_SLOT_MAX 32
-#define DRV_NAME	"xen-pciback"
 
 struct vpci_dev_data {
 	/* Access to dev_list must be protected by lock */
@@ -150,9 +149,9 @@ static void __xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
 	spin_lock_irqsave(&vpci_dev->lock, flags);
 
 	for (slot = 0; slot < PCI_SLOT_MAX; slot++) {
-		struct pci_dev_entry *e, *tmp;
-		list_for_each_entry_safe(e, tmp, &vpci_dev->dev_list[slot],
-					 list) {
+		struct pci_dev_entry *e;
+
+		list_for_each_entry(e, &vpci_dev->dev_list[slot], list) {
 			if (e->dev == dev) {
 				list_del(&e->list);
 				found_dev = e->dev;
@@ -247,7 +246,7 @@ static int __xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
 	return found;
 }
 
-struct xen_pcibk_backend xen_pcibk_vpci_backend = {
+const struct xen_pcibk_backend xen_pcibk_vpci_backend = {
 	.name		= "vpci",
 	.init		= __xen_pcibk_init_devices,
 	.free		= __xen_pcibk_release_devices,

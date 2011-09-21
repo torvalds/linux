@@ -15,7 +15,6 @@ struct pci_bar_info {
 	int which;
 };
 
-#define DRV_NAME	"xen-pciback"
 #define is_enable_cmd(value) ((value)&(PCI_COMMAND_MEMORY|PCI_COMMAND_IO))
 #define is_master_cmd(value) ((value)&PCI_COMMAND_MASTER)
 
@@ -25,7 +24,7 @@ static int command_read(struct pci_dev *dev, int offset, u16 *value, void *data)
 	int ret;
 
 	ret = xen_pcibk_read_config_word(dev, offset, value, data);
-	if (!atomic_read(&dev->enable_cnt))
+	if (!pci_is_enabled(dev))
 		return ret;
 
 	for (i = 0; i < PCI_ROM_RESOURCE; i++) {

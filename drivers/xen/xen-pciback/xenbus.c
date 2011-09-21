@@ -13,7 +13,6 @@
 #include <asm/xen/pci.h>
 #include "pciback.h"
 
-#define	DRV_NAME	"xen-pciback"
 #define INVALID_EVTCHN_IRQ  (-1)
 struct workqueue_struct *xen_pcibk_wq;
 
@@ -176,7 +175,7 @@ static int xen_pcibk_attach(struct xen_pcibk_device *pdev)
 	if (magic == NULL || strcmp(magic, XEN_PCI_MAGIC) != 0) {
 		xenbus_dev_fatal(pdev->xdev, -EFAULT,
 				 "version mismatch (%s/%s) with pcifront - "
-				 "halting xen_pcibk",
+				 "halting " DRV_NAME,
 				 magic, XEN_PCI_MAGIC);
 		goto out;
 	}
@@ -724,7 +723,7 @@ static struct xenbus_driver xenbus_xen_pcibk_driver = {
 	.otherend_changed	= xen_pcibk_frontend_changed,
 };
 
-struct xen_pcibk_backend *xen_pcibk_backend;
+const struct xen_pcibk_backend *__read_mostly xen_pcibk_backend;
 
 int __init xen_pcibk_xenbus_register(void)
 {

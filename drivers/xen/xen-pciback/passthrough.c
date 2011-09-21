@@ -176,7 +176,7 @@ static int __xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
 	return 1;
 }
 
-struct xen_pcibk_backend xen_pcibk_passthrough_backend = {
+const struct xen_pcibk_backend xen_pcibk_passthrough_backend = {
 	.name           = "passthrough",
 	.init           = __xen_pcibk_init_devices,
 	.free		= __xen_pcibk_release_devices,
