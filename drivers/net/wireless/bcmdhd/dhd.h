@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h,v 1.60.4.17 2011-01-09 08:11:56 Exp $
+ * $Id: dhd.h 285209 2011-09-21 01:21:24Z $
  */
 
 /****************
@@ -80,6 +80,9 @@ enum dhd_bus_state {
 #define WFD_MASK			0x0004
 #define SOFTAP_FW_MASK			0x0008
 
+/* max sequential rxcntl timeouts to set HANG event */
+#define MAX_CNTL_TIMEOUT  2
+
 enum dhd_bus_wake_state {
 	WAKE_LOCK_OFF,
 	WAKE_LOCK_PRIV,
@@ -96,6 +99,7 @@ enum dhd_bus_wake_state {
 	WAKE_LOCK_SOFTAP_THREAD,
 	WAKE_LOCK_MAX
 };
+
 enum dhd_prealloc_index {
 	DHD_PREALLOC_PROT = 0,
 	DHD_PREALLOC_RXBUF,
@@ -121,6 +125,7 @@ void dhd_os_prefree(void *osh, void *addr, uint size);
 #ifndef DHD_SDALIGN
 #define DHD_SDALIGN	32
 #endif
+
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
@@ -203,6 +208,8 @@ typedef struct dhd_pub {
 #endif
 	bool	dongle_isolation;
 	int   hang_was_sent;
+	int   rxcnt_timeout;		/* counter rxcnt timeout to send HANG */
+	int   txcnt_timeout;		/* counter txcnt timeout to send HANG */
 #ifdef WLMEDIA_HTSF
 	uint8 htsfdlystat_sz; /* Size of delay stats, max 255B */
 #endif
@@ -296,6 +303,7 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #define DHD_OS_WAKE_UNLOCK(pub) 		dhd_os_wake_unlock(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_timeout_enable(pub, val)
+
 #define DHD_PACKET_TIMEOUT	1
 #define DHD_EVENT_TIMEOUT	2
 
@@ -468,6 +476,7 @@ extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int  dhd_bus_start(dhd_pub_t *dhdp);
 extern int dhd_bus_membytes(dhd_pub_t *dhdp, bool set, uint32 address, uint8 *data, uint size);
 extern void dhd_print_buf(void *pbuf, int len, int bytes_per_line);
+
 #if defined(KEEP_ALIVE)
 extern int dhd_keep_alive_onoff(dhd_pub_t *dhd);
 #endif /* KEEP_ALIVE */
@@ -707,4 +716,5 @@ void dhd_aoe_arp_clr(dhd_pub_t *dhd);
 int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen);
 void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr);
 #endif /* ARP_OFFLOAD_SUPPORT */
+
 #endif /* _dhd_h_ */

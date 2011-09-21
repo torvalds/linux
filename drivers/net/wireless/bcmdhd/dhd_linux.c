@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c,v 1.131.2.55 2011-02-09 05:31:56 Exp $
+ * $Id: dhd_linux.c 285209 2011-09-21 01:21:24Z $
  */
 
 #include <typedefs.h>
@@ -1986,6 +1986,20 @@ dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 }
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 4, 2) */
 
+static bool dhd_check_hang(struct net_device *net, dhd_pub_t *dhdp, int error)
+{
+	dhd_info_t *dhd = (dhd_info_t*)dhdp->info;
+
+	if ((error == -ETIMEDOUT) || ((dhd->pub.busstate == DHD_BUS_DOWN) &&
+		(!dhd->pub.dongle_reset))) {
+		DHD_ERROR(("%s: Event HANG send up due to  re=%d te=%d e=%d s=%d\n", __FUNCTION__,
+			dhd->pub.rxcnt_timeout, dhd->pub.txcnt_timeout, error, dhd->pub.busstate));
+		net_os_send_hang_message(net);
+		return TRUE;
+	}
+	return FALSE;
+}
+
 static int
 dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 {
@@ -2036,6 +2050,7 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	if (cmd == SIOCDEVPRIVATE+1) {
 		ret = wl_android_priv_cmd(net, ifr, cmd);
+		dhd_check_hang(net, &dhd->pub, ret);
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
 		return ret;
 	}
@@ -2173,11 +2188,7 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	bcmerror = dhd_wl_ioctl(&dhd->pub, ifidx, (wl_ioctl_t *)&ioc, buf, buflen);
 
 done:
-	if ((bcmerror == -ETIMEDOUT) || ((dhd->pub.busstate == DHD_BUS_DOWN) &&
-		(!dhd->pub.dongle_reset))) {
-		DHD_ERROR(("%s: Event HANG send up\n", __FUNCTION__));
-		net_os_send_hang_message(net);
-	}
+	dhd_check_hang(net, &dhd->pub, bcmerror);
 
 	if (!bcmerror && buf && ioc.buf) {
 		if (copy_to_user(ioc.buf, buf, buflen))
@@ -2270,6 +2281,8 @@ dhd_stop(struct net_device *net)
 		wl_android_wifi_off(net);
 #endif
 	dhd->pub.hang_was_sent = 0;
+	dhd->pub.rxcnt_timeout = 0;
+	dhd->pub.txcnt_timeout = 0;
 	OLD_MOD_DEC_USE_COUNT;
 	return 0;
 }
@@ -4504,6 +4517,7 @@ int dhd_ioctl_entry_local(struct net_device *net, wl_ioctl_t *ioc, int cmd)
 
 	DHD_OS_WAKE_LOCK(&dhd->pub);
 	ret = dhd_wl_ioctl(&dhd->pub, ifidx, ioc, ioc->buf, ioc->len);
+	dhd_check_hang(net, &dhd->pub, ret);
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 
 	return ret;

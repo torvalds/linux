@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c,v 1.274.2.40 2011-02-09 22:42:44 Exp $
+ * $Id: dhd_sdio.c 285209 2011-09-21 01:21:24Z $
  */
 
 #include <typedefs.h>
@@ -422,6 +422,11 @@ do { \
 	} \
 } while (0)
 
+#define BUS_WAKE(bus) \
+	do { \
+		if ((bus)->sleeping) \
+			dhdsdio_bussleep((bus), FALSE); \
+	} while (0);
 
 /*
  * pktavail interrupts from dongle to host can be managed in 3 different ways
@@ -920,13 +925,6 @@ dhd_enable_oob_intr(struct dhd_bus *bus, bool enable)
 }
 #endif /* defined(OOB_INTR_ONLY) */
 
-#define BUS_WAKE(bus) \
-	do { \
-		if ((bus)->sleeping) \
-			dhdsdio_bussleep((bus), FALSE); \
-	} while (0);
-
-
 /* Writes a HW/SW header into the packet and sends it. */
 /* Assumes: (a) header space already there, (b) caller holds lock */
 static int
@@ -1375,13 +1373,17 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 			DHD_INFO(("%s: ctrl_frame_stat == FALSE\n", __FUNCTION__));
 			ret = 0;
 		} else {
+			bus->dhd->txcnt_timeout++;
 			if (!bus->dhd->hang_was_sent)
-				DHD_ERROR(("%s: ctrl_frame_stat == TRUE\n", __FUNCTION__));
+				DHD_ERROR(("%s: ctrl_frame_stat == TRUE txcnt_timeout=%d\n",
+					__FUNCTION__, bus->dhd->txcnt_timeout));
 			ret = -1;
 			bus->ctrl_frame_stat = FALSE;
 			goto done;
 		}
 	}
+
+	bus->dhd->txcnt_timeout = 0;
 
 	if (ret == -1) {
 #ifdef DHD_DEBUG
@@ -1440,6 +1442,9 @@ done:
 	else
 		bus->dhd->tx_ctlpkts++;
 
+	if (bus->dhd->txcnt_timeout >= MAX_CNTL_TIMEOUT)
+		return -ETIMEDOUT;
+
 	return ret ? -EIO : 0;
 }
 
@@ -1485,13 +1490,22 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 		dhd_os_sdunlock(bus->dhd);
 #endif /* DHD_DEBUG */
 	}
+	if (timeleft == 0) {
+		bus->dhd->rxcnt_timeout++;
+		DHD_ERROR(("%s: rxcnt_timeout=%d\n", __FUNCTION__, bus->dhd->rxcnt_timeout));
+	}
+	else
+		bus->dhd->rxcnt_timeout = 0;
 
 	if (rxlen)
 		bus->dhd->rx_ctlpkts++;
 	else
 		bus->dhd->rx_ctlerrs++;
 
-	return rxlen ? (int)rxlen : -ETIMEDOUT;
+	if (bus->dhd->rxcnt_timeout >= MAX_CNTL_TIMEOUT)
+		return -ETIMEDOUT;
+
+	return rxlen ? (int)rxlen : -EIO;
 }
 
 /* IOVar table */

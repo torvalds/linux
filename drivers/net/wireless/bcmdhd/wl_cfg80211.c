@@ -1402,8 +1402,10 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 			err = -ENOMEM;
 			goto exit;
 		}
-		wldev_iovar_setbuf(ndev, "escan", params, params_size,
+		err = wldev_iovar_setbuf(ndev, "escan", params, params_size,
 			wl->escan_ioctl_buf, WLC_IOCTL_MEDLEN);
+		if (unlikely(err))
+			WL_ERR((" Escan set error (%d)\n", err));
 		kfree(params);
 	}
 	else if (p2p_on(wl) && p2p_scan(wl)) {
@@ -2171,7 +2173,8 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (IS_P2P_SSID(sme->ssid) && (dev != wl_to_prmry_ndev(wl))) {
 		/* we only allow to connect using virtual interface in case of P2P */
 		if (p2p_on(wl) && is_wps_conn(sme)) {
-			WL_DBG(("p2p index : %d\n", wl_cfgp2p_find_idx(wl, dev)));
+			WL_DBG(("ASSOC1 p2p index : %d sme->ie_len %d\n",
+				wl_cfgp2p_find_idx(wl, dev), sme->ie_len));
 			/* Have to apply WPS IE + P2P IE in assoc req frame */
 			wl_cfgp2p_set_management_ie(wl, dev,
 				wl_cfgp2p_find_idx(wl, dev), VNDR_IE_PRBREQ_FLAG,
@@ -2187,6 +2190,8 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			 * the newly received IEs from Supplicant. This will remove the WPS IE from
 			 * the Assoc Req.
 			 */
+			WL_DBG(("ASSOC2 p2p index : %d sme->ie_len %d\n",
+				wl_cfgp2p_find_idx(wl, dev), sme->ie_len));
 			wl_cfgp2p_set_management_ie(wl, dev, wl_cfgp2p_find_idx(wl, dev),
 				VNDR_IE_ASSOCREQ_FLAG, sme->ie, sme->ie_len);
 		}
@@ -2902,11 +2907,8 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 	wl_clr_drv_status(wl, SCANNING);
 	wl_clr_drv_status(wl, SCAN_ABORTING);
 	dhd_os_spin_unlock((dhd_pub_t *)(wl->pub), flags);
-
 	if (wl_get_drv_status(wl, CONNECTING)) {
 		wl_bss_connect_done(wl, ndev, NULL, NULL, false);
-		wl_delay(500);
-		return -EAGAIN;
 	}
 #endif
 	return 0;
@@ -3286,6 +3288,9 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	if (wl->p2p->vif_created) {
 		wifi_p2p_pub_act_frame_t *act_frm =
 			(wifi_p2p_pub_act_frame_t *) (action_frame->data);
+		WL_DBG(("action_frame->len: %d chan %d category %d subtype %d\n",
+			action_frame->len, af_params->channel,
+			act_frm->category, act_frm->subtype));
 		/*
 		 * To make sure to send successfully action frame, we have to turn off mpc
 		 */
@@ -3687,6 +3692,8 @@ wl_cfg80211_add_set_beacon(struct wiphy *wiphy, struct net_device *dev,
 		} else {
 			WL_ERR(("No P2PIE in beacon \n"));
 		}
+		/* add WLC_E_PROBREQ_MSG event to respose probe_request from STA */
+		wl_dongle_add_remove_eventmsg(dev, WLC_E_PROBREQ_MSG, pbc);
 		wl_cfgp2p_set_management_ie(wl, dev, bssidx, VNDR_IE_BEACON_FLAG,
 			beacon_ie, wpsie_len + p2pie_len);
 
@@ -4129,15 +4136,7 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	beacon_proberesp->beacon_int = cpu_to_le16(bi->beacon_period);
 	beacon_proberesp->capab_info = cpu_to_le16(bi->capability);
 	wl_rst_ie(wl);
-	/*
-	* wl_add_ie is not necessary because it can only add duplicated
-	* SSID, rate information to frame_buf
-	*/
-	/*
-	* wl_add_ie(wl, WLAN_EID_SSID, bi->SSID_len, bi->SSID);
-	* wl_add_ie(wl, WLAN_EID_SUPP_RATES, bi->rateset.count,
-	* bi->rateset.rates);
-	*/
+
 	wl_mrg_ie(wl, ((u8 *) bi) + bi->ie_offset, bi->ie_length);
 	wl_cp_ie(wl, beacon_proberesp->variable, WL_BSS_INFO_MAX -
 		offsetof(struct wl_cfg80211_bss_info, frame_buf));
@@ -4150,10 +4149,11 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 #endif
 	channel = ieee80211_get_channel(wiphy, freq);
 
-	WL_DBG(("SSID : \"%s\", rssi %d, channel %d, capability : 0x04%x, bssid %pM\n",
-		bi->SSID,
-		notif_bss_info->rssi, notif_bss_info->channel,
-		mgmt->u.beacon.capab_info, &bi->BSSID));
+	WL_DBG(("SSID : \"%s\", rssi %d, channel %d, capability : 0x04%x, bssid %pM"
+			"mgmt_type %d frame_len %d\n", bi->SSID,
+				notif_bss_info->rssi, notif_bss_info->channel,
+				mgmt->u.beacon.capab_info, &bi->BSSID, mgmt_type,
+				notif_bss_info->frame_len));
 
 	signal = notif_bss_info->rssi * 100;
 
@@ -5832,7 +5832,7 @@ static s32 wl_dongle_add_remove_eventmsg(struct net_device *ndev, u16 event, boo
 	s32 err = 0;
 
 	/* Setup event_msgs */
-	bcm_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
+	bcm_mkiovar("event_msgs", NULL, 0, iovbuf,
 		sizeof(iovbuf));
 	err = wldev_ioctl(ndev, WLC_GET_VAR, iovbuf, sizeof(iovbuf), false);
 	if (unlikely(err)) {
@@ -6619,7 +6619,64 @@ s32 wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pd
 
 	return 0;
 }
+s32 wl_cfg80211_set_p2p_noa(struct net_device *net, char* buf, int len)
+{
+	struct wl_priv *wl;
+	wl = wlcfg_drv_priv;
 
+	return wl_cfgp2p_set_p2p_noa(wl, net, buf, len);
+}
+
+s32 wl_cfg80211_get_p2p_noa(struct net_device *net, char* buf, int len)
+{
+	struct wl_priv *wl;
+	wl = wlcfg_drv_priv;
+
+	return wl_cfgp2p_get_p2p_noa(wl, net, buf, len);
+}
+
+s32 wl_cfg80211_set_p2p_ps(struct net_device *net, char* buf, int len)
+{
+	struct wl_priv *wl;
+	wl = wlcfg_drv_priv;
+
+	return wl_cfgp2p_set_p2p_ps(wl, net, buf, len);
+}
+
+s32 wl_cfg80211_set_wps_p2p_ie(struct net_device *net, char *buf, int len,
+	enum wl_management_type type)
+{
+	struct wl_priv *wl;
+	struct net_device *ndev = NULL;
+	s32 ret = 0;
+	s32 bssidx = 0;
+	s32 pktflag = 0;
+	wl = wlcfg_drv_priv;
+	if (wl->p2p && wl->p2p->vif_created) {
+		ndev = wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION);
+		bssidx = wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_CONNECTION);
+	} else if (wl_get_drv_status(wl, AP_CREATING) ||
+		wl_get_drv_status(wl, AP_CREATED)) {
+		ndev = net;
+		bssidx = 0;
+	}
+	if (ndev != NULL) {
+		switch (type) {
+			case WL_BEACON:
+				pktflag = VNDR_IE_BEACON_FLAG;
+				break;
+			case WL_PROBE_RESP:
+				pktflag = VNDR_IE_PRBRSP_FLAG;
+				break;
+			case WL_ASSOC_RESP:
+				pktflag = VNDR_IE_ASSOCRSP_FLAG;
+				break;
+		}
+		ret = wl_cfgp2p_set_management_ie(wl, ndev, bssidx, pktflag, buf, len);
+	}
+
+	return ret;
+}
 static __used void wl_dongle_poweron(struct wl_priv *wl)
 {
 
