@@ -868,10 +868,10 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 	ret = mwifiex_rate_ioctl_cfg(priv, rate);
 
 	if (!ret) {
-		if (rate && rate->is_rate_auto)
+		if (rate->is_rate_auto)
 			rate->rate = mwifiex_index_to_data_rate(priv->tx_rate,
 							priv->tx_htinfo);
-		else if (rate)
+		else
 			rate->rate = priv->data_rate;
 	} else {
 		ret = -1;
