@@ -889,8 +889,7 @@ static struct v4l2_subdev_ops ov5642_subdev_ops = {
 	.video	= &ov5642_subdev_video_ops,
 };
 
-static int ov5642_video_probe(struct soc_camera_device *icd,
-			      struct i2c_client *client)
+static int ov5642_video_probe(struct i2c_client *client)
 {
 	int ret;
 	u8 id_high, id_low;
@@ -921,16 +920,9 @@ static int ov5642_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct ov5642 *priv;
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "OV5642: missing soc-camera data!\n");
-		return -EINVAL;
-	}
-
-	icl = to_soc_camera_link(icd);
 	if (!icl) {
 		dev_err(&client->dev, "OV5642: missing platform data!\n");
 		return -EINVAL;
@@ -944,7 +936,7 @@ static int ov5642_probe(struct i2c_client *client,
 
 	priv->fmt	= &ov5642_colour_fmts[0];
 
-	ret = ov5642_video_probe(icd, client);
+	ret = ov5642_video_probe(client);
 	if (ret < 0)
 		goto error;
 
@@ -958,8 +950,7 @@ error:
 static int ov5642_remove(struct i2c_client *client)
 {
 	struct ov5642 *priv = to_ov5642(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	if (icl->free_bus)
 		icl->free_bus(icl);

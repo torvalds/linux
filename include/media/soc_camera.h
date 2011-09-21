@@ -251,18 +251,35 @@ unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
 
 /* This is only temporary here - until v4l2-subdev begins to link to video_device */
 #include <linux/i2c.h>
-static inline struct video_device *soc_camera_i2c_to_vdev(struct i2c_client *client)
+static inline struct video_device *soc_camera_i2c_to_vdev(const struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
-	return icd->vdev;
+	return icd ? icd->vdev : NULL;
 }
 
-static inline struct soc_camera_device *soc_camera_from_vb2q(struct vb2_queue *vq)
+static inline struct soc_camera_link *soc_camera_i2c_to_link(const struct i2c_client *client)
+{
+	struct soc_camera_device *icd = client->dev.platform_data;
+	return icd ? to_soc_camera_link(icd) : NULL;
+}
+
+static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(const struct video_device *vdev)
+{
+	struct soc_camera_device *icd = dev_get_drvdata(vdev->parent);
+	return soc_camera_to_subdev(icd);
+}
+
+static inline struct soc_camera_device *soc_camera_from_i2c(const struct i2c_client *client)
+{
+	return client->dev.platform_data;
+}
+
+static inline struct soc_camera_device *soc_camera_from_vb2q(const struct vb2_queue *vq)
 {
 	return container_of(vq, struct soc_camera_device, vb2_vidq);
 }
 
-static inline struct soc_camera_device *soc_camera_from_vbq(struct videobuf_queue *vq)
+static inline struct soc_camera_device *soc_camera_from_vbq(const struct videobuf_queue *vq)
 {
 	return container_of(vq, struct soc_camera_device, vb_vidq);
 }

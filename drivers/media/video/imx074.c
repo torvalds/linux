@@ -298,8 +298,7 @@ static struct v4l2_subdev_ops imx074_subdev_ops = {
 	.video	= &imx074_subdev_video_ops,
 };
 
-static int imx074_video_probe(struct soc_camera_device *icd,
-			      struct i2c_client *client)
+static int imx074_video_probe(struct i2c_client *client)
 {
 	int ret;
 	u16 id;
@@ -409,17 +408,10 @@ static int imx074_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct imx074 *priv;
-	struct soc_camera_device *icd = client->dev.platform_data;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link *icl;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "IMX074: missing soc-camera data!\n");
-		return -EINVAL;
-	}
-
-	icl = to_soc_camera_link(icd);
 	if (!icl) {
 		dev_err(&client->dev, "IMX074: missing platform data!\n");
 		return -EINVAL;
@@ -439,7 +431,7 @@ static int imx074_probe(struct i2c_client *client,
 
 	priv->fmt	= &imx074_colour_fmts[0];
 
-	ret = imx074_video_probe(icd, client);
+	ret = imx074_video_probe(client);
 	if (ret < 0) {
 		kfree(priv);
 		return ret;
@@ -451,8 +443,7 @@ static int imx074_probe(struct i2c_client *client,
 static int imx074_remove(struct i2c_client *client)
 {
 	struct imx074 *priv = to_imx074(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	if (icl->free_bus)
 		icl->free_bus(icl);

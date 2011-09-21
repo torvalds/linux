@@ -820,8 +820,7 @@ static int ov6650_prog_dflt(struct i2c_client *client)
 	return ret;
 }
 
-static int ov6650_video_probe(struct soc_camera_device *icd,
-				struct i2c_client *client)
+static int ov6650_video_probe(struct i2c_client *client)
 {
 	u8		pidh, pidl, midh, midl;
 	int		ret = 0;
@@ -875,8 +874,7 @@ static int ov6650_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags = V4L2_MBUS_MASTER |
 		V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING |
@@ -894,8 +892,7 @@ static int ov6650_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	unsigned long flags = soc_camera_apply_board_flags(icl, cfg);
 	int ret;
 
@@ -948,16 +945,9 @@ static int ov6650_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct ov6650 *priv;
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "Missing soc-camera data!\n");
-		return -EINVAL;
-	}
-
-	icl = to_soc_camera_link(icd);
 	if (!icl) {
 		dev_err(&client->dev, "Missing platform_data for driver\n");
 		return -EINVAL;
@@ -1020,7 +1010,7 @@ static int ov6650_probe(struct i2c_client *client,
 	priv->code	  = V4L2_MBUS_FMT_YUYV8_2X8;
 	priv->colorspace  = V4L2_COLORSPACE_JPEG;
 
-	ret = ov6650_video_probe(icd, client);
+	ret = ov6650_video_probe(client);
 	if (!ret)
 		ret = v4l2_ctrl_handler_setup(&priv->hdl);
 

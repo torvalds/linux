@@ -89,7 +89,6 @@ struct mt9t112_priv {
 	struct v4l2_subdev		 subdev;
 	struct mt9t112_camera_info	*info;
 	struct i2c_client		*client;
-	struct soc_camera_device	 icd;
 	struct v4l2_rect		 frame;
 	const struct mt9t112_format	*format;
 	int				 model;
@@ -306,38 +305,38 @@ static int mt9t112_clock_info(const struct i2c_client *client, u32 ext)
 	n = (n >> 8) & 0x003f;
 
 	enable = ((6000 > ext) || (54000 < ext)) ? "X" : "";
-	dev_info(&client->dev, "EXTCLK          : %10u K %s\n", ext, enable);
+	dev_dbg(&client->dev, "EXTCLK          : %10u K %s\n", ext, enable);
 
 	vco = 2 * m * ext / (n+1);
 	enable = ((384000 > vco) || (768000 < vco)) ? "X" : "";
-	dev_info(&client->dev, "VCO             : %10u K %s\n", vco, enable);
+	dev_dbg(&client->dev, "VCO             : %10u K %s\n", vco, enable);
 
 	clk = vco / (p1+1) / (p2+1);
 	enable = (96000 < clk) ? "X" : "";
-	dev_info(&client->dev, "PIXCLK          : %10u K %s\n", clk, enable);
+	dev_dbg(&client->dev, "PIXCLK          : %10u K %s\n", clk, enable);
 
 	clk = vco / (p3+1);
 	enable = (768000 < clk) ? "X" : "";
-	dev_info(&client->dev, "MIPICLK         : %10u K %s\n", clk, enable);
+	dev_dbg(&client->dev, "MIPICLK         : %10u K %s\n", clk, enable);
 
 	clk = vco / (p6+1);
 	enable = (96000 < clk) ? "X" : "";
-	dev_info(&client->dev, "MCU CLK         : %10u K %s\n", clk, enable);
+	dev_dbg(&client->dev, "MCU CLK         : %10u K %s\n", clk, enable);
 
 	clk = vco / (p5+1);
 	enable = (54000 < clk) ? "X" : "";
-	dev_info(&client->dev, "SOC CLK         : %10u K %s\n", clk, enable);
+	dev_dbg(&client->dev, "SOC CLK         : %10u K %s\n", clk, enable);
 
 	clk = vco / (p4+1);
 	enable = (70000 < clk) ? "X" : "";
-	dev_info(&client->dev, "Sensor CLK      : %10u K %s\n", clk, enable);
+	dev_dbg(&client->dev, "Sensor CLK      : %10u K %s\n", clk, enable);
 
 	clk = vco / (p7+1);
-	dev_info(&client->dev, "External sensor : %10u K\n", clk);
+	dev_dbg(&client->dev, "External sensor : %10u K\n", clk);
 
 	clk = ext / (n+1);
 	enable = ((2000 > clk) || (24000 < clk)) ? "X" : "";
-	dev_info(&client->dev, "PFD             : %10u K %s\n", clk, enable);
+	dev_dbg(&client->dev, "PFD             : %10u K %s\n", clk, enable);
 
 	return 0;
 }
@@ -982,8 +981,7 @@ static int mt9t112_g_mbus_config(struct v4l2_subdev *sd,
 				 struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_VSYNC_ACTIVE_HIGH |
 		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_DATA_ACTIVE_HIGH |
@@ -998,8 +996,7 @@ static int mt9t112_s_mbus_config(struct v4l2_subdev *sd,
 				 const struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct mt9t112_priv *priv = to_mt9t112(client);
 
 	if (soc_camera_apply_board_flags(icl, cfg) & V4L2_MBUS_PCLK_SAMPLE_RISING)
@@ -1029,16 +1026,11 @@ static struct v4l2_subdev_ops mt9t112_subdev_ops = {
 	.video	= &mt9t112_subdev_video_ops,
 };
 
-static int mt9t112_camera_probe(struct soc_camera_device *icd,
-				struct i2c_client *client)
+static int mt9t112_camera_probe(struct i2c_client *client)
 {
 	struct mt9t112_priv *priv = to_mt9t112(client);
 	const char          *devname;
 	int                  chipid;
-
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
 
 	/*
 	 * check and show chip ID
@@ -1068,8 +1060,7 @@ static int mt9t112_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9t112_priv *priv;
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct v4l2_rect rect = {
 		.width = VGA_WIDTH,
 		.height = VGA_HEIGHT,
@@ -1078,14 +1069,10 @@ static int mt9t112_probe(struct i2c_client *client,
 	};
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "mt9t112: missing soc-camera data!\n");
+	if (!icl || !icl->priv) {
+		dev_err(&client->dev, "mt9t112: missing platform data!\n");
 		return -EINVAL;
 	}
-
-	icl = to_soc_camera_link(icd);
-	if (!icl || !icl->priv)
-		return -EINVAL;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1095,7 +1082,7 @@ static int mt9t112_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &mt9t112_subdev_ops);
 
-	ret = mt9t112_camera_probe(icd, client);
+	ret = mt9t112_camera_probe(client);
 	if (ret)
 		kfree(priv);
 

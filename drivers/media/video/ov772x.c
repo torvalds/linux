@@ -953,16 +953,11 @@ static int ov772x_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov772x_video_probe(struct soc_camera_device *icd,
-			      struct i2c_client *client)
+static int ov772x_video_probe(struct i2c_client *client)
 {
 	struct ov772x_priv *priv = to_ov772x(client);
 	u8                  pid, ver;
 	const char         *devname;
-
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
 
 	/*
 	 * check and show product ID and manufacturer ID
@@ -1021,8 +1016,7 @@ static int ov772x_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
 		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
@@ -1056,20 +1050,15 @@ static struct v4l2_subdev_ops ov772x_subdev_ops = {
 static int ov772x_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
-	struct ov772x_priv        *priv;
-	struct soc_camera_device  *icd = client->dev.platform_data;
-	struct i2c_adapter        *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link    *icl;
-	int                        ret;
+	struct ov772x_priv	*priv;
+	struct soc_camera_link	*icl = soc_camera_i2c_to_link(client);
+	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
+	int			ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "OV772X: missing soc-camera data!\n");
+	if (!icl || !icl->priv) {
+		dev_err(&client->dev, "OV772X: missing platform data!\n");
 		return -EINVAL;
 	}
-
-	icl = to_soc_camera_link(icd);
-	if (!icl || !icl->priv)
-		return -EINVAL;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&adapter->dev,
@@ -1100,7 +1089,7 @@ static int ov772x_probe(struct i2c_client *client,
 		return err;
 	}
 
-	ret = ov772x_video_probe(icd, client);
+	ret = ov772x_video_probe(client);
 	if (ret) {
 		v4l2_ctrl_handler_free(&priv->hdl);
 		kfree(priv);

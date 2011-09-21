@@ -332,7 +332,7 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 
 	/*
 	 * The caller provides a supported format, as verified per call to
-	 * icd->try_fmt(), datawidth is from our supported format list
+	 * .try_mbus_fmt(), datawidth is from our supported format list
 	 */
 	switch (mf->code) {
 	case V4L2_MBUS_FMT_Y8_1X8:
@@ -562,18 +562,13 @@ static int mt9v022_s_ctrl(struct v4l2_ctrl *ctrl)
  * Interface active, can use i2c. If it fails, it can indeed mean, that
  * this wasn't our capture interface, so, we wait for the right one
  */
-static int mt9v022_video_probe(struct soc_camera_device *icd,
-			       struct i2c_client *client)
+static int mt9v022_video_probe(struct i2c_client *client)
 {
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	s32 data;
 	int ret;
 	unsigned long flags;
-
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
 
 	/* Read out the chip version register */
 	data = reg_read(client, MT9V022_CHIP_VERSION);
@@ -648,16 +643,6 @@ ei2c:
 	return ret;
 }
 
-static void mt9v022_video_remove(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-
-	dev_dbg(icd->pdev, "Video removed: %p, %p\n",
-		icd->parent, icd->vdev);
-	if (icl->free_bus)
-		icl->free_bus(icl);
-}
-
 static int mt9v022_g_skip_top_lines(struct v4l2_subdev *sd, u32 *lines)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -698,8 +683,7 @@ static int mt9v022_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_SLAVE |
 		V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING |
@@ -730,8 +714,8 @@ static int mt9v022_s_mbus_config(struct v4l2_subdev *sd,
 	int ret;
 	u16 pixclk = 0;
 
-	dev_info(icd->pdev, "set %d: %s, %dbps\n", icd->current_fmt->code,
-		 icd->current_fmt->host_fmt->name, bps);
+	dev_dbg(icd->pdev, "set %d: %s, %dbps\n", icd->current_fmt->code,
+		icd->current_fmt->host_fmt->name, bps);
 
 	if (icl->set_bus_param) {
 		ret = icl->set_bus_param(icl, 1 << (bps - 1));
@@ -798,17 +782,10 @@ static int mt9v022_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9v022 *mt9v022;
-	struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link *icl;
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "MT9V022: missing soc-camera data!\n");
-		return -EINVAL;
-	}
-
-	icl = to_soc_camera_link(icd);
 	if (!icl) {
 		dev_err(&client->dev, "MT9V022 driver needs platform data\n");
 		return -EINVAL;
@@ -868,7 +845,7 @@ static int mt9v022_probe(struct i2c_client *client,
 	mt9v022->rect.width	= MT9V022_MAX_WIDTH;
 	mt9v022->rect.height	= MT9V022_MAX_HEIGHT;
 
-	ret = mt9v022_video_probe(icd, client);
+	ret = mt9v022_video_probe(client);
 	if (ret) {
 		v4l2_ctrl_handler_free(&mt9v022->hdl);
 		kfree(mt9v022);
@@ -880,10 +857,11 @@ static int mt9v022_probe(struct i2c_client *client,
 static int mt9v022_remove(struct i2c_client *client)
 {
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	v4l2_device_unregister_subdev(&mt9v022->subdev);
-	mt9v022_video_remove(icd);
+	if (icl->free_bus)
+		icl->free_bus(icl);
 	v4l2_ctrl_handler_free(&mt9v022->hdl);
 	kfree(mt9v022);
 

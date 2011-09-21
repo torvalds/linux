@@ -1235,8 +1235,7 @@ static int rj54n1_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags =
 		V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING |
@@ -1252,8 +1251,7 @@ static int rj54n1_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	/* Figures 2.5-1 to 2.5-3 - default falling pixclk edge */
 	if (soc_camera_apply_board_flags(icl, cfg) &
@@ -1285,16 +1283,11 @@ static struct v4l2_subdev_ops rj54n1_subdev_ops = {
  * Interface active, can use i2c. If it fails, it can indeed mean, that
  * this wasn't our capture interface, so, we wait for the right one
  */
-static int rj54n1_video_probe(struct soc_camera_device *icd,
-			      struct i2c_client *client,
+static int rj54n1_video_probe(struct i2c_client *client,
 			      struct rj54n1_pdata *priv)
 {
 	int data1, data2;
 	int ret;
-
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
 
 	/* Read out the chip version register */
 	data1 = reg_read(client, RJ54N1_DEV_CODE);
@@ -1323,18 +1316,11 @@ static int rj54n1_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct rj54n1 *rj54n1;
-	struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link *icl;
 	struct rj54n1_pdata *rj54n1_priv;
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "RJ54N1CB0C: missing soc-camera data!\n");
-		return -EINVAL;
-	}
-
-	icl = to_soc_camera_link(icd);
 	if (!icl || !icl->priv) {
 		dev_err(&client->dev, "RJ54N1CB0C: missing platform data!\n");
 		return -EINVAL;
@@ -1382,7 +1368,7 @@ static int rj54n1_probe(struct i2c_client *client,
 	rj54n1->tgclk_mhz	= (rj54n1_priv->mclk_freq / PLL_L * PLL_N) /
 		(clk_div.ratio_tg + 1) / (clk_div.ratio_t + 1);
 
-	ret = rj54n1_video_probe(icd, client, rj54n1_priv);
+	ret = rj54n1_video_probe(client, rj54n1_priv);
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&rj54n1->hdl);
 		kfree(rj54n1);
@@ -1394,8 +1380,7 @@ static int rj54n1_probe(struct i2c_client *client,
 static int rj54n1_remove(struct i2c_client *client)
 {
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	v4l2_device_unregister_subdev(&rj54n1->subdev);
 	if (icl->free_bus)

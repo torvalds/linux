@@ -764,10 +764,6 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 	struct tw9910_priv *priv = to_tw9910(client);
 	s32 id;
 
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
-
 	/*
 	 * tw9910 only use 8 or 16 bit bus width
 	 */
@@ -825,8 +821,7 @@ static int tw9910_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
 		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_LOW |
@@ -842,8 +837,7 @@ static int tw9910_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	u8 val = VSSL_VVALID | HSSL_DVALID;
 	unsigned long flags = soc_camera_apply_board_flags(icl, cfg);
 
@@ -887,22 +881,18 @@ static int tw9910_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 
 {
-	struct tw9910_priv             *priv;
-	struct tw9910_video_info       *info;
-	struct soc_camera_device       *icd = client->dev.platform_data;
-	struct i2c_adapter             *adapter =
+	struct tw9910_priv		*priv;
+	struct tw9910_video_info	*info;
+	struct soc_camera_device	*icd = client->dev.platform_data;
+	struct i2c_adapter		*adapter =
 		to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link         *icl;
-	int                             ret;
+	struct soc_camera_link		*icl = soc_camera_i2c_to_link(client);
+	int				ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "TW9910: missing soc-camera data!\n");
+	if (!icl || !icl->priv) {
+		dev_err(&client->dev, "TW9910: missing platform data!\n");
 		return -EINVAL;
 	}
-
-	icl = to_soc_camera_link(icd);
-	if (!icl || !icl->priv)
-		return -EINVAL;
 
 	info = icl->priv;
 
@@ -920,8 +910,6 @@ static int tw9910_probe(struct i2c_client *client,
 	priv->info   = info;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
-
-	icd->iface   = icl->bus_id;
 
 	ret = tw9910_video_probe(icd, client);
 	if (ret)

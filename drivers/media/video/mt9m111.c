@@ -784,18 +784,11 @@ static int mt9m111_init(struct mt9m111 *mt9m111)
  * Interface active, can use i2c. If it fails, it can indeed mean, that
  * this wasn't our capture interface, so, we wait for the right one
  */
-static int mt9m111_video_probe(struct soc_camera_device *icd,
-			       struct i2c_client *client)
+static int mt9m111_video_probe(struct i2c_client *client)
 {
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	s32 data;
 	int ret;
-
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
-
-	mt9m111->lastpage = -1;
 
 	data = reg_read(CHIP_VERSION);
 
@@ -883,8 +876,7 @@ static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
 		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH |
@@ -915,17 +907,10 @@ static int mt9m111_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9m111 *mt9m111;
-	struct soc_camera_device *icd = client->dev.platform_data;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link *icl;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "mt9m111: soc-camera data missing!\n");
-		return -EINVAL;
-	}
-
-	icl = to_soc_camera_link(icd);
 	if (!icl) {
 		dev_err(&client->dev, "mt9m111: driver needs platform data\n");
 		return -EINVAL;
@@ -968,8 +953,9 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111->rect.width	= MT9M111_MAX_WIDTH;
 	mt9m111->rect.height	= MT9M111_MAX_HEIGHT;
 	mt9m111->fmt		= &mt9m111_colour_fmts[0];
+	mt9m111->lastpage	= -1;
 
-	ret = mt9m111_video_probe(icd, client);
+	ret = mt9m111_video_probe(client);
 	if (ret) {
 		v4l2_ctrl_handler_free(&mt9m111->hdl);
 		kfree(mt9m111);

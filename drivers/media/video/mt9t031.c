@@ -265,7 +265,7 @@ static int mt9t031_set_params(struct i2c_client *client,
 
 	/*
 	 * The caller provides a supported format, as guaranteed by
-	 * icd->try_fmt_cap(), soc_camera_s_crop() and soc_camera_cropcap()
+	 * .try_mbus_fmt(), soc_camera_s_crop() and soc_camera_cropcap()
 	 */
 	if (ret >= 0)
 		ret = reg_write(client, MT9T031_COLUMN_START, rect->left);
@@ -573,8 +573,7 @@ static int mt9t031_runtime_suspend(struct device *dev)
 static int mt9t031_runtime_resume(struct device *dev)
 {
 	struct video_device *vdev = to_video_device(dev);
-	struct soc_camera_device *icd = dev_get_drvdata(vdev->parent);
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	struct v4l2_subdev *sd = soc_camera_vdev_to_subdev(vdev);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 
@@ -684,8 +683,7 @@ static int mt9t031_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
 		V4L2_MBUS_PCLK_SAMPLE_FALLING | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
@@ -700,8 +698,7 @@ static int mt9t031_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	if (soc_camera_apply_board_flags(icl, cfg) &
 	    V4L2_MBUS_PCLK_SAMPLE_FALLING)
@@ -737,16 +734,13 @@ static int mt9t031_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9t031 *mt9t031;
-	struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	int ret;
 
-	if (icd) {
-		struct soc_camera_link *icl = to_soc_camera_link(icd);
-		if (!icl) {
-			dev_err(&client->dev, "MT9T031 driver needs platform data\n");
-			return -EINVAL;
-		}
+	if (!icl) {
+		dev_err(&client->dev, "MT9T031 driver needs platform data\n");
+		return -EINVAL;
 	}
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA)) {

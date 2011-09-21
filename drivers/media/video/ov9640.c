@@ -578,18 +578,13 @@ static int ov9640_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int ov9640_video_probe(struct soc_camera_device *icd,
-				struct i2c_client *client)
+static int ov9640_video_probe(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 	u8		pid, ver, midh, midl;
 	const char	*devname;
 	int		ret = 0;
-
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
 
 	/*
 	 * check and show product ID and manufacturer ID
@@ -644,8 +639,7 @@ static int ov9640_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 
 	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
 		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
@@ -678,16 +672,9 @@ static int ov9640_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct ov9640_priv *priv;
-	struct soc_camera_device *icd	= client->dev.platform_data;
-	struct soc_camera_link *icl;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "Missing soc-camera data!\n");
-		return -EINVAL;
-	}
-
-	icl = to_soc_camera_link(icd);
 	if (!icl) {
 		dev_err(&client->dev, "Missing platform_data for driver\n");
 		return -EINVAL;
@@ -715,7 +702,7 @@ static int ov9640_probe(struct i2c_client *client,
 		return err;
 	}
 
-	ret = ov9640_video_probe(icd, client);
+	ret = ov9640_video_probe(client);
 
 	if (ret) {
 		v4l2_ctrl_handler_free(&priv->hdl);
