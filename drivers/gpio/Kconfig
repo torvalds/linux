@@ -103,6 +103,14 @@ config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
 
+config GPIO_MPC8XXX
+	bool "MPC512x/MPC8xxx GPIO support"
+	depends on PPC_MPC512x || PPC_MPC831x || PPC_MPC834x || PPC_MPC837x || \
+		   FSL_SOC_BOOKE || PPC_86xx
+	help
+	  Say Y here if you're going to use hardware that connects to the
+	  MPC512x/831x/834x/837x/8572/8610 GPIOs.
+
 config GPIO_MSM_V1
 	tristate "Qualcomm MSM GPIO v1"
 	depends on GPIOLIB && ARCH_MSM
