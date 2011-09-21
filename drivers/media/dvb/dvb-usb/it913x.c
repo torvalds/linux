@@ -306,6 +306,30 @@ static struct i2c_algorithm it913x_i2c_algo = {
 };
 
 /* Callbacks for DVB USB */
+#define IT913X_POLL 250
+static int it913x_rc_query(struct dvb_usb_device *d)
+{
+	u8 ibuf[4];
+	int ret;
+	u32 key;
+	/* Avoid conflict with frontends*/
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
+			return -EAGAIN;
+
+	ret = it913x_io(d->udev, READ_LONG, PRO_LINK, CMD_IR_GET,
+		0, 0, &ibuf[0], sizeof(ibuf));
+
+	if ((ibuf[2] + ibuf[3]) == 0xff) {
+		key = ibuf[2];
+		key += ibuf[0] << 8;
+		deb_info(1, "INT Key =%08x", key);
+		if (d->rc_dev != NULL)
+			rc_keydown(d->rc_dev, key, 0);
+	}
+	mutex_unlock(&d->i2c_mutex);
+
+	return ret;
+}
 static int it913x_identify_state(struct usb_device *udev,
 		struct dvb_usb_device_properties *props,
 		struct dvb_usb_device_description **desc,
@@ -575,6 +599,14 @@ static struct dvb_usb_device_properties it913x_properties = {
 		}
 	},
 	.identify_state   = it913x_identify_state,
+	.rc.core = {
+		.protocol	= RC_TYPE_NEC,
+		.module_name	= "it913x",
+		.rc_query	= it913x_rc_query,
+		.rc_interval	= IT913X_POLL,
+		.allowed_protos	= RC_TYPE_NEC,
+		.rc_codes	= RC_MAP_KWORLD_315U,
+	},
 	.i2c_algo         = &it913x_i2c_algo,
 	.num_device_descs = 1,
 	.devices = {
@@ -615,5 +647,5 @@ module_exit(it913x_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.05");
+MODULE_VERSION("1.06");
 MODULE_LICENSE("GPL");
