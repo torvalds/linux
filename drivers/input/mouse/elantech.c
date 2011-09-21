@@ -613,6 +613,18 @@ static int elantech_packet_check_v1(struct psmouse *psmouse)
 	       etd->parity[packet[3]] == p3;
 }
 
+static int elantech_debounce_check_v2(struct psmouse *psmouse)
+{
+        /*
+         * When we encounter packet that matches this exactly, it means the
+         * hardware is in debounce status. Just ignore the whole packet.
+         */
+        const u8 debounce_packet[] = { 0x84, 0xff, 0xff, 0x02, 0xff, 0xff };
+        unsigned char *packet = psmouse->packet;
+
+        return !memcmp(packet, debounce_packet, sizeof(debounce_packet));
+}
+
 static int elantech_packet_check_v2(struct psmouse *psmouse)
 {
 	struct elantech_data *etd = psmouse->private;
@@ -708,6 +720,10 @@ static psmouse_ret_t elantech_process_byte(struct psmouse *psmouse)
 		break;
 
 	case 2:
+		/* ignore debounce */
+		if (elantech_debounce_check_v2(psmouse))
+			return PSMOUSE_FULL_PACKET;
+
 		if (etd->paritycheck && !elantech_packet_check_v2(psmouse))
 			return PSMOUSE_BAD_DATA;
 
@@ -825,7 +841,6 @@ static int elantech_set_range(struct psmouse *psmouse,
 	struct elantech_data *etd = psmouse->private;
 	unsigned char param[3];
 	unsigned char traces;
-	int i;
 
 	switch (etd->hw_version) {
 	case 1:
@@ -844,12 +859,33 @@ static int elantech_set_range(struct psmouse *psmouse,
 			*x_max = ETP_XMAX_V2;
 			*y_max = ETP_YMAX_V2;
 		} else {
+			int i;
+			int fixed_dpi;
+
 			i = (etd->fw_version > 0x020800 &&
 			     etd->fw_version < 0x020900) ? 1 : 2;
-			*x_min = 0;
-			*y_min = 0;
-			*x_max = (etd->capabilities[1] - i) * 64;
-			*y_max = (etd->capabilities[2] - i) * 64;
+
+			if (synaptics_send_cmd(psmouse, ETP_FW_ID_QUERY, param))
+				return -1;
+
+			fixed_dpi = param[1] & 0x10;
+
+			if (((etd->fw_version >> 16) == 0x14) && fixed_dpi) {
+				if (synaptics_send_cmd(psmouse, ETP_SAMPLE_QUERY, param))
+					return -1;
+
+				*x_max = (etd->capabilities[1] - i) * param[1] / 2;
+				*y_max = (etd->capabilities[2] - i) * param[2] / 2;
+			} else if (etd->fw_version == 0x040216) {
+				*x_max = 819;
+				*y_max = 405;
+			} else if (etd->fw_version == 0x040219 || etd->fw_version == 0x040215) {
+				*x_max = 900;
+				*y_max = 500;
+			} else {
+				*x_max = (etd->capabilities[1] - i) * 64;
+				*y_max = (etd->capabilities[2] - i) * 64;
+			}
 		}
 		break;
 
