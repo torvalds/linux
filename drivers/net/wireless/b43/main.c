@@ -3599,7 +3599,7 @@ static int b43_op_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static u64 b43_op_get_tsf(struct ieee80211_hw *hw)
+static u64 b43_op_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
@@ -3618,7 +3618,8 @@ static u64 b43_op_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
-static void b43_op_set_tsf(struct ieee80211_hw *hw, u64 tsf)
+static void b43_op_set_tsf(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif, u64 tsf)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;

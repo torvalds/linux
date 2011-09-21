@@ -2220,7 +2220,8 @@ out:
 }
 EXPORT_SYMBOL(iwl_legacy_mac_config);
 
-void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw)
+void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	unsigned long flags;

@@ -3815,7 +3815,8 @@ out:
 	return ret;
 }
 
-static u64 wl1271_op_get_tsf(struct ieee80211_hw *hw)
+static u64 wl1271_op_get_tsf(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
 {
 
 	struct wl1271 *wl = hw->priv;

@@ -78,57 +78,6 @@ DEBUGFS_READONLY_FILE(wep_iv, "%#08x",
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, "%s",
 	local->rate_ctrl ? local->rate_ctrl->ops->name : "hw/driver");
 
-static ssize_t tsf_read(struct file *file, char __user *user_buf,
-			     size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	u64 tsf;
-
-	tsf = drv_get_tsf(local);
-
-	return mac80211_format_buffer(user_buf, count, ppos, "0x%016llx\n",
-				      (unsigned long long) tsf);
-}
-
-static ssize_t tsf_write(struct file *file,
-                         const char __user *user_buf,
-                         size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	unsigned long long tsf;
-	char buf[100];
-	size_t len;
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-
-	if (strncmp(buf, "reset", 5) == 0) {
-		if (local->ops->reset_tsf) {
-			drv_reset_tsf(local);
-			wiphy_info(local->hw.wiphy, "debugfs reset TSF\n");
-		}
-	} else {
-		tsf = simple_strtoul(buf, NULL, 0);
-		if (local->ops->set_tsf) {
-			drv_set_tsf(local, tsf);
-			wiphy_info(local->hw.wiphy,
-				   "debugfs set TSF to %#018llx\n", tsf);
-
-		}
-	}
-
-	return count;
-}
-
-static const struct file_operations tsf_ops = {
-	.read = tsf_read,
-	.write = tsf_write,
-	.open = mac80211_open_file_generic,
-	.llseek = default_llseek,
-};
-
 static ssize_t reset_write(struct file *file, const char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
@@ -447,7 +396,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(frequency);
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
-	DEBUGFS_ADD(tsf);
 	DEBUGFS_ADD(queues);
 	DEBUGFS_ADD_MODE(reset, 0200);
 	DEBUGFS_ADD(noack);

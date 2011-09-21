@@ -427,36 +427,40 @@ static inline int drv_conf_tx(struct ieee80211_local *local, u16 queue,
 	return ret;
 }
 
-static inline u64 drv_get_tsf(struct ieee80211_local *local)
+static inline u64 drv_get_tsf(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata)
 {
 	u64 ret = -1ULL;
 
 	might_sleep();
 
-	trace_drv_get_tsf(local);
+	trace_drv_get_tsf(local, sdata);
 	if (local->ops->get_tsf)
-		ret = local->ops->get_tsf(&local->hw);
+		ret = local->ops->get_tsf(&local->hw, &sdata->vif);
 	trace_drv_return_u64(local, ret);
 	return ret;
 }
 
-static inline void drv_set_tsf(struct ieee80211_local *local, u64 tsf)
+static inline void drv_set_tsf(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata,
+			       u64 tsf)
 {
 	might_sleep();
 
-	trace_drv_set_tsf(local, tsf);
+	trace_drv_set_tsf(local, sdata, tsf);
 	if (local->ops->set_tsf)
-		local->ops->set_tsf(&local->hw, tsf);
+		local->ops->set_tsf(&local->hw, &sdata->vif, tsf);
 	trace_drv_return_void(local);
 }
 
-static inline void drv_reset_tsf(struct ieee80211_local *local)
+static inline void drv_reset_tsf(struct ieee80211_local *local,
+				 struct ieee80211_sub_if_data *sdata)
 {
 	might_sleep();
 
-	trace_drv_reset_tsf(local);
+	trace_drv_reset_tsf(local, sdata);
 	if (local->ops->reset_tsf)
-		local->ops->reset_tsf(&local->hw);
+		local->ops->reset_tsf(&local->hw, &sdata->vif);
 	trace_drv_return_void(local);
 }
 

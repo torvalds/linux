@@ -1239,7 +1239,7 @@ static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 	 * call, we must decrease the higher 32bits with 1 to get
 	 * to correct value.
 	 */
-	tsf = rt2x00dev->ops->hw->get_tsf(rt2x00dev->hw);
+	tsf = rt2x00dev->ops->hw->get_tsf(rt2x00dev->hw, NULL);
 	rx_low = rt2x00_get_field32(word4, RXD_W4_RX_END_TIME);
 	rx_high = upper_32_bits(tsf);
 
@@ -1673,7 +1673,8 @@ static int rt2400pci_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	return 0;
 }
 
-static u64 rt2400pci_get_tsf(struct ieee80211_hw *hw)
+static u64 rt2400pci_get_tsf(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	u64 tsf;

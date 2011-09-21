@@ -1078,7 +1078,8 @@ out:
 	mutex_unlock(&ar->mutex);
 }
 
-static u64 carl9170_op_get_tsf(struct ieee80211_hw *hw)
+static u64 carl9170_op_get_tsf(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif)
 {
 	struct ar9170 *ar = hw->priv;
 	struct carl9170_tsf_rsp tsf;

@@ -2940,7 +2940,7 @@ static int rt61pci_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	return 0;
 }
 
-static u64 rt61pci_get_tsf(struct ieee80211_hw *hw)
+static u64 rt61pci_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	u64 tsf;

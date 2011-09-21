@@ -726,35 +726,41 @@ TRACE_EVENT(drv_conf_tx,
 	)
 );
 
-DEFINE_EVENT(local_only_evt, drv_get_tsf,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+DEFINE_EVENT(local_sdata_evt, drv_get_tsf,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 TRACE_EVENT(drv_set_tsf,
-	TP_PROTO(struct ieee80211_local *local, u64 tsf),
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u64 tsf),
 
-	TP_ARGS(local, tsf),
+	TP_ARGS(local, sdata, tsf),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		VIF_ENTRY
 		__field(u64, tsf)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		__entry->tsf = tsf;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " tsf:%llu",
-		LOCAL_PR_ARG, (unsigned long long)__entry->tsf
+		LOCAL_PR_FMT  VIF_PR_FMT  " tsf:%llu",
+		LOCAL_PR_ARG, VIF_PR_ARG, (unsigned long long)__entry->tsf
 	)
 );
 
-DEFINE_EVENT(local_only_evt, drv_reset_tsf,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+DEFINE_EVENT(local_sdata_evt, drv_reset_tsf,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 DEFINE_EVENT(local_only_evt, drv_tx_last_beacon,

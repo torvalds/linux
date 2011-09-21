@@ -133,7 +133,8 @@ static int brcms_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 			  bool set);
 static void brcms_ops_sw_scan_start(struct ieee80211_hw *hw);
 static void brcms_ops_sw_scan_complete(struct ieee80211_hw *hw);
-static void brcms_ops_set_tsf(struct ieee80211_hw *hw, u64 tsf);
+static void brcms_ops_set_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif, u64 tsf);
 static int brcms_ops_get_stats(struct ieee80211_hw *hw,
 			    struct ieee80211_low_level_stats *stats);
 static void brcms_ops_sta_notify(struct ieee80211_hw *hw,
@@ -142,7 +143,8 @@ static void brcms_ops_sta_notify(struct ieee80211_hw *hw,
 			      struct ieee80211_sta *sta);
 static int brcms_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			  const struct ieee80211_tx_queue_params *params);
-static u64 brcms_ops_get_tsf(struct ieee80211_hw *hw);
+static u64 brcms_ops_get_tsf(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif);
 static int brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 static int brcms_ops_sta_remove(struct ieee80211_hw *hw,
@@ -516,7 +518,8 @@ static void brcms_ops_sw_scan_complete(struct ieee80211_hw *hw)
 	return;
 }
 
-static void brcms_ops_set_tsf(struct ieee80211_hw *hw, u64 tsf)
+static void brcms_ops_set_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif, u64 tsf)
 {
 	wiphy_err(hw->wiphy, "%s: Enter\n", __func__);
 	return;
@@ -565,7 +568,8 @@ brcms_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	return 0;
 }
 
-static u64 brcms_ops_get_tsf(struct ieee80211_hw *hw)
+static u64 brcms_ops_get_tsf(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
 {
 	wiphy_err(hw->wiphy, "%s: Enter\n", __func__);
 	return 0;
