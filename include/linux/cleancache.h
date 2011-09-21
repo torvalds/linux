@@ -28,6 +28,11 @@ struct cleancache_ops {
 			pgoff_t, struct page *);
 	void (*put_page)(int, struct cleancache_filekey,
 			pgoff_t, struct page *);
+	/*
+	 * NOTE: per akpm, flush_page, flush_inode and flush_fs will be
+	 * renamed to invalidate_* in a later commit in which all
+	 * dependencies (i.e Xen, zcache) will be renamed simultaneously
+	 */
 	void (*flush_page)(int, struct cleancache_filekey, pgoff_t);
 	void (*flush_inode)(int, struct cleancache_filekey);
 	void (*flush_fs)(int);
@@ -39,9 +44,9 @@ extern void __cleancache_init_fs(struct super_block *);
 extern void __cleancache_init_shared_fs(char *, struct super_block *);
 extern int  __cleancache_get_page(struct page *);
 extern void __cleancache_put_page(struct page *);
-extern void __cleancache_flush_page(struct address_space *, struct page *);
-extern void __cleancache_flush_inode(struct address_space *);
-extern void __cleancache_flush_fs(struct super_block *);
+extern void __cleancache_invalidate_page(struct address_space *, struct page *);
+extern void __cleancache_invalidate_inode(struct address_space *);
+extern void __cleancache_invalidate_fs(struct super_block *);
 extern int cleancache_enabled;
 
 #ifdef CONFIG_CLEANCACHE
@@ -99,24 +104,24 @@ static inline void cleancache_put_page(struct page *page)
 		__cleancache_put_page(page);
 }
 
-static inline void cleancache_flush_page(struct address_space *mapping,
+static inline void cleancache_invalidate_page(struct address_space *mapping,
 					struct page *page)
 {
 	/* careful... page->mapping is NULL sometimes when this is called */
 	if (cleancache_enabled && cleancache_fs_enabled_mapping(mapping))
-		__cleancache_flush_page(mapping, page);
+		__cleancache_invalidate_page(mapping, page);
 }
 
-static inline void cleancache_flush_inode(struct address_space *mapping)
+static inline void cleancache_invalidate_inode(struct address_space *mapping)
 {
 	if (cleancache_enabled && cleancache_fs_enabled_mapping(mapping))
-		__cleancache_flush_inode(mapping);
+		__cleancache_invalidate_inode(mapping);
 }
 
-static inline void cleancache_flush_fs(struct super_block *sb)
+static inline void cleancache_invalidate_fs(struct super_block *sb)
 {
 	if (cleancache_enabled)
-		__cleancache_flush_fs(sb);
+		__cleancache_invalidate_fs(sb);
 }
 
 #endif /* _LINUX_CLEANCACHE_H */
