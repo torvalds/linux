@@ -15,6 +15,7 @@
 #include <linux/fs.h>
 #include <linux/exportfs.h>
 #include <linux/mm.h>
+#include <linux/debugfs.h>
 #include <linux/cleancache.h>
 
 /*
@@ -33,11 +34,15 @@ EXPORT_SYMBOL(cleancache_enabled);
  */
 static struct cleancache_ops cleancache_ops;
 
-/* useful stats available in /sys/kernel/mm/cleancache */
-static unsigned long cleancache_succ_gets;
-static unsigned long cleancache_failed_gets;
-static unsigned long cleancache_puts;
-static unsigned long cleancache_flushes;
+/*
+ * Counters available via /sys/kernel/debug/frontswap (if debugfs is
+ * properly configured.  These are for information only so are not protected
+ * against increment races.
+ */
+static u64 cleancache_succ_gets;
+static u64 cleancache_failed_gets;
+static u64 cleancache_puts;
+static u64 cleancache_invalidates;
 
 /*
  * register operations for cleancache, returning previous thus allowing
@@ -163,7 +168,7 @@ void __cleancache_invalidate_page(struct address_space *mapping,
 		if (cleancache_get_key(mapping->host, &key) >= 0) {
 			(*cleancache_ops.invalidate_page)(pool_id,
 							  key, page->index);
-			cleancache_flushes++;
+			cleancache_invalidates++;
 		}
 	}
 }
@@ -199,48 +204,19 @@ void __cleancache_invalidate_fs(struct super_block *sb)
 }
 EXPORT_SYMBOL(__cleancache_invalidate_fs);
 
-#ifdef CONFIG_SYSFS
-
-/* see Documentation/ABI/xxx/sysfs-kernel-mm-cleancache */
-
-#define CLEANCACHE_SYSFS_RO(_name) \
-	static ssize_t cleancache_##_name##_show(struct kobject *kobj, \
-				struct kobj_attribute *attr, char *buf) \
-	{ \
-		return sprintf(buf, "%lu\n", cleancache_##_name); \
-	} \
-	static struct kobj_attribute cleancache_##_name##_attr = { \
-		.attr = { .name = __stringify(_name), .mode = 0444 }, \
-		.show = cleancache_##_name##_show, \
-	}
-
-CLEANCACHE_SYSFS_RO(succ_gets);
-CLEANCACHE_SYSFS_RO(failed_gets);
-CLEANCACHE_SYSFS_RO(puts);
-CLEANCACHE_SYSFS_RO(flushes);
-
-static struct attribute *cleancache_attrs[] = {
-	&cleancache_succ_gets_attr.attr,
-	&cleancache_failed_gets_attr.attr,
-	&cleancache_puts_attr.attr,
-	&cleancache_flushes_attr.attr,
-	NULL,
-};
-
-static struct attribute_group cleancache_attr_group = {
-	.attrs = cleancache_attrs,
-	.name = "cleancache",
-};
-
-#endif /* CONFIG_SYSFS */
-
 static int __init init_cleancache(void)
 {
-#ifdef CONFIG_SYSFS
-	int err;
-
-	err = sysfs_create_group(mm_kobj, &cleancache_attr_group);
-#endif /* CONFIG_SYSFS */
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *root = debugfs_create_dir("cleancache", NULL);
+	if (root == NULL)
+		return -ENXIO;
+	debugfs_create_u64("succ_gets", S_IRUGO, root, &cleancache_succ_gets);
+	debugfs_create_u64("failed_gets", S_IRUGO,
+				root, &cleancache_failed_gets);
+	debugfs_create_u64("puts", S_IRUGO, root, &cleancache_puts);
+	debugfs_create_u64("invalidates", S_IRUGO,
+				root, &cleancache_invalidates);
+#endif
 	return 0;
 }
 module_init(init_cleancache)
