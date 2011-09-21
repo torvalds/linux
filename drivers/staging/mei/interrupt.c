@@ -653,6 +653,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	struct hbm_host_enum_response *enum_res;
 	struct hbm_client_disconnect_request *disconnect_req;
 	struct hbm_host_stop_request *host_stop_req;
+	int res;
 
 	unsigned char *buffer;
 
@@ -746,7 +747,38 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 					MEI_CLIENT_PROPERTIES_MESSAGE) {
 				dev->me_client_index++;
 				dev->me_client_presentation_num++;
-				mei_host_client_properties(dev);
+
+				/** Send Client Propeties request **/
+				res = mei_host_client_properties(dev);
+				if (res < 0) {
+					dev_dbg(&dev->pdev->dev, "mei_host_client_properties() failed");
+					return;
+				} else if (!res) {
+					/*
+					 * No more clients to send to.
+					 * Clear Map for indicating now ME clients
+					 * with associated host client
+					 */
+					bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
+					dev->open_handle_count = 0;
+
+					/*
+					 * Reserving the first three client IDs
+					 * Client Id 0 - Reserved for MEI Bus Message communications
+					 * Client Id 1 - Reserved for Watchdog
+					 * Client ID 2 - Reserved for AMTHI
+					 */
+					bitmap_set(dev->host_clients_map, 0, 3);
+					dev->mei_state = MEI_ENABLED;
+
+					/* if wd initialization fails, initialization the AMTHI client,
+					 * otherwise the AMTHI client will be initialized after the WD client connect response
+					 * will be received
+					 */
+					if (mei_wd_host_init(dev))
+						mei_host_init_iamthif(dev);
+				}
+
 			} else {
 				dev_dbg(&dev->pdev->dev, "reset due to received host client properties response bus message");
 				mei_reset(dev, 1);

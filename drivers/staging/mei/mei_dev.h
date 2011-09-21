@@ -329,7 +329,7 @@ static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
  */
 void mei_host_start_message(struct mei_device *dev);
 void mei_host_enum_clients_message(struct mei_device *dev);
-void mei_host_client_properties(struct mei_device *dev);
+int mei_host_client_properties(struct mei_device *dev);
 
 /*
  *  MEI interrupt functions prototype

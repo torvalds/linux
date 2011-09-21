@@ -470,9 +470,12 @@ void mei_allocate_me_clients_storage(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns none.
+ * returns:
+ * 	< 0 - Error.
+ *  = 0 - no more clients.
+ *  = 1 - still have clients to send properties request.
  */
-void mei_host_client_properties(struct mei_device *dev)
+int mei_host_client_properties(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_header;
 	struct hbm_props_request *host_cli_req;
@@ -504,32 +507,15 @@ void mei_host_client_properties(struct mei_device *dev)
 			dev->mei_state = MEI_RESETING;
 			dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
 			mei_reset(dev, 1);
-			return;
+			return -EIO;
 		}
 
 		dev->init_clients_timer = INIT_CLIENTS_TIMEOUT;
 		dev->me_client_index = b;
-		return;
+		return 1;
 	}
 
-
-	/*
-	 * Clear Map for indicating now ME clients
-	 * with associated host client
-	 */
-	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
-	dev->open_handle_count = 0;
-	bitmap_set(dev->host_clients_map, 0, 3);
-	dev->mei_state = MEI_ENABLED;
-
-	/* if wd initialization fails, initialization the AMTHI client,
-	 * otherwise the AMTHI client will be initialized after the WD client connect response
-	 * will be received
-	 */
-	if (mei_wd_host_init(dev))
-		mei_host_init_iamthif(dev);
-
-	return;
+	return 0;
 }
 
 /**
