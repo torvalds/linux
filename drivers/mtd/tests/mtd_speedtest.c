@@ -216,7 +216,7 @@ static int read_eraseblock(int ebnum)
 
 	err = mtd->read(mtd, addr, mtd->erasesize, &read, iobuf);
 	/* Ignore corrected ECC errors */
-	if (err == -EUCLEAN)
+	if (mtd_is_bitflip(err))
 		err = 0;
 	if (err || read != mtd->erasesize) {
 		printk(PRINT_PREF "error: read failed at %#llx\n", addr);
@@ -237,7 +237,7 @@ static int read_eraseblock_by_page(int ebnum)
 	for (i = 0; i < pgcnt; i++) {
 		err = mtd->read(mtd, addr, pgsize, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != pgsize) {
 			printk(PRINT_PREF "error: read failed at %#llx\n",
@@ -263,7 +263,7 @@ static int read_eraseblock_by_2pages(int ebnum)
 	for (i = 0; i < n; i++) {
 		err = mtd->read(mtd, addr, sz, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != sz) {
 			printk(PRINT_PREF "error: read failed at %#llx\n",
@@ -278,7 +278,7 @@ static int read_eraseblock_by_2pages(int ebnum)
 	if (pgcnt % 2) {
 		err = mtd->read(mtd, addr, pgsize, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != pgsize) {
 			printk(PRINT_PREF "error: read failed at %#llx\n",

@@ -242,7 +242,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		 * Userspace software which accesses NAND this way
 		 * must be aware of the fact that it deals with NAND
 		 */
-		if (!ret || (ret == -EUCLEAN) || (ret == -EBADMSG)) {
+		if (!ret || mtd_is_bitflip_or_eccerr(ret)) {
 			*ppos += retlen;
 			if (copy_to_user(buf, kbuf, retlen)) {
 				kfree(kbuf);
@@ -491,7 +491,7 @@ static int mtd_do_readoob(struct file *file, struct mtd_info *mtd,
 	 * does not calculate ECC for the OOB area, so do not rely on
 	 * this behavior unless you have replaced it with your own.
 	 */
-	if (ret == -EUCLEAN || ret == -EBADMSG)
+	if (mtd_is_bitflip_or_eccerr(ret))
 		return 0;
 
 	return ret;

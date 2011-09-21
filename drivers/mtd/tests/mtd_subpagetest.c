@@ -198,7 +198,7 @@ static int verify_eraseblock(int ebnum)
 	read = 0;
 	err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
 	if (unlikely(err || read != subpgsize)) {
-		if (err == -EUCLEAN && read == subpgsize) {
+		if (mtd_is_bitflip(err) && read == subpgsize) {
 			printk(PRINT_PREF "ECC correction at %#llx\n",
 			       (long long)addr);
 			err = 0;
@@ -226,7 +226,7 @@ static int verify_eraseblock(int ebnum)
 	read = 0;
 	err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
 	if (unlikely(err || read != subpgsize)) {
-		if (err == -EUCLEAN && read == subpgsize) {
+		if (mtd_is_bitflip(err) && read == subpgsize) {
 			printk(PRINT_PREF "ECC correction at %#llx\n",
 			       (long long)addr);
 			err = 0;
@@ -264,7 +264,7 @@ static int verify_eraseblock2(int ebnum)
 		read = 0;
 		err = mtd->read(mtd, addr, subpgsize * k, &read, readbuf);
 		if (unlikely(err || read != subpgsize * k)) {
-			if (err == -EUCLEAN && read == subpgsize * k) {
+			if (mtd_is_bitflip(err) && read == subpgsize * k) {
 				printk(PRINT_PREF "ECC correction at %#llx\n",
 				       (long long)addr);
 				err = 0;
@@ -298,7 +298,7 @@ static int verify_eraseblock_ff(int ebnum)
 		read = 0;
 		err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
 		if (unlikely(err || read != subpgsize)) {
-			if (err == -EUCLEAN && read == subpgsize) {
+			if (mtd_is_bitflip(err) && read == subpgsize) {
 				printk(PRINT_PREF "ECC correction at %#llx\n",
 				       (long long)addr);
 				err = 0;

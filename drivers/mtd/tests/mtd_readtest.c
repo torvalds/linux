@@ -75,7 +75,7 @@ static int read_eraseblock_by_page(int ebnum)
 			ops.datbuf    = NULL;
 			ops.oobbuf    = oobbuf;
 			ret = mtd->read_oob(mtd, addr, &ops);
-			if ((ret && ret != -EUCLEAN) ||
+			if ((ret && !mtd_is_bitflip(ret)) ||
 					ops.oobretlen != mtd->oobsize) {
 				printk(PRINT_PREF "error: read oob failed at "
 						  "%#llx\n", (long long)addr);

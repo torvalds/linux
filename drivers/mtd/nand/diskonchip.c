@@ -1031,7 +1031,7 @@ static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat,
 		WriteDOC(DOC_ECC_DIS, docptr, Mplus_ECCConf);
 	else
 		WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
-	if (no_ecc_failures && (ret == -EBADMSG)) {
+	if (no_ecc_failures && mtd_is_eccerr(ret)) {
 		printk(KERN_ERR "suppressing ECC failure\n");
 		ret = 0;
 	}

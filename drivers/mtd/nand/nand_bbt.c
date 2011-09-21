@@ -400,7 +400,7 @@ static int scan_block_full(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 
 	ret = scan_read_raw_oob(mtd, buf, offs, readlen);
 	/* Ignore ECC errors when checking for BBM */
-	if (ret && ret != -EUCLEAN && ret != -EBADMSG)
+	if (ret && !mtd_is_bitflip_or_eccerr(ret))
 		return ret;
 
 	for (j = 0; j < len; j++, buf += scanlen) {
@@ -430,7 +430,7 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 		 */
 		ret = mtd->read_oob(mtd, offs, &ops);
 		/* Ignore ECC errors when checking for BBM */
-		if (ret && ret != -EUCLEAN && ret != -EBADMSG)
+		if (ret && !mtd_is_bitflip_or_eccerr(ret))
 			return ret;
 
 		if (check_short_pattern(buf, bd))

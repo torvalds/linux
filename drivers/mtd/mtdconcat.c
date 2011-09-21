@@ -95,10 +95,10 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 		/* Save information about bitflips! */
 		if (unlikely(err)) {
-			if (err == -EBADMSG) {
+			if (mtd_is_eccerr(err)) {
 				mtd->ecc_stats.failed++;
 				ret = err;
-			} else if (err == -EUCLEAN) {
+			} else if (mtd_is_bitflip(err)) {
 				mtd->ecc_stats.corrected++;
 				/* Do not overwrite -EBADMSG !! */
 				if (!ret)
@@ -279,10 +279,10 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 
 		/* Save information about bitflips! */
 		if (unlikely(err)) {
-			if (err == -EBADMSG) {
+			if (mtd_is_eccerr(err)) {
 				mtd->ecc_stats.failed++;
 				ret = err;
-			} else if (err == -EUCLEAN) {
+			} else if (mtd_is_bitflip(err)) {
 				mtd->ecc_stats.corrected++;
 				/* Do not overwrite -EBADMSG !! */
 				if (!ret)

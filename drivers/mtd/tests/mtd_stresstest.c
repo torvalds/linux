@@ -154,7 +154,7 @@ static int do_read(void)
 	}
 	addr = eb * mtd->erasesize + offs;
 	err = mtd->read(mtd, addr, len, &read, readbuf);
-	if (err == -EUCLEAN)
+	if (mtd_is_bitflip(err))
 		err = 0;
 	if (unlikely(err || read != len)) {
 		printk(PRINT_PREF "error: read failed at 0x%llx\n",

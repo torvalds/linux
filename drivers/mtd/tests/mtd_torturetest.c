@@ -138,7 +138,7 @@ static inline int check_eraseblock(int ebnum, unsigned char *buf)
 
 retry:
 	err = mtd->read(mtd, addr, len, &read, check_buf);
-	if (err == -EUCLEAN)
+	if (mtd_is_bitflip(err))
 		printk(PRINT_PREF "single bit flip occurred at EB %d "
 		       "MTD reported that it was fixed.\n", ebnum);
 	else if (err) {
