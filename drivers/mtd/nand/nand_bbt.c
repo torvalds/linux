@@ -1294,26 +1294,27 @@ static struct nand_bbt_descr bbt_mirror_no_bbt_descr = {
 	.pattern = mirror_pattern
 };
 
+#define BADBLOCK_SCAN_MASK (~NAND_BBT_NO_OOB)
 /**
- * nand_create_default_bbt_descr - [INTERN] Creates a BBT descriptor structure
+ * nand_create_badblock_pattern - [INTERN] Creates a BBT descriptor structure
  * @this: NAND chip to create descriptor for
  *
  * This function allocates and initializes a nand_bbt_descr for BBM detection
- * based on the properties of "this". The new descriptor is stored in
+ * based on the properties of @this. The new descriptor is stored in
  * this->badblock_pattern. Thus, this->badblock_pattern should be NULL when
  * passed to this function.
  */
-static int nand_create_default_bbt_descr(struct nand_chip *this)
+static int nand_create_badblock_pattern(struct nand_chip *this)
 {
 	struct nand_bbt_descr *bd;
 	if (this->badblock_pattern) {
-		pr_warn("BBT descr already allocated; not replacing\n");
+		pr_warn("Bad block pattern already allocated; not replacing\n");
 		return -EINVAL;
 	}
 	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
 	if (!bd)
 		return -ENOMEM;
-	bd->options = this->bbt_options;
+	bd->options = this->bbt_options & BADBLOCK_SCAN_MASK;
 	bd->offs = this->badblockpos;
 	bd->len = (this->options & NAND_BUSWIDTH_16) ? 2 : 1;
 	bd->pattern = scan_ff_pattern;
@@ -1367,7 +1368,7 @@ int nand_default_bbt(struct mtd_info *mtd)
 	}
 
 	if (!this->badblock_pattern)
-		nand_create_default_bbt_descr(this);
+		nand_create_badblock_pattern(this);
 
 	return nand_scan_bbt(mtd, this->badblock_pattern);
 }
