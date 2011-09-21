@@ -61,7 +61,7 @@ int debug_level = 7;
 #define xbwprintk(n, arg...)
 #endif
 
-#define RK29_SDMMC_ERROR_FLAGS		(SDMMC_INT_FRUN /*| SDMMC_INT_RTO*/ | SDMMC_INT_HLE )
+#define RK29_SDMMC_ERROR_FLAGS		(SDMMC_INT_FRUN | SDMMC_INT_HLE )
 
 #define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD)
 #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD| SDMMC_INT_TXDR | SDMMC_INT_RXDR )
@@ -72,7 +72,7 @@ int debug_level = 7;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   1500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.2.07 The last modify date is 2011-09-09,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.2.08 The last modify date is 2011-09-21,modifyed by XBW." 
 
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
 #define RK29_CTRL_SDIO1_ID   1  //mainly used by sdio-wifi
@@ -197,10 +197,16 @@ struct rk29_sdmmc {
     unsigned int            oldstatus;
     unsigned int            complete_done;
     unsigned int            retryfunc;
+    
 #ifdef CONFIG_PM
     int gpio_irq;
 	int gpio_det;
 #endif
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT) || defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    int write_protect;
+#endif
+
 };
 
 
@@ -2074,10 +2080,26 @@ out:
 
 static int rk29_sdmmc_get_ro(struct mmc_host *mmc)
 {
-	struct rk29_sdmmc *host = mmc_priv(mmc);
+    struct rk29_sdmmc *host = mmc_priv(mmc);
+    
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT) || defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    int ret;
+    
+	if(INVALID_GPIO == host->write_protect)
+	    ret = 0;//no write-protect
+	else
+        ret = gpio_get_value(host->write_protect)?0:1;
+   
+    xbwprintk(7,"%s..%d.. write_prt_pin=%d, get_ro=%d ===xbw[%s]===\n",\
+        __FUNCTION__, __LINE__,host->write_protect, ret, host->dma_name);
+        
+    return ret;
+    
+#else
 	u32 wrtprt = rk29_sdmmc_read(host->regs, SDMMC_WRTPRT);
-
+	
 	return (wrtprt & SDMMC_WRITE_PROTECT)?1:0;
+#endif	
 }
 
 
@@ -3026,6 +3048,15 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		
 		host->dma_addr = regs->start + SDMMC_DATA;
 	}
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT) || defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+	host->write_protect = pdata->write_prt;	
+	if(INVALID_GPIO != host->write_protect)
+	{
+		gpio_direction_input(host->write_protect);	    
+	}
+	
+#endif	
 
     rk29_sdmmc_hw_init(host);
 
