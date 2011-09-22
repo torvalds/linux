@@ -36,7 +36,7 @@
 #include "i915_drv.h"
 #include "drm_dp_helper.h"
 
-
+#define DP_RECEIVER_CAP_SIZE	0xf
 #define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 
@@ -53,7 +53,7 @@ struct intel_dp {
 	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
-	uint8_t dpcd[8];
+	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
 	bool is_pch_edp;
