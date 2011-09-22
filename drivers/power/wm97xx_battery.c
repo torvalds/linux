@@ -196,7 +196,7 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 		if (ret)
 			goto err2;
 		ret = request_irq(gpio_to_irq(pdata->charge_gpio),
-				wm97xx_chrg_irq, IRQF_DISABLED,
+				wm97xx_chrg_irq, 0,
 				"AC Detect", dev);
 		if (ret)
 			goto err2;
