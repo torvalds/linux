@@ -318,7 +318,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
  ******************************************************************************/
 void iwl_init_scan_params(struct iwl_priv *priv);
 int iwl_scan_cancel(struct iwl_priv *priv);
-int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
+void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 void iwl_force_scan_end(struct iwl_priv *priv);
 int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,

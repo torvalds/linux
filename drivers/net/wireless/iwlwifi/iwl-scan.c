@@ -169,7 +169,7 @@ int iwl_scan_cancel(struct iwl_priv *priv)
  * @ms: amount of time to wait (in milliseconds) for scan to abort
  *
  */
-int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
+void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(ms);
 
@@ -184,8 +184,6 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 			break;
 		msleep(20);
 	}
-
-	return test_bit(STATUS_SCAN_HW, &priv->shrd->status);
 }
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
