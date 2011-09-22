@@ -20,6 +20,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <sound/core.h>

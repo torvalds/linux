@@ -21,6 +21,7 @@
 
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/export.h>
 #include <linux/errno.h>
 #include <sound/core.h>
 
