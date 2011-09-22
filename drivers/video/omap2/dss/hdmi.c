@@ -438,6 +438,22 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 	}
 }
 
+void hdmi_dump_regs(struct seq_file *s)
+{
+	mutex_lock(&hdmi.lock);
+
+	if (hdmi_runtime_get())
+		return;
+
+	hdmi.ip_data.ops->dump_wrapper(&hdmi.ip_data, s);
+	hdmi.ip_data.ops->dump_pll(&hdmi.ip_data, s);
+	hdmi.ip_data.ops->dump_phy(&hdmi.ip_data, s);
+	hdmi.ip_data.ops->dump_core(&hdmi.ip_data, s);
+
+	hdmi_runtime_put();
+	mutex_unlock(&hdmi.lock);
+}
+
 int omapdss_hdmi_read_edid(u8 *buf, int len)
 {
 	int r;
