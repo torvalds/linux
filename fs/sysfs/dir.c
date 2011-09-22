@@ -60,7 +60,8 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
 		} else if (sd->s_ino > node->s_ino) {
 			p = &node->inode_node.rb_right;
 		} else {
-			printk(KERN_CRIT "sysfs: inserting duplicate inode '%lx'\n", sd->s_ino);
+			printk(KERN_CRIT "sysfs: inserting duplicate inode '%lx'\n",
+			       (unsigned long) sd->s_ino);
 			BUG();
 		}
 #undef node
