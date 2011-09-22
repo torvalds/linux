@@ -655,6 +655,7 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 	u16 curr_chan = 0;
 	struct cfg80211_bss *bss = NULL;
 	struct ieee80211_channel *chan;
+	enum ieee80211_band band;
 
 	memset(&bss_info, 0, sizeof(bss_info));
 
@@ -691,9 +692,9 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 		goto done;
 	}
 
+	band = mwifiex_band_to_radio_type(priv->curr_bss_params.band);
 	chan = __ieee80211_get_channel(priv->wdev->wiphy,
-			ieee80211_channel_to_frequency(channel,
-						priv->curr_bss_params.band));
+			ieee80211_channel_to_frequency(channel, band));
 
 	/* Find the BSS we want using available scan results */
 	bss = cfg80211_get_bss(priv->wdev->wiphy, chan, bss_info.bssid,

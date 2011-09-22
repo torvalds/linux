@@ -768,6 +768,7 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 	struct mwifiex_bss_info bss_info;
 	int ie_len;
 	u8 ie_buf[IEEE80211_MAX_SSID_LEN + sizeof(struct ieee_types_header)];
+	enum ieee80211_band band;
 
 	if (mwifiex_get_bss_info(priv, &bss_info))
 		return -1;
@@ -780,9 +781,10 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 			bss_info.ssid.ssid_len);
 	ie_len = ie_buf[1] + sizeof(struct ieee_types_header);
 
+	band = mwifiex_band_to_radio_type(priv->curr_bss_params.band);
 	chan = __ieee80211_get_channel(priv->wdev->wiphy,
 			ieee80211_channel_to_frequency(bss_info.bss_chan,
-						priv->curr_bss_params.band));
+						       band));
 
 	cfg80211_inform_bss(priv->wdev->wiphy, chan,
 		bss_info.bssid, 0, WLAN_CAPABILITY_IBSS,
