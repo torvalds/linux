@@ -1449,6 +1449,9 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 		kfree(default_chan_list);
 	}
 exit:
+	if (unlikely(err)) {
+		WL_ERR(("error (%d)\n", err));
+	}
 	return err;
 }
 
@@ -1468,7 +1471,7 @@ wl_do_escan(struct wl_priv *wl, struct wiphy *wiphy, struct net_device *ndev,
 	err = wldev_ioctl(ndev, WLC_SET_PASSIVE_SCAN,
 		&passive_scan, sizeof(passive_scan), false);
 	if (unlikely(err)) {
-		WL_DBG(("error (%d)\n", err));
+		WL_ERR(("error (%d)\n", err));
 		return err;
 	}
 	results = (wl_scan_results_t *) wl->escan_info.escan_buf;
@@ -1476,7 +1479,7 @@ wl_do_escan(struct wl_priv *wl, struct wiphy *wiphy, struct net_device *ndev,
 	results->count = 0;
 	results->buflen = WL_SCAN_RESULTS_FIXED_SIZE;
 
-	wl_run_escan(wl, ndev, request, WL_SCAN_ACTION_START);
+	err = wl_run_escan(wl, ndev, request, WL_SCAN_ACTION_START);
 	return err;
 }
 
@@ -2317,7 +2320,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	bool act = false;
 	s32 err = 0;
 
-	WL_ERR(("Reason %d\n\n\n", reason_code));
+	WL_ERR(("Reason %d\n", reason_code));
 	CHECK_SYS_UP(wl);
 	act = *(bool *) wl_read_prof(wl, WL_PROF_ACT);
 	if (likely(act)) {
@@ -3084,8 +3087,8 @@ wl_cfg80211_scan_alloc_params(int channel, int nprobes, int *out_params_size)
 s32
 wl_cfg80211_scan_abort(struct wl_priv *wl, struct net_device *ndev)
 {
-	wl_scan_params_t *params;
-	s32 params_size;
+	wl_scan_params_t *params = NULL;
+	s32 params_size = 0;
 	s32 err = BCME_OK;
 	unsigned long flags;
 
@@ -3096,11 +3099,12 @@ wl_cfg80211_scan_abort(struct wl_priv *wl, struct net_device *ndev)
 	if (params == NULL) {
 		WL_ERR(("scan params allocation failed \n"));
 		err = -ENOMEM;
-	}
-	/* Do a scan abort to stop the driver's scan engine */
-	err = wldev_ioctl(ndev, WLC_SCAN, params, params_size, true);
-	if (err < 0) {
-		WL_ERR(("scan abort  failed \n"));
+	} else {
+		/* Do a scan abort to stop the driver's scan engine */
+		err = wldev_ioctl(ndev, WLC_SCAN, params, params_size, true);
+		if (err < 0) {
+			WL_ERR(("scan abort  failed \n"));
+		}
 	}
 	del_timer_sync(&wl->scan_timeout);
 	flags = dhd_os_spin_lock((dhd_pub_t *)(wl->pub));
@@ -3110,7 +3114,8 @@ wl_cfg80211_scan_abort(struct wl_priv *wl, struct net_device *ndev)
 	}
 	wl_clr_drv_status(wl, SCANNING);
 	dhd_os_spin_unlock((dhd_pub_t *)(wl->pub), flags);
-
+	if (params)
+		kfree(params);
 	return err;
 }
 
@@ -4657,7 +4662,7 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 
 	WL_DBG((" enter\n"));
 	if (wl->scan_request) {
-			wl_cfg80211_scan_abort(wl, ndev);
+		wl_cfg80211_scan_abort(wl, ndev);
 	}
 	if (wl_get_drv_status(wl, CONNECTING)) {
 		wl_clr_drv_status(wl, CONNECTING);
@@ -4718,11 +4723,6 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 	if (wl->iscan_on && wl->iscan_kickstart)
 		return wl_wakeup_iscan(wl_to_iscan(wl));
 
-	if (unlikely(!wl_get_drv_status(wl, SCANNING))) {
-		wl_clr_drv_status(wl, SCANNING);
-		WL_DBG(("Scan complete while device not scanning\n"));
-		return -EINVAL;
-	}
 	wl_clr_drv_status(wl, SCANNING);
 	rtnl_lock();
 	err = wldev_ioctl(ndev, WLC_GET_CHANNEL, &channel_inform,
@@ -4752,8 +4752,6 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 	bss_list->count = dtoh32(bss_list->count);
 
 	err = wl_inform_bss(wl);
-	if (err)
-		goto scan_done_out;
 
 scan_done_out:
 	del_timer_sync(&wl->scan_timeout);
@@ -5274,12 +5272,6 @@ static void wl_notify_escan_complete(struct wl_priv *wl, bool aborted)
 	unsigned long flags;
 
 	WL_DBG(("Enter \n"));
-	if (unlikely(!wl_get_drv_status(wl, SCANNING))) {
-		wl_clr_drv_status(wl, SCANNING);
-		WL_ERR(("Scan complete while device not scanning\n"));
-		wl->scan_request = NULL;
-		return;
-	}
 	wl_clr_drv_status(wl, SCANNING);
 	if (wl->p2p_supported && p2p_on(wl))
 		wl_clr_p2p_status(wl, SCANNING);
@@ -6677,9 +6669,9 @@ s32 wl_cfg80211_set_wps_p2p_ie(struct net_device *net, char *buf, int len,
 
 	return ret;
 }
+
 static __used void wl_dongle_poweron(struct wl_priv *wl)
 {
-
 	WL_DBG(("Enter \n"));
 	dhd_customer_gpio_wlan_ctrl(WLAN_RESET_ON);
 
@@ -6694,8 +6686,6 @@ static __used void wl_dongle_poweron(struct wl_priv *wl)
 
 static __used void wl_dongle_poweroff(struct wl_priv *wl)
 {
-
-
 	WL_DBG(("Enter \n"));
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
 	wl_cfg80211_suspend(wl_to_wiphy(wl), NULL);
@@ -6709,6 +6699,7 @@ static __used void wl_dongle_poweroff(struct wl_priv *wl)
 	/* clean up dtim_skip setting */
 	dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 }
+
 static int wl_debugfs_add_netdev_params(struct wl_priv *wl)
 {
 	char buf[10+IFNAMSIZ];

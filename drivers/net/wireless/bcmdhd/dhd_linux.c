@@ -1988,12 +1988,12 @@ dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 
 static bool dhd_check_hang(struct net_device *net, dhd_pub_t *dhdp, int error)
 {
-	dhd_info_t *dhd = (dhd_info_t*)dhdp->info;
-
-	if ((error == -ETIMEDOUT) || ((dhd->pub.busstate == DHD_BUS_DOWN) &&
-		(!dhd->pub.dongle_reset))) {
+	if (!dhdp)
+		return FALSE;
+	if ((error == -ETIMEDOUT) || ((dhdp->busstate == DHD_BUS_DOWN) &&
+		(!dhdp->dongle_reset))) {
 		DHD_ERROR(("%s: Event HANG send up due to  re=%d te=%d e=%d s=%d\n", __FUNCTION__,
-			dhd->pub.rxcnt_timeout, dhd->pub.txcnt_timeout, error, dhd->pub.busstate));
+			dhdp->rxcnt_timeout, dhdp->txcnt_timeout, error, dhdp->busstate));
 		net_os_send_hang_message(net);
 		return TRUE;
 	}
