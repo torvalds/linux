@@ -120,15 +120,10 @@
 #define TWL6040_LPLLFIN			0x08
 #define TWL6040_HPLLSEL			0x10
 
-/* HSLCTL (0x10) fields */
+/* HSLCTL/R (0x10/0x11) fields */
 
-#define TWL6040_HSDACMODEL		0x02
-#define TWL6040_HSDRVMODEL		0x08
-
-/* HSRCTL (0x11) fields */
-
-#define TWL6040_HSDACMODER		0x02
-#define TWL6040_HSDRVMODER		0x08
+#define TWL6040_HSDACMODE		(1 << 1)
+#define TWL6040_HSDRVMODE		(1 << 3)
 
 /* VIBCTLL (0x18) fields */
 
