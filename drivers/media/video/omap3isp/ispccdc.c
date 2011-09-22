@@ -2297,4 +2297,6 @@ void omap3isp_ccdc_cleanup(struct isp_device *isp)
 
 	if (ccdc->fpc.fpcaddr != 0)
 		omap_iommu_vfree(isp->domain, isp->iommu, ccdc->fpc.fpcaddr);
+
+	mutex_destroy(&ccdc->ioctl_lock);
 }

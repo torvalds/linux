@@ -1328,6 +1328,8 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 void omap3isp_video_cleanup(struct isp_video *video)
 {
 	media_entity_cleanup(&video->video.entity);
+	mutex_destroy(&video->stream_lock);
+	mutex_destroy(&video->mutex);
 }
 
 int omap3isp_video_register(struct isp_video *video, struct v4l2_device *vdev)

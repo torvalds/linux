@@ -1087,6 +1087,7 @@ int omap3isp_stat_init(struct ispstat *stat, const char *name,
 void omap3isp_stat_cleanup(struct ispstat *stat)
 {
 	media_entity_cleanup(&stat->subdev.entity);
+	mutex_destroy(&stat->ioctl_lock);
 	isp_stat_bufs_free(stat);
 	kfree(stat->buf);
 }
