@@ -2207,11 +2207,6 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if (set_mmio_spte(sptep, gfn, pfn, pte_access))
 		return 0;
 
-	/*
-	 * We don't set the accessed bit, since we sometimes want to see
-	 * whether the guest actually used the pte (in order to detect
-	 * demand paging).
-	 */
 	spte = PT_PRESENT_MASK;
 	if (!speculative)
 		spte |= shadow_accessed_mask;
@@ -2362,10 +2357,8 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		}
 	}
 	kvm_release_pfn_clean(pfn);
-	if (speculative) {
+	if (speculative)
 		vcpu->arch.last_pte_updated = sptep;
-		vcpu->arch.last_pte_gfn = gfn;
-	}
 }
 
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
@@ -3533,18 +3526,6 @@ static bool last_updated_pte_accessed(struct kvm_vcpu *vcpu)
 	return !!(spte && (*spte & shadow_accessed_mask));
 }
 
-static void kvm_mmu_access_page(struct kvm_vcpu *vcpu, gfn_t gfn)
-{
-	u64 *spte = vcpu->arch.last_pte_updated;
-
-	if (spte
-	    && vcpu->arch.last_pte_gfn == gfn
-	    && shadow_accessed_mask
-	    && !(*spte & shadow_accessed_mask)
-	    && is_shadow_present_pte(*spte))
-		set_bit(PT_ACCESSED_SHIFT, (unsigned long *)spte);
-}
-
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		       const u8 *new, int bytes,
 		       bool guest_initiated)
@@ -3615,7 +3596,6 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	++vcpu->kvm->stat.mmu_pte_write;
 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
 	if (guest_initiated) {
-		kvm_mmu_access_page(vcpu, gfn);
 		if (gfn == vcpu->arch.last_pt_write_gfn
 		    && !last_updated_pte_accessed(vcpu)) {
 			++vcpu->arch.last_pt_write_count;
