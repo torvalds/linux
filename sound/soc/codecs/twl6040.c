@@ -61,6 +61,9 @@
 #define TWL6040_REG_SW_SHADOW	0x2F
 #define TWL6040_CACHEREGNUM	(TWL6040_REG_SW_SHADOW + 1)
 
+/* TWL6040_REG_SW_SHADOW (0x2F) fields */
+#define TWL6040_EAR_PATH_ENABLE	0x01
+
 struct twl6040_output {
 	u16 active;
 	u16 left_vol;
@@ -991,8 +994,8 @@ static const struct snd_kcontrol_new hfl_mux_controls =
 static const struct snd_kcontrol_new hfr_mux_controls =
 	SOC_DAPM_ENUM("Route", twl6040_hf_enum[1]);
 
-static const struct snd_kcontrol_new ep_driver_switch_controls =
-	SOC_DAPM_SINGLE("Switch", TWL6040_REG_EARCTL, 0, 1, 0);
+static const struct snd_kcontrol_new ep_path_enable_control =
+	SOC_DAPM_SINGLE("Switch", TWL6040_REG_SW_SHADOW, 0, 1, 0);
 
 /* Headset power mode */
 static const char *twl6040_power_mode_texts[] = {
@@ -1165,6 +1168,9 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("HS Right Playback",
 			SND_SOC_NOPM, 0, 0, &hsr_mux_controls),
 
+	SND_SOC_DAPM_SWITCH("Earphone Playback", SND_SOC_NOPM, 0, 0,
+			&ep_path_enable_control),
+
 	/* Analog playback drivers */
 	SND_SOC_DAPM_OUT_DRV_E("Handsfree Left Driver",
 			TWL6040_REG_HFLCTL, 4, 0, NULL, 0,
@@ -1182,8 +1188,8 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			TWL6040_REG_HSRCTL, 2, 0, NULL, 0,
 			pga_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SWITCH_E("Earphone Driver",
-			SND_SOC_NOPM, 0, 0, &ep_driver_switch_controls,
+	SND_SOC_DAPM_OUT_DRV_E("Earphone Driver",
+			TWL6040_REG_EARCTL, 0, 0, NULL, 0,
 			twl6040_power_mode_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
@@ -1228,7 +1234,8 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"HSOR", NULL, "Headset Right Driver"},
 
 	/* Earphone playback path */
-	{"Earphone Driver", "Switch", "HSDAC Left"},
+	{"Earphone Playback", "Switch", "HSDAC Left"},
+	{"Earphone Driver", NULL, "Earphone Playback"},
 	{"EP", NULL, "Earphone Driver"},
 
 	{"HF Left Playback", "HF DAC", "HFDAC Left"},
