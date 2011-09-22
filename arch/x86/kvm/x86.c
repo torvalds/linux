@@ -4349,36 +4349,49 @@ static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
 	return r;
 }
 
+static int emulator_pio_in_out(struct kvm_vcpu *vcpu, int size,
+			       unsigned short port, void *val,
+			       unsigned int count, bool in)
+{
+	trace_kvm_pio(!in, port, size, count);
+
+	vcpu->arch.pio.port = port;
+	vcpu->arch.pio.in = in;
+	vcpu->arch.pio.count  = count;
+	vcpu->arch.pio.size = size;
+
+	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
+		vcpu->arch.pio.count = 0;
+		return 1;
+	}
+
+	vcpu->run->exit_reason = KVM_EXIT_IO;
+	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
+	vcpu->run->io.size = size;
+	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
+	vcpu->run->io.count = count;
+	vcpu->run->io.port = port;
+
+	return 0;
+}
 
 static int emulator_pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 				    int size, unsigned short port, void *val,
 				    unsigned int count)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+	int ret;
 
 	if (vcpu->arch.pio.count)
 		goto data_avail;
 
-	trace_kvm_pio(0, port, size, count);
-
-	vcpu->arch.pio.port = port;
-	vcpu->arch.pio.in = 1;
-	vcpu->arch.pio.count  = count;
-	vcpu->arch.pio.size = size;
-
-	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
-	data_avail:
+	ret = emulator_pio_in_out(vcpu, size, port, val, count, true);
+	if (ret) {
+data_avail:
 		memcpy(val, vcpu->arch.pio_data, size * count);
 		vcpu->arch.pio.count = 0;
 		return 1;
 	}
-
-	vcpu->run->exit_reason = KVM_EXIT_IO;
-	vcpu->run->io.direction = KVM_EXIT_IO_IN;
-	vcpu->run->io.size = size;
-	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
-	vcpu->run->io.count = count;
-	vcpu->run->io.port = port;
 
 	return 0;
 }
@@ -4389,28 +4402,8 @@ static int emulator_pio_out_emulated(struct x86_emulate_ctxt *ctxt,
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 
-	trace_kvm_pio(1, port, size, count);
-
-	vcpu->arch.pio.port = port;
-	vcpu->arch.pio.in = 0;
-	vcpu->arch.pio.count = count;
-	vcpu->arch.pio.size = size;
-
 	memcpy(vcpu->arch.pio_data, val, size * count);
-
-	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
-		vcpu->arch.pio.count = 0;
-		return 1;
-	}
-
-	vcpu->run->exit_reason = KVM_EXIT_IO;
-	vcpu->run->io.direction = KVM_EXIT_IO_OUT;
-	vcpu->run->io.size = size;
-	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
-	vcpu->run->io.count = count;
-	vcpu->run->io.port = port;
-
-	return 0;
+	return emulator_pio_in_out(vcpu, size, port, (void *)val, count, false);
 }
 
 static unsigned long get_segment_base(struct kvm_vcpu *vcpu, int seg)
