@@ -200,6 +200,8 @@ gl860		05e3:0503	Genesys Logic PC Camera
 gl860		05e3:f191	Genesys Logic PC Camera
 spca561		060b:a001	Maxell Compact Pc PM3
 zc3xx		0698:2003	CTX M730V built in
+topro		06a2:0003	TP6800 PC Camera, CmoX CX0342 webcam
+topro		06a2:6810	Creative Qmax
 nw80x		06a5:0000	Typhoon Webcam 100 USB
 nw80x		06a5:d001	Divio based webcams
 nw80x		06a5:d800	Divio Chicony TwinkleCam, Trust SpaceCam
