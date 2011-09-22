@@ -138,7 +138,7 @@ extern u32 wl12xx_debug_level;
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
 #define WL12XX_MAX_ROLES           4
-#define WL12XX_MAX_LINKS           8
+#define WL12XX_MAX_LINKS           12
 #define WL12XX_INVALID_ROLE_ID     0xff
 #define WL12XX_INVALID_LINK_ID     0xff
 
@@ -279,7 +279,7 @@ struct wl12xx_fw_status {
 
 	/* Cumulative counter of released Voice memory blocks */
 	u8 tx_voice_released_blks;
-	u8 padding_1[7];
+	u8 padding_1[3];
 	__le32 log_start_addr;
 } __packed;
 

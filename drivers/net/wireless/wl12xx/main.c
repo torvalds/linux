@@ -4722,6 +4722,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	int i, j, ret;
 	unsigned int order;
 
+	BUILD_BUG_ON(AP_MAX_LINKS > WL12XX_MAX_LINKS);
+
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
 	if (!hw) {
 		wl1271_error("could not alloc ieee80211_hw");
