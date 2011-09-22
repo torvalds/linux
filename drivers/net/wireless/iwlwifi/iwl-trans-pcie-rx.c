@@ -401,7 +401,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 
 	while (i != r) {
 		int len, err;
-		u16 txq_id, sequence;
+		u16 sequence;
 
 		rxb = rxq->queue[i];
 
@@ -452,8 +452,11 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 
 		/* warn if this is cmd response / notification and the uCode
 		 * didn't set the SEQ_RX_FRAME for a frame that is
-		 * uCode-originated*/
-		WARN(txq_id == trans->shrd->cmd_queue && reclaim == false &&
+		 * uCode-originated
+		 * If you saw this code after the second half of 2012, then
+		 * please remove it
+		 */
+		WARN(pkt->hdr.cmd != REPLY_TX && reclaim == false &&
 		     (!(pkt->hdr.sequence & SEQ_RX_FRAME)),
 		     "reclaim is false, SEQ_RX_FRAME unset: %s\n",
 		     get_cmd_string(pkt->hdr.cmd));
