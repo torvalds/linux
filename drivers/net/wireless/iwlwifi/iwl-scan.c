@@ -242,10 +242,12 @@ static int iwl_rx_scan_results_notif(struct iwl_priv *priv,
 
 	IWL_DEBUG_SCAN(priv, "Scan ch.res: "
 		       "%d [802.11%s] "
+		       "probe status: %u:%u "
 		       "(TSF: 0x%08X:%08X) - %d "
 		       "elapsed=%lu usec\n",
 		       notif->channel,
 		       notif->band ? "bg" : "a",
+		       notif->probe_status, notif->num_probe_not_sent,
 		       le32_to_cpu(notif->tsf_high),
 		       le32_to_cpu(notif->tsf_low),
 		       le32_to_cpu(notif->statistics[0]),
