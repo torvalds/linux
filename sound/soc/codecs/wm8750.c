@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -751,6 +752,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8750 = {
 	.reg_cache_default = wm8750_reg,
 };
 
+static const struct of_device_id wm8750_of_match[] = {
+	{ .compatible = "wlf,wm8750", },
+	{ .compatible = "wlf,wm8987", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8750_of_match);
+
 #if defined(CONFIG_SPI_MASTER)
 static int __devinit wm8750_spi_probe(struct spi_device *spi)
 {
@@ -787,8 +795,9 @@ MODULE_DEVICE_TABLE(spi, wm8750_spi_ids);
 
 static struct spi_driver wm8750_spi_driver = {
 	.driver = {
-		.name	= "wm8750-codec",
+		.name	= "wm8750",
 		.owner	= THIS_MODULE,
+		.of_match_table = wm8750_of_match,
 	},
 	.id_table	= wm8750_spi_ids,
 	.probe		= wm8750_spi_probe,
@@ -833,8 +842,9 @@ MODULE_DEVICE_TABLE(i2c, wm8750_i2c_id);
 
 static struct i2c_driver wm8750_i2c_driver = {
 	.driver = {
-		.name = "wm8750-codec",
+		.name = "wm8750",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8750_of_match,
 	},
 	.probe =    wm8750_i2c_probe,
 	.remove =   __devexit_p(wm8750_i2c_remove),

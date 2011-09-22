@@ -105,7 +105,7 @@ static int format_register_str(struct snd_soc_codec *codec,
 	if (wordsize + regsize + 2 + 1 != len)
 		return -EINVAL;
 
-	ret = snd_soc_read(codec , reg);
+	ret = snd_soc_read(codec, reg);
 	if (ret < 0) {
 		memset(regbuf, 'X', regsize);
 		regbuf[regsize] = '\0';
@@ -143,7 +143,7 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf,
 		step = codec->driver->reg_cache_step;
 
 	for (i = 0; i < codec->driver->reg_cache_size; i += step) {
-		if (codec->readable_register && !codec->readable_register(codec, i))
+		if (!snd_soc_codec_readable_register(codec, i))
 			continue;
 		if (codec->driver->display_register) {
 			count += codec->driver->display_register(codec, buf + count,
@@ -244,16 +244,12 @@ static ssize_t codec_reg_write_file(struct file *file,
 	size_t buf_size;
 	char *start = buf;
 	unsigned long reg, value;
-	int step = 1;
 	struct snd_soc_codec *codec = file->private_data;
 
 	buf_size = min(count, (sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
 	buf[buf_size] = 0;
-
-	if (codec->driver->reg_cache_step)
-		step = codec->driver->reg_cache_step;
 
 	while (*start == ' ')
 		start++;
@@ -955,6 +951,8 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	if (driver->dapm_widgets)
 		snd_soc_dapm_new_controls(&codec->dapm, driver->dapm_widgets,
 					  driver->num_dapm_widgets);
+
+	codec->dapm.idle_bias_off = driver->idle_bias_off;
 
 	if (driver->probe) {
 		ret = driver->probe(codec);
@@ -2668,7 +2666,7 @@ int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	if (dai->driver && dai->driver->ops->set_sysclk)
 		return dai->driver->ops->set_sysclk(dai, clk_id, freq, dir);
 	else if (dai->codec && dai->codec->driver->set_sysclk)
-		return dai->codec->driver->set_sysclk(dai->codec, clk_id,
+		return dai->codec->driver->set_sysclk(dai->codec, clk_id, 0,
 						      freq, dir);
 	else
 		return -EINVAL;
@@ -2679,16 +2677,18 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
  * snd_soc_codec_set_sysclk - configure CODEC system or master clock.
  * @codec: CODEC
  * @clk_id: DAI specific clock ID
+ * @source: Source for the clock
  * @freq: new clock frequency in Hz
  * @dir: new clock direction - input/output.
  *
  * Configures the CODEC master (MCLK) or system (SYSCLK) clocking.
  */
 int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
-	unsigned int freq, int dir)
+			     int source, unsigned int freq, int dir)
 {
 	if (codec->driver->set_sysclk)
-		return codec->driver->set_sysclk(codec, clk_id, freq, dir);
+		return codec->driver->set_sysclk(codec, clk_id, source,
+						 freq, dir);
 	else
 		return -EINVAL;
 }
@@ -3141,6 +3141,7 @@ int snd_soc_register_platform(struct device *dev,
 	platform->driver = platform_drv;
 	platform->dapm.dev = dev;
 	platform->dapm.platform = platform;
+	platform->dapm.stream_event = platform_drv->stream_event;
 
 	mutex_lock(&client_mutex);
 	list_add(&platform->list, &platform_list);
@@ -3253,6 +3254,7 @@ int snd_soc_register_codec(struct device *dev,
 	codec->dapm.dev = dev;
 	codec->dapm.codec = codec;
 	codec->dapm.seq_notifier = codec_drv->seq_notifier;
+	codec->dapm.stream_event = codec_drv->stream_event;
 	codec->dev = dev;
 	codec->driver = codec_drv;
 	codec->num_dai = num_dai;

@@ -443,6 +443,11 @@ static int dapm_new_mixer(struct snd_soc_dapm_widget *w)
 			if (path->name != (char *)w->kcontrol_news[i].name)
 				continue;
 
+			if (w->kcontrols[i]) {
+				path->kcontrol = w->kcontrols[i];
+				continue;
+			}
+
 			wlistsize = sizeof(struct snd_soc_dapm_widget_list) +
 				    sizeof(struct snd_soc_dapm_widget *),
 			wlist = kzalloc(wlistsize, GFP_KERNEL);
@@ -579,8 +584,8 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 					name + prefix_len, prefix);
 		ret = snd_ctl_add(card, kcontrol);
 		if (ret < 0) {
-			dev_err(dapm->dev,
-				"asoc: failed to add kcontrol %s\n", w->name);
+			dev_err(dapm->dev, "failed to add kcontrol %s: %d\n",
+				w->name, ret);
 			kfree(wlist);
 			return ret;
 		}
@@ -1556,7 +1561,6 @@ static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 		/* found, now check type */
 		found = 1;
 		path->connect = connect;
-		break;
 	}
 
 	if (found)
@@ -2584,7 +2588,7 @@ static void soc_dapm_stream_event(struct snd_soc_dapm_context *dapm,
 	{
 		if (!w->sname || w->dapm != dapm)
 			continue;
-		dev_dbg(w->dapm->dev, "widget %s\n %s stream %s event %d\n",
+		dev_vdbg(w->dapm->dev, "widget %s\n %s stream %s event %d\n",
 			w->name, w->sname, stream, event);
 		if (strstr(w->sname, stream)) {
 			switch(event) {
@@ -2604,6 +2608,10 @@ static void soc_dapm_stream_event(struct snd_soc_dapm_context *dapm,
 	}
 
 	dapm_power_widgets(dapm, event);
+
+	/* do we need to notify any clients that DAPM stream is complete */
+	if (dapm->stream_event)
+		dapm->stream_event(dapm, event);
 }
 
 /**

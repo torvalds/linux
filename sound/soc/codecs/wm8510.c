@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -598,6 +599,11 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8510 = {
 	.reg_cache_default =wm8510_reg,
 };
 
+static const struct of_device_id wm8510_of_match[] = {
+	{ .compatible = "wlf,wm8510" },
+	{ },
+};
+
 #if defined(CONFIG_SPI_MASTER)
 static int __devinit wm8510_spi_probe(struct spi_device *spi)
 {
@@ -628,6 +634,7 @@ static struct spi_driver wm8510_spi_driver = {
 	.driver = {
 		.name	= "wm8510",
 		.owner	= THIS_MODULE,
+		.of_match_table = wm8510_of_match,
 	},
 	.probe		= wm8510_spi_probe,
 	.remove		= __devexit_p(wm8510_spi_remove),
@@ -671,6 +678,7 @@ static struct i2c_driver wm8510_i2c_driver = {
 	.driver = {
 		.name = "wm8510-codec",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8510_of_match,
 	},
 	.probe =    wm8510_i2c_probe,
 	.remove =   __devexit_p(wm8510_i2c_remove),

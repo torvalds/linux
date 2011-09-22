@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -414,6 +415,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8711 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8711_intercon),
 };
 
+static const struct of_device_id wm8711_of_match[] = {
+	{ .compatible = "wlf,wm8711", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8711_of_match);
+
 #if defined(CONFIG_SPI_MASTER)
 static int __devinit wm8711_spi_probe(struct spi_device *spi)
 {
@@ -443,8 +450,9 @@ static int __devexit wm8711_spi_remove(struct spi_device *spi)
 
 static struct spi_driver wm8711_spi_driver = {
 	.driver = {
-		.name	= "wm8711-codec",
+		.name	= "wm8711",
 		.owner	= THIS_MODULE,
+		.of_match_table = wm8711_of_match,
 	},
 	.probe		= wm8711_spi_probe,
 	.remove		= __devexit_p(wm8711_spi_remove),
@@ -487,8 +495,9 @@ MODULE_DEVICE_TABLE(i2c, wm8711_i2c_id);
 
 static struct i2c_driver wm8711_i2c_driver = {
 	.driver = {
-		.name = "wm8711-codec",
+		.name = "wm8711",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8711_of_match,
 	},
 	.probe =    wm8711_i2c_probe,
 	.remove =   __devexit_p(wm8711_i2c_remove),

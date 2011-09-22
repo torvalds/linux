@@ -78,7 +78,6 @@
  * @second_stream: pointer to second stream
  * @playback: the number of playback streams opened
  * @capture: the number of capture streams opened
- * @asynchronous: 0=synchronous mode, 1=asynchronous mode
  * @cpu_dai: the CPU DAI for this device
  * @dev_attr: the sysfs device attribute structure
  * @stats: SSI statistics
@@ -90,9 +89,6 @@ struct fsl_ssi_private {
 	unsigned int irq;
 	struct snd_pcm_substream *first_stream;
 	struct snd_pcm_substream *second_stream;
-	unsigned int playback;
-	unsigned int capture;
-	int asynchronous;
 	unsigned int fifo_depth;
 	struct snd_soc_dai_driver cpu_dai_drv;
 	struct device_attribute dev_attr;
@@ -281,24 +277,18 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+	struct fsl_ssi_private *ssi_private =
+		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+	int synchronous = ssi_private->cpu_dai_drv.symmetric_rates;
 
 	/*
 	 * If this is the first stream opened, then request the IRQ
 	 * and initialize the SSI registers.
 	 */
-	if (!ssi_private->playback && !ssi_private->capture) {
+	if (!ssi_private->first_stream) {
 		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
-		int ret;
 
-		/* The 'name' should not have any slashes in it. */
-		ret = request_irq(ssi_private->irq, fsl_ssi_isr, 0,
-				  ssi_private->name, ssi_private);
-		if (ret < 0) {
-			dev_err(substream->pcm->card->dev,
-				"could not claim irq %u\n", ssi_private->irq);
-			return ret;
-		}
+		ssi_private->first_stream = substream;
 
 		/*
 		 * Section 16.5 of the MPC8610 reference manual says that the
@@ -316,7 +306,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		clrsetbits_be32(&ssi->scr,
 			CCSR_SSI_SCR_I2S_MODE_MASK | CCSR_SSI_SCR_SYN,
 			CCSR_SSI_SCR_TFR_CLK_DIS | CCSR_SSI_SCR_I2S_MODE_SLAVE
-			| (ssi_private->asynchronous ? 0 : CCSR_SSI_SCR_SYN));
+			| (synchronous ? CCSR_SSI_SCR_SYN : 0));
 
 		out_be32(&ssi->stcr,
 			 CCSR_SSI_STCR_TXBIT0 | CCSR_SSI_STCR_TFEN0 |
@@ -333,7 +323,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		 * master.
 		 */
 
-		/* 4. Enable the interrupts and DMA requests */
+		/* Enable the interrupts and DMA requests */
 		out_be32(&ssi->sier, SIER_FLAGS);
 
 		/*
@@ -362,57 +352,46 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		 * this is bad is because at this point, the PCM driver has not
 		 * finished initializing the DMA controller.
 		 */
-	}
+	} else {
+		if (synchronous) {
+			struct snd_pcm_runtime *first_runtime =
+				ssi_private->first_stream->runtime;
+			/*
+			 * This is the second stream open, and we're in
+			 * synchronous mode, so we need to impose sample
+			 * sample size constraints. This is because STCCR is
+			 * used for playback and capture in synchronous mode,
+			 * so there's no way to specify different word
+			 * lengths.
+			 *
+			 * Note that this can cause a race condition if the
+			 * second stream is opened before the first stream is
+			 * fully initialized.  We provide some protection by
+			 * checking to make sure the first stream is
+			 * initialized, but it's not perfect.  ALSA sometimes
+			 * re-initializes the driver with a different sample
+			 * rate or size.  If the second stream is opened
+			 * before the first stream has received its final
+			 * parameters, then the second stream may be
+			 * constrained to the wrong sample rate or size.
+			 */
+			if (!first_runtime->sample_bits) {
+				dev_err(substream->pcm->card->dev,
+					"set sample size in %s stream first\n",
+					substream->stream ==
+					SNDRV_PCM_STREAM_PLAYBACK
+					? "capture" : "playback");
+				return -EAGAIN;
+			}
 
-	if (!ssi_private->first_stream)
-		ssi_private->first_stream = substream;
-	else {
-		/* This is the second stream open, so we need to impose sample
-		 * rate and maybe sample size constraints.  Note that this can
-		 * cause a race condition if the second stream is opened before
-		 * the first stream is fully initialized.
-		 *
-		 * We provide some protection by checking to make sure the first
-		 * stream is initialized, but it's not perfect.  ALSA sometimes
-		 * re-initializes the driver with a different sample rate or
-		 * size.  If the second stream is opened before the first stream
-		 * has received its final parameters, then the second stream may
-		 * be constrained to the wrong sample rate or size.
-		 *
-		 * FIXME: This code does not handle opening and closing streams
-		 * repeatedly.  If you open two streams and then close the first
-		 * one, you may not be able to open another stream until you
-		 * close the second one as well.
-		 */
-		struct snd_pcm_runtime *first_runtime =
-			ssi_private->first_stream->runtime;
-
-		if (!first_runtime->sample_bits) {
-			dev_err(substream->pcm->card->dev,
-				"set sample size in %s stream first\n",
-				substream->stream == SNDRV_PCM_STREAM_PLAYBACK
-				? "capture" : "playback");
-			return -EAGAIN;
-		}
-
-		/* If we're in synchronous mode, then we need to constrain
-		 * the sample size as well.  We don't support independent sample
-		 * rates in asynchronous mode.
-		 */
-		if (!ssi_private->asynchronous)
 			snd_pcm_hw_constraint_minmax(substream->runtime,
 				SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
 				first_runtime->sample_bits,
 				first_runtime->sample_bits);
+		}
 
 		ssi_private->second_stream = substream;
 	}
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ssi_private->playback++;
-
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		ssi_private->capture++;
 
 	return 0;
 }
@@ -434,24 +413,35 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *hw_params, struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
+	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	unsigned int sample_size =
+		snd_pcm_format_width(params_format(hw_params));
+	u32 wl = CCSR_SSI_SxCCR_WL(sample_size);
+	int enabled = in_be32(&ssi->scr) & CCSR_SSI_SCR_SSIEN;
 
-	if (substream == ssi_private->first_stream) {
-		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
-		unsigned int sample_size =
-			snd_pcm_format_width(params_format(hw_params));
-		u32 wl = CCSR_SSI_SxCCR_WL(sample_size);
+	/*
+	 * If we're in synchronous mode, and the SSI is already enabled,
+	 * then STCCR is already set properly.
+	 */
+	if (enabled && ssi_private->cpu_dai_drv.symmetric_rates)
+		return 0;
 
-		/* The SSI should always be disabled at this points (SSIEN=0) */
+	/*
+	 * FIXME: The documentation says that SxCCR[WL] should not be
+	 * modified while the SSI is enabled.  The only time this can
+	 * happen is if we're trying to do simultaneous playback and
+	 * capture in asynchronous mode.  Unfortunately, I have been enable
+	 * to get that to work at all on the P1022DS.  Therefore, we don't
+	 * bother to disable/enable the SSI when setting SxCCR[WL], because
+	 * the SSI will stop anyway.  Maybe one day, this will get fixed.
+	 */
 
-		/* In synchronous mode, the SSI uses STCCR for capture */
-		if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ||
-		    !ssi_private->asynchronous)
-			clrsetbits_be32(&ssi->stccr,
-					CCSR_SSI_SxCCR_WL_MASK, wl);
-		else
-			clrsetbits_be32(&ssi->srccr,
-					CCSR_SSI_SxCCR_WL_MASK, wl);
-	}
+	/* In synchronous mode, the SSI uses STCCR for capture */
+	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ||
+	    ssi_private->cpu_dai_drv.symmetric_rates)
+		clrsetbits_be32(&ssi->stccr, CCSR_SSI_SxCCR_WL_MASK, wl);
+	else
+		clrsetbits_be32(&ssi->srccr, CCSR_SSI_SxCCR_WL_MASK, wl);
 
 	return 0;
 }
@@ -474,7 +464,6 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		clrbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			setbits32(&ssi->scr,
@@ -510,27 +499,18 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ssi_private->playback--;
-
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		ssi_private->capture--;
-
 	if (ssi_private->first_stream == substream)
 		ssi_private->first_stream = ssi_private->second_stream;
 
 	ssi_private->second_stream = NULL;
 
 	/*
-	 * If this is the last active substream, disable the SSI and release
-	 * the IRQ.
+	 * If this is the last active substream, disable the SSI.
 	 */
-	if (!ssi_private->playback && !ssi_private->capture) {
+	if (!ssi_private->first_stream) {
 		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
 
 		clrbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
-
-		free_irq(ssi_private->irq, ssi_private);
 	}
 }
 
@@ -675,22 +655,33 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
 		dev_err(&pdev->dev, "could not determine device resources\n");
-		kfree(ssi_private);
-		return ret;
+		goto error_kmalloc;
 	}
 	ssi_private->ssi = of_iomap(np, 0);
 	if (!ssi_private->ssi) {
 		dev_err(&pdev->dev, "could not map device resources\n");
-		kfree(ssi_private);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error_kmalloc;
 	}
 	ssi_private->ssi_phys = res.start;
+
 	ssi_private->irq = irq_of_parse_and_map(np, 0);
+	if (ssi_private->irq == NO_IRQ) {
+		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
+		ret = -ENXIO;
+		goto error_iomap;
+	}
+
+	/* The 'name' should not have any slashes in it. */
+	ret = request_irq(ssi_private->irq, fsl_ssi_isr, 0, ssi_private->name,
+			  ssi_private);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "could not claim irq %u\n", ssi_private->irq);
+		goto error_irqmap;
+	}
 
 	/* Are the RX and the TX clocks locked? */
-	if (of_find_property(np, "fsl,ssi-asynchronous", NULL))
-		ssi_private->asynchronous = 1;
-	else
+	if (!of_find_property(np, "fsl,ssi-asynchronous", NULL))
 		ssi_private->cpu_dai_drv.symmetric_rates = 1;
 
 	/* Determine the FIFO depth. */
@@ -711,7 +702,7 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "could not create sysfs %s file\n",
 			ssi_private->dev_attr.attr.name);
-		goto error;
+		goto error_irq;
 	}
 
 	/* Register with ASoC */
@@ -720,7 +711,7 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &ssi_private->cpu_dai_drv);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
-		goto error;
+		goto error_dev;
 	}
 
 	/* Trigger the machine driver's probe function.  The platform driver
@@ -741,18 +732,28 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	if (IS_ERR(ssi_private->pdev)) {
 		ret = PTR_ERR(ssi_private->pdev);
 		dev_err(&pdev->dev, "failed to register platform: %d\n", ret);
-		goto error;
+		goto error_dai;
 	}
 
 	return 0;
 
-error:
+error_dai:
 	snd_soc_unregister_dai(&pdev->dev);
+
+error_dev:
 	dev_set_drvdata(&pdev->dev, NULL);
-	if (dev_attr)
-		device_remove_file(&pdev->dev, dev_attr);
+	device_remove_file(&pdev->dev, dev_attr);
+
+error_irq:
+	free_irq(ssi_private->irq, ssi_private);
+
+error_irqmap:
 	irq_dispose_mapping(ssi_private->irq);
+
+error_iomap:
 	iounmap(ssi_private->ssi);
+
+error_kmalloc:
 	kfree(ssi_private);
 
 	return ret;
@@ -765,6 +766,9 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 	platform_device_unregister(ssi_private->pdev);
 	snd_soc_unregister_dai(&pdev->dev);
 	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
+
+	free_irq(ssi_private->irq, ssi_private);
+	irq_dispose_mapping(ssi_private->irq);
 
 	kfree(ssi_private);
 	dev_set_drvdata(&pdev->dev, NULL);

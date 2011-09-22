@@ -446,7 +446,6 @@ err_regulator:
 		gpio_free(data->power_gpio);
 err_gpio:
 	kfree(data);
-	i2c_set_clientdata(tpa6130a2_client, NULL);
 	tpa6130a2_client = NULL;
 
 	return ret;

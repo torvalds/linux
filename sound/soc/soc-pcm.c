@@ -27,8 +27,6 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 
-static DEFINE_MUTEX(pcm_mutex);
-
 static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;

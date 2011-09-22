@@ -69,10 +69,10 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 	s3c2412_i2s.dma_playback = &s3c2412_i2s_pcm_stereo_out;
 
 	s3c2412_i2s.iis_cclk = clk_get(dai->dev, "i2sclk");
-	if (s3c2412_i2s.iis_cclk == NULL) {
+	if (IS_ERR(s3c2412_i2s.iis_cclk)) {
 		pr_err("failed to get i2sclk clock\n");
 		iounmap(s3c2412_i2s.regs);
-		return -ENODEV;
+		return PTR_ERR(s3c2412_i2s.iis_cclk);
 	}
 
 	/* Set MPLL as the source for IIS CLK */

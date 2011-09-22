@@ -294,7 +294,6 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
-	struct i2c_client *i2c = codec->control_data;
 	struct snd_pcm_runtime *master_runtime;
 
 	/* The DAI has shared clocks so if we already have a playback or
@@ -303,7 +302,7 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 	 */
 	if (ssm2602->master_substream) {
 		master_runtime = ssm2602->master_substream->runtime;
-		dev_dbg(&i2c->dev, "Constraining to %d bits at %dHz\n",
+		dev_dbg(codec->dev, "Constraining to %d bits at %dHz\n",
 			master_runtime->sample_bits,
 			master_runtime->rate);
 
