@@ -269,6 +269,17 @@ static void twl6040_init_chip(struct snd_soc_codec *codec)
 	/* No imput selected for microphone amplifiers */
 	twl6040_write_reg_cache(codec, TWL6040_REG_MICLCTL, 0x18);
 	twl6040_write_reg_cache(codec, TWL6040_REG_MICRCTL, 0x18);
+
+	/*
+	 * We need to lower the default gain values, so the ramp code
+	 * can work correctly for the first playback.
+	 * This reduces the pop noise heard at the first playback.
+	 */
+	twl6040_write_reg_cache(codec, TWL6040_REG_HSGAIN, 0xff);
+	twl6040_write_reg_cache(codec, TWL6040_REG_EARCTL, 0x1e);
+	twl6040_write_reg_cache(codec, TWL6040_REG_HFLGAIN, 0x1d);
+	twl6040_write_reg_cache(codec, TWL6040_REG_HFRGAIN, 0x1d);
+	twl6040_write_reg_cache(codec, TWL6040_REG_LINEGAIN, 0);
 }
 
 static void twl6040_restore_regs(struct snd_soc_codec *codec)
