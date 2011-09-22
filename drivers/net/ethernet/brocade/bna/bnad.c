@@ -3359,6 +3359,7 @@ probe_success:
 	return 0;
 
 probe_uninit:
+	mutex_lock(&bnad->conf_mutex);
 	bnad_res_free(bnad, &bnad->mod_res_info[0], BNA_MOD_RES_T_MAX);
 disable_ioceth:
 	bnad_ioceth_disable(bnad);
