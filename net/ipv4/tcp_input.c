@@ -217,16 +217,25 @@ static inline void TCP_ECN_withdraw_cwr(struct tcp_sock *tp)
 	tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
 }
 
-static inline void TCP_ECN_check_ce(struct tcp_sock *tp, struct sk_buff *skb)
+static inline void TCP_ECN_check_ce(struct tcp_sock *tp, const struct sk_buff *skb)
 {
-	if (tp->ecn_flags & TCP_ECN_OK) {
-		if (INET_ECN_is_ce(TCP_SKB_CB(skb)->flags))
-			tp->ecn_flags |= TCP_ECN_DEMAND_CWR;
+	if (!(tp->ecn_flags & TCP_ECN_OK))
+		return;
+
+	switch (TCP_SKB_CB(skb)->flags & INET_ECN_MASK) {
+	case INET_ECN_NOT_ECT:
 		/* Funny extension: if ECT is not set on a segment,
-		 * it is surely retransmit. It is not in ECN RFC,
-		 * but Linux follows this rule. */
-		else if (INET_ECN_is_not_ect((TCP_SKB_CB(skb)->flags)))
+		 * and we already seen ECT on a previous segment,
+		 * it is probably a retransmit.
+		 */
+		if (tp->ecn_flags & TCP_ECN_SEEN)
 			tcp_enter_quickack_mode((struct sock *)tp);
+		break;
+	case INET_ECN_CE:
+		tp->ecn_flags |= TCP_ECN_DEMAND_CWR;
+		/* fallinto */
+	default:
+		tp->ecn_flags |= TCP_ECN_SEEN;
 	}
 }
 
