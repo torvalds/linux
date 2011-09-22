@@ -1809,7 +1809,7 @@ static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	}
 }
 
-static void mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
+static bool mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 			     u64 *spte)
 {
 	u64 pte;
@@ -1817,17 +1817,21 @@ static void mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 
 	pte = *spte;
 	if (is_shadow_present_pte(pte)) {
-		if (is_last_spte(pte, sp->role.level))
+		if (is_last_spte(pte, sp->role.level)) {
 			drop_spte(kvm, spte);
-		else {
+			if (is_large_pte(pte))
+				--kvm->stat.lpages;
+		} else {
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
 			drop_parent_pte(child, spte);
 		}
-	} else if (is_mmio_spte(pte))
+		return true;
+	}
+
+	if (is_mmio_spte(pte))
 		mmu_spte_clear_no_track(spte);
 
-	if (is_large_pte(pte))
-		--kvm->stat.lpages;
+	return false;
 }
 
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
