@@ -3702,6 +3702,11 @@ done:
 	return (rc != X86EMUL_CONTINUE) ? EMULATION_FAILED : EMULATION_OK;
 }
 
+bool x86_page_table_writing_insn(struct x86_emulate_ctxt *ctxt)
+{
+	return ctxt->d & PageTable;
+}
+
 static bool string_insn_completed(struct x86_emulate_ctxt *ctxt)
 {
 	/* The second termination condition only applies for REPE
