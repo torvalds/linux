@@ -114,6 +114,60 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 	priv->scan_request = NULL;
 }
 
+static void iwl_process_scan_complete(struct iwl_priv *priv)
+{
+	bool aborted;
+
+	IWL_DEBUG_SCAN(priv, "Completed scan.\n");
+
+	cancel_delayed_work(&priv->scan_check);
+
+	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->shrd->status);
+	if (aborted)
+		IWL_DEBUG_SCAN(priv, "Aborted scan completed.\n");
+
+	if (!test_and_clear_bit(STATUS_SCANNING, &priv->shrd->status)) {
+		IWL_DEBUG_SCAN(priv, "Scan already completed.\n");
+		goto out_settings;
+	}
+
+	if (priv->scan_type == IWL_SCAN_ROC) {
+		ieee80211_remain_on_channel_expired(priv->hw);
+		priv->hw_roc_channel = NULL;
+		schedule_delayed_work(&priv->hw_roc_disable_work, 10 * HZ);
+	}
+
+	if (priv->scan_type != IWL_SCAN_NORMAL && !aborted) {
+		int err;
+
+		/* Check if mac80211 requested scan during our internal scan */
+		if (priv->scan_request == NULL)
+			goto out_complete;
+
+		/* If so request a new scan */
+		err = iwl_scan_initiate(priv, priv->scan_vif, IWL_SCAN_NORMAL,
+					priv->scan_request->channels[0]->band);
+		if (err) {
+			IWL_DEBUG_SCAN(priv,
+				"failed to initiate pending scan: %d\n", err);
+			aborted = true;
+			goto out_complete;
+		}
+
+		return;
+	}
+
+out_complete:
+	iwl_complete_scan(priv, aborted);
+
+out_settings:
+	/* Can we still talk to firmware ? */
+	if (!iwl_is_ready_rf(priv->shrd))
+		return;
+
+	iwlagn_post_scan(priv);
+}
+
 void iwl_force_scan_end(struct iwl_priv *priv)
 {
 	lockdep_assert_held(&priv->shrd->mutex);
@@ -1011,60 +1065,6 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 	mutex_lock(&priv->shrd->mutex);
 	iwl_scan_cancel_timeout(priv, 200);
 	mutex_unlock(&priv->shrd->mutex);
-}
-
-static void iwl_process_scan_complete(struct iwl_priv *priv)
-{
-	bool aborted;
-
-	IWL_DEBUG_SCAN(priv, "Completed scan.\n");
-
-	cancel_delayed_work(&priv->scan_check);
-
-	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->shrd->status);
-	if (aborted)
-		IWL_DEBUG_SCAN(priv, "Aborted scan completed.\n");
-
-	if (!test_and_clear_bit(STATUS_SCANNING, &priv->shrd->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan already completed.\n");
-		goto out_settings;
-	}
-
-	if (priv->scan_type == IWL_SCAN_ROC) {
-		ieee80211_remain_on_channel_expired(priv->hw);
-		priv->hw_roc_channel = NULL;
-		schedule_delayed_work(&priv->hw_roc_disable_work, 10 * HZ);
-	}
-
-	if (priv->scan_type != IWL_SCAN_NORMAL && !aborted) {
-		int err;
-
-		/* Check if mac80211 requested scan during our internal scan */
-		if (priv->scan_request == NULL)
-			goto out_complete;
-
-		/* If so request a new scan */
-		err = iwl_scan_initiate(priv, priv->scan_vif, IWL_SCAN_NORMAL,
-					priv->scan_request->channels[0]->band);
-		if (err) {
-			IWL_DEBUG_SCAN(priv,
-				"failed to initiate pending scan: %d\n", err);
-			aborted = true;
-			goto out_complete;
-		}
-
-		return;
-	}
-
-out_complete:
-	iwl_complete_scan(priv, aborted);
-
-out_settings:
-	/* Can we still talk to firmware ? */
-	if (!iwl_is_ready_rf(priv->shrd))
-		return;
-
-	iwlagn_post_scan(priv);
 }
 
 static void iwl_bg_scan_completed(struct work_struct *work)
