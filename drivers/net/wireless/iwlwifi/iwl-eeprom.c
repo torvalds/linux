@@ -899,8 +899,9 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	IWL_DEBUG_EEPROM(priv, "Parsing data for %d channels.\n",
 			priv->channel_count);
 
-	priv->channel_info = kzalloc(sizeof(struct iwl_channel_info) *
-				     priv->channel_count, GFP_KERNEL);
+	priv->channel_info = kcalloc(priv->channel_count,
+				     sizeof(struct iwl_channel_info),
+				     GFP_KERNEL);
 	if (!priv->channel_info) {
 		IWL_ERR(priv, "Could not allocate channel_info\n");
 		priv->channel_count = 0;

@@ -304,8 +304,8 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 
 	txq->q.n_window = slots_num;
 
-	txq->meta = kzalloc(sizeof(txq->meta[0]) * slots_num, GFP_KERNEL);
-	txq->cmd = kzalloc(sizeof(txq->cmd[0]) * slots_num, GFP_KERNEL);
+	txq->meta = kcalloc(slots_num, sizeof(txq->meta[0]), GFP_KERNEL);
+	txq->cmd = kcalloc(slots_num, sizeof(txq->cmd[0]), GFP_KERNEL);
 
 	if (!txq->meta || !txq->cmd)
 		goto error;
@@ -322,8 +322,8 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 	/* Driver private data, only for Tx (not command) queues,
 	 * not shared with device. */
 	if (txq_id != trans->shrd->cmd_queue) {
-		txq->skbs = kzalloc(sizeof(txq->skbs[0]) *
-				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
+		txq->skbs = kcalloc(TFD_QUEUE_SIZE_MAX, sizeof(txq->skbs[0]),
+				    GFP_KERNEL);
 		if (!txq->skbs) {
 			IWL_ERR(trans, "kmalloc for auxiliary BD "
 				  "structures failed\n");
@@ -534,8 +534,8 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 		goto error;
 	}
 
-	trans_pcie->txq = kzalloc(sizeof(struct iwl_tx_queue) *
-			hw_params(trans).max_txq_num, GFP_KERNEL);
+	trans_pcie->txq = kcalloc(hw_params(trans).max_txq_num,
+				  sizeof(struct iwl_tx_queue), GFP_KERNEL);
 	if (!trans_pcie->txq) {
 		IWL_ERR(trans, "Not enough memory for txq\n");
 		ret = ENOMEM;
