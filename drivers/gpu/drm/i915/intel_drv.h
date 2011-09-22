@@ -187,7 +187,7 @@ struct intel_crtc {
 #define DIP_VERSION_AVI 0x2
 #define DIP_LEN_AVI     13
 
-#define DIP_TYPE_SPD	0x3
+#define DIP_TYPE_SPD	0x83
 #define DIP_VERSION_SPD	0x1
 #define DIP_LEN_SPD	25
 #define DIP_SPD_UNKNOWN	0
