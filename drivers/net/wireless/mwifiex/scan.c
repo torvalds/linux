@@ -1464,9 +1464,9 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 }
 
 static int
-mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
-			u8 *bssid, s32 rssi, const u8 *ie_buf,
-			size_t ie_len, u16 beacon_period, u16 cap_info_bitmap)
+mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
+			       s32 rssi, const u8 *ie_buf, size_t ie_len,
+			       u16 beacon_period, u16 cap_info_bitmap, u8 band)
 {
 	struct mwifiex_bssdescriptor *bss_desc = NULL;
 	int ret;
@@ -1489,7 +1489,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
 
 	ret = mwifiex_fill_new_bss_desc(priv, bssid, rssi, beacon_ie,
 					ie_len, beacon_period,
-					cap_info_bitmap, bss_desc);
+					cap_info_bitmap, band, bss_desc);
 	if (ret)
 		goto done;
 
@@ -1533,6 +1533,11 @@ done:
 	return 0;
 }
 
+static void mwifiex_free_bss_priv(struct cfg80211_bss *bss)
+{
+	kfree(bss->priv);
+}
+
 /*
  * This function handles the command response of scan.
  *
@@ -1571,6 +1576,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 	struct chan_band_param_set *chan_band;
 	u8 is_bgscan_resp;
 	unsigned long flags;
+	struct cfg80211_bss *bss;
 
 	is_bgscan_resp = (le16_to_cpu(resp->command)
 		== HostCmd_CMD_802_11_BG_SCAN_QUERY);
@@ -1752,10 +1758,12 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			chan = ieee80211_get_channel(priv->wdev->wiphy, freq);
 
 			if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
-				cfg80211_inform_bss(priv->wdev->wiphy, chan,
-					bssid, network_tsf, cap_info_bitmap,
-					beacon_period, ie_buf, ie_len, rssi,
-					GFP_KERNEL);
+				bss = cfg80211_inform_bss(priv->wdev->wiphy,
+					      chan, bssid, network_tsf,
+					      cap_info_bitmap, beacon_period,
+					      ie_buf, ie_len, rssi, GFP_KERNEL);
+				*(u8 *)bss->priv = band;
+				bss->free_priv = mwifiex_free_bss_priv;
 
 				if (priv->media_connected && !memcmp(bssid,
 					priv->curr_bss_params.bss_descriptor
@@ -1763,7 +1771,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 					mwifiex_update_curr_bss_params(priv,
 							bssid, rssi, ie_buf,
 							ie_len, beacon_period,
-							cap_info_bitmap);
+							cap_info_bitmap, band);
 			}
 		} else {
 			dev_dbg(adapter->dev, "missing BSS channel IE\n");

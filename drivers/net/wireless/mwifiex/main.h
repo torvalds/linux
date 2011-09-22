@@ -958,7 +958,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *,
 int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 			      u8 *bssid, s32 rssi, u8 *ie_buf,
 			      size_t ie_len, u16 beacon_period,
-			      u16 cap_info_bitmap,
+			      u16 cap_info_bitmap, u8 band,
 			      struct mwifiex_bssdescriptor *bss_desc);
 int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 				struct mwifiex_bssdescriptor *bss_entry,

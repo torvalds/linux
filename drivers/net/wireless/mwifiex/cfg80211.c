@@ -1219,6 +1219,9 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 	/* We are using custom domains */
 	wdev->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 
+	/* Reserve space for bss band information */
+	wdev->wiphy->bss_priv_size = sizeof(u8);
+
 	wdev->wiphy->reg_notifier = mwifiex_reg_notifier;
 
 	/* Set struct mwifiex_private pointer in wiphy_priv */
