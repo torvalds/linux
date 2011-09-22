@@ -1013,17 +1013,13 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 	mutex_unlock(&priv->shrd->mutex);
 }
 
-static void iwl_bg_scan_completed(struct work_struct *work)
+static void iwl_process_scan_complete(struct iwl_priv *priv)
 {
-	struct iwl_priv *priv =
-	    container_of(work, struct iwl_priv, scan_completed);
 	bool aborted;
 
 	IWL_DEBUG_SCAN(priv, "Completed scan.\n");
 
 	cancel_delayed_work(&priv->scan_check);
-
-	mutex_lock(&priv->shrd->mutex);
 
 	aborted = test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->shrd->status);
 	if (aborted)
@@ -1057,7 +1053,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 			goto out_complete;
 		}
 
-		goto out;
+		return;
 	}
 
 out_complete:
@@ -1066,11 +1062,18 @@ out_complete:
 out_settings:
 	/* Can we still talk to firmware ? */
 	if (!iwl_is_ready_rf(priv->shrd))
-		goto out;
+		return;
 
 	iwlagn_post_scan(priv);
+}
 
-out:
+static void iwl_bg_scan_completed(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, scan_completed);
+
+	mutex_lock(&priv->shrd->mutex);
+	iwl_process_scan_complete(priv);
 	mutex_unlock(&priv->shrd->mutex);
 }
 
