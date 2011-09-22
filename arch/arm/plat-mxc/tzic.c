@@ -74,6 +74,12 @@ static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
 
 static unsigned int *wakeup_intr[4];
 
+static struct mxc_extra_irq tzic_extra_irq = {
+#ifdef CONFIG_FIQ
+	.set_irq_fiq = tzic_set_irq_fiq,
+#endif
+};
+
 static __init void tzic_init_gc(unsigned int irq_start)
 {
 	struct irq_chip_generic *gc;
@@ -82,7 +88,7 @@ static __init void tzic_init_gc(unsigned int irq_start)
 
 	gc = irq_alloc_generic_chip("tzic", 1, irq_start, tzic_base,
 				    handle_level_irq);
-	gc->private = tzic_set_irq_fiq;
+	gc->private = &tzic_extra_irq;
 	gc->wake_enabled = IRQ_MSK(32);
 	wakeup_intr[idx] = &gc->wake_active;
 
