@@ -591,6 +591,13 @@ enum wl12xx_ssid_type {
 	WL12XX_SSID_TYPE_ANY = 2,
 };
 
+enum wl1271_psd_type {
+	WL1271_PSD_LEGACY = 0,
+	WL1271_PSD_UPSD_TRIGGER = 1,
+	WL1271_PSD_LEGACY_PSPOLL = 2,
+	WL1271_PSD_SAPSD = 3
+};
+
 struct wl12xx_cmd_add_peer {
 	struct wl1271_cmd_header header;
 

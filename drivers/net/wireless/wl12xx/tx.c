@@ -30,6 +30,7 @@
 #include "reg.h"
 #include "ps.h"
 #include "tx.h"
+#include "event.h"
 
 static int wl1271_set_default_wep_key(struct wl1271 *wl, u8 id)
 {
@@ -125,25 +126,31 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 
 static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
 {
-	bool fw_ps;
+	bool fw_ps, single_sta;
 	u8 tx_pkts;
 
 	/* only regulate station links */
 	if (hlid < WL1271_AP_STA_HLID_START)
 		return;
 
+	if (WARN_ON(!wl1271_is_active_sta(wl, hlid)))
+	    return;
+
 	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
 	tx_pkts = wl->links[hlid].allocated_pkts;
+	single_sta = (wl->active_sta_count == 1);
 
 	/*
 	 * if in FW PS and there is enough data in FW we can put the link
 	 * into high-level PS and clean out its TX queues.
+	 * Make an exception if this is the only connected station. In this
+	 * case FW-memory congestion is not a problem.
 	 */
-	if (fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
+	if (!single_sta && fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
 		wl1271_ps_link_start(wl, hlid, true);
 }
 
-static bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
+bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
 {
 	return wl->dummy_packet == skb;
 }
@@ -204,9 +211,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	u32 len;
 	u32 total_blocks;
 	int id, ret = -EBUSY, ac;
-
-	/* we use 1 spare block */
-	u32 spare_blocks = 1;
+	u32 spare_blocks = wl->tx_spare_blocks;
 
 	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
 		return -EAGAIN;
@@ -219,6 +224,10 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	/* approximate the number of blocks required for this packet
 	   in the firmware */
 	len = wl12xx_calc_packet_alignment(wl, total_len);
+
+	/* in case of a dummy packet, use default amount of spare mem blocks */
+	if (unlikely(wl12xx_is_dummy_packet(wl, skb)))
+		spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 
 	total_blocks = (len + TX_HW_BLOCK_SIZE - 1) / TX_HW_BLOCK_SIZE +
 		spare_blocks;
@@ -451,7 +460,6 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
 		rate_set >>= 1;
 	}
 
-#ifdef CONFIG_WL12XX_HT
 	/* MCS rates indication are on bits 16 - 23 */
 	rate_set >>= HW_HT_RATES_OFFSET - band->n_bitrates;
 
@@ -460,7 +468,6 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
 			enabled_rates |= (CONF_HW_BIT_RATE_MCS_0 << bit);
 		rate_set >>= 1;
 	}
-#endif
 
 	return enabled_rates;
 }
@@ -884,6 +891,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 	/* TX failure */
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		for (i = 0; i < AP_MAX_LINKS; i++) {
+			wl1271_free_sta(wl, i);
 			wl1271_tx_reset_link_queues(wl, i);
 			wl->links[i].allocated_pkts = 0;
 			wl->links[i].prev_freed_pkts = 0;
@@ -903,9 +911,13 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 					ieee80211_tx_status_ni(wl->hw, skb);
 				}
 			}
-			wl->tx_queue_count[i] = 0;
 		}
+
+		wl->ba_rx_bitmap = 0;
 	}
+
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wl->tx_queue_count[i] = 0;
 
 	wl->stopped_queues_map = 0;
 

@@ -164,13 +164,14 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_QOS: QoS for this association was enabled/disabled. Note
  *	that it is only ever disabled for station mode.
  * @BSS_CHANGED_IDLE: Idle changed for this BSS/interface.
+ * @BSS_CHANGED_SSID: SSID changed for this BSS (AP mode)
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
 	BSS_CHANGED_ERP_CTS_PROT	= 1<<1,
 	BSS_CHANGED_ERP_PREAMBLE	= 1<<2,
 	BSS_CHANGED_ERP_SLOT		= 1<<3,
-	BSS_CHANGED_HT                  = 1<<4,
+	BSS_CHANGED_HT			= 1<<4,
 	BSS_CHANGED_BASIC_RATES		= 1<<5,
 	BSS_CHANGED_BEACON_INT		= 1<<6,
 	BSS_CHANGED_BSSID		= 1<<7,
@@ -181,6 +182,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_ARP_FILTER		= 1<<12,
 	BSS_CHANGED_QOS			= 1<<13,
 	BSS_CHANGED_IDLE		= 1<<14,
+	BSS_CHANGED_SSID		= 1<<15,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -254,6 +256,9 @@ enum ieee80211_rssi_event {
  * @idle: This interface is idle. There's also a global idle flag in the
  *	hardware config which may be more appropriate depending on what
  *	your driver/device needs to do.
+ * @ssid: The SSID of the current vif. Only valid in AP-mode.
+ * @ssid_len: Length of SSID given in @ssid.
+ * @hidden_ssid: The SSID of the current vif is hidden. Only valid in AP-mode.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -280,6 +285,9 @@ struct ieee80211_bss_conf {
 	bool arp_filter_enabled;
 	bool qos;
 	bool idle;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	size_t ssid_len;
+	bool hidden_ssid;
 };
 
 /**
@@ -947,6 +955,9 @@ enum set_key_cmd {
  * @wme: indicates whether the STA supports WME. Only valid during AP-mode.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
+ * @uapsd_queues: bitmap of queues configured for uapsd. Only valid
+ *	if wme is supported.
+ * @max_sp: max Service Period. Only valid if wme is supported.
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -1096,6 +1107,10 @@ enum sta_notify_cmd {
  *	stations based on the PM bit of incoming frames.
  *	Use ieee80211_start_ps()/ieee8021_end_ps() to manually configure
  *	the PS mode of connected stations.
+ *
+ * @IEEE80211_HW_TX_AMPDU_SETUP_IN_HW: The device handles TX A-MPDU session
+ *	setup strictly in HW. mac80211 should not attempt to do this in
+ *	software.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1121,6 +1136,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_CQM_RSSI			= 1<<20,
 	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
 	IEEE80211_HW_AP_LINK_PS				= 1<<22,
+	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
 };
 
 /**
@@ -3219,6 +3235,19 @@ void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw);
  */
 void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
 				  const u8 *addr);
+
+/**
+ * ieee80211_send_bar - send a BlockAckReq frame
+ *
+ * can be used to flush pending frames from the peer's aggregation reorder
+ * buffer.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @ra: the peer's destination address
+ * @tid: the TID of the aggregation session
+ * @ssn: the new starting sequence number for the receiver
+ */
+void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
 
 /* Rate control API */
 

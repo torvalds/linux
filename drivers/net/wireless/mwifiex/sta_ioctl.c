@@ -199,13 +199,15 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			dev_err(priv->adapter->dev, " failed to alloc bss_desc\n");
 			return -ENOMEM;
 		}
-		beacon_ie = kzalloc(bss->len_beacon_ies, GFP_KERNEL);
+
+		beacon_ie = kmemdup(bss->information_elements,
+					bss->len_beacon_ies, GFP_KERNEL);
 		if (!beacon_ie) {
-			dev_err(priv->adapter->dev, " failed to alloc bss_desc\n");
+			kfree(bss_desc);
+			dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
 			return -ENOMEM;
 		}
-		memcpy(beacon_ie, bss->information_elements,
-		       bss->len_beacon_ies);
+
 		ret = mwifiex_fill_new_bss_desc(priv, bss->bssid, bss->signal,
 						beacon_ie, bss->len_beacon_ies,
 						bss->beacon_interval,
@@ -866,10 +868,10 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 	ret = mwifiex_rate_ioctl_cfg(priv, rate);
 
 	if (!ret) {
-		if (rate && rate->is_rate_auto)
+		if (rate->is_rate_auto)
 			rate->rate = mwifiex_index_to_data_rate(priv->tx_rate,
 							priv->tx_htinfo);
-		else if (rate)
+		else
 			rate->rate = priv->data_rate;
 	} else {
 		ret = -1;

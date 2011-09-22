@@ -270,8 +270,8 @@ static void setup_ht_cap(struct ath_softc *sc,
 
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, max_streams);
-	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, max_streams);
+	tx_streams = ath9k_cmn_count_streams(ah->txchainmask, max_streams);
+	rx_streams = ath9k_cmn_count_streams(ah->rxchainmask, max_streams);
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"TX streams %d, RX streams: %d\n",
@@ -506,10 +506,6 @@ static void ath9k_init_misc(struct ath_softc *sc)
 		sc->sc_flags |= SC_OP_RXAGGR;
 	}
 
-	common->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
-	common->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
-
-	ath9k_hw_set_diversity(sc->sc_ah, true);
 	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
 
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
@@ -646,10 +642,8 @@ static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
 static void ath9k_init_txpower_limits(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath9k_channel *curchan = ah->curchan;
 
-	ah->txchainmask = common->tx_chainmask;
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 		ath9k_init_band_txpower(sc, IEEE80211_BAND_2GHZ);
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
@@ -658,9 +652,22 @@ static void ath9k_init_txpower_limits(struct ath_softc *sc)
 	ah->curchan = curchan;
 }
 
+void ath9k_reload_chainmask_settings(struct ath_softc *sc)
+{
+	if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT))
+		return;
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
+		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
+		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+}
+
+
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
@@ -698,6 +705,16 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
 
+	hw->wiphy->available_antennas_rx = BIT(ah->caps.max_rxchains) - 1;
+	hw->wiphy->available_antennas_tx = BIT(ah->caps.max_txchains) - 1;
+
+	/* single chain devices with rx diversity */
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
+		hw->wiphy->available_antennas_rx = BIT(0) | BIT(1);
+
+	sc->ant_rx = hw->wiphy->available_antennas_rx;
+	sc->ant_tx = hw->wiphy->available_antennas_tx;
+
 #ifdef CONFIG_ATH9K_RATE_CONTROL
 	hw->rate_control_algorithm = "ath9k_rate_control";
 #endif
@@ -709,12 +726,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
-			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
-			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
-	}
+	ath9k_reload_chainmask_settings(sc);
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 }
@@ -782,6 +794,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 			goto error_world;
 	}
 
+	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->hw_check_work, ath_hw_check);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_DELAYED_WORK(&sc->hw_pll_work, ath_hw_pll_work);

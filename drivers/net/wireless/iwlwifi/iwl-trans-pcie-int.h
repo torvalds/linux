@@ -32,6 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/skbuff.h>
+#include <linux/pci.h>
 
 #include "iwl-fh.h"
 #include "iwl-csr.h"
@@ -114,6 +115,87 @@ struct iwl_dma_ptr {
  */
 #define IWL_IPAN_MCAST_QUEUE		8
 
+struct iwl_cmd_meta {
+	/* only for SYNC commands, iff the reply skb is wanted */
+	struct iwl_host_cmd *source;
+
+	u32 flags;
+
+	DEFINE_DMA_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_LEN(len);
+};
+
+/*
+ * Generic queue structure
+ *
+ * Contains common data for Rx and Tx queues.
+ *
+ * Note the difference between n_bd and n_window: the hardware
+ * always assumes 256 descriptors, so n_bd is always 256 (unless
+ * there might be HW changes in the future). For the normal TX
+ * queues, n_window, which is the size of the software queue data
+ * is also 256; however, for the command queue, n_window is only
+ * 32 since we don't need so many commands pending. Since the HW
+ * still uses 256 BDs for DMA though, n_bd stays 256. As a result,
+ * the software buffers (in the variables @meta, @txb in struct
+ * iwl_tx_queue) only have 32 entries, while the HW buffers (@tfds
+ * in the same struct) have 256.
+ * This means that we end up with the following:
+ *  HW entries: | 0 | ... | N * 32 | ... | N * 32 + 31 | ... | 255 |
+ *  SW entries:           | 0      | ... | 31          |
+ * where N is a number between 0 and 7. This means that the SW
+ * data is a window overlayed over the HW queue.
+ */
+struct iwl_queue {
+	int n_bd;              /* number of BDs in this queue */
+	int write_ptr;       /* 1-st empty entry (index) host_w*/
+	int read_ptr;         /* last used entry (index) host_r*/
+	/* use for monitoring and recovering the stuck queue */
+	dma_addr_t dma_addr;   /* physical addr for BD's */
+	int n_window;	       /* safe queue window */
+	u32 id;
+	int low_mark;	       /* low watermark, resume queue if free
+				* space more than this */
+	int high_mark;         /* high watermark, stop queue if free
+				* space less than this */
+};
+
+/**
+ * struct iwl_tx_queue - Tx Queue for DMA
+ * @q: generic Rx/Tx queue descriptor
+ * @bd: base of circular buffer of TFDs
+ * @cmd: array of command/TX buffer pointers
+ * @meta: array of meta data for each command/tx buffer
+ * @dma_addr_cmd: physical address of cmd/tx buffer array
+ * @txb: array of per-TFD driver data
+ * @time_stamp: time (in jiffies) of last read_ptr change
+ * @need_update: indicates need to update read/write index
+ * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
+ * @sta_id: valid if sched_retry is set
+ * @tid: valid if sched_retry is set
+ *
+ * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
+ * descriptors) and required locking structures.
+ */
+#define TFD_TX_CMD_SLOTS 256
+#define TFD_CMD_SLOTS 32
+
+struct iwl_tx_queue {
+	struct iwl_queue q;
+	struct iwl_tfd *tfds;
+	struct iwl_device_cmd **cmd;
+	struct iwl_cmd_meta *meta;
+	struct sk_buff **skbs;
+	unsigned long time_stamp;
+	u8 need_update;
+	u8 sched_retry;
+	u8 active;
+	u8 swq_id;
+
+	u16 sta_id;
+	u16 tid;
+};
+
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
@@ -193,9 +275,8 @@ int iwlagn_txq_attach_buf_to_tfd(struct iwl_trans *trans,
 				 dma_addr_t addr, u16 len, u8 reset);
 int iwl_queue_init(struct iwl_queue *q, int count, int slots_num, u32 id);
 int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
-int __must_check iwl_trans_pcie_send_cmd_pdu(struct iwl_trans *trans, u8 id,
-			u32 flags, u16 len, const void *data);
-void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
+void iwl_tx_cmd_complete(struct iwl_trans *trans,
+			 struct iwl_rx_mem_buffer *rxb, int handler_status);
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt);
@@ -214,7 +295,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 				 enum iwl_rxon_context_id ctx,
 				 int sta_id, int tid, int frame_limit);
 void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
-	int index);
+	int index, enum dma_data_direction dma_dir);
 int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			 struct sk_buff_head *skbs);
 int iwl_queue_space(const struct iwl_queue *q);
@@ -282,12 +363,9 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (unlikely(!trans->shrd->mac80211_registered))
-		return;
-
 	if (test_and_clear_bit(hwq, trans_pcie->queue_stopped))
 		if (atomic_dec_return(&trans_pcie->queue_stop_count[ac]) <= 0)
-			ieee80211_wake_queue(trans->shrd->hw, ac);
+			iwl_wake_sw_queue(priv(trans), ac);
 }
 
 static inline void iwl_stop_queue(struct iwl_trans *trans,
@@ -299,12 +377,9 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (unlikely(!trans->shrd->mac80211_registered))
-		return;
-
 	if (!test_and_set_bit(hwq, trans_pcie->queue_stopped))
 		if (atomic_inc_return(&trans_pcie->queue_stop_count[ac]) > 0)
-			ieee80211_stop_queue(trans->shrd->hw, ac);
+			iwl_stop_sw_queue(priv(trans), ac);
 }
 
 #ifdef ieee80211_stop_queue
@@ -342,5 +417,20 @@ static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
 {
 	return index & (q->n_window - 1);
 }
+
+#define IWL_TX_FIFO_BK		0	/* shared */
+#define IWL_TX_FIFO_BE		1
+#define IWL_TX_FIFO_VI		2	/* shared */
+#define IWL_TX_FIFO_VO		3
+#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
+#define IWL_TX_FIFO_BE_IPAN	4
+#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
+#define IWL_TX_FIFO_VO_IPAN	5
+/* re-uses the VO FIFO, uCode will properly flush/schedule */
+#define IWL_TX_FIFO_AUX		5
+#define IWL_TX_FIFO_UNUSED	-1
+
+/* AUX (TX during scan dwell) queue */
+#define IWL_AUX_QUEUE		10
 
 #endif /* __iwl_trans_int_pcie_h__ */

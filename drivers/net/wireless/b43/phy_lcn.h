@@ -19,6 +19,9 @@
 
 
 struct b43_phy_lcn {
+	bool hw_pwr_ctl;
+	bool hw_pwr_ctl_capable;
+	u8 tx_pwr_curr_idx;
 };
 
 

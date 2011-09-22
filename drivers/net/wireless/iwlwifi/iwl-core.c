@@ -818,8 +818,9 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
-			     struct iwl_rxon_context *ctx)
+			     enum iwl_rxon_context_id ctxid)
 {
+	struct iwl_rxon_context *ctx = &priv->contexts[ctxid];
 	struct iwl_rxon_cmd *rxon = &ctx->staging;
 
 	IWL_DEBUG_RADIO(priv, "RX CONFIG:\n");
@@ -868,7 +869,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	 * commands by clearing the ready bit */
 	clear_bit(STATUS_READY, &priv->shrd->status);
 
-	wake_up_interruptible(&priv->wait_command_queue);
+	wake_up(&priv->shrd->wait_command_queue);
 
 	if (!ondemand) {
 		/*
@@ -1327,7 +1328,13 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->shrd->mutex);
 
-	WARN_ON(ctx->vif != vif);
+	if (WARN_ON(ctx->vif != vif)) {
+		struct iwl_rxon_context *tmp;
+		IWL_ERR(priv, "ctx->vif = %p, vif = %p\n", ctx->vif, vif);
+		for_each_context(priv, tmp)
+			IWL_ERR(priv, "\tID = %d:\tctx = %p\tctx->vif = %p\n",
+				tmp->ctxid, tmp, tmp->vif);
+	}
 	ctx->vif = NULL;
 
 	iwl_teardown_interface(priv, vif, false);
@@ -1802,13 +1809,12 @@ u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval)
 		return 0;
 
 	quot = (usec / interval) &
-		(iwl_beacon_time_mask_high(priv,
-		hw_params(priv).beacon_time_tsf_bits) >>
-		hw_params(priv).beacon_time_tsf_bits);
+		(iwl_beacon_time_mask_high(priv, IWLAGN_EXT_BEACON_TIME_POS) >>
+		IWLAGN_EXT_BEACON_TIME_POS);
 	rem = (usec % interval) & iwl_beacon_time_mask_low(priv,
-				   hw_params(priv).beacon_time_tsf_bits);
+				   IWLAGN_EXT_BEACON_TIME_POS);
 
-	return (quot << hw_params(priv).beacon_time_tsf_bits) + rem;
+	return (quot << IWLAGN_EXT_BEACON_TIME_POS) + rem;
 }
 
 /* base is usually what we get from ucode with each received frame,
@@ -1818,22 +1824,22 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval)
 {
 	u32 base_low = base & iwl_beacon_time_mask_low(priv,
-				hw_params(priv).beacon_time_tsf_bits);
+				IWLAGN_EXT_BEACON_TIME_POS);
 	u32 addon_low = addon & iwl_beacon_time_mask_low(priv,
-				hw_params(priv).beacon_time_tsf_bits);
+				IWLAGN_EXT_BEACON_TIME_POS);
 	u32 interval = beacon_interval * TIME_UNIT;
 	u32 res = (base & iwl_beacon_time_mask_high(priv,
-				hw_params(priv).beacon_time_tsf_bits)) +
+				IWLAGN_EXT_BEACON_TIME_POS)) +
 				(addon & iwl_beacon_time_mask_high(priv,
-				hw_params(priv).beacon_time_tsf_bits));
+				IWLAGN_EXT_BEACON_TIME_POS));
 
 	if (base_low > addon_low)
 		res += base_low - addon_low;
 	else if (base_low < addon_low) {
 		res += interval + base_low - addon_low;
-		res += (1 << hw_params(priv).beacon_time_tsf_bits);
+		res += (1 << IWLAGN_EXT_BEACON_TIME_POS);
 	} else
-		res += (1 << hw_params(priv).beacon_time_tsf_bits);
+		res += (1 << IWLAGN_EXT_BEACON_TIME_POS);
 
 	return cpu_to_le32(res);
 }
@@ -1842,7 +1848,7 @@ void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
 				 enum iwl_rxon_context_id ctx,
 				 u8 sta_id, u8 tid)
 {
-	struct ieee80211_vif *vif = priv->contexts[ctx].vif;
+	struct ieee80211_vif *vif;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 
 	if (ctx == NUM_IWL_RXON_CTX)
@@ -1864,4 +1870,34 @@ void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
 	vif = priv->contexts[ctx].vif;
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
+}
+
+void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state)
+{
+	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
+}
+
+void iwl_nic_config(struct iwl_priv *priv)
+{
+	priv->cfg->lib->nic_config(priv);
+
+}
+
+void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info;
+
+	info = IEEE80211_SKB_CB(skb);
+	kmem_cache_free(priv->tx_cmd_pool, (info->driver_data[1]));
+	dev_kfree_skb_any(skb);
+}
+
+void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac)
+{
+	ieee80211_stop_queue(priv->hw, ac);
+}
+
+void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac)
+{
+	ieee80211_wake_queue(priv->hw, ac);
 }

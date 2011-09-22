@@ -265,18 +265,10 @@ static ssize_t gpio_power_write(struct file *file,
 			   size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
-	char buf[10];
-	size_t len;
 	unsigned long value;
 	int ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len)) {
-		return -EFAULT;
-	}
-	buf[len] = '\0';
-
-	ret = kstrtoul(buf, 0, &value);
+	ret = kstrtoul_from_user(user_buf, count, 10, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value in gpio_power");
 		return -EINVAL;
@@ -427,17 +419,10 @@ static ssize_t dtim_interval_write(struct file *file,
 				   size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
-	char buf[10];
-	size_t len;
 	unsigned long value;
 	int ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-
-	ret = kstrtoul(buf, 0, &value);
+	ret = kstrtoul_from_user(user_buf, count, 10, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value for dtim_interval");
 		return -EINVAL;
@@ -492,17 +477,10 @@ static ssize_t beacon_interval_write(struct file *file,
 				     size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
-	char buf[10];
-	size_t len;
 	unsigned long value;
 	int ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-
-	ret = kstrtoul(buf, 0, &value);
+	ret = kstrtoul_from_user(user_buf, count, 10, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value for beacon_interval");
 		return -EINVAL;
@@ -542,17 +520,10 @@ static ssize_t rx_streaming_interval_write(struct file *file,
 			   size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
-	char buf[10];
-	size_t len;
 	unsigned long value;
 	int ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-
-	ret = kstrtoul(buf, 0, &value);
+	ret = kstrtoul_from_user(user_buf, count, 10, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value in rx_streaming_interval!");
 		return -EINVAL;
@@ -601,17 +572,10 @@ static ssize_t rx_streaming_always_write(struct file *file,
 			   size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
-	char buf[10];
-	size_t len;
 	unsigned long value;
 	int ret;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-
-	ret = kstrtoul(buf, 0, &value);
+	ret = kstrtoul_from_user(user_buf, count, 10, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value in rx_streaming_write!");
 		return -EINVAL;
@@ -651,6 +615,47 @@ static ssize_t rx_streaming_always_read(struct file *file,
 static const struct file_operations rx_streaming_always_ops = {
 	.read = rx_streaming_always_read,
 	.write = rx_streaming_always_write,
+	.open = wl1271_open_file_generic,
+	.llseek = default_llseek,
+};
+
+static ssize_t beacon_filtering_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	char buf[10];
+	size_t len;
+	unsigned long value;
+	int ret;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	ret = kstrtoul(buf, 0, &value);
+	if (ret < 0) {
+		wl1271_warning("illegal value for beacon_filtering!");
+		return -EINVAL;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_acx_beacon_filter_opt(wl, !!value);
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static const struct file_operations beacon_filtering_ops = {
+	.write = beacon_filtering_write,
 	.open = wl1271_open_file_generic,
 	.llseek = default_llseek,
 };
@@ -767,6 +772,7 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(driver_state, rootdir);
 	DEBUGFS_ADD(dtim_interval, rootdir);
 	DEBUGFS_ADD(beacon_interval, rootdir);
+	DEBUGFS_ADD(beacon_filtering, rootdir);
 
 	streaming = debugfs_create_dir("rx_streaming", rootdir);
 	if (!streaming || IS_ERR(streaming))

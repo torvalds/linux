@@ -68,7 +68,7 @@
 #include "iwl-shared.h"
 #include "iwl-trans.h"
 #include "iwl-csr.h"
-#include "iwl-pci.h"
+#include "iwl-cfg.h"
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
@@ -134,12 +134,6 @@ static void iwl_pci_apm_config(struct iwl_bus *bus)
 	}
 }
 
-static void iwl_pci_set_drv_data(struct iwl_bus *bus, struct iwl_shared *shrd)
-{
-	bus->shrd = shrd;
-	pci_set_drvdata(IWL_BUS_GET_PCI_DEV(bus), shrd);
-}
-
 static void iwl_pci_get_hw_id(struct iwl_bus *bus, char buf[],
 			      int buf_len)
 {
@@ -168,7 +162,6 @@ static u32 iwl_pci_read32(struct iwl_bus *bus, u32 ofs)
 static const struct iwl_bus_ops bus_ops_pci = {
 	.get_pm_support = iwl_pci_is_pm_supported,
 	.apm_config = iwl_pci_apm_config,
-	.set_drv_data = iwl_pci_set_drv_data,
 	.get_hw_id = iwl_pci_get_hw_id,
 	.write8 = iwl_pci_write8,
 	.write32 = iwl_pci_write32,
@@ -260,6 +253,7 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0085, 0x1311, iwl6005_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x0085, 0x1316, iwl6005_2abg_cfg)},
 	{IWL_PCI_DEVICE(0x0082, 0xC020, iwl6005_2agn_sff_cfg)},
+	{IWL_PCI_DEVICE(0x0085, 0xC220, iwl6005_2agn_sff_cfg)},
 
 /* 6x30 Series */
 	{IWL_PCI_DEVICE(0x008A, 0x5305, iwl1030_bgn_cfg)},
@@ -392,6 +386,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_bus = IWL_BUS_GET_PCI_BUS(bus);
 	pci_bus->pci_dev = pdev;
 
+	pci_set_drvdata(pdev, bus);
+
 	/* W/A - seems to solve weird behavior. We need to remove this if we
 	 * don't want to stay in L1 all the time. This wastes a lot of power */
 	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
@@ -483,27 +479,22 @@ out_no_pci:
 	return err;
 }
 
-static void iwl_pci_down(struct iwl_bus *bus)
-{
-	struct iwl_pci_bus *pci_bus = (struct iwl_pci_bus *) bus->bus_specific;
-
-	pci_disable_msi(pci_bus->pci_dev);
-	pci_iounmap(pci_bus->pci_dev, pci_bus->hw_base);
-	pci_release_regions(pci_bus->pci_dev);
-	pci_disable_device(pci_bus->pci_dev);
-	pci_set_drvdata(pci_bus->pci_dev, NULL);
-
-	kfree(bus);
-}
-
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
-	struct iwl_shared *shrd = pci_get_drvdata(pdev);
-	struct iwl_bus *bus = shrd->bus;
+	struct iwl_bus *bus = pci_get_drvdata(pdev);
+	struct iwl_pci_bus *pci_bus = IWL_BUS_GET_PCI_BUS(bus);
+	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
+	struct iwl_shared *shrd = bus->shrd;
 
 	iwl_remove(shrd->priv);
 
-	iwl_pci_down(bus);
+	pci_disable_msi(pci_dev);
+	pci_iounmap(pci_dev, pci_bus->hw_base);
+	pci_release_regions(pci_dev);
+	pci_disable_device(pci_dev);
+	pci_set_drvdata(pci_dev, NULL);
+
+	kfree(bus);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -511,7 +502,8 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 static int iwl_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_shared *shrd = pci_get_drvdata(pdev);
+	struct iwl_bus *bus = pci_get_drvdata(pdev);
+	struct iwl_shared *shrd = bus->shrd;
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if
@@ -524,7 +516,8 @@ static int iwl_pci_suspend(struct device *device)
 static int iwl_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_shared *shrd = pci_get_drvdata(pdev);
+	struct iwl_bus *bus = pci_get_drvdata(pdev);
+	struct iwl_shared *shrd = bus->shrd;
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if

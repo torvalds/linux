@@ -851,10 +851,8 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 	if (test)
 		return;
 
-	if (AR_SREV_9280_20_OR_LATER(ah)) {
-		for (i = 0; i < Ar5416RateSize; i++)
-			ratesArray[i] -= AR9287_PWR_TABLE_OFFSET_DB * 2;
-	}
+	for (i = 0; i < Ar5416RateSize; i++)
+		ratesArray[i] -= AR9287_PWR_TABLE_OFFSET_DB * 2;
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -942,11 +940,6 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 			  | ATH9K_POW_SM(ratesArray[rateDupCck], 0));
 	}
 	REGWRITE_BUFFER_FLUSH(ah);
-}
-
-static void ath9k_hw_ar9287_set_addac(struct ath_hw *ah,
-				      struct ath9k_channel *chan)
-{
 }
 
 static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
@@ -1100,7 +1093,6 @@ const struct eeprom_ops eep_ar9287_ops = {
 	.get_eeprom_ver		= ath9k_hw_ar9287_get_eeprom_ver,
 	.get_eeprom_rev		= ath9k_hw_ar9287_get_eeprom_rev,
 	.set_board_values	= ath9k_hw_ar9287_set_board_values,
-	.set_addac		= ath9k_hw_ar9287_set_addac,
 	.set_txpower		= ath9k_hw_ar9287_set_txpower,
 	.get_spur_channel	= ath9k_hw_ar9287_get_spur_channel
 };

@@ -67,12 +67,32 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
+#include <linux/mm.h> /* for page_address */
 #include <net/mac80211.h>
 
 #include "iwl-commands.h"
 
-/*This files includes all the types / functions that are exported by the
- * upper layer to the bus and transport layer */
+/**
+ * DOC: shared area - role and goal
+ *
+ * The shared area contains all the data exported by the upper layer to the
+ * other layers. Since the bus and transport layer shouldn't dereference
+ * iwl_priv, all the data needed by the upper layer and the transport / bus
+ * layer must be here.
+ * The shared area also holds pointer to all the other layers. This allows a
+ * layer to call a function from another layer.
+ *
+ * NOTE: All the layers hold a pointer to the shared area which must be shrd.
+ *	A few macros assume that (_m)->shrd points to the shared area no matter
+ *	what _m is.
+ *
+ * gets notifications about enumeration, suspend, resume.
+ * For the moment, the bus layer is not a linux kernel module as itself, and
+ * the module_init function of the driver must call the bus specific
+ * registration functions. These functions are listed at the end of this file.
+ * For the moment, there is only one implementation of this interface: PCI-e.
+ * This implementation is iwl-pci.c
+ */
 
 struct iwl_cfg;
 struct iwl_bus;
@@ -89,6 +109,9 @@ extern struct iwl_mod_params iwlagn_mod_params;
 
 /**
  * struct iwl_mod_params
+ *
+ * Holds the module parameters
+ *
  * @sw_crypto: using hardware encryption, default = 0
  * @num_of_queues: number of tx queue, HW dependent
  * @disable_11n: 11n capabilities enabled, default = 0
@@ -133,20 +156,24 @@ struct iwl_mod_params {
 
 /**
  * struct iwl_hw_params
+ *
+ * Holds the module parameters
+ *
  * @max_txq_num: Max # Tx queues supported
  * @num_ampdu_queues: num of ampdu queues
- * @tx/rx_chains_num: Number of TX/RX chains
- * @valid_tx/rx_ant: usable antennas
- * @max_stations:
- * @ht40_channel: is 40MHz width possible in band 2.4
- * @beacon_time_tsf_bits: number of valid tsf bits for beacon time
- * @sku:
+ * @tx_chains_num: Number of TX chains
+ * @rx_chains_num: Number of RX chains
+ * @valid_tx_ant: usable antennas for TX
+ * @valid_rx_ant: usable antennas for RX
+ * @max_stations: the maximal number of stations
+ * @ht40_channel: is 40MHz width possible: BIT(IEEE80211_BAND_XXX)
+ * @sku: sku read from EEPROM
  * @rx_page_order: Rx buffer page order
- * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
- * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
- * @sw_crypto: 0 for hw, 1 for sw
- * @max_xxx_size: for ucode uses
- * @ct_kill_threshold: temperature threshold
+ * @max_inst_size: for ucode use
+ * @max_data_size: for ucode use
+ * @ct_kill_threshold: temperature threshold - in hw dependent unit
+ * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
+ *	relevant for 1000, 6000 and up
  * @wd_timeout: TX queues watchdog timeout
  * @calib_init_cfg: setup initial calibrations for the hw
  * @calib_rt_cfg: setup runtime calibrations for the hw
@@ -162,14 +189,12 @@ struct iwl_hw_params {
 	u8  max_stations;
 	u8  ht40_channel;
 	bool shadow_reg_enable;
-	u16 beacon_time_tsf_bits;
 	u16 sku;
 	u32 rx_page_order;
 	u32 max_inst_size;
 	u32 max_data_size;
-	u32 ct_kill_threshold; /* value in hw-dependent units */
-	u32 ct_kill_exit_threshold; /* value in hw-dependent units */
-				    /* for 1000, 6000 series and up */
+	u32 ct_kill_threshold;
+	u32 ct_kill_exit_threshold;
 	unsigned int wd_timeout;
 
 	u32 calib_init_cfg;
@@ -178,28 +203,59 @@ struct iwl_hw_params {
 };
 
 /**
- * struct iwl_ht_agg - aggregation status while waiting for block-ack
- * @txq_id: Tx queue used for Tx attempt
- * @wait_for_ba: Expect block-ack before next Tx reply
- * @rate_n_flags: Rate at which Tx was attempted
+ * enum iwl_agg_state
  *
- * If REPLY_TX indicates that aggregation was attempted, driver must wait
- * for block ack (REPLY_COMPRESSED_BA).  This struct stores tx reply info
- * until block ack arrives.
+ * The state machine of the BA agreement establishment / tear down.
+ * These states relate to a specific RA / TID.
+ *
+ * @IWL_AGG_OFF: aggregation is not used
+ * @IWL_AGG_ON: aggregation session is up
+ * @IWL_EMPTYING_HW_QUEUE_ADDBA: establishing a BA session - waiting for the
+ *	HW queue to be empty from packets for this RA /TID.
+ * @IWL_EMPTYING_HW_QUEUE_DELBA: tearing down a BA session - waiting for the
+ *	HW queue to be empty from packets for this RA /TID.
  */
-struct iwl_ht_agg {
-	u16 txq_id;
-	u16 wait_for_ba;
-	u32 rate_n_flags;
-#define IWL_AGG_OFF 0
-#define IWL_AGG_ON 1
-#define IWL_EMPTYING_HW_QUEUE_ADDBA 2
-#define IWL_EMPTYING_HW_QUEUE_DELBA 3
-	u8 state;
+enum iwl_agg_state {
+	IWL_AGG_OFF = 0,
+	IWL_AGG_ON,
+	IWL_EMPTYING_HW_QUEUE_ADDBA,
+	IWL_EMPTYING_HW_QUEUE_DELBA,
 };
 
+/**
+ * struct iwl_ht_agg - aggregation state machine
+
+ * This structs holds the states for the BA agreement establishment and tear
+ * down. It also holds the state during the BA session itself. This struct is
+ * duplicated for each RA / TID.
+
+ * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
+ *	Tx response (REPLY_TX), and the block ack notification
+ *	(REPLY_COMPRESSED_BA).
+ * @state: state of the BA agreement establishment / tear down.
+ * @txq_id: Tx queue used by the BA session - used by the transport layer.
+ *	Needed by the upper layer for debugfs only.
+ * @wait_for_ba: Expect block-ack before next Tx reply
+ */
+struct iwl_ht_agg {
+	u32 rate_n_flags;
+	enum iwl_agg_state state;
+	u16 txq_id;
+	bool wait_for_ba;
+};
+
+/**
+ * struct iwl_tid_data - one for each RA / TID
+
+ * This structs holds the states for each RA / TID.
+
+ * @seq_number: the next WiFi sequence number to use
+ * @tfds_in_queue: number of packets sent to the HW queues.
+ *	Exported for debugfs only
+ * @agg: aggregation state machine
+ */
 struct iwl_tid_data {
-	u16 seq_number; /* agn only */
+	u16 seq_number;
 	u16 tfds_in_queue;
 	struct iwl_ht_agg agg;
 };
@@ -212,6 +268,7 @@ struct iwl_tid_data {
  * @ucode_owner: IWL_OWNERSHIP_*
  * @cmd_queue: command queue number
  * @status: STATUS_*
+ * @valid_contexts: microcode/device supports multiple contexts
  * @bus: pointer to the bus layer data
  * @priv: pointer to the upper layer data
  * @hw_params: see struct iwl_hw_params
@@ -232,6 +289,7 @@ struct iwl_shared {
 	u8 cmd_queue;
 	unsigned long status;
 	bool wowlan;
+	u8 valid_contexts;
 
 	struct iwl_bus *bus;
 	struct iwl_priv *priv;
@@ -243,13 +301,9 @@ struct iwl_shared {
 	spinlock_t sta_lock;
 	struct mutex mutex;
 
-	/*these 2 shouldn't really be here, but they are needed for
-	 * iwl_queue_stop, which is called from the upper layer too
-	 */
-	u8 mac80211_registered;
-	struct ieee80211_hw *hw;
-
 	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
+
+	wait_queue_head_t wait_command_queue;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
@@ -283,6 +337,26 @@ static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
 static inline void iwl_free_pages(struct iwl_shared *shrd, unsigned long page)
 {
 	free_pages(page, shrd->hw_params.rx_page_order);
+}
+
+/**
+ * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
+ * @index -- current index
+ * @n_bd -- total number of entries in queue (must be power of 2)
+ */
+static inline int iwl_queue_inc_wrap(int index, int n_bd)
+{
+	return ++index & (n_bd - 1);
+}
+
+/**
+ * iwl_queue_dec_wrap - decrement queue index, wrap back to end
+ * @index -- current index
+ * @n_bd -- total number of entries in queue (must be power of 2)
+ */
+static inline int iwl_queue_dec_wrap(int index, int n_bd)
+{
+	return --index & (n_bd - 1);
 }
 
 struct iwl_rx_mem_buffer {
@@ -346,21 +420,52 @@ enum iwl_rxon_context_id {
 	NUM_IWL_RXON_CTX
 };
 
-#ifdef CONFIG_PM
-int iwl_suspend(struct iwl_priv *priv);
-int iwl_resume(struct iwl_priv *priv);
-#endif /* !CONFIG_PM */
-
 int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
+struct iwl_device_cmd;
+int __must_check iwl_rx_dispatch(struct iwl_priv *priv,
+				 struct iwl_rx_mem_buffer *rxb,
+				 struct iwl_device_cmd *cmd);
 
+int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
 				 enum iwl_rxon_context_id ctx,
 				 u8 sta_id, u8 tid);
 void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
 				enum iwl_rxon_context_id ctx,
 				u8 sta_id, u8 tid);
+void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
+void iwl_nic_config(struct iwl_priv *priv);
+void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb);
+void iwl_apm_stop(struct iwl_priv *priv);
+int iwl_apm_init(struct iwl_priv *priv);
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
+const char *get_cmd_string(u8 cmd);
+bool iwl_check_for_ct_kill(struct iwl_priv *priv);
+
+void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac);
+void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void iwl_reset_traffic_log(struct iwl_priv *priv);
+#endif /* CONFIG_IWLWIFI_DEBUGFS */
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+void iwl_print_rx_config_cmd(struct iwl_priv *priv,
+			     enum iwl_rxon_context_id ctxid);
+#else
+static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
+					   enum iwl_rxon_context_id ctxid)
+{
+}
+#endif
+
+#define IWL_CMD(x) case x: return #x
+#define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
+
+#define IWL_TRAFFIC_ENTRIES	(256)
+#define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS

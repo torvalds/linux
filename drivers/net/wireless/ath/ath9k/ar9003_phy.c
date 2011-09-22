@@ -559,6 +559,9 @@ static void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
 
 	if ((ah->caps.hw_caps & ATH9K_HW_CAP_APM) && (tx == 0x7))
 		REG_WRITE(ah, AR_SELFGEN_MASK, 0x3);
+	else if (AR_SREV_9480(ah))
+		/* xxx only when MCI support is enabled */
+		REG_WRITE(ah, AR_SELFGEN_MASK, 0x3);
 	else
 		REG_WRITE(ah, AR_SELFGEN_MASK, tx);
 
@@ -592,6 +595,9 @@ static void ar9003_hw_override_ini(struct ath_hw *ah)
 	val = REG_READ(ah, AR_PCU_MISC_MODE2) & (~AR_ADHOC_MCAST_KEYID_ENABLE);
 	REG_WRITE(ah, AR_PCU_MISC_MODE2,
 		  val | AR_AGG_WEP_ENABLE_FIX | AR_AGG_WEP_ENABLE);
+
+	REG_SET_BIT(ah, AR_PHY_CCK_DETECT,
+		    AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
 }
 
 static void ar9003_hw_prog_ini(struct ath_hw *ah,
@@ -658,6 +664,10 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		ar9003_hw_prog_ini(ah, &ah->iniMac[i], modesIndex);
 		ar9003_hw_prog_ini(ah, &ah->iniBB[i], modesIndex);
 		ar9003_hw_prog_ini(ah, &ah->iniRadio[i], modesIndex);
+		if (i == ATH_INI_POST && AR_SREV_9480_20(ah))
+			ar9003_hw_prog_ini(ah,
+					   &ah->ini_radio_post_sys2ant,
+					   modesIndex);
 	}
 
 	REG_WRITE_ARRAY(&ah->iniModesRxGain, 1, regWrites);
@@ -671,11 +681,14 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		REG_WRITE_ARRAY(&ah->iniModesAdditional,
 				modesIndex, regWrites);
 
-	if (AR_SREV_9300(ah))
+	if (AR_SREV_9330(ah))
 		REG_WRITE_ARRAY(&ah->iniModesAdditional, 1, regWrites);
 
 	if (AR_SREV_9340(ah) && !ah->is_clk_25mhz)
 		REG_WRITE_ARRAY(&ah->iniModesAdditional_40M, 1, regWrites);
+
+	if (AR_SREV_9480(ah))
+		ar9003_hw_prog_ini(ah, &ah->ini_BTCOEX_MAX_TXPWR, 1);
 
 	ar9003_hw_override_ini(ah);
 	ar9003_hw_set_channel_regs(ah, chan);
@@ -783,16 +796,6 @@ static void ar9003_hw_rfbus_done(struct ath_hw *ah)
 	udelay(synthDelay + BASE_ACTIVATE_DELAY);
 
 	REG_WRITE(ah, AR_PHY_RFBUS_REQ, 0);
-}
-
-static void ar9003_hw_set_diversity(struct ath_hw *ah, bool value)
-{
-	u32 v = REG_READ(ah, AR_PHY_CCK_DETECT);
-	if (value)
-		v |= AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
-	else
-		v &= ~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
-	REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
 }
 
 static bool ar9003_hw_ani_control(struct ath_hw *ah,
@@ -1277,7 +1280,6 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->set_delta_slope = ar9003_hw_set_delta_slope;
 	priv_ops->rfbus_req = ar9003_hw_rfbus_req;
 	priv_ops->rfbus_done = ar9003_hw_rfbus_done;
-	priv_ops->set_diversity = ar9003_hw_set_diversity;
 	priv_ops->ani_control = ar9003_hw_ani_control;
 	priv_ops->do_getnf = ar9003_hw_do_getnf;
 	priv_ops->ani_cache_ini_regs = ar9003_hw_ani_cache_ini_regs;

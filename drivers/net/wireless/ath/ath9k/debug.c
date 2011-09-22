@@ -95,11 +95,11 @@ static ssize_t read_file_tx_chainmask(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "0x%08x\n", common->tx_chainmask);
+	len = sprintf(buf, "0x%08x\n", ah->txchainmask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -107,7 +107,7 @@ static ssize_t write_file_tx_chainmask(struct file *file, const char __user *use
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	unsigned long mask;
 	char buf[32];
 	ssize_t len;
@@ -120,8 +120,8 @@ static ssize_t write_file_tx_chainmask(struct file *file, const char __user *use
 	if (strict_strtoul(buf, 0, &mask))
 		return -EINVAL;
 
-	common->tx_chainmask = mask;
-	sc->sc_ah->caps.tx_chainmask = mask;
+	ah->txchainmask = mask;
+	ah->caps.tx_chainmask = mask;
 	return count;
 }
 
@@ -138,11 +138,11 @@ static ssize_t read_file_rx_chainmask(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "0x%08x\n", common->rx_chainmask);
+	len = sprintf(buf, "0x%08x\n", ah->rxchainmask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -150,7 +150,7 @@ static ssize_t write_file_rx_chainmask(struct file *file, const char __user *use
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
 	unsigned long mask;
 	char buf[32];
 	ssize_t len;
@@ -163,8 +163,8 @@ static ssize_t write_file_rx_chainmask(struct file *file, const char __user *use
 	if (strict_strtoul(buf, 0, &mask))
 		return -EINVAL;
 
-	common->rx_chainmask = mask;
-	sc->sc_ah->caps.rx_chainmask = mask;
+	ah->rxchainmask = mask;
+	ah->caps.rx_chainmask = mask;
 	return count;
 }
 
@@ -826,7 +826,8 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 }
 
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
-		       struct ath_tx_status *ts, struct ath_txq *txq)
+		       struct ath_tx_status *ts, struct ath_txq *txq,
+		       unsigned int flags)
 {
 #define TX_SAMP_DBG(c) (sc->debug.bb_mac_samp[sc->debug.sampidx].ts\
 			[sc->debug.tsidx].c)
@@ -836,12 +837,12 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
 
 	if (bf_isampdu(bf)) {
-		if (bf_isxretried(bf))
+		if (flags & ATH_TX_BAR)
 			TX_STAT_INC(qnum, a_xretries);
 		else
 			TX_STAT_INC(qnum, a_completed);
 	} else {
-		if (bf_isxretried(bf))
+		if (ts->ts_status & ATH9K_TXERR_XRETRY)
 			TX_STAT_INC(qnum, xretries);
 		else
 			TX_STAT_INC(qnum, completed);
@@ -1323,16 +1324,17 @@ void ath9k_debug_samp_bb_mac(struct ath_softc *sc)
 
 	ath9k_ps_wakeup(sc);
 
+	spin_lock_bh(&sc->debug.samp_lock);
+
 	spin_lock_irqsave(&common->cc_lock, flags);
 	ath_hw_cycle_counters_update(common);
-	spin_unlock_irqrestore(&common->cc_lock, flags);
-
-	spin_lock_bh(&sc->debug.samp_lock);
 
 	ATH_SAMP_DBG(cc.cycles) = common->cc_ani.cycles;
 	ATH_SAMP_DBG(cc.rx_busy) = common->cc_ani.rx_busy;
 	ATH_SAMP_DBG(cc.rx_frame) = common->cc_ani.rx_frame;
 	ATH_SAMP_DBG(cc.tx_frame) = common->cc_ani.tx_frame;
+	spin_unlock_irqrestore(&common->cc_lock, flags);
+
 	ATH_SAMP_DBG(noise) = ah->noise;
 
 	REG_WRITE_D(ah, AR_MACMISC,
@@ -1373,6 +1375,9 @@ static int open_file_bb_mac_samps(struct inode *inode, struct file *file)
 	u8 chainmask = (ah->rxchainmask << 3) | ah->rxchainmask;
 	u8 nread;
 
+	if (sc->sc_flags & SC_OP_INVALID)
+		return -EAGAIN;
+
 	buf = vmalloc(size);
 	if (!buf)
 		return -ENOMEM;
@@ -1381,10 +1386,14 @@ static int open_file_bb_mac_samps(struct inode *inode, struct file *file)
 		vfree(buf);
 		return -ENOMEM;
 	}
+	/* Account the current state too */
+	ath9k_debug_samp_bb_mac(sc);
 
 	spin_lock_bh(&sc->debug.samp_lock);
 	memcpy(bb_mac_samp, sc->debug.bb_mac_samp,
 			sizeof(*bb_mac_samp) * ATH_DBG_MAX_SAMPLES);
+	len += snprintf(buf + len, size - len,
+			"Current Sample Index: %d\n", sc->debug.sampidx);
 	spin_unlock_bh(&sc->debug.samp_lock);
 
 	len += snprintf(buf + len, size - len,

@@ -64,6 +64,14 @@
 		goto err;						\
 } while (0)
 
+#define DEBUGFS_ADD_U32(name, parent, ptr, mode) do {			\
+	struct dentry *__tmp;						\
+	__tmp = debugfs_create_u32(#name, mode,				\
+				   parent, ptr);			\
+	if (IS_ERR(__tmp) || !__tmp)					\
+		goto err;						\
+} while (0)
+
 /* file operation */
 #define DEBUGFS_READ_FUNC(name)                                         \
 static ssize_t iwl_dbgfs_##name##_read(struct file *file,               \
@@ -803,6 +811,89 @@ DEBUGFS_READ_FILE_OPS(thermal_throttling);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
 DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
 DEBUGFS_READ_FILE_OPS(current_sleep_command);
+
+static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	int pos = 0, ofs = 0;
+	int cnt = 0, entry;
+
+	char *buf;
+	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
+		(hw_params(priv).max_txq_num * 32 * 8) + 400;
+	const u8 *ptr;
+	ssize_t ret;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERR(priv, "Can not allocate buffer\n");
+		return -ENOMEM;
+	}
+	if (priv->tx_traffic &&
+		(iwl_get_debug_level(priv->shrd) & IWL_DL_TX)) {
+		ptr = priv->tx_traffic;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Tx Traffic idx: %u\n", priv->tx_traffic_idx);
+		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
+			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
+			     entry++,  ofs += 16) {
+				pos += scnprintf(buf + pos, bufsz - pos,
+						"0x%.4x ", ofs);
+				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
+						   buf + pos, bufsz - pos, 0);
+				pos += strlen(buf + pos);
+				if (bufsz - pos > 0)
+					buf[pos++] = '\n';
+			}
+		}
+	}
+
+	if (priv->rx_traffic &&
+		(iwl_get_debug_level(priv->shrd) & IWL_DL_RX)) {
+		ptr = priv->rx_traffic;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Rx Traffic idx: %u\n", priv->rx_traffic_idx);
+		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
+			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
+			     entry++,  ofs += 16) {
+				pos += scnprintf(buf + pos, bufsz - pos,
+						"0x%.4x ", ofs);
+				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
+						   buf + pos, bufsz - pos, 0);
+				pos += strlen(buf + pos);
+				if (bufsz - pos > 0)
+					buf[pos++] = '\n';
+			}
+		}
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int traffic_log;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &traffic_log) != 1)
+		return -EFAULT;
+	if (traffic_log == 0)
+		iwl_reset_traffic_log(priv);
+
+	return count;
+}
 
 static const char *fmt_value = "  %-30s %10u\n";
 static const char *fmt_hex   = "  %-30s       0x%02X\n";
@@ -2146,8 +2237,8 @@ static ssize_t iwl_dbgfs_plcp_delta_write(struct file *file,
 
 static ssize_t iwl_dbgfs_force_reset_read(struct file *file,
 					char __user *user_buf,
-					size_t count, loff_t *ppos) {
-
+					size_t count, loff_t *ppos)
+{
 	struct iwl_priv *priv = file->private_data;
 	int i, pos = 0;
 	char buf[300];
@@ -2226,8 +2317,8 @@ static ssize_t iwl_dbgfs_txfifo_flush_write(struct file *file,
 
 static ssize_t iwl_dbgfs_wd_timeout_write(struct file *file,
 					const char __user *user_buf,
-					size_t count, loff_t *ppos) {
-
+					size_t count, loff_t *ppos)
+{
 	struct iwl_priv *priv = file->private_data;
 	char buf[8];
 	int buf_size;
@@ -2340,6 +2431,7 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
+DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
 DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
@@ -2360,6 +2452,52 @@ DEBUGFS_WRITE_FILE_OPS(wd_timeout);
 DEBUGFS_READ_FILE_OPS(bt_traffic);
 DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
 DEBUGFS_READ_FILE_OPS(reply_tx_error);
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+static ssize_t iwl_dbgfs_debug_level_read(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	struct iwl_shared *shrd = priv->shrd;
+	char buf[11];
+	int len;
+
+	len = scnprintf(buf, sizeof(buf), "0x%.8x",
+			iwl_get_debug_level(shrd));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t iwl_dbgfs_debug_level_write(struct file *file,
+					   const char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	struct iwl_shared *shrd = priv->shrd;
+	char buf[11];
+	unsigned long val;
+	int ret;
+
+	if (count > sizeof(buf))
+		return -EINVAL;
+
+	memset(buf, 0, sizeof(buf));
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	shrd->dbg_level_dev = val;
+	if (iwl_alloc_traffic_mem(priv))
+		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
+
+	return count;
+}
+DEBUGFS_READ_WRITE_FILE_OPS(debug_level);
+#endif /* CONFIG_IWLWIFI_DEBUG */
 
 /*
  * Create the debugfs files and directories
@@ -2398,8 +2536,11 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_U32(temperature, dir_data, &priv->temperature, S_IRUSR);
+
 	DEBUGFS_ADD_FILE(rx_statistics, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_statistics, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(traffic_log, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(clear_traffic_statistics, dir_debug, S_IWUSR);
@@ -2411,7 +2552,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(protection_mode, dir_debug, S_IWUSR | S_IRUSR);
-
 	DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
@@ -2422,6 +2562,10 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);
 	if (iwl_advanced_bt_coexist(priv))
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
+#ifdef CONFIG_IWLWIFI_DEBUG
+	DEBUGFS_ADD_FILE(debug_level, dir_debug, S_IRUSR | S_IWUSR);
+#endif
+
 	DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
 			 &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
@@ -2449,6 +2593,3 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	debugfs_remove_recursive(priv->debugfs_dir);
 	priv->debugfs_dir = NULL;
 }
-
-
-

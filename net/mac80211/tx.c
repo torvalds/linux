@@ -1232,7 +1232,8 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		tx->sta = sta_info_get(sdata, hdr->addr1);
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
-	    (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)) {
+	    (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION) &&
+	    !(local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW)) {
 		struct tid_ampdu_tx *tid_tx;
 
 		qc = ieee80211_get_qos_ctl(hdr);
@@ -1595,7 +1596,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 				return;
 			}
 
-	ieee80211_set_qos_hdr(local, skb);
+	ieee80211_set_qos_hdr(sdata, skb);
 	ieee80211_tx(sdata, skb, false);
 	rcu_read_unlock();
 }
@@ -1877,6 +1878,10 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			sta_flags = get_sta_flags(sta);
 		rcu_read_unlock();
 	}
+
+	/* For mesh, the use of the QoS header is mandatory */
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		sta_flags |= WLAN_STA_WME;
 
 	/* receiver and we are QoS enabled, use a QoS type frame */
 	if ((sta_flags & WLAN_STA_WME) && local->hw.queues >= 4) {
@@ -2365,11 +2370,9 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 	local = sdata->local;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*pspoll));
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for "
-		       "pspoll template\n", sdata->name);
+	if (!skb)
 		return NULL;
-	}
+
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
 	pspoll = (struct ieee80211_pspoll *) skb_put(skb, sizeof(*pspoll));
@@ -2405,11 +2408,9 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 	local = sdata->local;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*nullfunc));
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for nullfunc "
-		       "template\n", sdata->name);
+	if (!skb)
 		return NULL;
-	}
+
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
 	nullfunc = (struct ieee80211_hdr_3addr *) skb_put(skb,
@@ -2444,11 +2445,8 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*hdr) +
 			    ie_ssid_len + ie_len);
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
-		       "request template\n", sdata->name);
+	if (!skb)
 		return NULL;
-	}
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 

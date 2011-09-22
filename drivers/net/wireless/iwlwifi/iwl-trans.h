@@ -73,10 +73,63 @@
  * layer */
 
 struct iwl_priv;
-struct iwl_rxon_context;
-struct iwl_host_cmd;
 struct iwl_shared;
-struct iwl_device_cmd;
+
+#define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
+#define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
+#define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
+
+enum {
+	CMD_SYNC = 0,
+	CMD_ASYNC = BIT(0),
+	CMD_WANT_SKB = BIT(1),
+	CMD_ON_DEMAND = BIT(2),
+};
+
+#define DEF_CMD_PAYLOAD_SIZE 320
+
+/**
+ * struct iwl_device_cmd
+ *
+ * For allocation of the command and tx queues, this establishes the overall
+ * size of the largest command we send to uCode, except for commands that
+ * aren't fully copied and use other TFD space.
+ */
+struct iwl_device_cmd {
+	struct iwl_cmd_header hdr;	/* uCode API */
+	u8 payload[DEF_CMD_PAYLOAD_SIZE];
+} __packed;
+
+#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
+
+#define IWL_MAX_CMD_TFDS	2
+
+enum iwl_hcmd_dataflag {
+	IWL_HCMD_DFL_NOCOPY	= BIT(0),
+};
+
+/**
+ * struct iwl_host_cmd - Host command to the uCode
+ * @data: array of chunks that composes the data of the host command
+ * @reply_page: pointer to the page that holds the response to the host command
+ * @handler_status: return value of the handler of the command
+ *	(put in setup_rx_handlers) - valid for SYNC mode only
+ * @callback:
+ * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
+ * @len: array of the lenths of the chunks in data
+ * @dataflags:
+ * @id: id of the host command
+ */
+struct iwl_host_cmd {
+	const void *data[IWL_MAX_CMD_TFDS];
+	unsigned long reply_page;
+	int handler_status;
+
+	u32 flags;
+	u16 len[IWL_MAX_CMD_TFDS];
+	u8 dataflags[IWL_MAX_CMD_TFDS];
+	u8 id;
+};
 
 /**
  * struct iwl_trans_ops - transport specific operations
@@ -91,7 +144,6 @@ struct iwl_device_cmd;
  * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
  * @send_cmd:send a host command
- * @send_cmd_pdu:send a host command: flags can be CMD_*
  * @tx: send an skb
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  * @tx_agg_alloc: allocate resources for a TX BA session
@@ -118,14 +170,14 @@ struct iwl_trans_ops {
 	void (*stop_device)(struct iwl_trans *trans);
 	void (*tx_start)(struct iwl_trans *trans);
 
-	void (*wake_any_queue)(struct iwl_trans *trans, u8 ctx);
+	void (*wake_any_queue)(struct iwl_trans *trans,
+			       enum iwl_rxon_context_id ctx);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
-	int (*send_cmd_pdu)(struct iwl_trans *trans, u8 id, u32 flags, u16 len,
-		     const void *data);
 	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_device_cmd *dev_cmd, u8 ctx, u8 sta_id);
+		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
+		u8 sta_id);
 	void (*reclaim)(struct iwl_trans *trans, int sta_id, int tid,
 			int txq_id, int ssn, u32 status,
 			struct sk_buff_head *skbs);
@@ -149,9 +201,10 @@ struct iwl_trans_ops {
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*check_stuck_queue)(struct iwl_trans *trans, int q);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
-
+#ifdef CONFIG_PM_SLEEP
 	int (*suspend)(struct iwl_trans *trans);
 	int (*resume)(struct iwl_trans *trans);
+#endif
 };
 
 /**
@@ -195,7 +248,8 @@ static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 	trans->ops->tx_start(trans);
 }
 
-static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans, u8 ctx)
+static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
+					    enum iwl_rxon_context_id ctx)
 {
 	trans->ops->wake_any_queue(trans, ctx);
 }
@@ -207,14 +261,12 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 	return trans->ops->send_cmd(trans, cmd);
 }
 
-static inline int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
-					u32 flags, u16 len, const void *data)
-{
-	return trans->ops->send_cmd_pdu(trans, id, flags, len, data);
-}
+int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
+			   u32 flags, u16 len, const void *data);
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_device_cmd *dev_cmd, u8 ctx, u8 sta_id)
+		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
+		u8 sta_id)
 {
 	return trans->ops->tx(trans, skb, dev_cmd, ctx, sta_id);
 }
@@ -279,6 +331,7 @@ static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
 	return trans->ops->dbgfs_register(trans, dir);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static inline int iwl_trans_suspend(struct iwl_trans *trans)
 {
 	return trans->ops->suspend(trans);
@@ -288,6 +341,7 @@ static inline int iwl_trans_resume(struct iwl_trans *trans)
 {
 	return trans->ops->resume(trans);
 }
+#endif
 
 /*****************************************************
 * Transport layers implementations

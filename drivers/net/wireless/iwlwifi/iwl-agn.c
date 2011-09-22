@@ -453,122 +453,6 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
 }
 
-/*****************************************************************************
- *
- * sysfs attributes
- *
- *****************************************************************************/
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-
-/*
- * The following adds a new attribute to the sysfs representation
- * of this device driver (i.e. a new file in /sys/class/net/wlan0/device/)
- * used for controlling the debug level.
- *
- * See the level definitions in iwl for details.
- *
- * The debug_level being managed using sysfs below is a per device debug
- * level that is used instead of the global debug level if it (the per
- * device debug level) is set.
- */
-static ssize_t show_debug_level(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_shared *shrd = dev_get_drvdata(d);
-	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(shrd));
-}
-static ssize_t store_debug_level(struct device *d,
-				struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct iwl_shared *shrd = dev_get_drvdata(d);
-	struct iwl_priv *priv = shrd->priv;
-	unsigned long val;
-	int ret;
-
-	ret = strict_strtoul(buf, 0, &val);
-	if (ret)
-		IWL_ERR(priv, "%s is not in hex or decimal form.\n", buf);
-	else {
-		shrd->dbg_level_dev = val;
-		if (iwl_alloc_traffic_mem(priv))
-			IWL_ERR(shrd->priv,
-				"Not enough memory to generate traffic log\n");
-	}
-	return strnlen(buf, count);
-}
-
-static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
-			show_debug_level, store_debug_level);
-
-
-#endif /* CONFIG_IWLWIFI_DEBUG */
-
-
-static ssize_t show_temperature(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_shared *shrd = dev_get_drvdata(d);
-	struct iwl_priv *priv = shrd->priv;
-
-	if (!iwl_is_alive(priv->shrd))
-		return -EAGAIN;
-
-	return sprintf(buf, "%d\n", priv->temperature);
-}
-
-static DEVICE_ATTR(temperature, S_IRUGO, show_temperature, NULL);
-
-static ssize_t show_tx_power(struct device *d,
-			     struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	if (!iwl_is_ready_rf(priv->shrd))
-		return sprintf(buf, "off\n");
-	else
-		return sprintf(buf, "%d\n", priv->tx_power_user_lmt);
-}
-
-static ssize_t store_tx_power(struct device *d,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	unsigned long val;
-	int ret;
-
-	ret = strict_strtoul(buf, 10, &val);
-	if (ret)
-		IWL_INFO(priv, "%s is not in decimal form.\n", buf);
-	else {
-		ret = iwl_set_tx_power(priv, val, false);
-		if (ret)
-			IWL_ERR(priv, "failed setting tx power (0x%d).\n",
-				ret);
-		else
-			ret = count;
-	}
-	return ret;
-}
-
-static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, show_tx_power, store_tx_power);
-
-static struct attribute *iwl_sysfs_entries[] = {
-	&dev_attr_temperature.attr,
-	&dev_attr_tx_power.attr,
-#ifdef CONFIG_IWLWIFI_DEBUG
-	&dev_attr_debug_level.attr,
-#endif
-	NULL
-};
-
-static struct attribute_group iwl_attribute_group = {
-	.name = NULL,		/* put in device directory */
-	.attrs = iwl_sysfs_entries,
-};
-
 /******************************************************************************
  *
  * uCode download functions
@@ -623,9 +507,9 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	 * The default context is always valid,
 	 * the PAN context depends on uCode.
 	 */
-	priv->valid_contexts = BIT(IWL_RXON_CTX_BSS);
+	priv->shrd->valid_contexts = BIT(IWL_RXON_CTX_BSS);
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN)
-		priv->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
+		priv->shrd->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
 
 	for (i = 0; i < NUM_IWL_RXON_CTX; i++)
 		priv->contexts[i].ctxid = i;
@@ -1259,13 +1143,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		IWL_ERR(priv, "failed to create debugfs files. Ignoring error: %d\n", err);
 
-	err = sysfs_create_group(&(priv->bus->dev->kobj),
-					&iwl_attribute_group);
-	if (err) {
-		IWL_ERR(priv, "failed to create sysfs device attributes\n");
-		goto out_unbind;
-	}
-
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
 	complete(&priv->firmware_loading_complete);
@@ -1519,8 +1396,10 @@ static void __iwl_down(struct iwl_priv *priv)
 	if (!exit_pending)
 		clear_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
-	if (priv->shrd->mac80211_registered)
+	if (priv->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
+
+	iwl_trans_stop_device(trans(priv));
 
 	/* Clear out all status bits but a few that are stable across reset */
 	priv->shrd->status &=
@@ -1532,8 +1411,6 @@ static void __iwl_down(struct iwl_priv *priv)
 				STATUS_FW_ERROR |
 			test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) <<
 				STATUS_EXIT_PENDING;
-
-	iwl_trans_stop_device(trans(priv));
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
@@ -1780,7 +1657,12 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		    IEEE80211_HW_SPECTRUM_MGMT |
 		    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
 
+	/*
+	 * Including the following line will crash some AP's.  This
+	 * workaround removes the stimulus which causes the crash until
+	 * the AP software can be fixed.
 	hw->max_tx_aggregation_subframes = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+	 */
 
 	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
@@ -1863,7 +1745,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);
 		return ret;
 	}
-	priv->shrd->mac80211_registered = 1;
+	priv->mac80211_registered = 1;
 
 	return 0;
 }
@@ -1919,7 +1801,7 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int iwlagn_send_patterns(struct iwl_priv *priv,
 				struct cfg80211_wowlan *wowlan)
 {
@@ -1994,7 +1876,7 @@ struct wowlan_key_data {
 	bool error, use_rsc_tsc, use_tkip;
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static void iwlagn_convert_p1k(u16 *p1k, __le16 *out)
 {
 	int i;
@@ -2631,7 +2513,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	mutex_lock(&priv->shrd->mutex);
 	IWL_DEBUG_INFO(priv, "proceeding to add station %pM\n",
 			sta->addr);
-	sta_priv->common.sta_id = IWL_INVALID_STATION;
+	sta_priv->sta_id = IWL_INVALID_STATION;
 
 	atomic_set(&sta_priv->pending_frames, 0);
 	if (vif->type == NL80211_IFTYPE_AP)
@@ -2647,7 +2529,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		return ret;
 	}
 
-	sta_priv->common.sta_id = sta_id;
+	sta_priv->sta_id = sta_id;
 
 	/* Initialize rate scaling */
 	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
@@ -2880,22 +2762,13 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
 	int err = 0;
 
-	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
+	if (!(priv->shrd->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
 	if (!(ctx->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&priv->shrd->mutex);
-
-	/*
-	 * TODO: Remove this hack! Firmware needs to be updated
-	 * to allow longer off-channel periods in scanning for
-	 * this use case, based on a flag (and we'll need an API
-	 * flag in the firmware when it has that).
-	 */
-	if (iwl_is_associated(priv, IWL_RXON_CTX_BSS) && duration > 80)
-		duration = 80;
 
 	if (test_bit(STATUS_SCAN_HW, &priv->shrd->status)) {
 		err = -EBUSY;
@@ -2905,6 +2778,7 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	priv->hw_roc_channel = channel;
 	priv->hw_roc_chantype = channel_type;
 	priv->hw_roc_duration = duration;
+	priv->hw_roc_start_notified = false;
 	cancel_delayed_work(&priv->hw_roc_disable_work);
 
 	if (!ctx->is_active) {
@@ -2945,7 +2819,7 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = hw->priv;
 
-	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
+	if (!(priv->shrd->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&priv->shrd->mutex);
@@ -3032,7 +2906,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
 	priv->shrd->workqueue = create_singlethread_workqueue(DRV_NAME);
 
-	init_waitqueue_head(&priv->wait_command_queue);
+	init_waitqueue_head(&priv->shrd->wait_command_queue);
 
 	INIT_WORK(&priv->restart, iwl_bg_restart);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
@@ -3203,7 +3077,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
 	.start = iwlagn_mac_start,
 	.stop = iwlagn_mac_stop,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend = iwlagn_mac_suspend,
 	.resume = iwlagn_mac_resume,
 #endif
@@ -3309,10 +3183,9 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	priv = hw->priv;
 	priv->bus = bus;
 	priv->shrd = &priv->_shrd;
+	bus->shrd = priv->shrd;
 	priv->shrd->bus = bus;
 	priv->shrd->priv = priv;
-	priv->shrd->hw = hw;
-	bus_set_drv_data(priv->bus, priv->shrd);
 
 	priv->shrd->trans = trans_ops->alloc(priv->shrd);
 	if (priv->shrd->trans == NULL) {
@@ -3475,8 +3348,6 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 
 	iwl_dbgfs_unregister(priv);
-	sysfs_remove_group(&priv->bus->dev->kobj,
-			   &iwl_attribute_group);
 
 	/* ieee80211_unregister_hw call wil cause iwl_mac_stop to
 	 * to be called and iwl_down since we are removing the device
@@ -3487,9 +3358,9 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_testmode_cleanup(priv);
 	iwl_leds_exit(priv);
 
-	if (priv->shrd->mac80211_registered) {
+	if (priv->mac80211_registered) {
 		ieee80211_unregister_hw(priv->hw);
-		priv->shrd->mac80211_registered = 0;
+		priv->mac80211_registered = 0;
 	}
 
 	iwl_tt_exit(priv);
@@ -3512,8 +3383,6 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_free_traffic_mem(priv);
 
 	iwl_trans_free(trans(priv));
-
-	bus_set_drv_data(priv->bus, NULL);
 
 	iwl_uninit_drv(priv);
 

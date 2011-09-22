@@ -8,6 +8,7 @@
  */
 
 #include <linux/slab.h>
+#include "wme.h"
 #include "mesh.h"
 
 #ifdef CONFIG_MAC80211_VERBOSE_MHWMP_DEBUG
@@ -202,6 +203,26 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	return 0;
 }
 
+
+/*  Headroom is not adjusted.  Caller should ensure that skb has sufficient
+ *  headroom in case the frame is encrypted. */
+static void prepare_frame_for_deferred_tx(struct ieee80211_sub_if_data *sdata,
+		struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	skb_set_mac_header(skb, 0);
+	skb_set_network_header(skb, 0);
+	skb_set_transport_header(skb, 0);
+
+	/* Send all internal mgmt frames on VO. Accordingly set TID to 7. */
+	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
+	skb->priority = 7;
+
+	info->control.vif = &sdata->vif;
+	ieee80211_set_qos_hdr(sdata, skb);
+}
+
 /**
  * mesh_send_path error - Sends a PERR mesh management frame
  *
@@ -209,6 +230,10 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
  * @target_sn: SN of the broken destination
  * @target_rcode: reason code for this PERR
  * @ra: node this frame is addressed to
+ *
+ * Note: This function may be called with driver locks taken that the driver
+ * also acquires in the TX path.  To avoid a deadlock we don't transmit the
+ * frame directly but add it to the pending queue instead.
  */
 int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 		       __le16 target_rcode, const u8 *ra,
@@ -222,7 +247,7 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 
 	if (!skb)
 		return -1;
-	skb_reserve(skb, local->hw.extra_tx_headroom);
+	skb_reserve(skb, local->tx_headroom + local->hw.extra_tx_headroom);
 	/* 25 is the size of the common mgmt part (24) plus the size of the
 	 * common action part (1)
 	 */
@@ -263,7 +288,9 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 	pos += 4;
 	memcpy(pos, &target_rcode, 2);
 
-	ieee80211_tx_skb(sdata, skb);
+	/* see note in function header */
+	prepare_frame_for_deferred_tx(sdata, skb);
+	ieee80211_add_pending_skb(local, skb);
 	return 0;
 }
 

@@ -63,6 +63,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 #include <net/net_namespace.h>
 #include <linux/netdevice.h>
 #include <net/cfg80211.h>

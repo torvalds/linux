@@ -78,8 +78,6 @@ int wl1271_acx_sleep_auth(struct wl1271 *wl, u8 sleep_auth)
 	auth->sleep_auth = sleep_auth;
 
 	ret = wl1271_cmd_configure(wl, ACX_SLEEP_AUTH, auth, sizeof(*auth));
-	if (ret < 0)
-		return ret;
 
 out:
 	kfree(auth);
@@ -576,10 +574,8 @@ int wl1271_acx_cca_threshold(struct wl1271 *wl)
 
 	ret = wl1271_cmd_configure(wl, ACX_CCA_THRESHOLD,
 				   detection, sizeof(*detection));
-	if (ret < 0) {
+	if (ret < 0)
 		wl1271_warning("failed to set cca threshold: %d", ret);
-		return ret;
-	}
 
 out:
 	kfree(detection);
@@ -1690,4 +1686,44 @@ int wl12xx_acx_set_rate_mgmt_params(struct wl1271 *wl)
 out:
 	kfree(acx);
 	return ret;
+}
+
+int wl12xx_acx_config_hangover(struct wl1271 *wl)
+{
+	struct wl12xx_acx_config_hangover *acx;
+	struct conf_hangover_settings *conf = &wl->conf.hangover;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx config hangover");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->recover_time = cpu_to_le32(conf->recover_time);
+	acx->hangover_period = conf->hangover_period;
+	acx->dynamic_mode = conf->dynamic_mode;
+	acx->early_termination_mode = conf->early_termination_mode;
+	acx->max_period = conf->max_period;
+	acx->min_period = conf->min_period;
+	acx->increase_delta = conf->increase_delta;
+	acx->decrease_delta = conf->decrease_delta;
+	acx->quiet_time = conf->quiet_time;
+	acx->increase_time = conf->increase_time;
+	acx->window_size = acx->window_size;
+
+	ret = wl1271_cmd_configure(wl, ACX_CONFIG_HANGOVER, acx,
+				   sizeof(*acx));
+
+	if (ret < 0) {
+		wl1271_warning("acx config hangover failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+
 }

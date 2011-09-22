@@ -234,14 +234,14 @@ struct wl1271_stats {
 #define NUM_TX_QUEUES              4
 #define NUM_RX_PKT_DESC            8
 
-#define AP_MAX_STATIONS            5
+#define AP_MAX_STATIONS            8
 
 /* Broadcast and Global links + system link + links to stations */
 /*
  * TODO: when WL1271_AP_STA_HLID_START is no longer constant, change all
  * the places that use this.
  */
-#define AP_MAX_LINKS               (AP_MAX_STATIONS + 3)
+#define AP_MAX_LINKS               (AP_MAX_STATIONS + WL1271_AP_STA_HLID_START)
 
 /* FW status registers */
 struct wl12xx_fw_status {
@@ -402,6 +402,7 @@ struct wl1271 {
 	u8 mac_addr[ETH_ALEN];
 	u8 bss_type;
 	u8 set_bss_type;
+	u8 p2p; /* we are using p2p role */
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;
 	int channel;
@@ -424,6 +425,9 @@ struct wl1271 {
 	u32 tx_blocks_available;
 	u32 tx_allocated_blocks;
 	u32 tx_results_count;
+
+	/* amount of spare TX blocks to use */
+	u32 tx_spare_blocks;
 
 	/* Accounting for allocated / available Tx packets in HW */
 	u32 tx_pkts_freed[NUM_TX_QUEUES];
@@ -623,6 +627,9 @@ struct wl1271 {
 
 	/* number of currently active RX BA sessions */
 	int ba_rx_session_count;
+
+	/* AP-mode - number of currently connected stations */
+	int active_sta_count;
 };
 
 struct wl1271_station {

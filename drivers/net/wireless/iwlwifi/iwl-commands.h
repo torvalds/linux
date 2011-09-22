@@ -3213,12 +3213,7 @@ enum iwl_ucode_calib_cfg {
 					IWL_CALIB_CFG_LO_IDX |		\
 					IWL_CALIB_CFG_TX_IQ_IDX |	\
 					IWL_CALIB_CFG_RX_IQ_IDX |	\
-					IWL_CALIB_CFG_NOISE_IDX |	\
-					IWL_CALIB_CFG_CRYSTAL_IDX |	\
-					IWL_CALIB_CFG_TEMPERATURE_IDX |	\
-					IWL_CALIB_CFG_PAPD_IDX |	\
-					IWL_CALIB_CFG_SENSITIVITY_IDX |	\
-					IWL_CALIB_CFG_TX_PWR_IDX)
+					IWL_CALIB_CFG_CRYSTAL_IDX)
 
 #define IWL_CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_MSK	cpu_to_le32(BIT(0))
 
@@ -3265,6 +3260,14 @@ struct iwl_calib_xtal_freq_cmd {
 struct iwl_calib_temperature_offset_cmd {
 	struct iwl_calib_hdr hdr;
 	__le16 radio_sensor_offset;
+	__le16 reserved;
+} __packed;
+
+struct iwl_calib_temperature_offset_v2_cmd {
+	struct iwl_calib_hdr hdr;
+	__le16 radio_sensor_offset_high;
+	__le16 radio_sensor_offset_low;
+	__le16 burntVoltageRef;
 	__le16 reserved;
 } __packed;
 

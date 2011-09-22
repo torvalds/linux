@@ -1479,12 +1479,12 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
 		dev_err(priv->adapter->dev, " failed to alloc bss_desc\n");
 		return -ENOMEM;
 	}
-	beacon_ie = kzalloc(ie_len, GFP_KERNEL);
+
+	beacon_ie = kmemdup(ie_buf, ie_len, GFP_KERNEL);
 	if (!beacon_ie) {
 		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
 		return -ENOMEM;
 	}
-	memcpy(beacon_ie, ie_buf, ie_len);
 
 	ret = mwifiex_fill_new_bss_desc(priv, bssid, rssi, beacon_ie,
 					ie_len, beacon_period,
@@ -1986,7 +1986,7 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 		priv->curr_bcn_size = curr_bss->beacon_buf_size;
 
 		kfree(priv->curr_bcn_buf);
-		priv->curr_bcn_buf = kzalloc(curr_bss->beacon_buf_size,
+		priv->curr_bcn_buf = kmalloc(curr_bss->beacon_buf_size,
 						GFP_KERNEL);
 		if (!priv->curr_bcn_buf) {
 			dev_err(priv->adapter->dev,

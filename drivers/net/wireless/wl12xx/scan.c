@@ -65,8 +65,9 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	/* return to ROC if needed */
 	is_sta = (wl->bss_type == BSS_TYPE_STA_BSS);
 	is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
-	if ((is_sta && !test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) ||
-	    (is_ibss && !test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))) {
+	if (((is_sta && !test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) ||
+	     (is_ibss && !test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))) &&
+	    !test_bit(wl->dev_role_id, wl->roc_map)) {
 		/* restore remain on channel */
 		wl12xx_cmd_role_start_dev(wl);
 		wl12xx_roc(wl, wl->dev_role_id);
@@ -163,9 +164,6 @@ static int wl1271_scan_send(struct wl1271 *wl, enum ieee80211_band band,
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	/* We always use high priority scans */
-	scan_options = WL1271_SCAN_OPT_PRIORITY_HIGH;
 
 	/* No SSIDs means that we have a forced passive scan */
 	if (passive || wl->scan.req->n_ssids == 0)
@@ -473,6 +471,105 @@ wl1271_scan_sched_scan_channels(struct wl1271 *wl,
 		cfg->passive[2] || cfg->active[2];
 }
 
+/* Returns the scan type to be used or a negative value on error */
+static int
+wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
+				 struct cfg80211_sched_scan_request *req)
+{
+	struct wl1271_cmd_sched_scan_ssid_list *cmd = NULL;
+	struct cfg80211_match_set *sets = req->match_sets;
+	struct cfg80211_ssid *ssids = req->ssids;
+	int ret = 0, type, i, j, n_match_ssids = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd sched scan ssid list");
+
+	/* count the match sets that contain SSIDs */
+	for (i = 0; i < req->n_match_sets; i++)
+		if (sets[i].ssid.ssid_len > 0)
+			n_match_ssids++;
+
+	/* No filter, no ssids or only bcast ssid */
+	if (!n_match_ssids &&
+	    (!req->n_ssids ||
+	     (req->n_ssids == 1 && req->ssids[0].ssid_len == 0))) {
+		type = SCAN_SSID_FILTER_ANY;
+		goto out;
+	}
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	if (!n_match_ssids) {
+		/* No filter, with ssids */
+		type = SCAN_SSID_FILTER_DISABLED;
+
+		for (i = 0; i < req->n_ssids; i++) {
+			cmd->ssids[cmd->n_ssids].type = (ssids[i].ssid_len) ?
+				SCAN_SSID_TYPE_HIDDEN : SCAN_SSID_TYPE_PUBLIC;
+			cmd->ssids[cmd->n_ssids].len = ssids[i].ssid_len;
+			memcpy(cmd->ssids[cmd->n_ssids].ssid, ssids[i].ssid,
+			       ssids[i].ssid_len);
+			cmd->n_ssids++;
+		}
+	} else {
+		type = SCAN_SSID_FILTER_LIST;
+
+		/* Add all SSIDs from the filters */
+		for (i = 0; i < req->n_match_sets; i++) {
+			/* ignore sets without SSIDs */
+			if (!sets[i].ssid.ssid_len)
+				continue;
+
+			cmd->ssids[cmd->n_ssids].type = SCAN_SSID_TYPE_PUBLIC;
+			cmd->ssids[cmd->n_ssids].len = sets[i].ssid.ssid_len;
+			memcpy(cmd->ssids[cmd->n_ssids].ssid,
+			       sets[i].ssid.ssid, sets[i].ssid.ssid_len);
+			cmd->n_ssids++;
+		}
+		if ((req->n_ssids > 1) ||
+		    (req->n_ssids == 1 && req->ssids[0].ssid_len > 0)) {
+			/*
+			 * Mark all the SSIDs passed in the SSID list as HIDDEN,
+			 * so they're used in probe requests.
+			 */
+			for (i = 0; i < req->n_ssids; i++) {
+				for (j = 0; j < cmd->n_ssids; j++)
+					if (!memcmp(req->ssids[i].ssid,
+						   cmd->ssids[j].ssid,
+						   req->ssids[i].ssid_len)) {
+						cmd->ssids[j].type =
+							SCAN_SSID_TYPE_HIDDEN;
+						break;
+					}
+				/* Fail if SSID isn't present in the filters */
+				if (j == req->n_ssids) {
+					ret = -EINVAL;
+					goto out_free;
+				}
+			}
+		}
+	}
+
+	wl1271_dump(DEBUG_SCAN, "SSID_LIST: ", cmd, sizeof(*cmd));
+
+	ret = wl1271_cmd_send(wl, CMD_CONNECTION_SCAN_SSID_CFG, cmd,
+			      sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("cmd sched scan ssid list failed");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+out:
+	if (ret < 0)
+		return ret;
+	return type;
+}
+
 int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 				  struct cfg80211_sched_scan_request *req,
 				  struct ieee80211_sched_scan_ies *ies)
@@ -504,15 +601,14 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	for (i = 0; i < SCAN_MAX_CYCLE_INTERVALS; i++)
 		cfg->intervals[i] = cpu_to_le32(req->interval);
 
-	if (!force_passive && req->ssids[0].ssid_len && req->ssids[0].ssid) {
-		cfg->filter_type = SCAN_SSID_FILTER_SPECIFIC;
-		cfg->ssid_len = req->ssids[0].ssid_len;
-		memcpy(cfg->ssid, req->ssids[0].ssid,
-		       req->ssids[0].ssid_len);
-	} else {
-		cfg->filter_type = SCAN_SSID_FILTER_ANY;
-		cfg->ssid_len = 0;
-	}
+	cfg->ssid_len = 0;
+	ret = wl12xx_scan_sched_scan_ssid_list(wl, req);
+	if (ret < 0)
+		goto out;
+
+	cfg->filter_type = ret;
+
+	wl1271_debug(DEBUG_SCAN, "filter_type = %d", cfg->filter_type);
 
 	if (!wl1271_scan_sched_scan_channels(wl, req, cfg)) {
 		wl1271_error("scan channel list is empty");

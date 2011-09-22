@@ -619,11 +619,11 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Initialize TX descriptor
 	 */
-	rt2x00_desc_read(txd, 0, &word);
+	word = 0;
 	rt2x00_set_field32(&word, TXD_W0_SD_PTR0, skbdesc->skb_dma);
 	rt2x00_desc_write(txd, 0, word);
 
-	rt2x00_desc_read(txd, 1, &word);
+	word = 0;
 	rt2x00_set_field32(&word, TXD_W1_SD_LEN1, entry->skb->len);
 	rt2x00_set_field32(&word, TXD_W1_LAST_SEC1,
 			   !test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
@@ -634,12 +634,12 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 0);
 	rt2x00_desc_write(txd, 1, word);
 
-	rt2x00_desc_read(txd, 2, &word);
+	word = 0;
 	rt2x00_set_field32(&word, TXD_W2_SD_PTR1,
 			   skbdesc->skb_dma + TXWI_DESC_SIZE);
 	rt2x00_desc_write(txd, 2, word);
 
-	rt2x00_desc_read(txd, 3, &word);
+	word = 0;
 	rt2x00_set_field32(&word, TXD_W3_WIV,
 			   !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W3_QSEL, 2);
@@ -760,7 +760,7 @@ static bool rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 		}
 
 		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		rt2800_txdone_entry(entry, status);
+		rt2800_txdone_entry(entry, status, rt2800pci_get_txwi(entry));
 
 		if (--max_tx_done == 0)
 			break;
@@ -1015,6 +1015,8 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.get_tkip_seq		= rt2800_get_tkip_seq,
 	.set_rts_threshold	= rt2800_set_rts_threshold,
+	.sta_add		= rt2x00mac_sta_add,
+	.sta_remove		= rt2x00mac_sta_remove,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2800_conf_tx,
 	.get_tsf		= rt2800_get_tsf,
@@ -1076,6 +1078,8 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.config_erp		= rt2800_config_erp,
 	.config_ant		= rt2800_config_ant,
 	.config			= rt2800_config,
+	.sta_add		= rt2800_sta_add,
+	.sta_remove		= rt2800_sta_remove,
 };
 
 static const struct data_queue_desc rt2800pci_queue_rx = {
@@ -1153,6 +1157,7 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 #endif
 #ifdef CONFIG_RT2800PCI_RT53XX
 	{ PCI_DEVICE(0x1814, 0x5390) },
+	{ PCI_DEVICE(0x1814, 0x539a) },
 	{ PCI_DEVICE(0x1814, 0x539f) },
 #endif
 	{ 0, }

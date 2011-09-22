@@ -59,8 +59,7 @@ static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 
 static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 				    struct iwl_addsta_cmd *addsta,
-				    struct iwl_rx_packet *pkt,
-				    bool sync)
+				    struct iwl_rx_packet *pkt)
 {
 	u8 sta_id = addsta->sta.sta_id;
 	unsigned long flags;
@@ -123,15 +122,14 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 	return ret;
 }
 
-static void iwl_add_sta_callback(struct iwl_priv *priv,
-				 struct iwl_device_cmd *cmd,
-				 struct iwl_rx_packet *pkt)
+int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
+			       struct iwl_device_cmd *cmd)
 {
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_addsta_cmd *addsta =
-		(struct iwl_addsta_cmd *)cmd->cmd.payload;
+		(struct iwl_addsta_cmd *) cmd->payload;
 
-	iwl_process_add_sta_resp(priv, addsta, pkt, false);
-
+	return iwl_process_add_sta_resp(priv, addsta, pkt);
 }
 
 static u16 iwlagn_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
@@ -147,7 +145,6 @@ static u16 iwlagn_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
 {
-	struct iwl_rx_packet *pkt = NULL;
 	int ret = 0;
 	u8 data[sizeof(*sta)];
 	struct iwl_host_cmd cmd = {
@@ -160,9 +157,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	IWL_DEBUG_INFO(priv, "Adding sta %u (%pM) %ssynchronously\n",
 		       sta_id, sta->sta.addr, flags & CMD_ASYNC ?  "a" : "");
 
-	if (flags & CMD_ASYNC)
-		cmd.callback = iwl_add_sta_callback;
-	else {
+	if (!(flags & CMD_ASYNC)) {
 		cmd.flags |= CMD_WANT_SKB;
 		might_sleep();
 	}
@@ -172,14 +167,16 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 
 	if (ret || (flags & CMD_ASYNC))
 		return ret;
+	/*else the command was successfully sent in SYNC mode, need to free
+	 * the reply page */
 
-	if (ret == 0) {
-		pkt = (struct iwl_rx_packet *)cmd.reply_page;
-		ret = iwl_process_add_sta_resp(priv, sta, pkt, true);
-	}
 	iwl_free_pages(priv->shrd, cmd.reply_page);
 
-	return ret;
+	if (cmd.handler_status)
+		IWL_ERR(priv, "%s - error in the CMD response %d", __func__,
+			cmd.handler_status);
+
+	return cmd.handler_status;
 }
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
@@ -305,7 +302,7 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	station->ctxid = ctx->ctxid;
 
 	if (sta) {
-		struct iwl_station_priv_common *sta_priv;
+		struct iwl_station_priv *sta_priv;
 
 		sta_priv = (void *)sta->drv_priv;
 		sta_priv->ctx = ctx;
@@ -821,7 +818,7 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 		       struct ieee80211_sta *sta)
 {
 	struct iwl_priv *priv = hw->priv;
-	struct iwl_station_priv_common *sta_common = (void *)sta->drv_priv;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	int ret;
 
 	IWL_DEBUG_INFO(priv, "received request to remove station %pM\n",
@@ -829,7 +826,7 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 	mutex_lock(&priv->shrd->mutex);
 	IWL_DEBUG_INFO(priv, "proceeding to remove station %pM\n",
 			sta->addr);
-	ret = iwl_remove_station(priv, sta_common->sta_id, sta->addr);
+	ret = iwl_remove_station(priv, sta_priv->sta_id, sta->addr);
 	if (ret)
 		IWL_ERR(priv, "Error removing station %pM\n",
 			sta->addr);

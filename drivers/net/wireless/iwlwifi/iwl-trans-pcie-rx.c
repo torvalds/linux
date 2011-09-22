@@ -30,12 +30,11 @@
 #include <linux/wait.h>
 #include <linux/gfp.h>
 
-#include "iwl-dev.h"
-#include "iwl-agn.h"
+/*TODO: Remove include to iwl-core.h*/
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
-#include "iwl-trans-int-pcie.h"
+#include "iwl-trans-pcie-int.h"
 
 /******************************************************************************
  *
@@ -373,12 +372,15 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+	struct iwl_tx_queue *txq = &trans_pcie->txq[trans->shrd->cmd_queue];
+	struct iwl_device_cmd *cmd;
 	u32 r, i;
 	int reclaim;
 	unsigned long flags;
 	u8 fill_rx = 0;
 	u32 count = 8;
 	int total_empty;
+	int index, cmd_index;
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
@@ -398,7 +400,8 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 		fill_rx = 1;
 
 	while (i != r) {
-		int len;
+		int len, err;
+		u16 txq_id, sequence;
 
 		rxb = rxq->queue[i];
 
@@ -438,7 +441,24 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
 			(pkt->hdr.cmd != REPLY_TX);
 
-		iwl_rx_dispatch(priv(trans), rxb);
+		sequence = le16_to_cpu(pkt->hdr.sequence);
+		index = SEQ_TO_INDEX(sequence);
+		cmd_index = get_cmd_index(&txq->q, index);
+
+		if (reclaim)
+			cmd = txq->cmd[cmd_index];
+		else
+			cmd = NULL;
+
+		/* warn if this is cmd response / notification and the uCode
+		 * didn't set the SEQ_RX_FRAME for a frame that is
+		 * uCode-originated*/
+		WARN(txq_id == trans->shrd->cmd_queue && reclaim == false &&
+		     (!(pkt->hdr.sequence & SEQ_RX_FRAME)),
+		     "reclaim is false, SEQ_RX_FRAME unset: %s\n",
+		     get_cmd_string(pkt->hdr.cmd));
+
+		err = iwl_rx_dispatch(priv(trans), rxb, cmd);
 
 		/*
 		 * XXX: After here, we should always check rxb->page
@@ -453,7 +473,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 			 * iwl_trans_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb->page)
-				iwl_tx_cmd_complete(priv(trans), rxb);
+				iwl_tx_cmd_complete(trans, rxb, err);
 			else
 				IWL_WARN(trans, "Claim null rxb?\n");
 		}
@@ -646,7 +666,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 		 */
 		clear_bit(STATUS_READY, &trans->shrd->status);
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
-		wake_up_interruptible(&priv->wait_command_queue);
+		wake_up(&priv->shrd->wait_command_queue);
 		IWL_ERR(trans, "RF is used by WiMAX\n");
 		return;
 	}
@@ -660,8 +680,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 	iwl_dump_nic_event_log(trans, false, NULL, false);
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_get_debug_level(trans->shrd) & IWL_DL_FW_ERRORS)
-		iwl_print_rx_config_cmd(priv,
-					&priv->contexts[IWL_RXON_CTX_BSS]);
+		iwl_print_rx_config_cmd(priv(trans), IWL_RXON_CTX_BSS);
 #endif
 
 	iwlagn_fw_error(priv, false);
@@ -705,18 +724,18 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
 
 	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&bus(priv)->reg_lock, reg_flags);
-	iwl_grab_nic_access(bus(priv));
+	spin_lock_irqsave(&bus(trans)->reg_lock, reg_flags);
+	iwl_grab_nic_access(bus(trans));
 
 	/* Set starting address; reads will auto-increment */
-	iwl_write32(bus(priv), HBUS_TARG_MEM_RADDR, ptr);
+	iwl_write32(bus(trans), HBUS_TARG_MEM_RADDR, ptr);
 	rmb();
 
 	/* "time" is actually "data" for mode 0 (no timestamp).
 	* place event id # at far right for easier visual parsing. */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
-		time = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+		ev = iwl_read32(bus(trans), HBUS_TARG_MEM_RDAT);
+		time = iwl_read32(bus(trans), HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			/* data, ev */
 			if (bufsz) {
@@ -730,7 +749,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 					time, ev);
 			}
 		} else {
-			data = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+			data = iwl_read32(bus(trans), HBUS_TARG_MEM_RDAT);
 			if (bufsz) {
 				pos += scnprintf(*buf + pos, bufsz - pos,
 						"EVT_LOGT:%010u:0x%08x:%04u\n",
@@ -745,8 +764,8 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 	}
 
 	/* Allow device to power down */
-	iwl_release_nic_access(bus(priv));
-	spin_unlock_irqrestore(&bus(priv)->reg_lock, reg_flags);
+	iwl_release_nic_access(bus(trans));
+	spin_unlock_irqrestore(&bus(trans)->reg_lock, reg_flags);
 	return pos;
 }
 
@@ -823,10 +842,10 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 	}
 
 	/* event log header */
-	capacity = iwl_read_targ_mem(bus(priv), base);
-	mode = iwl_read_targ_mem(bus(priv), base + (1 * sizeof(u32)));
-	num_wraps = iwl_read_targ_mem(bus(priv), base + (2 * sizeof(u32)));
-	next_entry = iwl_read_targ_mem(bus(priv), base + (3 * sizeof(u32)));
+	capacity = iwl_read_targ_mem(bus(trans), base);
+	mode = iwl_read_targ_mem(bus(trans), base + (1 * sizeof(u32)));
+	num_wraps = iwl_read_targ_mem(bus(trans), base + (2 * sizeof(u32)));
+	next_entry = iwl_read_targ_mem(bus(trans), base + (3 * sizeof(u32)));
 
 	if (capacity > logsize) {
 		IWL_ERR(trans, "Log capacity %d is bogus, limit to %d "
@@ -847,9 +866,6 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 		IWL_ERR(trans, "Start IWL Event Log Dump: nothing in log\n");
 		return pos;
 	}
-
-	/* enable/disable bt channel inhibition */
-	priv->bt_ch_announce = iwlagn_mod_params.bt_ch_announce;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (!(iwl_get_debug_level(trans->shrd) & IWL_DL_FW_ERRORS) && !full_log)
@@ -908,8 +924,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	u32 inta_mask;
 #endif
 
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
 
 
@@ -1003,8 +1018,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 			else
 				clear_bit(STATUS_RF_KILL_HW,
 					  &trans->shrd->status);
-			wiphy_rfkill_set_hw_state(priv(trans)->hw->wiphy,
-						  hw_rf_kill);
+			iwl_set_hw_rfkill_state(priv(trans), hw_rf_kill);
 		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
@@ -1093,7 +1107,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
 		priv(trans)->ucode_write_complete = 1;
-		wake_up_interruptible(&priv(trans)->wait_command_queue);
+		wake_up(&trans->shrd->wait_command_queue);
 	}
 
 	if (inta & ~handled) {

@@ -114,13 +114,8 @@ static int iwlagn_load_section(struct iwl_priv *priv, const char *name,
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
 	IWL_DEBUG_FW(priv, "%s uCode section being loaded...\n", name);
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-					priv->ucode_write_complete, 5 * HZ);
-	if (ret == -ERESTARTSYS) {
-		IWL_ERR(priv, "Could not load the %s uCode section due "
-			"to interrupt\n", name);
-		return ret;
-	}
+	ret = wait_event_timeout(priv->shrd->wait_command_queue,
+				 priv->ucode_write_complete, 5 * HZ);
 	if (!ret) {
 		IWL_ERR(priv, "Could not load the %s uCode section\n",
 			name);
@@ -164,16 +159,52 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_temperature_offset_cmd cmd;
 	__le16 *offset_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_TEMPERATURE);
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_RAW_TEMPERATURE);
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
-	memcpy(&cmd.radio_sensor_offset, offset_calib, sizeof(offset_calib));
+	memcpy(&cmd.radio_sensor_offset, offset_calib, sizeof(*offset_calib));
 	if (!(cmd.radio_sensor_offset))
 		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset));
+	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
+			     (u8 *)&cmd, sizeof(cmd));
+}
+
+static int iwlagn_set_temperature_offset_calib_v2(struct iwl_priv *priv)
+{
+	struct iwl_calib_temperature_offset_v2_cmd cmd;
+	__le16 *offset_calib_high = (__le16 *)iwl_eeprom_query_addr(priv,
+				     EEPROM_KELVIN_TEMPERATURE);
+	__le16 *offset_calib_low =
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_RAW_TEMPERATURE);
+	struct iwl_eeprom_calib_hdr *hdr;
+
+	memset(&cmd, 0, sizeof(cmd));
+	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
+	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
+							EEPROM_CALIB_ALL);
+	memcpy(&cmd.radio_sensor_offset_high, offset_calib_high,
+		sizeof(*offset_calib_high));
+	memcpy(&cmd.radio_sensor_offset_low, offset_calib_low,
+		sizeof(*offset_calib_low));
+	if (!(cmd.radio_sensor_offset_low)) {
+		IWL_DEBUG_CALIB(priv, "no info in EEPROM, use default\n");
+		cmd.radio_sensor_offset_low = DEFAULT_RADIO_SENSOR_OFFSET;
+		cmd.radio_sensor_offset_high = DEFAULT_RADIO_SENSOR_OFFSET;
+	}
+	memcpy(&cmd.burntVoltageRef, &hdr->voltage,
+		sizeof(hdr->voltage));
+
+	IWL_DEBUG_CALIB(priv, "Radio sensor offset high: %d\n",
+			le16_to_cpu(cmd.radio_sensor_offset_high));
+	IWL_DEBUG_CALIB(priv, "Radio sensor offset low: %d\n",
+			le16_to_cpu(cmd.radio_sensor_offset_low));
+	IWL_DEBUG_CALIB(priv, "Voltage Ref: %d\n",
+			le16_to_cpu(cmd.burntVoltageRef));
+
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
 			     (u8 *)&cmd, sizeof(cmd));
 }
@@ -197,8 +228,9 @@ static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 	return iwl_trans_send_cmd(trans(priv), &cmd);
 }
 
-void iwlagn_rx_calib_result(struct iwl_priv *priv,
-			     struct iwl_rx_mem_buffer *rxb)
+int iwlagn_rx_calib_result(struct iwl_priv *priv,
+			    struct iwl_rx_mem_buffer *rxb,
+			    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->u.raw;
@@ -231,9 +263,10 @@ void iwlagn_rx_calib_result(struct iwl_priv *priv,
 	default:
 		IWL_ERR(priv, "Unknown calibration notification %d\n",
 			  hdr->op_code);
-		return;
+		return -1;
 	}
 	iwl_calib_set(&priv->calib_results[index], pkt->u.raw, len);
+	return 0;
 }
 
 int iwlagn_init_alive_start(struct iwl_priv *priv)
@@ -263,8 +296,12 @@ int iwlagn_init_alive_start(struct iwl_priv *priv)
 	 * temperature offset calibration is only needed for runtime ucode,
 	 * so prepare the value now.
 	 */
-	if (priv->cfg->need_temp_offset_calib)
-		return iwlagn_set_temperature_offset_calib(priv);
+	if (priv->cfg->need_temp_offset_calib) {
+		if (priv->cfg->temp_offset_v2)
+			return iwlagn_set_temperature_offset_calib_v2(priv);
+		else
+			return iwlagn_set_temperature_offset_calib(priv);
+	}
 
 	return 0;
 }
@@ -349,6 +386,7 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 static int iwlagn_alive_notify(struct iwl_priv *priv)
 {
+	struct iwl_rxon_context *ctx;
 	int ret;
 
 	if (!priv->tx_cmd_pool)
@@ -361,6 +399,8 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
 		return -ENOMEM;
 
 	iwl_trans_tx_start(trans(priv));
+	for_each_context(priv, ctx)
+		ctx->last_tx_rejected = false;
 
 	ret = iwlagn_send_wimax_coex(priv);
 	if (ret)

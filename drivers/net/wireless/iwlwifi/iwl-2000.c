@@ -45,7 +45,7 @@
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
 #include "iwl-shared.h"
-#include "iwl-pci.h"
+#include "iwl-cfg.h"
 
 /* Highest firmware API version supported */
 #define IWL2030_UCODE_API_MAX 6
@@ -75,7 +75,7 @@
 #define IWL105_MODULE_FIRMWARE(api) IWL105_FW_PRE __stringify(api) ".ucode"
 
 #define IWL135_FW_PRE "iwlwifi-135-"
-#define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE #api ".ucode"
+#define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE __stringify(api) ".ucode"
 
 static void iwl2000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -159,8 +159,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 	if (priv->cfg->need_temp_offset_calib)
 		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_TEMP_OFFSET);
 
-	hw_params(priv).beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
-
 	return 0;
 }
 
@@ -211,7 +209,6 @@ static struct iwl_base_params iwl2000_base_params = {
 	.max_ll_items = OTP_MAX_LL_ITEMS_2x00,
 	.shadow_ram_support = true,
 	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
@@ -231,7 +228,6 @@ static struct iwl_base_params iwl2030_base_params = {
 	.max_ll_items = OTP_MAX_LL_ITEMS_2x00,
 	.shadow_ram_support = true,
 	.led_compensation = 57,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
@@ -268,6 +264,7 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
+	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.iq_invert = true					\
 
@@ -285,6 +282,7 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.name = "2000D Series 2x2 BGN",
 	IWL_DEVICE_2000,
+	.ht_params = &iwl2000_ht_params,
 };
 
 #define IWL_DEVICE_2030						\
@@ -299,6 +297,7 @@ struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
+	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
 	.iq_invert = true					\
@@ -325,6 +324,7 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
+	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
 	.rx_with_siso_diversity = true,				\
@@ -353,6 +353,7 @@ struct iwl_cfg iwl105_bgn_cfg = {
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
+	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
 	.rx_with_siso_diversity = true,				\

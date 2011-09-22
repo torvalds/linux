@@ -88,8 +88,9 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     u32 changes);
 
 /* uCode */
-void iwlagn_rx_calib_result(struct iwl_priv *priv,
-			 struct iwl_rx_mem_buffer *rxb);
+int iwlagn_rx_calib_result(struct iwl_priv *priv,
+			    struct iwl_rx_mem_buffer *rxb,
+			    struct iwl_device_cmd *cmd);
 int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwlagn_send_prio_tbl(struct iwl_priv *priv);
 int iwlagn_run_init_ucode(struct iwl_priv *priv);
@@ -98,7 +99,6 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 				 enum iwlagn_ucode_type ucode_type);
 
 /* lib */
-int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
 u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv);
@@ -109,7 +109,6 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 /* rx */
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 void iwl_setup_rx_handlers(struct iwl_priv *priv);
-void iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 
 
 /* tx */
@@ -118,9 +117,11 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
-void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb);
-void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
+int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
+				   struct iwl_rx_mem_buffer *rxb,
+				   struct iwl_device_cmd *cmd);
+int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
+			       struct iwl_device_cmd *cmd);
 
 static inline u32 iwl_tx_status_to_mac80211(u32 status)
 {
@@ -148,7 +149,6 @@ static inline bool iwl_is_tx_success(u32 status)
 u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 
 /* scan */
-int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
 void iwlagn_post_scan(struct iwl_priv *priv);
 void iwlagn_disable_roc(struct iwl_priv *priv);
 
@@ -158,8 +158,9 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);
-void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
-				  struct iwl_rx_mem_buffer *rxb);
+int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
+				  struct iwl_rx_mem_buffer *rxb,
+				  struct iwl_device_cmd *cmd);
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv);
 void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);

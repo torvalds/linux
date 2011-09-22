@@ -130,6 +130,8 @@
 #define IEEE80211_QOS_CTL_ACK_POLICY_BLOCKACK	0x0060
 /* A-MSDU 802.11n */
 #define IEEE80211_QOS_CTL_A_MSDU_PRESENT	0x0080
+/* Mesh Control 802.11s */
+#define IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT  0x0100
 
 /* U-APSD queue for WMM IEs sent by AP */
 #define IEEE80211_WMM_IE_AP_QOSINFO_UAPSD	(1<<7)
@@ -774,6 +776,13 @@ struct ieee80211_mmie {
 	u8 sequence_number[6];
 	u8 mic[8];
 } __attribute__ ((packed));
+
+struct ieee80211_vendor_ie {
+	u8 element_id;
+	u8 len;
+	u8 oui[3];
+	u8 oui_type;
+} __packed;
 
 /* Control frames */
 struct ieee80211_rts {
@@ -1467,6 +1476,9 @@ enum ieee80211_sa_query_action {
 #define WLAN_MAX_KEY_LEN		32
 
 #define WLAN_PMKID_LEN			16
+
+#define WLAN_OUI_WFA			0x506f9a
+#define WLAN_OUI_TYPE_WFA_P2P		9
 
 /*
  * WMM/802.11e Tspec Element

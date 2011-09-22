@@ -47,7 +47,7 @@
 #include "iwl-5000-hw.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
-#include "iwl-pci.h"
+#include "iwl-cfg.h"
 
 /* Highest firmware API version supported */
 #define IWL5000_UCODE_API_MAX 5
@@ -184,8 +184,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 		BIT(IWL_CALIB_TX_IQ_PERD)	|
 		BIT(IWL_CALIB_BASE_BAND);
 
-	hw_params(priv).beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
-
 	return 0;
 }
 
@@ -222,8 +220,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 		BIT(IWL_CALIB_BASE_BAND);
 	if (priv->cfg->need_dc_calib)
 		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_DC);
-
-	hw_params(priv).beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
 	return 0;
 }
@@ -353,7 +349,6 @@ static struct iwl_base_params iwl5000_base_params = {
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
 	.led_compensation = 51,
-	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,

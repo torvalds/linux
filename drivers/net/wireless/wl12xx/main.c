@@ -236,10 +236,9 @@ static struct conf_drv_settings default_conf = {
 		.ps_poll_recovery_period     = 700,
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 50,
-		.psm_entry_retries           = 5,
+		.psm_entry_retries           = 8,
 		.psm_exit_retries            = 16,
 		.psm_entry_nullfunc_retries  = 3,
-		.psm_entry_hangover_period   = 1,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 	},
@@ -267,8 +266,8 @@ static struct conf_drv_settings default_conf = {
 	},
 	.sched_scan = {
 		/* sched_scan requires dwell times in TU instead of TU/1000 */
-		.min_dwell_time_active = 8,
-		.max_dwell_time_active = 30,
+		.min_dwell_time_active = 30,
+		.max_dwell_time_active = 60,
 		.dwell_time_passive    = 100,
 		.dwell_time_dfs        = 150,
 		.num_probe_reqs        = 2,
@@ -359,9 +358,23 @@ static struct conf_drv_settings default_conf = {
 			0x00, 0x00, 0x00,
 		},
 	},
+	.hangover = {
+		.recover_time               = 0,
+		.hangover_period            = 20,
+		.dynamic_mode               = 1,
+		.early_termination_mode     = 1,
+		.max_period                 = 20,
+		.min_period                 = 1,
+		.increase_delta             = 1,
+		.decrease_delta             = 2,
+		.quiet_time                 = 4,
+		.increase_time              = 1,
+		.window_size                = 16,
+	},
 };
 
 static char *fwlog_param;
+static bool bug_on_recovery;
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 bool reset_tx_queues);
@@ -757,13 +770,14 @@ static int wl1271_plt_init(struct wl1271 *wl)
 
 static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_pkts)
 {
-	bool fw_ps;
+	bool fw_ps, single_sta;
 
 	/* only regulate station links */
 	if (hlid < WL1271_AP_STA_HLID_START)
 		return;
 
 	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+	single_sta = (wl->active_sta_count == 1);
 
 	/*
 	 * Wake up from high level PS if the STA is asleep with too little
@@ -772,8 +786,12 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_pkts)
 	if (!fw_ps || tx_pkts < WL1271_PS_STA_MAX_PACKETS)
 		wl1271_ps_link_end(wl, hlid);
 
-	/* Start high-level PS if the STA is asleep with enough blocks in FW */
-	else if (fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
+	/*
+	 * Start high-level PS if the STA is asleep with enough blocks in FW.
+	 * Make an exception if this is the only connected station. In this
+	 * case FW-memory congestion is not a problem.
+	 */
+	else if (!single_sta && fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
 		wl1271_ps_link_start(wl, hlid, true);
 }
 
@@ -1213,6 +1231,8 @@ static void wl1271_recovery_work(struct work_struct *work)
 	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x",
 		    wl->chip.fw_ver_str, wl1271_read32(wl, SCR_PAD4));
 
+	BUG_ON(bug_on_recovery);
+
 	/*
 	 * Advance security sequence number to overcome potential progress
 	 * in the firmware during recovery. This doens't hurt if the network is
@@ -1221,9 +1241,6 @@ static void wl1271_recovery_work(struct work_struct *work)
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
 	    test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
 		wl->tx_security_seq += WL1271_TX_SQN_POST_RECOVERY_PADDING;
-
-	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
-		ieee80211_connection_loss(wl->vif);
 
 	/* Prevent spurious TX during FW restart */
 	ieee80211_stop_queues(wl->hw);
@@ -1528,7 +1545,13 @@ out:
 int wl1271_tx_dummy_packet(struct wl1271 *wl)
 {
 	unsigned long flags;
-	int q = wl1271_tx_get_queue(skb_get_queue_mapping(wl->dummy_packet));
+	int q;
+
+	/* no need to queue a new dummy packet if one is already pending */
+	if (test_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags))
+		return 0;
+
+	q = wl1271_tx_get_queue(skb_get_queue_mapping(wl->dummy_packet));
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	set_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags);
@@ -1802,10 +1825,16 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl)
 {
 	switch (wl->bss_type) {
 	case BSS_TYPE_AP_BSS:
-		return WL1271_ROLE_AP;
+		if (wl->p2p)
+			return WL1271_ROLE_P2P_GO;
+		else
+			return WL1271_ROLE_AP;
 
 	case BSS_TYPE_STA_BSS:
-		return WL1271_ROLE_STA;
+		if (wl->p2p)
+			return WL1271_ROLE_P2P_CL;
+		else
+			return WL1271_ROLE_STA;
 
 	case BSS_TYPE_IBSS:
 		return WL1271_ROLE_IBSS;
@@ -1827,7 +1856,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	bool booted = false;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
-		     vif->type, vif->addr);
+		     ieee80211_vif_type_p2p(vif), vif->addr);
 
 	mutex_lock(&wl->mutex);
 	if (wl->vif) {
@@ -1847,7 +1876,10 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	switch (vif->type) {
+	switch (ieee80211_vif_type_p2p(vif)) {
+	case NL80211_IFTYPE_P2P_CLIENT:
+		wl->p2p = 1;
+		/* fall-through */
 	case NL80211_IFTYPE_STATION:
 		wl->bss_type = BSS_TYPE_STA_BSS;
 		wl->set_bss_type = BSS_TYPE_STA_BSS;
@@ -1856,6 +1888,9 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		wl->bss_type = BSS_TYPE_IBSS;
 		wl->set_bss_type = BSS_TYPE_STA_BSS;
 		break;
+	case NL80211_IFTYPE_P2P_GO:
+		wl->p2p = 1;
+		/* fall-through */
 	case NL80211_IFTYPE_AP:
 		wl->bss_type = BSS_TYPE_AP_BSS;
 		break;
@@ -2051,6 +2086,7 @@ deinit:
 	wl->ssid_len = 0;
 	wl->bss_type = MAX_BSS_TYPE;
 	wl->set_bss_type = MAX_BSS_TYPE;
+	wl->p2p = 0;
 	wl->band = IEEE80211_BAND_2GHZ;
 
 	wl->rx_counter = 0;
@@ -2064,6 +2100,7 @@ deinit:
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->vif = NULL;
+	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl1271_free_ap_keys(wl);
 	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
 	wl->ap_fw_ps_map = 0;
@@ -2074,6 +2111,7 @@ deinit:
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
 	memset(wl->roc_map, 0, sizeof(wl->roc_map));
+	wl->active_sta_count = 0;
 
 	/* The system link is always allocated */
 	__set_bit(WL12XX_SYSTEM_HLID, wl->links_map);
@@ -2199,10 +2237,14 @@ out:
 
 static void wl1271_set_band_rate(struct wl1271 *wl)
 {
-	if (wl->band == IEEE80211_BAND_2GHZ)
+	if (wl->band == IEEE80211_BAND_2GHZ) {
 		wl->basic_rate_set = wl->conf.tx.basic_rate;
-	else
+		wl->rate_set = wl->conf.tx.basic_rate;
+	} else {
 		wl->basic_rate_set = wl->conf.tx.basic_rate_5;
+		wl->rate_set = wl->conf.tx.basic_rate_5;
+	}
+
 }
 
 static bool wl12xx_is_roc(struct wl1271 *wl)
@@ -2652,6 +2694,17 @@ static int wl1271_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		static const u8 bcast_addr[ETH_ALEN] = {
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 		};
+
+		/*
+		 * A STA set to GEM cipher requires 2 tx spare blocks.
+		 * Return to default value when GEM cipher key is removed
+		 */
+		if (key_type == KEY_GEM) {
+			if (action == KEY_ADD_OR_REPLACE)
+				wl->tx_spare_blocks = 2;
+			else if (action == KEY_REMOVE)
+				wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
+		}
 
 		addr = sta ? sta->addr : bcast_addr;
 
@@ -3345,19 +3398,6 @@ sta_not_found:
 			ret = wl1271_acx_conn_monit_params(wl, true);
 			if (ret < 0)
 				goto out;
-
-			/* If we want to go in PSM but we're not there yet */
-			if (test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags) &&
-			    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
-				enum wl1271_cmd_ps_mode mode;
-
-				mode = STATION_POWER_SAVE_MODE;
-				ret = wl1271_ps_set_mode(wl, mode,
-							 wl->basic_rate,
-							 true);
-				if (ret < 0)
-					goto out;
-			}
 		} else {
 			/* use defaults when not associated */
 			bool was_assoc =
@@ -3498,6 +3538,19 @@ sta_not_found:
 				goto out;
 
 			ret = wl12xx_cmd_role_stop_dev(wl);
+			if (ret < 0)
+				goto out;
+		}
+
+		/* If we want to go in PSM but we're not there yet */
+		if (test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags) &&
+		    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+			enum wl1271_cmd_ps_mode mode;
+
+			mode = STATION_POWER_SAVE_MODE;
+			ret = wl1271_ps_set_mode(wl, mode,
+						 wl->basic_rate,
+						 true);
 			if (ret < 0)
 				goto out;
 		}
@@ -3713,14 +3766,18 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 	wl_sta->hlid = WL1271_AP_STA_HLID_START + id;
 	*hlid = wl_sta->hlid;
 	memcpy(wl->links[wl_sta->hlid].addr, sta->addr, ETH_ALEN);
+	wl->active_sta_count++;
 	return 0;
 }
 
-static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
+void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 {
 	int id = hlid - WL1271_AP_STA_HLID_START;
 
-	if (WARN_ON(!test_bit(id, wl->ap_hlid_map)))
+	if (hlid < WL1271_AP_STA_HLID_START)
+		return;
+
+	if (!test_bit(id, wl->ap_hlid_map))
 		return;
 
 	clear_bit(id, wl->ap_hlid_map);
@@ -3729,6 +3786,7 @@ static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 	wl1271_tx_reset_link_queues(wl, hlid);
 	__clear_bit(hlid, &wl->ap_ps_map);
 	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+	wl->active_sta_count--;
 }
 
 static int wl1271_op_sta_add(struct ieee80211_hw *hw,
@@ -4050,7 +4108,6 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 /* 11n STA capabilities */
 #define HW_RX_HIGHEST_RATE	72
 
-#ifdef CONFIG_WL12XX_HT
 #define WL12XX_HT_CAP { \
 	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 | \
 	       (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT), \
@@ -4063,11 +4120,6 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 		.tx_params = IEEE80211_HT_MCS_TX_DEFINED, \
 		}, \
 }
-#else
-#define WL12XX_HT_CAP { \
-	.ht_supported = false, \
-}
-#endif
 
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1271_band_2ghz = {
@@ -4467,14 +4519,19 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_SUPPORTS_CQM_RSSI |
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		IEEE80211_HW_SPECTRUM_MGMT |
-		IEEE80211_HW_AP_LINK_PS;
+		IEEE80211_HW_AP_LINK_PS |
+		IEEE80211_HW_AMPDU_AGGREGATION |
+		IEEE80211_HW_TX_AMPDU_SETUP_IN_HW;
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
 	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
+		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_P2P_CLIENT) | BIT(NL80211_IFTYPE_P2P_GO);
 	wl->hw->wiphy->max_scan_ssids = 1;
+	wl->hw->wiphy->max_sched_scan_ssids = 16;
+	wl->hw->wiphy->max_match_sets = 16;
 	/*
 	 * Maximum length of elements in scanning probe request templates
 	 * should be the maximum length possible for a template, without
@@ -4482,6 +4539,8 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	 */
 	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_DFLT_SIZE -
 			sizeof(struct ieee80211_header);
+
+	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 
 	/* make sure all our channels fit in the scanned_ch bitmask */
 	BUILD_BUG_ON(ARRAY_SIZE(wl1271_channels) +
@@ -4599,6 +4658,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->sched_scanning = false;
 	wl->tx_security_seq = 0;
 	wl->tx_security_last_seq_lsb = 0;
+	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl->role_id = WL12XX_INVALID_ROLE_ID;
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
 	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
@@ -4607,6 +4667,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->session_counter = 0;
 	wl->ap_bcast_hlid = WL12XX_INVALID_LINK_ID;
 	wl->ap_global_hlid = WL12XX_INVALID_LINK_ID;
+	wl->active_sta_count = 0;
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
 	wl->fwlog_size = 0;
@@ -4757,6 +4818,9 @@ MODULE_PARM_DESC(debug_level, "wl12xx debugging level");
 module_param_named(fwlog, fwlog_param, charp, 0);
 MODULE_PARM_DESC(keymap,
 		 "FW logger options: continuous, ondemand, dbgpins or disable");
+
+module_param(bug_on_recovery, bool, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(bug_on_recovery, "BUG() on fw recovery");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");

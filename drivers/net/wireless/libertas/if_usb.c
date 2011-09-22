@@ -973,6 +973,23 @@ static const struct {
 	{ MODEL_8682, "libertas/usb8682.bin" }
 };
 
+#ifdef CONFIG_OLPC
+
+static int try_olpc_fw(struct if_usb_card *cardp)
+{
+	int retval = -ENOENT;
+
+	/* try the OLPC firmware first; fall back to fw_table list */
+	if (machine_is_olpc() && cardp->model == MODEL_8388)
+		retval = request_firmware(&cardp->fw,
+				"libertas/usb8388_olpc.bin", &cardp->udev->dev);
+	return retval;
+}
+
+#else
+static int try_olpc_fw(struct if_usb_card *cardp) { return -ENOENT; }
+#endif /* !CONFIG_OLPC */
+
 static int get_fw(struct if_usb_card *cardp, const char *fwname)
 {
 	int i;
@@ -980,6 +997,10 @@ static int get_fw(struct if_usb_card *cardp, const char *fwname)
 	/* Try user-specified firmware first */
 	if (fwname)
 		return request_firmware(&cardp->fw, fwname, &cardp->udev->dev);
+
+	/* Handle OLPC firmware */
+	if (try_olpc_fw(cardp) == 0)
+		return 0;
 
 	/* Otherwise search for firmware to use */
 	for (i = 0; i < ARRAY_SIZE(fw_table); i++) {

@@ -86,6 +86,8 @@ enum ieee80211_sta_info_flags {
  * @stop_initiator: initiator of a session stop
  * @tx_stop: TX DelBA frame when stopping
  * @buf_size: reorder buffer size at receiver
+ * @failed_bar_ssn: ssn of the last failed BAR tx attempt
+ * @bar_pending: BAR needs to be re-sent
  *
  * This structure's lifetime is managed by RCU, assignments to
  * the array holding it must hold the aggregation mutex.
@@ -106,6 +108,9 @@ struct tid_ampdu_tx {
 	u8 stop_initiator;
 	bool tx_stop;
 	u8 buf_size;
+
+	u16 failed_bar_ssn;
+	bool bar_pending;
 };
 
 /**
