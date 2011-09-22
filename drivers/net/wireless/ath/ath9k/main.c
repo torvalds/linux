@@ -133,7 +133,7 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	ath_hw_cycle_counters_update(common);
 	spin_unlock(&common->cc_lock);
 
-	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+	ath9k_hw_setpower(sc->sc_ah, mode);
 
  unlock:
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
