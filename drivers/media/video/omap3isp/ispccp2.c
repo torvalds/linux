@@ -1100,8 +1100,6 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
  */
 void omap3isp_ccp2_unregister_entities(struct isp_ccp2_device *ccp2)
 {
-	media_entity_cleanup(&ccp2->subdev.entity);
-
 	v4l2_device_unregister_subdev(&ccp2->subdev);
 	omap3isp_video_unregister(&ccp2->video_in);
 }
@@ -1145,6 +1143,9 @@ error:
 void omap3isp_ccp2_cleanup(struct isp_device *isp)
 {
 	struct isp_ccp2_device *ccp2 = &isp->isp_ccp2;
+
+	omap3isp_video_cleanup(&ccp2->video_in);
+	media_entity_cleanup(&ccp2->subdev.entity);
 
 	regulator_put(ccp2->vdds_csib);
 }

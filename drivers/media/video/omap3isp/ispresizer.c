@@ -1674,8 +1674,6 @@ static int resizer_init_entities(struct isp_res_device *res)
 
 void omap3isp_resizer_unregister_entities(struct isp_res_device *res)
 {
-	media_entity_cleanup(&res->subdev.entity);
-
 	v4l2_device_unregister_subdev(&res->subdev);
 	omap3isp_video_unregister(&res->video_in);
 	omap3isp_video_unregister(&res->video_out);
@@ -1712,6 +1710,11 @@ error:
 
 void omap3isp_resizer_cleanup(struct isp_device *isp)
 {
+	struct isp_res_device *res = &isp->isp_res;
+
+	omap3isp_video_cleanup(&res->video_in);
+	omap3isp_video_cleanup(&res->video_out);
+	media_entity_cleanup(&res->subdev.entity);
 }
 
 /*

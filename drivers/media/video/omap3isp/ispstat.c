@@ -1062,7 +1062,6 @@ int omap3isp_stat_unsubscribe_event(struct v4l2_subdev *subdev,
 
 void omap3isp_stat_unregister_entities(struct ispstat *stat)
 {
-	media_entity_cleanup(&stat->subdev.entity);
 	v4l2_device_unregister_subdev(&stat->subdev);
 }
 
@@ -1085,8 +1084,9 @@ int omap3isp_stat_init(struct ispstat *stat, const char *name,
 	return isp_stat_init_entities(stat, name, sd_ops);
 }
 
-void omap3isp_stat_free(struct ispstat *stat)
+void omap3isp_stat_cleanup(struct ispstat *stat)
 {
+	media_entity_cleanup(&stat->subdev.entity);
 	isp_stat_bufs_free(stat);
 	kfree(stat->buf);
 }

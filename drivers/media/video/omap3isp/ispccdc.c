@@ -2206,8 +2206,6 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 
 void omap3isp_ccdc_unregister_entities(struct isp_ccdc_device *ccdc)
 {
-	media_entity_cleanup(&ccdc->subdev.entity);
-
 	v4l2_device_unregister_subdev(&ccdc->subdev);
 	omap3isp_video_unregister(&ccdc->video_out);
 }
@@ -2286,6 +2284,9 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 void omap3isp_ccdc_cleanup(struct isp_device *isp)
 {
 	struct isp_ccdc_device *ccdc = &isp->isp_ccdc;
+
+	omap3isp_video_cleanup(&ccdc->video_out);
+	media_entity_cleanup(&ccdc->subdev.entity);
 
 	/* Free LSC requests. As the CCDC is stopped there's no active request,
 	 * so only the pending request and the free queue need to be handled.
