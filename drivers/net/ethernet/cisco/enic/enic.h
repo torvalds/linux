@@ -129,5 +129,6 @@ static inline struct device *enic_get_dev(struct enic *enic)
 
 void enic_reset_addr_lists(struct enic *enic);
 int enic_sriov_enabled(struct enic *enic);
+int enic_is_valid_vf(struct enic *enic, int vf);
 
 #endif /* _ENIC_H_ */

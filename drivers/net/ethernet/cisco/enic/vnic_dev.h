@@ -85,6 +85,8 @@ void vnic_dev_free_desc_ring(struct vnic_dev *vdev,
 	struct vnic_dev_ring *ring);
 int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	u64 *a0, u64 *a1, int wait);
+void vnic_dev_cmd_proxy_by_index_start(struct vnic_dev *vdev, u16 index);
+void vnic_dev_cmd_proxy_end(struct vnic_dev *vdev);
 int vnic_dev_fw_info(struct vnic_dev *vdev,
 	struct vnic_devcmd_fw_info **fw_info);
 int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,

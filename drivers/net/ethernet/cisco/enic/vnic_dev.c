@@ -32,6 +32,7 @@
 enum vnic_proxy_type {
 	PROXY_NONE,
 	PROXY_BY_BDF,
+	PROXY_BY_INDEX,
 };
 
 struct vnic_res {
@@ -328,20 +329,21 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	return -ETIMEDOUT;
 }
 
-static int vnic_dev_cmd_proxy_by_bdf(struct vnic_dev *vdev,
-	enum vnic_devcmd_cmd cmd, u64 *a0, u64 *a1, int wait)
+static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
+	enum vnic_devcmd_cmd proxy_cmd, enum vnic_devcmd_cmd cmd,
+	u64 *a0, u64 *a1, int wait)
 {
 	u32 status;
 	int err;
 
 	memset(vdev->args, 0, sizeof(vdev->args));
 
-	vdev->args[0] = vdev->proxy_index; /* bdf */
+	vdev->args[0] = vdev->proxy_index;
 	vdev->args[1] = cmd;
 	vdev->args[2] = *a0;
 	vdev->args[3] = *a1;
 
-	err = _vnic_dev_cmd(vdev, CMD_PROXY_BY_BDF, wait);
+	err = _vnic_dev_cmd(vdev, proxy_cmd, wait);
 	if (err)
 		return err;
 
@@ -376,14 +378,30 @@ static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
 	return err;
 }
 
+void vnic_dev_cmd_proxy_by_index_start(struct vnic_dev *vdev, u16 index)
+{
+	vdev->proxy = PROXY_BY_INDEX;
+	vdev->proxy_index = index;
+}
+
+void vnic_dev_cmd_proxy_end(struct vnic_dev *vdev)
+{
+	vdev->proxy = PROXY_NONE;
+	vdev->proxy_index = 0;
+}
+
 int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	u64 *a0, u64 *a1, int wait)
 {
 	memset(vdev->args, 0, sizeof(vdev->args));
 
 	switch (vdev->proxy) {
+	case PROXY_BY_INDEX:
+		return vnic_dev_cmd_proxy(vdev, CMD_PROXY_BY_INDEX, cmd,
+				a0, a1, wait);
 	case PROXY_BY_BDF:
-		return vnic_dev_cmd_proxy_by_bdf(vdev, cmd, a0, a1, wait);
+		return vnic_dev_cmd_proxy(vdev, CMD_PROXY_BY_BDF, cmd,
+				a0, a1, wait);
 	case PROXY_NONE:
 	default:
 		return vnic_dev_cmd_no_proxy(vdev, cmd, a0, a1, wait);

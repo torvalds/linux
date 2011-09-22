@@ -132,6 +132,15 @@ int enic_sriov_enabled(struct enic *enic)
 	return (enic->priv_flags & ENIC_SRIOV_ENABLED) ? 1 : 0;
 }
 
+int enic_is_valid_vf(struct enic *enic, int vf)
+{
+#ifdef CONFIG_PCI_IOV
+	return vf >= 0 && vf < enic->num_vfs;
+#else
+	return 0;
+#endif
+}
+
 static inline unsigned int enic_cq_rq(struct enic *enic, unsigned int rq)
 {
 	return rq;
