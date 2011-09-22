@@ -349,7 +349,12 @@ struct report_general_resp {
 
 	u8      conf_route_table:1;
 	u8      configuring:1;
-	u8      _r_b:6;
+	u8	config_others:1;
+	u8	orej_retry_supp:1;
+	u8	stp_cont_awt:1;
+	u8	self_config:1;
+	u8	zone_config:1;
+	u8	t2t_supp:1;
 
 	u8      _r_c;
 
@@ -536,7 +541,12 @@ struct report_general_resp {
 	u8      _r_a;
 	u8      num_phys;
 
-	u8      _r_b:6;
+	u8	t2t_supp:1;
+	u8	zone_config:1;
+	u8	self_config:1;
+	u8	stp_cont_awt:1;
+	u8	orej_retry_supp:1;
+	u8	config_others:1;
 	u8      configuring:1;
 	u8      conf_route_table:1;
 

@@ -142,8 +142,11 @@ struct expander_device {
 	u16    ex_change_count;
 	u16    max_route_indexes;
 	u8     num_phys;
+
+	u8     t2t_supp:1;
 	u8     configuring:1;
 	u8     conf_route_table:1;
+
 	u8     enclosure_logical_id[8];
 
 	struct ex_phy *ex_phy;
