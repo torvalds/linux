@@ -489,6 +489,7 @@ static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 #define STATUS_FW_ERROR		17
 #define STATUS_DEVICE_ENABLED	18
 #define STATUS_CHANNEL_SWITCH_PENDING 19
+#define STATUS_SCAN_COMPLETE	20
 
 static inline int iwl_is_ready(struct iwl_shared *shrd)
 {
