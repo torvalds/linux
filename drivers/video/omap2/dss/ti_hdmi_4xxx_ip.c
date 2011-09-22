@@ -32,15 +32,15 @@
 #include "dss.h"
 
 static inline void hdmi_write_reg(void __iomem *base_addr,
-				const struct hdmi_reg idx, u32 val)
+				const u16 idx, u32 val)
 {
-	__raw_writel(val, base_addr + idx.idx);
+	__raw_writel(val, base_addr + idx);
 }
 
 static inline u32 hdmi_read_reg(void __iomem *base_addr,
-				const struct hdmi_reg idx)
+				const u16 idx)
 {
-	return __raw_readl(base_addr + idx.idx);
+	return __raw_readl(base_addr + idx);
 }
 
 static inline void __iomem *hdmi_wp_base(struct hdmi_ip_data *ip_data)
@@ -69,7 +69,7 @@ static inline void __iomem *hdmi_core_sys_base(struct hdmi_ip_data *ip_data)
 }
 
 static inline int hdmi_wait_for_bit_change(void __iomem *base_addr,
-				const struct hdmi_reg idx,
+				const u16 idx,
 				int b2, int b1, u32 val)
 {
 	u32 t = 0;
