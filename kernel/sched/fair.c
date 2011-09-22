@@ -3132,6 +3132,8 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 }
 
 #define LBF_ALL_PINNED	0x01
+#define LBF_NEED_BREAK	0x02
+#define LBF_ABORT	0x04
 
 /*
  * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
@@ -3237,8 +3239,10 @@ balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		goto out;
 
 	list_for_each_entry_safe(p, n, &busiest_cfs_rq->tasks, se.group_node) {
-		if (loops++ > sysctl_sched_nr_migrate)
+		if (loops++ > sysctl_sched_nr_migrate) {
+			*lb_flags |= LBF_NEED_BREAK;
 			break;
+		}
 
 		if ((p->se.load.weight >> 1) > rem_load_move ||
 		    !can_migrate_task(p, busiest, this_cpu, sd, idle,
@@ -3255,8 +3259,10 @@ balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		 * kernels will stop after the first task is pulled to minimize
 		 * the critical section.
 		 */
-		if (idle == CPU_NEWLY_IDLE)
+		if (idle == CPU_NEWLY_IDLE) {
+			*lb_flags |= LBF_ABORT;
 			break;
+		}
 #endif
 
 		/*
@@ -3374,6 +3380,9 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		unsigned long busiest_weight = busiest_cfs_rq->load.weight;
 		u64 rem_load, moved_load;
 
+		if (*lb_flags & (LBF_NEED_BREAK|LBF_ABORT))
+			break;
+
 		/*
 		 * empty group or part of a throttled hierarchy
 		 */
@@ -3440,18 +3449,19 @@ static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 		total_load_moved += load_moved;
 
+		if (*lb_flags & (LBF_NEED_BREAK|LBF_ABORT))
+			break;
+
 #ifdef CONFIG_PREEMPT
 		/*
 		 * NEWIDLE balancing is a source of latency, so preemptible
 		 * kernels will stop after the first task is pulled to minimize
 		 * the critical section.
 		 */
-		if (idle == CPU_NEWLY_IDLE && this_rq->nr_running)
+		if (idle == CPU_NEWLY_IDLE && this_rq->nr_running) {
+			*lb_flags |= LBF_ABORT;
 			break;
-
-		if (raw_spin_is_contended(&this_rq->lock) ||
-				raw_spin_is_contended(&busiest->lock))
-			break;
+		}
 #endif
 	} while (load_moved && max_load_move > total_load_moved);
 
@@ -4495,6 +4505,14 @@ redo:
 		 */
 		if (ld_moved && this_cpu != smp_processor_id())
 			resched_cpu(this_cpu);
+
+		if (lb_flags & LBF_ABORT)
+			goto out_balanced;
+
+		if (lb_flags & LBF_NEED_BREAK) {
+			lb_flags &= ~LBF_NEED_BREAK;
+			goto redo;
+		}
 
 		/* All tasks on this runqueue were pinned by CPU affinity */
 		if (unlikely(lb_flags & LBF_ALL_PINNED)) {
