@@ -532,7 +532,7 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 
 		sband = priv->wdev->wiphy->bands[band];
 
-		for (i = 0; (i < sband->n_channels) ; i++, chan_idx++) {
+		for (i = 0; (i < sband->n_channels) ; i++) {
 			ch = &sband->channels[i];
 			if (ch->flags & IEEE80211_CHAN_DISABLED)
 				continue;
@@ -563,6 +563,7 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 				scan_chan_list[chan_idx].chan_scan_mode_bitmap
 					|= MWIFIEX_DISABLE_CHAN_FILT;
 			}
+			chan_idx++;
 		}
 
 	}
