@@ -31,8 +31,8 @@
 #define AB3100_R2B	0xc8
 #define AB3550_P1A	0x10
 #define AB5500_1_0	0x20
-#define AB5500_2_0	0x21
-#define AB5500_2_1	0x22
+#define AB5500_1_1	0x21
+#define AB5500_2_0	0x24
 
 /* AB8500 CIDs*/
 #define AB8500_CUTEARLY	0x00
