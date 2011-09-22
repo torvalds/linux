@@ -34,11 +34,18 @@ extern const char *cu_get_comp_dir(Dwarf_Die *cu_die);
 extern int cu_find_lineinfo(Dwarf_Die *cudie, unsigned long addr,
 			    const char **fname, int *lineno);
 
+/* Walk on funcitons at given address */
+extern int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
+			int (*callback)(Dwarf_Die *, void *), void *data);
+
 /* Compare diename and tname */
 extern bool die_compare_name(Dwarf_Die *dw_die, const char *tname);
 
 /* Get callsite line number of inline-function instance */
 extern int die_get_call_lineno(Dwarf_Die *in_die);
+
+/* Get callsite file name of inlined function instance */
+extern const char *die_get_call_file(Dwarf_Die *in_die);
 
 /* Get type die */
 extern Dwarf_Die *die_get_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
@@ -72,6 +79,10 @@ extern Dwarf_Die *die_find_realfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
 /* Search an inlined function including given address */
 extern Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 				      Dwarf_Die *die_mem);
+
+/* Walk on the instances of given DIE */
+extern int die_walk_instances(Dwarf_Die *in_die,
+			      int (*callback)(Dwarf_Die *, void *), void *data);
 
 /* Walker on lines (Note: line number will not be sorted) */
 typedef int (* line_walk_callback_t) (const char *fname, int lineno,

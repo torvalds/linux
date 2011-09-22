@@ -229,6 +229,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 int br_add_bridge(struct net *net, const char *name)
 {
 	struct net_device *dev;
+	int res;
 
 	dev = alloc_netdev(sizeof(struct net_bridge), name,
 			   br_dev_setup);
@@ -238,7 +239,10 @@ int br_add_bridge(struct net *net, const char *name)
 
 	dev_net_set(dev, net);
 
-	return register_netdev(dev);
+	res = register_netdev(dev);
+	if (res)
+		free_netdev(dev);
+	return res;
 }
 
 int br_del_bridge(struct net *net, const char *name)

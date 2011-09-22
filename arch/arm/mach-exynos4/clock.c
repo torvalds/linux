@@ -520,7 +520,7 @@ static struct clk init_clocks_off[] = {
 		.ctrlbit	= (1 << 21),
 	}, {
 		.name		= "ac97",
-		.id		= -1,
+		.devname	= "samsung-ac97",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 27),
 	}, {
@@ -1160,7 +1160,7 @@ void __init_or_cpufreq exynos4_setup_clocks(void)
 
 	vpllsrc = clk_get_rate(&clk_vpllsrc.clk);
 	vpll = s5p_get_pll46xx(vpllsrc, __raw_readl(S5P_VPLL_CON0),
-				__raw_readl(S5P_VPLL_CON1), pll_4650);
+				__raw_readl(S5P_VPLL_CON1), pll_4650c);
 
 	clk_fout_apll.ops = &exynos4_fout_apll_ops;
 	clk_fout_mpll.rate = mpll;

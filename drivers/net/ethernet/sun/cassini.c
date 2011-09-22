@@ -2452,14 +2452,13 @@ static irqreturn_t cas_interruptN(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct cas *cp = netdev_priv(dev);
 	unsigned long flags;
-	int ring;
+	int ring = (irq == cp->pci_irq_INTC) ? 2 : 3;
 	u32 status = readl(cp->regs + REG_PLUS_INTRN_STATUS(ring));
 
 	/* check for shared irq */
 	if (status == 0)
 		return IRQ_NONE;
 
-	ring = (irq == cp->pci_irq_INTC) ? 2 : 3;
 	spin_lock_irqsave(&cp->lock, flags);
 	if (status & INTR_RX_DONE_ALT) { /* handle rx separately */
 #ifdef USE_NAPI

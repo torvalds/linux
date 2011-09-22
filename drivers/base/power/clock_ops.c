@@ -19,7 +19,7 @@
 
 struct pm_clk_data {
 	struct list_head clock_list;
-	struct mutex lock;
+	spinlock_t lock;
 };
 
 enum pce_status {
@@ -73,9 +73,9 @@ int pm_clk_add(struct device *dev, const char *con_id)
 		}
 	}
 
-	mutex_lock(&pcd->lock);
+	spin_lock_irq(&pcd->lock);
 	list_add_tail(&ce->node, &pcd->clock_list);
-	mutex_unlock(&pcd->lock);
+	spin_unlock_irq(&pcd->lock);
 	return 0;
 }
 
@@ -83,8 +83,8 @@ int pm_clk_add(struct device *dev, const char *con_id)
  * __pm_clk_remove - Destroy PM clock entry.
  * @ce: PM clock entry to destroy.
  *
- * This routine must be called under the mutex protecting the PM list of clocks
- * corresponding the the @ce's device.
+ * This routine must be called under the spinlock protecting the PM list of
+ * clocks corresponding the the @ce's device.
  */
 static void __pm_clk_remove(struct pm_clock_entry *ce)
 {
@@ -123,7 +123,7 @@ void pm_clk_remove(struct device *dev, const char *con_id)
 	if (!pcd)
 		return;
 
-	mutex_lock(&pcd->lock);
+	spin_lock_irq(&pcd->lock);
 
 	list_for_each_entry(ce, &pcd->clock_list, node) {
 		if (!con_id && !ce->con_id) {
@@ -137,7 +137,7 @@ void pm_clk_remove(struct device *dev, const char *con_id)
 		}
 	}
 
-	mutex_unlock(&pcd->lock);
+	spin_unlock_irq(&pcd->lock);
 }
 
 /**
@@ -158,7 +158,7 @@ int pm_clk_init(struct device *dev)
 	}
 
 	INIT_LIST_HEAD(&pcd->clock_list);
-	mutex_init(&pcd->lock);
+	spin_lock_init(&pcd->lock);
 	dev->power.subsys_data = pcd;
 	return 0;
 }
@@ -181,12 +181,12 @@ void pm_clk_destroy(struct device *dev)
 
 	dev->power.subsys_data = NULL;
 
-	mutex_lock(&pcd->lock);
+	spin_lock_irq(&pcd->lock);
 
 	list_for_each_entry_safe_reverse(ce, c, &pcd->clock_list, node)
 		__pm_clk_remove(ce);
 
-	mutex_unlock(&pcd->lock);
+	spin_unlock_irq(&pcd->lock);
 
 	kfree(pcd);
 }
@@ -220,13 +220,14 @@ int pm_clk_suspend(struct device *dev)
 {
 	struct pm_clk_data *pcd = __to_pcd(dev);
 	struct pm_clock_entry *ce;
+	unsigned long flags;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
 	if (!pcd)
 		return 0;
 
-	mutex_lock(&pcd->lock);
+	spin_lock_irqsave(&pcd->lock, flags);
 
 	list_for_each_entry_reverse(ce, &pcd->clock_list, node) {
 		if (ce->status == PCE_STATUS_NONE)
@@ -238,7 +239,7 @@ int pm_clk_suspend(struct device *dev)
 		}
 	}
 
-	mutex_unlock(&pcd->lock);
+	spin_unlock_irqrestore(&pcd->lock, flags);
 
 	return 0;
 }
@@ -251,13 +252,14 @@ int pm_clk_resume(struct device *dev)
 {
 	struct pm_clk_data *pcd = __to_pcd(dev);
 	struct pm_clock_entry *ce;
+	unsigned long flags;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
 	if (!pcd)
 		return 0;
 
-	mutex_lock(&pcd->lock);
+	spin_lock_irqsave(&pcd->lock, flags);
 
 	list_for_each_entry(ce, &pcd->clock_list, node) {
 		if (ce->status == PCE_STATUS_NONE)
@@ -269,7 +271,7 @@ int pm_clk_resume(struct device *dev)
 		}
 	}
 
-	mutex_unlock(&pcd->lock);
+	spin_unlock_irqrestore(&pcd->lock, flags);
 
 	return 0;
 }
@@ -344,6 +346,7 @@ int pm_clk_suspend(struct device *dev)
 {
 	struct pm_clk_data *pcd = __to_pcd(dev);
 	struct pm_clock_entry *ce;
+	unsigned long flags;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -351,12 +354,12 @@ int pm_clk_suspend(struct device *dev)
 	if (!pcd || !dev->driver)
 		return 0;
 
-	mutex_lock(&pcd->lock);
+	spin_lock_irqsave(&pcd->lock, flags);
 
 	list_for_each_entry_reverse(ce, &pcd->clock_list, node)
 		clk_disable(ce->clk);
 
-	mutex_unlock(&pcd->lock);
+	spin_unlock_irqrestore(&pcd->lock, flags);
 
 	return 0;
 }
@@ -369,6 +372,7 @@ int pm_clk_resume(struct device *dev)
 {
 	struct pm_clk_data *pcd = __to_pcd(dev);
 	struct pm_clock_entry *ce;
+	unsigned long flags;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -376,12 +380,12 @@ int pm_clk_resume(struct device *dev)
 	if (!pcd || !dev->driver)
 		return 0;
 
-	mutex_lock(&pcd->lock);
+	spin_lock_irqsave(&pcd->lock, flags);
 
 	list_for_each_entry(ce, &pcd->clock_list, node)
 		clk_enable(ce->clk);
 
-	mutex_unlock(&pcd->lock);
+	spin_unlock_irqrestore(&pcd->lock, flags);
 
 	return 0;
 }

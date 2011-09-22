@@ -154,6 +154,33 @@ void or1k_unmap_page(struct device *dev, dma_addr_t dma_handle,
 	/* Nothing special to do here... */
 }
 
+int or1k_map_sg(struct device *dev, struct scatterlist *sg,
+		int nents, enum dma_data_direction dir,
+		struct dma_attrs *attrs)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i) {
+		s->dma_address = or1k_map_page(dev, sg_page(s), s->offset,
+					       s->length, dir, NULL);
+	}
+
+	return nents;
+}
+
+void or1k_unmap_sg(struct device *dev, struct scatterlist *sg,
+		   int nents, enum dma_data_direction dir,
+		   struct dma_attrs *attrs)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i) {
+		or1k_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir, NULL);
+	}
+}
+
 void or1k_sync_single_for_cpu(struct device *dev,
 			      dma_addr_t dma_handle, size_t size,
 			      enum dma_data_direction dir)
@@ -187,5 +214,4 @@ static int __init dma_init(void)
 
 	return 0;
 }
-
 fs_initcall(dma_init);

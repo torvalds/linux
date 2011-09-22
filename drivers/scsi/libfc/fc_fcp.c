@@ -2019,6 +2019,11 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	struct fc_fcp_internal *si;
 	int rc = FAILED;
 	unsigned long flags;
+	int rval;
+
+	rval = fc_block_scsi_eh(sc_cmd);
+	if (rval)
+		return rval;
 
 	lport = shost_priv(sc_cmd->device->host);
 	if (lport->state != LPORT_ST_READY)
@@ -2068,9 +2073,9 @@ int fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 	int rc = FAILED;
 	int rval;
 
-	rval = fc_remote_port_chkready(rport);
+	rval = fc_block_scsi_eh(sc_cmd);
 	if (rval)
-		goto out;
+		return rval;
 
 	lport = shost_priv(sc_cmd->device->host);
 
@@ -2115,6 +2120,8 @@ int fc_eh_host_reset(struct scsi_cmnd *sc_cmd)
 	unsigned long wait_tmo;
 
 	FC_SCSI_DBG(lport, "Resetting host\n");
+
+	fc_block_scsi_eh(sc_cmd);
 
 	lport->tt.lport_reset(lport);
 	wait_tmo = jiffies + FC_HOST_RESET_TIMEOUT;

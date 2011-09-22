@@ -1669,10 +1669,10 @@ static int gfar_get_cls_all(struct gfar_private *priv,
 	u32 i = 0;
 
 	list_for_each_entry(comp, &priv->rx_list.list, list) {
-		if (i <= cmd->rule_cnt) {
-			rule_locs[i] = comp->fs.location;
-			i++;
-		}
+		if (i == cmd->rule_cnt)
+			return -EMSGSIZE;
+		rule_locs[i] = comp->fs.location;
+		i++;
 	}
 
 	cmd->data = MAX_FILER_IDX;
