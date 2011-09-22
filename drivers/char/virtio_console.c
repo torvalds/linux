@@ -19,6 +19,7 @@
  */
 #include <linux/cdev.h>
 #include <linux/debugfs.h>
+#include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/freezer.h>
@@ -74,6 +75,7 @@ struct ports_driver_data {
 static struct ports_driver_data pdrvdata;
 
 DEFINE_SPINLOCK(pdrvdata_lock);
+DECLARE_COMPLETION(early_console_added);
 
 /* This struct holds information that's relevant only for console ports */
 struct console {
@@ -1366,6 +1368,7 @@ static void handle_control_message(struct ports_device *portdev,
 			break;
 
 		init_port_console(port);
+		complete(&early_console_added);
 		/*
 		 * Could remove the port here in case init fails - but
 		 * have to notify the host first.
@@ -1668,6 +1671,10 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	struct ports_device *portdev;
 	int err;
 	bool multiport;
+	bool early = early_put_chars != NULL;
+
+	/* Ensure to read early_put_chars now */
+	barrier();
 
 	portdev = kmalloc(sizeof(*portdev), GFP_KERNEL);
 	if (!portdev) {
@@ -1737,6 +1744,19 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 
 	__send_control_msg(portdev, VIRTIO_CONSOLE_BAD_ID,
 			   VIRTIO_CONSOLE_DEVICE_READY, 1);
+
+	/*
+	 * If there was an early virtio console, assume that there are no
+	 * other consoles. We need to wait until the hvc_alloc matches the
+	 * hvc_instantiate, otherwise tty_open will complain, resulting in
+	 * a "Warning: unable to open an initial console" boot failure.
+	 * Without multiport this is done in add_port above. With multiport
+	 * this might take some host<->guest communication - thus we have to
+	 * wait.
+	 */
+	if (multiport && early)
+		wait_for_completion(&early_console_added);
+
 	return 0;
 
 free_vqs:
