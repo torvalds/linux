@@ -122,7 +122,7 @@ static const struct enic_stat enic_rx_stats[] = {
 static const unsigned int enic_n_tx_stats = ARRAY_SIZE(enic_tx_stats);
 static const unsigned int enic_n_rx_stats = ARRAY_SIZE(enic_rx_stats);
 
-static int enic_is_dynamic(struct enic *enic)
+int enic_is_dynamic(struct enic *enic)
 {
 	return enic->pdev->device == PCI_DEVICE_ID_CISCO_VIC_ENET_DYN;
 }
@@ -1054,15 +1054,15 @@ static void enic_tx_timeout(struct net_device *netdev)
 static int enic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 {
 	struct enic *enic = netdev_priv(netdev);
+	struct enic_port_profile *pp;
+	int err;
 
-	if (vf != PORT_SELF_VF)
-		return -EOPNOTSUPP;
+	ENIC_PP_BY_INDEX(enic, vf, pp, &err);
+	if (err)
+		return err;
 
-	/* Ignore the vf argument for now. We can assume the request
-	 * is coming on a vf.
-	 */
 	if (is_valid_ether_addr(mac)) {
-		memcpy(enic->pp.vf_mac, mac, ETH_ALEN);
+		memcpy(pp->vf_mac, mac, ETH_ALEN);
 		return 0;
 	} else
 		return -EINVAL;
@@ -1073,71 +1073,74 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct enic_port_profile prev_pp;
+	struct enic_port_profile *pp;
 	int err = 0, restore_pp = 1;
 
-	/* don't support VFs, yet */
-	if (vf != PORT_SELF_VF)
-		return -EOPNOTSUPP;
+	ENIC_PP_BY_INDEX(enic, vf, pp, &err);
+	if (err)
+		return err;
 
 	if (!port[IFLA_PORT_REQUEST])
 		return -EOPNOTSUPP;
 
-	memcpy(&prev_pp, &enic->pp, sizeof(enic->pp));
-	memset(&enic->pp, 0, sizeof(enic->pp));
+	memcpy(&prev_pp, pp, sizeof(*enic->pp));
+	memset(pp, 0, sizeof(*enic->pp));
 
-	enic->pp.set |= ENIC_SET_REQUEST;
-	enic->pp.request = nla_get_u8(port[IFLA_PORT_REQUEST]);
+	pp->set |= ENIC_SET_REQUEST;
+	pp->request = nla_get_u8(port[IFLA_PORT_REQUEST]);
 
 	if (port[IFLA_PORT_PROFILE]) {
-		enic->pp.set |= ENIC_SET_NAME;
-		memcpy(enic->pp.name, nla_data(port[IFLA_PORT_PROFILE]),
+		pp->set |= ENIC_SET_NAME;
+		memcpy(pp->name, nla_data(port[IFLA_PORT_PROFILE]),
 			PORT_PROFILE_MAX);
 	}
 
 	if (port[IFLA_PORT_INSTANCE_UUID]) {
-		enic->pp.set |= ENIC_SET_INSTANCE;
-		memcpy(enic->pp.instance_uuid,
+		pp->set |= ENIC_SET_INSTANCE;
+		memcpy(pp->instance_uuid,
 			nla_data(port[IFLA_PORT_INSTANCE_UUID]), PORT_UUID_MAX);
 	}
 
 	if (port[IFLA_PORT_HOST_UUID]) {
-		enic->pp.set |= ENIC_SET_HOST;
-		memcpy(enic->pp.host_uuid,
+		pp->set |= ENIC_SET_HOST;
+		memcpy(pp->host_uuid,
 			nla_data(port[IFLA_PORT_HOST_UUID]), PORT_UUID_MAX);
 	}
 
 	/* Special case handling: mac came from IFLA_VF_MAC */
 	if (!is_zero_ether_addr(prev_pp.vf_mac))
-		memcpy(enic->pp.mac_addr, prev_pp.vf_mac, ETH_ALEN);
+		memcpy(pp->mac_addr, prev_pp.vf_mac, ETH_ALEN);
 
-		if (is_zero_ether_addr(netdev->dev_addr))
-			random_ether_addr(netdev->dev_addr);
+	if (vf == PORT_SELF_VF && is_zero_ether_addr(netdev->dev_addr))
+		random_ether_addr(netdev->dev_addr);
 
-	err = enic_process_set_pp_request(enic, &prev_pp, &restore_pp);
+	err = enic_process_set_pp_request(enic, vf, &prev_pp, &restore_pp);
 	if (err) {
 		if (restore_pp) {
 			/* Things are still the way they were: Implicit
 			 * DISASSOCIATE failed
 			 */
-			memcpy(&enic->pp, &prev_pp, sizeof(enic->pp));
+			memcpy(pp, &prev_pp, sizeof(*pp));
 		} else {
-			memset(&enic->pp, 0, sizeof(enic->pp));
-			memset(netdev->dev_addr, 0, ETH_ALEN);
+			memset(pp, 0, sizeof(*pp));
+			if (vf == PORT_SELF_VF)
+				memset(netdev->dev_addr, 0, ETH_ALEN);
 		}
 	} else {
 		/* Set flag to indicate that the port assoc/disassoc
 		 * request has been sent out to fw
 		 */
-		enic->pp.set |= ENIC_PORT_REQUEST_APPLIED;
+		pp->set |= ENIC_PORT_REQUEST_APPLIED;
 
 		/* If DISASSOCIATE, clean up all assigned/saved macaddresses */
-		if (enic->pp.request == PORT_REQUEST_DISASSOCIATE) {
-			memset(enic->pp.mac_addr, 0, ETH_ALEN);
-			memset(netdev->dev_addr, 0, ETH_ALEN);
+		if (pp->request == PORT_REQUEST_DISASSOCIATE) {
+			memset(pp->mac_addr, 0, ETH_ALEN);
+			if (vf == PORT_SELF_VF)
+				memset(netdev->dev_addr, 0, ETH_ALEN);
 		}
 	}
 
-	memset(enic->pp.vf_mac, 0, ETH_ALEN);
+	memset(pp->vf_mac, 0, ETH_ALEN);
 
 	return err;
 }
@@ -1147,26 +1150,31 @@ static int enic_get_vf_port(struct net_device *netdev, int vf,
 {
 	struct enic *enic = netdev_priv(netdev);
 	u16 response = PORT_PROFILE_RESPONSE_SUCCESS;
+	struct enic_port_profile *pp;
 	int err;
 
-	if (!(enic->pp.set & ENIC_PORT_REQUEST_APPLIED))
-		return -ENODATA;
-
-	err = enic_process_get_pp_request(enic, enic->pp.request, &response);
+	ENIC_PP_BY_INDEX(enic, vf, pp, &err);
 	if (err)
 		return err;
 
-	NLA_PUT_U16(skb, IFLA_PORT_REQUEST, enic->pp.request);
+	if (!(pp->set & ENIC_PORT_REQUEST_APPLIED))
+		return -ENODATA;
+
+	err = enic_process_get_pp_request(enic, vf, pp->request, &response);
+	if (err)
+		return err;
+
+	NLA_PUT_U16(skb, IFLA_PORT_REQUEST, pp->request);
 	NLA_PUT_U16(skb, IFLA_PORT_RESPONSE, response);
-	if (enic->pp.set & ENIC_SET_NAME)
+	if (pp->set & ENIC_SET_NAME)
 		NLA_PUT(skb, IFLA_PORT_PROFILE, PORT_PROFILE_MAX,
-			enic->pp.name);
-	if (enic->pp.set & ENIC_SET_INSTANCE)
+			pp->name);
+	if (pp->set & ENIC_SET_INSTANCE)
 		NLA_PUT(skb, IFLA_PORT_INSTANCE_UUID, PORT_UUID_MAX,
-			enic->pp.instance_uuid);
-	if (enic->pp.set & ENIC_SET_HOST)
+			pp->instance_uuid);
+	if (pp->set & ENIC_SET_HOST)
 		NLA_PUT(skb, IFLA_PORT_HOST_UUID, PORT_UUID_MAX,
-			enic->pp.host_uuid);
+			pp->host_uuid);
 
 	return 0;
 
@@ -1600,10 +1608,9 @@ static int enic_open(struct net_device *netdev)
 	for (i = 0; i < enic->rq_count; i++)
 		vnic_rq_enable(&enic->rq[i]);
 
-	if (enic_is_dynamic(enic) && !is_zero_ether_addr(enic->pp.mac_addr))
-		enic_dev_add_addr(enic, enic->pp.mac_addr);
-	else
+	if (!enic_is_dynamic(enic))
 		enic_dev_add_station_addr(enic);
+
 	enic_set_rx_mode(netdev);
 
 	netif_wake_queue(netdev);
@@ -1651,9 +1658,8 @@ static int enic_stop(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
-	if (enic_is_dynamic(enic) && !is_zero_ether_addr(enic->pp.mac_addr))
-		enic_dev_del_addr(enic, enic->pp.mac_addr);
-	else
+
+	if (!enic_is_dynamic(enic))
 		enic_dev_del_station_addr(enic);
 
 	for (i = 0; i < enic->wq_count; i++) {
@@ -2143,6 +2149,9 @@ static const struct net_device_ops enic_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= enic_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= enic_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= enic_tx_timeout,
+	.ndo_set_vf_port	= enic_set_vf_port,
+	.ndo_get_vf_port	= enic_get_vf_port,
+	.ndo_set_vf_mac		= enic_set_vf_mac,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= enic_poll_controller,
 #endif
@@ -2254,6 +2263,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	int using_dac = 0;
 	unsigned int i;
 	int err;
+	int num_pps = 1;
 #ifdef CONFIG_PCI_IOV
 	int pos = 0;
 #endif
@@ -2363,17 +2373,26 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 				goto err_out_vnic_unregister;
 			}
 			enic->priv_flags |= ENIC_SRIOV_ENABLED;
+			num_pps = enic->num_vfs;
 		}
 	}
 
 #endif
+	/* Allocate structure for port profiles */
+	enic->pp = kzalloc(num_pps * sizeof(*enic->pp), GFP_KERNEL);
+	if (!enic->pp) {
+		pr_err("port profile alloc failed, aborting\n");
+		err = -ENOMEM;
+		goto err_out_disable_sriov;
+	}
+
 	/* Issue device open to get device in known state
 	 */
 
 	err = enic_dev_open(enic);
 	if (err) {
 		dev_err(dev, "vNIC dev open failed, aborting\n");
-		goto err_out_disable_sriov;
+		goto err_out_free_pp;
 	}
 
 	/* Setup devcmd lock
@@ -2497,6 +2516,8 @@ err_out_dev_deinit:
 	enic_dev_deinit(enic);
 err_out_dev_close:
 	vnic_dev_close(enic->vdev);
+err_out_free_pp:
+	kfree(enic->pp);
 err_out_disable_sriov:
 #ifdef CONFIG_PCI_IOV
 	if (enic_sriov_enabled(enic)) {
@@ -2537,6 +2558,7 @@ static void __devexit enic_remove(struct pci_dev *pdev)
 			enic->priv_flags &= ~ENIC_SRIOV_ENABLED;
 		}
 #endif
+		kfree(enic->pp);
 		vnic_dev_unregister(enic->vdev);
 		enic_iounmap(enic);
 		pci_release_regions(pdev);

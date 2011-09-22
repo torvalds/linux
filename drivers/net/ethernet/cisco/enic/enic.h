@@ -96,7 +96,7 @@ struct enic {
 #ifdef CONFIG_PCI_IOV
 	u32 num_vfs;
 #endif
-	struct enic_port_profile pp;
+	struct enic_port_profile *pp;
 
 	/* work queue cache line section */
 	____cacheline_aligned struct vnic_wq wq[ENIC_WQ_MAX];
@@ -130,5 +130,6 @@ static inline struct device *enic_get_dev(struct enic *enic)
 void enic_reset_addr_lists(struct enic *enic);
 int enic_sriov_enabled(struct enic *enic);
 int enic_is_valid_vf(struct enic *enic, int vf);
+int enic_is_dynamic(struct enic *enic);
 
 #endif /* _ENIC_H_ */
