@@ -612,7 +612,7 @@ struct drm_psb_private {
 	void (*exit_idle)(struct drm_device *dev, u32 update_src);
 
 	/* 2D acceleration */
-	struct mutex mutex_2d;
+	spinlock_t lock_2d;
 
 	/* FIXME: Arrays anyone ? */
 	struct mdfld_dsi_encoder *encoder0;	
