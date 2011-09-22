@@ -30,6 +30,17 @@
 #include <linux/async.h>
 #include <mach/gpio.h>
 #include <mach/board.h>
+#include <linux/earlysuspend.h>
+
+struct FTS_TS_DATA_T {
+	struct 	i2c_client *client;
+    struct input_dev    *input_dev;
+    struct FTS_TS_EVENT_T        event;
+    struct work_struct     pen_event_work;
+    struct workqueue_struct *ts_workqueue;
+    struct 	early_suspend early_suspend;
+};
+
 /* -------------- global variable definition -----------*/
 static struct i2c_client *this_client;
 static REPORT_FINGER_INFO_T _st_finger_infos[CFG_MAX_POINT_NUM];
@@ -53,6 +64,13 @@ char *tsp_keyname[CFG_NUMOFKEYS] ={
 };
 
 static bool tsp_keystatus[CFG_NUMOFKEYS];
+
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void ft5x0x_ts_early_suspend(struct early_suspend *h);
+static void ft5x0x_ts_late_resume(struct early_suspend *h);
+#endif
+
 
 /***********************************************************************
   [function]: 
@@ -234,7 +252,7 @@ static int fts_i2c_rxdata(u8 *rxdata, int length)
 	ret = i2c_transfer(this_client->adapter, &msg, 1);
 
 	if (ret < 0)
-		pr_err("msg %s i2c write error: %d\n", __func__, ret);
+		pr_err("msg %s line:%d i2c write error: %d\n", __func__, __LINE__,ret);
 
 	msg.addr = this_client->addr;
 	msg.flags = I2C_M_RD;
@@ -242,7 +260,7 @@ static int fts_i2c_rxdata(u8 *rxdata, int length)
 	msg.buf = rxdata;
 	ret = i2c_transfer(this_client->adapter, &msg, 1);
 	if (ret < 0)
-		pr_err("msg %s i2c write error: %d\n", __func__, ret);
+		pr_err("msg %s line:%d i2c write error: %d\n", __func__,__LINE__, ret);
 
 	return ret;
 }
@@ -423,10 +441,8 @@ int fts_read_data(void)
 					_st_finger_infos[id].ui2_id  = size;
 					_si_touch_num ++;
 				}
-				else        
-					/*bad event, ignore*/
+				else					/*bad event, ignore*/
 					continue;  
-
 
 				if ( (touch_event==1) )
 				{
@@ -436,7 +452,6 @@ int fts_read_data(void)
 
 				for( i= 0; i<CFG_MAX_POINT_NUM; ++i )
 				{
-
 					input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, _st_finger_infos[i].ui2_id);
 					input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, _st_finger_infos[i].u2_pressure);
 					input_report_abs(data->input_dev, ABS_MT_POSITION_X,  SCREEN_MAX_X - _st_finger_infos[i].i2_x);
@@ -796,6 +811,66 @@ unsigned char fts_ctpm_get_upg_ver(void)
 
 }
 
+void ft5x0x_ts_set_standby(struct i2c_client *client, int enable)
+{
+        struct laibao_platform_data *mach_info = client->dev.platform_data;
+	unsigned display_on = mach_info->lcd_disp_on_pin;
+	unsigned lcd_cs = mach_info->lcd_cs_pin;
+
+	int display_on_pol = mach_info->disp_on_value;
+	int lcd_cs_pol = mach_info->lcd_cs_value;
+
+        printk("%s : %s, enable = %d", __FILE__, __FUNCTION__,enable);
+    if(display_on != INVALID_GPIO)
+    {
+        gpio_direction_output(display_on, 0);
+        gpio_set_value(display_on, enable ? display_on_pol : !display_on_pol);				
+    }
+    if(lcd_cs != INVALID_GPIO)
+    {
+		gpio_direction_output(lcd_cs, 0);
+		gpio_set_value(lcd_cs, enable ? lcd_cs_pol : !lcd_cs_pol);			  
+    }
+}
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void ft5x0x_ts_early_suspend(struct early_suspend *h)
+{
+	struct FTS_TS_DATA_T *data = i2c_get_clientdata(this_client);
+	
+
+    printk("enter ft5x0x_ts_early_suspend\n");
+	
+	disable_irq_nosync(this_client->irq);
+
+	cancel_work_sync(&data->pen_event_work);
+	
+	ft5x0x_ts_set_standby(this_client,0);
+	
+	return;
+}
+static void ft5x0x_ts_late_resume(struct early_suspend *h)
+{
+	struct FTS_TS_DATA_T *data = i2c_get_clientdata(this_client);
+
+	ft5x0x_ts_set_standby(this_client,1);
+
+    if(!work_pending(&data->pen_event_work)){
+		PREPARE_WORK(&data->pen_event_work, fts_work_func);
+    	queue_work(data->ts_workqueue, &data->pen_event_work);
+    }
+	else
+		enable_irq(this_client->irq);
+
+    printk("ft5x0x_ts_late_resume finish\n");
+
+	return ;
+}
+#else
+#define egalax_i2c_suspend       NULL
+#define egalax_i2c_resume        NULL
+#endif
+
 
 static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -826,6 +901,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	}
 
 	this_client = client;
+	ft5x0x_ts->client = client;
 	i2c_set_clientdata(client, ft5x0x_ts);
 
 	INIT_WORK(&ft5x0x_ts->pen_event_work, fts_work_func);
@@ -943,6 +1019,15 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 				dev_name(&client->dev));
 		goto exit_input_register_device_failed;
 	}
+
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    ft5x0x_ts->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1;
+    ft5x0x_ts->early_suspend.suspend = ft5x0x_ts_early_suspend;
+    ft5x0x_ts->early_suspend.resume = ft5x0x_ts_late_resume;
+    register_early_suspend(&ft5x0x_ts->early_suspend);
+#endif
+
 
 	enable_irq(_sui_irq_num);    
 	printk("[TSP] file(%s), function (%s), -- end\n", __FILE__, __FUNCTION__);

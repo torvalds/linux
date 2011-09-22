@@ -373,6 +373,7 @@ static int  option_resume(struct usb_serial *serial);
 /* Thinkwill products */
 #define THINKWILL_VENDOR_ID 	0x19f5
 #define THINKWILL_PRODUCT_ID	0x9909
+#define	THINKWILL_MI900_PRODUCT_ID	0x9013
 
 /* Cinterion (formerly Siemens) products */
 #define SIEMENS_VENDOR_ID				0x0681
@@ -412,6 +413,9 @@ static int  option_resume(struct usb_serial *serial);
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(THINKWILL_VENDOR_ID,THINKWILL_PRODUCT_ID)},
+
+	{ USB_DEVICE(THINKWILL_VENDOR_ID,THINKWILL_MI900_PRODUCT_ID)},
+
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA_LIGHT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA_QUAD) },

@@ -608,7 +608,10 @@ int laibao_init_platform_hw(void)
 struct laibao_platform_data laibao_info = {
   .model= 1003,
   .init_platform_hw= laibao_init_platform_hw,
-
+  .lcd_disp_on_pin = RK29_PIN6_PD0,
+  .disp_on_value = GPIO_HIGH,
+  .lcd_cs_pin = RK29_PIN6_PD1,
+  .lcd_cs_value = GPIO_HIGH,
 };
 #endif
 
@@ -719,112 +722,12 @@ struct bq27510_platform_data bq27510_info = {
  * wm8994  codec
  * author: qjb@rock-chips.com
  *****************************************************************************************/
-//#if defined(CONFIG_MFD_WM8994)
-#if defined (CONFIG_REGULATOR_WM8994)
-static struct regulator_consumer_supply wm8994_ldo1_consumers[] = {
-	{
-		.supply = "DBVDD",
-	},
-	{
-		.supply = "AVDD1",
-	},
-	{
-		.supply = "CPVDD",
-	},
-	{
-		.supply = "SPKVDD1",
-	}		
-};
-static struct regulator_consumer_supply wm8994_ldo2_consumers[] = {
-	{
-		.supply = "DCVDD",
-	},
-	{
-		.supply = "AVDD2",
-	},
-	{
-		.supply = "SPKVDD2",
-	}			
-};
-struct regulator_init_data regulator_init_data_ldo1 = {
-	.constraints = {
-		.name = "wm8994-ldo1",
-		.min_uA = 00000,
-		.max_uA = 18000,
-		.always_on = true,
-		.apply_uV = true,		
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
-	},
-	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo1_consumers),
-	.consumer_supplies = wm8994_ldo1_consumers,	
-};
-struct regulator_init_data regulator_init_data_ldo2 = {
-	.constraints = {
-		.name = "wm8994-ldo2",
-		.min_uA = 00000,
-		.max_uA = 18000,
-		.always_on = true,
-		.apply_uV = true,		
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
-	},
-	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo2_consumers),
-	.consumer_supplies = wm8994_ldo2_consumers,	
-};
-#endif 
-struct wm8994_drc_cfg wm8994_drc_cfg_pdata = {
-	.name = "wm8994_DRC",
-	.regs = {0,0,0,0,0},
-};
-
-struct wm8994_retune_mobile_cfg wm8994_retune_mobile_cfg_pdata = {
-	.name = "wm8994_EQ",
-	.rate = 0,
-	.regs = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,},
-}; 
-
 struct wm8994_pdata wm8994_platdata = {	
-#if defined (CONFIG_GPIO_WM8994)
-	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
-	//Fill value to initialize the GPIO
-	.gpio_defaults ={},
-#endif	
-	//enable=0 disable ldo
-#if defined (CONFIG_REGULATOR_WM8994)	
-	.ldo = {
-		{
-			.enable = 0,
-			//RK29_PIN5_PA1
-			.supply = NULL,
-			.init_data = &regulator_init_data_ldo1,
-		},
-		{
-			.enable = 0,
-			.supply = NULL,		
-			.init_data = &regulator_init_data_ldo2,
-		}
-	},
-#endif 	
-	//DRC 0--use default
-	.num_drc_cfgs = 0,
-	.drc_cfgs = &wm8994_drc_cfg_pdata,
-	//EQ   0--use default 
-	.num_retune_mobile_cfgs = 0,
-	.retune_mobile_cfgs = &wm8994_retune_mobile_cfg_pdata,
-	
-	.lineout1_diff = 1,
-	.lineout2_diff = 1,
-	
-	.lineout1fb = 1,
-	.lineout2fb = 1,
-	
-	.micbias1_lvl = 1,
-	.micbias2_lvl = 1,
-	
-	.jd_scthr = 0,
-	.jd_thr = 0,
+	.no_earpiece = 1,
+	.sp_hp_same_channel = 1,
 	
 	.BB_input_diff = 1,
-	.phone_pad = 1,
+	.BB_class = PCM_BB,
 	
 	.PA_control_pin = RK29_PIN6_PB6,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
@@ -1364,7 +1267,7 @@ static int rk29_backlight_pwm_suspend(void)
 		return -1;
 	}
 	gpio_direction_output(PWM_GPIO, GPIO_LOW);
-   #ifdef  LCD_DISP_ON_PIN
+   #if 0//def  LCD_DISP_ON_PIN
     gpio_direction_output(BL_EN_PIN, 0);
     gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
    #endif
@@ -1376,7 +1279,7 @@ static int rk29_backlight_pwm_resume(void)
 	gpio_free(PWM_GPIO);
 	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 
-    #ifdef  LCD_DISP_ON_PIN
+    #if 0//def  LCD_DISP_ON_PIN
     msleep(30);
     gpio_direction_output(BL_EN_PIN, 1);
     gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
