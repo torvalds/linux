@@ -112,7 +112,7 @@ static void fixup_clock_comparator(unsigned long long delta)
 static int s390_next_ktime(ktime_t expires,
 			   struct clock_event_device *evt)
 {
-	s64 nsecs;
+	u64 nsecs;
 
 	nsecs = ktime_to_ns(ktime_sub(expires, ktime_get_monotonic_offset()));
 	do_div(nsecs, 125);
