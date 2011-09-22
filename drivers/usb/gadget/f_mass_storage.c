@@ -1079,7 +1079,7 @@ static int do_write(struct fsg_dev *fsg)
 			amount_left_to_write -= nwritten;
 			fsg->residue -= nwritten;
 
-#ifdef MAX_UNFLUSHED_BYTES
+#ifdef MAX_UNFLUSHED_PACKETS
 			curlun->unflushed_packet ++;
 			if (curlun->unflushed_packet >= MAX_UNFLUSHED_PACKETS) {
 				fsync_sub(curlun);
