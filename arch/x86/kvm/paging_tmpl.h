@@ -672,20 +672,27 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
-	gpa_t pte_gpa = -1;
 	int level;
 	u64 *sptep;
 
 	vcpu_clear_mmio_info(vcpu, gva);
 
-	spin_lock(&vcpu->kvm->mmu_lock);
+	/*
+	 * No need to check return value here, rmap_can_add() can
+	 * help us to skip pte prefetch later.
+	 */
+	mmu_topup_memory_caches(vcpu);
 
+	spin_lock(&vcpu->kvm->mmu_lock);
 	for_each_shadow_entry(vcpu, gva, iterator) {
 		level = iterator.level;
 		sptep = iterator.sptep;
 
 		sp = page_header(__pa(sptep));
 		if (is_last_spte(*sptep, level)) {
+			pt_element_t gpte;
+			gpa_t pte_gpa;
+
 			if (!sp->unsync)
 				break;
 
@@ -694,22 +701,21 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 
 			if (mmu_page_zap_pte(vcpu->kvm, sp, sptep))
 				kvm_flush_remote_tlbs(vcpu->kvm);
+
+			if (!rmap_can_add(vcpu))
+				break;
+
+			if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
+						  sizeof(pt_element_t)))
+				break;
+
+			FNAME(update_pte)(vcpu, sp, sptep, &gpte);
 		}
 
 		if (!is_shadow_present_pte(*sptep) || !sp->unsync_children)
 			break;
 	}
-
-	atomic_inc(&vcpu->kvm->arch.invlpg_counter);
-
 	spin_unlock(&vcpu->kvm->mmu_lock);
-
-	if (pte_gpa == -1)
-		return;
-
-	if (mmu_topup_memory_caches(vcpu))
-		return;
-	kvm_mmu_pte_write(vcpu, pte_gpa, NULL, sizeof(pt_element_t), 0);
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,

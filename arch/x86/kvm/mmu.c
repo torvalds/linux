@@ -3531,8 +3531,7 @@ static bool last_updated_pte_accessed(struct kvm_vcpu *vcpu)
 }
 
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
-		       const u8 *new, int bytes,
-		       bool guest_initiated)
+		       const u8 *new, int bytes)
 {
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	union kvm_mmu_page_role mask = { .word = 0 };
@@ -3541,7 +3540,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	LIST_HEAD(invalid_list);
 	u64 entry, gentry, *spte;
 	unsigned pte_size, page_offset, misaligned, quadrant, offset;
-	int level, npte, invlpg_counter, r, flooded = 0;
+	int level, npte, r, flooded = 0;
 	bool remote_flush, local_flush, zap_page;
 
 	/*
@@ -3556,19 +3555,16 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 
 	pgprintk("%s: gpa %llx bytes %d\n", __func__, gpa, bytes);
 
-	invlpg_counter = atomic_read(&vcpu->kvm->arch.invlpg_counter);
-
 	/*
 	 * Assume that the pte write on a page table of the same type
 	 * as the current vcpu paging mode since we update the sptes only
 	 * when they have the same mode.
 	 */
-	if ((is_pae(vcpu) && bytes == 4) || !new) {
+	if (is_pae(vcpu) && bytes == 4) {
 		/* Handle a 32-bit guest writing two halves of a 64-bit gpte */
-		if (is_pae(vcpu)) {
-			gpa &= ~(gpa_t)7;
-			bytes = 8;
-		}
+		gpa &= ~(gpa_t)7;
+		bytes = 8;
+
 		r = kvm_read_guest(vcpu->kvm, gpa, &gentry, min(bytes, 8));
 		if (r)
 			gentry = 0;
@@ -3594,22 +3590,18 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	 */
 	mmu_topup_memory_caches(vcpu);
 	spin_lock(&vcpu->kvm->mmu_lock);
-	if (atomic_read(&vcpu->kvm->arch.invlpg_counter) != invlpg_counter)
-		gentry = 0;
 	kvm_mmu_free_some_pages(vcpu);
 	++vcpu->kvm->stat.mmu_pte_write;
 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
-	if (guest_initiated) {
-		if (gfn == vcpu->arch.last_pt_write_gfn
-		    && !last_updated_pte_accessed(vcpu)) {
-			++vcpu->arch.last_pt_write_count;
-			if (vcpu->arch.last_pt_write_count >= 3)
-				flooded = 1;
-		} else {
-			vcpu->arch.last_pt_write_gfn = gfn;
-			vcpu->arch.last_pt_write_count = 1;
-			vcpu->arch.last_pte_updated = NULL;
-		}
+	if (gfn == vcpu->arch.last_pt_write_gfn
+	    && !last_updated_pte_accessed(vcpu)) {
+		++vcpu->arch.last_pt_write_count;
+		if (vcpu->arch.last_pt_write_count >= 3)
+			flooded = 1;
+	} else {
+		vcpu->arch.last_pt_write_gfn = gfn;
+		vcpu->arch.last_pt_write_count = 1;
+		vcpu->arch.last_pte_updated = NULL;
 	}
 
 	mask.cr0_wp = mask.cr4_pae = mask.nxe = 1;
