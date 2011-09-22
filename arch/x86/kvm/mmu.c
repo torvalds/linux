@@ -1653,6 +1653,18 @@ static void init_shadow_page_table(struct kvm_mmu_page *sp)
 		sp->spt[i] = 0ull;
 }
 
+static void __clear_sp_write_flooding_count(struct kvm_mmu_page *sp)
+{
+	sp->write_flooding_count = 0;
+}
+
+static void clear_sp_write_flooding_count(u64 *spte)
+{
+	struct kvm_mmu_page *sp =  page_header(__pa(spte));
+
+	__clear_sp_write_flooding_count(sp);
+}
+
 static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     gfn_t gfn,
 					     gva_t gaddr,
@@ -1696,6 +1708,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		} else if (sp->unsync)
 			kvm_mmu_mark_parents_unsync(sp);
 
+		__clear_sp_write_flooding_count(sp);
 		trace_kvm_mmu_get_page(sp, false);
 		return sp;
 	}
@@ -1848,15 +1861,6 @@ static void kvm_mmu_put_page(struct kvm_mmu_page *sp, u64 *parent_pte)
 	mmu_page_remove_parent_pte(sp, parent_pte);
 }
 
-static void kvm_mmu_reset_last_pte_updated(struct kvm *kvm)
-{
-	int i;
-	struct kvm_vcpu *vcpu;
-
-	kvm_for_each_vcpu(i, vcpu, kvm)
-		vcpu->arch.last_pte_updated = NULL;
-}
-
 static void kvm_mmu_unlink_parents(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	u64 *parent_pte;
@@ -1916,7 +1920,6 @@ static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 	}
 
 	sp->role.invalid = 1;
-	kvm_mmu_reset_last_pte_updated(kvm);
 	return ret;
 }
 
@@ -2361,8 +2364,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		}
 	}
 	kvm_release_pfn_clean(pfn);
-	if (speculative)
-		vcpu->arch.last_pte_updated = sptep;
 }
 
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
@@ -3523,13 +3524,6 @@ static void mmu_pte_write_flush_tlb(struct kvm_vcpu *vcpu, bool zap_page,
 		kvm_mmu_flush_tlb(vcpu);
 }
 
-static bool last_updated_pte_accessed(struct kvm_vcpu *vcpu)
-{
-	u64 *spte = vcpu->arch.last_pte_updated;
-
-	return !!(spte && (*spte & shadow_accessed_mask));
-}
-
 static u64 mmu_pte_write_fetch_gpte(struct kvm_vcpu *vcpu, gpa_t *gpa,
 				    const u8 *new, int *bytes)
 {
@@ -3570,22 +3564,16 @@ static u64 mmu_pte_write_fetch_gpte(struct kvm_vcpu *vcpu, gpa_t *gpa,
  * If we're seeing too many writes to a page, it may no longer be a page table,
  * or we may be forking, in which case it is better to unmap the page.
  */
-static bool detect_write_flooding(struct kvm_vcpu *vcpu, gfn_t gfn)
+static bool detect_write_flooding(struct kvm_mmu_page *sp, u64 *spte)
 {
-	bool flooded = false;
+	/*
+	 * Skip write-flooding detected for the sp whose level is 1, because
+	 * it can become unsync, then the guest page is not write-protected.
+	 */
+	if (sp->role.level == 1)
+		return false;
 
-	if (gfn == vcpu->arch.last_pt_write_gfn
-	    && !last_updated_pte_accessed(vcpu)) {
-		++vcpu->arch.last_pt_write_count;
-		if (vcpu->arch.last_pt_write_count >= 3)
-			flooded = true;
-	} else {
-		vcpu->arch.last_pt_write_gfn = gfn;
-		vcpu->arch.last_pt_write_count = 1;
-		vcpu->arch.last_pte_updated = NULL;
-	}
-
-	return flooded;
+	return ++sp->write_flooding_count >= 3;
 }
 
 /*
@@ -3657,7 +3645,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	LIST_HEAD(invalid_list);
 	u64 entry, gentry, *spte;
 	int npte;
-	bool remote_flush, local_flush, zap_page, flooded, misaligned;
+	bool remote_flush, local_flush, zap_page;
 
 	/*
 	 * If we don't have indirect shadow pages, it means no page is
@@ -3683,12 +3671,12 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	++vcpu->kvm->stat.mmu_pte_write;
 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
 
-	flooded = detect_write_flooding(vcpu, gfn);
 	mask.cr0_wp = mask.cr4_pae = mask.nxe = 1;
 	for_each_gfn_indirect_valid_sp(vcpu->kvm, sp, gfn, node) {
-		misaligned = detect_write_misaligned(sp, gpa, bytes);
+		spte = get_written_sptes(sp, gpa, &npte);
 
-		if (misaligned || flooded) {
+		if (detect_write_misaligned(sp, gpa, bytes) ||
+		      detect_write_flooding(sp, spte)) {
 			zap_page |= !!kvm_mmu_prepare_zap_page(vcpu->kvm, sp,
 						     &invalid_list);
 			++vcpu->kvm->stat.mmu_flooded;

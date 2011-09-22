@@ -497,6 +497,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	     shadow_walk_next(&it)) {
 		gfn_t table_gfn;
 
+		clear_sp_write_flooding_count(it.sptep);
 		drop_large_spte(vcpu, it.sptep);
 
 		sp = NULL;
@@ -522,6 +523,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	     shadow_walk_next(&it)) {
 		gfn_t direct_gfn;
 
+		clear_sp_write_flooding_count(it.sptep);
 		validate_direct_spte(vcpu, it.sptep, direct_access);
 
 		drop_large_spte(vcpu, it.sptep);
@@ -536,6 +538,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		link_shadow_page(it.sptep, sp);
 	}
 
+	clear_sp_write_flooding_count(it.sptep);
 	mmu_set_spte(vcpu, it.sptep, access, gw->pte_access,
 		     user_fault, write_fault, emulate, it.level,
 		     gw->gfn, pfn, prefault, map_writable);
@@ -599,11 +602,9 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	 */
 	if (!r) {
 		pgprintk("%s: guest page fault\n", __func__);
-		if (!prefault) {
+		if (!prefault)
 			inject_page_fault(vcpu, &walker.fault);
-			/* reset fork detector */
-			vcpu->arch.last_pt_write_count = 0;
-		}
+
 		return 0;
 	}
 
@@ -640,9 +641,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	(void)sptep;
 	pgprintk("%s: shadow pte %p %llx emulate %d\n", __func__,
 		 sptep, *sptep, emulate);
-
-	if (!emulate)
-		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
 
 	++vcpu->stat.pf_fixed;
 	trace_kvm_mmu_audit(vcpu, AUDIT_POST_PAGE_FAULT);

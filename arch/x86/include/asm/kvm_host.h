@@ -239,6 +239,8 @@ struct kvm_mmu_page {
 	int clear_spte_count;
 #endif
 
+	int write_flooding_count;
+
 	struct rcu_head rcu;
 };
 
@@ -352,10 +354,6 @@ struct kvm_vcpu_arch {
 	struct kvm_mmu_memory_cache mmu_pte_list_desc_cache;
 	struct kvm_mmu_memory_cache mmu_page_cache;
 	struct kvm_mmu_memory_cache mmu_page_header_cache;
-
-	gfn_t last_pt_write_gfn;
-	int   last_pt_write_count;
-	u64  *last_pte_updated;
 
 	struct fpu guest_fpu;
 	u64 xcr0;
