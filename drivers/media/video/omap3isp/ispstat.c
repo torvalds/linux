@@ -1023,24 +1023,6 @@ void omap3isp_stat_dma_isr(struct ispstat *stat)
 	__stat_isr(stat, 1);
 }
 
-static int isp_stat_init_entities(struct ispstat *stat, const char *name,
-				  const struct v4l2_subdev_ops *sd_ops)
-{
-	struct v4l2_subdev *subdev = &stat->subdev;
-	struct media_entity *me = &subdev->entity;
-
-	v4l2_subdev_init(subdev, sd_ops);
-	snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "OMAP3 ISP %s", name);
-	subdev->grp_id = 1 << 16;	/* group ID for isp subdevs */
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
-	v4l2_set_subdevdata(subdev, stat);
-
-	stat->pad.flags = MEDIA_PAD_FL_SINK;
-	me->ops = NULL;
-
-	return media_entity_init(me, 1, &stat->pad, 0);
-}
-
 int omap3isp_stat_subscribe_event(struct v4l2_subdev *subdev,
 				  struct v4l2_fh *fh,
 				  struct v4l2_event_subscription *sub)
@@ -1069,6 +1051,24 @@ int omap3isp_stat_register_entities(struct ispstat *stat,
 				    struct v4l2_device *vdev)
 {
 	return v4l2_device_register_subdev(vdev, &stat->subdev);
+}
+
+static int isp_stat_init_entities(struct ispstat *stat, const char *name,
+				  const struct v4l2_subdev_ops *sd_ops)
+{
+	struct v4l2_subdev *subdev = &stat->subdev;
+	struct media_entity *me = &subdev->entity;
+
+	v4l2_subdev_init(subdev, sd_ops);
+	snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "OMAP3 ISP %s", name);
+	subdev->grp_id = 1 << 16;	/* group ID for isp subdevs */
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
+	v4l2_set_subdevdata(subdev, stat);
+
+	stat->pad.flags = MEDIA_PAD_FL_SINK;
+	me->ops = NULL;
+
+	return media_entity_init(me, 1, &stat->pad, 0);
 }
 
 int omap3isp_stat_init(struct ispstat *stat, const char *name,

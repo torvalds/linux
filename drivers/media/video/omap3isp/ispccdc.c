@@ -2152,6 +2152,37 @@ static const struct media_entity_operations ccdc_media_ops = {
 	.link_setup = ccdc_link_setup,
 };
 
+void omap3isp_ccdc_unregister_entities(struct isp_ccdc_device *ccdc)
+{
+	v4l2_device_unregister_subdev(&ccdc->subdev);
+	omap3isp_video_unregister(&ccdc->video_out);
+}
+
+int omap3isp_ccdc_register_entities(struct isp_ccdc_device *ccdc,
+	struct v4l2_device *vdev)
+{
+	int ret;
+
+	/* Register the subdev and video node. */
+	ret = v4l2_device_register_subdev(vdev, &ccdc->subdev);
+	if (ret < 0)
+		goto error;
+
+	ret = omap3isp_video_register(&ccdc->video_out, vdev);
+	if (ret < 0)
+		goto error;
+
+	return 0;
+
+error:
+	omap3isp_ccdc_unregister_entities(ccdc);
+	return ret;
+}
+
+/* -----------------------------------------------------------------------------
+ * ISP CCDC initialisation and cleanup
+ */
+
 /*
  * ccdc_init_entities - Initialize V4L2 subdev and media entity
  * @ccdc: ISP CCDC module
@@ -2203,37 +2234,6 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 
 	return 0;
 }
-
-void omap3isp_ccdc_unregister_entities(struct isp_ccdc_device *ccdc)
-{
-	v4l2_device_unregister_subdev(&ccdc->subdev);
-	omap3isp_video_unregister(&ccdc->video_out);
-}
-
-int omap3isp_ccdc_register_entities(struct isp_ccdc_device *ccdc,
-	struct v4l2_device *vdev)
-{
-	int ret;
-
-	/* Register the subdev and video node. */
-	ret = v4l2_device_register_subdev(vdev, &ccdc->subdev);
-	if (ret < 0)
-		goto error;
-
-	ret = omap3isp_video_register(&ccdc->video_out, vdev);
-	if (ret < 0)
-		goto error;
-
-	return 0;
-
-error:
-	omap3isp_ccdc_unregister_entities(ccdc);
-	return ret;
-}
-
-/* -----------------------------------------------------------------------------
- * ISP CCDC initialisation and cleanup
- */
 
 /*
  * omap3isp_ccdc_init - CCDC module initialization.

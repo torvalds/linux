@@ -1032,6 +1032,48 @@ static const struct media_entity_operations ccp2_media_ops = {
 };
 
 /*
+ * omap3isp_ccp2_unregister_entities - Unregister media entities: subdev
+ * @ccp2: Pointer to ISP CCP2 device
+ */
+void omap3isp_ccp2_unregister_entities(struct isp_ccp2_device *ccp2)
+{
+	v4l2_device_unregister_subdev(&ccp2->subdev);
+	omap3isp_video_unregister(&ccp2->video_in);
+}
+
+/*
+ * omap3isp_ccp2_register_entities - Register the subdev media entity
+ * @ccp2: Pointer to ISP CCP2 device
+ * @vdev: Pointer to v4l device
+ * return negative error code or zero on success
+ */
+
+int omap3isp_ccp2_register_entities(struct isp_ccp2_device *ccp2,
+				    struct v4l2_device *vdev)
+{
+	int ret;
+
+	/* Register the subdev and video nodes. */
+	ret = v4l2_device_register_subdev(vdev, &ccp2->subdev);
+	if (ret < 0)
+		goto error;
+
+	ret = omap3isp_video_register(&ccp2->video_in, vdev);
+	if (ret < 0)
+		goto error;
+
+	return 0;
+
+error:
+	omap3isp_ccp2_unregister_entities(ccp2);
+	return ret;
+}
+
+/* -----------------------------------------------------------------------------
+ * ISP ccp2 initialisation and cleanup
+ */
+
+/*
  * ccp2_init_entities - Initialize ccp2 subdev and media entity.
  * @ccp2: Pointer to ISP CCP2 device
  * return negative error code or zero on success
@@ -1095,62 +1137,6 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 }
 
 /*
- * omap3isp_ccp2_unregister_entities - Unregister media entities: subdev
- * @ccp2: Pointer to ISP CCP2 device
- */
-void omap3isp_ccp2_unregister_entities(struct isp_ccp2_device *ccp2)
-{
-	v4l2_device_unregister_subdev(&ccp2->subdev);
-	omap3isp_video_unregister(&ccp2->video_in);
-}
-
-/*
- * omap3isp_ccp2_register_entities - Register the subdev media entity
- * @ccp2: Pointer to ISP CCP2 device
- * @vdev: Pointer to v4l device
- * return negative error code or zero on success
- */
-
-int omap3isp_ccp2_register_entities(struct isp_ccp2_device *ccp2,
-				    struct v4l2_device *vdev)
-{
-	int ret;
-
-	/* Register the subdev and video nodes. */
-	ret = v4l2_device_register_subdev(vdev, &ccp2->subdev);
-	if (ret < 0)
-		goto error;
-
-	ret = omap3isp_video_register(&ccp2->video_in, vdev);
-	if (ret < 0)
-		goto error;
-
-	return 0;
-
-error:
-	omap3isp_ccp2_unregister_entities(ccp2);
-	return ret;
-}
-
-/* -----------------------------------------------------------------------------
- * ISP ccp2 initialisation and cleanup
- */
-
-/*
- * omap3isp_ccp2_cleanup - CCP2 un-initialization
- * @isp : Pointer to ISP device
- */
-void omap3isp_ccp2_cleanup(struct isp_device *isp)
-{
-	struct isp_ccp2_device *ccp2 = &isp->isp_ccp2;
-
-	omap3isp_video_cleanup(&ccp2->video_in);
-	media_entity_cleanup(&ccp2->subdev.entity);
-
-	regulator_put(ccp2->vdds_csib);
-}
-
-/*
  * omap3isp_ccp2_init - CCP2 initialization.
  * @isp : Pointer to ISP device
  * return negative error code or zero on success
@@ -1194,4 +1180,18 @@ out:
 		omap3isp_ccp2_cleanup(isp);
 
 	return ret;
+}
+
+/*
+ * omap3isp_ccp2_cleanup - CCP2 un-initialization
+ * @isp : Pointer to ISP device
+ */
+void omap3isp_ccp2_cleanup(struct isp_device *isp)
+{
+	struct isp_ccp2_device *ccp2 = &isp->isp_ccp2;
+
+	omap3isp_video_cleanup(&ccp2->video_in);
+	media_entity_cleanup(&ccp2->subdev.entity);
+
+	regulator_put(ccp2->vdds_csib);
 }

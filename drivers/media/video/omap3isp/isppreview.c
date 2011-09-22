@@ -1966,8 +1966,44 @@ static const struct media_entity_operations preview_media_ops = {
 	.link_setup = preview_link_setup,
 };
 
+void omap3isp_preview_unregister_entities(struct isp_prev_device *prev)
+{
+	v4l2_device_unregister_subdev(&prev->subdev);
+	omap3isp_video_unregister(&prev->video_in);
+	omap3isp_video_unregister(&prev->video_out);
+}
+
+int omap3isp_preview_register_entities(struct isp_prev_device *prev,
+	struct v4l2_device *vdev)
+{
+	int ret;
+
+	/* Register the subdev and video nodes. */
+	ret = v4l2_device_register_subdev(vdev, &prev->subdev);
+	if (ret < 0)
+		goto error;
+
+	ret = omap3isp_video_register(&prev->video_in, vdev);
+	if (ret < 0)
+		goto error;
+
+	ret = omap3isp_video_register(&prev->video_out, vdev);
+	if (ret < 0)
+		goto error;
+
+	return 0;
+
+error:
+	omap3isp_preview_unregister_entities(prev);
+	return ret;
+}
+
+/* -----------------------------------------------------------------------------
+ * ISP previewer initialisation and cleanup
+ */
+
 /*
- * review_init_entities - Initialize subdev and media entity.
+ * preview_init_entities - Initialize subdev and media entity.
  * @prev : Pointer to preview structure
  * return -ENOMEM or zero on success
  */
@@ -2044,52 +2080,6 @@ static int preview_init_entities(struct isp_prev_device *prev)
 	return 0;
 }
 
-void omap3isp_preview_unregister_entities(struct isp_prev_device *prev)
-{
-	v4l2_device_unregister_subdev(&prev->subdev);
-	omap3isp_video_unregister(&prev->video_in);
-	omap3isp_video_unregister(&prev->video_out);
-}
-
-int omap3isp_preview_register_entities(struct isp_prev_device *prev,
-	struct v4l2_device *vdev)
-{
-	int ret;
-
-	/* Register the subdev and video nodes. */
-	ret = v4l2_device_register_subdev(vdev, &prev->subdev);
-	if (ret < 0)
-		goto error;
-
-	ret = omap3isp_video_register(&prev->video_in, vdev);
-	if (ret < 0)
-		goto error;
-
-	ret = omap3isp_video_register(&prev->video_out, vdev);
-	if (ret < 0)
-		goto error;
-
-	return 0;
-
-error:
-	omap3isp_preview_unregister_entities(prev);
-	return ret;
-}
-
-/* -----------------------------------------------------------------------------
- * ISP previewer initialisation and cleanup
- */
-
-void omap3isp_preview_cleanup(struct isp_device *isp)
-{
-	struct isp_prev_device *prev = &isp->isp_prev;
-
-	v4l2_ctrl_handler_free(&prev->ctrls);
-	omap3isp_video_cleanup(&prev->video_in);
-	omap3isp_video_cleanup(&prev->video_out);
-	media_entity_cleanup(&prev->subdev.entity);
-}
-
 /*
  * isp_preview_init - Previewer initialization.
  * @dev : Pointer to ISP device
@@ -2113,4 +2103,14 @@ out:
 		omap3isp_preview_cleanup(isp);
 
 	return ret;
+}
+
+void omap3isp_preview_cleanup(struct isp_device *isp)
+{
+	struct isp_prev_device *prev = &isp->isp_prev;
+
+	v4l2_ctrl_handler_free(&prev->ctrls);
+	omap3isp_video_cleanup(&prev->video_in);
+	omap3isp_video_cleanup(&prev->video_out);
+	media_entity_cleanup(&prev->subdev.entity);
 }

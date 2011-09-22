@@ -1187,6 +1187,37 @@ static const struct media_entity_operations csi2_media_ops = {
 	.link_setup = csi2_link_setup,
 };
 
+void omap3isp_csi2_unregister_entities(struct isp_csi2_device *csi2)
+{
+	v4l2_device_unregister_subdev(&csi2->subdev);
+	omap3isp_video_unregister(&csi2->video_out);
+}
+
+int omap3isp_csi2_register_entities(struct isp_csi2_device *csi2,
+				    struct v4l2_device *vdev)
+{
+	int ret;
+
+	/* Register the subdev and video nodes. */
+	ret = v4l2_device_register_subdev(vdev, &csi2->subdev);
+	if (ret < 0)
+		goto error;
+
+	ret = omap3isp_video_register(&csi2->video_out, vdev);
+	if (ret < 0)
+		goto error;
+
+	return 0;
+
+error:
+	omap3isp_csi2_unregister_entities(csi2);
+	return ret;
+}
+
+/* -----------------------------------------------------------------------------
+ * ISP CSI2 initialisation and cleanup
+ */
+
 /*
  * csi2_init_entities - Initialize subdev and media entity.
  * @csi2: Pointer to csi2 structure.
@@ -1239,48 +1270,6 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 	return 0;
 }
 
-void omap3isp_csi2_unregister_entities(struct isp_csi2_device *csi2)
-{
-	v4l2_device_unregister_subdev(&csi2->subdev);
-	omap3isp_video_unregister(&csi2->video_out);
-}
-
-int omap3isp_csi2_register_entities(struct isp_csi2_device *csi2,
-				    struct v4l2_device *vdev)
-{
-	int ret;
-
-	/* Register the subdev and video nodes. */
-	ret = v4l2_device_register_subdev(vdev, &csi2->subdev);
-	if (ret < 0)
-		goto error;
-
-	ret = omap3isp_video_register(&csi2->video_out, vdev);
-	if (ret < 0)
-		goto error;
-
-	return 0;
-
-error:
-	omap3isp_csi2_unregister_entities(csi2);
-	return ret;
-}
-
-/* -----------------------------------------------------------------------------
- * ISP CSI2 initialisation and cleanup
- */
-
-/*
- * omap3isp_csi2_cleanup - Routine for module driver cleanup
- */
-void omap3isp_csi2_cleanup(struct isp_device *isp)
-{
-	struct isp_csi2_device *csi2a = &isp->isp_csi2a;
-
-	omap3isp_video_cleanup(&csi2a->video_out);
-	media_entity_cleanup(&csi2a->subdev.entity);
-}
-
 /*
  * omap3isp_csi2_init - Routine for module driver init
  */
@@ -1316,4 +1305,15 @@ int omap3isp_csi2_init(struct isp_device *isp)
 fail:
 	omap3isp_csi2_cleanup(isp);
 	return ret;
+}
+
+/*
+ * omap3isp_csi2_cleanup - Routine for module driver cleanup
+ */
+void omap3isp_csi2_cleanup(struct isp_device *isp)
+{
+	struct isp_csi2_device *csi2a = &isp->isp_csi2a;
+
+	omap3isp_video_cleanup(&csi2a->video_out);
+	media_entity_cleanup(&csi2a->subdev.entity);
 }
