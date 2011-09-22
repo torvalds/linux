@@ -1823,6 +1823,15 @@ static struct platform_device rk29_device_pwm_regulator = {
 
 #endif
 
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+#define SDMMC0_WRITE_PROTECT_PIN		RK29_PIN6_PB0 //According to your own project to set the value of write-protect-pin.
+#endif
+
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+#define SDMMC1_WRITE_PROTECT_PIN		RK29_PIN6_PB0 //According to your own project to set the value of write-protect-pin.
+#endif
+
 /*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
@@ -1851,6 +1860,12 @@ static int rk29_sdmmc0_cfg_gpio(void)
 #else
 	gpio_direction_output(RK29_PIN5_PD5,GPIO_LOW);
 #endif
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+    gpio_request(SDMMC0_WRITE_PROTECT_PIN,"sdmmc-wp");
+    gpio_direction_input(SDMMC0_WRITE_PROTECT_PIN);	    
+#endif
+
 	return 0;
 }
 
@@ -1869,6 +1884,12 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #endif
 	.detect_irq = RK29_PIN2_PA2, // INVALID_GPIO
 	.enable_sd_wakeup = 0,
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+    .write_prt = SDMMC0_WRITE_PROTECT_PIN,
+#else
+    .write_prt = INVALID_GPIO,
+#endif
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
@@ -1882,6 +1903,11 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
 	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
 	//rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_SDMMC1_DETECT_N);
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    gpio_request(SDMMC1_WRITE_PROTECT_PIN,"sdio-wp");
+    gpio_direction_input(SDMMC1_WRITE_PROTECT_PIN);	    
+#endif
 	return 0;
 }
 
@@ -1912,6 +1938,13 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #if 0
         .detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
 #endif
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    .write_prt = SDMMC1_WRITE_PROTECT_PIN,
+#else
+    .write_prt = INVALID_GPIO, 
+#endif    
+
 };
 #endif
 
