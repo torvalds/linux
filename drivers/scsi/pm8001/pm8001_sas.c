@@ -356,21 +356,8 @@ static int pm8001_task_exec(struct sas_task *task, const int num,
 	do {
 		dev = t->dev;
 		pm8001_dev = dev->lldd_dev;
-		if (DEV_IS_GONE(pm8001_dev)) {
-			if (pm8001_dev) {
-				PM8001_IO_DBG(pm8001_ha,
-					pm8001_printk("device %d not ready.\n",
-					pm8001_dev->device_id));
-			} else {
-				PM8001_IO_DBG(pm8001_ha,
-					pm8001_printk("device %016llx not "
-					"ready.\n", SAS_ADDR(dev->sas_addr)));
-			}
-			rc = SAS_PHY_DOWN;
-			goto out_done;
-		}
 		port = &pm8001_ha->port[sas_find_local_port_id(dev)];
-		if (!port->port_attached) {
+		if (DEV_IS_GONE(pm8001_dev) || !port->port_attached) {
 			if (sas_protocol_ata(t->task_proto)) {
 				struct task_status_struct *ts = &t->task_status;
 				ts->resp = SAS_TASK_UNDELIVERED;
