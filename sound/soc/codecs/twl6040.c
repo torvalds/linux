@@ -997,6 +997,12 @@ static const struct snd_kcontrol_new hfr_mux_controls =
 static const struct snd_kcontrol_new ep_path_enable_control =
 	SOC_DAPM_SINGLE("Switch", TWL6040_REG_SW_SHADOW, 0, 1, 0);
 
+static const struct snd_kcontrol_new auxl_switch_control =
+	SOC_DAPM_SINGLE("Switch", TWL6040_REG_HFLCTL, 6, 1, 0);
+
+static const struct snd_kcontrol_new auxr_switch_control =
+	SOC_DAPM_SINGLE("Switch", TWL6040_REG_HFRCTL, 6, 1, 0);
+
 /* Headset power mode */
 static const char *twl6040_power_mode_texts[] = {
 	"Low-Power", "High-Perfomance",
@@ -1105,6 +1111,8 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HFL"),
 	SND_SOC_DAPM_OUTPUT("HFR"),
 	SND_SOC_DAPM_OUTPUT("EP"),
+	SND_SOC_DAPM_OUTPUT("AUXL"),
+	SND_SOC_DAPM_OUTPUT("AUXR"),
 
 	/* Analog input muxes for the capture amplifiers */
 	SND_SOC_DAPM_MUX("Analog Left Capture Route",
@@ -1170,6 +1178,10 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SWITCH("Earphone Playback", SND_SOC_NOPM, 0, 0,
 			&ep_path_enable_control),
+	SND_SOC_DAPM_SWITCH("AUXL Playback", SND_SOC_NOPM, 0, 0,
+			&auxl_switch_control),
+	SND_SOC_DAPM_SWITCH("AUXR Playback", SND_SOC_NOPM, 0, 0,
+			&auxr_switch_control),
 
 	/* Analog playback drivers */
 	SND_SOC_DAPM_OUT_DRV_E("HF Left Driver",
@@ -1252,6 +1264,12 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	{"HFL", NULL, "HF Left Driver"},
 	{"HFR", NULL, "HF Right Driver"},
+
+	{"AUXL Playback", "Switch", "HF Left PGA"},
+	{"AUXR Playback", "Switch", "HF Right PGA"},
+
+	{"AUXL", NULL, "AUXL Playback"},
+	{"AUXR", NULL, "AUXR Playback"},
 };
 
 static int twl6040_add_widgets(struct snd_soc_codec *codec)
