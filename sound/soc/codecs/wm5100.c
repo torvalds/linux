@@ -1511,6 +1511,7 @@ static int wm5100_bclk_rates_dat[WM5100_NUM_BCLK_RATES] = {
 	96000,
 	128000,
 	192000,
+	256000,
 	384000,
 	512000,
 	768000,
