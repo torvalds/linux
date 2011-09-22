@@ -90,6 +90,9 @@ mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
 	cmd_node->data_buf = NULL;
 	cmd_node->wait_q_enabled = false;
 
+	if (cmd_node->cmd_skb)
+		skb_trim(cmd_node->cmd_skb, 0);
+
 	if (cmd_node->resp_skb) {
 		dev_kfree_skb_any(cmd_node->resp_skb);
 		cmd_node->resp_skb = NULL;
