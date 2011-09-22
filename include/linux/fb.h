@@ -49,6 +49,8 @@ struct dentry;
 #define FBIOGET_SCREEN_STATE    0X4620
 #define FBIOGET_16OR32    0X4621
 #define FBIOGET_IDLEFBUff_16OR32    0X4622
+#define FBIOSET_COMPOSE_LAYER_COUNTS    0X4623
+#define FBIOGET_COMPOSE_LAYER_COUNTS    0X4624
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
 #define FB_TYPE_PLANES			1	/* Non interleaved planes */

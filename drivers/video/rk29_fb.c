@@ -272,7 +272,7 @@ static u32 last_yuv_phy[2] = {0,0};
 #endif
 int fb0_first_buff_bits = 32;
 int fb0_second_buff_bits = 32;
-
+int fb_compose_layer_count = 0;
 static BLOCKING_NOTIFIER_HEAD(rk29fb_notifier_list);
 int rk29fb_register_notifier(struct notifier_block *nb)
 {
@@ -1735,6 +1735,14 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
         {
             return fb0_first_buff_bits;
         }
+    case FBIOSET_COMPOSE_LAYER_COUNTS:
+        fb_compose_layer_count = arg;
+        break;
+
+    case FBIOGET_COMPOSE_LAYER_COUNTS:
+        
+        return fb_compose_layer_count;
+        
 	case FBIOPUT_FBPHYADD:
         return info->fix.smem_start;
     case FBIOGET_OVERLAY_STATE:
