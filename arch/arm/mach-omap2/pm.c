@@ -60,19 +60,19 @@ EXPORT_SYMBOL(omap4_get_dsp_device);
 static int _init_omap_device(char *name, struct device **new_dev)
 {
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 
 	oh = omap_hwmod_lookup(name);
 	if (WARN(!oh, "%s: could not find omap_hwmod for %s\n",
 		 __func__, name))
 		return -ENODEV;
 
-	od = omap_device_build(oh->name, 0, oh, NULL, 0, pm_lats, 0, false);
-	if (WARN(IS_ERR(od), "%s: could not build omap_device for %s\n",
+	pdev = omap_device_build(oh->name, 0, oh, NULL, 0, pm_lats, 0, false);
+	if (WARN(IS_ERR(pdev), "%s: could not build omap_device for %s\n",
 		 __func__, name))
 		return -ENODEV;
 
-	*new_dev = &od->pdev.dev;
+	*new_dev = &pdev->dev;
 
 	return 0;
 }

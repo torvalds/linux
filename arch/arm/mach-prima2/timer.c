@@ -190,6 +190,7 @@ static void __init sirfsoc_timer_init(void)
 
 static struct of_device_id timer_ids[] = {
 	{ .compatible = "sirf,prima2-tick" },
+	{},
 };
 
 static void __init sirfsoc_of_timer_map(void)

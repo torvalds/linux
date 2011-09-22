@@ -176,7 +176,11 @@ static inline u64 btrfs_ino(struct inode *inode)
 {
 	u64 ino = BTRFS_I(inode)->location.objectid;
 
-	if (ino <= BTRFS_FIRST_FREE_OBJECTID)
+	/*
+	 * !ino: btree_inode
+	 * type == BTRFS_ROOT_ITEM_KEY: subvol dir
+	 */
+	if (!ino || BTRFS_I(inode)->location.type == BTRFS_ROOT_ITEM_KEY)
 		ino = inode->i_ino;
 	return ino;
 }

@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 
 #include <plat/mcbsp.h>
-#include <plat/omap_device.h>
 #include <linux/pm_runtime.h>
 
 /* XXX These "sideways" includes are a sign that something is wrong */
@@ -258,19 +257,9 @@ int omap_mcbsp_dma_reg_params(unsigned int id, unsigned int stream)
 EXPORT_SYMBOL(omap_mcbsp_dma_reg_params);
 
 #ifdef CONFIG_ARCH_OMAP3
-static struct omap_device *find_omap_device_by_dev(struct device *dev)
-{
-	struct platform_device *pdev = container_of(dev,
-					struct platform_device, dev);
-	return container_of(pdev, struct omap_device, pdev);
-}
-
 static void omap_st_on(struct omap_mcbsp *mcbsp)
 {
 	unsigned int w;
-	struct omap_device *od;
-
-	od = find_omap_device_by_dev(mcbsp->dev);
 
 	/*
 	 * Sidetone uses McBSP ICLK - which must not idle when sidetones
@@ -292,9 +281,6 @@ static void omap_st_on(struct omap_mcbsp *mcbsp)
 static void omap_st_off(struct omap_mcbsp *mcbsp)
 {
 	unsigned int w;
-	struct omap_device *od;
-
-	od = find_omap_device_by_dev(mcbsp->dev);
 
 	w = MCBSP_ST_READ(mcbsp, SSELCR);
 	MCBSP_ST_WRITE(mcbsp, SSELCR, w & ~(ST_SIDETONEEN));
@@ -310,9 +296,6 @@ static void omap_st_off(struct omap_mcbsp *mcbsp)
 static void omap_st_fir_write(struct omap_mcbsp *mcbsp, s16 *fir)
 {
 	u16 val, i;
-	struct omap_device *od;
-
-	od = find_omap_device_by_dev(mcbsp->dev);
 
 	val = MCBSP_ST_READ(mcbsp, SSELCR);
 
@@ -340,9 +323,6 @@ static void omap_st_chgain(struct omap_mcbsp *mcbsp)
 {
 	u16 w;
 	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
-	struct omap_device *od;
-
-	od = find_omap_device_by_dev(mcbsp->dev);
 
 	w = MCBSP_ST_READ(mcbsp, SSELCR);
 
@@ -685,9 +665,6 @@ EXPORT_SYMBOL(omap_mcbsp_get_dma_op_mode);
 
 static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp)
 {
-	struct omap_device *od;
-
-	od = find_omap_device_by_dev(mcbsp->dev);
 	/*
 	 * Enable wakup behavior, smart idle and all wakeups
 	 * REVISIT: some wakeups may be unnecessary
@@ -699,10 +676,6 @@ static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp)
 
 static inline void omap34xx_mcbsp_free(struct omap_mcbsp *mcbsp)
 {
-	struct omap_device *od;
-
-	od = find_omap_device_by_dev(mcbsp->dev);
-
 	/*
 	 * Disable wakup behavior, smart idle and all wakeups
 	 */

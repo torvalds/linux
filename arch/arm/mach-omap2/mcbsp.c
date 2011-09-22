@@ -116,7 +116,7 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 	char *name = "omap-mcbsp";
 	struct omap_hwmod *oh_device[2];
 	struct omap_mcbsp_platform_data *pdata = NULL;
-	struct omap_device *od;
+	struct platform_device *pdev;
 
 	sscanf(oh->name, "mcbsp%d", &id);
 
@@ -144,14 +144,14 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		(struct omap_mcbsp_dev_attr *)(oh->dev_attr))->sidetone);
 		count++;
 	}
-	od = omap_device_build_ss(name, id, oh_device, count, pdata,
+	pdev = omap_device_build_ss(name, id, oh_device, count, pdata,
 				sizeof(*pdata), omap2_mcbsp_latency,
 				ARRAY_SIZE(omap2_mcbsp_latency), false);
 	kfree(pdata);
-	if (IS_ERR(od))  {
+	if (IS_ERR(pdev))  {
 		pr_err("%s: Can't build omap_device for %s:%s.\n", __func__,
 					name, oh->name);
-		return PTR_ERR(od);
+		return PTR_ERR(pdev);
 	}
 	omap_mcbsp_count++;
 	return 0;
