@@ -57,6 +57,10 @@
 #define TWL6040_HF_VOL_MASK	0x1F
 #define TWL6040_HF_VOL_SHIFT	0
 
+/* Shadow register used by the driver */
+#define TWL6040_REG_SW_SHADOW	0x2F
+#define TWL6040_CACHEREGNUM	(TWL6040_REG_SW_SHADOW + 1)
+
 struct twl6040_output {
 	u16 active;
 	u16 left_vol;
@@ -153,6 +157,8 @@ static const u8 twl6040_reg[TWL6040_CACHEREGNUM] = {
 	0x00, /* REG_HFOTRIM	0x2C	*/
 	0x09, /* REG_ACCCTL	0x2D	*/
 	0x00, /* REG_STATUS	0x2E (ro) */
+
+	0x00, /* REG_SW_SHADOW	0x2F - Shadow, non HW register */
 };
 
 /* List of registers to be restored after power up */
@@ -236,8 +242,12 @@ static int twl6040_read_reg_volatile(struct snd_soc_codec *codec,
 	if (reg >= TWL6040_CACHEREGNUM)
 		return -EIO;
 
-	value = twl6040_reg_read(twl6040, reg);
-	twl6040_write_reg_cache(codec, reg, value);
+	if (likely(reg < TWL6040_REG_SW_SHADOW)) {
+		value = twl6040_reg_read(twl6040, reg);
+		twl6040_write_reg_cache(codec, reg, value);
+	} else {
+		value = twl6040_read_reg_cache(codec, reg);
+	}
 
 	return value;
 }
@@ -254,7 +264,10 @@ static int twl6040_write(struct snd_soc_codec *codec,
 		return -EIO;
 
 	twl6040_write_reg_cache(codec, reg, value);
-	return twl6040_reg_write(twl6040, reg, value);
+	if (likely(reg < TWL6040_REG_SW_SHADOW))
+		return twl6040_reg_write(twl6040, reg, value);
+	else
+		return 0;
 }
 
 static void twl6040_init_chip(struct snd_soc_codec *codec)

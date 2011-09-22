@@ -68,8 +68,6 @@
 #define TWL6040_REG_ACCCTL		0x2D
 #define TWL6040_REG_STATUS		0x2E
 
-#define TWL6040_CACHEREGNUM		(TWL6040_REG_STATUS + 1)
-
 /* INTID (0x03) fields */
 
 #define TWL6040_THINT			0x01
