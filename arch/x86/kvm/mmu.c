@@ -593,6 +593,11 @@ static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 	return 0;
 }
 
+static int mmu_memory_cache_free_objects(struct kvm_mmu_memory_cache *cache)
+{
+	return cache->nobjs;
+}
+
 static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc,
 				  struct kmem_cache *cache)
 {
@@ -968,6 +973,14 @@ static unsigned long *gfn_to_rmap(struct kvm *kvm, gfn_t gfn, int level)
 	linfo = lpage_info_slot(gfn, slot, level);
 
 	return &linfo->rmap_pde;
+}
+
+static bool rmap_can_add(struct kvm_vcpu *vcpu)
+{
+	struct kvm_mmu_memory_cache *cache;
+
+	cache = &vcpu->arch.mmu_pte_list_desc_cache;
+	return mmu_memory_cache_free_objects(cache);
 }
 
 static int rmap_add(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
@@ -3586,6 +3599,12 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		break;
 	}
 
+	/*
+	 * No need to care whether allocation memory is successful
+	 * or not since pte prefetch is skiped if it does not have
+	 * enough objects in the cache.
+	 */
+	mmu_topup_memory_caches(vcpu);
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (atomic_read(&vcpu->kvm->arch.invlpg_counter) != invlpg_counter)
 		gentry = 0;
@@ -3656,7 +3675,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			mmu_page_zap_pte(vcpu->kvm, sp, spte);
 			if (gentry &&
 			      !((sp->role.word ^ vcpu->arch.mmu.base_role.word)
-			      & mask.word))
+			      & mask.word) && rmap_can_add(vcpu))
 				mmu_pte_write_new_pte(vcpu, sp, spte, &gentry);
 			if (!remote_flush && need_remote_flush(entry, *spte))
 				remote_flush = true;
@@ -3716,10 +3735,6 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code,
 		r = 1;
 		goto out;
 	}
-
-	r = mmu_topup_memory_caches(vcpu);
-	if (r)
-		goto out;
 
 	er = x86_emulate_instruction(vcpu, cr2, 0, insn, insn_len);
 
