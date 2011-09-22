@@ -674,6 +674,8 @@ u8 kvm_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn);
 
 extern bool tdp_enabled;
 
+u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu);
+
 /* control of guest tsc rate supported? */
 extern bool kvm_has_tsc_control;
 /* minimum supported tsc_khz for guests */

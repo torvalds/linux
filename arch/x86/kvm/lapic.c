@@ -138,9 +138,23 @@ static inline int apic_lvt_vector(struct kvm_lapic *apic, int lvt_type)
 	return apic_get_reg(apic, lvt_type) & APIC_VECTOR_MASK;
 }
 
+static inline int apic_lvtt_oneshot(struct kvm_lapic *apic)
+{
+	return ((apic_get_reg(apic, APIC_LVTT) &
+		apic->lapic_timer.timer_mode_mask) == APIC_LVT_TIMER_ONESHOT);
+}
+
 static inline int apic_lvtt_period(struct kvm_lapic *apic)
 {
-	return apic_get_reg(apic, APIC_LVTT) & APIC_LVT_TIMER_PERIODIC;
+	return ((apic_get_reg(apic, APIC_LVTT) &
+		apic->lapic_timer.timer_mode_mask) == APIC_LVT_TIMER_PERIODIC);
+}
+
+static inline int apic_lvtt_tscdeadline(struct kvm_lapic *apic)
+{
+	return ((apic_get_reg(apic, APIC_LVTT) &
+		apic->lapic_timer.timer_mode_mask) ==
+			APIC_LVT_TIMER_TSCDEADLINE);
 }
 
 static inline int apic_lvt_nmi_mode(u32 lvt_val)
@@ -169,7 +183,7 @@ static inline int apic_x2apic_mode(struct kvm_lapic *apic)
 }
 
 static unsigned int apic_lvt_mask[APIC_LVT_NUM] = {
-	LVT_MASK | APIC_LVT_TIMER_PERIODIC,	/* LVTT */
+	LVT_MASK ,      /* part LVTT mask, timer mode mask added at runtime */
 	LVT_MASK | APIC_MODE_MASK,	/* LVTTHMR */
 	LVT_MASK | APIC_MODE_MASK,	/* LVTPC */
 	LINT_MASK, LINT_MASK,	/* LVT0-1 */
@@ -572,6 +586,9 @@ static u32 __apic_read(struct kvm_lapic *apic, unsigned int offset)
 		break;
 
 	case APIC_TMCCT:	/* Timer CCR */
+		if (apic_lvtt_tscdeadline(apic))
+			return 0;
+
 		val = apic_get_tmcct(apic);
 		break;
 
@@ -666,37 +683,40 @@ static void update_divide_count(struct kvm_lapic *apic)
 
 static void start_apic_timer(struct kvm_lapic *apic)
 {
-	ktime_t now = apic->lapic_timer.timer.base->get_time();
-
-	apic->lapic_timer.period = (u64)apic_get_reg(apic, APIC_TMICT) *
-		    APIC_BUS_CYCLE_NS * apic->divide_count;
+	ktime_t now;
 	atomic_set(&apic->lapic_timer.pending, 0);
 
-	if (!apic->lapic_timer.period)
-		return;
-	/*
-	 * Do not allow the guest to program periodic timers with small
-	 * interval, since the hrtimers are not throttled by the host
-	 * scheduler.
-	 */
-	if (apic_lvtt_period(apic)) {
-		s64 min_period = min_timer_period_us * 1000LL;
+	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic)) {
+		/* lapic timer in oneshot or peroidic mode */
+		now = apic->lapic_timer.timer.base->get_time();
+		apic->lapic_timer.period = (u64)apic_get_reg(apic, APIC_TMICT)
+			    * APIC_BUS_CYCLE_NS * apic->divide_count;
 
-		if (apic->lapic_timer.period < min_period) {
-			pr_info_ratelimited(
-				"kvm: vcpu %i: requested %lld ns "
-				"lapic timer period limited to %lld ns\n",
-				apic->vcpu->vcpu_id, apic->lapic_timer.period,
-				min_period);
-			apic->lapic_timer.period = min_period;
+		if (!apic->lapic_timer.period)
+			return;
+		/*
+		 * Do not allow the guest to program periodic timers with small
+		 * interval, since the hrtimers are not throttled by the host
+		 * scheduler.
+		 */
+		if (apic_lvtt_period(apic)) {
+			s64 min_period = min_timer_period_us * 1000LL;
+
+			if (apic->lapic_timer.period < min_period) {
+				pr_info_ratelimited(
+				    "kvm: vcpu %i: requested %lld ns "
+				    "lapic timer period limited to %lld ns\n",
+				    apic->vcpu->vcpu_id,
+				    apic->lapic_timer.period, min_period);
+				apic->lapic_timer.period = min_period;
+			}
 		}
-	}
 
-	hrtimer_start(&apic->lapic_timer.timer,
-		      ktime_add_ns(now, apic->lapic_timer.period),
-		      HRTIMER_MODE_ABS);
+		hrtimer_start(&apic->lapic_timer.timer,
+			      ktime_add_ns(now, apic->lapic_timer.period),
+			      HRTIMER_MODE_ABS);
 
-	apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
+		apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
 			   PRIx64 ", "
 			   "timer initial count 0x%x, period %lldns, "
 			   "expire @ 0x%016" PRIx64 ".\n", __func__,
@@ -705,6 +725,30 @@ static void start_apic_timer(struct kvm_lapic *apic)
 			   apic->lapic_timer.period,
 			   ktime_to_ns(ktime_add_ns(now,
 					apic->lapic_timer.period)));
+	} else if (apic_lvtt_tscdeadline(apic)) {
+		/* lapic timer in tsc deadline mode */
+		u64 guest_tsc, tscdeadline = apic->lapic_timer.tscdeadline;
+		u64 ns = 0;
+		struct kvm_vcpu *vcpu = apic->vcpu;
+		unsigned long this_tsc_khz = vcpu_tsc_khz(vcpu);
+		unsigned long flags;
+
+		if (unlikely(!tscdeadline || !this_tsc_khz))
+			return;
+
+		local_irq_save(flags);
+
+		now = apic->lapic_timer.timer.base->get_time();
+		guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu);
+		if (likely(tscdeadline > guest_tsc)) {
+			ns = (tscdeadline - guest_tsc) * 1000000ULL;
+			do_div(ns, this_tsc_khz);
+		}
+		hrtimer_start(&apic->lapic_timer.timer,
+			ktime_add_ns(now, ns), HRTIMER_MODE_ABS);
+
+		local_irq_restore(flags);
+	}
 }
 
 static void apic_manage_nmi_watchdog(struct kvm_lapic *apic, u32 lvt0_val)
@@ -792,7 +836,6 @@ static int apic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 
 	case APIC_LVT0:
 		apic_manage_nmi_watchdog(apic, val);
-	case APIC_LVTT:
 	case APIC_LVTTHMR:
 	case APIC_LVTPC:
 	case APIC_LVT1:
@@ -806,7 +849,22 @@ static int apic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 
 		break;
 
+	case APIC_LVTT:
+		if ((apic_get_reg(apic, APIC_LVTT) &
+		    apic->lapic_timer.timer_mode_mask) !=
+		   (val & apic->lapic_timer.timer_mode_mask))
+			hrtimer_cancel(&apic->lapic_timer.timer);
+
+		if (!apic_sw_enabled(apic))
+			val |= APIC_LVT_MASKED;
+		val &= (apic_lvt_mask[0] | apic->lapic_timer.timer_mode_mask);
+		apic_set_reg(apic, APIC_LVTT, val);
+		break;
+
 	case APIC_TMICT:
+		if (apic_lvtt_tscdeadline(apic))
+			break;
+
 		hrtimer_cancel(&apic->lapic_timer.timer);
 		apic_set_reg(apic, APIC_TMICT, val);
 		start_apic_timer(apic);
@@ -901,6 +959,32 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
  * LAPIC interface
  *----------------------------------------------------------------------
  */
+
+u64 kvm_get_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	if (!apic)
+		return 0;
+
+	if (apic_lvtt_oneshot(apic) || apic_lvtt_period(apic))
+		return 0;
+
+	return apic->lapic_timer.tscdeadline;
+}
+
+void kvm_set_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu, u64 data)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	if (!apic)
+		return;
+
+	if (apic_lvtt_oneshot(apic) || apic_lvtt_period(apic))
+		return;
+
+	hrtimer_cancel(&apic->lapic_timer.timer);
+	apic->lapic_timer.tscdeadline = data;
+	start_apic_timer(apic);
+}
 
 void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
