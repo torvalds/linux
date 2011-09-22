@@ -2017,7 +2017,7 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	if (error)
 		goto fail_unregister;
 
-	error = request_irq(IRQ_AMIGA_RBF, ser_rx_int, IRQF_DISABLED,
+	error = request_irq(IRQ_AMIGA_RBF, ser_rx_int, 0,
 			    "serial RX", state);
 	if (error)
 		goto fail_free_irq;

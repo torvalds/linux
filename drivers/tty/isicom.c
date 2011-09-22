@@ -1598,7 +1598,7 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	}
 
 	retval = request_irq(board->irq, isicom_interrupt,
-			IRQF_SHARED | IRQF_DISABLED, ISICOM_NAME, board);
+			IRQF_SHARED, ISICOM_NAME, board);
 	if (retval < 0) {
 		dev_err(&pdev->dev, "Could not install handler at Irq %d. "
 			"Card%d will be disabled.\n", board->irq, index + 1);
