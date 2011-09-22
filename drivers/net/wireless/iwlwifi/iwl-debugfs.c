@@ -715,6 +715,20 @@ static ssize_t iwl_dbgfs_disable_ht40_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t iwl_dbgfs_temperature_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int pos = 0;
+	const size_t bufsz = sizeof(buf);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "%d\n", priv->temperature);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+
 static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
 						    const char __user *user_buf,
 						    size_t count, loff_t *ppos)
@@ -809,6 +823,7 @@ DEBUGFS_READ_WRITE_FILE_OPS(rx_handlers);
 DEBUGFS_READ_FILE_OPS(qos);
 DEBUGFS_READ_FILE_OPS(thermal_throttling);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
+DEBUGFS_READ_FILE_OPS(temperature);
 DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
 DEBUGFS_READ_FILE_OPS(current_sleep_command);
 
@@ -2536,7 +2551,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_U32(temperature, dir_data, &priv->temperature, S_IRUSR);
+	DEBUGFS_ADD_FILE(temperature, dir_data, S_IRUSR);
 
 	DEBUGFS_ADD_FILE(rx_statistics, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_statistics, dir_debug, S_IRUSR);
