@@ -1,6 +1,4 @@
 TODO:
-	- audit the vmbus to verify it is working properly with the
-	  driver model
 	- audit the network driver
 	  - checking for carrier inside open is wrong, network device API
             confusion??
