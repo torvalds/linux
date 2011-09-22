@@ -81,6 +81,16 @@ choice
 	prompt "Kernel low-level debugging port"
 	depends on DEBUG_LL
 
+	config DEBUG_ICEDCC
+		bool "Kernel low-level debugging via EmbeddedICE DCC channel"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the EmbeddedICE macrocell's DCC channel using
+		  co-processor 14. This is known to work on the ARM9 style ICE
+		  channel and on the XScale with the PEEDI.
+
+		  It does include a timeout to ensure that the system does not
+		  totally freeze when there is nothing connected to read.
 
 	config DEBUG_FOOTBRIDGE_COM1
 		bool "Kernel low-level debugging messages via footbridge 8250 at PCI COM1"
@@ -119,18 +129,6 @@ config EARLY_PRINTK
 	  Say Y here if you want to have an early console using the
 	  kernel low-level debugging functions. Add earlyprintk to your
 	  kernel parameters to enable this console.
-
-config DEBUG_ICEDCC
-	bool "Kernel low-level debugging via EmbeddedICE DCC channel"
-	depends on DEBUG_LL
-	help
-	  Say Y here if you want the debug print routines to direct their
-	  output to the EmbeddedICE macrocell's DCC channel using
-	  co-processor 14. This is known to work on the ARM9 style ICE
-	  channel and on the XScale with the PEEDI.
-
-	  It does include a timeout to ensure that the system does not
-	  totally freeze when there is nothing connected to read.
 
 config OC_ETM
 	bool "On-chip ETM and ETB"
