@@ -361,8 +361,13 @@ static int nci_start_poll(struct nfc_dev *nfc_dev, __u32 protocols)
 		return -EBUSY;
 	}
 
+	if (ndev->target_active_prot) {
+		nfc_err("there is an active target");
+		return -EBUSY;
+	}
+
 	if (test_bit(NCI_POLL_ACTIVE, &ndev->flags)) {
-		nfc_dbg("target already active, first deactivate...");
+		nfc_dbg("target is active, implicitly deactivate...");
 
 		rc = nci_request(ndev, nci_rf_deactivate_req, 0,
 			msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
