@@ -1444,7 +1444,7 @@ static struct snd_soc_dai_ops twl6040_dai_ops = {
 
 static struct snd_soc_dai_driver twl6040_dai[] = {
 {
-	.name = "twl6040-hifi",
+	.name = "twl6040-legacy",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
