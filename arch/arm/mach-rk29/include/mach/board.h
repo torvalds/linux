@@ -143,7 +143,6 @@ struct rk29_sdmmc_platform_data {
 	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
         int detect_irq;
 		int enable_sd_wakeup;
-    int write_prt; 	
 };
 struct rk29_i2c_platform_data {
 	int     bus_num;        

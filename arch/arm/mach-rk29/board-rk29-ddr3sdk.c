@@ -1869,12 +1869,6 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #endif
 	.detect_irq = RK29_PIN2_PA2, // INVALID_GPIO
 	.enable_sd_wakeup = 0,
-
-#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
-    .write_prt = RK29_PIN6_PB0,//According to your own project to set the value of write-protect-pin.
-#else
-    .write_prt = INVALID_GPIO,
-#endif
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
@@ -1918,13 +1912,6 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #if 0
         .detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
 #endif
-
-#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
-    .write_prt = RK29_PIN6_PB0,//According to your own project to set the value of write-protect-pin.
-#else
-    .write_prt = INVALID_GPIO, 
-#endif    
-
 };
 #endif
 

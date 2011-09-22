@@ -24,13 +24,6 @@ if SDMMC_RK29
 		depends on ARCH_RK29 
 		help
 			This supports the use of the SDMMC0 controller on Rk29 processors.
-			
-	config SDMMC0_RK29_WRITE_PROTECT
-		bool "Write-protect for SDMMC0"
-		depends on SDMMC0_RK29
-		help
-			 You will add the feature of write-protect for sdmmc-card if you say Yes.
-			 Please note that this feature requires hardware support.
 #	config EMMC_RK29
 #		tristate "RK29 EMMC controller support(sdmmc)"
 #		default y
@@ -43,12 +36,6 @@ if SDMMC_RK29
 		depends on ARCH_RK29
 		help
 			This supports the use of the SDMMC1 controller on Rk29 processors.
-	config SDMMC1_RK29_WRITE_PROTECT
-		bool "Write-protect for SDMMC1"
-		depends on SDMMC1_RK29
-		help
-			 You will add the feature of write-protect for sdio-card if you say Yes.
-			 Please note that this feature requires hardware support.
 endif
 
 config MMC_ARMMMCI
