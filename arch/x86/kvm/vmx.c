@@ -3945,12 +3945,15 @@ static bool nested_exit_on_intr(struct kvm_vcpu *vcpu)
 static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	u32 cpu_based_vm_exec_control;
-	if (is_guest_mode(vcpu) && nested_exit_on_intr(vcpu))
-		/* We can get here when nested_run_pending caused
-		 * vmx_interrupt_allowed() to return false. In this case, do
-		 * nothing - the interrupt will be injected later.
+	if (is_guest_mode(vcpu) && nested_exit_on_intr(vcpu)) {
+		/*
+		 * We get here if vmx_interrupt_allowed() said we can't
+		 * inject to L1 now because L2 must run. Ask L2 to exit
+		 * right after entry, so we can inject to L1 more promptly.
 		 */
+		kvm_make_request(KVM_REQ_IMMEDIATE_EXIT, vcpu);
 		return;
+	}
 
 	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_INTR_PENDING;
