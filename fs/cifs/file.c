@@ -262,8 +262,6 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 	pCifsFile->invalidHandle = false;
 	pCifsFile->tlink = cifs_get_tlink(tlink);
 	mutex_init(&pCifsFile->fh_mutex);
-	mutex_init(&pCifsFile->lock_mutex);
-	INIT_LIST_HEAD(&pCifsFile->llist);
 	INIT_WORK(&pCifsFile->oplock_break, cifs_oplock_break);
 
 	spin_lock(&cifs_file_list_lock);
@@ -331,12 +329,14 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	/* Delete any outstanding lock records. We'll lose them when the file
 	 * is closed anyway.
 	 */
-	mutex_lock(&cifs_file->lock_mutex);
-	list_for_each_entry_safe(li, tmp, &cifs_file->llist, llist) {
+	mutex_lock(&cifsi->lock_mutex);
+	list_for_each_entry_safe(li, tmp, &cifsi->llist, llist) {
+		if (li->netfid != cifs_file->netfid)
+			continue;
 		list_del(&li->llist);
 		kfree(li);
 	}
-	mutex_unlock(&cifs_file->lock_mutex);
+	mutex_unlock(&cifsi->lock_mutex);
 
 	cifs_put_tlink(cifs_file->tlink);
 	dput(cifs_file->dentry);
@@ -639,20 +639,21 @@ int cifs_closedir(struct inode *inode, struct file *file)
 	return rc;
 }
 
-static int store_file_lock(struct cifsFileInfo *cfile, __u64 len,
+static int store_file_lock(struct cifsInodeInfo *cinode, __u64 len,
 			   __u64 offset, __u8 type, __u16 netfid)
 {
 	struct cifsLockInfo *li =
 		kmalloc(sizeof(struct cifsLockInfo), GFP_KERNEL);
 	if (li == NULL)
 		return -ENOMEM;
+	li->netfid = netfid;
 	li->offset = offset;
 	li->length = len;
 	li->type = type;
 	li->pid = current->tgid;
-	mutex_lock(&cfile->lock_mutex);
-	list_add_tail(&li->llist, &cfile->llist);
-	mutex_unlock(&cfile->lock_mutex);
+	mutex_lock(&cinode->lock_mutex);
+	list_add_tail(&li->llist, &cinode->llist);
+	mutex_unlock(&cinode->lock_mutex);
 	return 0;
 }
 
@@ -769,6 +770,7 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u8 type,
 	__u64 length = 1 + flock->fl_end - flock->fl_start;
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *)file->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
+	struct cifsInodeInfo *cinode = CIFS_I(file->f_path.dentry->d_inode);
 	__u16 netfid = cfile->netfid;
 
 	if (posix_lck) {
@@ -791,7 +793,7 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u8 type,
 				 flock->fl_start, 0, lock, type, wait_flag, 0);
 		if (rc == 0) {
 			/* For Windows locks we must store them. */
-			rc = store_file_lock(cfile, length, flock->fl_start,
+			rc = store_file_lock(cinode, length, flock->fl_start,
 					     type, netfid);
 		}
 	} else if (unlock) {
@@ -802,13 +804,15 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u8 type,
 		int stored_rc = 0;
 		struct cifsLockInfo *li, *tmp;
 
-		mutex_lock(&cfile->lock_mutex);
-		list_for_each_entry_safe(li, tmp, &cfile->llist, llist) {
+		mutex_lock(&cinode->lock_mutex);
+		list_for_each_entry_safe(li, tmp, &cinode->llist, llist) {
 			if (flock->fl_start > li->offset ||
 			    (flock->fl_start + length) <
 			    (li->offset + li->length))
 				continue;
 			if (current->tgid != li->pid)
+				continue;
+			if (cfile->netfid != li->netfid)
 				continue;
 
 			stored_rc = CIFSSMBLock(xid, tcon, netfid,
@@ -822,7 +826,7 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u8 type,
 				kfree(li);
 			}
 		}
-		mutex_unlock(&cfile->lock_mutex);
+		mutex_unlock(&cinode->lock_mutex);
 	}
 out:
 	if (flock->fl_flags & FL_POSIX)

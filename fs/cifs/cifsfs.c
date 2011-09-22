@@ -945,7 +945,8 @@ cifs_init_once(void *inode)
 	struct cifsInodeInfo *cifsi = inode;
 
 	inode_init_once(&cifsi->vfs_inode);
-	INIT_LIST_HEAD(&cifsi->lockList);
+	INIT_LIST_HEAD(&cifsi->llist);
+	mutex_init(&cifsi->lock_mutex);
 }
 
 static int
