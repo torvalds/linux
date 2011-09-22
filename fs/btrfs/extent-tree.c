@@ -3472,7 +3472,7 @@ again:
 	 */
 	if (unused <= space_info->total_bytes) {
 		unused = space_info->total_bytes - unused;
-		if (unused >= num_bytes) {
+		if (unused >= orig_bytes) {
 			space_info->bytes_may_use += orig_bytes;
 			ret = 0;
 		} else {
