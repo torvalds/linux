@@ -1067,7 +1067,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 		gpio_direction_input(gpio);
 
 		r = request_irq(gpio_to_irq(gpio), taal_te_isr,
-				IRQF_DISABLED | IRQF_TRIGGER_RISING,
+				IRQF_TRIGGER_RISING,
 				"taal vsync", dssdev);
 
 		if (r) {

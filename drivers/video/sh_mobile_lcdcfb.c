@@ -1576,7 +1576,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	error = request_irq(i, sh_mobile_lcdc_irq, IRQF_DISABLED,
+	error = request_irq(i, sh_mobile_lcdc_irq, 0,
 			    dev_name(&pdev->dev), priv);
 	if (error) {
 		dev_err(&pdev->dev, "unable to request irq\n");
