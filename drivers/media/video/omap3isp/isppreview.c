@@ -2060,24 +2060,32 @@ static int preview_init_entities(struct isp_prev_device *prev)
 
 	ret = omap3isp_video_init(&prev->video_in, "preview");
 	if (ret < 0)
-		return ret;
+		goto error_video_in;
 
 	ret = omap3isp_video_init(&prev->video_out, "preview");
 	if (ret < 0)
-		return ret;
+		goto error_video_out;
 
 	/* Connect the video nodes to the previewer subdev. */
 	ret = media_entity_create_link(&prev->video_in.video.entity, 0,
 			&prev->subdev.entity, PREV_PAD_SINK, 0);
 	if (ret < 0)
-		return ret;
+		goto error_link;
 
 	ret = media_entity_create_link(&prev->subdev.entity, PREV_PAD_SOURCE,
 			&prev->video_out.video.entity, 0, 0);
 	if (ret < 0)
-		return ret;
+		goto error_link;
 
 	return 0;
+
+error_link:
+	omap3isp_video_cleanup(&prev->video_out);
+error_video_out:
+	omap3isp_video_cleanup(&prev->video_in);
+error_video_in:
+	media_entity_cleanup(&prev->subdev.entity);
+	return ret;
 }
 
 /*
@@ -2088,21 +2096,12 @@ static int preview_init_entities(struct isp_prev_device *prev)
 int omap3isp_preview_init(struct isp_device *isp)
 {
 	struct isp_prev_device *prev = &isp->isp_prev;
-	int ret;
 
 	spin_lock_init(&prev->lock);
 	init_waitqueue_head(&prev->wait);
 	preview_init_params(prev);
 
-	ret = preview_init_entities(prev);
-	if (ret < 0)
-		goto out;
-
-out:
-	if (ret)
-		omap3isp_preview_cleanup(isp);
-
-	return ret;
+	return preview_init_entities(prev);
 }
 
 void omap3isp_preview_cleanup(struct isp_device *isp)

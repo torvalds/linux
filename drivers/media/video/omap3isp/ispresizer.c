@@ -1688,24 +1688,32 @@ static int resizer_init_entities(struct isp_res_device *res)
 
 	ret = omap3isp_video_init(&res->video_in, "resizer");
 	if (ret < 0)
-		return ret;
+		goto error_video_in;
 
 	ret = omap3isp_video_init(&res->video_out, "resizer");
 	if (ret < 0)
-		return ret;
+		goto error_video_out;
 
 	/* Connect the video nodes to the resizer subdev. */
 	ret = media_entity_create_link(&res->video_in.video.entity, 0,
 			&res->subdev.entity, RESZ_PAD_SINK, 0);
 	if (ret < 0)
-		return ret;
+		goto error_link;
 
 	ret = media_entity_create_link(&res->subdev.entity, RESZ_PAD_SOURCE,
 			&res->video_out.video.entity, 0, 0);
 	if (ret < 0)
-		return ret;
+		goto error_link;
 
 	return 0;
+
+error_link:
+	omap3isp_video_cleanup(&res->video_out);
+error_video_out:
+	omap3isp_video_cleanup(&res->video_in);
+error_video_in:
+	media_entity_cleanup(&res->subdev.entity);
+	return ret;
 }
 
 /*
@@ -1716,19 +1724,10 @@ static int resizer_init_entities(struct isp_res_device *res)
 int omap3isp_resizer_init(struct isp_device *isp)
 {
 	struct isp_res_device *res = &isp->isp_res;
-	int ret;
 
 	init_waitqueue_head(&res->wait);
 	atomic_set(&res->stopping, 0);
-	ret = resizer_init_entities(res);
-	if (ret < 0)
-		goto out;
-
-out:
-	if (ret)
-		omap3isp_resizer_cleanup(isp);
-
-	return ret;
+	return resizer_init_entities(res);
 }
 
 void omap3isp_resizer_cleanup(struct isp_device *isp)

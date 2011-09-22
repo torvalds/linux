@@ -1074,14 +1074,23 @@ static int isp_stat_init_entities(struct ispstat *stat, const char *name,
 int omap3isp_stat_init(struct ispstat *stat, const char *name,
 		       const struct v4l2_subdev_ops *sd_ops)
 {
+	int ret;
+
 	stat->buf = kcalloc(STAT_MAX_BUFS, sizeof(*stat->buf), GFP_KERNEL);
 	if (!stat->buf)
 		return -ENOMEM;
+
 	isp_stat_buf_clear(stat);
 	mutex_init(&stat->ioctl_lock);
 	atomic_set(&stat->buf_err, 0);
 
-	return isp_stat_init_entities(stat, name, sd_ops);
+	ret = isp_stat_init_entities(stat, name, sd_ops);
+	if (ret < 0) {
+		mutex_destroy(&stat->ioctl_lock);
+		kfree(stat->buf);
+	}
+
+	return ret;
 }
 
 void omap3isp_stat_cleanup(struct ispstat *stat)

@@ -1259,15 +1259,21 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 
 	ret = omap3isp_video_init(&csi2->video_out, "CSI2a");
 	if (ret < 0)
-		return ret;
+		goto error_video;
 
 	/* Connect the CSI2 subdev to the video node. */
 	ret = media_entity_create_link(&csi2->subdev.entity, CSI2_PAD_SOURCE,
 				       &csi2->video_out.video.entity, 0, 0);
 	if (ret < 0)
-		return ret;
+		goto error_link;
 
 	return 0;
+
+error_link:
+	omap3isp_video_cleanup(&csi2->video_out);
+error_video:
+	media_entity_cleanup(&csi2->subdev.entity);
+	return ret;
 }
 
 /*
@@ -1289,7 +1295,7 @@ int omap3isp_csi2_init(struct isp_device *isp)
 
 	ret = csi2_init_entities(csi2a);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	if (isp->revision == ISP_REVISION_15_0) {
 		csi2c->isp = isp;
@@ -1302,9 +1308,6 @@ int omap3isp_csi2_init(struct isp_device *isp)
 	}
 
 	return 0;
-fail:
-	omap3isp_csi2_cleanup(isp);
-	return ret;
 }
 
 /*

@@ -2224,15 +2224,21 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 
 	ret = omap3isp_video_init(&ccdc->video_out, "CCDC");
 	if (ret < 0)
-		return ret;
+		goto error_video;
 
 	/* Connect the CCDC subdev to the video node. */
 	ret = media_entity_create_link(&ccdc->subdev.entity, CCDC_PAD_SOURCE_OF,
 			&ccdc->video_out.video.entity, 0, 0);
 	if (ret < 0)
-		return ret;
+		goto error_link;
 
 	return 0;
+
+error_link:
+	omap3isp_video_cleanup(&ccdc->video_out);
+error_video:
+	media_entity_cleanup(me);
+	return ret;
 }
 
 /*
@@ -2246,6 +2252,7 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 int omap3isp_ccdc_init(struct isp_device *isp)
 {
 	struct isp_ccdc_device *ccdc = &isp->isp_ccdc;
+	int ret;
 
 	spin_lock_init(&ccdc->lock);
 	init_waitqueue_head(&ccdc->wait);
@@ -2274,7 +2281,13 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 	ccdc->update = OMAP3ISP_CCDC_BLCLAMP;
 	ccdc_apply_controls(ccdc);
 
-	return ccdc_init_entities(ccdc);
+	ret = ccdc_init_entities(ccdc);
+	if (ret < 0) {
+		mutex_destroy(&ccdc->ioctl_lock);
+		return ret;
+	}
+
+	return 0;
 }
 
 /*
