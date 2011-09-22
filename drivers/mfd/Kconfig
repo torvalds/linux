@@ -572,6 +572,14 @@ config AB5500_CORE
 	  chip. This connects to the db5500 chip via the I2C bus via PRCMU.
 	  This chip embeds various other multimedia funtionalities as well.
 
+config AB5500_DEBUG
+	bool "Enable debug info via debugfs"
+	depends on AB5500_CORE && DEBUG_FS
+	default y if DEBUG_FS
+	help
+	  Select this option if you want debug information from the AB5500
+	  using the debug filesystem, debugfs.
+
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
 	depends on GENERIC_HARDIRQS && ABX500_CORE
