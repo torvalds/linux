@@ -54,6 +54,8 @@ void nci_data_exchange_complete(struct nci_dev *ndev,
 		/* no waiting callback, free skb */
 		kfree_skb(skb);
 	}
+
+	clear_bit(NCI_DATA_EXCHANGE, &ndev->flags);
 }
 
 /* ----------------- NCI TX Data ----------------- */

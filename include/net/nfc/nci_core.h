@@ -40,6 +40,7 @@ enum {
 	NCI_UP,
 	NCI_DISCOVERY,
 	NCI_POLL_ACTIVE,
+	NCI_DATA_EXCHANGE,
 };
 
 /* NCI timeouts */

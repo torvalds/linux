@@ -215,7 +215,7 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 	}
 
 	/* complete the data exchange transaction, if exists */
-	if (ndev->data_exchange_cb)
+	if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
 		nci_data_exchange_complete(ndev, NULL, -EIO);
 }
 

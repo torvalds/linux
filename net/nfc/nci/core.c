@@ -453,6 +453,7 @@ static int nci_data_exchange(struct nfc_dev *nfc_dev, __u32 target_idx,
 						void *cb_context)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+	int rc;
 
 	nfc_dbg("entry, target_idx %d, len %d", target_idx, skb->len);
 
@@ -461,11 +462,18 @@ static int nci_data_exchange(struct nfc_dev *nfc_dev, __u32 target_idx,
 		return -EINVAL;
 	}
 
+	if (test_and_set_bit(NCI_DATA_EXCHANGE, &ndev->flags))
+		return -EBUSY;
+
 	/* store cb and context to be used on receiving data */
 	ndev->data_exchange_cb = cb;
 	ndev->data_exchange_cb_context = cb_context;
 
-	return nci_send_data(ndev, ndev->conn_id, skb);
+	rc = nci_send_data(ndev, ndev->conn_id, skb);
+	if (rc)
+		clear_bit(NCI_DATA_EXCHANGE, &ndev->flags);
+
+	return rc;
 }
 
 static struct nfc_ops nci_nfc_ops = {
