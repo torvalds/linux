@@ -3019,16 +3019,17 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
     {
 // dkm: gcdPAGE_ALLOC_LIMIT
 #if gcdPAGE_ALLOC_LIMIT
-        if( (g_pages_alloced + numPages) > (256*gcdPAGE_ALLOC_LIMIT_SIZE) ) {
+#define PAGE_ALLOC_LIMIT_SIZE    0
+        if( (g_pages_alloced + numPages) > (256*PAGE_ALLOC_LIMIT_SIZE) ) {
             //printk("full %d! \n", g_pages_alloced);
             addr = NULL;
         } else {
-            addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA | __GFP_NOWARN, GetOrder(numPages));
+            addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA | __GFP_NOWARN | __GFP_NO_KSWAPD, GetOrder(numPages));
             if(addr) {
                 g_pages_alloced += numPages;
                 //printk("alloc %d / %d \n", numPages, g_pages_alloced);
             } else {
-                printk("gpu : alloc %d fail! (%d/%d)\n", numPages,  g_pages_alloced, (256*gcdPAGE_ALLOC_LIMIT_SIZE) );
+                printk("gpu : alloc %d fail! (%d/%d)\n", numPages,  g_pages_alloced, (256*PAGE_ALLOC_LIMIT_SIZE) );
             }
         }
 #else

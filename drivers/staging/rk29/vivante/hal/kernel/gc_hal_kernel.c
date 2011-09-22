@@ -290,6 +290,11 @@ _AllocateMemory(
     default:
         break;
     }
+    
+#if (0==gcdPAGE_ALLOC_LIMIT)
+    // dkm : force gcvSURF_TILE_STATUS use contiguous memory
+    if(gcvSURF_TILE_STATUS == Type)     pool = gcvPOOL_CONTIGUOUS;
+#endif
 
     do
     {
@@ -388,7 +393,10 @@ _AllocateMemory(
     while ((*Pool == gcvPOOL_DEFAULT)
     ||     (*Pool == gcvPOOL_LOCAL)
     ||     (*Pool == gcvPOOL_UNIFIED)
-    ||     ((*Pool == gcvPOOL_SYSTEM) && (pool==gcvPOOL_CONTIGUOUS))
+#if (0==gcdPAGE_ALLOC_LIMIT)
+    // dkm : let gcvPOOL_SYSTEM can use contiguous memory
+    ||     ((*Pool == gcvPOOL_SYSTEM) && (pool==gcvPOOL_CONTIGUOUS))    
+#endif
     );
 
     if (gcmIS_SUCCESS(status))

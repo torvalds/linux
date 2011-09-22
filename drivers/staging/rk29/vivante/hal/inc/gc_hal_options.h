@@ -304,14 +304,12 @@
 
 
 /*
-    dkm : gcdPAGE_ALLOC_LIMIT & gcdPAGE_ALLOC_LIMIT_SIZE
+    dkm : gcdPAGE_ALLOC_LIMIT
 
-    限制gckOS_AllocatePagedMemoryEx向系统申请page的大小，避免系统page不足时会导致系统卡顿
-    gcdPAGE_ALLOC_LIMIT         限制Page申请
-    gcdPAGE_ALLOC_LIMIT_SIZE    限制Page申请的大小,单位为M
+    限制gckOS_AllocatePagedMemoryEx向系统申请page，避免太大系统分配不出来时会导致系统卡顿(会不停flush cache)
+    新的内核已经修正了这一问题
 */
 #define gcdPAGE_ALLOC_LIMIT                 0
-#define gcdPAGE_ALLOC_LIMIT_SIZE            0
 
 
 /*
