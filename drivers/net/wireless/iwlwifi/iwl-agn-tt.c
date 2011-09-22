@@ -114,9 +114,6 @@ static bool iwl_within_ct_kill_margin(struct iwl_priv *priv)
 	s32 temp = priv->temperature; /* degrees CELSIUS except specified */
 	bool within_margin = false;
 
-	if (priv->cfg->base_params->temperature_kelvin)
-		temp = KELVIN_TO_CELSIUS(priv->temperature);
-
 	if (!priv->thermal_throttle.advanced_tt)
 		within_margin = ((temp + IWL_TT_CT_KILL_MARGIN) >=
 				CT_KILL_THRESHOLD_LEGACY) ? true : false;
@@ -590,9 +587,6 @@ static void iwl_bg_tt_work(struct work_struct *work)
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
-
-	if (priv->cfg->base_params->temperature_kelvin)
-		temp = KELVIN_TO_CELSIUS(priv->temperature);
 
 	if (!priv->thermal_throttle.advanced_tt)
 		iwl_legacy_tt_handler(priv, temp, false);

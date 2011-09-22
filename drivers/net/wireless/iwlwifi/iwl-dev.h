@@ -877,7 +877,7 @@ struct iwl_priv {
 	u8 channel_count;	/* # of channels */
 
 	/* thermal calibration */
-	s32 temperature;	/* degrees Kelvin */
+	s32 temperature;	/* Celsius */
 	s32 last_temperature;
 
 	/* init calibration results */

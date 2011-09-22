@@ -108,7 +108,6 @@ struct iwl_lib_ops {
  *	radio tuning when there is a high receiving plcp error rate
  * @chain_noise_scale: default chain noise scale used for gain computation
  * @wd_timeout: TX queues watchdog timeout
- * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadhow register bit
  * @no_idle_support: do not support idle mode
@@ -130,7 +129,6 @@ struct iwl_base_params {
 	u8 plcp_delta_threshold;
 	s32 chain_noise_scale;
 	unsigned int wd_timeout;
-	bool temperature_kelvin;
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
 	const bool no_idle_support;
