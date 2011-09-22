@@ -577,7 +577,7 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 	else
 		mpu->cport = port + 1;
 	if (irq >= 0) {
-		if (request_irq(irq, snd_mpu401_uart_interrupt, IRQF_DISABLED,
+		if (request_irq(irq, snd_mpu401_uart_interrupt, 0,
 				"MPU401 UART", (void *) mpu)) {
 			snd_printk(KERN_ERR "mpu401_uart: "
 				   "unable to grab IRQ %d\n", irq);

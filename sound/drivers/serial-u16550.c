@@ -816,7 +816,7 @@ static int __devinit snd_uart16550_create(struct snd_card *card,
 
 	if (irq >= 0 && irq != SNDRV_AUTO_IRQ) {
 		if (request_irq(irq, snd_uart16550_interrupt,
-				IRQF_DISABLED, "Serial MIDI", uart)) {
+				0, "Serial MIDI", uart)) {
 			snd_printk(KERN_WARNING
 				   "irq %d busy. Using Polling.\n", irq);
 		} else {

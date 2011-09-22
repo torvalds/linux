@@ -211,7 +211,7 @@ static int alchemy_pcm_open(struct snd_pcm_substream *substream)
 	/* DMA setup */
 	name = (s == SNDRV_PCM_STREAM_PLAYBACK) ? "audio-tx" : "audio-rx";
 	ctx->stream[s].dma = request_au1000_dma(dmaids[s], name,
-					au1000_dma_interrupt, IRQF_DISABLED,
+					au1000_dma_interrupt, 0,
 					&ctx->stream[s]);
 	set_dma_mode(ctx->stream[s].dma,
 		     get_dma_mode(ctx->stream[s].dma) & ~DMA_NC);

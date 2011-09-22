@@ -418,7 +418,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		return -EBUSY;
 	}
 	if (request_irq(ics2115_irq[dev], snd_wavefront_ics2115_interrupt,
-			IRQF_DISABLED, "ICS2115", acard)) {
+			0, "ICS2115", acard)) {
 		snd_printk(KERN_ERR "unable to use ICS2115 IRQ %d\n", ics2115_irq[dev]);
 		return -EBUSY;
 	}
