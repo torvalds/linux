@@ -135,8 +135,10 @@ static void nci_init_req(struct nci_dev *ndev, unsigned long opt)
 
 static void nci_init_complete_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_rf_disc_map_cmd cmd;
 	struct nci_core_conn_create_cmd conn_cmd;
+	struct nci_rf_disc_map_cmd cmd;
+	struct disc_map_config *cfg = cmd.mapping_configs;
+	__u8 *num = &cmd.num_mapping_configs;
 	int i;
 
 	/* create static rf connection */
@@ -145,36 +147,30 @@ static void nci_init_complete_req(struct nci_dev *ndev, unsigned long opt)
 	nci_send_cmd(ndev, NCI_OP_CORE_CONN_CREATE_CMD, 2, &conn_cmd);
 
 	/* set rf mapping configurations */
-	cmd.num_mapping_configs = 0;
+	*num = 0;
 
 	/* by default mapping is set to NCI_RF_INTERFACE_FRAME */
 	for (i = 0; i < ndev->num_supported_rf_interfaces; i++) {
 		if (ndev->supported_rf_interfaces[i] ==
 			NCI_RF_INTERFACE_ISO_DEP) {
-			cmd.mapping_configs[cmd.num_mapping_configs]
-			.rf_protocol = NCI_RF_PROTOCOL_ISO_DEP;
-			cmd.mapping_configs[cmd.num_mapping_configs]
-			.mode = NCI_DISC_MAP_MODE_BOTH;
-			cmd.mapping_configs[cmd.num_mapping_configs]
-			.rf_interface_type = NCI_RF_INTERFACE_ISO_DEP;
-			cmd.num_mapping_configs++;
+			cfg[*num].rf_protocol = NCI_RF_PROTOCOL_ISO_DEP;
+			cfg[*num].mode = NCI_DISC_MAP_MODE_BOTH;
+			cfg[*num].rf_interface_type = NCI_RF_INTERFACE_ISO_DEP;
+			(*num)++;
 		} else if (ndev->supported_rf_interfaces[i] ==
 			NCI_RF_INTERFACE_NFC_DEP) {
-			cmd.mapping_configs[cmd.num_mapping_configs]
-			.rf_protocol = NCI_RF_PROTOCOL_NFC_DEP;
-			cmd.mapping_configs[cmd.num_mapping_configs]
-			.mode = NCI_DISC_MAP_MODE_BOTH;
-			cmd.mapping_configs[cmd.num_mapping_configs]
-			.rf_interface_type = NCI_RF_INTERFACE_NFC_DEP;
-			cmd.num_mapping_configs++;
+			cfg[*num].rf_protocol = NCI_RF_PROTOCOL_NFC_DEP;
+			cfg[*num].mode = NCI_DISC_MAP_MODE_BOTH;
+			cfg[*num].rf_interface_type = NCI_RF_INTERFACE_NFC_DEP;
+			(*num)++;
 		}
 
-		if (cmd.num_mapping_configs == NCI_MAX_NUM_MAPPING_CONFIGS)
+		if (*num == NCI_MAX_NUM_MAPPING_CONFIGS)
 			break;
 	}
 
 	nci_send_cmd(ndev, NCI_OP_RF_DISCOVER_MAP_CMD,
-		(1 + (cmd.num_mapping_configs*sizeof(struct disc_map_config))),
+		(1 + ((*num)*sizeof(struct disc_map_config))),
 		&cmd);
 }
 
