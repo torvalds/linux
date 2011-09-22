@@ -1101,6 +1101,9 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		}
 	}
 
+	/* Copy MAC header from skb into command buffer */
+	memcpy(tx_cmd->hdr, hdr, hdr_len);
+
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
 
