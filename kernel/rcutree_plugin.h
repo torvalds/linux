@@ -1910,7 +1910,7 @@ void synchronize_sched_expedited(void)
 		 * grace period works for us.
 		 */
 		get_online_cpus();
-		snap = atomic_read(&sync_sched_expedited_started) - 1;
+		snap = atomic_read(&sync_sched_expedited_started);
 		smp_mb(); /* ensure read is before try_stop_cpus(). */
 	}
 
