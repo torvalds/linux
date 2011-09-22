@@ -127,6 +127,11 @@ static int enic_is_dynamic(struct enic *enic)
 	return enic->pdev->device == PCI_DEVICE_ID_CISCO_VIC_ENET_DYN;
 }
 
+int enic_sriov_enabled(struct enic *enic)
+{
+	return (enic->priv_flags & ENIC_SRIOV_ENABLED) ? 1 : 0;
+}
+
 static inline unsigned int enic_cq_rq(struct enic *enic, unsigned int rq)
 {
 	return rq;
@@ -2240,6 +2245,9 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	int using_dac = 0;
 	unsigned int i;
 	int err;
+#ifdef CONFIG_PCI_IOV
+	int pos = 0;
+#endif
 
 	/* Allocate net device structure and initialize.  Private
 	 * instance data is initialized to zero.
@@ -2331,13 +2339,32 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
+#ifdef CONFIG_PCI_IOV
+	/* Get number of subvnics */
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+	if (pos) {
+		pci_read_config_word(pdev, pos + PCI_SRIOV_TOTAL_VF,
+			(u16 *)&enic->num_vfs);
+		if (enic->num_vfs) {
+			err = pci_enable_sriov(pdev, enic->num_vfs);
+			if (err) {
+				dev_err(dev, "SRIOV enable failed, aborting."
+					" pci_enable_sriov() returned %d\n",
+					err);
+				goto err_out_vnic_unregister;
+			}
+			enic->priv_flags |= ENIC_SRIOV_ENABLED;
+		}
+	}
+
+#endif
 	/* Issue device open to get device in known state
 	 */
 
 	err = enic_dev_open(enic);
 	if (err) {
 		dev_err(dev, "vNIC dev open failed, aborting\n");
-		goto err_out_vnic_unregister;
+		goto err_out_disable_sriov;
 	}
 
 	/* Setup devcmd lock
@@ -2404,6 +2431,12 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	enic->port_mtu = enic->config.mtu;
 	(void)enic_change_mtu(netdev, enic->port_mtu);
 
+#ifdef CONFIG_PCI_IOV
+	if (enic_is_dynamic(enic) && pdev->is_virtfn &&
+		is_zero_ether_addr(enic->mac_addr))
+		random_ether_addr(enic->mac_addr);
+#endif
+
 	err = enic_set_mac_addr(netdev, enic->mac_addr);
 	if (err) {
 		dev_err(dev, "Invalid MAC address, aborting\n");
@@ -2455,8 +2488,15 @@ err_out_dev_deinit:
 	enic_dev_deinit(enic);
 err_out_dev_close:
 	vnic_dev_close(enic->vdev);
+err_out_disable_sriov:
+#ifdef CONFIG_PCI_IOV
+	if (enic_sriov_enabled(enic)) {
+		pci_disable_sriov(pdev);
+		enic->priv_flags &= ~ENIC_SRIOV_ENABLED;
+	}
 err_out_vnic_unregister:
 	vnic_dev_unregister(enic->vdev);
+#endif
 err_out_iounmap:
 	enic_iounmap(enic);
 err_out_release_regions:
@@ -2482,6 +2522,12 @@ static void __devexit enic_remove(struct pci_dev *pdev)
 		unregister_netdev(netdev);
 		enic_dev_deinit(enic);
 		vnic_dev_close(enic->vdev);
+#ifdef CONFIG_PCI_IOV
+		if (enic_sriov_enabled(enic)) {
+			pci_disable_sriov(pdev);
+			enic->priv_flags &= ~ENIC_SRIOV_ENABLED;
+		}
+#endif
 		vnic_dev_unregister(enic->vdev);
 		enic_iounmap(enic);
 		pci_release_regions(pdev);
