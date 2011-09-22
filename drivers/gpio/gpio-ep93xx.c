@@ -23,6 +23,9 @@
 #include <linux/basic_mmio_gpio.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-ep93xx.h>
+
+#define irq_to_gpio(irq)	((irq) - gpio_to_irq(0))
 
 struct ep93xx_gpio {
 	void __iomem		*mmio_base;
