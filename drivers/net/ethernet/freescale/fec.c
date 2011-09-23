@@ -1411,24 +1411,22 @@ static int __devinit fec_get_phy_mode_dt(struct platform_device *pdev)
 	return -ENODEV;
 }
 
-static int __devinit fec_reset_phy(struct platform_device *pdev)
+static void __devinit fec_reset_phy(struct platform_device *pdev)
 {
 	int err, phy_reset;
 	struct device_node *np = pdev->dev.of_node;
 
 	if (!np)
-		return -ENODEV;
+		return;
 
 	phy_reset = of_get_named_gpio(np, "phy-reset-gpios", 0);
 	err = gpio_request_one(phy_reset, GPIOF_OUT_INIT_LOW, "phy-reset");
 	if (err) {
-		pr_warn("FEC: failed to get gpio phy-reset: %d\n", err);
-		return err;
+		pr_debug("FEC: failed to get gpio phy-reset: %d\n", err);
+		return;
 	}
 	msleep(1);
 	gpio_set_value(phy_reset, 1);
-
-	return 0;
 }
 #else /* CONFIG_OF */
 static inline int fec_get_phy_mode_dt(struct platform_device *pdev)
@@ -1436,13 +1434,12 @@ static inline int fec_get_phy_mode_dt(struct platform_device *pdev)
 	return -ENODEV;
 }
 
-static inline int fec_reset_phy(struct platform_device *pdev)
+static inline void fec_reset_phy(struct platform_device *pdev)
 {
 	/*
 	 * In case of platform probe, the reset has been done
 	 * by machine code.
 	 */
-	return 0;
 }
 #endif /* CONFIG_OF */
 
