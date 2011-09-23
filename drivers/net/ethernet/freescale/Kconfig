@@ -7,7 +7,7 @@ config NET_VENDOR_FREESCALE
 	default y
 	depends on FSL_SOC || QUICC_ENGINE || CPM1 || CPM2 || PPC_MPC512x || \
 		   M523x || M527x || M5272 || M528x || M520x || M532x || \
-		   IMX_HAVE_PLATFORM_FEC || MXS_HAVE_PLATFORM_FEC || \
+		   ARCH_MXC || ARCH_MXS || \
 		   (PPC_MPC52xx && PPC_BESTCOMM)
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
@@ -16,16 +16,15 @@ config NET_VENDOR_FREESCALE
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about IBM devices. If you say Y, you will be asked for
-	  your specific card in the following questions.
+	  the questions about Freescale devices. If you say Y, you will be
+	  asked for your specific card in the following questions.
 
 if NET_VENDOR_FREESCALE
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
 	depends on (M523x || M527x || M5272 || M528x || M520x || M532x || \
-		    IMX_HAVE_PLATFORM_FEC || MXS_HAVE_PLATFORM_FEC)
-	default IMX_HAVE_PLATFORM_FEC || MXS_HAVE_PLATFORM_FEC if ARM
+		   ARCH_MXC || ARCH_MXS)
 	select PHYLIB
 	---help---
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
