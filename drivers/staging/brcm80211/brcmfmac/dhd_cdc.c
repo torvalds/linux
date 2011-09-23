@@ -14,6 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*******************************************************************************
+ * Communicates with the dongle by using Broadcom specific ioctl codes.
+ * For certain ioctl codes, the dongle interprets string data from the host.
+ ******************************************************************************/
+
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>

@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* Toplevel file. Relies on dhd_linux.c to send ioctls to the dongle. */
+
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
 #include <linux/sched.h>

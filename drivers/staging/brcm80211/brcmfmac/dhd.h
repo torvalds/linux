@@ -27,6 +27,9 @@
 #define BRCMF_C_IOCTL_MEDLEN	1536	/* "med" ioctl buffer required */
 #define	BRCMF_C_IOCTL_MAXLEN	8192
 
+/*******************************************************************************
+ * IO codes that are interpreted by dongle firmware
+ ******************************************************************************/
 #define BRCMF_C_UP				2
 #define BRCMF_C_SET_PROMISC			10
 #define BRCMF_C_GET_RATE			12
@@ -171,6 +174,7 @@ struct dngl_stats {
 	unsigned long multicast;	/* multicast packets received */
 };
 
+/* event codes sent by the dongle to this driver */
 #define BRCMF_E_SET_SSID			0
 #define BRCMF_E_JOIN				1
 #define BRCMF_E_START				2
