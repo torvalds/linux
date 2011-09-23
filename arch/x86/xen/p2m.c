@@ -782,8 +782,9 @@ unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn)
 EXPORT_SYMBOL_GPL(m2p_find_override_pfn);
 
 #ifdef CONFIG_XEN_DEBUG_FS
-
-int p2m_dump_show(struct seq_file *m, void *v)
+#include <linux/debugfs.h>
+#include "debugfs.h"
+static int p2m_dump_show(struct seq_file *m, void *v)
 {
 	static const char * const level_name[] = { "top", "middle",
 						"entry", "abnormal" };
@@ -856,4 +857,32 @@ int p2m_dump_show(struct seq_file *m, void *v)
 #undef TYPE_PFN
 #undef TYPE_UNKNOWN
 }
-#endif
+
+static int p2m_dump_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, p2m_dump_show, NULL);
+}
+
+static const struct file_operations p2m_dump_fops = {
+	.open		= p2m_dump_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static struct dentry *d_mmu_debug;
+
+static int __init xen_p2m_debugfs(void)
+{
+	struct dentry *d_xen = xen_init_debugfs();
+
+	if (d_xen == NULL)
+		return -ENOMEM;
+
+	d_mmu_debug = debugfs_create_dir("mmu", d_xen);
+
+	debugfs_create_file("p2m", 0600, d_mmu_debug, NULL, &p2m_dump_fops);
+	return 0;
+}
+fs_initcall(xen_p2m_debugfs);
+#endif /* CONFIG_XEN_DEBUG_FS */
