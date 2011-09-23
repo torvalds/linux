@@ -59,8 +59,7 @@ static void start_timer(struct qib_qp *qp)
 	qp->s_flags |= QIB_S_TIMER;
 	qp->s_timer.function = rc_timeout;
 	/* 4.096 usec. * (1 << qp->timeout) */
-	qp->s_timer.expires = jiffies +
-		usecs_to_jiffies((4096UL * (1UL << qp->timeout)) / 1000UL);
+	qp->s_timer.expires = jiffies + qp->timeout_jiffies;
 	add_timer(&qp->s_timer);
 }
 
@@ -1519,9 +1518,7 @@ read_middle:
 		 * 4.096 usec. * (1 << qp->timeout)
 		 */
 		qp->s_flags |= QIB_S_TIMER;
-		mod_timer(&qp->s_timer, jiffies +
-			usecs_to_jiffies((4096UL * (1UL << qp->timeout)) /
-					 1000UL));
+		mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies);
 		if (qp->s_flags & QIB_S_WAIT_ACK) {
 			qp->s_flags &= ~QIB_S_WAIT_ACK;
 			qib_schedule_send(qp);
