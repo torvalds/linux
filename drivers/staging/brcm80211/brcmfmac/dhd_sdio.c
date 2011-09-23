@@ -759,9 +759,7 @@ static uint brcmf_txminmax;
 int brcmf_idletime = 1;
 module_param(brcmf_idletime, int, 0);
 
-/* SDIO Drive Strength (in milliamps) */
-uint brcmf_sdiod_drive_strength = 6;
-module_param(brcmf_sdiod_drive_strength, uint, 0);
+#define SDIO_DRIVE_STRENGTH	6	/* in milliamps */
 
 /* Use polling */
 uint brcmf_poll;
@@ -4607,7 +4605,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 		goto fail;
 	}
 
-	brcmf_sdbrcm_sdiod_drive_strength_init(bus, brcmf_sdiod_drive_strength);
+	brcmf_sdbrcm_sdiod_drive_strength_init(bus, SDIO_DRIVE_STRENGTH);
 
 	/* Get info on the ARM and SOCRAM cores... */
 	brcmf_sdcard_reg_read(bus->sdiodev,
