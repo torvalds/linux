@@ -833,8 +833,7 @@ static int gsm_dlci_data_output(struct gsm_mux *gsm, struct gsm_dlci *dlci)
 		break;
 	case 2:	/* Unstructed with modem bits. Always one byte as we never
 		   send inline break data */
-		*dp += gsm_encode_modem(dlci);
-		len--;
+		*dp++ = gsm_encode_modem(dlci);
 		break;
 	}
 	WARN_ON(kfifo_out_locked(dlci->fifo, dp , len, &dlci->lock) != len);
