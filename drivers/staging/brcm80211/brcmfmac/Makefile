@@ -30,3 +30,4 @@ DHDOFILES = \
 
 obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += $(DHDOFILES)
+ccflags-y += -D__CHECK_ENDIAN__
