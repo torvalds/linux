@@ -27,3 +27,17 @@ config CEPH_LIB_PRETTYDEBUG
 
 	  If unsure, say N.
 
+config CEPH_LIB_USE_DNS_RESOLVER
+	bool "Use in-kernel support for DNS lookup"
+	depends on CEPH_LIB
+	select DNS_RESOLVER
+	default n
+	help
+	  If you say Y here, hostnames (e.g. monitor addresses) will
+	  be resolved using the CONFIG_DNS_RESOLVER facility.
+
+	  For information on how to use CONFIG_DNS_RESOLVER consult
+	  Documentation/networking/dns_resolver.txt
+
+	  If unsure, say N.
+
