@@ -370,7 +370,8 @@ static int das16cs_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and
+	 * mutually compatible */
 
 	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
@@ -508,7 +509,7 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 		else
 			status1 |= 0x0008;
 
-/* 		printk("0x%04x\n",status1);*/
+/*		printk("0x%04x\n",status1);*/
 		outw(status1, dev->iobase + 4);
 		udelay(1);
 
