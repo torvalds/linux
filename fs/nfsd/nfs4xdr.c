@@ -3287,6 +3287,7 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, int nfserr,
 			  struct nfsd4_test_stateid *test_stateid)
 {
 	struct nfsd4_compoundargs *argp;
+	struct nfs4_client *cl = resp->cstate.session->se_client;
 	stateid_t si;
 	__be32 *p;
 	int i;
@@ -3302,7 +3303,7 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, int nfserr,
 	nfs4_lock_state();
 	for (i = 0; i < test_stateid->ts_num_ids; i++) {
 		nfsd4_decode_stateid(argp, &si);
-		valid = nfs4_validate_stateid(&si);
+		valid = nfs4_validate_stateid(cl, &si);
 		RESERVE_SPACE(4);
 		*p++ = htonl(valid);
 		resp->p = p;
