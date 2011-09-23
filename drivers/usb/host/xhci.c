@@ -4039,16 +4039,13 @@ MODULE_LICENSE("GPL");
 
 static int __init xhci_hcd_init(void)
 {
-#ifdef CONFIG_PCI
-	int retval = 0;
+	int retval;
 
 	retval = xhci_register_pci();
-
 	if (retval < 0) {
 		printk(KERN_DEBUG "Problem registering PCI driver.");
 		return retval;
 	}
-#endif
 	/*
 	 * Check the compiler generated sizes of structures that must be laid
 	 * out in specific ways for hardware access.
@@ -4073,8 +4070,6 @@ module_init(xhci_hcd_init);
 
 static void __exit xhci_hcd_cleanup(void)
 {
-#ifdef CONFIG_PCI
 	xhci_unregister_pci();
-#endif
 }
 module_exit(xhci_hcd_cleanup);

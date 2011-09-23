@@ -320,12 +320,12 @@ static struct pci_driver xhci_pci_driver = {
 #endif
 };
 
-int xhci_register_pci(void)
+int __init xhci_register_pci(void)
 {
 	return pci_register_driver(&xhci_pci_driver);
 }
 
-void xhci_unregister_pci(void)
+void __exit xhci_unregister_pci(void)
 {
 	pci_unregister_driver(&xhci_pci_driver);
 }

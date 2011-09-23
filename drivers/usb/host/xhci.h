@@ -1644,6 +1644,9 @@ void xhci_free_command(struct xhci_hcd *xhci,
 /* xHCI PCI glue */
 int xhci_register_pci(void);
 void xhci_unregister_pci(void);
+#else
+static inline int xhci_register_pci(void) { return 0; }
+static inline void xhci_unregister_pci(void) {}
 #endif
 
 /* xHCI host controller glue */
