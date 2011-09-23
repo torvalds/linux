@@ -2174,7 +2174,10 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn && conn->state == BT_CONNECTED) {
+	if (!conn)
+		goto unlock;
+
+	if (conn->state == BT_CONNECTED) {
 		hci_conn_hold(conn);
 		conn->disc_timeout = HCI_PAIRING_TIMEOUT;
 		hci_conn_put(conn);
@@ -2194,6 +2197,7 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 		mgmt_pin_code_request(hdev->id, &ev->bdaddr, secure);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 }
 
