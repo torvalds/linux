@@ -299,15 +299,17 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 
 	channels = params_channels(params);
 	switch (channels) {
+	case 5:
+		if (stream == SNDRV_PCM_STREAM_CAPTURE)
+			/* up to 3 channels for capture */
+			return -EINVAL;
+		link_mask |= 1 << 4;
 	case 4:
 		if (stream == SNDRV_PCM_STREAM_CAPTURE)
-			/* up to 2 channels for capture */
+			/* up to 3 channels for capture */
 			return -EINVAL;
 		link_mask |= 1 << 3;
 	case 3:
-		if (stream == SNDRV_PCM_STREAM_CAPTURE)
-			/* up to 2 channels for capture */
-			return -EINVAL;
 		link_mask |= 1 << 2;
 	case 2:
 		link_mask |= 1 << 1;
@@ -403,13 +405,13 @@ static struct snd_soc_dai_driver omap_mcpdm_dai = {
 	.remove_order = SND_SOC_COMP_ORDER_EARLY,
 	.playback = {
 		.channels_min = 1,
-		.channels_max = 4,
+		.channels_max = 5,
 		.rates = OMAP_MCPDM_RATES,
 		.formats = OMAP_MCPDM_FORMATS,
 	},
 	.capture = {
 		.channels_min = 1,
-		.channels_max = 2,
+		.channels_max = 3,
 		.rates = OMAP_MCPDM_RATES,
 		.formats = OMAP_MCPDM_FORMATS,
 	},
