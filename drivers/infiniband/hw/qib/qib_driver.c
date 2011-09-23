@@ -279,10 +279,10 @@ bail:
  */
 static inline void *qib_get_egrbuf(const struct qib_ctxtdata *rcd, u32 etail)
 {
-	const u32 chunk = etail / rcd->rcvegrbufs_perchunk;
-	const u32 idx =  etail % rcd->rcvegrbufs_perchunk;
+	const u32 chunk = etail >> rcd->rcvegrbufs_perchunk_shift;
+	const u32 idx =  etail & ((u32)rcd->rcvegrbufs_perchunk - 1);
 
-	return rcd->rcvegrbuf[chunk] + idx * rcd->dd->rcvegrbufsize;
+	return rcd->rcvegrbuf[chunk] + (idx << rcd->dd->rcvegrbufsize_shift);
 }
 
 /*

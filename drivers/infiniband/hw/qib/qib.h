@@ -171,7 +171,9 @@ struct qib_ctxtdata {
 	/* how many alloc_pages() chunks in rcvegrbuf_pages */
 	u32 rcvegrbuf_chunks;
 	/* how many egrbufs per chunk */
-	u32 rcvegrbufs_perchunk;
+	u16 rcvegrbufs_perchunk;
+	/* ilog2 of above */
+	u16 rcvegrbufs_perchunk_shift;
 	/* order for rcvegrbuf_pages */
 	size_t rcvegrbuf_size;
 	/* rcvhdrq size (for freeing) */
@@ -940,7 +942,9 @@ struct qib_devdata {
 	/* chip address space used by 4k pio buffers */
 	u32 align4k;
 	/* size of each rcvegrbuffer */
-	u32 rcvegrbufsize;
+	u16 rcvegrbufsize;
+	/* log2 of above */
+	u16 rcvegrbufsize_shift;
 	/* localbus width (1, 2,4,8,16,32) from config space  */
 	u32 lbus_width;
 	/* localbus speed in MHz */

@@ -6205,6 +6205,8 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 
 	/* we always allocate at least 2048 bytes for eager buffers */
 	dd->rcvegrbufsize = max(mtu, 2048);
+	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
+	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_7322_tidtemplate(dd);
 
