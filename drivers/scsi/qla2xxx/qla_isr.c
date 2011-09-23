@@ -1507,8 +1507,8 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 
 			if (k != blocks_done) {
 				qla_printk(KERN_WARNING, sp->fcport->vha->hw,
-				    "unexpected tag values tag:lba=%x:%lx)\n",
-				    e_ref_tag, lba_s);
+				    "unexpected tag values tag:lba=%x:%llx)\n",
+				    e_ref_tag, (unsigned long long)lba_s);
 				return 1;
 			}
 
