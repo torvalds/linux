@@ -1924,9 +1924,10 @@ unsigned long ext3_bg_num_gdb(struct super_block *sb, int group)
  * reaches any used block. Then issue a TRIM command on this extent and free
  * the extent in the block bitmap. This is done until whole group is scanned.
  */
-ext3_grpblk_t ext3_trim_all_free(struct super_block *sb, unsigned int group,
-				ext3_grpblk_t start, ext3_grpblk_t max,
-				ext3_grpblk_t minblocks)
+static ext3_grpblk_t ext3_trim_all_free(struct super_block *sb,
+					unsigned int group,
+					ext3_grpblk_t start, ext3_grpblk_t max,
+					ext3_grpblk_t minblocks)
 {
 	handle_t *handle;
 	ext3_grpblk_t next, free_blocks, bit, freed, count = 0;
