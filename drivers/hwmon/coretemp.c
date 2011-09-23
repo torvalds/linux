@@ -347,11 +347,11 @@ static int create_core_attrs(struct temp_data *tdata, struct device *dev,
 				int attr_no)
 {
 	int err, i;
-	static ssize_t (*rd_ptr[TOTAL_ATTRS]) (struct device *dev,
+	static ssize_t (*const rd_ptr[TOTAL_ATTRS]) (struct device *dev,
 			struct device_attribute *devattr, char *buf) = {
 			show_label, show_crit_alarm, show_temp, show_tjmax,
 			show_ttarget };
-	static const char *names[TOTAL_ATTRS] = {
+	static const char *const names[TOTAL_ATTRS] = {
 					"temp%d_label", "temp%d_crit_alarm",
 					"temp%d_input", "temp%d_crit",
 					"temp%d_max" };
