@@ -365,8 +365,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x22);		/* JPEG 411 */
 
-	/* the JPEG quality seems to be 82% */
-	jpeg_set_qual(sd->jpeg_hdr, 82);
+	/* the JPEG quality shall be 85% */
+	jpeg_set_qual(sd->jpeg_hdr, 85);
 
 	/* set the controls */
 	setbrightness(gspca_dev);
