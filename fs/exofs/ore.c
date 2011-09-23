@@ -753,8 +753,8 @@ struct _trunc_info {
 	unsigned max_devs;
 };
 
-void _calc_trunk_info(struct ore_layout *layout, u64 file_offset,
-		       struct _trunc_info *ti)
+static void _calc_trunk_info(struct ore_layout *layout, u64 file_offset,
+			     struct _trunc_info *ti)
 {
 	unsigned stripe_unit = layout->stripe_unit;
 
