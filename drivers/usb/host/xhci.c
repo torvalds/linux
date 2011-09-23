@@ -175,28 +175,19 @@ int xhci_reset(struct xhci_hcd *xhci)
 	return handshake(xhci, &xhci->op_regs->status, STS_CNR, 0, 250 * 1000);
 }
 
-/*
- * Free IRQs
- * free all IRQs request
- */
-static void xhci_free_irq(struct xhci_hcd *xhci)
+#ifdef CONFIG_PCI
+static int xhci_free_msi(struct xhci_hcd *xhci)
 {
 	int i;
-	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 
-	/* return if using legacy interrupt */
-	if (xhci_to_hcd(xhci)->irq >= 0)
-		return;
+	if (!xhci->msix_entries)
+		return -EINVAL;
 
-	if (xhci->msix_entries) {
-		for (i = 0; i < xhci->msix_count; i++)
-			if (xhci->msix_entries[i].vector)
-				free_irq(xhci->msix_entries[i].vector,
-						xhci_to_hcd(xhci));
-	} else if (pdev->irq >= 0)
-		free_irq(pdev->irq, xhci_to_hcd(xhci));
-
-	return;
+	for (i = 0; i < xhci->msix_count; i++)
+		if (xhci->msix_entries[i].vector)
+			free_irq(xhci->msix_entries[i].vector,
+					xhci_to_hcd(xhci));
+	return 0;
 }
 
 /*
@@ -221,6 +212,28 @@ static int xhci_setup_msi(struct xhci_hcd *xhci)
 	}
 
 	return ret;
+}
+
+/*
+ * Free IRQs
+ * free all IRQs request
+ */
+static void xhci_free_irq(struct xhci_hcd *xhci)
+{
+	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+	int ret;
+
+	/* return if using legacy interrupt */
+	if (xhci_to_hcd(xhci)->irq >= 0)
+		return;
+
+	ret = xhci_free_msi(xhci);
+	if (!ret)
+		return;
+	if (pdev->irq >= 0)
+		free_irq(pdev->irq, xhci_to_hcd(xhci));
+
+	return;
 }
 
 /*
@@ -301,6 +314,72 @@ static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 	hcd->msix_enabled = 0;
 	return;
 }
+
+static void xhci_msix_sync_irqs(struct xhci_hcd *xhci)
+{
+	int i;
+
+	if (xhci->msix_entries) {
+		for (i = 0; i < xhci->msix_count; i++)
+			synchronize_irq(xhci->msix_entries[i].vector);
+	}
+}
+
+static int xhci_try_enable_msi(struct usb_hcd *hcd)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+	int ret;
+
+	/*
+	 * Some Fresco Logic host controllers advertise MSI, but fail to
+	 * generate interrupts.  Don't even try to enable MSI.
+	 */
+	if (xhci->quirks & XHCI_BROKEN_MSI)
+		return 0;
+
+	/* unregister the legacy interrupt */
+	if (hcd->irq)
+		free_irq(hcd->irq, hcd);
+	hcd->irq = -1;
+
+	ret = xhci_setup_msix(xhci);
+	if (ret)
+		/* fall back to msi*/
+		ret = xhci_setup_msi(xhci);
+
+	if (!ret)
+		/* hcd->irq is -1, we have MSI */
+		return 0;
+
+	/* fall back to legacy interrupt*/
+	ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
+			hcd->irq_descr, hcd);
+	if (ret) {
+		xhci_err(xhci, "request interrupt %d failed\n",
+				pdev->irq);
+		return ret;
+	}
+	hcd->irq = pdev->irq;
+	return 0;
+}
+
+#else
+
+static int xhci_try_enable_msi(struct usb_hcd *hcd)
+{
+	return 0;
+}
+
+static void xhci_cleanup_msix(struct xhci_hcd *xhci)
+{
+}
+
+static void xhci_msix_sync_irqs(struct xhci_hcd *xhci)
+{
+}
+
+#endif
 
 /*
  * Initialize memory for HCD and xHC (one-time init).
@@ -394,45 +473,6 @@ static int xhci_run_finished(struct xhci_hcd *xhci)
 		xhci_ring_cmd_db(xhci);
 
 	xhci_dbg(xhci, "Finished xhci_run for USB3 roothub\n");
-	return 0;
-}
-
-static int xhci_try_enable_msi(struct usb_hcd *hcd)
-{
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
-	int ret;
-
-	/*
-	 * Some Fresco Logic host controllers advertise MSI, but fail to
-	 * generate interrupts.  Don't even try to enable MSI.
-	 */
-	if (xhci->quirks & XHCI_BROKEN_MSI)
-		return 0;
-
-	/* unregister the legacy interrupt */
-	if (hcd->irq)
-		free_irq(hcd->irq, hcd);
-	hcd->irq = -1;
-
-	ret = xhci_setup_msix(xhci);
-	if (ret)
-		/* fall back to msi*/
-		ret = xhci_setup_msi(xhci);
-
-	if (!ret)
-		/* hcd->irq is -1, we have MSI */
-		return 0;
-
-	/* fall back to legacy interrupt*/
-	ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
-			hcd->irq_descr, hcd);
-	if (ret) {
-		xhci_err(xhci, "request interrupt %d failed\n",
-				pdev->irq);
-		return ret;
-	}
-	hcd->irq = pdev->irq;
 	return 0;
 }
 
@@ -708,7 +748,6 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	int			rc = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	u32			command;
-	int			i;
 
 	spin_lock_irq(&xhci->lock);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
@@ -744,10 +783,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 
 	/* step 5: remove core well power */
 	/* synchronize irq when using MSI-X */
-	if (xhci->msix_entries) {
-		for (i = 0; i < xhci->msix_count; i++)
-			synchronize_irq(xhci->msix_entries[i].vector);
-	}
+	xhci_msix_sync_irqs(xhci);
 
 	return rc;
 }
