@@ -1687,7 +1687,7 @@ struct snd_soc_dai_ops rt5631_ops = {
 	.set_pll = rt5631_codec_set_dai_pll,
 };
 
-struct snd_soc_dai_driver rt5631_dai[] = {
+static struct snd_soc_dai_driver rt5631_dai[] = {
 	{
 		.name = "rt5631-hifi",
 		.id = 1,
