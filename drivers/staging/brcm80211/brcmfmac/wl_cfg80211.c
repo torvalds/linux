@@ -249,22 +249,6 @@ static const u32 __wl_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_AES_CMAC,
 };
 
-static s32
-brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
-{
-	struct brcmf_ioctl ioc;
-	s32 err = 0;
-
-	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = cmd;
-	ioc.buf = arg;
-	ioc.len = len;
-
-	err = brcmf_netdev_ioctl_priv(dev, &ioc);
-
-	return err;
-}
-
 /* function for reading/writing a single u32 from/to the dongle */
 static int
 brcmf_dev_ioctl_u32(struct net_device *ndev, u32 cmd, u32 *par)

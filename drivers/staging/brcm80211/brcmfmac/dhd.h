@@ -724,8 +724,7 @@ extern struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus,
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
-extern int brcmf_netdev_ioctl_priv(struct net_device *ndev,
-				   struct brcmf_ioctl *ioc);
+extern s32 brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len);
 
 /* Indication from bus module regarding removal/absence of dongle */
 extern void brcmf_detach(struct brcmf_pub *drvr);
