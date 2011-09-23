@@ -226,14 +226,16 @@ static void reg_wb(struct gspca_dev *gspca_dev,
 
 static void wait_status_0(struct gspca_dev *gspca_dev)
 {
-	int i;
+	int i, w;
 
-	i = 20;
+	i = 16;
+	w = 0;
 	do {
 		reg_r(gspca_dev, 0x21, 0x0000, 1);
 		if (gspca_dev->usb_buf[0] == 0)
 			return;
-		msleep(30);
+		w += 15;
+		msleep(w);
 	} while (--i > 0);
 	PDEBUG(D_ERR, "wait_status_0 timeout");
 	gspca_dev->usb_err = -ETIME;
