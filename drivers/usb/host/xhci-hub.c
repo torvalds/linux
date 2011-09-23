@@ -392,6 +392,20 @@ static int xhci_get_ports(struct usb_hcd *hcd, __le32 __iomem ***port_array)
 	return max_ports;
 }
 
+/* Test and clear port RWC bit */
+void xhci_test_and_clear_bit(struct xhci_hcd *xhci, __le32 __iomem **port_array,
+				int port_id, u32 port_bit)
+{
+	u32 temp;
+
+	temp = xhci_readl(xhci, port_array[port_id]);
+	if (temp & port_bit) {
+		temp = xhci_port_state_to_neutral(temp);
+		temp |= port_bit;
+		xhci_writel(xhci, temp, port_array[port_id]);
+	}
+}
+
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
@@ -938,12 +952,8 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			spin_lock_irqsave(&xhci->lock, flags);
 
 			/* Clear PLC */
-			temp = xhci_readl(xhci, port_array[port_index]);
-			if (temp & PORT_PLC) {
-				temp = xhci_port_state_to_neutral(temp);
-				temp |= PORT_PLC;
-				xhci_writel(xhci, temp, port_array[port_index]);
-			}
+			xhci_test_and_clear_bit(xhci, port_array, port_index,
+						PORT_PLC);
 
 			slot_id = xhci_find_slot_id_by_port(hcd,
 					xhci, port_index + 1);
