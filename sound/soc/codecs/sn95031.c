@@ -716,7 +716,7 @@ static struct snd_soc_dai_ops sn95031_vib2_dai_ops = {
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-struct snd_soc_dai_driver sn95031_dais[] = {
+static struct snd_soc_dai_driver sn95031_dais[] = {
 {
 	.name = "SN95031 Headset",
 	.playback = {
