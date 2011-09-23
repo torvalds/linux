@@ -2201,18 +2201,20 @@ brcmf_get_iscan_results(struct brcmf_cfg80211_iscan_ctrl *iscan, u32 *status,
 {
 	struct brcmf_iscan_results list;
 	struct brcmf_scan_results *results;
+	struct brcmf_scan_results_le *results_le;
 	struct brcmf_iscan_results *list_buf;
 	s32 err = 0;
 
 	memset(iscan->scan_buf, 0, WL_ISCAN_BUF_MAX);
 	list_buf = (struct brcmf_iscan_results *)iscan->scan_buf;
 	results = &list_buf->results;
+	results_le = &list_buf->results_le;
 	results->buflen = BRCMF_ISCAN_RESULTS_FIXED_SIZE;
 	results->version = 0;
 	results->count = 0;
 
 	memset(&list, 0, sizeof(list));
-	list.results.buflen = cpu_to_le32(WL_ISCAN_BUF_MAX);
+	list.results_le.buflen = cpu_to_le32(WL_ISCAN_BUF_MAX);
 	err = brcmf_dev_iovar_getbuf(iscan->dev, "iscanresults", &list,
 				BRCMF_ISCAN_RESULTS_FIXED_SIZE, iscan->scan_buf,
 				WL_ISCAN_BUF_MAX);
@@ -2220,12 +2222,12 @@ brcmf_get_iscan_results(struct brcmf_cfg80211_iscan_ctrl *iscan, u32 *status,
 		WL_ERR("error (%d)\n", err);
 		return err;
 	}
-	results->buflen = le32_to_cpu(results->buflen);
-	results->version = le32_to_cpu(results->version);
-	results->count = le32_to_cpu(results->count);
-	WL_SCAN("results->count = %d\n", results->count);
-	WL_SCAN("results->buflen = %d\n", results->buflen);
-	*status = le32_to_cpu(list_buf->status);
+	results->buflen = le32_to_cpu(results_le->buflen);
+	results->version = le32_to_cpu(results_le->version);
+	results->count = le32_to_cpu(results_le->count);
+	WL_SCAN("results->count = %d\n", results_le->count);
+	WL_SCAN("results->buflen = %d\n", results_le->buflen);
+	*status = le32_to_cpu(list_buf->status_le);
 	WL_SCAN("status = %d\n", *status);
 	*bss_list = results;
 
@@ -2848,11 +2850,12 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_priv *cfg_priv,
 {
 	struct brcmf_cfg80211_connect_info *conn_info = cfg_to_conn(cfg_priv);
 	struct wiphy *wiphy = cfg_to_wiphy(cfg_priv);
-	struct brcmf_channel_info channel;
+	struct brcmf_channel_info_le channel_le;
 	struct ieee80211_channel *notify_channel;
 	struct ieee80211_supported_band *band;
 	u32 freq;
 	s32 err = 0;
+	u32 target_channel;
 
 	WL_TRACE("Enter\n");
 
@@ -2860,18 +2863,18 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_priv *cfg_priv,
 	brcmf_update_prof(cfg_priv, NULL, &e->addr, WL_PROF_BSSID);
 	brcmf_update_bss_info(cfg_priv);
 
-	brcmf_dev_ioctl(ndev, BRCMF_C_GET_CHANNEL, &channel, sizeof(channel));
+	brcmf_dev_ioctl(ndev, BRCMF_C_GET_CHANNEL, &channel_le,
+			sizeof(channel_le));
 
-	channel.target_channel = le32_to_cpu(channel.target_channel);
-	WL_CONN("Roamed to channel %d\n", channel.target_channel);
+	target_channel = le32_to_cpu(channel_le.target_channel);
+	WL_CONN("Roamed to channel %d\n", target_channel);
 
-	if (channel.target_channel <= CH_MAX_2G_CHANNEL)
+	if (target_channel <= CH_MAX_2G_CHANNEL)
 		band = wiphy->bands[IEEE80211_BAND_2GHZ];
 	else
 		band = wiphy->bands[IEEE80211_BAND_5GHZ];
 
-	freq = ieee80211_channel_to_frequency(channel.target_channel,
-						band->band);
+	freq = ieee80211_channel_to_frequency(target_channel, band->band);
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
 	cfg80211_roamed(ndev, notify_channel,
@@ -3011,11 +3014,12 @@ brcmf_notify_scan_status(struct brcmf_cfg80211_priv *cfg_priv,
 			 struct net_device *ndev,
 			 const struct brcmf_event_msg *e, void *data)
 {
-	struct brcmf_channel_info channel_inform;
-	struct brcmf_scan_results *bss_list;
+	struct brcmf_channel_info_le channel_inform_le;
+	struct brcmf_scan_results_le *bss_list_le;
 	u32 len = WL_SCAN_BUF_MAX;
 	s32 err = 0;
 	bool scan_abort = false;
+	u32 scan_channel;
 
 	WL_TRACE("Enter\n");
 
@@ -3032,34 +3036,32 @@ brcmf_notify_scan_status(struct brcmf_cfg80211_priv *cfg_priv,
 		goto scan_done_out;
 	}
 
-	err = brcmf_dev_ioctl(ndev, BRCMF_C_GET_CHANNEL, &channel_inform,
-			sizeof(channel_inform));
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_GET_CHANNEL, &channel_inform_le,
+			      sizeof(channel_inform_le));
 	if (unlikely(err)) {
 		WL_ERR("scan busy (%d)\n", err);
 		scan_abort = true;
 		goto scan_done_out;
 	}
-	channel_inform.scan_channel = le32_to_cpu(channel_inform.scan_channel);
-	if (unlikely(channel_inform.scan_channel)) {
-
-		WL_CONN("channel_inform.scan_channel (%d)\n",
-		       channel_inform.scan_channel);
-	}
+	scan_channel = le32_to_cpu(channel_inform_le.scan_channel);
+	if (unlikely(scan_channel))
+		WL_CONN("channel_inform.scan_channel (%d)\n", scan_channel);
 	cfg_priv->bss_list = cfg_priv->scan_results;
-	bss_list = cfg_priv->bss_list;
-	memset(bss_list, 0, len);
-	bss_list->buflen = cpu_to_le32(len);
+	bss_list_le = (struct brcmf_scan_results_le *) cfg_priv->bss_list;
 
-	err = brcmf_dev_ioctl(ndev, BRCMF_C_SCAN_RESULTS, bss_list, len);
+	memset(cfg_priv->scan_results, 0, len);
+	bss_list_le->buflen = cpu_to_le32(len);
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_SCAN_RESULTS,
+			      cfg_priv->scan_results, len);
 	if (unlikely(err)) {
 		WL_ERR("%s Scan_results error (%d)\n", ndev->name, err);
 		err = -EINVAL;
 		scan_abort = true;
 		goto scan_done_out;
 	}
-	bss_list->buflen = le32_to_cpu(bss_list->buflen);
-	bss_list->version = le32_to_cpu(bss_list->version);
-	bss_list->count = le32_to_cpu(bss_list->count);
+	cfg_priv->scan_results->buflen = le32_to_cpu(bss_list_le->buflen);
+	cfg_priv->scan_results->version = le32_to_cpu(bss_list_le->version);
+	cfg_priv->scan_results->count = le32_to_cpu(bss_list_le->count);
 
 	err = brcmf_inform_bss(cfg_priv);
 	if (err) {

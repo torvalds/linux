@@ -469,6 +469,13 @@ struct brcmf_scan_results {
 	struct brcmf_bss_info bss_info[1];
 };
 
+struct brcmf_scan_results_le {
+	__le32 buflen;
+	__le32 version;
+	__le32 count;
+	struct brcmf_bss_info bss_info[1];
+};
+
 /* used for association with a specific BSSID and chanspec list */
 struct brcmf_assoc_params_le {
 	/* 00:00:00:00:00:00: broadcast scan */
@@ -492,8 +499,14 @@ struct brcmf_join_params {
 
 /* incremental scan results struct */
 struct brcmf_iscan_results {
-	u32 status;
-	struct brcmf_scan_results results;
+	union {
+		u32 status;
+		__le32 status_le;
+	};
+	union {
+		struct brcmf_scan_results results;
+		struct brcmf_scan_results_le results_le;
+	};
 };
 
 /* size of brcmf_iscan_results not including variable length array */
@@ -549,10 +562,10 @@ struct brcmf_scb_val_le {
 };
 
 /* channel encoding */
-struct brcmf_channel_info {
-	int hw_channel;
-	int target_channel;
-	int scan_channel;
+struct brcmf_channel_info_le {
+	__le32 hw_channel;
+	__le32 target_channel;
+	__le32 scan_channel;
 };
 
 /* Linux network driver ioctl encoding */
