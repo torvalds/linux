@@ -561,7 +561,7 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_free;
 
-	pdata->phys_proc_id = TO_PHYS_ID(pdev->id);
+	pdata->phys_proc_id = pdev->id;
 	platform_set_drvdata(pdev, pdata);
 
 	pdata->hwmon_dev = hwmon_device_register(&pdev->dev);
@@ -613,7 +613,7 @@ static int __cpuinit coretemp_device_add(unsigned int cpu)
 
 	mutex_lock(&pdev_list_mutex);
 
-	pdev = platform_device_alloc(DRVNAME, cpu);
+	pdev = platform_device_alloc(DRVNAME, TO_PHYS_ID(cpu));
 	if (!pdev) {
 		err = -ENOMEM;
 		pr_err("Device allocation failed\n");
