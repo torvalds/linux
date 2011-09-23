@@ -1889,10 +1889,8 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
 	}
 
 	opcode = be32_to_cpu(ohdr->bth[0]);
-	spin_lock_irqsave(&qp->s_lock, flags);
 	if (qib_ruc_check_hdr(ibp, hdr, has_grh, qp, opcode))
-		goto sunlock;
-	spin_unlock_irqrestore(&qp->s_lock, flags);
+		return;
 
 	psn = be32_to_cpu(ohdr->bth[2]);
 	opcode >>= 24;

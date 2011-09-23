@@ -310,7 +310,6 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 		u32 opcode;
 		u32 psn;
 		int diff;
-		unsigned long flags;
 
 		/* Sanity check packet */
 		if (tlen < 24)
@@ -365,7 +364,6 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 
 			switch (qp->ibqp.qp_type) {
 			case IB_QPT_RC:
-				spin_lock_irqsave(&qp->s_lock, flags);
 				ruc_res =
 					qib_ruc_check_hdr(
 						ibp, hdr,
@@ -373,11 +371,8 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 						qp,
 						be32_to_cpu(ohdr->bth[0]));
 				if (ruc_res) {
-					spin_unlock_irqrestore(&qp->s_lock,
-							       flags);
 					goto unlock;
 				}
-				spin_unlock_irqrestore(&qp->s_lock, flags);
 
 				/* Only deal with RDMA Writes for now */
 				if (opcode <
