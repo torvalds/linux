@@ -81,7 +81,7 @@ static void xhci_segment_free(struct xhci_hcd *xhci, struct xhci_segment *seg)
  * related flags, such as End TRB, Toggle Cycle, and no snoop.
  */
 static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
-		struct xhci_segment *next, bool link_trbs)
+		struct xhci_segment *next, bool link_trbs, bool isoc)
 {
 	u32 val;
 
@@ -97,7 +97,9 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 		val &= ~TRB_TYPE_BITMASK;
 		val |= TRB_TYPE(TRB_LINK);
 		/* Always set the chain bit with 0.95 hardware */
-		if (xhci_link_trb_quirk(xhci))
+		/* Set chain bit for isoc rings on AMD 0.96 host */
+		if (xhci_link_trb_quirk(xhci) ||
+				(isoc && (xhci->quirks & XHCI_AMD_0x96_HOST)))
 			val |= TRB_CHAIN;
 		prev->trbs[TRBS_PER_SEGMENT-1].link.control = cpu_to_le32(val);
 	}
@@ -154,7 +156,7 @@ static void xhci_initialize_ring_info(struct xhci_ring *ring)
  * See section 4.9.1 and figures 15 and 16.
  */
 static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
-		unsigned int num_segs, bool link_trbs, gfp_t flags)
+		unsigned int num_segs, bool link_trbs, bool isoc, gfp_t flags)
 {
 	struct xhci_ring	*ring;
 	struct xhci_segment	*prev;
@@ -180,12 +182,12 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 		next = xhci_segment_alloc(xhci, flags);
 		if (!next)
 			goto fail;
-		xhci_link_segments(xhci, prev, next, link_trbs);
+		xhci_link_segments(xhci, prev, next, link_trbs, isoc);
 
 		prev = next;
 		num_segs--;
 	}
-	xhci_link_segments(xhci, prev, ring->first_seg, link_trbs);
+	xhci_link_segments(xhci, prev, ring->first_seg, link_trbs, isoc);
 
 	if (link_trbs) {
 		/* See section 4.9.2.1 and 6.4.4.1 */
@@ -231,14 +233,14 @@ void xhci_free_or_cache_endpoint_ring(struct xhci_hcd *xhci,
  * pointers to the beginning of the ring.
  */
 static void xhci_reinit_cached_ring(struct xhci_hcd *xhci,
-		struct xhci_ring *ring)
+		struct xhci_ring *ring, bool isoc)
 {
 	struct xhci_segment	*seg = ring->first_seg;
 	do {
 		memset(seg->trbs, 0,
 				sizeof(union xhci_trb)*TRBS_PER_SEGMENT);
 		/* All endpoint rings have link TRBs */
-		xhci_link_segments(xhci, seg, seg->next, 1);
+		xhci_link_segments(xhci, seg, seg->next, 1, isoc);
 		seg = seg->next;
 	} while (seg != ring->first_seg);
 	xhci_initialize_ring_info(ring);
@@ -542,7 +544,7 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 	 */
 	for (cur_stream = 1; cur_stream < num_streams; cur_stream++) {
 		stream_info->stream_rings[cur_stream] =
-			xhci_ring_alloc(xhci, 1, true, mem_flags);
+			xhci_ring_alloc(xhci, 1, true, false, mem_flags);
 		cur_ring = stream_info->stream_rings[cur_stream];
 		if (!cur_ring)
 			goto cleanup_rings;
@@ -767,7 +769,7 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	}
 
 	/* Allocate endpoint 0 ring */
-	dev->eps[0].ring = xhci_ring_alloc(xhci, 1, true, flags);
+	dev->eps[0].ring = xhci_ring_alloc(xhci, 1, true, false, flags);
 	if (!dev->eps[0].ring)
 		goto fail;
 
@@ -1177,10 +1179,10 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	 */
 	if (usb_endpoint_xfer_isoc(&ep->desc))
 		virt_dev->eps[ep_index].new_ring =
-			xhci_ring_alloc(xhci, 8, true, mem_flags);
+			xhci_ring_alloc(xhci, 8, true, true, mem_flags);
 	else
 		virt_dev->eps[ep_index].new_ring =
-			xhci_ring_alloc(xhci, 1, true, mem_flags);
+			xhci_ring_alloc(xhci, 1, true, false, mem_flags);
 	if (!virt_dev->eps[ep_index].new_ring) {
 		/* Attempt to use the ring cache */
 		if (virt_dev->num_rings_cached == 0)
@@ -1189,7 +1191,8 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 			virt_dev->ring_cache[virt_dev->num_rings_cached];
 		virt_dev->ring_cache[virt_dev->num_rings_cached] = NULL;
 		virt_dev->num_rings_cached--;
-		xhci_reinit_cached_ring(xhci, virt_dev->eps[ep_index].new_ring);
+		xhci_reinit_cached_ring(xhci, virt_dev->eps[ep_index].new_ring,
+			usb_endpoint_xfer_isoc(&ep->desc) ? true : false);
 	}
 	virt_dev->eps[ep_index].skip = false;
 	ep_ring = virt_dev->eps[ep_index].new_ring;
@@ -2003,7 +2006,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto fail;
 
 	/* Set up the command ring to have one segments for now. */
-	xhci->cmd_ring = xhci_ring_alloc(xhci, 1, true, flags);
+	xhci->cmd_ring = xhci_ring_alloc(xhci, 1, true, false, flags);
 	if (!xhci->cmd_ring)
 		goto fail;
 	xhci_dbg(xhci, "Allocated command ring at %p\n", xhci->cmd_ring);
@@ -2034,7 +2037,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * the event ring segment table (ERST).  Section 4.9.3.
 	 */
 	xhci_dbg(xhci, "// Allocating event ring\n");
-	xhci->event_ring = xhci_ring_alloc(xhci, ERST_NUM_SEGS, false, flags);
+	xhci->event_ring = xhci_ring_alloc(xhci, ERST_NUM_SEGS, false, false,
+						flags);
 	if (!xhci->event_ring)
 		goto fail;
 	if (xhci_check_trb_in_td_math(xhci, flags) < 0)
