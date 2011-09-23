@@ -442,11 +442,11 @@ static struct temp_data *init_temp_data(unsigned int cpu, int pkg_flag)
 	return tdata;
 }
 
-static int create_core_data(struct platform_data *pdata,
-				struct platform_device *pdev,
+static int create_core_data(struct platform_device *pdev,
 				unsigned int cpu, int pkg_flag)
 {
 	struct temp_data *tdata;
+	struct platform_data *pdata = platform_get_drvdata(pdev);
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 eax, edx;
 	int err, attr_no;
@@ -514,16 +514,13 @@ exit_free:
 
 static void coretemp_add_core(unsigned int cpu, int pkg_flag)
 {
-	struct platform_data *pdata;
 	struct platform_device *pdev = coretemp_get_pdev(cpu);
 	int err;
 
 	if (!pdev)
 		return;
 
-	pdata = platform_get_drvdata(pdev);
-
-	err = create_core_data(pdata, pdev, cpu, pkg_flag);
+	err = create_core_data(pdev, cpu, pkg_flag);
 	if (err)
 		dev_err(&pdev->dev, "Adding Core %u failed\n", cpu);
 }
