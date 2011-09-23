@@ -26,6 +26,7 @@
 #include <linux/export.h>
 
 #include "drmP.h"
+#include "drm_edid.h"
 #include "radeon_drm.h"
 #include "radeon.h"
 #include "atom.h"
@@ -45,13 +46,13 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
 	int ret;
 	struct i2c_msg msgs[] = {
 		{
-			.addr = 0x50,
+			.addr = DDC_ADDR,
 			.flags = 0,
 			.len = 1,
 			.buf = &out,
 		},
 		{
-			.addr = 0x50,
+			.addr = DDC_ADDR,
 			.flags = I2C_M_RD,
 			.len = 8,
 			.buf = buf,
