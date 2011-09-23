@@ -478,7 +478,7 @@ ixgb_mc_addr_list_update(struct ixgb_hw *hw,
 			ixgb_mta_set(hw, hash_value);
 		}
 
-		mca += IXGB_ETH_LENGTH_OF_ADDRESS + pad;
+		mca += ETH_ALEN + pad;
 	}
 
 	pr_debug("MC Update Complete\n");

@@ -31,8 +31,6 @@
 
 #define IXGB_EEPROM_SIZE    64	/* Size in words */
 
-#define IXGB_ETH_LENGTH_OF_ADDRESS   6
-
 /* EEPROM Commands */
 #define EEPROM_READ_OPCODE  0x6	/* EEPROM read opcode */
 #define EEPROM_WRITE_OPCODE 0x5	/* EEPROM write opcode */
@@ -75,7 +73,7 @@
 
 /* EEPROM structure */
 struct ixgb_ee_map_type {
-	u8 mac_addr[IXGB_ETH_LENGTH_OF_ADDRESS];
+	u8 mac_addr[ETH_ALEN];
 	__le16 compatibility;
 	__le16 reserved1[4];
 	__le32 pba_number;

@@ -38,6 +38,7 @@
 #include <asm/io.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/if_ether.h>
 
 #undef ASSERT
 #define ASSERT(x)	BUG_ON(!(x))

@@ -97,8 +97,6 @@ typedef enum {
 	ixgb_bus_width_64
 } ixgb_bus_width;
 
-#define IXGB_ETH_LENGTH_OF_ADDRESS   6
-
 #define IXGB_EEPROM_SIZE    64	/* Size in words */
 
 #define SPEED_10000  10000
@@ -674,7 +672,7 @@ struct ixgb_hw {
 	u32 max_frame_size;	/* Maximum frame size supported     */
 	u32 mc_filter_type;	/* Multicast filter hash type       */
 	u32 num_mc_addrs;	/* Number of current Multicast addrs */
-	u8 curr_mac_addr[IXGB_ETH_LENGTH_OF_ADDRESS];	/* Individual address currently programmed in MAC */
+	u8 curr_mac_addr[ETH_ALEN];	/* Individual address currently programmed in MAC */
 	u32 num_tx_desc;	/* Number of Transmit descriptors   */
 	u32 num_rx_desc;	/* Number of Receive descriptors    */
 	u32 rx_buffer_size;	/* Size of Receive buffer           */

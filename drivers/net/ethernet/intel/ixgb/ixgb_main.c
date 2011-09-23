@@ -1093,7 +1093,6 @@ ixgb_set_multi(struct net_device *netdev)
 	struct ixgb_hw *hw = &adapter->hw;
 	struct netdev_hw_addr *ha;
 	u32 rctl;
-	int i;
 
 	/* Check for Promiscuous and All Multicast modes */
 
@@ -1120,19 +1119,27 @@ ixgb_set_multi(struct net_device *netdev)
 		rctl |= IXGB_RCTL_MPE;
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 	} else {
-		u8 mta[IXGB_MAX_NUM_MULTICAST_ADDRESSES *
-			    IXGB_ETH_LENGTH_OF_ADDRESS];
+		u8 *mta = kmalloc(IXGB_MAX_NUM_MULTICAST_ADDRESSES *
+			      ETH_ALEN, GFP_ATOMIC);
+		u8 *addr;
+		if (!mta) {
+			pr_err("allocation of multicast memory failed\n");
+			goto alloc_failed;
+		}
 
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 
-		i = 0;
-		netdev_for_each_mc_addr(ha, netdev)
-			memcpy(&mta[i++ * IXGB_ETH_LENGTH_OF_ADDRESS],
-			       ha->addr, IXGB_ETH_LENGTH_OF_ADDRESS);
+		addr = mta;
+		netdev_for_each_mc_addr(ha, netdev) {
+			memcpy(addr, ha->addr, ETH_ALEN);
+			addr += ETH_ALEN;
+		}
 
 		ixgb_mc_addr_list_update(hw, mta, netdev_mc_count(netdev), 0);
+		kfree(mta);
 	}
 
+alloc_failed:
 	if (netdev->features & NETIF_F_HW_VLAN_RX)
 		ixgb_vlan_strip_enable(adapter);
 	else
