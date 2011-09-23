@@ -1647,6 +1647,7 @@ void xhci_unregister_pci(void);
 #endif
 
 /* xHCI host controller glue */
+typedef void (*xhci_get_quirks_t)(struct device *, struct xhci_hcd *);
 void xhci_quiesce(struct xhci_hcd *xhci);
 int xhci_halt(struct xhci_hcd *xhci);
 int xhci_reset(struct xhci_hcd *xhci);
@@ -1654,6 +1655,7 @@ int xhci_init(struct usb_hcd *hcd);
 int xhci_run(struct usb_hcd *hcd);
 void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
+int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks);
 
 #ifdef	CONFIG_PM
 int xhci_suspend(struct xhci_hcd *xhci);
