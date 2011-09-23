@@ -93,34 +93,19 @@ static s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
  **/
 static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 {
-	ixgbe_link_speed link_speed;
 	s32 status;
 	u32 ctrl, i;
-	bool link_up = false;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
-	hw->mac.ops.stop_adapter(hw);
+	status = hw->mac.ops.stop_adapter(hw);
+	if (status != 0)
+		goto reset_hw_out;
 
-	/*
-	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
-	 * access and verify no pending requests before reset
-	 */
-	ixgbe_disable_pcie_master(hw);
+	/* flush pending Tx transactions */
+	ixgbe_clear_tx_pending(hw);
 
 mac_reset_top:
-	/*
-	 * Issue global reset to the MAC.  Needs to be SW reset if link is up.
-	 * If link reset is used when link is up, it might reset the PHY when
-	 * mng is using it.  If link is down or the flag to force full link
-	 * reset is set, then perform link reset.
-	 */
-	ctrl = IXGBE_CTRL_LNK_RST;
-	if (!hw->force_full_reset) {
-		hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
-		if (link_up)
-			ctrl = IXGBE_CTRL_RST;
-	}
-
+	ctrl = IXGBE_CTRL_RST;
 	ctrl |= IXGBE_READ_REG(hw, IXGBE_CTRL);
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
 	IXGBE_WRITE_FLUSH(hw);
@@ -137,8 +122,7 @@ mac_reset_top:
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
 	}
-
-	msleep(50);
+	msleep(100);
 
 	/*
 	 * Double resets are required for recovery from certain error
@@ -180,6 +164,7 @@ mac_reset_top:
 	hw->mac.ops.get_wwn_prefix(hw, &hw->mac.wwnn_prefix,
 	                           &hw->mac.wwpn_prefix);
 
+reset_hw_out:
 	return status;
 }
 

@@ -40,8 +40,173 @@
 #endif
 
 #include "ixgbe.h"
-
+#include "ixgbe_type.h"
 #include "ixgbe_sriov.h"
+
+#ifdef CONFIG_PCI_IOV
+static int ixgbe_find_enabled_vfs(struct ixgbe_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *pvfdev;
+	u16 vf_devfn = 0;
+	int device_id;
+	int vfs_found = 0;
+
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
+		device_id = IXGBE_DEV_ID_82599_VF;
+		break;
+	case ixgbe_mac_X540:
+		device_id = IXGBE_DEV_ID_X540_VF;
+		break;
+	default:
+		device_id = 0;
+		break;
+	}
+
+	vf_devfn = pdev->devfn + 0x80;
+	pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID, device_id, NULL);
+	while (pvfdev) {
+		if (pvfdev->devfn == vf_devfn)
+			vfs_found++;
+		vf_devfn += 2;
+		pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID,
+					device_id, pvfdev);
+	}
+
+	return vfs_found;
+}
+
+void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
+			 const struct ixgbe_info *ii)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int err = 0;
+	int num_vf_macvlans, i;
+	struct vf_macvlans *mv_list;
+	int pre_existing_vfs = 0;
+
+	pre_existing_vfs = ixgbe_find_enabled_vfs(adapter);
+	if (!pre_existing_vfs && !adapter->num_vfs)
+		return;
+
+	/* If there are pre-existing VFs then we have to force
+	 * use of that many because they were not deleted the last
+	 * time someone removed the PF driver.  That would have
+	 * been because they were allocated to guest VMs and can't
+	 * be removed.  Go ahead and just re-enable the old amount.
+	 * If the user wants to change the number of VFs they can
+	 * use ethtool while making sure no VFs are allocated to
+	 * guest VMs... i.e. the right way.
+	 */
+	if (pre_existing_vfs) {
+		adapter->num_vfs = pre_existing_vfs;
+		dev_warn(&adapter->pdev->dev, "Virtual Functions already "
+			 "enabled for this device - Please reload all "
+			 "VF drivers to avoid spoofed packet errors\n");
+	} else {
+		err = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
+	}
+	if (err) {
+		e_err(probe, "Failed to enable PCI sriov: %d\n", err);
+		goto err_novfs;
+	}
+	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED;
+
+	e_info(probe, "SR-IOV enabled with %d VFs\n", adapter->num_vfs);
+
+	num_vf_macvlans = hw->mac.num_rar_entries -
+	(IXGBE_MAX_PF_MACVLANS + 1 + adapter->num_vfs);
+
+	adapter->mv_list = mv_list = kcalloc(num_vf_macvlans,
+					     sizeof(struct vf_macvlans),
+					     GFP_KERNEL);
+	if (mv_list) {
+		/* Initialize list of VF macvlans */
+		INIT_LIST_HEAD(&adapter->vf_mvs.l);
+		for (i = 0; i < num_vf_macvlans; i++) {
+			mv_list->vf = -1;
+			mv_list->free = true;
+			mv_list->rar_entry = hw->mac.num_rar_entries -
+				(i + adapter->num_vfs + 1);
+			list_add(&mv_list->l, &adapter->vf_mvs.l);
+			mv_list++;
+		}
+	}
+
+	/* If call to enable VFs succeeded then allocate memory
+	 * for per VF control structures.
+	 */
+	adapter->vfinfo =
+		kcalloc(adapter->num_vfs,
+			sizeof(struct vf_data_storage), GFP_KERNEL);
+	if (adapter->vfinfo) {
+		/* Now that we're sure SR-IOV is enabled
+		 * and memory allocated set up the mailbox parameters
+		 */
+		ixgbe_init_mbx_params_pf(hw);
+		memcpy(&hw->mbx.ops, ii->mbx_ops,
+		       sizeof(hw->mbx.ops));
+
+		/* Disable RSC when in SR-IOV mode */
+		adapter->flags2 &= ~(IXGBE_FLAG2_RSC_CAPABLE |
+				     IXGBE_FLAG2_RSC_ENABLED);
+		return;
+	}
+
+	/* Oh oh */
+	e_err(probe, "Unable to allocate memory for VF Data Storage - "
+	      "SRIOV disabled\n");
+	pci_disable_sriov(adapter->pdev);
+
+err_novfs:
+	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
+	adapter->num_vfs = 0;
+}
+#endif /* #ifdef CONFIG_PCI_IOV */
+
+void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 gcr;
+	u32 gpie;
+	u32 vmdctl;
+	int i;
+
+#ifdef CONFIG_PCI_IOV
+	/* disable iov and allow time for transactions to clear */
+	pci_disable_sriov(adapter->pdev);
+#endif
+
+	/* turn off device IOV mode */
+	gcr = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
+	gcr &= ~(IXGBE_GCR_EXT_SRIOV);
+	IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, gcr);
+	gpie = IXGBE_READ_REG(hw, IXGBE_GPIE);
+	gpie &= ~IXGBE_GPIE_VTMODE_MASK;
+	IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
+
+	/* set default pool back to 0 */
+	vmdctl = IXGBE_READ_REG(hw, IXGBE_VT_CTL);
+	vmdctl &= ~IXGBE_VT_CTL_POOL_MASK;
+	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl);
+	IXGBE_WRITE_FLUSH(hw);
+
+	/* take a breather then clean up driver data */
+	msleep(100);
+
+	/* Release reference to VF devices */
+	for (i = 0; i < adapter->num_vfs; i++) {
+		if (adapter->vfinfo[i].vfdev)
+			pci_dev_put(adapter->vfinfo[i].vfdev);
+	}
+	kfree(adapter->vfinfo);
+	kfree(adapter->mv_list);
+	adapter->vfinfo = NULL;
+
+	adapter->num_vfs = 0;
+	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
+}
 
 static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 				   int entries, u16 *hash_list, u32 vf)
@@ -273,11 +438,26 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 	return 0;
 }
 
+int ixgbe_check_vf_assignment(struct ixgbe_adapter *adapter)
+{
+	int i;
+	for (i = 0; i < adapter->num_vfs; i++) {
+		if (adapter->vfinfo[i].vfdev->dev_flags &
+				PCI_DEV_FLAGS_ASSIGNED)
+			return true;
+	}
+	return false;
+}
+
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 {
 	unsigned char vf_mac_addr[6];
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	unsigned int vfn = (event_mask & 0x3f);
+	struct pci_dev *pvfdev;
+	unsigned int device_id;
+	u16 thisvf_devfn = (pdev->devfn + 0x80 + (vfn << 1)) |
+				(pdev->devfn & 1);
 
 	bool enable = ((event_mask & 0x10000000U) != 0);
 
@@ -290,6 +470,31 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 		 * for it later.
 		 */
 		memcpy(adapter->vfinfo[vfn].vf_mac_addresses, vf_mac_addr, 6);
+
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82599EB:
+			device_id = IXGBE_DEV_ID_82599_VF;
+			break;
+		case ixgbe_mac_X540:
+			device_id = IXGBE_DEV_ID_X540_VF;
+			break;
+		default:
+			device_id = 0;
+			break;
+		}
+
+		pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID, device_id, NULL);
+		while (pvfdev) {
+			if (pvfdev->devfn == thisvf_devfn)
+				break;
+			pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID,
+						device_id, pvfdev);
+		}
+		if (pvfdev)
+			adapter->vfinfo[vfn].vfdev = pvfdev;
+		else
+			e_err(drv, "Couldn't find pci dev ptr for VF %4.4x\n",
+			      thisvf_devfn);
 	}
 
 	return 0;

@@ -40,7 +40,8 @@
  * hardware. The IEEE 802.1Qaz specification do not use bandwidth
  * groups so this is much simplified from the CEE case.
  */
-s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill, __u16 *max, int max_frame)
+static s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill,
+			      __u16 *max, int max_frame)
 {
 	int min_percent = 100;
 	int min_credit, multiplier;
@@ -289,6 +290,39 @@ s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en)
 		break;
 	}
 	return ret;
+}
+
+s32 ixgbe_dcb_hw_ets(struct ixgbe_hw *hw, struct ieee_ets *ets, int max_frame)
+{
+	__u16 refill[IEEE_8021QAZ_MAX_TCS], max[IEEE_8021QAZ_MAX_TCS];
+	__u8 prio_type[IEEE_8021QAZ_MAX_TCS];
+	int i;
+
+	/* naively give each TC a bwg to map onto CEE hardware */
+	__u8 bwg_id[IEEE_8021QAZ_MAX_TCS] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+	/* Map TSA onto CEE prio type */
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		switch (ets->tc_tsa[i]) {
+		case IEEE_8021QAZ_TSA_STRICT:
+			prio_type[i] = 2;
+			break;
+		case IEEE_8021QAZ_TSA_ETS:
+			prio_type[i] = 0;
+			break;
+		default:
+			/* Hardware only supports priority strict or
+			 * ETS transmission selection algorithms if
+			 * we receive some other value from dcbnl
+			 * throw an error
+			 */
+			return -EINVAL;
+		}
+	}
+
+	ixgbe_ieee_credits(ets->tc_tx_bw, refill, max, max_frame);
+	return ixgbe_dcb_hw_ets_config(hw, refill, max,
+				       bwg_id, prio_type, ets->prio_tc);
 }
 
 s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,

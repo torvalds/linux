@@ -114,6 +114,10 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 	u8 err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
+	/* Fail command if not in CEE mode */
+	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
+		return 1;
+
 	/* verify there is something to do, if not then exit */
 	if (!!state != !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
 		return err;
@@ -300,6 +304,10 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 			     };
 	u8 up = dcb_getapp(netdev, &app);
 #endif
+
+	/* Fail command if not in CEE mode */
+	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
+		return 1;
 
 	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
 				 MAX_TRAFFIC_CLASS);
@@ -537,13 +545,9 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 				   struct ieee_ets *ets)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	__u16 refill[IEEE_8021QAZ_MAX_TCS], max[IEEE_8021QAZ_MAX_TCS];
-	__u8 prio_type[IEEE_8021QAZ_MAX_TCS];
 	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
-	int i, err;
-	__u64 *p = (__u64 *) ets->prio_tc;
-	/* naively give each TC a bwg to map onto CEE hardware */
-	__u8 bwg_id[IEEE_8021QAZ_MAX_TCS] = {0, 1, 2, 3, 4, 5, 6, 7};
+	int i;
+	__u8 max_tc = 0;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
 		return -EINVAL;
@@ -557,34 +561,21 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 
 	memcpy(adapter->ixgbe_ieee_ets, ets, sizeof(*adapter->ixgbe_ieee_ets));
 
-	/* Map TSA onto CEE prio type */
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		switch (ets->tc_tsa[i]) {
-		case IEEE_8021QAZ_TSA_STRICT:
-			prio_type[i] = 2;
-			break;
-		case IEEE_8021QAZ_TSA_ETS:
-			prio_type[i] = 0;
-			break;
-		default:
-			/* Hardware only supports priority strict or
-			 * ETS transmission selection algorithms if
-			 * we receive some other value from dcbnl
-			 * throw an error
-			 */
-			return -EINVAL;
-		}
+		if (ets->prio_tc[i] > max_tc)
+			max_tc = ets->prio_tc[i];
 	}
 
-	if (*p)
-		ixgbe_dcbnl_set_state(dev, 1);
-	else
-		ixgbe_dcbnl_set_state(dev, 0);
+	if (max_tc)
+		max_tc++;
 
-	ixgbe_ieee_credits(ets->tc_tx_bw, refill, max, max_frame);
-	err = ixgbe_dcb_hw_ets_config(&adapter->hw, refill, max,
-				      bwg_id, prio_type, ets->prio_tc);
-	return err;
+	if (max_tc != netdev_get_num_tc(dev))
+		ixgbe_setup_tc(dev, max_tc);
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		netdev_set_prio_tc_map(dev, i, ets->prio_tc[i]);
+
+	return ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
 }
 
 static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
@@ -615,7 +606,6 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 				   struct ieee_pfc *pfc)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	int err;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
 		return -EINVAL;
@@ -628,8 +618,7 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 	}
 
 	memcpy(adapter->ixgbe_ieee_pfc, pfc, sizeof(*adapter->ixgbe_ieee_pfc));
-	err = ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en);
-	return err;
+	return ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en);
 }
 
 #ifdef IXGBE_FCOE
@@ -740,7 +729,7 @@ static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 		 */
 		ixgbe_dcbnl_ieee_setets(dev, &ets);
 		ixgbe_dcbnl_ieee_setpfc(dev, &pfc);
-		ixgbe_dcbnl_set_state(dev, 0);
+		ixgbe_setup_tc(dev, 0);
 	}
 
 	return 0;

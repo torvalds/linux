@@ -910,7 +910,12 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	bool link_up = false;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
-	hw->mac.ops.stop_adapter(hw);
+	status = hw->mac.ops.stop_adapter(hw);
+	if (status != 0)
+		goto reset_hw_out;
+
+	/* flush pending Tx transactions */
+	ixgbe_clear_tx_pending(hw);
 
 	/* PHY ops must be identified and initialized prior to reset */
 
@@ -932,12 +937,6 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 	/* Reset PHY */
 	if (hw->phy.reset_disable == false && hw->phy.ops.reset != NULL)
 		hw->phy.ops.reset(hw);
-
-	/*
-	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
-	 * access and verify no pending requests before reset
-	 */
-	ixgbe_disable_pcie_master(hw);
 
 mac_reset_top:
 	/*

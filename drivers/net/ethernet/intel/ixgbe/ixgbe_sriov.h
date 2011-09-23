@@ -41,6 +41,11 @@ int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate);
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 			    int vf, struct ifla_vf_info *ivi);
 void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter);
+void ixgbe_disable_sriov(struct ixgbe_adapter *adapter);
+void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
+			const struct ixgbe_info *ii);
+int ixgbe_check_vf_assignment(struct ixgbe_adapter *adapter);
+
 
 #endif /* _IXGBE_SRIOV_H_ */
 
