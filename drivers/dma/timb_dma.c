@@ -762,7 +762,7 @@ static int __devinit td_probe(struct platform_device *pdev)
 		if ((i % 2) == pchan->rx) {
 			dev_err(&pdev->dev, "Wrong channel configuration\n");
 			err = -EINVAL;
-			goto err_tasklet_kill;
+			goto err_free_irq;
 		}
 
 		td_chan->chan.device = &td->dma;
