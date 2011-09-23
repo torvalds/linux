@@ -499,19 +499,19 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 					int tx_headroom,
 					int tx_tailroom)
 {
-	struct nci_dev *ndev = NULL;
+	struct nci_dev *ndev;
 
 	nfc_dbg("entry, supported_protocols 0x%x", supported_protocols);
 
 	if (!ops->open || !ops->close || !ops->send)
-		goto exit;
+		return NULL;
 
 	if (!supported_protocols)
-		goto exit;
+		return NULL;
 
 	ndev = kzalloc(sizeof(struct nci_dev), GFP_KERNEL);
 	if (!ndev)
-		goto exit;
+		return NULL;
 
 	ndev->ops = ops;
 	ndev->tx_headroom = tx_headroom;
@@ -526,13 +526,11 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 
 	nfc_set_drvdata(ndev->nfc_dev, ndev);
 
-	goto exit;
+	return ndev;
 
 free_exit:
 	kfree(ndev);
-
-exit:
-	return ndev;
+	return NULL;
 }
 EXPORT_SYMBOL(nci_allocate_device);
 
