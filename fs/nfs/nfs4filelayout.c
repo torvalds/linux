@@ -77,19 +77,6 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 	BUG();
 }
 
-/* For data server errors we don't recover from */
-static void
-filelayout_set_lo_fail(struct pnfs_layout_segment *lseg)
-{
-	if (lseg->pls_range.iomode == IOMODE_RW) {
-		dprintk("%s Setting layout IOMODE_RW fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
-	} else {
-		dprintk("%s Setting layout IOMODE_READ fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
-	}
-}
-
 static int filelayout_async_handle_error(struct rpc_task *task,
 					 struct nfs4_state *state,
 					 struct nfs_client *clp,
@@ -145,7 +132,7 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 			nfs4_reset_read(task, data);
 			clp = NFS_SERVER(data->inode)->nfs_client;
 		}
@@ -221,7 +208,7 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 			nfs4_reset_write(task, data);
 			clp = NFS_SERVER(data->inode)->nfs_client;
 		} else
@@ -256,7 +243,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
 			prepare_to_resend_writes(data);
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 		} else
 			nfs_restart_rpc(task, data->ds_clp);
 		return -EAGAIN;

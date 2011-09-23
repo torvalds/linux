@@ -176,17 +176,6 @@ retry:
 	return bio;
 }
 
-static void bl_set_lo_fail(struct pnfs_layout_segment *lseg)
-{
-	if (lseg->pls_range.iomode == IOMODE_RW) {
-		dprintk("%s Setting layout IOMODE_RW fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
-	} else {
-		dprintk("%s Setting layout IOMODE_READ fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
-	}
-}
-
 /* This is basically copied from mpage_end_io_read */
 static void bl_end_io_read(struct bio *bio, int err)
 {
@@ -206,7 +195,7 @@ static void bl_end_io_read(struct bio *bio, int err)
 	if (!uptodate) {
 		if (!rdata->pnfs_error)
 			rdata->pnfs_error = -EIO;
-		bl_set_lo_fail(rdata->lseg);
+		pnfs_set_lo_fail(rdata->lseg);
 	}
 	bio_put(bio);
 	put_parallel(par);
@@ -370,7 +359,7 @@ static void bl_end_io_write_zero(struct bio *bio, int err)
 	if (!uptodate) {
 		if (!wdata->pnfs_error)
 			wdata->pnfs_error = -EIO;
-		bl_set_lo_fail(wdata->lseg);
+		pnfs_set_lo_fail(wdata->lseg);
 	}
 	bio_put(bio);
 	put_parallel(par);
@@ -386,7 +375,7 @@ static void bl_end_io_write(struct bio *bio, int err)
 	if (!uptodate) {
 		if (!wdata->pnfs_error)
 			wdata->pnfs_error = -EIO;
-		bl_set_lo_fail(wdata->lseg);
+		pnfs_set_lo_fail(wdata->lseg);
 	}
 	bio_put(bio);
 	put_parallel(par);
