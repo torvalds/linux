@@ -141,6 +141,7 @@ static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 
 	SND_SOC_DAPM_MIC("DMIC", NULL),
+	SND_SOC_DAPM_MIC("AMIC", NULL),
 
 	SND_SOC_DAPM_SPK("Main Speaker", NULL),
 };
@@ -155,6 +156,10 @@ static struct snd_soc_dapm_route audio_paths[] = {
 	{ "Headset Mic", NULL, "MICBIAS" },
 	{ "IN4L", NULL, "Headset Mic" },
 	{ "IN4R", NULL, "Headset Mic" },
+
+	{ "AMIC", NULL, "MICBIAS" },
+	{ "IN1L", NULL, "AMIC" },
+	{ "IN1R", NULL, "AMIC" },
 
 	{ "DMIC", NULL, "MICBIAS" },
 	{ "DMICDAT", NULL, "DMIC" },
