@@ -23,7 +23,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define MODULE_NAME "gspca"
+#define GSPCA_VERSION	"2.14.0"
 
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -52,12 +52,10 @@
 #error "DEF_NURBS too big"
 #endif
 
-#define DRIVER_VERSION_NUMBER	"2.13.0"
-
 MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRIVER_VERSION_NUMBER);
+MODULE_VERSION(GSPCA_VERSION);
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -2568,7 +2566,7 @@ EXPORT_SYMBOL(gspca_auto_gain_n_exposure);
 /* -- module insert / remove -- */
 static int __init gspca_init(void)
 {
-	pr_info("v" DRIVER_VERSION_NUMBER " registered\n");
+	pr_info("v" GSPCA_VERSION " registered\n");
 	return 0;
 }
 static void __exit gspca_exit(void)
