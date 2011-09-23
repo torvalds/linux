@@ -412,6 +412,56 @@ set_level(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, show_level, set_level);
 
+static ssize_t
+show_usb2_hardware_lpm(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	const char *p;
+
+	if (udev->usb2_hw_lpm_enabled == 1)
+		p = "enabled";
+	else
+		p = "disabled";
+
+	return sprintf(buf, "%s\n", p);
+}
+
+static ssize_t
+set_usb2_hardware_lpm(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	bool value;
+	int ret;
+
+	usb_lock_device(udev);
+
+	ret = strtobool(buf, &value);
+
+	if (!ret)
+		ret = usb_set_usb2_hardware_lpm(udev, value);
+
+	usb_unlock_device(udev);
+
+	if (!ret)
+		return count;
+
+	return ret;
+}
+
+static DEVICE_ATTR(usb2_hardware_lpm, S_IRUGO | S_IWUSR, show_usb2_hardware_lpm,
+			set_usb2_hardware_lpm);
+
+static struct attribute *usb2_hardware_lpm_attr[] = {
+	&dev_attr_usb2_hardware_lpm.attr,
+	NULL,
+};
+static struct attribute_group usb2_hardware_lpm_attr_group = {
+	.name	= power_group_name,
+	.attrs	= usb2_hardware_lpm_attr,
+};
+
 static struct attribute *power_attrs[] = {
 	&dev_attr_autosuspend.attr,
 	&dev_attr_level.attr,
@@ -428,13 +478,20 @@ static int add_power_attributes(struct device *dev)
 {
 	int rc = 0;
 
-	if (is_usb_device(dev))
+	if (is_usb_device(dev)) {
+		struct usb_device *udev = to_usb_device(dev);
 		rc = sysfs_merge_group(&dev->kobj, &power_attr_group);
+		if (udev->usb2_hw_lpm_capable == 1)
+			rc = sysfs_merge_group(&dev->kobj,
+					&usb2_hardware_lpm_attr_group);
+	}
+
 	return rc;
 }
 
 static void remove_power_attributes(struct device *dev)
 {
+	sysfs_unmerge_group(&dev->kobj, &usb2_hardware_lpm_attr_group);
 	sysfs_unmerge_group(&dev->kobj, &power_attr_group);
 }
 
