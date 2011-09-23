@@ -533,6 +533,11 @@ bl_write_pagelist(struct nfs_write_data *wdata, int sync)
 fill_invalid_ext:
 		dprintk("%s need to zero %d pages\n", __func__, npg_zero);
 		for (;npg_zero > 0; npg_zero--) {
+			if (bl_is_sector_init(be->be_inval, isect)) {
+				dprintk("isect %llu already init\n",
+					(unsigned long long)isect);
+				goto next_page;
+			}
 			/* page ref released in bl_end_io_write_zero */
 			index = isect >> PAGE_CACHE_SECTOR_SHIFT;
 			dprintk("%s zero %dth page: index %lu isect %llu\n",
@@ -552,8 +557,7 @@ fill_invalid_ext:
 			 * PageUptodate: It was read before
 			 * sector_initialized: already written out
 			 */
-			if (PageDirty(page) || PageWriteback(page) ||
-			    bl_is_sector_init(be->be_inval, isect)) {
+			if (PageDirty(page) || PageWriteback(page)) {
 				print_page(page);
 				unlock_page(page);
 				page_cache_release(page);
