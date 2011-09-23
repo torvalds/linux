@@ -51,11 +51,12 @@ static int xhci_pci_reinit(struct xhci_hcd *xhci, struct pci_dev *pdev)
 	return 0;
 }
 
-/* called during probe() after chip reset completes */
-static int xhci_pci_setup(struct usb_hcd *hcd)
+typedef void (*xhci_get_quirks_t)(struct device *, struct xhci_hcd *);
+
+static int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 {
 	struct xhci_hcd		*xhci;
-	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
+	struct device		*dev = hcd->self.controller;
 	int			retval;
 	u32			temp;
 
@@ -107,6 +108,44 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	xhci->hcc_params = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
 	xhci_print_registers(xhci);
 
+	get_quirks(dev, xhci);
+
+	/* Make sure the HC is halted. */
+	retval = xhci_halt(xhci);
+	if (retval)
+		goto error;
+
+	xhci_dbg(xhci, "Resetting HCD\n");
+	/* Reset the internal HC memory state and registers. */
+	retval = xhci_reset(xhci);
+	if (retval)
+		goto error;
+	xhci_dbg(xhci, "Reset complete\n");
+
+	temp = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
+	if (HCC_64BIT_ADDR(temp)) {
+		xhci_dbg(xhci, "Enabling 64-bit DMA addresses.\n");
+		dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64));
+	} else {
+		dma_set_mask(hcd->self.controller, DMA_BIT_MASK(32));
+	}
+
+	xhci_dbg(xhci, "Calling HCD init\n");
+	/* Initialize HCD and host controller data structures. */
+	retval = xhci_init(hcd);
+	if (retval)
+		goto error;
+	xhci_dbg(xhci, "Called HCD init\n");
+	return 0;
+error:
+	kfree(xhci);
+	return retval;
+}
+
+static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
+{
+	struct pci_dev		*pdev = to_pci_dev(dev);
+
 	/* Look for vendor-specific quirks */
 	if (pdev->vendor == PCI_VENDOR_ID_FRESCO_LOGIC &&
 			pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK) {
@@ -146,33 +185,22 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
 		xhci_dbg(xhci, "QUIRK: Resetting on resume\n");
 	}
+}
 
-	/* Make sure the HC is halted. */
-	retval = xhci_halt(xhci);
+/* called during probe() after chip reset completes */
+static int xhci_pci_setup(struct usb_hcd *hcd)
+{
+	struct xhci_hcd		*xhci;
+	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
+	int			retval;
+
+	retval = xhci_gen_setup(hcd, xhci_pci_quirks);
 	if (retval)
-		goto error;
+		return retval;
 
-	xhci_dbg(xhci, "Resetting HCD\n");
-	/* Reset the internal HC memory state and registers. */
-	retval = xhci_reset(xhci);
-	if (retval)
-		goto error;
-	xhci_dbg(xhci, "Reset complete\n");
-
-	temp = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
-	if (HCC_64BIT_ADDR(temp)) {
-		xhci_dbg(xhci, "Enabling 64-bit DMA addresses.\n");
-		dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64));
-	} else {
-		dma_set_mask(hcd->self.controller, DMA_BIT_MASK(32));
-	}
-
-	xhci_dbg(xhci, "Calling HCD init\n");
-	/* Initialize HCD and host controller data structures. */
-	retval = xhci_init(hcd);
-	if (retval)
-		goto error;
-	xhci_dbg(xhci, "Called HCD init\n");
+	xhci = hcd_to_xhci(hcd);
+	if (!usb_hcd_is_primary_hcd(hcd))
+		return 0;
 
 	pci_read_config_byte(pdev, XHCI_SBRN_OFFSET, &xhci->sbrn);
 	xhci_dbg(xhci, "Got SBRN %u\n", (unsigned int) xhci->sbrn);
@@ -182,7 +210,6 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	if (!retval)
 		return retval;
 
-error:
 	kfree(xhci);
 	return retval;
 }
