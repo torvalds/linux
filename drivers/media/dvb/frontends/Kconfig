@@ -607,6 +607,16 @@ config DVB_LNBP21
 	help
 	  An SEC control chips.
 
+config DVB_LNBP22
+	tristate "LNBP22 SEC controllers"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  LNB power supply and control voltage
+	  regulator chip with step-up converter
+	  and I2C interface.
+	  Say Y when you want to support this chip.
+
 config DVB_ISL6405
 	tristate "ISL6405 SEC controller"
 	depends on DVB_CORE && I2C

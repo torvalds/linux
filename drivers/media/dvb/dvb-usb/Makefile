@@ -64,6 +64,9 @@ obj-$(CONFIG_DVB_USB_AF9005_REMOTE) += dvb-usb-af9005-remote.o
 dvb-usb-anysee-objs = anysee.o
 obj-$(CONFIG_DVB_USB_ANYSEE) += dvb-usb-anysee.o
 
+dvb-usb-pctv452e-objs = pctv452e.o
+obj-$(CONFIG_DVB_USB_PCTV452E) += dvb-usb-pctv452e.o
+
 dvb-usb-dw2102-objs = dw2102.o
 obj-$(CONFIG_DVB_USB_DW2102) += dvb-usb-dw2102.o
 
@@ -104,4 +107,5 @@ obj-$(CONFIG_DVB_USB_MXL111SF) += mxl111sf-tuner.o
 ccflags-y += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
 # due to tuner-xc3028
 ccflags-y += -Idrivers/media/common/tuners
+EXTRA_CFLAGS += -Idrivers/media/dvb/ttpci
 
