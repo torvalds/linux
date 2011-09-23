@@ -51,7 +51,7 @@ int qib_make_uc_req(struct qib_qp *qp)
 	u32 hwords;
 	u32 bth0;
 	u32 len;
-	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
+	u32 pmtu = qp->pmtu;
 	int ret = 0;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
@@ -249,7 +249,7 @@ void qib_uc_rcv(struct qib_ibport *ibp, struct qib_ib_header *hdr,
 	u32 psn;
 	u32 pad;
 	struct ib_wc wc;
-	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
+	u32 pmtu = qp->pmtu;
 	struct ib_reth *reth;
 	int ret;
 

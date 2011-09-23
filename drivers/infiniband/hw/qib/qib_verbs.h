@@ -485,6 +485,7 @@ struct qib_qp {
 	u8 alt_timeout;         /* Alternate path timeout for this QP */
 	u8 port_num;
 	enum ib_mtu path_mtu;
+	u32 pmtu;		/* decoded from path_mtu */
 	u32 remote_qpn;
 	u32 qkey;               /* QKEY for this QP (for UD or RD) */
 	u32 s_size;             /* send work queue size */

@@ -239,7 +239,7 @@ int qib_make_rc_req(struct qib_qp *qp)
 	u32 len;
 	u32 bth0;
 	u32 bth2;
-	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
+	u32 pmtu = qp->pmtu;
 	char newreq;
 	unsigned long flags;
 	int ret = 0;
@@ -1732,7 +1732,7 @@ static int qib_rc_rcv_error(struct qib_other_headers *ohdr,
 		 * same request.
 		 */
 		offset = ((psn - e->psn) & QIB_PSN_MASK) *
-			ib_mtu_enum_to_int(qp->path_mtu);
+			qp->pmtu;
 		len = be32_to_cpu(reth->length);
 		if (unlikely(offset + len != e->rdma_sge.sge_length))
 			goto unlock_done;
@@ -1876,7 +1876,7 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
 	u32 psn;
 	u32 pad;
 	struct ib_wc wc;
-	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
+	u32 pmtu = qp->pmtu;
 	int diff;
 	struct ib_reth *reth;
 	unsigned long flags;

@@ -765,8 +765,10 @@ int qib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		}
 	}
 
-	if (attr_mask & IB_QP_PATH_MTU)
+	if (attr_mask & IB_QP_PATH_MTU) {
 		qp->path_mtu = pmtu;
+		qp->pmtu = ib_mtu_enum_to_int(pmtu);
+	}
 
 	if (attr_mask & IB_QP_RETRY_CNT) {
 		qp->s_retry_cnt = attr->retry_cnt;
