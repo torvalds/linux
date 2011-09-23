@@ -8,6 +8,7 @@ xxxx		vend:prod
 ----
 spca501		0000:0000	MystFromOri Unknown Camera
 spca508		0130:0130	Clone Digital Webcam 11043
+zc3xx		03f0:1b07	HP Premium Starter Cam
 m5602		0402:5602	ALi Video Camera Controller
 spca501		040a:0002	Kodak DVC-325
 spca500		040a:0300	Kodak EZ200
