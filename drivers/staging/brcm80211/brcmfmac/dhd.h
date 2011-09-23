@@ -808,5 +808,6 @@ extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 #define BRCMF_IDLE_IMMEDIATE	(-1)
 #define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
 				 when idle */
+#define BRCMF_IDLE_INTERVAL	1
 
 #endif				/* _BRCMF_H_ */

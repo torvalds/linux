@@ -747,9 +747,6 @@ module_param(brcmf_txbound, uint, 0);
 module_param(brcmf_rxbound, uint, 0);
 static uint brcmf_txminmax;
 
-int brcmf_idletime = 1;
-module_param(brcmf_idletime, int, 0);
-
 #define SDIO_DRIVE_STRENGTH	6	/* in milliamps */
 
 /* Use polling */
@@ -4650,7 +4647,7 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
 
 	/* ...and initialize clock/power states */
 	bus->clkstate = CLK_SDONLY;
-	bus->idletime = (s32) brcmf_idletime;
+	bus->idletime = BRCMF_IDLE_INTERVAL;
 	bus->idleclock = BRCMF_IDLE_ACTIVE;
 
 	/* Query the F2 block size, set roundup accordingly */
