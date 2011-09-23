@@ -3539,6 +3539,187 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	return 0;
 }
 
+#ifdef CONFIG_USB_SUSPEND
+
+/* BESL to HIRD Encoding array for USB2 LPM */
+static int xhci_besl_encoding[16] = {125, 150, 200, 300, 400, 500, 1000, 2000,
+	3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000};
+
+/* Calculate HIRD/BESL for USB2 PORTPMSC*/
+static int xhci_calculate_hird_besl(int u2del, bool use_besl)
+{
+	int hird;
+
+	if (use_besl) {
+		for (hird = 0; hird < 16; hird++) {
+			if (xhci_besl_encoding[hird] >= u2del)
+				break;
+		}
+	} else {
+		if (u2del <= 50)
+			hird = 0;
+		else
+			hird = (u2del - 51) / 75 + 1;
+
+		if (hird > 15)
+			hird = 15;
+	}
+
+	return hird;
+}
+
+static int xhci_usb2_software_lpm_test(struct usb_hcd *hcd,
+					struct usb_device *udev)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct dev_info	*dev_info;
+	__le32 __iomem	**port_array;
+	__le32 __iomem	*addr, *pm_addr;
+	u32		temp, dev_id;
+	unsigned int	port_num;
+	unsigned long	flags;
+	int		u2del, hird;
+	int		ret;
+
+	if (hcd->speed == HCD_USB3 || !xhci->sw_lpm_support ||
+			!udev->lpm_capable)
+		return -EINVAL;
+
+	/* we only support lpm for non-hub device connected to root hub yet */
+	if (!udev->parent || udev->parent->parent ||
+			udev->descriptor.bDeviceClass == USB_CLASS_HUB)
+		return -EINVAL;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* Look for devices in lpm_failed_devs list */
+	dev_id = le16_to_cpu(udev->descriptor.idVendor) << 16 |
+			le16_to_cpu(udev->descriptor.idProduct);
+	list_for_each_entry(dev_info, &xhci->lpm_failed_devs, list) {
+		if (dev_info->dev_id == dev_id) {
+			ret = -EINVAL;
+			goto finish;
+		}
+	}
+
+	port_array = xhci->usb2_ports;
+	port_num = udev->portnum - 1;
+
+	if (port_num > HCS_MAX_PORTS(xhci->hcs_params1)) {
+		xhci_dbg(xhci, "invalid port number %d\n", udev->portnum);
+		ret = -EINVAL;
+		goto finish;
+	}
+
+	/*
+	 * Test USB 2.0 software LPM.
+	 * FIXME: some xHCI 1.0 hosts may implement a new register to set up
+	 * hardware-controlled USB 2.0 LPM. See section 5.4.11 and 4.23.5.1.1.1
+	 * in the June 2011 errata release.
+	 */
+	xhci_dbg(xhci, "test port %d software LPM\n", port_num);
+	/*
+	 * Set L1 Device Slot and HIRD/BESL.
+	 * Check device's USB 2.0 extension descriptor to determine whether
+	 * HIRD or BESL shoule be used. See USB2.0 LPM errata.
+	 */
+	pm_addr = port_array[port_num] + 1;
+	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
+	if (le32_to_cpu(udev->bos->ext_cap->bmAttributes) & (1 << 2))
+		hird = xhci_calculate_hird_besl(u2del, 1);
+	else
+		hird = xhci_calculate_hird_besl(u2del, 0);
+
+	temp = PORT_L1DS(udev->slot_id) | PORT_HIRD(hird);
+	xhci_writel(xhci, temp, pm_addr);
+
+	/* Set port link state to U2(L1) */
+	addr = port_array[port_num];
+	xhci_set_link_state(xhci, port_array, port_num, XDEV_U2);
+
+	/* wait for ACK */
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	msleep(10);
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* Check L1 Status */
+	ret = handshake(xhci, pm_addr, PORT_L1S_MASK, PORT_L1S_SUCCESS, 125);
+	if (ret != -ETIMEDOUT) {
+		/* enter L1 successfully */
+		temp = xhci_readl(xhci, addr);
+		xhci_dbg(xhci, "port %d entered L1 state, port status 0x%x\n",
+				port_num, temp);
+		ret = 0;
+	} else {
+		temp = xhci_readl(xhci, pm_addr);
+		xhci_dbg(xhci, "port %d software lpm failed, L1 status %d\n",
+				port_num, temp & PORT_L1S_MASK);
+		ret = -EINVAL;
+	}
+
+	/* Resume the port */
+	xhci_set_link_state(xhci, port_array, port_num, XDEV_U0);
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	msleep(10);
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* Clear PLC */
+	xhci_test_and_clear_bit(xhci, port_array, port_num, PORT_PLC);
+
+	/* Check PORTSC to make sure the device is in the right state */
+	if (!ret) {
+		temp = xhci_readl(xhci, addr);
+		xhci_dbg(xhci, "resumed port %d status 0x%x\n",	port_num, temp);
+		if (!(temp & PORT_CONNECT) || !(temp & PORT_PE) ||
+				(temp & PORT_PLS_MASK) != XDEV_U0) {
+			xhci_dbg(xhci, "port L1 resume fail\n");
+			ret = -EINVAL;
+		}
+	}
+
+	if (ret) {
+		/* Insert dev to lpm_failed_devs list */
+		xhci_warn(xhci, "device LPM test failed, may disconnect and "
+				"re-enumerate\n");
+		dev_info = kzalloc(sizeof(struct dev_info), GFP_ATOMIC);
+		if (!dev_info) {
+			ret = -ENOMEM;
+			goto finish;
+		}
+		dev_info->dev_id = dev_id;
+		INIT_LIST_HEAD(&dev_info->list);
+		list_add(&dev_info->list, &xhci->lpm_failed_devs);
+	} else {
+		xhci_ring_device(xhci, udev->slot_id);
+	}
+
+finish:
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return ret;
+}
+
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	int		ret;
+
+	ret = xhci_usb2_software_lpm_test(hcd, udev);
+	if (!ret)
+		xhci_dbg(xhci, "software LPM test succeed\n");
+
+	return 0;
+}
+
+#else
+
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return 0;
+}
+
+#endif /* CONFIG_USB_SUSPEND */
+
 /* Once a hub descriptor is fetched for a device, we need to update the xHC's
  * internal data structures for the device.
  */

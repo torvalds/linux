@@ -272,6 +272,7 @@ struct xhci_op_regs {
  */
 #define PORT_PLS_MASK	(0xf << 5)
 #define XDEV_U0		(0x0 << 5)
+#define XDEV_U2		(0x2 << 5)
 #define XDEV_U3		(0x3 << 5)
 #define XDEV_RESUME	(0xf << 5)
 /* true: port has power (see HCC_PPC) */
@@ -362,7 +363,11 @@ struct xhci_op_regs {
 /* Bits 24:31 for port testing */
 
 /* USB2 Protocol PORTSPMSC */
-#define PORT_RWE	(1 << 0x3)
+#define	PORT_L1S_MASK		7
+#define	PORT_L1S_SUCCESS	1
+#define	PORT_RWE		(1 << 3)
+#define	PORT_HIRD(p)		(((p) & 0xf) << 4)
+#define	PORT_L1DS(p)		(((p) & 0xff) << 8)
 
 /**
  * struct xhci_intr_reg - Interrupt Register Set
@@ -1324,6 +1329,12 @@ struct s3_save {
 	u64	erst_dequeue;
 };
 
+/* Use for lpm */
+struct dev_info {
+	u32			dev_id;
+	struct	list_head	list;
+};
+
 struct xhci_bus_state {
 	unsigned long		bus_suspended;
 	unsigned long		next_statechange;
@@ -1387,6 +1398,8 @@ struct xhci_hcd {
 	struct xhci_erst	erst;
 	/* Scratchpad */
 	struct xhci_scratchpad  *scratchpad;
+	/* Store LPM test failed devices' information */
+	struct list_head	lpm_failed_devs;
 
 	/* slot enabling and address device helpers */
 	struct completion	addr_dev;
@@ -1663,6 +1676,7 @@ int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		gfp_t mem_flags);
 int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev);
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags);
 int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags);

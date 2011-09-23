@@ -345,6 +345,10 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	.hub_status_data =	xhci_hub_status_data,
 	.bus_suspend =		xhci_bus_suspend,
 	.bus_resume =		xhci_bus_resume,
+	/*
+	 * call back when device connected and addressed
+	 */
+	.update_device =        xhci_update_device,
 };
 
 /*-------------------------------------------------------------------------*/
