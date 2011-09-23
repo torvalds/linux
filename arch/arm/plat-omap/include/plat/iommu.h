@@ -111,6 +111,32 @@ struct iommu_platform_data {
 	u32 da_end;
 };
 
+/**
+ * struct iommu_arch_data - omap iommu private data
+ * @name: name of the iommu device
+ * @iommu_dev: handle of the iommu device
+ *
+ * This is an omap iommu private data object, which binds an iommu user
+ * to its iommu device. This object should be placed at the iommu user's
+ * dev_archdata so generic IOMMU API can be used without having to
+ * utilize omap-specific plumbing anymore.
+ */
+struct omap_iommu_arch_data {
+	const char *name;
+	struct omap_iommu *iommu_dev;
+};
+
+/**
+ * dev_to_omap_iommu() - retrieves an omap iommu object from a user device
+ * @dev: iommu client device
+ */
+static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
+{
+	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
+
+	return arch_data->iommu_dev;
+}
+
 /* IOMMU errors */
 #define OMAP_IOMMU_ERR_TLB_MISS		(1 << 0)
 #define OMAP_IOMMU_ERR_TRANS_FAULT	(1 << 1)
