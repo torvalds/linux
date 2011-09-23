@@ -28,6 +28,7 @@
 #include <linux/fb.h>
 #include <drm/drm_edid.h>
 #include "drmP.h"
+#include "drm_edid.h"
 #include "intel_drv.h"
 #include "i915_drv.h"
 
@@ -42,13 +43,13 @@ bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus)
 	u8 buf[2];
 	struct i2c_msg msgs[] = {
 		{
-			.addr = 0x50,
+			.addr = DDC_ADDR,
 			.flags = 0,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.addr = 0x50,
+			.addr = DDC_ADDR,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = buf,
