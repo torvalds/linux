@@ -602,21 +602,19 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 		}
 	}
 
-	if (!test_bit(CONNECT_PEND, &ar->flag)) {
-		if (reason != DISCONNECT_CMD)
-			ath6kl_wmi_disconnect_cmd(ar->wmi);
+	/*
+	 * Send a disconnect command to target when a disconnect event is
+	 * received with reason code other than 3 (DISCONNECT_CMD - disconnect
+	 * request from host) to make the firmware stop trying to connect even
+	 * after giving disconnect event. There will be one more disconnect
+	 * event for this disconnect command with reason code DISCONNECT_CMD
+	 * which will be notified to cfg80211.
+	 */
 
-		return;
-	}
-
-	if (reason == NO_NETWORK_AVAIL) {
-		/* connect cmd failed */
+	if (reason != DISCONNECT_CMD) {
 		ath6kl_wmi_disconnect_cmd(ar->wmi);
 		return;
 	}
-
-	if (reason != DISCONNECT_CMD)
-		return;
 
 	clear_bit(CONNECT_PEND, &ar->flag);
 
