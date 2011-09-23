@@ -162,49 +162,49 @@ void ir_raw_init(void);
 #ifdef CONFIG_IR_NEC_DECODER_MODULE
 #define load_nec_decode()	request_module("ir-nec-decoder")
 #else
-#define load_nec_decode()	0
+static inline void load_nec_decode(void) { }
 #endif
 
 /* from ir-rc5-decoder.c */
 #ifdef CONFIG_IR_RC5_DECODER_MODULE
 #define load_rc5_decode()	request_module("ir-rc5-decoder")
 #else
-#define load_rc5_decode()	0
+static inline void load_rc5_decode(void) { }
 #endif
 
 /* from ir-rc6-decoder.c */
 #ifdef CONFIG_IR_RC6_DECODER_MODULE
 #define load_rc6_decode()	request_module("ir-rc6-decoder")
 #else
-#define load_rc6_decode()	0
+static inline void load_rc6_decode(void) { }
 #endif
 
 /* from ir-jvc-decoder.c */
 #ifdef CONFIG_IR_JVC_DECODER_MODULE
 #define load_jvc_decode()	request_module("ir-jvc-decoder")
 #else
-#define load_jvc_decode()	0
+static inline void load_jvc_decode(void) { }
 #endif
 
 /* from ir-sony-decoder.c */
 #ifdef CONFIG_IR_SONY_DECODER_MODULE
 #define load_sony_decode()	request_module("ir-sony-decoder")
 #else
-#define load_sony_decode()	0
+static inline void load_sony_decode(void) { }
 #endif
 
 /* from ir-mce_kbd-decoder.c */
 #ifdef CONFIG_IR_MCE_KBD_DECODER_MODULE
 #define load_mce_kbd_decode()	request_module("ir-mce_kbd-decoder")
 #else
-#define load_mce_kbd_decode()	0
+static inline void load_mce_kbd_decode(void) { }
 #endif
 
 /* from ir-lirc-codec.c */
 #ifdef CONFIG_IR_LIRC_CODEC_MODULE
 #define load_lirc_codec()	request_module("ir-lirc-codec")
 #else
-#define load_lirc_codec()	0
+static inline void load_lirc_codec(void) { }
 #endif
 
 
