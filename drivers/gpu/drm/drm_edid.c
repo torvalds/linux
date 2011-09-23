@@ -226,7 +226,6 @@ bool drm_edid_is_valid(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_edid_is_valid);
 
-#define DDC_ADDR 0x50
 #define DDC_SEGMENT_ADDR 0x30
 /**
  * Get EDID information via I2C.
