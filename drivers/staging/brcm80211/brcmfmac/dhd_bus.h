@@ -24,9 +24,6 @@
  * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
  */
 
-/* dongle ram module parameter */
-extern int brcmf_dongle_memsize;
-
 /* Tx/Rx bounds module parameters */
 extern uint brcmf_txbound;
 extern uint brcmf_rxbound;

@@ -568,7 +568,6 @@ struct brcmf_bus {
 	uint varsz;		/* Size of variables buffer */
 
 	u32 ramsize;		/* Size of RAM in SOCRAM (bytes) */
-	u32 orig_ramsize;	/* Size of RAM in SOCRAM (bytes) */
 
 	u32 hostintmask;	/* Copy of Host Interrupt Mask */
 	u32 intstatus;	/* Intstatus bits (events) pending */
@@ -772,11 +771,6 @@ module_param(brcmf_poll, uint, 0);
 uint brcmf_intr = true;
 module_param(brcmf_intr, uint, 0);
 
-/* override the RAM size if possible */
-#define DONGLE_MIN_MEMSIZE (128 * 1024)
-int brcmf_dongle_memsize;
-module_param(brcmf_dongle_memsize, int, 0);
-
 #define RETRYCHAN(chan) ((chan) == SDPCM_EVENT_CHANNEL)
 
 /* Retry count for register access failures */
@@ -855,17 +849,6 @@ static void brcmf_sdbrcm_pktfree2(struct brcmf_bus *bus, struct sk_buff *pkt)
 {
 	if (bus->usebufpool)
 		brcmu_pkt_buf_free_skb(pkt);
-}
-
-static void brcmf_sdbrcm_setmemsize(struct brcmf_bus *bus, int mem_size)
-{
-	s32 min_size = DONGLE_MIN_MEMSIZE;
-	/* Restrict the memsize to user specified limit */
-	brcmf_dbg(ERROR, "user: Restrict the dongle ram size to %d, min %d\n",
-		  brcmf_dongle_memsize, min_size);
-	if ((brcmf_dongle_memsize > min_size) &&
-	    (brcmf_dongle_memsize < (s32) bus->orig_ramsize))
-		bus->ramsize = brcmf_dongle_memsize;
 }
 
 static void brcmf_sdbrcm_sdlock(struct brcmf_bus *bus)
@@ -3531,11 +3514,10 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 	}
 
 	/* adjust to the user specified RAM */
-	brcmf_dbg(INFO, "Physical memory size: %d, usable memory size: %d\n",
-		  bus->orig_ramsize, bus->ramsize);
+	brcmf_dbg(INFO, "Physical memory size: %d\n", bus->ramsize);
 	brcmf_dbg(INFO, "Vars are at %d, orig varsize is %d\n",
 		  varaddr, varsize);
-	varsize = ((bus->orig_ramsize - 4) - varaddr);
+	varsize = ((bus->ramsize - 4) - varaddr);
 
 	/*
 	 * Determine the length token:
@@ -3555,7 +3537,7 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 		  varsize, varsizew);
 
 	/* Write the length token to the last word */
-	bcmerror = brcmf_sdbrcm_membytes(bus, true, (bus->orig_ramsize - 4),
+	bcmerror = brcmf_sdbrcm_membytes(bus, true, (bus->ramsize - 4),
 					 (u8 *)&varsizew_le, 4);
 
 	return bcmerror;
@@ -4630,17 +4612,11 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 	/* Get info on the ARM and SOCRAM cores... */
 	brcmf_sdcard_reg_read(bus->sdiodev,
 		  CORE_SB(bus->ci->armcorebase, sbidhigh), 4);
-	bus->orig_ramsize = bus->ci->ramsize;
-	if (!(bus->orig_ramsize)) {
+	bus->ramsize = bus->ci->ramsize;
+	if (!(bus->ramsize)) {
 		brcmf_dbg(ERROR, "failed to find SOCRAM memory!\n");
 		goto fail;
 	}
-	bus->ramsize = bus->orig_ramsize;
-	if (brcmf_dongle_memsize)
-		brcmf_sdbrcm_setmemsize(bus, brcmf_dongle_memsize);
-
-	brcmf_dbg(ERROR, "DHD: dongle ram size is set to %d(orig %d)\n",
-		  bus->ramsize, bus->orig_ramsize);
 
 	/* Set core control so an SDIO reset does a backplane reset */
 	reg_addr = bus->ci->buscorebase +
@@ -4819,7 +4795,6 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 	 */
 	brcmf_txbound = BRCMF_TXBOUND;
 	brcmf_rxbound = BRCMF_RXBOUND;
-	brcmf_dongle_memsize = 0;
 	brcmf_txminmax = BRCMF_TXMINMAX;
 
 	brcmf_c_init();
