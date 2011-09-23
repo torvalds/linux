@@ -22,8 +22,13 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.c,v 1.57.6.4 2010-12-23 01:13:15 Exp $
+ * $Id: bcmsdh.c 275784 2011-08-04 22:41:49Z $
  */
+
+/**
+ * @file bcmsdh.c
+ */
+
 /* ****************** BCMSDH Interface Functions *************************** */
 
 #include <typedefs.h>
@@ -36,14 +41,16 @@
 
 #include <bcmsdh.h>	/* BRCM API for SDIO clients (such as wl, dhd) */
 #include <bcmsdbus.h>	/* common SDIO/controller interface */
-#include <sbsdio.h>	/* BRCM sdio device core */
+#include <sbsdio.h>	/* SDIO device core hardware definitions. */
 
-#include <sdio.h>	/* sdio spec */
+#include <sdio.h>	/* SDIO Device and Protocol Specs */
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 const uint bcmsdh_msglevel = BCMSDH_ERROR_VAL;
 
-
+/**
+ * BCMSDH API context
+ */
 struct bcmsdh_info
 {
 	bool	init_success;	/* underlying driver successfully attached */
@@ -67,6 +74,15 @@ bcmsdh_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
 }
 #endif
 
+/* Attach BCMSDH layer to SDIO Host Controller Driver
+ *
+ * @param osh OSL Handle.
+ * @param cfghdl Configuration Handle.
+ * @param regsva Virtual address of controller registers.
+ * @param irq Interrupt number of SDIO controller.
+ *
+ * @return bcmsdh_info_t Handle to BCMSDH context.
+ */
 bcmsdh_info_t *
 bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq)
 {
@@ -201,6 +217,14 @@ bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 	return BCME_UNSUPPORTED;
 }
 
+/**
+ * Read from SDIO Configuration Space
+ * @param sdh SDIO Host context.
+ * @param func_num Function number to read from.
+ * @param addr Address to read from.
+ * @param err Error return.
+ * @return value read from SDIO configuration space.
+ */
 uint8
 bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
 {
@@ -349,20 +373,30 @@ bcmsdh_cis_read(void *sdh, uint func, uint8 *cis, uint length)
 }
 
 
-static int
-bcmsdhsdio_set_sbaddr_window(void *sdh, uint32 address)
+int
+bcmsdhsdio_set_sbaddr_window(void *sdh, uint32 address, bool force_set)
 {
 	int err = 0;
+	uint bar0 = address & ~SBSDIO_SB_OFT_ADDR_MASK;
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
-	bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW,
-	                 (address >> 8) & SBSDIO_SBADDRLOW_MASK, &err);
-	if (!err)
-		bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRMID,
-		                 (address >> 16) & SBSDIO_SBADDRMID_MASK, &err);
-	if (!err)
-		bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRHIGH,
-		                 (address >> 24) & SBSDIO_SBADDRHIGH_MASK, &err);
 
+	if (bar0 != bcmsdh->sbwad || force_set) {
+		bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW,
+			(address >> 8) & SBSDIO_SBADDRLOW_MASK, &err);
+		if (!err)
+			bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRMID,
+				(address >> 16) & SBSDIO_SBADDRMID_MASK, &err);
+		if (!err)
+			bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRHIGH,
+				(address >> 24) & SBSDIO_SBADDRHIGH_MASK, &err);
+
+		if (!err)
+			bcmsdh->sbwad = bar0;
+		else
+			/* invalidate cached window var */
+			bcmsdh->sbwad = 0;
+
+	}
 
 	return err;
 }
@@ -373,7 +407,6 @@ bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 	SDIOH_API_RC status;
 	uint32 word = 0;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 
 	BCMSDH_INFO(("%s:fun = 1, addr = 0x%x, ", __FUNCTION__, addr));
 
@@ -382,12 +415,8 @@ bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
 
 	ASSERT(bcmsdh->init_success);
 
-	if (bar0 != bcmsdh->sbwad) {
-		if (bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0))
-			return 0xFFFFFFFF;
-
-		bcmsdh->sbwad = bar0;
-	}
+	if (bcmsdhsdio_set_sbaddr_window(bcmsdh, addr, FALSE))
+		return 0xFFFFFFFF;
 
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	if (size == 4)
@@ -425,7 +454,6 @@ bcmsdh_reg_write(void *sdh, uint32 addr, uint size, uint32 data)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 	SDIOH_API_RC status;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
 	BCMSDH_INFO(("%s:fun = 1, addr = 0x%x, uint%ddata = 0x%x\n",
@@ -436,12 +464,8 @@ bcmsdh_reg_write(void *sdh, uint32 addr, uint size, uint32 data)
 
 	ASSERT(bcmsdh->init_success);
 
-	if (bar0 != bcmsdh->sbwad) {
-		if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0)))
-			return err;
-
-		bcmsdh->sbwad = bar0;
-	}
+	if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, addr, FALSE)))
+		return err;
 
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	if (size == 4)
@@ -467,13 +491,12 @@ bcmsdh_regfail(void *sdh)
 int
 bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
                 uint8 *buf, uint nbytes, void *pkt,
-                bcmsdh_cmplt_fn_t complete, void *handle)
+                bcmsdh_cmplt_fn_t complete_fn, void *handle)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 	SDIOH_API_RC status;
 	uint incr_fix;
 	uint width;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
 	ASSERT(bcmsdh);
@@ -487,12 +510,8 @@ bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
 	if (flags & SDIO_REQ_ASYNC)
 		return BCME_UNSUPPORTED;
 
-	if (bar0 != bcmsdh->sbwad) {
-		if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0)))
-			return err;
-
-		bcmsdh->sbwad = bar0;
-	}
+	if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, addr, FALSE)))
+		return err;
 
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 
@@ -510,13 +529,12 @@ bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
 int
 bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
                 uint8 *buf, uint nbytes, void *pkt,
-                bcmsdh_cmplt_fn_t complete, void *handle)
+                bcmsdh_cmplt_fn_t complete_fn, void *handle)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 	SDIOH_API_RC status;
 	uint incr_fix;
 	uint width;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
 	ASSERT(bcmsdh);
@@ -530,12 +548,8 @@ bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
 	if (flags & SDIO_REQ_ASYNC)
 		return BCME_UNSUPPORTED;
 
-	if (bar0 != bcmsdh->sbwad) {
-		if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0)))
-			return err;
-
-		bcmsdh->sbwad = bar0;
-	}
+	if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, addr, FALSE)))
+		return err;
 
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 
@@ -659,4 +673,18 @@ void
 bcmsdh_chipinfo(void *sdh, uint32 chip, uint32 chiprev)
 {
 	return;
+}
+
+
+int
+bcmsdh_sleep(void *sdh, bool enab)
+{
+#ifdef SDIOH_SLEEP_ENABLED
+	bcmsdh_info_t *p = (bcmsdh_info_t *)sdh;
+	sdioh_info_t *sd = (sdioh_info_t *)(p->sdioh);
+
+	return sdioh_sleep(sd, enab);
+#else
+	return BCME_UNSUPPORTED;
+#endif
 }
