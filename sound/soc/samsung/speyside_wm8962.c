@@ -152,12 +152,12 @@ static struct snd_soc_dapm_route audio_paths[] = {
 	{ "Main Speaker", NULL, "SPKOUTL" },
 	{ "Main Speaker", NULL, "SPKOUTR" },
 
-	{ "MICBIAS", NULL, "Headset Mic" },
-	{ "IN4L", NULL, "MICBIAS" },
-	{ "IN4R", NULL, "MICBIAS" },
+	{ "Headset Mic", NULL, "MICBIAS" },
+	{ "IN4L", NULL, "Headset Mic" },
+	{ "IN4R", NULL, "Headset Mic" },
 
-	{ "MICBIAS", NULL, "DMIC" },
-	{ "DMICDAT", NULL, "MICBIAS" },
+	{ "DMIC", NULL, "MICBIAS" },
+	{ "DMICDAT", NULL, "DMIC" },
 };
 
 static struct snd_soc_jack speyside_wm8962_headset;
