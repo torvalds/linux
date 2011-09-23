@@ -477,7 +477,7 @@ enum mc13xxx_id {
 	MC13XXX_ID_INVALID,
 };
 
-const char *mc13xxx_chipname[] = {
+static const char *mc13xxx_chipname[] = {
 	[MC13XXX_ID_MC13783] = "mc13783",
 	[MC13XXX_ID_MC13892] = "mc13892",
 };
