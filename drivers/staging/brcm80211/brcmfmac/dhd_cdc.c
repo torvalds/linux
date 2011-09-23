@@ -322,7 +322,8 @@ brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx, struct brcmf_ioctl *ioc,
 	/* Intercept the wme_dp ioctl here */
 	if (!ret && ioc->cmd == BRCMF_C_SET_VAR &&
 	    !strcmp(ioc->buf, "wme_dp")) {
-		int slen, val = 0;
+		int slen;
+		__le32 val = 0;
 
 		slen = strlen("wme_dp") + 1;
 		if (len >= (int)(slen + sizeof(int)))

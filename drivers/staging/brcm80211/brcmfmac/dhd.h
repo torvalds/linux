@@ -134,13 +134,13 @@
 #define BRCMF_EVENT_MSG_GROUP		0x04
 
 struct brcmf_event_msg {
-	u16 version;
-	u16 flags;
-	u32 event_type;
-	u32 status;
-	u32 reason;
-	u32 auth_type;
-	u32 datalen;
+	__be16 version;
+	__be16 flags;
+	__be32 event_type;
+	__be32 status;
+	__be32 reason;
+	__be32 auth_type;
+	__be32 datalen;
 	u8 addr[ETH_ALEN];
 	char ifname[IFNAMSIZ];
 } __packed;

@@ -63,10 +63,10 @@ struct brcmf_trap {
 
 #define CBUF_LEN	(128)
 
-struct rte_log {
-	u32 buf;		/* Can't be pointer on (64-bit) hosts */
-	uint buf_size;
-	uint idx;
+struct rte_log_le {
+	__le32 buf;		/* Can't be pointer on (64-bit) hosts */
+	__le32 buf_size;
+	__le32 idx;
 	char *_buf_compat;	/* Redundant pointer for backward compat. */
 };
 
@@ -89,7 +89,7 @@ struct rte_console {
 	 * Output will be lost if the output wraps around faster than the host
 	 * polls.
 	 */
-	struct rte_log log;
+	struct rte_log_le log_le;
 
 	/* Console input line buffer
 	 * Characters are read one at a time into cbuf
@@ -512,7 +512,7 @@ struct sdpcmd_regs {
 struct brcmf_console {
 	uint count;		/* Poll interval msec counter */
 	uint log_addr;		/* Log struct address (fixed) */
-	struct rte_log log;	/* Log struct (host copy) */
+	struct rte_log_le log_le;	/* Log struct (host copy) */
 	uint bufsize;		/* Size of log buffer */
 	u8 *buf;		/* Log buffer (host copy) */
 	uint last;		/* Last buffer read index */
@@ -3153,21 +3153,21 @@ static int brcmf_sdbrcm_readconsole(struct brcmf_bus *bus)
 		return 0;
 
 	/* Read console log struct */
-	addr = bus->console_addr + offsetof(struct rte_console, log);
-	rv = brcmf_sdbrcm_membytes(bus, false, addr, (u8 *)&c->log,
-				sizeof(c->log));
+	addr = bus->console_addr + offsetof(struct rte_console, log_le);
+	rv = brcmf_sdbrcm_membytes(bus, false, addr, (u8 *)&c->log_le,
+				   sizeof(c->log_le));
 	if (rv < 0)
 		return rv;
 
 	/* Allocate console buffer (one time only) */
 	if (c->buf == NULL) {
-		c->bufsize = le32_to_cpu(c->log.buf_size);
+		c->bufsize = le32_to_cpu(c->log_le.buf_size);
 		c->buf = kmalloc(c->bufsize, GFP_ATOMIC);
 		if (c->buf == NULL)
 			return -ENOMEM;
 	}
 
-	idx = le32_to_cpu(c->log.idx);
+	idx = le32_to_cpu(c->log_le.idx);
 
 	/* Protect against corrupt value */
 	if (idx > c->bufsize)
@@ -3179,7 +3179,7 @@ static int brcmf_sdbrcm_readconsole(struct brcmf_bus *bus)
 		return 0;
 
 	/* Read the console buffer */
-	addr = le32_to_cpu(c->log.buf);
+	addr = le32_to_cpu(c->log_le.buf);
 	rv = brcmf_sdbrcm_membytes(bus, false, addr, c->buf, c->bufsize);
 	if (rv < 0)
 		return rv;

@@ -53,15 +53,15 @@ static const char brcmf_version[] =
 struct msgtrace_hdr {
 	u8 version;
 	u8 spare;
-	u16 len;		/* Len of the trace */
-	u32 seqnum;		/* Sequence number of message. Useful
+	__be16 len;		/* Len of the trace */
+	__be32 seqnum;		/* Sequence number of message. Useful
 				 * if the messsage has been lost
 				 * because of DMA error or a bus reset
 				 * (ex: SDIO Func2)
 				 */
-	u32 discarded_bytes;	/* Number of discarded bytes because of
+	__be32 discarded_bytes;	/* Number of discarded bytes because of
 				 trace overflow  */
-	u32 discarded_printf;	/* Number of discarded printf
+	__be32 discarded_printf;	/* Number of discarded printf
 				 because of trace overflow */
 } __packed;
 
@@ -401,7 +401,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 
 	case BRCMF_E_RSSI:
 		brcmf_dbg(EVENT, "MACEVENT: %s %d\n",
-			  event_name, be32_to_cpu(*((int *)event_data)));
+			  event_name, be32_to_cpu(*((__be32 *)event_data)));
 		break;
 
 	default:
@@ -498,14 +498,15 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 
 		/* put it back to BRCMF_E_NDIS_LINK */
 		if (type == BRCMF_E_NDIS_LINK) {
-			u32 temp;
+			u32 temp1;
+			__be32 temp2;
 
-			temp = get_unaligned_be32(&event->event_type);
+			temp1 = get_unaligned_be32(&event->event_type);
 			brcmf_dbg(TRACE, "Converted to WLC_E_LINK type %d\n",
-				  temp);
+				  temp1);
 
-			temp = be32_to_cpu(BRCMF_E_NDIS_LINK);
-			memcpy((void *)(&pvt_data->msg.event_type), &temp,
+			temp2 = cpu_to_be32(BRCMF_E_NDIS_LINK);
+			memcpy((void *)(&pvt_data->msg.event_type), &temp2,
 			       sizeof(pvt_data->msg.event_type));
 		}
 		break;
