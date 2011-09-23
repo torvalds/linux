@@ -382,6 +382,9 @@ static void sdc_disable_channel(struct mx3fb_info *mx3_fbi)
 	uint32_t enabled;
 	unsigned long flags;
 
+	if (mx3_fbi->txd == NULL)
+		return;
+
 	spin_lock_irqsave(&mx3fb->lock, flags);
 
 	enabled = sdc_fb_uninit(mx3_fbi);
@@ -986,8 +989,18 @@ static void __blank(int blank, struct fb_info *fbi)
 {
 	struct mx3fb_info *mx3_fbi = fbi->par;
 	struct mx3fb_data *mx3fb = mx3_fbi->mx3fb;
+	int was_blank = mx3_fbi->blank;
 
 	mx3_fbi->blank = blank;
+
+	/* Attention!
+	 * Do not call sdc_disable_channel() for a channel that is disabled
+	 * already! This will result in a kernel NULL pointer dereference
+	 * (mx3_fbi->txd is NULL). Hide the fact, that all blank modes are
+	 * handled equally by this driver.
+	 */
+	if (blank > FB_BLANK_UNBLANK && was_blank > FB_BLANK_UNBLANK)
+		return;
 
 	switch (blank) {
 	case FB_BLANK_POWERDOWN:
