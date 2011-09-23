@@ -1311,18 +1311,20 @@ void evergreen_mc_program(struct radeon_device *rdev)
  */
 void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
+	struct radeon_cp *cp = &rdev->cp;
+
 	/* set to DX10/11 mode */
-	radeon_ring_write(rdev, PACKET3(PACKET3_MODE_CONTROL, 0));
-	radeon_ring_write(rdev, 1);
+	radeon_ring_write(cp, PACKET3(PACKET3_MODE_CONTROL, 0));
+	radeon_ring_write(cp, 1);
 	/* FIXME: implement */
-	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	radeon_ring_write(rdev,
+	radeon_ring_write(cp, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	radeon_ring_write(cp,
 #ifdef __BIG_ENDIAN
 			  (2 << 0) |
 #endif
 			  (ib->gpu_addr & 0xFFFFFFFC));
-	radeon_ring_write(rdev, upper_32_bits(ib->gpu_addr) & 0xFF);
-	radeon_ring_write(rdev, ib->length_dw);
+	radeon_ring_write(cp, upper_32_bits(ib->gpu_addr) & 0xFF);
+	radeon_ring_write(cp, ib->length_dw);
 }
 
 
@@ -1360,71 +1362,73 @@ static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 
 static int evergreen_cp_start(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	int r, i;
 	uint32_t cp_me;
 
-	r = radeon_ring_lock(rdev, 7);
+	r = radeon_ring_lock(rdev, cp, 7);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		return r;
 	}
-	radeon_ring_write(rdev, PACKET3(PACKET3_ME_INITIALIZE, 5));
-	radeon_ring_write(rdev, 0x1);
-	radeon_ring_write(rdev, 0x0);
-	radeon_ring_write(rdev, rdev->config.evergreen.max_hw_contexts - 1);
-	radeon_ring_write(rdev, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, 0);
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_write(cp, PACKET3(PACKET3_ME_INITIALIZE, 5));
+	radeon_ring_write(cp, 0x1);
+	radeon_ring_write(cp, 0x0);
+	radeon_ring_write(cp, rdev->config.evergreen.max_hw_contexts - 1);
+	radeon_ring_write(cp, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
+	radeon_ring_write(cp, 0);
+	radeon_ring_write(cp, 0);
+	radeon_ring_unlock_commit(rdev, cp);
 
 	cp_me = 0xff;
 	WREG32(CP_ME_CNTL, cp_me);
 
-	r = radeon_ring_lock(rdev, evergreen_default_size + 19);
+	r = radeon_ring_lock(rdev, cp, evergreen_default_size + 19);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		return r;
 	}
 
 	/* setup clear context state */
-	radeon_ring_write(rdev, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
-	radeon_ring_write(rdev, PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
+	radeon_ring_write(cp, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	radeon_ring_write(cp, PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
 
 	for (i = 0; i < evergreen_default_size; i++)
-		radeon_ring_write(rdev, evergreen_default_state[i]);
+		radeon_ring_write(cp, evergreen_default_state[i]);
 
-	radeon_ring_write(rdev, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
-	radeon_ring_write(rdev, PACKET3_PREAMBLE_END_CLEAR_STATE);
+	radeon_ring_write(cp, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	radeon_ring_write(cp, PACKET3_PREAMBLE_END_CLEAR_STATE);
 
 	/* set clear context state */
-	radeon_ring_write(rdev, PACKET3(PACKET3_CLEAR_STATE, 0));
-	radeon_ring_write(rdev, 0);
+	radeon_ring_write(cp, PACKET3(PACKET3_CLEAR_STATE, 0));
+	radeon_ring_write(cp, 0);
 
 	/* SQ_VTX_BASE_VTX_LOC */
-	radeon_ring_write(rdev, 0xc0026f00);
-	radeon_ring_write(rdev, 0x00000000);
-	radeon_ring_write(rdev, 0x00000000);
-	radeon_ring_write(rdev, 0x00000000);
+	radeon_ring_write(cp, 0xc0026f00);
+	radeon_ring_write(cp, 0x00000000);
+	radeon_ring_write(cp, 0x00000000);
+	radeon_ring_write(cp, 0x00000000);
 
 	/* Clear consts */
-	radeon_ring_write(rdev, 0xc0036f00);
-	radeon_ring_write(rdev, 0x00000bc4);
-	radeon_ring_write(rdev, 0xffffffff);
-	radeon_ring_write(rdev, 0xffffffff);
-	radeon_ring_write(rdev, 0xffffffff);
+	radeon_ring_write(cp, 0xc0036f00);
+	radeon_ring_write(cp, 0x00000bc4);
+	radeon_ring_write(cp, 0xffffffff);
+	radeon_ring_write(cp, 0xffffffff);
+	radeon_ring_write(cp, 0xffffffff);
 
-	radeon_ring_write(rdev, 0xc0026900);
-	radeon_ring_write(rdev, 0x00000316);
-	radeon_ring_write(rdev, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
-	radeon_ring_write(rdev, 0x00000010); /*  */
+	radeon_ring_write(cp, 0xc0026900);
+	radeon_ring_write(cp, 0x00000316);
+	radeon_ring_write(cp, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
+	radeon_ring_write(cp, 0x00000010); /*  */
 
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_unlock_commit(rdev, cp);
 
 	return 0;
 }
 
 int evergreen_cp_resume(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	u32 tmp;
 	u32 rb_bufsz;
 	int r;
@@ -1442,7 +1446,7 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 	RREG32(GRBM_SOFT_RESET);
 
 	/* Set ring buffer size */
-	rb_bufsz = drm_order(rdev->cp.ring_size / 8);
+	rb_bufsz = drm_order(cp->ring_size / 8);
 	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
@@ -1456,8 +1460,8 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(CP_RB_CNTL, tmp | RB_RPTR_WR_ENA);
 	WREG32(CP_RB_RPTR_WR, 0);
-	rdev->cp.wptr = 0;
-	WREG32(CP_RB_WPTR, rdev->cp.wptr);
+	cp->wptr = 0;
+	WREG32(CP_RB_WPTR, cp->wptr);
 
 	/* set the wb address wether it's enabled or not */
 	WREG32(CP_RB_RPTR_ADDR,
@@ -1475,16 +1479,16 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 	mdelay(1);
 	WREG32(CP_RB_CNTL, tmp);
 
-	WREG32(CP_RB_BASE, rdev->cp.gpu_addr >> 8);
+	WREG32(CP_RB_BASE, cp->gpu_addr >> 8);
 	WREG32(CP_DEBUG, (1 << 27) | (1 << 28));
 
-	rdev->cp.rptr = RREG32(CP_RB_RPTR);
+	cp->rptr = RREG32(CP_RB_RPTR);
 
 	evergreen_cp_start(rdev);
-	rdev->cp.ready = true;
-	r = radeon_ring_test(rdev);
+	cp->ready = true;
+	r = radeon_ring_test(rdev, cp);
 	if (r) {
-		rdev->cp.ready = false;
+		cp->ready = false;
 		return r;
 	}
 	return 0;
@@ -2353,7 +2357,7 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	return 0;
 }
 
-bool evergreen_gpu_is_lockup(struct radeon_device *rdev)
+bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	u32 srbm_status;
 	u32 grbm_status;
@@ -2366,19 +2370,19 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev)
 	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
 	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
 	if (!(grbm_status & GUI_ACTIVE)) {
-		r100_gpu_lockup_update(lockup, &rdev->cp);
+		r100_gpu_lockup_update(lockup, cp);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, 2);
+	r = radeon_ring_lock(rdev, cp, 2);
 	if (!r) {
 		/* PACKET2 NOP */
-		radeon_ring_write(rdev, 0x80000000);
-		radeon_ring_write(rdev, 0x80000000);
-		radeon_ring_unlock_commit(rdev);
+		radeon_ring_write(cp, 0x80000000);
+		radeon_ring_write(cp, 0x80000000);
+		radeon_ring_unlock_commit(rdev, cp);
 	}
-	rdev->cp.rptr = RREG32(CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, lockup, &rdev->cp);
+	cp->rptr = RREG32(CP_RB_RPTR);
+	return r100_gpu_cp_is_lockup(rdev, lockup, cp);
 }
 
 static int evergreen_gpu_soft_reset(struct radeon_device *rdev)
@@ -3052,6 +3056,7 @@ restart_ih:
 
 static int evergreen_startup(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	int r;
 
 	/* enable pcie gen2 link */
@@ -3115,7 +3120,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	}
 	evergreen_irq_set(rdev);
 
-	r = radeon_ring_init(rdev, rdev->cp.ring_size);
+	r = radeon_ring_init(rdev, cp, cp->ring_size);
 	if (r)
 		return r;
 	r = evergreen_cp_load_microcode(rdev);
@@ -3150,7 +3155,7 @@ int evergreen_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_ib_test(rdev);
+	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		return r;
@@ -3162,9 +3167,11 @@ int evergreen_resume(struct radeon_device *rdev)
 
 int evergreen_suspend(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
+
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
-	rdev->cp.ready = false;
+	cp->ready = false;
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	evergreen_pcie_gart_disable(rdev);
@@ -3244,7 +3251,7 @@ int evergreen_init(struct radeon_device *rdev)
 		return r;
 
 	rdev->cp.ring_obj = NULL;
-	r600_ring_init(rdev, 1024 * 1024);
+	r600_ring_init(rdev, &rdev->cp, 1024 * 1024);
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
@@ -3270,7 +3277,7 @@ int evergreen_init(struct radeon_device *rdev)
 			DRM_ERROR("radeon: failed initializing IB pool (%d).\n", r);
 			rdev->accel_working = false;
 		}
-		r = r600_ib_test(rdev);
+		r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
 		if (r) {
 			DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 			rdev->accel_working = false;

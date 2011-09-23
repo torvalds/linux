@@ -357,7 +357,7 @@ static int rv770_cp_load_microcode(struct radeon_device *rdev)
 void r700_cp_fini(struct radeon_device *rdev)
 {
 	r700_cp_stop(rdev);
-	radeon_ring_fini(rdev);
+	radeon_ring_fini(rdev, &rdev->cp);
 }
 
 /*
@@ -1043,6 +1043,7 @@ int rv770_mc_init(struct radeon_device *rdev)
 
 static int rv770_startup(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	int r;
 
 	/* enable pcie gen2 link */
@@ -1091,7 +1092,7 @@ static int rv770_startup(struct radeon_device *rdev)
 	}
 	r600_irq_set(rdev);
 
-	r = radeon_ring_init(rdev, rdev->cp.ring_size);
+	r = radeon_ring_init(rdev, cp, cp->ring_size);
 	if (r)
 		return r;
 	r = rv770_cp_load_microcode(rdev);
@@ -1121,7 +1122,7 @@ int rv770_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_ib_test(rdev);
+	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		return r;
@@ -1216,7 +1217,7 @@ int rv770_init(struct radeon_device *rdev)
 		return r;
 
 	rdev->cp.ring_obj = NULL;
-	r600_ring_init(rdev, 1024 * 1024);
+	r600_ring_init(rdev, &rdev->cp, 1024 * 1024);
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
@@ -1242,7 +1243,7 @@ int rv770_init(struct radeon_device *rdev)
 			dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 			rdev->accel_working = false;
 		} else {
-			r = r600_ib_test(rdev);
+			r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			if (r) {
 				dev_err(rdev->dev, "IB test failed (%d).\n", r);
 				rdev->accel_working = false;

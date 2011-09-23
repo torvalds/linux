@@ -1344,7 +1344,7 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 	return 0;
 }
 
-bool r600_gpu_is_lockup(struct radeon_device *rdev)
+bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	u32 srbm_status;
 	u32 grbm_status;
@@ -1361,19 +1361,19 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev)
 	grbm_status = RREG32(R_008010_GRBM_STATUS);
 	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
 	if (!G_008010_GUI_ACTIVE(grbm_status)) {
-		r100_gpu_lockup_update(lockup, &rdev->cp);
+		r100_gpu_lockup_update(lockup, cp);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, 2);
+	r = radeon_ring_lock(rdev, cp, 2);
 	if (!r) {
 		/* PACKET2 NOP */
-		radeon_ring_write(rdev, 0x80000000);
-		radeon_ring_write(rdev, 0x80000000);
-		radeon_ring_unlock_commit(rdev);
+		radeon_ring_write(cp, 0x80000000);
+		radeon_ring_write(cp, 0x80000000);
+		radeon_ring_unlock_commit(rdev, cp);
 	}
-	rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, lockup, &rdev->cp);
+	cp->rptr = RREG32(R600_CP_RB_RPTR);
+	return r100_gpu_cp_is_lockup(rdev, lockup, cp);
 }
 
 int r600_asic_reset(struct radeon_device *rdev)
@@ -2144,27 +2144,28 @@ static int r600_cp_load_microcode(struct radeon_device *rdev)
 
 int r600_cp_start(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	int r;
 	uint32_t cp_me;
 
-	r = radeon_ring_lock(rdev, 7);
+	r = radeon_ring_lock(rdev, cp, 7);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		return r;
 	}
-	radeon_ring_write(rdev, PACKET3(PACKET3_ME_INITIALIZE, 5));
-	radeon_ring_write(rdev, 0x1);
+	radeon_ring_write(cp, PACKET3(PACKET3_ME_INITIALIZE, 5));
+	radeon_ring_write(cp, 0x1);
 	if (rdev->family >= CHIP_RV770) {
-		radeon_ring_write(rdev, 0x0);
-		radeon_ring_write(rdev, rdev->config.rv770.max_hw_contexts - 1);
+		radeon_ring_write(cp, 0x0);
+		radeon_ring_write(cp, rdev->config.rv770.max_hw_contexts - 1);
 	} else {
-		radeon_ring_write(rdev, 0x3);
-		radeon_ring_write(rdev, rdev->config.r600.max_hw_contexts - 1);
+		radeon_ring_write(cp, 0x3);
+		radeon_ring_write(cp, rdev->config.r600.max_hw_contexts - 1);
 	}
-	radeon_ring_write(rdev, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, 0);
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_write(cp, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
+	radeon_ring_write(cp, 0);
+	radeon_ring_write(cp, 0);
+	radeon_ring_unlock_commit(rdev, cp);
 
 	cp_me = 0xff;
 	WREG32(R_0086D8_CP_ME_CNTL, cp_me);
@@ -2173,6 +2174,7 @@ int r600_cp_start(struct radeon_device *rdev)
 
 int r600_cp_resume(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	u32 tmp;
 	u32 rb_bufsz;
 	int r;
@@ -2184,7 +2186,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 	WREG32(GRBM_SOFT_RESET, 0);
 
 	/* Set ring buffer size */
-	rb_bufsz = drm_order(rdev->cp.ring_size / 8);
+	rb_bufsz = drm_order(cp->ring_size / 8);
 	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
@@ -2198,8 +2200,8 @@ int r600_cp_resume(struct radeon_device *rdev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(CP_RB_CNTL, tmp | RB_RPTR_WR_ENA);
 	WREG32(CP_RB_RPTR_WR, 0);
-	rdev->cp.wptr = 0;
-	WREG32(CP_RB_WPTR, rdev->cp.wptr);
+	cp->wptr = 0;
+	WREG32(CP_RB_WPTR, cp->wptr);
 
 	/* set the wb address whether it's enabled or not */
 	WREG32(CP_RB_RPTR_ADDR,
@@ -2217,42 +2219,42 @@ int r600_cp_resume(struct radeon_device *rdev)
 	mdelay(1);
 	WREG32(CP_RB_CNTL, tmp);
 
-	WREG32(CP_RB_BASE, rdev->cp.gpu_addr >> 8);
+	WREG32(CP_RB_BASE, cp->gpu_addr >> 8);
 	WREG32(CP_DEBUG, (1 << 27) | (1 << 28));
 
-	rdev->cp.rptr = RREG32(CP_RB_RPTR);
+	cp->rptr = RREG32(CP_RB_RPTR);
 
 	r600_cp_start(rdev);
-	rdev->cp.ready = true;
-	r = radeon_ring_test(rdev);
+	cp->ready = true;
+	r = radeon_ring_test(rdev, cp);
 	if (r) {
-		rdev->cp.ready = false;
+		cp->ready = false;
 		return r;
 	}
 	return 0;
 }
 
-void r600_cp_commit(struct radeon_device *rdev)
+void r600_cp_commit(struct radeon_device *rdev, struct radeon_cp *cp)
 {
-	WREG32(CP_RB_WPTR, rdev->cp.wptr);
+	WREG32(CP_RB_WPTR, cp->wptr);
 	(void)RREG32(CP_RB_WPTR);
 }
 
-void r600_ring_init(struct radeon_device *rdev, unsigned ring_size)
+void r600_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size)
 {
 	u32 rb_bufsz;
 
 	/* Align ring size */
 	rb_bufsz = drm_order(ring_size / 8);
 	ring_size = (1 << (rb_bufsz + 1)) * 4;
-	rdev->cp.ring_size = ring_size;
-	rdev->cp.align_mask = 16 - 1;
+	cp->ring_size = ring_size;
+	cp->align_mask = 16 - 1;
 }
 
 void r600_cp_fini(struct radeon_device *rdev)
 {
 	r600_cp_stop(rdev);
-	radeon_ring_fini(rdev);
+	radeon_ring_fini(rdev, &rdev->cp);
 }
 
 
@@ -2271,7 +2273,7 @@ void r600_scratch_init(struct radeon_device *rdev)
 	}
 }
 
-int r600_ring_test(struct radeon_device *rdev)
+int r600_ring_test(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	uint32_t scratch;
 	uint32_t tmp = 0;
@@ -2284,16 +2286,16 @@ int r600_ring_test(struct radeon_device *rdev)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ring_lock(rdev, 3);
+	r = radeon_ring_lock(rdev, cp, 3);
 	if (r) {
-		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		DRM_ERROR("radeon: cp failed to lock ring %p (%d).\n", cp, r);
 		radeon_scratch_free(rdev, scratch);
 		return r;
 	}
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(rdev, ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
-	radeon_ring_write(rdev, 0xDEADBEEF);
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_write(cp, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	radeon_ring_write(cp, ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
+	radeon_ring_write(cp, 0xDEADBEEF);
+	radeon_ring_unlock_commit(rdev, cp);
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
@@ -2301,10 +2303,10 @@ int r600_ring_test(struct radeon_device *rdev)
 		DRM_UDELAY(1);
 	}
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ring test succeeded in %d usecs\n", i);
+		DRM_INFO("ring test on %p succeeded in %d usecs\n", cp, i);
 	} else {
-		DRM_ERROR("radeon: ring test failed (scratch(0x%04X)=0x%08X)\n",
-			  scratch, tmp);
+		DRM_ERROR("radeon: ring %p test failed (scratch(0x%04X)=0x%08X)\n",
+			  cp, scratch, tmp);
 		r = -EINVAL;
 	}
 	radeon_scratch_free(rdev, scratch);
@@ -2314,59 +2316,62 @@ int r600_ring_test(struct radeon_device *rdev)
 void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
+	struct radeon_cp *cp = &rdev->cp;
+
 	if (rdev->wb.use_event) {
 		u64 addr = rdev->wb.gpu_addr + R600_WB_EVENT_OFFSET +
 			(u64)(rdev->fence_drv[fence->ring].scratch_reg - rdev->scratch.reg_base);
 		/* flush read cache over gart */
-		radeon_ring_write(rdev, PACKET3(PACKET3_SURFACE_SYNC, 3));
-		radeon_ring_write(rdev, PACKET3_TC_ACTION_ENA |
-					PACKET3_VC_ACTION_ENA |
-					PACKET3_SH_ACTION_ENA);
-		radeon_ring_write(rdev, 0xFFFFFFFF);
-		radeon_ring_write(rdev, 0);
-		radeon_ring_write(rdev, 10); /* poll interval */
+		radeon_ring_write(cp, PACKET3(PACKET3_SURFACE_SYNC, 3));
+		radeon_ring_write(cp, PACKET3_TC_ACTION_ENA |
+				      PACKET3_VC_ACTION_ENA |
+				      PACKET3_SH_ACTION_ENA);
+		radeon_ring_write(cp, 0xFFFFFFFF);
+		radeon_ring_write(cp, 0);
+		radeon_ring_write(cp, 10); /* poll interval */
 		/* EVENT_WRITE_EOP - flush caches, send int */
-		radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
-		radeon_ring_write(rdev, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT_TS) | EVENT_INDEX(5));
-		radeon_ring_write(rdev, addr & 0xffffffff);
-		radeon_ring_write(rdev, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
-		radeon_ring_write(rdev, fence->seq);
-		radeon_ring_write(rdev, 0);
+		radeon_ring_write(cp, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
+		radeon_ring_write(cp, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT_TS) | EVENT_INDEX(5));
+		radeon_ring_write(cp, addr & 0xffffffff);
+		radeon_ring_write(cp, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
+		radeon_ring_write(cp, fence->seq);
+		radeon_ring_write(cp, 0);
 	} else {
 		/* flush read cache over gart */
-		radeon_ring_write(rdev, PACKET3(PACKET3_SURFACE_SYNC, 3));
-		radeon_ring_write(rdev, PACKET3_TC_ACTION_ENA |
-					PACKET3_VC_ACTION_ENA |
-					PACKET3_SH_ACTION_ENA);
-		radeon_ring_write(rdev, 0xFFFFFFFF);
-		radeon_ring_write(rdev, 0);
-		radeon_ring_write(rdev, 10); /* poll interval */
-		radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
-		radeon_ring_write(rdev, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT) | EVENT_INDEX(0));
+		radeon_ring_write(cp, PACKET3(PACKET3_SURFACE_SYNC, 3));
+		radeon_ring_write(cp, PACKET3_TC_ACTION_ENA |
+				      PACKET3_VC_ACTION_ENA |
+				      PACKET3_SH_ACTION_ENA);
+		radeon_ring_write(cp, 0xFFFFFFFF);
+		radeon_ring_write(cp, 0);
+		radeon_ring_write(cp, 10); /* poll interval */
+		radeon_ring_write(cp, PACKET3(PACKET3_EVENT_WRITE, 0));
+		radeon_ring_write(cp, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT) | EVENT_INDEX(0));
 		/* wait for 3D idle clean */
-		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-		radeon_ring_write(rdev, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
-		radeon_ring_write(rdev, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
+		radeon_ring_write(cp, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(cp, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+		radeon_ring_write(cp, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
 		/* Emit fence sequence & fire IRQ */
-		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-		radeon_ring_write(rdev, ((rdev->fence_drv[fence->ring].scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
-		radeon_ring_write(rdev, fence->seq);
+		radeon_ring_write(cp, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(cp, ((rdev->fence_drv[fence->ring].scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
+		radeon_ring_write(cp, fence->seq);
 		/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
-		radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
-		radeon_ring_write(rdev, RB_INT_STAT);
+		radeon_ring_write(cp, PACKET0(CP_INT_STATUS, 0));
+		radeon_ring_write(cp, RB_INT_STAT);
 	}
 }
 
 void r600_semaphore_ring_emit(struct radeon_device *rdev,
+			      struct radeon_cp *cp,
 			      struct radeon_semaphore *semaphore,
-			      unsigned ring, bool emit_wait)
+			      bool emit_wait)
 {
 	uint64_t addr = semaphore->gpu_addr;
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
-	radeon_ring_write(rdev, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
-	radeon_ring_write(rdev, addr & 0xffffffff);
-	radeon_ring_write(rdev, (upper_32_bits(addr) & 0xff) | sel);
+	radeon_ring_write(cp, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
+	radeon_ring_write(cp, addr & 0xffffffff);
+	radeon_ring_write(cp, (upper_32_bits(addr) & 0xff) | sel);
 }
 
 int r600_copy_blit(struct radeon_device *rdev,
@@ -2421,6 +2426,7 @@ void r600_clear_surface_reg(struct radeon_device *rdev, int reg)
 
 int r600_startup(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	int r;
 
 	/* enable pcie gen2 link */
@@ -2468,7 +2474,7 @@ int r600_startup(struct radeon_device *rdev)
 	}
 	r600_irq_set(rdev);
 
-	r = radeon_ring_init(rdev, rdev->cp.ring_size);
+	r = radeon_ring_init(rdev, cp, cp->ring_size);
 	if (r)
 		return r;
 	r = r600_cp_load_microcode(rdev);
@@ -2512,7 +2518,7 @@ int r600_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_ib_test(rdev);
+	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		return r;
@@ -2608,7 +2614,7 @@ int r600_init(struct radeon_device *rdev)
 		return r;
 
 	rdev->cp.ring_obj = NULL;
-	r600_ring_init(rdev, 1024 * 1024);
+	r600_ring_init(rdev, &rdev->cp, 1024 * 1024);
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
@@ -2634,7 +2640,7 @@ int r600_init(struct radeon_device *rdev)
 			dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 			rdev->accel_working = false;
 		} else {
-			r = r600_ib_test(rdev);
+			r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			if (r) {
 				dev_err(rdev->dev, "IB test failed (%d).\n", r);
 				rdev->accel_working = false;
@@ -2675,18 +2681,20 @@ void r600_fini(struct radeon_device *rdev)
  */
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
+	struct radeon_cp *cp = &rdev->cp;
+
 	/* FIXME: implement */
-	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	radeon_ring_write(rdev,
+	radeon_ring_write(cp, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	radeon_ring_write(cp,
 #ifdef __BIG_ENDIAN
 			  (2 << 0) |
 #endif
 			  (ib->gpu_addr & 0xFFFFFFFC));
-	radeon_ring_write(rdev, upper_32_bits(ib->gpu_addr) & 0xFF);
-	radeon_ring_write(rdev, ib->length_dw);
+	radeon_ring_write(cp, upper_32_bits(ib->gpu_addr) & 0xFF);
+	radeon_ring_write(cp, ib->length_dw);
 }
 
-int r600_ib_test(struct radeon_device *rdev)
+int r600_ib_test(struct radeon_device *rdev, int ring)
 {
 	struct radeon_ib *ib;
 	uint32_t scratch;
@@ -2700,7 +2708,7 @@ int r600_ib_test(struct radeon_device *rdev)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, &ib);
+	r = radeon_ib_get(rdev, ring, &ib);
 	if (r) {
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
 		return r;
@@ -2741,7 +2749,7 @@ int r600_ib_test(struct radeon_device *rdev)
 		DRM_UDELAY(1);
 	}
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ib test succeeded in %u usecs\n", i);
+		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib->fence->ring, i);
 	} else {
 		DRM_ERROR("radeon: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
@@ -3514,21 +3522,22 @@ static int r600_debugfs_cp_ring_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_cp *cp = &rdev->cp;
 	unsigned count, i, j;
 
-	radeon_ring_free_size(rdev);
-	count = (rdev->cp.ring_size / 4) - rdev->cp.ring_free_dw;
+	radeon_ring_free_size(rdev, cp);
+	count = (cp->ring_size / 4) - cp->ring_free_dw;
 	seq_printf(m, "CP_STAT 0x%08x\n", RREG32(CP_STAT));
 	seq_printf(m, "CP_RB_WPTR 0x%08x\n", RREG32(CP_RB_WPTR));
 	seq_printf(m, "CP_RB_RPTR 0x%08x\n", RREG32(CP_RB_RPTR));
-	seq_printf(m, "driver's copy of the CP_RB_WPTR 0x%08x\n", rdev->cp.wptr);
-	seq_printf(m, "driver's copy of the CP_RB_RPTR 0x%08x\n", rdev->cp.rptr);
-	seq_printf(m, "%u free dwords in ring\n", rdev->cp.ring_free_dw);
+	seq_printf(m, "driver's copy of the CP_RB_WPTR 0x%08x\n", cp->wptr);
+	seq_printf(m, "driver's copy of the CP_RB_RPTR 0x%08x\n", cp->rptr);
+	seq_printf(m, "%u free dwords in ring\n", cp->ring_free_dw);
 	seq_printf(m, "%u dwords in ring\n", count);
-	i = rdev->cp.rptr;
+	i = cp->rptr;
 	for (j = 0; j <= count; j++) {
-		seq_printf(m, "r[%04d]=0x%08x\n", i, rdev->cp.ring[i]);
-		i = (i + 1) & rdev->cp.ptr_mask;
+		seq_printf(m, "r[%04d]=0x%08x\n", i, cp->ring[i]);
+		i = (i + 1) & cp->ptr_mask;
 	}
 	return 0;
 }

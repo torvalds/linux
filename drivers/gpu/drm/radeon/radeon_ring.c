@@ -60,17 +60,17 @@ u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
 	return idx_value;
 }
 
-void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
+void radeon_ring_write(struct radeon_cp *cp, uint32_t v)
 {
 #if DRM_DEBUG_CODE
-	if (rdev->cp.count_dw <= 0) {
+	if (cp->count_dw <= 0) {
 		DRM_ERROR("radeon: writting more dword to ring than expected !\n");
 	}
 #endif
-	rdev->cp.ring[rdev->cp.wptr++] = v;
-	rdev->cp.wptr &= rdev->cp.ptr_mask;
-	rdev->cp.count_dw--;
-	rdev->cp.ring_free_dw--;
+	cp->ring[cp->wptr++] = v;
+	cp->wptr &= cp->ptr_mask;
+	cp->count_dw--;
+	cp->ring_free_dw--;
 }
 
 void radeon_ib_bogus_cleanup(struct radeon_device *rdev)
@@ -106,14 +106,14 @@ void radeon_ib_bogus_add(struct radeon_device *rdev, struct radeon_ib *ib)
 /*
  * IB.
  */
-int radeon_ib_get(struct radeon_device *rdev, struct radeon_ib **ib)
+int radeon_ib_get(struct radeon_device *rdev, int ring, struct radeon_ib **ib)
 {
 	struct radeon_fence *fence;
 	struct radeon_ib *nib;
 	int r = 0, i, c;
 
 	*ib = NULL;
-	r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_fence_create(rdev, &fence, ring);
 	if (r) {
 		dev_err(rdev->dev, "failed to create fence for new IB\n");
 		return r;
@@ -178,16 +178,17 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	int r = 0;
 
-	if (!ib->length_dw || !rdev->cp.ready) {
+	if (!ib->length_dw || !cp->ready) {
 		/* TODO: Nothings in the ib we should report. */
 		DRM_ERROR("radeon: couldn't schedule IB(%u).\n", ib->idx);
 		return -EINVAL;
 	}
 
 	/* 64 dwords should be enough for fence too */
-	r = radeon_ring_lock(rdev, 64);
+	r = radeon_ring_lock(rdev, cp, 64);
 	if (r) {
 		DRM_ERROR("radeon: scheduling IB failed (%d).\n", r);
 		return r;
@@ -198,7 +199,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 	/* once scheduled IB is considered free and protected by the fence */
 	ib->free = true;
 	mutex_unlock(&rdev->ib_pool.mutex);
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_unlock_commit(rdev, cp);
 	return 0;
 }
 
@@ -283,7 +284,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 /*
  * Ring.
  */
-void radeon_ring_free_size(struct radeon_device *rdev)
+void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	if (rdev->wb.enabled)
 		rdev->cp.rptr = le32_to_cpu(rdev->wb.wb[RADEON_WB_CP_RPTR_OFFSET/4]);
@@ -294,122 +295,123 @@ void radeon_ring_free_size(struct radeon_device *rdev)
 			rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
 	}
 	/* This works because ring_size is a power of 2 */
-	rdev->cp.ring_free_dw = (rdev->cp.rptr + (rdev->cp.ring_size / 4));
-	rdev->cp.ring_free_dw -= rdev->cp.wptr;
-	rdev->cp.ring_free_dw &= rdev->cp.ptr_mask;
-	if (!rdev->cp.ring_free_dw) {
-		rdev->cp.ring_free_dw = rdev->cp.ring_size / 4;
+	cp->ring_free_dw = (cp->rptr + (cp->ring_size / 4));
+	cp->ring_free_dw -= cp->wptr;
+	cp->ring_free_dw &= cp->ptr_mask;
+	if (!cp->ring_free_dw) {
+		cp->ring_free_dw = cp->ring_size / 4;
 	}
 }
 
-int radeon_ring_alloc(struct radeon_device *rdev, unsigned ndw)
+
+int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ndw)
 {
 	int r;
 
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
-	ndw = (ndw + rdev->cp.align_mask) & ~rdev->cp.align_mask;
-	while (ndw > (rdev->cp.ring_free_dw - 1)) {
-		radeon_ring_free_size(rdev);
-		if (ndw < rdev->cp.ring_free_dw) {
+	ndw = (ndw + cp->align_mask) & ~cp->align_mask;
+	while (ndw > (cp->ring_free_dw - 1)) {
+		radeon_ring_free_size(rdev, cp);
+		if (ndw < cp->ring_free_dw) {
 			break;
 		}
 		r = radeon_fence_wait_next(rdev, RADEON_RING_TYPE_GFX_INDEX);
 		if (r)
 			return r;
 	}
-	rdev->cp.count_dw = ndw;
-	rdev->cp.wptr_old = rdev->cp.wptr;
+	cp->count_dw = ndw;
+	cp->wptr_old = cp->wptr;
 	return 0;
 }
 
-int radeon_ring_lock(struct radeon_device *rdev, unsigned ndw)
+int radeon_ring_lock(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ndw)
 {
 	int r;
 
-	mutex_lock(&rdev->cp.mutex);
-	r = radeon_ring_alloc(rdev, ndw);
+	mutex_lock(&cp->mutex);
+	r = radeon_ring_alloc(rdev, cp, ndw);
 	if (r) {
-		mutex_unlock(&rdev->cp.mutex);
+		mutex_unlock(&cp->mutex);
 		return r;
 	}
 	return 0;
 }
 
-void radeon_ring_commit(struct radeon_device *rdev)
+void radeon_ring_commit(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	unsigned count_dw_pad;
 	unsigned i;
 
 	/* We pad to match fetch size */
-	count_dw_pad = (rdev->cp.align_mask + 1) -
-		       (rdev->cp.wptr & rdev->cp.align_mask);
+	count_dw_pad = (cp->align_mask + 1) -
+		       (cp->wptr & cp->align_mask);
 	for (i = 0; i < count_dw_pad; i++) {
-		radeon_ring_write(rdev, 2 << 30);
+		radeon_ring_write(cp, 2 << 30);
 	}
 	DRM_MEMORYBARRIER();
-	radeon_cp_commit(rdev);
+	radeon_cp_commit(rdev, cp);
 }
 
-void radeon_ring_unlock_commit(struct radeon_device *rdev)
+void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_cp *cp)
 {
-	radeon_ring_commit(rdev);
-	mutex_unlock(&rdev->cp.mutex);
+	radeon_ring_commit(rdev, cp);
+	mutex_unlock(&cp->mutex);
 }
 
-void radeon_ring_unlock_undo(struct radeon_device *rdev)
+void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_cp *cp)
 {
-	rdev->cp.wptr = rdev->cp.wptr_old;
-	mutex_unlock(&rdev->cp.mutex);
+	cp->wptr = cp->wptr_old;
+	mutex_unlock(&cp->mutex);
 }
 
-int radeon_ring_init(struct radeon_device *rdev, unsigned ring_size)
+int radeon_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size)
 {
 	int r;
 
-	rdev->cp.ring_size = ring_size;
+	cp->ring_size = ring_size;
 	/* Allocate ring buffer */
-	if (rdev->cp.ring_obj == NULL) {
-		r = radeon_bo_create(rdev, rdev->cp.ring_size, PAGE_SIZE, true,
+	if (cp->ring_obj == NULL) {
+		r = radeon_bo_create(rdev, cp->ring_size, PAGE_SIZE, true,
 					RADEON_GEM_DOMAIN_GTT,
-					&rdev->cp.ring_obj);
+					&cp->ring_obj);
 		if (r) {
 			dev_err(rdev->dev, "(%d) ring create failed\n", r);
 			return r;
 		}
-		r = radeon_bo_reserve(rdev->cp.ring_obj, false);
+		r = radeon_bo_reserve(cp->ring_obj, false);
 		if (unlikely(r != 0))
 			return r;
-		r = radeon_bo_pin(rdev->cp.ring_obj, RADEON_GEM_DOMAIN_GTT,
-					&rdev->cp.gpu_addr);
+		r = radeon_bo_pin(cp->ring_obj, RADEON_GEM_DOMAIN_GTT,
+					&cp->gpu_addr);
 		if (r) {
-			radeon_bo_unreserve(rdev->cp.ring_obj);
+			radeon_bo_unreserve(cp->ring_obj);
 			dev_err(rdev->dev, "(%d) ring pin failed\n", r);
 			return r;
 		}
-		r = radeon_bo_kmap(rdev->cp.ring_obj,
-				       (void **)&rdev->cp.ring);
-		radeon_bo_unreserve(rdev->cp.ring_obj);
+		r = radeon_bo_kmap(cp->ring_obj,
+				       (void **)&cp->ring);
+		radeon_bo_unreserve(cp->ring_obj);
 		if (r) {
 			dev_err(rdev->dev, "(%d) ring map failed\n", r);
 			return r;
 		}
 	}
-	rdev->cp.ptr_mask = (rdev->cp.ring_size / 4) - 1;
-	rdev->cp.ring_free_dw = rdev->cp.ring_size / 4;
+	cp->ptr_mask = (cp->ring_size / 4) - 1;
+	cp->ring_free_dw = cp->ring_size / 4;
 	return 0;
 }
 
-void radeon_ring_fini(struct radeon_device *rdev)
+void radeon_ring_fini(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	int r;
 	struct radeon_bo *ring_obj;
 
-	mutex_lock(&rdev->cp.mutex);
-	ring_obj = rdev->cp.ring_obj;
-	rdev->cp.ring = NULL;
-	rdev->cp.ring_obj = NULL;
-	mutex_unlock(&rdev->cp.mutex);
+	mutex_lock(&cp->mutex);
+	ring_obj = cp->ring_obj;
+	cp->ring = NULL;
+	cp->ring_obj = NULL;
+	mutex_unlock(&cp->mutex);
 
 	if (ring_obj) {
 		r = radeon_bo_reserve(ring_obj, false);
@@ -421,7 +423,6 @@ void radeon_ring_fini(struct radeon_device *rdev)
 		radeon_bo_unref(&ring_obj);
 	}
 }
-
 
 /*
  * Debugfs info

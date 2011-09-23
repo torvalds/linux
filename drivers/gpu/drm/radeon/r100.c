@@ -811,30 +811,33 @@ u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc)
 void r100_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
+	struct radeon_cp *cp = &rdev->cp;
+
 	/* We have to make sure that caches are flushed before
 	 * CPU might read something from VRAM. */
-	radeon_ring_write(rdev, PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, RADEON_RB3D_DC_FLUSH_ALL);
-	radeon_ring_write(rdev, PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, RADEON_RB3D_ZC_FLUSH_ALL);
+	radeon_ring_write(cp, PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(cp, RADEON_RB3D_DC_FLUSH_ALL);
+	radeon_ring_write(cp, PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));
+	radeon_ring_write(cp, RADEON_RB3D_ZC_FLUSH_ALL);
 	/* Wait until IDLE & CLEAN */
-	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
-	radeon_ring_write(rdev, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
-	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
-	radeon_ring_write(rdev, rdev->config.r100.hdp_cntl |
+	radeon_ring_write(cp, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(cp, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
+	radeon_ring_write(cp, PACKET0(RADEON_HOST_PATH_CNTL, 0));
+	radeon_ring_write(cp, rdev->config.r100.hdp_cntl |
 				RADEON_HDP_READ_BUFFER_INVALIDATE);
-	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
-	radeon_ring_write(rdev, rdev->config.r100.hdp_cntl);
+	radeon_ring_write(cp, PACKET0(RADEON_HOST_PATH_CNTL, 0));
+	radeon_ring_write(cp, rdev->config.r100.hdp_cntl);
 	/* Emit fence sequence & fire IRQ */
-	radeon_ring_write(rdev, PACKET0(rdev->fence_drv[fence->ring].scratch_reg, 0));
-	radeon_ring_write(rdev, fence->seq);
-	radeon_ring_write(rdev, PACKET0(RADEON_GEN_INT_STATUS, 0));
-	radeon_ring_write(rdev, RADEON_SW_INT_FIRE);
+	radeon_ring_write(cp, PACKET0(rdev->fence_drv[fence->ring].scratch_reg, 0));
+	radeon_ring_write(cp, fence->seq);
+	radeon_ring_write(cp, PACKET0(RADEON_GEN_INT_STATUS, 0));
+	radeon_ring_write(cp, RADEON_SW_INT_FIRE);
 }
 
 void r100_semaphore_ring_emit(struct radeon_device *rdev,
+			      struct radeon_cp *cp,
 			      struct radeon_semaphore *semaphore,
-			      unsigned ring, bool emit_wait)
+			      bool emit_wait)
 {
 	/* Unused on older asics, since we don't have semaphores or multiple rings */
 	BUG();
@@ -846,6 +849,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 		   unsigned num_gpu_pages,
 		   struct radeon_fence *fence)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	uint32_t cur_pages;
 	uint32_t stride_bytes = RADEON_GPU_PAGE_SIZE;
 	uint32_t pitch;
@@ -863,7 +867,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 
 	/* Ask for enough room for blit + flush + fence */
 	ndw = 64 + (10 * num_loops);
-	r = radeon_ring_lock(rdev, ndw);
+	r = radeon_ring_lock(rdev, cp, ndw);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d) asking for %u dw.\n", r, ndw);
 		return -EINVAL;
@@ -877,8 +881,8 @@ int r100_copy_blit(struct radeon_device *rdev,
 
 		/* pages are in Y direction - height
 		   page width in X direction - width */
-		radeon_ring_write(rdev, PACKET3(PACKET3_BITBLT_MULTI, 8));
-		radeon_ring_write(rdev,
+		radeon_ring_write(cp, PACKET3(PACKET3_BITBLT_MULTI, 8));
+		radeon_ring_write(cp,
 				  RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
 				  RADEON_GMC_DST_PITCH_OFFSET_CNTL |
 				  RADEON_GMC_SRC_CLIPPING |
@@ -890,26 +894,26 @@ int r100_copy_blit(struct radeon_device *rdev,
 				  RADEON_DP_SRC_SOURCE_MEMORY |
 				  RADEON_GMC_CLR_CMP_CNTL_DIS |
 				  RADEON_GMC_WR_MSK_DIS);
-		radeon_ring_write(rdev, (pitch << 22) | (src_offset >> 10));
-		radeon_ring_write(rdev, (pitch << 22) | (dst_offset >> 10));
-		radeon_ring_write(rdev, (0x1fff) | (0x1fff << 16));
-		radeon_ring_write(rdev, 0);
-		radeon_ring_write(rdev, (0x1fff) | (0x1fff << 16));
-		radeon_ring_write(rdev, num_gpu_pages);
-		radeon_ring_write(rdev, num_gpu_pages);
-		radeon_ring_write(rdev, cur_pages | (stride_pixels << 16));
+		radeon_ring_write(cp, (pitch << 22) | (src_offset >> 10));
+		radeon_ring_write(cp, (pitch << 22) | (dst_offset >> 10));
+		radeon_ring_write(cp, (0x1fff) | (0x1fff << 16));
+		radeon_ring_write(cp, 0);
+		radeon_ring_write(cp, (0x1fff) | (0x1fff << 16));
+		radeon_ring_write(cp, num_gpu_pages);
+		radeon_ring_write(cp, num_gpu_pages);
+		radeon_ring_write(cp, cur_pages | (stride_pixels << 16));
 	}
-	radeon_ring_write(rdev, PACKET0(RADEON_DSTCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, RADEON_RB2D_DC_FLUSH_ALL);
-	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
-	radeon_ring_write(rdev,
+	radeon_ring_write(cp, PACKET0(RADEON_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(cp, RADEON_RB2D_DC_FLUSH_ALL);
+	radeon_ring_write(cp, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(cp,
 			  RADEON_WAIT_2D_IDLECLEAN |
 			  RADEON_WAIT_HOST_IDLECLEAN |
 			  RADEON_WAIT_DMA_GUI_IDLE);
 	if (fence) {
 		r = radeon_fence_emit(rdev, fence);
 	}
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_unlock_commit(rdev, cp);
 	return r;
 }
 
@@ -930,19 +934,20 @@ static int r100_cp_wait_for_idle(struct radeon_device *rdev)
 
 void r100_ring_start(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	int r;
 
-	r = radeon_ring_lock(rdev, 2);
+	r = radeon_ring_lock(rdev, cp, 2);
 	if (r) {
 		return;
 	}
-	radeon_ring_write(rdev, PACKET0(RADEON_ISYNC_CNTL, 0));
-	radeon_ring_write(rdev,
+	radeon_ring_write(cp, PACKET0(RADEON_ISYNC_CNTL, 0));
+	radeon_ring_write(cp,
 			  RADEON_ISYNC_ANY2D_IDLE3D |
 			  RADEON_ISYNC_ANY3D_IDLE2D |
 			  RADEON_ISYNC_WAIT_IDLEGUI |
 			  RADEON_ISYNC_CPSCRATCH_IDLEGUI);
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_unlock_commit(rdev, cp);
 }
 
 
@@ -1043,6 +1048,7 @@ static void r100_cp_load_microcode(struct radeon_device *rdev)
 
 int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	unsigned rb_bufsz;
 	unsigned rb_blksz;
 	unsigned max_fetch;
@@ -1068,7 +1074,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	rb_bufsz = drm_order(ring_size / 8);
 	ring_size = (1 << (rb_bufsz + 1)) * 4;
 	r100_cp_load_microcode(rdev);
-	r = radeon_ring_init(rdev, ring_size);
+	r = radeon_ring_init(rdev, cp, ring_size);
 	if (r) {
 		return r;
 	}
@@ -1077,7 +1083,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	rb_blksz = 9;
 	/* cp will read 128bytes at a time (4 dwords) */
 	max_fetch = 1;
-	rdev->cp.align_mask = 16 - 1;
+	cp->align_mask = 16 - 1;
 	/* Write to CP_RB_WPTR will be delayed for pre_write_timer clocks */
 	pre_write_timer = 64;
 	/* Force CP_RB_WPTR write if written more than one time before the
@@ -1107,13 +1113,13 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_NO_UPDATE);
 
 	/* Set ring address */
-	DRM_INFO("radeon: ring at 0x%016lX\n", (unsigned long)rdev->cp.gpu_addr);
-	WREG32(RADEON_CP_RB_BASE, rdev->cp.gpu_addr);
+	DRM_INFO("radeon: ring at 0x%016lX\n", (unsigned long)cp->gpu_addr);
+	WREG32(RADEON_CP_RB_BASE, cp->gpu_addr);
 	/* Force read & write ptr to 0 */
 	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_RPTR_WR_ENA | RADEON_RB_NO_UPDATE);
 	WREG32(RADEON_CP_RB_RPTR_WR, 0);
-	rdev->cp.wptr = 0;
-	WREG32(RADEON_CP_RB_WPTR, rdev->cp.wptr);
+	cp->wptr = 0;
+	WREG32(RADEON_CP_RB_WPTR, cp->wptr);
 
 	/* set the wb address whether it's enabled or not */
 	WREG32(R_00070C_CP_RB_RPTR_ADDR,
@@ -1129,7 +1135,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 
 	WREG32(RADEON_CP_RB_CNTL, tmp);
 	udelay(10);
-	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
+	cp->rptr = RREG32(RADEON_CP_RB_RPTR);
 	/* Set cp mode to bus mastering & enable cp*/
 	WREG32(RADEON_CP_CSQ_MODE,
 	       REG_SET(RADEON_INDIRECT2_START, indirect2_start) |
@@ -1138,12 +1144,12 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	WREG32(RADEON_CP_CSQ_MODE, 0x00004D4D);
 	WREG32(RADEON_CP_CSQ_CNTL, RADEON_CSQ_PRIBM_INDBM);
 	radeon_ring_start(rdev);
-	r = radeon_ring_test(rdev);
+	r = radeon_ring_test(rdev, cp);
 	if (r) {
 		DRM_ERROR("radeon: cp isn't working (%d).\n", r);
 		return r;
 	}
-	rdev->cp.ready = true;
+	cp->ready = true;
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 	return 0;
 }
@@ -1155,7 +1161,7 @@ void r100_cp_fini(struct radeon_device *rdev)
 	}
 	/* Disable ring */
 	r100_cp_disable(rdev);
-	radeon_ring_fini(rdev);
+	radeon_ring_fini(rdev, &rdev->cp);
 	DRM_INFO("radeon: cp finalized\n");
 }
 
@@ -1173,9 +1179,9 @@ void r100_cp_disable(struct radeon_device *rdev)
 	}
 }
 
-void r100_cp_commit(struct radeon_device *rdev)
+void r100_cp_commit(struct radeon_device *rdev, struct radeon_cp *cp)
 {
-	WREG32(RADEON_CP_RB_WPTR, rdev->cp.wptr);
+	WREG32(RADEON_CP_RB_WPTR, cp->wptr);
 	(void)RREG32(RADEON_CP_RB_WPTR);
 }
 
@@ -2160,26 +2166,26 @@ bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *l
 	return false;
 }
 
-bool r100_gpu_is_lockup(struct radeon_device *rdev)
+bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	u32 rbbm_status;
 	int r;
 
 	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
 	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
-		r100_gpu_lockup_update(&rdev->config.r100.lockup, &rdev->cp);
+		r100_gpu_lockup_update(&rdev->config.r100.lockup, cp);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, 2);
+	r = radeon_ring_lock(rdev, cp, 2);
 	if (!r) {
 		/* PACKET2 NOP */
-		radeon_ring_write(rdev, 0x80000000);
-		radeon_ring_write(rdev, 0x80000000);
-		radeon_ring_unlock_commit(rdev);
+		radeon_ring_write(cp, 0x80000000);
+		radeon_ring_write(cp, 0x80000000);
+		radeon_ring_unlock_commit(rdev, cp);
 	}
-	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r100.lockup, &rdev->cp);
+	cp->rptr = RREG32(RADEON_CP_RB_RPTR);
+	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r100.lockup, cp);
 }
 
 void r100_bm_disable(struct radeon_device *rdev)
@@ -2587,21 +2593,22 @@ static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_cp *cp = &rdev->cp;
 	uint32_t rdp, wdp;
 	unsigned count, i, j;
 
-	radeon_ring_free_size(rdev);
+	radeon_ring_free_size(rdev, cp);
 	rdp = RREG32(RADEON_CP_RB_RPTR);
 	wdp = RREG32(RADEON_CP_RB_WPTR);
-	count = (rdp + rdev->cp.ring_size - wdp) & rdev->cp.ptr_mask;
+	count = (rdp + cp->ring_size - wdp) & cp->ptr_mask;
 	seq_printf(m, "CP_STAT 0x%08x\n", RREG32(RADEON_CP_STAT));
 	seq_printf(m, "CP_RB_WPTR 0x%08x\n", wdp);
 	seq_printf(m, "CP_RB_RPTR 0x%08x\n", rdp);
-	seq_printf(m, "%u free dwords in ring\n", rdev->cp.ring_free_dw);
+	seq_printf(m, "%u free dwords in ring\n", cp->ring_free_dw);
 	seq_printf(m, "%u dwords in ring\n", count);
 	for (j = 0; j <= count; j++) {
-		i = (rdp + j) & rdev->cp.ptr_mask;
-		seq_printf(m, "r[%04d]=0x%08x\n", i, rdev->cp.ring[i]);
+		i = (rdp + j) & cp->ptr_mask;
+		seq_printf(m, "r[%04d]=0x%08x\n", i, cp->ring[i]);
 	}
 	return 0;
 }
@@ -3643,7 +3650,7 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 	}
 }
 
-int r100_ring_test(struct radeon_device *rdev)
+int r100_ring_test(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	uint32_t scratch;
 	uint32_t tmp = 0;
@@ -3656,15 +3663,15 @@ int r100_ring_test(struct radeon_device *rdev)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ring_lock(rdev, 2);
+	r = radeon_ring_lock(rdev, cp, 2);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
 		radeon_scratch_free(rdev, scratch);
 		return r;
 	}
-	radeon_ring_write(rdev, PACKET0(scratch, 0));
-	radeon_ring_write(rdev, 0xDEADBEEF);
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_write(cp, PACKET0(scratch, 0));
+	radeon_ring_write(cp, 0xDEADBEEF);
+	radeon_ring_unlock_commit(rdev, cp);
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF) {
@@ -3685,9 +3692,11 @@ int r100_ring_test(struct radeon_device *rdev)
 
 void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	radeon_ring_write(rdev, PACKET0(RADEON_CP_IB_BASE, 1));
-	radeon_ring_write(rdev, ib->gpu_addr);
-	radeon_ring_write(rdev, ib->length_dw);
+	struct radeon_cp *cp = &rdev->cp;
+
+	radeon_ring_write(cp, PACKET0(RADEON_CP_IB_BASE, 1));
+	radeon_ring_write(cp, ib->gpu_addr);
+	radeon_ring_write(cp, ib->length_dw);
 }
 
 int r100_ib_test(struct radeon_device *rdev)
@@ -3704,7 +3713,7 @@ int r100_ib_test(struct radeon_device *rdev)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, &ib);
+	r = radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX, &ib);
 	if (r) {
 		return r;
 	}

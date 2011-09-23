@@ -252,7 +252,8 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->vram_mutex);
-	mutex_lock(&rdev->cp.mutex);
+	if (rdev->cp.ring_obj)
+		mutex_lock(&rdev->cp.mutex);
 
 	/* gui idle int has issues on older chips it seems */
 	if (rdev->family >= CHIP_R600) {
@@ -268,12 +269,13 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 			radeon_irq_set(rdev);
 		}
 	} else {
-		if (rdev->cp.ready) {
+		struct radeon_cp *cp = &rdev->cp;
+		if (cp->ready) {
 			struct radeon_fence *fence;
-			radeon_ring_alloc(rdev, 64);
+			radeon_ring_alloc(rdev, cp, 64);
 			radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
 			radeon_fence_emit(rdev, fence);
-			radeon_ring_commit(rdev);
+			radeon_ring_commit(rdev, cp);
 			radeon_fence_wait(fence, false);
 			radeon_fence_unref(&fence);
 		}
@@ -307,7 +309,8 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	rdev->pm.dynpm_planned_action = DYNPM_ACTION_NONE;
 
-	mutex_unlock(&rdev->cp.mutex);
+	if (rdev->cp.ring_obj)
+		mutex_unlock(&rdev->cp.mutex);
 	mutex_unlock(&rdev->vram_mutex);
 	mutex_unlock(&rdev->ddev->struct_mutex);
 }

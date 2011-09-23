@@ -55,44 +55,45 @@ void rv515_debugfs(struct radeon_device *rdev)
 
 void rv515_ring_start(struct radeon_device *rdev)
 {
+	struct radeon_cp *cp = &rdev->cp;
 	int r;
 
-	r = radeon_ring_lock(rdev, 64);
+	r = radeon_ring_lock(rdev, cp, 64);
 	if (r) {
 		return;
 	}
-	radeon_ring_write(rdev, PACKET0(ISYNC_CNTL, 0));
-	radeon_ring_write(rdev,
+	radeon_ring_write(cp, PACKET0(ISYNC_CNTL, 0));
+	radeon_ring_write(cp,
 			  ISYNC_ANY2D_IDLE3D |
 			  ISYNC_ANY3D_IDLE2D |
 			  ISYNC_WAIT_IDLEGUI |
 			  ISYNC_CPSCRATCH_IDLEGUI);
-	radeon_ring_write(rdev, PACKET0(WAIT_UNTIL, 0));
-	radeon_ring_write(rdev, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
-	radeon_ring_write(rdev, PACKET0(R300_DST_PIPE_CONFIG, 0));
-	radeon_ring_write(rdev, R300_PIPE_AUTO_CONFIG);
-	radeon_ring_write(rdev, PACKET0(GB_SELECT, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(GB_ENABLE, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(R500_SU_REG_DEST, 0));
-	radeon_ring_write(rdev, (1 << rdev->num_gb_pipes) - 1);
-	radeon_ring_write(rdev, PACKET0(VAP_INDEX_OFFSET, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(RB3D_DSTCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, RB3D_DC_FLUSH | RB3D_DC_FREE);
-	radeon_ring_write(rdev, PACKET0(ZB_ZCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, ZC_FLUSH | ZC_FREE);
-	radeon_ring_write(rdev, PACKET0(WAIT_UNTIL, 0));
-	radeon_ring_write(rdev, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
-	radeon_ring_write(rdev, PACKET0(GB_AA_CONFIG, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(RB3D_DSTCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, RB3D_DC_FLUSH | RB3D_DC_FREE);
-	radeon_ring_write(rdev, PACKET0(ZB_ZCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, ZC_FLUSH | ZC_FREE);
-	radeon_ring_write(rdev, PACKET0(GB_MSPOS0, 0));
-	radeon_ring_write(rdev,
+	radeon_ring_write(cp, PACKET0(WAIT_UNTIL, 0));
+	radeon_ring_write(cp, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
+	radeon_ring_write(cp, PACKET0(R300_DST_PIPE_CONFIG, 0));
+	radeon_ring_write(cp, R300_PIPE_AUTO_CONFIG);
+	radeon_ring_write(cp, PACKET0(GB_SELECT, 0));
+	radeon_ring_write(cp, 0);
+	radeon_ring_write(cp, PACKET0(GB_ENABLE, 0));
+	radeon_ring_write(cp, 0);
+	radeon_ring_write(cp, PACKET0(R500_SU_REG_DEST, 0));
+	radeon_ring_write(cp, (1 << rdev->num_gb_pipes) - 1);
+	radeon_ring_write(cp, PACKET0(VAP_INDEX_OFFSET, 0));
+	radeon_ring_write(cp, 0);
+	radeon_ring_write(cp, PACKET0(RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(cp, RB3D_DC_FLUSH | RB3D_DC_FREE);
+	radeon_ring_write(cp, PACKET0(ZB_ZCACHE_CTLSTAT, 0));
+	radeon_ring_write(cp, ZC_FLUSH | ZC_FREE);
+	radeon_ring_write(cp, PACKET0(WAIT_UNTIL, 0));
+	radeon_ring_write(cp, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
+	radeon_ring_write(cp, PACKET0(GB_AA_CONFIG, 0));
+	radeon_ring_write(cp, 0);
+	radeon_ring_write(cp, PACKET0(RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(cp, RB3D_DC_FLUSH | RB3D_DC_FREE);
+	radeon_ring_write(cp, PACKET0(ZB_ZCACHE_CTLSTAT, 0));
+	radeon_ring_write(cp, ZC_FLUSH | ZC_FREE);
+	radeon_ring_write(cp, PACKET0(GB_MSPOS0, 0));
+	radeon_ring_write(cp,
 			  ((6 << MS_X0_SHIFT) |
 			   (6 << MS_Y0_SHIFT) |
 			   (6 << MS_X1_SHIFT) |
@@ -101,8 +102,8 @@ void rv515_ring_start(struct radeon_device *rdev)
 			   (6 << MS_Y2_SHIFT) |
 			   (6 << MSBD0_Y_SHIFT) |
 			   (6 << MSBD0_X_SHIFT)));
-	radeon_ring_write(rdev, PACKET0(GB_MSPOS1, 0));
-	radeon_ring_write(rdev,
+	radeon_ring_write(cp, PACKET0(GB_MSPOS1, 0));
+	radeon_ring_write(cp,
 			  ((6 << MS_X3_SHIFT) |
 			   (6 << MS_Y3_SHIFT) |
 			   (6 << MS_X4_SHIFT) |
@@ -110,15 +111,15 @@ void rv515_ring_start(struct radeon_device *rdev)
 			   (6 << MS_X5_SHIFT) |
 			   (6 << MS_Y5_SHIFT) |
 			   (6 << MSBD1_SHIFT)));
-	radeon_ring_write(rdev, PACKET0(GA_ENHANCE, 0));
-	radeon_ring_write(rdev, GA_DEADLOCK_CNTL | GA_FASTSYNC_CNTL);
-	radeon_ring_write(rdev, PACKET0(GA_POLY_MODE, 0));
-	radeon_ring_write(rdev, FRONT_PTYPE_TRIANGE | BACK_PTYPE_TRIANGE);
-	radeon_ring_write(rdev, PACKET0(GA_ROUND_MODE, 0));
-	radeon_ring_write(rdev, GEOMETRY_ROUND_NEAREST | COLOR_ROUND_NEAREST);
-	radeon_ring_write(rdev, PACKET0(0x20C8, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_write(cp, PACKET0(GA_ENHANCE, 0));
+	radeon_ring_write(cp, GA_DEADLOCK_CNTL | GA_FASTSYNC_CNTL);
+	radeon_ring_write(cp, PACKET0(GA_POLY_MODE, 0));
+	radeon_ring_write(cp, FRONT_PTYPE_TRIANGE | BACK_PTYPE_TRIANGE);
+	radeon_ring_write(cp, PACKET0(GA_ROUND_MODE, 0));
+	radeon_ring_write(cp, GEOMETRY_ROUND_NEAREST | COLOR_ROUND_NEAREST);
+	radeon_ring_write(cp, PACKET0(0x20C8, 0));
+	radeon_ring_write(cp, 0);
+	radeon_ring_unlock_commit(rdev, cp);
 }
 
 int rv515_mc_wait_for_idle(struct radeon_device *rdev)
