@@ -223,6 +223,9 @@ struct qib_ctxtdata {
 	/* ctxt rcvhdrq head offset */
 	u32 head;
 	u32 pkt_count;
+	/* lookaside fields */
+	struct qib_qp *lookaside_qp;
+	u32 lookaside_qpn;
 	/* QPs waiting for context processing */
 	struct list_head qp_wait_list;
 };

@@ -724,7 +724,8 @@ struct qib_ibdev {
 	dma_addr_t pio_hdrs_phys;
 	/* list of QPs waiting for RNR timer */
 	spinlock_t pending_lock; /* protect wait lists, PMA counters, etc. */
-	unsigned qp_table_size; /* size of the hash table */
+	u32 qp_table_size; /* size of the hash table */
+	u32 qp_rnd; /* random bytes for hash */
 	spinlock_t qpt_lock;
 
 	u32 n_piowait;

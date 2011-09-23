@@ -547,6 +547,15 @@ move_along:
 			updegr = 0;
 		}
 	}
+	/*
+	 * Notify qib_destroy_qp() if it is waiting
+	 * for lookaside_qp to finish.
+	 */
+	if (rcd->lookaside_qp) {
+		if (atomic_dec_and_test(&rcd->lookaside_qp->refcount))
+			wake_up(&rcd->lookaside_qp->wait);
+		rcd->lookaside_qp = NULL;
+	}
 
 	rcd->head = l;
 	rcd->pkt_count += i;
