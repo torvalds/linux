@@ -805,7 +805,7 @@ nfs4_blk_get_deviceinfo(struct nfs_server *server, const struct nfs_fh *fh,
 			struct nfs4_deviceid *d_id)
 {
 	struct pnfs_device *dev;
-	struct pnfs_block_dev *rv = NULL;
+	struct pnfs_block_dev *rv;
 	u32 max_resp_sz;
 	int max_pages;
 	struct page **pages = NULL;
@@ -823,18 +823,20 @@ nfs4_blk_get_deviceinfo(struct nfs_server *server, const struct nfs_fh *fh,
 	dev = kmalloc(sizeof(*dev), GFP_NOFS);
 	if (!dev) {
 		dprintk("%s kmalloc failed\n", __func__);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	pages = kzalloc(max_pages * sizeof(struct page *), GFP_NOFS);
 	if (pages == NULL) {
 		kfree(dev);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 	for (i = 0; i < max_pages; i++) {
 		pages[i] = alloc_page(GFP_NOFS);
-		if (!pages[i])
+		if (!pages[i]) {
+			rv = ERR_PTR(-ENOMEM);
 			goto out_free;
+		}
 	}
 
 	memcpy(&dev->dev_id, d_id, sizeof(*d_id));
@@ -847,8 +849,10 @@ nfs4_blk_get_deviceinfo(struct nfs_server *server, const struct nfs_fh *fh,
 	dprintk("%s: dev_id: %s\n", __func__, dev->dev_id.data);
 	rc = nfs4_proc_getdeviceinfo(server, dev);
 	dprintk("%s getdevice info returns %d\n", __func__, rc);
-	if (rc)
+	if (rc) {
+		rv = ERR_PTR(rc);
 		goto out_free;
+	}
 
 	rv = nfs4_blk_decode_device(server, dev);
  out_free:
@@ -866,7 +870,7 @@ bl_set_layoutdriver(struct nfs_server *server, const struct nfs_fh *fh)
 	struct pnfs_devicelist *dlist = NULL;
 	struct pnfs_block_dev *bdev;
 	LIST_HEAD(block_disklist);
-	int status = 0, i;
+	int status, i;
 
 	dprintk("%s enter\n", __func__);
 
@@ -898,8 +902,8 @@ bl_set_layoutdriver(struct nfs_server *server, const struct nfs_fh *fh)
 		for (i = 0; i < dlist->num_devs; i++) {
 			bdev = nfs4_blk_get_deviceinfo(server, fh,
 						       &dlist->dev_id[i]);
-			if (!bdev) {
-				status = -ENODEV;
+			if (IS_ERR(bdev)) {
+				status = PTR_ERR(bdev);
 				goto out_error;
 			}
 			spin_lock(&b_mt_id->bm_lock);
