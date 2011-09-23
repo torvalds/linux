@@ -79,28 +79,6 @@ int nfs4_blkdev_put(struct block_device *bdev)
 	return blkdev_put(bdev, FMODE_READ);
 }
 
-/*
- * Shouldn't there be a rpc_generic_upcall() to do this for us?
- */
-ssize_t bl_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
-		       char __user *dst, size_t buflen)
-{
-	char *data = (char *)msg->data + msg->copied;
-	size_t mlen = min(msg->len - msg->copied, buflen);
-	unsigned long left;
-
-	left = copy_to_user(dst, data, mlen);
-	if (left == mlen) {
-		msg->errno = -EFAULT;
-		return -EFAULT;
-	}
-
-	mlen -= left;
-	msg->copied += mlen;
-	msg->errno = 0;
-	return mlen;
-}
-
 static struct bl_dev_msg bl_mount_reply;
 
 ssize_t bl_pipe_downcall(struct file *filp, const char __user *src,

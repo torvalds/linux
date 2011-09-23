@@ -964,7 +964,7 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 };
 
 static const struct rpc_pipe_ops bl_upcall_ops = {
-	.upcall		= bl_pipe_upcall,
+	.upcall		= rpc_pipe_generic_upcall,
 	.downcall	= bl_pipe_downcall,
 	.destroy_msg	= bl_pipe_destroy_msg,
 };
