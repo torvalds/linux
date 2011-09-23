@@ -27,10 +27,6 @@
  * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
  */
 
-/* Tx/Rx bounds module parameters */
-extern uint brcmf_txbound;
-extern uint brcmf_rxbound;
-
 /* Indicate (dis)interest in finding dongles. */
 extern int brcmf_bus_register(void);
 extern void brcmf_bus_unregister(void);

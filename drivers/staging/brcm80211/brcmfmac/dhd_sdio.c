@@ -588,6 +588,10 @@ struct brcmf_bus {
 	u8 rx_seq;		/* Receive sequence number (expected) */
 	bool rxskip;		/* Skip receive (awaiting NAK ACK) */
 
+	uint rxbound;		/* Rx frames to read before resched */
+	uint txbound;		/* Tx frames to send before resched */
+	uint txminmax;
+
 	struct sk_buff *glomd;	/* Packet containing glomming descriptor */
 	struct sk_buff *glom;	/* Packet chain for glommed superframe */
 	uint glomerr;		/* Glom packet read errors */
@@ -739,13 +743,6 @@ module_param(brcmf_watchdog_prio, int, 0);
 /* DPC thread priority, -1 to use tasklet */
 int brcmf_dpc_prio = 98;
 module_param(brcmf_dpc_prio, int, 0);
-
-/* Tx/Rx bounds */
-uint brcmf_txbound;
-uint brcmf_rxbound;
-module_param(brcmf_txbound, uint, 0);
-module_param(brcmf_rxbound, uint, 0);
-static uint brcmf_txminmax;
 
 #define SDIO_DRIVE_STRENGTH	6	/* in milliamps */
 
@@ -2488,8 +2485,8 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
 {
 	u32 intstatus, newstatus = 0;
 	uint retries = 0;
-	uint rxlimit = brcmf_rxbound;	/* Rx frames to read before resched */
-	uint txlimit = brcmf_txbound;	/* Tx frames to send before resched */
+	uint rxlimit = bus->rxbound;	/* Rx frames to read before resched */
+	uint txlimit = bus->txbound;	/* Tx frames to send before resched */
 	uint framecnt = 0;	/* Temporary counter of tx/rx frames */
 	bool rxdone = true;	/* Flag for no more read data */
 	bool resched = false;	/* Flag indicating resched wanted */
@@ -2690,7 +2687,7 @@ clkwait:
 	else if ((bus->clkstate == CLK_AVAIL) && !bus->fcstate &&
 		 brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol) && txlimit
 		 && data_ok(bus)) {
-		framecnt = rxdone ? txlimit : min(txlimit, brcmf_txminmax);
+		framecnt = rxdone ? txlimit : min(txlimit, bus->txminmax);
 		framecnt = brcmf_sdbrcm_sendfromq(bus, framecnt);
 		txlimit -= framecnt;
 	}
@@ -4779,10 +4776,6 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 	 * first time that the driver is initialized vs subsequent
 	 * initializations.
 	 */
-	brcmf_txbound = BRCMF_TXBOUND;
-	brcmf_rxbound = BRCMF_RXBOUND;
-	brcmf_txminmax = BRCMF_TXMINMAX;
-
 	brcmf_c_init();
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -4798,6 +4791,9 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 	}
 	bus->sdiodev = sdiodev;
 	sdiodev->bus = bus;
+	bus->txbound = BRCMF_TXBOUND;
+	bus->rxbound = BRCMF_RXBOUND;
+	bus->txminmax = BRCMF_TXMINMAX;
 	bus->tx_seq = SDPCM_SEQUENCE_WRAP - 1;
 	bus->usebufpool = false;	/* Use bufpool if allocated,
 					 else use locally malloced rxbuf */
