@@ -3083,8 +3083,14 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		goto fail;
 	}
 
-	if (udev->wusb == 0 && le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0201)
-		usb_get_bos_descriptor(udev);
+	if (udev->wusb == 0 && le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0201) {
+		retval = usb_get_bos_descriptor(udev);
+		if (!retval) {
+			if (udev->bos->ext_cap && (USB_LPM_SUPPORT &
+				le32_to_cpu(udev->bos->ext_cap->bmAttributes)))
+					udev->lpm_capable = 1;
+		}
+	}
 
 	retval = 0;
 	/* notify HCD that we have a device connected and addressed */
