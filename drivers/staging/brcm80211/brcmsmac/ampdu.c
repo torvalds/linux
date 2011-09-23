@@ -1132,7 +1132,7 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		s2 = R_REG(&wlc->regs->frmtxstatus2);
 	}
 
-	if (likely(scb)) {
+	if (scb) {
 		scb_ampdu = &scb->scb_ampdu;
 		ini = &scb_ampdu->ini[p->priority];
 		brcms_c_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);

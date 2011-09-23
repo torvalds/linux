@@ -944,7 +944,7 @@ static int brcmf_netdev_open(struct net_device *net)
 	/* Allow transmit calls */
 	netif_start_queue(net);
 	drvr_priv->pub.up = 1;
-	if (unlikely(brcmf_cfg80211_up(drvr_priv->pub.config))) {
+	if (brcmf_cfg80211_up(drvr_priv->pub.config)) {
 		brcmf_dbg(ERROR, "failed to bring up cfg80211\n");
 		return -1;
 	}
@@ -1054,7 +1054,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 			brcmf_cfg80211_attach(net,
 					      brcmf_bus_get_device(bus),
 					      &drvr_priv->pub);
-	if (unlikely(drvr_priv->pub.config == NULL)) {
+	if (drvr_priv->pub.config == NULL) {
 		brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
 		goto fail;
 	}
