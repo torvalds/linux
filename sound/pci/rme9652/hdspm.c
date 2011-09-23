@@ -6227,6 +6227,8 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		break;
 
 	case SNDRV_HDSPM_IOCTL_GET_STATUS:
+		memset(&status, 0, sizeof(status));
+
 		status.card_type = hdspm->io_type;
 
 		status.autosync_source = hdspm_autosync_ref(hdspm);
@@ -6266,6 +6268,8 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		break;
 
 	case SNDRV_HDSPM_IOCTL_GET_VERSION:
+		memset(&hdspm_version, 0, sizeof(hdspm_version));
+
 		hdspm_version.card_type = hdspm->io_type;
 		strncpy(hdspm_version.cardname, hdspm->card_name,
 				sizeof(hdspm_version.cardname));
