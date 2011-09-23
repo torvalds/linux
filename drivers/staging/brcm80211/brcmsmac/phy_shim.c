@@ -41,12 +41,9 @@ struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
 	struct phy_shim_info *physhim = NULL;
 
 	physhim = kzalloc(sizeof(struct phy_shim_info), GFP_ATOMIC);
-	if (!physhim) {
-		wiphy_err(wlc_hw->wlc->wiphy,
-			  "wl%d: wlc_phy_shim_attach: out of mem\n",
-			  wlc_hw->unit);
+	if (!physhim)
 		return NULL;
-	}
+
 	physhim->wlc_hw = wlc_hw;
 	physhim->wlc = wlc;
 	physhim->wl = wl;

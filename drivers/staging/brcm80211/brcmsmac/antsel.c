@@ -110,11 +110,8 @@ struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 	struct antsel_info *asi;
 
 	asi = kzalloc(sizeof(struct antsel_info), GFP_ATOMIC);
-	if (!asi) {
-		wiphy_err(wlc->wiphy, "wl%d: brcms_c_antsel_attach: out of "
-			  "mem\n", wlc->pub->unit);
+	if (!asi)
 		return NULL;
-	}
 
 	asi->wlc = wlc;
 	asi->pub = wlc->pub;

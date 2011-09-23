@@ -159,11 +159,8 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 
 	buflen = sizeof("mcast_list") + sizeof(cnt) + (cnt * ETH_ALEN);
 	bufp = buf = kmalloc(buflen, GFP_ATOMIC);
-	if (!bufp) {
-		brcmf_dbg(ERROR, "%s: out of memory for mcast_list, cnt %d\n",
-			  brcmf_ifname(&drvr_priv->pub, 0), cnt);
+	if (!bufp)
 		return;
-	}
 
 	strcpy(bufp, "mcast_list");
 	bufp += strlen("mcast_list") + 1;
@@ -202,11 +199,9 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 
 	buflen = sizeof("allmulti") + sizeof(allmulti);
 	buf = kmalloc(buflen, GFP_ATOMIC);
-	if (!buf) {
-		brcmf_dbg(ERROR, "%s: out of memory for allmulti\n",
-			  brcmf_ifname(&drvr_priv->pub, 0));
+	if (!buf)
 		return;
-	}
+
 	allmulti_le = cpu_to_le32(allmulti);
 
 	if (!brcmu_mkiovar
@@ -963,10 +958,8 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, struct net_device *net,
 	ifp = drvr_priv->iflist[ifidx];
 	if (!ifp) {
 		ifp = kmalloc(sizeof(struct brcmf_if), GFP_ATOMIC);
-		if (!ifp) {
-			brcmf_dbg(ERROR, "OOM - struct brcmf_if\n");
+		if (!ifp)
 			return -ENOMEM;
-		}
 	}
 
 	memset(ifp, 0, sizeof(struct brcmf_if));
@@ -1019,10 +1012,8 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 
 	/* Allocate primary brcmf_info */
 	drvr_priv = kzalloc(sizeof(struct brcmf_info), GFP_ATOMIC);
-	if (!drvr_priv) {
-		brcmf_dbg(ERROR, "OOM - alloc brcmf_info\n");
+	if (!drvr_priv)
 		goto fail;
-	}
 
 	/*
 	 * Save the brcmf_info into the priv

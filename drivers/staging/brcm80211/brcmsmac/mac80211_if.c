@@ -1541,11 +1541,8 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 	struct brcms_timer *t;
 
 	t = kzalloc(sizeof(struct brcms_timer), GFP_ATOMIC);
-	if (!t) {
-		wiphy_err(wl->wiphy, "wl%d: brcms_init_timer: out of memory\n",
-			  wl->pub->unit);
+	if (!t)
 		return NULL;
-	}
 
 	init_timer(&t->timer);
 	t->timer.data = (unsigned long) t;
@@ -1659,11 +1656,9 @@ int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 				pdata = wl->fw.fw_bin[i]->data +
 					le32_to_cpu(hdr->offset);
 				*pbuf = kmalloc(len, GFP_ATOMIC);
-				if (*pbuf == NULL) {
-					wiphy_err(wl->wiphy, "fail to alloc %d"
-						  " bytes\n", len);
+				if (*pbuf == NULL)
 					goto fail;
-				}
+
 				memcpy(*pbuf, pdata, len);
 				return 0;
 			}

@@ -1090,11 +1090,8 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
 	wlc_cm = kzalloc(sizeof(struct brcms_cm_info), GFP_ATOMIC);
-	if (wlc_cm == NULL) {
-		wiphy_err(wlc->wiphy, "wl%d: %s: out of memory", pub->unit,
-			  __func__);
+	if (wlc_cm == NULL)
 		return NULL;
-	}
 	wlc_cm->pub = pub;
 	wlc_cm->wlc = wlc;
 	wlc->cmi = wlc_cm;

@@ -245,9 +245,8 @@ struct pcicore_info *pcicore_init(struct si_pub *sih, struct pci_dev *pdev,
 
 	/* alloc struct pcicore_info */
 	pi = kzalloc(sizeof(struct pcicore_info), GFP_ATOMIC);
-	if (pi == NULL) {
+	if (pi == NULL)
 		return NULL;
-	}
 
 	pi->sih = sih;
 	pi->dev = pdev;

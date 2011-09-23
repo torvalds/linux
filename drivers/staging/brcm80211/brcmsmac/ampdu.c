@@ -227,11 +227,9 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 	int i;
 
 	ampdu = kzalloc(sizeof(struct ampdu_info), GFP_ATOMIC);
-	if (!ampdu) {
-		wiphy_err(wlc->wiphy, "wl%d: brcms_c_ampdu_attach: out of mem"
-			  "\n", wlc->pub->unit);
+	if (!ampdu)
 		return NULL;
-	}
+
 	ampdu->wlc = wlc;
 
 	for (i = 0; i < AMPDU_MAX_SCB_TID; i++)

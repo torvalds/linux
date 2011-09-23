@@ -559,12 +559,8 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 
 	/* allocate private info structure */
 	di = kzalloc(sizeof(struct dma_info), GFP_ATOMIC);
-	if (di == NULL) {
-#ifdef BCMDBG
-		printk(KERN_ERR "dma_attach: out of memory\n");
-#endif
+	if (di == NULL)
 		return NULL;
-	}
 
 	di->msg_level = msg_level ? msg_level : &dma_msg_level;
 
@@ -651,22 +647,16 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	if (ntxd) {
 		size = ntxd * sizeof(void *);
 		di->txp = kzalloc(size, GFP_ATOMIC);
-		if (di->txp == NULL) {
-			DMA_ERROR(("%s: dma_attach: out of tx memory\n",
-				   di->name));
+		if (di->txp == NULL)
 			goto fail;
-		}
 	}
 
 	/* allocate rx packet pointer vector */
 	if (nrxd) {
 		size = nrxd * sizeof(void *);
 		di->rxp = kzalloc(size, GFP_ATOMIC);
-		if (di->rxp == NULL) {
-			DMA_ERROR(("%s: dma_attach: out of rx memory\n",
-				   di->name));
+		if (di->rxp == NULL)
 			goto fail;
-		}
 	}
 
 	/*

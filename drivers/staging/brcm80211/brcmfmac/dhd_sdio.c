@@ -2956,10 +2956,8 @@ static int brcmf_sdbrcm_mem_dump(struct brcmf_bus *bus)
 	/* Get full mem size */
 	size = bus->ramsize;
 	buf = kmalloc(size, GFP_ATOMIC);
-	if (!buf) {
-		brcmf_dbg(ERROR, "Out of memory (%d bytes)\n", size);
+	if (!buf)
 		return -1;
-	}
 
 	/* Read mem content */
 	printk(KERN_DEBUG "Dump dongle memory");
@@ -3013,7 +3011,6 @@ static int brcmf_sdbrcm_checkdied(struct brcmf_bus *bus, u8 *data, uint size)
 		size = msize;
 		mbuffer = data = kmalloc(msize, GFP_ATOMIC);
 		if (mbuffer == NULL) {
-			brcmf_dbg(ERROR, "kmalloc(%d) failed\n", msize);
 			bcmerror = -ENOMEM;
 			goto done;
 		}
@@ -3021,7 +3018,6 @@ static int brcmf_sdbrcm_checkdied(struct brcmf_bus *bus, u8 *data, uint size)
 
 	str = kmalloc(maxstrlen, GFP_ATOMIC);
 	if (str == NULL) {
-		brcmf_dbg(ERROR, "kmalloc(%d) failed\n", maxstrlen);
 		bcmerror = -ENOMEM;
 		goto done;
 	}
@@ -3737,8 +3733,6 @@ static int brcmf_sdbrcm_download_code_file(struct brcmf_bus *bus)
 
 	memptr = memblock = kmalloc(MEMBLOCK + BRCMF_SDALIGN, GFP_ATOMIC);
 	if (memblock == NULL) {
-		brcmf_dbg(ERROR, "Failed to allocate memory %d bytes\n",
-			  MEMBLOCK);
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -3837,8 +3831,6 @@ static int brcmf_sdbrcm_download_nvram(struct brcmf_bus *bus)
 
 	memblock = kmalloc(MEMBLOCK, GFP_ATOMIC);
 	if (memblock == NULL) {
-		brcmf_dbg(ERROR, "Failed to allocate memory %d bytes\n",
-			  MEMBLOCK);
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -4254,18 +4246,13 @@ static bool brcmf_sdbrcm_probe_malloc(struct brcmf_bus *bus)
 		    roundup((bus->drvr->maxctl + SDPCM_HDRLEN),
 			    ALIGNMENT) + BRCMF_SDALIGN;
 		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
-		if (!(bus->rxbuf)) {
-			brcmf_dbg(ERROR, "kmalloc of %d-byte rxbuf failed\n",
-				  bus->rxblen);
+		if (!(bus->rxbuf))
 			goto fail;
-		}
 	}
 
 	/* Allocate buffer to receive glomed packet */
 	bus->databuf = kmalloc(MAX_DATA_BUF, GFP_ATOMIC);
 	if (!(bus->databuf)) {
-		brcmf_dbg(ERROR, "kmalloc of %d-byte databuf failed\n",
-			  MAX_DATA_BUF);
 		/* release rxbuf which was already located as above */
 		if (!bus->rxblen)
 			kfree(bus->rxbuf);
@@ -4457,10 +4444,8 @@ brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 
 	/* alloc chip_info_t */
 	ci = kzalloc(sizeof(struct chip_info), GFP_ATOMIC);
-	if (NULL == ci) {
-		brcmf_dbg(ERROR, "malloc failed!\n");
+	if (NULL == ci)
 		return -ENOMEM;
-	}
 
 	/* bus/core/clk setup for register access */
 	/* Try forcing SDIO core to do ALPAvail request only */
@@ -4785,10 +4770,9 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 
 	/* Allocate private bus interface state */
 	bus = kzalloc(sizeof(struct brcmf_bus), GFP_ATOMIC);
-	if (!bus) {
-		brcmf_dbg(ERROR, "kmalloc of struct dhd_bus failed\n");
+	if (!bus)
 		goto fail;
-	}
+
 	bus->sdiodev = sdiodev;
 	sdiodev->bus = bus;
 	bus->txbound = BRCMF_TXBOUND;

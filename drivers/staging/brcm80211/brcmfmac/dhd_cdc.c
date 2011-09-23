@@ -417,10 +417,8 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 	struct brcmf_proto *cdc;
 
 	cdc = kzalloc(sizeof(struct brcmf_proto), GFP_ATOMIC);
-	if (!cdc) {
-		brcmf_dbg(ERROR, "kmalloc failed\n");
+	if (!cdc)
 		goto fail;
-	}
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
 	if ((unsigned long)(&cdc->msg + 1) != (unsigned long)cdc->buf) {

@@ -2023,7 +2023,6 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 
 	buf = kzalloc(WL_BSS_INFO_MAX, GFP_KERNEL);
 	if (buf == NULL) {
-		WL_ERR("kzalloc() failed\n");
 		err = -ENOMEM;
 		goto CleanUp;
 	}
@@ -2660,10 +2659,9 @@ static struct wireless_dev *brcmf_alloc_wdev(s32 sizeof_iface,
 	s32 err = 0;
 
 	wdev = kzalloc(sizeof(*wdev), GFP_KERNEL);
-	if (!wdev) {
-		WL_ERR("Could not allocate wireless device\n");
+	if (!wdev)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	wdev->wiphy =
 	    wiphy_new(&wl_cfg80211_ops,
 		      sizeof(struct brcmf_cfg80211_priv) + sizeof_iface);
@@ -3124,51 +3122,33 @@ static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_priv *cfg_priv)
 static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	cfg_priv->scan_results = kzalloc(WL_SCAN_BUF_MAX, GFP_KERNEL);
-	if (!cfg_priv->scan_results) {
-		WL_ERR("Scan results alloc failed\n");
+	if (!cfg_priv->scan_results)
 		goto init_priv_mem_out;
-	}
 	cfg_priv->conf = kzalloc(sizeof(*cfg_priv->conf), GFP_KERNEL);
-	if (!cfg_priv->conf) {
-		WL_ERR("wl_conf alloc failed\n");
+	if (!cfg_priv->conf)
 		goto init_priv_mem_out;
-	}
 	cfg_priv->profile = kzalloc(sizeof(*cfg_priv->profile), GFP_KERNEL);
-	if (!cfg_priv->profile) {
-		WL_ERR("wl_profile alloc failed\n");
+	if (!cfg_priv->profile)
 		goto init_priv_mem_out;
-	}
 	cfg_priv->bss_info = kzalloc(WL_BSS_INFO_MAX, GFP_KERNEL);
-	if (!cfg_priv->bss_info) {
-		WL_ERR("Bss information alloc failed\n");
+	if (!cfg_priv->bss_info)
 		goto init_priv_mem_out;
-	}
 	cfg_priv->scan_req_int = kzalloc(sizeof(*cfg_priv->scan_req_int),
 					 GFP_KERNEL);
-	if (!cfg_priv->scan_req_int) {
-		WL_ERR("Scan req alloc failed\n");
+	if (!cfg_priv->scan_req_int)
 		goto init_priv_mem_out;
-	}
 	cfg_priv->ioctl_buf = kzalloc(WL_IOCTL_LEN_MAX, GFP_KERNEL);
-	if (!cfg_priv->ioctl_buf) {
-		WL_ERR("Ioctl buf alloc failed\n");
+	if (!cfg_priv->ioctl_buf)
 		goto init_priv_mem_out;
-	}
 	cfg_priv->extra_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
-	if (!cfg_priv->extra_buf) {
-		WL_ERR("Extra buf alloc failed\n");
+	if (!cfg_priv->extra_buf)
 		goto init_priv_mem_out;
-	}
 	cfg_priv->iscan = kzalloc(sizeof(*cfg_priv->iscan), GFP_KERNEL);
-	if (!cfg_priv->iscan) {
-		WL_ERR("Iscan buf alloc failed\n");
+	if (!cfg_priv->iscan)
 		goto init_priv_mem_out;
-	}
 	cfg_priv->pmk_list = kzalloc(sizeof(*cfg_priv->pmk_list), GFP_KERNEL);
-	if (!cfg_priv->pmk_list) {
-		WL_ERR("pmk list alloc failed\n");
+	if (!cfg_priv->pmk_list)
 		goto init_priv_mem_out;
-	}
 
 	return 0;
 
@@ -3210,10 +3190,8 @@ brcmf_enq_event(struct brcmf_cfg80211_priv *cfg_priv, u32 event,
 	s32 err = 0;
 
 	e = kzalloc(sizeof(struct brcmf_cfg80211_event_q), GFP_KERNEL);
-	if (!e) {
-		WL_ERR("event alloc failed\n");
+	if (!e)
 		return -ENOMEM;
-	}
 
 	e->etype = event;
 	memcpy(&e->emsg, msg, sizeof(struct brcmf_event_msg));
@@ -3333,10 +3311,8 @@ struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
 		return NULL;
 	}
 	cfg_dev = kzalloc(sizeof(struct brcmf_cfg80211_dev), GFP_KERNEL);
-	if (!cfg_dev) {
-		WL_ERR("wl_cfg80211_dev is invalid\n");
+	if (!cfg_dev)
 		return NULL;
-	}
 
 	wdev = brcmf_alloc_wdev(sizeof(struct brcmf_cfg80211_iface), busdev);
 	if (IS_ERR(wdev)) {
