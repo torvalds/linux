@@ -267,12 +267,12 @@ brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 
 /* function for reading/writing a single u32 from/to the dongle */
 static int
-brcmf_dev_ioctl_u32(struct net_device *dev, u32 cmd, u32 *par)
+brcmf_dev_ioctl_u32(struct net_device *ndev, u32 cmd, u32 *par)
 {
 	int err;
 	__le32 par_le = cpu_to_le32(*par);
 
-	err = brcmf_dev_ioctl(dev, cmd, &par_le, sizeof(__le32));
+	err = brcmf_dev_ioctl(ndev, cmd, &par_le, sizeof(__le32));
 	*par = le32_to_cpu(par_le);
 
 	return err;
@@ -292,14 +292,14 @@ static void convert_key_from_CPU(struct brcmf_wsec_key *key,
 	memcpy(key_le->ea, key->ea, sizeof(key->ea));
 }
 
-static int send_key_to_dongle(struct net_device *dev,
+static int send_key_to_dongle(struct net_device *ndev,
 			      struct brcmf_wsec_key *key)
 {
 	int err;
 	struct brcmf_wsec_key_le key_le;
 
 	convert_key_from_CPU(key, &key_le);
-	err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key_le, sizeof(key_le));
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_KEY, &key_le, sizeof(key_le));
 	if (err)
 		WL_ERR("WLC_SET_KEY error (%d)\n", err);
 	return err;
@@ -356,7 +356,7 @@ done:
 	return err;
 }
 
-static s32 brcmf_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
+static s32 brcmf_dev_intvar_set(struct net_device *ndev, s8 *name, s32 val)
 {
 	s8 buf[BRCMF_C_IOCTL_SMLEN];
 	u32 len;
@@ -368,7 +368,7 @@ static s32 brcmf_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
 			    sizeof(buf));
 	BUG_ON(!len);
 
-	err = brcmf_dev_ioctl(dev, BRCMF_C_SET_VAR, buf, len);
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_VAR, buf, len);
 	if (err)
 		WL_ERR("error (%d)\n", err);
 
@@ -376,7 +376,7 @@ static s32 brcmf_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
 }
 
 static s32
-brcmf_dev_intvar_get(struct net_device *dev, s8 *name, s32 *retval)
+brcmf_dev_intvar_get(struct net_device *ndev, s8 *name, s32 *retval)
 {
 	union {
 		s8 buf[BRCMF_C_IOCTL_SMLEN];
@@ -390,7 +390,7 @@ brcmf_dev_intvar_get(struct net_device *dev, s8 *name, s32 *retval)
 	    brcmu_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
 			sizeof(var.buf));
 	BUG_ON(!len);
-	err = brcmf_dev_ioctl(dev, BRCMF_C_GET_VAR, &var, len);
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_GET_VAR, &var, len);
 	if (err)
 		WL_ERR("error (%d)\n", err);
 
@@ -430,7 +430,7 @@ static void wl_iscan_prep(struct brcmf_scan_params_le *params_le,
 }
 
 static s32
-brcmf_dev_iovar_setbuf(struct net_device *dev, s8 * iovar, void *param,
+brcmf_dev_iovar_setbuf(struct net_device *ndev, s8 * iovar, void *param,
 		    s32 paramlen, void *bufptr, s32 buflen)
 {
 	s32 iolen;
@@ -438,11 +438,11 @@ brcmf_dev_iovar_setbuf(struct net_device *dev, s8 * iovar, void *param,
 	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	BUG_ON(!iolen);
 
-	return brcmf_dev_ioctl(dev, BRCMF_C_SET_VAR, bufptr, iolen);
+	return brcmf_dev_ioctl(ndev, BRCMF_C_SET_VAR, bufptr, iolen);
 }
 
 static s32
-brcmf_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
+brcmf_dev_iovar_getbuf(struct net_device *ndev, s8 * iovar, void *param,
 		    s32 paramlen, void *bufptr, s32 buflen)
 {
 	s32 iolen;
@@ -450,7 +450,7 @@ brcmf_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
 	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	BUG_ON(!iolen);
 
-	return brcmf_dev_ioctl(dev, BRCMF_C_GET_VAR, bufptr, buflen);
+	return brcmf_dev_ioctl(ndev, BRCMF_C_GET_VAR, bufptr, buflen);
 }
 
 static s32
@@ -475,8 +475,8 @@ brcmf_run_iscan(struct brcmf_cfg80211_iscan_ctrl *iscan,
 	params->action = cpu_to_le16(action);
 	params->scan_duration = cpu_to_le16(0);
 
-	err = brcmf_dev_iovar_setbuf(iscan->dev, "iscan", params, params_size,
-				iscan->ioctl_buf, BRCMF_C_IOCTL_SMLEN);
+	err = brcmf_dev_iovar_setbuf(iscan->ndev, "iscan", params, params_size,
+				     iscan->ioctl_buf, BRCMF_C_IOCTL_SMLEN);
 	if (err) {
 		if (err == -EBUSY)
 			WL_INFO("system busy : iscan canceled\n");
@@ -634,34 +634,34 @@ brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	return err;
 }
 
-static s32 brcmf_set_rts(struct net_device *dev, u32 rts_threshold)
+static s32 brcmf_set_rts(struct net_device *ndev, u32 rts_threshold)
 {
 	s32 err = 0;
 
-	err = brcmf_dev_intvar_set(dev, "rtsthresh", rts_threshold);
+	err = brcmf_dev_intvar_set(ndev, "rtsthresh", rts_threshold);
 	if (err)
 		WL_ERR("Error (%d)\n", err);
 
 	return err;
 }
 
-static s32 brcmf_set_frag(struct net_device *dev, u32 frag_threshold)
+static s32 brcmf_set_frag(struct net_device *ndev, u32 frag_threshold)
 {
 	s32 err = 0;
 
-	err = brcmf_dev_intvar_set(dev, "fragthresh", frag_threshold);
+	err = brcmf_dev_intvar_set(ndev, "fragthresh", frag_threshold);
 	if (err)
 		WL_ERR("Error (%d)\n", err);
 
 	return err;
 }
 
-static s32 brcmf_set_retry(struct net_device *dev, u32 retry, bool l)
+static s32 brcmf_set_retry(struct net_device *ndev, u32 retry, bool l)
 {
 	s32 err = 0;
 	u32 cmd = (l ? BRCM_SET_LRL : BRCM_SET_SRL);
 
-	err = brcmf_dev_ioctl_u32(dev, cmd, &retry);
+	err = brcmf_dev_ioctl_u32(ndev, cmd, &retry);
 	if (err) {
 		WL_ERR("cmd (%d) , error (%d)\n", cmd, err);
 		return err;
@@ -802,15 +802,15 @@ static void brcmf_ch_to_chanspec(int ch, struct brcmf_join_params *join_params,
 
 static void brcmf_link_down(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	struct net_device *dev = NULL;
+	struct net_device *ndev = NULL;
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
 
 	if (cfg_priv->link_up) {
-		dev = cfg_to_ndev(cfg_priv);
+		ndev = cfg_to_ndev(cfg_priv);
 		WL_INFO("Call WLC_DISASSOC to stop excess roaming\n ");
-		err = brcmf_dev_ioctl(dev, BRCMF_C_DISASSOC, NULL, 0);
+		err = brcmf_dev_ioctl(ndev, BRCMF_C_DISASSOC, NULL, 0);
 		if (err)
 			WL_ERR("WLC_DISASSOC failed (%d)\n", err);
 		cfg_priv->link_up = false;
@@ -819,7 +819,7 @@ static void brcmf_link_down(struct brcmf_cfg80211_priv *cfg_priv)
 }
 
 static s32
-brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 		      struct cfg80211_ibss_params *params)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -884,7 +884,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	if (params->privacy)
 		wsec |= WEP_ENABLED;
 
-	err = brcmf_dev_intvar_set(dev, "wsec", wsec);
+	err = brcmf_dev_intvar_set(ndev, "wsec", wsec);
 	if (err) {
 		WL_ERR("wsec failed (%d)\n", err);
 		goto done;
@@ -896,7 +896,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	else
 		bcnprd = 100;
 
-	err = brcmf_dev_ioctl_u32(dev, BRCM_SET_BCNPRD, &bcnprd);
+	err = brcmf_dev_ioctl_u32(ndev, BRCM_SET_BCNPRD, &bcnprd);
 	if (err) {
 		WL_ERR("WLC_SET_BCNPRD failed (%d)\n", err);
 		goto done;
@@ -940,7 +940,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 		/* set channel for starter */
 		target_channel = cfg_priv->channel;
-		err = brcmf_dev_ioctl_u32(dev, BRCM_SET_CHANNEL,
+		err = brcmf_dev_ioctl_u32(ndev, BRCM_SET_CHANNEL,
 					  &target_channel);
 		if (err) {
 			WL_ERR("WLC_SET_CHANNEL failed (%d)\n", err);
@@ -952,7 +952,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	cfg_priv->ibss_starter = false;
 
 
-	err = brcmf_dev_ioctl(dev, BRCMF_C_SET_SSID,
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_SSID,
 			   &join_params, join_params_size);
 	if (err) {
 		WL_ERR("WLC_SET_SSID failed (%d)\n", err);
@@ -967,7 +967,7 @@ done:
 }
 
 static s32
-brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
+brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	s32 err = 0;
@@ -983,10 +983,10 @@ brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	return err;
 }
 
-static s32 brcmf_set_wpa_version(struct net_device *dev,
+static s32 brcmf_set_wpa_version(struct net_device *ndev,
 				 struct cfg80211_connect_params *sme)
 {
-	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
+	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	struct brcmf_cfg80211_security *sec;
 	s32 val = 0;
 	s32 err = 0;
@@ -998,7 +998,7 @@ static s32 brcmf_set_wpa_version(struct net_device *dev,
 	else
 		val = WPA_AUTH_DISABLED;
 	WL_CONN("setting wpa_auth to 0x%0x\n", val);
-	err = brcmf_dev_intvar_set(dev, "wpa_auth", val);
+	err = brcmf_dev_intvar_set(ndev, "wpa_auth", val);
 	if (err) {
 		WL_ERR("set wpa_auth failed (%d)\n", err);
 		return err;
@@ -1008,10 +1008,10 @@ static s32 brcmf_set_wpa_version(struct net_device *dev,
 	return err;
 }
 
-static s32
-brcmf_set_auth_type(struct net_device *dev, struct cfg80211_connect_params *sme)
+static s32 brcmf_set_auth_type(struct net_device *ndev,
+			       struct cfg80211_connect_params *sme)
 {
-	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
+	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	struct brcmf_cfg80211_security *sec;
 	s32 val = 0;
 	s32 err = 0;
@@ -1037,7 +1037,7 @@ brcmf_set_auth_type(struct net_device *dev, struct cfg80211_connect_params *sme)
 		break;
 	}
 
-	err = brcmf_dev_intvar_set(dev, "auth", val);
+	err = brcmf_dev_intvar_set(ndev, "auth", val);
 	if (err) {
 		WL_ERR("set auth failed (%d)\n", err);
 		return err;
@@ -1048,10 +1048,10 @@ brcmf_set_auth_type(struct net_device *dev, struct cfg80211_connect_params *sme)
 }
 
 static s32
-brcmf_set_set_cipher(struct net_device *dev,
+brcmf_set_set_cipher(struct net_device *ndev,
 		     struct cfg80211_connect_params *sme)
 {
-	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
+	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	struct brcmf_cfg80211_security *sec;
 	s32 pval = 0;
 	s32 gval = 0;
@@ -1101,7 +1101,7 @@ brcmf_set_set_cipher(struct net_device *dev,
 	}
 
 	WL_CONN("pval (%d) gval (%d)\n", pval, gval);
-	err = brcmf_dev_intvar_set(dev, "wsec", pval | gval);
+	err = brcmf_dev_intvar_set(ndev, "wsec", pval | gval);
 	if (err) {
 		WL_ERR("error (%d)\n", err);
 		return err;
@@ -1115,15 +1115,15 @@ brcmf_set_set_cipher(struct net_device *dev,
 }
 
 static s32
-brcmf_set_key_mgmt(struct net_device *dev, struct cfg80211_connect_params *sme)
+brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 {
-	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
+	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	struct brcmf_cfg80211_security *sec;
 	s32 val = 0;
 	s32 err = 0;
 
 	if (sme->crypto.n_akm_suites) {
-		err = brcmf_dev_intvar_get(dev, "wpa_auth", &val);
+		err = brcmf_dev_intvar_get(ndev, "wpa_auth", &val);
 		if (err) {
 			WL_ERR("could not get wpa_auth (%d)\n", err);
 			return err;
@@ -1157,7 +1157,7 @@ brcmf_set_key_mgmt(struct net_device *dev, struct cfg80211_connect_params *sme)
 		}
 
 		WL_CONN("setting wpa_auth to %d\n", val);
-		err = brcmf_dev_intvar_set(dev, "wpa_auth", val);
+		err = brcmf_dev_intvar_set(ndev, "wpa_auth", val);
 		if (err) {
 			WL_ERR("could not set wpa_auth (%d)\n", err);
 			return err;
@@ -1170,10 +1170,10 @@ brcmf_set_key_mgmt(struct net_device *dev, struct cfg80211_connect_params *sme)
 }
 
 static s32
-brcmf_set_set_sharedkey(struct net_device *dev,
+brcmf_set_set_sharedkey(struct net_device *ndev,
 		     struct cfg80211_connect_params *sme)
 {
-	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
+	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	struct brcmf_cfg80211_security *sec;
 	struct brcmf_wsec_key key;
 	s32 val;
@@ -1214,14 +1214,14 @@ brcmf_set_set_sharedkey(struct net_device *dev,
 			WL_CONN("key length (%d) key index (%d) algo (%d)\n",
 			       key.len, key.index, key.algo);
 			WL_CONN("key \"%s\"\n", key.data);
-			err = send_key_to_dongle(dev, &key);
+			err = send_key_to_dongle(ndev, &key);
 			if (err)
 				return err;
 
 			if (sec->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM) {
 				WL_CONN("set auth_type to shared key\n");
 				val = 1;	/* shared key */
-				err = brcmf_dev_intvar_set(dev, "auth", val);
+				err = brcmf_dev_intvar_set(ndev, "auth", val);
 				if (err) {
 					WL_ERR("set auth failed (%d)\n", err);
 					return err;
@@ -1233,7 +1233,7 @@ brcmf_set_set_sharedkey(struct net_device *dev,
 }
 
 static s32
-brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		    struct cfg80211_connect_params *sme)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -1265,31 +1265,31 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	WL_INFO("ie (%p), ie_len (%zd)\n", sme->ie, sme->ie_len);
 
-	err = brcmf_set_wpa_version(dev, sme);
+	err = brcmf_set_wpa_version(ndev, sme);
 	if (err) {
 		WL_ERR("wl_set_wpa_version failed (%d)\n", err);
 		goto done;
 	}
 
-	err = brcmf_set_auth_type(dev, sme);
+	err = brcmf_set_auth_type(ndev, sme);
 	if (err) {
 		WL_ERR("wl_set_auth_type failed (%d)\n", err);
 		goto done;
 	}
 
-	err = brcmf_set_set_cipher(dev, sme);
+	err = brcmf_set_set_cipher(ndev, sme);
 	if (err) {
 		WL_ERR("wl_set_set_cipher failed (%d)\n", err);
 		goto done;
 	}
 
-	err = brcmf_set_key_mgmt(dev, sme);
+	err = brcmf_set_key_mgmt(ndev, sme);
 	if (err) {
 		WL_ERR("wl_set_key_mgmt failed (%d)\n", err);
 		goto done;
 	}
 
-	err = brcmf_set_set_sharedkey(dev, sme);
+	err = brcmf_set_set_sharedkey(ndev, sme);
 	if (err) {
 		WL_ERR("wl_set_set_sharedkey failed (%d)\n", err);
 		goto done;
@@ -1312,7 +1312,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	brcmf_ch_to_chanspec(cfg_priv->channel,
 			     &join_params, &join_params_size);
-	err = brcmf_dev_ioctl(dev, BRCMF_C_SET_SSID,
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_SSID,
 			   &join_params, join_params_size);
 	if (err)
 		WL_ERR("WLC_SET_SSID failed (%d)\n", err);
@@ -1325,7 +1325,7 @@ done:
 }
 
 static s32
-brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 		       u16 reason_code)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -1340,7 +1340,7 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 
 	memcpy(&scbval.ea, brcmf_read_prof(cfg_priv, WL_PROF_BSSID), ETH_ALEN);
 	scbval.val = cpu_to_le32(reason_code);
-	err = brcmf_dev_ioctl(dev, BRCMF_C_DISASSOC, &scbval,
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_DISASSOC, &scbval,
 			      sizeof(struct brcmf_scb_val_le));
 	if (err)
 		WL_ERR("error (%d)\n", err);
@@ -1432,7 +1432,7 @@ done:
 }
 
 static s32
-brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *ndev,
 			       u8 key_idx, bool unicast, bool multicast)
 {
 	u32 index;
@@ -1444,7 +1444,7 @@ brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
 	if (!check_sys_up(wiphy))
 		return -EIO;
 
-	err = brcmf_dev_ioctl_u32(dev, BRCMF_C_GET_WSEC, &wsec);
+	err = brcmf_dev_ioctl_u32(ndev, BRCMF_C_GET_WSEC, &wsec);
 	if (err) {
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		goto done;
@@ -1453,7 +1453,8 @@ brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
 	if (wsec & WEP_ENABLED) {
 		/* Just select a new current key */
 		index = key_idx;
-		err = brcmf_dev_ioctl_u32(dev, BRCMF_C_SET_KEY_PRIMARY, &index);
+		err = brcmf_dev_ioctl_u32(ndev, BRCMF_C_SET_KEY_PRIMARY,
+					  &index);
 		if (err)
 			WL_ERR("error (%d)\n", err);
 	}
@@ -1463,7 +1464,7 @@ done:
 }
 
 static s32
-brcmf_add_keyext(struct wiphy *wiphy, struct net_device *dev,
+brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
 {
 	struct brcmf_wsec_key key;
@@ -1480,7 +1481,7 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	/* check for key index change */
 	if (key.len == 0) {
 		/* key delete */
-		err = send_key_to_dongle(dev, &key);
+		err = send_key_to_dongle(ndev, &key);
 		if (err)
 			return err;
 	} else {
@@ -1537,8 +1538,8 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 		}
 		convert_key_from_CPU(&key, &key_le);
 
-		brcmf_netdev_wait_pend8021x(dev);
-		err = brcmf_dev_ioctl(dev, BRCMF_C_SET_KEY, &key_le,
+		brcmf_netdev_wait_pend8021x(ndev);
+		err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_KEY, &key_le,
 				      sizeof(key_le));
 		if (err) {
 			WL_ERR("WLC_SET_KEY error (%d)\n", err);
@@ -1549,7 +1550,7 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static s32
-brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		    u8 key_idx, bool pairwise, const u8 *mac_addr,
 		    struct key_params *params)
 {
@@ -1566,7 +1567,7 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 	if (mac_addr) {
 		WL_TRACE("Exit");
-		return brcmf_add_keyext(wiphy, dev, key_idx, mac_addr, params);
+		return brcmf_add_keyext(wiphy, ndev, key_idx, mac_addr, params);
 	}
 	memset(&key, 0, sizeof(key));
 
@@ -1611,26 +1612,26 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		goto done;
 	}
 
-	err = send_key_to_dongle(dev, &key); /* Set the new key/index */
+	err = send_key_to_dongle(ndev, &key); /* Set the new key/index */
 	if (err)
 		goto done;
 
 	val = WEP_ENABLED;
-	err = brcmf_dev_intvar_get(dev, "wsec", &wsec);
+	err = brcmf_dev_intvar_get(ndev, "wsec", &wsec);
 	if (err) {
 		WL_ERR("get wsec error (%d)\n", err);
 		goto done;
 	}
 	wsec &= ~(WEP_ENABLED);
 	wsec |= val;
-	err = brcmf_dev_intvar_set(dev, "wsec", wsec);
+	err = brcmf_dev_intvar_set(ndev, "wsec", wsec);
 	if (err) {
 		WL_ERR("set wsec error (%d)\n", err);
 		goto done;
 	}
 
 	val = 1;		/* assume shared key. otherwise 0 */
-	err = brcmf_dev_ioctl_u32(dev, BRCMF_C_SET_AUTH, &val);
+	err = brcmf_dev_ioctl_u32(ndev, BRCMF_C_SET_AUTH, &val);
 	if (err)
 		WL_ERR("WLC_SET_AUTH error (%d)\n", err);
 done:
@@ -1639,7 +1640,7 @@ done:
 }
 
 static s32
-brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 		    u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
 	struct brcmf_wsec_key key;
@@ -1660,7 +1661,7 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	WL_CONN("key index (%d)\n", key_idx);
 
 	/* Set the new key/index */
-	err = send_key_to_dongle(dev, &key);
+	err = send_key_to_dongle(ndev, &key);
 	if (err) {
 		if (err == -EINVAL) {
 			if (key.index >= DOT11_MAX_DEFAULT_KEYS)
@@ -1673,7 +1674,7 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	val = 0;
-	err = brcmf_dev_intvar_get(dev, "wsec", &wsec);
+	err = brcmf_dev_intvar_get(ndev, "wsec", &wsec);
 	if (err) {
 		WL_ERR("get wsec error (%d)\n", err);
 		/* Ignore this error, may happen during DISASSOC */
@@ -1682,7 +1683,7 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	}
 	wsec &= ~(WEP_ENABLED);
 	wsec |= val;
-	err = brcmf_dev_intvar_set(dev, "wsec", wsec);
+	err = brcmf_dev_intvar_set(ndev, "wsec", wsec);
 	if (err) {
 		WL_ERR("set wsec error (%d)\n", err);
 		/* Ignore this error, may happen during DISASSOC */
@@ -1691,7 +1692,7 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	val = 0;		/* assume open key. otherwise 1 */
-	err = brcmf_dev_ioctl_u32(dev, BRCMF_C_SET_AUTH, &val);
+	err = brcmf_dev_ioctl_u32(ndev, BRCMF_C_SET_AUTH, &val);
 	if (err) {
 		WL_ERR("WLC_SET_AUTH error (%d)\n", err);
 		/* Ignore this error, may happen during DISASSOC */
@@ -1703,7 +1704,7 @@ done:
 }
 
 static s32
-brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 		    u8 key_idx, bool pairwise, const u8 *mac_addr, void *cookie,
 		    void (*callback) (void *cookie, struct key_params * params))
 {
@@ -1720,7 +1721,7 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 
 	memset(&params, 0, sizeof(params));
 
-	err = brcmf_dev_ioctl_u32(dev, BRCMF_C_GET_WSEC, &wsec);
+	err = brcmf_dev_ioctl_u32(ndev, BRCMF_C_GET_WSEC, &wsec);
 	if (err) {
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		/* Ignore this error, may happen during DISASSOC */
@@ -1760,7 +1761,7 @@ done:
 
 static s32
 brcmf_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
-				    struct net_device *dev, u8 key_idx)
+				    struct net_device *ndev, u8 key_idx)
 {
 	WL_INFO("Not supported\n");
 
@@ -1768,7 +1769,7 @@ brcmf_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 }
 
 static s32
-brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 			u8 *mac, struct station_info *sinfo)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -1793,7 +1794,7 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	/* Report the current tx rate */
-	err = brcmf_dev_ioctl_u32(dev, BRCMF_C_GET_RATE, &rate);
+	err = brcmf_dev_ioctl_u32(ndev, BRCMF_C_GET_RATE, &rate);
 	if (err) {
 		WL_ERR("Could not get rate (%d)\n", err);
 	} else {
@@ -1804,7 +1805,7 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (test_bit(WL_STATUS_CONNECTED, &cfg_priv->status)) {
 		scb_val.val = cpu_to_le32(0);
-		err = brcmf_dev_ioctl(dev, BRCMF_C_GET_RSSI, &scb_val,
+		err = brcmf_dev_ioctl(ndev, BRCMF_C_GET_RSSI, &scb_val,
 				      sizeof(struct brcmf_scb_val_le));
 		if (err)
 			WL_ERR("Could not get rssi (%d)\n", err);
@@ -1821,7 +1822,7 @@ done:
 }
 
 static s32
-brcmf_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *ndev,
 			   bool enabled, s32 timeout)
 {
 	s32 pm;
@@ -1848,7 +1849,7 @@ brcmf_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	pm = enabled ? PM_FAST : PM_OFF;
 	WL_INFO("power save %s\n", (pm ? "enabled" : "disabled"));
 
-	err = brcmf_dev_ioctl_u32(dev, BRCMF_C_SET_PM, &pm);
+	err = brcmf_dev_ioctl_u32(ndev, BRCMF_C_SET_PM, &pm);
 	if (err) {
 		if (err == -ENODEV)
 			WL_ERR("net_device is not ready yet\n");
@@ -1861,7 +1862,7 @@ done:
 }
 
 static s32
-brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *ndev,
 			     const u8 *addr,
 			     const struct cfg80211_bitrate_mask *mask)
 {
@@ -1879,7 +1880,7 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 
 	/* addr param is always NULL. ignore it */
 	/* Get current rateset */
-	err = brcmf_dev_ioctl(dev, BRCM_GET_CURR_RATESET, &rateset_le,
+	err = brcmf_dev_ioctl(ndev, BRCM_GET_CURR_RATESET, &rateset_le,
 			      sizeof(rateset_le));
 	if (err) {
 		WL_ERR("could not get current rateset (%d)\n", err);
@@ -1907,8 +1908,8 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 	 *      Set rate override,
 	 *      Since the is a/b/g-blind, both a/bg_rate are enforced.
 	 */
-	err_bg = brcmf_dev_intvar_set(dev, "bg_rate", rate);
-	err_a = brcmf_dev_intvar_set(dev, "a_rate", rate);
+	err_bg = brcmf_dev_intvar_set(ndev, "bg_rate", rate);
+	err_a = brcmf_dev_intvar_set(ndev, "a_rate", rate);
 	if (err_bg && err_a) {
 		WL_ERR("could not set fixed rate (%d) (%d)\n", err_bg, err_a);
 		err = err_bg | err_a;
@@ -2004,7 +2005,7 @@ static s32 brcmf_inform_bss(struct brcmf_cfg80211_priv *cfg_priv)
 }
 
 static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
-			  struct net_device *dev, const u8 *bssid)
+			  struct net_device *ndev, const u8 *bssid)
 {
 	struct wiphy *wiphy = cfg_to_wiphy(cfg_priv);
 	struct ieee80211_channel *notify_channel;
@@ -2031,7 +2032,7 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 
 	*(__le32 *)buf = cpu_to_le32(WL_BSS_INFO_MAX);
 
-	err = brcmf_dev_ioctl(dev, BRCMF_C_GET_BSS_INFO, buf, WL_BSS_INFO_MAX);
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_GET_BSS_INFO, buf, WL_BSS_INFO_MAX);
 	if (err) {
 		WL_ERR("WLC_GET_BSS_INFO failed: %d\n", err);
 		goto CleanUp;
@@ -2214,9 +2215,9 @@ brcmf_get_iscan_results(struct brcmf_cfg80211_iscan_ctrl *iscan, u32 *status,
 
 	memset(&list, 0, sizeof(list));
 	list.results_le.buflen = cpu_to_le32(WL_ISCAN_BUF_MAX);
-	err = brcmf_dev_iovar_getbuf(iscan->dev, "iscanresults", &list,
-				BRCMF_ISCAN_RESULTS_FIXED_SIZE, iscan->scan_buf,
-				WL_ISCAN_BUF_MAX);
+	err = brcmf_dev_iovar_getbuf(iscan->ndev, "iscanresults", &list,
+				     BRCMF_ISCAN_RESULTS_FIXED_SIZE,
+				     iscan->scan_buf, WL_ISCAN_BUF_MAX);
 	if (err) {
 		WL_ERR("error (%d)\n", err);
 		return err;
@@ -2352,7 +2353,7 @@ static s32 brcmf_init_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 	int err = 0;
 
 	if (cfg_priv->iscan_on) {
-		iscan->dev = cfg_to_ndev(cfg_priv);
+		iscan->ndev = cfg_to_ndev(cfg_priv);
 		brcmf_init_iscan_eloop(&iscan->el);
 		iscan->timer_ms = WL_ISCAN_TIMER_INTERVAL_MS;
 		init_timer(&iscan->timer);
@@ -2454,32 +2455,32 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 }
 
 static __used s32
-brcmf_dev_bufvar_set(struct net_device *dev, s8 *name, s8 *buf, s32 len)
+brcmf_dev_bufvar_set(struct net_device *ndev, s8 *name, s8 *buf, s32 len)
 {
-	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
+	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	u32 buflen;
 
 	buflen = brcmu_mkiovar(name, buf, len, cfg_priv->ioctl_buf,
 			       WL_IOCTL_LEN_MAX);
 	BUG_ON(!buflen);
 
-	return brcmf_dev_ioctl(dev, BRCMF_C_SET_VAR, cfg_priv->ioctl_buf,
+	return brcmf_dev_ioctl(ndev, BRCMF_C_SET_VAR, cfg_priv->ioctl_buf,
 			       buflen);
 }
 
 static s32
-brcmf_dev_bufvar_get(struct net_device *dev, s8 *name, s8 *buf,
+brcmf_dev_bufvar_get(struct net_device *ndev, s8 *name, s8 *buf,
 		  s32 buf_len)
 {
-	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(dev);
+	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	u32 len;
 	s32 err = 0;
 
 	len = brcmu_mkiovar(name, NULL, 0, cfg_priv->ioctl_buf,
 			    WL_IOCTL_LEN_MAX);
 	BUG_ON(!len);
-	err = brcmf_dev_ioctl(dev, BRCMF_C_GET_VAR, (void *)cfg_priv->ioctl_buf,
-			WL_IOCTL_LEN_MAX);
+	err = brcmf_dev_ioctl(ndev, BRCMF_C_GET_VAR, cfg_priv->ioctl_buf,
+			      WL_IOCTL_LEN_MAX);
 	if (err) {
 		WL_ERR("error (%d)\n", err);
 		return err;
@@ -2490,7 +2491,7 @@ brcmf_dev_bufvar_get(struct net_device *dev, s8 *name, s8 *buf,
 }
 
 static __used s32
-brcmf_update_pmklist(struct net_device *dev,
+brcmf_update_pmklist(struct net_device *ndev,
 		     struct brcmf_cfg80211_pmk_list *pmk_list, s32 err)
 {
 	int i, j;
@@ -2504,14 +2505,14 @@ brcmf_update_pmklist(struct net_device *dev,
 	}
 
 	if (!err)
-		brcmf_dev_bufvar_set(dev, "pmkid_info", (char *)pmk_list,
+		brcmf_dev_bufvar_set(ndev, "pmkid_info", (char *)pmk_list,
 					sizeof(*pmk_list));
 
 	return err;
 }
 
 static s32
-brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 			 struct cfg80211_pmksa *pmksa)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -2539,14 +2540,14 @@ brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	for (i = 0; i < WLAN_PMKID_LEN; i++)
 		WL_CONN("%02x\n", pmkids->pmkid[pmkids->npmkid].PMKID[i]);
 
-	err = brcmf_update_pmklist(dev, cfg_priv->pmk_list, err);
+	err = brcmf_update_pmklist(ndev, cfg_priv->pmk_list, err);
 
 	WL_TRACE("Exit\n");
 	return err;
 }
 
 static s32
-brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
+brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 		      struct cfg80211_pmksa *pmksa)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -2588,7 +2589,7 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	} else
 		err = -EINVAL;
 
-	err = brcmf_update_pmklist(dev, cfg_priv->pmk_list, err);
+	err = brcmf_update_pmklist(ndev, cfg_priv->pmk_list, err);
 
 	WL_TRACE("Exit\n");
 	return err;
@@ -2596,7 +2597,7 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static s32
-brcmf_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *dev)
+brcmf_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *ndev)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	s32 err = 0;
@@ -2606,7 +2607,7 @@ brcmf_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *dev)
 		return -EIO;
 
 	memset(cfg_priv->pmk_list, 0, sizeof(*cfg_priv->pmk_list));
-	err = brcmf_update_pmklist(dev, cfg_priv->pmk_list, err);
+	err = brcmf_update_pmklist(ndev, cfg_priv->pmk_list, err);
 
 	WL_TRACE("Exit\n");
 	return err;
@@ -2655,7 +2656,7 @@ static s32 brcmf_mode_to_nl80211_iftype(s32 mode)
 }
 
 static struct wireless_dev *brcmf_alloc_wdev(s32 sizeof_iface,
-					  struct device *dev)
+					  struct device *ndev)
 {
 	struct wireless_dev *wdev;
 	s32 err = 0;
@@ -2672,7 +2673,7 @@ static struct wireless_dev *brcmf_alloc_wdev(s32 sizeof_iface,
 		err = -ENOMEM;
 		goto wiphy_new_out;
 	}
-	set_wiphy_dev(wdev->wiphy, dev);
+	set_wiphy_dev(wdev->wiphy, ndev);
 	wdev->wiphy->max_scan_ssids = WL_NUM_SCAN_MAX;
 	wdev->wiphy->max_num_pmkids = WL_NUM_PMKIDS_MAX;
 	wdev->wiphy->interface_modes =

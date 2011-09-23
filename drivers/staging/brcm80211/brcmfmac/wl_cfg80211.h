@@ -243,7 +243,7 @@ struct brcmf_cfg80211_iscan_eloop {
 
 /* dongle iscan controller */
 struct brcmf_cfg80211_iscan_ctrl {
-	struct net_device *dev;
+	struct net_device *ndev;
 	struct timer_list timer;
 	u32 timer_ms;
 	u32 timer_on;

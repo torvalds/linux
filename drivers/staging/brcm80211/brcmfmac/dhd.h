@@ -722,9 +722,9 @@ static inline void MUTEX_UNLOCK_WL_SCAN_SET(void)
 extern struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus,
 				      uint bus_hdrlen);
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
-extern int brcmf_netdev_wait_pend8021x(struct net_device *dev);
+extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
-extern int brcmf_netdev_ioctl_priv(struct net_device *net,
+extern int brcmf_netdev_ioctl_priv(struct net_device *ndev,
 				   struct brcmf_ioctl *ioc);
 
 /* Indication from bus module regarding removal/absence of dongle */
@@ -766,7 +766,7 @@ extern int brcmf_c_host_event(struct brcmf_info *drvr_priv, int *idx,
 extern void brcmf_c_init(void);
 
 extern int brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx,
-			struct net_device *net, char *name, u8 *mac_addr,
+			struct net_device *ndev, char *name, u8 *mac_addr,
 			u32 flags, u8 bssidx);
 extern void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx);
 
