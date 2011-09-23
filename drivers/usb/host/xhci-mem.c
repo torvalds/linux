@@ -317,7 +317,7 @@ static void xhci_free_stream_ctx(struct xhci_hcd *xhci,
 	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 
 	if (num_stream_ctxs > MEDIUM_STREAM_ARRAY_SIZE)
-		pci_free_consistent(pdev,
+		dma_free_coherent(&pdev->dev,
 				sizeof(struct xhci_stream_ctx)*num_stream_ctxs,
 				stream_ctx, dma);
 	else if (num_stream_ctxs <= SMALL_STREAM_ARRAY_SIZE)
@@ -345,9 +345,9 @@ static struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
 	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 
 	if (num_stream_ctxs > MEDIUM_STREAM_ARRAY_SIZE)
-		return pci_alloc_consistent(pdev,
+		return dma_alloc_coherent(&pdev->dev,
 				sizeof(struct xhci_stream_ctx)*num_stream_ctxs,
-				dma);
+				dma, mem_flags);
 	else if (num_stream_ctxs <= SMALL_STREAM_ARRAY_SIZE)
 		return dma_pool_alloc(xhci->small_streams_pool,
 				mem_flags, dma);
@@ -1551,10 +1551,9 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	if (!xhci->scratchpad)
 		goto fail_sp;
 
-	xhci->scratchpad->sp_array =
-		pci_alloc_consistent(to_pci_dev(dev),
+	xhci->scratchpad->sp_array = dma_alloc_coherent(dev,
 				     num_sp * sizeof(u64),
-				     &xhci->scratchpad->sp_dma);
+				     &xhci->scratchpad->sp_dma, flags);
 	if (!xhci->scratchpad->sp_array)
 		goto fail_sp2;
 
@@ -1571,8 +1570,8 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->dcbaa->dev_context_ptrs[0] = cpu_to_le64(xhci->scratchpad->sp_dma);
 	for (i = 0; i < num_sp; i++) {
 		dma_addr_t dma;
-		void *buf = pci_alloc_consistent(to_pci_dev(dev),
-						 xhci->page_size, &dma);
+		void *buf = dma_alloc_coherent(dev, xhci->page_size, &dma,
+				flags);
 		if (!buf)
 			goto fail_sp5;
 
@@ -1585,7 +1584,7 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 
  fail_sp5:
 	for (i = i - 1; i >= 0; i--) {
-		pci_free_consistent(to_pci_dev(dev), xhci->page_size,
+		dma_free_coherent(dev, xhci->page_size,
 				    xhci->scratchpad->sp_buffers[i],
 				    xhci->scratchpad->sp_dma_buffers[i]);
 	}
@@ -1595,7 +1594,7 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	kfree(xhci->scratchpad->sp_buffers);
 
  fail_sp3:
-	pci_free_consistent(to_pci_dev(dev), num_sp * sizeof(u64),
+	dma_free_coherent(dev, num_sp * sizeof(u64),
 			    xhci->scratchpad->sp_array,
 			    xhci->scratchpad->sp_dma);
 
@@ -1619,13 +1618,13 @@ static void scratchpad_free(struct xhci_hcd *xhci)
 	num_sp = HCS_MAX_SCRATCHPAD(xhci->hcs_params2);
 
 	for (i = 0; i < num_sp; i++) {
-		pci_free_consistent(pdev, xhci->page_size,
+		dma_free_coherent(&pdev->dev, xhci->page_size,
 				    xhci->scratchpad->sp_buffers[i],
 				    xhci->scratchpad->sp_dma_buffers[i]);
 	}
 	kfree(xhci->scratchpad->sp_dma_buffers);
 	kfree(xhci->scratchpad->sp_buffers);
-	pci_free_consistent(pdev, num_sp * sizeof(u64),
+	dma_free_coherent(&pdev->dev, num_sp * sizeof(u64),
 			    xhci->scratchpad->sp_array,
 			    xhci->scratchpad->sp_dma);
 	kfree(xhci->scratchpad);
@@ -1701,7 +1700,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	}
 	size = sizeof(struct xhci_erst_entry)*(xhci->erst.num_entries);
 	if (xhci->erst.entries)
-		pci_free_consistent(pdev, size,
+		dma_free_coherent(&pdev->dev, size,
 				xhci->erst.entries, xhci->erst.erst_dma_addr);
 	xhci->erst.entries = NULL;
 	xhci_dbg(xhci, "Freed ERST\n");
@@ -1741,7 +1740,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	xhci_write_64(xhci, 0, &xhci->op_regs->dcbaa_ptr);
 	if (xhci->dcbaa)
-		pci_free_consistent(pdev, sizeof(*xhci->dcbaa),
+		dma_free_coherent(&pdev->dev, sizeof(*xhci->dcbaa),
 				xhci->dcbaa, xhci->dcbaa->dma);
 	xhci->dcbaa = NULL;
 
@@ -2197,8 +2196,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * Section 5.4.8 - doorbell array must be
 	 * "physically contiguous and 64-byte (cache line) aligned".
 	 */
-	xhci->dcbaa = pci_alloc_consistent(to_pci_dev(dev),
-			sizeof(*xhci->dcbaa), &dma);
+	xhci->dcbaa = dma_alloc_coherent(dev, sizeof(*xhci->dcbaa), &dma,
+			GFP_KERNEL);
 	if (!xhci->dcbaa)
 		goto fail;
 	memset(xhci->dcbaa, 0, sizeof *(xhci->dcbaa));
@@ -2232,7 +2231,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		dma_pool_create("xHCI 1KB stream ctx arrays",
 			dev, MEDIUM_STREAM_ARRAY_SIZE, 16, 0);
 	/* Any stream context array bigger than MEDIUM_STREAM_ARRAY_SIZE
-	 * will be allocated with pci_alloc_consistent()
+	 * will be allocated with dma_alloc_coherent()
 	 */
 
 	if (!xhci->small_streams_pool || !xhci->medium_streams_pool)
@@ -2277,8 +2276,9 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	if (xhci_check_trb_in_td_math(xhci, flags) < 0)
 		goto fail;
 
-	xhci->erst.entries = pci_alloc_consistent(to_pci_dev(dev),
-			sizeof(struct xhci_erst_entry)*ERST_NUM_SEGS, &dma);
+	xhci->erst.entries = dma_alloc_coherent(dev,
+			sizeof(struct xhci_erst_entry) * ERST_NUM_SEGS, &dma,
+			GFP_KERNEL);
 	if (!xhci->erst.entries)
 		goto fail;
 	xhci_dbg(xhci, "// Allocated event ring segment table at 0x%llx\n",
