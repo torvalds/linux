@@ -224,6 +224,19 @@ static inline void hash_stid(struct nfs4_stid *stid)
 	list_add(&stid->sc_hash, &stateid_hashtbl[hashval]);
 }
 
+static void init_stid(struct nfs4_stid *stid, struct nfs4_client *cl, unsigned char type)
+{
+	stateid_t *s = &stid->sc_stateid;
+
+	stid->sc_type = type;
+	stid->sc_client = cl;
+	s->si_opaque.so_clid = cl->cl_clientid;
+	s->si_opaque.so_id = current_stateid++;
+	/* Will be incremented before return to client: */
+	s->si_generation = 0;
+	hash_stid(stid);
+}
+
 static struct nfs4_delegation *
 alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct svc_fh *current_fh, u32 type)
 {
@@ -245,19 +258,20 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct sv
 	dp = kmem_cache_alloc(deleg_slab, GFP_KERNEL);
 	if (dp == NULL)
 		return dp;
+	init_stid(&dp->dl_stid, clp, NFS4_DELEG_STID);
+	/*
+	 * delegation seqid's are never incremented.  The 4.1 special
+	 * meaning of seqid 0 isn't really meaningful, really, but let's
+	 * avoid 0 anyway just for consistency and use 1:
+	 */
+	dp->dl_stid.sc_stateid.si_generation = 1;
 	num_delegations++;
 	INIT_LIST_HEAD(&dp->dl_perfile);
 	INIT_LIST_HEAD(&dp->dl_perclnt);
 	INIT_LIST_HEAD(&dp->dl_recall_lru);
-	dp->dl_client = clp;
 	get_nfs4_file(fp);
 	dp->dl_file = fp;
 	dp->dl_type = type;
-	dp->dl_stid.sc_type = NFS4_DELEG_STID;
-	dp->dl_stid.sc_stateid.si_opaque.so_clid = clp->cl_clientid;
-	dp->dl_stid.sc_stateid.si_opaque.so_id = current_stateid++;
-	dp->dl_stid.sc_stateid.si_generation = 1;
-	hash_stid(&dp->dl_stid);
 	fh_copy_shallow(&dp->dl_fh, &current_fh->fh_handle);
 	dp->dl_time = 0;
 	atomic_set(&dp->dl_count, 1);
@@ -2333,18 +2347,13 @@ init_open_stateid(struct nfs4_ol_stateid *stp, struct nfs4_file *fp, struct nfsd
 	struct nfs4_openowner *oo = open->op_openowner;
 	struct nfs4_client *clp = oo->oo_owner.so_client;
 
+	init_stid(&stp->st_stid, clp, NFS4_OPEN_STID);
 	INIT_LIST_HEAD(&stp->st_lockowners);
 	list_add(&stp->st_perstateowner, &oo->oo_owner.so_stateids);
 	list_add(&stp->st_perfile, &fp->fi_stateids);
-	stp->st_stid.sc_type = NFS4_OPEN_STID;
 	stp->st_stateowner = &oo->oo_owner;
 	get_nfs4_file(fp);
 	stp->st_file = fp;
-	stp->st_stid.sc_stateid.si_opaque.so_clid = clp->cl_clientid;
-	stp->st_stid.sc_stateid.si_opaque.so_id = current_stateid++;
-	/* note will be incremented before first return to client: */
-	stp->st_stid.sc_stateid.si_generation = 0;
-	hash_stid(&stp->st_stid);
 	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = 0;
 	__set_bit(open->op_share_access & ~NFS4_SHARE_WANT_MASK,
@@ -2792,7 +2801,7 @@ static int nfs4_setlease(struct nfs4_delegation *dp, int flag)
 	if (!fl)
 		return -ENOMEM;
 	fl->fl_file = find_readable_file(fp);
-	list_add(&dp->dl_perclnt, &dp->dl_client->cl_delegations);
+	list_add(&dp->dl_perclnt, &dp->dl_stid.sc_client->cl_delegations);
 	status = vfs_setlease(fl->fl_file, fl->fl_type, &fl);
 	if (status) {
 		list_del_init(&dp->dl_perclnt);
@@ -2821,7 +2830,7 @@ static int nfs4_set_delegation(struct nfs4_delegation *dp, int flag)
 	atomic_inc(&fp->fi_delegees);
 	list_add(&dp->dl_perfile, &fp->fi_delegations);
 	spin_unlock(&recall_lock);
-	list_add(&dp->dl_perclnt, &dp->dl_client->cl_delegations);
+	list_add(&dp->dl_perclnt, &dp->dl_stid.sc_client->cl_delegations);
 	return 0;
 }
 
@@ -3295,7 +3304,7 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		status = nfs4_check_delegmode(dp, flags);
 		if (status)
 			goto out;
-		renew_client(dp->dl_client);
+		renew_client(dp->dl_stid.sc_client);
 		if (filpp) {
 			*filpp = dp->dl_file->fi_deleg_file;
 			BUG_ON(!*filpp);
@@ -3665,7 +3674,7 @@ nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	status = check_stateid_generation(stateid, &dp->dl_stid.sc_stateid, nfsd4_has_session(cstate));
 	if (status)
 		goto out;
-	renew_client(dp->dl_client);
+	renew_client(dp->dl_stid.sc_client);
 
 	unhash_delegation(dp);
 out:
@@ -3819,17 +3828,12 @@ alloc_init_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fp, struct 
 	stp = nfs4_alloc_stateid();
 	if (stp == NULL)
 		goto out;
+	init_stid(&stp->st_stid, clp, NFS4_LOCK_STID);
 	list_add(&stp->st_perfile, &fp->fi_stateids);
 	list_add(&stp->st_perstateowner, &lo->lo_owner.so_stateids);
 	stp->st_stateowner = &lo->lo_owner;
-	stp->st_stid.sc_type = NFS4_LOCK_STID;
 	get_nfs4_file(fp);
 	stp->st_file = fp;
-	stp->st_stid.sc_stateid.si_opaque.so_clid = clp->cl_clientid;
-	stp->st_stid.sc_stateid.si_opaque.so_id = current_stateid++;
-	/* note will be incremented before first return to client: */
-	stp->st_stid.sc_stateid.si_generation = 0;
-	hash_stid(&stp->st_stid);
 	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = open_stp->st_deny_bmap;
 	stp->st_openstp = open_stp;

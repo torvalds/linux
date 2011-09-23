@@ -787,7 +787,7 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
 	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_client;
+	struct nfs4_client *clp = dp->dl_stid.sc_client;
 	u32 minorversion = clp->cl_minorversion;
 
 	cb->cb_minorversion = minorversion;
@@ -809,7 +809,7 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
 	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_client;
+	struct nfs4_client *clp = dp->dl_stid.sc_client;
 
 	dprintk("%s: minorversion=%d\n", __func__,
 		clp->cl_minorversion);
@@ -832,7 +832,7 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
 	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_client;
+	struct nfs4_client *clp = dp->dl_stid.sc_client;
 	struct rpc_clnt *current_rpc_client = clp->cl_cb_client;
 
 	nfsd4_cb_done(task, calldata);
@@ -1006,7 +1006,7 @@ void nfsd4_do_callback_rpc(struct work_struct *w)
 void nfsd4_cb_recall(struct nfs4_delegation *dp)
 {
 	struct nfsd4_callback *cb = &dp->dl_recall;
-	struct nfs4_client *clp = dp->dl_client;
+	struct nfs4_client *clp = dp->dl_stid.sc_client;
 
 	dp->dl_retries = 1;
 	cb->cb_op = dp;

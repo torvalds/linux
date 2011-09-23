@@ -81,6 +81,7 @@ struct nfs4_stid {
 	unsigned char sc_type;
 	struct list_head sc_hash;
 	stateid_t sc_stateid;
+	struct nfs4_client *sc_client;
 };
 
 struct nfs4_delegation {
@@ -88,7 +89,6 @@ struct nfs4_delegation {
 	struct list_head	dl_perclnt;
 	struct list_head	dl_recall_lru;  /* delegation recalled */
 	atomic_t		dl_count;       /* ref count */
-	struct nfs4_client	*dl_client;
 	struct nfs4_file	*dl_file;
 	u32			dl_type;
 	time_t			dl_time;
