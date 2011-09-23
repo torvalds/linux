@@ -296,6 +296,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         }
         else {
             sLinkStatus.bLink = false;
+	    sLinkStatus.uLinkRate = 0;
         }
         if (copy_to_user(pReq->data, &sLinkStatus, sizeof(SCmdLinkStatus))) {
 			result = -EFAULT;
