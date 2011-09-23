@@ -1959,6 +1959,23 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	if (port_offset == 0 || (port_offset + port_count - 1) > num_ports)
 		/* WTF? "Valid values are ‘1’ to MaxPorts" */
 		return;
+
+	/* Check the host's USB2 LPM capability */
+	if ((xhci->hci_version == 0x96) && (major_revision != 0x03) &&
+			(temp & XHCI_L1C)) {
+		xhci_dbg(xhci, "xHCI 0.96: support USB2 software lpm\n");
+		xhci->sw_lpm_support = 1;
+	}
+
+	if ((xhci->hci_version >= 0x100) && (major_revision != 0x03)) {
+		xhci_dbg(xhci, "xHCI 1.0: support USB2 software lpm\n");
+		xhci->sw_lpm_support = 1;
+		if (temp & XHCI_HLC) {
+			xhci_dbg(xhci, "xHCI 1.0: support USB2 hardware lpm\n");
+			xhci->hw_lpm_support = 1;
+		}
+	}
+
 	port_offset--;
 	for (i = port_offset; i < (port_offset + port_count); i++) {
 		/* Duplicate entry.  Ignore the port if the revisions differ. */
