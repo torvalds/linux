@@ -134,6 +134,7 @@ static struct snd_soc_dai_link speyside_wm8962_dai[] = {
 
 static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("Main Speaker"),
+	SOC_DAPM_PIN_SWITCH("DMIC"),
 };
 
 static struct snd_soc_dapm_widget widgets[] = {
