@@ -1359,6 +1359,10 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		}
 	}
 
+	if (hcd->speed != HCD_USB3)
+		xhci_test_and_clear_bit(xhci, port_array, faked_port_index,
+					PORT_PLC);
+
 cleanup:
 	/* Update event ring dequeue pointer before dropping the lock */
 	inc_deq(xhci, xhci->event_ring, true);
