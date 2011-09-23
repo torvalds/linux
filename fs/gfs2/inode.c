@@ -621,7 +621,7 @@ fail:
 	return error;
 }
 
-int gfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+static int gfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 		    void *fs_info)
 {
 	const struct xattr *xattr;
