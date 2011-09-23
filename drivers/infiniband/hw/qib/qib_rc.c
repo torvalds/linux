@@ -1955,8 +1955,6 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
 		break;
 	}
 
-	memset(&wc, 0, sizeof wc);
-
 	if (qp->state == IB_QPS_RTR && !(qp->r_flags & QIB_R_COMM_EST)) {
 		qp->r_flags |= QIB_R_COMM_EST;
 		if (qp->ibqp.event_handler) {
@@ -2009,16 +2007,19 @@ send_middle:
 			goto rnr_nak;
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
-			goto send_last;
-		/* FALLTHROUGH */
+			goto no_immediate_data;
+		/* FALLTHROUGH for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;
 		hdrsize += 4;
 		wc.wc_flags = IB_WC_WITH_IMM;
-		/* FALLTHROUGH */
+		goto send_last;
 	case OP(SEND_LAST):
 	case OP(RDMA_WRITE_LAST):
+no_immediate_data:
+		wc.wc_flags = 0;
+		wc.ex.imm_data = 0;
 send_last:
 		/* Get the number of bytes the message was padded by. */
 		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
@@ -2051,6 +2052,12 @@ send_last:
 		wc.src_qp = qp->remote_qpn;
 		wc.slid = qp->remote_ah_attr.dlid;
 		wc.sl = qp->remote_ah_attr.sl;
+		/* zero fields that are N/A */
+		wc.vendor_err = 0;
+		wc.pkey_index = 0;
+		wc.dlid_path_bits = 0;
+		wc.port_num = 0;
+		wc.csum_ok = 0;
 		/* Signal completion event if the solicited bit is set. */
 		qib_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 			     (ohdr->bth[0] &
@@ -2089,7 +2096,7 @@ send_last:
 		if (opcode == OP(RDMA_WRITE_FIRST))
 			goto send_middle;
 		else if (opcode == OP(RDMA_WRITE_ONLY))
-			goto send_last;
+			goto no_immediate_data;
 		ret = qib_get_rwqe(qp, 1);
 		if (ret < 0)
 			goto nack_op_err;
