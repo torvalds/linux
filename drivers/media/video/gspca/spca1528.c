@@ -1,7 +1,7 @@
 /*
  * spca1528 subdriver
  *
- * Copyright (C) 2010 Jean-Francois Moine (http://moinejf.free.fr)
+ * Copyright (C) 2010-2011 Jean-Francois Moine (http://moinejf.free.fr)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -351,7 +351,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
 	reg_wb(gspca_dev, 0x25, 0x0000, 0x0004, mode);
 	reg_r(gspca_dev, 0x25, 0x0004, 1);
-	reg_wb(gspca_dev, 0x27, 0x0000, 0x0000, 0x06);
+	reg_wb(gspca_dev, 0x27, 0x0000, 0x0000, 0x06);	/* 420 */
 	reg_r(gspca_dev, 0x27, 0x0000, 1);
 	return gspca_dev->usb_err;
 }
@@ -381,7 +381,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* start the capture */
 	wait_status_0(gspca_dev);
-	reg_w(gspca_dev, 0x31, 0x0000, 0x0004);
+	reg_w(gspca_dev, 0x31, 0x0000, 0x0004);	/* start request */
 	wait_status_1(gspca_dev);
 	wait_status_0(gspca_dev);
 	msleep(200);
@@ -394,7 +394,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	/* stop the capture */
 	wait_status_0(gspca_dev);
-	reg_w(gspca_dev, 0x31, 0x0000, 0x0000);
+	reg_w(gspca_dev, 0x31, 0x0000, 0x0000);	/* stop request */
 	wait_status_1(gspca_dev);
 	wait_status_0(gspca_dev);
 }
