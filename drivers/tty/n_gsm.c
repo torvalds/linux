@@ -809,37 +809,41 @@ static int gsm_dlci_data_output(struct gsm_mux *gsm, struct gsm_dlci *dlci)
 {
 	struct gsm_msg *msg;
 	u8 *dp;
-	int len, size;
+	int len, total_size, size;
 	int h = dlci->adaption - 1;
 
-	len = kfifo_len(dlci->fifo);
-	if (len == 0)
-		return 0;
+	total_size = 0;
+	while(1) {
+		len = kfifo_len(dlci->fifo);
+		if (len == 0)
+			return total_size;
 
-	/* MTU/MRU count only the data bits */
-	if (len > gsm->mtu)
-		len = gsm->mtu;
+		/* MTU/MRU count only the data bits */
+		if (len > gsm->mtu)
+			len = gsm->mtu;
 
-	size = len + h;
+		size = len + h;
 
-	msg = gsm_data_alloc(gsm, dlci->addr, size, gsm->ftype);
-	/* FIXME: need a timer or something to kick this so it can't
-	   get stuck with no work outstanding and no buffer free */
-	if (msg == NULL)
-		return -ENOMEM;
-	dp = msg->data;
-	switch (dlci->adaption) {
-	case 1:	/* Unstructured */
-		break;
-	case 2:	/* Unstructed with modem bits. Always one byte as we never
-		   send inline break data */
-		*dp++ = gsm_encode_modem(dlci);
-		break;
+		msg = gsm_data_alloc(gsm, dlci->addr, size, gsm->ftype);
+		/* FIXME: need a timer or something to kick this so it can't
+		   get stuck with no work outstanding and no buffer free */
+		if (msg == NULL)
+			return -ENOMEM;
+		dp = msg->data;
+		switch (dlci->adaption) {
+		case 1:	/* Unstructured */
+			break;
+		case 2:	/* Unstructed with modem bits. Always one byte as we never
+			   send inline break data */
+			*dp++ = gsm_encode_modem(dlci);
+			break;
+		}
+		WARN_ON(kfifo_out_locked(dlci->fifo, dp , len, &dlci->lock) != len);
+		__gsm_data_queue(dlci, msg);
+		total_size += size;
 	}
-	WARN_ON(kfifo_out_locked(dlci->fifo, dp , len, &dlci->lock) != len);
-	__gsm_data_queue(dlci, msg);
 	/* Bytes of data we used up */
-	return size;
+	return total_size;
 }
 
 /**
