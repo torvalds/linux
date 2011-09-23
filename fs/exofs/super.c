@@ -355,7 +355,7 @@ static const struct export_operations exofs_export_ops;
 /*
  * Write the superblock to the OSD
  */
-int exofs_sync_fs(struct super_block *sb, int wait)
+static int exofs_sync_fs(struct super_block *sb, int wait)
 {
 	struct exofs_sb_info *sbi;
 	struct exofs_fscb *fscb;
@@ -429,7 +429,7 @@ static void _exofs_print_device(const char *msg, const char *dev_path,
 		msg, dev_path ?: "", odi->osdname, _LLU(pid));
 }
 
-void exofs_free_sbi(struct exofs_sb_info *sbi)
+static void exofs_free_sbi(struct exofs_sb_info *sbi)
 {
 	while (sbi->comps.numdevs) {
 		int i = --sbi->comps.numdevs;
@@ -981,7 +981,7 @@ static const struct super_operations exofs_sops = {
  * EXPORT OPERATIONS
  *****************************************************************************/
 
-struct dentry *exofs_get_parent(struct dentry *child)
+static struct dentry *exofs_get_parent(struct dentry *child)
 {
 	unsigned long ino = exofs_parent_ino(child);
 
