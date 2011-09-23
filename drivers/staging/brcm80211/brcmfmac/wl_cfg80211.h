@@ -298,8 +298,7 @@ struct brcmf_cfg80211_priv {
 	struct brcmf_cfg80211_iscan_ctrl *iscan;	/* iscan controller */
 	struct brcmf_cfg80211_connect_info conn_info; /* association info */
 	struct brcmf_cfg80211_pmk_list *pmk_list;	/* wpa2 pmk list */
-	struct task_struct *event_tsk;	/* task of main event handler thread */
-	wait_queue_head_t event_waitq;	/* wait queue for main event handling */
+	struct work_struct event_work;	/* event handler work struct */
 	unsigned long status;		/* current dongle status */
 	void *pub;
 	u32 channel;		/* current channel */
