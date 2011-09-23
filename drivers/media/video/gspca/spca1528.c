@@ -311,8 +311,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->color = COLOR_DEF;
 	sd->sharpness = SHARPNESS_DEF;
 
-	gspca_dev->nbalt = 4;		/* use alternate setting 3 */
-
 	return 0;
 }
 
@@ -353,6 +351,10 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 	reg_r(gspca_dev, 0x25, 0x0004, 1);
 	reg_wb(gspca_dev, 0x27, 0x0000, 0x0000, 0x06);	/* 420 */
 	reg_r(gspca_dev, 0x27, 0x0000, 1);
+
+/* not useful..
+	gspca_dev->alt = 4;		* use alternate setting 3 */
+
 	return gspca_dev->usb_err;
 }
 
