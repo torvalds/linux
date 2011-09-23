@@ -401,7 +401,9 @@ static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 	/* read 24 bits and return valid 17 bit addr */
 	int i;
 	u32 scratch, regdata;
-	u8 *ptr = (u8 *)&scratch;
+	__le32 scratch_le;
+	u8 *ptr = (u8 *)&scratch_le;
+
 	for (i = 0; i < 3; i++) {
 		if ((brcmf_sdioh_card_regread(sdiodev, 0, regaddr, 1,
 				&regdata)) != SUCCESS)
@@ -412,7 +414,7 @@ static int brcmf_sdioh_get_cisaddr(struct brcmf_sdio_dev *sdiodev, u32 regaddr)
 	}
 
 	/* Only the lower 17-bits are valid */
-	scratch = le32_to_cpu(scratch);
+	scratch = le32_to_cpu(scratch_le);
 	scratch &= 0x0001FFFF;
 	return scratch;
 }

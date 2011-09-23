@@ -138,6 +138,8 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	struct net_device *dev;
 	struct netdev_hw_addr *ha;
 	u32 allmulti, cnt;
+	__le32 cnt_le;
+	__le32 allmulti_le;
 
 	struct brcmf_ioctl ioc;
 	char *buf, *bufp;
@@ -166,9 +168,9 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	strcpy(bufp, "mcast_list");
 	bufp += strlen("mcast_list") + 1;
 
-	cnt = cpu_to_le32(cnt);
-	memcpy(bufp, &cnt, sizeof(cnt));
-	bufp += sizeof(cnt);
+	cnt_le = cpu_to_le32(cnt);
+	memcpy(bufp, &cnt_le, sizeof(cnt));
+	bufp += sizeof(cnt_le);
 
 	netdev_for_each_mc_addr(ha, dev) {
 		if (!cnt)
@@ -205,10 +207,11 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 			  brcmf_ifname(&drvr_priv->pub, 0));
 		return;
 	}
-	allmulti = cpu_to_le32(allmulti);
+	allmulti_le = cpu_to_le32(allmulti);
 
 	if (!brcmu_mkiovar
-	    ("allmulti", (void *)&allmulti, sizeof(allmulti), buf, buflen)) {
+	    ("allmulti", (void *)&allmulti_le,
+	    sizeof(allmulti_le), buf, buflen)) {
 		brcmf_dbg(ERROR, "%s: mkiovar failed for allmulti, datalen %d buflen %u\n",
 			  brcmf_ifname(&drvr_priv->pub, 0),
 			  (int)sizeof(allmulti), buflen);
@@ -226,7 +229,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set allmulti %d failed\n",
 			  brcmf_ifname(&drvr_priv->pub, 0),
-			  le32_to_cpu(allmulti));
+			  le32_to_cpu(allmulti_le));
 	}
 
 	kfree(buf);
@@ -235,19 +238,19 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 		 driver does */
 
 	allmulti = (dev->flags & IFF_PROMISC) ? true : false;
-	allmulti = cpu_to_le32(allmulti);
+	allmulti_le = cpu_to_le32(allmulti);
 
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.cmd = BRCMF_C_SET_PROMISC;
-	ioc.buf = &allmulti;
-	ioc.len = sizeof(allmulti);
+	ioc.buf = &allmulti_le;
+	ioc.len = sizeof(allmulti_le);
 	ioc.set = true;
 
 	ret = brcmf_proto_ioctl(&drvr_priv->pub, 0, &ioc, ioc.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set promisc %d failed\n",
 			  brcmf_ifname(&drvr_priv->pub, 0),
-			  le32_to_cpu(allmulti));
+			  le32_to_cpu(allmulti_le));
 	}
 }
 

@@ -2361,8 +2361,8 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt,
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
 	len = (u16) (pkt->len);
-	*(u16 *) frame = cpu_to_le16(len);
-	*(((u16 *) frame) + 1) = cpu_to_le16(~len);
+	*(__le16 *) frame = cpu_to_le16(len);
+	*(((__le16 *) frame) + 1) = cpu_to_le16(~len);
 
 	/* Software tag: channel, sequence number, data offset */
 	swheader =
@@ -2917,16 +2917,17 @@ static int
 brcmf_sdbrcm_readshared(struct brcmf_bus *bus, struct sdpcm_shared *sh)
 {
 	u32 addr;
+	__le32 addr_le;
 	int rv;
 
 	/* Read last word in memory to determine address of
 			 sdpcm_shared structure */
-	rv = brcmf_sdbrcm_membytes(bus, false, bus->ramsize - 4, (u8 *)&addr,
+	rv = brcmf_sdbrcm_membytes(bus, false, bus->ramsize - 4, (u8 *)&addr_le,
 				   4);
 	if (rv < 0)
 		return rv;
 
-	addr = le32_to_cpu(addr);
+	addr = le32_to_cpu(addr_le);
 
 	brcmf_dbg(INFO, "sdpcm_shared address 0x%08X\n", addr);
 
@@ -3273,8 +3274,8 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
-	*(u16 *) frame = cpu_to_le16((u16) msglen);
-	*(((u16 *) frame) + 1) = cpu_to_le16(~msglen);
+	*(__le16 *) frame = cpu_to_le16((u16) msglen);
+	*(((__le16 *) frame) + 1) = cpu_to_le16(~msglen);
 
 	/* Software tag: channel, sequence number, data offset */
 	swheader =
@@ -3466,6 +3467,7 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 	u32 varaddr;
 	u8 *vbuffer;
 	u32 varsizew;
+	__le32 varsizew_le;
 #ifdef BCMDBG
 	char *nvram_ularray;
 #endif				/* BCMDBG */
@@ -3529,10 +3531,11 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 	 */
 	if (bcmerror) {
 		varsizew = 0;
+		varsizew_le = cpu_to_le32(0);
 	} else {
 		varsizew = varsize / 4;
 		varsizew = (~varsizew << 16) | (varsizew & 0x0000FFFF);
-		varsizew = cpu_to_le32(varsizew);
+		varsizew_le = cpu_to_le32(varsizew);
 	}
 
 	brcmf_dbg(INFO, "New varsize is %d, length token=0x%08x\n",
@@ -3540,7 +3543,7 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 
 	/* Write the length token to the last word */
 	bcmerror = brcmf_sdbrcm_membytes(bus, true, (bus->orig_ramsize - 4),
-				    (u8 *)&varsizew, 4);
+					 (u8 *)&varsizew_le, 4);
 
 	return bcmerror;
 }

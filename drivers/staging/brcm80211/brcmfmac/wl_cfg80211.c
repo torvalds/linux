@@ -378,7 +378,7 @@ brcmf_dev_intvar_get(struct net_device *dev, s8 *name, s32 *retval)
 {
 	union {
 		s8 buf[BRCMF_C_IOCTL_SMLEN];
-		s32 val;
+		__le32 val;
 	} var;
 	u32 len;
 	u32 data_null;
@@ -890,11 +890,11 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 	/* Configure Beacon Interval for starter */
 	if (params->beacon_interval)
-		bcnprd = cpu_to_le32(params->beacon_interval);
+		bcnprd = params->beacon_interval;
 	else
-		bcnprd = cpu_to_le32(100);
+		bcnprd = 100;
 
-	err = brcmf_dev_ioctl(dev, BRCM_SET_BCNPRD, &bcnprd, sizeof(bcnprd));
+	err = brcmf_dev_ioctl_u32(dev, BRCM_SET_BCNPRD, &bcnprd);
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_BCNPRD failed (%d)\n", err);
 		goto done;
@@ -2029,7 +2029,7 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 		goto CleanUp;
 	}
 
-	*(u32 *)buf = cpu_to_le32(WL_BSS_INFO_MAX);
+	*(__le32 *)buf = cpu_to_le32(WL_BSS_INFO_MAX);
 
 	err = brcmf_dev_ioctl(dev, BRCMF_C_GET_BSS_INFO, buf, WL_BSS_INFO_MAX);
 	if (unlikely(err)) {
@@ -2098,7 +2098,7 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_priv *cfg_priv)
 
 	ssid = (struct brcmf_ssid *)brcmf_read_prof(cfg_priv, WL_PROF_SSID);
 
-	*(u32 *)cfg_priv->extra_buf = cpu_to_le32(WL_EXTRA_BUF_MAX);
+	*(__le32 *)cfg_priv->extra_buf = cpu_to_le32(WL_EXTRA_BUF_MAX);
 	err = brcmf_dev_ioctl(cfg_to_ndev(cfg_priv), BRCMF_C_GET_BSS_INFO,
 			cfg_priv->extra_buf, WL_EXTRA_BUF_MAX);
 	if (unlikely(err)) {
