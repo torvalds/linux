@@ -20,6 +20,9 @@
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #define BRCMF_SDALIGN	(1 << 6)
 
+/* watchdog polling interval in ms */
+#define BRCMF_WD_POLL_MS	10
+
 /*
  * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
  */
@@ -27,9 +30,6 @@
 /* Tx/Rx bounds module parameters */
 extern uint brcmf_txbound;
 extern uint brcmf_rxbound;
-
-/* Watchdog timer interval */
-extern uint brcmf_watchdog_ms;
 
 /* Indicate (dis)interest in finding dongles. */
 extern int brcmf_bus_register(void);

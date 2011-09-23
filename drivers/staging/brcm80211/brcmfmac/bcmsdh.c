@@ -375,7 +375,7 @@ void brcmf_sdio_unregister(void)
 void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev, bool enable)
 {
 	if (enable)
-		brcmf_sdbrcm_wd_timer(sdiodev->bus, brcmf_watchdog_ms);
+		brcmf_sdbrcm_wd_timer(sdiodev->bus, BRCMF_WD_POLL_MS);
 	else
 		brcmf_sdbrcm_wd_timer(sdiodev->bus, 0);
 }
