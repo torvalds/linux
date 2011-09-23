@@ -86,6 +86,7 @@ extern void imx_print_silicon_rev(const char *cpu, int srev);
 
 void avic_handle_irq(struct pt_regs *);
 void tzic_handle_irq(struct pt_regs *);
+void gic_handle_irq(struct pt_regs *);
 
 #define imx1_handle_irq avic_handle_irq
 #define imx21_handle_irq avic_handle_irq
@@ -96,5 +97,6 @@ void tzic_handle_irq(struct pt_regs *);
 #define imx50_handle_irq tzic_handle_irq
 #define imx51_handle_irq tzic_handle_irq
 #define imx53_handle_irq tzic_handle_irq
+#define imx6q_handle_irq gic_handle_irq
 
 #endif
