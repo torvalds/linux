@@ -413,7 +413,14 @@ static inline unsigned int to_sas_gpio_od(int device, int bit)
 	return 3 * device + bit;
 }
 
+#ifdef CONFIG_SCSI_SAS_HOST_SMP
 int try_test_sas_gpio_gp_bit(unsigned int od, u8 *data, u8 index, u8 count);
+#else
+static inline int try_test_sas_gpio_gp_bit(unsigned int od, u8 *data, u8 index, u8 count)
+{
+	return -1;
+}
+#endif
 
 /* ---------- Tasks ---------- */
 /*
