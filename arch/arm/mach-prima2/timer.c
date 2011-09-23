@@ -133,7 +133,7 @@ static struct irqaction sirfsoc_timer_irq = {
 /* Overwrite weak default sched_clock with more precise one */
 unsigned long long notrace sched_clock(void)
 {
-	static int is_mapped = 0;
+	static int is_mapped;
 
 	/*
 	 * sched_clock is called earlier than .init of sys_timer
