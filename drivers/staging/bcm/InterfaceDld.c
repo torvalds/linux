@@ -1,62 +1,61 @@
 #include "headers.h"
 
-
-int InterfaceFileDownload( PVOID arg,
-                        struct file *flp,
-                        unsigned int on_chip_loc)
+int InterfaceFileDownload(PVOID arg, struct file *flp, unsigned int on_chip_loc)
 {
-   // unsigned int    reg=0;
-    mm_segment_t    oldfs={0};
-    int             errno=0, len=0 /*,is_config_file = 0*/;
-    loff_t          pos=0;
+	/*unsigned int reg = 0;*/
+	mm_segment_t oldfs = {0};
+	int errno = 0, len = 0; /*,is_config_file = 0*/
+	loff_t pos = 0;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
-	//PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter;
-    char            *buff=kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
+	/*PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter;*/
+	char *buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
 
-    if(!buff)
-    {
-        return -ENOMEM;
-    }
-    while(1)
-    {
-        oldfs=get_fs(); set_fs(get_ds());
-        len=vfs_read(flp, (void __force __user *)buff, MAX_TRANSFER_CTRL_BYTE_USB, &pos);
-        set_fs(oldfs);
-        if(len<=0)
-        {
-            if(len<0)
-            {
-                BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "len < 0");
-                errno=len;
-            }
-            else
-            {
-                errno = 0;
-                BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Got end of file!");
-            }
-            break;
-        }
-        //BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, buff, MAX_TRANSFER_CTRL_BYTE_USB);
-        errno = InterfaceWRM(psIntfAdapter, on_chip_loc, buff, len) ;
-		if(errno)
-		{
-            BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_PRINTK, 0, 0, "WRM Failed! status: %d", errno);
+	if (!buff)
+		return -ENOMEM;
+
+	while (1) {
+		oldfs = get_fs();
+		set_fs(get_ds());
+		len = vfs_read(flp, (void __force __user *)buff,
+			       MAX_TRANSFER_CTRL_BYTE_USB, &pos);
+		set_fs(oldfs);
+		if (len <= 0) {
+			if (len < 0) {
+				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+						DBG_TYPE_INITEXIT, MP_INIT,
+						DBG_LVL_ALL, "len < 0");
+				errno = len;
+			} else {
+				errno = 0;
+				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+						DBG_TYPE_INITEXIT, MP_INIT,
+						DBG_LVL_ALL,
+						"Got end of file!");
+			}
 			break;
-
 		}
-        on_chip_loc+=MAX_TRANSFER_CTRL_BYTE_USB;
-	}/* End of for(;;)*/
+		/* BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_INITEXIT, MP_INIT,
+					  DBG_LVL_ALL, buff,
+					  MAX_TRANSFER_CTRL_BYTE_USB);*/
+		errno = InterfaceWRM(psIntfAdapter, on_chip_loc, buff, len);
+		if (errno) {
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+					DBG_TYPE_PRINTK, 0, 0,
+					"WRM Failed! status: %d", errno);
+			break;
+		}
+		on_chip_loc += MAX_TRANSFER_CTRL_BYTE_USB;
+	}
 
 	kfree(buff);
-    return errno;
+	return errno;
 }
 
-int InterfaceFileReadbackFromChip( PVOID arg,
-                        struct file *flp,
-                        unsigned int on_chip_loc)
+int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp,
+				  unsigned int on_chip_loc)
 {
-    char            *buff, *buff_readback;
-    unsigned int    reg=0;
+	char *buff, *buff_readback;
+	unsigned int reg = 0;
     mm_segment_t    oldfs={0};
     int             errno=0, len=0, is_config_file = 0;
     loff_t          pos=0;
