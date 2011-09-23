@@ -325,13 +325,26 @@ ixgb_reset(struct ixgb_adapter *adapter)
 	}
 }
 
+static u32
+ixgb_fix_features(struct net_device *netdev, u32 features)
+{
+	/*
+	 * Tx VLAN insertion does not work per HW design when Rx stripping is
+	 * disabled.
+	 */
+	if (!(features & NETIF_F_HW_VLAN_RX))
+		features &= ~NETIF_F_HW_VLAN_TX;
+
+	return features;
+}
+
 static int
 ixgb_set_features(struct net_device *netdev, u32 features)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	u32 changed = features ^ netdev->features;
 
-	if (!(changed & NETIF_F_RXCSUM))
+	if (!(changed & (NETIF_F_RXCSUM|NETIF_F_HW_VLAN_RX)))
 		return 0;
 
 	adapter->rx_csum = !!(features & NETIF_F_RXCSUM);
@@ -362,6 +375,7 @@ static const struct net_device_ops ixgb_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgb_netpoll,
 #endif
+	.ndo_fix_features       = ixgb_fix_features,
 	.ndo_set_features       = ixgb_set_features,
 };
 
@@ -464,10 +478,10 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->hw_features = NETIF_F_SG |
 			   NETIF_F_TSO |
-			   NETIF_F_HW_CSUM;
-	netdev->features = netdev->hw_features |
+			   NETIF_F_HW_CSUM |
 			   NETIF_F_HW_VLAN_TX |
-			   NETIF_F_HW_VLAN_RX |
+			   NETIF_F_HW_VLAN_RX;
+	netdev->features = netdev->hw_features |
 			   NETIF_F_HW_VLAN_FILTER;
 	netdev->hw_features |= NETIF_F_RXCSUM;
 
