@@ -185,7 +185,7 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
  *			prepare_transfer()?
  */
 static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
-		bool consumer, bool more_trbs_coming)
+		bool consumer, bool more_trbs_coming, bool isoc)
 {
 	u32 chain;
 	union xhci_trb *next;
@@ -212,11 +212,13 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 				if (!chain && !more_trbs_coming)
 					break;
 
-				/* If we're not dealing with 0.95 hardware,
+				/* If we're not dealing with 0.95 hardware or
+				 * isoc rings on AMD 0.96 host,
 				 * carry over the chain bit of the previous TRB
 				 * (which may mean the chain bit is cleared).
 				 */
-				if (!xhci_link_trb_quirk(xhci)) {
+				if (!(isoc && (xhci->quirks & XHCI_AMD_0x96_HOST))
+						&& !xhci_link_trb_quirk(xhci)) {
 					next->link.control &=
 						cpu_to_le32(~TRB_CHAIN);
 					next->link.control |=
@@ -2391,7 +2393,7 @@ irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd)
  *			prepare_transfer()?
  */
 static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
-		bool consumer, bool more_trbs_coming,
+		bool consumer, bool more_trbs_coming, bool isoc,
 		u32 field1, u32 field2, u32 field3, u32 field4)
 {
 	struct xhci_generic_trb *trb;
@@ -2401,7 +2403,7 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	trb->field[1] = cpu_to_le32(field2);
 	trb->field[2] = cpu_to_le32(field3);
 	trb->field[3] = cpu_to_le32(field4);
-	inc_enq(xhci, ring, consumer, more_trbs_coming);
+	inc_enq(xhci, ring, consumer, more_trbs_coming, isoc);
 }
 
 /*
@@ -2409,7 +2411,7 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
  * FIXME allocate segments if the ring is full.
  */
 static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
-		u32 ep_state, unsigned int num_trbs, gfp_t mem_flags)
+		u32 ep_state, unsigned int num_trbs, bool isoc, gfp_t mem_flags)
 {
 	/* Make sure the endpoint has been added to xHC schedule */
 	switch (ep_state) {
@@ -2451,10 +2453,11 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		next = ring->enqueue;
 
 		while (last_trb(xhci, ring, ring->enq_seg, next)) {
-			/* If we're not dealing with 0.95 hardware,
-			 * clear the chain bit.
+			/* If we're not dealing with 0.95 hardware or isoc rings
+			 * on AMD 0.96 host, clear the chain bit.
 			 */
-			if (!xhci_link_trb_quirk(xhci))
+			if (!xhci_link_trb_quirk(xhci) && !(isoc &&
+					(xhci->quirks & XHCI_AMD_0x96_HOST)))
 				next->link.control &= cpu_to_le32(~TRB_CHAIN);
 			else
 				next->link.control |= cpu_to_le32(TRB_CHAIN);
@@ -2487,6 +2490,7 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 		unsigned int num_trbs,
 		struct urb *urb,
 		unsigned int td_index,
+		bool isoc,
 		gfp_t mem_flags)
 {
 	int ret;
@@ -2504,7 +2508,7 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 
 	ret = prepare_ring(xhci, ep_ring,
 			   le32_to_cpu(ep_ctx->ep_info) & EP_STATE_MASK,
-			   num_trbs, mem_flags);
+			   num_trbs, isoc, mem_flags);
 	if (ret)
 		return ret;
 
@@ -2727,7 +2731,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	trb_buff_len = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
-			num_trbs, urb, 0, mem_flags);
+			num_trbs, urb, 0, false, mem_flags);
 	if (trb_buff_len < 0)
 		return trb_buff_len;
 
@@ -2822,7 +2826,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			more_trbs_coming = true;
 		else
 			more_trbs_coming = false;
-		queue_trb(xhci, ep_ring, false, more_trbs_coming,
+		queue_trb(xhci, ep_ring, false, more_trbs_coming, false,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -2913,7 +2917,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	ret = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
-			num_trbs, urb, 0, mem_flags);
+			num_trbs, urb, 0, false, mem_flags);
 	if (ret < 0)
 		return ret;
 
@@ -2985,7 +2989,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			more_trbs_coming = true;
 		else
 			more_trbs_coming = false;
-		queue_trb(xhci, ep_ring, false, more_trbs_coming,
+		queue_trb(xhci, ep_ring, false, more_trbs_coming, false,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -3045,7 +3049,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		num_trbs++;
 	ret = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
-			num_trbs, urb, 0, mem_flags);
+			num_trbs, urb, 0, false, mem_flags);
 	if (ret < 0)
 		return ret;
 
@@ -3078,7 +3082,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		}
 	}
 
-	queue_trb(xhci, ep_ring, false, true,
+	queue_trb(xhci, ep_ring, false, true, false,
 		  setup->bRequestType | setup->bRequest << 8 | le16_to_cpu(setup->wValue) << 16,
 		  le16_to_cpu(setup->wIndex) | le16_to_cpu(setup->wLength) << 16,
 		  TRB_LEN(8) | TRB_INTR_TARGET(0),
@@ -3098,7 +3102,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (urb->transfer_buffer_length > 0) {
 		if (setup->bRequestType & USB_DIR_IN)
 			field |= TRB_DIR_IN;
-		queue_trb(xhci, ep_ring, false, true,
+		queue_trb(xhci, ep_ring, false, true, false,
 				lower_32_bits(urb->transfer_dma),
 				upper_32_bits(urb->transfer_dma),
 				length_field,
@@ -3114,7 +3118,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		field = 0;
 	else
 		field = TRB_DIR_IN;
-	queue_trb(xhci, ep_ring, false, false,
+	queue_trb(xhci, ep_ring, false, false, false,
 			0,
 			0,
 			TRB_INTR_TARGET(0),
@@ -3263,7 +3267,8 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		trbs_per_td = count_isoc_trbs_needed(xhci, urb, i);
 
 		ret = prepare_transfer(xhci, xhci->devs[slot_id], ep_index,
-				urb->stream_id, trbs_per_td, urb, i, mem_flags);
+				urb->stream_id, trbs_per_td, urb, i, true,
+				mem_flags);
 		if (ret < 0) {
 			if (i == 0)
 				return ret;
@@ -3333,7 +3338,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				remainder |
 				TRB_INTR_TARGET(0);
 
-			queue_trb(xhci, ep_ring, false, more_trbs_coming,
+			queue_trb(xhci, ep_ring, false, more_trbs_coming, true,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -3415,7 +3420,7 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * Do not insert any td of the urb to the ring if the check failed.
 	 */
 	ret = prepare_ring(xhci, ep_ring, le32_to_cpu(ep_ctx->ep_info) & EP_STATE_MASK,
-			   num_trbs, mem_flags);
+			   num_trbs, true, mem_flags);
 	if (ret)
 		return ret;
 
@@ -3474,7 +3479,7 @@ static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2,
 		reserved_trbs++;
 
 	ret = prepare_ring(xhci, xhci->cmd_ring, EP_STATE_RUNNING,
-			reserved_trbs, GFP_ATOMIC);
+			reserved_trbs, false, GFP_ATOMIC);
 	if (ret < 0) {
 		xhci_err(xhci, "ERR: No room for command on command ring\n");
 		if (command_must_succeed)
@@ -3482,8 +3487,8 @@ static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2,
 					"unfailable commands failed.\n");
 		return ret;
 	}
-	queue_trb(xhci, xhci->cmd_ring, false, false, field1, field2, field3,
-			field4 | xhci->cmd_ring->cycle_state);
+	queue_trb(xhci, xhci->cmd_ring, false, false, false, field1, field2,
+			field3,	field4 | xhci->cmd_ring->cycle_state);
 	return 0;
 }
 
