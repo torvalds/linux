@@ -1717,6 +1717,8 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 		unsigned int ep_index, unsigned int stream_id);
 
 /* xHCI roothub code */
+void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,
+				int port_id, u32 link_state);
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		char *buf, u16 wLength);
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
