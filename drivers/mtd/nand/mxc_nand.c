@@ -845,7 +845,7 @@ static void preset_v1_v2(struct mtd_info *mtd)
 		writew(0xffff, NFC_V21_UNLOCKEND_BLKADDR3);
 	} else if (nfc_is_v1()) {
 		writew(0x0, NFC_V1_UNLOCKSTART_BLKADDR);
-		writew(0x4000, NFC_V1_UNLOCKEND_BLKADDR);
+		writew(0xffff, NFC_V1_UNLOCKEND_BLKADDR);
 	} else
 		BUG();
 
