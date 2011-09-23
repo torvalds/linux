@@ -530,6 +530,17 @@ struct sdpcm_shared {
 	u8 tag[32];
 };
 
+struct sdpcm_shared_le {
+	__le32 flags;
+	__le32 trap_addr;
+	__le32 assert_exp_addr;
+	__le32 assert_file_addr;
+	__le32 assert_line;
+	__le32 console_addr;	/* Address of struct rte_console */
+	__le32 msgtrace_addr;
+	u8 tag[32];
+};
+
 
 /* misc chip info needed by some of the routines */
 struct chip_info {
@@ -2919,6 +2930,7 @@ brcmf_sdbrcm_readshared(struct brcmf_bus *bus, struct sdpcm_shared *sh)
 	u32 addr;
 	__le32 addr_le;
 	int rv;
+	struct sdpcm_shared_le sh_le;
 
 	/* Read last word in memory to determine address of
 			 sdpcm_shared structure */
@@ -2942,19 +2954,20 @@ brcmf_sdbrcm_readshared(struct brcmf_bus *bus, struct sdpcm_shared *sh)
 	}
 
 	/* Read rte_shared structure */
-	rv = brcmf_sdbrcm_membytes(bus, false, addr, (u8 *) sh,
-			      sizeof(struct sdpcm_shared));
+	rv = brcmf_sdbrcm_membytes(bus, false, addr, (u8 *) &sh_le,
+			      sizeof(struct sdpcm_shared_le));
 	if (rv < 0)
 		return rv;
 
 	/* Endianness */
-	sh->flags = le32_to_cpu(sh->flags);
-	sh->trap_addr = le32_to_cpu(sh->trap_addr);
-	sh->assert_exp_addr = le32_to_cpu(sh->assert_exp_addr);
-	sh->assert_file_addr = le32_to_cpu(sh->assert_file_addr);
-	sh->assert_line = le32_to_cpu(sh->assert_line);
-	sh->console_addr = le32_to_cpu(sh->console_addr);
-	sh->msgtrace_addr = le32_to_cpu(sh->msgtrace_addr);
+	sh->flags = le32_to_cpu(sh_le.flags);
+	sh->trap_addr = le32_to_cpu(sh_le.trap_addr);
+	sh->assert_exp_addr = le32_to_cpu(sh_le.assert_exp_addr);
+	sh->assert_file_addr = le32_to_cpu(sh_le.assert_file_addr);
+	sh->assert_line = le32_to_cpu(sh_le.assert_line);
+	sh->console_addr = le32_to_cpu(sh_le.console_addr);
+	sh->msgtrace_addr = le32_to_cpu(sh_le.msgtrace_addr);
+	memcpy(sh->tag, sh_le.tag, sizeof(sh->tag));
 
 	if ((sh->flags & SDPCM_SHARED_VERSION_MASK) != SDPCM_SHARED_VERSION) {
 		brcmf_dbg(ERROR, "sdpcm_shared version %d in brcmf is different than sdpcm_shared version %d in dongle\n",
