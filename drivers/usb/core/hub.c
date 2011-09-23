@@ -2392,6 +2392,10 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		}
 	}
 
+	/* disable USB2 hardware LPM */
+	if (udev->usb2_hw_lpm_enabled == 1)
+		usb_set_usb2_hardware_lpm(udev, 0);
+
 	/* see 7.1.7.6 */
 	if (hub_is_superspeed(hub->hdev))
 		status = set_port_feature(hub->hdev,
@@ -2603,7 +2607,12 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	if (status < 0) {
 		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
 		hub_port_logical_disconnect(hub, port1);
+	} else  {
+		/* Try to enable USB2 hardware LPM */
+		if (udev->usb2_hw_lpm_capable == 1)
+			usb_set_usb2_hardware_lpm(udev, 1);
 	}
+
 	return status;
 }
 

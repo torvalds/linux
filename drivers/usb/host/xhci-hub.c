@@ -574,10 +574,19 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
 			temp = xhci_readl(xhci, port_array[wIndex]);
+			if ((temp & PORT_PLS_MASK) != XDEV_U0) {
+				/* Resume the port to U0 first */
+				xhci_set_link_state(xhci, port_array, wIndex,
+							XDEV_U0);
+				spin_unlock_irqrestore(&xhci->lock, flags);
+				msleep(10);
+				spin_lock_irqsave(&xhci->lock, flags);
+			}
 			/* In spec software should not attempt to suspend
 			 * a port unless the port reports that it is in the
 			 * enabled (PED = ‘1’,PLS < ‘3’) state.
 			 */
+			temp = xhci_readl(xhci, port_array[wIndex]);
 			if ((temp & PORT_PE) == 0 || (temp & PORT_RESET)
 				|| (temp & PORT_PLS_MASK) >= XDEV_U3) {
 				xhci_warn(xhci, "USB core suspending device "

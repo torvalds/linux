@@ -367,7 +367,9 @@ struct xhci_op_regs {
 #define	PORT_L1S_SUCCESS	1
 #define	PORT_RWE		(1 << 3)
 #define	PORT_HIRD(p)		(((p) & 0xf) << 4)
+#define	PORT_HIRD_MASK		(0xf << 4)
 #define	PORT_L1DS(p)		(((p) & 0xff) << 8)
+#define	PORT_HLE		(1 << 16)
 
 /**
  * struct xhci_intr_reg - Interrupt Register Set
@@ -1677,6 +1679,8 @@ int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 		gfp_t mem_flags);
 int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev);
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+				struct usb_device *udev, int enable);
 int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags);
 int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags);

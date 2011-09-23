@@ -1700,6 +1700,20 @@ int usb_runtime_idle(struct device *dev)
 	return 0;
 }
 
+int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
+{
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+	int ret = -EPERM;
+
+	if (hcd->driver->set_usb2_hw_lpm) {
+		ret = hcd->driver->set_usb2_hw_lpm(hcd, udev, enable);
+		if (!ret)
+			udev->usb2_hw_lpm_enabled = enable;
+	}
+
+	return ret;
+}
+
 #endif /* CONFIG_USB_SUSPEND */
 
 struct bus_type usb_bus_type = {

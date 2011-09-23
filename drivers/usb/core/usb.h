@@ -82,6 +82,7 @@ extern int usb_remote_wakeup(struct usb_device *dev);
 extern int usb_runtime_suspend(struct device *dev);
 extern int usb_runtime_resume(struct device *dev);
 extern int usb_runtime_idle(struct device *dev);
+extern int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable);
 
 #else
 
@@ -96,6 +97,10 @@ static inline int usb_remote_wakeup(struct usb_device *udev)
 	return 0;
 }
 
+static inline int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
+{
+	return 0;
+}
 #endif
 
 extern struct bus_type usb_bus_type;

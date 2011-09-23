@@ -3286,6 +3286,11 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
 
+	if (udev->usb2_hw_lpm_enabled) {
+		xhci_set_usb2_hardware_lpm(hcd, udev, 0);
+		udev->usb2_hw_lpm_enabled = 0;
+	}
+
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* Don't disable the slot if the host controller is dead. */
 	state = xhci_readl(xhci, &xhci->op_regs->status);
@@ -3699,19 +3704,86 @@ finish:
 	return ret;
 }
 
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+			struct usb_device *udev, int enable)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	__le32 __iomem	**port_array;
+	__le32 __iomem	*pm_addr;
+	u32		temp;
+	unsigned int	port_num;
+	unsigned long	flags;
+	int		u2del, hird;
+
+	if (hcd->speed == HCD_USB3 || !xhci->hw_lpm_support ||
+			!udev->lpm_capable)
+		return -EPERM;
+
+	if (!udev->parent || udev->parent->parent ||
+			udev->descriptor.bDeviceClass == USB_CLASS_HUB)
+		return -EPERM;
+
+	if (udev->usb2_hw_lpm_capable != 1)
+		return -EPERM;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	port_array = xhci->usb2_ports;
+	port_num = udev->portnum - 1;
+	pm_addr = port_array[port_num] + 1;
+	temp = xhci_readl(xhci, pm_addr);
+
+	xhci_dbg(xhci, "%s port %d USB2 hardware LPM\n",
+			enable ? "enable" : "disable", port_num);
+
+	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
+	if (le32_to_cpu(udev->bos->ext_cap->bmAttributes) & (1 << 2))
+		hird = xhci_calculate_hird_besl(u2del, 1);
+	else
+		hird = xhci_calculate_hird_besl(u2del, 0);
+
+	if (enable) {
+		temp &= ~PORT_HIRD_MASK;
+		temp |= PORT_HIRD(hird) | PORT_RWE;
+		xhci_writel(xhci, temp, pm_addr);
+		temp = xhci_readl(xhci, pm_addr);
+		temp |= PORT_HLE;
+		xhci_writel(xhci, temp, pm_addr);
+	} else {
+		temp &= ~(PORT_HLE | PORT_RWE | PORT_HIRD_MASK);
+		xhci_writel(xhci, temp, pm_addr);
+	}
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return 0;
+}
+
 int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int		ret;
 
 	ret = xhci_usb2_software_lpm_test(hcd, udev);
-	if (!ret)
+	if (!ret) {
 		xhci_dbg(xhci, "software LPM test succeed\n");
+		if (xhci->hw_lpm_support == 1) {
+			udev->usb2_hw_lpm_capable = 1;
+			ret = xhci_set_usb2_hardware_lpm(hcd, udev, 1);
+			if (!ret)
+				udev->usb2_hw_lpm_enabled = 1;
+		}
+	}
 
 	return 0;
 }
 
 #else
+
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+				struct usb_device *udev, int enable)
+{
+	return 0;
+}
 
 int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
