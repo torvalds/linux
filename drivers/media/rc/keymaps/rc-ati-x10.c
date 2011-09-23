@@ -23,6 +23,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/module.h>
 #include <media/rc-map.h>
 
 static struct rc_map_table ati_x10[] = {
