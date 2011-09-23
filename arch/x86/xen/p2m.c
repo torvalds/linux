@@ -692,8 +692,9 @@ int m2p_add_override(unsigned long mfn, struct page *page, bool clear_pte)
 					"m2p_add_override: pfn %lx not mapped", pfn))
 			return -EINVAL;
 	}
-
-	page->private = mfn;
+	WARN_ON(PagePrivate(page));
+	SetPagePrivate(page);
+	set_page_private(page, mfn);
 	page->index = pfn_to_mfn(pfn);
 
 	if (unlikely(!set_phys_to_machine(pfn, FOREIGN_FRAME(mfn))))
@@ -736,7 +737,8 @@ int m2p_remove_override(struct page *page, bool clear_pte)
 	list_del(&page->lru);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
 	set_phys_to_machine(pfn, page->index);
-
+	WARN_ON(!PagePrivate(page));
+	ClearPagePrivate(page);
 	if (clear_pte && !PageHighMem(page))
 		set_pte_at(&init_mm, address, ptep,
 				pfn_pte(pfn, PAGE_KERNEL));
@@ -758,7 +760,7 @@ struct page *m2p_find_override(unsigned long mfn)
 	spin_lock_irqsave(&m2p_override_lock, flags);
 
 	list_for_each_entry(p, bucket, lru) {
-		if (p->private == mfn) {
+		if (page_private(p) == mfn) {
 			ret = p;
 			break;
 		}
