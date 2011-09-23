@@ -2493,6 +2493,8 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 	return 0;
 
 err_gpio:
+	if (i2c->irq)
+		free_irq(i2c->irq, codec);
 	wm5100_free_gpio(codec);
 err_reset:
 	if (wm5100->pdata.reset) {
@@ -2523,11 +2525,14 @@ err_core:
 static int wm5100_remove(struct snd_soc_codec *codec)
 {
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *i2c = to_i2c_client(codec->dev);
 
 	wm5100_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	if (wm5100->pdata.hp_pol) {
 		gpio_free(wm5100->pdata.hp_pol);
 	}
+	if (i2c->irq)
+		free_irq(i2c->irq, codec);
 	wm5100_free_gpio(codec);
 	if (wm5100->pdata.reset) {
 		gpio_set_value_cansleep(wm5100->pdata.reset, 1);
