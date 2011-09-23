@@ -199,7 +199,7 @@ struct brcmf_cfg80211_ie {
 
 /* event queue for cfg80211 main event */
 struct brcmf_cfg80211_event_q {
-	struct list_head eq_list;
+	struct list_head evt_q_list;
 	u32 etype;
 	struct brcmf_event_msg emsg;
 	s8 edata[1];
@@ -282,8 +282,8 @@ struct brcmf_cfg80211_priv {
 	struct cfg80211_scan_request *scan_request;	/* scan request
 							 object */
 	struct brcmf_cfg80211_event_loop el;	/* main event loop */
-	struct list_head eq_list;	/* used for event queue */
-	spinlock_t eq_lock;	/* for event queue synchronization */
+	struct list_head evt_q_list;	/* used for event queue */
+	spinlock_t	 evt_q_lock;	/* for event queue synchronization */
 	struct mutex usr_sync;	/* maily for dongle up/down synchronization */
 	struct brcmf_scan_results *bss_list;	/* bss_list holding scanned
 						 ap information */

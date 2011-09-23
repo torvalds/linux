@@ -3181,21 +3181,6 @@ init_priv_mem_out:
 	return -ENOMEM;
 }
 
-static void brcmf_lock_eq(struct brcmf_cfg80211_priv *cfg_priv)
-{
-	spin_lock_irq(&cfg_priv->eq_lock);
-}
-
-static void brcmf_unlock_eq(struct brcmf_cfg80211_priv *cfg_priv)
-{
-	spin_unlock_irq(&cfg_priv->eq_lock);
-}
-
-static void brcmf_init_eq_lock(struct brcmf_cfg80211_priv *cfg_priv)
-{
-	spin_lock_init(&cfg_priv->eq_lock);
-}
-
 /*
 * retrieve first queued event from head
 */
@@ -3205,13 +3190,13 @@ static struct brcmf_cfg80211_event_q *brcmf_deq_event(
 {
 	struct brcmf_cfg80211_event_q *e = NULL;
 
-	brcmf_lock_eq(cfg_priv);
-	if (likely(!list_empty(&cfg_priv->eq_list))) {
-		e = list_first_entry(&cfg_priv->eq_list,
-				     struct brcmf_cfg80211_event_q, eq_list);
-		list_del(&e->eq_list);
+	spin_lock_irq(&cfg_priv->evt_q_lock);
+	if (likely(!list_empty(&cfg_priv->evt_q_list))) {
+		e = list_first_entry(&cfg_priv->evt_q_list,
+				     struct brcmf_cfg80211_event_q, evt_q_list);
+		list_del(&e->evt_q_list);
 	}
-	brcmf_unlock_eq(cfg_priv);
+	spin_unlock_irq(&cfg_priv->evt_q_lock);
 
 	return e;
 }
@@ -3236,9 +3221,9 @@ brcmf_enq_event(struct brcmf_cfg80211_priv *cfg_priv, u32 event,
 	e->etype = event;
 	memcpy(&e->emsg, msg, sizeof(struct brcmf_event_msg));
 
-	brcmf_lock_eq(cfg_priv);
-	list_add_tail(&e->eq_list, &cfg_priv->eq_list);
-	brcmf_unlock_eq(cfg_priv);
+	spin_lock_irq(&cfg_priv->evt_q_lock);
+	list_add_tail(&e->evt_q_list, &cfg_priv->evt_q_list);
+	spin_unlock_irq(&cfg_priv->evt_q_lock);
 
 	return err;
 }
@@ -3276,22 +3261,22 @@ static void brcmf_cfg80211_event_handler(struct work_struct *work)
 
 static void brcmf_init_eq(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	brcmf_init_eq_lock(cfg_priv);
-	INIT_LIST_HEAD(&cfg_priv->eq_list);
+	spin_lock_init(&cfg_priv->evt_q_lock);
+	INIT_LIST_HEAD(&cfg_priv->evt_q_list);
 }
 
 static void brcmf_flush_eq(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct brcmf_cfg80211_event_q *e;
 
-	brcmf_lock_eq(cfg_priv);
-	while (!list_empty(&cfg_priv->eq_list)) {
-		e = list_first_entry(&cfg_priv->eq_list,
-				     struct brcmf_cfg80211_event_q, eq_list);
-		list_del(&e->eq_list);
+	spin_lock_irq(&cfg_priv->evt_q_lock);
+	while (!list_empty(&cfg_priv->evt_q_list)) {
+		e = list_first_entry(&cfg_priv->evt_q_list,
+				     struct brcmf_cfg80211_event_q, evt_q_list);
+		list_del(&e->evt_q_list);
 		kfree(e);
 	}
-	brcmf_unlock_eq(cfg_priv);
+	spin_unlock_irq(&cfg_priv->evt_q_lock);
 }
 
 static s32 wl_init_priv(struct brcmf_cfg80211_priv *cfg_priv)
