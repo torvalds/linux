@@ -52,18 +52,18 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	}
 
 	if (tm6000_debug & V4L2_DEBUG_I2C) {
-		printk("(dev %p, pipe %08x): ", dev->udev, pipe);
+		printk(KERN_DEBUG "(dev %p, pipe %08x): ", dev->udev, pipe);
 
-		printk("%s: %02x %02x %02x %02x %02x %02x %02x %02x ",
+		printk(KERN_CONT "%s: %02x %02x %02x %02x %02x %02x %02x %02x ",
 			(req_type & USB_DIR_IN) ? " IN" : "OUT",
 			req_type, req, value&0xff, value>>8, index&0xff,
 			index>>8, len&0xff, len>>8);
 
 		if (!(req_type & USB_DIR_IN)) {
-			printk(">>> ");
+			printk(KERN_CONT ">>> ");
 			for (i = 0; i < len; i++)
-				printk(" %02x", buf[i]);
-			printk("\n");
+				printk(KERN_CONT " %02x", buf[i]);
+			printk(KERN_CONT "\n");
 		}
 	}
 
@@ -76,14 +76,14 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	if (tm6000_debug & V4L2_DEBUG_I2C) {
 		if (ret < 0) {
 			if (req_type &  USB_DIR_IN)
-				printk("<<< (len=%d)\n", len);
+				printk(KERN_DEBUG "<<< (len=%d)\n", len);
 
-			printk("%s: Error #%d\n", __FUNCTION__, ret);
+			printk(KERN_CONT "%s: Error #%d\n", __func__, ret);
 		} else if (req_type &  USB_DIR_IN) {
-			printk("<<< ");
+			printk(KERN_CONT "<<< ");
 			for (i = 0; i < len; i++)
-				printk(" %02x", buf[i]);
-			printk("\n");
+				printk(KERN_CONT " %02x", buf[i]);
+			printk(KERN_CONT "\n");
 		}
 	}
 

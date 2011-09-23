@@ -330,7 +330,7 @@ static int register_dvb(struct tm6000_core *dev)
 	dvb->demux.write_to_decoder = NULL;
 	ret = dvb_dmx_init(&dvb->demux);
 	if (ret < 0) {
-		printk("tm6000: dvb_dmx_init failed (errno = %d)\n", ret);
+		printk(KERN_ERR "tm6000: dvb_dmx_init failed (errno = %d)\n", ret);
 		goto frontend_err;
 	}
 
@@ -340,7 +340,7 @@ static int register_dvb(struct tm6000_core *dev)
 
 	ret =  dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (ret < 0) {
-		printk("tm6000: dvb_dmxdev_init failed (errno = %d)\n", ret);
+		printk(KERN_ERR "tm6000: dvb_dmxdev_init failed (errno = %d)\n", ret);
 		goto dvb_dmx_err;
 	}
 

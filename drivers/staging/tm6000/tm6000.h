@@ -384,7 +384,7 @@ extern int tm6000_debug;
 #define dprintk(dev, level, fmt, arg...) do {\
 	if (tm6000_debug & level) \
 		printk(KERN_INFO "(%lu) %s %s :"fmt, jiffies, \
-			 dev->name, __FUNCTION__ , ##arg); } while (0)
+			 dev->name, __func__ , ##arg); } while (0)
 
 #define V4L2_DEBUG_REG		0x0004
 #define V4L2_DEBUG_I2C		0x0008
@@ -395,4 +395,4 @@ extern int tm6000_debug;
 
 #define tm6000_err(fmt, arg...) do {\
 	printk(KERN_ERR "tm6000 %s :"fmt, \
-		__FUNCTION__ , ##arg); } while (0)
+		__func__ , ##arg); } while (0)

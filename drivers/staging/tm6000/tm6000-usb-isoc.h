@@ -46,5 +46,5 @@ struct usb_isoc_ctl {
 	int				tmp_buf_len;
 
 		/* Stores already requested buffers */
-	struct tm6000_buffer    	*buf;
+	struct tm6000_buffer		*buf;
 };

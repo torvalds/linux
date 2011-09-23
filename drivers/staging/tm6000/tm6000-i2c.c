@@ -189,7 +189,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			/* 1 or 2 byte write followed by a read */
 			if (i2c_debug >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
-					printk(" %02x", msgs[i].buf[byte]);
+					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 			i2c_dprintk(2, "; joined to read %s len=%d:",
 				    i == num - 2 ? "stop" : "nonstop",
 				    msgs[i + 1].len);
@@ -211,17 +211,17 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			}
 			if (i2c_debug >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
-					printk(" %02x", msgs[i].buf[byte]);
+					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 		} else {
 			/* write bytes */
 			if (i2c_debug >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
-					printk(" %02x", msgs[i].buf[byte]);
+					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 			rc = tm6000_i2c_send_regs(dev, addr, msgs[i].buf[0],
 				msgs[i].buf + 1, msgs[i].len - 1);
 		}
 		if (i2c_debug >= 2)
-			printk("\n");
+			printk(KERN_CONT "\n");
 		if (rc < 0)
 			goto err;
 	}
@@ -259,7 +259,7 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev)
 		p++;
 		if (0 == (i % 16))
 			printk(KERN_INFO "%s: i2c eeprom %02x:", dev->name, i);
-		printk(" %02x", dev->eedata[i]);
+		printk(KERN_CONT " %02x", dev->eedata[i]);
 		if ((dev->eedata[i] >= ' ') && (dev->eedata[i] <= 'z'))
 			bytes[i%16] = dev->eedata[i];
 		else
@@ -269,14 +269,14 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev)
 
 		if (0 == (i % 16)) {
 			bytes[16] = '\0';
-			printk("  %s\n", bytes);
+			printk(KERN_CONT "  %s\n", bytes);
 		}
 	}
 	if (0 != (i%16)) {
 		bytes[i%16] = '\0';
 		for (i %= 16; i < 16; i++)
-			printk("   ");
-		printk("  %s\n", bytes);
+			printk(KERN_CONT "   ");
+		printk(KERN_CONT "  %s\n", bytes);
 	}
 
 	return 0;
