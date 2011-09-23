@@ -2281,7 +2281,8 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	struct usb_device *dev = interface_to_usbdev(intf);
 	int ret;
 
-	PDEBUG(D_PROBE, "probing %04x:%04x", id->idVendor, id->idProduct);
+	pr_info("%s-" GSPCA_VERSION " probing %04x:%04x\n",
+		sd_desc->name, id->idVendor, id->idProduct);
 
 	/* create the device */
 	if (dev_size < sizeof *gspca_dev)
