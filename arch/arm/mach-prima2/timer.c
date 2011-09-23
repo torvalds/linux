@@ -140,7 +140,7 @@ unsigned long long notrace sched_clock(void)
 	 * if we map timer memory in .init of sys_timer, system
 	 * will panic due to illegal memory access
 	 */
-	if(!is_mapped) {
+	if (!is_mapped) {
 		sirfsoc_of_timer_map();
 		is_mapped = 1;
 	}
