@@ -60,6 +60,7 @@ static struct usb_interface *pintf;
 #ifdef CONFIG_GLOBAL_UI_PID
 int ui_pid[3] = {0, 0, 0};
 #endif
+int sleep_resume = 1;
 
 extern void rtl8188_power_save_exit(void);
 extern void rtl8188_power_save_init(void);
@@ -777,7 +778,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 			//padapter->bup, padapter->bDriverStopped,padapter->bSurpriseRemoved);				
 		return 0;
 	}	
-
+	sleep_resume = 0;
 	DBG_8192C("###########  rtw_suspend  #################\n");
 	
 	if(padapter)//system suspend
@@ -978,6 +979,7 @@ int rtw_resume_process(struct usb_interface *pusb_intf)
 #endif	
 	
 	DBG_871X("###########  rtw_resume  done#################\n");
+	sleep_resume = 1;
 	
 	#ifdef CONFIG_RESUME_IN_WORKQUEUE
 	rtw_unlock_suspend();
@@ -1253,7 +1255,7 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 #ifdef CONFIG_GLOBAL_UI_PID
 	if(ui_pid[1]!=0) {
 		DBG_871X("ui_pid[1]:%d\n",ui_pid[1]);
-//		rtw_signal_process(ui_pid[1], SIGUSR2);
+		rtw_signal_process(ui_pid[1], SIGUSR2);
 	}
 #endif
 

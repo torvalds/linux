@@ -58,7 +58,7 @@
 #define SUPPORT_HW_RFOFF_DETECTED	1
 
 #define CONFIG_LPS	1
-#define CONFIG_BT_COEXIST	1
+//#define CONFIG_BT_COEXIST	1
 //befor link
 #define CONFIG_ANTENNA_DIVERSITY	 	
 //after link
