@@ -148,7 +148,6 @@ static struct snd_soc_dai_driver ad1980_dai = {
 		.rates = SNDRV_PCM_RATE_48000,
 		.formats = SND_SOC_STD_AC97_FMTS, },
 };
-EXPORT_SYMBOL_GPL(ad1980_dai);
 
 static int ad1980_reset(struct snd_soc_codec *codec, int try_warm)
 {
