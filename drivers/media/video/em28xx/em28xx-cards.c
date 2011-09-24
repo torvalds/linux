@@ -2800,9 +2800,9 @@ static void flush_request_modules(struct em28xx *dev)
 #endif /* CONFIG_MODULES */
 
 /*
- * em28xx_realease_resources()
+ * em28xx_release_resources()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
 */
 void em28xx_release_resources(struct em28xx *dev)
 {
@@ -2815,8 +2815,6 @@ void em28xx_release_resources(struct em28xx *dev)
 	/*FIXME: I2C IR should be disconnected */
 
 	em28xx_release_analog_resources(dev);
-
-	em28xx_remove_from_devlist(dev);
 
 	em28xx_i2c_unregister(dev);
 
@@ -3255,7 +3253,7 @@ err_no_slot:
 
 /*
  * em28xx_usb_disconnect()
- * called when the device gets diconencted
+ * called when the device gets disconnected
  * video device will be unregistered on v4l2_close in case it is still open
  */
 static void em28xx_usb_disconnect(struct usb_interface *interface)
