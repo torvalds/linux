@@ -329,6 +329,8 @@ struct uvc_buffer {
 	void *mem;
 	unsigned int length;
 	unsigned int bytesused;
+
+	u32 pts;
 };
 
 #define UVC_QUEUE_DISCONNECTED		(1 << 0)
@@ -455,6 +457,25 @@ struct uvc_streaming {
 		struct uvc_stats_frame frame;
 		struct uvc_stats_stream stream;
 	} stats;
+
+	/* Timestamps support. */
+	struct uvc_clock {
+		struct uvc_clock_sample {
+			u32 dev_stc;
+			u16 dev_sof;
+			struct timespec host_ts;
+			u16 host_sof;
+		} *samples;
+
+		unsigned int head;
+		unsigned int count;
+		unsigned int size;
+
+		u16 last_sof;
+		u16 sof_offset;
+
+		spinlock_t lock;
+	} clock;
 };
 
 enum uvc_device_state {
@@ -527,6 +548,7 @@ struct uvc_driver {
 #define UVC_TRACE_STATUS	(1 << 9)
 #define UVC_TRACE_VIDEO		(1 << 10)
 #define UVC_TRACE_STATS		(1 << 11)
+#define UVC_TRACE_CLOCK		(1 << 12)
 
 #define UVC_WARN_MINMAX		0
 #define UVC_WARN_PROBE_DEF	1
@@ -607,6 +629,9 @@ extern int uvc_probe_video(struct uvc_streaming *stream,
 		struct uvc_streaming_control *probe);
 extern int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 		__u8 intfnum, __u8 cs, void *data, __u16 size);
+void uvc_video_clock_update(struct uvc_streaming *stream,
+			    struct v4l2_buffer *v4l2_buf,
+			    struct uvc_buffer *buf);
 
 /* Status */
 extern int uvc_status_init(struct uvc_device *dev);
