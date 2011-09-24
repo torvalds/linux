@@ -506,6 +506,7 @@ static int create_core_data(struct platform_device *pdev,
 
 	return 0;
 exit_free:
+	pdata->core_data[attr_no] = NULL;
 	kfree(tdata);
 	return err;
 }
