@@ -49,37 +49,32 @@ static int cpu_has_mipsmt_pertccounters;
 #endif
 
 /* Copied from op_model_mipsxx.c */
-static inline unsigned int vpe_shift(void)
+static unsigned int vpe_shift(void)
 {
 	if (num_possible_cpus() > 1)
 		return 1;
 
 	return 0;
 }
-#else /* !CONFIG_MIPS_MT_SMP */
-#define vpe_id()	0
 
-static inline unsigned int vpe_shift(void)
-{
-	return 0;
-}
-#endif /* CONFIG_MIPS_MT_SMP */
-
-static inline unsigned int
-counters_total_to_per_cpu(unsigned int counters)
+static unsigned int counters_total_to_per_cpu(unsigned int counters)
 {
 	return counters >> vpe_shift();
 }
 
-static inline unsigned int
-counters_per_cpu_to_total(unsigned int counters)
+static unsigned int counters_per_cpu_to_total(unsigned int counters)
 {
 	return counters << vpe_shift();
 }
 
+#else /* !CONFIG_MIPS_MT_SMP */
+#define vpe_id()	0
+
+#endif /* CONFIG_MIPS_MT_SMP */
+
 #define __define_perf_accessors(r, n, np)				\
 									\
-static inline unsigned int r_c0_ ## r ## n(void)			\
+static unsigned int r_c0_ ## r ## n(void)				\
 {									\
 	unsigned int cpu = vpe_id();					\
 									\
@@ -94,7 +89,7 @@ static inline unsigned int r_c0_ ## r ## n(void)			\
 	return 0;							\
 }									\
 									\
-static inline void w_c0_ ## r ## n(unsigned int value)			\
+static void w_c0_ ## r ## n(unsigned int value)				\
 {									\
 	unsigned int cpu = vpe_id();					\
 									\
@@ -121,7 +116,7 @@ __define_perf_accessors(perfctrl, 1, 3)
 __define_perf_accessors(perfctrl, 2, 0)
 __define_perf_accessors(perfctrl, 3, 1)
 
-static inline int __n_counters(void)
+static int __n_counters(void)
 {
 	if (!(read_c0_config1() & M_CONFIG1_PC))
 		return 0;
@@ -135,7 +130,7 @@ static inline int __n_counters(void)
 	return 4;
 }
 
-static inline int n_counters(void)
+static int n_counters(void)
 {
 	int counters;
 
@@ -175,8 +170,7 @@ static void reset_counters(void *arg)
 	}
 }
 
-static inline u64
-mipsxx_pmu_read_counter(unsigned int idx)
+static u64 mipsxx_pmu_read_counter(unsigned int idx)
 {
 	switch (idx) {
 	case 0:
@@ -193,8 +187,7 @@ mipsxx_pmu_read_counter(unsigned int idx)
 	}
 }
 
-static inline void
-mipsxx_pmu_write_counter(unsigned int idx, u64 val)
+static void mipsxx_pmu_write_counter(unsigned int idx, u64 val)
 {
 	switch (idx) {
 	case 0:
@@ -212,8 +205,7 @@ mipsxx_pmu_write_counter(unsigned int idx, u64 val)
 	}
 }
 
-static inline unsigned int
-mipsxx_pmu_read_control(unsigned int idx)
+static unsigned int mipsxx_pmu_read_control(unsigned int idx)
 {
 	switch (idx) {
 	case 0:
@@ -230,8 +222,7 @@ mipsxx_pmu_read_control(unsigned int idx)
 	}
 }
 
-static inline void
-mipsxx_pmu_write_control(unsigned int idx, unsigned int val)
+static void mipsxx_pmu_write_control(unsigned int idx, unsigned int val)
 {
 	switch (idx) {
 	case 0:
@@ -511,9 +502,8 @@ static const struct mips_perf_event mipsxx74Kcore_cache_map
 };
 
 #ifdef CONFIG_MIPS_MT_SMP
-static void
-check_and_calc_range(struct perf_event *event,
-			const struct mips_perf_event *pev)
+static void check_and_calc_range(struct perf_event *event,
+				 const struct mips_perf_event *pev)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
@@ -536,9 +526,8 @@ check_and_calc_range(struct perf_event *event,
 		hwc->config_base |= M_TC_EN_ALL;
 }
 #else
-static void
-check_and_calc_range(struct perf_event *event,
-			const struct mips_perf_event *pev)
+static void check_and_calc_range(struct perf_event *event,
+				 const struct mips_perf_event *pev)
 {
 }
 #endif
@@ -733,8 +722,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	return handled;
 }
 
-static irqreturn_t
-mipsxx_pmu_handle_irq(int irq, void *dev)
+static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 {
 	return mipsxx_pmu_handle_shared_irq();
 }
@@ -766,9 +754,8 @@ static void mipsxx_pmu_stop(void)
 #endif
 }
 
-static int
-mipsxx_pmu_alloc_counter(struct cpu_hw_events *cpuc,
-			struct hw_perf_event *hwc)
+static int mipsxx_pmu_alloc_counter(struct cpu_hw_events *cpuc,
+				    struct hw_perf_event *hwc)
 {
 	int i;
 
@@ -797,8 +784,7 @@ mipsxx_pmu_alloc_counter(struct cpu_hw_events *cpuc,
 	return -EAGAIN;
 }
 
-static void
-mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
+static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	unsigned long flags;
@@ -816,8 +802,7 @@ mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 	local_irq_restore(flags);
 }
 
-static void
-mipsxx_pmu_disable_event(int idx)
+static void mipsxx_pmu_disable_event(int idx)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	unsigned long flags;
@@ -892,8 +877,7 @@ mipsxx_pmu_disable_event(int idx)
  * then 128 needs to be added to 15 as the input for the event config,
  * i.e., 143 (0x8F) to be used.
  */
-static const struct mips_perf_event *
-mipsxx_pmu_map_raw_event(u64 config)
+static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 {
 	unsigned int raw_id = config & 0xff;
 	unsigned int base_id = raw_id & 0x7f;

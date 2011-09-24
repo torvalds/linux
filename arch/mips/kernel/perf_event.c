@@ -118,10 +118,9 @@ struct mips_pmu {
 
 static const struct mips_pmu *mipspmu;
 
-static int
-mipspmu_event_set_period(struct perf_event *event,
-			struct hw_perf_event *hwc,
-			int idx)
+static int mipspmu_event_set_period(struct perf_event *event,
+				    struct hw_perf_event *hwc,
+				    int idx)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	s64 left = local64_read(&hwc->period_left);
@@ -162,8 +161,8 @@ mipspmu_event_set_period(struct perf_event *event,
 }
 
 static void mipspmu_event_update(struct perf_event *event,
-			struct hw_perf_event *hwc,
-			int idx)
+				 struct hw_perf_event *hwc,
+				 int idx)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	unsigned long flags;
@@ -420,8 +419,7 @@ static struct pmu pmu = {
 	.read		= mipspmu_read,
 };
 
-static inline unsigned int
-mipspmu_perf_event_encode(const struct mips_perf_event *pev)
+static unsigned int mipspmu_perf_event_encode(const struct mips_perf_event *pev)
 {
 /*
  * Top 8 bits for range, next 16 bits for cntr_mask, lowest 8 bits for
@@ -437,8 +435,7 @@ mipspmu_perf_event_encode(const struct mips_perf_event *pev)
 #endif
 }
 
-static const struct mips_perf_event *
-mipspmu_map_general_event(int idx)
+static const struct mips_perf_event *mipspmu_map_general_event(int idx)
 {
 	const struct mips_perf_event *pev;
 
@@ -449,8 +446,7 @@ mipspmu_map_general_event(int idx)
 	return pev;
 }
 
-static const struct mips_perf_event *
-mipspmu_map_cache_event(u64 config)
+static const struct mips_perf_event *mipspmu_map_cache_event(u64 config)
 {
 	unsigned int cache_type, cache_op, cache_result;
 	const struct mips_perf_event *pev;
@@ -513,9 +509,9 @@ static int validate_group(struct perf_event *event)
 }
 
 /* This is needed by specific irq handlers in perf_event_*.c */
-static void
-handle_associated_event(struct cpu_hw_events *cpuc,
-	int idx, struct perf_sample_data *data, struct pt_regs *regs)
+static void handle_associated_event(struct cpu_hw_events *cpuc,
+				    int idx, struct perf_sample_data *data,
+				    struct pt_regs *regs)
 {
 	struct perf_event *event = cpuc->events[idx];
 	struct hw_perf_event *hwc = &event->hw;
