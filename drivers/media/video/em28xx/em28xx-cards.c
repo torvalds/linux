@@ -3005,7 +3005,9 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		goto fail;
 	}
 
+	mutex_unlock(&dev->lock);
 	em28xx_init_extension(dev);
+	mutex_lock(&dev->lock);
 
 	/* Save some power by putting tuner to sleep */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
@@ -3301,9 +3303,9 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		em28xx_release_resources(dev);
 	}
 
-	em28xx_close_extension(dev);
-
 	mutex_unlock(&dev->lock);
+
+	em28xx_close_extension(dev);
 
 	if (!dev->users) {
 		kfree(dev->alt_max_pkt_size);
