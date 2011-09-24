@@ -841,6 +841,16 @@ static const struct mips_perf_event mipsxx74Kcore_event_map
 	[PERF_COUNT_HW_BUS_CYCLES] = { UNSUPPORTED_PERF_EVENT_ID },
 };
 
+static const struct mips_perf_event octeon_event_map[PERF_COUNT_HW_MAX] = {
+	[PERF_COUNT_HW_CPU_CYCLES] = { 0x01, CNTR_ALL },
+	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x03, CNTR_ALL },
+	[PERF_COUNT_HW_CACHE_REFERENCES] = { 0x2b, CNTR_ALL },
+	[PERF_COUNT_HW_CACHE_MISSES] = { 0x2e, CNTR_ALL  },
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = { 0x08, CNTR_ALL },
+	[PERF_COUNT_HW_BRANCH_MISSES] = { 0x09, CNTR_ALL },
+	[PERF_COUNT_HW_BUS_CYCLES] = { 0x25, CNTR_ALL },
+};
+
 /* 24K/34K/1004K cores can share the same cache event map. */
 static const struct mips_perf_event mipsxxcore_cache_map
 				[PERF_COUNT_HW_CACHE_MAX]
@@ -1059,6 +1069,102 @@ static const struct mips_perf_event mipsxx74Kcore_cache_map
 	},
 },
 [C(NODE)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+},
+};
+
+
+static const struct mips_perf_event octeon_cache_map
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
+[C(L1D)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)]	= { 0x2b, CNTR_ALL },
+		[C(RESULT_MISS)]	= { 0x2e, CNTR_ALL },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)]	= { 0x30, CNTR_ALL },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+},
+[C(L1I)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)]	= { 0x18, CNTR_ALL },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)]	= { 0x19, CNTR_ALL },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+},
+[C(LL)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+},
+[C(DTLB)] = {
+	/*
+	 * Only general DTLB misses are counted use the same event for
+	 * read and write.
+	 */
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { 0x35, CNTR_ALL },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { 0x35, CNTR_ALL },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+},
+[C(ITLB)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { 0x37, CNTR_ALL },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
+	},
+},
+[C(BPU)] = {
+	/* Using the same code for *HW_BRANCH* */
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)]	= { UNSUPPORTED_PERF_EVENT_ID },
 		[C(RESULT_MISS)]	= { UNSUPPORTED_PERF_EVENT_ID },
@@ -1411,6 +1517,39 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 	return &raw_event;
 }
 
+static const struct mips_perf_event *octeon_pmu_map_raw_event(u64 config)
+{
+	unsigned int raw_id = config & 0xff;
+	unsigned int base_id = raw_id & 0x7f;
+
+
+	raw_event.cntr_mask = CNTR_ALL;
+	raw_event.event_id = base_id;
+
+	if (current_cpu_type() == CPU_CAVIUM_OCTEON2) {
+		if (base_id > 0x42)
+			return ERR_PTR(-EOPNOTSUPP);
+	} else {
+		if (base_id > 0x3a)
+			return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	switch (base_id) {
+	case 0x00:
+	case 0x0f:
+	case 0x1e:
+	case 0x1f:
+	case 0x2f:
+	case 0x34:
+	case 0x3b ... 0x3f:
+		return ERR_PTR(-EOPNOTSUPP);
+	default:
+		break;
+	}
+
+	return &raw_event;
+}
+
 static int __init
 init_hw_perf_events(void)
 {
@@ -1469,6 +1608,14 @@ init_hw_perf_events(void)
 		mipspmu.name = "mips/1004K";
 		mipspmu.general_event_map = &mipsxxcore_event_map;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map;
+		break;
+	case CPU_CAVIUM_OCTEON:
+	case CPU_CAVIUM_OCTEON_PLUS:
+	case CPU_CAVIUM_OCTEON2:
+		mipspmu.name = "octeon";
+		mipspmu.general_event_map = &octeon_event_map;
+		mipspmu.cache_event_map = &octeon_cache_map;
+		mipspmu.map_raw_event = octeon_pmu_map_raw_event;
 		break;
 	default:
 		pr_cont("Either hardware does not support performance "
