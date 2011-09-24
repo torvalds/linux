@@ -32,49 +32,12 @@
 #include <asm/mach-jz4740/base.h>
 
 static void __iomem *jz_intc_base;
-static uint32_t jz_intc_wakeup;
-static uint32_t jz_intc_saved;
 
 #define JZ_REG_INTC_STATUS	0x00
 #define JZ_REG_INTC_MASK	0x04
 #define JZ_REG_INTC_SET_MASK	0x08
 #define JZ_REG_INTC_CLEAR_MASK	0x0c
 #define JZ_REG_INTC_PENDING	0x10
-
-#define IRQ_BIT(x) BIT((x) - JZ4740_IRQ_BASE)
-
-static inline unsigned long intc_irq_bit(struct irq_data *data)
-{
-	return (unsigned long)irq_data_get_irq_chip_data(data);
-}
-
-static void intc_irq_unmask(struct irq_data *data)
-{
-	writel(intc_irq_bit(data), jz_intc_base + JZ_REG_INTC_CLEAR_MASK);
-}
-
-static void intc_irq_mask(struct irq_data *data)
-{
-	writel(intc_irq_bit(data), jz_intc_base + JZ_REG_INTC_SET_MASK);
-}
-
-static int intc_irq_set_wake(struct irq_data *data, unsigned int on)
-{
-	if (on)
-		jz_intc_wakeup |= intc_irq_bit(data);
-	else
-		jz_intc_wakeup &= ~intc_irq_bit(data);
-
-	return 0;
-}
-
-static struct irq_chip intc_irq_type = {
-	.name =		"INTC",
-	.irq_mask =	intc_irq_mask,
-	.irq_mask_ack =	intc_irq_mask,
-	.irq_unmask =	intc_irq_unmask,
-	.irq_set_wake =	intc_irq_set_wake,
-};
 
 static irqreturn_t jz4740_cascade(int irq, void *data)
 {
@@ -88,6 +51,26 @@ static irqreturn_t jz4740_cascade(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void jz4740_irq_set_mask(struct irq_chip_generic *gc, uint32_t mask)
+{
+	struct irq_chip_regs *regs = &gc->chip_types->regs;
+
+	writel(mask, gc->reg_base + regs->enable);
+	writel(~mask, gc->reg_base + regs->disable);
+}
+
+void jz4740_irq_suspend(struct irq_data *data)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
+	jz4740_irq_set_mask(gc, gc->wake_active);
+}
+
+void jz4740_irq_resume(struct irq_data *data)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
+	jz4740_irq_set_mask(gc, gc->mask_cache);
+}
+
 static struct irqaction jz4740_cascade_action = {
 	.handler = jz4740_cascade,
 	.name = "JZ4740 cascade interrupt",
@@ -95,7 +78,9 @@ static struct irqaction jz4740_cascade_action = {
 
 void __init arch_init_irq(void)
 {
-	int i;
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
+
 	mips_cpu_irq_init();
 
 	jz_intc_base = ioremap(JZ4740_INTC_BASE_ADDR, 0x14);
@@ -103,10 +88,22 @@ void __init arch_init_irq(void)
 	/* Mask all irqs */
 	writel(0xffffffff, jz_intc_base + JZ_REG_INTC_SET_MASK);
 
-	for (i = JZ4740_IRQ_BASE; i < JZ4740_IRQ_BASE + 32; i++) {
-		irq_set_chip_data(i, (void *)IRQ_BIT(i));
-		irq_set_chip_and_handler(i, &intc_irq_type, handle_level_irq);
-	}
+	gc = irq_alloc_generic_chip("INTC", 1, JZ4740_IRQ_BASE, jz_intc_base,
+		handle_level_irq);
+
+	gc->wake_enabled = IRQ_MSK(32);
+
+	ct = gc->chip_types;
+	ct->regs.enable = JZ_REG_INTC_CLEAR_MASK;
+	ct->regs.disable = JZ_REG_INTC_SET_MASK;
+	ct->chip.irq_unmask = irq_gc_unmask_enable_reg;
+	ct->chip.irq_mask = irq_gc_mask_disable_reg;
+	ct->chip.irq_mask_ack = irq_gc_mask_disable_reg;
+	ct->chip.irq_set_wake = irq_gc_set_wake;
+	ct->chip.irq_suspend = jz4740_irq_suspend;
+	ct->chip.irq_resume = jz4740_irq_resume;
+
+	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, 0, IRQ_NOPROBE | IRQ_LEVEL);
 
 	setup_irq(2, &jz4740_cascade_action);
 }
@@ -120,19 +117,6 @@ asmlinkage void plat_irq_dispatch(void)
 		do_IRQ(3);
 	else
 		spurious_interrupt();
-}
-
-void jz4740_intc_suspend(void)
-{
-	jz_intc_saved = readl(jz_intc_base + JZ_REG_INTC_MASK);
-	writel(~jz_intc_wakeup, jz_intc_base + JZ_REG_INTC_SET_MASK);
-	writel(jz_intc_wakeup, jz_intc_base + JZ_REG_INTC_CLEAR_MASK);
-}
-
-void jz4740_intc_resume(void)
-{
-	writel(~jz_intc_saved, jz_intc_base + JZ_REG_INTC_CLEAR_MASK);
-	writel(jz_intc_saved, jz_intc_base + JZ_REG_INTC_SET_MASK);
 }
 
 #ifdef CONFIG_DEBUG_FS

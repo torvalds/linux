@@ -215,6 +215,7 @@ config MACH_JZ4740
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_PWM
 	select HAVE_CLK
+	select GENERIC_IRQ_CHIP
 
 config LANTIQ
 	bool "Lantiq based platforms"
