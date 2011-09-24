@@ -406,9 +406,9 @@ struct e1000_info {
 	u32			pba;
 	u32			max_hw_frame_size;
 	s32			(*get_variants)(struct e1000_adapter *);
-	struct e1000_mac_operations *mac_ops;
-	struct e1000_phy_operations *phy_ops;
-	struct e1000_nvm_operations *nvm_ops;
+	const struct e1000_mac_operations *mac_ops;
+	const struct e1000_phy_operations *phy_ops;
+	const struct e1000_nvm_operations *nvm_ops;
 };
 
 /* hardware capability, feature, and workaround flags */
@@ -506,17 +506,17 @@ extern unsigned int copybreak;
 
 extern char *e1000e_get_hw_dev_name(struct e1000_hw *hw);
 
-extern struct e1000_info e1000_82571_info;
-extern struct e1000_info e1000_82572_info;
-extern struct e1000_info e1000_82573_info;
-extern struct e1000_info e1000_82574_info;
-extern struct e1000_info e1000_82583_info;
-extern struct e1000_info e1000_ich8_info;
-extern struct e1000_info e1000_ich9_info;
-extern struct e1000_info e1000_ich10_info;
-extern struct e1000_info e1000_pch_info;
-extern struct e1000_info e1000_pch2_info;
-extern struct e1000_info e1000_es2_info;
+extern const struct e1000_info e1000_82571_info;
+extern const struct e1000_info e1000_82572_info;
+extern const struct e1000_info e1000_82573_info;
+extern const struct e1000_info e1000_82574_info;
+extern const struct e1000_info e1000_82583_info;
+extern const struct e1000_info e1000_ich8_info;
+extern const struct e1000_info e1000_ich9_info;
+extern const struct e1000_info e1000_ich10_info;
+extern const struct e1000_info e1000_pch_info;
+extern const struct e1000_info e1000_pch2_info;
+extern const struct e1000_info e1000_es2_info;
 
 extern s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 					 u32 pba_num_size);

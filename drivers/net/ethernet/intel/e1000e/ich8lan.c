@@ -4011,7 +4011,7 @@ release:
 	}
 }
 
-static struct e1000_mac_operations ich8_mac_ops = {
+static const struct e1000_mac_operations ich8_mac_ops = {
 	.id_led_init		= e1000e_id_led_init,
 	/* check_mng_mode dependent on mac type */
 	.check_for_link		= e1000_check_for_copper_link_ich8lan,
@@ -4030,7 +4030,7 @@ static struct e1000_mac_operations ich8_mac_ops = {
 	/* id_led_init dependent on mac type */
 };
 
-static struct e1000_phy_operations ich8_phy_ops = {
+static const struct e1000_phy_operations ich8_phy_ops = {
 	.acquire		= e1000_acquire_swflag_ich8lan,
 	.check_reset_block	= e1000_check_reset_block_ich8lan,
 	.commit			= NULL,
@@ -4044,7 +4044,7 @@ static struct e1000_phy_operations ich8_phy_ops = {
 	.write_reg		= e1000e_write_phy_reg_igp,
 };
 
-static struct e1000_nvm_operations ich8_nvm_ops = {
+static const struct e1000_nvm_operations ich8_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_ich8lan,
 	.read		 	= e1000_read_nvm_ich8lan,
 	.release		= e1000_release_nvm_ich8lan,
@@ -4054,7 +4054,7 @@ static struct e1000_nvm_operations ich8_nvm_ops = {
 	.write			= e1000_write_nvm_ich8lan,
 };
 
-struct e1000_info e1000_ich8_info = {
+const struct e1000_info e1000_ich8_info = {
 	.mac			= e1000_ich8lan,
 	.flags			= FLAG_HAS_WOL
 				  | FLAG_IS_ICH
@@ -4070,7 +4070,7 @@ struct e1000_info e1000_ich8_info = {
 	.nvm_ops		= &ich8_nvm_ops,
 };
 
-struct e1000_info e1000_ich9_info = {
+const struct e1000_info e1000_ich9_info = {
 	.mac			= e1000_ich9lan,
 	.flags			= FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_IS_ICH
@@ -4088,7 +4088,7 @@ struct e1000_info e1000_ich9_info = {
 	.nvm_ops		= &ich8_nvm_ops,
 };
 
-struct e1000_info e1000_ich10_info = {
+const struct e1000_info e1000_ich10_info = {
 	.mac			= e1000_ich10lan,
 	.flags			= FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_IS_ICH
@@ -4106,7 +4106,7 @@ struct e1000_info e1000_ich10_info = {
 	.nvm_ops		= &ich8_nvm_ops,
 };
 
-struct e1000_info e1000_pch_info = {
+const struct e1000_info e1000_pch_info = {
 	.mac			= e1000_pchlan,
 	.flags			= FLAG_IS_ICH
 				  | FLAG_HAS_WOL
@@ -4125,7 +4125,7 @@ struct e1000_info e1000_pch_info = {
 	.nvm_ops		= &ich8_nvm_ops,
 };
 
-struct e1000_info e1000_pch2_info = {
+const struct e1000_info e1000_pch2_info = {
 	.mac			= e1000_pch2lan,
 	.flags			= FLAG_IS_ICH
 				  | FLAG_HAS_WOL
