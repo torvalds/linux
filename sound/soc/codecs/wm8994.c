@@ -2564,8 +2564,13 @@ static int wm8994_trigger(struct snd_pcm_substream *substream,
 //	struct snd_soc_dai *codec_dai = machine->codec_dai;
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
+	char last_route = wm8994->kcontrol.private_value & 0xff;
 	
 	if(wm8994_current_mode >= wm8994_handsetMIC_to_baseband_to_headset && wm8994_current_mode != null)
+		return 0;
+	if((last_route == SPEAKER_INCALL || last_route == EARPIECE_INCALL 
+		|| last_route == HEADSET_INCALL || BLUETOOTH_SCO_INCALL)
+		&& wm8994_current_mode == wm8994_record_add)
 		return 0;
 //	DBG("%s::%d status = %d substream->stream '%s'\n",__FUNCTION__,__LINE__,
 //	    cmd, substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
