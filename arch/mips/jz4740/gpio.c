@@ -301,21 +301,15 @@ static void jz_gpio_irq_demux_handler(unsigned int irq, struct irq_desc *desc)
 {
 	uint32_t flag;
 	unsigned int gpio_irq;
-	unsigned int gpio_bank;
 	struct jz_gpio_chip *chip = irq_desc_get_handler_data(desc);
 
-	gpio_bank = JZ4740_IRQ_GPIO0 - irq;
-
 	flag = readl(chip->base + JZ_REG_GPIO_FLAG);
-
 	if (!flag)
 		return;
 
-	gpio_irq = __fls(flag);
+	gpio_irq = chip->irq_base + __fls(flag);
 
 	jz_gpio_check_trigger_both(chip, irq);
-
-	gpio_irq += (gpio_bank << 5) + JZ4740_IRQ_GPIO(0);
 
 	generic_handle_irq(gpio_irq);
 };
