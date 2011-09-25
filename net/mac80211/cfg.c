@@ -1271,6 +1271,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 }
 
 static int ieee80211_set_txq_params(struct wiphy *wiphy,
+				    struct net_device *dev,
 				    struct ieee80211_txq_params *params)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
