@@ -1238,14 +1238,15 @@ static void dm_table_set_integrity(struct dm_table *t)
 		return;
 
 	template_disk = dm_table_get_integrity_disk(t, true);
-	if (!template_disk &&
-	    blk_integrity_is_initialized(dm_disk(t->md))) {
+	if (template_disk)
+		blk_integrity_register(dm_disk(t->md),
+				       blk_get_integrity(template_disk));
+	else if (blk_integrity_is_initialized(dm_disk(t->md)))
 		DMWARN("%s: device no longer has a valid integrity profile",
 		       dm_device_name(t->md));
-		return;
-	}
-	blk_integrity_register(dm_disk(t->md),
-			       blk_get_integrity(template_disk));
+	else
+		DMWARN("%s: unable to establish an integrity profile",
+		       dm_device_name(t->md));
 }
 
 static int device_flush_capable(struct dm_target *ti, struct dm_dev *dev,
