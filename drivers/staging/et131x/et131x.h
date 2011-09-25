@@ -83,6 +83,8 @@ void et1310_setup_device_for_unicast(struct et131x_adapter *adapter);
 
 /* et131x_netdev.c */
 struct net_device *et131x_device_alloc(void);
+void et131x_enable_txrx(struct net_device *netdev);
+void et131x_disable_txrx(struct net_device *netdev);
 
 /* et1310_pm.c */
 void et1310_enable_phy_coma(struct et131x_adapter *adapter);
