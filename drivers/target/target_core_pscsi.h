@@ -27,7 +27,6 @@ struct pscsi_plugin_task {
 	int	pscsi_direction;
 	int	pscsi_result;
 	u32	pscsi_resid;
-	struct request *pscsi_req;
 	unsigned char pscsi_cdb[0];
 } ____cacheline_aligned;
 
