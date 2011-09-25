@@ -21,6 +21,7 @@
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
+#include <asm/suspend.h>
 #include <mach/common.h>
 #include <mach/sh7372.h>
 
@@ -152,30 +153,25 @@ struct sh7372_pm_domain sh7372_a3sg = {
 
 #endif /* CONFIG_PM */
 
+static int sh7372_do_idle_core_standby(unsigned long unused)
+{
+	cpu_do_idle(); /* WFI when SYSTBCR == 0x10 -> Core Standby */
+	return 0;
+}
+
 static void sh7372_enter_core_standby(void)
 {
-	void __iomem *smfram = (void __iomem *)SMFRAM;
+	/* set reset vector, translate 4k */
+	__raw_writel(__pa(sh7372_resume_core_standby), SBAR);
+	__raw_writel(0, APARMBAREA);
 
-	__raw_writel(0, APARMBAREA); /* translate 4k */
-	__raw_writel(__pa(sh7372_cpu_resume), SBAR); /* set reset vector */
-	__raw_writel(0x10, SYSTBCR); /* enable core standby */
+	/* enter sleep mode with SYSTBCR to 0x10 */
+	__raw_writel(0x10, SYSTBCR);
+	cpu_suspend(0, sh7372_do_idle_core_standby);
+	__raw_writel(0, SYSTBCR);
 
-	__raw_writel(0, smfram + 0x3c); /* clear page table address */
-
-	sh7372_cpu_suspend();
-	cpu_init();
-
-	/* if page table address is non-NULL then we have been powered down */
-	if (__raw_readl(smfram + 0x3c)) {
-		__raw_writel(__raw_readl(smfram + 0x40),
-			     __va(__raw_readl(smfram + 0x3c)));
-
-		flush_tlb_all();
-		set_cr(__raw_readl(smfram + 0x38));
-	}
-
-	__raw_writel(0, SYSTBCR); /* disable core standby */
-	__raw_writel(0, SBAR); /* disable reset vector translation */
+	 /* disable reset vector translation */
+	__raw_writel(0, SBAR);
 }
 
 #ifdef CONFIG_CPU_IDLE
