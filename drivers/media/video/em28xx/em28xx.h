@@ -678,8 +678,6 @@ int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
 void em28xx_wake_i2c(struct em28xx *dev);
-void em28xx_remove_from_devlist(struct em28xx *dev);
-void em28xx_add_into_devlist(struct em28xx *dev);
 int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
 void em28xx_init_extension(struct em28xx *dev);
