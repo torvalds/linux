@@ -523,15 +523,17 @@ retry:
 	DBG_TRACE( DbgInfo, "wl_wireless_stats done\n" );
 
 	/* Event capability (kernel + driver) */
-	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
-				IW_EVENT_CAPA_MASK(SIOCGIWAP) |
-				IW_EVENT_CAPA_MASK(SIOCGIWSCAN));
-	range->event_capa[1] = IW_EVENT_CAPA_K_1;
-	range->event_capa[4] = (IW_EVENT_CAPA_MASK(IWEVREGISTERED) |
-				IW_EVENT_CAPA_MASK(IWEVCUSTOM) |
-				IW_EVENT_CAPA_MASK(IWEVEXPIRED));
+	IW_EVENT_CAPA_SET_KERNEL(range->event_capa);
+	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWAP);
+	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVREGISTERED);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVEXPIRED);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVMICHAELMICFAILURE);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVASSOCREQIE);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVASSOCRESPIE);
 
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_CIPHER_TKIP;
+	range->scan_capa = IW_SCAN_CAPA_NONE;
 
 out_unlock:
     	wl_act_int_on( lp );
