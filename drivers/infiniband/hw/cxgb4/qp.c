@@ -917,7 +917,11 @@ static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
 	wqe->u.terminate.type = FW_RI_TYPE_TERMINATE;
 	wqe->u.terminate.immdlen = cpu_to_be32(sizeof *term);
 	term = (struct terminate_message *)wqe->u.terminate.termmsg;
-	build_term_codes(err_cqe, &term->layer_etype, &term->ecode);
+	if (qhp->attr.layer_etype == (LAYER_MPA|DDP_LLP)) {
+		term->layer_etype = qhp->attr.layer_etype;
+		term->ecode = qhp->attr.ecode;
+	} else
+		build_term_codes(err_cqe, &term->layer_etype, &term->ecode);
 	c4iw_ofld_send(&qhp->rhp->rdev, skb);
 }
 
@@ -1012,6 +1016,7 @@ out:
 
 static void build_rtr_msg(u8 p2p_type, struct fw_ri_init *init)
 {
+	PDBG("%s p2p_type = %d\n", __func__, p2p_type);
 	memset(&init->u, 0, sizeof init->u);
 	switch (p2p_type) {
 	case FW_RI_INIT_P2PTYPE_RDMA_WRITE:
@@ -1212,6 +1217,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			break;
 		case C4IW_QP_STATE_TERMINATE:
 			set_state(qhp, C4IW_QP_STATE_TERMINATE);
+			qhp->attr.layer_etype = attrs->layer_etype;
+			qhp->attr.ecode = attrs->ecode;
 			if (qhp->ibqp.uobject)
 				t4_set_wq_in_error(&qhp->wq);
 			ep = qhp->ep;
@@ -1334,7 +1341,10 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 	rhp = qhp->rhp;
 
 	attrs.next_state = C4IW_QP_STATE_ERROR;
-	c4iw_modify_qp(rhp, qhp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
+	if (qhp->attr.state == C4IW_QP_STATE_TERMINATE)
+		c4iw_modify_qp(rhp, qhp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+	else
+		c4iw_modify_qp(rhp, qhp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
 	wait_event(qhp->wait, !qhp->ep);
 
 	remove_handle(rhp, &rhp->qpidr, qhp->wq.sq.qid);
