@@ -632,8 +632,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 		qparam.uapsd = false;
 
-		local->tx_conf[queue] = qparam;
-		drv_conf_tx(local, queue, &qparam);
+		sdata->tx_conf[queue] = qparam;
+		drv_conf_tx(local, sdata, queue, &qparam);
 	}
 
 	/* after reinitialize QoS TX queues setting to default,
@@ -1044,8 +1044,15 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mutex_unlock(&local->sta_mtx);
 
 	/* reconfigure tx conf */
-	for (i = 0; i < hw->queues; i++)
-		drv_conf_tx(local, i, &local->tx_conf[i]);
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+		    sdata->vif.type == NL80211_IFTYPE_MONITOR ||
+		    !ieee80211_sdata_running(sdata))
+			continue;
+
+		for (i = 0; i < hw->queues; i++)
+			drv_conf_tx(local, sdata, i, &sdata->tx_conf[i]);
+	}
 
 	/* reconfigure hardware */
 	ieee80211_hw_config(local, ~0);

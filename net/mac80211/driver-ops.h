@@ -413,14 +413,15 @@ static inline void drv_sta_remove(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
-static inline int drv_conf_tx(struct ieee80211_local *local, u16 queue,
+static inline int drv_conf_tx(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata, u16 queue,
 			      const struct ieee80211_tx_queue_params *params)
 {
 	int ret = -EOPNOTSUPP;
 
 	might_sleep();
 
-	trace_drv_conf_tx(local, queue, params);
+	trace_drv_conf_tx(local, sdata, queue, params);
 	if (local->ops->conf_tx)
 		ret = local->ops->conf_tx(&local->hw, queue, params);
 	trace_drv_return_int(local, ret);

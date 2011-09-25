@@ -1275,6 +1275,7 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 				    struct ieee80211_txq_params *params)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_tx_queue_params p;
 
 	if (!local->ops->conf_tx)
@@ -1295,8 +1296,8 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	if (params->queue >= local->hw.queues)
 		return -EINVAL;
 
-	local->tx_conf[params->queue] = p;
-	if (drv_conf_tx(local, params->queue, &p)) {
+	sdata->tx_conf[params->queue] = p;
+	if (drv_conf_tx(local, sdata, params->queue, &p)) {
 		wiphy_debug(local->hw.wiphy,
 			    "failed to set TX queue parameters for queue %d\n",
 			    params->queue);
