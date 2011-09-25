@@ -544,6 +544,10 @@ static void et131x_adjust_link(struct net_device *netdev)
 
 			/* Setup ET1310 as per the documentation */
 			et131x_adapter_setup(adapter);
+
+			/* perform reset of tx/rx */
+			et131x_disable_txrx(netdev);
+			et131x_enable_txrx(netdev);
 		}
 
 		adapter->link = phydev->link;
