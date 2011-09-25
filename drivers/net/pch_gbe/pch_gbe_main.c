@@ -2128,7 +2128,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 		/* If no Tx and not enough Rx work done,
 		 * exit the polling mode
 		 */
-		if ((work_done < budget) || !netif_running(netdev))
+		if (work_done < budget)
 			poll_end_flag = true;
 	}
 
