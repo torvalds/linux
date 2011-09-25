@@ -374,45 +374,6 @@ static int iblock_emulated_fua_read(struct se_device *dev)
 	return 0;
 }
 
-static int iblock_do_task(struct se_task *task)
-{
-	struct se_device *dev = task->task_se_cmd->se_dev;
-	struct iblock_req *req = IBLOCK_REQ(task);
-	struct bio *bio = req->ib_bio, *nbio = NULL;
-	struct blk_plug plug;
-	int rw;
-
-	if (task->task_data_direction == DMA_TO_DEVICE) {
-		/*
-		 * Force data to disk if we pretend to not have a volatile
-		 * write cache, or the initiator set the Force Unit Access bit.
-		 */
-		if (dev->se_sub_dev->se_dev_attrib.emulate_write_cache == 0 ||
-		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
-		     task->task_se_cmd->t_tasks_fua))
-			rw = WRITE_FUA;
-		else
-			rw = WRITE;
-	} else {
-		rw = READ;
-	}
-
-	blk_start_plug(&plug);
-	while (bio) {
-		nbio = bio->bi_next;
-		bio->bi_next = NULL;
-		pr_debug("Calling submit_bio() task: %p bio: %p"
-			" bio->bi_sector: %llu\n", task, bio,
-			 (unsigned long long)bio->bi_sector);
-
-		submit_bio(rw, bio);
-		bio = nbio;
-	}
-	blk_finish_plug(&plug);
-
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
-}
-
 static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
 {
 	struct iblock_dev *ibd = dev->dev_ptr;
@@ -424,20 +385,7 @@ static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
 
 static void iblock_free_task(struct se_task *task)
 {
-	struct iblock_req *req = IBLOCK_REQ(task);
-	struct bio *bio, *hbio = req->ib_bio;
-	/*
-	 * We only release the bio(s) here if iblock_bio_done() has not called
-	 * bio_put() -> iblock_bio_destructor().
-	 */
-	while (hbio != NULL) {
-		bio = hbio;
-		hbio = hbio->bi_next;
-		bio->bi_next = NULL;
-		bio_put(bio);
-	}
-
-	kfree(req);
+	kfree(IBLOCK_REQ(task));
 }
 
 enum {
@@ -556,20 +504,16 @@ static void iblock_bio_destructor(struct bio *bio)
 	bio_free(bio, ib_dev->ibd_bio_set);
 }
 
-static struct bio *iblock_get_bio(
-	struct se_task *task,
-	struct iblock_req *ib_req,
-	struct iblock_dev *ib_dev,
-	int *ret,
-	sector_t lba,
-	u32 sg_num)
+static struct bio *
+iblock_get_bio(struct se_task *task, sector_t lba, u32 sg_num)
 {
+	struct iblock_dev *ib_dev = task->se_dev->dev_ptr;
+	struct iblock_req *ib_req = IBLOCK_REQ(task);
 	struct bio *bio;
 
 	bio = bio_alloc_bioset(GFP_NOIO, sg_num, ib_dev->ibd_bio_set);
 	if (!bio) {
 		pr_err("Unable to allocate memory for bio\n");
-		*ret = PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
 		return NULL;
 	}
 
@@ -590,17 +534,33 @@ static struct bio *iblock_get_bio(
 	return bio;
 }
 
-static int iblock_map_data_SG(struct se_task *task)
+static int iblock_do_task(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
-	struct iblock_dev *ib_dev = task->se_dev->dev_ptr;
-	struct iblock_req *ib_req = IBLOCK_REQ(task);
-	struct bio *bio = NULL, *hbio = NULL, *tbio = NULL;
+	struct bio *bio;
+	struct bio_list list;
 	struct scatterlist *sg;
-	int ret = 0;
 	u32 i, sg_num = task->task_sg_nents;
 	sector_t block_lba;
+	struct blk_plug plug;
+	int rw;
+
+	if (task->task_data_direction == DMA_TO_DEVICE) {
+		/*
+		 * Force data to disk if we pretend to not have a volatile
+		 * write cache, or the initiator set the Force Unit Access bit.
+		 */
+		if (dev->se_sub_dev->se_dev_attrib.emulate_write_cache == 0 ||
+		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
+		     task->task_se_cmd->t_tasks_fua))
+			rw = WRITE_FUA;
+		else
+			rw = WRITE;
+	} else {
+		rw = READ;
+	}
+
 	/*
 	 * Do starting conversion up from non 512-byte blocksize with
 	 * struct se_task SCSI blocksize into Linux/Block 512 units for BIO.
@@ -619,63 +579,43 @@ static int iblock_map_data_SG(struct se_task *task)
 		return PYX_TRANSPORT_LU_COMM_FAILURE;
 	}
 
-	bio = iblock_get_bio(task, ib_req, ib_dev, &ret, block_lba, sg_num);
+	bio = iblock_get_bio(task, block_lba, sg_num);
 	if (!bio)
-		return ret;
+		return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
 
-	ib_req->ib_bio = bio;
-	hbio = tbio = bio;
-	/*
-	 * Use fs/bio.c:bio_add_pages() to setup the bio_vec maplist
-	 * from task->task_sg -> struct scatterlist memory.
-	 */
+	bio_list_init(&list);
+	bio_list_add(&list, bio);
+
 	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
-		pr_debug("task: %p bio: %p Calling bio_add_page(): page:"
-			" %p len: %u offset: %u\n", task, bio, sg_page(sg),
-				sg->length, sg->offset);
-again:
-		ret = bio_add_page(bio, sg_page(sg), sg->length, sg->offset);
-		if (ret != sg->length) {
-
-			pr_debug("*** Set bio->bi_sector: %llu\n",
-				 (unsigned long long)bio->bi_sector);
-			pr_debug("** task->task_size: %u\n",
-					task->task_size);
-			pr_debug("*** bio->bi_max_vecs: %u\n",
-					bio->bi_max_vecs);
-			pr_debug("*** bio->bi_vcnt: %u\n",
-					bio->bi_vcnt);
-
-			bio = iblock_get_bio(task, ib_req, ib_dev, &ret,
-						block_lba, sg_num);
+		/*
+		 * XXX: if the length the device accepts is shorter than the
+		 *	length of the S/G list entry this will cause and
+		 *	endless loop.  Better hope no driver uses huge pages.
+		 */
+		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
+				!= sg->length) {
+			bio = iblock_get_bio(task, block_lba, sg_num);
 			if (!bio)
 				goto fail;
-
-			tbio = tbio->bi_next = bio;
-			pr_debug("-----------------> Added +1 bio: %p to"
-				" list, Going to again\n", bio);
-			goto again;
+			bio_list_add(&list, bio);
 		}
+
 		/* Always in 512 byte units for Linux/Block */
 		block_lba += sg->length >> IBLOCK_LBA_SHIFT;
 		sg_num--;
-		pr_debug("task: %p bio-add_page() passed!, decremented"
-			" sg_num to %u\n", task, sg_num);
-		pr_debug("task: %p bio_add_page() passed!, increased lba"
-			 " to %llu\n", task, (unsigned long long)block_lba);
-		pr_debug("task: %p bio_add_page() passed!, bio->bi_vcnt:"
-				" %u\n", task, bio->bi_vcnt);
 	}
 
-	return 0;
+	blk_start_plug(&plug);
+	while ((bio = bio_list_pop(&list)))
+		submit_bio(rw, bio);
+	blk_finish_plug(&plug);
+
+	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+
 fail:
-	while (hbio) {
-		bio = hbio;
-		hbio = hbio->bi_next;
-		bio->bi_next = NULL;
+	while ((bio = bio_list_pop(&list)))
 		bio_put(bio);
-	}
-	return ret;
+	return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
 }
 
 static unsigned char *iblock_get_cdb(struct se_task *task)
@@ -706,6 +646,7 @@ static void iblock_bio_done(struct bio *bio, int err)
 {
 	struct se_task *task = bio->bi_private;
 	struct iblock_req *ibr = IBLOCK_REQ(task);
+
 	/*
 	 * Set -EIO if !BIO_UPTODATE and the passed is still err=0
 	 */
@@ -720,41 +661,24 @@ static void iblock_bio_done(struct bio *bio, int err)
 		 */
 		atomic_inc(&ibr->ib_bio_err_cnt);
 		smp_mb__after_atomic_inc();
-		bio_put(bio);
-		/*
-		 * Wait to complete the task until the last bio as completed.
-		 */
-		if (!atomic_dec_and_test(&ibr->ib_bio_cnt))
-			return;
-
-		ibr->ib_bio = NULL;
-		transport_complete_task(task, 0);
-		return;
 	}
-	pr_debug("done[%p] bio: %p task_lba: %llu bio_lba: %llu err=%d\n",
-		 task, bio, task->task_lba, (unsigned long long)bio->bi_sector, err);
-	/*
-	 * bio_put() will call iblock_bio_destructor() to release the bio back
-	 * to ibr->ib_bio_set.
-	 */
+
 	bio_put(bio);
-	/*
-	 * Wait to complete the task until the last bio as completed.
-	 */
+
 	if (!atomic_dec_and_test(&ibr->ib_bio_cnt))
 		return;
-	/*
-	 * Return GOOD status for task if zero ib_bio_err_cnt exists.
-	 */
-	ibr->ib_bio = NULL;
-	transport_complete_task(task, (!atomic_read(&ibr->ib_bio_err_cnt)));
+
+	pr_debug("done[%p] bio: %p task_lba: %llu bio_lba: %llu err=%d\n",
+		 task, bio, task->task_lba,
+		 (unsigned long long)bio->bi_sector, err);
+
+	transport_complete_task(task, !atomic_read(&ibr->ib_bio_err_cnt));
 }
 
 static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
-	.map_data_SG		= iblock_map_data_SG,
 	.attach_hba		= iblock_attach_hba,
 	.detach_hba		= iblock_detach_hba,
 	.allocate_virtdevice	= iblock_allocate_virtdevice,
