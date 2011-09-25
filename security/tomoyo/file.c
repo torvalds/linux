@@ -555,8 +555,8 @@ static int tomoyo_update_path2_acl(const u8 perm,
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
-			   const struct tomoyo_path_info *filename)
+static int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
+				  const struct tomoyo_path_info *filename)
 {
 	int error;
 

@@ -567,6 +567,7 @@ out:
 			tomoyo_write_log(&r, "use_profile %u\n",
 					 entry->profile);
 			tomoyo_write_log(&r, "use_group %u\n", entry->group);
+			tomoyo_update_stat(TOMOYO_STAT_POLICY_UPDATES);
 		}
 	}
 	return entry;

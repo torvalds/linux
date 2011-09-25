@@ -262,13 +262,17 @@ static void tomoyo_set_string(struct tomoyo_io_buffer *head, const char *string)
 		WARN_ON(1);
 }
 
+static void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt,
+			     ...) __printf(2, 3);
+
 /**
  * tomoyo_io_printf - printf() to "struct tomoyo_io_buffer" structure.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  * @fmt:  The printf()'s format string, followed by parameters.
  */
-void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
+static void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt,
+			     ...)
 {
 	va_list args;
 	size_t len;

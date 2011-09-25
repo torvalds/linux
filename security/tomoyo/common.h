@@ -978,8 +978,6 @@ int tomoyo_path_number_perm(const u8 operation, struct path *path,
 			    unsigned long number);
 int tomoyo_path_perm(const u8 operation, struct path *path,
 		     const char *target);
-int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
-			   const struct tomoyo_path_info *filename);
 int tomoyo_poll_control(struct file *file, poll_table *wait);
 int tomoyo_poll_log(struct file *file, poll_table *wait);
 int tomoyo_socket_bind_permission(struct socket *sock, struct sockaddr *addr,
@@ -1041,8 +1039,6 @@ void tomoyo_del_condition(struct list_head *element);
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 void tomoyo_get_attributes(struct tomoyo_obj_info *obj);
 void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
-void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
-	 __printf(2, 3);
 void tomoyo_load_policy(const char *filename);
 void tomoyo_memory_free(void *ptr);
 void tomoyo_normalize_line(unsigned char *buffer);

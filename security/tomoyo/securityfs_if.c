@@ -265,6 +265,7 @@ static int __init tomoyo_initerface_init(void)
 			    TOMOYO_VERSION);
 	securityfs_create_file("self_domain", 0666, tomoyo_dir, NULL,
 			       &tomoyo_self_operations);
+	tomoyo_load_builtin_policy();
 	return 0;
 }
 
