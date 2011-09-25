@@ -899,14 +899,18 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
-			      u32 ratemask, bool directed)
+			      u32 ratemask, bool directed, bool no_cck)
 {
 	struct sk_buff *skb;
 
 	skb = ieee80211_build_probe_req(sdata, dst, ratemask, ssid, ssid_len,
 					ie, ie_len, directed);
-	if (skb)
+	if (skb) {
+		if (no_cck)
+			IEEE80211_SKB_CB(skb)->flags |=
+				IEEE80211_TX_CTL_NO_CCK_RATE;
 		ieee80211_tx_skb(sdata, skb);
+	}
 }
 
 u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
