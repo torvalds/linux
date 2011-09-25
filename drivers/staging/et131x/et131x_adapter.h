@@ -147,6 +147,9 @@ struct et131x_adapter {
 	/* Flags that indicate current state of the adapter */
 	u32 flags;
 
+	/* local link state, to determine if a state change has occurred */
+	int link;
+
 	/* Configuration  */
 	u8 rom_addr[ETH_ALEN];
 	u8 addr[ETH_ALEN];
