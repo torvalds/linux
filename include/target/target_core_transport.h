@@ -234,18 +234,6 @@ struct se_subsystem_api {
 	 */
 	struct list_head sub_api_list;
 	/*
-	 * For SCF_SCSI_NON_DATA_CDB
-	 */
-	int (*cdb_none)(struct se_task *);
-	/*
-	 * For SCF_SCSI_DATA_SG_IO_CDB
-	 */
-	int (*map_data_SG)(struct se_task *);
-	/*
-	 * For SCF_SCSI_CONTROL_SG_IO_CDB
-	 */
-	int (*map_control_SG)(struct se_task *);
-	/*
 	 * attach_hba():
 	 */
 	int (*attach_hba)(struct se_hba *, u32);
