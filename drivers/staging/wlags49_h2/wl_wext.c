@@ -1042,9 +1042,6 @@ static int wireless_get_essid(struct net_device *dev, struct iw_request_info *in
 		/* Copy the information into the user buffer */
 		data->length = pName->length;
 
-		/* NOTE: Null terminating is necessary for proper display of the SSID in
-		   the wireless tools */
-		data->length = pName->length + 1;
 		if( pName->length < HCF_MAX_NAME_LEN ) {
 			pName->name[pName->length] = '\0';
 		}
@@ -1070,11 +1067,7 @@ static int wireless_get_essid(struct net_device *dev, struct iw_request_info *in
 				pName->length = CNV_LITTLE_TO_INT( pName->length );
 
 				/* Copy the information into the user buffer */
-				data->length = pName->length + 1;
-				if( pName->length < HCF_MAX_NAME_LEN ) {
-					pName->name[pName->length] = '\0';
-				}
-
+				data->length = pName->length;
 				data->flags = 1;
 			} else {
 				ret = -EFAULT;
@@ -1083,8 +1076,6 @@ static int wireless_get_essid(struct net_device *dev, struct iw_request_info *in
 		}
 
 #endif // HCF_STA
-
-		data->length--;
 
 		if (pName->length > IW_ESSID_MAX_SIZE) {
 			ret = -EFAULT;
