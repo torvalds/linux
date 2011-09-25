@@ -139,7 +139,8 @@ struct nes_qp {
 	struct nes_cq         *nesrcq;
 	struct nes_pd         *nespd;
 	void *cm_node; /* handle of the node this QP is associated with */
-	struct ietf_mpa_frame *ietf_frame;
+	void                  *ietf_frame;
+	u8                    ietf_frame_size;
 	dma_addr_t            ietf_frame_pbase;
 	struct ib_mr          *lsmm_mr;
 	struct nes_hw_qp      hwqp;
