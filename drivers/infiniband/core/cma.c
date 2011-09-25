@@ -1340,6 +1340,8 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		switch (iw_event->status) {
 		case 0:
 			event.event = RDMA_CM_EVENT_ESTABLISHED;
+			event.param.conn.initiator_depth = iw_event->ird;
+			event.param.conn.responder_resources = iw_event->ord;
 			break;
 		case -ECONNRESET:
 		case -ECONNREFUSED:
@@ -1355,6 +1357,8 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		break;
 	case IW_CM_EVENT_ESTABLISHED:
 		event.event = RDMA_CM_EVENT_ESTABLISHED;
+		event.param.conn.initiator_depth = iw_event->ird;
+		event.param.conn.responder_resources = iw_event->ord;
 		break;
 	default:
 		BUG_ON(1);
@@ -1445,8 +1449,8 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
 	event.param.conn.private_data = iw_event->private_data;
 	event.param.conn.private_data_len = iw_event->private_data_len;
-	event.param.conn.initiator_depth = attr.max_qp_init_rd_atom;
-	event.param.conn.responder_resources = attr.max_qp_rd_atom;
+	event.param.conn.initiator_depth = iw_event->ird;
+	event.param.conn.responder_resources = iw_event->ord;
 
 	/*
 	 * Protect against the user destroying conn_id from another thread
