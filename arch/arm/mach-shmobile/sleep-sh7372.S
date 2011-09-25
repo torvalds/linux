@@ -34,6 +34,7 @@
 #include <asm/memory.h>
 #include <asm/assembler.h>
 
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
 	.align	12
 	.text
 	.global sh7372_resume_core_standby_a3sm
@@ -91,3 +92,4 @@ sh7372_do_idle_a3sm:
 
 kernel_flush:
 	.word v7_flush_dcache_all
+#endif

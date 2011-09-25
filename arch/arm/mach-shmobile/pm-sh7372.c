@@ -189,6 +189,7 @@ struct sh7372_pm_domain sh7372_a3sg = {
 
 #endif /* CONFIG_PM */
 
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
 static int sh7372_do_idle_core_standby(unsigned long unused)
 {
 	cpu_do_idle(); /* WFI when SYSTBCR == 0x10 -> Core Standby */
@@ -209,7 +210,9 @@ static void sh7372_enter_core_standby(void)
 	 /* disable reset vector translation */
 	__raw_writel(0, SBAR);
 }
+#endif
 
+#ifdef CONFIG_SUSPEND
 static void sh7372_enter_a3sm_common(int pllc0_on)
 {
 	/* set reset vector, translate 4k */
@@ -351,7 +354,7 @@ static void sh7372_setup_a3sm(unsigned long msk, unsigned long msk2)
 	__raw_writel((irqcrx_high << 16) | irqcrx_low, IRQCR3);
 	__raw_writel((irqcry_high << 16) | irqcry_low, IRQCR4);
 }
-
+#endif
 
 #ifdef CONFIG_CPU_IDLE
 
