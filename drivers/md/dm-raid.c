@@ -449,7 +449,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				rs->ti->error = "write_mostly option is only valid for RAID1";
 				return -EINVAL;
 			}
-			if (value > rs->md.raid_disks) {
+			if (value >= rs->md.raid_disks) {
 				rs->ti->error = "Invalid write_mostly drive index given";
 				return -EINVAL;
 			}
