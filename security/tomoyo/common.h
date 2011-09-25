@@ -52,6 +52,9 @@
 
 #define TOMOYO_EXEC_TMPSIZE     4096
 
+/* Garbage collector is trying to kfree() this element. */
+#define TOMOYO_GC_IN_PROGRESS -1
+
 /* Profile number is an integer between 0 and 255. */
 #define TOMOYO_MAX_PROFILES 256
 
@@ -398,7 +401,7 @@ enum tomoyo_pref_index {
 /* Common header for holding ACL entries. */
 struct tomoyo_acl_head {
 	struct list_head list;
-	bool is_deleted;
+	s8 is_deleted; /* true or false or TOMOYO_GC_IN_PROGRESS */
 } __packed;
 
 /* Common header for shared entries. */
@@ -665,7 +668,7 @@ struct tomoyo_condition {
 struct tomoyo_acl_info {
 	struct list_head list;
 	struct tomoyo_condition *cond; /* Maybe NULL. */
-	bool is_deleted;
+	s8 is_deleted; /* true or false or TOMOYO_GC_IN_PROGRESS */
 	u8 type; /* One of values in "enum tomoyo_acl_entry_type_index". */
 } __packed;
 

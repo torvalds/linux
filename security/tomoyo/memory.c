@@ -123,7 +123,8 @@ struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
 		goto out;
 	list = &param->ns->group_list[idx];
 	list_for_each_entry(group, list, head.list) {
-		if (e.group_name != group->group_name)
+		if (e.group_name != group->group_name ||
+		    atomic_read(&group->head.users) == TOMOYO_GC_IN_PROGRESS)
 			continue;
 		atomic_inc(&group->head.users);
 		found = true;
@@ -175,7 +176,8 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return NULL;
 	list_for_each_entry(ptr, head, head.list) {
-		if (hash != ptr->entry.hash || strcmp(name, ptr->entry.name))
+		if (hash != ptr->entry.hash || strcmp(name, ptr->entry.name) ||
+		    atomic_read(&ptr->head.users) == TOMOYO_GC_IN_PROGRESS)
 			continue;
 		atomic_inc(&ptr->head.users);
 		goto out;

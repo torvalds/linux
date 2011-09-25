@@ -39,6 +39,8 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return -ENOMEM;
 	list_for_each_entry_rcu(entry, list, list) {
+		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
+			continue;
 		if (!check_duplicate(entry, new_entry))
 			continue;
 		entry->is_deleted = param->is_delete;
@@ -115,6 +117,8 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	list_for_each_entry_rcu(entry, list, list) {
+		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
+			continue;
 		if (!tomoyo_same_acl_head(entry, new_entry) ||
 		    !check_duplicate(entry, new_entry))
 			continue;

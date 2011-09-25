@@ -400,8 +400,9 @@ static struct tomoyo_condition *tomoyo_commit_condition
 		found = true;
 		goto out;
 	}
-	list_for_each_entry_rcu(ptr, &tomoyo_condition_list, head.list) {
-		if (!tomoyo_same_condition(ptr, entry))
+	list_for_each_entry(ptr, &tomoyo_condition_list, head.list) {
+		if (!tomoyo_same_condition(ptr, entry) ||
+		    atomic_read(&ptr->head.users) == TOMOYO_GC_IN_PROGRESS)
 			continue;
 		/* Same entry found. Share this entry. */
 		atomic_inc(&ptr->head.users);
@@ -411,8 +412,7 @@ static struct tomoyo_condition *tomoyo_commit_condition
 	if (!found) {
 		if (tomoyo_memory_ok(entry)) {
 			atomic_set(&entry->head.users, 1);
-			list_add_rcu(&entry->head.list,
-				     &tomoyo_condition_list);
+			list_add(&entry->head.list, &tomoyo_condition_list);
 		} else {
 			found = true;
 			ptr = NULL;
