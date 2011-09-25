@@ -107,8 +107,6 @@ int32_t et131x_mii_read(struct et131x_adapter *adapter,
 		u8 reg, u16 *value);
 int32_t et131x_mii_write(struct et131x_adapter *adapter,
 		u8 reg, u16 value);
-void et131x_mii_check(struct et131x_adapter *adapter,
-		      u16 bmsr, u16 bmsr_ints);
 
 int et131x_mdio_read(struct mii_bus *bus, int phy_addr, int reg);
 int et131x_mdio_write(struct mii_bus *bus, int phy_addr, int reg, u16 value);
