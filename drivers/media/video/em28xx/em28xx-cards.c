@@ -3005,10 +3005,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		goto fail;
 	}
 
-	mutex_unlock(&dev->lock);
-	em28xx_init_extension(dev);
-	mutex_lock(&dev->lock);
-
 	/* Save some power by putting tuner to sleep */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
 
@@ -3242,6 +3238,13 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	   open the device before fully initializing it
 	 */
 	mutex_unlock(&dev->lock);
+
+	/*
+	 * These extensions can be modules. If the modules are already
+	 * loaded then we can initialise the device now, otherwise we
+	 * will initialise it when the modules load instead.
+	 */
+	em28xx_init_extension(dev);
 
 	return 0;
 
