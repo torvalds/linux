@@ -1043,7 +1043,6 @@ void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 void tomoyo_get_attributes(struct tomoyo_obj_info *obj);
 void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
 void tomoyo_load_policy(const char *filename);
-void tomoyo_memory_free(void *ptr);
 void tomoyo_normalize_line(unsigned char *buffer);
 void tomoyo_notify_gc(struct tomoyo_io_buffer *head, const bool is_register);
 void tomoyo_print_ip(char *buf, const unsigned int size,

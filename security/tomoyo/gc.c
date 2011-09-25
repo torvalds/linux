@@ -8,6 +8,21 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 
+/**
+ * tomoyo_memory_free - Free memory for elements.
+ *
+ * @ptr:  Pointer to allocated memory.
+ *
+ * Returns nothing.
+ *
+ * Caller holds tomoyo_policy_lock mutex.
+ */
+static inline void tomoyo_memory_free(void *ptr)
+{
+	tomoyo_memory_used[TOMOYO_MEMORY_POLICY] -= ksize(ptr);
+	kfree(ptr);
+}
+
 /* The list for "struct tomoyo_io_buffer". */
 static LIST_HEAD(tomoyo_io_buffer_list);
 /* Lock for protecting tomoyo_io_buffer_list. */
@@ -215,6 +230,8 @@ static void tomoyo_del_acl(struct list_head *element)
  * @element: Pointer to "struct list_head".
  *
  * Returns nothing.
+ *
+ * Caller holds tomoyo_policy_lock mutex.
  */
 static inline void tomoyo_del_domain(struct list_head *element)
 {
@@ -416,12 +433,13 @@ static void tomoyo_try_to_gc(const enum tomoyo_policy_id type,
 				(element, typeof(struct tomoyo_domain_info),
 				 list)->users))
 			goto reinject;
-		tomoyo_del_domain(element);
 		break;
 	case TOMOYO_MAX_POLICY:
 		break;
 	}
 	mutex_lock(&tomoyo_policy_lock);
+	if (type == TOMOYO_ID_DOMAIN)
+		tomoyo_del_domain(element);
 	tomoyo_memory_free(element);
 	return;
 reinject:
