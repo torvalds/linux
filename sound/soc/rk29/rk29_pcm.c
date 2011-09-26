@@ -54,7 +54,7 @@ static const struct snd_pcm_hardware rockchip_pcm_hardware = {
 	.channels_max		= 8,
 	.buffer_bytes_max	= 128*1024,
 	.period_bytes_min	= 64,  ///PAGE_SIZE,
-	.period_bytes_max	= 2047*4,///PAGE_SIZE*2,
+	.period_bytes_max	= 2048*4,///PAGE_SIZE*2,
 	.periods_min		= 3,///2,
 	.periods_max		= 128,
 	.fifo_size		= 16,
@@ -219,6 +219,23 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 		if ((pos + len) > prtd->dma_end) {
 			len  = prtd->dma_end - pos;
 		}
+
+		if((len%(prtd->params->dma_size*16) == 0) && (prtd->params->flag == 1))                 
+		{                                               
+			ret = rk29_dma_config(prtd->params->channel,                                    
+				prtd->params->dma_size, 16);                                            
+			prtd->params->flag = 0;                                         
+			DBG("size = 16, channel = %d, flag = %d\n",prtd->params->channel,prtd->params->flag);        
+		}                               
+		else if((len%(prtd->params->dma_size*16) != 0) && (prtd->params->flag == 0))            
+		{                                               
+			ret = rk29_dma_config(prtd->params->channel,                    
+				prtd->params->dma_size, 1);                                             
+			prtd->params->flag = 1;                                         
+			DBG("size = 1, channel = %d, flag = %d\n",prtd->params->channel,prtd->params->flag);         
+		}
+
+
 		//ret = rockchip_dma_buffer_set_enqueue(prtd, pos, len);		
 		ret = rk29_dma_enqueue(prtd->params->channel, 
 		        substream, pos, len);
@@ -407,7 +424,7 @@ static int rockchip_pcm_prepare(struct snd_pcm_substream *substream)
         }
         DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X\n", __FUNCTION__, __LINE__, ret, prtd->params->channel, prtd->params->dma_addr);
         ret = rk29_dma_config(prtd->params->channel, 
-                prtd->params->dma_size, 1);
+                prtd->params->dma_size, 16);
 
         DBG("Enter:%s, %d, ret = %d, Channel=%d, Size=%d\n", 
                 __FUNCTION__, __LINE__, ret, prtd->params->channel, 

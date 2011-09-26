@@ -102,4 +102,11 @@ choice
 	config SND_RK29_CODEC_SOC_SLAVE
 		tristate  "Codec run in Slave"
 endchoice
+
+config ADJUST_VOL_BY_CODEC
+	bool "Adjust volume by codec"
+    default n
+    help
+    	  adjust volume by codec
+        	  
 endif

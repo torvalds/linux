@@ -862,15 +862,17 @@ static void uvc_uninit_video(struct uvc_streaming *stream, int free_buffers)
 		if (urb == NULL)
 			continue;
 
-		usb_kill_urb(urb);
-		usb_free_urb(urb);
-		stream->urb[i] = NULL;
-        /* ddl@rock-chips.com */
+        /* ddl@rock-chips.com: Tasklet must be kill before kill urb in uninit */
         if (stream->tasklet[i]) {
             tasklet_kill(stream->tasklet[i]);
             kfree(stream->tasklet[i]);
             stream->tasklet[i] = NULL;
         }
+
+		usb_kill_urb(urb);
+		usb_free_urb(urb);
+		stream->urb[i] = NULL;
+        
 	}
 
 	if (free_buffers)

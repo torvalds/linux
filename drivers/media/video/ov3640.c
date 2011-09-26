@@ -63,7 +63,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Scene         1
 #define CONFIG_SENSOR_DigitalZoom   0
 #define CONFIG_SENSOR_Exposure      0
-#define CONFIG_SENSOR_Flash         1
+#define CONFIG_SENSOR_Flash         0
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 #ifdef CONFIG_OV3640_AUTOFOCUS

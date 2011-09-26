@@ -428,7 +428,18 @@ static struct reginfo sensor_init_data[] =
 	/////////////////////////////////////////////////////////////////////
 	/////////////////////////// eeintp_t///////////////////////////////
 #endif
-
+	{0x23,0x00},
+	{0x2d,0x0a}, // 0x08
+	{0x20,0xff},
+	{0xd2,0x90},
+	{0x73,0x00},
+	{0x77,0x54},
+			
+	{0xb3,0x40},
+	{0xb4,0x80},
+	{0xba,0x00},
+	{0xbb,0x00},
+    {0x00,0x00}
 };
 
 
@@ -1811,9 +1822,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 			sensor->info_priv.snap2preview = false;
 		}
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
-    }
-    else
-    {
+    } else {
         SENSOR_DG("\n %s .. Current Format is validate. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),set_w,set_h);
     }
 

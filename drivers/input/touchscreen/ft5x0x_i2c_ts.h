@@ -13,8 +13,8 @@
 #define CFG_NUMOFKEYS                    0x4    //number of touch keys
 
 #ifdef CONFIG_FTS_CUSTOME_ENV  
-#define SCREEN_MAX_X           1024
-#define SCREEN_MAX_Y           600
+#define SCREEN_MAX_X           1044//1024
+#define SCREEN_MAX_Y           620//600
 #else
 #define SCREEN_MAX_X           800
 #define SCREEN_MAX_Y           480
@@ -80,12 +80,6 @@ typedef enum
     u8        touch_point;
 };
 
-struct FTS_TS_DATA_T {
-    struct input_dev    *input_dev;
-    struct FTS_TS_EVENT_T        event;
-    struct work_struct     pen_event_work;
-    struct workqueue_struct *ts_workqueue;
-};
 
 
 

@@ -67,6 +67,12 @@ config MACH_RK29_P91
 	  
 endchoice
 
+config RK29_NEWTON_CLOCK
+	depends on MACH_RK29_newton
+	bool "enable newton 1.2G cpu clock support"
+	help
+	  support for newton 1.2G cpu clock.
+
 choice DDR_TYPE
 	prompt "DDR Memory Type"
 	default DDR_TYPE_DDR3_DEFAULT 
@@ -156,6 +162,10 @@ config RK29_MEM_SIZE_M
 config DDR_SDRAM_FREQ
 	int "DDR SDRAM frequence (in MHz)"
 	default 400
+
+config DDR_FREQ
+	bool "Enable DDR frequency scaling"
+	default y
 
 config DDR_RECONFIG
 	bool "Enable dynamic DDR reconfiguration (EXPERIMENTAL)"

@@ -133,7 +133,11 @@
 #else
 #define MEM_FBIPP_SIZE      0
 #endif
-#define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
+#if SDRAM_SIZE > SZ_512M
+#define PMEM_GPU_BASE       (RK29_SDRAM_PHYS + SZ_512M - PMEM_GPU_SIZE)
+#else
+#define PMEM_GPU_BASE       (RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
+#endif
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
 #define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
@@ -654,7 +658,7 @@ int wm831x_post_init(struct wm831x *parm)
 
 	dcdc = regulator_get(NULL, "dcdc3");		// 1th IO
 	regulator_set_voltage(dcdc,3000000,3000000);
-	regulator_set_suspend_voltage(dcdc, 3000000);
+	regulator_set_suspend_voltage(dcdc, 2800000);
 	regulator_enable(dcdc);			
 	printk("%s set dcdc3=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
@@ -852,9 +856,9 @@ struct wm831x_battery_pdata wm831x_battery_platdata = {
 	.off_mask = 1,       /** Mask OFF while charging */
 	.trickle_ilim = 200,   /** Trickle charge current limit, in mA */
 	.vsel = 4200,           /** Target voltage, in mV */
-	.eoc_iterm = 90,      /** End of trickle charge current, in mA */
+	.eoc_iterm = 50,      /** End of trickle charge current, in mA */
 	.fast_ilim = 600,      /** Fast charge current limit, in mA */
-	.timeout = 240,        /** Charge cycle timeout, in minutes */
+	.timeout = 480,        /** Charge cycle timeout, in minutes */
 	.syslo = 3300,    /* syslo threshold, in mV*/
 	.sysok = 3500,    /* sysko threshold, in mV*/
 };
@@ -1435,7 +1439,12 @@ struct platform_device rk29_device_gps = {
  * author: qjb@rock-chips.com
  *****************************************************************************************/
 struct wm8994_pdata wm8994_platdata = {	
+	.BB_input_diff = 0,
+	.BB_class = NO_PCM_BB,
 	
+	.no_earpiece = 0,
+	.sp_hp_same_channel = 0,
+
 	.PA_control_pin = RK29_PIN6_PD3,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
 	
@@ -2159,7 +2168,11 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
+#ifdef CONFIG_SDMMC_RK29_OLD	
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
+#else
+  rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
+#endif	
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
 	gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
@@ -2182,6 +2195,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.use_dma = 0,
 #endif
 	.detect_irq = INVALID_GPIO,
+	.enable_sd_wakeup = 0,
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
@@ -2421,13 +2435,13 @@ static struct resource resources_gpu[] = {
     [1] = {
 		.name = "gpu_base",
         .start  = RK29_GPU_PHYS,
-        .end    = RK29_GPU_PHYS + RK29_GPU_SIZE,
+        .end    = RK29_GPU_PHYS + RK29_GPU_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
     [2] = {
 		.name = "gpu_mem",
         .start  = PMEM_GPU_BASE,
-        .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE,
+        .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
 };
@@ -2477,7 +2491,25 @@ struct platform_device rk29_device_vibrator ={
 
 static void __init rk29_board_iomux_init(void)
 {
-		int err;
+	int err;
+
+#ifdef CONFIG_UART1_RK29
+	//disable uart1 pull down
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_GPIO2A5); 			
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_GPIO2A4); 		
+
+	gpio_request(RK29_PIN2_PA5, NULL);
+	gpio_request(RK29_PIN2_PA4, NULL);
+
+	gpio_pull_updown(RK29_PIN2_PA5, PullDisable);
+	gpio_pull_updown(RK29_PIN2_PA4, PullDisable);
+
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_UART1_SOUT); 			
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_UART1_SIN); 
+
+	gpio_free(RK29_PIN2_PA5);
+	gpio_free(RK29_PIN2_PA4);
+#endif
 
 	#if CONFIG_ANDROID_TIMED_GPIO
 	rk29_mux_api_set(GPIO1B5_PWM0_NAME, GPIO1L_GPIO1B5);//for timed gpio
@@ -3029,6 +3061,7 @@ static void rk29_pm_power_off(void)
 	while (1);
 }
 
+extern struct usb_mass_storage_platform_data mass_storage_pdata;
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
@@ -3038,6 +3071,8 @@ static void __init machine_rk29_board_init(void)
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
 	//arm_pm_restart = rk29_pm_power_restart;
+
+	mass_storage_pdata.nluns = 1;//change number of LUNS
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
@@ -3074,6 +3109,11 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 	mi->bank[0].start = RK29_SDRAM_PHYS;
 	mi->bank[0].node = PHYS_TO_NID(RK29_SDRAM_PHYS);
 	mi->bank[0].size = LINUX_SIZE;
+#if SDRAM_SIZE > SZ_512M
+	mi->nr_banks = 2;
+	mi->bank[1].start = RK29_SDRAM_PHYS + SZ_512M;
+	mi->bank[1].size = SDRAM_SIZE - SZ_512M;
+#endif
 }
 
 static void __init machine_rk29_mapio(void)
@@ -3088,7 +3128,7 @@ static void __init machine_rk29_mapio(void)
 
 MACHINE_START(RK29, "RK29board")
 	/* UART for LL DEBUG */
-	.phys_io	= RK29_UART1_PHYS,
+	.phys_io	= RK29_UART1_PHYS & 0xfff00000,
 	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
 	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
 	.fixup		= machine_rk29_fixup,

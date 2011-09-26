@@ -119,22 +119,14 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		   	}	    
 		#endif
   
-/*
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
 
-		   if((24576000%params_rate(params))==0)	//for 8k,16k,32k,48k
-			{
-				snd_soc_dai_set_pll(codec_dai,0,pll_out, 24576000);
-				snd_soc_dai_set_sysclk(codec_dai,0, 24576000, SND_SOC_CLOCK_IN);			
-			}
-		   else if((22579200%params_rate(params))==0)	//for 11k,22k,44k
-			{
-				snd_soc_dai_set_pll(codec_dai,0,pll_out, 22579200);
-				snd_soc_dai_set_sysclk(codec_dai,0, 22579200, SND_SOC_CLOCK_IN);			
-			}
+        #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+		
+			//	snd_soc_dai_set_pll(codec_dai,0,pll_out, 22579200);
+				snd_soc_dai_set_sysclk(codec_dai,0,pll_out, SND_SOC_CLOCK_IN);						
       
         #endif
-*/
+
 
         #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
         snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);

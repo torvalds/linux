@@ -24,8 +24,8 @@
 #define V_VD			800//480	//***480
 #define V_FP			8//40
 
-#define LCD_WIDTH       800    //need modify   //rk29
-#define LCD_HEIGHT      480
+#define LCD_WIDTH       57    //lcd size *mm
+#define LCD_HEIGHT      94
 
 /* Other */
 #define DCLK_POL		1//0 

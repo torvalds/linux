@@ -401,21 +401,6 @@ config EP93XX_PWM
 	  To compile this driver as a module, choose M here: the module will
 	  be called ep93xx_pwm.
 
-config STE
-	bool "STE modem control driver"
-	
-config MTK23D
-	bool "MTK6223D modem control driver"
-
-config FM580X
-	bool "FM rda580x driver"
-	
-config MU509
-	bool "MU509 modem control driver"
-	
-config RK29_NEWTON
-	bool "RK29_NEWTON misc driver"
-
 config DS1682
 	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
 	depends on I2C && EXPERIMENTAL
@@ -510,6 +495,28 @@ config TEGRA_CRYPTO_DEV
 	---help---
 	Dev node /dev/tegra-crypto in order to get access to tegra aes
 	hardware from user space
+
+config STE
+	bool "STE modem control driver"
+	default n
+	
+config MTK23D
+	bool "MTK6223D modem control driver"
+	default n	
+
+config FM580X
+	bool "FM rda580x driver"
+	default n	
+	
+config MU509
+	bool "MU509 modem control driver"
+	default n
+config MW100
+	bool "MW100 modem control driver"
+	default n
+config RK29_NEWTON
+	bool "RK29_NEWTON misc driver"
+	default n
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

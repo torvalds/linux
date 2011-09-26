@@ -143,6 +143,7 @@ struct rk29_sdmmc_platform_data {
 	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
         int detect_irq;
 		int enable_sd_wakeup;
+	int write_prt;
 };
 struct rk29_i2c_platform_data {
 	int     bus_num;        
@@ -164,7 +165,9 @@ struct bq27510_platform_data {
 
 struct bq27541_platform_data {	
 	int (*init_dc_check_pin)(void);	
-	unsigned int dc_check_pin;	
+	unsigned int dc_check_pin;
+	unsigned int bat_check_pin;
+	unsigned int chgok_check_pin;
 	unsigned int bat_num;
 };
 
@@ -304,6 +307,10 @@ struct laibao_platform_data {
     int     (*laibao_platform_sleep)(void);
     int     (*laibao_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
+    int     lcd_disp_on_pin;
+    int     disp_on_value;
+    int     lcd_cs_pin;
+    int     lcd_cs_value;
 };
 
 struct akm8975_platform_data {

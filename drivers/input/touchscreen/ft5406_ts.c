@@ -59,10 +59,8 @@
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
-#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
-static struct early_suspend ft5406_early_suspend;
-#endif
+static struct early_suspend ft5406_power;
 
 
 
@@ -676,6 +674,15 @@ static int ft5406_resume(struct i2c_client *client)
 	return 0;
 }
 
+static void ft5406_suspend_early(struct early_suspend *h)
+{
+	ft5406_suspend(this_client,PMSG_SUSPEND);
+}
+
+static void ft5406_resume_early(struct early_suspend *h)
+{
+	ft5406_resume(this_client);
+}
 static int __devexit ft5406_remove(struct i2c_client *client)
 {
 	struct ft5x0x_ts_data *ft5x0x_ts = i2c_get_clientdata(client);
@@ -686,9 +693,7 @@ static int __devexit ft5406_remove(struct i2c_client *client)
 	cancel_work_sync(&ft5x0x_ts->pen_event_work);
 	destroy_workqueue(ft5x0x_ts->ts_workqueue);
 	i2c_set_clientdata(client, NULL);
-#ifdef CONFIG_HAS_EARLYSUSPEND
-    unregister_early_suspend(&ft5406_early_suspend);
-#endif 
+    unregister_early_suspend(&ft5406_power);
     this_client = NULL;
 	return 0;
 }
@@ -836,12 +841,10 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 	}
 	
 	i2c_set_clientdata(client, ft5x0x_ts);
-#if 0//def CONFIG_HAS_EARLYSUSPEND
-	ft5406_early_suspend.suspend =ft5406_ts_suspend;
-	ft5406_early_suspend.resume =ft5406_ts_resume;
-	ft5406_early_suspend.level = 0x2;
-	register_early_suspend(&ft5406_early_suspend);
-#endif
+	ft5406_power.suspend =ft5406_suspend_early;
+	ft5406_power.resume =ft5406_resume_early;
+	ft5406_power.level = 0x2;
+	register_early_suspend(&ft5406_power);
 
 	buf_w[0] = 6;
 	err = ft5406_set_regs(client,0x88,buf_w,1);
@@ -884,8 +887,6 @@ static struct i2c_driver ft5406_driver  = {
 	},
 	.id_table	= ft5406_idtable,
 	.probe      = ft5406_probe,
-    .suspend	= ft5406_suspend,
-	.resume	    = ft5406_resume,
 	.remove 	= __devexit_p(ft5406_remove),
 };
 

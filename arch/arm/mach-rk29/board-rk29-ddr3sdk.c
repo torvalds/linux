@@ -45,9 +45,12 @@
 #include <mach/sram.h>
 #include <mach/ddr.h>
 #include <mach/cpufreq.h>
+#include <mach/rk29_smc.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
+
+#include <linux/regulator/act8891.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -56,6 +59,9 @@
 #include "devices.h"
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 
+#ifdef CONFIG_BU92747GUW_CIR
+#include "../../../drivers/cir/bu92747guw_cir.h"
+#endif
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -87,14 +93,15 @@
 #include "../../../drivers/media/video/rk29_camera.c"
 /*---------------- Camera Sensor Macro Define End  ------------------------*/
 
+
 /* Set memory size of pmem */
 #ifdef CONFIG_RK29_MEM_SIZE_M
 #define SDRAM_SIZE          (CONFIG_RK29_MEM_SIZE_M * SZ_1M)
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE       SZ_64M
-#define PMEM_UI_SIZE        SZ_32M
+#define PMEM_GPU_SIZE       SZ_16M
+#define PMEM_UI_SIZE        (48 * SZ_1M) /* 1280x800: 64M 1024x768: 48M ... */
 #define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_SKYPE_SIZE     0
 #define PMEM_CAM_SIZE       PMEM_CAM_NECESSARY
@@ -103,7 +110,7 @@
 #else
 #define MEM_CAMIPP_SIZE     0
 #endif
-#define MEM_FB_SIZE         (3*SZ_2M)
+#define MEM_FB_SIZE         (9*SZ_1M)
 #ifdef CONFIG_FB_WORK_IPP
 #define MEM_FBIPP_SIZE      SZ_8M   //1920 x 1080 x 2 x 2  //RGB565 = x2;RGB888 = x4
 #else
@@ -120,7 +127,7 @@
 #define MEM_CAMIPP_BASE     (PMEM_CAM_BASE - MEM_CAMIPP_SIZE)
 #define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
 #define MEM_FBIPP_BASE      (MEM_FB_BASE - MEM_FBIPP_SIZE)
-#define PMEM_SKYPE_BASE      (MEM_FBIPP_BASE - PMEM_SKYPE_SIZE)
+#define PMEM_SKYPE_BASE     (MEM_FBIPP_BASE - PMEM_SKYPE_SIZE)
 #define LINUX_SIZE          (PMEM_SKYPE_BASE - RK29_SDRAM_PHYS)
 
 #define PREALLOC_WLAN_SEC_NUM           4
@@ -159,6 +166,45 @@ struct rk29_nand_platform_data rk29_nand_data = {
 #define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
 #define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
 #define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
+
+#if 1
+void key_gpio_pullupdown_enable(void)
+{	 gpio_pull_updown(RK29_PIN6_PA0, 0);
+	 gpio_pull_updown(RK29_PIN6_PA1, 0);
+	 gpio_pull_updown(RK29_PIN6_PA2, 0);
+	 gpio_pull_updown(RK29_PIN6_PA3, 0);
+	 gpio_pull_updown(RK29_PIN6_PA4, 0);
+	 gpio_pull_updown(RK29_PIN6_PA5, 0);
+	 gpio_pull_updown(RK29_PIN6_PA6, 0);
+
+}
+void key_gpio_pullupdown_disable(void)
+{
+	 gpio_pull_updown(RK29_PIN6_PA0, 1);
+	 gpio_pull_updown(RK29_PIN6_PA1, 1);
+	 gpio_pull_updown(RK29_PIN6_PA2, 1);
+	 gpio_pull_updown(RK29_PIN6_PA3, 1);
+	 gpio_pull_updown(RK29_PIN6_PA4, 1);
+	 gpio_pull_updown(RK29_PIN6_PA5, 1);
+	 gpio_pull_updown(RK29_PIN6_PA6, 1);
+}
+void  rk29_setgpio_suspend_board(void)
+{	
+	
+	key_gpio_pullupdown_enable();
+	
+}
+
+void  rk29_setgpio_resume_board(void)
+{	 
+	
+	 key_gpio_pullupdown_disable();  
+
+ }
+#endif 
+
+
+
 #ifdef CONFIG_FB_RK29
 /*****************************************************************************************
  * lcd  devices
@@ -255,7 +301,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
                 printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
             }
         }
-        else
+        else if (TOUCH_SCREEN_DISPLAY_PIN != INVALID_GPIO)
         {
              ret = gpio_request(TOUCH_SCREEN_DISPLAY_PIN, NULL);
              if(ret != 0)
@@ -279,7 +325,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
                  printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
              }
         }
-        else
+        else if (TOUCH_SCREEN_STANDBY_PIN != INVALID_GPIO)
         {
              ret = gpio_request(TOUCH_SCREEN_STANDBY_PIN, NULL);
              if(ret != 0)
@@ -308,6 +354,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 
     return ret;
 }
+
 
 static struct rk29fb_info rk29_fb_info = {
     .fb_id   = FB_ID,
@@ -367,11 +414,349 @@ struct platform_device rk29_device_dma_cpy = {
 
 #endif
 
+#if defined(CONFIG_RK_IRDA) || defined(CONFIG_BU92747GUW_CIR)
+#define BU92747GUW_RESET_PIN         RK29_PIN3_PD4// INVALID_GPIO //
+#define BU92747GUW_RESET_MUX_NAME    GPIO3D4_HOSTWRN_NAME//NULL //
+#define BU92747GUW_RESET_MUX_MODE    GPIO3H_GPIO3D4//NULL //
+
+#define BU92747GUW_PWDN_PIN          RK29_PIN3_PD3//RK29_PIN5_PA7 //
+#define BU92747GUW_PWDN_MUX_NAME     GPIO3D3_HOSTRDN_NAME//GPIO5A7_HSADCDATA2_NAME //
+#define BU92747GUW_PWDN_MUX_MODE     GPIO3H_GPIO3D3//GPIO5L_GPIO5A7  //
+
+static int bu92747guw_io_init(void)
+{
+	int ret;
+	
+	//reset pin
+    if(BU92747GUW_RESET_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(BU92747GUW_RESET_MUX_NAME, BU92747GUW_RESET_MUX_MODE);
+    }
+	ret = gpio_request(BU92747GUW_RESET_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(BU92747GUW_RESET_PIN);
+		printk(">>>>>> BU92747GUW_RESET_PIN gpio_request err \n ");
+	}
+	gpio_direction_output(BU92747GUW_RESET_PIN, GPIO_HIGH);
+
+	//power down pin
+    if(BU92747GUW_PWDN_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(BU92747GUW_PWDN_MUX_NAME, BU92747GUW_PWDN_MUX_MODE);
+    }
+	ret = gpio_request(BU92747GUW_PWDN_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(BU92747GUW_PWDN_PIN);
+		printk(">>>>>> BU92747GUW_PWDN_PIN gpio_request err \n ");
+	}
+
+	//power down as default
+	gpio_direction_output(BU92747GUW_PWDN_PIN, GPIO_LOW);
+	
+	return 0;
+}
+
+
+static int bu92747guw_io_deinit(void)
+{
+	gpio_free(BU92747GUW_PWDN_PIN);
+	gpio_free(BU92747GUW_RESET_PIN);
+	return 0;
+}
+
+//power ctl func is share with irda and remote
+static int nPowerOnCount = 0;
+static DEFINE_MUTEX(bu92747_power_mutex);
+
+//1---power on;  0---power off
+static int bu92747guw_power_ctl(int enable)
+{
+    printk("%s \n",__FUNCTION__);
+
+	mutex_lock(&bu92747_power_mutex);
+	if (enable) {
+		nPowerOnCount++;
+		if (nPowerOnCount == 1) {//power on first	
+			//smc0_init(NULL);
+   	 		gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_HIGH);
+			gpio_set_value(BU92747GUW_RESET_PIN, GPIO_LOW);
+			mdelay(5);
+			gpio_set_value(BU92747GUW_RESET_PIN, GPIO_HIGH);
+			mdelay(5);
+		}
+	}
+	else {
+		nPowerOnCount--;
+		if (nPowerOnCount <= 0) {//power down final
+			nPowerOnCount = 0;
+			//smc0_exit();
+			gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_LOW);
+		}
+	}
+	mutex_unlock(&bu92747_power_mutex);
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_RK_IRDA
+#define IRDA_IRQ_PIN           RK29_PIN5_PB2
+#define IRDA_IRQ_MUX_NAME      GPIO5B2_HSADCDATA5_NAME
+#define IRDA_IRQ_MUX_MODE      GPIO5L_GPIO5B2
+
+int irda_iomux_init(void)
+{
+    int ret = 0;
+
+	//irda irq pin
+    if(IRDA_IRQ_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(IRDA_IRQ_MUX_NAME, IRDA_IRQ_MUX_MODE);
+    }
+	ret = gpio_request(IRDA_IRQ_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(IRDA_IRQ_PIN);
+		printk(">>>>>> IRDA_IRQ_PIN gpio_request err \n ");
+	}
+	gpio_pull_updown(IRDA_IRQ_PIN, GPIO_HIGH);
+	gpio_direction_input(IRDA_IRQ_PIN);
+
+    return 0;
+}
+
+int irda_iomux_deinit(void)
+{
+	gpio_free(IRDA_IRQ_PIN);
+	return 0;
+}
+
+static struct irda_info rk29_irda_info = {
+    .intr_pin = IRDA_IRQ_PIN,
+    .iomux_init = irda_iomux_init,
+    .iomux_deinit = irda_iomux_deinit,
+	.irda_pwr_ctl = bu92747guw_power_ctl,
+};
+
+static struct platform_device irda_device = {
+#ifdef CONFIG_RK_IRDA_NET
+			.name	= "rk_irda",
+#else
+			.name = "bu92747_irda",
+#endif
+    .id		  = -1,
+	.dev            = {
+		.platform_data  = &rk29_irda_info,
+	}
+};
+#endif
+
+#ifdef CONFIG_BU92747GUW_CIR
+#define BU92747_CIR_IRQ_PIN RK29_PIN5_PB0
+#define CIR_IRQ_PIN_IOMUX_NAME GPIO5B0_HSADCDATA3_NAME
+#define CIR_IRQ_PIN_IOMUX_VALUE GPIO5L_GPIO5B0
+static int cir_iomux_init(void)
+{
+	if (CIR_IRQ_PIN_IOMUX_NAME)
+		rk29_mux_api_set(CIR_IRQ_PIN_IOMUX_NAME, CIR_IRQ_PIN_IOMUX_VALUE);
+	rk29_mux_api_set(GPIO5A7_HSADCDATA2_NAME, GPIO5L_GPIO5A7);
+	return 0;
+}
+
+static struct  bu92747guw_platform_data bu92747guw_pdata = {
+	.intr_pin = BU92747_CIR_IRQ_PIN,
+	.iomux_init = cir_iomux_init,
+	.iomux_deinit = NULL,
+	.cir_pwr_ctl = bu92747guw_power_ctl,
+};  
+#endif
+#ifdef CONFIG_RK29_NEWTON
+struct rk29_newton_data rk29_newton_info = {	
+};
+struct platform_device rk29_device_newton = {
+	.name          = "rk29_newton",
+	.id            = -1,		
+	.dev		   = {
+	.platform_data = &rk29_newton_info,	
+		}    	    
+	};
+#endif
+#if defined (CONFIG_TOUCHSCREEN_FT5406)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+int ft5406_init_platform_hw(void)
+{
+	printk("ft5406_init_platform_hw\n");
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("ft5406_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("ift5406_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	mdelay(10);
+	gpio_direction_input(TOUCH_INT_PIN);
+	mdelay(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+    return 0;
+}
+
+void ft5406_exit_platform_hw(void)
+{
+	printk("ft5406_exit_platform_hw\n");
+	gpio_free(TOUCH_RESET_PIN);
+	gpio_free(TOUCH_INT_PIN);
+}
+
+int ft5406_platform_sleep(void)
+{
+	printk("ft5406_platform_sleep\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	return 0;
+}
+
+int ft5406_platform_wakeup(void)
+{
+	printk("ft5406_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+	return 0;
+}
+
+struct ft5406_platform_data ft5406_info = {
+
+  .init_platform_hw= ft5406_init_platform_hw,
+  .exit_platform_hw= ft5406_exit_platform_hw,
+  .platform_sleep  = ft5406_platform_sleep,
+  .platform_wakeup = ft5406_platform_wakeup,
+
+};
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_GT819)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+int gt819_init_platform_hw(void)
+{
+	printk("gt819_init_platform_hw\n");
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("gt819_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("gt819_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	mdelay(10);
+//	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+//	mdelay(10);
+//	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	gpio_direction_input(TOUCH_INT_PIN);
+//	mdelay(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+    return 0;
+}
+
+
+void gt819_exit_platform_hw(void)
+{
+	printk("gt819_exit_platform_hw\n");
+	gpio_free(TOUCH_RESET_PIN);
+	gpio_free(TOUCH_INT_PIN);
+}
+
+int gt819_platform_sleep(void)
+{
+	printk("gt819_platform_sleep\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	return 0;
+}
+
+int gt819_platform_wakeup(void)
+{
+	printk("gt819_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	//msleep(5);
+	//gpio_set_value(TOUCH_INT_PIN, GPIO_LOW); 
+	//msleep(20);
+	//gpio_set_value(TOUCH_INT_PIN, GPIO_HIGH);
+	return 0;
+}
+struct goodix_platform_data goodix_info = {
+
+  .init_platform_hw= gt819_init_platform_hw,
+  .exit_platform_hw= gt819_exit_platform_hw,
+  .platform_sleep  = gt819_platform_sleep,
+  .platform_wakeup = gt819_platform_wakeup,
+
+};
+#endif
+
+
+#if defined (CONFIG_SND_SOC_CS42L52)
+
+int cs42l52_init_platform_hw()
+{
+	printk("cs42l52_init_platform_hw\n");
+    if(gpio_request(RK29_PIN6_PB6,NULL) != 0){
+      gpio_free(RK29_PIN6_PB6);
+      printk("cs42l52_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_direction_output(RK29_PIN6_PB6, 0);
+	gpio_set_value(RK29_PIN6_PB6,GPIO_HIGH);
+	return 0;
+}
+struct cs42l52_platform_data cs42l52_info = {
+
+  .init_platform_hw= cs42l52_init_platform_hw,
+
+};
+#endif
+#if defined (CONFIG_BATTERY_BQ27541)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	1
+#define CHG_OK RK29_PIN4_PA3
+#define BAT_LOW	RK29_PIN4_PA2
+
+static int bq27541_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27541 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27541_platform_data bq27541_info = {	
+	.init_dc_check_pin = bq27541_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+	.chgok_check_pin =  CHG_OK,
+	.bat_check_pin =  BAT_LOW,
+};
+#endif
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
 	.start		= PMEM_UI_BASE,
 	.size		= PMEM_UI_SIZE,
-	.no_allocator	= 0,
+	.no_allocator	= 1,
 	.cached		= 1,
 };
 
@@ -398,6 +783,8 @@ static struct platform_device rk29_vpu_mem_device = {
 	.platform_data = &vpu_mem_pdata,
 	},
 };
+
+#if PMEM_SKYPE_SIZE > 0
 static struct android_pmem_platform_data android_pmem_skype_pdata = {
 	.name		= "pmem_skype",
 	.start		= PMEM_SKYPE_BASE,
@@ -413,6 +800,8 @@ static struct platform_device android_pmem_skype_device = {
 		.platform_data = &android_pmem_skype_pdata,
 	},
 };
+#endif
+
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 static struct platform_device rk29_v4l2_output_devce = {
 	.name		= "rk29_vout",
@@ -490,6 +879,31 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
 #endif
+
+#ifdef CONFIG_GS_KXTF9
+#include <linux/kxtf9.h>
+#define KXTF9_DEVICE_MAP 1
+#define KXTF9_MAP_X (KXTF9_DEVICE_MAP-1)%2
+#define KXTF9_MAP_Y KXTF9_DEVICE_MAP%2
+#define KXTF9_NEG_X (KXTF9_DEVICE_MAP/2)%2
+#define KXTF9_NEG_Y (KXTF9_DEVICE_MAP+1)/4
+#define KXTF9_NEG_Z (KXTF9_DEVICE_MAP-1)/4
+struct kxtf9_platform_data kxtf9_pdata = {
+	.min_interval = 1,
+	.poll_interval = 20,
+	.g_range = KXTF9_G_2G,
+	.axis_map_x = KXTF9_MAP_X,
+	.axis_map_y = KXTF9_MAP_Y,
+	.axis_map_z = 2,
+	.negate_x = KXTF9_NEG_X,
+	.negate_y = KXTF9_NEG_Y,
+	.negate_z = KXTF9_NEG_Z,
+	//.ctrl_regc_init = KXTF9_G_2G | ODR50F,
+	//.ctrl_regb_init = ENABLE,
+};
+#endif /* CONFIG_GS_KXTF9 */
+
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
@@ -583,6 +997,281 @@ struct bq27510_platform_data bq27510_info = {
 };
 #endif
 
+/*************************************PMU ACT8891****************************************/
+
+#if defined (CONFIG_REGULATOR_ACT8891) 
+		/*dcdc mode*/
+/*act8891 in REGULATOR_MODE_STANDBY mode is said DCDC is in PMF mode is can save power,when in REGULATOR_MODE_NORMAL 
+mode is said DCDC is in PWM mode , General default is in REGULATOR_MODE_STANDBY mode*/
+		/*ldo mode */
+/*act8891 in REGULATOR_MODE_STANDBY mode is said LDO is in low power mode is can save power,when in REGULATOR_MODE_NORMAL 
+mode is said DCDC is in nomal mode , General default is in REGULATOR_MODE_STANDBY mode*/
+/*set dcdc and ldo voltage by regulator_set_voltage()*/
+static struct act8891 *act8891;
+int act8891_set_init(struct act8891 *act8891)
+{
+	int tmp = 0;
+	struct regulator *act_ldo1,*act_ldo2,*act_ldo3,*act_ldo4;
+	struct regulator *act_dcdc1,*act_dcdc2,*act_dcdc3;
+
+	/*init ldo1*/
+	act_ldo1 = regulator_get(NULL, "act_ldo1");
+	regulator_enable(act_ldo1); 
+	regulator_set_voltage(act_ldo1,1800000,1800000);
+	tmp = regulator_get_voltage(act_ldo1);
+	regulator_set_mode(act_ldo1,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_ldo1,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: ldo1 vcc =%d\n",tmp);
+	regulator_put(act_ldo1);
+	 
+	/*init ldo2*/
+	act_ldo2 = regulator_get(NULL, "act_ldo2");
+	regulator_enable(act_ldo2);
+	regulator_set_voltage(act_ldo2,1200000,1200000);
+	tmp = regulator_get_voltage(act_ldo2);
+	regulator_set_mode(act_ldo2,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_ldo2,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: ldo2 vcc =%d\n",tmp);
+	regulator_put(act_ldo2);
+
+	/*init ldo3*/
+	act_ldo3 = regulator_get(NULL, "act_ldo3");
+	regulator_enable(act_ldo3);
+	regulator_set_voltage(act_ldo3,3300000,3300000);
+	tmp = regulator_get_voltage(act_ldo3);
+	regulator_set_mode(act_ldo3,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_ldo3,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: ldo3 vcc =%d\n",tmp);
+	regulator_put(act_ldo3);
+
+	/*init ldo4*/
+	act_ldo4 = regulator_get(NULL, "act_ldo4");
+	regulator_enable(act_ldo4);
+	regulator_set_voltage(act_ldo4,2500000,2500000);
+	tmp = regulator_get_voltage(act_ldo4);
+	regulator_set_mode(act_ldo4,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_ldo4,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: ldo4 vcc =%d\n",tmp);
+	regulator_put(act_ldo4);
+
+	/*init dcdc1*/
+	act_dcdc1 = regulator_get(NULL, "act_dcdc1");
+	regulator_enable(act_dcdc1);
+	regulator_set_voltage(act_dcdc1,3000000,3000000);
+	tmp = regulator_get_voltage(act_dcdc1);
+	regulator_set_mode(act_dcdc1,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_dcdc1,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: dcdc1 vcc =%d\n",tmp); 
+	regulator_put(act_dcdc1);
+
+	/*init dcdc2*/
+	act_dcdc2 = regulator_get(NULL, "act_dcdc2");
+	regulator_enable(act_dcdc2);
+	regulator_set_voltage(act_dcdc2,1500000,1500000);
+	tmp = regulator_get_voltage(act_dcdc2);
+	regulator_set_mode(act_dcdc2,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_dcdc2,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: dcdc2 vcc =%d\n",tmp);
+	regulator_put(act_dcdc2);
+
+		/*init dcdc3*/
+	act_dcdc3 = regulator_get(NULL, "act_dcdc3");
+	regulator_enable(act_dcdc3);
+	regulator_set_voltage(act_dcdc3,1200000,1200000);
+	tmp = regulator_get_voltage(act_dcdc3);
+	regulator_set_mode(act_dcdc3,REGULATOR_MODE_STANDBY);
+	//regulator_set_mode(act_dcdc3,REGULATOR_MODE_NORMAL);
+	printk("***regulator_set_init: dcdc3 vcc =%d\n",tmp);
+	regulator_put(act_dcdc3);
+
+	return(0);
+}
+
+static struct regulator_consumer_supply act8891_ldo1_consumers[] = {
+	{
+		.supply = "act_ldo1",
+	}
+};
+
+static struct regulator_init_data act8891_ldo1_data = {
+	.constraints = {
+		.name = "ACT_LDO1",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_ldo1_consumers),
+	.consumer_supplies = act8891_ldo1_consumers,
+};
+
+/**/
+static struct regulator_consumer_supply act8891_ldo2_consumers[] = {
+	{
+		.supply = "act_ldo2",
+	}
+};
+
+static struct regulator_init_data act8891_ldo2_data = {
+	.constraints = {
+		.name = "ACT_LDO2",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,	
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_ldo2_consumers),
+	.consumer_supplies = act8891_ldo2_consumers,
+};
+
+/*ldo3 VCC_NAND WIFI/BT/FM_BCM4325*/
+static struct regulator_consumer_supply act8891_ldo3_consumers[] = {
+	{
+		.supply = "act_ldo3",
+	}
+};
+
+static struct regulator_init_data act8891_ldo3_data = {
+	.constraints = {
+		.name = "ACT_LDO3",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_ldo3_consumers),
+	.consumer_supplies = act8891_ldo3_consumers,
+};
+
+/*ldo4 VCCA CODEC_WM8994*/
+static struct regulator_consumer_supply act8891_ldo4_consumers[] = {
+	{
+		.supply = "act_ldo4",
+	}
+};
+
+static struct regulator_init_data act8891_ldo4_data = {
+	.constraints = {
+		.name = "ACT_LDO4",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_ldo4_consumers),
+	.consumer_supplies = act8891_ldo4_consumers,
+};
+/*buck1 vcc Core*/
+static struct regulator_consumer_supply act8891_dcdc1_consumers[] = {
+	{
+		.supply = "act_dcdc1",
+	}
+};
+
+static struct regulator_init_data act8891_dcdc1_data = {
+	.constraints = {
+		.name = "ACT_DCDC1",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		//.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_dcdc1_consumers),
+	.consumer_supplies = act8891_dcdc1_consumers
+};
+
+/*buck2 VDDDR MobileDDR VCC*/
+static struct regulator_consumer_supply act8891_dcdc2_consumers[] = {
+	{
+		.supply = "act_dcdc2",
+	}
+};
+
+static struct regulator_init_data act8891_dcdc2_data = {
+	.constraints = {
+		.name = "ACT_DCDC2",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		//.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_dcdc2_consumers),
+	.consumer_supplies = act8891_dcdc2_consumers
+};
+
+/*buck3 vdd Core*/
+static struct regulator_consumer_supply act8891_dcdc3_consumers[] = {
+	{
+		.supply = "act_dcdc3",
+	}
+};
+
+static struct regulator_init_data act8891_dcdc3_data = {
+	.constraints = {
+		.name = "ACT_DCDC3",
+		.min_uV = 600000,
+		.max_uV = 3900000,
+		.apply_uV = 1,
+		//.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(act8891_dcdc3_consumers),
+	.consumer_supplies = act8891_dcdc3_consumers
+};
+
+struct act8891_regulator_subdev act8891_regulator_subdev_id[] = {
+	{
+		.id=0,
+		.initdata=&act8891_ldo1_data,		
+	 },
+
+	{
+		.id=1,
+		.initdata=&act8891_ldo2_data,		
+	 },
+
+	{
+		.id=2,
+		.initdata=&act8891_ldo3_data,		
+	 },
+
+	{
+		.id=3,
+		.initdata=&act8891_ldo4_data,		
+	 },
+
+	{
+		.id=4,
+		.initdata=&act8891_dcdc1_data,		
+	 },
+
+	{
+		.id=5,
+		.initdata=&act8891_dcdc2_data,		
+	 },
+	{
+		.id=6,
+		.initdata=&act8891_dcdc3_data,		
+	 },
+
+};
+
+struct act8891_platform_data act8891_data={
+	.set_init=act8891_set_init,
+	.num_regulators=7,
+	.regulators=act8891_regulator_subdev_id,
+	
+};
+#endif
 
 /*****************************************************************************************
  * i2c devices
@@ -795,6 +1484,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+/*mpu3050*/
 #if defined (CONFIG_MPU_SENSORS_MPU3050) 
 	{
 		.type 			= "mpu3050",
@@ -804,14 +1494,29 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.platform_data  = &mpu3050_data,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_CS42L52)
+	{
+		.type    		= "cs42l52",
+		.addr           = 0x4A,
+		.flags			= 0,
+		.platform_data	= &cs42l52_info,
+	},
+#endif
+#if defined (CONFIG_RTC_M41T66)
+	{
+		.type           = "rtc-M41T66",
+		.addr           = 0x68,
+		.flags          = 0,
+		.irq            = RK29_PIN0_PA1,
+	},
+#endif
 };
 #endif
 #if defined (CONFIG_ANX7150)
-struct hdmi_platform_data anx7150_data  = {
-	//.io_init = anx7150_io_init,
+struct hdmi_platform_data anx7150_data = {
+       //.io_init = anx7150_io_init,
 };
 #endif
-
 #ifdef CONFIG_I2C1_RK29
 static struct i2c_board_info __initdata board_i2c1_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL1)
@@ -828,6 +1533,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
         .flags          = 0,
         .irq            = RK29_PIN1_PD7,
 		.platform_data  = &anx7150_data,
+    },
+#endif
+#ifdef CONFIG_BU92747GUW_CIR
+    {
+    	.type	="bu92747_cir",
+    	.addr 	= 0x77,    
+    	.flags      =0,
+    	.irq		= BU92747_CIR_IRQ_PIN,
+    	.platform_data = &bu92747guw_pdata,
     },
 #endif
 
@@ -855,11 +1569,46 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .platform_data  = &eeti_egalax_info,
     },
 #endif
+#if defined (CONFIG_TOUCHSCREEN_GT819)
+    {
+		.type	= "Goodix-TS",
+		.addr 	= 0x55,
+		.flags      =0,
+		.irq		=RK29_PIN0_PA2,
+		.platform_data = &goodix_info,
+    },
+#endif
+#if defined (CONFIG_TOUCHSCREEN_FT5406)
+    {
+		.type	="ft5x0x_ts",
+		.addr 	= 0x38,    //0x70,
+		.flags      =0,
+		.irq		=RK29_PIN0_PA2, // support goodix tp detect, 20110706
+		.platform_data = &ft5406_info,
+    },
+#endif
 };
 #endif
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
+#if defined (CONFIG_BATTERY_BQ27541)
+	{
+		.type    		= "bq27541",
+		.addr           = 0x55,
+		.flags			= 0,
+		.platform_data  = &bq27541_info,
+	},
+#endif
+#if defined (CONFIG_REGULATOR_ACT8891)
+	{
+		.type    		= "act8891",
+		.addr           = 0x5b, 
+		.flags			= 0,
+		.platform_data=&act8891_data,
+	},
+#endif
+
 };
 #endif
 
@@ -867,7 +1616,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * camera  devices
  * author: ddl@rock-chips.com
  *****************************************************************************************/
-#ifdef CONFIG_VIDEO_RK29 
+#ifdef CONFIG_VIDEO_RK29
 #define CONFIG_SENSOR_POWER_IOCTL_USR      0
 #define CONFIG_SENSOR_RESET_IOCTL_USR      0
 #define CONFIG_SENSOR_POWERDOWN_IOCTL_USR      0
@@ -926,7 +1675,6 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
     .sensor_flash_cb = NULL,
     #endif
 };
-
 #include "../../../drivers/media/video/rk29_camera.c"
 #endif
 /*****************************************************************************************
@@ -984,6 +1732,7 @@ static int rk29_backlight_io_deinit(void)
     gpio_free(BL_EN_PIN);
     #endif
     rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+    
     return ret;
 }
 
@@ -1074,6 +1823,15 @@ static struct platform_device rk29_device_pwm_regulator = {
 
 #endif
 
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+#define SDMMC0_WRITE_PROTECT_PIN		RK29_PIN6_PB0 //According to your own project to set the value of write-protect-pin.
+#endif
+
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+#define SDMMC1_WRITE_PROTECT_PIN		RK29_PIN6_PB0 //According to your own project to set the value of write-protect-pin.
+#endif
+
 /*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
@@ -1102,6 +1860,12 @@ static int rk29_sdmmc0_cfg_gpio(void)
 #else
 	gpio_direction_output(RK29_PIN5_PD5,GPIO_LOW);
 #endif
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+    gpio_request(SDMMC0_WRITE_PROTECT_PIN,"sdmmc-wp");
+    gpio_direction_input(SDMMC0_WRITE_PROTECT_PIN);	    
+#endif
+
 	return 0;
 }
 
@@ -1120,6 +1884,12 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #endif
 	.detect_irq = RK29_PIN2_PA2, // INVALID_GPIO
 	.enable_sd_wakeup = 0,
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+    .write_prt = SDMMC0_WRITE_PROTECT_PIN,
+#else
+    .write_prt = INVALID_GPIO,
+#endif
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
@@ -1133,6 +1903,11 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
 	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
 	//rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_SDMMC1_DETECT_N);
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    gpio_request(SDMMC1_WRITE_PROTECT_PIN,"sdio-wp");
+    gpio_direction_input(SDMMC1_WRITE_PROTECT_PIN);	    
+#endif
 	return 0;
 }
 
@@ -1163,6 +1938,13 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #if 0
         .detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
 #endif
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    .write_prt = SDMMC1_WRITE_PROTECT_PIN,
+#else
+    .write_prt = INVALID_GPIO, 
+#endif    
+
 };
 #endif
 
@@ -1396,6 +2178,76 @@ static struct platform_device rk29_device_keys = {
 };
 #endif
 
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+struct gpio_led rk29_leds[] = {
+		{
+			.name = "rk29_red_led",
+			.gpio = RK29_PIN4_PB2,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.retain_state_suspended = 1,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+		{
+			.name = "rk29_green_led",
+			.gpio = RK29_PIN4_PB1,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.retain_state_suspended = 1,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+		{
+			.name = "rk29_blue_led",
+			.gpio = RK29_PIN4_PB0,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.retain_state_suspended = 1,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+};
+
+struct gpio_led_platform_data rk29_leds_pdata = {
+	.leds = &rk29_leds,
+	.num_leds	= ARRAY_SIZE(rk29_leds),
+};
+
+struct platform_device rk29_device_gpio_leds = {
+	.name	= "leds-gpio",
+	.id 	= -1,
+	.dev	= {
+	   .platform_data  = &rk29_leds_pdata,
+	},
+};
+#endif
+
+#ifdef CONFIG_LEDS_NEWTON_PWM
+static struct led_newton_pwm rk29_pwm_leds[] = {
+		{
+			.name = "power_led",
+			.pwm_id = 1,
+			.pwm_gpio = RK29_PIN5_PD2,
+			.pwm_iomux_name = GPIO5D2_PWM1_UART1SIRIN_NAME,
+			.pwm_iomux_pwm = GPIO5H_PWM1,
+			.pwm_iomux_gpio = GPIO5H_GPIO5D2,
+			.freq = 1000,
+			.period = 255,
+		},
+};
+
+static struct led_newton_pwm_platform_data rk29_pwm_leds_pdata = {
+	.leds = &rk29_pwm_leds,
+	.num_leds	= ARRAY_SIZE(rk29_pwm_leds),
+};
+
+static struct platform_device rk29_device_pwm_leds = {
+	.name	= "leds_newton_pwm",
+	.id 	= -1,
+	.dev	= {
+	   .platform_data  = &rk29_pwm_leds_pdata,
+	},
+};
+
+#endif
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_RK29_PWM_REGULATOR
@@ -1457,6 +2309,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_KEYS_RK29
 	&rk29_device_keys,
 #endif
+#ifdef CONFIG_KEYS_RK29_NEWTON
+	&rk29_device_keys,
+#endif
 #ifdef CONFIG_SDMMC0_RK29
 	&rk29_device_sdmmc0,
 #endif
@@ -1487,6 +2342,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
 #endif
+#ifdef CONFIG_BACKLIGHT_RK29_NEWTON_BL
+	&rk29_device_backlight,
+#endif
 #ifdef CONFIG_RK29_VMAC
 	&rk29_device_vmac,
 #endif
@@ -1501,7 +2359,9 @@ static struct platform_device *devices[] __initdata = {
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
 #endif
-  &android_pmem_skype_device,
+#if PMEM_SKYPE_SIZE > 0
+	&android_pmem_skype_device,
+#endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
 #ifdef CONFIG_USB20_OTG
@@ -1517,11 +2377,29 @@ static struct platform_device *devices[] __initdata = {
 	&android_usb_device,
 	&usb_mass_storage_device,
 #endif
+#ifdef CONFIG_USB_ANDROID_RNDIS
+    &rk29_device_rndis,
+#endif
 #ifdef CONFIG_RK29_IPP
 	&rk29_device_ipp,
 #endif
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 	&rk29_v4l2_output_devce,
+#endif
+#ifdef CONFIG_RK29_NEWTON
+	&rk29_device_newton,
+#endif
+#ifdef CONFIG_RK_IRDA
+    &irda_device,
+#endif
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	&rk29_device_gpio_leds,
+#endif
+#ifdef CONFIG_LEDS_NEWTON_PWM
+	&rk29_device_pwm_leds,
+#endif
+#ifdef CONFIG_SND_RK29_SOC_CS42L52
+	&rk29_cs42l52_device,
 #endif
 };
 
@@ -1812,6 +2690,11 @@ static void __init machine_rk29_board_init(void)
 #endif
 
 	board_usb_detect_init(RK29_PIN0_PA0);
+#if defined(CONFIG_RK_IRDA) || defined(CONFIG_BU92747GUW_CIR)
+	smc0_init(NULL);
+	bu92747guw_io_init();
+#endif
+
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,

@@ -43,4 +43,8 @@ extern int Headset_isMic(void);
 #define ERROR 1
 #define TRUE 0
 
+#define SUSPEND 3
+#define POWER_ON 2
+#define BUSY 1
+#define IDLE 0
 #endif

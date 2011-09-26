@@ -61,6 +61,10 @@
 #include "../../../drivers/cir/bu92747guw_cir.h"
 #endif
 
+// define for newton for hardware 1.5V
+#define RK29_NEWTON_NEWBOARD
+
+
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -515,6 +519,7 @@ int ft5406_platform_wakeup(void)
 {
 	printk("ft5406_platform_wakeup\n");
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
 	return 0;
 }
 
@@ -548,11 +553,11 @@ int gt819_init_platform_hw(void)
 	gpio_direction_output(TOUCH_RESET_PIN, 0);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	mdelay(10);
-	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	mdelay(10);
-	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+//	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+//	mdelay(10);
+//	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	gpio_direction_input(TOUCH_INT_PIN);
-	mdelay(10);
+//	mdelay(10);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 	msleep(300);
     return 0;
@@ -617,6 +622,9 @@ struct cs42l52_platform_data cs42l52_info = {
 #if defined (CONFIG_BATTERY_BQ27541)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	1
+#define CHG_OK RK29_PIN4_PA3
+#define BAT_LOW	RK29_PIN4_PA2
+
 static int bq27541_init_dc_check_pin(void){	
 	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
 		gpio_free(DC_CHECK_PIN);      
@@ -631,6 +639,8 @@ struct bq27541_platform_data bq27541_info = {
 	.init_dc_check_pin = bq27541_init_dc_check_pin,	
 	.dc_check_pin =  DC_CHECK_PIN,		
 	.bat_num = LI_LION_BAT_NUM,
+	.chgok_check_pin =  CHG_OK,
+	.bat_check_pin =  BAT_LOW,
 };
 #endif
 static struct android_pmem_platform_data android_pmem_pdata = {
@@ -741,6 +751,31 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
 #endif
+
+#ifdef CONFIG_GS_KXTF9
+#include <linux/kxtf9.h>
+#define KXTF9_DEVICE_MAP 1
+#define KXTF9_MAP_X (KXTF9_DEVICE_MAP-1)%2
+#define KXTF9_MAP_Y KXTF9_DEVICE_MAP%2
+#define KXTF9_NEG_X (KXTF9_DEVICE_MAP/2)%2
+#define KXTF9_NEG_Y (KXTF9_DEVICE_MAP+1)/4
+#define KXTF9_NEG_Z (KXTF9_DEVICE_MAP-1)/4
+struct kxtf9_platform_data kxtf9_pdata = {
+	.min_interval = 1,
+	.poll_interval = 20,
+	.g_range = KXTF9_G_2G,
+	.axis_map_x = KXTF9_MAP_X,
+	.axis_map_y = KXTF9_MAP_Y,
+	.axis_map_z = 2,
+	.negate_x = KXTF9_NEG_X,
+	.negate_y = KXTF9_NEG_Y,
+	.negate_z = KXTF9_NEG_Z,
+	//.ctrl_regc_init = KXTF9_G_2G | ODR50F,
+	//.ctrl_regb_init = ENABLE,
+};
+#endif /* CONFIG_GS_KXTF9 */
+
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
@@ -1150,7 +1185,7 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 
 #ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
-	#if defined (CONFIG_BATTERY_BQ27541)
+#if defined (CONFIG_BATTERY_BQ27541)
 	{
 		.type    		= "bq27541",
 		.addr           = 0x55,
@@ -1230,7 +1265,7 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
  * backlight  devices
  * author: nzy@rock-chips.com
  *****************************************************************************************/
-#ifdef CONFIG_BACKLIGHT_RK29_BL
+#ifdef CONFIG_BACKLIGHT_RK29_NEWTON_BL
  /*
  GPIO1B5_PWM0_NAME,       GPIO1L_PWM0
  GPIO5D2_PWM1_UART1SIRIN_NAME,  GPIO5H_PWM1
@@ -1324,6 +1359,13 @@ struct rk29_bl_info rk29_bl_info = {
     .pwm_resume = rk29_backlight_pwm_resume,
     .min_brightness = BACKLIGHT_MINVALUE,
 };
+struct platform_device rk29_device_backlight = {
+		.name	= "rk29_backlight",
+		.id 	= -1,
+        .dev    = {
+           .platform_data  = &rk29_bl_info,
+        }
+};
 #endif
 /*****************************************************************************************
 * pwm voltage regulator devices
@@ -1346,7 +1388,11 @@ static struct regulator_init_data rk29_pwm_regulator_data = {
 	.constraints = {
 		.name = "PWM2",
 		.min_uV =  950000,
+#ifdef CONFIG_RK29_NEWTON_CLOCK
+		.max_uV = 1500000,
+#else
 		.max_uV = 1400000,
+#endif
 		.apply_uV = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
 	},
@@ -1510,7 +1556,12 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
           return -1;
     }
 
+// cwz 0: close for bt uart2 larkage.
+#if 0
     gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
+#else
+    gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH);
+#endif
     gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
     gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
 
@@ -1528,6 +1579,8 @@ static int rk29sdk_wifi_power(int on)
                 mdelay(100);
                 pr_info("wifi turn on power\n");
         }else{
+// cwz 0: close for bt uart2 larkage.
+#if 0
                 if (!rk29sdk_bt_power_state){
                         gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
                         mdelay(100);
@@ -1536,8 +1589,8 @@ static int rk29sdk_wifi_power(int on)
                 {
                         pr_info("wifi shouldn't shut off power, bt is using it!\n");
                 }
+#endif
                 gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_LOW);
-
         }
 
         rk29sdk_wifi_power_state = on;
@@ -1649,8 +1702,13 @@ static struct platform_device rk29sdk_rfkill = {
 
 
 #ifdef CONFIG_VIVANTE
+#ifdef CONFIG_RK29_NEWTON_CLOCK
+#define GPU_HIGH_CLOCK        504 // 504 456
+#define GPU_LOW_CLOCK         300
+#else
 #define GPU_HIGH_CLOCK        552
 #define GPU_LOW_CLOCK         (periph_pll_default / 1000000) /* same as general pll clock rate below */
+#endif
 static struct resource resources_gpu[] = {
     [0] = {
 		.name 	= "gpu_irq",
@@ -1685,7 +1743,7 @@ static struct platform_device rk29_device_gpu = {
 };
 #endif
 
-#ifdef CONFIG_KEYS_RK29
+#ifdef CONFIG_KEYS_RK29_NEWTON
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device rk29_device_keys = {
 	.name		= "rk29-keypad",
@@ -1857,6 +1915,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_KEYS_RK29
 	&rk29_device_keys,
 #endif
+#ifdef CONFIG_KEYS_RK29_NEWTON
+	&rk29_device_keys,
+#endif
 #ifdef CONFIG_SDMMC0_RK29
 	&rk29_device_sdmmc0,
 #endif
@@ -1885,6 +1946,9 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_device_dma_cpy,
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
+#endif
+#ifdef CONFIG_BACKLIGHT_RK29_NEWTON_BL
 	&rk29_device_backlight,
 #endif
 #ifdef CONFIG_RK29_VMAC
@@ -2190,30 +2254,41 @@ static void __init machine_rk29_init_irq(void)
 }
 
 static struct cpufreq_frequency_table freq_table[] = {
+#ifdef CONFIG_RK29_NEWTON_CLOCK
+	{ .index = 1200000, .frequency =  408000 },
+	{ .index = 1250000, .frequency =  816000 },
+	{ .index = 1300000, .frequency = 1008000 },
+	{ .index = 1460000, .frequency = 1200000 },
+#else
+#ifdef RK29_NEWTON_NEWBOARD
+/*
+ * hardware change the max vdd from 1.4 to 1.5, so new table is:
+ *           1.075 -> 1.133
+ *           1.1   -> 1.16
+ *           1.125 -> 1.20
+ *           1.15  -> 1.225
+ *           1.225 -> 1.313
+ *           1.30  -> 1.404
+ *           1.325 -> 1.436
+ *           1.35  -> 1.46
+ *           1.40  -> 1.5
+ * 
+*/
+	{ .index = 1125000, .frequency =  408000 },
+	{ .index = 1150000, .frequency =  816000 },
+	{ .index = 1225000, .frequency = 1008000 },
+#else
 	{ .index = 1200000, .frequency =  408000 },
 	{ .index = 1200000, .frequency =  816000 },
 	{ .index = 1300000, .frequency = 1008000 },
+#endif // RK29_NEWTON_NEWBOARD
+#endif // CONFIG_RK29_NEWTON_CLOCK
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
-#define BAT_LOW	RK29_PIN4_PA2
-#define POWER_ON_PIN	RK29_PIN4_PA4
+
 static void __init machine_rk29_board_init(void)
 {
-	int val =0;
-	gpio_request(BAT_LOW, NULL);
-	gpio_direction_input(BAT_LOW);
-	val = gpio_get_value(BAT_LOW);
-	if (val == 0){
-		printk("no battery, no power up\n");
-		gpio_request(POWER_ON_PIN, "poweronpin");
-		gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-		while(1){
-			gpio_set_value(POWER_ON_PIN, GPIO_LOW);
-			mdelay(100);
-		}
-	}
-	gpio_free(BAT_LOW);
 	rk29_board_iomux_init();
 
 	board_power_init();
@@ -2272,7 +2347,11 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
+#ifdef CONFIG_RK29_NEWTON_CLOCK
+	rk29_clock_init(periph_pll_144mhz);
+#else
 	rk29_clock_init(periph_pll_default);
+#endif
 	rk29_iomux_init();
     ddr_init(DDR_TYPE,DDR_FREQ);  // DDR3_1333H, 400
 }

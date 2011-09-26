@@ -55,6 +55,8 @@ static usb_parameter skip_device_list[] = {
 	
 // 山寨
 //	{0x05C6, -1, NULL, NULL, NULL},
+	{0x05C6, 0x1000, NULL, NULL, NULL},
+	{0x1AB7, 0x5700, NULL, NULL, NULL},
 	{0x20B9, 0x1682, NULL, NULL, NULL},
 
 	{0x028A, 0x1006, NULL, NULL, NULL},
@@ -70,19 +72,6 @@ static usb_parameter skip_device_list[] = {
 
 	{0x0685, 0x7000, NULL, NULL, NULL},
 };
-
-/*
-    0 - 不同
-    1 - 相同
- */
-static int match_string(const char* s1, const char* s2)
-{
-    int count = 0;
-    while( s1[count] && s2[count] && !(s1[count]-s2[count]) )
-        ++count;
-
-    return !(s1[count]-s2[count]);
-}
 
 /* 1 - match
   * 0 - no match

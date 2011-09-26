@@ -204,6 +204,7 @@ struct mmc_host {
 	unsigned int		bus_refs;	/* reference counter */
 
 	unsigned int		re_initialized_flags; //in order to begin the rescan ;  added by xbw@2011-04-07
+	unsigned int		doneflag; //added by xbw at 2011-08-27
 
 	unsigned int		bus_resume_flags;
 #define MMC_BUSRESUME_MANUAL_RESUME	(1 << 0)

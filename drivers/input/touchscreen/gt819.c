@@ -98,6 +98,7 @@ unsigned int crc32_table[256];
 unsigned int oldcrc32 = 0xFFFFFFFF;
 unsigned int ulPolynomial = 0x04c11db7;
 struct i2c_client * i2c_connect_client = NULL;
+static struct early_suspend gt819_power;
 static u8 gt819_fw[]=
 {
 #include "gt819_fw.i"
@@ -555,6 +556,17 @@ static int gt819_resume(struct i2c_client *client)
 	return 0;
 }
 
+static void gt819_early_suspend(struct early_suspend *h)
+{
+	dev_info(&i2c_connect_client->dev, "gt819_early_suspend!\n");
+	gt819_suspend(i2c_connect_client,PMSG_SUSPEND);
+}
+
+static void gt819_early_resume(struct early_suspend *h)
+{
+	dev_info(&i2c_connect_client->dev, "gt819_resume_early!\n");
+	gt819_resume(i2c_connect_client);
+}
 
 /*******************************************************
 Description:
@@ -573,14 +585,16 @@ static int gt819_remove(struct i2c_client *client)
 	remove_proc_entry("goodix-update", NULL);
 #endif
 	//goodix_debug_sysfs_deinit();
-		gpio_direction_input(ts->irq_gpio);
-		gpio_free(ts->irq_gpio);
-		free_irq(client->irq, ts);
+	gpio_direction_input(ts->irq_gpio);
+	gpio_free(ts->irq_gpio);
+	free_irq(client->irq, ts);
 	if(ts->goodix_wq)
 		destroy_workqueue(ts->goodix_wq); 
 	dev_notice(&client->dev,"The driver is removing...\n");
 	i2c_set_clientdata(client, NULL);
 	input_unregister_device(ts->input_dev);
+    unregister_early_suspend(&gt819_power);
+	i2c_connect_client = 0;
 	kfree(ts);
 	return 0;
 }
@@ -588,7 +602,22 @@ static int gt819_remove(struct i2c_client *client)
 static int gt819_init_panel(struct goodix_ts_data *ts)
 {
 	int ret,I2cDelay;
+	int len = sizeof(config_info)-1;
 	uint8_t rd_cfg_buf[10];
+	struct goodix_platform_data *pdata = ts->client->dev.platform_data;
+
+	ret = gt819_set_regs(ts->client, 101, &config_info[1], len);
+	if(ret < 0)
+	{
+		pdata->platform_sleep();
+		msleep(10);
+		pdata->platform_wakeup();
+		msleep(100);
+		printk("First IIC request failed,retry!\n");
+		ret = gt819_set_regs(ts->client, 101, &config_info[1], len);
+		if(ret<0)
+		return ret;
+	}
 
 	ret = gt819_read_regs(ts->client, 101, rd_cfg_buf, 10);
 	if (ret < 0)
@@ -636,7 +665,7 @@ static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id
 {
 	int ret = 0;
 	char version[17];
-	char version_base[17]={"GT81XNI_1R05_18G"};
+	char version_base[17]={"GT81XNI_1R05_18Q"};
 	struct goodix_ts_data *ts;
 	struct goodix_platform_data *pdata = client->dev.platform_data;
 	const char irq_table[4] = {IRQ_TYPE_EDGE_RISING,
@@ -726,6 +755,10 @@ static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id
 	}
 	i2c_set_clientdata(client, ts);
 	
+	gt819_power.suspend = gt819_early_suspend;
+	gt819_power.resume = gt819_early_resume;
+	gt819_power.level = 0x2;
+	register_early_suspend(&gt819_power);
 	return 0;
 	i2c_set_clientdata(client, NULL);
 	input_unregister_device(ts->input_dev);
@@ -754,8 +787,6 @@ static const struct i2c_device_id gt819_id[] = {
 static struct i2c_driver gt819_driver = {
 	.probe		= gt819_probe,
 	.remove		= gt819_remove,
-	.suspend	= gt819_suspend,
-	.resume	    = gt819_resume,
 	.id_table	= gt819_id,
 	.driver = {
 		.name	= GOODIX_I2C_NAME,

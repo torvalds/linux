@@ -26,8 +26,8 @@
 #define V_VD			600
 #define V_FP			0
 
-#define LCD_WIDTH       1024
-#define LCD_HEIGHT      600
+#define LCD_WIDTH       154//1024
+#define LCD_HEIGHT      91//600
 /* Other */
 #define DCLK_POL		0
 #define SWAP_RB			0   

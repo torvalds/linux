@@ -26,7 +26,8 @@ struct rockchip_pcm_dma_params {
 	struct rockchip_dma_client *client;	/* stream identifier */
 	int channel;				/* Channel ID */
 	dma_addr_t dma_addr;
-	int dma_size;			/* Size of the DMA transfer */
+	int dma_size;				/* Size of the DMA transfer */
+	int flag;                               /*burst change flag*/
 };
 
 extern struct snd_soc_platform rk29_soc_platform;

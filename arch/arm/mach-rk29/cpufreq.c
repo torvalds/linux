@@ -1,6 +1,6 @@
-/* arch/arm/mach-rk2818/cpufreq.c
+/* arch/arm/mach-rk29/cpufreq.c
  *
- * Copyright (C) 2010 ROCKCHIP, Inc.
+ * Copyright (C) 2010, 2011 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -13,11 +13,6 @@
  *
  */
 
-#ifdef CONFIG_CPU_FREQ_DEBUG
-#define DEBUG
-#endif
-#define pr_fmt(fmt) "%s: " fmt, __func__
-
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
@@ -27,11 +22,11 @@
 #include <linux/suspend.h>
 #include <linux/tick.h>
 #include <linux/workqueue.h>
+#include <mach/clock.h>
 #include <mach/cpufreq.h>
 #include <../../../drivers/video/rk29_fb.h>
 
 #define MHZ	(1000*1000)
-#define KHZ	1000
 
 static int no_cpufreq_access;
 
@@ -51,6 +46,7 @@ static struct cpufreq_frequency_table default_freq_table[] = {
 static struct cpufreq_frequency_table *freq_table = default_freq_table;
 static struct clk *arm_clk;
 static struct clk *ddr_clk;
+static unsigned long ddr_max_rate;
 static DEFINE_MUTEX(mutex);
 
 #ifdef CONFIG_REGULATOR
@@ -59,23 +55,22 @@ static int vcore_uV;
 #define CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 #endif
 
-#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 static struct workqueue_struct *wq;
-static void rk29_cpufreq_work_func(struct work_struct *work);
-static DECLARE_DELAYED_WORK(rk29_cpufreq_work, rk29_cpufreq_work_func);
-#define WORK_DELAY HZ
 
-static int limit = 1;
-module_param(limit, int, 0644);
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
+static bool limit = true;
+module_param(limit, bool, 0644);
 
-#define LIMIT_SECS	30
-static int limit_secs = LIMIT_SECS;
+static int limit_secs = 30;
 module_param(limit_secs, int, 0644);
+
+static int limit_secs_1200 = 6;
+module_param(limit_secs_1200, int, 0644);
 
 static int limit_temp;
 module_param(limit_temp, int, 0444);
 
-#define LIMIT_AVG_VOLTAGE	1225000 /* vU */
+#define LIMIT_AVG_VOLTAGE	1200000 /* vU */
 #else /* !CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP */
 #define LIMIT_AVG_VOLTAGE	1400000 /* vU */
 #endif /* CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP */
@@ -87,19 +82,11 @@ enum {
 };
 static uint debug_mask = DEBUG_CHANGE;
 module_param(debug_mask, uint, 0644);
-#define dprintk(mask, fmt, ...) do { if (mask & debug_mask) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); } while (0)
+#define dprintk(mask, fmt, ...) do { if (mask & debug_mask) printk(KERN_DEBUG "cpufreq: " fmt, ##__VA_ARGS__); } while (0)
 
-#define LIMIT_AVG_FREQ	(816 * KHZ) /* kHz */
+#define LIMIT_AVG_FREQ	(816 * 1000) /* kHz */
 static unsigned int limit_avg_freq = LIMIT_AVG_FREQ;
-static int rk29_cpufreq_set_limit_avg_freq(const char *val, struct kernel_param *kp)
-{
-	int err = param_set_uint(val, kp);
-	if (!err) {
-		board_update_cpufreq_table(freq_table);
-	}
-	return err;
-}
-module_param_call(limit_avg_freq, rk29_cpufreq_set_limit_avg_freq, param_get_uint, &limit_avg_freq, 0644);
+module_param(limit_avg_freq, uint, 0444);
 
 static int limit_avg_index = -1;
 
@@ -114,15 +101,24 @@ static int rk29_cpufreq_set_limit_avg_voltage(const char *val, struct kernel_par
 }
 module_param_call(limit_avg_voltage, rk29_cpufreq_set_limit_avg_voltage, param_get_uint, &limit_avg_voltage, 0644);
 
-static bool limit_fb1_is_on;
-static bool limit_hdmi_is_on;
-static bool aclk_limit(void) { return limit_hdmi_is_on && limit_fb1_is_on; }
+#define CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+static bool limit_fb1_enabled;
+static bool limit_hdmi_enabled;
+static inline bool aclk_limit(void) { return limit_hdmi_enabled && limit_fb1_enabled; }
+module_param(limit_fb1_enabled, bool, 0644);
+module_param(limit_hdmi_enabled, bool, 0644);
+#else
+static inline bool aclk_limit(void) { return false; }
+#endif
+
+#if defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP) || defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP)
+static unsigned int limit_max_freq;
 static int limit_index_816 = -1;
+static unsigned int limit_freq_816;
 static int limit_index_1008 = -1;
-module_param(limit_fb1_is_on, bool, 0644);
-module_param(limit_hdmi_is_on, bool, 0644);
-module_param(limit_index_816, int, 0444);
-module_param(limit_index_1008, int, 0444);
+static unsigned int limit_freq_1008;
+#endif
 
 static bool rk29_cpufreq_is_ondemand_policy(struct cpufreq_policy *policy)
 {
@@ -138,23 +134,34 @@ static void board_do_update_cpufreq_table(struct cpufreq_frequency_table *table)
 
 	limit_avg_freq = 0;
 	limit_avg_index = -1;
+#if defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP) || defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP)
+	limit_max_freq = 0;
 	limit_index_816 = -1;
+	limit_freq_816 = 0;
 	limit_index_1008 = -1;
+	limit_freq_1008 = 0;
+#endif
 
 	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		table[i].frequency = clk_round_rate(arm_clk, table[i].frequency * KHZ) / KHZ;
+		table[i].frequency = clk_round_rate(arm_clk, table[i].frequency * 1000) / 1000;
 		if (table[i].index <= limit_avg_voltage && limit_avg_freq < table[i].frequency) {
 			limit_avg_freq = table[i].frequency;
 			limit_avg_index = i;
 		}
-		if (table[i].frequency <= 816 * KHZ &&
+#if defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP) || defined(CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP)
+		if (limit_max_freq < table[i].frequency)
+			limit_max_freq = table[i].frequency;
+		if (table[i].frequency <= 816000 &&
 		    (limit_index_816 < 0 ||
 		    (limit_index_816 >= 0 && table[limit_index_816].frequency < table[i].frequency)))
 			limit_index_816 = i;
-		if (table[i].frequency <= 1008 * KHZ &&
+		if (table[i].frequency <= 1008000 &&
 		    (limit_index_1008 < 0 ||
-		    (limit_index_1008 >= 0 && table[limit_index_1008].frequency < table[i].frequency)))
+		    (limit_index_1008 >= 0 && table[limit_index_1008].frequency < table[i].frequency))) {
 			limit_index_1008 = i;
+			limit_freq_1008 = table[i].frequency;
+		}
+#endif
 	}
 
 	if (!limit_avg_freq)
@@ -178,6 +185,25 @@ static int rk29_cpufreq_verify(struct cpufreq_policy *policy)
 }
 
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
+static bool limit_vpu_enabled;
+static bool limit_gpu_enabled;
+static bool limit_gpu_high;
+module_param(limit_vpu_enabled, bool, 0644);
+module_param(limit_gpu_enabled, bool, 0644);
+module_param(limit_gpu_high, bool, 0644);
+static struct clk* aclk_vepu;
+static struct clk* clk_gpu;
+#define GPU_LOW_RATE	(300 * MHZ)
+static unsigned long limit_gpu_low_rate = GPU_LOW_RATE;
+module_param(limit_gpu_low_rate, ulong, 0644);
+
+#define TEMP_COEFF_IDLE -1000
+#define TEMP_COEFF_408  -325
+#define TEMP_COEFF_624  -202
+#define TEMP_COEFF_816  -78
+#define TEMP_COEFF_1008 325
+#define TEMP_COEFF_1200 1300
+#define WORK_DELAY      HZ
 static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned int relation, int *index)
 {
 	int c, ms;
@@ -186,10 +212,16 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 	cputime64_t wall;
 	u64 idle_time_us;
 	static u64 last_idle_time_us;
+	int idle;
 	unsigned int cur = policy->cur;
+	int overheat_temp_1200, overheat_temp;
+	int temp;
+	int target_index;
+	unsigned int target_freq;
+	bool overheat;
 
-	if (!limit || !wq || !rk29_cpufreq_is_ondemand_policy(policy) ||
-	    (limit_avg_index < 0) || (relation & MASK_FURTHER_CPUFREQ)) {
+	if (!limit || !rk29_cpufreq_is_ondemand_policy(policy) ||
+	    (limit_index_816 < 0) || (relation & MASK_FURTHER_CPUFREQ)) {
 		limit_temp = 0;
 		last.tv64 = 0;
 		return;
@@ -203,50 +235,71 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 		return;
 	}
 
-	limit_temp -= idle_time_us - last_idle_time_us; // -1000
-	dprintk(DEBUG_TEMP, "idle %lld us (%lld - %lld)\n", idle_time_us - last_idle_time_us, idle_time_us, last_idle_time_us);
-	last_idle_time_us = idle_time_us;
+	temp = limit_temp;
+	idle = idle_time_us - last_idle_time_us;
+	if (idle) {
+		temp -= idle; // -1000
+		last_idle_time_us = idle_time_us;
+	}
 
 	ms = div_u64(ktime_us_delta(now, last), 1000);
-	dprintk(DEBUG_TEMP, "%d kHz (%d uV) elapsed %d ms (%lld - %lld)\n", cur, vcore_uV, ms, now.tv64, last.tv64);
+	dprintk(DEBUG_TEMP, "%d kHz (%d uV) elapsed %d ms idle %d us\n", cur, vcore_uV, ms, idle);
 	last = now;
 
 	if (cur <= 408 * 1000)
-		c = -325;
+		c = TEMP_COEFF_408;
 	else if (cur <= 624 * 1000)
-		c = -202;
-	else if (cur <= limit_avg_freq)
-		c = -78;
+		c = TEMP_COEFF_624;
+	else if (cur <= 816 * 1000)
+		c = TEMP_COEFF_816;
+	else if (cur <= 1008 * 1000)
+		c = TEMP_COEFF_1008;
 	else
-		c = 325;
-	limit_temp += c * ms;
+		c = TEMP_COEFF_1200;
+	temp += c * ms;
 
-	if (limit_temp < 0)
-		limit_temp = 0;
-	if (limit_temp > 325 * limit_secs * 1000 && freq_table[*index].frequency > limit_avg_freq)
-		*index = limit_avg_index;
-	dprintk(DEBUG_TEMP, "c %d temp %d (%s) index %d", c, limit_temp, limit_temp > 325 * limit_secs * 1000 ? "overheat" : "normal", *index);
+	if (temp < 0)
+		temp = 0;
+
+	target_index = *index;
+	target_freq = freq_table[target_index].frequency;
+	overheat_temp = TEMP_COEFF_1008 * limit_secs * MSEC_PER_SEC;
+	overheat_temp_1200 = TEMP_COEFF_1200 * limit_secs_1200 * MSEC_PER_SEC;
+	overheat = false;
+
+	if (temp >= overheat_temp && target_freq > limit_freq_816) {
+		target_index = limit_index_816;
+		overheat = true;
+	} else if (target_freq > limit_freq_1008 && limit_freq_1008 > limit_freq_816 &&
+		 temp >= overheat_temp_1200 && temp < overheat_temp) {
+		target_index = limit_index_1008;
+		overheat = true;
+	} else if (target_freq > 1008000 && (limit_vpu_enabled || (limit_gpu_enabled && limit_gpu_high))) {
+		target_index = limit_index_1008;
+	}
+
+	dprintk(DEBUG_TEMP, "%d kHz c %d temp %d (%s) selected %d kHz\n", target_freq, c, temp, overheat ? "overheat" : "normal", freq_table[target_index].frequency);
+	limit_temp = temp;
+	*index = target_index;
 }
 #else
 #define rk29_cpufreq_limit_by_temp(...) do {} while (0)
 #endif
 
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
 static void rk29_cpufreq_limit_by_disp(int *index)
 {
-	unsigned long ddr_rate;
 	unsigned int frequency = freq_table[*index].frequency;
 	int new_index = -1;
 
-	if (!ddr_clk || !aclk_limit())
+	if (!aclk_limit())
 		return;
 
-	ddr_rate = clk_get_rate(ddr_clk);
-
-	if (ddr_rate < 492 * MHZ) {
-		if (limit_index_816 >= 0 && frequency > 816 * KHZ)
+	if (ddr_max_rate < 492 * MHZ) {
+		if (limit_index_816 >= 0 && frequency > 816000)
 			new_index = limit_index_816;
 	} else {
-		if (limit_index_1008 >= 0 && frequency > 1008 * KHZ)
+		if (limit_index_1008 >= 0 && frequency > 1008000)
 			new_index = limit_index_1008;
 	}
 
@@ -255,6 +308,9 @@ static void rk29_cpufreq_limit_by_disp(int *index)
 		*index = new_index;
 	}
 }
+#else
+#define rk29_cpufreq_limit_by_disp(...) do {} while (0)
+#endif
 
 static int rk29_cpufreq_do_target(struct cpufreq_policy *policy, unsigned int target_freq, unsigned int relation)
 {
@@ -264,6 +320,7 @@ static int rk29_cpufreq_do_target(struct cpufreq_policy *policy, unsigned int ta
 	const struct cpufreq_frequency_table *freq;
 	int err = 0;
 	bool force = relation & CPUFREQ_FORCE_CHANGE;
+	unsigned long new_arm_rate;
 
 	relation &= ~CPUFREQ_FORCE_CHANGE;
 
@@ -300,7 +357,8 @@ static int rk29_cpufreq_do_target(struct cpufreq_policy *policy, unsigned int ta
 	freqs.new = freq->frequency;
 	freqs.cpu = 0;
 	new_vcore_uV = freq->index;
-	dprintk(DEBUG_CHANGE, "%d Hz r %d(%c) selected %d Hz (%d uV)\n",
+	new_arm_rate = freqs.new * 1000;
+	dprintk(DEBUG_CHANGE, "%d kHz r %d(%c) selected %d kHz (%d uV)\n",
 		target_freq, relation, relation & CPUFREQ_RELATION_H ? 'H' : 'L',
 		freq->frequency, new_vcore_uV);
 
@@ -319,9 +377,9 @@ static int rk29_cpufreq_do_target(struct cpufreq_policy *policy, unsigned int ta
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	dprintk(DEBUG_CHANGE, "pre change\n");
-	clk_set_rate(arm_clk, freqs.new * KHZ + aclk_limit());
+	clk_set_rate(arm_clk, freqs.new * 1000 + aclk_limit());
 	dprintk(DEBUG_CHANGE, "post change\n");
-	freqs.new = clk_get_rate(arm_clk) / KHZ;
+	freqs.new = clk_get_rate(arm_clk) / 1000;
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 #ifdef CONFIG_REGULATOR
@@ -335,7 +393,7 @@ static int rk29_cpufreq_do_target(struct cpufreq_policy *policy, unsigned int ta
 		}
 	}
 #endif
-	dprintk(DEBUG_CHANGE, "ok, got %d kHz\n", freqs.new);
+	dprintk(DEBUG_CHANGE, "got %d kHz\n", freqs.new);
 
 	return err;
 }
@@ -355,26 +413,23 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 }
 
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
+static void rk29_cpufreq_limit_by_temp_work_func(struct work_struct *work);
+static DECLARE_DELAYED_WORK(rk29_cpufreq_limit_by_temp_work, rk29_cpufreq_limit_by_temp_work_func);
+
 static int rk29_cpufreq_notifier_policy(struct notifier_block *nb,
 		unsigned long val, void *data)
 {
 	struct cpufreq_policy *policy = data;
-	bool is_ondemand;
 
 	if (val != CPUFREQ_NOTIFY)
 		return 0;
 
-	is_ondemand = rk29_cpufreq_is_ondemand_policy(policy);
-	if (!wq && is_ondemand) {
-		dprintk(DEBUG_TEMP, "start wq\n");
-		wq = create_singlethread_workqueue("rk29_cpufreqd");
-		if (wq)
-			queue_delayed_work(wq, &rk29_cpufreq_work, WORK_DELAY);
-	} else if (wq && !is_ondemand) {
-		dprintk(DEBUG_TEMP, "stop wq\n");
-		cancel_delayed_work(&rk29_cpufreq_work);
-		destroy_workqueue(wq);
-		wq = NULL;
+	if (rk29_cpufreq_is_ondemand_policy(policy)) {
+		dprintk(DEBUG_TEMP, "queue work\n");
+		queue_delayed_work(wq, &rk29_cpufreq_limit_by_temp_work, WORK_DELAY);
+	} else {
+		dprintk(DEBUG_TEMP, "cancel work\n");
+		cancel_delayed_work(&rk29_cpufreq_limit_by_temp_work);
 	}
 
 	return 0;
@@ -384,16 +439,140 @@ static struct notifier_block notifier_policy_block = {
 	.notifier_call = rk29_cpufreq_notifier_policy
 };
 
-static void rk29_cpufreq_work_func(struct work_struct *work)
+static void rk29_cpufreq_limit_by_temp_work_func(struct work_struct *work)
 {
 	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 
 	if (policy) {
+		dprintk(DEBUG_TEMP, "check %d kHz\n", policy->cur);
 		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L);
 		cpufreq_cpu_put(policy);
 	}
-	queue_delayed_work(wq, &rk29_cpufreq_work, WORK_DELAY);
+	queue_delayed_work(wq, &rk29_cpufreq_limit_by_temp_work, WORK_DELAY);
 }
+
+static int rk29_cpufreq_aclk_vepu_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	switch (event) {
+	case CLK_PRE_ENABLE:
+		limit_vpu_enabled = true;
+		break;
+	case CLK_ABORT_ENABLE:
+	case CLK_POST_DISABLE:
+		limit_vpu_enabled = false;
+		break;
+	default:
+		return NOTIFY_OK;
+	}
+
+	if (limit_vpu_enabled) {
+		struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+
+		if (policy) {
+			dprintk(DEBUG_TEMP, "vpu on\n");
+			cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L);
+			cpufreq_cpu_put(policy);
+		}
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rk29_cpufreq_aclk_vepu_notifier = {
+	.notifier_call = rk29_cpufreq_aclk_vepu_notifier_event,
+};
+
+static int rk29_cpufreq_clk_gpu_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	struct clk_notifier_data *cnd = ptr;
+	bool gpu_high_old = limit_gpu_enabled && limit_gpu_high;
+	bool gpu_high;
+
+	switch (event) {
+	case CLK_PRE_RATE_CHANGE:
+		if (cnd->new_rate > limit_gpu_low_rate)
+			limit_gpu_high = true;
+		break;
+	case CLK_ABORT_RATE_CHANGE:
+		if (cnd->new_rate > limit_gpu_low_rate && cnd->old_rate <= limit_gpu_low_rate)
+			limit_gpu_high = false;
+		break;
+	case CLK_POST_RATE_CHANGE:
+		if (cnd->new_rate <= limit_gpu_low_rate)
+			limit_gpu_high = false;
+		break;
+	case CLK_PRE_ENABLE:
+		limit_gpu_enabled = true;
+		break;
+	case CLK_ABORT_ENABLE:
+	case CLK_POST_DISABLE:
+		limit_gpu_enabled = false;
+		break;
+	default:
+		return NOTIFY_OK;
+	}
+
+	gpu_high = limit_gpu_enabled && limit_gpu_high;
+	if (gpu_high_old != gpu_high && gpu_high) {
+		struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+
+		if (policy) {
+			dprintk(DEBUG_TEMP, "gpu high\n");
+			cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L);
+			cpufreq_cpu_put(policy);
+		}
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rk29_cpufreq_clk_gpu_notifier = {
+	.notifier_call = rk29_cpufreq_clk_gpu_notifier_event,
+};
+#endif
+
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+static void rk29_cpufreq_limit_by_disp_work_func(struct work_struct *work)
+{
+	struct cpufreq_policy *policy;
+
+	policy = cpufreq_cpu_get(0);
+	if (policy) {
+		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_FORCE_CHANGE);
+		cpufreq_cpu_put(policy);
+	}
+}
+
+static DECLARE_WORK(rk29_cpufreq_limit_by_disp_work, rk29_cpufreq_limit_by_disp_work_func);
+
+static int rk29_cpufreq_fb_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	switch (event) {
+	case RK29FB_EVENT_HDMI_ON:
+		limit_hdmi_enabled = true;
+		break;
+	case RK29FB_EVENT_HDMI_OFF:
+		limit_hdmi_enabled = false;
+		break;
+	case RK29FB_EVENT_FB1_ON:
+		limit_fb1_enabled = true;
+		break;
+	case RK29FB_EVENT_FB1_OFF:
+		limit_fb1_enabled = false;
+		break;
+	}
+
+	dprintk(DEBUG_DISP, "event: %lu aclk_limit: %d\n", event, aclk_limit());
+	flush_work(&rk29_cpufreq_limit_by_disp_work);
+	queue_work(wq, &rk29_cpufreq_limit_by_disp_work);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rk29_cpufreq_fb_notifier = {
+	.notifier_call = rk29_cpufreq_fb_notifier_event,
+};
 #endif
 
 static int rk29_cpufreq_init(struct cpufreq_policy *policy)
@@ -404,15 +583,19 @@ static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 	arm_clk = clk_get(NULL, "arm_pll");
 	if (IS_ERR(arm_clk)) {
 		int err = PTR_ERR(arm_clk);
+		pr_err("fail to get arm_pll clk: %d\n", err);
 		arm_clk = NULL;
 		return err;
 	}
 
 	ddr_clk = clk_get(NULL, "ddr");
 	if (IS_ERR(ddr_clk)) {
-		pr_err("fail to get ddr clk: %ld\n", PTR_ERR(ddr_clk));
+		int err = PTR_ERR(ddr_clk);
+		pr_err("fail to get ddr clk: %d\n", err);
 		ddr_clk = NULL;
+		return err;
 	}
+	ddr_max_rate = clk_get_rate(ddr_clk);
 
 #ifdef CONFIG_REGULATOR
 	vcore = regulator_get(NULL, "vcore");
@@ -425,37 +608,61 @@ static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 	board_update_cpufreq_table(freq_table);	/* force update frequency */
 	BUG_ON(cpufreq_frequency_table_cpuinfo(policy, freq_table));
 	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
-	policy->cur = clk_get_rate(arm_clk) / KHZ;
+	policy->cur = clk_get_rate(arm_clk) / 1000;
 
 	policy->cpuinfo.transition_latency = 40 * NSEC_PER_USEC; // make default sampling_rate to 40000
 
+	wq = create_singlethread_workqueue("rk29_cpufreqd");
+	if (!wq) {
+		pr_err("fail to create workqueue\n");
+		return -ENOMEM;
+	}
+
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 	if (rk29_cpufreq_is_ondemand_policy(policy)) {
-		dprintk(DEBUG_TEMP, "start wq\n");
-		wq = create_singlethread_workqueue("rk29_cpufreqd");
-		if (wq)
-			queue_delayed_work(wq, &rk29_cpufreq_work, WORK_DELAY);
+		dprintk(DEBUG_TEMP, "queue work\n");
+		queue_delayed_work(wq, &rk29_cpufreq_limit_by_temp_work, WORK_DELAY);
 	}
 	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
+	if (limit_max_freq > 1008000) {
+		clk_gpu = clk_get(NULL, "gpu");
+		aclk_vepu = clk_get(NULL, "aclk_vepu");
+		clk_notifier_register(clk_gpu, &rk29_cpufreq_clk_gpu_notifier);
+		clk_notifier_register(aclk_vepu, &rk29_cpufreq_aclk_vepu_notifier);
+	}
+#endif
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+	rk29fb_register_notifier(&rk29_cpufreq_fb_notifier);
 #endif
 	return 0;
 }
 
 static int rk29_cpufreq_exit(struct cpufreq_policy *policy)
 {
+#ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
+	rk29fb_unregister_notifier(&rk29_cpufreq_fb_notifier);
+#endif
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
+	if (limit_max_freq > 1008000) {
+		clk_notifier_unregister(clk_gpu, &rk29_cpufreq_clk_gpu_notifier);
+		clk_notifier_unregister(aclk_vepu, &rk29_cpufreq_aclk_vepu_notifier);
+		clk_put(clk_gpu);
+		clk_put(aclk_vepu);
+	}
 	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
+	if (wq)
+		cancel_delayed_work(&rk29_cpufreq_limit_by_temp_work);
+#endif
 	if (wq) {
-		dprintk(DEBUG_TEMP, "stop wq\n");
-		cancel_delayed_work(&rk29_cpufreq_work);
+		flush_workqueue(wq);
 		destroy_workqueue(wq);
 		wq = NULL;
 	}
-#endif
 #ifdef CONFIG_REGULATOR
 	if (vcore)
 		regulator_put(vcore);
 #endif
+	clk_put(ddr_clk);
 	clk_put(arm_clk);
 	return 0;
 }
@@ -489,7 +696,7 @@ static int rk29_cpufreq_pm_notifier_event(struct notifier_block *this,
 
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
-		ret = cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_L);
+		ret = cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		if (ret < 0) {
 			ret = NOTIFY_BAD;
 			goto out;
@@ -498,7 +705,7 @@ static int rk29_cpufreq_pm_notifier_event(struct notifier_block *this,
 		break;
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
-		cpufreq_driver_target(policy, limit_avg_freq, ENABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_L);
+		cpufreq_driver_target(policy, limit_avg_freq, ENABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		ret = NOTIFY_OK;
 		break;
 	}
@@ -517,7 +724,7 @@ static int rk29_cpufreq_reboot_notifier_event(struct notifier_block *this,
 	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 
 	if (policy) {
-		cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_L);
+		cpufreq_driver_target(policy, limit_avg_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
 		cpufreq_cpu_put(policy);
 	}
 
@@ -528,45 +735,10 @@ static struct notifier_block rk29_cpufreq_reboot_notifier = {
 	.notifier_call = rk29_cpufreq_reboot_notifier_event,
 };
 
-static int rk29_cpufreq_fb_notifier_event(struct notifier_block *this,
-		unsigned long event, void *ptr)
-{
-	struct cpufreq_policy *policy;
-
-	switch (event) {
-	case RK29FB_EVENT_HDMI_ON:
-		limit_hdmi_is_on = true;
-		break;
-	case RK29FB_EVENT_HDMI_OFF:
-		limit_hdmi_is_on = false;
-		break;
-	case RK29FB_EVENT_FB1_ON:
-		limit_fb1_is_on = true;
-		break;
-	case RK29FB_EVENT_FB1_OFF:
-		limit_fb1_is_on = false;
-		break;
-	}
-
-	dprintk(DEBUG_DISP, "event: %lu aclk_limit: %d\n", event, aclk_limit());
-	policy = cpufreq_cpu_get(0);
-	if (policy) {
-		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_FORCE_CHANGE);
-		cpufreq_cpu_put(policy);
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block rk29_cpufreq_fb_notifier = {
-	.notifier_call = rk29_cpufreq_fb_notifier_event,
-};
-
 static int __init rk29_cpufreq_register(void)
 {
 	register_pm_notifier(&rk29_cpufreq_pm_notifier);
 	register_reboot_notifier(&rk29_cpufreq_reboot_notifier);
-	rk29fb_register_notifier(&rk29_cpufreq_fb_notifier);
 
 	return cpufreq_register_driver(&rk29_cpufreq_driver);
 }

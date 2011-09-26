@@ -118,7 +118,7 @@
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE       SZ_64M
+#define PMEM_GPU_SIZE       SZ_16M
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_CAM_SIZE       PMEM_CAM_NECESSARY
@@ -381,7 +381,7 @@ static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
 	.start		= PMEM_UI_BASE,
 	.size		= PMEM_UI_SIZE,
-	.no_allocator	= 0,
+	.no_allocator	= 1,
 	.cached		= 1,
 };
 
@@ -930,9 +930,9 @@ struct wm831x_battery_pdata wm831x_battery_platdata = {
 	.off_mask = 1,       /** Mask OFF while charging */
 	.trickle_ilim = 200,   /** Trickle charge current limit, in mA */
 	.vsel = 4200,           /** Target voltage, in mV */
-	.eoc_iterm = 90,      /** End of trickle charge current, in mA */
+	.eoc_iterm = 50,      /** End of trickle charge current, in mA */
 	.fast_ilim = 500,      /** Fast charge current limit, in mA */
-	.timeout = 240,        /** Charge cycle timeout, in minutes */
+	.timeout = 480,        /** Charge cycle timeout, in minutes */
 	.syslo = 3300,    /* syslo threshold, in mV*/
 	.sysok = 3500,    /* sysko threshold, in mV*/
 };
@@ -1514,6 +1514,12 @@ struct platform_device rk29_device_gps = {
  *****************************************************************************************/
 struct wm8994_pdata wm8994_platdata = {	
 
+	.BB_input_diff = 0,
+	.BB_class = NO_PCM_BB,
+	
+	.no_earpiece = 0,
+	.sp_hp_same_channel = 0,
+	
 	.PA_control_pin = 0,	
 	.Power_EN_Pin = RK29_PIN5_PA1,
 
@@ -1526,7 +1532,7 @@ struct wm8994_pdata wm8994_platdata = {
 	.headset_normal_vol = -6,
 	.BT_incall_vol = 0,
 	.BT_incall_mic_vol = 0,
-	.recorder_vol = 20,
+	.recorder_vol = 30,
 	
 };
 
@@ -2452,6 +2458,24 @@ static struct platform_device gpio_wave_device = {
 static void __init rk29_board_iomux_init(void)
 {
 	int err;
+
+#ifdef CONFIG_UART1_RK29
+	//disable uart1 pull down
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_GPIO2A5);			
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_GPIO2A4);		
+
+	gpio_request(RK29_PIN2_PA5, NULL);
+	gpio_request(RK29_PIN2_PA4, NULL);
+
+	gpio_pull_updown(RK29_PIN2_PA5, PullDisable);
+	gpio_pull_updown(RK29_PIN2_PA4, PullDisable);
+
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_UART1_SOUT);			
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_UART1_SIN); 
+
+	gpio_free(RK29_PIN2_PA5);
+	gpio_free(RK29_PIN2_PA4);
+#endif
 	#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
 	#endif
