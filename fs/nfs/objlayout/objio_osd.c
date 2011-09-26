@@ -479,7 +479,6 @@ static int _io_check(struct objio_state *ios, bool is_write)
 	for (i = 0; i <  ios->numdevs; i++) {
 		struct osd_sense_info osi;
 		struct osd_request *or = ios->per_dev[i].or;
-		unsigned dev;
 		int ret;
 
 		if (!or)
@@ -500,9 +499,8 @@ static int _io_check(struct objio_state *ios, bool is_write)
 
 			continue; /* we recovered */
 		}
-		dev = ios->per_dev[i].dev;
-		objlayout_io_set_result(&ios->ol_state, dev,
-					&ios->layout->comps[dev].oc_object_id,
+		objlayout_io_set_result(&ios->ol_state, i,
+					&ios->layout->comps[i].oc_object_id,
 					osd_pri_2_pnfs_err(osi.osd_err_pri),
 					ios->per_dev[i].offset,
 					ios->per_dev[i].length,
@@ -589,22 +587,19 @@ static void _calc_stripe_info(struct objio_state *ios, u64 file_offset,
 }
 
 static int _add_stripe_unit(struct objio_state *ios,  unsigned *cur_pg,
-		unsigned pgbase, struct _objio_per_comp *per_dev, int cur_len,
+		unsigned pgbase, struct _objio_per_comp *per_dev, int len,
 		gfp_t gfp_flags)
 {
 	unsigned pg = *cur_pg;
+	int cur_len = len;
 	struct request_queue *q =
 			osd_request_queue(_io_od(ios, per_dev->dev));
 
-	per_dev->length += cur_len;
-
 	if (per_dev->bio == NULL) {
-		unsigned stripes = ios->layout->num_comps /
-						     ios->layout->mirrors_p1;
-		unsigned pages_in_stripe = stripes *
+		unsigned pages_in_stripe = ios->layout->group_width *
 				      (ios->layout->stripe_unit / PAGE_SIZE);
 		unsigned bio_size = (ios->ol_state.nr_pages + pages_in_stripe) /
-				    stripes;
+				    ios->layout->group_width;
 
 		if (BIO_MAX_PAGES_KMALLOC < bio_size)
 			bio_size = BIO_MAX_PAGES_KMALLOC;
@@ -632,6 +627,7 @@ static int _add_stripe_unit(struct objio_state *ios,  unsigned *cur_pg,
 	}
 	BUG_ON(cur_len);
 
+	per_dev->length += len;
 	*cur_pg = pg;
 	return 0;
 }
@@ -650,7 +646,7 @@ static int _prepare_one_group(struct objio_state *ios, u64 length,
 	int ret = 0;
 
 	while (length) {
-		struct _objio_per_comp *per_dev = &ios->per_dev[dev];
+		struct _objio_per_comp *per_dev = &ios->per_dev[dev - first_dev];
 		unsigned cur_len, page_off = 0;
 
 		if (!per_dev->length) {
@@ -670,8 +666,8 @@ static int _prepare_one_group(struct objio_state *ios, u64 length,
 				cur_len = stripe_unit;
 			}
 
-			if (max_comp < dev)
-				max_comp = dev;
+			if (max_comp < dev - first_dev)
+				max_comp = dev - first_dev;
 		} else {
 			cur_len = stripe_unit;
 		}
@@ -806,7 +802,7 @@ static int _read_mirrors(struct objio_state *ios, unsigned cur_comp)
 	struct _objio_per_comp *per_dev = &ios->per_dev[cur_comp];
 	unsigned dev = per_dev->dev;
 	struct pnfs_osd_object_cred *cred =
-			&ios->layout->comps[dev];
+			&ios->layout->comps[cur_comp];
 	struct osd_obj_id obj = {
 		.partition = cred->oc_object_id.oid_partition_id,
 		.id = cred->oc_object_id.oid_object_id,
@@ -904,7 +900,7 @@ static int _write_mirrors(struct objio_state *ios, unsigned cur_comp)
 	for (; cur_comp < last_comp; ++cur_comp, ++dev) {
 		struct osd_request *or = NULL;
 		struct pnfs_osd_object_cred *cred =
-					&ios->layout->comps[dev];
+					&ios->layout->comps[cur_comp];
 		struct osd_obj_id obj = {
 			.partition = cred->oc_object_id.oid_partition_id,
 			.id = cred->oc_object_id.oid_object_id,

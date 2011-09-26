@@ -2386,7 +2386,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w1(gspca_dev, 0x01, 0x22);
 		msleep(100);
 		reg01 = SCL_SEL_OD | S_PDN_INV;
-		reg17 &= MCK_SIZE_MASK;
+		reg17 &= ~MCK_SIZE_MASK;
 		reg17 |= 0x04;		/* clock / 4 */
 		break;
 	}
@@ -2532,6 +2532,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		if (!mode) {			/* if 640x480 */
 			reg17 &= ~MCK_SIZE_MASK;
 			reg17 |= 0x04;		/* clock / 4 */
+		} else {
+			reg01 &= ~SYS_SEL_48M;	/* clk 24Mz */
+			reg17 &= ~MCK_SIZE_MASK;
+			reg17 |= 0x02;		/* clock / 2 */
 		}
 		break;
 	case SENSOR_OV7630:

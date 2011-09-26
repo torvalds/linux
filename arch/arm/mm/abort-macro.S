@@ -17,7 +17,7 @@
 	cmp	\tmp, # 0x5600			@ Is it ldrsb?
 	orreq	\tmp, \tmp, #1 << 11		@ Set L-bit if yes
 	tst	\tmp, #1 << 11			@ L = 0 -> write
-	orreq	\psr, \psr, #1 << 11		@ yes.
+	orreq	\fsr, \fsr, #1 << 11		@ yes.
 	b	do_DataAbort
 not_thumb:
 	.endm

@@ -390,12 +390,10 @@ static int rd_MEMCPY_read(struct rd_request *req)
 				length = req->rd_size;
 
 			dst = sg_virt(&sg_d[i++]) + dst_offset;
-			if (!dst)
-				BUG();
+			BUG_ON(!dst);
 
 			src = sg_virt(&sg_s[j]) + src_offset;
-			if (!src)
-				BUG();
+			BUG_ON(!src);
 
 			dst_offset = 0;
 			src_offset = length;
@@ -415,8 +413,7 @@ static int rd_MEMCPY_read(struct rd_request *req)
 				length = req->rd_size;
 
 			dst = sg_virt(&sg_d[i]) + dst_offset;
-			if (!dst)
-				BUG();
+			BUG_ON(!dst);
 
 			if (sg_d[i].length == length) {
 				i++;
@@ -425,8 +422,7 @@ static int rd_MEMCPY_read(struct rd_request *req)
 				dst_offset = length;
 
 			src = sg_virt(&sg_s[j++]) + src_offset;
-			if (!src)
-				BUG();
+			BUG_ON(!src);
 
 			src_offset = 0;
 			page_end = 1;
@@ -510,12 +506,10 @@ static int rd_MEMCPY_write(struct rd_request *req)
 				length = req->rd_size;
 
 			src = sg_virt(&sg_s[i++]) + src_offset;
-			if (!src)
-				BUG();
+			BUG_ON(!src);
 
 			dst = sg_virt(&sg_d[j]) + dst_offset;
-			if (!dst)
-				BUG();
+			BUG_ON(!dst);
 
 			src_offset = 0;
 			dst_offset = length;
@@ -535,8 +529,7 @@ static int rd_MEMCPY_write(struct rd_request *req)
 				length = req->rd_size;
 
 			src = sg_virt(&sg_s[i]) + src_offset;
-			if (!src)
-				BUG();
+			BUG_ON(!src);
 
 			if (sg_s[i].length == length) {
 				i++;
@@ -545,8 +538,7 @@ static int rd_MEMCPY_write(struct rd_request *req)
 				src_offset = length;
 
 			dst = sg_virt(&sg_d[j++]) + dst_offset;
-			if (!dst)
-				BUG();
+			BUG_ON(!dst);
 
 			dst_offset = 0;
 			page_end = 1;

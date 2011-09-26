@@ -710,7 +710,8 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 		break;
 
 	case MAC_TYPE_NONE: /* unreached */
-		BNX2X_ERR("stats updated by DMAE but no MAC active\n");
+		DP(BNX2X_MSG_STATS,
+		   "stats updated by DMAE but no MAC active\n");
 		return -1;
 
 	default: /* unreached */
@@ -1391,7 +1392,7 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
 
 static void bnx2x_func_stats_base_init(struct bnx2x *bp)
 {
-	int vn, vn_max = IS_MF(bp) ? E1HVN_MAX : E1VN_MAX;
+	int vn, vn_max = IS_MF(bp) ? BP_MAX_VN_NUM(bp) : E1VN_MAX;
 	u32 func_stx;
 
 	/* sanity */
@@ -1404,7 +1405,7 @@ static void bnx2x_func_stats_base_init(struct bnx2x *bp)
 	func_stx = bp->func_stx;
 
 	for (vn = VN_0; vn < vn_max; vn++) {
-		int mb_idx = CHIP_IS_E1x(bp) ? 2*vn + BP_PORT(bp) : vn;
+		int mb_idx = BP_FW_MB_IDX_VN(bp, vn);
 
 		bp->func_stx = SHMEM_RD(bp, func_mb[mb_idx].fw_mb_param);
 		bnx2x_func_stats_init(bp);

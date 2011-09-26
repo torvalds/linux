@@ -37,8 +37,11 @@ nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
 		return -ENOMEM;
 
 	nvbe->ttm_alloced = kmalloc(sizeof(bool) * num_pages, GFP_KERNEL);
-	if (!nvbe->ttm_alloced)
+	if (!nvbe->ttm_alloced) {
+		kfree(nvbe->pages);
+		nvbe->pages = NULL;
 		return -ENOMEM;
+	}
 
 	nvbe->nr_pages = 0;
 	while (num_pages--) {
@@ -126,7 +129,7 @@ nv04_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 
 		for (j = 0; j < PAGE_SIZE / NV_CTXDMA_PAGE_SIZE; j++, pte++) {
 			nv_wo32(gpuobj, (pte * 4) + 0, offset_l | 3);
-			dma_offset += NV_CTXDMA_PAGE_SIZE;
+			offset_l += NV_CTXDMA_PAGE_SIZE;
 		}
 	}
 

@@ -16,6 +16,7 @@
 #include <linux/suspend.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #include <mach/map.h>
 #include <mach/irqs.h>
