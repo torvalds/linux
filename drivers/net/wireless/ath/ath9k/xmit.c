@@ -2043,10 +2043,9 @@ static void ath_tx_rc_status(struct ath_softc *sc, struct ath_buf *bf,
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
 
 		BUG_ON(nbad > nframes);
-
-		tx_info->status.ampdu_len = nframes;
-		tx_info->status.ampdu_ack_len = nframes - nbad;
 	}
+	tx_info->status.ampdu_len = nframes;
+	tx_info->status.ampdu_ack_len = nframes - nbad;
 
 	if ((ts->ts_status & ATH9K_TXERR_FILT) == 0 &&
 	    (tx_info->flags & IEEE80211_TX_CTL_NO_ACK) == 0) {
