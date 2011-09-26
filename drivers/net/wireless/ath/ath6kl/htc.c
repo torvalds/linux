@@ -389,7 +389,6 @@ static int ath6kl_htc_tx_setup_scat_list(struct htc_target *target,
 
 		rem_scat -= len;
 		/* now remove it from the queue */
-		packet = list_first_entry(queue, struct htc_packet, list);
 		list_del(&packet->list);
 
 		scat_req->scat_list[i].packet = packet;
