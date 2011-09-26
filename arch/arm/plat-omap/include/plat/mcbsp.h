@@ -354,10 +354,10 @@ struct omap_mcbsp {
 	struct clk *fclk;
 #ifdef CONFIG_ARCH_OMAP3
 	struct omap_mcbsp_st_data *st_data;
+#endif
 	int dma_op_mode;
 	u16 max_tx_thres;
 	u16 max_rx_thres;
-#endif
 	void *reg_cache;
 };
 
@@ -377,7 +377,6 @@ extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 
 int omap_mcbsp_init(void);
 void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg * config);
-#ifdef CONFIG_ARCH_OMAP3
 void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold);
 void omap_mcbsp_set_rx_threshold(unsigned int id, u16 threshold);
 u16 omap_mcbsp_get_max_tx_threshold(unsigned int id);
@@ -386,18 +385,6 @@ u16 omap_mcbsp_get_fifo_size(unsigned int id);
 u16 omap_mcbsp_get_tx_delay(unsigned int id);
 u16 omap_mcbsp_get_rx_delay(unsigned int id);
 int omap_mcbsp_get_dma_op_mode(unsigned int id);
-#else
-static inline void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold)
-{ }
-static inline void omap_mcbsp_set_rx_threshold(unsigned int id, u16 threshold)
-{ }
-static inline u16 omap_mcbsp_get_max_tx_threshold(unsigned int id) { return 0; }
-static inline u16 omap_mcbsp_get_max_rx_threshold(unsigned int id) { return 0; }
-static inline u16 omap_mcbsp_get_fifo_size(unsigned int id) { return 0; }
-static inline u16 omap_mcbsp_get_tx_delay(unsigned int id) { return 0; }
-static inline u16 omap_mcbsp_get_rx_delay(unsigned int id) { return 0; }
-static inline int omap_mcbsp_get_dma_op_mode(unsigned int id) { return 0; }
-#endif
 int omap_mcbsp_request(unsigned int id);
 void omap_mcbsp_free(unsigned int id);
 void omap_mcbsp_start(unsigned int id, int tx, int rx);
