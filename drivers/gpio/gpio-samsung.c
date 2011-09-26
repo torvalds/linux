@@ -1862,7 +1862,7 @@ static struct samsung_gpio_chip s5pc100_gpios_4bit[] = {
  * Followings are the gpio banks in S5PV210/S5PC110
  *
  * The 'config' member when left to NULL, is initialized to the default
- * structure samsung_gpio_cfgs[4] in the init function below.
+ * structure samsung_gpio_cfgs[3] in the init function below.
  *
  * The 'base' member is also initialized in the init function below.
  * Note: The initialization of 'base' member of samsung_gpio_chip structure
@@ -2083,7 +2083,7 @@ static struct samsung_gpio_chip s5pv210_gpios_4bit[] = {
  * Followings are the gpio banks in EXYNOS4210
  *
  * The 'config' member when left to NULL, is initialized to the default
- * structure samsung_gpio_cfgs[4] in the init function below.
+ * structure samsung_gpio_cfgs[3] in the init function below.
  *
  * The 'base' member is also initialized in the init function below.
  * Note: The initialization of 'base' member of samsung_gpio_chip structure
@@ -2249,49 +2249,49 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 			.label	= "GPL2",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[0],
 		.chip	= {
 			.base	= EXYNOS4_GPY0(0),
 			.ngpio	= EXYNOS4_GPIO_Y0_NR,
 			.label	= "GPY0",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[0],
 		.chip	= {
 			.base	= EXYNOS4_GPY1(0),
 			.ngpio	= EXYNOS4_GPIO_Y1_NR,
 			.label	= "GPY1",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[0],
 		.chip	= {
 			.base	= EXYNOS4_GPY2(0),
 			.ngpio	= EXYNOS4_GPIO_Y2_NR,
 			.label	= "GPY2",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[0],
 		.chip	= {
 			.base	= EXYNOS4_GPY3(0),
 			.ngpio	= EXYNOS4_GPIO_Y3_NR,
 			.label	= "GPY3",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[0],
 		.chip	= {
 			.base	= EXYNOS4_GPY4(0),
 			.ngpio	= EXYNOS4_GPIO_Y4_NR,
 			.label	= "GPY4",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[0],
 		.chip	= {
 			.base	= EXYNOS4_GPY5(0),
 			.ngpio	= EXYNOS4_GPIO_Y5_NR,
 			.label	= "GPY5",
 		},
 	}, {
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[0],
 		.chip	= {
 			.base	= EXYNOS4_GPY6(0),
 			.ngpio	= EXYNOS4_GPIO_Y6_NR,
@@ -2299,7 +2299,7 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 		},
 	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC00),
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[3],
 		.irq_base = IRQ_EINT(0),
 		.chip	= {
 			.base	= EXYNOS4_GPX0(0),
@@ -2309,7 +2309,7 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 		},
 	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC20),
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[3],
 		.irq_base = IRQ_EINT(8),
 		.chip	= {
 			.base	= EXYNOS4_GPX1(0),
@@ -2319,7 +2319,7 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 		},
 	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC40),
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[3],
 		.irq_base = IRQ_EINT(16),
 		.chip	= {
 			.base	= EXYNOS4_GPX2(0),
@@ -2329,7 +2329,7 @@ static struct samsung_gpio_chip exynos4_gpios_2[] = {
 		},
 	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC60),
-		.config	= &samsung_gpio_cfgs[4],
+		.config	= &samsung_gpio_cfgs[3],
 		.irq_base = IRQ_EINT(24),
 		.chip	= {
 			.base	= EXYNOS4_GPX3(0),
@@ -2399,7 +2399,7 @@ static __init int samsung_gpiolib_init(void)
 
 		for (i = 0; i < nr_chips; i++, chip++) {
 			if (!chip->config) {
-				chip->config = &samsung_gpio_cfgs[4];
+				chip->config = &samsung_gpio_cfgs[3];
 				chip->group = group++;
 			}
 		}
@@ -2414,7 +2414,7 @@ static __init int samsung_gpiolib_init(void)
 
 		for (i = 0; i < nr_chips; i++, chip++) {
 			if (!chip->config) {
-				chip->config = &samsung_gpio_cfgs[4];
+				chip->config = &samsung_gpio_cfgs[3];
 				chip->group = group++;
 			}
 		}
