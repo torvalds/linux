@@ -173,6 +173,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
 	&s3c_device_i2c1,
+	&s5p_device_i2c_hdmiphy,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&exynos4_device_ac97,
@@ -194,6 +195,8 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&samsung_asoc_idma,
 	&smdkv310_smsc911x,
 	&exynos4_device_ahci,
+	&s5p_device_hdmi,
+	&s5p_device_mixer,
 };
 
 static void __init smdkv310_smsc911x_init(void)
@@ -230,6 +233,18 @@ static struct platform_pwm_backlight_data smdkv310_bl_data = {
 	.pwm_period_ns  = 1000,
 };
 
+static void s5p_tv_setup(void)
+{
+	/* direct HPD to HDMI chip */
+	WARN_ON(gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug"));
+	s3c_gpio_cfgpin(EXYNOS4_GPX3(7), S3C_GPIO_SFN(0x3));
+	s3c_gpio_setpull(EXYNOS4_GPX3(7), S3C_GPIO_PULL_NONE);
+
+	/* setup dependencies between TV devices */
+	s5p_device_hdmi.dev.parent = &exynos4_device_pd[PD_TV].dev;
+	s5p_device_mixer.dev.parent = &exynos4_device_pd[PD_TV].dev;
+}
+
 static void __init smdkv310_map_io(void)
 {
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
@@ -253,6 +268,9 @@ static void __init smdkv310_machine_init(void)
 	s3c_sdhci1_set_platdata(&smdkv310_hsmmc1_pdata);
 	s3c_sdhci2_set_platdata(&smdkv310_hsmmc2_pdata);
 	s3c_sdhci3_set_platdata(&smdkv310_hsmmc3_pdata);
+
+	s5p_tv_setup();
+	s5p_i2c_hdmiphy_set_platdata(NULL);
 
 	samsung_keypad_set_platdata(&smdkv310_keypad_data);
 
