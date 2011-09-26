@@ -135,7 +135,10 @@ struct bdb_general_features {
         /* bits 5 */
 	u8 int_crt_support:1;
 	u8 int_tv_support:1;
-	u8 rsvd11:6; /* finish byte */
+	u8 int_efp_support:1;
+	u8 dp_ssc_enb:1;	/* PCH attached eDP supports SSC */
+	u8 dp_ssc_freq:1;	/* SSC freq for PCH attached eDP */
+	u8 rsvd11:3; /* finish byte */
 } __attribute__((packed));
 
 /* pre-915 */
