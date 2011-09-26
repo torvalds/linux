@@ -893,6 +893,10 @@ struct btrfs_fs_info {
 	spinlock_t block_group_cache_lock;
 	struct rb_root block_group_cache_tree;
 
+	/* keep track of unallocated space */
+	spinlock_t free_chunk_lock;
+	u64 free_chunk_space;
+
 	struct extent_io_tree freed_extents[2];
 	struct extent_io_tree *pinned_extents;
 

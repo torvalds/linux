@@ -3410,6 +3410,7 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
  * @block_rsv - the block_rsv we're allocating for
  * @orig_bytes - the number of bytes we want
  * @flush - wether or not we can flush to make our reservation
+ * @check - wether this is just to check if we have enough space or not
  *
  * This will reserve orgi_bytes number of bytes from the space info associated
  * with the block_rsv.  If there is not enough space it will make an attempt to
@@ -3420,11 +3421,11 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
  */
 static int reserve_metadata_bytes(struct btrfs_root *root,
 				  struct btrfs_block_rsv *block_rsv,
-				  u64 orig_bytes, int flush)
+				  u64 orig_bytes, int flush, int check)
 {
 	struct btrfs_space_info *space_info = block_rsv->space_info;
 	struct btrfs_trans_handle *trans;
-	u64 unused;
+	u64 used;
 	u64 num_bytes = orig_bytes;
 	int retries = 0;
 	int ret = 0;
@@ -3459,9 +3460,9 @@ again:
 	}
 
 	ret = -ENOSPC;
-	unused = space_info->bytes_used + space_info->bytes_reserved +
-		 space_info->bytes_pinned + space_info->bytes_readonly +
-		 space_info->bytes_may_use;
+	used = space_info->bytes_used + space_info->bytes_reserved +
+		space_info->bytes_pinned + space_info->bytes_readonly +
+		space_info->bytes_may_use;
 
 	/*
 	 * The idea here is that we've not already over-reserved the block group
@@ -3470,9 +3471,8 @@ again:
 	 * lets start flushing stuff first and then come back and try to make
 	 * our reservation.
 	 */
-	if (unused <= space_info->total_bytes) {
-		unused = space_info->total_bytes - unused;
-		if (unused >= orig_bytes) {
+	if (used <= space_info->total_bytes) {
+		if (used + orig_bytes <= space_info->total_bytes) {
 			space_info->bytes_may_use += orig_bytes;
 			ret = 0;
 		} else {
@@ -3489,8 +3489,41 @@ again:
 		 * amount plus the amount of bytes that we need for this
 		 * reservation.
 		 */
-		num_bytes = unused - space_info->total_bytes +
+		num_bytes = used - space_info->total_bytes +
 			(orig_bytes * (retries + 1));
+	}
+
+	if (ret && !check) {
+		u64 profile = btrfs_get_alloc_profile(root, 0);
+		u64 avail;
+
+		spin_lock(&root->fs_info->free_chunk_lock);
+		avail = root->fs_info->free_chunk_space;
+
+		/*
+		 * If we have dup, raid1 or raid10 then only half of the free
+		 * space is actually useable.
+		 */
+		if (profile & (BTRFS_BLOCK_GROUP_DUP |
+			       BTRFS_BLOCK_GROUP_RAID1 |
+			       BTRFS_BLOCK_GROUP_RAID10))
+			avail >>= 1;
+
+		/*
+		 * If we aren't flushing don't let us overcommit too much, say
+		 * 1/8th of the space.  If we can flush, let it overcommit up to
+		 * 1/2 of the space.
+		 */
+		if (flush)
+			avail >>= 3;
+		else
+			avail >>= 1;
+		 spin_unlock(&root->fs_info->free_chunk_lock);
+
+		if (used + orig_bytes < space_info->total_bytes + avail) {
+			space_info->bytes_may_use += orig_bytes;
+			ret = 0;
+		}
 	}
 
 	/*
@@ -3703,7 +3736,7 @@ int btrfs_block_rsv_add(struct btrfs_root *root,
 	if (num_bytes == 0)
 		return 0;
 
-	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, 1);
+	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, 1, 0);
 	if (!ret) {
 		block_rsv_add_bytes(block_rsv, num_bytes, 1);
 		return 0;
@@ -3737,7 +3770,7 @@ int btrfs_block_rsv_check(struct btrfs_root *root,
 	if (!ret)
 		return 0;
 
-	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
+	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush, !flush);
 	if (!ret) {
 		block_rsv_add_bytes(block_rsv, num_bytes, 0);
 		return 0;
@@ -4037,7 +4070,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	to_reserve += calc_csum_metadata_size(inode, num_bytes, 1);
 	spin_unlock(&BTRFS_I(inode)->lock);
 
-	ret = reserve_metadata_bytes(root, block_rsv, to_reserve, flush);
+	ret = reserve_metadata_bytes(root, block_rsv, to_reserve, flush, 0);
 	if (ret) {
 		u64 to_free = 0;
 		unsigned dropped;
@@ -5692,7 +5725,7 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 	block_rsv = get_block_rsv(trans, root);
 
 	if (block_rsv->size == 0) {
-		ret = reserve_metadata_bytes(root, block_rsv, blocksize, 0);
+		ret = reserve_metadata_bytes(root, block_rsv, blocksize, 0, 0);
 		/*
 		 * If we couldn't reserve metadata bytes try and use some from
 		 * the global reserve.
@@ -5713,7 +5746,7 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 		return block_rsv;
 	if (ret) {
 		WARN_ON(1);
-		ret = reserve_metadata_bytes(root, block_rsv, blocksize, 0);
+		ret = reserve_metadata_bytes(root, block_rsv, blocksize, 0, 0);
 		if (!ret) {
 			return block_rsv;
 		} else if (ret && block_rsv != global_rsv) {
