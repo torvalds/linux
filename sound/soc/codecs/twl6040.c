@@ -763,14 +763,16 @@ static int twl6040_put_volsw(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int ret;
-	unsigned int reg = mc->reg;
 
 	/* For HS and HF we shadow the values and only actually write
 	 * them out when active in order to ensure the amplifier comes on
 	 * as quietly as possible. */
-	switch (reg) {
+	switch (mc->reg) {
 	case TWL6040_REG_HSGAIN:
 		out = &twl6040_priv->headset;
+		break;
+	case TWL6040_REG_HFLGAIN:
+		out = &twl6040_priv->handsfree;
 		break;
 	default:
 		break;
@@ -783,7 +785,12 @@ static int twl6040_put_volsw(struct snd_kcontrol *kcontrol,
 			return 1;
 	}
 
-	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+	/* call the appropriate handler depending on the rreg */
+	if (mc->rreg)
+		ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+	else
+		ret = snd_soc_put_volsw(kcontrol, ucontrol);
+
 	if (ret < 0)
 		return ret;
 
@@ -798,39 +805,12 @@ static int twl6040_get_volsw(struct snd_kcontrol *kcontrol,
 	struct twl6040_output *out = &twl6040_priv->headset;
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
 
-	switch (reg) {
+	switch (mc->reg) {
 	case TWL6040_REG_HSGAIN:
 		out = &twl6040_priv->headset;
-		ucontrol->value.integer.value[0] = out->left_vol;
-		ucontrol->value.integer.value[1] = out->right_vol;
-		return 0;
-
-	default:
 		break;
-	}
-
-	return snd_soc_get_volsw(kcontrol, ucontrol);
-}
-
-static int twl6040_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct twl6040_data *twl6040_priv = snd_soc_codec_get_drvdata(codec);
-	struct twl6040_output *out = NULL;
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int ret;
-	unsigned int reg = mc->reg;
-
-	/* For HS and HF we shadow the values and only actually write
-	 * them out when active in order to ensure the amplifier comes on
-	 * as quietly as possible. */
-	switch (reg) {
 	case TWL6040_REG_HFLGAIN:
-	case TWL6040_REG_HFRGAIN:
 		out = &twl6040_priv->handsfree;
 		break;
 	default:
@@ -838,43 +818,16 @@ static int twl6040_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 	}
 
 	if (out) {
-		out->left_vol = ucontrol->value.integer.value[0];
-		out->right_vol = ucontrol->value.integer.value[1];
-		if (!out->active)
-			return 1;
-	}
-
-	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
-	if (ret < 0)
-		return ret;
-
-	return 1;
-}
-
-static int twl6040_get_volsw_2r(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct twl6040_data *twl6040_priv = snd_soc_codec_get_drvdata(codec);
-	struct twl6040_output *out = &twl6040_priv->handsfree;
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
-
-	/* If these are cached registers use the cache */
-	switch (reg) {
-	case TWL6040_REG_HFLGAIN:
-	case TWL6040_REG_HFRGAIN:
-		out = &twl6040_priv->handsfree;
 		ucontrol->value.integer.value[0] = out->left_vol;
 		ucontrol->value.integer.value[1] = out->right_vol;
 		return 0;
-
-	default:
-		break;
 	}
 
-	return snd_soc_get_volsw_2r(kcontrol, ucontrol);
+	/* call the appropriate handler depending on the rreg */
+	if (mc->rreg)
+		return snd_soc_get_volsw_2r(kcontrol, ucontrol);
+	else
+		return snd_soc_get_volsw(kcontrol, ucontrol);
 }
 
 /* double control with volume update */
@@ -899,7 +852,7 @@ static int twl6040_get_volsw_2r(struct snd_kcontrol *kcontrol,
 		SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
 	.tlv.p = (tlv_array), \
 	.info = snd_soc_info_volsw_2r, \
-	.get = twl6040_get_volsw_2r, .put = twl6040_put_volsw_2r_vu, \
+	.get = twl6040_get_volsw, .put = twl6040_put_volsw, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
 		 .rshift = xshift, .max = xmax, .invert = xinvert}, }
