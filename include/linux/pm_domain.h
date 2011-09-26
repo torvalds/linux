@@ -62,6 +62,16 @@ struct gpd_link {
 	struct list_head slave_node;
 };
 
+struct generic_pm_domain_data {
+	struct pm_domain_data base;
+	bool need_restore;
+};
+
+static inline struct generic_pm_domain_data *to_gpd_data(struct pm_domain_data *pdd)
+{
+	return container_of(pdd, struct generic_pm_domain_data, base);
+}
+
 #ifdef CONFIG_PM_GENERIC_DOMAINS
 extern int pm_genpd_add_device(struct generic_pm_domain *genpd,
 			       struct device *dev);

@@ -188,11 +188,12 @@ static int __pm_genpd_save_device(struct pm_domain_data *pdd,
 				  struct generic_pm_domain *genpd)
 	__releases(&genpd->lock) __acquires(&genpd->lock)
 {
+	struct generic_pm_domain_data *gpd_data = to_gpd_data(pdd);
 	struct device *dev = pdd->dev;
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
 
-	if (pdd->need_restore)
+	if (gpd_data->need_restore)
 		return 0;
 
 	mutex_unlock(&genpd->lock);
@@ -210,7 +211,7 @@ static int __pm_genpd_save_device(struct pm_domain_data *pdd,
 	mutex_lock(&genpd->lock);
 
 	if (!ret)
-		pdd->need_restore = true;
+		gpd_data->need_restore = true;
 
 	return ret;
 }
@@ -224,10 +225,11 @@ static void __pm_genpd_restore_device(struct pm_domain_data *pdd,
 				      struct generic_pm_domain *genpd)
 	__releases(&genpd->lock) __acquires(&genpd->lock)
 {
+	struct generic_pm_domain_data *gpd_data = to_gpd_data(pdd);
 	struct device *dev = pdd->dev;
 	struct device_driver *drv = dev->driver;
 
-	if (!pdd->need_restore)
+	if (!gpd_data->need_restore)
 		return;
 
 	mutex_unlock(&genpd->lock);
@@ -244,7 +246,7 @@ static void __pm_genpd_restore_device(struct pm_domain_data *pdd,
 
 	mutex_lock(&genpd->lock);
 
-	pdd->need_restore = false;
+	gpd_data->need_restore = false;
 }
 
 /**
@@ -493,7 +495,7 @@ static int pm_genpd_runtime_resume(struct device *dev)
 		mutex_lock(&genpd->lock);
 	}
 	finish_wait(&genpd->status_wait_queue, &wait);
-	__pm_genpd_restore_device(&dev->power.subsys_data->domain_data, genpd);
+	__pm_genpd_restore_device(dev->power.subsys_data->domain_data, genpd);
 	genpd->resume_count--;
 	genpd_set_active(genpd);
 	wake_up_all(&genpd->status_wait_queue);
@@ -1080,6 +1082,7 @@ static void pm_genpd_complete(struct device *dev)
  */
 int pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
 {
+	struct generic_pm_domain_data *gpd_data;
 	struct pm_domain_data *pdd;
 	int ret = 0;
 
@@ -1106,14 +1109,20 @@ int pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
 			goto out;
 		}
 
+	gpd_data = kzalloc(sizeof(*gpd_data), GFP_KERNEL);
+	if (!gpd_data) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	genpd->device_count++;
 
 	dev->pm_domain = &genpd->domain;
 	dev_pm_get_subsys_data(dev);
-	pdd = &dev->power.subsys_data->domain_data;
-	pdd->dev = dev;
-	pdd->need_restore = false;
-	list_add_tail(&pdd->list_node, &genpd->dev_list);
+	dev->power.subsys_data->domain_data = &gpd_data->base;
+	gpd_data->base.dev = dev;
+	gpd_data->need_restore = false;
+	list_add_tail(&gpd_data->base.list_node, &genpd->dev_list);
 
  out:
 	genpd_release_lock(genpd);
@@ -1152,6 +1161,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 		pdd->dev = NULL;
 		dev_pm_put_subsys_data(dev);
 		dev->pm_domain = NULL;
+		kfree(to_gpd_data(pdd));
 
 		genpd->device_count--;
 
