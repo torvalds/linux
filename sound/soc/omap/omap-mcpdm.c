@@ -59,6 +59,9 @@ struct omap_mcpdm {
 	/* McPDM FIFO thresholds */
 	u32 dn_threshold;
 	u32 up_threshold;
+
+	/* McPDM dn offsets for rx1, and 2 channels */
+	u32 dn_rx_offset;
 };
 
 /*
@@ -183,6 +186,15 @@ static void omap_mcpdm_open_streams(struct omap_mcpdm *mcpdm)
 			MCPDM_DN_IRQ_EMPTY | MCPDM_DN_IRQ_FULL |
 			MCPDM_UP_IRQ_EMPTY | MCPDM_UP_IRQ_FULL);
 
+	/* Enable DN RX1/2 offset cancellation feature, if configured */
+	if (mcpdm->dn_rx_offset) {
+		u32 dn_offset = mcpdm->dn_rx_offset;
+
+		omap_mcpdm_write(mcpdm, MCPDM_REG_DN_OFFSET, dn_offset);
+		dn_offset |= (MCPDM_DN_OFST_RX1_EN | MCPDM_DN_OFST_RX2_EN);
+		omap_mcpdm_write(mcpdm, MCPDM_REG_DN_OFFSET, dn_offset);
+	}
+
 	omap_mcpdm_write(mcpdm, MCPDM_REG_FIFO_CTRL_DN, mcpdm->dn_threshold);
 	omap_mcpdm_write(mcpdm, MCPDM_REG_FIFO_CTRL_UP, mcpdm->up_threshold);
 
@@ -209,6 +221,10 @@ static void omap_mcpdm_close_streams(struct omap_mcpdm *mcpdm)
 
 	/* Disable DMA request generation for uplink */
 	omap_mcpdm_write(mcpdm, MCPDM_REG_DMAENABLE_CLR, MCPDM_DMA_UP_ENABLE);
+
+	/* Disable RX1/2 offset cancellation */
+	if (mcpdm->dn_rx_offset)
+		omap_mcpdm_write(mcpdm, MCPDM_REG_DN_OFFSET, 0);
 }
 
 static irqreturn_t omap_mcpdm_irq_handler(int irq, void *dev_id)
@@ -417,6 +433,15 @@ static struct snd_soc_dai_driver omap_mcpdm_dai = {
 	},
 	.ops = &omap_mcpdm_dai_ops,
 };
+
+void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
+				    u8 rx1, u8 rx2)
+{
+	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+
+	mcpdm->dn_rx_offset = MCPDM_DNOFST_RX1(rx1) | MCPDM_DNOFST_RX2(rx2);
+}
+EXPORT_SYMBOL_GPL(omap_mcpdm_configure_dn_offsets);
 
 static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 {

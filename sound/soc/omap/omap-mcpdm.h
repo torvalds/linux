@@ -92,4 +92,16 @@
 #define MCPDM_UP_THRES_MAX		0xF
 #define MCPDM_DN_THRES_MAX		0xF
 
+/*
+ * MCPDM_DN_OFFSET bit fields
+ */
+
+#define MCPDM_DN_OFST_RX1_EN		(1 << 0)
+#define MCPDM_DNOFST_RX1(x)		((x & 0x1f) << 1)
+#define MCPDM_DN_OFST_RX2_EN		(1 << 8)
+#define MCPDM_DNOFST_RX2(x)		((x & 0x1f) << 9)
+
+void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
+				    u8 rx1, u8 rx2);
+
 #endif	/* End of __OMAP_MCPDM_H__ */
