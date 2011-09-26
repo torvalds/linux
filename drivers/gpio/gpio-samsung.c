@@ -446,6 +446,8 @@ static struct samsung_gpio_cfg s3c24xx_gpiocfg_banka = {
 static struct samsung_gpio_cfg exynos4_gpio_cfg = {
 	.set_pull	= exynos4_gpio_setpull,
 	.get_pull	= exynos4_gpio_getpull,
+	.set_config	= samsung_gpio_setcfg_4bit,
+	.get_config	= samsung_gpio_getcfg_4bit,
 };
 
 static struct samsung_gpio_cfg s5p64x0_gpio_cfg_rbank = {
