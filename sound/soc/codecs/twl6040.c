@@ -1072,6 +1072,15 @@ int twl6040_get_clk_id(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(twl6040_get_clk_id);
 
+int twl6040_get_trim_value(struct snd_soc_codec *codec, enum twl6040_trim trim)
+{
+	if (unlikely(trim >= TWL6040_TRIM_INVAL))
+		return -EINVAL;
+
+	return twl6040_read_reg_cache(codec, TWL6040_REG_TRIM1 + trim);
+}
+EXPORT_SYMBOL_GPL(twl6040_get_trim_value);
+
 static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 	/* Capture gains */
 	SOC_DOUBLE_TLV("Capture Preamplifier Volume",
