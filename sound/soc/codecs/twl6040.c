@@ -278,8 +278,15 @@ static void twl6040_init_chip(struct snd_soc_codec *codec)
 	struct twl6040 *twl6040 = codec->control_data;
 	u8 val;
 
+	/* Update reg_cache: ASICREV, and TRIM values */
 	val = twl6040_get_revid(twl6040);
 	twl6040_write_reg_cache(codec, TWL6040_REG_ASICREV, val);
+
+	twl6040_read_reg_volatile(codec, TWL6040_REG_TRIM1);
+	twl6040_read_reg_volatile(codec, TWL6040_REG_TRIM2);
+	twl6040_read_reg_volatile(codec, TWL6040_REG_TRIM3);
+	twl6040_read_reg_volatile(codec, TWL6040_REG_HSOTRIM);
+	twl6040_read_reg_volatile(codec, TWL6040_REG_HFOTRIM);
 
 	/* Change chip defaults */
 	/* No imput selected for microphone amplifiers */
