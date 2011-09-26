@@ -72,7 +72,6 @@ struct twl6040_output {
 	u16 right_step;
 	unsigned int step_delay;
 	u16 ramp;
-	u16 mute;
 	struct completion ramp_done;
 };
 
@@ -573,7 +572,7 @@ static void twl6040_pga_hf_work(struct work_struct *work)
 	handsfree->ramp = TWL6040_RAMP_NONE;
 }
 
-static int pga_event(struct snd_soc_dapm_widget *w,
+static int out_drv_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
@@ -1197,19 +1196,19 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 	/* Analog playback drivers */
 	SND_SOC_DAPM_OUT_DRV_E("HF Left Driver",
 			TWL6040_REG_HFLCTL, 4, 0, NULL, 0,
-			pga_event,
+			out_drv_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUT_DRV_E("HF Right Driver",
 			TWL6040_REG_HFRCTL, 4, 0, NULL, 0,
-			pga_event,
+			out_drv_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUT_DRV_E("HS Left Driver",
 			TWL6040_REG_HSLCTL, 2, 0, NULL, 0,
-			pga_event,
+			out_drv_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUT_DRV_E("HS Right Driver",
 			TWL6040_REG_HSRCTL, 2, 0, NULL, 0,
-			pga_event,
+			out_drv_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUT_DRV_E("Earphone Driver",
 			TWL6040_REG_EARCTL, 0, 0, NULL, 0,
