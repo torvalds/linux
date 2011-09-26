@@ -281,10 +281,6 @@ When the system goes into the standby or memory sleep state, the phases are:
 	time.)  Unlike the other suspend-related phases, during the prepare
 	phase the device tree is traversed top-down.
 
-	In addition to that, if device drivers need to allocate additional
-	memory to be able to hadle device suspend correctly, that should be
-	done in the prepare phase.
-
 	After the prepare callback method returns, no new children may be
 	registered below the device.  The method may also prepare the device or
 	driver in some way for the upcoming system power transition (for
