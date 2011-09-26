@@ -113,7 +113,14 @@ static struct clk_lookup lookups[] = {
 
 	/* MSTP32 clocks */
 	CLKDEV_CON_ID("sdhi0", &mstp_clks[MSTP004]),
-	CLKDEV_CON_ID("riic", &mstp_clks[MSTP000]),
+	CLKDEV_CON_ID("riic0", &mstp_clks[MSTP000]),
+	CLKDEV_CON_ID("riic1", &mstp_clks[MSTP000]),
+	CLKDEV_CON_ID("riic2", &mstp_clks[MSTP000]),
+	CLKDEV_CON_ID("riic3", &mstp_clks[MSTP000]),
+	CLKDEV_CON_ID("riic4", &mstp_clks[MSTP000]),
+	CLKDEV_CON_ID("riic5", &mstp_clks[MSTP000]),
+	CLKDEV_CON_ID("riic6", &mstp_clks[MSTP000]),
+	CLKDEV_CON_ID("riic7", &mstp_clks[MSTP000]),
 
 	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.0", &mstp_clks[MSTP113]),
 	CLKDEV_ICK_ID("tmu_fck", "sh_tmu.1", &mstp_clks[MSTP114]),
@@ -121,6 +128,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("sci_fck", "sh-sci.1", &mstp_clks[MSTP111]),
 	CLKDEV_ICK_ID("sci_fck", "sh-sci.0", &mstp_clks[MSTP110]),
 
+	CLKDEV_CON_ID("usb_fck", &mstp_clks[MSTP103]),
 	CLKDEV_CON_ID("usb0", &mstp_clks[MSTP102]),
 	CLKDEV_CON_ID("mmc0", &mstp_clks[MSTP220]),
 };
