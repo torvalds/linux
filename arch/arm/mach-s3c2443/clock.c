@@ -169,7 +169,7 @@ static struct clksrc_clk clk_arm = {
 
 static struct clksrc_clk clk_hsspi = {
 	.clk	= {
-		.name		= "hsspi",
+		.name		= "hsspi-if",
 		.parent		= &clk_esysclk.clk,
 		.ctrlbit	= S3C2443_SCLKCON_HSSPICLK,
 		.enable		= s3c2443_clkcon_enable_s,
