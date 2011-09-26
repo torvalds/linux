@@ -51,6 +51,7 @@ void iommu_set_fault_handler(struct iommu_domain *domain,
 
 	domain->handler = handler;
 }
+EXPORT_SYMBOL_GPL(iommu_set_fault_handler);
 
 struct iommu_domain *iommu_domain_alloc(void)
 {
