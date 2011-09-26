@@ -79,6 +79,17 @@ static struct omap_mcbsp_ops omap1_mcbsp_ops = {
 	.free		= omap1_mcbsp_free,
 };
 
+#define OMAP7XX_MCBSP1_BASE	0xfffb1000
+#define OMAP7XX_MCBSP2_BASE	0xfffb1800
+
+#define OMAP1510_MCBSP1_BASE	0xe1011800
+#define OMAP1510_MCBSP2_BASE	0xfffb1000
+#define OMAP1510_MCBSP3_BASE	0xe1017000
+
+#define OMAP1610_MCBSP1_BASE	0xe1011800
+#define OMAP1610_MCBSP2_BASE	0xfffb1000
+#define OMAP1610_MCBSP3_BASE	0xe1017000
+
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 struct resource omap7xx_mcbsp_res[][6] = {
 	{
