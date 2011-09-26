@@ -57,9 +57,9 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct symbol *parent, u64 period);
 extern int64_t hist_entry__cmp(struct hist_entry *, struct hist_entry *);
 extern int64_t hist_entry__collapse(struct hist_entry *, struct hist_entry *);
-int hist_entry__fprintf(struct hist_entry *self, struct hists *hists,
+int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
 			struct hists *pair_hists, bool show_displacement,
-			long displacement, FILE *fp, u64 total);
+			long displacement, FILE *fp, u64 session_total);
 int hist_entry__snprintf(struct hist_entry *self, char *bf, size_t size,
 			 struct hists *hists, struct hists *pair_hists,
 			 bool show_displacement, long displacement,
@@ -73,7 +73,8 @@ void hists__inc_nr_events(struct hists *self, u32 type);
 size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
 
 size_t hists__fprintf(struct hists *self, struct hists *pair,
-		      bool show_displacement, FILE *fp);
+		      bool show_displacement, bool show_header,
+		      int max_rows, int max_cols, FILE *fp);
 
 int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
 int hist_entry__annotate(struct hist_entry *self, size_t privsize);

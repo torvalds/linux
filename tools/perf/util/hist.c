@@ -710,12 +710,16 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 	return ret;
 }
 
-int hist_entry__fprintf(struct hist_entry *self, struct hists *hists,
+int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
 			struct hists *pair_hists, bool show_displacement,
 			long displacement, FILE *fp, u64 session_total)
 {
 	char bf[512];
-	hist_entry__snprintf(self, bf, sizeof(bf), hists, pair_hists,
+
+	if (size == 0 || size > sizeof(bf))
+		size = sizeof(bf);
+
+	hist_entry__snprintf(he, bf, size, hists, pair_hists,
 			     show_displacement, displacement,
 			     true, session_total);
 	return fprintf(fp, "%s\n", bf);
@@ -739,7 +743,8 @@ static size_t hist_entry__fprintf_callchain(struct hist_entry *self,
 }
 
 size_t hists__fprintf(struct hists *hists, struct hists *pair,
-		      bool show_displacement, FILE *fp)
+		      bool show_displacement, bool show_header, int max_rows,
+		      int max_cols, FILE *fp)
 {
 	struct sort_entry *se;
 	struct rb_node *nd;
@@ -749,8 +754,12 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 	unsigned int width;
 	const char *sep = symbol_conf.field_sep;
 	const char *col_width = symbol_conf.col_width_list_str;
+	int nr_rows = 0;
 
 	init_rem_hits();
+
+	if (!show_header)
+		goto print_entries;
 
 	fprintf(fp, "# %s", pair ? "Baseline" : "Overhead");
 
@@ -814,7 +823,10 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 			width = hists__col_len(hists, se->se_width_idx);
 		fprintf(fp, "  %*s", width, se->se_header);
 	}
+
 	fprintf(fp, "\n");
+	if (max_rows && ++nr_rows >= max_rows)
+		goto out;
 
 	if (sep)
 		goto print_entries;
@@ -841,7 +853,13 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 			fprintf(fp, ".");
 	}
 
-	fprintf(fp, "\n#\n");
+	fprintf(fp, "\n");
+	if (max_rows && ++nr_rows >= max_rows)
+		goto out;
+
+	fprintf(fp, "#\n");
+	if (max_rows && ++nr_rows >= max_rows)
+		goto out;
 
 print_entries:
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
@@ -858,19 +876,22 @@ print_entries:
 				displacement = 0;
 			++position;
 		}
-		ret += hist_entry__fprintf(h, hists, pair, show_displacement,
+		ret += hist_entry__fprintf(h, max_cols, hists, pair, show_displacement,
 					   displacement, fp, hists->stats.total_period);
 
 		if (symbol_conf.use_callchain)
 			ret += hist_entry__fprintf_callchain(h, hists, fp,
 							     hists->stats.total_period);
+		if (max_rows && ++nr_rows >= max_rows)
+			goto out;
+
 		if (h->ms.map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(&h->thread->mg,
 						   MAP__FUNCTION, verbose, fp);
 			fprintf(fp, "%.10s end\n", graph_dotted_line);
 		}
 	}
-
+out:
 	free(rem_sq_bracket);
 
 	return ret;
