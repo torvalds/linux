@@ -27,7 +27,6 @@
 #define S5P_USE_STANDBY_WFI1			(1 << 17)
 #define S5P_USE_STANDBY_WFE0			(1 << 24)
 #define S5P_USE_STANDBY_WFE1			(1 << 25)
-#define S5P_USE_MASK				((0x3 << 16) | (0x3 << 24))
 
 #define S5P_SWRESET				S5P_PMUREG(0x0400)
 
