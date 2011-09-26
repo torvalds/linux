@@ -369,17 +369,11 @@ static void __init omap_h4_init(void)
 	h4_init_flash();
 }
 
-static void __init omap_h4_map_io(void)
-{
-	omap2_set_globals_242x();
-	omap242x_map_common_io();
-}
-
 MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	/* Maintainer: Paul Mundt <paul.mundt@nokia.com> */
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
-	.map_io		= omap_h4_map_io,
+	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap_h4_init_irq,
 	.init_machine	= omap_h4_init,

@@ -143,16 +143,10 @@ static void __init rm680_init(void)
 	rm680_peripherals_init();
 }
 
-static void __init rm680_map_io(void)
-{
-	omap2_set_globals_3xxx();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
-	.map_io		= rm680_map_io,
+	.map_io		= omap3_map_io,
 	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= rm680_init,

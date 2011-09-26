@@ -337,17 +337,11 @@ static void __init omap_apollon_init(void)
 	omap_sdrc_init(NULL, NULL);
 }
 
-static void __init omap_apollon_map_io(void)
-{
-	omap2_set_globals_242x();
-	omap242x_map_common_io();
-}
-
 MACHINE_START(OMAP_APOLLON, "OMAP24xx Apollon")
 	/* Maintainer: Kyungmin Park <kyungmin.park@samsung.com> */
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
-	.map_io		= omap_apollon_map_io,
+	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
 	.init_machine	= omap_apollon_init,
