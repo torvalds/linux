@@ -43,7 +43,7 @@
 static DEFINE_MUTEX(vme_user_mutex);
 static const char driver_name[] = "vme_user";
 
-static int bus[USER_BUS_MAX];
+static int bus[VME_USER_BUS_MAX];
 static unsigned int bus_num;
 
 /* Currently Documentation/devices.txt defines the following for VME:
@@ -643,10 +643,10 @@ static int __init vme_user_init(void)
 	/* Let's start by supporting one bus, we can support more than one
 	 * in future revisions if that ever becomes necessary.
 	 */
-	if (bus_num > USER_BUS_MAX) {
+	if (bus_num > VME_USER_BUS_MAX) {
 		printk(KERN_ERR "%s: Driver only able to handle %d buses\n",
-			driver_name, USER_BUS_MAX);
-		bus_num = USER_BUS_MAX;
+			driver_name, VME_USER_BUS_MAX);
+		bus_num = VME_USER_BUS_MAX;
 	}
 
 	/*
@@ -668,7 +668,7 @@ err_nocard:
 
 static int vme_user_match(struct vme_dev *vdev)
 {
-	if (vdev->num >= USER_BUS_MAX)
+	if (vdev->num >= VME_USER_BUS_MAX)
 		return 0;
 	return 1;
 }
