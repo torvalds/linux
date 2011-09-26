@@ -1732,7 +1732,7 @@ void __devinit pcibios_scan_phb(struct pci_controller *hose)
 		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
 
 	/* Configure PCI Express settings */
-	if (bus) {
+	if (bus && !pci_has_flag(PCI_PROBE_ONLY)) {
 		struct pci_bus *child;
 		list_for_each_entry(child, &bus->children, node) {
 			struct pci_dev *self = child->self;
