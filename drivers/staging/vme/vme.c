@@ -1377,16 +1377,14 @@ static int __vme_register_driver_bus(struct vme_driver *drv,
 			err = -ENOMEM;
 			goto err_devalloc;
 		}
-		vdev->id.num = i;
-		vdev->id.bus = bridge->num;
-		vdev->id.slot = i + 1;
+		vdev->num = i;
 		vdev->bridge = bridge;
 		vdev->dev.platform_data = drv;
 		vdev->dev.release = vme_dev_release;
 		vdev->dev.parent = bridge->parent;
 		vdev->dev.bus = &vme_bus_type;
-		dev_set_name(&vdev->dev, "%s.%u-%u", drv->name, vdev->id.bus,
-			vdev->id.num);
+		dev_set_name(&vdev->dev, "%s.%u-%u", drv->name, bridge->num,
+			vdev->num);
 
 		err = device_register(&vdev->dev);
 		if (err)

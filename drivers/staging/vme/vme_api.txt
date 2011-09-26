@@ -51,23 +51,16 @@ probe routine is passed a 'struct vme_dev' pointer as an argument. The
 'struct vme_dev' structure looks like the following:
 
 	struct vme_dev {
-		struct vme_device_id id;
+		int num;
 		struct vme_bridge *bridge;
 		struct device dev;
+		struct list_head drv_list;
+		struct list_head bridge_list;
 	};
 
-The 'bridge' field contains a pointer to the bridge device. The 'id' field
-contains information useful for the probe function:
-
-	struct vme_device_id {
-		int bus;
-		int slot;
-		int num;
-	};
-
-Here, 'bus' is the number of the bus the device being probed is on. 'slot'
-refers to the specific slot on the VME bus. The 'num' field refers to the
-sequential device ID for this specific driver.
+Here, the 'num' field refers to the sequential device ID for this specific
+driver. The bridge number (or bus number) can be accessed using
+dev->bridge->num.
 
 A function is also provided to unregister the driver from the VME core and is
 usually called from the device driver's exit routine:
@@ -78,9 +71,11 @@ usually called from the device driver's exit routine:
 Resource management
 ===================
 
-Once a driver has registered with the VME core the provided probe routine will
-be called for each of the bus/slot combination that becomes valid as VME buses
-are themselves registered.  The probe routine is passed a pointer to the devices
+Once a driver has registered with the VME core the provided match routine will
+be called the number of times specified during the registration. If a match
+succeeds, a non-zero value should be returned. A zero return value indicates
+failure. For all successful matches, the probe routine of the corresponding
+driver is called. The probe routine is passed a pointer to the devices
 device structure. This pointer should be saved, it will be required for
 requesting VME resources.
 

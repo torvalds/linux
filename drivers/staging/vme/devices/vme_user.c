@@ -668,7 +668,7 @@ err_nocard:
 
 static int vme_user_match(struct vme_dev *vdev)
 {
-	if (vdev->id.num >= USER_BUS_MAX)
+	if (vdev->num >= USER_BUS_MAX)
 		return 0;
 	return 1;
 }

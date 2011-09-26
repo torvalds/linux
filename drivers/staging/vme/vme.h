@@ -96,18 +96,6 @@ extern struct bus_type vme_bus_type;
 #define VME_SLOT_ALL		-2
 
 /**
- * VME device identifier structure
- * @num: The device ID (ranges from 0 to N-1 for N devices)
- * @bus: The bus ID of the bus the device is on
- * @slot: The slot this device is plugged into
- */
-struct vme_device_id {
-	int num;
-	int bus;
-	int slot;
-};
-
-/**
  * Structure representing a VME device
  * @id: The ID of the device (currently the bus and slot number)
  * @bridge: Pointer to the bridge device this device is on
@@ -116,7 +104,7 @@ struct vme_device_id {
  * @bridge_list: List of devices (per bridge)
  */
 struct vme_dev {
-	struct vme_device_id id;
+	int num;
 	struct vme_bridge *bridge;
 	struct device dev;
 	struct list_head drv_list;
