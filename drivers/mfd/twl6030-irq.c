@@ -109,7 +109,13 @@ static int twl6030_irq_pm_notifier(struct notifier_block *notifier,
 			twl_irq_wake_enabled = false;
 		}
 
+		disable_irq(twl_irq);
 		break;
+
+	case PM_POST_SUSPEND:
+		enable_irq(twl_irq);
+		break;
+
 	default:
 		break;
 	}
