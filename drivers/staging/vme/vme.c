@@ -1317,6 +1317,7 @@ static int vme_add_bus(struct vme_bridge *bridge)
 		if ((vme_bus_numbers & (1 << i)) == 0) {
 			vme_bus_numbers |= (1 << i);
 			bridge->num = i;
+			INIT_LIST_HEAD(&bridge->devices);
 			list_add_tail(&bridge->bus_list, &vme_bus_list);
 			ret = 0;
 			break;
@@ -1329,8 +1330,16 @@ static int vme_add_bus(struct vme_bridge *bridge)
 
 static void vme_remove_bus(struct vme_bridge *bridge)
 {
+	struct vme_dev *vdev;
+	struct vme_dev *tmp;
+
 	mutex_lock(&vme_buses_lock);
 	vme_bus_numbers &= ~(1 << bridge->num);
+	list_for_each_entry_safe(vdev, tmp, &bridge->devices, bridge_list) {
+		list_del(&vdev->drv_list);
+		list_del(&vdev->bridge_list);
+		device_unregister(&vdev->dev);
+	}
 	list_del(&bridge->bus_list);
 	mutex_unlock(&vme_buses_lock);
 }
@@ -1342,153 +1351,153 @@ static void vme_dev_release(struct device *dev)
 
 int vme_register_bridge(struct vme_bridge *bridge)
 {
-	struct vme_dev *vdev;
-	int retval;
-	int i;
-
-	retval = vme_add_bus(bridge);
-	if (retval)
-		return retval;
-
-	/* This creates 32 vme "slot" devices. This equates to a slot for each
-	 * ID available in a system conforming to the ANSI/VITA 1-1994
-	 * specification.
-	 */
-	for (i = 0; i < VME_SLOTS_MAX; i++) {
-		bridge->dev[i] = kzalloc(sizeof(struct vme_dev), GFP_KERNEL);
-		if (!bridge->dev[i]) {
-			retval = -ENOMEM;
-			goto err_devalloc;
-		}
-		vdev = bridge->dev[i];
-		memset(vdev, 0, sizeof(struct vme_dev));
-
-		vdev->id.bus = bridge->num;
-		vdev->id.slot = i + 1;
-		vdev->bridge = bridge;
-		vdev->dev.parent = bridge->parent;
-		vdev->dev.bus = &vme_bus_type;
-		vdev->dev.release = vme_dev_release;
-		/*
-		 * We save a pointer to the bridge in platform_data so that we
-		 * can get to it later. We keep driver_data for use by the
-		 * driver that binds against the slot
-		 */
-		vdev->dev.platform_data = bridge;
-		dev_set_name(&vdev->dev, "vme-%x.%x", bridge->num, i + 1);
-
-		retval = device_register(&vdev->dev);
-		if (retval)
-			goto err_reg;
-	}
-
-	return retval;
-
-err_reg:
-	kfree(vdev);
-err_devalloc:
-	while (--i >= 0) {
-		vdev = bridge->dev[i];
-		device_unregister(&vdev->dev);
-	}
-	vme_remove_bus(bridge);
-	return retval;
+	return vme_add_bus(bridge);
 }
 EXPORT_SYMBOL(vme_register_bridge);
 
 void vme_unregister_bridge(struct vme_bridge *bridge)
 {
-	int i;
-	struct vme_dev *vdev;
-
-
-	for (i = 0; i < VME_SLOTS_MAX; i++) {
-		vdev = bridge->dev[i];
-		device_unregister(&vdev->dev);
-	}
 	vme_remove_bus(bridge);
 }
 EXPORT_SYMBOL(vme_unregister_bridge);
 
-
 /* - Driver Registration --------------------------------------------------- */
 
-int vme_register_driver(struct vme_driver *drv)
+static int __vme_register_driver_bus(struct vme_driver *drv,
+	struct vme_bridge *bridge, unsigned int ndevs)
 {
+	int err;
+	unsigned int i;
+	struct vme_dev *vdev;
+	struct vme_dev *tmp;
+
+	for (i = 0; i < ndevs; i++) {
+		vdev = kzalloc(sizeof(struct vme_dev), GFP_KERNEL);
+		if (!vdev) {
+			err = -ENOMEM;
+			goto err_devalloc;
+		}
+		vdev->id.num = i;
+		vdev->id.bus = bridge->num;
+		vdev->id.slot = i + 1;
+		vdev->bridge = bridge;
+		vdev->dev.platform_data = drv;
+		vdev->dev.release = vme_dev_release;
+		vdev->dev.parent = bridge->parent;
+		vdev->dev.bus = &vme_bus_type;
+		dev_set_name(&vdev->dev, "%s.%u-%u", drv->name, vdev->id.bus,
+			vdev->id.num);
+
+		err = device_register(&vdev->dev);
+		if (err)
+			goto err_reg;
+
+		if (vdev->dev.platform_data) {
+			list_add_tail(&vdev->drv_list, &drv->devices);
+			list_add_tail(&vdev->bridge_list, &bridge->devices);
+		} else
+			device_unregister(&vdev->dev);
+	}
+	return 0;
+
+err_reg:
+	kfree(vdev);
+err_devalloc:
+	list_for_each_entry_safe(vdev, tmp, &drv->devices, drv_list) {
+		list_del(&vdev->drv_list);
+		list_del(&vdev->bridge_list);
+		device_unregister(&vdev->dev);
+	}
+	return err;
+}
+
+static int __vme_register_driver(struct vme_driver *drv, unsigned int ndevs)
+{
+	struct vme_bridge *bridge;
+	int err = 0;
+
+	mutex_lock(&vme_buses_lock);
+	list_for_each_entry(bridge, &vme_bus_list, bus_list) {
+		/*
+		 * This cannot cause trouble as we already have vme_buses_lock
+		 * and if the bridge is removed, it will have to go through
+		 * vme_unregister_bridge() to do it (which calls remove() on
+		 * the bridge which in turn tries to acquire vme_buses_lock and
+		 * will have to wait). The probe() called after device
+		 * registration in __vme_register_driver below will also fail
+		 * as the bridge is being removed (since the probe() calls
+		 * vme_bridge_get()).
+		 */
+		err = __vme_register_driver_bus(drv, bridge, ndevs);
+		if (err)
+			break;
+	}
+	mutex_unlock(&vme_buses_lock);
+	return err;
+}
+
+int vme_register_driver(struct vme_driver *drv, unsigned int ndevs)
+{
+	int err;
+
 	drv->driver.name = drv->name;
 	drv->driver.bus = &vme_bus_type;
+	INIT_LIST_HEAD(&drv->devices);
 
-	return driver_register(&drv->driver);
+	err = driver_register(&drv->driver);
+	if (err)
+		return err;
+
+	err = __vme_register_driver(drv, ndevs);
+	if (err)
+		driver_unregister(&drv->driver);
+
+	return err;
 }
 EXPORT_SYMBOL(vme_register_driver);
 
 void vme_unregister_driver(struct vme_driver *drv)
 {
+	struct vme_dev *dev, *dev_tmp;
+
+	mutex_lock(&vme_buses_lock);
+	list_for_each_entry_safe(dev, dev_tmp, &drv->devices, drv_list) {
+		list_del(&dev->drv_list);
+		list_del(&dev->bridge_list);
+		device_unregister(&dev->dev);
+	}
+	mutex_unlock(&vme_buses_lock);
+
 	driver_unregister(&drv->driver);
 }
 EXPORT_SYMBOL(vme_unregister_driver);
 
 /* - Bus Registration ------------------------------------------------------ */
 
-static struct vme_driver *dev_to_vme_driver(struct device *dev)
-{
-	if (dev->driver == NULL)
-		printk(KERN_ERR "Bugger dev->driver is NULL\n");
-
-	return container_of(dev->driver, struct vme_driver, driver);
-}
-
 static int vme_bus_match(struct device *dev, struct device_driver *drv)
 {
-	struct vme_dev *vdev;
-	struct vme_bridge *bridge;
-	struct vme_driver *driver;
-	int i, num;
+	struct vme_driver *vme_drv;
 
-	vdev = dev_to_vme_dev(dev);
-	bridge = vdev->bridge;
-	driver = container_of(drv, struct vme_driver, driver);
+	vme_drv = container_of(drv, struct vme_driver, driver);
 
-	num = vdev->id.slot;
-	if (num <= 0 || num >= VME_SLOTS_MAX)
-		goto err_dev;
+	if (dev->platform_data == vme_drv) {
+		struct vme_dev *vdev = dev_to_vme_dev(dev);
 
-	if (driver->bind_table == NULL) {
-		dev_err(dev, "Bind table NULL\n");
-		goto err_table;
+		if (vme_drv->match && vme_drv->match(vdev))
+			return 1;
+
+		dev->platform_data = NULL;
 	}
-
-	i = 0;
-	while ((driver->bind_table[i].bus != 0) ||
-		(driver->bind_table[i].slot != 0)) {
-
-		if (bridge->num == driver->bind_table[i].bus) {
-			if (num == driver->bind_table[i].slot)
-				return 1;
-
-			if (driver->bind_table[i].slot == VME_SLOT_ALL)
-				return 1;
-
-			if ((driver->bind_table[i].slot == VME_SLOT_CURRENT) &&
-				(num == vme_slot_get(vdev)))
-				return 1;
-		}
-		i++;
-	}
-
-err_dev:
-err_table:
 	return 0;
 }
 
 static int vme_bus_probe(struct device *dev)
 {
-	struct vme_driver *driver;
-	struct vme_dev *vdev;
 	int retval = -ENODEV;
+	struct vme_driver *driver;
+	struct vme_dev *vdev = dev_to_vme_dev(dev);
 
-	driver = dev_to_vme_driver(dev);
-	vdev = dev_to_vme_dev(dev);
+	driver = dev->platform_data;
 
 	if (driver->probe != NULL)
 		retval = driver->probe(vdev);
@@ -1498,12 +1507,11 @@ static int vme_bus_probe(struct device *dev)
 
 static int vme_bus_remove(struct device *dev)
 {
-	struct vme_driver *driver;
-	struct vme_dev *vdev;
 	int retval = -ENODEV;
+	struct vme_driver *driver;
+	struct vme_dev *vdev = dev_to_vme_dev(dev);
 
-	driver = dev_to_vme_driver(dev);
-	vdev = dev_to_vme_dev(dev);
+	driver = dev->platform_data;
 
 	if (driver->remove != NULL)
 		retval = driver->remove(vdev);

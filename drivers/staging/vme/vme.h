@@ -88,15 +88,21 @@ struct vme_resource {
 
 extern struct bus_type vme_bus_type;
 
+/* VME_MAX_BRIDGES comes from the type of vme_bus_numbers */
+#define VME_MAX_BRIDGES		(sizeof(unsigned int)*8)
+#define VME_MAX_SLOTS		32
+
 #define VME_SLOT_CURRENT	-1
 #define VME_SLOT_ALL		-2
 
 /**
  * VME device identifier structure
+ * @num: The device ID (ranges from 0 to N-1 for N devices)
  * @bus: The bus ID of the bus the device is on
  * @slot: The slot this device is plugged into
  */
 struct vme_device_id {
+	int num;
 	int bus;
 	int slot;
 };
@@ -106,21 +112,26 @@ struct vme_device_id {
  * @id: The ID of the device (currently the bus and slot number)
  * @bridge: Pointer to the bridge device this device is on
  * @dev: Internal device structure
+ * @drv_list: List of devices (per driver)
+ * @bridge_list: List of devices (per bridge)
  */
 struct vme_dev {
 	struct vme_device_id id;
 	struct vme_bridge *bridge;
 	struct device dev;
+	struct list_head drv_list;
+	struct list_head bridge_list;
 };
 
 struct vme_driver {
 	struct list_head node;
 	const char *name;
-	const struct vme_device_id *bind_table;
-	int (*probe)  (struct vme_dev *);
-	int (*remove) (struct vme_dev *);
-	void (*shutdown) (void);
-	struct device_driver    driver;
+	int (*match)(struct vme_dev *);
+	int (*probe)(struct vme_dev *);
+	int (*remove)(struct vme_dev *);
+	void (*shutdown)(void);
+	struct device_driver driver;
+	struct list_head devices;
 };
 
 void *vme_alloc_consistent(struct vme_resource *, size_t, dma_addr_t *);
@@ -179,7 +190,7 @@ void vme_lm_free(struct vme_resource *);
 
 int vme_slot_get(struct vme_dev *);
 
-int vme_register_driver(struct vme_driver *);
+int vme_register_driver(struct vme_driver *, unsigned int);
 void vme_unregister_driver(struct vme_driver *);
 
 

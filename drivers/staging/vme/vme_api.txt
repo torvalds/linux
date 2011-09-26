@@ -18,24 +18,37 @@ registration function. The structure is as follows:
 
 	struct vme_driver {
 		struct list_head node;
-		char *name;
-		const struct vme_device_id *bind_table;
-		int (*probe)  (struct vme_dev *);
-		int (*remove) (struct vme_dev *);
-		void (*shutdown) (void);
-		struct device_driver    driver;
+		const char *name;
+		int (*match)(struct vme_dev *);
+		int (*probe)(struct vme_dev *);
+		int (*remove)(struct vme_dev *);
+		void (*shutdown)(void);
+		struct device_driver driver;
+		struct list_head devices;
+		unsigned int ndev;
 	};
 
-At the minimum, the '.name', '.probe' and '.bind_table' elements of this
-structure should be correctly set. The '.name' element is a pointer to a string
-holding the device driver's name. The '.probe' element should contain a pointer
-to the probe routine.
+At the minimum, the '.name', '.match' and '.probe' elements of this structure
+should be correctly set. The '.name' element is a pointer to a string holding
+the device driver's name.
 
-The arguments of the probe routine are as follows:
+The '.match' function allows controlling the number of devices that need to
+be registered. The match function should return 1 if a device should be
+probed and 0 otherwise. This example match function (from vme_user.c) limits
+the number of devices probed to one:
 
-	probe(struct vme_dev *dev);
+	#define USER_BUS_MAX	1
+	...
+	static int vme_user_match(struct vme_dev *vdev)
+	{
+		if (vdev->id.num >= USER_BUS_MAX)
+			return 0;
+		return 1;
+	}
 
-The device structure looks like the following:
+The '.probe' element should contain a pointer to the probe routine. The
+probe routine is passed a 'struct vme_dev' pointer as an argument. The
+'struct vme_dev' structure looks like the following:
 
 	struct vme_dev {
 		struct vme_device_id id;
@@ -49,25 +62,12 @@ contains information useful for the probe function:
 	struct vme_device_id {
 		int bus;
 		int slot;
+		int num;
 	};
 
-'bus' is the number of the bus the device being probed is on. 'slot' refers
-to the specific slot on the VME bus.
-
-The '.bind_table' is a pointer to an array of type 'vme_device_id':
-
-	struct vme_device_id {
-		int bus;
-		int slot;
-	};
-
-Each structure in this array should provide a bus and slot number where the core
-should probe, using the driver's probe routine, for a device on the specified
-VME bus.
-
-The VME subsystem supports a single VME driver per 'slot'. There are considered
-to be 32 slots per bus, one for each slot-ID as defined in the ANSI/VITA 1-1994
-specification and are analogious to the physical slots on the VME backplane.
+Here, 'bus' is the number of the bus the device being probed is on. 'slot'
+refers to the specific slot on the VME bus. The 'num' field refers to the
+sequential device ID for this specific driver.
 
 A function is also provided to unregister the driver from the VME core and is
 usually called from the device driver's exit routine:

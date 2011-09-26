@@ -2,7 +2,6 @@
 #define _VME_BRIDGE_H_
 
 #define VME_CRCSR_BUF_SIZE (508*1024)
-#define VME_SLOTS_MAX 32
 /*
  * Resource structures
  */
@@ -108,14 +107,12 @@ struct vme_bridge {
 	struct list_head lm_resources;
 
 	struct list_head vme_errors;	/* List for errors generated on VME */
+	struct list_head devices;	/* List of devices on this bridge */
 
 	/* Bridge Info - XXX Move to private structure? */
 	struct device *parent;	/* Parent device (eg. pdev->dev for PCI) */
 	void *driver_priv;	/* Private pointer for the bridge driver */
 	struct list_head bus_list; /* list of VME buses */
-
-	struct vme_dev *dev[VME_SLOTS_MAX];	/* Device registered
-						 * on VME bus */
 
 	/* Interrupt callbacks */
 	struct vme_irq irq[7];

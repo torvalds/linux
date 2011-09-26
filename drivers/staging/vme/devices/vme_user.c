@@ -135,6 +135,7 @@ static ssize_t vme_user_write(struct file *, const char __user *, size_t,
 static loff_t vme_user_llseek(struct file *, loff_t, int);
 static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 
+static int vme_user_match(struct vme_dev *);
 static int __devinit vme_user_probe(struct vme_dev *);
 static int __devexit vme_user_remove(struct vme_dev *);
 
@@ -620,6 +621,7 @@ static void buf_unalloc(int num)
 
 static struct vme_driver vme_user_driver = {
 	.name = driver_name,
+	.match = vme_user_match,
 	.probe = vme_user_probe,
 	.remove = __devexit_p(vme_user_remove),
 };
@@ -628,8 +630,6 @@ static struct vme_driver vme_user_driver = {
 static int __init vme_user_init(void)
 {
 	int retval = 0;
-	int i;
-	struct vme_device_id *ids;
 
 	printk(KERN_INFO "VME User Space Access Driver\n");
 
@@ -649,39 +649,28 @@ static int __init vme_user_init(void)
 		bus_num = USER_BUS_MAX;
 	}
 
-
-	/* Dynamically create the bind table based on module parameters */
-	ids = kzalloc(sizeof(struct vme_device_id) * (bus_num + 1), GFP_KERNEL);
-	if (ids == NULL) {
-		printk(KERN_ERR "%s: Unable to allocate ID table\n",
-			driver_name);
-		retval = -ENOMEM;
-		goto err_id;
-	}
-
-	for (i = 0; i < bus_num; i++) {
-		ids[i].bus = bus[i];
-		/*
-		 * We register the driver against the slot occupied by *this*
-		 * card, since it's really a low level way of controlling
-		 * the VME bridge
-		 */
-		ids[i].slot = VME_SLOT_CURRENT;
-	}
-
-	vme_user_driver.bind_table = ids;
-
-	retval = vme_register_driver(&vme_user_driver);
+	/*
+	 * Here we just register the maximum number of devices we can and
+	 * leave vme_user_match() to allow only 1 to go through to probe().
+	 * This way, if we later want to allow multiple user access devices,
+	 * we just change the code in vme_user_match().
+	 */
+	retval = vme_register_driver(&vme_user_driver, VME_MAX_SLOTS);
 	if (retval != 0)
 		goto err_reg;
 
 	return retval;
 
 err_reg:
-	kfree(ids);
-err_id:
 err_nocard:
 	return retval;
+}
+
+static int vme_user_match(struct vme_dev *vdev)
+{
+	if (vdev->id.num >= USER_BUS_MAX)
+		return 0;
+	return 1;
 }
 
 /*
@@ -896,8 +885,6 @@ static int __devexit vme_user_remove(struct vme_dev *dev)
 static void __exit vme_user_exit(void)
 {
 	vme_unregister_driver(&vme_user_driver);
-
-	kfree(vme_user_driver.bind_table);
 }
 
 
