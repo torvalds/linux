@@ -359,6 +359,7 @@ struct omap_mcbsp {
 	u16 max_tx_thres;
 	u16 max_rx_thres;
 	void *reg_cache;
+	int reg_cache_size;
 };
 
 /**
@@ -370,7 +371,7 @@ struct omap_mcbsp_dev_attr {
 };
 
 extern struct omap_mcbsp **mcbsp_ptr;
-extern int omap_mcbsp_count, omap_mcbsp_cache_size;
+extern int omap_mcbsp_count;
 
 #define omap_mcbsp_check_valid_id(id)	(id < omap_mcbsp_count)
 #define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];

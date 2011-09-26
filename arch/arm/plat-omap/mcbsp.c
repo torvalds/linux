@@ -31,7 +31,7 @@
 #include "../mach-omap2/cm-regbits-34xx.h"
 
 struct omap_mcbsp **mcbsp_ptr;
-int omap_mcbsp_count, omap_mcbsp_cache_size;
+int omap_mcbsp_count;
 
 static void omap_mcbsp_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)
 {
@@ -678,7 +678,7 @@ int omap_mcbsp_request(unsigned int id)
 	}
 	mcbsp = id_to_mcbsp_ptr(id);
 
-	reg_cache = kzalloc(omap_mcbsp_cache_size, GFP_KERNEL);
+	reg_cache = kzalloc(mcbsp->reg_cache_size, GFP_KERNEL);
 	if (!reg_cache) {
 		return -ENOMEM;
 	}
@@ -1225,7 +1225,7 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 		}
 	}
 	mcbsp->phys_base = res->start;
-	omap_mcbsp_cache_size = resource_size(res);
+	mcbsp->reg_cache_size = resource_size(res);
 	mcbsp->io_base = ioremap(res->start, resource_size(res));
 	if (!mcbsp->io_base) {
 		ret = -ENOMEM;
