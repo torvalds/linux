@@ -179,6 +179,7 @@ config MACH_UNIVERSAL_C210
 	select S5P_DEV_FIMC1
 	select S5P_DEV_FIMC2
 	select S5P_DEV_FIMC3
+	select S5P_DEV_CSIS0
 	select S5P_DEV_FIMD0
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
@@ -196,6 +197,8 @@ config MACH_UNIVERSAL_C210
 	select EXYNOS4_SETUP_I2C3
 	select EXYNOS4_SETUP_I2C5
 	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_FIMC
+	select S5P_SETUP_MIPIPHY
 	help
 	  Machine support for Samsung Mobile Universal S5PC210 Reference
 	  Board.
