@@ -105,7 +105,8 @@ static inline void dump_cred_dist_stats(struct htc_target *target)
 {
 }
 
-void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
+static inline void ath6kl_debug_fwlog_event(struct ath6kl *ar,
+					    const void *buf, size_t len)
 {
 }
 
@@ -114,7 +115,7 @@ static inline int ath6kl_debug_init(struct ath6kl *ar)
 	return 0;
 }
 
-void ath6kl_debug_cleanup(struct ath6kl *ar)
+static inline void ath6kl_debug_cleanup(struct ath6kl *ar)
 {
 }
 
