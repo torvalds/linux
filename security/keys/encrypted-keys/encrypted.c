@@ -667,11 +667,19 @@ static int encrypted_key_decrypt(struct encrypted_key_payload *epayload,
 		return -EINVAL;
 
 	hex_encoded_data = hex_encoded_iv + (2 * ivsize) + 2;
-	hex2bin(epayload->iv, hex_encoded_iv, ivsize);
-	hex2bin(epayload->encrypted_data, hex_encoded_data, encrypted_datalen);
+	ret = hex2bin(epayload->iv, hex_encoded_iv, ivsize);
+	if (ret < 0)
+		return -EINVAL;
+	ret = hex2bin(epayload->encrypted_data, hex_encoded_data,
+		      encrypted_datalen);
+	if (ret < 0)
+		return -EINVAL;
 
 	hmac = epayload->format + epayload->datablob_len;
-	hex2bin(hmac, hex_encoded_data + (encrypted_datalen * 2), HASH_SIZE);
+	ret = hex2bin(hmac, hex_encoded_data + (encrypted_datalen * 2),
+		      HASH_SIZE);
+	if (ret < 0)
+		return -EINVAL;
 
 	mkey = request_master_key(epayload, &master_key, &master_keylen);
 	if (IS_ERR(mkey))
