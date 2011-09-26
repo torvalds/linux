@@ -63,37 +63,30 @@ void omap2_mcbsp1_mux_fsr_src(u8 mux)
 EXPORT_SYMBOL(omap2_mcbsp1_mux_fsr_src);
 
 /* McBSP CLKS source switching function */
-
-int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
+static int omap2_mcbsp_set_clk_src(struct device *dev, struct clk *clk,
+				   const char *src)
 {
-	struct omap_mcbsp *mcbsp;
 	struct clk *fck_src;
 	char *fck_src_name;
 	int r;
 
-	if (!omap_mcbsp_check_valid_id(id)) {
-		pr_err("%s: Invalid id (%d)\n", __func__, id + 1);
-		return -EINVAL;
-	}
-	mcbsp = id_to_mcbsp_ptr(id);
-
-	if (fck_src_id == MCBSP_CLKS_PAD_SRC)
+	if (!strcmp(src, "clks_ext"))
 		fck_src_name = "pad_fck";
-	else if (fck_src_id == MCBSP_CLKS_PRCM_SRC)
+	else if (!strcmp(src, "clks_fclk"))
 		fck_src_name = "prcm_fck";
 	else
 		return -EINVAL;
 
-	fck_src = clk_get(mcbsp->dev, fck_src_name);
+	fck_src = clk_get(dev, fck_src_name);
 	if (IS_ERR_OR_NULL(fck_src)) {
 		pr_err("omap-mcbsp: %s: could not clk_get() %s\n", "clks",
 		       fck_src_name);
 		return -EINVAL;
 	}
 
-	pm_runtime_put_sync(mcbsp->dev);
+	pm_runtime_put_sync(dev);
 
-	r = clk_set_parent(mcbsp->fclk, fck_src);
+	r = clk_set_parent(clk, fck_src);
 	if (IS_ERR_VALUE(r)) {
 		pr_err("omap-mcbsp: %s: could not clk_set_parent() to %s\n",
 		       "clks", fck_src_name);
@@ -101,13 +94,12 @@ int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(mcbsp->dev);
+	pm_runtime_get_sync(dev);
 
 	clk_put(fck_src);
 
 	return 0;
 }
-EXPORT_SYMBOL(omap2_mcbsp_set_clks_src);
 
 static int omap3_enable_st_clock(unsigned int id, bool enable)
 {
@@ -188,6 +180,7 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 					name, oh->name);
 		return PTR_ERR(pdev);
 	}
+	pdata->set_clk_src = omap2_mcbsp_set_clk_src;
 	omap_mcbsp_count++;
 	return 0;
 }

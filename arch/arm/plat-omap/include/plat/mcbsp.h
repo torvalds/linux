@@ -296,7 +296,6 @@ typedef enum {
 struct omap_mcbsp_ops {
 	void (*request)(unsigned int);
 	void (*free)(unsigned int);
-	int (*set_clks_src)(u8, u8);
 };
 
 struct omap_mcbsp_platform_data {
@@ -309,6 +308,7 @@ struct omap_mcbsp_platform_data {
 	bool has_wakeup; /* Wakeup capability */
 	bool has_ccr; /* Transceiver has configuration control registers */
 	int (*enable_st_clock)(unsigned int, bool);
+	int (*set_clk_src)(struct device *dev, struct clk *clk, const char *src);
 };
 
 struct omap_mcbsp_st_data {
@@ -358,9 +358,6 @@ struct omap_mcbsp_dev_attr {
 
 extern struct omap_mcbsp **mcbsp_ptr;
 extern int omap_mcbsp_count;
-
-#define omap_mcbsp_check_valid_id(id)	(id < omap_mcbsp_count)
-#define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
 
 int omap_mcbsp_init(void);
 void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg * config);

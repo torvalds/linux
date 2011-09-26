@@ -29,6 +29,9 @@
 struct omap_mcbsp **mcbsp_ptr;
 int omap_mcbsp_count;
 
+#define omap_mcbsp_check_valid_id(id)	(id < omap_mcbsp_count)
+#define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
+
 static void omap_mcbsp_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)
 {
 	void __iomem *addr = mcbsp->io_base + reg * mcbsp->pdata->reg_step;
@@ -894,18 +897,32 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 }
 EXPORT_SYMBOL(omap_mcbsp_stop);
 
-/*
- * The following functions are only required on an OMAP1-only build.
- * mach-omap2/mcbsp.c contains the real functions
- */
-#ifndef CONFIG_ARCH_OMAP2PLUS
 int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
 {
-	WARN(1, "%s: should never be called on an OMAP1-only kernel\n",
-	     __func__);
-	return -EINVAL;
-}
+	struct omap_mcbsp *mcbsp;
+	const char *src;
 
+	if (!omap_mcbsp_check_valid_id(id)) {
+		pr_err("%s: Invalid id (%d)\n", __func__, id + 1);
+		return -EINVAL;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	if (fck_src_id == MCBSP_CLKS_PAD_SRC)
+		src = "clks_ext";
+	else if (fck_src_id == MCBSP_CLKS_PRCM_SRC)
+		src = "clks_fclk";
+	else
+		return -EINVAL;
+
+	if (mcbsp->pdata->set_clk_src)
+		return mcbsp->pdata->set_clk_src(mcbsp->dev, mcbsp->fclk, src);
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL(omap2_mcbsp_set_clks_src);
+
+#ifndef CONFIG_ARCH_OMAP2PLUS
 void omap2_mcbsp1_mux_clkr_src(u8 mux)
 {
 	WARN(1, "%s: should never be called on an OMAP1-only kernel\n",
