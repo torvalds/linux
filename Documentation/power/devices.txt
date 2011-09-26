@@ -152,7 +152,9 @@ try to use its wakeup mechanism.  device_set_wakeup_enable() affects this flag;
 for the most part drivers should not change its value.  The initial value of
 should_wakeup is supposed to be false for the majority of devices; the major
 exceptions are power buttons, keyboards, and Ethernet adapters whose WoL
-(wake-on-LAN) feature has been set up with ethtool.
+(wake-on-LAN) feature has been set up with ethtool.  It should also default
+to true for devices that don't generate wakeup requests on their own but merely
+forward wakeup requests from one bus to another (like PCI bridges).
 
 Whether or not a device is capable of issuing wakeup events is a hardware
 matter, and the kernel is responsible for keeping track of it.  By contrast,
