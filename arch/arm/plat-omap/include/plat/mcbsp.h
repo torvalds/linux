@@ -25,9 +25,7 @@
 #define __ASM_ARCH_OMAP_MCBSP_H
 
 #include <linux/spinlock.h>
-
-#include <mach/hardware.h>
-#include <plat/clock.h>
+#include <linux/clk.h>
 
 /* macro for building platform_device for McBSP ports */
 #define OMAP_MCBSP_PLATFORM_DEVICE(port_nr)		\
