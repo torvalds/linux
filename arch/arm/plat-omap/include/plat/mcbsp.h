@@ -407,8 +407,6 @@ extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 #define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
 
 int omap_mcbsp_init(void);
-void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
-			struct omap_mcbsp_platform_data *config, int size);
 void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg * config);
 #ifdef CONFIG_ARCH_OMAP3
 void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold);
