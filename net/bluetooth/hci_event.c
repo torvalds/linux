@@ -2838,19 +2838,17 @@ unlock:
 static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 						struct sk_buff *skb)
 {
-	struct hci_ev_le_advertising_info *ev;
-	u8 num_reports;
-
-	num_reports = skb->data[0];
-	ev = (void *) &skb->data[1];
+	u8 num_reports = skb->data[0];
+	void *ptr = &skb->data[1];
 
 	hci_dev_lock(hdev);
 
-	hci_add_adv_entry(hdev, ev);
+	while (num_reports--) {
+		struct hci_ev_le_advertising_info *ev = ptr;
 
-	while (--num_reports) {
-		ev = (void *) (ev->data + ev->length + 1);
 		hci_add_adv_entry(hdev, ev);
+
+		ptr += sizeof(*ev) + ev->length + 1;
 	}
 
 	hci_dev_unlock(hdev);
