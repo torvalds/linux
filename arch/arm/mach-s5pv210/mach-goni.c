@@ -48,6 +48,11 @@
 #include <plat/s5p-time.h>
 #include <plat/mfc.h>
 #include <plat/regs-fb-v4.h>
+#include <plat/camport.h>
+
+#include <media/v4l2-mediabus.h>
+#include <media/s5p_fimc.h>
+#include <media/noon010pc30.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define GONI_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -270,6 +275,14 @@ static void __init goni_tsp_init(void)
 	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
 	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
 	i2c2_devs[0].irq = gpio_to_irq(gpio);
+}
+
+static void goni_camera_init(void)
+{
+	s5pv210_fimc_setup_gpio(S5P_CAMPORT_A);
+
+	/* Set max driver strength on CAM_A_CLKOUT pin. */
+	s5p_gpio_set_drvstr(S5PV210_GPE1(3), S5P_GPIO_DRVSTR_LV4);
 }
 
 /* MAX8998 regulators */
@@ -808,6 +821,39 @@ static void goni_setup_sdhci(void)
 	s3c_sdhci2_set_platdata(&goni_hsmmc2_data);
 };
 
+static struct noon010pc30_platform_data noon010pc30_pldata = {
+	.clk_rate	= 16000000UL,
+	.gpio_nreset	= S5PV210_GPB(2), /* CAM_CIF_NRST */
+	.gpio_nstby	= S5PV210_GPB(0), /* CAM_CIF_NSTBY */
+};
+
+static struct i2c_board_info noon010pc30_board_info = {
+	I2C_BOARD_INFO("NOON010PC30", 0x60 >> 1),
+	.platform_data = &noon010pc30_pldata,
+};
+
+static struct s5p_fimc_isp_info goni_camera_sensors[] = {
+	{
+		.mux_id		= 0,
+		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING |
+				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
+		.bus_type	= FIMC_ITU_601,
+		.board_info	= &noon010pc30_board_info,
+		.i2c_bus_num	= 0,
+		.clk_frequency	= 16000000UL,
+	},
+};
+
+struct s5p_platform_fimc goni_fimc_md_platdata __initdata = {
+	.isp_info	= goni_camera_sensors,
+	.num_clients	= ARRAY_SIZE(goni_camera_sensors),
+};
+
+struct platform_device s5p_device_fimc_md = {
+	.name		= "s5p-fimc-md",
+	.id		= -1,
+};
+
 static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_fb,
 	&s5p_device_onenand,
@@ -825,6 +871,7 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
+	&s5p_device_fimc_md,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
@@ -892,6 +939,12 @@ static void __init goni_machine_init(void)
 
 	/* FB */
 	s3c_fb_set_platdata(&goni_lcd_pdata);
+
+	/* FIMC */
+	s3c_set_platdata(&goni_fimc_md_platdata, sizeof(goni_fimc_md_platdata),
+			 &s5p_device_fimc_md);
+
+	goni_camera_init();
 
 	/* SPI */
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
