@@ -567,6 +567,7 @@ static struct regulator_init_data pvdd_1v2 __initdata = {
 };
 
 static struct regulator_consumer_supply pvdd_1v8_consumers[] __initdata = {
+	REGULATOR_SUPPLY("LDOVDD", "1-001a"),
 	REGULATOR_SUPPLY("PLLVDD", "1-001a"),
 	REGULATOR_SUPPLY("DBVDD", "1-001a"),
 	REGULATOR_SUPPLY("DBVDD1", "1-001a"),
