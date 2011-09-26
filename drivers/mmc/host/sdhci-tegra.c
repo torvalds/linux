@@ -22,6 +22,8 @@
 #include <linux/mmc/host.h>
 
 #include <asm/gpio.h>
+
+#include <mach/gpio-tegra.h>
 #include <mach/sdhci.h>
 
 #include "sdhci-pltfm.h"

@@ -27,6 +27,7 @@
 
 #include <asm/mach/irq.h>
 
+#include <mach/gpio-tegra.h>
 #include <mach/iomap.h>
 #include <mach/suspend.h>
 
