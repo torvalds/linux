@@ -348,7 +348,7 @@ config SENSORS_CAP_PROX
 	 Say yes here if you wish to include the Motorola
 	 Capacitive Proximity Sensor driver.
 
-config SENSORS_KXTF9
+config SENSORS_MOTO_KXTF9
 	tristate "KXTF9 Accelerometer"
 	default n
 	depends on I2C

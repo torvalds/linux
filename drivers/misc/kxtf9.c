@@ -31,7 +31,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
-#include <linux/kxtf9.h>
+#include <linux/moto_kxtf9.h>
 
 #define NAME			"kxtf9"
 #define G_MAX			8000
