@@ -110,6 +110,14 @@ static unsigned char *nes_tcp_state_str[] = {
 };
 #endif
 
+static inline void print_ip(struct nes_cm_node *cm_node)
+{
+	unsigned char *rem_addr;
+	if (cm_node) {
+		rem_addr = (unsigned char *)&cm_node->rem_addr;
+		printk(KERN_ERR PFX "Remote IP addr: %pI4\n", rem_addr);
+	}
+}
 
 /**
  * nes_nic_init_timer_defaults
@@ -3694,6 +3702,7 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 		case NES_AEQE_AEID_ROE_INVALID_RDMA_WRITE_OR_READ_RESP:
 			printk(KERN_ERR PFX "QP[%u] async_event_id=0x%04X IB_EVENT_QP_FATAL\n",
 					nesqp->hwqp.qp_id, async_event_id);
+			print_ip(nesqp->cm_node);
 			if (!atomic_read(&nesqp->close_timer_started))
 				nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_FATAL);
 			break;
