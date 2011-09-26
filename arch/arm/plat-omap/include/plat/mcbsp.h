@@ -353,9 +353,7 @@ struct omap_mcbsp {
 	spinlock_t lock;
 	struct omap_mcbsp_platform_data *pdata;
 	struct clk *fclk;
-#ifdef CONFIG_ARCH_OMAP3
 	struct omap_mcbsp_st_data *st_data;
-#endif
 	int dma_op_mode;
 	u16 max_tx_thres;
 	u16 max_rx_thres;
@@ -402,21 +400,11 @@ void omap2_mcbsp1_mux_fsr_src(u8 mux);
 int omap_mcbsp_dma_ch_params(unsigned int id, unsigned int stream);
 int omap_mcbsp_dma_reg_params(unsigned int id, unsigned int stream);
 
-#ifdef CONFIG_ARCH_OMAP3
 /* Sidetone specific API */
 int omap_st_set_chgain(unsigned int id, int channel, s16 chgain);
 int omap_st_get_chgain(unsigned int id, int channel, s16 *chgain);
 int omap_st_enable(unsigned int id);
 int omap_st_disable(unsigned int id);
 int omap_st_is_enabled(unsigned int id);
-#else
-static inline int omap_st_set_chgain(unsigned int id, int channel,
-				     s16 chgain) { return 0; }
-static inline int omap_st_get_chgain(unsigned int id, int channel,
-				     s16 *chgain) { return 0; }
-static inline int omap_st_enable(unsigned int id) { return 0; }
-static inline int omap_st_disable(unsigned int id) { return 0; }
-static inline int omap_st_is_enabled(unsigned int id) {  return 0; }
-#endif
 
 #endif
