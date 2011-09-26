@@ -317,6 +317,9 @@ struct omap_mcbsp_platform_data {
 	u16 buffer_size;
 	u8 reg_size;
 	u8 reg_step;
+
+	/* McBSP platform and instance specific features */
+	bool has_wakeup; /* Wakeup capability */
 };
 
 struct omap_mcbsp_st_data {

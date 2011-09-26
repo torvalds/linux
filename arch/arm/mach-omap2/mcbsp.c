@@ -141,6 +141,9 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 			pdata->buffer_size = 0x80;
 	}
 
+	if (oh->class->rev >= MCBSP_CONFIG_TYPE3)
+		pdata->has_wakeup = true;
+
 	oh_device[0] = oh;
 
 	if (oh->dev_attr) {

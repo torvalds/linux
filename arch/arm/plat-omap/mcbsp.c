@@ -659,35 +659,7 @@ int omap_mcbsp_get_dma_op_mode(unsigned int id)
 }
 EXPORT_SYMBOL(omap_mcbsp_get_dma_op_mode);
 
-static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp)
-{
-	/*
-	 * Enable wakup behavior, smart idle and all wakeups
-	 * REVISIT: some wakeups may be unnecessary
-	 */
-	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
-		MCBSP_WRITE(mcbsp, WAKEUPEN, XRDYEN | RRDYEN);
-	}
-}
-
-static inline void omap34xx_mcbsp_free(struct omap_mcbsp *mcbsp)
-{
-	/*
-	 * Disable wakup behavior, smart idle and all wakeups
-	 */
-	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
-		/*
-		 * HW bug workaround - If no_idle mode is taken, we need to
-		 * go to smart_idle before going to always_idle, or the
-		 * device will not hit retention anymore.
-		 */
-
-		MCBSP_WRITE(mcbsp, WAKEUPEN, 0);
-	}
-}
 #else
-static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp) {}
-static inline void omap34xx_mcbsp_free(struct omap_mcbsp *mcbsp) {}
 static inline void omap_st_start(struct omap_mcbsp *mcbsp) {}
 static inline void omap_st_stop(struct omap_mcbsp *mcbsp) {}
 #endif
@@ -726,8 +698,9 @@ int omap_mcbsp_request(unsigned int id)
 
 	pm_runtime_get_sync(mcbsp->dev);
 
-	/* Do procedure specific to omap34xx arch, if applicable */
-	omap34xx_mcbsp_request(mcbsp);
+	/* Enable wakeup behavior */
+	if (mcbsp->pdata->has_wakeup)
+		MCBSP_WRITE(mcbsp, WAKEUPEN, XRDYEN | RRDYEN);
 
 	/*
 	 * Make sure that transmitter, receiver and sample-rate generator are
@@ -764,8 +737,9 @@ err_clk_disable:
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(id);
 
-	/* Do procedure specific to omap34xx arch, if applicable */
-	omap34xx_mcbsp_free(mcbsp);
+	/* Disable wakeup behavior */
+	if (mcbsp->pdata->has_wakeup)
+		MCBSP_WRITE(mcbsp, WAKEUPEN, 0);
 
 	pm_runtime_put_sync(mcbsp->dev);
 
@@ -794,8 +768,9 @@ void omap_mcbsp_free(unsigned int id)
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(id);
 
-	/* Do procedure specific to omap34xx arch, if applicable */
-	omap34xx_mcbsp_free(mcbsp);
+	/* Disable wakeup behavior */
+	if (mcbsp->pdata->has_wakeup)
+		MCBSP_WRITE(mcbsp, WAKEUPEN, 0);
 
 	pm_runtime_put_sync(mcbsp->dev);
 
