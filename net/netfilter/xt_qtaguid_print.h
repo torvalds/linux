@@ -12,6 +12,8 @@
 
 #include "xt_qtaguid_internal.h"
 
+#ifdef DDEBUG
+
 char *pp_tag_t(tag_t *tag);
 char *pp_data_counters(struct data_counters *dc, bool showValues);
 char *pp_tag_node(struct tag_node *tn);
@@ -37,6 +39,82 @@ void prdebug_tag_stat_tree(int indent_level,
 void prdebug_iface_stat_list(int indent_level,
 			     struct list_head *iface_stat_list);
 
+#else
+
+/*------------------------------------------*/
+static inline char *pp_tag_t(tag_t *tag)
+{
+	return NULL;
+}
+static inline char *pp_data_counters(struct data_counters *dc, bool showValues)
+{
+	return NULL;
+}
+static inline char *pp_tag_node(struct tag_node *tn)
+{
+	return NULL;
+}
+static inline char *pp_tag_ref(struct tag_ref *tr)
+{
+	return NULL;
+}
+static inline char *pp_tag_stat(struct tag_stat *ts)
+{
+	return NULL;
+}
+static inline char *pp_iface_stat(struct iface_stat *is)
+{
+	return NULL;
+}
+static inline char *pp_sock_tag(struct sock_tag *st)
+{
+	return NULL;
+}
+static inline char *pp_uid_tag_data(struct uid_tag_data *qtd)
+{
+	return NULL;
+}
+static inline char *pp_proc_qtu_data(struct proc_qtu_data *pqd)
+{
+	return NULL;
+}
+
+/*------------------------------------------*/
+static inline
+void prdebug_sock_tag_list(int indent_level,
+			   struct list_head *sock_tag_list)
+{
+}
+static inline
+void prdebug_sock_tag_tree(int indent_level,
+			   struct rb_root *sock_tag_tree)
+{
+}
+static inline
+void prdebug_proc_qtu_data_tree(int indent_level,
+				struct rb_root *proc_qtu_data_tree)
+{
+}
+static inline
+void prdebug_tag_ref_tree(int indent_level, struct rb_root *tag_ref_tree)
+{
+}
+static inline
+void prdebug_uid_tag_data_tree(int indent_level,
+			       struct rb_root *uid_tag_data_tree)
+{
+}
+static inline
+void prdebug_tag_stat_tree(int indent_level,
+			   struct rb_root *tag_stat_tree)
+{
+}
+static inline
+void prdebug_iface_stat_list(int indent_level,
+			     struct list_head *iface_stat_list)
+{
+}
+#endif
 /*------------------------------------------*/
 const char *netdev_evt_str(int netdev_event);
 #endif  /* ifndef __XT_QTAGUID_PRINT_H__ */
