@@ -39,7 +39,7 @@
 #include "smsir.h"
 #include "smsendian.h"
 
-int sms_dbg;
+static int sms_dbg;
 module_param_named(debug, sms_dbg, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 

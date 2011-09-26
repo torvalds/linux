@@ -751,7 +751,6 @@ int smscore_led_state(struct smscore_device_t *core, int led);
 
 
 /* ------------------------------------------------------------------------ */
-extern int sms_dbg;
 
 #define DBG_INFO 1
 #define DBG_ADV  2
