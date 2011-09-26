@@ -320,7 +320,6 @@ typedef struct _WLAN_BSSID_EX
   NDIS_802_11_SSID  Ssid;
   ULONG  Privacy;
   NDIS_802_11_RSSI  Rssi;//(in dBM,raw data ,get from PHY)
-  NDIS_802_11_RSSI  Rssi_prev;
   NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
   NDIS_802_11_CONFIGURATION  Configuration;
   NDIS_802_11_NETWORK_INFRASTRUCTURE  InfrastructureMode;
