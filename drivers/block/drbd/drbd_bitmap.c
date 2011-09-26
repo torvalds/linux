@@ -1448,13 +1448,21 @@ static inline void bm_set_full_words_within_one_page(struct drbd_bitmap *b,
 {
 	int i;
 	int bits;
+	int changed = 0;
 	unsigned long *paddr = kmap_atomic(b->bm_pages[page_nr], KM_IRQ1);
 	for (i = first_word; i < last_word; i++) {
 		bits = hweight_long(paddr[i]);
 		paddr[i] = ~0UL;
-		b->bm_set += BITS_PER_LONG - bits;
+		changed += BITS_PER_LONG - bits;
 	}
 	kunmap_atomic(paddr, KM_IRQ1);
+	if (changed) {
+		/* We only need lazy writeout, the information is still in the
+		 * remote bitmap as well, and is reconstructed during the next
+		 * bitmap exchange, if lost locally due to a crash. */
+		bm_set_page_lazy_writeout(b->bm_pages[page_nr]);
+		b->bm_set += changed;
+	}
 }
 
 /* Same thing as drbd_bm_set_bits,
