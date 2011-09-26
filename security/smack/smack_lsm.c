@@ -2773,6 +2773,7 @@ static int smack_unix_stream_connect(struct sock *sock,
 {
 	struct socket_smack *ssp = sock->sk_security;
 	struct socket_smack *osp = other->sk_security;
+	struct socket_smack *nsp = newsk->sk_security;
 	struct smk_audit_info ad;
 	int rc = 0;
 
@@ -2781,6 +2782,14 @@ static int smack_unix_stream_connect(struct sock *sock,
 
 	if (!capable(CAP_MAC_OVERRIDE))
 		rc = smk_access(ssp->smk_out, osp->smk_in, MAY_WRITE, &ad);
+
+	/*
+	 * Cross reference the peer labels for SO_PEERSEC.
+	 */
+	if (rc == 0) {
+		nsp->smk_packet = ssp->smk_out;
+		ssp->smk_packet = osp->smk_out;
+	}
 
 	return rc;
 }
