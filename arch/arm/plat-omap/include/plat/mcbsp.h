@@ -348,14 +348,7 @@ struct omap_mcbsp_ops {
 };
 
 struct omap_mcbsp_platform_data {
-	unsigned long phys_base;
-	u8 dma_rx_sync, dma_tx_sync;
-	u16 rx_irq, tx_irq;
 	struct omap_mcbsp_ops *ops;
-#ifdef CONFIG_ARCH_OMAP3
-	/* Sidetone block for McBSP 2 and 3 */
-	unsigned long phys_base_st;
-#endif
 	u16 buffer_size;
 	unsigned int mcbsp_config_type;
 };
