@@ -1039,6 +1039,10 @@ static int do_test(int m)
 				speed_template_16_24_32);
 		test_cipher_speed("cbc(twofish)", DECRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
+		test_cipher_speed("ctr(twofish)", ENCRYPT, sec, NULL, 0,
+				speed_template_16_24_32);
+		test_cipher_speed("ctr(twofish)", DECRYPT, sec, NULL, 0,
+				speed_template_16_24_32);
 		break;
 
 	case 203:
