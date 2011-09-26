@@ -184,7 +184,7 @@ void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg *config)
 	MCBSP_WRITE(mcbsp, MCR2, config->mcr2);
 	MCBSP_WRITE(mcbsp, MCR1, config->mcr1);
 	MCBSP_WRITE(mcbsp, PCR0, config->pcr0);
-	if (cpu_is_omap2430() || cpu_is_omap34xx() || cpu_is_omap44xx()) {
+	if (mcbsp->pdata->has_ccr) {
 		MCBSP_WRITE(mcbsp, XCCR, config->xccr);
 		MCBSP_WRITE(mcbsp, RCCR, config->rccr);
 	}
@@ -848,7 +848,7 @@ void omap_mcbsp_start(unsigned int id, int tx, int rx)
 		MCBSP_WRITE(mcbsp, SPCR2, w | (1 << 7));
 	}
 
-	if (cpu_is_omap2430() || cpu_is_omap34xx() || cpu_is_omap44xx()) {
+	if (mcbsp->pdata->has_ccr) {
 		/* Release the transmitter and receiver */
 		w = MCBSP_READ_CACHE(mcbsp, XCCR);
 		w &= ~(tx ? XDISABLE : 0);
@@ -878,7 +878,7 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 
 	/* Reset transmitter */
 	tx &= 1;
-	if (cpu_is_omap2430() || cpu_is_omap34xx() || cpu_is_omap44xx()) {
+	if (mcbsp->pdata->has_ccr) {
 		w = MCBSP_READ_CACHE(mcbsp, XCCR);
 		w |= (tx ? XDISABLE : 0);
 		MCBSP_WRITE(mcbsp, XCCR, w);
@@ -888,7 +888,7 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 
 	/* Reset receiver */
 	rx &= 1;
-	if (cpu_is_omap2430() || cpu_is_omap34xx() || cpu_is_omap44xx()) {
+	if (mcbsp->pdata->has_ccr) {
 		w = MCBSP_READ_CACHE(mcbsp, RCCR);
 		w |= (rx ? RDISABLE : 0);
 		MCBSP_WRITE(mcbsp, RCCR, w);

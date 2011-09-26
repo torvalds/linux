@@ -127,10 +127,12 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 	}
 
 	pdata->reg_step = 4;
-	if (oh->class->rev < MCBSP_CONFIG_TYPE2)
+	if (oh->class->rev < MCBSP_CONFIG_TYPE2) {
 		pdata->reg_size = 2;
-	else
+	} else {
 		pdata->reg_size = 4;
+		pdata->has_ccr = true;
+	}
 
 	if (oh->class->rev == MCBSP_CONFIG_TYPE3) {
 		if (id == 2)

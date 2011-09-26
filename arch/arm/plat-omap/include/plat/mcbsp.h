@@ -320,6 +320,7 @@ struct omap_mcbsp_platform_data {
 
 	/* McBSP platform and instance specific features */
 	bool has_wakeup; /* Wakeup capability */
+	bool has_ccr; /* Transceiver has configuration control registers */
 };
 
 struct omap_mcbsp_st_data {
