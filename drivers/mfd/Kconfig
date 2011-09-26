@@ -616,20 +616,6 @@ config AB8500_GPADC
 	help
 	  AB8500 GPADC driver used to convert Acc and battery/ac/usb voltage
 
-config AB3550_CORE
-        bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"
-	select MFD_CORE
-	depends on I2C=y && GENERIC_HARDIRQS && ABX500_CORE
-	help
-	  Select this to enable the AB3550 Mixed Signal IC core
-	  functionality. This connects to a AB3550 on the I2C bus
-	  and expose a number of symbols needed for dependent devices
-	  to read and write registers and subscribe to events from
-	  this multi-functional IC. This is needed to use other features
-	  of the AB3550 such as battery-backed RTC, charging control,
-	  LEDs, vibrator, system power and temperature, power management
-	  and ALSA sound.
-
 config MFD_DB8500_PRCMU
 	bool "ST-Ericsson DB8500 Power Reset Control Management Unit"
 	depends on UX500_SOC_DB8500

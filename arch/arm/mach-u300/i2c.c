@@ -256,57 +256,8 @@ static struct ab3100_platform_data ab3100_plf_data = {
 };
 #endif
 
-#ifdef CONFIG_AB3550_CORE
-static struct abx500_init_settings ab3550_init_settings[] = {
-	{
-		.bank = 0,
-		.reg = AB3550_IMR1,
-		.setting = 0xff
-	},
-	{
-		.bank = 0,
-		.reg = AB3550_IMR2,
-		.setting = 0xff
-	},
-	{
-		.bank = 0,
-		.reg = AB3550_IMR3,
-		.setting = 0xff
-	},
-	{
-		.bank = 0,
-		.reg = AB3550_IMR4,
-		.setting = 0xff
-	},
-	{
-		.bank = 0,
-		.reg = AB3550_IMR5,
-		/* The two most significant bits are not used */
-		.setting = 0x3f
-	},
-};
-
-static struct ab3550_platform_data ab3550_plf_data = {
-	.irq = {
-		.base = IRQ_AB3550_BASE,
-		.count = (IRQ_AB3550_END - IRQ_AB3550_BASE + 1),
-	},
-	.dev_data = {
-	},
-	.init_settings = ab3550_init_settings,
-	.init_settings_sz = ARRAY_SIZE(ab3550_init_settings),
-};
-#endif
-
 static struct i2c_board_info __initdata bus0_i2c_board_info[] = {
-#if defined(CONFIG_AB3550_CORE)
-	{
-		.type = "ab3550",
-		.addr = 0x4A,
-		.irq = IRQ_U300_IRQ0_EXT,
-		.platform_data = &ab3550_plf_data,
-	},
-#elif defined(CONFIG_AB3100_CORE)
+#ifdef CONFIG_AB3100_CORE
 	{
 		.type = "ab3100",
 		.addr = 0x48,
