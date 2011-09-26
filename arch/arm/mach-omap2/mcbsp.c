@@ -27,6 +27,13 @@
 
 #include "control.h"
 
+/*
+ * FIXME: Find a mechanism to enable/disable runtime the McBSP ICLK autoidle.
+ * Sidetone needs non-gated ICLK and sidetone autoidle is broken.
+ */
+#include "cm2xxx_3xxx.h"
+#include "cm-regbits-34xx.h"
+
 /* McBSP internal signal muxing functions */
 
 void omap2_mcbsp1_mux_clkr_src(u8 mux)
@@ -102,6 +109,24 @@ int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
 }
 EXPORT_SYMBOL(omap2_mcbsp_set_clks_src);
 
+static int omap3_enable_st_clock(unsigned int id, bool enable)
+{
+	unsigned int w;
+
+	/*
+	 * Sidetone uses McBSP ICLK - which must not idle when sidetones
+	 * are enabled or sidetones start sounding ugly.
+	 */
+	w = omap2_cm_read_mod_reg(OMAP3430_PER_MOD, CM_AUTOIDLE);
+	if (enable)
+		w &= ~(1 << (id - 2));
+	else
+		w |= 1 << (id - 2);
+	omap2_cm_write_mod_reg(w, OMAP3430_PER_MOD, CM_AUTOIDLE);
+
+	return 0;
+}
+
 struct omap_device_pm_latency omap2_mcbsp_latency[] = {
 	{
 		.deactivate_func = omap_device_idle_hwmods,
@@ -151,6 +176,7 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 	if (oh->dev_attr) {
 		oh_device[1] = omap_hwmod_lookup((
 		(struct omap_mcbsp_dev_attr *)(oh->dev_attr))->sidetone);
+		pdata->enable_st_clock = omap3_enable_st_clock;
 		count++;
 	}
 	pdev = omap_device_build_ss(name, id, oh_device, count, pdata,
