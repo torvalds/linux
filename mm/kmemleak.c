@@ -230,8 +230,10 @@ static int kmemleak_skip_disable;
 /* kmemleak operation type for early logging */
 enum {
 	KMEMLEAK_ALLOC,
+	KMEMLEAK_ALLOC_PERCPU,
 	KMEMLEAK_FREE,
 	KMEMLEAK_FREE_PART,
+	KMEMLEAK_FREE_PERCPU,
 	KMEMLEAK_NOT_LEAK,
 	KMEMLEAK_IGNORE,
 	KMEMLEAK_SCAN_AREA,
@@ -852,6 +854,20 @@ out:
 	rcu_read_unlock();
 }
 
+/*
+ * Log an early allocated block and populate the stack trace.
+ */
+static void early_alloc_percpu(struct early_log *log)
+{
+	unsigned int cpu;
+	const void __percpu *ptr = log->ptr;
+
+	for_each_possible_cpu(cpu) {
+		log->ptr = per_cpu_ptr(ptr, cpu);
+		early_alloc(log);
+	}
+}
+
 /**
  * kmemleak_alloc - register a newly allocated object
  * @ptr:	pointer to beginning of the object
@@ -877,6 +893,34 @@ void __ref kmemleak_alloc(const void *ptr, size_t size, int min_count,
 		log_early(KMEMLEAK_ALLOC, ptr, size, min_count);
 }
 EXPORT_SYMBOL_GPL(kmemleak_alloc);
+
+/**
+ * kmemleak_alloc_percpu - register a newly allocated __percpu object
+ * @ptr:	__percpu pointer to beginning of the object
+ * @size:	size of the object
+ *
+ * This function is called from the kernel percpu allocator when a new object
+ * (memory block) is allocated (alloc_percpu). It assumes GFP_KERNEL
+ * allocation.
+ */
+void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size)
+{
+	unsigned int cpu;
+
+	pr_debug("%s(0x%p, %zu)\n", __func__, ptr, size);
+
+	/*
+	 * Percpu allocations are only scanned and not reported as leaks
+	 * (min_count is set to 0).
+	 */
+	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
+		for_each_possible_cpu(cpu)
+			create_object((unsigned long)per_cpu_ptr(ptr, cpu),
+				      size, 0, GFP_KERNEL);
+	else if (atomic_read(&kmemleak_early_log))
+		log_early(KMEMLEAK_ALLOC_PERCPU, ptr, size, 0);
+}
+EXPORT_SYMBOL_GPL(kmemleak_alloc_percpu);
 
 /**
  * kmemleak_free - unregister a previously registered object
@@ -915,6 +959,28 @@ void __ref kmemleak_free_part(const void *ptr, size_t size)
 		log_early(KMEMLEAK_FREE_PART, ptr, size, 0);
 }
 EXPORT_SYMBOL_GPL(kmemleak_free_part);
+
+/**
+ * kmemleak_free_percpu - unregister a previously registered __percpu object
+ * @ptr:	__percpu pointer to beginning of the object
+ *
+ * This function is called from the kernel percpu allocator when an object
+ * (memory block) is freed (free_percpu).
+ */
+void __ref kmemleak_free_percpu(const void __percpu *ptr)
+{
+	unsigned int cpu;
+
+	pr_debug("%s(0x%p)\n", __func__, ptr);
+
+	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
+		for_each_possible_cpu(cpu)
+			delete_object_full((unsigned long)per_cpu_ptr(ptr,
+								      cpu));
+	else if (atomic_read(&kmemleak_early_log))
+		log_early(KMEMLEAK_FREE_PERCPU, ptr, 0, 0);
+}
+EXPORT_SYMBOL_GPL(kmemleak_free_percpu);
 
 /**
  * kmemleak_not_leak - mark an allocated object as false positive
@@ -1727,11 +1793,17 @@ void __init kmemleak_init(void)
 		case KMEMLEAK_ALLOC:
 			early_alloc(log);
 			break;
+		case KMEMLEAK_ALLOC_PERCPU:
+			early_alloc_percpu(log);
+			break;
 		case KMEMLEAK_FREE:
 			kmemleak_free(log->ptr);
 			break;
 		case KMEMLEAK_FREE_PART:
 			kmemleak_free_part(log->ptr, log->size);
+			break;
+		case KMEMLEAK_FREE_PERCPU:
+			kmemleak_free_percpu(log->ptr);
 			break;
 		case KMEMLEAK_NOT_LEAK:
 			kmemleak_not_leak(log->ptr);
