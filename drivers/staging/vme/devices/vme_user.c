@@ -116,7 +116,7 @@ static struct driver_stats statistics;
 
 static struct cdev *vme_user_cdev;		/* Character device */
 static struct class *vme_user_sysfs_class;	/* Sysfs class */
-static struct device *vme_user_bridge;		/* Pointer to bridge device */
+static struct vme_dev *vme_user_bridge;		/* Pointer to user device */
 
 
 static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
@@ -135,8 +135,8 @@ static ssize_t vme_user_write(struct file *, const char __user *, size_t,
 static loff_t vme_user_llseek(struct file *, loff_t, int);
 static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 
-static int __devinit vme_user_probe(struct device *, int, int);
-static int __devexit vme_user_remove(struct device *, int, int);
+static int __devinit vme_user_probe(struct vme_dev *);
+static int __devexit vme_user_remove(struct vme_dev *);
 
 static const struct file_operations vme_user_fops = {
 	.open = vme_user_open,
@@ -689,8 +689,7 @@ err_nocard:
  * as practical. We will therefore reserve the buffers and request the images
  * here so that we don't have to do it later.
  */
-static int __devinit vme_user_probe(struct device *dev, int cur_bus,
-	int cur_slot)
+static int __devinit vme_user_probe(struct vme_dev *vdev)
 {
 	int i, err;
 	char name[12];
@@ -702,7 +701,7 @@ static int __devinit vme_user_probe(struct device *dev, int cur_bus,
 		err = -EINVAL;
 		goto err_dev;
 	}
-	vme_user_bridge = dev;
+	vme_user_bridge = vdev;
 
 	/* Initialise descriptors */
 	for (i = 0; i < VME_DEVS; i++) {
@@ -865,8 +864,7 @@ err_dev:
 	return err;
 }
 
-static int __devexit vme_user_remove(struct device *dev, int cur_bus,
-	int cur_slot)
+static int __devexit vme_user_remove(struct vme_dev *dev)
 {
 	int i;
 
