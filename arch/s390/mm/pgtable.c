@@ -303,15 +303,15 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 		/* Walk the guest addr space page table */
 		table = gmap->table + (((to + off) >> 53) & 0x7ff);
 		if (*table & _REGION_ENTRY_INV)
-			return 0;
+			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		table = table + (((to + off) >> 42) & 0x7ff);
 		if (*table & _REGION_ENTRY_INV)
-			return 0;
+			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		table = table + (((to + off) >> 31) & 0x7ff);
 		if (*table & _REGION_ENTRY_INV)
-			return 0;
+			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		table = table + (((to + off) >> 20) & 0x7ff);
 
@@ -319,6 +319,7 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 		flush |= gmap_unlink_segment(gmap, table);
 		*table = _SEGMENT_ENTRY_INV;
 	}
+out:
 	up_read(&gmap->mm->mmap_sem);
 	if (flush)
 		gmap_flush_tlb(gmap);
