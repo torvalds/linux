@@ -698,7 +698,6 @@ static void pch_gbe_configure_tx(struct pch_gbe_adapter *adapter)
  */
 static void pch_gbe_setup_rctl(struct pch_gbe_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 rx_mode, tcpip;
 
