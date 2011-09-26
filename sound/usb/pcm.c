@@ -152,7 +152,7 @@ static int init_pitch_v1(struct snd_usb_audio *chip, int iface,
 	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
 				   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
 				   UAC_EP_CS_ATTR_PITCH_CONTROL << 8, ep,
-				   data, sizeof(data), 1000)) < 0) {
+				   data, sizeof(data))) < 0) {
 		snd_printk(KERN_ERR "%d:%d:%d: cannot set enable PITCH\n",
 			   dev->devnum, iface, ep);
 		return err;
@@ -176,7 +176,7 @@ static int init_pitch_v2(struct snd_usb_audio *chip, int iface,
 	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
 				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 				   UAC2_EP_CS_PITCH << 8, 0,
-				   data, sizeof(data), 1000)) < 0) {
+				   data, sizeof(data))) < 0) {
 		snd_printk(KERN_ERR "%d:%d:%d: cannot set enable PITCH (v2)\n",
 			   dev->devnum, iface, fmt->altsetting);
 		return err;

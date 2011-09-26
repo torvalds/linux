@@ -340,7 +340,7 @@ static int snd_usb_extigy_boot_quirk(struct usb_device *dev, struct usb_interfac
 		snd_printdd("sending Extigy boot sequence...\n");
 		/* Send message to force it to reconnect with full interface. */
 		err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev,0),
-				      0x10, 0x43, 0x0001, 0x000a, NULL, 0, 1000);
+				      0x10, 0x43, 0x0001, 0x000a, NULL, 0);
 		if (err < 0) snd_printdd("error sending boot message: %d\n", err);
 		err = usb_get_descriptor(dev, USB_DT_DEVICE, 0,
 				&dev->descriptor, sizeof(dev->descriptor));
@@ -361,11 +361,11 @@ static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
 
 	snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), 0x2a,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-			0, 0, &buf, 1, 1000);
+			0, 0, &buf, 1);
 	if (buf == 0) {
 		snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 0x29,
 				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-				1, 2000, NULL, 0, 1000);
+				1, 2000, NULL, 0);
 		return -ENODEV;
 	}
 	return 0;
@@ -408,7 +408,7 @@ static int snd_usb_cm106_write_int_reg(struct usb_device *dev, int reg, u16 valu
 	buf[3] = reg;
 	return snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), USB_REQ_SET_CONFIGURATION,
 			       USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT,
-			       0, 0, &buf, 4, 1000);
+			       0, 0, &buf, 4);
 }
 
 static int snd_usb_cm106_boot_quirk(struct usb_device *dev)
