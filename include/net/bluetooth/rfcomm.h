@@ -211,6 +211,7 @@ struct rfcomm_dlc {
 #define RFCOMM_AUTH_ACCEPT  6
 #define RFCOMM_AUTH_REJECT  7
 #define RFCOMM_DEFER_SETUP  8
+#define RFCOMM_ENC_DROP     9
 
 /* Scheduling flags and events */
 #define RFCOMM_SCHED_WAKEUP 31
