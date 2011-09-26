@@ -343,7 +343,6 @@ struct nfsd4_saved_compoundargs {
 
 struct nfsd4_test_stateid {
 	__be32		ts_num_ids;
-	bool		ts_has_session;
 	struct nfsd4_compoundargs *ts_saved_args;
 	struct nfsd4_saved_compoundargs ts_savedp;
 };

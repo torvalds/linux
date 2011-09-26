@@ -3256,7 +3256,7 @@ static int check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_sess
 	return nfserr_old_stateid;
 }
 
-__be32 nfs4_validate_stateid(stateid_t *stateid, bool has_session)
+__be32 nfs4_validate_stateid(stateid_t *stateid)
 {
 	struct nfs4_stid *s;
 	struct nfs4_ol_stateid *ols;
@@ -3268,7 +3268,7 @@ __be32 nfs4_validate_stateid(stateid_t *stateid, bool has_session)
 	s = find_stateid(stateid);
 	if (!s)
 		 return nfserr_stale_stateid;
-	status = check_stateid_generation(stateid, &s->sc_stateid, has_session);
+	status = check_stateid_generation(stateid, &s->sc_stateid, 1);
 	if (status)
 		return status;
 	if (!(s->sc_type & (NFS4_OPEN_STID | NFS4_LOCK_STID)))
@@ -3374,7 +3374,7 @@ __be32
 nfsd4_test_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		   struct nfsd4_test_stateid *test_stateid)
 {
-	test_stateid->ts_has_session = nfsd4_has_session(cstate);
+	/* real work is done during encoding */
 	return nfs_ok;
 }
 
