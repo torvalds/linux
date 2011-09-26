@@ -332,7 +332,7 @@ config HMC6352
 	  This driver provides support for the Honeywell HMC6352 compass,
 	  providing configuration and heading data via sysfs.
 
-config SENSORS_AK8975_MOTO
+config SENSORS_AK8975
 	tristate "AK8975 compass support"
 	default n
 	depends on I2C
@@ -348,7 +348,7 @@ config SENSORS_CAP_PROX
 	 Say yes here if you wish to include the Motorola
 	 Capacitive Proximity Sensor driver.
 
-config SENSORS_KXTF9_MOTO
+config SENSORS_KXTF9
 	tristate "KXTF9 Accelerometer"
 	default n
 	depends on I2C
