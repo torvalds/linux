@@ -45,6 +45,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <xen/xenbus.h>
+#include <xen/xen.h>
 #include "xenbus_comms.h"
 
 struct xs_stored_msg {
