@@ -3553,9 +3553,9 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 
 	aeqe_cq_id = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]);
 	if (aeq_info & NES_AEQE_QP) {
-		if ((!nes_is_resource_allocated(nesadapter, nesadapter->allocated_qps,
-				aeqe_cq_id)) ||
-				(atomic_read(&nesqp->close_timer_started)))
+		if (!nes_is_resource_allocated(nesadapter,
+				nesadapter->allocated_qps,
+				aeqe_cq_id))
 			return;
 	}
 
@@ -3566,8 +3566,7 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 
 			if (atomic_inc_return(&nesqp->close_timer_started) == 1) {
 				if ((tcp_state == NES_AEQE_TCP_STATE_CLOSE_WAIT) &&
-					(nesqp->ibqp_state == IB_QPS_RTS) &&
-					((nesadapter->eeprom_version >> 16) != NES_A0)) {
+					(nesqp->ibqp_state == IB_QPS_RTS)) {
 					spin_lock_irqsave(&nesqp->lock, flags);
 					nesqp->hw_iwarp_state = iwarp_state;
 					nesqp->hw_tcp_state = tcp_state;
@@ -3594,9 +3593,10 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				return;
 			}
 			spin_lock_irqsave(&nesqp->lock, flags);
-			nesqp->hw_iwarp_state = NES_AEQE_IWARP_STATE_CLOSING;
+			nesqp->hw_iwarp_state = iwarp_state;
+			nesqp->hw_tcp_state = tcp_state;
+			nesqp->last_aeq = async_event_id;
 			spin_unlock_irqrestore(&nesqp->lock, flags);
-			nes_hw_modify_qp(nesdev, nesqp, NES_CQP_QP_IWARP_STATE_CLOSING, 0, 0);
 			nes_cm_disconn(nesqp);
 			break;
 
@@ -3694,7 +3694,8 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 		case NES_AEQE_AEID_ROE_INVALID_RDMA_WRITE_OR_READ_RESP:
 			printk(KERN_ERR PFX "QP[%u] async_event_id=0x%04X IB_EVENT_QP_FATAL\n",
 					nesqp->hwqp.qp_id, async_event_id);
-			nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_FATAL);
+			if (!atomic_read(&nesqp->close_timer_started))
+				nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_FATAL);
 			break;
 
 		case NES_AEQE_AEID_CQ_OPERATION_ERROR:
