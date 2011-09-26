@@ -34,33 +34,36 @@
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 
-/* McBSP internal signal muxing functions */
-
-void omap2_mcbsp1_mux_clkr_src(u8 mux)
+/* McBSP internal signal muxing function */
+static int omap2_mcbsp1_mux_rx_clk(struct device *dev, const char *signal,
+				   const char *src)
 {
 	u32 v;
 
 	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-	if (mux == CLKR_SRC_CLKR)
-		v &= ~OMAP2_MCBSP1_CLKR_MASK;
-	else if (mux == CLKR_SRC_CLKX)
-		v |= OMAP2_MCBSP1_CLKR_MASK;
-	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
-}
-EXPORT_SYMBOL(omap2_mcbsp1_mux_clkr_src);
 
-void omap2_mcbsp1_mux_fsr_src(u8 mux)
-{
-	u32 v;
+	if (!strcmp(signal, "clkr")) {
+		if (!strcmp(src, "clkr"))
+			v &= ~OMAP2_MCBSP1_CLKR_MASK;
+		else if (!strcmp(src, "clkx"))
+			v |= OMAP2_MCBSP1_CLKR_MASK;
+		else
+			return -EINVAL;
+	} else if (!strcmp(signal, "fsr")) {
+		if (!strcmp(src, "fsr"))
+			v &= ~OMAP2_MCBSP1_FSR_MASK;
+		else if (!strcmp(src, "fsx"))
+			v |= OMAP2_MCBSP1_FSR_MASK;
+		else
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
 
-	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-	if (mux == FSR_SRC_FSR)
-		v &= ~OMAP2_MCBSP1_FSR_MASK;
-	else if (mux == FSR_SRC_FSX)
-		v |= OMAP2_MCBSP1_FSR_MASK;
 	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
+
+	return 0;
 }
-EXPORT_SYMBOL(omap2_mcbsp1_mux_fsr_src);
 
 /* McBSP CLKS source switching function */
 static int omap2_mcbsp_set_clk_src(struct device *dev, struct clk *clk,
@@ -181,6 +184,8 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		return PTR_ERR(pdev);
 	}
 	pdata->set_clk_src = omap2_mcbsp_set_clk_src;
+	if (id == 1)
+		pdata->mux_signal = omap2_mcbsp1_mux_rx_clk;
 	omap_mcbsp_count++;
 	return 0;
 }

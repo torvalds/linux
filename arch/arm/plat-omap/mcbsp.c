@@ -922,21 +922,41 @@ int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
 }
 EXPORT_SYMBOL(omap2_mcbsp_set_clks_src);
 
-#ifndef CONFIG_ARCH_OMAP2PLUS
 void omap2_mcbsp1_mux_clkr_src(u8 mux)
 {
-	WARN(1, "%s: should never be called on an OMAP1-only kernel\n",
-	     __func__);
-	return;
+	struct omap_mcbsp *mcbsp;
+	const char *src;
+
+	if (mux == CLKR_SRC_CLKR)
+		src = "clkr";
+	else if (mux == CLKR_SRC_CLKX)
+		src = "clkx";
+	else
+		return;
+
+	mcbsp = id_to_mcbsp_ptr(0);
+	if (mcbsp->pdata->mux_signal)
+		mcbsp->pdata->mux_signal(mcbsp->dev, "clkr", src);
 }
+EXPORT_SYMBOL(omap2_mcbsp1_mux_clkr_src);
 
 void omap2_mcbsp1_mux_fsr_src(u8 mux)
 {
-	WARN(1, "%s: should never be called on an OMAP1-only kernel\n",
-	     __func__);
-	return;
+	struct omap_mcbsp *mcbsp;
+	const char *src;
+
+	if (mux == FSR_SRC_FSR)
+		src = "fsr";
+	else if (mux == FSR_SRC_FSX)
+		src = "fsx";
+	else
+		return;
+
+	mcbsp = id_to_mcbsp_ptr(0);
+	if (mcbsp->pdata->mux_signal)
+		mcbsp->pdata->mux_signal(mcbsp->dev, "fsr", src);
 }
-#endif
+EXPORT_SYMBOL(omap2_mcbsp1_mux_fsr_src);
 
 #define max_thres(m)			(mcbsp->pdata->buffer_size)
 #define valid_threshold(m, val)		((val) <= max_thres(m))
