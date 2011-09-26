@@ -3169,9 +3169,14 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	os = ns = mdev->state;
 	spin_unlock_irq(&mdev->req_lock);
 
-	/* peer says his disk is uptodate, while we think it is inconsistent,
-	 * and this happens while we think we have a sync going on. */
-	if (os.pdsk == D_INCONSISTENT && real_peer_disk == D_UP_TO_DATE &&
+	/* If this is the "end of sync" confirmation, usually the peer disk
+	 * transitions from D_INCONSISTENT to D_UP_TO_DATE. For empty (0 bits
+	 * set) resync started in PausedSyncT, or if the timing of pause-/
+	 * unpause-sync events has been "just right", the peer disk may
+	 * transition from D_CONSISTENT to D_UP_TO_DATE as well.
+	 */
+	if ((os.pdsk == D_INCONSISTENT || os.pdsk == D_CONSISTENT) &&
+	    real_peer_disk == D_UP_TO_DATE &&
 	    os.conn > C_CONNECTED && os.disk == D_UP_TO_DATE) {
 		/* If we are (becoming) SyncSource, but peer is still in sync
 		 * preparation, ignore its uptodate-ness to avoid flapping, it
