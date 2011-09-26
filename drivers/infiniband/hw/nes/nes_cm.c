@@ -159,6 +159,15 @@ atomic_t cm_connecteds;
 atomic_t cm_connect_reqs;
 atomic_t cm_rejects;
 
+int nes_add_ref_cm_node(struct nes_cm_node *cm_node)
+{
+	return add_ref_cm_node(cm_node);
+}
+
+int nes_rem_ref_cm_node(struct nes_cm_node *cm_node)
+{
+	return rem_ref_cm_node(cm_node->cm_core, cm_node);
+}
 
 /**
  * create_event
@@ -2331,9 +2340,13 @@ static int mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 			}
 			add_ref_cm_node(cm_node);
 		} else if (cm_node->state == NES_CM_STATE_TSA) {
-			rem_ref_cm_node(cm_core, cm_node);
-			atomic_inc(&cm_accel_dropped_pkts);
-			dev_kfree_skb_any(skb);
+			if (cm_node->nesqp->pau_mode)
+				nes_queue_mgt_skbs(skb, nesvnic, cm_node->nesqp);
+			else {
+				rem_ref_cm_node(cm_core, cm_node);
+				atomic_inc(&cm_accel_dropped_pkts);
+				dev_kfree_skb_any(skb);
+			}
 			break;
 		}
 		skb_reset_network_header(skb);

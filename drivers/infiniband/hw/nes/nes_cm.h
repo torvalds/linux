@@ -422,5 +422,7 @@ int nes_destroy_listen(struct iw_cm_id *);
 int nes_cm_recv(struct sk_buff *, struct net_device *);
 int nes_cm_start(void);
 int nes_cm_stop(void);
+int nes_add_ref_cm_node(struct nes_cm_node *cm_node);
+int nes_rem_ref_cm_node(struct nes_cm_node *cm_node);
 
 #endif			/* NES_CM_H */

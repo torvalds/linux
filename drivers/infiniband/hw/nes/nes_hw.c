@@ -1563,6 +1563,7 @@ static void nes_replenish_nic_rq(struct nes_vnic *nesvnic)
 	struct nes_hw_nic_rq_wqe *nic_rqe;
 	struct nes_hw_nic *nesnic;
 	struct nes_device *nesdev;
+	struct nes_rskb_cb *cb;
 	u32 rx_wqes_posted = 0;
 
 	nesnic = &nesvnic->nic;
@@ -1588,6 +1589,9 @@ static void nes_replenish_nic_rq(struct nes_vnic *nesvnic)
 
 			bus_address = pci_map_single(nesdev->pcidev,
 					skb->data, nesvnic->max_frame_size, PCI_DMA_FROMDEVICE);
+			cb = (struct nes_rskb_cb *)&skb->cb[0];
+			cb->busaddr = bus_address;
+			cb->maplen = nesvnic->max_frame_size;
 
 			nic_rqe = &nesnic->rq_vbase[nesvnic->nic.rq_head];
 			nic_rqe->wqe_words[NES_NIC_RQ_WQE_LENGTH_1_0_IDX] =
@@ -1677,6 +1681,7 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 	u32 cqp_head;
 	u32 counter;
 	u32 wqe_count;
+	struct nes_rskb_cb *cb;
 	u8 jumbomode=0;
 
 	/* Allocate fragment, SQ, RQ, and CQ; Reuse CEQ based on the PCI function */
@@ -1853,6 +1858,9 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 
 		pmem = pci_map_single(nesdev->pcidev, skb->data,
 				nesvnic->max_frame_size, PCI_DMA_FROMDEVICE);
+		cb = (struct nes_rskb_cb *)&skb->cb[0];
+		cb->busaddr = pmem;
+		cb->maplen = nesvnic->max_frame_size;
 
 		nic_rqe = &nesvnic->nic.rq_vbase[counter];
 		nic_rqe->wqe_words[NES_NIC_RQ_WQE_LENGTH_1_0_IDX] = cpu_to_le32(nesvnic->max_frame_size);
@@ -1881,6 +1889,13 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 			jumbomode = 1;
 		nes_nic_init_timer_defaults(nesdev, jumbomode);
 	}
+	if ((nesdev->nesadapter->allow_unaligned_fpdus) &&
+		(nes_init_mgt_qp(nesdev, netdev, nesvnic))) {
+			nes_debug(NES_DBG_INIT, "%s: Out of memory for pau nic\n", netdev->name);
+			nes_destroy_nic_qp(nesvnic);
+		return -ENOMEM;
+	}
+
 	nesvnic->lro_mgr.max_aggr       = nes_lro_max_aggr;
 	nesvnic->lro_mgr.max_desc       = NES_MAX_LRO_DESCRIPTORS;
 	nesvnic->lro_mgr.lro_arr        = nesvnic->lro_desc;
@@ -1903,14 +1918,17 @@ void nes_destroy_nic_qp(struct nes_vnic *nesvnic)
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_hw_cqp_wqe *cqp_wqe;
 	struct nes_hw_nic_sq_wqe *nic_sqe;
-	struct nes_hw_nic_rq_wqe *nic_rqe;
 	__le16 *wqe_fragment_length;
 	u16  wqe_fragment_index;
-	u64 wqe_frag;
 	u32 cqp_head;
 	u32 wqm_cfg0;
 	unsigned long flags;
+	struct sk_buff *rx_skb;
+	struct nes_rskb_cb *cb;
 	int ret;
+
+	if (nesdev->nesadapter->allow_unaligned_fpdus)
+		nes_destroy_mgt(nesvnic);
 
 	/* clear wqe stall before destroying NIC QP */
 	wqm_cfg0 = nes_read_indexed(nesdev, NES_IDX_WQM_CONFIG0);
@@ -1918,13 +1936,11 @@ void nes_destroy_nic_qp(struct nes_vnic *nesvnic)
 
 	/* Free remaining NIC receive buffers */
 	while (nesvnic->nic.rq_head != nesvnic->nic.rq_tail) {
-		nic_rqe   = &nesvnic->nic.rq_vbase[nesvnic->nic.rq_tail];
-		wqe_frag  = (u64)le32_to_cpu(
-			nic_rqe->wqe_words[NES_NIC_RQ_WQE_FRAG0_LOW_IDX]);
-		wqe_frag |= ((u64)le32_to_cpu(
-			nic_rqe->wqe_words[NES_NIC_RQ_WQE_FRAG0_HIGH_IDX]))<<32;
-		pci_unmap_single(nesdev->pcidev, (dma_addr_t)wqe_frag,
-				nesvnic->max_frame_size, PCI_DMA_FROMDEVICE);
+		rx_skb = nesvnic->nic.rx_skb[nesvnic->nic.rq_tail];
+		cb = (struct nes_rskb_cb *)&rx_skb->cb[0];
+		pci_unmap_single(nesdev->pcidev, cb->busaddr, cb->maplen,
+			PCI_DMA_FROMDEVICE);
+
 		dev_kfree_skb(nesvnic->nic.rx_skb[nesvnic->nic.rq_tail++]);
 		nesvnic->nic.rq_tail &= (nesvnic->nic.rq_size - 1);
 	}
@@ -2783,6 +2799,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 	struct nes_hw_nic_sq_wqe *nic_sqe;
 	struct sk_buff *skb;
 	struct sk_buff *rx_skb;
+	struct nes_rskb_cb *cb;
 	__le16 *wqe_fragment_length;
 	u32 head;
 	u32 cq_size;
@@ -2867,6 +2884,8 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 				bus_address += ((u64)le32_to_cpu(nic_rqe->wqe_words[NES_NIC_RQ_WQE_FRAG0_HIGH_IDX])) << 32;
 				pci_unmap_single(nesdev->pcidev, bus_address,
 						nesvnic->max_frame_size, PCI_DMA_FROMDEVICE);
+				cb = (struct nes_rskb_cb *)&rx_skb->cb[0];
+				cb->busaddr = 0;
 				/* rx_skb->tail = rx_skb->data + rx_pkt_size; */
 				/* rx_skb->len = rx_pkt_size; */
 				rx_skb->len = 0;  /* TODO: see if this is necessary */
@@ -2991,6 +3010,7 @@ skip_rx_indicate0:
 }
 
 
+
 /**
  * nes_cqp_ce_handler
  */
@@ -3005,6 +3025,8 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 	u32 cq_size;
 	u32 cqe_count=0;
 	u32 error_code;
+	u32 opcode;
+	u32 ctx_index;
 	/* u32 counter; */
 
 	head = cq->cq_head;
@@ -3015,12 +3037,9 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 		/* nes_debug(NES_DBG_CQP, "head=%u cqe_words=%08X\n", head,
 			  le32_to_cpu(cq->cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX])); */
 
-		if (le32_to_cpu(cq->cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX]) & NES_CQE_VALID) {
-			u64temp = (((u64)(le32_to_cpu(cq->cq_vbase[head].
-					cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX]))) << 32) |
-					((u64)(le32_to_cpu(cq->cq_vbase[head].
-					cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX])));
-			cqp = *((struct nes_hw_cqp **)&u64temp);
+		opcode = le32_to_cpu(cq->cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX]);
+		if (opcode & NES_CQE_VALID) {
+			cqp = &nesdev->cqp;
 
 			error_code = le32_to_cpu(cq->cq_vbase[head].cqe_words[NES_CQE_ERROR_CODE_IDX]);
 			if (error_code) {
@@ -3029,15 +3048,14 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 						le32_to_cpu(cq->cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX])&0x3f,
 						(u16)(error_code >> 16),
 						(u16)error_code);
-				nes_debug(NES_DBG_CQP, "cqp: qp_id=%u, sq_head=%u, sq_tail=%u\n",
-						cqp->qp_id, cqp->sq_head, cqp->sq_tail);
 			}
 
-			u64temp = (((u64)(le32_to_cpu(nesdev->cqp.sq_vbase[cqp->sq_tail].
-					wqe_words[NES_CQP_WQE_COMP_SCRATCH_HIGH_IDX]))) << 32) |
-					((u64)(le32_to_cpu(nesdev->cqp.sq_vbase[cqp->sq_tail].
-					wqe_words[NES_CQP_WQE_COMP_SCRATCH_LOW_IDX])));
-			cqp_request = *((struct nes_cqp_request **)&u64temp);
+			u64temp = (((u64)(le32_to_cpu(cq->cq_vbase[head].
+					cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX]))) << 32) |
+					((u64)(le32_to_cpu(cq->cq_vbase[head].
+					cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX])));
+
+			cqp_request = (struct nes_cqp_request *)(unsigned long)u64temp;
 			if (cqp_request) {
 				if (cqp_request->waiting) {
 					/* nes_debug(NES_DBG_CQP, "%s: Waking up requestor\n"); */
@@ -3083,9 +3101,15 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 		cqp_wqe = &nesdev->cqp.sq_vbase[head];
 		memcpy(cqp_wqe, &cqp_request->cqp_wqe, sizeof(*cqp_wqe));
 		barrier();
-		cqp_wqe->wqe_words[NES_CQP_WQE_COMP_SCRATCH_LOW_IDX] =
+
+		opcode = cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX];
+		if ((opcode & NES_CQP_OPCODE_MASK) == NES_CQP_DOWNLOAD_SEGMENT)
+			ctx_index = NES_CQP_WQE_DL_COMP_CTX_LOW_IDX;
+		else
+			ctx_index = NES_CQP_WQE_COMP_CTX_LOW_IDX;
+		cqp_wqe->wqe_words[ctx_index] =
 			cpu_to_le32((u32)((unsigned long)cqp_request));
-		cqp_wqe->wqe_words[NES_CQP_WQE_COMP_SCRATCH_HIGH_IDX] =
+		cqp_wqe->wqe_words[ctx_index + 1] =
 			cpu_to_le32((u32)(upper_32_bits((unsigned long)cqp_request)));
 		nes_debug(NES_DBG_CQP, "CQP request %p (opcode 0x%02X) put on CQPs SQ wqe%u.\n",
 				cqp_request, le32_to_cpu(cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX])&0x3f, head);
@@ -3100,7 +3124,6 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 			cq->cq_number);
 	nes_read32(nesdev->regs+NES_CQE_ALLOC);
 }
-
 
 static u8 *locate_mpa(u8 *pkt, u32 aeq_info)
 {
