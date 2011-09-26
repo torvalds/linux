@@ -675,3 +675,18 @@ void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 		cinode->clientCanCacheRead = false;
 	}
 }
+
+bool
+backup_cred(struct cifs_sb_info *cifs_sb)
+{
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPUID) {
+		if (cifs_sb->mnt_backupuid == current_fsuid())
+			return true;
+	}
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPGID) {
+		if (in_group_p(cifs_sb->mnt_backupgid))
+			return true;
+	}
+
+	return false;
+}

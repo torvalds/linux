@@ -244,6 +244,9 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	if (!tcon->unix_ext && (mode & S_IWUGO) == 0)
 		create_options |= CREATE_OPTION_READONLY;
 
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
 	if (tcon->ses->capabilities & CAP_NT_SMBS)
 		rc = CIFSSMBOpen(xid, tcon, full_path, disposition,
 			 desiredAccess, create_options,
@@ -357,6 +360,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 {
 	int rc = -EPERM;
 	int xid;
+	int create_options = CREATE_NOT_DIR | CREATE_OPTION_SPECIAL;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
@@ -431,9 +435,11 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 		return rc;
 	}
 
-	/* FIXME: would WRITE_OWNER | WRITE_DAC be better? */
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
 	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_CREATE,
-			 GENERIC_WRITE, CREATE_NOT_DIR | CREATE_OPTION_SPECIAL,
+			 GENERIC_WRITE, create_options,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc)

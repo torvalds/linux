@@ -831,6 +831,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 {
 	char *value, *data, *end;
 	char *mountdata_copy = NULL, *options;
+	int err;
 	unsigned int  temp_len, i, j;
 	char separator[2];
 	short int override_uid = -1;
@@ -887,6 +888,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			cFYI(1, "Null separator not allowed");
 		}
 	}
+	vol->backupuid_specified = false; /* no backup intent for a user */
+	vol->backupgid_specified = false; /* no backup intent for a group */
 
 	while ((data = strsep(&options, separator)) != NULL) {
 		if (!*data)
@@ -1446,6 +1449,22 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->mfsymlinks = true;
 		} else if (strnicmp(data, "multiuser", 8) == 0) {
 			vol->multiuser = true;
+		} else if (!strnicmp(data, "backupuid", 9) && value && *value) {
+			err = kstrtouint(value, 0, &vol->backupuid);
+			if (err < 0) {
+				cERROR(1, "%s: Invalid backupuid value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->backupuid_specified = true;
+		} else if (!strnicmp(data, "backupgid", 9) && value && *value) {
+			err = kstrtouint(value, 0, &vol->backupgid);
+			if (err < 0) {
+				cERROR(1, "%s: Invalid backupgid value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->backupgid_specified = true;
 		} else
 			printk(KERN_WARNING "CIFS: Unknown mount option %s\n",
 						data);
@@ -2737,6 +2756,10 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 
 	cifs_sb->mnt_uid = pvolume_info->linux_uid;
 	cifs_sb->mnt_gid = pvolume_info->linux_gid;
+	if (pvolume_info->backupuid_specified)
+		cifs_sb->mnt_backupuid = pvolume_info->backupuid;
+	if (pvolume_info->backupgid_specified)
+		cifs_sb->mnt_backupgid = pvolume_info->backupgid;
 	cifs_sb->mnt_file_mode = pvolume_info->file_mode;
 	cifs_sb->mnt_dir_mode = pvolume_info->dir_mode;
 	cFYI(1, "file mode: 0x%x  dir mode: 0x%x",
@@ -2767,6 +2790,10 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RWPIDFORWARD;
 	if (pvolume_info->cifs_acl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
+	if (pvolume_info->backupuid_specified)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPUID;
+	if (pvolume_info->backupgid_specified)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPGID;
 	if (pvolume_info->override_uid)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;
 	if (pvolume_info->override_gid)

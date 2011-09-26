@@ -174,6 +174,7 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	int rc;
 	int desiredAccess;
 	int disposition;
+	int create_options = CREATE_NOT_DIR;
 	FILE_ALL_INFO *buf;
 
 	desiredAccess = cifs_convert_flags(f_flags);
@@ -210,9 +211,12 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	if (!buf)
 		return -ENOMEM;
 
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
 	if (tcon->ses->capabilities & CAP_NT_SMBS)
 		rc = CIFSSMBOpen(xid, tcon, full_path, disposition,
-			 desiredAccess, CREATE_NOT_DIR, pnetfid, poplock, buf,
+			 desiredAccess, create_options, pnetfid, poplock, buf,
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
 				 & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else
@@ -465,6 +469,7 @@ static int cifs_reopen_file(struct cifsFileInfo *pCifsFile, bool can_flush)
 	char *full_path = NULL;
 	int desiredAccess;
 	int disposition = FILE_OPEN;
+	int create_options = CREATE_NOT_DIR;
 	__u16 netfid;
 
 	xid = GetXid();
@@ -524,6 +529,9 @@ static int cifs_reopen_file(struct cifsFileInfo *pCifsFile, bool can_flush)
 
 	desiredAccess = cifs_convert_flags(pCifsFile->f_flags);
 
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
 	/* Can not refresh inode by passing in file_info buf to be returned
 	   by SMBOpen and then calling get_inode_info with returned buf
 	   since file might have write behind data that needs to be flushed
@@ -531,7 +539,7 @@ static int cifs_reopen_file(struct cifsFileInfo *pCifsFile, bool can_flush)
 	   that inode was not dirty locally we could do this */
 
 	rc = CIFSSMBOpen(xid, tcon, full_path, disposition, desiredAccess,
-			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
+			 create_options, &netfid, &oplock, NULL,
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
