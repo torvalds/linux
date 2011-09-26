@@ -331,16 +331,40 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct net_device_stats *stats = &port->stats;
-	struct hcp_ehea_port_cb2 *cb2;
-	u64 hret, rx_packets, tx_packets, rx_bytes = 0, tx_bytes = 0;
+	u64 rx_packets = 0, tx_packets = 0, rx_bytes = 0, tx_bytes = 0;
 	int i;
 
-	memset(stats, 0, sizeof(*stats));
+	for (i = 0; i < port->num_def_qps; i++) {
+		rx_packets += port->port_res[i].rx_packets;
+		rx_bytes   += port->port_res[i].rx_bytes;
+	}
+
+	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
+		tx_packets += port->port_res[i].tx_packets;
+		tx_bytes   += port->port_res[i].tx_bytes;
+	}
+
+	stats->tx_packets = tx_packets;
+	stats->rx_bytes = rx_bytes;
+	stats->tx_bytes = tx_bytes;
+	stats->rx_packets = rx_packets;
+
+	return &port->stats;
+}
+
+static void ehea_update_stats(struct work_struct *work)
+{
+	struct ehea_port *port =
+		container_of(work, struct ehea_port, stats_work.work);
+	struct net_device *dev = port->netdev;
+	struct net_device_stats *stats = &port->stats;
+	struct hcp_ehea_port_cb2 *cb2;
+	u64 hret;
 
 	cb2 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb2) {
-		netdev_err(dev, "no mem for cb2\n");
-		goto out;
+		netdev_err(dev, "No mem for cb2. Some interface statistics were not updated\n");
+		goto resched;
 	}
 
 	hret = ehea_h_query_ehea_port(port->adapter->handle,
@@ -354,29 +378,13 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 	if (netif_msg_hw(port))
 		ehea_dump(cb2, sizeof(*cb2), "net_device_stats");
 
-	rx_packets = 0;
-	for (i = 0; i < port->num_def_qps; i++) {
-		rx_packets += port->port_res[i].rx_packets;
-		rx_bytes   += port->port_res[i].rx_bytes;
-	}
-
-	tx_packets = 0;
-	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
-		tx_packets += port->port_res[i].tx_packets;
-		tx_bytes   += port->port_res[i].tx_bytes;
-	}
-
-	stats->tx_packets = tx_packets;
 	stats->multicast = cb2->rxmcp;
 	stats->rx_errors = cb2->rxuerr;
-	stats->rx_bytes = rx_bytes;
-	stats->tx_bytes = tx_bytes;
-	stats->rx_packets = rx_packets;
 
 out_herr:
 	free_page((unsigned long)cb2);
-out:
-	return stats;
+resched:
+	schedule_delayed_work(&port->stats_work, msecs_to_jiffies(1000));
 }
 
 static void ehea_refill_rq1(struct ehea_port_res *pr, int index, int nr_of_wqes)
@@ -2651,6 +2659,7 @@ static int ehea_open(struct net_device *dev)
 	}
 
 	mutex_unlock(&port->port_lock);
+	schedule_delayed_work(&port->stats_work, msecs_to_jiffies(1000));
 
 	return ret;
 }
@@ -2690,6 +2699,7 @@ static int ehea_stop(struct net_device *dev)
 
 	set_bit(__EHEA_DISABLE_PORT_RESET, &port->flags);
 	cancel_work_sync(&port->reset_task);
+	cancel_delayed_work_sync(&port->stats_work);
 	mutex_lock(&port->port_lock);
 	netif_stop_queue(dev);
 	port_napi_disable(port);
@@ -3235,10 +3245,12 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 		dev->features |= NETIF_F_LRO;
 
 	INIT_WORK(&port->reset_task, ehea_reset_port);
+	INIT_DELAYED_WORK(&port->stats_work, ehea_update_stats);
 
 	init_waitqueue_head(&port->swqe_avail_wq);
 	init_waitqueue_head(&port->restart_wq);
 
+	memset(&port->stats, 0, sizeof(struct net_device_stats));
 	ret = register_netdev(dev);
 	if (ret) {
 		pr_err("register_netdev failed. ret=%d\n", ret);
@@ -3278,6 +3290,7 @@ static void ehea_shutdown_single_port(struct ehea_port *port)
 	struct ehea_adapter *adapter = port->adapter;
 
 	cancel_work_sync(&port->reset_task);
+	cancel_delayed_work_sync(&port->stats_work);
 	unregister_netdev(port->netdev);
 	ehea_unregister_port(port);
 	kfree(port->mc_list);

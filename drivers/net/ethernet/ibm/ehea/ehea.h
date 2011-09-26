@@ -459,6 +459,7 @@ struct ehea_port {
 	struct ehea_mc_list *mc_list;	 /* Multicast MAC addresses */
 	struct ehea_eq *qp_eq;
 	struct work_struct reset_task;
+	struct delayed_work stats_work;
 	struct mutex port_lock;
 	char int_aff_name[EHEA_IRQ_NAME_SIZE];
 	int allmulti;			 /* Indicates IFF_ALLMULTI state */
