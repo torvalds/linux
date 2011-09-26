@@ -78,6 +78,7 @@ struct twl6040_output {
 
 struct twl6040_jack_data {
 	struct snd_soc_jack *jack;
+	struct delayed_work work;
 	int report;
 };
 
@@ -99,7 +100,6 @@ struct twl6040_data {
 	struct twl6040_jack_data hs_jack;
 	struct snd_soc_codec *codec;
 	struct workqueue_struct *workqueue;
-	struct delayed_work delayed_work;
 	struct mutex mutex;
 	struct twl6040_output headset;
 	struct twl6040_output handsfree;
@@ -734,7 +734,7 @@ EXPORT_SYMBOL_GPL(twl6040_hs_jack_detect);
 static void twl6040_accessory_work(struct work_struct *work)
 {
 	struct twl6040_data *priv = container_of(work,
-					struct twl6040_data, delayed_work.work);
+					struct twl6040_data, hs_jack.work.work);
 	struct snd_soc_codec *codec = priv->codec;
 	struct twl6040_jack_data *hs_jack = &priv->hs_jack;
 
@@ -747,7 +747,7 @@ static irqreturn_t twl6040_audio_handler(int irq, void *data)
 	struct snd_soc_codec *codec = data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
-	queue_delayed_work(priv->workqueue, &priv->delayed_work,
+	queue_delayed_work(priv->workqueue, &priv->hs_jack.work,
 			   msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
@@ -1534,7 +1534,7 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 		goto work_err;
 	}
 
-	INIT_DELAYED_WORK(&priv->delayed_work, twl6040_accessory_work);
+	INIT_DELAYED_WORK(&priv->hs_jack.work, twl6040_accessory_work);
 
 	mutex_init(&priv->mutex);
 
