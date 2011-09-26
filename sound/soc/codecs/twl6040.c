@@ -72,6 +72,7 @@ struct twl6040_output {
 	u16 right_step;
 	unsigned int step_delay;
 	u16 ramp;
+	struct delayed_work work;
 	struct completion ramp_done;
 };
 
@@ -104,8 +105,6 @@ struct twl6040_data {
 	struct twl6040_output handsfree;
 	struct workqueue_struct *hf_workqueue;
 	struct workqueue_struct *hs_workqueue;
-	struct delayed_work hs_delayed_work;
-	struct delayed_work hf_delayed_work;
 };
 
 /*
@@ -489,7 +488,7 @@ static inline int twl6040_hf_ramp_step(struct snd_soc_codec *codec,
 static void twl6040_pga_hs_work(struct work_struct *work)
 {
 	struct twl6040_data *priv =
-		container_of(work, struct twl6040_data, hs_delayed_work.work);
+		container_of(work, struct twl6040_data, headset.work.work);
 	struct snd_soc_codec *codec = priv->codec;
 	struct twl6040_output *headset = &priv->headset;
 	unsigned int delay = headset->step_delay;
@@ -532,7 +531,7 @@ static void twl6040_pga_hs_work(struct work_struct *work)
 static void twl6040_pga_hf_work(struct work_struct *work)
 {
 	struct twl6040_data *priv =
-		container_of(work, struct twl6040_data, hf_delayed_work.work);
+		container_of(work, struct twl6040_data, handsfree.work.work);
 	struct snd_soc_codec *codec = priv->codec;
 	struct twl6040_output *handsfree = &priv->handsfree;
 	unsigned int delay = handsfree->step_delay;
@@ -585,7 +584,6 @@ static int out_drv_event(struct snd_soc_dapm_widget *w,
 	case 2:
 	case 3:
 		out = &priv->headset;
-		work = &priv->hs_delayed_work;
 		queue = priv->hs_workqueue;
 		out->left_step = priv->hs_left_step;
 		out->right_step = priv->hs_right_step;
@@ -593,7 +591,6 @@ static int out_drv_event(struct snd_soc_dapm_widget *w,
 		break;
 	case 4:
 		out = &priv->handsfree;
-		work = &priv->hf_delayed_work;
 		queue = priv->hf_workqueue;
 		out->left_step = priv->hf_left_step;
 		out->right_step = priv->hf_right_step;
@@ -606,6 +603,8 @@ static int out_drv_event(struct snd_soc_dapm_widget *w,
 	default:
 		return -1;
 	}
+
+	work = &out->work;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1553,8 +1552,8 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 		goto hswq_err;
 	}
 
-	INIT_DELAYED_WORK(&priv->hs_delayed_work, twl6040_pga_hs_work);
-	INIT_DELAYED_WORK(&priv->hf_delayed_work, twl6040_pga_hf_work);
+	INIT_DELAYED_WORK(&priv->headset.work, twl6040_pga_hs_work);
+	INIT_DELAYED_WORK(&priv->handsfree.work, twl6040_pga_hf_work);
 
 	ret = request_threaded_irq(priv->plug_irq, NULL, twl6040_audio_handler,
 				   0, "twl6040_irq_plug", codec);
