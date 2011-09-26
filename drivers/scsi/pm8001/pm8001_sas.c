@@ -609,7 +609,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 				flag = 1; /* directly sata*/
 		}
 	} /*register this device to HBA*/
-	PM8001_DISC_DBG(pm8001_ha, pm8001_printk("Found device \n"));
+	PM8001_DISC_DBG(pm8001_ha, pm8001_printk("Found device\n"));
 	PM8001_CHIP_DISP->reg_dev_req(pm8001_ha, pm8001_device, flag);
 	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	wait_for_completion(&completion);
@@ -958,13 +958,14 @@ int pm8001_query_task(struct sas_task *task)
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
 			PM8001_EH_DBG(pm8001_ha,
-				pm8001_printk("The task is still in Lun \n"));
+				pm8001_printk("The task is still in Lun\n"));
+			break;
 		/* The task is not in Lun or failed, reset the phy */
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			PM8001_EH_DBG(pm8001_ha,
 			pm8001_printk("The task is not in Lun or failed,"
-			" reset the phy \n"));
+			" reset the phy\n"));
 			break;
 		}
 	}
