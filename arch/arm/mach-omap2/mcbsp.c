@@ -126,7 +126,11 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		return -ENOMEM;
 	}
 
-	pdata->mcbsp_config_type = oh->class->rev;
+	pdata->reg_step = 4;
+	if (oh->class->rev < MCBSP_CONFIG_TYPE2)
+		pdata->reg_size = 2;
+	else
+		pdata->reg_size = 4;
 
 	if (oh->class->rev == MCBSP_CONFIG_TYPE3) {
 		if (id == 2)

@@ -35,29 +35,27 @@ int omap_mcbsp_count, omap_mcbsp_cache_size;
 
 static void omap_mcbsp_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)
 {
-	if (cpu_class_is_omap1()) {
-		((u16 *)mcbsp->reg_cache)[reg / sizeof(u16)] = (u16)val;
-		__raw_writew((u16)val, mcbsp->io_base + reg);
-	} else if (cpu_is_omap2420()) {
-		((u16 *)mcbsp->reg_cache)[reg / sizeof(u32)] = (u16)val;
-		__raw_writew((u16)val, mcbsp->io_base + reg);
+	void __iomem *addr = mcbsp->io_base + reg * mcbsp->pdata->reg_step;
+
+	if (mcbsp->pdata->reg_size == 2) {
+		((u16 *)mcbsp->reg_cache)[reg] = (u16)val;
+		__raw_writew((u16)val, addr);
 	} else {
-		((u32 *)mcbsp->reg_cache)[reg / sizeof(u32)] = val;
-		__raw_writel(val, mcbsp->io_base + reg);
+		((u32 *)mcbsp->reg_cache)[reg] = val;
+		__raw_writel(val, addr);
 	}
 }
 
 static int omap_mcbsp_read(struct omap_mcbsp *mcbsp, u16 reg, bool from_cache)
 {
-	if (cpu_class_is_omap1()) {
-		return !from_cache ? __raw_readw(mcbsp->io_base + reg) :
-				((u16 *)mcbsp->reg_cache)[reg / sizeof(u16)];
-	} else if (cpu_is_omap2420()) {
-		return !from_cache ? __raw_readw(mcbsp->io_base + reg) :
-				((u16 *)mcbsp->reg_cache)[reg / sizeof(u32)];
+	void __iomem *addr = mcbsp->io_base + reg * mcbsp->pdata->reg_step;
+
+	if (mcbsp->pdata->reg_size == 2) {
+		return !from_cache ? __raw_readw(addr) :
+				     ((u16 *)mcbsp->reg_cache)[reg];
 	} else {
-		return !from_cache ? __raw_readl(mcbsp->io_base + reg) :
-				((u32 *)mcbsp->reg_cache)[reg / sizeof(u32)];
+		return !from_cache ? __raw_readl(addr) :
+				     ((u32 *)mcbsp->reg_cache)[reg];
 	}
 }
 
@@ -238,21 +236,19 @@ int omap_mcbsp_dma_reg_params(unsigned int id, unsigned int stream)
 	}
 	mcbsp = id_to_mcbsp_ptr(id);
 
-	data_reg = mcbsp->phys_dma_base;
-
-	if (mcbsp->mcbsp_config_type < MCBSP_CONFIG_TYPE2) {
+	if (mcbsp->pdata->reg_size == 2) {
 		if (stream)
-			data_reg += OMAP_MCBSP_REG_DRR1;
+			data_reg = OMAP_MCBSP_REG_DRR1;
 		else
-			data_reg += OMAP_MCBSP_REG_DXR1;
+			data_reg = OMAP_MCBSP_REG_DXR1;
 	} else {
 		if (stream)
-			data_reg += OMAP_MCBSP_REG_DRR;
+			data_reg = OMAP_MCBSP_REG_DRR;
 		else
-			data_reg += OMAP_MCBSP_REG_DXR;
+			data_reg = OMAP_MCBSP_REG_DXR;
 	}
 
-	return data_reg;
+	return mcbsp->phys_dma_base + data_reg * mcbsp->pdata->reg_step;
 }
 EXPORT_SYMBOL(omap_mcbsp_dma_reg_params);
 
@@ -1337,7 +1333,6 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	mcbsp->pdata = pdata;
 	mcbsp->dev = &pdev->dev;
 	mcbsp_ptr[id] = mcbsp;
-	mcbsp->mcbsp_config_type = pdata->mcbsp_config_type;
 	platform_set_drvdata(pdev, mcbsp);
 	pm_runtime_enable(mcbsp->dev);
 

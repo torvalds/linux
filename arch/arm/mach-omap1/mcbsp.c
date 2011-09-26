@@ -391,6 +391,8 @@ static void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
 			continue;
 		platform_device_add_resources(new_mcbsp, &res[i * res_count],
 					res_count);
+		config[i].reg_size = 2;
+		config[i].reg_step = 2;
 		new_mcbsp->dev.platform_data = &config[i];
 		ret = platform_device_add(new_mcbsp);
 		if (ret) {
