@@ -123,6 +123,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 
 	switch (ext) {
 	case KVM_CAP_S390_PSW:
+	case KVM_CAP_S390_GMAP:
 		r = 1;
 		break;
 	default:
@@ -263,10 +264,12 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	vcpu->arch.guest_fpregs.fpc &= FPC_VALID_MASK;
 	restore_fp_regs(&vcpu->arch.guest_fpregs);
 	restore_access_regs(vcpu->arch.guest_acrs);
+	gmap_enable(vcpu->arch.gmap);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
+	gmap_disable(vcpu->arch.gmap);
 	save_fp_regs(&vcpu->arch.guest_fpregs);
 	save_access_regs(vcpu->arch.guest_acrs);
 	restore_fp_regs(&vcpu->arch.host_fpregs);
@@ -461,7 +464,6 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_disable();
 	kvm_guest_enter();
 	local_irq_enable();
-	gmap_enable(vcpu->arch.gmap);
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
 	if (sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs)) {
@@ -470,7 +472,6 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
-	gmap_disable(vcpu->arch.gmap);
 	local_irq_disable();
 	kvm_guest_exit();
 	local_irq_enable();

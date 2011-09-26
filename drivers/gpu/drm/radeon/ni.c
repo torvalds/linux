@@ -39,6 +39,7 @@ extern int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
 extern void evergreen_mc_program(struct radeon_device *rdev);
 extern void evergreen_irq_suspend(struct radeon_device *rdev);
 extern int evergreen_mc_init(struct radeon_device *rdev);
+extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
 
 #define EVERGREEN_PFP_UCODE_SIZE 1120
 #define EVERGREEN_PM4_UCODE_SIZE 1376
@@ -669,6 +670,8 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	WREG32(GRBM_CNTL, GRBM_READ_TIMEOUT(0xff));
 
+	evergreen_fix_pci_max_read_req_size(rdev);
+
 	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
 	mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
 
@@ -1159,6 +1162,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 				 SOFT_RESET_PA |
 				 SOFT_RESET_SH |
 				 SOFT_RESET_VGT |
+				 SOFT_RESET_SPI |
 				 SOFT_RESET_SX));
 	RREG32(GRBM_SOFT_RESET);
 	mdelay(15);
@@ -1183,7 +1187,8 @@ int cayman_cp_resume(struct radeon_device *rdev)
 
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(CP_RB0_CNTL, tmp | RB_RPTR_WR_ENA);
-	WREG32(CP_RB0_WPTR, 0);
+	rdev->cp.wptr = 0;
+	WREG32(CP_RB0_WPTR, rdev->cp.wptr);
 
 	/* set the wb address wether it's enabled or not */
 	WREG32(CP_RB0_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
@@ -1203,7 +1208,6 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB0_BASE, rdev->cp.gpu_addr >> 8);
 
 	rdev->cp.rptr = RREG32(CP_RB0_RPTR);
-	rdev->cp.wptr = RREG32(CP_RB0_WPTR);
 
 	/* ring1  - compute only */
 	/* Set ring buffer size */
@@ -1216,7 +1220,8 @@ int cayman_cp_resume(struct radeon_device *rdev)
 
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(CP_RB1_CNTL, tmp | RB_RPTR_WR_ENA);
-	WREG32(CP_RB1_WPTR, 0);
+	rdev->cp1.wptr = 0;
+	WREG32(CP_RB1_WPTR, rdev->cp1.wptr);
 
 	/* set the wb address wether it's enabled or not */
 	WREG32(CP_RB1_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET) & 0xFFFFFFFC);
@@ -1228,7 +1233,6 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB1_BASE, rdev->cp1.gpu_addr >> 8);
 
 	rdev->cp1.rptr = RREG32(CP_RB1_RPTR);
-	rdev->cp1.wptr = RREG32(CP_RB1_WPTR);
 
 	/* ring2 - compute only */
 	/* Set ring buffer size */
@@ -1241,7 +1245,8 @@ int cayman_cp_resume(struct radeon_device *rdev)
 
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(CP_RB2_CNTL, tmp | RB_RPTR_WR_ENA);
-	WREG32(CP_RB2_WPTR, 0);
+	rdev->cp2.wptr = 0;
+	WREG32(CP_RB2_WPTR, rdev->cp2.wptr);
 
 	/* set the wb address wether it's enabled or not */
 	WREG32(CP_RB2_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP2_RPTR_OFFSET) & 0xFFFFFFFC);
@@ -1253,7 +1258,6 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB2_BASE, rdev->cp2.gpu_addr >> 8);
 
 	rdev->cp2.rptr = RREG32(CP_RB2_RPTR);
-	rdev->cp2.wptr = RREG32(CP_RB2_WPTR);
 
 	/* start the rings */
 	cayman_cp_start(rdev);

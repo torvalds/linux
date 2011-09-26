@@ -721,11 +721,11 @@ void r100_fence_ring_emit(struct radeon_device *rdev,
 int r100_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,
-		   unsigned num_pages,
+		   unsigned num_gpu_pages,
 		   struct radeon_fence *fence)
 {
 	uint32_t cur_pages;
-	uint32_t stride_bytes = PAGE_SIZE;
+	uint32_t stride_bytes = RADEON_GPU_PAGE_SIZE;
 	uint32_t pitch;
 	uint32_t stride_pixels;
 	unsigned ndw;
@@ -737,7 +737,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 	/* radeon pitch is /64 */
 	pitch = stride_bytes / 64;
 	stride_pixels = stride_bytes / 4;
-	num_loops = DIV_ROUND_UP(num_pages, 8191);
+	num_loops = DIV_ROUND_UP(num_gpu_pages, 8191);
 
 	/* Ask for enough room for blit + flush + fence */
 	ndw = 64 + (10 * num_loops);
@@ -746,12 +746,12 @@ int r100_copy_blit(struct radeon_device *rdev,
 		DRM_ERROR("radeon: moving bo (%d) asking for %u dw.\n", r, ndw);
 		return -EINVAL;
 	}
-	while (num_pages > 0) {
-		cur_pages = num_pages;
+	while (num_gpu_pages > 0) {
+		cur_pages = num_gpu_pages;
 		if (cur_pages > 8191) {
 			cur_pages = 8191;
 		}
-		num_pages -= cur_pages;
+		num_gpu_pages -= cur_pages;
 
 		/* pages are in Y direction - height
 		   page width in X direction - width */
@@ -773,8 +773,8 @@ int r100_copy_blit(struct radeon_device *rdev,
 		radeon_ring_write(rdev, (0x1fff) | (0x1fff << 16));
 		radeon_ring_write(rdev, 0);
 		radeon_ring_write(rdev, (0x1fff) | (0x1fff << 16));
-		radeon_ring_write(rdev, num_pages);
-		radeon_ring_write(rdev, num_pages);
+		radeon_ring_write(rdev, num_gpu_pages);
+		radeon_ring_write(rdev, num_gpu_pages);
 		radeon_ring_write(rdev, cur_pages | (stride_pixels << 16));
 	}
 	radeon_ring_write(rdev, PACKET0(RADEON_DSTCACHE_CTLSTAT, 0));
@@ -990,7 +990,8 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	/* Force read & write ptr to 0 */
 	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_RPTR_WR_ENA | RADEON_RB_NO_UPDATE);
 	WREG32(RADEON_CP_RB_RPTR_WR, 0);
-	WREG32(RADEON_CP_RB_WPTR, 0);
+	rdev->cp.wptr = 0;
+	WREG32(RADEON_CP_RB_WPTR, rdev->cp.wptr);
 
 	/* set the wb address whether it's enabled or not */
 	WREG32(R_00070C_CP_RB_RPTR_ADDR,
@@ -1007,9 +1008,6 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	WREG32(RADEON_CP_RB_CNTL, tmp);
 	udelay(10);
 	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
-	rdev->cp.wptr = RREG32(RADEON_CP_RB_WPTR);
-	/* protect against crazy HW on resume */
-	rdev->cp.wptr &= rdev->cp.ptr_mask;
 	/* Set cp mode to bus mastering & enable cp*/
 	WREG32(RADEON_CP_CSQ_MODE,
 	       REG_SET(RADEON_INDIRECT2_START, indirect2_start) |

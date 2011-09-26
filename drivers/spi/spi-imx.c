@@ -786,9 +786,11 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
 		if (cs_gpio < 0)
 			cs_gpio = mxc_platform_info->chipselect[i];
+
+		spi_imx->chipselect[i] = cs_gpio;
 		if (cs_gpio < 0)
 			continue;
-		spi_imx->chipselect[i] = cs_gpio;
+
 		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
 		if (ret) {
 			while (i > 0) {

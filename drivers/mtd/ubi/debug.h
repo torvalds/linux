@@ -181,7 +181,7 @@ static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)
 
 #define ubi_dbg_msg(fmt, ...) do {                                           \
 	if (0)                                                               \
-		pr_debug(fmt "\n", ##__VA_ARGS__);                           \
+		printk(KERN_DEBUG fmt "\n", ##__VA_ARGS__);                  \
 } while (0)
 
 #define dbg_msg(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
