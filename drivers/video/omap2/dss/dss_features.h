@@ -31,7 +31,6 @@
 
 /* DSS has feature id */
 enum dss_feat_id {
-	FEAT_GLOBAL_ALPHA		= 1 << 0,
 	FEAT_LCDENABLEPOL		= 1 << 3,
 	FEAT_LCDENABLESIGNAL		= 1 << 4,
 	FEAT_PCKFREEENABLE		= 1 << 5,
@@ -57,6 +56,8 @@ enum dss_feat_id {
 	FEAT_CPR			= 1 << 23,
 	FEAT_PRELOAD			= 1 << 24,
 	FEAT_FIR_COEF_V			= 1 << 25,
+	FEAT_ALPHA_FIXED_ZORDER		= 1 << 26,
+	FEAT_ALPHA_FREE_ZORDER		= 1 << 27,
 };
 
 /* DSS register field id */

@@ -249,7 +249,10 @@ static ssize_t manager_trans_key_enabled_store(struct omap_overlay_manager *mgr,
 static ssize_t manager_alpha_blending_enabled_show(
 		struct omap_overlay_manager *mgr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.alpha_enabled);
+	WARN_ON(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER));
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		mgr->info.partial_alpha_enabled);
 }
 
 static ssize_t manager_alpha_blending_enabled_store(
@@ -260,13 +263,15 @@ static ssize_t manager_alpha_blending_enabled_store(
 	bool enable;
 	int r;
 
+	WARN_ON(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER));
+
 	r = strtobool(buf, &enable);
 	if (r)
 		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
-	info.alpha_enabled = enable;
+	info.partial_alpha_enabled = enable;
 
 	r = mgr->set_manager_info(mgr, &info);
 	if (r)
@@ -966,7 +971,7 @@ static void configure_manager(enum omap_channel channel)
 	dispc_mgr_set_default_color(channel, mi->default_color);
 	dispc_mgr_set_trans_key(channel, mi->trans_key_type, mi->trans_key);
 	dispc_mgr_enable_trans_key(channel, mi->trans_enabled);
-	dispc_mgr_enable_alpha_blending(channel, mi->alpha_enabled);
+	dispc_mgr_enable_alpha_fixed_zorder(channel, mi->partial_alpha_enabled);
 	if (dss_has_feature(FEAT_CPR)) {
 		dispc_mgr_enable_cpr(channel, mi->cpr_enable);
 		dispc_mgr_set_cpr_coef(channel, &mi->cpr_coefs);
@@ -1481,12 +1486,17 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 static int dss_check_manager(struct omap_overlay_manager *mgr)
 {
-	/* OMAP supports only graphics source transparency color key and alpha
-	 * blending simultaneously. See TRM 15.4.2.4.2.2 Alpha Mode */
-
-	if (mgr->info.alpha_enabled && mgr->info.trans_enabled &&
-			mgr->info.trans_key_type != OMAP_DSS_COLOR_KEY_GFX_DST)
-		return -EINVAL;
+	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER)) {
+		/*
+		 * OMAP3 supports only graphics source transparency color key
+		 * and alpha blending simultaneously. See TRM 15.4.2.4.2.2
+		 * Alpha Mode
+		 */
+		if (mgr->info.partial_alpha_enabled && mgr->info.trans_enabled
+			&& mgr->info.trans_key_type !=
+				OMAP_DSS_COLOR_KEY_GFX_DST)
+			return -EINVAL;
+	}
 
 	return 0;
 }

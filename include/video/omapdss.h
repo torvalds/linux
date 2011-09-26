@@ -179,6 +179,7 @@ enum omap_overlay_caps {
 	OMAP_DSS_OVL_CAP_SCALE = 1 << 0,
 	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA = 1 << 1,
 	OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA = 1 << 2,
+	OMAP_DSS_OVL_CAP_ZORDER = 1 << 3,
 };
 
 enum omap_overlay_manager_caps {
@@ -412,7 +413,7 @@ struct omap_overlay_manager_info {
 	u32 trans_key;
 	bool trans_enabled;
 
-	bool alpha_enabled;
+	bool partial_alpha_enabled;
 
 	bool cpr_enable;
 	struct omap_dss_cpr_coefs cpr_coefs;

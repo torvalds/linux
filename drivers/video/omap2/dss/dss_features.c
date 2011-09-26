@@ -248,15 +248,16 @@ static const enum omap_overlay_caps omap3630_dss_overlay_caps[] = {
 
 static const enum omap_overlay_caps omap4_dss_overlay_caps[] = {
 	/* OMAP_DSS_GFX */
-	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA,
+	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA |
+		OMAP_DSS_OVL_CAP_ZORDER,
 
 	/* OMAP_DSS_VIDEO1 */
 	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
-		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA,
+		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_ZORDER,
 
 	/* OMAP_DSS_VIDEO2 */
 	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
-		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA,
+		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_ZORDER,
 };
 
 static const char * const omap2_dss_clk_source_names[] = {
@@ -342,13 +343,13 @@ static const struct omap_dss_features omap3430_dss_features = {
 	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
 
 	.has_feature	=
-		FEAT_GLOBAL_ALPHA | FEAT_LCDENABLEPOL |
+		FEAT_LCDENABLEPOL |
 		FEAT_LCDENABLESIGNAL | FEAT_PCKFREEENABLE |
 		FEAT_FUNCGATED | FEAT_ROWREPEATENABLE |
 		FEAT_LINEBUFFERSPLIT | FEAT_RESIZECONF |
 		FEAT_DSI_PLL_FREQSEL | FEAT_DSI_REVERSE_TXCLKESC |
 		FEAT_VENC_REQUIRES_TV_DAC_CLK | FEAT_CPR | FEAT_PRELOAD |
-		FEAT_FIR_COEF_V,
+		FEAT_FIR_COEF_V | FEAT_ALPHA_FIXED_ZORDER,
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
@@ -366,13 +367,13 @@ static const struct omap_dss_features omap3630_dss_features = {
 	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
 
 	.has_feature    =
-		FEAT_GLOBAL_ALPHA | FEAT_LCDENABLEPOL |
+		FEAT_LCDENABLEPOL |
 		FEAT_LCDENABLESIGNAL | FEAT_PCKFREEENABLE |
 		FEAT_FUNCGATED |
 		FEAT_ROWREPEATENABLE | FEAT_LINEBUFFERSPLIT |
 		FEAT_RESIZECONF | FEAT_DSI_PLL_PWR_BUG |
 		FEAT_DSI_PLL_FREQSEL | FEAT_CPR | FEAT_PRELOAD |
-		FEAT_FIR_COEF_V,
+		FEAT_FIR_COEF_V | FEAT_ALPHA_FIXED_ZORDER,
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
@@ -392,12 +393,12 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 	.num_reg_fields = ARRAY_SIZE(omap4_dss_reg_fields),
 
 	.has_feature	=
-		FEAT_GLOBAL_ALPHA |
 		FEAT_MGR_LCD2 |
 		FEAT_CORE_CLK_DIV | FEAT_LCD_CLK_SRC |
 		FEAT_DSI_DCS_CMD_CONFIG_VC | FEAT_DSI_VC_OCP_WIDTH |
 		FEAT_DSI_GNQ | FEAT_HANDLE_UV_SEPARATE | FEAT_ATTR2 |
-		FEAT_CPR | FEAT_PRELOAD | FEAT_FIR_COEF_V,
+		FEAT_CPR | FEAT_PRELOAD | FEAT_FIR_COEF_V |
+		FEAT_ALPHA_FREE_ZORDER,
 
 	.num_mgrs = 3,
 	.num_ovls = 3,
@@ -416,13 +417,12 @@ static const struct omap_dss_features omap4_dss_features = {
 	.num_reg_fields = ARRAY_SIZE(omap4_dss_reg_fields),
 
 	.has_feature	=
-		FEAT_GLOBAL_ALPHA |
 		FEAT_MGR_LCD2 |
 		FEAT_CORE_CLK_DIV | FEAT_LCD_CLK_SRC |
 		FEAT_DSI_DCS_CMD_CONFIG_VC | FEAT_DSI_VC_OCP_WIDTH |
 		FEAT_DSI_GNQ | FEAT_HDMI_CTS_SWMODE |
 		FEAT_HANDLE_UV_SEPARATE | FEAT_ATTR2 | FEAT_CPR |
-		FEAT_PRELOAD | FEAT_FIR_COEF_V,
+		FEAT_PRELOAD | FEAT_FIR_COEF_V | FEAT_ALPHA_FREE_ZORDER,
 
 	.num_mgrs = 3,
 	.num_ovls = 3,

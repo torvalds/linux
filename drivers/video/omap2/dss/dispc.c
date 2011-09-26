@@ -179,7 +179,8 @@ static void dispc_save_context(void)
 	SR(CONTROL);
 	SR(CONFIG);
 	SR(LINE_NUMBER);
-	if (dss_has_feature(FEAT_GLOBAL_ALPHA))
+	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
+			dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
 		SR(GLOBAL_ALPHA);
 	if (dss_has_feature(FEAT_MGR_LCD2)) {
 		SR(CONTROL2);
@@ -293,7 +294,8 @@ static void dispc_restore_context(void)
 	/*RR(CONTROL);*/
 	RR(CONFIG);
 	RR(LINE_NUMBER);
-	if (dss_has_feature(FEAT_GLOBAL_ALPHA))
+	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
+			dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
 		RR(GLOBAL_ALPHA);
 	if (dss_has_feature(FEAT_MGR_LCD2))
 		RR(CONFIG2);
@@ -2159,37 +2161,34 @@ void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable)
 	else /* OMAP_DSS_CHANNEL_LCD2 */
 		REG_FLD_MOD(DISPC_CONFIG2, enable, 10, 10);
 }
-void dispc_mgr_enable_alpha_blending(enum omap_channel ch, bool enable)
+
+void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch, bool enable)
 {
-	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
+	if (!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
 		return;
 
 	if (ch == OMAP_DSS_CHANNEL_LCD)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 18, 18);
 	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 19, 19);
-	else /* OMAP_DSS_CHANNEL_LCD2 */
-		REG_FLD_MOD(DISPC_CONFIG2, enable, 18, 18);
 }
-bool dispc_mgr_alpha_blending_enabled(enum omap_channel ch)
+
+bool dispc_mgr_alpha_fixed_zorder_enabled(enum omap_channel ch)
 {
 	bool enabled;
 
-	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
+	if (!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
 		return false;
 
 	if (ch == OMAP_DSS_CHANNEL_LCD)
 		enabled = REG_GET(DISPC_CONFIG, 18, 18);
 	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 		enabled = REG_GET(DISPC_CONFIG, 19, 19);
-	else if (ch == OMAP_DSS_CHANNEL_LCD2)
-		enabled = REG_GET(DISPC_CONFIG2, 18, 18);
 	else
 		BUG();
 
 	return enabled;
 }
-
 
 bool dispc_mgr_trans_key_enabled(enum omap_channel ch)
 {
@@ -2603,7 +2602,8 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_CAPABLE);
 	DUMPREG(DISPC_LINE_STATUS);
 	DUMPREG(DISPC_LINE_NUMBER);
-	if (dss_has_feature(FEAT_GLOBAL_ALPHA))
+	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
+			dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
 		DUMPREG(DISPC_GLOBAL_ALPHA);
 	if (dss_has_feature(FEAT_MGR_LCD2)) {
 		DUMPREG(DISPC_CONTROL2);

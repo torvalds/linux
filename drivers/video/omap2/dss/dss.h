@@ -430,9 +430,9 @@ void dispc_mgr_get_trans_key(enum omap_channel ch,
 		enum omap_dss_trans_key_type *type,
 		u32 *trans_key);
 void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable);
-void dispc_mgr_enable_alpha_blending(enum omap_channel ch, bool enable);
+void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch, bool enable);
 bool dispc_mgr_trans_key_enabled(enum omap_channel ch);
-bool dispc_mgr_alpha_blending_enabled(enum omap_channel ch);
+bool dispc_mgr_alpha_fixed_zorder_enabled(enum omap_channel ch);
 void dispc_mgr_set_lcd_timings(enum omap_channel channel,
 		struct omap_video_timings *timings);
 void dispc_mgr_set_pol_freq(enum omap_channel channel,
