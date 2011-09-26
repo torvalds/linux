@@ -572,50 +572,21 @@ int btrfs_end_transaction_dmeta(struct btrfs_trans_handle *trans,
 int btrfs_write_marked_extents(struct btrfs_root *root,
 			       struct extent_io_tree *dirty_pages, int mark)
 {
-	int ret;
 	int err = 0;
 	int werr = 0;
-	struct page *page;
-	struct inode *btree_inode = root->fs_info->btree_inode;
+	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
 	u64 start = 0;
 	u64 end;
-	unsigned long index;
 
-	while (1) {
-		ret = find_first_extent_bit(dirty_pages, start, &start, &end,
-					    mark);
-		if (ret)
-			break;
-		while (start <= end) {
-			cond_resched();
-
-			index = start >> PAGE_CACHE_SHIFT;
-			start = (u64)(index + 1) << PAGE_CACHE_SHIFT;
-			page = find_get_page(btree_inode->i_mapping, index);
-			if (!page)
-				continue;
-
-			btree_lock_page_hook(page);
-			if (!page->mapping) {
-				unlock_page(page);
-				page_cache_release(page);
-				continue;
-			}
-
-			if (PageWriteback(page)) {
-				if (PageDirty(page))
-					wait_on_page_writeback(page);
-				else {
-					unlock_page(page);
-					page_cache_release(page);
-					continue;
-				}
-			}
-			err = write_one_page(page, 0);
-			if (err)
-				werr = err;
-			page_cache_release(page);
-		}
+	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
+				      mark)) {
+		convert_extent_bit(dirty_pages, start, end, EXTENT_NEED_WAIT, mark,
+				   GFP_NOFS);
+		err = filemap_fdatawrite_range(mapping, start, end);
+		if (err)
+			werr = err;
+		cond_resched();
+		start = end + 1;
 	}
 	if (err)
 		werr = err;
@@ -631,39 +602,20 @@ int btrfs_write_marked_extents(struct btrfs_root *root,
 int btrfs_wait_marked_extents(struct btrfs_root *root,
 			      struct extent_io_tree *dirty_pages, int mark)
 {
-	int ret;
 	int err = 0;
 	int werr = 0;
-	struct page *page;
-	struct inode *btree_inode = root->fs_info->btree_inode;
+	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
 	u64 start = 0;
 	u64 end;
-	unsigned long index;
 
-	while (1) {
-		ret = find_first_extent_bit(dirty_pages, start, &start, &end,
-					    mark);
-		if (ret)
-			break;
-
-		clear_extent_bits(dirty_pages, start, end, mark, GFP_NOFS);
-		while (start <= end) {
-			index = start >> PAGE_CACHE_SHIFT;
-			start = (u64)(index + 1) << PAGE_CACHE_SHIFT;
-			page = find_get_page(btree_inode->i_mapping, index);
-			if (!page)
-				continue;
-			if (PageDirty(page)) {
-				btree_lock_page_hook(page);
-				wait_on_page_writeback(page);
-				err = write_one_page(page, 0);
-				if (err)
-					werr = err;
-			}
-			wait_on_page_writeback(page);
-			page_cache_release(page);
-			cond_resched();
-		}
+	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
+				      EXTENT_NEED_WAIT)) {
+		clear_extent_bits(dirty_pages, start, end, EXTENT_NEED_WAIT, GFP_NOFS);
+		err = filemap_fdatawait_range(mapping, start, end);
+		if (err)
+			werr = err;
+		cond_resched();
+		start = end + 1;
 	}
 	if (err)
 		werr = err;
