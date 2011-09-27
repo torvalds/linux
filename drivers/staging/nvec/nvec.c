@@ -554,6 +554,11 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 			nvec_invalid_flags(nvec, status, true);
 		} else {
 			nvec->rx = nvec_msg_alloc(nvec, NVEC_MSG_RX);
+			/* Should not happen in a normal world */
+			if (unlikely(nvec->rx == NULL)) {
+				nvec->state = 0;
+				break;
+			}
 			nvec->rx->data[0] = received;
 			nvec->rx->pos = 1;
 			nvec->state = 2;
