@@ -3326,6 +3326,8 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 			wldev_iovar_setint(dev, "mpc", 0);
 		} else if (act_frm->subtype == P2P_PAF_GON_CONF) {
 			wldev_iovar_setint(dev, "mpc", 1);
+		} else if (act_frm->subtype == P2P_PAF_DEVDIS_REQ) {
+			af_params->dwell_time = WL_LONG_DWELL_TIME;
 		}
 	}
 
@@ -4127,7 +4129,7 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	struct wl_scan_req *sr = wl_to_sr(wl);
 	struct beacon_proberesp *beacon_proberesp;
 	s32 mgmt_type;
-	u32 signal;
+	s32 signal;
 	u32 freq;
 	s32 err = 0;
 
@@ -4149,7 +4151,7 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 		band = wiphy->bands[IEEE80211_BAND_2GHZ];
 	else
 		band = wiphy->bands[IEEE80211_BAND_5GHZ];
-	notif_bss_info->rssi = bi->RSSI;
+	notif_bss_info->rssi = dtoh16(bi->RSSI);
 	memcpy(mgmt->bssid, &bi->BSSID, ETHER_ADDR_LEN);
 	mgmt_type = wl->active_scan ?
 		IEEE80211_STYPE_PROBE_RESP : IEEE80211_STYPE_BEACON;
@@ -4178,9 +4180,9 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 
 	WL_DBG(("SSID : \"%s\", rssi %d, channel %d, capability : 0x04%x, bssid %pM"
 			"mgmt_type %d frame_len %d\n", bi->SSID,
-				notif_bss_info->rssi, notif_bss_info->channel,
-				mgmt->u.beacon.capab_info, &bi->BSSID, mgmt_type,
-				notif_bss_info->frame_len));
+			notif_bss_info->rssi, notif_bss_info->channel,
+			mgmt->u.beacon.capab_info, &bi->BSSID, mgmt_type,
+			notif_bss_info->frame_len));
 
 	signal = notif_bss_info->rssi * 100;
 
@@ -4334,11 +4336,11 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 		isfree = true;
 
 		if (event == WLC_E_ASSOC_IND && reason == DOT11_SC_SUCCESS) {
-			cfg80211_send_rx_assoc(ndev, mgmt_frame, len);
+			cfg80211_rx_mgmt(ndev, freq, mgmt_frame, len, GFP_ATOMIC);
 		} else if (event == WLC_E_DISASSOC_IND) {
-			cfg80211_send_disassoc(ndev, mgmt_frame, len);
+			cfg80211_rx_mgmt(ndev, freq, mgmt_frame, len, GFP_ATOMIC);
 		} else if ((event == WLC_E_DEAUTH_IND) || (event == WLC_E_DEAUTH)) {
-			cfg80211_send_disassoc(ndev, mgmt_frame, len);
+			cfg80211_rx_mgmt(ndev, freq, mgmt_frame, len, GFP_ATOMIC);
 		}
 
 	} else {
@@ -6686,7 +6688,8 @@ s32 wl_cfg80211_set_wps_p2p_ie(struct net_device *net, char *buf, int len,
 				pktflag = VNDR_IE_ASSOCRSP_FLAG;
 				break;
 		}
-		ret = wl_cfgp2p_set_management_ie(wl, ndev, bssidx, pktflag, buf, len);
+		if (pktflag)
+			ret = wl_cfgp2p_set_management_ie(wl, ndev, bssidx, pktflag, buf, len);
 	}
 
 	return ret;

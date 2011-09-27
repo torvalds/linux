@@ -75,9 +75,8 @@
 #define CMD_P2P_SET_NOA			"P2P_SET_NOA"
 #define CMD_P2P_GET_NOA			"P2P_GET_NOA"
 #define CMD_P2P_SET_PS			"P2P_SET_PS"
-#define CMD_SET_ASSOC_RESP_IE	"SET_ASSOC_RESP_IE"
-#define CMD_SET_PROBE_RESP_IE	"SET_PROBE_RESP_IE"
-#define CMD_SET_BEACON_IE		"SET_BEACON_IE"
+#define CMD_SET_AP_WPS_P2P_IE	"SET_AP_WPS_P2P_IE"
+
 
 #ifdef PNO_SUPPORT
 #define CMD_PNOSSIDCLR_SET	"PNOSSIDCLR"
@@ -546,20 +545,11 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 			priv_cmd.total_len - skip);
 	}
 #ifdef WL_CFG80211
-	else if (strnicmp(command, CMD_SET_ASSOC_RESP_IE, strlen(CMD_SET_ASSOC_RESP_IE)) == 0) {
-		int skip = strlen(CMD_SET_ASSOC_RESP_IE) + 1;
+	else if (strnicmp(command, CMD_SET_AP_WPS_P2P_IE,
+		strlen(CMD_SET_AP_WPS_P2P_IE)) == 0) {
+		int skip = strlen(CMD_SET_AP_WPS_P2P_IE) + 3;
 		bytes_written = wl_cfg80211_set_wps_p2p_ie(net, command + skip,
-			priv_cmd.total_len - skip, WL_ASSOC_RESP);
-	}
-	else if (strnicmp(command, CMD_SET_PROBE_RESP_IE, strlen(CMD_SET_PROBE_RESP_IE)) == 0) {
-		int skip = strlen(CMD_SET_PROBE_RESP_IE) + 1;
-		bytes_written = wl_cfg80211_set_wps_p2p_ie(net, command + skip,
-			priv_cmd.total_len - skip, WL_PROBE_RESP);
-	}
-	else if (strnicmp(command, CMD_SET_BEACON_IE, strlen(CMD_SET_BEACON_IE)) == 0) {
-		int skip = strlen(CMD_SET_BEACON_IE) + 1;
-		bytes_written = wl_cfg80211_set_wps_p2p_ie(net, command + skip,
-			priv_cmd.total_len - skip, WL_BEACON);
+			priv_cmd.total_len - skip, *(command + skip - 2) - '0');
 	}
 #endif /* WL_CFG80211 */
 	else {

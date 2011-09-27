@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 285209 2011-09-21 01:21:24Z $
+ * $Id: dhd_sdio.c 285933 2011-09-23 21:45:31Z $
  */
 
 #include <typedefs.h>
@@ -1579,6 +1579,7 @@ const bcm_iovar_t dhdsdio_iovars[] = {
 	{"cpu",		IOV_CPU,	0,	IOVT_BOOL,	0 },
 #ifdef DHD_DEBUG
 	{"checkdied",	IOV_CHECKDIED,	0,	IOVT_BUFFER,	0 },
+	{"serial",	IOV_SERIALCONS,	0,	IOVT_UINT32,	0 },
 #endif /* DHD_DEBUG  */
 #endif /* DHD_DEBUG */
 #ifdef SDTEST
@@ -2087,8 +2088,10 @@ dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 					 * will truncate a lot of the printfs
 					 */
 
-					if (dhd_msg_level & DHD_ERROR_VAL)
+					if (dhd_msg_level & DHD_ERROR_VAL) {
 						printf("CONSOLE: %s\n", line);
+						DHD_BLOG(line, strlen(line) + 1);
+					}
 				}
 			}
 		}

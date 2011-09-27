@@ -1021,15 +1021,12 @@ wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms)
 		ret = BCME_NOTREADY;
 		goto exit;
 	}
-	if (!wl_get_p2p_status(wl, LISTEN_EXPIRED)) {
-		wl_set_p2p_status(wl, LISTEN_EXPIRED);
-		if (timer_pending(&wl->p2p->listen_timer)) {
-			spin_lock_bh(&wl->p2p->timer_lock);
-			del_timer_sync(&wl->p2p->listen_timer);
-			spin_unlock_bh(&wl->p2p->timer_lock);
-		}
+	if (timer_pending(&wl->p2p->listen_timer)) {
+		CFGP2P_DBG(("previous LISTEN is not completed yet\n"));
+		goto exit;
+
 	} else
-	wl_clr_p2p_status(wl, LISTEN_EXPIRED);
+		wl_clr_p2p_status(wl, LISTEN_EXPIRED);
 
 	wl_cfgp2p_set_p2p_mode(wl, WL_P2P_DISC_ST_LISTEN, channel, (u16) duration_ms,
 	            wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE));
@@ -1322,6 +1319,7 @@ s32 wl_cfgp2p_set_p2p_noa(struct wl_priv *wl, struct net_device *ndev, char* buf
 	wl_p2p_sched_t dongle_noa;
 
 	CFGP2P_DBG((" Enter\n"));
+
 	memset(&dongle_noa, 0, sizeof(dongle_noa));
 
 	if (wl->p2p && wl->p2p->vif_created) {
@@ -1436,7 +1434,7 @@ s32 wl_cfgp2p_set_p2p_ps(struct wl_priv *wl, struct net_device *ndev, char* buf,
 		}
 
 		if (legacy_ps != -1) {
-			s32 pm = legacy_ps ? PM_FAST : PM_OFF;
+			s32 pm = legacy_ps ? PM_MAX : PM_OFF;
 			ret = wldev_ioctl(wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION),
 				WLC_SET_PM, &pm, sizeof(pm), true);
 			if (unlikely(ret)) {
