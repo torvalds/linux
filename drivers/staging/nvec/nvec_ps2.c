@@ -38,8 +38,7 @@ static struct nvec_ps2 ps2_dev;
 static int ps2_startstreaming(struct serio *ser_dev)
 {
 	unsigned char buf[] = START_STREAMING;
-	nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
-	return 0;
+	return nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
 static void ps2_stopstreaming(struct serio *ser_dev)
@@ -55,9 +54,7 @@ static int ps2_sendcommand(struct serio *ser_dev, unsigned char cmd)
 	buf[2] = cmd & 0xff;
 
 	dev_dbg(&ser_dev->dev, "Sending ps2 cmd %02x\n", cmd);
-	nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
-
-	return 0;
+	return nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
 static int nvec_ps2_notifier(struct notifier_block *nb,
