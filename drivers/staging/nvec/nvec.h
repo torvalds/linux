@@ -97,7 +97,7 @@ struct nvec_chip {
 	int state;
 };
 
-extern void nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
+extern int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 			     short size);
 
 extern struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,

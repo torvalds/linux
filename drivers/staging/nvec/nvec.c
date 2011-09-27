@@ -154,13 +154,16 @@ static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 	gpio_set_value(nvec->gpio, value);
 }
 
-void nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
+int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 			short size)
 {
 	struct nvec_msg *msg;
 	unsigned long flags;
 
 	msg = nvec_msg_alloc(nvec);
+	if (msg == NULL)
+		return -ENOMEM;
+
 	msg->data[0] = size;
 	memcpy(msg->data + 1, data, size);
 	msg->size = size + 1;
@@ -170,6 +173,8 @@ void nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 	spin_unlock_irqrestore(&nvec->tx_lock, flags);
 
 	queue_work(nvec->wq, &nvec->tx_work);
+
+	return 0;
 }
 EXPORT_SYMBOL(nvec_write_async);
 
@@ -181,7 +186,9 @@ struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 	mutex_lock(&nvec->sync_write_mutex);
 
 	nvec->sync_write_pending = (data[1] << 8) + data[0];
-	nvec_write_async(nvec, data, size);
+
+	if (nvec_write_async(nvec, data, size) < 0)
+		return NULL;
 
 	dev_dbg(nvec->dev, "nvec_sync_write: 0x%04x\n",
 					nvec->sync_write_pending);
