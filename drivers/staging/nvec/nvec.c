@@ -71,6 +71,15 @@ static struct mfd_cell nvec_devices[] = {
 	},
 };
 
+/**
+ * nvec_register_notifier - Register a notifier with nvec
+ * @nvec: A &struct nvec_chip
+ * @nb: The notifier block to register
+ *
+ * Registers a notifier with @nvec. The notifier will be added to an atomic
+ * notifier chain that is called for all received messages except those that
+ * correspond to a request initiated by nvec_write_sync().
+ */
 int nvec_register_notifier(struct nvec_chip *nvec, struct notifier_block *nb,
 			   unsigned int events)
 {
@@ -78,6 +87,12 @@ int nvec_register_notifier(struct nvec_chip *nvec, struct notifier_block *nb,
 }
 EXPORT_SYMBOL_GPL(nvec_register_notifier);
 
+/**
+ * nvec_status_notifier - The final notifier
+ *
+ * Prints a message about control events not handled in the notifier
+ * chain.
+ */
 static int nvec_status_notifier(struct notifier_block *nb,
 				unsigned long event_type, void *data)
 {
@@ -93,6 +108,14 @@ static int nvec_status_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+/**
+ * nvec_msg_alloc:
+ * @nvec: A &struct nvec_chip
+ *
+ * Allocate a single &struct nvec_msg object from the message pool of
+ * @nvec. The result shall be passed to nvec_msg_free() if no longer
+ * used.
+ */
 static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec)
 {
 	int i;
@@ -109,6 +132,13 @@ static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec)
 	return NULL;
 }
 
+/**
+ * nvec_msg_free:
+ * @nvec: A &struct nvec_chip
+ * @msg:  A message (must be allocated by nvec_msg_alloc() and belong to @nvec)
+ *
+ * Free the given message
+ */
 static void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
 	if (msg != &nvec->tx_scratch)
@@ -147,6 +177,13 @@ static size_t nvec_msg_size(struct nvec_msg *msg)
 		return 0;
 }
 
+/**
+ * nvec_gpio_set_value - Set the GPIO value
+ * @nvec: A &struct nvec_chip
+ * @value: The value to write (0 or 1)
+ *
+ * Like gpio_set_value(), but generating debugging information
+ */
 static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 {
 	dev_dbg(nvec->dev, "GPIO changed from %u to %u\n",
@@ -154,6 +191,18 @@ static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 	gpio_set_value(nvec->gpio, value);
 }
 
+/**
+ * nvec_write_async - Asynchronously write a message to NVEC
+ * @nvec: An nvec_chip instance
+ * @data: The message data, starting with the request type
+ * @size: The size of @data
+ *
+ * Queue a single message to be transferred to the embedded controller
+ * and return immediately.
+ *
+ * Returns: 0 on success, a negative error code on failure. If a failure
+ * occured, the nvec driver may print an error.
+ */
 int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 			short size)
 {
@@ -178,6 +227,20 @@ int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 }
 EXPORT_SYMBOL(nvec_write_async);
 
+/**
+ * nvec_write_sync - Write a message to nvec and read the response
+ * @nvec: An &struct nvec_chip
+ * @data: The data to write
+ * @size: The size of @data
+ *
+ * This is similar to nvec_write_async(), but waits for the
+ * request to be answered before returning. This function
+ * uses a mutex and can thus not be called from e.g.
+ * interrupt handlers.
+ *
+ * Returns: A pointer to the response message on success,
+ * %NULL on failure.
+ */
 struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 		const unsigned char *data, short size)
 {
@@ -209,7 +272,14 @@ struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 }
 EXPORT_SYMBOL(nvec_write_sync);
 
-/* TX worker */
+/**
+ * nvec_request_master - Process outgoing messages
+ * @work: A &struct work_struct (the tx_worker member of &struct nvec_chip)
+ *
+ * Processes all outgoing requests by sending the request and awaiting the
+ * response, then continuing with the next request. Once a request has a
+ * matching response, it will be freed and removed from the list.
+ */
 static void nvec_request_master(struct work_struct *work)
 {
 	struct nvec_chip *nvec = container_of(work, struct nvec_chip, tx_work);
@@ -241,6 +311,14 @@ static void nvec_request_master(struct work_struct *work)
 	spin_unlock_irqrestore(&nvec->tx_lock, flags);
 }
 
+/**
+ * parse_msg - Print some information and call the notifiers on an RX message
+ * @nvec: A &struct nvec_chip
+ * @msg: A message received by @nvec
+ *
+ * Paarse some pieces of the message and then call the chain of notifiers
+ * registered via nvec_register_notifier.
+ */
 static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
 	if ((msg->data[0] & 1 << 7) == 0 && msg->data[3]) {
@@ -260,7 +338,13 @@ static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 	return 0;
 }
 
-/* RX worker */
+/**
+ * nvec_dispatch - Process messages received from the EC
+ * @work: A &struct work_struct (the tx_worker member of &struct nvec_chip)
+ *
+ * Process messages previously received from the EC and put into the RX
+ * queue of the &struct nvec_chip instance associated with @work.
+ */
 static void nvec_dispatch(struct work_struct *work)
 {
 	struct nvec_chip *nvec = container_of(work, struct nvec_chip, rx_work);
@@ -288,6 +372,12 @@ static void nvec_dispatch(struct work_struct *work)
 	spin_unlock_irqrestore(&nvec->rx_lock, flags);
 }
 
+/**
+ * nvec_tx_completed - Complete the current transfer
+ * @nvec: A &struct nvec_chip
+ *
+ * This is called when we have received an END_TRANS on a TX transfer.
+ */
 static void nvec_tx_completed(struct nvec_chip *nvec)
 {
 	/* We got an END_TRANS, let's skip this, maybe there's an event */
@@ -300,6 +390,12 @@ static void nvec_tx_completed(struct nvec_chip *nvec)
 	}
 }
 
+/**
+ * nvec_rx_completed - Complete the current transfer
+ * @nvec: A &struct nvec_chip
+ *
+ * This is called when we have received an END_TRANS on a RX transfer.
+ */
 static void nvec_rx_completed(struct nvec_chip *nvec)
 {
 	if (nvec->rx->pos != nvec_msg_size(nvec->rx))
@@ -340,6 +436,11 @@ static void nvec_invalid_flags(struct nvec_chip *nvec, unsigned int status,
 
 /**
  * nvec_tx_set - Set the message to transfer (nvec->tx)
+ * @nvec: A &struct nvec_chip
+ *
+ * Gets the first entry from the tx_data list of @nvec and sets the
+ * tx member to it. If the tx_data list is empty, this uses the
+ * tx_scratch message to send a no operation message.
  */
 static void nvec_tx_set(struct nvec_chip *nvec)
 {
@@ -366,6 +467,10 @@ static void nvec_tx_set(struct nvec_chip *nvec)
  * nvec_interrupt - Interrupt handler
  * @irq: The IRQ
  * @dev: The nvec device
+ *
+ * Interrupt handler that fills our RX buffers and empties our TX
+ * buffers. This uses a finite state machine with ridiculous amounts
+ * of error checking, in order to be fairly reliable.
  */
 static irqreturn_t nvec_interrupt(int irq, void *dev)
 {
