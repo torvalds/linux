@@ -6205,6 +6205,12 @@ W:	http://www.lirc.org/
 S:	Odd Fixes
 F:	drivers/staging/lirc/
 
+STAGING - NVIDIA COMPLIANT EMBEDDED CONTROLLER INTERFACE (nvec)
+M:	Marc Dietrich <marvin24@gmx.de>
+L:	ac100@lists.launchpad.net (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/staging/nvec/
+
 STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
 M:	Andres Salomon <dilinger@queued.net>
 M:	Chris Ball <cjb@laptop.org>
