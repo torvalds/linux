@@ -577,7 +577,12 @@ static int ssm260x_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	return ret;
+	if (ret)
+		return ret;
+
+	ssm2602_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	return 0;
 }
 
 /* remove everything here */
