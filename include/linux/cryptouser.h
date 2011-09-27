@@ -40,6 +40,7 @@ enum crypto_attr_type_t {
 	CRYPTOCFGA_REPORT_HASH,		/* struct crypto_report_hash */
 	CRYPTOCFGA_REPORT_BLKCIPHER,	/* struct crypto_report_blkcipher */
 	CRYPTOCFGA_REPORT_AEAD,		/* struct crypto_report_aead */
+	CRYPTOCFGA_REPORT_COMPRESS,	/* struct crypto_report_comp */
 	__CRYPTOCFGA_MAX
 
 #define CRYPTOCFGA_MAX (__CRYPTOCFGA_MAX - 1)
@@ -80,4 +81,8 @@ struct crypto_report_aead {
 	unsigned int blocksize;
 	unsigned int maxauthsize;
 	unsigned int ivsize;
+};
+
+struct crypto_report_comp {
+	char type[CRYPTO_MAX_NAME];
 };
