@@ -76,15 +76,13 @@ static int nvec_status_notifier(struct notifier_block *nb,
 				unsigned long event_type, void *data)
 {
 	unsigned char *msg = (unsigned char *)data;
-	int i;
 
 	if (event_type != NVEC_CNTL)
 		return NOTIFY_DONE;
 
-	printk(KERN_WARNING "unhandled msg type %ld, payload: ", event_type);
-	for (i = 0; i < msg[1]; i++)
-		printk("%0x ", msg[i+2]);
-	printk("\n");
+	printk(KERN_WARNING "unhandled msg type %ld\n", event_type);
+	print_hex_dump(KERN_WARNING, "payload: ", DUMP_PREFIX_NONE, 16, 1,
+		msg, msg[1] + 2, true);
 
 	return NOTIFY_OK;
 }
@@ -117,20 +115,16 @@ static void nvec_request_master(struct work_struct *work)
 
 static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
-	int i;
-
 	if ((msg->data[0] & 1 << 7) == 0 && msg->data[3]) {
 		dev_err(nvec->dev, "ec responded %02x %02x %02x %02x\n",
 			msg->data[0], msg->data[1], msg->data[2], msg->data[3]);
 		return -EINVAL;
 	}
 
-	if ((msg->data[0] >> 7) == 1 && (msg->data[0] & 0x0f) == 5) {
-		dev_warn(nvec->dev, "ec system event ");
-		for (i = 0; i < msg->data[1]; i++)
-			dev_warn(nvec->dev, "%02x ", msg->data[2+i]);
-		dev_warn(nvec->dev, "\n");
-	}
+	if ((msg->data[0] >> 7) == 1 && (msg->data[0] & 0x0f) == 5)
+		print_hex_dump(KERN_WARNING, "ec system event ",
+				DUMP_PREFIX_NONE, 16, 1, msg->data,
+				msg->data[1] + 2, true);
 
 	atomic_notifier_call_chain(&nvec->notifier_list, msg->data[0] & 0x8f,
 				   msg->data);
