@@ -762,6 +762,7 @@ struct sh_eth_private {
 	struct platform_device *pdev;
 	struct sh_eth_cpu_data *cd;
 	const u16 *reg_offset;
+	void __iomem *addr;
 	void __iomem *tsu_addr;
 	dma_addr_t rx_desc_dma;
 	dma_addr_t tx_desc_dma;
@@ -811,7 +812,7 @@ static inline void sh_eth_write(struct net_device *ndev, unsigned long data,
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	writel(data, ndev->base_addr + mdp->reg_offset[enum_index]);
+	iowrite32(data, mdp->addr + mdp->reg_offset[enum_index]);
 }
 
 static inline unsigned long sh_eth_read(struct net_device *ndev,
@@ -819,19 +820,19 @@ static inline unsigned long sh_eth_read(struct net_device *ndev,
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	return readl(ndev->base_addr + mdp->reg_offset[enum_index]);
+	return ioread32(mdp->addr + mdp->reg_offset[enum_index]);
 }
 
 static inline void sh_eth_tsu_write(struct sh_eth_private *mdp,
 				unsigned long data, int enum_index)
 {
-	writel(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
+	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }
 
 static inline unsigned long sh_eth_tsu_read(struct sh_eth_private *mdp,
 					int enum_index)
 {
-	return readl(mdp->tsu_addr + mdp->reg_offset[enum_index]);
+	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }
 
 #endif	/* #ifndef __SH_ETH_H__ */

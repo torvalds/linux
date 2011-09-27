@@ -155,18 +155,18 @@ static void sh_eth_chip_reset_giga(struct net_device *ndev)
 
 	/* save MAHR and MALR */
 	for (i = 0; i < 2; i++) {
-		malr[i] = readl(GIGA_MALR(i));
-		mahr[i] = readl(GIGA_MAHR(i));
+		malr[i] = ioread32((void *)GIGA_MALR(i));
+		mahr[i] = ioread32((void *)GIGA_MAHR(i));
 	}
 
 	/* reset device */
-	writel(ARSTR_ARSTR, SH_GIGA_ETH_BASE + 0x1800);
+	iowrite32(ARSTR_ARSTR, (void *)(SH_GIGA_ETH_BASE + 0x1800));
 	mdelay(1);
 
 	/* restore MAHR and MALR */
 	for (i = 0; i < 2; i++) {
-		writel(malr[i], GIGA_MALR(i));
-		writel(mahr[i], GIGA_MAHR(i));
+		iowrite32(malr[i], (void *)GIGA_MALR(i));
+		iowrite32(mahr[i], (void *)GIGA_MAHR(i));
 	}
 }
 
@@ -515,9 +515,9 @@ static unsigned long sh_eth_get_edtrr_trns(struct sh_eth_private *mdp)
 }
 
 struct bb_info {
-	void (*set_gate)(unsigned long addr);
+	void (*set_gate)(void *addr);
 	struct mdiobb_ctrl ctrl;
-	u32 addr;
+	void *addr;
 	u32 mmd_msk;/* MMD */
 	u32 mdo_msk;
 	u32 mdi_msk;
@@ -525,21 +525,21 @@ struct bb_info {
 };
 
 /* PHY bit set */
-static void bb_set(u32 addr, u32 msk)
+static void bb_set(void *addr, u32 msk)
 {
-	writel(readl(addr) | msk, addr);
+	iowrite32(ioread32(addr) | msk, addr);
 }
 
 /* PHY bit clear */
-static void bb_clr(u32 addr, u32 msk)
+static void bb_clr(void *addr, u32 msk)
 {
-	writel((readl(addr) & ~msk), addr);
+	iowrite32((ioread32(addr) & ~msk), addr);
 }
 
 /* PHY bit read */
-static int bb_read(u32 addr, u32 msk)
+static int bb_read(void *addr, u32 msk)
 {
-	return (readl(addr) & msk) != 0;
+	return (ioread32(addr) & msk) != 0;
 }
 
 /* Data I/O pin control */
@@ -1680,7 +1680,7 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 	}
 
 	/* bitbang init */
-	bitbang->addr = ndev->base_addr + mdp->reg_offset[PIR];
+	bitbang->addr = mdp->addr + mdp->reg_offset[PIR];
 	bitbang->set_gate = pd->set_mdio_gate;
 	bitbang->mdi_msk = 0x08;
 	bitbang->mdo_msk = 0x04;
@@ -1812,6 +1812,13 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	ether_setup(ndev);
 
 	mdp = netdev_priv(ndev);
+	mdp->addr = ioremap(res->start, resource_size(res));
+	if (mdp->addr == NULL) {
+		ret = -ENOMEM;
+		dev_err(&pdev->dev, "ioremap failed.\n");
+		goto out_release;
+	}
+
 	spin_lock_init(&mdp->lock);
 	mdp->pdev = pdev;
 	pm_runtime_enable(&pdev->dev);
@@ -1892,6 +1899,8 @@ out_unregister:
 
 out_release:
 	/* net_dev free */
+	if (mdp && mdp->addr)
+		iounmap(mdp->addr);
 	if (mdp && mdp->tsu_addr)
 		iounmap(mdp->tsu_addr);
 	if (ndev)
@@ -1910,6 +1919,7 @@ static int sh_eth_drv_remove(struct platform_device *pdev)
 	sh_mdio_release(ndev);
 	unregister_netdev(ndev);
 	pm_runtime_disable(&pdev->dev);
+	iounmap(mdp->addr);
 	free_netdev(ndev);
 	platform_set_drvdata(pdev, NULL);
 
