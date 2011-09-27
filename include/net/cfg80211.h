@@ -424,6 +424,17 @@ enum plink_actions {
 };
 
 /**
+ * enum station_parameters_apply_mask - station parameter values to apply
+ * @STATION_PARAM_APPLY_UAPSD: apply new uAPSD parameters (uapsd_queues, max_sp)
+ *
+ * Not all station parameters have in-band "no change" signalling,
+ * for those that don't these flags will are used.
+ */
+enum station_parameters_apply_mask {
+	STATION_PARAM_APPLY_UAPSD = BIT(0),
+};
+
+/**
  * struct station_parameters - station parameters
  *
  * Used to change and create a new station.
@@ -450,6 +461,7 @@ struct station_parameters {
 	u8 *supported_rates;
 	struct net_device *vlan;
 	u32 sta_flags_mask, sta_flags_set;
+	u32 sta_modify_mask;
 	int listen_interval;
 	u16 aid;
 	u8 supported_rates_len;

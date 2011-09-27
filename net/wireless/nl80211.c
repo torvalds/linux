@@ -2643,6 +2643,8 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 		if (params.max_sp & ~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
 			return -EINVAL;
+
+		params.sta_modify_mask |= STATION_PARAM_APPLY_UAPSD;
 	}
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
