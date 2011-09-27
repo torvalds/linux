@@ -326,6 +326,16 @@ config STMP3XXX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmp3xxx_wdt.
 
+config STMP3XXX_RTC_WATCHDOG
+	tristate "Freescale STMP3XXX & i.MX23/28 watchdog"
+	depends on RTC_DRV_STMP
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer inside
+	  the RTC for the STMP37XX/378X or i.MX23/28 SoC.
+	  To compile this driver as a module, choose M here: the
+	  module will be called stmp3xxx_rtc_wdt.
+
 config NUC900_WATCHDOG
 	tristate "Nuvoton NUC900 watchdog"
 	depends on ARCH_W90X900
