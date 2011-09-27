@@ -543,12 +543,28 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 		ret = -EFAULT;
 	}
 
+	/*
+	 * Bit 0 in tx_htinfo indicates that current Tx rate is 11n rate. Valid
+	 * MCS index values for us are 0 to 7.
+	 */
+	if ((priv->tx_htinfo & BIT(0)) && (priv->tx_rate < 8)) {
+		sinfo->txrate.mcs = priv->tx_rate;
+		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
+		/* 40MHz rate */
+		if (priv->tx_htinfo & BIT(1))
+			sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+		/* SGI enabled */
+		if (priv->tx_htinfo & BIT(2))
+			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+	}
+
 	sinfo->rx_bytes = priv->stats.rx_bytes;
 	sinfo->tx_bytes = priv->stats.tx_bytes;
 	sinfo->rx_packets = priv->stats.rx_packets;
 	sinfo->tx_packets = priv->stats.tx_packets;
 	sinfo->signal = priv->qual_level;
-	sinfo->txrate.legacy = rate.rate;
+	/* bit rate is in 500 kb/s units. Convert it to 100kb/s units */
+	sinfo->txrate.legacy = rate.rate * 5;
 
 	return ret;
 }
