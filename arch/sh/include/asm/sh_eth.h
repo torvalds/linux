@@ -15,7 +15,7 @@ struct sh_eth_plat_data {
 	int edmac_endian;
 	int register_type;
 	phy_interface_t phy_interface;
-	void (*set_mdio_gate)(unsigned long addr);
+	void (*set_mdio_gate)(void *addr);
 
 	unsigned char mac_addr[6];
 	unsigned no_ether_link:1;
