@@ -17,6 +17,7 @@
 
 #include <asm/irq.h>
 
+#include <linux/atomic.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -89,6 +90,28 @@ static int nvec_status_notifier(struct notifier_block *nb,
 		msg, msg[1] + 2, true);
 
 	return NOTIFY_OK;
+}
+
+static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec)
+{
+	int i;
+
+	for (i = 0; i < NVEC_POOL_SIZE; i++) {
+		if (atomic_xchg(&nvec->msg_pool[i].used, 1) == 0) {
+			dev_vdbg(nvec->dev, "INFO: Allocate %i\n", i);
+			return &nvec->msg_pool[i];
+		}
+	}
+
+	dev_err(nvec->dev, "could not allocate buffer\n");
+
+	return NULL;
+}
+
+static void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
+{
+	dev_vdbg(nvec->dev, "INFO: Free %ti\n", msg - nvec->msg_pool);
+	atomic_set(&msg->used, 0);
 }
 
 void nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,

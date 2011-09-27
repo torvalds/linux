@@ -16,8 +16,12 @@
 #ifndef __LINUX_MFD_NVEC
 #define __LINUX_MFD_NVEC
 
+#include <linux/atomic.h>
 #include <linux/notifier.h>
 #include <linux/semaphore.h>
+
+/* NVEC_POOL_SIZE - Size of the pool in &struct nvec_msg */
+#define NVEC_POOL_SIZE	64
 
 typedef enum {
 	NVEC_2BYTES,
@@ -52,6 +56,7 @@ struct nvec_msg {
 	unsigned short size;
 	unsigned short pos;
 	struct list_head node;
+	atomic_t used;
 };
 
 struct nvec_subdev {
@@ -78,6 +83,7 @@ struct nvec_chip {
 	struct notifier_block nvec_status_notifier;
 	struct work_struct rx_work, tx_work;
 	struct nvec_msg *rx, *tx;
+	struct nvec_msg msg_pool[NVEC_POOL_SIZE];
 
 	/* sync write stuff */
 	struct semaphore sync_write_mutex;
