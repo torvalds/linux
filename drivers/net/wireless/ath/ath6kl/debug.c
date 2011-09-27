@@ -192,6 +192,51 @@ static int ath6kl_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war)
+{
+	switch (war) {
+	case ATH6KL_WAR_INVALID_RATE:
+		ar->debug.war_stats.invalid_rate++;
+		break;
+	}
+}
+
+static ssize_t read_file_war_stats(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char *buf;
+	unsigned int len = 0, buf_len = 1500;
+	ssize_t ret_cnt;
+
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	len += scnprintf(buf + len, buf_len - len, "%25s\n",
+			 "Workaround stats");
+	len += scnprintf(buf + len, buf_len - len, "%25s\n\n",
+			 "=================");
+	len += scnprintf(buf + len, buf_len - len, "%20s %10u\n",
+			 "Invalid rates", ar->debug.war_stats.invalid_rate);
+
+	if (WARN_ON(len > buf_len))
+		len = buf_len;
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	kfree(buf);
+	return ret_cnt;
+}
+
+static const struct file_operations fops_war_stats = {
+	.read = read_file_war_stats,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static void ath6kl_debug_fwlog_add(struct ath6kl *ar, const void *buf,
 				   size_t buf_len)
 {
@@ -872,6 +917,9 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("reg_write", S_IRUSR | S_IWUSR,
 			    ar->debugfs_phy, ar, &fops_diag_reg_write);
+
+	debugfs_create_file("war_stats", S_IRUSR, ar->debugfs_phy, ar,
+			    &fops_war_stats);
 
 	return 0;
 }

@@ -1365,7 +1365,9 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
 	} else {
-		ath6kl_warn("invalid rate: %d\n", rate);
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
+			   "invalid rate from stats: %d\n", rate);
+		ath6kl_debug_war(ar, ATH6KL_WAR_INVALID_RATE);
 		return 0;
 	}
 

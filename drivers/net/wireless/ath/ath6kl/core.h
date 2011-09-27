@@ -525,6 +525,10 @@ struct ath6kl {
 		unsigned int dbgfs_diag_reg;
 		u32 diag_reg_addr_wr;
 		u32 diag_reg_val_wr;
+
+		struct {
+			unsigned int invalid_rate;
+		} war_stats;
 	} debug;
 #endif /* CONFIG_ATH6KL_DEBUG */
 };

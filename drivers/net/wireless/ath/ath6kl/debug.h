@@ -52,6 +52,10 @@ extern int ath6kl_printk(const char *level, const char *fmt, ...)
 
 #define AR_DBG_LVL_CHECK(mask)	(debug_mask & mask)
 
+enum ath6kl_war {
+	ATH6KL_WAR_INVALID_RATE,
+};
+
 #ifdef CONFIG_ATH6KL_DEBUG
 #define ath6kl_dbg(mask, fmt, ...)					\
 	({								\
@@ -79,6 +83,7 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			   struct ath6kl_irq_enable_reg *irq_en_reg);
 void dump_cred_dist_stats(struct htc_target *target);
 void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len);
+void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war);
 int ath6kl_debug_init(struct ath6kl *ar);
 void ath6kl_debug_cleanup(struct ath6kl *ar);
 
@@ -107,6 +112,10 @@ static inline void dump_cred_dist_stats(struct htc_target *target)
 
 static inline void ath6kl_debug_fwlog_event(struct ath6kl *ar,
 					    const void *buf, size_t len)
+{
+}
+
+static inline void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war)
 {
 }
 
