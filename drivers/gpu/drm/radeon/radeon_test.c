@@ -234,3 +234,91 @@ out_cleanup:
 		printk(KERN_WARNING "Error while testing BO move.\n");
 	}
 }
+
+void radeon_test_ring_sync(struct radeon_device *rdev,
+			   struct radeon_cp *cpA,
+			   struct radeon_cp *cpB)
+{
+	struct radeon_fence *fence = NULL;
+	struct radeon_semaphore *semaphore = NULL;
+	int ringA = radeon_ring_index(rdev, cpA);
+	int ringB = radeon_ring_index(rdev, cpB);
+	int r;
+
+	r = radeon_fence_create(rdev, &fence, ringA);
+	if (r) {
+		DRM_ERROR("Failed to create sync fence\n");
+		goto out_cleanup;
+	}
+
+	r = radeon_semaphore_create(rdev, &semaphore);
+	if (r) {
+		DRM_ERROR("Failed to create semaphore\n");
+		goto out_cleanup;
+	}
+
+	r = radeon_ring_lock(rdev, cpA, 64);
+	if (r) {
+		DRM_ERROR("Failed to lock ring %d\n", ringA);
+		goto out_cleanup;
+	}
+	radeon_semaphore_emit_wait(rdev, ringA, semaphore);
+	radeon_fence_emit(rdev, fence);
+	radeon_ring_unlock_commit(rdev, cpA);
+
+	mdelay(1000);
+
+	if (radeon_fence_signaled(fence)) {
+		DRM_ERROR("Fence signaled without waiting for semaphore.\n");
+		goto out_cleanup;
+	}
+
+	r = radeon_ring_lock(rdev, cpB, 64);
+	if (r) {
+		DRM_ERROR("Failed to lock ring %d\n", ringB);
+		goto out_cleanup;
+	}
+	radeon_semaphore_emit_signal(rdev, ringB, semaphore);
+	radeon_ring_unlock_commit(rdev, cpB);
+
+	r = radeon_fence_wait(fence, false);
+	if (r) {
+		DRM_ERROR("Failed to wait for sync fence\n");
+		goto out_cleanup;
+	}
+
+	DRM_INFO("Syncing between rings %d and %d seems to work.\n", ringA, ringB);
+
+out_cleanup:
+	if (semaphore)
+		radeon_semaphore_free(rdev, semaphore);
+
+	if (fence)
+		radeon_fence_unref(&fence);
+
+	if (r)
+		printk(KERN_WARNING "Error while testing ring sync (%d).\n", r);
+}
+
+void radeon_test_syncing(struct radeon_device *rdev)
+{
+	int i, j;
+
+	for (i = 1; i < RADEON_NUM_RINGS; ++i) {
+		struct radeon_cp *cpA = &rdev->cp[i];
+		if (!cpA->ready)
+			continue;
+
+		for (j = 0; j < i; ++j) {
+			struct radeon_cp *cpB = &rdev->cp[j];
+			if (!cpB->ready)
+				continue;
+
+			DRM_INFO("Testing syncing between rings %d and %d\n", i, j);
+			radeon_test_ring_sync(rdev, cpA, cpB);
+
+			DRM_INFO("Testing syncing between rings %d and %d\n", j, i);
+			radeon_test_ring_sync(rdev, cpB, cpA);
+		}
+	}
+}

@@ -823,8 +823,11 @@ int radeon_device_init(struct radeon_device *rdev,
 		if (r)
 			return r;
 	}
-	if (radeon_testing) {
+	if ((radeon_testing & 1)) {
 		radeon_test_moves(rdev);
+	}
+	if ((radeon_testing & 2)) {
+		radeon_test_syncing(rdev);
 	}
 	if (radeon_benchmarking) {
 		radeon_benchmark(rdev, radeon_benchmarking);

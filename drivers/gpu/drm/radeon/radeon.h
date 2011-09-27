@@ -913,6 +913,10 @@ void radeon_benchmark(struct radeon_device *rdev, int test_number);
  * Testing
  */
 void radeon_test_moves(struct radeon_device *rdev);
+void radeon_test_ring_sync(struct radeon_device *rdev,
+			   struct radeon_cp *cpA,
+			   struct radeon_cp *cpB);
+void radeon_test_syncing(struct radeon_device *rdev);
 
 
 /*
