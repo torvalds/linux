@@ -84,6 +84,11 @@ static int crypto_report_one(struct crypto_alg *alg,
 
 	NLA_PUT_U32(skb, CRYPTOCFGA_PRIORITY_VAL, alg->cra_priority);
 
+	if (alg->cra_type && alg->cra_type->report) {
+		if (alg->cra_type->report(skb, alg))
+			goto nla_put_failure;
+	}
+
 	return 0;
 
 nla_put_failure:
