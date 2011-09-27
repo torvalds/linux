@@ -565,8 +565,6 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
-	mwifiex_dump_station_info(priv, sinfo);
-
 	if (!priv->media_connected)
 		return -ENOENT;
 	if (memcmp(mac, priv->cfg_bssid, ETH_ALEN))
