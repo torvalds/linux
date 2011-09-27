@@ -422,7 +422,7 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 		dev_err(nvec->dev, "error adding subdevices\n");
 
 	/* unmute speakers? */
-	nvec_write_async(nvec, "\x0d\x10\x59\x94", 4);
+	nvec_write_async(nvec, "\x0d\x10\x59\x95", 4);
 
 	/* enable lid switch event */
 	nvec_write_async(nvec, "\x01\x01\x01\x00\x00\x02\x00", 7);
