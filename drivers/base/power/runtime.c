@@ -155,6 +155,31 @@ static int rpm_check_suspend_allowed(struct device *dev)
 }
 
 /**
+ * __rpm_callback - Run a given runtime PM callback for a given device.
+ * @cb: Runtime PM callback to run.
+ * @dev: Device to run the callback for.
+ */
+static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
+	__releases(&dev->power.lock) __acquires(&dev->power.lock)
+{
+	int retval;
+
+	if (dev->power.irq_safe)
+		spin_unlock(&dev->power.lock);
+	else
+		spin_unlock_irq(&dev->power.lock);
+
+	retval = cb(dev);
+
+	if (dev->power.irq_safe)
+		spin_lock(&dev->power.lock);
+	else
+		spin_lock_irq(&dev->power.lock);
+
+	return retval;
+}
+
+/**
  * rpm_idle - Notify device bus type if the device can be suspended.
  * @dev: Device to notify the bus type about.
  * @rpmflags: Flag bits.
@@ -225,19 +250,8 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	else
 		callback = NULL;
 
-	if (callback) {
-		if (dev->power.irq_safe)
-			spin_unlock(&dev->power.lock);
-		else
-			spin_unlock_irq(&dev->power.lock);
-
-		callback(dev);
-
-		if (dev->power.irq_safe)
-			spin_lock(&dev->power.lock);
-		else
-			spin_lock_irq(&dev->power.lock);
-	}
+	if (callback)
+		__rpm_callback(callback, dev);
 
 	dev->power.idle_notification = false;
 	wake_up_all(&dev->power.wait_queue);
@@ -252,22 +266,14 @@ static int rpm_idle(struct device *dev, int rpmflags)
  * @dev: Device to run the callback for.
  */
 static int rpm_callback(int (*cb)(struct device *), struct device *dev)
-	__releases(&dev->power.lock) __acquires(&dev->power.lock)
 {
 	int retval;
 
 	if (!cb)
 		return -ENOSYS;
 
-	if (dev->power.irq_safe) {
-		retval = cb(dev);
-	} else {
-		spin_unlock_irq(&dev->power.lock);
+	retval = __rpm_callback(cb, dev);
 
-		retval = cb(dev);
-
-		spin_lock_irq(&dev->power.lock);
-	}
 	dev->power.runtime_error = retval;
 	return retval != -EACCES ? retval : -EIO;
 }
@@ -345,6 +351,15 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 		if (rpmflags & (RPM_ASYNC | RPM_NOWAIT)) {
 			retval = -EINPROGRESS;
 			goto out;
+		}
+
+		if (dev->power.irq_safe) {
+			spin_unlock(&dev->power.lock);
+
+			cpu_relax();
+
+			spin_lock(&dev->power.lock);
+			goto repeat;
 		}
 
 		/* Wait for the other suspend running in parallel with us. */
@@ -494,6 +509,15 @@ static int rpm_resume(struct device *dev, int rpmflags)
 			else
 				retval = -EINPROGRESS;
 			goto out;
+		}
+
+		if (dev->power.irq_safe) {
+			spin_unlock(&dev->power.lock);
+
+			cpu_relax();
+
+			spin_lock(&dev->power.lock);
+			goto repeat;
 		}
 
 		/* Wait for the operation carried out in parallel with us. */
