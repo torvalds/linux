@@ -21,6 +21,8 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/cryptouser.h>
+#include <net/netlink.h>
 
 static DEFINE_MUTEX(crypto_default_rng_lock);
 struct crypto_rng *crypto_default_rng;
@@ -58,6 +60,23 @@ static int crypto_init_rng_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	return 0;
 }
 
+static int crypto_rng_report(struct sk_buff *skb, struct crypto_alg *alg)
+{
+	struct crypto_report_rng rrng;
+
+	snprintf(rrng.type, CRYPTO_MAX_ALG_NAME, "%s", "rng");
+
+	rrng.seedsize = alg->cra_rng.seedsize;
+
+	NLA_PUT(skb, CRYPTOCFGA_REPORT_RNG,
+		sizeof(struct crypto_report_rng), &rrng);
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
 static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
 	__attribute__ ((unused));
 static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
@@ -78,6 +97,7 @@ const struct crypto_type crypto_rng_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_rng_show,
 #endif
+	.report = crypto_rng_report,
 };
 EXPORT_SYMBOL_GPL(crypto_rng_type);
 
