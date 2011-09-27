@@ -850,8 +850,15 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 	 * release soft reset on s_clk & l_clk
 	 */
 	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
-	writel((r32 & ~__APP_PLL_LCLK_LOGIC_SOFT_RESET),
+	writel((r32 & ~__APP_PLL_SCLK_LOGIC_SOFT_RESET),
 			(rb + CT2_APP_PLL_SCLK_CTL_REG));
+
+	/*
+	 * release soft reset on s_clk & l_clk
+	 */
+	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
+	writel(r32 & ~__APP_PLL_LCLK_LOGIC_SOFT_RESET,
+		      (rb + CT2_APP_PLL_LCLK_CTL_REG));
 
 	/*
 	 * Announce flash device presence, if flash was corrupted.

@@ -152,16 +152,7 @@ struct bfa_ioc_notify {
 };
 
 /**
- * Heartbeat failure notification queue element.
- */
-struct bfa_ioc_hbfail_notify {
-	struct list_head	qe;
-	bfa_ioc_hbfail_cbfn_t	cbfn;
-	void			*cbarg;
-};
-
-/**
- * Initialize a heartbeat failure notification structure
+ * Initialize a IOC event notification structure
  */
 #define bfa_ioc_notify_init(__notify, __cbfn, __cbarg) do {	\
 	(__notify)->cbfn = (__cbfn);				\
@@ -290,6 +281,7 @@ void bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
 
 void bfa_nw_ioc_set_ct_hwif(struct bfa_ioc *ioc);
 void bfa_nw_ioc_set_ct2_hwif(struct bfa_ioc *ioc);
+void bfa_ioc_ct2_poweron(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_attach(struct bfa_ioc *ioc, void *bfa,
 		struct bfa_ioc_cbfn *cbfn);

@@ -15,7 +15,6 @@
  * All rights reserved
  * www.brocade.com
  */
-
 #ifndef __BFA_DEFS_CNA_H__
 #define __BFA_DEFS_CNA_H__
 
@@ -55,6 +54,9 @@ struct bfa_port_fc_stats {
 	u64	bad_os_count;	/*!< Invalid ordered sets	*/
 	u64	err_enc_out;	/*!< Encoding err nonframe_8b10b */
 	u64	err_enc;	/*!< Encoding err frame_8b10b	*/
+	u64	bbsc_frames_lost; /*!< Credit Recovery-Frames Lost  */
+	u64	bbsc_credits_lost; /*!< Credit Recovery-Credits Lost */
+	u64	bbsc_link_resets; /*!< Credit Recovery-Link Resets   */
 };
 
 /**
@@ -100,6 +102,10 @@ struct bfa_port_eth_stats {
 	u64	rx_fcoe_zero_pause; /*!< Rx FCoE zero pause	*/
 	u64	tx_fcoe_pause;	/*!< Tx FCoE pause		*/
 	u64	tx_fcoe_zero_pause; /*!< Tx FCoE zero pause	*/
+	u64	rx_iscsi_pause;	/*!< Rx iSCSI pause		*/
+	u64	rx_iscsi_zero_pause; /*!< Rx iSCSI zero pause	*/
+	u64	tx_iscsi_pause;	/*!< Tx iSCSI pause		*/
+	u64	tx_iscsi_zero_pause; /*!< Tx iSCSI zero pause	*/
 };
 
 /**

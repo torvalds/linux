@@ -17,8 +17,6 @@
  */
 
 #include "bfa_ioc.h"
-#include "cna.h"
-#include "bfi.h"
 #include "bfi_reg.h"
 #include "bfa_defs.h"
 
@@ -139,10 +137,6 @@ static struct bfa_sm_table ioc_sm_table[] = {
 	{BFA_SM(bfa_ioc_sm_disabled), BFA_IOC_DISABLED},
 	{BFA_SM(bfa_ioc_sm_hwfail), BFA_IOC_HWFAIL},
 };
-
-/**
- * IOCPF state machine definitions/declarations
- */
 
 /*
  * Forward declareations for iocpf state machine
@@ -427,7 +421,7 @@ bfa_ioc_sm_disabling_entry(struct bfa_ioc *ioc)
 }
 
 /**
- * IOC is being desabled
+ * IOC is being disabled
  */
 static void
 bfa_ioc_sm_disabling(struct bfa_ioc *ioc, enum ioc_event event)
@@ -457,7 +451,7 @@ bfa_ioc_sm_disabling(struct bfa_ioc *ioc, enum ioc_event event)
 }
 
 /**
- * IOC desable completion entry.
+ * IOC disable completion entry.
  */
 static void
 bfa_ioc_sm_disabled_entry(struct bfa_ioc *ioc)
@@ -782,7 +776,7 @@ static void
 bfa_iocpf_sm_hwinit_entry(struct bfa_iocpf *iocpf)
 {
 	iocpf->poll_time = 0;
-	bfa_ioc_reset(iocpf->ioc, 0);
+	bfa_ioc_reset(iocpf->ioc, false);
 }
 
 /**
@@ -1759,6 +1753,9 @@ bfa_ioc_fail_notify(struct bfa_ioc *ioc)
 	bfa_ioc_event_notify(ioc, BFA_IOC_E_FAILED);
 }
 
+/**
+ * IOCPF to IOC interface
+ */
 static void
 bfa_ioc_pf_enabled(struct bfa_ioc *ioc)
 {
@@ -2292,9 +2289,6 @@ bfa_ioc_get_adapter_model(struct bfa_ioc *ioc, char *model)
 
 	ioc_attr = ioc->attr;
 
-	/**
-	 * model name
-	 */
 	snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
 		BFA_MFG_NAME, ioc_attr->card_type);
 }

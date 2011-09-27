@@ -135,17 +135,21 @@ enum bfi_mclass {
 	BFI_MC_SFP		= 22,	/*!< SFP module			    */
 	BFI_MC_MSGQ		= 23,	/*!< MSGQ			    */
 	BFI_MC_ENET		= 24,	/*!< ENET commands/responses	    */
-	BFI_MC_MAX		= 32
+	BFI_MC_PHY		= 25,	/*!< External PHY message class	    */
+	BFI_MC_NBOOT		= 26,	/*!< Network Boot		    */
+	BFI_MC_TIO_READ		= 27,	/*!< read IO (Target mode)	    */
+	BFI_MC_TIO_WRITE	= 28,	/*!< write IO (Target mode)	    */
+	BFI_MC_TIO_DATA_XFERED	= 29,	/*!< ds transferred (target mode)   */
+	BFI_MC_TIO_IO		= 30,	/*!< IO (Target mode)		    */
+	BFI_MC_TIO		= 31,	/*!< IO (target mode)		    */
+	BFI_MC_MFG		= 32,	/*!< MFG/ASIC block commands	    */
+	BFI_MC_EDMA		= 33,	/*!< EDMA copy commands		    */
+	BFI_MC_MAX		= 34
 };
 
-#define BFI_IOC_MAX_CQS		4
-#define BFI_IOC_MAX_CQS_ASIC	8
 #define BFI_IOC_MSGLEN_MAX	32	/* 32 bytes */
 
 #define BFI_FWBOOT_ENV_OS		0
-
-#define BFI_BOOT_MEMTEST_RES_ADDR   0x900
-#define BFI_BOOT_MEMTEST_RES_SIG    0xA0A1A2A3
 
 /**
  *----------------------------------------------------------------------
@@ -280,9 +284,6 @@ enum bfi_port_mode {
 	BFI_PORT_MODE_ETH	= 2,
 };
 
-/**
- *  BFI_IOC_I2H_READY_EVENT message
- */
 struct bfi_ioc_hbeat {
 	struct bfi_mhdr mh;		/*!< common msg header		*/
 	u32	   hb_count;	/*!< current heart beat count	*/
