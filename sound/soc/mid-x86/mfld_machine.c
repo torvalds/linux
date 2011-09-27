@@ -54,9 +54,7 @@ static unsigned int	hs_switch;
 static unsigned int	lo_dac;
 
 struct mfld_mc_private {
-	struct platform_device *socdev;
 	void __iomem *int_base;
-	struct snd_soc_codec *codec;
 	u8 interrupt_status;
 };
 
