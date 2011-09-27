@@ -257,6 +257,8 @@ struct platform_device *g_pdev = NULL;
 #else
 #define CHK_SUSPEND(inf)
 #endif
+static DECLARE_WAIT_QUEUE_HEAD(fb0_wait_queue);     
+static volatile int idle_condition = 1;              //1:idel, 0:busy
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
@@ -1462,6 +1464,8 @@ static int fb0_set_par(struct fb_info *info)
 #endif
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+	wait_event_interruptible(fb0_wait_queue, idle_condition);
+	idle_condition = 0;
 
     inf->setFlag = 0;
 	CHK_SUSPEND(inf);
@@ -1591,6 +1595,8 @@ static int fb0_set_par(struct fb_info *info)
         win0_set_par(info);
     }
     inf->setFlag = 1;
+	idle_condition = 1;
+	wake_up_interruptible_sync(&fb0_wait_queue);
     return 0;
 }
 
