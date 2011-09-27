@@ -83,7 +83,7 @@ void irda_hw_deinit(struct rk29_irda *si)
 int irda_hw_startup(void)
 {
     volatile u16 val;
-    int i=0;
+    //int i=0;
 	RK29IR_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
 
     //IER (disable all)
@@ -200,8 +200,8 @@ int irda_hw_set_speed(u32 speed)
 		if (mode == BU92725GUW_MIR)
 			curTrans_way = BU92725GUW_MIR_SEND;
 		else if (mode == BU92725GUW_FIR)
-			curTrans_way = BU92725GUW_MULTI_SEND;
-			//curTrans_way = BU92725GUW_FIR_SEND;
+			//curTrans_way = BU92725GUW_MULTI_SEND;
+			curTrans_way = BU92725GUW_FIR_SEND;
 		break;
 	case BU92725GUW_MIR_REV:
 		if (mode == BU92725GUW_SIR)
@@ -215,8 +215,8 @@ int irda_hw_set_speed(u32 speed)
 		if (mode == BU92725GUW_SIR)
 			curTrans_way = BU92725GUW_SEND;
 		else if (mode == BU92725GUW_FIR)
-			curTrans_way = BU92725GUW_MULTI_SEND;
-			//curTrans_way = BU92725GUW_FIR_SEND;
+			//curTrans_way = BU92725GUW_MULTI_SEND;
+			curTrans_way = BU92725GUW_FIR_SEND;
 		break;
 	case BU92725GUW_FIR_REV:
 	case BU92725GUW_AUTO_MULTI_REV:
@@ -260,8 +260,8 @@ int irda_hw_tx_enable_irq(enum eTrans_Mode mode)
 	else if (mode == BU92725GUW_MIR)
 		BU92725GUW_set_trans_way(BU92725GUW_MIR_SEND);
 	else
-		BU92725GUW_set_trans_way(BU92725GUW_MULTI_SEND);
-		//BU92725GUW_set_trans_way(BU92725GUW_FIR_SEND);
+		//BU92725GUW_set_trans_way(BU92725GUW_MULTI_SEND);
+		BU92725GUW_set_trans_way(BU92725GUW_FIR_SEND);
 	//BU92725GUW_clr_fifo();
 
     return 0;
@@ -306,7 +306,7 @@ void irda_hw_set_moderx(void)
    // frData.ucFlags &= ~(FRMF_TX_ACTIVE);
    // frData.ucFlags |= FRMF_RX_ACTIVE;
 
-    int i=0;
+    //int i=0;
     /* hardware-specific code
 	*/
 	RK29IR_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
@@ -708,17 +708,17 @@ static void internal_set(u8 modeChg)
 		break;
 		
 	case BU92725GUW_FIR_REV: /* FIR use */
-		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF \
+		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF 
 			| REG_INT_AC | REG_INT_DECE; //IER1,2, 4, 5, 6, 7
 		break;
 		
 	case BU92725GUW_MULTI_REV: /* not used */
-		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE\ 
+		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE 
 			 | REG_INT_RDOE | REG_INT_DEX | REG_INT_RDUE; //IER1,2, 4, 5, 6, 7, 8, 9, 10
 		break;
 	
 	case BU92725GUW_AUTO_MULTI_REV: /* M/FIR use */
-		val = REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE\
+		val = REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE 
 			 | REG_INT_RDOE | REG_INT_DEX | REG_INT_RDE; //IER2, 4, 5, 6, 7, 8, 9, 12
 		break;
 		
