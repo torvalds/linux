@@ -193,6 +193,7 @@ struct bfa_ioc_attr {
 enum {
 	BFA_CM_HBA	=	0x01,
 	BFA_CM_CNA	=	0x02,
+	BFA_CM_NIC	=	0x04,
 };
 
 /**
@@ -271,7 +272,20 @@ enum {
 #define bfa_asic_id_ct(device)			\
 	((device) == PCI_DEVICE_ID_BROCADE_CT ||	\
 	 (device) == PCI_DEVICE_ID_BROCADE_CT_FC)
-#define bfa_asic_id_ctc(device) (bfa_asic_id_ct(device))
+#define bfa_asic_id_ct2(device)			\
+	((device) == BFA_PCI_DEVICE_ID_CT2)
+#define bfa_asic_id_ctc(device)			\
+	(bfa_asic_id_ct(device) || bfa_asic_id_ct2(device))
+
+/**
+ * PCI sub-system device and vendor ID information
+ */
+enum {
+	BFA_PCI_FCOE_SSDEVICE_ID	= 0x14,
+	BFA_PCI_CT2_SSID_FCoE		= 0x22,
+	BFA_PCI_CT2_SSID_ETH		= 0x23,
+	BFA_PCI_CT2_SSID_FC		= 0x24,
+};
 
 enum bfa_mode {
 	BFA_MODE_HBA		= 1,

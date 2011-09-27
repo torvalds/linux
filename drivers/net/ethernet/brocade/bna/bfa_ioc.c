@@ -1977,6 +1977,29 @@ bfa_nw_ioc_pci_init(struct bfa_ioc *ioc, struct bfa_pcidev *pcidev,
 		ioc->ad_cap_bm = BFA_CM_CNA;
 		break;
 
+	case BFA_PCI_DEVICE_ID_CT2:
+		ioc->asic_gen = BFI_ASIC_GEN_CT2;
+		if (clscode == BFI_PCIFN_CLASS_FC &&
+			pcidev->ssid == BFA_PCI_CT2_SSID_FC) {
+			ioc->asic_mode  = BFI_ASIC_MODE_FC16;
+			ioc->fcmode = true;
+			ioc->port_mode = ioc->port_mode_cfg = BFA_MODE_HBA;
+			ioc->ad_cap_bm = BFA_CM_HBA;
+		} else {
+			ioc->port0_mode = ioc->port1_mode = BFI_PORT_MODE_ETH;
+			ioc->asic_mode  = BFI_ASIC_MODE_ETH;
+			if (pcidev->ssid == BFA_PCI_CT2_SSID_FCoE) {
+				ioc->port_mode =
+				ioc->port_mode_cfg = BFA_MODE_CNA;
+				ioc->ad_cap_bm = BFA_CM_CNA;
+			} else {
+				ioc->port_mode =
+				ioc->port_mode_cfg = BFA_MODE_NIC;
+				ioc->ad_cap_bm = BFA_CM_NIC;
+			}
+		}
+		break;
+
 	default:
 		BUG_ON(1);
 	}

@@ -133,6 +133,10 @@
 		ct_reg_addr_init((_bna), (_pcidev));			\
 		ct_bit_defn_init((_bna), (_pcidev));			\
 		break;							\
+	case BFA_PCI_DEVICE_ID_CT2:					\
+		ct2_reg_addr_init((_bna), (_pcidev));			\
+		ct2_bit_defn_init((_bna), (_pcidev));			\
+		break;							\
 	}								\
 }
 

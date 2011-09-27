@@ -3428,7 +3428,14 @@ static DEFINE_PCI_DEVICE_TABLE(bnad_pci_id_table) = {
 			PCI_DEVICE_ID_BROCADE_CT),
 		.class = PCI_CLASS_NETWORK_ETHERNET << 8,
 		.class_mask =  0xffff00
-	}, {0,  }
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_BROCADE,
+			BFA_PCI_DEVICE_ID_CT2),
+		.class = PCI_CLASS_NETWORK_ETHERNET << 8,
+		.class_mask =  0xffff00
+	},
+	{0,  },
 };
 
 MODULE_DEVICE_TABLE(pci, bnad_pci_id_table);

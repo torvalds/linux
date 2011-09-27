@@ -35,6 +35,7 @@ struct bfa_pcidev {
 	int	pci_slot;
 	u8	pci_func;
 	u16	device_id;
+	u16	ssid;
 	void	__iomem *pci_bar_kva;
 };
 
