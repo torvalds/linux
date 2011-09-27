@@ -211,15 +211,6 @@ static int _usb_nbytes_read_write(struct usb_device *udev, bool read, u32 addr,
 	return status;
 }
 
-static int _usb_readN_sync(struct rtl_priv *rtlpriv, u32 addr, u16 len,
-			   u8 *pdata)
-{
-	struct device *dev = rtlpriv->io.dev;
-
-	return _usb_nbytes_read_write(to_usb_device(dev), true, addr, len,
-				       pdata);
-}
-
 static int _usb_writeN_async(struct rtl_priv *rtlpriv, u32 addr, u16 len,
 			     u8 *pdata)
 {
@@ -243,7 +234,6 @@ static void _rtl_usb_io_handler_init(struct device *dev,
 	rtlpriv->io.read8_sync		= _usb_read8_sync;
 	rtlpriv->io.read16_sync		= _usb_read16_sync;
 	rtlpriv->io.read32_sync		= _usb_read32_sync;
-	rtlpriv->io.readN_sync		= _usb_readN_sync;
 }
 
 static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)
