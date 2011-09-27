@@ -21,7 +21,7 @@
 
 #include "nvec.h"
 
-#define START_STREAMING	{'\x06', '\x03', '\x01'}
+#define START_STREAMING	{'\x06', '\x03', '\x04'}
 #define STOP_STREAMING	{'\x06', '\x04'}
 #define SEND_COMMAND	{'\x06', '\x01', '\xf4', '\x01'}
 
@@ -65,7 +65,8 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 
 	switch (event_type) {
 	case NVEC_PS2_EVT:
-		serio_interrupt(ps2_dev.ser_dev, msg[2], 0);
+		for (i = 0; i < msg[1]; i++)
+			serio_interrupt(ps2_dev.ser_dev, msg[2 + i], 0);
 		return NOTIFY_STOP;
 
 	case NVEC_PS2:
