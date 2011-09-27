@@ -37,6 +37,7 @@ enum crypto_attr_type_t {
 	CRYPTOCFGA_UNSPEC,
 	CRYPTOCFGA_PRIORITY_VAL,	/* __u32 */
 	CRYPTOCFGA_REPORT_LARVAL,	/* struct crypto_report_larval */
+	CRYPTOCFGA_REPORT_HASH,		/* struct crypto_report_hash */
 	__CRYPTOCFGA_MAX
 
 #define CRYPTOCFGA_MAX (__CRYPTOCFGA_MAX - 1)
@@ -54,4 +55,10 @@ struct crypto_user_alg {
 
 struct crypto_report_larval {
 	char type[CRYPTO_MAX_NAME];
+};
+
+struct crypto_report_hash {
+	char type[CRYPTO_MAX_NAME];
+	unsigned int blocksize;
+	unsigned int digestsize;
 };
