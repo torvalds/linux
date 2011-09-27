@@ -471,6 +471,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 
+		if (HAS_PCH_SPLIT(dev))
+			ironlake_init_pch_refclk(dev);
+
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 
