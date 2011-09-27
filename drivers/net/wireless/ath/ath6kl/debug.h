@@ -34,11 +34,12 @@ enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_TRC	        = BIT(11),    /* generic func tracing */
 	ATH6KL_DBG_SCATTER	= BIT(12),    /* hif scatter tracing */
 	ATH6KL_DBG_WLAN_CFG     = BIT(13),    /* cfg80211 i/f file tracing */
-	ATH6KL_DBG_RAW_BYTES    = BIT(14),    /* dump tx/rx and wmi frames */
+	ATH6KL_DBG_RAW_BYTES    = BIT(14),    /* dump tx/rx frames */
 	ATH6KL_DBG_AGGR		= BIT(15),    /* aggregation */
 	ATH6KL_DBG_SDIO		= BIT(16),
 	ATH6KL_DBG_SDIO_DUMP	= BIT(17),
 	ATH6KL_DBG_BOOT		= BIT(18),    /* driver init and fw boot */
+	ATH6KL_DBG_WMI_DUMP	= BIT(19),
 	ATH6KL_DBG_ANY	        = 0xffffffff  /* enable all logs */
 };
 

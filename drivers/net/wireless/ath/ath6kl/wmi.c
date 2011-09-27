@@ -721,8 +721,12 @@ static int ath6kl_wmi_connect_event_rx(struct wmi *wmi, u8 *datap, int len)
 
 	/* STA/IBSS mode connection event */
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "%s: freq %d bssid %pM\n",
-		   __func__, le16_to_cpu(ev->u.sta.ch), ev->u.sta.bssid);
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "wmi event connect freq %d bssid %pM listen_intvl %d beacon_intvl %d type %d\n",
+		   le16_to_cpu(ev->u.sta.ch), ev->u.sta.bssid,
+		   le16_to_cpu(ev->u.sta.listen_intvl),
+		   le16_to_cpu(ev->u.sta.beacon_intvl),
+		   le32_to_cpu(ev->u.sta.nw_type));
 
 	/* Start of assoc rsp IEs */
 	pie = ev->assoc_info + ev->beacon_ie_len +
@@ -822,7 +826,7 @@ static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 
 		regpair = ath6kl_get_regpair((u16) reg_code);
 		country = ath6kl_regd_find_country_by_rd((u16) reg_code);
-		ath6kl_dbg(ATH6KL_DBG_WMI, "ath6kl: Regpair used: 0x%0x\n",
+		ath6kl_dbg(ATH6KL_DBG_WMI, "Regpair used: 0x%0x\n",
 				regpair->regDmnEnum);
 	}
 
@@ -832,7 +836,7 @@ static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 
 		regulatory_hint(wmi->parent_dev->wdev->wiphy, alpha2);
 
-		ath6kl_dbg(ATH6KL_DBG_WMI, "ath6kl: Country alpha2 being used: %c%c\n",
+		ath6kl_dbg(ATH6KL_DBG_WMI, "Country alpha2 being used: %c%c\n",
 				alpha2[0], alpha2[1]);
 	}
 }
@@ -846,6 +850,11 @@ static int ath6kl_wmi_disconnect_event_rx(struct wmi *wmi, u8 *datap, int len)
 		return -EINVAL;
 
 	ev = (struct wmi_disconnect_event *) datap;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "wmi event disconnect proto_reason %d bssid %pM wmi_reason %d assoc_resp_len %d\n",
+		   le16_to_cpu(ev->proto_reason_status), ev->bssid,
+		   ev->disconn_reason, ev->assoc_resp_len);
 
 	wmi->is_wmm_enabled = false;
 	wmi->pair_crypto_type = NONE_CRYPT;
@@ -1526,10 +1535,13 @@ int ath6kl_wmi_cmd_send(struct wmi *wmi, struct sk_buff *skb,
 	enum htc_endpoint_id ep_id = wmi->ep_id;
 	int ret;
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "%s: cmd_id=%d\n", __func__, cmd_id);
-
 	if (WARN_ON(skb == NULL))
 		return -EINVAL;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "wmi tx id %d len %d flag %d\n",
+		   cmd_id, skb->len, sync_flag);
+	ath6kl_dbg_dump(ATH6KL_DBG_WMI_DUMP, NULL, "wmi tx ",
+			skb->data, skb->len);
 
 	if (sync_flag >= END_WMIFLAG) {
 		dev_kfree_skb(skb);
@@ -1589,6 +1601,13 @@ int ath6kl_wmi_connect_cmd(struct wmi *wmi, enum network_type nw_type,
 	struct wmi_connect_cmd *cc;
 	int ret;
 
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "wmi connect bssid %pM freq %d flags 0x%x ssid_len %d "
+		   "type %d dot11_auth %d auth %d pairwise %d group %d\n",
+		   bssid, channel, ctrl_flags, ssid_len, nw_type,
+		   dot11_auth_mode, auth_mode, pairwise_crypto, group_crypto);
+	ath6kl_dbg_dump(ATH6KL_DBG_WMI, NULL, "ssid ", ssid, ssid_len);
+
 	wmi->traffic_class = 100;
 
 	if ((pairwise_crypto == NONE_CRYPT) && (group_crypto != NONE_CRYPT))
@@ -1634,6 +1653,9 @@ int ath6kl_wmi_reconnect_cmd(struct wmi *wmi, u8 *bssid, u16 channel)
 	struct wmi_reconnect_cmd *cc;
 	int ret;
 
+	ath6kl_dbg(ATH6KL_DBG_WMI, "wmi reconnect bssid %pM freq %d\n",
+		   bssid, channel);
+
 	wmi->traffic_class = 100;
 
 	skb = ath6kl_wmi_get_new_buf(sizeof(struct wmi_reconnect_cmd));
@@ -1655,6 +1677,8 @@ int ath6kl_wmi_reconnect_cmd(struct wmi *wmi, u8 *bssid, u16 channel)
 int ath6kl_wmi_disconnect_cmd(struct wmi *wmi)
 {
 	int ret;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "wmi disconnect\n");
 
 	wmi->traffic_class = 100;
 
@@ -2808,12 +2832,14 @@ static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 
 	switch (id) {
 	case WMIX_HB_CHALLENGE_RESP_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "wmi event hb challenge resp\n");
 		break;
 	case WMIX_DBGLOG_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI, "wmi event dbglog len %d\n", len);
 		ath6kl_debug_fwlog_event(wmi->parent_dev, datap, len);
 		break;
 	default:
-		ath6kl_err("unknown cmd id 0x%x\n", id);
+		ath6kl_warn("unknown cmd id 0x%x\n", id);
 		wmi->stat.cmd_id_err++;
 		ret = -EINVAL;
 		break;
@@ -2849,8 +2875,8 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 	datap = skb->data;
 	len = skb->len;
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "%s: wmi id: %d\n", __func__, id);
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "msg payload ", "wmi rx ",
+	ath6kl_dbg(ATH6KL_DBG_WMI, "wmi rx id %d len %d\n", id, len);
+	ath6kl_dbg_dump(ATH6KL_DBG_WMI_DUMP, NULL, "wmi rx ",
 			datap, len);
 
 	switch (id) {
