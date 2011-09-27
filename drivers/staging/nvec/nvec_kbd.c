@@ -99,8 +99,8 @@ static int __devinit nvec_kbd_probe(struct platform_device *pdev)
 		keycodes[j++] = extcode_tab_us102[i];
 
 	idev = input_allocate_device();
-	idev->name = "Tegra nvec keyboard";
-	idev->phys = "i2c3_slave/nvec";
+	idev->name = "nvec keyboard";
+	idev->phys = "nvec";
 	idev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) | BIT_MASK(EV_LED);
 	idev->ledbit[0] = BIT_MASK(LED_CAPSL);
 	idev->event = nvec_kbd_event;

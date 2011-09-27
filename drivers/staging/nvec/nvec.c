@@ -63,6 +63,10 @@ static struct mfd_cell nvec_devices[] = {
 		.name = "nvec-power",
 		.id = 2,
 	},
+	{
+		.name = "nvec-leds",
+		.id = 1,
+	},
 };
 
 int nvec_register_notifier(struct nvec_chip *nvec, struct notifier_block *nb,
