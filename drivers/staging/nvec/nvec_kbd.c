@@ -23,6 +23,8 @@
 
 #define ACK_KBD_EVENT {'\x05', '\xed', '\x01'}
 
+static const char led_on[3] = "\x05\xed\x07";
+static const char led_off[3] = "\x05\xed\x00";
 static unsigned char keycodes[ARRAY_SIZE(code_tab_102us)
 			      + ARRAY_SIZE(extcode_tab_us102)];
 
@@ -30,9 +32,20 @@ struct nvec_keys {
 	struct input_dev *input;
 	struct notifier_block notifier;
 	struct nvec_chip *nvec;
+	bool caps_lock;
 };
 
 static struct nvec_keys keys_dev;
+
+static void nvec_kbd_toggle_led(void)
+{
+	keys_dev.caps_lock = !keys_dev.caps_lock;
+
+	if (keys_dev.caps_lock)
+		nvec_write_async(keys_dev.nvec, led_on, sizeof(led_on));
+	else
+		nvec_write_async(keys_dev.nvec, led_off, sizeof(led_off));
+}
 
 static int nvec_keys_notifier(struct notifier_block *nb,
 			      unsigned long event_type, void *data)
@@ -52,6 +65,9 @@ static int nvec_keys_notifier(struct notifier_block *nb,
 
 		code = msg[1] & 0x7f;
 		state = msg[1] & 0x80;
+
+		if (code_tabs[_size][code] == KEY_CAPSLOCK && state)
+			nvec_kbd_toggle_led();
 
 		input_report_key(keys_dev.input, code_tabs[_size][code],
 				 !state);
@@ -132,6 +148,9 @@ static int __devinit nvec_kbd_probe(struct platform_device *pdev)
 	wait until keyboard reset is finished
 	or until we have a sync write */
 	mdelay(1000);
+
+	/* Disable caps lock LED */
+	nvec_write_async(nvec, led_off, sizeof(led_off));
 
 	return 0;
 
