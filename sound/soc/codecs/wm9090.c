@@ -682,6 +682,7 @@ static int __devexit wm9090_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id wm9090_id[] = {
 	{ "wm9090", 0 },
+	{ "wm9093", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm9090_id);
