@@ -241,7 +241,17 @@ struct bfa_mfg_block {
 	u8		num_mac;	/*!< number of mac addresses */
 	u8		rsv2;
 	u32		card_type;	/*!< card type */
-	u8		rsv3[108];
+	char		cap_nic;	/*!< capability nic */
+	char		cap_cna;	/*!< capability cna */
+	char		cap_hba;	/*!< capability hba */
+	char		cap_fc16g;	/*!< capability fc 16g */
+	char		cap_sriov;	/*!< capability sriov */
+	char		cap_mezz;	/*!< capability mezz */
+	u8		rsv3;
+	u8		mfg_nports;	/*!< number of ports */
+	char		media[8];	/*!< xfi/xaui */
+	char		initial_mode[8];/*!< initial mode: hba/cna/nic */
+	u8		rsv4[84];
 	u8		md5_chksum[BFA_MFG_CHKSUM_SIZE]; /*!< md5 checksum */
 };
 
