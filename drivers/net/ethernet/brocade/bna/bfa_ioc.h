@@ -72,6 +72,7 @@ struct bfa_ioc_regs {
 	void __iomem *hfn_mbox;
 	void __iomem *lpu_mbox_cmd;
 	void __iomem *lpu_mbox;
+	void __iomem *lpu_read_stat;
 	void __iomem *pss_ctl_reg;
 	void __iomem *pss_err_status_reg;
 	void __iomem *app_pll_fast_ctl_reg;
@@ -287,6 +288,7 @@ void bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
 } while (0)
 
 void bfa_nw_ioc_set_ct_hwif(struct bfa_ioc *ioc);
+void bfa_nw_ioc_set_ct2_hwif(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_attach(struct bfa_ioc *ioc, void *bfa,
 		struct bfa_ioc_cbfn *cbfn);

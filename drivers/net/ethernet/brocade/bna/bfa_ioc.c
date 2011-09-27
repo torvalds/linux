@@ -1981,7 +1981,13 @@ bfa_nw_ioc_pci_init(struct bfa_ioc *ioc, struct bfa_pcidev *pcidev,
 		BUG_ON(1);
 	}
 
-	bfa_nw_ioc_set_ct_hwif(ioc);
+	/**
+	 * Set asic specific interfaces.
+	 */
+	if (ioc->asic_gen == BFI_ASIC_GEN_CT)
+		bfa_nw_ioc_set_ct_hwif(ioc);
+	else
+		bfa_nw_ioc_set_ct2_hwif(ioc);
 
 	bfa_ioc_map_port(ioc);
 	bfa_ioc_reg_init(ioc);
