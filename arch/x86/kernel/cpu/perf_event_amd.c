@@ -2,6 +2,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <asm/apicdef.h>
 
 #include "perf_event.h"
 
