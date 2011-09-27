@@ -188,7 +188,7 @@ error_ret:
 static struct iio_chan_spec kxsd9_channels[] = {
 	KXSD9_ACCEL_CHAN(X), KXSD9_ACCEL_CHAN(Y), KXSD9_ACCEL_CHAN(Z),
 	{
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.address = KXSD9_REG_AUX,
 	}

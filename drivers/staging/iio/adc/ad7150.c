@@ -473,7 +473,7 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 	if ((int_status & AD7150_STATUS_OUT1) &&
 	    !(chip->old_state & AD7150_STATUS_OUT1))
 		iio_push_event(indio_dev,
-			       IIO_UNMOD_EVENT_CODE(IIO_IN,
+			       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE,
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
@@ -481,7 +481,7 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 	else if ((!(int_status & AD7150_STATUS_OUT1)) &&
 		 (chip->old_state & AD7150_STATUS_OUT1))
 		iio_push_event(indio_dev,
-			       IIO_UNMOD_EVENT_CODE(IIO_IN,
+			       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE,
 						    0,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),
@@ -490,7 +490,7 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 	if ((int_status & AD7150_STATUS_OUT2) &&
 	    !(chip->old_state & AD7150_STATUS_OUT2))
 		iio_push_event(indio_dev,
-			       IIO_UNMOD_EVENT_CODE(IIO_IN,
+			       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE,
 						    1,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
@@ -498,7 +498,7 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 	else if ((!(int_status & AD7150_STATUS_OUT2)) &&
 		 (chip->old_state & AD7150_STATUS_OUT2))
 		iio_push_event(indio_dev,
-			       IIO_UNMOD_EVENT_CODE(IIO_IN,
+			       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE,
 						    1,
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_FALLING),

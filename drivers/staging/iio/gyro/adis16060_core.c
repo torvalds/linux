@@ -122,12 +122,12 @@ static const struct iio_chan_spec adis16060_channels[] = {
 		.channel2 = IIO_MOD_Z,
 		.address = ADIS16060_GYRO,
 	}, {
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 0,
 		.address = ADIS16060_AIN1,
 	}, {
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
 		.address = ADIS16060_AIN2,

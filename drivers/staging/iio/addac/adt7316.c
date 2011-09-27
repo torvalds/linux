@@ -1802,19 +1802,19 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 				       time);
 		if (stat1 & (1 << 5))
 			iio_push_event(indio_dev,
-				       IIO_UNMOD_EVENT_CODE(IIO_IN, 1,
+				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE, 1,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_EITHER),
 				       time);
 		if (stat1 & (1 << 6))
 			iio_push_event(indio_dev,
-				       IIO_UNMOD_EVENT_CODE(IIO_IN, 2,
+				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE, 2,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_EITHER),
 				       time);
 		if (stat1 & (1 << 7))
 			iio_push_event(indio_dev,
-				       IIO_UNMOD_EVENT_CODE(IIO_IN, 3,
+				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE, 3,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_EITHER),
 				       time);
@@ -1823,7 +1823,7 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 	if (!ret) {
 		if (stat2 & ADT7316_INT_MASK2_VDD)
 			iio_push_event(indio_dev,
-				       IIO_UNMOD_EVENT_CODE(IIO_IN,
+				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE,
 							    0,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING),

@@ -71,11 +71,11 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 	 * More devices added in future
 	 */
 	[ID_AD7887] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       1, 1, IIO_ST('u', 12, 16, 0), 0),
 
-		.channel[1] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel[1] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 12, 16, 0), 0),
 

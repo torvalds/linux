@@ -674,7 +674,7 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 
 	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
 		switch (chan->type) {
-		case IIO_IN:
+		case IIO_VOLTAGE:
 			/* 1170mV / 2^23 * 6 */
 			scale_uv = (1170ULL * 100000000ULL * 6ULL)
 				>> (chan->scan_type.realbits -

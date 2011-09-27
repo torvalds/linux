@@ -44,10 +44,6 @@ enum iio_chan_type {
 	IIO_CAPACITANCE,
 };
 
-/* Nasty hack to avoid massive churn */
-#define	IIO_IN IIO_VOLTAGE
-#define	IIO_IN_DIFF IIO_VOLTAGE_DIFF
-
 enum iio_modifier {
 	IIO_NO_MOD,
 	IIO_MOD_X,

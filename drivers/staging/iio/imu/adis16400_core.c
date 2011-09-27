@@ -511,7 +511,7 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 			*val = 0;
 			*val2 = st->variant->gyro_scale_micro;
 			return IIO_VAL_INT_PLUS_MICRO;
-		case IIO_IN:
+		case IIO_VOLTAGE:
 			*val = 0;
 			if (chan->channel == 0)
 				*val2 = 2418;
@@ -652,7 +652,7 @@ static struct iio_chan_spec adis16400_channels[] = {
 		.scan_index = ADIS16400_SCAN_TEMP,
 		.scan_type = IIO_ST('s', 12, 16, 0),
 	}, {
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
 		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
@@ -758,7 +758,7 @@ static struct iio_chan_spec adis16350_channels[] = {
 		.scan_index = ADIS16350_SCAN_TEMP_Z,
 		.scan_type = IIO_ST('s', 12, 16, 0),
 	}, {
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
 		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
@@ -825,7 +825,7 @@ static struct iio_chan_spec adis16300_channels[] = {
 		.scan_index = ADIS16400_SCAN_TEMP,
 		.scan_type = IIO_ST('s', 12, 16, 0),
 	}, {
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
 		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),

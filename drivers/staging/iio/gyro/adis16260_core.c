@@ -405,11 +405,11 @@ enum adis16260_channel {
 			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
 			 temp, ADIS16260_SCAN_TEMP,			\
 			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN(IIO_IN, 0, 1, 0, "supply", 0, 0,		\
+		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "supply", 0, 0,		\
 			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
 			 in_supply, ADIS16260_SCAN_SUPPLY,		\
 			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,			\
+		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,		\
 			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
 			 in_aux, ADIS16260_SCAN_AUX_ADC,		\
 			 IIO_ST('u', 12, 16, 0), 0),			\
@@ -475,7 +475,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 			else
 				*val2 = 1278;
 			return IIO_VAL_INT_PLUS_MICRO;
-		case IIO_IN:
+		case IIO_VOLTAGE:
 			*val = 0;
 			if (chan->channel == 0)
 				*val2 = 18315;

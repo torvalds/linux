@@ -529,7 +529,7 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 		case IIO_ACCEL:
 			*val2 = 1887042;
 			return IIO_VAL_INT_PLUS_MICRO;
-		case IIO_IN:
+		case IIO_VOLTAGE:
 			if (chan->channel == 0)
 				*val2 = 0012221;
 			else /* Should really be dependent on VDD */
@@ -571,7 +571,7 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_chan_spec adis16220_channels[] = {
 	{
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "supply",
@@ -591,14 +591,14 @@ static const struct iio_chan_spec adis16220_channels[] = {
 			     (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
 		.address = temp,
 	}, {
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
 		.info_mask = (1 << IIO_CHAN_INFO_OFFSET_SEPARATE) |
 			     (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
 		.address = in_1,
 	}, {
-		.type = IIO_IN,
+		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 2,
 		.address = in_2,

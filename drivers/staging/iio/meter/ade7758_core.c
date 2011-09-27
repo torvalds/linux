@@ -663,7 +663,7 @@ static const struct attribute_group ade7758_attribute_group = {
 };
 
 static struct iio_chan_spec ade7758_channels[] = {
-	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 0, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 0, 0,
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_A, AD7758_VOLTAGE),
 		0, IIO_ST('s', 24, 32, 0), 0),
@@ -683,7 +683,7 @@ static struct iio_chan_spec ade7758_channels[] = {
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_A, AD7758_REACT_PWR),
 		4, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 1, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 1, 0,
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_B, AD7758_VOLTAGE),
 		5, IIO_ST('s', 24, 32, 0), 0),
@@ -703,7 +703,7 @@ static struct iio_chan_spec ade7758_channels[] = {
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_B, AD7758_REACT_PWR),
 		9, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 2, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 2, 0,
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_C, AD7758_VOLTAGE),
 		10, IIO_ST('s', 24, 32, 0), 0),

@@ -358,7 +358,7 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
 		switch (chan->type) {
-		case IIO_IN:
+		case IIO_VOLTAGE:
 			*val = 0;
 			if (chan->channel == 0)
 				*val2 = 305180;
@@ -409,7 +409,7 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 }
 
 static struct iio_chan_spec adis16209_channels[] = {
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
 		 in_supply, ADIS16209_SCAN_SUPPLY,
 		 IIO_ST('u', 14, 16, 0), 0),
@@ -428,7 +428,7 @@ static struct iio_chan_spec adis16209_channels[] = {
 		 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),
 		 accel_y, ADIS16209_SCAN_ACC_Y,
 		 IIO_ST('s', 14, 16, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
 		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
 		 in_aux, ADIS16209_SCAN_AUX_ADC,
 		 IIO_ST('u', 12, 16, 0), 0),
