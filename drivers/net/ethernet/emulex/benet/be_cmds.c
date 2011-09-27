@@ -1580,14 +1580,16 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 					BE_IF_FLAGS_VLAN_PROMISCUOUS);
 		if (value == ON)
 			req->if_flags = cpu_to_le32(BE_IF_FLAGS_PROMISCUOUS |
-					BE_IF_FLAGS_VLAN_PROMISCUOUS);
+						BE_IF_FLAGS_VLAN_PROMISCUOUS);
 	} else if (flags & IFF_ALLMULTI) {
 		req->if_flags_mask = req->if_flags =
-			cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
+				cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
 	} else {
 		struct netdev_hw_addr *ha;
 		int i = 0;
 
+		req->if_flags_mask = req->if_flags =
+				cpu_to_le32(BE_IF_FLAGS_MULTICAST);
 		req->mcast_num = cpu_to_le16(netdev_mc_count(adapter->netdev));
 		netdev_for_each_mc_addr(ha, adapter->netdev)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
