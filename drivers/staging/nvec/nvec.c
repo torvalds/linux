@@ -446,6 +446,11 @@ static void nvec_rx_completed(struct nvec_chip *nvec)
 
 		nvec_msg_free(nvec, nvec->rx);
 		nvec->state = 0;
+
+		/* Battery quirk - Often incomplete, and likes to crash */
+		if (nvec->rx->data[0] == NVEC_BAT)
+			complete(&nvec->ec_transfer);
+
 		return;
 	}
 
