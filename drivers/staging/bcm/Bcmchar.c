@@ -216,7 +216,11 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
 			return -EFAULT;
 
-		/* FIXME: need to restrict BuffLen */
+		if (IoBuffer.OutputLength > USHRT_MAX ||
+			IoBuffer.OutputLength == 0) {
+			return -EINVAL;
+		}
+
 		Bufflen = IoBuffer.OutputLength + (4 - IoBuffer.OutputLength%4)%4;
 		temp_buff = kmalloc(Bufflen, GFP_KERNEL);
 		if (!temp_buff)
