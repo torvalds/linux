@@ -435,6 +435,14 @@ typedef volatile struct tagLCDC_REG
     unsigned int MCU_BYPASS_RPORT;         //0x200 MCU BYPASS MODE, DATA Read Only Port
 } LCDC_REG, *pLCDC_REG;
 
+//roate
+#define 	ROTATE_0		0
+#define 	ROTATE_90		90
+#define 	ROTATE_180		180
+#define 	ROTATE_270		270
+#define 	X_MIRROR		1
+#define		Y_MIRROR		2
+
 
 extern void __init rk29_add_device_lcdc(void);
 extern int mcu_ioctl(unsigned int cmd, unsigned long arg);

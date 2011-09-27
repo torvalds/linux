@@ -1057,7 +1057,7 @@ static int win0_set_par(struct fb_info *info)
 
 	CHK_SUSPEND(inf);
 
-    if(((var->rotate == 270)||(var->rotate == 90) || (var->rotate == 180)) && (inf->video_mode))
+    if((var->rotate%360!=0)&& (inf->video_mode))
     {
       #ifdef CONFIG_FB_ROTATE_VIDEO  
         if(xact > screen->x_res)
@@ -1857,7 +1857,7 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct hdmi *hdmi = get_hdmi_struct(0);
 #endif
 
-    if((var->rotate == 270)||(var->rotate == 90)) {
+    if((var->rotate / 90 == 1 )||(var->rotate / 90== 3)) {
       #ifdef CONFIG_FB_ROTATE_VIDEO
         xlcd = screen->y_res;
         ylcd = screen->x_res;
@@ -1949,7 +1949,7 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         return -EINVAL;
     }
 
-    if((var->rotate == 270)||(var->rotate == 90))
+    if((var->rotate / 90 == 1 )||(var->rotate / 90== 3))
      {
          yres = var->xres;
      }
@@ -2012,9 +2012,8 @@ static int fb1_set_par(struct fb_info *info)
    // u32 uv_addr = var->reserved[4];
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
-	CHK_SUSPEND(inf);
-    if((var->rotate == 270)||(var->rotate == 90))
+   	CHK_SUSPEND(inf);
+    if((var->rotate / 90 == 1 )||(var->rotate / 90== 3))
     {
         #ifdef CONFIG_FB_ROTATE_VIDEO
         xpos = (var->nonstd>>20) & 0xfff;      //visiable pos in panel
@@ -2127,6 +2126,7 @@ static int fb1_set_par(struct fb_info *info)
         if(var->rotate%360 != 0)
         #endif
 			{
+                #ifdef CONFIG_FB_ROTATE_VIDEO 
 				dstoffset = (dstoffset+1)%2;
 				ipp_req.src0.fmt = 3;
 				ipp_req.src0.YrgbMst = yuv_phy[0];
@@ -2137,10 +2137,20 @@ static int fb1_set_par(struct fb_info *info)
 				ipp_req.src_vir_w= (var->xres + 15) & (~15);
 				ipp_req.dst_vir_w=screen->x_res;
 
-				ipp_req.dst0.fmt = 3;
-				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
-				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
-				   if(var->xres > screen->x_res)
+                ipp_req.dst0.fmt = 3;
+				#ifdef CONFIG_FB_MIRROR_X_Y
+				if(((var->rotate /90 != 0)&&(var->rotate %90 != 0)) ||(var->rotate == (X_MIRROR + Y_MIRROR)) )
+				{
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*4;
+				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*5;
+				 }
+				else
+				{
+					ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+					ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+
+				}
+				if(var->xres > screen->x_res)
 				   {
 					ipp_req.dst0.w = screen->x_res;
 					ipp_req.dst0.h = screen->y_res;
@@ -2149,23 +2159,91 @@ static int fb1_set_par(struct fb_info *info)
 				 	  ipp_req.dst0.h = var->yres;
 				   }
 				 ipp_req.dst_vir_w = (ipp_req.dst0.w + 15) & (~15);
-
 				ipp_req.timeout = 100;
-				if(var->rotate == 90)
+				if(var->rotate / 90== 1)
 					ipp_req.flag = IPP_ROT_90;
-                else if (var->rotate == 180)
+                else if (var->rotate / 90 == 2)
 					ipp_req.flag = IPP_ROT_180;
-				else if(var->rotate == 270)
+				else if(var->rotate / 90 == 3)
 					ipp_req.flag = IPP_ROT_270;
+				else if((var->rotate == X_MIRROR) || (var->rotate == (X_MIRROR + Y_MIRROR)))
+					ipp_req.flag = IPP_ROT_X_FLIP;
+				else if(var->rotate == Y_MIRROR)
+					ipp_req.flag = IPP_ROT_Y_FLIP;
 				//ipp_do_blit(&ipp_req);
 				ipp_blit_sync(&ipp_req);
-				fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
 				yuv_phy[0] = ipp_req.dst0.YrgbMst;
-				yuv_phy[1] = ipp_req.dst0.CbrMst;	 
-				fix->smem_start = yuv_phy[0];
-				fix->mmio_start = yuv_phy[1];
-			}
-		else
+				yuv_phy[1] = ipp_req.dst0.CbrMst;
+				if(((var->rotate /90 != 0)&&(var->rotate %90 != 0)) ||(var->rotate == (X_MIRROR + Y_MIRROR)))
+				{
+					memset(&ipp_req,0,sizeof(struct rk29_ipp_req));
+					
+					if(var->rotate % 90== X_MIRROR)
+						ipp_req.flag = IPP_ROT_X_FLIP;
+					else if((var->rotate %90 == Y_MIRROR) || (var->rotate == (X_MIRROR + Y_MIRROR)))
+						ipp_req.flag = IPP_ROT_Y_FLIP;
+					
+				  if(var->xres > screen->x_res)
+				   {
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
+				  }   else	{
+					  ipp_req.dst0.w = var->xres;
+				 	  ipp_req.dst0.h = var->yres;
+				   }
+					ipp_req.src0.fmt = 3;
+					ipp_req.src0.YrgbMst = yuv_phy[0];
+					ipp_req.src0.CbrMst = yuv_phy[1];
+					ipp_req.src0.w = ipp_req.dst0.w;
+					ipp_req.src0.h = ipp_req.dst0.h;
+				
+					ipp_req.src_vir_w= (ipp_req.dst0.w + 15) & (~15);
+					ipp_req.dst_vir_w= (ipp_req.dst0.w + 15) & (~15);
+
+					ipp_req.dst0.fmt = 3;
+					ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+					ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+
+					ipp_req.timeout = 100;
+					ipp_blit_sync(&ipp_req);
+					yuv_phy[0] = ipp_req.dst0.YrgbMst;
+					yuv_phy[1] = ipp_req.dst0.CbrMst;
+        		}
+                fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+				#else
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+                ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+                if(var->xres > screen->x_res)
+                {
+                    ipp_req.dst0.w = screen->x_res;
+                    ipp_req.dst0.h = screen->y_res;
+                }   else  {
+					ipp_req.dst0.w = var->xres;
+					ipp_req.dst0.h = var->yres;
+
+                }
+                ipp_req.dst_vir_w = (ipp_req.dst0.w + 15) & (~15);
+                ipp_req.timeout = 100;
+                if(var->rotate == 90)
+                    ipp_req.flag = IPP_ROT_90;
+                else if(var->rotate == 180)
+                    ipp_req.flag = IPP_ROT_180;
+                else if(var->rotate == 270)
+                    ipp_req.flag = IPP_ROT_270;
+                //ipp_do_blit(&ipp_req);
+                ipp_blit_sync(&ipp_req);
+				
+                fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+                yuv_phy[0] = ipp_req.dst0.YrgbMst;
+                yuv_phy[1] = ipp_req.dst0.CbrMst; 
+				#endif
+                fix->smem_start = yuv_phy[0];
+                fix->mmio_start = yuv_phy[1];
+                #else //CONFIG_FB_ROTATE_VIDEO
+                printk("LCDC not support rotate!\n");
+                #endif
+            }
+            else
 			{
 			
 				fix->smem_start = yuv_phy[0];
@@ -2345,7 +2423,80 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		        ipp_req.dst_vir_w=screen->x_res;
 
                 ipp_req.dst0.fmt = 3;
-                ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+				#ifdef CONFIG_FB_MIRROR_X_Y
+				if(((var->rotate /90 != 0)&&(var->rotate %90 != 0)) ||(var->rotate == (X_MIRROR + Y_MIRROR)) )
+				{
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*4;
+				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*5;
+				 }
+				else
+				{
+					ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+					ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+
+				}
+				if(var->xres > screen->x_res)
+				   {
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
+				  }   else	{
+					  ipp_req.dst0.w = var->xres;
+				 	  ipp_req.dst0.h = var->yres;
+				   }
+				 ipp_req.dst_vir_w = (ipp_req.dst0.w + 15) & (~15);
+				ipp_req.timeout = 100;
+				if(var->rotate / 90== 1)
+					ipp_req.flag = IPP_ROT_90;
+                else if (var->rotate / 90 == 2)
+					ipp_req.flag = IPP_ROT_180;
+				else if(var->rotate / 90 == 3)
+					ipp_req.flag = IPP_ROT_270;
+				else if((var->rotate == X_MIRROR) || (var->rotate == (X_MIRROR + Y_MIRROR)))
+					ipp_req.flag = IPP_ROT_X_FLIP;
+				else if(var->rotate == Y_MIRROR)
+					ipp_req.flag = IPP_ROT_Y_FLIP;
+				//ipp_do_blit(&ipp_req);
+				ipp_blit_sync(&ipp_req);
+				yuv_phy[0] = ipp_req.dst0.YrgbMst;
+				yuv_phy[1] = ipp_req.dst0.CbrMst;
+				if(((var->rotate /90 != 0)&&(var->rotate %90 != 0)) ||(var->rotate == (X_MIRROR + Y_MIRROR)))
+				{
+					memset(&ipp_req,0,sizeof(struct rk29_ipp_req));
+					
+					if(var->rotate % 90== X_MIRROR)
+						ipp_req.flag = IPP_ROT_X_FLIP;
+					else if((var->rotate %90 == Y_MIRROR) || (var->rotate == (X_MIRROR + Y_MIRROR)))
+						ipp_req.flag = IPP_ROT_Y_FLIP;
+					
+				  if(var->xres > screen->x_res)
+				   {
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
+				  }   else	{
+					  ipp_req.dst0.w = var->xres;
+				 	  ipp_req.dst0.h = var->yres;
+				   }
+					ipp_req.src0.fmt = 3;
+					ipp_req.src0.YrgbMst = yuv_phy[0];
+					ipp_req.src0.CbrMst = yuv_phy[1];
+					ipp_req.src0.w = ipp_req.dst0.w;
+					ipp_req.src0.h = ipp_req.dst0.h;
+				
+					ipp_req.src_vir_w= (ipp_req.dst0.w + 15) & (~15);
+					ipp_req.dst_vir_w= (ipp_req.dst0.w + 15) & (~15);
+
+					ipp_req.dst0.fmt = 3;
+					ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+					ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+
+					ipp_req.timeout = 100;
+					ipp_blit_sync(&ipp_req);
+					yuv_phy[0] = ipp_req.dst0.YrgbMst;
+					yuv_phy[1] = ipp_req.dst0.CbrMst;
+        		}
+                fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+				#else
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
                 ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
                 if(var->xres > screen->x_res)
                 {
@@ -2369,7 +2520,8 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 				
                 fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
                 yuv_phy[0] = ipp_req.dst0.YrgbMst;
-                yuv_phy[1] = ipp_req.dst0.CbrMst;    
+                yuv_phy[1] = ipp_req.dst0.CbrMst; 
+				#endif
                 fix0->smem_start = yuv_phy[0];
                 fix0->mmio_start = yuv_phy[1];
                 #else //CONFIG_FB_ROTATE_VIDEO
@@ -2402,10 +2554,27 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
       #ifdef CONFIG_FB_ROTATE_VIDEO 
 	  	//zyc add
     	has_set_rotate = true;
-        if(arg == 0 || arg==180)
-            var->rotate = arg;    
-        else if (arg == 90 || arg==270)
-            var->rotate = arg;  
+		#ifdef CONFIG_FB_MIRROR_X_Y
+        if((arg == 0 || arg %90 ==0 || arg%90 ==1 ||arg %90 ==2 || arg %90 ==3)&&(arg<=360))
+			{
+			if(arg==(X_MIRROR + Y_MIRROR))
+				var->rotate = 180;
+			else if(arg==(90 + X_MIRROR + Y_MIRROR))
+				var->rotate = 270;
+			else if(arg==(270 + X_MIRROR + Y_MIRROR))
+				var->rotate = 90;
+			else if(arg==(180 + X_MIRROR + Y_MIRROR))
+				var->rotate = 0;
+			else
+		#else 
+		if(arg == 0 || arg==180 || arg == 90 || arg==270)
+		{
+		#endif
+				var->rotate = arg;
+		}
+		else
+			printk(">>>>>> %d rotate is not support!\n",(int)arg);
+    	
       #else //CONFIG_FB_ROTATE_VIDEO
         printk("LCDC not support rotate!\n");
       #endif

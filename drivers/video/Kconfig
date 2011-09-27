@@ -1969,7 +1969,11 @@ config FB_ROTATE_VIDEO
 	depends on FB_WORK_IPP
 	---help---
 		this function  can use to rotate video .
-
+config FB_MIRROR_X_Y
+	bool "fb video rotate support x y mirror"
+	depends on FB_ROTATE_VIDEO
+	---help---
+		this function  can use to x y mirror video .
 config CLOSE_WIN1_DYNAMIC
 	bool "close win1 dynamically when video"
 	depends on FB_RK29
