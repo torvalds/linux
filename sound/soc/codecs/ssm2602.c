@@ -59,6 +59,7 @@ struct ssm2602_priv {
 	struct snd_pcm_substream *slave_substream;
 
 	enum ssm2602_type type;
+	unsigned int clk_out_pwr;
 };
 
 /*
@@ -356,16 +357,46 @@ static int ssm2602_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
-	switch (freq) {
-	case 11289600:
-	case 12000000:
-	case 12288000:
-	case 16934400:
-	case 18432000:
-		ssm2602->sysclk = freq;
-		return 0;
+
+	if (dir == SND_SOC_CLOCK_IN) {
+		if (clk_id != SSM2602_SYSCLK)
+			return -EINVAL;
+
+		switch (freq) {
+		case 11289600:
+		case 12000000:
+		case 12288000:
+		case 16934400:
+		case 18432000:
+			ssm2602->sysclk = freq;
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		unsigned int mask;
+
+		switch (clk_id) {
+		case SSM2602_CLK_CLKOUT:
+			mask = PWR_CLK_OUT_PDN;
+			break;
+		case SSM2602_CLK_XTO:
+			mask = PWR_OSC_PDN;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (freq == 0)
+			ssm2602->clk_out_pwr |= mask;
+		else
+			ssm2602->clk_out_pwr &= ~mask;
+
+		snd_soc_update_bits(codec, SSM2602_PWR,
+			PWR_CLK_OUT_PDN | PWR_OSC_PDN, ssm2602->clk_out_pwr);
 	}
-	return -EINVAL;
+
+	return 0;
 }
 
 static int ssm2602_set_dai_fmt(struct snd_soc_dai *codec_dai,
@@ -430,23 +461,27 @@ static int ssm2602_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	u16 reg = snd_soc_read(codec, SSM2602_PWR);
-	reg &= ~(PWR_POWER_OFF | PWR_OSC_PDN);
+	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		/* vref/mid, osc on, dac unmute */
-		snd_soc_write(codec, SSM2602_PWR, reg);
+		/* vref/mid on, osc and clkout on if enabled */
+		snd_soc_update_bits(codec, SSM2602_PWR,
+			PWR_POWER_OFF | PWR_CLK_OUT_PDN | PWR_OSC_PDN,
+			ssm2602->clk_out_pwr);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* everything off except vref/vmid, */
-		snd_soc_write(codec, SSM2602_PWR, reg | PWR_CLK_OUT_PDN);
+		snd_soc_update_bits(codec, SSM2602_PWR,
+			PWR_POWER_OFF | PWR_CLK_OUT_PDN | PWR_OSC_PDN,
+			PWR_CLK_OUT_PDN | PWR_OSC_PDN);
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* everything off, dac mute, inactive */
-		snd_soc_write(codec, SSM2602_PWR, 0xffff);
+		/* everything off */
+		snd_soc_update_bits(codec, SSM2602_PWR,
+			PWR_POWER_OFF, PWR_POWER_OFF);
 		break;
 
 	}
