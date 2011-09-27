@@ -222,7 +222,7 @@ static inline void TCP_ECN_check_ce(struct tcp_sock *tp, const struct sk_buff *s
 	if (!(tp->ecn_flags & TCP_ECN_OK))
 		return;
 
-	switch (TCP_SKB_CB(skb)->flags & INET_ECN_MASK) {
+	switch (TCP_SKB_CB(skb)->ip_dsfield & INET_ECN_MASK) {
 	case INET_ECN_NOT_ECT:
 		/* Funny extension: if ECT is not set on a segment,
 		 * and we already seen ECT on a previous segment,
