@@ -238,7 +238,7 @@ static int __xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
 			}
 		}
 	}
-	mutex_lock(&vpci_dev->lock);
+	mutex_unlock(&vpci_dev->lock);
 	return found;
 }
 
