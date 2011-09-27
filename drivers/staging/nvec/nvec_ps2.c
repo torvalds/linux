@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/serio.h>
 #include <linux/delay.h>

@@ -1,6 +1,7 @@
 #ifndef __LINUX_MFD_NVEC
 #define __LINUX_MFD_NVEC
 
+#include <linux/notifier.h>
 #include <linux/semaphore.h>
 
 typedef enum {
