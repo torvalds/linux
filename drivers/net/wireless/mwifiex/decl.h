@@ -114,14 +114,6 @@ struct mwifiex_txinfo {
 	u8 bss_index;
 };
 
-struct mwifiex_bss_attr {
-	u8 bss_type;
-	u8 frame_type;
-	u8 active;
-	u8 bss_priority;
-	u8 bss_num;
-};
-
 enum mwifiex_wmm_ac_e {
 	WMM_AC_BK,
 	WMM_AC_BE,

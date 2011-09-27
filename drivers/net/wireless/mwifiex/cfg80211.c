@@ -1162,8 +1162,150 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 }
 
+/*
+ *  create a new virtual interface with the given name
+ */
+struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
+						char *name,
+						enum nl80211_iftype type,
+						u32 *flags,
+						struct vif_params *params)
+{
+	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_adapter *adapter;
+	struct net_device *dev;
+	void *mdev_priv;
+
+	if (!priv)
+		return NULL;
+
+	adapter = priv->adapter;
+	if (!adapter)
+		return NULL;
+
+	switch (type) {
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
+		if (priv->bss_mode) {
+			wiphy_err(wiphy, "cannot create multiple"
+					" station/adhoc interfaces\n");
+			return NULL;
+		}
+
+		if (type == NL80211_IFTYPE_UNSPECIFIED)
+			priv->bss_mode = NL80211_IFTYPE_STATION;
+		else
+			priv->bss_mode = type;
+
+		priv->bss_type = MWIFIEX_BSS_TYPE_STA;
+		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
+		priv->bss_priority = 0;
+		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
+		priv->bss_index = 0;
+		priv->bss_num = 0;
+
+		break;
+	default:
+		wiphy_err(wiphy, "type not supported\n");
+		return NULL;
+	}
+
+	dev = alloc_netdev_mq(sizeof(struct mwifiex_private *), name,
+			      ether_setup, 1);
+	if (!dev) {
+		wiphy_err(wiphy, "no memory available for netdevice\n");
+		goto error;
+	}
+
+	dev_net_set(dev, wiphy_net(wiphy));
+	dev->ieee80211_ptr = priv->wdev;
+	dev->ieee80211_ptr->iftype = priv->bss_mode;
+	memcpy(dev->dev_addr, wiphy->perm_addr, ETH_ALEN);
+	memcpy(dev->perm_addr, wiphy->perm_addr, ETH_ALEN);
+	SET_NETDEV_DEV(dev, wiphy_dev(wiphy));
+
+	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
+	dev->watchdog_timeo = MWIFIEX_DEFAULT_WATCHDOG_TIMEOUT;
+	dev->hard_header_len += MWIFIEX_MIN_DATA_HEADER_LEN;
+
+	mdev_priv = netdev_priv(dev);
+	*((unsigned long *) mdev_priv) = (unsigned long) priv;
+
+	priv->netdev = dev;
+	mwifiex_init_priv_params(priv, dev);
+
+	SET_NETDEV_DEV(dev, adapter->dev);
+
+	/* Register network device */
+	if (register_netdevice(dev)) {
+		wiphy_err(wiphy, "cannot register virtual network device\n");
+		goto error;
+	}
+
+	sema_init(&priv->async_sem, 1);
+	priv->scan_pending_on_block = false;
+
+	dev_dbg(adapter->dev, "info: %s: Marvell 802.11 Adapter\n", dev->name);
+
+#ifdef CONFIG_DEBUG_FS
+	mwifiex_dev_debugfs_init(priv);
+#endif
+	return dev;
+error:
+	if (dev && (dev->reg_state == NETREG_UNREGISTERED))
+		free_netdev(dev);
+	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(mwifiex_add_virtual_intf);
+
+/*
+ * del_virtual_intf: remove the virtual interface determined by dev
+ */
+int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+
+	if (!priv || !dev)
+		return 0;
+
+#ifdef CONFIG_DEBUG_FS
+	mwifiex_dev_debugfs_remove(priv);
+#endif
+
+	if (!netif_queue_stopped(priv->netdev))
+		netif_stop_queue(priv->netdev);
+
+	if (netif_carrier_ok(priv->netdev))
+		netif_carrier_off(priv->netdev);
+
+	if (dev->reg_state == NETREG_REGISTERED)
+		unregister_netdevice(dev);
+
+	if (dev->reg_state == NETREG_UNREGISTERED)
+		free_netdev(dev);
+
+	/* Clear the priv in adapter */
+	priv->netdev = NULL;
+
+	priv->media_connected = false;
+
+	cancel_work_sync(&priv->cfg_workqueue);
+	flush_workqueue(priv->workqueue);
+	destroy_workqueue(priv->workqueue);
+
+	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mwifiex_del_virtual_intf);
+
 /* station cfg80211 operations */
 static struct cfg80211_ops mwifiex_cfg80211_ops = {
+	.add_virtual_intf = mwifiex_add_virtual_intf,
+	.del_virtual_intf = mwifiex_del_virtual_intf,
 	.change_virtual_intf = mwifiex_cfg80211_change_virtual_intf,
 	.scan = mwifiex_cfg80211_scan,
 	.connect = mwifiex_cfg80211_connect,
@@ -1188,8 +1330,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
  * default parameters and handler function pointers, and finally
  * registers the device.
  */
-int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
-			      struct mwifiex_private *priv)
+int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 {
 	int ret;
 	void *wdev_priv;
@@ -1229,7 +1370,7 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 	wdev->wiphy->cipher_suites = mwifiex_cipher_suites;
 	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(mwifiex_cipher_suites);
 
-	memcpy(wdev->wiphy->perm_addr, mac, 6);
+	memcpy(wdev->wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 
 	/* We are using custom domains */
@@ -1259,16 +1400,7 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 				"info: successfully registered wiphy device\n");
 	}
 
-	dev_net_set(dev, wiphy_net(wdev->wiphy));
-	dev->ieee80211_ptr = wdev;
-	memcpy(dev->dev_addr, wdev->wiphy->perm_addr, 6);
-	memcpy(dev->perm_addr, wdev->wiphy->perm_addr, 6);
-	SET_NETDEV_DEV(dev, wiphy_dev(wdev->wiphy));
 	priv->wdev = wdev;
-
-	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
-	dev->watchdog_timeo = MWIFIEX_DEFAULT_WATCHDOG_TIMEOUT;
-	dev->hard_header_len += MWIFIEX_MIN_DATA_HEADER_LEN;
 
 	return ret;
 }
