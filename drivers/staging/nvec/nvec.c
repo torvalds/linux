@@ -114,6 +114,37 @@ static void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
 	atomic_set(&msg->used, 0);
 }
 
+/**
+ * nvec_msg_is_event - Return %true if @msg is an event
+ * @msg: A message
+ */
+static bool nvec_msg_is_event(struct nvec_msg *msg)
+{
+	return msg->data[0] >> 7;
+}
+
+/**
+ * nvec_msg_size - Get the size of a message
+ * @msg: The message to get the size for
+ *
+ * This only works for received messages, not for outgoing messages.
+ */
+static size_t nvec_msg_size(struct nvec_msg *msg)
+{
+	bool is_event = nvec_msg_is_event(msg);
+	int event_length = (msg->data[0] & 0x60) >> 5;
+
+	/* for variable size, payload size in byte 1 + count (1) + cmd (1) */
+	if (!is_event || event_length == NVEC_VAR_SIZE)
+		return (msg->pos || msg->size) ? (msg->data[1] + 2) : 0;
+	else if (event_length == NVEC_2BYTES)
+		return 2;
+	else if (event_length == NVEC_3BYTES)
+		return 3;
+	else
+		return 0;
+}
+
 static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 {
 	dev_dbg(nvec->dev, "GPIO changed from %u to %u\n",
