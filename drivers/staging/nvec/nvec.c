@@ -159,12 +159,13 @@ static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec)
  *
  * Free the given message
  */
-static void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
+inline void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
 	if (msg != &nvec->tx_scratch)
 		dev_vdbg(nvec->dev, "INFO: Free %ti\n", msg - nvec->msg_pool);
 	atomic_set(&msg->used, 0);
 }
+EXPORT_SYMBOL_GPL(nvec_msg_free);
 
 /**
  * nvec_msg_is_event - Return %true if @msg is an event
@@ -259,7 +260,8 @@ EXPORT_SYMBOL(nvec_write_async);
  * interrupt handlers.
  *
  * Returns: A pointer to the response message on success,
- * %NULL on failure.
+ * %NULL on failure. Free with nvec_msg_free() once no longer
+ * used.
  */
 struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 		const unsigned char *data, short size)
