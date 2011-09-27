@@ -2324,8 +2324,6 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	int		port1 = udev->portnum;
 	int		status;
 
-	// dev_dbg(hub->intfdev, "suspend port %d\n", port1);
-
 	/* enable remote wakeup when appropriate; this lets the device
 	 * wake up the upstream hub (including maybe the root hub).
 	 *
@@ -2371,8 +2369,9 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 			status = 0;
 	} else {
 		/* device has up to 10 msec to fully suspend */
-		dev_dbg(&udev->dev, "usb %ssuspend\n",
-				(PMSG_IS_AUTO(msg) ? "auto-" : ""));
+		dev_dbg(&udev->dev, "usb %ssuspend, wakeup %d\n",
+				(PMSG_IS_AUTO(msg) ? "auto-" : ""),
+				udev->do_remote_wakeup);
 		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 		msleep(10);
 	}
