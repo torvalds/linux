@@ -93,7 +93,7 @@
 /* DCB hardware-specific driver APIs */
 
 /* DCB PFC functions */
-s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en);
+s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc);
 
 /* DCB hw initialization */
 s32 ixgbe_dcb_config_rx_arbiter_82599(struct ixgbe_hw *hw,

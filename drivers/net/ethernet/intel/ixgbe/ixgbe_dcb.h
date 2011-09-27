@@ -145,6 +145,7 @@ void ixgbe_dcb_unpack_refill(struct ixgbe_dcb_config *, int, u16 *);
 void ixgbe_dcb_unpack_max(struct ixgbe_dcb_config *, u16 *);
 void ixgbe_dcb_unpack_bwgid(struct ixgbe_dcb_config *, int, u8 *);
 void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *, int, u8 *);
+void ixgbe_dcb_unpack_map(struct ixgbe_dcb_config *, int, u8 *);
 
 /* DCB credits calculation */
 s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *,
@@ -154,7 +155,7 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *,
 s32 ixgbe_dcb_hw_ets(struct ixgbe_hw *hw, struct ieee_ets *ets, int max);
 s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw, u16 *refill, u16 *max,
 			    u8 *bwg_id, u8 *prio_type, u8 *tc_prio);
-s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en);
+s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en, u8 *tc_prio);
 s32 ixgbe_dcb_hw_config(struct ixgbe_hw *, struct ixgbe_dcb_config *);
 
 /* DCB definitions for credit calculation */

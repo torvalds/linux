@@ -231,6 +231,18 @@ void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *cfg, int direction,
 	}
 }
 
+void ixgbe_dcb_unpack_map(struct ixgbe_dcb_config *cfg, int direction, u8 *map)
+{
+	int i, up;
+	unsigned long bitmap;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		bitmap = cfg->tc_config[i].path[direction].up_to_tc_bitmap;
+		for_each_set_bit(up, &bitmap, MAX_USER_PRIORITY)
+			map[up] = i;
+	}
+}
+
 /**
  * ixgbe_dcb_hw_config - Config and enable DCB
  * @hw: pointer to hardware structure
@@ -245,10 +257,9 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 	u8 pfc_en;
 	u8 ptype[MAX_TRAFFIC_CLASS];
 	u8 bwgid[MAX_TRAFFIC_CLASS];
+	u8 prio_tc[MAX_TRAFFIC_CLASS];
 	u16 refill[MAX_TRAFFIC_CLASS];
 	u16 max[MAX_TRAFFIC_CLASS];
-	/* CEE does not define a priority to tc mapping so map 1:1 */
-	u8 prio_tc[MAX_TRAFFIC_CLASS] = {0, 1, 2, 3, 4, 5, 6, 7};
 
 	/* Unpack CEE standard containers */
 	ixgbe_dcb_unpack_pfc(dcb_config, &pfc_en);
@@ -256,6 +267,7 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 	ixgbe_dcb_unpack_max(dcb_config, max);
 	ixgbe_dcb_unpack_bwgid(dcb_config, DCB_TX_CONFIG, bwgid);
 	ixgbe_dcb_unpack_prio(dcb_config, DCB_TX_CONFIG, ptype);
+	ixgbe_dcb_unpack_map(dcb_config, DCB_TX_CONFIG, prio_tc);
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
@@ -274,7 +286,7 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 }
 
 /* Helper routines to abstract HW specifics from DCB netlink ops */
-s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en)
+s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 {
 	int ret = -EINVAL;
 
@@ -284,7 +296,7 @@ s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en)
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		ret = ixgbe_dcb_config_pfc_82599(hw, pfc_en);
+		ret = ixgbe_dcb_config_pfc_82599(hw, pfc_en, prio_tc);
 		break;
 	default:
 		break;

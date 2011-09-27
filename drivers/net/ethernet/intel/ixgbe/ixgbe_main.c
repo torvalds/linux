@@ -3363,8 +3363,10 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 		if (adapter->ixgbe_ieee_pfc) {
 			struct ieee_pfc *pfc = adapter->ixgbe_ieee_pfc;
+			u8 *prio_tc = adapter->ixgbe_ieee_ets->prio_tc;
 
-			ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en);
+			ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en,
+						prio_tc);
 		}
 	}
 
@@ -4241,7 +4243,6 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 	q = min((int)num_online_cpus(), per_tc_q);
 
 	for (i = 0; i < tcs; i++) {
-		netdev_set_prio_tc_map(dev, i, i);
 		netdev_set_tc_queue(dev, i, q, offset);
 		offset += q;
 	}
@@ -4994,8 +4995,10 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		tc = &adapter->dcb_cfg.tc_config[j];
 		tc->path[DCB_TX_CONFIG].bwg_id = 0;
 		tc->path[DCB_TX_CONFIG].bwg_percent = 12 + (j & 1);
+		tc->path[DCB_TX_CONFIG].up_to_tc_bitmap = 1 << j;
 		tc->path[DCB_RX_CONFIG].bwg_id = 0;
 		tc->path[DCB_RX_CONFIG].bwg_percent = 12 + (j & 1);
+		tc->path[DCB_RX_CONFIG].up_to_tc_bitmap = 1 << j;
 		tc->dcb_pfc = pfc_disabled;
 	}
 	adapter->dcb_cfg.bw_percentage[DCB_TX_CONFIG][0] = 100;
@@ -6704,12 +6707,13 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= IXGBE_TX_FLAGS_SW_VLAN;
 	}
 
+	/* DCB maps skb priorities 0-7 onto 3 bit PCP of VLAN tag. */
 	if ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
 	    ((tx_flags & (IXGBE_TX_FLAGS_HW_VLAN | IXGBE_TX_FLAGS_SW_VLAN)) ||
 	     (skb->priority != TC_PRIO_CONTROL))) {
 		tx_flags &= ~IXGBE_TX_FLAGS_VLAN_PRIO_MASK;
-		tx_flags |= tx_ring->dcb_tc <<
-			    IXGBE_TX_FLAGS_VLAN_PRIO_SHIFT;
+		tx_flags |= (skb->priority & 0x7) <<
+					IXGBE_TX_FLAGS_VLAN_PRIO_SHIFT;
 		if (tx_flags & IXGBE_TX_FLAGS_SW_VLAN) {
 			struct vlan_ethhdr *vhdr;
 			if (skb_header_cloned(skb) &&
