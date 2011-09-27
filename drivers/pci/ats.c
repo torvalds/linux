@@ -90,6 +90,7 @@ int pci_enable_ats(struct pci_dev *dev, int ps)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pci_enable_ats);
 
 /**
  * pci_disable_ats - disable the ATS capability
@@ -120,6 +121,7 @@ void pci_disable_ats(struct pci_dev *dev)
 	if (!dev->is_physfn)
 		ats_free_one(dev);
 }
+EXPORT_SYMBOL_GPL(pci_disable_ats);
 
 /**
  * pci_ats_queue_depth - query the ATS Invalidate Queue Depth
@@ -153,3 +155,4 @@ int pci_ats_queue_depth(struct pci_dev *dev)
 	return PCI_ATS_CAP_QDEP(cap) ? PCI_ATS_CAP_QDEP(cap) :
 				       PCI_ATS_MAX_QDEP;
 }
+EXPORT_SYMBOL_GPL(pci_ats_queue_depth);
