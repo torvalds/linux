@@ -62,6 +62,16 @@
 #define I2C_SL_ADDR2		0x30
 #define I2C_SL_DELAY_COUNT	0x3c
 
+/**
+ * enum nvec_msg_category - Message categories for nvec_msg_alloc()
+ * @NVEC_MSG_RX: The message is an incoming message (from EC)
+ * @NVEC_MSG_TX: The message is an outgoing message (to EC)
+ */
+enum nvec_msg_category  {
+	NVEC_MSG_RX,
+	NVEC_MSG_TX,
+};
+
 static const unsigned char EC_DISABLE_EVENT_REPORTING[3] = "\x04\x00\x00";
 static const unsigned char EC_ENABLE_EVENT_REPORTING[3]  = "\x04\x00\x01";
 static const unsigned char EC_GET_FIRMWARE_VERSION[2]    = "\x07\x15";
@@ -131,23 +141,31 @@ static int nvec_status_notifier(struct notifier_block *nb,
 /**
  * nvec_msg_alloc:
  * @nvec: A &struct nvec_chip
+ * @category: Pool category, see &enum nvec_msg_category
  *
  * Allocate a single &struct nvec_msg object from the message pool of
  * @nvec. The result shall be passed to nvec_msg_free() if no longer
  * used.
+ *
+ * Outgoing messages are placed in the upper 75% of the pool, keeping the
+ * lower 25% available for RX buffers only. The reason is to prevent a
+ * situation where all buffers are full and a message is thus endlessly
+ * retried because the response could never be processed.
  */
-static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec)
+static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec,
+				       enum nvec_msg_category category)
 {
-	int i;
+	int i = (category == NVEC_MSG_TX) ? (NVEC_POOL_SIZE / 4) : 0;
 
-	for (i = 0; i < NVEC_POOL_SIZE; i++) {
+	for (; i < NVEC_POOL_SIZE; i++) {
 		if (atomic_xchg(&nvec->msg_pool[i].used, 1) == 0) {
 			dev_vdbg(nvec->dev, "INFO: Allocate %i\n", i);
 			return &nvec->msg_pool[i];
 		}
 	}
 
-	dev_err(nvec->dev, "could not allocate buffer\n");
+	dev_err(nvec->dev, "could not allocate %s buffer\n",
+		(category == NVEC_MSG_TX) ? "TX" : "RX");
 
 	return NULL;
 }
@@ -230,7 +248,8 @@ int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 	struct nvec_msg *msg;
 	unsigned long flags;
 
-	msg = nvec_msg_alloc(nvec);
+	msg = nvec_msg_alloc(nvec, NVEC_MSG_TX);
+
 	if (msg == NULL)
 		return -ENOMEM;
 
@@ -534,7 +553,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		if (status != I2C_SL_IRQ) {
 			nvec_invalid_flags(nvec, status, true);
 		} else {
-			nvec->rx = nvec_msg_alloc(nvec);
+			nvec->rx = nvec_msg_alloc(nvec, NVEC_MSG_RX);
 			nvec->rx->data[0] = received;
 			nvec->rx->pos = 1;
 			nvec->state = 2;
