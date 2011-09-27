@@ -317,6 +317,24 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_bh(&ar->lock);
 
+	if (!IS_ALIGNED((unsigned long) skb->data - HTC_HDR_LENGTH, 4) &&
+	    skb_cloned(skb)) {
+		/*
+		 * We will touch (move the buffer data to align it. Since the
+		 * skb buffer is cloned and not only the header is changed, we
+		 * have to copy it to allow the changes. Since we are copying
+		 * the data here, we may as well align it by reserving suitable
+		 * headroom to avoid the memmove in ath6kl_htc_tx_buf_align().
+		 */
+		struct sk_buff *nskb;
+
+		nskb = skb_copy_expand(skb, HTC_HDR_LENGTH, 0, GFP_ATOMIC);
+		if (nskb == NULL)
+			goto fail_tx;
+		kfree_skb(skb);
+		skb = nskb;
+	}
+
 	cookie->skb = skb;
 	cookie->map_no = map_no;
 	set_htc_pkt_info(&cookie->htc_pkt, cookie, skb->data, skb->len,
