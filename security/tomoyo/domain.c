@@ -515,7 +515,8 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 			 * that domain. Do not perform domain transition if
 			 * profile for that domain is not yet created.
 			 */
-			if (!entry->ns->profile_ptr[entry->profile])
+			if (tomoyo_policy_loaded &&
+			    !entry->ns->profile_ptr[entry->profile])
 				return NULL;
 		}
 		return entry;
