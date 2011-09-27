@@ -1,15 +1,30 @@
+/*
+ * nvec_kbd: keyboard driver for a NVIDIA compliant embedded controller
+ *
+ * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.launchpad.net>
+ *
+ * Authors:  Pierre-Hugues Husson <phhusson@free.fr>
+ *           Marc Dietrich <marvin24@gmx.de>
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ */
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+
 #include "nvec-keytable.h"
 #include "nvec.h"
 
 #define ACK_KBD_EVENT {'\x05', '\xed', '\x01'}
 
 static unsigned char keycodes[ARRAY_SIZE(code_tab_102us)
-			+ ARRAY_SIZE(extcode_tab_us102)];
+			      + ARRAY_SIZE(extcode_tab_us102)];
 
 struct nvec_keys {
 	struct input_dev *input;
@@ -20,7 +35,7 @@ struct nvec_keys {
 static struct nvec_keys keys_dev;
 
 static int nvec_keys_notifier(struct notifier_block *nb,
-				unsigned long event_type, void *data)
+			      unsigned long event_type, void *data)
 {
 	int code, state;
 	unsigned char *msg = (unsigned char *)data;
@@ -38,7 +53,8 @@ static int nvec_keys_notifier(struct notifier_block *nb,
 		code = msg[1] & 0x7f;
 		state = msg[1] & 0x80;
 
-		input_report_key(keys_dev.input, code_tabs[_size][code], !state);
+		input_report_key(keys_dev.input, code_tabs[_size][code],
+				 !state);
 		input_sync(keys_dev.input);
 
 		return NOTIFY_STOP;
@@ -48,7 +64,7 @@ static int nvec_keys_notifier(struct notifier_block *nb,
 }
 
 static int nvec_kbd_event(struct input_dev *dev, unsigned int type,
-				unsigned int code, int value)
+			  unsigned int code, int value)
 {
 	unsigned char buf[] = ACK_KBD_EVENT;
 	struct nvec_chip *nvec = keys_dev.nvec;
@@ -125,10 +141,10 @@ fail:
 }
 
 static struct platform_driver nvec_kbd_driver = {
-	.probe	= nvec_kbd_probe,
-	.driver	= {
-		.name   = "nvec-kbd",
-		.owner  = THIS_MODULE,
+	.probe  = nvec_kbd_probe,
+	.driver = {
+		.name = "nvec-kbd",
+		.owner = THIS_MODULE,
 	},
 };
 
@@ -138,3 +154,7 @@ static int __init nvec_kbd_init(void)
 }
 
 module_init(nvec_kbd_init);
+
+MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");
+MODULE_DESCRIPTION("NVEC keyboard driver");
+MODULE_LICENSE("GPL");

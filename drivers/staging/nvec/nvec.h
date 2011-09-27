@@ -1,3 +1,18 @@
+/*
+ * NVEC: NVIDIA compliant embedded controller interface
+ *
+ * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.launchpad.net>
+ *
+ * Authors:  Pierre-Hugues Husson <phhusson@free.fr>
+ *           Ilya Petrov <ilya.muromec@gmail.com>
+ *           Marc Dietrich <marvin24@gmx.de>
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ */
+
 #ifndef __LINUX_MFD_NVEC
 #define __LINUX_MFD_NVEC
 
@@ -17,7 +32,7 @@ typedef enum {
 } how_care;
 
 typedef enum {
-	NVEC_SYS=1,
+	NVEC_SYS = 1,
 	NVEC_BAT,
 	NVEC_KBD = 5,
 	NVEC_PS2,
@@ -27,9 +42,9 @@ typedef enum {
 } nvec_event;
 
 typedef enum {
-       NVEC_WAIT,
-       NVEC_READ,
-       NVEC_WRITE
+	NVEC_WAIT,
+	NVEC_READ,
+	NVEC_WRITE
 } nvec_state;
 
 struct nvec_msg {
@@ -64,22 +79,27 @@ struct nvec_chip {
 	struct work_struct rx_work, tx_work;
 	struct nvec_msg *rx, *tx;
 
-/* sync write stuff */
+	/* sync write stuff */
 	struct semaphore sync_write_mutex;
 	struct completion sync_write;
 	u16 sync_write_pending;
 	struct nvec_msg *last_sync_msg;
 };
 
-extern void nvec_write_async(struct nvec_chip *nvec, unsigned char *data, short size);
+extern void nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
+			     short size);
 
 extern int nvec_register_notifier(struct nvec_chip *nvec,
-		 struct notifier_block *nb, unsigned int events);
+				  struct notifier_block *nb,
+				  unsigned int events);
 
 extern int nvec_unregister_notifier(struct device *dev,
-		struct notifier_block *nb, unsigned int events);
+				    struct notifier_block *nb,
+				    unsigned int events);
 
-const char *nvec_send_msg(unsigned char *src, unsigned char *dst_size, how_care care_resp, void (*rt_handler)(unsigned char *data));
+const char *nvec_send_msg(unsigned char *src, unsigned char *dst_size,
+			  how_care care_resp,
+			  void (*rt_handler) (unsigned char *data));
 
 #define I2C_CNFG			0x00
 #define I2C_CNFG_PACKET_MODE_EN		(1<<10)
