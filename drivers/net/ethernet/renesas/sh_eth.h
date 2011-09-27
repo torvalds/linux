@@ -23,14 +23,6 @@
 #ifndef __SH_ETH_H__
 #define __SH_ETH_H__
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/spinlock.h>
-#include <linux/netdevice.h>
-#include <linux/phy.h>
-
-#include <asm/sh_eth.h>
-
 #define CARDNAME	"sh-eth"
 #define TX_TIMEOUT	(5*HZ)
 #define TX_RING_SIZE	64	/* Tx ring size */

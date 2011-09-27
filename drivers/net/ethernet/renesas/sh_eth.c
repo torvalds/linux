@@ -35,6 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/ethtool.h>
+#include <linux/sh_eth.h>
 
 #include "sh_eth.h"
 
