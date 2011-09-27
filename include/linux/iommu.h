@@ -98,11 +98,15 @@ extern void iommu_set_fault_handler(struct iommu_domain *domain,
  * Returns 0 on success and an appropriate error code otherwise (if dynamic
  * PTE/TLB loading will one day be supported, implementations will be able
  * to tell whether it succeeded or not according to this return value).
+ *
+ * Specifically, -ENOSYS is returned if a fault handler isn't installed
+ * (though fault handlers can also return -ENOSYS, in case they want to
+ * elicit the default behavior of the IOMMU drivers).
  */
 static inline int report_iommu_fault(struct iommu_domain *domain,
 		struct device *dev, unsigned long iova, int flags)
 {
-	int ret = 0;
+	int ret = -ENOSYS;
 
 	/*
 	 * if upper layers showed interest and installed a fault handler,
