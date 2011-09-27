@@ -1,6 +1,8 @@
 #ifndef LINUX_PCI_ATS_H
 #define LINUX_PCI_ATS_H
 
+#include <linux/pci.h>
+
 /* Address Translation Service */
 struct pci_ats {
 	int pos;        /* capability position */

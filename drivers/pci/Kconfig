@@ -71,9 +71,13 @@ config HT_IRQ
 
 	   If unsure say Y.
 
+config PCI_ATS
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI
+	select PCI_ATS
 	help
 	  I/O Virtualization is a PCI feature supported by some devices
 	  which allows them to create virtual devices which share their
