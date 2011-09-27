@@ -675,6 +675,14 @@
 #define PCI_PRI_MAX_REQ_OFF	0x08	/* Cap offset for max reqs supported */
 #define PCI_PRI_ALLOC_REQ_OFF	0x0c	/* Cap offset for max reqs allowed */
 
+/* PASID capability */
+#define PCI_PASID_CAP		0x1b    /* PASID capability ID */
+#define PCI_PASID_CAP_OFF	0x04    /* PASID feature register */
+#define PCI_PASID_CONTROL_OFF   0x06    /* PASID control register */
+#define PCI_PASID_ENABLE	0x01	/* Enable/Supported bit */
+#define PCI_PASID_EXEC		0x02	/* Exec permissions Enable/Supported */
+#define PCI_PASID_PRIV		0x04	/* Priviledge Mode Enable/Support */
+
 /* Single Root I/O Virtualization */
 #define PCI_SRIOV_CAP		0x04	/* SR-IOV Capabilities */
 #define  PCI_SRIOV_CAP_VFM	0x01	/* VF Migration Capable */

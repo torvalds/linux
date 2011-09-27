@@ -94,6 +94,19 @@ config PCI_PRI
 
 	  If unsure, say N.
 
+config PCI_PASID
+	bool "PCI PASID support"
+	depends on PCI
+	select PCI_ATS
+	help
+	  Process Address Space Identifiers (PASIDs) can be used by PCI devices
+	  to access more than one IO address space at the same time. To make
+	  use of this feature an IOMMU is required which also supports PASIDs.
+	  Select this option if you have such an IOMMU and want to compile the
+	  driver for it into your kernel.
+
+	  If unsure, say N.
+
 config PCI_IOAPIC
 	bool
 	depends on PCI

@@ -7,6 +7,7 @@
  * PCI Express I/O Virtualization (IOV) support.
  *   Address Translation Service 1.0
  *   Page Request Interface added by Joerg Roedel <joerg.roedel@amd.com>
+ *   PASID support added by Joerg Roedel <joerg.roedel@amd.com>
  */
 
 #include <linux/pci-ats.h>
@@ -323,3 +324,115 @@ int pci_pri_status(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL_GPL(pci_pri_status);
 #endif /* CONFIG_PCI_PRI */
+
+#ifdef CONFIG_PCI_PASID
+/**
+ * pci_enable_pasid - Enable the PASID capability
+ * @pdev: PCI device structure
+ * @features: Features to enable
+ *
+ * Returns 0 on success, negative value on error. This function checks
+ * whether the features are actually supported by the device and returns
+ * an error if not.
+ */
+int pci_enable_pasid(struct pci_dev *pdev, int features)
+{
+	u16 control, supported;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PASID_CAP);
+	if (!pos)
+		return -EINVAL;
+
+	pci_read_config_word(pdev, pos + PCI_PASID_CONTROL_OFF, &control);
+	pci_read_config_word(pdev, pos + PCI_PASID_CAP_OFF,     &supported);
+
+	if (!(supported & PCI_PASID_ENABLE))
+		return -EINVAL;
+
+	supported &= PCI_PASID_EXEC | PCI_PASID_PRIV;
+
+	/* User wants to enable anything unsupported? */
+	if ((supported & features) != features)
+		return -EINVAL;
+
+	control = PCI_PASID_ENABLE | features;
+
+	pci_write_config_word(pdev, pos + PCI_PASID_CONTROL_OFF, control);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_enable_pasid);
+
+/**
+ * pci_disable_pasid - Disable the PASID capability
+ * @pdev: PCI device structure
+ *
+ */
+void pci_disable_pasid(struct pci_dev *pdev)
+{
+	u16 control = 0;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PASID_CAP);
+	if (!pos)
+		return;
+
+	pci_write_config_word(pdev, pos + PCI_PASID_CONTROL_OFF, control);
+}
+EXPORT_SYMBOL_GPL(pci_disable_pasid);
+
+/**
+ * pci_pasid_features - Check which PASID features are supported
+ * @pdev: PCI device structure
+ *
+ * Returns a negative value when no PASI capability is present.
+ * Otherwise is returns a bitmask with supported features. Current
+ * features reported are:
+ * PCI_PASID_ENABLE - PASID capability can be enabled
+ * PCI_PASID_EXEC - Execute permission supported
+ * PCI_PASID_PRIV - Priviledged mode supported
+ */
+int pci_pasid_features(struct pci_dev *pdev)
+{
+	u16 supported;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PASID_CAP);
+	if (!pos)
+		return -EINVAL;
+
+	pci_read_config_word(pdev, pos + PCI_PASID_CAP_OFF, &supported);
+
+	supported &= PCI_PASID_ENABLE | PCI_PASID_EXEC | PCI_PASID_PRIV;
+
+	return supported;
+}
+EXPORT_SYMBOL_GPL(pci_pasid_features);
+
+#define PASID_NUMBER_SHIFT	8
+#define PASID_NUMBER_MASK	(0x1f << PASID_NUMBER_SHIFT)
+/**
+ * pci_max_pasid - Get maximum number of PASIDs supported by device
+ * @pdev: PCI device structure
+ *
+ * Returns negative value when PASID capability is not present.
+ * Otherwise it returns the numer of supported PASIDs.
+ */
+int pci_max_pasids(struct pci_dev *pdev)
+{
+	u16 supported;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PASID_CAP);
+	if (!pos)
+		return -EINVAL;
+
+	pci_read_config_word(pdev, pos + PCI_PASID_CAP_OFF, &supported);
+
+	supported = (supported & PASID_NUMBER_MASK) >> PASID_NUMBER_SHIFT;
+
+	return (1 << supported);
+}
+EXPORT_SYMBOL_GPL(pci_max_pasids);
+#endif /* CONFIG_PCI_PASID */
