@@ -16,6 +16,8 @@
 
 #include <sound/soc.h>
 
+int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
+
 #define WM5100_CLK_AIF1     1
 #define WM5100_CLK_AIF2     2
 #define WM5100_CLK_AIF3     3
