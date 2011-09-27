@@ -1000,6 +1000,13 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 					__set_bit(i, ar->fw_capabilities);
 			}
 			break;
+		case ATH6KL_FW_IE_PATCH_ADDR:
+			if (ie_len != sizeof(*val))
+				break;
+
+			val = (__le32 *) data;
+			ar->hw.dataset_patch_addr = le32_to_cpup(val);
+			break;
 		default:
 			ath6kl_dbg(ATH6KL_DBG_TRC, "Unknown fw ie: %u\n",
 				   le32_to_cpup(&hdr->id));
