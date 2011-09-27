@@ -274,6 +274,7 @@ static void vpu_service_power_maintain(void)
 
 static void vpu_service_power_on(void)
 {
+	spin_lock_bh(&service.lock);
 	if (!service.enabled) {
 		service.enabled = true;
 		printk("vpu: power on\n");
@@ -289,7 +290,9 @@ static void vpu_service_power_on(void)
 		service.timer.expires = jiffies + POWER_OFF_DELAY;
 		service.timer.function = vpu_service_power_off_work_func;
 		add_timer(&service.timer);
+		spin_unlock_bh(&service.lock);
 	} else {
+		spin_unlock_bh(&service.lock);
 		vpu_service_power_maintain();
 	}
 }
