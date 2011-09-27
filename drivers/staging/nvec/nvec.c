@@ -282,15 +282,27 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 	udelay(2);
 	tegra_periph_reset_deassert(nvec->i2c_clk);
 
+	val = I2C_CNFG_NEW_MASTER_SFM | I2C_CNFG_PACKET_MODE_EN |
+	    (0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
+	writel(val, nvec->base + I2C_CNFG);
+
+	clk_set_rate(nvec->i2c_clk, 8 * 80000);
+
+	writel(I2C_SL_NEWL, nvec->base + I2C_SL_CNFG);
+	writel(0x1E, nvec->base + I2C_SL_DELAY_COUNT);
+
 	writel(nvec->i2c_addr>>1, nvec->base + I2C_SL_ADDR1);
 	writel(0, nvec->base + I2C_SL_ADDR2);
 
-	writel(0x1E, nvec->base + I2C_SL_DELAY_COUNT);
-	val = I2C_CNFG_NEW_MASTER_SFM | I2C_CNFG_PACKET_MODE_EN |
-		(0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
-	writel(val, nvec->base + I2C_CNFG);
-	writel(I2C_SL_NEWL, nvec->base + I2C_SL_CNFG);
+	enable_irq(nvec->irq);
 
+	clk_disable(nvec->i2c_clk);
+}
+
+static void nvec_disable_i2c_slave(struct nvec_chip *nvec)
+{
+	disable_irq(nvec->irq);
+	writel(I2C_SL_NEWL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
 	clk_disable(nvec->i2c_clk);
 }
 
@@ -352,9 +364,6 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 		goto err_iounmap;
 	}
 
-	clk_enable(i2c_clk);
-	clk_set_rate(i2c_clk, 8*80000);
-
 	nvec->base = base;
 	nvec->irq = res->start;
 	nvec->i2c_clk = i2c_clk;
@@ -378,8 +387,11 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 		dev_err(nvec->dev, "couldn't request irq\n");
 		goto failed;
 	}
+	disable_irq(nvec->irq);
 
 	tegra_init_i2c_slave(nvec);
+
+	clk_enable(i2c_clk);
 
 	gpio_direction_output(nvec->gpio, 1);
 	gpio_set_value(nvec->gpio, 1);
@@ -450,6 +462,7 @@ static int tegra_nvec_suspend(struct platform_device *pdev, pm_message_t state)
 	dev_dbg(nvec->dev, "suspending\n");
 	nvec_write_async(nvec, EC_DISABLE_EVENT_REPORTING, 3);
 	nvec_write_async(nvec, "\x04\x02", 2);
+	nvec_disable_i2c_slave(nvec);
 
 	return 0;
 }
