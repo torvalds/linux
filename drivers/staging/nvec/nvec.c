@@ -114,6 +114,13 @@ static void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
 	atomic_set(&msg->used, 0);
 }
 
+static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
+{
+	dev_dbg(nvec->dev, "GPIO changed from %u to %u\n",
+		gpio_get_value(nvec->gpio), value);
+	gpio_set_value(nvec->gpio, value);
+}
+
 void nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 			short size)
 {
