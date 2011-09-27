@@ -69,12 +69,14 @@ enum ath6kl_war {
 	 })
 
 static inline void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
-				   const char *msg, const void *buf,
-				   size_t len)
+				   const char *msg, const char *prefix,
+				   const void *buf, size_t len)
 {
 	if (debug_mask & mask) {
-		ath6kl_dbg(mask, "%s\n", msg);
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, buf, len);
+		if (msg)
+			ath6kl_dbg(mask, "%s\n", msg);
+
+		print_hex_dump_bytes(prefix, DUMP_PREFIX_OFFSET, buf, len);
 	}
 }
 
@@ -95,8 +97,8 @@ static inline int ath6kl_dbg(enum ATH6K_DEBUG_MASK dbg_mask,
 }
 
 static inline void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
-				   const char *msg, const void *buf,
-				   size_t len)
+				   const char *msg, const char *prefix,
+				   const void *buf, size_t len)
 {
 }
 

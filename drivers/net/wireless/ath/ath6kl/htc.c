@@ -1192,9 +1192,9 @@ static void htc_ctrl_rx(struct htc_target *context, struct htc_packet *packets)
 			packets->act_len + HTC_HDR_LENGTH);
 
 		ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES,
-			     "Unexpected ENDPOINT 0 Message",
-			     packets->buf - HTC_HDR_LENGTH,
-			     packets->act_len + HTC_HDR_LENGTH);
+				"Unexpected ENDPOINT 0 Message", "",
+				packets->buf - HTC_HDR_LENGTH,
+				packets->act_len + HTC_HDR_LENGTH);
 	}
 
 	htc_reclaim_rxbuf(context, packets, &context->endpoint[0]);
@@ -1328,7 +1328,7 @@ static int htc_parse_trailer(struct htc_target *target,
 			memcpy((u8 *)&next_lk_ahds[0], lk_ahd->lk_ahd, 4);
 
 			ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "Next Look Ahead",
-					next_lk_ahds, 4);
+					"", next_lk_ahds, 4);
 
 			*n_lk_ahds = 1;
 		}
@@ -1347,7 +1347,7 @@ static int htc_parse_trailer(struct htc_target *target,
 				(struct htc_bundle_lkahd_rpt *) record_buf;
 
 			ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "Bundle lk_ahd",
-					record_buf, record->len);
+					"", record_buf, record->len);
 
 			for (i = 0; i < len; i++) {
 				memcpy((u8 *)&next_lk_ahds[i],
@@ -1380,7 +1380,8 @@ static int htc_proc_trailer(struct htc_target *target,
 
 	ath6kl_dbg(ATH6KL_DBG_HTC_RECV, "+htc_proc_trailer (len:%d)\n", len);
 
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "Recv Trailer", buf, len);
+	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "Recv Trailer", "",
+			buf, len);
 
 	orig_buf = buf;
 	orig_len = len;
@@ -1418,7 +1419,7 @@ static int htc_proc_trailer(struct htc_target *target,
 
 	if (status)
 		ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "BAD Recv Trailer",
-				orig_buf, orig_len);
+				"", orig_buf, orig_len);
 
 	return status;
 }
@@ -1435,8 +1436,8 @@ static int ath6kl_htc_rx_process_hdr(struct htc_target *target,
 	if (n_lkahds != NULL)
 		*n_lkahds = 0;
 
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "HTC Recv PKT", packet->buf,
-			packet->act_len);
+	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "HTC Recv PKT", "htc ",
+			packet->buf, packet->act_len);
 
 	/*
 	 * NOTE: we cannot assume the alignment of buf, so we use the safe
@@ -1480,9 +1481,9 @@ static int ath6kl_htc_rx_process_hdr(struct htc_target *target,
 		ath6kl_err("%s(): lk_ahd mismatch! (pPkt:0x%p flags:0x%X)\n",
 			   __func__, packet, packet->info.rx.rx_flags);
 		ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "Expected Message lk_ahd",
-				&packet->info.rx.exp_hdr, 4);
+				"", &packet->info.rx.exp_hdr, 4);
 		ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "Current Frame Header",
-				(u8 *)&lk_ahd, sizeof(lk_ahd));
+				"", (u8 *)&lk_ahd, sizeof(lk_ahd));
 		status = -ENOMEM;
 		goto fail_rx;
 	}
@@ -1518,12 +1519,12 @@ static int ath6kl_htc_rx_process_hdr(struct htc_target *target,
 fail_rx:
 	if (status)
 		ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "BAD HTC Recv PKT",
-				packet->buf,
+				"", packet->buf,
 				packet->act_len < 256 ? packet->act_len : 256);
 	else {
 		if (packet->act_len > 0)
 			ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES,
-					"HTC - Application Msg",
+					"HTC - Application Msg", "",
 					packet->buf, packet->act_len);
 	}
 

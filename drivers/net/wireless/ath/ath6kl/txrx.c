@@ -340,7 +340,8 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	set_htc_pkt_info(&cookie->htc_pkt, cookie, skb->data, skb->len,
 			 eid, htc_tag);
 
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, skb->data, skb->len);
+	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "tx ",
+			skb->data, skb->len);
 
 	/*
 	 * HTC interface is asynchronous, if this fails, cleanup will
@@ -1068,7 +1069,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	skb_put(skb, packet->act_len + HTC_HDR_LENGTH);
 	skb_pull(skb, HTC_HDR_LENGTH);
 
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, skb->data, skb->len);
+	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "rx ",
+			skb->data, skb->len);
 
 	skb->dev = ar->net_dev;
 

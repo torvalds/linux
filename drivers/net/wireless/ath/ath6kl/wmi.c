@@ -2850,7 +2850,8 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 	len = skb->len;
 
 	ath6kl_dbg(ATH6KL_DBG_WMI, "%s: wmi id: %d\n", __func__, id);
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "msg payload ", datap, len);
+	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "msg payload ", "wmi rx ",
+			datap, len);
 
 	switch (id) {
 	case WMI_GET_BITRATE_CMDID:
