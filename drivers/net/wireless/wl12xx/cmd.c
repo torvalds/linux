@@ -661,12 +661,9 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_CMD, "cmd role start ap %d", wl->role_id);
 
-	/*
-	 * We currently do not support hidden SSID. The real SSID
-	 * should be fetched from mac80211 first.
-	 */
-	if (wl->ssid_len == 0) {
-		wl1271_warning("Hidden SSID currently not supported for AP");
+	/* trying to use hidden SSID with an old hostapd version */
+	if (wl->ssid_len == 0 && !bss_conf->hidden_ssid) {
+		wl1271_error("got a null SSID from beacon/bss");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -695,9 +692,18 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl)
 	cmd->ap.dtim_interval = bss_conf->dtim_period;
 	cmd->ap.beacon_expiry = WL1271_AP_DEF_BEACON_EXP;
 	cmd->channel = wl->channel;
-	cmd->ap.ssid_len = wl->ssid_len;
-	cmd->ap.ssid_type = WL12XX_SSID_TYPE_PUBLIC;
-	memcpy(cmd->ap.ssid, wl->ssid, wl->ssid_len);
+
+	if (!bss_conf->hidden_ssid) {
+		/* take the SSID from the beacon for backward compatibility */
+		cmd->ap.ssid_type = WL12XX_SSID_TYPE_PUBLIC;
+		cmd->ap.ssid_len = wl->ssid_len;
+		memcpy(cmd->ap.ssid, wl->ssid, wl->ssid_len);
+	} else {
+		cmd->ap.ssid_type = WL12XX_SSID_TYPE_HIDDEN;
+		cmd->ap.ssid_len = bss_conf->ssid_len;
+		memcpy(cmd->ap.ssid, bss_conf->ssid, bss_conf->ssid_len);
+	}
+
 	cmd->ap.local_rates = cpu_to_le32(0xffffffff);
 
 	switch (wl->band) {
@@ -1106,6 +1112,7 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 {
 	struct sk_buff *skb;
 	int ret;
+	u32 rate;
 
 	skb = ieee80211_probereq_get(wl->hw, wl->vif, ssid, ssid_len,
 				     ie, ie_len);
@@ -1116,14 +1123,13 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 
 	wl1271_dump(DEBUG_SCAN, "PROBE REQ: ", skb->data, skb->len);
 
+	rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
 	if (band == IEEE80211_BAND_2GHZ)
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
-					      skb->data, skb->len, 0,
-					      wl->conf.tx.basic_rate);
+					      skb->data, skb->len, 0, rate);
 	else
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-					      skb->data, skb->len, 0,
-					      wl->conf.tx.basic_rate_5);
+					      skb->data, skb->len, 0, rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -1134,6 +1140,7 @@ struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct sk_buff *skb)
 {
 	int ret;
+	u32 rate;
 
 	if (!skb)
 		skb = ieee80211_ap_probereq_get(wl->hw, wl->vif);
@@ -1142,14 +1149,13 @@ struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 
 	wl1271_dump(DEBUG_SCAN, "AP PROBE REQ: ", skb->data, skb->len);
 
+	rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[wl->band]);
 	if (wl->band == IEEE80211_BAND_2GHZ)
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
-					      skb->data, skb->len, 0,
-					      wl->conf.tx.basic_rate);
+					      skb->data, skb->len, 0, rate);
 	else
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-					      skb->data, skb->len, 0,
-					      wl->conf.tx.basic_rate_5);
+					      skb->data, skb->len, 0, rate);
 
 	if (ret < 0)
 		wl1271_error("Unable to set ap probe request template.");
@@ -1442,7 +1448,8 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct ieee80211_sta *sta, u8 hlid)
 		sta_rates |= sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET;
 
 	cmd->supported_rates =
-		cpu_to_le32(wl1271_tx_enabled_rates_get(wl, sta_rates));
+		cpu_to_le32(wl1271_tx_enabled_rates_get(wl, sta_rates,
+							wl->band));
 
 	wl1271_debug(DEBUG_CMD, "new peer rates=0x%x queues=0x%x",
 		     cmd->supported_rates, sta->uapsd_queues);

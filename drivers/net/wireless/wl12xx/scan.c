@@ -28,6 +28,7 @@
 #include "scan.h"
 #include "acx.h"
 #include "ps.h"
+#include "tx.h"
 
 void wl1271_scan_complete_work(struct work_struct *work)
 {
@@ -99,14 +100,18 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 	for (i = 0, j = 0;
 	     i < req->n_channels && j < WL1271_SCAN_MAX_CHANNELS;
 	     i++) {
-
 		flags = req->channels[i]->flags;
 
 		if (!test_bit(i, wl->scan.scanned_ch) &&
 		    !(flags & IEEE80211_CHAN_DISABLED) &&
-		    ((!!(flags & IEEE80211_CHAN_PASSIVE_SCAN)) == passive) &&
-		    (req->channels[i]->band == band)) {
-
+		    (req->channels[i]->band == band) &&
+		    /*
+		     * In passive scans, we scan all remaining
+		     * channels, even if not marked as such.
+		     * In active scans, we only scan channels not
+		     * marked as passive.
+		     */
+		    (passive || !(flags & IEEE80211_CHAN_PASSIVE_SCAN))) {
 			wl1271_debug(DEBUG_SCAN, "band %d, center_freq %d ",
 				     req->channels[i]->band,
 				     req->channels[i]->center_freq);
@@ -158,6 +163,10 @@ static int wl1271_scan_send(struct wl1271 *wl, enum ieee80211_band band,
 	int ret;
 	u16 scan_options = 0;
 
+	/* skip active scans if we don't have SSIDs */
+	if (!passive && wl->scan.req->n_ssids == 0)
+		return WL1271_NOTHING_TO_SCAN;
+
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
 	if (!cmd || !trigger) {
@@ -165,8 +174,7 @@ static int wl1271_scan_send(struct wl1271 *wl, enum ieee80211_band band,
 		goto out;
 	}
 
-	/* No SSIDs means that we have a forced passive scan */
-	if (passive || wl->scan.req->n_ssids == 0)
+	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
 	if (WARN_ON(wl->role_id == WL12XX_INVALID_ROLE_ID)) {
@@ -236,14 +244,17 @@ out:
 void wl1271_scan_stm(struct wl1271 *wl)
 {
 	int ret = 0;
+	enum ieee80211_band band;
+	u32 rate;
 
 	switch (wl->scan.state) {
 	case WL1271_SCAN_STATE_IDLE:
 		break;
 
 	case WL1271_SCAN_STATE_2GHZ_ACTIVE:
-		ret = wl1271_scan_send(wl, IEEE80211_BAND_2GHZ, false,
-				       wl->conf.tx.basic_rate);
+		band = IEEE80211_BAND_2GHZ;
+		rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
+		ret = wl1271_scan_send(wl, band, false, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_2GHZ_PASSIVE;
 			wl1271_scan_stm(wl);
@@ -252,8 +263,9 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_2GHZ_PASSIVE:
-		ret = wl1271_scan_send(wl, IEEE80211_BAND_2GHZ, true,
-				       wl->conf.tx.basic_rate);
+		band = IEEE80211_BAND_2GHZ;
+		rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
+		ret = wl1271_scan_send(wl, band, true, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
 			if (wl->enable_11a)
 				wl->scan.state = WL1271_SCAN_STATE_5GHZ_ACTIVE;
@@ -265,8 +277,9 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_5GHZ_ACTIVE:
-		ret = wl1271_scan_send(wl, IEEE80211_BAND_5GHZ, false,
-				       wl->conf.tx.basic_rate_5);
+		band = IEEE80211_BAND_5GHZ;
+		rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
+		ret = wl1271_scan_send(wl, band, false, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_5GHZ_PASSIVE;
 			wl1271_scan_stm(wl);
@@ -275,8 +288,9 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_5GHZ_PASSIVE:
-		ret = wl1271_scan_send(wl, IEEE80211_BAND_5GHZ, true,
-				       wl->conf.tx.basic_rate_5);
+		band = IEEE80211_BAND_5GHZ;
+		rate = wl1271_tx_min_rate_get(wl, wl->bitrate_masks[band]);
+		ret = wl1271_scan_send(wl, band, true, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
 			wl->scan.state = WL1271_SCAN_STATE_DONE;
 			wl1271_scan_stm(wl);
