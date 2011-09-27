@@ -2,9 +2,11 @@
  * drivers/pci/ats.c
  *
  * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
+ * Copyright (C) 2011 Advanced Micro Devices,
  *
  * PCI Express I/O Virtualization (IOV) support.
  *   Address Translation Service 1.0
+ *   Page Request Interface added by Joerg Roedel <joerg.roedel@amd.com>
  */
 
 #include <linux/pci-ats.h>
@@ -156,3 +158,168 @@ int pci_ats_queue_depth(struct pci_dev *dev)
 				       PCI_ATS_MAX_QDEP;
 }
 EXPORT_SYMBOL_GPL(pci_ats_queue_depth);
+
+#ifdef CONFIG_PCI_PRI
+/**
+ * pci_enable_pri - Enable PRI capability
+ * @ pdev: PCI device structure
+ *
+ * Returns 0 on success, negative value on error
+ */
+int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
+{
+	u16 control, status;
+	u32 max_requests;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	if (!pos)
+		return -EINVAL;
+
+	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+	pci_read_config_word(pdev, pos + PCI_PRI_STATUS_OFF,  &status);
+	if ((control & PCI_PRI_ENABLE) || !(status & PCI_PRI_STATUS_STOPPED))
+		return -EBUSY;
+
+	pci_read_config_dword(pdev, pos + PCI_PRI_MAX_REQ_OFF, &max_requests);
+	reqs = min(max_requests, reqs);
+	pci_write_config_dword(pdev, pos + PCI_PRI_ALLOC_REQ_OFF, reqs);
+
+	control |= PCI_PRI_ENABLE;
+	pci_write_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, control);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_enable_pri);
+
+/**
+ * pci_disable_pri - Disable PRI capability
+ * @pdev: PCI device structure
+ *
+ * Only clears the enabled-bit, regardless of its former value
+ */
+void pci_disable_pri(struct pci_dev *pdev)
+{
+	u16 control;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	if (!pos)
+		return;
+
+	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+	control &= ~PCI_PRI_ENABLE;
+	pci_write_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, control);
+}
+EXPORT_SYMBOL_GPL(pci_disable_pri);
+
+/**
+ * pci_pri_enabled - Checks if PRI capability is enabled
+ * @pdev: PCI device structure
+ *
+ * Returns true if PRI is enabled on the device, false otherwise
+ */
+bool pci_pri_enabled(struct pci_dev *pdev)
+{
+	u16 control;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	if (!pos)
+		return false;
+
+	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+
+	return (control & PCI_PRI_ENABLE) ? true : false;
+}
+EXPORT_SYMBOL_GPL(pci_pri_enabled);
+
+/**
+ * pci_reset_pri - Resets device's PRI state
+ * @pdev: PCI device structure
+ *
+ * The PRI capability must be disabled before this function is called.
+ * Returns 0 on success, negative value on error.
+ */
+int pci_reset_pri(struct pci_dev *pdev)
+{
+	u16 control;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	if (!pos)
+		return -EINVAL;
+
+	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+	if (control & PCI_PRI_ENABLE)
+		return -EBUSY;
+
+	control |= PCI_PRI_RESET;
+
+	pci_write_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, control);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_reset_pri);
+
+/**
+ * pci_pri_stopped - Checks whether the PRI capability is stopped
+ * @pdev: PCI device structure
+ *
+ * Returns true if the PRI capability on the device is disabled and the
+ * device has no outstanding PRI requests, false otherwise. The device
+ * indicates this via the STOPPED bit in the status register of the
+ * capability.
+ * The device internal state can be cleared by resetting the PRI state
+ * with pci_reset_pri(). This can force the capability into the STOPPED
+ * state.
+ */
+bool pci_pri_stopped(struct pci_dev *pdev)
+{
+	u16 control, status;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	if (!pos)
+		return true;
+
+	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+	pci_read_config_word(pdev, pos + PCI_PRI_STATUS_OFF,  &status);
+
+	if (control & PCI_PRI_ENABLE)
+		return false;
+
+	return (status & PCI_PRI_STATUS_STOPPED) ? true : false;
+}
+EXPORT_SYMBOL_GPL(pci_pri_stopped);
+
+/**
+ * pci_pri_status - Request PRI status of a device
+ * @pdev: PCI device structure
+ *
+ * Returns negative value on failure, status on success. The status can
+ * be checked against status-bits. Supported bits are currently:
+ * PCI_PRI_STATUS_RF:      Response failure
+ * PCI_PRI_STATUS_UPRGI:   Unexpected Page Request Group Index
+ * PCI_PRI_STATUS_STOPPED: PRI has stopped
+ */
+int pci_pri_status(struct pci_dev *pdev)
+{
+	u16 status, control;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	if (!pos)
+		return -EINVAL;
+
+	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+	pci_read_config_word(pdev, pos + PCI_PRI_STATUS_OFF,  &status);
+
+	/* Stopped bit is undefined when enable == 1, so clear it */
+	if (control & PCI_PRI_ENABLE)
+		status &= ~PCI_PRI_STATUS_STOPPED;
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(pci_pri_status);
+#endif /* CONFIG_PCI_PRI */

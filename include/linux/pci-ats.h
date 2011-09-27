@@ -17,6 +17,7 @@ struct pci_ats {
 extern int pci_enable_ats(struct pci_dev *dev, int ps);
 extern void pci_disable_ats(struct pci_dev *dev);
 extern int pci_ats_queue_depth(struct pci_dev *dev);
+
 /**
  * pci_ats_enabled - query the ATS status
  * @dev: the PCI device
@@ -50,5 +51,46 @@ static inline int pci_ats_enabled(struct pci_dev *dev)
 }
 
 #endif /* CONFIG_PCI_IOV */
+
+#ifdef CONFIG_PCI_PRI
+
+extern int  pci_enable_pri(struct pci_dev *pdev, u32 reqs);
+extern void pci_disable_pri(struct pci_dev *pdev);
+extern bool pci_pri_enabled(struct pci_dev *pdev);
+extern int  pci_reset_pri(struct pci_dev *pdev);
+extern bool pci_pri_stopped(struct pci_dev *pdev);
+extern int  pci_pri_status(struct pci_dev *pdev);
+
+#else /* CONFIG_PCI_PRI */
+
+static inline int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
+{
+	return -ENODEV;
+}
+
+static inline void pci_disable_pri(struct pci_dev *pdev)
+{
+}
+
+static inline bool pci_pri_enabled(struct pci_dev *pdev)
+{
+	return false;
+}
+
+static inline int pci_reset_pri(struct pci_dev *pdev)
+{
+	return -ENODEV;
+}
+
+static inline bool pci_pri_stopped(struct pci_dev *pdev)
+{
+	return true;
+}
+
+static inline int pci_pri_status(struct pci_dev *pdev)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_PCI_PRI */
 
 #endif /* LINUX_PCI_ATS_H*/
