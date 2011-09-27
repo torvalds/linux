@@ -105,7 +105,6 @@ static unsigned int db8500_cpufreq_getspeed(unsigned int cpu)
 static int __cpuinit db8500_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int res;
-	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(idx2opp) + 1 != ARRAY_SIZE(freq_table));
 
@@ -128,10 +127,6 @@ static int __cpuinit db8500_cpufreq_init(struct cpufreq_policy *policy)
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
 	policy->cur = db8500_cpufreq_getspeed(policy->cpu);
-
-	for (i = 0; freq_table[i].frequency != policy->cur; i++)
-		;
-
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
 	/*
