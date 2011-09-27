@@ -140,7 +140,6 @@ static const u16 wm9090_reg_defaults[] = {
 /* This struct is used to save the context */
 struct wm9090_priv {
 	struct wm9090_platform_data pdata;
-	void *control_data;
 };
 
 static int wm9090_volatile(struct snd_soc_codec *codec, unsigned int reg)
@@ -552,7 +551,6 @@ static int wm9090_probe(struct snd_soc_codec *codec)
 	struct wm9090_priv *wm9090 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->control_data = wm9090->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -661,7 +659,6 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 		       sizeof(wm9090->pdata));
 
 	i2c_set_clientdata(i2c, wm9090);
-	wm9090->control_data = i2c;
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9090,  NULL, 0);
