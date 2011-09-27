@@ -154,7 +154,7 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
 		nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
 		nouveau_pm_clock_set(dev, perflvl, PLL_MEMORY, perflvl->memory);
-		nouveau_pm_clock_set(dev, perflvl, PLL_UNK05, perflvl->unk05);
+		nouveau_pm_clock_set(dev, perflvl, PLL_UNK05, perflvl->vdec);
 	}
 
 	pm->cur = perflvl;
@@ -222,7 +222,7 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 		ret = pm->clock_get(dev, PLL_UNK05);
 		if (ret > 0)
-			perflvl->unk05 = ret;
+			perflvl->vdec = ret;
 	}
 
 	if (pm->voltage.supported && pm->voltage_get) {
