@@ -16,29 +16,27 @@
 
 /* #define DEBUG */
 
-#include <asm/irq.h>
-
+#include <linux/kernel.h>
 #include <linux/atomic.h>
+#include <linux/clk.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/slab.h>
-#include <linux/gpio.h>
-#include <linux/serio.h>
-#include <linux/delay.h>
-#include <linux/input.h>
-#include <linux/workqueue.h>
-#include <linux/clk.h>
-
-#include <linux/semaphore.h>
 #include <linux/list.h>
+#include <linux/mfd/core.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/core.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
-#include <mach/iomap.h>
 #include <mach/clk.h>
+#include <mach/iomap.h>
 
 #include "nvec.h"
 
