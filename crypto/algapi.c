@@ -129,9 +129,8 @@ static void crypto_remove_spawn(struct crypto_spawn *spawn,
 	BUG_ON(!list_empty(&inst->alg.cra_users));
 }
 
-static void crypto_remove_spawns(struct crypto_alg *alg,
-				 struct list_head *list,
-				 struct crypto_alg *nalg)
+void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
+			  struct crypto_alg *nalg)
 {
 	u32 new_type = (nalg ?: alg)->cra_flags;
 	struct crypto_spawn *spawn, *n;
@@ -177,6 +176,7 @@ static void crypto_remove_spawns(struct crypto_alg *alg,
 			crypto_remove_spawn(spawn, list);
 	}
 }
+EXPORT_SYMBOL_GPL(crypto_remove_spawns);
 
 static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 {
