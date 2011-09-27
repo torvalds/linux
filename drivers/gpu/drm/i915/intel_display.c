@@ -5281,16 +5281,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
-		refclk = dev_priv->lvds_ssc_freq * 1000;
-		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
-			      refclk / 1000);
-	} else {
-		refclk = 96000;
-		if (!has_edp_encoder ||
-		    intel_encoder_is_pch_edp(&has_edp_encoder->base))
-			refclk = 120000; /* 120Mhz refclk */
-	}
+	/*
+	 * Every reference clock in a PCH system is 120MHz
+	 */
+	refclk = 120000;
 
 	/*
 	 * Returns a set of divisors for the desired target clock with the given
