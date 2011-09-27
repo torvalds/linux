@@ -85,6 +85,7 @@ int mtip_major;
 static DEFINE_SPINLOCK(rssd_index_lock);
 static DEFINE_IDA(rssd_index_ida);
 
+#ifdef CONFIG_COMPAT
 struct mtip_compat_ide_task_request_s {
 	__u8		io_ports[8];
 	__u8		hob_ports[8];
@@ -95,6 +96,7 @@ struct mtip_compat_ide_task_request_s {
 	compat_ulong_t	out_size;
 	compat_ulong_t	in_size;
 };
+#endif
 
 static int mtip_exec_internal_command(struct mtip_port *port,
 				void *fis,
@@ -1628,9 +1630,9 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	ide_task_request_t *req_task;
 	u8 *outbuf = NULL;
 	u8 *inbuf = NULL;
-	dma_addr_t outbuf_dma = (dma_addr_t)NULL;
-	dma_addr_t inbuf_dma = (dma_addr_t)NULL;
-	dma_addr_t dma_buffer = (dma_addr_t)NULL;
+	dma_addr_t outbuf_dma = 0;
+	dma_addr_t inbuf_dma = 0;
+	dma_addr_t dma_buffer = 0;
 	int err = 0;
 	int tasksize = sizeof(struct ide_task_request_s);
 	unsigned int taskin = 0;
@@ -1642,14 +1644,18 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	unsigned int transfer_size;
 	unsigned long task_file_data;
 	int intotal, outtotal;
+#ifdef CONFIG_COMPAT
 	struct mtip_compat_ide_task_request_s *compat_req_task = NULL;
 	int compat_tasksize = sizeof(struct mtip_compat_ide_task_request_s);
+#endif
+
 
 	req_task = kzalloc(tasksize, GFP_KERNEL);
 	if (req_task == NULL)
 		return -ENOMEM;
 
 	if (compat == 1) {
+#ifdef CONFIG_COMPAT
 		compat_req_task =
 			(struct mtip_compat_ide_task_request_s __user *) arg;
 
@@ -1672,6 +1678,10 @@ static int exec_drive_taskfile(struct driver_data *dd,
 
 		outtotal = compat_tasksize;
 		intotal = compat_tasksize + req_task->out_size;
+#else
+		outtotal = 0;
+		intotal = 0;
+#endif
 	} else {
 		if (copy_from_user(req_task, buf, tasksize)) {
 			kfree(req_task);
@@ -1705,7 +1715,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 					 outbuf,
 					 taskout,
 					 DMA_TO_DEVICE);
-		if (outbuf_dma == (dma_addr_t)NULL) {
+		if (outbuf_dma == 0) {
 			err = -ENOMEM;
 			goto abort;
 		}
@@ -1726,7 +1736,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 		inbuf_dma = pci_map_single(dd->pdev,
 					 inbuf,
 					 taskin, DMA_FROM_DEVICE);
-		if (inbuf_dma == (dma_addr_t)NULL) {
+		if (inbuf_dma == 0) {
 			err = -ENOMEM;
 			goto abort;
 		}
@@ -1868,8 +1878,8 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	if (outbuf_dma)
 		pci_unmap_single(dd->pdev, outbuf_dma,
 			taskout, DMA_TO_DEVICE);
-	inbuf_dma  = (dma_addr_t) NULL;
-	outbuf_dma = (dma_addr_t) NULL;
+	inbuf_dma  = 0;
+	outbuf_dma = 0;
 
 	/* return the ATA registers to the caller.*/
 	req_task->io_ports[1] = reply->features;
@@ -1913,6 +1923,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	up_write(&dd->internal_sem);
 
 	if (compat == 1) {
+#ifdef CONFIG_COMPAT
 		if (copy_to_user(buf, req_task,
 				compat_tasksize -
 				(2 * sizeof(compat_long_t)))) {
@@ -1928,6 +1939,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 			err = -EFAULT;
 			goto abort;
 		}
+#endif
 	} else {
 		if (copy_to_user(buf, req_task, tasksize)) {
 			err = -EFAULT;
@@ -2873,6 +2885,7 @@ static int mtip_block_ioctl(struct block_device *dev,
 	}
 }
 
+#ifdef CONFIG_COMPAT
 /*
  * Block layer compat IOCTL handler.
  *
@@ -2906,6 +2919,7 @@ static int mtip_block_compat_ioctl(struct block_device *dev,
 		return mtip_hw_ioctl(dd, cmd, arg, 1);
 	}
 }
+#endif
 
 /*
  * Obtain the geometry of the device.
@@ -2959,7 +2973,9 @@ static int mtip_block_getgeo(struct block_device *dev,
  */
 static const struct block_device_operations mtip_block_ops = {
 	.ioctl		= mtip_block_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= mtip_block_compat_ioctl,
+#endif
 	.getgeo		= mtip_block_getgeo,
 	.owner		= THIS_MODULE
 };
