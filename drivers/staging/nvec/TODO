@@ -5,3 +5,8 @@ ToDo list (incomplete, unordered)
 	  where conn is either NULL if the device only has one clock, or
 	  the device specific name if it has multiple clocks.
 	- move half of the nvec init stuff to i2c-tegra.c
+	- move event handling to nvec_events
+	- finish suspend/resume support
+	- modifiy the sync_write method to return the received
+	  message in a variable (and return the error code).
+	- add support for more device implementations
