@@ -103,6 +103,7 @@ struct bnad_rx_ctrl {
 /* Bit positions for rcb->flags */
 #define BNAD_RXQ_REFILL			0
 #define BNAD_RXQ_STARTED		1
+#define BNAD_RXQ_POST_OK		2
 
 /* Resource limits */
 #define BNAD_NUM_TXQ			(bnad->num_tx * bnad->num_txq_per_tx)

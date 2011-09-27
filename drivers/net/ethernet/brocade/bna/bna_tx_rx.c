@@ -1335,6 +1335,12 @@ do {								    \
 	}							       \
 } while (0)
 
+#define call_rx_stall_cbfn(rx)						\
+do {									\
+	if ((rx)->rx_stall_cbfn)					\
+		(rx)->rx_stall_cbfn((rx)->bna->bnad, (rx));		\
+} while (0)
+
 #define bfi_enet_datapath_q_init(bfi_q, bna_qpt)			\
 do {									\
 	struct bna_dma_addr cur_q_addr =				\
@@ -1467,6 +1473,7 @@ bna_rx_sm_rxf_stop_wait(struct bna_rx *rx, enum bna_rx_event event)
 	case RX_E_FAIL:
 		bfa_fsm_set_state(rx, bna_rx_sm_cleanup_wait);
 		bna_rxf_fail(&rx->rxf);
+		call_rx_stall_cbfn(rx);
 		rx->rx_cleanup_cbfn(rx->bna->bnad, rx);
 		break;
 
@@ -1476,6 +1483,7 @@ bna_rx_sm_rxf_stop_wait(struct bna_rx *rx, enum bna_rx_event event)
 
 	case RX_E_RXF_STOPPED:
 		bfa_fsm_set_state(rx, bna_rx_sm_stop_wait);
+		call_rx_stall_cbfn(rx);
 		bna_rx_enet_stop(rx);
 		break;
 
@@ -1516,6 +1524,7 @@ bna_rx_sm_started(struct bna_rx *rx, enum bna_rx_event event)
 		bfa_fsm_set_state(rx, bna_rx_sm_failed);
 		bna_ethport_cb_rx_stopped(&rx->bna->ethport);
 		bna_rxf_fail(&rx->rxf);
+		call_rx_stall_cbfn(rx);
 		rx->rx_cleanup_cbfn(rx->bna->bnad, rx);
 		break;
 
@@ -1536,6 +1545,7 @@ static void bna_rx_sm_rxf_start_wait(struct bna_rx *rx,
 	case RX_E_FAIL:
 		bfa_fsm_set_state(rx, bna_rx_sm_failed);
 		bna_rxf_fail(&rx->rxf);
+		call_rx_stall_cbfn(rx);
 		rx->rx_cleanup_cbfn(rx->bna->bnad, rx);
 		break;
 
@@ -2369,6 +2379,7 @@ bna_rx_create(struct bna *bna, struct bnad *bnad,
 	rx->rcb_destroy_cbfn = rx_cbfn->rcb_destroy_cbfn;
 	rx->ccb_setup_cbfn = rx_cbfn->ccb_setup_cbfn;
 	rx->ccb_destroy_cbfn = rx_cbfn->ccb_destroy_cbfn;
+	rx->rx_stall_cbfn = rx_cbfn->rx_stall_cbfn;
 	/* Following callbacks are mandatory */
 	rx->rx_cleanup_cbfn = rx_cbfn->rx_cleanup_cbfn;
 	rx->rx_post_cbfn = rx_cbfn->rx_post_cbfn;

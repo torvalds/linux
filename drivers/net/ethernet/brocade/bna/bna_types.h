@@ -847,6 +847,7 @@ struct bna_rx {
 	void (*rcb_destroy_cbfn)(struct bnad *, struct bna_rcb *);
 	void (*ccb_setup_cbfn)(struct bnad *, struct bna_ccb *);
 	void (*ccb_destroy_cbfn)(struct bnad *, struct bna_ccb *);
+	void (*rx_stall_cbfn)(struct bnad *, struct bna_rx *);
 	void (*rx_cleanup_cbfn)(struct bnad *, struct bna_rx *);
 	void (*rx_post_cbfn)(struct bnad *, struct bna_rx *);
 
@@ -864,6 +865,7 @@ struct bna_rx_event_cbfn {
 	void (*rcb_destroy_cbfn)(struct bnad *, struct bna_rcb *);
 	void (*ccb_setup_cbfn)(struct bnad *, struct bna_ccb *);
 	void (*ccb_destroy_cbfn)(struct bnad *, struct bna_ccb *);
+	void (*rx_stall_cbfn)(struct bnad *, struct bna_rx *);
 	/* Mandatory */
 	void (*rx_cleanup_cbfn)(struct bnad *, struct bna_rx *);
 	void (*rx_post_cbfn)(struct bnad *, struct bna_rx *);

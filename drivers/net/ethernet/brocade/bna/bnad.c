@@ -396,7 +396,7 @@ finishing:
 		unmap_q->producer_index = unmap_prod;
 		rcb->producer_index = unmap_prod;
 		smp_mb();
-		if (likely(test_bit(BNAD_RXQ_STARTED, &rcb->flags)))
+		if (likely(test_bit(BNAD_RXQ_POST_OK, &rcb->flags)))
 			bna_rxq_prod_indx_doorbell(rcb);
 	}
 }
@@ -956,6 +956,27 @@ bnad_cb_tx_cleanup(struct bnad *bnad, struct bna_tx *tx)
 }
 
 static void
+bnad_cb_rx_stall(struct bnad *bnad, struct bna_rx *rx)
+{
+	struct bnad_rx_info *rx_info = (struct bnad_rx_info *)rx->priv;
+	struct bna_ccb *ccb;
+	struct bnad_rx_ctrl *rx_ctrl;
+	int i;
+
+	for (i = 0; i < BNAD_MAX_RXP_PER_RX; i++) {
+		rx_ctrl = &rx_info->rx_ctrl[i];
+		ccb = rx_ctrl->ccb;
+		if (!ccb)
+			continue;
+
+		clear_bit(BNAD_RXQ_POST_OK, &ccb->rcb[0]->flags);
+
+		if (ccb->rcb[1])
+			clear_bit(BNAD_RXQ_POST_OK, &ccb->rcb[1]->flags);
+	}
+}
+
+static void
 bnad_cb_rx_cleanup(struct bnad *bnad, struct bna_rx *rx)
 {
 	struct bnad_rx_info *rx_info = (struct bnad_rx_info *)rx->priv;
@@ -1009,6 +1030,7 @@ bnad_cb_rx_post(struct bnad *bnad, struct bna_rx *rx)
 			bnad_free_all_rxbufs(bnad, rcb);
 
 			set_bit(BNAD_RXQ_STARTED, &rcb->flags);
+			set_bit(BNAD_RXQ_POST_OK, &rcb->flags);
 			unmap_q = rcb->unmap_q;
 
 			/* Now allocate & post buffers for this RCB */
@@ -1898,6 +1920,7 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 		.rcb_destroy_cbfn = bnad_cb_rcb_destroy,
 		.ccb_setup_cbfn = bnad_cb_ccb_setup,
 		.ccb_destroy_cbfn = bnad_cb_ccb_destroy,
+		.rx_stall_cbfn = bnad_cb_rx_stall,
 		.rx_cleanup_cbfn = bnad_cb_rx_cleanup,
 		.rx_post_cbfn = bnad_cb_rx_post,
 	};
