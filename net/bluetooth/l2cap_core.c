@@ -907,6 +907,9 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 	if (!conn->hcon->out && conn->hcon->type == LE_LINK)
 		l2cap_le_conn_ready(conn);
 
+	if (conn->hcon->out && conn->hcon->type == LE_LINK)
+		smp_conn_security(conn, conn->hcon->pending_sec_level);
+
 	read_lock(&conn->chan_lock);
 
 	list_for_each_entry(chan, &conn->chan_l, list) {
@@ -986,8 +989,10 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
 		del_timer_sync(&conn->info_timer);
 
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend))
+	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend)) {
 		del_timer(&conn->security_timer);
+		smp_chan_destroy(conn);
+	}
 
 	hcon->l2cap_data = NULL;
 	kfree(conn);
@@ -1519,7 +1524,9 @@ struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan, struct msghdr *m
 	return skb;
 }
 
-struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len, u16 control, u16 sdulen)
+static struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan,
+						struct msghdr *msg, size_t len,
+						u16 control, u16 sdulen)
 {
 	struct sock *sk = chan->sk;
 	struct l2cap_conn *conn = chan->conn;
@@ -4093,6 +4100,11 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 	BT_DBG("conn %p", conn);
 
+	if (hcon->type == LE_LINK) {
+		smp_distribute_keys(conn, 0);
+		del_timer(&conn->security_timer);
+	}
+
 	read_lock(&conn->chan_lock);
 
 	list_for_each_entry(chan, &conn->chan_l, list) {
@@ -4105,9 +4117,7 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 		if (chan->scid == L2CAP_CID_LE_DATA) {
 			if (!status && encrypt) {
 				chan->sec_level = hcon->sec_level;
-				del_timer(&conn->security_timer);
 				l2cap_chan_ready(sk);
-				smp_distribute_keys(conn, 0);
 			}
 
 			bh_unlock_sock(sk);
