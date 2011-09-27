@@ -439,10 +439,15 @@ static void nvec_tx_completed(struct nvec_chip *nvec)
  */
 static void nvec_rx_completed(struct nvec_chip *nvec)
 {
-	if (nvec->rx->pos != nvec_msg_size(nvec->rx))
+	if (nvec->rx->pos != nvec_msg_size(nvec->rx)) {
 		dev_err(nvec->dev, "RX incomplete: Expected %u bytes, got %u\n",
 			   (uint) nvec_msg_size(nvec->rx),
 			   (uint) nvec->rx->pos);
+
+		nvec_msg_free(nvec, nvec->rx);
+		nvec->state = 0;
+		return;
+	}
 
 	spin_lock(&nvec->rx_lock);
 
