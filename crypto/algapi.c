@@ -22,8 +22,6 @@
 
 #include "internal.h"
 
-static void crypto_remove_final(struct list_head *list);
-
 static LIST_HEAD(crypto_template_list);
 
 void crypto_larval_error(const char *name, u32 type, u32 mask)
@@ -321,7 +319,7 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(crypto_alg_tested);
 
-static void crypto_remove_final(struct list_head *list)
+void crypto_remove_final(struct list_head *list)
 {
 	struct crypto_alg *alg;
 	struct crypto_alg *n;
@@ -331,6 +329,7 @@ static void crypto_remove_final(struct list_head *list)
 		crypto_alg_put(alg);
 	}
 }
+EXPORT_SYMBOL_GPL(crypto_remove_final);
 
 static void crypto_wait_for_test(struct crypto_larval *larval)
 {
