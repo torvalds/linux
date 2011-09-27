@@ -317,15 +317,6 @@ config TWL4030_WATCHDOG
 	  Support for TI TWL4030 watchdog.  Say 'Y' here to enable the
 	  watchdog timer support for TWL4030 chips.
 
-config STMP3XXX_WATCHDOG
-	tristate "Freescale STMP3XXX watchdog"
-	depends on ARCH_STMP3XXX
-	help
-	  Say Y here if to include support for the watchdog timer
-	  for the Sigmatel STMP37XX/378X SoC.
-	  To compile this driver as a module, choose M here: the
-	  module will be called stmp3xxx_wdt.
-
 config STMP3XXX_RTC_WATCHDOG
 	tristate "Freescale STMP3XXX & i.MX23/28 watchdog"
 	depends on RTC_DRV_STMP
