@@ -955,6 +955,7 @@ config PLAT_SPEAR
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
 
