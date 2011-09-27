@@ -23,39 +23,36 @@
 /* NVEC_POOL_SIZE - Size of the pool in &struct nvec_msg */
 #define NVEC_POOL_SIZE	64
 
-typedef enum {
+/*
+ * NVEC_MSG_SIZE - Maximum size of the data field of &struct nvec_msg.
+ *
+ * A message must store up to a SMBus block operation which consists of
+ * one command byte, one count byte, and up to 32 payload bytes = 34
+ * byte.
+ */
+#define NVEC_MSG_SIZE	34
+
+enum {
 	NVEC_2BYTES,
 	NVEC_3BYTES,
-	NVEC_VAR_SIZE
-} nvec_size;
+	NVEC_VAR_SIZE,
+};
 
-typedef enum {
-	NOT_REALLY,
-	YES,
-	NOT_AT_ALL,
-} how_care;
-
-typedef enum {
+enum {
 	NVEC_SYS = 1,
 	NVEC_BAT,
 	NVEC_KBD = 5,
 	NVEC_PS2,
 	NVEC_CNTL,
 	NVEC_KB_EVT = 0x80,
-	NVEC_PS2_EVT
-} nvec_event;
-
-typedef enum {
-	NVEC_WAIT,
-	NVEC_READ,
-	NVEC_WRITE
-} nvec_state;
+	NVEC_PS2_EVT,
+};
 
 struct nvec_msg {
-	unsigned char *data;
+	struct list_head node;
+	unsigned char data[NVEC_MSG_SIZE];
 	unsigned short size;
 	unsigned short pos;
-	struct list_head node;
 	atomic_t used;
 };
 
@@ -77,23 +74,34 @@ struct nvec_chip {
 	int i2c_addr;
 	void __iomem *base;
 	struct clk *i2c_clk;
-	nvec_state state;
 	struct atomic_notifier_head notifier_list;
 	struct list_head rx_data, tx_data;
 	struct notifier_block nvec_status_notifier;
 	struct work_struct rx_work, tx_work;
-	struct nvec_msg *rx, *tx;
+	struct workqueue_struct *wq;
 	struct nvec_msg msg_pool[NVEC_POOL_SIZE];
+	struct nvec_msg *rx;
+
+	struct nvec_msg *tx;
+	struct nvec_msg tx_scratch;
+	struct completion ec_transfer;
+
+	spinlock_t tx_lock, rx_lock;
 
 	/* sync write stuff */
-	struct semaphore sync_write_mutex;
+	struct mutex sync_write_mutex;
 	struct completion sync_write;
 	u16 sync_write_pending;
 	struct nvec_msg *last_sync_msg;
+
+	int state;
 };
 
 extern void nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 			     short size);
+
+extern struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
+					const unsigned char *data, short size);
 
 extern int nvec_register_notifier(struct nvec_chip *nvec,
 				  struct notifier_block *nb,
@@ -102,10 +110,6 @@ extern int nvec_register_notifier(struct nvec_chip *nvec,
 extern int nvec_unregister_notifier(struct device *dev,
 				    struct notifier_block *nb,
 				    unsigned int events);
-
-const char *nvec_send_msg(unsigned char *src, unsigned char *dst_size,
-			  how_care care_resp,
-			  void (*rt_handler) (unsigned char *data));
 
 #define I2C_CNFG			0x00
 #define I2C_CNFG_PACKET_MODE_EN		(1<<10)

@@ -41,7 +41,7 @@ static int nvec_keys_notifier(struct notifier_block *nb,
 	unsigned char *msg = (unsigned char *)data;
 
 	if (event_type == NVEC_KB_EVT) {
-		nvec_size _size = (msg[0] & (3 << 5)) >> 5;
+		int _size = (msg[0] & (3 << 5)) >> 5;
 
 /* power on/off button */
 		if (_size == NVEC_VAR_SIZE)
