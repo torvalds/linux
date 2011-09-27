@@ -118,14 +118,24 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 #define BE_ONE_PORT_EXT_LOOPBACK 0x2
 #define BE_NO_LOOPBACK 0xff
 
-static void
-be_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
+static void be_get_drvinfo(struct net_device *netdev,
+				struct ethtool_drvinfo *drvinfo)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	char fw_on_flash[FW_VER_LEN];
+
+	memset(fw_on_flash, 0 , sizeof(fw_on_flash));
+	be_cmd_get_fw_ver(adapter, adapter->fw_ver, fw_on_flash);
 
 	strcpy(drvinfo->driver, DRV_NAME);
 	strcpy(drvinfo->version, DRV_VER);
 	strncpy(drvinfo->fw_version, adapter->fw_ver, FW_VER_LEN);
+	if (memcmp(adapter->fw_ver, fw_on_flash, FW_VER_LEN) != 0) {
+		strcat(drvinfo->fw_version, " [");
+		strcat(drvinfo->fw_version, fw_on_flash);
+		strcat(drvinfo->fw_version, "]");
+	}
+
 	strcpy(drvinfo->bus_info, pci_name(adapter->pdev));
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = 0;

@@ -1444,7 +1444,8 @@ extern int be_cmd_get_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);
 extern int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);
-extern int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver);
+extern int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver,
+		char *fw_on_flash);
 
 extern int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd);
 extern int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id,
