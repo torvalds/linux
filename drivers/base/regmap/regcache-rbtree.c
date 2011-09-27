@@ -56,23 +56,33 @@ static void regcache_rbtree_set_register(struct regcache_rbtree_node *rbnode,
 	regcache_set_val(rbnode->block, idx, val, word_size);
 }
 
-static struct regcache_rbtree_node *regcache_rbtree_lookup(
-	struct rb_root *root, unsigned int reg)
+static struct regcache_rbtree_node *regcache_rbtree_lookup(struct regmap *map,
+	unsigned int reg)
 {
+	struct regcache_rbtree_ctx *rbtree_ctx = map->cache;
 	struct rb_node *node;
 	struct regcache_rbtree_node *rbnode;
 	unsigned int base_reg, top_reg;
 
-	node = root->rb_node;
-	while (node) {
-		rbnode = container_of(node, struct regcache_rbtree_node, node);
+	rbnode = rbtree_ctx->cached_rbnode;
+	if (rbnode) {
 		regcache_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
 		if (reg >= base_reg && reg <= top_reg)
 			return rbnode;
-		else if (reg > top_reg)
+	}
+
+	node = rbtree_ctx->root.rb_node;
+	while (node) {
+		rbnode = container_of(node, struct regcache_rbtree_node, node);
+		regcache_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
+		if (reg >= base_reg && reg <= top_reg) {
+			rbtree_ctx->cached_rbnode = rbnode;
+			return rbnode;
+		} else if (reg > top_reg) {
 			node = node->rb_right;
-		else if (reg < base_reg)
+		} else if (reg < base_reg) {
 			node = node->rb_left;
+		}
 	}
 
 	return NULL;
@@ -174,32 +184,14 @@ static int regcache_rbtree_exit(struct regmap *map)
 static int regcache_rbtree_read(struct regmap *map,
 				unsigned int reg, unsigned int *value)
 {
-	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct regcache_rbtree_node *rbnode;
-	unsigned int base_reg, top_reg;
 	unsigned int reg_tmp;
 
-	rbtree_ctx = map->cache;
-	/* look up the required register in the cached rbnode */
-	rbnode = rbtree_ctx->cached_rbnode;
-	if (rbnode) {
-		regcache_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
-		if (reg >= base_reg && reg <= top_reg) {
-			reg_tmp = reg - base_reg;
-			*value = regcache_rbtree_get_register(rbnode, reg_tmp,
-							      map->cache_word_size);
-			return 0;
-		}
-	}
-	/* if we can't locate it in the cached rbnode we'll have
-	 * to traverse the rbtree looking for it.
-	 */
-	rbnode = regcache_rbtree_lookup(&rbtree_ctx->root, reg);
+	rbnode = regcache_rbtree_lookup(map, reg);
 	if (rbnode) {
 		reg_tmp = reg - rbnode->base_reg;
 		*value = regcache_rbtree_get_register(rbnode, reg_tmp,
 						      map->cache_word_size);
-		rbtree_ctx->cached_rbnode = rbnode;
 	} else {
 		/* uninitialized registers default to 0 */
 		*value = 0;
@@ -243,31 +235,15 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 	struct rb_node *node;
 	unsigned int val;
 	unsigned int reg_tmp;
-	unsigned int base_reg, top_reg;
 	unsigned int pos;
 	int i;
 	int ret;
 
 	rbtree_ctx = map->cache;
-	/* look up the required register in the cached rbnode */
-	rbnode = rbtree_ctx->cached_rbnode;
-	if (rbnode) {
-		regcache_rbtree_get_base_top_reg(rbnode, &base_reg, &top_reg);
-		if (reg >= base_reg && reg <= top_reg) {
-			reg_tmp = reg - base_reg;
-			val = regcache_rbtree_get_register(rbnode, reg_tmp,
-							   map->cache_word_size);
-			if (val == value)
-				return 0;
-			regcache_rbtree_set_register(rbnode, reg_tmp, value,
-						     map->cache_word_size);
-			return 0;
-		}
-	}
 	/* if we can't locate it in the cached rbnode we'll have
 	 * to traverse the rbtree looking for it.
 	 */
-	rbnode = regcache_rbtree_lookup(&rbtree_ctx->root, reg);
+	rbnode = regcache_rbtree_lookup(map, reg);
 	if (rbnode) {
 		reg_tmp = reg - rbnode->base_reg;
 		val = regcache_rbtree_get_register(rbnode, reg_tmp,
@@ -276,7 +252,6 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 			return 0;
 		regcache_rbtree_set_register(rbnode, reg_tmp, value,
 					     map->cache_word_size);
-		rbtree_ctx->cached_rbnode = rbnode;
 	} else {
 		/* bail out early, no need to create the rbnode yet */
 		if (!value)
