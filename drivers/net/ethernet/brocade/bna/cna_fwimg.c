@@ -16,11 +16,12 @@
  * www.brocade.com
  */
 #include <linux/firmware.h>
+#include "bfi.h"
 #include "cna.h"
 
 const struct firmware *bfi_fw;
-static u32 *bfi_image_ct_cna;
-static u32 bfi_image_ct_cna_size;
+static u32 *bfi_image_ct_cna, *bfi_image_ct2_cna;
+static u32 bfi_image_ct_cna_size, bfi_image_ct2_cna_size;
 
 static u32 *
 cna_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
@@ -45,20 +46,47 @@ error:
 u32 *
 cna_get_firmware_buf(struct pci_dev *pdev)
 {
-	if (bfi_image_ct_cna_size == 0)
-		cna_read_firmware(pdev, &bfi_image_ct_cna,
-			&bfi_image_ct_cna_size, CNA_FW_FILE_CT);
-	return bfi_image_ct_cna;
+	if (pdev->device == BFA_PCI_DEVICE_ID_CT2) {
+		if (bfi_image_ct2_cna_size == 0)
+			cna_read_firmware(pdev, &bfi_image_ct2_cna,
+				&bfi_image_ct2_cna_size, CNA_FW_FILE_CT2);
+		return bfi_image_ct2_cna;
+	} else if (bfa_asic_id_ct(pdev->device)) {
+		if (bfi_image_ct_cna_size == 0)
+			cna_read_firmware(pdev, &bfi_image_ct_cna,
+				&bfi_image_ct_cna_size, CNA_FW_FILE_CT);
+		return bfi_image_ct_cna;
+	}
+
+	return NULL;
 }
 
 u32 *
-bfa_cb_image_get_chunk(int type, u32 off)
+bfa_cb_image_get_chunk(enum bfi_asic_gen asic_gen, u32 off)
 {
-	return (u32 *)(bfi_image_ct_cna + off);
+	switch (asic_gen) {
+	case BFI_ASIC_GEN_CT:
+		return (u32 *)(bfi_image_ct_cna + off);
+		break;
+	case BFI_ASIC_GEN_CT2:
+		return (u32 *)(bfi_image_ct2_cna + off);
+		break;
+	default:
+		return NULL;
+	}
 }
 
 u32
-bfa_cb_image_get_size(int type)
+bfa_cb_image_get_size(enum bfi_asic_gen asic_gen)
 {
-	return bfi_image_ct_cna_size;
+	switch (asic_gen) {
+	case BFI_ASIC_GEN_CT:
+		return bfi_image_ct_cna_size;
+		break;
+	case BFI_ASIC_GEN_CT2:
+		return bfi_image_ct2_cna_size;
+		break;
+	default:
+		return 0;
+	}
 }

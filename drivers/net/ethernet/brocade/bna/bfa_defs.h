@@ -261,6 +261,13 @@ struct bfa_mfg_block {
  * ---------------------- pci definitions ------------
  */
 
+/*
+ * PCI device ID information
+ */
+enum {
+	BFA_PCI_DEVICE_ID_CT2		= 0x22,
+};
+
 #define bfa_asic_id_ct(device)			\
 	((device) == PCI_DEVICE_ID_BROCADE_CT ||	\
 	 (device) == PCI_DEVICE_ID_BROCADE_CT_FC)

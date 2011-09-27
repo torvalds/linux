@@ -159,6 +159,7 @@ enum bfi_mclass {
 enum bfi_asic_gen {
 	BFI_ASIC_GEN_CB		= 1,
 	BFI_ASIC_GEN_CT		= 2,
+	BFI_ASIC_GEN_CT2	= 3,
 };
 
 enum bfi_asic_mode {
