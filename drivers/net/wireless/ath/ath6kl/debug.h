@@ -38,6 +38,7 @@ enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_AGGR		= BIT(15),    /* aggregation */
 	ATH6KL_DBG_SDIO		= BIT(16),
 	ATH6KL_DBG_SDIO_DUMP	= BIT(17),
+	ATH6KL_DBG_BOOT		= BIT(18),    /* driver init and fw boot */
 	ATH6KL_DBG_ANY	        = 0xffffffff  /* enable all logs */
 };
 
