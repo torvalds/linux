@@ -294,6 +294,7 @@ config ARCH_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_FPGA_IRQ
 	select ARM_TIMER_SP804
+	select MULTI_IRQ_HANDLER
 	help
 	  This enables support for ARM Ltd Versatile board.
 
