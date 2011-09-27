@@ -409,6 +409,7 @@ config ARCH_EP93XX
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_USES_GETTIMEOFFSET
 	select NEED_MACH_MEMORY_H
+	select MULTI_IRQ_HANDLER
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
