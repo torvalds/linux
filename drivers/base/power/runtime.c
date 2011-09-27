@@ -9,6 +9,7 @@
 
 #include <linux/sched.h>
 #include <linux/pm_runtime.h>
+#include <trace/events/rpm.h>
 #include "power.h"
 
 static int rpm_resume(struct device *dev, int rpmflags);
@@ -196,6 +197,7 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	int (*callback)(struct device *);
 	int retval;
 
+	trace_rpm_idle(dev, rpmflags);
 	retval = rpm_check_suspend_allowed(dev);
 	if (retval < 0)
 		;	/* Conditions are wrong. */
@@ -257,6 +259,7 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	wake_up_all(&dev->power.wait_queue);
 
  out:
+	trace_rpm_return_int(dev, _THIS_IP_, retval);
 	return retval;
 }
 
@@ -301,7 +304,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	struct device *parent = NULL;
 	int retval;
 
-	dev_dbg(dev, "%s flags 0x%x\n", __func__, rpmflags);
+	trace_rpm_suspend(dev, rpmflags);
 
  repeat:
 	retval = rpm_check_suspend_allowed(dev);
@@ -445,7 +448,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	}
 
  out:
-	dev_dbg(dev, "%s returns %d\n", __func__, retval);
+	trace_rpm_return_int(dev, _THIS_IP_, retval);
 
 	return retval;
 }
@@ -474,7 +477,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	struct device *parent = NULL;
 	int retval = 0;
 
-	dev_dbg(dev, "%s flags 0x%x\n", __func__, rpmflags);
+	trace_rpm_resume(dev, rpmflags);
 
  repeat:
 	if (dev->power.runtime_error)
@@ -639,7 +642,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		spin_lock_irq(&dev->power.lock);
 	}
 
-	dev_dbg(dev, "%s returns %d\n", __func__, retval);
+	trace_rpm_return_int(dev, _THIS_IP_, retval);
 
 	return retval;
 }
