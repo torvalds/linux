@@ -36,6 +36,7 @@ enum {
 enum crypto_attr_type_t {
 	CRYPTOCFGA_UNSPEC,
 	CRYPTOCFGA_PRIORITY_VAL,	/* __u32 */
+	CRYPTOCFGA_REPORT_LARVAL,	/* struct crypto_report_larval */
 	__CRYPTOCFGA_MAX
 
 #define CRYPTOCFGA_MAX (__CRYPTOCFGA_MAX - 1)
@@ -49,4 +50,8 @@ struct crypto_user_alg {
 	__u32 cru_mask;
 	__u32 cru_refcnt;
 	__u32 cru_flags;
+};
+
+struct crypto_report_larval {
+	char type[CRYPTO_MAX_NAME];
 };

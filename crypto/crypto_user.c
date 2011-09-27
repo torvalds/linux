@@ -84,11 +84,23 @@ static int crypto_report_one(struct crypto_alg *alg,
 
 	NLA_PUT_U32(skb, CRYPTOCFGA_PRIORITY_VAL, alg->cra_priority);
 
+	if (alg->cra_flags & CRYPTO_ALG_LARVAL) {
+		struct crypto_report_larval rl;
+
+		snprintf(rl.type, CRYPTO_MAX_ALG_NAME, "%s", "larval");
+
+		NLA_PUT(skb, CRYPTOCFGA_REPORT_LARVAL,
+			sizeof(struct crypto_report_larval), &rl);
+
+		goto out;
+	}
+
 	if (alg->cra_type && alg->cra_type->report) {
 		if (alg->cra_type->report(skb, alg))
 			goto nla_put_failure;
 	}
 
+out:
 	return 0;
 
 nla_put_failure:
