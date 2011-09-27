@@ -113,11 +113,35 @@ int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value)
 static int ab8500_sysctrl_probe(struct platform_device *pdev)
 {
 	struct ab8500_platform_data *plat;
+	struct ab8500_sysctrl_platform_data *pdata;
 
 	sysctrl_dev = &pdev->dev;
 	plat = dev_get_platdata(pdev->dev.parent);
 	if (plat->pm_power_off)
 		pm_power_off = ab8500_power_off;
+
+	pdata = plat->sysctrl;
+
+	if (pdata) {
+		int ret, i, j;
+
+		for (i = AB8500_SYSCLKREQ1RFCLKBUF;
+		     i <= AB8500_SYSCLKREQ8RFCLKBUF; i++) {
+			j = i - AB8500_SYSCLKREQ1RFCLKBUF;
+			ret = ab8500_sysctrl_write(i, 0xff,
+						   pdata->initial_req_buf_config[j]);
+			dev_dbg(&pdev->dev,
+				"Setting SysClkReq%dRfClkBuf 0x%X\n",
+				j + 1,
+				pdata->initial_req_buf_config[j]);
+			if (ret < 0) {
+				dev_err(&pdev->dev,
+					"unable to set sysClkReq%dRfClkBuf: "
+					"%d\n", j + 1, ret);
+			}
+		}
+	}
+
 	return 0;
 }
 

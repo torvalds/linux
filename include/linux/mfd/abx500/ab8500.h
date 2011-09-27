@@ -270,6 +270,7 @@ struct regulator_reg_init;
 struct regulator_init_data;
 struct ab8500_gpio_platform_data;
 struct ab8500_codec_platform_data;
+struct ab8500_sysctrl_platform_data;
 
 /**
  * struct ab8500_platform_data - AB8500 platform data
@@ -291,6 +292,7 @@ struct ab8500_platform_data {
 	struct regulator_init_data *regulator;
 	struct ab8500_gpio_platform_data *gpio;
 	struct ab8500_codec_platform_data *codec;
+	struct ab8500_sysctrl_platform_data *sysctrl;
 };
 
 extern int ab8500_init(struct ab8500 *ab8500,
