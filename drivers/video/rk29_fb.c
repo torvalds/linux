@@ -1458,6 +1458,7 @@ static int fb0_set_par(struct fb_info *info)
 #ifdef CONFIG_FB_SCALING_OSD
     struct rk29_ipp_req ipp_req;
     u32 dstoffset=0;
+	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 #endif
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
@@ -1608,6 +1609,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     struct fb_fix_screeninfo *fix = &info->fix;
     struct rk29_ipp_req ipp_req;
     u32 dstoffset = 0;
+	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
    #endif
 	//fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -2090,7 +2092,7 @@ static int fb1_set_par(struct fb_info *info)
 		struct rk29_ipp_req ipp_req;
 		static u32 dstoffset = 0;
 		static int fb_index = 0;
-		
+		memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 		yuv_phy[0] = last_yuv_phy[0];
 		yuv_phy[1] = last_yuv_phy[1];
 		yuv_phy[0] += par->y_offset;
@@ -2258,7 +2260,7 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
      struct rk29fb_screen *screen = inf->cur_screen;
      struct rk29_ipp_req ipp_req;
      static u32 dstoffset = 0;
-     
+    memset(&ipp_req, 0, sizeof(struct rk29_ipp_req)); 
 #endif
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
