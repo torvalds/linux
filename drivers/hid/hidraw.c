@@ -272,8 +272,10 @@ static int hidraw_open(struct inode *inode, struct file *file)
 	dev = hidraw_table[minor];
 	if (!dev->open++) {
 		err = hid_hw_power(dev->hid, PM_HINT_FULLON);
-		if (err < 0)
+		if (err < 0) {
+			dev->open--;
 			goto out_unlock;
+		}
 
 		err = hid_hw_open(dev->hid);
 		if (err < 0) {
