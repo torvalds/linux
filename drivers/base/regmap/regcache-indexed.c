@@ -41,7 +41,7 @@ static int regcache_indexed_write(struct regmap *map, unsigned int reg,
 
 static int regcache_indexed_sync(struct regmap *map)
 {
-	int i;
+	unsigned int i;
 	int ret;
 
 	for (i = 0; i < map->num_reg_defaults; i++) {
