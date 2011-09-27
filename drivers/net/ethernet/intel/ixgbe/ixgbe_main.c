@@ -4990,17 +4990,32 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	spin_lock_init(&adapter->fdir_perfect_lock);
 
 #ifdef CONFIG_IXGBE_DCB
+	switch (hw->mac.type) {
+	case ixgbe_mac_X540:
+		adapter->dcb_cfg.num_tcs.pg_tcs = X540_TRAFFIC_CLASS;
+		adapter->dcb_cfg.num_tcs.pfc_tcs = X540_TRAFFIC_CLASS;
+		break;
+	default:
+		adapter->dcb_cfg.num_tcs.pg_tcs = MAX_TRAFFIC_CLASS;
+		adapter->dcb_cfg.num_tcs.pfc_tcs = MAX_TRAFFIC_CLASS;
+		break;
+	}
+
 	/* Configure DCB traffic classes */
 	for (j = 0; j < MAX_TRAFFIC_CLASS; j++) {
 		tc = &adapter->dcb_cfg.tc_config[j];
 		tc->path[DCB_TX_CONFIG].bwg_id = 0;
 		tc->path[DCB_TX_CONFIG].bwg_percent = 12 + (j & 1);
-		tc->path[DCB_TX_CONFIG].up_to_tc_bitmap = 1 << j;
 		tc->path[DCB_RX_CONFIG].bwg_id = 0;
 		tc->path[DCB_RX_CONFIG].bwg_percent = 12 + (j & 1);
-		tc->path[DCB_RX_CONFIG].up_to_tc_bitmap = 1 << j;
 		tc->dcb_pfc = pfc_disabled;
 	}
+
+	/* Initialize default user to priority mapping, UPx->TC0 */
+	tc = &adapter->dcb_cfg.tc_config[0];
+	tc->path[DCB_TX_CONFIG].up_to_tc_bitmap = 0xFF;
+	tc->path[DCB_RX_CONFIG].up_to_tc_bitmap = 0xFF;
+
 	adapter->dcb_cfg.bw_percentage[DCB_TX_CONFIG][0] = 100;
 	adapter->dcb_cfg.bw_percentage[DCB_RX_CONFIG][0] = 100;
 	adapter->dcb_cfg.pfc_mode_enable = false;
@@ -7019,7 +7034,7 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	}
 
 	/* Hardware supports up to 8 traffic classes */
-	if (tc > MAX_TRAFFIC_CLASS ||
+	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs ||
 	    (hw->mac.type == ixgbe_mac_82598EB && tc < MAX_TRAFFIC_CLASS))
 		return -EINVAL;
 
