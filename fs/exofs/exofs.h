@@ -71,7 +71,7 @@ struct exofs_sb_info {
 						 */
 	struct ore_layout	layout;		/* Default files layout       */
 	struct ore_comp one_comp;		/* id & cred of partition id=0*/
-	struct ore_components comps;		/* comps for the partition    */
+	struct ore_components oc;		/* comps for the partition    */
 	struct osd_dev	*_min_one_dev[1];	/* Place holder for one dev   */
 };
 
@@ -86,7 +86,7 @@ struct exofs_i_info {
 	uint32_t       i_dir_start_lookup; /* which page to start lookup      */
 	uint64_t       i_commit_size;      /* the object's written length     */
 	struct ore_comp one_comp;	   /* same component for all devices  */
-	struct ore_components comps;	   /* inode view of the device table  */
+	struct ore_components oc;	   /* inode view of the device table  */
 };
 
 static inline osd_id exofs_oi_objno(struct exofs_i_info *oi)
@@ -207,7 +207,7 @@ extern const struct inode_operations exofs_fast_symlink_inode_operations;
  * bigger and that the device table repeats twice.
  * See: exofs_read_lookup_dev_table()
  */
-static inline void exofs_init_comps(struct ore_components *comps,
+static inline void exofs_init_comps(struct ore_components *oc,
 				    struct ore_comp *one_comp,
 				    struct exofs_sb_info *sbi, osd_id oid)
 {
@@ -217,13 +217,13 @@ static inline void exofs_init_comps(struct ore_components *comps,
 	one_comp->obj.id = oid;
 	exofs_make_credential(one_comp->cred, &one_comp->obj);
 
-	comps->numdevs = sbi->comps.numdevs;
-	comps->single_comp = EC_SINGLE_COMP;
-	comps->comps = one_comp;
+	oc->numdevs = sbi->oc.numdevs;
+	oc->single_comp = EC_SINGLE_COMP;
+	oc->comps = one_comp;
 
 	/* Round robin device view of the table */
-	first_dev = (dev_mod * sbi->layout.mirrors_p1) % sbi->comps.numdevs;
-	comps->ods = sbi->comps.ods + first_dev;
+	first_dev = (dev_mod * sbi->layout.mirrors_p1) % sbi->oc.numdevs;
+	oc->ods = sbi->oc.ods + first_dev;
 }
 
 #endif

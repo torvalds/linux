@@ -64,7 +64,7 @@ struct ore_io_state {
 	ore_io_done_fn	done;
 
 	struct ore_layout	*layout;
-	struct ore_components	*comps;
+	struct ore_components	*oc;
 
 	/* Global read/write IO*/
 	loff_t			offset;

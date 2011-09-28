@@ -270,7 +270,7 @@ static int read_exec(struct page_collect *pcol)
 		return 0;
 
 	if (!pcol->ios) {
-		int ret = ore_get_rw_state(&pcol->sbi->layout, &oi->comps, true,
+		int ret = ore_get_rw_state(&pcol->sbi->layout, &oi->oc, true,
 					     pcol->pg_first << PAGE_CACHE_SHIFT,
 					     pcol->length, &pcol->ios);
 
@@ -516,7 +516,7 @@ static int write_exec(struct page_collect *pcol)
 		return 0;
 
 	BUG_ON(pcol->ios);
-	ret = ore_get_rw_state(&pcol->sbi->layout, &oi->comps, false,
+	ret = ore_get_rw_state(&pcol->sbi->layout, &oi->oc, false,
 				 pcol->pg_first << PAGE_CACHE_SHIFT,
 				 pcol->length, &pcol->ios);
 
@@ -860,7 +860,7 @@ static int _do_truncate(struct inode *inode, loff_t newsize)
 
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
-	ret = ore_truncate(&sbi->layout, &oi->comps, (u64)newsize);
+	ret = ore_truncate(&sbi->layout, &oi->oc, (u64)newsize);
 	if (likely(!ret))
 		truncate_setsize(inode, newsize);
 
@@ -927,14 +927,14 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 	struct exofs_on_disk_inode_layout *layout;
 	int ret;
 
-	ret = ore_get_io_state(&sbi->layout, &oi->comps, &ios);
+	ret = ore_get_io_state(&sbi->layout, &oi->oc, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("%s: ore_get_io_state failed.\n", __func__);
 		return ret;
 	}
 
-	attrs[1].len = exofs_on_disk_inode_layout_size(sbi->comps.numdevs);
-	attrs[2].len = exofs_on_disk_inode_layout_size(sbi->comps.numdevs);
+	attrs[1].len = exofs_on_disk_inode_layout_size(sbi->oc.numdevs);
+	attrs[2].len = exofs_on_disk_inode_layout_size(sbi->oc.numdevs);
 
 	ios->in_attr = attrs;
 	ios->in_attr_len = ARRAY_SIZE(attrs);
@@ -1018,7 +1018,7 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 		return inode;
 	oi = exofs_i(inode);
 	__oi_init(oi);
-	exofs_init_comps(&oi->comps, &oi->one_comp, sb->s_fs_info,
+	exofs_init_comps(&oi->oc, &oi->one_comp, sb->s_fs_info,
 			 exofs_oi_objno(oi));
 
 	/* read the inode from the osd */
@@ -1172,13 +1172,13 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 	spin_unlock(&sbi->s_next_gen_lock);
 	insert_inode_hash(inode);
 
-	exofs_init_comps(&oi->comps, &oi->one_comp, sb->s_fs_info,
+	exofs_init_comps(&oi->oc, &oi->one_comp, sb->s_fs_info,
 			 exofs_oi_objno(oi));
 	exofs_sbi_write_stats(sbi); /* Make sure new sbi->s_nextid is on disk */
 
 	mark_inode_dirty(inode);
 
-	ret = ore_get_io_state(&sbi->layout, &oi->comps, &ios);
+	ret = ore_get_io_state(&sbi->layout, &oi->oc, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("exofs_new_inode: ore_get_io_state failed\n");
 		return ERR_PTR(ret);
@@ -1267,7 +1267,7 @@ static int exofs_update_inode(struct inode *inode, int do_sync)
 	} else
 		memcpy(fcb->i_data, oi->i_data, sizeof(fcb->i_data));
 
-	ret = ore_get_io_state(&sbi->layout, &oi->comps, &ios);
+	ret = ore_get_io_state(&sbi->layout, &oi->oc, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("%s: ore_get_io_state failed.\n", __func__);
 		goto free_args;
@@ -1350,7 +1350,7 @@ void exofs_evict_inode(struct inode *inode)
 	/* ignore the error, attempt a remove anyway */
 
 	/* Now Remove the OSD objects */
-	ret = ore_get_io_state(&sbi->layout, &oi->comps, &ios);
+	ret = ore_get_io_state(&sbi->layout, &oi->oc, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("%s: ore_get_io_state failed\n", __func__);
 		return;

@@ -49,20 +49,20 @@ MODULE_LICENSE("GPL");
 
 static u8 *_ios_cred(struct ore_io_state *ios, unsigned index)
 {
-	return ios->comps->comps[index & ios->comps->single_comp].cred;
+	return ios->oc->comps[index & ios->oc->single_comp].cred;
 }
 
 static struct osd_obj_id *_ios_obj(struct ore_io_state *ios, unsigned index)
 {
-	return &ios->comps->comps[index & ios->comps->single_comp].obj;
+	return &ios->oc->comps[index & ios->oc->single_comp].obj;
 }
 
 static struct osd_dev *_ios_od(struct ore_io_state *ios, unsigned index)
 {
-	return ios->comps->ods[index];
+	return ios->oc->ods[index];
 }
 
-int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *comps,
+int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *oc,
 		      bool is_reading, u64 offset, u64 length,
 		      struct ore_io_state **pios)
 {
@@ -71,16 +71,16 @@ int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *comps,
 	/*TODO: Maybe use kmem_cach per sbi of size
 	 * exofs_io_state_size(layout->s_numdevs)
 	 */
-	ios = kzalloc(ore_io_state_size(comps->numdevs), GFP_KERNEL);
+	ios = kzalloc(ore_io_state_size(oc->numdevs), GFP_KERNEL);
 	if (unlikely(!ios)) {
 		ORE_DBGMSG("Failed kzalloc bytes=%d\n",
-			     ore_io_state_size(comps->numdevs));
+			     ore_io_state_size(oc->numdevs));
 		*pios = NULL;
 		return -ENOMEM;
 	}
 
 	ios->layout = layout;
-	ios->comps = comps;
+	ios->oc = oc;
 	ios->offset = offset;
 	ios->length = length;
 	ios->reading = is_reading;
@@ -90,10 +90,10 @@ int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *comps,
 }
 EXPORT_SYMBOL(ore_get_rw_state);
 
-int  ore_get_io_state(struct ore_layout *layout, struct ore_components *comps,
+int  ore_get_io_state(struct ore_layout *layout, struct ore_components *oc,
 		      struct ore_io_state **ios)
 {
-	return ore_get_rw_state(layout, comps, true, 0, 0, ios);
+	return ore_get_rw_state(layout, oc, true, 0, 0, ios);
 }
 EXPORT_SYMBOL(ore_get_io_state);
 
@@ -476,7 +476,7 @@ int ore_create(struct ore_io_state *ios)
 {
 	int i, ret;
 
-	for (i = 0; i < ios->comps->numdevs; i++) {
+	for (i = 0; i < ios->oc->numdevs; i++) {
 		struct osd_request *or;
 
 		or = osd_start_request(_ios_od(ios, i), GFP_KERNEL);
@@ -501,7 +501,7 @@ int ore_remove(struct ore_io_state *ios)
 {
 	int i, ret;
 
-	for (i = 0; i < ios->comps->numdevs; i++) {
+	for (i = 0; i < ios->oc->numdevs; i++) {
 		struct osd_request *or;
 
 		or = osd_start_request(_ios_od(ios, i), GFP_KERNEL);
@@ -768,7 +768,7 @@ static void _calc_trunk_info(struct ore_layout *layout, u64 file_offset,
 	ti->max_devs = layout->group_width * layout->group_count;
 }
 
-int ore_truncate(struct ore_layout *layout, struct ore_components *comps,
+int ore_truncate(struct ore_layout *layout, struct ore_components *oc,
 		   u64 size)
 {
 	struct ore_io_state *ios;
@@ -779,7 +779,7 @@ int ore_truncate(struct ore_layout *layout, struct ore_components *comps,
 	struct _trunc_info ti;
 	int i, ret;
 
-	ret = ore_get_io_state(layout, comps, &ios);
+	ret = ore_get_io_state(layout, oc, &ios);
 	if (unlikely(ret))
 		return ret;
 
@@ -792,7 +792,7 @@ int ore_truncate(struct ore_layout *layout, struct ore_components *comps,
 		goto out;
 	}
 
-	ios->numdevs = ios->comps->numdevs;
+	ios->numdevs = ios->oc->numdevs;
 
 	for (i = 0; i < ti.max_devs; ++i) {
 		struct exofs_trunc_attr *size_attr = &size_attrs[i];
@@ -815,7 +815,7 @@ int ore_truncate(struct ore_layout *layout, struct ore_components *comps,
 		size_attr->attr.val_ptr = &size_attr->newsize;
 
 		ORE_DBGMSG("trunc(0x%llx) obj_offset=0x%llx dev=%d\n",
-			     _LLU(comps->comps->obj.id), _LLU(obj_size), i);
+			     _LLU(oc->comps->obj.id), _LLU(obj_size), i);
 		ret = _truncate_mirrors(ios, i * ios->layout->mirrors_p1,
 					&size_attr->attr);
 		if (unlikely(ret))
