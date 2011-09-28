@@ -153,12 +153,12 @@ struct diu {
 	__be32 plut;
 } __attribute__ ((packed));
 
-/* Modes of operation of DIU */
+/*
+ * Modes of operation of DIU.  The DIU supports five different modes, but
+ * the driver only supports modes 0 and 1.
+ */
 #define MFB_MODE0	0	/* DIU off */
 #define MFB_MODE1	1	/* All three planes output to display */
-#define MFB_MODE2	2	/* Plane 1 to display, planes 2+3 written back*/
-#define MFB_MODE3	3	/* All three planes written back to memory */
-#define MFB_MODE4	4	/* Color bar generation */
 
 #endif /* __KERNEL__ */
 #endif /* __FSL_DIU_FB_H__ */

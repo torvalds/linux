@@ -52,7 +52,6 @@
 struct diu_hw {
 	struct diu __iomem *diu_reg;
 	spinlock_t reg_lock;
-	unsigned int mode;		/* DIU operation mode */
 };
 
 struct diu_addr {
@@ -426,7 +425,6 @@ static struct mfb_info mfb_template[] = {
 };
 
 static struct diu_hw dr = {
-	.mode = MFB_MODE1,
 	.reg_lock = __SPIN_LOCK_UNLOCKED(diu_hw.reg_lock),
 };
 
@@ -620,7 +618,7 @@ static void enable_lcdc(struct fb_info *info)
 	struct fsl_diu_data *machine_data = mfbi->parent;
 
 	if (!machine_data->fb_enabled) {
-		out_be32(&hw->diu_mode, dr.mode);
+		out_be32(&hw->diu_mode, MFB_MODE1);
 		machine_data->fb_enabled++;
 	}
 }
@@ -1390,9 +1388,6 @@ static int request_irq_local(int irq)
 		ints |=	INT_VSYNC;
 #endif
 
-		if (dr.mode == MFB_MODE2 || dr.mode == MFB_MODE3)
-			ints |= INT_VSYNC_WB;
-
 		/* Read to clear the status */
 		in_be32(&hw->int_status);
 		out_be32(&hw->int_mask, ints);
@@ -1558,7 +1553,7 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	}
 
 	diu_mode = in_be32(&dr.diu_reg->diu_mode);
-	if (diu_mode != MFB_MODE1)
+	if (diu_mode == MFB_MODE0)
 		out_be32(&dr.diu_reg->diu_mode, 0);	/* disable DIU */
 
 	/* Get the IRQ of the DIU */
@@ -1611,7 +1606,7 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	 * Let DIU display splash screen if it was pre-initialized
 	 * by the bootloader, set dummy area descriptor otherwise.
 	 */
-	if (diu_mode != MFB_MODE1)
+	if (diu_mode == MFB_MODE0)
 		out_be32(&dr.diu_reg->desc[0], machine_data->dummy_ad->paddr);
 
 	out_be32(&dr.diu_reg->desc[1], machine_data->dummy_ad->paddr);
