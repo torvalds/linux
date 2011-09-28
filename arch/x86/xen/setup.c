@@ -37,7 +37,7 @@ extern void xen_syscall_target(void);
 extern void xen_syscall32_target(void);
 
 /* Amount of extra memory space we add to the e820 ranges */
-phys_addr_t xen_extra_mem_start, xen_extra_mem_size;
+struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 
 /* Number of pages released from the initial allocation. */
 unsigned long xen_released_pages;
@@ -59,7 +59,7 @@ static void __init xen_add_extra_mem(unsigned long pages)
 	unsigned long pfn;
 
 	u64 size = (u64)pages * PAGE_SIZE;
-	u64 extra_start = xen_extra_mem_start + xen_extra_mem_size;
+	u64 extra_start = xen_extra_mem[0].start + xen_extra_mem[0].size;
 
 	if (!pages)
 		return;
@@ -69,7 +69,7 @@ static void __init xen_add_extra_mem(unsigned long pages)
 
 	memblock_x86_reserve_range(extra_start, extra_start + size, "XEN EXTRA");
 
-	xen_extra_mem_size += size;
+	xen_extra_mem[0].size += size;
 
 	xen_max_p2m_pfn = PFN_DOWN(extra_start + size);
 
@@ -242,7 +242,7 @@ char * __init xen_memory_setup(void)
 
 	memcpy(map_raw, map, sizeof(map));
 	e820.nr_map = 0;
-	xen_extra_mem_start = mem_end;
+	xen_extra_mem[0].start = mem_end;
 	for (i = 0; i < memmap.nr_entries; i++) {
 		unsigned long long end;
 
@@ -270,8 +270,8 @@ char * __init xen_memory_setup(void)
 				e820_add_region(end, delta, E820_UNUSABLE);
 		}
 
-		if (map[i].size > 0 && end > xen_extra_mem_start)
-			xen_extra_mem_start = end;
+		if (map[i].size > 0 && end > xen_extra_mem[0].start)
+			xen_extra_mem[0].start = end;
 
 		/* Add region if any remains */
 		if (map[i].size > 0)
@@ -279,10 +279,10 @@ char * __init xen_memory_setup(void)
 	}
 	/* Align the balloon area so that max_low_pfn does not get set
 	 * to be at the _end_ of the PCI gap at the far end (fee01000).
-	 * Note that xen_extra_mem_start gets set in the loop above to be
-	 * past the last E820 region. */
-	if (xen_initial_domain() && (xen_extra_mem_start < (1ULL<<32)))
-		xen_extra_mem_start = (1ULL<<32);
+	 * Note that the start of balloon area gets set in the loop above
+	 * to be past the last E820 region. */
+	if (xen_initial_domain() && (xen_extra_mem[0].start < (1ULL<<32)))
+		xen_extra_mem[0].start = (1ULL<<32);
 
 	/*
 	 * In domU, the ISA region is normal, usable memory, but we

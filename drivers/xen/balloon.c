@@ -555,10 +555,31 @@ void free_xenballooned_pages(int nr_pages, struct page** pages)
 }
 EXPORT_SYMBOL(free_xenballooned_pages);
 
-static int __init balloon_init(void)
+static void __init balloon_add_region(unsigned long start_pfn,
+				      unsigned long pages)
 {
 	unsigned long pfn, extra_pfn_end;
 	struct page *page;
+
+	/*
+	 * If the amount of usable memory has been limited (e.g., with
+	 * the 'mem' command line parameter), don't add pages beyond
+	 * this limit.
+	 */
+	extra_pfn_end = min(max_pfn, start_pfn + pages);
+
+	for (pfn = start_pfn; pfn < extra_pfn_end; pfn++) {
+		page = pfn_to_page(pfn);
+		/* totalram_pages and totalhigh_pages do not
+		   include the boot-time balloon extension, so
+		   don't subtract from it. */
+		__balloon_append(page);
+	}
+}
+
+static int __init balloon_init(void)
+{
+	int i;
 
 	if (!xen_domain())
 		return -ENODEV;
@@ -587,23 +608,12 @@ static int __init balloon_init(void)
 
 	/*
 	 * Initialize the balloon with pages from the extra memory
-	 * region (see arch/x86/xen/setup.c).
-	 *
-	 * If the amount of usable memory has been limited (e.g., with
-	 * the 'mem' command line parameter), don't add pages beyond
-	 * this limit.
+	 * regions (see arch/x86/xen/setup.c).
 	 */
-	extra_pfn_end = min(max_pfn,
-			    (unsigned long)PFN_DOWN(xen_extra_mem_start
-						    + xen_extra_mem_size));
-	for (pfn = PFN_UP(xen_extra_mem_start);
-	     pfn < extra_pfn_end;
-	     pfn++) {
-		page = pfn_to_page(pfn);
-		/* totalram_pages and totalhigh_pages do not include the boot-time
-		   balloon extension, so don't subtract from it. */
-		__balloon_append(page);
-	}
+	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++)
+		if (xen_extra_mem[i].size)
+			balloon_add_region(PFN_UP(xen_extra_mem[i].start),
+					   PFN_DOWN(xen_extra_mem[i].size));
 
 	return 0;
 }
