@@ -445,13 +445,8 @@ static long pmbus_reg2data_linear(struct pmbus_data *data,
 		exponent = data->exponent;
 		mantissa = (u16) sensor->data;
 	} else {				/* LINEAR11 */
-		exponent = (sensor->data >> 11) & 0x001f;
-		mantissa = sensor->data & 0x07ff;
-
-		if (exponent > 0x0f)
-			exponent |= 0xffe0;	/* sign extend exponent */
-		if (mantissa > 0x03ff)
-			mantissa |= 0xfffff800;	/* sign extend mantissa */
+		exponent = ((s16)sensor->data) >> 11;
+		mantissa = ((s16)((sensor->data & 0x7ff) << 5)) >> 5;
 	}
 
 	val = mantissa;
@@ -1628,7 +1623,7 @@ static void pmbus_find_attributes(struct i2c_client *client,
 static int pmbus_identify_common(struct i2c_client *client,
 				 struct pmbus_data *data)
 {
-	int vout_mode = -1, exponent;
+	int vout_mode = -1;
 
 	if (pmbus_check_byte_register(client, 0, PMBUS_VOUT_MODE))
 		vout_mode = _pmbus_read_byte_data(client, 0, PMBUS_VOUT_MODE);
@@ -1642,11 +1637,7 @@ static int pmbus_identify_common(struct i2c_client *client,
 			if (data->info->format[PSC_VOLTAGE_OUT] != linear)
 				return -ENODEV;
 
-			exponent = vout_mode & 0x1f;
-			/* and sign-extend it */
-			if (exponent & 0x10)
-				exponent |= ~0x1f;
-			data->exponent = exponent;
+			data->exponent = ((s8)(vout_mode << 3)) >> 3;
 			break;
 		case 1: /* VID mode         */
 			if (data->info->format[PSC_VOLTAGE_OUT] != vid)
