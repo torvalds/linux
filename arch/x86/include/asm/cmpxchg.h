@@ -14,6 +14,8 @@ extern void __cmpxchg_wrong_size(void)
 	__compiletime_error("Bad argument size for cmpxchg");
 extern void __xadd_wrong_size(void)
 	__compiletime_error("Bad argument size for xadd");
+extern void __add_wrong_size(void)
+	__compiletime_error("Bad argument size for add");
 
 /*
  * Constants for operation sizes. On 32-bit, the 64-bit size it set to
@@ -206,5 +208,45 @@ extern void __xadd_wrong_size(void)
 #define xadd(ptr, inc)		__xadd((ptr), (inc), LOCK_PREFIX)
 #define xadd_sync(ptr, inc)	__xadd((ptr), (inc), "lock; ")
 #define xadd_local(ptr, inc)	__xadd((ptr), (inc), "")
+
+#define __add(ptr, inc, lock)						\
+	({								\
+	        __typeof__ (*(ptr)) __ret = (inc);			\
+		switch (sizeof(*(ptr))) {				\
+		case __X86_CASE_B:					\
+			asm volatile (lock "addb %b1, %0\n"		\
+				      : "+m" (*(ptr)) : "ri" (inc)	\
+				      : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_W:					\
+			asm volatile (lock "addw %w1, %0\n"		\
+				      : "+m" (*(ptr)) : "ri" (inc)	\
+				      : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_L:					\
+			asm volatile (lock "addl %1, %0\n"		\
+				      : "+m" (*(ptr)) : "ri" (inc)	\
+				      : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_Q:					\
+			asm volatile (lock "addq %1, %0\n"		\
+				      : "+m" (*(ptr)) : "ri" (inc)	\
+				      : "memory", "cc");		\
+			break;						\
+		default:						\
+			__add_wrong_size();				\
+		}							\
+		__ret;							\
+	})
+
+/*
+ * add_*() adds "inc" to "*ptr"
+ *
+ * __add() takes a lock prefix
+ * add_smp() is locked when multiple CPUs are online
+ * add_sync() is always locked
+ */
+#define add_smp(ptr, inc)	__add((ptr), (inc), LOCK_PREFIX)
+#define add_sync(ptr, inc)	__add((ptr), (inc), "lock; ")
 
 #endif	/* ASM_X86_CMPXCHG_H */

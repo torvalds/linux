@@ -79,23 +79,10 @@ static __always_inline int __ticket_spin_trylock(arch_spinlock_t *lock)
 	return cmpxchg(&lock->head_tail, old.head_tail, new.head_tail) == old.head_tail;
 }
 
-#if (NR_CPUS < 256)
 static __always_inline void __ticket_spin_unlock(arch_spinlock_t *lock)
 {
-	asm volatile(UNLOCK_LOCK_PREFIX "incb %0"
-		     : "+m" (lock->head_tail)
-		     :
-		     : "memory", "cc");
+	__add(&lock->tickets.head, 1, UNLOCK_LOCK_PREFIX);
 }
-#else
-static __always_inline void __ticket_spin_unlock(arch_spinlock_t *lock)
-{
-	asm volatile(UNLOCK_LOCK_PREFIX "incw %0"
-		     : "+m" (lock->head_tail)
-		     :
-		     : "memory", "cc");
-}
-#endif
 
 static inline int __ticket_spin_is_locked(arch_spinlock_t *lock)
 {
