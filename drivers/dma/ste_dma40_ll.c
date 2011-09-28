@@ -332,10 +332,10 @@ void d40_log_lli_lcpa_write(struct d40_log_lli_full *lcpa,
 {
 	d40_log_lli_link(lli_dst, lli_src, next, flags);
 
-	writel(lli_src->lcsp02, &lcpa[0].lcsp0);
-	writel(lli_src->lcsp13, &lcpa[0].lcsp1);
-	writel(lli_dst->lcsp02, &lcpa[0].lcsp2);
-	writel(lli_dst->lcsp13, &lcpa[0].lcsp3);
+	writel_relaxed(lli_src->lcsp02, &lcpa[0].lcsp0);
+	writel_relaxed(lli_src->lcsp13, &lcpa[0].lcsp1);
+	writel_relaxed(lli_dst->lcsp02, &lcpa[0].lcsp2);
+	writel_relaxed(lli_dst->lcsp13, &lcpa[0].lcsp3);
 }
 
 void d40_log_lli_lcla_write(struct d40_log_lli *lcla,
@@ -345,10 +345,10 @@ void d40_log_lli_lcla_write(struct d40_log_lli *lcla,
 {
 	d40_log_lli_link(lli_dst, lli_src, next, flags);
 
-	writel(lli_src->lcsp02, &lcla[0].lcsp02);
-	writel(lli_src->lcsp13, &lcla[0].lcsp13);
-	writel(lli_dst->lcsp02, &lcla[1].lcsp02);
-	writel(lli_dst->lcsp13, &lcla[1].lcsp13);
+	writel_relaxed(lli_src->lcsp02, &lcla[0].lcsp02);
+	writel_relaxed(lli_src->lcsp13, &lcla[0].lcsp13);
+	writel_relaxed(lli_dst->lcsp02, &lcla[1].lcsp02);
+	writel_relaxed(lli_dst->lcsp13, &lcla[1].lcsp13);
 }
 
 static void d40_log_fill_lli(struct d40_log_lli *lli,
