@@ -80,6 +80,7 @@ do {                                                            	\
 struct fcoe_interface {
 	struct list_head   list;
 	struct net_device  *netdev;
+	struct net_device  *realdev;
 	struct packet_type fcoe_packet_type;
 	struct packet_type fip_packet_type;
 	struct fcoe_ctlr   ctlr;

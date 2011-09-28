@@ -280,6 +280,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	 * use the first one for SPMA */
 	real_dev = (netdev->priv_flags & IFF_802_1Q_VLAN) ?
 		vlan_dev_real_dev(netdev) : netdev;
+	fcoe->realdev = real_dev;
 	rcu_read_lock();
 	for_each_dev_addr(real_dev, ha) {
 		if ((ha->type == NETDEV_HW_ADDR_T_SAN) &&
@@ -1518,7 +1519,13 @@ int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	skb_reset_network_header(skb);
 	skb->mac_len = elen;
 	skb->protocol = htons(ETH_P_FCOE);
-	skb->dev = fcoe->netdev;
+	if (fcoe->netdev->priv_flags & IFF_802_1Q_VLAN &&
+	    fcoe->realdev->features & NETIF_F_HW_VLAN_TX) {
+		skb->vlan_tci = VLAN_TAG_PRESENT |
+				vlan_dev_vlan_id(fcoe->netdev);
+		skb->dev = fcoe->realdev;
+	} else
+		skb->dev = fcoe->netdev;
 
 	/* fill up mac and fcoe headers */
 	eh = eth_hdr(skb);
