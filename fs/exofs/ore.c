@@ -47,6 +47,9 @@ MODULE_AUTHOR("Boaz Harrosh <bharrosh@panasas.com>");
 MODULE_DESCRIPTION("Objects Raid Engine ore.ko");
 MODULE_LICENSE("GPL");
 
+static void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
+				 struct ore_striping_info *si);
+
 static u8 *_ios_cred(struct ore_io_state *ios, unsigned index)
 {
 	return ios->oc->comps[index & ios->oc->single_comp].cred;
@@ -62,38 +65,85 @@ static struct osd_dev *_ios_od(struct ore_io_state *ios, unsigned index)
 	return ore_comp_dev(ios->oc, index);
 }
 
-int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *oc,
-		      bool is_reading, u64 offset, u64 length,
-		      struct ore_io_state **pios)
+static int  _get_io_state(struct ore_layout *layout,
+			  struct ore_components *oc, unsigned numdevs,
+			  struct ore_io_state **pios)
 {
 	struct ore_io_state *ios;
 
 	/*TODO: Maybe use kmem_cach per sbi of size
 	 * exofs_io_state_size(layout->s_numdevs)
 	 */
-	ios = kzalloc(ore_io_state_size(oc->numdevs), GFP_KERNEL);
+	ios = kzalloc(ore_io_state_size(numdevs), GFP_KERNEL);
 	if (unlikely(!ios)) {
 		ORE_DBGMSG("Failed kzalloc bytes=%d\n",
-			     ore_io_state_size(oc->numdevs));
+			   ore_io_state_size(numdevs));
 		*pios = NULL;
 		return -ENOMEM;
 	}
 
 	ios->layout = layout;
 	ios->oc = oc;
-	ios->offset = offset;
-	ios->length = length;
-	ios->reading = is_reading;
-
 	*pios = ios;
+	return 0;
+}
+
+/* Allocate an io_state for only a single group of devices
+ *
+ * If a user needs to call ore_read/write() this version must be used becase it
+ * allocates extra stuff for striping and raid.
+ * The ore might decide to only IO less then @length bytes do to alignmets
+ * and constrains as follows:
+ * - The IO cannot cross group boundary.
+ * - In raid5/6 The end of the IO must align at end of a stripe eg.
+ *   (@offset + @length) % strip_size == 0. Or the complete range is within a
+ *   single stripe.
+ * - Memory condition only permitted a shorter IO. (A user can use @length=~0
+ *   And check the returned ios->length for max_io_size.)
+ *
+ * The caller must check returned ios->length (and/or ios->nr_pages) and
+ * re-issue these pages that fall outside of ios->length
+ */
+int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *oc,
+		      bool is_reading, u64 offset, u64 length,
+		      struct ore_io_state **pios)
+{
+	struct ore_io_state *ios;
+	unsigned numdevs = layout->group_width * layout->mirrors_p1;
+	int ret;
+
+	ret = _get_io_state(layout, oc, numdevs, pios);
+	if (unlikely(ret))
+		return ret;
+
+	ios = *pios;
+	ios->reading = is_reading;
+	ios->offset = offset;
+
+	if (length) {
+		struct ore_striping_info si;
+
+		ore_calc_stripe_info(layout, offset, &si);
+		ios->length = (length <= si.group_length) ? length :
+							si.group_length;
+		ios->nr_pages = (ios->length + PAGE_SIZE - 1) / PAGE_SIZE;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(ore_get_rw_state);
 
+/* Allocate an io_state for all the devices in the comps array
+ *
+ * This version of io_state allocation is used mostly by create/remove
+ * and trunc where we currently need all the devices. The only wastful
+ * bit is the read/write_attributes with no IO. Those sites should
+ * be converted to use ore_get_rw_state() with length=0
+ */
 int  ore_get_io_state(struct ore_layout *layout, struct ore_components *oc,
-		      struct ore_io_state **ios)
+		      struct ore_io_state **pios)
 {
-	return ore_get_rw_state(layout, oc, true, 0, 0, ios);
+	return _get_io_state(layout, oc, oc->numdevs, pios);
 }
 EXPORT_SYMBOL(ore_get_io_state);
 
@@ -374,12 +424,12 @@ static int _prepare_one_group(struct ore_io_state *ios, u64 length,
 	unsigned devs_in_group = ios->layout->group_width * mirrors_p1;
 	unsigned dev = si->dev;
 	unsigned first_dev = dev - (dev % devs_in_group);
-	unsigned max_comp = ios->numdevs ? ios->numdevs - mirrors_p1 : 0;
 	unsigned cur_pg = ios->pages_consumed;
 	int ret = 0;
 
 	while (length) {
-		struct ore_per_dev_state *per_dev = &ios->per_dev[dev];
+		unsigned comp = dev - first_dev;
+		struct ore_per_dev_state *per_dev = &ios->per_dev[comp];
 		unsigned cur_len, page_off = 0;
 
 		if (!per_dev->length) {
@@ -397,9 +447,6 @@ static int _prepare_one_group(struct ore_io_state *ios, u64 length,
 				per_dev->offset = si->obj_offset - si->unit_off;
 				cur_len = stripe_unit;
 			}
-
-			if (max_comp < dev)
-				max_comp = dev;
 		} else {
 			cur_len = stripe_unit;
 		}
@@ -417,17 +464,15 @@ static int _prepare_one_group(struct ore_io_state *ios, u64 length,
 		length -= cur_len;
 	}
 out:
-	ios->numdevs = max_comp + mirrors_p1;
+	ios->numdevs = devs_in_group;
 	ios->pages_consumed = cur_pg;
 	return ret;
 }
 
 static int _prepare_for_striping(struct ore_io_state *ios)
 {
-	u64 length = ios->length;
-	u64 offset = ios->offset;
 	struct ore_striping_info si;
-	int ret = 0;
+	int ret;
 
 	if (!ios->pages) {
 		if (ios->kern_buff) {
@@ -446,21 +491,11 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 		return 0;
 	}
 
-	while (length) {
-		ore_calc_stripe_info(ios->layout, offset, &si);
+	ore_calc_stripe_info(ios->layout, ios->offset, &si);
 
-		if (length < si.group_length)
-			si.group_length = length;
+	BUG_ON(ios->length > si.group_length);
+	ret = _prepare_one_group(ios, ios->length, &si);
 
-		ret = _prepare_one_group(ios, si.group_length, &si);
-		if (unlikely(ret))
-			goto out;
-
-		offset += si.group_length;
-		length -= si.group_length;
-	}
-
-out:
 	return ret;
 }
 
@@ -742,7 +777,6 @@ struct _trunc_info {
 
 	unsigned first_group_dev;
 	unsigned nex_group_dev;
-	unsigned max_devs;
 };
 
 static void _calc_trunk_info(struct ore_layout *layout, u64 file_offset,
@@ -757,7 +791,6 @@ static void _calc_trunk_info(struct ore_layout *layout, u64 file_offset,
 
 	ti->first_group_dev = ti->si.dev - (ti->si.dev % layout->group_width);
 	ti->nex_group_dev = ti->first_group_dev + layout->group_width;
-	ti->max_devs = layout->group_width * layout->group_count;
 }
 
 int ore_truncate(struct ore_layout *layout, struct ore_components *oc,
@@ -777,7 +810,7 @@ int ore_truncate(struct ore_layout *layout, struct ore_components *oc,
 
 	_calc_trunk_info(ios->layout, size, &ti);
 
-	size_attrs = kcalloc(ti.max_devs, sizeof(*size_attrs),
+	size_attrs = kcalloc(ios->oc->numdevs, sizeof(*size_attrs),
 			     GFP_KERNEL);
 	if (unlikely(!size_attrs)) {
 		ret = -ENOMEM;
@@ -786,7 +819,7 @@ int ore_truncate(struct ore_layout *layout, struct ore_components *oc,
 
 	ios->numdevs = ios->oc->numdevs;
 
-	for (i = 0; i < ti.max_devs; ++i) {
+	for (i = 0; i < ios->numdevs; ++i) {
 		struct exofs_trunc_attr *size_attr = &size_attrs[i];
 		u64 obj_size;
 
