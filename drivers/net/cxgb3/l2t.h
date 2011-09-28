@@ -76,6 +76,7 @@ struct l2t_data {
 	atomic_t nfree;		/* number of free entries */
 	rwlock_t lock;
 	struct l2t_entry l2tab[0];
+	struct rcu_head rcu_head;	/* to handle rcu cleanup */
 };
 
 typedef void (*arp_failure_handler_func)(struct t3cdev * dev,
@@ -99,7 +100,7 @@ static inline void set_arp_failure_handler(struct sk_buff *skb,
 /*
  * Getting to the L2 data from an offload device.
  */
-#define L2DATA(dev) ((dev)->l2opt)
+#define L2DATA(cdev) (rcu_dereference((cdev)->l2opt))
 
 #define W_TCB_L2T_IX    0
 #define S_TCB_L2T_IX    7
@@ -126,15 +127,22 @@ static inline int l2t_send(struct t3cdev *dev, struct sk_buff *skb,
 	return t3_l2t_send_slow(dev, skb, e);
 }
 
-static inline void l2t_release(struct l2t_data *d, struct l2t_entry *e)
+static inline void l2t_release(struct t3cdev *t, struct l2t_entry *e)
 {
-	if (atomic_dec_and_test(&e->refcnt))
+	struct l2t_data *d;
+
+	rcu_read_lock();
+	d = L2DATA(t);
+
+	if (atomic_dec_and_test(&e->refcnt) && d)
 		t3_l2e_free(d, e);
+
+	rcu_read_unlock();
 }
 
 static inline void l2t_hold(struct l2t_data *d, struct l2t_entry *e)
 {
-	if (atomic_add_return(1, &e->refcnt) == 1)	/* 0 -> 1 transition */
+	if (d && atomic_add_return(1, &e->refcnt) == 1)	/* 0 -> 1 transition */
 		atomic_dec(&d->nfree);
 }
 
