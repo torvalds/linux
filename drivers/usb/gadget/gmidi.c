@@ -66,6 +66,14 @@ static unsigned int qlen = 32;
 module_param(qlen, uint, S_IRUGO);
 MODULE_PARM_DESC(qlen, "USB read request queue length");
 
+static unsigned int in_ports = 1;
+module_param(in_ports, uint, S_IRUGO);
+MODULE_PARM_DESC(in_ports, "Number of MIDI input ports");
+
+static unsigned int out_ports = 1;
+module_param(out_ports, uint, S_IRUGO);
+MODULE_PARM_DESC(out_ports, "Number of MIDI output ports");
+
 /* Thanks to Grey Innovation for donating this product ID.
  *
  * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
@@ -124,7 +132,9 @@ static struct usb_configuration midi_config = {
 
 static int __init midi_bind_config(struct usb_configuration *c)
 {
-	return f_midi_bind_config(c, index, id, buflen, qlen);
+	return f_midi_bind_config(c, index, id,
+				  in_ports, out_ports,
+				  buflen, qlen);
 }
 
 static int __init midi_bind(struct usb_composite_dev *cdev)
