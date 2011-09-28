@@ -21,6 +21,7 @@
 #include <linux/err.h>
 
 #include <asm/pgtable.h>
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
 
 #include <mach/common.h>
@@ -28,6 +29,39 @@
 #include <mach/hardware.h>
 #include <mach/iomux-v3.h>
 #include <mach/irqs.h>
+
+void imx3_init_l2x0(void)
+{
+	void __iomem *l2x0_base;
+	void __iomem *clkctl_base;
+
+/*
+ * First of all, we must repair broken chip settings. There are some
+ * i.MX35 CPUs in the wild, comming with bogus L2 cache settings. These
+ * misconfigured CPUs will run amok immediately when the L2 cache gets enabled.
+ * Workaraound is to setup the correct register setting prior enabling the
+ * L2 cache. This should not hurt already working CPUs, as they are using the
+ * same value.
+ */
+#define L2_MEM_VAL 0x10
+
+	clkctl_base = ioremap(MX35_CLKCTL_BASE_ADDR, 4096);
+	if (clkctl_base != NULL) {
+		writel(0x00000515, clkctl_base + L2_MEM_VAL);
+		iounmap(clkctl_base);
+	} else {
+		pr_err("L2 cache: Cannot fix timing. Trying to continue without\n");
+	}
+
+	l2x0_base = ioremap(MX3x_L2CC_BASE_ADDR, 4096);
+	if (IS_ERR(l2x0_base)) {
+		printk(KERN_ERR "remapping L2 cache area failed with %ld\n",
+				PTR_ERR(l2x0_base));
+		return;
+	}
+
+	l2x0_init(l2x0_base, 0x00030024, 0x00000000);
+}
 
 static struct map_desc mx31_io_desc[] __initdata = {
 	imx_map_entry(MX31, X_MEMC, MT_DEVICE),
@@ -102,6 +136,8 @@ void __init imx31_soc_init(void)
 {
 	int to_version = mx31_revision() >> 4;
 
+	imx3_init_l2x0();
+
 	mxc_register_gpio("imx31-gpio", 0, MX31_GPIO1_BASE_ADDR, SZ_16K, MX31_INT_GPIO1, 0);
 	mxc_register_gpio("imx31-gpio", 1, MX31_GPIO2_BASE_ADDR, SZ_16K, MX31_INT_GPIO2, 0);
 	mxc_register_gpio("imx31-gpio", 2, MX31_GPIO3_BASE_ADDR, SZ_16K, MX31_INT_GPIO3, 0);
@@ -153,6 +189,8 @@ static struct sdma_platform_data imx35_sdma_pdata __initdata = {
 void __init imx35_soc_init(void)
 {
 	int to_version = mx35_revision() >> 4;
+
+	imx3_init_l2x0();
 
 	/* i.mx35 has the i.mx31 type gpio */
 	mxc_register_gpio("imx31-gpio", 0, MX35_GPIO1_BASE_ADDR, SZ_16K, MX35_INT_GPIO1, 0);
