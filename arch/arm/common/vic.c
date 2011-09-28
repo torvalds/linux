@@ -31,6 +31,7 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 
+#include <asm/exception.h>
 #include <asm/mach/irq.h>
 #include <asm/hardware/vic.h>
 
@@ -428,3 +429,40 @@ int __init vic_of_init(struct device_node *node, struct device_node *parent)
 	return -EIO;
 }
 #endif /* CONFIG OF */
+
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+/*
+ * Handle each interrupt in a single VIC.  Returns non-zero if we've
+ * handled at least one interrupt.  This does a single read of the
+ * status register and handles all interrupts in order from LSB first.
+ */
+static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
+{
+	u32 stat, irq;
+	int handled = 0;
+
+	stat = readl_relaxed(vic->base + VIC_IRQ_STATUS);
+	while (stat) {
+		irq = ffs(stat) - 1;
+		handle_IRQ(irq_domain_to_irq(&vic->domain, irq), regs);
+		stat &= ~(1 << irq);
+		handled = 1;
+	}
+
+	return handled;
+}
+
+/*
+ * Keep iterating over all registered VIC's until there are no pending
+ * interrupts.
+ */
+asmlinkage void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
+{
+	int i, handled;
+
+	do {
+		for (i = 0, handled = 0; i < vic_id; ++i)
+			handled |= handle_one_vic(&vic_devices[i], regs);
+	} while (handled);
+}
+#endif /* CONFIG_MULTI_IRQ_HANDLER */
