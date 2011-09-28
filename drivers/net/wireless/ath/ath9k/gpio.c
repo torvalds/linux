@@ -84,9 +84,14 @@ void ath_init_leds(struct ath_softc *sc)
 static bool ath_is_rfkill_set(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	bool is_blocked;
 
-	return ath9k_hw_gpio_get(ah, ah->rfkill_gpio) ==
+	ath9k_ps_wakeup(sc);
+	is_blocked = ath9k_hw_gpio_get(ah, ah->rfkill_gpio) ==
 				  ah->rfkill_polarity;
+	ath9k_ps_restore(sc);
+
+	return is_blocked;
 }
 
 void ath9k_rfkill_poll_state(struct ieee80211_hw *hw)
