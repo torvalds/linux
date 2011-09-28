@@ -663,9 +663,13 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	u32 phy_addr = 0, virt_addr = 0;
 	struct omap_vout_device *vout = q->priv_data;
 	struct omapvideo_info *ovid = &vout->vid_info;
+	int vid_max_buf_size;
 
 	if (!vout)
 		return -EINVAL;
+
+	vid_max_buf_size = vout->vid == OMAP_VIDEO1 ? video1_bufsize :
+		video2_bufsize;
 
 	if (V4L2_BUF_TYPE_VIDEO_OUTPUT != q->type)
 		return -EINVAL;
@@ -689,7 +693,7 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 		video1_numbuffers : video2_numbuffers;
 
 	/* Check the size of the buffer */
-	if (*size > vout->buffer_size) {
+	if (*size > vid_max_buf_size) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 				"buffer allocation mismatch [%u] [%u]\n",
 				*size, vout->buffer_size);
