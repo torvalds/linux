@@ -406,35 +406,32 @@ struct fc_seq {
  *	sequence allocation
  */
 struct fc_exch {
-	struct fc_exch_mgr  *em;
-	struct fc_exch_pool *pool;
-	u32		    state;
-	u16		    xid;
-	struct list_head    ex_list;
 	spinlock_t	    ex_lock;
 	atomic_t	    ex_refcnt;
-	struct delayed_work timeout_work;
+	enum fc_class	    class;
+	struct fc_exch_mgr  *em;
+	struct fc_exch_pool *pool;
+	struct list_head    ex_list;
 	struct fc_lport	    *lp;
+	u32		    esb_stat;
+	u8		    state;
+	u8		    fh_type;
+	u8		    seq_id;
+	u8		    encaps;
+	u16		    xid;
 	u16		    oxid;
 	u16		    rxid;
 	u32		    oid;
 	u32		    sid;
 	u32		    did;
-	u32		    esb_stat;
 	u32		    r_a_tov;
-	u8		    seq_id;
-	u8		    encaps;
 	u32		    f_ctl;
-	u8		    fh_type;
-	enum fc_class	    class;
-	struct fc_seq	    seq;
-
+	struct fc_seq       seq;
 	void		    (*resp)(struct fc_seq *, struct fc_frame *, void *);
 	void		    *arg;
-
 	void		    (*destructor)(struct fc_seq *, void *);
-
-};
+	struct delayed_work timeout_work;
+} ____cacheline_aligned_in_smp;
 #define	fc_seq_exch(sp) container_of(sp, struct fc_exch, seq)
 
 
