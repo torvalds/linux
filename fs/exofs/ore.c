@@ -317,7 +317,7 @@ static void _clear_bio(struct bio *bio)
 	}
 }
 
-int ore_check_io(struct ore_io_state *ios, u64 *resid)
+int ore_check_io(struct ore_io_state *ios, ore_on_dev_error on_dev_error)
 {
 	enum osd_err_priority acumulated_osd_err = 0;
 	int acumulated_lin_err = 0;
@@ -325,7 +325,8 @@ int ore_check_io(struct ore_io_state *ios, u64 *resid)
 
 	for (i = 0; i < ios->numdevs; i++) {
 		struct osd_sense_info osi;
-		struct osd_request *or = ios->per_dev[i].or;
+		struct ore_per_dev_state *per_dev = &ios->per_dev[i];
+		struct osd_request *or = per_dev->or;
 		int ret;
 
 		if (unlikely(!or))
@@ -337,27 +338,29 @@ int ore_check_io(struct ore_io_state *ios, u64 *resid)
 
 		if (OSD_ERR_PRI_CLEAR_PAGES == osi.osd_err_pri) {
 			/* start read offset passed endof file */
-			_clear_bio(ios->per_dev[i].bio);
+			_clear_bio(per_dev->bio);
 			ORE_DBGMSG("start read offset passed end of file "
 				"offset=0x%llx, length=0x%llx\n",
-				_LLU(ios->per_dev[i].offset),
-				_LLU(ios->per_dev[i].length));
+				_LLU(per_dev->offset),
+				_LLU(per_dev->length));
 
 			continue; /* we recovered */
 		}
 
+		if (on_dev_error) {
+			u64 residual = ios->reading ?
+					or->in.residual : or->out.residual;
+			u64 offset = (ios->offset + ios->length) - residual;
+			struct ore_dev *od = ios->oc->ods[
+					per_dev->dev - ios->oc->first_dev];
+
+			on_dev_error(ios, od, per_dev->dev, osi.osd_err_pri,
+				     offset, residual);
+		}
 		if (osi.osd_err_pri >= acumulated_osd_err) {
 			acumulated_osd_err = osi.osd_err_pri;
 			acumulated_lin_err = ret;
 		}
-	}
-
-	/* TODO: raid specific residual calculations */
-	if (resid) {
-		if (likely(!acumulated_lin_err))
-			*resid = 0;
-		else
-			*resid = ios->length;
 	}
 
 	return acumulated_lin_err;

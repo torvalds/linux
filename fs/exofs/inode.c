@@ -194,19 +194,16 @@ static void update_write_page(struct page *page, int ret)
 static int __readpages_done(struct page_collect *pcol)
 {
 	int i;
-	u64 resid;
 	u64 good_bytes;
 	u64 length = 0;
-	int ret = ore_check_io(pcol->ios, &resid);
+	int ret = ore_check_io(pcol->ios, NULL);
 
 	if (likely(!ret)) {
 		good_bytes = pcol->length;
 		ret = PAGE_WAS_NOT_IN_IO;
 	} else {
-		good_bytes = pcol->length - resid;
+		good_bytes = 0;
 	}
-	if (good_bytes > pcol->ios->length)
-		good_bytes = pcol->ios->length;
 
 	EXOFS_DBGMSG2("readpages_done(0x%lx) good_bytes=0x%llx"
 		     " length=0x%lx nr_pages=%u\n",
@@ -519,10 +516,9 @@ static void writepages_done(struct ore_io_state *ios, void *p)
 {
 	struct page_collect *pcol = p;
 	int i;
-	u64 resid;
 	u64  good_bytes;
 	u64  length = 0;
-	int ret = ore_check_io(ios, &resid);
+	int ret = ore_check_io(ios, NULL);
 
 	atomic_dec(&pcol->sbi->s_curr_pending);
 
@@ -530,10 +526,8 @@ static void writepages_done(struct ore_io_state *ios, void *p)
 		good_bytes = pcol->length;
 		ret = PAGE_WAS_NOT_IN_IO;
 	} else {
-		good_bytes = pcol->length - resid;
+		good_bytes = 0;
 	}
-	if (good_bytes > pcol->ios->length)
-		good_bytes = pcol->ios->length;
 
 	EXOFS_DBGMSG2("writepages_done(0x%lx) good_bytes=0x%llx"
 		     " length=0x%lx nr_pages=%u\n",

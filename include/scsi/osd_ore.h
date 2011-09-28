@@ -153,7 +153,10 @@ int ore_get_io_state(struct ore_layout *layout, struct ore_components *comps,
 		     struct ore_io_state **ios);
 void ore_put_io_state(struct ore_io_state *ios);
 
-int ore_check_io(struct ore_io_state *ios, u64 *resid);
+typedef void (*ore_on_dev_error)(struct ore_io_state *ios, struct ore_dev *od,
+	unsigned dev_index, enum osd_err_priority oep,
+	u64 dev_offset, u64  dev_len);
+int ore_check_io(struct ore_io_state *ios, ore_on_dev_error rep);
 
 int ore_create(struct ore_io_state *ios);
 int ore_remove(struct ore_io_state *ios);
