@@ -26,7 +26,6 @@
 /* codec private data */
 struct ak4671_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 };
 
 /* ak4671 register cache & default register settings */
@@ -675,7 +674,6 @@ static int __devinit ak4671_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, ak4671);
-	ak4671->control_data = client;
 	ak4671->control_type = SND_SOC_I2C;
 
 	ret = snd_soc_register_codec(&client->dev,
