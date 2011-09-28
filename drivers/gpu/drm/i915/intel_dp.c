@@ -1039,7 +1039,9 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 
 	/* Wake up the sink first */
+	ironlake_edp_panel_vdd_on(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	ironlake_edp_panel_vdd_off(intel_dp);
 
 	if (is_edp(intel_dp)) {
 		ironlake_edp_backlight_off(dev);
