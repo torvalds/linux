@@ -8,8 +8,8 @@
  * option) any later version.
  */
 
-#ifndef __PLAT_S5P_EHCI_H
-#define __PLAT_S5P_EHCI_H
+#ifndef __PLAT_SAMSUNG_EHCI_H
+#define __PLAT_SAMSUNG_EHCI_H __FILE__
 
 struct s5p_ehci_platdata {
 	int (*phy_init)(struct platform_device *pdev, int type);
@@ -18,4 +18,4 @@ struct s5p_ehci_platdata {
 
 extern void s5p_ehci_set_platdata(struct s5p_ehci_platdata *pd);
 
-#endif /* __PLAT_S5P_EHCI_H */
+#endif /* __PLAT_SAMSUNG_EHCI_H */

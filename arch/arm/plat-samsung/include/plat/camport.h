@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef PLAT_S5P_CAMPORT_H_
-#define PLAT_S5P_CAMPORT_H_ __FILE__
+#ifndef __PLAT_SAMSUNG_CAMPORT_H_
+#define __PLAT_SAMSUNG_CAMPORT_H_ __FILE__
 
 enum s5p_camport_id {
 	S5P_CAMPORT_A,
@@ -25,4 +25,4 @@ enum s5p_camport_id {
 int s5pv210_fimc_setup_gpio(enum s5p_camport_id id);
 int exynos4_fimc_setup_gpio(enum s5p_camport_id id);
 
-#endif
+#endif /* __PLAT_SAMSUNG_CAMPORT_H */

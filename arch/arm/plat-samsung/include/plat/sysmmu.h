@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/include/plat/sysmmu.h
+/* linux/arch/arm/plat-samsung/include/plat/sysmmu.h
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -10,8 +10,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM__PLAT_SYSMMU_H
-#define __ASM__PLAT_SYSMMU_H __FILE__
+#ifndef __PLAT_SAMSUNG_SYSMMU_H
+#define __PLAT_SAMSUNG_SYSMMU_H __FILE__
 
 enum S5P_SYSMMU_INTERRUPT_TYPE {
 	SYSMMU_PAGEFAULT,

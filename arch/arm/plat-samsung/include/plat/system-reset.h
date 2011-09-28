@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/include/plat/system-reset.h
+/* linux/arch/arm/plat-samsung/include/plat/system-reset.h
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com

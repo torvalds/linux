@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/include/plat/reset.h
+/* linux/arch/arm/plat-samsung/include/plat/reset.h
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -8,9 +8,9 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_PLAT_S5P_RESET_H
-#define __ASM_PLAT_S5P_RESET_H __FILE__
+#ifndef __PLAT_SAMSUNG_RESET_H
+#define __PLAT_SAMSUNG_RESET_H __FILE__
 
 extern void (*s5p_reset_hook)(void);
 
-#endif /* __ASM_PLAT_S5P_RESET_H */
+#endif /* __PLAT_SAMSUNG_RESET_H */

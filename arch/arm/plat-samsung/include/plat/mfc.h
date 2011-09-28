@@ -7,8 +7,8 @@
  * option) any later version.
  */
 
-#ifndef __PLAT_S5P_MFC_H
-#define __PLAT_S5P_MFC_H
+#ifndef __PLAT_SAMSUNG_MFC_H
+#define __PLAT_SAMSUNG_MFC_H __FILE__
 
 /**
  * s5p_mfc_reserve_mem - function to early reserve memory for MFC driver
@@ -24,4 +24,4 @@
 void __init s5p_mfc_reserve_mem(phys_addr_t rbase, unsigned int rsize,
 				phys_addr_t lbase, unsigned int lsize);
 
-#endif /* __PLAT_S5P_MFC_H */
+#endif /* __PLAT_SAMSUNG_MFC_H */

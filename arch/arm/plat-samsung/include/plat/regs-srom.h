@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/include/plat/regs-srom.h
+/* linux/arch/arm/plat-samsung/include/plat/regs-srom.h
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -10,8 +10,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_PLAT_S5P_REGS_SROM_H
-#define __ASM_PLAT_S5P_REGS_SROM_H __FILE__
+#ifndef __PLAT_SAMSUNG_REGS_SROM_H
+#define __PLAT_SAMSUNG_REGS_SROM_H __FILE__
 
 #include <mach/map.h>
 
@@ -51,4 +51,4 @@
 #define S5P_SROM_BCX__TCOS__SHIFT		24
 #define S5P_SROM_BCX__TACS__SHIFT		28
 
-#endif /* __ASM_PLAT_S5P_REGS_SROM_H */
+#endif /* __PLAT_SAMSUNG_REGS_SROM_H */

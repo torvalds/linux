@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/include/plat/irqs.h
+/* linux/arch/arm/plat-samsung/include/plat/irqs.h
  *
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -10,8 +10,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_PLAT_S5P_IRQS_H
-#define __ASM_PLAT_S5P_IRQS_H __FILE__
+#ifndef __PLAT_SAMSUNG_IRQS_H
+#define __PLAT_SAMSUNG_IRQS_H __FILE__
 
 /* we keep the first set of CPU IRQs out of the range of
  * the ISA space, so that the PC104 has them to itself
@@ -112,4 +112,4 @@
 #define S5P_IRQ_TYPE_EDGE_RISING	(0x03)
 #define S5P_IRQ_TYPE_EDGE_BOTH		(0x04)
 
-#endif /* __ASM_PLAT_S5P_IRQS_H */
+#endif /* __PLAT_SAMSUNG_IRQS_H */

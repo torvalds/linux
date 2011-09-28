@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/include/plat/s5p-time.h
+/* linux/arch/arm/plat-samsung/include/plat/s5p-time.h
  *
  * Copyright 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
