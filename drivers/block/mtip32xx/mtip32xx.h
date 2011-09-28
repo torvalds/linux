@@ -405,37 +405,4 @@ struct driver_data {
 	atomic_t eh_active; /* Flag for error handling tracking */
 };
 
-/* Function declarations */
-extern int mtip_block_initialize(struct driver_data *dd);
-extern int mtip_block_remove(struct driver_data *dd);
-extern int mtip_block_shutdown(struct driver_data *dd);
-extern int mtip_block_suspend(struct driver_data *dd);
-extern int mtip_block_resume(struct driver_data *dd);
-extern int mtip_hw_init(struct driver_data *dd);
-extern int mtip_hw_exit(struct driver_data *dd);
-extern int mtip_hw_shutdown(struct driver_data *dd);
-extern bool mtip_hw_get_capacity(struct driver_data *dd, sector_t *sectors);
-extern void mtip_hw_release_scatterlist(
-			struct driver_data *dd,
-			int tag);
-extern struct scatterlist *mtip_hw_get_scatterlist(
-			struct driver_data *dd,
-			int *tag);
-extern void mtip_hw_submit_io(struct driver_data *dd,
-			sector_t start,
-			int nsect,
-			int nents,
-			int tag,
-			void *callback,
-			void *data,
-			int barrier,
-			int dir);
-extern int mtip_hw_sysfs_init(struct driver_data *dd, struct kobject *kobj);
-extern int mtip_hw_sysfs_exit(struct driver_data *dd, struct kobject *kobj);
-extern int mtip_hw_resume(struct driver_data *dd);
-extern int mtip_hw_suspend(struct driver_data *dd);
-void mtip_command_cleanup(struct driver_data *dd);
-bool mtip_check_surprise_removal(struct pci_dev *pdev);
-void mtip_restart_port(struct mtip_port *port);
-
 #endif
