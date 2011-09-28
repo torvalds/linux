@@ -42,6 +42,13 @@ struct ore_layout {
 	unsigned group_width;
 	u64	 group_depth;
 	unsigned group_count;
+
+	/* Cached often needed calculations filled in by
+	 * ore_verify_layout
+	 */
+	unsigned long max_io_length;	/* Max length that should be passed to
+					 * ore_get_rw_state
+					 */
 };
 
 struct ore_dev {
@@ -138,6 +145,7 @@ static inline unsigned ore_io_state_size(unsigned numdevs)
 }
 
 /* ore.c */
+int ore_verify_layout(unsigned total_comps, struct ore_layout *layout);
 int ore_get_rw_state(struct ore_layout *layout, struct ore_components *comps,
 		     bool is_reading, u64 offset, u64 length,
 		     struct ore_io_state **ios);

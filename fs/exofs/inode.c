@@ -37,11 +37,7 @@
 
 #define EXOFS_DBGMSG2(M...) do {} while (0)
 
-enum { BIO_MAX_PAGES_KMALLOC =
-		(PAGE_SIZE - sizeof(struct bio)) / sizeof(struct bio_vec),
-	MAX_PAGES_KMALLOC =
-		PAGE_SIZE / sizeof(struct page *),
-};
+enum {MAX_PAGES_KMALLOC = PAGE_SIZE / sizeof(struct page *), };
 
 unsigned exofs_max_io_pages(struct ore_layout *layout,
 			    unsigned expected_pages)
@@ -49,8 +45,7 @@ unsigned exofs_max_io_pages(struct ore_layout *layout,
 	unsigned pages = min_t(unsigned, expected_pages, MAX_PAGES_KMALLOC);
 
 	/* TODO: easily support bio chaining */
-	pages =  min_t(unsigned, pages,
-		       layout->group_width * BIO_MAX_PAGES_KMALLOC);
+	pages =  min_t(unsigned, pages, layout->max_io_length / PAGE_SIZE);
 	return pages;
 }
 

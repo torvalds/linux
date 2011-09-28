@@ -480,7 +480,7 @@ static void exofs_put_super(struct super_block *sb)
 static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 				    struct exofs_device_table *dt)
 {
-	u64 stripe_length;
+	int ret;
 
 	sbi->layout.stripe_unit =
 				le64_to_cpu(dt->dt_data_map.cb_stripe_unit);
@@ -493,50 +493,7 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 	sbi->layout.raid_algorithm  =
 				le32_to_cpu(dt->dt_data_map.cb_raid_algorithm);
 
-/* FIXME: Only raid0 for now. if not so, do not mount */
-	if (sbi->layout.raid_algorithm != PNFS_OSD_RAID_0) {
-		EXOFS_ERR("Only RAID_0 for now\n");
-		return -EINVAL;
-	}
-	if (numdevs < (sbi->layout.group_width * sbi->layout.mirrors_p1)) {
-		EXOFS_ERR("Data Map wrong, "
-			  "numdevs=%d < group_width=%d * mirrors=%d\n",
-			  numdevs, sbi->layout.group_width,
-			  sbi->layout.mirrors_p1);
-		return -EINVAL;
-	}
-
-	if (0 != (sbi->layout.stripe_unit & ~PAGE_MASK)) {
-		EXOFS_ERR("Stripe Unit(0x%llx)"
-			  " must be Multples of PAGE_SIZE(0x%lx)\n",
-			  _LLU(sbi->layout.stripe_unit), PAGE_SIZE);
-		return -EINVAL;
-	}
-
-	if (sbi->layout.group_width) {
-		if (!sbi->layout.group_depth) {
-			EXOFS_ERR("group_depth == 0 && group_width != 0\n");
-			return -EINVAL;
-		}
-		sbi->layout.group_count = numdevs / sbi->layout.mirrors_p1 /
-						sbi->layout.group_width;
-	} else {
-		if (sbi->layout.group_depth) {
-			printk(KERN_NOTICE "Warning: group_depth ignored "
-				"group_width == 0 && group_depth == %lld\n",
-				_LLU(sbi->layout.group_depth));
-		}
-		sbi->layout.group_width = numdevs / sbi->layout.mirrors_p1;
-		sbi->layout.group_depth = -1;
-		sbi->layout.group_count = 1;
-	}
-
-	stripe_length = (u64)sbi->layout.group_width * sbi->layout.stripe_unit;
-	if (stripe_length >= (1ULL << 32)) {
-		EXOFS_ERR("Total Stripe length(0x%llx)"
-			  " >= 32bit is not supported\n", _LLU(stripe_length));
-		return -EINVAL;
-	}
+	ret = ore_verify_layout(numdevs, &sbi->layout);
 
 	EXOFS_DBGMSG("exofs: layout: "
 		"num_comps=%u stripe_unit=0x%x group_width=%u "
@@ -547,7 +504,7 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 		_LLU(sbi->layout.group_depth),
 		sbi->layout.mirrors_p1,
 		sbi->layout.raid_algorithm);
-	return 0;
+	return ret;
 }
 
 static unsigned __ra_pages(struct ore_layout *layout)

@@ -47,8 +47,75 @@ MODULE_AUTHOR("Boaz Harrosh <bharrosh@panasas.com>");
 MODULE_DESCRIPTION("Objects Raid Engine ore.ko");
 MODULE_LICENSE("GPL");
 
+/* ore_verify_layout does a couple of things:
+ * 1. Given a minimum number of needed parameters fixes up the rest of the
+ *    members to be operatonals for the ore. The needed parameters are those
+ *    that are defined by the pnfs-objects layout STD.
+ * 2. Check to see if the current ore code actually supports these parameters
+ *    for example stripe_unit must be a multple of the system PAGE_SIZE,
+ *    and etc...
+ * 3. Cache some havily used calculations that will be needed by users.
+ */
+
 static void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
 				 struct ore_striping_info *si);
+
+enum { BIO_MAX_PAGES_KMALLOC =
+		(PAGE_SIZE - sizeof(struct bio)) / sizeof(struct bio_vec),};
+
+int ore_verify_layout(unsigned total_comps, struct ore_layout *layout)
+{
+	u64 stripe_length;
+
+/* FIXME: Only raid0 is supported for now. */
+	if (layout->raid_algorithm != PNFS_OSD_RAID_0) {
+		ORE_ERR("Only RAID_0 for now\n");
+		return -EINVAL;
+	}
+	if (0 != (layout->stripe_unit & ~PAGE_MASK)) {
+		ORE_ERR("Stripe Unit(0x%llx)"
+			  " must be Multples of PAGE_SIZE(0x%lx)\n",
+			  _LLU(layout->stripe_unit), PAGE_SIZE);
+		return -EINVAL;
+	}
+	if (layout->group_width) {
+		if (!layout->group_depth) {
+			ORE_ERR("group_depth == 0 && group_width != 0\n");
+			return -EINVAL;
+		}
+		if (total_comps < (layout->group_width * layout->mirrors_p1)) {
+			ORE_ERR("Data Map wrong, "
+				"numdevs=%d < group_width=%d * mirrors=%d\n",
+				total_comps, layout->group_width,
+				layout->mirrors_p1);
+			return -EINVAL;
+		}
+		layout->group_count = total_comps / layout->mirrors_p1 /
+						layout->group_width;
+	} else {
+		if (layout->group_depth) {
+			printk(KERN_NOTICE "Warning: group_depth ignored "
+				"group_width == 0 && group_depth == %lld\n",
+				_LLU(layout->group_depth));
+		}
+		layout->group_width = total_comps / layout->mirrors_p1;
+		layout->group_depth = -1;
+		layout->group_count = 1;
+	}
+
+	stripe_length = (u64)layout->group_width * layout->stripe_unit;
+	if (stripe_length >= (1ULL << 32)) {
+		ORE_ERR("Stripe_length(0x%llx) >= 32bit is not supported\n",
+			_LLU(stripe_length));
+		return -EINVAL;
+	}
+
+	layout->max_io_length =
+		(BIO_MAX_PAGES_KMALLOC * PAGE_SIZE - layout->stripe_unit) *
+							layout->group_width;
+	return 0;
+}
+EXPORT_SYMBOL(ore_verify_layout);
 
 static u8 *_ios_cred(struct ore_io_state *ios, unsigned index)
 {
