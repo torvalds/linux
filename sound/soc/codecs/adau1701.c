@@ -458,6 +458,7 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 	int ret;
 
 	codec->dapm.idle_bias_off = 1;
+	codec->control_data = to_i2c_client(codec->dev);
 
 	ret = adau1701_load_firmware(codec);
 	if (ret)
