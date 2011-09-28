@@ -1088,7 +1088,8 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 			ironlake_edp_panel_on(intel_dp);
 			ironlake_edp_panel_vdd_off(intel_dp);
 			intel_dp_complete_link_train(intel_dp);
-		}
+		} else
+			ironlake_edp_panel_vdd_off(intel_dp);
 		if (is_edp(intel_dp))
 			ironlake_edp_backlight_on(dev);
 	}
