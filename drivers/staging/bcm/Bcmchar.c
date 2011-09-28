@@ -205,6 +205,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		RDM_BUFFER  sRdmBuffer = {0};
 		PCHAR temp_buff;
 		UINT Bufflen;
+		u16 temp_value;
 
 		/* Copy Ioctl Buffer structure */
 		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
@@ -221,7 +222,10 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			return -EINVAL;
 		}
 
-		Bufflen = IoBuffer.OutputLength + (4 - IoBuffer.OutputLength%4)%4;
+		Bufflen = IoBuffer.OutputLength;
+		temp_value = 4 - (Bufflen % 4);
+		Bufflen += temp_value % 4;
+
 		temp_buff = kmalloc(Bufflen, GFP_KERNEL);
 		if (!temp_buff)
 			return -ENOMEM;
