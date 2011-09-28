@@ -1726,6 +1726,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	struct sta_info *sta = NULL;
 	u32 sta_flags = 0;
 	struct sk_buff *tmp_skb;
+	bool tdls_direct = false;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		ret = NETDEV_TX_OK;
@@ -1837,11 +1838,43 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:
-		memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
-		if (sdata->u.mgd.use_4addr &&
-		    cpu_to_be16(ethertype) != sdata->control_port_protocol) {
-			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
+		if (sdata->wdev.wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) {
+			rcu_read_lock();
+			sta = sta_info_get(sdata, skb->data);
+			if (sta)
+				sta_flags = get_sta_flags(sta);
+			rcu_read_unlock();
+
+			/*
+			 * If the TDLS link is enabled, send everything
+			 * directly. Otherwise, allow TDLS setup frames
+			 * to be transmitted indirectly.
+			 */
+			tdls_direct =
+				(sta_flags & WLAN_STA_TDLS_PEER) &&
+				((sta_flags & WLAN_STA_TDLS_PEER_AUTH) ||
+				 !(ethertype == ETH_P_TDLS && skb->len > 14 &&
+				   skb->data[14] == WLAN_TDLS_SNAP_RFTYPE));
+		}
+
+		if (tdls_direct) {
+			/* link during setup - throw out frames to peer */
+			if (!(sta_flags & WLAN_STA_TDLS_PEER_AUTH)) {
+				ret = NETDEV_TX_OK;
+				goto fail;
+			}
+
+			/* DA SA BSSID */
+			memcpy(hdr.addr1, skb->data, ETH_ALEN);
+			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
+			memcpy(hdr.addr3, sdata->u.mgd.bssid, ETH_ALEN);
+			hdrlen = 24;
+		}  else if (sdata->u.mgd.use_4addr &&
+			    cpu_to_be16(ethertype) != sdata->control_port_protocol) {
+			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
+					  IEEE80211_FCTL_TODS);
 			/* RA TA DA SA */
+			memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
 			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
@@ -1849,6 +1882,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		} else {
 			fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 			/* BSSID SA DA */
+			memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
 			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			hdrlen = 24;

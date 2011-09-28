@@ -2427,6 +2427,7 @@ fail:
 static int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			       u8 *peer, enum nl80211_tdls_operation oper)
 {
+	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
@@ -2441,6 +2442,15 @@ static int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (oper) {
 	case NL80211_TDLS_ENABLE_LINK:
+		rcu_read_lock();
+		sta = sta_info_get(sdata, peer);
+		if (!sta) {
+			rcu_read_unlock();
+			return -ENOLINK;
+		}
+
+		set_sta_flags(sta, WLAN_STA_TDLS_PEER_AUTH);
+		rcu_read_unlock();
 		break;
 	case NL80211_TDLS_DISABLE_LINK:
 		return sta_info_destroy_addr(sdata, peer);

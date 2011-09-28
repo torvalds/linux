@@ -45,7 +45,9 @@
  *	station in power-save mode, reply when the driver unblocks.
  * @WLAN_STA_PS_DRIVER_BUF: Station has frames pending in driver internal
  *	buffers. Automatically cleared on station wake-up.
- * @WLAN_STA_TDLS_PEER: station is a TDLS peer.
+ * @WLAN_STA_TDLS_PEER: Station is a TDLS peer.
+ * @WLAN_STA_TDLS_PEER_AUTH: This TDLS peer is authorized to send direct
+ *	packets. This means the link is enabled.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -63,6 +65,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_PSPOLL		= 1<<13,
 	WLAN_STA_PS_DRIVER_BUF	= 1<<14,
 	WLAN_STA_TDLS_PEER	= 1<<15,
+	WLAN_STA_TDLS_PEER_AUTH	= 1<<16,
 };
 
 #define STA_TID_NUM 16
