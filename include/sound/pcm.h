@@ -1035,6 +1035,8 @@ static inline void snd_pcm_mmap_data_close(struct vm_area_struct *area)
 	atomic_dec(&substream->mmap_count);
 }
 
+int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
+			     struct vm_area_struct *area);
 /* mmap for io-memory area */
 #if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_ALPHA)
 #define SNDRV_PCM_INFO_MMAP_IOMEM	SNDRV_PCM_INFO_MMAP
