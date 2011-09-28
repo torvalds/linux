@@ -401,7 +401,7 @@ static int adau1701_digital_mute(struct snd_soc_dai *dai, int mute)
 }
 
 static int adau1701_set_sysclk(struct snd_soc_codec *codec, int clk_id,
-	unsigned int freq, int dir)
+	int source, unsigned int freq, int dir)
 {
 	unsigned int val;
 
