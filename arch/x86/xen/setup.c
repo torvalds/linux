@@ -83,24 +83,17 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 }
 
-static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
-					      phys_addr_t end_addr)
+static unsigned long __init xen_release_chunk(unsigned long start,
+					      unsigned long end)
 {
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-	unsigned long start, end;
 	unsigned long len = 0;
 	unsigned long pfn;
 	int ret;
-
-	start = PFN_UP(start_addr);
-	end = PFN_DOWN(end_addr);
-
-	if (end <= start)
-		return 0;
 
 	for(pfn = start; pfn < end; pfn++) {
 		unsigned long mfn = pfn_to_mfn(pfn);
@@ -126,72 +119,52 @@ static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
 	return len;
 }
 
-static unsigned long __init xen_return_unused_memory(
-	unsigned long max_pfn, const struct e820entry *map, int nr_map)
+static unsigned long __init xen_set_identity_and_release(
+	const struct e820entry *list, size_t map_size, unsigned long nr_pages)
 {
-	phys_addr_t max_addr = PFN_PHYS(max_pfn);
-	phys_addr_t last_end = ISA_END_ADDRESS;
+	phys_addr_t start = 0;
 	unsigned long released = 0;
-	int i;
-
-	/* Free any unused memory above the low 1Mbyte. */
-	for (i = 0; i < nr_map && last_end < max_addr; i++) {
-		phys_addr_t end = map[i].addr;
-		end = min(max_addr, end);
-
-		if (last_end < end)
-			released += xen_release_chunk(last_end, end);
-		last_end = max(last_end, map[i].addr + map[i].size);
-	}
-
-	if (last_end < max_addr)
-		released += xen_release_chunk(last_end, max_addr);
-
-	printk(KERN_INFO "released %lu pages of unused memory\n", released);
-	return released;
-}
-
-static unsigned long __init xen_set_identity(const struct e820entry *list,
-					     ssize_t map_size)
-{
-	phys_addr_t last = xen_initial_domain() ? 0 : ISA_END_ADDRESS;
-	phys_addr_t start_pci = last;
-	const struct e820entry *entry;
 	unsigned long identity = 0;
+	const struct e820entry *entry;
 	int i;
 
+	/*
+	 * Combine non-RAM regions and gaps until a RAM region (or the
+	 * end of the map) is reached, then set the 1:1 map and
+	 * release the pages (if available) in those non-RAM regions.
+	 *
+	 * The combined non-RAM regions are rounded to a whole number
+	 * of pages so any partial pages are accessible via the 1:1
+	 * mapping.  This is needed for some BIOSes that put (for
+	 * example) the DMI tables in a reserved region that begins on
+	 * a non-page boundary.
+	 */
 	for (i = 0, entry = list; i < map_size; i++, entry++) {
-		phys_addr_t start = entry->addr;
-		phys_addr_t end = start + entry->size;
+		phys_addr_t end = entry->addr + entry->size;
 
-		if (start < last)
-			start = last;
+		if (entry->type == E820_RAM || i == map_size - 1) {
+			unsigned long start_pfn = PFN_DOWN(start);
+			unsigned long end_pfn = PFN_UP(end);
 
-		if (end <= start)
-			continue;
+			if (entry->type == E820_RAM)
+				end_pfn = PFN_UP(entry->addr);
 
-		/* Skip over the 1MB region. */
-		if (last > end)
-			continue;
+			if (start_pfn < end_pfn) {
+				if (start_pfn < nr_pages)
+					released += xen_release_chunk(
+						start_pfn, min(end_pfn, nr_pages));
 
-		if ((entry->type == E820_RAM) || (entry->type == E820_UNUSABLE)) {
-			if (start > start_pci)
 				identity += set_phys_range_identity(
-						PFN_UP(start_pci), PFN_DOWN(start));
-
-			/* Without saving 'last' we would gooble RAM too
-			 * at the end of the loop. */
-			last = end;
-			start_pci = end;
-			continue;
+					start_pfn, end_pfn);
+			}
+			start = end;
 		}
-		start_pci = min(start, start_pci);
-		last = end;
 	}
-	if (last > start_pci)
-		identity += set_phys_range_identity(
-					PFN_UP(start_pci), PFN_DOWN(last));
-	return identity;
+
+	printk(KERN_INFO "Released %lu pages of unused memory\n", released);
+	printk(KERN_INFO "Set %ld page(s) to 1-1 mapping\n", identity);
+
+	return released;
 }
 
 static unsigned long __init xen_get_max_pages(void)
@@ -232,7 +205,6 @@ char * __init xen_memory_setup(void)
 	struct xen_memory_map memmap;
 	unsigned long max_pages;
 	unsigned long extra_pages = 0;
-	unsigned long identity_pages = 0;
 	int i;
 	int op;
 
@@ -265,8 +237,13 @@ char * __init xen_memory_setup(void)
 	if (max_pages > max_pfn)
 		extra_pages += max_pages - max_pfn;
 
-	xen_released_pages = xen_return_unused_memory(max_pfn, map,
-						      memmap.nr_entries);
+	/*
+	 * Set P2M for all non-RAM pages and E820 gaps to be identity
+	 * type PFNs.  Any RAM pages that would be made inaccesible by
+	 * this are first released.
+	 */
+	xen_released_pages = xen_set_identity_and_release(
+		map, memmap.nr_entries, max_pfn);
 	extra_pages += xen_released_pages;
 
 	/*
@@ -312,10 +289,6 @@ char * __init xen_memory_setup(void)
 	 * In domU, the ISA region is normal, usable memory, but we
 	 * reserve ISA memory anyway because too many things poke
 	 * about in there.
-	 *
-	 * In Dom0, the host E820 information can leave gaps in the
-	 * ISA range, which would cause us to release those pages.  To
-	 * avoid this, we unconditionally reserve them here.
 	 */
 	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
 			E820_RESERVED);
@@ -332,12 +305,6 @@ char * __init xen_memory_setup(void)
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
-	/*
-	 * Set P2M for all non-RAM pages and E820 gaps to be identity
-	 * type PFNs.
-	 */
-	identity_pages = xen_set_identity(e820.map, e820.nr_map);
-	printk(KERN_INFO "Set %ld page(s) to 1-1 mapping.\n", identity_pages);
 	return "Xen";
 }
 
