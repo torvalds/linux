@@ -39,6 +39,9 @@ extern void xen_syscall32_target(void);
 /* Amount of extra memory space we add to the e820 ranges */
 phys_addr_t xen_extra_mem_start, xen_extra_mem_size;
 
+/* Number of pages released from the initial allocation. */
+unsigned long xen_released_pages;
+
 /* 
  * The maximum amount of extra memory compared to the base size.  The
  * main scaling factor is the size of struct page.  At extreme ratios
@@ -313,7 +316,9 @@ char * __init xen_memory_setup(void)
 			extra_pages = 0;
 	}
 
-	extra_pages += xen_return_unused_memory(xen_start_info->nr_pages, &e820);
+	xen_released_pages = xen_return_unused_memory(xen_start_info->nr_pages,
+						      &e820);
+	extra_pages += xen_released_pages;
 
 	/*
 	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
