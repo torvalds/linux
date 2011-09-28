@@ -3444,4 +3444,9 @@ void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
 				   int rssi_max_thold);
 
 void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
+
+int ieee80211_add_srates_ie(struct ieee80211_vif *vif, struct sk_buff *skb);
+
+int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
+				struct sk_buff *skb);
 #endif /* MAC80211_H */

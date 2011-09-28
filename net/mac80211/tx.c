@@ -2307,9 +2307,9 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		*pos++ = WLAN_EID_SSID;
 		*pos++ = 0x0;
 
-		if (mesh_add_srates_ie(skb, sdata) ||
+		if (ieee80211_add_srates_ie(&sdata->vif, skb) ||
 		    mesh_add_ds_params_ie(skb, sdata) ||
-		    mesh_add_ext_srates_ie(skb, sdata) ||
+		    ieee80211_add_ext_srates_ie(&sdata->vif, skb) ||
 		    mesh_add_rsn_ie(skb, sdata) ||
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata) ||
