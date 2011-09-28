@@ -241,9 +241,9 @@ int regcache_sync(struct regmap *map)
 			ret = regcache_read(map, i, &val);
 			if (ret < 0)
 				goto out;
-			regcache_cache_bypass(map, true);
+			map->cache_bypass = 1;
 			ret = regmap_write(map, i, val);
-			regcache_cache_bypass(map, false);
+			map->cache_bypass = 0;
 			if (ret < 0)
 				goto out;
 			dev_dbg(map->dev, "Synced register %#x, value %#x\n",
