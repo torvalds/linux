@@ -58,6 +58,23 @@ static void imx3_idle(void)
 		: "=r" (reg));
 }
 
+static void __iomem *imx3_ioremap(unsigned long phys_addr, size_t size,
+				  unsigned int mtype)
+{
+	if (mtype == MT_DEVICE) {
+		/*
+		 * Access all peripherals below 0x80000000 as nonshared device
+		 * on mx3, but leave l2cc alone.  Otherwise cache corruptions
+		 * can occur.
+		 */
+		if (phys_addr < 0x80000000 &&
+				!addr_in_module(phys_addr, MX3x_L2CC))
+			mtype = MT_DEVICE_NONSHARED;
+	}
+
+	return __arm_ioremap(phys_addr, size, mtype);
+}
+
 void imx3_init_l2x0(void)
 {
 	void __iomem *l2x0_base;
@@ -127,6 +144,7 @@ void __init imx31_init_early(void)
 	mxc_set_cpu_type(MXC_CPU_MX31);
 	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 	imx_idle = imx3_idle;
+	imx_ioremap = imx3_ioremap;
 }
 
 void __init imx35_init_early(void)
@@ -135,6 +153,7 @@ void __init imx35_init_early(void)
 	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
 	imx_idle = imx3_idle;
+	imx_ioremap = imx3_ioremap;
 }
 
 void __init mx31_init_irq(void)

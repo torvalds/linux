@@ -29,6 +29,7 @@
 #include <asm/mach-types.h>
 
 void (*imx_idle)(void) = NULL;
+void __iomem *(*imx_ioremap)(unsigned long, size_t, unsigned int) = NULL;
 
 static void __iomem *wdog_base;
 
