@@ -53,6 +53,10 @@
 /* u64 has problems with printk this will cast it to unsigned long long */
 #define _LLU(x) (unsigned long long)(x)
 
+struct exofs_dev {
+	struct ore_dev ored;
+	unsigned did;
+};
 /*
  * our extension to the in-memory superblock
  */
@@ -69,7 +73,6 @@ struct exofs_sb_info {
 	struct ore_layout	layout;		/* Default files layout       */
 	struct ore_comp one_comp;		/* id & cred of partition id=0*/
 	struct ore_components oc;		/* comps for the partition    */
-	struct osd_dev	*_min_one_dev[1];	/* Place holder for one dev   */
 };
 
 /*
@@ -214,13 +217,14 @@ static inline void exofs_init_comps(struct ore_components *oc,
 	one_comp->obj.id = oid;
 	exofs_make_credential(one_comp->cred, &one_comp->obj);
 
-	oc->numdevs = sbi->oc.numdevs;
+	oc->numdevs = sbi->layout.group_width * sbi->layout.mirrors_p1 *
+							sbi->layout.group_count;
 	oc->single_comp = EC_SINGLE_COMP;
 	oc->comps = one_comp;
 
 	/* Round robin device view of the table */
 	first_dev = (dev_mod * sbi->layout.mirrors_p1) % sbi->oc.numdevs;
-	oc->ods = sbi->oc.ods + first_dev;
+	oc->ods = &sbi->oc.ods[first_dev];
 }
 
 #endif

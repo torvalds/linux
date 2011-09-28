@@ -431,17 +431,18 @@ static void _exofs_print_device(const char *msg, const char *dev_path,
 
 static void exofs_free_sbi(struct exofs_sb_info *sbi)
 {
-	while (sbi->oc.numdevs) {
-		int i = --sbi->oc.numdevs;
-		struct osd_dev *od = sbi->oc.ods[i];
+	unsigned numdevs = sbi->oc.numdevs;
+
+	while (numdevs) {
+		unsigned i = --numdevs;
+		struct osd_dev *od = ore_comp_dev(&sbi->oc, i);
 
 		if (od) {
-			sbi->oc.ods[i] = NULL;
+			ore_comp_set_dev(&sbi->oc, i, NULL);
 			osduld_put_device(od);
 		}
 	}
-	if (sbi->oc.ods != sbi->_min_one_dev)
-		kfree(sbi->oc.ods);
+	kfree(sbi->oc.ods);
 	kfree(sbi);
 }
 
@@ -468,7 +469,7 @@ static void exofs_put_super(struct super_block *sb)
 				  msecs_to_jiffies(100));
 	}
 
-	_exofs_print_device("Unmounting", NULL, sbi->oc.ods[0],
+	_exofs_print_device("Unmounting", NULL, ore_comp_dev(&sbi->oc, 0),
 			    sbi->one_comp.obj.partition);
 
 	bdi_destroy(&sbi->bdi);
@@ -592,12 +593,40 @@ static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
 	return !(odi->systemid_len || odi->osdname_len);
 }
 
+int __alloc_dev_table(struct exofs_sb_info *sbi, unsigned numdevs,
+		      struct exofs_dev **peds)
+{
+	struct __alloc_ore_devs_and_exofs_devs {
+		/* Twice bigger table: See exofs_init_comps() and comment at
+		 * exofs_read_lookup_dev_table()
+		 */
+		struct ore_dev *oreds[numdevs * 2 - 1];
+		struct exofs_dev eds[numdevs];
+	} *aoded;
+	struct exofs_dev *eds;
+	unsigned i;
+
+	aoded = kzalloc(sizeof(*aoded), GFP_KERNEL);
+	if (unlikely(!aoded)) {
+		EXOFS_ERR("ERROR: faild allocating Device array[%d]\n",
+			  numdevs);
+		return -ENOMEM;
+	}
+
+	sbi->oc.ods = aoded->oreds;
+	*peds = eds = aoded->eds;
+	for (i = 0; i < numdevs; ++i)
+		aoded->oreds[i] = &eds[i].ored;
+	return 0;
+}
+
 static int exofs_read_lookup_dev_table(struct exofs_sb_info *sbi,
 				       struct osd_dev *fscb_od,
 				       unsigned table_count)
 {
 	struct ore_comp comp;
 	struct exofs_device_table *dt;
+	struct exofs_dev *eds;
 	unsigned table_bytes = table_count * sizeof(dt->dt_dev_table[0]) +
 					     sizeof(*dt);
 	unsigned numdevs, i;
@@ -634,20 +663,16 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info *sbi,
 	if (unlikely(ret))
 		goto out;
 
-	if (likely(numdevs > 1)) {
-		unsigned size = numdevs * sizeof(sbi->oc.ods[0]);
-
-		/* Twice bigger table: See exofs_init_comps() and below
-		 * comment
-		 */
-		sbi->oc.ods = kzalloc(size + size - 1, GFP_KERNEL);
-		if (unlikely(!sbi->oc.ods)) {
-			EXOFS_ERR("ERROR: faild allocating Device array[%d]\n",
-				  numdevs);
-			ret = -ENOMEM;
-			goto out;
-		}
-	}
+	ret = __alloc_dev_table(sbi, numdevs, &eds);
+	if (unlikely(ret))
+		goto out;
+	/* exofs round-robins the device table view according to inode
+	 * number. We hold a: twice bigger table hence inodes can point
+	 * to any device and have a sequential view of the table
+	 * starting at this device. See exofs_init_comps()
+	 */
+	memcpy(&sbi->oc.ods[numdevs], &sbi->oc.ods[0],
+		(numdevs - 1) * sizeof(sbi->oc.ods[0]));
 
 	for (i = 0; i < numdevs; i++) {
 		struct exofs_fscb fscb;
@@ -663,12 +688,15 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info *sbi,
 		printk(KERN_NOTICE "Add device[%d]: osd_name-%s\n",
 		       i, odi.osdname);
 
+		/* the exofs id is currently the table index */
+		eds[i].did = i;
+
 		/* On all devices the device table is identical. The user can
 		 * specify any one of the participating devices on the command
 		 * line. We always keep them in device-table order.
 		 */
 		if (fscb_od && osduld_device_same(fscb_od, &odi)) {
-			sbi->oc.ods[i] = fscb_od;
+			eds[i].ored.od = fscb_od;
 			++sbi->oc.numdevs;
 			fscb_od = NULL;
 			continue;
@@ -682,7 +710,7 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info *sbi,
 			goto out;
 		}
 
-		sbi->oc.ods[i] = od;
+		eds[i].ored.od = od;
 		++sbi->oc.numdevs;
 
 		/* Read the fscb of the other devices to make sure the FS
@@ -705,21 +733,10 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info *sbi,
 
 out:
 	kfree(dt);
-	if (likely(!ret)) {
-		unsigned numdevs = sbi->oc.numdevs;
-
-		if (unlikely(fscb_od)) {
+	if (unlikely(fscb_od && !ret)) {
 			EXOFS_ERR("ERROR: Bad device-table container device not present\n");
 			osduld_put_device(fscb_od);
 			return -EINVAL;
-		}
-		/* exofs round-robins the device table view according to inode
-		 * number. We hold a: twice bigger table hence inodes can point
-		 * to any device and have a sequential view of the table
-		 * starting at this device. See exofs_init_comps()
-		 */
-		for (i = 0; i < numdevs - 1; ++i)
-			sbi->oc.ods[i + numdevs] = sbi->oc.ods[i];
 	}
 	return ret;
 }
@@ -773,7 +790,6 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->oc.numdevs = 1;
 	sbi->oc.single_comp = EC_SINGLE_COMP;
 	sbi->oc.comps = &sbi->one_comp;
-	sbi->oc.ods = sbi->_min_one_dev;
 
 	/* fill in some other data by hand */
 	memset(sb->s_id, 0, sizeof(sb->s_id));
@@ -822,7 +838,13 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		if (unlikely(ret))
 			goto free_sbi;
 	} else {
-		sbi->oc.ods[0] = od;
+		struct exofs_dev *eds;
+
+		ret = __alloc_dev_table(sbi, 1, &eds);
+		if (unlikely(ret))
+			goto free_sbi;
+
+		ore_comp_set_dev(&sbi->oc, 0, od);
 	}
 
 	__sbi_read_stats(sbi);
@@ -862,7 +884,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
-	_exofs_print_device("Mounting", opts->dev_name, sbi->oc.ods[0],
+	_exofs_print_device("Mounting", opts->dev_name,
+			    ore_comp_dev(&sbi->oc, 0),
 			    sbi->one_comp.obj.partition);
 	return 0;
 

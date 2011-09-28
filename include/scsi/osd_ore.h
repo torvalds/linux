@@ -44,6 +44,10 @@ struct ore_layout {
 	unsigned group_count;
 };
 
+struct ore_dev {
+	struct osd_dev *od;
+};
+
 struct ore_components {
 	unsigned	numdevs;		/* Num of devices in array    */
 	/* If @single_comp == EC_SINGLE_COMP, @comps points to a single
@@ -53,8 +57,28 @@ struct ore_components {
 		EC_SINGLE_COMP = 0, EC_MULTPLE_COMPS = 0xffffffff
 	}		single_comp;
 	struct ore_comp	*comps;
-	struct osd_dev	**ods;			/* osd_dev array              */
+
+	/* Array of pointers to ore_dev-* . User will usually have these pointed
+	 * too a bigger struct which contain an "ore_dev ored" member and use
+	 * container_of(oc->ods[i], struct foo_dev, ored) to access the bigger
+	 * structure.
+	 */
+	struct ore_dev	**ods;
 };
+
+/* ore_comp_dev Recievies a logical device index */
+static inline struct osd_dev *ore_comp_dev(
+	const struct ore_components *oc, unsigned i)
+{
+	BUG_ON(oc->numdevs <= i);
+	return oc->ods[i]->od;
+}
+
+static inline void ore_comp_set_dev(
+	struct ore_components *oc, unsigned i, struct osd_dev *od)
+{
+	oc->ods[i]->od = od;
+}
 
 struct ore_striping_info {
 	u64 obj_offset;

@@ -59,7 +59,7 @@ static struct osd_obj_id *_ios_obj(struct ore_io_state *ios, unsigned index)
 
 static struct osd_dev *_ios_od(struct ore_io_state *ios, unsigned index)
 {
-	return ios->oc->ods[index];
+	return ore_comp_dev(ios->oc, index);
 }
 
 int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *oc,
