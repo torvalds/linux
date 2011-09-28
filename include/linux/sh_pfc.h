@@ -87,7 +87,6 @@ struct pinmux_info {
 	pinmux_enum_t *gpio_data;
 	unsigned int gpio_data_size;
 
-	unsigned long *gpio_in_use;
 	struct gpio_chip chip;
 };
 
