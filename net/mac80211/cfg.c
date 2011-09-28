@@ -713,6 +713,12 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED))
 			sta->flags |= WLAN_STA_AUTH;
 	}
+
+	if (mask & BIT(NL80211_STA_FLAG_TDLS_PEER)) {
+		sta->flags &= ~WLAN_STA_TDLS_PEER;
+		if (set & BIT(NL80211_STA_FLAG_TDLS_PEER))
+			sta->flags |= WLAN_STA_TDLS_PEER;
+	}
 	spin_unlock_irqrestore(&sta->flaglock, flags);
 
 	if (params->sta_modify_mask & STATION_PARAM_APPLY_UAPSD) {
@@ -813,6 +819,12 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 
 	sta_apply_parameters(local, sta, params);
 
+	/* Only TDLS-supporting stations can add TDLS peers */
+	if ((sta->flags & WLAN_STA_TDLS_PEER) &&
+	    !((wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) &&
+	      sdata->vif.type == NL80211_IFTYPE_STATION))
+		return -ENOTSUPP;
+
 	rate_control_rate_init(sta);
 
 	layer2_update = sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
@@ -863,6 +875,14 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	if (!sta) {
 		rcu_read_unlock();
 		return -ENOENT;
+	}
+
+	/* The TDLS bit cannot be toggled after the STA was added */
+	if ((params->sta_flags_mask & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
+	    !!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) !=
+	    !!test_sta_flags(sta, WLAN_STA_TDLS_PEER)) {
+		rcu_read_unlock();
+		return -EINVAL;
 	}
 
 	if (params->vlan && params->vlan != sta->sdata->dev) {
