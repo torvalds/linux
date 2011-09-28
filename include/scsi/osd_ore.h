@@ -49,6 +49,7 @@ struct ore_dev {
 };
 
 struct ore_components {
+	unsigned	first_dev;		/* First logical device no    */
 	unsigned	numdevs;		/* Num of devices in array    */
 	/* If @single_comp == EC_SINGLE_COMP, @comps points to a single
 	 * component. else there are @numdevs components
@@ -70,14 +71,14 @@ struct ore_components {
 static inline struct osd_dev *ore_comp_dev(
 	const struct ore_components *oc, unsigned i)
 {
-	BUG_ON(oc->numdevs <= i);
-	return oc->ods[i]->od;
+	BUG_ON((i < oc->first_dev) || (oc->first_dev + oc->numdevs <= i));
+	return oc->ods[i - oc->first_dev]->od;
 }
 
 static inline void ore_comp_set_dev(
 	struct ore_components *oc, unsigned i, struct osd_dev *od)
 {
-	oc->ods[i]->od = od;
+	oc->ods[i - oc->first_dev]->od = od;
 }
 
 struct ore_striping_info {

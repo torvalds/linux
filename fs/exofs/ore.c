@@ -62,6 +62,10 @@ static struct osd_obj_id *_ios_obj(struct ore_io_state *ios, unsigned index)
 
 static struct osd_dev *_ios_od(struct ore_io_state *ios, unsigned index)
 {
+	ORE_DBGMSG2("oc->first_dev=%d oc->numdevs=%d i=%d oc->ods=%p\n",
+		    ios->oc->first_dev, ios->oc->numdevs, index,
+		    ios->oc->ods);
+
 	return ore_comp_dev(ios->oc, index);
 }
 

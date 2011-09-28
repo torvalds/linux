@@ -217,6 +217,7 @@ static inline void exofs_init_comps(struct ore_components *oc,
 	one_comp->obj.id = oid;
 	exofs_make_credential(one_comp->cred, &one_comp->obj);
 
+	oc->first_dev = 0;
 	oc->numdevs = sbi->layout.group_width * sbi->layout.mirrors_p1 *
 							sbi->layout.group_count;
 	oc->single_comp = EC_SINGLE_COMP;
