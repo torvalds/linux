@@ -935,6 +935,9 @@ int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 	if (q->streaming)
 		__enqueue_in_driver(vb);
 
+	/* Fill buffer information for the userspace */
+	__fill_v4l2_buffer(vb, b);
+
 	dprintk(1, "qbuf of buffer %d succeeded\n", vb->v4l2_buf.index);
 	return 0;
 }
