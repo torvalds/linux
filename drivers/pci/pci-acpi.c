@@ -285,7 +285,6 @@ static int acpi_dev_run_wake(struct device *phys_dev, bool enable)
 {
 	struct acpi_device *dev;
 	acpi_handle handle;
-	int error = -ENODEV;
 
 	if (!device_run_wake(phys_dev))
 		return -EINVAL;
@@ -305,7 +304,7 @@ static int acpi_dev_run_wake(struct device *phys_dev, bool enable)
 		acpi_disable_wakeup_device_power(dev);
 	}
 
-	return error;
+	return 0;
 }
 
 static void acpi_pci_propagate_run_wake(struct pci_bus *bus, bool enable)
