@@ -403,9 +403,11 @@ struct nfs4_file {
 	/* One each for O_RDONLY, O_WRONLY, O_RDWR: */
 	struct file *		fi_fds[3];
 	/*
-	 * Each open or lock stateid contributes 1 to either
-	 * fi_access[O_RDONLY], fi_access[O_WRONLY], or both, depending
-	 * on open or lock mode:
+	 * Each open or lock stateid contributes 0-4 to the counts
+	 * below depending on which bits are set in st_access_bitmap:
+	 *     1 to fi_access[O_RDONLY] if NFS4_SHARE_ACCES_READ is set
+	 *   + 1 to fi_access[O_WRONLY] if NFS4_SHARE_ACCESS_WRITE is set
+	 *   + 1 to both of the above if NFS4_SHARE_ACCESS_BOTH is set.
 	 */
 	atomic_t		fi_access[2];
 	struct file		*fi_deleg_file;

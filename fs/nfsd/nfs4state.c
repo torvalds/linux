@@ -3523,16 +3523,29 @@ out:
 	return status;
 }
 
-static inline void nfs4_file_downgrade(struct nfs4_ol_stateid *stp, unsigned int to_access)
+static inline void nfs4_stateid_downgrade_bit(struct nfs4_ol_stateid *stp, u32 access)
 {
-	int i;
+	if (!test_bit(access, &stp->st_access_bmap))
+		return;
+	nfs4_file_put_access(stp->st_file, nfs4_access_to_omode(access));
+	__clear_bit(access, &stp->st_access_bmap);
+}
 
-	for (i = 1; i < 4; i++) {
-		if (test_bit(i, &stp->st_access_bmap)
-					&& ((i & to_access) != i)) {
-			nfs4_file_put_access(stp->st_file, nfs4_access_to_omode(i));
-			__clear_bit(i, &stp->st_access_bmap);
-		}
+static inline void nfs4_stateid_downgrade(struct nfs4_ol_stateid *stp, u32 to_access)
+{
+	switch (to_access) {
+	case NFS4_SHARE_ACCESS_READ:
+		nfs4_stateid_downgrade_bit(stp, NFS4_SHARE_ACCESS_WRITE);
+		nfs4_stateid_downgrade_bit(stp, NFS4_SHARE_ACCESS_BOTH);
+		break;
+	case NFS4_SHARE_ACCESS_WRITE:
+		nfs4_stateid_downgrade_bit(stp, NFS4_SHARE_ACCESS_READ);
+		nfs4_stateid_downgrade_bit(stp, NFS4_SHARE_ACCESS_BOTH);
+		break;
+	case NFS4_SHARE_ACCESS_BOTH:
+		break;
+	default:
+		BUG();
 	}
 }
 
@@ -3578,7 +3591,7 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 			stp->st_deny_bmap, od->od_share_deny);
 		goto out;
 	}
-	nfs4_file_downgrade(stp, od->od_share_access);
+	nfs4_stateid_downgrade(stp, od->od_share_access);
 
 	reset_union_bmap_deny(od->od_share_deny, &stp->st_deny_bmap);
 
