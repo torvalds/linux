@@ -69,19 +69,14 @@ static int netvsc_open(struct net_device *net)
 	struct hv_device *device_obj = net_device_ctx->device_ctx;
 	int ret = 0;
 
-	if (netif_carrier_ok(net)) {
-		/* Open up the device */
-		ret = rndis_filter_open(device_obj);
-		if (ret != 0) {
-			netdev_err(net, "unable to open device (ret %d).\n",
-				   ret);
-			return ret;
-		}
-
-		netif_start_queue(net);
-	} else {
-		netdev_err(net, "unable to open device...link is down.\n");
+	/* Open up the device */
+	ret = rndis_filter_open(device_obj);
+	if (ret != 0) {
+		netdev_err(net, "unable to open device (ret %d).\n", ret);
+		return ret;
 	}
+
+	netif_start_queue(net);
 
 	return ret;
 }
