@@ -1313,6 +1313,16 @@ static void prom_query_opal(void)
 {
 	long rc;
 
+	/* We must not query for OPAL presence on a machine that
+	 * supports TNK takeover (970 blades), as this uses the same
+	 * h-call with different arguments and will crash
+	 */
+	if (PHANDLE_VALID(call_prom("finddevice", 1, 1,
+				    ADDR("/tnk-memory-map")))) {
+		prom_printf("TNK takeover detected, skipping OPAL check\n");
+		return;
+	}
+
 	prom_printf("Querying for OPAL presence... ");
 	rc = opal_query_takeover(&RELOC(prom_opal_size),
 				 &RELOC(prom_opal_align));
