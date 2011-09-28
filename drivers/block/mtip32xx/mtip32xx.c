@@ -80,7 +80,7 @@ static int instance;
  * Global variable used to hold the major block device number
  * allocated in mtip_init().
  */
-int mtip_major;
+static int mtip_major;
 
 static DEFINE_SPINLOCK(rssd_index_lock);
 static DEFINE_IDA(rssd_index_ida);
@@ -3502,7 +3502,7 @@ static DEFINE_PCI_DEVICE_TABLE(mtip_pci_tbl) = {
 };
 
 /* Structure that describes the PCI driver functions. */
-struct pci_driver mtip_pci_driver = {
+static struct pci_driver mtip_pci_driver = {
 	.name			= MTIP_DRV_NAME,
 	.id_table		= mtip_pci_tbl,
 	.probe			= mtip_pci_probe,
