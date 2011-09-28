@@ -14,7 +14,8 @@
 #include <linux/err.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <mach/system.h>
+#include <mach/common.h>
+#include <mach/hardware.h>
 #include "crm_regs.h"
 
 static struct clk *gpc_dvfs_clk;

@@ -30,6 +30,34 @@
 #include <mach/iomux-v3.h>
 #include <mach/irqs.h>
 
+static void imx3_idle(void)
+{
+	unsigned long reg = 0;
+	__asm__ __volatile__(
+		/* disable I and D cache */
+		"mrc p15, 0, %0, c1, c0, 0\n"
+		"bic %0, %0, #0x00001000\n"
+		"bic %0, %0, #0x00000004\n"
+		"mcr p15, 0, %0, c1, c0, 0\n"
+		/* invalidate I cache */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c5, 0\n"
+		/* clear and invalidate D cache */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c14, 0\n"
+		/* WFI */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c0, 4\n"
+		"nop\n" "nop\n" "nop\n" "nop\n"
+		"nop\n" "nop\n" "nop\n"
+		/* enable I and D cache */
+		"mrc p15, 0, %0, c1, c0, 0\n"
+		"orr %0, %0, #0x00001000\n"
+		"orr %0, %0, #0x00000004\n"
+		"mcr p15, 0, %0, c1, c0, 0\n"
+		: "=r" (reg));
+}
+
 void imx3_init_l2x0(void)
 {
 	void __iomem *l2x0_base;
@@ -98,6 +126,7 @@ void __init imx31_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX31);
 	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
+	imx_idle = imx3_idle;
 }
 
 void __init imx35_init_early(void)
@@ -105,6 +134,7 @@ void __init imx35_init_early(void)
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
+	imx_idle = imx3_idle;
 }
 
 void __init mx31_init_irq(void)

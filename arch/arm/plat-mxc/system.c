@@ -28,6 +28,8 @@
 #include <asm/system.h>
 #include <asm/mach-types.h>
 
+void (*imx_idle)(void) = NULL;
+
 static void __iomem *wdog_base;
 
 /*
