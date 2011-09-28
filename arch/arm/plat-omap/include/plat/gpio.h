@@ -201,14 +201,15 @@ struct omap_gpio_platform_data {
 	bool loses_context;	/* whether the bank would ever lose context */
 
 	struct omap_gpio_reg_offs *regs;
+
+	/* Return context loss count due to PM states changing */
+	int (*get_context_loss_count)(struct device *dev);
 };
 
 extern void omap2_gpio_prepare_for_idle(int off_mode);
 extern void omap2_gpio_resume_after_idle(void);
 extern void omap_set_gpio_debounce(int gpio, int enable);
 extern void omap_set_gpio_debounce_time(int gpio, int enable);
-extern void omap_gpio_save_context(void);
-extern void omap_gpio_restore_context(void);
 /*-------------------------------------------------------------------------*/
 
 /* Wrappers for "new style" GPIO calls, using the new infrastructure
