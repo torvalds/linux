@@ -828,6 +828,8 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 
 	/* Check if one of our outputs is connected */
 	list_for_each_entry(path, &w->sinks, list_source) {
+		DAPM_UPDATE_STAT(w, neighbour_checks);
+
 		if (path->weak)
 			continue;
 
