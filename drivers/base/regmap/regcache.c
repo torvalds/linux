@@ -242,7 +242,7 @@ int regcache_sync(struct regmap *map)
 			if (ret < 0)
 				goto out;
 			regcache_cache_bypass(map, true);
-			ret = regcache_write(map, i, val);
+			ret = regmap_write(map, i, val);
 			regcache_cache_bypass(map, false);
 			if (ret < 0)
 				goto out;
