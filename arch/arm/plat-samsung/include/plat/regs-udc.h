@@ -1,4 +1,4 @@
-/* arch/arm/mach-s3c2410/include/mach/regs-udc.h
+/* arch/arm/plat-samsung/include/plat/regs-udc.h
  *
  * Copyright (C) 2004 Herbert Poetzl <herbert@13thfloor.at>
  *
@@ -75,79 +75,77 @@
 #define S3C2410_UDC_OUT_FIFO_CNT1_REG	S3C2410_USBDREG(0x0198)
 #define S3C2410_UDC_OUT_FIFO_CNT2_REG	S3C2410_USBDREG(0x019c)
 
-#define S3C2410_UDC_FUNCADDR_UPDATE	(1<<7)
+#define S3C2410_UDC_FUNCADDR_UPDATE	(1 << 7)
 
-#define S3C2410_UDC_PWR_ISOUP		(1<<7) // R/W
-#define S3C2410_UDC_PWR_RESET		(1<<3) // R
-#define S3C2410_UDC_PWR_RESUME		(1<<2) // R/W
-#define S3C2410_UDC_PWR_SUSPEND		(1<<1) // R
-#define S3C2410_UDC_PWR_ENSUSPEND	(1<<0) // R/W
+#define S3C2410_UDC_PWR_ISOUP		(1 << 7) /* R/W */
+#define S3C2410_UDC_PWR_RESET		(1 << 3) /* R   */
+#define S3C2410_UDC_PWR_RESUME		(1 << 2) /* R/W */
+#define S3C2410_UDC_PWR_SUSPEND		(1 << 1) /* R   */
+#define S3C2410_UDC_PWR_ENSUSPEND	(1 << 0) /* R/W */
 
-#define S3C2410_UDC_PWR_DEFAULT		0x00
+#define S3C2410_UDC_PWR_DEFAULT		(0x00)
 
-#define S3C2410_UDC_INT_EP4		(1<<4) // R/W (clear only)
-#define S3C2410_UDC_INT_EP3		(1<<3) // R/W (clear only)
-#define S3C2410_UDC_INT_EP2		(1<<2) // R/W (clear only)
-#define S3C2410_UDC_INT_EP1		(1<<1) // R/W (clear only)
-#define S3C2410_UDC_INT_EP0		(1<<0) // R/W (clear only)
+#define S3C2410_UDC_INT_EP4		(1 << 4) /* R/W (clear only) */
+#define S3C2410_UDC_INT_EP3		(1 << 3) /* R/W (clear only) */
+#define S3C2410_UDC_INT_EP2		(1 << 2) /* R/W (clear only) */
+#define S3C2410_UDC_INT_EP1		(1 << 1) /* R/W (clear only) */
+#define S3C2410_UDC_INT_EP0		(1 << 0) /* R/W (clear only) */
 
-#define S3C2410_UDC_USBINT_RESET	(1<<2) // R/W (clear only)
-#define S3C2410_UDC_USBINT_RESUME	(1<<1) // R/W (clear only)
-#define S3C2410_UDC_USBINT_SUSPEND	(1<<0) // R/W (clear only)
+#define S3C2410_UDC_USBINT_RESET	(1 << 2) /* R/W (clear only) */
+#define S3C2410_UDC_USBINT_RESUME	(1 << 1) /* R/W (clear only) */
+#define S3C2410_UDC_USBINT_SUSPEND	(1 << 0) /* R/W (clear only) */
 
-#define S3C2410_UDC_INTE_EP4		(1<<4) // R/W
-#define S3C2410_UDC_INTE_EP3		(1<<3) // R/W
-#define S3C2410_UDC_INTE_EP2		(1<<2) // R/W
-#define S3C2410_UDC_INTE_EP1		(1<<1) // R/W
-#define S3C2410_UDC_INTE_EP0		(1<<0) // R/W
+#define S3C2410_UDC_INTE_EP4		(1 << 4) /* R/W */
+#define S3C2410_UDC_INTE_EP3		(1 << 3) /* R/W */
+#define S3C2410_UDC_INTE_EP2		(1 << 2) /* R/W */
+#define S3C2410_UDC_INTE_EP1		(1 << 1) /* R/W */
+#define S3C2410_UDC_INTE_EP0		(1 << 0) /* R/W */
 
-#define S3C2410_UDC_USBINTE_RESET	(1<<2) // R/W
-#define S3C2410_UDC_USBINTE_SUSPEND	(1<<0) // R/W
-
+#define S3C2410_UDC_USBINTE_RESET	(1 << 2) /* R/W */
+#define S3C2410_UDC_USBINTE_SUSPEND	(1 << 0) /* R/W */
 
 #define S3C2410_UDC_INDEX_EP0		(0x00)
-#define S3C2410_UDC_INDEX_EP1		(0x01) // ??
-#define S3C2410_UDC_INDEX_EP2		(0x02) // ??
-#define S3C2410_UDC_INDEX_EP3		(0x03) // ??
-#define S3C2410_UDC_INDEX_EP4		(0x04) // ??
+#define S3C2410_UDC_INDEX_EP1		(0x01)
+#define S3C2410_UDC_INDEX_EP2		(0x02)
+#define S3C2410_UDC_INDEX_EP3		(0x03)
+#define S3C2410_UDC_INDEX_EP4		(0x04)
 
-#define S3C2410_UDC_ICSR1_CLRDT		(1<<6) // R/W
-#define S3C2410_UDC_ICSR1_SENTSTL	(1<<5) // R/W (clear only)
-#define S3C2410_UDC_ICSR1_SENDSTL	(1<<4) // R/W
-#define S3C2410_UDC_ICSR1_FFLUSH	(1<<3) // W   (set only)
-#define S3C2410_UDC_ICSR1_UNDRUN	(1<<2) // R/W (clear only)
-#define S3C2410_UDC_ICSR1_PKTRDY	(1<<0) // R/W (set only)
+#define S3C2410_UDC_ICSR1_CLRDT		(1 << 6) /* R/W */
+#define S3C2410_UDC_ICSR1_SENTSTL	(1 << 5) /* R/W (clear only) */
+#define S3C2410_UDC_ICSR1_SENDSTL	(1 << 4) /* R/W */
+#define S3C2410_UDC_ICSR1_FFLUSH	(1 << 3) /* W   (set only) */
+#define S3C2410_UDC_ICSR1_UNDRUN	(1 << 2) /* R/W (clear only) */
+#define S3C2410_UDC_ICSR1_PKTRDY	(1 << 0) /* R/W (set only) */
 
-#define S3C2410_UDC_ICSR2_AUTOSET	(1<<7) // R/W
-#define S3C2410_UDC_ICSR2_ISO		(1<<6) // R/W
-#define S3C2410_UDC_ICSR2_MODEIN	(1<<5) // R/W
-#define S3C2410_UDC_ICSR2_DMAIEN	(1<<4) // R/W
+#define S3C2410_UDC_ICSR2_AUTOSET	(1 << 7) /* R/W */
+#define S3C2410_UDC_ICSR2_ISO		(1 << 6) /* R/W */
+#define S3C2410_UDC_ICSR2_MODEIN	(1 << 5) /* R/W */
+#define S3C2410_UDC_ICSR2_DMAIEN	(1 << 4) /* R/W */
 
-#define S3C2410_UDC_OCSR1_CLRDT		(1<<7) // R/W
-#define S3C2410_UDC_OCSR1_SENTSTL	(1<<6) // R/W (clear only)
-#define S3C2410_UDC_OCSR1_SENDSTL	(1<<5) // R/W
-#define S3C2410_UDC_OCSR1_FFLUSH	(1<<4) // R/W
-#define S3C2410_UDC_OCSR1_DERROR	(1<<3) // R
-#define S3C2410_UDC_OCSR1_OVRRUN	(1<<2) // R/W (clear only)
-#define S3C2410_UDC_OCSR1_PKTRDY	(1<<0) // R/W (clear only)
+#define S3C2410_UDC_OCSR1_CLRDT		(1 << 7) /* R/W */
+#define S3C2410_UDC_OCSR1_SENTSTL	(1 << 6) /* R/W (clear only) */
+#define S3C2410_UDC_OCSR1_SENDSTL	(1 << 5) /* R/W */
+#define S3C2410_UDC_OCSR1_FFLUSH	(1 << 4) /* R/W */
+#define S3C2410_UDC_OCSR1_DERROR	(1 << 3) /* R   */
+#define S3C2410_UDC_OCSR1_OVRRUN	(1 << 2) /* R/W (clear only) */
+#define S3C2410_UDC_OCSR1_PKTRDY	(1 << 0) /* R/W (clear only) */
 
-#define S3C2410_UDC_OCSR2_AUTOCLR	(1<<7) // R/W
-#define S3C2410_UDC_OCSR2_ISO		(1<<6) // R/W
-#define S3C2410_UDC_OCSR2_DMAIEN	(1<<5) // R/W
+#define S3C2410_UDC_OCSR2_AUTOCLR	(1 << 7) /* R/W */
+#define S3C2410_UDC_OCSR2_ISO		(1 << 6) /* R/W */
+#define S3C2410_UDC_OCSR2_DMAIEN	(1 << 5) /* R/W */
 
-#define S3C2410_UDC_EP0_CSR_OPKRDY	(1<<0)
-#define S3C2410_UDC_EP0_CSR_IPKRDY	(1<<1)
-#define S3C2410_UDC_EP0_CSR_SENTSTL	(1<<2)
-#define S3C2410_UDC_EP0_CSR_DE		(1<<3)
-#define S3C2410_UDC_EP0_CSR_SE		(1<<4)
-#define S3C2410_UDC_EP0_CSR_SENDSTL	(1<<5)
-#define S3C2410_UDC_EP0_CSR_SOPKTRDY	(1<<6)
-#define S3C2410_UDC_EP0_CSR_SSE	(1<<7)
+#define S3C2410_UDC_EP0_CSR_OPKRDY	(1 << 0)
+#define S3C2410_UDC_EP0_CSR_IPKRDY	(1 << 1)
+#define S3C2410_UDC_EP0_CSR_SENTSTL	(1 << 2)
+#define S3C2410_UDC_EP0_CSR_DE		(1 << 3)
+#define S3C2410_UDC_EP0_CSR_SE		(1 << 4)
+#define S3C2410_UDC_EP0_CSR_SENDSTL	(1 << 5)
+#define S3C2410_UDC_EP0_CSR_SOPKTRDY	(1 << 6)
+#define S3C2410_UDC_EP0_CSR_SSE		(1 << 7)
 
-#define S3C2410_UDC_MAXP_8		(1<<0)
-#define S3C2410_UDC_MAXP_16		(1<<1)
-#define S3C2410_UDC_MAXP_32		(1<<2)
-#define S3C2410_UDC_MAXP_64		(1<<3)
-
+#define S3C2410_UDC_MAXP_8		(1 << 0)
+#define S3C2410_UDC_MAXP_16		(1 << 1)
+#define S3C2410_UDC_MAXP_32		(1 << 2)
+#define S3C2410_UDC_MAXP_64		(1 << 3)
 
 #endif

@@ -1,15 +1,13 @@
-/* linux/include/asm-arm/plat-s3c24xx/common-smdk.h
+/* linux/arch/arm/plat-samsung/include/plat/fiq.h
  *
- * Copyright (c) 2006 Simtec Electronics
+ * Copyright (c) 2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * Common code for SMDK2410 and SMDK2440 boards
- *
- * http://www.fluff.org/ben/smdk2440/
+ * Header file for S3C24XX CPU FIQ support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
 
-extern void smdk_machine_init(void);
+extern int s3c24xx_set_fiq(unsigned int irq, bool on);

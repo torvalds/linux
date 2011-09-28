@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c/include/plat/cpu-freq.h
+/* arch/arm/plat-samsung/include/plat/cpu-freq-core.h
  *
  * Copyright (c) 2006-2009 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
@@ -195,7 +195,8 @@ struct s3c_cpufreq_info {
 
 extern int s3c_cpufreq_register(struct s3c_cpufreq_info *info);
 
-extern int s3c_plltab_register(struct cpufreq_frequency_table *plls, unsigned int plls_no);
+extern int s3c_plltab_register(struct cpufreq_frequency_table *plls,
+			       unsigned int plls_no);
 
 /* exports and utilities for debugfs */
 extern struct s3c_cpufreq_config *s3c_cpufreq_getconfig(void);

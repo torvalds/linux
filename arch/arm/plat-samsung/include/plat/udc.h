@@ -1,4 +1,4 @@
-/* arch/arm/mach-s3c2410/include/mach/udc.h
+/* arch/arm/plat-samsung/include/plat/udc.h
  *
  * Copyright (c) 2005 Arnaud Patard <arnaud.patard@rtp-net.org>
  *
@@ -26,7 +26,7 @@ enum s3c2410_udc_cmd_e {
 
 struct s3c2410_udc_mach_info {
 	void	(*udc_command)(enum s3c2410_udc_cmd_e);
- 	void	(*vbus_draw)(unsigned int ma);
+	void	(*vbus_draw)(unsigned int ma);
 
 	unsigned int pullup_pin;
 	unsigned int pullup_pin_inverted;

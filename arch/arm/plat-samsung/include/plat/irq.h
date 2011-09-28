@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/plat-s3c24xx/irq.h
+/* linux/arch/arm/plat-samsung/include/plat/irq.h
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -25,9 +25,9 @@
 extern struct irq_chip s3c_irq_level_chip;
 extern struct irq_chip s3c_irq_chip;
 
-static inline void
-s3c_irqsub_mask(unsigned int irqno, unsigned int parentbit,
-		int subcheck)
+static inline void s3c_irqsub_mask(unsigned int irqno,
+				   unsigned int parentbit,
+				   int subcheck)
 {
 	unsigned long mask;
 	unsigned long submask;
@@ -39,17 +39,16 @@ s3c_irqsub_mask(unsigned int irqno, unsigned int parentbit,
 
 	/* check to see if we need to mask the parent IRQ */
 
-	if ((submask  & subcheck) == subcheck) {
+	if ((submask  & subcheck) == subcheck)
 		__raw_writel(mask | parentbit, S3C2410_INTMSK);
-	}
 
 	/* write back masks */
 	__raw_writel(submask, S3C2410_INTSUBMSK);
 
 }
 
-static inline void
-s3c_irqsub_unmask(unsigned int irqno, unsigned int parentbit)
+static inline void s3c_irqsub_unmask(unsigned int irqno,
+				     unsigned int parentbit)
 {
 	unsigned long mask;
 	unsigned long submask;
@@ -66,8 +65,9 @@ s3c_irqsub_unmask(unsigned int irqno, unsigned int parentbit)
 }
 
 
-static inline void
-s3c_irqsub_maskack(unsigned int irqno, unsigned int parentmask, unsigned int group)
+static inline void s3c_irqsub_maskack(unsigned int irqno,
+				      unsigned int parentmask,
+				      unsigned int group)
 {
 	unsigned int bit = 1UL << (irqno - IRQ_S3CUART_RX0);
 
@@ -86,8 +86,9 @@ s3c_irqsub_maskack(unsigned int irqno, unsigned int parentmask, unsigned int gro
 	}
 }
 
-static inline void
-s3c_irqsub_ack(unsigned int irqno, unsigned int parentmask, unsigned int group)
+static inline void s3c_irqsub_ack(unsigned int irqno,
+				  unsigned int parentmask,
+				  unsigned int group)
 {
 	unsigned int bit = 1UL << (irqno - IRQ_S3CUART_RX0);
 
