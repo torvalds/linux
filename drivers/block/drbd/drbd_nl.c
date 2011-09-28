@@ -1727,7 +1727,7 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 
 	if (rs.no_resync && mdev->agreed_pro_version < 93) {
 		retcode = ERR_NEED_APV_93;
-		goto fail;
+		goto fail_ldev;
 	}
 
 	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev))
@@ -1754,6 +1754,10 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
  fail:
 	reply->ret_code = retcode;
 	return 0;
+
+ fail_ldev:
+	put_ldev(mdev);
+	goto fail;
 }
 
 static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
