@@ -225,7 +225,7 @@ static const struct usb_ms_endpoint_descriptor_1 ms_in_desc = {
 	}
 };
 
-static struct usb_descriptor_header *midi_function[] = {
+static struct usb_descriptor_header *midi_function[] __initdata = {
 	(struct usb_descriptor_header *)&ac_interface_desc,
 	(struct usb_descriptor_header *)&ac_header_desc,
 	(struct usb_descriptor_header *)&ms_interface_desc,
