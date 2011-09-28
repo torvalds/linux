@@ -40,7 +40,6 @@ struct max98095_cdata {
 
 struct max98095_priv {
 	enum max98095_type devtype;
-	void *control_data;
 	struct max98095_pdata *pdata;
 	unsigned int sysclk;
 	struct max98095_cdata dai[3];
@@ -2337,7 +2336,6 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 
 	max98095->devtype = id->driver_data;
 	i2c_set_clientdata(i2c, max98095);
-	max98095->control_data = i2c;
 	max98095->pdata = i2c->dev.platform_data;
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_max98095,
