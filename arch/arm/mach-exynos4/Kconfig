@@ -142,6 +142,7 @@ config MACH_SMDKV310
 	select S5P_DEV_I2C_HDMIPHY
 	select S5P_DEV_MFC
 	select S5P_DEV_TV
+	select S5P_DEV_USB_EHCI
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
@@ -156,6 +157,7 @@ config MACH_SMDKV310
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
 	help
 	  Machine support for Samsung SMDKV310
 
