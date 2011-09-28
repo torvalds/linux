@@ -169,13 +169,21 @@ struct vb2_buffer {
 /**
  * struct vb2_ops - driver-specific callbacks
  *
- * @queue_setup:	called from a VIDIOC_REQBUFS handler, before
- *			memory allocation; driver should return the required
- *			number of buffers in num_buffers, the required number
- *			of planes per buffer in num_planes; the size of each
- *			plane should be set in the sizes[] array and optional
- *			per-plane allocator specific context in alloc_ctxs[]
- *			array
+ * @queue_setup:	called from VIDIOC_REQBUFS and VIDIOC_CREATE_BUFS
+ *			handlers before memory allocation, or, if
+ *			*num_planes != 0, after the allocation to verify a
+ *			smaller number of buffers. Driver should return
+ *			the required number of buffers in *num_buffers, the
+ *			required number of planes per buffer in *num_planes; the
+ *			size of each plane should be set in the sizes[] array
+ *			and optional per-plane allocator specific context in the
+ *			alloc_ctxs[] array. When called from VIDIOC_REQBUFS,
+ *			fmt == NULL, the driver has to use the currently
+ *			configured format and *num_buffers is the total number
+ *			of buffers, that are being allocated. When called from
+ *			VIDIOC_CREATE_BUFS, fmt != NULL and it describes the
+ *			target frame format. In this case *num_buffers are being
+ *			allocated additionally to q->num_buffers.
  * @wait_prepare:	release any locks taken while calling vb2 functions;
  *			it is called before an ioctl needs to wait for a new
  *			buffer to arrive; required to avoid a deadlock in
@@ -188,11 +196,11 @@ struct vb2_buffer {
  *			perform additional buffer-related initialization;
  *			initialization failure (return != 0) will prevent
  *			queue setup from completing successfully; optional
- * @buf_prepare:	called every time the buffer is queued from userspace;
- *			drivers may perform any initialization required before
- *			each hardware operation in this callback;
- *			if an error is returned, the buffer will not be queued
- *			in driver; optional
+ * @buf_prepare:	called every time the buffer is queued from userspace
+ *			and from the VIDIOC_PREPARE_BUF ioctl; drivers may
+ *			perform any initialization required before each hardware
+ *			operation in this callback; if an error is returned, the
+ *			buffer will not be queued in driver; optional
  * @buf_finish:		called before every dequeue of the buffer back to
  *			userspace; drivers may perform any operations required
  *			before userspace accesses the buffer; optional
@@ -299,6 +307,9 @@ int vb2_wait_for_all_buffers(struct vb2_queue *q);
 
 int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b);
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req);
+
+int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create);
+int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b);
 
 int vb2_queue_init(struct vb2_queue *q);
 
