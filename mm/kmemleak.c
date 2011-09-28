@@ -196,7 +196,9 @@ static atomic_t kmemleak_enabled = ATOMIC_INIT(0);
 static atomic_t kmemleak_initialized = ATOMIC_INIT(0);
 /* enables or disables early logging of the memory operations */
 static atomic_t kmemleak_early_log = ATOMIC_INIT(1);
-/* set if a fata kmemleak error has occurred */
+/* set if a kmemleak warning was issued */
+static atomic_t kmemleak_warning = ATOMIC_INIT(0);
+/* set if a fatal kmemleak error has occurred */
 static atomic_t kmemleak_error = ATOMIC_INIT(0);
 
 /* minimum and maximum address that may be valid pointers */
@@ -259,9 +261,10 @@ static void kmemleak_disable(void);
 /*
  * Print a warning and dump the stack trace.
  */
-#define kmemleak_warn(x...)	do {	\
-	pr_warning(x);			\
-	dump_stack();			\
+#define kmemleak_warn(x...)	do {		\
+	pr_warning(x);				\
+	dump_stack();				\
+	atomic_set(&kmemleak_warning, 1);	\
 } while (0)
 
 /*
@@ -403,8 +406,8 @@ static struct kmemleak_object *lookup_object(unsigned long ptr, int alias)
 		object = prio_tree_entry(node, struct kmemleak_object,
 					 tree_node);
 		if (!alias && object->pointer != ptr) {
-			pr_warning("Found object by alias at 0x%08lx\n", ptr);
-			dump_stack();
+			kmemleak_warn("Found object by alias at 0x%08lx\n",
+				      ptr);
 			dump_object_info(object);
 			object = NULL;
 		}
@@ -811,8 +814,7 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
 	log->ptr = ptr;
 	log->size = size;
 	log->min_count = min_count;
-	if (op_type == KMEMLEAK_ALLOC)
-		log->trace_len = __save_stack_trace(log->trace);
+	log->trace_len = __save_stack_trace(log->trace);
 	crt_early_log++;
 	local_irq_restore(flags);
 }
@@ -1659,6 +1661,17 @@ static int kmemleak_boot_config(char *str)
 }
 early_param("kmemleak", kmemleak_boot_config);
 
+static void __init print_log_trace(struct early_log *log)
+{
+	struct stack_trace trace;
+
+	trace.nr_entries = log->trace_len;
+	trace.entries = log->trace;
+
+	pr_notice("Early log backtrace:\n");
+	print_stack_trace(&trace, 2);
+}
+
 /*
  * Kmemleak initialization.
  */
@@ -1720,7 +1733,13 @@ void __init kmemleak_init(void)
 			kmemleak_no_scan(log->ptr);
 			break;
 		default:
-			WARN_ON(1);
+			kmemleak_warn("Unknown early log operation: %d\n",
+				      log->op_type);
+		}
+
+		if (atomic_read(&kmemleak_warning)) {
+			print_log_trace(log);
+			atomic_set(&kmemleak_warning, 0);
 		}
 	}
 }
