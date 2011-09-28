@@ -447,7 +447,10 @@ The file needs to have a line `[codec]`.  The next line should contain
 three numbers indicating the codec vendor-id (0x12345678 in the
 example), the codec subsystem-id (0xabcd1234) and the address (2) of
 the codec.  The rest patch entries are applied to this specified codec
-until another codec entry is given.
+until another codec entry is given.  Passing 0 or a negative number to
+the first or the second value will make the check of the corresponding
+field be skipped.  It'll be useful for really broken devices that don't
+initialize SSID properly.
 
 The `[model]` line allows to change the model name of the each codec.
 In the example above, it will be changed to model=auto.
