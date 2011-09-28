@@ -974,7 +974,7 @@ static int adau1373_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		ctrl = 0;
-		adau1373_dai->master = true;
+		adau1373_dai->master = false;
 		break;
 	default:
 		return -EINVAL;
