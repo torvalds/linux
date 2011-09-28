@@ -1218,7 +1218,6 @@ static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
 				  struct list_head *up_list,
 				  struct list_head *down_list)
 {
-	struct snd_soc_dapm_context *d;
 	int power;
 
 	switch (w->id) {
@@ -1237,26 +1236,6 @@ static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
 			power = w->power_check(w);
 		else
 			power = 1;
-
-		if (power) {
-			d = w->dapm;
-
-			/* Supplies and micbiases only bring the
-			 * context up to STANDBY as unless something
-			 * else is active and passing audio they
-			 * generally don't require full power.
-			 */
-			switch (w->id) {
-			case snd_soc_dapm_supply:
-			case snd_soc_dapm_micbias:
-				if (d->target_bias_level < SND_SOC_BIAS_STANDBY)
-					d->target_bias_level = SND_SOC_BIAS_STANDBY;
-				break;
-			default:
-				d->target_bias_level = SND_SOC_BIAS_ON;
-				break;
-			}
-		}
 
 		dapm_widget_set_power(w, power, up_list, down_list);
 		break;
@@ -1300,6 +1279,29 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	 */
 	list_for_each_entry(w, &card->widgets, list) {
 		dapm_power_one_widget(w, &up_list, &down_list);
+	}
+
+	list_for_each_entry(w, &card->widgets, list) {
+		if (w->power) {
+			d = w->dapm;
+
+			/* Supplies and micbiases only bring the
+			 * context up to STANDBY as unless something
+			 * else is active and passing audio they
+			 * generally don't require full power.
+			 */
+			switch (w->id) {
+			case snd_soc_dapm_supply:
+			case snd_soc_dapm_micbias:
+				if (d->target_bias_level < SND_SOC_BIAS_STANDBY)
+					d->target_bias_level = SND_SOC_BIAS_STANDBY;
+				break;
+			default:
+				d->target_bias_level = SND_SOC_BIAS_ON;
+				break;
+			}
+		}
+
 	}
 
 	/* If there are no DAPM widgets then try to figure out power from the
