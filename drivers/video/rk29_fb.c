@@ -1238,7 +1238,7 @@ static void win1_check_work_func(struct work_struct *work)
             }
             break;
     }
-    p = (int*)fb0_inf->screen_base + offset; 
+    p = (u32)fb0_inf->screen_base + offset; 
     blank_data = (inf->fb0_color_deepth==32) ? 0xff000000 : 0;
     total_data = fb0_inf->var.xres * fb0_inf->var.yres / (format+1);
     
