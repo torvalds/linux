@@ -1622,76 +1622,26 @@ static unsigned int implicit_sector(unsigned char command,
  * See ide_taskfile_ioctl() for derivation
  */
 static int exec_drive_taskfile(struct driver_data *dd,
-				unsigned long arg,
-				unsigned char compat)
+			       void __user *buf,
+			       ide_task_request_t *req_task,
+			       int outtotal)
 {
 	struct host_to_dev_fis	fis;
 	struct host_to_dev_fis *reply;
-	ide_task_request_t *req_task;
 	u8 *outbuf = NULL;
 	u8 *inbuf = NULL;
 	dma_addr_t outbuf_dma = 0;
 	dma_addr_t inbuf_dma = 0;
 	dma_addr_t dma_buffer = 0;
 	int err = 0;
-	int tasksize = sizeof(struct ide_task_request_s);
 	unsigned int taskin = 0;
 	unsigned int taskout = 0;
 	u8 nsect = 0;
-	char __user *buf = (char __user *)arg;
 	unsigned int timeout = MTIP_IOCTL_COMMAND_TIMEOUT_MS;
 	unsigned int force_single_sector;
 	unsigned int transfer_size;
 	unsigned long task_file_data;
-	int intotal, outtotal;
-#ifdef CONFIG_COMPAT
-	struct mtip_compat_ide_task_request_s *compat_req_task = NULL;
-	int compat_tasksize = sizeof(struct mtip_compat_ide_task_request_s);
-#endif
-
-
-	req_task = kzalloc(tasksize, GFP_KERNEL);
-	if (req_task == NULL)
-		return -ENOMEM;
-
-	if (compat == 1) {
-#ifdef CONFIG_COMPAT
-		compat_req_task =
-			(struct mtip_compat_ide_task_request_s __user *) arg;
-
-		if (copy_from_user(req_task, buf,
-				compat_tasksize -
-				(2 * sizeof(compat_long_t)))) {
-			err = -EFAULT;
-			goto abort;
-		}
-
-		if (get_user(req_task->out_size, &compat_req_task->out_size)) {
-			err = -EFAULT;
-			goto abort;
-		}
-
-		if (get_user(req_task->in_size, &compat_req_task->in_size)) {
-			err = -EFAULT;
-			goto abort;
-		}
-
-		outtotal = compat_tasksize;
-		intotal = compat_tasksize + req_task->out_size;
-#else
-		outtotal = 0;
-		intotal = 0;
-#endif
-	} else {
-		if (copy_from_user(req_task, buf, tasksize)) {
-			kfree(req_task);
-			err = -EFAULT;
-			goto abort;
-		}
-
-		outtotal = tasksize;
-		intotal = tasksize + req_task->out_size;
-	}
+	int intotal = outtotal + req_task->out_size;
 
 	taskout = req_task->out_size;
 	taskin = req_task->in_size;
@@ -1922,30 +1872,6 @@ static int exec_drive_taskfile(struct driver_data *dd,
 
 	up_write(&dd->internal_sem);
 
-	if (compat == 1) {
-#ifdef CONFIG_COMPAT
-		if (copy_to_user(buf, req_task,
-				compat_tasksize -
-				(2 * sizeof(compat_long_t)))) {
-			err = -EFAULT;
-			goto abort;
-		}
-		if (put_user(req_task->out_size,
-				&compat_req_task->out_size)) {
-			err = -EFAULT;
-			goto abort;
-		}
-		if (put_user(req_task->in_size, &compat_req_task->in_size)) {
-			err = -EFAULT;
-			goto abort;
-		}
-#endif
-	} else {
-		if (copy_to_user(buf, req_task, tasksize)) {
-			err = -EFAULT;
-			goto abort;
-		}
-	}
 	if (taskout) {
 		if (copy_to_user(buf + outtotal, outbuf, taskout)) {
 			err = -EFAULT;
@@ -1965,7 +1891,6 @@ abort:
 	if (outbuf_dma)
 		pci_unmap_single(dd->pdev, outbuf_dma,
 					taskout, DMA_TO_DEVICE);
-	kfree(req_task);
 	kfree(outbuf);
 	kfree(inbuf);
 
@@ -1989,10 +1914,8 @@ abort:
  *	-EFAULT An error occurred copying data to a user space buffer.
  *	-EIO	An error occurred while executing the command.
  */
-int mtip_hw_ioctl(struct driver_data *dd,
-		  unsigned int cmd,
-		  unsigned long arg,
-		  unsigned char compat)
+static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
+			 unsigned long arg)
 {
 	switch (cmd) {
 	case HDIO_GET_IDENTITY:
@@ -2049,8 +1972,24 @@ int mtip_hw_ioctl(struct driver_data *dd,
 
 		break;
 	}
-	case HDIO_DRIVE_TASKFILE:
-		return exec_drive_taskfile(dd, arg, compat);
+	case HDIO_DRIVE_TASKFILE: {
+		ide_task_request_t req_task;
+		int ret, outtotal;
+
+		if (copy_from_user(&req_task, (void __user *) arg,
+					sizeof(req_task)))
+			return -EFAULT;
+
+		outtotal = sizeof(req_task);
+
+		ret = exec_drive_taskfile(dd, (void __user *) arg,
+						&req_task, outtotal);
+
+		if (copy_to_user((void __user *) arg, &req_task, sizeof(req_task)))
+			return -EFAULT;
+
+		return ret;
+	}
 
 	default:
 		return -EINVAL;
@@ -2881,7 +2820,7 @@ static int mtip_block_ioctl(struct block_device *dev,
 	case BLKFLSBUF:
 		return 0;
 	default:
-		return mtip_hw_ioctl(dd, cmd, arg, 0);
+		return mtip_hw_ioctl(dd, cmd, arg);
 	}
 }
 
@@ -2915,8 +2854,46 @@ static int mtip_block_compat_ioctl(struct block_device *dev,
 	switch (cmd) {
 	case BLKFLSBUF:
 		return 0;
+	case HDIO_DRIVE_TASKFILE: {
+		struct mtip_compat_ide_task_request_s *compat_req_task;
+		ide_task_request_t req_task;
+		int compat_tasksize, outtotal, ret;
+
+		compat_tasksize = sizeof(struct mtip_compat_ide_task_request_s);
+
+		compat_req_task =
+			(struct mtip_compat_ide_task_request_s __user *) arg;
+
+		if (copy_from_user(&req_task, (void __user *) arg,
+				compat_tasksize - (2 * sizeof(compat_long_t))))
+			return -EFAULT;
+
+		if (get_user(req_task.out_size, &compat_req_task->out_size))
+			return -EFAULT;
+
+		if (get_user(req_task.in_size, &compat_req_task->in_size))
+			return -EFAULT;
+
+		outtotal = sizeof(struct mtip_compat_ide_task_request_s);
+
+		ret = exec_drive_taskfile(dd, (void __user *) arg,
+						&req_task, outtotal);
+
+		if (copy_to_user((void __user *) arg, &req_task,
+				compat_tasksize -
+				(2 * sizeof(compat_long_t))))
+			return -EFAULT;
+
+		if (put_user(req_task.out_size, &compat_req_task->out_size))
+			return -EFAULT;
+
+		if (put_user(req_task.in_size, &compat_req_task->in_size))
+			return -EFAULT;
+
+		return ret;
+	}
 	default:
-		return mtip_hw_ioctl(dd, cmd, arg, 1);
+		return mtip_hw_ioctl(dd, cmd, arg);
 	}
 }
 #endif

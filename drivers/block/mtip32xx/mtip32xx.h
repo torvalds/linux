@@ -430,10 +430,6 @@ extern void mtip_hw_submit_io(struct driver_data *dd,
 			void *data,
 			int barrier,
 			int dir);
-extern int mtip_hw_ioctl(struct driver_data *dd,
-			unsigned int cmd,
-			unsigned long arg,
-			unsigned char compat);
 extern int mtip_hw_sysfs_init(struct driver_data *dd, struct kobject *kobj);
 extern int mtip_hw_sysfs_exit(struct driver_data *dd, struct kobject *kobj);
 extern int mtip_hw_resume(struct driver_data *dd);
