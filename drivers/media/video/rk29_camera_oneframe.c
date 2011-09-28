@@ -130,7 +130,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CAM_IPPWORK_IS_EN()     ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height))                                  
 
 //Configure Macro
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 2)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 3)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -196,6 +196,16 @@ struct rk29_camera_work
 	struct rk29_camera_dev *pcdev;
 	struct work_struct work;
 };
+struct rk29_camera_frmivalenum
+{
+    struct v4l2_frmivalenum fival;
+    struct rk29_camera_frmivalenum *nxt;
+};
+struct rk29_camera_frmivalinfo
+{
+    struct soc_camera_device *icd;
+    struct rk29_camera_frmivalenum *fival_list;
+};
 struct rk29_camera_dev
 {
     struct soc_camera_host	soc_host;
@@ -248,6 +258,7 @@ struct rk29_camera_dev
 	struct work_struct camera_reinit_work;
     int icd_init;
     rk29_camera_sensor_cb_s icd_cb;
+    struct rk29_camera_frmivalinfo icd_frmival[2];
 };
 static DEFINE_MUTEX(camera_lock);
 static const char *rk29_cam_driver_description = "RK29_Camera";
@@ -742,8 +753,9 @@ static int rk29_camera_add_device(struct soc_camera_device *icd)
     struct rk29_camera_dev *pcdev = ici->priv;
     struct device *control = to_soc_camera_control(icd);
     struct v4l2_subdev *sd;
-    int ret;
-
+    int ret,i,icd_catch;
+    struct rk29_camera_frmivalenum *fival_list,*fival_nxt;
+    
     mutex_lock(&camera_lock);
 
     if (pcdev->icd) {
@@ -781,6 +793,28 @@ static int rk29_camera_add_device(struct soc_camera_device *icd)
     
     pcdev->icd = icd;
     pcdev->icd_init = 0;
+
+    icd_catch = 0;
+    for (i=0; i<2; i++) {
+        if (pcdev->icd_frmival[i].icd == icd)
+            icd_catch = 1;
+        if (pcdev->icd_frmival[i].icd == NULL) {
+            pcdev->icd_frmival[i].icd = icd;
+            icd_catch = 1;
+        }
+    }
+
+    if (icd_catch == 0) {
+        fival_list = pcdev->icd_frmival[0].fival_list;
+        fival_nxt = fival_list;
+        while(fival_nxt != NULL) {
+            fival_nxt = fival_list->nxt;
+            kfree(fival_list);
+            fival_list = fival_nxt;
+        }
+        pcdev->icd_frmival[0].icd = icd;
+        pcdev->icd_frmival[0].fival_list = kzalloc(sizeof(struct rk29_camera_frmivalenum),GFP_KERNEL);
+    }
 ebusy:
     mutex_unlock(&camera_lock);
 
@@ -1468,11 +1502,73 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 }
 static enum hrtimer_restart rk29_camera_fps_func(struct hrtimer *timer)
 {
+    struct rk29_camera_frmivalenum *fival_nxt=NULL,*fival_pre=NULL, *fival_rec=NULL;
+    int rec_flag,i;
+    
 	RK29CAMERA_DG("rk29_camera_fps_func fps:0x%x\n",rk29_camdev_info_ptr->fps);
-	if (rk29_camdev_info_ptr->fps < 3) {
+	if (rk29_camdev_info_ptr->fps < 2) {
 		RK29CAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay!\n");
 		INIT_WORK(&rk29_camdev_info_ptr->camera_reinit_work, rk29_camera_reinit_work);
 		queue_work(rk29_camdev_info_ptr->camera_wq,&(rk29_camdev_info_ptr->camera_reinit_work));
+	} else {
+	    for (i=0; i<2; i++) {
+            if (rk29_camdev_info_ptr->icd == rk29_camdev_info_ptr->icd_frmival[i].icd) {
+                fival_nxt = rk29_camdev_info_ptr->icd_frmival[i].fival_list;                
+            }
+        }
+        
+        rec_flag = 0;
+        fival_pre = fival_nxt;
+        while (fival_nxt != NULL) {
+
+            RK29CAMERA_DG("%s %c%c%c%c %dx%d framerate : %d/%d\n", dev_name(&rk29_camdev_info_ptr->icd->dev), 
+                fival_nxt->fival.pixel_format & 0xFF, (fival_nxt->fival.pixel_format >> 8) & 0xFF,
+			    (fival_nxt->fival.pixel_format >> 16) & 0xFF, (fival_nxt->fival.pixel_format >> 24),
+			    fival_nxt->fival.width, fival_nxt->fival.height, fival_nxt->fival.discrete.denominator,
+			    fival_nxt->fival.discrete.numerator);
+            
+            if (((fival_nxt->fival.pixel_format == rk29_camdev_info_ptr->pixfmt) 
+                && (fival_nxt->fival.height == rk29_camdev_info_ptr->icd->user_height)
+                && (fival_nxt->fival.width == rk29_camdev_info_ptr->icd->user_width))
+                || (fival_nxt->fival.discrete.denominator == 0)) {
+
+                if (fival_nxt->fival.discrete.denominator == 0) {
+                    fival_nxt->fival.index = 0;
+                    fival_nxt->fival.width = rk29_camdev_info_ptr->icd->user_width;
+                    fival_nxt->fival.height= rk29_camdev_info_ptr->icd->user_height;
+                    fival_nxt->fival.pixel_format = rk29_camdev_info_ptr->pixfmt;
+                    fival_nxt->fival.discrete.denominator = rk29_camdev_info_ptr->fps+2;
+                    fival_nxt->fival.discrete.numerator = 1;
+                    fival_nxt->fival.type = V4L2_FRMIVAL_TYPE_DISCRETE;
+                } else {                
+                    if (abs(rk29_camdev_info_ptr->fps + 2 - fival_nxt->fival.discrete.numerator) > 2) {
+                        fival_nxt->fival.discrete.denominator = rk29_camdev_info_ptr->fps+2;
+                        fival_nxt->fival.discrete.numerator = 1;
+                        fival_nxt->fival.type = V4L2_FRMIVAL_TYPE_DISCRETE;
+                    }
+                }
+                rec_flag = 1;
+                fival_rec = fival_nxt;
+            }
+            fival_pre = fival_nxt;
+            fival_nxt = fival_nxt->nxt;            
+        }
+
+        if ((rec_flag == 0) && fival_pre) {
+            fival_pre->nxt = kzalloc(sizeof(struct rk29_camera_frmivalenum), GFP_ATOMIC);
+            if (fival_pre->nxt != NULL) {
+                fival_pre->nxt->fival.index = fival_pre->fival.index++;
+                fival_pre->nxt->fival.width = rk29_camdev_info_ptr->icd->user_width;
+                fival_pre->nxt->fival.height= rk29_camdev_info_ptr->icd->user_height;
+                fival_pre->nxt->fival.pixel_format = rk29_camdev_info_ptr->pixfmt;
+
+                fival_pre->nxt->fival.discrete.denominator = rk29_camdev_info_ptr->fps+2;
+                fival_pre->nxt->fival.discrete.numerator = 1;
+                fival_pre->nxt->fival.type = V4L2_FRMIVAL_TYPE_DISCRETE;
+                rec_flag = 1;
+                fival_rec = fival_pre->nxt;
+            }
+        }
 	}
 
 	return HRTIMER_NORESTART;
@@ -1490,7 +1586,7 @@ static int rk29_camera_s_stream(struct soc_camera_device *icd, int enable)
 	if (enable) {
 		pcdev->fps = 0;
 		hrtimer_cancel(&pcdev->fps_timer);
-		hrtimer_start(&pcdev->fps_timer,ktime_set(2, 0),HRTIMER_MODE_REL);
+		hrtimer_start(&pcdev->fps_timer,ktime_set(1, 0),HRTIMER_MODE_REL);
 		vip_ctrl_val |= ENABLE_CAPTURE;
 	} else {
         vip_ctrl_val &= ~ENABLE_CAPTURE;
@@ -1503,7 +1599,44 @@ static int rk29_camera_s_stream(struct soc_camera_device *icd, int enable)
 	RK29CAMERA_DG("%s.. enable : 0x%x \n", __FUNCTION__, enable);
 	return 0;
 }
+int rk29_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frmivalenum *fival)
+{
+    struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+    struct rk29_camera_dev *pcdev = ici->priv;
+    struct rk29_camera_frmivalenum *fival_list = NULL;
+    int i,ret = 0;
+    
+    for (i=0; i<2; i++) {
+        if (pcdev->icd_frmival[i].icd == icd) {
+            fival_list = pcdev->icd_frmival[i].fival_list;            
+        }
+    }
+    
+    if (fival_list != NULL) {
+        i = 0;
+        while (fival_list != NULL) {
+            if ((fival->pixel_format == fival_list->fival.pixel_format)
+                && (fival->height == fival_list->fival.height) 
+                && (fival->width == fival_list->fival.width)) {
+                if (i == fival->index)
+                    break;
+                i++;
+            }                
+            fival_list = fival_list->nxt;                
+        }
+        
+        if ((i==fival->index) && (fival_list != NULL)) {
+            memcpy(fival, &fival_list->fival, sizeof(struct v4l2_frmivalenum));
+        } else {
+            ret = -EINVAL;
+        }
+    } else {
+        RK29CAMERA_TR("%s: fival_list is NULL\n",__FUNCTION__);
+        ret = -EINVAL;
+    }
 
+    return ret;
+}
 static struct soc_camera_host_ops rk29_soc_camera_host_ops =
 {
     .owner		= THIS_MODULE,
@@ -1511,6 +1644,7 @@ static struct soc_camera_host_ops rk29_soc_camera_host_ops =
     .remove		= rk29_camera_remove_device,
     .suspend	= rk29_camera_suspend,
     .resume		= rk29_camera_resume,
+    .enum_frameinervals = rk29_camera_enum_frameintervals,
     .set_crop	= rk29_camera_set_crop,
     .get_formats	= rk29_camera_get_formats,
     .put_formats	= rk29_camera_put_formats,
@@ -1522,12 +1656,14 @@ static struct soc_camera_host_ops rk29_soc_camera_host_ops =
     .querycap	= rk29_camera_querycap,
     .set_bus_param	= rk29_camera_set_bus_param,
     .s_stream = rk29_camera_s_stream   /* ddl@rock-chips.com : Add stream control for host */
+    
 };
 static int rk29_camera_probe(struct platform_device *pdev)
 {
     struct rk29_camera_dev *pcdev;
     struct resource *res;
-    int irq;
+    struct rk29_camera_frmivalenum *fival_list,*fival_nxt;
+    int irq,i;
     int err = 0;
 
     RK29CAMERA_DG("%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
@@ -1633,6 +1769,12 @@ static int rk29_camera_probe(struct platform_device *pdev)
 		goto exit_free_irq;
 	INIT_WORK(&pcdev->camera_reinit_work, rk29_camera_reinit_work);
 
+    for (i=0; i<2; i++) {
+        pcdev->icd_frmival[i].icd = NULL;
+        pcdev->icd_frmival[i].fival_list = kzalloc(sizeof(struct rk29_camera_frmivalenum),GFP_KERNEL);
+        
+    }
+
     pcdev->soc_host.drv_name	= RK29_CAM_DRV_NAME;
     pcdev->soc_host.ops		= &rk29_soc_camera_host_ops;
     pcdev->soc_host.priv		= pcdev;
@@ -1651,6 +1793,17 @@ static int rk29_camera_probe(struct platform_device *pdev)
     return 0;
 
 exit_free_irq:
+    
+    for (i=0; i<2; i++) {
+        fival_list = pcdev->icd_frmival[i].fival_list;
+        fival_nxt = fival_list;
+        while(fival_nxt != NULL) {
+            fival_nxt = fival_list->nxt;
+            kfree(fival_list);
+            fival_list = fival_nxt;
+        }
+    }
+    
     free_irq(pcdev->irq, pcdev);
 	if (pcdev->camera_wq) {
 		destroy_workqueue(pcdev->camera_wq);
@@ -1708,13 +1861,25 @@ static int __devexit rk29_camera_remove(struct platform_device *pdev)
 {
     struct rk29_camera_dev *pcdev = platform_get_drvdata(pdev);
     struct resource *res;
-
+    struct rk29_camera_frmivalenum *fival_list,*fival_nxt;
+    int i;
+    
     free_irq(pcdev->irq, pcdev);
 
 	if (pcdev->camera_wq) {
 		destroy_workqueue(pcdev->camera_wq);
 		pcdev->camera_wq = NULL;
 	}
+
+    for (i=0; i<2; i++) {
+        fival_list = pcdev->icd_frmival[i].fival_list;
+        fival_nxt = fival_list;
+        while(fival_nxt != NULL) {
+            fival_nxt = fival_list->nxt;
+            kfree(fival_list);
+            fival_list = fival_nxt;
+        }
+    }
 
     soc_camera_host_unregister(&pcdev->soc_host);
 

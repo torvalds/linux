@@ -65,6 +65,7 @@ struct soc_camera_host_ops {
 	void (*remove)(struct soc_camera_device *);
 	int (*suspend)(struct soc_camera_device *, pm_message_t);
 	int (*resume)(struct soc_camera_device *);
+    int (*enum_frameinervals)(struct soc_camera_device *, struct v4l2_frmivalenum *);
 	/*
 	 * .get_formats() is called for each client device format, but
 	 * .put_formats() is only called once. Further, if any of the calls to

@@ -552,7 +552,27 @@ unlock:
 
 	return ret;
 }
+static int soc_camera_enum_frameintervals (struct file *file, void  *priv,
+					   struct v4l2_frmivalenum *fival)
+{
+    struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = icf->icd;
+	const struct soc_camera_data_format *format;
+    struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+    struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+    int ret;
+    
+	WARN_ON(priv != file->private_data);
 
+    ret = v4l2_subdev_call(sd, video, enum_frameintervals, fival);
+    if (ret == -ENOIOCTLCMD) 
+        if (ici->ops->enum_frameinervals)
+           ret = ici->ops->enum_frameinervals(icd, fival); 
+        else 
+           ret = -ENOIOCTLCMD;
+
+    return ret;
+}
 static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 				       struct v4l2_fmtdesc *f)
 {
@@ -1364,13 +1384,13 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_streamon	 = soc_camera_streamon,
 	.vidioc_streamoff	 = soc_camera_streamoff,
 	.vidioc_queryctrl	 = soc_camera_queryctrl,
-	 .vidioc_querymenu	 = soc_camera_querymenu,                            /* ddl@rock-chips.com:   Add ioctrl - vidioc_querymenu for soc-camera */
+	 .vidioc_querymenu	 = soc_camera_querymenu,     /* ddl@rock-chips.com:   Add ioctrl - vidioc_querymenu for soc-camera */
 	.vidioc_g_ctrl		 = soc_camera_g_ctrl,
 	.vidioc_s_ctrl		 = soc_camera_s_ctrl,
-	.vidioc_g_ext_ctrls    = soc_camera_g_ext_ctrl,                                 /* ddl@rock-chips.com:   Add ioctrl - vidioc_g_ext_ctrls for soc-camera */
-	.vidioc_s_ext_ctrls    = soc_camera_s_ext_ctrl,                                 /* ddl@rock-chips.com:   Add ioctrl - vidioc_s_ext_ctrls for soc-camera */
-	.vidioc_try_ext_ctrls    = soc_camera_try_ext_ctrl,                         /* ddl@rock-chips.com:   Add ioctrl - vidioc_try_ext_ctrls for soc-camera */
-
+	.vidioc_g_ext_ctrls    = soc_camera_g_ext_ctrl,   /* ddl@rock-chips.com:   Add ioctrl - vidioc_g_ext_ctrls for soc-camera */
+	.vidioc_s_ext_ctrls    = soc_camera_s_ext_ctrl,   /* ddl@rock-chips.com:   Add ioctrl - vidioc_s_ext_ctrls for soc-camera */
+	.vidioc_try_ext_ctrls    = soc_camera_try_ext_ctrl,/* ddl@rock-chips.com:   Add ioctrl - vidioc_try_ext_ctrls for soc-camera */
+    .vidioc_enum_frameintervals = soc_camera_enum_frameintervals,/* ddl@rock-chips.com:   Add ioctrl - VIDIOC_ENUM_FRAMEINTERVALS for soc-camera */
 	.vidioc_cropcap		 = soc_camera_cropcap,
 	.vidioc_g_crop		 = soc_camera_g_crop,
 	.vidioc_s_crop		 = soc_camera_s_crop,
