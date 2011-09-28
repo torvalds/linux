@@ -832,6 +832,8 @@ static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
+	if (!is_edp(intel_dp))
+		return;
 	/*
 	 * If the panel wasn't on, make sure there's not a currently
 	 * active PP sequence before enabling AUX VDD.
@@ -853,6 +855,8 @@ static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
+	if (!is_edp(intel_dp))
+		return;
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp &= ~PANEL_UNLOCK_MASK;
 	pp |= PANEL_UNLOCK_REGS;
@@ -871,6 +875,8 @@ static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp, idle_on_mask = PP_ON | PP_SEQUENCE_STATE_ON_IDLE;
 
+	if (!is_edp(intel_dp))
+		return;
 	if (I915_READ(PCH_PP_STATUS) & PP_ON)
 		return true;
 
@@ -905,6 +911,8 @@ static void ironlake_edp_panel_off (struct drm_device *dev)
 	u32 pp, idle_off_mask = PP_ON | PP_SEQUENCE_MASK |
 		PP_CYCLE_DELAY_ACTIVE | PP_SEQUENCE_STATE_MASK;
 
+	if (!is_edp(intel_dp))
+		return;
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp &= ~PANEL_UNLOCK_MASK;
 	pp |= PANEL_UNLOCK_REGS;
@@ -1041,15 +1049,12 @@ static void intel_dp_commit(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_device *dev = encoder->dev;
 
-	if (is_edp(intel_dp))
-		ironlake_edp_panel_vdd_on(intel_dp);
+	ironlake_edp_panel_vdd_on(intel_dp);
 
 	intel_dp_start_link_train(intel_dp);
 
-	if (is_edp(intel_dp)) {
-		ironlake_edp_panel_on(intel_dp);
-		ironlake_edp_panel_vdd_off(intel_dp);
-	}
+	ironlake_edp_panel_on(intel_dp);
+	ironlake_edp_panel_vdd_off(intel_dp);
 
 	intel_dp_complete_link_train(intel_dp);
 
@@ -1072,20 +1077,16 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 			ironlake_edp_backlight_off(dev);
 		intel_dp_sink_dpms(intel_dp, mode);
 		intel_dp_link_down(intel_dp);
-		if (is_edp(intel_dp))
-			ironlake_edp_panel_off(dev);
+		ironlake_edp_panel_off(dev);
 		if (is_edp(intel_dp) && !is_pch_edp(intel_dp))
 			ironlake_edp_pll_off(encoder);
 	} else {
-		if (is_edp(intel_dp))
-			ironlake_edp_panel_vdd_on(intel_dp);
+		ironlake_edp_panel_vdd_on(intel_dp);
 		intel_dp_sink_dpms(intel_dp, mode);
 		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_start_link_train(intel_dp);
-			if (is_edp(intel_dp)) {
-				ironlake_edp_panel_on(intel_dp);
-				ironlake_edp_panel_vdd_off(intel_dp);
-			}
+			ironlake_edp_panel_on(intel_dp);
+			ironlake_edp_panel_vdd_off(intel_dp);
 			intel_dp_complete_link_train(intel_dp);
 		}
 		if (is_edp(intel_dp))
