@@ -52,7 +52,7 @@ MODULE_DESCRIPTION("FCoE");
 MODULE_LICENSE("GPL v2");
 
 /* Performance tuning parameters for fcoe */
-static unsigned int fcoe_ddp_min;
+static unsigned int fcoe_ddp_min = 4096;
 module_param_named(ddp_min, fcoe_ddp_min, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ddp_min, "Minimum I/O size in bytes for "	\
 		 "Direct Data Placement (DDP).");
