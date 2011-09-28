@@ -1046,10 +1046,25 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	struct ceph_pg_mapping *pg;
 	struct ceph_pg_pool_info *pool;
 	int ruleno;
-	unsigned poolid, ps, pps;
+	unsigned poolid, ps, pps, t;
 	int preferred;
 
+	poolid = le32_to_cpu(pgid.pool);
+	ps = le16_to_cpu(pgid.ps);
+	preferred = (s16)le16_to_cpu(pgid.preferred);
+
+	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
+	if (!pool)
+		return NULL;
+
 	/* pg_temp? */
+	if (preferred >= 0)
+		t = ceph_stable_mod(ps, le32_to_cpu(pool->v.lpg_num),
+				    pool->lpgp_num_mask);
+	else
+		t = ceph_stable_mod(ps, le32_to_cpu(pool->v.pg_num),
+				    pool->pgp_num_mask);
+	pgid.ps = cpu_to_le16(t);
 	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
 	if (pg) {
 		*num = pg->len;
@@ -1057,18 +1072,6 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	}
 
 	/* crush */
-	poolid = le32_to_cpu(pgid.pool);
-	ps = le16_to_cpu(pgid.ps);
-	preferred = (s16)le16_to_cpu(pgid.preferred);
-
-	/* don't forcefeed bad device ids to crush */
-	if (preferred >= osdmap->max_osd ||
-	    preferred >= osdmap->crush->max_devices)
-		preferred = -1;
-
-	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
-	if (!pool)
-		return NULL;
 	ruleno = crush_find_rule(osdmap->crush, pool->v.crush_ruleset,
 				 pool->v.type, pool->v.size);
 	if (ruleno < 0) {
@@ -1077,6 +1080,11 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 		       pool->v.size);
 		return NULL;
 	}
+
+	/* don't forcefeed bad device ids to crush */
+	if (preferred >= osdmap->max_osd ||
+	    preferred >= osdmap->crush->max_devices)
+		preferred = -1;
 
 	if (preferred >= 0)
 		pps = ceph_stable_mod(ps,
