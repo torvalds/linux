@@ -4185,7 +4185,8 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	memcpy(&locku->lu_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
 
 out:
-	nfs4_unlock_state();
+	if (!cstate->replay_owner)
+		nfs4_unlock_state();
 	return status;
 
 out_nfserr:
