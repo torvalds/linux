@@ -653,6 +653,10 @@ struct v4l2_buffer {
 #define V4L2_BUF_FLAG_ERROR	0x0040
 #define V4L2_BUF_FLAG_TIMECODE	0x0100	/* timecode field is valid */
 #define V4L2_BUF_FLAG_INPUT     0x0200  /* input field is valid */
+#define V4L2_BUF_FLAG_PREPARED	0x0400	/* Buffer is prepared for queuing */
+/* Cache handling flags */
+#define V4L2_BUF_FLAG_NO_CACHE_INVALIDATE	0x0800
+#define V4L2_BUF_FLAG_NO_CACHE_CLEAN		0x1000
 
 /*
  *	O V E R L A Y   P R E V I E W
@@ -2138,6 +2142,15 @@ struct v4l2_dbg_chip_ident {
 	__u32 revision;    /* chip revision, chip specific */
 } __attribute__ ((packed));
 
+/* VIDIOC_CREATE_BUFS */
+struct v4l2_create_buffers {
+	__u32			index;		/* output: buffers index...index + count - 1 have been created */
+	__u32			count;
+	enum v4l2_memory        memory;
+	struct v4l2_format	format;		/* "type" is used always, the rest if sizeimage == 0 */
+	__u32			reserved[8];
+};
+
 /*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
  *
@@ -2227,6 +2240,11 @@ struct v4l2_dbg_chip_ident {
 #define	VIDIOC_DQEVENT		 _IOR('V', 89, struct v4l2_event)
 #define	VIDIOC_SUBSCRIBE_EVENT	 _IOW('V', 90, struct v4l2_event_subscription)
 #define	VIDIOC_UNSUBSCRIBE_EVENT _IOW('V', 91, struct v4l2_event_subscription)
+
+/* Experimental, the below two ioctls may change over the next couple of kernel
+   versions */
+#define VIDIOC_CREATE_BUFS	_IOWR('V', 92, struct v4l2_create_buffers)
+#define VIDIOC_PREPARE_BUF	_IOWR('V', 93, struct v4l2_buffer)
 
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */
