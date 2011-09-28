@@ -857,6 +857,11 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 	return power;
 }
 
+static int dapm_always_on_check_power(struct snd_soc_dapm_widget *w)
+{
+	return 1;
+}
+
 static int dapm_seq_compare(struct snd_soc_dapm_widget *a,
 			    struct snd_soc_dapm_widget *b,
 			    bool power_up)
@@ -1229,9 +1234,6 @@ static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		if (!w->power_check)
-			break;
-
 		if (!w->force)
 			power = w->power_check(w);
 		else
@@ -2089,6 +2091,9 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 		case snd_soc_dapm_post:
 			break;
 		}
+
+		if (!w->power_check)
+			w->power_check = dapm_always_on_check_power;
 
 		/* Read the initial power state from the device */
 		if (w->reg >= 0) {
