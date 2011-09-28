@@ -56,7 +56,6 @@ struct aoi_display_offset {
 #define MFB_GET_PIXFMT_OLD	0x40014d08
 
 #ifdef __KERNEL__
-#include <linux/spinlock.h>
 
 /*
  * These are the fields of area descriptor(in DDR memory) for every plane
@@ -154,58 +153,12 @@ struct diu {
 	__be32 plut;
 } __attribute__ ((packed));
 
-struct diu_hw {
-	struct diu *diu_reg;
-	spinlock_t reg_lock;
-
-	__u32 mode;		/* DIU operation mode */
-};
-
-struct diu_addr {
-	void *vaddr;		/* Virtual address */
-	dma_addr_t paddr;	/* Physical address */
-	__u32 	   offset;
-};
-
-struct diu_pool {
-	struct diu_addr ad;
-	struct diu_addr gamma;
-	struct diu_addr pallete;
-	struct diu_addr cursor;
-};
-
-#define FSL_DIU_BASE_OFFSET	0x2C000	/* Offset of DIU */
-#define INT_LCDC		64	/* DIU interrupt number */
-
-#define FSL_AOI_NUM	6	/* 5 AOIs and one dummy AOI */
-				/* 1 for plane 0, 2 for plane 1&2 each */
-
-/* Minimum X and Y resolutions */
-#define MIN_XRES	64
-#define MIN_YRES	64
-
-/* HW cursor parameters */
-#define MAX_CURS		32
-
 /* Modes of operation of DIU */
 #define MFB_MODE0	0	/* DIU off */
 #define MFB_MODE1	1	/* All three planes output to display */
 #define MFB_MODE2	2	/* Plane 1 to display, planes 2+3 written back*/
 #define MFB_MODE3	3	/* All three planes written back to memory */
 #define MFB_MODE4	4	/* Color bar generation */
-
-/* INT_STATUS/INT_MASK field descriptions */
-#define INT_VSYNC	0x01	/* Vsync interrupt  */
-#define INT_VSYNC_WB	0x02	/* Vsync interrupt for write back operation */
-#define INT_UNDRUN	0x04	/* Under run exception interrupt */
-#define INT_PARERR	0x08	/* Display parameters error interrupt */
-#define INT_LS_BF_VS	0x10	/* Lines before vsync. interrupt */
-
-/* Panels'operation modes */
-#define MFB_TYPE_OUTPUT	0	/* Panel output to display */
-#define MFB_TYPE_OFF	1	/* Panel off */
-#define MFB_TYPE_WB	2	/* Panel written back to memory */
-#define MFB_TYPE_TEST	3	/* Panel generate color bar */
 
 #endif /* __KERNEL__ */
 #endif /* __FSL_DIU_FB_H__ */

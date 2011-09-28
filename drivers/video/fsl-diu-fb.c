@@ -30,10 +30,49 @@
 #include <linux/clk.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/spinlock.h>
 
 #include <sysdev/fsl_soc.h>
 #include <linux/fsl-diu-fb.h>
 #include "edid.h"
+
+#define FSL_AOI_NUM	6	/* 5 AOIs and one dummy AOI */
+				/* 1 for plane 0, 2 for plane 1&2 each */
+
+/* HW cursor parameters */
+#define MAX_CURS		32
+
+/* INT_STATUS/INT_MASK field descriptions */
+#define INT_VSYNC	0x01	/* Vsync interrupt  */
+#define INT_VSYNC_WB	0x02	/* Vsync interrupt for write back operation */
+#define INT_UNDRUN	0x04	/* Under run exception interrupt */
+#define INT_PARERR	0x08	/* Display parameters error interrupt */
+#define INT_LS_BF_VS	0x10	/* Lines before vsync. interrupt */
+
+/* Panels'operation modes */
+#define MFB_TYPE_OUTPUT	0	/* Panel output to display */
+#define MFB_TYPE_OFF	1	/* Panel off */
+#define MFB_TYPE_WB	2	/* Panel written back to memory */
+#define MFB_TYPE_TEST	3	/* Panel generate color bar */
+
+struct diu_hw {
+	struct diu __iomem *diu_reg;
+	spinlock_t reg_lock;
+	unsigned int mode;		/* DIU operation mode */
+};
+
+struct diu_addr {
+	void *vaddr;		/* Virtual address */
+	dma_addr_t paddr;	/* Physical address */
+	__u32 offset;
+};
+
+struct diu_pool {
+	struct diu_addr ad;
+	struct diu_addr gamma;
+	struct diu_addr pallete;
+	struct diu_addr cursor;
+};
 
 /*
  * List of supported video modes
