@@ -231,7 +231,6 @@ struct mfb_info {
 	int type;
 	char *id;
 	int registered;
-	int blank;
 	unsigned long pseudo_palette[16];
 	struct diu_ad *ad;
 	int cursor_reset;
@@ -960,37 +959,6 @@ static int fsl_diu_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-/*
- * Blank the screen if blank_mode != 0, else unblank. Return 0 if blanking
- * succeeded, != 0 if un-/blanking failed.
- * blank_mode == 2: suspend vsync
- * blank_mode == 3: suspend hsync
- * blank_mode == 4: powerdown
- */
-static int fsl_diu_blank(int blank_mode, struct fb_info *info)
-{
-	struct mfb_info *mfbi = info->par;
-
-	mfbi->blank = blank_mode;
-
-	switch (blank_mode) {
-	case FB_BLANK_VSYNC_SUSPEND:
-	case FB_BLANK_HSYNC_SUSPEND:
-	/* FIXME: fixes to enable_panel and enable lcdc needed */
-	case FB_BLANK_NORMAL:
-	/*	fsl_diu_disable_panel(info);*/
-		break;
-	case FB_BLANK_POWERDOWN:
-	/*	disable_lcdc(info);	*/
-		break;
-	case FB_BLANK_UNBLANK:
-	/*	fsl_diu_enable_panel(info);*/
-		break;
-	}
-
-	return 0;
-}
-
 static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 		       unsigned long arg)
 {
@@ -1137,7 +1105,6 @@ static struct fb_ops fsl_diu_ops = {
 	.fb_check_var = fsl_diu_check_var,
 	.fb_set_par = fsl_diu_set_par,
 	.fb_setcolreg = fsl_diu_setcolreg,
-	.fb_blank = fsl_diu_blank,
 	.fb_pan_display = fsl_diu_pan_display,
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
@@ -1231,11 +1198,6 @@ static int __devinit install_fb(struct fb_info *info)
 		info->var.bits_per_pixel = default_bpp;
 		fb_videomode_to_var(&info->var, modedb);
 	}
-
-	if (mfbi->type == MFB_TYPE_OFF)
-		mfbi->blank = FB_BLANK_NORMAL;
-	else
-		mfbi->blank = FB_BLANK_UNBLANK;
 
 	if (fsl_diu_check_var(&info->var, info)) {
 		dev_err(info->dev, "fsl_diu_check_var failed\n");
