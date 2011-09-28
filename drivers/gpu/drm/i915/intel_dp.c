@@ -2079,8 +2079,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			break;
 	}
 
-	intel_dp_i2c_init(intel_dp, intel_connector, name);
-
 	/* Cache some DPCD data in the eDP case */
 	if (is_edp(intel_dp)) {
 		bool ret;
@@ -2111,6 +2109,8 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			return;
 		}
 	}
+
+	intel_dp_i2c_init(intel_dp, intel_connector, name);
 
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
