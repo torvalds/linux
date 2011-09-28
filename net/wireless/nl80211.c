@@ -184,6 +184,12 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 					 .len = IEEE80211_MAX_DATA_LEN },
 	[NL80211_ATTR_ROAM_SUPPORT] = { .type = NLA_FLAG },
 	[NL80211_ATTR_SCHED_SCAN_MATCH] = { .type = NLA_NESTED },
+	[NL80211_ATTR_TX_NO_CCK_RATE] = { .type = NLA_FLAG },
+	[NL80211_ATTR_TDLS_ACTION] = { .type = NLA_U8 },
+	[NL80211_ATTR_TDLS_DIALOG_TOKEN] = { .type = NLA_U8 },
+	[NL80211_ATTR_TDLS_OPERATION] = { .type = NLA_U8 },
+	[NL80211_ATTR_TDLS_SUPPORT] = { .type = NLA_FLAG },
+	[NL80211_ATTR_TDLS_EXTERNAL_SETUP] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -718,6 +724,14 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		NLA_PUT_FLAG(msg, NL80211_ATTR_SUPPORT_IBSS_RSN);
 	if (dev->wiphy.flags & WIPHY_FLAG_MESH_AUTH)
 		NLA_PUT_FLAG(msg, NL80211_ATTR_SUPPORT_MESH_AUTH);
+	if (dev->wiphy.flags & WIPHY_FLAG_AP_UAPSD)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_SUPPORT_AP_UAPSD);
+	if (dev->wiphy.flags & WIPHY_FLAG_SUPPORTS_FW_ROAM)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_ROAM_SUPPORT);
+	if (dev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_TDLS_SUPPORT);
+	if (dev->wiphy.flags & WIPHY_FLAG_TDLS_EXTERNAL_SETUP)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_TDLS_EXTERNAL_SETUP);
 
 	NLA_PUT(msg, NL80211_ATTR_CIPHER_SUITES,
 		sizeof(u32) * dev->wiphy.n_cipher_suites,
@@ -860,6 +874,10 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	}
 	CMD(set_channel, SET_CHANNEL);
 	CMD(set_wds_peer, SET_WDS_PEER);
+	if (dev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS) {
+		CMD(tdls_mgmt, TDLS_MGMT);
+		CMD(tdls_oper, TDLS_OPER);
+	}
 	if (dev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN)
 		CMD(sched_scan_start, START_SCHED_SCAN);
 
@@ -4720,6 +4738,57 @@ static int nl80211_flush_pmksa(struct sk_buff *skb, struct genl_info *info)
 	return rdev->ops->flush_pmksa(&rdev->wiphy, dev);
 }
 
+static int nl80211_tdls_mgmt(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	u8 action_code, dialog_token;
+	u16 status_code;
+	u8 *peer;
+
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS) ||
+	    !rdev->ops->tdls_mgmt)
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL80211_ATTR_TDLS_ACTION] ||
+	    !info->attrs[NL80211_ATTR_STATUS_CODE] ||
+	    !info->attrs[NL80211_ATTR_TDLS_DIALOG_TOKEN] ||
+	    !info->attrs[NL80211_ATTR_IE] ||
+	    !info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
+
+	peer = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	action_code = nla_get_u8(info->attrs[NL80211_ATTR_TDLS_ACTION]);
+	status_code = nla_get_u16(info->attrs[NL80211_ATTR_STATUS_CODE]);
+	dialog_token = nla_get_u8(info->attrs[NL80211_ATTR_TDLS_DIALOG_TOKEN]);
+
+	return rdev->ops->tdls_mgmt(&rdev->wiphy, dev, peer, action_code,
+				    dialog_token, status_code,
+				    nla_data(info->attrs[NL80211_ATTR_IE]),
+				    nla_len(info->attrs[NL80211_ATTR_IE]));
+}
+
+static int nl80211_tdls_oper(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	enum nl80211_tdls_operation operation;
+	u8 *peer;
+
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS) ||
+	    !rdev->ops->tdls_oper)
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL80211_ATTR_TDLS_OPERATION] ||
+	    !info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
+
+	operation = nla_get_u8(info->attrs[NL80211_ATTR_TDLS_OPERATION]);
+	peer = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	return rdev->ops->tdls_oper(&rdev->wiphy, dev, peer, operation);
+}
+
 static int nl80211_remain_on_channel(struct sk_buff *skb,
 				     struct genl_info *info)
 {
@@ -5991,6 +6060,22 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_SET_REKEY_OFFLOAD,
 		.doit = nl80211_set_rekey_data,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_TDLS_MGMT,
+		.doit = nl80211_tdls_mgmt,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_TDLS_OPER,
+		.doit = nl80211_tdls_oper,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
