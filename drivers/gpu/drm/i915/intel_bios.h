@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright Â© 2006 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -446,11 +446,11 @@ struct bdb_driver_features {
 #define EDP_VSWING_1_2V		3
 
 struct edp_power_seq {
-	u16 t3;
-	u16 t7;
+	u16 t1_t3;
+	u16 t8;
 	u16 t9;
 	u16 t10;
-	u16 t12;
+	u16 t11_t12;
 } __attribute__ ((packed));
 
 struct edp_link_params {
