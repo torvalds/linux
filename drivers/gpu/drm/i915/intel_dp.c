@@ -595,10 +595,15 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	return -EREMOTEIO;
 }
 
+static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
+static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp);
+
 static int
 intel_dp_i2c_init(struct intel_dp *intel_dp,
 		  struct intel_connector *intel_connector, const char *name)
 {
+	int	ret;
+
 	DRM_DEBUG_KMS("i2c_init %s\n", name);
 	intel_dp->algo.running = false;
 	intel_dp->algo.address = 0;
@@ -612,7 +617,10 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	intel_dp->adapter.algo_data = &intel_dp->algo;
 	intel_dp->adapter.dev.parent = &intel_connector->base.kdev;
 
-	return i2c_dp_aux_add_bus(&intel_dp->adapter);
+	ironlake_edp_panel_vdd_on(intel_dp);
+	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
+	ironlake_edp_panel_vdd_off(intel_dp);
+	return ret;
 }
 
 static bool
