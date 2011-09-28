@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <mach/sh73a0.h>
+#include <mach/irqs.h>
 
 #define _1(fn, pfx, sfx) fn(pfx, sfx)
 
@@ -2765,6 +2766,43 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
+#define EXT_IRQ(n) gic_spi((n) + 1) /* GIC SPI starting from 1 for IRQ0 */
+
+static struct pinmux_irq pinmux_irqs[] = {
+	PINMUX_IRQ(EXT_IRQ(19), PORT9_FN0),
+	PINMUX_IRQ(EXT_IRQ(1), PORT10_FN0),
+	PINMUX_IRQ(EXT_IRQ(0), PORT11_FN0),
+	PINMUX_IRQ(EXT_IRQ(18), PORT13_FN0),
+	PINMUX_IRQ(EXT_IRQ(20), PORT14_FN0),
+	PINMUX_IRQ(EXT_IRQ(21), PORT15_FN0),
+	PINMUX_IRQ(EXT_IRQ(31), PORT26_FN0),
+	PINMUX_IRQ(EXT_IRQ(30), PORT27_FN0),
+	PINMUX_IRQ(EXT_IRQ(29), PORT28_FN0),
+	PINMUX_IRQ(EXT_IRQ(22), PORT40_FN0),
+	PINMUX_IRQ(EXT_IRQ(23), PORT53_FN0),
+	PINMUX_IRQ(EXT_IRQ(10), PORT54_FN0),
+	PINMUX_IRQ(EXT_IRQ(9), PORT56_FN0),
+	PINMUX_IRQ(EXT_IRQ(26), PORT115_FN0),
+	PINMUX_IRQ(EXT_IRQ(27), PORT116_FN0),
+	PINMUX_IRQ(EXT_IRQ(28), PORT117_FN0),
+	PINMUX_IRQ(EXT_IRQ(24), PORT118_FN0),
+	PINMUX_IRQ(EXT_IRQ(6), PORT147_FN0),
+	PINMUX_IRQ(EXT_IRQ(2), PORT149_FN0),
+	PINMUX_IRQ(EXT_IRQ(7), PORT150_FN0),
+	PINMUX_IRQ(EXT_IRQ(12), PORT156_FN0),
+	PINMUX_IRQ(EXT_IRQ(4), PORT159_FN0),
+	PINMUX_IRQ(EXT_IRQ(25), PORT164_FN0),
+	PINMUX_IRQ(EXT_IRQ(8), PORT223_FN0),
+	PINMUX_IRQ(EXT_IRQ(3), PORT224_FN0),
+	PINMUX_IRQ(EXT_IRQ(5), PORT227_FN0),
+	PINMUX_IRQ(EXT_IRQ(17), PORT234_FN0),
+	PINMUX_IRQ(EXT_IRQ(11), PORT238_FN0),
+	PINMUX_IRQ(EXT_IRQ(13), PORT239_FN0),
+	PINMUX_IRQ(EXT_IRQ(16), PORT249_FN0),
+	PINMUX_IRQ(EXT_IRQ(14), PORT251_FN0),
+	PINMUX_IRQ(EXT_IRQ(9), PORT308_FN0),
+};
+
 static struct pinmux_info sh73a0_pinmux_info = {
 	.name = "sh73a0_pfc",
 	.reserved_id = PINMUX_RESERVED,
@@ -2785,6 +2823,9 @@ static struct pinmux_info sh73a0_pinmux_info = {
 
 	.gpio_data = pinmux_data,
 	.gpio_data_size = ARRAY_SIZE(pinmux_data),
+
+	.gpio_irq = pinmux_irqs,
+	.gpio_irq_size = ARRAY_SIZE(pinmux_irqs),
 };
 
 void sh73a0_pinmux_init(void)
