@@ -61,6 +61,7 @@ struct nmk_gpio_chip {
 	u32 rimsc;
 	u32 fimsc;
 	u32 pull_up;
+	u32 lowemi;
 };
 
 static struct nmk_gpio_chip *
@@ -123,6 +124,24 @@ static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
 		nmk_chip->pull_up &= ~bit;
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
 	}
+}
+
+static void __nmk_gpio_set_lowemi(struct nmk_gpio_chip *nmk_chip,
+				  unsigned offset, bool lowemi)
+{
+	u32 bit = BIT(offset);
+	bool enabled = nmk_chip->lowemi & bit;
+
+	if (lowemi == enabled)
+		return;
+
+	if (lowemi)
+		nmk_chip->lowemi |= bit;
+	else
+		nmk_chip->lowemi &= ~bit;
+
+	writel_relaxed(nmk_chip->lowemi,
+		       nmk_chip->addr + NMK_GPIO_LOWEMI);
 }
 
 static void __nmk_gpio_make_input(struct nmk_gpio_chip *nmk_chip,
@@ -268,6 +287,8 @@ static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 		__nmk_gpio_make_input(nmk_chip, offset);
 		__nmk_gpio_set_pull(nmk_chip, offset, pull);
 	}
+
+	__nmk_gpio_set_lowemi(nmk_chip, offset, PIN_LOWEMI(cfg));
 
 	/*
 	 * If the pin is switching to altfunc, and there was an interrupt
@@ -1180,6 +1201,10 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	chip->label = pdata->name ?: dev_name(&dev->dev);
 	chip->dev = &dev->dev;
 	chip->owner = THIS_MODULE;
+
+	clk_enable(nmk_chip->clk);
+	nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
+	clk_disable(nmk_chip->clk);
 
 	ret = gpiochip_add(&nmk_chip->chip);
 	if (ret)

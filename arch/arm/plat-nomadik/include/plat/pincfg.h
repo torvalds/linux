@@ -105,6 +105,12 @@ typedef unsigned long pin_cfg_t;
 #define PIN_SLPM_VAL_LOW	((1 + 0) << PIN_SLPM_VAL_SHIFT)
 #define PIN_SLPM_VAL_HIGH	((1 + 1) << PIN_SLPM_VAL_SHIFT)
 
+#define PIN_LOWEMI_SHIFT	25
+#define PIN_LOWEMI_MASK		(0x1 << PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI(x)		(((x) & PIN_LOWEMI_MASK) >> PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI_DISABLED	(0 << PIN_LOWEMI_SHIFT)
+#define PIN_LOWEMI_ENABLED	(1 << PIN_LOWEMI_SHIFT)
+
 /* Shortcuts.  Use these instead of separate DIR, PULL, and VAL.  */
 #define PIN_INPUT_PULLDOWN	(PIN_DIR_INPUT | PIN_PULL_DOWN)
 #define PIN_INPUT_PULLUP	(PIN_DIR_INPUT | PIN_PULL_UP)
