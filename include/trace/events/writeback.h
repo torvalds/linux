@@ -298,7 +298,7 @@ DECLARE_EVENT_CLASS(writeback_single_inode_template,
 		__array(char, name, 32)
 		__field(unsigned long, ino)
 		__field(unsigned long, state)
-		__field(unsigned long, age)
+		__field(unsigned long, dirtied_when)
 		__field(unsigned long, writeback_index)
 		__field(long, nr_to_write)
 		__field(unsigned long, wrote)
@@ -309,19 +309,19 @@ DECLARE_EVENT_CLASS(writeback_single_inode_template,
 			dev_name(inode->i_mapping->backing_dev_info->dev), 32);
 		__entry->ino		= inode->i_ino;
 		__entry->state		= inode->i_state;
-		__entry->age		= (jiffies - inode->dirtied_when) *
-								1000 / HZ;
+		__entry->dirtied_when	= inode->dirtied_when;
 		__entry->writeback_index = inode->i_mapping->writeback_index;
 		__entry->nr_to_write	= nr_to_write;
 		__entry->wrote		= nr_to_write - wbc->nr_to_write;
 	),
 
-	TP_printk("bdi %s: ino=%lu state=%s age=%lu "
+	TP_printk("bdi %s: ino=%lu state=%s dirtied_when=%lu age=%lu "
 		  "index=%lu to_write=%ld wrote=%lu",
 		  __entry->name,
 		  __entry->ino,
 		  show_inode_state(__entry->state),
-		  __entry->age,
+		  __entry->dirtied_when,
+		  (jiffies - __entry->dirtied_when) / HZ,
 		  __entry->writeback_index,
 		  __entry->nr_to_write,
 		  __entry->wrote
