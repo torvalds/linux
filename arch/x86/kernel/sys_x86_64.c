@@ -14,6 +14,7 @@
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/uaccess.h>
+#include <linux/elf.h>
 
 #include <asm/ia32.h>
 #include <asm/syscalls.h>
