@@ -4943,7 +4943,7 @@ static void bnx2x_init_def_sb(struct bnx2x *bp)
 	int igu_seg_id;
 	int port = BP_PORT(bp);
 	int func = BP_FUNC(bp);
-	int reg_offset;
+	int reg_offset, reg_offset_en5;
 	u64 section;
 	int index;
 	struct hc_sp_status_block_data sp_sb_data;
@@ -4966,6 +4966,8 @@ static void bnx2x_init_def_sb(struct bnx2x *bp)
 
 	reg_offset = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
 			     MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0);
+	reg_offset_en5 = (port ? MISC_REG_AEU_ENABLE5_FUNC_1_OUT_0 :
+				 MISC_REG_AEU_ENABLE5_FUNC_0_OUT_0);
 	for (index = 0; index < MAX_DYNAMIC_ATTN_GRPS; index++) {
 		int sindex;
 		/* take care of sig[0]..sig[4] */
@@ -4980,7 +4982,7 @@ static void bnx2x_init_def_sb(struct bnx2x *bp)
 			 * and not 16 between the different groups
 			 */
 			bp->attn_group[index].sig[4] = REG_RD(bp,
-					reg_offset + 0x10 + 0x4*index);
+					reg_offset_en5 + 0x4*index);
 		else
 			bp->attn_group[index].sig[4] = 0;
 	}
@@ -7625,8 +7627,11 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		u32 emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 		u8 *mac_addr = bp->dev->dev_addr;
 		u32 val;
+		u16 pmc;
+
 		/* The mac address is written to entries 1-4 to
-		   preserve entry 0 which is used by the PMF */
+		 * preserve entry 0 which is used by the PMF
+		 */
 		u8 entry = (BP_VN(bp) + 1)*8;
 
 		val = (mac_addr[0] << 8) | mac_addr[1];
@@ -7635,6 +7640,11 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
 		val = (mac_addr[2] << 24) | (mac_addr[3] << 16) |
 		      (mac_addr[4] << 8) | mac_addr[5];
 		EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + entry + 4, val);
+
+		/* Enable the PME and clear the status */
+		pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &pmc);
+		pmc |= PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS;
+		pci_write_config_word(bp->pdev, bp->pm_cap + PCI_PM_CTRL, pmc);
 
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_EN;
 

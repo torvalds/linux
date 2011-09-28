@@ -2120,6 +2120,7 @@ static u8 bnx2x_dcbnl_get_cap(struct net_device *netdev, int capid, u8 *cap)
 			break;
 		case DCB_CAP_ATTR_DCBX:
 			*cap = BNX2X_DCBX_CAPS;
+			break;
 		default:
 			rval = -EINVAL;
 			break;
