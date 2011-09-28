@@ -1197,6 +1197,23 @@ static void dapm_post_sequence_async(void *data, async_cookie_t cookie)
 	}
 }
 
+static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
+				  struct list_head *up_list,
+				  struct list_head *down_list)
+{
+	if (w->power == power)
+		return;
+
+	trace_snd_soc_dapm_widget_power(w, power);
+
+	if (power)
+		dapm_seq_insert(w, up_list, true);
+	else
+		dapm_seq_insert(w, down_list, false);
+
+	w->power = power;
+}
+
 static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
 				  struct list_head *up_list,
 				  struct list_head *down_list)
@@ -1241,17 +1258,7 @@ static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
 			}
 		}
 
-		if (w->power == power)
-			break;
-
-		trace_snd_soc_dapm_widget_power(w, power);
-
-		if (power)
-			dapm_seq_insert(w, up_list, true);
-		else
-			dapm_seq_insert(w, down_list, false);
-
-		w->power = power;
+		dapm_widget_set_power(w, power, up_list, down_list);
 		break;
 	}
 }
