@@ -656,11 +656,7 @@ static inline int atomic_read_short(const struct atomic_short *v)
  */
 static inline int atom_asr(short i, struct atomic_short *v)
 {
-	short __i = i;
-	asm volatile(LOCK_PREFIX "xaddw %0, %1"
-			: "+r" (i), "+m" (v->counter)
-			: : "memory");
-	return i + __i;
+	return i + xadd(&v->counter, i);
 }
 
 /*
