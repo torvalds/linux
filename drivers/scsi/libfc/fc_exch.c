@@ -65,16 +65,15 @@ static struct workqueue_struct *fc_exch_workqueue;
  * assigned range of exchanges to per cpu pool.
  */
 struct fc_exch_pool {
+	spinlock_t	 lock;
+	struct list_head ex_list;
 	u16		 next_index;
 	u16		 total_exches;
 
 	/* two cache of free slot in exch array */
 	u16		 left;
 	u16		 right;
-
-	spinlock_t	 lock;
-	struct list_head ex_list;
-};
+} ____cacheline_aligned_in_smp;
 
 /**
  * struct fc_exch_mgr - The Exchange Manager (EM).
@@ -91,13 +90,13 @@ struct fc_exch_pool {
  * It manages the allocation of exchange IDs.
  */
 struct fc_exch_mgr {
+	struct fc_exch_pool *pool;
+	mempool_t	*ep_pool;
 	enum fc_class	class;
 	struct kref	kref;
 	u16		min_xid;
 	u16		max_xid;
-	mempool_t	*ep_pool;
 	u16		pool_max_index;
-	struct fc_exch_pool *pool;
 
 	/*
 	 * currently exchange mgr stats are updated but not used.
