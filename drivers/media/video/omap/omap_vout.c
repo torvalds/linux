@@ -565,8 +565,8 @@ err:
 
 static void omap_vout_isr(void *arg, unsigned int irqstatus)
 {
-	int ret, fid;
-	u32 addr;
+	int ret, fid, mgr_id;
+	u32 addr, irq;
 	struct omap_overlay *ovl;
 	struct timeval timevalue;
 	struct omapvideo_info *ovid;
@@ -582,6 +582,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 	if (!ovl->manager || !ovl->manager->device)
 		return;
 
+	mgr_id = ovl->manager->id;
 	cur_display = ovl->manager->device;
 
 	spin_lock(&vout->vbq_lock);
@@ -589,7 +590,14 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 
 	switch (cur_display->type) {
 	case OMAP_DISPLAY_TYPE_DPI:
-		if (!(irqstatus & (DISPC_IRQ_VSYNC | DISPC_IRQ_VSYNC2)))
+		if (mgr_id == OMAP_DSS_CHANNEL_LCD)
+			irq = DISPC_IRQ_VSYNC;
+		else if (mgr_id == OMAP_DSS_CHANNEL_LCD2)
+			irq = DISPC_IRQ_VSYNC2;
+		else
+			goto vout_isr_err;
+
+		if (!(irqstatus & irq))
 			goto vout_isr_err;
 		break;
 	case OMAP_DISPLAY_TYPE_VENC:
