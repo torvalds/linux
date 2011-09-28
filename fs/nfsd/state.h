@@ -332,25 +332,6 @@ struct nfs4_replay {
 	char			rp_ibuf[NFSD4_REPLAY_ISIZE];
 };
 
-/*
-* nfs4_stateowner can either be an open_owner, or a lock_owner
-*
-*    so_idhash:  stateid_hashtbl[] for open owner, lockstateid_hashtbl[]
-*         for lock_owner
-*    so_strhash: ownerstr_hashtbl[] for open_owner, lock_ownerstr_hashtbl[]
-*         for lock_owner
-*    so_perclient: nfs4_client->cl_perclient entry - used when nfs4_client
-*         struct is reaped.
-*    so_perfilestate: heads the list of nfs4_ol_stateid (either open or lock) 
-*         and is used to ensure no dangling nfs4_ol_stateid references when we 
-*         release a stateowner.
-*    so_perlockowner: (open) nfs4_ol_stateid->st_perlockowner entry - used when
-*         close is called to reap associated byte-range locks
-*    so_close_lru: (open) stateowner is placed on this list instead of being
-*         reaped (when so_perfilestate is empty) to hold the last close replay.
-*         reaped by laundramat thread after lease period.
-*/
-
 struct nfs4_stateowner {
 	struct list_head        so_strhash;   /* hash by op_name */
 	struct list_head        so_stateids;
@@ -366,7 +347,14 @@ struct nfs4_stateowner {
 struct nfs4_openowner {
 	struct nfs4_stateowner	oo_owner; /* must be first field */
 	struct list_head        oo_perclient;
-	struct list_head	oo_close_lru; /* tail queue */
+	/*
+	 * We keep around openowners a little while after last close,
+	 * which saves clients from having to confirm, and allows us to
+	 * handle close replays if they come soon enough.  The close_lru
+	 * is a list of such openowners, to be reaped by the laundromat
+	 * thread eventually if they remain unused:
+	 */
+	struct list_head	oo_close_lru;
 	struct nfs4_ol_stateid *oo_last_closed_stid;
 	time_t			oo_time; /* time of placement on so_close_lru */
 #define NFS4_OO_CONFIRMED   1
@@ -442,23 +430,6 @@ static inline struct file *find_any_file(struct nfs4_file *f)
 	else
 		return f->fi_fds[O_RDONLY];
 }
-
-/*
-* nfs4_ol_stateid can either be an open stateid or (eventually) a lock stateid
-*
-* (open)nfs4_ol_stateid: one per (open)nfs4_stateowner, nfs4_file
-*
-* 	st_hash: stateid_hashtbl[] entry or lockstateid_hashtbl entry
-* 	st_perfile: file_hashtbl[] entry.
-* 	st_perfile_state: nfs4_stateowner->so_perfilestate
-*       st_perlockowner: (open stateid) list of lock nfs4_stateowners
-* 	st_access_bmap: used only for open stateid
-* 	st_deny_bmap: used only for open stateid
-*	st_openstp: open stateid lock stateid was derived from
-*
-* XXX: open stateids and lock stateids have diverged sufficiently that
-* we should consider defining separate structs for the two cases.
-*/
 
 /* "ol" stands for "Open or Lock".  Better suggestions welcome. */
 struct nfs4_ol_stateid {
