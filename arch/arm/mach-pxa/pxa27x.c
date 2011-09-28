@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/i2c/pxa-i2c.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>

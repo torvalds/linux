@@ -20,6 +20,7 @@
 
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa2xx.h>
+#include <mach/gpio-pxa.h>
 
 #include "generic.h"
 

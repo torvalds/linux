@@ -18,6 +18,8 @@
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
 
+#include <mach/gpio-pxa.h>
+
 int pxa_last_gpio;
 
 struct pxa_gpio_chip {
