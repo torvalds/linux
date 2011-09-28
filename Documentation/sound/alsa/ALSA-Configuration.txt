@@ -891,6 +891,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		      access but isn't required by the HDA spec and prevents
 		      users from specifying exact period/buffer sizes.
 		      (default = on)
+    snoop	- Enable/disable snooping (default = on)
 
     This module supports multiple cards and autoprobe.
     
