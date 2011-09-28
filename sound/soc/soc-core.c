@@ -1059,6 +1059,9 @@ static int soc_post_component_init(struct snd_soc_card *card,
 	temp = codec->name_prefix;
 	codec->name_prefix = NULL;
 
+	/* Make sure all DAPM widgets are instantiated */
+	snd_soc_dapm_new_widgets(&codec->dapm);
+
 	/* do machine specific initialization */
 	if (!dailess && dai_link->init)
 		ret = dai_link->init(rtd);
@@ -1069,9 +1072,6 @@ static int soc_post_component_init(struct snd_soc_card *card,
 		return ret;
 	}
 	codec->name_prefix = temp;
-
-	/* Make sure all DAPM widgets are instantiated */
-	snd_soc_dapm_new_widgets(&codec->dapm);
 
 	/* register the rtd device */
 	rtd->codec = codec;
