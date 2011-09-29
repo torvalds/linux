@@ -325,11 +325,6 @@ static u16 frametype(u32 rspec, u8 mimoframe)
  */
 #define SSID_FMT_BUF_LEN	((4 * IEEE80211_MAX_SSID_LEN) + 1)
 
-/* defaults for the HT (MIMO) bss */
-#define HT_CAP	(IEEE80211_HT_CAP_SM_PS |\
-	IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_GRN_FLD |\
-	IEEE80211_HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
-
 /*
  * The following table lists the buffer memory allocated to xmt fifos in HW.
  * the size is in units of 256bytes(one block), total size is HW dependent
@@ -4213,13 +4208,6 @@ void brcms_c_protection_upd(struct brcms_c_info *wlc, uint idx, int val)
 
 static void brcms_c_ht_update_sgi_rx(struct brcms_c_info *wlc, int val)
 {
-	wlc->ht_cap.cap_info &= ~(IEEE80211_HT_CAP_SGI_20 |
-					IEEE80211_HT_CAP_SGI_40);
-	wlc->ht_cap.cap_info |= (val & BRCMS_N_SGI_20) ?
-					IEEE80211_HT_CAP_SGI_20 : 0;
-	wlc->ht_cap.cap_info |= (val & BRCMS_N_SGI_40) ?
-					IEEE80211_HT_CAP_SGI_40 : 0;
-
 	if (wlc->pub->up) {
 		brcms_c_update_beacon(wlc);
 		brcms_c_update_probe_resp(wlc, true);
@@ -4229,10 +4217,6 @@ static void brcms_c_ht_update_sgi_rx(struct brcms_c_info *wlc, int val)
 static void brcms_c_ht_update_ldpc(struct brcms_c_info *wlc, s8 val)
 {
 	wlc->stf->ldpc = val;
-
-	wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_LDPC_CODING;
-	if (wlc->stf->ldpc != OFF)
-		wlc->ht_cap.cap_info |= IEEE80211_HT_CAP_LDPC_CODING;
 
 	if (wlc->pub->up) {
 		brcms_c_update_beacon(wlc);
@@ -5376,8 +5360,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	wlc->bsscfg->wlc = wlc;
 
 	wlc->mimoft = FT_HT;
-	wlc->ht_cap.cap_info = HT_CAP;
-
 	wlc->mimo_40txbw = AUTO;
 	wlc->ofdm_40txbw = AUTO;
 	wlc->cck_40txbw = AUTO;
@@ -5403,14 +5385,9 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_TX) {
 		wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = OFF;
 		wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = OFF;
-		wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_TX_STBC;
 	}
 	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_RX)
 		brcms_c_stf_stbc_rx_set(wlc, HT_CAP_RX_STBC_NO);
-
-	/* apply the GF override from nvram conf */
-	if (n_disabled & WLFEATURE_DISABLE_11N_GF)
-		wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_GRN_FLD;
 
 	/* initialize radio_mpc_disable according to wlc->mpc */
 	brcms_c_radio_mpc_upd(wlc);

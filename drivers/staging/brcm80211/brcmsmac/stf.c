@@ -53,9 +53,6 @@ static void brcms_c_stf_stbc_rx_ht_update(struct brcms_c_info *wlc, int val)
 			return;
 	}
 
-	wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_RX_STBC;
-	wlc->ht_cap.cap_info |= (val << IEEE80211_HT_CAP_RX_STBC_SHIFT);
-
 	if (wlc->pub->up) {
 		brcms_c_update_beacon(wlc);
 		brcms_c_update_probe_resp(wlc, true);
@@ -139,12 +136,6 @@ static bool brcms_c_stf_stbc_tx_set(struct brcms_c_info *wlc, s32 int_val)
 
 	if ((int_val == ON) && (wlc->stf->txstreams == 1))
 		return false;
-
-	if ((int_val == OFF) || (wlc->stf->txstreams == 1)
-	    || !BRCMS_STBC_CAP_PHY(wlc))
-		wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_TX_STBC;
-	else
-		wlc->ht_cap.cap_info |= IEEE80211_HT_CAP_TX_STBC;
 
 	wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = (s8) int_val;
 	wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = (s8) int_val;

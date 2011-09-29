@@ -456,7 +456,6 @@ struct brcms_txq_info {
  * cck_40txbw: 11N, cck tx b/w override when in 40MHZ mode.
  * ofdm_40txbw: 11N, ofdm tx b/w override when in 40MHZ mode.
  * mimo_40txbw: 11N, mimo tx b/w override when in 40MHZ mode.
- * ht_cap: HT CAP IE being advertised by this node.
  * default_bss: configured BSS parameters.
  * mc_fid_counter: BC/MC FIFO frame ID counter.
  * country_default: saved country for leaving 802.11d auto-country mode.
@@ -570,7 +569,6 @@ struct brcms_c_info {
 	s8 cck_40txbw;
 	s8 ofdm_40txbw;
 	s8 mimo_40txbw;
-	struct ieee80211_ht_cap ht_cap;
 
 	struct brcms_bss_info *default_bss;
 
