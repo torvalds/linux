@@ -1054,6 +1054,7 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
 						   NULL);
+	u16 txflags;
 
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	tx->flags &= ~IEEE80211_TX_FRAGMENTED;
@@ -1100,6 +1101,13 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 			if ((*iterator.this_arg & IEEE80211_RADIOTAP_F_FRAG) &&
 								!hw_frag)
 				tx->flags |= IEEE80211_TX_FRAGMENTED;
+			break;
+
+		case IEEE80211_RADIOTAP_TX_FLAGS:
+			txflags = le16_to_cpu(get_unaligned((__le16*)
+						iterator.this_arg));
+			if (txflags & IEEE80211_RADIOTAP_F_TX_NOACK)
+				info->flags |= IEEE80211_TX_CTL_NO_ACK;
 			break;
 
 		/*
@@ -1266,8 +1274,11 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		tx->flags |= IEEE80211_TX_UNICAST;
 		if (unlikely(local->wifi_wme_noack_test))
 			info->flags |= IEEE80211_TX_CTL_NO_ACK;
-		else
-			info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
+		/*
+		 * Flags are initialized to 0. Hence, no need to
+		 * explicitly unset IEEE80211_TX_CTL_NO_ACK since
+		 * it might already be set for injected frames.
+		 */
 	}
 
 	if (tx->flags & IEEE80211_TX_FRAGMENTED) {
