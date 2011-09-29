@@ -71,7 +71,7 @@ int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
 
 	if (shared == NULL) {
 		struct vm_struct *area =
-			xen_alloc_vm_area(PAGE_SIZE * max_nr_gframes);
+			alloc_vm_area(PAGE_SIZE * max_nr_gframes);
 		BUG_ON(area == NULL);
 		shared = area->addr;
 		*__shared = shared;
