@@ -273,9 +273,9 @@ EXPORT_SYMBOL_GPL(regcache_sync);
  */
 void regcache_cache_only(struct regmap *map, bool enable)
 {
-	mutex_lock(&map->sync_lock);
+	mutex_lock(&map->lock);
 	map->cache_only = enable;
-	mutex_unlock(&map->sync_lock);
+	mutex_unlock(&map->lock);
 }
 EXPORT_SYMBOL_GPL(regcache_cache_only);
 
