@@ -646,56 +646,45 @@ static void mousevsc_hid_close(struct hid_device *hid)
 {
 }
 
+static struct hid_ll_driver mousevsc_ll_driver = {
+	.open = mousevsc_hid_open,
+	.close = mousevsc_hid_close,
+};
+
+static struct hid_driver mousevsc_hid_driver;
+
 static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 {
 	struct hid_device *hid_dev;
 	struct mousevsc_dev *input_device = hv_get_drvdata(dev);
 
-	/* hid_debug = -1; */
-	hid_dev = kmalloc(sizeof(struct hid_device), GFP_KERNEL);
+	hid_dev = hid_allocate_device();
+	if (IS_ERR(hid_dev))
+		return;
+
+	hid_dev->ll_driver = &mousevsc_ll_driver;
+	hid_dev->driver = &mousevsc_hid_driver;
 
 	if (hid_parse_report(hid_dev, packet, len)) {
 		DPRINT_INFO(INPUTVSC_DRV, "Unable to call hd_parse_report");
 		return;
 	}
 
-	if (hid_dev) {
-		DPRINT_INFO(INPUTVSC_DRV, "hid_device created");
+	hid_dev->bus = BUS_VIRTUAL;
+	hid_dev->vendor = input_device->hid_dev_info.vendor;
+	hid_dev->product = input_device->hid_dev_info.product;
+	hid_dev->version = input_device->hid_dev_info.version;
 
-		hid_dev->ll_driver->open  = mousevsc_hid_open;
-		hid_dev->ll_driver->close = mousevsc_hid_close;
+	sprintf(hid_dev->name, "%s", "Microsoft Vmbus HID-compliant Mouse");
 
-		hid_dev->bus = BUS_VIRTUAL;
-		hid_dev->vendor = input_device->hid_dev_info.vendor;
-		hid_dev->product = input_device->hid_dev_info.product;
-		hid_dev->version = input_device->hid_dev_info.version;
-		hid_dev->dev = dev->device;
+	if (!hidinput_connect(hid_dev, 0)) {
+		hid_dev->claimed |= HID_CLAIMED_INPUT;
 
-		sprintf(hid_dev->name, "%s",
-			"Microsoft Vmbus HID-compliant Mouse");
+		input_device->connected = 1;
 
-		/*
-		 * HJ Do we want to call it with a 0
-		 */
-		if (!hidinput_connect(hid_dev, 0)) {
-			hid_dev->claimed |= HID_CLAIMED_INPUT;
-
-			input_device->connected = 1;
-
-			DPRINT_INFO(INPUTVSC_DRV,
-				     "HID device claimed by input\n");
-		}
-
-		if (!hid_dev->claimed) {
-			DPRINT_ERR(INPUTVSC_DRV,
-				    "HID device not claimed by "
-				    "input or hiddev\n");
-		}
-
-		input_device->hid_device = hid_dev;
 	}
 
-	kfree(hid_dev);
+	input_device->hid_device = hid_dev;
 }
 
 static int mousevsc_on_device_add(struct hv_device *device,
@@ -825,6 +814,7 @@ static int mousevsc_remove(struct hv_device *dev)
 	if (input_dev->connected) {
 		hidinput_disconnect(input_dev->hid_device);
 		input_dev->connected = 0;
+		hid_destroy_device(input_dev->hid_device);
 	}
 
 	/*
