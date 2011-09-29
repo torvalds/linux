@@ -1836,7 +1836,7 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_fh *fh,
 		 * callers to request an output size bigger than the input size
 		 * up to the nearest multiple of 16.
 		 */
-		fmt->width = clamp_t(u32, width, 32, (fmt->width + 15) & ~15);
+		fmt->width = clamp_t(u32, width, 32, fmt->width + 15);
 		fmt->width &= ~15;
 		fmt->height = clamp_t(u32, height, 32, fmt->height);
 		break;
