@@ -44,8 +44,7 @@ extern struct jump_entry __stop___jump_table[];
 extern void jump_label_lock(void);
 extern void jump_label_unlock(void);
 extern void arch_jump_label_transform(struct jump_entry *entry,
-				 enum jump_label_type type);
-extern void arch_jump_label_text_poke_early(jump_label_t addr);
+				      enum jump_label_type type);
 extern int jump_label_text_reserved(void *start, void *end);
 extern void jump_label_inc(struct jump_label_key *key);
 extern void jump_label_dec(struct jump_label_key *key);
