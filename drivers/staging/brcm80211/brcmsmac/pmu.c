@@ -202,28 +202,6 @@ si_pmu_spuravoid_pllupdate(struct si_pub *sih, struct chipcregs *cc,
 	W_REG(&cc->pmucontrol, tmp);
 }
 
-u32 si_pmu_ilp_clock(struct si_pub *sih)
-{
-	static u32 ilpcycles_per_sec;
-
-	if (!(sih->cccaps & CC_CAP_PMU))
-		return ILP_CLOCK;
-
-	if (ilpcycles_per_sec == 0) {
-		u32 start, end, delta;
-		u32 origidx = ai_coreidx(sih);
-		struct chipcregs *cc = ai_setcoreidx(sih, SI_CC_IDX);
-		start = R_REG(&cc->pmutimer);
-		mdelay(ILP_CALC_DUR);
-		end = R_REG(&cc->pmutimer);
-		delta = end - start;
-		ilpcycles_per_sec = delta * (1000 / ILP_CALC_DUR);
-		ai_setcoreidx(sih, origidx);
-	}
-
-	return ilpcycles_per_sec;
-}
-
 u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;

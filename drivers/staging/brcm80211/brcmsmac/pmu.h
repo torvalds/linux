@@ -24,7 +24,6 @@ extern u16 si_pmu_fast_pwrup_delay(struct si_pub *sih);
 extern void si_pmu_sprom_enable(struct si_pub *sih, bool enable);
 extern u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
 extern u32 si_pmu_regcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
-extern u32 si_pmu_ilp_clock(struct si_pub *sih);
 extern u32 si_pmu_alp_clock(struct si_pub *sih);
 extern void si_pmu_pllupd(struct si_pub *sih);
 extern void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid);
