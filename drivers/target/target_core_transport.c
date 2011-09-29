@@ -620,8 +620,6 @@ static void transport_add_cmd_to_queue(
 	struct se_queue_obj *qobj = &dev->dev_queue_obj;
 	unsigned long flags;
 
-	INIT_LIST_HEAD(&cmd->se_queue_node);
-
 	if (t_state) {
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 		cmd->t_state = t_state;
@@ -630,15 +628,21 @@ static void transport_add_cmd_to_queue(
 	}
 
 	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
+
+	/* If the cmd is already on the list, remove it before we add it */
+	if (!list_empty(&cmd->se_queue_node))
+		list_del(&cmd->se_queue_node);
+	else
+		atomic_inc(&qobj->queue_cnt);
+
 	if (cmd->se_cmd_flags & SCF_EMULATE_QUEUE_FULL) {
 		cmd->se_cmd_flags &= ~SCF_EMULATE_QUEUE_FULL;
 		list_add(&cmd->se_queue_node, &qobj->qobj_list);
 	} else
 		list_add_tail(&cmd->se_queue_node, &qobj->qobj_list);
-	atomic_inc(&cmd->t_transport_queue_active);
+	atomic_set(&cmd->t_transport_queue_active, 1);
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 
-	atomic_inc(&qobj->queue_cnt);
 	wake_up_interruptible(&qobj->thread_wq);
 }
 
@@ -655,9 +659,9 @@ transport_get_cmd_from_queue(struct se_queue_obj *qobj)
 	}
 	cmd = list_first_entry(&qobj->qobj_list, struct se_cmd, se_queue_node);
 
-	atomic_dec(&cmd->t_transport_queue_active);
+	atomic_set(&cmd->t_transport_queue_active, 0);
 
-	list_del(&cmd->se_queue_node);
+	list_del_init(&cmd->se_queue_node);
 	atomic_dec(&qobj->queue_cnt);
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 
@@ -667,7 +671,6 @@ transport_get_cmd_from_queue(struct se_queue_obj *qobj)
 static void transport_remove_cmd_from_queue(struct se_cmd *cmd,
 		struct se_queue_obj *qobj)
 {
-	struct se_cmd *t;
 	unsigned long flags;
 
 	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
@@ -675,14 +678,9 @@ static void transport_remove_cmd_from_queue(struct se_cmd *cmd,
 		spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 		return;
 	}
-
-	list_for_each_entry(t, &qobj->qobj_list, se_queue_node)
-		if (t == cmd) {
-			atomic_dec(&cmd->t_transport_queue_active);
-			atomic_dec(&qobj->queue_cnt);
-			list_del(&cmd->se_queue_node);
-			break;
-		}
+	atomic_set(&cmd->t_transport_queue_active, 0);
+	atomic_dec(&qobj->queue_cnt);
+	list_del_init(&cmd->se_queue_node);
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 
 	if (atomic_read(&cmd->t_transport_queue_active)) {
@@ -1066,7 +1064,7 @@ static void transport_release_all_cmds(struct se_device *dev)
 	list_for_each_entry_safe(cmd, tcmd, &dev->dev_queue_obj.qobj_list,
 				se_queue_node) {
 		t_state = cmd->t_state;
-		list_del(&cmd->se_queue_node);
+		list_del_init(&cmd->se_queue_node);
 		spin_unlock_irqrestore(&dev->dev_queue_obj.cmd_queue_lock,
 				flags);
 
@@ -1597,6 +1595,7 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_delayed_node);
 	INIT_LIST_HEAD(&cmd->se_ordered_node);
 	INIT_LIST_HEAD(&cmd->se_qf_node);
+	INIT_LIST_HEAD(&cmd->se_queue_node);
 
 	INIT_LIST_HEAD(&cmd->t_task_list);
 	init_completion(&cmd->transport_lun_fe_stop_comp);

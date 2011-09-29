@@ -339,7 +339,7 @@ int core_tmr_lun_reset(
 
 		atomic_dec(&cmd->t_transport_queue_active);
 		atomic_dec(&qobj->queue_cnt);
-		list_del(&cmd->se_queue_node);
+		list_del_init(&cmd->se_queue_node);
 		spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 
 		pr_debug("LUN_RESET: %s from Device Queue: cmd: %p t_state:"
