@@ -779,7 +779,7 @@ int xen_irq_from_pirq(unsigned pirq)
 	mutex_lock(&irq_mapping_update_lock);
 
 	list_for_each_entry(info, &xen_irq_list_head, list) {
-		if (info == NULL || info->type != IRQT_PIRQ)
+		if (info->type != IRQT_PIRQ)
 			continue;
 		irq = info->irq;
 		if (info->u.pirq.pirq == pirq)
