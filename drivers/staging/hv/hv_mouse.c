@@ -58,12 +58,12 @@ struct hv_input_dev_info {
  * Message types in the synthetic input protocol
  */
 enum synthhid_msg_type {
-	SynthHidProtocolRequest,
-	SynthHidProtocolResponse,
-	SynthHidInitialDeviceInfo,
-	SynthHidInitialDeviceInfoAck,
-	SynthHidInputReport,
-	SynthHidMax
+	SYNTH_HID_PROTOCOL_REQUEST,
+	SYNTH_HID_PROTOCOL_RESPONSE,
+	SYNTH_HID_INITIAL_DEVICE_INFO,
+	SYNTH_HID_INITIAL_DEVICE_INFO_ACK,
+	SYNTH_HID_INPUT_REPORT,
+	SYNTH_HID_MAX
 };
 
 /*
@@ -125,9 +125,9 @@ struct synthhid_input_report {
 #define NBITS(x) (((x)/BITS_PER_LONG)+1)
 
 enum pipe_prot_msg_type {
-	PipeMessageInvalid = 0,
-	PipeMessageData,
-	PipeMessageMaximum
+	PIPE_MESSAGE_INVALID,
+	PIPE_MESSAGE_DATA,
+	PIPE_MESSAGE_MAXIMUM
 };
 
 
@@ -238,10 +238,10 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	/* Send the ack */
 	memset(&ack, 0, sizeof(struct mousevsc_prt_msg));
 
-	ack.type = PipeMessageData;
+	ack.type = PIPE_MESSAGE_DATA;
 	ack.size = sizeof(struct synthhid_device_info_ack);
 
-	ack.ack.header.type = SynthHidInitialDeviceInfoAck;
+	ack.ack.header.type = SYNTH_HID_INITIAL_DEVICE_INFO_ACK;
 	ack.ack.header.size = 1;
 	ack.ack.reserved = 0;
 
@@ -296,20 +296,20 @@ static void mousevsc_on_receive(struct hv_device *device,
 	pipe_msg = (struct pipe_prt_msg *)((unsigned long)packet +
 						(packet->offset8 << 3));
 
-	if (pipe_msg->type != PipeMessageData)
+	if (pipe_msg->type != PIPE_MESSAGE_DATA)
 		return;
 
 	hid_msg = (struct synthhid_msg *)&pipe_msg->data[0];
 
 	switch (hid_msg->header.type) {
-	case SynthHidProtocolResponse:
+	case SYNTH_HID_PROTOCOL_RESPONSE:
 		memcpy(&input_dev->protocol_resp, pipe_msg,
 		       pipe_msg->size + sizeof(struct pipe_prt_msg) -
 		       sizeof(unsigned char));
 		complete(&input_dev->wait_event);
 		break;
 
-	case SynthHidInitialDeviceInfo:
+	case SYNTH_HID_INITIAL_DEVICE_INFO:
 		WARN_ON(pipe_msg->size < sizeof(struct hv_input_dev_info));
 
 		/*
@@ -319,7 +319,7 @@ static void mousevsc_on_receive(struct hv_device *device,
 		mousevsc_on_receive_device_info(input_dev,
 			(struct synthhid_device_info *)&pipe_msg->data[0]);
 		break;
-	case SynthHidInputReport:
+	case SYNTH_HID_INPUT_REPORT:
 		mousevsc_on_receive_input_report(input_dev,
 			(struct synthhid_input_report *)&pipe_msg->data[0]);
 
@@ -425,10 +425,10 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 	 */
 	memset(request, 0, sizeof(struct mousevsc_prt_msg));
 
-	request->type = PipeMessageData;
+	request->type = PIPE_MESSAGE_DATA;
 	request->size = sizeof(struct synthhid_protocol_request);
 
-	request->request.header.type = SynthHidProtocolRequest;
+	request->request.header.type = SYNTH_HID_PROTOCOL_REQUEST;
 	request->request.header.size = sizeof(unsigned int);
 	request->request.version_requested.version = SYNTHHID_INPUT_VERSION;
 
