@@ -118,7 +118,7 @@ int regcache_init(struct regmap *map)
 			return -ENOMEM;
 		map->reg_defaults = tmp_buf;
 	} else {
-		/* Some devices such as PMIC's don't have cache defaults,
+		/* Some devices such as PMICs don't have cache defaults,
 		 * we cope with this by reading back the HW registers and
 		 * crafting the cache defaults by hand.
 		 */
