@@ -270,28 +270,13 @@ cleanup:
 	complete(&input_device->wait_event);
 }
 
-static void mousevsc_on_receive_input_report(struct mousevsc_dev *input_device,
-				struct synthhid_input_report *input_report)
-{
-	struct hv_driver *input_drv;
-
-	if (!input_device->init_complete)
-		return;
-
-	input_drv = drv_to_hv_drv(input_device->device->device.driver);
-
-
-	hid_input_report(input_device->hid_device,
-			      HID_INPUT_REPORT, input_report->buffer, input_report->header.size, 1);
-
-}
-
 static void mousevsc_on_receive(struct hv_device *device,
 				struct vmpacket_descriptor *packet)
 {
 	struct pipe_prt_msg *pipe_msg;
 	struct synthhid_msg *hid_msg;
 	struct mousevsc_dev *input_dev = hv_get_drvdata(device);
+	struct synthhid_input_report *input_report;
 
 	pipe_msg = (struct pipe_prt_msg *)((unsigned long)packet +
 						(packet->offset8 << 3));
@@ -320,9 +305,13 @@ static void mousevsc_on_receive(struct hv_device *device,
 			(struct synthhid_device_info *)&pipe_msg->data[0]);
 		break;
 	case SYNTH_HID_INPUT_REPORT:
-		mousevsc_on_receive_input_report(input_dev,
-			(struct synthhid_input_report *)&pipe_msg->data[0]);
-
+		input_report =
+			(struct synthhid_input_report *)&pipe_msg->data[0];
+		if (!input_dev->init_complete)
+			break;
+		hid_input_report(input_dev->hid_device,
+				HID_INPUT_REPORT, input_report->buffer,
+				input_report->header.size, 1);
 		break;
 	default:
 		pr_err("unsupported hid msg type - type %d len %d",
