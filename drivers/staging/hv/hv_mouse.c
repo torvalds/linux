@@ -157,7 +157,6 @@ struct mousevsc_dev {
 	struct hv_device	*device;
 	/* 0 indicates the device is being destroyed */
 	atomic_t		ref_count;
-	int			num_outstanding_req;
 	unsigned char		init_complete;
 	struct mousevsc_prt_msg	protocol_req;
 	struct mousevsc_prt_msg	protocol_resp;
@@ -729,8 +728,6 @@ static int mousevsc_on_device_remove(struct hv_device *device)
 	 *
 	 * so that outstanding requests can be completed.
 	 */
-	while (input_dev->num_outstanding_req)
-		udelay(100);
 
 	input_dev = final_release_input_device(device);
 
