@@ -139,7 +139,7 @@ struct xen_blkif {
 	/* Comms information. */
 	enum blkif_protocol	blk_protocol;
 	union blkif_back_rings	blk_rings;
-	struct vm_struct	*blk_ring_area;
+	void			*blk_ring;
 	/* The VBD attached to this interface. */
 	struct xen_vbd		vbd;
 	/* Back pointer to the backend_info. */
@@ -163,9 +163,6 @@ struct xen_blkif {
 	int			st_wr_sect;
 
 	wait_queue_head_t	waiting_to_free;
-
-	grant_handle_t		shmem_handle;
-	grant_ref_t		shmem_ref;
 };
 
 
