@@ -510,6 +510,10 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	tmp |= CINT_PHY_MASK;
 	mw32(MVS_INT_MASK, tmp);
 
+	tmp = mvs_cr32(mvi, CMD_LINK_TIMER);
+	tmp |= 0xFFFF0000;
+	mvs_cw32(mvi, CMD_LINK_TIMER, tmp);
+
 	/* tune STP performance */
 	tmp = 0x003F003F;
 	mvs_cw32(mvi, CMD_PL_TIMER, tmp);
