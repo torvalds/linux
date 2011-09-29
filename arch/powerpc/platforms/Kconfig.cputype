@@ -236,7 +236,7 @@ config VSX
 
 config PPC_ICSWX
 	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on POWER4
+	depends on POWER4 || PPC_A2
 	default n
 	---help---
 

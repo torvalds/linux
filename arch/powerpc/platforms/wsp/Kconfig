@@ -1,6 +1,7 @@
 config PPC_WSP
 	bool
 	select PPC_A2
+	select PPC_ICSWX
 	select PPC_SCOM
 	select PPC_XICS
 	select PPC_ICP_NATIVE
