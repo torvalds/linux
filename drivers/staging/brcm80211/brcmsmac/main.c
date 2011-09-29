@@ -4297,7 +4297,7 @@ void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 	int i_ac;
 	struct ieee80211_tx_queue_params txq_pars;
 	struct ieee80211_tx_queue_params *params = &txq_pars;
-	static struct edcf_acparam default_edcf_acparams[] = {
+	static const struct edcf_acparam default_edcf_acparams[] = {
 		 {EDCF_AC_BE_ACI_STA, EDCF_AC_BE_ECW_STA,
 		  cpu_to_le16(EDCF_AC_BE_TXOP_STA)},
 		 {EDCF_AC_BK_ACI_STA, EDCF_AC_BK_ECW_STA,
@@ -4307,7 +4307,7 @@ void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 		 {EDCF_AC_VO_ACI_STA, EDCF_AC_VO_ECW_STA,
 		  cpu_to_le16(EDCF_AC_VO_TXOP_STA)}
 	}; /* ucode needs these parameters during its initialization */
-	struct edcf_acparam *edcf_acp = &default_edcf_acparams[0];
+	const struct edcf_acparam *edcf_acp = &default_edcf_acparams[0];
 
 	for (i_ac = 0; i_ac < AC_COUNT; i_ac++, edcf_acp++) {
 		/* find out which ac this set of params applies to */
