@@ -741,6 +741,16 @@ static int btrfs_set_super(struct super_block *s, void *data)
 }
 
 /*
+ * subvolumes are identified by ino 256
+ */
+static inline int is_subvolume_inode(struct inode *inode)
+{
+	if (inode && inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
+		return 1;
+	return 0;
+}
+
+/*
  * This will strip out the subvol=%s argument for an argument string and add
  * subvolid=0 to make sure we get the actual tree root for path walking to the
  * subvol we want.
@@ -842,6 +852,15 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 	put_mnt_ns(ns_private);
 	if (error)
 		return ERR_PTR(error);
+
+	if (!is_subvolume_inode(path.dentry->d_inode)) {
+		path_put(&path);
+		mntput(mnt);
+		error = -EINVAL;
+		printk(KERN_ERR "btrfs: '%s' is not a valid subvolume\n",
+				subvol_name);
+		return ERR_PTR(-EINVAL);
+	}
 
 	/* Get a ref to the sb and the dentry we found and return it */
 	s = path.mnt->mnt_sb;
