@@ -286,6 +286,25 @@ void regcache_cache_only(struct regmap *map, bool enable)
 }
 EXPORT_SYMBOL_GPL(regcache_cache_only);
 
+/**
+ * regcache_cache_bypass: Put a register map into cache bypass mode
+ *
+ * @map: map to configure
+ * @cache_only: flag if changes should not be written to the hardware
+ *
+ * When a register map is marked with the cache bypass option, writes
+ * to the register map API will only update the hardware and not the
+ * the cache directly.  This is useful when syncing the cache back to
+ * the hardware.
+ */
+void regcache_cache_bypass(struct regmap *map, bool enable)
+{
+	mutex_lock(&map->lock);
+	map->cache_bypass = enable;
+	mutex_unlock(&map->lock);
+}
+EXPORT_SYMBOL_GPL(regcache_cache_bypass);
+
 bool regcache_set_val(void *base, unsigned int idx,
 		      unsigned int val, unsigned int word_size)
 {
