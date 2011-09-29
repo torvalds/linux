@@ -565,7 +565,6 @@ struct brcms_c_info {
 	u16 fifo2prec_map[NFIFO];
 
 	struct brcms_bss_cfg *bsscfg;
-	struct brcms_bss_cfg *cfg;
 
 	/* tx queue */
 	struct brcms_txq_info *tx_queues;
