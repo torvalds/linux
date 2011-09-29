@@ -340,7 +340,8 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 
 void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an);
-bool ath_tx_aggr_sleep(struct ath_softc *sc, struct ath_node *an);
+void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
+		       struct ath_node *an);
 
 /********/
 /* VIFs */

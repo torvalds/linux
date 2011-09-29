@@ -1117,11 +1117,15 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
 
-void ieee80211_sta_set_tim(struct ieee80211_sta *pubsta)
+void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
+				u8 tid, bool buffered)
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	if (!buffered)
+		return;
 
 	set_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF);
 	sta_info_set_tim_bit(sta);
 }
-EXPORT_SYMBOL(ieee80211_sta_set_tim);
+EXPORT_SYMBOL(ieee80211_sta_set_buffered);

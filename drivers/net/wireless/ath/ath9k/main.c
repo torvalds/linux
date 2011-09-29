@@ -1833,8 +1833,7 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
 		an->sleeping = true;
-		if (ath_tx_aggr_sleep(sc, an))
-			ieee80211_sta_set_tim(sta);
+		ath_tx_aggr_sleep(sta, sc, an);
 		break;
 	case STA_NOTIFY_AWAKE:
 		an->sleeping = false;

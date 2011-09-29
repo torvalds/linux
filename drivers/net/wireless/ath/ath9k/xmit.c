@@ -542,7 +542,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	/* prepend un-acked frames to the beginning of the pending frame queue */
 	if (!skb_queue_empty(&bf_pending)) {
 		if (an->sleeping)
-			ieee80211_sta_set_tim(sta);
+			ieee80211_sta_set_buffered(sta, tid->tidno, true);
 
 		spin_lock_bh(&txq->axq_lock);
 		if (clear_filter)
@@ -1153,12 +1153,13 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 	ath_tx_flush_tid(sc, txtid);
 }
 
-bool ath_tx_aggr_sleep(struct ath_softc *sc, struct ath_node *an)
+void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
+		       struct ath_node *an)
 {
 	struct ath_atx_tid *tid;
 	struct ath_atx_ac *ac;
 	struct ath_txq *txq;
-	bool buffered = false;
+	bool buffered;
 	int tidno;
 
 	for (tidno = 0, tid = &an->tid[tidno];
@@ -1172,8 +1173,7 @@ bool ath_tx_aggr_sleep(struct ath_softc *sc, struct ath_node *an)
 
 		spin_lock_bh(&txq->axq_lock);
 
-		if (!skb_queue_empty(&tid->buf_q))
-			buffered = true;
+		buffered = !skb_queue_empty(&tid->buf_q);
 
 		tid->sched = false;
 		list_del(&tid->list);
@@ -1184,9 +1184,9 @@ bool ath_tx_aggr_sleep(struct ath_softc *sc, struct ath_node *an)
 		}
 
 		spin_unlock_bh(&txq->axq_lock);
-	}
 
-	return buffered;
+		ieee80211_sta_set_buffered(sta, tidno, buffered);
+	}
 }
 
 void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
