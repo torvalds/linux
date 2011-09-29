@@ -44,6 +44,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Logitech Webcam C250 */
 	{ USB_DEVICE(0x046d, 0x0804), .driver_info = USB_QUIRK_RESET_RESUME },
 
+	/* Logitech Webcam C300 */
+	{ USB_DEVICE(0x046d, 0x0805), .driver_info = USB_QUIRK_RESET_RESUME },
+
 	/* Logitech Webcam B/C500 */
 	{ USB_DEVICE(0x046d, 0x0807), .driver_info = USB_QUIRK_RESET_RESUME },
 
