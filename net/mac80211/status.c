@@ -107,6 +107,11 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
 		skb_queue_tail(&sta->tx_filtered, skb);
 		sta_info_recalc_tim(sta);
+
+		if (!timer_pending(&local->sta_cleanup))
+			mod_timer(&local->sta_cleanup,
+				  round_jiffies(jiffies +
+						STA_INFO_CLEANUP_INTERVAL));
 		return;
 	}
 

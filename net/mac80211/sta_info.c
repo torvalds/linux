@@ -709,6 +709,39 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	if (!sta->sdata->bss)
 		return false;
 
+	/*
+	 * First check for frames that should expire on the filtered
+	 * queue. Frames here were rejected by the driver and are on
+	 * a separate queue to avoid reordering with normal PS-buffered
+	 * frames. They also aren't accounted for right now in the
+	 * total_ps_buffered counter.
+	 */
+	for (;;) {
+		spin_lock_irqsave(&sta->tx_filtered.lock, flags);
+		skb = skb_peek(&sta->tx_filtered);
+		if (sta_info_buffer_expired(sta, skb))
+			skb = __skb_dequeue(&sta->tx_filtered);
+		else
+			skb = NULL;
+		spin_unlock_irqrestore(&sta->tx_filtered.lock, flags);
+
+		/*
+		 * Frames are queued in order, so if this one
+		 * hasn't expired yet we can stop testing. If
+		 * we actually reached the end of the queue we
+		 * also need to stop, of course.
+		 */
+		if (!skb)
+			break;
+		dev_kfree_skb(skb);
+	}
+
+	/*
+	 * Now also check the normal PS-buffered queue, this will
+	 * only find something if the filtered queue was emptied
+	 * since the filtered frames are all before the normal PS
+	 * buffered frames.
+	 */
 	for (;;) {
 		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
 		skb = skb_peek(&sta->ps_tx_buf);
@@ -718,6 +751,11 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 			skb = NULL;
 		spin_unlock_irqrestore(&sta->ps_tx_buf.lock, flags);
 
+		/*
+		 * frames are queued in order, so if this one
+		 * hasn't expired yet (or we reached the end of
+		 * the queue) we can stop testing
+		 */
 		if (!skb)
 			break;
 
@@ -727,13 +765,22 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		       sta->sta.addr);
 #endif
 		dev_kfree_skb(skb);
-
-		/* if the queue is now empty recalc TIM bit */
-		if (skb_queue_empty(&sta->ps_tx_buf))
-			sta_info_recalc_tim(sta);
 	}
 
-	return !skb_queue_empty(&sta->ps_tx_buf);
+	/*
+	 * Finally, recalculate the TIM bit for this station -- it might
+	 * now be clear because the station was too slow to retrieve its
+	 * frames.
+	 */
+	sta_info_recalc_tim(sta);
+
+	/*
+	 * Return whether there are any frames still buffered, this is
+	 * used to check whether the cleanup timer still needs to run,
+	 * if there are no frames we don't need to rearm the timer.
+	 */
+	return !(skb_queue_empty(&sta->ps_tx_buf) &&
+		 skb_queue_empty(&sta->tx_filtered));
 }
 
 static int __must_check __sta_info_destroy(struct sta_info *sta)
