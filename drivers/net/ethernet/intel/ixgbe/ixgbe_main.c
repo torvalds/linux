@@ -7640,6 +7640,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
+	/* save off EEPROM version number */
+	hw->eeprom.ops.read(hw, 0x2e, &adapter->eeprom_verh);
+	hw->eeprom.ops.read(hw, 0x2d, &adapter->eeprom_verl);
+
 	/* pick up the PCI bus settings for reporting later */
 	hw->mac.ops.get_bus_info(hw);
 
@@ -7671,9 +7675,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		e_dev_warn("For optimal performance a x8 PCI-Express slot "
 			   "is required.\n");
 	}
-
-	/* save off EEPROM version number */
-	hw->eeprom.ops.read(hw, 0x29, &adapter->eeprom_version);
 
 	/* reset the hardware with the new settings */
 	err = hw->mac.ops.start_hw(hw);
