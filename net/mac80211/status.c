@@ -14,6 +14,7 @@
 #include "rate.h"
 #include "mesh.h"
 #include "led.h"
+#include "wme.h"
 
 
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
@@ -43,6 +44,8 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 					    struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+	int ac;
 
 	/*
 	 * This skb 'survived' a round-trip through the driver, and
@@ -61,6 +64,14 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
 
 	sta->tx_filtered_count++;
+
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		int tid = *ieee80211_get_qos_ctl(hdr) &
+					IEEE80211_QOS_CTL_TID_MASK;
+		ac = ieee802_1d_to_ac[tid & 7];
+	} else {
+		ac = IEEE80211_AC_BE;
+	}
 
 	/*
 	 * Clear the TX filter mask for this STA when sending the next
@@ -104,8 +115,8 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 *	unknown.
 	 */
 	if (test_sta_flags(sta, WLAN_STA_PS_STA) &&
-	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
-		skb_queue_tail(&sta->tx_filtered, skb);
+	    skb_queue_len(&sta->tx_filtered[ac]) < STA_MAX_TX_BUFFER) {
+		skb_queue_tail(&sta->tx_filtered[ac], skb);
 		sta_info_recalc_tim(sta);
 
 		if (!timer_pending(&local->sta_cleanup))
@@ -127,7 +138,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	if (net_ratelimit())
 		wiphy_debug(local->hw.wiphy,
 			    "dropped TX filtered frame, queue_len=%d PS=%d @%lu\n",
-			    skb_queue_len(&sta->tx_filtered),
+			    skb_queue_len(&sta->tx_filtered[ac]),
 			    !!test_sta_flags(sta, WLAN_STA_PS_STA), jiffies);
 #endif
 	dev_kfree_skb(skb);

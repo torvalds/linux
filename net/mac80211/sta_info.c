@@ -309,8 +309,10 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		 */
 		sta->timer_to_tid[i] = i;
 	}
-	skb_queue_head_init(&sta->ps_tx_buf);
-	skb_queue_head_init(&sta->tx_filtered);
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		skb_queue_head_init(&sta->ps_tx_buf[i]);
+		skb_queue_head_init(&sta->tx_filtered[i]);
+	}
 
 	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
 		sta->last_seq_ctrl[i] = cpu_to_le16(USHRT_MAX);
@@ -641,12 +643,32 @@ static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, u16 aid)
 	bss->tim[aid / 8] &= ~(1 << (aid % 8));
 }
 
+static unsigned long ieee80211_tids_for_ac(int ac)
+{
+	/* If we ever support TIDs > 7, this obviously needs to be adjusted */
+	switch (ac) {
+	case IEEE80211_AC_VO:
+		return BIT(6) | BIT(7);
+	case IEEE80211_AC_VI:
+		return BIT(4) | BIT(5);
+	case IEEE80211_AC_BE:
+		return BIT(0) | BIT(3);
+	case IEEE80211_AC_BK:
+		return BIT(1) | BIT(2);
+	default:
+		WARN_ON(1);
+		return 0;
+	}
+}
+
 void sta_info_recalc_tim(struct sta_info *sta)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_if_ap *bss = sta->sdata->bss;
 	unsigned long flags;
-	bool have_data = false;
+	bool indicate_tim = false;
+	u8 ignore_for_tim = sta->sta.uapsd_queues;
+	int ac;
 
 	if (WARN_ON_ONCE(!sta->sdata->bss))
 		return;
@@ -658,21 +680,43 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	if (sta->dead)
 		goto done;
 
-	have_data = test_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF) ||
-		    !skb_queue_empty(&sta->tx_filtered) ||
-		    !skb_queue_empty(&sta->ps_tx_buf);
+	/*
+	 * If all ACs are delivery-enabled then we should build
+	 * the TIM bit for all ACs anyway; if only some are then
+	 * we ignore those and build the TIM bit using only the
+	 * non-enabled ones.
+	 */
+	if (ignore_for_tim == BIT(IEEE80211_NUM_ACS) - 1)
+		ignore_for_tim = 0;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		unsigned long tids;
+
+		if (ignore_for_tim & BIT(ac))
+			continue;
+
+		indicate_tim |= !skb_queue_empty(&sta->tx_filtered[ac]) ||
+				!skb_queue_empty(&sta->ps_tx_buf[ac]);
+		if (indicate_tim)
+			break;
+
+		tids = ieee80211_tids_for_ac(ac);
+
+		indicate_tim |=
+			sta->driver_buffered_tids & tids;
+	}
 
  done:
 	spin_lock_irqsave(&local->sta_lock, flags);
 
-	if (have_data)
+	if (indicate_tim)
 		__bss_tim_set(bss, sta->sta.aid);
 	else
 		__bss_tim_clear(bss, sta->sta.aid);
 
 	if (local->ops->set_tim) {
 		local->tim_in_locked_section = true;
-		drv_set_tim(local, &sta->sta, have_data);
+		drv_set_tim(local, &sta->sta, indicate_tim);
 		local->tim_in_locked_section = false;
 	}
 
@@ -699,15 +743,11 @@ static bool sta_info_buffer_expired(struct sta_info *sta, struct sk_buff *skb)
 }
 
 
-static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
-					     struct sta_info *sta)
+static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
+						struct sta_info *sta, int ac)
 {
 	unsigned long flags;
 	struct sk_buff *skb;
-
-	/* This is only necessary for stations on BSS interfaces */
-	if (!sta->sdata->bss)
-		return false;
 
 	/*
 	 * First check for frames that should expire on the filtered
@@ -717,13 +757,13 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	 * total_ps_buffered counter.
 	 */
 	for (;;) {
-		spin_lock_irqsave(&sta->tx_filtered.lock, flags);
-		skb = skb_peek(&sta->tx_filtered);
+		spin_lock_irqsave(&sta->tx_filtered[ac].lock, flags);
+		skb = skb_peek(&sta->tx_filtered[ac]);
 		if (sta_info_buffer_expired(sta, skb))
-			skb = __skb_dequeue(&sta->tx_filtered);
+			skb = __skb_dequeue(&sta->tx_filtered[ac]);
 		else
 			skb = NULL;
-		spin_unlock_irqrestore(&sta->tx_filtered.lock, flags);
+		spin_unlock_irqrestore(&sta->tx_filtered[ac].lock, flags);
 
 		/*
 		 * Frames are queued in order, so if this one
@@ -743,13 +783,13 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	 * buffered frames.
 	 */
 	for (;;) {
-		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
-		skb = skb_peek(&sta->ps_tx_buf);
+		spin_lock_irqsave(&sta->ps_tx_buf[ac].lock, flags);
+		skb = skb_peek(&sta->ps_tx_buf[ac]);
 		if (sta_info_buffer_expired(sta, skb))
-			skb = __skb_dequeue(&sta->ps_tx_buf);
+			skb = __skb_dequeue(&sta->ps_tx_buf[ac]);
 		else
 			skb = NULL;
-		spin_unlock_irqrestore(&sta->ps_tx_buf.lock, flags);
+		spin_unlock_irqrestore(&sta->ps_tx_buf[ac].lock, flags);
 
 		/*
 		 * frames are queued in order, so if this one
@@ -779,8 +819,25 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	 * used to check whether the cleanup timer still needs to run,
 	 * if there are no frames we don't need to rearm the timer.
 	 */
-	return !(skb_queue_empty(&sta->ps_tx_buf) &&
-		 skb_queue_empty(&sta->tx_filtered));
+	return !(skb_queue_empty(&sta->ps_tx_buf[ac]) &&
+		 skb_queue_empty(&sta->tx_filtered[ac]));
+}
+
+static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
+					     struct sta_info *sta)
+{
+	bool have_buffered = false;
+	int ac;
+
+	/* This is only necessary for stations on BSS interfaces */
+	if (!sta->sdata->bss)
+		return false;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		have_buffered |=
+			sta_info_cleanup_expire_buffered_ac(local, sta, ac);
+
+	return have_buffered;
 }
 
 static int __must_check __sta_info_destroy(struct sta_info *sta)
@@ -788,7 +845,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	unsigned long flags;
-	int ret, i;
+	int ret, i, ac;
 
 	might_sleep();
 
@@ -856,9 +913,11 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	 */
 	synchronize_rcu();
 
-	local->total_ps_buffered -= skb_queue_len(&sta->ps_tx_buf);
-	__skb_queue_purge(&sta->ps_tx_buf);
-	__skb_queue_purge(&sta->tx_filtered);
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		local->total_ps_buffered -= skb_queue_len(&sta->ps_tx_buf[ac]);
+		__skb_queue_purge(&sta->ps_tx_buf[ac]);
+		__skb_queue_purge(&sta->tx_filtered[ac]);
+	}
 
 #ifdef CONFIG_MAC80211_MESH
 	if (ieee80211_vif_is_mesh(&sdata->vif))
@@ -1055,17 +1114,33 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
-	int sent, buffered;
+	struct sk_buff_head pending;
+	int filtered = 0, buffered = 0, ac;
 
-	clear_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF);
+	BUILD_BUG_ON(BITS_TO_LONGS(STA_TID_NUM) > 1);
+	sta->driver_buffered_tids = 0;
+
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
 
+	skb_queue_head_init(&pending);
+
 	/* Send all buffered frames to the station */
-	sent = ieee80211_add_pending_skbs(local, &sta->tx_filtered);
-	buffered = ieee80211_add_pending_skbs_fn(local, &sta->ps_tx_buf,
-						 clear_sta_ps_flags, sta);
-	sent += buffered;
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		int count = skb_queue_len(&pending), tmp;
+
+		skb_queue_splice_tail_init(&sta->tx_filtered[ac], &pending);
+		tmp = skb_queue_len(&pending);
+		filtered += tmp - count;
+		count = tmp;
+
+		skb_queue_splice_tail_init(&sta->ps_tx_buf[ac], &pending);
+		tmp = skb_queue_len(&pending);
+		buffered += tmp - count;
+	}
+
+	ieee80211_add_pending_skbs_fn(local, &pending, clear_sta_ps_flags, sta);
+
 	local->total_ps_buffered -= buffered;
 
 	sta_info_recalc_tim(sta);
@@ -1073,7 +1148,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %pM aid %d sending %d filtered/%d PS frames "
 	       "since STA not sleeping anymore\n", sdata->name,
-	       sta->sta.addr, sta->sta.aid, sent - buffered, buffered);
+	       sta->sta.addr, sta->sta.aid, filtered, buffered);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
@@ -1081,17 +1156,43 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb;
-	int no_pending_pkts;
+	struct sk_buff *skb = NULL;
+	bool more_data = false;
+	int ac;
+	u8 ignore_for_response = sta->sta.uapsd_queues;
 
-	skb = skb_dequeue(&sta->tx_filtered);
-	if (!skb) {
-		skb = skb_dequeue(&sta->ps_tx_buf);
-		if (skb)
-			local->total_ps_buffered--;
+	/*
+	 * If all ACs are delivery-enabled then we should reply
+	 * from any of them, if only some are enabled we reply
+	 * only from the non-enabled ones.
+	 */
+	if (ignore_for_response == BIT(IEEE80211_NUM_ACS) - 1)
+		ignore_for_response = 0;
+
+	/*
+	 * Get response frame and more data bit for it.
+	 */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		if (ignore_for_response & BIT(ac))
+			continue;
+
+		if (!skb) {
+			skb = skb_dequeue(&sta->tx_filtered[ac]);
+			if (!skb) {
+				skb = skb_dequeue(&sta->ps_tx_buf[ac]);
+				if (skb)
+					local->total_ps_buffered--;
+			}
+		}
+
+		/* FIXME: take into account driver-buffered frames */
+
+		if (!skb_queue_empty(&sta->tx_filtered[ac]) ||
+		    !skb_queue_empty(&sta->ps_tx_buf[ac])) {
+			more_data = true;
+			break;
+		}
 	}
-	no_pending_pkts = skb_queue_empty(&sta->tx_filtered) &&
-		skb_queue_empty(&sta->ps_tx_buf);
 
 	if (skb) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1105,14 +1206,13 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 		info->flags |= IEEE80211_TX_CTL_PSPOLL_RESPONSE;
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA %pM aid %d: PS Poll (entries after %d)\n",
-		       sta->sta.addr, sta->sta.aid,
-		       skb_queue_len(&sta->ps_tx_buf));
+		printk(KERN_DEBUG "STA %pM aid %d: PS Poll\n",
+		       sta->sta.addr, sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
 		/* Use MoreData flag to indicate whether there are more
 		 * buffered frames for this STA */
-		if (no_pending_pkts)
+		if (!more_data)
 			hdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
 		else
 			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
@@ -1154,10 +1254,14 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 
-	if (!buffered)
+	if (WARN_ON(tid >= STA_TID_NUM))
 		return;
 
-	set_sta_flags(sta, WLAN_STA_PS_DRIVER_BUF);
+	if (buffered)
+		set_bit(tid, &sta->driver_buffered_tids);
+	else
+		clear_bit(tid, &sta->driver_buffered_tids);
+
 	sta_info_recalc_tim(sta);
 }
 EXPORT_SYMBOL(ieee80211_sta_set_buffered);

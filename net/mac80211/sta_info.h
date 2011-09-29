@@ -43,8 +43,6 @@
  *	be in the queues
  * @WLAN_STA_PSPOLL: Station sent PS-poll while driver was keeping
  *	station in power-save mode, reply when the driver unblocks.
- * @WLAN_STA_PS_DRIVER_BUF: Station has frames pending in driver internal
- *	buffers. Automatically cleared on station wake-up.
  * @WLAN_STA_TDLS_PEER: Station is a TDLS peer.
  * @WLAN_STA_TDLS_PEER_AUTH: This TDLS peer is authorized to send direct
  *	packets. This means the link is enabled.
@@ -63,7 +61,6 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_BLOCK_BA	= 1<<11,
 	WLAN_STA_PS_DRIVER	= 1<<12,
 	WLAN_STA_PSPOLL		= 1<<13,
-	WLAN_STA_PS_DRIVER_BUF	= 1<<14,
 	WLAN_STA_TDLS_PEER	= 1<<15,
 	WLAN_STA_TDLS_PEER_AUTH	= 1<<16,
 };
@@ -212,11 +209,13 @@ struct sta_ampdu_mlme {
  * @drv_unblock_wk: used for driver PS unblocking
  * @listen_interval: listen interval of this station, when we're acting as AP
  * @flags: STA flags, see &enum ieee80211_sta_info_flags
- * @ps_tx_buf: buffer of frames to transmit to this station
- *	when it leaves power saving state
- * @tx_filtered: buffer of frames we already tried to transmit
- *	but were filtered by hardware due to STA having entered
- *	power saving state
+ * @ps_tx_buf: buffers (per AC) of frames to transmit to this station
+ *	when it leaves power saving state or polls
+ * @tx_filtered: buffers (per AC) of frames we already tried to
+ *	transmit but were filtered by hardware due to STA having
+ *	entered power saving state, these are also delivered to
+ *	the station when it leaves powersave or polls for frames
+ * @driver_buffered_tids: bitmap of TIDs the driver has data buffered on
  * @rx_packets: Number of MSDUs received from this STA
  * @rx_bytes: Number of bytes received from this STA
  * @wep_weak_iv_count: number of weak WEP IVs received from this station
@@ -286,8 +285,9 @@ struct sta_info {
 	 * STA powersave frame queues, no more than the internal
 	 * locking required.
 	 */
-	struct sk_buff_head ps_tx_buf;
-	struct sk_buff_head tx_filtered;
+	struct sk_buff_head ps_tx_buf[IEEE80211_NUM_ACS];
+	struct sk_buff_head tx_filtered[IEEE80211_NUM_ACS];
+	unsigned long driver_buffered_tids;
 
 	/* Updated from RX path only, no locking requirements */
 	unsigned long rx_packets, rx_bytes;
@@ -434,8 +434,8 @@ rcu_dereference_protected_tid_tx(struct sta_info *sta, int tid)
 #define STA_HASH(sta) (sta[5])
 
 
-/* Maximum number of frames to buffer per power saving station */
-#define STA_MAX_TX_BUFFER 128
+/* Maximum number of frames to buffer per power saving station per AC */
+#define STA_MAX_TX_BUFFER	64
 
 /* Minimum buffered frame expiry time. If STA uses listen interval that is
  * smaller than this value, the minimum value here is used instead. */

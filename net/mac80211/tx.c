@@ -343,13 +343,22 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 		total += skb_queue_len(&ap->ps_bc_buf);
 	}
 
+	/*
+	 * Drop one frame from each station from the lowest-priority
+	 * AC that has frames at all.
+	 */
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
-		skb = skb_dequeue(&sta->ps_tx_buf);
-		if (skb) {
-			purged++;
-			dev_kfree_skb(skb);
+		int ac;
+
+		for (ac = IEEE80211_AC_BK; ac >= IEEE80211_AC_VO; ac--) {
+			skb = skb_dequeue(&sta->ps_tx_buf[ac]);
+			total += skb_queue_len(&sta->ps_tx_buf[ac]);
+			if (skb) {
+				purged++;
+				dev_kfree_skb(skb);
+				break;
+			}
 		}
-		total += skb_queue_len(&sta->ps_tx_buf);
 	}
 
 	rcu_read_unlock();
@@ -448,22 +457,21 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 
 	if (unlikely((staflags & (WLAN_STA_PS_STA | WLAN_STA_PS_DRIVER)) &&
 		     !(info->flags & IEEE80211_TX_CTL_PSPOLL_RESPONSE))) {
+		int ac = skb_get_queue_mapping(tx->skb);
+
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA %pM aid %d: PS buffer (entries "
-		       "before %d)\n",
-		       sta->sta.addr, sta->sta.aid,
-		       skb_queue_len(&sta->ps_tx_buf));
+		printk(KERN_DEBUG "STA %pM aid %d: PS buffer for AC %d\n",
+		       sta->sta.addr, sta->sta.aid, ac);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
 			purge_old_ps_buffers(tx->local);
-		if (skb_queue_len(&sta->ps_tx_buf) >= STA_MAX_TX_BUFFER) {
-			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf);
+		if (skb_queue_len(&sta->ps_tx_buf[ac]) >= STA_MAX_TX_BUFFER) {
+			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf[ac]);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-			if (net_ratelimit()) {
-				printk(KERN_DEBUG "%s: STA %pM TX "
-				       "buffer full - dropping oldest frame\n",
-				       tx->sdata->name, sta->sta.addr);
-			}
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: STA %pM TX buffer for "
+				       "AC %d full - dropping oldest frame\n",
+				       tx->sdata->name, sta->sta.addr, ac);
 #endif
 			dev_kfree_skb(old);
 		} else
@@ -472,7 +480,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		info->control.jiffies = jiffies;
 		info->control.vif = &tx->sdata->vif;
 		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-		skb_queue_tail(&sta->ps_tx_buf, tx->skb);
+		skb_queue_tail(&sta->ps_tx_buf[ac], tx->skb);
 
 		if (!timer_pending(&local->sta_cleanup))
 			mod_timer(&local->sta_cleanup,

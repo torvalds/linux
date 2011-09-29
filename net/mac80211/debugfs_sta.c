@@ -78,8 +78,14 @@ static ssize_t sta_num_ps_buf_frames_read(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct sta_info *sta = file->private_data;
-	return mac80211_format_buffer(userbuf, count, ppos, "%u\n",
-				      skb_queue_len(&sta->ps_tx_buf));
+	char buf[17*IEEE80211_NUM_ACS], *p = buf;
+	int ac;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		p += scnprintf(p, sizeof(buf)+buf-p, "AC%d: %d\n", ac,
+			       skb_queue_len(&sta->ps_tx_buf[ac]) +
+			       skb_queue_len(&sta->tx_filtered[ac]));
+	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }
 STA_OPS(num_ps_buf_frames);
 
