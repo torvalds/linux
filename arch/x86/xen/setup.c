@@ -54,26 +54,32 @@ unsigned long xen_released_pages;
  */
 #define EXTRA_MEM_RATIO		(10)
 
-static void __init xen_add_extra_mem(unsigned long pages)
+static void __init xen_add_extra_mem(u64 start, u64 size)
 {
 	unsigned long pfn;
+	int i;
 
-	u64 size = (u64)pages * PAGE_SIZE;
-	u64 extra_start = xen_extra_mem[0].start + xen_extra_mem[0].size;
+	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
+		/* Add new region. */
+		if (xen_extra_mem[i].size == 0) {
+			xen_extra_mem[i].start = start;
+			xen_extra_mem[i].size  = size;
+			break;
+		}
+		/* Append to existing region. */
+		if (xen_extra_mem[i].start + xen_extra_mem[i].size == start) {
+			xen_extra_mem[i].size += size;
+			break;
+		}
+	}
+	if (i == XEN_EXTRA_MEM_MAX_REGIONS)
+		printk(KERN_WARNING "Warning: not enough extra memory regions\n");
 
-	if (!pages)
-		return;
+	memblock_x86_reserve_range(start, start + size, "XEN EXTRA");
 
-	e820_add_region(extra_start, size, E820_RAM);
-	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	xen_max_p2m_pfn = PFN_DOWN(start + size);
 
-	memblock_x86_reserve_range(extra_start, extra_start + size, "XEN EXTRA");
-
-	xen_extra_mem[0].size += size;
-
-	xen_max_p2m_pfn = PFN_DOWN(extra_start + size);
-
-	for (pfn = PFN_DOWN(extra_start); pfn <= xen_max_p2m_pfn; pfn++)
+	for (pfn = PFN_DOWN(start); pfn <= xen_max_p2m_pfn; pfn++)
 		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 }
 
@@ -120,8 +126,8 @@ static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
 	return len;
 }
 
-static unsigned long __init xen_return_unused_memory(unsigned long max_pfn,
-						     const struct e820map *e820)
+static unsigned long __init xen_return_unused_memory(
+	unsigned long max_pfn, const struct e820entry *map, int nr_map)
 {
 	phys_addr_t max_addr = PFN_PHYS(max_pfn);
 	phys_addr_t last_end = ISA_END_ADDRESS;
@@ -129,13 +135,13 @@ static unsigned long __init xen_return_unused_memory(unsigned long max_pfn,
 	int i;
 
 	/* Free any unused memory above the low 1Mbyte. */
-	for (i = 0; i < e820->nr_map && last_end < max_addr; i++) {
-		phys_addr_t end = e820->map[i].addr;
+	for (i = 0; i < nr_map && last_end < max_addr; i++) {
+		phys_addr_t end = map[i].addr;
 		end = min(max_addr, end);
 
 		if (last_end < end)
 			released += xen_release_chunk(last_end, end);
-		last_end = max(last_end, e820->map[i].addr + e820->map[i].size);
+		last_end = max(last_end, map[i].addr + map[i].size);
 	}
 
 	if (last_end < max_addr)
@@ -200,20 +206,32 @@ static unsigned long __init xen_get_max_pages(void)
 	return min(max_pages, MAX_DOMAIN_PAGES);
 }
 
+static void xen_align_and_add_e820_region(u64 start, u64 size, int type)
+{
+	u64 end = start + size;
+
+	/* Align RAM regions to page boundaries. */
+	if (type == E820_RAM) {
+		start = PAGE_ALIGN(start);
+		end &= ~((u64)PAGE_SIZE - 1);
+	}
+
+	e820_add_region(start, end - start, type);
+}
+
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
  **/
 char * __init xen_memory_setup(void)
 {
 	static struct e820entry map[E820MAX] __initdata;
-	static struct e820entry map_raw[E820MAX] __initdata;
 
 	unsigned long max_pfn = xen_start_info->nr_pages;
 	unsigned long long mem_end;
 	int rc;
 	struct xen_memory_map memmap;
+	unsigned long max_pages;
 	unsigned long extra_pages = 0;
-	unsigned long extra_limit;
 	unsigned long identity_pages = 0;
 	int i;
 	int op;
@@ -240,49 +258,55 @@ char * __init xen_memory_setup(void)
 	}
 	BUG_ON(rc);
 
-	memcpy(map_raw, map, sizeof(map));
-	e820.nr_map = 0;
-	xen_extra_mem[0].start = mem_end;
-	for (i = 0; i < memmap.nr_entries; i++) {
-		unsigned long long end;
+	/* Make sure the Xen-supplied memory map is well-ordered. */
+	sanitize_e820_map(map, memmap.nr_entries, &memmap.nr_entries);
 
-		/* Guard against non-page aligned E820 entries. */
-		if (map[i].type == E820_RAM)
-			map[i].size -= (map[i].size + map[i].addr) % PAGE_SIZE;
+	max_pages = xen_get_max_pages();
+	if (max_pages > max_pfn)
+		extra_pages += max_pages - max_pfn;
 
-		end = map[i].addr + map[i].size;
-		if (map[i].type == E820_RAM && end > mem_end) {
-			/* RAM off the end - may be partially included */
-			u64 delta = min(map[i].size, end - mem_end);
+	xen_released_pages = xen_return_unused_memory(max_pfn, map,
+						      memmap.nr_entries);
+	extra_pages += xen_released_pages;
 
-			map[i].size -= delta;
-			end -= delta;
+	/*
+	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
+	 * factor the base size.  On non-highmem systems, the base
+	 * size is the full initial memory allocation; on highmem it
+	 * is limited to the max size of lowmem, so that it doesn't
+	 * get completely filled.
+	 *
+	 * In principle there could be a problem in lowmem systems if
+	 * the initial memory is also very large with respect to
+	 * lowmem, but we won't try to deal with that here.
+	 */
+	extra_pages = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
+			  extra_pages);
 
-			extra_pages += PFN_DOWN(delta);
-			/*
-			 * Set RAM below 4GB that is not for us to be unusable.
-			 * This prevents "System RAM" address space from being
-			 * used as potential resource for I/O address (happens
-			 * when 'allocate_resource' is called).
-			 */
-			if (delta &&
-				(xen_initial_domain() && end < 0x100000000ULL))
-				e820_add_region(end, delta, E820_UNUSABLE);
+	i = 0;
+	while (i < memmap.nr_entries) {
+		u64 addr = map[i].addr;
+		u64 size = map[i].size;
+		u32 type = map[i].type;
+
+		if (type == E820_RAM) {
+			if (addr < mem_end) {
+				size = min(size, mem_end - addr);
+			} else if (extra_pages) {
+				size = min(size, (u64)extra_pages * PAGE_SIZE);
+				extra_pages -= size / PAGE_SIZE;
+				xen_add_extra_mem(addr, size);
+			} else
+				type = E820_UNUSABLE;
 		}
 
-		if (map[i].size > 0 && end > xen_extra_mem[0].start)
-			xen_extra_mem[0].start = end;
+		xen_align_and_add_e820_region(addr, size, type);
 
-		/* Add region if any remains */
-		if (map[i].size > 0)
-			e820_add_region(map[i].addr, map[i].size, map[i].type);
+		map[i].addr += size;
+		map[i].size -= size;
+		if (map[i].size == 0)
+			i++;
 	}
-	/* Align the balloon area so that max_low_pfn does not get set
-	 * to be at the _end_ of the PCI gap at the far end (fee01000).
-	 * Note that the start of balloon area gets set in the loop above
-	 * to be past the last E820 region. */
-	if (xen_initial_domain() && (xen_extra_mem[0].start < (1ULL<<32)))
-		xen_extra_mem[0].start = (1ULL<<32);
 
 	/*
 	 * In domU, the ISA region is normal, usable memory, but we
@@ -308,45 +332,11 @@ char * __init xen_memory_setup(void)
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
-	extra_limit = xen_get_max_pages();
-	if (max_pfn + extra_pages > extra_limit) {
-		if (extra_limit > max_pfn)
-			extra_pages = extra_limit - max_pfn;
-		else
-			extra_pages = 0;
-	}
-
-	xen_released_pages = xen_return_unused_memory(xen_start_info->nr_pages,
-						      &e820);
-	extra_pages += xen_released_pages;
-
-	/*
-	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
-	 * factor the base size.  On non-highmem systems, the base
-	 * size is the full initial memory allocation; on highmem it
-	 * is limited to the max size of lowmem, so that it doesn't
-	 * get completely filled.
-	 *
-	 * In principle there could be a problem in lowmem systems if
-	 * the initial memory is also very large with respect to
-	 * lowmem, but we won't try to deal with that here.
-	 */
-	extra_limit = min(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
-			  max_pfn + extra_pages);
-
-	if (extra_limit >= max_pfn)
-		extra_pages = extra_limit - max_pfn;
-	else
-		extra_pages = 0;
-
-	xen_add_extra_mem(extra_pages);
-
 	/*
 	 * Set P2M for all non-RAM pages and E820 gaps to be identity
-	 * type PFNs. We supply it with the non-sanitized version
-	 * of the E820.
+	 * type PFNs.
 	 */
-	identity_pages = xen_set_identity(map_raw, memmap.nr_entries);
+	identity_pages = xen_set_identity(e820.map, e820.nr_map);
 	printk(KERN_INFO "Set %ld page(s) to 1-1 mapping.\n", identity_pages);
 	return "Xen";
 }
