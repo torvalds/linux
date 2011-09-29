@@ -199,6 +199,8 @@ static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 static void free_input_device(struct mousevsc_dev *device)
 {
 	WARN_ON(atomic_read(&device->ref_count) != 0);
+	kfree(device->hid_desc);
+	kfree(device->report_desc);
 	kfree(device);
 }
 
