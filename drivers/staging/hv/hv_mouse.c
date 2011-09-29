@@ -186,7 +186,7 @@ static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 	 * Set to 2 to allow both inbound and outbound traffics
 	 * (ie get_input_device() and must_get_input_device()) to proceed.
 	 */
-	atomic_cmpxchg(&input_dev->ref_count, 0, 2);
+	atomic_set(&input_dev->ref_count, 2);
 
 	input_dev->device = device;
 	hv_set_drvdata(device, input_dev);
