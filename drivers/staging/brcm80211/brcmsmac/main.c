@@ -783,7 +783,6 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 	struct sk_buff *tail = NULL;
 	uint n = 0;
 	uint bound_limit = bound ? RXBND : -1;
-	struct brcms_d11rxhdr *wlc_rxhdr = NULL;
 
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 	/* gather received frames */
@@ -813,7 +812,6 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 
 		rxh_le = (struct d11rxhdr_le *)p->data;
 		rxh = (struct d11rxhdr *)p->data;
-		wlc_rxhdr = (struct brcms_d11rxhdr *) p->data;
 
 		/* fixup rx header endianness */
 		rxh->RxFrameSize = le16_to_cpu(rxh_le->RxFrameSize);
@@ -8117,7 +8115,7 @@ brcms_b_read_tsf(struct brcms_hardware *wlc_hw, u32 *tsf_l_ptr,
  * are used. Finally, the tsf_h is read from the tsf register.
  */
 static u64 brcms_c_recover_tsf64(struct brcms_c_info *wlc,
-				 struct brcms_d11rxhdr *rxh)
+				 struct d11rxhdr *rxh)
 {
 	u32 tsf_h, tsf_l;
 	u16 rx_tsf_0_15, rx_tsf_16_31;
@@ -8125,7 +8123,7 @@ static u64 brcms_c_recover_tsf64(struct brcms_c_info *wlc,
 	brcms_b_read_tsf(wlc->hw, &tsf_l, &tsf_h);
 
 	rx_tsf_16_31 = (u16)(tsf_l >> 16);
-	rx_tsf_0_15 = rxh->rxh_cpu.RxTSFTime;
+	rx_tsf_0_15 = rxh->RxTSFTime;
 
 	/*
 	 * a greater tsf time indicates the low 16 bits of
@@ -8145,14 +8143,13 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 		     struct sk_buff *p,
 		     struct ieee80211_rx_status *rx_status)
 {
-	struct brcms_d11rxhdr *wlc_rxh = (struct brcms_d11rxhdr *) rxh;
 	int preamble;
 	int channel;
 	u32 rspec;
 	unsigned char *plcp;
 
 	/* fill in TSF and flag its presence */
-	rx_status->mactime = brcms_c_recover_tsf64(wlc, wlc_rxh);
+	rx_status->mactime = brcms_c_recover_tsf64(wlc, rxh);
 	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
 
 	channel = BRCMS_CHAN_CHANNEL(rxh->RxChan);

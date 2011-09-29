@@ -1407,23 +1407,6 @@ struct d11rxhdr {
 	u16 RxStatus2;
 	u16 RxTSFTime;
 	u16 RxChan;
-};
-
-/*
- * rxhdr: received frame header data
- * rssi: rssi computed by PHY
- * rxpwr0: obsoleted, place holder for legacy ROM code. use rxpwr[]
- * rxpwr1: obsoleted, place holder for legacy ROM code. use rxpwr[]
- * do_rssi_ma: do per-pkt sampling for per-antenna ma in HIGH
- * rxpwr: rssi for supported antennas
- */
-struct brcms_d11rxhdr {
-	struct d11rxhdr rxh_cpu;
-	s8 rssi;
-	s8 rxpwr0;
-	s8 rxpwr1;
-	s8 do_rssi_ma;
-	s8 rxpwr[WL_RSSI_ANT_MAX];
 } __packed;
 
 /* PhyRxStatus_0: */

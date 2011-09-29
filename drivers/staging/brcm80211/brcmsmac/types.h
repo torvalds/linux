@@ -336,7 +336,6 @@ struct dma_pub;
 struct si_pub;
 struct tx_status;
 struct d11rxhdr;
-struct brcms_d11rxhdr;
 struct txpwr_limits;
 
 /* iovar structure */
