@@ -210,7 +210,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 		PM8001_CHIP_DISP->phy_stop_req(pm8001_ha, phy_id);
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -ENOSYS;
 	}
 	msleep(300);
 	return rc;

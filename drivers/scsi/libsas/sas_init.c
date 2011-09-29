@@ -177,10 +177,15 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 
 static int sas_get_linkerrors(struct sas_phy *phy)
 {
-	if (scsi_is_sas_phy_local(phy))
-		/* FIXME: we have no local phy stats
-		 * gathering at this time */
-		return -EINVAL;
+	if (scsi_is_sas_phy_local(phy)) {
+		struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+		struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
+		struct asd_sas_phy *asd_phy = sas_ha->sas_phy[phy->number];
+		struct sas_internal *i =
+			to_sas_internal(sas_ha->core.shost->transportt);
+
+		return i->dft->lldd_control_phy(asd_phy, PHY_FUNC_GET_EVENTS, NULL);
+	}
 
 	return sas_smp_get_phy_events(phy);
 }
