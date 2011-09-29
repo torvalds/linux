@@ -7100,7 +7100,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				scb->seqnum[p->priority]++;
 
 			/* extract fragment number from frame first */
-			seq = le16_to_cpu(seq) & FRAGNUM_MASK;
+			seq = le16_to_cpu(h->seq_ctrl) & FRAGNUM_MASK;
 			seq |= (scb->seqnum[p->priority] << SEQNUM_SHIFT);
 			h->seq_ctrl = cpu_to_le16(seq);
 
