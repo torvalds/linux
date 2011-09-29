@@ -200,8 +200,8 @@ int irda_hw_set_speed(u32 speed)
 		if (mode == BU92725GUW_MIR)
 			curTrans_way = BU92725GUW_MIR_SEND;
 		else if (mode == BU92725GUW_FIR)
-			//curTrans_way = BU92725GUW_MULTI_SEND;
-			curTrans_way = BU92725GUW_FIR_SEND;
+			curTrans_way = BU92725GUW_MULTI_SEND;
+			//curTrans_way = BU92725GUW_FIR_SEND;
 		break;
 	case BU92725GUW_MIR_REV:
 		if (mode == BU92725GUW_SIR)
@@ -215,8 +215,8 @@ int irda_hw_set_speed(u32 speed)
 		if (mode == BU92725GUW_SIR)
 			curTrans_way = BU92725GUW_SEND;
 		else if (mode == BU92725GUW_FIR)
-			//curTrans_way = BU92725GUW_MULTI_SEND;
-			curTrans_way = BU92725GUW_FIR_SEND;
+			curTrans_way = BU92725GUW_MULTI_SEND;
+			//curTrans_way = BU92725GUW_FIR_SEND;
 		break;
 	case BU92725GUW_FIR_REV:
 	case BU92725GUW_AUTO_MULTI_REV:
@@ -260,8 +260,8 @@ int irda_hw_tx_enable_irq(enum eTrans_Mode mode)
 	else if (mode == BU92725GUW_MIR)
 		BU92725GUW_set_trans_way(BU92725GUW_MIR_SEND);
 	else
-		//BU92725GUW_set_trans_way(BU92725GUW_MULTI_SEND);
-		BU92725GUW_set_trans_way(BU92725GUW_FIR_SEND);
+		BU92725GUW_set_trans_way(BU92725GUW_MULTI_SEND);
+		//BU92725GUW_set_trans_way(BU92725GUW_FIR_SEND);
 	//BU92725GUW_clr_fifo();
 
     return 0;
@@ -351,7 +351,13 @@ void BU92725GUW_set_trans_way(u32 way)
 	curTrans_way = way;
 
 	/* set bu92725guw registers */
-	internal_set(1);
+	/* [Modify] AIC 2011/09/27
+	 *    MS_EN(TRCR5)¤Ë¤è¤ëÍ¨ÐÅ¥â©`¥ÉÇÐÌæ„Ó×÷¤òÐÐ¤ï¤Ê¤¤¤è¤¦¤ËÐÞÕý¤·¤Þ¤·¤¿¡£
+	 *
+	 * internal_set(1);
+	 */
+	internal_set(0);
+	/* [Modify] AIC 2011/09/27 */
 }
 
 /*

@@ -183,6 +183,7 @@ static int bu92747_irda_do_tx(struct bu92747_port *s)
 	//int i;
 	struct circ_buf *xmit = &s->port.state->xmit;
 	int len = uart_circ_chars_pending(xmit);
+	int len1, len2;
 	IRDA_DBG_SENT("line %d, enter %s, sending %d data\n", __LINE__, __FUNCTION__, len);
 	
 	if (IS_FIR(s)) {
@@ -196,7 +197,21 @@ static int bu92747_irda_do_tx(struct bu92747_port *s)
 		s->tx_empty = 0;
 	}
 	
-	BU92725GUW_send_data(xmit->buf+xmit->tail, len, NULL, 0);
+	/* [Modify] AIC 2011/09/27
+	 *    送信バッファからデータを取り出す方法に問題があり、一部の
+	 *    データが正しく送れないことがあるために、送信データの
+	 *    取得方法を修正しました。
+	 *
+	 * BU92725GUW_send_data(xmit->buf+xmit->tail, len, NULL, 0);
+	 */
+	if ( (xmit->tail + len) > UART_XMIT_SIZE ) {
+		len1 = UART_XMIT_SIZE - xmit->tail;
+		len2 = len - len1;
+		BU92725GUW_send_data(xmit->buf+xmit->tail, len1, xmit->buf, len2);
+	} else {
+		BU92725GUW_send_data(xmit->buf+xmit->tail, len, NULL, 0);
+	}
+	/* [Modify-end] AIC 2011/09/27 */
 	s->port.icount.tx += len;
 	xmit->tail = (xmit->tail + len) & (UART_XMIT_SIZE - 1);
 
@@ -278,11 +293,25 @@ static irqreturn_t bu92747_irda_irq(int irqno, void *dev_id)
 		}
 	}
 	
+	/* [Modify] AIC 2011/09/27
+	 *    WRE_EI(EIR11)割り込みの時点で、送信モードから受信モードへ
+	 *    切り替えてしまうと、送信データの最後の部分が送信されないことが
+	 *    あるため、送信完了割り込み(TXE_EI:EIR3)を待つように修正しました。
+	 *
+	 * if (irq_src & (FRM_EVT_TX_TXE | FRM_EVT_TX_WRE)) {
+	 *	s->tx_empty = 1;
+	 *	irda_hw_set_moderx();
+	 * }
+	 */
 	if (irq_src & (FRM_EVT_TX_TXE | FRM_EVT_TX_WRE)) {
+		/* 送信が続く場合は、ここで次のデータが送信可能となる */
 		s->tx_empty = 1;
-		irda_hw_set_moderx();
+		if (irq_src & FRM_EVT_TX_TXE) {
+			/* 完全に送信完了となった場合、受信モードへ切り替える */
+			irda_hw_set_moderx();
+		}
 	}
-
+	/* [Modify-end] AIC 2011/09/27 */
 #if 0
 	/* error */
 	if (irq_src & REG_INT_TO) {
