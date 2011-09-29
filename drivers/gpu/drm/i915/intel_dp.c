@@ -869,7 +869,16 @@ static void ironlake_wait_panel_off(struct intel_dp *intel_dp)
 {
 	unsigned long	off_time;
 	unsigned long	delay;
+
 	DRM_DEBUG_KMS("Wait for panel power off time\n");
+
+	if (ironlake_edp_have_panel_power(intel_dp) ||
+	    ironlake_edp_have_panel_vdd(intel_dp))
+	{
+		DRM_DEBUG_KMS("Panel still on, no delay needed\n");
+		return;
+	}
+
 	off_time = intel_dp->panel_off_jiffies + msecs_to_jiffies(intel_dp->panel_power_down_delay);
 	if (time_after(jiffies, off_time)) {
 		DRM_DEBUG_KMS("Time already passed");
