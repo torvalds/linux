@@ -730,8 +730,8 @@ static void __init do_basic_setup(void)
 	driver_init();
 	init_irq_proc();
 	do_ctors();
-	do_initcalls();
 	usermodehelper_enable();
+	do_initcalls();
 }
 
 static void __init do_pre_smp_initcalls(void)
