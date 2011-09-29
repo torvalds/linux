@@ -563,14 +563,13 @@ static int out_drv_event(struct snd_soc_dapm_widget *w,
 	struct delayed_work *work;
 
 	switch (w->shift) {
-	case 2:
-	case 3:
+	case 2: /* Headset output driver */
 		out = &priv->headset;
 		out->left_step = priv->hs_left_step;
 		out->right_step = priv->hs_right_step;
 		out->step_delay = 5;	/* 5 ms between volume ramp steps */
 		break;
-	case 4:
+	case 4: /* Handsfree output driver */
 		out = &priv->handsfree;
 		out->left_step = priv->hf_left_step;
 		out->right_step = priv->hf_right_step;
