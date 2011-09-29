@@ -140,13 +140,11 @@ nat_icmp_send - BOOLEAN
 secure_tcp - INTEGER
         0  - disabled (default)
 
-        The secure_tcp defense is to use a more complicated state
-        transition table and some possible short timeouts of each
-        state. In the VS/NAT, it delays the entering the ESTABLISHED
-        until the real server starts to send data and ACK packet
-        (after 3-way handshake).
+	The secure_tcp defense is to use a more complicated TCP state
+	transition table. For VS/NAT, it also delays entering the
+	TCP ESTABLISHED state until the three way handshake is completed.
 
-        The value definition is the same as that of drop_entry or
+        The value definition is the same as that of drop_entry and
         drop_packet.
 
 sync_threshold - INTEGER
