@@ -342,12 +342,19 @@ static u16 frametype(u32 rspec, u8 mimoframe)
 /* Starting corerev for the fifo size table */
 #define XMTFIFOTBL_STARTREV	20
 
+struct d11init {
+	u16 addr;
+	u16 size;
+	u32 value;
+};
+
 /* currently the best mechanism for determining SIFS is the band in use */
 static u16 get_sifs(struct brcms_band *band)
 {
 	return band->bandtype == BRCM_BAND_5G ? APHY_SIFS_TIME :
 				 BPHY_SIFS_TIME;
 }
+
 
 /*
  * Detect Card removed.
@@ -694,6 +701,7 @@ static void brcms_c_write_mhf(struct brcms_hardware *wlc_hw, u16 *mhfs)
 static void brcms_c_ucode_bsinit(struct brcms_hardware *wlc_hw)
 {
 	struct wiphy *wiphy = wlc_hw->wlc->wiphy;
+	struct brcms_ucode *ucode = &wlc_hw->wlc->wl->ucode;
 
 	/* init microcode host flags */
 	brcms_c_write_mhf(wlc_hw, wlc_hw->band->mhfs);
@@ -701,7 +709,7 @@ static void brcms_c_ucode_bsinit(struct brcms_hardware *wlc_hw)
 	/* do band-specific ucode IHR, SHM, and SCR inits */
 	if (D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band))
-			brcms_c_write_inits(wlc_hw, d11n0bsinitvals16);
+			brcms_c_write_inits(wlc_hw, ucode->d11n0bsinitvals16);
 		else
 			wiphy_err(wiphy, "%s: wl%d: unsupported phy in corerev"
 				  " %d\n", __func__, wlc_hw->unit,
@@ -710,7 +718,7 @@ static void brcms_c_ucode_bsinit(struct brcms_hardware *wlc_hw)
 		if (D11REV_IS(wlc_hw->corerev, 24)) {
 			if (BRCMS_ISLCNPHY(wlc_hw->band))
 				brcms_c_write_inits(wlc_hw,
-						    d11lcn0bsinitvals24);
+						    ucode->d11lcn0bsinitvals24);
 			else
 				wiphy_err(wiphy, "%s: wl%d: unsupported phy in"
 					  " core rev %d\n", __func__,
@@ -2457,6 +2465,8 @@ static void brcms_ucode_write(struct brcms_hardware *wlc_hw, const u32 ucode[],
 static void brcms_ucode_download(struct brcms_hardware *wlc_hw)
 {
 	struct brcms_c_info *wlc;
+	struct brcms_ucode *ucode = &wlc_hw->wlc->wl->ucode;
+
 	wlc = wlc_hw->wlc;
 
 	if (wlc_hw->ucode_loaded)
@@ -2464,8 +2474,8 @@ static void brcms_ucode_download(struct brcms_hardware *wlc_hw)
 
 	if (D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band)) {
-			brcms_ucode_write(wlc_hw, bcm43xx_16_mimo,
-					bcm43xx_16_mimosz);
+			brcms_ucode_write(wlc_hw, ucode->bcm43xx_16_mimo,
+					  ucode->bcm43xx_16_mimosz);
 			wlc_hw->ucode_loaded = true;
 		} else
 			wiphy_err(wlc->wiphy, "%s: wl%d: unsupported phy in "
@@ -2473,8 +2483,8 @@ static void brcms_ucode_download(struct brcms_hardware *wlc_hw)
 				  __func__, wlc_hw->unit, wlc_hw->corerev);
 	} else if (D11REV_IS(wlc_hw->corerev, 24)) {
 		if (BRCMS_ISLCNPHY(wlc_hw->band)) {
-			brcms_ucode_write(wlc_hw, bcm43xx_24_lcn,
-					bcm43xx_24_lcnsz);
+			brcms_ucode_write(wlc_hw, ucode->bcm43xx_24_lcn,
+					  ucode->bcm43xx_24_lcnsz);
 			wlc_hw->ucode_loaded = true;
 		} else {
 			wiphy_err(wlc->wiphy, "%s: wl%d: unsupported phy in "
@@ -3372,6 +3382,7 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 	int err = 0;
 	u16 buf[NFIFO];
 	struct wiphy *wiphy = wlc->wiphy;
+	struct brcms_ucode *ucode = &wlc_hw->wlc->wl->ucode;
 
 	regs = wlc_hw->regs;
 
@@ -3404,14 +3415,14 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 
 	if (D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band))
-			brcms_c_write_inits(wlc_hw, d11n0initvals16);
+			brcms_c_write_inits(wlc_hw, ucode->d11n0initvals16);
 		else
 			wiphy_err(wiphy, "%s: wl%d: unsupported phy in corerev"
 				  " %d\n", __func__, wlc_hw->unit,
 				  wlc_hw->corerev);
 	} else if (D11REV_IS(wlc_hw->corerev, 24)) {
 		if (BRCMS_ISLCNPHY(wlc_hw->band))
-			brcms_c_write_inits(wlc_hw, d11lcn0initvals24);
+			brcms_c_write_inits(wlc_hw, ucode->d11lcn0initvals24);
 		else
 			wiphy_err(wiphy, "%s: wl%d: unsupported phy in corerev"
 				  " %d\n", __func__, wlc_hw->unit,

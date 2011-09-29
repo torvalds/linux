@@ -894,7 +894,7 @@ static int brcms_request_fw(struct brcms_info *wl, struct pci_dev *pdev)
 		    wl->fw.fw_hdr[i]->size / (sizeof(struct firmware_hdr));
 	}
 	wl->fw.fw_cnt = i;
-	return brcms_ucode_data_init(wl);
+	return brcms_ucode_data_init(wl, &wl->ucode);
 }
 
 /*
@@ -925,7 +925,7 @@ static void brcms_free(struct brcms_info *wl)
 
 	/* free ucode data */
 	if (wl->fw.fw_cnt)
-		brcms_ucode_data_free();
+		brcms_ucode_data_free(&wl->ucode);
 	if (wl->irq)
 		free_irq(wl->irq, wl);
 

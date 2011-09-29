@@ -19,7 +19,7 @@
 
 #include <linux/timer.h>
 #include <linux/interrupt.h>
-
+#include "ucode_loader.h"
 /*
  * Starting index for 5G rates in the
  * legacy rate table.
@@ -77,6 +77,7 @@ struct brcms_info {
 	bool resched;		/* dpc needs to be and is rescheduled */
 	struct brcms_firmware fw;
 	struct wiphy *wiphy;
+	struct brcms_ucode ucode;
 };
 
 /* misc callbacks */
