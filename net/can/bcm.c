@@ -343,6 +343,18 @@ static void bcm_send_to_user(struct bcm_op *op, struct bcm_msg_head *head,
 	}
 }
 
+static void bcm_tx_start_timer(struct bcm_op *op)
+{
+	if (op->kt_ival1.tv64 && op->count)
+		hrtimer_start(&op->timer,
+			      ktime_add(ktime_get(), op->kt_ival1),
+			      HRTIMER_MODE_ABS);
+	else if (op->kt_ival2.tv64)
+		hrtimer_start(&op->timer,
+			      ktime_add(ktime_get(), op->kt_ival2),
+			      HRTIMER_MODE_ABS);
+}
+
 static void bcm_tx_timeout_tsklet(unsigned long data)
 {
 	struct bcm_op *op = (struct bcm_op *)data;
@@ -364,23 +376,12 @@ static void bcm_tx_timeout_tsklet(unsigned long data)
 
 			bcm_send_to_user(op, &msg_head, NULL, 0);
 		}
-
-		/* send (next) frame */
 		bcm_can_tx(op);
-		hrtimer_start(&op->timer,
-			      ktime_add(ktime_get(), op->kt_ival1),
-			      HRTIMER_MODE_ABS);
 
-	} else {
-		if (op->kt_ival2.tv64) {
+	} else if (op->kt_ival2.tv64)
+		bcm_can_tx(op);
 
-			/* send (next) frame */
-			bcm_can_tx(op);
-			hrtimer_start(&op->timer,
-				      ktime_add(ktime_get(), op->kt_ival2),
-				      HRTIMER_MODE_ABS);
-		}
-	}
+	bcm_tx_start_timer(op);
 }
 
 /*
@@ -960,27 +961,20 @@ static int bcm_tx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 			hrtimer_cancel(&op->timer);
 	}
 
-	if ((op->flags & STARTTIMER) &&
-	    ((op->kt_ival1.tv64 && op->count) || op->kt_ival2.tv64)) {
-
+	if (op->flags & STARTTIMER) {
+		hrtimer_cancel(&op->timer);
 		/* spec: send can_frame when starting timer */
 		op->flags |= TX_ANNOUNCE;
-
-		/* only start timer when having more frames than sent below */
-		if (op->kt_ival1.tv64 && (op->count > 1)) {
-			/* op->count-- is done in bcm_tx_timeout_tsklet */
-			hrtimer_start(&op->timer, op->kt_ival1,
-				      HRTIMER_MODE_REL);
-		} else
-			hrtimer_start(&op->timer, op->kt_ival2,
-				      HRTIMER_MODE_REL);
 	}
 
 	if (op->flags & TX_ANNOUNCE) {
 		bcm_can_tx(op);
-		if (op->kt_ival1.tv64 && (op->count > 0))
+		if (op->count)
 			op->count--;
 	}
+
+	if (op->flags & STARTTIMER)
+		bcm_tx_start_timer(op);
 
 	return msg_head->nframes * CFSIZ + MHSIZ;
 }
