@@ -45,8 +45,8 @@ static int regcache_indexed_sync(struct regmap *map)
 	int ret;
 
 	for (i = 0; i < map->num_reg_defaults; i++) {
-		ret = regmap_write(map, map->reg_defaults[i].reg,
-				   map->reg_defaults[i].def);
+		ret = _regmap_write(map, map->reg_defaults[i].reg,
+				    map->reg_defaults[i].def);
 		if (ret < 0)
 			return ret;
 		dev_dbg(map->dev, "Synced register %#x, value %#x\n",

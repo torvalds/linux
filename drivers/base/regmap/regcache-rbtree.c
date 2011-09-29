@@ -327,7 +327,7 @@ static int regcache_rbtree_sync(struct regmap *map)
 			if (val == def)
 				continue;
 			map->cache_bypass = 1;
-			ret = regmap_write(map, regtmp, val);
+			ret = _regmap_write(map, regtmp, val);
 			map->cache_bypass = 0;
 			if (ret)
 				return ret;

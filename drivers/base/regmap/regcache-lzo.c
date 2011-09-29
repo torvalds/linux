@@ -339,7 +339,7 @@ static int regcache_lzo_sync(struct regmap *map)
 		if (ret)
 			return ret;
 		map->cache_bypass = 1;
-		ret = regmap_write(map, i, val);
+		ret = _regmap_write(map, i, val);
 		map->cache_bypass = 0;
 		if (ret)
 			return ret;
