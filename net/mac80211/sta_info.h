@@ -19,7 +19,8 @@
 /**
  * enum ieee80211_sta_info_flags - Stations flags
  *
- * These flags are used with &struct sta_info's @flags member.
+ * These flags are used with &struct sta_info's @flags member, but
+ * only indirectly with set_sta_flag() and friends.
  *
  * @WLAN_STA_AUTH: Station is authenticated.
  * @WLAN_STA_ASSOC: Station is associated.
@@ -53,23 +54,23 @@
  *	reply to other uAPSD trigger frames or PS-Poll.
  */
 enum ieee80211_sta_info_flags {
-	WLAN_STA_AUTH		= 1<<0,
-	WLAN_STA_ASSOC		= 1<<1,
-	WLAN_STA_PS_STA		= 1<<2,
-	WLAN_STA_AUTHORIZED	= 1<<3,
-	WLAN_STA_SHORT_PREAMBLE	= 1<<4,
-	WLAN_STA_ASSOC_AP	= 1<<5,
-	WLAN_STA_WME		= 1<<6,
-	WLAN_STA_WDS		= 1<<7,
-	WLAN_STA_CLEAR_PS_FILT	= 1<<9,
-	WLAN_STA_MFP		= 1<<10,
-	WLAN_STA_BLOCK_BA	= 1<<11,
-	WLAN_STA_PS_DRIVER	= 1<<12,
-	WLAN_STA_PSPOLL		= 1<<13,
-	WLAN_STA_TDLS_PEER	= 1<<15,
-	WLAN_STA_TDLS_PEER_AUTH	= 1<<16,
-	WLAN_STA_UAPSD		= 1<<17,
-	WLAN_STA_SP		= 1<<18,
+	WLAN_STA_AUTH,
+	WLAN_STA_ASSOC,
+	WLAN_STA_PS_STA,
+	WLAN_STA_AUTHORIZED,
+	WLAN_STA_SHORT_PREAMBLE,
+	WLAN_STA_ASSOC_AP,
+	WLAN_STA_WME,
+	WLAN_STA_WDS,
+	WLAN_STA_CLEAR_PS_FILT,
+	WLAN_STA_MFP,
+	WLAN_STA_BLOCK_BA,
+	WLAN_STA_PS_DRIVER,
+	WLAN_STA_PSPOLL,
+	WLAN_STA_TDLS_PEER,
+	WLAN_STA_TDLS_PEER_AUTH,
+	WLAN_STA_UAPSD,
+	WLAN_STA_SP,
 };
 
 #define STA_TID_NUM 16
@@ -212,10 +213,9 @@ struct sta_ampdu_mlme {
  * @last_rx_rate_flag: rx status flag of the last data packet
  * @lock: used for locking all fields that require locking, see comments
  *	in the header file.
- * @flaglock: spinlock for flags accesses
  * @drv_unblock_wk: used for driver PS unblocking
  * @listen_interval: listen interval of this station, when we're acting as AP
- * @flags: STA flags, see &enum ieee80211_sta_info_flags
+ * @_flags: STA flags, see &enum ieee80211_sta_info_flags, do not use directly
  * @ps_tx_buf: buffers (per AC) of frames to transmit to this station
  *	when it leaves power saving state or polls
  * @tx_filtered: buffers (per AC) of frames we already tried to
@@ -272,7 +272,6 @@ struct sta_info {
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
 	spinlock_t lock;
-	spinlock_t flaglock;
 
 	struct work_struct drv_unblock_wk;
 
@@ -282,11 +281,8 @@ struct sta_info {
 
 	bool uploaded;
 
-	/*
-	 * frequently updated, locked with own spinlock (flaglock),
-	 * use the accessors defined below
-	 */
-	u32 flags;
+	/* use the accessors defined below */
+	unsigned long _flags;
 
 	/*
 	 * STA powersave frame queues, no more than the internal
@@ -370,60 +366,28 @@ static inline enum nl80211_plink_state sta_plink_state(struct sta_info *sta)
 	return NL80211_PLINK_LISTEN;
 }
 
-static inline void set_sta_flags(struct sta_info *sta, const u32 flags)
+static inline void set_sta_flag(struct sta_info *sta,
+				enum ieee80211_sta_info_flags flag)
 {
-	unsigned long irqfl;
-
-	spin_lock_irqsave(&sta->flaglock, irqfl);
-	sta->flags |= flags;
-	spin_unlock_irqrestore(&sta->flaglock, irqfl);
+	set_bit(flag, &sta->_flags);
 }
 
-static inline void clear_sta_flags(struct sta_info *sta, const u32 flags)
+static inline void clear_sta_flag(struct sta_info *sta,
+				  enum ieee80211_sta_info_flags flag)
 {
-	unsigned long irqfl;
-
-	spin_lock_irqsave(&sta->flaglock, irqfl);
-	sta->flags &= ~flags;
-	spin_unlock_irqrestore(&sta->flaglock, irqfl);
+	clear_bit(flag, &sta->_flags);
 }
 
-static inline u32 test_sta_flags(struct sta_info *sta, const u32 flags)
+static inline int test_sta_flag(struct sta_info *sta,
+				enum ieee80211_sta_info_flags flag)
 {
-	u32 ret;
-	unsigned long irqfl;
-
-	spin_lock_irqsave(&sta->flaglock, irqfl);
-	ret = sta->flags & flags;
-	spin_unlock_irqrestore(&sta->flaglock, irqfl);
-
-	return ret;
+	return test_bit(flag, &sta->_flags);
 }
 
-static inline u32 test_and_clear_sta_flags(struct sta_info *sta,
-					   const u32 flags)
+static inline int test_and_clear_sta_flag(struct sta_info *sta,
+					  enum ieee80211_sta_info_flags flag)
 {
-	u32 ret;
-	unsigned long irqfl;
-
-	spin_lock_irqsave(&sta->flaglock, irqfl);
-	ret = sta->flags & flags;
-	sta->flags &= ~flags;
-	spin_unlock_irqrestore(&sta->flaglock, irqfl);
-
-	return ret;
-}
-
-static inline u32 get_sta_flags(struct sta_info *sta)
-{
-	u32 ret;
-	unsigned long irqfl;
-
-	spin_lock_irqsave(&sta->flaglock, irqfl);
-	ret = sta->flags;
-	spin_unlock_irqrestore(&sta->flaglock, irqfl);
-
-	return ret;
+	return test_and_clear_bit(flag, &sta->_flags);
 }
 
 void ieee80211_assign_tid_tx(struct sta_info *sta, int tid,

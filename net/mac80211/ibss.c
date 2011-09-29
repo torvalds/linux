@@ -314,7 +314,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (sta && elems->wmm_info)
-			set_sta_flags(sta, WLAN_STA_WME);
+			set_sta_flag(sta, WLAN_STA_WME);
 
 		rcu_read_unlock();
 	}
@@ -452,7 +452,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 
 	sta->last_rx = jiffies;
-	set_sta_flags(sta, WLAN_STA_AUTHORIZED);
+	set_sta_flag(sta, WLAN_STA_AUTHORIZED);
 
 	/* make sure mandatory rates are always added */
 	sta->sta.supp_rates[band] = supp_rates |

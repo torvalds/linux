@@ -841,7 +841,7 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 		      ieee80211_is_pspoll(hdr->frame_control)) &&
 		     rx->sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 		     rx->sdata->vif.type != NL80211_IFTYPE_WDS &&
-		     (!rx->sta || !test_sta_flags(rx->sta, WLAN_STA_ASSOC)))) {
+		     (!rx->sta || !test_sta_flag(rx->sta, WLAN_STA_ASSOC)))) {
 		if (rx->sta && rx->sta->dummy &&
 		    ieee80211_is_data_present(hdr->frame_control)) {
 			u16 ethertype;
@@ -1110,7 +1110,7 @@ static void ap_sta_ps_start(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 
 	atomic_inc(&sdata->bss->num_sta_ps);
-	set_sta_flags(sta, WLAN_STA_PS_STA);
+	set_sta_flag(sta, WLAN_STA_PS_STA);
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_SLEEP, &sta->sta);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
@@ -1130,7 +1130,7 @@ static void ap_sta_ps_end(struct sta_info *sta)
 	       sdata->name, sta->sta.addr, sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
-	if (test_sta_flags(sta, WLAN_STA_PS_DRIVER)) {
+	if (test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "%s: STA %pM aid %d driver-ps-blocked\n",
 		       sdata->name, sta->sta.addr, sta->sta.aid);
@@ -1149,7 +1149,7 @@ int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start)
 	WARN_ON(!(sta_inf->local->hw.flags & IEEE80211_HW_AP_LINK_PS));
 
 	/* Don't let the same PS state be set twice */
-	in_ps = test_sta_flags(sta_inf, WLAN_STA_PS_STA);
+	in_ps = test_sta_flag(sta_inf, WLAN_STA_PS_STA);
 	if ((start && in_ps) || (!start && !in_ps))
 		return -EINVAL;
 
@@ -1190,15 +1190,15 @@ ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
 	 * the uAPSD case, the station will probably be marked asleep,
 	 * in the PS-Poll case the station must be confused ...
 	 */
-	if (!test_sta_flags(rx->sta, WLAN_STA_PS_STA))
+	if (!test_sta_flag(rx->sta, WLAN_STA_PS_STA))
 		return RX_CONTINUE;
 
 	if (unlikely(ieee80211_is_pspoll(hdr->frame_control))) {
-		if (!test_sta_flags(rx->sta, WLAN_STA_SP)) {
-			if (!test_sta_flags(rx->sta, WLAN_STA_PS_DRIVER))
+		if (!test_sta_flag(rx->sta, WLAN_STA_SP)) {
+			if (!test_sta_flag(rx->sta, WLAN_STA_PS_DRIVER))
 				ieee80211_sta_ps_deliver_poll_response(rx->sta);
 			else
-				set_sta_flags(rx->sta, WLAN_STA_PSPOLL);
+				set_sta_flag(rx->sta, WLAN_STA_PSPOLL);
 		}
 
 		/* Free PS Poll skb here instead of returning RX_DROP that would
@@ -1225,13 +1225,13 @@ ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
 			return RX_CONTINUE;
 
 		/* if we are in a service period, do nothing */
-		if (test_sta_flags(rx->sta, WLAN_STA_SP))
+		if (test_sta_flag(rx->sta, WLAN_STA_SP))
 			return RX_CONTINUE;
 
-		if (!test_sta_flags(rx->sta, WLAN_STA_PS_DRIVER))
+		if (!test_sta_flag(rx->sta, WLAN_STA_PS_DRIVER))
 			ieee80211_sta_ps_deliver_uapsd(rx->sta);
 		else
-			set_sta_flags(rx->sta, WLAN_STA_UAPSD);
+			set_sta_flag(rx->sta, WLAN_STA_UAPSD);
 	}
 
 	return RX_CONTINUE;
@@ -1295,7 +1295,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	    !(status->rx_flags & IEEE80211_RX_DEFERRED_RELEASE) &&
 	    (rx->sdata->vif.type == NL80211_IFTYPE_AP ||
 	     rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)) {
-		if (test_sta_flags(sta, WLAN_STA_PS_STA)) {
+		if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
 			/*
 			 * Ignore doze->wake transitions that are
 			 * indicated by non-data frames, the standard
@@ -1570,7 +1570,7 @@ static int
 ieee80211_802_1x_port_control(struct ieee80211_rx_data *rx)
 {
 	if (unlikely(!rx->sta ||
-	    !test_sta_flags(rx->sta, WLAN_STA_AUTHORIZED)))
+	    !test_sta_flag(rx->sta, WLAN_STA_AUTHORIZED)))
 		return -EACCES;
 
 	return 0;
@@ -1613,7 +1613,7 @@ ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 	if (status->flag & RX_FLAG_DECRYPTED)
 		return 0;
 
-	if (rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP)) {
+	if (rx->sta && test_sta_flag(rx->sta, WLAN_STA_MFP)) {
 		if (unlikely(!ieee80211_has_protected(fc) &&
 			     ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
 			     rx->key)) {

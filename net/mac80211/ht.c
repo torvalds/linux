@@ -130,7 +130,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 	 * down by the code that set the flag, so this
 	 * need not run.
 	 */
-	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA))
+	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA))
 		return;
 
 	mutex_lock(&sta->ampdu_mlme.mtx);

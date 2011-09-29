@@ -72,7 +72,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_AP_VLAN:
 		sta = rcu_dereference(sdata->u.vlan.sta);
 		if (sta) {
-			qos = get_sta_flags(sta) & WLAN_STA_WME;
+			qos = test_sta_flag(sta, WLAN_STA_WME);
 			break;
 		}
 	case NL80211_IFTYPE_AP:
@@ -99,7 +99,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	if (!sta && ra && !is_multicast_ether_addr(ra)) {
 		sta = sta_info_get(sdata, ra);
 		if (sta)
-			qos = get_sta_flags(sta) & WLAN_STA_WME;
+			qos = test_sta_flag(sta, WLAN_STA_WME);
 	}
 	rcu_read_unlock();
 

@@ -244,22 +244,22 @@ static void sta_unblock(struct work_struct *wk)
 	if (sta->dead)
 		return;
 
-	if (!test_sta_flags(sta, WLAN_STA_PS_STA))
+	if (!test_sta_flag(sta, WLAN_STA_PS_STA))
 		ieee80211_sta_ps_deliver_wakeup(sta);
-	else if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL)) {
-		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
+	else if (test_and_clear_sta_flag(sta, WLAN_STA_PSPOLL)) {
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
 
 		local_bh_disable();
 		ieee80211_sta_ps_deliver_poll_response(sta);
 		local_bh_enable();
-	} else if (test_and_clear_sta_flags(sta, WLAN_STA_UAPSD)) {
-		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
+	} else if (test_and_clear_sta_flag(sta, WLAN_STA_UAPSD)) {
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
 
 		local_bh_disable();
 		ieee80211_sta_ps_deliver_uapsd(sta);
 		local_bh_enable();
 	} else
-		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
 }
 
 static int sta_prepare_rate_control(struct ieee80211_local *local,
@@ -292,7 +292,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 
 	spin_lock_init(&sta->lock);
-	spin_lock_init(&sta->flaglock);
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
@@ -871,7 +870,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	 * sessions -- block that to make sure the tear-down
 	 * will be sufficient.
 	 */
-	set_sta_flags(sta, WLAN_STA_BLOCK_BA);
+	set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 	ieee80211_sta_tear_down_BA_sessions(sta, true);
 
 	spin_lock_irqsave(&local->sta_lock, flags);
@@ -892,9 +891,12 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	sta->dead = true;
 
-	if (test_and_clear_sta_flags(sta,
-				WLAN_STA_PS_STA | WLAN_STA_PS_DRIVER)) {
+	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
+	    test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
 		BUG_ON(!sdata->bss);
+
+		clear_sta_flag(sta, WLAN_STA_PS_STA);
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
 
 		atomic_dec(&sdata->bss->num_sta_ps);
 		sta_info_recalc_tim(sta);
@@ -1116,7 +1118,8 @@ static void clear_sta_ps_flags(void *_sta)
 {
 	struct sta_info *sta = _sta;
 
-	clear_sta_flags(sta, WLAN_STA_PS_DRIVER | WLAN_STA_PS_STA);
+	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+	clear_sta_flag(sta, WLAN_STA_PS_STA);
 }
 
 /* powersave support code */
@@ -1127,7 +1130,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	struct sk_buff_head pending;
 	int filtered = 0, buffered = 0, ac;
 
-	clear_sta_flags(sta, WLAN_STA_SP);
+	clear_sta_flag(sta, WLAN_STA_SP);
 
 	BUILD_BUG_ON(BITS_TO_LONGS(STA_TID_NUM) > 1);
 	sta->driver_buffered_tids = 0;
@@ -1173,7 +1176,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	int size = sizeof(*nullfunc);
 	__le16 fc;
-	bool qos = test_sta_flags(sta, WLAN_STA_WME);
+	bool qos = test_sta_flag(sta, WLAN_STA_WME);
 	struct ieee80211_tx_info *info;
 
 	if (qos) {
@@ -1241,7 +1244,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 	struct sk_buff_head frames;
 
 	/* Service or PS-Poll period starts */
-	set_sta_flags(sta, WLAN_STA_SP);
+	set_sta_flag(sta, WLAN_STA_SP);
 
 	__skb_queue_head_init(&frames);
 
@@ -1453,8 +1456,8 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 	trace_api_sta_block_awake(sta->local, pubsta, block);
 
 	if (block)
-		set_sta_flags(sta, WLAN_STA_PS_DRIVER);
-	else if (test_sta_flags(sta, WLAN_STA_PS_DRIVER))
+		set_sta_flag(sta, WLAN_STA_PS_DRIVER);
+	else if (test_sta_flag(sta, WLAN_STA_PS_DRIVER))
 		ieee80211_queue_work(hw, &sta->drv_unblock_wk);
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);

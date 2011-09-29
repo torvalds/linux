@@ -668,7 +668,6 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 				 struct sta_info *sta,
 				 struct station_parameters *params)
 {
-	unsigned long flags;
 	u32 rates;
 	int i, j;
 	struct ieee80211_supported_band *sband;
@@ -677,49 +676,53 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 
 	sband = local->hw.wiphy->bands[local->oper_channel->band];
 
-	spin_lock_irqsave(&sta->flaglock, flags);
 	mask = params->sta_flags_mask;
 	set = params->sta_flags_set;
 
 	if (mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
-		sta->flags &= ~WLAN_STA_AUTHORIZED;
 		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
-			sta->flags |= WLAN_STA_AUTHORIZED;
+			set_sta_flag(sta, WLAN_STA_AUTHORIZED);
+		else
+			clear_sta_flag(sta, WLAN_STA_AUTHORIZED);
 	}
 
 	if (mask & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE)) {
-		sta->flags &= ~WLAN_STA_SHORT_PREAMBLE;
 		if (set & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE))
-			sta->flags |= WLAN_STA_SHORT_PREAMBLE;
+			set_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE);
+		else
+			clear_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE);
 	}
 
 	if (mask & BIT(NL80211_STA_FLAG_WME)) {
-		sta->flags &= ~WLAN_STA_WME;
-		sta->sta.wme = false;
 		if (set & BIT(NL80211_STA_FLAG_WME)) {
-			sta->flags |= WLAN_STA_WME;
+			set_sta_flag(sta, WLAN_STA_WME);
 			sta->sta.wme = true;
+		} else {
+			clear_sta_flag(sta, WLAN_STA_WME);
+			sta->sta.wme = false;
 		}
 	}
 
 	if (mask & BIT(NL80211_STA_FLAG_MFP)) {
-		sta->flags &= ~WLAN_STA_MFP;
 		if (set & BIT(NL80211_STA_FLAG_MFP))
-			sta->flags |= WLAN_STA_MFP;
+			set_sta_flag(sta, WLAN_STA_MFP);
+		else
+			clear_sta_flag(sta, WLAN_STA_MFP);
 	}
 
 	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED)) {
-		sta->flags &= ~WLAN_STA_AUTH;
 		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED))
-			sta->flags |= WLAN_STA_AUTH;
+			set_sta_flag(sta, WLAN_STA_AUTH);
+		else
+			clear_sta_flag(sta, WLAN_STA_AUTH);
 	}
 
 	if (mask & BIT(NL80211_STA_FLAG_TDLS_PEER)) {
-		sta->flags &= ~WLAN_STA_TDLS_PEER;
 		if (set & BIT(NL80211_STA_FLAG_TDLS_PEER))
-			sta->flags |= WLAN_STA_TDLS_PEER;
+			set_sta_flag(sta, WLAN_STA_TDLS_PEER);
+		else
+			clear_sta_flag(sta, WLAN_STA_TDLS_PEER);
 	}
-	spin_unlock_irqrestore(&sta->flaglock, flags);
 
 	if (params->sta_modify_mask & STATION_PARAM_APPLY_UAPSD) {
 		sta->sta.uapsd_queues = params->uapsd_queues;
@@ -815,12 +818,13 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!sta)
 		return -ENOMEM;
 
-	sta->flags = WLAN_STA_AUTH | WLAN_STA_ASSOC;
+	set_sta_flag(sta, WLAN_STA_AUTH);
+	set_sta_flag(sta, WLAN_STA_ASSOC);
 
 	sta_apply_parameters(local, sta, params);
 
 	/* Only TDLS-supporting stations can add TDLS peers */
-	if ((sta->flags & WLAN_STA_TDLS_PEER) &&
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
 	    !((wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) &&
 	      sdata->vif.type == NL80211_IFTYPE_STATION))
 		return -ENOTSUPP;
@@ -880,7 +884,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	/* The TDLS bit cannot be toggled after the STA was added */
 	if ((params->sta_flags_mask & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
 	    !!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) !=
-	    !!test_sta_flags(sta, WLAN_STA_TDLS_PEER)) {
+	    !!test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
 		rcu_read_unlock();
 		return -EINVAL;
 	}
@@ -2449,7 +2453,7 @@ static int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			return -ENOLINK;
 		}
 
-		set_sta_flags(sta, WLAN_STA_TDLS_PEER_AUTH);
+		set_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
 		rcu_read_unlock();
 		break;
 	case NL80211_TDLS_DISABLE_LINK:
