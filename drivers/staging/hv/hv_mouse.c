@@ -288,25 +288,6 @@ static struct mousevsc_dev *final_release_input_device(struct hv_device *device)
 	return input_dev;
 }
 
-static void mousevsc_on_send_completion(struct hv_device *device,
-					struct vmpacket_descriptor *packet)
-{
-	struct mousevsc_dev *input_dev;
-	void *request;
-
-	input_dev = must_get_input_device(device);
-	if (!input_dev)
-		return;
-
-	request = (void *)(unsigned long)packet->trans_id;
-
-	if (request == &input_dev->protocol_req) {
-		/* FIXME */
-		/* Shouldn't we be doing something here? */
-	}
-
-	put_input_device(device);
-}
 
 static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 				struct synthhid_device_info *device_info)
@@ -480,8 +461,6 @@ static void mousevsc_on_channel_callback(void *context)
 
 				switch (desc->type) {
 				case VM_PKT_COMP:
-					mousevsc_on_send_completion(
-						device, desc);
 					break;
 
 				case VM_PKT_DATA_INBAND:
