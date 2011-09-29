@@ -197,9 +197,9 @@ static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 
 static void free_input_device(struct mousevsc_dev *device)
 {
-	WARN_ON(atomic_read(&device->ref_count) != 0);
 	kfree(device->hid_desc);
 	kfree(device->report_desc);
+	hv_set_drvdata(device->device, NULL);
 	kfree(device);
 }
 
@@ -227,39 +227,6 @@ static void put_input_device(struct hv_device *device)
 	input_dev = hv_get_drvdata(device);
 
 	atomic_dec(&input_dev->ref_count);
-}
-
-/*
- * Drop ref count to 1 to effectively disable get_input_device()
- */
-static struct mousevsc_dev *release_input_device(struct hv_device *device)
-{
-	struct mousevsc_dev *input_dev;
-
-	input_dev = hv_get_drvdata(device);
-
-	/* Busy wait until the ref drop to 2, then set it to 1  */
-	while (atomic_cmpxchg(&input_dev->ref_count, 2, 1) != 2)
-		udelay(100);
-
-	return input_dev;
-}
-
-/*
- * Drop ref count to 0. No one can use input_device object.
- */
-static struct mousevsc_dev *final_release_input_device(struct hv_device *device)
-{
-	struct mousevsc_dev *input_dev;
-
-	input_dev = hv_get_drvdata(device);
-
-	/* Busy wait until the ref drop to 1, then set it to 0  */
-	while (atomic_cmpxchg(&input_dev->ref_count, 1, 0) != 1)
-		udelay(100);
-
-	hv_set_drvdata(device, NULL);
-	return input_dev;
 }
 
 
@@ -673,27 +640,13 @@ static int mousevsc_remove(struct hv_device *dev)
 {
 	struct mousevsc_dev *input_dev = hv_get_drvdata(dev);
 
+	vmbus_close(dev->channel);
+
 	if (input_dev->connected) {
 		hidinput_disconnect(input_dev->hid_device);
 		input_dev->connected = 0;
 		hid_destroy_device(input_dev->hid_device);
 	}
-
-
-	release_input_device(dev);
-
-
-	/*
-	 * At this point, all outbound traffic should be disable. We only
-	 * allow inbound traffic (responses) to proceed
-	 *
-	 * so that outstanding requests can be completed.
-	 */
-
-	input_dev = final_release_input_device(dev);
-
-	/* Close the channel */
-	vmbus_close(dev->channel);
 
 	free_input_device(input_dev);
 
