@@ -590,7 +590,7 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 	request->size = sizeof(struct synthhid_protocol_request);
 
 	request->request.header.type = SynthHidProtocolRequest;
-	request->request.header.size = sizeof(unsigned long);
+	request->request.header.size = sizeof(unsigned int);
 	request->request.version_requested.version = SYNTHHID_INPUT_VERSION;
 
 	pr_info("synthhid protocol request...");
