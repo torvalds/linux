@@ -510,6 +510,15 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	tmp |= CINT_PHY_MASK;
 	mw32(MVS_INT_MASK, tmp);
 
+	/* tune STP performance */
+	tmp = 0x003F003F;
+	mvs_cw32(mvi, CMD_PL_TIMER, tmp);
+
+	/* This can improve expander large block size seq write performance */
+	tmp = mvs_cr32(mvi, CMD_PORT_LAYER_TIMER1);
+	tmp |= 0xFFFF007F;
+	mvs_cw32(mvi, CMD_PORT_LAYER_TIMER1, tmp);
+
 	/* change the connection open-close behavior (bit 9)
 	 * set bit8 to 1 for performance tuning */
 	tmp = mvs_cr32(mvi, CMD_SL_MODE0);

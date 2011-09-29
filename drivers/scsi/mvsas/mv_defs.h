@@ -387,6 +387,7 @@ enum sas_cmd_port_registers {
 	CMD_SL_MODE0		= 0x1BC, /* SL Mode 0 */
 	CMD_SL_MODE1		= 0x1C0, /* SL Mode 1 */
 	CMD_PND_FIFO_CTL1	= 0x1C4, /* Pending FIFO Control 1 */
+	CMD_PORT_LAYER_TIMER1	= 0x1E0, /* Port Layer Timer 1 */
 };
 
 enum mvs_info_flags {
