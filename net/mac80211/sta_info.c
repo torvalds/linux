@@ -248,6 +248,9 @@ static void sta_unblock(struct work_struct *wk)
 	else if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL)) {
 		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
 		ieee80211_sta_ps_deliver_poll_response(sta);
+	} else if (test_and_clear_sta_flags(sta, WLAN_STA_UAPSD)) {
+		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_sta_ps_deliver_uapsd(sta);
 	} else
 		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
 }
@@ -1117,6 +1120,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	struct sk_buff_head pending;
 	int filtered = 0, buffered = 0, ac;
 
+	clear_sta_flags(sta, WLAN_STA_SP);
+
 	BUILD_BUG_ON(BITS_TO_LONGS(STA_TID_NUM) > 1);
 	sta->driver_buffered_tids = 0;
 
@@ -1152,32 +1157,28 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
-void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
+static void
+ieee80211_sta_ps_deliver_response(struct sta_info *sta,
+				  int n_frames, u8 ignored_acs,
+				  enum ieee80211_frame_release_type reason)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb = NULL;
 	bool found = false;
 	bool more_data = false;
 	int ac;
 	unsigned long driver_release_tids = 0;
-	u8 ignore_for_response = sta->sta.uapsd_queues;
+	struct sk_buff_head frames;
+
+	__skb_queue_head_init(&frames);
 
 	/*
-	 * If all ACs are delivery-enabled then we should reply
-	 * from any of them, if only some are enabled we reply
-	 * only from the non-enabled ones.
-	 */
-	if (ignore_for_response == BIT(IEEE80211_NUM_ACS) - 1)
-		ignore_for_response = 0;
-
-	/*
-	 * Get response frame and more data bit for it.
+	 * Get response frame(s) and more data bit for it.
 	 */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
-		if (ignore_for_response & BIT(ac))
+		if (ignored_acs & BIT(ac))
 			continue;
 
 		tids = ieee80211_tids_for_ac(ac);
@@ -1187,14 +1188,22 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 			if (driver_release_tids) {
 				found = true;
 			} else {
-				skb = skb_dequeue(&sta->tx_filtered[ac]);
-				if (!skb) {
-					skb = skb_dequeue(&sta->ps_tx_buf[ac]);
-					if (skb)
-						local->total_ps_buffered--;
-				}
-				if (skb)
+				struct sk_buff *skb;
+
+				while (n_frames > 0) {
+					skb = skb_dequeue(&sta->tx_filtered[ac]);
+					if (!skb) {
+						skb = skb_dequeue(
+							&sta->ps_tx_buf[ac]);
+						if (skb)
+							local->total_ps_buffered--;
+					}
+					if (!skb)
+						break;
+					n_frames--;
 					found = true;
+					__skb_queue_tail(&frames, skb);
+				}
 			}
 
 			/*
@@ -1202,7 +1211,8 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 			 * certainly there's more data if we release just a
 			 * single frame now (from a single TID).
 			 */
-			if (hweight16(driver_release_tids) > 1) {
+			if (reason == IEEE80211_FRAME_RELEASE_PSPOLL &&
+			    hweight16(driver_release_tids) > 1) {
 				more_data = true;
 				driver_release_tids =
 					BIT(ffs(driver_release_tids) - 1);
@@ -1225,38 +1235,56 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 		 *	  Should we send it a null-func frame indicating we
 		 *	  have nothing buffered for it?
 		 */
-		printk(KERN_DEBUG "%s: STA %pM sent PS Poll even "
-		       "though there are no buffered frames for it\n",
-		       sdata->name, sta->sta.addr);
+		if (reason == IEEE80211_FRAME_RELEASE_PSPOLL)
+			printk(KERN_DEBUG "%s: STA %pM sent PS Poll even "
+			       "though there are no buffered frames for it\n",
+			       sdata->name, sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
 		return;
 	}
 
-	if (skb) {
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-		struct ieee80211_hdr *hdr =
-			(struct ieee80211_hdr *) skb->data;
+	if (!driver_release_tids) {
+		struct sk_buff_head pending;
+		struct sk_buff *skb;
 
-		/*
-		 * Tell TX path to send this frame even though the STA may
-		 * still remain is PS mode after this frame exchange.
-		 */
-		info->flags |= IEEE80211_TX_CTL_PSPOLL_RESPONSE;
+		skb_queue_head_init(&pending);
 
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA %pM aid %d: PS Poll\n",
-		       sta->sta.addr, sta->sta.aid);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+		while ((skb = __skb_dequeue(&frames))) {
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+			struct ieee80211_hdr *hdr = (void *) skb->data;
 
-		/* Use MoreData flag to indicate whether there are more
-		 * buffered frames for this STA */
-		if (!more_data)
-			hdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
-		else
-			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+			/*
+			 * Tell TX path to send this frame even though the
+			 * STA may still remain is PS mode after this frame
+			 * exchange.
+			 */
+			info->flags |= IEEE80211_TX_CTL_POLL_RESPONSE;
 
-		ieee80211_add_pending_skb(local, skb);
+			/*
+			 * Use MoreData flag to indicate whether there are
+			 * more buffered frames for this STA
+			 */
+			if (!more_data)
+				hdr->frame_control &=
+					cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
+			else
+				hdr->frame_control |=
+					cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+
+			if (reason == IEEE80211_FRAME_RELEASE_UAPSD &&
+			    skb_queue_empty(&frames)) {
+				/* set EOSP for the frame */
+				u8 *p = ieee80211_get_qos_ctl(hdr);
+				*p |= IEEE80211_QOS_CTL_EOSP;
+				info->flags |= IEEE80211_TX_STATUS_EOSP |
+					       IEEE80211_TX_CTL_REQ_TX_STATUS;
+			}
+
+			__skb_queue_tail(&pending, skb);
+		}
+
+		ieee80211_add_pending_skbs(local, &pending);
 
 		sta_info_recalc_tim(sta);
 	} else {
@@ -1271,8 +1299,7 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 		 * needs to be set anyway.
 		 */
 		drv_release_buffered_frames(local, sta, driver_release_tids,
-					    1, IEEE80211_FRAME_RELEASE_PSPOLL,
-					    more_data);
+					    n_frames, reason, more_data);
 
 		/*
 		 * Note that we don't recalculate the TIM bit here as it would
@@ -1283,6 +1310,59 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 		 * became empty we'll do the TIM recalculation.
 		 */
 	}
+}
+
+void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
+{
+	u8 ignore_for_response = sta->sta.uapsd_queues;
+
+	/*
+	 * If all ACs are delivery-enabled then we should reply
+	 * from any of them, if only some are enabled we reply
+	 * only from the non-enabled ones.
+	 */
+	if (ignore_for_response == BIT(IEEE80211_NUM_ACS) - 1)
+		ignore_for_response = 0;
+
+	ieee80211_sta_ps_deliver_response(sta, 1, ignore_for_response,
+					  IEEE80211_FRAME_RELEASE_PSPOLL);
+}
+
+void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta)
+{
+	int n_frames = sta->sta.max_sp;
+	u8 delivery_enabled = sta->sta.uapsd_queues;
+
+	/*
+	 * If we ever grow support for TSPEC this might happen if
+	 * the TSPEC update from hostapd comes in between a trigger
+	 * frame setting WLAN_STA_UAPSD in the RX path and this
+	 * actually getting called.
+	 */
+	if (!delivery_enabled)
+		return;
+
+	/* Ohh, finally, the service period starts :-) */
+	set_sta_flags(sta, WLAN_STA_SP);
+
+	switch (sta->sta.max_sp) {
+	case 1:
+		n_frames = 2;
+		break;
+	case 2:
+		n_frames = 4;
+		break;
+	case 3:
+		n_frames = 6;
+		break;
+	case 0:
+		/* XXX: what is a good value? */
+		n_frames = 8;
+		break;
+	}
+
+	ieee80211_sta_ps_deliver_response(sta, n_frames, ~delivery_enabled,
+					  IEEE80211_FRAME_RELEASE_UAPSD);
 }
 
 void ieee80211_sta_block_awake(struct ieee80211_hw *hw,

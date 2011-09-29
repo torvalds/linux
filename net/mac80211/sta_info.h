@@ -46,6 +46,11 @@
  * @WLAN_STA_TDLS_PEER: Station is a TDLS peer.
  * @WLAN_STA_TDLS_PEER_AUTH: This TDLS peer is authorized to send direct
  *	packets. This means the link is enabled.
+ * @WLAN_STA_UAPSD: Station requested unscheduled SP while driver was
+ *	keeping station in power-save mode, reply when the driver
+ *	unblocks the station.
+ * @WLAN_STA_SP: Station is in a service period, so don't try to
+ *	reply to other uAPSD trigger frames.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -63,6 +68,8 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_PSPOLL		= 1<<13,
 	WLAN_STA_TDLS_PEER	= 1<<15,
 	WLAN_STA_TDLS_PEER_AUTH	= 1<<16,
+	WLAN_STA_UAPSD		= 1<<17,
+	WLAN_STA_SP		= 1<<18,
 };
 
 #define STA_TID_NUM 16
@@ -539,5 +546,6 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);
+void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
 
 #endif /* STA_INFO_H */

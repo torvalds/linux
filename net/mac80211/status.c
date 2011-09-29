@@ -76,8 +76,16 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
-		int tid = *ieee80211_get_qos_ctl(hdr) &
-					IEEE80211_QOS_CTL_TID_MASK;
+		u8 *p = ieee80211_get_qos_ctl(hdr);
+		int tid = *p & IEEE80211_QOS_CTL_TID_MASK;
+
+		/*
+		 * Clear EOSP if set, this could happen e.g.
+		 * if an absence period (us being a P2P GO)
+		 * shortens the SP.
+		 */
+		if (*p & IEEE80211_QOS_CTL_EOSP)
+			*p &= ~IEEE80211_QOS_CTL_EOSP;
 		ac = ieee802_1d_to_ac[tid & 7];
 	} else {
 		ac = IEEE80211_AC_BE;
@@ -275,6 +283,9 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		/* skip wrong virtual interface */
 		if (memcmp(hdr->addr2, sta->sdata->vif.addr, ETH_ALEN))
 			continue;
+
+		if (info->flags & IEEE80211_TX_STATUS_EOSP)
+			clear_sta_flags(sta, WLAN_STA_SP);
 
 		acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
 		if (!acked && test_sta_flags(sta, WLAN_STA_PS_STA)) {

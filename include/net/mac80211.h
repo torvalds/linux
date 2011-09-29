@@ -339,9 +339,9 @@ struct ieee80211_bss_conf {
  *	used to indicate that a frame was already retried due to PS
  * @IEEE80211_TX_INTFL_DONT_ENCRYPT: completely internal to mac80211,
  *	used to indicate frame should not be encrypted
- * @IEEE80211_TX_CTL_PSPOLL_RESPONSE: (internal?)
- *	This frame is a response to a PS-poll frame and should be sent
- *	although the station is in powersave mode.
+ * @IEEE80211_TX_CTL_POLL_RESPONSE: This frame is a response to a poll
+ *	frame (PS-Poll or uAPSD) and should be sent although the station
+ *	is in powersave mode.
  * @IEEE80211_TX_CTL_MORE_FRAMES: More frames will be passed to the
  *	transmit function after the current frame, this can be used
  *	by drivers to kick the DMA queue only if unset or when the
@@ -367,6 +367,10 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_NO_CCK_RATE: This frame will be sent at non CCK rate.
  *	This flag is actually used for management frame especially for P2P
  *	frames not being sent at CCK rate in 2GHz band.
+ * @IEEE80211_TX_STATUS_EOSP: This packet marks the end of service period,
+ *	when its status is reported the service period ends. For frames in
+ *	an SP that mac80211 transmits, it is already set; for driver frames
+ *	the driver may set this flag.
  *
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
@@ -388,7 +392,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
 	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
-	IEEE80211_TX_CTL_PSPOLL_RESPONSE	= BIT(17),
+	IEEE80211_TX_CTL_POLL_RESPONSE		= BIT(17),
 	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
 	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
 	IEEE80211_TX_INTFL_HAS_RADIOTAP		= BIT(20),
@@ -398,6 +402,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_TX_OFFCHAN		= BIT(25),
 	IEEE80211_TX_INTFL_TKIP_MIC_FAILURE	= BIT(26),
 	IEEE80211_TX_CTL_NO_CCK_RATE		= BIT(27),
+	IEEE80211_TX_STATUS_EOSP		= BIT(28),
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
@@ -411,9 +416,9 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_SEND_AFTER_DTIM | IEEE80211_TX_CTL_AMPDU |	      \
 	IEEE80211_TX_STAT_TX_FILTERED |	IEEE80211_TX_STAT_ACK |		      \
 	IEEE80211_TX_STAT_AMPDU | IEEE80211_TX_STAT_AMPDU_NO_BACK |	      \
-	IEEE80211_TX_CTL_RATE_CTRL_PROBE | IEEE80211_TX_CTL_PSPOLL_RESPONSE | \
+	IEEE80211_TX_CTL_RATE_CTRL_PROBE | IEEE80211_TX_CTL_POLL_RESPONSE |   \
 	IEEE80211_TX_CTL_MORE_FRAMES | IEEE80211_TX_CTL_LDPC |		      \
-	IEEE80211_TX_CTL_STBC)
+	IEEE80211_TX_CTL_STBC | IEEE80211_TX_STATUS_EOSP)
 
 /**
  * enum mac80211_rate_control_flags - per-rate flags set by the
@@ -1624,9 +1629,12 @@ enum ieee80211_tx_sync_type {
 /**
  * enum ieee80211_frame_release_type - frame release reason
  * @IEEE80211_FRAME_RELEASE_PSPOLL: frame released for PS-Poll
+ * @IEEE80211_FRAME_RELEASE_UAPSD: frame(s) released due to
+ *	frame received on trigger-enabled AC
  */
 enum ieee80211_frame_release_type {
 	IEEE80211_FRAME_RELEASE_PSPOLL,
+	IEEE80211_FRAME_RELEASE_UAPSD,
 };
 
 /**
@@ -1954,7 +1962,9 @@ enum ieee80211_frame_release_type {
  *	In the case this is used for uAPSD, the @num_frames parameter may be
  *	bigger than one, but the driver may send fewer frames (it must send
  *	at least one, however). In this case it is also responsible for
- *	setting the EOSP flag in the QoS header of the frames.
+ *	setting the EOSP flag in the QoS header of the frames. Also, when the
+ *	service period ends, the driver must set %IEEE80211_TX_STATUS_EOSP
+ *	on the last frame in the SP.
  *	This callback must be atomic.
  */
 struct ieee80211_ops {
