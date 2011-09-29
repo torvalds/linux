@@ -593,13 +593,14 @@ check_lun:
 
 void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 {
-	transport_remove_cmd_from_queue(cmd, &cmd->se_dev->dev_queue_obj);
 	transport_lun_remove_cmd(cmd);
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;
-	if (remove)
+	if (remove) {
+		transport_remove_cmd_from_queue(cmd, &cmd->se_dev->dev_queue_obj);
 		transport_generic_remove(cmd, 0);
+	}
 }
 
 void transport_cmd_finish_abort_tmr(struct se_cmd *cmd)
