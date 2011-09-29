@@ -900,7 +900,7 @@ static void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp)
 }
 
 /* Returns true if the panel was already on when called */
-static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
+static void ironlake_edp_panel_on (struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -909,7 +909,7 @@ static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 	if (!is_edp(intel_dp))
 		return true;
 	if (I915_READ(PCH_PP_STATUS) & PP_ON)
-		return true;
+		return;
 
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp &= ~PANEL_UNLOCK_MASK;
@@ -932,8 +932,6 @@ static bool ironlake_edp_panel_on (struct intel_dp *intel_dp)
 	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
-
-	return false;
 }
 
 static void ironlake_edp_panel_off(struct drm_encoder *encoder)
