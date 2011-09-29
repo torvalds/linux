@@ -992,10 +992,12 @@ static void ironlake_edp_panel_on (struct intel_dp *intel_dp)
 	pp &= ~PANEL_UNLOCK_MASK;
 	pp |= PANEL_UNLOCK_REGS;
 
-	/* ILK workaround: disable reset around power sequence */
-	pp &= ~PANEL_POWER_RESET;
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
+	if (IS_GEN5(dev)) {
+		/* ILK workaround: disable reset around power sequence */
+		pp &= ~PANEL_POWER_RESET;
+		I915_WRITE(PCH_PP_CONTROL, pp);
+		POSTING_READ(PCH_PP_CONTROL);
+	}
 
 	pp |= POWER_TARGET_ON;
 	I915_WRITE(PCH_PP_CONTROL, pp);
@@ -1006,9 +1008,11 @@ static void ironlake_edp_panel_on (struct intel_dp *intel_dp)
 		DRM_ERROR("panel on wait timed out: 0x%08x\n",
 			  I915_READ(PCH_PP_STATUS));
 
-	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
+	if (IS_GEN5(dev)) {
+		pp |= PANEL_POWER_RESET; /* restore panel reset bit */
+		I915_WRITE(PCH_PP_CONTROL, pp);
+		POSTING_READ(PCH_PP_CONTROL);
+	}
 }
 
 static void ironlake_edp_panel_off(struct drm_encoder *encoder)
@@ -1025,24 +1029,32 @@ static void ironlake_edp_panel_off(struct drm_encoder *encoder)
 	pp &= ~PANEL_UNLOCK_MASK;
 	pp |= PANEL_UNLOCK_REGS;
 
-	/* ILK workaround: disable reset around power sequence */
-	pp &= ~PANEL_POWER_RESET;
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
+	if (IS_GEN5(dev)) {
+		/* ILK workaround: disable reset around power sequence */
+		pp &= ~PANEL_POWER_RESET;
+		I915_WRITE(PCH_PP_CONTROL, pp);
+		POSTING_READ(PCH_PP_CONTROL);
+	}
 
-	pp &= ~POWER_TARGET_ON;
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
-	msleep(intel_dp->panel_power_cycle_delay);
-
-	if (wait_for((I915_READ(PCH_PP_STATUS) & idle_off_mask) == 0, 5000))
-		DRM_ERROR("panel off wait timed out: 0x%08x\n",
-			  I915_READ(PCH_PP_STATUS));
-
-	pp |= PANEL_POWER_RESET; /* restore panel reset bit */
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
 	intel_dp->panel_off_jiffies = jiffies;
+
+	if (IS_GEN5(dev)) {
+		pp &= ~POWER_TARGET_ON;
+		I915_WRITE(PCH_PP_CONTROL, pp);
+		POSTING_READ(PCH_PP_CONTROL);
+		pp &= ~POWER_TARGET_ON;
+		I915_WRITE(PCH_PP_CONTROL, pp);
+		POSTING_READ(PCH_PP_CONTROL);
+		msleep(intel_dp->panel_power_cycle_delay);
+
+		if (wait_for((I915_READ(PCH_PP_STATUS) & idle_off_mask) == 0, 5000))
+			DRM_ERROR("panel off wait timed out: 0x%08x\n",
+				  I915_READ(PCH_PP_STATUS));
+
+		pp |= PANEL_POWER_RESET; /* restore panel reset bit */
+		I915_WRITE(PCH_PP_CONTROL, pp);
+		POSTING_READ(PCH_PP_CONTROL);
+	}
 }
 
 static void ironlake_edp_backlight_on (struct intel_dp *intel_dp)
