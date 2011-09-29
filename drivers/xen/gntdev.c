@@ -123,7 +123,7 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	    NULL == add->pages)
 		goto err;
 
-	if (alloc_xenballooned_pages(count, add->pages))
+	if (alloc_xenballooned_pages(count, add->pages, false /* lowmem */))
 		goto err;
 
 	for (i = 0; i < count; i++) {
