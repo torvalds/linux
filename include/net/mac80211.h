@@ -370,7 +370,8 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_STATUS_EOSP: This packet marks the end of service period,
  *	when its status is reported the service period ends. For frames in
  *	an SP that mac80211 transmits, it is already set; for driver frames
- *	the driver may set this flag.
+ *	the driver may set this flag. It is also used to do the same for
+ *	PS-Poll responses.
  *
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
@@ -1959,6 +1960,12 @@ enum ieee80211_frame_release_type {
  *	more-data bit must always be set.
  *	The @tids parameter tells the driver which TIDs to release frames
  *	from, for PS-poll it will always have only a single bit set.
+ *	In the case this is used for a PS-poll initiated release, the
+ *	@num_frames parameter will always be 1 so code can be shared. In
+ *	this case the driver must also set %IEEE80211_TX_STATUS_EOSP flag
+ *	on the TX status (and must report TX status) so that the PS-poll
+ *	period is properly ended. This is used to avoid sending multiple
+ *	responses for a retried PS-poll frame.
  *	In the case this is used for uAPSD, the @num_frames parameter may be
  *	bigger than one, but the driver may send fewer frames (it must send
  *	at least one, however). In this case it is also responsible for

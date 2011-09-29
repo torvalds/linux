@@ -50,7 +50,7 @@
  *	keeping station in power-save mode, reply when the driver
  *	unblocks the station.
  * @WLAN_STA_SP: Station is in a service period, so don't try to
- *	reply to other uAPSD trigger frames.
+ *	reply to other uAPSD trigger frames or PS-Poll.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,

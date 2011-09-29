@@ -1217,13 +1217,12 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	/*
 	 * Tell TX path to send this frame even though the
 	 * STA may still remain is PS mode after this frame
-	 * exchange.
+	 * exchange. Also set EOSP to indicate this packet
+	 * ends the poll/service period.
 	 */
-	info->flags |= IEEE80211_TX_CTL_POLL_RESPONSE;
-
-	if (uapsd)
-		info->flags |= IEEE80211_TX_STATUS_EOSP |
-			       IEEE80211_TX_CTL_REQ_TX_STATUS;
+	info->flags |= IEEE80211_TX_CTL_POLL_RESPONSE |
+		       IEEE80211_TX_STATUS_EOSP |
+		       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 	ieee80211_xmit(sdata, skb);
 }
@@ -1240,6 +1239,9 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 	int ac;
 	unsigned long driver_release_tids = 0;
 	struct sk_buff_head frames;
+
+	/* Service or PS-Poll period starts */
+	set_sta_flags(sta, WLAN_STA_SP);
 
 	__skb_queue_head_init(&frames);
 
@@ -1357,9 +1359,10 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 				/* set EOSP for the frame */
 				u8 *p = ieee80211_get_qos_ctl(hdr);
 				*p |= IEEE80211_QOS_CTL_EOSP;
-				info->flags |= IEEE80211_TX_STATUS_EOSP |
-					       IEEE80211_TX_CTL_REQ_TX_STATUS;
 			}
+
+			info->flags |= IEEE80211_TX_STATUS_EOSP |
+				       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 			__skb_queue_tail(&pending, skb);
 		}
@@ -1421,9 +1424,6 @@ void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta)
 	 */
 	if (!delivery_enabled)
 		return;
-
-	/* Ohh, finally, the service period starts :-) */
-	set_sta_flags(sta, WLAN_STA_SP);
 
 	switch (sta->sta.max_sp) {
 	case 1:

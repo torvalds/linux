@@ -1194,10 +1194,12 @@ ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
 		return RX_CONTINUE;
 
 	if (unlikely(ieee80211_is_pspoll(hdr->frame_control))) {
-		if (!test_sta_flags(rx->sta, WLAN_STA_PS_DRIVER))
-			ieee80211_sta_ps_deliver_poll_response(rx->sta);
-		else
-			set_sta_flags(rx->sta, WLAN_STA_PSPOLL);
+		if (!test_sta_flags(rx->sta, WLAN_STA_SP)) {
+			if (!test_sta_flags(rx->sta, WLAN_STA_PS_DRIVER))
+				ieee80211_sta_ps_deliver_poll_response(rx->sta);
+			else
+				set_sta_flags(rx->sta, WLAN_STA_PSPOLL);
+		}
 
 		/* Free PS Poll skb here instead of returning RX_DROP that would
 		 * count as an dropped frame. */
