@@ -813,11 +813,23 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 		wlc_rxhdr = (struct brcms_d11rxhdr *) p->data;
 		rxh = (struct d11rxhdr *)p->data;
 
+		/* fixup rx header endianness */
+		rxh->RxFrameSize = le16_to_cpu(rxh->RxFrameSize);
+		rxh->PhyRxStatus_0 = le16_to_cpu(rxh->PhyRxStatus_0);
+		rxh->PhyRxStatus_1 = le16_to_cpu(rxh->PhyRxStatus_1);
+		rxh->PhyRxStatus_2 = le16_to_cpu(rxh->PhyRxStatus_2);
+		rxh->PhyRxStatus_3 = le16_to_cpu(rxh->PhyRxStatus_3);
+		rxh->PhyRxStatus_4 = le16_to_cpu(rxh->PhyRxStatus_4);
+		rxh->PhyRxStatus_5 = le16_to_cpu(rxh->PhyRxStatus_5);
+		rxh->RxStatus1 = le16_to_cpu(rxh->RxStatus1);
+		rxh->RxStatus2 = le16_to_cpu(rxh->RxStatus2);
+		rxh->RxTSFTime = le16_to_cpu(rxh->RxTSFTime);
+		rxh->RxChan = le16_to_cpu(rxh->RxChan);
+
 		/*
 		 * compute the RSSI from d11rxhdr and record it in wlc_rxd11hr
 		 */
 		wlc_rxhdr->rssi = wlc_phy_rssi_compute(wlc_hw->band->pi, rxh);
-
 		brcms_c_recv(wlc_hw->wlc, p);
 	}
 
@@ -8288,19 +8300,6 @@ void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p)
 
 	/* strip off rxhdr */
 	skb_pull(p, BRCMS_HWRXOFF);
-
-	/* fixup rx header endianness */
-	rxh->RxFrameSize = le16_to_cpu(rxh->RxFrameSize);
-	rxh->PhyRxStatus_0 = le16_to_cpu(rxh->PhyRxStatus_0);
-	rxh->PhyRxStatus_1 = le16_to_cpu(rxh->PhyRxStatus_1);
-	rxh->PhyRxStatus_2 = le16_to_cpu(rxh->PhyRxStatus_2);
-	rxh->PhyRxStatus_3 = le16_to_cpu(rxh->PhyRxStatus_3);
-	rxh->PhyRxStatus_4 = le16_to_cpu(rxh->PhyRxStatus_4);
-	rxh->PhyRxStatus_5 = le16_to_cpu(rxh->PhyRxStatus_5);
-	rxh->RxStatus1 = le16_to_cpu(rxh->RxStatus1);
-	rxh->RxStatus2 = le16_to_cpu(rxh->RxStatus2);
-	rxh->RxTSFTime = le16_to_cpu(rxh->RxTSFTime);
-	rxh->RxChan = le16_to_cpu(rxh->RxChan);
 
 	/* MAC inserts 2 pad bytes for a4 headers or QoS or A-MSDU subframes */
 	if (rxh->RxStatus1 & RXS_PBPRES) {

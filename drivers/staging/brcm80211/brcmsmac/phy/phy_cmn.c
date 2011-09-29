@@ -2613,18 +2613,18 @@ void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_cmplx_pwr_dB, u8 core)
 int wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
 			 struct d11rxhdr *rxh)
 {
-	int rssi = le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_JSSI_MASK;
+	int rssi = rxh->PhyRxStatus_1 & PRXS1_JSSI_MASK;
 	uint radioid = pih->radioid;
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
 
 	if ((pi->sh->corerev >= 11)
-	    && !(le16_to_cpu(rxh->RxStatus2) & RXS_PHYRXST_VALID)) {
+	    && !(rxh->RxStatus2 & RXS_PHYRXST_VALID)) {
 		rssi = BRCMS_RSSI_INVALID;
 		goto end;
 	}
 
 	if (ISLCNPHY(pi)) {
-		u8 gidx = (le16_to_cpu(rxh->PhyRxStatus_2) & 0xFC00) >> 10;
+		u8 gidx = (rxh->PhyRxStatus_2 & 0xFC00) >> 10;
 		struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
 		if (rssi > 127)

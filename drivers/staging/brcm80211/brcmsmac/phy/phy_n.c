@@ -23115,16 +23115,16 @@ wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct d11rxhdr *rxh)
 	s16 phyRx0_l, phyRx2_l;
 
 	rxpwr = 0;
-	rxpwr0 = le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_nphy_PWR0_MASK;
-	rxpwr1 = (le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_nphy_PWR1_MASK) >> 8;
+	rxpwr0 = rxh->PhyRxStatus_1 & PRXS1_nphy_PWR0_MASK;
+	rxpwr1 = (rxh->PhyRxStatus_1 & PRXS1_nphy_PWR1_MASK) >> 8;
 
 	if (rxpwr0 > 127)
 		rxpwr0 -= 256;
 	if (rxpwr1 > 127)
 		rxpwr1 -= 256;
 
-	phyRx0_l = le16_to_cpu(rxh->PhyRxStatus_0) & 0x00ff;
-	phyRx2_l = le16_to_cpu(rxh->PhyRxStatus_2) & 0x00ff;
+	phyRx0_l = rxh->PhyRxStatus_0 & 0x00ff;
+	phyRx2_l = rxh->PhyRxStatus_2 & 0x00ff;
 	if (phyRx2_l > 127)
 		phyRx2_l -= 256;
 
