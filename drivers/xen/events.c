@@ -432,7 +432,8 @@ static int __must_check xen_allocate_irq_dynamic(void)
 
 	irq = irq_alloc_desc_from(first, -1);
 
-	xen_irq_init(irq);
+	if (irq >= 0)
+		xen_irq_init(irq);
 
 	return irq;
 }
@@ -713,7 +714,7 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	mutex_lock(&irq_mapping_update_lock);
 
 	irq = xen_allocate_irq_dynamic();
-	if (irq == -1)
+	if (irq < 0)
 		goto out;
 
 	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_edge_irq,
@@ -729,7 +730,7 @@ out:
 error_irq:
 	mutex_unlock(&irq_mapping_update_lock);
 	xen_free_irq(irq);
-	return -1;
+	return ret;
 }
 #endif
 
