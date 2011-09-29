@@ -204,32 +204,6 @@ static void free_input_device(struct mousevsc_dev *device)
 }
 
 /*
- * Get the inputdevice object if exists and its refcount > 1
- */
-static struct mousevsc_dev *get_input_device(struct hv_device *device)
-{
-	struct mousevsc_dev *input_dev;
-
-	input_dev = hv_get_drvdata(device);
-
-/*
- *	FIXME
- *	This sure isn't a valid thing to print for debugging, no matter
- *	what the intention is...
- *
- *	printk(KERN_ERR "-------------------------> REFCOUNT = %d",
- *	       input_dev->ref_count);
- */
-
-	if (input_dev && atomic_read(&input_dev->ref_count) > 1)
-		atomic_inc(&input_dev->ref_count);
-	else
-		input_dev = NULL;
-
-	return input_dev;
-}
-
-/*
  * Get the inputdevice object iff exists and its refcount > 0
  */
 static struct mousevsc_dev *must_get_input_device(struct hv_device *device)
@@ -520,14 +494,9 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 {
 	int ret = 0;
 	int t;
-	struct mousevsc_dev *input_dev;
+	struct mousevsc_dev *input_dev = hv_get_drvdata(device);
 	struct mousevsc_prt_msg *request;
 	struct mousevsc_prt_msg *response;
-
-	input_dev = get_input_device(device);
-
-	if (!input_dev)
-		return -ENODEV;
 
 
 	request = &input_dev->protocol_req;
@@ -584,7 +553,6 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 		ret = -ENOMEM;
 
 cleanup:
-	put_input_device(device);
 
 	return ret;
 }
