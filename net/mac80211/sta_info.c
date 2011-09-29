@@ -1478,6 +1478,31 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
 
+void ieee80211_sta_eosp_irqsafe(struct ieee80211_sta *pubsta)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	struct ieee80211_local *local = sta->local;
+	struct sk_buff *skb;
+	struct skb_eosp_msg_data *data;
+
+	trace_api_eosp(local, pubsta);
+
+	skb = alloc_skb(0, GFP_ATOMIC);
+	if (!skb) {
+		/* too bad ... but race is better than loss */
+		clear_sta_flag(sta, WLAN_STA_SP);
+		return;
+	}
+
+	data = (void *)skb->cb;
+	memcpy(data->sta, pubsta->addr, ETH_ALEN);
+	memcpy(data->iface, sta->sdata->vif.addr, ETH_ALEN);
+	skb->pkt_type = IEEE80211_EOSP_MSG;
+	skb_queue_tail(&local->skb_queue, skb);
+	tasklet_schedule(&local->tasklet);
+}
+EXPORT_SYMBOL(ieee80211_sta_eosp_irqsafe);
+
 void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 				u8 tid, bool buffered)
 {

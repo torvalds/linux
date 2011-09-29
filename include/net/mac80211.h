@@ -1971,7 +1971,8 @@ enum ieee80211_frame_release_type {
  *	at least one, however). In this case it is also responsible for
  *	setting the EOSP flag in the QoS header of the frames. Also, when the
  *	service period ends, the driver must set %IEEE80211_TX_STATUS_EOSP
- *	on the last frame in the SP.
+ *	on the last frame in the SP. Alternatively, it may call the function
+ *	ieee80211_sta_eosp_irqsafe() to inform mac80211 of the end of the SP.
  *	This callback must be atomic.
  * @allow_buffered_frames: Prepare device to allow the given number of frames
  *	to go out to the given station. The frames will be sent by mac80211
@@ -1981,7 +1982,8 @@ enum ieee80211_frame_release_type {
  *	frames from multiple TIDs are released and the driver might reorder
  *	them between the TIDs, it must set the %IEEE80211_TX_STATUS_EOSP flag
  *	on the last frame and clear it on all others and also handle the EOSP
- *	bit in the QoS header correctly.
+ *	bit in the QoS header correctly. Alternatively, it can also call the
+ *	ieee80211_sta_eosp_irqsafe() function.
  *	The @tids parameter is a bitmap and tells the driver which TIDs the
  *	frames will be on; it will at most have two bits set.
  *	This callback must be atomic.
@@ -3111,6 +3113,24 @@ struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
  */
 void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *pubsta, bool block);
+
+/**
+ * ieee80211_sta_eosp - notify mac80211 about end of SP
+ * @pubsta: the station
+ *
+ * When a device transmits frames in a way that it can't tell
+ * mac80211 in the TX status about the EOSP, it must clear the
+ * %IEEE80211_TX_STATUS_EOSP bit and call this function instead.
+ * This applies for PS-Poll as well as uAPSD.
+ *
+ * Note that there is no non-_irqsafe version right now as
+ * it wasn't needed, but just like _tx_status() and _rx()
+ * must not be mixed in irqsafe/non-irqsafe versions, this
+ * function must not be mixed with those either. Use the
+ * all irqsafe, or all non-irqsafe, don't mix! If you need
+ * the non-irqsafe version of this, you need to add it.
+ */
+void ieee80211_sta_eosp_irqsafe(struct ieee80211_sta *pubsta);
 
 /**
  * ieee80211_iter_keys - iterate keys programmed into the device

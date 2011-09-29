@@ -1498,6 +1498,28 @@ TRACE_EVENT(api_enable_rssi_reports,
 	)
 );
 
+TRACE_EVENT(api_eosp,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta),
+
+	TP_ARGS(local, sta),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT,
+		LOCAL_PR_ARG, STA_PR_FMT
+	)
+);
+
 /*
  * Tracing for internal functions
  * (which may also be called in response to driver calls)
