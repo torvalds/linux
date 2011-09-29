@@ -1670,6 +1670,7 @@ void __init xen_init_IRQ(void)
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
 				    GFP_KERNEL);
+	BUG_ON(!evtchn_to_irq);
 	for (i = 0; i < NR_EVENT_CHANNELS; i++)
 		evtchn_to_irq[i] = -1;
 
