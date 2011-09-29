@@ -283,20 +283,34 @@ intel_hrawclk(struct drm_device *dev)
 	}
 }
 
+static bool ironlake_edp_have_panel_power(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return (I915_READ(PCH_PP_STATUS) & PP_ON) != 0;
+}
+
+static bool ironlake_edp_have_panel_vdd(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return (I915_READ(PCH_PP_CONTROL) & EDP_FORCE_VDD) != 0;
+}
+
 static void
 intel_dp_check_edp(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_status, pp_control;
+
 	if (!is_edp(intel_dp))
 		return;
-	pp_status = I915_READ(PCH_PP_STATUS);
-	pp_control = I915_READ(PCH_PP_CONTROL);
-	if ((pp_status & PP_ON) == 0 && (pp_control & EDP_FORCE_VDD) == 0) {
+	if (!ironlake_edp_have_panel_power(intel_dp) && !ironlake_edp_have_panel_vdd(intel_dp)) {
 		WARN(1, "eDP powered off while attempting aux channel communication.\n");
 		DRM_DEBUG_KMS("Status 0x%08x Control 0x%08x\n",
-			      pp_status,
+			      I915_READ(PCH_PP_STATUS),
 			      I915_READ(PCH_PP_CONTROL));
 	}
 }
@@ -852,16 +866,11 @@ static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp, pp_status;
+	u32 pp;
 
 	if (!is_edp(intel_dp))
 		return;
 	DRM_DEBUG_KMS("Turn eDP VDD on\n");
-	/*
-	 * If the panel wasn't on, make sure there's not a currently
-	 * active PP sequence before enabling AUX VDD.
-	 */
-	pp_status = I915_READ(PCH_PP_STATUS);
 
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp &= ~PANEL_UNLOCK_MASK;
@@ -871,7 +880,11 @@ static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	POSTING_READ(PCH_PP_CONTROL);
 	DRM_DEBUG_KMS("PCH_PP_STATUS: 0x%08x PCH_PP_CONTROL: 0x%08x\n",
 		      I915_READ(PCH_PP_STATUS), I915_READ(PCH_PP_CONTROL));
-	if (!(pp_status & PP_ON)) {
+
+	/*
+	 * If the panel wasn't on, delay before accessing aux channel
+	 */
+	if (!ironlake_edp_have_panel_power(intel_dp)) {
 		msleep(intel_dp->panel_power_up_delay);
 		DRM_DEBUG_KMS("eDP VDD was not on\n");
 	}
@@ -908,7 +921,7 @@ static void ironlake_edp_panel_on (struct intel_dp *intel_dp)
 
 	if (!is_edp(intel_dp))
 		return true;
-	if (I915_READ(PCH_PP_STATUS) & PP_ON)
+	if (ironlake_edp_have_panel_power(intel_dp))
 		return;
 
 	pp = I915_READ(PCH_PP_CONTROL);
