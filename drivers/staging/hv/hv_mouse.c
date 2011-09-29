@@ -162,10 +162,7 @@ struct mousevsc_dev {
 	struct mousevsc_prt_msg	protocol_req;
 	struct mousevsc_prt_msg	protocol_resp;
 	/* Synchronize the request/response if needed */
-	wait_queue_head_t	protocol_wait_event;
-	wait_queue_head_t	dev_info_wait_event;
-	int			protocol_wait_condition;
-	int			device_wait_condition;
+	struct completion	wait_event;
 	int			dev_info_status;
 
 	struct hid_descriptor	*hid_desc;
@@ -194,6 +191,7 @@ static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 
 	input_dev->device = device;
 	hv_set_drvdata(device, input_dev);
+	init_completion(&input_dev->wait_event);
 
 	return input_dev;
 }
@@ -379,8 +377,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 		goto cleanup;
 	}
 
-	input_device->device_wait_condition = 1;
-	wake_up(&input_device->dev_info_wait_event);
+	complete(&input_device->wait_event);
 
 	return;
 
@@ -392,8 +389,7 @@ cleanup:
 	input_device->report_desc = NULL;
 
 	input_device->dev_info_status = -1;
-	input_device->device_wait_condition = 1;
-	wake_up(&input_device->dev_info_wait_event);
+	complete(&input_device->wait_event);
 }
 
 static void mousevsc_on_receive_input_report(struct mousevsc_dev *input_device,
@@ -444,8 +440,7 @@ static void mousevsc_on_receive(struct hv_device *device,
 		memcpy(&input_dev->protocol_resp, pipe_msg,
 		       pipe_msg->size + sizeof(struct pipe_prt_msg) -
 		       sizeof(unsigned char));
-		input_dev->protocol_wait_condition = 1;
-		wake_up(&input_dev->protocol_wait_event);
+		complete(&input_dev->wait_event);
 		break;
 
 	case SynthHidInitialDeviceInfo:
@@ -565,6 +560,7 @@ static void mousevsc_on_channel_callback(void *context)
 static int mousevsc_connect_to_vsp(struct hv_device *device)
 {
 	int ret = 0;
+	int t;
 	struct mousevsc_dev *input_dev;
 	struct mousevsc_prt_msg *request;
 	struct mousevsc_prt_msg *response;
@@ -576,8 +572,6 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 		return -1;
 	}
 
-	init_waitqueue_head(&input_dev->protocol_wait_event);
-	init_waitqueue_head(&input_dev->dev_info_wait_event);
 
 	request = &input_dev->protocol_req;
 
@@ -607,10 +601,8 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 		goto cleanup;
 	}
 
-	input_dev->protocol_wait_condition = 0;
-	wait_event_timeout(input_dev->protocol_wait_event,
-		input_dev->protocol_wait_condition, msecs_to_jiffies(1000));
-	if (input_dev->protocol_wait_condition == 0) {
+	t = wait_for_completion_timeout(&input_dev->wait_event, 5*HZ);
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
@@ -624,10 +616,8 @@ static int mousevsc_connect_to_vsp(struct hv_device *device)
 		goto cleanup;
 	}
 
-	input_dev->device_wait_condition = 0;
-	wait_event_timeout(input_dev->dev_info_wait_event,
-		input_dev->device_wait_condition, msecs_to_jiffies(1000));
-	if (input_dev->device_wait_condition == 0) {
+	t = wait_for_completion_timeout(&input_dev->wait_event, 5*HZ);
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
