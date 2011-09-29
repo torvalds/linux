@@ -212,8 +212,8 @@ extern void wlc_phy_chanspec_radio_set(struct brcms_phy_pub *ppi,
 extern u16 wlc_phy_bw_state_get(struct brcms_phy_pub *ppi);
 extern void wlc_phy_bw_state_set(struct brcms_phy_pub *ppi, u16 bw);
 
-extern void wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
-				 struct brcms_d11rxhdr *wlc_rxhdr);
+extern int wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
+				struct d11rxhdr *rxh);
 extern void wlc_phy_por_inform(struct brcms_phy_pub *ppi);
 extern void wlc_phy_noise_sample_intr(struct brcms_phy_pub *ppi);
 extern bool wlc_phy_bist_check_phy(struct brcms_phy_pub *ppi);

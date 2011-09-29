@@ -2610,10 +2610,9 @@ void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_cmplx_pwr_dB, u8 core)
 	}
 }
 
-void wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
-			  struct brcms_d11rxhdr *wlc_rxhdr)
+int wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
+			 struct d11rxhdr *rxh)
 {
-	struct d11rxhdr *rxh = &wlc_rxhdr->rxhdr;
 	int rssi = le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_JSSI_MASK;
 	uint radioid = pih->radioid;
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
@@ -2650,7 +2649,7 @@ void wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
 	}
 
 end:
-	wlc_rxhdr->rssi = (s8) rssi;
+	return rssi;
 }
 
 void wlc_phy_freqtrack_start(struct brcms_phy_pub *pih)

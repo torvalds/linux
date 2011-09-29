@@ -806,15 +806,17 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 
 	/* process each frame */
 	while ((p = head) != NULL) {
+		struct d11rxhdr *rxh;
 		head = head->prev;
 		p->prev = NULL;
 
 		wlc_rxhdr = (struct brcms_d11rxhdr *) p->data;
+		rxh = (struct d11rxhdr *)p->data;
 
 		/*
 		 * compute the RSSI from d11rxhdr and record it in wlc_rxd11hr
 		 */
-		wlc_phy_rssi_compute(wlc_hw->band->pi, wlc_rxhdr);
+		wlc_rxhdr->rssi = wlc_phy_rssi_compute(wlc_hw->band->pi, rxh);
 
 		brcms_c_recv(wlc_hw->wlc, p);
 	}
