@@ -1500,12 +1500,19 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 		for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
 			ixgbe_set_ivar(adapter, 1, ring->reg_idx, v_idx);
 
-		if (q_vector->tx.ring && !q_vector->rx.ring)
-			/* tx only */
-			q_vector->eitr = adapter->tx_eitr_param;
-		else if (q_vector->rx.ring)
-			/* rx or mixed */
-			q_vector->eitr = adapter->rx_eitr_param;
+		if (q_vector->tx.ring && !q_vector->rx.ring) {
+			/* tx only vector */
+			if (adapter->tx_itr_setting == 1)
+				q_vector->itr = IXGBE_10K_ITR;
+			else
+				q_vector->itr = adapter->tx_itr_setting;
+		} else {
+			/* rx or rx/tx vector */
+			if (adapter->rx_itr_setting == 1)
+				q_vector->itr = IXGBE_20K_ITR;
+			else
+				q_vector->itr = adapter->rx_itr_setting;
+		}
 
 		ixgbe_write_eitr(q_vector);
 	}
@@ -1519,7 +1526,6 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 	case ixgbe_mac_X540:
 		ixgbe_set_ivar(adapter, -1, 1, v_idx);
 		break;
-
 	default:
 		break;
 	}
@@ -1527,12 +1533,10 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 
 	/* set up to autoclear timer, and the vectors */
 	mask = IXGBE_EIMS_ENABLE_MASK;
-	if (adapter->num_vfs)
-		mask &= ~(IXGBE_EIMS_OTHER |
-			  IXGBE_EIMS_MAILBOX |
-			  IXGBE_EIMS_LSC);
-	else
-		mask &= ~(IXGBE_EIMS_OTHER | IXGBE_EIMS_LSC);
+	mask &= ~(IXGBE_EIMS_OTHER |
+		  IXGBE_EIMS_MAILBOX |
+		  IXGBE_EIMS_LSC);
+
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIAC, mask);
 }
 
@@ -1577,7 +1581,7 @@ static void ixgbe_update_itr(struct ixgbe_q_vector *q_vector,
 	 *  100-1249MB/s bulk (8000 ints/s)
 	 */
 	/* what was last interrupt timeslice? */
-	timepassed_us = 1000000/q_vector->eitr;
+	timepassed_us = q_vector->itr >> 2;
 	bytes_perint = bytes / timepassed_us; /* bytes/usec */
 
 	switch (itr_setting) {
@@ -1618,7 +1622,7 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 	struct ixgbe_hw *hw = &adapter->hw;
 	int v_idx = q_vector->v_idx;
-	u32 itr_reg = EITR_INTS_PER_SEC_TO_REG(q_vector->eitr);
+	u32 itr_reg = q_vector->itr;
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82598EB:
@@ -1627,15 +1631,6 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		/*
-		 * 82599 and X540 can support a value of zero, so allow it for
-		 * max interrupt rate, but there is an errata where it can
-		 * not be zero with RSC
-		 */
-		if (itr_reg == 8 &&
-		    !(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))
-			itr_reg = 0;
-
 		/*
 		 * set the WDIS bit to not clear the timer bits and cause an
 		 * immediate assertion of the interrupt
@@ -1650,7 +1645,7 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 
 static void ixgbe_set_itr(struct ixgbe_q_vector *q_vector)
 {
-	u32 new_itr = q_vector->eitr;
+	u32 new_itr = q_vector->itr;
 	u8 current_itr;
 
 	ixgbe_update_itr(q_vector, &q_vector->tx);
@@ -1661,24 +1656,25 @@ static void ixgbe_set_itr(struct ixgbe_q_vector *q_vector)
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
 	case lowest_latency:
-		new_itr = 100000;
+		new_itr = IXGBE_100K_ITR;
 		break;
 	case low_latency:
-		new_itr = 20000; /* aka hwitr = ~200 */
+		new_itr = IXGBE_20K_ITR;
 		break;
 	case bulk_latency:
-		new_itr = 8000;
+		new_itr = IXGBE_8K_ITR;
 		break;
 	default:
 		break;
 	}
 
-	if (new_itr != q_vector->eitr) {
+	if (new_itr != q_vector->itr) {
 		/* do an exponential smoothing */
-		new_itr = ((q_vector->eitr * 9) + new_itr)/10;
+		new_itr = (10 * new_itr * q_vector->itr) /
+			  ((9 * new_itr) + q_vector->itr);
 
 		/* save the algorithm value here */
-		q_vector->eitr = new_itr;
+		q_vector->itr = new_itr & IXGBE_MAX_EITR;
 
 		ixgbe_write_eitr(q_vector);
 	}
@@ -1753,6 +1749,39 @@ static void ixgbe_check_fan_failure(struct ixgbe_adapter *adapter, u32 eicr)
 		/* write to clear the interrupt */
 		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1);
 	}
+}
+
+static void ixgbe_check_overtemp_event(struct ixgbe_adapter *adapter, u32 eicr)
+{
+	if (!(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE))
+		return;
+
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
+		/*
+		 * Need to check link state so complete overtemp check
+		 * on service task
+		 */
+		if (((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC)) &&
+		    (!test_bit(__IXGBE_DOWN, &adapter->state))) {
+			adapter->interrupt_event = eicr;
+			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
+			ixgbe_service_event_schedule(adapter);
+			return;
+		}
+		return;
+	case ixgbe_mac_X540:
+		if (!(eicr & IXGBE_EICR_TS))
+			return;
+		break;
+	default:
+		return;
+	}
+
+	e_crit(drv,
+	       "Network adapter has been stopped because it has over heated. "
+	       "Restart the computer. If the problem persists, "
+	       "power off the system and replace the adapter\n");
 }
 
 static void ixgbe_check_sfp_event(struct ixgbe_adapter *adapter, u32 eicr)
@@ -1858,7 +1887,16 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 		mask &= ~IXGBE_EIMS_LSC;
 
 	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
-		mask |= IXGBE_EIMS_GPI_SDP0;
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82599EB:
+			mask |= IXGBE_EIMS_GPI_SDP0;
+			break;
+		case ixgbe_mac_X540:
+			mask |= IXGBE_EIMS_TS;
+			break;
+		default:
+			break;
+		}
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
 		mask |= IXGBE_EIMS_GPI_SDP1;
 	switch (adapter->hw.mac.type) {
@@ -1928,14 +1966,7 @@ static irqreturn_t ixgbe_msix_other(int irq, void *data)
 			}
 		}
 		ixgbe_check_sfp_event(adapter, eicr);
-		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
-			if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
-				adapter->interrupt_event = eicr;
-				adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
-				ixgbe_service_event_schedule(adapter);
-			}
-		}
+		ixgbe_check_overtemp_event(adapter, eicr);
 		break;
 	default:
 		break;
@@ -2145,14 +2176,12 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
 		ixgbe_check_sfp_event(adapter, eicr);
-		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
-			if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
-				adapter->interrupt_event = eicr;
-				adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_EVENT;
-				ixgbe_service_event_schedule(adapter);
-			}
-		}
+		/* Fall through */
+	case ixgbe_mac_X540:
+		if (eicr & IXGBE_EICR_ECC)
+			e_info(link, "Received unrecoverable ECC err, please "
+				     "reboot\n");
+		ixgbe_check_overtemp_event(adapter, eicr);
 		break;
 	default:
 		break;
@@ -2301,10 +2330,15 @@ static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
  **/
 static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_q_vector *q_vector = adapter->q_vector[0];
 
-	IXGBE_WRITE_REG(hw, IXGBE_EITR(0),
-			EITR_INTS_PER_SEC_TO_REG(adapter->rx_eitr_param));
+	/* rx/tx vector */
+	if (adapter->rx_itr_setting == 1)
+		q_vector->itr = IXGBE_20K_ITR;
+	else
+		q_vector->itr = adapter->rx_itr_setting;
+
+	ixgbe_write_eitr(q_vector);
 
 	ixgbe_set_ivar(adapter, 0, 0, 0);
 	ixgbe_set_ivar(adapter, 1, 0, 0);
@@ -3350,8 +3384,127 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RQTC, reg);
 	}
 }
+#endif
+
+/* Additional bittime to account for IXGBE framing */
+#define IXGBE_ETH_FRAMING 20
+
+/*
+ * ixgbe_hpbthresh - calculate high water mark for flow control
+ *
+ * @adapter: board private structure to calculate for
+ * @pb - packet buffer to calculate
+ */
+static int ixgbe_hpbthresh(struct ixgbe_adapter *adapter, int pb)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct net_device *dev = adapter->netdev;
+	int link, tc, kb, marker;
+	u32 dv_id, rx_pba;
+
+	/* Calculate max LAN frame size */
+	tc = link = dev->mtu + ETH_HLEN + ETH_FCS_LEN + IXGBE_ETH_FRAMING;
+
+#ifdef IXGBE_FCOE
+	/* FCoE traffic class uses FCOE jumbo frames */
+	if (dev->features & NETIF_F_FCOE_MTU) {
+		int fcoe_pb = 0;
+
+#ifdef CONFIG_IXGBE_DCB
+		fcoe_pb = netdev_get_prio_tc_map(dev, adapter->fcoe.up);
 
 #endif
+		if (fcoe_pb == pb && tc < IXGBE_FCOE_JUMBO_FRAME_SIZE)
+			tc = IXGBE_FCOE_JUMBO_FRAME_SIZE;
+	}
+#endif
+
+	/* Calculate delay value for device */
+	switch (hw->mac.type) {
+	case ixgbe_mac_X540:
+		dv_id = IXGBE_DV_X540(link, tc);
+		break;
+	default:
+		dv_id = IXGBE_DV(link, tc);
+		break;
+	}
+
+	/* Loopback switch introduces additional latency */
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		dv_id += IXGBE_B2BT(tc);
+
+	/* Delay value is calculated in bit times convert to KB */
+	kb = IXGBE_BT2KB(dv_id);
+	rx_pba = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(pb)) >> 10;
+
+	marker = rx_pba - kb;
+
+	/* It is possible that the packet buffer is not large enough
+	 * to provide required headroom. In this case throw an error
+	 * to user and a do the best we can.
+	 */
+	if (marker < 0) {
+		e_warn(drv, "Packet Buffer(%i) can not provide enough"
+			    "headroom to support flow control."
+			    "Decrease MTU or number of traffic classes\n", pb);
+		marker = tc + 1;
+	}
+
+	return marker;
+}
+
+/*
+ * ixgbe_lpbthresh - calculate low water mark for for flow control
+ *
+ * @adapter: board private structure to calculate for
+ * @pb - packet buffer to calculate
+ */
+static int ixgbe_lpbthresh(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct net_device *dev = adapter->netdev;
+	int tc;
+	u32 dv_id;
+
+	/* Calculate max LAN frame size */
+	tc = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
+
+	/* Calculate delay value for device */
+	switch (hw->mac.type) {
+	case ixgbe_mac_X540:
+		dv_id = IXGBE_LOW_DV_X540(tc);
+		break;
+	default:
+		dv_id = IXGBE_LOW_DV(tc);
+		break;
+	}
+
+	/* Delay value is calculated in bit times convert to KB */
+	return IXGBE_BT2KB(dv_id);
+}
+
+/*
+ * ixgbe_pbthresh_setup - calculate and setup high low water marks
+ */
+static void ixgbe_pbthresh_setup(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int num_tc = netdev_get_num_tc(adapter->netdev);
+	int i;
+
+	if (!num_tc)
+		num_tc = 1;
+
+	hw->fc.low_water = ixgbe_lpbthresh(adapter);
+
+	for (i = 0; i < num_tc; i++) {
+		hw->fc.high_water[i] = ixgbe_hpbthresh(adapter, i);
+
+		/* Low water marks must not be larger than high water marks */
+		if (hw->fc.low_water > hw->fc.high_water[i])
+			hw->fc.low_water = 0;
+	}
+}
 
 static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
 {
@@ -3366,6 +3519,7 @@ static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
 		hdrm = 0;
 
 	hw->mac.ops.set_rxpba(hw, tc, hdrm, PBA_STRATEGY_EQUAL);
+	ixgbe_pbthresh_setup(adapter);
 }
 
 static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
@@ -3530,8 +3684,18 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 	}
 
 	/* Enable Thermal over heat sensor interrupt */
-	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
-		gpie |= IXGBE_SDP0_GPIEN;
+	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) {
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82599EB:
+			gpie |= IXGBE_SDP0_GPIEN;
+			break;
+		case ixgbe_mac_X540:
+			gpie |= IXGBE_EIMS_TS;
+			break;
+		default:
+			break;
+		}
+	}
 
 	/* Enable fan failure interrupt */
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
@@ -4613,12 +4777,6 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 		if (!alloc_cpumask_var(&q_vector->affinity_mask, GFP_KERNEL))
 			goto err_out;
 		cpumask_set_cpu(v_idx, q_vector->affinity_mask);
-
-		if (q_vector->tx.count && !q_vector->rx.count)
-			q_vector->eitr = adapter->tx_eitr_param;
-		else
-			q_vector->eitr = adapter->rx_eitr_param;
-
 		netif_napi_add(adapter->netdev, &q_vector->napi,
 			       ixgbe_poll, 64);
 		adapter->q_vector[v_idx] = q_vector;
@@ -4774,13 +4932,11 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	struct net_device *dev = adapter->netdev;
 	unsigned int rss;
 #ifdef CONFIG_IXGBE_DCB
 	int j;
 	struct tc_configuration *tc;
 #endif
-	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	/* PCI config space info */
 
@@ -4800,8 +4956,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 			adapter->flags |= IXGBE_FLAG_FAN_FAIL_CAPABLE;
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
 		break;
-	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
+		adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
+	case ixgbe_mac_82599EB:
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_CAPABLE;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
@@ -4856,17 +5013,14 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_DCB
 	adapter->last_lfc_mode = hw->fc.current_mode;
 #endif
-	hw->fc.high_water = FC_HIGH_WATER(max_frame);
-	hw->fc.low_water = FC_LOW_WATER(max_frame);
+	ixgbe_pbthresh_setup(adapter);
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 	hw->fc.send_xon = true;
 	hw->fc.disable_fc_autoneg = false;
 
 	/* enable itr by default in dynamic mode */
 	adapter->rx_itr_setting = 1;
-	adapter->rx_eitr_param = 20000;
 	adapter->tx_itr_setting = 1;
-	adapter->tx_eitr_param = 10000;
 
 	/* set defaults for eitr in MegaBytes */
 	adapter->eitr_low = 10;
@@ -5125,9 +5279,6 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 	e_info(probe, "changing MTU from %d to %d\n", netdev->mtu, new_mtu);
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
-
-	hw->fc.high_water = FC_HIGH_WATER(max_frame);
-	hw->fc.low_water = FC_LOW_WATER(max_frame);
 
 	if (netif_running(netdev))
 		ixgbe_reinit_locked(adapter);

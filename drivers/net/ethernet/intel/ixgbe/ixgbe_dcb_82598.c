@@ -191,7 +191,7 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82598(struct ixgbe_hw *hw,
  */
 s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw, u8 pfc_en)
 {
-	u32 reg, rx_pba_size;
+	u32 reg;
 	u8  i;
 
 	if (pfc_en) {
@@ -222,9 +222,8 @@ s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw, u8 pfc_en)
 	 */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
 		int enabled = pfc_en & (1 << i);
-		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i));
-		rx_pba_size >>= IXGBE_RXPBSIZE_SHIFT;
-		reg = (rx_pba_size - hw->fc.low_water) << 10;
+
+		reg = hw->fc.low_water << 10;
 
 		if (enabled == pfc_enabled_tx ||
 		    enabled == pfc_enabled_full)
@@ -232,7 +231,7 @@ s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw, u8 pfc_en)
 
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTL(i), reg);
 
-		reg = (rx_pba_size - hw->fc.high_water) << 10;
+		reg = hw->fc.high_water[i] << 10;
 		if (enabled == pfc_enabled_tx ||
 		    enabled == pfc_enabled_full)
 			reg |= IXGBE_FCRTH_FCEN;

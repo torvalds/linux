@@ -301,26 +301,29 @@ struct ixgbe_ring_container {
  */
 struct ixgbe_q_vector {
 	struct ixgbe_adapter *adapter;
-	unsigned int v_idx; /* index of q_vector within array, also used for
-	                     * finding the bit in EICR and friends that
-	                     * represents the vector for this ring */
 #ifdef CONFIG_IXGBE_DCA
 	int cpu;	    /* CPU for DCA */
 #endif
-	struct napi_struct napi;
+	u16 v_idx;		/* index of q_vector within array, also used for
+				 * finding the bit in EICR and friends that
+				 * represents the vector for this ring */
+	u16 itr;		/* Interrupt throttle rate written to EITR */
 	struct ixgbe_ring_container rx, tx;
-	u32 eitr;
+
+	struct napi_struct napi;
 	cpumask_var_t affinity_mask;
 	char name[IFNAMSIZ + 9];
 };
 
-/* Helper macros to switch between ints/sec and what the register uses.
- * And yes, it's the same math going both ways.  The lowest value
- * supported by all of the ixgbe hardware is 8.
+/*
+ * microsecond values for various ITR rates shifted by 2 to fit itr register
+ * with the first 3 bits reserved 0
  */
-#define EITR_INTS_PER_SEC_TO_REG(_eitr) \
-	((_eitr) ? (1000000000 / ((_eitr) * 256)) : 8)
-#define EITR_REG_TO_INTS_PER_SEC EITR_INTS_PER_SEC_TO_REG
+#define IXGBE_MIN_RSC_ITR	24
+#define IXGBE_100K_ITR		40
+#define IXGBE_20K_ITR		200
+#define IXGBE_10K_ITR		400
+#define IXGBE_8K_ITR		500
 
 static inline u16 ixgbe_desc_unused(struct ixgbe_ring *ring)
 {

@@ -358,7 +358,6 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	u32 fctrl_reg;
 	u32 rmcs_reg;
 	u32 reg;
-	u32 rx_pba_size;
 	u32 link_speed = 0;
 	bool link_up;
 
@@ -461,16 +460,13 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 
 	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
 	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
-		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
-		rx_pba_size >>= IXGBE_RXPBSIZE_SHIFT;
-
-		reg = (rx_pba_size - hw->fc.low_water) << 6;
+		reg = hw->fc.low_water << 6;
 		if (hw->fc.send_xon)
 			reg |= IXGBE_FCRTL_XONE;
 
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTL(packetbuf_num), reg);
 
-		reg = (rx_pba_size - hw->fc.high_water) << 6;
+		reg = hw->fc.high_water[packetbuf_num] << 6;
 		reg |= IXGBE_FCRTH_FCEN;
 
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTH(packetbuf_num), reg);
