@@ -244,11 +244,6 @@
  * ********************************************************************
  */
 
-/* NetBSD also needs to keep track of this */
-
-/* max # BSS configs */
-#define BRCMS_MAXBSSCFG		(1)
-
 #define BCMMSG(dev, fmt, args...)		\
 do {						\
 	if (brcm_msg_level & LOG_TRACE_VAL)	\
