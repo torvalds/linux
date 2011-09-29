@@ -106,6 +106,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	if (test_sta_flags(sta, WLAN_STA_PS_STA) &&
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
 		skb_queue_tail(&sta->tx_filtered, skb);
+		sta_info_recalc_tim(sta);
 		return;
 	}
 

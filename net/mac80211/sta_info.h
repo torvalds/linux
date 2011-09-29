@@ -528,8 +528,7 @@ int sta_info_destroy_addr(struct ieee80211_sub_if_data *sdata,
 int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
 			      const u8 *addr);
 
-void sta_info_set_tim_bit(struct sta_info *sta);
-void sta_info_clear_tim_bit(struct sta_info *sta);
+void sta_info_recalc_tim(struct sta_info *sta);
 
 void sta_info_init(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
