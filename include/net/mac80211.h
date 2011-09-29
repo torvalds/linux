@@ -372,6 +372,9 @@ struct ieee80211_bss_conf {
  *	an SP that mac80211 transmits, it is already set; for driver frames
  *	the driver may set this flag. It is also used to do the same for
  *	PS-Poll responses.
+ * @IEEE80211_TX_CTL_USE_MINRATE: This frame will be sent at lowest rate.
+ *	This flag is used to send nullfunc frame at minimum rate when
+ *	the nullfunc is used for connection monitoring purpose.
  *
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
@@ -404,6 +407,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_TKIP_MIC_FAILURE	= BIT(26),
 	IEEE80211_TX_CTL_NO_CCK_RATE		= BIT(27),
 	IEEE80211_TX_STATUS_EOSP		= BIT(28),
+	IEEE80211_TX_CTL_USE_MINRATE		= BIT(29),
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
