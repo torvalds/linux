@@ -558,7 +558,7 @@ struct chan_info_2064_lcnphy {
 	u8 rxrf_rxrf_spare1;
 };
 
-static struct chan_info_2064_lcnphy chan_info_2064_lcnphy[] = {
+static const struct chan_info_2064_lcnphy chan_info_2064_lcnphy[] = {
 	{1, 2412, 0x0B, 0x0A, 0x00, 0x07, 0x0A, 0x88, 0x88, 0x80},
 	{2, 2417, 0x0B, 0x0A, 0x00, 0x07, 0x0A, 0x88, 0x88, 0x80},
 	{3, 2422, 0x0B, 0x0A, 0x00, 0x07, 0x0A, 0x88, 0x88, 0x80},
@@ -575,7 +575,7 @@ static struct chan_info_2064_lcnphy chan_info_2064_lcnphy[] = {
 	{14, 2484, 0x0B, 0x0A, 0x00, 0x07, 0x0A, 0x88, 0x88, 0x80},
 };
 
-static struct lcnphy_radio_regs lcnphy_radio_regs_2064[] = {
+static const struct lcnphy_radio_regs lcnphy_radio_regs_2064[] = {
 	{0x00, 0, 0, 0, 0},
 	{0x01, 0x64, 0x64, 0, 0},
 	{0x02, 0x20, 0x20, 0, 0},
@@ -4489,7 +4489,7 @@ static void wlc_lcnphy_rc_cal(struct brcms_phy *pi)
 static void wlc_radio_2064_init(struct brcms_phy *pi)
 {
 	u32 i;
-	struct lcnphy_radio_regs *lcnphyregs = NULL;
+	const struct lcnphy_radio_regs *lcnphyregs = NULL;
 
 	lcnphyregs = lcnphy_radio_regs_2064;
 

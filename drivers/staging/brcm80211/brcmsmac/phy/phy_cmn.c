@@ -52,7 +52,7 @@ struct chan_info_basic {
 	u16 freq;
 };
 
-static struct chan_info_basic chan_info_all[] = {
+static const struct chan_info_basic chan_info_all[] = {
 	{1, 2412},
 	{2, 2417},
 	{3, 2422},
