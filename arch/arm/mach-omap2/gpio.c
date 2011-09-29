@@ -136,8 +136,6 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 		return PTR_ERR(pdev);
 	}
 
-	omap_device_disable_idle_on_suspend(pdev);
-
 	return 0;
 }
 
