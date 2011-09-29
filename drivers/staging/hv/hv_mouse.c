@@ -329,7 +329,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	desc = &device_info->hid_descriptor;
 	WARN_ON(desc->bLength == 0);
 
-	input_device->hid_desc = kzalloc(desc->bLength, GFP_KERNEL);
+	input_device->hid_desc = kzalloc(desc->bLength, GFP_ATOMIC);
 
 	if (!input_device->hid_desc) {
 		pr_err("unable to allocate hid descriptor - size %d",
@@ -342,7 +342,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 	/* Save the report desc */
 	input_device->report_desc_size = desc->desc[0].wDescriptorLength;
 	input_device->report_desc = kzalloc(input_device->report_desc_size,
-					  GFP_KERNEL);
+					  GFP_ATOMIC);
 
 	if (!input_device->report_desc) {
 		pr_err("unable to allocate report descriptor - size %d",
@@ -541,7 +541,7 @@ static void mousevsc_on_channel_callback(void *context)
 		} else if (ret == -ENOBUFS) {
 			/* Handle large packet */
 			bufferlen = bytes_recvd;
-			buffer = kzalloc(bytes_recvd, GFP_KERNEL);
+			buffer = kzalloc(bytes_recvd, GFP_ATOMIC);
 
 			if (buffer == NULL) {
 				buffer = packet;
