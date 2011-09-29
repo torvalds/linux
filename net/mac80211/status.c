@@ -65,6 +65,16 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 
 	sta->tx_filtered_count++;
 
+	/*
+	 * Clear more-data bit on filtered frames, it might be set
+	 * but later frames might time out so it might have to be
+	 * clear again ... It's all rather unlikely (this frame
+	 * should time out first, right?) but let's not confuse
+	 * peers unnecessarily.
+	 */
+	if (hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_MOREDATA))
+		hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		int tid = *ieee80211_get_qos_ctl(hdr) &
 					IEEE80211_QOS_CTL_TID_MASK;
