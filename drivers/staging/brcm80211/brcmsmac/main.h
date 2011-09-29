@@ -359,7 +359,7 @@ struct brcms_hardware {
 	u16 chanspec;	/* bmac chanspec shadow */
 
 	uint *txavail[NFIFO];	/* # tx descriptors available */
-	u16 *xmtfifo_sz;	/* fifo size in 256B for each xmt fifo */
+	const u16 *xmtfifo_sz;	/* fifo size in 256B for each xmt fifo */
 
 	u32 pllreq;		/* pll requests to keep PLL on */
 

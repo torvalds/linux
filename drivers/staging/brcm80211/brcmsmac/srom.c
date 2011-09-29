@@ -778,7 +778,9 @@ static const struct brcms_sromvar perpath_pci_sromvars[] = {
 	{NULL, 0, 0, 0, 0}
 };
 
-static u8 srom_crc8_table[CRC8_TABLE_SIZE];
+/* crc table has the same contents for every device instance, so it can be
+ * shared between devices. */
+static u8 brcms_srom_crc8_table[CRC8_TABLE_SIZE];
 
 static u16 *srom_window_address(struct si_pub *sih, u8 *curmap)
 {
@@ -1052,8 +1054,9 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 
 		/* fixup the endianness so crc8 will pass */
 		htol16_buf(buf, nwords * 2);
-		if (crc8(srom_crc8_table, (u8 *) buf, nwords * 2,
-			 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
+		if (crc8(brcms_srom_crc8_table, (u8 *) buf, nwords * 2,
+			 CRC8_INIT_VALUE) !=
+			 CRC8_GOOD_VALUE(brcms_srom_crc8_table))
 			/* DBG only pci always read srom4 first, then srom8/9 */
 			err = -EIO;
 
@@ -1089,8 +1092,8 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 
 	/* fixup the endianness so crc8 will pass */
 	htol16_buf(buf, bufsz);
-	if (crc8(srom_crc8_table, (u8 *) buf, SROM4_WORDS * 2,
-		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(srom_crc8_table))
+	if (crc8(brcms_srom_crc8_table, (u8 *) buf, SROM4_WORDS * 2,
+		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(brcms_srom_crc8_table))
 		err = -EIO;
 
 	/* now correct the endianness of the byte array */
@@ -1147,7 +1150,7 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 
 	sromwindow = srom_window_address(sih, curmap);
 
-	crc8_populate_lsb(srom_crc8_table, SROM_CRC8_POLY);
+	crc8_populate_lsb(brcms_srom_crc8_table, SROM_CRC8_POLY);
 	if (ai_is_sprom_available(sih)) {
 		err = sprom_read_pci(sih, sromwindow, 0, srom, SROM_WORDS,
 				     true);

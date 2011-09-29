@@ -80,7 +80,7 @@ struct otp_fn_s {
 
 struct otpinfo {
 	uint ccrev;		/* chipc revision */
-	struct otp_fn_s *fn;		/* OTP functions */
+	const struct otp_fn_s *fn;	/* OTP functions */
 	struct si_pub *sih;		/* Saved sb handle */
 
 	/* IPX OTP section */
@@ -442,7 +442,7 @@ static int ipxotp_nvread(struct otpinfo *oi, char *data, uint *len)
 	return -ENOTSUPP;
 }
 
-static struct otp_fn_s ipxotp_fn = {
+static const struct otp_fn_s ipxotp_fn = {
 	(int (*)(struct otpinfo *)) ipxotp_size,
 	(u16 (*)(struct otpinfo *, struct chipcregs *, uint)) ipxotp_read_bit,
 

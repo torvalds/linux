@@ -27,7 +27,6 @@ extern const struct brcms_c_rateset cck_ofdm_rates;
 extern const struct brcms_c_rateset ofdm_rates;
 extern const struct brcms_c_rateset cck_rates;
 extern const struct brcms_c_rateset gphy_legacy_rates;
-extern const struct brcms_c_rateset wlc_lrs_rates;
 extern const struct brcms_c_rateset rate_limit_1_2;
 
 struct brcms_mcs_info {

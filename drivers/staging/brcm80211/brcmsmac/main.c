@@ -428,8 +428,6 @@ const u8 wme_fifo2ac[] = { AC_BK, AC_BE, AC_VI, AC_VO, AC_BE, AC_BE };
 /* WME/802.1E Access Category to TX FIFO number */
 static const u8 wme_ac2fifo[] = { 1, 0, 2, 3 };
 
-static bool in_send_q;
-
 /* 802.1D Priority to precedence queue mapping */
 const u8 wlc_prio2prec_map[] = {
 	_BRCMS_PREC_BE,		/* 0 BE - Best-effort */
@@ -442,7 +440,7 @@ const u8 wlc_prio2prec_map[] = {
 	_BRCMS_PREC_NC,		/* 7 NC - Network Control */
 };
 
-static u16 xmtfifo_sz[][NFIFO] = {
+static const u16 xmtfifo_sz[][NFIFO] = {
 	/* corerev 20: 5120, 49152, 49152, 5376, 4352, 1280 */
 	{20, 192, 192, 21, 17, 5},
 	/* corerev 21: 2304, 14848, 5632, 3584, 3584, 1280 */
@@ -7716,11 +7714,6 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 	struct pktq *q = &qi->q;
 	struct ieee80211_tx_info *tx_info;
 
-	if (in_send_q)
-		return;
-	else
-		in_send_q = true;
-
 	prec_map = wlc->tx_prec_map;
 
 	/* Send all the enq'd pkts that we can.
@@ -7752,8 +7745,6 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 			prec_map = wlc->tx_prec_map;
 		}
 	}
-
-	in_send_q = false;
 }
 
 void
