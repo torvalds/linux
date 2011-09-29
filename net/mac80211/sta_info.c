@@ -1169,7 +1169,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 					 struct sta_info *sta, int tid,
-					 bool uapsd)
+					 enum ieee80211_frame_release_type reason)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_qos_hdr *nullfunc;
@@ -1210,7 +1210,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 
 		nullfunc->qos_ctrl = cpu_to_le16(tid);
 
-		if (uapsd)
+		if (reason == IEEE80211_FRAME_RELEASE_UAPSD)
 			nullfunc->qos_ctrl |=
 				cpu_to_le16(IEEE80211_QOS_CTL_EOSP);
 	}
@@ -1226,6 +1226,8 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	info->flags |= IEEE80211_TX_CTL_POLL_RESPONSE |
 		       IEEE80211_TX_STATUS_EOSP |
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
+
+	drv_allow_buffered_frames(local, sta, BIT(tid), 1, reason, false);
 
 	ieee80211_xmit(sdata, skb);
 }
@@ -1324,20 +1326,24 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		/* This will evaluate to 1, 3, 5 or 7. */
 		tid = 7 - ((ffs(~ignored_acs) - 1) << 1);
 
-		ieee80211_send_null_response(sdata, sta, tid,
-				reason == IEEE80211_FRAME_RELEASE_UAPSD);
+		ieee80211_send_null_response(sdata, sta, tid, reason);
 		return;
 	}
 
 	if (!driver_release_tids) {
 		struct sk_buff_head pending;
 		struct sk_buff *skb;
+		int num = 0;
+		u16 tids = 0;
 
 		skb_queue_head_init(&pending);
 
 		while ((skb = __skb_dequeue(&frames))) {
 			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 			struct ieee80211_hdr *hdr = (void *) skb->data;
+			u8 *qoshdr = NULL;
+
+			num++;
 
 			/*
 			 * Tell TX path to send this frame even though the
@@ -1357,18 +1363,28 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 				hdr->frame_control |=
 					cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 
+			if (ieee80211_is_data_qos(hdr->frame_control) ||
+			    ieee80211_is_qos_nullfunc(hdr->frame_control))
+				qoshdr = ieee80211_get_qos_ctl(hdr);
+
+			/* set EOSP for the frame */
 			if (reason == IEEE80211_FRAME_RELEASE_UAPSD &&
-			    skb_queue_empty(&frames)) {
-				/* set EOSP for the frame */
-				u8 *p = ieee80211_get_qos_ctl(hdr);
-				*p |= IEEE80211_QOS_CTL_EOSP;
-			}
+			    qoshdr && skb_queue_empty(&frames))
+				*qoshdr |= IEEE80211_QOS_CTL_EOSP;
 
 			info->flags |= IEEE80211_TX_STATUS_EOSP |
 				       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
+			if (qoshdr)
+				tids |= BIT(*qoshdr & IEEE80211_QOS_CTL_TID_MASK);
+			else
+				tids |= BIT(0);
+
 			__skb_queue_tail(&pending, skb);
 		}
+
+		drv_allow_buffered_frames(local, sta, tids, num,
+					  reason, more_data);
 
 		ieee80211_add_pending_skbs(local, &pending);
 

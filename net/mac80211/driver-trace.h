@@ -1129,7 +1129,7 @@ TRACE_EVENT(drv_rssi_callback,
 	)
 );
 
-TRACE_EVENT(drv_release_buffered_frames,
+DECLARE_EVENT_CLASS(release_evt,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sta *sta,
 		 u16 tids, int num_frames,
@@ -1162,6 +1162,26 @@ TRACE_EVENT(drv_release_buffered_frames,
 		LOCAL_PR_ARG, STA_PR_ARG, __entry->tids, __entry->num_frames,
 		__entry->reason, __entry->more_data
 	)
+);
+
+DEFINE_EVENT(release_evt, drv_release_buffered_frames,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u16 tids, int num_frames,
+		 enum ieee80211_frame_release_type reason,
+		 bool more_data),
+
+	TP_ARGS(local, sta, tids, num_frames, reason, more_data)
+);
+
+DEFINE_EVENT(release_evt, drv_allow_buffered_frames,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u16 tids, int num_frames,
+		 enum ieee80211_frame_release_type reason,
+		 bool more_data),
+
+	TP_ARGS(local, sta, tids, num_frames, reason, more_data)
 );
 
 /*

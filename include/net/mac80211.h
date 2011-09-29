@@ -1973,6 +1973,18 @@ enum ieee80211_frame_release_type {
  *	service period ends, the driver must set %IEEE80211_TX_STATUS_EOSP
  *	on the last frame in the SP.
  *	This callback must be atomic.
+ * @allow_buffered_frames: Prepare device to allow the given number of frames
+ *	to go out to the given station. The frames will be sent by mac80211
+ *	via the usual TX path after this call. The TX information for frames
+ *	released will also have the %IEEE80211_TX_CTL_POLL_RESPONSE flag set
+ *	and the last one will also have %IEEE80211_TX_STATUS_EOSP set. In case
+ *	frames from multiple TIDs are released and the driver might reorder
+ *	them between the TIDs, it must set the %IEEE80211_TX_STATUS_EOSP flag
+ *	on the last frame and clear it on all others and also handle the EOSP
+ *	bit in the QoS header correctly.
+ *	The @tids parameter is a bitmap and tells the driver which TIDs the
+ *	frames will be on; it will at most have two bits set.
+ *	This callback must be atomic.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -2088,6 +2100,11 @@ struct ieee80211_ops {
 	void (*rssi_callback)(struct ieee80211_hw *hw,
 			      enum ieee80211_rssi_event rssi_event);
 
+	void (*allow_buffered_frames)(struct ieee80211_hw *hw,
+				      struct ieee80211_sta *sta,
+				      u16 tids, int num_frames,
+				      enum ieee80211_frame_release_type reason,
+				      bool more_data);
 	void (*release_buffered_frames)(struct ieee80211_hw *hw,
 					struct ieee80211_sta *sta,
 					u16 tids, int num_frames,

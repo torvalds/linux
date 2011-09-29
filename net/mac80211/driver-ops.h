@@ -685,4 +685,19 @@ drv_release_buffered_frames(struct ieee80211_local *local,
 						    more_data);
 	trace_drv_return_void(local);
 }
+
+static inline void
+drv_allow_buffered_frames(struct ieee80211_local *local,
+			  struct sta_info *sta, u16 tids, int num_frames,
+			  enum ieee80211_frame_release_type reason,
+			  bool more_data)
+{
+	trace_drv_allow_buffered_frames(local, &sta->sta, tids, num_frames,
+					reason, more_data);
+	if (local->ops->allow_buffered_frames)
+		local->ops->allow_buffered_frames(&local->hw, &sta->sta,
+						  tids, num_frames, reason,
+						  more_data);
+	trace_drv_return_void(local);
+}
 #endif /* __MAC80211_DRIVER_OPS */
