@@ -1183,7 +1183,7 @@ extern void wlc_phy_est_tonepwr_nphy(struct brcms_phy *pi, s32 *qdBm_pwrbuf,
 extern void wlc_phy_radio205x_vcocal_nphy(struct brcms_phy *pi);
 
 extern int wlc_phy_rssi_compute_nphy(struct brcms_phy *pi,
-				     struct brcms_d11rxhdr *wlc_rxh);
+				     struct d11rxhdr *rxh);
 
 #define NPHY_TESTPATTERN_BPHY_EVM   0
 #define NPHY_TESTPATTERN_BPHY_RFCS  1

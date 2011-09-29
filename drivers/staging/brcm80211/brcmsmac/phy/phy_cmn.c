@@ -2646,7 +2646,7 @@ void wlc_phy_rssi_compute(struct brcms_phy_pub *pih,
 			rssi -= 256;
 	} else if (radioid == BCM2055_ID || radioid == BCM2056_ID
 		   || radioid == BCM2057_ID) {
-		rssi = wlc_phy_rssi_compute_nphy(pi, wlc_rxhdr);
+		rssi = wlc_phy_rssi_compute_nphy(pi, rxh);
 	}
 
 end:

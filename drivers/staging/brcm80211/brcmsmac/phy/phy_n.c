@@ -23109,9 +23109,8 @@ void wlc_phy_rssi_cal_nphy(struct brcms_phy *pi)
 }
 
 int
-wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct brcms_d11rxhdr *wlc_rxh)
+wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct d11rxhdr *rxh)
 {
-	struct d11rxhdr *rxh = &wlc_rxh->rxhdr;
 	s16 rxpwr, rxpwr0, rxpwr1;
 	s16 phyRx0_l, phyRx2_l;
 
@@ -23133,10 +23132,6 @@ wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct brcms_d11rxhdr *wlc_rxh)
 		rxpwr0 = rxpwr1;
 		rxpwr1 = phyRx2_l;
 	}
-
-	wlc_rxh->rxpwr[0] = (s8) rxpwr0;
-	wlc_rxh->rxpwr[1] = (s8) rxpwr1;
-	wlc_rxh->do_rssi_ma = 0;
 
 	if (pi->sh->rssi_mode == RSSI_ANT_MERGE_MAX)
 		rxpwr = (rxpwr0 > rxpwr1) ? rxpwr0 : rxpwr1;
