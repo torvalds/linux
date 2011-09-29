@@ -338,9 +338,9 @@ static u16 frametype(u32 rspec, u8 mimoframe)
 #define XMTFIFOTBL_STARTREV	20
 
 struct d11init {
-	u16 addr;
-	u16 size;
-	u32 value;
+	__le16 addr;
+	__le16 size;
+	__le32 value;
 };
 
 /* currently the best mechanism for determining SIFS is the band in use */
@@ -666,7 +666,7 @@ static void brcms_c_write_inits(struct brcms_hardware *wlc_hw,
 
 	base = (u8 *)wlc_hw->regs;
 
-	for (i = 0; inits[i].addr != 0xffff; i++) {
+	for (i = 0; inits[i].addr != cpu_to_le16(0xffff); i++) {
 		size = le16_to_cpu(inits[i].size);
 		addr = base + le16_to_cpu(inits[i].addr);
 		value = le32_to_cpu(inits[i].value);
@@ -806,30 +806,33 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 
 	/* process each frame */
 	while ((p = head) != NULL) {
+		struct d11rxhdr_le *rxh_le;
 		struct d11rxhdr *rxh;
 		head = head->prev;
 		p->prev = NULL;
 
-		wlc_rxhdr = (struct brcms_d11rxhdr *) p->data;
+		rxh_le = (struct d11rxhdr_le *)p->data;
 		rxh = (struct d11rxhdr *)p->data;
+		wlc_rxhdr = (struct brcms_d11rxhdr *) p->data;
 
 		/* fixup rx header endianness */
-		rxh->RxFrameSize = le16_to_cpu(rxh->RxFrameSize);
-		rxh->PhyRxStatus_0 = le16_to_cpu(rxh->PhyRxStatus_0);
-		rxh->PhyRxStatus_1 = le16_to_cpu(rxh->PhyRxStatus_1);
-		rxh->PhyRxStatus_2 = le16_to_cpu(rxh->PhyRxStatus_2);
-		rxh->PhyRxStatus_3 = le16_to_cpu(rxh->PhyRxStatus_3);
-		rxh->PhyRxStatus_4 = le16_to_cpu(rxh->PhyRxStatus_4);
-		rxh->PhyRxStatus_5 = le16_to_cpu(rxh->PhyRxStatus_5);
-		rxh->RxStatus1 = le16_to_cpu(rxh->RxStatus1);
-		rxh->RxStatus2 = le16_to_cpu(rxh->RxStatus2);
-		rxh->RxTSFTime = le16_to_cpu(rxh->RxTSFTime);
-		rxh->RxChan = le16_to_cpu(rxh->RxChan);
+		rxh->RxFrameSize = le16_to_cpu(rxh_le->RxFrameSize);
+		rxh->PhyRxStatus_0 = le16_to_cpu(rxh_le->PhyRxStatus_0);
+		rxh->PhyRxStatus_1 = le16_to_cpu(rxh_le->PhyRxStatus_1);
+		rxh->PhyRxStatus_2 = le16_to_cpu(rxh_le->PhyRxStatus_2);
+		rxh->PhyRxStatus_3 = le16_to_cpu(rxh_le->PhyRxStatus_3);
+		rxh->PhyRxStatus_4 = le16_to_cpu(rxh_le->PhyRxStatus_4);
+		rxh->PhyRxStatus_5 = le16_to_cpu(rxh_le->PhyRxStatus_5);
+		rxh->RxStatus1 = le16_to_cpu(rxh_le->RxStatus1);
+		rxh->RxStatus2 = le16_to_cpu(rxh_le->RxStatus2);
+		rxh->RxTSFTime = le16_to_cpu(rxh_le->RxTSFTime);
+		rxh->RxChan = le16_to_cpu(rxh_le->RxChan);
 
 		/*
 		 * compute the RSSI from d11rxhdr and record it in wlc_rxd11hr
 		 */
-		wlc_rxhdr->rssi = wlc_phy_rssi_compute(wlc_hw->band->pi, rxh);
+		wlc_rxhdr->rssi = (s8)wlc_phy_rssi_compute(wlc_hw->band->pi,
+							   rxh);
 		brcms_c_recv(wlc_hw->wlc, p);
 	}
 
@@ -888,7 +891,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		brcms_c_print_txstatus(txs);
 	}
 
-	if (txs->frameid != cpu_to_le16(txh->TxFrameID))
+	if (txs->frameid != le16_to_cpu(txh->TxFrameID))
 		goto fatal;
 	tx_info = IEEE80211_SKB_CB(p);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
@@ -907,7 +910,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		       "%s: Pkt tx suppressed, possibly channel %d\n",
 		       __func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec));
 
-	tx_rts = cpu_to_le16(txh->MacTxControlLow) & TXC_SENDRTS;
+	tx_rts = le16_to_cpu(txh->MacTxControlLow) & TXC_SENDRTS;
 	tx_frame_count =
 	    (txs->status & TX_STATUS_FRM_RTX_MASK) >> TX_STATUS_FRM_RTX_SHIFT;
 	tx_rts_count =
@@ -1676,6 +1679,8 @@ brcms_b_write_template_ram(struct brcms_hardware *wlc_hw, int offset, int len,
 {
 	struct d11regs *regs;
 	u32 word;
+	__le32 word_le;
+	__be32 word_be;
 	bool be_bit;
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
@@ -1691,10 +1696,13 @@ brcms_b_write_template_ram(struct brcms_hardware *wlc_hw, int offset, int len,
 	while (len > 0) {
 		memcpy(&word, buf, sizeof(u32));
 
-		if (be_bit)
-			word = cpu_to_be32(word);
-		else
-			word = cpu_to_le32(word);
+		if (be_bit) {
+			word_be = cpu_to_be32(word);
+			word = *(u32 *)&word_be;
+		} else {
+			word_le = cpu_to_le32(word);
+			word = *(u32 *)&word_le;
+		}
 
 		W_REG(&regs->tplatewrdata, word);
 
@@ -2437,8 +2445,9 @@ static void brcms_c_gpio_init(struct brcms_c_info *wlc)
 	ai_gpiocontrol(wlc_hw->sih, gm, gc, GPIO_DRV_PRIORITY);
 }
 
-static void brcms_ucode_write(struct brcms_hardware *wlc_hw, const u32 ucode[],
-			      const uint nbytes) {
+static void brcms_ucode_write(struct brcms_hardware *wlc_hw,
+			      const __le32 ucode[], const size_t nbytes)
+{
 	struct d11regs *regs = wlc_hw->regs;
 	uint i;
 	uint count;
@@ -4260,7 +4269,7 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 	do {
 		memset((char *)&acp_shm, 0, sizeof(struct shm_acparams));
 		/* fill in shm ac params struct */
-		acp_shm.txop = le16_to_cpu(params->txop);
+		acp_shm.txop = params->txop;
 		/* convert from units of 32us to us for ucode */
 		wlc->edcf_txop[aci & 0x3] = acp_shm.txop =
 		    EDCF_TXOP2USEC(acp_shm.txop);
@@ -4313,16 +4322,11 @@ void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 	u16 aci;
 	int i_ac;
 	struct ieee80211_tx_queue_params txq_pars;
-	struct ieee80211_tx_queue_params *params = &txq_pars;
 	static const struct edcf_acparam default_edcf_acparams[] = {
-		 {EDCF_AC_BE_ACI_STA, EDCF_AC_BE_ECW_STA,
-		  cpu_to_le16(EDCF_AC_BE_TXOP_STA)},
-		 {EDCF_AC_BK_ACI_STA, EDCF_AC_BK_ECW_STA,
-		  cpu_to_le16(EDCF_AC_BK_TXOP_STA)},
-		 {EDCF_AC_VI_ACI_STA, EDCF_AC_VI_ECW_STA,
-		  cpu_to_le16(EDCF_AC_VI_TXOP_STA)},
-		 {EDCF_AC_VO_ACI_STA, EDCF_AC_VO_ECW_STA,
-		  cpu_to_le16(EDCF_AC_VO_TXOP_STA)}
+		 {EDCF_AC_BE_ACI_STA, EDCF_AC_BE_ECW_STA, EDCF_AC_BE_TXOP_STA},
+		 {EDCF_AC_BK_ACI_STA, EDCF_AC_BK_ECW_STA, EDCF_AC_BK_TXOP_STA},
+		 {EDCF_AC_VI_ACI_STA, EDCF_AC_VI_ECW_STA, EDCF_AC_VI_TXOP_STA},
+		 {EDCF_AC_VO_ACI_STA, EDCF_AC_VO_ECW_STA, EDCF_AC_VO_TXOP_STA}
 	}; /* ucode needs these parameters during its initialization */
 	const struct edcf_acparam *edcf_acp = &default_edcf_acparams[0];
 
@@ -4331,15 +4335,15 @@ void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 		aci = (edcf_acp->ACI & EDCF_ACI_MASK) >> EDCF_ACI_SHIFT;
 
 		/* fill in shm ac params struct */
-		params->txop = edcf_acp->TXOP;
-		params->aifs = edcf_acp->ACI;
+		txq_pars.txop = edcf_acp->TXOP;
+		txq_pars.aifs = edcf_acp->ACI;
 
 		/* CWmin = 2^(ECWmin) - 1 */
-		params->cw_min = EDCF_ECW2CW(edcf_acp->ECW & EDCF_ECWMIN_MASK);
+		txq_pars.cw_min = EDCF_ECW2CW(edcf_acp->ECW & EDCF_ECWMIN_MASK);
 		/* CWmax = 2^(ECWmax) - 1 */
-		params->cw_max = EDCF_ECW2CW((edcf_acp->ECW & EDCF_ECWMAX_MASK)
+		txq_pars.cw_max = EDCF_ECW2CW((edcf_acp->ECW & EDCF_ECWMAX_MASK)
 					    >> EDCF_ECWMAX_SHIFT);
-		brcms_c_wme_setparams(wlc, aci, params, suspend);
+		brcms_c_wme_setparams(wlc, aci, &txq_pars, suspend);
 	}
 
 	if (suspend)
@@ -8126,7 +8130,7 @@ static u64 brcms_c_recover_tsf64(struct brcms_c_info *wlc,
 	brcms_b_read_tsf(wlc->hw, &tsf_l, &tsf_h);
 
 	rx_tsf_16_31 = (u16)(tsf_l >> 16);
-	rx_tsf_0_15 = rxh->rxhdr.RxTSFTime;
+	rx_tsf_0_15 = rxh->rxh_cpu.RxTSFTime;
 
 	/*
 	 * a greater tsf time indicates the low 16 bits of

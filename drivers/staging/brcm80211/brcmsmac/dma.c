@@ -206,10 +206,10 @@
  * Descriptors are only read by the hardware, never written back.
  */
 struct dma64desc {
-	u32 ctrl1;	/* misc control bits & bufcount */
-	u32 ctrl2;	/* buffer count and address extension */
-	u32 addrlow;	/* memory address of the date buffer, bits 31:0 */
-	u32 addrhigh;	/* memory address of the date buffer, bits 63:32 */
+	__le32 ctrl1;	/* misc control bits & bufcount */
+	__le32 ctrl2;	/* buffer count and address extension */
+	__le32 addrlow;	/* memory address of the date buffer, bits 31:0 */
+	__le32 addrhigh; /* memory address of the date buffer, bits 63:32 */
 };
 
 /* dma engine software state */
@@ -295,15 +295,18 @@ struct dma_info {
 static uint dma_msg_level;
 
 /* Check for odd number of 1's */
-static u32 parity32(u32 data)
+static u32 parity32(__le32 data)
 {
-	data ^= data >> 16;
-	data ^= data >> 8;
-	data ^= data >> 4;
-	data ^= data >> 2;
-	data ^= data >> 1;
+	/* no swap needed for counting 1's */
+	u32 par_data = *(u32 *)&data;
 
-	return data & 1;
+	par_data ^= par_data >> 16;
+	par_data ^= par_data >> 8;
+	par_data ^= par_data >> 4;
+	par_data ^= par_data >> 2;
+	par_data ^= par_data >> 1;
+
+	return par_data & 1;
 }
 
 static bool dma64_dd_parity(struct dma64desc *dd)
@@ -873,13 +876,13 @@ static struct sk_buff *dma64_getnextrxp(struct dma_info *di, bool forceall)
 	rxp = di->rxp[i];
 	di->rxp[i] = NULL;
 
-	pa = cpu_to_le32(di->rxd64[i].addrlow) - di->dataoffsetlow;
+	pa = le32_to_cpu(di->rxd64[i].addrlow) - di->dataoffsetlow;
 
 	/* clear this packet from the descriptor ring */
 	pci_unmap_single(di->pbus, pa, di->rxbufsize, PCI_DMA_FROMDEVICE);
 
-	di->rxd64[i].addrlow = 0xdeadbeef;
-	di->rxd64[i].addrhigh = 0xdeadbeef;
+	di->rxd64[i].addrlow = cpu_to_le32(0xdeadbeef);
+	di->rxd64[i].addrhigh = cpu_to_le32(0xdeadbeef);
 
 	di->rxin = nextrxd(di, i);
 
@@ -917,7 +920,7 @@ struct sk_buff *dma_rx(struct dma_pub *pub)
 	if (head == NULL)
 		return NULL;
 
-	len = le16_to_cpu(*(u16 *) (head->data));
+	len = le16_to_cpu(*(__le16 *) (head->data));
 	DMA_TRACE(("%s: dma_rx len %d\n", di->name, len));
 	dma_spin_for_len(len, head);
 
@@ -1367,14 +1370,14 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 		dma_addr_t pa;
 		uint size;
 
-		pa = cpu_to_le32(di->txd64[i].addrlow) - di->dataoffsetlow;
+		pa = le32_to_cpu(di->txd64[i].addrlow) - di->dataoffsetlow;
 
 		size =
-		    (cpu_to_le32(di->txd64[i].ctrl2) &
+		    (le32_to_cpu(di->txd64[i].ctrl2) &
 		     D64_CTRL2_BC_MASK);
 
-		di->txd64[i].addrlow = 0xdeadbeef;
-		di->txd64[i].addrhigh = 0xdeadbeef;
+		di->txd64[i].addrlow = cpu_to_le32(0xdeadbeef);
+		di->txd64[i].addrhigh = cpu_to_le32(0xdeadbeef);
 
 		txp = di->txp[i];
 		di->txp[i] = NULL;

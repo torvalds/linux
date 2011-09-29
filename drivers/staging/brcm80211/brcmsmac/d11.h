@@ -745,37 +745,37 @@ struct cck_phy_hdr {
 
 /* TX DMA buffer header */
 struct d11txh {
-	u16 MacTxControlLow;	/* 0x0 */
-	u16 MacTxControlHigh;	/* 0x1 */
-	u16 MacFrameControl;	/* 0x2 */
-	u16 TxFesTimeNormal;	/* 0x3 */
-	u16 PhyTxControlWord;	/* 0x4 */
-	u16 PhyTxControlWord_1;	/* 0x5 */
-	u16 PhyTxControlWord_1_Fbr;	/* 0x6 */
-	u16 PhyTxControlWord_1_Rts;	/* 0x7 */
-	u16 PhyTxControlWord_1_FbrRts;	/* 0x8 */
-	u16 MainRates;	/* 0x9 */
-	u16 XtraFrameTypes;	/* 0xa */
+	__le16 MacTxControlLow;	/* 0x0 */
+	__le16 MacTxControlHigh;	/* 0x1 */
+	__le16 MacFrameControl;	/* 0x2 */
+	__le16 TxFesTimeNormal;	/* 0x3 */
+	__le16 PhyTxControlWord;	/* 0x4 */
+	__le16 PhyTxControlWord_1;	/* 0x5 */
+	__le16 PhyTxControlWord_1_Fbr;	/* 0x6 */
+	__le16 PhyTxControlWord_1_Rts;	/* 0x7 */
+	__le16 PhyTxControlWord_1_FbrRts;	/* 0x8 */
+	__le16 MainRates;	/* 0x9 */
+	__le16 XtraFrameTypes;	/* 0xa */
 	u8 IV[16];		/* 0x0b - 0x12 */
 	u8 TxFrameRA[6];	/* 0x13 - 0x15 */
-	u16 TxFesTimeFallback;	/* 0x16 */
+	__le16 TxFesTimeFallback;	/* 0x16 */
 	u8 RTSPLCPFallback[6];	/* 0x17 - 0x19 */
-	u16 RTSDurFallback;	/* 0x1a */
+	__le16 RTSDurFallback;	/* 0x1a */
 	u8 FragPLCPFallback[6];	/* 0x1b - 1d */
-	u16 FragDurFallback;	/* 0x1e */
-	u16 MModeLen;	/* 0x1f */
-	u16 MModeFbrLen;	/* 0x20 */
-	u16 TstampLow;	/* 0x21 */
-	u16 TstampHigh;	/* 0x22 */
-	u16 ABI_MimoAntSel;	/* 0x23 */
-	u16 PreloadSize;	/* 0x24 */
-	u16 AmpduSeqCtl;	/* 0x25 */
-	u16 TxFrameID;	/* 0x26 */
-	u16 TxStatus;	/* 0x27 */
-	u16 MaxNMpdus;	/* 0x28 */
-	u16 MaxABytes_MRT;	/* 0x29 */
-	u16 MaxABytes_FBR;	/* 0x2a */
-	u16 MinMBytes;	/* 0x2b */
+	__le16 FragDurFallback;	/* 0x1e */
+	__le16 MModeLen;	/* 0x1f */
+	__le16 MModeFbrLen;	/* 0x20 */
+	__le16 TstampLow;	/* 0x21 */
+	__le16 TstampHigh;	/* 0x22 */
+	__le16 ABI_MimoAntSel;	/* 0x23 */
+	__le16 PreloadSize;	/* 0x24 */
+	__le16 AmpduSeqCtl;	/* 0x25 */
+	__le16 TxFrameID;	/* 0x26 */
+	__le16 TxStatus;	/* 0x27 */
+	__le16 MaxNMpdus;	/* 0x28 */
+	__le16 MaxABytes_MRT;	/* 0x29 */
+	__le16 MaxABytes_FBR;	/* 0x2a */
+	__le16 MinMBytes;	/* 0x2b */
 	u8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
 	struct ieee80211_rts rts_frame;	/* 0x2f - 0x36 */
 	u16 PAD;		/* 0x37 */
@@ -1379,6 +1379,21 @@ struct shm_acparams {
  * RxTSFTime: RxTSFTime time of first MAC symbol + M_PHY_PLCPRX_DLY
  * RxChan: gain code, channel radio code, and phy type
  */
+struct d11rxhdr_le {
+	__le16 RxFrameSize;
+	u16 PAD;
+	__le16 PhyRxStatus_0;
+	__le16 PhyRxStatus_1;
+	__le16 PhyRxStatus_2;
+	__le16 PhyRxStatus_3;
+	__le16 PhyRxStatus_4;
+	__le16 PhyRxStatus_5;
+	__le16 RxStatus1;
+	__le16 RxStatus2;
+	__le16 RxTSFTime;
+	__le16 RxChan;
+} __packed;
+
 struct d11rxhdr {
 	u16 RxFrameSize;
 	u16 PAD;
@@ -1392,20 +1407,18 @@ struct d11rxhdr {
 	u16 RxStatus2;
 	u16 RxTSFTime;
 	u16 RxChan;
-} __packed;
+};
 
 /*
  * rxhdr: received frame header data
- * tsf_l: TSF_L reading
- * rssi: computed instanteneous rssi in BMAC
+ * rssi: rssi computed by PHY
  * rxpwr0: obsoleted, place holder for legacy ROM code. use rxpwr[]
  * rxpwr1: obsoleted, place holder for legacy ROM code. use rxpwr[]
  * do_rssi_ma: do per-pkt sampling for per-antenna ma in HIGH
  * rxpwr: rssi for supported antennas
  */
 struct brcms_d11rxhdr {
-	struct d11rxhdr rxhdr;
-	u32 tsf_l;
+	struct d11rxhdr rxh_cpu;
 	s8 rssi;
 	s8 rxpwr0;
 	s8 rxpwr1;

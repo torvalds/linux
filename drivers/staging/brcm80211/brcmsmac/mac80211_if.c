@@ -89,9 +89,9 @@
 }
 
 struct firmware_hdr {
-	u32 offset;
-	u32 len;
-	u32 idx;
+	__le32 offset;
+	__le32 len;
+	__le32 idx;
 };
 
 static const char * const brcms_firmwares[MAX_FW_IMAGES] = {
@@ -243,7 +243,7 @@ static const struct ieee80211_supported_band brcms_band_2GHz_nphy_template = {
 		   .mcs = {
 			   /* placeholders for now */
 			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
-			   .rx_highest = 500,
+			   .rx_highest = cpu_to_le16(500),
 			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
 		   }
 };
@@ -265,7 +265,7 @@ static const struct ieee80211_supported_band brcms_band_5GHz_nphy_template = {
 		   .mcs = {
 			   /* placeholders for now */
 			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
-			   .rx_highest = 500,
+			   .rx_highest = cpu_to_le16(500),
 			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
 		   }
 };
@@ -1625,7 +1625,7 @@ int brcms_ucode_init_uint(struct brcms_info *wl, u32 *data, u32 idx)
 						  "ERROR: fw hdr len\n");
 					return -ENOMSG;
 				}
-				*data = le32_to_cpu(*((u32 *) pdata));
+				*data = le32_to_cpu(*((__le32 *) pdata));
 				return 0;
 			}
 		}

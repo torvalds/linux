@@ -822,14 +822,14 @@ static inline void ltoh16_buf(u16 *buf, unsigned int size)
 {
 	size /= 2;
 	while (size--)
-		*(buf + size) = le16_to_cpu(*(buf + size));
+		*(buf + size) = le16_to_cpu(*(__le16 *)(buf + size));
 }
 
 static inline void htol16_buf(u16 *buf, unsigned int size)
 {
 	size /= 2;
 	while (size--)
-		*(buf + size) = cpu_to_le16(*(buf + size));
+		*(__le16 *)(buf + size) = cpu_to_le16(*(buf + size));
 }
 
 /* Initialization of varbuf structure */
