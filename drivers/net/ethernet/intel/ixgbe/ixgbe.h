@@ -130,6 +130,8 @@ struct vf_data_storage {
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
 	u16 tx_rate;
+	u16 vlan_count;
+	u8 spoofchk_enabled;
 	struct pci_dev *vfdev;
 };
 
@@ -509,7 +511,6 @@ struct ixgbe_adapter {
 	int vf_rate_link_speed;
 	struct vf_macvlans vf_mvs;
 	struct vf_macvlans *mv_list;
-	bool antispoofing_enabled;
 
 	struct hlist_head fdir_filter_list;
 	union ixgbe_atr_input fdir_mask;

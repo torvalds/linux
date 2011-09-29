@@ -2816,6 +2816,7 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	u32 vt_reg_bits;
 	u32 reg_offset, vf_shift;
 	u32 vmdctl;
+	int i;
 
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
 		return;
@@ -2851,9 +2852,13 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
 	/* Enable MAC Anti-Spoofing */
 	hw->mac.ops.set_mac_anti_spoofing(hw,
-					  (adapter->antispoofing_enabled =
-					   (adapter->num_vfs != 0)),
+					   (adapter->num_vfs != 0),
 					  adapter->num_vfs);
+	/* For VFs that have spoof checking turned off */
+	for (i = 0; i < adapter->num_vfs; i++) {
+		if (!adapter->vfinfo[i].spoofchk_enabled)
+			ixgbe_ndo_set_vf_spoofchk(adapter->netdev, i, false);
+	}
 }
 
 static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
@@ -7277,6 +7282,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_set_vf_mac		= ixgbe_ndo_set_vf_mac,
 	.ndo_set_vf_vlan	= ixgbe_ndo_set_vf_vlan,
 	.ndo_set_vf_tx_rate	= ixgbe_ndo_set_vf_bw,
+	.ndo_set_vf_spoofchk    = ixgbe_ndo_set_vf_spoofchk,
 	.ndo_get_vf_config	= ixgbe_ndo_get_vf_config,
 	.ndo_get_stats64	= ixgbe_get_stats64,
 	.ndo_setup_tc		= ixgbe_setup_tc,
