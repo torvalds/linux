@@ -30,10 +30,11 @@
  * Data types
  */
 struct hv_input_dev_info {
+	unsigned int size;
 	unsigned short vendor;
 	unsigned short product;
 	unsigned short version;
-	char name[128];
+	unsigned short reserved[11];
 };
 
 /* The maximum size of a synthetic input message. */
@@ -686,7 +687,7 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 		hid_dev->dev = dev->device;
 
 		sprintf(hid_dev->name, "%s",
-			input_device_ctx->device_info.name);
+			"Microsoft Vmbus HID-compliant Mouse");
 
 		/*
 		 * HJ Do we want to call it with a 0
@@ -763,7 +764,6 @@ static int mousevsc_on_device_add(struct hv_device *device,
 	dev_info.vendor = input_dev->hid_dev_info.vendor;
 	dev_info.product = input_dev->hid_dev_info.product;
 	dev_info.version = input_dev->hid_dev_info.version;
-	strcpy(dev_info.name, "Microsoft Vmbus HID-compliant Mouse");
 
 	/* Send the device info back up */
 	input_device_ctx = dev_get_drvdata(&device->device);
