@@ -67,10 +67,12 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
 	if (mutex_lock_interruptible(&anysee_usb_mutex) < 0)
 		return -EAGAIN;
 
+	deb_xfer(">>> ");
+	debug_dump(buf, slen, deb_xfer);
+
 	/* We need receive one message more after dvb_usb_generic_rw due
 	   to weird transaction flow, which is 1 x send + 2 x receive. */
 	ret = dvb_usb_generic_rw(d, buf, sizeof(buf), buf, sizeof(buf), 0);
-
 	if (!ret) {
 		/* receive 2nd answer */
 		ret = usb_bulk_msg(d->udev, usb_rcvbulkpipe(d->udev,
@@ -80,7 +82,10 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d, u8 *sbuf, u8 slen,
 			err("%s: recv bulk message failed: %d", __func__, ret);
 		else {
 			deb_xfer("<<< ");
-			debug_dump(buf, act_len, deb_xfer);
+			debug_dump(buf, rlen, deb_xfer);
+
+			if (buf[63] != 0x4f)
+				deb_info("%s: cmd failed\n", __func__);
 		}
 	}
 
