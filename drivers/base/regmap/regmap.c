@@ -296,8 +296,8 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 	return ret;
 }
 
-static int _regmap_write(struct regmap *map, unsigned int reg,
-			 unsigned int val)
+int _regmap_write(struct regmap *map, unsigned int reg,
+		  unsigned int val)
 {
 	int ret;
 	BUG_ON(!map->format.format_write && !map->format.format_val);
