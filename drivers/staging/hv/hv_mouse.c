@@ -155,8 +155,6 @@ struct  mousevsc_prt_msg {
  */
 struct mousevsc_dev {
 	struct hv_device	*device;
-	/* 0 indicates the device is being destroyed */
-	atomic_t		ref_count;
 	unsigned char		init_complete;
 	struct mousevsc_prt_msg	protocol_req;
 	struct mousevsc_prt_msg	protocol_resp;
@@ -182,12 +180,6 @@ static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 	if (!input_dev)
 		return NULL;
 
-	/*
-	 * Set to 2 to allow both inbound and outbound traffics
-	 * (ie get_input_device() and must_get_input_device()) to proceed.
-	 */
-	atomic_set(&input_dev->ref_count, 2);
-
 	input_dev->device = device;
 	hv_set_drvdata(device, input_dev);
 	init_completion(&input_dev->wait_event);
@@ -201,32 +193,6 @@ static void free_input_device(struct mousevsc_dev *device)
 	kfree(device->report_desc);
 	hv_set_drvdata(device->device, NULL);
 	kfree(device);
-}
-
-/*
- * Get the inputdevice object iff exists and its refcount > 0
- */
-static struct mousevsc_dev *must_get_input_device(struct hv_device *device)
-{
-	struct mousevsc_dev *input_dev;
-
-	input_dev = hv_get_drvdata(device);
-
-	if (input_dev && atomic_read(&input_dev->ref_count))
-		atomic_inc(&input_dev->ref_count);
-	else
-		input_dev = NULL;
-
-	return input_dev;
-}
-
-static void put_input_device(struct hv_device *device)
-{
-	struct mousevsc_dev *input_dev;
-
-	input_dev = hv_get_drvdata(device);
-
-	atomic_dec(&input_dev->ref_count);
 }
 
 
@@ -325,19 +291,13 @@ static void mousevsc_on_receive(struct hv_device *device,
 {
 	struct pipe_prt_msg *pipe_msg;
 	struct synthhid_msg *hid_msg;
-	struct mousevsc_dev *input_dev;
-
-	input_dev = must_get_input_device(device);
-	if (!input_dev)
-		return;
+	struct mousevsc_dev *input_dev = hv_get_drvdata(device);
 
 	pipe_msg = (struct pipe_prt_msg *)((unsigned long)packet +
 						(packet->offset8 << 3));
 
-	if (pipe_msg->type != PipeMessageData) {
-		put_input_device(device);
-		return ;
-	}
+	if (pipe_msg->type != PipeMessageData)
+		return;
 
 	hid_msg = (struct synthhid_msg *)&pipe_msg->data[0];
 
@@ -370,7 +330,6 @@ static void mousevsc_on_receive(struct hv_device *device,
 		break;
 	}
 
-	put_input_device(device);
 }
 
 static void mousevsc_on_channel_callback(void *context)
@@ -378,7 +337,6 @@ static void mousevsc_on_channel_callback(void *context)
 	const int packetSize = 0x100;
 	int ret = 0;
 	struct hv_device *device = (struct hv_device *)context;
-	struct mousevsc_dev *input_dev;
 
 	u32 bytes_recvd;
 	u64 req_id;
@@ -387,10 +345,6 @@ static void mousevsc_on_channel_callback(void *context)
 	unsigned char	*buffer = packet;
 	int	bufferlen = packetSize;
 
-	input_dev = must_get_input_device(device);
-
-	if (!input_dev)
-		return;
 
 	do {
 		ret = vmbus_recvpacket_raw(device->channel, buffer,
@@ -451,8 +405,6 @@ static void mousevsc_on_channel_callback(void *context)
 			}
 		}
 	} while (1);
-
-	put_input_device(device);
 
 	return;
 }
