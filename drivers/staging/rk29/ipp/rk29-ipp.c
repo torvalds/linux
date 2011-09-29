@@ -262,7 +262,7 @@ int ipp_check_param(const struct rk29_ipp_req *req)
 
 	if(req->src0.fmt == IPP_Y_CBCR_H2V2)
 	{
-		if (unlikely((req->src0.w&0x1 != 0) || (req->src0.h&0x1 != 0) || (req->dst0.w&0x1 != 0)) || (req->dst0.h&0x1 != 0)) {
+		if (unlikely(((req->src0.w&0x1) != 0) || ((req->src0.h&0x1) != 0) || ((req->dst0.w&0x1) != 0)) || ((req->dst0.h&0x1) != 0)) {
 				printk("YUV420 src or dst resolution is invalid! \n");
 				return	-EINVAL;
 			}
@@ -317,6 +317,8 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	uint32_t dst0_YrgbMst=0,dst0_CbrMst=0;
 	uint32_t ret = 0;
 	uint32_t deinterlace_config = 0;
+	uint32_t src0_w = req->src0.w;
+	uint32_t src0_h = req->src0.h;
 	
 	//printk("ipp_blit\n");
 	if (drvdata == NULL) {			/* ddl@rock-chips.com : check driver is normal or not */
@@ -554,7 +556,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	{
 		ipp_write(req->src0.CbrMst, IPP_SRC0_CBR_MST);
 	}
-	ipp_write(req->src0.h<<16|req->src0.w, IPP_SRC_IMG_INFO);
+	//ipp_write(req->src0.h<<16|req->src0.w, IPP_SRC_IMG_INFO);
 	ipp_write((ipp_read(IPP_CONFIG)&(~0x7))|req->src0.fmt, IPP_CONFIG);
 
 	/* Configure destination image */
@@ -584,7 +586,6 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	{
 		if(((IPP_ROT_90 == rotate) || (IPP_ROT_270 == rotate)))
 		{
-
 			if((req->src0.w>req->dst0.h))
 			{
 				pre_scale_w = (uint32_t)( req->src0.w/req->dst0.h);//floor
@@ -606,7 +607,6 @@ int ipp_blit(const struct rk29_ipp_req *req)
 		}
 		else//0 180 x ,y
 		{
-
 			if((req->src0.w>req->dst0.w))
 			{
 				pre_scale_w = (uint32_t)( req->src0.w/req->dst0.w);//floor
@@ -670,6 +670,21 @@ int ipp_blit(const struct rk29_ipp_req *req)
 		{
 			pre_scale_output_h = req->src0.h/pre_scale_h;
 		}
+
+		//when fmt is YUV,make sure pre_scale_output_w and pre_scale_output_h are even
+		if(IS_YCRCB(req->src0.fmt))
+		{
+			if((pre_scale_output_w & 0x1) != 0)
+			{
+				pre_scale_output_w -=1;
+				src0_w = pre_scale_output_w * pre_scale_w;
+			}
+			if((pre_scale_output_h & 0x1) != 0)
+			{
+				pre_scale_output_h -=1;
+				src0_h = pre_scale_output_h * pre_scale_h;
+			}
+		}
 			
 		ipp_write((ipp_read(IPP_CONFIG)&0xffffffef)|PRE_SCALE, IPP_CONFIG); 		//enable pre_scale
 		ipp_write((pre_scale_h-1)<<3|(pre_scale_w-1),IPP_PRE_SCL_PARA);
@@ -683,6 +698,8 @@ int ipp_blit(const struct rk29_ipp_req *req)
 		ipp_write((req->src0.h<<16)|req->src0.w, IPP_PRE_IMG_INFO);
 	}
 
+	ipp_write(src0_h<<16|src0_w, IPP_SRC_IMG_INFO);
+	
 	/*Configure Post_scale*/
 	if((IPP_ROT_90 == rotate) || (IPP_ROT_270 == rotate))
 	{
