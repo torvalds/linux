@@ -98,8 +98,8 @@ static struct map_desc realview_pbx_io_desc[] __initdata = {
 
 static struct map_desc realview_local_io_desc[] __initdata = {
 	{
-		.virtual        = IO_ADDRESS(REALVIEW_PBX_TILE_GIC_CPU_BASE),
-		.pfn            = __phys_to_pfn(REALVIEW_PBX_TILE_GIC_CPU_BASE),
+		.virtual        = IO_ADDRESS(REALVIEW_PBX_TILE_SCU_BASE),
+		.pfn            = __phys_to_pfn(REALVIEW_PBX_TILE_SCU_BASE),
 		.length         = SZ_4K,
 		.type           = MT_DEVICE,
 	}, {
