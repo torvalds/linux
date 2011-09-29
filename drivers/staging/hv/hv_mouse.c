@@ -200,7 +200,7 @@ static struct mousevsc_dev *alloc_input_device(struct hv_device *device)
 
 static void free_input_device(struct mousevsc_dev *device)
 {
-	WARN_ON(atomic_read(&device->ref_count) == 0);
+	WARN_ON(atomic_read(&device->ref_count) != 0);
 	kfree(device);
 }
 
@@ -327,7 +327,7 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 
 	/* Save the hid desc */
 	desc = &device_info->hid_descriptor;
-	WARN_ON(desc->bLength > 0);
+	WARN_ON(desc->bLength == 0);
 
 	input_device->hid_desc = kzalloc(desc->bLength, GFP_KERNEL);
 
@@ -447,7 +447,7 @@ static void mousevsc_on_receive(struct hv_device *device,
 		break;
 
 	case SynthHidInitialDeviceInfo:
-		WARN_ON(pipe_msg->size >= sizeof(struct hv_input_dev_info));
+		WARN_ON(pipe_msg->size < sizeof(struct hv_input_dev_info));
 
 		/*
 		 * Parse out the device info into device attr,
