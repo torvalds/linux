@@ -25,8 +25,7 @@ config XEN_PRIVILEGED_GUEST
 
 config XEN_PVHVM
 	def_bool y
-	depends on XEN
-	depends on X86_LOCAL_APIC
+	depends on XEN && PCI && X86_LOCAL_APIC
 
 config XEN_MAX_DOMAIN_MEMORY
        int
