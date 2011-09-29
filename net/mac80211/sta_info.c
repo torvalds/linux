@@ -24,6 +24,7 @@
 #include "sta_info.h"
 #include "debugfs_sta.h"
 #include "mesh.h"
+#include "wme.h"
 
 /**
  * DOC: STA information lifetime rules
@@ -247,10 +248,16 @@ static void sta_unblock(struct work_struct *wk)
 		ieee80211_sta_ps_deliver_wakeup(sta);
 	else if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL)) {
 		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
+
+		local_bh_disable();
 		ieee80211_sta_ps_deliver_poll_response(sta);
+		local_bh_enable();
 	} else if (test_and_clear_sta_flags(sta, WLAN_STA_UAPSD)) {
 		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
+
+		local_bh_disable();
 		ieee80211_sta_ps_deliver_uapsd(sta);
+		local_bh_enable();
 	} else
 		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
 }
@@ -1157,6 +1164,70 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
+static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
+					 struct sta_info *sta, int tid,
+					 bool uapsd)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_qos_hdr *nullfunc;
+	struct sk_buff *skb;
+	int size = sizeof(*nullfunc);
+	__le16 fc;
+	bool qos = test_sta_flags(sta, WLAN_STA_WME);
+	struct ieee80211_tx_info *info;
+
+	if (qos) {
+		fc = cpu_to_le16(IEEE80211_FTYPE_DATA |
+				 IEEE80211_STYPE_QOS_NULLFUNC |
+				 IEEE80211_FCTL_FROMDS);
+	} else {
+		size -= 2;
+		fc = cpu_to_le16(IEEE80211_FTYPE_DATA |
+				 IEEE80211_STYPE_NULLFUNC |
+				 IEEE80211_FCTL_FROMDS);
+	}
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + size);
+	if (!skb)
+		return;
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	nullfunc = (void *) skb_put(skb, size);
+	nullfunc->frame_control = fc;
+	nullfunc->duration_id = 0;
+	memcpy(nullfunc->addr1, sta->sta.addr, ETH_ALEN);
+	memcpy(nullfunc->addr2, sdata->vif.addr, ETH_ALEN);
+	memcpy(nullfunc->addr3, sdata->vif.addr, ETH_ALEN);
+
+	if (qos) {
+		skb->priority = tid;
+
+		skb_set_queue_mapping(skb, ieee802_1d_to_ac[tid]);
+
+		nullfunc->qos_ctrl = cpu_to_le16(tid);
+
+		if (uapsd)
+			nullfunc->qos_ctrl |=
+				cpu_to_le16(IEEE80211_QOS_CTL_EOSP);
+	}
+
+	info = IEEE80211_SKB_CB(skb);
+
+	/*
+	 * Tell TX path to send this frame even though the
+	 * STA may still remain is PS mode after this frame
+	 * exchange.
+	 */
+	info->flags |= IEEE80211_TX_CTL_POLL_RESPONSE;
+
+	if (uapsd)
+		info->flags |= IEEE80211_TX_STATUS_EOSP |
+			       IEEE80211_TX_CTL_REQ_TX_STATUS;
+
+	ieee80211_xmit(sdata, skb);
+}
+
 static void
 ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 				  int n_frames, u8 ignored_acs,
@@ -1228,19 +1299,28 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 	}
 
 	if (!found) {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		/*
-		 * FIXME: This can be the result of a race condition between
-		 *	  us expiring a frame and the station polling for it.
-		 *	  Should we send it a null-func frame indicating we
-		 *	  have nothing buffered for it?
-		 */
-		if (reason == IEEE80211_FRAME_RELEASE_PSPOLL)
-			printk(KERN_DEBUG "%s: STA %pM sent PS Poll even "
-			       "though there are no buffered frames for it\n",
-			       sdata->name, sta->sta.addr);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+		int tid;
 
+		/*
+		 * For PS-Poll, this can only happen due to a race condition
+		 * when we set the TIM bit and the station notices it, but
+		 * before it can poll for the frame we expire it.
+		 *
+		 * For uAPSD, this is said in the standard (11.2.1.5 h):
+		 *	At each unscheduled SP for a non-AP STA, the AP shall
+		 *	attempt to transmit at least one MSDU or MMPDU, but no
+		 *	more than the value specified in the Max SP Length field
+		 *	in the QoS Capability element from delivery-enabled ACs,
+		 *	that are destined for the non-AP STA.
+		 *
+		 * Since we have no other MSDU/MMPDU, transmit a QoS null frame.
+		 */
+
+		/* This will evaluate to 1, 3, 5 or 7. */
+		tid = 7 - ((ffs(~ignored_acs) - 1) << 1);
+
+		ieee80211_send_null_response(sdata, sta, tid,
+				reason == IEEE80211_FRAME_RELEASE_UAPSD);
 		return;
 	}
 
