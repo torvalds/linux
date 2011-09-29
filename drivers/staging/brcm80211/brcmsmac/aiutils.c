@@ -477,9 +477,6 @@ struct aidmp {
 	u32 componentid3;	/* 0xffc */
 };
 
-/* global kernel resource */
-static struct si_info ksii;
-
 /* EROM parsing */
 
 static u32
@@ -1216,8 +1213,7 @@ void ai_detach(struct si_pub *sih)
 		pcicore_deinit(sii->pch);
 	sii->pch = NULL;
 
-	if (sii != &ksii)
-		kfree(sii);
+	kfree(sii);
 }
 
 /* register driver interrupt disabling and restoring callback functions */
