@@ -828,11 +828,6 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 		rxh->RxTSFTime = le16_to_cpu(rxh_le->RxTSFTime);
 		rxh->RxChan = le16_to_cpu(rxh_le->RxChan);
 
-		/*
-		 * compute the RSSI from d11rxhdr and record it in wlc_rxd11hr
-		 */
-		wlc_rxhdr->rssi = (s8)wlc_phy_rssi_compute(wlc_hw->band->pi,
-							   rxh);
 		brcms_c_recv(wlc_hw->wlc, p);
 	}
 
@@ -8172,7 +8167,7 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 		rx_status->freq = ieee80211_dsss_chan_to_freq(channel);
 	}
 
-	rx_status->signal = wlc_rxh->rssi;
+	rx_status->signal = wlc_phy_rssi_compute(wlc->hw->band->pi, rxh);
 
 	/* noise */
 	/* qual */
