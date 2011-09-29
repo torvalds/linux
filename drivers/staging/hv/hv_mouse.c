@@ -513,12 +513,10 @@ static void reportdesc_callback(struct hv_device *dev, void *packet, u32 len)
 	input_device->hid_device = hid_dev;
 }
 
-static int mousevsc_on_device_add(struct hv_device *device,
-					void *additional_info)
+static int mousevsc_on_device_add(struct hv_device *device)
 {
 	int ret = 0;
 	struct mousevsc_dev *input_dev;
-	struct hv_driver *input_drv;
 
 	input_dev = alloc_input_device(device);
 
@@ -551,9 +549,6 @@ static int mousevsc_on_device_add(struct hv_device *device,
 		return ret;
 	}
 
-	input_drv = drv_to_hv_drv(input_dev->device->device.driver);
-
-
 
 	/* Send the report desc back up */
 	/* workaround SA-167 */
@@ -573,7 +568,7 @@ static int mousevsc_probe(struct hv_device *dev,
 {
 
 	/* Call to the vsc driver to add the device */
-	return mousevsc_on_device_add(dev, NULL);
+	return mousevsc_on_device_add(dev);
 
 }
 
