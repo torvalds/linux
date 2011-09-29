@@ -265,7 +265,7 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 }
 
 struct nvme_prps {
-	int npages;
+	int npages;		/* 0 means small pool in use */
 	dma_addr_t first_dma;
 	__le64 *list[0];
 };
@@ -347,7 +347,7 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 	int offset = offset_in_page(dma_addr);
 	__le64 *prp_list;
 	dma_addr_t prp_dma;
-	int nprps, npages, i, prp_page;
+	int nprps, npages, i;
 	struct nvme_prps *prps = NULL;
 
 	cmd->prp1 = cpu_to_le64(dma_addr);
@@ -370,20 +370,20 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 	}
 
 	nprps = DIV_ROUND_UP(length, PAGE_SIZE);
-	npages = DIV_ROUND_UP(8 * nprps, PAGE_SIZE);
+	npages = DIV_ROUND_UP(8 * nprps, PAGE_SIZE - 8);
 	prps = kmalloc(sizeof(*prps) + sizeof(__le64 *) * npages, gfp);
 	if (!prps) {
 		cmd->prp2 = cpu_to_le64(dma_addr);
 		*len = (*len - length) + PAGE_SIZE;
 		return prps;
 	}
-	prp_page = 0;
+
 	if (nprps <= (256 / 8)) {
 		pool = dev->prp_small_pool;
 		prps->npages = 0;
 	} else {
 		pool = dev->prp_page_pool;
-		prps->npages = npages;
+		prps->npages = 1;
 	}
 
 	prp_list = dma_pool_alloc(pool, gfp, &prp_dma);
@@ -393,7 +393,7 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 		kfree(prps);
 		return NULL;
 	}
-	prps->list[prp_page++] = prp_list;
+	prps->list[0] = prp_list;
 	prps->first_dma = prp_dma;
 	cmd->prp2 = cpu_to_le64(prp_dma);
 	i = 0;
@@ -405,7 +405,7 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 				*len = (*len - length);
 				return prps;
 			}
-			prps->list[prp_page++] = prp_list;
+			prps->list[prps->npages++] = prp_list;
 			prp_list[0] = old_prp_list[i - 1];
 			old_prp_list[i - 1] = cpu_to_le64(prp_dma);
 			i = 1;
