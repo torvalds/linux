@@ -247,9 +247,6 @@ enum phy_cal_mode {
 #define PUB_NOT_ASSOC(pi) \
 	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_NOT_ASSOC))
 
-#define PHY_LTRN_LIST_LEN	64
-extern u16 ltrn_list[PHY_LTRN_LIST_LEN];
-
 struct phy_table_info {
 	uint table;
 	int q;
@@ -921,26 +918,6 @@ struct lcnphy_radio_regs {
 	u8 do_init_a;
 	u8 do_init_g;
 };
-
-extern struct lcnphy_radio_regs lcnphy_radio_regs_2064[];
-extern struct lcnphy_radio_regs lcnphy_radio_regs_2066[];
-
-extern struct radio_regs regs_2055[], regs_SYN_2056[], regs_TX_2056[],
-			 regs_RX_2056[];
-extern struct radio_regs regs_SYN_2056_A1[], regs_TX_2056_A1[],
-			 regs_RX_2056_A1[];
-extern struct radio_regs regs_SYN_2056_rev5[], regs_TX_2056_rev5[],
-			 regs_RX_2056_rev5[];
-extern struct radio_regs regs_SYN_2056_rev6[], regs_TX_2056_rev6[],
-			 regs_RX_2056_rev6[];
-extern struct radio_regs regs_SYN_2056_rev7[], regs_TX_2056_rev7[],
-			 regs_RX_2056_rev7[];
-extern struct radio_regs regs_SYN_2056_rev8[], regs_TX_2056_rev8[],
-			 regs_RX_2056_rev8[];
-
-extern struct radio_20xx_regs regs_2057_rev4[], regs_2057_rev5[],
-			      regs_2057_rev5v1[];
-extern struct radio_20xx_regs regs_2057_rev7[], regs_2057_rev8[];
 
 extern char *phy_getvar(struct brcms_phy *pi, const char *name);
 extern int phy_getintvar(struct brcms_phy *pi, const char *name);
