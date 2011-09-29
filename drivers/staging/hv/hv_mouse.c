@@ -596,10 +596,7 @@ static const struct hv_vmbus_device_id id_table[] = {
 	{ },
 };
 
-/*
- * The mouse driver is not functional; do not auto-load it.
- */
-/* MODULE_DEVICE_TABLE(vmbus, id_table); */
+MODULE_DEVICE_TABLE(vmbus, id_table);
 
 static struct  hv_driver mousevsc_drv = {
 	.name = "mousevsc",
