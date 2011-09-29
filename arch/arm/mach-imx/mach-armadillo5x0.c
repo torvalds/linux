@@ -562,6 +562,7 @@ MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
+	.handle_irq = imx31_handle_irq,
 	.timer = &armadillo5x0_timer,
 	.init_machine = armadillo5x0_init,
 MACHINE_END

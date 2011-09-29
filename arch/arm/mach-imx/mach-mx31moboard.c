@@ -28,6 +28,9 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <linux/memblock.h>
+#include <linux/clk.h>
+#include <linux/io.h>
+#include <linux/err.h>
 
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -490,6 +493,18 @@ err:
 
 }
 
+static void mx31moboard_poweroff(void)
+{
+	struct clk *clk = clk_get_sys("imx2-wdt.0", NULL);
+
+	if (!IS_ERR(clk))
+		clk_enable(clk);
+
+	mxc_iomux_mode(MX31_PIN_WATCHDOG_RST__WATCHDOG_RST);
+
+	__raw_writew(1 << 6 | 1 << 2, MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
+}
+
 static int mx31moboard_baseboard;
 core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
 
@@ -527,6 +542,8 @@ static void __init mx31moboard_init(void)
 	usb_xcvr_reset();
 
 	moboard_usbh2_init();
+
+	pm_power_off = mx31moboard_poweroff;
 
 	switch (mx31moboard_baseboard) {
 	case MX31NOBOARD:
@@ -572,6 +589,7 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
+	.handle_irq = imx31_handle_irq,
 	.timer = &mx31moboard_timer,
 	.init_machine = mx31moboard_init,
 MACHINE_END
