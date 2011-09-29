@@ -30,15 +30,6 @@
  * . To minimize the data usage by the per-device constraints, the data struct
  *   is only allocated at the first call to dev_pm_qos_add_request.
  * . The data is later free'd when the device is removed from the system.
- * . The constraints_state variable from dev_pm_info tracks the data struct
- *    allocation state:
- *    DEV_PM_QOS_NO_DEVICE: No device present or device removed, no data
- *     allocated,
- *    DEV_PM_QOS_DEVICE_PRESENT: Device present, data not allocated and will be
- *     allocated at the first call to dev_pm_qos_add_request,
- *    DEV_PM_QOS_ALLOCATED: Device present, data allocated. The per-device
- *     PM QoS constraints framework is operational and constraints can be
- *     added, updated or removed using the dev_pm_qos_* API.
  *  . A global mutex protects the constraints users from the data being
  *     allocated and free'd.
  */
@@ -51,7 +42,29 @@
 
 
 static DEFINE_MUTEX(dev_pm_qos_mtx);
+
 static BLOCKING_NOTIFIER_HEAD(dev_pm_notifiers);
+
+/**
+ * dev_pm_qos_read_value - Get PM QoS constraint for a given device.
+ * @dev: Device to get the PM QoS constraint value for.
+ */
+s32 dev_pm_qos_read_value(struct device *dev)
+{
+	struct pm_qos_constraints *c;
+	unsigned long flags;
+	s32 ret = 0;
+
+	spin_lock_irqsave(&dev->power.lock, flags);
+
+	c = dev->power.constraints;
+	if (c)
+		ret = pm_qos_read_value(c);
+
+	spin_unlock_irqrestore(&dev->power.lock, flags);
+
+	return ret;
+}
 
 /*
  * apply_constraint
@@ -105,27 +118,31 @@ static int dev_pm_qos_constraints_allocate(struct device *dev)
 	}
 	BLOCKING_INIT_NOTIFIER_HEAD(n);
 
+	plist_head_init(&c->list);
+	c->target_value = PM_QOS_DEV_LAT_DEFAULT_VALUE;
+	c->default_value = PM_QOS_DEV_LAT_DEFAULT_VALUE;
+	c->type = PM_QOS_MIN;
+	c->notifiers = n;
+
+	spin_lock_irq(&dev->power.lock);
 	dev->power.constraints = c;
-	plist_head_init(&dev->power.constraints->list);
-	dev->power.constraints->target_value = PM_QOS_DEV_LAT_DEFAULT_VALUE;
-	dev->power.constraints->default_value =	PM_QOS_DEV_LAT_DEFAULT_VALUE;
-	dev->power.constraints->type = PM_QOS_MIN;
-	dev->power.constraints->notifiers = n;
-	dev->power.constraints_state = DEV_PM_QOS_ALLOCATED;
+	spin_unlock_irq(&dev->power.lock);
 
 	return 0;
 }
 
 /**
- * dev_pm_qos_constraints_init
+ * dev_pm_qos_constraints_init - Initalize device's PM QoS constraints pointer.
  * @dev: target device
  *
- * Called from the device PM subsystem at device insertion
+ * Called from the device PM subsystem during device insertion under
+ * device_pm_lock().
  */
 void dev_pm_qos_constraints_init(struct device *dev)
 {
 	mutex_lock(&dev_pm_qos_mtx);
-	dev->power.constraints_state = DEV_PM_QOS_DEVICE_PRESENT;
+	dev->power.constraints = NULL;
+	dev->power.power_state = PMSG_ON;
 	mutex_unlock(&dev_pm_qos_mtx);
 }
 
@@ -133,34 +150,38 @@ void dev_pm_qos_constraints_init(struct device *dev)
  * dev_pm_qos_constraints_destroy
  * @dev: target device
  *
- * Called from the device PM subsystem at device removal
+ * Called from the device PM subsystem on device removal under device_pm_lock().
  */
 void dev_pm_qos_constraints_destroy(struct device *dev)
 {
 	struct dev_pm_qos_request *req, *tmp;
+	struct pm_qos_constraints *c;
 
 	mutex_lock(&dev_pm_qos_mtx);
 
-	if (dev->power.constraints_state == DEV_PM_QOS_ALLOCATED) {
-		/* Flush the constraints list for the device */
-		plist_for_each_entry_safe(req, tmp,
-					  &dev->power.constraints->list,
-					  node) {
-			/*
-			 * Update constraints list and call the notification
-			 * callbacks if needed
-			 */
-			apply_constraint(req, PM_QOS_REMOVE_REQ,
-					 PM_QOS_DEFAULT_VALUE);
-			memset(req, 0, sizeof(*req));
-		}
+	dev->power.power_state = PMSG_INVALID;
+	c = dev->power.constraints;
+	if (!c)
+		goto out;
 
-		kfree(dev->power.constraints->notifiers);
-		kfree(dev->power.constraints);
-		dev->power.constraints = NULL;
+	/* Flush the constraints list for the device */
+	plist_for_each_entry_safe(req, tmp, &c->list, node) {
+		/*
+		 * Update constraints list and call the notification
+		 * callbacks if needed
+		 */
+		apply_constraint(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
+		memset(req, 0, sizeof(*req));
 	}
-	dev->power.constraints_state = DEV_PM_QOS_NO_DEVICE;
 
+	spin_lock_irq(&dev->power.lock);
+	dev->power.constraints = NULL;
+	spin_unlock_irq(&dev->power.lock);
+
+	kfree(c->notifiers);
+	kfree(c);
+
+ out:
 	mutex_unlock(&dev_pm_qos_mtx);
 }
 
@@ -178,8 +199,9 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
  *
  * Returns 1 if the aggregated constraint value has changed,
  * 0 if the aggregated constraint value has not changed,
- * -EINVAL in case of wrong parameters, -ENODEV if the device has been
- * removed from the system
+ * -EINVAL in case of wrong parameters, -ENOMEM if there's not enough memory
+ * to allocate for data structures, -ENODEV if the device has just been removed
+ * from the system.
  */
 int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 			   s32 value)
@@ -195,28 +217,32 @@ int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dev_pm_qos_mtx);
 	req->dev = dev;
 
-	/* Return if the device has been removed */
-	if (req->dev->power.constraints_state == DEV_PM_QOS_NO_DEVICE) {
-		ret = -ENODEV;
-		goto out;
-	}
+	mutex_lock(&dev_pm_qos_mtx);
 
-	/*
-	 * Allocate the constraints data on the first call to add_request,
-	 * i.e. only if the data is not already allocated and if the device has
-	 * not been removed
-	 */
-	if (dev->power.constraints_state == DEV_PM_QOS_DEVICE_PRESENT)
-		ret = dev_pm_qos_constraints_allocate(dev);
+	if (!dev->power.constraints) {
+		if (dev->power.power_state.event == PM_EVENT_INVALID) {
+			/* The device has been removed from the system. */
+			req->dev = NULL;
+			ret = -ENODEV;
+			goto out;
+		} else {
+			/*
+			 * Allocate the constraints data on the first call to
+			 * add_request, i.e. only if the data is not already
+			 * allocated and if the device has not been removed.
+			 */
+			ret = dev_pm_qos_constraints_allocate(dev);
+		}
+	}
 
 	if (!ret)
 		ret = apply_constraint(req, PM_QOS_ADD_REQ, value);
 
-out:
+ out:
 	mutex_unlock(&dev_pm_qos_mtx);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_request);
@@ -252,7 +278,7 @@ int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 
 	mutex_lock(&dev_pm_qos_mtx);
 
-	if (req->dev->power.constraints_state == DEV_PM_QOS_ALLOCATED) {
+	if (req->dev->power.constraints) {
 		if (new_value != req->node.prio)
 			ret = apply_constraint(req, PM_QOS_UPDATE_REQ,
 					       new_value);
@@ -293,7 +319,7 @@ int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
 
 	mutex_lock(&dev_pm_qos_mtx);
 
-	if (req->dev->power.constraints_state == DEV_PM_QOS_ALLOCATED) {
+	if (req->dev->power.constraints) {
 		ret = apply_constraint(req, PM_QOS_REMOVE_REQ,
 				       PM_QOS_DEFAULT_VALUE);
 		memset(req, 0, sizeof(*req));
@@ -323,15 +349,12 @@ int dev_pm_qos_add_notifier(struct device *dev, struct notifier_block *notifier)
 
 	mutex_lock(&dev_pm_qos_mtx);
 
-	/* Silently return if the device has been removed */
-	if (dev->power.constraints_state != DEV_PM_QOS_ALLOCATED)
-		goto out;
+	/* Silently return if the constraints object is not present. */
+	if (dev->power.constraints)
+		retval = blocking_notifier_chain_register(
+				dev->power.constraints->notifiers,
+				notifier);
 
-	retval = blocking_notifier_chain_register(
-			dev->power.constraints->notifiers,
-			notifier);
-
-out:
 	mutex_unlock(&dev_pm_qos_mtx);
 	return retval;
 }
@@ -354,15 +377,12 @@ int dev_pm_qos_remove_notifier(struct device *dev,
 
 	mutex_lock(&dev_pm_qos_mtx);
 
-	/* Silently return if the device has been removed */
-	if (dev->power.constraints_state != DEV_PM_QOS_ALLOCATED)
-		goto out;
+	/* Silently return if the constraints object is not present. */
+	if (dev->power.constraints)
+		retval = blocking_notifier_chain_unregister(
+				dev->power.constraints->notifiers,
+				notifier);
 
-	retval = blocking_notifier_chain_unregister(
-			dev->power.constraints->notifiers,
-			notifier);
-
-out:
 	mutex_unlock(&dev_pm_qos_mtx);
 	return retval;
 }

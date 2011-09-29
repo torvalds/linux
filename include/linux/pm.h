@@ -326,6 +326,7 @@ extern struct dev_pm_ops generic_subsys_pm_ops;
  *			requested by a driver.
  */
 
+#define PM_EVENT_INVALID	(-1)
 #define PM_EVENT_ON		0x0000
 #define PM_EVENT_FREEZE 	0x0001
 #define PM_EVENT_SUSPEND	0x0002
@@ -346,6 +347,7 @@ extern struct dev_pm_ops generic_subsys_pm_ops;
 #define PM_EVENT_AUTO_SUSPEND	(PM_EVENT_AUTO | PM_EVENT_SUSPEND)
 #define PM_EVENT_AUTO_RESUME	(PM_EVENT_AUTO | PM_EVENT_RESUME)
 
+#define PMSG_INVALID	((struct pm_message){ .event = PM_EVENT_INVALID, })
 #define PMSG_ON		((struct pm_message){ .event = PM_EVENT_ON, })
 #define PMSG_FREEZE	((struct pm_message){ .event = PM_EVENT_FREEZE, })
 #define PMSG_QUIESCE	((struct pm_message){ .event = PM_EVENT_QUIESCE, })
@@ -419,13 +421,6 @@ enum rpm_request {
 	RPM_REQ_RESUME,
 };
 
-/* Per-device PM QoS constraints data struct state */
-enum dev_pm_qos_state {
-	DEV_PM_QOS_NO_DEVICE,		/* No device present */
-	DEV_PM_QOS_DEVICE_PRESENT,	/* Device present, data not allocated */
-	DEV_PM_QOS_ALLOCATED,		/* Device present, data allocated */
-};
-
 struct wakeup_source;
 
 struct pm_domain_data {
@@ -488,7 +483,6 @@ struct dev_pm_info {
 #endif
 	struct pm_subsys_data	*subsys_data;  /* Owned by the subsystem. */
 	struct pm_qos_constraints *constraints;
-	enum dev_pm_qos_state	constraints_state;
 };
 
 extern void update_pm_runtime_accounting(struct device *dev);
