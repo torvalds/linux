@@ -30,7 +30,7 @@ conntrack - BOOLEAN
 	Connections handled by the IPVS FTP application module
 	will have connection tracking entries regardless of this setting.
 
-	Only available when IPVS is compiled with the CONFIG_IP_VS_NFCT
+	Only available when IPVS is compiled with CONFIG_IP_VS_NFCT enabled.
 
 cache_bypass - BOOLEAN
         0 - disabled (default)
@@ -56,7 +56,7 @@ debug_level - INTEGER
 	11         - IPVS packet handling (ip_vs_in/ip_vs_out)
 	12 or more - packet traversal
 
-	Only available when IPVS is compiled with the CONFIG_IP_VS_DEBUG
+	Only available when IPVS is compiled with CONFIG_IP_VS_DEBUG enabled.
 
 	Higher debugging levels include the messages for lower debugging
 	levels, so setting debug level 2, includes level 0, 1 and 2
