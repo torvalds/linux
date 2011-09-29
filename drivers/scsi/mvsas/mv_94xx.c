@@ -398,6 +398,16 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	/* init phys */
 	mvs_phy_hacks(mvi);
 
+	/* disable non data frame retry */
+	tmp = mvs_cr32(mvi, CMD_SAS_CTL1);
+	if ((revision == VANIR_A0_REV) ||
+		(revision == VANIR_B0_REV) ||
+		(revision == VANIR_C0_REV)) {
+		tmp &= ~0xffff;
+		tmp |= 0x007f;
+		mvs_cw32(mvi, CMD_SAS_CTL1, tmp);
+	}
+
 	/* set LED blink when IO*/
 	mw32(MVS_PA_VSR_ADDR, VSR_PHY_ACT_LED);
 	tmp = mr32(MVS_PA_VSR_PORT);
