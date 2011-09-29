@@ -17,6 +17,8 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
+
 #include "icswx.h"
 
 /*
@@ -158,3 +160,114 @@ void drop_cop(unsigned long acop, struct mm_struct *mm)
 	spin_unlock(&mm->page_table_lock);
 }
 EXPORT_SYMBOL_GPL(drop_cop);
+
+static int acop_use_cop(int ct)
+{
+	/* todo */
+	return -1;
+}
+
+/*
+ * Get the instruction word at the NIP
+ */
+static u32 acop_get_inst(struct pt_regs *regs)
+{
+	u32 inst;
+	u32 __user *p;
+
+	p = (u32 __user *)regs->nip;
+	if (!access_ok(VERIFY_READ, p, sizeof(*p)))
+		return 0;
+
+	if (__get_user(inst, p))
+		return 0;
+
+	return inst;
+}
+
+/**
+ * @regs: regsiters at time of interrupt
+ * @address: storage address
+ * @error_code: Fault code, usually the DSISR or ESR depending on
+ *		processor type
+ *
+ * Return 0 if we are able to resolve the data storage fault that
+ * results from a CT miss in the ACOP register.
+ */
+int acop_handle_fault(struct pt_regs *regs, unsigned long address,
+		      unsigned long error_code)
+{
+	int ct;
+	u32 inst = 0;
+
+	if (!cpu_has_feature(CPU_FTR_ICSWX)) {
+		pr_info("No coprocessors available");
+		_exception(SIGILL, regs, ILL_ILLOPN, address);
+	}
+
+	if (!user_mode(regs)) {
+		/* this could happen if the HV denies the
+		 * kernel access, for now we just die */
+		die("ICSWX from kernel failed", regs, SIGSEGV);
+	}
+
+	/* Some implementations leave us a hint for the CT */
+	ct = ICSWX_GET_CT_HINT(error_code);
+	if (ct < 0) {
+		/* we have to peek at the instruction word to figure out CT */
+		u32 ccw;
+		u32 rs;
+
+		inst = acop_get_inst(regs);
+		if (inst == 0)
+			return -1;
+
+		rs = (inst >> (31 - 10)) & 0x1f;
+		ccw = regs->gpr[rs];
+		ct = (ccw >> 16) & 0x3f;
+	}
+
+	if (!acop_use_cop(ct))
+		return 0;
+
+	/* at this point the CT is unknown to the system */
+	pr_warn("%s[%d]: Coprocessor %d is unavailable",
+		current->comm, current->pid, ct);
+
+	/* get inst if we don't already have it */
+	if (inst == 0) {
+		inst = acop_get_inst(regs);
+		if (inst == 0)
+			return -1;
+	}
+
+	/* Check if the instruction is the "record form" */
+	if (inst & 1) {
+		/*
+		 * the instruction is "record" form so we can reject
+		 * using CR0
+		 */
+		regs->ccr &= ~(0xful << 28);
+		regs->ccr |= ICSWX_RC_NOT_FOUND << 28;
+
+		/* Move on to the next instruction */
+		regs->nip += 4;
+	} else {
+		/*
+		 * There is no architected mechanism to report a bad
+		 * CT so we could either SIGILL or report nothing.
+		 * Since the non-record version should only bu used
+		 * for "hints" or "don't care" we should probably do
+		 * nothing.  However, I could see how some people
+		 * might want an SIGILL so it here if you want it.
+		 */
+#ifdef CONFIG_PPC_ICSWX_USE_SIGILL
+		_exception(SIGILL, regs, ILL_ILLOPN, address);
+#else
+		regs->nip += 4;
+#endif
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acop_handle_fault);
