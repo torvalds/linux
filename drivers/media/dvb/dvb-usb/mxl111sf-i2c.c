@@ -453,7 +453,7 @@ static int mxl111sf_i2c_hw_xfer_msg(struct mxl111sf_state *state,
 
 	mxl_i2c("addr: 0x%02x, read buff len: %d, write buff len: %d",
 		msg->addr, (msg->flags & I2C_M_RD) ? msg->len : 0,
-		(!msg->flags & I2C_M_RD) ? msg->len : 0);
+		(!(msg->flags & I2C_M_RD)) ? msg->len : 0);
 
 	for (index = 0; index < 26; index++)
 		buf[index] = USB_END_I2C_CMD;
@@ -489,7 +489,7 @@ static int mxl111sf_i2c_hw_xfer_msg(struct mxl111sf_state *state,
 	ret = mxl111sf_i2c_send_data(state, 0, buf);
 
 	/* write data on I2C bus */
-	if ((!msg->flags & I2C_M_RD) && (msg->len > 0)) {
+	if (!(msg->flags & I2C_M_RD) && (msg->len > 0)) {
 		mxl_i2c("%d\t%02x", msg->len, msg->buf[0]);
 
 		/* control register on I2C interface to initialize I2C bus */
