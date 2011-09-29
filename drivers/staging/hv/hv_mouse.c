@@ -341,6 +341,8 @@ static void mousevsc_on_receive_device_info(struct mousevsc_dev *input_device,
 
 	/* Save the report desc */
 	input_device->report_desc_size = desc->desc[0].wDescriptorLength;
+	if (input_device->report_desc_size == 0)
+		goto cleanup;
 	input_device->report_desc = kzalloc(input_device->report_desc_size,
 					  GFP_ATOMIC);
 
