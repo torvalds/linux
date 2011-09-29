@@ -1852,15 +1852,6 @@ int ai_devpath(struct si_pub *sih, char *path, int size)
 	return 0;
 }
 
-bool ai_pci_war16165(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-
-	return PCI(sii) && (sih->buscorerev <= 10);
-}
-
 void ai_pci_up(struct si_pub *sih)
 {
 	struct si_info *sii;

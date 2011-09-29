@@ -322,8 +322,6 @@ extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 extern struct si_pub *ai_attach(void *regs, struct pci_dev *sdh, char **vars,
 				uint *varsz);
 extern void ai_detach(struct si_pub *sih);
-extern bool ai_pci_war16165(struct si_pub *sih);
-
 extern uint ai_coreid(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
 extern uint ai_corereg(struct si_pub *sih, uint coreidx, uint regoff, uint mask,

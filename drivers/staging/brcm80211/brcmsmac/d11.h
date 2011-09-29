@@ -1330,8 +1330,7 @@ struct shm_acparams {
 #define	MHF1_FORCEFASTCLK	0x0400
 
 /* Flags in M_HOST_FLAGS2 */
-/* PR16165WAR : Enable ucode PCI slow clock WAR */
-#define MHF2_PCISLOWCLKWAR	0x0008
+
 /* Flush BCMC FIFO immediately */
 #define MHF2_TXBCMC_NOW		0x0040
 /* Enable ucode/hw power control */

@@ -416,8 +416,6 @@ struct brcms_txq_info {
  * band: pointer to active per-band state.
  * corestate: per-core state (one per hw core).
  * bandstate: per-band state (one per phy/radio).
- * war16165: PCI slow clock 16165 war flag.
- * txpend16165war: PCI slow clock 16165 war flag.
  * qvalid: DirFrmQValid and BcMcFrmQValid.
  * ampdu: ampdu module handler.
  * asi: antsel module handler.
@@ -507,9 +505,6 @@ struct brcms_c_info {
 	struct brcms_band *band;
 	struct brcms_core *corestate;
 	struct brcms_band *bandstate[MAXBANDS];
-
-	bool war16165;
-	uint txpend16165war;
 
 	/* packet queue */
 	uint qvalid;

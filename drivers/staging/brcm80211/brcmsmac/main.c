@@ -829,19 +829,6 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 	return n >= bound_limit;
 }
 
-static void brcms_c_war16165(struct brcms_c_info *wlc, bool tx)
-{
-	if (tx) {
-		/* the post-increment is used in STAY_AWAKE macro */
-		if (wlc->txpend16165war++ == 0)
-			brcms_c_set_ps_ctrl(wlc);
-	} else {
-		wlc->txpend16165war--;
-		if (wlc->txpend16165war == 0)
-			brcms_c_set_ps_ctrl(wlc);
-	}
-}
-
 /* process an individual struct tx_status */
 static bool
 brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
@@ -879,8 +866,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	}
 
 	p = dma_getnexttxp(wlc->hw->di[queue], DMA_RANGE_TRANSMITTED);
-	if (wlc->war16165)
-		brcms_c_war16165(wlc, false);
 	if (p == NULL)
 		goto fatal;
 
@@ -3109,8 +3094,6 @@ static void brcms_c_flushqueues(struct brcms_c_info *wlc)
 	struct brcms_hardware *wlc_hw = wlc->hw;
 	uint i;
 
-	wlc->txpend16165war = 0;
-
 	/* free any posted tx packets */
 	for (i = 0; i < NFIFO; i++)
 		if (wlc_hw->di[i]) {
@@ -3531,9 +3514,6 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 
 	AND_REG(&regs->ifs_ctl, 0x0FFF);
 	W_REG(&regs->ifs_aifsn, EDCF_AIFSN_MIN);
-
-	/* dma initializations */
-	wlc->txpend16165war = 0;
 
 	/* init the tx dma engines */
 	for (i = 0; i < NFIFO; i++) {
@@ -4832,9 +4812,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	if (wlc_hw->boardflags & BFL_NOPLLDOWN)
 		brcms_b_pllreq(wlc_hw, true, BRCMS_PLLREQ_SHARED);
 
-	if (ai_pci_war16165(wlc_hw->sih))
-		wlc->war16165 = true;
-
 	/* check device id(srom, nvram etc.) to set bands */
 	if (wlc_hw->deviceid == BCM43224_D11N_ID ||
 	    wlc_hw->deviceid == BCM43224_D11N_ID_VEN1)
@@ -5832,10 +5809,6 @@ int brcms_c_up(struct brcms_c_info *wlc)
 
 	/* Set EDCF hostflags */
 	brcms_c_mhf(wlc, MHF1, MHF1_EDCF, MHF1_EDCF, BRCM_BAND_ALL);
-
-	if (wlc->war16165)
-		brcms_c_mhf(wlc, MHF2, MHF2_PCISLOWCLKWAR, MHF2_PCISLOWCLKWAR,
-			BRCM_BAND_ALL);
 
 	brcms_init(wlc->wl);
 	wlc->pub->up = true;
@@ -7815,10 +7788,6 @@ brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
 	 */
 	if (fifo == TX_BCMC_FIFO)
 		frameid = le16_to_cpu(txh->TxFrameID);
-
-	if (wlc->war16165)
-		brcms_c_war16165(wlc, true);
-
 
 	/*
 	 * Bump up pending count for if not using rpc. If rpc is
