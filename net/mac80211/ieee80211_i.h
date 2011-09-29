@@ -1303,11 +1303,11 @@ void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
 				    enum queue_stop_reason reason);
 void ieee80211_add_pending_skb(struct ieee80211_local *local,
 			       struct sk_buff *skb);
-int ieee80211_add_pending_skbs(struct ieee80211_local *local,
-			       struct sk_buff_head *skbs);
-int ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
-				  struct sk_buff_head *skbs,
-				  void (*fn)(void *data), void *data);
+void ieee80211_add_pending_skbs(struct ieee80211_local *local,
+				struct sk_buff_head *skbs);
+void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
+				   struct sk_buff_head *skbs,
+				   void (*fn)(void *data), void *data);
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg,
