@@ -252,6 +252,14 @@ config PPC_ICSWX
 
 	  If in doubt, say N here.
 
+config PPC_ICSWX_PID
+	bool "icswx requires direct PID management"
+	depends on PPC_ICSWX && POWER4
+	default y
+	---help---
+	  PID register in server is used explicitly for ICSWX.  In
+	  embedded systems PID managment is done by the system.
+
 config SPE
 	bool "SPE Support"
 	depends on E200 || (E500 && !PPC_E500MC)
