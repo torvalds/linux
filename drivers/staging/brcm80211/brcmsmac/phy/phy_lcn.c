@@ -69,6 +69,14 @@
 #define LCN_TEMPSENSE_OFFSET  80812
 #define LCN_TEMPSENSE_DEN  2647
 
+#define LCN_BW_LMT	200
+#define LCN_CUR_LMT	1250
+#define LCN_MULT	1
+#define LCN_VCO_DIV	30
+#define LCN_OFFSET	680
+#define LCN_FACT	490
+#define LCN_CUR_DIV	2640
+
 #define LCNPHY_txgainctrlovrval1_pagain_ovr_val1_SHIFT \
 	(0 + 8)
 #define LCNPHY_txgainctrlovrval1_pagain_ovr_val1_MASK \
@@ -1054,21 +1062,17 @@ static int wlc_lcnphy_calc_floor(s16 coeff_x, int type)
 static void
 wlc_lcnphy_get_tx_gain(struct brcms_phy *pi, struct lcnphy_txgains *gains)
 {
-	u16 dac_gain;
+	u16 dac_gain, rfgain0, rfgain1;
 
 	dac_gain = read_phy_reg(pi, 0x439) >> 0;
 	gains->dac_gain = (dac_gain & 0x380) >> 7;
 
-	{
-		u16 rfgain0, rfgain1;
+	rfgain0 = (read_phy_reg(pi, 0x4b5) & (0xffff << 0)) >> 0;
+	rfgain1 = (read_phy_reg(pi, 0x4fb) & (0x7fff << 0)) >> 0;
 
-		rfgain0 = (read_phy_reg(pi, 0x4b5) & (0xffff << 0)) >> 0;
-		rfgain1 = (read_phy_reg(pi, 0x4fb) & (0x7fff << 0)) >> 0;
-
-		gains->gm_gain = rfgain0 & 0xff;
-		gains->pga_gain = (rfgain0 >> 8) & 0xff;
-		gains->pad_gain = rfgain1 & 0xff;
-	}
+	gains->gm_gain = rfgain0 & 0xff;
+	gains->pga_gain = (rfgain0 >> 8) & 0xff;
+	gains->pad_gain = rfgain1 & 0xff;
 }
 
 
@@ -1634,6 +1638,9 @@ wlc_lcnphy_radio_2064_channel_tune_4313(struct brcms_phy *pi, u8 channel)
 	u32 div_int, div_frac, fvco3, fpfd, fref3, fcal_div;
 	u16 loop_bw, d30, setCount;
 
+	u8 h29, h28_ten, e30, h30_ten, cp_current;
+	u16 g30, d28;
+
 	ci = &chan_info_2064_lcnphy[0];
 	rfpll_doubler = 1;
 
@@ -1746,27 +1753,18 @@ wlc_lcnphy_radio_2064_channel_tune_4313(struct brcms_phy *pi, u8 channel)
 	write_radio_reg(pi, RADIO_2064_REG042, 0xA3);
 	write_radio_reg(pi, RADIO_2064_REG043, 0x0C);
 
-	{
-		u8 h29, h23, c28, d29, h28_ten, e30, h30_ten, cp_current;
-		u16 c29, c38, c30, g30, d28;
-		c29 = loop_bw;
-		d29 = 200;
-		c38 = 1250;
-		h29 = d29 / c29;
-		h23 = 1;
-		c28 = 30;
-		d28 = (((PLL_2064_HIGH_END_KVCO - PLL_2064_LOW_END_KVCO) *
-			(fvco3 / 2 - PLL_2064_LOW_END_VCO)) /
-		       (PLL_2064_HIGH_END_VCO - PLL_2064_LOW_END_VCO))
-		      + PLL_2064_LOW_END_KVCO;
-		h28_ten = (d28 * 10) / c28;
-		c30 = 2640;
-		e30 = (d30 - 680) / 490;
-		g30 = 680 + (e30 * 490);
-		h30_ten = (g30 * 10) / c30;
-		cp_current = ((c38 * h29 * h23 * 100) / h28_ten) / h30_ten;
-		mod_radio_reg(pi, RADIO_2064_REG03C, 0x3f, cp_current);
-	}
+	h29 = LCN_BW_LMT / loop_bw;
+	d28 = (((PLL_2064_HIGH_END_KVCO - PLL_2064_LOW_END_KVCO) *
+		(fvco3 / 2 - PLL_2064_LOW_END_VCO)) /
+	       (PLL_2064_HIGH_END_VCO - PLL_2064_LOW_END_VCO))
+	      + PLL_2064_LOW_END_KVCO;
+	h28_ten = (d28 * 10) / LCN_VCO_DIV;
+	e30 = (d30 - LCN_OFFSET) / LCN_FACT;
+	g30 = LCN_OFFSET + (e30 * LCN_FACT);
+	h30_ten = (g30 * 10) / LCN_CUR_DIV;
+	cp_current = ((LCN_CUR_LMT * h29 * LCN_MULT * 100) / h28_ten) / h30_ten;
+	mod_radio_reg(pi, RADIO_2064_REG03C, 0x3f, cp_current);
+
 	if (channel >= 1 && channel <= 5)
 		write_radio_reg(pi, RADIO_2064_REG03C, 0x8);
 	else
@@ -4838,18 +4836,13 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 		pi_lcn->lcnphy_rssi_vc = (u8) PHY_GETINTVAR(pi, "rssismc2g");
 		pi_lcn->lcnphy_rssi_gs = (u8) PHY_GETINTVAR(pi, "rssisav2g");
 
-		{
-			pi_lcn->lcnphy_rssi_vf_lowtemp = pi_lcn->lcnphy_rssi_vf;
-			pi_lcn->lcnphy_rssi_vc_lowtemp = pi_lcn->lcnphy_rssi_vc;
-			pi_lcn->lcnphy_rssi_gs_lowtemp = pi_lcn->lcnphy_rssi_gs;
+		pi_lcn->lcnphy_rssi_vf_lowtemp = pi_lcn->lcnphy_rssi_vf;
+		pi_lcn->lcnphy_rssi_vc_lowtemp = pi_lcn->lcnphy_rssi_vc;
+		pi_lcn->lcnphy_rssi_gs_lowtemp = pi_lcn->lcnphy_rssi_gs;
 
-			pi_lcn->lcnphy_rssi_vf_hightemp =
-				pi_lcn->lcnphy_rssi_vf;
-			pi_lcn->lcnphy_rssi_vc_hightemp =
-				pi_lcn->lcnphy_rssi_vc;
-			pi_lcn->lcnphy_rssi_gs_hightemp =
-				pi_lcn->lcnphy_rssi_gs;
-		}
+		pi_lcn->lcnphy_rssi_vf_hightemp = pi_lcn->lcnphy_rssi_vf;
+		pi_lcn->lcnphy_rssi_vc_hightemp = pi_lcn->lcnphy_rssi_vc;
+		pi_lcn->lcnphy_rssi_gs_hightemp = pi_lcn->lcnphy_rssi_gs;
 
 		txpwr = (s8) PHY_GETINTVAR(pi, "maxp2ga0");
 		pi->tx_srom_max_2g = txpwr;
@@ -5098,6 +5091,8 @@ s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index)
 	s32 log_val, gain_mismatch, desired_gain, input_power_offset_db,
 	    input_power_db;
 	s32 received_power, temperature;
+	u32 power;
+	u32 msb1, msb2, val1, val2, diff1, diff2;
 	uint freq;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
@@ -5107,20 +5102,17 @@ s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index)
 
 	nominal_power_db = read_phy_reg(pi, 0x425) >> 8;
 
-	{
-		u32 power = (received_power * 16);
-		u32 msb1, msb2, val1, val2, diff1, diff2;
-		msb1 = ffs(power) - 1;
-		msb2 = msb1 + 1;
-		val1 = 1 << msb1;
-		val2 = 1 << msb2;
-		diff1 = (power - val1);
-		diff2 = (val2 - power);
-		if (diff1 < diff2)
-			log_val = msb1;
-		else
-			log_val = msb2;
-	}
+	power = (received_power * 16);
+	msb1 = ffs(power) - 1;
+	msb2 = msb1 + 1;
+	val1 = 1 << msb1;
+	val2 = 1 << msb2;
+	diff1 = (power - val1);
+	diff2 = (val2 - power);
+	if (diff1 < diff2)
+		log_val = msb1;
+	else
+		log_val = msb2;
 
 	log_val = log_val * 3;
 

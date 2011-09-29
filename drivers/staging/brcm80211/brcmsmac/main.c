@@ -5076,7 +5076,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 {
 	struct brcms_c_info *wlc;
 	uint err = 0;
-	uint j;
+	uint i, j;
 	struct brcms_pub *pub;
 	uint n_disabled;
 
@@ -5149,11 +5149,8 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 			       wlc->stf->hw_rxchain);
 
 	/* pull up some info resulting from the low attach */
-	{
-		int i;
-		for (i = 0; i < NFIFO; i++)
-			wlc->core->txavail[i] = wlc->hw->txavail[i];
-	}
+	for (i = 0; i < NFIFO; i++)
+		wlc->core->txavail[i] = wlc->hw->txavail[i];
 
 	brcms_b_hw_etheraddr(wlc->hw, wlc->perm_etheraddr);
 

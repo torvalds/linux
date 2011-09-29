@@ -1199,12 +1199,7 @@ static bool wlc_phy_cal_txpower_recalc_sw(struct brcms_phy *pi)
 void wlc_phy_switch_radio(struct brcms_phy_pub *pih, bool on)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) pih;
-
-	{
-		uint mc;
-
-		mc = R_REG(&pi->regs->maccontrol);
-	}
+	(void)R_REG(&pi->regs->maccontrol);
 
 	if (ISNPHY(pi)) {
 		wlc_phy_switch_radio_nphy(pi, on);
@@ -1696,26 +1691,22 @@ void wlc_phy_txpower_recalc_target(struct brcms_phy *pi)
 								 band,
 								 rate);
 
-		{
+		wlc_phy_txpower_sromlimit((struct brcms_phy_pub *) pi,
+					  target_chan,
+					  &mintxpwr, &maxtxpwr, rate);
 
-			wlc_phy_txpower_sromlimit((struct brcms_phy_pub *) pi,
-						  target_chan,
-						  &mintxpwr, &maxtxpwr, rate);
+		maxtxpwr = min(maxtxpwr, pi->txpwr_limit[rate]);
 
-			maxtxpwr = min(maxtxpwr, pi->txpwr_limit[rate]);
+		maxtxpwr = (maxtxpwr > pactrl) ? (maxtxpwr - pactrl) : 0;
 
-			maxtxpwr =
-				(maxtxpwr > pactrl) ? (maxtxpwr - pactrl) : 0;
+		maxtxpwr = (maxtxpwr > 6) ? (maxtxpwr - 6) : 0;
 
-			maxtxpwr = (maxtxpwr > 6) ? (maxtxpwr - 6) : 0;
+		maxtxpwr = min(maxtxpwr, tx_pwr_target[rate]);
 
-			maxtxpwr = min(maxtxpwr, tx_pwr_target[rate]);
+		if (pi->txpwr_percent <= 100)
+			maxtxpwr = (maxtxpwr * pi->txpwr_percent) / 100;
 
-			if (pi->txpwr_percent <= 100)
-				maxtxpwr = (maxtxpwr * pi->txpwr_percent) / 100;
-
-			tx_pwr_target[rate] = max(maxtxpwr, mintxpwr);
-		}
+		tx_pwr_target[rate] = max(maxtxpwr, mintxpwr);
 
 		tx_pwr_target[rate] =
 			min(tx_pwr_target[rate], pi->txpwr_env_limit[rate]);
