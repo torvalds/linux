@@ -1107,7 +1107,7 @@ int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
 			struct extent_state **cached_state, gfp_t mask)
 {
 	return set_extent_bit(tree, start, end,
-			      EXTENT_DELALLOC | EXTENT_DIRTY | EXTENT_UPTODATE,
+			      EXTENT_DELALLOC | EXTENT_UPTODATE,
 			      0, NULL, cached_state, mask);
 }
 
