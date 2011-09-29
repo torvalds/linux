@@ -281,6 +281,7 @@ struct brcms_band {
 
 	u16 CWmin; /* minimum size of contention window, in unit of aSlotTime */
 	u16 CWmax; /* maximum size of contention window, in unit of aSlotTime */
+	struct ieee80211_supported_band band;
 };
 
 /* module control blocks */

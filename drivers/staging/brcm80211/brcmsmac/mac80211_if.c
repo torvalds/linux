@@ -31,6 +31,7 @@
 #include "pub.h"
 #include "ucode_loader.h"
 #include "mac80211_if.h"
+#include "main.h"
 
 #define N_TX_QUEUES	4 /* #tx queues on mac80211<->driver interface */
 
@@ -225,7 +226,7 @@ static struct ieee80211_rate legacy_ratetable[] = {
 	RATE(540, 0),
 };
 
-static struct ieee80211_supported_band brcms_band_2GHz_nphy = {
+static const struct ieee80211_supported_band brcms_band_2GHz_nphy_template = {
 	.band = IEEE80211_BAND_2GHZ,
 	.channels = brcms_2ghz_chantable,
 	.n_channels = ARRAY_SIZE(brcms_2ghz_chantable),
@@ -247,7 +248,7 @@ static struct ieee80211_supported_band brcms_band_2GHz_nphy = {
 		   }
 };
 
-static struct ieee80211_supported_band brcms_band_5GHz_nphy = {
+static const struct ieee80211_supported_band brcms_band_5GHz_nphy_template = {
 	.band = IEEE80211_BAND_5GHZ,
 	.channels = brcms_5ghz_nphy_chantable,
 	.n_channels = ARRAY_SIZE(brcms_5ghz_nphy_chantable),
@@ -981,22 +982,24 @@ static irqreturn_t brcms_isr(int irq, void *dev_id)
 static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 {
 	struct brcms_info *wl = hw->priv;
-	int has_5g;
+	struct brcms_c_info *wlc = wl->wlc;
+	struct ieee80211_supported_band *band;
+	int has_5g = 0;
 	u16 phy_type;
-
-	has_5g = 0;
 
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
 	hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
 	phy_type = brcms_c_get_phy_type(wl->wlc, 0);
 	if (phy_type == PHY_TYPE_N || phy_type == PHY_TYPE_LCN) {
+		band = &wlc->bandstate[BAND_2G_INDEX]->band;
+		*band = brcms_band_2GHz_nphy_template;
 		if (phy_type == PHY_TYPE_LCN) {
 			/* Single stream */
-			brcms_band_2GHz_nphy.ht_cap.mcs.rx_mask[1] = 0;
-			brcms_band_2GHz_nphy.ht_cap.mcs.rx_highest = 72;
+			band->ht_cap.mcs.rx_mask[1] = 0;
+			band->ht_cap.mcs.rx_highest = 72;
 		}
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &brcms_band_2GHz_nphy;
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = band;
 	} else {
 		return -EPERM;
 	}
@@ -1004,11 +1007,13 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	/* Assume all bands use the same phy.  True for 11n devices. */
 	if (wl->pub->_nbands > 1) {
 		has_5g++;
-		if (phy_type == PHY_TYPE_N || phy_type == PHY_TYPE_LCN)
-			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			    &brcms_band_5GHz_nphy;
-		else
+		if (phy_type == PHY_TYPE_N || phy_type == PHY_TYPE_LCN) {
+			band = &wlc->bandstate[BAND_5G_INDEX]->band;
+			*band = brcms_band_5GHz_nphy_template;
+			hw->wiphy->bands[IEEE80211_BAND_5GHZ] = band;
+		} else {
 			return -EPERM;
+		}
 	}
 	return 0;
 }
