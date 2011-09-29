@@ -1473,9 +1473,6 @@ static const struct seq_operations kmemleak_seq_ops = {
 
 static int kmemleak_open(struct inode *inode, struct file *file)
 {
-	if (!atomic_read(&kmemleak_enabled))
-		return -EBUSY;
-
 	return seq_open(file, &kmemleak_seq_ops);
 }
 
@@ -1549,6 +1546,9 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 	int buf_size;
 	int ret;
 
+	if (!atomic_read(&kmemleak_enabled))
+		return -EBUSY;
+
 	buf_size = min(size, (sizeof(buf) - 1));
 	if (strncpy_from_user(buf, user_buf, buf_size) < 0)
 		return -EFAULT;
@@ -1608,20 +1608,24 @@ static const struct file_operations kmemleak_fops = {
 };
 
 /*
- * Perform the freeing of the kmemleak internal objects after waiting for any
- * current memory scan to complete.
+ * Stop the memory scanning thread and free the kmemleak internal objects if
+ * no previous scan thread (otherwise, kmemleak may still have some useful
+ * information on memory leaks).
  */
 static void kmemleak_do_cleanup(struct work_struct *work)
 {
 	struct kmemleak_object *object;
+	bool cleanup = scan_thread == NULL;
 
 	mutex_lock(&scan_mutex);
 	stop_scan_thread();
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(object, &object_list, object_list)
-		delete_object_full(object->pointer);
-	rcu_read_unlock();
+	if (cleanup) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(object, &object_list, object_list)
+			delete_object_full(object->pointer);
+		rcu_read_unlock();
+	}
 	mutex_unlock(&scan_mutex);
 }
 
