@@ -1157,8 +1157,10 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb = NULL;
+	bool found = false;
 	bool more_data = false;
 	int ac;
+	unsigned long driver_release_tids = 0;
 	u8 ignore_for_response = sta->sta.uapsd_queues;
 
 	/*
@@ -1173,25 +1175,62 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 	 * Get response frame and more data bit for it.
 	 */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		unsigned long tids;
+
 		if (ignore_for_response & BIT(ac))
 			continue;
 
-		if (!skb) {
-			skb = skb_dequeue(&sta->tx_filtered[ac]);
-			if (!skb) {
-				skb = skb_dequeue(&sta->ps_tx_buf[ac]);
+		tids = ieee80211_tids_for_ac(ac);
+
+		if (!found) {
+			driver_release_tids = sta->driver_buffered_tids & tids;
+			if (driver_release_tids) {
+				found = true;
+			} else {
+				skb = skb_dequeue(&sta->tx_filtered[ac]);
+				if (!skb) {
+					skb = skb_dequeue(&sta->ps_tx_buf[ac]);
+					if (skb)
+						local->total_ps_buffered--;
+				}
 				if (skb)
-					local->total_ps_buffered--;
+					found = true;
+			}
+
+			/*
+			 * If the driver has data on more than one TID then
+			 * certainly there's more data if we release just a
+			 * single frame now (from a single TID).
+			 */
+			if (hweight16(driver_release_tids) > 1) {
+				more_data = true;
+				driver_release_tids =
+					BIT(ffs(driver_release_tids) - 1);
+				break;
 			}
 		}
-
-		/* FIXME: take into account driver-buffered frames */
 
 		if (!skb_queue_empty(&sta->tx_filtered[ac]) ||
 		    !skb_queue_empty(&sta->ps_tx_buf[ac])) {
 			more_data = true;
 			break;
 		}
+	}
+
+	if (!found) {
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
+		/*
+		 * FIXME: This can be the result of a race condition between
+		 *	  us expiring a frame and the station polling for it.
+		 *	  Should we send it a null-func frame indicating we
+		 *	  have nothing buffered for it?
+		 */
+		printk(KERN_DEBUG "%s: STA %pM sent PS Poll even "
+		       "though there are no buffered frames for it\n",
+		       sdata->name, sta->sta.addr);
+#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+
+		return;
 	}
 
 	if (skb) {
@@ -1220,18 +1259,29 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 		ieee80211_add_pending_skb(local, skb);
 
 		sta_info_recalc_tim(sta);
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	} else {
 		/*
-		 * FIXME: This can be the result of a race condition between
-		 *	  us expiring a frame and the station polling for it.
-		 *	  Should we send it a null-func frame indicating we
-		 *	  have nothing buffered for it?
+		 * We need to release a frame that is buffered somewhere in the
+		 * driver ... it'll have to handle that.
+		 * Note that, as per the comment above, it'll also have to see
+		 * if there is more than just one frame on the specific TID that
+		 * we're releasing from, and it needs to set the more-data bit
+		 * accordingly if we tell it that there's no more data. If we do
+		 * tell it there's more data, then of course the more-data bit
+		 * needs to be set anyway.
 		 */
-		printk(KERN_DEBUG "%s: STA %pM sent PS Poll even "
-		       "though there are no buffered frames for it\n",
-		       sdata->name, sta->sta.addr);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+		drv_release_buffered_frames(local, sta, driver_release_tids,
+					    1, IEEE80211_FRAME_RELEASE_PSPOLL,
+					    more_data);
+
+		/*
+		 * Note that we don't recalculate the TIM bit here as it would
+		 * most likely have no effect at all unless the driver told us
+		 * that the TID became empty before returning here from the
+		 * release function.
+		 * Either way, however, when the driver tells us that the TID
+		 * became empty we'll do the TIM recalculation.
+		 */
 	}
 }
 

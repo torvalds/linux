@@ -1129,6 +1129,41 @@ TRACE_EVENT(drv_rssi_callback,
 	)
 );
 
+TRACE_EVENT(drv_release_buffered_frames,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u16 tids, int num_frames,
+		 enum ieee80211_frame_release_type reason,
+		 bool more_data),
+
+	TP_ARGS(local, sta, tids, num_frames, reason, more_data),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+		__field(u16, tids)
+		__field(int, num_frames)
+		__field(int, reason)
+		__field(bool, more_data)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+		__entry->tids = tids;
+		__entry->num_frames = num_frames;
+		__entry->reason = reason;
+		__entry->more_data = more_data;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT
+		" TIDs:0x%.4x frames:%d reason:%d more:%d",
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->tids, __entry->num_frames,
+		__entry->reason, __entry->more_data
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */

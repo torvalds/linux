@@ -1622,6 +1622,14 @@ enum ieee80211_tx_sync_type {
 };
 
 /**
+ * enum ieee80211_frame_release_type - frame release reason
+ * @IEEE80211_FRAME_RELEASE_PSPOLL: frame released for PS-Poll
+ */
+enum ieee80211_frame_release_type {
+	IEEE80211_FRAME_RELEASE_PSPOLL,
+};
+
+/**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
  *
  * This structure contains various callbacks that the driver may
@@ -1931,6 +1939,23 @@ enum ieee80211_tx_sync_type {
  *	The callback can sleep.
  * @rssi_callback: Notify driver when the average RSSI goes above/below
  *	thresholds that were registered previously. The callback can sleep.
+ *
+ * @release_buffered_frames: Release buffered frames according to the given
+ *	parameters. In the case where the driver buffers some frames for
+ *	sleeping stations mac80211 will use this callback to tell the driver
+ *	to release some frames, either for PS-poll or uAPSD.
+ *	Note that if the @more_data paramter is %false the driver must check
+ *	if there are more frames on the given TIDs, and if there are more than
+ *	the frames being released then it must still set the more-data bit in
+ *	the frame. If the @more_data parameter is %true, then of course the
+ *	more-data bit must always be set.
+ *	The @tids parameter tells the driver which TIDs to release frames
+ *	from, for PS-poll it will always have only a single bit set.
+ *	In the case this is used for uAPSD, the @num_frames parameter may be
+ *	bigger than one, but the driver may send fewer frames (it must send
+ *	at least one, however). In this case it is also responsible for
+ *	setting the EOSP flag in the QoS header of the frames.
+ *	This callback must be atomic.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -2045,6 +2070,12 @@ struct ieee80211_ops {
 				const struct cfg80211_bitrate_mask *mask);
 	void (*rssi_callback)(struct ieee80211_hw *hw,
 			      enum ieee80211_rssi_event rssi_event);
+
+	void (*release_buffered_frames)(struct ieee80211_hw *hw,
+					struct ieee80211_sta *sta,
+					u16 tids, int num_frames,
+					enum ieee80211_frame_release_type reason,
+					bool more_data);
 };
 
 /**
