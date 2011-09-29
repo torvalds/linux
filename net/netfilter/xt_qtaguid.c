@@ -1588,6 +1588,7 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	MT_DEBUG("qtaguid[%d]: entered skb=%p par->in=%p/out=%p fam=%d\n",
 		 par->hooknum, skb, par->in, par->out, par->family);
 
+	atomic64_inc(&qtu_events.match_calls);
 	if (skb == NULL) {
 		res = (info->match ^ info->invert) == 0;
 		goto ret_res;
@@ -1608,6 +1609,8 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		got_sock = sk;
 		if (sk)
 			atomic64_inc(&qtu_events.match_found_sk_in_ct);
+		else
+			atomic64_inc(&qtu_events.match_found_no_sk_in_ct);
 	} else {
 		atomic64_inc(&qtu_events.match_found_sk);
 	}
@@ -1639,7 +1642,7 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			par->hooknum,
 			sk ? sk->sk_socket : NULL);
 		res = (info->match ^ info->invert) == 0;
-		atomic64_inc(&qtu_events.match_found_sk_none);
+		atomic64_inc(&qtu_events.match_no_sk);
 		goto put_sock_ret_res;
 	} else if (info->match & info->invert & XT_QTAGUID_SOCKET) {
 		res = false;
@@ -1648,8 +1651,10 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	filp = sk->sk_socket->file;
 	if (filp == NULL) {
 		MT_DEBUG("qtaguid[%d]: leaving filp=NULL\n", par->hooknum);
+		account_for_uid(skb, sk, 0, par);
 		res = ((info->match ^ info->invert) &
 			(XT_QTAGUID_UID | XT_QTAGUID_GID)) == 0;
+		atomic64_inc(&qtu_events.match_no_sk_file);
 		goto put_sock_ret_res;
 	}
 	sock_uid = filp->f_cred->fsuid;
@@ -1809,17 +1814,24 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 			       "counter_set_changes=%llu "
 			       "delete_cmds=%llu "
 			       "iface_events=%llu "
+			       "match_calls=%llu "
 			       "match_found_sk=%llu "
 			       "match_found_sk_in_ct=%llu "
-			       "match_found_sk_none=%llu\n",
+			       "match_found_no_sk_in_ct=%llu "
+			       "match_no_sk=%llu "
+			       "match_no_sk_file=%llu\n",
 			       atomic64_read(&qtu_events.sockets_tagged),
 			       atomic64_read(&qtu_events.sockets_untagged),
 			       atomic64_read(&qtu_events.counter_set_changes),
 			       atomic64_read(&qtu_events.delete_cmds),
 			       atomic64_read(&qtu_events.iface_events),
+			       atomic64_read(&qtu_events.match_calls),
 			       atomic64_read(&qtu_events.match_found_sk),
 			       atomic64_read(&qtu_events.match_found_sk_in_ct),
-			       atomic64_read(&qtu_events.match_found_sk_none));
+			       atomic64_read(
+				       &qtu_events.match_found_no_sk_in_ct),
+			       atomic64_read(&qtu_events.match_no_sk),
+			       atomic64_read(&qtu_events.match_no_sk_file));
 		if (len >= char_count) {
 			*outp = '\0';
 			return outp - page;

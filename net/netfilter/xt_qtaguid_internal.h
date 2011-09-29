@@ -252,18 +252,27 @@ struct qtaguid_event_counts {
 	atomic64_t counter_set_changes;
 	atomic64_t delete_cmds;
 	atomic64_t iface_events;  /* Number of NETDEV_* events handled */
+
+	atomic64_t match_calls;   /* Number of times iptables called mt */
 	/*
 	 * match_found_sk_*: numbers related to the netfilter matching
 	 * function finding a sock for the sk_buff.
+	 * Total skbs processed is sum(match_found*).
 	 */
 	atomic64_t match_found_sk;   /* An sk was already in the sk_buff. */
-	/* The connection tracker had the sk. */
+	/* The connection tracker had or didn't have the sk. */
 	atomic64_t match_found_sk_in_ct;
+	atomic64_t match_found_no_sk_in_ct;
 	/*
 	 * No sk could be found. No apparent owner. Could happen with
 	 * unsolicited traffic.
 	 */
-	atomic64_t match_found_sk_none;
+	atomic64_t match_no_sk;
+	/*
+	 * The file ptr in the sk_socket wasn't there.
+	 * This might happen for traffic while the socket is being closed.
+	 */
+	atomic64_t match_no_sk_file;
 };
 
 /* Track the set active_set for the given tag. */
