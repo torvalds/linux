@@ -2262,7 +2262,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 
 	if (rs.no_resync && mdev->tconn->agreed_pro_version < 93) {
 		retcode = ERR_NEED_APV_93;
-		goto fail;
+		goto fail_ldev;
 	}
 
 	rcu_read_lock();
@@ -2272,7 +2272,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 		new_disk_conf = kmalloc(sizeof(struct disk_conf), GFP_KERNEL);
 		if (!new_disk_conf) {
 			retcode = ERR_NOMEM;
-			goto fail;
+			goto fail_ldev;
 		}
 	}
 
@@ -2310,6 +2310,10 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
  fail:
 	drbd_adm_finish(info, retcode);
 	return 0;
+
+ fail_ldev:
+	put_ldev(mdev);
+	goto fail;
 }
 
 int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
