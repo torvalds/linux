@@ -314,7 +314,7 @@ static void brcms_c_scb_ampdu_update_config(struct ampdu_info *ampdu,
 
 static void brcms_c_scb_ampdu_update_config_all(struct ampdu_info *ampdu)
 {
-	brcms_c_scb_ampdu_update_config(ampdu, ampdu->wlc->pub->global_scb);
+	brcms_c_scb_ampdu_update_config(ampdu, &ampdu->wlc->pri_scb);
 }
 
 static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
@@ -482,7 +482,7 @@ brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
 	struct scb_ampdu *scb_ampdu;
 	struct scb_ampdu_tid_ini *ini;
 	struct ampdu_info *ampdu = wlc->ampdu;
-	struct scb *scb = wlc->pub->global_scb;
+	struct scb *scb = &wlc->pri_scb;
 	scb_ampdu = &scb->scb_ampdu;
 
 	if (!ampdu->ini_enable[tid]) {
@@ -542,7 +542,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 
 	f = ampdu->fifo_tb + prio2fifo[tid];
 
-	scb = wlc->pub->global_scb;
+	scb = &wlc->pri_scb;
 	scb_ampdu = &scb->scb_ampdu;
 	ini = &scb_ampdu->ini[tid];
 

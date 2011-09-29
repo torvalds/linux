@@ -616,25 +616,14 @@ static int
 brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       struct ieee80211_sta *sta)
 {
-	struct scb *scb;
-
-	int i;
 	struct brcms_info *wl = hw->priv;
+	struct scb *scb = &wl->wlc->pri_scb;
 
-	/* Init the scb */
-	scb = (struct scb *)sta->drv_priv;
-	memset(scb, 0, sizeof(struct scb));
-	for (i = 0; i < NUMPRIO; i++)
-		scb->seqctl[i] = 0xFFFF;
-	scb->seqctl_nonqos = 0xFFFF;
-	scb->magic = SCB_MAGIC;
+	brcms_c_init_scb(scb);
 
-	wl->pub->global_scb = scb;
 	wl->pub->global_ampdu = &(scb->scb_ampdu);
 	wl->pub->global_ampdu->scb = scb;
 	wl->pub->global_ampdu->max_pdu = 16;
-	brcmu_pktq_init(&scb->scb_ampdu.txq, AMPDU_MAX_SCB_TID,
-		  AMPDU_MAX_SCB_TID * PKTQ_LEN_DEFAULT);
 
 	sta->ht_cap.ht_supported = true;
 	sta->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
@@ -657,8 +646,8 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
 		    u8 buf_size)
 {
-	struct scb *scb = (struct scb *)sta->drv_priv;
 	struct brcms_info *wl = hw->priv;
+	struct scb *scb = &wl->wlc->pri_scb;
 	int status;
 
 	if (WARN_ON(scb->magic != SCB_MAGIC))
@@ -1038,7 +1027,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 
 	hw->rate_control_algorithm = "minstrel_ht";
 
-	hw->sta_data_size = sizeof(struct scb);
+	hw->sta_data_size = 0;
 	return ieee_hw_rate_init(hw);
 }
 

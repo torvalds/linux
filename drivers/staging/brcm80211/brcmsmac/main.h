@@ -22,6 +22,7 @@
 #include <brcmu_utils.h>
 #include "types.h"
 #include "d11.h"
+#include "scb.h"
 
 #define	INVCHANNEL		255	/* invalid channel */
 
@@ -483,6 +484,7 @@ struct brcms_txq_info {
  * tx_duty_cycle_cck: maximum allowed duty cycle for CCK.
  * pkt_queue: txq for transmit packets.
  * wiphy:
+ * pri_scb: primary Station Control Block
  */
 struct brcms_c_info {
 	struct brcms_pub *pub;
@@ -610,6 +612,7 @@ struct brcms_c_info {
 
 	struct brcms_txq_info *pkt_queue;
 	struct wiphy *wiphy;
+	struct scb pri_scb;
 };
 
 /* antsel module specific state */
@@ -864,5 +867,6 @@ extern void brcms_b_core_phypll_ctl(struct brcms_hardware *wlc_hw, bool on);
 extern void brcms_b_txant_set(struct brcms_hardware *wlc_hw, u16 phytxant);
 extern void brcms_b_band_stf_ss_set(struct brcms_hardware *wlc_hw,
 				    u8 stf_mode);
+extern void brcms_c_init_scb(struct scb *scb);
 
 #endif				/* _BRCM_MAIN_H_ */

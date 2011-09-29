@@ -144,7 +144,6 @@ struct brcms_bss_info {
 struct brcms_pub {
 	struct brcms_c_info *wlc;
 	struct ieee80211_hw *ieee_hw;
-	struct scb *global_scb;
 	struct scb_ampdu *global_ampdu;
 	uint mac80211_state;
 	uint unit;		/* device instance number */

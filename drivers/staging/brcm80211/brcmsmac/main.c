@@ -882,7 +882,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 
 	if (tx_info->control.sta)
-		scb = (struct scb *)tx_info->control.sta->drv_priv;
+		scb = &wlc->pri_scb;
 
 	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 		brcms_c_ampdu_dotxstatus(wlc->ampdu, scb, p, txs);
@@ -3331,14 +3331,21 @@ static u16 brcms_c_init_chanspec(struct brcms_c_info *wlc)
 	return chanspec;
 }
 
-static struct scb global_scb;
-
-static void brcms_c_init_scb(struct brcms_c_info *wlc, struct scb *scb)
+void brcms_c_init_scb(struct scb *scb)
 {
 	int i;
+
+	memset(scb, 0, sizeof(struct scb));
 	scb->flags = SCB_WMECAP | SCB_HTCAP;
-	for (i = 0; i < NUMPRIO; i++)
+	for (i = 0; i < NUMPRIO; i++) {
 		scb->seqnum[i] = 0;
+		scb->seqctl[i] = 0xFFFF;
+	}
+
+	scb->seqctl_nonqos = 0xFFFF;
+	scb->magic = SCB_MAGIC;
+	brcmu_pktq_init(&scb->scb_ampdu.txq, AMPDU_MAX_SCB_TID,
+		  AMPDU_MAX_SCB_TID * PKTQ_LEN_DEFAULT);
 }
 
 /* d11 core init
@@ -3798,8 +3805,6 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	}
 
 	brcms_c_bandinit_ordered(wlc, chanspec);
-
-	brcms_c_init_scb(wlc, &global_scb);
 
 	/* init probe response timeout */
 	brcms_c_write_shm(wlc, M_PRS_MAXTIME, wlc->prb_resp_timeout);
@@ -7684,7 +7689,7 @@ void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 {
 	u8 prio;
 	uint fifo;
-	struct scb *scb = &global_scb;
+	struct scb *scb = &wlc->pri_scb;
 	struct ieee80211_hdr *d11_header = (struct ieee80211_hdr *)(sdu->data);
 
 	/*
