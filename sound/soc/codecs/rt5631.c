@@ -1308,7 +1308,7 @@ static const struct pll_div codec_slave_pll_div[] = {
 	{3072000,  12288000,  0x0a90},
 };
 
-struct coeff_clk_div coeff_div[] = {
+static struct coeff_clk_div coeff_div[] = {
 	/* sysclk is 256fs */
 	{2048000,  8000 * 32,  8000, 0x1000},
 	{2048000,  8000 * 64,  8000, 0x0000},
@@ -1680,7 +1680,7 @@ static int rt5631_resume(struct snd_soc_codec *codec)
 			SNDRV_PCM_FMTBIT_S24_LE | \
 			SNDRV_PCM_FMTBIT_S8)
 
-struct snd_soc_dai_ops rt5631_ops = {
+static struct snd_soc_dai_ops rt5631_ops = {
 	.hw_params = rt5631_hifi_pcm_params,
 	.set_fmt = rt5631_hifi_codec_set_dai_fmt,
 	.set_sysclk = rt5631_hifi_codec_set_dai_sysclk,
@@ -1762,7 +1762,7 @@ static __devexit int rt5631_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-struct i2c_driver rt5631_i2c_driver = {
+static struct i2c_driver rt5631_i2c_driver = {
 	.driver = {
 		.name = "rt5631",
 		.owner = THIS_MODULE,
