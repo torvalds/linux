@@ -228,13 +228,11 @@ Commands:\n\
   t	print backtrace\n\
   x	exit monitor and recover\n\
   X	exit monitor and dont recover\n"
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_PPC64) && !defined(CONFIG_PPC_BOOK3E)
 "  u	dump segment table or SLB\n"
-#endif
-#ifdef CONFIG_PPC_STD_MMU_32
+#elif defined(CONFIG_PPC_STD_MMU_32)
 "  u	dump segment registers\n"
-#endif
-#ifdef CONFIG_44x
+#elif defined(CONFIG_44x) || defined(CONFIG_PPC_BOOK3E)
 "  u	dump TLB\n"
 #endif
 "  ?	help\n"
@@ -885,13 +883,11 @@ cmds(struct pt_regs *excp)
 		case 'u':
 			dump_segments();
 			break;
-#endif
-#ifdef CONFIG_4xx
+#elif defined(CONFIG_4xx)
 		case 'u':
 			dump_tlb_44x();
 			break;
-#endif
-#ifdef CONFIG_PPC_BOOK3E
+#elif defined(CONFIG_PPC_BOOK3E)
 		case 'u':
 			dump_tlb_book3e();
 			break;
