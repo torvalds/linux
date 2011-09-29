@@ -510,6 +510,14 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	tmp |= CINT_PHY_MASK;
 	mw32(MVS_INT_MASK, tmp);
 
+	/* change the connection open-close behavior (bit 9)
+	 * set bit8 to 1 for performance tuning */
+	tmp = mvs_cr32(mvi, CMD_SL_MODE0);
+	tmp |= 0x00000300;
+	/* set bit0 to 0 to enable retry for no_dest reject case */
+	tmp &= 0xFFFFFFFE;
+	mvs_cw32(mvi, CMD_SL_MODE0, tmp);
+
 	/* Enable SRS interrupt */
 	mw32(MVS_INT_MASK_SRS_0, 0xFFFF);
 
