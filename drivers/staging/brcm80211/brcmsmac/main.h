@@ -702,8 +702,6 @@ struct brcms_bss_cfg {
 extern void brcms_c_fatal_error(struct brcms_c_info *wlc);
 extern void brcms_b_rpc_watchdog(struct brcms_c_info *wlc);
 extern void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p);
-extern bool brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs,
-			       u32 frm_tx2);
 extern void brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo,
 			   struct sk_buff *p,
 			   bool commit, s8 txpktpend);
