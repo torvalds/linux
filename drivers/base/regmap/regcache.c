@@ -227,10 +227,13 @@ int regcache_sync(struct regmap *map)
 	unsigned int val;
 	unsigned int i;
 	const char *name;
+	unsigned int bypass;
 
 	BUG_ON(!map->cache_ops);
 
 	mutex_lock(&map->lock);
+	/* Remember the initial bypass state */
+	bypass = map->cache_bypass;
 	dev_dbg(map->dev, "Syncing %s cache\n",
 		map->cache_ops->name);
 	name = map->cache_ops->name;
@@ -255,6 +258,8 @@ int regcache_sync(struct regmap *map)
 	}
 out:
 	trace_regcache_sync(map->dev, name, "stop");
+	/* Restore the bypass state */
+	map->cache_bypass = bypass;
 	mutex_unlock(&map->lock);
 
 	return ret;
