@@ -823,6 +823,10 @@ static void mvs_94xx_fix_phy_info(struct mvs_info *mvi, int i,
 		phy->att_dev_info = PORT_DEV_STP_TRGT | 1;
 	}
 
+	/* enable spin up bit */
+	mvs_write_port_cfg_addr(mvi, i, PHYR_PHY_STAT);
+	mvs_write_port_cfg_data(mvi, i, 0x04);
+
 }
 
 void mvs_94xx_phy_set_link_rate(struct mvs_info *mvi, u32 phy_id,

@@ -265,6 +265,12 @@ static void mvs_bytes_dmaed(struct mvs_info *mvi, int i)
 		id->dev_type = phy->identify.device_type;
 		id->initiator_bits = SAS_PROTOCOL_ALL;
 		id->target_bits = phy->identify.target_port_protocols;
+
+		/* direct attached SAS device */
+		if (phy->att_dev_info & PORT_SSP_TRGT_MASK) {
+			MVS_CHIP_DISP->write_port_cfg_addr(mvi, i, PHYR_PHY_STAT);
+			MVS_CHIP_DISP->write_port_cfg_data(mvi, i, 0x00);
+		}
 	} else if (phy->phy_type & PORT_TYPE_SATA) {
 		/*Nothing*/
 	}
@@ -1211,6 +1217,12 @@ static void mvs_port_notify_formed(struct asd_sas_phy *sas_phy, int lock)
 		port->wide_port_phymap = sas_port->phy_mask;
 		mv_printk("set wide port phy map %x\n", sas_port->phy_mask);
 		mvs_update_wideport(mvi, sas_phy->id);
+
+		/* direct attached SAS device */
+		if (phy->att_dev_info & PORT_SSP_TRGT_MASK) {
+			MVS_CHIP_DISP->write_port_cfg_addr(mvi, i, PHYR_PHY_STAT);
+			MVS_CHIP_DISP->write_port_cfg_data(mvi, i, 0x04);
+		}
 	}
 	if (lock)
 		spin_unlock_irqrestore(&mvi->lock, flags);
