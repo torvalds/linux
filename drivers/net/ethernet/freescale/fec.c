@@ -177,6 +177,8 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 #define PKT_MINBUF_SIZE		64
 #define PKT_MAXBLR_SIZE		1520
 
+/* This device has up to three irqs on some platforms */
+#define FEC_IRQ_NUM		3
 
 /*
  * The 5270/5271/5280/5282/532x RX control register also contains maximum frame
@@ -1540,8 +1542,7 @@ fec_probe(struct platform_device *pdev)
 
 	fec_reset_phy(pdev);
 
-	/* This device has up to three irqs on some platforms */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (i && irq < 0)
 			break;
@@ -1586,7 +1587,7 @@ failed_init:
 	clk_disable(fep->clk);
 	clk_put(fep->clk);
 failed_clk:
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq > 0)
 			free_irq(irq, ndev);
