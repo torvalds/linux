@@ -1,6 +1,7 @@
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
+ *  Copyright (C) 2011	Don Zickus Red Hat, Inc.
  *
  *  Pentium III FXSR, SSE support
  *	Gareth Hughes <gareth@valinux.com>, May 2000
@@ -248,8 +249,10 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 static notrace __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
-	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) ==
-			NOTIFY_STOP)
+	int handled;
+
+	handled = nmi_handle(NMI_UNKNOWN, regs);
+	if (handled)
 		return;
 #ifdef CONFIG_MCA
 	/*
@@ -274,13 +277,15 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
+	int handled;
 
 	/*
 	 * CPU-specific NMI must be processed before non-CPU-specific
 	 * NMI, otherwise we may lose it, because the CPU-specific
 	 * NMI can not be detected/processed on other CPUs.
 	 */
-	if (notify_die(DIE_NMI, "nmi", regs, 0, 2, SIGINT) == NOTIFY_STOP)
+	handled = nmi_handle(NMI_LOCAL, regs);
+	if (handled)
 		return;
 
 	/* Non-CPU-specific NMI: NMI sources can be processed on any CPU */

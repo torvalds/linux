@@ -1058,75 +1058,14 @@ void perf_events_lapic_init(void)
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 }
 
-struct pmu_nmi_state {
-	unsigned int	marked;
-	int		handled;
-};
-
-static DEFINE_PER_CPU(struct pmu_nmi_state, pmu_nmi);
-
 static int __kprobes
-perf_event_nmi_handler(struct notifier_block *self,
-			 unsigned long cmd, void *__args)
+perf_event_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 {
-	struct die_args *args = __args;
-	unsigned int this_nmi;
-	int handled;
-
 	if (!atomic_read(&active_events))
-		return NOTIFY_DONE;
+		return NMI_DONE;
 
-	switch (cmd) {
-	case DIE_NMI:
-		break;
-	case DIE_NMIUNKNOWN:
-		this_nmi = percpu_read(irq_stat.__nmi_count);
-		if (this_nmi != __this_cpu_read(pmu_nmi.marked))
-			/* let the kernel handle the unknown nmi */
-			return NOTIFY_DONE;
-		/*
-		 * This one is a PMU back-to-back nmi. Two events
-		 * trigger 'simultaneously' raising two back-to-back
-		 * NMIs. If the first NMI handles both, the latter
-		 * will be empty and daze the CPU. So, we drop it to
-		 * avoid false-positive 'unknown nmi' messages.
-		 */
-		return NOTIFY_STOP;
-	default:
-		return NOTIFY_DONE;
-	}
-
-	handled = x86_pmu.handle_irq(args->regs);
-	if (!handled)
-		return NOTIFY_DONE;
-
-	this_nmi = percpu_read(irq_stat.__nmi_count);
-	if ((handled > 1) ||
-		/* the next nmi could be a back-to-back nmi */
-	    ((__this_cpu_read(pmu_nmi.marked) == this_nmi) &&
-	     (__this_cpu_read(pmu_nmi.handled) > 1))) {
-		/*
-		 * We could have two subsequent back-to-back nmis: The
-		 * first handles more than one counter, the 2nd
-		 * handles only one counter and the 3rd handles no
-		 * counter.
-		 *
-		 * This is the 2nd nmi because the previous was
-		 * handling more than one counter. We will mark the
-		 * next (3rd) and then drop it if unhandled.
-		 */
-		__this_cpu_write(pmu_nmi.marked, this_nmi + 1);
-		__this_cpu_write(pmu_nmi.handled, handled);
-	}
-
-	return NOTIFY_STOP;
+	return x86_pmu.handle_irq(regs);
 }
-
-static __read_mostly struct notifier_block perf_event_nmi_notifier = {
-	.notifier_call		= perf_event_nmi_handler,
-	.next			= NULL,
-	.priority		= NMI_LOCAL_LOW_PRIOR,
-};
 
 struct event_constraint emptyconstraint;
 struct event_constraint unconstrained;
@@ -1232,7 +1171,7 @@ static int __init init_hw_perf_events(void)
 		((1LL << x86_pmu.num_counters_fixed)-1) << X86_PMC_IDX_FIXED;
 
 	perf_events_lapic_init();
-	register_die_notifier(&perf_event_nmi_notifier);
+	register_nmi_handler(NMI_LOCAL, perf_event_nmi_handler, 0, "PMI");
 
 	unconstrained = (struct event_constraint)
 		__EVENT_CONSTRAINT(0, (1ULL << x86_pmu.num_counters) - 1,

@@ -908,9 +908,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	percpu_inc(mce_exception_count);
 
-	if (notify_die(DIE_NMI, "machine check", regs, error_code,
-			   18, SIGKILL) == NOTIFY_STOP)
-		goto out;
 	if (!banks)
 		goto out;
 

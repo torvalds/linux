@@ -65,6 +65,7 @@
  * mechanism for it at that time.
  */
 #include <asm/kdebug.h>
+#include <asm/nmi.h>
 #define HAVE_DIE_NMI
 #endif
 
@@ -1077,17 +1078,8 @@ static void ipmi_unregister_watchdog(int ipmi_intf)
 
 #ifdef HAVE_DIE_NMI
 static int
-ipmi_nmi(struct notifier_block *self, unsigned long val, void *data)
+ipmi_nmi(unsigned int val, struct pt_regs *regs)
 {
-	struct die_args *args = data;
-
-	if (val != DIE_NMIUNKNOWN)
-		return NOTIFY_OK;
-
-	/* Hack, if it's a memory or I/O error, ignore it. */
-	if (args->err & 0xc0)
-		return NOTIFY_OK;
-
 	/*
 	 * If we get here, it's an NMI that's not a memory or I/O
 	 * error.  We can't truly tell if it's from IPMI or not
@@ -1097,15 +1089,15 @@ ipmi_nmi(struct notifier_block *self, unsigned long val, void *data)
 
 	if (testing_nmi) {
 		testing_nmi = 2;
-		return NOTIFY_STOP;
+		return NMI_HANDLED;
 	}
 
 	/* If we are not expecting a timeout, ignore it. */
 	if (ipmi_watchdog_state == WDOG_TIMEOUT_NONE)
-		return NOTIFY_OK;
+		return NMI_DONE;
 
 	if (preaction_val != WDOG_PRETIMEOUT_NMI)
-		return NOTIFY_OK;
+		return NMI_DONE;
 
 	/*
 	 * If no one else handled the NMI, we assume it was the IPMI
@@ -1120,12 +1112,8 @@ ipmi_nmi(struct notifier_block *self, unsigned long val, void *data)
 			panic(PFX "pre-timeout");
 	}
 
-	return NOTIFY_STOP;
+	return NMI_HANDLED;
 }
-
-static struct notifier_block ipmi_nmi_handler = {
-	.notifier_call = ipmi_nmi
-};
 #endif
 
 static int wdog_reboot_handler(struct notifier_block *this,
@@ -1290,7 +1278,8 @@ static void check_parms(void)
 		}
 	}
 	if (do_nmi && !nmi_handler_registered) {
-		rv = register_die_notifier(&ipmi_nmi_handler);
+		rv = register_nmi_handler(NMI_UNKNOWN, ipmi_nmi, 0,
+						"ipmi");
 		if (rv) {
 			printk(KERN_WARNING PFX
 			       "Can't register nmi handler\n");
@@ -1298,7 +1287,7 @@ static void check_parms(void)
 		} else
 			nmi_handler_registered = 1;
 	} else if (!do_nmi && nmi_handler_registered) {
-		unregister_die_notifier(&ipmi_nmi_handler);
+		unregister_nmi_handler(NMI_UNKNOWN, "ipmi");
 		nmi_handler_registered = 0;
 	}
 #endif
@@ -1336,7 +1325,7 @@ static int __init ipmi_wdog_init(void)
 	if (rv) {
 #ifdef HAVE_DIE_NMI
 		if (nmi_handler_registered)
-			unregister_die_notifier(&ipmi_nmi_handler);
+			unregister_nmi_handler(NMI_UNKNOWN, "ipmi");
 #endif
 		atomic_notifier_chain_unregister(&panic_notifier_list,
 						 &wdog_panic_notifier);
@@ -1357,7 +1346,7 @@ static void __exit ipmi_wdog_exit(void)
 
 #ifdef HAVE_DIE_NMI
 	if (nmi_handler_registered)
-		unregister_die_notifier(&ipmi_nmi_handler);
+		unregister_nmi_handler(NMI_UNKNOWN, "ipmi");
 #endif
 
 	atomic_notifier_chain_unregister(&panic_notifier_list,
