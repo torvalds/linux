@@ -3863,6 +3863,14 @@ void ftrace_kill(void)
 }
 
 /**
+ * Test if ftrace is dead or not.
+ */
+int ftrace_is_dead(void)
+{
+	return ftrace_disabled;
+}
+
+/**
  * register_ftrace_function - register a function for profiling
  * @ops - ops structure that holds the function for profiling.
  *
