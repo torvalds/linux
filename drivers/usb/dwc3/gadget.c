@@ -1656,25 +1656,6 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg &= ~(DWC3_DCFG_DEVADDR_MASK);
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
-
-	/*
-	 * Wait for RxFifo to drain
-	 *
-	 * REVISIT probably shouldn't wait forever.
-	 * In case Hardware ends up in a screwed up
-	 * case, we error out, notify the user and,
-	 * maybe, WARN() or BUG() but leave the rest
-	 * of the kernel working fine.
-	 *
-	 * REVISIT the below is rather CPU intensive,
-	 * maybe we should read and if it doesn't work
-	 * sleep (not busy wait) for a few useconds.
-	 *
-	 * REVISIT why wait until the RXFIFO is empty anyway?
-	 */
-	while (!(dwc3_readl(dwc->regs, DWC3_DSTS)
-				& DWC3_DSTS_RXFIFOEMPTY))
-		cpu_relax();
 }
 
 static void dwc3_update_ram_clk_sel(struct dwc3 *dwc, u32 speed)
