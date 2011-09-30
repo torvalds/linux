@@ -589,7 +589,7 @@ menuconfig V4L_USB_DRIVERS
 	depends on USB
 	default y
 
-if V4L_USB_DRIVERS && USB
+if V4L_USB_DRIVERS
 
 source "drivers/media/video/uvc/Kconfig"
 
