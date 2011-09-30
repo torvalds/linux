@@ -69,7 +69,7 @@ int __init omap_init_opp_table(struct omap_opp_def *opp_def,
 				opp_def->hwmod_name, i);
 			return -EINVAL;
 		}
-		dev = &oh->od->pdev.dev;
+		dev = &oh->od->pdev->dev;
 
 		r = opp_add(dev, opp_def->freq, opp_def->u_volt);
 		if (r) {

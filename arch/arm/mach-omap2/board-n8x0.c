@@ -616,12 +616,6 @@ static struct i2c_board_info n810_i2c_board_info_2[] __initdata = {
 	},
 };
 
-static void __init n8x0_map_io(void)
-{
-	omap2_set_globals_242x();
-	omap242x_map_common_io();
-}
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* I2S codec port pins for McBSP block */
@@ -692,7 +686,7 @@ static void __init n8x0_init_machine(void)
 MACHINE_START(NOKIA_N800, "Nokia N800")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
-	.map_io		= n8x0_map_io,
+	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
 	.init_machine	= n8x0_init_machine,
@@ -702,7 +696,7 @@ MACHINE_END
 MACHINE_START(NOKIA_N810, "Nokia N810")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
-	.map_io		= n8x0_map_io,
+	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
 	.init_machine	= n8x0_init_machine,
@@ -712,7 +706,7 @@ MACHINE_END
 MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
-	.map_io		= n8x0_map_io,
+	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
 	.init_machine	= n8x0_init_machine,

@@ -56,6 +56,12 @@ void __init omap2_set_globals_242x(void)
 {
 	__omap2_set_globals(&omap242x_globals);
 }
+
+void __init omap242x_map_io(void)
+{
+	omap2_set_globals_242x();
+	omap242x_map_common_io();
+}
 #endif
 
 #if defined(CONFIG_SOC_OMAP2430)
@@ -73,6 +79,12 @@ static struct omap_globals omap243x_globals = {
 void __init omap2_set_globals_243x(void)
 {
 	__omap2_set_globals(&omap243x_globals);
+}
+
+void __init omap243x_map_io(void)
+{
+	omap2_set_globals_243x();
+	omap243x_map_common_io();
 }
 #endif
 
@@ -137,6 +149,12 @@ void __init omap2_set_globals_443x(void)
 	omap2_set_globals_tap(&omap4_globals);
 	omap2_set_globals_control(&omap4_globals);
 	omap2_set_globals_prcm(&omap4_globals);
+}
+
+void __init omap4_map_io(void)
+{
+	omap2_set_globals_443x();
+	omap44xx_map_common_io();
 }
 #endif
 

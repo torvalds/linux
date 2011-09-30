@@ -825,17 +825,11 @@ static void __init omap_4430sdp_init(void)
 	omap_4430sdp_display_init();
 }
 
-static void __init omap_4430sdp_map_io(void)
-{
-	omap2_set_globals_443x();
-	omap44xx_map_common_io();
-}
-
 MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	/* Maintainer: Santosh Shilimkar - Texas Instruments Inc */
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
-	.map_io		= omap_4430sdp_map_io,
+	.map_io		= omap4_map_io,
 	.init_early	= omap4430_init_early,
 	.init_irq	= gic_init_irq,
 	.init_machine	= omap_4430sdp_init,

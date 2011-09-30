@@ -430,7 +430,7 @@ static struct omap_device_pm_latency omap_hsmmc_latency[] = {
 void __init omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
 {
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 	struct omap_device_pm_latency *ohl;
 	char oh_name[MAX_OMAP_MMC_HWMOD_NAME_LEN];
 	struct omap_mmc_platform_data *mmc_data;
@@ -471,9 +471,9 @@ void __init omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
 		mmc_data->controller_flags = mmc_dev_attr->flags;
 	}
 
-	od = omap_device_build(name, ctrl_nr - 1, oh, mmc_data,
+	pdev = omap_device_build(name, ctrl_nr - 1, oh, mmc_data,
 		sizeof(struct omap_mmc_platform_data), ohl, ohl_cnt, false);
-	if (IS_ERR(od)) {
+	if (IS_ERR(pdev)) {
 		WARN(1, "Can't build omap_device for %s:%s.\n", name, oh->name);
 		kfree(mmc_data->slots[0].name);
 		goto done;
@@ -482,7 +482,7 @@ void __init omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
 	 * return device handle to board setup code
 	 * required to populate for regulator framework structure
 	 */
-	hsmmcinfo->dev = &od->pdev.dev;
+	hsmmcinfo->dev = &pdev->dev;
 
 done:
 	kfree(mmc_data);

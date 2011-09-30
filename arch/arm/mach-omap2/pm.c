@@ -60,19 +60,19 @@ EXPORT_SYMBOL(omap4_get_dsp_device);
 static int _init_omap_device(char *name, struct device **new_dev)
 {
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 
 	oh = omap_hwmod_lookup(name);
 	if (WARN(!oh, "%s: could not find omap_hwmod for %s\n",
 		 __func__, name))
 		return -ENODEV;
 
-	od = omap_device_build(oh->name, 0, oh, NULL, 0, pm_lats, 0, false);
-	if (WARN(IS_ERR(od), "%s: could not build omap_device for %s\n",
+	pdev = omap_device_build(oh->name, 0, oh, NULL, 0, pm_lats, 0, false);
+	if (WARN(IS_ERR(pdev), "%s: could not build omap_device for %s\n",
 		 __func__, name))
 		return -ENODEV;
 
-	*new_dev = &od->pdev.dev;
+	*new_dev = &pdev->dev;
 
 	return 0;
 }
@@ -136,8 +136,8 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 
 	ret = pwrdm_set_next_pwrst(pwrdm, state);
 	if (ret) {
-		printk(KERN_ERR "Unable to set state of powerdomain: %s\n",
-		       pwrdm->name);
+		pr_err("%s: unable to set state of powerdomain: %s\n",
+		       __func__, pwrdm->name);
 		goto err;
 	}
 
@@ -161,11 +161,11 @@ err:
 }
 
 /*
- * This API is to be called during init to put the various voltage
+ * This API is to be called during init to set the various voltage
  * domains to the voltage as per the opp table. Typically we boot up
  * at the nominal voltage. So this function finds out the rate of
  * the clock associated with the voltage domain, finds out the correct
- * opp entry and puts the voltage domain to the voltage specifies
+ * opp entry and sets the voltage domain to the voltage specified
  * in the opp entry
  */
 static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
@@ -177,21 +177,20 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 	unsigned long freq, bootup_volt;
 
 	if (!vdd_name || !clk_name || !dev) {
-		printk(KERN_ERR "%s: Invalid parameters!\n", __func__);
+		pr_err("%s: invalid parameters\n", __func__);
 		goto exit;
 	}
 
 	voltdm = omap_voltage_domain_lookup(vdd_name);
 	if (IS_ERR(voltdm)) {
-		printk(KERN_ERR "%s: Unable to get vdd pointer for vdd_%s\n",
+		pr_err("%s: unable to get vdd pointer for vdd_%s\n",
 			__func__, vdd_name);
 		goto exit;
 	}
 
 	clk =  clk_get(NULL, clk_name);
 	if (IS_ERR(clk)) {
-		printk(KERN_ERR "%s: unable to get clk %s\n",
-			__func__, clk_name);
+		pr_err("%s: unable to get clk %s\n", __func__, clk_name);
 		goto exit;
 	}
 
@@ -200,14 +199,14 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 
 	opp = opp_find_freq_ceil(dev, &freq);
 	if (IS_ERR(opp)) {
-		printk(KERN_ERR "%s: unable to find boot up OPP for vdd_%s\n",
+		pr_err("%s: unable to find boot up OPP for vdd_%s\n",
 			__func__, vdd_name);
 		goto exit;
 	}
 
 	bootup_volt = opp_get_voltage(opp);
 	if (!bootup_volt) {
-		printk(KERN_ERR "%s: unable to find voltage corresponding"
+		pr_err("%s: unable to find voltage corresponding "
 			"to the bootup OPP for vdd_%s\n", __func__, vdd_name);
 		goto exit;
 	}
@@ -216,8 +215,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 	return 0;
 
 exit:
-	printk(KERN_ERR "%s: Unable to put vdd_%s to its init voltage\n\n",
-		__func__, vdd_name);
+	pr_err("%s: unable to set vdd_%s\n", __func__, vdd_name);
 	return -EINVAL;
 }
 

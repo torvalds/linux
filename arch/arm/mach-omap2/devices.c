@@ -44,7 +44,7 @@ static int __init omap3_l3_init(void)
 {
 	int l;
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 	char oh_name[L3_MODULES_MAX_LEN];
 
 	/*
@@ -61,12 +61,12 @@ static int __init omap3_l3_init(void)
 	if (!oh)
 		pr_err("could not look up %s\n", oh_name);
 
-	od = omap_device_build("omap_l3_smx", 0, oh, NULL, 0,
+	pdev = omap_device_build("omap_l3_smx", 0, oh, NULL, 0,
 							   NULL, 0, 0);
 
-	WARN(IS_ERR(od), "could not build omap_device for %s\n", oh_name);
+	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
 
-	return IS_ERR(od) ? PTR_ERR(od) : 0;
+	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
 }
 postcore_initcall(omap3_l3_init);
 
@@ -74,7 +74,7 @@ static int __init omap4_l3_init(void)
 {
 	int l, i;
 	struct omap_hwmod *oh[3];
-	struct omap_device *od;
+	struct platform_device *pdev;
 	char oh_name[L3_MODULES_MAX_LEN];
 
 	/*
@@ -92,12 +92,12 @@ static int __init omap4_l3_init(void)
 			pr_err("could not look up %s\n", oh_name);
 	}
 
-	od = omap_device_build_ss("omap_l3_noc", 0, oh, 3, NULL,
+	pdev = omap_device_build_ss("omap_l3_noc", 0, oh, 3, NULL,
 						     0, NULL, 0, 0);
 
-	WARN(IS_ERR(od), "could not build omap_device for %s\n", oh_name);
+	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
 
-	return IS_ERR(od) ? PTR_ERR(od) : 0;
+	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
 }
 postcore_initcall(omap4_l3_init);
 
@@ -232,7 +232,7 @@ struct omap_device_pm_latency omap_keyboard_latency[] = {
 int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 			*sdp4430_keypad_data, struct omap_board_data *bdata)
 {
-	struct omap_device *od;
+	struct platform_device *pdev;
 	struct omap_hwmod *oh;
 	struct omap4_keypad_platform_data *keypad_data;
 	unsigned int id = -1;
@@ -247,15 +247,15 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 
 	keypad_data = sdp4430_keypad_data;
 
-	od = omap_device_build(name, id, oh, keypad_data,
+	pdev = omap_device_build(name, id, oh, keypad_data,
 			sizeof(struct omap4_keypad_platform_data),
 			omap_keyboard_latency,
 			ARRAY_SIZE(omap_keyboard_latency), 0);
 
-	if (IS_ERR(od)) {
+	if (IS_ERR(pdev)) {
 		WARN(1, "Can't build omap_device for %s:%s.\n",
 						name, oh->name);
-		return PTR_ERR(od);
+		return PTR_ERR(pdev);
 	}
 	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
 
@@ -274,7 +274,7 @@ static struct omap_device_pm_latency mbox_latencies[] = {
 static inline void omap_init_mbox(void)
 {
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 
 	oh = omap_hwmod_lookup("mailbox");
 	if (!oh) {
@@ -282,10 +282,10 @@ static inline void omap_init_mbox(void)
 		return;
 	}
 
-	od = omap_device_build("omap-mailbox", -1, oh, NULL, 0,
+	pdev = omap_device_build("omap-mailbox", -1, oh, NULL, 0,
 				mbox_latencies, ARRAY_SIZE(mbox_latencies), 0);
-	WARN(IS_ERR(od), "%s: could not build device, err %ld\n",
-						__func__, PTR_ERR(od));
+	WARN(IS_ERR(pdev), "%s: could not build device, err %ld\n",
+						__func__, PTR_ERR(pdev));
 }
 #else
 static inline void omap_init_mbox(void) { }
@@ -344,7 +344,7 @@ struct omap_device_pm_latency omap_mcspi_latency[] = {
 
 static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 {
-	struct omap_device *od;
+	struct platform_device *pdev;
 	char *name = "omap2_mcspi";
 	struct omap2_mcspi_platform_config *pdata;
 	static int spi_num;
@@ -371,10 +371,10 @@ static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 	}
 
 	spi_num++;
-	od = omap_device_build(name, spi_num, oh, pdata,
+	pdev = omap_device_build(name, spi_num, oh, pdata,
 				sizeof(*pdata),	omap_mcspi_latency,
 				ARRAY_SIZE(omap_mcspi_latency), 0);
-	WARN(IS_ERR(od), "Can't build omap_device for %s:%s\n",
+	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s\n",
 				name, oh->name);
 	kfree(pdata);
 	return 0;
@@ -709,7 +709,7 @@ static struct omap_device_pm_latency omap_wdt_latency[] = {
 static int __init omap_init_wdt(void)
 {
 	int id = -1;
-	struct omap_device *od;
+	struct platform_device *pdev;
 	struct omap_hwmod *oh;
 	char *oh_name = "wd_timer2";
 	char *dev_name = "omap_wdt";
@@ -723,10 +723,10 @@ static int __init omap_init_wdt(void)
 		return -EINVAL;
 	}
 
-	od = omap_device_build(dev_name, id, oh, NULL, 0,
+	pdev = omap_device_build(dev_name, id, oh, NULL, 0,
 				omap_wdt_latency,
 				ARRAY_SIZE(omap_wdt_latency), 0);
-	WARN(IS_ERR(od), "Can't build omap_device for %s:%s.\n",
+	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
 				dev_name, oh->name);
 	return 0;
 }
