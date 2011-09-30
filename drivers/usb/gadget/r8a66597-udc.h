@@ -43,6 +43,7 @@
 	((pipenum >= R8A66597_BASE_PIPENUM_ISOC) && \
 	 (pipenum < (R8A66597_BASE_PIPENUM_ISOC + R8A66597_MAX_NUM_ISOC)))
 
+#define r8a66597_is_sudmac(r8a66597)	(r8a66597->pdata->sudmac)
 struct r8a66597_pipe_info {
 	u16	pipe;
 	u16	epnum;
@@ -60,6 +61,7 @@ struct r8a66597_request {
 struct r8a66597_ep {
 	struct usb_ep		ep;
 	struct r8a66597		*r8a66597;
+	struct r8a66597_dma	*dma;
 
 	struct list_head	queue;
 	unsigned		busy:1;
@@ -75,13 +77,20 @@ struct r8a66597_ep {
 	unsigned char		fifoaddr;
 	unsigned char		fifosel;
 	unsigned char		fifoctr;
-	unsigned char		fifotrn;
 	unsigned char		pipectr;
+	unsigned char		pipetre;
+	unsigned char		pipetrn;
+};
+
+struct r8a66597_dma {
+	unsigned		used:1;
+	unsigned		dir:1;	/* 1 = IN(write), 0 = OUT(read) */
 };
 
 struct r8a66597 {
 	spinlock_t		lock;
 	void __iomem		*reg;
+	void __iomem		*sudmac_reg;
 
 #ifdef CONFIG_HAVE_CLK
 	struct clk *clk;
@@ -94,6 +103,7 @@ struct r8a66597 {
 	struct r8a66597_ep	ep[R8A66597_MAX_NUM_PIPE];
 	struct r8a66597_ep	*pipenum2ep[R8A66597_MAX_NUM_PIPE];
 	struct r8a66597_ep	*epaddr2ep[16];
+	struct r8a66597_dma	dma;
 
 	struct timer_list	timer;
 	struct usb_request	*ep0_req;	/* for internal request */
@@ -251,7 +261,21 @@ static inline u16 get_xtal_from_pdata(struct r8a66597_platdata *pdata)
 	return clock;
 }
 
+static inline u32 r8a66597_sudmac_read(struct r8a66597 *r8a66597,
+				       unsigned long offset)
+{
+	return ioread32(r8a66597->sudmac_reg + offset);
+}
+
+static inline void r8a66597_sudmac_write(struct r8a66597 *r8a66597, u32 val,
+					 unsigned long offset)
+{
+	iowrite32(val, r8a66597->sudmac_reg + offset);
+}
+
 #define get_pipectr_addr(pipenum)	(PIPE1CTR + (pipenum - 1) * 2)
+#define get_pipetre_addr(pipenum)	(PIPE1TRE + (pipenum - 1) * 4)
+#define get_pipetrn_addr(pipenum)	(PIPE1TRN + (pipenum - 1) * 4)
 
 #define enable_irq_ready(r8a66597, pipenum)	\
 	enable_pipe_irq(r8a66597, pipenum, BRDYENB)
