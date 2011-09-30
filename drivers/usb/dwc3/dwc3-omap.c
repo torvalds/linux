@@ -46,6 +46,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include "io.h"
 
