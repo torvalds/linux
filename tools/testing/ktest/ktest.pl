@@ -361,6 +361,21 @@ sub set_variable {
     }
 }
 
+sub process_if {
+    my ($name, $value) = @_;
+
+    my $val = process_variables($value);
+
+    if ($val =~ /^\s*0\s*$/) {
+	return 0;
+    } elsif ($val =~ /^\s*\d+\s*$/) {
+	return 1;
+    }
+
+    die ("$name: $.: Undefined variable $val in if statement\n");
+    return 1;
+}
+
 sub read_config {
     my ($config) = @_;
 
@@ -376,6 +391,8 @@ sub read_config {
     my $skip = 0;
     my $rest;
     my $test_case = 0;
+    my $if = 0;
+    my $if_set = 0;
 
     while (<IN>) {
 
@@ -397,7 +414,7 @@ sub read_config {
 	    $default = 0;
 	    $repeat = 1;
 
-	    if ($rest =~ /\s+SKIP(.*)/) {
+	    if ($rest =~ /\s+SKIP\b(.*)/) {
 		$rest = $1;
 		$skip = 1;
 	    } else {
@@ -411,9 +428,16 @@ sub read_config {
 		$repeat_tests{"$test_num"} = $repeat;
 	    }
 
-	    if ($rest =~ /\s+SKIP(.*)/) {
-		$rest = $1;
-		$skip = 1;
+	    if ($rest =~ /\sIF\s+(\S*)(.*)/) {
+		$rest = $2;
+		if (process_if($name, $1)) {
+		    $if_set = 1;
+		} else {
+		    $skip = 1;
+		}
+		$if = 1;
+	    } else {
+		$if = 0;
 	    }
 
 	    if ($rest !~ /^\s*$/) {
@@ -437,8 +461,40 @@ sub read_config {
 		$skip = 0;
 	    }
 
+	    if ($rest =~ /\sIF\s+(\S*)(.*)/) {
+		$if = 1;
+		$rest = $2;
+		if (process_if($name, $1)) {
+		    $if_set = 1;
+		} else {
+		    $skip = 1;
+		}
+	    } else {
+		$if = 0;
+	    }
+
 	    if ($rest !~ /^\s*$/) {
 		die "$name: $.: Gargbage found after DEFAULTS\n$_";
+	    }
+
+	} elsif (/^\s*ELSE(.*)$/) {
+	    if (!$if) {
+		die "$name: $.: ELSE found with out matching IF section\n$_";
+	    }
+	    $rest = $1;
+	    if ($if_set) {
+		$skip = 1;
+	    } else {
+		$skip = 0;
+
+		if ($rest =~ /\sIF\s+(\S*)(.*)/) {
+		    # May be a ELSE IF section.
+		    if (!process_if($name, $1)) {
+			$skip = 1;
+		    }
+		} else {
+		    $if = 0;
+		}
 	    }
 
 	} elsif (/^\s*([A-Z_\[\]\d]+)\s*=\s*(.*?)\s*$/) {
