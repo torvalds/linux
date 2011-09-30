@@ -103,10 +103,8 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 	dwc3_trb_to_hw(&trb, trb_hw);
 
 	memset(&params, 0, sizeof(params));
-	params.param0.depstrtxfer.transfer_desc_addr_high =
-		upper_32_bits(dwc->ep0_trb_addr);
-	params.param1.depstrtxfer.transfer_desc_addr_low =
-		lower_32_bits(dwc->ep0_trb_addr);
+	params.param0 = upper_32_bits(dwc->ep0_trb_addr);
+	params.param1 = lower_32_bits(dwc->ep0_trb_addr);
 
 	ret = dwc3_send_gadget_ep_cmd(dwc, dep->number,
 			DWC3_DEPCMD_STARTTRANSFER, &params);

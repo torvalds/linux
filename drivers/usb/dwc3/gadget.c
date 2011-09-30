@@ -158,12 +158,12 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 
 	dev_vdbg(dwc->dev, "%s: cmd '%s' params %08x %08x %08x\n",
 			dep->name,
-			dwc3_gadget_ep_cmd_string(cmd), params->param0.raw,
-			params->param1.raw, params->param2.raw);
+			dwc3_gadget_ep_cmd_string(cmd), params->param0,
+			params->param1, params->param2);
 
-	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR0(ep), params->param0.raw);
-	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR1(ep), params->param1.raw);
-	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR2(ep), params->param2.raw);
+	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR0(ep), params->param0);
+	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR1(ep), params->param1);
+	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR2(ep), params->param2);
 
 	dwc3_writel(dwc->regs, DWC3_DEPCMD(ep), cmd | DWC3_DEPCMD_CMDACT);
 	do {
@@ -257,21 +257,21 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 	memset(&params, 0x00, sizeof(params));
 
-	params.param0.depcfg.ep_type = usb_endpoint_type(desc);
-	params.param0.depcfg.max_packet_size = usb_endpoint_maxp(desc);
-	params.param0.depcfg.burst_size = dep->endpoint.maxburst;
+	params.param0 = DWC3_DEPCFG_EP_TYPE(usb_endpoint_type(desc))
+		| DWC3_DEPCFG_MAX_PACKET_SIZE(usb_endpoint_maxp(desc))
+		| DWC3_DEPCFG_BURST_SIZE(dep->endpoint.maxburst);
 
-	params.param1.depcfg.xfer_complete_enable = true;
-	params.param1.depcfg.xfer_not_ready_enable = true;
+	params.param1 = DWC3_DEPCFG_XFER_COMPLETE_EN
+		| DWC3_DEPCFG_XFER_NOT_READY_EN;
 
 	if (usb_endpoint_xfer_bulk(desc) && dep->endpoint.max_streams) {
-		params.param1.depcfg.stream_capable = true;
-		params.param1.depcfg.stream_event_enable = true;
+		params.param1 |= DWC3_DEPCFG_STREAM_CAPABLE
+			| DWC3_DEPCFG_STREAM_EVENT_EN;
 		dep->stream_capable = true;
 	}
 
 	if (usb_endpoint_xfer_isoc(desc))
-		params.param1.depcfg.xfer_in_progress_enable = true;
+		params.param1 |= DWC3_DEPCFG_XFER_IN_PROGRESS_EN;
 
 	/*
 	 * We are doing 1:1 mapping for endpoints, meaning
@@ -279,17 +279,17 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 	 * so on. We consider the direction bit as part of the physical
 	 * endpoint number. So USB endpoint 0x81 is 0x03.
 	 */
-	params.param1.depcfg.ep_number = dep->number;
+	params.param1 |= DWC3_DEPCFG_EP_NUMBER(dep->number);
 
 	/*
 	 * We must use the lower 16 TX FIFOs even though
 	 * HW might have more
 	 */
 	if (dep->direction)
-		params.param0.depcfg.fifo_number = dep->number >> 1;
+		params.param0 |= DWC3_DEPCFG_FIFO_NUMBER(dep->number >> 1);
 
 	if (desc->bInterval) {
-		params.param1.depcfg.binterval_m1 = desc->bInterval - 1;
+		params.param1 |= DWC3_DEPCFG_BINTERVAL_M1(desc->bInterval - 1);
 		dep->interval = 1 << (desc->bInterval - 1);
 	}
 
@@ -303,7 +303,7 @@ static int dwc3_gadget_set_xfer_resource(struct dwc3 *dwc, struct dwc3_ep *dep)
 
 	memset(&params, 0x00, sizeof(params));
 
-	params.param0.depxfercfg.number_xfer_resources = 1;
+	params.param0 = DWC3_DEPXFERCFG_NUM_XFER_RES(1);
 
 	return dwc3_send_gadget_ep_cmd(dwc, dep->number,
 			DWC3_DEPCMD_SETTRANSFRESOURCE, &params);
@@ -719,10 +719,8 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 	}
 
 	memset(&params, 0, sizeof(params));
-	params.param0.depstrtxfer.transfer_desc_addr_high =
-		upper_32_bits(req->trb_dma);
-	params.param1.depstrtxfer.transfer_desc_addr_low =
-		lower_32_bits(req->trb_dma);
+	params.param0 = upper_32_bits(req->trb_dma);
+	params.param1 = lower_32_bits(req->trb_dma);
 
 	if (start_new)
 		cmd = DWC3_DEPCMD_STARTTRANSFER;
