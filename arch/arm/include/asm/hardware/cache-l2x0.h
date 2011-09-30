@@ -67,6 +67,13 @@
 #define L2X0_CACHE_ID_PART_MASK		(0xf << 6)
 #define L2X0_CACHE_ID_PART_L210		(1 << 6)
 #define L2X0_CACHE_ID_PART_L310		(3 << 6)
+#define L2X0_CACHE_ID_RTL_MASK          0x3f
+#define L2X0_CACHE_ID_RTL_R0P0          0x0
+#define L2X0_CACHE_ID_RTL_R1P0          0x2
+#define L2X0_CACHE_ID_RTL_R2P0          0x4
+#define L2X0_CACHE_ID_RTL_R3P0          0x5
+#define L2X0_CACHE_ID_RTL_R3P1          0x6
+#define L2X0_CACHE_ID_RTL_R3P2          0x8
 
 #define L2X0_AUX_CTRL_MASK			0xc0000fff
 #define L2X0_AUX_CTRL_DATA_RD_LATENCY_SHIFT	0
@@ -96,6 +103,24 @@
 #ifndef __ASSEMBLY__
 extern void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask);
 extern int l2x0_of_init(__u32 aux_val, __u32 aux_mask);
+
+struct l2x0_regs {
+	unsigned long phy_base;
+	unsigned long aux_ctrl;
+	/*
+	 * Whether the following registers need to be saved/restored
+	 * depends on platform
+	 */
+	unsigned long tag_latency;
+	unsigned long data_latency;
+	unsigned long filter_start;
+	unsigned long filter_end;
+	unsigned long prefetch_ctrl;
+	unsigned long pwr_ctrl;
+};
+
+extern struct l2x0_regs l2x0_saved_regs;
+
 #endif
 
 #endif

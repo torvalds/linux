@@ -33,6 +33,14 @@ static DEFINE_SPINLOCK(l2x0_lock);
 static uint32_t l2x0_way_mask;	/* Bitmask of active ways */
 static uint32_t l2x0_size;
 
+struct l2x0_regs l2x0_saved_regs;
+
+struct l2x0_of_data {
+	void (*setup)(const struct device_node *, __u32 *, __u32 *);
+	void (*save)(void);
+	void (*resume)(void);
+};
+
 static inline void cache_wait_way(void __iomem *reg, unsigned long mask)
 {
 	/* wait for cache operation by line or way to complete */
@@ -280,7 +288,7 @@ static void l2x0_disable(void)
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
-static void __init l2x0_unlock(__u32 cache_id)
+static void l2x0_unlock(__u32 cache_id)
 {
 	int lockregs;
 	int i;
@@ -355,6 +363,8 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 
 		/* l2x0 controller is disabled */
 		writel_relaxed(aux, l2x0_base + L2X0_AUX_CTRL);
+
+		l2x0_saved_regs.aux_ctrl = aux;
 
 		l2x0_inv_all();
 
@@ -445,33 +455,132 @@ static void __init pl310_of_setup(const struct device_node *np,
 	}
 }
 
+static void __init pl310_save(void)
+{
+	u32 l2x0_revision = readl_relaxed(l2x0_base + L2X0_CACHE_ID) &
+		L2X0_CACHE_ID_RTL_MASK;
+
+	l2x0_saved_regs.tag_latency = readl_relaxed(l2x0_base +
+		L2X0_TAG_LATENCY_CTRL);
+	l2x0_saved_regs.data_latency = readl_relaxed(l2x0_base +
+		L2X0_DATA_LATENCY_CTRL);
+	l2x0_saved_regs.filter_end = readl_relaxed(l2x0_base +
+		L2X0_ADDR_FILTER_END);
+	l2x0_saved_regs.filter_start = readl_relaxed(l2x0_base +
+		L2X0_ADDR_FILTER_START);
+
+	if (l2x0_revision >= L2X0_CACHE_ID_RTL_R2P0) {
+		/*
+		 * From r2p0, there is Prefetch offset/control register
+		 */
+		l2x0_saved_regs.prefetch_ctrl = readl_relaxed(l2x0_base +
+			L2X0_PREFETCH_CTRL);
+		/*
+		 * From r3p0, there is Power control register
+		 */
+		if (l2x0_revision >= L2X0_CACHE_ID_RTL_R3P0)
+			l2x0_saved_regs.pwr_ctrl = readl_relaxed(l2x0_base +
+				L2X0_POWER_CTRL);
+	}
+}
+
+static void l2x0_resume(void)
+{
+	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & 1)) {
+		/* restore aux ctrl and enable l2 */
+		l2x0_unlock(readl_relaxed(l2x0_base + L2X0_CACHE_ID));
+
+		writel_relaxed(l2x0_saved_regs.aux_ctrl, l2x0_base +
+			L2X0_AUX_CTRL);
+
+		l2x0_inv_all();
+
+		writel_relaxed(1, l2x0_base + L2X0_CTRL);
+	}
+}
+
+static void pl310_resume(void)
+{
+	u32 l2x0_revision;
+
+	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & 1)) {
+		/* restore pl310 setup */
+		writel_relaxed(l2x0_saved_regs.tag_latency,
+			l2x0_base + L2X0_TAG_LATENCY_CTRL);
+		writel_relaxed(l2x0_saved_regs.data_latency,
+			l2x0_base + L2X0_DATA_LATENCY_CTRL);
+		writel_relaxed(l2x0_saved_regs.filter_end,
+			l2x0_base + L2X0_ADDR_FILTER_END);
+		writel_relaxed(l2x0_saved_regs.filter_start,
+			l2x0_base + L2X0_ADDR_FILTER_START);
+
+		l2x0_revision = readl_relaxed(l2x0_base + L2X0_CACHE_ID) &
+			L2X0_CACHE_ID_RTL_MASK;
+
+		if (l2x0_revision >= L2X0_CACHE_ID_RTL_R2P0) {
+			writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
+				l2x0_base + L2X0_PREFETCH_CTRL);
+			if (l2x0_revision >= L2X0_CACHE_ID_RTL_R3P0)
+				writel_relaxed(l2x0_saved_regs.pwr_ctrl,
+					l2x0_base + L2X0_POWER_CTRL);
+		}
+	}
+
+	l2x0_resume();
+}
+
+static const struct l2x0_of_data pl310_data = {
+	pl310_of_setup,
+	pl310_save,
+	pl310_resume,
+};
+
+static const struct l2x0_of_data l2x0_data = {
+	l2x0_of_setup,
+	NULL,
+	l2x0_resume,
+};
+
 static const struct of_device_id l2x0_ids[] __initconst = {
-	{ .compatible = "arm,pl310-cache", .data = pl310_of_setup },
-	{ .compatible = "arm,l220-cache", .data = l2x0_of_setup },
-	{ .compatible = "arm,l210-cache", .data = l2x0_of_setup },
+	{ .compatible = "arm,pl310-cache", .data = (void *)&pl310_data },
+	{ .compatible = "arm,l220-cache", .data = (void *)&l2x0_data },
+	{ .compatible = "arm,l210-cache", .data = (void *)&l2x0_data },
 	{}
 };
 
 int __init l2x0_of_init(__u32 aux_val, __u32 aux_mask)
 {
 	struct device_node *np;
-	void (*l2_setup)(const struct device_node *np,
-		__u32 *aux_val, __u32 *aux_mask);
+	struct l2x0_of_data *data;
+	struct resource res;
 
 	np = of_find_matching_node(NULL, l2x0_ids);
 	if (!np)
 		return -ENODEV;
-	l2x0_base = of_iomap(np, 0);
+
+	if (of_address_to_resource(np, 0, &res))
+		return -ENODEV;
+
+	l2x0_base = ioremap(res.start, resource_size(&res));
 	if (!l2x0_base)
 		return -ENOMEM;
 
+	l2x0_saved_regs.phy_base = res.start;
+
+	data = of_match_node(l2x0_ids, np)->data;
+
 	/* L2 configuration can only be changed if the cache is disabled */
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & 1)) {
-		l2_setup = of_match_node(l2x0_ids, np)->data;
-		if (l2_setup)
-			l2_setup(np, &aux_val, &aux_mask);
+		if (data->setup)
+			data->setup(np, &aux_val, &aux_mask);
 	}
+
+	if (data->save)
+		data->save();
+
 	l2x0_init(l2x0_base, aux_val, aux_mask);
+
+	outer_cache.resume = data->resume;
 	return 0;
 }
 #endif
