@@ -324,6 +324,66 @@ static int cvt_nid_to_cvt_index(struct hdmi_spec *spec, hda_nid_t cvt_nid)
 	return -EINVAL;
 }
 
+static int hdmi_eld_ctl_info(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hdmi_spec *spec;
+	int pin_idx;
+
+	spec = codec->spec;
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+
+	pin_idx = kcontrol->private_value;
+	uinfo->count = spec->pins[pin_idx].sink_eld.eld_size;
+
+	return 0;
+}
+
+static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hdmi_spec *spec;
+	int pin_idx;
+
+	spec = codec->spec;
+	pin_idx = kcontrol->private_value;
+
+	memcpy(ucontrol->value.bytes.data,
+		spec->pins[pin_idx].sink_eld.eld_buffer, ELD_MAX_SIZE);
+
+	return 0;
+}
+
+static struct snd_kcontrol_new eld_bytes_ctl = {
+	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+	.name = "ELD",
+	.info = hdmi_eld_ctl_info,
+	.get = hdmi_eld_ctl_get,
+};
+
+static int hdmi_create_eld_ctl(struct hda_codec *codec, int pin_idx,
+			int device)
+{
+	struct snd_kcontrol *kctl;
+	struct hdmi_spec *spec = codec->spec;
+	int err;
+
+	kctl = snd_ctl_new1(&eld_bytes_ctl, codec);
+	if (!kctl)
+		return -ENOMEM;
+	kctl->private_value = pin_idx;
+	kctl->id.device = device;
+
+	err = snd_hda_ctl_add(codec, spec->pins[pin_idx].pin_nid, kctl);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 #ifdef BE_PARANOID
 static void hdmi_get_dip_index(struct hda_codec *codec, hda_nid_t pin_nid,
 				int *packet_index, int *byte_index)
@@ -1193,6 +1253,14 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 		snd_hda_spdif_ctls_unassign(codec, pin_idx);
+
+		/* add control for ELD Bytes */
+		err = hdmi_create_eld_ctl(codec,
+					pin_idx,
+					spec->pcm_rec[pin_idx].device);
+
+		if (err < 0)
+			return err;
 	}
 
 	return 0;

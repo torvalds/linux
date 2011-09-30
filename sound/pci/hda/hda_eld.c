@@ -318,6 +318,11 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	int size;
 	unsigned char *buf;
 
+	/*
+	 * ELD size is initialized to zero in caller function. If no errors and
+	 * ELD is valid, actual eld_size is assigned in hdmi_update_eld()
+	 */
+
 	if (!eld->eld_valid)
 		return -ENOENT;
 
@@ -327,14 +332,13 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 		snd_printd(KERN_INFO "HDMI: ELD buf size is 0, force 128\n");
 		size = 128;
 	}
-	if (size < ELD_FIXED_BYTES || size > PAGE_SIZE) {
+	if (size < ELD_FIXED_BYTES || size > ELD_MAX_SIZE) {
 		snd_printd(KERN_INFO "HDMI: invalid ELD buf size %d\n", size);
 		return -ERANGE;
 	}
 
-	buf = kmalloc(size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	/* set ELD buffer */
+	buf = eld->eld_buffer;
 
 	for (i = 0; i < size; i++) {
 		unsigned int val = hdmi_get_eld_data(codec, nid, i);
@@ -356,7 +360,6 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	ret = hdmi_update_eld(eld, buf, size);
 
 error:
-	kfree(buf);
 	return ret;
 }
 
