@@ -117,6 +117,7 @@ my $timeout;
 my $booted_timeout;
 my $detect_triplefault;
 my $console;
+my $reboot_success_line;
 my $success_line;
 my $stop_after_success;
 my $stop_after_failure;
@@ -612,6 +613,13 @@ sub wait_for_monitor;
 sub reboot {
     my ($time) = @_;
 
+    if (defined($time)) {
+	start_monitor;
+	# flush out current monitor
+	# May contain the reboot success line
+	wait_for_monitor 1;
+    }
+
     # try to reboot normally
     if (run_command $reboot) {
 	if (defined($powercycle_after_reboot)) {
@@ -624,8 +632,7 @@ sub reboot {
     }
 
     if (defined($time)) {
-	start_monitor;
-	wait_for_monitor $time;
+	wait_for_monitor($time, $reboot_success_line);
 	end_monitor;
     }
 }
@@ -706,16 +713,29 @@ sub end_monitor {
 }
 
 sub wait_for_monitor {
-    my ($time) = @_;
+    my ($time, $stop) = @_;
+    my $full_line = "";
     my $line;
+    my $booted = 0;
 
     doprint "** Wait for monitor to settle down **\n";
 
     # read the monitor and wait for the system to calm down
-    do {
+    while (!$booted) {
 	$line = wait_for_input($monitor_fp, $time);
-	print "$line" if (defined($line));
-    } while (defined($line));
+	last if (!defined($line));
+	print "$line";
+	$full_line .= $line;
+
+	if (defined($stop) && $full_line =~ /$stop/) {
+	    doprint "wait for monitor detected $stop\n";
+	    $booted = 1;
+	}
+
+	if ($line =~ /\n/) {
+	    $full_line = "";
+	}
+    }
     print "** Monitor flushed **\n";
 }
 
@@ -2836,6 +2856,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $console = set_test_option("CONSOLE", $i);
     $detect_triplefault = set_test_option("DETECT_TRIPLE_FAULT", $i);
     $success_line = set_test_option("SUCCESS_LINE", $i);
+    $reboot_success_line = set_test_option("REBOOT_SUCCESS_LINE", $i);
     $stop_after_success = set_test_option("STOP_AFTER_SUCCESS", $i);
     $stop_after_failure = set_test_option("STOP_AFTER_FAILURE", $i);
     $stop_test_after = set_test_option("STOP_TEST_AFTER", $i);
