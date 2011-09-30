@@ -49,36 +49,36 @@ static int ip175c_config_init(struct phy_device *phydev)
 	if (full_reset_performed == 0) {
 
 		/* master reset */
-		err = phydev->bus->write(phydev->bus, 30, 0, 0x175c);
+		err = mdiobus_write(phydev->bus, 30, 0, 0x175c);
 		if (err < 0)
 			return err;
 
 		/* ensure no bus delays overlap reset period */
-		err = phydev->bus->read(phydev->bus, 30, 0);
+		err = mdiobus_read(phydev->bus, 30, 0);
 
 		/* data sheet specifies reset period is 2 msec */
 		mdelay(2);
 
 		/* enable IP175C mode */
-		err = phydev->bus->write(phydev->bus, 29, 31, 0x175c);
+		err = mdiobus_write(phydev->bus, 29, 31, 0x175c);
 		if (err < 0)
 			return err;
 
 		/* Set MII0 speed and duplex (in PHY mode) */
-		err = phydev->bus->write(phydev->bus, 29, 22, 0x420);
+		err = mdiobus_write(phydev->bus, 29, 22, 0x420);
 		if (err < 0)
 			return err;
 
 		/* reset switch ports */
 		for (i = 0; i < 5; i++) {
-			err = phydev->bus->write(phydev->bus, i,
-						 MII_BMCR, BMCR_RESET);
+			err = mdiobus_write(phydev->bus, i,
+					    MII_BMCR, BMCR_RESET);
 			if (err < 0)
 				return err;
 		}
 
 		for (i = 0; i < 5; i++)
-			err = phydev->bus->read(phydev->bus, i, MII_BMCR);
+			err = mdiobus_read(phydev->bus, i, MII_BMCR);
 
 		mdelay(2);
 
