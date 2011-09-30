@@ -71,6 +71,7 @@ struct xfs_ail {
 	struct delayed_work	xa_work;
 	xfs_lsn_t		xa_last_pushed_lsn;
 	unsigned long		xa_flags;
+	int			xa_log_flush;
 };
 
 #define XFS_AIL_PUSHING_BIT	0
