@@ -209,13 +209,9 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	int w = radeon_crtc->cursor_width;
 
 	if (x < 0)
-		xorigin = -x;
+		xorigin = min(-x, CURSOR_WIDTH - 1);
 	if (y < 0)
-		yorigin = -y;
-	if (xorigin >= CURSOR_WIDTH)
-		xorigin = CURSOR_WIDTH - 1;
-	if (yorigin >= CURSOR_HEIGHT)
-		yorigin = CURSOR_HEIGHT - 1;
+		yorigin = min(-y, CURSOR_HEIGHT - 1);
 
 	if (ASIC_IS_AVIVO(rdev)) {
 		int i = 0;
