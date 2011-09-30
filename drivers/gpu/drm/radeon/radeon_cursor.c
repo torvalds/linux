@@ -209,9 +209,9 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	int w = radeon_crtc->cursor_width;
 
 	if (x < 0)
-		xorigin = -x + 1;
+		xorigin = -x;
 	if (y < 0)
-		yorigin = -y + 1;
+		yorigin = -y;
 	if (xorigin >= CURSOR_WIDTH)
 		xorigin = CURSOR_WIDTH - 1;
 	if (yorigin >= CURSOR_HEIGHT)
