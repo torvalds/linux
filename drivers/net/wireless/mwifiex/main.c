@@ -75,8 +75,7 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	adapter->priv_num++;
 
 	adapter->priv[0]->adapter = adapter;
-	if (mwifiex_init_lock_list(adapter))
-		goto error;
+	mwifiex_init_lock_list(adapter);
 
 	init_timer(&adapter->cmd_timer);
 	adapter->cmd_timer.function = mwifiex_cmd_timeout_func;
@@ -86,8 +85,6 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 
 error:
 	dev_dbg(adapter->dev, "info: leave mwifiex_register with error\n");
-
-	mwifiex_free_lock_list(adapter);
 
 	for (i = 0; i < adapter->priv_num; i++)
 		kfree(adapter->priv[i]);
