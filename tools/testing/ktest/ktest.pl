@@ -42,6 +42,7 @@ $default{"BISECT_MANUAL"}	= 0;
 $default{"BISECT_SKIP"}		= 1;
 $default{"SUCCESS_LINE"}	= "login:";
 $default{"DETECT_TRIPLE_FAULT"} = 1;
+$default{"NO_INSTALL"}		= 0;
 $default{"BOOTED_TIMEOUT"}	= 1;
 $default{"DIE_ON_FAILURE"}	= 1;
 $default{"SSH_EXEC"}		= "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND";
@@ -84,6 +85,7 @@ my $grub_number;
 my $target;
 my $make;
 my $post_install;
+my $no_install;
 my $noclean;
 my $minconfig;
 my $start_minconfig;
@@ -1093,6 +1095,8 @@ sub do_post_install {
 }
 
 sub install {
+
+    return if ($no_install);
 
     run_scp "$outputdir/$build_target", "$target_image" or
 	dodie "failed to copy image";
@@ -2810,6 +2814,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $reboot_type = set_test_option("REBOOT_TYPE", $i);
     $grub_menu = set_test_option("GRUB_MENU", $i);
     $post_install = set_test_option("POST_INSTALL", $i);
+    $no_install = set_test_option("NO_INSTALL", $i);
     $reboot_script = set_test_option("REBOOT_SCRIPT", $i);
     $reboot_on_error = set_test_option("REBOOT_ON_ERROR", $i);
     $poweroff_on_error = set_test_option("POWEROFF_ON_ERROR", $i);
@@ -2890,8 +2895,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$run_type = "ERROR";
     }
 
+    my $installme = "";
+    $installme = " no_install" if ($no_install);
+
     doprint "\n\n";
-    doprint "RUNNING TEST $i of $opt{NUM_TESTS} with option $test_type $run_type\n\n";
+    doprint "RUNNING TEST $i of $opt{NUM_TESTS} with option $test_type $run_type$installme\n\n";
 
     unlink $dmesg;
     unlink $buildlog;
