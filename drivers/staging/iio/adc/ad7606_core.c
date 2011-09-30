@@ -233,69 +233,43 @@ static const struct attribute_group ad7606_attribute_group = {
 	.is_visible = ad7606_attr_is_visible,
 };
 
+#define AD7606_CHANNEL(num)				\
+	{						\
+		.type = IIO_VOLTAGE,			\
+		.indexed = 1,				\
+		.channel = num,				\
+		.address = num,				\
+		.scan_index = num,			\
+		.scan_type = IIO_ST('s', 16, 16, 0),	\
+	}
+
 static struct iio_chan_spec ad7606_8_channels[] = {
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 0, 0, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 1, 1, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 2, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 2, 2, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 3, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 3, 3, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 4, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 4, 4, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 5, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 5, 5, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 6, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 6, 6, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 7, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 7, 7, IIO_ST('s', 16, 16, 0), 0),
+	AD7606_CHANNEL(0),
+	AD7606_CHANNEL(1),
+	AD7606_CHANNEL(2),
+	AD7606_CHANNEL(3),
+	AD7606_CHANNEL(4),
+	AD7606_CHANNEL(5),
+	AD7606_CHANNEL(6),
+	AD7606_CHANNEL(7),
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
 static struct iio_chan_spec ad7606_6_channels[] = {
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 0, 0, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 1, 1, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 2, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 2, 2, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 3, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 3, 3, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 4, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 4, 4, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 5, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 5, 5, IIO_ST('s', 16, 16, 0), 0),
+	AD7606_CHANNEL(0),
+	AD7606_CHANNEL(1),
+	AD7606_CHANNEL(2),
+	AD7606_CHANNEL(3),
+	AD7606_CHANNEL(4),
+	AD7606_CHANNEL(5),
 	IIO_CHAN_SOFT_TIMESTAMP(6),
 };
 
 static struct iio_chan_spec ad7606_4_channels[] = {
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 0, 0, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 1, 1, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 2, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 2, 2, IIO_ST('s', 16, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 3, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
-		 3, 3, IIO_ST('s', 16, 16, 0), 0),
+	AD7606_CHANNEL(0),
+	AD7606_CHANNEL(1),
+	AD7606_CHANNEL(2),
+	AD7606_CHANNEL(3),
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
