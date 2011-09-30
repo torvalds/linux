@@ -329,9 +329,8 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 	}
 
 	ret = gpio_request_array(gpio_array, ARRAY_SIZE(gpio_array));
-	if (!ret) {
+	if (!ret)
 		st->have_os = true;
-	}
 
 	ret = gpio_request_one(st->pdata->gpio_reset, GPIOF_OUT_INIT_LOW,
 			       "AD7606_RESET");
