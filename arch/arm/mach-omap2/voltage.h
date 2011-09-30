@@ -148,25 +148,11 @@ void omap_voltage_get_volttable(struct voltagedomain *voltdm,
 		struct omap_volt_data **volt_data);
 struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 		unsigned long volt);
-#ifdef CONFIG_PM
 int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 			       struct omap_voltdm_pmic *pmic);
 void omap_change_voltscale_method(struct voltagedomain *voltdm,
 		int voltscale_method);
 int omap_voltage_late_init(void);
-#else
-static inline int omap_voltage_register_pmic(struct voltagedomain *voltdm,
-					     struct omap_voltdm_pmic *pmic)
-{
-	return -EINVAL;
-}
-static inline  void omap_change_voltscale_method(struct voltagedomain *voltdm,
-		int voltscale_method) {}
-static inline int omap_voltage_late_init(void)
-{
-	return -EINVAL;
-}
-#endif
 
 extern void omap2xxx_voltagedomains_init(void);
 extern void omap3xxx_voltagedomains_init(void);
