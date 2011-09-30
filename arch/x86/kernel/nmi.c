@@ -71,7 +71,7 @@ __setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 
 #define nmi_to_desc(type) (&nmi_desc[type])
 
-static int notrace __kprobes nmi_handle(unsigned int type, struct pt_regs *regs)
+static int notrace __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	struct nmiaction *a;
@@ -85,11 +85,8 @@ static int notrace __kprobes nmi_handle(unsigned int type, struct pt_regs *regs)
 	 * can be latched at any given time.  Walk the whole list
 	 * to handle those situations.
 	 */
-	list_for_each_entry_rcu(a, &desc->head, list) {
-
+	list_for_each_entry_rcu(a, &desc->head, list)
 		handled += a->handler(type, regs);
-
-	}
 
 	rcu_read_unlock();
 
@@ -103,6 +100,13 @@ static int __setup_nmi(unsigned int type, struct nmiaction *action)
 	unsigned long flags;
 
 	spin_lock_irqsave(&desc->lock, flags);
+
+	/*
+	 * most handlers of type NMI_UNKNOWN never return because
+	 * they just assume the NMI is theirs.  Just a sanity check
+	 * to manage expectations
+	 */
+	WARN_ON_ONCE(type == NMI_UNKNOWN && !list_empty(&desc->head));
 
 	/*
 	 * some handlers need to be executed first otherwise a fake
@@ -251,7 +255,13 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	int handled;
 
-	handled = nmi_handle(NMI_UNKNOWN, regs);
+	/*
+	 * Use 'false' as back-to-back NMIs are dealt with one level up.
+	 * Of course this makes having multiple 'unknown' handlers useless
+	 * as only the first one is ever run (unless it can actually determine
+	 * if it caused the NMI)
+	 */
+	handled = nmi_handle(NMI_UNKNOWN, regs, false);
 	if (handled)
 		return;
 #ifdef CONFIG_MCA
@@ -274,19 +284,49 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 	pr_emerg("Dazed and confused, but trying to continue\n");
 }
 
+static DEFINE_PER_CPU(bool, swallow_nmi);
+static DEFINE_PER_CPU(unsigned long, last_nmi_rip);
+
 static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int handled;
+	bool b2b = false;
 
 	/*
 	 * CPU-specific NMI must be processed before non-CPU-specific
 	 * NMI, otherwise we may lose it, because the CPU-specific
 	 * NMI can not be detected/processed on other CPUs.
 	 */
-	handled = nmi_handle(NMI_LOCAL, regs);
-	if (handled)
+
+	/*
+	 * Back-to-back NMIs are interesting because they can either
+	 * be two NMI or more than two NMIs (any thing over two is dropped
+	 * due to NMI being edge-triggered).  If this is the second half
+	 * of the back-to-back NMI, assume we dropped things and process
+	 * more handlers.  Otherwise reset the 'swallow' NMI behaviour
+	 */
+	if (regs->ip == __this_cpu_read(last_nmi_rip))
+		b2b = true;
+	else
+		__this_cpu_write(swallow_nmi, false);
+
+	__this_cpu_write(last_nmi_rip, regs->ip);
+
+	handled = nmi_handle(NMI_LOCAL, regs, b2b);
+	if (handled) {
+		/*
+		 * There are cases when a NMI handler handles multiple
+		 * events in the current NMI.  One of these events may
+		 * be queued for in the next NMI.  Because the event is
+		 * already handled, the next NMI will result in an unknown
+		 * NMI.  Instead lets flag this for a potential NMI to
+		 * swallow.
+		 */
+		if (handled > 1)
+			__this_cpu_write(swallow_nmi, true);
 		return;
+	}
 
 	/* Non-CPU-specific NMI: NMI sources can be processed on any CPU */
 	raw_spin_lock(&nmi_reason_lock);
@@ -309,7 +349,40 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	}
 	raw_spin_unlock(&nmi_reason_lock);
 
-	unknown_nmi_error(reason, regs);
+	/*
+	 * Only one NMI can be latched at a time.  To handle
+	 * this we may process multiple nmi handlers at once to
+	 * cover the case where an NMI is dropped.  The downside
+	 * to this approach is we may process an NMI prematurely,
+	 * while its real NMI is sitting latched.  This will cause
+	 * an unknown NMI on the next run of the NMI processing.
+	 *
+	 * We tried to flag that condition above, by setting the
+	 * swallow_nmi flag when we process more than one event.
+	 * This condition is also only present on the second half
+	 * of a back-to-back NMI, so we flag that condition too.
+	 *
+	 * If both are true, we assume we already processed this
+	 * NMI previously and we swallow it.  Otherwise we reset
+	 * the logic.
+	 *
+	 * There are scenarios where we may accidentally swallow
+	 * a 'real' unknown NMI.  For example, while processing
+	 * a perf NMI another perf NMI comes in along with a
+	 * 'real' unknown NMI.  These two NMIs get combined into
+	 * one (as descibed above).  When the next NMI gets
+	 * processed, it will be flagged by perf as handled, but
+	 * noone will know that there was a 'real' unknown NMI sent
+	 * also.  As a result it gets swallowed.  Or if the first
+	 * perf NMI returns two events handled then the second
+	 * NMI will get eaten by the logic below, again losing a
+	 * 'real' unknown NMI.  But this is the best we can do
+	 * for now.
+	 */
+	if (b2b && __this_cpu_read(swallow_nmi))
+		;
+	else
+		unknown_nmi_error(reason, regs);
 }
 
 dotraplinkage notrace __kprobes void
@@ -333,4 +406,10 @@ void stop_nmi(void)
 void restart_nmi(void)
 {
 	ignore_nmis--;
+}
+
+/* reset the back-to-back NMI logic */
+void local_touch_nmi(void)
+{
+	__this_cpu_write(last_nmi_rip, 0);
 }

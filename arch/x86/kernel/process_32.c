@@ -57,6 +57,7 @@
 #include <asm/idle.h>
 #include <asm/syscalls.h>
 #include <asm/debugreg.h>
+#include <asm/nmi.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -107,6 +108,7 @@ void cpu_idle(void)
 			if (cpu_is_offline(cpu))
 				play_dead();
 
+			local_touch_nmi();
 			local_irq_disable();
 			/* Don't trace irqs off for idle */
 			stop_critical_timings();
