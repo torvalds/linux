@@ -33,7 +33,7 @@
 
 enum adis16400_chip_variant {
 	ADIS16300,
-	ADIS16344,
+	ADIS16334,
 	ADIS16350,
 	ADIS16360,
 	ADIS16362,
@@ -852,7 +852,7 @@ static struct iio_chan_spec adis16300_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(14)
 };
 
-static const struct iio_chan_spec adis16344_channels[] = {
+static const struct iio_chan_spec adis16334_channels[] = {
 	{
 		.type = IIO_GYRO,
 		.modified = 1,
@@ -944,9 +944,9 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		(1 << ADIS16300_SCAN_INCLI_X) | (1 << ADIS16300_SCAN_INCLI_Y) |
 		(1 << 14),
 	},
-	[ADIS16344] = {
-		.channels = adis16344_channels,
-		.num_channels = ARRAY_SIZE(adis16344_channels),
+	[ADIS16334] = {
+		.channels = adis16334_channels,
+		.num_channels = ARRAY_SIZE(adis16334_channels),
 		.gyro_scale_micro = 873,
 		.accel_scale_micro = 981,
 		.default_scan_mask = (1 << ADIS16400_SCAN_GYRO_X) |
@@ -1105,7 +1105,7 @@ err_ret:
 
 static const struct spi_device_id adis16400_id[] = {
 	{"adis16300", ADIS16300},
-	{"adis16344", ADIS16344},
+	{"adis16334", ADIS16334},
 	{"adis16350", ADIS16350},
 	{"adis16354", ADIS16350},
 	{"adis16355", ADIS16350},
