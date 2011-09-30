@@ -1025,8 +1025,6 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 			  u8 assoc_req_len, u8 assoc_resp_len,
 			  u8 *assoc_info)
 {
-	unsigned long flags;
-
 	ath6kl_cfg80211_connect_event(ar, channel, bssid,
 				      listen_int, beacon_int,
 				      net_type, beacon_ie_len,
@@ -1043,11 +1041,11 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 	netif_wake_queue(ar->net_dev);
 
 	/* Update connect & link status atomically */
-	spin_lock_irqsave(&ar->lock, flags);
+	spin_lock_bh(&ar->lock);
 	set_bit(CONNECTED, &ar->flag);
 	clear_bit(CONNECT_PEND, &ar->flag);
 	netif_carrier_on(ar->net_dev);
-	spin_unlock_irqrestore(&ar->lock, flags);
+	spin_unlock_bh(&ar->lock);
 
 	aggr_reset_state(ar->aggr_cntxt);
 	ar->reconnect_flag = 0;
@@ -1330,8 +1328,6 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 			     u8 assoc_resp_len, u8 *assoc_info,
 			     u16 prot_reason_status)
 {
-	unsigned long flags;
-
 	if (ar->nw_type == AP_NETWORK) {
 		if (!ath6kl_remove_sta(ar, bssid, prot_reason_status))
 			return;
@@ -1390,10 +1386,10 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 	}
 
 	/* update connect & link status atomically */
-	spin_lock_irqsave(&ar->lock, flags);
+	spin_lock_bh(&ar->lock);
 	clear_bit(CONNECTED, &ar->flag);
 	netif_carrier_off(ar->net_dev);
-	spin_unlock_irqrestore(&ar->lock, flags);
+	spin_unlock_bh(&ar->lock);
 
 	if ((reason != CSERV_DISCONNECT) || (ar->reconnect_flag != 1))
 		ar->reconnect_flag = 0;
@@ -1411,9 +1407,8 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 static int ath6kl_open(struct net_device *dev)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&ar->lock, flags);
+	spin_lock_bh(&ar->lock);
 
 	set_bit(WLAN_ENABLED, &ar->flag);
 
@@ -1423,7 +1418,7 @@ static int ath6kl_open(struct net_device *dev)
 	} else
 		netif_carrier_off(dev);
 
-	spin_unlock_irqrestore(&ar->lock, flags);
+	spin_unlock_bh(&ar->lock);
 
 	return 0;
 }
