@@ -76,7 +76,6 @@ struct aic3x_priv {
 	struct aic3x_disable_nb disable_nb[AIC3X_NUM_SUPPLIES];
 	enum snd_soc_control_type control_type;
 	struct aic3x_setup_data *setup;
-	void *control_data;
 	unsigned int sysclk;
 	struct list_head list;
 	int master;
@@ -1383,7 +1382,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	INIT_LIST_HEAD(&aic3x->list);
-	codec->control_data = aic3x->control_data;
 	aic3x->codec = codec;
 	codec->dapm.idle_bias_off = 1;
 
@@ -1520,7 +1518,6 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 	}
 
-	aic3x->control_data = i2c;
 	aic3x->control_type = SND_SOC_I2C;
 
 	i2c_set_clientdata(i2c, aic3x);
