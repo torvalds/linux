@@ -31,6 +31,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/mii.h>
 #include <linux/crc32.h>
 
 #include <asm/irq.h>
@@ -116,16 +117,9 @@ enum  silan_registers {
    TestD8     = 0xD8,
 };
 
-#define MII_BMCR            0        // Basic mode control register
-#define MII_BMSR            1        // Basic mode status register
 #define MII_JAB             16
 #define MII_OutputStatus    24
 
-#define BMCR_FULLDPLX       0x0100    // Full duplex
-#define BMCR_ANRESTART      0x0200    // Auto negotiation restart
-#define BMCR_ANENABLE       0x1000    // Enable auto negotiation
-#define BMCR_SPEED100       0x2000    // Select 100Mbps
-#define BMSR_LSTATUS        0x0004    // Link status
 #define PHY_16_JAB_ENB      0x1000
 #define PHY_16_PORT_ENB     0x1
 
