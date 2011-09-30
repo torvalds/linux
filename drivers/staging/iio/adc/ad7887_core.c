@@ -71,14 +71,24 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 	 * More devices added in future
 	 */
 	[ID_AD7887] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				       1, 1, IIO_ST('u', 12, 16, 0), 0),
-
-		.channel[1] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
-
+		.channel[0] = {
+			.type = IIO_VOLTAGE,
+			.indexed = 1,
+			.channel = 1,
+			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.address = 1,
+			.scan_index = 1,
+			.scan_type = IIO_ST('u', 12, 16, 0),
+		},
+		.channel[1] = {
+			.type = IIO_VOLTAGE,
+			.indexed = 1,
+			.channel = 0,
+			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.address = 0,
+			.scan_index = 0,
+			.scan_type = IIO_ST('u', 12, 16, 0),
+		},
 		.channel[2] = IIO_CHAN_SOFT_TIMESTAMP(2),
 		.int_vref_mv = 2500,
 	},
