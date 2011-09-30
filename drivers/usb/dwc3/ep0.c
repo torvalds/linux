@@ -740,8 +740,8 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 
 		if (dwc->ep0_next_event != DWC3_EP0_NRDY_DATA) {
 			dev_vdbg(dwc->dev, "Expected %d got %d\n",
-					DEPEVT_STATUS_CONTROL_DATA,
-					event->status);
+					dwc->ep0_next_event,
+					DWC3_EP0_NRDY_DATA);
 
 			dwc3_ep0_stall_and_restart(dwc);
 			return;
@@ -769,8 +769,8 @@ static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 
 		if (dwc->ep0_next_event != DWC3_EP0_NRDY_STATUS) {
 			dev_vdbg(dwc->dev, "Expected %d got %d\n",
-					DEPEVT_STATUS_CONTROL_STATUS,
-					event->status);
+					dwc->ep0_next_event,
+					DWC3_EP0_NRDY_STATUS);
 
 			dwc3_ep0_stall_and_restart(dwc);
 			return;
