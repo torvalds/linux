@@ -43,37 +43,6 @@ error_ret:
 }
 
 /**
- * ad7606_ring_preenable() setup the parameters of the ring before enabling
- *
- * The complex nature of the setting of the nuber of bytes per datum is due
- * to this driver currently ensuring that the timestamp is stored at an 8
- * byte boundary.
- **/
-static int ad7606_ring_preenable(struct iio_dev *indio_dev)
-{
-	struct ad7606_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
-	size_t d_size;
-
-	d_size = st->chip_info->num_channels *
-		 st->chip_info->channels[0].scan_type.storagebits / 8;
-
-	if (ring->scan_timestamp) {
-		d_size += sizeof(s64);
-
-		if (d_size % sizeof(s64))
-			d_size += sizeof(s64) - (d_size % sizeof(s64));
-	}
-
-	if (ring->access->set_bytes_per_datum)
-		ring->access->set_bytes_per_datum(ring, d_size);
-
-	st->d_size = d_size;
-
-	return 0;
-}
-
-/**
  * ad7606_trigger_handler_th() th/bh of trigger launched polling to ring buffer
  *
  **/
@@ -106,7 +75,8 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	__u8 *buf;
 	int ret;
 
-	buf = kzalloc(st->d_size, GFP_KERNEL);
+	buf = kzalloc(ring->access->get_bytes_per_datum(ring),
+		      GFP_KERNEL);
 	if (buf == NULL)
 		return;
 
@@ -137,8 +107,8 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	time_ns = iio_get_time_ns();
 
 	if (ring->scan_timestamp)
-		memcpy(buf + st->d_size - sizeof(s64),
-			&time_ns, sizeof(time_ns));
+		*((s64 *)(buf + ring->access->get_bytes_per_datum(ring) -
+			  sizeof(s64))) = time_ns;
 
 	ring->access->store_to(indio_dev->buffer, buf, time_ns);
 done:
@@ -148,7 +118,7 @@ done:
 }
 
 static const struct iio_buffer_setup_ops ad7606_ring_setup_ops = {
-	.preenable = &ad7606_ring_preenable,
+	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 };
@@ -166,6 +136,8 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 
 	/* Effectively select the ring buffer implementation */
 	indio_dev->buffer->access = &ring_sw_access_funcs;
+	indio_dev->buffer->bpe =
+		st->chip_info->channels[0].scan_type.storagebits / 8;
 	indio_dev->pollfunc = iio_alloc_pollfunc(&ad7606_trigger_handler_th_bh,
 						 &ad7606_trigger_handler_th_bh,
 						 0,

@@ -68,7 +68,6 @@ struct ad7606_state {
 	struct regulator		*reg;
 	struct work_struct		poll_work;
 	wait_queue_head_t		wq_data_avail;
-	size_t				d_size;
 	const struct ad7606_bus_ops	*bops;
 	int				irq;
 	unsigned			id;
