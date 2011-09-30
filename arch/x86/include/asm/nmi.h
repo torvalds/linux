@@ -42,6 +42,24 @@ void arch_trigger_all_cpu_backtrace(void);
 #define NMI_LOCAL_NORMAL_PRIOR	(NMI_LOCAL_BIT | NMI_NORMAL_PRIOR)
 #define NMI_LOCAL_LOW_PRIOR	(NMI_LOCAL_BIT | NMI_LOW_PRIOR)
 
+#define NMI_FLAG_FIRST	1
+
+enum {
+	NMI_LOCAL=0,
+	NMI_UNKNOWN,
+	NMI_MAX
+};
+
+#define NMI_DONE	0
+#define NMI_HANDLED	1
+
+typedef int (*nmi_handler_t)(unsigned int, struct pt_regs *);
+
+int register_nmi_handler(unsigned int, nmi_handler_t, unsigned long,
+			 const char *);
+
+void unregister_nmi_handler(unsigned int, const char *);
+
 void stop_nmi(void);
 void restart_nmi(void);
 

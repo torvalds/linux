@@ -13,6 +13,9 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/nmi.h>
+#include <linux/delay.h>
+#include <linux/hardirq.h>
+#include <linux/slab.h>
 
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
@@ -21,6 +24,33 @@
 #include <linux/atomic.h>
 #include <asm/traps.h>
 #include <asm/mach_traps.h>
+#include <asm/nmi.h>
+
+#define NMI_MAX_NAMELEN	16
+struct nmiaction {
+	struct list_head list;
+	nmi_handler_t handler;
+	unsigned int flags;
+	char *name;
+};
+
+struct nmi_desc {
+	spinlock_t lock;
+	struct list_head head;
+};
+
+static struct nmi_desc nmi_desc[NMI_MAX] = 
+{
+	{
+		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[0].lock),
+		.head = LIST_HEAD_INIT(nmi_desc[0].head),
+	},
+	{
+		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[1].lock),
+		.head = LIST_HEAD_INIT(nmi_desc[1].head),
+	},
+
+};
 
 static int ignore_nmis;
 
@@ -37,6 +67,129 @@ static int __init setup_unknown_nmi_panic(char *str)
 	return 1;
 }
 __setup("unknown_nmi_panic", setup_unknown_nmi_panic);
+
+#define nmi_to_desc(type) (&nmi_desc[type])
+
+static int notrace __kprobes nmi_handle(unsigned int type, struct pt_regs *regs)
+{
+	struct nmi_desc *desc = nmi_to_desc(type);
+	struct nmiaction *a;
+	int handled=0;
+
+	rcu_read_lock();
+
+	/*
+	 * NMIs are edge-triggered, which means if you have enough
+	 * of them concurrently, you can lose some because only one
+	 * can be latched at any given time.  Walk the whole list
+	 * to handle those situations.
+	 */
+	list_for_each_entry_rcu(a, &desc->head, list) {
+
+		handled += a->handler(type, regs);
+
+	}
+
+	rcu_read_unlock();
+
+	/* return total number of NMI events handled */
+	return handled;
+}
+
+static int __setup_nmi(unsigned int type, struct nmiaction *action)
+{
+	struct nmi_desc *desc = nmi_to_desc(type);
+	unsigned long flags;
+
+	spin_lock_irqsave(&desc->lock, flags);
+
+	/*
+	 * some handlers need to be executed first otherwise a fake
+	 * event confuses some handlers (kdump uses this flag)
+	 */
+	if (action->flags & NMI_FLAG_FIRST)
+		list_add_rcu(&action->list, &desc->head);
+	else
+		list_add_tail_rcu(&action->list, &desc->head);
+	
+	spin_unlock_irqrestore(&desc->lock, flags);
+	return 0;
+}
+
+static struct nmiaction *__free_nmi(unsigned int type, const char *name)
+{
+	struct nmi_desc *desc = nmi_to_desc(type);
+	struct nmiaction *n;
+	unsigned long flags;
+
+	spin_lock_irqsave(&desc->lock, flags);
+
+	list_for_each_entry_rcu(n, &desc->head, list) {
+		/*
+		 * the name passed in to describe the nmi handler
+		 * is used as the lookup key
+		 */
+		if (!strcmp(n->name, name)) {
+			WARN(in_nmi(),
+				"Trying to free NMI (%s) from NMI context!\n", n->name);
+			list_del_rcu(&n->list);
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&desc->lock, flags);
+	synchronize_rcu();
+	return (n);
+}
+
+int register_nmi_handler(unsigned int type, nmi_handler_t handler,
+			unsigned long nmiflags, const char *devname)
+{
+	struct nmiaction *action;
+	int retval = -ENOMEM;
+
+	if (!handler)
+		return -EINVAL;
+
+	action = kzalloc(sizeof(struct nmiaction), GFP_KERNEL);
+	if (!action)
+		goto fail_action;
+
+	action->handler = handler;
+	action->flags = nmiflags;
+	action->name = kstrndup(devname, NMI_MAX_NAMELEN, GFP_KERNEL);
+	if (!action->name)
+		goto fail_action_name;
+
+	retval = __setup_nmi(type, action);
+
+	if (retval)
+		goto fail_setup_nmi;
+
+	return retval;
+
+fail_setup_nmi:
+	kfree(action->name);
+fail_action_name:
+	kfree(action);
+fail_action:	
+
+	return retval;
+}
+EXPORT_SYMBOL_GPL(register_nmi_handler);
+
+void unregister_nmi_handler(unsigned int type, const char *name)
+{
+	struct nmiaction *a;
+
+	a = __free_nmi(type, name);
+	if (a) {
+		kfree(a->name);
+		kfree(a);
+	}
+}
+
+EXPORT_SYMBOL_GPL(unregister_nmi_handler);
 
 static notrace __kprobes void
 pci_serr_error(unsigned char reason, struct pt_regs *regs)
