@@ -75,11 +75,6 @@ struct ad7606_state {
 	unsigned			range;
 	unsigned			oversampling;
 	bool				done;
-	bool				have_frstdata;
-	bool				have_os;
-	bool				have_stby;
-	bool				have_reset;
-	bool				have_range;
 	void __iomem			*base_address;
 
 	/*

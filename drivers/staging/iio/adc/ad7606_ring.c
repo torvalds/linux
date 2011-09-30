@@ -110,7 +110,7 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	if (buf == NULL)
 		return;
 
-	if (st->have_frstdata) {
+	if (gpio_is_valid(st->pdata->gpio_frstdata)) {
 		ret = st->bops->read_block(st->dev, 1, buf);
 		if (ret)
 			goto done;
