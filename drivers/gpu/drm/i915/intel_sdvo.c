@@ -41,7 +41,7 @@
 #define SDVO_TMDS_MASK (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)
 #define SDVO_RGB_MASK  (SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_RGB1)
 #define SDVO_LVDS_MASK (SDVO_OUTPUT_LVDS0 | SDVO_OUTPUT_LVDS1)
-#define SDVO_TV_MASK   (SDVO_OUTPUT_CVBS0 | SDVO_OUTPUT_SVID0)
+#define SDVO_TV_MASK   (SDVO_OUTPUT_CVBS0 | SDVO_OUTPUT_SVID0 | SDVO_OUTPUT_YPRPB0)
 
 #define SDVO_OUTPUT_MASK (SDVO_TMDS_MASK | SDVO_RGB_MASK | SDVO_LVDS_MASK |\
 			SDVO_TV_MASK)
@@ -1344,8 +1344,7 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 		return connector_status_unknown;
 
 	/* add 30ms delay when the output type might be TV */
-	if (intel_sdvo->caps.output_flags &
-	    (SDVO_OUTPUT_SVID0 | SDVO_OUTPUT_CVBS0))
+	if (intel_sdvo->caps.output_flags & SDVO_TV_MASK)
 		mdelay(30);
 
 	if (!intel_sdvo_read_response(intel_sdvo, &response, 2))
@@ -2192,6 +2191,10 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, uint16_t flags)
 
 	if (flags & SDVO_OUTPUT_CVBS0)
 		if (!intel_sdvo_tv_init(intel_sdvo, SDVO_OUTPUT_CVBS0))
+			return false;
+
+	if (flags & SDVO_OUTPUT_YPRPB0)
+		if (!intel_sdvo_tv_init(intel_sdvo, SDVO_OUTPUT_YPRPB0))
 			return false;
 
 	if (flags & SDVO_OUTPUT_RGB0)
