@@ -1799,6 +1799,7 @@ static void intel_update_fbc(struct drm_device *dev)
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
+	int enable_fbc;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -1839,8 +1840,15 @@ static void intel_update_fbc(struct drm_device *dev)
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
-	if (!i915_enable_fbc) {
-		DRM_DEBUG_KMS("fbc disabled per module param (default off)\n");
+	enable_fbc = i915_enable_fbc;
+	if (enable_fbc < 0) {
+		DRM_DEBUG_KMS("fbc set to per-chip default\n");
+		enable_fbc = 1;
+		if (INTEL_INFO(dev)->gen <= 5)
+			enable_fbc = 0;
+	}
+	if (!enable_fbc) {
+		DRM_DEBUG_KMS("fbc disabled per module param\n");
 		dev_priv->no_fbc_reason = FBC_MODULE_PARAM;
 		goto out_disable;
 	}
@@ -4687,13 +4695,13 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 		bpc = 6; /* min is 18bpp */
 		break;
 	case 24:
-		bpc = min((unsigned int)8, display_bpc);
+		bpc = 8;
 		break;
 	case 30:
-		bpc = min((unsigned int)10, display_bpc);
+		bpc = 10;
 		break;
 	case 48:
-		bpc = min((unsigned int)12, display_bpc);
+		bpc = 12;
 		break;
 	default:
 		DRM_DEBUG("unsupported depth, assuming 24 bits\n");
@@ -4701,10 +4709,12 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 		break;
 	}
 
+	display_bpc = min(display_bpc, bpc);
+
 	DRM_DEBUG_DRIVER("setting pipe bpc to %d (max display bpc %d)\n",
 			 bpc, display_bpc);
 
-	*pipe_bpp = bpc * 3;
+	*pipe_bpp = display_bpc * 3;
 
 	return display_bpc != bpc;
 }
