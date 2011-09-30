@@ -246,19 +246,21 @@ TRACE_EVENT(rcu_fqs,
  */
 TRACE_EVENT(rcu_dyntick,
 
-	TP_PROTO(char *polarity),
+	TP_PROTO(char *polarity, int nesting),
 
-	TP_ARGS(polarity),
+	TP_ARGS(polarity, nesting),
 
 	TP_STRUCT__entry(
 		__field(char *, polarity)
+		__field(int, nesting)
 	),
 
 	TP_fast_assign(
 		__entry->polarity = polarity;
+		__entry->nesting = nesting;
 	),
 
-	TP_printk("%s", __entry->polarity)
+	TP_printk("%s %d", __entry->polarity, __entry->nesting)
 );
 
 /*
@@ -443,7 +445,7 @@ TRACE_EVENT(rcu_batch_end,
 #define trace_rcu_unlock_preempted_task(rcuname, gpnum, pid) do { } while (0)
 #define trace_rcu_quiescent_state_report(rcuname, gpnum, mask, qsmask, level, grplo, grphi, gp_tasks) do { } while (0)
 #define trace_rcu_fqs(rcuname, gpnum, cpu, qsevent) do { } while (0)
-#define trace_rcu_dyntick(polarity) do { } while (0)
+#define trace_rcu_dyntick(polarity, nesting) do { } while (0)
 #define trace_rcu_callback(rcuname, rhp, qlen) do { } while (0)
 #define trace_rcu_kfree_callback(rcuname, rhp, offset, qlen) do { } while (0)
 #define trace_rcu_batch_start(rcuname, qlen, blimit) do { } while (0)

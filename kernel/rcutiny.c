@@ -53,31 +53,122 @@ static void __call_rcu(struct rcu_head *head,
 
 #include "rcutiny_plugin.h"
 
-#ifdef CONFIG_NO_HZ
+static long long rcu_dynticks_nesting = LLONG_MAX / 2;
 
-static long rcu_dynticks_nesting = 1;
-
-/*
- * Enter dynticks-idle mode, which is an extended quiescent state
- * if we have fully entered that mode (i.e., if the new value of
- * dynticks_nesting is zero).
- */
-void rcu_enter_nohz(void)
+/* Common code for rcu_idle_enter() and rcu_irq_exit(), see kernel/rcutree.c. */
+static void rcu_idle_enter_common(void)
 {
-	if (--rcu_dynticks_nesting == 0)
-		rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
+	if (rcu_dynticks_nesting) {
+		RCU_TRACE(trace_rcu_dyntick("--=", rcu_dynticks_nesting));
+		return;
+	}
+	RCU_TRACE(trace_rcu_dyntick("Start", rcu_dynticks_nesting));
+	if (!idle_cpu(smp_processor_id())) {
+		WARN_ON_ONCE(1);	/* must be idle task! */
+		RCU_TRACE(trace_rcu_dyntick("Error on entry: not idle task",
+					    rcu_dynticks_nesting));
+		ftrace_dump(DUMP_ALL);
+	}
+	rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
 }
 
 /*
- * Exit dynticks-idle mode, so that we are no longer in an extended
- * quiescent state.
+ * Enter idle, which is an extended quiescent state if we have fully
+ * entered that mode (i.e., if the new value of dynticks_nesting is zero).
  */
-void rcu_exit_nohz(void)
+void rcu_idle_enter(void)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
+	rcu_dynticks_nesting = 0;
+	rcu_idle_enter_common();
+	local_irq_restore(flags);
+}
+
+/*
+ * Exit an interrupt handler towards idle.
+ */
+void rcu_irq_exit(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	rcu_dynticks_nesting--;
+	WARN_ON_ONCE(rcu_dynticks_nesting < 0);
+	rcu_idle_enter_common();
+	local_irq_restore(flags);
+}
+
+/* Common code for rcu_idle_exit() and rcu_irq_enter(), see kernel/rcutree.c. */
+static void rcu_idle_exit_common(long long oldval)
+{
+	if (oldval) {
+		RCU_TRACE(trace_rcu_dyntick("++=", rcu_dynticks_nesting));
+		return;
+	}
+	RCU_TRACE(trace_rcu_dyntick("End", oldval));
+	if (!idle_cpu(smp_processor_id())) {
+		WARN_ON_ONCE(1);	/* must be idle task! */
+		RCU_TRACE(trace_rcu_dyntick("Error on exit: not idle task",
+			  oldval));
+		ftrace_dump(DUMP_ALL);
+	}
+}
+
+/*
+ * Exit idle, so that we are no longer in an extended quiescent state.
+ */
+void rcu_idle_exit(void)
+{
+	unsigned long flags;
+	long long oldval;
+
+	local_irq_save(flags);
+	oldval = rcu_dynticks_nesting;
+	WARN_ON_ONCE(oldval != 0);
+	rcu_dynticks_nesting = LLONG_MAX / 2;
+	rcu_idle_exit_common(oldval);
+	local_irq_restore(flags);
+}
+
+/*
+ * Enter an interrupt handler, moving away from idle.
+ */
+void rcu_irq_enter(void)
+{
+	unsigned long flags;
+	long long oldval;
+
+	local_irq_save(flags);
+	oldval = rcu_dynticks_nesting;
 	rcu_dynticks_nesting++;
+	WARN_ON_ONCE(rcu_dynticks_nesting == 0);
+	rcu_idle_exit_common(oldval);
+	local_irq_restore(flags);
 }
 
-#endif /* #ifdef CONFIG_NO_HZ */
+#ifdef CONFIG_PROVE_RCU
+
+/*
+ * Test whether RCU thinks that the current CPU is idle.
+ */
+int rcu_is_cpu_idle(void)
+{
+	return !rcu_dynticks_nesting;
+}
+
+#endif /* #ifdef CONFIG_PROVE_RCU */
+
+/*
+ * Test whether the current CPU was interrupted from idle.  Nested
+ * interrupts don't count, we must be running at the first interrupt
+ * level.
+ */
+int rcu_is_cpu_rrupt_from_idle(void)
+{
+	return rcu_dynticks_nesting <= 0;
+}
 
 /*
  * Helper function for rcu_sched_qs() and rcu_bh_qs().
@@ -126,14 +217,13 @@ void rcu_bh_qs(int cpu)
 
 /*
  * Check to see if the scheduling-clock interrupt came from an extended
- * quiescent state, and, if so, tell RCU about it.
+ * quiescent state, and, if so, tell RCU about it.  This function must
+ * be called from hardirq context.  It is normally called from the
+ * scheduling-clock interrupt.
  */
 void rcu_check_callbacks(int cpu, int user)
 {
-	if (user ||
-	    (idle_cpu(cpu) &&
-	     !in_softirq() &&
-	     hardirq_count() <= (1 << HARDIRQ_SHIFT)))
+	if (user || rcu_is_cpu_rrupt_from_idle())
 		rcu_sched_qs(cpu);
 	else if (!in_softirq())
 		rcu_bh_qs(cpu);
