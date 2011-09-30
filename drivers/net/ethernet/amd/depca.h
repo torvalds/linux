@@ -157,8 +157,6 @@
 */
 #include <linux/sockios.h>
 
-#define	DEPCAIOCTL	SIOCDEVPRIVATE
-
 struct depca_ioctl {
 	unsigned short cmd;                /* Command to run */
 	unsigned short len;                /* Length of the data buffer */

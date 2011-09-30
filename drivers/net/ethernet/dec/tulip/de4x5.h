@@ -991,8 +991,6 @@
 */
 #include <linux/sockios.h>
 
-#define	DE4X5IOCTL	SIOCDEVPRIVATE
-
 struct de4x5_ioctl {
 	unsigned short cmd;                /* Command to run */
 	unsigned short len;                /* Length of the data buffer */

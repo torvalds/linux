@@ -102,7 +102,6 @@ enum jme_spi_op_bits {
 };
 
 #define HALF_US 500	/* 500 ns */
-#define JMESPIIOCTL	SIOCDEVPRIVATE
 
 #define PCI_PRIV_PE1		0xE4
 
