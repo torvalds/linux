@@ -53,6 +53,15 @@ static struct nmi_desc nmi_desc[NMI_MAX] =
 
 };
 
+struct nmi_stats {
+	unsigned int normal;
+	unsigned int unknown;
+	unsigned int external;
+	unsigned int swallow;
+};
+
+static DEFINE_PER_CPU(struct nmi_stats, nmi_stats);
+
 static int ignore_nmis;
 
 int unknown_nmi_panic;
@@ -262,8 +271,13 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 	 * if it caused the NMI)
 	 */
 	handled = nmi_handle(NMI_UNKNOWN, regs, false);
-	if (handled)
+	if (handled) {
+		__this_cpu_add(nmi_stats.unknown, handled);
 		return;
+	}
+
+	__this_cpu_add(nmi_stats.unknown, 1);
+
 #ifdef CONFIG_MCA
 	/*
 	 * Might actually be able to figure out what the guilty party
@@ -314,6 +328,7 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	__this_cpu_write(last_nmi_rip, regs->ip);
 
 	handled = nmi_handle(NMI_LOCAL, regs, b2b);
+	__this_cpu_add(nmi_stats.normal, handled);
 	if (handled) {
 		/*
 		 * There are cases when a NMI handler handles multiple
@@ -344,6 +359,7 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 		 */
 		reassert_nmi();
 #endif
+		__this_cpu_add(nmi_stats.external, 1);
 		raw_spin_unlock(&nmi_reason_lock);
 		return;
 	}
@@ -380,7 +396,7 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	 * for now.
 	 */
 	if (b2b && __this_cpu_read(swallow_nmi))
-		;
+		__this_cpu_add(nmi_stats.swallow, 1);
 	else
 		unknown_nmi_error(reason, regs);
 }
