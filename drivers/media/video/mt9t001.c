@@ -13,6 +13,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/module.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
