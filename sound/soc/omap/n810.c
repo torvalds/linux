@@ -115,24 +115,7 @@ static int n810_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
-
-	/* Set codec DAI configuration */
-	err = snd_soc_dai_set_fmt(codec_dai,
-					 SND_SOC_DAIFMT_I2S |
-					 SND_SOC_DAIFMT_NB_NF |
-					 SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0)
-		return err;
-
-	/* Set cpu DAI configuration */
-	err = snd_soc_dai_set_fmt(cpu_dai,
-				       SND_SOC_DAIFMT_I2S |
-				       SND_SOC_DAIFMT_NB_NF |
-				       SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0)
-		return err;
 
 	/* Set the codec system clock for DAC and ADC */
 	err = snd_soc_dai_set_sysclk(codec_dai, 0, 12000000,
@@ -312,6 +295,8 @@ static struct snd_soc_dai_link n810_dai = {
 	.platform_name = "omap-pcm-audio",
 	.codec_name = "tlv320aic3x-codec.2-0018",
 	.codec_dai_name = "tlv320aic3x-hifi",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBM_CFM,
 	.init = n810_aic33_init,
 	.ops = &n810_ops,
 };
