@@ -398,7 +398,7 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 {
 	struct omap_mcbsp_data *mcbsp_data = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
-	unsigned int temp_fmt = fmt;
+	bool inv_fs = false;
 
 	if (mcbsp_data->configured)
 		return 0;
@@ -430,21 +430,21 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		regs->xcr2	|= XDATDLY(0);
 		regs->spcr1	|= RJUST(2);
 		/* Invert FS polarity configuration */
-		temp_fmt ^= SND_SOC_DAIFMT_NB_IF;
+		inv_fs = true;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		/* 1-bit data delay */
 		regs->rcr2      |= RDATDLY(1);
 		regs->xcr2      |= XDATDLY(1);
 		/* Invert FS polarity configuration */
-		temp_fmt ^= SND_SOC_DAIFMT_NB_IF;
+		inv_fs = true;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
 		/* 0-bit data delay */
 		regs->rcr2      |= RDATDLY(0);
 		regs->xcr2      |= XDATDLY(0);
 		/* Invert FS polarity configuration */
-		temp_fmt ^= SND_SOC_DAIFMT_NB_IF;
+		inv_fs = true;
 		break;
 	default:
 		/* Unsupported data format */
@@ -468,7 +468,7 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	}
 
 	/* Set bit clock (CLKX/CLKR) and FS polarities */
-	switch (temp_fmt & SND_SOC_DAIFMT_INV_MASK) {
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
 		/*
 		 * Normal BCLK + FS.
@@ -489,6 +489,8 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	default:
 		return -EINVAL;
 	}
+	if (inv_fs == true)
+		regs->pcr0 ^= FSXP | FSRP;
 
 	return 0;
 }
