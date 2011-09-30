@@ -23,45 +23,34 @@
 #include "ics.h"
 #include "wsp.h"
 
-
-static void psr2_spin(void)
+void __init chroma_setup_arch(void)
 {
-	hard_irq_disable();
-	for (;;)
-		continue;
+	wsp_setup_arch();
+	wsp_setup_h8();
+
 }
 
-static void psr2_restart(char *cmd)
-{
-	psr2_spin();
-}
-
-static int __init psr2_probe(void)
+static int __init chroma_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (of_flat_dt_is_compatible(root, "ibm,wsp-chroma")) {
-		/* chroma systems also claim they are psr2s */
-		return 0;
-	}
-
-	if (!of_flat_dt_is_compatible(root, "ibm,psr2"))
+	if (!of_flat_dt_is_compatible(root, "ibm,wsp-chroma"))
 		return 0;
 
 	return 1;
 }
 
-define_machine(psr2_md) {
-	.name			= "PSR2 A2",
-	.probe			= psr2_probe,
-	.setup_arch		= wsp_setup_arch,
-	.restart		= psr2_restart,
-	.power_off		= psr2_spin,
-	.halt			= psr2_spin,
+define_machine(chroma_md) {
+	.name			= "Chroma PCIe",
+	.probe			= chroma_probe,
+	.setup_arch		= chroma_setup_arch,
+	.restart		= wsp_h8_restart,
+	.power_off		= wsp_h8_power_off,
+	.halt			= wsp_halt,
 	.calibrate_decr		= generic_calibrate_decr,
 	.init_IRQ		= wsp_setup_irq,
 	.progress		= udbg_progress,
 	.power_save		= book3e_idle,
 };
 
-machine_arch_initcall(psr2_md, wsp_probe_devices);
+machine_arch_initcall(chroma_md, wsp_probe_devices);
