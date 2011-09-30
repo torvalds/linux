@@ -193,7 +193,8 @@ static int __init omap2430_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 100, sdp2430_i2c1_boardinfo,
 			ARRAY_SIZE(sdp2430_i2c1_boardinfo));
-	omap2_pmic_init("twl4030", &sdp2430_twldata);
+	omap_pmic_init(2, 100, "twl4030", INT_24XX_SYS_NIRQ,
+			&sdp2430_twldata);
 	return 0;
 }
 
