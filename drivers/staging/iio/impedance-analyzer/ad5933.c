@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <asm/div64.h>
 
 #include "../iio.h"
