@@ -580,6 +580,20 @@ config VIDEO_M52790
 
 endmenu # encoder / decoder chips
 
+config VIDEO_VIVI
+	tristate "Virtual Video Driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	select FONT_8x16
+	select VIDEOBUF2_VMALLOC
+	default n
+	---help---
+	  Enables a virtual video driver. This device shows a color bar
+	  and a timestamp, as a real device would generate by using V4L2
+	  api.
+	  Say Y here if you want to test video apps or debug V4L devices.
+	  In doubt, say N.
+
 #
 # USB Multimedia device configuration
 #
@@ -614,6 +628,8 @@ source "drivers/media/video/et61x251/Kconfig"
 source "drivers/media/video/sn9c102/Kconfig"
 
 source "drivers/media/video/pwc/Kconfig"
+
+source "drivers/media/video/cpia2/Kconfig"
 
 config USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
@@ -653,25 +669,55 @@ config USB_S2255
 
 endif # V4L_USB_DRIVERS
 
-config VIDEO_VIVI
-	tristate "Virtual Video Driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64
-	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
-	select FONT_8x16
-	select VIDEOBUF2_VMALLOC
-	default n
+#
+# PCI drivers configuration
+#
+
+menuconfig V4L_PCI_DRIVERS
+	bool "V4L PCI(e) devices"
+	depends on PCI
+	default y
 	---help---
-	  Enables a virtual video driver. This device shows a color bar
-	  and a timestamp, as a real device would generate by using V4L2
-	  api.
-	  Say Y here if you want to test video apps or debug V4L devices.
-	  In doubt, say N.
+	  Say Y here to enable support for these PCI(e) drivers.
+
+if V4L_PCI_DRIVERS
+
+source "drivers/media/video/au0828/Kconfig"
 
 source "drivers/media/video/bt8xx/Kconfig"
 
-source "drivers/media/video/cpia2/Kconfig"
+source "drivers/media/video/cx18/Kconfig"
 
-source "drivers/media/video/zoran/Kconfig"
+source "drivers/media/video/cx23885/Kconfig"
+
+source "drivers/media/video/cx25821/Kconfig"
+
+source "drivers/media/video/cx88/Kconfig"
+
+config VIDEO_HEXIUM_GEMINI
+	tristate "Hexium Gemini frame grabber"
+	depends on PCI && VIDEO_V4L2 && I2C
+	select VIDEO_SAA7146_VV
+	---help---
+	  This is a video4linux driver for the Hexium Gemini frame
+	  grabber card by Hexium. Please note that the Gemini Dual
+	  card is *not* fully supported.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hexium_gemini.
+
+config VIDEO_HEXIUM_ORION
+	tristate "Hexium HV-PCI6 and Orion frame grabber"
+	depends on PCI && VIDEO_V4L2 && I2C
+	select VIDEO_SAA7146_VV
+	---help---
+	  This is a video4linux driver for the Hexium HV-PCI6 and
+	  Orion frame grabber cards by Hexium.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hexium_orion.
+
+source "drivers/media/video/ivtv/Kconfig"
 
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
@@ -686,8 +732,6 @@ config VIDEO_MEYE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called meye.
-
-source "drivers/media/video/saa7134/Kconfig"
 
 config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
@@ -705,42 +749,13 @@ config VIDEO_MXB
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxb.
 
-config VIDEO_HEXIUM_ORION
-	tristate "Hexium HV-PCI6 and Orion frame grabber"
-	depends on PCI && VIDEO_V4L2 && I2C
-	select VIDEO_SAA7146_VV
-	---help---
-	  This is a video4linux driver for the Hexium HV-PCI6 and
-	  Orion frame grabber cards by Hexium.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hexium_orion.
-
-config VIDEO_HEXIUM_GEMINI
-	tristate "Hexium Gemini frame grabber"
-	depends on PCI && VIDEO_V4L2 && I2C
-	select VIDEO_SAA7146_VV
-	---help---
-	  This is a video4linux driver for the Hexium Gemini frame
-	  grabber card by Hexium. Please note that the Gemini Dual
-	  card is *not* fully supported.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hexium_gemini.
-
-source "drivers/media/video/cx88/Kconfig"
-
-source "drivers/media/video/cx23885/Kconfig"
-
-source "drivers/media/video/cx25821/Kconfig"
-
-source "drivers/media/video/au0828/Kconfig"
-
-source "drivers/media/video/ivtv/Kconfig"
-
-source "drivers/media/video/cx18/Kconfig"
+source "drivers/media/video/saa7134/Kconfig"
 
 source "drivers/media/video/saa7164/Kconfig"
+
+source "drivers/media/video/zoran/Kconfig"
+
+endif # V4L_PCI_DRIVERS
 
 #
 # ISA & parallel port drivers configuration
