@@ -1,8 +1,12 @@
 #include <linux/kernel.h>
 
 #include <asm/cputype.h>
+#include <asm/idmap.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
+#include <asm/sections.h>
+
+pgd_t *idmap_pgd;
 
 static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 	unsigned long prot)
@@ -72,6 +76,28 @@ void identity_mapping_del(pgd_t *pgd, unsigned long addr, unsigned long end)
 	} while (pgd++, addr = next, addr != end);
 }
 #endif
+
+extern char  __idmap_text_start[], __idmap_text_end[];
+
+static int __init init_static_idmap(void)
+{
+	phys_addr_t idmap_start, idmap_end;
+
+	idmap_pgd = pgd_alloc(&init_mm);
+	if (!idmap_pgd)
+		return -ENOMEM;
+
+	/* Add an identity mapping for the physical address of the section. */
+	idmap_start = virt_to_phys((void *)__idmap_text_start);
+	idmap_end = virt_to_phys((void *)__idmap_text_end);
+
+	pr_info("Setting up static identity map for 0x%llx - 0x%llx\n",
+		(long long)idmap_start, (long long)idmap_end);
+	identity_mapping_add(idmap_pgd, idmap_start, idmap_end);
+
+	return 0;
+}
+arch_initcall(init_static_idmap);
 
 /*
  * In order to soft-boot, we need to insert a 1:1 mapping in place of
