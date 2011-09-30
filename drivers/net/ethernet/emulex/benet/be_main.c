@@ -2529,6 +2529,8 @@ static int be_setup(struct be_adapter *adapter)
 	adapter->link_speed = -1;
 
 	be_cmd_get_fw_ver(adapter, adapter->fw_ver, NULL);
+
+	pcie_set_readrq(adapter->pdev, 4096);
 	return 0;
 
 rx_qs_destroy:
