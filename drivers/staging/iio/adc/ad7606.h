@@ -69,8 +69,6 @@ struct ad7606_state {
 	struct work_struct		poll_work;
 	wait_queue_head_t		wq_data_avail;
 	const struct ad7606_bus_ops	*bops;
-	int				irq;
-	unsigned			id;
 	unsigned			range;
 	unsigned			oversampling;
 	bool				done;
@@ -94,7 +92,7 @@ void ad7606_resume(struct iio_dev *indio_dev);
 struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			      void __iomem *base_address, unsigned id,
 			      const struct ad7606_bus_ops *bops);
-int ad7606_remove(struct iio_dev *indio_dev);
+int ad7606_remove(struct iio_dev *indio_dev, int irq);
 int ad7606_reset(struct ad7606_state *st);
 
 enum ad7606_supported_device_ids {

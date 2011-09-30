@@ -459,8 +459,6 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	st = iio_priv(indio_dev);
 
 	st->dev = dev;
-	st->id = id;
-	st->irq = irq;
 	st->bops = bops;
 	st->base_address = base_address;
 	st->range = pdata->default_range == 10000 ? 10000 : 5000;
@@ -501,7 +499,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	if (ret)
 		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
 
-	ret = request_irq(st->irq, ad7606_interrupt,
+	ret = request_irq(irq, ad7606_interrupt,
 		IRQF_TRIGGER_FALLING, st->chip_info->name, indio_dev);
 	if (ret)
 		goto error_free_gpios;
@@ -527,7 +525,7 @@ error_cleanup_ring:
 	ad7606_ring_cleanup(indio_dev);
 
 error_free_irq:
-	free_irq(st->irq, indio_dev);
+	free_irq(irq, indio_dev);
 
 error_free_gpios:
 	ad7606_free_gpios(st);
@@ -543,14 +541,14 @@ error_ret:
 	return ERR_PTR(ret);
 }
 
-int ad7606_remove(struct iio_dev *indio_dev)
+int ad7606_remove(struct iio_dev *indio_dev, int irq)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	iio_buffer_unregister(indio_dev);
 	ad7606_ring_cleanup(indio_dev);
 
-	free_irq(st->irq, indio_dev);
+	free_irq(irq, indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
