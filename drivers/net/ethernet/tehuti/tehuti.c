@@ -67,10 +67,10 @@
 #include "tehuti.h"
 
 static DEFINE_PCI_DEVICE_TABLE(bdx_pci_tbl) = {
-	{0x1FC9, 0x3009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x1FC9, 0x3010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x1FC9, 0x3014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{ PCI_VDEVICE(TEHUTI, 0x3009), },
+	{ PCI_VDEVICE(TEHUTI, 0x3010), },
+	{ PCI_VDEVICE(TEHUTI, 0x3014), },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, bdx_pci_tbl);
