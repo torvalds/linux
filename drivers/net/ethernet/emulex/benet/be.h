@@ -137,6 +137,11 @@ static inline void *queue_tail_node(struct be_queue_info *q)
 	return q->dma_mem.va + q->tail * q->entry_size;
 }
 
+static inline void *queue_index_node(struct be_queue_info *q, u16 index)
+{
+	return q->dma_mem.va + index * q->entry_size;
+}
+
 static inline void queue_head_inc(struct be_queue_info *q)
 {
 	index_inc(&q->head, q->len);

@@ -19,7 +19,12 @@
 #include "be_cmds.h"
 
 /* Must be a power of 2 or else MODULO will BUG_ON */
-static int be_get_temp_freq = 32;
+static int be_get_temp_freq = 64;
+
+static inline void *embedded_payload(struct be_mcc_wrb *wrb)
+{
+	return wrb->payload.embedded_payload;
+}
 
 static void be_mcc_notify(struct be_adapter *adapter)
 {
@@ -85,7 +90,20 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			be_parse_stats(adapter);
 			adapter->stats_cmd_sent = false;
 		}
+		if (compl->tag0 ==
+				OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES) {
+			struct be_mcc_wrb *mcc_wrb =
+				queue_index_node(&adapter->mcc_obj.q,
+						compl->tag1);
+			struct be_cmd_resp_get_cntl_addnl_attribs *resp =
+				embedded_payload(mcc_wrb);
+			adapter->drv_stats.be_on_die_temperature =
+				resp->on_die_temperature;
+		}
 	} else {
+		if (compl->tag0 == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES)
+			be_get_temp_freq = 0;
+
 		if (compl_status == MCC_STATUS_NOT_SUPPORTED ||
 			compl_status == MCC_STATUS_ILLEGAL_REQUEST)
 			goto done;
@@ -404,10 +422,6 @@ int be_cmd_POST(struct be_adapter *adapter)
 	return -1;
 }
 
-static inline void *embedded_payload(struct be_mcc_wrb *wrb)
-{
-	return wrb->payload.embedded_payload;
-}
 
 static inline struct be_sge *nonembedded_sgl(struct be_mcc_wrb *wrb)
 {
@@ -1301,9 +1315,12 @@ int be_cmd_get_die_temperature(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_cntl_addnl_attribs *req;
+	u16 mccq_index;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
+
+	mccq_index = adapter->mcc_obj.q.head;
 
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
@@ -1318,16 +1335,9 @@ int be_cmd_get_die_temperature(struct be_adapter *adapter)
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES, sizeof(*req));
 
-	status = be_mcc_notify_wait(adapter);
-	if (!status) {
-		struct be_cmd_resp_get_cntl_addnl_attribs *resp =
-						embedded_payload(wrb);
-		adapter->drv_stats.be_on_die_temperature =
-						resp->on_die_temperature;
-	}
-	/* If IOCTL fails once, do not bother issuing it again */
-	else
-		be_get_temp_freq = 0;
+	wrb->tag1 = mccq_index;
+
+	be_mcc_notify(adapter);
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
