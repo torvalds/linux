@@ -133,6 +133,9 @@ my %config_help;
 my %variable;
 my %force_config;
 
+# do not force reboots on config problems
+my $no_reboot = 1;
+
 $config_help{"MACHINE"} = << "EOF"
  The machine hostname that you will test.
 EOF
@@ -640,7 +643,7 @@ sub reboot {
 sub do_not_reboot {
     my $i = $iteration;
 
-    return $test_type eq "build" ||
+    return $test_type eq "build" || $no_reboot ||
 	($test_type eq "patchcheck" && $opt{"PATCHCHECK_TYPE[$i]"} eq "build") ||
 	($test_type eq "bisect" && $opt{"BISECT_TYPE[$i]"} eq "build");
 }
@@ -1285,6 +1288,10 @@ sub build {
 
     unlink $buildlog;
 
+    # Failed builds should not reboot the target
+    my $save_no_reboot = $no_reboot;
+    $no_reboot = 1;
+
     if (defined($pre_build)) {
 	my $ret = run_command $pre_build;
 	if (!$ret && defined($pre_build_die) &&
@@ -1353,9 +1360,14 @@ sub build {
 
     if (!$build_ret) {
 	# bisect may need this to pass
-	return 0 if ($in_bisect);
+	if ($in_bisect) {
+	    $no_reboot = $save_no_reboot;
+	    return 0;
+	}
 	fail "failed build" and return 0;
     }
+
+    $no_reboot = $save_no_reboot;
 
     return 1;
 }
@@ -2806,6 +2818,9 @@ sub set_test_option {
 # First we need to do is the builds
 for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
+    # Do not reboot on failing test options
+    $no_reboot = 1;
+
     $iteration = $i;
 
     my $makecmd = set_test_option("MAKE_CMD", $i);
@@ -2940,6 +2955,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	run_command "git checkout $checkout" or
 	    die "failed to checkout $checkout";
     }
+
+    $no_reboot = 0;
+
 
     if ($test_type eq "bisect") {
 	bisect $i;
