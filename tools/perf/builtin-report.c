@@ -40,6 +40,7 @@ static char		const *input_name = "perf.data";
 static bool		force, use_tui, use_stdio;
 static bool		hide_unresolved;
 static bool		dont_use_callchains;
+static bool		show_full_info;
 
 static bool		show_threads;
 static struct perf_read_values	show_threads_values;
@@ -273,6 +274,9 @@ static int __cmd_report(void)
 			goto out_delete;
 	}
 
+	if (use_browser <= 0)
+		perf_session__fprintf_info(session, stdout, show_full_info);
+
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
 
@@ -485,6 +489,8 @@ static const struct option options[] = {
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_BOOLEAN('I', "show-info", &show_full_info,
+		    "Display extended information about perf.data file"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
