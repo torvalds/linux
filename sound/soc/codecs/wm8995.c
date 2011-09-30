@@ -1573,9 +1573,16 @@ static int wm8995_resume(struct snd_soc_codec *codec)
 static int wm8995_remove(struct snd_soc_codec *codec)
 {
 	struct wm8995_priv *wm8995;
+	int i;
 
 	wm8995 = snd_soc_codec_get_drvdata(codec);
 	wm8995_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); ++i)
+		regulator_unregister_notifier(wm8995->supplies[i].consumer,
+					      &wm8995->disable_nb[i]);
+
+	regulator_bulk_free(ARRAY_SIZE(wm8995->supplies), wm8995->supplies);
 	return 0;
 }
 
