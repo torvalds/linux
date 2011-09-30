@@ -1429,7 +1429,7 @@ void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf)
 			struct be_cmd_resp_get_fat *resp = get_fat_cmd.va;
 			memcpy(buf + offset,
 				resp->data_buffer,
-				resp->read_log_length);
+				le32_to_cpu(resp->read_log_length));
 		} else {
 			dev_err(&adapter->pdev->dev, "FAT Table Retrieve error\n");
 			goto err;
