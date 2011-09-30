@@ -587,7 +587,6 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 		/* for some reason we did not get everything out */
 
 		dwc3_ep0_stall_and_restart(dwc);
-		dwc3_gadget_giveback(dep, r, -ECONNRESET);
 	} else {
 		/*
 		 * handle the case where we have to send a zero packet. This
