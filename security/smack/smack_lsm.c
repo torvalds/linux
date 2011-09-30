@@ -441,6 +441,12 @@ static int smack_sb_umount(struct vfsmount *mnt, int flags)
  * BPRM hooks
  */
 
+/**
+ * smack_bprm_set_creds - set creds for exec
+ * @bprm: the exec information
+ *
+ * Returns 0 if it gets a blob, -ENOMEM otherwise
+ */
 static int smack_bprm_set_creds(struct linux_binprm *bprm)
 {
 	struct task_smack *tsp = bprm->cred->security;
@@ -844,7 +850,7 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 	return;
 }
 
-/*
+/**
  * smack_inode_getxattr - Smack check on getxattr
  * @dentry: the object
  * @name: unused
@@ -861,7 +867,7 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
 	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
 }
 
-/*
+/**
  * smack_inode_removexattr - Smack check on removexattr
  * @dentry: the object
  * @name: name of the attribute

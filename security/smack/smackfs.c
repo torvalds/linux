@@ -104,9 +104,6 @@ const char *smack_cipso_option = SMACK_CIPSO_OPTION;
 
 
 #define	SEQ_READ_FINISHED	((loff_t)-1)
-/*
-#define	SEQ_READ_FINISHED	1
-*/
 
 /*
  * Values for parsing cipso rules
@@ -475,10 +472,6 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
 
-/*
-	return smk_write_load_list(file, buf, count, ppos, &smack_rule_list,
-					&smack_list_lock);
-*/
 	return smk_write_load_list(file, buf, count, ppos, NULL, NULL);
 }
 

@@ -156,7 +156,6 @@ struct smack_known {
 
 /*
  * smackfs magic number
- * smackfs macic number
  */
 #define SMACK_MAGIC	0x43415d53 /* "SMAC" */
 
@@ -182,9 +181,9 @@ struct smack_known {
 #define MAY_NOT		0
 
 /*
- * Number of access types used by Smack (rwxa)
+ * Number of access types used by Smack (rwxat)
  */
-#define SMK_NUM_ACCESS_TYPE 4
+#define SMK_NUM_ACCESS_TYPE 5
 
 /*
  * Smack audit data; is empty if CONFIG_AUDIT not set
