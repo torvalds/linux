@@ -1419,7 +1419,7 @@ int request_any_context_irq(unsigned int irq, irq_handler_t handler,
 }
 EXPORT_SYMBOL_GPL(request_any_context_irq);
 
-void enable_percpu_irq(unsigned int irq)
+void enable_percpu_irq(unsigned int irq, unsigned int type)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned long flags;
@@ -1428,7 +1428,20 @@ void enable_percpu_irq(unsigned int irq)
 	if (!desc)
 		return;
 
+	type &= IRQ_TYPE_SENSE_MASK;
+	if (type != IRQ_TYPE_NONE) {
+		int ret;
+
+		ret = __irq_set_trigger(desc, irq, type);
+
+		if (ret) {
+			WARN(1, "failed to set type for IRQ%d\n, irq");
+			goto out;
+		}
+	}
+
 	irq_percpu_enable(desc, cpu);
+out:
 	irq_put_desc_unlock(desc, flags);
 }
 
