@@ -23,9 +23,9 @@
 
 #include "ad799x.h"
 
-int ad799x_single_channel_from_ring(struct ad799x_state *st, int channum)
+int ad799x_single_channel_from_ring(struct iio_dev *indio_dev, int channum)
 {
-	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
+	struct iio_buffer *ring = indio_dev->buffer;
 	int count = 0, ret;
 	u16 *ring_data;
 

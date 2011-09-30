@@ -150,7 +150,7 @@ static int ad799x_read_raw(struct iio_dev *dev_info,
 	case 0:
 		mutex_lock(&dev_info->mlock);
 		if (iio_buffer_enabled(dev_info))
-			ret = ad799x_single_channel_from_ring(st,
+			ret = ad799x_single_channel_from_ring(dev_info,
 							      chan->scan_index);
 		else
 			ret = ad799x_scan_direct(st, chan->address);
