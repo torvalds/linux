@@ -525,14 +525,14 @@ static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 
 	len = le16_to_cpu(ctrl->wLength);
 	if (!len) {
-		dwc->three_stage_setup = 0;
+		dwc->three_stage_setup = false;
+		dwc->ep0_expect_in = false;
 		dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
 	} else {
-		dwc->three_stage_setup = 1;
+		dwc->three_stage_setup = true;
+		dwc->ep0_expect_in = !!(ctrl->bRequestType & USB_DIR_IN);
 		dwc->ep0_next_event = DWC3_EP0_NRDY_DATA;
 	}
-
-	dwc->ep0_expect_in = !!(ctrl->bRequestType & USB_DIR_IN);
 
 	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD)
 		ret = dwc3_ep0_std_request(dwc, ctrl);
