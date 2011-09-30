@@ -1164,6 +1164,14 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 	reg &= ~DWC3_GCTL_DISSCRAMBLE;
 	reg |= DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_DEVICE);
 
+	switch (DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams0)) {
+	case DWC3_GHWPARAMS1_EN_PWROPT_CLK:
+		reg &= ~DWC3_GCTL_DSBLCLKGTNG;
+		break;
+	default:
+		dev_dbg(dwc->dev, "No power optimization available\n");
+	}
+
 	/*
 	 * WORKAROUND: DWC3 revisions <1.90a have a bug
 	 * when The device fails to connect at SuperSpeed

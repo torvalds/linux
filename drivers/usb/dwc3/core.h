@@ -161,6 +161,7 @@
 #define DWC3_GCTL_CORESOFTRESET	(1 << 11)
 #define DWC3_GCTL_SCALEDOWN(n)	(n << 4)
 #define DWC3_GCTL_DISSCRAMBLE	(1 << 3)
+#define DWC3_GCTL_DSBLCLKGTNG	(1 << 0)
 
 /* Global USB2 PHY Configuration Register */
 #define DWC3_GUSB2PHYCFG_PHYSOFTRST (1 << 31)
@@ -169,6 +170,11 @@
 /* Global USB3 PIPE Control Register */
 #define DWC3_GUSB3PIPECTL_PHYSOFTRST (1 << 31)
 #define DWC3_GUSB3PIPECTL_SUSPHY (1 << 17)
+
+/* Global HWPARAMS1 Register */
+#define DWC3_GHWPARAMS1_EN_PWROPT(n)	((n & (3 << 24)) >> 24)
+#define DWC3_GHWPARAMS1_EN_PWROPT_NO	0
+#define DWC3_GHWPARAMS1_EN_PWROPT_CLK	1
 
 /* Device Configuration Register */
 #define DWC3_DCFG_DEVADDR(addr)	((addr) << 3)
