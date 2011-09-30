@@ -229,6 +229,21 @@ static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 	}
 }
 
+static void __devinit dwc3_cache_hwparams(struct dwc3 *dwc)
+{
+	struct dwc3_hwparams	*parms = &dwc->hwparams;
+
+	parms->hwparams0 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS0);
+	parms->hwparams1 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS1);
+	parms->hwparams2 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS2);
+	parms->hwparams3 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS3);
+	parms->hwparams4 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS4);
+	parms->hwparams5 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS5);
+	parms->hwparams6 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS6);
+	parms->hwparams7 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS7);
+	parms->hwparams8 = dwc3_readl(dwc->regs, DWC3_GHWPARAMS8);
+}
+
 /**
  * dwc3_core_init - Low-level initialization of DWC3 Core
  * @dwc: Pointer to our controller context structure
@@ -282,6 +297,8 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 		dev_err(dwc->dev, "failed to setup event buffers\n");
 		goto err1;
 	}
+
+	dwc3_cache_hwparams(dwc);
 
 	return 0;
 
