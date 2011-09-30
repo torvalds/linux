@@ -657,8 +657,25 @@ void b43_phy_lcn_load_tx_gain_tab(struct b43_wldev *dev,
 	}
 }
 
+/* wlc_lcnphy_load_rfpower */
+static void b43_phy_lcn_load_rfpower(struct b43_wldev *dev)
+{
+	u32 bbmult, rfgain;
+	u8 i;
+
+	for (i = 0; i < 128; i++) {
+		bbmult = b43_lcntab_read(dev, B43_LCNTAB32(0x7, 0x140 + i));
+		bbmult >>= 20;
+		rfgain = b43_lcntab_read(dev, B43_LCNTAB32(0x7, 0xc0 + i));
+
+		/* TODO: calculate value for 0x240 + i table offset
+		 * b43_lcntab_write(dev, B43_LCNTAB32(0x7, 0x240 + i), val);
+		 */
+	}
+}
+
 /* Not implemented in brcmsmac, noticed in wl in MMIO dump */
-static void b43_phy_lcn_rewrite_tables(struct b43_wldev *dev)
+static void b43_phy_lcn_rewrite_rfpower_table(struct b43_wldev *dev)
 {
 	int i;
 	u32 tmp;
@@ -685,7 +702,7 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 	b43_phy_lcn_upload_static_tables(dev);
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-		if (sprom->boardflags_lo & B43_BFL_EXTLNA)
+		if (sprom->boardflags_lo & B43_BFL_FEM)
 			b43_phy_lcn_load_tx_gain_tab(dev,
 				b43_lcntab_tx_gain_tbl_2ghz_ext_pa_rev0);
 		else
@@ -701,7 +718,7 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 	else
 		b43err(dev->wl, "SW ctl table is unknown for this card\n");
 
-	/* TODO: various tables ops here */
-	b43_phy_lcn_rewrite_tables(dev);
+	b43_phy_lcn_load_rfpower(dev);
+	b43_phy_lcn_rewrite_rfpower_table(dev);
 	b43_phy_lcn_clean_papd_comp_table(dev);
 }

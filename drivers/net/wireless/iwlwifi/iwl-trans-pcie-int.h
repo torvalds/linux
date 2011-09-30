@@ -118,16 +118,6 @@ struct iwl_dma_ptr {
 struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
-	/*
-	 * only for ASYNC commands
-	 * (which is somewhat stupid -- look at iwl-sta.c for instance
-	 * which duplicates a bunch of code because the callback isn't
-	 * invoked for SYNC commands, if it were and its result passed
-	 * through it would be simpler...)
-	 */
-	void (*callback)(struct iwl_shared *shrd,
-			 struct iwl_device_cmd *cmd,
-			 struct iwl_rx_packet *pkt);
 
 	u32 flags;
 
@@ -285,10 +275,8 @@ int iwlagn_txq_attach_buf_to_tfd(struct iwl_trans *trans,
 				 dma_addr_t addr, u16 len, u8 reset);
 int iwl_queue_init(struct iwl_queue *q, int count, int slots_num, u32 id);
 int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
-int __must_check iwl_trans_pcie_send_cmd_pdu(struct iwl_trans *trans, u8 id,
-			u32 flags, u16 len, const void *data);
 void iwl_tx_cmd_complete(struct iwl_trans *trans,
-			 struct iwl_rx_mem_buffer *rxb);
+			 struct iwl_rx_mem_buffer *rxb, int handler_status);
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt);
@@ -307,7 +295,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 				 enum iwl_rxon_context_id ctx,
 				 int sta_id, int tid, int frame_limit);
 void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
-	int index);
+	int index, enum dma_data_direction dma_dir);
 int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			 struct sk_buff_head *skbs);
 int iwl_queue_space(const struct iwl_queue *q);
@@ -375,12 +363,9 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (unlikely(!trans->shrd->mac80211_registered))
-		return;
-
 	if (test_and_clear_bit(hwq, trans_pcie->queue_stopped))
 		if (atomic_dec_return(&trans_pcie->queue_stop_count[ac]) <= 0)
-			ieee80211_wake_queue(trans->shrd->hw, ac);
+			iwl_wake_sw_queue(priv(trans), ac);
 }
 
 static inline void iwl_stop_queue(struct iwl_trans *trans,
@@ -392,12 +377,9 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (unlikely(!trans->shrd->mac80211_registered))
-		return;
-
 	if (!test_and_set_bit(hwq, trans_pcie->queue_stopped))
 		if (atomic_inc_return(&trans_pcie->queue_stop_count[ac]) > 0)
-			ieee80211_stop_queue(trans->shrd->hw, ac);
+			iwl_stop_sw_queue(priv(trans), ac);
 }
 
 #ifdef ieee80211_stop_queue

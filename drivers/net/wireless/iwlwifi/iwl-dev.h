@@ -202,11 +202,6 @@ struct iwl_station_entry {
 	struct iwl_link_quality_cmd *lq;
 };
 
-struct iwl_station_priv_common {
-	struct iwl_rxon_context *ctx;
-	u8 sta_id;
-};
-
 /*
  * iwl_station_priv: Driver's private station information
  *
@@ -215,12 +210,13 @@ struct iwl_station_priv_common {
  * space.
  */
 struct iwl_station_priv {
-	struct iwl_station_priv_common common;
+	struct iwl_rxon_context *ctx;
 	struct iwl_lq_sta lq_sta;
 	atomic_t pending_frames;
 	bool client;
 	bool asleep;
 	u8 max_agg_bufsize;
+	u8 sta_id;
 };
 
 /**
@@ -845,8 +841,9 @@ struct iwl_priv {
 
 	void (*pre_rx_handler)(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
-	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
-				       struct iwl_rx_mem_buffer *rxb);
+	int (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
+				       struct iwl_rx_mem_buffer *rxb,
+				       struct iwl_device_cmd *cmd);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
@@ -880,7 +877,7 @@ struct iwl_priv {
 	u8 channel_count;	/* # of channels */
 
 	/* thermal calibration */
-	s32 temperature;	/* degrees Kelvin */
+	s32 temperature;	/* Celsius */
 	s32 last_temperature;
 
 	/* init calibration results */
@@ -958,6 +955,8 @@ struct iwl_priv {
 	struct iwl_station_entry stations[IWLAGN_STATION_COUNT];
 	unsigned long ucode_key_table;
 
+	u8 mac80211_registered;
+
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
 
@@ -1031,7 +1030,7 @@ struct iwl_priv {
 	struct delayed_work hw_roc_disable_work;
 	enum nl80211_channel_type hw_roc_chantype;
 	int hw_roc_duration;
-	bool hw_roc_setup;
+	bool hw_roc_setup, hw_roc_start_notified;
 
 	/* bt coex */
 	u8 bt_enable_flag;

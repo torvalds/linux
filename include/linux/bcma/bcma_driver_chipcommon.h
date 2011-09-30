@@ -378,4 +378,13 @@ u32 bcma_chipco_gpio_polarity(struct bcma_drv_cc *cc, u32 mask, u32 value);
 /* PMU support */
 extern void bcma_pmu_init(struct bcma_drv_cc *cc);
 
+extern void bcma_chipco_pll_write(struct bcma_drv_cc *cc, u32 offset,
+				  u32 value);
+extern void bcma_chipco_pll_maskset(struct bcma_drv_cc *cc, u32 offset,
+				    u32 mask, u32 set);
+extern void bcma_chipco_chipctl_maskset(struct bcma_drv_cc *cc,
+					u32 offset, u32 mask, u32 set);
+extern void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc,
+				       u32 offset, u32 mask, u32 set);
+
 #endif /* LINUX_BCMA_DRIVER_CC_H_ */

@@ -61,6 +61,9 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
+			       struct iwl_device_cmd *cmd);
+
 
 /**
  * iwl_clear_driver_stations - clear knowledge of all stations from driver
@@ -102,7 +105,7 @@ static inline int iwl_sta_id(struct ieee80211_sta *sta)
 	if (WARN_ON(!sta))
 		return IWL_INVALID_STATION;
 
-	return ((struct iwl_station_priv_common *)sta->drv_priv)->sta_id;
+	return ((struct iwl_station_priv *)sta->drv_priv)->sta_id;
 }
 
 /**

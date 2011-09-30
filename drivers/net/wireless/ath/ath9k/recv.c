@@ -205,14 +205,22 @@ static void ath_rx_remove_buffer(struct ath_softc *sc,
 
 static void ath_rx_edma_cleanup(struct ath_softc *sc)
 {
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_buf *bf;
 
 	ath_rx_remove_buffer(sc, ATH9K_RX_QUEUE_LP);
 	ath_rx_remove_buffer(sc, ATH9K_RX_QUEUE_HP);
 
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-		if (bf->bf_mpdu)
+		if (bf->bf_mpdu) {
+			dma_unmap_single(sc->dev, bf->bf_buf_addr,
+					common->rx_bufsize,
+					DMA_BIDIRECTIONAL);
 			dev_kfree_skb_any(bf->bf_mpdu);
+			bf->bf_buf_addr = 0;
+			bf->bf_mpdu = NULL;
+		}
 	}
 
 	INIT_LIST_HEAD(&sc->rx.rxbuf);

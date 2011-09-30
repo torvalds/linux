@@ -165,6 +165,12 @@ enum hardware_type {
 #define IS_HARDWARE_TYPE_8723U(rtlhal)			\
 	(rtlhal->hw_type == HARDWARE_TYPE_RTL8723U)
 
+#define RX_HAL_IS_CCK_RATE(_pdesc)\
+	(_pdesc->rxmcs == DESC92_RATE1M ||		\
+	 _pdesc->rxmcs == DESC92_RATE2M ||		\
+	 _pdesc->rxmcs == DESC92_RATE5_5M ||		\
+	 _pdesc->rxmcs == DESC92_RATE11M)
+
 enum scan_operation_backup_opt {
 	SCAN_OPT_BACKUP = 0,
 	SCAN_OPT_RESTORE,

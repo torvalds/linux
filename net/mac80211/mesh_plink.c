@@ -43,6 +43,10 @@ enum plink_event {
 	CLS_IGNR
 };
 
+static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
+		enum ieee80211_self_protected_actioncode action,
+		u8 *da, __le16 llid, __le16 plid, __le16 reason);
+
 static inline
 void mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
@@ -133,6 +137,10 @@ void mesh_plink_deactivate(struct sta_info *sta)
 
 	spin_lock_bh(&sta->lock);
 	deactivated = __mesh_plink_deactivate(sta);
+	sta->reason = cpu_to_le16(WLAN_REASON_MESH_PEER_CANCELED);
+	mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
+			    sta->sta.addr, sta->llid, sta->plid,
+			    sta->reason);
 	spin_unlock_bh(&sta->lock);
 
 	if (deactivated)

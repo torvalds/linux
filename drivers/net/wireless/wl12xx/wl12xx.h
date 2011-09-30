@@ -138,7 +138,7 @@ extern u32 wl12xx_debug_level;
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
 #define WL12XX_MAX_ROLES           4
-#define WL12XX_MAX_LINKS           8
+#define WL12XX_MAX_LINKS           12
 #define WL12XX_INVALID_ROLE_ID     0xff
 #define WL12XX_INVALID_LINK_ID     0xff
 
@@ -234,14 +234,14 @@ struct wl1271_stats {
 #define NUM_TX_QUEUES              4
 #define NUM_RX_PKT_DESC            8
 
-#define AP_MAX_STATIONS            5
+#define AP_MAX_STATIONS            8
 
 /* Broadcast and Global links + system link + links to stations */
 /*
  * TODO: when WL1271_AP_STA_HLID_START is no longer constant, change all
  * the places that use this.
  */
-#define AP_MAX_LINKS               (AP_MAX_STATIONS + 3)
+#define AP_MAX_LINKS               (AP_MAX_STATIONS + WL1271_AP_STA_HLID_START)
 
 /* FW status registers */
 struct wl12xx_fw_status {
@@ -279,7 +279,7 @@ struct wl12xx_fw_status {
 
 	/* Cumulative counter of released Voice memory blocks */
 	u8 tx_voice_released_blks;
-	u8 padding_1[7];
+	u8 padding_1[3];
 	__le32 log_start_addr;
 } __packed;
 
@@ -402,6 +402,7 @@ struct wl1271 {
 	u8 mac_addr[ETH_ALEN];
 	u8 bss_type;
 	u8 set_bss_type;
+	u8 p2p; /* we are using p2p role */
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;
 	int channel;
@@ -525,6 +526,7 @@ struct wl1271 {
 	u32 basic_rate_set;
 	u32 basic_rate;
 	u32 rate_set;
+	u32 bitrate_masks[IEEE80211_NUM_BANDS];
 
 	/* The current band */
 	enum ieee80211_band band;
@@ -626,6 +628,9 @@ struct wl1271 {
 
 	/* number of currently active RX BA sessions */
 	int ba_rx_session_count;
+
+	/* AP-mode - number of currently connected stations */
+	int active_sta_count;
 };
 
 struct wl1271_station {

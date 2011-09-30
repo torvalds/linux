@@ -1271,9 +1271,11 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 }
 
 static int ieee80211_set_txq_params(struct wiphy *wiphy,
+				    struct net_device *dev,
 				    struct ieee80211_txq_params *params)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_tx_queue_params p;
 
 	if (!local->ops->conf_tx)
@@ -1294,8 +1296,8 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	if (params->queue >= local->hw.queues)
 		return -EINVAL;
 
-	local->tx_conf[params->queue] = p;
-	if (drv_conf_tx(local, params->queue, &p)) {
+	sdata->tx_conf[params->queue] = p;
+	if (drv_conf_tx(local, sdata, params->queue, &p)) {
 		wiphy_debug(local->hw.wiphy,
 			    "failed to set TX queue parameters for queue %d\n",
 			    params->queue);
@@ -1869,7 +1871,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 			     struct ieee80211_channel *chan, bool offchan,
 			     enum nl80211_channel_type channel_type,
 			     bool channel_type_valid, unsigned int wait,
-			     const u8 *buf, size_t len, u64 *cookie)
+			     const u8 *buf, size_t len, bool no_cck,
+			     u64 *cookie)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
@@ -1895,6 +1898,9 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 		is_offchan = false;
 		flags |= IEEE80211_TX_CTL_TX_OFFCHAN;
 	}
+
+	if (no_cck)
+		flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	if (is_offchan && !offchan)
 		return -EBUSY;

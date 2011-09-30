@@ -133,7 +133,7 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	ath_hw_cycle_counters_update(common);
 	spin_unlock(&common->cc_lock);
 
-	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+	ath9k_hw_setpower(sc->sc_ah, mode);
 
  unlock:
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
@@ -2021,6 +2021,7 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 		/* Stop ANI */
 		sc->sc_flags &= ~SC_OP_ANI_RUN;
 		del_timer_sync(&common->ani.timer);
+		memset(&sc->caldata, 0, sizeof(sc->caldata));
 	}
 }
 
@@ -2142,7 +2143,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	ath9k_ps_restore(sc);
 }
 
-static u64 ath9k_get_tsf(struct ieee80211_hw *hw)
+static u64 ath9k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = hw->priv;
 	u64 tsf;
@@ -2156,7 +2157,9 @@ static u64 ath9k_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
-static void ath9k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
+static void ath9k_set_tsf(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
+			  u64 tsf)
 {
 	struct ath_softc *sc = hw->priv;
 
@@ -2167,7 +2170,7 @@ static void ath9k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 	mutex_unlock(&sc->mutex);
 }
 
-static void ath9k_reset_tsf(struct ieee80211_hw *hw)
+static void ath9k_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = hw->priv;
 

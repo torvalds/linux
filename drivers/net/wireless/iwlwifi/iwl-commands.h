@@ -3263,6 +3263,14 @@ struct iwl_calib_temperature_offset_cmd {
 	__le16 reserved;
 } __packed;
 
+struct iwl_calib_temperature_offset_v2_cmd {
+	struct iwl_calib_hdr hdr;
+	__le16 radio_sensor_offset_high;
+	__le16 radio_sensor_offset_low;
+	__le16 burntVoltageRef;
+	__le16 reserved;
+} __packed;
+
 /* IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
 struct iwl_calib_chain_noise_reset_cmd {
 	struct iwl_calib_hdr hdr;

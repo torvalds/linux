@@ -460,17 +460,15 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		synchronize_rcu();
 		kfree(old_beacon);
 
-		/* free all potentially still buffered bcast frames */
-		while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
-			local->total_ps_buffered--;
-			dev_kfree_skb(skb);
-		}
-
 		/* down all dependent devices, that is VLANs */
 		list_for_each_entry_safe(vlan, tmpsdata, &sdata->u.ap.vlans,
 					 u.vlan.list)
 			dev_close(vlan->dev);
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
+
+		/* free all potentially still buffered bcast frames */
+		local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps_bc_buf);
+		skb_queue_purge(&sdata->u.ap.ps_bc_buf);
 	}
 
 	if (going_down)

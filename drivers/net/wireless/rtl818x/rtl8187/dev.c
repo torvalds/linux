@@ -1277,7 +1277,7 @@ static int rtl8187_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	return 0;
 }
 
-static u64 rtl8187_get_tsf(struct ieee80211_hw *dev)
+static u64 rtl8187_get_tsf(struct ieee80211_hw *dev, struct ieee80211_vif *vif)
 {
 	struct rtl8187_priv *priv = dev->priv;
 

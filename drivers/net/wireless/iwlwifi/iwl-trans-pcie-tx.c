@@ -38,7 +38,7 @@
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
 #include "iwl-helpers.h"
-#include "iwl-trans-int-pcie.h"
+#include "iwl-trans-pcie-int.h"
 
 #define IWL_TX_CRC_SIZE 4
 #define IWL_TX_DELIMITER_SIZE 4
@@ -59,13 +59,15 @@ void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 	u8 sta_id = 0;
 	u16 len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
 	__le16 bc_ent;
+	struct iwl_tx_cmd *tx_cmd =
+		(struct iwl_tx_cmd *) txq->cmd[txq->q.write_ptr]->payload;
 
 	scd_bc_tbl = trans_pcie->scd_bc_tbls.addr;
 
 	WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX);
 
-	sta_id = txq->cmd[txq->q.write_ptr]->cmd.tx.sta_id;
-	sec_ctl = txq->cmd[txq->q.write_ptr]->cmd.tx.sec_ctl;
+	sta_id = tx_cmd->sta_id;
+	sec_ctl = tx_cmd->sec_ctl;
 
 	switch (sec_ctl & TX_CMD_SEC_MSK) {
 	case TX_CMD_SEC_CCM:
@@ -207,17 +209,17 @@ static void iwlagn_unmap_tfd(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
  * @trans - transport private data
  * @txq - tx queue
  * @index - the index of the TFD to be freed
+ *@dma_dir - the direction of the DMA mapping
  *
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
 void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
-	int index)
+	int index, enum dma_data_direction dma_dir)
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
 
-	iwlagn_unmap_tfd(trans, &txq->meta[index], &tfd_tmp[index],
-			 DMA_TO_DEVICE);
+	iwlagn_unmap_tfd(trans, &txq->meta[index], &tfd_tmp[index], dma_dir);
 
 	/* free SKB */
 	if (txq->skbs) {
@@ -225,9 +227,12 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 
 		skb = txq->skbs[index];
 
-		/* can be called from irqs-disabled context */
+		/* Can be called from irqs-disabled context
+		 * If skb is not NULL, it means that the whole queue is being
+		 * freed and that the queue is not empty - free the skb
+		 */
 		if (skb) {
-			dev_kfree_skb_any(skb);
+			iwl_free_skb(priv(trans), skb);
 			txq->skbs[index] = NULL;
 		}
 	}
@@ -350,11 +355,13 @@ static void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_trans *trans,
 	int read_ptr = txq->q.read_ptr;
 	u8 sta_id = 0;
 	__le16 bc_ent;
+	struct iwl_tx_cmd *tx_cmd =
+		(struct iwl_tx_cmd *) txq->cmd[txq->q.read_ptr]->payload;
 
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
 	if (txq_id != trans->shrd->cmd_queue)
-		sta_id = txq->cmd[read_ptr]->cmd.tx.sta_id;
+		sta_id = tx_cmd->sta_id;
 
 	bc_ent = cpu_to_le16(1 | (sta_id << 12));
 	scd_bc_tbl[txq_id].tfd_offset[read_ptr] = bc_ent;
@@ -759,8 +766,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	memset(out_meta, 0, sizeof(*out_meta));	/* re-initialize to NULL */
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;
-	if (cmd->flags & CMD_ASYNC)
-		out_meta->callback = cmd->callback;
 
 	/* set up the header */
 
@@ -772,7 +777,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	/* and copy the data that needs to be copied */
 
-	cmd_dest = &out_cmd->cmd.payload[0];
+	cmd_dest = out_cmd->payload;
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
 		if (!cmd->len[i])
 			continue;
@@ -891,12 +896,15 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
 /**
  * iwl_tx_cmd_complete - Pull unused buffers off the queue and reclaim them
  * @rxb: Rx buffer to reclaim
+ * @handler_status: return value of the handler of the command
+ *	(put in setup_rx_handlers)
  *
  * If an Rx buffer has an async callback associated with it the callback
  * will be executed.  The attached skb (if present) will only be freed
  * if the callback returns 1
  */
-void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
+void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
+			 int handler_status)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -933,9 +941,9 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
 		meta->source->reply_page = (unsigned long)rxb_addr(rxb);
+		meta->source->handler_status = handler_status;
 		rxb->page = NULL;
-	} else if (meta->callback)
-		meta->callback(trans->shrd, cmd, pkt);
+	}
 
 	spin_lock_irqsave(&trans->hcmd_lock, flags);
 
@@ -945,7 +953,7 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
-		wake_up_interruptible(&trans->shrd->wait_command_queue);
+		wake_up(&trans->shrd->wait_command_queue);
 	}
 
 	meta->flags = 0;
@@ -955,30 +963,6 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb)
 
 #define HOST_COMPLETE_TIMEOUT (2 * HZ)
 
-static void iwl_generic_cmd_callback(struct iwl_shared *shrd,
-				     struct iwl_device_cmd *cmd,
-				     struct iwl_rx_packet *pkt)
-{
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(shrd->trans, "Bad return from %s (0x%08X)\n",
-			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-		return;
-	}
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	switch (cmd->hdr.cmd) {
-	case REPLY_TX_LINK_QUALITY_CMD:
-	case SENSITIVITY_CMD:
-		IWL_DEBUG_HC_DUMP(shrd->trans, "back from %s (0x%08X)\n",
-				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-		break;
-	default:
-		IWL_DEBUG_HC(shrd->trans, "back from %s (0x%08X)\n",
-				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-	}
-#endif
-}
-
 static int iwl_send_cmd_async(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
 	int ret;
@@ -987,9 +971,6 @@ static int iwl_send_cmd_async(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (WARN_ON(cmd->flags & CMD_WANT_SKB))
 		return -EINVAL;
 
-	/* Assign a generic callback if one is not provided */
-	if (!cmd->callback)
-		cmd->callback = iwl_generic_cmd_callback;
 
 	if (test_bit(STATUS_EXIT_PENDING, &trans->shrd->status))
 		return -EBUSY;
@@ -1011,10 +992,6 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	lockdep_assert_held(&trans->shrd->mutex);
 
-	 /* A synchronous command can not have a callback set. */
-	if (WARN_ON(cmd->callback))
-		return -EINVAL;
-
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
 
@@ -1031,7 +1008,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return ret;
 	}
 
-	ret = wait_event_interruptible_timeout(trans->shrd->wait_command_queue,
+	ret = wait_event_timeout(trans->shrd->wait_command_queue,
 			!test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
@@ -1098,19 +1075,6 @@ int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	return iwl_send_cmd_sync(trans, cmd);
 }
 
-int iwl_trans_pcie_send_cmd_pdu(struct iwl_trans *trans, u8 id, u32 flags,
-		u16 len, const void *data)
-{
-	struct iwl_host_cmd cmd = {
-		.id = id,
-		.len = { len, },
-		.data = { data, },
-		.flags = flags,
-	};
-
-	return iwl_trans_pcie_send_cmd(trans, &cmd);
-}
-
 /* Frees buffers until index _not_ inclusive */
 int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			 struct sk_buff_head *skbs)
@@ -1120,6 +1084,10 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 	struct iwl_queue *q = &txq->q;
 	int last_to_free;
 	int freed = 0;
+
+	/* This function is not meant to release cmd queue*/
+	if (WARN_ON(txq_id == trans->shrd->cmd_queue))
+		return 0;
 
 	/*Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used */
@@ -1153,7 +1121,7 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 
 		iwlagn_txq_inval_byte_cnt_tbl(trans, txq);
 
-		iwlagn_txq_free_tfd(trans, txq, txq->q.read_ptr);
+		iwlagn_txq_free_tfd(trans, txq, txq->q.read_ptr, DMA_TO_DEVICE);
 		freed++;
 	}
 	return freed;

@@ -34,7 +34,7 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
-#include "iwl-trans-int-pcie.h"
+#include "iwl-trans-pcie-int.h"
 
 /******************************************************************************
  *
@@ -372,12 +372,15 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+	struct iwl_tx_queue *txq = &trans_pcie->txq[trans->shrd->cmd_queue];
+	struct iwl_device_cmd *cmd;
 	u32 r, i;
 	int reclaim;
 	unsigned long flags;
 	u8 fill_rx = 0;
 	u32 count = 8;
 	int total_empty;
+	int index, cmd_index;
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
@@ -397,7 +400,8 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 		fill_rx = 1;
 
 	while (i != r) {
-		int len;
+		int len, err;
+		u16 sequence;
 
 		rxb = rxq->queue[i];
 
@@ -437,7 +441,27 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
 			(pkt->hdr.cmd != REPLY_TX);
 
-		iwl_rx_dispatch(priv(trans), rxb);
+		sequence = le16_to_cpu(pkt->hdr.sequence);
+		index = SEQ_TO_INDEX(sequence);
+		cmd_index = get_cmd_index(&txq->q, index);
+
+		if (reclaim)
+			cmd = txq->cmd[cmd_index];
+		else
+			cmd = NULL;
+
+		/* warn if this is cmd response / notification and the uCode
+		 * didn't set the SEQ_RX_FRAME for a frame that is
+		 * uCode-originated
+		 * If you saw this code after the second half of 2012, then
+		 * please remove it
+		 */
+		WARN(pkt->hdr.cmd != REPLY_TX && reclaim == false &&
+		     (!(pkt->hdr.sequence & SEQ_RX_FRAME)),
+		     "reclaim is false, SEQ_RX_FRAME unset: %s\n",
+		     get_cmd_string(pkt->hdr.cmd));
+
+		err = iwl_rx_dispatch(priv(trans), rxb, cmd);
 
 		/*
 		 * XXX: After here, we should always check rxb->page
@@ -452,7 +476,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 			 * iwl_trans_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb->page)
-				iwl_tx_cmd_complete(trans, rxb);
+				iwl_tx_cmd_complete(trans, rxb, err);
 			else
 				IWL_WARN(trans, "Claim null rxb?\n");
 		}
@@ -645,7 +669,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 		 */
 		clear_bit(STATUS_READY, &trans->shrd->status);
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
-		wake_up_interruptible(&priv->shrd->wait_command_queue);
+		wake_up(&priv->shrd->wait_command_queue);
 		IWL_ERR(trans, "RF is used by WiMAX\n");
 		return;
 	}
@@ -1086,7 +1110,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
 		priv(trans)->ucode_write_complete = 1;
-		wake_up_interruptible(&trans->shrd->wait_command_queue);
+		wake_up(&trans->shrd->wait_command_queue);
 	}
 
 	if (inta & ~handled) {

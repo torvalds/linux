@@ -454,12 +454,10 @@ struct conf_rx_settings {
 #define CONF_TX_AP_DEFAULT_MGMT_RATES  (CONF_HW_BIT_RATE_1MBPS | \
 	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS)
 
-/*
- * Default rates for working as IBSS. use 11b rates
- */
+/* default rates for working as IBSS (11b and OFDM) */
 #define CONF_TX_IBSS_DEFAULT_RATES  (CONF_HW_BIT_RATE_1MBPS |       \
 		CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS | \
-		CONF_HW_BIT_RATE_11MBPS);
+		CONF_HW_BIT_RATE_11MBPS | CONF_TX_OFDM_RATES);
 
 struct conf_tx_rate_class {
 
@@ -916,14 +914,6 @@ struct conf_conn_settings {
 	u8 psm_entry_nullfunc_retries;
 
 	/*
-	 * Specifies the time to linger in active mode after successfully
-	 * transmitting the PSM entry null-func frame.
-	 *
-	 * Range 0 - 255 TU's
-	 */
-	u8 psm_entry_hangover_period;
-
-	/*
 	 *
 	 * Specifies the interval of the connection keep-alive null-func
 	 * frame in ms.
@@ -1236,6 +1226,20 @@ struct conf_rate_policy_settings {
 	u8 rate_retry_policy[ACX_RATE_MGMT_NUM_OF_RATES];
 };
 
+struct conf_hangover_settings {
+	u32 recover_time;
+	u8 hangover_period;
+	u8 dynamic_mode;
+	u8 early_termination_mode;
+	u8 max_period;
+	u8 min_period;
+	u8 increase_delta;
+	u8 decrease_delta;
+	u8 quiet_time;
+	u8 increase_time;
+	u8 window_size;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1254,6 +1258,7 @@ struct conf_drv_settings {
 	struct conf_rx_streaming_settings rx_streaming;
 	struct conf_fwlog fwlog;
 	struct conf_rate_policy_settings rate;
+	struct conf_hangover_settings hangover;
 	u8 hci_io_ds;
 };
 

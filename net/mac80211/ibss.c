@@ -81,7 +81,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	lockdep_assert_held(&ifibss->mtx);
 
 	/* Reset own TSF to allow time synchronization work. */
-	drv_reset_tsf(local);
+	drv_reset_tsf(local, sdata);
 
 	skb = ifibss->skb;
 	RCU_INIT_POINTER(ifibss->presp, NULL);
@@ -382,7 +382,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		 * second best option: get current TSF
 		 * (will return -1 if not supported)
 		 */
-		rx_timestamp = drv_get_tsf(local);
+		rx_timestamp = drv_get_tsf(local, sdata);
 	}
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
@@ -417,7 +417,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
  * must be callable in atomic context.
  */
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-					u8 *bssid,u8 *addr, u32 supp_rates,
+					u8 *bssid, u8 *addr, u32 supp_rates,
 					gfp_t gfp)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;

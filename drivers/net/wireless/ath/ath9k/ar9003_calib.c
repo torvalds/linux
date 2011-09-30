@@ -652,8 +652,9 @@ static void ar9003_hw_detect_outlier(int *mp_coeff, int nmeasurement,
 			outlier_idx = max_idx;
 		else
 			outlier_idx = min_idx;
+
+		mp_coeff[outlier_idx] = mp_avg;
 	}
-	mp_coeff[outlier_idx] = mp_avg;
 }
 
 static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
@@ -884,6 +885,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	if (txiqcal_done)
 		ar9003_hw_tx_iq_cal_post_proc(ah);
 
+	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);
 
 	/* Initialize list pointers */

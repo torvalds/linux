@@ -3426,7 +3426,7 @@ M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
 S:	Supported
 F:	drivers/net/wireless/iwlwifi/
 
@@ -4528,7 +4528,7 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	net/nfc/
 F:	include/linux/nfc.h
-F:	include/net/nfc.h
+F:	include/net/nfc/
 F:	drivers/nfc/
 
 NFS, SUNRPC, AND LOCKD CLIENTS

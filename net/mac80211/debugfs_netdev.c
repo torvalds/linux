@@ -21,6 +21,7 @@
 #include "rate.h"
 #include "debugfs.h"
 #include "debugfs_netdev.h"
+#include "driver-ops.h"
 
 static ssize_t ieee80211_if_read(
 	struct ieee80211_sub_if_data *sdata,
@@ -331,6 +332,46 @@ static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 }
 __IEEE80211_IF_FILE(num_buffered_multicast, NULL);
 
+/* IBSS attributes */
+static ssize_t ieee80211_if_fmt_tsf(
+	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
+{
+	struct ieee80211_local *local = sdata->local;
+	u64 tsf;
+
+	tsf = drv_get_tsf(local, (struct ieee80211_sub_if_data *)sdata);
+
+	return scnprintf(buf, buflen, "0x%016llx\n", (unsigned long long) tsf);
+}
+
+static ssize_t ieee80211_if_parse_tsf(
+	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
+{
+	struct ieee80211_local *local = sdata->local;
+	unsigned long long tsf;
+	int ret;
+
+	if (strncmp(buf, "reset", 5) == 0) {
+		if (local->ops->reset_tsf) {
+			drv_reset_tsf(local, sdata);
+			wiphy_info(local->hw.wiphy, "debugfs reset TSF\n");
+		}
+	} else {
+		ret = kstrtoull(buf, 10, &tsf);
+		if (ret < 0)
+			return -EINVAL;
+		if (local->ops->set_tsf) {
+			drv_set_tsf(local, sdata, tsf);
+			wiphy_info(local->hw.wiphy,
+				   "debugfs set TSF to %#018llx\n", tsf);
+		}
+	}
+
+	return buflen;
+}
+__IEEE80211_IF_FILE_W(tsf);
+
+
 /* WDS attributes */
 IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
 
@@ -419,6 +460,11 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
+}
+
+static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
+{
+	DEBUGFS_ADD_MODE(tsf, 0600);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
@@ -515,7 +561,7 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		add_sta_files(sdata);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		/* XXX */
+		add_ibss_files(sdata);
 		break;
 	case NL80211_IFTYPE_AP:
 		add_ap_files(sdata);

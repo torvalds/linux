@@ -64,11 +64,10 @@
 #define __iwl_pci_h__
 
 
-/* This file includes the declaration that are internal to the PCI
- * implementation of the bus layer
+/*
+ * This file declares the config structures for all devices.
  */
 
-/* configuration for the _agn devices */
 extern struct iwl_cfg iwl5300_agn_cfg;
 extern struct iwl_cfg iwl5100_agn_cfg;
 extern struct iwl_cfg iwl5350_agn_cfg;

@@ -584,7 +584,7 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	else
 		rs->rs_keyix = ATH9K_RXKEYIX_INVALID;
 
-	rs->rs_rate = RXSTATUS_RATE(ah, (&ads));
+	rs->rs_rate = MS(ads.ds_rxstatus0, AR_RxRate);
 	rs->rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
 
 	rs->rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;

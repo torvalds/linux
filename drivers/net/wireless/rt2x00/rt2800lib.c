@@ -4466,7 +4466,7 @@ int rt2800_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 }
 EXPORT_SYMBOL_GPL(rt2800_conf_tx);
 
-u64 rt2800_get_tsf(struct ieee80211_hw *hw)
+u64 rt2800_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	u64 tsf;

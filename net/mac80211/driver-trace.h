@@ -697,64 +697,76 @@ TRACE_EVENT(drv_sta_remove,
 );
 
 TRACE_EVENT(drv_conf_tx,
-	TP_PROTO(struct ieee80211_local *local, u16 queue,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u16 queue,
 		 const struct ieee80211_tx_queue_params *params),
 
-	TP_ARGS(local, queue, params),
+	TP_ARGS(local, sdata, queue, params),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		VIF_ENTRY
 		__field(u16, queue)
 		__field(u16, txop)
 		__field(u16, cw_min)
 		__field(u16, cw_max)
 		__field(u8, aifs)
+		__field(bool, uapsd)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		__entry->queue = queue;
 		__entry->txop = params->txop;
 		__entry->cw_max = params->cw_max;
 		__entry->cw_min = params->cw_min;
 		__entry->aifs = params->aifs;
+		__entry->uapsd = params->uapsd;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " queue:%d",
-		LOCAL_PR_ARG, __entry->queue
+		LOCAL_PR_FMT  VIF_PR_FMT  " queue:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->queue
 	)
 );
 
-DEFINE_EVENT(local_only_evt, drv_get_tsf,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+DEFINE_EVENT(local_sdata_evt, drv_get_tsf,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 TRACE_EVENT(drv_set_tsf,
-	TP_PROTO(struct ieee80211_local *local, u64 tsf),
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u64 tsf),
 
-	TP_ARGS(local, tsf),
+	TP_ARGS(local, sdata, tsf),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		VIF_ENTRY
 		__field(u64, tsf)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		__entry->tsf = tsf;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " tsf:%llu",
-		LOCAL_PR_ARG, (unsigned long long)__entry->tsf
+		LOCAL_PR_FMT  VIF_PR_FMT  " tsf:%llu",
+		LOCAL_PR_ARG, VIF_PR_ARG, (unsigned long long)__entry->tsf
 	)
 );
 
-DEFINE_EVENT(local_only_evt, drv_reset_tsf,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+DEFINE_EVENT(local_sdata_evt, drv_reset_tsf,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 DEFINE_EVENT(local_only_evt, drv_tx_last_beacon,

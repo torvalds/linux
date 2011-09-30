@@ -108,7 +108,6 @@ struct iwl_lib_ops {
  *	radio tuning when there is a high receiving plcp error rate
  * @chain_noise_scale: default chain noise scale used for gain computation
  * @wd_timeout: TX queues watchdog timeout
- * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadhow register bit
  * @no_idle_support: do not support idle mode
@@ -124,14 +123,12 @@ struct iwl_base_params {
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
 	u16 led_compensation;
-	int chain_noise_num_beacons;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
 	const bool support_wimax_coexist;
 	u8 plcp_delta_threshold;
 	s32 chain_noise_scale;
 	unsigned int wd_timeout;
-	bool temperature_kelvin;
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
 	const bool no_idle_support;
@@ -194,6 +191,7 @@ struct iwl_ht_params {
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @iq_invert: I/Q inversion
+ * @temp_offset_v2: support v2 of temperature offset calibration
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -231,6 +229,7 @@ struct iwl_cfg {
 	const bool rx_with_siso_diversity;
 	const bool internal_wimax_coex;
 	const bool iq_invert;
+	const bool temp_offset_v2;
 };
 
 /***************************
@@ -319,7 +318,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
  ******************************************************************************/
 void iwl_init_scan_params(struct iwl_priv *priv);
 int iwl_scan_cancel(struct iwl_priv *priv);
-int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
+void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 void iwl_force_scan_end(struct iwl_priv *priv);
 int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
@@ -329,12 +328,6 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external);
 u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 		       const u8 *ta, const u8 *ie, int ie_len, int left);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
-u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
-			      enum ieee80211_band band,
-			      u8 n_probes);
-u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
-			       enum ieee80211_band band,
-			       struct ieee80211_vif *vif);
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
 void iwl_cancel_scan_deferred_work(struct iwl_priv *priv);
 int __must_check iwl_scan_initiate(struct iwl_priv *priv,

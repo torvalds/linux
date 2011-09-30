@@ -458,7 +458,7 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 	 */
 	ieee80211_send_probe_req(sdata, NULL, wk->probe_auth.ssid,
 				 wk->probe_auth.ssid_len, NULL, 0,
-				 (u32) -1, true);
+				 (u32) -1, true, false);
 
 	wk->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
 	run_again(local, wk->timeout);

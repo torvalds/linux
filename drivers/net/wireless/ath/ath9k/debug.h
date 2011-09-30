@@ -196,6 +196,8 @@ struct ath_dbg_bb_mac_samp {
 		u8 rateindex;
 		u8 qid;
 		u8 tid;
+		u32 ba_low;
+		u32 ba_high;
 	} ts[ATH_DBG_MAX_SAMPLES];
 	struct {
 		u64 jiffies;

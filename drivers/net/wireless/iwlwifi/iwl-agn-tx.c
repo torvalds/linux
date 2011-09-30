@@ -313,6 +313,9 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
 	}
 
+	if (info->flags & IEEE80211_TX_CTL_AMPDU)
+		is_agg = true;
+
 	/* irqs already disabled/saved above when locking priv->shrd->lock */
 	spin_lock(&priv->shrd->sta_lock);
 
@@ -322,10 +325,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		goto drop_unlock_sta;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
-	tx_cmd = &dev_cmd->cmd.tx;
-
-	/* Copy MAC header from skb into command buffer */
-	memcpy(tx_cmd->hdr, hdr, hdr_len);
+	tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 
 	/* Total # bytes to be transmitted */
 	len = (u16)skb->len;
@@ -341,6 +341,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, fc);
 
 	iwl_update_stats(priv, true, fc, len);
+
+	memset(&info->status, 0, sizeof(info->status));
 
 	info->driver_data[0] = ctx;
 	info->driver_data[1] = dev_cmd;
@@ -580,6 +582,9 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 		IWL_DEBUG_COEX(priv, "receive reply tx w/ bt_kill\n");
 	}
 
+	if (tx_resp->frame_count == 1)
+		return;
+
 	/* Construct bit-map of pending frames within Tx window */
 	for (i = 0; i < tx_resp->frame_count; i++) {
 		u16 fstatus = le16_to_cpu(frame_status[i].status);
@@ -736,7 +741,8 @@ static void iwl_check_abort_status(struct iwl_priv *priv,
 	}
 }
 
-void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
+int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
+			       struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -824,6 +830,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	return 0;
 }
 
 /**
@@ -832,8 +839,9 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
  * Handles block-acknowledge notification from device, which reports success
  * of frames sent via aggregation.
  */
-void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
-					   struct iwl_rx_mem_buffer *rxb)
+int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
+				   struct iwl_rx_mem_buffer *rxb,
+				   struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
@@ -857,7 +865,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	if (scd_flow >= hw_params(priv).max_txq_num) {
 		IWL_ERR(priv,
 			"BUG_ON scd_flow is bigger than number of queues\n");
-		return;
+		return 0;
 	}
 
 	sta_id = ba_resp->sta_id;
@@ -877,14 +885,14 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			"BA scd_flow %d does not match txq_id %d\n",
 			scd_flow, agg->txq_id);
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
-		return;
+		return 0;
 	}
 
 	if (unlikely(!agg->wait_for_ba)) {
 		if (unlikely(ba_resp->bitmap))
 			IWL_ERR(priv, "Received BA when not expected\n");
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
-		return;
+		return 0;
 	}
 
 	IWL_DEBUG_TX_REPLY(priv, "REPLY_COMPRESSED_BA [%d] Received from %pM, "
@@ -901,7 +909,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			   ba_resp->scd_ssn);
 
 	/* Mark that the expected block-ack response arrived */
-	agg->wait_for_ba = 0;
+	agg->wait_for_ba = false;
 
 	/* Sanity check values reported by uCode */
 	if (ba_resp->txed_2_done > ba_resp->txed) {
@@ -935,7 +943,10 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		else
 			WARN_ON_ONCE(1);
 
-		if (freed == 0) {
+		info = IEEE80211_SKB_CB(skb);
+		kmem_cache_free(priv->tx_cmd_pool, (info->driver_data[1]));
+
+		if (freed == 1) {
 			/* this is the first skb we deliver in this batch */
 			/* put the rate scaling data there */
 			info = IEEE80211_SKB_CB(skb);
@@ -948,11 +959,9 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 						    info);
 		}
 
-		info = IEEE80211_SKB_CB(skb);
-		kmem_cache_free(priv->tx_cmd_pool, (info->driver_data[1]));
-
 		ieee80211_tx_status_irqsafe(priv->hw, skb);
 	}
 
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	return 0;
 }

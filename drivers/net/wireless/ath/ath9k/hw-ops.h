@@ -181,11 +181,6 @@ static inline void ath9k_hw_restore_chainmask(struct ath_hw *ah)
 	return ath9k_hw_private_ops(ah)->restore_chainmask(ah);
 }
 
-static inline void ath9k_hw_set_diversity(struct ath_hw *ah, bool value)
-{
-	return ath9k_hw_private_ops(ah)->set_diversity(ah, value);
-}
-
 static inline bool ath9k_hw_ani_control(struct ath_hw *ah,
 					enum ath9k_ani_cmd cmd, int param)
 {
