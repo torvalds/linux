@@ -173,11 +173,11 @@ static inline void r8a66597_write(struct r8a66597 *r8a66597, u16 val,
 }
 
 static inline void r8a66597_write_fifo(struct r8a66597 *r8a66597,
-				       unsigned long offset,
+				       struct r8a66597_ep *ep,
 				       unsigned char *buf,
 				       int len)
 {
-	void __iomem *fifoaddr = r8a66597->reg + offset;
+	void __iomem *fifoaddr = r8a66597->reg + ep->fifoaddr;
 	int adj = 0;
 	int i;
 
