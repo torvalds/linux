@@ -958,9 +958,7 @@ static int do_write(struct fsg_common *common)
 			 * equal to the buffer size, which is divisible by
 			 * the bulk-out maxpacket size.
 			 */
-			bh->outreq->length = amount;
-			bh->bulk_out_intended_length = amount;
-			bh->outreq->short_not_ok = 1;
+			set_bulk_out_req_length(common, bh, amount);
 			if (!start_out_transfer(common, bh))
 				/* Dunno what to do if common->fsg is NULL */
 				return -EIO;
@@ -994,6 +992,11 @@ static int do_write(struct fsg_common *common)
 				       (unsigned long long)curlun->file_length);
 				amount = curlun->file_length - file_offset;
 			}
+
+			/* Don't accept excess data.  The spec doesn't say
+			 * what to do in this case.  We'll ignore the error.
+			 */
+			amount = min(amount, bh->bulk_out_intended_length);
 
 			/* Don't write a partial block */
 			amount = round_down(amount, curlun->blksize);
@@ -1034,7 +1037,7 @@ static int do_write(struct fsg_common *common)
 
  empty_write:
 			/* Did the host decide to stop early? */
-			if (bh->outreq->actual != bh->outreq->length) {
+			if (bh->outreq->actual < bh->bulk_out_intended_length) {
 				common->short_packet_received = 1;
 				break;
 			}
@@ -1592,7 +1595,7 @@ static int throw_away_data(struct fsg_common *common)
 			common->next_buffhd_to_drain = bh->next;
 
 			/* A short packet or an error ends everything */
-			if (bh->outreq->actual != bh->outreq->length ||
+			if (bh->outreq->actual < bh->bulk_out_intended_length ||
 			    bh->outreq->status != 0) {
 				raise_exception(common,
 						FSG_STATE_ABORT_BULK_OUT);
@@ -1612,9 +1615,7 @@ static int throw_away_data(struct fsg_common *common)
 			 * equal to the buffer size, which is divisible by
 			 * the bulk-out maxpacket size.
 			 */
-			bh->outreq->length = amount;
-			bh->bulk_out_intended_length = amount;
-			bh->outreq->short_not_ok = 1;
+			set_bulk_out_req_length(common, bh, amount);
 			if (!start_out_transfer(common, bh))
 				/* Dunno what to do if common->fsg is NULL */
 				return -EIO;
@@ -2289,7 +2290,6 @@ static int get_next_command(struct fsg_common *common)
 
 	/* Queue a request to read a Bulk-only CBW */
 	set_bulk_out_req_length(common, bh, USB_BULK_CB_WRAP_LEN);
-	bh->outreq->short_not_ok = 1;
 	if (!start_out_transfer(common, bh))
 		/* Don't know what to do if common->fsg is NULL */
 		return -EIO;
