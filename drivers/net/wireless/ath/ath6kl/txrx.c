@@ -1235,7 +1235,6 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			 * frame to it on the air else send the
 			 * frame up the stack.
 			 */
-			struct ath6kl_sta *conn = NULL;
 			conn = ath6kl_find_sta(ar, datap->h_dest);
 
 			if (conn && ar->intra_bss) {
