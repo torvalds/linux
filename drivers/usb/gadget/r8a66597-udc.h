@@ -114,6 +114,7 @@ struct r8a66597 {
 #define gadget_to_r8a66597(_gadget)	\
 		container_of(_gadget, struct r8a66597, gadget)
 #define r8a66597_to_gadget(r8a66597) (&r8a66597->gadget)
+#define r8a66597_to_dev(r8a66597)	(r8a66597->gadget.dev.parent)
 
 static inline u16 r8a66597_read(struct r8a66597 *r8a66597, unsigned long offset)
 {

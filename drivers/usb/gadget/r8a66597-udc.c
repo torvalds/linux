@@ -105,13 +105,15 @@ static inline u16 control_reg_get_pid(struct r8a66597 *r8a66597, u16 pipenum)
 	u16 pid = 0;
 	unsigned long offset;
 
-	if (pipenum == 0)
+	if (pipenum == 0) {
 		pid = r8a66597_read(r8a66597, DCPCTR) & PID;
-	else if (pipenum < R8A66597_MAX_NUM_PIPE) {
+	} else if (pipenum < R8A66597_MAX_NUM_PIPE) {
 		offset = get_pipectr_addr(pipenum);
 		pid = r8a66597_read(r8a66597, offset) & PID;
-	} else
-		printk(KERN_ERR "unexpect pipe num (%d)\n", pipenum);
+	} else {
+		dev_err(r8a66597_to_dev(r8a66597), "unexpect pipe num (%d)\n",
+			pipenum);
+	}
 
 	return pid;
 }
@@ -121,13 +123,15 @@ static inline void control_reg_set_pid(struct r8a66597 *r8a66597, u16 pipenum,
 {
 	unsigned long offset;
 
-	if (pipenum == 0)
+	if (pipenum == 0) {
 		r8a66597_mdfy(r8a66597, pid, PID, DCPCTR);
-	else if (pipenum < R8A66597_MAX_NUM_PIPE) {
+	} else if (pipenum < R8A66597_MAX_NUM_PIPE) {
 		offset = get_pipectr_addr(pipenum);
 		r8a66597_mdfy(r8a66597, pid, PID, offset);
-	} else
-		printk(KERN_ERR "unexpect pipe num (%d)\n", pipenum);
+	} else {
+		dev_err(r8a66597_to_dev(r8a66597), "unexpect pipe num (%d)\n",
+			pipenum);
+	}
 }
 
 static inline void pipe_start(struct r8a66597 *r8a66597, u16 pipenum)
@@ -150,13 +154,15 @@ static inline u16 control_reg_get(struct r8a66597 *r8a66597, u16 pipenum)
 	u16 ret = 0;
 	unsigned long offset;
 
-	if (pipenum == 0)
+	if (pipenum == 0) {
 		ret = r8a66597_read(r8a66597, DCPCTR);
-	else if (pipenum < R8A66597_MAX_NUM_PIPE) {
+	} else if (pipenum < R8A66597_MAX_NUM_PIPE) {
 		offset = get_pipectr_addr(pipenum);
 		ret = r8a66597_read(r8a66597, offset);
-	} else
-		printk(KERN_ERR "unexpect pipe num (%d)\n", pipenum);
+	} else {
+		dev_err(r8a66597_to_dev(r8a66597), "unexpect pipe num (%d)\n",
+			pipenum);
+	}
 
 	return ret;
 }
@@ -167,13 +173,15 @@ static inline void control_reg_sqclr(struct r8a66597 *r8a66597, u16 pipenum)
 
 	pipe_stop(r8a66597, pipenum);
 
-	if (pipenum == 0)
+	if (pipenum == 0) {
 		r8a66597_bset(r8a66597, SQCLR, DCPCTR);
-	else if (pipenum < R8A66597_MAX_NUM_PIPE) {
+	} else if (pipenum < R8A66597_MAX_NUM_PIPE) {
 		offset = get_pipectr_addr(pipenum);
 		r8a66597_bset(r8a66597, SQCLR, offset);
-	} else
-		printk(KERN_ERR "unexpect pipe num(%d)\n", pipenum);
+	} else {
+		dev_err(r8a66597_to_dev(r8a66597), "unexpect pipe num (%d)\n",
+			pipenum);
+	}
 }
 
 static inline int get_buffer_size(struct r8a66597 *r8a66597, u16 pipenum)
@@ -287,17 +295,18 @@ static void pipe_buffer_release(struct r8a66597 *r8a66597,
 	if (info->pipe == 0)
 		return;
 
-	if (is_bulk_pipe(info->pipe))
+	if (is_bulk_pipe(info->pipe)) {
 		r8a66597->bulk--;
-	else if (is_interrupt_pipe(info->pipe))
+	} else if (is_interrupt_pipe(info->pipe)) {
 		r8a66597->interrupt--;
-	else if (is_isoc_pipe(info->pipe)) {
+	} else if (is_isoc_pipe(info->pipe)) {
 		r8a66597->isochronous--;
 		if (info->type == R8A66597_BULK)
 			r8a66597->bulk--;
-	} else
-		printk(KERN_ERR "ep_release: unexpect pipenum (%d)\n",
-				info->pipe);
+	} else {
+		dev_err(r8a66597_to_dev(r8a66597),
+			"ep_release: unexpect pipenum (%d)\n", info->pipe);
+	}
 }
 
 static void pipe_initialize(struct r8a66597_ep *ep)
@@ -371,7 +380,8 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	case USB_ENDPOINT_XFER_BULK:
 		if (r8a66597->bulk >= R8A66597_MAX_NUM_BULK) {
 			if (r8a66597->isochronous >= R8A66597_MAX_NUM_ISOC) {
-				printk(KERN_ERR "bulk pipe is insufficient\n");
+				dev_err(r8a66597_to_dev(r8a66597),
+					"bulk pipe is insufficient\n");
 				return -ENODEV;
 			} else {
 				info.pipe = R8A66597_BASE_PIPENUM_ISOC
@@ -387,7 +397,8 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 		break;
 	case USB_ENDPOINT_XFER_INT:
 		if (r8a66597->interrupt >= R8A66597_MAX_NUM_INT) {
-			printk(KERN_ERR "interrupt pipe is insufficient\n");
+			dev_err(r8a66597_to_dev(r8a66597),
+				"interrupt pipe is insufficient\n");
 			return -ENODEV;
 		}
 		info.pipe = R8A66597_BASE_PIPENUM_INT + r8a66597->interrupt;
@@ -396,7 +407,8 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		if (r8a66597->isochronous >= R8A66597_MAX_NUM_ISOC) {
-			printk(KERN_ERR "isochronous pipe is insufficient\n");
+			dev_err(r8a66597_to_dev(r8a66597),
+				"isochronous pipe is insufficient\n");
 			return -ENODEV;
 		}
 		info.pipe = R8A66597_BASE_PIPENUM_ISOC + r8a66597->isochronous;
@@ -404,7 +416,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 		counter = &r8a66597->isochronous;
 		break;
 	default:
-		printk(KERN_ERR "unexpect xfer type\n");
+		dev_err(r8a66597_to_dev(r8a66597), "unexpect xfer type\n");
 		return -EINVAL;
 	}
 	ep->type = info.type;
@@ -419,7 +431,8 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 
 	ret = pipe_buffer_setting(r8a66597, &info);
 	if (ret < 0) {
-		printk(KERN_ERR "pipe_buffer_setting fail\n");
+		dev_err(r8a66597_to_dev(r8a66597),
+			"pipe_buffer_setting fail\n");
 		return ret;
 	}
 
@@ -554,7 +567,8 @@ static void start_ep0(struct r8a66597_ep *ep, struct r8a66597_request *req)
 		control_end(ep->r8a66597, 0);
 		break;
 	default:
-		printk(KERN_ERR "start_ep0: unexpect ctsq(%x)\n", ctsq);
+		dev_err(r8a66597_to_dev(ep->r8a66597),
+			"start_ep0: unexpect ctsq(%x)\n", ctsq);
 		break;
 	}
 }
@@ -708,7 +722,8 @@ static void irq_ep0_write(struct r8a66597_ep *ep, struct r8a66597_request *req)
 	do {
 		tmp = r8a66597_read(r8a66597, ep->fifoctr);
 		if (i++ > 100000) {
-			printk(KERN_ERR "pipe0 is busy. maybe cpu i/o bus"
+			dev_err(r8a66597_to_dev(r8a66597),
+				"pipe0 is busy. maybe cpu i/o bus "
 				"conflict. please power off this controller.");
 			return;
 		}
@@ -759,7 +774,8 @@ static void irq_packet_write(struct r8a66597_ep *ep,
 	if (unlikely((tmp & FRDY) == 0)) {
 		pipe_stop(r8a66597, pipenum);
 		pipe_irq_disable(r8a66597, pipenum);
-		printk(KERN_ERR "write fifo not ready. pipnum=%d\n", pipenum);
+		dev_err(r8a66597_to_dev(r8a66597),
+			"write fifo not ready. pipnum=%d\n", pipenum);
 		return;
 	}
 
@@ -809,7 +825,7 @@ static void irq_packet_read(struct r8a66597_ep *ep,
 		req->req.status = -EPIPE;
 		pipe_stop(r8a66597, pipenum);
 		pipe_irq_disable(r8a66597, pipenum);
-		printk(KERN_ERR "read fifo not ready");
+		dev_err(r8a66597_to_dev(r8a66597), "read fifo not ready");
 		return;
 	}
 
@@ -1085,7 +1101,7 @@ static void r8a66597_update_usb_speed(struct r8a66597 *r8a66597)
 		break;
 	default:
 		r8a66597->gadget.speed = USB_SPEED_UNKNOWN;
-		printk(KERN_ERR "USB speed unknown\n");
+		dev_err(r8a66597_to_dev(r8a66597), "USB speed unknown\n");
 	}
 }
 
@@ -1148,7 +1164,8 @@ __acquires(r8a66597->lock)
 		control_end(r8a66597, 0);
 		break;
 	default:
-		printk(KERN_ERR "ctrl_stage: unexpect ctsq(%x)\n", ctsq);
+		dev_err(r8a66597_to_dev(r8a66597),
+			"ctrl_stage: unexpect ctsq(%x)\n", ctsq);
 		break;
 	}
 }
@@ -1448,13 +1465,15 @@ static int r8a66597_start(struct usb_gadget_driver *driver,
 
 	retval = device_add(&r8a66597->gadget.dev);
 	if (retval) {
-		printk(KERN_ERR "device_add error (%d)\n", retval);
+		dev_err(r8a66597_to_dev(r8a66597), "device_add error (%d)\n",
+			retval);
 		goto error;
 	}
 
 	retval = bind(&r8a66597->gadget);
 	if (retval) {
-		printk(KERN_ERR "bind to driver error (%d)\n", retval);
+		dev_err(r8a66597_to_dev(r8a66597),
+			"bind to driver error (%d)\n", retval);
 		device_del(&r8a66597->gadget.dev);
 		goto error;
 	}
@@ -1569,7 +1588,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENODEV;
-		printk(KERN_ERR "platform_get_resource error.\n");
+		dev_err(&pdev->dev, "platform_get_resource error.\n");
 		goto clean_up;
 	}
 
@@ -1579,14 +1598,14 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 
 	if (irq < 0) {
 		ret = -ENODEV;
-		printk(KERN_ERR "platform_get_irq error.\n");
+		dev_err(&pdev->dev, "platform_get_irq error.\n");
 		goto clean_up;
 	}
 
 	reg = ioremap(res->start, resource_size(res));
 	if (reg == NULL) {
 		ret = -ENOMEM;
-		printk(KERN_ERR "ioremap error.\n");
+		dev_err(&pdev->dev, "ioremap error.\n");
 		goto clean_up;
 	}
 
@@ -1594,7 +1613,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597 = kzalloc(sizeof(struct r8a66597), GFP_KERNEL);
 	if (r8a66597 == NULL) {
 		ret = -ENOMEM;
-		printk(KERN_ERR "kzalloc error\n");
+		dev_err(&pdev->dev, "kzalloc error\n");
 		goto clean_up;
 	}
 
@@ -1636,7 +1655,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	ret = request_irq(irq, r8a66597_irq, IRQF_SHARED,
 			udc_name, r8a66597);
 	if (ret < 0) {
-		printk(KERN_ERR "request_irq error (%d)\n", ret);
+		dev_err(&pdev->dev, "request_irq error (%d)\n", ret);
 		goto clean_up2;
 	}
 
