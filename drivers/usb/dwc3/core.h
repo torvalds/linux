@@ -329,6 +329,7 @@ struct dwc3_event_buffer {
  * @interval: the intervall on which the ISOC transfer is started
  * @name: a human readable name e.g. ep1out-bulk
  * @direction: true for TX, false for RX
+ * @stream_capable: true when streams are enabled
  */
 struct dwc3_ep {
 	struct usb_ep		endpoint;
@@ -362,6 +363,7 @@ struct dwc3_ep {
 	char			name[20];
 
 	unsigned		direction:1;
+	unsigned		stream_capable:1;
 };
 
 enum dwc3_phy {
@@ -649,6 +651,10 @@ struct dwc3_event_depevt {
 #define DEPEVT_STATUS_SHORT     (1 << 1)
 #define DEPEVT_STATUS_IOC       (1 << 2)
 #define DEPEVT_STATUS_LST	(1 << 3)
+
+/* Stream event only */
+#define DEPEVT_STREAMEVT_FOUND		1
+#define DEPEVT_STREAMEVT_NOTFOUND	2
 
 /* Control-only Status */
 #define DEPEVT_STATUS_CONTROL_SETUP	0

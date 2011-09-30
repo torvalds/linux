@@ -264,6 +264,12 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 	params.param1.depcfg.xfer_complete_enable = true;
 	params.param1.depcfg.xfer_not_ready_enable = true;
 
+	if (usb_endpoint_xfer_bulk(desc) && dep->endpoint.max_streams) {
+		params.param1.depcfg.stream_capable = true;
+		params.param1.depcfg.stream_event_enable = true;
+		dep->stream_capable = true;
+	}
+
 	if (usb_endpoint_xfer_isoc(desc))
 		params.param1.depcfg.xfer_in_progress_enable = true;
 
@@ -391,15 +397,16 @@ static int __dwc3_gadget_ep_disable(struct dwc3_ep *dep)
 	struct dwc3		*dwc = dep->dwc;
 	u32			reg;
 
-	dep->flags &= ~DWC3_EP_ENABLED;
 	dwc3_remove_requests(dwc, dep);
 
 	reg = dwc3_readl(dwc->regs, DWC3_DALEPENA);
 	reg &= ~DWC3_DALEPENA_EP(dep->number);
 	dwc3_writel(dwc->regs, DWC3_DALEPENA, reg);
 
+	dep->stream_capable = false;
 	dep->desc = NULL;
 	dep->type = 0;
+	dep->flags = 0;
 
 	return 0;
 }
@@ -632,6 +639,9 @@ static struct dwc3_request *dwc3_prepare_trbs(struct dwc3_ep *dep,
 		} else {
 			trb.lst = last_one;
 		}
+
+		if (usb_endpoint_xfer_bulk(dep->desc) && dep->stream_capable)
+			trb.sid_sofn = req->request.stream_id;
 
 		switch (usb_endpoint_type(dep->desc)) {
 		case USB_ENDPOINT_XFER_CONTROL:
@@ -1505,11 +1515,27 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 		}
 
 		break;
+	case DWC3_DEPEVT_STREAMEVT:
+		if (!usb_endpoint_xfer_bulk(dep->desc)) {
+			dev_err(dwc->dev, "Stream event for non-Bulk %s\n",
+					dep->name);
+			return;
+		}
+
+		switch (event->status) {
+		case DEPEVT_STREAMEVT_FOUND:
+			dev_vdbg(dwc->dev, "Stream %d found and started\n",
+					event->parameters);
+
+			break;
+		case DEPEVT_STREAMEVT_NOTFOUND:
+			/* FALLTHROUGH */
+		default:
+			dev_dbg(dwc->dev, "Couldn't find suitable stream\n");
+		}
+		break;
 	case DWC3_DEPEVT_RXTXFIFOEVT:
 		dev_dbg(dwc->dev, "%s FIFO Overrun\n", dep->name);
-		break;
-	case DWC3_DEPEVT_STREAMEVT:
-		dev_dbg(dwc->dev, "%s Stream Event\n", dep->name);
 		break;
 	case DWC3_DEPEVT_EPCMDCMPLT:
 		dwc3_ep_cmd_compl(dep, event);

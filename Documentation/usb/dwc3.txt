@@ -3,14 +3,6 @@
 ~~~~~~
 Please pick something while reading :)
 
-- Implement streaming support for BULK endpoints
-  Tatyana's patch "usb: Add streams support to the gadget framework"
-  introduces streaming support for the gadget driver.
-  Every usb_request has new field called stream_id which holds its id.
-  Every usb_ep has a field num_supported_strms which describes the max
-  number of streams supported (for this ep).
-  UAS is AFAIK the only gadget with streaming support.
-
 - Convert interrupt handler to per-ep-thread-irq
 
   As it turns out some DWC3-commands ~1ms to complete. Currently we spin
