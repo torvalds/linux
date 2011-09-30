@@ -173,7 +173,6 @@ struct mwifiex_ra_list_tbl {
 	struct sk_buff_head skb_head;
 	u8 ra[ETH_ALEN];
 	u32 total_pkts_size;
-	u32 total_pkts;
 	u32 is_11n_enabled;
 };
 
