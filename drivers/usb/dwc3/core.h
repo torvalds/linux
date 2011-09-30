@@ -507,6 +507,30 @@ static inline void dwc3_trb_to_nat(struct dwc3_trb_hw *hw, struct dwc3_trb *nat)
 }
 
 /**
+ * dwc3_hwparams - copy of HWPARAMS registers
+ * @hwparams0 - GHWPARAMS0
+ * @hwparams1 - GHWPARAMS1
+ * @hwparams2 - GHWPARAMS2
+ * @hwparams3 - GHWPARAMS3
+ * @hwparams4 - GHWPARAMS4
+ * @hwparams5 - GHWPARAMS5
+ * @hwparams6 - GHWPARAMS6
+ * @hwparams7 - GHWPARAMS7
+ * @hwparams8 - GHWPARAMS8
+ */
+struct dwc3_hwparams {
+	u32	hwparams0;
+	u32	hwparams1;
+	u32	hwparams2;
+	u32	hwparams3;
+	u32	hwparams4;
+	u32	hwparams5;
+	u32	hwparams6;
+	u32	hwparams7;
+	u32	hwparams8;
+};
+
+/**
  * struct dwc3 - representation of our controller
  * @ctrl_req: usb control request which is used for ep0
  * @ep0_trb: trb which is used for the ctrl_req
@@ -537,6 +561,7 @@ static inline void dwc3_trb_to_nat(struct dwc3_trb_hw *hw, struct dwc3_trb *nat)
  * @link_state: link state
  * @speed: device speed (super, high, full, low)
  * @mem: points to start of memory which is used for this struct.
+ * @hwparams: copy of hwparams registers
  * @root: debugfs root folder pointer
  */
 struct dwc3 {
@@ -589,6 +614,7 @@ struct dwc3 {
 	u8			speed;
 	void			*mem;
 
+	struct dwc3_hwparams	hwparams;
 	struct dentry		*root;
 };
 
