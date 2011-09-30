@@ -878,7 +878,6 @@ static int __devinit ad799x_probe(struct i2c_client *client,
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = st->chip_info->info;
-	indio_dev->name = id->name;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channel;
