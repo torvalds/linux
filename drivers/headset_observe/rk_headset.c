@@ -441,7 +441,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 		headset->irq_type[HEADSET] = IRQF_TRIGGER_RISING;
 	else
 		headset->irq_type[HEADSET] = IRQF_TRIGGER_FALLING;
-	ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], NULL, NULL);
+	ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], "headset_input", NULL);
 	if (ret) 
 		goto failed_free;
 	enable_irq_wake(headset->irq[HEADSET]);
@@ -454,7 +454,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	headset->irq[HOOK] = gpio_to_irq(pdata->Hook_gpio);
 	headset->irq_type[HOOK] = IRQF_TRIGGER_FALLING;
 	
-	ret = request_irq(headset->irq[HOOK], Hook_interrupt, headset->irq_type[HOOK] , NULL, NULL);
+	ret = request_irq(headset->irq[HOOK], Hook_interrupt, headset->irq_type[HOOK] , "headset_hook", NULL);
 	if (ret) 
 		goto failed_free;
 	disable_irq(headset->irq[HOOK]);
