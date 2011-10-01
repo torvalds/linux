@@ -427,6 +427,7 @@ config MACH_CENTRO
 	bool "Palm Centro 685 (GSM)"
 	default y
 	depends on ARCH_PXA_PALM
+	select MACH_PALM27X
 	select PXA27x
 	select IWMMXT
 	select PALM_TREO
@@ -438,6 +439,7 @@ config MACH_TREO680
 	bool "Palm Treo 680"
 	default y
 	depends on ARCH_PXA_PALM
+	select MACH_PALM27X
 	select PXA27x
 	select IWMMXT
 	select PALM_TREO
