@@ -113,8 +113,8 @@ config SENSORS_ZL6100
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for Intersil
-	  ZL2004, ZL2006, ZL2008, ZL2105, ZL2106, ZL6100, and ZL6105 Digital
-	  DC/DC Controllers.
+	  ZL2004, ZL2005, ZL2006, ZL2008, ZL2105, ZL2106, ZL6100, and ZL6105
+	  Digital DC/DC Controllers.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called zl6100.
