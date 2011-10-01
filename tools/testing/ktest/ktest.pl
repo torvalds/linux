@@ -412,15 +412,16 @@ sub process_if {
     return 1;
 }
 
-sub read_config {
-    my ($config) = @_;
+sub __read_config {
+    my ($config, $current_test_num) = @_;
 
-    open(IN, $config) || die "can't read file $config";
+    my $in;
+    open($in, $config) || die "can't read file $config";
 
     my $name = $config;
     $name =~ s,.*/(.*),$1,;
 
-    my $test_num = 0;
+    my $test_num = $$current_test_num;
     my $default = 1;
     my $repeat = 1;
     my $num_tests_set = 0;
@@ -430,7 +431,7 @@ sub read_config {
     my $if = 0;
     my $if_set = 0;
 
-    while (<IN>) {
+    while (<$in>) {
 
 	# ignore blank lines and comments
 	next if (/^\s*$/ || /\s*\#/);
@@ -539,6 +540,33 @@ sub read_config {
 		die "$name: $.: Gargbage found after DEFAULTS\n$_";
 	    }
 
+	} elsif (/^\s*INCLUDE\s+(\S+)/) {
+
+	    next if ($skip);
+
+	    if (!$default) {
+		die "$name: $.: INCLUDE can only be done in default sections\n$_";
+	    }
+
+	    my $file = process_variables($1);
+
+	    if ($file !~ m,^/,) {
+		# check the path of the config file first
+		if ($config =~ m,(.*)/,) {
+		    if (-f "$1/$file") {
+			$file = "$1/$file";
+		    }
+		}
+	    }
+		
+	    if ( ! -r $file ) {
+		die "$name: $.: Can't read file $file\n$_";
+	    }
+
+	    if (__read_config($file, \$test_num)) {
+		$test_case = 1;
+	    }
+
 	} elsif (/^\s*([A-Z_\[\]\d]+)\s*=\s*(.*?)\s*$/) {
 
 	    next if ($skip);
@@ -594,12 +622,25 @@ sub read_config {
 	}
     }
 
-    close(IN);
-
     if ($test_num) {
 	$test_num += $repeat - 1;
 	$opt{"NUM_TESTS"} = $test_num;
     }
+
+    close($in);
+
+    $$current_test_num = $test_num;
+
+    return $test_case;
+}
+
+sub read_config {
+    my ($config) = @_;
+
+    my $test_case;
+    my $test_num = 0;
+
+    $test_case = __read_config $config, \$test_num;
 
     # make sure we have all mandatory configs
     get_ktest_configs;
