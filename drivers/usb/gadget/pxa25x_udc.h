@@ -152,8 +152,6 @@ static struct pxa25x_udc *the_controller;
 
 #ifdef DEBUG
 
-static int is_vbus_present(void);
-
 static const char *state_name[] = {
 	"EP0_IDLE",
 	"EP0_IN_DATA_PHASE", "EP0_OUT_DATA_PHASE",
@@ -205,8 +203,7 @@ dump_state(struct pxa25x_udc *dev)
 	u32		tmp;
 	unsigned	i;
 
-	DMSG("%s %s, uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
-		is_vbus_present() ? "host " : "disconnected",
+	DMSG("%s, uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
 		state_name[dev->ep0state],
 		UICR1, UICR0, USIR1, USIR0, UFNRH, UFNRL);
 	dump_udccr("udccr");
@@ -222,9 +219,6 @@ dump_state(struct pxa25x_udc *dev)
 		return;
 	} else
 		DMSG("ep0 driver '%s'\n", dev->driver->driver.name);
-
-	if (!is_vbus_present())
-		return;
 
 	dump_udccs0 ("udccs0");
 	DMSG("ep0 IN %lu/%lu, OUT %lu/%lu\n",
