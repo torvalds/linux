@@ -304,7 +304,7 @@ void et131x_isr_handler(struct work_struct *work)
 				 * bp xon/xoff)
 				 */
 				pm_csr = readl(&iomem->global.pm_csr);
-				if ((pm_csr & ET_PM_PHY_SW_COMA) == 0)
+				if (!et1310_in_phy_coma(adapter))
 					writel(3, &iomem->txmac.bp_ctrl);
 			}
 		}

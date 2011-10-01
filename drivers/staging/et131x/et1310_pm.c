@@ -87,6 +87,21 @@
 #include "et131x.h"
 
 /**
+ * et1310_in_phy_coma - check if the device is in phy coma
+ * @adapter: pointer to our adapter structure
+ *
+ * Returns 0 if the device is not in phy coma, 1 if it is in phy coma
+ */
+int et1310_in_phy_coma(struct et131x_adapter *adapter)
+{
+	u32 pmcsr;
+
+	pmcsr = readl(&adapter->regs->global.pm_csr);
+
+	return ET_PM_PHY_SW_COMA & pmcsr ? 1 : 0;
+}
+
+/**
  * et1310_enable_phy_coma - called when network cable is unplugged
  * @adapter: pointer to our adapter structure
  *

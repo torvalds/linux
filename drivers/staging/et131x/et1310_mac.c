@@ -612,7 +612,7 @@ void et1310_setup_device_for_multicast(struct et131x_adapter *adapter)
 
 	/* Write out the new hash to the device */
 	pm_csr = readl(&adapter->regs->global.pm_csr);
-	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
+	if (!et1310_in_phy_coma(adapter)) {
 		writel(hash1, &rxmac->multi_hash1);
 		writel(hash2, &rxmac->multi_hash2);
 		writel(hash3, &rxmac->multi_hash3);
@@ -653,7 +653,7 @@ void et1310_setup_device_for_unicast(struct et131x_adapter *adapter)
 		   adapter->addr[5];
 
 	pm_csr = readl(&adapter->regs->global.pm_csr);
-	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
+	if (!et1310_in_phy_coma(adapter)) {
 		writel(uni_pf1, &rxmac->uni_pf_addr1);
 		writel(uni_pf2, &rxmac->uni_pf_addr2);
 		writel(uni_pf3, &rxmac->uni_pf_addr3);

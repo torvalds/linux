@@ -87,6 +87,7 @@ void et131x_enable_txrx(struct net_device *netdev);
 void et131x_disable_txrx(struct net_device *netdev);
 
 /* et1310_pm.c */
+int et1310_in_phy_coma(struct et131x_adapter *adapter);
 void et1310_enable_phy_coma(struct et131x_adapter *adapter);
 void et1310_disable_phy_coma(struct et131x_adapter *adapter);
 

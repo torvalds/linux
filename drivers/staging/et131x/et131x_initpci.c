@@ -239,15 +239,11 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 void et131x_error_timer_handler(unsigned long data)
 {
 	struct et131x_adapter *adapter = (struct et131x_adapter *) data;
-	u32 pm_csr;
 
-	pm_csr = readl(&adapter->regs->global.pm_csr);
-
-	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0)
+	if (!et1310_in_phy_coma(adapter))
 		et1310_update_macstat_host_counters(adapter);
 	else
-		dev_err(&adapter->pdev->dev,
-		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
+		dev_err(&adapter->pdev->dev, "No interrupts, in PHY coma\n");
 
 	if (!(adapter->bmsr & BMSR_LSTATUS) &&
 	    adapter->boot_coma < 11) {
@@ -256,7 +252,7 @@ void et131x_error_timer_handler(unsigned long data)
 
 	if (adapter->boot_coma == 10) {
 		if (!(adapter->bmsr & BMSR_LSTATUS)) {
-			if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
+			if (!et1310_in_phy_coma(adapter)) {
 				/* NOTE - This was originally a 'sync with
 				 *  interrupt'. How to do that under Linux?
 				 */
@@ -443,9 +439,6 @@ static void et131x_adjust_link(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct  phy_device *phydev = adapter->phydev;
-	struct address_map __iomem *iomem = adapter->regs;
-
-	u32 pm_csr;
 
 	if (netif_carrier_ok(netdev)) {
 		adapter->boot_coma = 20;
@@ -488,16 +481,13 @@ static void et131x_adjust_link(struct net_device *netdev)
 	}
 
 	if (phydev->link != adapter->link) {
-		/* If we are in coma mode, we need to disable it. */
-		pm_csr = readl(&iomem->global.pm_csr);
-		if (pm_csr & ET_PM_PHY_SW_COMA) {
-			/*
-			 * Check to see if we are in coma mode and if
-			 * so, disable it because we will not be able
-			 * to read PHY values until we are out.
-			 */
+		/*
+		 * Check to see if we are in coma mode and if
+		 * so, disable it because we will not be able
+		 * to read PHY values until we are out.
+		 */
+		if (et1310_in_phy_coma(adapter))
 			et1310_disable_phy_coma(adapter);
-		}
 
 		if (phydev->link) {
 			adapter->boot_coma = 20;
