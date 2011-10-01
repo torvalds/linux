@@ -1214,7 +1214,6 @@ static int wireless_set_encode(struct net_device *dev, struct iw_request_info *i
 				lp->EnableEncryption    = 1;
 			} else {
 				DBG_WARNING( DbgInfo, "Problem setting the current TxKey\n" );
-				DBG_LEAVE( DbgInfo );
 				ret = -EINVAL;
 			}
 		}
