@@ -389,6 +389,11 @@ sdev_to_domain_dev(struct scsi_device *sdev) {
 	return starget_to_domain_dev(sdev->sdev_target);
 }
 
+static inline struct ata_device *sas_to_ata_dev(struct domain_device *dev)
+{
+	return &dev->sata_dev.ap->link.device[0];
+}
+
 static inline struct domain_device *
 cmd_to_domain_dev(struct scsi_cmnd *cmd)
 {

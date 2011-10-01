@@ -801,7 +801,7 @@ void sas_slave_destroy(struct scsi_device *scsi_dev)
 	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
 
 	if (dev_is_sata(dev))
-		dev->sata_dev.ap->link.device[0].class = ATA_DEV_NONE;
+		sas_to_ata_dev(dev)->class = ATA_DEV_NONE;
 }
 
 int sas_change_queue_depth(struct scsi_device *sdev, int depth, int reason)
