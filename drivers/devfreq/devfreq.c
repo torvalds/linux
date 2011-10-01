@@ -437,6 +437,74 @@ int devfreq_remove_device(struct devfreq *devfreq)
 	return 0;
 }
 
+static ssize_t show_governor(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", to_devfreq(dev)->governor->name);
+}
+
+static ssize_t show_freq(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", to_devfreq(dev)->previous_freq);
+}
+
+static ssize_t show_polling_interval(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", to_devfreq(dev)->profile->polling_ms);
+}
+
+static ssize_t store_polling_interval(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct devfreq *df = to_devfreq(dev);
+	unsigned int value;
+	int ret;
+
+	ret = sscanf(buf, "%u", &value);
+	if (ret != 1)
+		goto out;
+
+	mutex_lock(&df->lock);
+	df->profile->polling_ms = value;
+	df->next_polling = df->polling_jiffies
+			 = msecs_to_jiffies(value);
+	mutex_unlock(&df->lock);
+
+	ret = count;
+
+	if (df->governor->no_central_polling)
+		goto out;
+
+	mutex_lock(&devfreq_list_lock);
+	if (df->next_polling > 0 && !polling) {
+		polling = true;
+		queue_delayed_work(devfreq_wq, &devfreq_work,
+				   df->next_polling);
+	}
+	mutex_unlock(&devfreq_list_lock);
+out:
+	return ret;
+}
+
+static ssize_t show_central_polling(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n",
+		       !to_devfreq(dev)->governor->no_central_polling);
+}
+
+static struct device_attribute devfreq_attrs[] = {
+	__ATTR(governor, S_IRUGO, show_governor, NULL),
+	__ATTR(cur_freq, S_IRUGO, show_freq, NULL),
+	__ATTR(central_polling, S_IRUGO, show_central_polling, NULL),
+	__ATTR(polling_interval, S_IRUGO | S_IWUSR, show_polling_interval,
+	       store_polling_interval),
+	{ },
+};
+
 /**
  * devfreq_start_polling() - Initialize data structure for devfreq framework and
  *			   start polling registered devfreq devices.
@@ -461,6 +529,7 @@ static int __init devfreq_init(void)
 		pr_err("%s: couldn't create class\n", __FILE__);
 		return PTR_ERR(devfreq_class);
 	}
+	devfreq_class->dev_attrs = devfreq_attrs;
 	return 0;
 }
 subsys_initcall(devfreq_init);
