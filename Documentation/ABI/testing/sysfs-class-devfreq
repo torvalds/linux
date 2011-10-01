@@ -42,3 +42,11 @@ Description:
 		devfreq-provided central polling
 		(/sys/class/devfreq/.../central_polling is 0), this value
 		may be useless.
+
+What:		/sys/class/devfreq/.../userspace/set_freq
+Date:		September 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/devfreq/.../userspace/set_freq shows and
+		sets the requested frequency for the devfreq object if
+		userspace governor is in effect.
