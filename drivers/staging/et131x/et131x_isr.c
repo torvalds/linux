@@ -6,6 +6,8 @@
  * All rights reserved.
  *   http://www.agere.com
  *
+ * Copyright (c) 2011 Mark Einon <mark.einon@gmail.com>
+ *
  *------------------------------------------------------------------------------
  *
  * et131x_isr.c - File which contains the ISR, ISR handler, and related routines

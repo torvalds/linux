@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2011 Mark Einon
+ *  Copyright (c) 2011 Mark Einon <mark.einon@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -14,8 +14,6 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- *  Mark Einon <mark.einon@gmail.com>
  */
 #include "et131x_version.h"
 #include "et131x_defs.h"

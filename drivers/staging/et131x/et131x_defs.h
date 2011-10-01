@@ -6,6 +6,8 @@
  * All rights reserved.
  *   http://www.agere.com
  *
+ * Copyright (c) 2011 Mark Einon <mark.einon@gmail.com>
+ *
  *------------------------------------------------------------------------------
  *
  * et131x_defs.h - Defines, structs, enums, prototypes, etc. to assist with OS

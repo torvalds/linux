@@ -6,6 +6,8 @@
  * All rights reserved.
  *   http://www.agere.com
  *
+ * Copyright (c) 2011 Mark Einon <mark.einon@gmail.com>
+ *
  *------------------------------------------------------------------------------
  *
  * et131x_initpci.c - Routines and data used to register the driver with the
@@ -945,5 +947,6 @@ module_exit(et131x_cleanup_module);
 
 /* Modinfo parameters (filled out using defines from et131x_version.h) */
 MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_AUTHOR(DRIVER_AUTHOR2);
 MODULE_DESCRIPTION(DRIVER_INFO);
 MODULE_LICENSE(DRIVER_LICENSE);

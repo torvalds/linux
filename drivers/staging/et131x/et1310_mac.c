@@ -6,6 +6,8 @@
  * All rights reserved.
  *   http://www.agere.com
  *
+ * Copyright (c) 2011 Mark Einon <mark.einon@gmail.com>
+ *
  *------------------------------------------------------------------------------
  *
  * et1310_mac.c - All code and routines pertaining to the MAC
