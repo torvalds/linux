@@ -147,6 +147,8 @@ void et1310_enable_phy_coma(struct et131x_adapter *adapter)
 
 	/* Wait for outstanding Receive packets */
 
+	et131x_disable_txrx(adapter->netdev);
+
 	/* Gate off JAGCore 3 clock domains */
 	pmcsr &= ~ET_PMCSR_INIT;
 	writel(pmcsr, &adapter->regs->global.pm_csr);
@@ -198,7 +200,6 @@ void et1310_disable_phy_coma(struct et131x_adapter *adapter)
 	/* Allow Tx to restart */
 	adapter->flags &= ~fMP_ADAPTER_LOWER_POWER;
 
-	/* Need to re-enable Rx. */
-	et131x_rx_dma_enable(adapter);
+	et131x_enable_txrx(adapter->netdev);
 }
 

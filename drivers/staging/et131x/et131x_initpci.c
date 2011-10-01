@@ -243,10 +243,15 @@ void et131x_error_timer_handler(unsigned long data)
 	struct et131x_adapter *adapter = (struct et131x_adapter *) data;
 	struct phy_device *phydev = adapter->phydev;
 
-	if (!et1310_in_phy_coma(adapter))
+	if (et1310_in_phy_coma(adapter)) {
+		/* Bring the device immediately out of coma, to
+		 * prevent it from sleeping indefinitely, this
+		 * mechanism could be improved! */
+		et1310_disable_phy_coma(adapter);
+		adapter->boot_coma = 20;
+	} else {
 		et1310_update_macstat_host_counters(adapter);
-	else
-		dev_err(&adapter->pdev->dev, "No interrupts, in PHY coma\n");
+	}
 
 	if (!phydev->link && adapter->boot_coma < 11)
 		adapter->boot_coma++;
@@ -495,6 +500,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 		} else {
 			dev_warn(&adapter->pdev->dev,
 			    "Link down - cable problem ?\n");
+			adapter->boot_coma = 0;
 
 			if (phydev && phydev->speed == SPEED_10) {
 				/* NOTE - Is there a way to query this without
