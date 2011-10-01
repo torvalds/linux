@@ -436,20 +436,29 @@ sub __read_config {
 	# ignore blank lines and comments
 	next if (/^\s*$/ || /\s*\#/);
 
-	if (/^\s*TEST_START(.*)/) {
+	if (/^\s*(TEST_START|DEFAULTS)\b(.*)/) {
 
-	    $rest = $1;
+	    my $type = $1;
+	    $rest = $2;
 
-	    if ($num_tests_set) {
-		die "$name: $.: Can not specify both NUM_TESTS and TEST_START\n";
+	    my $old_test_num;
+	    my $old_repeat;
+
+	    if ($type eq "TEST_START") {
+
+		if ($num_tests_set) {
+		    die "$name: $.: Can not specify both NUM_TESTS and TEST_START\n";
+		}
+
+		$old_test_num = $test_num;
+		$old_repeat = $repeat;
+
+		$test_num += $repeat;
+		$default = 0;
+		$repeat = 1;
+	    } else {
+		$default = 1;
 	    }
-
-	    my $old_test_num = $test_num;
-	    my $old_repeat = $repeat;
-
-	    $test_num += $repeat;
-	    $default = 0;
-	    $repeat = 1;
 
 	    if ($rest =~ /\s+SKIP\b(.*)/) {
 		$rest = $1;
@@ -478,40 +487,12 @@ sub __read_config {
 	    }
 
 	    if ($rest !~ /^\s*$/) {
-		die "$name: $.: Gargbage found after TEST_START\n$_";
+		die "$name: $.: Gargbage found after $type\n$_";
 	    }
 
-	    if ($skip) {
+	    if ($skip && $type eq "TEST_START") {
 		$test_num = $old_test_num;
 		$repeat = $old_repeat;
-	    }
-
-	} elsif (/^\s*DEFAULTS(.*)$/) {
-	    $default = 1;
-
-	    $rest = $1;
-
-	    if ($rest =~ /\s+SKIP(.*)/) {
-		$rest = $1;
-		$skip = 1;
-	    } else {
-		$skip = 0;
-	    }
-
-	    if ($rest =~ /\sIF\s+(.*)/) {
-		$if = 1;
-		if (process_if($name, $1)) {
-		    $if_set = 1;
-		} else {
-		    $skip = 1;
-		}
-		$rest = "";
-	    } else {
-		$if = 0;
-	    }
-
-	    if ($rest !~ /^\s*$/) {
-		die "$name: $.: Gargbage found after DEFAULTS\n$_";
 	    }
 
 	} elsif (/^\s*ELSE\b(.*)$/) {
