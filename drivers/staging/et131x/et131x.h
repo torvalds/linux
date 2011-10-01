@@ -52,6 +52,7 @@
 int et131x_init_eeprom(struct et131x_adapter *adapter);
 
 /* et131x_initpci.c */
+void et131x_error_timer_handler(unsigned long data);
 void et131x_configure_global_regs(struct et131x_adapter *adapter);
 void et131x_enable_interrupts(struct et131x_adapter *adapter);
 void et131x_disable_interrupts(struct et131x_adapter *adapter);

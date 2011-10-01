@@ -187,6 +187,10 @@ int et131x_open(struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
 	/* Start the timer to track NIC errors */
+	init_timer(&adapter->error_timer);
+	adapter->error_timer.expires = jiffies + TX_ERROR_PERIOD * HZ / 1000;
+	adapter->error_timer.function = et131x_error_timer_handler;
+	adapter->error_timer.data = (unsigned long)adapter;
 	add_timer(&adapter->error_timer);
 
 	/* Register our IRQ */

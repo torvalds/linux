@@ -9,7 +9,6 @@ Note, the powermanagement options were removed from the vendor provided
 driver as they did not build properly at the time.
 
 TODO:
-	- add_timer call in et131x_netdev.c is correct?
 	- Implement a few more kernel Parameter (set mac )
 
 Please send patches to:
