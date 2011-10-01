@@ -10,7 +10,6 @@ driver as they did not build properly at the time.
 
 TODO:
 	- add_timer call in et131x_netdev.c is correct?
-	- Add power saving functionality (suspend, sleep, resume)
 	- Implement a few more kernel Parameter (set mac )
 
 Please send patches to:
