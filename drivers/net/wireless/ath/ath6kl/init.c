@@ -959,7 +959,7 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 
 		switch (ie_id) {
 		case ATH6KL_FW_IE_OTP_IMAGE:
-			ath6kl_dbg(ATH6KL_DBG_BOOT, "found otp image ie (%d B)\n",
+			ath6kl_dbg(ATH6KL_DBG_BOOT, "found otp image ie (%zd B)\n",
 				ie_len);
 
 			ar->fw_otp = kmemdup(data, ie_len, GFP_KERNEL);
@@ -972,7 +972,7 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 			ar->fw_otp_len = ie_len;
 			break;
 		case ATH6KL_FW_IE_FW_IMAGE:
-			ath6kl_dbg(ATH6KL_DBG_BOOT, "found fw image ie (%d B)\n",
+			ath6kl_dbg(ATH6KL_DBG_BOOT, "found fw image ie (%zd B)\n",
 				ie_len);
 
 			ar->fw = kmemdup(data, ie_len, GFP_KERNEL);
@@ -985,7 +985,7 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 			ar->fw_len = ie_len;
 			break;
 		case ATH6KL_FW_IE_PATCH_IMAGE:
-			ath6kl_dbg(ATH6KL_DBG_BOOT, "found patch image ie (%d B)\n",
+			ath6kl_dbg(ATH6KL_DBG_BOOT, "found patch image ie (%zd B)\n",
 				ie_len);
 
 			ar->fw_patch = kmemdup(data, ie_len, GFP_KERNEL);
@@ -1007,7 +1007,7 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 			break;
 		case ATH6KL_FW_IE_CAPABILITIES:
 			ath6kl_dbg(ATH6KL_DBG_BOOT,
-				   "found firmware capabilities ie (%d B)\n",
+				   "found firmware capabilities ie (%zd B)\n",
 				   ie_len);
 
 			for (i = 0; i < ATH6KL_FW_CAPABILITY_MAX; i++) {
@@ -1189,7 +1189,7 @@ static int ath6kl_upload_otp(struct ath6kl *ar)
 
 	address = ar->hw.app_load_addr;
 
-	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing otp to 0x%x (%d B)\n", address,
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing otp to 0x%x (%zd B)\n", address,
 		   ar->fw_otp_len);
 
 	ret = ath6kl_bmi_fast_download(ar, address, ar->fw_otp,
@@ -1233,7 +1233,7 @@ static int ath6kl_upload_firmware(struct ath6kl *ar)
 
 	address = ar->hw.app_load_addr;
 
-	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing firmware to 0x%x (%d B)\n",
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing firmware to 0x%x (%zd B)\n",
 		   address, ar->fw_len);
 
 	ret = ath6kl_bmi_fast_download(ar, address, ar->fw, ar->fw_len);
@@ -1264,7 +1264,7 @@ static int ath6kl_upload_patch(struct ath6kl *ar)
 
 	address = ar->hw.dataset_patch_addr;
 
-	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing patch to 0x%x (%d B)\n",
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing patch to 0x%x (%zd B)\n",
 		   address, ar->fw_patch_len);
 
 	ret = ath6kl_bmi_write(ar, address, ar->fw_patch, ar->fw_patch_len);
