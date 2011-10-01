@@ -449,15 +449,18 @@ config MACH_RAUMFELD_RC
 	bool "Raumfeld Controller"
 	select PXA3xx
 	select CPU_PXA300
+	select POWER_SUPPLY
 	select HAVE_PWM
 
 config MACH_RAUMFELD_CONNECTOR
 	bool "Raumfeld Connector"
+	select POWER_SUPPLY
 	select PXA3xx
 	select CPU_PXA300
 
 config MACH_RAUMFELD_SPEAKER
 	bool "Raumfeld Speaker"
+	select POWER_SUPPLY
 	select PXA3xx
 	select CPU_PXA300
 
