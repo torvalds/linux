@@ -361,10 +361,46 @@ sub set_variable {
     }
 }
 
+sub process_compare {
+    my ($lval, $cmp, $rval) = @_;
+
+    # remove whitespace
+
+    $lval =~ s/^\s*//;
+    $lval =~ s/\s*$//;
+
+    $rval =~ s/^\s*//;
+    $rval =~ s/\s*$//;
+
+    if ($cmp eq "==") {
+	return $lval eq $rval;
+    } elsif ($cmp eq "!=") {
+	return $lval ne $rval;
+    }
+
+    my $statement = "$lval $cmp $rval";
+    my $ret = eval $statement;
+
+    # $@ stores error of eval
+    if ($@) {
+	return -1;
+    }
+
+    return $ret;
+}
+
 sub process_if {
     my ($name, $value) = @_;
 
     my $val = process_variables($value);
+
+    if ($val =~ /(.*)(==|\!=|>=|<=|>|<)(.*)/) {
+	my $ret = process_compare($1, $2, $3);
+	if ($ret < 0) {
+	    die "$name: $.: Unable to process comparison\n";
+	}
+	return $ret;
+    }
 
     if ($val =~ /^\s*0\s*$/) {
 	return 0;
@@ -428,8 +464,8 @@ sub read_config {
 		$repeat_tests{"$test_num"} = $repeat;
 	    }
 
-	    if ($rest =~ /\sIF\s+(\S*)(.*)/) {
-		$rest = $2;
+	    if ($rest =~ /\sIF\s+(.*)/) {
+		$rest = "";
 		if (process_if($name, $1)) {
 		    $if_set = 1;
 		} else {
@@ -461,14 +497,14 @@ sub read_config {
 		$skip = 0;
 	    }
 
-	    if ($rest =~ /\sIF\s+(\S*)(.*)/) {
+	    if ($rest =~ /\sIF\s+(.*)/) {
 		$if = 1;
-		$rest = $2;
 		if (process_if($name, $1)) {
 		    $if_set = 1;
 		} else {
 		    $skip = 1;
 		}
+		$rest = "";
 	    } else {
 		$if = 0;
 	    }
@@ -477,24 +513,30 @@ sub read_config {
 		die "$name: $.: Gargbage found after DEFAULTS\n$_";
 	    }
 
-	} elsif (/^\s*ELSE(.*)$/) {
+	} elsif (/^\s*ELSE\b(.*)$/) {
 	    if (!$if) {
 		die "$name: $.: ELSE found with out matching IF section\n$_";
 	    }
 	    $rest = $1;
 	    if ($if_set) {
 		$skip = 1;
+		$rest = "";
 	    } else {
 		$skip = 0;
 
-		if ($rest =~ /\sIF\s+(\S*)(.*)/) {
+		if ($rest =~ /\sIF\s+(.*)/) {
 		    # May be a ELSE IF section.
 		    if (!process_if($name, $1)) {
 			$skip = 1;
 		    }
+		    $rest = "";
 		} else {
 		    $if = 0;
 		}
+	    }
+
+	    if ($rest !~ /^\s*$/) {
+		die "$name: $.: Gargbage found after DEFAULTS\n$_";
 	    }
 
 	} elsif (/^\s*([A-Z_\[\]\d]+)\s*=\s*(.*?)\s*$/) {
