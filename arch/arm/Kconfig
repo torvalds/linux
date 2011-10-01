@@ -3,7 +3,7 @@ config ARM
 	default y
 	select HAVE_AOUT
 	select HAVE_DMA_API_DEBUG
-	select HAVE_IDE
+	select HAVE_IDE if PCI || ISA || PCMCIA
 	select HAVE_MEMBLOCK
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
@@ -385,6 +385,7 @@ config ARCH_FOOTBRIDGE
 	select CPU_SA110
 	select FOOTBRIDGE
 	select GENERIC_CLOCKEVENTS
+	select HAVE_IDE
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
@@ -632,6 +633,7 @@ config ARCH_PXA
 	select AUTO_ZRELADDR
 	select MULTI_IRQ_HANDLER
 	select ARM_CPU_SUSPEND if PM
+	select HAVE_IDE
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
@@ -672,6 +674,7 @@ config ARCH_RPC
 	select NO_IOPORT
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_IDE
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -690,6 +693,7 @@ config ARCH_SA1100
 	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_IDE
 	help
 	  Support for StrongARM 11x0 based boards.
 
