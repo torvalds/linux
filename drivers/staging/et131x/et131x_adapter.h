@@ -201,9 +201,6 @@ struct et131x_adapter {
 	u16 pdown_speed;
 	u8 pdown_duplex;
 
-	/* Xcvr status at last poll */
-	u16 bmsr;
-
 	/* Tx Memory Variables */
 	struct tx_ring tx_ring;
 

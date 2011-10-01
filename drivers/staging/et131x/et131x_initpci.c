@@ -239,19 +239,18 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 void et131x_error_timer_handler(unsigned long data)
 {
 	struct et131x_adapter *adapter = (struct et131x_adapter *) data;
+	struct phy_device *phydev = adapter->phydev;
 
 	if (!et1310_in_phy_coma(adapter))
 		et1310_update_macstat_host_counters(adapter);
 	else
 		dev_err(&adapter->pdev->dev, "No interrupts, in PHY coma\n");
 
-	if (!(adapter->bmsr & BMSR_LSTATUS) &&
-	    adapter->boot_coma < 11) {
+	if (!phydev->link && adapter->boot_coma < 11)
 		adapter->boot_coma++;
-	}
 
 	if (adapter->boot_coma == 10) {
-		if (!(adapter->bmsr & BMSR_LSTATUS)) {
+		if (!phydev->link) {
 			if (!et1310_in_phy_coma(adapter)) {
 				/* NOTE - This was originally a 'sync with
 				 *  interrupt'. How to do that under Linux?

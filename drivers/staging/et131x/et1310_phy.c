@@ -337,9 +337,6 @@ void et131x_xcvr_init(struct et131x_adapter *adapter)
 	u16 isr;
 	u16 lcr2;
 
-	/* Zero out the adapter structure variable representing BMSR */
-	adapter->bmsr = 0;
-
 	et131x_mii_read(adapter, PHY_INTERRUPT_STATUS, &isr);
 	et131x_mii_read(adapter, PHY_INTERRUPT_MASK, &imr);
 
