@@ -2,6 +2,27 @@ if ARCH_PXA
 
 menu "Intel PXA2xx/PXA3xx Implementations"
 
+config ARCH_PXA_V7
+	bool "ARMv7 (PXA95x) based systems"
+
+if ARCH_PXA_V7
+comment "Marvell Dev Platforms (sorted by hardware release time)"
+config MACH_TAVOREVB3
+	bool "PXA95x Development Platform (aka TavorEVB III)"
+	select CPU_PXA955
+
+config MACH_SAARB
+	bool "PXA955 Handheld Platform (aka SAARB)"
+	select CPU_PXA955
+endif
+
+config PXA_V7_MACH_AUTO
+	def_bool y
+	depends on ARCH_PXA_V7
+	depends on !MACH_SAARB
+	select MACH_TAVOREVB3
+
+if !ARCH_PXA_V7
 comment "Intel/Marvell Dev Platforms (sorted by hardware release time)"
 
 config ARCH_LUBBOCK
@@ -41,18 +62,10 @@ config MACH_TAVOREVB
 	select PXA3xx
 	select CPU_PXA930
 
-config MACH_TAVOREVB3
-	bool "PXA95x Development Platform (aka TavorEVB III)"
-	select CPU_PXA950
-
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
 	select PXA3xx
 	select CPU_PXA930
-
-config MACH_SAARB
-	bool "PXA955 Handheld Platform (aka SAARB)"
-	select CPU_PXA955
 
 comment "Third Party Dev Platforms (sorted by vendor name)"
 
@@ -598,7 +611,7 @@ config MACH_ZIPIT2
 	bool "Zipit Z2 Handheld"
 	select PXA27x
 	select HAVE_PWM
-
+endif
 endmenu
 
 config PXA25x
