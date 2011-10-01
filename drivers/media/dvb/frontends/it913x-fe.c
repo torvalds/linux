@@ -626,7 +626,7 @@ static int it913x_fe_suspend(struct it913x_fe_state *state)
 	for (i = 0; i < 128; i++) {
 		ret = it913x_read_reg(state, SUSPEND_FLAG, &b, 1);
 		if (ret < 0)
-			return -EINVAL;
+			return -ENODEV;
 		if (b == 0)
 			break;
 
@@ -634,17 +634,22 @@ static int it913x_fe_suspend(struct it913x_fe_state *state)
 
 	ret |= it913x_write_reg(state, PRO_DMOD, AFE_MEM0, 0x8);
 	/* Turn LED off */
-	ret = it913x_write_reg(state, PRO_LINK, GPIOH3_O, 0x0);
+	ret |= it913x_write_reg(state, PRO_LINK, GPIOH3_O, 0x0);
 
-	return 0;
+	ret |= it913x_fe_script_loader(state, it9137_tuner_off);
+
+	return (ret < 0) ? -ENODEV : 0;
 }
+
+/* Power sequence */
+/* Power Up	Tuner on -> Frontend suspend off -> Tuner clk on */
+/* Power Down	Frontend suspend on -> Tuner clk off -> Tuner off */
 
 static int it913x_fe_sleep(struct dvb_frontend *fe)
 {
 	struct it913x_fe_state *state = fe->demodulator_priv;
 	return it913x_fe_suspend(state);
 }
-
 
 static u32 compute_div(u32 a, u32 b, u32 x)
 {
@@ -738,10 +743,20 @@ static int it913x_fe_init(struct dvb_frontend *fe)
 {
 	struct it913x_fe_state *state = fe->demodulator_priv;
 	int ret = 0;
+	/* Power Up Tuner - common all versions */
+	ret = it913x_write_reg(state, PRO_DMOD, 0xec40, 0x1);
 
-	it913x_write_reg(state, PRO_DMOD, AFE_MEM0, 0x0);
+	ret |= it913x_write_reg(state, PRO_DMOD, AFE_MEM0, 0x0);
 
 	ret |= it913x_fe_script_loader(state, init_1);
+
+	switch (state->tuner_type) {
+	case IT9137:
+		ret |= it913x_write_reg(state, PRO_DMOD, 0xfba8, 0x0);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return (ret < 0) ? -ENODEV : 0;
 }
@@ -820,5 +835,5 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 
 MODULE_DESCRIPTION("it913x Frontend and it9137 tuner");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
-MODULE_VERSION("1.06");
+MODULE_VERSION("1.07");
 MODULE_LICENSE("GPL");
