@@ -706,6 +706,8 @@ config SHARPSL_PM
 config SHARPSL_PM_MAX1111
 	bool
 	select HWMON
+	select SPI
+	select SPI_MASTER
 	select SENSORS_MAX1111
 
 config PXA_HAVE_ISA_IRQS
