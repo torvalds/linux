@@ -337,10 +337,17 @@ sub process_variables {
 }
 
 sub set_value {
-    my ($lvalue, $rvalue) = @_;
+    my ($lvalue, $rvalue, $override, $overrides, $name) = @_;
 
     if (defined($opt{$lvalue})) {
-	die "Error: Option $lvalue defined more than once!\n";
+	if (!$override || defined(${$overrides}{$lvalue})) {
+	    my $extra = "";
+	    if ($override) {
+		$extra = "In the same override section!\n";
+	    }
+	    die "$name: $.: Option $lvalue defined more than once!\n$extra";
+	}
+	${$overrides}{$lvalue} = $rvalue;
     }
     if ($rvalue =~ /^\s*$/) {
 	delete $opt{$lvalue};
@@ -430,6 +437,9 @@ sub __read_config {
     my $test_case = 0;
     my $if = 0;
     my $if_set = 0;
+    my $override = 0;
+
+    my %overrides;
 
     while (<$in>) {
 
@@ -443,6 +453,7 @@ sub __read_config {
 
 	    my $old_test_num;
 	    my $old_repeat;
+	    $override = 0;
 
 	    if ($type eq "TEST_START") {
 
@@ -468,10 +479,20 @@ sub __read_config {
 		$skip = 0;
 	    }
 
-	    if ($rest =~ /\s+ITERATE\s+(\d+)(.*)$/) {
-		$repeat = $1;
-		$rest = $2;
-		$repeat_tests{"$test_num"} = $repeat;
+	    if (!$skip) {
+		if ($type eq "TEST_START") {
+		    if ($rest =~ /\s+ITERATE\s+(\d+)(.*)$/) {
+			$repeat = $1;
+			$rest = $2;
+			$repeat_tests{"$test_num"} = $repeat;
+		    }
+		} elsif ($rest =~ /\sOVERRIDE\b(.*)/) {
+		    # DEFAULT only
+		    $rest = $1;
+		    $override = 1;
+		    # Clear previous overrides
+		    %overrides = ();
+		}
 	    }
 
 	    if ($rest =~ /\sIF\s+(.*)/) {
@@ -573,10 +594,10 @@ sub __read_config {
 	    }
 
 	    if ($default || $lvalue =~ /\[\d+\]$/) {
-		set_value($lvalue, $rvalue);
+		set_value($lvalue, $rvalue, $override, \%overrides, $name);
 	    } else {
 		my $val = "$lvalue\[$test_num\]";
-		set_value($val, $rvalue);
+		set_value($val, $rvalue, $override, \%overrides, $name);
 
 		if ($repeat > 1) {
 		    $repeats{$val} = $repeat;
