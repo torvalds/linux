@@ -723,7 +723,7 @@ static int __devexit omap_dm_timer_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_dm_timer_driver = {
 	.probe  = omap_dm_timer_probe,
-	.remove = omap_dm_timer_remove,
+	.remove = __devexit_p(omap_dm_timer_remove),
 	.driver = {
 		.name   = "omap_timer",
 	},
