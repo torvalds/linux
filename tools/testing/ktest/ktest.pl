@@ -396,6 +396,13 @@ sub process_compare {
     return $ret;
 }
 
+sub value_defined {
+    my ($val) = @_;
+
+    return defined($variable{$2}) ||
+	defined($opt{$2});
+}
+
 sub process_if {
     my ($name, $value) = @_;
 
@@ -409,13 +416,21 @@ sub process_if {
 	return $ret;
     }
 
+    if ($val =~ /^\s*(NOT\s*)?DEFINED\s+(\S+)\s*$/) {
+	if (defined $1) {
+	    return !value_defined($2);
+	} else {
+	    return value_defined($2);
+	}
+    }
+
     if ($val =~ /^\s*0\s*$/) {
 	return 0;
     } elsif ($val =~ /^\s*\d+\s*$/) {
 	return 1;
     }
 
-    die ("$name: $.: Undefined variable $val in if statement\n");
+    die ("$name: $.: Undefined content $val in if statement\n");
     return 1;
 }
 
