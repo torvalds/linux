@@ -566,7 +566,7 @@ static struct se_device *pscsi_create_virtdevice(
 			if (IS_ERR(sh)) {
 				pr_err("pSCSI: Unable to locate"
 					" pdv_host_id: %d\n", pdv->pdv_host_id);
-				return (struct se_device *) sh;
+				return ERR_CAST(sh);
 			}
 		}
 	} else {
