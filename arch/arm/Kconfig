@@ -631,6 +631,7 @@ config ARCH_PXA
 	select SPARSE_IRQ
 	select AUTO_ZRELADDR
 	select MULTI_IRQ_HANDLER
+	select ARM_CPU_SUSPEND if PM
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
@@ -2076,6 +2077,9 @@ config ARCH_SUSPEND_POSSIBLE
 	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
 		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y
+
+config ARM_CPU_SUSPEND
+	def_bool PM_SLEEP
 
 endmenu
 

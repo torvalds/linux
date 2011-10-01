@@ -36,6 +36,7 @@ config ARCH_OMAP3
 	select ARM_L1_CACHE_SHIFT_6 if !ARCH_OMAP4
 	select ARCH_HAS_OPP
 	select PM_OPP if PM
+	select ARM_CPU_SUSPEND if PM
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -50,6 +51,7 @@ config ARCH_OMAP4
 	select ARCH_HAS_OPP
 	select PM_OPP if PM
 	select USB_ARCH_HAS_EHCI
+	select ARM_CPU_SUSPEND if PM
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
