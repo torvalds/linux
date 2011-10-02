@@ -1797,6 +1797,62 @@ brcmf_alloc_pkt_and_read(struct brcmf_bus *bus, u16 rdlen,
 	}
 }
 
+/* Checks the header */
+static int
+brcmf_check_rxbuf(struct brcmf_bus *bus, struct sk_buff *pkt, u8 *rxbuf,
+		  u8 rxseq, u16 nextlen, u16 *len)
+{
+	u16 check;
+	bool len_consistent;	/* Result of comparing readahead len and
+				   len from hw-hdr */
+
+	memcpy(bus->rxhdr, rxbuf, SDPCM_HDRLEN);
+
+	/* Extract hardware header fields */
+	*len = get_unaligned_le16(bus->rxhdr);
+	check = get_unaligned_le16(bus->rxhdr + sizeof(u16));
+
+	/* All zeros means readahead info was bad */
+	if (!(*len | check)) {
+		brcmf_dbg(INFO, "(nextlen): read zeros in HW header???\n");
+		goto fail;
+	}
+
+	/* Validate check bytes */
+	if ((u16)~(*len ^ check)) {
+		brcmf_dbg(ERROR, "(nextlen): HW hdr error: nextlen/len/check 0x%04x/0x%04x/0x%04x\n",
+			  nextlen, *len, check);
+		bus->rx_badhdr++;
+		brcmf_sdbrcm_rxfail(bus, false, false);
+		goto fail;
+	}
+
+	/* Validate frame length */
+	if (*len < SDPCM_HDRLEN) {
+		brcmf_dbg(ERROR, "(nextlen): HW hdr length invalid: %d\n",
+			  *len);
+		goto fail;
+	}
+
+	/* Check for consistency with readahead info */
+	len_consistent = (nextlen != (roundup(*len, 16) >> 4));
+	if (len_consistent) {
+		/* Mismatch, force retry w/normal
+			header (may be >4K) */
+		brcmf_dbg(ERROR, "(nextlen): mismatch, nextlen %d len %d rnd %d; expected rxseq %d\n",
+			  nextlen, *len, roundup(*len, 16),
+			  rxseq);
+		brcmf_sdbrcm_rxfail(bus, true, true);
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	brcmf_sdbrcm_pktfree2(bus, pkt);
+	return -EINVAL;
+}
+
 /* Return true if there may be more frames to read */
 static uint
 brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
@@ -1812,8 +1868,6 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 	uint rxleft = 0;	/* Remaining number of frames allowed */
 	int sdret;		/* Return code from calls */
 	u8 txmax;		/* Maximum tx sequence offered */
-	bool len_consistent;	/* Result of comparing readahead len and
-					 len from hw-hdr */
 	u8 *rxbuf;
 	int ifidx = 0;
 	uint rxcount = 0;	/* Total frames read */
@@ -1860,50 +1914,9 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 				continue;
 			}
 
-			/* Now check the header */
-			memcpy(bus->rxhdr, rxbuf, SDPCM_HDRLEN);
-
-			/* Extract hardware header fields */
-			len = get_unaligned_le16(bus->rxhdr);
-			check = get_unaligned_le16(bus->rxhdr + sizeof(u16));
-
-			/* All zeros means readahead info was bad */
-			if (!(len | check)) {
-				brcmf_dbg(INFO, "(nextlen): read zeros in HW header???\n");
-				brcmf_sdbrcm_pktfree2(bus, pkt);
+			if (brcmf_check_rxbuf(bus, pkt, rxbuf, rxseq, nextlen,
+					      &len) < 0)
 				continue;
-			}
-
-			/* Validate check bytes */
-			if ((u16)~(len ^ check)) {
-				brcmf_dbg(ERROR, "(nextlen): HW hdr error: nextlen/len/check 0x%04x/0x%04x/0x%04x\n",
-					  nextlen, len, check);
-				bus->rx_badhdr++;
-				brcmf_sdbrcm_rxfail(bus, false, false);
-				brcmf_sdbrcm_pktfree2(bus, pkt);
-				continue;
-			}
-
-			/* Validate frame length */
-			if (len < SDPCM_HDRLEN) {
-				brcmf_dbg(ERROR, "(nextlen): HW hdr length invalid: %d\n",
-					  len);
-				brcmf_sdbrcm_pktfree2(bus, pkt);
-				continue;
-			}
-
-			/* Check for consistency withreadahead info */
-			len_consistent = (nextlen != (roundup(len, 16) >> 4));
-			if (len_consistent) {
-				/* Mismatch, force retry w/normal
-					header (may be >4K) */
-				brcmf_dbg(ERROR, "(nextlen): mismatch, nextlen %d len %d rnd %d; expected rxseq %d\n",
-					  nextlen, len, roundup(len, 16),
-					  rxseq);
-				brcmf_sdbrcm_rxfail(bus, true, true);
-				brcmf_sdbrcm_pktfree2(bus, pkt);
-				continue;
-			}
 
 			/* Extract software header fields */
 			chan = SDPCM_PACKET_CHANNEL(
