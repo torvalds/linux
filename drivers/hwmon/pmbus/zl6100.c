@@ -135,6 +135,11 @@ static int zl6100_write_byte(struct i2c_client *client, int page, u8 value)
 }
 
 static const struct i2c_device_id zl6100_id[] = {
+	{"bmr450", zl2005},
+	{"bmr451", zl2005},
+	{"bmr462", zl2008},
+	{"bmr463", zl2008},
+	{"bmr464", zl2008},
 	{"zl2004", zl2004},
 	{"zl2005", zl2005},
 	{"zl2006", zl2006},
