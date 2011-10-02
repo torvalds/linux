@@ -437,6 +437,31 @@ TRACE_EVENT(rcu_batch_end,
 		  __entry->rcuname, __entry->callbacks_invoked)
 );
 
+/*
+ * Tracepoint for rcutorture readers.  The first argument is the name
+ * of the RCU flavor from rcutorture's viewpoint and the second argument
+ * is the callback address.
+ */
+TRACE_EVENT(rcu_torture_read,
+
+	TP_PROTO(char *rcutorturename, struct rcu_head *rhp),
+
+	TP_ARGS(rcutorturename, rhp),
+
+	TP_STRUCT__entry(
+		__field(char *, rcutorturename)
+		__field(struct rcu_head *, rhp)
+	),
+
+	TP_fast_assign(
+		__entry->rcutorturename = rcutorturename;
+		__entry->rhp = rhp;
+	),
+
+	TP_printk("%s torture read %p",
+		  __entry->rcutorturename, __entry->rhp)
+);
+
 #else /* #ifdef CONFIG_RCU_TRACE */
 
 #define trace_rcu_grace_period(rcuname, gpnum, gpevent) do { } while (0)
@@ -452,6 +477,7 @@ TRACE_EVENT(rcu_batch_end,
 #define trace_rcu_invoke_callback(rcuname, rhp) do { } while (0)
 #define trace_rcu_invoke_kfree_callback(rcuname, rhp, offset) do { } while (0)
 #define trace_rcu_batch_end(rcuname, callbacks_invoked) do { } while (0)
+#define trace_rcu_torture_read(rcutorturename, rhp) do { } while (0)
 
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 

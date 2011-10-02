@@ -51,6 +51,8 @@ extern int rcutorture_runnable; /* for sysctl */
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
 extern void rcutorture_record_test_transition(void);
 extern void rcutorture_record_progress(unsigned long vernum);
+extern void do_trace_rcu_torture_read(char *rcutorturename,
+				      struct rcu_head *rhp);
 #else
 static inline void rcutorture_record_test_transition(void)
 {
@@ -58,6 +60,12 @@ static inline void rcutorture_record_test_transition(void)
 static inline void rcutorture_record_progress(unsigned long vernum)
 {
 }
+#ifdef CONFIG_RCU_TRACE
+extern void do_trace_rcu_torture_read(char *rcutorturename,
+				      struct rcu_head *rhp);
+#else
+#define do_trace_rcu_torture_read(rcutorturename, rhp) do { } while (0)
+#endif
 #endif
 
 #define UINT_CMP_GE(a, b)	(UINT_MAX / 2 >= (a) - (b))

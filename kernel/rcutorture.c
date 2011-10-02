@@ -913,6 +913,18 @@ rcu_torture_fakewriter(void *arg)
 	return 0;
 }
 
+void rcutorture_trace_dump(void)
+{
+	static atomic_t beenhere = ATOMIC_INIT(0);
+
+	if (atomic_read(&beenhere))
+		return;
+	if (atomic_xchg(&beenhere, 1) != 0)
+		return;
+	do_trace_rcu_torture_read(cur_ops->name, (struct rcu_head *)~0UL);
+	ftrace_dump(DUMP_ALL);
+}
+
 /*
  * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
  * incrementing the corresponding element of the pipeline array.  The
@@ -934,6 +946,7 @@ static void rcu_torture_timer(unsigned long unused)
 				  rcu_read_lock_bh_held() ||
 				  rcu_read_lock_sched_held() ||
 				  srcu_read_lock_held(&srcu_ctl));
+	do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu);
 	if (p == NULL) {
 		/* Leave because rcu_torture_writer is not yet underway */
 		cur_ops->readunlock(idx);
@@ -951,6 +964,8 @@ static void rcu_torture_timer(unsigned long unused)
 		/* Should not happen, but... */
 		pipe_count = RCU_TORTURE_PIPE_LEN;
 	}
+	if (pipe_count > 1)
+		rcutorture_trace_dump();
 	__this_cpu_inc(rcu_torture_count[pipe_count]);
 	completed = cur_ops->completed() - completed;
 	if (completed > RCU_TORTURE_PIPE_LEN) {
@@ -994,6 +1009,7 @@ rcu_torture_reader(void *arg)
 					  rcu_read_lock_bh_held() ||
 					  rcu_read_lock_sched_held() ||
 					  srcu_read_lock_held(&srcu_ctl));
+		do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu);
 		if (p == NULL) {
 			/* Wait for rcu_torture_writer to get underway */
 			cur_ops->readunlock(idx);
@@ -1009,6 +1025,8 @@ rcu_torture_reader(void *arg)
 			/* Should not happen, but... */
 			pipe_count = RCU_TORTURE_PIPE_LEN;
 		}
+		if (pipe_count > 1)
+			rcutorture_trace_dump();
 		__this_cpu_inc(rcu_torture_count[pipe_count]);
 		completed = cur_ops->completed() - completed;
 		if (completed > RCU_TORTURE_PIPE_LEN) {

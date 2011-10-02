@@ -316,3 +316,13 @@ struct debug_obj_descr rcuhead_debug_descr = {
 };
 EXPORT_SYMBOL_GPL(rcuhead_debug_descr);
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU) || defined(CONFIG_RCU_TRACE)
+void do_trace_rcu_torture_read(char *rcutorturename, struct rcu_head *rhp)
+{
+	trace_rcu_torture_read(rcutorturename, rhp);
+}
+EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
+#else
+#define do_trace_rcu_torture_read(rcutorturename, rhp) do { } while (0)
+#endif
