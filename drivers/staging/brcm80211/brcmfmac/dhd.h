@@ -599,7 +599,6 @@ struct brcmf_pub {
 	/* Internal brcmf items */
 	bool up;		/* Driver up/down (to OS) */
 	bool txoff;		/* Transmit flow-controlled */
-	bool dongle_reset;	/* true = DEVRESET put dongle into reset */
 	enum brcmf_bus_state busstate;
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
 	uint maxctl;		/* Max size rxctl request from proto to bus */
@@ -744,7 +743,6 @@ extern void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx);
 extern int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx,\
 			 struct sk_buff *pkt);
 
-extern int brcmf_bus_devreset(struct brcmf_pub *drvr, u8 flag);
 extern int brcmf_bus_start(struct brcmf_pub *drvr);
 
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
