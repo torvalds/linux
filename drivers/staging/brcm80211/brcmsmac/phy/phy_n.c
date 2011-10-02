@@ -7762,7 +7762,7 @@ static const struct chan_info_nphy_radio2057 chan_info_nphyrev8_2057_rev8[] = {
 	 0x0424}
 };
 
-struct radio_regs regs_2055[] = {
+static struct radio_regs regs_2055[] = {
 	{0x02, 0x80, 0x80, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0x27, 0x27, 0, 0},
@@ -7991,7 +7991,7 @@ struct radio_regs regs_2055[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_SYN_2056[] = {
+static struct radio_regs regs_SYN_2056[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8176,7 +8176,7 @@ struct radio_regs regs_SYN_2056[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_TX_2056[] = {
+static struct radio_regs regs_TX_2056[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8325,7 +8325,7 @@ struct radio_regs regs_TX_2056[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_RX_2056[] = {
+static struct radio_regs regs_RX_2056[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8476,7 +8476,7 @@ struct radio_regs regs_RX_2056[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_SYN_2056_A1[] = {
+static struct radio_regs regs_SYN_2056_A1[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8661,7 +8661,7 @@ struct radio_regs regs_SYN_2056_A1[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_TX_2056_A1[] = {
+static struct radio_regs regs_TX_2056_A1[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8810,7 +8810,7 @@ struct radio_regs regs_TX_2056_A1[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_RX_2056_A1[] = {
+static struct radio_regs regs_RX_2056_A1[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8961,7 +8961,7 @@ struct radio_regs regs_RX_2056_A1[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_SYN_2056_rev5[] = {
+static struct radio_regs regs_SYN_2056_rev5[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9146,7 +9146,7 @@ struct radio_regs regs_SYN_2056_rev5[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_TX_2056_rev5[] = {
+static struct radio_regs regs_TX_2056_rev5[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9303,7 +9303,7 @@ struct radio_regs regs_TX_2056_rev5[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_RX_2056_rev5[] = {
+static struct radio_regs regs_RX_2056_rev5[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9454,7 +9454,7 @@ struct radio_regs regs_RX_2056_rev5[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_SYN_2056_rev6[] = {
+static struct radio_regs regs_SYN_2056_rev6[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9639,7 +9639,7 @@ struct radio_regs regs_SYN_2056_rev6[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_TX_2056_rev6[] = {
+static struct radio_regs regs_TX_2056_rev6[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9796,7 +9796,7 @@ struct radio_regs regs_TX_2056_rev6[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_RX_2056_rev6[] = {
+static struct radio_regs regs_RX_2056_rev6[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9947,7 +9947,7 @@ struct radio_regs regs_RX_2056_rev6[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-struct radio_regs regs_SYN_2056_rev7[] = {
+static struct radio_regs regs_SYN_2056_rev7[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10132,7 +10132,7 @@ struct radio_regs regs_SYN_2056_rev7[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_TX_2056_rev7[] = {
+static struct radio_regs regs_TX_2056_rev7[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10289,7 +10289,7 @@ struct radio_regs regs_TX_2056_rev7[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_RX_2056_rev7[] = {
+static struct radio_regs regs_RX_2056_rev7[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10440,7 +10440,7 @@ struct radio_regs regs_RX_2056_rev7[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_SYN_2056_rev8[] = {
+static struct radio_regs regs_SYN_2056_rev8[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10625,7 +10625,7 @@ struct radio_regs regs_SYN_2056_rev8[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_TX_2056_rev8[] = {
+static struct radio_regs regs_TX_2056_rev8[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10782,7 +10782,7 @@ struct radio_regs regs_TX_2056_rev8[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_regs regs_RX_2056_rev8[] = {
+static struct radio_regs regs_RX_2056_rev8[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -11426,7 +11426,7 @@ static const struct radio_regs regs_RX_2056_rev11[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-struct radio_20xx_regs regs_2057_rev4[] = {
+static struct radio_20xx_regs regs_2057_rev4[] = {
 	{0x00, 0x84, 0},
 	{0x01, 0, 0},
 	{0x02, 0x60, 0},
@@ -11816,7 +11816,7 @@ struct radio_20xx_regs regs_2057_rev4[] = {
 	{0xFFFF, 0, 0},
 };
 
-struct radio_20xx_regs regs_2057_rev5[] = {
+static struct radio_20xx_regs regs_2057_rev5[] = {
 	{0x00, 0, 1},
 	{0x01, 0x57, 1},
 	{0x02, 0x20, 1},
@@ -12148,7 +12148,7 @@ struct radio_20xx_regs regs_2057_rev5[] = {
 	{0xFFFF, 0, 0}
 };
 
-struct radio_20xx_regs regs_2057_rev5v1[] = {
+static struct radio_20xx_regs regs_2057_rev5v1[] = {
 	{0x00, 0x15, 1},
 	{0x01, 0x57, 1},
 	{0x02, 0x20, 1},
@@ -12480,7 +12480,7 @@ struct radio_20xx_regs regs_2057_rev5v1[] = {
 	{0xFFFF, 0, 0}
 };
 
-struct radio_20xx_regs regs_2057_rev7[] = {
+static struct radio_20xx_regs regs_2057_rev7[] = {
 	{0x00, 0, 1},
 	{0x01, 0x57, 1},
 	{0x02, 0x20, 1},
@@ -12896,7 +12896,7 @@ struct radio_20xx_regs regs_2057_rev7[] = {
 	{0xFFFF, 0, 0}
 };
 
-struct radio_20xx_regs regs_2057_rev8[] = {
+static struct radio_20xx_regs regs_2057_rev8[] = {
 	{0x00, 0x8, 1},
 	{0x01, 0x57, 1},
 	{0x02, 0x20, 1},

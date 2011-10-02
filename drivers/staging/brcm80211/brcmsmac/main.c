@@ -423,7 +423,7 @@ uint brcm_msg_level =
 #endif				/* BCMDBG */
 
 /* TX FIFO number to WME/802.1E Access Category */
-const u8 wme_fifo2ac[] = { AC_BK, AC_BE, AC_VI, AC_VO, AC_BE, AC_BE };
+static const u8 wme_fifo2ac[] = { AC_BK, AC_BE, AC_VI, AC_VO, AC_BE, AC_BE };
 
 /* WME/802.1E Access Category to TX FIFO number */
 static const u8 wme_ac2fifo[] = { 1, 0, 2, 3 };

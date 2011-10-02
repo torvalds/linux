@@ -1611,10 +1611,6 @@ const u32 dot11lcnphytbl_rx_gain_info_sz_rev0 =
 	sizeof(dot11lcnphytbl_rx_gain_info_rev0) /
 	sizeof(dot11lcnphytbl_rx_gain_info_rev0[0]);
 
-static const u32 dot11lcnphytbl_rx_gain_info_sz_rev1 =
-	sizeof(dot11lcnphytbl_rx_gain_info_rev1) /
-	sizeof(dot11lcnphytbl_rx_gain_info_rev1[0]);
-
 const u32 dot11lcnphytbl_rx_gain_info_2G_rev2_sz =
 	sizeof(dot11lcnphytbl_rx_gain_info_2G_rev2) /
 	sizeof(dot11lcnphytbl_rx_gain_info_2G_rev2[0]);
