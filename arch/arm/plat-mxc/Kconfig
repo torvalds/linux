@@ -29,6 +29,13 @@ config ARCH_MX5
 	  This enables support for machines using Freescale's i.MX50 and i.MX51
 	  processors.
 
+config ARCH_MX6
+	bool "i.MX6"
+	select AUTO_ZRELADDR if !ZBOOT_ROM
+	select ARM_PATCH_PHYS_VIRT
+	help
+	  This enables support for systems based on the Freescale i.MX6 family
+
 endchoice
 
 source "arch/arm/mach-imx/Kconfig"
