@@ -71,7 +71,7 @@ static int write_dir(struct inode *dir, struct logfs_disk_dentry *dd,
 
 static int write_inode(struct inode *inode)
 {
-	return __logfs_write_inode(inode, WF_LOCK);
+	return __logfs_write_inode(inode, NULL, WF_LOCK);
 }
 
 static s64 dir_seek_data(struct inode *inode, s64 pos)

@@ -287,7 +287,7 @@ static int logfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (logfs_inode(inode)->li_flags & LOGFS_IF_STILLBORN)
 		return 0;
 
-	ret = __logfs_write_inode(inode, flags);
+	ret = __logfs_write_inode(inode, NULL, flags);
 	LOGFS_BUG_ON(ret, inode->i_sb);
 	return ret;
 }
