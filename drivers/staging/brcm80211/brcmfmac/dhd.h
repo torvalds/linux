@@ -683,36 +683,7 @@ struct bcmevent_name {
 	const char *name;
 };
 
-/* Override to force tx queueing all the time */
-extern uint brcmf_force_tx_queueing;
-
 extern const struct bcmevent_name bcmevent_names[];
-extern const int bcmevent_names_size;
-
-
-static inline void MUTEX_LOCK_INIT(struct brcmf_pub *drvr)
-{
-}
-
-static inline void MUTEX_LOCK(struct brcmf_pub *drvr)
-{
-}
-
-static inline void MUTEX_UNLOCK(struct brcmf_pub *drvr)
-{
-}
-
-static inline void MUTEX_LOCK_WL_SCAN_SET_INIT(void)
-{
-}
-
-static inline void MUTEX_LOCK_WL_SCAN_SET(void)
-{
-}
-
-static inline void MUTEX_UNLOCK_WL_SCAN_SET(void)
-{
-}
 
 /* Indication from bus module regarding presence/insertion of dongle.
  * Return struct brcmf_pub pointer, used as handle to OS module in later calls.
