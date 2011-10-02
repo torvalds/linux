@@ -1454,8 +1454,8 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	/* set the update bits */
 	snd_soc_update_bits(codec, WM8753_LDAC, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8753_RDAC, 0x0100, 0x0100);
-	snd_soc_update_bits(codec, WM8753_LDAC, 0x0100, 0x0100);
-	snd_soc_update_bits(codec, WM8753_RDAC, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8753_LADC, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8753_RADC, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8753_LOUT1V, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8753_ROUT1V, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8753_LOUT2V, 0x0100, 0x0100);
