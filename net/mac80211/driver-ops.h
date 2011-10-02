@@ -423,7 +423,8 @@ static inline int drv_conf_tx(struct ieee80211_local *local,
 
 	trace_drv_conf_tx(local, sdata, queue, params);
 	if (local->ops->conf_tx)
-		ret = local->ops->conf_tx(&local->hw, queue, params);
+		ret = local->ops->conf_tx(&local->hw, &sdata->vif,
+					  queue, params);
 	trace_drv_return_int(local, ret);
 	return ret;
 }
