@@ -232,7 +232,7 @@ static struct snd_soc_dai_ops tegra_spdif_dai_ops = {
 	.trigger	= tegra_spdif_trigger,
 };
 
-struct snd_soc_dai_driver tegra_spdif_dai = {
+static struct snd_soc_dai_driver tegra_spdif_dai = {
 	.name = DRV_NAME,
 	.probe = tegra_spdif_probe,
 	.playback = {
