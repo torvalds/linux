@@ -2960,6 +2960,48 @@ break2:
 }
 #endif				/* BCMDBG */
 
+static int brcmf_tx_frame(struct brcmf_bus *bus, u8 *frame, u16 len)
+{
+	int i;
+	int ret;
+
+	bus->ctrl_frame_stat = false;
+	ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
+				    SDIO_FUNC_2, F2SYNC, frame, len, NULL);
+
+	if (ret < 0) {
+		/* On failure, abort the command and terminate the frame */
+		brcmf_dbg(INFO, "sdio error %d, abort command and terminate frame\n",
+			  ret);
+		bus->tx_sderrs++;
+
+		brcmf_sdcard_abort(bus->sdiodev, SDIO_FUNC_2);
+
+		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
+				       SBSDIO_FUNC1_FRAMECTRL,
+				       SFC_WF_TERM, NULL);
+		bus->f1regdata++;
+
+		for (i = 0; i < 3; i++) {
+			u8 hi, lo;
+			hi = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
+						   SBSDIO_FUNC1_WFRAMEBCHI,
+						   NULL);
+			lo = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
+						   SBSDIO_FUNC1_WFRAMEBCLO,
+						   NULL);
+			bus->f1regdata += 2;
+			if (hi == 0 && lo == 0)
+				break;
+		}
+		return ret;
+	}
+
+	bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
+
+	return ret;
+}
+
 int
 brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 {
@@ -2969,7 +3011,6 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	uint retries = 0;
 	u8 doff = 0;
 	int ret = -1;
-	int i;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3060,46 +3101,8 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 #endif
 
 		do {
-			bus->ctrl_frame_stat = false;
-			ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
-					SDIO_FUNC_2, F2SYNC, frame, len, NULL);
-
-			if (ret < 0) {
-				/* On failure, abort the command and
-				 terminate the frame */
-				brcmf_dbg(INFO, "sdio error %d, abort command and terminate frame\n",
-					  ret);
-				bus->tx_sderrs++;
-
-				brcmf_sdcard_abort(bus->sdiodev, SDIO_FUNC_2);
-
-				brcmf_sdcard_cfg_write(bus->sdiodev,
-						 SDIO_FUNC_1,
-						 SBSDIO_FUNC1_FRAMECTRL,
-						 SFC_WF_TERM, NULL);
-				bus->f1regdata++;
-
-				for (i = 0; i < 3; i++) {
-					u8 hi, lo;
-					hi = brcmf_sdcard_cfg_read(bus->sdiodev,
-					     SDIO_FUNC_1,
-					     SBSDIO_FUNC1_WFRAMEBCHI,
-					     NULL);
-					lo = brcmf_sdcard_cfg_read(bus->sdiodev,
-					     SDIO_FUNC_1,
-					     SBSDIO_FUNC1_WFRAMEBCLO,
-					     NULL);
-					bus->f1regdata += 2;
-					if ((hi == 0) && (lo == 0))
-						break;
-				}
-
-			}
-			if (ret == 0)
-				bus->tx_seq =
-				    (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
-
-		} while ((ret < 0) && retries++ < TXRETRIES);
+			ret = brcmf_tx_frame(bus, frame, len);
+		} while (ret < 0 && retries++ < TXRETRIES);
 	}
 
 	if ((bus->idletime == BRCMF_IDLE_IMMEDIATE) && !bus->dpc_sched) {
