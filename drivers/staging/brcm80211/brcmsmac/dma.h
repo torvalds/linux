@@ -74,8 +74,9 @@ struct dma_pub {
 };
 
 extern struct dma_pub *dma_attach(char *name, struct si_pub *sih,
-			    void *dmaregstx, void *dmaregsrx, uint ntxd,
-			    uint nrxd, uint rxbufsize, int rxextheadroom,
+			    void __iomem *dmaregstx, void __iomem *dmaregsrx,
+			    uint ntxd, uint nrxd,
+			    uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
 
 void dma_rxinit(struct dma_pub *pub);

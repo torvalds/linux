@@ -224,9 +224,9 @@ struct dma_info {
 	bool addrext;	/* this dma engine supports DmaExtendedAddrChanges */
 
 	/* 64-bit dma tx engine registers */
-	struct dma64regs *d64txregs;
+	struct dma64regs __iomem *d64txregs;
 	/* 64-bit dma rx engine registers */
-	struct dma64regs *d64rxregs;
+	struct dma64regs __iomem *d64rxregs;
 	/* pointer to dma64 tx descriptor ring */
 	struct dma64desc *txd64;
 	/* pointer to dma64 rx descriptor ring */
@@ -391,7 +391,7 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 	return dmactrlflags;
 }
 
-static bool _dma64_addrext(struct dma64regs *dma64regs)
+static bool _dma64_addrext(struct dma64regs __iomem *dma64regs)
 {
 	u32 w;
 	OR_REG(&dma64regs->control, D64_XC_AE);
@@ -553,8 +553,9 @@ static bool _dma_alloc(struct dma_info *di, uint direction)
 }
 
 struct dma_pub *dma_attach(char *name, struct si_pub *sih,
-		     void *dmaregstx, void *dmaregsrx, uint ntxd,
-		     uint nrxd, uint rxbufsize, int rxextheadroom,
+		     void __iomem *dmaregstx, void __iomem *dmaregsrx,
+		     uint ntxd, uint nrxd,
+		     uint rxbufsize, int rxextheadroom,
 		     uint nrxpost, uint rxoffset, uint *msg_level)
 {
 	struct dma_info *di;
@@ -571,8 +572,8 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->dma64 = ((ai_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64);
 
 	/* init dma reg pointer */
-	di->d64txregs = (struct dma64regs *) dmaregstx;
-	di->d64rxregs = (struct dma64regs *) dmaregsrx;
+	di->d64txregs = (struct dma64regs __iomem *) dmaregstx;
+	di->d64rxregs = (struct dma64regs __iomem *) dmaregsrx;
 
 	/*
 	 * Default flags (which can be changed by the driver calling
@@ -1344,7 +1345,7 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 	if (range == DMA_RANGE_ALL)
 		end = di->txout;
 	else {
-		struct dma64regs *dregs = di->d64txregs;
+		struct dma64regs __iomem *dregs = di->d64txregs;
 
 		end = (u16) (B2I(((R_REG(&dregs->status0) &
 				 D64_XS0_CD_MASK) -
