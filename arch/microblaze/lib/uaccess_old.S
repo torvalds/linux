@@ -34,8 +34,8 @@ __strncpy_user:
 	 * r3 - temp count
 	 * r4 - temp val
 	 */
+	beqid	r7,3f
 	addik	r3,r7,0		/* temp_count = len */
-	beqi	r3,3f
 1:
 	lbu	r4,r6,r0
 	sb	r4,r5,r0
@@ -77,8 +77,8 @@ __strncpy_user:
 .type  __strnlen_user, @function
 .align 4;
 __strnlen_user:
+	beqid	r6,3f
 	addik	r3,r6,0
-	beqi	r3,3f
 1:
 	lbu	r4,r5,r0
 	beqid	r4,2f		/* break on NUL */
