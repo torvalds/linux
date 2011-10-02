@@ -96,11 +96,4 @@ extern struct dentry *of_debugfs_root;
 
 #define arch_align_stack(x) (x)
 
-/*
- * MicroBlaze doesn't handle unaligned accesses in hardware.
- *
- * Based on this we force the IP header alignment in network drivers.
- */
-#define NET_IP_ALIGN	2
-
 #endif /* _ASM_MICROBLAZE_SYSTEM_H */
