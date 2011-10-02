@@ -23,9 +23,9 @@
 
 #define BRCMF_VERSION_STR		"4.218.248.5"
 
-#define	BRCMF_C_IOCTL_SMLEN	256	/* "small" ioctl buffer required */
-#define BRCMF_C_IOCTL_MEDLEN	1536	/* "med" ioctl buffer required */
-#define	BRCMF_C_IOCTL_MAXLEN	8192
+#define	BRCMF_C_DCMD_SMLEN	256	/* "small" cmd buffer required */
+#define BRCMF_C_DCMD_MEDLEN	1536	/* "med" cmd buffer required */
+#define	BRCMF_C_DCMD_MAXLEN	8192
 
 /*******************************************************************************
  * IO codes that are interpreted by dongle firmware
@@ -572,12 +572,12 @@ struct brcmf_channel_info_le {
 	__le32 scan_channel;
 };
 
-/* Linux network driver ioctl encoding */
-struct brcmf_ioctl {
-	uint cmd;		/* common ioctl definition */
+/* Bus independent dongle command */
+struct brcmf_dcmd {
+	uint cmd;		/* common dongle cmd definition */
 	void *buf;		/* pointer to user buffer */
 	uint len;		/* length of user buffer */
-	u8 set;		/* get or set request (optional) */
+	u8 set;			/* get or set request (optional) */
 	uint used;		/* bytes read or written (optional) */
 	uint needed;		/* bytes needed (optional) */
 };
@@ -694,7 +694,7 @@ extern struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus,
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
-extern s32 brcmf_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len);
+extern s32 brcmf_exec_dcmd(struct net_device *dev, u32 cmd, void *arg, u32 len);
 
 /* Indication from bus module regarding removal/absence of dongle */
 extern void brcmf_detach(struct brcmf_pub *drvr);
@@ -716,8 +716,8 @@ extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 extern void brcmf_txcomplete(struct brcmf_pub *drvr, struct sk_buff *txp,
 			     bool success);
 
-/* Query ioctl */
-extern int brcmf_proto_cdc_query_ioctl(struct brcmf_pub *drvr, int ifidx,
+/* Query dongle */
+extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len);
 
 /* OS independent layer functions */
@@ -749,17 +749,7 @@ extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 					     int enable, int master_mode);
 
-/* per-driver magic numbers */
-#define BRCMF_IOCTL_MAGIC		0x00444944
-
-/* bump this number if you change the ioctl interface */
-#define BRCMF_IOCTL_VERSION	1
-#define	BRCMF_IOCTL_MAXLEN	8192	/* max length ioctl buffer required */
-
-/* common ioctl definitions */
-#define BRCMF_GET_VERSION				1
-#define BRCMF_GET_VAR				2
-#define BRCMF_SET_VAR				3
+#define	BRCMF_DCMD_MAXLEN	8192	/* max length cmd buffer required */
 
 /* message levels */
 #define BRCMF_ERROR_VAL	0x0001

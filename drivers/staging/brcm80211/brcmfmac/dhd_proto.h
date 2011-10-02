@@ -17,9 +17,6 @@
 #ifndef _BRCMF_PROTO_H_
 #define _BRCMF_PROTO_H_
 
-#define IOCTL_RESP_TIMEOUT  2000	/* In milli second */
-#define IOCTL_CHIP_ACTIVE_TIMEOUT  10	/* In milli second */
-
 /*
  * Exported from the brcmf protocol module (brcmf_cdc)
  */
@@ -48,16 +45,16 @@ extern void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx,
 extern int brcmf_proto_hdrpull(struct brcmf_pub *, int *ifidx,
 			       struct sk_buff *rxp);
 
-/* Use protocol to issue ioctl to dongle */
-extern int brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx,
-			     struct brcmf_ioctl *ioc, int len);
+/* Use protocol to issue command to dongle */
+extern int brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx,
+				struct brcmf_dcmd *dcmd, int len);
 
 /* Update local copy of dongle statistics */
 extern void brcmf_proto_dstats(struct brcmf_pub *drvr);
 
-extern int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr);
+extern int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr);
 
-extern int brcmf_proto_cdc_set_ioctl(struct brcmf_pub *drvr, int ifidx,
+extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx,
 				     uint cmd, void *buf, uint len);
 
 #endif				/* _BRCMF_PROTO_H_ */

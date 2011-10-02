@@ -141,7 +141,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	__le32 cnt_le;
 	__le32 allmulti_le;
 
-	struct brcmf_ioctl ioc;
+	struct brcmf_dcmd dcmd;
 	char *buf, *bufp;
 	uint buflen;
 	int ret;
@@ -177,13 +177,13 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 		cnt--;
 	}
 
-	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = BRCMF_C_SET_VAR;
-	ioc.buf = buf;
-	ioc.len = buflen;
-	ioc.set = true;
+	memset(&dcmd, 0, sizeof(dcmd));
+	dcmd.cmd = BRCMF_C_SET_VAR;
+	dcmd.buf = buf;
+	dcmd.len = buflen;
+	dcmd.set = true;
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, 0, &ioc, ioc.len);
+	ret = brcmf_proto_dcmd(&drvr_priv->pub, 0, &dcmd, dcmd.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set mcast_list failed, cnt %d\n",
 			  brcmf_ifname(&drvr_priv->pub, 0), cnt);
@@ -214,13 +214,13 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 		return;
 	}
 
-	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = BRCMF_C_SET_VAR;
-	ioc.buf = buf;
-	ioc.len = buflen;
-	ioc.set = true;
+	memset(&dcmd, 0, sizeof(dcmd));
+	dcmd.cmd = BRCMF_C_SET_VAR;
+	dcmd.buf = buf;
+	dcmd.len = buflen;
+	dcmd.set = true;
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, 0, &ioc, ioc.len);
+	ret = brcmf_proto_dcmd(&drvr_priv->pub, 0, &dcmd, dcmd.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set allmulti %d failed\n",
 			  brcmf_ifname(&drvr_priv->pub, 0),
@@ -235,13 +235,13 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	allmulti = (ndev->flags & IFF_PROMISC) ? true : false;
 	allmulti_le = cpu_to_le32(allmulti);
 
-	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = BRCMF_C_SET_PROMISC;
-	ioc.buf = &allmulti_le;
-	ioc.len = sizeof(allmulti_le);
-	ioc.set = true;
+	memset(&dcmd, 0, sizeof(dcmd));
+	dcmd.cmd = BRCMF_C_SET_PROMISC;
+	dcmd.buf = &allmulti_le;
+	dcmd.len = sizeof(allmulti_le);
+	dcmd.set = true;
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, 0, &ioc, ioc.len);
+	ret = brcmf_proto_dcmd(&drvr_priv->pub, 0, &dcmd, dcmd.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set promisc %d failed\n",
 			  brcmf_ifname(&drvr_priv->pub, 0),
@@ -253,7 +253,7 @@ static void
 _brcmf_set_mac_address(struct work_struct *work)
 {
 	char buf[32];
-	struct brcmf_ioctl ioc;
+	struct brcmf_dcmd dcmd;
 	int ret;
 
 	struct brcmf_info *drvr_priv = container_of(work, struct brcmf_info,
@@ -266,13 +266,13 @@ _brcmf_set_mac_address(struct work_struct *work)
 			  brcmf_ifname(&drvr_priv->pub, 0));
 		return;
 	}
-	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = BRCMF_C_SET_VAR;
-	ioc.buf = buf;
-	ioc.len = 32;
-	ioc.set = true;
+	memset(&dcmd, 0, sizeof(dcmd));
+	dcmd.cmd = BRCMF_C_SET_VAR;
+	dcmd.buf = buf;
+	dcmd.len = 32;
+	dcmd.set = true;
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, 0, &ioc, ioc.len);
+	ret = brcmf_proto_dcmd(&drvr_priv->pub, 0, &dcmd, dcmd.len);
 	if (ret < 0)
 		brcmf_dbg(ERROR, "%s: set cur_etheraddr failed\n",
 			  brcmf_ifname(&drvr_priv->pub, 0));
@@ -628,19 +628,19 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 	 as a bitmap in toe_ol iovar */
 static int brcmf_toe_get(struct brcmf_info *drvr_priv, int ifidx, u32 *toe_ol)
 {
-	struct brcmf_ioctl ioc;
+	struct brcmf_dcmd dcmd;
 	char buf[32];
 	int ret;
 
-	memset(&ioc, 0, sizeof(ioc));
+	memset(&dcmd, 0, sizeof(dcmd));
 
-	ioc.cmd = BRCMF_C_GET_VAR;
-	ioc.buf = buf;
-	ioc.len = (uint) sizeof(buf);
-	ioc.set = false;
+	dcmd.cmd = BRCMF_C_GET_VAR;
+	dcmd.buf = buf;
+	dcmd.len = (uint) sizeof(buf);
+	dcmd.set = false;
 
 	strcpy(buf, "toe_ol");
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
+	ret = brcmf_proto_dcmd(&drvr_priv->pub, ifidx, &dcmd, dcmd.len);
 	if (ret < 0) {
 		/* Check for older dongle image that doesn't support toe_ol */
 		if (ret == -EIO) {
@@ -662,23 +662,23 @@ static int brcmf_toe_get(struct brcmf_info *drvr_priv, int ifidx, u32 *toe_ol)
 	 and set toe global enable iovar */
 static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 {
-	struct brcmf_ioctl ioc;
+	struct brcmf_dcmd dcmd;
 	char buf[32];
 	int toe, ret;
 
-	memset(&ioc, 0, sizeof(ioc));
+	memset(&dcmd, 0, sizeof(dcmd));
 
-	ioc.cmd = BRCMF_C_SET_VAR;
-	ioc.buf = buf;
-	ioc.len = (uint) sizeof(buf);
-	ioc.set = true;
+	dcmd.cmd = BRCMF_C_SET_VAR;
+	dcmd.buf = buf;
+	dcmd.len = (uint) sizeof(buf);
+	dcmd.set = true;
 
 	/* Set toe_ol as requested */
 
 	strcpy(buf, "toe_ol");
 	memcpy(&buf[sizeof("toe_ol")], &toe_ol, sizeof(u32));
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
+	ret = brcmf_proto_dcmd(&drvr_priv->pub, ifidx, &dcmd, dcmd.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: could not set toe_ol: ret=%d\n",
 			  brcmf_ifname(&drvr_priv->pub, ifidx), ret);
@@ -692,7 +692,7 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 	strcpy(buf, "toe");
 	memcpy(&buf[sizeof("toe")], &toe, sizeof(u32));
 
-	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.len);
+	ret = brcmf_proto_dcmd(&drvr_priv->pub, ifidx, &dcmd, dcmd.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: could not set toe: ret=%d\n",
 			  brcmf_ifname(&drvr_priv->pub, ifidx), ret);
@@ -849,10 +849,10 @@ static int brcmf_netdev_ioctl_entry(struct net_device *ndev, struct ifreq *ifr,
 	return -EOPNOTSUPP;
 }
 
-/* called only from within this driver. Sends an ioctl to the dongle. */
-s32 brcmf_dev_ioctl(struct net_device *ndev, u32 cmd, void *arg, u32 len)
+/* called only from within this driver. Sends a command to the dongle. */
+s32 brcmf_exec_dcmd(struct net_device *ndev, u32 cmd, void *arg, u32 len)
 {
-	struct brcmf_ioctl ioc;
+	struct brcmf_dcmd dcmd;
 	s32 err = 0;
 	int buflen = 0;
 	bool is_set_key_cmd;
@@ -860,15 +860,15 @@ s32 brcmf_dev_ioctl(struct net_device *ndev, u32 cmd, void *arg, u32 len)
 					netdev_priv(ndev);
 	int ifidx;
 
-	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = cmd;
-	ioc.buf = arg;
-	ioc.len = len;
+	memset(&dcmd, 0, sizeof(dcmd));
+	dcmd.cmd = cmd;
+	dcmd.buf = arg;
+	dcmd.len = len;
 
 	ifidx = brcmf_net2idx(drvr_priv, ndev);
 
-	if (ioc.buf != NULL)
-		buflen = min_t(uint, ioc.len, BRCMF_IOCTL_MAXLEN);
+	if (dcmd.buf != NULL)
+		buflen = min_t(uint, dcmd.len, BRCMF_DCMD_MAXLEN);
 
 	/* send to dongle (must be up, and wl) */
 	if ((drvr_priv->pub.busstate != BRCMF_BUS_DATA)) {
@@ -883,18 +883,18 @@ s32 brcmf_dev_ioctl(struct net_device *ndev, u32 cmd, void *arg, u32 len)
 	}
 
 	/*
-	 * Intercept BRCMF_C_SET_KEY IOCTL - serialize M4 send and
-	 * set key IOCTL to prevent M4 encryption.
+	 * Intercept BRCMF_C_SET_KEY CMD - serialize M4 send and
+	 * set key CMD to prevent M4 encryption.
 	 */
-	is_set_key_cmd = ((ioc.cmd == BRCMF_C_SET_KEY) ||
-			  ((ioc.cmd == BRCMF_C_SET_VAR) &&
-			   !(strncmp("wsec_key", ioc.buf, 9))) ||
-			  ((ioc.cmd == BRCMF_C_SET_VAR) &&
-			   !(strncmp("bsscfg:wsec_key", ioc.buf, 15))));
+	is_set_key_cmd = ((dcmd.cmd == BRCMF_C_SET_KEY) ||
+			  ((dcmd.cmd == BRCMF_C_SET_VAR) &&
+			   !(strncmp("wsec_key", dcmd.buf, 9))) ||
+			  ((dcmd.cmd == BRCMF_C_SET_VAR) &&
+			   !(strncmp("bsscfg:wsec_key", dcmd.buf, 15))));
 	if (is_set_key_cmd)
 		brcmf_netdev_wait_pend8021x(ndev);
 
-	err = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, buflen);
+	err = brcmf_proto_dcmd(&drvr_priv->pub, ifidx, &dcmd, buflen);
 
 done:
 	if (err > 0)
@@ -1107,7 +1107,7 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 
 	brcmu_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
-	brcmf_proto_cdc_query_ioctl(drvr, 0, BRCMF_C_GET_VAR, iovbuf,
+	brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR, iovbuf,
 				    sizeof(iovbuf));
 	memcpy(drvr->eventmask, iovbuf, BRCMF_EVENTING_MASK_LEN);
 

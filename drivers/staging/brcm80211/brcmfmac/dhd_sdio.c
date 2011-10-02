@@ -35,6 +35,8 @@
 #include <soc.h>
 #include "sdio_host.h"
 
+#define DCMD_RESP_TIMEOUT  2000	/* In milli second */
+
 #ifdef BCMDBG
 
 #define BRCMF_TRAP_INFO_SIZE	80
@@ -641,7 +643,7 @@ struct brcmf_bus {
 
 	spinlock_t txqlock;
 	wait_queue_head_t ctrl_wait;
-	wait_queue_head_t ioctl_resp_wait;
+	wait_queue_head_t dcmd_resp_wait;
 
 	struct timer_list timer;
 	struct completion watchdog_wait;
@@ -1616,14 +1618,14 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 	return num;
 }
 
-static int brcmf_sdbrcm_ioctl_resp_wait(struct brcmf_bus *bus, uint *condition,
+static int brcmf_sdbrcm_dcmd_resp_wait(struct brcmf_bus *bus, uint *condition,
 					bool *pending)
 {
 	DECLARE_WAITQUEUE(wait, current);
-	int timeout = msecs_to_jiffies(IOCTL_RESP_TIMEOUT);
+	int timeout = msecs_to_jiffies(DCMD_RESP_TIMEOUT);
 
 	/* Wait until control frame is available */
-	add_wait_queue(&bus->ioctl_resp_wait, &wait);
+	add_wait_queue(&bus->dcmd_resp_wait, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	while (!(*condition) && (!signal_pending(current) && timeout))
@@ -1633,15 +1635,15 @@ static int brcmf_sdbrcm_ioctl_resp_wait(struct brcmf_bus *bus, uint *condition,
 		*pending = true;
 
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&bus->ioctl_resp_wait, &wait);
+	remove_wait_queue(&bus->dcmd_resp_wait, &wait);
 
 	return timeout;
 }
 
-static int brcmf_sdbrcm_ioctl_resp_wake(struct brcmf_bus *bus)
+static int brcmf_sdbrcm_dcmd_resp_wake(struct brcmf_bus *bus)
 {
-	if (waitqueue_active(&bus->ioctl_resp_wait))
-		wake_up_interruptible(&bus->ioctl_resp_wait);
+	if (waitqueue_active(&bus->dcmd_resp_wait))
+		wake_up_interruptible(&bus->dcmd_resp_wait);
 
 	return 0;
 }
@@ -1732,7 +1734,7 @@ gotpkt:
 
 done:
 	/* Awake any waiters */
-	brcmf_sdbrcm_ioctl_resp_wake(bus);
+	brcmf_sdbrcm_dcmd_resp_wake(bus);
 }
 
 /* Pad read to blocksize for efficiency */
@@ -3106,7 +3108,7 @@ brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Wait until control frame is available */
-	timeleft = brcmf_sdbrcm_ioctl_resp_wait(bus, &bus->rxlen, &pending);
+	timeleft = brcmf_sdbrcm_dcmd_resp_wait(bus, &bus->rxlen, &pending);
 
 	down(&bus->sdsem);
 	rxlen = bus->rxlen;
@@ -3714,7 +3716,7 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus)
 
 	/* Clear rx control and wake any waiters */
 	bus->rxlen = 0;
-	brcmf_sdbrcm_ioctl_resp_wake(bus);
+	brcmf_sdbrcm_dcmd_resp_wake(bus);
 
 	/* Reset some F2 state stuff */
 	bus->rxskip = false;
@@ -4508,7 +4510,7 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 
 	spin_lock_init(&bus->txqlock);
 	init_waitqueue_head(&bus->ctrl_wait);
-	init_waitqueue_head(&bus->ioctl_resp_wait);
+	init_waitqueue_head(&bus->dcmd_resp_wait);
 
 	/* Set up the watchdog timer */
 	init_timer(&bus->timer);
