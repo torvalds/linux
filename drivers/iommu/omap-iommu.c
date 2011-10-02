@@ -381,7 +381,7 @@ static void flush_iotlb_all(struct omap_iommu *obj)
 	clk_disable(obj->clk);
 }
 
-#if defined(CONFIG_OMAP_IOMMU_DEBUG_MODULE)
+#if defined(CONFIG_OMAP_IOMMU_DEBUG) || defined(CONFIG_OMAP_IOMMU_DEBUG_MODULE)
 
 ssize_t omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t bytes)
 {
