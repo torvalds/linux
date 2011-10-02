@@ -340,7 +340,7 @@ struct brcms_hardware {
 	struct si_pub *sih;	/* SI handle (cookie for siutils calls) */
 	char *vars;		/* "environment" name=value */
 	uint vars_size;		/* size of vars, free vars on detach */
-	struct d11regs *regs;	/* pointer to device registers */
+	struct d11regs __iomem *regs;	/* pointer to device registers */
 	struct phy_shim_info *physhim; /* phy shim layer handler */
 	struct shared_phy *phy_sh;	/* pointer to shared phy state */
 	struct brcms_hw_band *band;/* pointer to active per-band state */
@@ -489,7 +489,7 @@ struct brcms_txq_info {
 struct brcms_c_info {
 	struct brcms_pub *pub;
 	struct brcms_info *wl;
-	struct d11regs *regs;
+	struct d11regs __iomem *regs;
 	struct brcms_hardware *hw;
 
 	/* clock */
