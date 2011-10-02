@@ -121,11 +121,9 @@ int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *oc,
 	ios->offset = offset;
 
 	if (length) {
-		struct ore_striping_info si;
-
-		ore_calc_stripe_info(layout, offset, &si);
-		ios->length = (length <= si.group_length) ? length :
-							si.group_length;
+		ore_calc_stripe_info(layout, offset, &ios->si);
+		ios->length = (length <= ios->si.group_length) ? length :
+							ios->si.group_length;
 		ios->nr_pages = (ios->length + PAGE_SIZE - 1) / PAGE_SIZE;
 	}
 
@@ -416,16 +414,35 @@ static int _add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 	return 0;
 }
 
-static int _prepare_one_group(struct ore_io_state *ios, u64 length,
-			      struct ore_striping_info *si)
+static int _prepare_for_striping(struct ore_io_state *ios)
 {
+	struct ore_striping_info *si = &ios->si;
 	unsigned stripe_unit = ios->layout->stripe_unit;
 	unsigned mirrors_p1 = ios->layout->mirrors_p1;
 	unsigned devs_in_group = ios->layout->group_width * mirrors_p1;
 	unsigned dev = si->dev;
 	unsigned first_dev = dev - (dev % devs_in_group);
 	unsigned cur_pg = ios->pages_consumed;
+	u64 length = ios->length;
 	int ret = 0;
+
+	if (!ios->pages) {
+		if (ios->kern_buff) {
+			struct ore_per_dev_state *per_dev = &ios->per_dev[0];
+
+			per_dev->offset = si->obj_offset;
+			per_dev->dev = si->dev;
+
+			/* no cross device without page array */
+			BUG_ON((ios->layout->group_width > 1) &&
+			       (si->unit_off + ios->length >
+				ios->layout->stripe_unit));
+		}
+		ios->numdevs = ios->layout->mirrors_p1;
+		return 0;
+	}
+
+	BUG_ON(length > si->group_length);
 
 	while (length) {
 		unsigned comp = dev - first_dev;
@@ -466,36 +483,6 @@ static int _prepare_one_group(struct ore_io_state *ios, u64 length,
 out:
 	ios->numdevs = devs_in_group;
 	ios->pages_consumed = cur_pg;
-	return ret;
-}
-
-static int _prepare_for_striping(struct ore_io_state *ios)
-{
-	struct ore_striping_info si;
-	int ret;
-
-	if (!ios->pages) {
-		if (ios->kern_buff) {
-			struct ore_per_dev_state *per_dev = &ios->per_dev[0];
-
-			ore_calc_stripe_info(ios->layout, ios->offset, &si);
-			per_dev->offset = si.obj_offset;
-			per_dev->dev = si.dev;
-
-			/* no cross device without page array */
-			BUG_ON((ios->layout->group_width > 1) &&
-			       (si.unit_off + ios->length >
-				ios->layout->stripe_unit));
-		}
-		ios->numdevs = ios->layout->mirrors_p1;
-		return 0;
-	}
-
-	ore_calc_stripe_info(ios->layout, ios->offset, &si);
-
-	BUG_ON(ios->length > si.group_length);
-	ret = _prepare_one_group(ios, ios->length, &si);
-
 	return ret;
 }
 

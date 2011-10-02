@@ -93,6 +93,7 @@ typedef void (*ore_io_done_fn)(struct ore_io_state *ios, void *private);
 
 struct ore_io_state {
 	struct kref		kref;
+	struct ore_striping_info si;
 
 	void			*private;
 	ore_io_done_fn	done;
