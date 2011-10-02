@@ -19363,7 +19363,7 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 	bool do_nphy_cal = false;
 	uint core;
 	uint origidx, intr_val;
-	struct d11regs *regs;
+	struct d11regs __iomem *regs;
 	u32 d11_clk_ctl_st;
 	bool do_rssi_cal = false;
 
@@ -19385,9 +19385,10 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 	if ((pi->nphy_gband_spurwar2_en) && CHSPEC_IS2G(pi->radio_chanspec) &&
 	    CHSPEC_IS40(pi->radio_chanspec)) {
 
-		regs = (struct d11regs *) ai_switch_core(pi->sh->sih,
-							 D11_CORE_ID, &origidx,
-							 &intr_val);
+		regs = (struct d11regs __iomem *)
+				ai_switch_core(pi->sh->sih,
+					       D11_CORE_ID, &origidx,
+					       &intr_val);
 		d11_clk_ctl_st = R_REG(&regs->clk_ctl_st);
 		AND_REG(&regs->clk_ctl_st,
 			~(CCS_FORCEHT | CCS_HTAREQ));

@@ -559,7 +559,7 @@ struct brcms_phy {
 	} u;
 	bool user_txpwr_at_rfport;
 
-	struct d11regs *regs;
+	struct d11regs __iomem *regs;
 	struct brcms_phy *next;
 	char *vars;
 	struct brcms_phy_pub pubpi;

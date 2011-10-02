@@ -323,7 +323,7 @@ void write_phy_channel_reg(struct brcms_phy *pi, uint val)
 
 u16 read_phy_reg(struct brcms_phy *pi, u16 addr)
 {
-	struct d11regs *regs;
+	struct d11regs __iomem *regs;
 
 	regs = pi->regs;
 
@@ -335,7 +335,7 @@ u16 read_phy_reg(struct brcms_phy *pi, u16 addr)
 
 void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
-	struct d11regs *regs;
+	struct d11regs __iomem *regs;
 
 	regs = pi->regs;
 
@@ -345,8 +345,7 @@ void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 	if (addr == 0x72)
 		(void)R_REG(&regs->phyregdata);
 #else
-	W_REG((u32 *)(&regs->phyregaddr),
-	      addr | (val << 16));
+	W_REG((u32 __iomem *)(&regs->phyregaddr), addr | (val << 16));
 	if (++pi->phy_wreg >= pi->phy_wreg_limit) {
 		pi->phy_wreg = 0;
 		(void)R_REG(&regs->phyversion);
@@ -356,7 +355,7 @@ void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 
 void and_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
-	struct d11regs *regs;
+	struct d11regs __iomem *regs;
 
 	regs = pi->regs;
 
@@ -368,7 +367,7 @@ void and_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 
 void or_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
-	struct d11regs *regs;
+	struct d11regs __iomem *regs;
 
 	regs = pi->regs;
 
@@ -380,7 +379,7 @@ void or_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 
 void mod_phy_reg(struct brcms_phy *pi, u16 addr, u16 mask, u16 val)
 {
-	struct d11regs *regs;
+	struct d11regs __iomem *regs;
 
 	regs = pi->regs;
 
@@ -494,8 +493,8 @@ static u32 wlc_phy_get_radio_ver(struct brcms_phy *pi)
 }
 
 struct brcms_phy_pub *
-wlc_phy_attach(struct shared_phy *sh, struct d11regs *regs, int bandtype,
-	       char *vars, struct wiphy *wiphy)
+wlc_phy_attach(struct shared_phy *sh, struct d11regs __iomem *regs,
+	       int bandtype, char *vars, struct wiphy *wiphy)
 {
 	struct brcms_phy *pi;
 	u32 sflags = 0;
@@ -1065,7 +1064,7 @@ wlc_phy_init_radio_regs(struct brcms_phy *pi,
 void wlc_phy_do_dummy_tx(struct brcms_phy *pi, bool ofdm, bool pa_on)
 {
 #define DUMMY_PKT_LEN   20
-	struct d11regs *regs = pi->regs;
+	struct d11regs __iomem *regs = pi->regs;
 	int i, count;
 	u8 ofdmpkt[DUMMY_PKT_LEN] = {
 		0xcc, 0x01, 0x02, 0x00, 0x00, 0x00, 0xd4, 0x00, 0x00, 0x00,
