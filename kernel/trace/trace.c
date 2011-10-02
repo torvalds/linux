@@ -4775,6 +4775,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 {
 	__ftrace_dump(true, oops_dump_mode);
 }
+EXPORT_SYMBOL_GPL(ftrace_dump);
 
 __init static int tracer_alloc_buffers(void)
 {
