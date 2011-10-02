@@ -340,7 +340,7 @@ static struct snd_soc_dai_ops spdif_dai_ops = {
 	.shutdown	= spdif_shutdown,
 };
 
-struct snd_soc_dai_driver samsung_spdif_dai = {
+static struct snd_soc_dai_driver samsung_spdif_dai = {
 	.name = "samsung-spdif",
 	.playback = {
 		.stream_name = "S/PDIF Playback",
