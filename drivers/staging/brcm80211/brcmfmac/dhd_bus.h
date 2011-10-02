@@ -35,10 +35,10 @@ extern void brcmf_bus_unregister(void);
 extern struct device *brcmf_bus_get_device(struct brcmf_bus *bus);
 
 /* Stop bus module: clear pending frames, disable data flow */
-extern void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex);
+extern void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus);
 
 /* Initialize bus module: prepare for communication w/dongle */
-extern int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex);
+extern int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
 extern int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *txp);

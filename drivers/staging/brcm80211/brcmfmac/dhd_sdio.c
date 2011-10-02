@@ -2720,7 +2720,7 @@ static int brcmf_sdbrcm_dpc_thread(void *data)
 				if (brcmf_sdbrcm_dpc(bus))
 					complete(&bus->dpc_wait);
 			} else {
-				brcmf_sdbrcm_bus_stop(bus, true);
+				brcmf_sdbrcm_bus_stop(bus);
 			}
 		} else
 			break;
@@ -2736,8 +2736,9 @@ static void brcmf_sdbrcm_dpc_tasklet(unsigned long data)
 	if (bus->drvr->busstate != BRCMF_BUS_DOWN) {
 		if (brcmf_sdbrcm_dpc(bus))
 			tasklet_schedule(&bus->tasklet);
-	} else
-		brcmf_sdbrcm_bus_stop(bus, true);
+	} else {
+		brcmf_sdbrcm_bus_stop(bus);
+	}
 }
 
 static void brcmf_sdbrcm_sched_dpc(struct brcmf_bus *bus)
@@ -3639,7 +3640,7 @@ brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus)
 	return ret;
 }
 
-void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex)
+void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus)
 {
 	u32 local_hostintmask;
 	u8 saveclk;
@@ -3648,8 +3649,7 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (enforce_mutex)
-		down(&bus->sdsem);
+	down(&bus->sdsem);
 
 	bus_wake(bus);
 
@@ -3720,11 +3720,10 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex)
 	bus->rxskip = false;
 	bus->tx_seq = bus->rx_seq = 0;
 
-	if (enforce_mutex)
-		up(&bus->sdsem);
+	up(&bus->sdsem);
 }
 
-int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex)
+int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 {
 	struct brcmf_bus *bus = drvr->bus;
 	unsigned long timeout;
@@ -3748,8 +3747,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex)
 	bus->drvr->tickcnt = 0;
 	brcmf_sdbrcm_wd_timer(bus, BRCMF_WD_POLL_MS);
 
-	if (enforce_mutex)
-		down(&bus->sdsem);
+	down(&bus->sdsem);
 
 	/* Make sure backplane clock is on, needed to generate F2 interrupt */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
@@ -3822,8 +3820,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 
 exit:
-	if (enforce_mutex)
-		up(&bus->sdsem);
+	up(&bus->sdsem);
 
 	return ret;
 }

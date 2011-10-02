@@ -1093,7 +1093,7 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 	brcmf_dbg(TRACE, "\n");
 
 	/* Bring up the bus */
-	ret = brcmf_sdbrcm_bus_init(&drvr_priv->pub, true);
+	ret = brcmf_sdbrcm_bus_init(&drvr_priv->pub);
 	if (ret != 0) {
 		brcmf_dbg(ERROR, "brcmf_sdbrcm_bus_init failed %d\n", ret);
 		return ret;
@@ -1217,7 +1217,7 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 			brcmf_proto_stop(&drvr_priv->pub);
 
 			/* Stop the bus module */
-			brcmf_sdbrcm_bus_stop(drvr_priv->pub.bus, true);
+			brcmf_sdbrcm_bus_stop(drvr_priv->pub.bus);
 		}
 	}
 }
