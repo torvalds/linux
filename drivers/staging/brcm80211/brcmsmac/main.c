@@ -3358,8 +3358,6 @@ void brcms_c_init_scb(struct scb *scb)
 
 	scb->seqctl_nonqos = 0xFFFF;
 	scb->magic = SCB_MAGIC;
-	brcmu_pktq_init(&scb->scb_ampdu.txq, AMPDU_MAX_SCB_TID,
-		  AMPDU_MAX_SCB_TID * PKTQ_LEN_DEFAULT);
 }
 
 /* d11 core init
