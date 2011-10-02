@@ -194,7 +194,6 @@ struct brcms_protection {
  * ss_algosel_auto: if true, use wlc->stf->ss_algo_channel;
  *			else use wlc->band->stf->ss_mode_band.
  * ss_algo_channel: ss based on per-channel algo: 0: SISO, 1: CDD 2: STBC.
- * no_cddstbc: stf override, 1: no CDD (or STBC) allowed.
  * rxchain_restore_delay: delay time to restore default rxchain.
  * ldpc: AUTO/ON/OFF ldpc cap supported.
  * txcore[MAX_STREAMS_SUPPORTED + 1]: bitmap of selected core for each Nsts.
@@ -213,7 +212,6 @@ struct brcms_stf {
 	u8 ss_opmode;
 	bool ss_algosel_auto;
 	u16 ss_algo_channel;
-	u8 no_cddstbc;
 	u8 rxchain_restore_delay;
 	s8 ldpc;
 	u8 txcore[MAX_STREAMS_SUPPORTED + 1];

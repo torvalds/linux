@@ -987,7 +987,6 @@ brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
 		       const char *ccode, uint regrev,
 		       const struct country_info *country)
 {
-	const struct locale_mimo_info *li_mimo;
 	const struct locale_info *locale;
 	struct brcms_c_info *wlc = wlc_cm->wlc;
 	char prev_country_abbrev[BRCM_CNTRY_BUF_SZ];
@@ -1003,17 +1002,9 @@ brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
 	strncpy(wlc_cm->ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
 	wlc_cm->regrev = regrev;
 
-	/* disable/restore nmode based on country regulations */
-	li_mimo = brcms_c_get_mimo_2g(country->locale_mimo_2G);
-	if (li_mimo && (li_mimo->flags & BRCMS_NO_MIMO)) {
-		brcms_c_set_nmode(wlc, OFF);
-		wlc->stf->no_cddstbc = true;
-	} else {
-		wlc->stf->no_cddstbc = false;
-		if ((wlc->pub->_n_enab & SUPPORT_11N) !=
-		    wlc->protection->nmode_user)
-			brcms_c_set_nmode(wlc, wlc->protection->nmode_user);
-	}
+	if ((wlc->pub->_n_enab & SUPPORT_11N) !=
+	    wlc->protection->nmode_user)
+		brcms_c_set_nmode(wlc, wlc->protection->nmode_user);
 
 	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_2G_INDEX]);
 	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_5G_INDEX]);

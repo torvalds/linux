@@ -319,17 +319,15 @@ int brcms_c_stf_ss_update(struct brcms_c_info *wlc, struct brcms_band *band)
 	if (BRCMS_STBC_CAP_PHY(wlc) &&
 	    wlc->stf->ss_algosel_auto
 	    && (wlc->stf->ss_algo_channel != (u16) -1)) {
-		upd_stf_ss = (wlc->stf->no_cddstbc || (wlc->stf->txstreams == 1)
-			      || isset(&wlc->stf->ss_algo_channel,
-				       PHY_TXC1_MODE_SISO)) ? PHY_TXC1_MODE_SISO
-		    : PHY_TXC1_MODE_CDD;
+		upd_stf_ss = (wlc->stf->txstreams == 1 ||
+			      isset(&wlc->stf->ss_algo_channel,
+				    PHY_TXC1_MODE_SISO)) ?
+				    PHY_TXC1_MODE_SISO : PHY_TXC1_MODE_CDD;
 	} else {
 		if (wlc->band != band)
 			return ret_code;
-		upd_stf_ss = (wlc->stf->no_cddstbc
-			      || (wlc->stf->txstreams ==
-				  1)) ? PHY_TXC1_MODE_SISO : band->
-		    band_stf_ss_mode;
+		upd_stf_ss = (wlc->stf->txstreams == 1) ?
+				PHY_TXC1_MODE_SISO : band->band_stf_ss_mode;
 	}
 	if (prev_stf_ss != upd_stf_ss) {
 		wlc->stf->ss_opmode = upd_stf_ss;
