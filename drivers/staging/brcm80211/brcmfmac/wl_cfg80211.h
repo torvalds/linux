@@ -106,7 +106,7 @@ do {								\
 #define WL_DCMD_LEN_MAX	1024
 #define WL_EXTRA_BUF_MAX	2048
 #define WL_ISCAN_BUF_MAX	2048	/*
-				 * the buf length can be BRCMF_C_DCMD_MAXLEN
+				 * the buf length can be BRCMF_DCMD_MAXLEN
 				 * to reduce iteration
 				 */
 #define WL_ISCAN_TIMER_INTERVAL_MS	3000
@@ -251,7 +251,7 @@ struct brcmf_cfg80211_iscan_ctrl {
 	struct work_struct work;
 	struct brcmf_cfg80211_iscan_eloop el;
 	void *data;
-	s8 dcmd_buf[BRCMF_C_DCMD_SMLEN];
+	s8 dcmd_buf[BRCMF_DCMD_SMLEN];
 	s8 scan_buf[WL_ISCAN_BUF_MAX];
 };
 

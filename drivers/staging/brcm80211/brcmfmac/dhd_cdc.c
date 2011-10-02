@@ -97,7 +97,7 @@ struct brcmf_proto {
 	u32 lastcmd;
 	u8 bus_header[BUS_HEADER_LEN];
 	struct brcmf_proto_cdc_dcmd msg;
-	unsigned char buf[BRCMF_C_DCMD_MAXLEN + ROUND_UP_MARGIN];
+	unsigned char buf[BRCMF_DCMD_MAXLEN + ROUND_UP_MARGIN];
 };
 
 static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
@@ -288,7 +288,7 @@ brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx, struct brcmf_dcmd *dcmd,
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (len > BRCMF_C_DCMD_MAXLEN)
+	if (len > BRCMF_DCMD_MAXLEN)
 		goto done;
 
 	if (prot->pending == true) {
@@ -435,7 +435,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 
 	drvr->prot = cdc;
 	drvr->hdrlen += BDC_HEADER_LEN;
-	drvr->maxctl = BRCMF_C_DCMD_MAXLEN +
+	drvr->maxctl = BRCMF_DCMD_MAXLEN +
 			sizeof(struct brcmf_proto_cdc_dcmd) + ROUND_UP_MARGIN;
 	return 0;
 

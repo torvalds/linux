@@ -342,7 +342,7 @@ done:
 
 static s32 brcmf_dev_intvar_set(struct net_device *ndev, s8 *name, s32 val)
 {
-	s8 buf[BRCMF_C_DCMD_SMLEN];
+	s8 buf[BRCMF_DCMD_SMLEN];
 	u32 len;
 	s32 err = 0;
 	__le32 val_le;
@@ -363,7 +363,7 @@ static s32
 brcmf_dev_intvar_get(struct net_device *ndev, s8 *name, s32 *retval)
 {
 	union {
-		s8 buf[BRCMF_C_DCMD_SMLEN];
+		s8 buf[BRCMF_DCMD_SMLEN];
 		__le32 val;
 	} var;
 	u32 len;
@@ -451,7 +451,7 @@ brcmf_run_iscan(struct brcmf_cfg80211_iscan_ctrl *iscan,
 	params = kzalloc(params_size, GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
-	BUG_ON(params_size >= BRCMF_C_DCMD_SMLEN);
+	BUG_ON(params_size >= BRCMF_DCMD_SMLEN);
 
 	wl_iscan_prep(&params->params_le, ssid);
 
@@ -460,7 +460,7 @@ brcmf_run_iscan(struct brcmf_cfg80211_iscan_ctrl *iscan,
 	params->scan_duration = cpu_to_le16(0);
 
 	err = brcmf_dev_iovar_setbuf(iscan->ndev, "iscan", params, params_size,
-				     iscan->dcmd_buf, BRCMF_C_DCMD_SMLEN);
+				     iscan->dcmd_buf, BRCMF_DCMD_SMLEN);
 	if (err) {
 		if (err == -EBUSY)
 			WL_INFO("system busy : iscan canceled\n");

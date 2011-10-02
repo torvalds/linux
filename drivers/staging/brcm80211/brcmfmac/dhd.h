@@ -23,10 +23,6 @@
 
 #define BRCMF_VERSION_STR		"4.218.248.5"
 
-#define	BRCMF_C_DCMD_SMLEN	256	/* "small" cmd buffer required */
-#define BRCMF_C_DCMD_MEDLEN	1536	/* "med" cmd buffer required */
-#define	BRCMF_C_DCMD_MAXLEN	8192
-
 /*******************************************************************************
  * IO codes that are interpreted by dongle firmware
  ******************************************************************************/
@@ -749,6 +745,8 @@ extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 					     int enable, int master_mode);
 
+#define	BRCMF_DCMD_SMLEN	256	/* "small" cmd buffer required */
+#define BRCMF_DCMD_MEDLEN	1536	/* "med" cmd buffer required */
 #define	BRCMF_DCMD_MAXLEN	8192	/* max length cmd buffer required */
 
 /* message levels */
