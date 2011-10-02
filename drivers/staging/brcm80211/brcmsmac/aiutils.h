@@ -269,8 +269,8 @@ struct si_info {
 	char *vars;
 	uint varsz;
 
-	void *curmap;		/* current regs va */
-	void *regs[SI_MAXCORES];	/* other regs va */
+	void __iomem *curmap;			/* current regs va */
+	void __iomem *regs[SI_MAXCORES];	/* other regs va */
 
 	uint curidx;		/* current core index */
 	uint numcores;		/* # discovered cores */
@@ -319,8 +319,8 @@ extern u32 ai_addrspacesize(struct si_pub *sih, uint asidx);
 extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 
 /* === exported functions === */
-extern struct si_pub *ai_attach(void *regs, struct pci_dev *sdh, char **vars,
-				uint *varsz);
+extern struct si_pub *ai_attach(void __iomem *regs, struct pci_dev *sdh,
+				char **vars, uint *varsz);
 extern void ai_detach(struct si_pub *sih);
 extern uint ai_coreid(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
@@ -331,10 +331,10 @@ extern u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val);
 extern u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val);
 extern bool ai_iscoreup(struct si_pub *sih);
 extern uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit);
-extern void *ai_setcoreidx(struct si_pub *sih, uint coreidx);
-extern void *ai_setcore(struct si_pub *sih, uint coreid, uint coreunit);
-extern void *ai_switch_core(struct si_pub *sih, uint coreid, uint *origidx,
-			    uint *intr_val);
+extern void __iomem *ai_setcoreidx(struct si_pub *sih, uint coreidx);
+extern void __iomem *ai_setcore(struct si_pub *sih, uint coreid, uint coreunit);
+extern void __iomem *ai_switch_core(struct si_pub *sih, uint coreid,
+				    uint *origidx, uint *intr_val);
 extern void ai_restore_core(struct si_pub *sih, uint coreid, uint intr_val);
 extern void ai_core_reset(struct si_pub *sih, u32 bits, u32 resetbits);
 extern void ai_core_disable(struct si_pub *sih, u32 bits);

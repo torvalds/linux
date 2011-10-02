@@ -782,12 +782,14 @@ static const struct brcms_sromvar perpath_pci_sromvars[] = {
  * shared between devices. */
 static u8 brcms_srom_crc8_table[CRC8_TABLE_SIZE];
 
-static u16 *srom_window_address(struct si_pub *sih, u8 *curmap)
+static u16 __iomem *
+srom_window_address(struct si_pub *sih, u8 __iomem *curmap)
 {
 	if (sih->ccrev < 32)
-		return (u16 *)(curmap + PCI_BAR0_SPROM_OFFSET);
+		return (u16 __iomem *)(curmap + PCI_BAR0_SPROM_OFFSET);
 	if (sih->cccaps & CC_CAP_SROM)
-		return (u16 *)(curmap + PCI_16KB0_CCREGS_OFFSET + CC_SROM_OTP);
+		return (u16 __iomem *)
+		       (curmap + PCI_16KB0_CCREGS_OFFSET + CC_SROM_OTP);
 
 	return NULL;
 }
@@ -1032,7 +1034,7 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
  * Return 0 on success, nonzero on error.
  */
 static int
-sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
+sprom_read_pci(struct si_pub *sih, u16 __iomem *sprom, uint wordoff,
 	       u16 *buf, uint nwords, bool check_crc)
 {
 	int err = 0;
@@ -1131,10 +1133,11 @@ static int initvars_table(char *start, char *end,
  * Initialize nonvolatile variable table from sprom.
  * Return 0 on success, nonzero on error.
  */
-static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
-			     uint *count)
+static int initvars_srom_pci(struct si_pub *sih, void __iomem *curmap,
+			     char **vars, uint *count)
 {
-	u16 *srom, *sromwindow;
+	u16 *srom;
+	u16 __iomem *sromwindow;
 	u8 sromrev = 0;
 	u32 sr;
 	struct brcms_varbuf b;
@@ -1222,7 +1225,8 @@ errout:
  * Initialize local vars from the right source for this platform.
  * Return 0 on success, nonzero on error.
  */
-int srom_var_init(struct si_pub *sih, void *curmap, char **vars, uint *count)
+int srom_var_init(struct si_pub *sih, void __iomem *curmap, char **vars,
+		  uint *count)
 {
 	uint len;
 

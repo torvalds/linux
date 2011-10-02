@@ -132,7 +132,8 @@ struct otpinfo {
 #define OTP4315_SWREG_SZ	178	/* 178 bytes */
 #define OTP_SZ_FU_144		(144/8)	/* 144 bits */
 
-static u16 ipxotp_otpr(struct otpinfo *oi, struct chipcregs *cc, uint wn)
+static u16
+ipxotp_otpr(struct otpinfo *oi, struct chipcregs __iomem *cc, uint wn)
 {
 	return R_REG(&cc->sromotp[wn]);
 }
@@ -160,7 +161,7 @@ static int ipxotp_max_rgnsz(struct si_pub *sih, int osizew)
 	return ret;
 }
 
-static void _ipxotp_init(struct otpinfo *oi, struct chipcregs *cc)
+static void _ipxotp_init(struct otpinfo *oi, struct chipcregs __iomem *cc)
 {
 	uint k;
 	u32 otpp, st;
@@ -240,7 +241,7 @@ static void _ipxotp_init(struct otpinfo *oi, struct chipcregs *cc)
 static int ipxotp_init(struct si_pub *sih, struct otpinfo *oi)
 {
 	uint idx;
-	struct chipcregs *cc;
+	struct chipcregs __iomem *cc;
 
 	/* Make sure we're running IPX OTP */
 	if (!OTPTYPE_IPX(sih->ccrev))
@@ -295,7 +296,7 @@ static int
 ipxotp_read_region(struct otpinfo *oi, int region, u16 *data, uint *wlen)
 {
 	uint idx;
-	struct chipcregs *cc;
+	struct chipcregs __iomem *cc;
 	uint base, i, sz;
 
 	/* Validate region selection */

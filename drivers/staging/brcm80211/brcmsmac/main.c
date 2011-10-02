@@ -4678,7 +4678,7 @@ struct brcms_pub *brcms_c_pub(struct brcms_c_info *wlc)
  *    put the whole chip in reset(driver down state), no clock
  */
 static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
-			  uint unit, bool piomode, void *regsva,
+			  uint unit, bool piomode, void __iomem *regsva,
 			  struct pci_dev *btparam)
 {
 	struct brcms_hardware *wlc_hw;

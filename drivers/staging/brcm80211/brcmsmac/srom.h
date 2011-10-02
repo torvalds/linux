@@ -20,7 +20,7 @@
 #include "types.h"
 
 /* Prototypes */
-extern int srom_var_init(struct si_pub *sih, void *curmap, char **vars,
+extern int srom_var_init(struct si_pub *sih, void __iomem *curmap, char **vars,
 			 uint *count);
 
 extern int srom_read(struct si_pub *sih, uint bus, void *curmap,

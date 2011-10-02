@@ -139,7 +139,7 @@ static void si_pmu_res_masks(struct si_pub *sih, u32 * pmin, u32 * pmax)
 }
 
 static void
-si_pmu_spuravoid_pllupdate(struct si_pub *sih, struct chipcregs *cc,
+si_pmu_spuravoid_pllupdate(struct si_pub *sih, struct chipcregs __iomem *cc,
 			   u8 spuravoid)
 {
 	u32 tmp = 0;
@@ -221,7 +221,7 @@ u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 
 void si_pmu_sprom_enable(struct si_pub *sih, bool enable)
 {
-	struct chipcregs *cc;
+	struct chipcregs __iomem *cc;
 	uint origidx;
 
 	/* Remember original core before switch to chipc */
@@ -294,11 +294,11 @@ u32 si_pmu_alp_clock(struct si_pub *sih)
 
 void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid)
 {
-	struct chipcregs *cc;
+	struct chipcregs __iomem *cc;
 	uint origidx, intr_val;
 
 	/* Remember original core before switch to chipc */
-	cc = (struct chipcregs *)
+	cc = (struct chipcregs __iomem *)
 			ai_switch_core(sih, CC_CORE_ID, &origidx, &intr_val);
 
 	/* update the pll changes */
@@ -311,7 +311,7 @@ void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid)
 /* initialize PMU */
 void si_pmu_init(struct si_pub *sih)
 {
-	struct chipcregs *cc;
+	struct chipcregs __iomem *cc;
 	uint origidx;
 
 	/* Remember original core before switch to chipc */
@@ -350,7 +350,7 @@ void si_pmu_swreg_init(struct si_pub *sih)
 /* initialize PLL */
 void si_pmu_pll_init(struct si_pub *sih, uint xtalfreq)
 {
-	struct chipcregs *cc;
+	struct chipcregs __iomem *cc;
 	uint origidx;
 
 	/* Remember original core before switch to chipc */
@@ -374,7 +374,7 @@ void si_pmu_pll_init(struct si_pub *sih, uint xtalfreq)
 /* initialize PMU resources */
 void si_pmu_res_init(struct si_pub *sih)
 {
-	struct chipcregs *cc;
+	struct chipcregs __iomem *cc;
 	uint origidx;
 	u32 min_mask = 0, max_mask = 0;
 
@@ -406,7 +406,7 @@ void si_pmu_res_init(struct si_pub *sih)
 
 u32 si_pmu_measure_alpclk(struct si_pub *sih)
 {
-	struct chipcregs *cc;
+	struct chipcregs __iomem *cc;
 	uint origidx;
 	u32 alp_khz;
 
