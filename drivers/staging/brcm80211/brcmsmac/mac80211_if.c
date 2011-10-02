@@ -341,7 +341,10 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	wl = hw->priv;
 	LOCK(wl);
-	err = brcms_up(wl);
+	if (!wl->pub->up)
+		err = brcms_up(wl);
+	else
+		err = -ENODEV;
 	UNLOCK(wl);
 
 	if (err != 0)
