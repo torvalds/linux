@@ -7312,7 +7312,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	inode = lookup_free_space_inode(root, block_group, path);
+	inode = lookup_free_space_inode(tree_root, block_group, path);
 	if (!IS_ERR(inode)) {
 		ret = btrfs_orphan_add(trans, inode);
 		BUG_ON(ret);
