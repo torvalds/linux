@@ -7066,7 +7066,6 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	struct ieee80211_rts *rts = NULL;
 	bool qos;
 	uint ac;
-	u32 rate_val[2];
 	bool hwtkmic = false;
 	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
 #define ANTCFG_NONE 0xFF
@@ -7077,7 +7076,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	struct ieee80211_tx_rate *txrate[2];
 	int k;
 	struct ieee80211_tx_info *tx_info;
-	bool is_mcs[2];
+	bool is_mcs;
 	u16 mimo_txbw;
 	u8 mimo_preamble_type;
 
@@ -7137,13 +7136,12 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		txrate[1] = txrate[0];
 
 	for (k = 0; k < hw->max_rates; k++) {
-		is_mcs[k] =
-		    txrate[k]->flags & IEEE80211_TX_RC_MCS ? true : false;
-		if (!is_mcs[k]) {
+		is_mcs = txrate[k]->flags & IEEE80211_TX_RC_MCS ? true : false;
+		if (!is_mcs) {
 			if ((txrate[k]->idx >= 0)
 			    && (txrate[k]->idx <
 				hw->wiphy->bands[tx_info->band]->n_bitrates)) {
-				rate_val[k] =
+				rspec[k] =
 				    hw->wiphy->bands[tx_info->band]->
 				    bitrates[txrate[k]->idx].hw_value;
 				short_preamble[k] =
@@ -7151,10 +7149,11 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 				    flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ?
 				    true : false;
 			} else {
-				rate_val[k] = BRCM_RATE_1M;
+				rspec[k] = BRCM_RATE_1M;
 			}
 		} else {
-			rate_val[k] = txrate[k]->idx;
+			rspec[k] = mac80211_wlc_set_nrate(wlc, wlc->band,
+					NRATE_MCS_INUSE | txrate[k]->idx);
 		}
 
 		/*
@@ -7169,10 +7168,6 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		    txrate[k]->
 		    flags & IEEE80211_TX_RC_USE_CTS_PROTECT ? true : false;
 
-		if (is_mcs[k])
-			rate_val[k] |= NRATE_MCS_INUSE;
-
-		rspec[k] = mac80211_wlc_set_nrate(wlc, wlc->band, rate_val[k]);
 
 		/*
 		 * (1) RATE:
