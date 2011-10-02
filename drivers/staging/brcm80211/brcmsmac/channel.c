@@ -1004,7 +1004,7 @@ brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
 
 	if ((wlc->pub->_n_enab & SUPPORT_11N) !=
 	    wlc->protection->nmode_user)
-		brcms_c_set_nmode(wlc, wlc->protection->nmode_user);
+		brcms_c_set_nmode(wlc);
 
 	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_2G_INDEX]);
 	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_5G_INDEX]);

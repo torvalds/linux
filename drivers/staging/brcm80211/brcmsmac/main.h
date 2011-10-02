@@ -799,7 +799,7 @@ extern void brcms_c_set_chanspec(struct brcms_c_info *wlc,
 
 extern bool brcms_c_timers_init(struct brcms_c_info *wlc, int unit);
 
-extern int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode);
+extern int brcms_c_set_nmode(struct brcms_c_info *wlc);
 extern void brcms_c_mimops_action_ht_send(struct brcms_c_info *wlc,
 				      struct brcms_bss_cfg *bsscfg,
 				      u8 mimops_mode);

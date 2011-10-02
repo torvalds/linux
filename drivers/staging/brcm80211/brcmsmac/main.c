@@ -5202,7 +5202,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	uint err = 0;
 	uint i, j;
 	struct brcms_pub *pub;
-	uint n_disabled;
 
 	/* allocate struct brcms_c_info state and its substructures */
 	wlc = (struct brcms_c_info *) brcms_c_attach_malloc(unit, &err, device);
@@ -5227,9 +5226,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 
 	/* update sta/ap related parameters */
 	brcms_c_ap_upd(wlc);
-
-	/* 11n_disable nvram */
-	n_disabled = getintvar(pub->vars, "11n_disable");
 
 	/*
 	 * low level attach steps(all hw accesses go
@@ -5301,17 +5297,11 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 
 		/* init _n_enab supported mode */
 		if (BRCMS_PHY_11N_CAP(wlc->band)) {
-			if (n_disabled & WLFEATURE_DISABLE_11N) {
-				pub->_n_enab = OFF;
-				brcms_c_protection_upd(wlc, BRCMS_PROT_N_USER,
-						       OFF);
-			} else {
-				pub->_n_enab = SUPPORT_11N;
-				brcms_c_protection_upd(wlc, BRCMS_PROT_N_USER,
+			pub->_n_enab = SUPPORT_11N;
+			brcms_c_protection_upd(wlc, BRCMS_PROT_N_USER,
 						   ((pub->_n_enab ==
 						     SUPPORT_11N) ? WL_11N_2x2 :
 						    WL_11N_3x3));
-			}
 		}
 
 		/* init per-band default rateset, depend on band->gmode */
@@ -5386,19 +5376,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	} else {
 		brcms_c_ht_update_sgi_rx(wlc, 0);
 	}
-
-	/* *******nvram 11n config overrides Start ********* */
-
-	if (n_disabled & WLFEATURE_DISABLE_11N_SGI_RX)
-		brcms_c_ht_update_sgi_rx(wlc, 0);
-
-	/* apply the stbc override from nvram conf */
-	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_TX) {
-		wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = OFF;
-		wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = OFF;
-	}
-	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_RX)
-		brcms_c_stf_stbc_rx_set(wlc, HT_CAP_RX_STBC_NO);
 
 	/* initialize radio_mpc_disable according to wlc->mpc */
 	brcms_c_radio_mpc_upd(wlc);
@@ -6109,54 +6086,36 @@ static int brcms_c_nmode_validate(struct brcms_c_info *wlc, s32 nmode)
 	return err;
 }
 
-int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
+int brcms_c_set_nmode(struct brcms_c_info *wlc)
 {
 	uint i;
 	int err;
+	s32 nmode = AUTO;
 
 	err = brcms_c_nmode_validate(wlc, nmode);
 	if (err)
 		return err;
 
-	switch (nmode) {
-	case OFF:
-		wlc->pub->_n_enab = OFF;
-		wlc->default_bss->flags &= ~BRCMS_BSS_HT;
-		/* delete the mcs rates from the default and hw ratesets */
-		brcms_c_rateset_mcs_clear(&wlc->default_bss->rateset);
-		for (i = 0; i < wlc->pub->_nbands; i++) {
-			memset(wlc->bandstate[i]->hw_rateset.mcs, 0,
-			       MCSSET_LEN);
-		}
-		break;
+	if (wlc->stf->txstreams == WL_11N_3x3)
+		nmode = WL_11N_3x3;
+	else
+		nmode = WL_11N_2x2;
 
-	case AUTO:
-		if (wlc->stf->txstreams == WL_11N_3x3)
-			nmode = WL_11N_3x3;
-		else
-			nmode = WL_11N_2x2;
-	case WL_11N_2x2:
-	case WL_11N_3x3:
-		/* force GMODE_AUTO if NMODE is ON */
-		brcms_c_set_gmode(wlc, GMODE_AUTO, true);
-		if (nmode == WL_11N_3x3)
-			wlc->pub->_n_enab = SUPPORT_HT;
-		else
-			wlc->pub->_n_enab = SUPPORT_11N;
-		wlc->default_bss->flags |= BRCMS_BSS_HT;
-		/* add the mcs rates to the default and hw ratesets */
-		brcms_c_rateset_mcs_build(&wlc->default_bss->rateset,
-				      wlc->stf->txstreams);
-		for (i = 0; i < wlc->pub->_nbands; i++)
-			memcpy(wlc->bandstate[i]->hw_rateset.mcs,
-			       wlc->default_bss->rateset.mcs, MCSSET_LEN);
-		break;
+	/* force GMODE_AUTO if NMODE is ON */
+	brcms_c_set_gmode(wlc, GMODE_AUTO, true);
+	if (nmode == WL_11N_3x3)
+		wlc->pub->_n_enab = SUPPORT_HT;
+	else
+		wlc->pub->_n_enab = SUPPORT_11N;
+	wlc->default_bss->flags |= BRCMS_BSS_HT;
+	/* add the mcs rates to the default and hw ratesets */
+	brcms_c_rateset_mcs_build(&wlc->default_bss->rateset,
+			      wlc->stf->txstreams);
+	for (i = 0; i < wlc->pub->_nbands; i++)
+		memcpy(wlc->bandstate[i]->hw_rateset.mcs,
+		       wlc->default_bss->rateset.mcs, MCSSET_LEN);
 
-	default:
-		break;
-	}
-
-	return err;
+	return 0;
 }
 
 static int
