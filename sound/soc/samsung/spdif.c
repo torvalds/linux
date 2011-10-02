@@ -475,7 +475,7 @@ static __devexit int spdif_remove(struct platform_device *pdev)
 
 static struct platform_driver samsung_spdif_driver = {
 	.probe	= spdif_probe,
-	.remove	= spdif_remove,
+	.remove	= __devexit_p(spdif_remove),
 	.driver	= {
 		.name	= "samsung-spdif",
 		.owner	= THIS_MODULE,
