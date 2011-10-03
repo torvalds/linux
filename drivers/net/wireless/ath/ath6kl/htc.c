@@ -1715,12 +1715,10 @@ static int ath6kl_htc_rx_fetch(struct htc_target *target,
 			packet = list_first_entry(rx_pktq, struct htc_packet,
 						   list);
 
-			list_del(&packet->list);
-
 			/* fully synchronous */
 			packet->completion = NULL;
 
-			if (!list_empty(rx_pktq))
+			if (!list_is_singular(rx_pktq))
 				/*
 				 * look_aheads in all packet
 				 * except the last one in the
@@ -1735,7 +1733,7 @@ static int ath6kl_htc_rx_fetch(struct htc_target *target,
 			if (status)
 				return status;
 
-			list_add_tail(&packet->list, comp_pktq);
+			list_move_tail(&packet->list, comp_pktq);
 		}
 	}
 
