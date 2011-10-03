@@ -12,6 +12,7 @@
 
 #include <linux/slab.h>
 #include <trace/events/regmap.h>
+#include <linux/sort.h>
 
 #include "internal.h"
 
@@ -356,12 +357,28 @@ unsigned int regcache_get_val(const void *base, unsigned int idx,
 
 int regcache_lookup_reg(struct regmap *map, unsigned int reg)
 {
-	unsigned int i;
+	unsigned int min, max, index;
 
-	for (i = 0; i < map->num_reg_defaults; i++)
-		if (map->reg_defaults[i].reg == reg)
-			return i;
+	min = 0;
+	max = map->num_reg_defaults - 1;
+	do {
+		index = (min + max) / 2;
+		if (map->reg_defaults[index].reg == reg)
+			return index;
+		if (map->reg_defaults[index].reg < reg)
+			min = index + 1;
+		else
+			max = index;
+	} while (min <= max);
 	return -1;
+}
+
+static int regcache_insert_cmp(const void *a, const void *b)
+{
+	const struct reg_default *_a = a;
+	const struct reg_default *_b = b;
+
+	return _a->reg - _b->reg;
 }
 
 int regcache_insert_reg(struct regmap *map, unsigned int reg,
@@ -378,5 +395,7 @@ int regcache_insert_reg(struct regmap *map, unsigned int reg,
 	map->num_reg_defaults++;
 	map->reg_defaults[map->num_reg_defaults - 1].reg = reg;
 	map->reg_defaults[map->num_reg_defaults - 1].def = val;
+	sort(map->reg_defaults, map->num_reg_defaults,
+	     sizeof(struct reg_default), regcache_insert_cmp, NULL);
 	return 0;
 }
