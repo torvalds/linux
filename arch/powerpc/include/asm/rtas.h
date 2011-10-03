@@ -245,6 +245,12 @@ extern int early_init_dt_scan_rtas(unsigned long node,
 
 extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 
+#ifdef CONFIG_PPC_RTAS_DAEMON
+extern void rtas_cancel_event_scan(void);
+#else
+static inline void rtas_cancel_event_scan(void) { }
+#endif
+
 /* Error types logged.  */
 #define ERR_FLAG_ALREADY_LOGGED	0x0
 #define ERR_FLAG_BOOT		0x1 	/* log was pulled from NVRAM on boot */

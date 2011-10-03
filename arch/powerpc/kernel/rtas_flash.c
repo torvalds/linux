@@ -568,6 +568,12 @@ static void rtas_flash_firmware(int reboot_type)
 	}
 
 	/*
+	 * Just before starting the firmware flash, cancel the event scan work
+	 * to avoid any soft lockup issues.
+	 */
+	rtas_cancel_event_scan();
+
+	/*
 	 * NOTE: the "first" block must be under 4GB, so we create
 	 * an entry with no data blocks in the reserved buffer in
 	 * the kernel data segment.
