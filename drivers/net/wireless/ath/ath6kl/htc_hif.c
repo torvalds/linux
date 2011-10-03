@@ -417,7 +417,7 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 		 * we rapidly pull packets.
 		 */
 		status = ath6kl_htc_rxmsg_pending_handler(dev->htc_cnxt,
-							  &lk_ahd, &fetched);
+							  lk_ahd, &fetched);
 		if (status)
 			goto out;
 

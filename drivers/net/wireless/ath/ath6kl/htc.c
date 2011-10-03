@@ -1770,7 +1770,7 @@ fail_rx:
 }
 
 int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
-				     u32 msg_look_ahead[], int *num_pkts)
+				     u32 msg_look_ahead, int *num_pkts)
 {
 	struct htc_packet *packets, *tmp_pkt;
 	struct htc_endpoint *endpoint;
@@ -1787,7 +1787,7 @@ int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
 	 * On first entry copy the look_aheads into our temp array for
 	 * processing
 	 */
-	memcpy(look_aheads, msg_look_ahead, sizeof(look_aheads));
+	look_aheads[0] = msg_look_ahead;
 
 	while (true) {
 

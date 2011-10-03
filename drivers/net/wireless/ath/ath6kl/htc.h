@@ -563,7 +563,7 @@ int ath6kl_htc_get_rxbuf_num(struct htc_target *target,
 int ath6kl_htc_add_rxbuf_multiple(struct htc_target *target,
 				  struct list_head *pktq);
 int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
-				     u32 msg_look_ahead[], int *n_pkts);
+				     u32 msg_look_ahead, int *n_pkts);
 
 static inline void set_htc_pkt_info(struct htc_packet *packet, void *context,
 				    u8 *buf, unsigned int len,
