@@ -26,6 +26,8 @@
 #include <linux/gfp.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mmc/host.h>
 #include <linux/ioport.h>
 
 #include <asm/irq.h>
@@ -41,13 +43,20 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/adc.h>
+#include <plat/ata.h>
 #include <plat/ehci.h>
 #include <plat/fb.h>
 #include <plat/fb-s3c2410.h>
+#include <plat/hwmon.h>
 #include <plat/iic.h>
+#include <plat/keypad.h>
 #include <plat/mci.h>
+#include <plat/nand.h>
+#include <plat/sdhci.h>
 #include <plat/ts.h>
 #include <plat/udc.h>
+#include <plat/usb-control.h>
 #include <plat/usb-phy.h>
 #include <plat/regs-iic.h>
 #include <plat/regs-serial.h>
@@ -129,6 +138,33 @@ struct platform_device s3c_device_adc = {
 };
 #endif /* CONFIG_PLAT_S3C24XX */
 
+#if defined(CONFIG_SAMSUNG_DEV_ADC)
+static struct resource s3c_adc_resource[] = {
+	[0] = {
+		.start	= SAMSUNG_PA_ADC,
+		.end	= SAMSUNG_PA_ADC + SZ_256 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_TC,
+		.end	= IRQ_TC,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= IRQ_ADC,
+		.end	= IRQ_ADC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_adc = {
+	.name		= "samsung-adc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_adc_resource),
+	.resource	= s3c_adc_resource,
+};
+#endif /* CONFIG_SAMSUNG_DEV_ADC */
+
 /* Camif Controller */
 
 #ifdef CONFIG_CPU_S3C2440
@@ -156,6 +192,70 @@ struct platform_device s3c_device_camif = {
 	}
 };
 #endif /* CONFIG_CPU_S3C2440 */
+
+/* ASOC DMA */
+
+struct platform_device samsung_asoc_dma = {
+	.name		= "samsung-audio",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	}
+};
+
+struct platform_device samsung_asoc_idma = {
+	.name		= "samsung-idma",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	}
+};
+
+/* FB */
+
+#ifdef CONFIG_S3C_DEV_FB
+static struct resource s3c_fb_resource[] = {
+	[0] = {
+		.start	= S3C_PA_FB,
+		.end	= S3C_PA_FB + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_LCD_VSYNC,
+		.end	= IRQ_LCD_VSYNC,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= IRQ_LCD_FIFO,
+		.end	= IRQ_LCD_FIFO,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= IRQ_LCD_SYSTEM,
+		.end	= IRQ_LCD_SYSTEM,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_fb = {
+	.name		= "s3c-fb",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_fb_resource),
+	.resource	= s3c_fb_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init s3c_fb_set_platdata(struct s3c_fb_platdata *pd)
+{
+	s3c_set_platdata(pd, sizeof(struct s3c_fb_platdata),
+			 &s3c_device_fb);
+}
+#endif /* CONFIG_S3C_DEV_FB */
 
 /* FIMC */
 
@@ -307,6 +407,497 @@ void __init s5p_fimd0_set_platdata(struct s3c_fb_platdata *pd)
 }
 #endif /* CONFIG_S5P_DEV_FIMD0 */
 
+/* HWMON */
+
+#ifdef CONFIG_S3C_DEV_HWMON
+struct platform_device s3c_device_hwmon = {
+	.name		= "s3c-hwmon",
+	.id		= -1,
+	.dev.parent	= &s3c_device_adc.dev,
+};
+
+void __init s3c_hwmon_set_platdata(struct s3c_hwmon_pdata *pd)
+{
+	s3c_set_platdata(pd, sizeof(struct s3c_hwmon_pdata),
+			 &s3c_device_hwmon);
+}
+#endif /* CONFIG_S3C_DEV_HWMON */
+
+/* HSMMC */
+
+#define S3C_SZ_HSMMC	0x1000
+
+#ifdef CONFIG_S3C_DEV_HSMMC
+static struct resource s3c_hsmmc_resource[] = {
+	[0] = {
+		.start	= S3C_PA_HSMMC0,
+		.end	= S3C_PA_HSMMC0 + S3C_SZ_HSMMC - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_HSMMC0,
+		.end	= IRQ_HSMMC0,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+struct s3c_sdhci_platdata s3c_hsmmc0_def_platdata = {
+	.max_width	= 4,
+	.host_caps	= (MMC_CAP_4_BIT_DATA |
+			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
+};
+
+struct platform_device s3c_device_hsmmc0 = {
+	.name		= "s3c-sdhci",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c_hsmmc_resource),
+	.resource	= s3c_hsmmc_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &s3c_hsmmc0_def_platdata,
+	},
+};
+
+void s3c_sdhci0_set_platdata(struct s3c_sdhci_platdata *pd)
+{
+	s3c_sdhci_set_platdata(pd, &s3c_hsmmc0_def_platdata);
+}
+#endif /* CONFIG_S3C_DEV_HSMMC */
+
+#ifdef CONFIG_S3C_DEV_HSMMC1
+static struct resource s3c_hsmmc1_resource[] = {
+	[0] = {
+		.start	= S3C_PA_HSMMC1,
+		.end	= S3C_PA_HSMMC1 + S3C_SZ_HSMMC - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_HSMMC1,
+		.end	= IRQ_HSMMC1,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+struct s3c_sdhci_platdata s3c_hsmmc1_def_platdata = {
+	.max_width	= 4,
+	.host_caps	= (MMC_CAP_4_BIT_DATA |
+			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
+};
+
+struct platform_device s3c_device_hsmmc1 = {
+	.name		= "s3c-sdhci",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(s3c_hsmmc1_resource),
+	.resource	= s3c_hsmmc1_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &s3c_hsmmc1_def_platdata,
+	},
+};
+
+void s3c_sdhci1_set_platdata(struct s3c_sdhci_platdata *pd)
+{
+	s3c_sdhci_set_platdata(pd, &s3c_hsmmc1_def_platdata);
+}
+#endif /* CONFIG_S3C_DEV_HSMMC1 */
+
+/* HSMMC2 */
+
+#ifdef CONFIG_S3C_DEV_HSMMC2
+static struct resource s3c_hsmmc2_resource[] = {
+	[0] = {
+		.start	= S3C_PA_HSMMC2,
+		.end	= S3C_PA_HSMMC2 + S3C_SZ_HSMMC - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_HSMMC2,
+		.end	= IRQ_HSMMC2,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+struct s3c_sdhci_platdata s3c_hsmmc2_def_platdata = {
+	.max_width	= 4,
+	.host_caps	= (MMC_CAP_4_BIT_DATA |
+			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
+};
+
+struct platform_device s3c_device_hsmmc2 = {
+	.name		= "s3c-sdhci",
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(s3c_hsmmc2_resource),
+	.resource	= s3c_hsmmc2_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &s3c_hsmmc2_def_platdata,
+	},
+};
+
+void s3c_sdhci2_set_platdata(struct s3c_sdhci_platdata *pd)
+{
+	s3c_sdhci_set_platdata(pd, &s3c_hsmmc2_def_platdata);
+}
+#endif /* CONFIG_S3C_DEV_HSMMC2 */
+
+#ifdef CONFIG_S3C_DEV_HSMMC3
+static struct resource s3c_hsmmc3_resource[] = {
+	[0] = {
+		.start	= S3C_PA_HSMMC3,
+		.end	= S3C_PA_HSMMC3 + S3C_SZ_HSMMC - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_HSMMC3,
+		.end	= IRQ_HSMMC3,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+struct s3c_sdhci_platdata s3c_hsmmc3_def_platdata = {
+	.max_width	= 4,
+	.host_caps	= (MMC_CAP_4_BIT_DATA |
+			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
+};
+
+struct platform_device s3c_device_hsmmc3 = {
+	.name		= "s3c-sdhci",
+	.id		= 3,
+	.num_resources	= ARRAY_SIZE(s3c_hsmmc3_resource),
+	.resource	= s3c_hsmmc3_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &s3c_hsmmc3_def_platdata,
+	},
+};
+
+void s3c_sdhci3_set_platdata(struct s3c_sdhci_platdata *pd)
+{
+	s3c_sdhci_set_platdata(pd, &s3c_hsmmc3_def_platdata);
+}
+#endif /* CONFIG_S3C_DEV_HSMMC3 */
+
+/* I2C */
+
+static struct resource s3c_i2c0_resource[] = {
+	[0] = {
+		.start	= S3C_PA_IIC,
+		.end	= S3C_PA_IIC + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_IIC,
+		.end	= IRQ_IIC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_i2c0 = {
+	.name		= "s3c2410-i2c",
+#ifdef CONFIG_S3C_DEV_I2C1
+	.id		= 0,
+#else
+	.id		= -1,
+#endif
+	.num_resources	= ARRAY_SIZE(s3c_i2c0_resource),
+	.resource	= s3c_i2c0_resource,
+};
+
+struct s3c2410_platform_i2c default_i2c_data __initdata = {
+	.flags		= 0,
+	.slave_addr	= 0x10,
+	.frequency	= 100*1000,
+	.sda_delay	= 100,
+};
+
+void __init s3c_i2c0_set_platdata(struct s3c2410_platform_i2c *pd)
+{
+	struct s3c2410_platform_i2c *npd;
+
+	if (!pd)
+		pd = &default_i2c_data;
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+			       &s3c_device_i2c0);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = s3c_i2c0_cfg_gpio;
+}
+
+#ifdef CONFIG_S3C_DEV_I2C1
+static struct resource s3c_i2c1_resource[] = {
+	[0] = {
+		.start	= S3C_PA_IIC1,
+		.end	= S3C_PA_IIC1 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_IIC1,
+		.end	= IRQ_IIC1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_i2c1 = {
+	.name		= "s3c2410-i2c",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(s3c_i2c1_resource),
+	.resource	= s3c_i2c1_resource,
+};
+
+void __init s3c_i2c1_set_platdata(struct s3c2410_platform_i2c *pd)
+{
+	struct s3c2410_platform_i2c *npd;
+
+	if (!pd) {
+		pd = &default_i2c_data;
+		pd->bus_num = 1;
+	}
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+			       &s3c_device_i2c1);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = s3c_i2c1_cfg_gpio;
+}
+#endif /* CONFIG_S3C_DEV_I2C1 */
+
+#ifdef CONFIG_S3C_DEV_I2C2
+static struct resource s3c_i2c2_resource[] = {
+	[0] = {
+		.start	= S3C_PA_IIC2,
+		.end	= S3C_PA_IIC2 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_IIC2,
+		.end	= IRQ_IIC2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_i2c2 = {
+	.name		= "s3c2410-i2c",
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(s3c_i2c2_resource),
+	.resource	= s3c_i2c2_resource,
+};
+
+void __init s3c_i2c2_set_platdata(struct s3c2410_platform_i2c *pd)
+{
+	struct s3c2410_platform_i2c *npd;
+
+	if (!pd) {
+		pd = &default_i2c_data;
+		pd->bus_num = 2;
+	}
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+			       &s3c_device_i2c2);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = s3c_i2c2_cfg_gpio;
+}
+#endif /* CONFIG_S3C_DEV_I2C2 */
+
+#ifdef CONFIG_S3C_DEV_I2C3
+static struct resource s3c_i2c3_resource[] = {
+	[0] = {
+		.start	= S3C_PA_IIC3,
+		.end	= S3C_PA_IIC3 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_IIC3,
+		.end	= IRQ_IIC3,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_i2c3 = {
+	.name		= "s3c2440-i2c",
+	.id		= 3,
+	.num_resources	= ARRAY_SIZE(s3c_i2c3_resource),
+	.resource	= s3c_i2c3_resource,
+};
+
+void __init s3c_i2c3_set_platdata(struct s3c2410_platform_i2c *pd)
+{
+	struct s3c2410_platform_i2c *npd;
+
+	if (!pd) {
+		pd = &default_i2c_data;
+		pd->bus_num = 3;
+	}
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+			       &s3c_device_i2c3);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = s3c_i2c3_cfg_gpio;
+}
+#endif /*CONFIG_S3C_DEV_I2C3 */
+
+#ifdef CONFIG_S3C_DEV_I2C4
+static struct resource s3c_i2c4_resource[] = {
+	[0] = {
+		.start	= S3C_PA_IIC4,
+		.end	= S3C_PA_IIC4 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_IIC4,
+		.end	= IRQ_IIC4,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_i2c4 = {
+	.name		= "s3c2440-i2c",
+	.id		= 4,
+	.num_resources	= ARRAY_SIZE(s3c_i2c4_resource),
+	.resource	= s3c_i2c4_resource,
+};
+
+void __init s3c_i2c4_set_platdata(struct s3c2410_platform_i2c *pd)
+{
+	struct s3c2410_platform_i2c *npd;
+
+	if (!pd) {
+		pd = &default_i2c_data;
+		pd->bus_num = 4;
+	}
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+			       &s3c_device_i2c4);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = s3c_i2c4_cfg_gpio;
+}
+#endif /*CONFIG_S3C_DEV_I2C4 */
+
+#ifdef CONFIG_S3C_DEV_I2C5
+static struct resource s3c_i2c5_resource[] = {
+	[0] = {
+		.start	= S3C_PA_IIC5,
+		.end	= S3C_PA_IIC5 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_IIC5,
+		.end	= IRQ_IIC5,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_i2c5 = {
+	.name		= "s3c2440-i2c",
+	.id		= 5,
+	.num_resources	= ARRAY_SIZE(s3c_i2c5_resource),
+	.resource	= s3c_i2c5_resource,
+};
+
+void __init s3c_i2c5_set_platdata(struct s3c2410_platform_i2c *pd)
+{
+	struct s3c2410_platform_i2c *npd;
+
+	if (!pd) {
+		pd = &default_i2c_data;
+		pd->bus_num = 5;
+	}
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+			       &s3c_device_i2c5);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = s3c_i2c5_cfg_gpio;
+}
+#endif /*CONFIG_S3C_DEV_I2C5 */
+
+#ifdef CONFIG_S3C_DEV_I2C6
+static struct resource s3c_i2c6_resource[] = {
+	[0] = {
+		.start	= S3C_PA_IIC6,
+		.end	= S3C_PA_IIC6 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_IIC6,
+		.end	= IRQ_IIC6,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_i2c6 = {
+	.name		= "s3c2440-i2c",
+	.id		= 6,
+	.num_resources	= ARRAY_SIZE(s3c_i2c6_resource),
+	.resource	= s3c_i2c6_resource,
+};
+
+void __init s3c_i2c6_set_platdata(struct s3c2410_platform_i2c *pd)
+{
+	struct s3c2410_platform_i2c *npd;
+
+	if (!pd) {
+		pd = &default_i2c_data;
+		pd->bus_num = 6;
+	}
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+			       &s3c_device_i2c6);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = s3c_i2c6_cfg_gpio;
+}
+#endif /* CONFIG_S3C_DEV_I2C6 */
+
+#ifdef CONFIG_S3C_DEV_I2C7
+static struct resource s3c_i2c7_resource[] = {
+	[0] = {
+		.start	= S3C_PA_IIC7,
+		.end	= S3C_PA_IIC7 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_IIC7,
+		.end	= IRQ_IIC7,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_i2c7 = {
+	.name		= "s3c2440-i2c",
+	.id		= 7,
+	.num_resources	= ARRAY_SIZE(s3c_i2c7_resource),
+	.resource	= s3c_i2c7_resource,
+};
+
+void __init s3c_i2c7_set_platdata(struct s3c2410_platform_i2c *pd)
+{
+	struct s3c2410_platform_i2c *npd;
+
+	if (!pd) {
+		pd = &default_i2c_data;
+		pd->bus_num = 7;
+	}
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
+			       &s3c_device_i2c7);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = s3c_i2c7_cfg_gpio;
+}
+#endif /* CONFIG_S3C_DEV_I2C7 */
+
 /* I2C HDMIPHY */
 
 #ifdef CONFIG_S5P_DEV_I2C_HDMIPHY
@@ -383,6 +974,70 @@ struct platform_device s3c2412_device_iis = {
 	}
 };
 #endif /* CONFIG_CPU_S3C2440 */
+
+/* IDE CFCON */
+
+#ifdef CONFIG_SAMSUNG_DEV_IDE
+static struct resource s3c_cfcon_resource[] = {
+	[0] = {
+		.start	= SAMSUNG_PA_CFCON,
+		.end	= SAMSUNG_PA_CFCON + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_CFCON,
+		.end	= IRQ_CFCON,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_cfcon = {
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c_cfcon_resource),
+	.resource	= s3c_cfcon_resource,
+};
+
+void s3c_ide_set_platdata(struct s3c_ide_platdata *pdata)
+{
+	s3c_set_platdata(pdata, sizeof(struct s3c_ide_platdata),
+			 &s3c_device_cfcon);
+}
+#endif /* CONFIG_SAMSUNG_DEV_IDE */
+
+/* KEYPAD */
+
+#ifdef CONFIG_SAMSUNG_DEV_KEYPAD
+static struct resource samsung_keypad_resources[] = {
+	[0] = {
+		.start	= SAMSUNG_PA_KEYPAD,
+		.end	= SAMSUNG_PA_KEYPAD + 0x20 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_KEYPAD,
+		.end	= IRQ_KEYPAD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device samsung_device_keypad = {
+	.name		= "samsung-keypad",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(samsung_keypad_resources),
+	.resource	= samsung_keypad_resources,
+};
+
+void __init samsung_keypad_set_platdata(struct samsung_keypad_platdata *pd)
+{
+	struct samsung_keypad_platdata *npd;
+
+	npd = s3c_set_platdata(pd, sizeof(struct samsung_keypad_platdata),
+			&samsung_device_keypad);
+
+	if (!npd->cfg_gpio)
+		npd->cfg_gpio = samsung_keypad_cfg_gpio;
+}
+#endif /* CONFIG_SAMSUNG_DEV_KEYPAD */
 
 /* LCD Controller */
 
@@ -526,6 +1181,144 @@ struct platform_device s5p_device_mipi_csis1 = {
 };
 #endif
 
+/* NAND */
+
+#ifdef CONFIG_S3C_DEV_NAND
+static struct resource s3c_nand_resource[] = {
+	[0] = {
+		.start	= S3C_PA_NAND,
+		.end	= S3C_PA_NAND + SZ_1M,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+struct platform_device s3c_device_nand = {
+	.name		= "s3c2410-nand",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_nand_resource),
+	.resource	= s3c_nand_resource,
+};
+
+/*
+ * s3c_nand_copy_set() - copy nand set data
+ * @set: The new structure, directly copied from the old.
+ *
+ * Copy all the fields from the NAND set field from what is probably __initdata
+ * to new kernel memory. The code returns 0 if the copy happened correctly or
+ * an error code for the calling function to display.
+ *
+ * Note, we currently do not try and look to see if we've already copied the
+ * data in a previous set.
+ */
+static int __init s3c_nand_copy_set(struct s3c2410_nand_set *set)
+{
+	void *ptr;
+	int size;
+
+	size = sizeof(struct mtd_partition) * set->nr_partitions;
+	if (size) {
+		ptr = kmemdup(set->partitions, size, GFP_KERNEL);
+		set->partitions = ptr;
+
+		if (!ptr)
+			return -ENOMEM;
+	}
+
+	if (set->nr_map && set->nr_chips) {
+		size = sizeof(int) * set->nr_chips;
+		ptr = kmemdup(set->nr_map, size, GFP_KERNEL);
+		set->nr_map = ptr;
+
+		if (!ptr)
+			return -ENOMEM;
+	}
+
+	if (set->ecc_layout) {
+		ptr = kmemdup(set->ecc_layout,
+			      sizeof(struct nand_ecclayout), GFP_KERNEL);
+		set->ecc_layout = ptr;
+
+		if (!ptr)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void __init s3c_nand_set_platdata(struct s3c2410_platform_nand *nand)
+{
+	struct s3c2410_platform_nand *npd;
+	int size;
+	int ret;
+
+	/* note, if we get a failure in allocation, we simply drop out of the
+	 * function. If there is so little memory available at initialisation
+	 * time then there is little chance the system is going to run.
+	 */
+
+	npd = s3c_set_platdata(nand, sizeof(struct s3c2410_platform_nand),
+				&s3c_device_nand);
+	if (!npd)
+		return;
+
+	/* now see if we need to copy any of the nand set data */
+
+	size = sizeof(struct s3c2410_nand_set) * npd->nr_sets;
+	if (size) {
+		struct s3c2410_nand_set *from = npd->sets;
+		struct s3c2410_nand_set *to;
+		int i;
+
+		to = kmemdup(from, size, GFP_KERNEL);
+		npd->sets = to;	/* set, even if we failed */
+
+		if (!to) {
+			printk(KERN_ERR "%s: no memory for sets\n", __func__);
+			return;
+		}
+
+		for (i = 0; i < npd->nr_sets; i++) {
+			ret = s3c_nand_copy_set(to);
+			if (ret) {
+				printk(KERN_ERR "%s: failed to copy set %d\n",
+				__func__, i);
+				return;
+			}
+			to++;
+		}
+	}
+}
+#endif /* CONFIG_S3C_DEV_NAND */
+
+/* ONENAND */
+
+#ifdef CONFIG_S3C_DEV_ONENAND
+static struct resource s3c_onenand_resources[] = {
+	[0] = {
+		.start	= S3C_PA_ONENAND,
+		.end	= S3C_PA_ONENAND + 0x400 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= S3C_PA_ONENAND_BUF,
+		.end	= S3C_PA_ONENAND_BUF + S3C_SZ_ONENAND_BUF - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= IRQ_ONENAND,
+		.end	= IRQ_ONENAND,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_onenand = {
+	.name		= "samsung-onenand",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c_onenand_resources),
+	.resource	= s3c_onenand_resources,
+};
+#endif /* CONFIG_S3C_DEV_ONENAND */
+
 #ifdef CONFIG_S3C64XX_DEV_ONENAND1
 static struct resource s3c64xx_onenand1_resources[] = {
 	[0] = {
@@ -610,6 +1403,41 @@ static int __init s5p_pmu_init(void)
 arch_initcall(s5p_pmu_init);
 #endif /* CONFIG_PLAT_S5P */
 
+/* PWM Timer */
+
+#ifdef CONFIG_SAMSUNG_DEV_PWM
+
+#define TIMER_RESOURCE_SIZE (1)
+
+#define TIMER_RESOURCE(_tmr, _irq)			\
+	(struct resource [TIMER_RESOURCE_SIZE]) {	\
+		[0] = {					\
+			.start	= _irq,			\
+			.end	= _irq,			\
+			.flags	= IORESOURCE_IRQ	\
+		}					\
+	}
+
+#define DEFINE_S3C_TIMER(_tmr_no, _irq)			\
+	.name		= "s3c24xx-pwm",		\
+	.id		= _tmr_no,			\
+	.num_resources	= TIMER_RESOURCE_SIZE,		\
+	.resource	= TIMER_RESOURCE(_tmr_no, _irq),	\
+
+/*
+ * since we already have an static mapping for the timer,
+ * we do not bother setting any IO resource for the base.
+ */
+
+struct platform_device s3c_device_timer[] = {
+	[0] = { DEFINE_S3C_TIMER(0, IRQ_TIMER0) },
+	[1] = { DEFINE_S3C_TIMER(1, IRQ_TIMER1) },
+	[2] = { DEFINE_S3C_TIMER(2, IRQ_TIMER2) },
+	[3] = { DEFINE_S3C_TIMER(3, IRQ_TIMER3) },
+	[4] = { DEFINE_S3C_TIMER(4, IRQ_TIMER4) },
+};
+#endif /* CONFIG_SAMSUNG_DEV_PWM */
+
 /* RTC */
 
 #ifdef CONFIG_PLAT_S3C24XX
@@ -638,6 +1466,33 @@ struct platform_device s3c_device_rtc = {
 	.resource	= s3c_rtc_resource,
 };
 #endif /* CONFIG_PLAT_S3C24XX */
+
+#ifdef CONFIG_S3C_DEV_RTC
+static struct resource s3c_rtc_resource[] = {
+	[0] = {
+		.start	= S3C_PA_RTC,
+		.end	= S3C_PA_RTC + 0xff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_RTC_ALARM,
+		.end	= IRQ_RTC_ALARM,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= IRQ_RTC_TIC,
+		.end	= IRQ_RTC_TIC,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
+struct platform_device s3c_device_rtc = {
+	.name		= "s3c64xx-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_rtc_resource),
+	.resource	= s3c_rtc_resource,
+};
+#endif /* CONFIG_S3C_DEV_RTC */
 
 /* SDI */
 
@@ -753,6 +1608,43 @@ void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *hard_s3c2410ts_
 }
 #endif /* CONFIG_PLAT_S3C24XX */
 
+#ifdef CONFIG_SAMSUNG_DEV_TS
+static struct resource s3c_ts_resource[] = {
+	[0] = {
+		.start	= SAMSUNG_PA_ADC,
+		.end	= SAMSUNG_PA_ADC + SZ_256 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_TC,
+		.end	= IRQ_TC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct s3c2410_ts_mach_info default_ts_data __initdata = {
+	.delay			= 10000,
+	.presc			= 49,
+	.oversampling_shift	= 2,
+};
+
+struct platform_device s3c_device_ts = {
+	.name		= "s3c64xx-ts",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_ts_resource),
+	.resource	= s3c_ts_resource,
+};
+
+void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *pd)
+{
+	if (!pd)
+		pd = &default_ts_data;
+
+	s3c_set_platdata(pd, sizeof(struct s3c2410_ts_mach_info),
+			 &s3c_device_ts);
+}
+#endif /* CONFIG_SAMSUNG_DEV_TS */
+
 /* TV */
 
 #ifdef CONFIG_S5P_DEV_TV
@@ -830,6 +1722,49 @@ struct platform_device s5p_device_mixer = {
 };
 #endif /* CONFIG_S5P_DEV_TV */
 
+/* USB */
+
+#ifdef CONFIG_S3C_DEV_USB_HOST
+static struct resource s3c_usb_resource[] = {
+	[0] = {
+		.start	= S3C_PA_USBHOST,
+		.end	= S3C_PA_USBHOST + 0x100 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_USBH,
+		.end	= IRQ_USBH,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+struct platform_device s3c_device_ohci = {
+	.name		= "s3c2410-ohci",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_usb_resource),
+	.resource	= s3c_usb_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	}
+};
+
+/*
+ * s3c_ohci_set_platdata - initialise OHCI device platform data
+ * @info: The platform data.
+ *
+ * This call copies the @info passed in and sets the device .platform_data
+ * field to that copy. The @info is copied so that the original can be marked
+ * __initdata.
+ */
+
+void __init s3c_ohci_set_platdata(struct s3c2410_hcd_info *info)
+{
+	s3c_set_platdata(info, sizeof(struct s3c2410_hcd_info),
+			 &s3c_device_ohci);
+}
+#endif /* CONFIG_S3C_DEV_USB_HOST */
+
 /* USB Device (Gadget) */
 
 #ifdef CONFIG_PLAT_S3C24XX
@@ -900,6 +1835,34 @@ void __init s5p_ehci_set_platdata(struct s5p_ehci_platdata *pd)
 }
 #endif /* CONFIG_S5P_DEV_USB_EHCI */
 
+/* USB HSOTG */
+
+#ifdef CONFIG_S3C_DEV_USB_HSOTG
+static struct resource s3c_usb_hsotg_resources[] = {
+	[0] = {
+		.start	= S3C_PA_USB_HSOTG,
+		.end	= S3C_PA_USB_HSOTG + 0x10000 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_OTG,
+		.end	= IRQ_OTG,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s3c_device_usb_hsotg = {
+	.name		= "s3c-hsotg",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_usb_hsotg_resources),
+	.resource	= s3c_usb_hsotg_resources,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+#endif /* CONFIG_S3C_DEV_USB_HSOTG */
+
 /* USB High Spped 2.0 Device (Gadget) */
 
 #ifdef CONFIG_PLAT_S3C24XX
@@ -932,3 +1895,27 @@ void __init s3c24xx_hsudc_set_platdata(struct s3c24xx_hsudc_platdata *pd)
 	s3c_set_platdata(pd, sizeof(*pd), &s3c_device_usb_hsudc);
 }
 #endif /* CONFIG_PLAT_S3C24XX */
+
+/* WDT */
+
+#ifdef CONFIG_S3C_DEV_WDT
+static struct resource s3c_wdt_resource[] = {
+	[0] = {
+		.start	= S3C_PA_WDT,
+		.end	= S3C_PA_WDT + SZ_1K,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_WDT,
+		.end	= IRQ_WDT,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+struct platform_device s3c_device_wdt = {
+	.name		= "s3c2410-wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s3c_wdt_resource),
+	.resource	= s3c_wdt_resource,
+};
+#endif /* CONFIG_S3C_DEV_WDT */
