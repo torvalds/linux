@@ -158,14 +158,14 @@ static int radeon_dp_aux_native_read(struct radeon_connector *radeon_connector,
 	while (1) {
 		ret = radeon_process_aux_ch(dig_connector->dp_i2c_bus,
 					    msg, msg_bytes, recv, recv_bytes, delay, &ack);
-		if (ret == 0)
-			return -EPROTO;
 		if (ret < 0)
 			return ret;
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
 			return ret;
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
 			udelay(400);
+		else if (ret == 0)
+			return -EPROTO;
 		else
 			return -EIO;
 	}
