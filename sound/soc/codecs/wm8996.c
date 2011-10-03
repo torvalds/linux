@@ -2706,7 +2706,6 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 	init_completion(&wm8996->fll_lock);
 
 	dapm->idle_bias_off = true;
-	dapm->bias_level = SND_SOC_BIAS_OFF;
 
 	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_I2C);
 	if (ret != 0) {

@@ -2285,8 +2285,6 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 
 	wm5100->codec = codec;
 
-	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
-
 	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
