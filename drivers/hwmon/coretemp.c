@@ -377,9 +377,9 @@ exit_free:
 }
 
 
-static int __devinit chk_ucode_version(struct platform_device *pdev)
+static int __cpuinit chk_ucode_version(unsigned int cpu)
 {
-	struct cpuinfo_x86 *c = &cpu_data(pdev->id);
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	int err;
 	u32 edx;
 
@@ -390,17 +390,15 @@ static int __devinit chk_ucode_version(struct platform_device *pdev)
 	 */
 	if (c->x86_model == 0xe && c->x86_mask < 0xc) {
 		/* check for microcode update */
-		err = smp_call_function_single(pdev->id, get_ucode_rev_on_cpu,
+		err = smp_call_function_single(cpu, get_ucode_rev_on_cpu,
 					       &edx, 1);
 		if (err) {
-			dev_err(&pdev->dev,
-				"Cannot determine microcode revision of "
-				"CPU#%u (%d)!\n", pdev->id, err);
+			pr_err("Cannot determine microcode revision of "
+			       "CPU#%u (%d)!\n", cpu, err);
 			return -ENODEV;
 		} else if (edx < 0x39) {
-			dev_err(&pdev->dev,
-				"Errata AE18 not fixed, update BIOS or "
-				"microcode of the CPU!\n");
+			pr_err("Errata AE18 not fixed, update BIOS or "
+			       "microcode of the CPU!\n");
 			return -ENODEV;
 		}
 	}
@@ -508,6 +506,7 @@ static int create_core_data(struct platform_device *pdev,
 
 	return 0;
 exit_free:
+	pdata->core_data[attr_no] = NULL;
 	kfree(tdata);
 	return err;
 }
@@ -543,11 +542,6 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 {
 	struct platform_data *pdata;
 	int err;
-
-	/* Check the microcode version of the CPU */
-	err = chk_ucode_version(pdev);
-	if (err)
-		return err;
 
 	/* Initialize the per-package data structures */
 	pdata = kzalloc(sizeof(struct platform_data), GFP_KERNEL);
@@ -630,7 +624,7 @@ static int __cpuinit coretemp_device_add(unsigned int cpu)
 	}
 
 	pdev_entry->pdev = pdev;
-	pdev_entry->phys_proc_id = TO_PHYS_ID(cpu);
+	pdev_entry->phys_proc_id = pdev->id;
 
 	list_add_tail(&pdev_entry->list, &pdev_list);
 	mutex_unlock(&pdev_list_mutex);
@@ -691,6 +685,10 @@ static void __cpuinit get_core_online(unsigned int cpu)
 		return;
 
 	if (!pdev) {
+		/* Check the microcode version of the CPU */
+		if (chk_ucode_version(cpu))
+			return;
+
 		/*
 		 * Alright, we have DTS support.
 		 * We are bringing the _first_ core in this pkg
