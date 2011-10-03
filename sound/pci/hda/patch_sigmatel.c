@@ -4130,22 +4130,14 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	int connectivity = get_defcfg_connect(def_conf);
-	char name[32];
-	int err;
 
 	if (connectivity && connectivity != AC_JACK_PORT_FIXED)
 		return 0;
 
-	snprintf(name, sizeof(name), "%s at %s %s Jack",
-		snd_hda_get_jack_type(def_conf),
-		snd_hda_get_jack_connectivity(def_conf),
-		snd_hda_get_jack_location(def_conf));
-
-	err = snd_hda_input_jack_add(codec, nid, type, name);
-	if (err < 0)
-		return err;
-#endif /* CONFIG_SND_HDA_INPUT_JACK */
+	return snd_hda_input_jack_add(codec, nid, type, NULL);
+#else
 	return 0;
+#endif /* CONFIG_SND_HDA_INPUT_JACK */
 }
 
 static int stac_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
