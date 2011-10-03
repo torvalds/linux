@@ -1687,10 +1687,14 @@ static int ath6kl_htc_rx_fetch(struct htc_target *target,
 	int fetched_pkts;
 	bool part_bundle = false;
 	int status = 0;
+	struct list_head tmp_rxq;
+	struct htc_packet *packet, *tmp_pkt;
 
 	/* now go fetch the list of HTC packets */
 	while (!list_empty(rx_pktq)) {
 		fetched_pkts = 0;
+
+		INIT_LIST_HEAD(&tmp_rxq);
 
 		if (target->rx_bndl_enable && (get_queue_depth(rx_pktq) > 1)) {
 			/*
@@ -1699,18 +1703,19 @@ static int ath6kl_htc_rx_fetch(struct htc_target *target,
 			 * allowed.
 			 */
 			status = ath6kl_htc_rx_bundle(target, rx_pktq,
-						      comp_pktq,
+						      &tmp_rxq,
 						      &fetched_pkts,
 						      part_bundle);
 			if (status)
-				return status;
+				goto fail_rx;
 
 			if (!list_empty(rx_pktq))
 				part_bundle = true;
+
+			list_splice_tail_init(&tmp_rxq, comp_pktq);
 		}
 
 		if (!fetched_pkts) {
-			struct htc_packet *packet;
 
 			packet = list_first_entry(rx_pktq, struct htc_packet,
 						   list);
@@ -1730,11 +1735,35 @@ static int ath6kl_htc_rx_fetch(struct htc_target *target,
 			/* go fetch the packet */
 			status = ath6kl_htc_rx_packet(target, packet,
 						      packet->act_len);
-			if (status)
-				return status;
 
-			list_move_tail(&packet->list, comp_pktq);
+			list_move_tail(&packet->list, &tmp_rxq);
+
+			if (status)
+				goto fail_rx;
+
+			list_splice_tail_init(&tmp_rxq, comp_pktq);
 		}
+	}
+
+	return 0;
+
+fail_rx:
+
+	/*
+	 * Cleanup any packets we allocated but didn't use to
+	 * actually fetch any packets.
+	 */
+
+	list_for_each_entry_safe(packet, tmp_pkt, rx_pktq, list) {
+		list_del(&packet->list);
+		htc_reclaim_rxbuf(target, packet,
+				&target->endpoint[packet->endpoint]);
+	}
+
+	list_for_each_entry_safe(packet, tmp_pkt, &tmp_rxq, list) {
+		list_del(&packet->list);
+		htc_reclaim_rxbuf(target, packet,
+				&target->endpoint[packet->endpoint]);
 	}
 
 	return status;
@@ -1826,15 +1855,6 @@ int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
 	if (status) {
 		ath6kl_err("failed to get pending recv messages: %d\n",
 			   status);
-		/*
-		 * Cleanup any packets we allocated but didn't use to
-		 * actually fetch any packets.
-		 */
-		list_for_each_entry_safe(packets, tmp_pkt, &rx_pktq, list) {
-			list_del(&packets->list);
-			htc_reclaim_rxbuf(target, packets,
-					&target->endpoint[packets->endpoint]);
-		}
 
 		/* cleanup any packets in sync completion queue */
 		list_for_each_entry_safe(packets, tmp_pkt, &comp_pktq, list) {
