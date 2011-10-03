@@ -46,6 +46,9 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 	struct pci_dev *pci_dev = context;
 
 	if (event == ACPI_NOTIFY_DEVICE_WAKE && pci_dev) {
+		if (pci_dev->pme_poll)
+			pci_dev->pme_poll = false;
+
 		pci_wakeup_event(pci_dev);
 		pci_check_pme_status(pci_dev);
 		pm_runtime_resume(&pci_dev->dev);
