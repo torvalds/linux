@@ -1215,6 +1215,21 @@ static void dapm_post_sequence_async(void *data, async_cookie_t cookie)
 	}
 }
 
+static void dapm_widget_set_peer_power(struct snd_soc_dapm_widget *peer,
+				       bool power, bool connect)
+{
+	/* If a connection is being made or broken then that update
+	 * will have marked the peer dirty, otherwise the widgets are
+	 * not connected and this update has no impact. */
+	if (!connect)
+		return;
+
+	/* If the peer is already in the state we're moving to then we
+	 * won't have an impact on it. */
+	if (power != peer->power)
+		dapm_mark_dirty(peer);
+}
+
 static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 				  struct list_head *up_list,
 				  struct list_head *down_list)
@@ -1227,19 +1242,18 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 	trace_snd_soc_dapm_widget_power(w, power);
 
 	/* If we changed our power state perhaps our neigbours changed
-	 * also.  We're not yet smart enough to update relevant
-	 * neighbours when we change the state of a widget, this acts
-	 * as a proxy for that.  It will notify more neighbours than
-	 * is ideal.
+	 * also.
 	 */
 	list_for_each_entry(path, &w->sources, list_sink) {
 		if (path->source) {
-			dapm_mark_dirty(path->source);
+			dapm_widget_set_peer_power(path->source, power,
+						   path->connect);
 		}
 	}
 	list_for_each_entry(path, &w->sinks, list_source) {
 		if (path->sink) {
-			dapm_mark_dirty(path->sink);
+			dapm_widget_set_peer_power(path->sink, power,
+						   path->connect);
 		}
 	}
 
