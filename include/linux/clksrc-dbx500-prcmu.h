@@ -11,12 +11,10 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-extern void __iomem *clksrc_dbx500_timer_base;
-
 #ifdef CONFIG_CLKSRC_DBX500_PRCMU
-void __init clksrc_dbx500_prcmu_init(void);
+void __init clksrc_dbx500_prcmu_init(void __iomem *base);
 #else
-void __init clksrc_dbx500_prcmu_init(void) {}
+static inline void __init clksrc_dbx500_prcmu_init(void __iomem *base) {}
 #endif
 
 #endif
