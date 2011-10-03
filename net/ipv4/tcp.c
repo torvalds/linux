@@ -2455,8 +2455,10 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 		info->tcpi_rcv_wscale = tp->rx_opt.rcv_wscale;
 	}
 
-	if (tp->ecn_flags&TCP_ECN_OK)
+	if (tp->ecn_flags & TCP_ECN_OK)
 		info->tcpi_options |= TCPI_OPT_ECN;
+	if (tp->ecn_flags & TCP_ECN_SEEN)
+		info->tcpi_options |= TCPI_OPT_ECN_SEEN;
 
 	info->tcpi_rto = jiffies_to_usecs(icsk->icsk_rto);
 	info->tcpi_ato = jiffies_to_usecs(icsk->icsk_ack.ato);

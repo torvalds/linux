@@ -111,7 +111,8 @@ enum {
 #define TCPI_OPT_TIMESTAMPS	1
 #define TCPI_OPT_SACK		2
 #define TCPI_OPT_WSCALE		4
-#define TCPI_OPT_ECN		8
+#define TCPI_OPT_ECN		8 /* ECN was negociated at TCP session init */
+#define TCPI_OPT_ECN_SEEN	16 /* we received at least one packet with ECT */
 
 enum tcp_ca_state {
 	TCP_CA_Open = 0,
