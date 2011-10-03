@@ -787,12 +787,15 @@ int p2m_dump_show(struct seq_file *m, void *v)
 {
 	static const char * const level_name[] = { "top", "middle",
 						"entry", "abnormal", "error"};
-	static const char * const type_name[] = { "identity", "missing",
-						"pfn", "abnormal"};
 #define TYPE_IDENTITY 0
 #define TYPE_MISSING 1
 #define TYPE_PFN 2
 #define TYPE_UNKNOWN 3
+	static const char * const type_name[] = {
+				[TYPE_IDENTITY] = "identity",
+				[TYPE_MISSING] = "missing",
+				[TYPE_PFN] = "pfn",
+				[TYPE_UNKNOWN] = "abnormal"};
 	unsigned long pfn, prev_pfn_type = 0, prev_pfn_level = 0;
 	unsigned int uninitialized_var(prev_level);
 	unsigned int uninitialized_var(prev_type);
