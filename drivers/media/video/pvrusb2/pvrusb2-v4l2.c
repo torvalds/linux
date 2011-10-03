@@ -227,6 +227,13 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		break;
 	}
 
+	case VIDIOC_QUERYSTD:
+	{
+		v4l2_std_id *std = arg;
+		ret = pvr2_hdw_get_detected_std(hdw, std);
+		break;
+	}
+
 	case VIDIOC_G_STD:
 	{
 		int val = 0;
