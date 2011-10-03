@@ -18,6 +18,7 @@
 
 #include <linux/circ_buf.h>
 #include <linux/fs.h>
+#include <linux/vmalloc.h>
 
 #include "debug.h"
 #include "target.h"
