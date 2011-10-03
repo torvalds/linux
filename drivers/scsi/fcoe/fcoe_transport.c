@@ -83,6 +83,35 @@ static struct notifier_block libfcoe_notifier = {
 	.notifier_call = libfcoe_device_notification,
 };
 
+void __fcoe_get_lesb(struct fc_lport *lport,
+		     struct fc_els_lesb *fc_lesb,
+		     struct net_device *netdev)
+{
+	unsigned int cpu;
+	u32 lfc, vlfc, mdac;
+	struct fcoe_dev_stats *devst;
+	struct fcoe_fc_els_lesb *lesb;
+	struct rtnl_link_stats64 temp;
+
+	lfc = 0;
+	vlfc = 0;
+	mdac = 0;
+	lesb = (struct fcoe_fc_els_lesb *)fc_lesb;
+	memset(lesb, 0, sizeof(*lesb));
+	for_each_possible_cpu(cpu) {
+		devst = per_cpu_ptr(lport->dev_stats, cpu);
+		lfc += devst->LinkFailureCount;
+		vlfc += devst->VLinkFailureCount;
+		mdac += devst->MissDiscAdvCount;
+	}
+	lesb->lesb_link_fail = htonl(lfc);
+	lesb->lesb_vlink_fail = htonl(vlfc);
+	lesb->lesb_miss_fka = htonl(mdac);
+	lesb->lesb_fcs_error =
+			htonl(dev_get_stats(netdev, &temp)->rx_crc_errors);
+}
+EXPORT_SYMBOL_GPL(__fcoe_get_lesb);
+
 void fcoe_wwn_to_str(u64 wwn, char *buf, int len)
 {
 	u8 wwpn[8];

@@ -2541,28 +2541,9 @@ static void fcoe_set_vport_symbolic_name(struct fc_vport *vport)
 static void fcoe_get_lesb(struct fc_lport *lport,
 			 struct fc_els_lesb *fc_lesb)
 {
-	unsigned int cpu;
-	u32 lfc, vlfc, mdac;
-	struct fcoe_dev_stats *devst;
-	struct fcoe_fc_els_lesb *lesb;
-	struct rtnl_link_stats64 temp;
 	struct net_device *netdev = fcoe_netdev(lport);
 
-	lfc = 0;
-	vlfc = 0;
-	mdac = 0;
-	lesb = (struct fcoe_fc_els_lesb *)fc_lesb;
-	memset(lesb, 0, sizeof(*lesb));
-	for_each_possible_cpu(cpu) {
-		devst = per_cpu_ptr(lport->dev_stats, cpu);
-		lfc += devst->LinkFailureCount;
-		vlfc += devst->VLinkFailureCount;
-		mdac += devst->MissDiscAdvCount;
-	}
-	lesb->lesb_link_fail = htonl(lfc);
-	lesb->lesb_vlink_fail = htonl(vlfc);
-	lesb->lesb_miss_fka = htonl(mdac);
-	lesb->lesb_fcs_error = htonl(dev_get_stats(netdev, &temp)->rx_crc_errors);
+	__fcoe_get_lesb(lport, fc_lesb, netdev);
 }
 
 /**
