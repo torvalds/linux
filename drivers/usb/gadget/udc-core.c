@@ -378,7 +378,7 @@ static ssize_t usb_udc_speed_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			usb_speed_string(udc->gadget->speed));
 }
-static DEVICE_ATTR(speed, S_IRUSR, usb_udc_speed_show, NULL);
+static DEVICE_ATTR(speed, S_IRUGO, usb_udc_speed_show, NULL);
 
 #define USB_UDC_ATTR(name)					\
 ssize_t usb_udc_##name##_show(struct device *dev,		\
@@ -389,7 +389,7 @@ ssize_t usb_udc_##name##_show(struct device *dev,		\
 								\
 	return snprintf(buf, PAGE_SIZE, "%d\n", gadget->name);	\
 }								\
-static DEVICE_ATTR(name, S_IRUSR, usb_udc_##name##_show, NULL)
+static DEVICE_ATTR(name, S_IRUGO, usb_udc_##name##_show, NULL)
 
 static USB_UDC_ATTR(is_dualspeed);
 static USB_UDC_ATTR(is_otg);
