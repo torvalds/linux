@@ -81,6 +81,14 @@ choice
 	prompt "Kernel low-level debugging port"
 	depends on DEBUG_LL
 
+	config DEBUG_LL_UART_NONE
+		bool "No low-level debugging UART"
+		help
+		  Say Y here if your platform doesn't provide a UART option
+		  below. This relies on your platform choosing the right UART
+		  definition internally in order for low-level debugging to
+		  work.
+
 	config DEBUG_ICEDCC
 		bool "Kernel low-level debugging via EmbeddedICE DCC channel"
 		help
@@ -89,8 +97,8 @@ choice
 		  co-processor 14. This is known to work on the ARM9 style ICE
 		  channel and on the XScale with the PEEDI.
 
-		  It does include a timeout to ensure that the system does not
-		  totally freeze when there is nothing connected to read.
+		  Note that the system will appear to hang during boot if there
+		  is nothing connected to read from the DCC.
 
 	config DEBUG_FOOTBRIDGE_COM1
 		bool "Kernel low-level debugging messages via footbridge 8250 at PCI COM1"
