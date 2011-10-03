@@ -481,7 +481,8 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	 * we likely hold important locks.
 	 */
 	if (trans && (!trans->transaction->in_commit) &&
-	    (root && root != root->fs_info->tree_root)) {
+	    (root && root != root->fs_info->tree_root) &&
+	    btrfs_test_opt(root, SPACE_CACHE)) {
 		spin_lock(&cache->lock);
 		if (cache->cached != BTRFS_CACHE_NO) {
 			spin_unlock(&cache->lock);
@@ -4223,7 +4224,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 		spin_lock(&cache->space_info->lock);
 		spin_lock(&cache->lock);
 
-		if (btrfs_super_cache_generation(&info->super_copy) != 0 &&
+		if (btrfs_test_opt(root, SPACE_CACHE) &&
 		    cache->disk_cache_state < BTRFS_DC_CLEAR)
 			cache->disk_cache_state = BTRFS_DC_CLEAR;
 
@@ -7038,13 +7039,11 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	path->reada = 1;
 
 	cache_gen = btrfs_super_cache_generation(&root->fs_info->super_copy);
-	if (cache_gen != 0 &&
+	if (btrfs_test_opt(root, SPACE_CACHE) &&
 	    btrfs_super_generation(&root->fs_info->super_copy) != cache_gen)
 		need_clear = 1;
 	if (btrfs_test_opt(root, CLEAR_CACHE))
 		need_clear = 1;
-	if (!btrfs_test_opt(root, SPACE_CACHE) && cache_gen)
-		printk(KERN_INFO "btrfs: disk space caching is enabled\n");
 
 	while (1) {
 		ret = find_first_block_group(root, path, &key);

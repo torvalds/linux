@@ -1003,7 +1003,7 @@ static void update_super_roots(struct btrfs_root *root)
 	super->root = root_item->bytenr;
 	super->generation = root_item->generation;
 	super->root_level = root_item->level;
-	if (super->cache_generation != 0 || btrfs_test_opt(root, SPACE_CACHE))
+	if (btrfs_test_opt(root, SPACE_CACHE))
 		super->cache_generation = root_item->generation;
 }
 

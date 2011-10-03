@@ -164,7 +164,7 @@ enum {
 	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_discard,
 	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed,
 	Opt_enospc_debug, Opt_subvolrootid, Opt_defrag,
-	Opt_inode_cache, Opt_err,
+	Opt_inode_cache, Opt_no_space_cache, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -197,6 +197,7 @@ static match_table_t tokens = {
 	{Opt_subvolrootid, "subvolrootid=%d"},
 	{Opt_defrag, "autodefrag"},
 	{Opt_inode_cache, "inode_cache"},
+	{Opt_no_space_cache, "no_space_cache"},
 	{Opt_err, NULL},
 };
 
@@ -208,14 +209,19 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 {
 	struct btrfs_fs_info *info = root->fs_info;
 	substring_t args[MAX_OPT_ARGS];
-	char *p, *num, *orig;
+	char *p, *num, *orig = NULL;
+	u64 cache_gen;
 	int intarg;
 	int ret = 0;
 	char *compress_type;
 	bool compress_force = false;
 
+	cache_gen = btrfs_super_cache_generation(&root->fs_info->super_copy);
+	if (cache_gen)
+		btrfs_set_opt(info->mount_opt, SPACE_CACHE);
+
 	if (!options)
-		return 0;
+		goto out;
 
 	/*
 	 * strsep changes the string, duplicate it because parse_options
@@ -362,8 +368,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_set_opt(info->mount_opt, DISCARD);
 			break;
 		case Opt_space_cache:
-			printk(KERN_INFO "btrfs: enabling disk space caching\n");
 			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
+			break;
+		case Opt_no_space_cache:
+			printk(KERN_INFO "btrfs: disabling disk space caching\n");
+			btrfs_clear_opt(info->mount_opt, SPACE_CACHE);
 			break;
 		case Opt_inode_cache:
 			printk(KERN_INFO "btrfs: enabling inode map caching\n");
@@ -393,6 +402,8 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		}
 	}
 out:
+	if (!ret && btrfs_test_opt(root, SPACE_CACHE))
+		printk(KERN_INFO "btrfs: disk space caching is enabled\n");
 	kfree(orig);
 	return ret;
 }
@@ -687,6 +698,8 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",noacl");
 	if (btrfs_test_opt(root, SPACE_CACHE))
 		seq_puts(seq, ",space_cache");
+	else
+		seq_puts(seq, ",no_space_cache");
 	if (btrfs_test_opt(root, CLEAR_CACHE))
 		seq_puts(seq, ",clear_cache");
 	if (btrfs_test_opt(root, USER_SUBVOL_RM_ALLOWED))
