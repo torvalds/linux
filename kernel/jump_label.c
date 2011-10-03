@@ -104,6 +104,18 @@ static int __jump_label_text_reserved(struct jump_entry *iter_start,
 	return 0;
 }
 
+/* 
+ * Update code which is definitely not currently executing.
+ * Architectures which need heavyweight synchronization to modify
+ * running code can override this to make the non-live update case
+ * cheaper.
+ */
+void __weak arch_jump_label_transform_static(struct jump_entry *entry,
+					    enum jump_label_type type)
+{
+	arch_jump_label_transform(entry, type);	
+}
+
 static void __jump_label_update(struct jump_label_key *key,
 				struct jump_entry *entry,
 				struct jump_entry *stop, int enable)
@@ -135,8 +147,8 @@ static __init int jump_label_init(void)
 		struct jump_label_key *iterk;
 
 		iterk = (struct jump_label_key *)(unsigned long)iter->key;
-		arch_jump_label_transform(iter, jump_label_enabled(iterk) ?
-					  JUMP_LABEL_ENABLE : JUMP_LABEL_DISABLE);
+		arch_jump_label_transform_static(iter, jump_label_enabled(iterk) ?
+						 JUMP_LABEL_ENABLE : JUMP_LABEL_DISABLE);
 		if (iterk == key)
 			continue;
 
@@ -208,7 +220,7 @@ void jump_label_apply_nops(struct module *mod)
 		return;
 
 	for (iter = iter_start; iter < iter_stop; iter++)
-		arch_jump_label_transform(iter, JUMP_LABEL_DISABLE);
+		arch_jump_label_transform_static(iter, JUMP_LABEL_DISABLE);
 }
 
 static int jump_label_add_module(struct module *mod)
