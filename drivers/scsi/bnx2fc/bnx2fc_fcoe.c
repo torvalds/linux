@@ -870,6 +870,8 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event,
 			 * enable to avoid sending discovery solicitation
 			 * on a stale vlan
 			 */
+			if (interface->enabled)
+				fcoe_ctlr_link_up(&interface->ctlr);
 		} else if (fcoe_ctlr_link_down(&interface->ctlr)) {
 			mutex_lock(&lport->lp_mutex);
 			list_for_each_entry(vport, &lport->vports, list)
