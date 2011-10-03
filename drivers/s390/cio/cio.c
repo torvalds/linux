@@ -654,8 +654,8 @@ static struct io_subchannel_private console_priv;
 static int console_subchannel_in_use;
 
 /*
- * Use tpi to get a pending interrupt, call the interrupt handler and
- * return a pointer to the subchannel structure.
+ * Use cio_tpi to get a pending interrupt and call the interrupt handler.
+ * Return non-zero if an interrupt was processed, zero otherwise.
  */
 static int cio_tpi(void)
 {
@@ -667,6 +667,10 @@ static int cio_tpi(void)
 	tpi_info = (struct tpi_info *)&S390_lowcore.subchannel_id;
 	if (tpi(NULL) != 1)
 		return 0;
+	if (tpi_info->adapter_IO) {
+		do_adapter_IO(tpi_info->isc);
+		return 1;
+	}
 	irb = (struct irb *)&S390_lowcore.irb;
 	/* Store interrupt response block to lowcore. */
 	if (tsch(tpi_info->schid, irb) != 0)

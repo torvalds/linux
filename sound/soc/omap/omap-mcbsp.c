@@ -516,6 +516,12 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp_data->regs;
 	int err = 0;
 
+	if (mcbsp_data->active)
+		if (freq == mcbsp_data->in_freq)
+			return 0;
+		else
+			return -EBUSY;
+
 	/* The McBSP signal muxing functions are only available on McBSP1 */
 	if (clk_id == OMAP_MCBSP_CLKR_SRC_CLKR ||
 	    clk_id == OMAP_MCBSP_CLKR_SRC_CLKX ||
