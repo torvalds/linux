@@ -76,8 +76,6 @@ static int irq;
 static void __iomem *virtbase;
 static unsigned long coh901327_users;
 static unsigned long boot_status;
-static u16 wdogenablestore;
-static u16 irqmaskstore;
 static struct device *parent;
 
 /*
@@ -461,6 +459,10 @@ out:
 }
 
 #ifdef CONFIG_PM
+
+static u16 wdogenablestore;
+static u16 irqmaskstore;
+
 static int coh901327_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	irqmaskstore = readw(virtbase + U300_WDOG_IMR) & 0x0001U;
