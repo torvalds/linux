@@ -61,5 +61,3 @@ obj-$(CONFIG_MACH_WLF_CRAGG_6410) += mach-crag6410.o mach-crag6410-module.o
 obj-y				+= dev-uart.o
 obj-y				+= dev-audio.o
 obj-$(CONFIG_S3C64XX_DEV_SPI)	+= dev-spi.o
-obj-$(CONFIG_S3C64XX_DEV_TS)	+= dev-ts.o
-obj-$(CONFIG_S3C64XX_DEV_ONENAND1)	+= dev-onenand1.o
