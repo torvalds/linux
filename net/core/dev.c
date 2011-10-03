@@ -2670,10 +2670,7 @@ static struct rps_dev_flow *
 set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	    struct rps_dev_flow *rflow, u16 next_cpu)
 {
-	u16 tcpu;
-
-	tcpu = rflow->cpu = next_cpu;
-	if (tcpu != RPS_NO_CPU) {
+	if (next_cpu != RPS_NO_CPU) {
 #ifdef CONFIG_RFS_ACCEL
 		struct netdev_rx_queue *rxqueue;
 		struct rps_dev_flow_table *flow_table;
@@ -2701,16 +2698,16 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 			goto out;
 		old_rflow = rflow;
 		rflow = &flow_table->flows[flow_id];
-		rflow->cpu = next_cpu;
 		rflow->filter = rc;
 		if (old_rflow->filter == rflow->filter)
 			old_rflow->filter = RPS_NO_FILTER;
 	out:
 #endif
 		rflow->last_qtail =
-			per_cpu(softnet_data, tcpu).input_queue_head;
+			per_cpu(softnet_data, next_cpu).input_queue_head;
 	}
 
+	rflow->cpu = next_cpu;
 	return rflow;
 }
 
