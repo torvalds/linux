@@ -462,7 +462,7 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 			    WM8741_UPDATELM, WM8741_UPDATELM);
 	snd_soc_update_bits(codec, WM8741_DACRLSB_ATTENUATION,
 			    WM8741_UPDATERL, WM8741_UPDATERL);
-	snd_soc_update_bits(codec, WM8741_DACRLSB_ATTENUATION,
+	snd_soc_update_bits(codec, WM8741_DACRMSB_ATTENUATION,
 			    WM8741_UPDATERM, WM8741_UPDATERM);
 
 	snd_soc_add_controls(codec, wm8741_snd_controls,
