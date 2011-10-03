@@ -158,6 +158,7 @@ struct lbs_private {
 	/* protected by hard_start_xmit serialization */
 	u8 txretrycount;
 	struct sk_buff *currenttxskb;
+	struct timer_list tx_lockup_timer;
 
 	/* Locks */
 	struct mutex lock;
