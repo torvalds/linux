@@ -826,6 +826,7 @@ struct snd_soc_card {
 	struct list_head widgets;
 	struct list_head paths;
 	struct list_head dapm_list;
+	struct list_head dapm_dirty;
 
 	/* Generic DAPM context for the card */
 	struct snd_soc_dapm_context dapm;
