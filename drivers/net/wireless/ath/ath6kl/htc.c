@@ -1643,7 +1643,6 @@ static int ath6kl_htc_rx_process_packets(struct htc_target *target,
 	int status = 0;
 
 	list_for_each_entry_safe(packet, tmp_pkt, comp_pktq, list) {
-		list_del(&packet->list);
 		ep = &target->endpoint[packet->endpoint];
 
 		/* process header for each of the recv packet */
@@ -1651,6 +1650,8 @@ static int ath6kl_htc_rx_process_packets(struct htc_target *target,
 						   n_lk_ahd);
 		if (status)
 			return status;
+
+		list_del(&packet->list);
 
 		if (list_empty(comp_pktq)) {
 			/*
