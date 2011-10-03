@@ -379,4 +379,9 @@ extern int sdhci_resume_host(struct sdhci_host *host);
 extern void sdhci_enable_irq_wakeups(struct sdhci_host *host);
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
+extern int sdhci_runtime_suspend_host(struct sdhci_host *host);
+extern int sdhci_runtime_resume_host(struct sdhci_host *host);
+#endif
+
 #endif /* __SDHCI_HW_H */
