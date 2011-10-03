@@ -751,7 +751,7 @@ static int __qbuf_userptr(struct vb2_buffer *vb, struct v4l2_buffer *b)
 
 		/* Check if the provided plane buffer is large enough */
 		if (planes[plane].length < q->plane_sizes[plane]) {
-			ret = EINVAL;
+			ret = -EINVAL;
 			goto err;
 		}
 
