@@ -239,7 +239,6 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	u16 htc_tag = ATH6KL_DATA_PKT_TAG;
 	u8 ac = 99 ; /* initialize to unmapped ac */
 	bool chk_adhoc_ps_mapping = false, more_data = false;
-	struct wmi_tx_meta_v2 meta_v2;
 	int ret;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_TX,
@@ -262,8 +261,6 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (test_bit(WMI_ENABLED, &ar->flag)) {
-		memset(&meta_v2, 0, sizeof(meta_v2));
-
 		if (skb_headroom(skb) < dev->needed_headroom) {
 			WARN_ON(1);
 			goto fail_tx;
@@ -320,12 +317,31 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_bh(&ar->lock);
 
+	if (!IS_ALIGNED((unsigned long) skb->data - HTC_HDR_LENGTH, 4) &&
+	    skb_cloned(skb)) {
+		/*
+		 * We will touch (move the buffer data to align it. Since the
+		 * skb buffer is cloned and not only the header is changed, we
+		 * have to copy it to allow the changes. Since we are copying
+		 * the data here, we may as well align it by reserving suitable
+		 * headroom to avoid the memmove in ath6kl_htc_tx_buf_align().
+		 */
+		struct sk_buff *nskb;
+
+		nskb = skb_copy_expand(skb, HTC_HDR_LENGTH, 0, GFP_ATOMIC);
+		if (nskb == NULL)
+			goto fail_tx;
+		kfree_skb(skb);
+		skb = nskb;
+	}
+
 	cookie->skb = skb;
 	cookie->map_no = map_no;
 	set_htc_pkt_info(&cookie->htc_pkt, cookie, skb->data, skb->len,
 			 eid, htc_tag);
 
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, skb->data, skb->len);
+	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "tx ",
+			skb->data, skb->len);
 
 	/*
 	 * HTC interface is asynchronous, if this fails, cleanup will
@@ -689,6 +705,8 @@ void ath6kl_rx_refill(struct htc_target *target, enum htc_endpoint_id endpoint)
 			break;
 
 		packet = (struct htc_packet *) skb->head;
+		if (!IS_ALIGNED((unsigned long) skb->data, 4))
+			skb->data = PTR_ALIGN(skb->data - 4, 4);
 		set_htc_rxpkt_info(packet, skb, skb->data,
 				ATH6KL_BUFFER_SIZE, endpoint);
 		list_add_tail(&packet->list, &queue);
@@ -709,6 +727,8 @@ void ath6kl_refill_amsdu_rxbufs(struct ath6kl *ar, int count)
 			return;
 
 		packet = (struct htc_packet *) skb->head;
+		if (!IS_ALIGNED((unsigned long) skb->data, 4))
+			skb->data = PTR_ALIGN(skb->data - 4, 4);
 		set_htc_rxpkt_info(packet, skb, skb->data,
 				   ATH6KL_AMSDU_BUFFER_SIZE, 0);
 		spin_lock_bh(&ar->lock);
@@ -812,7 +832,7 @@ static void aggr_slice_amsdu(struct aggr_info *p_aggr,
 		/* Add the length of A-MSDU subframe padding bytes -
 		 * Round to nearest word.
 		 */
-		frame_8023_len = ALIGN(frame_8023_len + 3, 3);
+		frame_8023_len = ALIGN(frame_8023_len, 4);
 
 		framep += frame_8023_len;
 		amsdu_len -= frame_8023_len;
@@ -1044,12 +1064,13 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	ar->net_stats.rx_packets++;
 	ar->net_stats.rx_bytes += packet->act_len;
 
+	spin_unlock_bh(&ar->lock);
+
 	skb_put(skb, packet->act_len + HTC_HDR_LENGTH);
 	skb_pull(skb, HTC_HDR_LENGTH);
 
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, skb->data, skb->len);
-
-	spin_unlock_bh(&ar->lock);
+	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "rx ",
+			skb->data, skb->len);
 
 	skb->dev = ar->net_dev;
 
@@ -1065,9 +1086,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		return;
 	}
 
-	min_hdr_len = sizeof(struct ethhdr);
-	min_hdr_len += sizeof(struct wmi_data_hdr) +
-		       sizeof(struct ath6kl_llc_snap_hdr);
+	min_hdr_len = sizeof(struct ethhdr) + sizeof(struct wmi_data_hdr) +
+		      sizeof(struct ath6kl_llc_snap_hdr);
 
 	dhdr = (struct wmi_data_hdr *) skb->data;
 
@@ -1163,8 +1183,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	seq_no = wmi_data_hdr_get_seqno(dhdr);
 	meta_type = wmi_data_hdr_get_meta(dhdr);
 	dot11_hdr = wmi_data_hdr_get_dot11(dhdr);
-
-	ath6kl_wmi_data_hdr_remove(ar->wmi, skb);
+	skb_pull(skb, sizeof(struct wmi_data_hdr));
 
 	switch (meta_type) {
 	case WMI_META_VERSION_1:
@@ -1231,9 +1250,15 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			ath6kl_data_tx(skb1, ar->net_dev);
 	}
 
-	if (!aggr_process_recv_frm(ar->aggr_cntxt, tid, seq_no,
-				   is_amsdu, skb))
-		ath6kl_deliver_frames_to_nw_stack(ar->net_dev, skb);
+	datap = (struct ethhdr *) skb->data;
+
+	if (is_unicast_ether_addr(datap->h_dest) &&
+	    aggr_process_recv_frm(ar->aggr_cntxt, tid, seq_no,
+				  is_amsdu, skb))
+		/* aggregation code will handle the skb */
+		return;
+
+	ath6kl_deliver_frames_to_nw_stack(ar->net_dev, skb);
 }
 
 static void aggr_timeout(unsigned long arg)
@@ -1250,10 +1275,6 @@ static void aggr_timeout(unsigned long arg)
 		if (!rxtid->aggr || !rxtid->timer_mon || rxtid->progress)
 			continue;
 
-		/*
-		 * FIXME: these timeouts happen quite fruently, something
-		 * line once within 60 seconds. Investigate why.
-		 */
 		stats->num_timeouts++;
 		ath6kl_dbg(ATH6KL_DBG_AGGR,
 			   "aggr timeout (st %d end %d)\n",

@@ -25,6 +25,7 @@
 #include "hif-ops.h"
 #include "target.h"
 #include "debug.h"
+#include "cfg80211.h"
 
 struct ath6kl_sdio {
 	struct sdio_func *func;
@@ -134,10 +135,12 @@ static int ath6kl_sdio_io(struct sdio_func *func, u32 request, u32 addr,
 	int ret = 0;
 
 	if (request & HIF_WRITE) {
+		/* FIXME: looks like ugly workaround for something */
 		if (addr >= HIF_MBOX_BASE_ADDR &&
 		    addr <= HIF_MBOX_END_ADDR)
 			addr += (HIF_MBOX_WIDTH - len);
 
+		/* FIXME: this also looks like ugly workaround */
 		if (addr == HIF_MBOX0_EXT_BASE_ADDR)
 			addr += HIF_MBOX0_EXT_WIDTH - len;
 
@@ -151,6 +154,11 @@ static int ath6kl_sdio_io(struct sdio_func *func, u32 request, u32 addr,
 		else
 			ret = sdio_memcpy_fromio(func, buf, addr, len);
 	}
+
+	ath6kl_dbg(ATH6KL_DBG_SDIO, "%s addr 0x%x%s buf 0x%p len %d\n",
+		   request & HIF_WRITE ? "wr" : "rd", addr,
+		   request & HIF_FIXED_ADDRESS ? " (fixed)" : "", buf, len);
+	ath6kl_dbg_dump(ATH6KL_DBG_SDIO_DUMP, NULL, "sdio ", buf, len);
 
 	return ret;
 }
@@ -172,7 +180,8 @@ static struct bus_request *ath6kl_sdio_alloc_busreq(struct ath6kl_sdio *ar_sdio)
 	list_del(&bus_req->list);
 
 	spin_unlock_irqrestore(&ar_sdio->lock, flag);
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: bus request 0x%p\n", __func__, bus_req);
+	ath6kl_dbg(ATH6KL_DBG_SCATTER, "%s: bus request 0x%p\n",
+		   __func__, bus_req);
 
 	return bus_req;
 }
@@ -182,7 +191,8 @@ static void ath6kl_sdio_free_bus_req(struct ath6kl_sdio *ar_sdio,
 {
 	unsigned long flag;
 
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: bus request 0x%p\n", __func__, bus_req);
+	ath6kl_dbg(ATH6KL_DBG_SCATTER, "%s: bus request 0x%p\n",
+		   __func__, bus_req);
 
 	spin_lock_irqsave(&ar_sdio->lock, flag);
 	list_add_tail(&bus_req->list, &ar_sdio->bus_req_freeq);
@@ -213,16 +223,6 @@ static void ath6kl_sdio_setup_scat_data(struct hif_scatter_req *scat_req,
 
 	/* assemble SG list */
 	for (i = 0; i < scat_req->scat_entries; i++, sg++) {
-		if ((unsigned long)scat_req->scat_list[i].buf & 0x3)
-			/*
-			 * Some scatter engines can handle unaligned
-			 * buffers, print this as informational only.
-			 */
-			ath6kl_dbg(ATH6KL_DBG_SCATTER,
-				   "(%s) scatter buffer is unaligned 0x%p\n",
-				   scat_req->req & HIF_WRITE ? "WR" : "RD",
-				   scat_req->scat_list[i].buf);
-
 		ath6kl_dbg(ATH6KL_DBG_SCATTER, "%d: addr:0x%p, len:%d\n",
 			   i, scat_req->scat_list[i].buf,
 			   scat_req->scat_list[i].len);
@@ -446,6 +446,8 @@ static void ath6kl_sdio_irq_handler(struct sdio_func *func)
 {
 	int status;
 	struct ath6kl_sdio *ar_sdio;
+
+	ath6kl_dbg(ATH6KL_DBG_SDIO, "irq\n");
 
 	ar_sdio = sdio_get_drvdata(func);
 	atomic_set(&ar_sdio->irq_handling, 1);
@@ -684,7 +686,7 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 				MAX_SCATTER_REQUESTS, virt_scat);
 
 		if (!ret) {
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_SCATTER,
 				   "hif-scatter enabled: max scatter req : %d entries: %d\n",
 				   MAX_SCATTER_REQUESTS,
 				   MAX_SCATTER_ENTRIES_PER_REQ);
@@ -709,7 +711,7 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 			return ret;
 		}
 
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_SCATTER,
 			   "Vitual scatter enabled, max_scat_req:%d, entries:%d\n",
 			   ATH6KL_SCATTER_REQS, ATH6KL_SCATTER_ENTRIES_PER_REQ);
 
@@ -717,6 +719,34 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 		target->max_xfer_szper_scatreq =
 					ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
 	}
+
+	return 0;
+}
+
+static int ath6kl_sdio_suspend(struct ath6kl *ar)
+{
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
+	struct sdio_func *func = ar_sdio->func;
+	mmc_pm_flag_t flags;
+	int ret;
+
+	flags = sdio_get_host_pm_caps(func);
+
+	if (!(flags & MMC_PM_KEEP_POWER))
+		/* as host doesn't support keep power we need to bail out */
+		ath6kl_dbg(ATH6KL_DBG_SDIO,
+			   "func %d doesn't support MMC_PM_KEEP_POWER\n",
+			   func->num);
+		return -EINVAL;
+
+	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	if (ret) {
+		printk(KERN_ERR "ath6kl: set sdio pm flags failed: %d\n",
+		       ret);
+		return ret;
+	}
+
+	ath6kl_deep_sleep_enable(ar);
 
 	return 0;
 }
@@ -731,6 +761,7 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.enable_scatter = ath6kl_sdio_enable_scatter,
 	.scat_req_rw = ath6kl_sdio_async_rw_scatter,
 	.cleanup_scatter = ath6kl_sdio_cleanup_scatter,
+	.suspend = ath6kl_sdio_suspend,
 };
 
 static int ath6kl_sdio_probe(struct sdio_func *func,
@@ -741,10 +772,10 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 	struct ath6kl *ar;
 	int count;
 
-	ath6kl_dbg(ATH6KL_DBG_TRC,
-		   "%s: func: 0x%X, vendor id: 0x%X, dev id: 0x%X, block size: 0x%X/0x%X\n",
-		   __func__, func->num, func->vendor,
-		   func->device, func->max_blksize, func->cur_blksize);
+	ath6kl_dbg(ATH6KL_DBG_SDIO,
+		   "new func %d vendor 0x%x device 0x%x block 0x%x/0x%x\n",
+		   func->num, func->vendor, func->device,
+		   func->max_blksize, func->cur_blksize);
 
 	ar_sdio = kzalloc(sizeof(struct ath6kl_sdio), GFP_KERNEL);
 	if (!ar_sdio)
@@ -800,10 +831,10 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 			ath6kl_err("Failed to enable 4-bit async irq mode %d\n",
 				   ret);
 			sdio_release_host(func);
-			goto err_dma;
+			goto err_cfg80211;
 		}
 
-		ath6kl_dbg(ATH6KL_DBG_TRC, "4-bit async irq mode enabled\n");
+		ath6kl_dbg(ATH6KL_DBG_SDIO, "4-bit async irq mode enabled\n");
 	}
 
 	/* give us some time to enable, in ms */
@@ -813,7 +844,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 
 	ret = ath6kl_sdio_power_on(ar_sdio);
 	if (ret)
-		goto err_dma;
+		goto err_cfg80211;
 
 	sdio_claim_host(func);
 
@@ -837,6 +868,8 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 
 err_off:
 	ath6kl_sdio_power_off(ar_sdio);
+err_cfg80211:
+	ath6kl_cfg80211_deinit(ar_sdio->ar);
 err_dma:
 	kfree(ar_sdio->dma_buffer);
 err_hif:
@@ -848,6 +881,10 @@ err_hif:
 static void ath6kl_sdio_remove(struct sdio_func *func)
 {
 	struct ath6kl_sdio *ar_sdio;
+
+	ath6kl_dbg(ATH6KL_DBG_SDIO,
+		   "removed func %d vendor 0x%x device 0x%x\n",
+		   func->num, func->vendor, func->device);
 
 	ar_sdio = sdio_get_drvdata(func);
 

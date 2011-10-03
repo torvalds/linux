@@ -17,6 +17,12 @@
 #include "core.h"
 #include "cfg80211.h"
 #include "debug.h"
+#include "hif-ops.h"
+#include "testmode.h"
+
+static unsigned int ath6kl_p2p;
+
+module_param(ath6kl_p2p, uint, 0644);
 
 #define RATETAB_ENT(_rate, _rateid, _flags) {   \
 	.bitrate    = (_rate),                  \
@@ -152,8 +158,7 @@ static int ath6kl_set_auth_type(struct ath6kl *ar,
 		break;
 
 	case NL80211_AUTHTYPE_AUTOMATIC:
-		ar->dot11_auth_mode = OPEN_AUTH;
-		ar->auto_auth_stage = AUTH_OPEN_IN_PROGRESS;
+		ar->dot11_auth_mode = OPEN_AUTH | SHARED_AUTH;
 		break;
 
 	default:
@@ -167,7 +172,8 @@ static int ath6kl_set_auth_type(struct ath6kl *ar,
 static int ath6kl_set_cipher(struct ath6kl *ar, u32 cipher, bool ucast)
 {
 	u8 *ar_cipher = ucast ? &ar->prwise_crypto : &ar->grp_crypto;
-	u8 *ar_cipher_len = ucast ? &ar->prwise_crypto_len : &ar->grp_crpto_len;
+	u8 *ar_cipher_len = ucast ? &ar->prwise_crypto_len :
+		&ar->grp_crypto_len;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: cipher 0x%x, ucast %u\n",
 		   __func__, cipher, ucast);
@@ -354,6 +360,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (!ar->usr_bss_filter) {
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
 		if (ath6kl_wmi_bssfilter_cmd(ar->wmi, ALL_BSS_FILTER, 0) != 0) {
 			ath6kl_err("couldn't set bss filtering\n");
 			up(&ar->sem);
@@ -370,14 +377,14 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		   __func__,
 		   ar->auth_mode, ar->dot11_auth_mode, ar->prwise_crypto,
 		   ar->prwise_crypto_len, ar->grp_crypto,
-		   ar->grp_crpto_len, ar->ch_hint);
+		   ar->grp_crypto_len, ar->ch_hint);
 
 	ar->reconnect_flag = 0;
 	status = ath6kl_wmi_connect_cmd(ar->wmi, ar->nw_type,
 					ar->dot11_auth_mode, ar->auth_mode,
 					ar->prwise_crypto,
 					ar->prwise_crypto_len,
-					ar->grp_crypto, ar->grp_crpto_len,
+					ar->grp_crypto, ar->grp_crypto_len,
 					ar->ssid_len, ar->ssid,
 					ar->req_bssid, ar->ch_hint,
 					ar->connect_ctrl_flags);
@@ -407,6 +414,53 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int ath6kl_add_bss_if_needed(struct ath6kl *ar, const u8 *bssid,
+				    struct ieee80211_channel *chan,
+				    const u8 *beacon_ie, size_t beacon_ie_len)
+{
+	struct cfg80211_bss *bss;
+	u8 *ie;
+
+	bss = cfg80211_get_bss(ar->wdev->wiphy, chan, bssid,
+			       ar->ssid, ar->ssid_len, WLAN_CAPABILITY_ESS,
+			       WLAN_CAPABILITY_ESS);
+	if (bss == NULL) {
+		/*
+		 * Since cfg80211 may not yet know about the BSS,
+		 * generate a partial entry until the first BSS info
+		 * event becomes available.
+		 *
+		 * Prepend SSID element since it is not included in the Beacon
+		 * IEs from the target.
+		 */
+		ie = kmalloc(2 + ar->ssid_len + beacon_ie_len, GFP_KERNEL);
+		if (ie == NULL)
+			return -ENOMEM;
+		ie[0] = WLAN_EID_SSID;
+		ie[1] = ar->ssid_len;
+		memcpy(ie + 2, ar->ssid, ar->ssid_len);
+		memcpy(ie + 2 + ar->ssid_len, beacon_ie, beacon_ie_len);
+		bss = cfg80211_inform_bss(ar->wdev->wiphy, chan,
+					  bssid, 0, WLAN_CAPABILITY_ESS, 100,
+					  ie, 2 + ar->ssid_len + beacon_ie_len,
+					  0, GFP_KERNEL);
+		if (bss)
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "added dummy bss for "
+				   "%pM prior to indicating connect/roamed "
+				   "event\n", bssid);
+		kfree(ie);
+	} else
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "cfg80211 already has a bss "
+			   "entry\n");
+
+	if (bss == NULL)
+		return -ENOMEM;
+
+	cfg80211_put_bss(bss);
+
+	return 0;
+}
+
 void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 				   u8 *bssid, u16 listen_intvl,
 				   u16 beacon_intvl,
@@ -414,19 +468,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 				   u8 beacon_ie_len, u8 assoc_req_len,
 				   u8 assoc_resp_len, u8 *assoc_info)
 {
-	u16 size = 0;
-	u16 capability = 0;
-	struct cfg80211_bss *bss = NULL;
-	struct ieee80211_mgmt *mgmt = NULL;
-	struct ieee80211_channel *ibss_ch = NULL;
-	s32 signal = 50 * 100;
-	u8 ie_buf_len = 0;
-	unsigned char ie_buf[256];
-	unsigned char *ptr_ie_buf = ie_buf;
-	unsigned char *ieeemgmtbuf = NULL;
-	u8 source_mac[ETH_ALEN];
-	u16 capa_mask;
-	u16 capa_val;
+	struct ieee80211_channel *chan;
 
 	/* capinfo + listen interval */
 	u8 assoc_req_ie_offset = sizeof(u16) + sizeof(u16);
@@ -441,7 +483,12 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	assoc_req_len -= assoc_req_ie_offset;
 	assoc_resp_len -= assoc_resp_ie_offset;
 
-	ar->auto_auth_stage = AUTH_IDLE;
+	/*
+	 * Store Beacon interval here; DTIM period will be available only once
+	 * a Beacon frame from the AP is seen.
+	 */
+	ar->assoc_bss_beacon_int = beacon_intvl;
+	clear_bit(DTIM_PERIOD_AVAIL, &ar->flag);
 
 	if (nw_type & ADHOC_NETWORK) {
 		if (ar->wdev->iftype != NL80211_IFTYPE_ADHOC) {
@@ -452,110 +499,26 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 	}
 
 	if (nw_type & INFRA_NETWORK) {
-		if (ar->wdev->iftype != NL80211_IFTYPE_STATION) {
+		if (ar->wdev->iftype != NL80211_IFTYPE_STATION &&
+		    ar->wdev->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 				   "%s: ath6k not in station mode\n", __func__);
 			return;
 		}
 	}
 
-	if (nw_type & ADHOC_NETWORK) {
-		capa_mask = WLAN_CAPABILITY_IBSS;
-		capa_val = WLAN_CAPABILITY_IBSS;
-	} else {
-		capa_mask = WLAN_CAPABILITY_ESS;
-		capa_val = WLAN_CAPABILITY_ESS;
-	}
+	chan = ieee80211_get_channel(ar->wdev->wiphy, (int) channel);
 
-	/* Before informing the join/connect event, make sure that
-	 * bss entry is present in scan list, if it not present
-	 * construct and insert into scan list, otherwise that
-	 * event will be dropped on the way by cfg80211, due to
-	 * this keys will not be plumbed in case of WEP and
-	 * application will not be aware of join/connect status. */
-	bss = cfg80211_get_bss(ar->wdev->wiphy, NULL, bssid,
-			       ar->wdev->ssid, ar->wdev->ssid_len,
-			       capa_mask, capa_val);
-
-	/*
-	 * Earlier we were updating the cfg about bss by making a beacon frame
-	 * only if the entry for bss is not there. This can have some issue if
-	 * ROAM event is generated and a heavy traffic is ongoing. The ROAM
-	 * event is handled through a work queue and by the time it really gets
-	 * handled, BSS would have been aged out. So it is better to update the
-	 * cfg about BSS irrespective of its entry being present right now or
-	 * not.
-	 */
-
-	if (nw_type & ADHOC_NETWORK) {
-		/* construct 802.11 mgmt beacon */
-		if (ptr_ie_buf) {
-			*ptr_ie_buf++ = WLAN_EID_SSID;
-			*ptr_ie_buf++ = ar->ssid_len;
-			memcpy(ptr_ie_buf, ar->ssid, ar->ssid_len);
-			ptr_ie_buf += ar->ssid_len;
-
-			*ptr_ie_buf++ = WLAN_EID_IBSS_PARAMS;
-			*ptr_ie_buf++ = 2;	/* length */
-			*ptr_ie_buf++ = 0;	/* ATIM window */
-			*ptr_ie_buf++ = 0;	/* ATIM window */
-
-			/* TODO: update ibss params and include supported rates,
-			 * DS param set, extened support rates, wmm. */
-
-			ie_buf_len = ptr_ie_buf - ie_buf;
-		}
-
-		capability |= WLAN_CAPABILITY_IBSS;
-
-		if (ar->prwise_crypto == WEP_CRYPT)
-			capability |= WLAN_CAPABILITY_PRIVACY;
-
-		memcpy(source_mac, ar->net_dev->dev_addr, ETH_ALEN);
-		ptr_ie_buf = ie_buf;
-	} else {
-		capability = *(u16 *) (&assoc_info[beacon_ie_len]);
-		memcpy(source_mac, bssid, ETH_ALEN);
-		ptr_ie_buf = assoc_req_ie;
-		ie_buf_len = assoc_req_len;
-	}
-
-	size = offsetof(struct ieee80211_mgmt, u)
-	+ sizeof(mgmt->u.beacon)
-	+ ie_buf_len;
-
-	ieeemgmtbuf = kzalloc(size, GFP_ATOMIC);
-	if (!ieeemgmtbuf) {
-		ath6kl_err("ieee mgmt buf alloc error\n");
-		cfg80211_put_bss(bss);
-		return;
-	}
-
-	mgmt = (struct ieee80211_mgmt *)ieeemgmtbuf;
-	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					  IEEE80211_STYPE_BEACON);
-	memset(mgmt->da, 0xff, ETH_ALEN);	/* broadcast addr */
-	memcpy(mgmt->sa, source_mac, ETH_ALEN);
-	memcpy(mgmt->bssid, bssid, ETH_ALEN);
-	mgmt->u.beacon.beacon_int = cpu_to_le16(beacon_intvl);
-	mgmt->u.beacon.capab_info = cpu_to_le16(capability);
-	memcpy(mgmt->u.beacon.variable, ptr_ie_buf, ie_buf_len);
-
-	ibss_ch = ieee80211_get_channel(ar->wdev->wiphy, (int)channel);
-
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
-		   "%s: inform bss with bssid %pM channel %d beacon_intvl %d capability 0x%x\n",
-		   __func__, mgmt->bssid, ibss_ch->hw_value,
-		   beacon_intvl, capability);
-
-	bss = cfg80211_inform_bss_frame(ar->wdev->wiphy,
-					ibss_ch, mgmt,
-					size, signal, GFP_KERNEL);
-	kfree(ieeemgmtbuf);
-	cfg80211_put_bss(bss);
 
 	if (nw_type & ADHOC_NETWORK) {
 		cfg80211_ibss_joined(ar->net_dev, bssid, GFP_KERNEL);
+		return;
+	}
+
+	if (ath6kl_add_bss_if_needed(ar, bssid, chan, assoc_info,
+				     beacon_ie_len) < 0) {
+		ath6kl_err("could not add cfg80211 bss entry for "
+			   "connect/roamed notification\n");
 		return;
 	}
 
@@ -568,7 +531,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl *ar, u16 channel,
 					WLAN_STATUS_SUCCESS, GFP_KERNEL);
 	} else if (ar->sme_state == SME_CONNECTED) {
 		/* inform roam event to cfg80211 */
-		cfg80211_roamed(ar->net_dev, ibss_ch, bssid,
+		cfg80211_roamed(ar->net_dev, chan, bssid,
 				assoc_req_ie, assoc_req_len,
 				assoc_resp_ie, assoc_resp_len, GFP_KERNEL);
 	}
@@ -605,6 +568,8 @@ static int ath6kl_cfg80211_disconnect(struct wiphy *wiphy,
 
 	up(&ar->sem);
 
+	ar->sme_state = SME_DISCONNECTED;
+
 	return 0;
 }
 
@@ -612,9 +577,6 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 				      u8 *bssid, u8 assoc_resp_len,
 				      u8 *assoc_info, u16 proto_reason)
 {
-	struct ath6kl_key *key = NULL;
-	u16 status;
-
 	if (ar->scan_req) {
 		cfg80211_scan_done(ar->scan_req, true);
 		ar->scan_req = NULL;
@@ -632,164 +594,64 @@ void ath6kl_cfg80211_disconnect_event(struct ath6kl *ar, u8 reason,
 	}
 
 	if (ar->nw_type & INFRA_NETWORK) {
-		if (ar->wdev->iftype != NL80211_IFTYPE_STATION) {
+		if (ar->wdev->iftype != NL80211_IFTYPE_STATION &&
+		    ar->wdev->iftype != NL80211_IFTYPE_P2P_CLIENT) {
 			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 				   "%s: ath6k not in station mode\n", __func__);
 			return;
 		}
 	}
 
-	if (!test_bit(CONNECT_PEND, &ar->flag)) {
-		if (reason != DISCONNECT_CMD)
-			ath6kl_wmi_disconnect_cmd(ar->wmi);
+	/*
+	 * Send a disconnect command to target when a disconnect event is
+	 * received with reason code other than 3 (DISCONNECT_CMD - disconnect
+	 * request from host) to make the firmware stop trying to connect even
+	 * after giving disconnect event. There will be one more disconnect
+	 * event for this disconnect command with reason code DISCONNECT_CMD
+	 * which will be notified to cfg80211.
+	 */
 
-		return;
-	}
-
-	if (reason == NO_NETWORK_AVAIL) {
-		/* connect cmd failed */
+	if (reason != DISCONNECT_CMD) {
 		ath6kl_wmi_disconnect_cmd(ar->wmi);
 		return;
 	}
 
-	if (reason != DISCONNECT_CMD)
-		return;
+	clear_bit(CONNECT_PEND, &ar->flag);
 
-	if (!ar->auto_auth_stage) {
-		clear_bit(CONNECT_PEND, &ar->flag);
-
-		if (ar->sme_state == SME_CONNECTING) {
-			cfg80211_connect_result(ar->net_dev,
-						bssid, NULL, 0,
-						NULL, 0,
-						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
-		} else {
-			cfg80211_disconnected(ar->net_dev, reason,
-					      NULL, 0, GFP_KERNEL);
-		}
-
-		ar->sme_state = SME_DISCONNECTED;
-		return;
+	if (ar->sme_state == SME_CONNECTING) {
+		cfg80211_connect_result(ar->net_dev,
+				bssid, NULL, 0,
+				NULL, 0,
+				WLAN_STATUS_UNSPECIFIED_FAILURE,
+				GFP_KERNEL);
+	} else if (ar->sme_state == SME_CONNECTED) {
+		cfg80211_disconnected(ar->net_dev, reason,
+				NULL, 0, GFP_KERNEL);
 	}
 
-	if (ar->dot11_auth_mode != OPEN_AUTH)
-		return;
-
-	/*
-	 * If the current auth algorithm is open, try shared and
-	 * make autoAuthStage idle. We do not make it leap for now
-	 * being.
-	 */
-	key = &ar->keys[ar->def_txkey_index];
-	if (down_interruptible(&ar->sem)) {
-		ath6kl_err("busy, couldn't get access\n");
-		return;
-	}
-
-	ar->dot11_auth_mode = SHARED_AUTH;
-	ar->auto_auth_stage = AUTH_IDLE;
-
-	ath6kl_wmi_addkey_cmd(ar->wmi,
-			      ar->def_txkey_index,
-			      ar->prwise_crypto,
-			      GROUP_USAGE | TX_USAGE,
-			      key->key_len, NULL,
-			      key->key,
-			      KEY_OP_INIT_VAL, NULL,
-			      NO_SYNC_WMIFLAG);
-
-	status = ath6kl_wmi_connect_cmd(ar->wmi,
-					ar->nw_type,
-					ar->dot11_auth_mode,
-					ar->auth_mode,
-					ar->prwise_crypto,
-					ar->prwise_crypto_len,
-					ar->grp_crypto,
-					ar->grp_crpto_len,
-					ar->ssid_len,
-					ar->ssid,
-					ar->req_bssid,
-					ar->ch_hint,
-					ar->connect_ctrl_flags);
-	up(&ar->sem);
-}
-
-static inline bool is_ch_11a(u16 ch)
-{
-	return (!((ch >= 2412) && (ch <= 2484)));
-}
-
-/* struct ath6kl_node_table::nt_nodelock is locked when calling this */
-void ath6kl_cfg80211_scan_node(struct wiphy *wiphy, struct bss *ni)
-{
-	u16 size;
-	unsigned char *ieeemgmtbuf = NULL;
-	struct ieee80211_mgmt *mgmt;
-	struct ieee80211_channel *channel;
-	struct ieee80211_supported_band *band;
-	struct ath6kl_common_ie *cie;
-	s32 signal;
-	int freq;
-
-	cie = &ni->ni_cie;
-
-	if (is_ch_11a(cie->ie_chan))
-		band = wiphy->bands[IEEE80211_BAND_5GHZ]; /* 11a */
-	else if ((cie->ie_erp) || (cie->ie_xrates))
-		band = wiphy->bands[IEEE80211_BAND_2GHZ]; /* 11g */
-	else
-		band = wiphy->bands[IEEE80211_BAND_2GHZ]; /* 11b */
-
-	size = ni->ni_framelen + offsetof(struct ieee80211_mgmt, u);
-	ieeemgmtbuf = kmalloc(size, GFP_ATOMIC);
-	if (!ieeemgmtbuf) {
-		ath6kl_err("ieee mgmt buf alloc error\n");
-		return;
-	}
-
-	/*
-	 * TODO: Update target to include 802.11 mac header while sending
-	 * bss info. Target removes 802.11 mac header while sending the bss
-	 * info to host, cfg80211 needs it, for time being just filling the
-	 * da, sa and bssid fields alone.
-	 */
-	mgmt = (struct ieee80211_mgmt *)ieeemgmtbuf;
-	memset(mgmt->da, 0xff, ETH_ALEN);	/*broadcast addr */
-	memcpy(mgmt->sa, ni->ni_macaddr, ETH_ALEN);
-	memcpy(mgmt->bssid, ni->ni_macaddr, ETH_ALEN);
-	memcpy(ieeemgmtbuf + offsetof(struct ieee80211_mgmt, u),
-	       ni->ni_buf, ni->ni_framelen);
-
-	freq = cie->ie_chan;
-	channel = ieee80211_get_channel(wiphy, freq);
-	signal = ni->ni_snr * 100;
-
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
-		   "%s: bssid %pM ch %d freq %d size %d\n", __func__,
-		   mgmt->bssid, channel->hw_value, freq, size);
-	cfg80211_inform_bss_frame(wiphy, channel, mgmt,
-				  size, signal, GFP_ATOMIC);
-
-	kfree(ieeemgmtbuf);
+	ar->sme_state = SME_DISCONNECTED;
 }
 
 static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 				struct cfg80211_scan_request *request)
 {
 	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
+	s8 n_channels = 0;
+	u16 *channels = NULL;
 	int ret = 0;
 
 	if (!ath6kl_cfg80211_ready(ar))
 		return -EIO;
 
 	if (!ar->usr_bss_filter) {
-		if (ath6kl_wmi_bssfilter_cmd(ar->wmi,
-					     (test_bit(CONNECTED, &ar->flag) ?
-					     ALL_BUT_BSS_FILTER :
-					     ALL_BSS_FILTER), 0) != 0) {
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+		ret = ath6kl_wmi_bssfilter_cmd(
+			ar->wmi,
+			(test_bit(CONNECTED, &ar->flag) ?
+			 ALL_BUT_BSS_FILTER : ALL_BSS_FILTER), 0);
+		if (ret) {
 			ath6kl_err("couldn't set bss filtering\n");
-			return -EIO;
+			return ret;
 		}
 	}
 
@@ -806,13 +668,46 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 						  request->ssids[i].ssid);
 	}
 
-	if (ath6kl_wmi_startscan_cmd(ar->wmi, WMI_LONG_SCAN, 0,
-				     false, 0, 0, 0, NULL) != 0) {
-		ath6kl_err("wmi_startscan_cmd failed\n");
-		ret = -EIO;
+	if (request->ie) {
+		ret = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_PROBE_REQ,
+					       request->ie, request->ie_len);
+		if (ret) {
+			ath6kl_err("failed to set Probe Request appie for "
+				   "scan");
+			return ret;
+		}
 	}
 
-	ar->scan_req = request;
+	/*
+	 * Scan only the requested channels if the request specifies a set of
+	 * channels. If the list is longer than the target supports, do not
+	 * configure the list and instead, scan all available channels.
+	 */
+	if (request->n_channels > 0 &&
+	    request->n_channels <= WMI_MAX_CHANNELS) {
+		u8 i;
+
+		n_channels = request->n_channels;
+
+		channels = kzalloc(n_channels * sizeof(u16), GFP_KERNEL);
+		if (channels == NULL) {
+			ath6kl_warn("failed to set scan channels, "
+				    "scan all channels");
+			n_channels = 0;
+		}
+
+		for (i = 0; i < n_channels; i++)
+			channels[i] = request->channels[i]->center_freq;
+	}
+
+	ret = ath6kl_wmi_startscan_cmd(ar->wmi, WMI_LONG_SCAN, 0,
+				       false, 0, 0, n_channels, channels);
+	if (ret)
+		ath6kl_err("wmi_startscan_cmd failed\n");
+	else
+		ar->scan_req = request;
+
+	kfree(channels);
 
 	return ret;
 }
@@ -830,9 +725,6 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status)
 		cfg80211_scan_done(ar->scan_req, true);
 		goto out;
 	}
-
-	/* Translate data to cfg80211 mgmt format */
-	wlan_iterate_nodes(&ar->scan_table, ar->wdev->wiphy);
 
 	cfg80211_scan_done(ar->scan_req, false);
 
@@ -918,6 +810,40 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		   key_usage, key->seq_len);
 
 	ar->def_txkey_index = key_index;
+
+	if (ar->nw_type == AP_NETWORK && !pairwise &&
+	    (key_type == TKIP_CRYPT || key_type == AES_CRYPT) && params) {
+		ar->ap_mode_bkey.valid = true;
+		ar->ap_mode_bkey.key_index = key_index;
+		ar->ap_mode_bkey.key_type = key_type;
+		ar->ap_mode_bkey.key_len = key->key_len;
+		memcpy(ar->ap_mode_bkey.key, key->key, key->key_len);
+		if (!test_bit(CONNECTED, &ar->flag)) {
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delay initial group "
+				   "key configuration until AP mode has been "
+				   "started\n");
+			/*
+			 * The key will be set in ath6kl_connect_ap_mode() once
+			 * the connected event is received from the target.
+			 */
+			return 0;
+		}
+	}
+
+	if (ar->next_mode == AP_NETWORK && key_type == WEP_CRYPT &&
+	    !test_bit(CONNECTED, &ar->flag)) {
+		/*
+		 * Store the key locally so that it can be re-configured after
+		 * the AP mode has properly started
+		 * (ath6kl_install_statioc_wep_keys).
+		 */
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delay WEP key configuration "
+			   "until AP mode has been started\n");
+		ar->wep_key_list[key_index].key_len = key->key_len;
+		memcpy(ar->wep_key_list[key_index].key, key->key, key->key_len);
+		return 0;
+	}
+
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, ar->def_txkey_index,
 				       key_type, key_usage, key->key_len,
 				       key->seq, key->key, KEY_OP_INIT_VAL,
@@ -1002,6 +928,7 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	struct ath6kl_key *key = NULL;
 	int status = 0;
 	u8 key_usage;
+	enum crypto_type key_type = NONE_CRYPT;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: index %d\n", __func__, key_index);
 
@@ -1026,9 +953,16 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	key_usage = GROUP_USAGE;
 	if (ar->prwise_crypto == WEP_CRYPT)
 		key_usage |= TX_USAGE;
+	if (unicast)
+		key_type = ar->prwise_crypto;
+	if (multicast)
+		key_type = ar->grp_crypto;
+
+	if (ar->next_mode == AP_NETWORK && !test_bit(CONNECTED, &ar->flag))
+		return 0; /* Delay until AP mode has been started */
 
 	status = ath6kl_wmi_addkey_cmd(ar->wmi, ar->def_txkey_index,
-				       ar->prwise_crypto, key_usage,
+				       key_type, key_usage,
 				       key->key_len, key->seq, key->key,
 				       KEY_OP_INIT_VAL, NULL,
 				       SYNC_BOTH_WMIFLAG);
@@ -1183,6 +1117,15 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 	case NL80211_IFTYPE_ADHOC:
 		ar->next_mode = ADHOC_NETWORK;
 		break;
+	case NL80211_IFTYPE_AP:
+		ar->next_mode = AP_NETWORK;
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		ar->next_mode = INFRA_NETWORK;
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		ar->next_mode = AP_NETWORK;
+		break;
 	default:
 		ath6kl_err("invalid interface type %u\n", type);
 		return -EOPNOTSUPP;
@@ -1246,13 +1189,13 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 		   __func__,
 		   ar->auth_mode, ar->dot11_auth_mode, ar->prwise_crypto,
 		   ar->prwise_crypto_len, ar->grp_crypto,
-		   ar->grp_crpto_len, ar->ch_hint);
+		   ar->grp_crypto_len, ar->ch_hint);
 
 	status = ath6kl_wmi_connect_cmd(ar->wmi, ar->nw_type,
 					ar->dot11_auth_mode, ar->auth_mode,
 					ar->prwise_crypto,
 					ar->prwise_crypto_len,
-					ar->grp_crypto, ar->grp_crpto_len,
+					ar->grp_crypto, ar->grp_crypto_len,
 					ar->ssid_len, ar->ssid,
 					ar->req_bssid, ar->ch_hint,
 					ar->connect_ctrl_flags);
@@ -1422,11 +1365,22 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
 	} else {
-		ath6kl_warn("invalid rate: %d\n", rate);
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
+			   "invalid rate from stats: %d\n", rate);
+		ath6kl_debug_war(ar, ATH6KL_WAR_INVALID_RATE);
 		return 0;
 	}
 
 	sinfo->filled |= STATION_INFO_TX_BITRATE;
+
+	if (test_bit(CONNECTED, &ar->flag) &&
+	    test_bit(DTIM_PERIOD_AVAIL, &ar->flag) &&
+	    ar->nw_type == INFRA_NETWORK) {
+		sinfo->filled |= STATION_INFO_BSS_PARAM;
+		sinfo->bss_param.flags = 0;
+		sinfo->bss_param.dtim_period = ar->assoc_bss_dtim_period;
+		sinfo->bss_param.beacon_interval = ar->assoc_bss_beacon_int;
+	}
 
 	return 0;
 }
@@ -1455,6 +1409,402 @@ static int ath6kl_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ar6k_cfg80211_suspend(struct wiphy *wiphy,
+				 struct cfg80211_wowlan *wow)
+{
+	struct ath6kl *ar = wiphy_priv(wiphy);
+
+	return ath6kl_hif_suspend(ar);
+}
+#endif
+
+static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
+			      struct ieee80211_channel *chan,
+			      enum nl80211_channel_type channel_type)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	if (!ath6kl_cfg80211_ready(ar))
+		return -EIO;
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: center_freq=%u hw_value=%u\n",
+		   __func__, chan->center_freq, chan->hw_value);
+	ar->next_chan = chan->center_freq;
+
+	return 0;
+}
+
+static bool ath6kl_is_p2p_ie(const u8 *pos)
+{
+	return pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
+		pos[2] == 0x50 && pos[3] == 0x6f &&
+		pos[4] == 0x9a && pos[5] == 0x09;
+}
+
+static int ath6kl_set_ap_probe_resp_ies(struct ath6kl *ar, const u8 *ies,
+					size_t ies_len)
+{
+	const u8 *pos;
+	u8 *buf = NULL;
+	size_t len = 0;
+	int ret;
+
+	/*
+	 * Filter out P2P IE(s) since they will be included depending on
+	 * the Probe Request frame in ath6kl_send_go_probe_resp().
+	 */
+
+	if (ies && ies_len) {
+		buf = kmalloc(ies_len, GFP_KERNEL);
+		if (buf == NULL)
+			return -ENOMEM;
+		pos = ies;
+		while (pos + 1 < ies + ies_len) {
+			if (pos + 2 + pos[1] > ies + ies_len)
+				break;
+			if (!ath6kl_is_p2p_ie(pos)) {
+				memcpy(buf + len, pos, 2 + pos[1]);
+				len += 2 + pos[1];
+			}
+			pos += 2 + pos[1];
+		}
+	}
+
+	ret = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_PROBE_RESP,
+				       buf, len);
+	kfree(buf);
+	return ret;
+}
+
+static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
+			    struct beacon_parameters *info, bool add)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ieee80211_mgmt *mgmt;
+	u8 *ies;
+	int ies_len;
+	struct wmi_connect_cmd p;
+	int res;
+	int i;
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: add=%d\n", __func__, add);
+
+	if (!ath6kl_cfg80211_ready(ar))
+		return -EIO;
+
+	if (ar->next_mode != AP_NETWORK)
+		return -EOPNOTSUPP;
+
+	if (info->beacon_ies) {
+		res = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_BEACON,
+					       info->beacon_ies,
+					       info->beacon_ies_len);
+		if (res)
+			return res;
+	}
+	if (info->proberesp_ies) {
+		res = ath6kl_set_ap_probe_resp_ies(ar, info->proberesp_ies,
+						   info->proberesp_ies_len);
+		if (res)
+			return res;
+	}
+	if (info->assocresp_ies) {
+		res = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_ASSOC_RESP,
+					       info->assocresp_ies,
+					       info->assocresp_ies_len);
+		if (res)
+			return res;
+	}
+
+	if (!add)
+		return 0;
+
+	ar->ap_mode_bkey.valid = false;
+
+	/* TODO:
+	 * info->interval
+	 * info->dtim_period
+	 */
+
+	if (info->head == NULL)
+		return -EINVAL;
+	mgmt = (struct ieee80211_mgmt *) info->head;
+	ies = mgmt->u.beacon.variable;
+	if (ies > info->head + info->head_len)
+		return -EINVAL;
+	ies_len = info->head + info->head_len - ies;
+
+	if (info->ssid == NULL)
+		return -EINVAL;
+	memcpy(ar->ssid, info->ssid, info->ssid_len);
+	ar->ssid_len = info->ssid_len;
+	if (info->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE)
+		return -EOPNOTSUPP; /* TODO */
+
+	ar->dot11_auth_mode = OPEN_AUTH;
+
+	memset(&p, 0, sizeof(p));
+
+	for (i = 0; i < info->crypto.n_akm_suites; i++) {
+		switch (info->crypto.akm_suites[i]) {
+		case WLAN_AKM_SUITE_8021X:
+			if (info->crypto.wpa_versions & NL80211_WPA_VERSION_1)
+				p.auth_mode |= WPA_AUTH;
+			if (info->crypto.wpa_versions & NL80211_WPA_VERSION_2)
+				p.auth_mode |= WPA2_AUTH;
+			break;
+		case WLAN_AKM_SUITE_PSK:
+			if (info->crypto.wpa_versions & NL80211_WPA_VERSION_1)
+				p.auth_mode |= WPA_PSK_AUTH;
+			if (info->crypto.wpa_versions & NL80211_WPA_VERSION_2)
+				p.auth_mode |= WPA2_PSK_AUTH;
+			break;
+		}
+	}
+	if (p.auth_mode == 0)
+		p.auth_mode = NONE_AUTH;
+	ar->auth_mode = p.auth_mode;
+
+	for (i = 0; i < info->crypto.n_ciphers_pairwise; i++) {
+		switch (info->crypto.ciphers_pairwise[i]) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			p.prwise_crypto_type |= WEP_CRYPT;
+			break;
+		case WLAN_CIPHER_SUITE_TKIP:
+			p.prwise_crypto_type |= TKIP_CRYPT;
+			break;
+		case WLAN_CIPHER_SUITE_CCMP:
+			p.prwise_crypto_type |= AES_CRYPT;
+			break;
+		}
+	}
+	if (p.prwise_crypto_type == 0) {
+		p.prwise_crypto_type = NONE_CRYPT;
+		ath6kl_set_cipher(ar, 0, true);
+	} else if (info->crypto.n_ciphers_pairwise == 1)
+		ath6kl_set_cipher(ar, info->crypto.ciphers_pairwise[0], true);
+
+	switch (info->crypto.cipher_group) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		p.grp_crypto_type = WEP_CRYPT;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		p.grp_crypto_type = TKIP_CRYPT;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		p.grp_crypto_type = AES_CRYPT;
+		break;
+	default:
+		p.grp_crypto_type = NONE_CRYPT;
+		break;
+	}
+	ath6kl_set_cipher(ar, info->crypto.cipher_group, false);
+
+	p.nw_type = AP_NETWORK;
+	ar->nw_type = ar->next_mode;
+
+	p.ssid_len = ar->ssid_len;
+	memcpy(p.ssid, ar->ssid, ar->ssid_len);
+	p.dot11_auth_mode = ar->dot11_auth_mode;
+	p.ch = cpu_to_le16(ar->next_chan);
+
+	res = ath6kl_wmi_ap_profile_commit(ar->wmi, &p);
+	if (res < 0)
+		return res;
+
+	return 0;
+}
+
+static int ath6kl_add_beacon(struct wiphy *wiphy, struct net_device *dev,
+			     struct beacon_parameters *info)
+{
+	return ath6kl_ap_beacon(wiphy, dev, info, true);
+}
+
+static int ath6kl_set_beacon(struct wiphy *wiphy, struct net_device *dev,
+			     struct beacon_parameters *info)
+{
+	return ath6kl_ap_beacon(wiphy, dev, info, false);
+}
+
+static int ath6kl_del_beacon(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	if (ar->nw_type != AP_NETWORK)
+		return -EOPNOTSUPP;
+	if (!test_bit(CONNECTED, &ar->flag))
+		return -ENOTCONN;
+
+	ath6kl_wmi_disconnect_cmd(ar->wmi);
+	clear_bit(CONNECTED, &ar->flag);
+
+	return 0;
+}
+
+static int ath6kl_change_station(struct wiphy *wiphy, struct net_device *dev,
+				 u8 *mac, struct station_parameters *params)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	if (ar->nw_type != AP_NETWORK)
+		return -EOPNOTSUPP;
+
+	/* Use this only for authorizing/unauthorizing a station */
+	if (!(params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)))
+		return -EOPNOTSUPP;
+
+	if (params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED))
+		return ath6kl_wmi_ap_set_mlme(ar->wmi, WMI_AP_MLME_AUTHORIZE,
+					      mac, 0);
+	return ath6kl_wmi_ap_set_mlme(ar->wmi, WMI_AP_MLME_UNAUTHORIZE, mac,
+				      0);
+}
+
+static int ath6kl_remain_on_channel(struct wiphy *wiphy,
+				    struct net_device *dev,
+				    struct ieee80211_channel *chan,
+				    enum nl80211_channel_type channel_type,
+				    unsigned int duration,
+				    u64 *cookie)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	/* TODO: if already pending or ongoing remain-on-channel,
+	 * return -EBUSY */
+	*cookie = 1; /* only a single pending request is supported */
+
+	return ath6kl_wmi_remain_on_chnl_cmd(ar->wmi, chan->center_freq,
+					     duration);
+}
+
+static int ath6kl_cancel_remain_on_channel(struct wiphy *wiphy,
+					   struct net_device *dev,
+					   u64 cookie)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	if (cookie != 1)
+		return -ENOENT;
+
+	return ath6kl_wmi_cancel_remain_on_chnl_cmd(ar->wmi);
+}
+
+static int ath6kl_send_go_probe_resp(struct ath6kl *ar, const u8 *buf,
+				     size_t len, unsigned int freq)
+{
+	const u8 *pos;
+	u8 *p2p;
+	int p2p_len;
+	int ret;
+	const struct ieee80211_mgmt *mgmt;
+
+	mgmt = (const struct ieee80211_mgmt *) buf;
+
+	/* Include P2P IE(s) from the frame generated in user space. */
+
+	p2p = kmalloc(len, GFP_KERNEL);
+	if (p2p == NULL)
+		return -ENOMEM;
+	p2p_len = 0;
+
+	pos = mgmt->u.probe_resp.variable;
+	while (pos + 1 < buf + len) {
+		if (pos + 2 + pos[1] > buf + len)
+			break;
+		if (ath6kl_is_p2p_ie(pos)) {
+			memcpy(p2p + p2p_len, pos, 2 + pos[1]);
+			p2p_len += 2 + pos[1];
+		}
+		pos += 2 + pos[1];
+	}
+
+	ret = ath6kl_wmi_send_probe_response_cmd(ar->wmi, freq, mgmt->da,
+						 p2p, p2p_len);
+	kfree(p2p);
+	return ret;
+}
+
+static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
+			  struct ieee80211_channel *chan, bool offchan,
+			  enum nl80211_channel_type channel_type,
+			  bool channel_type_valid, unsigned int wait,
+			  const u8 *buf, size_t len, u64 *cookie)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+	u32 id;
+	const struct ieee80211_mgmt *mgmt;
+
+	mgmt = (const struct ieee80211_mgmt *) buf;
+	if (buf + len >= mgmt->u.probe_resp.variable &&
+	    ar->nw_type == AP_NETWORK && test_bit(CONNECTED, &ar->flag) &&
+	    ieee80211_is_probe_resp(mgmt->frame_control)) {
+		/*
+		 * Send Probe Response frame in AP mode using a separate WMI
+		 * command to allow the target to fill in the generic IEs.
+		 */
+		*cookie = 0; /* TX status not supported */
+		return ath6kl_send_go_probe_resp(ar, buf, len,
+						 chan->center_freq);
+	}
+
+	id = ar->send_action_id++;
+	if (id == 0) {
+		/*
+		 * 0 is a reserved value in the WMI command and shall not be
+		 * used for the command.
+		 */
+		id = ar->send_action_id++;
+	}
+
+	*cookie = id;
+	return ath6kl_wmi_send_action_cmd(ar->wmi, id, chan->center_freq, wait,
+					  buf, len);
+}
+
+static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       u16 frame_type, bool reg)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: frame_type=0x%x reg=%d\n",
+		   __func__, frame_type, reg);
+	if (frame_type == IEEE80211_STYPE_PROBE_REQ) {
+		/*
+		 * Note: This notification callback is not allowed to sleep, so
+		 * we cannot send WMI_PROBE_REQ_REPORT_CMD here. Instead, we
+		 * hardcode target to report Probe Request frames all the time.
+		 */
+		ar->probe_req_report = reg;
+	}
+}
+
+static const struct ieee80211_txrx_stypes
+ath6kl_mgmt_stypes[NUM_NL80211_IFTYPES] = {
+	[NL80211_IFTYPE_STATION] = {
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		BIT(IEEE80211_STYPE_PROBE_RESP >> 4),
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+	},
+	[NL80211_IFTYPE_P2P_CLIENT] = {
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		BIT(IEEE80211_STYPE_PROBE_RESP >> 4),
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+	},
+	[NL80211_IFTYPE_P2P_GO] = {
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		BIT(IEEE80211_STYPE_PROBE_RESP >> 4),
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+	},
+};
+
 static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,
 	.scan = ath6kl_cfg80211_scan,
@@ -1474,12 +1824,26 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.set_pmksa = ath6kl_set_pmksa,
 	.del_pmksa = ath6kl_del_pmksa,
 	.flush_pmksa = ath6kl_flush_pmksa,
+	CFG80211_TESTMODE_CMD(ath6kl_tm_cmd)
+#ifdef CONFIG_PM
+	.suspend = ar6k_cfg80211_suspend,
+#endif
+	.set_channel = ath6kl_set_channel,
+	.add_beacon = ath6kl_add_beacon,
+	.set_beacon = ath6kl_set_beacon,
+	.del_beacon = ath6kl_del_beacon,
+	.change_station = ath6kl_change_station,
+	.remain_on_channel = ath6kl_remain_on_channel,
+	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
+	.mgmt_tx = ath6kl_mgmt_tx,
+	.mgmt_frame_register = ath6kl_mgmt_frame_register,
 };
 
 struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 {
 	int ret = 0;
 	struct wireless_dev *wdev;
+	struct ath6kl *ar;
 
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!wdev) {
@@ -1495,13 +1859,25 @@ struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)
 		return NULL;
 	}
 
+	ar = wiphy_priv(wdev->wiphy);
+	ar->p2p = !!ath6kl_p2p;
+
+	wdev->wiphy->mgmt_stypes = ath6kl_mgmt_stypes;
+
+	wdev->wiphy->max_remain_on_channel_duration = 5000;
+
 	/* set device pointer for wiphy */
 	set_wiphy_dev(wdev->wiphy, dev);
 
 	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-	    BIT(NL80211_IFTYPE_ADHOC);
+		BIT(NL80211_IFTYPE_ADHOC) | BIT(NL80211_IFTYPE_AP);
+	if (ar->p2p) {
+		wdev->wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_GO) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT);
+	}
 	/* max num of ssids that can be probed during scanning */
 	wdev->wiphy->max_scan_ssids = MAX_PROBED_SSID_INDEX;
+	wdev->wiphy->max_scan_ie_len = 1000; /* FIX: what is correct limit? */
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &ath6kl_band_2ghz;
 	wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &ath6kl_band_5ghz;
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
