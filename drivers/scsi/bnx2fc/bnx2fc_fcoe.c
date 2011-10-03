@@ -99,6 +99,25 @@ static struct notifier_block bnx2fc_cpu_notifier = {
 	.notifier_call = bnx2fc_cpu_callback,
 };
 
+static inline struct net_device *bnx2fc_netdev(const struct fc_lport *lport)
+{
+	return ((struct bnx2fc_interface *)
+		((struct fcoe_port *)lport_priv(lport))->priv)->netdev;
+}
+
+/**
+ * bnx2fc_get_lesb() - Fill the FCoE Link Error Status Block
+ * @lport: the local port
+ * @fc_lesb: the link error status block
+ */
+static void bnx2fc_get_lesb(struct fc_lport *lport,
+			    struct fc_els_lesb *fc_lesb)
+{
+	struct net_device *netdev = bnx2fc_netdev(lport);
+
+	__fcoe_get_lesb(lport, fc_lesb, netdev);
+}
+
 static void bnx2fc_clean_rx_queue(struct fc_lport *lp)
 {
 	struct fcoe_percpu_s *bg;
@@ -2512,6 +2531,7 @@ static struct libfc_function_template bnx2fc_libfc_fcn_templ = {
 	.elsct_send		= bnx2fc_elsct_send,
 	.fcp_abort_io		= bnx2fc_abort_io,
 	.fcp_cleanup		= bnx2fc_cleanup,
+	.get_lesb		= bnx2fc_get_lesb,
 	.rport_event_callback	= bnx2fc_rport_event_handler,
 };
 
