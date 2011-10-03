@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
 #include <linux/timer.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -53,6 +54,7 @@ struct fiq_debugger_state {
 	struct fiq_glue_handler handler;
 
 	int fiq;
+	int uart_irq;
 	int signal_irq;
 	int wakeup_irq;
 	bool wakeup_irq_no_set_wake;
@@ -130,12 +132,20 @@ static inline void disable_wakeup_irq(struct fiq_debugger_state *state)
 }
 #endif
 
+static bool inline debug_have_fiq(struct fiq_debugger_state *state)
+{
+	return (state->fiq >= 0);
+}
+
 static void debug_force_irq(struct fiq_debugger_state *state)
 {
 	unsigned int irq = state->signal_irq;
-	if (state->pdata->force_irq)
+
+	if (WARN_ON(!debug_have_fiq(state)))
+		return;
+	if (state->pdata->force_irq) {
 		state->pdata->force_irq(state->pdev, irq);
-	else {
+	} else {
 		struct irq_chip *chip = irq_get_chip(irq);
 		if (chip && chip->irq_retrigger)
 			chip->irq_retrigger(irq_get_irq_data(irq));
@@ -447,7 +457,7 @@ void dump_stacktrace(struct fiq_debugger_state *state,
 		tail = user_backtrace(state, tail);
 }
 
-static void debug_help(struct fiq_debugger_state *state)
+static bool debug_help(struct fiq_debugger_state *state)
 {
 	debug_printf(state,	"FIQ Debugger commands:\n"
 				" pc            PC status\n"
@@ -466,15 +476,37 @@ static void debug_help(struct fiq_debugger_state *state)
 	if (!state->debug_busy) {
 		strcpy(state->debug_cmd, "help");
 		state->debug_busy = 1;
-		debug_force_irq(state);
+		return true;
 	}
+
+	return false;
 }
 
-static void debug_exec(struct fiq_debugger_state *state,
+static void take_affinity(void *info)
+{
+	struct fiq_debugger_state *state = info;
+	struct cpumask cpumask;
+
+	cpumask_clear(&cpumask);
+	cpumask_set_cpu(get_cpu(), &cpumask);
+
+	irq_set_affinity(state->uart_irq, &cpumask);
+}
+
+static void switch_cpu(struct fiq_debugger_state *state, int cpu)
+{
+	if (!debug_have_fiq(state))
+		smp_call_function_single(cpu, take_affinity, state, false);
+	state->current_cpu = cpu;
+}
+
+static bool debug_exec(struct fiq_debugger_state *state,
 			const char *cmd, unsigned *regs, void *svc_sp)
 {
+	bool signal_helper = false;
+
 	if (!strcmp(cmd, "help") || !strcmp(cmd, "?")) {
-		debug_help(state);
+		signal_helper |= debug_help(state);
 	} else if (!strcmp(cmd, "pc")) {
 		debug_printf(state, " pc %08x cpsr %08x mode %s\n",
 			regs[15], regs[16], mode_name(regs[16]));
@@ -494,8 +526,10 @@ static void debug_exec(struct fiq_debugger_state *state,
 		debug_printf(state, "%s\n", linux_banner);
 	} else if (!strcmp(cmd, "sleep")) {
 		state->no_sleep = false;
+		debug_printf(state, "enabling sleep\n");
 	} else if (!strcmp(cmd, "nosleep")) {
 		state->no_sleep = true;
+		debug_printf(state, "disabling sleep\n");
 	} else if (!strcmp(cmd, "console")) {
 		state->console_enable = true;
 		debug_printf(state, "console mode\n");
@@ -504,7 +538,7 @@ static void debug_exec(struct fiq_debugger_state *state,
 	} else if (!strncmp(cmd, "cpu ", 4)) {
 		unsigned long cpu = 0;
 		if (strict_strtoul(cmd + 4, 10, &cpu) == 0)
-			state->current_cpu = cpu;
+			switch_cpu(state, cpu);
 		else
 			debug_printf(state, "invalid cpu\n");
 		debug_printf(state, "cpu %d\n", state->current_cpu);
@@ -518,12 +552,12 @@ static void debug_exec(struct fiq_debugger_state *state,
 			state->debug_busy = 1;
 		}
 
-		debug_force_irq(state);
-
-		return;
+		return true;
 	}
 	if (!state->console_enable)
 		debug_prompt(state);
+
+	return signal_helper;
 }
 
 static void sleep_timer_expired(unsigned long data)
@@ -544,15 +578,11 @@ static void sleep_timer_expired(unsigned long data)
 	wake_unlock(&state->debugger_wake_lock);
 }
 
-static irqreturn_t wakeup_irq_handler(int irq, void *dev)
+static void handle_wakeup(struct fiq_debugger_state *state)
 {
-	struct fiq_debugger_state *state = dev;
-
-	if (!state->no_sleep)
-		debug_puts(state, "WAKEUP\n");
-	if (state->ignore_next_wakeup_irq)
+	if (state->wakeup_irq >= 0 && state->ignore_next_wakeup_irq) {
 		state->ignore_next_wakeup_irq = false;
-	else if (!state->uart_clk_enabled) {
+	} else if (!state->uart_clk_enabled) {
 		wake_lock(&state->debugger_wake_lock);
 		if (state->clk)
 			clk_enable(state->clk);
@@ -560,15 +590,22 @@ static irqreturn_t wakeup_irq_handler(int irq, void *dev)
 		disable_wakeup_irq(state);
 		mod_timer(&state->sleep_timer, jiffies + HZ / 2);
 	}
+}
+
+static irqreturn_t wakeup_irq_handler(int irq, void *dev)
+{
+	struct fiq_debugger_state *state = dev;
+
+	if (!state->no_sleep)
+		debug_puts(state, "WAKEUP\n");
+	handle_wakeup(state);
+
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t debug_irq(int irq, void *dev)
-{
-	struct fiq_debugger_state *state = dev;
-	if (state->pdata->force_irq_ack)
-		state->pdata->force_irq_ack(state->pdev, state->signal_irq);
 
+static void debug_handle_irq_context(struct fiq_debugger_state *state)
+{
 	if (!state->no_sleep) {
 		wake_lock(&state->debugger_wake_lock);
 		mod_timer(&state->sleep_timer, jiffies + HZ * 5);
@@ -596,7 +633,6 @@ static irqreturn_t debug_irq(int irq, void *dev)
 
 		state->debug_busy = 0;
 	}
-	return IRQ_HANDLED;
 }
 
 static int debug_getc(struct fiq_debugger_state *state)
@@ -604,30 +640,29 @@ static int debug_getc(struct fiq_debugger_state *state)
 	return state->pdata->uart_getc(state->pdev);
 }
 
-static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
+static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
+			int this_cpu, void *regs, void *svc_sp)
 {
-	struct fiq_debugger_state *state =
-		container_of(h, struct fiq_debugger_state, handler);
 	int c;
 	static int last_c;
 	int count = 0;
-	unsigned int this_cpu = THREAD_INFO(svc_sp)->cpu;
+	bool signal_helper = false;
 
 	if (this_cpu != state->current_cpu) {
 		if (state->in_fiq)
-			return;
+			return false;
 
 		if (atomic_inc_return(&state->unhandled_fiq_count) !=
 					MAX_UNHANDLED_FIQ_COUNT)
-			return;
+			return false;
 
 		debug_printf(state, "fiq_debugger: cpu %d not responding, "
 			"reverting to cpu %d\n", state->current_cpu,
 			this_cpu);
 
 		atomic_set(&state->unhandled_fiq_count, 0);
-		state->current_cpu = this_cpu;
-		return;
+		switch_cpu(state, this_cpu);
+		return false;
 	}
 
 	state->in_fiq = true;
@@ -648,7 +683,7 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 		} else if (state->console_enable && state->tty_rbuf) {
 			fiq_debugger_ringbuf_push(state->tty_rbuf, c);
-			debug_force_irq(state);
+			signal_helper = true;
 #endif
 		} else if ((c >= ' ') && (c < 127)) {
 			if (state->debug_count < (DEBUG_MAX - 1)) {
@@ -670,8 +705,9 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 			if (state->debug_count) {
 				state->debug_buf[state->debug_count] = 0;
 				state->debug_count = 0;
-				debug_exec(state, state->debug_buf,
-					regs, svc_sp);
+				signal_helper |=
+					debug_exec(state, state->debug_buf,
+						   regs, svc_sp);
 			} else {
 				debug_prompt(state);
 			}
@@ -684,10 +720,63 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 
 	/* poke sleep timer if necessary */
 	if (state->debug_enable && !state->no_sleep)
-		debug_force_irq(state);
+		signal_helper = true;
 
 	atomic_set(&state->unhandled_fiq_count, 0);
 	state->in_fiq = false;
+
+	return signal_helper;
+}
+
+static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
+{
+	struct fiq_debugger_state *state =
+		container_of(h, struct fiq_debugger_state, handler);
+	unsigned int this_cpu = THREAD_INFO(svc_sp)->cpu;
+	bool need_irq;
+
+	need_irq = debug_handle_uart_interrupt(state, this_cpu, regs, svc_sp);
+	if (need_irq)
+		debug_force_irq(state);
+}
+
+/*
+ * When not using FIQs, we only use this single interrupt as an entry point.
+ * This just effectively takes over the UART interrupt and does all the work
+ * in this context.
+ */
+static irqreturn_t debug_uart_irq(int irq, void *dev)
+{
+	struct fiq_debugger_state *state = dev;
+	bool not_done;
+
+	handle_wakeup(state);
+
+	/* handle the debugger irq in regular context */
+	not_done = debug_handle_uart_interrupt(state, smp_processor_id(),
+					      get_irq_regs(),
+					      current_thread_info());
+	if (not_done)
+		debug_handle_irq_context(state);
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * If FIQs are used, not everything can happen in fiq context.
+ * FIQ handler does what it can and then signals this interrupt to finish the
+ * job in irq context.
+ */
+static irqreturn_t debug_signal_irq(int irq, void *dev)
+{
+	struct fiq_debugger_state *state = dev;
+
+	if (state->pdata->force_irq_ack)
+		state->pdata->force_irq_ack(state->pdev, state->signal_irq);
+
+	debug_handle_irq_context(state);
+
+	return IRQ_HANDLED;
 }
 
 static void debug_resume(struct fiq_glue_handler *h)
@@ -834,13 +923,23 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	int ret;
 	struct fiq_debugger_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct fiq_debugger_state *state;
+	int fiq;
+	int uart_irq;
 
-	if (!pdata->uart_getc || !pdata->uart_putc || !pdata->fiq_enable)
+	if (!pdata->uart_getc || !pdata->uart_putc)
+		return -EINVAL;
+
+	fiq = platform_get_irq_byname(pdev, "fiq");
+	uart_irq = platform_get_irq_byname(pdev, "uart_irq");
+
+	/* uart_irq mode and fiq mode are mutually exclusive, but one of them
+	 * is required */
+	if ((uart_irq < 0 && fiq < 0) || (uart_irq >= 0 && fiq >= 0))
+		return -EINVAL;
+	if (fiq >= 0 && !pdata->fiq_enable)
 		return -EINVAL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	state->handler.fiq = debug_fiq;
-	state->handler.resume = debug_resume;
 	setup_timer(&state->sleep_timer, sleep_timer_expired,
 		    (unsigned long)state);
 	state->pdata = pdata;
@@ -849,11 +948,12 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	state->debug_enable = initial_debug_enable;
 	state->console_enable = initial_console_enable;
 
-	state->fiq = platform_get_irq_byname(pdev, "fiq");
+	state->fiq = fiq;
+	state->uart_irq = uart_irq;
 	state->signal_irq = platform_get_irq_byname(pdev, "signal");
 	state->wakeup_irq = platform_get_irq_byname(pdev, "wakeup");
 
-	if (state->wakeup_irq < 0)
+	if (state->wakeup_irq < 0 && debug_have_fiq(state))
 		state->no_sleep = true;
 	state->ignore_next_wakeup_irq = !state->no_sleep;
 
@@ -876,21 +976,39 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	debug_printf_nfiq(state, "<hit enter %sto activate fiq debugger>\n",
 				state->no_sleep ? "" : "twice ");
 
-	ret = fiq_glue_register_handler(&state->handler);
-	if (ret) {
-		pr_err("serial_debugger: could not install fiq handler\n");
-		goto err_register_fiq;
-	}
+	if (debug_have_fiq(state)) {
+		state->handler.fiq = debug_fiq;
+		state->handler.resume = debug_resume;
+		ret = fiq_glue_register_handler(&state->handler);
+		if (ret) {
+			pr_err("%s: could not install fiq handler\n", __func__);
+			goto err_register_fiq;
+		}
 
-	pdata->fiq_enable(pdev, state->fiq, 1);
+		pdata->fiq_enable(pdev, state->fiq, 1);
+	} else {
+		ret = request_irq(state->uart_irq, debug_uart_irq,
+				  0, "debug", state);
+		if (ret) {
+			pr_err("%s: could not install irq handler\n", __func__);
+			goto err_register_irq;
+		}
+
+		/* for irq-only mode, we want this irq to wake us up, if it
+		 * can.
+		 */
+		enable_irq_wake(state->uart_irq);
+	}
 
 	if (state->clk)
 		clk_disable(state->clk);
 
-	ret = request_irq(state->signal_irq, debug_irq,
-			  IRQF_TRIGGER_RISING, "debug", state);
-	if (ret)
-		pr_err("serial_debugger: could not install signal_irq");
+	if (state->signal_irq >= 0) {
+		ret = request_irq(state->signal_irq, debug_signal_irq,
+			  IRQF_TRIGGER_RISING, "debug-signal", state);
+		if (ret)
+			pr_err("serial_debugger: could not install signal_irq");
+	}
 
 	if (state->wakeup_irq >= 0) {
 		ret = request_irq(state->wakeup_irq, wakeup_irq_handler,
@@ -910,7 +1028,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 		}
 	}
 	if (state->no_sleep)
-		wakeup_irq_handler(state->wakeup_irq, state);
+		handle_wakeup(state);
 
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
 	state->console = fiq_debugger_console;
@@ -919,6 +1037,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 #endif
 	return 0;
 
+err_register_irq:
 err_register_fiq:
 	if (pdata->uart_free)
 		pdata->uart_free(pdev);
