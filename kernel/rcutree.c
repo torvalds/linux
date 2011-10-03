@@ -556,12 +556,16 @@ void rcu_nmi_exit(void)
  * rcu_is_cpu_idle - see if RCU thinks that the current CPU is idle
  *
  * If the current CPU is in its idle loop and is neither in an interrupt
- * or NMI handler, return true.  The caller must have at least disabled
- * preemption.
+ * or NMI handler, return true.
  */
 int rcu_is_cpu_idle(void)
 {
-	return (atomic_read(&__get_cpu_var(rcu_dynticks).dynticks) & 0x1) == 0;
+	int ret;
+
+	preempt_disable();
+	ret = (atomic_read(&__get_cpu_var(rcu_dynticks).dynticks) & 0x1) == 0;
+	preempt_enable();
+	return ret;
 }
 
 #endif /* #ifdef CONFIG_PROVE_RCU */
