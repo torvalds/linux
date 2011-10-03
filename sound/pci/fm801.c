@@ -68,6 +68,7 @@ MODULE_PARM_DESC(enable, "Enable FM801 soundcard.");
 module_param_array(tea575x_tuner, int, NULL, 0444);
 MODULE_PARM_DESC(tea575x_tuner, "TEA575x tuner access method (0 = auto, 1 = SF256-PCS, 2=SF256-PCP, 3=SF64-PCR, 8=disable, +16=tuner-only).");
 
+#define TUNER_DISABLED		(1<<3)
 #define TUNER_ONLY		(1<<4)
 #define TUNER_TYPE_MASK		(~TUNER_ONLY & 0xFFFF)
 
@@ -1150,7 +1151,8 @@ static int snd_fm801_free(struct fm801 *chip)
 
       __end_hw:
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
-	snd_tea575x_exit(&chip->tea);
+	if (!(chip->tea575x_tuner & TUNER_DISABLED))
+		snd_tea575x_exit(&chip->tea);
 #endif
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
@@ -1236,7 +1238,6 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 	    (tea575x_tuner & TUNER_TYPE_MASK) < 4) {
 		if (snd_tea575x_init(&chip->tea)) {
 			snd_printk(KERN_ERR "TEA575x radio not found\n");
-			snd_fm801_free(chip);
 			return -ENODEV;
 		}
 	} else if ((tea575x_tuner & TUNER_TYPE_MASK) == 0) {
@@ -1251,11 +1252,15 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 		}
 		if (tea575x_tuner == 4) {
 			snd_printk(KERN_ERR "TEA575x radio not found\n");
-			snd_fm801_free(chip);
-			return -ENODEV;
+			chip->tea575x_tuner = TUNER_DISABLED;
 		}
 	}
-	strlcpy(chip->tea.card, snd_fm801_tea575x_gpios[(tea575x_tuner & TUNER_TYPE_MASK) - 1].name, sizeof(chip->tea.card));
+	if (!(chip->tea575x_tuner & TUNER_DISABLED)) {
+		strlcpy(chip->tea.card,
+			snd_fm801_tea575x_gpios[(tea575x_tuner &
+						 TUNER_TYPE_MASK) - 1].name,
+			sizeof(chip->tea.card));
+	}
 #endif
 
 	*rchip = chip;

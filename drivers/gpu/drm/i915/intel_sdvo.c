@@ -92,6 +92,11 @@ struct intel_sdvo {
 	*/
 	uint16_t attached_output;
 
+	/*
+	 * Hotplug activation bits for this device
+	 */
+	uint8_t hotplug_active[2];
+
 	/**
 	 * This is used to select the color range of RBG outputs in HDMI mode.
 	 * It is only valid when using TMDS encoding and 8 bit per color mode.
@@ -1208,74 +1213,20 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 	return true;
 }
 
-/* No use! */
-#if 0
-struct drm_connector* intel_sdvo_find(struct drm_device *dev, int sdvoB)
-{
-	struct drm_connector *connector = NULL;
-	struct intel_sdvo *iout = NULL;
-	struct intel_sdvo *sdvo;
-
-	/* find the sdvo connector */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		iout = to_intel_sdvo(connector);
-
-		if (iout->type != INTEL_OUTPUT_SDVO)
-			continue;
-
-		sdvo = iout->dev_priv;
-
-		if (sdvo->sdvo_reg == SDVOB && sdvoB)
-			return connector;
-
-		if (sdvo->sdvo_reg == SDVOC && !sdvoB)
-			return connector;
-
-	}
-
-	return NULL;
-}
-
-int intel_sdvo_supports_hotplug(struct drm_connector *connector)
+static int intel_sdvo_supports_hotplug(struct intel_sdvo *intel_sdvo)
 {
 	u8 response[2];
-	u8 status;
-	struct intel_sdvo *intel_sdvo;
-	DRM_DEBUG_KMS("\n");
-
-	if (!connector)
-		return 0;
-
-	intel_sdvo = to_intel_sdvo(connector);
 
 	return intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HOT_PLUG_SUPPORT,
 				    &response, 2) && response[0];
 }
 
-void intel_sdvo_set_hotplug(struct drm_connector *connector, int on)
+static void intel_sdvo_enable_hotplug(struct intel_encoder *encoder)
 {
-	u8 response[2];
-	u8 status;
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(connector);
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
 
-	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_GET_ACTIVE_HOT_PLUG, NULL, 0);
-	intel_sdvo_read_response(intel_sdvo, &response, 2);
-
-	if (on) {
-		intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_GET_HOT_PLUG_SUPPORT, NULL, 0);
-		status = intel_sdvo_read_response(intel_sdvo, &response, 2);
-
-		intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG, &response, 2);
-	} else {
-		response[0] = 0;
-		response[1] = 0;
-		intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG, &response, 2);
-	}
-
-	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_GET_ACTIVE_HOT_PLUG, NULL, 0);
-	intel_sdvo_read_response(intel_sdvo, &response, 2);
+	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG, &intel_sdvo->hotplug_active, 2);
 }
-#endif
 
 static bool
 intel_sdvo_multifunc_encoder(struct intel_sdvo *intel_sdvo)
@@ -2045,6 +1996,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 {
 	struct drm_encoder *encoder = &intel_sdvo->base.base;
 	struct drm_connector *connector;
+	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
 
@@ -2062,7 +2014,17 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 
 	intel_connector = &intel_sdvo_connector->base;
 	connector = &intel_connector->base;
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+	if (intel_sdvo_supports_hotplug(intel_sdvo) & (1 << device)) {
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
+		intel_sdvo->hotplug_active[0] |= 1 << device;
+		/* Some SDVO devices have one-shot hotplug interrupts.
+		 * Ensure that they get re-enabled when an interrupt happens.
+		 */
+		intel_encoder->hot_plug = intel_sdvo_enable_hotplug;
+		intel_sdvo_enable_hotplug(intel_encoder);
+	}
+	else
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 	encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
 	connector->connector_type = DRM_MODE_CONNECTOR_DVID;
 
@@ -2568,6 +2530,14 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	/* In default case sdvo lvds is false */
 	if (!intel_sdvo_get_capabilities(intel_sdvo, &intel_sdvo->caps))
 		goto err;
+
+	/* Set up hotplug command - note paranoia about contents of reply.
+	 * We assume that the hardware is in a sane state, and only touch
+	 * the bits we think we understand.
+	 */
+	intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_ACTIVE_HOT_PLUG,
+			     &intel_sdvo->hotplug_active, 2);
+	intel_sdvo->hotplug_active[0] &= ~0x3;
 
 	if (intel_sdvo_output_setup(intel_sdvo,
 				    intel_sdvo->caps.output_flags) != true) {

@@ -161,6 +161,7 @@ static void config_attr(struct perf_evsel *evsel, struct perf_evlist *evlist)
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
+	attr->disabled		= 1;
 	attr->inherit		= !no_inherit;
 	attr->read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
 				  PERF_FORMAT_TOTAL_TIME_RUNNING |
@@ -670,6 +671,8 @@ static int __cmd_record(int argc, const char **argv)
 			exit(-1);
 		}
 	}
+
+	perf_evlist__enable(evsel_list);
 
 	/*
 	 * Let the child rip

@@ -160,6 +160,8 @@ struct gmap *gmap_alloc(struct mm_struct *mm)
 	table = (unsigned long *) page_to_phys(page);
 	crst_table_init(table, _REGION1_ENTRY_EMPTY);
 	gmap->table = table;
+	gmap->asce = _ASCE_TYPE_REGION1 | _ASCE_TABLE_LENGTH |
+		     _ASCE_USER_BITS | __pa(table);
 	list_add(&gmap->list, &mm->context.gmap_list);
 	return gmap;
 
@@ -240,10 +242,6 @@ EXPORT_SYMBOL_GPL(gmap_free);
  */
 void gmap_enable(struct gmap *gmap)
 {
-	/* Load primary space page table origin. */
-	S390_lowcore.user_asce = _ASCE_TYPE_REGION1 | _ASCE_TABLE_LENGTH |
-				 _ASCE_USER_BITS | __pa(gmap->table);
-	asm volatile("lctlg 1,1,%0\n" : : "m" (S390_lowcore.user_asce) );
 	S390_lowcore.gmap = (unsigned long) gmap;
 }
 EXPORT_SYMBOL_GPL(gmap_enable);
@@ -254,10 +252,6 @@ EXPORT_SYMBOL_GPL(gmap_enable);
  */
 void gmap_disable(struct gmap *gmap)
 {
-	/* Load primary space page table origin. */
-	S390_lowcore.user_asce =
-		gmap->mm->context.asce_bits | __pa(gmap->mm->pgd);
-	asm volatile("lctlg 1,1,%0\n" : : "m" (S390_lowcore.user_asce) );
 	S390_lowcore.gmap = 0UL;
 }
 EXPORT_SYMBOL_GPL(gmap_disable);
@@ -309,15 +303,15 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 		/* Walk the guest addr space page table */
 		table = gmap->table + (((to + off) >> 53) & 0x7ff);
 		if (*table & _REGION_ENTRY_INV)
-			return 0;
+			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		table = table + (((to + off) >> 42) & 0x7ff);
 		if (*table & _REGION_ENTRY_INV)
-			return 0;
+			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		table = table + (((to + off) >> 31) & 0x7ff);
 		if (*table & _REGION_ENTRY_INV)
-			return 0;
+			goto out;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 		table = table + (((to + off) >> 20) & 0x7ff);
 
@@ -325,6 +319,7 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 		flush |= gmap_unlink_segment(gmap, table);
 		*table = _SEGMENT_ENTRY_INV;
 	}
+out:
 	up_read(&gmap->mm->mmap_sem);
 	if (flush)
 		gmap_flush_tlb(gmap);

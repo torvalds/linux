@@ -258,11 +258,13 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 
 	ret = queue_var_store(&val, page, count);
 	spin_lock_irq(q->queue_lock);
-	if (val) {
+	if (val == 2) {
 		queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
-		if (val == 2)
-			queue_flag_set(QUEUE_FLAG_SAME_FORCE, q);
-	} else {
+		queue_flag_set(QUEUE_FLAG_SAME_FORCE, q);
+	} else if (val == 1) {
+		queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
+		queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
+	} else if (val == 0) {
 		queue_flag_clear(QUEUE_FLAG_SAME_COMP, q);
 		queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
 	}
@@ -476,6 +478,11 @@ static void blk_release_queue(struct kobject *kobj)
 	struct request_list *rl = &q->rq;
 
 	blk_sync_queue(q);
+
+	if (q->elevator)
+		elevator_exit(q->elevator);
+
+	blk_throtl_exit(q);
 
 	if (rl->rq_pool)
 		mempool_destroy(rl->rq_pool);

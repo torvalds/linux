@@ -841,7 +841,7 @@ static void iwl3945_rx_card_state_notif(struct iwl_priv *priv,
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
 				test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
-		wake_up_interruptible(&priv->wait_command_queue);
+		wake_up(&priv->wait_command_queue);
 }
 
 /**
@@ -2269,7 +2269,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	iwl3945_reg_txpower_periodic(priv);
 
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
-	wake_up_interruptible(&priv->wait_command_queue);
+	wake_up(&priv->wait_command_queue);
 
 	return;
 
@@ -2300,7 +2300,7 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	iwl_legacy_clear_driver_stations(priv);
 
 	/* Unblock any waiting calls */
-	wake_up_interruptible_all(&priv->wait_command_queue);
+	wake_up_all(&priv->wait_command_queue);
 
 	/* Wipe out the EXIT_PENDING status bit if we are not actually
 	 * exiting the module */
@@ -2853,7 +2853,7 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 
 	/* Wait for START_ALIVE from ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+	ret = wait_event_timeout(priv->wait_command_queue,
 			test_bit(STATUS_READY, &priv->status),
 			UCODE_READY_TIMEOUT);
 	if (!ret) {

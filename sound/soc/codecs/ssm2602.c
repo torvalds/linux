@@ -431,7 +431,8 @@ static int ssm2602_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	u16 reg = snd_soc_read(codec, SSM2602_PWR) & 0xff7f;
+	u16 reg = snd_soc_read(codec, SSM2602_PWR);
+	reg &= ~(PWR_POWER_OFF | PWR_OSC_PDN);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
