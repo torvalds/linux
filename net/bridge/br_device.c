@@ -361,6 +361,8 @@ void br_dev_setup(struct net_device *dev)
 	memcpy(br->group_addr, br_group_address, ETH_ALEN);
 
 	br->stp_enabled = BR_NO_STP;
+	br->group_fwd_mask = BR_GROUPFWD_DEFAULT;
+
 	br->designated_root = br->bridge_id;
 	br->bridge_max_age = br->max_age = 20 * HZ;
 	br->bridge_hello_time = br->hello_time = 2 * HZ;
