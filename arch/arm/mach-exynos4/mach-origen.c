@@ -600,6 +600,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_i2c_hdmiphy,
 	&s5p_device_mixer,
 	&exynos4_device_pd[PD_LCD0],
+	&exynos4_device_pd[PD_TV],
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,
 };
@@ -614,6 +615,14 @@ static struct platform_pwm_backlight_data origen_bl_data = {
 	.pwm_id		= 0,
 	.pwm_period_ns	= 1000,
 };
+
+static void s5p_tv_setup(void)
+{
+	/* Direct HPD to HDMI chip */
+	gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug");
+	s3c_gpio_cfgpin(EXYNOS4_GPX3(7), S3C_GPIO_SFN(0x3));
+	s3c_gpio_setpull(EXYNOS4_GPX3(7), S3C_GPIO_PULL_NONE);
+}
 
 static void __init origen_map_io(void)
 {
@@ -646,12 +655,16 @@ static void __init origen_machine_init(void)
 	origen_ehci_init();
 	clk_xusbxti.rate = 24000000;
 
+	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
 
 	s5p_fimd0_set_platdata(&origen_lcd_pdata);
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
 	s5p_device_fimd0.dev.parent = &exynos4_device_pd[PD_LCD0].dev;
+
+	s5p_device_hdmi.dev.parent = &exynos4_device_pd[PD_TV].dev;
+	s5p_device_mixer.dev.parent = &exynos4_device_pd[PD_TV].dev;
 
 	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 }
