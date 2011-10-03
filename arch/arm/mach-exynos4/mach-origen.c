@@ -19,11 +19,15 @@
 #include <linux/i2c.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/max8997.h>
+#include <linux/lcd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include <video/platform_lcd.h>
+
 #include <plat/regs-serial.h>
+#include <plat/regs-fb-v4.h>
 #include <plat/exynos4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
@@ -33,6 +37,8 @@
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
+#include <plat/pd.h>
+#include <plat/fb.h>
 
 #include <mach/map.h>
 
@@ -529,10 +535,59 @@ static struct platform_device origen_device_gpiokeys = {
 	},
 };
 
+static void lcd_hv070wsa_set_power(struct plat_lcd_data *pd, unsigned int power)
+{
+	int ret;
+
+	if (power)
+		ret = gpio_request_one(EXYNOS4_GPE3(4),
+					GPIOF_OUT_INIT_HIGH, "GPE3_4");
+	else
+		ret = gpio_request_one(EXYNOS4_GPE3(4),
+					GPIOF_OUT_INIT_LOW, "GPE3_4");
+
+	gpio_free(EXYNOS4_GPE3(4));
+
+	if (ret)
+		pr_err("failed to request gpio for LCD power: %d\n", ret);
+}
+
+static struct plat_lcd_data origen_lcd_hv070wsa_data = {
+	.set_power = lcd_hv070wsa_set_power,
+};
+
+static struct platform_device origen_lcd_hv070wsa = {
+	.name			= "platform-lcd",
+	.dev.parent		= &s5p_device_fimd0.dev,
+	.dev.platform_data	= &origen_lcd_hv070wsa_data,
+};
+
+static struct s3c_fb_pd_win origen_fb_win0 = {
+	.win_mode = {
+		.left_margin	= 64,
+		.right_margin	= 16,
+		.upper_margin	= 64,
+		.lower_margin	= 16,
+		.hsync_len	= 48,
+		.vsync_len	= 3,
+		.xres		= 1024,
+		.yres		= 600,
+	},
+	.max_bpp		= 32,
+	.default_bpp		= 24,
+};
+
+static struct s3c_fb_platdata origen_lcd_pdata __initdata = {
+	.win[0]		= &origen_fb_win0,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
+};
+
 static struct platform_device *origen_devices[] __initdata = {
-	&s3c_device_i2c0,
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc0,
+	&s3c_device_i2c0,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&s5p_device_ehci,
@@ -540,10 +595,13 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
 	&s5p_device_fimc3,
+	&s5p_device_fimd0,
 	&s5p_device_hdmi,
 	&s5p_device_i2c_hdmiphy,
 	&s5p_device_mixer,
+	&exynos4_device_pd[PD_LCD0],
 	&origen_device_gpiokeys,
+	&origen_lcd_hv070wsa,
 };
 
 /* LCD Backlight data */
@@ -590,7 +648,10 @@ static void __init origen_machine_init(void)
 
 	s5p_i2c_hdmiphy_set_platdata(NULL);
 
+	s5p_fimd0_set_platdata(&origen_lcd_pdata);
+
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
+	s5p_device_fimd0.dev.parent = &exynos4_device_pd[PD_LCD0].dev;
 
 	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 }
