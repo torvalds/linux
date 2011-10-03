@@ -76,9 +76,15 @@ static struct omap3isp_prev_csc flr_prev_csc = {
 
 #define DEF_DETECT_CORRECT_VAL	0xe
 
-#define PREV_MIN_WIDTH		64
-#define PREV_MIN_HEIGHT		8
-#define PREV_MAX_HEIGHT		16384
+#define PREV_MIN_IN_WIDTH	64
+#define PREV_MIN_IN_HEIGHT	8
+#define PREV_MAX_IN_HEIGHT	16384
+
+#define PREV_MIN_OUT_WIDTH	0
+#define PREV_MIN_OUT_HEIGHT	0
+#define PREV_MAX_OUT_WIDTH	1280
+#define PREV_MAX_OUT_WIDTH_ES2	3300
+#define PREV_MAX_OUT_WIDTH_3630	4096
 
 /*
  * Coeficient Tables for the submodules in Preview.
@@ -1280,14 +1286,14 @@ static unsigned int preview_max_out_width(struct isp_prev_device *prev)
 
 	switch (isp->revision) {
 	case ISP_REVISION_1_0:
-		return ISPPRV_MAXOUTPUT_WIDTH;
+		return PREV_MAX_OUT_WIDTH;
 
 	case ISP_REVISION_2_0:
 	default:
-		return ISPPRV_MAXOUTPUT_WIDTH_ES2;
+		return PREV_MAX_OUT_WIDTH_ES2;
 
 	case ISP_REVISION_15_0:
-		return ISPPRV_MAXOUTPUT_WIDTH_3630;
+		return PREV_MAX_OUT_WIDTH_3630;
 	}
 }
 
@@ -1295,7 +1301,6 @@ static void preview_configure(struct isp_prev_device *prev)
 {
 	struct isp_device *isp = to_isp_device(prev);
 	struct v4l2_mbus_framefmt *format;
-	unsigned int max_out_width;
 
 	preview_setup_hw(prev);
 
@@ -1332,8 +1337,6 @@ static void preview_configure(struct isp_prev_device *prev)
 	if (prev->output & PREVIEW_OUTPUT_MEMORY)
 		preview_config_outlineoffset(prev,
 				ALIGN(format->width, 0x10) * 2);
-
-	max_out_width = preview_max_out_width(prev);
 
 	preview_config_averager(prev, 0);
 	preview_config_ycpos(prev, format->code);
@@ -1620,11 +1623,8 @@ static void preview_try_format(struct isp_prev_device *prev,
 			       enum v4l2_subdev_format_whence which)
 {
 	struct v4l2_mbus_framefmt *format;
-	unsigned int max_out_width;
 	enum v4l2_mbus_pixelcode pixelcode;
 	unsigned int i;
-
-	max_out_width = preview_max_out_width(prev);
 
 	switch (pad) {
 	case PREV_PAD_SINK:
@@ -1638,10 +1638,11 @@ static void preview_try_format(struct isp_prev_device *prev,
 		 * filter array interpolation.
 		 */
 		if (prev->input == PREVIEW_INPUT_MEMORY) {
-			fmt->width = clamp_t(u32, fmt->width, PREV_MIN_WIDTH,
-					     max_out_width);
-			fmt->height = clamp_t(u32, fmt->height, PREV_MIN_HEIGHT,
-					      PREV_MAX_HEIGHT);
+			fmt->width = clamp_t(u32, fmt->width, PREV_MIN_IN_WIDTH,
+					     preview_max_out_width(prev));
+			fmt->height = clamp_t(u32, fmt->height,
+					      PREV_MIN_IN_HEIGHT,
+					      PREV_MAX_IN_HEIGHT);
 		}
 
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
