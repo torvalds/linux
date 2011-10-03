@@ -612,7 +612,7 @@ static int wm8971_resume(struct snd_soc_codec *codec)
 
 	/* Sync reg_cache with the hardware */
 	for (i = 0; i < ARRAY_SIZE(wm8971_reg); i++) {
-		if (i + 1 == WM8971_RESET)
+		if (i == WM8971_RESET)
 			continue;
 		data[0] = (i << 1) | ((cache[i] >> 8) & 0x0001);
 		data[1] = cache[i] & 0x00ff;
