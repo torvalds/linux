@@ -1,4 +1,4 @@
-# arch/arm/plat-s3c64xx/Makefile
+# arch/arm/plat-samsung/Makefile
 #
 # Copyright 2009 Simtec Electronics
 #
@@ -30,6 +30,7 @@ obj-$(CONFIG_S3C_ADC)	+= adc.o
 
 obj-y				+= platformdata.o
 
+obj-y				+= devs.o
 obj-$(CONFIG_S3C_DEV_HSMMC)	+= dev-hsmmc.o
 obj-$(CONFIG_S3C_DEV_HSMMC1)	+= dev-hsmmc1.o
 obj-$(CONFIG_S3C_DEV_HSMMC2)	+= dev-hsmmc2.o

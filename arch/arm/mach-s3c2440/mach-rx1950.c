@@ -43,6 +43,7 @@
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-gpioj.h>
+#include <mach/regs-lcd.h>
 #include <mach/h1940.h>
 #include <mach/fb.h>
 

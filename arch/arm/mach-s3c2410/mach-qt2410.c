@@ -49,6 +49,7 @@
 
 #include <mach/regs-gpio.h>
 #include <mach/leds-gpio.h>
+#include <mach/regs-lcd.h>
 #include <plat/regs-serial.h>
 #include <mach/fb.h>
 #include <plat/nand.h>
