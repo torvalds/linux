@@ -416,12 +416,16 @@ struct conf_rx_settings {
 	u8 queue_type;
 };
 
-#define CONF_TX_MAX_RATE_CLASSES       8
+#define CONF_TX_MAX_RATE_CLASSES       10
 
 #define CONF_TX_RATE_MASK_UNSPECIFIED  0
 #define CONF_TX_RATE_MASK_BASIC        (CONF_HW_BIT_RATE_1MBPS | \
 					CONF_HW_BIT_RATE_2MBPS)
 #define CONF_TX_RATE_RETRY_LIMIT       10
+
+/* basic rates for p2p operations (probe req/resp, etc.) */
+#define CONF_TX_RATE_MASK_BASIC_P2P    (CONF_HW_BIT_RATE_6MBPS | \
+	CONF_HW_BIT_RATE_12MBPS | CONF_HW_BIT_RATE_24MBPS)
 
 /*
  * Rates supported for data packets when operating as AP. Note the absence
