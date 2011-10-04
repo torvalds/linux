@@ -15,6 +15,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/bitops.h>
 
 #include <brcm_hw_ids.h>
 #include <chipcommon.h>
@@ -2879,8 +2880,7 @@ void wlc_phy_stf_chain_init(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain)
 	pi->sh->hw_phyrxchain = rxchain;
 	pi->sh->phytxchain = txchain;
 	pi->sh->phyrxchain = rxchain;
-	pi->pubpi.phy_corenum = (u8) brcmu_bitcount((u8 *)&pi->sh->phyrxchain,
-						    sizeof(u8));
+	pi->pubpi.phy_corenum = (u8)hweight8(pi->sh->phyrxchain);
 }
 
 void wlc_phy_stf_chain_set(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain)
@@ -2892,8 +2892,7 @@ void wlc_phy_stf_chain_set(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain)
 	if (ISNPHY(pi))
 		wlc_phy_rxcore_setstate_nphy(pih, rxchain);
 
-	pi->pubpi.phy_corenum = (u8) brcmu_bitcount((u8 *)&pi->sh->phyrxchain,
-						    sizeof(u8));
+	pi->pubpi.phy_corenum = (u8)hweight8(pi->sh->phyrxchain);
 }
 
 void wlc_phy_stf_chain_get(struct brcms_phy_pub *pih, u8 *txchain, u8 *rxchain)

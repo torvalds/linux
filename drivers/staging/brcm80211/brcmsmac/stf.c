@@ -165,10 +165,10 @@ static int brcms_c_stf_txcore_set(struct brcms_c_info *wlc, u8 Nsts,
 	BCMMSG(wlc->wiphy, "wl%d: Nsts %d core_mask %x\n",
 		 wlc->pub->unit, Nsts, core_mask);
 
-	if (BRCMS_BITSCNT(core_mask) > wlc->stf->txstreams)
+	if (hweight8(core_mask) > wlc->stf->txstreams)
 		core_mask = 0;
 
-	if ((BRCMS_BITSCNT(core_mask) == wlc->stf->txstreams) &&
+	if ((hweight8(core_mask) == wlc->stf->txstreams) &&
 	    ((core_mask & ~wlc->stf->txchain)
 	     || !(core_mask & wlc->stf->txchain)))
 		core_mask = wlc->stf->txchain;
@@ -278,7 +278,7 @@ int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 	 * if nrate override is configured to be non-SISO STF mode, reject
 	 * reducing txchain to 1
 	 */
-	txstreams = (u8) BRCMS_BITSCNT(txchain);
+	txstreams = (u8) hweight8(txchain);
 	if (txstreams > MAX_STREAMS_SUPPORTED)
 		return -EINVAL;
 
@@ -385,7 +385,7 @@ void brcms_c_stf_phy_chain_calc(struct brcms_c_info *wlc)
 	}
 
 	wlc->stf->txchain = wlc->stf->hw_txchain;
-	wlc->stf->txstreams = (u8) BRCMS_BITSCNT(wlc->stf->hw_txchain);
+	wlc->stf->txstreams = (u8) hweight8(wlc->stf->hw_txchain);
 
 	if (wlc->stf->hw_rxchain == 0 || wlc->stf->hw_rxchain == 0xf) {
 		if (BRCMS_ISNPHY(wlc->band))
@@ -395,7 +395,7 @@ void brcms_c_stf_phy_chain_calc(struct brcms_c_info *wlc)
 	}
 
 	wlc->stf->rxchain = wlc->stf->hw_rxchain;
-	wlc->stf->rxstreams = (u8) BRCMS_BITSCNT(wlc->stf->hw_rxchain);
+	wlc->stf->rxstreams = (u8) hweight8(wlc->stf->hw_rxchain);
 
 	/* initialize the txcore table */
 	memcpy(wlc->stf->txcore, txcore_default, sizeof(wlc->stf->txcore));
