@@ -34,6 +34,10 @@
 #define S5P6450_GPQ_BASE		(S5P_VA_GPIO + 0x0180)
 #define S5P6450_GPS_BASE		(S5P_VA_GPIO + 0x0300)
 
+#define S5P64X0_SPCON0			(S5P_VA_GPIO + 0x1A0)
+#define S5P64X0_SPCON0_LCD_SEL_MASK	(0x3 << 0)
+#define S5P64X0_SPCON0_LCD_SEL_RGB	(0x1 << 0)
+
 /* External interrupt control registers for group0 */
 
 #define EINT0CON0_OFFSET		(0x900)

@@ -118,8 +118,8 @@ void __init s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 void __init s3c2416_map_io(void)
 {
-	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_updown;
-	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_updown;
+	s3c24xx_gpiocfg_default.set_pull = samsung_gpio_setpull_updown;
+	s3c24xx_gpiocfg_default.get_pull = samsung_gpio_getpull_updown;
 
 	/* initialize device information early */
 	s3c2416_default_sdhci0();
