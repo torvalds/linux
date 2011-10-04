@@ -15,8 +15,6 @@ obj-y				+= init.o
 obj-$(CONFIG_ARCH_USES_GETTIMEOFFSET)   += time.o
 obj-y				+= clock.o
 obj-y				+= pwm-clock.o
-obj-y				+= gpio.o
-obj-y				+= gpio-config.o
 obj-y				+= dev-asocdma.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
