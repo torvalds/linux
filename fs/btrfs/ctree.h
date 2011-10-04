@@ -1503,6 +1503,7 @@ struct btrfs_ioctl_defrag_range_args {
 #define BTRFS_MOUNT_SKIP_BALANCE	(1 << 19)
 #define BTRFS_MOUNT_CHECK_INTEGRITY	(1 << 20)
 #define BTRFS_MOUNT_CHECK_INTEGRITY_INCLUDING_EXTENT_DATA (1 << 21)
+#define BTRFS_MOUNT_PANIC_ON_FATAL_ERROR	(1 << 22)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -2968,6 +2969,16 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 do {								\
 	if ((errno))						\
 		__btrfs_std_error((fs_info), __func__, __LINE__, (errno));\
+} while (0)
+
+void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
+		   unsigned int line, int errno, const char *fmt, ...);
+
+#define btrfs_panic(fs_info, errno, fmt, args...)			\
+do {									\
+	struct btrfs_fs_info *_i = (fs_info);				\
+	__btrfs_panic(_i, __func__, __LINE__, errno, fmt, ##args);	\
+	BUG_ON(!(_i->mount_opt & BTRFS_MOUNT_PANIC_ON_FATAL_ERROR));	\
 } while (0)
 
 /* acl.c */
