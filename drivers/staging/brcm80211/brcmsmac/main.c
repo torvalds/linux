@@ -4186,12 +4186,10 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 					  *shm_entry++);
 	}
 
-	if (suspend)
+	if (suspend) {
 		brcms_c_suspend_mac_and_wait(wlc);
-
-	if (suspend)
 		brcms_c_enable_mac(wlc);
-
+	}
 }
 
 void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
@@ -4223,12 +4221,10 @@ void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 		brcms_c_wme_setparams(wlc, aci, &txq_pars, suspend);
 	}
 
-	if (suspend)
+	if (suspend) {
 		brcms_c_suspend_mac_and_wait(wlc);
-
-	if (suspend)
 		brcms_c_enable_mac(wlc);
-
+	}
 }
 
 /* maintain LED behavior in down state */
