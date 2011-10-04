@@ -706,6 +706,10 @@ static struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
 	.create_handle = vmw_framebuffer_create_handle,
 };
 
+/**
+ * We need to reserve the start of vram because the host might
+ * scribble to it at mode changes, so we need to reserve it.
+ */
 static int vmw_surface_dmabuf_pin(struct vmw_framebuffer *vfb)
 {
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
@@ -729,6 +733,9 @@ static int vmw_surface_dmabuf_pin(struct vmw_framebuffer *vfb)
 	return ret;
 }
 
+/**
+ * See vmw_surface_dmabuf_pin.
+ */
 static int vmw_surface_dmabuf_unpin(struct vmw_framebuffer *vfb)
 {
 	struct ttm_buffer_object *bo;
@@ -745,6 +752,9 @@ static int vmw_surface_dmabuf_unpin(struct vmw_framebuffer *vfb)
 	return 0;
 }
 
+/**
+ * Pin the dmabuffer to the start of vram.
+ */
 static int vmw_framebuffer_dmabuf_pin(struct vmw_framebuffer *vfb)
 {
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
