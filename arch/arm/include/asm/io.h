@@ -189,11 +189,11 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  * IO port primitives for more information.
  */
 #ifdef __mem_pci
-#define readb_relaxed(c) ({ u8  __v = __raw_readb(__mem_pci(c)); __v; })
-#define readw_relaxed(c) ({ u16 __v = le16_to_cpu((__force __le16) \
-					__raw_readw(__mem_pci(c))); __v; })
-#define readl_relaxed(c) ({ u32 __v = le32_to_cpu((__force __le32) \
-					__raw_readl(__mem_pci(c))); __v; })
+#define readb_relaxed(c) ({ u8  __r = __raw_readb(__mem_pci(c)); __r; })
+#define readw_relaxed(c) ({ u16 __r = le16_to_cpu((__force __le16) \
+					__raw_readw(__mem_pci(c))); __r; })
+#define readl_relaxed(c) ({ u32 __r = le32_to_cpu((__force __le32) \
+					__raw_readl(__mem_pci(c))); __r; })
 
 #define writeb_relaxed(v,c)	((void)__raw_writeb(v,__mem_pci(c)))
 #define writew_relaxed(v,c)	((void)__raw_writew((__force u16) \
