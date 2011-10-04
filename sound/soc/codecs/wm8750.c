@@ -694,7 +694,7 @@ static int wm8750_resume(struct snd_soc_codec *codec)
 static int wm8750_probe(struct snd_soc_codec *codec)
 {
 	struct wm8750_priv *wm8750 = snd_soc_codec_get_drvdata(codec);
-	int reg, ret;
+	int ret;
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8750->control_type);
 	if (ret < 0) {
@@ -712,22 +712,14 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 	wm8750_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* set the update bits */
-	reg = snd_soc_read(codec, WM8750_LDAC);
-	snd_soc_write(codec, WM8750_LDAC, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8750_RDAC);
-	snd_soc_write(codec, WM8750_RDAC, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8750_LOUT1V);
-	snd_soc_write(codec, WM8750_LOUT1V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8750_ROUT1V);
-	snd_soc_write(codec, WM8750_ROUT1V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8750_LOUT2V);
-	snd_soc_write(codec, WM8750_LOUT2V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8750_ROUT2V);
-	snd_soc_write(codec, WM8750_ROUT2V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8750_LINVOL);
-	snd_soc_write(codec, WM8750_LINVOL, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8750_RINVOL);
-	snd_soc_write(codec, WM8750_RINVOL, reg | 0x0100);
+	snd_soc_update_bits(codec, WM8750_LDAC, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8750_RDAC, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8750_LOUT1V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8750_ROUT1V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8750_LOUT2V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8750_ROUT2V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8750_LINVOL, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8750_RINVOL, 0x0100, 0x0100);
 
 	snd_soc_add_controls(codec, wm8750_snd_controls,
 				ARRAY_SIZE(wm8750_snd_controls));
