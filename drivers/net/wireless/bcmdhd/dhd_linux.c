@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 285933 2011-09-23 21:45:31Z $
+ * $Id: dhd_linux.c 287541 2011-10-03 23:48:17Z $
  */
 
 #include <typedefs.h>
@@ -1404,9 +1404,16 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 		struct dot11_llc_snap_header *lsh;
 
 		ifp = dhd->iflist[ifidx];
+		if (ifp == NULL) {
+			DHD_ERROR(("%s: ifp is NULL. drop packet\n",
+				__FUNCTION__));
+			PKTFREE(dhdp->osh, pktbuf, TRUE);
+			continue;
+		}
 
 		/* Dropping packets before registering net device to avoid kernel panic */
-		if (!ifp->net || ifp->net->reg_state != NETREG_REGISTERED) {
+		if (!ifp->net || ifp->net->reg_state != NETREG_REGISTERED ||
+			!dhd->pub.up) {
 			DHD_ERROR(("%s: net device is NOT registered yet. drop packet\n",
 			__FUNCTION__));
 			PKTFREE(dhdp->osh, pktbuf, TRUE);

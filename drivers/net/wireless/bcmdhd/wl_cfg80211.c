@@ -2175,6 +2175,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct ieee80211_channel *chan = sme->channel;
+	wl_extjoin_params_t *ext_join_params;
 	struct wl_join_params join_params;
 	size_t join_params_size;
 	s32 err = 0;
@@ -2184,6 +2185,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	u8* wpaie  = 0;
 	u32 wpaie_len = 0;
 	u32 wpsie_len = 0;
+	u32 chan_cnt = 0;
 	u8 wpsie[IE_MAX_LEN];
 	WL_DBG(("In\n"));
 	CHECK_SYS_UP(wl);
@@ -2264,6 +2266,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 	if (chan) {
 		wl->channel = ieee80211_frequency_to_channel(chan->center_freq);
+		chan_cnt = 1;
 		WL_DBG(("channel (%d), center_req (%d)\n", wl->channel,
 			chan->center_freq));
 	} else
@@ -2304,6 +2307,67 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	 *  Join with specific BSSID and cached SSID
 	 *  If SSID is zero join based on BSSID only
 	 */
+	join_params_size = WL_EXTJOIN_PARAMS_FIXED_SIZE +
+		chan_cnt * sizeof(chanspec_t);
+	ext_join_params =  (wl_extjoin_params_t*)kzalloc(join_params_size, GFP_KERNEL);
+	if (ext_join_params == NULL) {
+		err = -ENOMEM;
+		wl_clr_drv_status(wl, CONNECTING);
+		goto exit;
+	}
+	ext_join_params->ssid.SSID_len = min(sizeof(ext_join_params->ssid.SSID), sme->ssid_len);
+	memcpy(&ext_join_params->ssid.SSID, sme->ssid, ext_join_params->ssid.SSID_len);
+	ext_join_params->ssid.SSID_len = htod32(ext_join_params->ssid.SSID_len);
+	/* Set up join scan parameters */
+	ext_join_params->scan.scan_type = DOT11_SCANTYPE_ACTIVE;
+	ext_join_params->scan.nprobes = 2;
+	/* increate dwell time to receive probe response
+	* from target AP at a noisy air
+	*/
+	if (chan_cnt)
+		ext_join_params->scan.active_time = 150;
+	else
+		ext_join_params->scan.active_time = -1;
+	ext_join_params->scan.home_time = -1;
+	if (sme->bssid)
+		memcpy(&ext_join_params->assoc.bssid, sme->bssid, ETH_ALEN);
+	else
+		memcpy(&ext_join_params->assoc.bssid, &ether_bcast, ETH_ALEN);
+	ext_join_params->assoc.chanspec_num = chan_cnt;
+	if (chan_cnt) {
+		u16 channel, band, bw, ctl_sb;
+		chanspec_t chspec;
+		channel = wl->channel;
+		band = (channel <= CH_MAX_2G_CHANNEL) ? WL_CHANSPEC_BAND_2G
+			: WL_CHANSPEC_BAND_5G;
+		bw = WL_CHANSPEC_BW_20;
+		ctl_sb = WL_CHANSPEC_CTL_SB_NONE;
+		chspec = (channel | band | bw | ctl_sb);
+		ext_join_params->assoc.chanspec_list[0]  &= WL_CHANSPEC_CHAN_MASK;
+		ext_join_params->assoc.chanspec_list[0] |= chspec;
+		ext_join_params->assoc.chanspec_list[0] =
+			htodchanspec(ext_join_params->assoc.chanspec_list[0]);
+	}
+	ext_join_params->assoc.chanspec_num = htod32(ext_join_params->assoc.chanspec_num);
+	if (ext_join_params->ssid.SSID_len < IEEE80211_MAX_SSID_LEN) {
+		WL_INFO(("ssid \"%s\", len (%d)\n", ext_join_params->ssid.SSID,
+			ext_join_params->ssid.SSID_len));
+	}
+	wl_set_drv_status(wl, CONNECTING);
+	err = wldev_iovar_setbuf_bsscfg(dev, "join", ext_join_params, join_params_size, ioctlbuf,
+		sizeof(ioctlbuf), wl_cfgp2p_find_idx(wl, dev));
+	kfree(ext_join_params);
+	if (err) {
+		wl_clr_drv_status(wl, CONNECTING);
+		if (err == BCME_UNSUPPORTED) {
+			WL_DBG(("join iovar is not supported\n"));
+			goto set_ssid;
+		} else
+			WL_ERR(("error (%d)\n", err));
+	} else
+		goto exit;
+
+set_ssid:
 	memset(&join_params, 0, sizeof(join_params));
 	join_params_size = sizeof(join_params.ssid);
 
@@ -2325,11 +2389,11 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 	wl_set_drv_status(wl, CONNECTING);
 	err = wldev_ioctl(dev, WLC_SET_SSID, &join_params, join_params_size, true);
-	if (unlikely(err)) {
+	if (err) {
 		WL_ERR(("error (%d)\n", err));
 		wl_clr_drv_status(wl, CONNECTING);
-		return err;
 	}
+exit:
 	return err;
 }
 

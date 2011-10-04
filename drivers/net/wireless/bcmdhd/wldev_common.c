@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wldev_common.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 Exp $
+ * $Id: wldev_common.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 $
  */
 
 #include <linux/module.h>
@@ -318,7 +318,8 @@ int wldev_set_country(
 		bzero(&scbval, sizeof(scb_val_t));
 		error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), 1);
 		if (error < 0) {
-			DHD_ERROR(("%s: set country failed due to Disassoc error\n", __FUNCTION__));
+			DHD_ERROR(("%s: set country failed due to Disassoc error %d\n",
+				__FUNCTION__, error));
 			return error;
 		}
 	}
