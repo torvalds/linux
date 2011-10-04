@@ -20,6 +20,7 @@
 #include <plat/cpu.h>
 #include <plat/regs-irqtype.h>
 #include <plat/gpio-cfg.h>
+#include <plat/pm.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
@@ -134,6 +135,7 @@ static int s5p64x0_alloc_gc(void)
 	ct->chip.irq_mask = irq_gc_mask_set_bit;
 	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
 	ct->chip.irq_set_type = s5p64x0_irq_eint_set_type;
+	ct->chip.irq_set_wake = s3c_irqext_wake;
 	ct->regs.ack = EINT0PEND_OFFSET;
 	ct->regs.mask = EINT0MASK_OFFSET;
 	irq_setup_generic_chip(gc, IRQ_MSK(16), IRQ_GC_INIT_MASK_CACHE,

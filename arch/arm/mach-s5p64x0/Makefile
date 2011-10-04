@@ -16,6 +16,7 @@ obj-$(CONFIG_ARCH_S5P64X0)	+= cpu.o init.o clock.o dma.o
 obj-$(CONFIG_ARCH_S5P64X0)	+= setup-i2c0.o irq-eint.o
 obj-$(CONFIG_CPU_S5P6440)	+= clock-s5p6440.o
 obj-$(CONFIG_CPU_S5P6450)	+= clock-s5p6450.o
+obj-$(CONFIG_PM)		+= pm.o irq-pm.o
 
 # machine support
 

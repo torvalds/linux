@@ -88,5 +88,6 @@
 #define S5P_PA_UART5		S5P6450_PA_UART(5)
 
 #define S5P_SZ_UART		SZ_256
+#define S3C_VA_UARTx(x)		(S3C_VA_UART + ((x) * S3C_UART_OFFSET))
 
 #endif /* __ASM_ARCH_MAP_H */

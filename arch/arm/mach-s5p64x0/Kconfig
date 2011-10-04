@@ -11,6 +11,8 @@ config CPU_S5P6440
 	bool
 	select SAMSUNG_DMADEV
 	select S5P_HRT
+	select S5P_SLEEP if PM
+	select SAMSUNG_WAKEMASK if PM
 	help
 	  Enable S5P6440 CPU support
 
@@ -18,6 +20,8 @@ config CPU_S5P6450
 	bool
 	select SAMSUNG_DMADEV
 	select S5P_HRT
+	select S5P_SLEEP if PM
+	select SAMSUNG_WAKEMASK if PM
 	help
 	  Enable S5P6450 CPU support
 
