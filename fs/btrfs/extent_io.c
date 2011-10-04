@@ -53,6 +53,12 @@ struct extent_page_data {
 	unsigned int sync_io:1;
 };
 
+static inline struct btrfs_fs_info *
+tree_fs_info(struct extent_io_tree *tree)
+{
+	return btrfs_sb(tree->mapping->host->i_sb);
+}
+
 int __init extent_io_init(void)
 {
 	extent_state_cache = kmem_cache_create("extent_state",
@@ -439,6 +445,13 @@ alloc_extent_state_atomic(struct extent_state *prealloc)
 	return prealloc;
 }
 
+void extent_io_tree_panic(struct extent_io_tree *tree, int err)
+{
+	btrfs_panic(tree_fs_info(tree), err, "Locking error: "
+		    "Extent tree was modified by another "
+		    "thread while locked.");
+}
+
 /*
  * clear some bits on a range in the tree.  This may require splitting
  * or inserting elements in the tree, so the gfp mask is used to
@@ -542,7 +555,9 @@ hit_next:
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
 		err = split_state(tree, state, prealloc, start);
-		BUG_ON(err == -EEXIST);
+		if (err)
+			extent_io_tree_panic(tree, err);
+
 		prealloc = NULL;
 		if (err)
 			goto out;
@@ -564,7 +579,9 @@ hit_next:
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
 		err = split_state(tree, state, prealloc, end + 1);
-		BUG_ON(err == -EEXIST);
+		if (err)
+			extent_io_tree_panic(tree, err);
+
 		if (wake)
 			wake_up(&state->wq);
 
@@ -742,8 +759,10 @@ again:
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
 		err = insert_state(tree, prealloc, start, end, &bits);
+		if (err)
+			extent_io_tree_panic(tree, err);
+
 		prealloc = NULL;
-		BUG_ON(err == -EEXIST);
 		goto out;
 	}
 	state = rb_entry(node, struct extent_state, rb_node);
@@ -809,7 +828,9 @@ hit_next:
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
 		err = split_state(tree, state, prealloc, start);
-		BUG_ON(err == -EEXIST);
+		if (err)
+			extent_io_tree_panic(tree, err);
+
 		prealloc = NULL;
 		if (err)
 			goto out;
@@ -846,12 +867,9 @@ hit_next:
 		 */
 		err = insert_state(tree, prealloc, start, this_end,
 				   &bits);
-		BUG_ON(err == -EEXIST);
-		if (err) {
-			free_extent_state(prealloc);
-			prealloc = NULL;
-			goto out;
-		}
+		if (err)
+			extent_io_tree_panic(tree, err);
+
 		cache_state(prealloc, cached_state);
 		prealloc = NULL;
 		start = this_end + 1;
@@ -873,7 +891,8 @@ hit_next:
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
 		err = split_state(tree, state, prealloc, end + 1);
-		BUG_ON(err == -EEXIST);
+		if (err)
+			extent_io_tree_panic(tree, err);
 
 		set_state_bits(tree, prealloc, &bits);
 		cache_state(prealloc, cached_state);
@@ -946,7 +965,8 @@ again:
 		}
 		err = insert_state(tree, prealloc, start, end, &bits);
 		prealloc = NULL;
-		BUG_ON(err == -EEXIST);
+		if (err)
+			extent_io_tree_panic(tree, err);
 		goto out;
 	}
 	state = rb_entry(node, struct extent_state, rb_node);
@@ -1002,7 +1022,8 @@ hit_next:
 			goto out;
 		}
 		err = split_state(tree, state, prealloc, start);
-		BUG_ON(err == -EEXIST);
+		if (err)
+			extent_io_tree_panic(tree, err);
 		prealloc = NULL;
 		if (err)
 			goto out;
@@ -1041,12 +1062,8 @@ hit_next:
 		 */
 		err = insert_state(tree, prealloc, start, this_end,
 				   &bits);
-		BUG_ON(err == -EEXIST);
-		if (err) {
-			free_extent_state(prealloc);
-			prealloc = NULL;
-			goto out;
-		}
+		if (err)
+			extent_io_tree_panic(tree, err);
 		prealloc = NULL;
 		start = this_end + 1;
 		goto search_again;
@@ -1065,7 +1082,8 @@ hit_next:
 		}
 
 		err = split_state(tree, state, prealloc, end + 1);
-		BUG_ON(err == -EEXIST);
+		if (err)
+			extent_io_tree_panic(tree, err);
 
 		set_state_bits(tree, prealloc, &bits);
 		clear_state_bit(tree, prealloc, &clear_bits, 0);
