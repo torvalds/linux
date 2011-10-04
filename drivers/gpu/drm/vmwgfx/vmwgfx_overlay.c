@@ -97,68 +97,80 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 				struct drm_vmw_control_stream_arg *arg,
 				bool interruptible)
 {
+	struct vmw_escape_video_flush *flush;
+	size_t fifo_size;
+	uint32_t gmrId, offset;
+	bool have_so = dev_priv->sou_priv ? true : false;
+	int i, num_items;
+
 	struct {
 		struct vmw_escape_header escape;
 		struct {
-			struct {
-				uint32_t cmdType;
-				uint32_t streamId;
-			} header;
-			struct {
-				uint32_t registerId;
-				uint32_t value;
-			} items[SVGA_VIDEO_PITCH_3 + 1];
-		} body;
-		struct vmw_escape_video_flush flush;
+			uint32_t cmdType;
+			uint32_t streamId;
+		} header;
 	} *cmds;
-	uint32_t offset;
-	int i, ret;
+	struct {
+		uint32_t registerId;
+		uint32_t value;
+	} *items;
 
-	for (;;) {
-		cmds = vmw_fifo_reserve(dev_priv, sizeof(*cmds));
-		if (cmds)
-			break;
+	/* defines are a index needs + 1 */
+	if (have_so)
+		num_items = SVGA_VIDEO_DST_SCREEN_ID + 1;
+	else
+		num_items = SVGA_VIDEO_PITCH_3 + 1;
 
-		ret = vmw_fallback_wait(dev_priv, false, true, 0,
-					interruptible, 3*HZ);
-		if (interruptible && ret == -ERESTARTSYS)
-			return ret;
-		else
-			BUG_ON(ret != 0);
+	fifo_size = sizeof(*cmds) + sizeof(*flush) + sizeof(*items) * num_items;
+
+	cmds = vmw_fifo_reserve(dev_priv, fifo_size);
+	/* hardware has hung, can't do anything here */
+	if (!cmds)
+		return -ENOMEM;
+
+	items = (typeof(items))&cmds[1];
+	flush = (struct vmw_escape_video_flush *)&items[num_items];
+
+	/* the size is header + number of items */
+	fill_escape(&cmds->escape, sizeof(*items) * (num_items + 1));
+
+	cmds->header.cmdType = SVGA_ESCAPE_VMWARE_VIDEO_SET_REGS;
+	cmds->header.streamId = arg->stream_id;
+
+	/* the IDs are neatly numbered */
+	for (i = 0; i < num_items; i++)
+		items[i].registerId = i;
+
+	vmw_dmabuf_get_id_offset(buf, &gmrId, &offset);
+	offset += arg->offset;
+
+	items[SVGA_VIDEO_ENABLED].value     = true;
+	items[SVGA_VIDEO_FLAGS].value       = arg->flags;
+	items[SVGA_VIDEO_DATA_OFFSET].value = offset;
+	items[SVGA_VIDEO_FORMAT].value      = arg->format;
+	items[SVGA_VIDEO_COLORKEY].value    = arg->color_key;
+	items[SVGA_VIDEO_SIZE].value        = arg->size;
+	items[SVGA_VIDEO_WIDTH].value       = arg->width;
+	items[SVGA_VIDEO_HEIGHT].value      = arg->height;
+	items[SVGA_VIDEO_SRC_X].value       = arg->src.x;
+	items[SVGA_VIDEO_SRC_Y].value       = arg->src.y;
+	items[SVGA_VIDEO_SRC_WIDTH].value   = arg->src.w;
+	items[SVGA_VIDEO_SRC_HEIGHT].value  = arg->src.h;
+	items[SVGA_VIDEO_DST_X].value       = arg->dst.x;
+	items[SVGA_VIDEO_DST_Y].value       = arg->dst.y;
+	items[SVGA_VIDEO_DST_WIDTH].value   = arg->dst.w;
+	items[SVGA_VIDEO_DST_HEIGHT].value  = arg->dst.h;
+	items[SVGA_VIDEO_PITCH_1].value     = arg->pitch[0];
+	items[SVGA_VIDEO_PITCH_2].value     = arg->pitch[1];
+	items[SVGA_VIDEO_PITCH_3].value     = arg->pitch[2];
+	if (have_so) {
+		items[SVGA_VIDEO_DATA_GMRID].value    = gmrId;
+		items[SVGA_VIDEO_DST_SCREEN_ID].value = SVGA_ID_INVALID;
 	}
 
-	fill_escape(&cmds->escape, sizeof(cmds->body));
-	cmds->body.header.cmdType = SVGA_ESCAPE_VMWARE_VIDEO_SET_REGS;
-	cmds->body.header.streamId = arg->stream_id;
+	fill_flush(flush, arg->stream_id);
 
-	for (i = 0; i <= SVGA_VIDEO_PITCH_3; i++)
-		cmds->body.items[i].registerId = i;
-
-	offset = buf->base.offset + arg->offset;
-
-	cmds->body.items[SVGA_VIDEO_ENABLED].value     = true;
-	cmds->body.items[SVGA_VIDEO_FLAGS].value       = arg->flags;
-	cmds->body.items[SVGA_VIDEO_DATA_OFFSET].value = offset;
-	cmds->body.items[SVGA_VIDEO_FORMAT].value      = arg->format;
-	cmds->body.items[SVGA_VIDEO_COLORKEY].value    = arg->color_key;
-	cmds->body.items[SVGA_VIDEO_SIZE].value        = arg->size;
-	cmds->body.items[SVGA_VIDEO_WIDTH].value       = arg->width;
-	cmds->body.items[SVGA_VIDEO_HEIGHT].value      = arg->height;
-	cmds->body.items[SVGA_VIDEO_SRC_X].value       = arg->src.x;
-	cmds->body.items[SVGA_VIDEO_SRC_Y].value       = arg->src.y;
-	cmds->body.items[SVGA_VIDEO_SRC_WIDTH].value   = arg->src.w;
-	cmds->body.items[SVGA_VIDEO_SRC_HEIGHT].value  = arg->src.h;
-	cmds->body.items[SVGA_VIDEO_DST_X].value       = arg->dst.x;
-	cmds->body.items[SVGA_VIDEO_DST_Y].value       = arg->dst.y;
-	cmds->body.items[SVGA_VIDEO_DST_WIDTH].value   = arg->dst.w;
-	cmds->body.items[SVGA_VIDEO_DST_HEIGHT].value  = arg->dst.h;
-	cmds->body.items[SVGA_VIDEO_PITCH_1].value     = arg->pitch[0];
-	cmds->body.items[SVGA_VIDEO_PITCH_2].value     = arg->pitch[1];
-	cmds->body.items[SVGA_VIDEO_PITCH_3].value     = arg->pitch[2];
-
-	fill_flush(&cmds->flush, arg->stream_id);
-
-	vmw_fifo_commit(dev_priv, sizeof(*cmds));
+	vmw_fifo_commit(dev_priv, fifo_size);
 
 	return 0;
 }
@@ -206,18 +218,22 @@ static int vmw_overlay_send_stop(struct vmw_private *dev_priv,
 }
 
 /**
- * Move a buffer to vram, and pin it if @pin.
+ * Move a buffer to vram or gmr if @pin is set, else unpin the buffer.
  *
- * XXX: This function is here to be changed at a later date.
+ * With the introduction of screen objects buffers could now be
+ * used with GMRs instead of being locked to vram.
  */
 static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
 				   struct vmw_dma_buffer *buf,
 				   bool pin, bool inter)
 {
-	if (pin)
-		return vmw_dmabuf_to_vram(dev_priv, buf, true, inter);
-	else
+	if (!pin)
 		return vmw_dmabuf_unpin(dev_priv, buf, inter);
+
+	if (!dev_priv->sou_priv)
+		return vmw_dmabuf_to_vram(dev_priv, buf, true, inter);
+
+	return vmw_dmabuf_to_vram_or_gmr(dev_priv, buf, true, inter);
 }
 
 /**
