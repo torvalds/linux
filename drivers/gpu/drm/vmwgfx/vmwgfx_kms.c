@@ -776,6 +776,33 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
+	/* Limited framebuffer color depth support for screen objects */
+	if (dev_priv->sou_priv) {
+		switch (mode_cmd->depth) {
+		case 32:
+		case 24:
+			/* Only support 32 bpp for 32 and 24 depth fbs */
+			if (mode_cmd->bpp == 32)
+				break;
+
+			DRM_ERROR("Invalid color depth/bbp: %d %d\n",
+				  mode_cmd->depth, mode_cmd->bpp);
+			return -EINVAL;
+		case 16:
+		case 15:
+			/* Only support 16 bpp for 16 and 15 depth fbs */
+			if (mode_cmd->bpp == 16)
+				break;
+
+			DRM_ERROR("Invalid color depth/bbp: %d %d\n",
+				  mode_cmd->depth, mode_cmd->bpp);
+			return -EINVAL;
+		default:
+			DRM_ERROR("Invalid color depth: %d\n", mode_cmd->depth);
+			return -EINVAL;
+		}
+	}
+
 	vfbd = kzalloc(sizeof(*vfbd), GFP_KERNEL);
 	if (!vfbd) {
 		ret = -ENOMEM;
