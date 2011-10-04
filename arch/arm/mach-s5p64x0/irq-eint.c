@@ -17,6 +17,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
+#include <plat/cpu.h>
 #include <plat/regs-irqtype.h>
 #include <plat/gpio-cfg.h>
 
@@ -67,7 +68,7 @@ static int s5p64x0_irq_eint_set_type(struct irq_data *data, unsigned int type)
 	__raw_writel(ctrl, S5P64X0_EINT0CON0);
 
 	/* Configure the GPIO pin for 6450 or 6440 based on CPU ID */
-	if (0x50000 == (__raw_readl(S5P64X0_SYS_ID) & 0xFF000))
+	if (soc_is_s5p6450())
 		s3c_gpio_cfgpin(S5P6450_GPN(offs), S3C_GPIO_SFN(2));
 	else
 		s3c_gpio_cfgpin(S5P6440_GPN(offs), S3C_GPIO_SFN(2));
