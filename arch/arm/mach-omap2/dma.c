@@ -87,14 +87,6 @@ static u16 reg_map[] = {
 	[CCDN]			= 0xd8,
 };
 
-static struct omap_device_pm_latency omap2_dma_latency[] = {
-	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func	 = omap_device_enable_hwmods,
-		.flags		 = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static void __iomem *dma_base;
 static inline void dma_write(u32 val, int reg, int lch)
 {
@@ -258,8 +250,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 
 	p->errata		= configure_dma_errata();
 
-	pdev = omap_device_build(name, 0, oh, p, sizeof(*p),
-			omap2_dma_latency, ARRAY_SIZE(omap2_dma_latency), 0);
+	pdev = omap_device_build(name, 0, oh, p, sizeof(*p), NULL, 0, 0);
 	kfree(p);
 	if (IS_ERR(pdev)) {
 		pr_err("%s: Can't build omap_device for %s:%s.\n",

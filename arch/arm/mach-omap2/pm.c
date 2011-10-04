@@ -26,38 +26,7 @@
 
 static struct omap_device_pm_latency *pm_lats;
 
-static struct device *mpu_dev;
-static struct device *iva_dev;
-static struct device *l3_dev;
-static struct device *dsp_dev;
-
-struct device *omap2_get_mpuss_device(void)
-{
-	WARN_ON_ONCE(!mpu_dev);
-	return mpu_dev;
-}
-
-struct device *omap2_get_iva_device(void)
-{
-	WARN_ON_ONCE(!iva_dev);
-	return iva_dev;
-}
-
-struct device *omap2_get_l3_device(void)
-{
-	WARN_ON_ONCE(!l3_dev);
-	return l3_dev;
-}
-
-struct device *omap4_get_dsp_device(void)
-{
-	WARN_ON_ONCE(!dsp_dev);
-	return dsp_dev;
-}
-EXPORT_SYMBOL(omap4_get_dsp_device);
-
-/* static int _init_omap_device(struct omap_hwmod *oh, void *user) */
-static int _init_omap_device(char *name, struct device **new_dev)
+static int _init_omap_device(char *name)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -72,8 +41,6 @@ static int _init_omap_device(char *name, struct device **new_dev)
 		 __func__, name))
 		return -ENODEV;
 
-	*new_dev = &pdev->dev;
-
 	return 0;
 }
 
@@ -82,16 +49,16 @@ static int _init_omap_device(char *name, struct device **new_dev)
  */
 static void omap2_init_processor_devices(void)
 {
-	_init_omap_device("mpu", &mpu_dev);
+	_init_omap_device("mpu");
 	if (omap3_has_iva())
-		_init_omap_device("iva", &iva_dev);
+		_init_omap_device("iva");
 
 	if (cpu_is_omap44xx()) {
-		_init_omap_device("l3_main_1", &l3_dev);
-		_init_omap_device("dsp", &dsp_dev);
-		_init_omap_device("iva", &iva_dev);
+		_init_omap_device("l3_main_1");
+		_init_omap_device("dsp");
+		_init_omap_device("iva");
 	} else {
-		_init_omap_device("l3_main", &l3_dev);
+		_init_omap_device("l3_main");
 	}
 }
 
@@ -169,15 +136,23 @@ err:
  * in the opp entry
  */
 static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
-						struct device *dev)
+					 const char *oh_name)
 {
 	struct voltagedomain *voltdm;
 	struct clk *clk;
 	struct opp *opp;
 	unsigned long freq, bootup_volt;
+	struct device *dev;
 
-	if (!vdd_name || !clk_name || !dev) {
+	if (!vdd_name || !clk_name || !oh_name) {
 		pr_err("%s: invalid parameters\n", __func__);
+		goto exit;
+	}
+
+	dev = omap_device_get_by_hwmod_name(oh_name);
+	if (IS_ERR(dev)) {
+		pr_err("%s: Unable to get dev pointer for hwmod %s\n",
+			__func__, oh_name);
 		goto exit;
 	}
 
@@ -224,8 +199,8 @@ static void __init omap3_init_voltages(void)
 	if (!cpu_is_omap34xx())
 		return;
 
-	omap2_set_init_voltage("mpu_iva", "dpll1_ck", mpu_dev);
-	omap2_set_init_voltage("core", "l3_ick", l3_dev);
+	omap2_set_init_voltage("mpu_iva", "dpll1_ck", "mpu");
+	omap2_set_init_voltage("core", "l3_ick", "l3_main");
 }
 
 static void __init omap4_init_voltages(void)
@@ -233,14 +208,15 @@ static void __init omap4_init_voltages(void)
 	if (!cpu_is_omap44xx())
 		return;
 
-	omap2_set_init_voltage("mpu", "dpll_mpu_ck", mpu_dev);
-	omap2_set_init_voltage("core", "l3_div_ck", l3_dev);
-	omap2_set_init_voltage("iva", "dpll_iva_m5x2_ck", iva_dev);
+	omap2_set_init_voltage("mpu", "dpll_mpu_ck", "mpu");
+	omap2_set_init_voltage("core", "l3_div_ck", "l3_main_1");
+	omap2_set_init_voltage("iva", "dpll_iva_m5x2_ck", "iva");
 }
 
 static int __init omap2_common_pm_init(void)
 {
-	omap2_init_processor_devices();
+	if (!of_have_populated_dt())
+		omap2_init_processor_devices();
 	omap_pm_if_init();
 
 	return 0;

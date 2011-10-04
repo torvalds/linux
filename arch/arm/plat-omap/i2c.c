@@ -123,14 +123,6 @@ static void omap_pm_set_max_mpu_wakeup_lat_compat(struct device *dev, long t)
 	omap_pm_set_max_mpu_wakeup_lat(dev, t);
 }
 
-static struct omap_device_pm_latency omap_i2c_latency[] = {
-	[0] = {
-		.deactivate_func	= omap_device_idle_hwmods,
-		.activate_func		= omap_device_enable_hwmods,
-		.flags			= OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static inline int omap2_i2c_add_bus(int bus_id)
 {
 	int l;
@@ -162,7 +154,7 @@ static inline int omap2_i2c_add_bus(int bus_id)
 		pdata->set_mpu_wkup_lat = omap_pm_set_max_mpu_wakeup_lat_compat;
 	pdev = omap_device_build(name, bus_id, oh, pdata,
 			sizeof(struct omap_i2c_bus_platform_data),
-			omap_i2c_latency, ARRAY_SIZE(omap_i2c_latency), 0);
+			NULL, 0, 0);
 	WARN(IS_ERR(pdev), "Could not build omap_device for %s\n", name);
 
 	return PTR_ERR(pdev);
