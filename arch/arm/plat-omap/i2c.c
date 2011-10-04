@@ -135,7 +135,7 @@ static inline int omap2_i2c_add_bus(int bus_id)
 {
 	int l;
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 	char oh_name[MAX_OMAP_I2C_HWMOD_NAME_LEN];
 	struct omap_i2c_bus_platform_data *pdata;
 
@@ -160,12 +160,12 @@ static inline int omap2_i2c_add_bus(int bus_id)
 	 */
 	if (cpu_is_omap34xx())
 		pdata->set_mpu_wkup_lat = omap_pm_set_max_mpu_wakeup_lat_compat;
-	od = omap_device_build(name, bus_id, oh, pdata,
+	pdev = omap_device_build(name, bus_id, oh, pdata,
 			sizeof(struct omap_i2c_bus_platform_data),
 			omap_i2c_latency, ARRAY_SIZE(omap_i2c_latency), 0);
-	WARN(IS_ERR(od), "Could not build omap_device for %s\n", name);
+	WARN(IS_ERR(pdev), "Could not build omap_device for %s\n", name);
 
-	return PTR_ERR(od);
+	return PTR_ERR(pdev);
 }
 #else
 static inline int omap2_i2c_add_bus(int bus_id)

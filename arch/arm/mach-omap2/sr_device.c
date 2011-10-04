@@ -80,7 +80,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 static int sr_dev_init(struct omap_hwmod *oh, void *user)
 {
 	struct omap_sr_data *sr_data;
-	struct omap_device *od;
+	struct platform_device *pdev;
 	struct omap_volt_data *volt_data;
 	char *name = "smartreflex";
 	static int i;
@@ -102,7 +102,7 @@ static int sr_dev_init(struct omap_hwmod *oh, void *user)
 	sr_data->senn_mod = 0x1;
 	sr_data->senp_mod = 0x1;
 
-	sr_data->voltdm = omap_voltage_domain_lookup(oh->vdd_name);
+	sr_data->voltdm = voltdm_lookup(oh->vdd_name);
 	if (IS_ERR(sr_data->voltdm)) {
 		pr_err("%s: Unable to get voltage domain pointer for VDD %s\n",
 			__func__, oh->vdd_name);
@@ -120,10 +120,10 @@ static int sr_dev_init(struct omap_hwmod *oh, void *user)
 
 	sr_data->enable_on_init = sr_enable_on_init;
 
-	od = omap_device_build(name, i, oh, sr_data, sizeof(*sr_data),
+	pdev = omap_device_build(name, i, oh, sr_data, sizeof(*sr_data),
 			       omap_sr_latency,
 			       ARRAY_SIZE(omap_sr_latency), 0);
-	if (IS_ERR(od))
+	if (IS_ERR(pdev))
 		pr_warning("%s: Could not build omap_device for %s: %s.\n\n",
 			__func__, name, oh->name);
 exit:

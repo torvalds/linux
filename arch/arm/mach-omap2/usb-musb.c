@@ -115,7 +115,6 @@ static struct omap_musb_board_data musb_default_board_data = {
 void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 {
 	struct omap_hwmod		*oh;
-	struct omap_device		*od;
 	struct platform_device		*pdev;
 	struct device			*dev;
 	int				bus_id = -1;
@@ -145,22 +144,20 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 		name = "musb-omap2430";
 	}
 
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		pr_err("Could not look up %s\n", oh_name);
-		return;
-	}
+        oh = omap_hwmod_lookup(oh_name);
+        if (WARN(!oh, "%s: could not find omap_hwmod for %s\n",
+                 __func__, oh_name))
+                return;
 
-	od = omap_device_build(name, bus_id, oh, &musb_plat,
+	pdev = omap_device_build(name, bus_id, oh, &musb_plat,
 			       sizeof(musb_plat), omap_musb_latency,
 			       ARRAY_SIZE(omap_musb_latency), false);
-	if (IS_ERR(od)) {
+	if (IS_ERR(pdev)) {
 		pr_err("Could not build omap_device for %s %s\n",
 						name, oh_name);
 		return;
 	}
 
-	pdev = &od->pdev;
 	dev = &pdev->dev;
 	get_device(dev);
 	dev->dma_mask = &musb_dmamask;
