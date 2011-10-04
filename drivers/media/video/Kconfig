@@ -517,6 +517,13 @@ config VIDEO_NOON010PC30
 
 source "drivers/media/video/m5mols/Kconfig"
 
+config VIDEO_S5K6AA
+	tristate "Samsung S5K6AAFX sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a V4L2 sensor-level driver for Samsung S5K6AA(FX) 1.3M
+	  camera sensor with an embedded SoC image signal processor.
+
 comment "Flash devices"
 
 config VIDEO_ADP1653
