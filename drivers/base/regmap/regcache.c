@@ -12,6 +12,7 @@
 
 #include <linux/slab.h>
 #include <trace/events/regmap.h>
+#include <linux/bsearch.h>
 #include <linux/sort.h>
 
 #include "internal.h"
@@ -355,30 +356,29 @@ unsigned int regcache_get_val(const void *base, unsigned int idx,
 	return -1;
 }
 
-int regcache_lookup_reg(struct regmap *map, unsigned int reg)
-{
-	unsigned int min, max, index;
-
-	min = 0;
-	max = map->num_reg_defaults - 1;
-	do {
-		index = (min + max) / 2;
-		if (map->reg_defaults[index].reg == reg)
-			return index;
-		if (map->reg_defaults[index].reg < reg)
-			min = index + 1;
-		else
-			max = index;
-	} while (min <= max);
-	return -1;
-}
-
-static int regcache_insert_cmp(const void *a, const void *b)
+static int regcache_default_cmp(const void *a, const void *b)
 {
 	const struct reg_default *_a = a;
 	const struct reg_default *_b = b;
 
 	return _a->reg - _b->reg;
+}
+
+int regcache_lookup_reg(struct regmap *map, unsigned int reg)
+{
+	struct reg_default key;
+	struct reg_default *r;
+
+	key.reg = reg;
+	key.def = 0;
+
+	r = bsearch(&key, map->reg_defaults, map->num_reg_defaults,
+		    sizeof(struct reg_default), regcache_default_cmp);
+
+	if (r)
+		return r - map->reg_defaults;
+	else
+		return -1;
 }
 
 int regcache_insert_reg(struct regmap *map, unsigned int reg,
@@ -396,6 +396,6 @@ int regcache_insert_reg(struct regmap *map, unsigned int reg,
 	map->reg_defaults[map->num_reg_defaults - 1].reg = reg;
 	map->reg_defaults[map->num_reg_defaults - 1].def = val;
 	sort(map->reg_defaults, map->num_reg_defaults,
-	     sizeof(struct reg_default), regcache_insert_cmp, NULL);
+	     sizeof(struct reg_default), regcache_default_cmp, NULL);
 	return 0;
 }
