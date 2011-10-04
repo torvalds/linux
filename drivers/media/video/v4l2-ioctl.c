@@ -1109,6 +1109,14 @@ static long __video_do_ioctl(struct file *file,
 
 		if (!ops->vidioc_querystd)
 			break;
+		/*
+		 * If nothing detected, it should return all supported
+		 * Drivers just need to mask the std argument, in order
+		 * to remove the standards that don't apply from the mask.
+		 * This means that tuners, audio and video decoders can join
+		 * their efforts to improve the standards detection
+		 */
+		*p = vfd->tvnorms;
 		ret = ops->vidioc_querystd(file, fh, arg);
 		if (!ret)
 			dbgarg(cmd, "detected std=%08Lx\n",
