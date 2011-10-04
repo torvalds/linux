@@ -1283,7 +1283,7 @@ static unsigned long exynos4_fout_apll_get_rate(struct clk *clk)
 	if (soc_is_exynos4210())
 		return s5p_get_pll45xx(xtal_rate, __raw_readl(S5P_APLL_CON0),
 					pll_4508);
-	else if (soc_is_exynos4212())
+	else if (soc_is_exynos4212() || soc_is_exynos4412())
 		return s5p_get_pll35xx(xtal_rate, __raw_readl(S5P_APLL_CON0));
 	else
 		return 0;
@@ -1399,7 +1399,7 @@ void __init_or_cpufreq exynos4_setup_clocks(void)
 		vpllsrc = clk_get_rate(&clk_vpllsrc.clk);
 		vpll = s5p_get_pll46xx(vpllsrc, __raw_readl(S5P_VPLL_CON0),
 					__raw_readl(S5P_VPLL_CON1), pll_4650c);
-	} else if (soc_is_exynos4212()) {
+	} else if (soc_is_exynos4212() || soc_is_exynos4412()) {
 		apll = s5p_get_pll35xx(xtal, __raw_readl(S5P_APLL_CON0));
 		mpll = s5p_get_pll35xx(xtal, __raw_readl(S5P_MPLL_CON0));
 		epll = s5p_get_pll36xx(xtal, __raw_readl(S5P_EPLL_CON0),

@@ -20,6 +20,11 @@ config SOC_EXYNOS4212
 	help
 	  Enable EXYNOS4212 SoC support
 
+config SOC_EXYNOS4412
+	bool
+	help
+	  Enable EXYNOS4412 SoC support
+
 config EXYNOS4_MCT
 	bool
 	default y
@@ -275,6 +280,15 @@ config MACH_SMDK4212
 	select EXYNOS4_SETUP_SDHCI
 	help
 	  Machine support for Samsung SMDK4212
+
+comment "EXYNOS4412 Boards"
+
+config MACH_SMDK4412
+	bool "SMDK4412"
+	select SOC_EXYNOS4412
+	select MACH_SMDK4212
+	help
+	  Machine support for Samsung SMDK4412
 
 endmenu
 
