@@ -429,7 +429,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 				continue;
 			if (wk->offchan_tx.frame != skb)
 				continue;
-			wk->offchan_tx.frame = NULL;
+			wk->offchan_tx.status = true;
 			break;
 		}
 		rcu_read_unlock();

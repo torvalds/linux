@@ -577,7 +577,7 @@ ieee80211_offchannel_tx(struct ieee80211_work *wk)
 		/*
 		 * After this, offchan_tx.frame remains but now is no
 		 * longer a valid pointer -- we still need it as the
-		 * cookie for canceling this work.
+		 * cookie for canceling this work/status matching.
 		 */
 		ieee80211_tx_skb(wk->sdata, wk->offchan_tx.frame);
 
