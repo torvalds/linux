@@ -1260,11 +1260,18 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 						   path->connect);
 		}
 	}
-	list_for_each_entry(path, &w->sinks, list_source) {
-		if (path->sink) {
-			dapm_widget_set_peer_power(path->sink, power,
-						   path->connect);
+	switch (w->id) {
+	case snd_soc_dapm_supply:
+		/* Supplies can't affect their outputs, only their inputs */
+		break;
+	default:
+		list_for_each_entry(path, &w->sinks, list_source) {
+			if (path->sink) {
+				dapm_widget_set_peer_power(path->sink, power,
+							   path->connect);
+			}
 		}
+		break;
 	}
 
 	if (power)
