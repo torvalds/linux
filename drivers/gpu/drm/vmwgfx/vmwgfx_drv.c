@@ -569,9 +569,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	vmw_overlay_init(dev_priv);
 
 	/* 3D Depends on Screen Objects being used. */
-	DRM_INFO("%s", vmw_fifo_have_3d(dev_priv) ?
-		 "Detected device 3D availability.\n" :
-		 "Detected no device 3D availability.\n");
+	DRM_INFO("Detected %sdevice 3D availability.\n",
+		 vmw_fifo_have_3d(dev_priv) ?
+		 "" : "no ");
 
 	/* We might be done with the fifo now */
 	if (dev_priv->enable_fb) {

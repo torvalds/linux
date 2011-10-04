@@ -1317,18 +1317,19 @@ int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_display_unit *du;
 	struct drm_connector *con;
-	int i;
 
 	mutex_lock(&dev->mode_config.mutex);
 
 #if 0
-	DRM_INFO("%s: new layout ", __func__);
-	for (i = 0; i < (int)num; i++)
-		DRM_INFO("(%i, %i %ux%u) ", rects[i].x, rects[i].y,
-			 rects[i].w, rects[i].h);
-	DRM_INFO("\n");
-#else
-	(void)i;
+	{
+		unsigned int i;
+
+		DRM_INFO("%s: new layout ", __func__);
+		for (i = 0; i < num; i++)
+			DRM_INFO("(%i, %i %ux%u) ", rects[i].x, rects[i].y,
+				 rects[i].w, rects[i].h);
+		DRM_INFO("\n");
+	}
 #endif
 
 	list_for_each_entry(con, &dev->mode_config.connector_list, head) {
