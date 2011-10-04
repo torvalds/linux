@@ -2646,7 +2646,7 @@ static void brcms_b_tx_fifo_resume(struct brcms_hardware *wlc_hw,
 
 static void brcms_b_mute(struct brcms_hardware *wlc_hw, bool on, u32 flags)
 {
-	u8 null_ether_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
+	const u8 null_ether_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
 	if (on) {
 		/* suspend tx fifos */
