@@ -230,6 +230,7 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_QUERYSTD:
 	{
 		v4l2_std_id *std = arg;
+		*std = V4L2_STD_ALL;
 		ret = pvr2_hdw_get_detected_std(hdw, std);
 		break;
 	}
