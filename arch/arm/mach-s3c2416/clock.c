@@ -21,7 +21,6 @@
 #include <plat/cpu.h>
 
 #include <plat/cpu-freq.h>
-#include <plat/pll6553x.h>
 #include <plat/pll.h>
 
 #include <asm/mach/map.h>
