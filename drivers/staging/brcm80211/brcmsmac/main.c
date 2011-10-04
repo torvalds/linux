@@ -1369,16 +1369,6 @@ static void brcms_b_wait_for_wake(struct brcms_hardware *wlc_hw)
 		  DBGST_ASLEEP), wlc_hw->wlc->fastpwrup_dly);
 }
 
-static void brcms_b_hw_etheraddr(struct brcms_hardware *wlc_hw, u8 *ea)
-{
-	memcpy(ea, wlc_hw->etheraddr, ETH_ALEN);
-}
-
-static int brcms_b_bandtype(struct brcms_hardware *wlc_hw)
-{
-	return wlc_hw->band->bandtype;
-}
-
 /* control chip clock to save power, enable dynamic clock or force fast clock */
 static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 {
@@ -3939,7 +3929,7 @@ static void brcms_b_set_shortslot(struct brcms_hardware *wlc_hw, bool shortslot)
 {
 	wlc_hw->shortslot = shortslot;
 
-	if (brcms_b_bandtype(wlc_hw) == BRCM_BAND_2G && wlc_hw->up) {
+	if (wlc_hw->band->bandtype == BRCM_BAND_2G && wlc_hw->up) {
 		brcms_c_suspend_mac_and_wait(wlc_hw->wlc);
 		brcms_b_update_slot_timing(wlc_hw, shortslot);
 		brcms_c_enable_mac(wlc_hw->wlc);
@@ -4854,8 +4844,8 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 		/* Get a phy for this band */
 		wlc_hw->band->pi =
 			wlc_phy_attach(wlc_hw->phy_sh, regs,
-				       brcms_b_bandtype(wlc_hw), vars,
-				       wlc->wiphy);
+					wlc_hw->band->bandtype, vars,
+					wlc->wiphy);
 		if (wlc_hw->band->pi == NULL) {
 			wiphy_err(wiphy, "wl%d: brcms_b_attach: wlc_phy_"
 				  "attach failed\n", unit);
@@ -5235,9 +5225,8 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	for (i = 0; i < NFIFO; i++)
 		wlc->core->txavail[i] = wlc->hw->txavail[i];
 
-	brcms_b_hw_etheraddr(wlc->hw, wlc->perm_etheraddr);
-
-	memcpy(&pub->cur_etheraddr, &wlc->perm_etheraddr, ETH_ALEN);
+	memcpy(&wlc->perm_etheraddr, &wlc->hw->etheraddr, ETH_ALEN);
+	memcpy(&pub->cur_etheraddr, &wlc->hw->etheraddr, ETH_ALEN);
 
 	for (j = 0; j < wlc->pub->_nbands; j++) {
 		wlc->band = wlc->bandstate[j];
