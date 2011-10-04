@@ -104,10 +104,11 @@ static ssize_t iio_show_fixed_type(struct device *dev,
 	u8 type = this_attr->c->scan_type.endianness;
 
 	if (type == IIO_CPU) {
-		if (__LITTLE_ENDIAN)
-			type = IIO_LE;
-		else
-			type = IIO_BE;
+#ifdef __LITTLE_ENDIAN
+		type = IIO_LE;
+#else
+		type = IIO_BE;
+#endif
 	}
 	return sprintf(buf, "%s:%c%d/%d>>%u\n",
 		       iio_endian_prefix[type],
