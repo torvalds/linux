@@ -41,9 +41,10 @@ static unsigned int mct_int_type;
 struct mct_clock_event_device {
 	struct clock_event_device *evt;
 	void __iomem *base;
+	char name[10];
 };
 
-struct mct_clock_event_device mct_tick[2];
+struct mct_clock_event_device mct_tick[NR_CPUS];
 
 static void exynos4_mct_write(unsigned int value, void *addr)
 {
@@ -53,57 +54,53 @@ static void exynos4_mct_write(unsigned int value, void *addr)
 
 	__raw_writel(value, addr);
 
-	switch ((u32) addr) {
-	case (u32) EXYNOS4_MCT_G_TCON:
-		stat_addr = EXYNOS4_MCT_G_WSTAT;
-		mask = 1 << 16;		/* G_TCON write status */
-		break;
-	case (u32) EXYNOS4_MCT_G_COMP0_L:
-		stat_addr = EXYNOS4_MCT_G_WSTAT;
-		mask = 1 << 0;		/* G_COMP0_L write status */
-		break;
-	case (u32) EXYNOS4_MCT_G_COMP0_U:
-		stat_addr = EXYNOS4_MCT_G_WSTAT;
-		mask = 1 << 1;		/* G_COMP0_U write status */
-		break;
-	case (u32) EXYNOS4_MCT_G_COMP0_ADD_INCR:
-		stat_addr = EXYNOS4_MCT_G_WSTAT;
-		mask = 1 << 2;		/* G_COMP0_ADD_INCR write status */
-		break;
-	case (u32) EXYNOS4_MCT_G_CNT_L:
-		stat_addr = EXYNOS4_MCT_G_CNT_WSTAT;
-		mask = 1 << 0;		/* G_CNT_L write status */
-		break;
-	case (u32) EXYNOS4_MCT_G_CNT_U:
-		stat_addr = EXYNOS4_MCT_G_CNT_WSTAT;
-		mask = 1 << 1;		/* G_CNT_U write status */
-		break;
-	case (u32)(EXYNOS4_MCT_L0_BASE + MCT_L_TCON_OFFSET):
-		stat_addr = EXYNOS4_MCT_L0_BASE + MCT_L_WSTAT_OFFSET;
-		mask = 1 << 3;		/* L0_TCON write status */
-		break;
-	case (u32)(EXYNOS4_MCT_L1_BASE + MCT_L_TCON_OFFSET):
-		stat_addr = EXYNOS4_MCT_L1_BASE + MCT_L_WSTAT_OFFSET;
-		mask = 1 << 3;		/* L1_TCON write status */
-		break;
-	case (u32)(EXYNOS4_MCT_L0_BASE + MCT_L_TCNTB_OFFSET):
-		stat_addr = EXYNOS4_MCT_L0_BASE + MCT_L_WSTAT_OFFSET;
-		mask = 1 << 0;		/* L0_TCNTB write status */
-		break;
-	case (u32)(EXYNOS4_MCT_L1_BASE + MCT_L_TCNTB_OFFSET):
-		stat_addr = EXYNOS4_MCT_L1_BASE + MCT_L_WSTAT_OFFSET;
-		mask = 1 << 0;		/* L1_TCNTB write status */
-		break;
-	case (u32)(EXYNOS4_MCT_L0_BASE + MCT_L_ICNTB_OFFSET):
-		stat_addr = EXYNOS4_MCT_L0_BASE + MCT_L_WSTAT_OFFSET;
-		mask = 1 << 1;		/* L0_ICNTB write status */
-		break;
-	case (u32)(EXYNOS4_MCT_L1_BASE + MCT_L_ICNTB_OFFSET):
-		stat_addr = EXYNOS4_MCT_L1_BASE + MCT_L_WSTAT_OFFSET;
-		mask = 1 << 1;		/* L1_ICNTB write status */
-		break;
-	default:
-		return;
+	if (likely(addr >= EXYNOS4_MCT_L_BASE(0))) {
+		u32 base = (u32) addr & EXYNOS4_MCT_L_MASK;
+		switch ((u32) addr & ~EXYNOS4_MCT_L_MASK) {
+		case (u32) MCT_L_TCON_OFFSET:
+			stat_addr = (void __iomem *) base + MCT_L_WSTAT_OFFSET;
+			mask = 1 << 3;		/* L_TCON write status */
+			break;
+		case (u32) MCT_L_ICNTB_OFFSET:
+			stat_addr = (void __iomem *) base + MCT_L_WSTAT_OFFSET;
+			mask = 1 << 1;		/* L_ICNTB write status */
+			break;
+		case (u32) MCT_L_TCNTB_OFFSET:
+			stat_addr = (void __iomem *) base + MCT_L_WSTAT_OFFSET;
+			mask = 1 << 0;		/* L_TCNTB write status */
+			break;
+		default:
+			return;
+		}
+	} else {
+		switch ((u32) addr) {
+		case (u32) EXYNOS4_MCT_G_TCON:
+			stat_addr = EXYNOS4_MCT_G_WSTAT;
+			mask = 1 << 16;		/* G_TCON write status */
+			break;
+		case (u32) EXYNOS4_MCT_G_COMP0_L:
+			stat_addr = EXYNOS4_MCT_G_WSTAT;
+			mask = 1 << 0;		/* G_COMP0_L write status */
+			break;
+		case (u32) EXYNOS4_MCT_G_COMP0_U:
+			stat_addr = EXYNOS4_MCT_G_WSTAT;
+			mask = 1 << 1;		/* G_COMP0_U write status */
+			break;
+		case (u32) EXYNOS4_MCT_G_COMP0_ADD_INCR:
+			stat_addr = EXYNOS4_MCT_G_WSTAT;
+			mask = 1 << 2;		/* G_COMP0_ADD_INCR w status */
+			break;
+		case (u32) EXYNOS4_MCT_G_CNT_L:
+			stat_addr = EXYNOS4_MCT_G_CNT_WSTAT;
+			mask = 1 << 0;		/* G_CNT_L write status */
+			break;
+		case (u32) EXYNOS4_MCT_G_CNT_U:
+			stat_addr = EXYNOS4_MCT_G_CNT_WSTAT;
+			mask = 1 << 1;		/* G_CNT_U write status */
+			break;
+		default:
+			return;
+		}
 	}
 
 	/* Wait maximum 1 ms until written values are applied */
@@ -332,7 +329,7 @@ static inline void exynos4_tick_set_mode(enum clock_event_mode mode,
 	}
 }
 
-static inline int exynos4_mct_tick_clear(struct mct_clock_event_device *mevt)
+static int exynos4_mct_tick_clear(struct mct_clock_event_device *mevt)
 {
 	struct clock_event_device *evt = mevt->evt;
 
@@ -383,14 +380,10 @@ static void exynos4_mct_tick_init(struct clock_event_device *evt)
 
 	mct_tick[cpu].evt = evt;
 
-	if (cpu == 0) {
-		mct_tick[cpu].base = EXYNOS4_MCT_L0_BASE;
-		evt->name = "mct_tick0";
-	} else {
-		mct_tick[cpu].base = EXYNOS4_MCT_L1_BASE;
-		evt->name = "mct_tick1";
-	}
+	mct_tick[cpu].base = EXYNOS4_MCT_L_BASE(cpu);
+	sprintf(mct_tick[cpu].name, "mct_tick%d", cpu);
 
+	evt->name = mct_tick[cpu].name;
 	evt->cpumask = cpumask_of(cpu);
 	evt->set_next_event = exynos4_tick_set_next_event;
 	evt->set_mode = exynos4_tick_set_mode;
