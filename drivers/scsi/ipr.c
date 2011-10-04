@@ -3751,14 +3751,6 @@ static ssize_t ipr_store_update_fw(struct device *dev,
 
 	image_hdr = (struct ipr_ucode_image_header *)fw_entry->data;
 
-	if (be32_to_cpu(image_hdr->header_length) > fw_entry->size ||
-	    (ioa_cfg->vpd_cbs->page3_data.card_type &&
-	     ioa_cfg->vpd_cbs->page3_data.card_type != image_hdr->card_type)) {
-		dev_err(&ioa_cfg->pdev->dev, "Invalid microcode buffer\n");
-		release_firmware(fw_entry);
-		return -EINVAL;
-	}
-
 	src = (u8 *)image_hdr + be32_to_cpu(image_hdr->header_length);
 	dnld_size = fw_entry->size - be32_to_cpu(image_hdr->header_length);
 	sglist = ipr_alloc_ucode_buffer(dnld_size);
@@ -3776,6 +3768,8 @@ static ssize_t ipr_store_update_fw(struct device *dev,
 			"Microcode buffer copy to DMA buffer failed\n");
 		goto out;
 	}
+
+	ipr_info("Updating microcode, please be patient.  This may take up to 30 minutes.\n");
 
 	result = ipr_update_ioa_ucode(ioa_cfg, sglist);
 
