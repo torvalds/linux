@@ -634,35 +634,18 @@ struct antsel_info {
  * enable: is this configuration enabled
  * associated: is BSS in ASSOCIATED state
  * BSS: infraustructure or adhoc
- * dtim_programmed:
  * SSID_len: the length of SSID
  * SSID: SSID string
- * bcmc_scb: one bcmc_scb per band
- * _idx: the index of this bsscfg, assigned at wlc_bsscfg_alloc()
  *
  *
  * BSSID: BSSID (associated)
  * cur_etheraddr: h/w address
- * bcmc_fid: the last BCMC FID queued to TX_BCMC_FIFO
- * bcmc_fid_shm: the last BCMC FID written to shared mem
  * flags: BSSCFG flags; see below
- * bcn: AP beacon
- * bcn_len: AP beacon length
- * ar_disassoc: disassociated in associated recreation
  *
  * current_bss: BSS parms in ASSOCIATED state
  *
- * PM states
- * ---------
- * PMawakebcn: bcn recvd during current waking state
- * PMpending: waiting for tx status with PM indicated set
- * priorPMstate: Detecting PM state transitions
- * PSpoll: flags there is an outstanding PS-Poll frame
  *
  * ID: 'unique' ID of this bsscfg, assigned at bsscfg allocation
- *
- * txrspecidx: index into tx rate circular buffer
- * txrspec: circular buffer of prev MPDUs tx rates
  */
 struct brcms_bss_cfg {
 	struct brcms_c_info *wlc;
@@ -670,27 +653,11 @@ struct brcms_bss_cfg {
 	bool enable;
 	bool associated;
 	bool BSS;
-	bool dtim_programmed;
 	u8 SSID_len;
 	u8 SSID[IEEE80211_MAX_SSID_LEN];
-	struct scb *bcmc_scb[MAXBANDS];
-	s8 _idx;
 	u8 BSSID[ETH_ALEN];
 	u8 cur_etheraddr[ETH_ALEN];
-	u16 bcmc_fid;
-	u16 bcmc_fid_shm;
-	u32 flags;
-	u8 *bcn;
-	uint bcn_len;
-	bool ar_disassoc;
 	struct brcms_bss_info *current_bss;
-	bool PMawakebcn;
-	bool PMpending;
-	bool priorPMstate;
-	bool PSpoll;
-	u16 ID;
-	uint txrspecidx;
-	u32 txrspec[NTXRATE][2];
 };
 
 extern void brcms_c_fatal_error(struct brcms_c_info *wlc);
@@ -765,9 +732,6 @@ extern void brcms_c_inval_dma_pkts(struct brcms_hardware *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn));
 
-extern void brcms_c_reprate_init(struct brcms_c_info *wlc);
-extern void brcms_c_bsscfg_reprate_init(struct brcms_bss_cfg *bsscfg);
-
 /* Shared memory access */
 extern void brcms_c_write_shm(struct brcms_c_info *wlc, uint offset, u16 v);
 extern u16 brcms_c_read_shm(struct brcms_c_info *wlc, uint offset);
@@ -775,8 +739,6 @@ extern void brcms_c_copyto_shm(struct brcms_c_info *wlc, uint offset,
 			       const void *buf, int len);
 
 extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
-extern void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
-				  struct brcms_bss_cfg *bsscfg);
 
 extern void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend);
 extern void brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,

@@ -1741,34 +1741,6 @@ void brcms_b_bw_set(struct brcms_hardware *wlc_hw, u16 bw)
 		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
 }
 
-static void
-brcms_c_write_hw_bcntemplate0(struct brcms_hardware *wlc_hw, u16 bcn[],
-			      int len)
-{
-	struct d11regs __iomem *regs = wlc_hw->regs;
-
-	brcms_b_write_template_ram(wlc_hw, T_BCN0_TPL_BASE, (len + 3) & ~3,
-				    bcn);
-	/* write beacon length to SCR */
-	brcms_b_write_shm(wlc_hw, M_BCN0_FRM_BYTESZ, (u16) len);
-	/* mark beacon0 valid */
-	OR_REG(&regs->maccommand, MCMD_BCN0VLD);
-}
-
-static void
-brcms_c_write_hw_bcntemplate1(struct brcms_hardware *wlc_hw, u16 bcn[],
-			      int len)
-{
-	struct d11regs __iomem *regs = wlc_hw->regs;
-
-	brcms_b_write_template_ram(wlc_hw, T_BCN1_TPL_BASE, (len + 3) & ~3,
-				    bcn);
-	/* write beacon length to SCR */
-	brcms_b_write_shm(wlc_hw, M_BCN1_FRM_BYTESZ, (u16) len);
-	/* mark beacon1 valid */
-	OR_REG(&regs->maccommand, MCMD_BCN1VLD);
-}
-
 static void brcms_b_upd_synthpu(struct brcms_hardware *wlc_hw)
 {
 	u16 v;
@@ -3288,8 +3260,7 @@ bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 		if (!cfg->BSS)
 			return false;
 
-		if (!cfg->dtim_programmed)
-			return false;
+		return false;
 	}
 
 	return true;
@@ -3791,9 +3762,6 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	/* update beacon listen interval */
 	brcms_c_bcn_li_upd(wlc);
 
-	/* the world is new again, so is our reported rate */
-	brcms_c_reprate_init(wlc);
-
 	/* write ethernet address to core */
 	brcms_c_set_mac(wlc->bsscfg);
 	brcms_c_set_bssid(wlc->bsscfg);
@@ -4054,17 +4022,12 @@ brcms_b_set_chanspec(struct brcms_hardware *wlc_hw, u16 chanspec,
 static void brcms_c_setband(struct brcms_c_info *wlc,
 					   uint bandunit)
 {
-	struct brcms_bss_cfg *cfg = wlc->bsscfg;
-
 	wlc->band = wlc->bandstate[bandunit];
 
 	if (!wlc->pub->up)
 		return;
 
 	/* wait for at least one beacon before entering sleeping state */
-	if (cfg->associated)
-		cfg->PMawakebcn = true;
-
 	brcms_c_set_ps_ctrl(wlc);
 
 	/* band-specific initializations */
@@ -5357,7 +5320,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		goto fail;
 	}
 
-	wlc->bsscfg->_idx = 0;
 	wlc->bsscfg->wlc = wlc;
 
 	wlc->mimoft = FT_HT;
@@ -8763,82 +8725,6 @@ int brcms_c_get_header_len(void)
 	return TXOFF;
 }
 
-/* mac is assumed to be suspended at this point */
-static void
-brcms_b_write_hw_bcntemplates(struct brcms_hardware *wlc_hw, u16 bcn[],
-			      int len, bool both)
-{
-	struct d11regs __iomem *regs = wlc_hw->regs;
-
-	if (both) {
-		brcms_c_write_hw_bcntemplate0(wlc_hw, bcn, len);
-		brcms_c_write_hw_bcntemplate1(wlc_hw, bcn, len);
-	} else {
-		/* bcn 0 */
-		if (!(R_REG(&regs->maccommand) & MCMD_BCN0VLD))
-			brcms_c_write_hw_bcntemplate0(wlc_hw, bcn, len);
-		/* bcn 1 */
-		else if (!
-			 (R_REG(&regs->maccommand) & MCMD_BCN1VLD))
-			brcms_c_write_hw_bcntemplate1(wlc_hw, bcn, len);
-	}
-}
-
-static void brcms_c_write_hw_bcntemplates(struct brcms_c_info *wlc, u16 bcn[],
-					  int len, bool both)
-{
-	brcms_b_write_hw_bcntemplates(wlc->hw, bcn, len, both);
-}
-
-/*
- * Update a beacon for a particular BSS
- * For MBSS, this updates the software template and sets "latest" to
- * the index of the template updated. Otherwise, it updates the hardware
- * template.
- */
-void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
-			       struct brcms_bss_cfg *cfg)
-{
-	int len = BCN_TMPL_LEN;
-
-	/* Clear the soft intmask */
-	wlc->defmacintmask &= ~MI_BCNTPL;
-
-	if (!cfg->up)
-		/* Only allow updates on an UP bss */
-		return;
-
-	/* Optimize:  Some of if/else could be combined */
-	if ((cfg->flags & BRCMS_BSSCFG_HW_BCN) != 0) {
-		/* Hardware beaconing for this config */
-		u16 bcn[BCN_TMPL_LEN / 2];
-		u32 both_valid = MCMD_BCN0VLD | MCMD_BCN1VLD;
-		struct d11regs __iomem *regs = wlc->regs;
-
-		/* Check if both templates are in use, if so sched. an interrupt
-		 *      that will call back into this routine
-		 */
-		if ((R_REG(&regs->maccommand) & both_valid) == both_valid)
-			/* clear any previous status */
-			W_REG(&regs->macintstatus, MI_BCNTPL);
-
-		/* Check that after scheduling the interrupt both of the
-		 *      templates are still busy. if not clear the int. & remask
-		 */
-		if ((R_REG(&regs->maccommand) & both_valid) == both_valid) {
-			wlc->defmacintmask |= MI_BCNTPL;
-			return;
-		}
-
-		wlc->bcn_rspec =
-		    brcms_c_lowest_basic_rspec(wlc, &cfg->current_bss->rateset);
-		/* update the template and ucode shm */
-		brcms_c_bcn_prb_template(wlc, IEEE80211_STYPE_BEACON,
-				     wlc->bcn_rspec, cfg, bcn, &len);
-		brcms_c_write_hw_bcntemplates(wlc, bcn, len, false);
-	}
-}
-
 /*
  * Update all beacons for the system.
  */
@@ -8847,7 +8733,8 @@ void brcms_c_update_beacon(struct brcms_c_info *wlc)
 	struct brcms_bss_cfg *bsscfg = wlc->bsscfg;
 
 	if (bsscfg->up && !bsscfg->BSS)
-		brcms_c_bss_update_beacon(wlc, bsscfg);
+		/* Clear the soft intmask */
+		wlc->defmacintmask &= ~MI_BCNTPL;
 }
 
 /* Write ssid into shared memory */
@@ -8944,19 +8831,6 @@ int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu, uint *fifop)
 		return -EBUSY;
 	}
 	return 0;
-}
-
-/* init tx reported rate mechanism */
-void brcms_c_reprate_init(struct brcms_c_info *wlc)
-{
-	brcms_c_bsscfg_reprate_init(wlc->bsscfg);
-}
-
-/* per bsscfg init tx reported rate mechanism */
-void brcms_c_bsscfg_reprate_init(struct brcms_bss_cfg *bsscfg)
-{
-	bsscfg->txrspecidx = 0;
-	memset((char *)bsscfg->txrspec, 0, sizeof(bsscfg->txrspec));
 }
 
 void brcms_default_rateset(struct brcms_c_info *wlc, struct brcms_c_rateset *rs)
