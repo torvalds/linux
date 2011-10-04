@@ -164,6 +164,14 @@ static int vmw_cmd_sid_check(struct vmw_private *dev_priv,
 		return ret;
 	}
 
+	ret = vmw_surface_validate(dev_priv, srf);
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTARTSYS)
+			DRM_ERROR("Could not validate surface.\n");
+		vmw_surface_unreference(&srf);
+		return ret;
+	}
+
 	sw_context->last_sid = *sid;
 	sw_context->sid_valid = true;
 	sw_context->sid_translation = srf->res.id;
@@ -256,6 +264,7 @@ static int vmw_cmd_present_check(struct vmw_private *dev_priv,
 		SVGA3dCmdHeader header;
 		SVGA3dCmdPresent body;
 	} *cmd;
+
 
 	cmd = container_of(header, struct vmw_sid_cmd, header);
 
@@ -566,6 +575,13 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 		goto out_no_reloc;
 	}
 
+	ret = vmw_surface_validate(dev_priv, srf);
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTARTSYS)
+			DRM_ERROR("Culd not validate surface.\n");
+		goto out_no_validate;
+	}
+
 	/*
 	 * Patch command stream with device SID.
 	 */
@@ -579,6 +595,8 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 
 	return 0;
 
+out_no_validate:
+	vmw_surface_unreference(&srf);
 out_no_reloc:
 	vmw_dmabuf_unreference(&vmw_bo);
 	return ret;
@@ -882,6 +900,7 @@ static void vmw_clear_validations(struct vmw_sw_context *sw_context)
 	/*
 	 * Drop references to resources held during command submission.
 	 */
+	vmw_resource_unreserve(&sw_context->resource_list);
 	list_for_each_entry_safe(res, res_next, &sw_context->resource_list,
 				 validate_head) {
 		list_del_init(&res->validate_head);

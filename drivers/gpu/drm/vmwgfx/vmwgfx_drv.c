@@ -402,6 +402,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	init_waitqueue_head(&dev_priv->fifo_queue);
 	dev_priv->fence_queue_waiters = 0;
 	atomic_set(&dev_priv->fifo_queue_waiters, 0);
+	INIT_LIST_HEAD(&dev_priv->surface_lru);
+	dev_priv->used_memory_size = 0;
 
 	dev_priv->io_start = pci_resource_start(dev->pdev, 0);
 	dev_priv->vram_start = pci_resource_start(dev->pdev, 1);
@@ -422,6 +424,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
 
+	dev_priv->vram_size = vmw_read(dev_priv, SVGA_REG_VRAM_SIZE);
+	dev_priv->mmio_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
+	dev_priv->fb_max_width = vmw_read(dev_priv, SVGA_REG_MAX_WIDTH);
+	dev_priv->fb_max_height = vmw_read(dev_priv, SVGA_REG_MAX_HEIGHT);
 	if (dev_priv->capabilities & SVGA_CAP_GMR) {
 		dev_priv->max_gmr_descriptors =
 			vmw_read(dev_priv,
@@ -434,12 +440,14 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			vmw_read(dev_priv, SVGA_REG_GMRS_MAX_PAGES);
 		dev_priv->memory_size =
 			vmw_read(dev_priv, SVGA_REG_MEMORY_SIZE);
+		dev_priv->memory_size -= dev_priv->vram_size;
+	} else {
+		/*
+		 * An arbitrary limit of 512MiB on surface
+		 * memory. But all HWV8 hardware supports GMR2.
+		 */
+		dev_priv->memory_size = 512*1024*1024;
 	}
-
-	dev_priv->vram_size = vmw_read(dev_priv, SVGA_REG_VRAM_SIZE);
-	dev_priv->mmio_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
-	dev_priv->fb_max_width = vmw_read(dev_priv, SVGA_REG_MAX_WIDTH);
-	dev_priv->fb_max_height = vmw_read(dev_priv, SVGA_REG_MAX_HEIGHT);
 
 	mutex_unlock(&dev_priv->hw_mutex);
 
@@ -454,8 +462,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		DRM_INFO("Max number of GMR pages is %u\n",
 			 (unsigned)dev_priv->max_gmr_pages);
-		DRM_INFO("Max dedicated hypervisor graphics memory is %u\n",
-			 (unsigned)dev_priv->memory_size);
+		DRM_INFO("Max dedicated hypervisor surface memory is %u kiB\n",
+			 (unsigned)dev_priv->memory_size / 1024);
 	}
 	DRM_INFO("VRAM at 0x%08x size is %u kiB\n",
 		 dev_priv->vram_start, dev_priv->vram_size / 1024);

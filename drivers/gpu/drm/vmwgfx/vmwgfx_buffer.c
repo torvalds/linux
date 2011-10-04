@@ -60,6 +60,11 @@ static uint32_t vram_gmr_placement_flags[] = {
 	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
 };
 
+static uint32_t gmr_vram_placement_flags[] = {
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED,
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+};
+
 struct ttm_placement vmw_vram_gmr_placement = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -123,6 +128,15 @@ struct ttm_placement vmw_evictable_placement = {
 	.placement = evictable_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &sys_placement_flags
+};
+
+struct ttm_placement vmw_srf_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 1,
+	.num_busy_placement = 2,
+	.placement = &gmr_placement_flags,
+	.busy_placement = gmr_vram_placement_flags
 };
 
 struct vmw_ttm_backend {

@@ -79,6 +79,7 @@ struct vmw_resource {
 	int id;
 	enum ttm_object_type res_type;
 	bool avail;
+	void (*remove_from_lists) (struct vmw_resource *res);
 	void (*hw_destroy) (struct vmw_resource *res);
 	void (*res_free) (struct vmw_resource *res);
 	struct list_head validate_head;
@@ -99,9 +100,11 @@ struct vmw_cursor_snooper {
 };
 
 struct vmw_framebuffer;
+struct vmw_surface_offset;
 
 struct vmw_surface {
 	struct vmw_resource res;
+	struct list_head lru_head; /* Protected by the resource lock */
 	uint32_t flags;
 	uint32_t format;
 	uint32_t mip_levels[DRM_VMW_MAX_SURFACE_FACES];
@@ -112,6 +115,9 @@ struct vmw_surface {
 
 	/* TODO so far just a extra pointer */
 	struct vmw_cursor_snooper snooper;
+	struct ttm_buffer_object *backup;
+	struct vmw_surface_offset *offsets;
+	uint32_t backup_size;
 };
 
 struct vmw_marker_queue {
@@ -310,6 +316,16 @@ struct vmw_private {
 	struct ttm_buffer_object *pinned_bo;
 	uint32_t query_cid;
 	bool dummy_query_bo_pinned;
+
+	/*
+	 * Surface swapping. The "surface_lru" list is protected by the
+	 * resource lock in order to be able to destroy a surface and take
+	 * it off the lru atomically. "used_memory_size" is currently
+	 * protected by the cmdbuf mutex for simplicity.
+	 */
+
+	struct list_head surface_lru;
+	uint32_t used_memory_size;
 };
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
@@ -389,6 +405,8 @@ extern int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 extern int vmw_surface_check(struct vmw_private *dev_priv,
 			     struct ttm_object_file *tfile,
 			     uint32_t handle, int *id);
+extern int vmw_surface_validate(struct vmw_private *dev_priv,
+				struct vmw_surface *srf);
 extern void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo);
 extern int vmw_dmabuf_init(struct vmw_private *dev_priv,
 			   struct vmw_dma_buffer *vmw_bo,
@@ -412,6 +430,7 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 				  struct ttm_object_file *tfile,
 				  uint32_t *inout_id,
 				  struct vmw_resource **out);
+extern void vmw_resource_unreserve(struct list_head *list);
 
 /**
  * DMA buffer helper routines - vmwgfx_dmabuf.c
@@ -486,6 +505,7 @@ extern struct ttm_placement vmw_vram_gmr_placement;
 extern struct ttm_placement vmw_vram_gmr_ne_placement;
 extern struct ttm_placement vmw_sys_placement;
 extern struct ttm_placement vmw_evictable_placement;
+extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
 
@@ -507,6 +527,12 @@ extern int vmw_execbuf_process(struct drm_file *file_priv,
 extern void
 vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 			      bool only_on_cid_match, uint32_t cid);
+
+extern int vmw_execbuf_fence_commands(struct drm_file *file_priv,
+				      struct vmw_private *dev_priv,
+				      struct vmw_fence_obj **p_fence,
+				      uint32_t *p_handle);
+
 
 /**
  * IRQs and wating - vmwgfx_irq.c
