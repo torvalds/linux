@@ -197,6 +197,12 @@ static int vmw_cmd_blt_surf_screen_check(struct vmw_private *dev_priv,
 	} *cmd;
 
 	cmd = container_of(header, struct vmw_sid_cmd, header);
+
+	if (unlikely(!sw_context->kernel)) {
+		DRM_ERROR("Kernel only SVGA3d command: %u.\n", cmd->header.id);
+		return -EPERM;
+	}
+
 	return vmw_cmd_sid_check(dev_priv, sw_context, &cmd->body.srcImage.sid);
 }
 
@@ -210,6 +216,12 @@ static int vmw_cmd_present_check(struct vmw_private *dev_priv,
 	} *cmd;
 
 	cmd = container_of(header, struct vmw_sid_cmd, header);
+
+	if (unlikely(!sw_context->kernel)) {
+		DRM_ERROR("Kernel only SVGA3d command: %u.\n", cmd->header.id);
+		return -EPERM;
+	}
+
 	return vmw_cmd_sid_check(dev_priv, sw_context, &cmd->body.sid);
 }
 
@@ -478,14 +490,12 @@ static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
 				void *buf, uint32_t *size)
 {
 	uint32_t size_remaining = *size;
-	bool need_kernel = true;
 	uint32_t cmd_id;
 
 	cmd_id = le32_to_cpu(((uint32_t *)buf)[0]);
 	switch (cmd_id) {
 	case SVGA_CMD_UPDATE:
 		*size = sizeof(uint32_t) + sizeof(SVGAFifoCmdUpdate);
-		need_kernel = false;
 		break;
 	case SVGA_CMD_DEFINE_GMRFB:
 		*size = sizeof(uint32_t) + sizeof(SVGAFifoCmdDefineGMRFB);
@@ -507,7 +517,7 @@ static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	if (unlikely(need_kernel && !sw_context->kernel)) {
+	if (unlikely(!sw_context->kernel)) {
 		DRM_ERROR("Kernel only SVGA command: %u.\n", cmd_id);
 		return -EPERM;
 	}
