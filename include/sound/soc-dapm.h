@@ -473,6 +473,8 @@ struct snd_soc_dapm_widget {
 	unsigned char ext:1;			/* has external widgets */
 	unsigned char force:1;			/* force state */
 	unsigned char ignore_suspend:1;         /* kept enabled over suspend */
+	unsigned char new_power:1;		/* power from this run */
+	unsigned char power_checked:1;		/* power checked this run */
 	int subseq;				/* sort within widget type */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);

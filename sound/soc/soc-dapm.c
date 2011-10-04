@@ -787,10 +787,17 @@ EXPORT_SYMBOL_GPL(dapm_reg_event);
 
 static int dapm_widget_power_check(struct snd_soc_dapm_widget *w)
 {
+	if (w->power_checked)
+		return w->new_power;
+
 	if (w->force)
-		return 1;
+		w->new_power = 1;
 	else
-		return w->power_check(w);
+		w->new_power = w->power_check(w);
+
+	w->power_checked = true;
+
+	return w->new_power;
 }
 
 /* Generic check to see if a widget should be powered.
@@ -1321,6 +1328,10 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	}
 
 	memset(&card->dapm_stats, 0, sizeof(card->dapm_stats));
+
+	list_for_each_entry(w, &card->widgets, list) {
+		w->power_checked = false;
+	}
 
 	/* Check which widgets we need to power and store them in
 	 * lists indicating if they should be powered up or down.  We
