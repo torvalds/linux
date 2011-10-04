@@ -1606,7 +1606,7 @@ fail:
  * Precondition: Since this function is called in brcms_pci_probe() context,
  * no locking is required.
  */
-int brcms_ucode_init_uint(struct brcms_info *wl, u32 *data, u32 idx)
+int brcms_ucode_init_uint(struct brcms_info *wl, size_t *n_bytes, u32 idx)
 {
 	int i, entry;
 	const u8 *pdata;
@@ -1623,7 +1623,7 @@ int brcms_ucode_init_uint(struct brcms_info *wl, u32 *data, u32 idx)
 						  "ERROR: fw hdr len\n");
 					return -ENOMSG;
 				}
-				*data = le32_to_cpu(*((__le32 *) pdata));
+				*n_bytes = le32_to_cpu(*((__le32 *) pdata));
 				return 0;
 			}
 		}

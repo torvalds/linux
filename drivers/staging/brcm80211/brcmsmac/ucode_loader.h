@@ -50,8 +50,8 @@ extern void brcms_ucode_data_free(struct brcms_ucode *ucode);
 
 extern int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf,
 				unsigned int idx);
-extern int brcms_ucode_init_uint(struct brcms_info *wl, unsigned *data,
-			      unsigned int idx);
+extern int brcms_ucode_init_uint(struct brcms_info *wl, size_t *n_bytes,
+				 unsigned int idx);
 extern void brcms_ucode_free_buf(void *);
 extern int  brcms_check_firmwares(struct brcms_info *wl);
 
