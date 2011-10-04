@@ -45,7 +45,7 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 	if (hwversion == 0)
 		return false;
 
-	if (hwversion < SVGA3D_HWVERSION_WS65_B1)
+	if (hwversion < SVGA3D_HWVERSION_WS8_B1)
 		return false;
 
 	return true;
