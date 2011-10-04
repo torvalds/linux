@@ -8,11 +8,8 @@
  * (at your option) any later version.
  */
 
-#ifndef	__S3C_DMA_PL330_H_
-#define	__S3C_DMA_PL330_H_
-
-#define S3C2410_DMAF_AUTOSTART		(1 << 0)
-#define S3C2410_DMAF_CIRCULAR		(1 << 1)
+#ifndef __DMA_PL330_H_
+#define __DMA_PL330_H_ __FILE__
 
 /*
  * PL330 can assign any channel to communicate with
@@ -20,7 +17,7 @@
  * For the sake of consistency across client drivers,
  * We keep the channel names unchanged and only add
  * missing peripherals are added.
- * Order is not important since S3C PL330 API driver
+ * Order is not important since DMA PL330 API driver
  * use these just as IDs.
  */
 enum dma_ch {
@@ -88,11 +85,20 @@ enum dma_ch {
 	DMACH_MAX,
 };
 
-static inline bool s3c_dma_has_circular(void)
+struct s3c2410_dma_client {
+	char	*name;
+};
+
+static inline bool samsung_dma_has_circular(void)
 {
 	return true;
 }
 
-#include <plat/dma.h>
+static inline bool samsung_dma_is_dmadev(void)
+{
+	return true;
+}
 
-#endif	/* __S3C_DMA_PL330_H_ */
+#include <plat/dma-ops.h>
+
+#endif	/* __DMA_PL330_H_ */

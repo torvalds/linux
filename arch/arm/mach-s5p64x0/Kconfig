@@ -9,14 +9,14 @@ if ARCH_S5P64X0
 
 config CPU_S5P6440
 	bool
-	select S3C_PL330_DMA
+	select SAMSUNG_DMADEV
 	select S5P_HRT
 	help
 	  Enable S5P6440 CPU support
 
 config CPU_S5P6450
 	bool
-	select S3C_PL330_DMA
+	select SAMSUNG_DMADEV
 	select S5P_HRT
 	help
 	  Enable S5P6450 CPU support
