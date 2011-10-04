@@ -2383,12 +2383,12 @@ static int pp_stats_line(struct proc_print_info *ppi, int cnt_set)
 			       "idx iface acct_tag_hex uid_tag_int cnt_set "
 			       "rx_bytes rx_packets "
 			       "tx_bytes tx_packets "
-			       "rx_tcp_packets rx_tcp_bytes "
-			       "rx_udp_packets rx_udp_bytes "
-			       "rx_other_packets rx_other_bytes "
-			       "tx_tcp_packets tx_tcp_bytes "
-			       "tx_udp_packets tx_udp_bytes "
-			       "tx_other_packets tx_other_bytes\n");
+			       "rx_tcp_bytes rx_tcp_packets "
+			       "rx_udp_bytes rx_udp_packets "
+			       "rx_other_bytes rx_other_packets "
+			       "tx_tcp_bytes tx_tcp_packets "
+			       "tx_udp_bytes tx_udp_packets "
+			       "tx_other_bytes tx_other_packets\n");
 	} else {
 		tag_t tag = ppi->ts_entry->tn.tag;
 		uid_t stat_uid = get_uid_from_tag(tag);
