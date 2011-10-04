@@ -345,11 +345,13 @@ void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 	drm_master_put(&vfbs->master);
 	drm_framebuffer_cleanup(framebuffer);
 	vmw_surface_unreference(&vfbs->surface);
+	ttm_base_object_unref(&vfbs->base.user_obj);
 
 	kfree(vfbs);
 }
 
 static int do_surface_dirty_sou(struct vmw_private *dev_priv,
+				struct drm_file *file_priv,
 				struct vmw_framebuffer *framebuffer,
 				struct vmw_surface *surf,
 				unsigned flags, unsigned color,
@@ -359,7 +361,7 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	int left = clips->x2, right = clips->x1;
 	int top = clips->y2, bottom = clips->y1;
 	size_t fifo_size;
-	int i;
+	int i, ret;
 
 	struct {
 		SVGA3dCmdHeader header;
@@ -368,18 +370,16 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 
 
 	fifo_size = sizeof(*cmd);
-	cmd = vmw_fifo_reserve(dev_priv, fifo_size);
+	cmd = kzalloc(fifo_size, GFP_KERNEL);
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
+		DRM_ERROR("Temporary fifo memory alloc failed.\n");
 		return -ENOMEM;
 	}
-
-	memset(cmd, 0, fifo_size);
 
 	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN);
 	cmd->header.size = cpu_to_le32(sizeof(cmd->body));
 
-	cmd->body.srcImage.sid = cpu_to_le32(surf->res.id);
+	cmd->body.srcImage.sid = cpu_to_le32(framebuffer->user_handle);
 	cmd->body.destScreenId = SVGA_ID_INVALID; /* virtual coords */
 
 	for (i = 0; i < num_clips; i++, clips += inc) {
@@ -399,9 +399,11 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	cmd->body.destRect.top = top;
 	cmd->body.destRect.bottom = bottom;
 
-	vmw_fifo_commit(dev_priv, fifo_size);
+	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd, fifo_size,
+				  0, NULL);
+	kfree(cmd);
 
-	return 0;
+	return ret;
 }
 
 int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
@@ -440,7 +442,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 		inc = 2; /* skip source rects */
 	}
 
-	ret = do_surface_dirty_sou(dev_priv, &vfbs->base, surf,
+	ret = do_surface_dirty_sou(dev_priv, file_priv, &vfbs->base, surf,
 				   flags, color,
 				   clips, num_clips, inc);
 
@@ -535,6 +537,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	vfbs->base.base.width = mode_cmd->width;
 	vfbs->base.base.height = mode_cmd->height;
 	vfbs->surface = surface;
+	vfbs->base.user_handle = mode_cmd->handle;
 	vfbs->master = drm_master_get(file_priv->master);
 
 	mutex_lock(&vmaster->fb_surf_mutex);
@@ -563,7 +566,6 @@ out_err1:
 struct vmw_framebuffer_dmabuf {
 	struct vmw_framebuffer base;
 	struct vmw_dma_buffer *buffer;
-	uint32_t handle;
 };
 
 void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
@@ -573,6 +575,7 @@ void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
 
 	drm_framebuffer_cleanup(framebuffer);
 	vmw_dmabuf_unreference(&vfbd->buffer);
+	ttm_base_object_unref(&vfbd->base.user_obj);
 
 	kfree(vfbd);
 }
@@ -620,8 +623,6 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 			       struct drm_clip_rect *clips,
 			       unsigned num_clips, int increment)
 {
-	struct vmw_framebuffer_dmabuf *vfbd =
-		vmw_framebuffer_to_vfbd(&framebuffer->base);
 	size_t fifo_size;
 	int i, ret;
 
@@ -647,7 +648,7 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 	cmd->body.format.colorDepth = framebuffer->base.depth;
 	cmd->body.format.reserved = 0;
 	cmd->body.bytesPerLine = framebuffer->base.pitch;
-	cmd->body.ptr.gmrId = vfbd->handle;
+	cmd->body.ptr.gmrId = framebuffer->user_handle;
 	cmd->body.ptr.offset = 0;
 
 	blits = (void *)&cmd[1];
@@ -802,7 +803,7 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 	}
 	vfbd->base.dmabuf = true;
 	vfbd->buffer = dmabuf;
-	vfbd->handle = mode_cmd->handle;
+	vfbd->base.user_handle = mode_cmd->handle;
 	*out = &vfbd->base;
 
 	return 0;
@@ -828,6 +829,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_framebuffer *vfb = NULL;
 	struct vmw_surface *surface = NULL;
 	struct vmw_dma_buffer *bo = NULL;
+	struct ttm_base_object *user_obj;
 	u64 required_size;
 	int ret;
 
@@ -841,6 +843,21 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (unlikely(required_size > (u64) dev_priv->vram_size)) {
 		DRM_ERROR("VRAM size is too small for requested mode.\n");
 		return NULL;
+	}
+
+	/*
+	 * Take a reference on the user object of the resource
+	 * backing the kms fb. This ensures that user-space handle
+	 * lookups on that resource will always work as long as
+	 * it's registered with a kms framebuffer. This is important,
+	 * since vmw_execbuf_process identifies resources in the
+	 * command stream using user-space handles.
+	 */
+
+	user_obj = ttm_base_object_lookup(tfile, mode_cmd->handle);
+	if (unlikely(user_obj == NULL)) {
+		DRM_ERROR("Could not locate requested kms frame buffer.\n");
+		return ERR_PTR(-ENOENT);
 	}
 
 	/**
@@ -863,8 +880,10 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 
 	if (ret) {
 		DRM_ERROR("failed to create vmw_framebuffer: %i\n", ret);
+		ttm_base_object_unref(&user_obj);
 		return ERR_PTR(ret);
-	}
+	} else
+		vfb->user_obj = user_obj;
 	return &vfb->base;
 
 try_dmabuf:
@@ -884,8 +903,10 @@ try_dmabuf:
 
 	if (ret) {
 		DRM_ERROR("failed to create vmw_framebuffer: %i\n", ret);
+		ttm_base_object_unref(&user_obj);
 		return ERR_PTR(ret);
-	}
+	} else
+		vfb->user_obj = user_obj;
 
 	return &vfb->base;
 
@@ -893,6 +914,7 @@ err_not_scanout:
 	DRM_ERROR("surface not marked as scanout\n");
 	/* vmw_user_surface_lookup takes one ref */
 	vmw_surface_unreference(&surface);
+	ttm_base_object_unref(&user_obj);
 
 	return ERR_PTR(-EINVAL);
 }
@@ -1011,7 +1033,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 	cmd->body.format.colorDepth = vfb->base.depth;
 	cmd->body.format.reserved = 0;
 	cmd->body.bytesPerLine = vfb->base.pitch;
-	cmd->body.ptr.gmrId = vfbd->handle;
+	cmd->body.ptr.gmrId = vfb->user_handle;
 	cmd->body.ptr.offset = 0;
 
 	blits = (void *)&cmd[1];
