@@ -1075,36 +1075,6 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 	return morepending;
 }
 
-/* brcms_b_tx_fifo_suspended:
- * Check the MAC's tx suspend status for a tx fifo.
- *
- * When the MAC acknowledges a tx suspend, it indicates that no more
- * packets will be transmitted out the radio. This is independent of
- * DMA channel suspension---the DMA may have finished suspending, or may still
- * be pulling data into a tx fifo, by the time the MAC acks the suspend
- * request.
- */
-static bool brcms_b_tx_fifo_suspended(struct brcms_hardware *wlc_hw,
-				      uint tx_fifo)
-{
-	/* check that a suspend has been requested and is no longer pending */
-
-	/*
-	 * for DMA mode, the suspend request is set in xmtcontrol of the DMA
-	 * engine, and the tx fifo suspend at the lower end of the MAC is
-	 * acknowledged in the chnstatus register.
-	 *
-	 * The tx fifo suspend completion is independent of the DMA suspend
-	 * completion and may be acked before or after the DMA is suspended.
-	 */
-	if (dma_txsuspended(wlc_hw->di[tx_fifo]) &&
-	    (R_REG(&wlc_hw->regs->chnstatus) &
-	     (1 << tx_fifo)) == 0)
-		return true;
-
-	return false;
-}
-
 /* second-level interrupt processing
  *   Return true if another dpc needs to be re-scheduled. false otherwise.
  *   Param 'bounded' indicates if applicable loops should be bounded.
@@ -1160,10 +1130,6 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 	if (macintstatus & MI_DMAINT)
 		if (brcms_b_recv(wlc_hw, RX_FIFO, bounded))
 			wlc->macintstatus |= MI_DMAINT;
-
-	/* TX FIFO suspend/flush completion */
-	if (macintstatus & MI_TXSTOP)
-		brcms_b_tx_fifo_suspended(wlc_hw, TX_DATA_FIFO);
 
 	/* noise sample collected */
 	if (macintstatus & MI_BG_NOISE)
