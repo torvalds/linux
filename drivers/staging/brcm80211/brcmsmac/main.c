@@ -8809,7 +8809,7 @@ void brcms_c_mhf(struct brcms_c_info *wlc, u8 idx, u16 mask, u16 val, int bands)
 	brcms_b_mhf(wlc->hw, idx, mask, val, bands);
 }
 
-static int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
+int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 			   uint *blocks)
 {
 	if (fifo >= NFIFO)
@@ -8818,11 +8818,6 @@ static int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 	*blocks = wlc_hw->xmtfifo_sz[fifo];
 
 	return 0;
-}
-
-int brcms_c_xmtfifo_sz_get(struct brcms_c_info *wlc, uint fifo, uint *blocks)
-{
-	return brcms_b_xmtfifo_sz_get(wlc->hw, fifo, blocks);
 }
 
 void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset, int len,

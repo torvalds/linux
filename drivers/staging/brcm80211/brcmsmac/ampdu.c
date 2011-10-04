@@ -383,7 +383,7 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 		return 1;
 
 	/* check if fifo is big enough */
-	if (brcms_c_xmtfifo_sz_get(wlc, fid, &xmtfifo_sz))
+	if (brcms_b_xmtfifo_sz_get(wlc->hw, fid, &xmtfifo_sz))
 		return -1;
 
 	if ((TXFIFO_SIZE_UNIT * (u32) xmtfifo_sz) <= ampdu->ffpld_rsvd)

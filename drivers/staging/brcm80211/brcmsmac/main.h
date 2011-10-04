@@ -672,8 +672,8 @@ extern void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
 			    struct sk_buff *sdu, uint prec);
 extern void brcms_c_info_init(struct brcms_c_info *wlc, int unit);
 extern void brcms_c_print_txstatus(struct tx_status *txs);
-extern int brcms_c_xmtfifo_sz_get(struct brcms_c_info *wlc, uint fifo,
-				  uint *blocks);
+extern int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
+		   uint *blocks);
 extern void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset,
 				       int len, void *buf);
 extern void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, u32 req_bit);
