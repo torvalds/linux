@@ -422,52 +422,60 @@ static int ddebug_exec_query(char *query_string)
 	return 0;
 }
 
-static int dynamic_emit_prefix(const struct _ddebug *descriptor)
+#define PREFIX_SIZE 64
+
+static int remaining(int wrote)
 {
-	char tid[sizeof(int) + sizeof(int)/2 + 4];
-	char lineno[sizeof(int) + sizeof(int)/2];
+	if (PREFIX_SIZE - wrote > 0)
+		return PREFIX_SIZE - wrote;
+	return 0;
+}
 
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_TID) {
+static char *dynamic_emit_prefix(const struct _ddebug *desc, char *buf)
+{
+	int pos_after_tid;
+	int pos = 0;
+
+	pos += snprintf(buf + pos, remaining(pos), "%s", KERN_DEBUG);
+	if (desc->flags & _DPRINTK_FLAGS_INCL_TID) {
 		if (in_interrupt())
-			snprintf(tid, sizeof(tid), "%s", "<intr> ");
+			pos += snprintf(buf + pos, remaining(pos), "%s ",
+						"<intr>");
 		else
-			snprintf(tid, sizeof(tid), "[%d] ",
-				 task_pid_vnr(current));
-	} else {
-		tid[0] = 0;
+			pos += snprintf(buf + pos, remaining(pos), "[%d] ",
+						task_pid_vnr(current));
 	}
+	pos_after_tid = pos;
+	if (desc->flags & _DPRINTK_FLAGS_INCL_MODNAME)
+		pos += snprintf(buf + pos, remaining(pos), "%s:",
+					desc->modname);
+	if (desc->flags & _DPRINTK_FLAGS_INCL_FUNCNAME)
+		pos += snprintf(buf + pos, remaining(pos), "%s:",
+					desc->function);
+	if (desc->flags & _DPRINTK_FLAGS_INCL_LINENO)
+		pos += snprintf(buf + pos, remaining(pos), "%d:", desc->lineno);
+	if (pos - pos_after_tid)
+		pos += snprintf(buf + pos, remaining(pos), " ");
+	if (pos >= PREFIX_SIZE)
+		buf[PREFIX_SIZE - 1] = '\0';
 
-	if (descriptor->flags & _DPRINTK_FLAGS_INCL_LINENO)
-		snprintf(lineno, sizeof(lineno), "%d", descriptor->lineno);
-	else
-		lineno[0] = 0;
-
-	return printk(KERN_DEBUG "%s%s%s%s%s%s",
-		      tid,
-		      (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME) ?
-		      descriptor->modname : "",
-		      (descriptor->flags & _DPRINTK_FLAGS_INCL_MODNAME) ?
-		      ":" : "",
-		      (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME) ?
-		      descriptor->function : "",
-		      (descriptor->flags & _DPRINTK_FLAGS_INCL_FUNCNAME) ?
-		      ":" : "",
-		      lineno);
+	return buf;
 }
 
 int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
 {
 	va_list args;
 	int res;
+	struct va_format vaf;
+	char buf[PREFIX_SIZE];
 
 	BUG_ON(!descriptor);
 	BUG_ON(!fmt);
 
 	va_start(args, fmt);
-
-	res = dynamic_emit_prefix(descriptor);
-	res += vprintk(fmt, args);
-
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	res = printk("%s%pV", dynamic_emit_prefix(descriptor, buf), &vaf);
 	va_end(args);
 
 	return res;
@@ -480,18 +488,15 @@ int __dynamic_dev_dbg(struct _ddebug *descriptor,
 	struct va_format vaf;
 	va_list args;
 	int res;
+	char buf[PREFIX_SIZE];
 
 	BUG_ON(!descriptor);
 	BUG_ON(!fmt);
 
 	va_start(args, fmt);
-
 	vaf.fmt = fmt;
 	vaf.va = &args;
-
-	res = dynamic_emit_prefix(descriptor);
-	res += __dev_printk(KERN_CONT, dev, &vaf);
-
+	res = __dev_printk(dynamic_emit_prefix(descriptor, buf), dev, &vaf);
 	va_end(args);
 
 	return res;
@@ -504,18 +509,15 @@ int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 	struct va_format vaf;
 	va_list args;
 	int res;
+	char buf[PREFIX_SIZE];
 
 	BUG_ON(!descriptor);
 	BUG_ON(!fmt);
 
 	va_start(args, fmt);
-
 	vaf.fmt = fmt;
 	vaf.va = &args;
-
-	res = dynamic_emit_prefix(descriptor);
-	res += __netdev_printk(KERN_CONT, dev, &vaf);
-
+	res = __netdev_printk(dynamic_emit_prefix(descriptor, buf), dev, &vaf);
 	va_end(args);
 
 	return res;
