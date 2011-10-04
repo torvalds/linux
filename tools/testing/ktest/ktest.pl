@@ -2372,11 +2372,30 @@ sub patchcheck {
 }
 
 my %depends;
+my %depcount;
 my $iflevel = 0;
 my @ifdeps;
 
 # prevent recursion
 my %read_kconfigs;
+
+sub add_dep {
+    # $config depends on $dep
+    my ($config, $dep) = @_;
+
+    if (defined($depends{$config})) {
+	$depends{$config} .= " " . $dep;
+    } else {
+	$depends{$config} = $dep;
+    }
+
+    # record the number of configs depending on $dep
+    if (defined $depcount{$dep}) {
+	$depcount{$dep}++;
+    } else {
+	$depcount{$dep} = 1;
+    } 
+}
 
 # taken from streamline_config.pl
 sub read_kconfig {
@@ -2424,30 +2443,19 @@ sub read_kconfig {
 	    $config = $2;
 
 	    for (my $i = 0; $i < $iflevel; $i++) {
-		if ($i) {
-		    $depends{$config} .= " " . $ifdeps[$i];
-		} else {
-		    $depends{$config} = $ifdeps[$i];
-		}
-		$state = "DEP";
+		add_dep $config, $ifdeps[$i];
 	    }
 
 	# collect the depends for the config
 	} elsif ($state eq "NEW" && /^\s*depends\s+on\s+(.*)$/) {
 
-	    if (defined($depends{$1})) {
-		$depends{$config} .= " " . $1;
-	    } else {
-		$depends{$config} = $1;
-	    }
+	    add_dep $config, $1;
 
 	# Get the configs that select this config
-	} elsif ($state ne "NONE" && /^\s*select\s+(\S+)/) {
-	    if (defined($depends{$1})) {
-		$depends{$1} .= " " . $config;
-	    } else {
-		$depends{$1} = $config;
-	    }
+	} elsif ($state eq "NEW" && /^\s*select\s+(\S+)/) {
+
+	    # selected by depends on config
+	    add_dep $1, $config;
 
 	# Check for if statements
 	} elsif (/^if\s+(.*\S)\s*$/) {
@@ -2559,11 +2567,18 @@ sub make_new_config {
     close OUT;
 }
 
+sub chomp_config {
+    my ($config) = @_;
+
+    $config =~ s/CONFIG_//;
+
+    return $config;
+}
+
 sub get_depends {
     my ($dep) = @_;
 
-    my $kconfig = $dep;
-    $kconfig =~ s/CONFIG_//;
+    my $kconfig = chomp_config $dep;
 
     $dep = $depends{"$kconfig"};
 
@@ -2613,8 +2628,7 @@ sub test_this_config {
 	return undef;
     }
 
-    my $kconfig = $config;
-    $kconfig =~ s/CONFIG_//;
+    my $kconfig = chomp_config $config;
 
     # Test dependencies first
     if (defined($depends{"$kconfig"})) {
@@ -2704,6 +2718,14 @@ sub make_min_config {
 
     my @config_keys = keys %min_configs;
 
+    # All configs need a depcount
+    foreach my $config (@config_keys) {
+	my $kconfig = chomp_config $config;
+	if (!defined $depcount{$kconfig}) {
+		$depcount{$kconfig} = 0;
+	}
+    }
+
     # Remove anything that was set by the make allnoconfig
     # we shouldn't need them as they get set for us anyway.
     foreach my $config (@config_keys) {
@@ -2742,8 +2764,13 @@ sub make_min_config {
 	# Now disable each config one by one and do a make oldconfig
 	# till we find a config that changes our list.
 
-	# Put configs that did not modify the config at the end.
 	my @test_configs = keys %min_configs;
+
+	# Sort keys by who is most dependent on
+	@test_configs = sort  { $depcount{chomp_config($b)} <=> $depcount{chomp_config($a)} }
+			  @test_configs ;
+
+	# Put configs that did not modify the config at the end.
 	my $reset = 1;
 	for (my $i = 0; $i < $#test_configs; $i++) {
 	    if (!defined($nochange_config{$test_configs[0]})) {
