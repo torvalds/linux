@@ -1346,17 +1346,23 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	struct saa711x_state *state = to_state(sd);
 	int reg1f, reg1e;
 
+	/*
+	 * The V4L2 core already initializes std with all supported
+	 * Standards. All driver needs to do is to mask it, to remove
+	 * standards that don't apply from the mask
+	 */
+
 	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
 	v4l2_dbg(1, debug, sd, "Status byte 2 (0x1f)=0x%02x\n", reg1f);
-	if (reg1f & 0x40) {
-		/* horizontal/vertical not locked */
-		*std = V4L2_STD_ALL;
+
+	/* horizontal/vertical not locked */
+	if (reg1f & 0x40)
 		goto ret;
-	}
+
 	if (reg1f & 0x20)
-		*std = V4L2_STD_525_60;
+		*std &= V4L2_STD_525_60;
 	else
-		*std = V4L2_STD_625_50;
+		*std &= V4L2_STD_625_50;
 
 	if (state->ident != V4L2_IDENT_SAA7115)
 		goto ret;
@@ -1381,7 +1387,6 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 		break;
 	default:
 		/* Can't detect anything */
-		*std = V4L2_STD_ALL;
 		break;
 	}
 
