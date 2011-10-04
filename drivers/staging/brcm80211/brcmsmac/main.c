@@ -5912,39 +5912,10 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	return ret;
 }
 
-static int brcms_c_nmode_validate(struct brcms_c_info *wlc, s32 nmode)
-{
-	int err = 0;
-
-	switch (nmode) {
-
-	case OFF:
-		break;
-
-	case AUTO:
-	case WL_11N_2x2:
-	case WL_11N_3x3:
-		if (!(BRCMS_PHY_11N_CAP(wlc->band)))
-			err = -EINVAL;
-		break;
-
-	default:
-		err = -EINVAL;
-		break;
-	}
-
-	return err;
-}
-
 int brcms_c_set_nmode(struct brcms_c_info *wlc)
 {
 	uint i;
-	int err;
 	s32 nmode = AUTO;
-
-	err = brcms_c_nmode_validate(wlc, nmode);
-	if (err)
-		return err;
 
 	if (wlc->stf->txstreams == WL_11N_3x3)
 		nmode = WL_11N_3x3;
