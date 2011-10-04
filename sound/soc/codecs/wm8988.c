@@ -774,16 +774,11 @@ static int wm8988_probe(struct snd_soc_codec *codec)
 	}
 
 	/* set the update bits (we always update left then right) */
-	reg = snd_soc_read(codec, WM8988_RADC);
-	snd_soc_write(codec, WM8988_RADC, reg | 0x100);
-	reg = snd_soc_read(codec, WM8988_RDAC);
-	snd_soc_write(codec, WM8988_RDAC, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8988_ROUT1V);
-	snd_soc_write(codec, WM8988_ROUT1V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8988_ROUT2V);
-	snd_soc_write(codec, WM8988_ROUT2V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8988_RINVOL);
-	snd_soc_write(codec, WM8988_RINVOL, reg | 0x0100);
+	snd_soc_update_bits(codec, WM8988_RADC, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8988_RDAC, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8988_ROUT1V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8988_ROUT2V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8988_RINVOL, 0x0100, 0x0100);
 
 	wm8988_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
