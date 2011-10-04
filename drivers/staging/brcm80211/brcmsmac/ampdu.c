@@ -369,7 +369,7 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 	u16 cur_txunfl;
 
 	/* return if we got here for a different reason than underflows */
-	cur_txunfl = brcms_c_read_shm(wlc,
+	cur_txunfl = brcms_b_read_shm(wlc->hw,
 				      M_UCODE_MACSTAT +
 				      offsetof(struct macstat, txfunfl[fid]));
 	new_txunfl = (u16) (cur_txunfl - fifo->prev_txfunfl);
@@ -1182,11 +1182,11 @@ void brcms_c_ampdu_shm_upd(struct ampdu_info *ampdu)
 	 */
 	if ((ampdu->rx_factor & IEEE80211_HT_AMPDU_PARM_FACTOR) ==
 	    IEEE80211_HT_MAX_AMPDU_64K) {
-		brcms_c_write_shm(wlc, M_MIMO_MAXSYM, MIMO_MAXSYM_MAX);
-		brcms_c_write_shm(wlc, M_WATCHDOG_8TU, WATCHDOG_8TU_MAX);
+		brcms_b_write_shm(wlc->hw, M_MIMO_MAXSYM, MIMO_MAXSYM_MAX);
+		brcms_b_write_shm(wlc->hw, M_WATCHDOG_8TU, WATCHDOG_8TU_MAX);
 	} else {
-		brcms_c_write_shm(wlc, M_MIMO_MAXSYM, MIMO_MAXSYM_DEF);
-		brcms_c_write_shm(wlc, M_WATCHDOG_8TU, WATCHDOG_8TU_DEF);
+		brcms_b_write_shm(wlc->hw, M_MIMO_MAXSYM, MIMO_MAXSYM_DEF);
+		brcms_b_write_shm(wlc->hw, M_WATCHDOG_8TU, WATCHDOG_8TU_DEF);
 	}
 }
 

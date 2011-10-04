@@ -732,8 +732,6 @@ extern void brcms_c_inval_dma_pkts(struct brcms_hardware *hw,
 			       void (*dma_callback_fn));
 
 /* Shared memory access */
-extern void brcms_c_write_shm(struct brcms_c_info *wlc, uint offset, u16 v);
-extern u16 brcms_c_read_shm(struct brcms_c_info *wlc, uint offset);
 extern void brcms_c_copyto_shm(struct brcms_c_info *wlc, uint offset,
 			       const void *buf, int len);
 

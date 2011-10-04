@@ -206,7 +206,7 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 	 */
 	ant_cfg = antsel->ant_config[ANT_SELCFG_TX_DEF];
 	mimo_antsel = brcms_c_antsel_antcfg2antsel(asi, ant_cfg);
-	brcms_c_write_shm(wlc, M_MIMO_ANTSEL_TXDFLT, mimo_antsel);
+	brcms_b_write_shm(wlc->hw, M_MIMO_ANTSEL_TXDFLT, mimo_antsel);
 	/*
 	 * Update driver stats for currently selected
 	 * default tx/rx antenna config
@@ -218,7 +218,7 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 	 */
 	ant_cfg = antsel->ant_config[ANT_SELCFG_RX_DEF];
 	mimo_antsel = brcms_c_antsel_antcfg2antsel(asi, ant_cfg);
-	brcms_c_write_shm(wlc, M_MIMO_ANTSEL_RXDFLT, mimo_antsel);
+	brcms_b_write_shm(wlc->hw, M_MIMO_ANTSEL_RXDFLT, mimo_antsel);
 	/*
 	 * Update driver stats for currently selected
 	 * default tx/rx antenna config
