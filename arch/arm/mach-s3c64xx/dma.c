@@ -740,7 +740,7 @@ static int __init s3c64xx_dma_init(void)
 	}
 
 	/* Set all DMA configuration to be DMA, not SDMA */
-	writel(0xffffff, S3C_SYSREG(0x110));
+	writel(0xffffff, S3C64XX_SDMA_SEL);
 
 	/* Register standard DMA controllers */
 	s3c64xx_dma_init1(0, DMACH_UART0, IRQ_DMA0, 0x75000000);
