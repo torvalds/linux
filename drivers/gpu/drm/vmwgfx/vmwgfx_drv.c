@@ -94,6 +94,12 @@
 #define DRM_IOCTL_VMW_FENCE_UNREF				\
 	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_FENCE_UNREF,		\
 		 struct drm_vmw_fence_arg)
+#define DRM_IOCTL_VMW_PRESENT					\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_PRESENT,		\
+		 struct drm_vmw_present_arg)
+#define DRM_IOCTL_VMW_PRESENT_READBACK				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_PRESENT_READBACK,	\
+		 struct drm_vmw_present_readback_arg)
 
 /**
  * The core DRM version of this macro doesn't account for
@@ -146,6 +152,13 @@ static struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_GET_3D_CAP, vmw_get_cap_3d_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
+
+	/* these allow direct access to the framebuffers mark as master only */
+	VMW_IOCTL_DEF(VMW_PRESENT, vmw_present_ioctl,
+		      DRM_MASTER | DRM_AUTH | DRM_UNLOCKED),
+	VMW_IOCTL_DEF(VMW_PRESENT_READBACK,
+		      vmw_present_readback_ioctl,
+		      DRM_MASTER | DRM_AUTH | DRM_UNLOCKED),
 };
 
 static struct pci_device_id vmw_pci_id_list[] = {

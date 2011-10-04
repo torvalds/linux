@@ -800,6 +800,7 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		vfbd->base.pin = vmw_framebuffer_dmabuf_pin;
 		vfbd->base.unpin = vmw_framebuffer_dmabuf_unpin;
 	}
+	vfbd->base.dmabuf = true;
 	vfbd->buffer = dmabuf;
 	vfbd->handle = mode_cmd->handle;
 	*out = &vfbd->base;
@@ -899,6 +900,175 @@ err_not_scanout:
 static struct drm_mode_config_funcs vmw_kms_funcs = {
 	.fb_create = vmw_kms_fb_create,
 };
+
+int vmw_kms_present(struct vmw_private *dev_priv,
+		    struct drm_file *file_priv,
+		    struct vmw_framebuffer *vfb,
+		    struct vmw_surface *surface,
+		    uint32_t sid,
+		    int32_t destX, int32_t destY,
+		    struct drm_vmw_rect *clips,
+		    uint32_t num_clips)
+{
+	size_t fifo_size;
+	int i, ret;
+
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdBlitSurfaceToScreen body;
+	} *cmd;
+	SVGASignedRect *blits;
+
+	BUG_ON(surface == NULL);
+	BUG_ON(!clips || !num_clips);
+
+	fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num_clips;
+	cmd = kmalloc(fifo_size, GFP_KERNEL);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed to allocate temporary fifo memory.\n");
+		return -ENOMEM;
+	}
+
+	memset(cmd, 0, fifo_size);
+
+	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN);
+	cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
+
+	cmd->body.srcImage.sid = sid;
+	cmd->body.destScreenId = SVGA_ID_INVALID; /* virtual coords */
+
+	cmd->body.srcRect.left = 0;
+	cmd->body.srcRect.right = surface->sizes[0].width;
+	cmd->body.srcRect.top = 0;
+	cmd->body.srcRect.bottom = surface->sizes[0].height;
+
+	cmd->body.destRect.left = destX;
+	cmd->body.destRect.right = destX + surface->sizes[0].width;
+	cmd->body.destRect.top = destY;
+	cmd->body.destRect.bottom = destY + surface->sizes[0].height;
+
+	blits = (SVGASignedRect *)&cmd[1];
+	for (i = 0; i < num_clips; i++) {
+		blits[i].left   = clips[i].x;
+		blits[i].right  = clips[i].x + clips[i].w;
+		blits[i].top    = clips[i].y;
+		blits[i].bottom = clips[i].y + clips[i].h;
+	}
+
+	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
+				  fifo_size, 0, NULL);
+
+	kfree(cmd);
+
+	return ret;
+}
+
+int vmw_kms_readback(struct vmw_private *dev_priv,
+		     struct drm_file *file_priv,
+		     struct vmw_framebuffer *vfb,
+		     struct drm_vmw_fence_rep __user *user_fence_rep,
+		     struct drm_vmw_rect *clips,
+		     uint32_t num_clips)
+{
+	struct vmw_framebuffer_dmabuf *vfbd =
+		vmw_framebuffer_to_vfbd(&vfb->base);
+	struct vmw_dma_buffer *dmabuf = vfbd->buffer;
+	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
+	struct drm_crtc *crtc;
+	size_t fifo_size;
+	int i, k, ret, num_units, blits_pos;
+
+	struct {
+		uint32_t header;
+		SVGAFifoCmdDefineGMRFB body;
+	} *cmd;
+	struct {
+		uint32_t header;
+		SVGAFifoCmdBlitScreenToGMRFB body;
+	} *blits;
+
+	num_units = 0;
+	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
+		if (crtc->fb != &vfb->base)
+			continue;
+		units[num_units++] = vmw_crtc_to_du(crtc);
+	}
+
+	BUG_ON(dmabuf == NULL);
+	BUG_ON(!clips || !num_clips);
+
+	/* take a safe guess at fifo size */
+	fifo_size = sizeof(*cmd) + sizeof(*blits) * num_clips * num_units;
+	cmd = kmalloc(fifo_size, GFP_KERNEL);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed to allocate temporary fifo memory.\n");
+		return -ENOMEM;
+	}
+
+	memset(cmd, 0, fifo_size);
+	cmd->header = SVGA_CMD_DEFINE_GMRFB;
+	cmd->body.format.bitsPerPixel = vfb->base.bits_per_pixel;
+	cmd->body.format.colorDepth = vfb->base.depth;
+	cmd->body.format.reserved = 0;
+	cmd->body.bytesPerLine = vfb->base.pitch;
+	cmd->body.ptr.gmrId = vfbd->handle;
+	cmd->body.ptr.offset = 0;
+
+	blits = (void *)&cmd[1];
+	blits_pos = 0;
+	for (i = 0; i < num_units; i++) {
+		struct drm_vmw_rect *c = clips;
+		for (k = 0; k < num_clips; k++, c++) {
+			/* transform clip coords to crtc origin based coords */
+			int clip_x1 = c->x - units[i]->crtc.x;
+			int clip_x2 = c->x - units[i]->crtc.x + c->w;
+			int clip_y1 = c->y - units[i]->crtc.y;
+			int clip_y2 = c->y - units[i]->crtc.y + c->h;
+			int dest_x = c->x;
+			int dest_y = c->y;
+
+			/* compensate for clipping, we negate
+			 * a negative number and add that.
+			 */
+			if (clip_x1 < 0)
+				dest_x += -clip_x1;
+			if (clip_y1 < 0)
+				dest_y += -clip_y1;
+
+			/* clip */
+			clip_x1 = max(clip_x1, 0);
+			clip_y1 = max(clip_y1, 0);
+			clip_x2 = min(clip_x2, units[i]->crtc.mode.hdisplay);
+			clip_y2 = min(clip_y2, units[i]->crtc.mode.vdisplay);
+
+			/* and cull any rects that misses the crtc */
+			if (clip_x1 >= units[i]->crtc.mode.hdisplay ||
+			    clip_y1 >= units[i]->crtc.mode.vdisplay ||
+			    clip_x2 <= 0 || clip_y2 <= 0)
+				continue;
+
+			blits[blits_pos].header = SVGA_CMD_BLIT_SCREEN_TO_GMRFB;
+			blits[blits_pos].body.srcScreenId = units[i]->unit;
+			blits[blits_pos].body.destOrigin.x = dest_x;
+			blits[blits_pos].body.destOrigin.y = dest_y;
+
+			blits[blits_pos].body.srcRect.left = clip_x1;
+			blits[blits_pos].body.srcRect.top = clip_y1;
+			blits[blits_pos].body.srcRect.right = clip_x2;
+			blits[blits_pos].body.srcRect.bottom = clip_y2;
+			blits_pos++;
+		}
+	}
+	/* reset size here and use calculated exact size from loops */
+	fifo_size = sizeof(*cmd) + sizeof(*blits) * blits_pos;
+
+	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd, fifo_size,
+				  0, user_fence_rep);
+
+	kfree(cmd);
+
+	return ret;
+}
 
 int vmw_kms_init(struct vmw_private *dev_priv)
 {

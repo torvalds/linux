@@ -47,6 +47,7 @@ struct vmw_framebuffer {
 	struct drm_framebuffer base;
 	int (*pin)(struct vmw_framebuffer *fb);
 	int (*unpin)(struct vmw_framebuffer *fb);
+	bool dmabuf;
 };
 
 
@@ -95,6 +96,8 @@ struct vmw_display_unit {
 	struct drm_display_mode *pref_mode;
 };
 
+#define vmw_crtc_to_du(x) \
+	container_of(x, struct vmw_display_unit, crtc)
 #define vmw_connector_to_du(x) \
 	container_of(x, struct vmw_display_unit, connector)
 
