@@ -628,8 +628,6 @@ static int ak4671_probe(struct snd_soc_codec *codec)
 	struct ak4671_priv *ak4671 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	codec->hw_write = (hw_write_t)i2c_master_send;
-
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, ak4671->control_type);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
