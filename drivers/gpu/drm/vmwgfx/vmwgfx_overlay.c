@@ -87,48 +87,6 @@ static inline void fill_flush(struct vmw_escape_video_flush *cmd,
 }
 
 /**
- * Pin or unpin a buffer in vram.
- *
- * @dev_priv:  Driver private.
- * @buf:  DMA buffer to pin or unpin.
- * @pin:  Pin buffer in vram if true.
- * @interruptible:  Use interruptible wait.
- *
- * Takes the current masters ttm lock in read.
- *
- * Returns
- * -ERESTARTSYS if interrupted by a signal.
- */
-static int vmw_dmabuf_pin_in_vram(struct vmw_private *dev_priv,
-				  struct vmw_dma_buffer *buf,
-				  bool pin, bool interruptible)
-{
-	struct ttm_buffer_object *bo = &buf->base;
-	struct ttm_placement *overlay_placement = &vmw_vram_placement;
-	int ret;
-
-	ret = ttm_read_lock(&dev_priv->active_master->lock, interruptible);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
-	if (unlikely(ret != 0))
-		goto err;
-
-	if (pin)
-		overlay_placement = &vmw_vram_ne_placement;
-
-	ret = ttm_bo_validate(bo, overlay_placement, interruptible, false, false);
-
-	ttm_bo_unreserve(bo);
-
-err:
-	ttm_read_unlock(&dev_priv->active_master->lock);
-
-	return ret;
-}
-
-/**
  * Send put command to hw.
  *
  * Returns
@@ -248,6 +206,21 @@ static int vmw_overlay_send_stop(struct vmw_private *dev_priv,
 }
 
 /**
+ * Move a buffer to vram, and pin it if @pin.
+ *
+ * XXX: This function is here to be changed at a later date.
+ */
+static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
+				   struct vmw_dma_buffer *buf,
+				   bool pin, bool inter)
+{
+	if (pin)
+		return vmw_dmabuf_to_vram(dev_priv, buf, true, inter);
+	else
+		return vmw_dmabuf_unpin(dev_priv, buf, inter);
+}
+
+/**
  * Stop or pause a stream.
  *
  * If the stream is paused the no evict flag is removed from the buffer
@@ -279,8 +252,8 @@ static int vmw_overlay_stop(struct vmw_private *dev_priv,
 			return ret;
 
 		/* We just remove the NO_EVICT flag so no -ENOMEM */
-		ret = vmw_dmabuf_pin_in_vram(dev_priv, stream->buf, false,
-					     interruptible);
+		ret = vmw_overlay_move_buffer(dev_priv, stream->buf, false,
+					      interruptible);
 		if (interruptible && ret == -ERESTARTSYS)
 			return ret;
 		else
@@ -342,7 +315,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 	/* We don't start the old stream if we are interrupted.
 	 * Might return -ENOMEM if it can't fit the buffer in vram.
 	 */
-	ret = vmw_dmabuf_pin_in_vram(dev_priv, buf, true, interruptible);
+	ret = vmw_overlay_move_buffer(dev_priv, buf, true, interruptible);
 	if (ret)
 		return ret;
 
@@ -351,7 +324,8 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 		/* This one needs to happen no matter what. We only remove
 		 * the NO_EVICT flag so this is safe from -ENOMEM.
 		 */
-		BUG_ON(vmw_dmabuf_pin_in_vram(dev_priv, buf, false, false) != 0);
+		BUG_ON(vmw_overlay_move_buffer(dev_priv, buf, false, false)
+		       != 0);
 		return ret;
 	}
 

@@ -804,7 +804,7 @@ static int vmw_framebuffer_dmabuf_pin(struct vmw_framebuffer *vfb)
 
 	vmw_overlay_pause_all(dev_priv);
 
-	ret = vmw_dmabuf_to_start_of_vram(dev_priv, vfbd->buffer);
+	ret = vmw_dmabuf_to_start_of_vram(dev_priv, vfbd->buffer, true, false);
 
 	vmw_overlay_resume_all(dev_priv);
 
@@ -824,7 +824,7 @@ static int vmw_framebuffer_dmabuf_unpin(struct vmw_framebuffer *vfb)
 		return 0;
 	}
 
-	return vmw_dmabuf_from_vram(dev_priv, vfbd->buffer);
+	return vmw_dmabuf_unpin(dev_priv, vfbd->buffer, false);
 }
 
 static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,

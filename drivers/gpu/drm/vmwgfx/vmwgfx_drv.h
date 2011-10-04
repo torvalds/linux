@@ -385,10 +385,6 @@ extern uint32_t vmw_dmabuf_validate_node(struct ttm_buffer_object *bo,
 extern void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo);
 extern int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 				  uint32_t id, struct vmw_dma_buffer **out);
-extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
-				       struct vmw_dma_buffer *bo);
-extern int vmw_dmabuf_from_vram(struct vmw_private *vmw_priv,
-				struct vmw_dma_buffer *bo);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -398,6 +394,32 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 				  uint32_t *inout_id,
 				  struct vmw_resource **out);
 
+/**
+ * DMA buffer helper routines - vmwgfx_dmabuf.c
+ */
+extern int vmw_dmabuf_to_placement(struct vmw_private *vmw_priv,
+				   struct vmw_dma_buffer *bo,
+				   struct ttm_placement *placement,
+				   bool interruptible);
+extern int vmw_dmabuf_to_vram(struct vmw_private *dev_priv,
+			      struct vmw_dma_buffer *buf,
+			      bool pin, bool interruptible);
+extern int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
+				     struct vmw_dma_buffer *buf,
+				     bool pin, bool interruptible);
+extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
+				       struct vmw_dma_buffer *bo,
+				       bool pin, bool interruptible);
+extern int vmw_dmabuf_unpin(struct vmw_private *vmw_priv,
+			    struct vmw_dma_buffer *bo,
+			    bool interruptible);
+extern int vmw_dmabuf_to_system(struct vmw_private *vmw_priv,
+				struct vmw_dma_buffer *bo,
+				bool interruptible);
+extern void vmw_dmabuf_get_id_offset(struct vmw_dma_buffer *buf,
+				     uint32_t *gmrId, uint32_t *offset);
+extern void vmw_dmabuf_get_guest_ptr(struct vmw_dma_buffer *buf,
+				     SVGAGuestPtr *ptr);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
@@ -440,7 +462,9 @@ extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_ne_placement;
 extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_vram_gmr_placement;
+extern struct ttm_placement vmw_vram_gmr_ne_placement;
 extern struct ttm_placement vmw_sys_placement;
+extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
 
