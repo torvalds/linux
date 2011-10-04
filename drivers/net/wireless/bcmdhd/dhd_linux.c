@@ -2922,19 +2922,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0)) < 0)
 		DHD_ERROR(("%s assoc_listen failed %d\n", __FUNCTION__, ret));
 
-	/* query for 'ver' to get version info from firmware */
-	memset(buf, 0, sizeof(buf));
-	ptr = buf;
-	bcm_mkiovar("ver", (char *)&buf, 4, buf, sizeof(buf));
-	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf), FALSE, 0)) < 0)
-		DHD_ERROR(("%s failed %d\n", __FUNCTION__, ret));
-	else {
-		bcmstrtok(&ptr, "\n", 0);
-		/* Print fw version info */
-		DHD_ERROR(("Firmware version = %s\n", buf));
-		DHD_BLOG(buf, strlen(buf) + 1);
-		DHD_BLOG(dhd_version, strlen(dhd_version) + 1);
-	}
 	/* Set PowerSave mode */
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode, sizeof(power_mode), TRUE, 0);
 
@@ -2979,7 +2966,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			__FUNCTION__, res));
 	}
 #endif /* defined(KEEP_ALIVE) */
-
 
 	/* Read event_msgs mask */
 	bcm_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));
@@ -3077,9 +3063,24 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* PKT_FILTER_SUPPORT */
 
 	/* Force STA UP */
-	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_UP, (char *)&up, sizeof(up), TRUE, 0)) < 0)
+	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_UP, (char *)&up, sizeof(up), TRUE, 0)) < 0) {
 		DHD_ERROR(("%s Setting WL UP failed %d\n", __FUNCTION__, ret));
+		goto done;
+	}
 
+	/* query for 'ver' to get version info from firmware */
+	memset(buf, 0, sizeof(buf));
+	ptr = buf;
+	bcm_mkiovar("ver", (char *)&buf, 4, buf, sizeof(buf));
+	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf), FALSE, 0)) < 0)
+		DHD_ERROR(("%s failed %d\n", __FUNCTION__, ret));
+	else {
+		bcmstrtok(&ptr, "\n", 0);
+		/* Print fw version info */
+		DHD_ERROR(("Firmware version = %s\n", buf));
+		DHD_BLOG(buf, strlen(buf) + 1);
+		DHD_BLOG(dhd_version, strlen(dhd_version) + 1);
+	}
 
 done:
 	return ret;
