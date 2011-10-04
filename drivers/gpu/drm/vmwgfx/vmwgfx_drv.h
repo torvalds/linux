@@ -217,6 +217,7 @@ struct vmw_private {
 
 	void *fb_info;
 	struct vmw_legacy_display *ldu_priv;
+	struct vmw_screen_object_display *sou_priv;
 	struct vmw_overlay *overlay_priv;
 
 	/*

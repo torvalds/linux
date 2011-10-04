@@ -31,6 +31,8 @@
 #include "drmP.h"
 #include "vmwgfx_drv.h"
 
+#define VMWGFX_NUM_DISPLAY_UNITS 8
+
 
 #define vmw_framebuffer_to_vfb(x) \
 	container_of(x, struct vmw_framebuffer, base)
@@ -127,5 +129,13 @@ int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
  */
 int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv);
 int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv);
+
+/*
+ * Screen Objects display functions - vmwgfx_scrn.c
+ */
+int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv);
+int vmw_kms_close_screen_object_display(struct vmw_private *dev_priv);
+int vmw_kms_sou_update_layout(struct vmw_private *dev_priv, unsigned num,
+			      struct drm_vmw_rect *rects);
 
 #endif

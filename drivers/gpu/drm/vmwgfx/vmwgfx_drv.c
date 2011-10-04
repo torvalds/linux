@@ -451,22 +451,28 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->fman = vmw_fence_manager_init(dev_priv);
 	if (unlikely(dev_priv->fman == NULL))
 		goto out_no_fman;
+
+	/* Need to start the fifo to check if we can do screen objects */
+	ret = vmw_3d_resource_inc(dev_priv, true);
+	if (unlikely(ret != 0))
+		goto out_no_fifo;
+	vmw_kms_save_vga(dev_priv);
+	DRM_INFO("%s", vmw_fifo_have_3d(dev_priv) ?
+		 "Detected device 3D availability.\n" :
+		 "Detected no device 3D availability.\n");
+
+	/* Start kms and overlay systems, needs fifo. */
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;
 	vmw_overlay_init(dev_priv);
+
+	/* We might be done with the fifo now */
 	if (dev_priv->enable_fb) {
-		ret = vmw_3d_resource_inc(dev_priv, false);
-		if (unlikely(ret != 0))
-			goto out_no_fifo;
-		vmw_kms_save_vga(dev_priv);
 		vmw_fb_init(dev_priv);
-		DRM_INFO("%s", vmw_fifo_have_3d(dev_priv) ?
-			 "Detected device 3D availability.\n" :
-			 "Detected no device 3D availability.\n");
 	} else {
-		DRM_INFO("Delayed 3D detection since we're not "
-			 "running the device in SVGA mode yet.\n");
+		vmw_kms_restore_vga(dev_priv);
+		vmw_3d_resource_dec(dev_priv, true);
 	}
 
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
@@ -483,15 +489,17 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	return 0;
 
 out_no_irq:
-	if (dev_priv->enable_fb) {
+	if (dev_priv->enable_fb)
 		vmw_fb_close(dev_priv);
+	vmw_overlay_close(dev_priv);
+	vmw_kms_close(dev_priv);
+out_no_kms:
+	/* We still have a 3D resource reference held */
+	if (dev_priv->enable_fb) {
 		vmw_kms_restore_vga(dev_priv);
 		vmw_3d_resource_dec(dev_priv, false);
 	}
 out_no_fifo:
-	vmw_overlay_close(dev_priv);
-	vmw_kms_close(dev_priv);
-out_no_kms:
 	vmw_fence_manager_takedown(dev_priv->fman);
 out_no_fman:
 	if (dev_priv->stealth)

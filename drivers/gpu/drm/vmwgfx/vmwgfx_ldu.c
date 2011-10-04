@@ -27,7 +27,6 @@
 
 #include "vmwgfx_kms.h"
 
-#define VMWGFX_LDU_NUM_DU 8
 
 #define vmw_crtc_to_ldu(x) \
 	container_of(x, struct vmw_legacy_display_unit, base.crtc)
@@ -384,9 +383,9 @@ int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 	drm_mode_create_dirty_info_property(dev_priv->dev);
 
 	if (dev_priv->capabilities & SVGA_CAP_MULTIMON) {
-		for (i = 0; i < VMWGFX_LDU_NUM_DU; ++i)
+		for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i)
 			vmw_ldu_init(dev_priv, i);
-		ret = drm_vblank_init(dev, VMWGFX_LDU_NUM_DU);
+		ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
 	} else {
 		/* for old hardware without multimon only enable one display */
 		vmw_ldu_init(dev_priv, 0);
