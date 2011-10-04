@@ -272,6 +272,12 @@ These controls are described in <xref
 These controls are described in <xref
 		linkend="jpeg-controls" />.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_IMAGE_SOURCE</constant></entry>
+	    <entry>0x9e0000</entry> <entry>The class containing image
+	    source controls. These controls are described in <xref
+	    linkend="image-source-controls" />.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
