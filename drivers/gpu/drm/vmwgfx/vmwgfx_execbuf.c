@@ -681,6 +681,9 @@ static int vmw_resize_cmd_bounce(struct vmw_sw_context *sw_context,
  * Creates a fence object and submits a command stream marker.
  * If this fails for some reason, We sync the fifo and return NULL.
  * It is then safe to fence buffers with a NULL pointer.
+ *
+ * If @p_handle is not NULL @file_priv must also not be NULL. Creates
+ * a userspace handle if @p_handle is not NULL, otherwise not.
  */
 
 int vmw_execbuf_fence_commands(struct drm_file *file_priv,
@@ -692,6 +695,8 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 	int ret;
 	bool synced = false;
 
+	/* p_handle implies file_priv. */
+	BUG_ON(p_handle != NULL && file_priv == NULL);
 
 	ret = vmw_fifo_send_fence(dev_priv, &sequence);
 	if (unlikely(ret != 0)) {
