@@ -1054,9 +1054,8 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	cc = (struct chipcregs __iomem *) regs;
 
 	/* bus/core/clk setup for register access */
-	if (!ai_buscore_prep(sii)) {
+	if (!ai_buscore_prep(sii))
 		return NULL;
-	}
 
 	/*
 	 * ChipID recognition.
@@ -1084,19 +1083,18 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		return NULL;
 	}
 	/* no cores found, bail out */
-	if (sii->numcores == 0) {
+	if (sii->numcores == 0)
 		return NULL;
-	}
+
 	/* bus/core/clk setup */
 	origidx = SI_CC_IDX;
-	if (!ai_buscore_setup(sii, savewin, &origidx)) {
+	if (!ai_buscore_setup(sii, savewin, &origidx))
 		goto exit;
-	}
 
 	/* Init nvram from sprom/otp if they exist */
-	if (srom_var_init(&sii->pub, cc, vars, varsz)) {
+	if (srom_var_init(&sii->pub, cc, vars, varsz))
 		goto exit;
-	}
+
 	pvars = vars ? *vars : NULL;
 	ai_nvram_process(sii, pvars);
 

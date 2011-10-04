@@ -394,9 +394,8 @@ static bool pcie_mdiosetblock(struct pcicore_info *pi, uint blk)
 		i++;
 	}
 
-	if (i >= pcie_serdes_spinwait) {
+	if (i >= pcie_serdes_spinwait)
 		return false;
-	}
 
 	return true;
 }

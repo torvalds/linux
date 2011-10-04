@@ -1175,8 +1175,7 @@ static int initvars_srom_pci(struct si_pub *sih, void __iomem *curmap,
 			if (sromrev == 0x10)
 				sromrev = 1;
 		}
-	}
-	else {
+	} else {
 		/* Use OTP if SPROM not available */
 		err = otp_read_pci(sih, srom, SROM_MAX);
 		if (err == 0)
