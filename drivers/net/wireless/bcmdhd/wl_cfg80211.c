@@ -330,7 +330,7 @@ static s32 wl_set_retry(struct net_device *dev, u32 retry, bool l);
 static s32 wl_update_prof(struct wl_priv *wl, const wl_event_msg_t *e,
 	void *data, s32 item);
 static void *wl_read_prof(struct wl_priv *wl, s32 item);
-static void wl_init_prof(struct wl_profile *prof);
+static void wl_init_prof(struct wl_priv *wl);
 
 /*
  * cfg80211 connect utilites
@@ -2798,12 +2798,12 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 			sta->idle * 1000));
 #endif
 	} else if (get_mode_by_netdev(wl, dev) == WL_MODE_BSS) {
-			if (memcmp(mac, wl_read_prof(wl, WL_PROF_BSSID),
-				ETHER_ADDR_LEN)) {
-				WL_ERR(("Wrong Mac address\n"));
+			u8 *curmacp = wl_read_prof(wl, WL_PROF_BSSID);
+			if (memcmp(mac, curmacp, ETHER_ADDR_LEN)) {
+				WL_ERR(("Wrong Mac address: "MACSTR" != "MACSTR"\n",
+					MAC2STR(mac), MAC2STR(curmacp)));
 				return -ENOENT;
 			}
-
 			/* Report the current tx rate */
 			err = wldev_ioctl(dev, WLC_GET_RATE, &rate, sizeof(rate), false);
 			if (err) {
@@ -4388,7 +4388,7 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 					sizeof(scb_val_t), true);
 				cfg80211_disconnected(ndev, 0, NULL, 0, GFP_KERNEL);
 				wl_link_down(wl);
-				wl_init_prof(wl->profile);
+				wl_init_prof(wl);
 			} else if (wl_get_drv_status(wl, CONNECTING)) {
 				printk("link down, during connecting\n");
 				wl_bss_connect_done(wl, ndev, e, data, false);
@@ -4913,9 +4913,13 @@ static void wl_init_conf(struct wl_conf *conf)
 	conf->tx_power = -1;
 }
 
-static void wl_init_prof(struct wl_profile *prof)
+static void wl_init_prof(struct wl_priv *wl)
 {
-	memset(prof, 0, sizeof(*prof));
+	unsigned long flags;
+
+	flags = dhd_os_spin_lock((dhd_pub_t *)(wl->pub));
+	memset(wl->profile, 0, sizeof(struct wl_profile));
+	dhd_os_spin_unlock((dhd_pub_t *)(wl->pub), flags);
 }
 
 static void wl_init_event_handler(struct wl_priv *wl)
@@ -5498,7 +5502,7 @@ static s32 wl_init_priv(struct wl_priv *wl)
 		return err;
 	wl_init_fw(wl->fw);
 	wl_init_conf(wl->conf);
-	wl_init_prof(wl->profile);
+	wl_init_prof(wl);
 	wl_link_down(wl);
 
 	return err;
@@ -6353,18 +6357,28 @@ static s32 wl_dongle_probecap(struct wl_priv *wl)
 
 static void *wl_read_prof(struct wl_priv *wl, s32 item)
 {
+	unsigned long flags;
+	void *rptr = NULL;
+
+	flags = dhd_os_spin_lock((dhd_pub_t *)(wl->pub));
 	switch (item) {
 	case WL_PROF_SEC:
-		return &wl->profile->sec;
+		rptr = &wl->profile->sec;
+		break;
 	case WL_PROF_ACT:
-		return &wl->profile->active;
+		rptr = &wl->profile->active;
+		break;
 	case WL_PROF_BSSID:
-		return &wl->profile->bssid;
+		rptr = &wl->profile->bssid;
+		break;
 	case WL_PROF_SSID:
-		return &wl->profile->ssid;
+		rptr = &wl->profile->ssid;
+		break;
 	}
-	WL_ERR(("invalid item (%d)\n", item));
-	return NULL;
+	dhd_os_spin_unlock((dhd_pub_t *)(wl->pub), flags);
+	if (!rptr)
+		WL_ERR(("invalid item (%d)\n", item));
+	return rptr;
 }
 
 static s32
@@ -6373,7 +6387,9 @@ wl_update_prof(struct wl_priv *wl, const wl_event_msg_t *e, void *data,
 {
 	s32 err = 0;
 	struct wlc_ssid *ssid;
+	unsigned long flags;
 
+	flags = dhd_os_spin_lock((dhd_pub_t *)(wl->pub));
 	switch (item) {
 	case WL_PROF_SSID:
 		ssid = (wlc_ssid_t *) data;
@@ -6405,7 +6421,7 @@ wl_update_prof(struct wl_priv *wl, const wl_event_msg_t *e, void *data,
 		err = -EOPNOTSUPP;
 		break;
 	}
-
+	dhd_os_spin_unlock((dhd_pub_t *)(wl->pub), flags);
 	return err;
 }
 
