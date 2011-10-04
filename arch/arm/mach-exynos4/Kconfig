@@ -20,6 +20,11 @@ config SOC_EXYNOS4212
 	help
 	  Enable EXYNOS4212 SoC support
 
+config SOC_EXYNOS4412
+	bool
+	help
+	  Enable EXYNOS4412 SoC support
+
 config EXYNOS4_MCT
 	bool
 	default y

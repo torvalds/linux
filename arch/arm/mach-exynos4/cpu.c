@@ -191,7 +191,7 @@ void __init exynos4_init_clocks(int xtal)
 
 	if (soc_is_exynos4210())
 		exynos4210_register_clocks();
-	else if (soc_is_exynos4212())
+	else if (soc_is_exynos4212() || soc_is_exynos4412())
 		exynos4212_register_clocks();
 
 	exynos4_register_clocks();
@@ -255,7 +255,7 @@ static int __init exynos4_l2x0_cache_init(void)
 
 	if (soc_is_exynos4210())
 		__raw_writel(0x110, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
-	else if (soc_is_exynos4212())
+	else if (soc_is_exynos4212() || soc_is_exynos4412())
 		__raw_writel(0x120, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
 
 	/* L2X0 Prefetch Control */
