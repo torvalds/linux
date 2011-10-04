@@ -295,7 +295,7 @@ static ssize_t aat2870_reg_write_file(struct file *file,
 {
 	struct aat2870_data *aat2870 = file->private_data;
 	char buf[32];
-	int buf_size;
+	ssize_t buf_size;
 	char *start = buf;
 	unsigned long addr, val;
 	int ret;
