@@ -669,11 +669,6 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 				  tid);
 			return -EINVAL;
 		}
-		/*
-		 * Future improvement:
-		 *   Use the starting sequence number provided ...
-		 */
-		*ssn = 0;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 
