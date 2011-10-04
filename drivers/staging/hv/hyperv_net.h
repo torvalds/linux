@@ -26,7 +26,7 @@
 #define _HYPERV_NET_H
 
 #include <linux/list.h>
-#include "hyperv.h"
+#include <linux/hyperv.h>
 
 /* Fwd declaration */
 struct hv_netvsc_packet;

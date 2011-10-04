@@ -28,8 +28,7 @@
 #include <linux/list.h>
 #include <asm/sync_bitops.h>
 #include <linux/atomic.h>
-
-#include "hyperv.h"
+#include <linux/hyperv.h>
 
 /*
  * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent

@@ -26,8 +26,8 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/reboot.h>
+#include <linux/hyperv.h>
 
-#include "hyperv.h"
 #include "hv_kvp.h"
 
 

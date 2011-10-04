@@ -25,8 +25,8 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/hyperv.h>
 
-#include "hyperv.h"
 #include "hyperv_vmbus.h"
 
 

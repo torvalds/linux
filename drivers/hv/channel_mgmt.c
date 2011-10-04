@@ -28,8 +28,8 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/completion.h>
+#include <linux/hyperv.h>
 
-#include "hyperv.h"
 #include "hyperv_vmbus.h"
 
 struct vmbus_channel_message_table_entry {

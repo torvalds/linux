@@ -22,8 +22,7 @@
 #include <linux/input.h>
 #include <linux/hid.h>
 #include <linux/hiddev.h>
-
-#include "hyperv.h"
+#include <linux/hyperv.h>
 
 
 struct hv_input_dev_info {

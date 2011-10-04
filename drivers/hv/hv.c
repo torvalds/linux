@@ -25,8 +25,8 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/hyperv.h>
 
-#include "hyperv.h"
 #include "hyperv_vmbus.h"
 
 /* The one and only */

@@ -26,8 +26,8 @@
 #include <linux/nls.h>
 #include <linux/connector.h>
 #include <linux/workqueue.h>
+#include <linux/hyperv.h>
 
-#include "hyperv.h"
 #include "hv_kvp.h"
 
 
