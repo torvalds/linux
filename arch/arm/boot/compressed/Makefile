@@ -140,7 +140,7 @@ bad_syms=$$($(CROSS_COMPILE)nm $@ | sed -n 's/^.\{8\} [bc] \(.*\)/\1/p') && \
     echo "$$bad_syms" >&2; rm -f $@; false )
 
 check_for_multiple_zreladdr = \
-if [ $(words $(ZRELADDR)) -gt 1 -a "$(CONFIG_AUTO_ZRELADDR)" == "" ]; then \
+if [ $(words $(ZRELADDR)) -gt 1 -a "$(CONFIG_AUTO_ZRELADDR)" = "" ]; then \
 	echo 'multiple zreladdrs: $(ZRELADDR)'; \
 	echo 'This needs CONFIG_AUTO_ZRELADDR to be set'; \
 	false; \
