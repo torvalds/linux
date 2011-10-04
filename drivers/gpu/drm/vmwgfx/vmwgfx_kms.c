@@ -717,6 +717,9 @@ static int vmw_surface_dmabuf_pin(struct vmw_framebuffer *vfb)
 		vmw_framebuffer_to_vfbs(&vfb->base);
 	unsigned long size = vfbs->base.base.pitch * vfbs->base.base.height;
 	int ret;
+	struct ttm_placement ne_placement = vmw_vram_ne_placement;
+
+	ne_placement.lpfn = (size + (PAGE_SIZE - 1)) / PAGE_SIZE;
 
 	vfbs->buffer = kzalloc(sizeof(*vfbs->buffer), GFP_KERNEL);
 	if (unlikely(vfbs->buffer == NULL))
