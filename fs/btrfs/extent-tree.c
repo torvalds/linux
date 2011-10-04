@@ -6734,7 +6734,7 @@ static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
  * also make sure backrefs for the shared block and all lower level
  * blocks are properly updated.
  */
-void btrfs_drop_snapshot(struct btrfs_root *root,
+int btrfs_drop_snapshot(struct btrfs_root *root,
 			 struct btrfs_block_rsv *block_rsv, int update_ref,
 			 int for_reloc)
 {
@@ -6902,7 +6902,7 @@ out_free:
 out:
 	if (err)
 		btrfs_std_error(root->fs_info, err);
-	return;
+	return err;
 }
 
 /*

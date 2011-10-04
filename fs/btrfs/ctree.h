@@ -2661,9 +2661,9 @@ static inline int btrfs_next_item(struct btrfs_root *root, struct btrfs_path *p)
 }
 int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct extent_buffer *leaf);
-void btrfs_drop_snapshot(struct btrfs_root *root,
-			 struct btrfs_block_rsv *block_rsv, int update_ref,
-			 int for_reloc);
+int __must_check btrfs_drop_snapshot(struct btrfs_root *root,
+				     struct btrfs_block_rsv *block_rsv,
+				     int update_ref, int for_reloc);
 int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct extent_buffer *node,
