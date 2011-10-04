@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/fb.h>
 #include <linux/mfd/max8998.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -31,9 +32,11 @@
 #include <plat/devs.h>
 #include <plat/iic.h>
 #include <plat/gpio-cfg.h>
+#include <plat/fb.h>
 #include <plat/mfc.h>
 #include <plat/sdhci.h>
 #include <plat/pd.h>
+#include <plat/regs-fb-v4.h>
 
 #include <mach/map.h>
 
@@ -702,6 +705,32 @@ static struct i2c_board_info i2c1_devs[] __initdata = {
 	/* Gyro, To be updated */
 };
 
+/* Frame Buffer */
+static struct s3c_fb_pd_win universal_fb_win0 = {
+	.win_mode = {
+		.left_margin	= 16,
+		.right_margin	= 16,
+		.upper_margin	= 2,
+		.lower_margin	= 28,
+		.hsync_len	= 2,
+		.vsync_len	= 1,
+		.xres		= 480,
+		.yres		= 800,
+		.refresh	= 55,
+	},
+	.max_bpp	= 32,
+	.default_bpp	= 16,
+};
+
+static struct s3c_fb_platdata universal_lcd_pdata __initdata = {
+	.win[0]		= &universal_fb_win0,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB |
+			  VIDCON0_CLKSEL_LCD,
+	.vidcon1	= VIDCON1_INV_VCLK | VIDCON1_INV_VDEN
+			  | VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
+};
+
 static struct platform_device *universal_devices[] __initdata = {
 	/* Samsung Platform Devices */
 	&s5p_device_fimc0,
@@ -719,10 +748,12 @@ static struct platform_device *universal_devices[] __initdata = {
 	&i2c_gpio12,
 	&universal_gpio_keys,
 	&s5p_device_onenand,
+	&s5p_device_fimd0,
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&exynos4_device_pd[PD_MFC],
+	&exynos4_device_pd[PD_LCD0],
 };
 
 static void __init universal_map_io(void)
@@ -751,6 +782,8 @@ static void __init universal_machine_init(void)
 	s3c_i2c5_set_platdata(NULL);
 	i2c_register_board_info(5, i2c5_devs, ARRAY_SIZE(i2c5_devs));
 
+	s5p_fimd0_set_platdata(&universal_lcd_pdata);
+
 	universal_touchkey_init();
 	i2c_register_board_info(I2C_GPIO_BUS_12, i2c_gpio12_devs,
 			ARRAY_SIZE(i2c_gpio12_devs));
@@ -758,6 +791,7 @@ static void __init universal_machine_init(void)
 	/* Last */
 	platform_add_devices(universal_devices, ARRAY_SIZE(universal_devices));
 	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
+	s5p_device_fimd0.dev.parent = &exynos4_device_pd[PD_LCD0].dev;
 }
 
 MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
