@@ -254,6 +254,7 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 					 req->ie, req->ie_len, band,
 					 req->rates[band], 0);
 	local->hw_scan_req->ie_len = ielen;
+	local->hw_scan_req->no_cck = req->no_cck;
 
 	return true;
 }
