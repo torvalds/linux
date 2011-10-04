@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
 #include <linux/firmware.h>
+#include <linux/module.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
