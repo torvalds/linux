@@ -52,3 +52,25 @@
 &i2c4 {
 	clock-frequency = <400000>;
 };
+
+&mmc1 {
+	vmmc-supply = <&vmmc>;
+	ti,bus-width = <8>;
+};
+
+&mmc2 {
+	status = "disable";
+};
+
+&mmc3 {
+	status = "disable";
+};
+
+&mmc4 {
+	status = "disable";
+};
+
+&mmc5 {
+	ti,non-removable;
+	ti,bus-width = <4>;
+};

@@ -91,3 +91,27 @@
 		vdd-supply = <&vdd_eth>;
 	};
 };
+
+&mmc1 {
+	vmmc-supply = <&vmmc>;
+	ti,bus-width = <8>;
+};
+
+&mmc2 {
+	vmmc-supply = <&vaux1>;
+	ti,bus-width = <8>;
+	ti,non-removable;
+};
+
+&mmc3 {
+	status = "disable";
+};
+
+&mmc4 {
+	status = "disable";
+};
+
+&mmc5 {
+	ti,bus-width = <4>;
+	ti,non-removable;
+};
