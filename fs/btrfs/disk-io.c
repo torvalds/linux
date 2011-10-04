@@ -847,9 +847,9 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 {
 	int ret;
 
-	ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info,
-					  bio, 1);
-	BUG_ON(ret);
+	ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info, bio, 1);
+	if (ret)
+		return ret;
 
 	if (!(rw & REQ_WRITE)) {
 		/*

@@ -1488,7 +1488,8 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		metadata = 2;
 
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, metadata);
-	BUG_ON(ret);
+	if (ret)
+		return ret;
 
 	if (!(rw & REQ_WRITE)) {
 		if (bio_flags & EXTENT_BIO_COMPRESSED) {
