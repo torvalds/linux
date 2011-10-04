@@ -364,7 +364,7 @@ static int wm8711_resume(struct snd_soc_codec *codec)
 static int wm8711_probe(struct snd_soc_codec *codec)
 {
 	struct wm8711_priv *wm8711 = snd_soc_codec_get_drvdata(codec);
-	int ret, reg;
+	int ret;
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8711->bus_type);
 	if (ret < 0) {
