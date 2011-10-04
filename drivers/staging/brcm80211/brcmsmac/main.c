@@ -5965,13 +5965,6 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 		return -ENOTSUPP;
 	}
 
-	/*
-	 * If we are switching to gmode == GMODE_LEGACY_B,
-	 * clean up rate info that may refer to OFDM rates.
-	 */
-	if ((gmode == GMODE_LEGACY_B) && (band->gmode != GMODE_LEGACY_B))
-		band->gmode = gmode;
-
 	band->gmode = gmode;
 
 	wlc->shortslot_override = shortslot;
