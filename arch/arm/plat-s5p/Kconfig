@@ -40,6 +40,12 @@ config S5P_HRT
 	help
 	  Use the High Resolution timer support
 
+config S5P_PM
+	bool
+	help
+	  Common code for power management support on S5P and newer SoCs
+	  Note: Do not select this for S5P6440 and S5P6450.
+
 comment "System MMU"
 
 config S5P_SYSTEM_MMU
