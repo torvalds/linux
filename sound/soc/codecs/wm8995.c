@@ -485,7 +485,7 @@ static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 static int configure_clock(struct snd_soc_codec *codec)
 {
 	struct wm8995_priv *wm8995;
-	int old, new;
+	int change, new;
 
 	wm8995 = snd_soc_codec_get_drvdata(codec);
 
@@ -509,14 +509,10 @@ static int configure_clock(struct snd_soc_codec *codec)
 	else
 		new = 0;
 
-	old = snd_soc_read(codec, WM8995_CLOCKING_1) & WM8995_SYSCLK_SRC;
-
-	/* If there's no change then we're done. */
-	if (old == new)
+	change = snd_soc_update_bits(codec, WM8995_CLOCKING_1,
+				     WM8995_SYSCLK_SRC_MASK, new);
+	if (!change)
 		return 0;
-
-	snd_soc_update_bits(codec, WM8995_CLOCKING_1,
-			    WM8995_SYSCLK_SRC_MASK, new);
 
 	snd_soc_dapm_sync(&codec->dapm);
 
