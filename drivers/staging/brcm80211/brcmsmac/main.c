@@ -390,13 +390,6 @@ static int brcms_chspec_bw(u16 chanspec)
 	return BRCMS_10_MHZ;
 }
 
-/* dup state between BMAC(struct brcms_hardware) and HIGH(struct brcms_c_info)
-   driver */
-struct brcms_b_state {
-	u32 machwcap;	/* mac hw capibility */
-	u32 preamble_ovr;	/* preamble override */
-};
-
 struct edcf_acparam {
 	u8 ACI;
 	u8 ECW;
@@ -1166,14 +1159,6 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
  fatal:
 	brcms_init(wlc->wl);
 	return wlc->macintstatus != 0;
-}
-
-static int brcms_b_state_get(struct brcms_hardware *wlc_hw,
-		      struct brcms_b_state *state)
-{
-	state->machwcap = wlc_hw->machwcap;
-
-	return 0;
 }
 
 /* set initial host flags value */
@@ -4534,20 +4519,6 @@ void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 	wlc->mpc_delay_off = wlc->mpc_dlycnt = BRCMS_MPC_MIN_DELAYCNT;
 }
 
-static bool brcms_c_state_bmac_sync(struct brcms_c_info *wlc)
-{
-	struct brcms_b_state state_bmac = {0};
-
-	if (brcms_b_state_get(wlc->hw, &state_bmac) != 0)
-		return false;
-
-	wlc->machwcap = state_bmac.machwcap;
-	brcms_c_protection_upd(wlc, BRCMS_PROT_N_PAM_OVR,
-			   (s8) state_bmac.preamble_ovr);
-
-	return true;
-}
-
 static uint brcms_c_attach_module(struct brcms_c_info *wlc)
 {
 	uint err = 0;
@@ -5151,15 +5122,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	if (err)
 		goto fail;
 
-	/*
-	 * for some states, due to different info pointer(e,g, wlc, wlc_hw) or
-	 * master/slave split, HIGH driver(both monolithic and HIGH_ONLY) needs
-	 * to sync states FROM BMAC portion driver
-	 */
-	if (!brcms_c_state_bmac_sync(wlc)) {
-		err = 20;
-		goto fail;
-	}
+	brcms_c_protection_upd(wlc, BRCMS_PROT_N_PAM_OVR, OFF);
 
 	pub->phy_11ncapable = BRCMS_PHY_11N_CAP(wlc->band);
 

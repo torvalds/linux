@@ -519,8 +519,6 @@ struct brcms_c_info {
 	u16 deviceid;
 	uint ucode_rev;
 
-	u32 machwcap;
-
 	u8 perm_etheraddr[ETH_ALEN];
 
 	bool bandlocked;
