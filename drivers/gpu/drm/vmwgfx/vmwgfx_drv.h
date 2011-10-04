@@ -139,6 +139,7 @@ struct vmw_sw_context{
 	struct ida bo_list;
 	uint32_t last_cid;
 	bool cid_valid;
+	bool kernel; /**< is the called made from the kernel */
 	uint32_t last_sid;
 	uint32_t sid_translation;
 	bool sid_valid;
@@ -449,6 +450,14 @@ extern int vmw_dma_quiescent(struct drm_device *dev);
 
 extern int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
+extern int vmw_execbuf_process(struct drm_file *file_priv,
+			       struct vmw_private *dev_priv,
+			       void __user *user_commands,
+			       void *kernel_commands,
+			       uint32_t command_size,
+			       uint64_t throttle_us,
+			       struct drm_vmw_fence_rep __user
+			       *user_fence_rep);
 
 /**
  * IRQs and wating - vmwgfx_irq.c

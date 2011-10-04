@@ -531,9 +531,9 @@ out_err:
 
 static int vmw_cmd_check_all(struct vmw_private *dev_priv,
 			     struct vmw_sw_context *sw_context,
+			     void *buf,
 			     uint32_t size)
 {
-	void *buf = sw_context->cmd_bounce;
 	int32_t cur_size = size;
 	int ret;
 
@@ -724,58 +724,44 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 	return 0;
 }
 
-int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv)
+int vmw_execbuf_process(struct drm_file *file_priv,
+			struct vmw_private *dev_priv,
+			void __user *user_commands,
+			void *kernel_commands,
+			uint32_t command_size,
+			uint64_t throttle_us,
+			struct drm_vmw_fence_rep __user *user_fence_rep)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct drm_vmw_execbuf_arg *arg = (struct drm_vmw_execbuf_arg *)data;
-	struct drm_vmw_fence_rep fence_rep;
-	struct drm_vmw_fence_rep __user *user_fence_rep;
-	int ret;
-	void *user_cmd;
-	void *cmd;
 	struct vmw_sw_context *sw_context = &dev_priv->ctx;
-	struct vmw_master *vmaster = vmw_master(file_priv->master);
+	struct drm_vmw_fence_rep fence_rep;
 	struct vmw_fence_obj *fence;
 	uint32_t handle;
-
-	/*
-	 * This will allow us to extend the ioctl argument while
-	 * maintaining backwards compatibility:
-	 * We take different code paths depending on the value of
-	 * arg->version.
-	 */
-
-	if (unlikely(arg->version != DRM_VMW_EXECBUF_VERSION)) {
-		DRM_ERROR("Incorrect execbuf version.\n");
-		DRM_ERROR("You're running outdated experimental "
-			  "vmwgfx user-space drivers.");
-		return -EINVAL;
-	}
-
-	ret = ttm_read_lock(&vmaster->lock, true);
-	if (unlikely(ret != 0))
-		return ret;
+	void *cmd;
+	int ret;
 
 	ret = mutex_lock_interruptible(&dev_priv->cmdbuf_mutex);
-	if (unlikely(ret != 0)) {
-		ret = -ERESTARTSYS;
-		goto out_no_cmd_mutex;
-	}
-
-	ret = vmw_resize_cmd_bounce(sw_context, arg->command_size);
 	if (unlikely(ret != 0))
-		goto out_unlock;
+		return -ERESTARTSYS;
 
-	user_cmd = (void __user *)(unsigned long)arg->commands;
-	ret = copy_from_user(sw_context->cmd_bounce,
-			     user_cmd, arg->command_size);
+	if (kernel_commands == NULL) {
+		sw_context->kernel = false;
 
-	if (unlikely(ret != 0)) {
-		ret = -EFAULT;
-		DRM_ERROR("Failed copying commands.\n");
-		goto out_unlock;
-	}
+		ret = vmw_resize_cmd_bounce(sw_context, command_size);
+		if (unlikely(ret != 0))
+			goto out_unlock;
+
+
+		ret = copy_from_user(sw_context->cmd_bounce,
+				     user_commands, command_size);
+
+		if (unlikely(ret != 0)) {
+			ret = -EFAULT;
+			DRM_ERROR("Failed copying commands.\n");
+			goto out_unlock;
+		}
+		kernel_commands = sw_context->cmd_bounce;
+	} else
+		sw_context->kernel = true;
 
 	sw_context->tfile = vmw_fpriv(file_priv)->tfile;
 	sw_context->cid_valid = false;
@@ -786,7 +772,8 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 
 	INIT_LIST_HEAD(&sw_context->validate_nodes);
 
-	ret = vmw_cmd_check_all(dev_priv, sw_context, arg->command_size);
+	ret = vmw_cmd_check_all(dev_priv, sw_context, kernel_commands,
+				command_size);
 	if (unlikely(ret != 0))
 		goto out_err;
 
@@ -800,26 +787,24 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 
 	vmw_apply_relocations(sw_context);
 
-	if (arg->throttle_us) {
+	if (throttle_us) {
 		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.marker_queue,
-				   arg->throttle_us);
+				   throttle_us);
 
 		if (unlikely(ret != 0))
 			goto out_throttle;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, arg->command_size);
+	cmd = vmw_fifo_reserve(dev_priv, command_size);
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving fifo space for commands.\n");
 		ret = -ENOMEM;
-		goto out_err;
+		goto out_throttle;
 	}
 
-	memcpy(cmd, sw_context->cmd_bounce, arg->command_size);
-	vmw_fifo_commit(dev_priv, arg->command_size);
+	memcpy(cmd, kernel_commands, command_size);
+	vmw_fifo_commit(dev_priv, command_size);
 
-	user_fence_rep = (struct drm_vmw_fence_rep __user *)
-		(unsigned long)arg->fence_rep;
 	ret = vmw_execbuf_fence_commands(file_priv, dev_priv,
 					 &fence,
 					 (user_fence_rep) ? &handle : NULL);
@@ -836,7 +821,6 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 				    (void *) fence);
 
 	vmw_clear_validations(sw_context);
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
 
 	if (user_fence_rep) {
 		fence_rep.error = ret;
@@ -873,9 +857,9 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
 
-	vmw_kms_cursor_post_execbuf(dev_priv);
-	ttm_read_unlock(&vmaster->lock);
+	mutex_unlock(&dev_priv->cmdbuf_mutex);
 	return 0;
+
 out_err:
 	vmw_free_relocations(sw_context);
 out_throttle:
@@ -883,7 +867,47 @@ out_throttle:
 	vmw_clear_validations(sw_context);
 out_unlock:
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
-out_no_cmd_mutex:
+	return ret;
+}
+
+
+int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct drm_vmw_execbuf_arg *arg = (struct drm_vmw_execbuf_arg *)data;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
+	int ret;
+
+	/*
+	 * This will allow us to extend the ioctl argument while
+	 * maintaining backwards compatibility:
+	 * We take different code paths depending on the value of
+	 * arg->version.
+	 */
+
+	if (unlikely(arg->version != DRM_VMW_EXECBUF_VERSION)) {
+		DRM_ERROR("Incorrect execbuf version.\n");
+		DRM_ERROR("You're running outdated experimental "
+			  "vmwgfx user-space drivers.");
+		return -EINVAL;
+	}
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = vmw_execbuf_process(file_priv, dev_priv,
+				  (void __user *)(unsigned long)arg->commands,
+				  NULL, arg->command_size, arg->throttle_us,
+				  (void __user *)(unsigned long)arg->fence_rep);
+
+	if (unlikely(ret != 0))
+		goto out_unlock;
+
+	vmw_kms_cursor_post_execbuf(dev_priv);
+
+out_unlock:
 	ttm_read_unlock(&vmaster->lock);
 	return ret;
 }
