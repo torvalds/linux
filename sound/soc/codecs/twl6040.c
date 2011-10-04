@@ -759,15 +759,13 @@ static int twl6040_put_volsw(struct snd_kcontrol *kcontrol,
 		out = &twl6040_priv->handsfree;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
-	if (out) {
-		out->left_vol = ucontrol->value.integer.value[0];
-		out->right_vol = ucontrol->value.integer.value[1];
-		if (!out->active)
-			return 1;
-	}
+	out->left_vol = ucontrol->value.integer.value[0];
+	out->right_vol = ucontrol->value.integer.value[1];
+	if (!out->active)
+		return 1;
 
 	/* call the appropriate handler depending on the rreg */
 	if (mc->rreg)
