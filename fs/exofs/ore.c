@@ -57,9 +57,6 @@ MODULE_LICENSE("GPL");
  * 3. Cache some havily used calculations that will be needed by users.
  */
 
-static void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
-				 struct ore_striping_info *si);
-
 enum { BIO_MAX_PAGES_KMALLOC =
 		(PAGE_SIZE - sizeof(struct bio)) / sizeof(struct bio_vec),};
 
@@ -409,8 +406,8 @@ EXPORT_SYMBOL(ore_check_io);
  *
  *	O = L % stripe_unit + N * stripe_unit + M * group_depth * stripe_unit
  */
-static void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
-				 struct ore_striping_info *si)
+void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
+			  struct ore_striping_info *si)
 {
 	u32	stripe_unit = layout->stripe_unit;
 	u32	group_width = layout->group_width;
@@ -443,6 +440,7 @@ static void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
 	si->group_length = T - H;
 	si->M = M;
 }
+EXPORT_SYMBOL(ore_calc_stripe_info);
 
 static int _add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 		unsigned pgbase, struct ore_per_dev_state *per_dev,

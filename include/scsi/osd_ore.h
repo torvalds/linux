@@ -146,6 +146,9 @@ static inline unsigned ore_io_state_size(unsigned numdevs)
 
 /* ore.c */
 int ore_verify_layout(unsigned total_comps, struct ore_layout *layout);
+void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
+			  struct ore_striping_info *si);
+
 int ore_get_rw_state(struct ore_layout *layout, struct ore_components *comps,
 		     bool is_reading, u64 offset, u64 length,
 		     struct ore_io_state **ios);
