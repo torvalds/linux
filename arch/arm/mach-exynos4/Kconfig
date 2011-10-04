@@ -248,6 +248,15 @@ config MACH_SMDK4212
 	help
 	  Machine support for Samsung SMDK4212
 
+comment "EXYNOS4412 Boards"
+
+config MACH_SMDK4412
+	bool "SMDK4412"
+	select SOC_EXYNOS4412
+	select MACH_SMDK4212
+	help
+	  Machine support for Samsung SMDK4412
+
 endmenu
 
 comment "Configuration for HSMMC bus width"
