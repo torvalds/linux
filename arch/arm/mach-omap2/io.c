@@ -35,8 +35,8 @@
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
-#include "io.h"
 
+#include <plat/common.h>
 #include <plat/omap-pm.h>
 #include "voltage.h"
 #include "powerdomain.h"
@@ -240,22 +240,11 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 };
 #endif
 
-static void __init _omap2_map_common_io(void)
-{
-	/* Normally devicemaps_init() would flush caches and tlb after
-	 * mdesc->map_io(), but we must also do it here because of the CPU
-	 * revision check below.
-	 */
-	local_flush_tlb_all();
-	flush_cache_all();
-}
-
 #ifdef CONFIG_SOC_OMAP2420
 void __init omap242x_map_common_io(void)
 {
 	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
 	iotable_init(omap242x_io_desc, ARRAY_SIZE(omap242x_io_desc));
-	_omap2_map_common_io();
 }
 #endif
 
@@ -264,7 +253,6 @@ void __init omap243x_map_common_io(void)
 {
 	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
 	iotable_init(omap243x_io_desc, ARRAY_SIZE(omap243x_io_desc));
-	_omap2_map_common_io();
 }
 #endif
 
@@ -272,7 +260,6 @@ void __init omap243x_map_common_io(void)
 void __init omap34xx_map_common_io(void)
 {
 	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));
-	_omap2_map_common_io();
 }
 #endif
 
@@ -280,7 +267,6 @@ void __init omap34xx_map_common_io(void)
 void __init omapti816x_map_common_io(void)
 {
 	iotable_init(omapti816x_io_desc, ARRAY_SIZE(omapti816x_io_desc));
-	_omap2_map_common_io();
 }
 #endif
 
@@ -288,7 +274,6 @@ void __init omapti816x_map_common_io(void)
 void __init omap44xx_map_common_io(void)
 {
 	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
-	_omap2_map_common_io();
 }
 #endif
 
@@ -337,7 +322,6 @@ void __iomem *omap_irq_base;
 static void __init omap_common_init_early(void)
 {
 	omap2_check_revision();
-	omap_sram_init();
 }
 
 static void __init omap_hwmod_init_postsetup(void)
@@ -449,11 +433,12 @@ void __init omap4430_init_early(void)
 void __init omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1)
 {
+	omap_sram_init();
+
 	if (cpu_is_omap24xx() || omap3_has_sdrc()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
 		_omap2_init_reprogram_sdrc();
 	}
-
 }
 
 /*

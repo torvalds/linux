@@ -21,7 +21,6 @@
 #include "clock.h"
 
 extern void omap_check_revision(void);
-extern void omap_sram_init(void);
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -133,7 +132,6 @@ void omap1_init_early(void)
 	 */
 	omap1_clk_init();
 	omap1_mux_init();
-	omap_sram_init();
 }
 
 /*

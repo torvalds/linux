@@ -55,6 +55,8 @@ void am35xx_init_early(void);
 void ti816x_init_early(void);
 void omap4430_init_early(void);
 
+void omap_sram_init(void);
+
 /*
  * IO bases for various OMAP processors
  * Except the tap base, rest all the io bases
