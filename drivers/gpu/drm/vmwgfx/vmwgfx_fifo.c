@@ -277,6 +277,16 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 	return ret;
 }
 
+/**
+ * Reserve @bytes number of bytes in the fifo.
+ *
+ * This function will return NULL (error) on two conditions:
+ *  If it timeouts waiting for fifo space, or if @bytes is larger than the
+ *   available fifo space.
+ *
+ * Returns:
+ *   Pointer to the fifo, or null on error (possible hardware hang).
+ */
 void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes)
 {
 	struct vmw_fifo_state *fifo_state = &dev_priv->fifo;
