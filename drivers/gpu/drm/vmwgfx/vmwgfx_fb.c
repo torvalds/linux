@@ -613,8 +613,7 @@ int vmw_fb_off(struct vmw_private *vmw_priv)
 	par->bo_ptr = NULL;
 	ttm_bo_kunmap(&par->map);
 
-	/* move this to system instead of just unpinning it */
-	vmw_dmabuf_to_system(vmw_priv, par->vmw_bo, false);
+	vmw_dmabuf_unpin(vmw_priv, par->vmw_bo, false);
 
 	return 0;
 }

@@ -168,7 +168,7 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 	cmd->obj.root.y = y;
 
 	/* Ok to assume that buffer is pinned in vram */
-	vmw_dmabuf_get_guest_ptr(sou->buffer, &cmd->obj.backingStore.ptr);
+	vmw_bo_get_guest_ptr(&sou->buffer->base, &cmd->obj.backingStore.ptr);
 	cmd->obj.backingStore.pitch = mode->hdisplay * 4;
 
 	vmw_fifo_commit(dev_priv, fifo_size);

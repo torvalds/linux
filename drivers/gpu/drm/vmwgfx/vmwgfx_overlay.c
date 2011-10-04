@@ -99,9 +99,9 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 {
 	struct vmw_escape_video_flush *flush;
 	size_t fifo_size;
-	uint32_t gmrId, offset;
 	bool have_so = dev_priv->sou_priv ? true : false;
 	int i, num_items;
+	SVGAGuestPtr ptr;
 
 	struct {
 		struct vmw_escape_header escape;
@@ -141,12 +141,12 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 	for (i = 0; i < num_items; i++)
 		items[i].registerId = i;
 
-	vmw_dmabuf_get_id_offset(buf, &gmrId, &offset);
-	offset += arg->offset;
+	vmw_bo_get_guest_ptr(&buf->base, &ptr);
+	ptr.offset += arg->offset;
 
 	items[SVGA_VIDEO_ENABLED].value     = true;
 	items[SVGA_VIDEO_FLAGS].value       = arg->flags;
-	items[SVGA_VIDEO_DATA_OFFSET].value = offset;
+	items[SVGA_VIDEO_DATA_OFFSET].value = ptr.offset;
 	items[SVGA_VIDEO_FORMAT].value      = arg->format;
 	items[SVGA_VIDEO_COLORKEY].value    = arg->color_key;
 	items[SVGA_VIDEO_SIZE].value        = arg->size;
@@ -164,7 +164,7 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 	items[SVGA_VIDEO_PITCH_2].value     = arg->pitch[1];
 	items[SVGA_VIDEO_PITCH_3].value     = arg->pitch[2];
 	if (have_so) {
-		items[SVGA_VIDEO_DATA_GMRID].value    = gmrId;
+		items[SVGA_VIDEO_DATA_GMRID].value    = ptr.gmrId;
 		items[SVGA_VIDEO_DST_SCREEN_ID].value = SVGA_ID_INVALID;
 	}
 

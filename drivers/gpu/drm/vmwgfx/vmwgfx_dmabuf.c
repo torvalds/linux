@@ -32,10 +32,16 @@
 
 
 /**
- * Validate a buffer to placement.
+ * vmw_dmabuf_to_placement - Validate a buffer to placement.
  *
- * May only be called by the current master as this function takes the
- * its lock in write mode.
+ * @dev_priv:  Driver private.
+ * @buf:  DMA buffer to move.
+ * @pin:  Pin buffer if true.
+ * @interruptible:  Use interruptible wait.
+ *
+ * May only be called by the current master since it assumes that the
+ * master lock is the current master's lock.
+ * This function takes the master's lock in write mode.
  *
  * Returns
  *  -ERESTARTSYS if interrupted by a signal.
@@ -67,10 +73,11 @@ err:
 }
 
 /**
- * Move a buffer to vram or gmr.
+ * vmw_dmabuf_to_vram_or_gmr - Move a buffer to vram or gmr.
  *
- * May only be called by the current master as this function takes the
- * its lock in write mode.
+ * May only be called by the current master since it assumes that the
+ * master lock is the current master's lock.
+ * This function takes the master's lock in write mode.
  *
  * @dev_priv:  Driver private.
  * @buf:  DMA buffer to move.
@@ -134,10 +141,11 @@ err:
 }
 
 /**
- * Move a buffer to vram.
+ * vmw_dmabuf_to_vram - Move a buffer to vram.
  *
- * May only be called by the current master as this function takes the
- * its lock in write mode.
+ * May only be called by the current master since it assumes that the
+ * master lock is the current master's lock.
+ * This function takes the master's lock in write mode.
  *
  * @dev_priv:  Driver private.
  * @buf:  DMA buffer to move.
@@ -164,10 +172,11 @@ int vmw_dmabuf_to_vram(struct vmw_private *dev_priv,
 }
 
 /**
- * Move a buffer to start of vram.
+ * vmw_dmabuf_to_start_of_vram - Move a buffer to start of vram.
  *
- * May only be called by the current master as this function takes the
- * its lock in write mode.
+ * May only be called by the current master since it assumes that the
+ * master lock is the current master's lock.
+ * This function takes the master's lock in write mode.
  *
  * @dev_priv:  Driver private.
  * @buf:  DMA buffer to move.
@@ -219,11 +228,13 @@ err_unlock:
 	return ret;
 }
 
+
 /**
- * Unpin the buffer given buffer, does not move the buffer.
+ * vmw_dmabuf_upin - Unpin the buffer given buffer, does not move the buffer.
  *
- * May only be called by the current master as this function takes the
- * its lock in write mode.
+ * May only be called by the current master since it assumes that the
+ * master lock is the current master's lock.
+ * This function takes the master's lock in write mode.
  *
  * @dev_priv:  Driver private.
  * @buf:  DMA buffer to unpin.
@@ -246,47 +257,22 @@ int vmw_dmabuf_unpin(struct vmw_private *dev_priv,
 				       interruptible);
 }
 
+
 /**
- * Move a buffer to system memory, does not pin the buffer.
+ * vmw_bo_get_guest_ptr - Get the guest ptr representing the current placement
+ * of a buffer.
  *
- * May only be called by the current master as this function takes the
- * its lock in write mode.
- *
- * @dev_priv:  Driver private.
- * @buf:  DMA buffer to move.
- * @interruptible:  Use interruptible wait.
- *
- * Returns
- * -ERESTARTSYS if interrupted by a signal.
+ * @bo: Pointer to a struct ttm_buffer_object. Must be pinned or reserved.
+ * @ptr: SVGAGuestPtr returning the result.
  */
-int vmw_dmabuf_to_system(struct vmw_private *dev_priv,
-			 struct vmw_dma_buffer *buf,
-			 bool interruptible)
+void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *bo,
+			  SVGAGuestPtr *ptr)
 {
-	return vmw_dmabuf_to_placement(dev_priv, buf,
-				       &vmw_sys_placement,
-				       interruptible);
-}
-
-void vmw_dmabuf_get_id_offset(struct vmw_dma_buffer *buf,
-			      uint32_t *gmrId, uint32_t *offset)
-{
-	if (buf->base.mem.mem_type == TTM_PL_VRAM) {
-		*gmrId = SVGA_GMR_FRAMEBUFFER;
-		*offset = buf->base.offset;
-	} else {
-		*gmrId = buf->base.mem.start;
-		*offset = 0;
-	}
-}
-
-void vmw_dmabuf_get_guest_ptr(struct vmw_dma_buffer *buf, SVGAGuestPtr *ptr)
-{
-	if (buf->base.mem.mem_type == TTM_PL_VRAM) {
+	if (bo->mem.mem_type == TTM_PL_VRAM) {
 		ptr->gmrId = SVGA_GMR_FRAMEBUFFER;
-		ptr->offset = buf->base.offset;
+		ptr->offset = bo->offset;
 	} else {
-		ptr->gmrId = buf->base.mem.start;
+		ptr->gmrId = bo->mem.start;
 		ptr->offset = 0;
 	}
 }

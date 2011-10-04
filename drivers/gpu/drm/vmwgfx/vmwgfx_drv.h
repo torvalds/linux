@@ -416,13 +416,8 @@ extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 extern int vmw_dmabuf_unpin(struct vmw_private *vmw_priv,
 			    struct vmw_dma_buffer *bo,
 			    bool interruptible);
-extern int vmw_dmabuf_to_system(struct vmw_private *vmw_priv,
-				struct vmw_dma_buffer *bo,
-				bool interruptible);
-extern void vmw_dmabuf_get_id_offset(struct vmw_dma_buffer *buf,
-				     uint32_t *gmrId, uint32_t *offset);
-extern void vmw_dmabuf_get_guest_ptr(struct vmw_dma_buffer *buf,
-				     SVGAGuestPtr *ptr);
+extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
+				 SVGAGuestPtr *ptr);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
