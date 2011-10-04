@@ -1425,10 +1425,11 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 	map_length = length;
 	ret = btrfs_map_block(map_tree, READ, logical,
 			      &map_length, NULL, 0);
-
+	/* Will always return 0 or 1 with map_multi == NULL */
+	BUG_ON(ret < 0);
 	if (map_length < length + size)
 		return 1;
-	return ret;
+	return 0;
 }
 
 /*

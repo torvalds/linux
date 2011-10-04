@@ -2429,6 +2429,19 @@ static int submit_one_bio(int rw, struct bio *bio, int mirror_num,
 	return ret;
 }
 
+static int merge_bio(struct extent_io_tree *tree, struct page *page,
+		     unsigned long offset, size_t size, struct bio *bio,
+		     unsigned long bio_flags)
+{
+	int ret = 0;
+	if (tree->ops && tree->ops->merge_bio_hook)
+		ret = tree->ops->merge_bio_hook(page, offset, size, bio,
+						bio_flags);
+	BUG_ON(ret < 0);
+	return ret;
+
+}
+
 static int submit_extent_page(int rw, struct extent_io_tree *tree,
 			      struct page *page, sector_t sector,
 			      size_t size, unsigned long offset,
@@ -2457,9 +2470,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 				sector;
 
 		if (prev_bio_flags != bio_flags || !contig ||
-		    (tree->ops && tree->ops->merge_bio_hook &&
-		     tree->ops->merge_bio_hook(page, offset, page_size, bio,
-					       bio_flags)) ||
+		    merge_bio(tree, page, offset, page_size, bio, bio_flags) ||
 		    bio_add_page(bio, page, page_size, offset) < page_size) {
 			ret = submit_one_bio(rw, bio, mirror_num,
 					     prev_bio_flags);
