@@ -532,7 +532,6 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	WARN_ON(xen_smp_intr_init(0));
 
 	xen_init_lock_cpu(0);
-	xen_init_spinlocks();
 }
 
 static int __cpuinit xen_hvm_cpu_up(unsigned int cpu)
