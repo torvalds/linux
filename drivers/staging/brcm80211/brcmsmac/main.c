@@ -8238,29 +8238,8 @@ void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p)
 	if (len < D11_PHY_HDR_LEN + sizeof(h->frame_control))
 		goto toss;
 
+	/* not supporting A-MSDU */
 	is_amsdu = rxh->RxStatus2 & RXS_AMSDU_MASK;
-
-	/* explicitly test bad src address to avoid sending bad deauth */
-	if (!is_amsdu) {
-		/* CTS and ACK CTL frames are w/o a2 */
-
-		if (ieee80211_is_data(h->frame_control) ||
-		    ieee80211_is_mgmt(h->frame_control)) {
-			if ((is_zero_ether_addr(h->addr2) ||
-			     is_multicast_ether_addr(h->addr2))) {
-				wiphy_err(wlc->wiphy, "wl%d: %s: dropping a "
-					  "frame with invalid src mac address,"
-					  " a2: %pM\n",
-					 wlc->pub->unit, __func__, h->addr2);
-				goto toss;
-			}
-		}
-	}
-
-	/* due to sheer numbers, toss out probe reqs for now */
-	if (ieee80211_is_probe_req(h->frame_control))
-		goto toss;
-
 	if (is_amsdu)
 		goto toss;
 
