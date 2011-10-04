@@ -54,35 +54,41 @@ extern int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 			     const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
 
-#define dynamic_pr_debug(fmt, ...) do {					\
-	static struct _ddebug descriptor				\
-	__used								\
-	__attribute__((section("__verbose"), aligned(8))) =		\
-	{ KBUILD_MODNAME, __func__, __FILE__, fmt, __LINE__,		\
-		_DPRINTK_FLAGS_DEFAULT };				\
-	if (unlikely(descriptor.enabled))				\
-		__dynamic_pr_debug(&descriptor, pr_fmt(fmt), ##__VA_ARGS__); \
-	} while (0)
+#define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt)		\
+	static struct _ddebug __used __aligned(8)		\
+	__attribute__((section("__verbose"))) name = {		\
+		.modname = KBUILD_MODNAME,			\
+		.function = __func__,				\
+		.filename = __FILE__,				\
+		.format = (fmt),				\
+		.lineno = __LINE__,				\
+		.flags =  _DPRINTK_FLAGS_DEFAULT,		\
+		.enabled = false,				\
+	}
 
-#define dynamic_dev_dbg(dev, fmt, ...) do {				\
-	static struct _ddebug descriptor				\
-	__used								\
-	__attribute__((section("__verbose"), aligned(8))) =		\
-	{ KBUILD_MODNAME, __func__, __FILE__, fmt, __LINE__,		\
-		_DPRINTK_FLAGS_DEFAULT };				\
-	if (unlikely(descriptor.enabled))				\
-		__dynamic_dev_dbg(&descriptor, dev, fmt, ##__VA_ARGS__);	\
-	} while (0)
+#define dynamic_pr_debug(fmt, ...)				\
+do {								\
+	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);		\
+	if (unlikely(descriptor.enabled))			\
+		__dynamic_pr_debug(&descriptor, pr_fmt(fmt),	\
+				   ##__VA_ARGS__);		\
+} while (0)
 
-#define dynamic_netdev_dbg(dev, fmt, ...) do {				\
-	static struct _ddebug descriptor				\
-	__used								\
-	__attribute__((section("__verbose"), aligned(8))) =		\
-	{ KBUILD_MODNAME, __func__, __FILE__, fmt, __LINE__,		\
-		_DPRINTK_FLAGS_DEFAULT };				\
-	if (unlikely(descriptor.enabled))				\
-		__dynamic_netdev_dbg(&descriptor, dev, fmt, ##__VA_ARGS__);\
-	} while (0)
+#define dynamic_dev_dbg(dev, fmt, ...)				\
+do {								\
+	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);	\
+	if (unlikely(descriptor.enabled))			\
+		__dynamic_dev_dbg(&descriptor, dev, fmt,	\
+				  ##__VA_ARGS__);		\
+} while (0)
+
+#define dynamic_netdev_dbg(dev, fmt, ...)			\
+do {								\
+	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);		\
+	if (unlikely(descriptor.enabled))			\
+		__dynamic_netdev_dbg(&descriptor, dev, fmt,	\
+				     ##__VA_ARGS__);		\
+} while (0)
 
 #else
 
