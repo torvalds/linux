@@ -406,7 +406,6 @@ static int wm8523_probe(struct snd_soc_codec *codec)
 	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
 	int ret, i;
 
-	codec->hw_write = (hw_write_t)i2c_master_send;
 	wm8523->rate_constraint.list = &wm8523->rate_constraint_list[0];
 	wm8523->rate_constraint.count =
 		ARRAY_SIZE(wm8523->rate_constraint_list);
