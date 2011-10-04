@@ -13,6 +13,8 @@
 #include <linux/sysfs.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/module.h>
+#include <linux/stat.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
