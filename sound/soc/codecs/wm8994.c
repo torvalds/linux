@@ -2311,7 +2311,7 @@ static void wm8994_aif_shutdown(struct snd_pcm_substream *substream,
 		rate_reg = WM8994_AIF1_RATE;
 		break;
 	case 2:
-		rate_reg = WM8994_AIF1_RATE;
+		rate_reg = WM8994_AIF2_RATE;
 		break;
 	default:
 		break;
