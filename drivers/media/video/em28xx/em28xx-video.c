@@ -1156,6 +1156,21 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 	return 0;
 }
 
+static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+	int                rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, querystd, norm);
+
+	return 0;
+}
+
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct em28xx_fh   *fh  = priv;
@@ -2354,6 +2369,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_qbuf                = vidioc_qbuf,
 	.vidioc_dqbuf               = vidioc_dqbuf,
 	.vidioc_g_std               = vidioc_g_std,
+	.vidioc_querystd            = vidioc_querystd,
 	.vidioc_s_std               = vidioc_s_std,
 	.vidioc_g_parm		    = vidioc_g_parm,
 	.vidioc_s_parm		    = vidioc_s_parm,
