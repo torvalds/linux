@@ -22,6 +22,8 @@
 #ifndef __SHARE_H__
 #define __SHARE_H__
 
+#include "via_modesetting.h"
+
 /* Define Bit Field */
 #define BIT0    0x01
 #define BIT1    0x02
@@ -634,10 +636,6 @@
 #define V_SYNC_SATRT_SHADOW_INDEX   18
 #define V_SYNC_END_SHADOW_INDEX     19
 
-/* Definition Video Mode Pixel Clock (picoseconds)
-*/
-#define RES_640X480_60HZ_PIXCLOCK    39722
-
 /* LCD display method
 */
 #define     LCD_EXPANDSION              0x00
@@ -647,23 +645,6 @@
 */
 #define     LCD_OPENLDI               0x00
 #define     LCD_SPWG                  0x01
-
-/* Define display timing
-*/
-struct display_timing {
-	u16 hor_total;
-	u16 hor_addr;
-	u16 hor_blank_start;
-	u16 hor_blank_end;
-	u16 hor_sync_start;
-	u16 hor_sync_end;
-	u16 ver_total;
-	u16 ver_addr;
-	u16 ver_blank_start;
-	u16 ver_blank_end;
-	u16 ver_sync_start;
-	u16 ver_sync_end;
-};
 
 struct crt_mode_table {
 	int refresh_rate;

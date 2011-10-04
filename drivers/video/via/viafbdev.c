@@ -38,8 +38,6 @@ static char *viafb_mode1;
 static int viafb_bpp = 32;
 static int viafb_bpp1 = 32;
 
-static unsigned int viafb_second_xres = 640;
-static unsigned int viafb_second_yres = 480;
 static unsigned int viafb_second_offset;
 static int viafb_second_size;
 
@@ -201,7 +199,6 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
 	int depth, refresh;
-	struct VideoModeTable *vmode_entry;
 	struct viafb_par *ppar = info->par;
 	u32 line;
 
@@ -211,8 +208,10 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	if (var->vmode & FB_VMODE_INTERLACED || var->vmode & FB_VMODE_DOUBLE)
 		return -EINVAL;
 
-	vmode_entry = viafb_get_mode(var->xres, var->yres);
-	if (!vmode_entry) {
+	/* the refresh rate is not important here, as we only want to know
+	 * whether the resolution exists
+	 */
+	if (!viafb_get_best_mode(var->xres, var->yres, 60)) {
 		DEBUG_MSG(KERN_INFO
 			  "viafb: Mode %dx%dx%d not supported!!\n",
 			  var->xres, var->yres, var->bits_per_pixel);
@@ -254,7 +253,8 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 		get_var_refresh(var));
 
 	/* Adjust var according to our driver's own table */
-	viafb_fill_var_timing_info(var, refresh, vmode_entry);
+	viafb_fill_var_timing_info(var,
+		viafb_get_best_mode(var->xres, var->yres, refresh));
 	if (var->accel_flags & FB_ACCELF_TEXT &&
 		!ppar->shared->vdev->engine_mmio)
 		var->accel_flags = 0;
@@ -265,7 +265,6 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 static int viafb_set_par(struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
-	struct VideoModeTable *vmode_entry, *vmode_entry1 = NULL;
 	int refresh;
 	DEBUG_MSG(KERN_INFO "viafb_set_par!\n");
 
@@ -274,10 +273,7 @@ static int viafb_set_par(struct fb_info *info)
 	viafb_update_device_setting(viafbinfo->var.xres, viafbinfo->var.yres,
 		viafbinfo->var.bits_per_pixel, 0);
 
-	vmode_entry = viafb_get_mode(viafbinfo->var.xres, viafbinfo->var.yres);
 	if (viafb_dual_fb) {
-		vmode_entry1 = viafb_get_mode(viafbinfo1->var.xres,
-			viafbinfo1->var.yres);
 		viafb_update_device_setting(viafbinfo1->var.xres,
 			viafbinfo1->var.yres, viafbinfo1->var.bits_per_pixel,
 			1);
@@ -285,8 +281,6 @@ static int viafb_set_par(struct fb_info *info)
 		DEBUG_MSG(KERN_INFO
 		"viafb_second_xres = %d, viafb_second_yres = %d, bpp = %d\n",
 			  viafb_second_xres, viafb_second_yres, viafb_bpp1);
-		vmode_entry1 = viafb_get_mode(viafb_second_xres,
-			viafb_second_yres);
 
 		viafb_update_device_setting(viafb_second_xres,
 			viafb_second_yres, viafb_bpp1, 1);
@@ -294,7 +288,8 @@ static int viafb_set_par(struct fb_info *info)
 
 	refresh = viafb_get_refresh(info->var.xres, info->var.yres,
 		get_var_refresh(&info->var));
-	if (vmode_entry) {
+	if (viafb_get_best_mode(viafbinfo->var.xres, viafbinfo->var.yres,
+		refresh)) {
 		if (viafb_dual_fb && viapar->iga_path == IGA2) {
 			viafb_bpp1 = info->var.bits_per_pixel;
 			viafb_refresh1 = refresh;
@@ -307,8 +302,7 @@ static int viafb_set_par(struct fb_info *info)
 			info->flags &= ~FBINFO_HWACCEL_DISABLED;
 		else
 			info->flags |= FBINFO_HWACCEL_DISABLED;
-		viafb_setmode(vmode_entry, info->var.bits_per_pixel,
-			vmode_entry1, viafb_bpp1);
+		viafb_setmode(info->var.bits_per_pixel, viafb_bpp1);
 		viafb_pan_display(&info->var, info);
 	}
 
@@ -1164,7 +1158,8 @@ static ssize_t viafb_dvp0_proc_write(struct file *file,
 	for (i = 0; i < 3; i++) {
 		value = strsep(&pbuf, " ");
 		if (value != NULL) {
-			strict_strtoul(value, 0, (unsigned long *)&reg_val);
+			if (kstrtou8(value, 0, &reg_val) < 0)
+				return -EINVAL;
 			DEBUG_MSG(KERN_INFO "DVP0:reg_val[%l]=:%x\n", i,
 				  reg_val);
 			switch (i) {
@@ -1234,7 +1229,8 @@ static ssize_t viafb_dvp1_proc_write(struct file *file,
 	for (i = 0; i < 3; i++) {
 		value = strsep(&pbuf, " ");
 		if (value != NULL) {
-			strict_strtoul(value, 0, (unsigned long *)&reg_val);
+			if (kstrtou8(value, 0, &reg_val) < 0)
+				return -EINVAL;
 			switch (i) {
 			case 0:
 				viafb_write_reg_mask(CR9B, VIACR,
@@ -1292,7 +1288,8 @@ static ssize_t viafb_dfph_proc_write(struct file *file,
 	if (copy_from_user(&buf[0], buffer, length))
 		return -EFAULT;
 	buf[length - 1] = '\0';	/*Ensure end string */
-	strict_strtoul(&buf[0], 0, (unsigned long *)&reg_val);
+	if (kstrtou8(buf, 0, &reg_val) < 0)
+		return -EINVAL;
 	viafb_write_reg_mask(CR97, VIACR, reg_val, 0x0f);
 	return count;
 }
@@ -1331,7 +1328,8 @@ static ssize_t viafb_dfpl_proc_write(struct file *file,
 	if (copy_from_user(&buf[0], buffer, length))
 		return -EFAULT;
 	buf[length - 1] = '\0';	/*Ensure end string */
-	strict_strtoul(&buf[0], 0, (unsigned long *)&reg_val);
+	if (kstrtou8(buf, 0, &reg_val) < 0)
+		return -EINVAL;
 	viafb_write_reg_mask(CR99, VIACR, reg_val, 0x0f);
 	return count;
 }
@@ -1400,8 +1398,8 @@ static ssize_t viafb_vt1636_proc_write(struct file *file,
 		for (i = 0; i < 2; i++) {
 			value = strsep(&pbuf, " ");
 			if (value != NULL) {
-				strict_strtoul(value, 0,
-					(unsigned long *)&reg_val.Data);
+				if (kstrtou8(value, 0, &reg_val.Data) < 0)
+					return -EINVAL;
 				switch (i) {
 				case 0:
 					reg_val.Index = 0x08;
@@ -1437,8 +1435,8 @@ static ssize_t viafb_vt1636_proc_write(struct file *file,
 		for (i = 0; i < 2; i++) {
 			value = strsep(&pbuf, " ");
 			if (value != NULL) {
-				strict_strtoul(value, 0,
-					(unsigned long *)&reg_val.Data);
+				if (kstrtou8(value, 0, &reg_val.Data) < 0)
+					return -EINVAL;
 				switch (i) {
 				case 0:
 					reg_val.Index = 0x08;
@@ -1735,7 +1733,6 @@ static struct viafb_pm_hooks viafb_fb_pm_hooks = {
 int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 {
 	u32 default_xres, default_yres;
-	struct VideoModeTable *vmode_entry;
 	struct fb_var_screeninfo default_var;
 	int rc;
 	u32 viafb_par_length;
@@ -1808,7 +1805,6 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	}
 
 	parse_mode(viafb_mode, &default_xres, &default_yres);
-	vmode_entry = viafb_get_mode(default_xres, default_yres);
 	if (viafb_SAMM_ON == 1)
 		parse_mode(viafb_mode1, &viafb_second_xres,
 			&viafb_second_yres);
@@ -1818,9 +1814,8 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	default_var.xres_virtual = default_xres;
 	default_var.yres_virtual = default_yres;
 	default_var.bits_per_pixel = viafb_bpp;
-	viafb_fill_var_timing_info(&default_var, viafb_get_refresh(
-		default_var.xres, default_var.yres, viafb_refresh),
-		viafb_get_mode(default_var.xres, default_var.yres));
+	viafb_fill_var_timing_info(&default_var, viafb_get_best_mode(
+		default_var.xres, default_var.yres, viafb_refresh));
 	viafb_setup_fixinfo(&viafbinfo->fix, viaparinfo);
 	viafbinfo->var = default_var;
 
@@ -1859,9 +1854,8 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 		default_var.xres_virtual = viafb_second_xres;
 		default_var.yres_virtual = viafb_second_yres;
 		default_var.bits_per_pixel = viafb_bpp1;
-		viafb_fill_var_timing_info(&default_var, viafb_get_refresh(
-			default_var.xres, default_var.yres, viafb_refresh1),
-			viafb_get_mode(default_var.xres, default_var.yres));
+		viafb_fill_var_timing_info(&default_var, viafb_get_best_mode(
+			default_var.xres, default_var.yres, viafb_refresh1));
 
 		viafb_setup_fixinfo(&viafbinfo1->fix, viaparinfo1);
 		viafb_check_var(&default_var, viafbinfo1);
@@ -1956,61 +1950,67 @@ static int __init viafb_setup(void)
 		if (!*this_opt)
 			continue;
 
-		if (!strncmp(this_opt, "viafb_mode1=", 12))
+		if (!strncmp(this_opt, "viafb_mode1=", 12)) {
 			viafb_mode1 = kstrdup(this_opt + 12, GFP_KERNEL);
-		else if (!strncmp(this_opt, "viafb_mode=", 11))
+		} else if (!strncmp(this_opt, "viafb_mode=", 11)) {
 			viafb_mode = kstrdup(this_opt + 11, GFP_KERNEL);
-		else if (!strncmp(this_opt, "viafb_bpp1=", 11))
-			strict_strtoul(this_opt + 11, 0,
-				(unsigned long *)&viafb_bpp1);
-		else if (!strncmp(this_opt, "viafb_bpp=", 10))
-			strict_strtoul(this_opt + 10, 0,
-				(unsigned long *)&viafb_bpp);
-		else if (!strncmp(this_opt, "viafb_refresh1=", 15))
-			strict_strtoul(this_opt + 15, 0,
-				(unsigned long *)&viafb_refresh1);
-		else if (!strncmp(this_opt, "viafb_refresh=", 14))
-			strict_strtoul(this_opt + 14, 0,
-				(unsigned long *)&viafb_refresh);
-		else if (!strncmp(this_opt, "viafb_lcd_dsp_method=", 21))
-			strict_strtoul(this_opt + 21, 0,
-				(unsigned long *)&viafb_lcd_dsp_method);
-		else if (!strncmp(this_opt, "viafb_lcd_panel_id=", 19))
-			strict_strtoul(this_opt + 19, 0,
-				(unsigned long *)&viafb_lcd_panel_id);
-		else if (!strncmp(this_opt, "viafb_accel=", 12))
-			strict_strtoul(this_opt + 12, 0,
-				(unsigned long *)&viafb_accel);
-		else if (!strncmp(this_opt, "viafb_SAMM_ON=", 14))
-			strict_strtoul(this_opt + 14, 0,
-				(unsigned long *)&viafb_SAMM_ON);
-		else if (!strncmp(this_opt, "viafb_active_dev=", 17))
+		} else if (!strncmp(this_opt, "viafb_bpp1=", 11)) {
+			if (kstrtouint(this_opt + 11, 0, &viafb_bpp1) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_bpp=", 10)) {
+			if (kstrtouint(this_opt + 10, 0, &viafb_bpp) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_refresh1=", 15)) {
+			if (kstrtoint(this_opt + 15, 0, &viafb_refresh1) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_refresh=", 14)) {
+			if (kstrtoint(this_opt + 14, 0, &viafb_refresh) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_lcd_dsp_method=", 21)) {
+			if (kstrtoint(this_opt + 21, 0,
+				      &viafb_lcd_dsp_method) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_lcd_panel_id=", 19)) {
+			if (kstrtoint(this_opt + 19, 0,
+				      &viafb_lcd_panel_id) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_accel=", 12)) {
+			if (kstrtoint(this_opt + 12, 0, &viafb_accel) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_SAMM_ON=", 14)) {
+			if (kstrtoint(this_opt + 14, 0, &viafb_SAMM_ON) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_active_dev=", 17)) {
 			viafb_active_dev = kstrdup(this_opt + 17, GFP_KERNEL);
-		else if (!strncmp(this_opt,
-			"viafb_display_hardware_layout=", 30))
-			strict_strtoul(this_opt + 30, 0,
-			(unsigned long *)&viafb_display_hardware_layout);
-		else if (!strncmp(this_opt, "viafb_second_size=", 18))
-			strict_strtoul(this_opt + 18, 0,
-				(unsigned long *)&viafb_second_size);
-		else if (!strncmp(this_opt,
-			"viafb_platform_epia_dvi=", 24))
-			strict_strtoul(this_opt + 24, 0,
-				(unsigned long *)&viafb_platform_epia_dvi);
-		else if (!strncmp(this_opt,
-			"viafb_device_lcd_dualedge=", 26))
-			strict_strtoul(this_opt + 26, 0,
-				(unsigned long *)&viafb_device_lcd_dualedge);
-		else if (!strncmp(this_opt, "viafb_bus_width=", 16))
-			strict_strtoul(this_opt + 16, 0,
-				(unsigned long *)&viafb_bus_width);
-		else if (!strncmp(this_opt, "viafb_lcd_mode=", 15))
-			strict_strtoul(this_opt + 15, 0,
-				(unsigned long *)&viafb_lcd_mode);
-		else if (!strncmp(this_opt, "viafb_lcd_port=", 15))
+		} else if (!strncmp(this_opt,
+			"viafb_display_hardware_layout=", 30)) {
+			if (kstrtoint(this_opt + 30, 0,
+				      &viafb_display_hardware_layout) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_second_size=", 18)) {
+			if (kstrtoint(this_opt + 18, 0, &viafb_second_size) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt,
+			"viafb_platform_epia_dvi=", 24)) {
+			if (kstrtoint(this_opt + 24, 0,
+				      &viafb_platform_epia_dvi) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt,
+			"viafb_device_lcd_dualedge=", 26)) {
+			if (kstrtoint(this_opt + 26, 0,
+				      &viafb_device_lcd_dualedge) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_bus_width=", 16)) {
+			if (kstrtoint(this_opt + 16, 0, &viafb_bus_width) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_lcd_mode=", 15)) {
+			if (kstrtoint(this_opt + 15, 0, &viafb_lcd_mode) < 0)
+				return -EINVAL;
+		} else if (!strncmp(this_opt, "viafb_lcd_port=", 15)) {
 			viafb_lcd_port = kstrdup(this_opt + 15, GFP_KERNEL);
-		else if (!strncmp(this_opt, "viafb_dvi_port=", 15))
+		} else if (!strncmp(this_opt, "viafb_dvi_port=", 15)) {
 			viafb_dvi_port = kstrdup(this_opt + 15, GFP_KERNEL);
+		}
 	}
 	return 0;
 }
@@ -2034,9 +2034,9 @@ int __init viafb_init(void)
 		return r;
 #endif
 	if (parse_mode(viafb_mode, &dummy_x, &dummy_y)
-		|| !viafb_get_mode(dummy_x, dummy_y)
+		|| !viafb_get_best_mode(dummy_x, dummy_y, viafb_refresh)
 		|| parse_mode(viafb_mode1, &dummy_x, &dummy_y)
-		|| !viafb_get_mode(dummy_x, dummy_y)
+		|| !viafb_get_best_mode(dummy_x, dummy_y, viafb_refresh1)
 		|| viafb_bpp < 0 || viafb_bpp > 32
 		|| viafb_bpp1 < 0 || viafb_bpp1 > 32
 		|| parse_active_dev())
