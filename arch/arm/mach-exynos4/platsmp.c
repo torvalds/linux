@@ -32,6 +32,7 @@
 
 #include <plat/cpu.h>
 
+extern unsigned int gic_bank_offset;
 extern void exynos4_secondary_startup(void);
 
 #define CPU1_BOOT_REG		(samsung_rev() == EXYNOS4210_REV_1_1 ? \
@@ -67,9 +68,9 @@ static DEFINE_SPINLOCK(boot_lock);
 static void __cpuinit exynos4_gic_secondary_init(void)
 {
 	void __iomem *dist_base = S5P_VA_GIC_DIST +
-				 (EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+				(gic_bank_offset * smp_processor_id());
 	void __iomem *cpu_base = S5P_VA_GIC_CPU +
-				(EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+				(gic_bank_offset * smp_processor_id());
 	int i;
 
 	/*
