@@ -433,6 +433,49 @@ out_unlock:
 	mutex_unlock(&vfbs->work_lock);
 }
 
+static int do_surface_dirty_ldu(struct vmw_private *dev_priv,
+				struct vmw_framebuffer *framebuffer,
+				struct vmw_surface *surf,
+				unsigned flags, unsigned color,
+				struct drm_clip_rect *clips,
+				unsigned num_clips, int inc)
+{
+	SVGA3dCopyRect *cr;
+	int i;
+
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdPresent body;
+		SVGA3dCopyRect cr;
+	} *cmd;
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) + (num_clips - 1) *
+			       sizeof(cmd->cr));
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Fifo reserve failed.\n");
+		return -ENOMEM;
+	}
+
+	memset(cmd, 0, sizeof(*cmd));
+
+	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_PRESENT);
+	cmd->header.size = cpu_to_le32(sizeof(cmd->body) + num_clips *
+				       sizeof(cmd->cr));
+	cmd->body.sid = cpu_to_le32(surf->res.id);
+
+	for (i = 0, cr = &cmd->cr; i < num_clips; i++, cr++, clips += inc) {
+		cr->x = cpu_to_le16(clips->x1);
+		cr->y = cpu_to_le16(clips->y1);
+		cr->srcx = cr->x;
+		cr->srcy = cr->y;
+		cr->w = cpu_to_le16(clips->x2 - clips->x1);
+		cr->h = cpu_to_le16(clips->y2 - clips->y1);
+	}
+
+	vmw_fifo_commit(dev_priv, sizeof(*cmd) + (num_clips - 1) *
+			sizeof(cmd->cr));
+	return 0;
+}
 
 int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 				  struct drm_file *file_priv,
@@ -446,15 +489,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 		vmw_framebuffer_to_vfbs(framebuffer);
 	struct vmw_surface *surf = vfbs->surface;
 	struct drm_clip_rect norect;
-	SVGA3dCopyRect *cr;
-	int i, inc = 1;
-	int ret;
-
-	struct {
-		SVGA3dCmdHeader header;
-		SVGA3dCmdPresent body;
-		SVGA3dCopyRect cr;
-	} *cmd;
+	int ret, inc = 1;
 
 	if (unlikely(vfbs->master != file_priv->master))
 		return -EINVAL;
@@ -493,29 +528,10 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 		inc = 2; /* skip source rects */
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) + (num_clips - 1) * sizeof(cmd->cr));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
-		ttm_read_unlock(&vmaster->lock);
-		return -ENOMEM;
-	}
+	ret = do_surface_dirty_ldu(dev_priv, &vfbs->base, surf,
+				   flags, color,
+				   clips, num_clips, inc);
 
-	memset(cmd, 0, sizeof(*cmd));
-
-	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_PRESENT);
-	cmd->header.size = cpu_to_le32(sizeof(cmd->body) + num_clips * sizeof(cmd->cr));
-	cmd->body.sid = cpu_to_le32(surf->res.id);
-
-	for (i = 0, cr = &cmd->cr; i < num_clips; i++, cr++, clips += inc) {
-		cr->x = cpu_to_le16(clips->x1);
-		cr->y = cpu_to_le16(clips->y1);
-		cr->srcx = cr->x;
-		cr->srcy = cr->y;
-		cr->w = cpu_to_le16(clips->x2 - clips->x1);
-		cr->h = cpu_to_le16(clips->y2 - clips->y1);
-	}
-
-	vmw_fifo_commit(dev_priv, sizeof(*cmd) + (num_clips - 1) * sizeof(cmd->cr));
 	ttm_read_unlock(&vmaster->lock);
 	return 0;
 }
@@ -648,6 +664,41 @@ void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
 	kfree(vfbd);
 }
 
+static int do_dmabuf_dirty_ldu(struct vmw_private *dev_priv,
+			       struct vmw_framebuffer *framebuffer,
+			       struct vmw_dma_buffer *buffer,
+			       unsigned flags, unsigned color,
+			       struct drm_clip_rect *clips,
+			       unsigned num_clips, int increment)
+{
+	size_t fifo_size;
+	int i;
+
+	struct {
+		uint32_t header;
+		SVGAFifoCmdUpdate body;
+	} *cmd;
+
+	fifo_size = sizeof(*cmd) * num_clips;
+	cmd = vmw_fifo_reserve(dev_priv, fifo_size);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Fifo reserve failed.\n");
+		return -ENOMEM;
+	}
+
+	memset(cmd, 0, fifo_size);
+	for (i = 0; i < num_clips; i++, clips += increment) {
+		cmd[i].header = cpu_to_le32(SVGA_CMD_UPDATE);
+		cmd[i].body.x = cpu_to_le32(clips->x1);
+		cmd[i].body.y = cpu_to_le32(clips->y1);
+		cmd[i].body.width = cpu_to_le32(clips->x2 - clips->x1);
+		cmd[i].body.height = cpu_to_le32(clips->y2 - clips->y1);
+	}
+
+	vmw_fifo_commit(dev_priv, fifo_size);
+	return 0;
+}
+
 int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 				 struct drm_file *file_priv,
 				 unsigned flags, unsigned color,
@@ -656,13 +707,11 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
+	struct vmw_framebuffer_dmabuf *vfbd =
+		vmw_framebuffer_to_vfbd(framebuffer);
+	struct vmw_dma_buffer *dmabuf = vfbd->buffer;
 	struct drm_clip_rect norect;
-	int ret;
-	struct {
-		uint32_t header;
-		SVGAFifoCmdUpdate body;
-	} *cmd;
-	int i, increment = 1;
+	int ret, increment = 1;
 
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
@@ -679,25 +728,12 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 		increment = 2;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) * num_clips);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
-		ttm_read_unlock(&vmaster->lock);
-		return -ENOMEM;
-	}
+	ret = do_dmabuf_dirty_ldu(dev_priv, &vfbd->base, dmabuf,
+				  flags, color,
+				  clips, num_clips, increment);
 
-	for (i = 0; i < num_clips; i++, clips += increment) {
-		cmd[i].header = cpu_to_le32(SVGA_CMD_UPDATE);
-		cmd[i].body.x = cpu_to_le32(clips->x1);
-		cmd[i].body.y = cpu_to_le32(clips->y1);
-		cmd[i].body.width = cpu_to_le32(clips->x2 - clips->x1);
-		cmd[i].body.height = cpu_to_le32(clips->y2 - clips->y1);
-	}
-
-	vmw_fifo_commit(dev_priv, sizeof(*cmd) * num_clips);
 	ttm_read_unlock(&vmaster->lock);
-
-	return 0;
+	return ret;
 }
 
 static struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
