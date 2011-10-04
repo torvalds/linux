@@ -82,6 +82,7 @@ struct vmw_resource {
 	void (*hw_destroy) (struct vmw_resource *res);
 	void (*res_free) (struct vmw_resource *res);
 	bool on_validate_list;
+	struct list_head query_head; /* Protected by the cmdbuf mutex */
 	/* TODO is a generic snooper needed? */
 #if 0
 	void (*snoop)(struct vmw_resource *res,
@@ -142,6 +143,7 @@ struct vmw_sw_context{
 	uint32_t last_cid;
 	bool cid_valid;
 	bool kernel; /**< is the called made from the kernel */
+	struct vmw_resource *cur_ctx;
 	uint32_t last_sid;
 	uint32_t sid_translation;
 	bool sid_valid;
@@ -155,6 +157,11 @@ struct vmw_sw_context{
 	uint32_t cmd_bounce_size;
 	struct vmw_resource *resources[VMWGFX_MAX_VALIDATIONS];
 	uint32_t num_ref_resources;
+	uint32_t fence_flags;
+	struct list_head query_list;
+	struct ttm_buffer_object *cur_query_bo;
+	uint32_t cur_query_cid;
+	bool query_cid_valid;
 };
 
 struct vmw_legacy_display;
@@ -294,6 +301,16 @@ struct vmw_private {
 
 	struct mutex release_mutex;
 	uint32_t num_3d_resources;
+
+	/*
+	 * Query processing. These members
+	 * are protected by the cmdbuf mutex.
+	 */
+
+	struct ttm_buffer_object *dummy_query_bo;
+	struct ttm_buffer_object *pinned_bo;
+	uint32_t query_cid;
+	bool dummy_query_bo_pinned;
 };
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
@@ -418,6 +435,7 @@ extern int vmw_dmabuf_unpin(struct vmw_private *vmw_priv,
 			    bool interruptible);
 extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
 				 SVGAGuestPtr *ptr);
+extern void vmw_bo_pin(struct ttm_buffer_object *bo, bool pin);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
@@ -447,6 +465,8 @@ extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
+extern int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
+				     uint32_t cid);
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -484,6 +504,10 @@ extern int vmw_execbuf_process(struct drm_file *file_priv,
 			       uint64_t throttle_us,
 			       struct drm_vmw_fence_rep __user
 			       *user_fence_rep);
+
+extern void
+vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
+			      bool only_on_cid_match, uint32_t cid);
 
 /**
  * IRQs and wating - vmwgfx_irq.c

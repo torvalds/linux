@@ -42,6 +42,7 @@
  * May only be called by the current master since it assumes that the
  * master lock is the current master's lock.
  * This function takes the master's lock in write mode.
+ * Flushes and unpins the query bo to avoid failures.
  *
  * Returns
  *  -ERESTARTSYS if interrupted by a signal.
@@ -58,6 +59,8 @@ int vmw_dmabuf_to_placement(struct vmw_private *dev_priv,
 	ret = ttm_write_lock(&vmaster->lock, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
+
+	vmw_execbuf_release_pinned_bo(dev_priv, false, 0);
 
 	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
 	if (unlikely(ret != 0))
@@ -78,6 +81,7 @@ err:
  * May only be called by the current master since it assumes that the
  * master lock is the current master's lock.
  * This function takes the master's lock in write mode.
+ * Flushes and unpins the query bo if @pin == true to avoid failures.
  *
  * @dev_priv:  Driver private.
  * @buf:  DMA buffer to move.
@@ -99,6 +103,9 @@ int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
 	ret = ttm_write_lock(&vmaster->lock, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
+
+	if (pin)
+		vmw_execbuf_release_pinned_bo(dev_priv, false, 0);
 
 	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
 	if (unlikely(ret != 0))
@@ -177,6 +184,7 @@ int vmw_dmabuf_to_vram(struct vmw_private *dev_priv,
  * May only be called by the current master since it assumes that the
  * master lock is the current master's lock.
  * This function takes the master's lock in write mode.
+ * Flushes and unpins the query bo if @pin == true to avoid failures.
  *
  * @dev_priv:  Driver private.
  * @buf:  DMA buffer to move.
@@ -204,6 +212,9 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *dev_priv,
 	ret = ttm_write_lock(&vmaster->lock, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
+
+	if (pin)
+		vmw_execbuf_release_pinned_bo(dev_priv, false, 0);
 
 	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
 	if (unlikely(ret != 0))
@@ -275,4 +286,37 @@ void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *bo,
 		ptr->gmrId = bo->mem.start;
 		ptr->offset = 0;
 	}
+}
+
+
+/**
+ * vmw_bo_pin - Pin or unpin a buffer object without moving it.
+ *
+ * @bo: The buffer object. Must be reserved, and present either in VRAM
+ * or GMR memory.
+ * @pin: Whether to pin or unpin.
+ *
+ */
+void vmw_bo_pin(struct ttm_buffer_object *bo, bool pin)
+{
+	uint32_t pl_flags;
+	struct ttm_placement placement;
+	uint32_t old_mem_type = bo->mem.mem_type;
+	int ret;
+
+	BUG_ON(!atomic_read(&bo->reserved));
+	BUG_ON(old_mem_type != TTM_PL_VRAM &&
+	       old_mem_type != VMW_PL_FLAG_GMR);
+
+	pl_flags = TTM_PL_FLAG_VRAM | VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED;
+	if (pin)
+		pl_flags |= TTM_PL_FLAG_NO_EVICT;
+
+	memset(&placement, 0, sizeof(placement));
+	placement.num_placement = 1;
+	placement.placement = &pl_flags;
+
+	ret = ttm_bo_validate(bo, &placement, false, true, true);
+
+	BUG_ON(ret != 0 || bo->mem.mem_type != old_mem_type);
 }

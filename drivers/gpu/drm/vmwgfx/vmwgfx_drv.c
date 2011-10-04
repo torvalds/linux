@@ -213,6 +213,72 @@ static void vmw_print_capabilities(uint32_t capabilities)
 		DRM_INFO("  Screen Object 2.\n");
 }
 
+
+/**
+ * vmw_execbuf_prepare_dummy_query - Initialize a query result structure at
+ * the start of a buffer object.
+ *
+ * @dev_priv: The device private structure.
+ *
+ * This function will idle the buffer using an uninterruptible wait, then
+ * map the first page and initialize a pending occlusion query result structure,
+ * Finally it will unmap the buffer.
+ *
+ * TODO: Since we're only mapping a single page, we should optimize the map
+ * to use kmap_atomic / iomap_atomic.
+ */
+static void vmw_dummy_query_bo_prepare(struct vmw_private *dev_priv)
+{
+	struct ttm_bo_kmap_obj map;
+	volatile SVGA3dQueryResult *result;
+	bool dummy;
+	int ret;
+	struct ttm_bo_device *bdev = &dev_priv->bdev;
+	struct ttm_buffer_object *bo = dev_priv->dummy_query_bo;
+
+	ttm_bo_reserve(bo, false, false, false, 0);
+	spin_lock(&bdev->fence_lock);
+	ret = ttm_bo_wait(bo, false, false, false, TTM_USAGE_READWRITE);
+	spin_unlock(&bdev->fence_lock);
+	if (unlikely(ret != 0))
+		(void) vmw_fallback_wait(dev_priv, false, true, 0, false,
+					 10*HZ);
+
+	ret = ttm_bo_kmap(bo, 0, 1, &map);
+	if (likely(ret == 0)) {
+		result = ttm_kmap_obj_virtual(&map, &dummy);
+		result->totalSize = sizeof(*result);
+		result->state = SVGA3D_QUERYSTATE_PENDING;
+		result->result32 = 0xff;
+		ttm_bo_kunmap(&map);
+	} else
+		DRM_ERROR("Dummy query buffer map failed.\n");
+	ttm_bo_unreserve(bo);
+}
+
+
+/**
+ * vmw_dummy_query_bo_create - create a bo to hold a dummy query result
+ *
+ * @dev_priv: A device private structure.
+ *
+ * This function creates a small buffer object that holds the query
+ * result for dummy queries emitted as query barriers.
+ * No interruptible waits are done within this function.
+ *
+ * Returns an error if bo creation fails.
+ */
+static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
+{
+	return ttm_bo_create(&dev_priv->bdev,
+			     PAGE_SIZE,
+			     ttm_bo_type_device,
+			     &vmw_vram_sys_placement,
+			     0, 0, false, NULL,
+			     &dev_priv->dummy_query_bo);
+}
+
+
 static int vmw_request_device(struct vmw_private *dev_priv)
 {
 	int ret;
@@ -223,12 +289,29 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 		return ret;
 	}
 	vmw_fence_fifo_up(dev_priv->fman);
+	ret = vmw_dummy_query_bo_create(dev_priv);
+	if (unlikely(ret != 0))
+		goto out_no_query_bo;
+	vmw_dummy_query_bo_prepare(dev_priv);
 
 	return 0;
+
+out_no_query_bo:
+	vmw_fence_fifo_down(dev_priv->fman);
+	vmw_fifo_release(dev_priv, &dev_priv->fifo);
+	return ret;
 }
 
 static void vmw_release_device(struct vmw_private *dev_priv)
 {
+	/*
+	 * Previous destructions should've released
+	 * the pinned bo.
+	 */
+
+	BUG_ON(dev_priv->pinned_bo != NULL);
+
+	ttm_bo_unref(&dev_priv->dummy_query_bo);
 	vmw_fence_fifo_down(dev_priv->fman);
 	vmw_fifo_release(dev_priv, &dev_priv->fifo);
 }
@@ -794,6 +877,8 @@ static void vmw_master_drop(struct drm_device *dev,
 
 	vmw_fp->locked_master = drm_master_get(file_priv->master);
 	ret = ttm_vt_lock(&vmaster->lock, false, vmw_fp->tfile);
+	vmw_execbuf_release_pinned_bo(dev_priv, false, 0);
+
 	if (unlikely((ret != 0))) {
 		DRM_ERROR("Unable to lock TTM at VT switch.\n");
 		drm_master_put(&vmw_fp->locked_master);
@@ -844,6 +929,7 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 		 * This empties VRAM and unbinds all GMR bindings.
 		 * Buffer contents is moved to swappable memory.
 		 */
+		vmw_execbuf_release_pinned_bo(dev_priv, false, 0);
 		ttm_bo_swapout_all(&dev_priv->bdev);
 
 		break;

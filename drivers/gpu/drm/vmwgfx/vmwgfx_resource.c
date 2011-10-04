@@ -126,7 +126,7 @@ static int vmw_resource_init(struct vmw_private *dev_priv,
 	res->idr = idr;
 	res->avail = false;
 	res->dev_priv = dev_priv;
-
+	INIT_LIST_HEAD(&res->query_head);
 	do {
 		if (unlikely(idr_pre_get(idr, GFP_KERNEL) == 0))
 			return -ENOMEM;
@@ -194,8 +194,12 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDestroyContext body;
-	} *cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	} *cmd;
 
+
+	vmw_execbuf_release_pinned_bo(dev_priv, true, res->id);
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
 			  "destruction.\n");

@@ -505,3 +505,60 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 out_err:
 	return ret;
 }
+
+/**
+ * vmw_fifo_emit_dummy_query - emits a dummy query to the fifo.
+ *
+ * @dev_priv: The device private structure.
+ * @cid: The hardware context id used for the query.
+ *
+ * This function is used to emit a dummy occlusion query with
+ * no primitives rendered between query begin and query end.
+ * It's used to provide a query barrier, in order to know that when
+ * this query is finished, all preceding queries are also finished.
+ *
+ * A Query results structure should have been initialized at the start
+ * of the dev_priv->dummy_query_bo buffer object. And that buffer object
+ * must also be either reserved or pinned when this function is called.
+ *
+ * Returns -ENOMEM on failure to reserve fifo space.
+ */
+int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
+			      uint32_t cid)
+{
+	/*
+	 * A query wait without a preceding query end will
+	 * actually finish all queries for this cid
+	 * without writing to the query result structure.
+	 */
+
+	struct ttm_buffer_object *bo = dev_priv->dummy_query_bo;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdWaitForQuery body;
+	} *cmd;
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Out of fifo space for dummy query.\n");
+		return -ENOMEM;
+	}
+
+	cmd->header.id = SVGA_3D_CMD_WAIT_FOR_QUERY;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = cid;
+	cmd->body.type = SVGA3D_QUERYTYPE_OCCLUSION;
+
+	if (bo->mem.mem_type == TTM_PL_VRAM) {
+		cmd->body.guestResult.gmrId = SVGA_GMR_FRAMEBUFFER;
+		cmd->body.guestResult.offset = bo->offset;
+	} else {
+		cmd->body.guestResult.gmrId = bo->mem.start;
+		cmd->body.guestResult.offset = 0;
+	}
+
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	return 0;
+}
