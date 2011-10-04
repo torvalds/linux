@@ -677,7 +677,6 @@ extern int brcms_c_xmtfifo_sz_get(struct brcms_c_info *wlc, uint fifo,
 extern void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset,
 				       int len, void *buf);
 extern void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, u32 req_bit);
-extern void brcms_c_reset_bmac_done(struct brcms_c_info *wlc);
 
 #if defined(BCMDBG)
 extern void brcms_c_print_rxh(struct d11rxhdr *rxh);

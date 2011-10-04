@@ -3258,8 +3258,6 @@ static void brcms_b_reset(struct brcms_hardware *wlc_hw)
 
 	/* purge the dma rings */
 	brcms_c_flushqueues(wlc_hw->wlc);
-
-	brcms_c_reset_bmac_done(wlc_hw->wlc);
 }
 
 void brcms_c_reset(struct brcms_c_info *wlc)
@@ -8866,10 +8864,6 @@ brcms_c_set_addrmatch(struct brcms_c_info *wlc, int match_reg_offset,
 void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, u32 req_bit)
 {
 	brcms_b_pllreq(wlc->hw, set, req_bit);
-}
-
-void brcms_c_reset_bmac_done(struct brcms_c_info *wlc)
-{
 }
 
 /* check for the particular priority flow control bit being set */
