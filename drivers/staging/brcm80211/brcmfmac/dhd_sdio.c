@@ -725,14 +725,6 @@ module_param(brcmf_dpc_prio, int, 0);
 
 #define SDIO_DRIVE_STRENGTH	6	/* in milliamps */
 
-/* Use polling */
-uint brcmf_poll;
-module_param(brcmf_poll, uint, 0);
-
-/* Use interrupts */
-uint brcmf_intr = true;
-module_param(brcmf_intr, uint, 0);
-
 #define RETRYCHAN(chan) ((chan) == SDPCM_EVENT_CHANNEL)
 
 /* Retry count for register access failures */
@@ -4324,8 +4316,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 				    BRCMF_SDALIGN);
 
 	/* Set the poll and/or interrupt flags */
-	bus->intr = (bool) brcmf_intr;
-	bus->poll = (bool) brcmf_poll;
+	bus->intr = true;
+	bus->poll = false;
 	if (bus->poll)
 		bus->pollrate = 1;
 
