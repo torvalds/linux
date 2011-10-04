@@ -851,7 +851,6 @@ static int dapm_dac_check_power(struct snd_soc_dapm_widget *w)
 static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_dapm_path *path;
-	int power = 0;
 
 	DAPM_UPDATE_STAT(w, power_checks);
 
@@ -869,15 +868,13 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 		if (!path->sink)
 			continue;
 
-		if (dapm_widget_power_check(path->sink)) {
-			power = 1;
-			break;
-		}
+		if (dapm_widget_power_check(path->sink))
+			return 1;
 	}
 
 	dapm_clear_walk(w->dapm);
 
-	return power;
+	return 0;
 }
 
 static int dapm_always_on_check_power(struct snd_soc_dapm_widget *w)
