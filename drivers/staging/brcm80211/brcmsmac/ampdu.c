@@ -1162,7 +1162,7 @@ void brcms_c_ampdu_macaddr_upd(struct brcms_c_info *wlc)
 	/* driver needs to write the ta in the template; ta is at offset 16 */
 	memset(template, 0, sizeof(template));
 	memcpy(template, wlc->pub->cur_etheraddr, ETH_ALEN);
-	brcms_c_write_template_ram(wlc, (T_BA_TPL_BASE + 16),
+	brcms_b_write_template_ram(wlc->hw, (T_BA_TPL_BASE + 16),
 				  (T_RAM_ACCESS_SZ * 2),
 				  template);
 }

@@ -3846,9 +3846,9 @@ void brcms_c_mac_bcn_promisc_change(struct brcms_c_info *wlc, bool promisc)
 void brcms_c_mac_bcn_promisc(struct brcms_c_info *wlc)
 {
 	if (wlc->bcnmisc_monitor)
-		brcms_c_mctrl(wlc, MCTL_BCNS_PROMISC, MCTL_BCNS_PROMISC);
+		brcms_b_mctrl(wlc->hw, MCTL_BCNS_PROMISC, MCTL_BCNS_PROMISC);
 	else
-		brcms_c_mctrl(wlc, MCTL_BCNS_PROMISC, 0);
+		brcms_b_mctrl(wlc->hw, MCTL_BCNS_PROMISC, 0);
 }
 
 /* set or clear maccontrol bits MCTL_PROMISC and MCTL_KEEPCONTROL */
@@ -3872,7 +3872,7 @@ void brcms_c_mac_promisc(struct brcms_c_info *wlc)
 	if (wlc->monitor)
 		promisc_bits |= MCTL_PROMISC | MCTL_KEEPCONTROL;
 
-	brcms_c_mctrl(wlc, MCTL_PROMISC | MCTL_KEEPCONTROL, promisc_bits);
+	brcms_b_mctrl(wlc->hw, MCTL_PROMISC | MCTL_KEEPCONTROL, promisc_bits);
 }
 
 /* push sw hps and wake state through hardware */
@@ -3891,7 +3891,7 @@ void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc)
 	if (hps)
 		v2 |= MCTL_HPS;
 
-	brcms_c_mctrl(wlc, MCTL_WAKE | MCTL_HPS, v2);
+	brcms_b_mctrl(wlc->hw, MCTL_WAKE | MCTL_HPS, v2);
 
 	awake_before = ((v1 & MCTL_WAKE) || ((v1 & MCTL_HPS) == 0));
 
@@ -4301,8 +4301,8 @@ static void brcms_c_down_led_upd(struct brcms_c_info *wlc)
 	 * maintain LEDs while in down state, turn on sbclk if
 	 * not available yet. Turn on sbclk if necessary
 	 */
-	brcms_c_pllreq(wlc, true, BRCMS_PLLREQ_FLIP);
-	brcms_c_pllreq(wlc, false, BRCMS_PLLREQ_FLIP);
+	brcms_b_pllreq(wlc->hw, true, BRCMS_PLLREQ_FLIP);
+	brcms_b_pllreq(wlc->hw, false, BRCMS_PLLREQ_FLIP);
 }
 
 static void brcms_c_radio_monitor_start(struct brcms_c_info *wlc)
@@ -4312,7 +4312,7 @@ static void brcms_c_radio_monitor_start(struct brcms_c_info *wlc)
 		return;
 
 	wlc->radio_monitor = true;
-	brcms_c_pllreq(wlc, true, BRCMS_PLLREQ_RADIO_MON);
+	brcms_b_pllreq(wlc->hw, true, BRCMS_PLLREQ_RADIO_MON);
 	brcms_add_timer(wlc->wl, wlc->radio_timer, TIMER_INTERVAL_RADIOCHK,
 			true);
 }
@@ -4345,7 +4345,7 @@ bool brcms_c_radio_monitor_stop(struct brcms_c_info *wlc)
 		return true;
 
 	wlc->radio_monitor = false;
-	brcms_c_pllreq(wlc, false, BRCMS_PLLREQ_RADIO_MON);
+	brcms_b_pllreq(wlc->hw, false, BRCMS_PLLREQ_RADIO_MON);
 	return brcms_del_timer(wlc->wl, wlc->radio_timer);
 }
 
@@ -5675,10 +5675,10 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	    && (wlc->pub->sih->chip == BCM4313_CHIP_ID)) {
 		if (wlc->pub->boardrev >= 0x1250
 		    && (wlc->pub->boardflags & BFL_FEM_BT))
-			brcms_c_mhf(wlc, MHF5, MHF5_4313_GPIOCTRL,
+			brcms_b_mhf(wlc->hw, MHF5, MHF5_4313_GPIOCTRL,
 				MHF5_4313_GPIOCTRL, BRCM_BAND_ALL);
 		else
-			brcms_c_mhf(wlc, MHF4, MHF4_EXTPA_ENABLE,
+			brcms_b_mhf(wlc->hw, MHF4, MHF4_EXTPA_ENABLE,
 				    MHF4_EXTPA_ENABLE, BRCM_BAND_ALL);
 	}
 
@@ -5720,7 +5720,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	brcms_c_radio_monitor_stop(wlc);
 
 	/* Set EDCF hostflags */
-	brcms_c_mhf(wlc, MHF1, MHF1_EDCF, MHF1_EDCF, BRCM_BAND_ALL);
+	brcms_b_mhf(wlc->hw, MHF1, MHF1_EDCF, MHF1_EDCF, BRCM_BAND_ALL);
 
 	brcms_init(wlc->wl);
 	wlc->pub->up = true;
@@ -6576,11 +6576,6 @@ u16 brcms_b_rate_shm_offset(struct brcms_hardware *wlc_hw, u8 rate)
 	 * Direct-map Table
 	 */
 	return 2 * brcms_b_read_shm(wlc_hw, table_ptr + (index * 2));
-}
-
-static u16 brcms_c_rate_shm_offset(struct brcms_c_info *wlc, u8 rate)
-{
-	return brcms_b_rate_shm_offset(wlc->hw, rate);
 }
 
 /* Callback for device removed */
@@ -8581,7 +8576,7 @@ void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc, uint frame_len)
 	for (i = 0; i < rs.count; i++) {
 		rate = rs.rates[i] & BRCMS_RATE_MASK;
 
-		entry_ptr = brcms_c_rate_shm_offset(wlc, rate);
+		entry_ptr = brcms_b_rate_shm_offset(wlc->hw, rate);
 
 		/* Calculate the Probe Response PLCP for the given rate */
 		brcms_c_compute_plcp(wlc, rate, frame_len, plcp);
@@ -8798,17 +8793,6 @@ void brcms_c_copyto_shm(struct brcms_c_info *wlc, uint offset, const void *buf,
 	brcms_b_copyto_objmem(wlc->hw, offset, buf, len, OBJADDR_SHM_SEL);
 }
 
-/* wrapper BMAC functions to for HIGH driver access */
-void brcms_c_mctrl(struct brcms_c_info *wlc, u32 mask, u32 val)
-{
-	brcms_b_mctrl(wlc->hw, mask, val);
-}
-
-void brcms_c_mhf(struct brcms_c_info *wlc, u8 idx, u16 mask, u16 val, int bands)
-{
-	brcms_b_mhf(wlc->hw, idx, mask, val, bands);
-}
-
 int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 			   uint *blocks)
 {
@@ -8820,12 +8804,6 @@ int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 	return 0;
 }
 
-void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset, int len,
-			    void *buf)
-{
-	brcms_b_write_template_ram(wlc->hw, offset, len, buf);
-}
-
 void
 brcms_c_set_addrmatch(struct brcms_c_info *wlc, int match_reg_offset,
 		  const u8 *addr)
@@ -8833,11 +8811,6 @@ brcms_c_set_addrmatch(struct brcms_c_info *wlc, int match_reg_offset,
 	brcms_b_set_addrmatch(wlc->hw, match_reg_offset, addr);
 	if (match_reg_offset == RCM_BSSID_OFFSET)
 		memcpy(wlc->bsscfg->BSSID, addr, ETH_ALEN);
-}
-
-void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, u32 req_bit)
-{
-	brcms_b_pllreq(wlc->hw, set, req_bit);
 }
 
 /* check for the particular priority flow control bit being set */
