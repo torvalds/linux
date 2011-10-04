@@ -36,7 +36,7 @@
 #include <linux/usb/usbnet.h>
 #include <linux/slab.h>
 
-#define DRIVER_VERSION "14-Jun-2006"
+#define DRIVER_VERSION "26-Sep-2011"
 static const char driver_name [] = "asix";
 
 /* ASIX AX8817X based USB 2.0 Ethernet Devices */
@@ -676,12 +676,6 @@ asix_get_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo)
 	}
 	wolinfo->supported = WAKE_PHY | WAKE_MAGIC;
 	wolinfo->wolopts = 0;
-	if (opt & AX_MONITOR_MODE) {
-		if (opt & AX_MONITOR_LINK)
-			wolinfo->wolopts |= WAKE_PHY;
-		if (opt & AX_MONITOR_MAGIC)
-			wolinfo->wolopts |= WAKE_MAGIC;
-	}
 }
 
 static int
@@ -694,8 +688,6 @@ asix_set_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo)
 		opt |= AX_MONITOR_LINK;
 	if (wolinfo->wolopts & WAKE_MAGIC)
 		opt |= AX_MONITOR_MAGIC;
-	if (opt != 0)
-		opt |= AX_MONITOR_MODE;
 
 	if (asix_write_cmd(dev, AX_CMD_WRITE_MONITOR_MODE,
 			      opt, 0, 0, NULL) < 0)
@@ -966,36 +958,17 @@ static int ax88772_link_reset(struct usbnet *dev)
 	return 0;
 }
 
-static const struct net_device_ops ax88772_netdev_ops = {
-	.ndo_open		= usbnet_open,
-	.ndo_stop		= usbnet_stop,
-	.ndo_start_xmit		= usbnet_start_xmit,
-	.ndo_tx_timeout		= usbnet_tx_timeout,
-	.ndo_change_mtu		= usbnet_change_mtu,
-	.ndo_set_mac_address 	= asix_set_mac_address,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= asix_ioctl,
-	.ndo_set_rx_mode	= asix_set_multicast,
-};
-
-static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
+static int ax88772_reset(struct usbnet *dev)
 {
 	int ret, embd_phy;
 	u16 rx_ctl;
-	struct asix_data *data = (struct asix_data *)&dev->data;
-	u8 buf[ETH_ALEN];
-	u32 phyid;
-
-	data->eeprom_len = AX88772_EEPROM_LEN;
-
-	usbnet_get_endpoints(dev,intf);
 
 	if ((ret = asix_write_gpio(dev,
 			AX_GPIO_RSE | AX_GPIO_GPO_2 | AX_GPIO_GPO2EN, 5)) < 0)
 		goto out;
 
-	/* 0x10 is the phy id of the embedded 10/100 ethernet phy */
 	embd_phy = ((asix_get_phy_addr(dev) & 0x1f) == 0x10 ? 1 : 0);
+
 	if ((ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT,
 				embd_phy, 0, 0, NULL)) < 0) {
 		dbg("Select PHY #1 failed: %d", ret);
@@ -1010,6 +983,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto out;
 
 	msleep(150);
+
 	if (embd_phy) {
 		if ((ret = asix_sw_reset(dev, AX_SWRESET_IPRL)) < 0)
 			goto out;
@@ -1028,25 +1002,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	rx_ctl = asix_read_rx_ctl(dev);
 	dbg("RX_CTL is 0x%04x setting to 0x0000", rx_ctl);
 
-	/* Get the MAC address */
-	if ((ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID,
-				0, 0, ETH_ALEN, buf)) < 0) {
-		dbg("Failed to read MAC address: %d", ret);
-		goto out;
-	}
-	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
-
-	/* Initialize MII structure */
-	dev->mii.dev = dev->net;
-	dev->mii.mdio_read = asix_mdio_read;
-	dev->mii.mdio_write = asix_mdio_write;
-	dev->mii.phy_id_mask = 0x1f;
-	dev->mii.reg_num_mask = 0x1f;
-	dev->mii.phy_id = asix_get_phy_addr(dev);
-
-	phyid = asix_get_phyid(dev);
-	dbg("PHYID=0x%08x", phyid);
-
 	if ((ret = asix_sw_reset(dev, AX_SWRESET_PRL)) < 0)
 		goto out;
 
@@ -1056,9 +1011,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto out;
 
 	msleep(150);
-
-	dev->net->netdev_ops = &ax88772_netdev_ops;
-	dev->net->ethtool_ops = &ax88772_ethtool_ops;
 
 	asix_mdio_write(dev->net, dev->mii.phy_id, MII_BMCR, BMCR_RESET);
 	asix_mdio_write(dev->net, dev->mii.phy_id, MII_ADVERTISE,
@@ -1085,6 +1037,61 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	rx_ctl = asix_read_medium_status(dev);
 	dbg("Medium Status is 0x%04x after all initializations", rx_ctl);
 
+	return 0;
+
+out:
+	return ret;
+
+}
+
+static const struct net_device_ops ax88772_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_set_mac_address 	= asix_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= asix_ioctl,
+	.ndo_set_rx_mode        = asix_set_multicast,
+};
+
+static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	int ret;
+	struct asix_data *data = (struct asix_data *)&dev->data;
+	u8 buf[ETH_ALEN];
+	u32 phyid;
+
+	data->eeprom_len = AX88772_EEPROM_LEN;
+
+	usbnet_get_endpoints(dev,intf);
+
+	/* Get the MAC address */
+	if ((ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID,
+				0, 0, ETH_ALEN, buf)) < 0) {
+		dbg("Failed to read MAC address: %d", ret);
+		goto out;
+	}
+	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
+
+	/* Initialize MII structure */
+	dev->mii.dev = dev->net;
+	dev->mii.mdio_read = asix_mdio_read;
+	dev->mii.mdio_write = asix_mdio_write;
+	dev->mii.phy_id_mask = 0x1f;
+	dev->mii.reg_num_mask = 0x1f;
+	dev->mii.phy_id = asix_get_phy_addr(dev);
+
+	phyid = asix_get_phyid(dev);
+	dbg("PHYID=0x%08x", phyid);
+
+	dev->net->netdev_ops = &ax88772_netdev_ops;
+	dev->net->ethtool_ops = &ax88772_ethtool_ops;
+
+	if ((ret = ax88772_reset(dev)) < 0)
+		goto out;
+
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
 		/* hard_mtu  is still the default - the device does not support
@@ -1092,7 +1099,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->rx_urb_size = 2048;
 	}
 	return 0;
-
 out:
 	return ret;
 }
@@ -1426,7 +1432,7 @@ static const struct driver_info ax88772_info = {
 	.bind = ax88772_bind,
 	.status = asix_status,
 	.link_reset = ax88772_link_reset,
-	.reset = ax88772_link_reset,
+	.reset = ax88772_reset,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR,
 	.rx_fixup = asix_rx_fixup,
 	.tx_fixup = asix_tx_fixup,
@@ -1588,6 +1594,7 @@ static void __exit asix_exit(void)
 module_exit(asix_exit);
 
 MODULE_AUTHOR("David Hollis");
+MODULE_VERSION(DRIVER_VERSION);
 MODULE_DESCRIPTION("ASIX AX8817X based USB 2.0 Ethernet Devices");
 MODULE_LICENSE("GPL");
 
