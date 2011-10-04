@@ -19,18 +19,6 @@
 
 #include <linux/skbuff.h>
 
-/* Buffer structure for collecting string-formatted data
-* using brcmu_bprintf() API.
-* Use brcmu_binit() to initialize before use
-*/
-
-struct brcmu_strbuf {
-	char *buf;	/* pointer to current position in origbuf */
-	unsigned int size;	/* current (residual) size in bytes */
-	char *origbuf;	/* unmodified pointer to orignal buffer */
-	unsigned int origsize;	/* unmodified orignal buffer size in bytes */
-};
-
 /*
  * Spin at most 'us' microseconds while 'exp' is true.
  * Caller should explicitly test 'exp' when this completes
@@ -227,9 +215,6 @@ extern struct brcmu_tlv *brcmu_parse_tlvs(void *buf, int buflen,
 /* power conversion */
 extern u16 brcmu_qdbm_to_mw(u8 qdbm);
 extern u8 brcmu_mw_to_qdbm(u16 mw);
-
-extern void brcmu_binit(struct brcmu_strbuf *b, char *buf, uint size);
-extern int brcmu_bprintf(struct brcmu_strbuf *b, const char *fmt, ...);
 
 extern uint brcmu_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);

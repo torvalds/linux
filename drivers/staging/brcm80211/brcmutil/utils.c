@@ -598,37 +598,3 @@ uint brcmu_bitcount(u8 *bitmap, uint length)
 	return bitcount;
 }
 EXPORT_SYMBOL(brcmu_bitcount);
-
-/* Initialization of brcmu_strbuf structure */
-void brcmu_binit(struct brcmu_strbuf *b, char *buf, uint size)
-{
-	b->origsize = b->size = size;
-	b->origbuf = b->buf = buf;
-}
-EXPORT_SYMBOL(brcmu_binit);
-
-/* Buffer sprintf wrapper to guard against buffer overflow */
-int brcmu_bprintf(struct brcmu_strbuf *b, const char *fmt, ...)
-{
-	va_list ap;
-	int r;
-
-	va_start(ap, fmt);
-	r = vsnprintf(b->buf, b->size, fmt, ap);
-
-	/* Non Ansi C99 compliant returns -1,
-	 * Ansi compliant return r >= b->size,
-	 * stdlib returns 0, handle all
-	 */
-	if ((r == -1) || (r >= (int)b->size) || (r == 0)) {
-		b->size = 0;
-	} else {
-		b->size -= r;
-		b->buf += r;
-	}
-
-	va_end(ap);
-
-	return r;
-}
-EXPORT_SYMBOL(brcmu_bprintf);
