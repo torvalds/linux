@@ -503,6 +503,8 @@ int __dynamic_dev_dbg(struct _ddebug *descriptor,
 }
 EXPORT_SYMBOL(__dynamic_dev_dbg);
 
+#ifdef CONFIG_NET
+
 int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 		      const struct net_device *dev, const char *fmt, ...)
 {
@@ -523,6 +525,8 @@ int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 	return res;
 }
 EXPORT_SYMBOL(__dynamic_netdev_dbg);
+
+#endif
 
 static __initdata char ddebug_setup_string[1024];
 static __init int ddebug_setup_query(char *str)
