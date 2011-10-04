@@ -450,6 +450,73 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 	return 0;
 }
 
+static int vmw_cmd_check_define_gmrfb(struct vmw_private *dev_priv,
+				      struct vmw_sw_context *sw_context,
+				      void *buf)
+{
+	struct vmw_dma_buffer *vmw_bo;
+	int ret;
+
+	struct {
+		uint32_t header;
+		SVGAFifoCmdDefineGMRFB body;
+	} *cmd = buf;
+
+	ret = vmw_translate_guest_ptr(dev_priv, sw_context,
+				      &cmd->body.ptr,
+				      &vmw_bo);
+	if (unlikely(ret != 0))
+		return ret;
+
+	vmw_dmabuf_unreference(&vmw_bo);
+
+	return ret;
+}
+
+static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
+				struct vmw_sw_context *sw_context,
+				void *buf, uint32_t *size)
+{
+	uint32_t size_remaining = *size;
+	bool need_kernel = true;
+	uint32_t cmd_id;
+
+	cmd_id = le32_to_cpu(((uint32_t *)buf)[0]);
+	switch (cmd_id) {
+	case SVGA_CMD_UPDATE:
+		*size = sizeof(uint32_t) + sizeof(SVGAFifoCmdUpdate);
+		need_kernel = false;
+		break;
+	case SVGA_CMD_DEFINE_GMRFB:
+		*size = sizeof(uint32_t) + sizeof(SVGAFifoCmdDefineGMRFB);
+		break;
+	case SVGA_CMD_BLIT_GMRFB_TO_SCREEN:
+		*size = sizeof(uint32_t) + sizeof(SVGAFifoCmdBlitGMRFBToScreen);
+		break;
+	case SVGA_CMD_BLIT_SCREEN_TO_GMRFB:
+		*size = sizeof(uint32_t) + sizeof(SVGAFifoCmdBlitGMRFBToScreen);
+		break;
+	default:
+		DRM_ERROR("Unsupported SVGA command: %u.\n", cmd_id);
+		return -EINVAL;
+	}
+
+	if (*size > size_remaining) {
+		DRM_ERROR("Invalid SVGA command (size mismatch):"
+			  " %u.\n", cmd_id);
+		return -EINVAL;
+	}
+
+	if (unlikely(need_kernel && !sw_context->kernel)) {
+		DRM_ERROR("Kernel only SVGA command: %u.\n", cmd_id);
+		return -EPERM;
+	}
+
+	if (cmd_id == SVGA_CMD_DEFINE_GMRFB)
+		return vmw_cmd_check_define_gmrfb(dev_priv, sw_context, buf);
+
+	return 0;
+}
 
 typedef int (*vmw_cmd_func) (struct vmw_private *,
 			     struct vmw_sw_context *,
@@ -502,11 +569,11 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 	SVGA3dCmdHeader *header = (SVGA3dCmdHeader *) buf;
 	int ret;
 
-	cmd_id = ((uint32_t *)buf)[0];
-	if (cmd_id == SVGA_CMD_UPDATE) {
-		*size = 5 << 2;
-		return 0;
-	}
+	cmd_id = le32_to_cpu(((uint32_t *)buf)[0]);
+	/* Handle any none 3D commands */
+	if (unlikely(cmd_id < SVGA_CMD_MAX))
+		return vmw_cmd_check_not_3d(dev_priv, sw_context, buf, size);
+
 
 	cmd_id = le32_to_cpu(header->id);
 	*size = le32_to_cpu(header->size) + sizeof(SVGA3dCmdHeader);
