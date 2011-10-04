@@ -42,7 +42,8 @@ BRCMSMAC_OFILES := \
 	otp.o \
 	srom.o \
 	dma.o \
-	nicpci.o
+	nicpci.o \
+	brcms_trace_events.o
 
 MODULEPFX := brcmsmac
 

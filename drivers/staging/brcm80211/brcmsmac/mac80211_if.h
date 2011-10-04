@@ -101,5 +101,7 @@ extern void brcms_add_timer(struct brcms_info *wl, struct brcms_timer *timer,
 			    uint ms, int periodic);
 extern bool brcms_del_timer(struct brcms_info *wl, struct brcms_timer *timer);
 extern void brcms_msleep(struct brcms_info *wl, uint ms);
+extern void brcms_dpc(unsigned long data);
+extern void brcms_timer(struct brcms_timer *t);
 
 #endif				/* _BRCM_MAC80211_IF_H_ */

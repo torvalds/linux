@@ -750,7 +750,7 @@ static int brcms_set_hint(struct brcms_info *wl, char *abbrev)
 	return regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev);
 }
 
-static void brcms_dpc(unsigned long data)
+void brcms_dpc(unsigned long data)
 {
 	struct brcms_info *wl;
 
@@ -1430,7 +1430,7 @@ void brcms_down(struct brcms_info *wl)
 /*
 * precondition: perimeter lock is not acquired
  */
-static void _brcms_timer(struct brcms_timer *t)
+void brcms_timer(struct brcms_timer *t)
 {
 	LOCK(t->wl);
 
@@ -1454,9 +1454,9 @@ static void _brcms_timer(struct brcms_timer *t)
 /*
  * is called by the kernel from software irq context
  */
-static void brcms_timer(unsigned long data)
+static void _brcms_timer(unsigned long data)
 {
-	_brcms_timer((struct brcms_timer *) data);
+	brcms_timer((struct brcms_timer *) data);
 }
 
 /*
@@ -1477,7 +1477,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 
 	init_timer(&t->timer);
 	t->timer.data = (unsigned long) t;
-	t->timer.function = brcms_timer;
+	t->timer.function = _brcms_timer;
 	t->wl = wl;
 	t->fn = fn;
 	t->arg = arg;
