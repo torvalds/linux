@@ -32,6 +32,7 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <net/cfg80211.h>
+#include <net/rtnetlink.h>
 #include <defs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
@@ -1240,7 +1241,9 @@ void brcmf_detach(struct brcmf_pub *drvr)
 
 			ifp = drvr_priv->iflist[0];
 			if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
+				rtnl_lock();
 				brcmf_netdev_stop(ifp->ndev);
+				rtnl_unlock();
 				unregister_netdev(ifp->ndev);
 			}
 
