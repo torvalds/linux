@@ -1435,7 +1435,7 @@ void enable_percpu_irq(unsigned int irq, unsigned int type)
 		ret = __irq_set_trigger(desc, irq, type);
 
 		if (ret) {
-			WARN(1, "failed to set type for IRQ%d\n, irq");
+			WARN(1, "failed to set type for IRQ%d\n", irq);
 			goto out;
 		}
 	}
