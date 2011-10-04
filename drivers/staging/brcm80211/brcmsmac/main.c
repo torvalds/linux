@@ -4199,26 +4199,23 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 		return;
 	}
 
-	do {
-		memset((char *)&acp_shm, 0, sizeof(struct shm_acparams));
-		/* fill in shm ac params struct */
-		acp_shm.txop = params->txop;
-		/* convert from units of 32us to us for ucode */
-		wlc->edcf_txop[aci & 0x3] = acp_shm.txop =
-		    EDCF_TXOP2USEC(acp_shm.txop);
-		acp_shm.aifs = (params->aifs & EDCF_AIFSN_MASK);
+	memset((char *)&acp_shm, 0, sizeof(struct shm_acparams));
+	/* fill in shm ac params struct */
+	acp_shm.txop = params->txop;
+	/* convert from units of 32us to us for ucode */
+	wlc->edcf_txop[aci & 0x3] = acp_shm.txop =
+	    EDCF_TXOP2USEC(acp_shm.txop);
+	acp_shm.aifs = (params->aifs & EDCF_AIFSN_MASK);
 
-		if (aci == AC_VI && acp_shm.txop == 0
-		    && acp_shm.aifs < EDCF_AIFSN_MAX)
-			acp_shm.aifs++;
+	if (aci == AC_VI && acp_shm.txop == 0
+	    && acp_shm.aifs < EDCF_AIFSN_MAX)
+		acp_shm.aifs++;
 
-		if (acp_shm.aifs < EDCF_AIFSN_MIN
-		    || acp_shm.aifs > EDCF_AIFSN_MAX) {
-			wiphy_err(wlc->wiphy, "wl%d: edcf_setparams: bad "
-				  "aifs %d\n", wlc->pub->unit, acp_shm.aifs);
-			continue;
-		}
-
+	if (acp_shm.aifs < EDCF_AIFSN_MIN
+	    || acp_shm.aifs > EDCF_AIFSN_MAX) {
+		wiphy_err(wlc->wiphy, "wl%d: edcf_setparams: bad "
+			  "aifs %d\n", wlc->pub->unit, acp_shm.aifs);
+	} else {
 		acp_shm.cwmin = params->cw_min;
 		acp_shm.cwmax = params->cw_max;
 		acp_shm.cwcur = acp_shm.cwmin;
@@ -4239,8 +4236,7 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 					  M_EDCF_QINFO +
 					  wme_ac2fifo[aci] * M_EDCF_QLEN + i,
 					  *shm_entry++);
-
-	} while (0);
+	}
 
 	if (suspend)
 		brcms_c_suspend_mac_and_wait(wlc);
