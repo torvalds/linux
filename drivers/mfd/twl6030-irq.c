@@ -37,6 +37,7 @@
 #include <linux/kthread.h>
 #include <linux/i2c/twl.h>
 #include <linux/platform_device.h>
+#include <linux/suspend.h>
 
 #include "twl-core.h"
 
@@ -83,8 +84,42 @@ static int twl6030_interrupt_mapping[24] = {
 /*----------------------------------------------------------------------*/
 
 static unsigned twl6030_irq_base;
+static int twl_irq;
+static bool twl_irq_wake_enabled;
 
 static struct completion irq_event;
+static atomic_t twl6030_wakeirqs = ATOMIC_INIT(0);
+
+static int twl6030_irq_pm_notifier(struct notifier_block *notifier,
+				   unsigned long pm_event, void *unused)
+{
+	int chained_wakeups;
+
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		chained_wakeups = atomic_read(&twl6030_wakeirqs);
+
+		if (chained_wakeups && !twl_irq_wake_enabled) {
+			if (enable_irq_wake(twl_irq))
+				pr_err("twl6030 IRQ wake enable failed\n");
+			else
+				twl_irq_wake_enabled = true;
+		} else if (!chained_wakeups && twl_irq_wake_enabled) {
+			disable_irq_wake(twl_irq);
+			twl_irq_wake_enabled = false;
+		}
+
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block twl6030_irq_pm_notifier_block = {
+	.notifier_call = twl6030_irq_pm_notifier,
+};
 
 /*
  * This thread processes interrupts reported by the Primary Interrupt Handler.
@@ -189,9 +224,12 @@ static inline void activate_irq(int irq)
 
 int twl6030_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	int twl_irq = (int)irq_get_chip_data(d->irq);
+	if (on)
+		atomic_inc(&twl6030_wakeirqs);
+	else
+		atomic_dec(&twl6030_wakeirqs);
 
-	return irq_set_irq_wake(twl_irq, on);
+	return 0;
 }
 
 /*----------------------------------------------------------------------*/
@@ -354,6 +392,9 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 		status = PTR_ERR(task);
 		goto fail_kthread;
 	}
+
+	twl_irq = irq_num;
+	register_pm_notifier(&twl6030_irq_pm_notifier_block);
 	return status;
 
 fail_kthread:
@@ -367,6 +408,7 @@ fail_irq:
 
 int twl6030_exit_irq(void)
 {
+	unregister_pm_notifier(&twl6030_irq_pm_notifier_block);
 
 	if (twl6030_irq_base) {
 		pr_err("twl6030: can't yet clean up IRQs?\n");
