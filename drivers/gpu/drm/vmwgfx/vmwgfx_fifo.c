@@ -48,6 +48,10 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 	if (hwversion < SVGA3D_HWVERSION_WS8_B1)
 		return false;
 
+	/* Non-Screen Object path does not support surfaces */
+	if (!dev_priv->sou_priv)
+		return false;
+
 	return true;
 }
 

@@ -457,15 +457,17 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (unlikely(ret != 0))
 		goto out_no_fifo;
 	vmw_kms_save_vga(dev_priv);
-	DRM_INFO("%s", vmw_fifo_have_3d(dev_priv) ?
-		 "Detected device 3D availability.\n" :
-		 "Detected no device 3D availability.\n");
 
 	/* Start kms and overlay systems, needs fifo. */
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;
 	vmw_overlay_init(dev_priv);
+
+	/* 3D Depends on Screen Objects being used. */
+	DRM_INFO("%s", vmw_fifo_have_3d(dev_priv) ?
+		 "Detected device 3D availability.\n" :
+		 "Detected no device 3D availability.\n");
 
 	/* We might be done with the fifo now */
 	if (dev_priv->enable_fb) {
@@ -779,8 +781,6 @@ static void vmw_master_drop(struct drm_device *dev,
 
 	vmw_fp->locked_master = drm_master_get(file_priv->master);
 	ret = ttm_vt_lock(&vmaster->lock, false, vmw_fp->tfile);
-	vmw_kms_idle_workqueues(vmaster);
-
 	if (unlikely((ret != 0))) {
 		DRM_ERROR("Unable to lock TTM at VT switch.\n");
 		drm_master_put(&vmw_fp->locked_master);

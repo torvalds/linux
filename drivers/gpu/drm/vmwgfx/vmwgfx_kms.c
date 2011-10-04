@@ -31,9 +31,6 @@
 /* Might need a hrtimer here? */
 #define VMWGFX_PRESENT_RATE ((HZ / 60 > 0) ? HZ / 60 : 1)
 
-static int vmw_surface_dmabuf_pin(struct vmw_framebuffer *vfb);
-static int vmw_surface_dmabuf_unpin(struct vmw_framebuffer *vfb);
-
 void vmw_display_unit_cleanup(struct vmw_display_unit *du)
 {
 	if (du->cursor_surface)
@@ -330,40 +327,9 @@ struct vmw_framebuffer_surface {
 	struct vmw_framebuffer base;
 	struct vmw_surface *surface;
 	struct vmw_dma_buffer *buffer;
-	struct delayed_work d_work;
-	struct mutex work_lock;
-	bool present_fs;
 	struct list_head head;
 	struct drm_master *master;
 };
-
-/**
- * vmw_kms_idle_workqueues - Flush workqueues on this master
- *
- * @vmaster - Pointer identifying the master, for the surfaces of which
- * we idle the dirty work queues.
- *
- * This function should be called with the ttm lock held in exclusive mode
- * to idle all dirty work queues before the fifo is taken down.
- *
- * The work task may actually requeue itself, but after the flush returns we're
- * sure that there's nothing to present, since the ttm lock is held in
- * exclusive mode, so the fifo will never get used.
- */
-
-void vmw_kms_idle_workqueues(struct vmw_master *vmaster)
-{
-	struct vmw_framebuffer_surface *entry;
-
-	mutex_lock(&vmaster->fb_surf_mutex);
-	list_for_each_entry(entry, &vmaster->fb_surf, head) {
-		if (cancel_delayed_work_sync(&entry->d_work))
-			(void) entry->d_work.work.func(&entry->d_work.work);
-
-		(void) cancel_delayed_work_sync(&entry->d_work);
-	}
-	mutex_unlock(&vmaster->fb_surf_mutex);
-}
 
 void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 {
@@ -376,107 +342,11 @@ void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 	list_del(&vfbs->head);
 	mutex_unlock(&vmaster->fb_surf_mutex);
 
-	cancel_delayed_work_sync(&vfbs->d_work);
 	drm_master_put(&vfbs->master);
 	drm_framebuffer_cleanup(framebuffer);
 	vmw_surface_unreference(&vfbs->surface);
 
 	kfree(vfbs);
-}
-
-static void vmw_framebuffer_present_fs_callback(struct work_struct *work)
-{
-	struct delayed_work *d_work =
-		container_of(work, struct delayed_work, work);
-	struct vmw_framebuffer_surface *vfbs =
-		container_of(d_work, struct vmw_framebuffer_surface, d_work);
-	struct vmw_surface *surf = vfbs->surface;
-	struct drm_framebuffer *framebuffer = &vfbs->base.base;
-	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
-
-	struct {
-		SVGA3dCmdHeader header;
-		SVGA3dCmdPresent body;
-		SVGA3dCopyRect cr;
-	} *cmd;
-
-	/**
-	 * Strictly we should take the ttm_lock in read mode before accessing
-	 * the fifo, to make sure the fifo is present and up. However,
-	 * instead we flush all workqueues under the ttm lock in exclusive mode
-	 * before taking down the fifo.
-	 */
-	mutex_lock(&vfbs->work_lock);
-	if (!vfbs->present_fs)
-		goto out_unlock;
-
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL))
-		goto out_resched;
-
-	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_PRESENT);
-	cmd->header.size = cpu_to_le32(sizeof(cmd->body) + sizeof(cmd->cr));
-	cmd->body.sid = cpu_to_le32(surf->res.id);
-	cmd->cr.x = cpu_to_le32(0);
-	cmd->cr.y = cpu_to_le32(0);
-	cmd->cr.srcx = cmd->cr.x;
-	cmd->cr.srcy = cmd->cr.y;
-	cmd->cr.w = cpu_to_le32(framebuffer->width);
-	cmd->cr.h = cpu_to_le32(framebuffer->height);
-	vfbs->present_fs = false;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
-out_resched:
-	/**
-	 * Will not re-add if already pending.
-	 */
-	schedule_delayed_work(&vfbs->d_work, VMWGFX_PRESENT_RATE);
-out_unlock:
-	mutex_unlock(&vfbs->work_lock);
-}
-
-static int do_surface_dirty_ldu(struct vmw_private *dev_priv,
-				struct vmw_framebuffer *framebuffer,
-				struct vmw_surface *surf,
-				unsigned flags, unsigned color,
-				struct drm_clip_rect *clips,
-				unsigned num_clips, int inc)
-{
-	SVGA3dCopyRect *cr;
-	int i;
-
-	struct {
-		SVGA3dCmdHeader header;
-		SVGA3dCmdPresent body;
-		SVGA3dCopyRect cr;
-	} *cmd;
-
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) + (num_clips - 1) *
-			       sizeof(cmd->cr));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
-		return -ENOMEM;
-	}
-
-	memset(cmd, 0, sizeof(*cmd));
-
-	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_PRESENT);
-	cmd->header.size = cpu_to_le32(sizeof(cmd->body) + num_clips *
-				       sizeof(cmd->cr));
-	cmd->body.sid = cpu_to_le32(surf->res.id);
-
-	for (i = 0, cr = &cmd->cr; i < num_clips; i++, cr++, clips += inc) {
-		cr->x = cpu_to_le16(clips->x1);
-		cr->y = cpu_to_le16(clips->y1);
-		cr->srcx = cr->x;
-		cr->srcy = cr->y;
-		cr->w = cpu_to_le16(clips->x2 - clips->x1);
-		cr->h = cpu_to_le16(clips->y2 - clips->y1);
-	}
-
-	vmw_fifo_commit(dev_priv, sizeof(*cmd) + (num_clips - 1) *
-			sizeof(cmd->cr));
-
-	return 0;
 }
 
 static int do_surface_dirty_sou(struct vmw_private *dev_priv,
@@ -551,27 +421,13 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 	if (unlikely(vfbs->master != file_priv->master))
 		return -EINVAL;
 
+	/* Require ScreenObject support for 3D */
+	if (!dev_priv->sou_priv)
+		return -EINVAL;
+
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
 		return ret;
-
-	/* Are we using screen objects? */
-	if (!dev_priv->sou_priv) {
-		int ret;
-
-		mutex_lock(&vfbs->work_lock);
-		vfbs->present_fs = true;
-		ret = schedule_delayed_work(&vfbs->d_work, VMWGFX_PRESENT_RATE);
-		mutex_unlock(&vfbs->work_lock);
-		if (ret) {
-			/**
-			 * No work pending, Force immediate present.
-			 */
-			vmw_framebuffer_present_fs_callback(&vfbs->d_work.work);
-		}
-		ttm_read_unlock(&vmaster->lock);
-		return 0;
-	}
 
 	if (!num_clips) {
 		num_clips = 1;
@@ -584,14 +440,9 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 		inc = 2; /* skip source rects */
 	}
 
-	if (!dev_priv->sou_priv)
-		ret = do_surface_dirty_ldu(dev_priv, &vfbs->base, surf,
-					   flags, color,
-					   clips, num_clips, inc);
-	else
-		ret = do_surface_dirty_sou(dev_priv, &vfbs->base, surf,
-					   flags, color,
-					   clips, num_clips, inc);
+	ret = do_surface_dirty_sou(dev_priv, &vfbs->base, surf,
+				   flags, color,
+				   clips, num_clips, inc);
 
 	ttm_read_unlock(&vmaster->lock);
 	return 0;
@@ -616,6 +467,10 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	enum SVGA3dSurfaceFormat format;
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
+
+	/* 3D is only supported on HWv8 hosts which supports screen objects */
+	if (!dev_priv->sou_priv)
+		return -ENOSYS;
 
 	/*
 	 * Sanity checks.
@@ -679,19 +534,10 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	vfbs->base.base.depth = mode_cmd->depth;
 	vfbs->base.base.width = mode_cmd->width;
 	vfbs->base.base.height = mode_cmd->height;
-	/* Don't need to fill start of vram with empty
-	 * buffer if we have screen objects support.
-	 */
-	if (!dev_priv->sou_priv) {
-		vfbs->base.pin = &vmw_surface_dmabuf_pin;
-		vfbs->base.unpin = &vmw_surface_dmabuf_unpin;
-	}
 	vfbs->surface = surface;
 	vfbs->master = drm_master_get(file_priv->master);
-	mutex_init(&vfbs->work_lock);
 
 	mutex_lock(&vmaster->fb_surf_mutex);
-	INIT_DELAYED_WORK(&vfbs->d_work, &vmw_framebuffer_present_fs_callback);
 	list_add_tail(&vfbs->head, &vmaster->fb_surf);
 	mutex_unlock(&vmaster->fb_surf_mutex);
 
@@ -871,55 +717,6 @@ static struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
 	.dirty = vmw_framebuffer_dmabuf_dirty,
 	.create_handle = vmw_framebuffer_create_handle,
 };
-
-/**
- * We need to reserve the start of vram because the host might
- * scribble to it at mode changes, so we need to reserve it.
- */
-static int vmw_surface_dmabuf_pin(struct vmw_framebuffer *vfb)
-{
-	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_framebuffer_surface *vfbs =
-		vmw_framebuffer_to_vfbs(&vfb->base);
-	unsigned long size = vfbs->base.base.pitch * vfbs->base.base.height;
-	int ret;
-	struct ttm_placement ne_placement = vmw_vram_ne_placement;
-
-	ne_placement.lpfn = (size + (PAGE_SIZE - 1)) / PAGE_SIZE;
-
-	vfbs->buffer = kzalloc(sizeof(*vfbs->buffer), GFP_KERNEL);
-	if (unlikely(vfbs->buffer == NULL))
-		return -ENOMEM;
-
-	vmw_overlay_pause_all(dev_priv);
-	ret = vmw_dmabuf_init(dev_priv, vfbs->buffer, size,
-			       &vmw_vram_ne_placement,
-			       false, &vmw_dmabuf_bo_free);
-	vmw_overlay_resume_all(dev_priv);
-	if (unlikely(ret != 0))
-		vfbs->buffer = NULL;
-
-	return ret;
-}
-
-/**
- * See vmw_surface_dmabuf_pin.
- */
-static int vmw_surface_dmabuf_unpin(struct vmw_framebuffer *vfb)
-{
-	struct ttm_buffer_object *bo;
-	struct vmw_framebuffer_surface *vfbs =
-		vmw_framebuffer_to_vfbs(&vfb->base);
-
-	if (unlikely(vfbs->buffer == NULL))
-		return 0;
-
-	bo = &vfbs->buffer->base;
-	ttm_bo_unref(&bo);
-	vfbs->buffer = NULL;
-
-	return 0;
-}
 
 /**
  * Pin the dmabuffer to the start of vram.
