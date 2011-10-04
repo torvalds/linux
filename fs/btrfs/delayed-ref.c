@@ -487,7 +487,7 @@ static noinline int add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 		 * we've updated the existing ref, free the newly
 		 * allocated ref
 		 */
-		kfree(ref);
+		kfree(head_ref);
 	} else {
 		delayed_refs->num_heads++;
 		delayed_refs->num_heads_ready++;
@@ -549,7 +549,7 @@ static noinline int add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 		 * we've updated the existing ref, free the newly
 		 * allocated ref
 		 */
-		kfree(ref);
+		kfree(full_ref);
 	} else {
 		delayed_refs->num_entries++;
 		trans->delayed_ref_updates++;
@@ -611,7 +611,7 @@ static noinline int add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 		 * we've updated the existing ref, free the newly
 		 * allocated ref
 		 */
-		kfree(ref);
+		kfree(full_ref);
 	} else {
 		delayed_refs->num_entries++;
 		trans->delayed_ref_updates++;
