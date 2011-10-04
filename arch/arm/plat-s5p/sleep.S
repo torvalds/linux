@@ -1,15 +1,11 @@
-/* linux/arch/arm/mach-exynos4/sleep.S
+/* linux/arch/arm/plat-s5p/sleep.S
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * EXYNOS4210 power Manager (Suspend-To-RAM) support
- * Based on S3C2410 sleep code by:
- *	Ben Dooks, (c) 2004 Simtec Electronics
- *
- * Based on PXA/SA1100 sleep code by:
- *	Nicolas Pitre, (c) 2002 Monta Vista Software Inc
- *	Cliff Brake, (c) 2001
+ * Common S5P Sleep Code
+ * Based on S3C64XX sleep code by:
+ *	Ben Dooks, (c) 2008 Simtec Electronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +24,6 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/memory.h>
 
 	.text
 

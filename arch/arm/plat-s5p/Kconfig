@@ -54,6 +54,12 @@ config S5P_SYSTEM_MMU
 	help
 	  Say Y here if you want to enable System MMU
 
+config S5P_SLEEP
+	bool
+	help
+	  Internal config node to apply common S5P sleep management code.
+	  Can be selected by S5P and newer SoCs with similar sleep procedure.
+
 config S5P_DEV_FIMC0
 	bool
 	help

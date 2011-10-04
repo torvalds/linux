@@ -15,6 +15,7 @@ config CPU_S5PV210
 	select S5P_EXT_INT
 	select S5P_HRT
 	select S5P_PM if PM
+	select S5P_SLEEP if PM
 	help
 	  Enable S5PV210 CPU support
 

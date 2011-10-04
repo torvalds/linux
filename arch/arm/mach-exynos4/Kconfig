@@ -13,12 +13,14 @@ config CPU_EXYNOS4210
 	bool
 	select SAMSUNG_DMADEV
 	select S5P_PM if PM
+	select S5P_SLEEP if PM
 	help
 	  Enable EXYNOS4210 CPU support
 
 config SOC_EXYNOS4212
 	bool
 	select S5P_PM if PM
+	select S5P_SLEEP if PM
 	help
 	  Enable EXYNOS4212 SoC support
 
