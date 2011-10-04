@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/omapfb.h>
 
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
@@ -29,10 +28,8 @@
 #include <plat/sram.h>
 #include <plat/board.h>
 #include <plat/cpu.h>
-#include <plat/vram.h>
 
 #include "sram.h"
-#include "fb.h"
 
 /* XXX These "sideways" includes are a sign that something is wrong */
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
@@ -112,8 +109,6 @@ static int is_sram_locked(void)
  */
 static void __init omap_detect_sram(void)
 {
-	unsigned long reserved;
-
 	if (cpu_class_is_omap2()) {
 		if (is_sram_locked()) {
 			if (cpu_is_omap34xx()) {
@@ -170,17 +165,6 @@ static void __init omap_detect_sram(void)
 			omap_sram_size = 0x4000;
 		}
 	}
-	reserved = omapfb_reserve_sram(omap_sram_start, omap_sram_base,
-				       omap_sram_size,
-				       omap_sram_start + SRAM_BOOTLOADER_SZ,
-				       omap_sram_size - SRAM_BOOTLOADER_SZ);
-	omap_sram_size -= reserved;
-
-	reserved = omap_vram_reserve_sram(omap_sram_start, omap_sram_base,
-			omap_sram_size,
-			omap_sram_start + SRAM_BOOTLOADER_SZ,
-			omap_sram_size - SRAM_BOOTLOADER_SZ);
-	omap_sram_size -= reserved;
 
 	omap_sram_ceil = omap_sram_base + omap_sram_size;
 }
