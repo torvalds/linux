@@ -127,6 +127,7 @@ static int vmw_resource_init(struct vmw_private *dev_priv,
 	res->avail = false;
 	res->dev_priv = dev_priv;
 	INIT_LIST_HEAD(&res->query_head);
+	INIT_LIST_HEAD(&res->validate_head);
 	do {
 		if (unlikely(idr_pre_get(idr, GFP_KERNEL) == 0))
 			return -ENOMEM;

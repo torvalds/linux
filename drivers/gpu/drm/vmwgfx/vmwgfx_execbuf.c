@@ -44,27 +44,16 @@ static int vmw_cmd_ok(struct vmw_private *dev_priv,
 	return 0;
 }
 
-static int vmw_resource_to_validate_list(struct vmw_sw_context *sw_context,
-					 struct vmw_resource **p_res)
+static void vmw_resource_to_validate_list(struct vmw_sw_context *sw_context,
+					  struct vmw_resource **p_res)
 {
-	int ret = 0;
 	struct vmw_resource *res = *p_res;
 
-	if (!res->on_validate_list) {
-		if (sw_context->num_ref_resources >= VMWGFX_MAX_VALIDATIONS) {
-			DRM_ERROR("Too many resources referenced in "
-				  "command stream.\n");
-			ret = -ENOMEM;
-			goto out;
-		}
-		sw_context->resources[sw_context->num_ref_resources++] = res;
-		res->on_validate_list = true;
-		return 0;
-	}
-
-out:
-	vmw_resource_unreference(p_res);
-	return ret;
+	if (list_empty(&res->validate_head)) {
+		list_add_tail(&res->validate_head, &sw_context->resource_list);
+		*p_res = NULL;
+	} else
+		vmw_resource_unreference(p_res);
 }
 
 /**
@@ -142,7 +131,9 @@ static int vmw_cmd_cid_check(struct vmw_private *dev_priv,
 	sw_context->last_cid = cmd->cid;
 	sw_context->cid_valid = true;
 	sw_context->cur_ctx = ctx;
-	return vmw_resource_to_validate_list(sw_context, &ctx);
+	vmw_resource_to_validate_list(sw_context, &ctx);
+
+	return 0;
 }
 
 static int vmw_cmd_sid_check(struct vmw_private *dev_priv,
@@ -179,7 +170,9 @@ static int vmw_cmd_sid_check(struct vmw_private *dev_priv,
 	*sid = sw_context->sid_translation;
 
 	res = &srf->res;
-	return vmw_resource_to_validate_list(sw_context, &res);
+	vmw_resource_to_validate_list(sw_context, &res);
+
+	return 0;
 }
 
 
@@ -388,7 +381,7 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 				 query_head) {
 		list_del_init(&ctx->query_head);
 
-		BUG_ON(!ctx->on_validate_list);
+		BUG_ON(list_empty(&ctx->validate_head));
 
 		ret = vmw_fifo_emit_dummy_query(dev_priv, ctx->id);
 
@@ -582,7 +575,9 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 	vmw_dmabuf_unreference(&vmw_bo);
 
 	res = &srf->res;
-	return vmw_resource_to_validate_list(sw_context, &res);
+	vmw_resource_to_validate_list(sw_context, &res);
+
+	return 0;
 
 out_no_reloc:
 	vmw_dmabuf_unreference(&vmw_bo);
@@ -870,7 +865,7 @@ static void vmw_apply_relocations(struct vmw_sw_context *sw_context)
 static void vmw_clear_validations(struct vmw_sw_context *sw_context)
 {
 	struct ttm_validate_buffer *entry, *next;
-	uint32_t i = sw_context->num_ref_resources;
+	struct vmw_resource *res, *res_next;
 
 	/*
 	 * Drop references to DMA buffers held during command submission.
@@ -887,9 +882,10 @@ static void vmw_clear_validations(struct vmw_sw_context *sw_context)
 	/*
 	 * Drop references to resources held during command submission.
 	 */
-	while (i-- > 0) {
-		sw_context->resources[i]->on_validate_list = false;
-		vmw_resource_unreference(&sw_context->resources[i]);
+	list_for_each_entry_safe(res, res_next, &sw_context->resource_list,
+				 validate_head) {
+		list_del_init(&res->validate_head);
+		vmw_resource_unreference(&res);
 	}
 }
 
@@ -1066,9 +1062,9 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	sw_context->sid_valid = false;
 	sw_context->cur_reloc = 0;
 	sw_context->cur_val_buf = 0;
-	sw_context->num_ref_resources = 0;
 	sw_context->fence_flags = 0;
 	INIT_LIST_HEAD(&sw_context->query_list);
+	INIT_LIST_HEAD(&sw_context->resource_list);
 	sw_context->cur_query_bo = dev_priv->pinned_bo;
 	sw_context->cur_query_cid = dev_priv->query_cid;
 	sw_context->query_cid_valid = (dev_priv->pinned_bo != NULL);

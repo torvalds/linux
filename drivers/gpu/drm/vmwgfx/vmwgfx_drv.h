@@ -81,7 +81,7 @@ struct vmw_resource {
 	bool avail;
 	void (*hw_destroy) (struct vmw_resource *res);
 	void (*res_free) (struct vmw_resource *res);
-	bool on_validate_list;
+	struct list_head validate_head;
 	struct list_head query_head; /* Protected by the cmdbuf mutex */
 	/* TODO is a generic snooper needed? */
 #if 0
@@ -155,8 +155,7 @@ struct vmw_sw_context{
 	uint32_t cur_val_buf;
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
-	struct vmw_resource *resources[VMWGFX_MAX_VALIDATIONS];
-	uint32_t num_ref_resources;
+	struct list_head resource_list;
 	uint32_t fence_flags;
 	struct list_head query_list;
 	struct ttm_buffer_object *cur_query_bo;
