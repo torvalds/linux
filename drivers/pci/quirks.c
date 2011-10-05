@@ -2822,6 +2822,20 @@ static void __devinit fixup_ti816x_class(struct pci_dev* dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_TI, 0xb800, fixup_ti816x_class);
 
+/* Some PCIe devices do not work reliably with the claimed maximum
+ * payload size supported.
+ */
+static void __devinit fixup_mpss_256(struct pci_dev *dev)
+{
+	dev->pcie_mpss = 1; /* 256 bytes */
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SOLARFLARE,
+			 PCI_DEVICE_ID_SOLARFLARE_SFC4000A_0, fixup_mpss_256);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SOLARFLARE,
+			 PCI_DEVICE_ID_SOLARFLARE_SFC4000A_1, fixup_mpss_256);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SOLARFLARE,
+			 PCI_DEVICE_ID_SOLARFLARE_SFC4000B, fixup_mpss_256);
+
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
 {
