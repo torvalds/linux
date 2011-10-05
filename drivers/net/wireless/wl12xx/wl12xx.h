@@ -507,9 +507,6 @@ struct wl1271 {
 
 	bool sched_scanning;
 
-	/* Our association ID */
-	u16 aid;
-
 	u32 bitrate_masks[IEEE80211_NUM_BANDS];
 
 	/* The current band */
@@ -641,6 +638,9 @@ struct wl12xx_vif {
 
 	/* probe-req template for the current AP */
 	struct sk_buff *probereq;
+
+	/* Our association ID */
+	u16 aid;
 };
 
 static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)

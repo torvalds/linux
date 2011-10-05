@@ -2217,7 +2217,7 @@ static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_aid(wl, wl->aid);
+	ret = wl1271_acx_aid(wl, wlvif->aid);
 	if (ret < 0)
 		goto out;
 
@@ -3487,7 +3487,7 @@ sta_not_found:
 		if (bss_conf->assoc) {
 			u32 rates;
 			int ieoffset;
-			wl->aid = bss_conf->aid;
+			wlvif->aid = bss_conf->aid;
 			set_assoc = true;
 
 			wl->ps_poll_failures = 0;
@@ -3518,7 +3518,7 @@ sta_not_found:
 			 * updates it by itself when the first beacon is
 			 * received after a join.
 			 */
-			ret = wl1271_cmd_build_ps_poll(wl, wlvif, wl->aid);
+			ret = wl1271_cmd_build_ps_poll(wl, wlvif, wlvif->aid);
 			if (ret < 0)
 				goto out;
 
@@ -3544,7 +3544,7 @@ sta_not_found:
 			bool was_ifup =
 			    !!test_and_clear_bit(WL1271_FLAG_STA_STATE_SENT,
 						 &wl->flags);
-			wl->aid = 0;
+			wlvif->aid = 0;
 
 			/* free probe-request template */
 			dev_kfree_skb(wlvif->probereq);
