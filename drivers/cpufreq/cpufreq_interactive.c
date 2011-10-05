@@ -145,7 +145,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	delta_time = (unsigned int) cputime64_sub(pcpu->timer_run_time,
 						  pcpu->freq_change_time);
 
-	if (delta_idle > delta_time)
+	if ((delta_time == 0) || (delta_idle > delta_time))
 		load_since_change = 0;
 	else
 		load_since_change =
