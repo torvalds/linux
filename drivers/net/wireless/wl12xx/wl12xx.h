@@ -526,7 +526,6 @@ struct wl1271 {
 	 * support only 1 stream, thus only 8 bits for the MCS rates (0-7).
 	 */
 	u32 basic_rate;
-	u32 rate_set;
 	u32 bitrate_masks[IEEE80211_NUM_BANDS];
 
 	/* The current band */
@@ -640,6 +639,14 @@ struct wl1271_station {
 
 struct wl12xx_vif {
 	u32 basic_rate_set;
+
+	/*
+	 * currently configured rate set:
+	 *	bits  0-15 - 802.11abg rates
+	 *	bits 16-23 - 802.11n   MCS index mask
+	 * support only 1 stream, thus only 8 bits for the MCS rates (0-7).
+	 */
+	u32 rate_set;
 };
 
 static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)

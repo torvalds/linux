@@ -739,7 +739,7 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 	return 0;
 }
 
-int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
+int wl1271_acx_sta_rate_policies(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct acx_rate_policy *acx;
 	struct conf_tx_rate_class *c = &wl->conf.tx.sta_rc_conf;
@@ -755,7 +755,7 @@ int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
 	}
 
 	wl1271_debug(DEBUG_ACX, "basic_rate: 0x%x, full_rate: 0x%x",
-		wl->basic_rate, wl->rate_set);
+		wl->basic_rate, wlvif->rate_set);
 
 	/* configure one basic rate class */
 	acx->rate_policy_idx = cpu_to_le32(ACX_TX_BASIC_RATE);
@@ -772,7 +772,7 @@ int wl1271_acx_sta_rate_policies(struct wl1271 *wl)
 
 	/* configure one AP supported rate class */
 	acx->rate_policy_idx = cpu_to_le32(ACX_TX_AP_FULL_RATE);
-	acx->rate_policy.enabled_rates = cpu_to_le32(wl->rate_set);
+	acx->rate_policy.enabled_rates = cpu_to_le32(wlvif->rate_set);
 	acx->rate_policy.short_retry_limit = c->short_retry_limit;
 	acx->rate_policy.long_retry_limit = c->long_retry_limit;
 	acx->rate_policy.aflags = c->aflags;

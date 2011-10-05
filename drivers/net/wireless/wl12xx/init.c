@@ -320,7 +320,7 @@ static int wl12xx_init_fwlog(struct wl1271 *wl)
 }
 
 /* generic sta initialization (non vif-specific) */
-static int wl1271_sta_hw_init(struct wl1271 *wl)
+static int wl1271_sta_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
 
@@ -345,7 +345,7 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_sta_rate_policies(wl);
+	ret = wl1271_acx_sta_rate_policies(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
@@ -586,7 +586,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 		if (ret < 0)
 			return ret;
 	} else {
-		ret = wl1271_sta_hw_init(wl);
+		ret = wl1271_sta_hw_init(wl, wlvif);
 		if (ret < 0)
 			return ret;
 

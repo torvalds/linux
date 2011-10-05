@@ -578,7 +578,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->sta.ssid_len = wl->ssid_len;
 	memcpy(cmd->sta.ssid, wl->ssid, wl->ssid_len);
 	memcpy(cmd->sta.bssid, wl->bssid, ETH_ALEN);
-	cmd->sta.local_rates = cpu_to_le32(wl->rate_set);
+	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
 	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID) {
 		ret = wl12xx_allocate_link(wl, &wl->sta_hlid);
@@ -587,12 +587,12 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	}
 	cmd->sta.hlid = wl->sta_hlid;
 	cmd->sta.session = wl12xx_get_new_session_id(wl);
-	cmd->sta.remote_rates = cpu_to_le32(wl->rate_set);
+	cmd->sta.remote_rates = cpu_to_le32(wlvif->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
 		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
 		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
-		     wlvif->basic_rate_set, wl->rate_set);
+		     wlvif->basic_rate_set, wlvif->rate_set);
 
 	ret = wl1271_cmd_send(wl, CMD_ROLE_START, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
@@ -792,7 +792,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->ibss.ssid_len = wl->ssid_len;
 	memcpy(cmd->ibss.ssid, wl->ssid, wl->ssid_len);
 	memcpy(cmd->ibss.bssid, wl->bssid, ETH_ALEN);
-	cmd->sta.local_rates = cpu_to_le32(wl->rate_set);
+	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
 	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID) {
 		ret = wl12xx_allocate_link(wl, &wl->sta_hlid);
@@ -800,12 +800,12 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 			goto out_free;
 	}
 	cmd->ibss.hlid = wl->sta_hlid;
-	cmd->ibss.remote_rates = cpu_to_le32(wl->rate_set);
+	cmd->ibss.remote_rates = cpu_to_le32(wlvif->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
 		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
 		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
-		     wlvif->basic_rate_set, wl->rate_set);
+		     wlvif->basic_rate_set, wlvif->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "wl->bssid = %pM", wl->bssid);
 

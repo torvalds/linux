@@ -1840,6 +1840,7 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl)
 static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
 {
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
+	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
 }
 
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
@@ -2106,7 +2107,6 @@ deinit:
 	wl->tx_packets_count = 0;
 	wl->time_offset = 0;
 	wl->session_counter = 0;
-	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->bitrate_masks[IEEE80211_BAND_2GHZ] = wl->conf.tx.basic_rate;
 	wl->bitrate_masks[IEEE80211_BAND_5GHZ] = wl->conf.tx.basic_rate_5;
 	wl->vif = NULL;
@@ -2254,7 +2254,7 @@ out:
 static void wl1271_set_band_rate(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	wlvif->basic_rate_set = wl->bitrate_masks[wl->band];
-	wl->rate_set = wlvif->basic_rate_set;
+	wlvif->rate_set = wlvif->basic_rate_set;
 }
 
 static bool wl12xx_is_roc(struct wl1271 *wl)
@@ -2284,9 +2284,9 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			if (ret < 0)
 				goto out;
 		}
-		wl->rate_set = wl1271_tx_min_rate_get(wl,
-						      wlvif->basic_rate_set);
-		ret = wl1271_acx_sta_rate_policies(wl);
+		wlvif->rate_set =
+			wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
+		ret = wl1271_acx_sta_rate_policies(wl, wlvif);
 		if (ret < 0)
 			goto out;
 		ret = wl1271_acx_keep_alive_config(
@@ -2387,7 +2387,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			wl->basic_rate =
 				wl1271_tx_min_rate_get(wl,
 						       wlvif->basic_rate_set);
-			ret = wl1271_acx_sta_rate_policies(wl);
+			ret = wl1271_acx_sta_rate_policies(wl, wlvif);
 			if (ret < 0)
 				wl1271_warning("rate policy for channel "
 					       "failed %d", ret);
@@ -3502,10 +3502,11 @@ sta_not_found:
 				wl1271_tx_min_rate_get(wl,
 						       wlvif->basic_rate_set);
 			if (sta_rate_set)
-				wl->rate_set = wl1271_tx_enabled_rates_get(wl,
+				wlvif->rate_set =
+					wl1271_tx_enabled_rates_get(wl,
 								sta_rate_set,
 								wl->band);
-			ret = wl1271_acx_sta_rate_policies(wl);
+			ret = wl1271_acx_sta_rate_policies(wl, wlvif);
 			if (ret < 0)
 				goto out;
 
@@ -3554,7 +3555,7 @@ sta_not_found:
 			wl->basic_rate =
 				wl1271_tx_min_rate_get(wl,
 						       wlvif->basic_rate_set);
-			ret = wl1271_acx_sta_rate_policies(wl);
+			ret = wl1271_acx_sta_rate_policies(wl, wlvif);
 			if (ret < 0)
 				goto out;
 
@@ -3612,8 +3613,8 @@ sta_not_found:
 						       wlvif->basic_rate_set);
 
 			/* by default, use 11b + OFDM rates */
-			wl->rate_set = CONF_TX_IBSS_DEFAULT_RATES;
-			ret = wl1271_acx_sta_rate_policies(wl);
+			wlvif->rate_set = CONF_TX_IBSS_DEFAULT_RATES;
+			ret = wl1271_acx_sta_rate_policies(wl, wlvif);
 			if (ret < 0)
 				goto out;
 		}
@@ -4844,7 +4845,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->basic_rate = CONF_TX_RATE_MASK_BASIC;
-	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;
 	wl->flags = 0;
