@@ -676,7 +676,7 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_sta_init_templates_config(wl);
+	ret = wl1271_init_templates_config(wl);
 	if (ret < 0)
 		return ret;
 
@@ -1919,6 +1919,10 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto power_off;
 
+		ret = wl1271_hw_init(wl);
+		if (ret < 0)
+			goto irq_disable;
+
 		if (wl->bss_type == BSS_TYPE_STA_BSS ||
 		    wl->bss_type == BSS_TYPE_IBSS) {
 			/*
@@ -1939,7 +1943,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto irq_disable;
 
-		ret = wl1271_hw_init(wl, vif);
+		ret = wl1271_init_vif_specific(wl, vif);
 		if (ret < 0)
 			goto irq_disable;
 
