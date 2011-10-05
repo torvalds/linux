@@ -546,10 +546,10 @@ static void e1000_reinit_safe(struct e1000_adapter *adapter)
 {
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
 		msleep(1);
-	rtnl_lock();
+	mutex_lock(&adapter->mutex);
 	e1000_down(adapter);
 	e1000_up(adapter);
-	rtnl_unlock();
+	mutex_unlock(&adapter->mutex);
 	clear_bit(__E1000_RESETTING, &adapter->flags);
 }
 
@@ -1317,6 +1317,7 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 	e1000_irq_disable(adapter);
 
 	spin_lock_init(&adapter->stats_lock);
+	mutex_init(&adapter->mutex);
 
 	set_bit(__E1000_DOWN, &adapter->flags);
 
@@ -2331,9 +2332,11 @@ static void e1000_update_phy_info_task(struct work_struct *work)
 	struct e1000_adapter *adapter = container_of(work,
 						     struct e1000_adapter,
 						     phy_info_task.work);
-	rtnl_lock();
+	if (test_bit(__E1000_DOWN, &adapter->flags))
+		return;
+	mutex_lock(&adapter->mutex);
 	e1000_phy_get_info(&adapter->hw, &adapter->phy_info);
-	rtnl_unlock();
+	mutex_unlock(&adapter->mutex);
 }
 
 /**
@@ -2349,7 +2352,9 @@ static void e1000_82547_tx_fifo_stall_task(struct work_struct *work)
 	struct net_device *netdev = adapter->netdev;
 	u32 tctl;
 
-	rtnl_lock();
+	if (test_bit(__E1000_DOWN, &adapter->flags))
+		return;
+	mutex_lock(&adapter->mutex);
 	if (atomic_read(&adapter->tx_fifo_stall)) {
 		if ((er32(TDT) == er32(TDH)) &&
 		   (er32(TDFT) == er32(TDFH)) &&
@@ -2370,7 +2375,7 @@ static void e1000_82547_tx_fifo_stall_task(struct work_struct *work)
 			schedule_delayed_work(&adapter->fifo_stall_task, 1);
 		}
 	}
-	rtnl_unlock();
+	mutex_unlock(&adapter->mutex);
 }
 
 bool e1000_has_link(struct e1000_adapter *adapter)
@@ -2424,6 +2429,10 @@ static void e1000_watchdog(struct work_struct *work)
 	struct e1000_tx_ring *txdr = adapter->tx_ring;
 	u32 link, tctl;
 
+	if (test_bit(__E1000_DOWN, &adapter->flags))
+		return;
+
+	mutex_lock(&adapter->mutex);
 	link = e1000_has_link(adapter);
 	if ((netif_carrier_ok(netdev)) && link)
 		goto link_up;
@@ -2512,8 +2521,8 @@ link_up:
 			 * (Do the reset outside of interrupt context). */
 			adapter->tx_timeout_count++;
 			schedule_work(&adapter->reset_task);
-			/* return immediately since reset is imminent */
-			return;
+			/* exit immediately since reset is imminent */
+			goto unlock;
 		}
 	}
 
@@ -2542,6 +2551,9 @@ link_up:
 	/* Reschedule the task */
 	if (!test_bit(__E1000_DOWN, &adapter->flags))
 		schedule_delayed_work(&adapter->watchdog_task, 2 * HZ);
+
+unlock:
+	mutex_unlock(&adapter->mutex);
 }
 
 enum latency_range {
@@ -3248,6 +3260,8 @@ static void e1000_reset_task(struct work_struct *work)
 	struct e1000_adapter *adapter =
 		container_of(work, struct e1000_adapter, reset_task);
 
+	if (test_bit(__E1000_DOWN, &adapter->flags))
+		return;
 	e1000_reinit_safe(adapter);
 }
 
@@ -4702,6 +4716,8 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	netif_device_detach(netdev);
 
+	mutex_lock(&adapter->mutex);
+
 	if (netif_running(netdev)) {
 		WARN_ON(test_bit(__E1000_RESETTING, &adapter->flags));
 		e1000_down(adapter);
@@ -4709,8 +4725,10 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
-	if (retval)
+	if (retval) {
+		mutex_unlock(&adapter->mutex);
 		return retval;
+	}
 #endif
 
 	status = er32(STATUS);
@@ -4764,6 +4782,8 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	if (netif_running(netdev))
 		e1000_free_irq(adapter);
+
+	mutex_unlock(&adapter->mutex);
 
 	pci_disable_device(pdev);
 
