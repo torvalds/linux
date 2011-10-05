@@ -1706,8 +1706,6 @@ static int fimc_runtime_resume(struct device *dev)
 	/* Enable clocks and perform basic initalization */
 	clk_enable(fimc->clock[CLK_GATE]);
 	fimc_hw_reset(fimc);
-	if (fimc->variant->out_buf_count > 4)
-		fimc_hw_set_dma_seq(fimc, 0xF);
 
 	/* Resume the capture or mem-to-mem device */
 	if (fimc_capture_busy(fimc))
@@ -1749,8 +1747,6 @@ static int fimc_resume(struct device *dev)
 		return 0;
 	}
 	fimc_hw_reset(fimc);
-	if (fimc->variant->out_buf_count > 4)
-		fimc_hw_set_dma_seq(fimc, 0xF);
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (fimc_capture_busy(fimc))

@@ -98,6 +98,10 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 	set_bit(ST_CAPT_SUSPENDED, &fimc->state);
+
+	fimc_hw_reset(fimc);
+	cap->buf_index = 0;
+
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (streaming)
@@ -137,7 +141,7 @@ int fimc_capture_config_update(struct fimc_ctx *ctx)
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	int ret;
 
-	if (test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
+	if (!test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
 		return 0;
 
 	spin_lock(&ctx->slock);
@@ -150,7 +154,7 @@ int fimc_capture_config_update(struct fimc_ctx *ctx)
 		fimc_hw_set_rotation(ctx);
 		fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 		fimc_hw_set_out_dma(ctx);
-		set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
+		clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	}
 	spin_unlock(&ctx->slock);
 	return ret;
@@ -164,7 +168,6 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 	int min_bufs;
 	int ret;
 
-	fimc_hw_reset(fimc);
 	vid_cap->frame_count = 0;
 
 	ret = fimc_init_capture(fimc);
