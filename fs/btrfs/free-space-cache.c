@@ -852,9 +852,10 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	if (ret)
 		goto out;
 
-	BTRFS_I(inode)->generation = trans->transid;
 
-	filemap_write_and_wait(inode->i_mapping);
+	ret = filemap_write_and_wait(inode->i_mapping);
+	if (ret)
+		goto out;
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
 	key.offset = offset;
@@ -884,6 +885,8 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 			goto out;
 		}
 	}
+
+	BTRFS_I(inode)->generation = trans->transid;
 	header = btrfs_item_ptr(leaf, path->slots[0],
 				struct btrfs_free_space_header);
 	btrfs_set_free_space_entries(leaf, header, entries);
