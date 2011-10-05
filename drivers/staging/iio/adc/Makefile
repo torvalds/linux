@@ -32,7 +32,6 @@ obj-$(CONFIG_AD7298) += ad7298.o
 obj-$(CONFIG_AD7150) += ad7150.o
 obj-$(CONFIG_AD7152) += ad7152.o
 obj-$(CONFIG_AD7291) += ad7291.o
-obj-$(CONFIG_AD7314) += ad7314.o
 obj-$(CONFIG_AD7746) += ad7746.o
 obj-$(CONFIG_AD7780) += ad7780.o
 obj-$(CONFIG_AD7793) += ad7793.o
