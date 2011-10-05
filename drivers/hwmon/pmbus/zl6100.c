@@ -38,7 +38,10 @@ struct zl6100_data {
 
 #define to_zl6100_data(x)  container_of(x, struct zl6100_data, info)
 
+#define ZL6100_MFR_CONFIG		0xd0
 #define ZL6100_DEVICE_ID		0xe4
+
+#define ZL6100_MFR_XTEMP_ENABLE		(1 << 7)
 
 #define ZL6100_WAIT_TIME		1000	/* uS	*/
 
@@ -162,7 +165,7 @@ static int zl6100_probe(struct i2c_client *client,
 	const struct i2c_device_id *mid;
 
 	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE_DATA
+				     I2C_FUNC_SMBUS_READ_WORD_DATA
 				     | I2C_FUNC_SMBUS_READ_BLOCK_DATA))
 		return -ENODEV;
 
@@ -210,12 +213,9 @@ static int zl6100_probe(struct i2c_client *client,
 	/*
 	 * Since there was a direct I2C device access above, wait before
 	 * accessing the chip again.
-	 * Set the timestamp, wait, then set it again. This should provide
-	 * enough buffer time to be safe.
 	 */
 	data->access = ktime_get();
 	zl6100_wait(data);
-	data->access = ktime_get();
 
 	info = &data->info;
 
@@ -223,7 +223,16 @@ static int zl6100_probe(struct i2c_client *client,
 	info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT
 	  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
 	  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
-	  | PMBUS_HAVE_TEMP | PMBUS_HAVE_TEMP2 | PMBUS_HAVE_STATUS_TEMP;
+	  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+
+	ret = i2c_smbus_read_word_data(client, ZL6100_MFR_CONFIG);
+	if (ret < 0)
+		goto err_mem;
+	if (ret & ZL6100_MFR_XTEMP_ENABLE)
+		info->func[0] |= PMBUS_HAVE_TEMP2;
+
+	data->access = ktime_get();
+	zl6100_wait(data);
 
 	info->read_word_data = zl6100_read_word_data;
 	info->read_byte_data = zl6100_read_byte_data;
