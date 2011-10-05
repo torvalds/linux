@@ -760,6 +760,7 @@ static int __devinit ad2s1210_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad2s1210_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->name = spi_get_device_id(spi)->name;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
@@ -791,6 +792,11 @@ static int __devexit ad2s1210_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id ad2s1210_id[] = {
+	{ "ad2s1210" },
+	{}
+};
+
 static struct spi_driver ad2s1210_driver = {
 	.driver = {
 		.name = DRV_NAME,
@@ -798,6 +804,7 @@ static struct spi_driver ad2s1210_driver = {
 	},
 	.probe = ad2s1210_probe,
 	.remove = __devexit_p(ad2s1210_remove),
+	.id_table = ad2s1210_id,
 };
 
 static __init int ad2s1210_spi_init(void)
