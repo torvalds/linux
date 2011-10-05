@@ -576,8 +576,8 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->sta.basic_rate_set = cpu_to_le32(wlvif->basic_rate_set);
 	cmd->sta.beacon_interval = cpu_to_le16(wl->beacon_int);
 	cmd->sta.ssid_type = WL12XX_SSID_TYPE_ANY;
-	cmd->sta.ssid_len = wl->ssid_len;
-	memcpy(cmd->sta.ssid, wl->ssid, wl->ssid_len);
+	cmd->sta.ssid_len = wlvif->ssid_len;
+	memcpy(cmd->sta.ssid, wlvif->ssid, wlvif->ssid_len);
 	memcpy(cmd->sta.bssid, vif->bss_conf.bssid, ETH_ALEN);
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
@@ -659,7 +659,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	wl1271_debug(DEBUG_CMD, "cmd role start ap %d", wl->role_id);
 
 	/* trying to use hidden SSID with an old hostapd version */
-	if (wl->ssid_len == 0 && !bss_conf->hidden_ssid) {
+	if (wlvif->ssid_len == 0 && !bss_conf->hidden_ssid) {
 		wl1271_error("got a null SSID from beacon/bss");
 		ret = -EINVAL;
 		goto out;
@@ -693,8 +693,8 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (!bss_conf->hidden_ssid) {
 		/* take the SSID from the beacon for backward compatibility */
 		cmd->ap.ssid_type = WL12XX_SSID_TYPE_PUBLIC;
-		cmd->ap.ssid_len = wl->ssid_len;
-		memcpy(cmd->ap.ssid, wl->ssid, wl->ssid_len);
+		cmd->ap.ssid_len = wlvif->ssid_len;
+		memcpy(cmd->ap.ssid, wlvif->ssid, wlvif->ssid_len);
 	} else {
 		cmd->ap.ssid_type = WL12XX_SSID_TYPE_HIDDEN;
 		cmd->ap.ssid_len = bss_conf->ssid_len;
@@ -791,8 +791,8 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->ibss.beacon_interval = cpu_to_le16(wl->beacon_int);
 	cmd->ibss.dtim_interval = bss_conf->dtim_period;
 	cmd->ibss.ssid_type = WL12XX_SSID_TYPE_ANY;
-	cmd->ibss.ssid_len = wl->ssid_len;
-	memcpy(cmd->ibss.ssid, wl->ssid, wl->ssid_len);
+	cmd->ibss.ssid_len = wlvif->ssid_len;
+	memcpy(cmd->ibss.ssid, wlvif->ssid, wlvif->ssid_len);
 	memcpy(cmd->ibss.bssid, vif->bss_conf.bssid, ETH_ALEN);
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
