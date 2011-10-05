@@ -5264,6 +5264,8 @@ static const char *get_jack_default_name(struct hda_codec *codec, hda_nid_t nid,
 		return "Mic";
 	case SND_JACK_LINEOUT:
 		return "Line-out";
+	case SND_JACK_LINEIN:
+		return "Line-in";
 	case SND_JACK_HEADSET:
 		return "Headset";
 	case SND_JACK_VIDEOOUT:
