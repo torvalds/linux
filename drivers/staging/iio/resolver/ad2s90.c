@@ -25,43 +25,36 @@ struct ad2s90_state {
 	u8 rx[2] ____cacheline_aligned;
 };
 
-static ssize_t ad2s90_show_angular(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static int ad2s90_read_raw(struct iio_dev *indio_dev,
+			   struct iio_chan_spec const *chan,
+			   int *val,
+			   int *val2,
+			   long m)
 {
 	int ret;
-	ssize_t len = 0;
-	u16 val;
-	struct ad2s90_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s90_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
 	ret = spi_read(st->sdev, st->rx, 2);
 	if (ret)
 		goto error_ret;
-	val = (((u16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
-	len = sprintf(buf, "%d\n", val);
+	*val = (((u16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
+
 error_ret:
 	mutex_unlock(&st->lock);
 
-	return ret ? ret : len;
+	return IIO_VAL_INT;
 }
 
-#define IIO_DEV_ATTR_SIMPLE_RESOLVER(_show) \
-	IIO_DEVICE_ATTR(angular, S_IRUGO, _show, NULL, 0)
-
-static IIO_DEV_ATTR_SIMPLE_RESOLVER(ad2s90_show_angular);
-
-static struct attribute *ad2s90_attributes[] = {
-	&iio_dev_attr_angular.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group ad2s90_attribute_group = {
-	.attrs = ad2s90_attributes,
-};
-
 static const struct iio_info ad2s90_info = {
-	.attrs = &ad2s90_attribute_group,
+	.read_raw = &ad2s90_read_raw,
 	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_chan_spec ad2s90_chan = {
+	.type = IIO_ANGL,
+	.indexed = 1,
+	.channel = 0,
 };
 
 static int __devinit ad2s90_probe(struct spi_device *spi)
@@ -83,6 +76,8 @@ static int __devinit ad2s90_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad2s90_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = &ad2s90_chan;
+	indio_dev->num_channels = 1;
 	indio_dev->name = spi_get_device_id(spi)->name;
 
 	ret = iio_device_register(indio_dev);
