@@ -2694,7 +2694,10 @@ static int brcmf_sdbrcm_dpc_thread(void *data)
 				if (brcmf_sdbrcm_dpc(bus))
 					complete(&bus->dpc_wait);
 			} else {
+				/* after stopping the bus, exit thread */
 				brcmf_sdbrcm_bus_stop(bus);
+				bus->dpc_tsk = NULL;
+				break;
 			}
 		} else
 			break;
@@ -3601,24 +3604,24 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	down(&bus->sdsem);
-
-	bus_wake(bus);
-
-	/* Enable clock for device interrupts */
-	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
-
 	if (bus->watchdog_tsk) {
 		send_sig(SIGTERM, bus->watchdog_tsk, 1);
 		kthread_stop(bus->watchdog_tsk);
 		bus->watchdog_tsk = NULL;
 	}
 
-	if (bus->dpc_tsk) {
+	if (bus->dpc_tsk && bus->dpc_tsk != current) {
 		send_sig(SIGTERM, bus->dpc_tsk, 1);
 		kthread_stop(bus->dpc_tsk);
 		bus->dpc_tsk = NULL;
 	}
+
+	down(&bus->sdsem);
+
+	bus_wake(bus);
+
+	/* Enable clock for device interrupts */
+	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 
 	/* Disable and clear interrupts at the chip level also */
 	w_sdreg32(bus, 0, offsetof(struct sdpcmd_regs, hostintmask), &retries);
