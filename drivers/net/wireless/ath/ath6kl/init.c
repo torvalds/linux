@@ -120,7 +120,7 @@ static int ath6kl_set_host_app_area(struct ath6kl *ar)
 		return -EIO;
 
 	address = TARG_VTOP(ar->target_type, data);
-	host_app_area.wmi_protocol_ver = WMI_PROTOCOL_VERSION;
+	host_app_area.wmi_protocol_ver = cpu_to_le32(WMI_PROTOCOL_VERSION);
 	if (ath6kl_diag_write(ar, address, (u8 *) &host_app_area,
 			      sizeof(struct host_app_area)))
 		return -EIO;
