@@ -30,8 +30,9 @@
  */
 #define SOC_DOUBLE_VALUE(xreg, shift_left, shift_right, xmax, xinvert) \
 	((unsigned long)&(struct soc_mixer_control) \
-	{.reg = xreg, .shift = shift_left, .rshift = shift_right, \
-	.max = xmax, .platform_max = xmax, .invert = xinvert})
+	{.reg = xreg, .rreg = xreg, .shift = shift_left, \
+	.rshift = shift_right, .max = xmax, .platform_max = xmax, \
+	.invert = xinvert})
 #define SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) \
 	SOC_DOUBLE_VALUE(xreg, xshift, xshift, xmax, xinvert)
 #define SOC_SINGLE_VALUE_EXT(xreg, xmax, xinvert) \
@@ -945,6 +946,18 @@ static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 	INIT_LIST_HEAD(&card->widgets);
 	INIT_LIST_HEAD(&card->paths);
 	INIT_LIST_HEAD(&card->dapm_list);
+}
+
+static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
+{
+	if (mc->reg == mc->rreg && mc->shift == mc->rshift)
+		return 0;
+	/*
+	 * mc->reg == mc->rreg && mc->shift != mc->rshift, or
+	 * mc->reg != mc->rreg means that the control is
+	 * stereo (bits in one register or in two registers)
+	 */
+	return 1;
 }
 
 int snd_soc_util_init(void);
