@@ -118,6 +118,7 @@ static void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h)
 	if (!h->filtered) {
 		hists__calc_col_len(hists, h);
 		++hists->nr_entries;
+		hists->stats.total_period += h->period;
 	}
 }
 
@@ -132,7 +133,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 				      struct addr_location *al,
 				      struct symbol *sym_parent, u64 period)
 {
-	struct rb_node **p = &hists->entries.rb_node;
+	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
 	struct hist_entry entry = {
@@ -150,9 +151,13 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 	};
 	int cmp;
 
+	pthread_mutex_lock(&hists->lock);
+
+	p = &hists->entries_in->rb_node;
+
 	while (*p != NULL) {
 		parent = *p;
-		he = rb_entry(parent, struct hist_entry, rb_node);
+		he = rb_entry(parent, struct hist_entry, rb_node_in);
 
 		cmp = hist_entry__cmp(&entry, he);
 
@@ -170,12 +175,14 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 
 	he = hist_entry__new(&entry);
 	if (!he)
-		return NULL;
-	rb_link_node(&he->rb_node, parent, p);
-	rb_insert_color(&he->rb_node, &hists->entries);
-	hists__inc_nr_entries(hists, he);
+		goto out_unlock;
+
+	rb_link_node(&he->rb_node_in, parent, p);
+	rb_insert_color(&he->rb_node_in, hists->entries_in);
 out:
 	hist_entry__add_cpumode_period(he, al->cpumode, period);
+out_unlock:
+	pthread_mutex_unlock(&hists->lock);
 	return he;
 }
 
@@ -233,7 +240,7 @@ static bool hists__collapse_insert_entry(struct hists *hists,
 
 	while (*p != NULL) {
 		parent = *p;
-		iter = rb_entry(parent, struct hist_entry, rb_node);
+		iter = rb_entry(parent, struct hist_entry, rb_node_in);
 
 		cmp = hist_entry__collapse(iter, he);
 
@@ -254,35 +261,57 @@ static bool hists__collapse_insert_entry(struct hists *hists,
 			p = &(*p)->rb_right;
 	}
 
-	rb_link_node(&he->rb_node, parent, p);
-	rb_insert_color(&he->rb_node, root);
+	rb_link_node(&he->rb_node_in, parent, p);
+	rb_insert_color(&he->rb_node_in, root);
 	return true;
+}
+
+static struct rb_root *hists__get_rotate_entries_in(struct hists *hists)
+{
+	struct rb_root *root;
+
+	pthread_mutex_lock(&hists->lock);
+
+	root = hists->entries_in;
+	if (++hists->entries_in > &hists->entries_in_array[1])
+		hists->entries_in = &hists->entries_in_array[0];
+
+	pthread_mutex_unlock(&hists->lock);
+
+	return root;
+}
+
+static void __hists__collapse_resort(struct hists *hists, bool threaded)
+{
+	struct rb_root *root;
+	struct rb_node *next;
+	struct hist_entry *n;
+
+	if (!sort__need_collapse && !threaded)
+		return;
+
+	root = hists__get_rotate_entries_in(hists);
+	next = rb_first(root);
+	hists->stats.total_period = 0;
+
+	while (next) {
+		n = rb_entry(next, struct hist_entry, rb_node_in);
+		next = rb_next(&n->rb_node_in);
+
+		rb_erase(&n->rb_node_in, root);
+		if (hists__collapse_insert_entry(hists, &hists->entries_collapsed, n))
+			hists__inc_nr_entries(hists, n);
+	}
 }
 
 void hists__collapse_resort(struct hists *hists)
 {
-	struct rb_root tmp;
-	struct rb_node *next;
-	struct hist_entry *n;
+	return __hists__collapse_resort(hists, false);
+}
 
-	if (!sort__need_collapse)
-		return;
-
-	tmp = RB_ROOT;
-	next = rb_first(&hists->entries);
-	hists->nr_entries = 0;
-	hists__reset_col_len(hists);
-
-	while (next) {
-		n = rb_entry(next, struct hist_entry, rb_node);
-		next = rb_next(&n->rb_node);
-
-		rb_erase(&n->rb_node, &hists->entries);
-		if (hists__collapse_insert_entry(hists, &tmp, n))
-			hists__inc_nr_entries(hists, n);
-	}
-
-	hists->entries = tmp;
+void hists__collapse_resort_threaded(struct hists *hists)
+{
+	return __hists__collapse_resort(hists, true);
 }
 
 /*
@@ -315,31 +344,43 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	rb_insert_color(&he->rb_node, entries);
 }
 
-void hists__output_resort(struct hists *hists)
+static void __hists__output_resort(struct hists *hists, bool threaded)
 {
-	struct rb_root tmp;
+	struct rb_root *root;
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
 
 	min_callchain_hits = hists->stats.total_period * (callchain_param.min_percent / 100);
 
-	tmp = RB_ROOT;
-	next = rb_first(&hists->entries);
+	if (sort__need_collapse || threaded)
+		root = &hists->entries_collapsed;
+	else
+		root = hists->entries_in;
+
+	next = rb_first(root);
+	hists->entries = RB_ROOT;
 
 	hists->nr_entries = 0;
 	hists__reset_col_len(hists);
 
 	while (next) {
-		n = rb_entry(next, struct hist_entry, rb_node);
-		next = rb_next(&n->rb_node);
+		n = rb_entry(next, struct hist_entry, rb_node_in);
+		next = rb_next(&n->rb_node_in);
 
-		rb_erase(&n->rb_node, &hists->entries);
-		__hists__insert_output_entry(&tmp, n, min_callchain_hits);
+		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits);
 		hists__inc_nr_entries(hists, n);
 	}
+}
 
-	hists->entries = tmp;
+void hists__output_resort(struct hists *hists)
+{
+	return __hists__output_resort(hists, false);
+}
+
+void hists__output_resort_threaded(struct hists *hists)
+{
+	return __hists__output_resort(hists, true);
 }
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
@@ -1042,4 +1083,14 @@ size_t hists__fprintf_nr_events(struct hists *hists, FILE *fp)
 	}
 
 	return ret;
+}
+
+void hists__init(struct hists *hists)
+{
+	memset(hists, 0, sizeof(*hists));
+	hists->entries_in_array[0] = hists->entries_in_array[1] = RB_ROOT;
+	hists->entries_in = &hists->entries_in_array[0];
+	hists->entries_collapsed = RB_ROOT;
+	hists->entries = RB_ROOT;
+	pthread_mutex_init(&hists->lock, NULL);
 }

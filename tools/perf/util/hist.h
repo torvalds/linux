@@ -2,6 +2,7 @@
 #define __PERF_HIST_H
 
 #include <linux/types.h>
+#include <pthread.h>
 #include "callchain.h"
 
 extern struct callchain_param callchain_param;
@@ -43,14 +44,20 @@ enum hist_column {
 };
 
 struct hists {
+	struct rb_root		entries_in_array[2];
+	struct rb_root		*entries_in;
 	struct rb_root		entries;
+	struct rb_root		entries_collapsed;
 	u64			nr_entries;
+	pthread_mutex_t		lock;
 	struct events_stats	stats;
 	u64			event_stream;
 	u16			col_len[HISTC_NR_COLS];
 	/* Best would be to reuse the session callchain cursor */
 	struct callchain_cursor	callchain_cursor;
 };
+
+void hists__init(struct hists *hists);
 
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
@@ -67,7 +74,9 @@ int hist_entry__snprintf(struct hist_entry *self, char *bf, size_t size,
 void hist_entry__free(struct hist_entry *);
 
 void hists__output_resort(struct hists *self);
+void hists__output_resort_threaded(struct hists *hists);
 void hists__collapse_resort(struct hists *self);
+void hists__collapse_resort_threaded(struct hists *hists);
 
 void hists__inc_nr_events(struct hists *self, u32 type);
 size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
