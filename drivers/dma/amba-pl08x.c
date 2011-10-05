@@ -2054,6 +2054,8 @@ static struct amba_id pl08x_ids[] = {
 	{ 0, 0 },
 };
 
+MODULE_DEVICE_TABLE(amba, pl08x_ids);
+
 static struct amba_driver pl08x_amba_driver = {
 	.drv.name	= DRIVER_NAME,
 	.id_table	= pl08x_ids,
