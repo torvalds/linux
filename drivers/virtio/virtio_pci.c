@@ -415,9 +415,13 @@ static struct virtqueue *setup_vq(struct virtio_device *vdev, unsigned index,
 		}
 	}
 
-	spin_lock_irqsave(&vp_dev->lock, flags);
-	list_add(&info->node, &vp_dev->virtqueues);
-	spin_unlock_irqrestore(&vp_dev->lock, flags);
+	if (callback) {
+		spin_lock_irqsave(&vp_dev->lock, flags);
+		list_add(&info->node, &vp_dev->virtqueues);
+		spin_unlock_irqrestore(&vp_dev->lock, flags);
+	} else {
+		INIT_LIST_HEAD(&info->node);
+	}
 
 	return vq;
 
