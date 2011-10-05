@@ -2185,7 +2185,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 
 		w->new = 1;
 
-		list_add(&w->dirty, &(w->dapm->card->dapm_dirty));
+		dapm_mark_dirty(w, "new widget");
 		dapm_debugfs_add_widget(w);
 	}
 
