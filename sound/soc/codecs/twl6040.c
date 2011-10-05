@@ -796,20 +796,14 @@ static int twl6040_get_volsw(struct snd_kcontrol *kcontrol,
 		out = &twl6040_priv->handsfree;
 		break;
 	default:
-		break;
+		dev_warn(codec->dev, "%s: Unexpected register: 0x%02x\n",
+					__func__, mc->reg);
+		return -EINVAL;
 	}
 
-	if (out) {
-		ucontrol->value.integer.value[0] = out->left_vol;
-		ucontrol->value.integer.value[1] = out->right_vol;
-		return 0;
-	}
-
-	/* call the appropriate handler depending on the rreg */
-	if (mc->rreg)
-		return snd_soc_get_volsw_2r(kcontrol, ucontrol);
-	else
-		return snd_soc_get_volsw(kcontrol, ucontrol);
+	ucontrol->value.integer.value[0] = out->left_vol;
+	ucontrol->value.integer.value[1] = out->right_vol;
+	return 0;
 }
 
 /*
