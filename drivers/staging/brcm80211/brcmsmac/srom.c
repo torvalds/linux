@@ -924,7 +924,7 @@ static inline void htol16_buf(u16 *buf, unsigned int size)
  * convert binary srom data into linked list of srom variable items.
  */
 static void
-_initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct list_head *var_list)
+_initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 {
 	struct brcms_srom_list_head *entry;
 	enum brcms_srom_id id;
@@ -950,9 +950,6 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct list_head *var_list)
 		if ((srv->revmask & sr) == 0)
 			continue;
 
-		if (srv->off < off)
-			continue;
-
 		flags = srv->flags;
 		id = srv->varid;
 
@@ -964,26 +961,26 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct list_head *var_list)
 			/*
 			 * stored in string format XX:XX:XX:XX:XX:XX (17 chars)
 			 */
-			ea[0] = (srom[srv->off - off] >> 8) & 0xff;
-			ea[1] = srom[srv->off - off] & 0xff;
-			ea[2] = (srom[srv->off + 1 - off] >> 8) & 0xff;
-			ea[3] = srom[srv->off + 1 - off] & 0xff;
-			ea[4] = (srom[srv->off + 2 - off] >> 8) & 0xff;
-			ea[5] = srom[srv->off + 2 - off] & 0xff;
+			ea[0] = (srom[srv->off] >> 8) & 0xff;
+			ea[1] = srom[srv->off] & 0xff;
+			ea[2] = (srom[srv->off + 1] >> 8) & 0xff;
+			ea[3] = srom[srv->off + 1] & 0xff;
+			ea[4] = (srom[srv->off + 2] >> 8) & 0xff;
+			ea[5] = srom[srv->off + 2] & 0xff;
 			/* 17 characters + string terminator - union size */
 			extra_space = 18 - sizeof(s32);
 			type = BRCMS_SROM_STRING;
 		} else {
-			w = srom[srv->off - off];
+			w = srom[srv->off];
 			val = (w & srv->mask) >> mask_shift(srv->mask);
 			width = mask_width(srv->mask);
 
 			while (srv->flags & SRFL_MORE) {
 				srv++;
-				if (srv->off == 0 || srv->off < off)
+				if (srv->off == 0)
 					continue;
 
-				w = srom[srv->off - off];
+				w = srom[srv->off];
 				val +=
 				    ((w & srv->mask) >> mask_shift(srv->
 								   mask)) <<
@@ -1052,13 +1049,10 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct list_head *var_list)
 				if ((srv->revmask & sr) == 0)
 					continue;
 
-				if (pb + srv->off < off)
-					continue;
-
 				if (srv->flags & SRFL_NOVAR)
 					continue;
 
-				w = srom[pb + srv->off - off];
+				w = srom[pb + srv->off];
 				val = (w & srv->mask) >> mask_shift(srv->mask);
 				width = mask_width(srv->mask);
 
@@ -1226,7 +1220,7 @@ static int initvars_srom_pci(struct si_pub *sih, void __iomem *curmap,
 		INIT_LIST_HEAD(&sii->var_list);
 
 		/* parse SROM into name=value pairs. */
-		_initvars_srom_pci(sromrev, srom, 0, &sii->var_list);
+		_initvars_srom_pci(sromrev, srom, &sii->var_list);
 	}
 
 errout:
