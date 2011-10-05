@@ -92,6 +92,41 @@ static void hist_entry__add_cpumode_period(struct hist_entry *self,
 	}
 }
 
+static void hist_entry__decay(struct hist_entry *he)
+{
+	he->period = (he->period * 7) / 8;
+	he->nr_events = (he->nr_events * 7) / 8;
+}
+
+static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
+{
+	hists->stats.total_period -= he->period;
+	hist_entry__decay(he);
+	hists->stats.total_period += he->period;
+	return he->period == 0;
+}
+
+void hists__decay_entries(struct hists *hists)
+{
+	struct rb_node *next = rb_first(&hists->entries);
+	struct hist_entry *n;
+
+	while (next) {
+		n = rb_entry(next, struct hist_entry, rb_node);
+		next = rb_next(&n->rb_node);
+
+		if (hists__decay_entry(hists, n)) {
+			rb_erase(&n->rb_node, &hists->entries);
+
+			if (sort__need_collapse)
+				rb_erase(&n->rb_node_in, &hists->entries_collapsed);
+
+			hist_entry__free(n);
+			--hists->nr_entries;
+		}
+	}
+}
+
 /*
  * histogram, sorted on item, collects periods
  */
@@ -633,6 +668,21 @@ static size_t hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 	}
 
 	return ret;
+}
+
+void hists__output_recalc_col_len(struct hists *hists, int max_rows)
+{
+	struct rb_node *next = rb_first(&hists->entries);
+	struct hist_entry *n;
+	int row = 0;
+
+	hists__reset_col_len(hists);
+
+	while (next && row++ < max_rows) {
+		n = rb_entry(next, struct hist_entry, rb_node);
+		hists__calc_col_len(hists, n);
+		next = rb_next(&n->rb_node);
+	}
 }
 
 int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,

@@ -5,6 +5,7 @@
  * any workload, CPU or specific PID.
  *
  * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
+ *		 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
  * Improvements and fixes by:
  *
@@ -36,6 +37,7 @@
 #include "util/parse-events.h"
 #include "util/cpumap.h"
 #include "util/xyarray.h"
+#include "util/sort.h"
 
 #include "util/debug.h"
 
@@ -65,12 +67,8 @@
 static struct perf_top top = {
 	.count_filter		= 5,
 	.delay_secs		= 2,
-	.display_weighted	= -1,
 	.target_pid		= -1,
 	.target_tid		= -1,
-	.active_symbols		= LIST_HEAD_INIT(top.active_symbols),
-	.active_symbols_lock	= PTHREAD_MUTEX_INITIALIZER,
-	.active_symbols_cond	= PTHREAD_COND_INITIALIZER,
 	.freq			= 1000, /* 1 KHz */
 };
 
@@ -85,7 +83,6 @@ static bool			vmlinux_warned;
 static bool			inherit				=  false;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
-static unsigned int		page_size;
 static unsigned int		mmap_pages			=    128;
 
 static bool			dump_symtab                     =  false;
@@ -93,7 +90,6 @@ static bool			dump_symtab                     =  false;
 static struct winsize		winsize;
 
 static const char		*sym_filter			=   NULL;
-struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;
 
 /*
@@ -136,18 +132,18 @@ static void sig_winch_handler(int sig __used)
 	update_print_entries(&winsize);
 }
 
-static int parse_source(struct sym_entry *syme)
+static int parse_source(struct hist_entry *he)
 {
 	struct symbol *sym;
 	struct annotation *notes;
 	struct map *map;
 	int err = -1;
 
-	if (!syme)
+	if (!he || !he->ms.sym)
 		return -1;
 
-	sym = sym_entry__symbol(syme);
-	map = syme->map;
+	sym = he->ms.sym;
+	map = he->ms.map;
 
 	/*
 	 * We can't annotate with just /proc/kallsyms
@@ -175,53 +171,62 @@ static int parse_source(struct sym_entry *syme)
 		return err;
 	}
 
-	err = symbol__annotate(sym, syme->map, 0);
+	err = symbol__annotate(sym, map, 0);
 	if (err == 0) {
 out_assign:
-		top.sym_filter_entry = syme;
+		top.sym_filter_entry = he;
 	}
 
 	pthread_mutex_unlock(&notes->lock);
 	return err;
 }
 
-static void __zero_source_counters(struct sym_entry *syme)
+static void __zero_source_counters(struct hist_entry *he)
 {
-	struct symbol *sym = sym_entry__symbol(syme);
+	struct symbol *sym = he->ms.sym;
 	symbol__annotate_zero_histograms(sym);
 }
 
-static void record_precise_ip(struct sym_entry *syme, struct map *map,
-			      int counter, u64 ip)
+static void record_precise_ip(struct hist_entry *he, int counter, u64 ip)
 {
 	struct annotation *notes;
 	struct symbol *sym;
 
-	if (syme != top.sym_filter_entry)
+	if (he == NULL || he->ms.sym == NULL ||
+	    (he != top.sym_filter_entry && use_browser != 1))
 		return;
 
-	sym = sym_entry__symbol(syme);
+	sym = he->ms.sym;
 	notes = symbol__annotation(sym);
 
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	ip = map->map_ip(map, ip);
-	symbol__inc_addr_samples(sym, map, counter, ip);
+	if (notes->src == NULL &&
+	    symbol__alloc_hist(sym, top.evlist->nr_entries) < 0) {
+		pthread_mutex_unlock(&notes->lock);
+		pr_err("Not enough memory for annotating '%s' symbol!\n",
+		       sym->name);
+		sleep(1);
+		return;
+	}
+
+	ip = he->ms.map->map_ip(he->ms.map, ip);
+	symbol__inc_addr_samples(sym, he->ms.map, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 }
 
-static void show_details(struct sym_entry *syme)
+static void show_details(struct hist_entry *he)
 {
 	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
 
-	if (!syme)
+	if (!he)
 		return;
 
-	symbol = sym_entry__symbol(syme);
+	symbol = he->ms.sym;
 	notes = symbol__annotation(symbol);
 
 	pthread_mutex_lock(&notes->lock);
@@ -232,7 +237,7 @@ static void show_details(struct sym_entry *syme)
 	printf("Showing %s for %s\n", event_name(top.sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", sym_pcnt_filter);
 
-	more = symbol__annotate_printf(symbol, syme->map, top.sym_evsel->idx,
+	more = symbol__annotate_printf(symbol, he->ms.map, top.sym_evsel->idx,
 				       0, sym_pcnt_filter, top.print_entries, 4);
 	if (top.zero)
 		symbol__annotate_zero_histogram(symbol, top.sym_evsel->idx);
@@ -246,21 +251,28 @@ out_unlock:
 
 static const char		CONSOLE_CLEAR[] = "[H[2J";
 
-static void __list_insert_active_sym(struct sym_entry *syme)
+static struct hist_entry *
+	perf_session__add_hist_entry(struct perf_session *session,
+				     struct addr_location *al,
+				     struct perf_sample *sample,
+				     struct perf_evsel *evsel)
 {
-	list_add(&syme->node, &top.active_symbols);
+	struct hist_entry *he;
+
+	he = __hists__add_entry(&evsel->hists, al, NULL, sample->period);
+	if (he == NULL)
+		return NULL;
+
+	session->hists.stats.total_period += sample->period;
+	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+	return he;
 }
 
 static void print_sym_table(void)
 {
 	char bf[160];
 	int printed = 0;
-	struct rb_node *nd;
-	struct sym_entry *syme;
-	struct rb_root tmp = RB_ROOT;
 	const int win_width = winsize.ws_col - 1;
-	int sym_width, dso_width, dso_short_width;
-	float sum_ksamples = perf_top__decay_samples(&top, &tmp);
 
 	puts(CONSOLE_CLEAR);
 
@@ -276,6 +288,7 @@ static void print_sym_table(void)
 		color_fprintf(stdout, PERF_COLOR_RED, "WARNING:");
 		printf(" LOST %" PRIu64 " events, Check IO/CPU overload\n",
 		       top.total_lost_warned);
+		++printed;
 	}
 
 	if (top.sym_filter_entry) {
@@ -283,58 +296,13 @@ static void print_sym_table(void)
 		return;
 	}
 
-	perf_top__find_widths(&top, &tmp, &dso_width, &dso_short_width,
-			      &sym_width);
-
-	if (sym_width + dso_width > winsize.ws_col - 29) {
-		dso_width = dso_short_width;
-		if (sym_width + dso_width > winsize.ws_col - 29)
-			sym_width = winsize.ws_col - dso_width - 29;
-	}
+	hists__collapse_resort_threaded(&top.sym_evsel->hists);
+	hists__output_resort_threaded(&top.sym_evsel->hists);
+	hists__decay_entries(&top.sym_evsel->hists);
+	hists__output_recalc_col_len(&top.sym_evsel->hists, winsize.ws_row - 3);
 	putchar('\n');
-	if (top.evlist->nr_entries == 1)
-		printf("             samples  pcnt");
-	else
-		printf("   weight    samples  pcnt");
-
-	if (verbose)
-		printf("         RIP       ");
-	printf(" %-*.*s DSO\n", sym_width, sym_width, "function");
-	printf("   %s    _______ _____",
-	       top.evlist->nr_entries == 1 ? "      " : "______");
-	if (verbose)
-		printf(" ________________");
-	printf(" %-*.*s", sym_width, sym_width, graph_line);
-	printf(" %-*.*s", dso_width, dso_width, graph_line);
-	puts("\n");
-
-	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
-		struct symbol *sym;
-		double pcnt;
-
-		syme = rb_entry(nd, struct sym_entry, rb_node);
-		sym = sym_entry__symbol(syme);
-		if (++printed > top.print_entries ||
-		    (int)syme->snap_count < top.count_filter)
-			continue;
-
-		pcnt = 100.0 - (100.0 * ((sum_ksamples - syme->snap_count) /
-					 sum_ksamples));
-
-		if (top.evlist->nr_entries == 1 || !top.display_weighted)
-			printf("%20.2f ", syme->weight);
-		else
-			printf("%9.1f %10ld ", syme->weight, syme->snap_count);
-
-		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
-		if (verbose)
-			printf(" %016" PRIx64, sym->start);
-		printf(" %-*.*s", sym_width, sym_width, sym->name);
-		printf(" %-*.*s\n", dso_width, dso_width,
-		       dso_width >= syme->map->dso->long_name_len ?
-					syme->map->dso->long_name :
-					syme->map->dso->short_name);
-	}
+	hists__fprintf(&top.sym_evsel->hists, NULL, false, false,
+		       winsize.ws_row - 4 - printed, win_width, stdout);
 }
 
 static void prompt_integer(int *target, const char *msg)
@@ -372,10 +340,11 @@ static void prompt_percent(int *target, const char *msg)
 		*target = tmp;
 }
 
-static void prompt_symbol(struct sym_entry **target, const char *msg)
+static void prompt_symbol(struct hist_entry **target, const char *msg)
 {
 	char *buf = malloc(0), *p;
-	struct sym_entry *syme = *target, *n, *found = NULL;
+	struct hist_entry *syme = *target, *n, *found = NULL;
+	struct rb_node *next;
 	size_t dummy = 0;
 
 	/* zero counters of active symbol */
@@ -392,17 +361,14 @@ static void prompt_symbol(struct sym_entry **target, const char *msg)
 	if (p)
 		*p = 0;
 
-	pthread_mutex_lock(&top.active_symbols_lock);
-	syme = list_entry(top.active_symbols.next, struct sym_entry, node);
-	pthread_mutex_unlock(&top.active_symbols_lock);
-
-	list_for_each_entry_safe_from(syme, n, &top.active_symbols, node) {
-		struct symbol *sym = sym_entry__symbol(syme);
-
-		if (!strcmp(buf, sym->name)) {
-			found = syme;
+	next = rb_first(&top.sym_evsel->hists.entries);
+	while (next) {
+		n = rb_entry(next, struct hist_entry, rb_node);
+		if (n->ms.sym && !strcmp(buf, n->ms.sym->name)) {
+			found = n;
 			break;
 		}
+		next = rb_next(&n->rb_node);
 	}
 
 	if (!found) {
@@ -421,7 +387,7 @@ static void print_mapped_keys(void)
 	char *name = NULL;
 
 	if (top.sym_filter_entry) {
-		struct symbol *sym = sym_entry__symbol(top.sym_filter_entry);
+		struct symbol *sym = top.sym_filter_entry->ms.sym;
 		name = sym->name;
 	}
 
@@ -437,9 +403,6 @@ static void print_mapped_keys(void)
 	fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
 	fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
 	fprintf(stdout, "\t[S]     stop annotation.\n");
-
-	if (top.evlist->nr_entries > 1)
-		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", top.display_weighted ? 1 : 0);
 
 	fprintf(stdout,
 		"\t[K]     hide kernel_symbols symbols.     \t(%s)\n",
@@ -467,8 +430,6 @@ static int key_mapped(int c)
 		case 'S':
 			return 1;
 		case 'E':
-		case 'w':
-			return top.evlist->nr_entries > 1 ? 1 : 0;
 		default:
 			break;
 	}
@@ -561,7 +522,7 @@ static void handle_keypress(int c)
 			if (!top.sym_filter_entry)
 				break;
 			else {
-				struct sym_entry *syme = top.sym_filter_entry;
+				struct hist_entry *syme = top.sym_filter_entry;
 
 				top.sym_filter_entry = NULL;
 				__zero_source_counters(syme);
@@ -569,9 +530,6 @@ static void handle_keypress(int c)
 			break;
 		case 'U':
 			top.hide_user_symbols = !top.hide_user_symbols;
-			break;
-		case 'w':
-			top.display_weighted = ~top.display_weighted;
 			break;
 		case 'z':
 			top.zero = !top.zero;
@@ -581,19 +539,29 @@ static void handle_keypress(int c)
 	}
 }
 
+static void perf_top__sort_new_samples(void *arg)
+{
+	struct perf_top *t = arg;
+	perf_top__reset_sample_counters(t);
+
+	if (t->evlist->selected != NULL)
+		t->sym_evsel = t->evlist->selected;
+
+	hists__collapse_resort_threaded(&t->sym_evsel->hists);
+	hists__output_resort_threaded(&t->sym_evsel->hists);
+	hists__decay_entries(&t->sym_evsel->hists);
+	hists__output_recalc_col_len(&t->sym_evsel->hists, winsize.ws_row - 3);
+}
+
 static void *display_thread_tui(void *arg __used)
 {
-	int err = 0;
-	pthread_mutex_lock(&top.active_symbols_lock);
-	while (list_empty(&top.active_symbols)) {
-		err = pthread_cond_wait(&top.active_symbols_cond,
-					&top.active_symbols_lock);
-		if (err)
-			break;
-	}
-	pthread_mutex_unlock(&top.active_symbols_lock);
-	if (!err)
-		perf_top__tui_browser(&top);
+	const char *help = "For a higher level overview, try: perf top --sort comm,dso";
+
+	perf_top__sort_new_samples(&top);
+	perf_evlist__tui_browse_hists(top.evlist, help,
+				      perf_top__sort_new_samples,
+				      &top, top.delay_secs);
+
 	exit_browser(0);
 	exit(0);
 	return NULL;
@@ -645,9 +613,8 @@ static const char *skip_symbols[] = {
 	NULL
 };
 
-static int symbol_filter(struct map *map, struct symbol *sym)
+static int symbol_filter(struct map *map __used, struct symbol *sym)
 {
-	struct sym_entry *syme;
 	const char *name = sym->name;
 	int i;
 
@@ -667,16 +634,6 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	    strstr(name, "_text_end"))
 		return 1;
 
-	syme = symbol__priv(sym);
-	syme->map = map;
-	symbol__annotate_init(map, sym);
-
-	if (!top.sym_filter_entry && sym_filter && !strcmp(name, sym_filter)) {
-		/* schedule initial sym_filter_entry setup */
-		sym_filter_entry_sched = syme;
-		sym_filter = NULL;
-	}
-
 	for (i = 0; skip_symbols[i]; i++) {
 		if (!strcmp(skip_symbols[i], name)) {
 			sym->ignore = true;
@@ -692,7 +649,6 @@ static void perf_event__process_sample(const union perf_event *event,
 				       struct perf_session *session)
 {
 	u64 ip = event->ip.ip;
-	struct sym_entry *syme;
 	struct addr_location al;
 	struct machine *machine;
 	u8 origin = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
@@ -783,46 +739,25 @@ static void perf_event__process_sample(const union perf_event *event,
 				sleep(5);
 			vmlinux_warned = true;
 		}
-
-		return;
 	}
 
-	/* let's see, whether we need to install initial sym_filter_entry */
-	if (sym_filter_entry_sched) {
-		top.sym_filter_entry = sym_filter_entry_sched;
-		sym_filter_entry_sched = NULL;
-		if (parse_source(top.sym_filter_entry) < 0) {
-			struct symbol *sym = sym_entry__symbol(top.sym_filter_entry);
-
-			pr_err("Can't annotate %s", sym->name);
-			if (top.sym_filter_entry->map->dso->symtab_type == SYMTAB__KALLSYMS) {
-				pr_err(": No vmlinux file was found in the path:\n");
-				machine__fprintf_vmlinux_path(machine, stderr);
-			} else
-				pr_err(".\n");
-			exit(1);
-		}
-	}
-
-	syme = symbol__priv(al.sym);
-	if (!al.sym->ignore) {
+	if (al.sym == NULL || !al.sym->ignore) {
 		struct perf_evsel *evsel;
+		struct hist_entry *he;
 
 		evsel = perf_evlist__id2evsel(top.evlist, sample->id);
 		assert(evsel != NULL);
-		syme->count[evsel->idx]++;
-		record_precise_ip(syme, al.map, evsel->idx, ip);
-		pthread_mutex_lock(&top.active_symbols_lock);
-		if (list_empty(&syme->node) || !syme->node.next) {
-			static bool first = true;
-			__list_insert_active_sym(syme);
-			if (first) {
-				pthread_cond_broadcast(&top.active_symbols_cond);
-				first = false;
-			}
+
+		he = perf_session__add_hist_entry(session, &al, sample, evsel);
+		if (he == NULL) {
+			pr_err("Problem incrementing symbol period, skipping event\n");
+			return;
 		}
-		pthread_mutex_unlock(&top.active_symbols_lock);
+
+		record_precise_ip(he, evsel->idx, ip);
 	}
+
+	return;
 }
 
 static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
@@ -874,6 +809,7 @@ static void start_counters(struct perf_evlist *evlist)
 		}
 
 		attr->mmap = 1;
+		attr->comm = 1;
 		attr->inherit = inherit;
 try_again:
 		if (perf_evsel__open(counter, top.evlist->cpus,
@@ -1019,7 +955,7 @@ static const struct option options[] = {
 			    "put the counters into a counter group"),
 	OPT_BOOLEAN('i', "inherit", &inherit,
 		    "child tasks inherit counters"),
-	OPT_STRING('s', "sym-annotate", &sym_filter, "symbol name",
+	OPT_STRING(0, "sym-annotate", &sym_filter, "symbol name",
 		    "symbol to annotate"),
 	OPT_BOOLEAN('z', "zero", &top.zero,
 		    "zero history across updates"),
@@ -1033,6 +969,18 @@ static const struct option options[] = {
 	OPT_BOOLEAN(0, "stdio", &use_stdio, "Use the stdio interface"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
+	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
+		   "sort by key(s): pid, comm, dso, symbol, parent"),
+	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
+		    "Show a column with the number of samples"),
+	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
+		    "Show a column with the sum of periods"),
+	OPT_STRING(0, "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
+		   "only consider symbols in these dsos"),
+	OPT_STRING(0, "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
+		   "only consider symbols in these comms"),
+	OPT_STRING(0, "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
+		   "only consider these symbols"),
 	OPT_END()
 };
 
@@ -1045,11 +993,16 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (top.evlist == NULL)
 		return -ENOMEM;
 
-	page_size = sysconf(_SC_PAGE_SIZE);
+	symbol_conf.exclude_other = false;
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)
 		usage_with_options(top_usage, options);
+
+	if (sort_order == default_sort_order)
+		sort_order = "dso,symbol";
+
+	setup_sorting(top_usage, options);
 
 	/*
  	 * XXX For now start disabled, only using TUI if explicitely asked for.
@@ -1119,12 +1072,15 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	top.sym_evsel = list_entry(top.evlist->entries.next, struct perf_evsel, node);
 
-	symbol_conf.priv_size = (sizeof(struct sym_entry) + sizeof(struct annotation) +
-				 (top.evlist->nr_entries + 1) * sizeof(unsigned long));
+	symbol_conf.priv_size = sizeof(struct annotation);
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init() < 0)
 		return -1;
+
+	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
+	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
+	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
 
 	get_term_dimensions(&winsize);
 	if (top.print_entries == 0) {
