@@ -277,8 +277,8 @@ static void wl_destroy_event_handler(struct wl_priv *wl);
 static s32 wl_event_handler(void *data);
 static void wl_init_eq(struct wl_priv *wl);
 static void wl_flush_eq(struct wl_priv *wl);
-static void wl_lock_eq(struct wl_priv *wl);
-static void wl_unlock_eq(struct wl_priv *wl);
+static unsigned long wl_lock_eq(struct wl_priv *wl);
+static void wl_unlock_eq(struct wl_priv *wl, unsigned long flags);
 static void wl_init_eq_lock(struct wl_priv *wl);
 static void wl_init_event_handler(struct wl_priv *wl);
 static struct wl_event_q *wl_deq_event(struct wl_priv *wl);
@@ -5782,14 +5782,15 @@ static void wl_init_eq(struct wl_priv *wl)
 static void wl_flush_eq(struct wl_priv *wl)
 {
 	struct wl_event_q *e;
+	unsigned long flags;
 
-	wl_lock_eq(wl);
+	flags = wl_lock_eq(wl);
 	while (!list_empty(&wl->eq_list)) {
 		e = list_first_entry(&wl->eq_list, struct wl_event_q, eq_list);
 		list_del(&e->eq_list);
 		kfree(e);
 	}
-	wl_unlock_eq(wl);
+	wl_unlock_eq(wl, flags);
 }
 
 /*
@@ -5799,13 +5800,14 @@ static void wl_flush_eq(struct wl_priv *wl)
 static struct wl_event_q *wl_deq_event(struct wl_priv *wl)
 {
 	struct wl_event_q *e = NULL;
+	unsigned long flags;
 
-	wl_lock_eq(wl);
+	flags = wl_lock_eq(wl);
 	if (likely(!list_empty(&wl->eq_list))) {
 		e = list_first_entry(&wl->eq_list, struct wl_event_q, eq_list);
 		list_del(&e->eq_list);
 	}
-	wl_unlock_eq(wl);
+	wl_unlock_eq(wl, flags);
 
 	return e;
 }
@@ -5822,12 +5824,15 @@ wl_enq_event(struct wl_priv *wl, struct net_device *ndev, u32 event, const wl_ev
 	s32 err = 0;
 	uint32 evtq_size;
 	uint32 data_len;
+	unsigned long flags;
+	gfp_t aflags;
 
 	data_len = 0;
 	if (data)
 		data_len = ntoh32(msg->datalen);
 	evtq_size = sizeof(struct wl_event_q) + data_len;
-	e = kzalloc(evtq_size, GFP_ATOMIC);
+	aflags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+	e = kzalloc(evtq_size, aflags);
 	if (unlikely(!e)) {
 		WL_ERR(("event alloc failed\n"));
 		return -ENOMEM;
@@ -5836,9 +5841,9 @@ wl_enq_event(struct wl_priv *wl, struct net_device *ndev, u32 event, const wl_ev
 	memcpy(&e->emsg, msg, sizeof(wl_event_msg_t));
 	if (data)
 		memcpy(e->edata, data, data_len);
-	wl_lock_eq(wl);
+	flags = wl_lock_eq(wl);
 	list_add_tail(&e->eq_list, &wl->eq_list);
-	wl_unlock_eq(wl);
+	wl_unlock_eq(wl, flags);
 
 	return err;
 }
@@ -6581,14 +6586,17 @@ static void wl_link_down(struct wl_priv *wl)
 	conn_info->resp_ie_len = 0;
 }
 
-static void wl_lock_eq(struct wl_priv *wl)
+static unsigned long wl_lock_eq(struct wl_priv *wl)
 {
-	spin_lock_irq(&wl->eq_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->eq_lock, flags);
+	return flags;
 }
 
-static void wl_unlock_eq(struct wl_priv *wl)
+static void wl_unlock_eq(struct wl_priv *wl, unsigned long flags)
 {
-	spin_unlock_irq(&wl->eq_lock);
+	spin_unlock_irqrestore(&wl->eq_lock, flags);
 }
 
 static void wl_init_eq_lock(struct wl_priv *wl)
