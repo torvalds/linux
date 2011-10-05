@@ -426,6 +426,8 @@ static ssize_t evdev_read(struct file *file, char __user *buffer,
 		retval += input_event_size();
 	}
 
+	if (retval == 0 && file->f_flags & O_NONBLOCK)
+		retval = -EAGAIN;
 	return retval;
 }
 
