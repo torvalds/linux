@@ -746,7 +746,7 @@ static int twl6040_put_volsw(struct snd_kcontrol *kcontrol,
 	struct twl6040_output *out = NULL;
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	int ret, type_2r;
+	int ret;
 
 	/* For HS and HF we shadow the values and only actually write
 	 * them out when active in order to ensure the amplifier comes on
@@ -754,11 +754,9 @@ static int twl6040_put_volsw(struct snd_kcontrol *kcontrol,
 	switch (mc->reg) {
 	case TWL6040_REG_HSGAIN:
 		out = &twl6040_priv->headset;
-		type_2r = 0;
 		break;
 	case TWL6040_REG_HFLGAIN:
 		out = &twl6040_priv->handsfree;
-		type_2r = 1;
 		break;
 	default:
 		return -EINVAL;
@@ -769,12 +767,7 @@ static int twl6040_put_volsw(struct snd_kcontrol *kcontrol,
 	if (!out->active)
 		return 1;
 
-	/* call the appropriate handler depending on the rreg */
-	if (type_2r)
-		ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
-	else
-		ret = snd_soc_put_volsw(kcontrol, ucontrol);
-
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 	if (ret < 0)
 		return ret;
 
