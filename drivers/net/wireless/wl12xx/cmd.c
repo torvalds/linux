@@ -671,19 +671,19 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out;
 	}
 
-	ret = wl12xx_allocate_link(wl, &wl->ap_global_hlid);
+	ret = wl12xx_allocate_link(wl, &wlvif->ap.global_hlid);
 	if (ret < 0)
 		goto out_free;
 
-	ret = wl12xx_allocate_link(wl, &wl->ap_bcast_hlid);
+	ret = wl12xx_allocate_link(wl, &wlvif->ap.bcast_hlid);
 	if (ret < 0)
 		goto out_free_global;
 
 	cmd->role_id = wlvif->role_id;
 	cmd->ap.aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
 	cmd->ap.bss_index = WL1271_AP_BSS_INDEX;
-	cmd->ap.global_hlid = wl->ap_global_hlid;
-	cmd->ap.broadcast_hlid = wl->ap_bcast_hlid;
+	cmd->ap.global_hlid = wlvif->ap.global_hlid;
+	cmd->ap.broadcast_hlid = wlvif->ap.bcast_hlid;
 	cmd->ap.basic_rate_set = cpu_to_le32(wlvif->basic_rate_set);
 	cmd->ap.beacon_interval = cpu_to_le16(wl->beacon_int);
 	cmd->ap.dtim_interval = bss_conf->dtim_period;
@@ -725,10 +725,10 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	goto out_free;
 
 out_free_bcast:
-	wl12xx_free_link(wl, &wl->ap_bcast_hlid);
+	wl12xx_free_link(wl, &wlvif->ap.bcast_hlid);
 
 out_free_global:
-	wl12xx_free_link(wl, &wl->ap_global_hlid);
+	wl12xx_free_link(wl, &wlvif->ap.global_hlid);
 
 out_free:
 	kfree(cmd);
@@ -758,8 +758,8 @@ int wl12xx_cmd_role_stop_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out_free;
 	}
 
-	wl12xx_free_link(wl, &wl->ap_bcast_hlid);
-	wl12xx_free_link(wl, &wl->ap_global_hlid);
+	wl12xx_free_link(wl, &wlvif->ap.bcast_hlid);
+	wl12xx_free_link(wl, &wlvif->ap.global_hlid);
 
 out_free:
 	kfree(cmd);
@@ -1264,12 +1264,11 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_set_sta_key(struct wl1271 *wl, struct ieee80211_vif *vif,
+int wl1271_cmd_set_sta_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, const u8 *addr,
 		       u32 tx_seq_32, u16 tx_seq_16)
 {
-	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271_cmd_set_keys *cmd;
 	int ret = 0;
 
@@ -1334,9 +1333,10 @@ out:
  * TODO: merge with sta/ibss into 1 set_key function.
  * note there are slight diffs
  */
-int wl1271_cmd_set_ap_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
-			u8 key_size, const u8 *key, u8 hlid, u32 tx_seq_32,
-			u16 tx_seq_16)
+int wl1271_cmd_set_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			  u16 action, u8 id, u8 key_type,
+			  u8 key_size, const u8 *key, u8 hlid, u32 tx_seq_32,
+			  u16 tx_seq_16)
 {
 	struct wl1271_cmd_set_keys *cmd;
 	int ret = 0;
@@ -1346,7 +1346,7 @@ int wl1271_cmd_set_ap_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 	if (!cmd)
 		return -ENOMEM;
 
-	if (hlid == wl->ap_bcast_hlid) {
+	if (hlid == wlvif->ap.bcast_hlid) {
 		if (key_type == KEY_WEP)
 			lid_type = WEP_DEFAULT_LID_TYPE;
 		else

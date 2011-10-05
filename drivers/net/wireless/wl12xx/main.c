@@ -1488,8 +1488,9 @@ int wl1271_plt_stop(struct wl1271 *wl)
 static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1271 *wl = hw->priv;
-	struct ieee80211_tx_info *control = IEEE80211_SKB_CB(skb);
-	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(control->control.vif);
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_vif *vif = info->control.vif;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	unsigned long flags;
 	int q, mapping;
 	u8 hlid = 0;
@@ -1498,7 +1499,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	q = wl1271_tx_get_queue(mapping);
 
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-		hlid = wl12xx_tx_get_hlid_ap(wl, skb);
+		hlid = wl12xx_tx_get_hlid_ap(wl, wlvif, skb);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
@@ -1858,7 +1859,12 @@ static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
 	wlvif->bss_type = MAX_BSS_TYPE;
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
+
+	/* TODO: init union by type */
 	wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
+	wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
+	wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
+
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -2084,8 +2090,8 @@ deinit:
 	/* clear all hlids (except system_hlid) */
 	wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
-	wl->ap_bcast_hlid = WL12XX_INVALID_LINK_ID;
-	wl->ap_global_hlid = WL12XX_INVALID_LINK_ID;
+	wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
+	wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
 
 	/*
 	 * this must be before the cancel_work calls below, so that the work
@@ -2653,7 +2659,7 @@ static void wl1271_free_ap_keys(struct wl1271 *wl)
 	}
 }
 
-static int wl1271_ap_init_hwenc(struct wl1271 *wl)
+static int wl1271_ap_init_hwenc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int i, ret = 0;
 	struct wl1271_ap_key *key;
@@ -2667,9 +2673,9 @@ static int wl1271_ap_init_hwenc(struct wl1271 *wl)
 		key = wl->recorded_ap_keys[i];
 		hlid = key->hlid;
 		if (hlid == WL12XX_INVALID_LINK_ID)
-			hlid = wl->ap_bcast_hlid;
+			hlid = wlvif->ap.bcast_hlid;
 
-		ret = wl1271_cmd_set_ap_key(wl, KEY_ADD_OR_REPLACE,
+		ret = wl1271_cmd_set_ap_key(wl, wlvif, KEY_ADD_OR_REPLACE,
 					    key->id, key->key_type,
 					    key->key_size, key->key,
 					    hlid, key->tx_seq_32,
@@ -2683,7 +2689,7 @@ static int wl1271_ap_init_hwenc(struct wl1271 *wl)
 
 	if (wep_key_added) {
 		ret = wl12xx_cmd_set_default_wep_key(wl, wl->default_key,
-						     wl->ap_bcast_hlid);
+						     wlvif->ap.bcast_hlid);
 		if (ret < 0)
 			goto out;
 	}
@@ -2709,7 +2715,7 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			wl_sta = (struct wl1271_station *)sta->drv_priv;
 			hlid = wl_sta->hlid;
 		} else {
-			hlid = wl->ap_bcast_hlid;
+			hlid = wlvif->ap.bcast_hlid;
 		}
 
 		if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags)) {
@@ -2725,7 +2731,7 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 					     key, hlid, tx_seq_32,
 					     tx_seq_16);
 		} else {
-			ret = wl1271_cmd_set_ap_key(wl, action,
+			ret = wl1271_cmd_set_ap_key(wl, wlvif, action,
 					     id, key_type, key_size,
 					     key, hlid, tx_seq_32,
 					     tx_seq_16);
@@ -2769,7 +2775,7 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		    wlvif->sta.hlid == WL12XX_INVALID_LINK_ID)
 			return 0;
 
-		ret = wl1271_cmd_set_sta_key(wl, vif, action,
+		ret = wl1271_cmd_set_sta_key(wl, wlvif, action,
 					     id, key_type, key_size,
 					     key, addr, tx_seq_32,
 					     tx_seq_16);
@@ -3375,7 +3381,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 				if (ret < 0)
 					goto out;
 
-				ret = wl1271_ap_init_hwenc(wl);
+				ret = wl1271_ap_init_hwenc(wl, wlvif);
 				if (ret < 0)
 					goto out;
 
@@ -4891,8 +4897,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
 	wl->session_counter = 0;
-	wl->ap_bcast_hlid = WL12XX_INVALID_LINK_ID;
-	wl->ap_global_hlid = WL12XX_INVALID_LINK_ID;
 	wl->active_sta_count = 0;
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);

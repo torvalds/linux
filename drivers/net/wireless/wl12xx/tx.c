@@ -40,7 +40,7 @@ static int wl1271_set_default_wep_key(struct wl1271 *wl,
 
 	if (is_ap)
 		ret = wl12xx_cmd_set_default_wep_key(wl, id,
-						     wl->ap_bcast_hlid);
+						     wlvif->ap.bcast_hlid);
 	else
 		ret = wl12xx_cmd_set_default_wep_key(wl, id, wlvif->sta.hlid);
 
@@ -156,7 +156,8 @@ bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
 	return wl->dummy_packet == skb;
 }
 
-u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct sk_buff *skb)
+u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			 struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *control = IEEE80211_SKB_CB(skb);
 
@@ -174,9 +175,9 @@ u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct sk_buff *skb)
 
 		hdr = (struct ieee80211_hdr *)skb->data;
 		if (ieee80211_is_mgmt(hdr->frame_control))
-			return wl->ap_global_hlid;
+			return wlvif->ap.global_hlid;
 		else
-			return wl->ap_bcast_hlid;
+			return wlvif->ap.bcast_hlid;
 	}
 }
 
@@ -191,7 +192,7 @@ static u8 wl1271_tx_get_hlid(struct wl1271 *wl, struct ieee80211_vif *vif,
 		return wl->system_hlid;
 
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-		return wl12xx_tx_get_hlid_ap(wl, skb);
+		return wl12xx_tx_get_hlid_ap(wl, wlvif, skb);
 
 	wl1271_tx_update_filters(wl, wlvif, skb);
 
@@ -341,9 +342,9 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct ieee80211_vif *vif,
 		else
 			rate_idx = ACX_TX_BASIC_RATE;
 	} else {
-		if (hlid == wl->ap_global_hlid)
+		if (hlid == wlvif->ap.global_hlid)
 			rate_idx = ACX_TX_AP_MODE_MGMT_RATE;
-		else if (hlid == wl->ap_bcast_hlid)
+		else if (hlid == wlvif->ap.bcast_hlid)
 			rate_idx = ACX_TX_AP_MODE_BCST_RATE;
 		else
 			rate_idx = ac;

@@ -403,8 +403,6 @@ struct wl1271 {
 	int channel;
 	u8 system_hlid;
 	u8 dev_hlid;
-	u8 ap_global_hlid;
-	u8 ap_bcast_hlid;
 
 	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
 	unsigned long roles_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
@@ -627,6 +625,10 @@ struct wl12xx_vif {
 		struct {
 			u8 hlid;
 		} sta;
+		struct {
+			u8 global_hlid;
+			u8 bcast_hlid;
+		} ap;
 	};
 
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
