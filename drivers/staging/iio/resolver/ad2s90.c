@@ -23,7 +23,6 @@
 
 struct ad2s90_state {
 	struct mutex lock;
-	struct iio_dev *idev;
 	struct spi_device *sdev;
 	u8 rx[2] ____cacheline_aligned;
 };
@@ -87,7 +86,7 @@ static int __devinit ad2s90_probe(struct spi_device *spi)
 	indio_dev->info = &ad2s90_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(st->idev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
@@ -99,7 +98,7 @@ static int __devinit ad2s90_probe(struct spi_device *spi)
 	return 0;
 
 error_free_dev:
-	iio_free_device(st->idev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
