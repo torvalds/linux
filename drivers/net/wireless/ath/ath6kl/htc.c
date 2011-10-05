@@ -15,7 +15,7 @@
  */
 
 #include "core.h"
-#include "htc_hif.h"
+#include "hif.h"
 #include "debug.h"
 #include "hif-ops.h"
 #include <asm/unaligned.h>

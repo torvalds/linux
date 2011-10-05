@@ -21,7 +21,7 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sd.h>
-#include "htc_hif.h"
+#include "hif.h"
 #include "hif-ops.h"
 #include "target.h"
 #include "debug.h"

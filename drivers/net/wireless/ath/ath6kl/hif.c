@@ -13,11 +13,11 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "hif.h"
 
 #include "core.h"
 #include "target.h"
 #include "hif-ops.h"
-#include "htc_hif.h"
 #include "debug.h"
 
 #define MAILBOX_FOR_BLOCK_SIZE          1

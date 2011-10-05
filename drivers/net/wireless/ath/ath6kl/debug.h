@@ -17,7 +17,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "htc_hif.h"
+#include "hif.h"
 
 enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_WLAN_CONNECT = BIT(0),     /* wlan connect */
