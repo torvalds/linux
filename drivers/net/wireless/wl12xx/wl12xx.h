@@ -503,9 +503,6 @@ struct wl1271 {
 	/* The current band */
 	enum ieee80211_band band;
 
-	/* Beaconing interval (needed for ad-hoc) */
-	u32 beacon_int;
-
 	/* Default key (for WEP) */
 	u32 default_key;
 
@@ -644,6 +641,9 @@ struct wl12xx_vif {
 
 	/* probe-req template for the current AP */
 	struct sk_buff *probereq;
+
+	/* Beaconing interval (needed for ad-hoc) */
+	u32 beacon_int;
 
 	/* Our association ID */
 	u16 aid;

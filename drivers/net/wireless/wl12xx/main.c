@@ -1900,6 +1900,8 @@ static int wl12xx_init_vif_data(struct ieee80211_vif *vif)
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
+	wlvif->beacon_int = WL1271_DEFAULT_BEACON_INT;
+
 	return 0;
 }
 
@@ -3286,7 +3288,7 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 		wl1271_debug(DEBUG_MASTER, "beacon interval updated: %d",
 			bss_conf->beacon_int);
 
-		wl->beacon_int = bss_conf->beacon_int;
+		wlvif->beacon_int = bss_conf->beacon_int;
 	}
 
 	if ((changed & BSS_CHANGED_BEACON)) {
@@ -4889,7 +4891,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	}
 
 	wl->channel = WL1271_DEFAULT_CHANNEL;
-	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;
 	wl->rx_counter = 0;
 	wl->psm_entry_retry = 0;
