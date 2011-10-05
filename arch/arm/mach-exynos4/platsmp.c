@@ -106,6 +106,8 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 */
 	spin_lock(&boot_lock);
 	spin_unlock(&boot_lock);
+
+	set_cpu_online(cpu, true);
 }
 
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)

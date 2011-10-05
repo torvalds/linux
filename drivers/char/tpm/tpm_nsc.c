@@ -396,8 +396,6 @@ static void __exit cleanup_nsc(void)
 	if (pdev) {
 		tpm_nsc_remove(&pdev->dev);
 		platform_device_unregister(pdev);
-		kfree(pdev);
-		pdev = NULL;
 	}
 
 	platform_driver_unregister(&nsc_drv);

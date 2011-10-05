@@ -977,15 +977,17 @@ static void target_qf_do_work(struct work_struct *work)
 {
 	struct se_device *dev = container_of(work, struct se_device,
 					qf_work_queue);
+	LIST_HEAD(qf_cmd_list);
 	struct se_cmd *cmd, *cmd_tmp;
 
 	spin_lock_irq(&dev->qf_cmd_lock);
-	list_for_each_entry_safe(cmd, cmd_tmp, &dev->qf_cmd_list, se_qf_node) {
+	list_splice_init(&dev->qf_cmd_list, &qf_cmd_list);
+	spin_unlock_irq(&dev->qf_cmd_lock);
 
+	list_for_each_entry_safe(cmd, cmd_tmp, &qf_cmd_list, se_qf_node) {
 		list_del(&cmd->se_qf_node);
 		atomic_dec(&dev->dev_qf_count);
 		smp_mb__after_atomic_dec();
-		spin_unlock_irq(&dev->qf_cmd_lock);
 
 		pr_debug("Processing %s cmd: %p QUEUE_FULL in work queue"
 			" context: %s\n", cmd->se_tfo->get_fabric_name(), cmd,
@@ -997,10 +999,7 @@ static void target_qf_do_work(struct work_struct *work)
 		 * has been added to head of queue
 		 */
 		transport_add_cmd_to_queue(cmd, cmd->t_state);
-
-		spin_lock_irq(&dev->qf_cmd_lock);
 	}
-	spin_unlock_irq(&dev->qf_cmd_lock);
 }
 
 unsigned char *transport_dump_cmd_direction(struct se_cmd *cmd)

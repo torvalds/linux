@@ -1,0 +1,12 @@
+ARM PL022 SPI controller
+
+Required properties:
+- compatible : "arm,pl022", "arm,primecell"
+- reg : Offset and length of the register set for the device
+- interrupts : Should contain SPI controller interrupt
+
+Optional properties:
+- cs-gpios : should specify GPIOs used for chipselects.
+  The gpios will be referred to as reg = <index> in the SPI child nodes.
+  If unspecified, a single SPI device without a chip select can be used.
+

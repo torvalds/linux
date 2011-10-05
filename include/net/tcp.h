@@ -431,17 +431,34 @@ extern int tcp_disconnect(struct sock *sk, int flags);
 extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
 extern struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb, 
 				    struct ip_options *opt);
+#ifdef CONFIG_SYN_COOKIES
 extern __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, 
 				     __u16 *mss);
+#else
+static inline __u32 cookie_v4_init_sequence(struct sock *sk,
+					    struct sk_buff *skb,
+					    __u16 *mss)
+{
+	return 0;
+}
+#endif
 
 extern __u32 cookie_init_timestamp(struct request_sock *req);
 extern bool cookie_check_timestamp(struct tcp_options_received *opt, bool *);
 
 /* From net/ipv6/syncookies.c */
 extern struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb);
+#ifdef CONFIG_SYN_COOKIES
 extern __u32 cookie_v6_init_sequence(struct sock *sk, struct sk_buff *skb,
 				     __u16 *mss);
-
+#else
+static inline __u32 cookie_v6_init_sequence(struct sock *sk,
+					    struct sk_buff *skb,
+					    __u16 *mss)
+{
+	return 0;
+}
+#endif
 /* tcp_output.c */
 
 extern void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
@@ -460,6 +477,9 @@ extern int tcp_write_wakeup(struct sock *);
 extern void tcp_send_fin(struct sock *sk);
 extern void tcp_send_active_reset(struct sock *sk, gfp_t priority);
 extern int tcp_send_synack(struct sock *);
+extern int tcp_syn_flood_action(struct sock *sk,
+				const struct sk_buff *skb,
+				const char *proto);
 extern void tcp_push_one(struct sock *, unsigned int mss_now);
 extern void tcp_send_ack(struct sock *sk);
 extern void tcp_send_delayed_ack(struct sock *sk);

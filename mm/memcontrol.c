@@ -204,50 +204,6 @@ struct mem_cgroup_eventfd_list {
 static void mem_cgroup_threshold(struct mem_cgroup *mem);
 static void mem_cgroup_oom_notify(struct mem_cgroup *mem);
 
-enum {
-	SCAN_BY_LIMIT,
-	SCAN_BY_SYSTEM,
-	NR_SCAN_CONTEXT,
-	SCAN_BY_SHRINK,	/* not recorded now */
-};
-
-enum {
-	SCAN,
-	SCAN_ANON,
-	SCAN_FILE,
-	ROTATE,
-	ROTATE_ANON,
-	ROTATE_FILE,
-	FREED,
-	FREED_ANON,
-	FREED_FILE,
-	ELAPSED,
-	NR_SCANSTATS,
-};
-
-struct scanstat {
-	spinlock_t	lock;
-	unsigned long	stats[NR_SCAN_CONTEXT][NR_SCANSTATS];
-	unsigned long	rootstats[NR_SCAN_CONTEXT][NR_SCANSTATS];
-};
-
-const char *scanstat_string[NR_SCANSTATS] = {
-	"scanned_pages",
-	"scanned_anon_pages",
-	"scanned_file_pages",
-	"rotated_pages",
-	"rotated_anon_pages",
-	"rotated_file_pages",
-	"freed_pages",
-	"freed_anon_pages",
-	"freed_file_pages",
-	"elapsed_ns",
-};
-#define SCANSTAT_WORD_LIMIT	"_by_limit"
-#define SCANSTAT_WORD_SYSTEM	"_by_system"
-#define SCANSTAT_WORD_HIERARCHY	"_under_hierarchy"
-
-
 /*
  * The memory controller data structure. The memory controller controls both
  * page cache and RSS per cgroup. We would eventually like to provide
@@ -313,8 +269,7 @@ struct mem_cgroup {
 
 	/* For oom notifier event fd */
 	struct list_head oom_notify;
-	/* For recording LRU-scan statistics */
-	struct scanstat scanstat;
+
 	/*
 	 * Should we move charges of a task when a task is moved into this
 	 * mem_cgroup ? And what type of charges should we move ?
@@ -1678,44 +1633,6 @@ bool mem_cgroup_reclaimable(struct mem_cgroup *mem, bool noswap)
 }
 #endif
 
-static void __mem_cgroup_record_scanstat(unsigned long *stats,
-			   struct memcg_scanrecord *rec)
-{
-
-	stats[SCAN] += rec->nr_scanned[0] + rec->nr_scanned[1];
-	stats[SCAN_ANON] += rec->nr_scanned[0];
-	stats[SCAN_FILE] += rec->nr_scanned[1];
-
-	stats[ROTATE] += rec->nr_rotated[0] + rec->nr_rotated[1];
-	stats[ROTATE_ANON] += rec->nr_rotated[0];
-	stats[ROTATE_FILE] += rec->nr_rotated[1];
-
-	stats[FREED] += rec->nr_freed[0] + rec->nr_freed[1];
-	stats[FREED_ANON] += rec->nr_freed[0];
-	stats[FREED_FILE] += rec->nr_freed[1];
-
-	stats[ELAPSED] += rec->elapsed;
-}
-
-static void mem_cgroup_record_scanstat(struct memcg_scanrecord *rec)
-{
-	struct mem_cgroup *mem;
-	int context = rec->context;
-
-	if (context >= NR_SCAN_CONTEXT)
-		return;
-
-	mem = rec->mem;
-	spin_lock(&mem->scanstat.lock);
-	__mem_cgroup_record_scanstat(mem->scanstat.stats[context], rec);
-	spin_unlock(&mem->scanstat.lock);
-
-	mem = rec->root;
-	spin_lock(&mem->scanstat.lock);
-	__mem_cgroup_record_scanstat(mem->scanstat.rootstats[context], rec);
-	spin_unlock(&mem->scanstat.lock);
-}
-
 /*
  * Scan the hierarchy if needed to reclaim memory. We remember the last child
  * we reclaimed from, so that we don't end up penalizing one child extensively
@@ -1740,24 +1657,14 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 	bool noswap = reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP;
 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
-	struct memcg_scanrecord rec;
 	unsigned long excess;
-	unsigned long scanned;
+	unsigned long nr_scanned;
 
 	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
 
 	/* If memsw_is_minimum==1, swap-out is of-no-use. */
 	if (!check_soft && !shrink && root_mem->memsw_is_minimum)
 		noswap = true;
-
-	if (shrink)
-		rec.context = SCAN_BY_SHRINK;
-	else if (check_soft)
-		rec.context = SCAN_BY_SYSTEM;
-	else
-		rec.context = SCAN_BY_LIMIT;
-
-	rec.root = root_mem;
 
 	while (1) {
 		victim = mem_cgroup_select_victim(root_mem);
@@ -1799,23 +1706,14 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 			css_put(&victim->css);
 			continue;
 		}
-		rec.mem = victim;
-		rec.nr_scanned[0] = 0;
-		rec.nr_scanned[1] = 0;
-		rec.nr_rotated[0] = 0;
-		rec.nr_rotated[1] = 0;
-		rec.nr_freed[0] = 0;
-		rec.nr_freed[1] = 0;
-		rec.elapsed = 0;
 		/* we use swappiness of local cgroup */
 		if (check_soft) {
 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
-				noswap, zone, &rec, &scanned);
-			*total_scanned += scanned;
+				noswap, zone, &nr_scanned);
+			*total_scanned += nr_scanned;
 		} else
 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
-						noswap, &rec);
-		mem_cgroup_record_scanstat(&rec);
+						noswap);
 		css_put(&victim->css);
 		/*
 		 * At shrinking usage, we can't check we should stop here or
@@ -3854,18 +3752,14 @@ try_to_free:
 	/* try to free all pages in this cgroup */
 	shrink = 1;
 	while (nr_retries && mem->res.usage > 0) {
-		struct memcg_scanrecord rec;
 		int progress;
 
 		if (signal_pending(current)) {
 			ret = -EINTR;
 			goto out;
 		}
-		rec.context = SCAN_BY_SHRINK;
-		rec.mem = mem;
-		rec.root = mem;
 		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
-						false, &rec);
+						false);
 		if (!progress) {
 			nr_retries--;
 			/* maybe some writeback is necessary */
@@ -4709,54 +4603,6 @@ static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
 }
 #endif /* CONFIG_NUMA */
 
-static int mem_cgroup_vmscan_stat_read(struct cgroup *cgrp,
-				struct cftype *cft,
-				struct cgroup_map_cb *cb)
-{
-	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
-	char string[64];
-	int i;
-
-	for (i = 0; i < NR_SCANSTATS; i++) {
-		strcpy(string, scanstat_string[i]);
-		strcat(string, SCANSTAT_WORD_LIMIT);
-		cb->fill(cb, string,  mem->scanstat.stats[SCAN_BY_LIMIT][i]);
-	}
-
-	for (i = 0; i < NR_SCANSTATS; i++) {
-		strcpy(string, scanstat_string[i]);
-		strcat(string, SCANSTAT_WORD_SYSTEM);
-		cb->fill(cb, string,  mem->scanstat.stats[SCAN_BY_SYSTEM][i]);
-	}
-
-	for (i = 0; i < NR_SCANSTATS; i++) {
-		strcpy(string, scanstat_string[i]);
-		strcat(string, SCANSTAT_WORD_LIMIT);
-		strcat(string, SCANSTAT_WORD_HIERARCHY);
-		cb->fill(cb, string,  mem->scanstat.rootstats[SCAN_BY_LIMIT][i]);
-	}
-	for (i = 0; i < NR_SCANSTATS; i++) {
-		strcpy(string, scanstat_string[i]);
-		strcat(string, SCANSTAT_WORD_SYSTEM);
-		strcat(string, SCANSTAT_WORD_HIERARCHY);
-		cb->fill(cb, string,  mem->scanstat.rootstats[SCAN_BY_SYSTEM][i]);
-	}
-	return 0;
-}
-
-static int mem_cgroup_reset_vmscan_stat(struct cgroup *cgrp,
-				unsigned int event)
-{
-	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
-
-	spin_lock(&mem->scanstat.lock);
-	memset(&mem->scanstat.stats, 0, sizeof(mem->scanstat.stats));
-	memset(&mem->scanstat.rootstats, 0, sizeof(mem->scanstat.rootstats));
-	spin_unlock(&mem->scanstat.lock);
-	return 0;
-}
-
-
 static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "usage_in_bytes",
@@ -4827,11 +4673,6 @@ static struct cftype mem_cgroup_files[] = {
 		.mode = S_IRUGO,
 	},
 #endif
-	{
-		.name = "vmscan_stat",
-		.read_map = mem_cgroup_vmscan_stat_read,
-		.trigger = mem_cgroup_reset_vmscan_stat,
-	},
 };
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
@@ -5095,7 +4936,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	atomic_set(&mem->refcnt, 1);
 	mem->move_charge_at_immigrate = 0;
 	mutex_init(&mem->thresholds_lock);
-	spin_lock_init(&mem->scanstat.lock);
 	return &mem->css;
 free_out:
 	__mem_cgroup_free(mem);

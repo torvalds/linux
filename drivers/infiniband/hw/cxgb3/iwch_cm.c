@@ -287,7 +287,7 @@ void __free_ep(struct kref *kref)
 	if (test_bit(RELEASE_RESOURCES, &ep->com.flags)) {
 		cxgb3_remove_tid(ep->com.tdev, (void *)ep, ep->hwtid);
 		dst_release(ep->dst);
-		l2t_release(L2DATA(ep->com.tdev), ep->l2t);
+		l2t_release(ep->com.tdev, ep->l2t);
 	}
 	kfree(ep);
 }
@@ -1178,7 +1178,7 @@ static int act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		release_tid(ep->com.tdev, GET_TID(rpl), NULL);
 	cxgb3_free_atid(ep->com.tdev, ep->atid);
 	dst_release(ep->dst);
-	l2t_release(L2DATA(ep->com.tdev), ep->l2t);
+	l2t_release(ep->com.tdev, ep->l2t);
 	put_ep(&ep->com);
 	return CPL_RET_BUF_DONE;
 }
@@ -1377,7 +1377,7 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	if (!child_ep) {
 		printk(KERN_ERR MOD "%s - failed to allocate ep entry!\n",
 		       __func__);
-		l2t_release(L2DATA(tdev), l2t);
+		l2t_release(tdev, l2t);
 		dst_release(dst);
 		goto reject;
 	}
@@ -1956,7 +1956,7 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (!err)
 		goto out;
 
-	l2t_release(L2DATA(h->rdev.t3cdev_p), ep->l2t);
+	l2t_release(h->rdev.t3cdev_p, ep->l2t);
 fail4:
 	dst_release(ep->dst);
 fail3:
@@ -2127,7 +2127,7 @@ int iwch_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 	PDBG("%s ep %p redirect to dst %p l2t %p\n", __func__, ep, new,
 	     l2t);
 	dst_hold(new);
-	l2t_release(L2DATA(ep->com.tdev), ep->l2t);
+	l2t_release(ep->com.tdev, ep->l2t);
 	ep->l2t = l2t;
 	dst_release(old);
 	ep->dst = new;

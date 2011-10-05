@@ -51,6 +51,27 @@ static enum s3c_cpu_type s3c_rtc_cpu_type;
 
 static DEFINE_SPINLOCK(s3c_rtc_pie_lock);
 
+static void s3c_rtc_alarm_clk_enable(bool enable)
+{
+	static DEFINE_SPINLOCK(s3c_rtc_alarm_clk_lock);
+	static bool alarm_clk_enabled;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&s3c_rtc_alarm_clk_lock, irq_flags);
+	if (enable) {
+		if (!alarm_clk_enabled) {
+			clk_enable(rtc_clk);
+			alarm_clk_enabled = true;
+		}
+	} else {
+		if (alarm_clk_enabled) {
+			clk_disable(rtc_clk);
+			alarm_clk_enabled = false;
+		}
+	}
+	spin_unlock_irqrestore(&s3c_rtc_alarm_clk_lock, irq_flags);
+}
+
 /* IRQ Handlers */
 
 static irqreturn_t s3c_rtc_alarmirq(int irq, void *id)
@@ -64,6 +85,9 @@ static irqreturn_t s3c_rtc_alarmirq(int irq, void *id)
 		writeb(S3C2410_INTP_ALM, s3c_rtc_base + S3C2410_INTP);
 
 	clk_disable(rtc_clk);
+
+	s3c_rtc_alarm_clk_enable(false);
+
 	return IRQ_HANDLED;
 }
 
@@ -96,6 +120,8 @@ static int s3c_rtc_setaie(struct device *dev, unsigned int enabled)
 
 	writeb(tmp, s3c_rtc_base + S3C2410_RTCALM);
 	clk_disable(rtc_clk);
+
+	s3c_rtc_alarm_clk_enable(enabled);
 
 	return 0;
 }

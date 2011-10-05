@@ -1090,8 +1090,8 @@ do_udp_sendmsg:
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(*opt);
 
-		err = datagram_send_ctl(sock_net(sk), msg, &fl6, opt, &hlimit,
-					&tclass, &dontfrag);
+		err = datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
+					&hlimit, &tclass, &dontfrag);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
