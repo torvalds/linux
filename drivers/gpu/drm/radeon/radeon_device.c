@@ -750,14 +750,15 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 40-bits.
-	 * IGP - can handle 40-bits (in theory)
+	 * IGP - can handle 40-bits
 	 * AGP - generally dma32 is safest
-	 * PCI - only dma32
+	 * PCI - dma32 for legacy pci gart, 40 bits on newer asics
 	 */
 	rdev->need_dma32 = false;
 	if (rdev->flags & RADEON_IS_AGP)
 		rdev->need_dma32 = true;
-	if (rdev->flags & RADEON_IS_PCI)
+	if ((rdev->flags & RADEON_IS_PCI) &&
+	    (rdev->family < CHIP_RS400))
 		rdev->need_dma32 = true;
 
 	dma_bits = rdev->need_dma32 ? 32 : 40;
