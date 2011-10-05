@@ -77,6 +77,31 @@ enum ib_rate mult_to_ib_rate(int mult)
 }
 EXPORT_SYMBOL(mult_to_ib_rate);
 
+int ib_rate_to_mbps(enum ib_rate rate)
+{
+	switch (rate) {
+	case IB_RATE_2_5_GBPS: return 2500;
+	case IB_RATE_5_GBPS:   return 5000;
+	case IB_RATE_10_GBPS:  return 10000;
+	case IB_RATE_20_GBPS:  return 20000;
+	case IB_RATE_30_GBPS:  return 30000;
+	case IB_RATE_40_GBPS:  return 40000;
+	case IB_RATE_60_GBPS:  return 60000;
+	case IB_RATE_80_GBPS:  return 80000;
+	case IB_RATE_120_GBPS: return 120000;
+	case IB_RATE_14_GBPS:  return 14062;
+	case IB_RATE_56_GBPS:  return 56250;
+	case IB_RATE_112_GBPS: return 112500;
+	case IB_RATE_168_GBPS: return 168750;
+	case IB_RATE_25_GBPS:  return 25781;
+	case IB_RATE_100_GBPS: return 103125;
+	case IB_RATE_200_GBPS: return 206250;
+	case IB_RATE_300_GBPS: return 309375;
+	default:	       return -1;
+	}
+}
+EXPORT_SYMBOL(ib_rate_to_mbps);
+
 enum rdma_transport_type
 rdma_node_get_transport(enum rdma_node_type node_type)
 {
