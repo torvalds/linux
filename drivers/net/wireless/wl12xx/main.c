@@ -1896,6 +1896,10 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		ret = -EINVAL;
 		goto out;
 	}
+	/*
+	 * we still need this in order to configure the fw
+	 * while uploading the nvs
+	 */
 	memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 
 	if (wl->state != WL1271_STATE_OFF) {
@@ -1923,18 +1927,19 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 			 * the STA role can get packets only from
 			 * its associated bssid)
 			 */
-			ret = wl12xx_cmd_role_enable(wl,
+			ret = wl12xx_cmd_role_enable(wl, vif->addr,
 							 WL1271_ROLE_DEVICE,
 							 &wl->dev_role_id);
 			if (ret < 0)
 				goto irq_disable;
 		}
 
-		ret = wl12xx_cmd_role_enable(wl, role_type, &wl->role_id);
+		ret = wl12xx_cmd_role_enable(wl, vif->addr,
+					     role_type, &wl->role_id);
 		if (ret < 0)
 			goto irq_disable;
 
-		ret = wl1271_hw_init(wl);
+		ret = wl1271_hw_init(wl, vif);
 		if (ret < 0)
 			goto irq_disable;
 
@@ -2019,6 +2024,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
 		memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
+		wl->scan_vif = NULL;
 		wl->scan.req = NULL;
 		ieee80211_scan_completed(wl->hw, true);
 	}
@@ -2885,7 +2891,7 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 		wl12xx_cmd_role_stop_dev(wl);
 	}
 
-	ret = wl1271_scan(hw->priv, ssid, len, req);
+	ret = wl1271_scan(hw->priv, vif, ssid, len, req);
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -2921,6 +2927,7 @@ static void wl1271_op_cancel_hw_scan(struct ieee80211_hw *hw,
 	}
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
 	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
+	wl->scan_vif = NULL;
 	wl->scan.req = NULL;
 	ieee80211_scan_completed(wl->hw, true);
 
@@ -3295,7 +3302,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 			goto out;
 		}
 
-		ret = wl1271_ap_init_templates(wl);
+		ret = wl1271_ap_init_templates(wl, vif);
 		if (ret < 0)
 			goto out;
 	}
@@ -3428,7 +3435,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			if (ret < 0)
 				goto out;
 
-			ret = wl1271_build_qos_null_data(wl);
+			ret = wl1271_build_qos_null_data(wl, vif);
 			if (ret < 0)
 				goto out;
 

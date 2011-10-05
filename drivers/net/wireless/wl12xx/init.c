@@ -123,7 +123,8 @@ out:
 	return ret;
 }
 
-static int wl1271_ap_init_null_template(struct wl1271 *wl)
+static int wl1271_ap_init_null_template(struct wl1271 *wl,
+					struct ieee80211_vif *vif)
 {
 	struct ieee80211_hdr_3addr *nullfunc;
 	int ret;
@@ -141,8 +142,8 @@ static int wl1271_ap_init_null_template(struct wl1271 *wl)
 
 	/* nullfunc->addr1 is filled by FW */
 
-	memcpy(nullfunc->addr2, wl->mac_addr, ETH_ALEN);
-	memcpy(nullfunc->addr3, wl->mac_addr, ETH_ALEN);
+	memcpy(nullfunc->addr2, vif->addr, ETH_ALEN);
+	memcpy(nullfunc->addr3, vif->addr, ETH_ALEN);
 
 	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, nullfunc,
@@ -153,7 +154,8 @@ out:
 	return ret;
 }
 
-static int wl1271_ap_init_qos_null_template(struct wl1271 *wl)
+static int wl1271_ap_init_qos_null_template(struct wl1271 *wl,
+					    struct ieee80211_vif *vif)
 {
 	struct ieee80211_qos_hdr *qosnull;
 	int ret;
@@ -171,8 +173,8 @@ static int wl1271_ap_init_qos_null_template(struct wl1271 *wl)
 
 	/* qosnull->addr1 is filled by FW */
 
-	memcpy(qosnull->addr2, wl->mac_addr, ETH_ALEN);
-	memcpy(qosnull->addr3, wl->mac_addr, ETH_ALEN);
+	memcpy(qosnull->addr2, vif->addr, ETH_ALEN);
+	memcpy(qosnull->addr3, vif->addr, ETH_ALEN);
 
 	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, qosnull,
@@ -449,7 +451,7 @@ static int wl1271_ap_hw_init(struct wl1271 *wl)
 	return 0;
 }
 
-int wl1271_ap_init_templates(struct wl1271 *wl)
+int wl1271_ap_init_templates(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
 	int ret;
 
@@ -457,11 +459,11 @@ int wl1271_ap_init_templates(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_ap_init_null_template(wl);
+	ret = wl1271_ap_init_null_template(wl, vif);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_ap_init_qos_null_template(wl);
+	ret = wl1271_ap_init_qos_null_template(wl, vif);
 	if (ret < 0)
 		return ret;
 
@@ -476,9 +478,10 @@ int wl1271_ap_init_templates(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_ap_hw_init_post_mem(struct wl1271 *wl)
+static int wl1271_ap_hw_init_post_mem(struct wl1271 *wl,
+				      struct ieee80211_vif *vif)
 {
-	return wl1271_ap_init_templates(wl);
+	return wl1271_ap_init_templates(wl, vif);
 }
 
 int wl1271_init_ap_rates(struct wl1271 *wl)
@@ -576,7 +579,7 @@ out:
 }
 
 
-int wl1271_hw_init(struct wl1271 *wl)
+int wl1271_hw_init(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
 	struct conf_tx_ac_category *conf_ac;
 	struct conf_tx_tid *conf_tid;
@@ -694,7 +697,7 @@ int wl1271_hw_init(struct wl1271 *wl)
 
 	/* Mode specific init - post mem init */
 	if (is_ap)
-		ret = wl1271_ap_hw_init_post_mem(wl);
+		ret = wl1271_ap_hw_init_post_mem(wl, vif);
 	else
 		ret = wl1271_sta_hw_init_post_mem(wl);
 

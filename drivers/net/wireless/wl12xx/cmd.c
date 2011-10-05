@@ -358,7 +358,8 @@ static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
 	return 0;
 }
 
-int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 role_type, u8 *role_id)
+int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 *addr, u8 role_type,
+			   u8 *role_id)
 {
 	struct wl12xx_cmd_role_enable *cmd;
 	int ret;
@@ -381,7 +382,7 @@ int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 role_type, u8 *role_id)
 		goto out_free;
 	}
 
-	memcpy(cmd->mac_address, wl->mac_addr, ETH_ALEN);
+	memcpy(cmd->mac_address, addr, ETH_ALEN);
 	cmd->role_type = role_type;
 
 	ret = wl1271_cmd_send(wl, CMD_ROLE_ENABLE, cmd, sizeof(*cmd), 0);
@@ -1200,14 +1201,14 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr)
 	return ret;
 }
 
-int wl1271_build_qos_null_data(struct wl1271 *wl)
+int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
 	struct ieee80211_qos_hdr template;
 
 	memset(&template, 0, sizeof(template));
 
 	memcpy(template.addr1, wl->bssid, ETH_ALEN);
-	memcpy(template.addr2, wl->mac_addr, ETH_ALEN);
+	memcpy(template.addr2, vif->addr, ETH_ALEN);
 	memcpy(template.addr3, wl->bssid, ETH_ALEN);
 
 	template.frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |

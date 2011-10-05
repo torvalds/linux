@@ -234,7 +234,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		wl1271_debug(DEBUG_EVENT, "status: 0x%x",
 			     mbox->scheduled_scan_status);
 
-		wl1271_scan_stm(wl);
+		wl1271_scan_stm(wl, wl->scan_vif);
 	}
 
 	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {

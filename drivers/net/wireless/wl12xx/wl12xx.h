@@ -507,6 +507,7 @@ struct wl1271 {
 	u32 mbox_ptr[2];
 
 	/* Are we currently scanning */
+	struct ieee80211_vif *scan_vif;
 	struct wl1271_scan scan;
 	struct delayed_work scan_complete_work;
 

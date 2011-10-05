@@ -36,7 +36,8 @@ int wl128x_cmd_general_parms(struct wl1271 *wl);
 int wl1271_cmd_radio_parms(struct wl1271 *wl);
 int wl128x_cmd_radio_parms(struct wl1271 *wl);
 int wl1271_cmd_ext_radio_parms(struct wl1271 *wl);
-int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 role_type, u8 *role_id);
+int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 *addr, u8 role_type,
+			   u8 *role_id);
 int wl12xx_cmd_role_disable(struct wl1271 *wl, u8 *role_id);
 int wl12xx_cmd_role_start_dev(struct wl1271 *wl);
 int wl12xx_cmd_role_stop_dev(struct wl1271 *wl);
@@ -62,7 +63,7 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct sk_buff *skb);
 int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr);
-int wl1271_build_qos_null_data(struct wl1271 *wl);
+int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif);
 int wl1271_cmd_build_klv_null_data(struct wl1271 *wl);
 int wl12xx_cmd_set_default_wep_key(struct wl1271 *wl, u8 id, u8 hlid);
 int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
