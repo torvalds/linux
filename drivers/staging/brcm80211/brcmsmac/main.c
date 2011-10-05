@@ -4557,8 +4557,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	bool wme = false;
 	struct shared_phy_params sha_params;
 	struct wiphy *wiphy = wlc->wiphy;
-	char *var;
-	unsigned long res;
 
 	BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit, vendor,
 		device);
@@ -4587,27 +4585,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 		goto fail;
 	}
 	vars = wlc_hw->vars;
-
-	/*
-	 * Get vendid/devid nvram overwrites, which could be different
-	 * than those the BIOS recognizes for devices on PCMCIA_BUS,
-	 * SDIO_BUS, and SROMless devices on PCI_BUS.
-	 */
-	var = getvar(wlc_hw->sih, "vendid");
-	if (var && !kstrtoul(var, 0, &res)) {
-		vendor = (u16)res;
-		wiphy_err(wiphy, "Overriding vendor id = 0x%x\n",
-			  vendor);
-	}
-	var = getvar(wlc_hw->sih, "devid");
-	if (var && !kstrtoul(var, 0, &res)) {
-		u16 devid = (u16)res;
-		if (devid != 0xffff) {
-			device = devid;
-			wiphy_err(wiphy, "Overriding device id = 0x%x"
-				  "\n", device);
-		}
-	}
 
 	/* verify again the device is supported */
 	if (!brcms_c_chipmatch(vendor, device)) {
@@ -4928,9 +4905,6 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 
 	/* get antennas available */
 	aa = (s8) getintvar(sih, bandtype == BRCM_BAND_5G ? "aa5g" : "aa2g");
-	if (aa == 0)
-		aa = (s8) getintvar(sih,
-				    bandtype == BRCM_BAND_5G ? "aa1" : "aa0");
 	if ((aa < 1) || (aa > 15)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: Invalid antennas available in"
 			  " srom (0x%x), using 3\n", unit, __func__, aa);
@@ -5113,11 +5087,9 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	brcms_b_copyfrom_vars(wlc->hw, &pub->vars, &wlc->vars_size);
 
 
-	/* set maximum allowed duty cycle */
-	wlc->tx_duty_cycle_ofdm =
-	    (u16) getintvar(wlc->hw->sih, "tx_duty_cycle_ofdm");
-	wlc->tx_duty_cycle_cck =
-	    (u16) getintvar(wlc->hw->sih, "tx_duty_cycle_cck");
+	/* disable allowed duty cycle */
+	wlc->tx_duty_cycle_ofdm = 0;
+	wlc->tx_duty_cycle_cck = 0;
 
 	brcms_c_stf_phy_chain_calc(wlc);
 

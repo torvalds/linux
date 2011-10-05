@@ -4920,12 +4920,6 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 								   "aa2g"));
 	}
 	pi_lcn->lcnphy_cck_dig_filt_type = -1;
-	if (wlapi_getvar(shim, "cckdigfilttype")) {
-		s16 temp;
-		temp = (s16)wlapi_getintvar(shim, "cckdigfilttype");
-		if (temp >= 0)
-			pi_lcn->lcnphy_cck_dig_filt_type = temp;
-	}
 
 	return true;
 }
