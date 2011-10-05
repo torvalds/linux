@@ -215,3 +215,12 @@ wlapi_copyto_objmem(struct phy_shim_info *physhim, uint offset, const void *buf,
 {
 	brcms_b_copyto_objmem(physhim->wlc_hw, offset, buf, l, sel);
 }
+
+char *wlapi_getvar(char *vars, const char *name)
+{
+	return getvar(vars, name);
+}
+int wlapi_getintvar(char *vars, const char *name)
+{
+	return getintvar(vars, name);
+}

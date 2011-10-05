@@ -126,42 +126,6 @@ const u8 ofdm_rate_lookup[] = {
 
 #define PHY_WREG_LIMIT  24
 
-char *phy_getvar(struct brcms_phy *pi, const char *name)
-{
-	char *vars = pi->vars;
-	char *s;
-	int len;
-
-	if (!name)
-		return NULL;
-
-	len = strlen(name);
-	if (len == 0)
-		return NULL;
-
-	for (s = vars; s && *s;) {
-		if ((memcmp(s, name, len) == 0) && (s[len] == '='))
-			return &s[len + 1];
-
-		while (*s++)
-			;
-	}
-
-	return NULL;
-}
-
-int phy_getintvar(struct brcms_phy *pi, const char *name)
-{
-	char *val;
-	unsigned long res;
-
-	val = PHY_GETVAR(pi, name);
-	if (val && !kstrtoul(val, 0, &res))
-		return res;
-
-	return 0;
-}
-
 void wlc_phyreg_enter(struct brcms_phy_pub *pih)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) pih;

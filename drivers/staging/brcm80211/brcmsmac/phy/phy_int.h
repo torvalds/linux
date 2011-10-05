@@ -919,12 +919,6 @@ struct lcnphy_radio_regs {
 	u8 do_init_g;
 };
 
-extern char *phy_getvar(struct brcms_phy *pi, const char *name);
-extern int phy_getintvar(struct brcms_phy *pi, const char *name);
-
-#define PHY_GETVAR(pi, name)    phy_getvar(pi, name)
-#define PHY_GETINTVAR(pi, name) phy_getintvar(pi, name)
-
 extern u16 read_phy_reg(struct brcms_phy *pi, u16 addr);
 extern void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val);
 extern void and_phy_reg(struct brcms_phy *pi, u16 addr, u16 val);
