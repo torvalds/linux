@@ -1140,13 +1140,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	setup_sorting(top_usage, options);
 
-	/*
- 	 * XXX For now start disabled, only using TUI if explicitely asked for.
- 	 * Change that when handle_keys equivalent gets written, live annotation
- 	 * done, etc.
- 	 */
-	use_browser = 0;
-
 	if (use_stdio)
 		use_browser = 0;
 	else if (use_tui)
