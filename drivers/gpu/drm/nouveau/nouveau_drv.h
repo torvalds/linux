@@ -1109,6 +1109,9 @@ int nouveau_ttm_global_init(struct drm_nouveau_private *);
 void nouveau_ttm_global_release(struct drm_nouveau_private *);
 int nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
 
+/* nouveau_hdmi.c */
+void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
+
 /* nouveau_dp.c */
 int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		     uint8_t *data, int data_nr);

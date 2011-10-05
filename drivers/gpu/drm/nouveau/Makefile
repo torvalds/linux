@@ -9,7 +9,7 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nouveau_bo.o nouveau_fence.o nouveau_gem.o nouveau_ttm.o \
              nouveau_hw.o nouveau_calc.o nouveau_bios.o nouveau_i2c.o \
              nouveau_display.o nouveau_connector.o nouveau_fbcon.o \
-             nouveau_dp.o nouveau_ramht.o \
+             nouveau_hdmi.o nouveau_dp.o nouveau_ramht.o \
 	     nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o \
 	     nouveau_mm.o nouveau_vm.o \
              nv04_timer.o \
