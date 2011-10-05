@@ -743,6 +743,18 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar)
 	return 0;
 }
 
+static int ath6kl_sdio_resume(struct ath6kl *ar)
+{
+	if (ar->wmi->pwr_mode != ar->wmi->saved_pwr_mode) {
+		if (ath6kl_wmi_powermode_cmd(ar->wmi,
+			ar->wmi->saved_pwr_mode) != 0)
+			ath6kl_warn("ath6kl_sdio_resume: "
+				"wmi_powermode_cmd failed\n");
+	}
+
+	return 0;
+}
+
 static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.read_write_sync = ath6kl_sdio_read_write_sync,
 	.write_async = ath6kl_sdio_write_async,
@@ -754,6 +766,7 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.scat_req_rw = ath6kl_sdio_async_rw_scatter,
 	.cleanup_scatter = ath6kl_sdio_cleanup_scatter,
 	.suspend = ath6kl_sdio_suspend,
+	.resume = ath6kl_sdio_resume,
 };
 
 static int ath6kl_sdio_probe(struct sdio_func *func,

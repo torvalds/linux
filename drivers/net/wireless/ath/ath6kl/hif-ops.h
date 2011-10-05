@@ -74,4 +74,8 @@ static inline int ath6kl_hif_suspend(struct ath6kl *ar)
 	return ar->hif_ops->suspend(ar);
 }
 
+static inline int ath6kl_hif_resume(struct ath6kl *ar)
+{
+	return ar->hif_ops->resume(ar);
+}
 #endif

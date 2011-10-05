@@ -1421,6 +1421,13 @@ static int ar6k_cfg80211_suspend(struct wiphy *wiphy,
 
 	return ath6kl_hif_suspend(ar);
 }
+
+static int ar6k_cfg80211_resume(struct wiphy *wiphy)
+{
+	struct ath6kl *ar = wiphy_priv(wiphy);
+
+	return ath6kl_hif_resume(ar);
+}
 #endif
 
 static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
@@ -1832,6 +1839,7 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	CFG80211_TESTMODE_CMD(ath6kl_tm_cmd)
 #ifdef CONFIG_PM
 	.suspend = ar6k_cfg80211_suspend,
+	.resume = ar6k_cfg80211_resume,
 #endif
 	.set_channel = ath6kl_set_channel,
 	.add_beacon = ath6kl_add_beacon,
