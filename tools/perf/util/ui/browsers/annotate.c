@@ -164,7 +164,8 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 }
 
 static int annotate_browser__run(struct annotate_browser *self, int evidx,
-				 int refresh)
+				 void(*timer)(void *arg) __used, void *arg __used,
+				 int delay_secs)
 {
 	struct rb_node *nd = NULL;
 	struct symbol *sym = self->b.priv;
@@ -189,13 +190,13 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 
 	nd = self->curr_hot;
 
-	if (refresh != 0)
-		newtFormSetTimer(self->b.form, refresh);
+	if (delay_secs != 0)
+		newtFormSetTimer(self->b.form, delay_secs * 1000);
 
 	while (1) {
 		key = ui_browser__run(&self->b);
 
-		if (refresh != 0) {
+		if (delay_secs != 0) {
 			annotate_browser__calc_percent(self, evidx);
 			/*
 			 * Current line focus got out of the list of most active
@@ -212,7 +213,10 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
  			 * FIXME we need to check if it was
  			 * es.reason == NEWT_EXIT_TIMER
  			 */
-			if (refresh != 0)
+			if (timer != NULL)
+				timer(arg);
+
+			if (delay_secs != 0)
 				symbol__annotate_decay_histogram(sym, evidx);
 			continue;
 		case NEWT_KEY_TAB:
@@ -246,13 +250,16 @@ out:
 	return key;
 }
 
-int hist_entry__tui_annotate(struct hist_entry *he, int evidx)
+int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
+			     void(*timer)(void *arg), void *arg, int delay_secs)
 {
-	return symbol__tui_annotate(he->ms.sym, he->ms.map, evidx, 0);
+	return symbol__tui_annotate(he->ms.sym, he->ms.map, evidx,
+				    timer, arg, delay_secs);
 }
 
 int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
-			 int refresh)
+			void(*timer)(void *arg), void *arg,
+			int delay_secs)
 {
 	struct objdump_line *pos, *n;
 	struct annotation *notes;
@@ -293,7 +300,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
-	ret = annotate_browser__run(&browser, evidx, refresh);
+	ret = annotate_browser__run(&browser, evidx, timer, arg, delay_secs);
 	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
 		objdump_line__free(pos);

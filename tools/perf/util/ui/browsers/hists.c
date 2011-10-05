@@ -24,7 +24,13 @@ struct hist_browser {
 	struct hists	    *hists;
 	struct hist_entry   *he_selection;
 	struct map_symbol   *selection;
+	const struct thread *thread_filter;
+	const struct dso    *dso_filter;
 };
+
+static int hists__browser_title(struct hists *self, char *bf, size_t size,
+				const char *ev_name, const struct dso *dso,
+				const struct thread *thread);
 
 static void hist_browser__refresh_dimensions(struct hist_browser *self)
 {
@@ -290,9 +296,12 @@ static void hist_browser__set_folding(struct hist_browser *self, bool unfold)
 	ui_browser__reset_index(&self->b);
 }
 
-static int hist_browser__run(struct hist_browser *self, const char *title)
+static int hist_browser__run(struct hist_browser *self, const char *ev_name,
+			     void(*timer)(void *arg), void *arg, int delay_secs)
 {
 	int key;
+	int delay_msecs = delay_secs * 1000;
+	char title[160];
 	int exit_keys[] = { 'a', '?', 'h', 'C', 'd', 'D', 'E', 't',
 			    NEWT_KEY_ENTER, NEWT_KEY_RIGHT, NEWT_KEY_LEFT,
 			    NEWT_KEY_TAB, NEWT_KEY_UNTAB, 0, };
@@ -301,10 +310,15 @@ static int hist_browser__run(struct hist_browser *self, const char *title)
 	self->b.nr_entries = self->hists->nr_entries;
 
 	hist_browser__refresh_dimensions(self);
+	hists__browser_title(self->hists, title, sizeof(title), ev_name,
+			     self->dso_filter, self->thread_filter);
 
 	if (ui_browser__show(&self->b, title,
 			     "Press '?' for help on key bindings") < 0)
 		return -1;
+
+	if (timer != NULL)
+		newtFormSetTimer(self->b.form, delay_msecs);
 
 	ui_browser__add_exit_keys(&self->b, exit_keys);
 
@@ -312,6 +326,14 @@ static int hist_browser__run(struct hist_browser *self, const char *title)
 		key = ui_browser__run(&self->b);
 
 		switch (key) {
+		case -1:
+			/* FIXME we need to check if it was es.reason == NEWT_EXIT_TIMER */
+			timer(arg);
+			hists__browser_title(self->hists, title, sizeof(title),
+					     ev_name, self->dso_filter,
+					     self->thread_filter);
+			ui_browser__show_title(&self->b, title);
+			continue;
 		case 'D': { /* Debug */
 			static int seq;
 			struct hist_entry *h = rb_entry(self->b.top,
@@ -805,14 +827,13 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 
 static int perf_evsel__hists_browse(struct perf_evsel *evsel,
 				    const char *helpline, const char *ev_name,
-				    bool left_exits)
+				    bool left_exits,
+				    void(*timer)(void *arg), void *arg,
+				    int delay_secs)
 {
 	struct hists *self = &evsel->hists;
 	struct hist_browser *browser = hist_browser__new(self);
 	struct pstack *fstack;
-	const struct thread *thread_filter = NULL;
-	const struct dso *dso_filter = NULL;
-	char msg[160];
 	int key = -1;
 
 	if (browser == NULL)
@@ -824,8 +845,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel,
 
 	ui_helpline__push(helpline);
 
-	hists__browser_title(self, msg, sizeof(msg), ev_name,
-			     dso_filter, thread_filter);
 	while (1) {
 		const struct thread *thread = NULL;
 		const struct dso *dso = NULL;
@@ -834,7 +853,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel,
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
 		    browse_map = -2;
 
-		key = hist_browser__run(browser, msg);
+		key = hist_browser__run(browser, ev_name, timer, arg, delay_secs);
 
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
@@ -889,9 +908,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel,
 				continue;
 			}
 			top = pstack__pop(fstack);
-			if (top == &dso_filter)
+			if (top == &browser->dso_filter)
 				goto zoom_out_dso;
-			if (top == &thread_filter)
+			if (top == &browser->thread_filter)
 				goto zoom_out_thread;
 			continue;
 		}
@@ -913,14 +932,14 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel,
 
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
-			     (thread_filter ? "out of" : "into"),
+			     (browser->thread_filter ? "out of" : "into"),
 			     (thread->comm_set ? thread->comm : ""),
 			     thread->pid) > 0)
 			zoom_thread = nr_options++;
 
 		if (dso != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s DSO",
-			     (dso_filter ? "out of" : "into"),
+			     (browser->dso_filter ? "out of" : "into"),
 			     (dso->kernel ? "the Kernel" : dso->short_name)) > 0)
 			zoom_dso = nr_options++;
 
@@ -949,45 +968,42 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			hist_entry__tui_annotate(he, evsel->idx);
+			hist_entry__tui_annotate(he, evsel->idx,
+						 timer, arg, delay_secs);
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
 zoom_dso:
-			if (dso_filter) {
-				pstack__remove(fstack, &dso_filter);
+			if (browser->dso_filter) {
+				pstack__remove(fstack, &browser->dso_filter);
 zoom_out_dso:
 				ui_helpline__pop();
-				dso_filter = NULL;
+				browser->dso_filter = NULL;
 			} else {
 				if (dso == NULL)
 					continue;
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
 						   dso->kernel ? "the Kernel" : dso->short_name);
-				dso_filter = dso;
-				pstack__push(fstack, &dso_filter);
+				browser->dso_filter = dso;
+				pstack__push(fstack, &browser->dso_filter);
 			}
-			hists__filter_by_dso(self, dso_filter);
-			hists__browser_title(self, msg, sizeof(msg), ev_name,
-					     dso_filter, thread_filter);
+			hists__filter_by_dso(self, browser->dso_filter);
 			hist_browser__reset(browser);
 		} else if (choice == zoom_thread) {
 zoom_thread:
-			if (thread_filter) {
-				pstack__remove(fstack, &thread_filter);
+			if (browser->thread_filter) {
+				pstack__remove(fstack, &browser->thread_filter);
 zoom_out_thread:
 				ui_helpline__pop();
-				thread_filter = NULL;
+				browser->thread_filter = NULL;
 			} else {
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
 						   thread->comm_set ? thread->comm : "",
 						   thread->pid);
-				thread_filter = thread;
-				pstack__push(fstack, &thread_filter);
+				browser->thread_filter = thread;
+				pstack__push(fstack, &browser->thread_filter);
 			}
-			hists__filter_by_thread(self, thread_filter);
-			hists__browser_title(self, msg, sizeof(msg), ev_name,
-					     dso_filter, thread_filter);
+			hists__filter_by_thread(self, browser->thread_filter);
 			hist_browser__reset(browser);
 		}
 	}
@@ -1026,9 +1042,11 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		menu->selection = evsel;
 }
 
-static int perf_evsel_menu__run(struct perf_evsel_menu *menu, const char *help)
+static int perf_evsel_menu__run(struct perf_evsel_menu *menu, const char *help,
+				void(*timer)(void *arg), void *arg, int delay_secs)
 {
 	int exit_keys[] = { NEWT_KEY_ENTER, NEWT_KEY_RIGHT, 0, };
+	int delay_msecs = delay_secs * 1000;
 	struct perf_evlist *evlist = menu->b.priv;
 	struct perf_evsel *pos;
 	const char *ev_name, *title = "Available samples";
@@ -1038,20 +1056,29 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu, const char *help)
 			     "ESC: exit, ENTER|->: Browse histograms") < 0)
 		return -1;
 
+	if (timer != NULL)
+		newtFormSetTimer(menu->b.form, delay_msecs);
+
 	ui_browser__add_exit_keys(&menu->b, exit_keys);
 
 	while (1) {
 		key = ui_browser__run(&menu->b);
 
 		switch (key) {
+		case -1:
+			/* FIXME we need to check if it was es.reason == NEWT_EXIT_TIMER */
+			timer(arg);
+			continue;
 		case NEWT_KEY_RIGHT:
 		case NEWT_KEY_ENTER:
 			if (!menu->selection)
 				continue;
 			pos = menu->selection;
+			perf_evlist__set_selected(evlist, pos);
 browse_hists:
 			ev_name = event_name(pos);
-			key = perf_evsel__hists_browse(pos, help, ev_name, true);
+			key = perf_evsel__hists_browse(pos, help, ev_name, true,
+						       timer, arg, delay_secs);
 			ui_browser__show_title(&menu->b, title);
 			break;
 		case NEWT_KEY_LEFT:
@@ -1091,7 +1118,9 @@ out:
 }
 
 static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
-					   const char *help)
+					   const char *help,
+					   void(*timer)(void *arg), void *arg,
+					   int delay_secs)
 {
 	struct perf_evsel *pos;
 	struct perf_evsel_menu menu = {
@@ -1121,18 +1150,22 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 			pos->name = strdup(ev_name);
 	}
 
-	return perf_evsel_menu__run(&menu, help);
+	return perf_evsel_menu__run(&menu, help, timer, arg, delay_secs);
 }
 
-int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help)
+int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
+				  void(*timer)(void *arg), void *arg,
+				  int delay_secs)
 {
 
 	if (evlist->nr_entries == 1) {
 		struct perf_evsel *first = list_entry(evlist->entries.next,
 						      struct perf_evsel, node);
 		const char *ev_name = event_name(first);
-		return perf_evsel__hists_browse(first, help, ev_name, false);
+		return perf_evsel__hists_browse(first, help, ev_name, false,
+						timer, arg, delay_secs);
 	}
 
-	return __perf_evlist__tui_browse_hists(evlist, help);
+	return __perf_evlist__tui_browse_hists(evlist, help,
+					       timer, arg, delay_secs);
 }

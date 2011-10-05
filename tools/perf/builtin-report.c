@@ -327,9 +327,10 @@ static int __cmd_report(void)
 		goto out_delete;
 	}
 
-	if (use_browser > 0)
-		perf_evlist__tui_browse_hists(session->evlist, help);
-	else
+	if (use_browser > 0) {
+		perf_evlist__tui_browse_hists(session->evlist, help,
+					      NULL, NULL, 0);
+	} else
 		perf_evlist__tty_browse_hists(session->evlist, help);
 
 out_delete:
