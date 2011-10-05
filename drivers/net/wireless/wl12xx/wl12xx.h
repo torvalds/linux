@@ -401,7 +401,6 @@ struct wl1271 {
 
 	u8 mac_addr[ETH_ALEN];
 	int channel;
-	u8 dev_role_id;
 	u8 system_hlid;
 	u8 sta_hlid;
 	u8 dev_hlid;
@@ -621,6 +620,9 @@ struct wl12xx_vif {
 	u8 bss_type;
 	u8 p2p; /* we are using p2p role */
 	u8 role_id;
+
+	/* sta/ibss specific */
+	u8 dev_role_id;
 
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;

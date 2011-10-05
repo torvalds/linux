@@ -1857,6 +1857,7 @@ static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
 {
 	wlvif->bss_type = MAX_BSS_TYPE;
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
+	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -1958,7 +1959,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 			 */
 			ret = wl12xx_cmd_role_enable(wl, vif->addr,
 							 WL1271_ROLE_DEVICE,
-							 &wl->dev_role_id);
+							 &wlvif->dev_role_id);
 			if (ret < 0)
 				goto irq_disable;
 		}
@@ -2067,7 +2068,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 			goto deinit;
 
 		if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
-			ret = wl12xx_cmd_role_disable(wl, &wl->dev_role_id);
+			ret = wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
 			if (ret < 0)
 				goto deinit;
 		}
@@ -2131,7 +2132,7 @@ deinit:
 	wl->ap_ps_map = 0;
 	wl->sched_scanning = false;
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
-	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
+	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
 	memset(wl->roc_map, 0, sizeof(wl->roc_map));
@@ -2289,11 +2290,11 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (idle) {
 		/* no need to croc if we weren't busy (e.g. during boot) */
 		if (wl12xx_is_roc(wl)) {
-			ret = wl12xx_croc(wl, wl->dev_role_id);
+			ret = wl12xx_croc(wl, wlvif->dev_role_id);
 			if (ret < 0)
 				goto out;
 
-			ret = wl12xx_cmd_role_stop_dev(wl);
+			ret = wl12xx_cmd_role_stop_dev(wl, wlvif);
 			if (ret < 0)
 				goto out;
 		}
@@ -2315,11 +2316,11 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			ieee80211_sched_scan_stopped(wl->hw);
 		}
 
-		ret = wl12xx_cmd_role_start_dev(wl);
+		ret = wl12xx_cmd_role_start_dev(wl, wlvif);
 		if (ret < 0)
 			goto out;
 
-		ret = wl12xx_roc(wl, wl->dev_role_id);
+		ret = wl12xx_roc(wl, wlvif->dev_role_id);
 		if (ret < 0)
 			goto out;
 		clear_bit(WL1271_FLAG_IDLE, &wl->flags);
@@ -2408,7 +2409,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 				if (wl12xx_is_roc(wl)) {
 					/* roaming */
-					ret = wl12xx_croc(wl, wl->dev_role_id);
+					ret = wl12xx_croc(wl,
+							  wlvif->dev_role_id);
 					if (ret < 0)
 						goto out_sleep;
 				}
@@ -2424,11 +2426,13 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 				 */
 				if (wl12xx_is_roc(wl) &&
 				    !(conf->flags & IEEE80211_CONF_IDLE)) {
-					ret = wl12xx_croc(wl, wl->dev_role_id);
+					ret = wl12xx_croc(wl,
+							  wlvif->dev_role_id);
 					if (ret < 0)
 						goto out_sleep;
 
-					ret = wl12xx_roc(wl, wl->dev_role_id);
+					ret = wl12xx_roc(wl,
+							 wlvif->dev_role_id);
 					if (ret < 0)
 						wl1271_warning("roc failed %d",
 							       ret);
@@ -2891,6 +2895,8 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 			     struct cfg80211_scan_request *req)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+
 	int ret;
 	u8 *ssid = NULL;
 	size_t len = 0;
@@ -2925,8 +2931,8 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 			ret = -EBUSY;
 			goto out_sleep;
 		}
-		wl12xx_croc(wl, wl->dev_role_id);
-		wl12xx_cmd_role_stop_dev(wl);
+		wl12xx_croc(wl, wlvif->dev_role_id);
+		wl12xx_cmd_role_stop_dev(wl, wlvif);
 	}
 
 	ret = wl1271_scan(hw->priv, vif, ssid, len, req);
@@ -3437,8 +3443,8 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			if (test_and_clear_bit(WL1271_FLAG_IBSS_JOINED,
 					       &wl->flags)) {
 				wl1271_unjoin(wl, wlvif);
-				wl12xx_cmd_role_start_dev(wl);
-				wl12xx_roc(wl, wl->dev_role_id);
+				wl12xx_cmd_role_start_dev(wl, wlvif);
+				wl12xx_roc(wl, wlvif->dev_role_id);
 			}
 		}
 	}
@@ -3605,16 +3611,17 @@ sta_not_found:
 				 * roaming on the same channel. until we will
 				 * have a better flow...)
 				 */
-				if (test_bit(wl->dev_role_id, wl->roc_map)) {
-					ret = wl12xx_croc(wl, wl->dev_role_id);
+				if (test_bit(wlvif->dev_role_id, wl->roc_map)) {
+					ret = wl12xx_croc(wl,
+							  wlvif->dev_role_id);
 					if (ret < 0)
 						goto out;
 				}
 
 				wl1271_unjoin(wl, wlvif);
 				if (!(conf_flags & IEEE80211_CONF_IDLE)) {
-					wl12xx_cmd_role_start_dev(wl);
-					wl12xx_roc(wl, wl->dev_role_id);
+					wl12xx_cmd_role_start_dev(wl, wlvif);
+					wl12xx_roc(wl, wlvif->dev_role_id);
 				}
 			}
 		}
@@ -3693,12 +3700,12 @@ sta_not_found:
 		 * stop device role if started (we might already be in
 		 * STA role). TODO: make it better.
 		 */
-		if (wl->dev_role_id != WL12XX_INVALID_ROLE_ID) {
-			ret = wl12xx_croc(wl, wl->dev_role_id);
+		if (wlvif->dev_role_id != WL12XX_INVALID_ROLE_ID) {
+			ret = wl12xx_croc(wl, wlvif->dev_role_id);
 			if (ret < 0)
 				goto out;
 
-			ret = wl12xx_cmd_role_stop_dev(wl);
+			ret = wl12xx_cmd_role_stop_dev(wl, wlvif);
 			if (ret < 0)
 				goto out;
 		}
@@ -4882,7 +4889,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
 	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
-	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
 	wl->session_counter = 0;
 	wl->ap_bcast_hlid = WL12XX_INVALID_LINK_ID;

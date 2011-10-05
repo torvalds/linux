@@ -34,6 +34,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
+	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
 	int ret;
 	bool is_sta, is_ibss;
@@ -51,7 +52,8 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	if (wl->scan.state == WL1271_SCAN_STATE_IDLE)
 		goto out;
 
-	wlvif = wl12xx_vif_to_data(wl->scan_vif);
+	vif = wl->scan_vif;
+	wlvif = wl12xx_vif_to_data(vif);
 
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
 	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
@@ -72,10 +74,10 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	is_ibss = (wlvif->bss_type == BSS_TYPE_IBSS);
 	if (((is_sta && !test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) ||
 	     (is_ibss && !test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))) &&
-	    !test_bit(wl->dev_role_id, wl->roc_map)) {
+	    !test_bit(wlvif->dev_role_id, wl->roc_map)) {
 		/* restore remain on channel */
-		wl12xx_cmd_role_start_dev(wl);
-		wl12xx_roc(wl, wl->dev_role_id);
+		wl12xx_cmd_role_start_dev(wl, wlvif);
+		wl12xx_roc(wl, wlvif->dev_role_id);
 	}
 	wl1271_ps_elp_sleep(wl);
 

@@ -464,7 +464,7 @@ static int wl12xx_get_new_session_id(struct wl1271 *wl)
 	return wl->session_counter;
 }
 
-int wl12xx_cmd_role_start_dev(struct wl1271 *wl)
+int wl12xx_cmd_role_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_start *cmd;
 	int ret;
@@ -475,9 +475,9 @@ int wl12xx_cmd_role_start_dev(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl1271_debug(DEBUG_CMD, "cmd role start dev %d", wl->dev_role_id);
+	wl1271_debug(DEBUG_CMD, "cmd role start dev %d", wlvif->dev_role_id);
 
-	cmd->role_id = wl->dev_role_id;
+	cmd->role_id = wlvif->dev_role_id;
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		cmd->band = WL12XX_BAND_5GHZ;
 	cmd->channel = wl->channel;
@@ -514,7 +514,7 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_role_stop_dev(struct wl1271 *wl)
+int wl12xx_cmd_role_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_stop *cmd;
 	int ret;
@@ -530,7 +530,7 @@ int wl12xx_cmd_role_stop_dev(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_CMD, "cmd role stop dev");
 
-	cmd->role_id = wl->dev_role_id;
+	cmd->role_id = wlvif->dev_role_id;
 	cmd->disc_type = DISCONNECT_IMMEDIATE;
 	cmd->reason = cpu_to_le16(WLAN_REASON_UNSPECIFIED);
 

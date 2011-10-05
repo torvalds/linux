@@ -77,7 +77,8 @@ static void wl1271_free_tx_id(struct wl1271 *wl, int id)
 }
 
 static int wl1271_tx_update_filters(struct wl1271 *wl,
-						 struct sk_buff *skb)
+				    struct wl12xx_vif *wlvif,
+				    struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	int ret;
@@ -97,11 +98,11 @@ static int wl1271_tx_update_filters(struct wl1271 *wl,
 		goto out;
 
 	wl1271_debug(DEBUG_CMD, "starting device role for roaming");
-	ret = wl12xx_cmd_role_start_dev(wl);
+	ret = wl12xx_cmd_role_start_dev(wl, wlvif);
 	if (ret < 0)
 		goto out;
 
-	ret = wl12xx_roc(wl, wl->dev_role_id);
+	ret = wl12xx_roc(wl, wlvif->dev_role_id);
 	if (ret < 0)
 		goto out;
 out:
@@ -192,7 +193,7 @@ static u8 wl1271_tx_get_hlid(struct wl1271 *wl, struct ieee80211_vif *vif,
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		return wl12xx_tx_get_hlid_ap(wl, skb);
 
-	wl1271_tx_update_filters(wl, skb);
+	wl1271_tx_update_filters(wl, wlvif, skb);
 
 	if ((test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
 	     test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags)) &&
