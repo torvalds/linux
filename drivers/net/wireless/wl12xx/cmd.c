@@ -1031,7 +1031,7 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_build_null_data(struct wl1271 *wl)
+int wl12xx_cmd_build_null_data(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct sk_buff *skb = NULL;
 	int size;
@@ -1043,7 +1043,8 @@ int wl1271_cmd_build_null_data(struct wl1271 *wl)
 		size = sizeof(struct wl12xx_null_data_template);
 		ptr = NULL;
 	} else {
-		skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+		skb = ieee80211_nullfunc_get(wl->hw,
+					     wl12xx_wlvif_to_vif(wlvif));
 		if (!skb)
 			goto out;
 		size = skb->len;
@@ -1051,7 +1052,7 @@ int wl1271_cmd_build_null_data(struct wl1271 *wl)
 	}
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, ptr, size, 0,
-				      wl->basic_rate);
+				      wlvif->basic_rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -1062,19 +1063,21 @@ out:
 
 }
 
-int wl1271_cmd_build_klv_null_data(struct wl1271 *wl)
+int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
+				   struct wl12xx_vif *wlvif)
 {
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct sk_buff *skb = NULL;
 	int ret = -ENOMEM;
 
-	skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+	skb = ieee80211_nullfunc_get(wl->hw, vif);
 	if (!skb)
 		goto out;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV,
 				      skb->data, skb->len,
 				      CMD_TEMPL_KLV_IDX_NULL_DATA,
-				      wl->basic_rate);
+				      wlvif->basic_rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -1161,7 +1164,8 @@ out:
 	return skb;
 }
 
-int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr)
+int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			     __be32 ip_addr)
 {
 	int ret;
 	struct wl12xx_arp_rsp_template tmpl;
@@ -1197,13 +1201,14 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr)
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_ARP_RSP,
 				      &tmpl, sizeof(tmpl), 0,
-				      wl->basic_rate);
+				      wlvif->basic_rate);
 
 	return ret;
 }
 
 int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct ieee80211_qos_hdr template;
 
 	memset(&template, 0, sizeof(template));
@@ -1221,7 +1226,7 @@ int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 
 	return wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, &template,
 				       sizeof(template), 0,
-				       wl->basic_rate);
+				       wlvif->basic_rate);
 }
 
 int wl12xx_cmd_set_default_wep_key(struct wl1271 *wl, u8 id, u8 hlid)

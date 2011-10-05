@@ -519,13 +519,6 @@ struct wl1271 {
 	/* Our association ID */
 	u16 aid;
 
-	/*
-	 * currently configured rate set:
-	 *	bits  0-15 - 802.11abg rates
-	 *	bits 16-23 - 802.11n   MCS index mask
-	 * support only 1 stream, thus only 8 bits for the MCS rates (0-7).
-	 */
-	u32 basic_rate;
 	u32 bitrate_masks[IEEE80211_NUM_BANDS];
 
 	/* The current band */
@@ -646,6 +639,7 @@ struct wl12xx_vif {
 	 *	bits 16-23 - 802.11n   MCS index mask
 	 * support only 1 stream, thus only 8 bits for the MCS rates (0-7).
 	 */
+	u32 basic_rate;
 	u32 rate_set;
 };
 

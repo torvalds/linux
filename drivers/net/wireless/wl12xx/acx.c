@@ -755,11 +755,11 @@ int wl1271_acx_sta_rate_policies(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	}
 
 	wl1271_debug(DEBUG_ACX, "basic_rate: 0x%x, full_rate: 0x%x",
-		wl->basic_rate, wlvif->rate_set);
+		wlvif->basic_rate, wlvif->rate_set);
 
 	/* configure one basic rate class */
 	acx->rate_policy_idx = cpu_to_le32(ACX_TX_BASIC_RATE);
-	acx->rate_policy.enabled_rates = cpu_to_le32(wl->basic_rate);
+	acx->rate_policy.enabled_rates = cpu_to_le32(wlvif->basic_rate);
 	acx->rate_policy.short_retry_limit = c->short_retry_limit;
 	acx->rate_policy.long_retry_limit = c->long_retry_limit;
 	acx->rate_policy.aflags = c->aflags;
@@ -1567,7 +1567,7 @@ out:
 	return ret;
 }
 
-int wl1271_acx_config_ps(struct wl1271 *wl)
+int wl12xx_acx_config_ps(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl1271_acx_config_ps *config_ps;
 	int ret;
@@ -1582,7 +1582,7 @@ int wl1271_acx_config_ps(struct wl1271 *wl)
 
 	config_ps->exit_retries = wl->conf.conn.psm_exit_retries;
 	config_ps->enter_retries = wl->conf.conn.psm_entry_retries;
-	config_ps->null_data_rate = cpu_to_le32(wl->basic_rate);
+	config_ps->null_data_rate = cpu_to_le32(wlvif->basic_rate);
 
 	ret = wl1271_cmd_configure(wl, ACX_CONFIG_PS, config_ps,
 				   sizeof(*config_ps));

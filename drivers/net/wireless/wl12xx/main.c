@@ -1609,7 +1609,8 @@ static struct notifier_block wl1271_dev_notifier = {
 };
 
 #ifdef CONFIG_PM
-static int wl1271_configure_suspend_sta(struct wl1271 *wl)
+static int wl1271_configure_suspend_sta(struct wl1271 *wl,
+					struct wl12xx_vif *wlvif)
 {
 	int ret = 0;
 
@@ -1628,7 +1629,7 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl)
 
 		wl->ps_compl = &compl;
 		ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
-				   wl->basic_rate, true);
+				   wlvif->basic_rate, true);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1682,16 +1683,18 @@ out_unlock:
 
 }
 
-static int wl1271_configure_suspend(struct wl1271 *wl)
+static int wl1271_configure_suspend(struct wl1271 *wl,
+				    struct wl12xx_vif *wlvif)
 {
 	if (wl->bss_type == BSS_TYPE_STA_BSS)
-		return wl1271_configure_suspend_sta(wl);
+		return wl1271_configure_suspend_sta(wl, wlvif);
 	if (wl->bss_type == BSS_TYPE_AP_BSS)
 		return wl1271_configure_suspend_ap(wl);
 	return 0;
 }
 
-static void wl1271_configure_resume(struct wl1271 *wl)
+static void wl1271_configure_resume(struct wl1271 *wl,
+				    struct wl12xx_vif *wlvif)
 {
 	int ret;
 	bool is_sta = wl->bss_type == BSS_TYPE_STA_BSS;
@@ -1709,7 +1712,7 @@ static void wl1271_configure_resume(struct wl1271 *wl)
 		/* exit psm if it wasn't configured */
 		if (!test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags))
 			wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-					   wl->basic_rate, true);
+					   wlvif->basic_rate, true);
 	} else if (is_ap) {
 		wl1271_acx_beacon_filter_opt(wl, false);
 	}
@@ -1723,13 +1726,15 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 			    struct cfg80211_wowlan *wow)
 {
 	struct wl1271 *wl = hw->priv;
+	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 suspend wow=%d", !!wow);
 	WARN_ON(!wow || !wow->any);
 
 	wl->wow_enabled = true;
-	ret = wl1271_configure_suspend(wl);
+	ret = wl1271_configure_suspend(wl, wlvif);
 	if (ret < 0) {
 		wl1271_warning("couldn't prepare device to suspend");
 		return ret;
@@ -1760,6 +1765,8 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 static int wl1271_op_resume(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
+	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	unsigned long flags;
 	bool run_irq_work = false;
 
@@ -1783,7 +1790,7 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 		wl1271_irq(0, wl);
 		wl1271_enable_interrupts(wl);
 	}
-	wl1271_configure_resume(wl);
+	wl1271_configure_resume(wl, wlvif);
 	wl->wow_enabled = false;
 
 	return 0;
@@ -1840,6 +1847,7 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl)
 static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
 {
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
+	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
 }
 
@@ -2214,7 +2222,7 @@ static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_cmd_build_klv_null_data(wl);
+	ret = wl12xx_cmd_build_klv_null_data(wl, wlvif);
 	if (ret < 0)
 		goto out;
 
@@ -2384,7 +2392,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 				wl1271_set_band_rate(wl, wlvif);
 
-			wl->basic_rate =
+			wlvif->basic_rate =
 				wl1271_tx_min_rate_get(wl,
 						       wlvif->basic_rate_set);
 			ret = wl1271_acx_sta_rate_policies(wl, wlvif);
@@ -2450,7 +2458,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 			wl1271_debug(DEBUG_PSM, "psm enabled");
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
-						 wl->basic_rate, true);
+						 wlvif->basic_rate, true);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
@@ -2460,7 +2468,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (test_bit(WL1271_FLAG_PSM, &wl->flags))
 			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-						 wl->basic_rate, true);
+						 wlvif->basic_rate, true);
 	}
 
 	if (conf->power_level != wl->power_level) {
@@ -3311,7 +3319,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 
 		wlvif->basic_rate_set = wl1271_tx_enabled_rates_get(wl, rates,
 								 wl->band);
-		wl->basic_rate = wl1271_tx_min_rate_get(wl,
+		wlvif->basic_rate = wl1271_tx_min_rate_get(wl,
 							wlvif->basic_rate_set);
 
 		ret = wl1271_init_ap_rates(wl, wlvif);
@@ -3450,7 +3458,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
 
 		if (!is_zero_ether_addr(wl->bssid)) {
-			ret = wl1271_cmd_build_null_data(wl);
+			ret = wl12xx_cmd_build_null_data(wl, wlvif);
 			if (ret < 0)
 				goto out;
 
@@ -3498,7 +3506,7 @@ sta_not_found:
 			wlvif->basic_rate_set =
 				wl1271_tx_enabled_rates_get(wl, rates,
 							    wl->band);
-			wl->basic_rate =
+			wlvif->basic_rate =
 				wl1271_tx_min_rate_get(wl,
 						       wlvif->basic_rate_set);
 			if (sta_rate_set)
@@ -3552,7 +3560,7 @@ sta_not_found:
 
 			/* revert back to minimum rates for the current band */
 			wl1271_set_band_rate(wl, wlvif);
-			wl->basic_rate =
+			wlvif->basic_rate =
 				wl1271_tx_min_rate_get(wl,
 						       wlvif->basic_rate_set);
 			ret = wl1271_acx_sta_rate_policies(wl, wlvif);
@@ -3608,7 +3616,7 @@ sta_not_found:
 			wlvif->basic_rate_set =
 				wl1271_tx_enabled_rates_get(wl, rates,
 							    wl->band);
-			wl->basic_rate =
+			wlvif->basic_rate =
 				wl1271_tx_min_rate_get(wl,
 						       wlvif->basic_rate_set);
 
@@ -3636,7 +3644,7 @@ sta_not_found:
 			 * isn't being set (when sending), so we have to
 			 * reconfigure the template upon every ip change.
 			 */
-			ret = wl1271_cmd_build_arp_rsp(wl, addr);
+			ret = wl1271_cmd_build_arp_rsp(wl, wlvif, addr);
 			if (ret < 0) {
 				wl1271_warning("build arp rsp failed: %d", ret);
 				goto out;
@@ -3689,7 +3697,7 @@ sta_not_found:
 
 			mode = STATION_POWER_SAVE_MODE;
 			ret = wl1271_ps_set_mode(wl, mode,
-						 wl->basic_rate,
+						 wlvif->basic_rate,
 						 true);
 			if (ret < 0)
 				goto out;
@@ -4844,7 +4852,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->rx_counter = 0;
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
-	wl->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;
 	wl->flags = 0;

@@ -331,7 +331,7 @@ static int wl1271_sta_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	}
 
 	/* PS config */
-	ret = wl1271_acx_config_ps(wl);
+	ret = wl12xx_acx_config_ps(wl, wlvif);
 	if (ret < 0)
 		return ret;
 

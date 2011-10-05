@@ -31,12 +31,16 @@
 
 void wl1271_pspoll_work(struct work_struct *work)
 {
+	struct ieee80211_vif *vif;
+	struct wl12xx_vif *wlvif;
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
 	int ret;
 
 	dwork = container_of(work, struct delayed_work, work);
 	wl = container_of(dwork, struct wl1271, pspoll_work);
+	vif = wl->vif; /* TODO: move work into vif struct */
+	wlvif = wl12xx_vif_to_data(vif);
 
 	wl1271_debug(DEBUG_EVENT, "pspoll work");
 
@@ -60,14 +64,16 @@ void wl1271_pspoll_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, wl->basic_rate, true);
+	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, wlvif->basic_rate,
+			   true);
 
 	wl1271_ps_elp_sleep(wl);
 out:
 	mutex_unlock(&wl->mutex);
 };
 
-static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl)
+static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl,
+					      struct wl12xx_vif *wlvif)
 {
 	int delay = wl->conf.conn.ps_poll_recovery_period;
 	int ret;
@@ -80,7 +86,7 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl)
 	/* force active mode receive data from the AP */
 	if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-					 wl->basic_rate, true);
+					 wlvif->basic_rate, true);
 		if (ret < 0)
 			return;
 		set_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
@@ -97,6 +103,7 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl)
 }
 
 static int wl1271_event_ps_report(struct wl1271 *wl,
+				  struct wl12xx_vif *wlvif,
 				  struct event_mailbox *mbox,
 				  bool *beacon_loss)
 {
@@ -118,7 +125,7 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		if (wl->psm_entry_retry < total_retries) {
 			wl->psm_entry_retry++;
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
-						 wl->basic_rate, true);
+						 wlvif->basic_rate, true);
 		} else {
 			wl1271_info("No ack to nullfunc from AP.");
 			wl->psm_entry_retry = 0;
@@ -217,6 +224,8 @@ static void wl1271_event_mbox_dump(struct event_mailbox *mbox)
 
 static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 {
+	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 	u32 vector;
 	bool beacon_loss = false;
@@ -276,13 +285,13 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 
 	if ((vector & PS_REPORT_EVENT_ID) && !is_ap) {
 		wl1271_debug(DEBUG_EVENT, "PS_REPORT_EVENT");
-		ret = wl1271_event_ps_report(wl, mbox, &beacon_loss);
+		ret = wl1271_event_ps_report(wl, wlvif, mbox, &beacon_loss);
 		if (ret < 0)
 			return ret;
 	}
 
 	if ((vector & PSPOLL_DELIVERY_FAILURE_EVENT_ID) && !is_ap)
-		wl1271_event_pspoll_delivery_fail(wl);
+		wl1271_event_pspoll_delivery_fail(wl, wlvif);
 
 	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
 		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");

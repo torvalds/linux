@@ -55,7 +55,7 @@ int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 			    void *buf, size_t buf_len, int index, u32 rates);
-int wl1271_cmd_build_null_data(struct wl1271 *wl);
+int wl12xx_cmd_build_null_data(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl1271_cmd_build_ps_poll(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			     u16 aid);
 int wl1271_cmd_build_probe_req(struct wl1271 *wl,
@@ -63,9 +63,11 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 			       const u8 *ie, size_t ie_len, u8 band);
 struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct sk_buff *skb);
-int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr);
+int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			     __be32 ip_addr);
 int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif);
-int wl1271_cmd_build_klv_null_data(struct wl1271 *wl);
+int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
+				   struct wl12xx_vif *wlvif);
 int wl12xx_cmd_set_default_wep_key(struct wl1271 *wl, u8 id, u8 hlid);
 int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 			   u8 key_size, const u8 *key, const u8 *addr,
