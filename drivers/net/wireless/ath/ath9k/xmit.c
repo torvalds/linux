@@ -1255,7 +1255,6 @@ static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_tx_queue_info qi;
 	static const int subtype_txq_to_hwq[] = {
 		[WME_AC_BE] = ATH_TXQ_AC_BE,
@@ -1303,12 +1302,6 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		 * NB: don't print a message, this happens
 		 * normally on parts with too few tx queues
 		 */
-		return NULL;
-	}
-	if (axq_qnum >= ARRAY_SIZE(sc->tx.txq)) {
-		ath_err(common, "qnum %u out of range, max %zu!\n",
-			axq_qnum, ARRAY_SIZE(sc->tx.txq));
-		ath9k_hw_releasetxqueue(ah, axq_qnum);
 		return NULL;
 	}
 	if (!ATH_TXQ_SETUP(sc, axq_qnum)) {
