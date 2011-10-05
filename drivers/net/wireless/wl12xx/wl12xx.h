@@ -525,7 +525,6 @@ struct wl1271 {
 	 *	bits 16-23 - 802.11n   MCS index mask
 	 * support only 1 stream, thus only 8 bits for the MCS rates (0-7).
 	 */
-	u32 basic_rate_set;
 	u32 basic_rate;
 	u32 rate_set;
 	u32 bitrate_masks[IEEE80211_NUM_BANDS];
@@ -638,6 +637,21 @@ struct wl1271 {
 struct wl1271_station {
 	u8 hlid;
 };
+
+struct wl12xx_vif {
+	u32 basic_rate_set;
+};
+
+static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)
+{
+	return (struct wl12xx_vif *)vif->drv_priv;
+}
+
+static inline
+struct ieee80211_vif *wl12xx_wlvif_to_vif(struct wl12xx_vif *wlvif)
+{
+	return container_of((void *)wlvif, struct ieee80211_vif, drv_priv);
+}
 
 int wl1271_plt_start(struct wl1271 *wl);
 int wl1271_plt_stop(struct wl1271 *wl);

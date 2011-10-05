@@ -353,7 +353,6 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_INT(bss_type);
 	DRIVER_STATE_PRINT_INT(channel);
 	DRIVER_STATE_PRINT_HEX(rate_set);
-	DRIVER_STATE_PRINT_HEX(basic_rate_set);
 	DRIVER_STATE_PRINT_HEX(basic_rate);
 	DRIVER_STATE_PRINT_INT(band);
 	DRIVER_STATE_PRINT_INT(beacon_int);

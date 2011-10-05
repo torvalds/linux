@@ -122,7 +122,8 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_ap_init_deauth_template(struct wl1271 *wl)
+static int wl1271_ap_init_deauth_template(struct wl1271 *wl,
+					  struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_disconn_template *tmpl;
 	int ret;
@@ -137,7 +138,7 @@ static int wl1271_ap_init_deauth_template(struct wl1271 *wl)
 	tmpl->header.frame_ctl = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					     IEEE80211_STYPE_DEAUTH);
 
-	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+	rate = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_DEAUTH_AP,
 				      tmpl, sizeof(*tmpl), 0, rate);
 
@@ -149,6 +150,7 @@ out:
 static int wl1271_ap_init_null_template(struct wl1271 *wl,
 					struct ieee80211_vif *vif)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct ieee80211_hdr_3addr *nullfunc;
 	int ret;
 	u32 rate;
@@ -168,7 +170,7 @@ static int wl1271_ap_init_null_template(struct wl1271 *wl,
 	memcpy(nullfunc->addr2, vif->addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, vif->addr, ETH_ALEN);
 
-	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+	rate = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, nullfunc,
 				      sizeof(*nullfunc), 0, rate);
 
@@ -180,6 +182,7 @@ out:
 static int wl1271_ap_init_qos_null_template(struct wl1271 *wl,
 					    struct ieee80211_vif *vif)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct ieee80211_qos_hdr *qosnull;
 	int ret;
 	u32 rate;
@@ -199,7 +202,7 @@ static int wl1271_ap_init_qos_null_template(struct wl1271 *wl,
 	memcpy(qosnull->addr2, vif->addr, ETH_ALEN);
 	memcpy(qosnull->addr3, vif->addr, ETH_ALEN);
 
-	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+	rate = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, qosnull,
 				      sizeof(*qosnull), 0, rate);
 
@@ -370,7 +373,7 @@ static int wl1271_sta_hw_init_post_mem(struct wl1271 *wl)
 }
 
 /* generic ap initialization (non vif-specific) */
-static int wl1271_ap_hw_init(struct wl1271 *wl)
+static int wl1271_ap_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
 
@@ -379,7 +382,7 @@ static int wl1271_ap_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_init_ap_rates(wl);
+	ret = wl1271_init_ap_rates(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
@@ -388,9 +391,10 @@ static int wl1271_ap_hw_init(struct wl1271 *wl)
 
 int wl1271_ap_init_templates(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 
-	ret = wl1271_ap_init_deauth_template(wl);
+	ret = wl1271_ap_init_deauth_template(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
@@ -419,18 +423,19 @@ static int wl1271_ap_hw_init_post_mem(struct wl1271 *wl,
 	return wl1271_ap_init_templates(wl, vif);
 }
 
-int wl1271_init_ap_rates(struct wl1271 *wl)
+int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int i, ret;
 	struct conf_tx_rate_class rc;
 	u32 supported_rates;
 
-	wl1271_debug(DEBUG_AP, "AP basic rate set: 0x%x", wl->basic_rate_set);
+	wl1271_debug(DEBUG_AP, "AP basic rate set: 0x%x",
+		     wlvif->basic_rate_set);
 
-	if (wl->basic_rate_set == 0)
+	if (wlvif->basic_rate_set == 0)
 		return -EINVAL;
 
-	rc.enabled_rates = wl->basic_rate_set;
+	rc.enabled_rates = wlvif->basic_rate_set;
 	rc.long_retry_limit = 10;
 	rc.short_retry_limit = 10;
 	rc.aflags = 0;
@@ -439,7 +444,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl)
 		return ret;
 
 	/* use the min basic rate for AP broadcast/multicast */
-	rc.enabled_rates = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+	rc.enabled_rates = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
 	rc.short_retry_limit = 10;
 	rc.long_retry_limit = 10;
 	rc.aflags = 0;
@@ -451,7 +456,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl)
 	 * If the basic rates contain OFDM rates, use OFDM only
 	 * rates for unicast TX as well. Else use all supported rates.
 	 */
-	if ((wl->basic_rate_set & CONF_TX_OFDM_RATES))
+	if ((wlvif->basic_rate_set & CONF_TX_OFDM_RATES))
 		supported_rates = CONF_TX_OFDM_RATES;
 	else
 		supported_rates = CONF_TX_AP_ENABLED_RATES;
@@ -564,6 +569,7 @@ static int wl12xx_init_ap_role(struct wl1271 *wl, struct ieee80211_vif *vif)
 
 int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct conf_tx_ac_category *conf_ac;
 	struct conf_tx_tid *conf_tid;
 	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
@@ -572,7 +578,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 
 	/* Mode specific init */
 	if (is_ap) {
-		ret = wl1271_ap_hw_init(wl);
+		ret = wl1271_ap_hw_init(wl, wlvif);
 		if (ret < 0)
 			return ret;
 

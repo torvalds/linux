@@ -555,7 +555,7 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_role_start_sta(struct wl1271 *wl)
+int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_start *cmd;
 	int ret;
@@ -572,7 +572,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl)
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		cmd->band = WL12XX_BAND_5GHZ;
 	cmd->channel = wl->channel;
-	cmd->sta.basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	cmd->sta.basic_rate_set = cpu_to_le32(wlvif->basic_rate_set);
 	cmd->sta.beacon_interval = cpu_to_le16(wl->beacon_int);
 	cmd->sta.ssid_type = WL12XX_SSID_TYPE_ANY;
 	cmd->sta.ssid_len = wl->ssid_len;
@@ -592,7 +592,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl)
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
 		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
 		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
-		     wl->basic_rate_set, wl->rate_set);
+		     wlvif->basic_rate_set, wl->rate_set);
 
 	ret = wl1271_cmd_send(wl, CMD_ROLE_START, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
@@ -649,7 +649,7 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_role_start_ap(struct wl1271 *wl)
+int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_start *cmd;
 	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
@@ -683,7 +683,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl)
 	cmd->ap.bss_index = WL1271_AP_BSS_INDEX;
 	cmd->ap.global_hlid = wl->ap_global_hlid;
 	cmd->ap.broadcast_hlid = wl->ap_bcast_hlid;
-	cmd->ap.basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	cmd->ap.basic_rate_set = cpu_to_le32(wlvif->basic_rate_set);
 	cmd->ap.beacon_interval = cpu_to_le16(wl->beacon_int);
 	cmd->ap.dtim_interval = bss_conf->dtim_period;
 	cmd->ap.beacon_expiry = WL1271_AP_DEF_BEACON_EXP;
@@ -767,7 +767,7 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_role_start_ibss(struct wl1271 *wl)
+int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_start *cmd;
 	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
@@ -785,7 +785,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl)
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		cmd->band = WL12XX_BAND_5GHZ;
 	cmd->channel = wl->channel;
-	cmd->ibss.basic_rate_set = cpu_to_le32(wl->basic_rate_set);
+	cmd->ibss.basic_rate_set = cpu_to_le32(wlvif->basic_rate_set);
 	cmd->ibss.beacon_interval = cpu_to_le16(wl->beacon_int);
 	cmd->ibss.dtim_interval = bss_conf->dtim_period;
 	cmd->ibss.ssid_type = WL12XX_SSID_TYPE_ANY;
@@ -805,7 +805,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl)
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
 		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
 		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
-		     wl->basic_rate_set, wl->rate_set);
+		     wlvif->basic_rate_set, wl->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "wl->bssid = %pM", wl->bssid);
 
@@ -1085,7 +1085,8 @@ out:
 
 }
 
-int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid)
+int wl1271_cmd_build_ps_poll(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			     u16 aid)
 {
 	struct sk_buff *skb;
 	int ret = 0;
@@ -1095,7 +1096,7 @@ int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid)
 		goto out;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, skb->data,
-				      skb->len, 0, wl->basic_rate_set);
+				      skb->len, 0, wlvif->basic_rate_set);
 
 out:
 	dev_kfree_skb(skb);

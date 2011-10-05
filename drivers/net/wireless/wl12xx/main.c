@@ -1837,6 +1837,11 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl)
 	return WL12XX_INVALID_ROLE_TYPE;
 }
 
+static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
+{
+	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
+}
+
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
@@ -1857,6 +1862,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		ret = -EBUSY;
 		goto out;
 	}
+	wl12xx_init_vif_data(wl12xx_vif_to_data(vif));
 
 	/*
 	 * in some very corner case HW recovery scenarios its possible to
@@ -2163,7 +2169,8 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	cancel_work_sync(&wl->recovery_work);
 }
 
-static int wl1271_join(struct wl1271 *wl, bool set_assoc)
+static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			  bool set_assoc)
 {
 	int ret;
 	bool is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
@@ -2184,9 +2191,9 @@ static int wl1271_join(struct wl1271 *wl, bool set_assoc)
 		set_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 
 	if (is_ibss)
-		ret = wl12xx_cmd_role_start_ibss(wl);
+		ret = wl12xx_cmd_role_start_ibss(wl, wlvif);
 	else
-		ret = wl12xx_cmd_role_start_sta(wl);
+		ret = wl12xx_cmd_role_start_sta(wl, wlvif);
 	if (ret < 0)
 		goto out;
 
@@ -2244,10 +2251,10 @@ out:
 	return ret;
 }
 
-static void wl1271_set_band_rate(struct wl1271 *wl)
+static void wl1271_set_band_rate(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
-	wl->basic_rate_set = wl->bitrate_masks[wl->band];
-	wl->rate_set = wl->basic_rate_set;
+	wlvif->basic_rate_set = wl->bitrate_masks[wl->band];
+	wl->rate_set = wlvif->basic_rate_set;
 }
 
 static bool wl12xx_is_roc(struct wl1271 *wl)
@@ -2261,7 +2268,8 @@ static bool wl12xx_is_roc(struct wl1271 *wl)
 	return true;
 }
 
-static int wl1271_sta_handle_idle(struct wl1271 *wl, bool idle)
+static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				  bool idle)
 {
 	int ret;
 
@@ -2276,7 +2284,8 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, bool idle)
 			if (ret < 0)
 				goto out;
 		}
-		wl->rate_set = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+		wl->rate_set = wl1271_tx_min_rate_get(wl,
+						      wlvif->basic_rate_set);
 		ret = wl1271_acx_sta_rate_policies(wl);
 		if (ret < 0)
 			goto out;
@@ -2310,6 +2319,8 @@ out:
 static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct wl1271 *wl = hw->priv;
+	struct ieee80211_vif *vif = wl->vif; /* TODO: reconfig all vifs */
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct ieee80211_conf *conf = &hw->conf;
 	int channel, ret = 0;
 	bool is_ap;
@@ -2371,10 +2382,11 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			 * association frames and other control messages.
 			 */
 			if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
-				wl1271_set_band_rate(wl);
+				wl1271_set_band_rate(wl, wlvif);
 
 			wl->basic_rate =
-				wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+				wl1271_tx_min_rate_get(wl,
+						       wlvif->basic_rate_set);
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				wl1271_warning("rate policy for channel "
@@ -2387,7 +2399,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 					if (ret < 0)
 						goto out_sleep;
 				}
-				ret = wl1271_join(wl, false);
+				ret = wl1271_join(wl, wlvif, false);
 				if (ret < 0)
 					wl1271_warning("cmd join on channel "
 						       "failed %d", ret);
@@ -2413,7 +2425,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE && !is_ap) {
-		ret = wl1271_sta_handle_idle(wl,
+		ret = wl1271_sta_handle_idle(wl, wlvif,
 					conf->flags & IEEE80211_CONF_IDLE);
 		if (ret < 0)
 			wl1271_warning("idle mode change failed %d", ret);
@@ -3207,6 +3219,7 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 					  struct ieee80211_bss_conf *bss_conf,
 					  u32 changed)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
 	int ret = 0;
 
@@ -3235,7 +3248,7 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 			dev_kfree_skb(beacon);
 			goto out;
 		}
-		min_rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+		min_rate = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
 		tmpl_id = is_ap ? CMD_TEMPL_AP_BEACON :
 				  CMD_TEMPL_BEACON;
 		ret = wl1271_cmd_template_set(wl, tmpl_id,
@@ -3290,17 +3303,18 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 				       struct ieee80211_bss_conf *bss_conf,
 				       u32 changed)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret = 0;
 
 	if ((changed & BSS_CHANGED_BASIC_RATES)) {
 		u32 rates = bss_conf->basic_rates;
 
-		wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl, rates,
+		wlvif->basic_rate_set = wl1271_tx_enabled_rates_get(wl, rates,
 								 wl->band);
 		wl->basic_rate = wl1271_tx_min_rate_get(wl,
-							wl->basic_rate_set);
+							wlvif->basic_rate_set);
 
-		ret = wl1271_init_ap_rates(wl);
+		ret = wl1271_init_ap_rates(wl, wlvif);
 		if (ret < 0) {
 			wl1271_error("AP rate policy change failed %d", ret);
 			goto out;
@@ -3318,7 +3332,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED)) {
 		if (bss_conf->enable_beacon) {
 			if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags)) {
-				ret = wl12xx_cmd_role_start_ap(wl);
+				ret = wl12xx_cmd_role_start_ap(wl, wlvif);
 				if (ret < 0)
 					goto out;
 
@@ -3366,6 +3380,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 					struct ieee80211_bss_conf *bss_conf,
 					u32 changed)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	bool do_join = false, set_assoc = false;
 	bool is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
 	bool ibss_joined = false;
@@ -3480,11 +3495,12 @@ sta_not_found:
 			 * to use with control frames.
 			 */
 			rates = bss_conf->basic_rates;
-			wl->basic_rate_set =
+			wlvif->basic_rate_set =
 				wl1271_tx_enabled_rates_get(wl, rates,
 							    wl->band);
 			wl->basic_rate =
-				wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+				wl1271_tx_min_rate_get(wl,
+						       wlvif->basic_rate_set);
 			if (sta_rate_set)
 				wl->rate_set = wl1271_tx_enabled_rates_get(wl,
 								sta_rate_set,
@@ -3499,7 +3515,7 @@ sta_not_found:
 			 * updates it by itself when the first beacon is
 			 * received after a join.
 			 */
-			ret = wl1271_cmd_build_ps_poll(wl, wl->aid);
+			ret = wl1271_cmd_build_ps_poll(wl, wlvif, wl->aid);
 			if (ret < 0)
 				goto out;
 
@@ -3534,9 +3550,10 @@ sta_not_found:
 			ieee80211_enable_dyn_ps(wl->vif);
 
 			/* revert back to minimum rates for the current band */
-			wl1271_set_band_rate(wl);
+			wl1271_set_band_rate(wl, wlvif);
 			wl->basic_rate =
-				wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+				wl1271_tx_min_rate_get(wl,
+						       wlvif->basic_rate_set);
 			ret = wl1271_acx_sta_rate_policies(wl);
 			if (ret < 0)
 				goto out;
@@ -3587,11 +3604,12 @@ sta_not_found:
 
 		if (bss_conf->ibss_joined) {
 			u32 rates = bss_conf->basic_rates;
-			wl->basic_rate_set =
+			wlvif->basic_rate_set =
 				wl1271_tx_enabled_rates_get(wl, rates,
 							    wl->band);
 			wl->basic_rate =
-				wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
+				wl1271_tx_min_rate_get(wl,
+						       wlvif->basic_rate_set);
 
 			/* by default, use 11b + OFDM rates */
 			wl->rate_set = CONF_TX_IBSS_DEFAULT_RATES;
@@ -3634,7 +3652,7 @@ sta_not_found:
 	}
 
 	if (do_join) {
-		ret = wl1271_join(wl, set_assoc);
+		ret = wl1271_join(wl, wlvif, set_assoc);
 		if (ret < 0) {
 			wl1271_warning("cmd join failed %d", ret);
 			goto out;
@@ -4750,6 +4768,7 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	SET_IEEE80211_DEV(wl->hw, wl1271_wl_to_dev(wl));
 
 	wl->hw->sta_data_size = sizeof(struct wl1271_station);
+	wl->hw->vif_data_size = sizeof(struct wl12xx_vif);
 
 	wl->hw->max_rx_aggregation_subframes = 8;
 
@@ -4824,7 +4843,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->rx_counter = 0;
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
-	wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->band = IEEE80211_BAND_2GHZ;
