@@ -1986,23 +1986,23 @@ static bool brcms_c_validboardtype(struct brcms_hardware *wlc_hw)
 
 static char *brcms_c_get_macaddr(struct brcms_hardware *wlc_hw)
 {
-	const char *varname = "macaddr";
+	enum brcms_srom_id var_id = BRCMS_SROM_MACADDR;
 	char *macaddr;
 
 	/* If macaddr exists, use it (Sromrev4, CIS, ...). */
-	macaddr = getvar(wlc_hw->sih, varname);
+	macaddr = getvar(wlc_hw->sih, var_id);
 	if (macaddr != NULL)
 		return macaddr;
 
 	if (wlc_hw->_nbands > 1)
-		varname = "et1macaddr";
+		var_id = BRCMS_SROM_ET1MACADDR;
 	else
-		varname = "il0macaddr";
+		var_id = BRCMS_SROM_IL0MACADDR;
 
-	macaddr = getvar(wlc_hw->sih, varname);
+	macaddr = getvar(wlc_hw->sih, var_id);
 	if (macaddr == NULL)
 		wiphy_err(wlc_hw->wlc->wiphy, "wl%d: wlc_get_macaddr: macaddr "
-			  "getvar(%s) not found\n", wlc_hw->unit, varname);
+			  "getvar(%d) not found\n", wlc_hw->unit, var_id);
 
 	return macaddr;
 }
@@ -4633,7 +4633,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	}
 
 	/* get the board rev, used just below */
-	j = getintvar(wlc_hw->sih, "boardrev");
+	j = getintvar(wlc_hw->sih, BRCMS_SROM_BOARDREV);
 	/* promote srom boardrev of 0xFF to 1 */
 	if (j == BOARDREV_PROMOTABLE)
 		j = BOARDREV_PROMOTED;
@@ -4645,9 +4645,11 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 		err = 15;
 		goto fail;
 	}
-	wlc_hw->sromrev = (u8) getintvar(wlc_hw->sih, "sromrev");
-	wlc_hw->boardflags = (u32) getintvar(wlc_hw->sih, "boardflags");
-	wlc_hw->boardflags2 = (u32) getintvar(wlc_hw->sih, "boardflags2");
+	wlc_hw->sromrev = (u8) getintvar(wlc_hw->sih, BRCMS_SROM_REV);
+	wlc_hw->boardflags = (u32) getintvar(wlc_hw->sih,
+					     BRCMS_SROM_BOARDFLAGS);
+	wlc_hw->boardflags2 = (u32) getintvar(wlc_hw->sih,
+					      BRCMS_SROM_BOARDFLAGS2);
 
 	if (wlc_hw->boardflags & BFL_NOPLLDOWN)
 		brcms_b_pllreq(wlc_hw, true, BRCMS_PLLREQ_SHARED);
@@ -4904,7 +4906,11 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 	bandtype = wlc->band->bandtype;
 
 	/* get antennas available */
-	aa = (s8) getintvar(sih, bandtype == BRCM_BAND_5G ? "aa5g" : "aa2g");
+	if (bandtype == BRCM_BAND_5G)
+		aa = (s8) getintvar(sih, BRCMS_SROM_AA5G);
+	else
+		aa = (s8) getintvar(sih, BRCMS_SROM_AA2G);
+
 	if ((aa < 1) || (aa > 15)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: Invalid antennas available in"
 			  " srom (0x%x), using 3\n", unit, __func__, aa);
@@ -4922,8 +4928,11 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 	}
 
 	/* Compute Antenna Gain */
-	wlc->band->antgain = (s8) getintvar(sih, bandtype == BRCM_BAND_5G ?
-					    "ag1" : "ag0");
+	if (bandtype == BRCM_BAND_5G)
+		wlc->band->antgain = (s8) getintvar(sih, BRCMS_SROM_AG1);
+	else
+		wlc->band->antgain = (s8) getintvar(sih, BRCMS_SROM_AG0);
+
 	brcms_c_attach_antgain_init(wlc);
 
 	return true;

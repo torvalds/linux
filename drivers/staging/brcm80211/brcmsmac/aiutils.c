@@ -1021,7 +1021,7 @@ static __used void ai_nvram_process(struct si_info *sii)
 
 	sii->pub.boardvendor = w & 0xffff;
 	sii->pub.boardtype = (w >> 16) & 0xffff;
-	sii->pub.boardflags = getintvar(&sii->pub, "boardflags");
+	sii->pub.boardflags = getintvar(&sii->pub, BRCMS_SROM_BOARDFLAGS);
 }
 
 static struct si_info *ai_doattach(struct si_info *sii,
@@ -1117,7 +1117,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	}
 
 	/* setup the GPIO based LED powersave register */
-	w = getintvar(sih, "leddc");
+	w = getintvar(sih, BRCMS_SROM_LEDDC);
 	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
 	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, gpiotimerval),

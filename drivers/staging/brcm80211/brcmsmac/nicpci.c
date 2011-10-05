@@ -722,10 +722,11 @@ static void pcie_war_pci_setup(struct pcicore_info *pi)
 void pcicore_attach(struct pcicore_info *pi, int state)
 {
 	struct si_pub *sih = pi->sih;
+	u32 bfl2 = (u32)getintvar(sih, BRCMS_SROM_BOARDFLAGS2);
 
 	/* Determine if this board needs override */
 	if (PCIE_ASPM(sih)) {
-		if ((u32)getintvar(sih, "boardflags2") & BFL2_PCIEWAR_OVR)
+		if (bfl2 & BFL2_PCIEWAR_OVR)
 			pi->pcie_war_aspm_ovr = PCIE_ASPM_DISAB;
 		else
 			pi->pcie_war_aspm_ovr = PCIE_ASPM_ENAB;
