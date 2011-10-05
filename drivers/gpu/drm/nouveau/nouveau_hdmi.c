@@ -26,6 +26,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
+#include "nouveau_crtc.h"
 
 static bool
 hdmi_sor(struct drm_encoder *encoder)
@@ -36,12 +37,42 @@ hdmi_sor(struct drm_encoder *encoder)
 	return true;
 }
 
+static inline u32
+hdmi_base(struct drm_encoder *encoder)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(nv_encoder->crtc);
+	if (!hdmi_sor(encoder))
+		return 0x616500 + (nv_crtc->index * 0x800);
+	return 0x61c500 + (nv_encoder->or * 0x800);
+}
+
+static void
+hdmi_wr32(struct drm_encoder *encoder, u32 reg, u32 val)
+{
+	nv_wr32(encoder->dev, hdmi_base(encoder) + reg, val);
+}
+
+static u32
+hdmi_rd32(struct drm_encoder *encoder, u32 reg)
+{
+	return nv_rd32(encoder->dev, hdmi_base(encoder) + reg);
+}
+
+static u32
+hdmi_mask(struct drm_encoder *encoder, u32 reg, u32 mask, u32 val)
+{
+	u32 tmp = hdmi_rd32(encoder, reg);
+	hdmi_wr32(encoder, reg, (tmp & ~mask) | val);
+	return tmp;
+}
+
 static void
 nouveau_audio_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
-	int or = nv_encoder->or * 0x800;
+	u32 or = nv_encoder->or * 0x800;
 
 	if (hdmi_sor(encoder)) {
 		nv_mask(dev, 0x61c448 + or, 0x00000003, 0x00000000);

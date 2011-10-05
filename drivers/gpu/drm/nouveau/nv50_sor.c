@@ -195,6 +195,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	NV_DEBUG_KMS(dev, "or %d type %d -> crtc %d\n",
 		     nv_encoder->or, nv_encoder->dcb->type, crtc->index);
+	nv_encoder->crtc = encoder->crtc;
 
 	switch (nv_encoder->dcb->type) {
 	case OUTPUT_TMDS:
@@ -206,7 +207,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		} else
 			mode_ctl = 0x0200;
 
-		nouveau_hdmi_mode_set(encoder, mode);
+		nouveau_hdmi_mode_set(encoder, adjusted_mode);
 		break;
 	case OUTPUT_DP:
 		nv_connector = nouveau_encoder_connector_get(nv_encoder);
@@ -243,12 +244,11 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	ret = RING_SPACE(evo, 2);
 	if (ret) {
 		NV_ERROR(dev, "no space while connecting SOR\n");
+		nv_encoder->crtc = NULL;
 		return;
 	}
 	BEGIN_RING(evo, 0, NV50_EVO_SOR(nv_encoder->or, MODE_CTRL), 1);
 	OUT_RING(evo, mode_ctl);
-
-	nv_encoder->crtc = encoder->crtc;
 }
 
 static struct drm_crtc *
