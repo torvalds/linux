@@ -27,6 +27,7 @@
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
 #include <linux/wl12xx.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "wl12xx.h"
@@ -72,6 +73,7 @@
 struct wl12xx_spi_glue {
 	struct device *dev;
 	struct wl1271 *wl;
+	struct platform_device *core;
 };
 
 static inline struct wl12xx_spi_glue *wl_to_glue(struct wl1271 *wl)
@@ -376,6 +378,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	struct wl12xx_platform_data *pdata;
 	struct ieee80211_hw *hw;
 	struct wl1271 *wl;
+	struct resource res[1];
 	unsigned long irqflags;
 	int ret = -ENOMEM;
 
@@ -458,7 +461,46 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	if (ret)
 		goto out_irq;
 
+	glue->core = platform_device_alloc("wl12xx-spi", -1);
+	if (!glue->core) {
+		wl1271_error("can't allocate platform_device");
+		ret = -ENOMEM;
+		goto out_unreg_hw;
+	}
+
+	glue->core->dev.parent = &spi->dev;
+
+	memset(res, 0x00, sizeof(res));
+
+	res[0].start = spi->irq;
+	res[0].flags = IORESOURCE_IRQ;
+	res[0].name = "irq";
+
+	ret = platform_device_add_resources(glue->core, res, ARRAY_SIZE(res));
+	if (ret) {
+		wl1271_error("can't add resources");
+		goto out_dev_put;
+	}
+
+	ret = platform_device_add_data(glue->core, pdata, sizeof(*pdata));
+	if (ret) {
+		wl1271_error("can't add platform data");
+		goto out_dev_put;
+	}
+
+	ret = platform_device_add(glue->core);
+	if (ret) {
+		wl1271_error("can't register platform device");
+		goto out_dev_put;
+	}
+
 	return 0;
+
+out_dev_put:
+	platform_device_put(glue->core);
+
+out_unreg_hw:
+	wl1271_unregister_hw(wl);
 
 out_irq:
 	free_irq(wl->irq, wl);
@@ -480,6 +522,8 @@ static int __devexit wl1271_remove(struct spi_device *spi)
 	wl1271_unregister_hw(wl);
 	free_irq(wl->irq, wl);
 	wl1271_free_hw(wl);
+	platform_device_del(glue->core);
+	platform_device_put(glue->core);
 	kfree(glue);
 
 	return 0;
