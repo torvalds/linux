@@ -420,7 +420,7 @@ static const struct iio_chan_spec isl29018_channels[] = {
 		.type = IIO_LIGHT,
 		.indexed = 1,
 		.channel = 0,
-		.processed_val = 1,
+		.processed_val = IIO_PROCESSED,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE),
 	}, {
 		.type = IIO_INTENSITY,
