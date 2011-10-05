@@ -282,74 +282,6 @@ _brcmf_set_mac_address(struct work_struct *work)
 	return;
 }
 
-/* Virtual interfaces only ((ifp && ifp->info && ifp->idx == true) */
-static void brcmf_op_if(struct brcmf_if *ifp)
-{
-	struct brcmf_info *drvr_priv;
-	int ret = 0, err = 0;
-
-	drvr_priv = ifp->info;
-
-	brcmf_dbg(TRACE, "idx %d, state %d\n", ifp->idx, ifp->state);
-
-	switch (ifp->state) {
-	case BRCMF_E_IF_ADD:
-		/*
-		 * Delete the existing interface before overwriting it
-		 * in case we missed the BRCMF_E_IF_DEL event.
-		 */
-		if (ifp->ndev != NULL) {
-			brcmf_dbg(ERROR, "ERROR: netdev:%s already exists, try free & unregister\n",
-				  ifp->ndev->name);
-			netif_stop_queue(ifp->ndev);
-			unregister_netdev(ifp->ndev);
-			free_netdev(ifp->ndev);
-		}
-		/* Allocate netdev, including space for private structure */
-		ifp->ndev = alloc_netdev(sizeof(drvr_priv), "wlan%d",
-					 ether_setup);
-		if (!ifp->ndev) {
-			brcmf_dbg(ERROR, "OOM - alloc_netdev\n");
-			ret = -ENOMEM;
-		}
-		if (ret == 0) {
-			memcpy(netdev_priv(ifp->ndev), &drvr_priv,
-			       sizeof(drvr_priv));
-			err = brcmf_net_attach(&drvr_priv->pub, ifp->idx);
-			if (err != 0) {
-				brcmf_dbg(ERROR, "brcmf_net_attach failed, err %d\n",
-					  err);
-				ret = -EOPNOTSUPP;
-			} else {
-				brcmf_dbg(TRACE, " ==== pid:%x, net_device for if:%s created ===\n",
-					  current->pid, ifp->ndev->name);
-				ifp->state = 0;
-			}
-		}
-		break;
-	case BRCMF_E_IF_DEL:
-		if (ifp->ndev != NULL) {
-			brcmf_dbg(TRACE, "got 'WLC_E_IF_DEL' state\n");
-			netif_stop_queue(ifp->ndev);
-			unregister_netdev(ifp->ndev);
-			ret = BRCMF_DEL_IF;	/* Make sure the free_netdev()
-							 is called */
-		}
-		break;
-	default:
-		brcmf_dbg(ERROR, "bad op %d\n", ifp->state);
-		break;
-	}
-
-	if (ret < 0) {
-		if (ifp->ndev)
-			free_netdev(ifp->ndev);
-
-		drvr_priv->iflist[ifp->idx] = NULL;
-		kfree(ifp);
-	}
-}
-
 static int brcmf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 {
 	struct brcmf_info *drvr_priv = *(struct brcmf_info **)
@@ -964,6 +896,7 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, struct net_device *ndev,
 	     char *name, u8 *mac_addr, u32 flags, u8 bssidx)
 {
 	struct brcmf_if *ifp;
+	int ret = 0, err = 0;
 
 	brcmf_dbg(TRACE, "idx %d, handle->%p\n", ifidx, ndev);
 
@@ -983,7 +916,48 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, struct net_device *ndev,
 	if (ndev == NULL) {
 		ifp->state = BRCMF_E_IF_ADD;
 		ifp->idx = ifidx;
-		brcmf_op_if(ifp);
+		/*
+		 * Delete the existing interface before overwriting it
+		 * in case we missed the BRCMF_E_IF_DEL event.
+		 */
+		if (ifp->ndev != NULL) {
+			brcmf_dbg(ERROR, "ERROR: netdev:%s already exists, try free & unregister\n",
+				  ifp->ndev->name);
+			netif_stop_queue(ifp->ndev);
+			unregister_netdev(ifp->ndev);
+			free_netdev(ifp->ndev);
+		}
+
+		/* Allocate netdev, including space for private structure */
+		ifp->ndev = alloc_netdev(sizeof(drvr_priv), "wlan%d",
+					 ether_setup);
+		if (!ifp->ndev) {
+			brcmf_dbg(ERROR, "OOM - alloc_netdev\n");
+			ret = -ENOMEM;
+		}
+
+		if (ret == 0) {
+			memcpy(netdev_priv(ifp->ndev), &drvr_priv,
+			       sizeof(drvr_priv));
+			err = brcmf_net_attach(&drvr_priv->pub, ifp->idx);
+			if (err != 0) {
+				brcmf_dbg(ERROR, "brcmf_net_attach failed, err %d\n",
+					  err);
+				ret = -EOPNOTSUPP;
+			} else {
+				brcmf_dbg(TRACE, " ==== pid:%x, net_device for if:%s created ===\n",
+					  current->pid, ifp->ndev->name);
+				ifp->state = 0;
+			}
+		}
+
+		if (ret < 0) {
+			if (ifp->ndev)
+				free_netdev(ifp->ndev);
+
+			drvr_priv->iflist[ifp->idx] = NULL;
+			kfree(ifp);
+		}
 	} else
 		ifp->ndev = ndev;
 
@@ -1004,7 +978,13 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 
 	ifp->state = BRCMF_E_IF_DEL;
 	ifp->idx = ifidx;
-	brcmf_op_if(ifp);
+	if (ifp->ndev != NULL) {
+		netif_stop_queue(ifp->ndev);
+		unregister_netdev(ifp->ndev);
+		free_netdev(ifp->ndev);
+		drvr_priv->iflist[ifidx] = NULL;
+		kfree(ifp);
+	}
 }
 
 struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
