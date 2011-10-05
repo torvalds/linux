@@ -923,11 +923,11 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (!frag->size)
 			continue;
 
-		dma_pointer = (u64) pci_map_page(fifo->pdev, frag->page,
-				frag->page_offset, frag->size,
-				PCI_DMA_TODEVICE);
+		dma_pointer = (u64)skb_frag_dma_map(&fifo->pdev->dev, frag,
+						    0, frag->size,
+						    DMA_TO_DEVICE);
 
-		if (unlikely(pci_dma_mapping_error(fifo->pdev, dma_pointer)))
+		if (unlikely(dma_mapping_error(&fifo->pdev->dev, dma_pointer)))
 			goto _exit2;
 		vxge_debug_tx(VXGE_TRACE,
 			"%s: %s:%d frag = %d dma_pointer = 0x%llx",
