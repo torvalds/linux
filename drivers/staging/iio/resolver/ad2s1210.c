@@ -653,45 +653,30 @@ static const struct iio_info ad2s1210_info = {
 
 static int ad2s1210_setup_gpios(struct ad2s1210_state *st)
 {
-	int ret;
 	unsigned long flags = st->pdata->gpioin ? GPIOF_DIR_IN : GPIOF_DIR_OUT;
+	struct gpio ad2s1210_gpios[] = {
+		{ st->pdata->sample, GPIOF_DIR_IN, "sample" },
+		{ st->pdata->a[0], flags, "a0" },
+		{ st->pdata->a[1], flags, "a1" },
+		{ st->pdata->res[0], flags, "res0" },
+		{ st->pdata->res[0], flags, "res1" },
+	};
 
-	ret = gpio_request_one(st->pdata->sample, GPIOF_DIR_IN, "sample");
-	if (ret < 0)
-		goto error_ret;
-	ret = gpio_request_one(st->pdata->a[0], flags, "a0");
-	if (ret < 0)
-		goto error_free_sample;
-	ret = gpio_request_one(st->pdata->a[1], flags, "a1");
-	if (ret < 0)
-		goto error_free_a0;
-	ret = gpio_request_one(st->pdata->res[1], flags, "res0");
-	if (ret < 0)
-		goto error_free_a1;
-	ret = gpio_request_one(st->pdata->res[1], flags, "res1");
-	if (ret < 0)
-		goto error_free_res0;
-
-	return 0;
-error_free_res0:
-	gpio_free(st->pdata->res[0]);
-error_free_a1:
-	gpio_free(st->pdata->a[1]);
-error_free_a0:
-	gpio_free(st->pdata->a[0]);
-error_free_sample:
-	gpio_free(st->pdata->sample);
-error_ret:
-	return ret;
+	return gpio_request_array(ad2s1210_gpios, ARRAY_SIZE(ad2s1210_gpios));
 }
 
 static void ad2s1210_free_gpios(struct ad2s1210_state *st)
 {
-	gpio_free(st->pdata->res[1]);
-	gpio_free(st->pdata->res[0]);
-	gpio_free(st->pdata->a[1]);
-	gpio_free(st->pdata->a[0]);
-	gpio_free(st->pdata->sample);
+	unsigned long flags = st->pdata->gpioin ? GPIOF_DIR_IN : GPIOF_DIR_OUT;
+	struct gpio ad2s1210_gpios[] = {
+		{ st->pdata->sample, GPIOF_DIR_IN, "sample" },
+		{ st->pdata->a[0], flags, "a0" },
+		{ st->pdata->a[1], flags, "a1" },
+		{ st->pdata->res[0], flags, "res0" },
+		{ st->pdata->res[0], flags, "res1" },
+	};
+
+	gpio_free_array(ad2s1210_gpios, ARRAY_SIZE(ad2s1210_gpios));
 }
 
 static int __devinit ad2s1210_probe(struct spi_device *spi)
