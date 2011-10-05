@@ -4353,8 +4353,6 @@ static inline void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 			vlan_mac_obj = &bp->fp[cid].mac_obj;
 
 		break;
-		vlan_mac_obj = &bp->fp[cid].mac_obj;
-
 	case BNX2X_FILTER_MCAST_PENDING:
 		/* This is only relevant for 57710 where multicast MACs are
 		 * configured as unicast MACs using the same ramrod.
