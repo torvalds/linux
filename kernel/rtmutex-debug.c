@@ -94,8 +94,10 @@ void debug_rt_mutex_print_deadlock(struct rt_mutex_waiter *waiter)
 		return;
 	}
 
-	if (!debug_locks_off())
+	if (!debug_locks_off()) {
+		rcu_read_unlock();
 		return;
+	}
 
 	printk("\n============================================\n");
 	printk(  "[ BUG: circular locking deadlock detected! ]\n");
