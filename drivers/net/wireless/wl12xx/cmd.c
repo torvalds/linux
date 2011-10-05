@@ -434,23 +434,25 @@ out:
 	return ret;
 }
 
-static int wl12xx_allocate_link(struct wl1271 *wl, u8 *hlid)
+int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
 	u8 link = find_first_zero_bit(wl->links_map, WL12XX_MAX_LINKS);
 	if (link >= WL12XX_MAX_LINKS)
 		return -EBUSY;
 
 	__set_bit(link, wl->links_map);
+	__set_bit(link, wlvif->links_map);
 	*hlid = link;
 	return 0;
 }
 
-static void wl12xx_free_link(struct wl1271 *wl, u8 *hlid)
+void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
 	if (*hlid == WL12XX_INVALID_LINK_ID)
 		return;
 
 	__clear_bit(*hlid, wl->links_map);
+	__clear_bit(*hlid, wlvif->links_map);
 	*hlid = WL12XX_INVALID_LINK_ID;
 }
 
@@ -484,7 +486,7 @@ int wl12xx_cmd_role_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->channel = wl->channel;
 
 	if (wlvif->dev_hlid == WL12XX_INVALID_LINK_ID) {
-		ret = wl12xx_allocate_link(wl, &wlvif->dev_hlid);
+		ret = wl12xx_allocate_link(wl, wlvif, &wlvif->dev_hlid);
 		if (ret)
 			goto out_free;
 	}
@@ -504,7 +506,7 @@ int wl12xx_cmd_role_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 err_hlid:
 	/* clear links on error */
-	wl12xx_free_link(wl, &wlvif->dev_hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->dev_hlid);
 
 out_free:
 	kfree(cmd);
@@ -545,7 +547,7 @@ int wl12xx_cmd_role_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out_free;
 	}
 
-	wl12xx_free_link(wl, &wlvif->dev_hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->dev_hlid);
 
 out_free:
 	kfree(cmd);
@@ -581,7 +583,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
 	if (wlvif->sta.hlid == WL12XX_INVALID_LINK_ID) {
-		ret = wl12xx_allocate_link(wl, &wlvif->sta.hlid);
+		ret = wl12xx_allocate_link(wl, wlvif, &wlvif->sta.hlid);
 		if (ret)
 			goto out_free;
 	}
@@ -604,7 +606,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 err_hlid:
 	/* clear links on error. */
-	wl12xx_free_link(wl, &wlvif->sta.hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->sta.hlid);
 
 out_free:
 	kfree(cmd);
@@ -640,7 +642,7 @@ int wl12xx_cmd_role_stop_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out_free;
 	}
 
-	wl12xx_free_link(wl, &wlvif->sta.hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->sta.hlid);
 
 out_free:
 	kfree(cmd);
@@ -670,11 +672,11 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out;
 	}
 
-	ret = wl12xx_allocate_link(wl, &wlvif->ap.global_hlid);
+	ret = wl12xx_allocate_link(wl, wlvif, &wlvif->ap.global_hlid);
 	if (ret < 0)
 		goto out_free;
 
-	ret = wl12xx_allocate_link(wl, &wlvif->ap.bcast_hlid);
+	ret = wl12xx_allocate_link(wl, wlvif, &wlvif->ap.bcast_hlid);
 	if (ret < 0)
 		goto out_free_global;
 
@@ -724,10 +726,10 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	goto out_free;
 
 out_free_bcast:
-	wl12xx_free_link(wl, &wlvif->ap.bcast_hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->ap.bcast_hlid);
 
 out_free_global:
-	wl12xx_free_link(wl, &wlvif->ap.global_hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->ap.global_hlid);
 
 out_free:
 	kfree(cmd);
@@ -757,8 +759,8 @@ int wl12xx_cmd_role_stop_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out_free;
 	}
 
-	wl12xx_free_link(wl, &wlvif->ap.bcast_hlid);
-	wl12xx_free_link(wl, &wlvif->ap.global_hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->ap.bcast_hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->ap.global_hlid);
 
 out_free:
 	kfree(cmd);
@@ -796,7 +798,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
 	if (wlvif->sta.hlid == WL12XX_INVALID_LINK_ID) {
-		ret = wl12xx_allocate_link(wl, &wlvif->sta.hlid);
+		ret = wl12xx_allocate_link(wl, wlvif, &wlvif->sta.hlid);
 		if (ret)
 			goto out_free;
 	}
@@ -821,7 +823,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 err_hlid:
 	/* clear links on error. */
-	wl12xx_free_link(wl, &wlvif->sta.hlid);
+	wl12xx_free_link(wl, wlvif, &wlvif->sta.hlid);
 
 out_free:
 	kfree(cmd);

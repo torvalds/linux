@@ -189,11 +189,12 @@ static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		ieee80211_stop_rx_ba_session(wl->vif, wlvif->sta.ba_rx_bitmap,
 					     wl->vif->bss_conf.bssid);
 	} else {
-		int i;
+		u8 hlid;
 		struct wl1271_link *lnk;
-		for (i = WL1271_AP_STA_HLID_START; i < AP_MAX_LINKS; i++) {
-			lnk = &wl->links[i];
-			if (!wl1271_is_active_sta(wl, i) || !lnk->ba_bitmap)
+		for_each_set_bit(hlid, wlvif->ap.sta_hlid_map,
+				 WL12XX_MAX_LINKS) {
+			lnk = &wl->links[hlid];
+			if (!lnk->ba_bitmap)
 				continue;
 
 			ieee80211_stop_rx_ba_session(wl->vif,
@@ -355,10 +356,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		const u8 *addr;
 		int h;
 
-		for (h = find_first_bit(&sta_bitmap, AP_MAX_LINKS);
-		     h < AP_MAX_LINKS;
-		     h = find_next_bit(&sta_bitmap, AP_MAX_LINKS, h+1)) {
-			if (!wl1271_is_active_sta(wl, h))
+		for_each_set_bit(h, &sta_bitmap, WL12XX_MAX_LINKS) {
+			if (!test_bit(h, wlvif->ap.sta_hlid_map))
 				continue;
 
 			addr = wl->links[h].addr;

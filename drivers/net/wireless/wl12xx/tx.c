@@ -125,17 +125,15 @@ static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 		wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
 }
 
-static void wl1271_tx_regulate_link(struct wl1271 *wl, u8 hlid)
+static void wl1271_tx_regulate_link(struct wl1271 *wl,
+				    struct wl12xx_vif *wlvif,
+				    u8 hlid)
 {
 	bool fw_ps, single_sta;
 	u8 tx_pkts;
 
-	/* only regulate station links */
-	if (hlid < WL1271_AP_STA_HLID_START)
+	if (WARN_ON(!test_bit(hlid, wlvif->links_map)))
 		return;
-
-	if (WARN_ON(!wl1271_is_active_sta(wl, hlid)))
-	    return;
 
 	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
 	tx_pkts = wl->links[hlid].allocated_pkts;
@@ -266,7 +264,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct ieee80211_vif *vif,
 		wl->tx_allocated_pkts[ac]++;
 
 		if (wlvif->bss_type == BSS_TYPE_AP_BSS &&
-		    hlid >= WL1271_AP_STA_HLID_START)
+		    test_bit(hlid, wlvif->ap.sta_hlid_map))
 			wl->links[hlid].allocated_pkts++;
 
 		ret = 0;
@@ -445,7 +443,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct sk_buff *skb,
 
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS && !is_dummy) {
 		wl1271_tx_ap_update_inconnection_sta(wl, skb);
-		wl1271_tx_regulate_link(wl, hlid);
+		wl1271_tx_regulate_link(wl, wlvif, hlid);
 	}
 
 	/*
@@ -563,7 +561,8 @@ out:
 	return skb;
 }
 
-static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl)
+static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl,
+					     struct wl12xx_vif *wlvif)
 {
 	struct sk_buff *skb = NULL;
 	unsigned long flags;
@@ -571,15 +570,14 @@ static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl)
 	struct sk_buff_head *queue;
 
 	/* start from the link after the last one */
-	start_hlid = (wl->last_tx_hlid + 1) % AP_MAX_LINKS;
+	start_hlid = (wl->last_tx_hlid + 1) % WL12XX_MAX_LINKS;
 
 	/* dequeue according to AC, round robin on each link */
-	for (i = 0; i < AP_MAX_LINKS; i++) {
-		h = (start_hlid + i) % AP_MAX_LINKS;
+	for (i = 0; i < WL12XX_MAX_LINKS; i++) {
+		h = (start_hlid + i) % WL12XX_MAX_LINKS;
 
 		/* only consider connected stations */
-		if (h >= WL1271_AP_STA_HLID_START &&
-		    !test_bit(h - WL1271_AP_STA_HLID_START, wl->ap_hlid_map))
+		if (!test_bit(h, wlvif->links_map))
 			continue;
 
 		queue = wl1271_select_queue(wl, wl->links[h].tx_queue);
@@ -611,7 +609,7 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl,
 	struct sk_buff *skb = NULL;
 
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-		skb = wl1271_ap_skb_dequeue(wl);
+		skb = wl1271_ap_skb_dequeue(wl, wlvif);
 	else
 		skb = wl1271_sta_skb_dequeue(wl);
 
@@ -643,7 +641,8 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct ieee80211_vif *vif,
 		skb_queue_head(&wl->links[hlid].tx_queue[q], skb);
 
 		/* make sure we dequeue the same packet next time */
-		wl->last_tx_hlid = (hlid + AP_MAX_LINKS - 1) % AP_MAX_LINKS;
+		wl->last_tx_hlid = (hlid + WL12XX_MAX_LINKS - 1) %
+				   WL12XX_MAX_LINKS;
 	} else {
 		skb_queue_head(&wl->tx_queue[q], skb);
 	}
@@ -918,8 +917,8 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 
 	/* TX failure */
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
-		for (i = 0; i < AP_MAX_LINKS; i++) {
-			wl1271_free_sta(wl, i);
+		for (i = 0; i < WL12XX_MAX_LINKS; i++) {
+			wl1271_free_sta(wl, wlvif, i);
 			wl1271_tx_reset_link_queues(wl, i);
 			wl->links[i].allocated_pkts = 0;
 			wl->links[i].prev_freed_pkts = 0;

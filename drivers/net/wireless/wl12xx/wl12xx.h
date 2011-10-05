@@ -146,12 +146,6 @@ extern u32 wl12xx_debug_level;
 #define WL12XX_SYSTEM_HLID         0
 
 /*
- * TODO: we currently don't support multirole. remove
- * this constant from the code when we do.
- */
-#define WL1271_AP_STA_HLID_START   3
-
-/*
  * When in AP-mode, we allow (at least) this number of packets
  * to be transmitted to FW for a STA in PS-mode. Only when packets are
  * present in the FW buffers it will wake the sleeping STA. We want to put
@@ -235,13 +229,6 @@ struct wl1271_stats {
 #define NUM_RX_PKT_DESC            8
 
 #define AP_MAX_STATIONS            8
-
-/* Broadcast and Global links + system link + links to stations */
-/*
- * TODO: when WL1271_AP_STA_HLID_START is no longer constant, change all
- * the places that use this.
- */
-#define AP_MAX_LINKS               (AP_MAX_STATIONS + WL1271_AP_STA_HLID_START)
 
 /* FW status registers */
 struct wl12xx_fw_status {
@@ -537,9 +524,6 @@ struct wl1271 {
 	/* Most recently reported noise in dBm */
 	s8 noise;
 
-	/* map for HLIDs of associated stations - when operating in AP mode */
-	unsigned long ap_hlid_map[BITS_TO_LONGS(AP_MAX_STATIONS)];
-
 	/* recoreded keys for AP-mode - set here before AP startup */
 	struct wl1271_ap_key *recorded_ap_keys[MAX_NUM_KEYS];
 
@@ -559,7 +543,7 @@ struct wl1271 {
 	 * AP-mode - links indexed by HLID. The global and broadcast links
 	 * are always active.
 	 */
-	struct wl1271_link links[AP_MAX_LINKS];
+	struct wl1271_link links[WL12XX_MAX_LINKS];
 
 	/* the hlid of the link where the last transmitted skb came from */
 	int last_tx_hlid;
@@ -605,8 +589,14 @@ struct wl12xx_vif {
 		struct {
 			u8 global_hlid;
 			u8 bcast_hlid;
+
+			/* HLIDs bitmap of associated stations */
+			unsigned long sta_hlid_map[BITS_TO_LONGS(
+							WL12XX_MAX_LINKS)];
 		} ap;
 	};
+
+	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
 
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;

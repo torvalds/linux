@@ -778,10 +778,6 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_pkts)
 {
 	bool fw_ps, single_sta;
 
-	/* only regulate station links */
-	if (hlid < WL1271_AP_STA_HLID_START)
-		return;
-
 	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
 	single_sta = (wl->active_sta_count == 1);
 
@@ -801,21 +797,11 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl, u8 hlid, u8 tx_pkts)
 		wl1271_ps_link_start(wl, hlid, true);
 }
 
-bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid)
-{
-	int id;
-
-	/* global/broadcast "stations" are always active */
-	if (hlid < WL1271_AP_STA_HLID_START)
-		return true;
-
-	id = hlid - WL1271_AP_STA_HLID_START;
-	return test_bit(id, wl->ap_hlid_map);
-}
-
 static void wl12xx_irq_update_links_status(struct wl1271 *wl,
+					   struct wl12xx_vif *wlvif,
 					   struct wl12xx_fw_status *status)
 {
+	struct wl1271_link *lnk;
 	u32 cur_fw_ps_map;
 	u8 hlid, cnt;
 
@@ -831,19 +817,14 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 		wl->ap_fw_ps_map = cur_fw_ps_map;
 	}
 
-	for (hlid = WL1271_AP_STA_HLID_START; hlid < AP_MAX_LINKS; hlid++) {
-		if (!wl1271_is_active_sta(wl, hlid))
-			continue;
+	for_each_set_bit(hlid, wlvif->ap.sta_hlid_map, WL12XX_MAX_LINKS) {
+		lnk = &wl->links[hlid];
+		cnt = status->tx_lnk_free_pkts[hlid] - lnk->prev_freed_pkts;
 
-		cnt = status->tx_lnk_free_pkts[hlid] -
-		      wl->links[hlid].prev_freed_pkts;
+		lnk->prev_freed_pkts = status->tx_lnk_free_pkts[hlid];
+		lnk->allocated_pkts -= cnt;
 
-		wl->links[hlid].prev_freed_pkts =
-			status->tx_lnk_free_pkts[hlid];
-		wl->links[hlid].allocated_pkts -= cnt;
-
-		wl12xx_irq_ps_regulate_link(wl, hlid,
-					    wl->links[hlid].allocated_pkts);
+		wl12xx_irq_ps_regulate_link(wl, hlid, lnk->allocated_pkts);
 	}
 }
 
@@ -907,7 +888,7 @@ static void wl12xx_fw_status(struct wl1271 *wl,
 
 	/* for AP update num of allocated TX blocks per link and ps status */
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-		wl12xx_irq_update_links_status(wl, status);
+		wl12xx_irq_update_links_status(wl, wlvif, status);
 
 	/* update the host-chipset time offset */
 	getnstimeofday(&ts);
@@ -1505,7 +1486,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	/* queue the packet */
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
-		if (!wl1271_is_active_sta(wl, hlid)) {
+		if (!test_bit(hlid, wlvif->links_map)) {
 			wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d",
 				     hlid, q);
 			dev_kfree_skb(skb);
@@ -2152,7 +2133,7 @@ deinit:
 	wl->vif = NULL;
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl1271_free_ap_keys(wl);
-	memset(wl->ap_hlid_map, 0, sizeof(wl->ap_hlid_map));
+	memset(wlvif->ap.sta_hlid_map, 0, sizeof(wlvif->ap.sta_hlid_map));
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
 	wl->sched_scanning = false;
@@ -3946,43 +3927,44 @@ static int wl1271_op_get_survey(struct ieee80211_hw *hw, int idx,
 }
 
 static int wl1271_allocate_sta(struct wl1271 *wl,
-			     struct ieee80211_sta *sta,
-			     u8 *hlid)
+			     struct wl12xx_vif *wlvif,
+			     struct ieee80211_sta *sta)
 {
 	struct wl1271_station *wl_sta;
-	int id;
+	int ret;
 
-	id = find_first_zero_bit(wl->ap_hlid_map, AP_MAX_STATIONS);
-	if (id >= AP_MAX_STATIONS) {
+
+	if (wl->active_sta_count >= AP_MAX_STATIONS) {
 		wl1271_warning("could not allocate HLID - too much stations");
 		return -EBUSY;
 	}
 
 	wl_sta = (struct wl1271_station *)sta->drv_priv;
-	set_bit(id, wl->ap_hlid_map);
-	wl_sta->hlid = WL1271_AP_STA_HLID_START + id;
-	*hlid = wl_sta->hlid;
+	ret = wl12xx_allocate_link(wl, wlvif, &wl_sta->hlid);
+	if (ret < 0) {
+		wl1271_warning("could not allocate HLID - too many links");
+		return -EBUSY;
+	}
+
+	set_bit(wl_sta->hlid, wlvif->ap.sta_hlid_map);
 	memcpy(wl->links[wl_sta->hlid].addr, sta->addr, ETH_ALEN);
 	wl->active_sta_count++;
 	return 0;
 }
 
-void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
+/* TODO: change wl1271_tx_reset(), so we can get sta as param */
+void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 {
-	int id = hlid - WL1271_AP_STA_HLID_START;
-
-	if (hlid < WL1271_AP_STA_HLID_START)
+	if (!test_bit(hlid, wlvif->ap.sta_hlid_map))
 		return;
 
-	if (!test_bit(id, wl->ap_hlid_map))
-		return;
-
-	clear_bit(id, wl->ap_hlid_map);
+	clear_bit(hlid, wlvif->ap.sta_hlid_map);
 	memset(wl->links[hlid].addr, 0, ETH_ALEN);
 	wl->links[hlid].ba_bitmap = 0;
 	wl1271_tx_reset_link_queues(wl, hlid);
 	__clear_bit(hlid, &wl->ap_ps_map);
 	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+	wl12xx_free_link(wl, wlvif, &hlid);
 	wl->active_sta_count--;
 }
 
@@ -3992,6 +3974,7 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 {
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	struct wl1271_station *wl_sta;
 	int ret = 0;
 	u8 hlid;
 
@@ -4005,9 +3988,12 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add sta %d", (int)sta->aid);
 
-	ret = wl1271_allocate_sta(wl, sta, &hlid);
+	ret = wl1271_allocate_sta(wl, wlvif, sta);
 	if (ret < 0)
 		goto out;
+
+	wl_sta = (struct wl1271_station *)sta->drv_priv;
+	hlid = wl_sta->hlid;
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
@@ -4030,7 +4016,7 @@ out_sleep:
 
 out_free_sta:
 	if (ret < 0)
-		wl1271_free_sta(wl, hlid);
+		wl1271_free_sta(wl, wlvif, hlid);
 
 out:
 	mutex_unlock(&wl->mutex);
@@ -4057,8 +4043,8 @@ static int wl1271_op_sta_remove(struct ieee80211_hw *hw,
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove sta %d", (int)sta->aid);
 
 	wl_sta = (struct wl1271_station *)sta->drv_priv;
-	id = wl_sta->hlid - WL1271_AP_STA_HLID_START;
-	if (WARN_ON(!test_bit(id, wl->ap_hlid_map)))
+	id = wl_sta->hlid;
+	if (WARN_ON(!test_bit(id, wlvif->ap.sta_hlid_map)))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -4069,7 +4055,7 @@ static int wl1271_op_sta_remove(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out_sleep;
 
-	wl1271_free_sta(wl, wl_sta->hlid);
+	wl1271_free_sta(wl, wlvif, wl_sta->hlid);
 
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
@@ -4841,7 +4827,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	int i, j, ret;
 	unsigned int order;
 
-	BUILD_BUG_ON(AP_MAX_LINKS > WL12XX_MAX_LINKS);
+	BUILD_BUG_ON(AP_MAX_STATIONS > WL12XX_MAX_LINKS);
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
 	if (!hw) {
@@ -4869,7 +4855,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		skb_queue_head_init(&wl->tx_queue[i]);
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
-		for (j = 0; j < AP_MAX_LINKS; j++)
+		for (j = 0; j < WL12XX_MAX_LINKS; j++)
 			skb_queue_head_init(&wl->links[j].tx_queue[i]);
 
 	skb_queue_head_init(&wl->deferred_rx_queue);
