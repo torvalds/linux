@@ -584,7 +584,14 @@ static ssize_t wacom_led##SET_ID##_select_store(struct device *dev,	\
 {									\
 	return wacom_led_select_store(dev, SET_ID, buf, count);		\
 }									\
-static DEVICE_ATTR(status_led##SET_ID##_select, S_IWUSR, NULL,		\
+static ssize_t wacom_led##SET_ID##_select_show(struct device *dev,	\
+	struct device_attribute *attr, char *buf)			\
+{									\
+	struct wacom *wacom = dev_get_drvdata(dev);			\
+	return snprintf(buf, 2, "%d\n", wacom->led.select[SET_ID]);	\
+}									\
+static DEVICE_ATTR(status_led##SET_ID##_select, S_IWUSR | S_IRUSR,	\
+		    wacom_led##SET_ID##_select_show,			\
 		    wacom_led##SET_ID##_select_store)
 
 DEVICE_LED_SELECT_ATTR(0);
