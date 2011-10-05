@@ -256,8 +256,31 @@ extern void omap_writel(u32 v, u32 pa);
 
 struct omap_sdrc_params;
 
-extern void omap1_map_common_io(void);
-extern void omap1_init_common_hw(void);
+#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
+void omap7xx_map_io(void);
+#else
+static inline void omap_map_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP15XX
+void omap15xx_map_io(void);
+#else
+static inline void omap15xx_map_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP16XX
+void omap16xx_map_io(void);
+#else
+static inline void omap16xx_map_io(void)
+{
+}
+#endif
+
+void omap1_init_early(void);
 
 #ifdef CONFIG_SOC_OMAP2420
 extern void omap242x_map_common_io(void);
