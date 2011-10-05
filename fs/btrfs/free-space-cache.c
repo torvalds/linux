@@ -575,10 +575,6 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	INIT_LIST_HEAD(&bitmap_list);
 
-	node = rb_first(&ctl->free_space_offset);
-	if (!node)
-		return -1;
-
 	if (!i_size_read(inode))
 		return -1;
 
@@ -638,6 +634,12 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 */
 	if (block_group)
 		start = block_group->key.objectid;
+
+	node = rb_first(&ctl->free_space_offset);
+	if (!node && cluster) {
+		node = rb_first(&cluster->root);
+		cluster = NULL;
+	}
 
 	/* Write out the extent entries */
 	do {
