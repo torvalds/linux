@@ -730,18 +730,7 @@ static struct platform_driver sh_msiof_spi_drv = {
 		.pm		= &sh_msiof_spi_dev_pm_ops,
 	},
 };
-
-static int __init sh_msiof_spi_init(void)
-{
-	return platform_driver_register(&sh_msiof_spi_drv);
-}
-module_init(sh_msiof_spi_init);
-
-static void __exit sh_msiof_spi_exit(void)
-{
-	platform_driver_unregister(&sh_msiof_spi_drv);
-}
-module_exit(sh_msiof_spi_exit);
+module_platform_driver(sh_msiof_spi_drv);
 
 MODULE_DESCRIPTION("SuperH MSIOF SPI Master Interface Driver");
 MODULE_AUTHOR("Magnus Damm");

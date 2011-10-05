@@ -524,18 +524,7 @@ static struct platform_driver spi_sh_driver = {
 		.owner = THIS_MODULE,
 	},
 };
-
-static int __init spi_sh_init(void)
-{
-	return platform_driver_register(&spi_sh_driver);
-}
-module_init(spi_sh_init);
-
-static void __exit spi_sh_exit(void)
-{
-	platform_driver_unregister(&spi_sh_driver);
-}
-module_exit(spi_sh_exit);
+module_platform_driver(spi_sh_driver);
 
 MODULE_DESCRIPTION("SH SPI bus driver");
 MODULE_LICENSE("GPL");

@@ -594,18 +594,7 @@ static struct platform_driver spi_ppc4xx_of_driver = {
 		.of_match_table = spi_ppc4xx_of_match,
 	},
 };
-
-static int __init spi_ppc4xx_init(void)
-{
-	return platform_driver_register(&spi_ppc4xx_of_driver);
-}
-module_init(spi_ppc4xx_init);
-
-static void __exit spi_ppc4xx_exit(void)
-{
-	platform_driver_unregister(&spi_ppc4xx_of_driver);
-}
-module_exit(spi_ppc4xx_exit);
+module_platform_driver(spi_ppc4xx_of_driver);
 
 MODULE_AUTHOR("Gary Jennejohn & Stefan Roese");
 MODULE_DESCRIPTION("Simple PPC4xx SPI Driver");
