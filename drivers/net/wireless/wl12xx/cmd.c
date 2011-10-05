@@ -483,12 +483,12 @@ int wl12xx_cmd_role_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		cmd->band = WL12XX_BAND_5GHZ;
 	cmd->channel = wl->channel;
 
-	if (wl->dev_hlid == WL12XX_INVALID_LINK_ID) {
-		ret = wl12xx_allocate_link(wl, &wl->dev_hlid);
+	if (wlvif->dev_hlid == WL12XX_INVALID_LINK_ID) {
+		ret = wl12xx_allocate_link(wl, &wlvif->dev_hlid);
 		if (ret)
 			goto out_free;
 	}
-	cmd->device.hlid = wl->dev_hlid;
+	cmd->device.hlid = wlvif->dev_hlid;
 	cmd->device.session = wlvif->session_counter;
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d",
@@ -504,9 +504,7 @@ int wl12xx_cmd_role_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 err_hlid:
 	/* clear links on error */
-	__clear_bit(wl->dev_hlid, wl->links_map);
-	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
-
+	wl12xx_free_link(wl, &wlvif->dev_hlid);
 
 out_free:
 	kfree(cmd);
@@ -520,7 +518,7 @@ int wl12xx_cmd_role_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct wl12xx_cmd_role_stop *cmd;
 	int ret;
 
-	if (WARN_ON(wl->dev_hlid == WL12XX_INVALID_LINK_ID))
+	if (WARN_ON(wlvif->dev_hlid == WL12XX_INVALID_LINK_ID))
 		return -EINVAL;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -547,7 +545,7 @@ int wl12xx_cmd_role_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out_free;
 	}
 
-	wl12xx_free_link(wl, &wl->dev_hlid);
+	wl12xx_free_link(wl, &wlvif->dev_hlid);
 
 out_free:
 	kfree(cmd);

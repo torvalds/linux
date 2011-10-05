@@ -402,7 +402,6 @@ struct wl1271 {
 	u8 mac_addr[ETH_ALEN];
 	int channel;
 	u8 system_hlid;
-	u8 dev_hlid;
 
 	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
 	unsigned long roles_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
@@ -617,6 +616,7 @@ struct wl12xx_vif {
 
 	/* sta/ibss specific */
 	u8 dev_role_id;
+	u8 dev_hlid;
 
 	union {
 		struct {

@@ -94,7 +94,7 @@ static int wl1271_tx_update_filters(struct wl1271 *wl,
 	if (!ieee80211_is_auth(hdr->frame_control))
 		return 0;
 
-	if (wl->dev_hlid != WL12XX_INVALID_LINK_ID)
+	if (wlvif->dev_hlid != WL12XX_INVALID_LINK_ID)
 		goto out;
 
 	wl1271_debug(DEBUG_CMD, "starting device role for roaming");
@@ -202,7 +202,7 @@ static u8 wl1271_tx_get_hlid(struct wl1271 *wl, struct ieee80211_vif *vif,
 	    !ieee80211_is_assoc_req(hdr->frame_control))
 		return wlvif->sta.hlid;
 	else
-		return wl->dev_hlid;
+		return wlvif->dev_hlid;
 }
 
 static unsigned int wl12xx_calc_packet_alignment(struct wl1271 *wl,

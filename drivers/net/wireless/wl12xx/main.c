@@ -1884,6 +1884,7 @@ static int wl12xx_init_vif_data(struct ieee80211_vif *vif)
 
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
+	wlvif->dev_hlid = WL12XX_INVALID_LINK_ID;
 
 	if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
 	    wlvif->bss_type == BSS_TYPE_IBSS) {
@@ -2103,7 +2104,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 deinit:
 	/* clear all hlids (except system_hlid) */
 	wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
-	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
+	wlvif->dev_hlid = WL12XX_INVALID_LINK_ID;
 	wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
 	wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
 
@@ -4908,7 +4909,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->tx_security_last_seq_lsb = 0;
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
-	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
 	wl->active_sta_count = 0;
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
