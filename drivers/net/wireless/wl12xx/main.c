@@ -1854,20 +1854,52 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return WL12XX_INVALID_ROLE_TYPE;
 }
 
-static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
+static int wl12xx_init_vif_data(struct ieee80211_vif *vif)
 {
-	wlvif->bss_type = MAX_BSS_TYPE;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+
+	/* make sure wlvif is zeroed */
+	memset(wlvif, 0, sizeof(*wlvif));
+
+	switch (ieee80211_vif_type_p2p(vif)) {
+	case NL80211_IFTYPE_P2P_CLIENT:
+		wlvif->p2p = 1;
+		/* fall-through */
+	case NL80211_IFTYPE_STATION:
+		wlvif->bss_type = BSS_TYPE_STA_BSS;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		wlvif->bss_type = BSS_TYPE_IBSS;
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		wlvif->p2p = 1;
+		/* fall-through */
+	case NL80211_IFTYPE_AP:
+		wlvif->bss_type = BSS_TYPE_AP_BSS;
+		break;
+	default:
+		wlvif->bss_type = MAX_BSS_TYPE;
+		return -EOPNOTSUPP;
+	}
+
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
 
-	/* TODO: init union by type */
-	wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
-	wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
-	wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
+	    wlvif->bss_type == BSS_TYPE_IBSS) {
+		/* init sta/ibss data */
+		wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
+
+	} else {
+		/* init ap data */
+		wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
+		wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
+	}
 
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
+	return 0;
 }
 
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
@@ -1891,7 +1923,6 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		ret = -EBUSY;
 		goto out;
 	}
-	wl12xx_init_vif_data(wlvif);
 
 	/*
 	 * in some very corner case HW recovery scenarios its possible to
@@ -1903,26 +1934,9 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	switch (ieee80211_vif_type_p2p(vif)) {
-	case NL80211_IFTYPE_P2P_CLIENT:
-		wlvif->p2p = 1;
-		/* fall-through */
-	case NL80211_IFTYPE_STATION:
-		wlvif->bss_type = BSS_TYPE_STA_BSS;
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		wlvif->bss_type = BSS_TYPE_IBSS;
-		break;
-	case NL80211_IFTYPE_P2P_GO:
-		wlvif->p2p = 1;
-		/* fall-through */
-	case NL80211_IFTYPE_AP:
-		wlvif->bss_type = BSS_TYPE_AP_BSS;
-		break;
-	default:
-		ret = -EOPNOTSUPP;
+	ret = wl12xx_init_vif_data(vif);
+	if (ret < 0)
 		goto out;
-	}
 
 	role_type = wl12xx_get_role_type(wl, wlvif);
 	if (role_type == WL12XX_INVALID_ROLE_TYPE) {
