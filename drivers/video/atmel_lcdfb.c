@@ -99,8 +99,11 @@ static int atmel_bl_update_status(struct backlight_device *bl)
 		brightness = 0;
 
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_VAL, brightness);
-	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR,
+	if (contrast_ctr & ATMEL_LCDC_POL_POSITIVE)
+		lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR,
 			brightness ? contrast_ctr : 0);
+	else
+		lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, contrast_ctr);
 
 	bl->props.fb_blank = bl->props.power = sinfo->bl_power = power;
 
