@@ -493,14 +493,19 @@ static void wacom_remove_shared_data(struct wacom_wac *wacom)
 static int wacom_led_control(struct wacom *wacom)
 {
 	unsigned char *buf;
-	int retval;
+	int retval, led = 0;
 
 	buf = kzalloc(9, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
+	if (wacom->wacom_wac.features.type == WACOM_21UX2)
+		led = (wacom->led.select[1] << 4) | 0x40;
+
+	led |=  wacom->led.select[0] | 0x4;
+
 	buf[0] = WAC_CMD_LED_CONTROL;
-	buf[1] = wacom->led.select >= 0 ? wacom->led.select | 4 : 0;
+	buf[1] = led;
 	buf[2] = wacom->led.llv;
 	buf[3] = wacom->led.hlv;
 	buf[4] = wacom->led.img_lum;
@@ -552,8 +557,7 @@ out:
 	return retval;
 }
 
-static ssize_t wacom_led_select_store(struct device *dev,
-				      struct device_attribute *attr,
+static ssize_t wacom_led_select_store(struct device *dev, int set_id,
 				      const char *buf, size_t count)
 {
 	struct wacom *wacom = dev_get_drvdata(dev);
@@ -566,7 +570,7 @@ static ssize_t wacom_led_select_store(struct device *dev,
 
 	mutex_lock(&wacom->lock);
 
-	wacom->led.select = id;
+	wacom->led.select[set_id] = id & 0x3;
 	err = wacom_led_control(wacom);
 
 	mutex_unlock(&wacom->lock);
@@ -574,7 +578,17 @@ static ssize_t wacom_led_select_store(struct device *dev,
 	return err < 0 ? err : count;
 }
 
-static DEVICE_ATTR(status_led_select, S_IWUSR, NULL, wacom_led_select_store);
+#define DEVICE_LED_SELECT_ATTR(SET_ID)					\
+static ssize_t wacom_led##SET_ID##_select_store(struct device *dev,	\
+	struct device_attribute *attr, const char *buf, size_t count)	\
+{									\
+	return wacom_led_select_store(dev, SET_ID, buf, count);		\
+}									\
+static DEVICE_ATTR(status_led##SET_ID##_select, S_IWUSR, NULL,		\
+		    wacom_led##SET_ID##_select_store)
+
+DEVICE_LED_SELECT_ATTR(0);
+DEVICE_LED_SELECT_ATTR(1);
 
 static ssize_t wacom_luminance_store(struct wacom *wacom, u8 *dest,
 				     const char *buf, size_t count)
@@ -648,10 +662,21 @@ DEVICE_BTNIMG_ATTR(5);
 DEVICE_BTNIMG_ATTR(6);
 DEVICE_BTNIMG_ATTR(7);
 
-static struct attribute *wacom_led_attrs[] = {
+static struct attribute *cintiq_led_attrs[] = {
+	&dev_attr_status_led0_select.attr,
+	&dev_attr_status_led1_select.attr,
+	NULL
+};
+
+static struct attribute_group cintiq_led_attr_group = {
+	.name = "wacom_led",
+	.attrs = cintiq_led_attrs,
+};
+
+static struct attribute *intuos4_led_attrs[] = {
 	&dev_attr_status0_luminance.attr,
 	&dev_attr_status1_luminance.attr,
-	&dev_attr_status_led_select.attr,
+	&dev_attr_status_led0_select.attr,
 	&dev_attr_buttons_luminance.attr,
 	&dev_attr_button0_rawimg.attr,
 	&dev_attr_button1_rawimg.attr,
@@ -664,43 +689,66 @@ static struct attribute *wacom_led_attrs[] = {
 	NULL
 };
 
-static struct attribute_group wacom_led_attr_group = {
+static struct attribute_group intuos4_led_attr_group = {
 	.name = "wacom_led",
-	.attrs = wacom_led_attrs,
+	.attrs = intuos4_led_attrs,
 };
 
 static int wacom_initialize_leds(struct wacom *wacom)
 {
 	int error;
 
-	if (wacom->wacom_wac.features.type >= INTUOS4 &&
-	    wacom->wacom_wac.features.type <= INTUOS4L) {
-
-		/* Initialize default values */
-		wacom->led.select = 0;
+	/* Initialize default values */
+	switch (wacom->wacom_wac.features.type) {
+	case INTUOS4:
+	case INTUOS4L:
+		wacom->led.select[0] = 0;
+		wacom->led.select[1] = 0;
 		wacom->led.llv = 10;
 		wacom->led.hlv = 20;
 		wacom->led.img_lum = 10;
-		wacom_led_control(wacom);
+		error = sysfs_create_group(&wacom->intf->dev.kobj,
+					   &intuos4_led_attr_group);
+		break;
+
+	case WACOM_21UX2:
+		wacom->led.select[0] = 0;
+		wacom->led.select[1] = 0;
+		wacom->led.llv = 0;
+		wacom->led.hlv = 0;
+		wacom->led.img_lum = 0;
 
 		error = sysfs_create_group(&wacom->intf->dev.kobj,
-					   &wacom_led_attr_group);
-		if (error) {
-			dev_err(&wacom->intf->dev,
-				"cannot create sysfs group err: %d\n", error);
-			return error;
-		}
+					   &cintiq_led_attr_group);
+		break;
+
+	default:
+		return 0;
 	}
+
+	if (error) {
+		dev_err(&wacom->intf->dev,
+			"cannot create sysfs group err: %d\n", error);
+		return error;
+	}
+	wacom_led_control(wacom);
 
 	return 0;
 }
 
 static void wacom_destroy_leds(struct wacom *wacom)
 {
-	if (wacom->wacom_wac.features.type >= INTUOS4 &&
-	    wacom->wacom_wac.features.type <= INTUOS4L) {
+	switch (wacom->wacom_wac.features.type) {
+	case INTUOS4:
+	case INTUOS4L:
 		sysfs_remove_group(&wacom->intf->dev.kobj,
-				   &wacom_led_attr_group);
+				   &intuos4_led_attr_group);
+		break;
+
+	case WACOM_21UX2:
+		sysfs_remove_group(&wacom->intf->dev.kobj,
+				   &cintiq_led_attr_group);
+		break;
 	}
 }
 

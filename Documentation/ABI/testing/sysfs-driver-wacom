@@ -13,11 +13,11 @@ What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/led
 Date:		August 2011
 Contact:	linux-input@vger.kernel.org
 Description:
-		Attribute group for control of the status LEDs and the OLED
-		displays found on the Wacom Intuos 4 M, L, and XL tablets. This
-		attribute group is not available for other Wacom tablets.
+		Attribute group for control of the status LEDs and the OLEDs.
+		This attribute group is only available for Intuos 4 M, L,
+		and XL (with LEDs and OLEDs) and Cintiq 21UX2 (LEDs only).
 		Therefore its presence implicitly signifies the presence of
-		said LEDs and OLED displays on the tablet device.
+		said LEDs and OLEDs on the tablet device.
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status0_luminance
 Date:		August 2011
@@ -36,12 +36,21 @@ Description:
 		when the stylus touches the tablet surface, or any button is
 		pressed on the stylus.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led_select
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led0_select
 Date:		August 2011
 Contact:	linux-input@vger.kernel.org
 Description:
-		Writing to this file sets which one of the four status LEDs is
-		active (0..3). The other three LEDs are always inactive.
+		Writing to this file sets which one of the four (for Intuos 4)
+		or of the right four (for Cintiq 21UX2) status LEDs is active (0..3).
+		The other three LEDs on the same side are always inactive.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led1_select
+Date:		September 2011
+Contact:	linux-input@vger.kernel.org
+Description:
+		Writing to this file sets which one of the left four (for Cintiq 21UX2)
+		status LEDs is active (0..3). The other three LEDs on the left are always
+		inactive.
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/buttons_luminance
 Date:		August 2011
