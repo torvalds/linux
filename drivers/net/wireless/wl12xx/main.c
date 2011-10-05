@@ -1894,11 +1894,9 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		/* fall-through */
 	case NL80211_IFTYPE_STATION:
 		wlvif->bss_type = BSS_TYPE_STA_BSS;
-		wl->set_bss_type = BSS_TYPE_STA_BSS;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		wlvif->bss_type = BSS_TYPE_IBSS;
-		wl->set_bss_type = BSS_TYPE_STA_BSS;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
 		wl->p2p = 1;
@@ -2107,7 +2105,6 @@ deinit:
 
 	memset(wl->ssid, 0, IEEE80211_MAX_SSID_LEN + 1);
 	wl->ssid_len = 0;
-	wl->set_bss_type = MAX_BSS_TYPE;
 	wl->p2p = 0;
 	wl->band = IEEE80211_BAND_2GHZ;
 
@@ -3439,10 +3436,6 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		wl1271_debug(DEBUG_ADHOC, "ad-hoc beaconing: %s",
 			     bss_conf->enable_beacon ? "enabled" : "disabled");
 
-		if (bss_conf->enable_beacon)
-			wl->set_bss_type = BSS_TYPE_IBSS;
-		else
-			wl->set_bss_type = BSS_TYPE_STA_BSS;
 		do_join = true;
 	}
 
@@ -4858,7 +4851,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->flags = 0;
 	wl->sg_enabled = true;
 	wl->hw_pg_ver = -1;
-	wl->set_bss_type = MAX_BSS_TYPE;
 	wl->last_tx_hlid = 0;
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;
