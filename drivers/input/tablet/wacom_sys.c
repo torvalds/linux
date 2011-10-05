@@ -678,7 +678,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 
 		/* Initialize default values */
 		wacom->led.select = 0;
-		wacom->led.llv = 30;
+		wacom->led.llv = 10;
 		wacom->led.hlv = 20;
 		wacom->led.img_lum = 10;
 		wacom_led_control(wacom);

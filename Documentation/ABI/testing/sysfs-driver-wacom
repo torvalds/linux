@@ -25,7 +25,8 @@ Contact:	linux-input@vger.kernel.org
 Description:
 		Writing to this file sets the status LED luminance (0..127)
 		when the stylus does not touch the tablet surface, and no
-		button is pressed on the stylus.
+		button is pressed on the stylus. This luminance level is
+		normally lower than the level when a button is pressed.
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status1_luminance
 Date:		August 2011
