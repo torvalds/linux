@@ -267,8 +267,6 @@ struct si_info {
 	struct pcicore_info *pch; /* PCI/E core handle */
 
 	struct list_head var_list; /* list of srom variables */
-	char *vars;
-	uint varsz;
 
 	void __iomem *curmap;			/* current regs va */
 	void __iomem *regs[SI_MAXCORES];	/* other regs va */
@@ -320,8 +318,7 @@ extern u32 ai_addrspacesize(struct si_pub *sih, uint asidx);
 extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 
 /* === exported functions === */
-extern struct si_pub *ai_attach(void __iomem *regs, struct pci_dev *sdh,
-				char **vars, uint *varsz);
+extern struct si_pub *ai_attach(void __iomem *regs, struct pci_dev *sdh);
 extern void ai_detach(struct si_pub *sih);
 extern uint ai_coreid(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);

@@ -1025,8 +1025,7 @@ static __used void ai_nvram_process(struct si_info *sii)
 }
 
 static struct si_info *ai_doattach(struct si_info *sii,
-				   void __iomem *regs, struct pci_dev *pbus,
-				   char **vars, uint *varsz)
+				   void __iomem *regs, struct pci_dev *pbus)
 {
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
@@ -1091,11 +1090,9 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		goto exit;
 
 	/* Init nvram from sprom/otp if they exist */
-	if (srom_var_init(&sii->pub, cc, vars, varsz))
+	if (srom_var_init(&sii->pub, cc))
 		goto exit;
 
-	sii->vars = vars ? *vars : NULL;
-	sii->varsz = varsz ? *varsz : 0;
 	ai_nvram_process(sii);
 
 	/* === NVRAM, clock is ready === */
@@ -1172,11 +1169,9 @@ static struct si_info *ai_doattach(struct si_info *sii,
  * devid - pci device id (used to determine chip#)
  * osh - opaque OS handle
  * regs - virtual address of initial core registers
- * vars - pointer to a pointer area for "environment" variables
- * varsz - pointer to int to return the size of the vars
  */
 struct si_pub *
-ai_attach(void __iomem *regs, struct pci_dev *sdh, char **vars, uint *varsz)
+ai_attach(void __iomem *regs, struct pci_dev *sdh)
 {
 	struct si_info *sii;
 
@@ -1185,7 +1180,7 @@ ai_attach(void __iomem *regs, struct pci_dev *sdh, char **vars, uint *varsz)
 	if (sii == NULL)
 		return NULL;
 
-	if (ai_doattach(sii, regs, sdh, vars, varsz) == NULL) {
+	if (ai_doattach(sii, regs, sdh) == NULL) {
 		kfree(sii);
 		return NULL;
 	}

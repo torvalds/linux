@@ -336,8 +336,6 @@ struct brcms_hardware {
 	u32 machwcap_backup;	/* backup of machwcap */
 
 	struct si_pub *sih;	/* SI handle (cookie for siutils calls) */
-	char *vars;		/* "environment" name=value */
-	uint vars_size;		/* size of vars, free vars on detach */
 	struct d11regs __iomem *regs;	/* pointer to device registers */
 	struct phy_shim_info *physhim; /* phy shim layer handler */
 	struct shared_phy *phy_sh;	/* pointer to shared phy state */
@@ -420,7 +418,6 @@ struct brcms_txq_info {
  * ampdu: ampdu module handler.
  * asi: antsel module handler.
  * cmi: channel manager module handler.
- * vars_size: size of vars, free vars on detach.
  * vendorid: PCI vendor id.
  * deviceid: PCI device id.
  * ucode_rev: microcode revision.
@@ -512,8 +509,6 @@ struct brcms_c_info {
 	struct ampdu_info *ampdu;
 	struct antsel_info *asi;
 	struct brcms_cm_info *cmi;
-
-	uint vars_size;
 
 	u16 vendorid;
 	u16 deviceid;

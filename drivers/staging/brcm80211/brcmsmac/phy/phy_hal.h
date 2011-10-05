@@ -167,7 +167,6 @@ struct shared_phy_params {
 	uint unit;
 	uint corerev;
 	uint buscorerev;
-	char *vars;
 	u16 vid;
 	u16 did;
 	uint chip;
@@ -185,8 +184,7 @@ struct shared_phy_params {
 extern struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp);
 extern struct brcms_phy_pub *wlc_phy_attach(struct shared_phy *sh,
 					    struct d11regs __iomem *regs,
-					    int bandtype, char *vars,
-					    struct wiphy *wiphy);
+					    int bandtype, struct wiphy *wiphy);
 extern void wlc_phy_detach(struct brcms_phy_pub *ppi);
 
 extern bool wlc_phy_get_phyversion(struct brcms_phy_pub *pih, u16 *phytype,

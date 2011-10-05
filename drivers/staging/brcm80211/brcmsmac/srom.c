@@ -1154,8 +1154,7 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
  * Initialize nonvolatile variable table from sprom.
  * Return 0 on success, nonzero on error.
  */
-static int initvars_srom_pci(struct si_pub *sih, void __iomem *curmap,
-			     char **vars, uint *count)
+static int initvars_srom_pci(struct si_pub *sih, void __iomem *curmap)
 {
 	u16 *srom;
 	u16 __iomem *sromwindow;
@@ -1243,21 +1242,14 @@ void srom_free_vars(struct si_pub *sih)
  * Initialize local vars from the right source for this platform.
  * Return 0 on success, nonzero on error.
  */
-int srom_var_init(struct si_pub *sih, void __iomem *curmap, char **vars,
-		  uint *count)
+int srom_var_init(struct si_pub *sih, void __iomem *curmap)
 {
 	uint len;
 
 	len = 0;
 
-	if (vars == NULL || count == NULL)
-		return 0;
-
-	*vars = NULL;
-	*count = 0;
-
 	if (curmap != NULL)
-		return initvars_srom_pci(sih, curmap, vars, count);
+		return initvars_srom_pci(sih, curmap);
 
 	return -EINVAL;
 }

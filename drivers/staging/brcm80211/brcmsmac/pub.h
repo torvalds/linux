@@ -407,7 +407,6 @@ struct brcms_pub {
 	uint unit;		/* device instance number */
 	uint corerev;		/* core revision */
 	struct si_pub *sih;	/* SI handle (cookie for siutils calls) */
-	char *vars;		/* "environment" name=value */
 	bool up;		/* interface up and running */
 	bool hw_off;		/* HW is off */
 	bool hw_up;		/* one time hw up/down */

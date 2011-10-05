@@ -561,7 +561,6 @@ struct brcms_phy {
 
 	struct d11regs __iomem *regs;
 	struct brcms_phy *next;
-	char *vars;
 	struct brcms_phy_pub pubpi;
 
 	bool do_initcal;

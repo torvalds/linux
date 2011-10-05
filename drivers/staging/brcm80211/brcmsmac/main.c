@@ -3106,16 +3106,6 @@ brcms_b_copyfrom_objmem(struct brcms_hardware *wlc_hw, uint offset, void *buf,
 	}
 }
 
-static void brcms_b_copyfrom_vars(struct brcms_hardware *wlc_hw, char **buf,
-			   uint *len)
-{
-	BCMMSG(wlc_hw->wlc->wiphy, "nvram vars totlen=%d\n",
-		wlc_hw->vars_size);
-
-	*buf = wlc_hw->vars;
-	*len = wlc_hw->vars_size;
-}
-
 static void brcms_b_retrylimit_upd(struct brcms_hardware *wlc_hw,
 				   u16 SRL, u16 LRL)
 {
@@ -4551,7 +4541,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	struct brcms_hardware *wlc_hw;
 	struct d11regs __iomem *regs;
 	char *macaddr = NULL;
-	char *vars;
 	uint err = 0;
 	uint j;
 	bool wme = false;
@@ -4576,15 +4565,13 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	 * Do the hardware portion of the attach. Also initialize software
 	 * state that depends on the particular hardware we are running.
 	 */
-	wlc_hw->sih = ai_attach(regsva, btparam,
-				&wlc_hw->vars, &wlc_hw->vars_size);
+	wlc_hw->sih = ai_attach(regsva, btparam);
 	if (wlc_hw->sih == NULL) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: si_attach failed\n",
 			  unit);
 		err = 11;
 		goto fail;
 	}
-	vars = wlc_hw->vars;
 
 	/* verify again the device is supported */
 	if (!brcms_c_chipmatch(vendor, device)) {
@@ -4692,7 +4679,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	sha_params.physhim = wlc_hw->physhim;
 	sha_params.unit = unit;
 	sha_params.corerev = wlc_hw->corerev;
-	sha_params.vars = vars;
 	sha_params.vid = wlc_hw->vendorid;
 	sha_params.did = wlc_hw->deviceid;
 	sha_params.chip = wlc_hw->sih->chip;
@@ -4738,8 +4724,8 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 		/* Get a phy for this band */
 		wlc_hw->band->pi =
 			wlc_phy_attach(wlc_hw->phy_sh, regs,
-					wlc_hw->band->bandtype, vars,
-					wlc->wiphy);
+				       wlc_hw->band->bandtype,
+				       wlc->wiphy);
 		if (wlc_hw->band->pi == NULL) {
 			wiphy_err(wiphy, "wl%d: brcms_b_attach: wlc_phy_"
 				  "attach failed\n", unit);
@@ -4897,12 +4883,10 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 {
 	int aa;
 	uint unit;
-	char *vars;
 	int bandtype;
 	struct si_pub *sih = wlc->hw->sih;
 
 	unit = wlc->pub->unit;
-	vars = wlc->pub->vars;
 	bandtype = wlc->band->bandtype;
 
 	/* get antennas available */
@@ -5091,10 +5075,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	brcms_c_protection_upd(wlc, BRCMS_PROT_N_PAM_OVR, OFF);
 
 	pub->phy_11ncapable = BRCMS_PHY_11N_CAP(wlc->band);
-
-	/* propagate *vars* from BMAC driver to high driver */
-	brcms_b_copyfrom_vars(wlc->hw, &pub->vars, &wlc->vars_size);
-
 
 	/* disable allowed duty cycle */
 	wlc->tx_duty_cycle_ofdm = 0;
@@ -5303,10 +5283,6 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
 	kfree(wlc_hw->phy_sh);
 
 	wlc_phy_shim_detach(wlc_hw->physhim);
-
-	/* free vars */
-	kfree(wlc_hw->vars);
-	wlc_hw->vars = NULL;
 
 	if (wlc_hw->sih) {
 		ai_detach(wlc_hw->sih);

@@ -459,7 +459,7 @@ static u32 wlc_phy_get_radio_ver(struct brcms_phy *pi)
 
 struct brcms_phy_pub *
 wlc_phy_attach(struct shared_phy *sh, struct d11regs __iomem *regs,
-	       int bandtype, char *vars, struct wiphy *wiphy)
+	       int bandtype, struct wiphy *wiphy)
 {
 	struct brcms_phy *pi;
 	u32 sflags = 0;
@@ -492,8 +492,6 @@ wlc_phy_attach(struct shared_phy *sh, struct d11regs __iomem *regs,
 	pi->sh = sh;
 	pi->phy_init_por = true;
 	pi->phy_wreg_limit = PHY_WREG_LIMIT;
-
-	pi->vars = vars;
 
 	pi->txpwr_percent = 100;
 
@@ -608,8 +606,6 @@ wlc_phy_attach(struct shared_phy *sh, struct d11regs __iomem *regs,
 	pi->refcnt++;
 	pi->next = pi->sh->phy_head;
 	sh->phy_head = pi;
-
-	pi->vars = (char *)&pi->vars;
 
 	memcpy(&pi->pubpi_ro, &pi->pubpi, sizeof(struct brcms_phy_pub));
 
