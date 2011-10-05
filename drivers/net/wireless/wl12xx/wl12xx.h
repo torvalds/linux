@@ -514,9 +514,6 @@ struct wl1271 {
 	/* in dBm */
 	int power_level;
 
-	int rssi_thold;
-	int last_rssi_event;
-
 	struct wl1271_stats stats;
 
 	__le32 buffer_32;
@@ -652,6 +649,9 @@ struct wl12xx_vif {
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
+
+	int rssi_thold;
+	int last_rssi_event;
 };
 
 static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)

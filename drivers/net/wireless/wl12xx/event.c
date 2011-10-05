@@ -162,21 +162,23 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 }
 
 static void wl1271_event_rssi_trigger(struct wl1271 *wl,
+				      struct ieee80211_vif *vif,
 				      struct event_mailbox *mbox)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	enum nl80211_cqm_rssi_threshold_event event;
 	s8 metric = mbox->rssi_snr_trigger_metric[0];
 
 	wl1271_debug(DEBUG_EVENT, "RSSI trigger metric: %d", metric);
 
-	if (metric <= wl->rssi_thold)
+	if (metric <= wlvif->rssi_thold)
 		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
 	else
 		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
 
-	if (event != wl->last_rssi_event)
-		ieee80211_cqm_rssi_notify(wl->vif, event, GFP_KERNEL);
-	wl->last_rssi_event = event;
+	if (event != wlvif->last_rssi_event)
+		ieee80211_cqm_rssi_notify(vif, event, GFP_KERNEL);
+	wlvif->last_rssi_event = event;
 }
 
 static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
@@ -297,7 +299,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
 		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");
 		if (wl->vif)
-			wl1271_event_rssi_trigger(wl, mbox);
+			wl1271_event_rssi_trigger(wl, vif, mbox);
 	}
 
 	if ((vector & BA_SESSION_RX_CONSTRAINT_EVENT_ID)) {

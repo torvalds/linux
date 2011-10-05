@@ -1274,7 +1274,7 @@ int wl1271_acx_rssi_snr_trigger(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 	}
 
-	wl->last_rssi_event = -1;
+	wlvif->last_rssi_event = -1;
 
 	acx->role_id = wlvif->role_id;
 	acx->pacing = cpu_to_le16(wl->conf.roam_trigger.trigger_pacing);

@@ -3497,7 +3497,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 						  bss_conf->cqm_rssi_hyst);
 		if (ret < 0)
 			goto out;
-		wl->rssi_thold = bss_conf->cqm_rssi_thold;
+		wlvif->rssi_thold = bss_conf->cqm_rssi_thold;
 	}
 
 	if (changed & BSS_CHANGED_BSSID)
