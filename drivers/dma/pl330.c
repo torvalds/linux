@@ -990,6 +990,8 @@ static struct amba_id pl330_ids[] = {
 	{ 0, 0 },
 };
 
+MODULE_DEVICE_TABLE(amba, pl330_ids);
+
 #ifdef CONFIG_PM_RUNTIME
 static int pl330_runtime_suspend(struct device *dev)
 {
