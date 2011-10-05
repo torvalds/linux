@@ -162,7 +162,19 @@ extern unsigned long perf_misc_flags(struct pt_regs *regs);
 	);							\
 }
 
+struct perf_guest_switch_msr {
+	unsigned msr;
+	u64 host, guest;
+};
+
+extern struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr);
 #else
+static inline perf_guest_switch_msr *perf_guest_get_msrs(int *nr)
+{
+	*nr = 0;
+	return NULL;
+}
+
 static inline void perf_events_lapic_init(void)	{ }
 #endif
 
