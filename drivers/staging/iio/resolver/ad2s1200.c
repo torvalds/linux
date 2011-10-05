@@ -1,5 +1,6 @@
 /*
- * ad2s120x.c simple support for the ADI Resolver to Digital Converters: AD2S1200/1205
+ * ad2s1200.c simple support for the ADI Resolver to Digital Converters:
+ * AD2S1200/1205
  *
  * Copyright (c) 2010-2010 Analog Devices Inc.
  *
@@ -21,17 +22,17 @@
 #include "../iio.h"
 #include "../sysfs.h"
 
-#define DRV_NAME "ad2s120x"
+#define DRV_NAME "ad2s1200"
 
 /* input pin sample and rdvel is controlled by driver */
-#define AD2S120X_PN	2
+#define AD2S1200_PN	2
 
 /* input clock on serial interface */
-#define AD2S120X_HZ	8192000
+#define AD2S1200_HZ	8192000
 /* clock period in nano second */
-#define AD2S120X_TSCLK	(1000000000/AD2S120X_HZ)
+#define AD2S1200_TSCLK	(1000000000/AD2S1200_HZ)
 
-struct ad2s120x_state {
+struct ad2s1200_state {
 	struct mutex lock;
 	struct spi_device *sdev;
 	int sample;
@@ -47,11 +48,11 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 {
 	int ret = 0;
 	s16 vel;
-	struct ad2s120x_state *st = iio_priv(indio_dev);
+	struct ad2s1200_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
 	gpio_set_value(st->sample, 0);
-	/* delay (6 * AD2S120X_TSCLK + 20) nano seconds */
+	/* delay (6 * AD2S1200_TSCLK + 20) nano seconds */
 	udelay(1);
 	gpio_set_value(st->sample, 1);
 	gpio_set_value(st->rdvel, !!(chan->type == IIO_ANGL));
@@ -73,7 +74,7 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&st->lock);
 		return -EINVAL;
 	}
-	/* delay (2 * AD2S120X_TSCLK + 20) ns for sample pulse */
+	/* delay (2 * AD2S1200_TSCLK + 20) ns for sample pulse */
 	udelay(1);
 	mutex_unlock(&st->lock);
 	return IIO_VAL_INT;
@@ -91,19 +92,19 @@ static const struct iio_chan_spec ad2s1200_channels[] = {
 	}
 };
 
-static const struct iio_info ad2s120x_info = {
+static const struct iio_info ad2s1200_info = {
 	.read_raw = &ad2s1200_read_raw,
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad2s120x_probe(struct spi_device *spi)
+static int __devinit ad2s1200_probe(struct spi_device *spi)
 {
-	struct ad2s120x_state *st;
+	struct ad2s1200_state *st;
 	struct iio_dev *indio_dev;
 	int pn, ret = 0;
 	unsigned short *pins = spi->dev.platform_data;
 
-	for (pn = 0; pn < AD2S120X_PN; pn++)
+	for (pn = 0; pn < AD2S1200_PN; pn++)
 		if (gpio_request_one(pins[pn], GPIOF_DIR_OUT, DRV_NAME)) {
 			pr_err("%s: request gpio pin %d failed\n",
 						DRV_NAME, pins[pn]);
@@ -122,16 +123,17 @@ static int __devinit ad2s120x_probe(struct spi_device *spi)
 	st->rdvel = pins[1];
 
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->info = &ad2s120x_info;
+	indio_dev->info = &ad2s1200_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad2s1200_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad2s1200_channels);
+	indio_dev->name = spi_get_device_id(spi)->name;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
-	spi->max_speed_hz = AD2S120X_HZ;
+	spi->max_speed_hz = AD2S1200_HZ;
 	spi->mode = SPI_MODE_3;
 	spi_setup(spi);
 
@@ -145,33 +147,40 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad2s120x_remove(struct spi_device *spi)
+static int __devexit ad2s1200_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
 
 	return 0;
 }
 
-static struct spi_driver ad2s120x_driver = {
+static const struct spi_device_id ad2s1200_id[] = {
+	{ "ad2s1200" },
+	{ "ad2s1205" },
+	{}
+};
+
+static struct spi_driver ad2s1200_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 	},
-	.probe = ad2s120x_probe,
-	.remove = __devexit_p(ad2s120x_remove),
+	.probe = ad2s1200_probe,
+	.remove = __devexit_p(ad2s1200_remove),
+	.id_table = ad2s1200_id,
 };
 
-static __init int ad2s120x_spi_init(void)
+static __init int ad2s1200_spi_init(void)
 {
-	return spi_register_driver(&ad2s120x_driver);
+	return spi_register_driver(&ad2s1200_driver);
 }
-module_init(ad2s120x_spi_init);
+module_init(ad2s1200_spi_init);
 
-static __exit void ad2s120x_spi_exit(void)
+static __exit void ad2s1200_spi_exit(void)
 {
-	spi_unregister_driver(&ad2s120x_driver);
+	spi_unregister_driver(&ad2s1200_driver);
 }
-module_exit(ad2s120x_spi_exit);
+module_exit(ad2s1200_spi_exit);
 
 MODULE_AUTHOR("Graff Yang <graff.yang@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices AD2S1200/1205 Resolver to Digital SPI driver");
