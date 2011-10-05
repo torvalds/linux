@@ -1827,13 +1827,13 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	switch (wlvif->bss_type) {
 	case BSS_TYPE_AP_BSS:
-		if (wl->p2p)
+		if (wlvif->p2p)
 			return WL1271_ROLE_P2P_GO;
 		else
 			return WL1271_ROLE_AP;
 
 	case BSS_TYPE_STA_BSS:
-		if (wl->p2p)
+		if (wlvif->p2p)
 			return WL1271_ROLE_P2P_CL;
 		else
 			return WL1271_ROLE_STA;
@@ -1890,7 +1890,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_P2P_CLIENT:
-		wl->p2p = 1;
+		wlvif->p2p = 1;
 		/* fall-through */
 	case NL80211_IFTYPE_STATION:
 		wlvif->bss_type = BSS_TYPE_STA_BSS;
@@ -1899,7 +1899,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		wlvif->bss_type = BSS_TYPE_IBSS;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
-		wl->p2p = 1;
+		wlvif->p2p = 1;
 		/* fall-through */
 	case NL80211_IFTYPE_AP:
 		wlvif->bss_type = BSS_TYPE_AP_BSS;
@@ -2105,7 +2105,6 @@ deinit:
 
 	memset(wl->ssid, 0, IEEE80211_MAX_SSID_LEN + 1);
 	wl->ssid_len = 0;
-	wl->p2p = 0;
 	wl->band = IEEE80211_BAND_2GHZ;
 
 	wl->rx_counter = 0;
