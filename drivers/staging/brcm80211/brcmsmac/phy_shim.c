@@ -216,11 +216,11 @@ wlapi_copyto_objmem(struct phy_shim_info *physhim, uint offset, const void *buf,
 	brcms_b_copyto_objmem(physhim->wlc_hw, offset, buf, l, sel);
 }
 
-char *wlapi_getvar(char *vars, const char *name)
+char *wlapi_getvar(struct phy_shim_info *physhim, const char *name)
 {
-	return getvar(vars, name);
+	return getvar(physhim->wlc_hw->sih, name);
 }
-int wlapi_getintvar(char *vars, const char *name)
+int wlapi_getintvar(struct phy_shim_info *physhim, const char *name)
 {
-	return getintvar(vars, name);
+	return getintvar(physhim->wlc_hw->sih, name);
 }

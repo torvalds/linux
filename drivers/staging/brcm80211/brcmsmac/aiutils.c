@@ -1012,7 +1012,7 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 /*
  * get boardtype and boardrev
  */
-static __used void ai_nvram_process(struct si_info *sii, char *pvars)
+static __used void ai_nvram_process(struct si_info *sii)
 {
 	uint w = 0;
 
@@ -1021,7 +1021,7 @@ static __used void ai_nvram_process(struct si_info *sii, char *pvars)
 
 	sii->pub.boardvendor = w & 0xffff;
 	sii->pub.boardtype = (w >> 16) & 0xffff;
-	sii->pub.boardflags = getintvar(pvars, "boardflags");
+	sii->pub.boardflags = getintvar(&sii->pub, "boardflags");
 }
 
 static struct si_info *ai_doattach(struct si_info *sii,
@@ -1031,7 +1031,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
 	struct chipcregs __iomem *cc;
-	char *pvars = NULL;
 	uint socitype;
 	uint origidx;
 
@@ -1095,8 +1094,9 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	if (srom_var_init(&sii->pub, cc, vars, varsz))
 		goto exit;
 
-	pvars = vars ? *vars : NULL;
-	ai_nvram_process(sii, pvars);
+	sii->vars = vars ? *vars : NULL;
+	sii->varsz = varsz ? *varsz : 0;
+	ai_nvram_process(sii);
 
 	/* === NVRAM, clock is ready === */
 	cc = (struct chipcregs __iomem *) ai_setcore(sih, CC_CORE_ID, 0);
@@ -1109,7 +1109,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		u32 xtalfreq;
 		si_pmu_init(sih);
 		si_pmu_chip_init(sih);
-		xtalfreq = getintvar(pvars, "xtalfreq");
+		xtalfreq = getintvar(sih, "xtalfreq");
 		/* If xtalfreq var not available, try to measure it */
 		if (xtalfreq == 0)
 			xtalfreq = si_pmu_measure_alpclk(sih);
@@ -1119,14 +1119,14 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	}
 
 	/* setup the GPIO based LED powersave register */
-	w = getintvar(pvars, "leddc");
+	w = getintvar(sih, "leddc");
 	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
 	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, gpiotimerval),
 		   ~0, w);
 
 	if (PCIE(sii))
-		pcicore_attach(sii->pch, pvars, SI_DOATTACH);
+		pcicore_attach(sii->pch, SI_DOATTACH);
 
 	if (sih->chip == BCM43224_CHIP_ID) {
 		/*
@@ -1191,8 +1191,6 @@ ai_attach(void __iomem *regs, struct pci_dev *sdh, char **vars, uint *varsz)
 		kfree(sii);
 		return NULL;
 	}
-	sii->vars = vars ? *vars : NULL;
-	sii->varsz = varsz ? *varsz : 0;
 
 	return (struct si_pub *) sii;
 }

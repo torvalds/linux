@@ -719,13 +719,13 @@ static void pcie_war_pci_setup(struct pcicore_info *pi)
 }
 
 /* ***** Functions called during driver state changes ***** */
-void pcicore_attach(struct pcicore_info *pi, char *pvars, int state)
+void pcicore_attach(struct pcicore_info *pi, int state)
 {
 	struct si_pub *sih = pi->sih;
 
 	/* Determine if this board needs override */
 	if (PCIE_ASPM(sih)) {
-		if ((u32)getintvar(pvars, "boardflags2") & BFL2_PCIEWAR_OVR)
+		if ((u32)getintvar(sih, "boardflags2") & BFL2_PCIEWAR_OVR)
 			pi->pcie_war_aspm_ovr = PCIE_ASPM_DISAB;
 		else
 			pi->pcie_war_aspm_ovr = PCIE_ASPM_ENAB;

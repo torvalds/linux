@@ -1990,7 +1990,7 @@ static char *brcms_c_get_macaddr(struct brcms_hardware *wlc_hw)
 	char *macaddr;
 
 	/* If macaddr exists, use it (Sromrev4, CIS, ...). */
-	macaddr = getvar(wlc_hw->vars, varname);
+	macaddr = getvar(wlc_hw->sih, varname);
 	if (macaddr != NULL)
 		return macaddr;
 
@@ -1999,7 +1999,7 @@ static char *brcms_c_get_macaddr(struct brcms_hardware *wlc_hw)
 	else
 		varname = "il0macaddr";
 
-	macaddr = getvar(wlc_hw->vars, varname);
+	macaddr = getvar(wlc_hw->sih, varname);
 	if (macaddr == NULL)
 		wiphy_err(wlc_hw->wlc->wiphy, "wl%d: wlc_get_macaddr: macaddr "
 			  "getvar(%s) not found\n", wlc_hw->unit, varname);
@@ -4593,13 +4593,13 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	 * than those the BIOS recognizes for devices on PCMCIA_BUS,
 	 * SDIO_BUS, and SROMless devices on PCI_BUS.
 	 */
-	var = getvar(vars, "vendid");
+	var = getvar(wlc_hw->sih, "vendid");
 	if (var && !kstrtoul(var, 0, &res)) {
 		vendor = (u16)res;
 		wiphy_err(wiphy, "Overriding vendor id = 0x%x\n",
 			  vendor);
 	}
-	var = getvar(vars, "devid");
+	var = getvar(wlc_hw->sih, "devid");
 	if (var && !kstrtoul(var, 0, &res)) {
 		u16 devid = (u16)res;
 		if (devid != 0xffff) {
@@ -4656,7 +4656,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	}
 
 	/* get the board rev, used just below */
-	j = getintvar(vars, "boardrev");
+	j = getintvar(wlc_hw->sih, "boardrev");
 	/* promote srom boardrev of 0xFF to 1 */
 	if (j == BOARDREV_PROMOTABLE)
 		j = BOARDREV_PROMOTED;
@@ -4668,9 +4668,9 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 		err = 15;
 		goto fail;
 	}
-	wlc_hw->sromrev = (u8) getintvar(vars, "sromrev");
-	wlc_hw->boardflags = (u32) getintvar(vars, "boardflags");
-	wlc_hw->boardflags2 = (u32) getintvar(vars, "boardflags2");
+	wlc_hw->sromrev = (u8) getintvar(wlc_hw->sih, "sromrev");
+	wlc_hw->boardflags = (u32) getintvar(wlc_hw->sih, "boardflags");
+	wlc_hw->boardflags2 = (u32) getintvar(wlc_hw->sih, "boardflags2");
 
 	if (wlc_hw->boardflags & BFL_NOPLLDOWN)
 		brcms_b_pllreq(wlc_hw, true, BRCMS_PLLREQ_SHARED);
@@ -4920,15 +4920,16 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 	uint unit;
 	char *vars;
 	int bandtype;
+	struct si_pub *sih = wlc->hw->sih;
 
 	unit = wlc->pub->unit;
 	vars = wlc->pub->vars;
 	bandtype = wlc->band->bandtype;
 
 	/* get antennas available */
-	aa = (s8) getintvar(vars, bandtype == BRCM_BAND_5G ? "aa5g" : "aa2g");
+	aa = (s8) getintvar(sih, bandtype == BRCM_BAND_5G ? "aa5g" : "aa2g");
 	if (aa == 0)
-		aa = (s8) getintvar(vars,
+		aa = (s8) getintvar(sih,
 				    bandtype == BRCM_BAND_5G ? "aa1" : "aa0");
 	if ((aa < 1) || (aa > 15)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: Invalid antennas available in"
@@ -4947,8 +4948,8 @@ static bool brcms_c_attach_stf_ant_init(struct brcms_c_info *wlc)
 	}
 
 	/* Compute Antenna Gain */
-	wlc->band->antgain =
-	    (s8) getintvar(vars, bandtype == BRCM_BAND_5G ? "ag1" : "ag0");
+	wlc->band->antgain = (s8) getintvar(sih, bandtype == BRCM_BAND_5G ?
+					    "ag1" : "ag0");
 	brcms_c_attach_antgain_init(wlc);
 
 	return true;
@@ -5114,9 +5115,9 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 
 	/* set maximum allowed duty cycle */
 	wlc->tx_duty_cycle_ofdm =
-	    (u16) getintvar(pub->vars, "tx_duty_cycle_ofdm");
+	    (u16) getintvar(wlc->hw->sih, "tx_duty_cycle_ofdm");
 	wlc->tx_duty_cycle_cck =
-	    (u16) getintvar(pub->vars, "tx_duty_cycle_cck");
+	    (u16) getintvar(wlc->hw->sih, "tx_duty_cycle_cck");
 
 	brcms_c_stf_phy_chain_calc(wlc);
 

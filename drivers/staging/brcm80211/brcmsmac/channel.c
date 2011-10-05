@@ -1088,7 +1088,7 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	wlc->cmi = wlc_cm;
 
 	/* store the country code for passing up as a regulatory hint */
-	ccode = getvar(wlc->pub->vars, "ccode");
+	ccode = getvar(wlc->hw->sih, "ccode");
 	if (ccode)
 		strncpy(wlc->pub->srom_ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
 

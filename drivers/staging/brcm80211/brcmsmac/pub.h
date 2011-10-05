@@ -356,8 +356,8 @@ extern void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 			    struct ieee80211_sta *sta, u16 tid);
 extern void brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
 					 u8 ba_wsize, uint max_rx_ampdu_bytes);
-extern char *getvar(char *vars, const char *name);
-extern int getintvar(char *vars, const char *name);
+extern char *getvar(struct si_pub *sih, const char *name);
+extern int getintvar(struct si_pub *sih, const char *name);
 
 /* wlc_phy.c helper functions */
 extern void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc);

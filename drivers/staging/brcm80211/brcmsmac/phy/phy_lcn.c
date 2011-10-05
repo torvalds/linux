@@ -4817,27 +4817,25 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 	s8 txpwr = 0;
 	int i;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
+	struct phy_shim_info *shim = pi->sh->physhim;
 
 	if (CHSPEC_IS2G(pi->radio_chanspec)) {
 		u16 cckpo = 0;
 		u32 offset_ofdm, offset_mcs;
 
 		pi_lcn->lcnphy_tr_isolation_mid =
-			(u8) wlapi_getintvar(pi->vars, "triso2g");
+			(u8)wlapi_getintvar(shim, "triso2g");
 
 		pi_lcn->lcnphy_rx_power_offset =
-			(u8) wlapi_getintvar(pi->vars, "rxpo2g");
+			(u8)wlapi_getintvar(shim, "rxpo2g");
 
-		pi->txpa_2g[0] = (s16) wlapi_getintvar(pi->vars, "pa0b0");
-		pi->txpa_2g[1] = (s16) wlapi_getintvar(pi->vars, "pa0b1");
-		pi->txpa_2g[2] = (s16) wlapi_getintvar(pi->vars, "pa0b2");
+		pi->txpa_2g[0] = (s16)wlapi_getintvar(shim, "pa0b0");
+		pi->txpa_2g[1] = (s16)wlapi_getintvar(shim, "pa0b1");
+		pi->txpa_2g[2] = (s16)wlapi_getintvar(shim, "pa0b2");
 
-		pi_lcn->lcnphy_rssi_vf =
-				(u8) wlapi_getintvar(pi->vars, "rssismf2g");
-		pi_lcn->lcnphy_rssi_vc =
-				(u8) wlapi_getintvar(pi->vars, "rssismc2g");
-		pi_lcn->lcnphy_rssi_gs =
-				(u8) wlapi_getintvar(pi->vars, "rssisav2g");
+		pi_lcn->lcnphy_rssi_vf = (u8)wlapi_getintvar(shim, "rssismf2g");
+		pi_lcn->lcnphy_rssi_vc = (u8)wlapi_getintvar(shim, "rssismc2g");
+		pi_lcn->lcnphy_rssi_gs = (u8)wlapi_getintvar(shim, "rssisav2g");
 
 		pi_lcn->lcnphy_rssi_vf_lowtemp = pi_lcn->lcnphy_rssi_vf;
 		pi_lcn->lcnphy_rssi_vc_lowtemp = pi_lcn->lcnphy_rssi_vc;
@@ -4847,7 +4845,7 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 		pi_lcn->lcnphy_rssi_vc_hightemp = pi_lcn->lcnphy_rssi_vc;
 		pi_lcn->lcnphy_rssi_gs_hightemp = pi_lcn->lcnphy_rssi_gs;
 
-		txpwr = (s8) wlapi_getintvar(pi->vars, "maxp2ga0");
+		txpwr = (s8)wlapi_getintvar(shim, "maxp2ga0");
 		pi->tx_srom_max_2g = txpwr;
 
 		for (i = 0; i < PWRTBL_NUM_COEFF; i++) {
@@ -4855,7 +4853,7 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 			pi->txpa_2g_high_temp[i] = pi->txpa_2g[i];
 		}
 
-		cckpo = (u16) wlapi_getintvar(pi->vars, "cck2gpo");
+		cckpo = (u16)wlapi_getintvar(shim, "cck2gpo");
 		if (cckpo) {
 			uint max_pwr_chan = txpwr;
 
@@ -4865,8 +4863,7 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 				cckpo >>= 4;
 			}
 
-			offset_ofdm =
-				(u32) wlapi_getintvar(pi->vars, "ofdm2gpo");
+			offset_ofdm = (u32)wlapi_getintvar(shim, "ofdm2gpo");
 			for (i = TXP_FIRST_OFDM; i <= TXP_LAST_OFDM; i++) {
 				pi->tx_srom_max_rate_2g[i] =
 					max_pwr_chan -
@@ -4876,13 +4873,12 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 		} else {
 			u8 opo = 0;
 
-			opo = (u8) wlapi_getintvar(pi->vars, "opo");
+			opo = (u8)wlapi_getintvar(shim, "opo");
 
 			for (i = TXP_FIRST_CCK; i <= TXP_LAST_CCK; i++)
 				pi->tx_srom_max_rate_2g[i] = txpwr;
 
-			offset_ofdm =
-				(u32) wlapi_getintvar(pi->vars, "ofdm2gpo");
+			offset_ofdm = (u32)wlapi_getintvar(shim, "ofdm2gpo");
 
 			for (i = TXP_FIRST_OFDM; i <= TXP_LAST_OFDM; i++) {
 				pi->tx_srom_max_rate_2g[i] = txpwr -
@@ -4890,9 +4886,9 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 				offset_ofdm >>= 4;
 			}
 			offset_mcs =
-				wlapi_getintvar(pi->vars, "mcs2gpo1") << 16;
+				wlapi_getintvar(shim, "mcs2gpo1") << 16;
 			offset_mcs |=
-				(u16) wlapi_getintvar(pi->vars, "mcs2gpo0");
+				(u16) wlapi_getintvar(shim, "mcs2gpo0");
 			pi_lcn->lcnphy_mcs20_po = offset_mcs;
 			for (i = TXP_FIRST_SISO_MCS_20;
 			     i <= TXP_LAST_SISO_MCS_20; i++) {
@@ -4903,30 +4899,30 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 		}
 
 		pi_lcn->lcnphy_rawtempsense =
-			(u16) wlapi_getintvar(pi->vars, "rawtempsense");
+			(u16)wlapi_getintvar(shim, "rawtempsense");
 		pi_lcn->lcnphy_measPower =
-			(u8) wlapi_getintvar(pi->vars, "measpower");
+			(u8)wlapi_getintvar(shim, "measpower");
 		pi_lcn->lcnphy_tempsense_slope =
-			(u8) wlapi_getintvar(pi->vars, "tempsense_slope");
+			(u8)wlapi_getintvar(shim, "tempsense_slope");
 		pi_lcn->lcnphy_hw_iqcal_en =
-			(bool) wlapi_getintvar(pi->vars, "hw_iqcal_en");
+			(bool)wlapi_getintvar(shim, "hw_iqcal_en");
 		pi_lcn->lcnphy_iqcal_swp_dis =
-			(bool) wlapi_getintvar(pi->vars, "iqcal_swp_dis");
+			(bool)wlapi_getintvar(shim, "iqcal_swp_dis");
 		pi_lcn->lcnphy_tempcorrx =
-			(u8) wlapi_getintvar(pi->vars, "tempcorrx");
+			(u8)wlapi_getintvar(shim, "tempcorrx");
 		pi_lcn->lcnphy_tempsense_option =
-			(u8) wlapi_getintvar(pi->vars, "tempsense_option");
+			(u8)wlapi_getintvar(shim, "tempsense_option");
 		pi_lcn->lcnphy_freqoffset_corr =
-			(u8) wlapi_getintvar(pi->vars, "freqoffset_corr");
-		if ((u8) getintvar(pi->vars, "aa2g") > 1)
+			(u8)wlapi_getintvar(shim, "freqoffset_corr");
+		if ((u8)wlapi_getintvar(shim, "aa2g") > 1)
 			wlc_phy_ant_rxdiv_set((struct brcms_phy_pub *) pi,
-					      (u8) getintvar(pi->vars,
-							     "aa2g"));
+					      (u8) wlapi_getintvar(shim,
+								   "aa2g"));
 	}
 	pi_lcn->lcnphy_cck_dig_filt_type = -1;
-	if (wlapi_getvar(pi->vars, "cckdigfilttype")) {
+	if (wlapi_getvar(shim, "cckdigfilttype")) {
 		s16 temp;
-		temp = (s16) wlapi_getintvar(pi->vars, "cckdigfilttype");
+		temp = (s16)wlapi_getintvar(shim, "cckdigfilttype");
 		if (temp >= 0)
 			pi_lcn->lcnphy_cck_dig_filt_type = temp;
 	}
