@@ -370,7 +370,7 @@ static struct fb_videomode at91_stn_modes[] = {
 		.xres           = 320,          .yres           = 240,
 		.pixclock       = KHZ2PICOS(1440),
 
-		.left_margin    = 1,            .right_margin   = 1,
+		.left_margin    = 1,            .right_margin   = 2,
 		.upper_margin   = 0,            .lower_margin   = 0,
 		.hsync_len      = 1,            .vsync_len      = 1,
 
@@ -431,7 +431,7 @@ static struct fb_videomode at91_tft_vga_modes[] = {
 		.xres		= 240,		.yres		= 320,
 		.pixclock	= KHZ2PICOS(4965),
 
-		.left_margin	= 1,		.right_margin	= 33,
+		.left_margin	= 1,		.right_margin	= 34,
 		.upper_margin	= 1,		.lower_margin	= 0,
 		.hsync_len	= 5,		.vsync_len	= 1,
 
