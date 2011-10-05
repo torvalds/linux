@@ -429,9 +429,6 @@ struct wl1271 {
 	/* Time-offset between host and chipset clocks */
 	s64 time_offset;
 
-	/* Session counter for the chipset */
-	int session_counter;
-
 	/* Frames scheduled for transmission, not handled yet */
 	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
 	int tx_queue_count[NUM_TX_QUEUES];
@@ -650,6 +647,9 @@ struct wl12xx_vif {
 
 	/* Our association ID */
 	u16 aid;
+
+	/* Session counter for the chipset */
+	int session_counter;
 };
 
 static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)
@@ -671,7 +671,8 @@ size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen);
 
 #define JOIN_TIMEOUT 5000 /* 5000 milliseconds to join */
 
-#define SESSION_COUNTER_MAX 7 /* maximum value for the session counter */
+#define SESSION_COUNTER_MAX 6 /* maximum value for the session counter */
+#define SESSION_COUNTER_INVALID 7 /* used with dummy_packet */
 
 #define WL1271_DEFAULT_POWER_LEVEL 0
 

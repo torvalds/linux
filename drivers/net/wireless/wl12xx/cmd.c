@@ -454,14 +454,15 @@ static void wl12xx_free_link(struct wl1271 *wl, u8 *hlid)
 	*hlid = WL12XX_INVALID_LINK_ID;
 }
 
-static int wl12xx_get_new_session_id(struct wl1271 *wl)
+static int wl12xx_get_new_session_id(struct wl1271 *wl,
+				     struct wl12xx_vif *wlvif)
 {
-	if (wl->session_counter >= SESSION_COUNTER_MAX)
-		wl->session_counter = 0;
+	if (wlvif->session_counter >= SESSION_COUNTER_MAX)
+		wlvif->session_counter = 0;
 
-	wl->session_counter++;
+	wlvif->session_counter++;
 
-	return wl->session_counter;
+	return wlvif->session_counter;
 }
 
 int wl12xx_cmd_role_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
@@ -488,7 +489,7 @@ int wl12xx_cmd_role_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 			goto out_free;
 	}
 	cmd->device.hlid = wl->dev_hlid;
-	cmd->device.session = wl->session_counter;
+	cmd->device.session = wlvif->session_counter;
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d",
 		     cmd->role_id, cmd->device.hlid, cmd->device.session);
@@ -587,7 +588,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 			goto out_free;
 	}
 	cmd->sta.hlid = wlvif->sta.hlid;
-	cmd->sta.session = wl12xx_get_new_session_id(wl);
+	cmd->sta.session = wl12xx_get_new_session_id(wl, wlvif);
 	cmd->sta.remote_rates = cpu_to_le32(wlvif->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "

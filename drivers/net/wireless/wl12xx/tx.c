@@ -321,15 +321,15 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct ieee80211_vif *vif,
 		 * FW expects the dummy packet to have an invalid session id -
 		 * any session id that is different than the one set in the join
 		 */
-		tx_attr = ((~wl->session_counter) <<
+		tx_attr = (SESSION_COUNTER_INVALID <<
 			   TX_HW_ATTR_OFST_SESSION_COUNTER) &
 			   TX_HW_ATTR_SESSION_COUNTER;
 
 		tx_attr |= TX_HW_ATTR_TX_DUMMY_REQ;
 	} else {
 		/* configure the tx attributes */
-		tx_attr =
-			wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
+		tx_attr = wlvif->session_counter <<
+			  TX_HW_ATTR_OFST_SESSION_COUNTER;
 	}
 
 	desc->hlid = hlid;
