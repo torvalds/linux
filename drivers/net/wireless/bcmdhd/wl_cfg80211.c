@@ -5735,22 +5735,18 @@ static s32 wl_event_handler(void *data)
 		SMP_RD_BARRIER_DEPENDS();
 		if (tsk->terminated)
 			break;
-		e = wl_deq_event(wl);
-		if (unlikely(!e)) {
-			WL_ERR(("equeue empty..\n"));
-			DHD_OS_WAKE_UNLOCK(wl->pub);
-			return 0;
+		while ((e = wl_deq_event(wl))) {
+			WL_DBG(("event type (%d), if idx: %d\n", e->etype, e->emsg.ifidx));
+			netdev = dhd_idx2net((struct dhd_pub *)(wl->pub), e->emsg.ifidx);
+			if (!netdev)
+				netdev = wl_to_prmry_ndev(wl);
+			if (e->etype < WLC_E_LAST && wl->evt_handler[e->etype]) {
+				wl->evt_handler[e->etype] (wl, netdev, &e->emsg, e->edata);
+			} else {
+				WL_DBG(("Unknown Event (%d): ignoring\n", e->etype));
+			}
+			wl_put_event(e);
 		}
-		WL_DBG(("event type (%d), if idx: %d\n", e->etype, e->emsg.ifidx));
-		netdev = dhd_idx2net((struct dhd_pub *)(wl->pub), e->emsg.ifidx);
-		if (!netdev)
-			netdev = wl_to_prmry_ndev(wl);
-		if (e->etype < WLC_E_LAST && wl->evt_handler[e->etype]) {
-			wl->evt_handler[e->etype] (wl, netdev, &e->emsg, e->edata);
-		} else {
-			WL_DBG(("Unknown Event (%d): ignoring\n", e->etype));
-		}
-		wl_put_event(e);
 		DHD_OS_WAKE_UNLOCK(wl->pub);
 	}
 	WL_DBG(("%s was terminated\n", __func__));
