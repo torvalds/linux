@@ -812,33 +812,6 @@ static int twl6040_get_volsw(struct snd_kcontrol *kcontrol,
 		return snd_soc_get_volsw(kcontrol, ucontrol);
 }
 
-/* double control with volume update */
-#define SOC_TWL6040_DOUBLE_TLV(xname, xreg, shift_left, shift_right, xmax,\
-							xinvert, tlv_array)\
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw, .get = twl6040_get_volsw, \
-	.put = twl6040_put_volsw, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = xreg, .shift = shift_left, .rshift = shift_right,\
-		 .max = xmax, .platform_max = xmax, .invert = xinvert} }
-
-/* double control with volume update */
-#define SOC_TWL6040_DOUBLE_R_TLV(xname, reg_left, reg_right, xshift, xmax,\
-				xinvert, tlv_array)\
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
-		SNDRV_CTL_ELEM_ACCESS_READWRITE | \
-		SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw_2r, \
-	.get = twl6040_get_volsw, .put = twl6040_put_volsw, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		 .rshift = xshift, .max = xmax, .invert = xinvert}, }
-
 /*
  * MICATT volume control:
  * from -6 to 0 dB in 6 dB steps
@@ -1027,10 +1000,12 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 		TWL6040_REG_LINEGAIN, 0, 3, 7, 0, afm_amp_tlv),
 
 	/* Playback gains */
-	SOC_TWL6040_DOUBLE_TLV("Headset Playback Volume",
-		TWL6040_REG_HSGAIN, 0, 4, 0xF, 1, hs_tlv),
-	SOC_TWL6040_DOUBLE_R_TLV("Handsfree Playback Volume",
-		TWL6040_REG_HFLGAIN, TWL6040_REG_HFRGAIN, 0, 0x1D, 1, hf_tlv),
+	SOC_DOUBLE_EXT_TLV("Headset Playback Volume",
+		TWL6040_REG_HSGAIN, 0, 4, 0xF, 1, twl6040_get_volsw,
+		twl6040_put_volsw, hs_tlv),
+	SOC_DOUBLE_R_EXT_TLV("Handsfree Playback Volume",
+		TWL6040_REG_HFLGAIN, TWL6040_REG_HFRGAIN, 0, 0x1D, 1,
+		twl6040_get_volsw, twl6040_put_volsw, hf_tlv),
 	SOC_SINGLE_TLV("Earphone Playback Volume",
 		TWL6040_REG_EARCTL, 1, 0xF, 1, ep_tlv),
 

@@ -863,34 +863,6 @@ static int digimic_event(struct snd_soc_dapm_widget *w,
  * Inverting not going to help with these.
  * Custom volsw and volsw_2r get/put functions to handle these gain bits.
  */
-#define SOC_DOUBLE_TLV_TWL4030(xname, xreg, shift_left, shift_right, xmax,\
-			       xinvert, tlv_array) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw, \
-	.get = snd_soc_get_volsw_twl4030, \
-	.put = snd_soc_put_volsw_twl4030, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = xreg, .shift = shift_left, .rshift = shift_right,\
-		 .max = xmax, .invert = xinvert} }
-#define SOC_DOUBLE_R_TLV_TWL4030(xname, reg_left, reg_right, xshift, xmax,\
-				 xinvert, tlv_array) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw_2r, \
-	.get = snd_soc_get_volsw_r2_twl4030,\
-	.put = snd_soc_put_volsw_r2_twl4030, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		 .rshift = xshift, .max = xmax, .invert = xinvert} }
-#define SOC_SINGLE_TLV_TWL4030(xname, xreg, xshift, xmax, xinvert, tlv_array) \
-	SOC_DOUBLE_TLV_TWL4030(xname, xreg, xshift, xshift, xmax, \
-			       xinvert, tlv_array)
-
 static int snd_soc_get_volsw_twl4030(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -1197,19 +1169,23 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 		TWL4030_REG_VDL_APGA_CTL, 1, 1, 0),
 
 	/* Separate output gain controls */
-	SOC_DOUBLE_R_TLV_TWL4030("PreDriv Playback Volume",
+	SOC_DOUBLE_R_EXT_TLV("PreDriv Playback Volume",
 		TWL4030_REG_PREDL_CTL, TWL4030_REG_PREDR_CTL,
-		4, 3, 0, output_tvl),
+		4, 3, 0, snd_soc_get_volsw_r2_twl4030,
+		snd_soc_put_volsw_r2_twl4030, output_tvl),
 
-	SOC_DOUBLE_TLV_TWL4030("Headset Playback Volume",
-		TWL4030_REG_HS_GAIN_SET, 0, 2, 3, 0, output_tvl),
+	SOC_DOUBLE_EXT_TLV("Headset Playback Volume",
+		TWL4030_REG_HS_GAIN_SET, 0, 2, 3, 0, snd_soc_get_volsw_twl4030,
+		snd_soc_put_volsw_twl4030, output_tvl),
 
-	SOC_DOUBLE_R_TLV_TWL4030("Carkit Playback Volume",
+	SOC_DOUBLE_R_EXT_TLV("Carkit Playback Volume",
 		TWL4030_REG_PRECKL_CTL, TWL4030_REG_PRECKR_CTL,
-		4, 3, 0, output_tvl),
+		4, 3, 0, snd_soc_get_volsw_r2_twl4030,
+		snd_soc_put_volsw_r2_twl4030, output_tvl),
 
-	SOC_SINGLE_TLV_TWL4030("Earpiece Playback Volume",
-		TWL4030_REG_EAR_CTL, 4, 3, 0, output_ear_tvl),
+	SOC_SINGLE_EXT_TLV("Earpiece Playback Volume",
+		TWL4030_REG_EAR_CTL, 4, 3, 0, snd_soc_get_volsw_twl4030,
+		snd_soc_put_volsw_twl4030, output_ear_tvl),
 
 	/* Common capture gain controls */
 	SOC_DOUBLE_R_TLV("TX1 Digital Capture Volume",

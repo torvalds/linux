@@ -224,31 +224,19 @@ static int wm8580_out_vu(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define SOC_WM8580_OUT_DOUBLE_R_TLV(xname, reg_left, reg_right, xshift, xmax, \
-				    xinvert, tlv_array)			\
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		SNDRV_CTL_ELEM_ACCESS_READWRITE,  \
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw_2r, \
-	.get = snd_soc_get_volsw_2r, .put = wm8580_out_vu, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		.max = xmax, .invert = xinvert} }
-
 static const struct snd_kcontrol_new wm8580_snd_controls[] = {
-SOC_WM8580_OUT_DOUBLE_R_TLV("DAC1 Playback Volume",
-			    WM8580_DIGITAL_ATTENUATION_DACL1,
-			    WM8580_DIGITAL_ATTENUATION_DACR1,
-			    0, 0xff, 0, dac_tlv),
-SOC_WM8580_OUT_DOUBLE_R_TLV("DAC2 Playback Volume",
-			    WM8580_DIGITAL_ATTENUATION_DACL2,
-			    WM8580_DIGITAL_ATTENUATION_DACR2,
-			    0, 0xff, 0, dac_tlv),
-SOC_WM8580_OUT_DOUBLE_R_TLV("DAC3 Playback Volume",
-			    WM8580_DIGITAL_ATTENUATION_DACL3,
-			    WM8580_DIGITAL_ATTENUATION_DACR3,
-			    0, 0xff, 0, dac_tlv),
+SOC_DOUBLE_R_EXT_TLV("DAC1 Playback Volume",
+		     WM8580_DIGITAL_ATTENUATION_DACL1,
+		     WM8580_DIGITAL_ATTENUATION_DACR1,
+		     0, 0xff, 0, snd_soc_get_volsw_2r, wm8580_out_vu, dac_tlv),
+SOC_DOUBLE_R_EXT_TLV("DAC2 Playback Volume",
+		     WM8580_DIGITAL_ATTENUATION_DACL2,
+		     WM8580_DIGITAL_ATTENUATION_DACR2,
+		     0, 0xff, 0, snd_soc_get_volsw_2r, wm8580_out_vu, dac_tlv),
+SOC_DOUBLE_R_EXT_TLV("DAC3 Playback Volume",
+		     WM8580_DIGITAL_ATTENUATION_DACL3,
+		     WM8580_DIGITAL_ATTENUATION_DACR3,
+		     0, 0xff, 0, snd_soc_get_volsw_2r, wm8580_out_vu, dac_tlv),
 
 SOC_SINGLE("DAC1 Deemphasis Switch", WM8580_DAC_CONTROL3, 0, 1, 0),
 SOC_SINGLE("DAC2 Deemphasis Switch", WM8580_DAC_CONTROL3, 1, 1, 0),
