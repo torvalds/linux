@@ -163,6 +163,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 			    enum ieee80211_band band,
 			    bool passive, u32 basic_rate)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271_cmd_scan *cmd;
 	struct wl1271_cmd_trigger_scan_to *trigger;
 	int ret;
@@ -182,11 +183,11 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
-	if (WARN_ON(wl->role_id == WL12XX_INVALID_ROLE_ID)) {
+	if (WARN_ON(wlvif->role_id == WL12XX_INVALID_ROLE_ID)) {
 		ret = -EINVAL;
 		goto out;
 	}
-	cmd->params.role_id = wl->role_id;
+	cmd->params.role_id = wlvif->role_id;
 	cmd->params.scan_options = cpu_to_le16(scan_options);
 
 	cmd->params.n_ch = wl1271_get_scan_channels(wl, wl->scan.req,

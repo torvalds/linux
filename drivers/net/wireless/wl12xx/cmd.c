@@ -567,9 +567,9 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out;
 	}
 
-	wl1271_debug(DEBUG_CMD, "cmd role start sta %d", wl->role_id);
+	wl1271_debug(DEBUG_CMD, "cmd role start sta %d", wlvif->role_id);
 
-	cmd->role_id = wl->role_id;
+	cmd->role_id = wlvif->role_id;
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		cmd->band = WL12XX_BAND_5GHZ;
 	cmd->channel = wl->channel;
@@ -592,7 +592,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
 		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
-		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
+		     wlvif->role_id, cmd->sta.hlid, cmd->sta.session,
 		     wlvif->basic_rate_set, wlvif->rate_set);
 
 	ret = wl1271_cmd_send(wl, CMD_ROLE_START, cmd, sizeof(*cmd), 0);
@@ -615,7 +615,7 @@ out:
 }
 
 /* use this function to stop ibss as well */
-int wl12xx_cmd_role_stop_sta(struct wl1271 *wl)
+int wl12xx_cmd_role_stop_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_stop *cmd;
 	int ret;
@@ -629,9 +629,9 @@ int wl12xx_cmd_role_stop_sta(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl1271_debug(DEBUG_CMD, "cmd role stop sta %d", wl->role_id);
+	wl1271_debug(DEBUG_CMD, "cmd role stop sta %d", wlvif->role_id);
 
-	cmd->role_id = wl->role_id;
+	cmd->role_id = wlvif->role_id;
 	cmd->disc_type = DISCONNECT_IMMEDIATE;
 	cmd->reason = cpu_to_le16(WLAN_REASON_UNSPECIFIED);
 
@@ -656,7 +656,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
 	int ret;
 
-	wl1271_debug(DEBUG_CMD, "cmd role start ap %d", wl->role_id);
+	wl1271_debug(DEBUG_CMD, "cmd role start ap %d", wlvif->role_id);
 
 	/* trying to use hidden SSID with an old hostapd version */
 	if (wlvif->ssid_len == 0 && !bss_conf->hidden_ssid) {
@@ -679,7 +679,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (ret < 0)
 		goto out_free_global;
 
-	cmd->role_id = wl->role_id;
+	cmd->role_id = wlvif->role_id;
 	cmd->ap.aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
 	cmd->ap.bss_index = WL1271_AP_BSS_INDEX;
 	cmd->ap.global_hlid = wl->ap_global_hlid;
@@ -737,7 +737,7 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_role_stop_ap(struct wl1271 *wl)
+int wl12xx_cmd_role_stop_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_stop *cmd;
 	int ret;
@@ -748,9 +748,9 @@ int wl12xx_cmd_role_stop_ap(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl1271_debug(DEBUG_CMD, "cmd role stop ap %d", wl->role_id);
+	wl1271_debug(DEBUG_CMD, "cmd role stop ap %d", wlvif->role_id);
 
-	cmd->role_id = wl->role_id;
+	cmd->role_id = wlvif->role_id;
 
 	ret = wl1271_cmd_send(wl, CMD_ROLE_STOP, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
@@ -781,9 +781,9 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out;
 	}
 
-	wl1271_debug(DEBUG_CMD, "cmd role start ibss %d", wl->role_id);
+	wl1271_debug(DEBUG_CMD, "cmd role start ibss %d", wlvif->role_id);
 
-	cmd->role_id = wl->role_id;
+	cmd->role_id = wlvif->role_id;
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		cmd->band = WL12XX_BAND_5GHZ;
 	cmd->channel = wl->channel;
@@ -806,7 +806,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
 		     "basic_rate_set: 0x%x, remote_rates: 0x%x",
-		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
+		     wlvif->role_id, cmd->sta.hlid, cmd->sta.session,
 		     wlvif->basic_rate_set, wlvif->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "vif->bss_conf.bssid = %pM",
@@ -966,7 +966,8 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
+int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+		       u8 ps_mode)
 {
 	struct wl1271_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
@@ -979,7 +980,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
 		goto out;
 	}
 
-	ps_params->role_id = wl->role_id;
+	ps_params->role_id = wlvif->role_id;
 	ps_params->ps_mode = ps_mode;
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,

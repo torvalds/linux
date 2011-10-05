@@ -233,35 +233,37 @@ int wl1271_init_phy_config(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl12xx_init_phy_vif_config(struct wl1271 *wl)
+static int wl12xx_init_phy_vif_config(struct wl1271 *wl,
+					    struct wl12xx_vif *wlvif)
 {
 	int ret;
 
-	ret = wl1271_acx_slot(wl, DEFAULT_SLOT_TIME);
+	ret = wl1271_acx_slot(wl, wlvif, DEFAULT_SLOT_TIME);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_service_period_timeout(wl);
+	ret = wl1271_acx_service_period_timeout(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_rts_threshold(wl, wl->hw->wiphy->rts_threshold);
+	ret = wl1271_acx_rts_threshold(wl, wlvif, wl->hw->wiphy->rts_threshold);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-static int wl1271_init_beacon_filter(struct wl1271 *wl)
+static int wl1271_init_beacon_filter(struct wl1271 *wl,
+				     struct wl12xx_vif *wlvif)
 {
 	int ret;
 
 	/* disable beacon filtering at this stage */
-	ret = wl1271_acx_beacon_filter_opt(wl, false);
+	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, false);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_beacon_filter_table(wl);
+	ret = wl1271_acx_beacon_filter_table(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
@@ -294,11 +296,12 @@ int wl1271_init_energy_detection(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_beacon_broadcast(struct wl1271 *wl)
+static int wl1271_init_beacon_broadcast(struct wl1271 *wl,
+					struct wl12xx_vif *wlvif)
 {
 	int ret;
 
-	ret = wl1271_acx_bcn_dtim_options(wl);
+	ret = wl1271_acx_bcn_dtim_options(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
@@ -352,20 +355,22 @@ static int wl1271_sta_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return 0;
 }
 
-static int wl1271_sta_hw_init_post_mem(struct wl1271 *wl)
+static int wl1271_sta_hw_init_post_mem(struct wl1271 *wl,
+				       struct ieee80211_vif *vif)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret, i;
 
 	/* disable all keep-alive templates */
 	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
-		ret = wl1271_acx_keep_alive_config(wl, i,
+		ret = wl1271_acx_keep_alive_config(wl, wlvif, i,
 						   ACX_KEEP_ALIVE_TPL_INVALID);
 		if (ret < 0)
 			return ret;
 	}
 
 	/* disable the keep-alive feature */
-	ret = wl1271_acx_keep_alive_mode(wl, false);
+	ret = wl1271_acx_keep_alive_mode(wl, wlvif, false);
 	if (ret < 0)
 		return ret;
 
@@ -410,7 +415,7 @@ int wl1271_ap_init_templates(struct wl1271 *wl, struct ieee80211_vif *vif)
 	 * when operating as AP we want to receive external beacons for
 	 * configuring ERP protection.
 	 */
-	ret = wl1271_acx_beacon_filter_opt(wl, false);
+	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, false);
 	if (ret < 0)
 		return ret;
 
@@ -495,7 +500,7 @@ static int wl1271_set_ba_policies(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	wl->ba_support = true;
 
 	/* 802.11n initiator BA session setting */
-	return wl12xx_acx_set_ba_initiator_policy(wl);
+	return wl12xx_acx_set_ba_initiator_policy(wl, wlvif);
 }
 
 int wl1271_chip_specific_init(struct wl1271 *wl)
@@ -519,31 +524,31 @@ out:
 }
 
 /* vif-specifc initialization */
-static int wl12xx_init_sta_role(struct wl1271 *wl, struct ieee80211_vif *vif)
+static int wl12xx_init_sta_role(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
 
-	ret = wl1271_acx_group_address_tbl(wl, true, NULL, 0);
+	ret = wl1271_acx_group_address_tbl(wl, wlvif, true, NULL, 0);
 	if (ret < 0)
 		return ret;
 
 	/* Initialize connection monitoring thresholds */
-	ret = wl1271_acx_conn_monit_params(wl, false);
+	ret = wl1271_acx_conn_monit_params(wl, wlvif, false);
 	if (ret < 0)
 		return ret;
 
 	/* Beacon filtering */
-	ret = wl1271_init_beacon_filter(wl);
+	ret = wl1271_init_beacon_filter(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
 	/* Beacons and broadcast settings */
-	ret = wl1271_init_beacon_broadcast(wl);
+	ret = wl1271_init_beacon_broadcast(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
 	/* Configure rssi/snr averaging weights */
-	ret = wl1271_acx_rssi_snr_avg_weights(wl);
+	ret = wl1271_acx_rssi_snr_avg_weights(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
@@ -551,16 +556,16 @@ static int wl12xx_init_sta_role(struct wl1271 *wl, struct ieee80211_vif *vif)
 }
 
 /* vif-specific intialization */
-static int wl12xx_init_ap_role(struct wl1271 *wl, struct ieee80211_vif *vif)
+static int wl12xx_init_ap_role(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
 
-	ret = wl1271_acx_ap_max_tx_retry(wl);
+	ret = wl1271_acx_ap_max_tx_retry(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
 	/* initialize Tx power */
-	ret = wl1271_acx_tx_power(wl, wl->power_level);
+	ret = wl1271_acx_tx_power(wl, wlvif, wl->power_level);
 	if (ret < 0)
 		return ret;
 
@@ -582,7 +587,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 		if (ret < 0)
 			return ret;
 
-		ret = wl12xx_init_ap_role(wl, vif);
+		ret = wl12xx_init_ap_role(wl, wlvif);
 		if (ret < 0)
 			return ret;
 	} else {
@@ -590,25 +595,25 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 		if (ret < 0)
 			return ret;
 
-		ret = wl12xx_init_sta_role(wl, vif);
+		ret = wl12xx_init_sta_role(wl, wlvif);
 		if (ret < 0)
 			return ret;
 	}
 
-	wl12xx_init_phy_vif_config(wl);
+	wl12xx_init_phy_vif_config(wl, wlvif);
 
 	/* Default TID/AC configuration */
 	BUG_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
 	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
 		conf_ac = &wl->conf.tx.ac_conf[i];
-		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
-					conf_ac->cw_max, conf_ac->aifsn,
-					conf_ac->tx_op_limit);
+		ret = wl1271_acx_ac_cfg(wl, wlvif, conf_ac->ac,
+					conf_ac->cw_min, conf_ac->cw_max,
+					conf_ac->aifsn, conf_ac->tx_op_limit);
 		if (ret < 0)
 			return ret;
 
 		conf_tid = &wl->conf.tx.tid_conf[i];
-		ret = wl1271_acx_tid_cfg(wl,
+		ret = wl1271_acx_tid_cfg(wl, wlvif,
 					 conf_tid->queue_id,
 					 conf_tid->channel_type,
 					 conf_tid->tsid,
@@ -621,7 +626,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 	}
 
 	/* Configure HW encryption */
-	ret = wl1271_acx_feature_cfg(wl);
+	ret = wl1271_acx_feature_cfg(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
@@ -629,7 +634,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 	if (is_ap)
 		ret = wl1271_ap_hw_init_post_mem(wl, vif);
 	else
-		ret = wl1271_sta_hw_init_post_mem(wl);
+		ret = wl1271_sta_hw_init_post_mem(wl, vif);
 
 	if (ret < 0)
 		return ret;

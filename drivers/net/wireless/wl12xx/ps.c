@@ -143,8 +143,8 @@ out:
 	return 0;
 }
 
-int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
-		       u32 rates, bool send)
+int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+		       enum wl1271_cmd_ps_mode mode, u32 rates, bool send)
 {
 	int ret;
 
@@ -152,13 +152,13 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	case STATION_POWER_SAVE_MODE:
 		wl1271_debug(DEBUG_PSM, "entering psm");
 
-		ret = wl1271_acx_wake_up_conditions(wl);
+		ret = wl1271_acx_wake_up_conditions(wl, wlvif);
 		if (ret < 0) {
 			wl1271_error("couldn't set wake up conditions");
 			return ret;
 		}
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
+		ret = wl1271_cmd_ps_mode(wl, wlvif, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			return ret;
 
@@ -170,17 +170,17 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 
 		/* disable beacon early termination */
 		if (wl->band == IEEE80211_BAND_2GHZ) {
-			ret = wl1271_acx_bet_enable(wl, false);
+			ret = wl1271_acx_bet_enable(wl, wlvif, false);
 			if (ret < 0)
 				return ret;
 		}
 
 		/* disable beacon filtering */
-		ret = wl1271_acx_beacon_filter_opt(wl, false);
+		ret = wl1271_acx_beacon_filter_opt(wl, wlvif, false);
 		if (ret < 0)
 			return ret;
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE);
+		ret = wl1271_cmd_ps_mode(wl, wlvif, STATION_ACTIVE_MODE);
 		if (ret < 0)
 			return ret;
 

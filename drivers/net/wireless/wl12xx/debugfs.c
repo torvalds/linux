@@ -620,10 +620,18 @@ static ssize_t beacon_filtering_write(struct file *file,
 				      size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
+	struct ieee80211_vif *vif;
+	struct wl12xx_vif *wlvif;
 	char buf[10];
 	size_t len;
 	unsigned long value;
 	int ret;
+
+	if (!wl->vif)
+		return -EINVAL;
+
+	vif = wl->vif;
+	wlvif = wl12xx_vif_to_data(vif);
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
@@ -642,7 +650,7 @@ static ssize_t beacon_filtering_write(struct file *file,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_beacon_filter_opt(wl, !!value);
+	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, !!value);
 
 	wl1271_ps_elp_sleep(wl);
 out:

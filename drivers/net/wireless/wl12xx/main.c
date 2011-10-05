@@ -402,7 +402,10 @@ static LIST_HEAD(wl_list);
 
 static int wl1271_check_operstate(struct wl1271 *wl, unsigned char operstate)
 {
+	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
+
 	if (operstate != IF_OPER_UP)
 		return 0;
 
@@ -413,7 +416,7 @@ static int wl1271_check_operstate(struct wl1271 *wl, unsigned char operstate)
 	if (ret < 0)
 		return ret;
 
-	wl12xx_croc(wl, wl->role_id);
+	wl12xx_croc(wl, wlvif->role_id);
 
 	wl1271_info("Association completed.");
 	return 0;
@@ -695,7 +698,7 @@ static int wl1271_plt_init(struct wl1271 *wl)
 		goto out_free_memmap;
 
 	/* Initialize connection monitoring thresholds */
-	ret = wl1271_acx_conn_monit_params(wl, false);
+	ret = wl1271_acx_conn_monit_params(wl, NULL, false); /* TODO: fix */
 	if (ret < 0)
 		goto out_free_memmap;
 
@@ -727,14 +730,16 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	BUG_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
 	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
 		conf_ac = &wl->conf.tx.ac_conf[i];
-		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
+		/* TODO: fix */
+		ret = wl1271_acx_ac_cfg(wl, NULL, conf_ac->ac, conf_ac->cw_min,
 					conf_ac->cw_max, conf_ac->aifsn,
 					conf_ac->tx_op_limit);
 		if (ret < 0)
 			goto out_free_memmap;
 
 		conf_tid = &wl->conf.tx.tid_conf[i];
-		ret = wl1271_acx_tid_cfg(wl, conf_tid->queue_id,
+		/* TODO: fix */
+		ret = wl1271_acx_tid_cfg(wl, NULL, conf_tid->queue_id,
 					 conf_tid->channel_type,
 					 conf_tid->tsid,
 					 conf_tid->ps_scheme,
@@ -1631,7 +1636,7 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 		DECLARE_COMPLETION_ONSTACK(compl);
 
 		wl->ps_compl = &compl;
-		ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
+		ret = wl1271_ps_set_mode(wl, wlvif, STATION_POWER_SAVE_MODE,
 				   wlvif->basic_rate, true);
 		if (ret < 0)
 			goto out_sleep;
@@ -1664,7 +1669,8 @@ out:
 
 }
 
-static int wl1271_configure_suspend_ap(struct wl1271 *wl)
+static int wl1271_configure_suspend_ap(struct wl1271 *wl,
+				       struct wl12xx_vif *wlvif)
 {
 	int ret = 0;
 
@@ -1677,7 +1683,7 @@ static int wl1271_configure_suspend_ap(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_unlock;
 
-	ret = wl1271_acx_beacon_filter_opt(wl, true);
+	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, true);
 
 	wl1271_ps_elp_sleep(wl);
 out_unlock:
@@ -1692,7 +1698,7 @@ static int wl1271_configure_suspend(struct wl1271 *wl,
 	if (wlvif->bss_type == BSS_TYPE_STA_BSS)
 		return wl1271_configure_suspend_sta(wl, wlvif);
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-		return wl1271_configure_suspend_ap(wl);
+		return wl1271_configure_suspend_ap(wl, wlvif);
 	return 0;
 }
 
@@ -1714,10 +1720,10 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 	if (is_sta) {
 		/* exit psm if it wasn't configured */
 		if (!test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags))
-			wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+			wl1271_ps_set_mode(wl, wlvif, STATION_ACTIVE_MODE,
 					   wlvif->basic_rate, true);
 	} else if (is_ap) {
-		wl1271_acx_beacon_filter_opt(wl, false);
+		wl1271_acx_beacon_filter_opt(wl, wlvif, false);
 	}
 
 	wl1271_ps_elp_sleep(wl);
@@ -1850,6 +1856,7 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
 {
 	wlvif->bss_type = MAX_BSS_TYPE;
+	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -1957,7 +1964,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		}
 
 		ret = wl12xx_cmd_role_enable(wl, vif->addr,
-					     role_type, &wl->role_id);
+					     role_type, &wlvif->role_id);
 		if (ret < 0)
 			goto irq_disable;
 
@@ -2065,7 +2072,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 				goto deinit;
 		}
 
-		ret = wl12xx_cmd_role_disable(wl, &wl->role_id);
+		ret = wl12xx_cmd_role_disable(wl, &wlvif->role_id);
 		if (ret < 0)
 			goto deinit;
 
@@ -2123,7 +2130,7 @@ deinit:
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
 	wl->sched_scanning = false;
-	wl->role_id = WL12XX_INVALID_ROLE_ID;
+	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
@@ -2213,11 +2220,11 @@ static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	 * the join. The acx_aid starts the keep-alive process, and the order
 	 * of the commands below is relevant.
 	 */
-	ret = wl1271_acx_keep_alive_mode(wl, true);
+	ret = wl1271_acx_keep_alive_mode(wl, wlvif, true);
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_aid(wl, wlvif->aid);
+	ret = wl1271_acx_aid(wl, wlvif, wlvif->aid);
 	if (ret < 0)
 		goto out;
 
@@ -2225,7 +2232,8 @@ static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_keep_alive_config(wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
+	ret = wl1271_acx_keep_alive_config(wl, wlvif,
+					   CMD_TEMPL_KLV_IDX_NULL_DATA,
 					   ACX_KEEP_ALIVE_TPL_VALID);
 	if (ret < 0)
 		goto out;
@@ -2234,7 +2242,7 @@ out:
 	return ret;
 }
 
-static int wl1271_unjoin(struct wl1271 *wl)
+static int wl1271_unjoin(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
 
@@ -2244,7 +2252,7 @@ static int wl1271_unjoin(struct wl1271 *wl)
 	}
 
 	/* to stop listening to a channel, we disconnect */
-	ret = wl12xx_cmd_role_stop_sta(wl);
+	ret = wl12xx_cmd_role_stop_sta(wl, wlvif);
 	if (ret < 0)
 		goto out;
 
@@ -2295,7 +2303,7 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (ret < 0)
 			goto out;
 		ret = wl1271_acx_keep_alive_config(
-			wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
+			wl, wlvif, CMD_TEMPL_KLV_IDX_NULL_DATA,
 			ACX_KEEP_ALIVE_TPL_INVALID);
 		if (ret < 0)
 			goto out;
@@ -2454,7 +2462,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		 */
 		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 			wl1271_debug(DEBUG_PSM, "psm enabled");
-			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
+			ret = wl1271_ps_set_mode(wl, wlvif,
+						 STATION_POWER_SAVE_MODE,
 						 wlvif->basic_rate, true);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
@@ -2464,12 +2473,13 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		clear_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags);
 
 		if (test_bit(WL1271_FLAG_PSM, &wl->flags))
-			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+			ret = wl1271_ps_set_mode(wl, wlvif,
+						 STATION_ACTIVE_MODE,
 						 wlvif->basic_rate, true);
 	}
 
 	if (conf->power_level != wl->power_level) {
-		ret = wl1271_acx_tx_power(wl, conf->power_level);
+		ret = wl1271_acx_tx_power(wl, wlvif, conf->power_level);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -2558,9 +2568,11 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 
 	if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
 		if (*total & FIF_ALLMULTI)
-			ret = wl1271_acx_group_address_tbl(wl, false, NULL, 0);
+			ret = wl1271_acx_group_address_tbl(wl, wlvif, false,
+							   NULL, 0);
 		else if (fp)
-			ret = wl1271_acx_group_address_tbl(wl, fp->enabled,
+			ret = wl1271_acx_group_address_tbl(wl, wlvif,
+							   fp->enabled,
 							   fp->mc_list,
 							   fp->mc_list_length);
 		if (ret < 0)
@@ -3051,6 +3063,8 @@ out:
 static int wl1271_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
 	struct wl1271 *wl = hw->priv;
+	struct ieee80211_vif *vif = wl->vif;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret = 0;
 
 	mutex_lock(&wl->mutex);
@@ -3064,7 +3078,7 @@ static int wl1271_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_rts_threshold(wl, value);
+	ret = wl1271_acx_rts_threshold(wl, wlvif, value);
 	if (ret < 0)
 		wl1271_warning("wl1271_op_set_rts_threshold failed: %d", ret);
 
@@ -3190,16 +3204,18 @@ static int wl1271_ap_set_probe_resp_tmpl(struct wl1271 *wl,
 }
 
 static int wl1271_bss_erp_info_changed(struct wl1271 *wl,
+				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
 				       u32 changed)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret = 0;
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		if (bss_conf->use_short_slot)
-			ret = wl1271_acx_slot(wl, SLOT_TIME_SHORT);
+			ret = wl1271_acx_slot(wl, wlvif, SLOT_TIME_SHORT);
 		else
-			ret = wl1271_acx_slot(wl, SLOT_TIME_LONG);
+			ret = wl1271_acx_slot(wl, wlvif, SLOT_TIME_LONG);
 		if (ret < 0) {
 			wl1271_warning("Set slot time failed %d", ret);
 			goto out;
@@ -3208,16 +3224,18 @@ static int wl1271_bss_erp_info_changed(struct wl1271 *wl,
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
 		if (bss_conf->use_short_preamble)
-			wl1271_acx_set_preamble(wl, ACX_PREAMBLE_SHORT);
+			wl1271_acx_set_preamble(wl, wlvif, ACX_PREAMBLE_SHORT);
 		else
-			wl1271_acx_set_preamble(wl, ACX_PREAMBLE_LONG);
+			wl1271_acx_set_preamble(wl, wlvif, ACX_PREAMBLE_LONG);
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
 		if (bss_conf->use_cts_prot)
-			ret = wl1271_acx_cts_protect(wl, CTSPROTECT_ENABLE);
+			ret = wl1271_acx_cts_protect(wl, wlvif,
+						     CTSPROTECT_ENABLE);
 		else
-			ret = wl1271_acx_cts_protect(wl, CTSPROTECT_DISABLE);
+			ret = wl1271_acx_cts_protect(wl, wlvif,
+						     CTSPROTECT_DISABLE);
 		if (ret < 0) {
 			wl1271_warning("Set ctsprotect failed %d", ret);
 			goto out;
@@ -3359,7 +3377,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 			}
 		} else {
 			if (test_bit(WL1271_FLAG_AP_STARTED, &wl->flags)) {
-				ret = wl12xx_cmd_role_stop_ap(wl);
+				ret = wl12xx_cmd_role_stop_ap(wl, wlvif);
 				if (ret < 0)
 					goto out;
 
@@ -3369,14 +3387,14 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 		}
 	}
 
-	ret = wl1271_bss_erp_info_changed(wl, bss_conf, changed);
+	ret = wl1271_bss_erp_info_changed(wl, vif, bss_conf, changed);
 	if (ret < 0)
 		goto out;
 
 	/* Handle HT information change */
 	if ((changed & BSS_CHANGED_HT) &&
 	    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
-		ret = wl1271_acx_set_ht_information(wl,
+		ret = wl1271_acx_set_ht_information(wl, wlvif,
 					bss_conf->ht_operation_mode);
 		if (ret < 0) {
 			wl1271_warning("Set ht information failed %d", ret);
@@ -3418,7 +3436,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		} else {
 			if (test_and_clear_bit(WL1271_FLAG_IBSS_JOINED,
 					       &wl->flags)) {
-				wl1271_unjoin(wl);
+				wl1271_unjoin(wl, wlvif);
 				wl12xx_cmd_role_start_dev(wl);
 				wl12xx_roc(wl, wl->dev_role_id);
 			}
@@ -3443,7 +3461,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		bool enable = false;
 		if (bss_conf->cqm_rssi_thold)
 			enable = true;
-		ret = wl1271_acx_rssi_snr_trigger(wl, enable,
+		ret = wl1271_acx_rssi_snr_trigger(wl, wlvif, enable,
 						  bss_conf->cqm_rssi_thold,
 						  bss_conf->cqm_rssi_hyst);
 		if (ret < 0)
@@ -3533,7 +3551,7 @@ sta_not_found:
 			wl1271_ssid_set(vif, wlvif->probereq, ieoffset);
 
 			/* enable the connection monitoring feature */
-			ret = wl1271_acx_conn_monit_params(wl, true);
+			ret = wl1271_acx_conn_monit_params(wl, wlvif, true);
 			if (ret < 0)
 				goto out;
 		} else {
@@ -3563,10 +3581,10 @@ sta_not_found:
 				goto out;
 
 			/* disable connection monitor features */
-			ret = wl1271_acx_conn_monit_params(wl, false);
+			ret = wl1271_acx_conn_monit_params(wl, wlvif, false);
 
 			/* Disable the keep-alive feature */
-			ret = wl1271_acx_keep_alive_mode(wl, false);
+			ret = wl1271_acx_keep_alive_mode(wl, wlvif, false);
 			if (ret < 0)
 				goto out;
 
@@ -3578,7 +3596,7 @@ sta_not_found:
 				 * no IF_OPER_UP notification.
 				 */
 				if (!was_ifup) {
-					ret = wl12xx_croc(wl, wl->role_id);
+					ret = wl12xx_croc(wl, wlvif->role_id);
 					if (ret < 0)
 						goto out;
 				}
@@ -3593,7 +3611,7 @@ sta_not_found:
 						goto out;
 				}
 
-				wl1271_unjoin(wl);
+				wl1271_unjoin(wl, wlvif);
 				if (!(conf_flags & IEEE80211_CONF_IDLE)) {
 					wl12xx_cmd_role_start_dev(wl);
 					wl12xx_roc(wl, wl->dev_role_id);
@@ -3623,7 +3641,7 @@ sta_not_found:
 		}
 	}
 
-	ret = wl1271_bss_erp_info_changed(wl, bss_conf, changed);
+	ret = wl1271_bss_erp_info_changed(wl, vif, bss_conf, changed);
 	if (ret < 0)
 		goto out;
 
@@ -3645,11 +3663,11 @@ sta_not_found:
 				goto out;
 			}
 
-			ret = wl1271_acx_arp_ip_filter(wl,
+			ret = wl1271_acx_arp_ip_filter(wl, wlvif,
 				ACX_ARP_FILTER_ARP_FILTERING,
 				addr);
 		} else
-			ret = wl1271_acx_arp_ip_filter(wl, 0, addr);
+			ret = wl1271_acx_arp_ip_filter(wl, wlvif, 0, addr);
 
 		if (ret < 0)
 			goto out;
@@ -3664,7 +3682,7 @@ sta_not_found:
 
 		/* ROC until connected (after EAPOL exchange) */
 		if (!is_ibss) {
-			ret = wl12xx_roc(wl, wl->role_id);
+			ret = wl12xx_roc(wl, wlvif->role_id);
 			if (ret < 0)
 				goto out;
 
@@ -3691,7 +3709,7 @@ sta_not_found:
 			enum wl1271_cmd_ps_mode mode;
 
 			mode = STATION_POWER_SAVE_MODE;
-			ret = wl1271_ps_set_mode(wl, mode,
+			ret = wl1271_ps_set_mode(wl, wlvif, mode,
 						 wlvif->basic_rate,
 						 true);
 			if (ret < 0)
@@ -3730,7 +3748,7 @@ sta_not_found:
 	/* Handle HT information change. Done after join. */
 	if ((changed & BSS_CHANGED_HT) &&
 	    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
-		ret = wl1271_acx_set_ht_information(wl,
+		ret = wl1271_acx_set_ht_information(wl, wlvif,
 					bss_conf->ht_operation_mode);
 		if (ret < 0) {
 			wl1271_warning("Set ht information failed %d", ret);
@@ -3780,6 +3798,7 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw,
 			     const struct ieee80211_tx_queue_params *params)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	u8 ps_scheme;
 	int ret = 0;
 
@@ -3826,13 +3845,13 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw,
 	 * the txop is confed in units of 32us by the mac80211,
 	 * we need us
 	 */
-	ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
+	ret = wl1271_acx_ac_cfg(wl, wlvif, wl1271_tx_get_queue(queue),
 				params->cw_min, params->cw_max,
 				params->aifs, params->txop << 5);
 	if (ret < 0)
 		goto out_sleep;
 
-	ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
+	ret = wl1271_acx_tid_cfg(wl, wlvif, wl1271_tx_get_queue(queue),
 				 CONF_CHANNEL_TYPE_EDCF,
 				 wl1271_tx_get_queue(queue),
 				 ps_scheme, CONF_ACK_POLICY_LEGACY,
@@ -4861,7 +4880,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->tx_security_seq = 0;
 	wl->tx_security_last_seq_lsb = 0;
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
-	wl->role_id = WL12XX_INVALID_ROLE_ID;
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
 	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
 	wl->dev_role_id = WL12XX_INVALID_ROLE_ID;

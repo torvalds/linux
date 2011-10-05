@@ -64,8 +64,8 @@ void wl1271_pspoll_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, wlvif->basic_rate,
-			   true);
+	wl1271_ps_set_mode(wl, wlvif, STATION_POWER_SAVE_MODE,
+			   wlvif->basic_rate, true);
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -85,7 +85,7 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl,
 
 	/* force active mode receive data from the AP */
 	if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
-		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+		ret = wl1271_ps_set_mode(wl, wlvif, STATION_ACTIVE_MODE,
 					 wlvif->basic_rate, true);
 		if (ret < 0)
 			return;
@@ -124,7 +124,8 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 		if (wl->psm_entry_retry < total_retries) {
 			wl->psm_entry_retry++;
-			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
+			ret = wl1271_ps_set_mode(wl, wlvif,
+						 STATION_POWER_SAVE_MODE,
 						 wlvif->basic_rate, true);
 		} else {
 			wl1271_info("No ack to nullfunc from AP.");
@@ -136,7 +137,7 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		wl->psm_entry_retry = 0;
 
 		/* enable beacon filtering */
-		ret = wl1271_acx_beacon_filter_opt(wl, true);
+		ret = wl1271_acx_beacon_filter_opt(wl, wlvif, true);
 		if (ret < 0)
 			break;
 
@@ -146,7 +147,7 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		*/
 		if (wl->band == IEEE80211_BAND_2GHZ)
 			/* enable beacon early termination */
-			ret = wl1271_acx_bet_enable(wl, true);
+			ret = wl1271_acx_bet_enable(wl, wlvif, true);
 
 		if (wl->ps_compl) {
 			complete(wl->ps_compl);
