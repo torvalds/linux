@@ -363,6 +363,26 @@ error:
 	return ret;
 }
 
+/**
+ * SNDRV_PCM_RATE_* and AC_PAR_PCM values don't match, print correct rates with
+ * hdmi-specific routine.
+ */
+static void hdmi_print_pcm_rates(int pcm, char *buf, int buflen)
+{
+	static unsigned int alsa_rates[] = {
+		5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
+		96000, 176400, 192000, 384000
+	};
+	int i, j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(alsa_rates); i++)
+		if (pcm & (1 << i))
+			j += snprintf(buf + j, buflen - j,  " %d",
+				alsa_rates[i]);
+
+	buf[j] = '\0'; /* necessary when j == 0 */
+}
+
 static void hdmi_show_short_audio_desc(struct cea_sad *a)
 {
 	char buf[SND_PRINT_RATES_ADVISED_BUFSIZE];
@@ -371,7 +391,7 @@ static void hdmi_show_short_audio_desc(struct cea_sad *a)
 	if (!a->format)
 		return;
 
-	snd_print_pcm_rates(a->rates, buf, sizeof(buf));
+	hdmi_print_pcm_rates(a->rates, buf, sizeof(buf));
 
 	if (a->format == AUDIO_CODING_TYPE_LPCM)
 		snd_print_pcm_bits(a->sample_bits, buf2 + 8, sizeof(buf2) - 8);
@@ -430,7 +450,7 @@ static void hdmi_print_sad_info(int i, struct cea_sad *a,
 			i, a->format, cea_audio_coding_type_names[a->format]);
 	snd_iprintf(buffer, "sad%d_channels\t\t%d\n", i, a->channels);
 
-	snd_print_pcm_rates(a->rates, buf, sizeof(buf));
+	hdmi_print_pcm_rates(a->rates, buf, sizeof(buf));
 	snd_iprintf(buffer, "sad%d_rates\t\t[0x%x]%s\n", i, a->rates, buf);
 
 	if (a->format == AUDIO_CODING_TYPE_LPCM) {

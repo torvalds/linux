@@ -5205,7 +5205,7 @@ EXPORT_SYMBOL_HDA(snd_array_free);
  * @buf: the string buffer to write
  * @buflen: the max buffer length
  *
- * used by hda_proc.c and hda_eld.c
+ * used by hda_proc.c
  */
 void snd_print_pcm_rates(int pcm, char *buf, int buflen)
 {
