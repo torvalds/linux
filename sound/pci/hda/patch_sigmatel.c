@@ -2972,8 +2972,9 @@ static int check_all_dac_nids(struct sigmatel_spec *spec, hda_nid_t nid)
 static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int j, conn_len;
-	hda_nid_t conn[HDA_MAX_CONNECTIONS];
+	hda_nid_t conn[HDA_MAX_CONNECTIONS], fallback_dac;
 	unsigned int wcaps, wtype;
 
 	conn_len = snd_hda_get_connections(codec, nid, conn,
@@ -3001,10 +3002,21 @@ static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
 			return conn[j];
 		}
 	}
-	/* if all DACs are already assigned, connect to the primary DAC */
+
+	/* if all DACs are already assigned, connect to the primary DAC,
+	   unless we're assigning a secondary headphone */
+	fallback_dac = spec->multiout.dac_nids[0];
+	if (spec->multiout.hp_nid) {
+		for (j = 0; j < cfg->hp_outs; j++)
+			if (cfg->hp_pins[j] == nid) {
+				fallback_dac = spec->multiout.hp_nid;
+				break;
+			}
+	}
+
 	if (conn_len > 1) {
 		for (j = 0; j < conn_len; j++) {
-			if (conn[j] == spec->multiout.dac_nids[0]) {
+			if (conn[j] == fallback_dac) {
 				snd_hda_codec_write_cache(codec, nid, 0,
 						  AC_VERB_SET_CONNECT_SEL, j);
 				break;
