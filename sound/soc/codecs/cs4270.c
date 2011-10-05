@@ -261,7 +261,6 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0;
 
 	/* set DAI format */
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -271,7 +270,7 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		dev_err(codec->dev, "invalid dai format\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
 	/* set master/slave audio interface */
@@ -284,10 +283,11 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		/* all other modes are unsupported by the hardware */
-		ret = -EINVAL;
+		dev_err(codec->dev, "Unknown master/slave configuration\n");
+		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 /**

@@ -288,7 +288,6 @@ static int cs42l51_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct cs42l51_private *cs42l51 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0;
 
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
@@ -298,7 +297,7 @@ static int cs42l51_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		dev_err(codec->dev, "invalid DAI format\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
 	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -309,11 +308,11 @@ static int cs42l51_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		cs42l51->func = MODE_SLAVE_AUTO;
 		break;
 	default:
-		ret = -EINVAL;
-		break;
+		dev_err(codec->dev, "Unknown master/slave configuration\n");
+		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 struct cs42l51_ratios {
