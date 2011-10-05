@@ -2006,8 +2006,11 @@ bfa_nw_ioc_pci_init(struct bfa_ioc *ioc, struct bfa_pcidev *pcidev,
 	 */
 	if (ioc->asic_gen == BFI_ASIC_GEN_CT)
 		bfa_nw_ioc_set_ct_hwif(ioc);
-	else
+	else {
+		WARN_ON(ioc->asic_gen != BFI_ASIC_GEN_CT2);
 		bfa_nw_ioc_set_ct2_hwif(ioc);
+		bfa_nw_ioc_ct2_poweron(ioc);
+	}
 
 	bfa_ioc_map_port(ioc);
 	bfa_ioc_reg_init(ioc);

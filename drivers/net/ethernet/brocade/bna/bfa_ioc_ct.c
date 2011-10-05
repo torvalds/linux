@@ -454,7 +454,7 @@ bfa_ioc_ct2_lpu_read_stat(struct bfa_ioc *ioc)
 #define __MSIX_VT_NUMVT_(_v)		((_v) << __MSIX_VT_NUMVT__SH)
 #define __MSIX_VT_OFST_			0x000007ff
 void
-bfa_ioc_ct2_poweron(struct bfa_ioc *ioc)
+bfa_nw_ioc_ct2_poweron(struct bfa_ioc *ioc)
 {
 	void __iomem *rb = ioc->pcidev.pci_bar_kva;
 	u32 r32;

@@ -281,7 +281,7 @@ void bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
 
 void bfa_nw_ioc_set_ct_hwif(struct bfa_ioc *ioc);
 void bfa_nw_ioc_set_ct2_hwif(struct bfa_ioc *ioc);
-void bfa_ioc_ct2_poweron(struct bfa_ioc *ioc);
+void bfa_nw_ioc_ct2_poweron(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_attach(struct bfa_ioc *ioc, void *bfa,
 		struct bfa_ioc_cbfn *cbfn);
