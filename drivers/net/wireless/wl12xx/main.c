@@ -2704,7 +2704,7 @@ static int wl1271_ap_init_hwenc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	}
 
 	if (wep_key_added) {
-		ret = wl12xx_cmd_set_default_wep_key(wl, wl->default_key,
+		ret = wl12xx_cmd_set_default_wep_key(wl, wlvif->default_key,
 						     wlvif->ap.bcast_hlid);
 		if (ret < 0)
 			goto out;
@@ -2801,8 +2801,8 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		/* the default WEP key needs to be configured at least once */
 		if (key_type == KEY_WEP) {
 			ret = wl12xx_cmd_set_default_wep_key(wl,
-							     wl->default_key,
-							     wlvif->sta.hlid);
+							wlvif->default_key,
+							wlvif->sta.hlid);
 			if (ret < 0)
 				return ret;
 		}
@@ -4891,7 +4891,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	}
 
 	wl->channel = WL1271_DEFAULT_CHANNEL;
-	wl->default_key = 0;
 	wl->rx_counter = 0;
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
