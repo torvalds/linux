@@ -402,7 +402,6 @@ struct wl1271 {
 	u8 mac_addr[ETH_ALEN];
 	int channel;
 	u8 system_hlid;
-	u8 sta_hlid;
 	u8 dev_hlid;
 	u8 ap_global_hlid;
 	u8 ap_bcast_hlid;
@@ -623,6 +622,12 @@ struct wl12xx_vif {
 
 	/* sta/ibss specific */
 	u8 dev_role_id;
+
+	union {
+		struct {
+			u8 hlid;
+		} sta;
+	};
 
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;

@@ -581,12 +581,12 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	memcpy(cmd->sta.bssid, vif->bss_conf.bssid, ETH_ALEN);
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
-	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID) {
-		ret = wl12xx_allocate_link(wl, &wl->sta_hlid);
+	if (wlvif->sta.hlid == WL12XX_INVALID_LINK_ID) {
+		ret = wl12xx_allocate_link(wl, &wlvif->sta.hlid);
 		if (ret)
 			goto out_free;
 	}
-	cmd->sta.hlid = wl->sta_hlid;
+	cmd->sta.hlid = wlvif->sta.hlid;
 	cmd->sta.session = wl12xx_get_new_session_id(wl);
 	cmd->sta.remote_rates = cpu_to_le32(wlvif->rate_set);
 
@@ -605,7 +605,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 err_hlid:
 	/* clear links on error. */
-	wl12xx_free_link(wl, &wl->sta_hlid);
+	wl12xx_free_link(wl, &wlvif->sta.hlid);
 
 out_free:
 	kfree(cmd);
@@ -620,7 +620,7 @@ int wl12xx_cmd_role_stop_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct wl12xx_cmd_role_stop *cmd;
 	int ret;
 
-	if (WARN_ON(wl->sta_hlid == WL12XX_INVALID_LINK_ID))
+	if (WARN_ON(wlvif->sta.hlid == WL12XX_INVALID_LINK_ID))
 		return -EINVAL;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -641,7 +641,7 @@ int wl12xx_cmd_role_stop_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out_free;
 	}
 
-	wl12xx_free_link(wl, &wl->sta_hlid);
+	wl12xx_free_link(wl, &wlvif->sta.hlid);
 
 out_free:
 	kfree(cmd);
@@ -796,12 +796,12 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	memcpy(cmd->ibss.bssid, vif->bss_conf.bssid, ETH_ALEN);
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
-	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID) {
-		ret = wl12xx_allocate_link(wl, &wl->sta_hlid);
+	if (wlvif->sta.hlid == WL12XX_INVALID_LINK_ID) {
+		ret = wl12xx_allocate_link(wl, &wlvif->sta.hlid);
 		if (ret)
 			goto out_free;
 	}
-	cmd->ibss.hlid = wl->sta_hlid;
+	cmd->ibss.hlid = wlvif->sta.hlid;
 	cmd->ibss.remote_rates = cpu_to_le32(wlvif->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
@@ -822,7 +822,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 err_hlid:
 	/* clear links on error. */
-	wl12xx_free_link(wl, &wl->sta_hlid);
+	wl12xx_free_link(wl, &wlvif->sta.hlid);
 
 out_free:
 	kfree(cmd);
@@ -1264,15 +1264,17 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
+int wl1271_cmd_set_sta_key(struct wl1271 *wl, struct ieee80211_vif *vif,
+		       u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, const u8 *addr,
 		       u32 tx_seq_32, u16 tx_seq_16)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271_cmd_set_keys *cmd;
 	int ret = 0;
 
 	/* hlid might have already been deleted */
-	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID)
+	if (wlvif->sta.hlid == WL12XX_INVALID_LINK_ID)
 		return 0;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -1281,7 +1283,7 @@ int wl1271_cmd_set_sta_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		goto out;
 	}
 
-	cmd->hlid = wl->sta_hlid;
+	cmd->hlid = wlvif->sta.hlid;
 
 	if (key_type == KEY_WEP)
 		cmd->lid_key_type = WEP_DEFAULT_LID_TYPE;

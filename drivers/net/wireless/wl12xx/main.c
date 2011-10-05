@@ -412,7 +412,7 @@ static int wl1271_check_operstate(struct wl1271 *wl, unsigned char operstate)
 	if (test_and_set_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags))
 		return 0;
 
-	ret = wl12xx_cmd_set_peer_state(wl, wl->sta_hlid);
+	ret = wl12xx_cmd_set_peer_state(wl, wlvif->sta.hlid);
 	if (ret < 0)
 		return ret;
 
@@ -1858,6 +1858,7 @@ static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
 	wlvif->bss_type = MAX_BSS_TYPE;
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
+	wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -2081,7 +2082,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	}
 deinit:
 	/* clear all hlids (except system_hlid) */
-	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
+	wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
 	wl->ap_bcast_hlid = WL12XX_INVALID_LINK_ID;
 	wl->ap_global_hlid = WL12XX_INVALID_LINK_ID;
@@ -2765,10 +2766,10 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 		/* don't remove key if hlid was already deleted */
 		if (action == KEY_REMOVE &&
-		    wl->sta_hlid == WL12XX_INVALID_LINK_ID)
+		    wlvif->sta.hlid == WL12XX_INVALID_LINK_ID)
 			return 0;
 
-		ret = wl1271_cmd_set_sta_key(wl, action,
+		ret = wl1271_cmd_set_sta_key(wl, vif, action,
 					     id, key_type, key_size,
 					     key, addr, tx_seq_32,
 					     tx_seq_16);
@@ -2779,7 +2780,7 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (key_type == KEY_WEP) {
 			ret = wl12xx_cmd_set_default_wep_key(wl,
 							     wl->default_key,
-							     wl->sta_hlid);
+							     wlvif->sta.hlid);
 			if (ret < 0)
 				return ret;
 		}
@@ -3731,7 +3732,7 @@ sta_not_found:
 			ret = wl1271_acx_set_ht_capabilities(wl,
 							     &sta_ht_cap,
 							     true,
-							     wl->sta_hlid);
+							     wlvif->sta.hlid);
 			if (ret < 0) {
 				wl1271_warning("Set ht cap true failed %d",
 					       ret);
@@ -3743,7 +3744,7 @@ sta_not_found:
 			ret = wl1271_acx_set_ht_capabilities(wl,
 							     &sta_ht_cap,
 							     false,
-							     wl->sta_hlid);
+							     wlvif->sta.hlid);
 			if (ret < 0) {
 				wl1271_warning("Set ht cap false failed %d",
 					       ret);
@@ -4080,7 +4081,7 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 	}
 
 	if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
-		hlid = wl->sta_hlid;
+		hlid = wlvif->sta.hlid;
 		ba_bitmap = &wl->ba_rx_bitmap;
 	} else if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
 		struct wl1271_station *wl_sta;
@@ -4888,7 +4889,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->tx_security_last_seq_lsb = 0;
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
-	wl->sta_hlid = WL12XX_INVALID_LINK_ID;
 	wl->dev_hlid = WL12XX_INVALID_LINK_ID;
 	wl->session_counter = 0;
 	wl->ap_bcast_hlid = WL12XX_INVALID_LINK_ID;

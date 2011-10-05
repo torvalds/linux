@@ -42,7 +42,7 @@ static int wl1271_set_default_wep_key(struct wl1271 *wl,
 		ret = wl12xx_cmd_set_default_wep_key(wl, id,
 						     wl->ap_bcast_hlid);
 	else
-		ret = wl12xx_cmd_set_default_wep_key(wl, id, wl->sta_hlid);
+		ret = wl12xx_cmd_set_default_wep_key(wl, id, wlvif->sta.hlid);
 
 	if (ret < 0)
 		return ret;
@@ -199,7 +199,7 @@ static u8 wl1271_tx_get_hlid(struct wl1271 *wl, struct ieee80211_vif *vif,
 	     test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags)) &&
 	    !ieee80211_is_auth(hdr->frame_control) &&
 	    !ieee80211_is_assoc_req(hdr->frame_control))
-		return wl->sta_hlid;
+		return wlvif->sta.hlid;
 	else
 		return wl->dev_hlid;
 }
