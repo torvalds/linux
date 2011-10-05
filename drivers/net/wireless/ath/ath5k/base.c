@@ -921,12 +921,6 @@ ath5k_txq_setup(struct ath5k_hw *ah,
 		 */
 		return ERR_PTR(qnum);
 	}
-	if (qnum >= ARRAY_SIZE(ah->txqs)) {
-		ATH5K_ERR(ah, "hw qnum %u out of range, max %tu!\n",
-			qnum, ARRAY_SIZE(ah->txqs));
-		ath5k_hw_release_tx_queue(ah, qnum);
-		return ERR_PTR(-EINVAL);
-	}
 	txq = &ah->txqs[qnum];
 	if (!txq->setup) {
 		txq->qnum = qnum;
