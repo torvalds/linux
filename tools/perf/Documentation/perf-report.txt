@@ -137,6 +137,8 @@ OPTIONS
 -M::
 --disassembler-style=:: Set disassembler style for objdump.
 
+--show-total-period:: Show a column with the sum of periods.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1]

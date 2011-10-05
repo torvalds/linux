@@ -664,6 +664,13 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 			ret += snprintf(s + ret, size - ret, "%11" PRIu64, nr_events);
 	}
 
+	if (symbol_conf.show_total_period) {
+		if (sep)
+			ret += snprintf(s + ret, size - ret, "%c%" PRIu64, *sep, period);
+		else
+			ret += snprintf(s + ret, size - ret, " %12" PRIu64, period);
+	}
+
 	if (pair_hists) {
 		char bf[32];
 		double old_percent = 0, new_percent = 0, diff;
@@ -770,6 +777,13 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 			fputs("  Samples  ", fp);
 	}
 
+	if (symbol_conf.show_total_period) {
+		if (sep)
+			ret += fprintf(fp, "%cPeriod", *sep);
+		else
+			ret += fprintf(fp, "   Period    ");
+	}
+
 	if (symbol_conf.show_cpu_utilization) {
 		if (sep) {
 			ret += fprintf(fp, "%csys", *sep);
@@ -834,6 +848,8 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 	fprintf(fp, "# ........");
 	if (symbol_conf.show_nr_samples)
 		fprintf(fp, " ..........");
+	if (symbol_conf.show_total_period)
+		fprintf(fp, " ............");
 	if (pair) {
 		fprintf(fp, " ..........");
 		if (show_displacement)
@@ -916,6 +932,9 @@ unsigned int hists__sort_list_width(struct hists *hists)
 
 	if (symbol_conf.show_nr_samples)
 		ret += 11;
+
+	if (symbol_conf.show_total_period)
+		ret += 13;
 
 	list_for_each_entry(se, &hist_entry__sort_list, list)
 		if (!se->elide)
