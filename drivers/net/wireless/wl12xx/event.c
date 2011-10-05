@@ -38,9 +38,9 @@ void wl1271_pspoll_work(struct work_struct *work)
 	int ret;
 
 	dwork = container_of(work, struct delayed_work, work);
-	wl = container_of(dwork, struct wl1271, pspoll_work);
-	vif = wl->vif; /* TODO: move work into vif struct */
-	wlvif = wl12xx_vif_to_data(vif);
+	wlvif = container_of(dwork, struct wl12xx_vif, pspoll_work);
+	vif = container_of((void *)wlvif, struct ieee80211_vif, drv_priv);
+	wl = wlvif->wl;
 
 	wl1271_debug(DEBUG_EVENT, "pspoll work");
 
@@ -90,7 +90,7 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl,
 		if (ret < 0)
 			return;
 		set_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
-		ieee80211_queue_delayed_work(wl->hw, &wl->pspoll_work,
+		ieee80211_queue_delayed_work(wl->hw, &wlvif->pspoll_work,
 					     msecs_to_jiffies(delay));
 	}
 

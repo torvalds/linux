@@ -1766,7 +1766,7 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 
 	wl1271_enable_interrupts(wl);
 	flush_work(&wl->tx_work);
-	flush_delayed_work(&wl->pspoll_work);
+	flush_delayed_work(&wlvif->pspoll_work);
 	flush_delayed_work(&wl->elp_work);
 
 	return 0;
@@ -1902,6 +1902,8 @@ static int wl12xx_init_vif_data(struct ieee80211_vif *vif)
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->beacon_int = WL1271_DEFAULT_BEACON_INT;
 
+	INIT_DELAYED_WORK(&wlvif->pspoll_work, wl1271_pspoll_work);
+
 	return 0;
 }
 
@@ -1941,6 +1943,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	wlvif->wl = wl;
 	role_type = wl12xx_get_role_type(wl, wlvif);
 	if (role_type == WL12XX_INVALID_ROLE_TYPE) {
 		ret = -EINVAL;
@@ -2126,7 +2129,7 @@ deinit:
 	del_timer_sync(&wl->rx_streaming_timer);
 	cancel_work_sync(&wl->rx_streaming_enable_work);
 	cancel_work_sync(&wl->rx_streaming_disable_work);
-	cancel_delayed_work_sync(&wl->pspoll_work);
+	cancel_delayed_work_sync(&wlvif->pspoll_work);
 	cancel_delayed_work_sync(&wl->elp_work);
 
 	mutex_lock(&wl->mutex);
@@ -4874,7 +4877,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	skb_queue_head_init(&wl->deferred_tx_queue);
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
-	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
 	INIT_WORK(&wl->netstack_work, wl1271_netstack_work);
 	INIT_WORK(&wl->tx_work, wl1271_tx_work);
 	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
