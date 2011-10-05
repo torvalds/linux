@@ -177,7 +177,7 @@ static irqreturn_t mpc85xx_8259_cascade_action(int irq, void *dev_id)
 
 static struct irqaction mpc85xxcds_8259_irqaction = {
 	.handler = mpc85xx_8259_cascade_action,
-	.flags = IRQF_SHARED,
+	.flags = IRQF_SHARED | IRQF_NO_THREAD,
 	.name = "8259 cascade",
 };
 #endif /* PPC_I8259 */
