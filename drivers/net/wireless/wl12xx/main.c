@@ -4106,7 +4106,7 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 
 	if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
 		hlid = wlvif->sta.hlid;
-		ba_bitmap = &wl->ba_rx_bitmap;
+		ba_bitmap = &wlvif->sta.ba_rx_bitmap;
 	} else if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
 		struct wl1271_station *wl_sta;
 
@@ -4127,7 +4127,7 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (!wl->ba_support || !wl->ba_allowed) {
+		if (!wlvif->ba_support || !wlvif->ba_allowed) {
 			ret = -ENOTSUPP;
 			break;
 		}

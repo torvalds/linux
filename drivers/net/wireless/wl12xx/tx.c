@@ -941,7 +941,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			}
 		}
 
-		wl->ba_rx_bitmap = 0;
+		wlvif->sta.ba_rx_bitmap = 0;
 	}
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)

@@ -546,11 +546,6 @@ struct wl1271 {
 	/* bands supported by this instance of wl12xx */
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
-	/* RX BA constraint value */
-	bool ba_support;
-	u8 ba_rx_bitmap;
-	bool ba_allowed;
-
 	int tcxo_clock;
 
 	/*
@@ -605,6 +600,7 @@ struct wl12xx_vif {
 	union {
 		struct {
 			u8 hlid;
+			u8 ba_rx_bitmap;
 		} sta;
 		struct {
 			u8 global_hlid;
@@ -652,6 +648,10 @@ struct wl12xx_vif {
 
 	int rssi_thold;
 	int last_rssi_event;
+
+	/* RX BA constraint value */
+	bool ba_support;
+	bool ba_allowed;
 };
 
 static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)

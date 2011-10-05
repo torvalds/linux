@@ -184,9 +184,9 @@ static void wl1271_event_rssi_trigger(struct wl1271 *wl,
 static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
-		if (!wl->ba_rx_bitmap)
+		if (!wlvif->sta.ba_rx_bitmap)
 			return;
-		ieee80211_stop_rx_ba_session(wl->vif, wl->ba_rx_bitmap,
+		ieee80211_stop_rx_ba_session(wl->vif, wlvif->sta.ba_rx_bitmap,
 					     wl->vif->bss_conf.bssid);
 	} else {
 		int i;
@@ -306,9 +306,9 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		wl1271_debug(DEBUG_EVENT, "BA_SESSION_RX_CONSTRAINT_EVENT_ID. "
 			     "ba_allowed = 0x%x", mbox->rx_ba_allowed);
 
-		wl->ba_allowed = !!mbox->rx_ba_allowed;
+		wlvif->ba_allowed = !!mbox->rx_ba_allowed;
 
-		if (wl->vif && !wl->ba_allowed)
+		if (wl->vif && !wlvif->ba_allowed)
 			wl1271_stop_ba_event(wl, wlvif);
 	}
 
