@@ -2154,7 +2154,7 @@ void __init db8500_prcmu_early_init(void)
 	}
 }
 
-static void __init init_prcm_registers(void)
+static void __init db8500_prcmu_init_clkforce(void)
 {
 	u32 val;
 
@@ -2412,7 +2412,7 @@ static int __init db8500_prcmu_probe(struct platform_device *pdev)
 	if (ux500_is_svp())
 		return -ENODEV;
 
-	init_prcm_registers();
+	db8500_prcmu_init_clkforce();
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);
