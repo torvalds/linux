@@ -979,8 +979,8 @@ static inline unsigned int make_sgl(const struct sk_buff *skb,
 	for (i = 0; i < nfrags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		mapping = pci_map_page(pdev, frag->page, frag->page_offset,
-				       frag->size, PCI_DMA_TODEVICE);
+		mapping = skb_frag_dma_map(&pdev->dev, frag, 0, frag->size,
+					   PCI_DMA_TODEVICE);
 		sgp->len[j] = cpu_to_be32(frag->size);
 		sgp->addr[j] = cpu_to_be64(mapping);
 		j ^= 1;
@@ -2116,7 +2116,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	len -= offset;
 
 	rx_frag += nr_frags;
-	rx_frag->page = sd->pg_chunk.page;
+	__skb_frag_set_page(rx_frag, sd->pg_chunk.page);
 	rx_frag->page_offset = sd->pg_chunk.offset + offset;
 	rx_frag->size = len;
 
