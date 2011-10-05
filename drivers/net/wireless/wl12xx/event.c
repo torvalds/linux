@@ -184,7 +184,7 @@ static void wl1271_stop_ba_event(struct wl1271 *wl)
 		if (!wl->ba_rx_bitmap)
 			return;
 		ieee80211_stop_rx_ba_session(wl->vif, wl->ba_rx_bitmap,
-					     wl->bssid);
+					     wl->vif->bss_conf.bssid);
 	} else {
 		int i;
 		struct wl1271_link *lnk;

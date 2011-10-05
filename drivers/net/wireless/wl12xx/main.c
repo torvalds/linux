@@ -2098,7 +2098,6 @@ deinit:
 	wl1271_tx_reset(wl, reset_tx_queues);
 	wl1271_power_off(wl);
 
-	memset(wl->bssid, 0, ETH_ALEN);
 	memset(wl->ssid, 0, IEEE80211_MAX_SSID_LEN + 1);
 	wl->ssid_len = 0;
 	wl->bss_type = MAX_BSS_TYPE;
@@ -2248,8 +2247,6 @@ static int wl1271_unjoin(struct wl1271 *wl)
 	ret = wl12xx_cmd_role_stop_sta(wl);
 	if (ret < 0)
 		goto out;
-
-	memset(wl->bssid, 0, ETH_ALEN);
 
 	/* reset TX security counters on a clean disconnect */
 	wl->tx_security_last_seq_lsb = 0;
@@ -3449,15 +3446,8 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		wl->rssi_thold = bss_conf->cqm_rssi_thold;
 	}
 
-	if ((changed & BSS_CHANGED_BSSID) &&
-	    /*
-	     * Now we know the correct bssid, so we send a new join command
-	     * and enable the BSSID filter
-	     */
-	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
-		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
-
-		if (!is_zero_ether_addr(wl->bssid)) {
+	if (changed & BSS_CHANGED_BSSID)
+		if (!is_zero_ether_addr(bss_conf->bssid)) {
 			ret = wl12xx_cmd_build_null_data(wl, wlvif);
 			if (ret < 0)
 				goto out;
@@ -3469,7 +3459,6 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			/* Need to update the BSSID (for filtering etc) */
 			do_join = true;
 		}
-	}
 
 	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_HT)) {
 		rcu_read_lock();

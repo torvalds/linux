@@ -557,6 +557,7 @@ out:
 
 int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct wl12xx_cmd_role_start *cmd;
 	int ret;
 
@@ -577,7 +578,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->sta.ssid_type = WL12XX_SSID_TYPE_ANY;
 	cmd->sta.ssid_len = wl->ssid_len;
 	memcpy(cmd->sta.ssid, wl->ssid, wl->ssid_len);
-	memcpy(cmd->sta.bssid, wl->bssid, ETH_ALEN);
+	memcpy(cmd->sta.bssid, vif->bss_conf.bssid, ETH_ALEN);
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
 	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID) {
@@ -769,6 +770,7 @@ out:
 
 int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct wl12xx_cmd_role_start *cmd;
 	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
 	int ret;
@@ -791,7 +793,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->ibss.ssid_type = WL12XX_SSID_TYPE_ANY;
 	cmd->ibss.ssid_len = wl->ssid_len;
 	memcpy(cmd->ibss.ssid, wl->ssid, wl->ssid_len);
-	memcpy(cmd->ibss.bssid, wl->bssid, ETH_ALEN);
+	memcpy(cmd->ibss.bssid, vif->bss_conf.bssid, ETH_ALEN);
 	cmd->sta.local_rates = cpu_to_le32(wlvif->rate_set);
 
 	if (wl->sta_hlid == WL12XX_INVALID_LINK_ID) {
@@ -807,7 +809,8 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		     wl->role_id, cmd->sta.hlid, cmd->sta.session,
 		     wlvif->basic_rate_set, wlvif->rate_set);
 
-	wl1271_debug(DEBUG_CMD, "wl->bssid = %pM", wl->bssid);
+	wl1271_debug(DEBUG_CMD, "vif->bss_conf.bssid = %pM",
+		     vif->bss_conf.bssid);
 
 	ret = wl1271_cmd_send(wl, CMD_ROLE_START, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
@@ -1213,9 +1216,9 @@ int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 
 	memset(&template, 0, sizeof(template));
 
-	memcpy(template.addr1, wl->bssid, ETH_ALEN);
+	memcpy(template.addr1, vif->bss_conf.bssid, ETH_ALEN);
 	memcpy(template.addr2, vif->addr, ETH_ALEN);
-	memcpy(template.addr3, wl->bssid, ETH_ALEN);
+	memcpy(template.addr3, vif->bss_conf.bssid, ETH_ALEN);
 
 	template.frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					     IEEE80211_STYPE_QOS_NULLFUNC |
