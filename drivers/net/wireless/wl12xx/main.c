@@ -379,7 +379,7 @@ static bool bug_on_recovery;
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 struct ieee80211_vif *vif,
 					 bool reset_tx_queues);
-static void wl1271_free_ap_keys(struct wl1271 *wl);
+static void wl1271_free_ap_keys(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 
 
 static void wl1271_device_release(struct device *dev)
@@ -2132,7 +2132,7 @@ deinit:
 	wl->bitrate_masks[IEEE80211_BAND_5GHZ] = wl->conf.tx.basic_rate_5;
 	wl->vif = NULL;
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
-	wl1271_free_ap_keys(wl);
+	wl1271_free_ap_keys(wl, wlvif);
 	memset(wlvif->ap.sta_hlid_map, 0, sizeof(wlvif->ap.sta_hlid_map));
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
@@ -2603,9 +2603,10 @@ out:
 	kfree(fp);
 }
 
-static int wl1271_record_ap_key(struct wl1271 *wl, u8 id, u8 key_type,
-			u8 key_size, const u8 *key, u8 hlid, u32 tx_seq_32,
-			u16 tx_seq_16)
+static int wl1271_record_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				u8 id, u8 key_type, u8 key_size,
+				const u8 *key, u8 hlid, u32 tx_seq_32,
+				u16 tx_seq_16)
 {
 	struct wl1271_ap_key *ap_key;
 	int i;
@@ -2620,10 +2621,10 @@ static int wl1271_record_ap_key(struct wl1271 *wl, u8 id, u8 key_type,
 	 * an existing key.
 	 */
 	for (i = 0; i < MAX_NUM_KEYS; i++) {
-		if (wl->recorded_ap_keys[i] == NULL)
+		if (wlvif->ap.recorded_keys[i] == NULL)
 			break;
 
-		if (wl->recorded_ap_keys[i]->id == id) {
+		if (wlvif->ap.recorded_keys[i]->id == id) {
 			wl1271_warning("trying to record key replacement");
 			return -EINVAL;
 		}
@@ -2644,17 +2645,17 @@ static int wl1271_record_ap_key(struct wl1271 *wl, u8 id, u8 key_type,
 	ap_key->tx_seq_32 = tx_seq_32;
 	ap_key->tx_seq_16 = tx_seq_16;
 
-	wl->recorded_ap_keys[i] = ap_key;
+	wlvif->ap.recorded_keys[i] = ap_key;
 	return 0;
 }
 
-static void wl1271_free_ap_keys(struct wl1271 *wl)
+static void wl1271_free_ap_keys(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int i;
 
 	for (i = 0; i < MAX_NUM_KEYS; i++) {
-		kfree(wl->recorded_ap_keys[i]);
-		wl->recorded_ap_keys[i] = NULL;
+		kfree(wlvif->ap.recorded_keys[i]);
+		wlvif->ap.recorded_keys[i] = NULL;
 	}
 }
 
@@ -2666,10 +2667,10 @@ static int wl1271_ap_init_hwenc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	for (i = 0; i < MAX_NUM_KEYS; i++) {
 		u8 hlid;
-		if (wl->recorded_ap_keys[i] == NULL)
+		if (wlvif->ap.recorded_keys[i] == NULL)
 			break;
 
-		key = wl->recorded_ap_keys[i];
+		key = wlvif->ap.recorded_keys[i];
 		hlid = key->hlid;
 		if (hlid == WL12XX_INVALID_LINK_ID)
 			hlid = wlvif->ap.bcast_hlid;
@@ -2694,7 +2695,7 @@ static int wl1271_ap_init_hwenc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	}
 
 out:
-	wl1271_free_ap_keys(wl);
+	wl1271_free_ap_keys(wl, wlvif);
 	return ret;
 }
 
@@ -2725,7 +2726,7 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			if (action != KEY_ADD_OR_REPLACE)
 				return 0;
 
-			ret = wl1271_record_ap_key(wl, id,
+			ret = wl1271_record_ap_key(wl, wlvif, id,
 					     key_type, key_size,
 					     key, hlid, tx_seq_32,
 					     tx_seq_16);
