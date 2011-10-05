@@ -110,7 +110,7 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __used,
 }
 
 static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
-					   int evidx __used,
+					   int evidx __used, int nr_events __used,
 					   void(*timer)(void *arg) __used,
 					   void *arg __used, int delay_secs __used);
 {
@@ -120,7 +120,7 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 #define KEY_RIGHT -2
 #else
 #include <newt.h>
-int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
+int hist_entry__tui_annotate(struct hist_entry *he, int evidx, int nr_events,
 			     void(*timer)(void *arg), void *arg, int delay_secs);
 
 #define KEY_LEFT NEWT_KEY_LEFT

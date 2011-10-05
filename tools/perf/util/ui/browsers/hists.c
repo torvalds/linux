@@ -825,7 +825,7 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 	return printed;
 }
 
-static int perf_evsel__hists_browse(struct perf_evsel *evsel,
+static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    const char *helpline, const char *ev_name,
 				    bool left_exits,
 				    void(*timer)(void *arg), void *arg,
@@ -968,7 +968,7 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			hist_entry__tui_annotate(he, evsel->idx,
+			hist_entry__tui_annotate(he, evsel->idx, nr_events,
 						 timer, arg, delay_secs);
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
@@ -1042,7 +1042,8 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		menu->selection = evsel;
 }
 
-static int perf_evsel_menu__run(struct perf_evsel_menu *menu, const char *help,
+static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
+				int nr_events, const char *help,
 				void(*timer)(void *arg), void *arg, int delay_secs)
 {
 	int exit_keys[] = { NEWT_KEY_ENTER, NEWT_KEY_RIGHT, 0, };
@@ -1077,8 +1078,9 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu, const char *help,
 			perf_evlist__set_selected(evlist, pos);
 browse_hists:
 			ev_name = event_name(pos);
-			key = perf_evsel__hists_browse(pos, help, ev_name, true,
-						       timer, arg, delay_secs);
+			key = perf_evsel__hists_browse(pos, nr_events, help,
+						       ev_name, true, timer,
+						       arg, delay_secs);
 			ui_browser__show_title(&menu->b, title);
 			break;
 		case NEWT_KEY_LEFT:
@@ -1150,7 +1152,8 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 			pos->name = strdup(ev_name);
 	}
 
-	return perf_evsel_menu__run(&menu, help, timer, arg, delay_secs);
+	return perf_evsel_menu__run(&menu, evlist->nr_entries, help, timer,
+				    arg, delay_secs);
 }
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
@@ -1162,8 +1165,9 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 		struct perf_evsel *first = list_entry(evlist->entries.next,
 						      struct perf_evsel, node);
 		const char *ev_name = event_name(first);
-		return perf_evsel__hists_browse(first, help, ev_name, false,
-						timer, arg, delay_secs);
+		return perf_evsel__hists_browse(first, evlist->nr_entries, help,
+						ev_name, false, timer, arg,
+						delay_secs);
 	}
 
 	return __perf_evlist__tui_browse_hists(evlist, help,

@@ -114,7 +114,8 @@ static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
 				    print_line, full_paths, 0, 0);
 }
 
-static void hists__find_annotations(struct hists *self, int evidx)
+static void hists__find_annotations(struct hists *self, int evidx,
+				    int nr_events)
 {
 	struct rb_node *nd = rb_first(&self->entries), *next;
 	int key = KEY_RIGHT;
@@ -137,7 +138,8 @@ find_next:
 		}
 
 		if (use_browser > 0) {
-			key = hist_entry__tui_annotate(he, evidx, NULL, NULL, 0);
+			key = hist_entry__tui_annotate(he, evidx, nr_events,
+						       NULL, NULL, 0);
 			switch (key) {
 			case KEY_RIGHT:
 				next = rb_next(nd);
@@ -215,7 +217,8 @@ static int __cmd_annotate(void)
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists);
 			hists__output_resort(hists);
-			hists__find_annotations(hists, pos->idx);
+			hists__find_annotations(hists, pos->idx,
+						session->evlist->nr_entries);
 		}
 	}
 

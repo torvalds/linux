@@ -20,6 +20,7 @@ struct annotate_browser {
 	struct ui_browser b;
 	struct rb_root	  entries;
 	struct rb_node	  *curr_hot;
+	struct objdump_line *selection;
 };
 
 struct objdump_line_rb_node {
@@ -36,6 +37,7 @@ struct objdump_line_rb_node *objdump_line__rb(struct objdump_line *self)
 
 static void annotate_browser__write(struct ui_browser *self, void *entry, int row)
 {
+	struct annotate_browser *ab = container_of(self, struct annotate_browser, b);
 	struct objdump_line *ol = rb_entry(entry, struct objdump_line, node);
 	bool current_entry = ui_browser__is_current_entry(self, row);
 	int width = self->width;
@@ -58,6 +60,8 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 
 	if (!current_entry)
 		ui_browser__set_color(self, HE_COLORSET_CODE);
+	else
+		ab->selection = ol;
 }
 
 static double objdump_line__calc_percent(struct objdump_line *self,
@@ -141,7 +145,8 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 static void annotate_browser__calc_percent(struct annotate_browser *browser,
 					   int evidx)
 {
-	struct symbol *sym = browser->b.priv;
+	struct map_symbol *ms = browser->b.priv;
+	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
 	struct objdump_line *pos;
 
@@ -164,17 +169,18 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 }
 
 static int annotate_browser__run(struct annotate_browser *self, int evidx,
-				 void(*timer)(void *arg) __used, void *arg __used,
-				 int delay_secs)
+				 int nr_events, void(*timer)(void *arg),
+				 void *arg, int delay_secs)
 {
 	struct rb_node *nd = NULL;
-	struct symbol *sym = self->b.priv;
+	struct map_symbol *ms = self->b.priv;
+	struct symbol *sym = ms->sym;
 	/*
 	 * RIGHT To allow builtin-annotate to cycle thru multiple symbols by
 	 * examining the exit key for this function.
 	 */
 	int exit_keys[] = { 'H', NEWT_KEY_TAB, NEWT_KEY_UNTAB,
-			    NEWT_KEY_RIGHT, 0 };
+			    NEWT_KEY_RIGHT, NEWT_KEY_ENTER, 0 };
 	int key;
 
 	if (ui_browser__show(&self->b, sym->name,
@@ -238,6 +244,42 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		case 'H':
 			nd = self->curr_hot;
 			break;
+		case NEWT_KEY_ENTER:
+			if (self->selection != NULL) {
+				char *s = strstr(self->selection->line, "callq ");
+				struct annotation *notes;
+				struct symbol *target;
+				u64 ip;
+
+				if (s == NULL)
+					continue;
+
+				s = strchr(s, ' ');
+				if (s++ == NULL)
+					continue;
+
+				ip = strtoull(s, NULL, 16);
+				ip = ms->map->map_ip(ms->map, ip);
+				target = map__find_symbol(ms->map, ip, NULL);
+				if (target == NULL)
+					continue;
+
+				notes = symbol__annotation(target);
+				pthread_mutex_lock(&notes->lock);
+
+				if (notes->src == NULL &&
+				    symbol__alloc_hist(target, nr_events) < 0) {
+					pthread_mutex_unlock(&notes->lock);
+					ui__warning("Not enough memory for annotating '%s' symbol!\n",
+						    target->name);
+					continue;
+				}
+
+				pthread_mutex_unlock(&notes->lock);
+				symbol__tui_annotate(target, ms->map, evidx, nr_events,
+						     timer, arg, delay_secs);
+			}
+			break;
 		default:
 			goto out;
 		}
@@ -250,25 +292,29 @@ out:
 	return key;
 }
 
-int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
+int hist_entry__tui_annotate(struct hist_entry *he, int evidx, int nr_events,
 			     void(*timer)(void *arg), void *arg, int delay_secs)
 {
-	return symbol__tui_annotate(he->ms.sym, he->ms.map, evidx,
+	return symbol__tui_annotate(he->ms.sym, he->ms.map, evidx, nr_events,
 				    timer, arg, delay_secs);
 }
 
 int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
-			void(*timer)(void *arg), void *arg,
-			int delay_secs)
+			 int nr_events, void(*timer)(void *arg), void *arg,
+			 int delay_secs)
 {
 	struct objdump_line *pos, *n;
 	struct annotation *notes;
+	struct map_symbol ms = {
+		.map = map,
+		.sym = sym,
+	};
 	struct annotate_browser browser = {
 		.b = {
 			.refresh = ui_browser__list_head_refresh,
 			.seek	 = ui_browser__list_head_seek,
 			.write	 = annotate_browser__write,
-			.priv	 = sym,
+			.priv	 = &ms,
 		},
 	};
 	int ret;
@@ -300,7 +346,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
-	ret = annotate_browser__run(&browser, evidx, timer, arg, delay_secs);
+	ret = annotate_browser__run(&browser, evidx, nr_events,
+				    timer, arg, delay_secs);
 	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
 		objdump_line__free(pos);

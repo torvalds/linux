@@ -99,7 +99,7 @@ static inline int symbol__tui_annotate(struct symbol *sym __used,
 }
 #else
 int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
-			 void(*timer)(void *arg), void *arg,
+			 int nr_events, void(*timer)(void *arg), void *arg,
 			 int delay_secs);
 #endif
 
