@@ -2141,7 +2141,6 @@ deinit:
 	wl->band = IEEE80211_BAND_2GHZ;
 
 	wl->rx_counter = 0;
-	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
 	wl->tx_allocated_blocks = 0;
@@ -3540,7 +3539,7 @@ sta_not_found:
 			wlvif->aid = bss_conf->aid;
 			set_assoc = true;
 
-			wl->ps_poll_failures = 0;
+			wlvif->ps_poll_failures = 0;
 
 			/*
 			 * use basic rates from AP, and determine lowest rate
@@ -4894,7 +4893,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	wl->channel = WL1271_DEFAULT_CHANNEL;
 	wl->rx_counter = 0;
-	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;

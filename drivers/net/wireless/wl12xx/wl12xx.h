@@ -511,12 +511,6 @@ struct wl1271 {
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
 
-	/* counter for ps-poll delivery failures */
-	int ps_poll_failures;
-
-	/* retry counter for PSM entries */
-	u8 psm_entry_retry;
-
 	/* in dBm */
 	int power_level;
 
@@ -652,6 +646,12 @@ struct wl12xx_vif {
 
 	struct completion *ps_compl;
 	struct delayed_work pspoll_work;
+
+	/* counter for ps-poll delivery failures */
+	int ps_poll_failures;
+
+	/* retry counter for PSM entries */
+	u8 psm_entry_retry;
 };
 
 static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)

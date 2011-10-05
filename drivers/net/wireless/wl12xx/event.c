@@ -78,8 +78,8 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl,
 	int delay = wl->conf.conn.ps_poll_recovery_period;
 	int ret;
 
-	wl->ps_poll_failures++;
-	if (wl->ps_poll_failures == 1)
+	wlvif->ps_poll_failures++;
+	if (wlvif->ps_poll_failures == 1)
 		wl1271_info("AP with dysfunctional ps-poll, "
 			    "trying to work around it.");
 
@@ -118,23 +118,23 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 		if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 			/* remain in active mode */
-			wl->psm_entry_retry = 0;
+			wlvif->psm_entry_retry = 0;
 			break;
 		}
 
-		if (wl->psm_entry_retry < total_retries) {
-			wl->psm_entry_retry++;
+		if (wlvif->psm_entry_retry < total_retries) {
+			wlvif->psm_entry_retry++;
 			ret = wl1271_ps_set_mode(wl, wlvif,
 						 STATION_POWER_SAVE_MODE,
 						 wlvif->basic_rate, true);
 		} else {
 			wl1271_info("No ack to nullfunc from AP.");
-			wl->psm_entry_retry = 0;
+			wlvif->psm_entry_retry = 0;
 			*beacon_loss = true;
 		}
 		break;
 	case EVENT_ENTER_POWER_SAVE_SUCCESS:
-		wl->psm_entry_retry = 0;
+		wlvif->psm_entry_retry = 0;
 
 		/* enable beacon filtering */
 		ret = wl1271_acx_beacon_filter_opt(wl, wlvif, true);
