@@ -1242,3 +1242,47 @@ int srom_var_init(struct si_pub *sih, void __iomem *curmap, char **vars,
 
 	return -EINVAL;
 }
+
+/*
+ * Search the name=value vars for a specific one and return its value.
+ * Returns NULL if not found.
+ */
+char *getvar(char *vars, const char *name)
+{
+	char *s;
+	int len;
+
+	if (!name)
+		return NULL;
+
+	len = strlen(name);
+	if (len == 0)
+		return NULL;
+
+	/* first look in vars[] */
+	for (s = vars; s && *s;) {
+		if ((memcmp(s, name, len) == 0) && (s[len] == '='))
+			return &s[len + 1];
+
+		while (*s++)
+			;
+	}
+	/* nothing found */
+	return NULL;
+}
+
+/*
+ * Search the vars for a specific one and return its value as
+ * an integer. Returns 0 if not found.
+ */
+int getintvar(char *vars, const char *name)
+{
+	char *val;
+	unsigned long res;
+
+	val = getvar(vars, name);
+	if (val && !kstrtoul(val, 0, &res))
+		return res;
+
+	return 0;
+}
