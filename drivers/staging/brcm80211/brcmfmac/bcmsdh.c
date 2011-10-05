@@ -362,16 +362,6 @@ int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 }
 EXPORT_SYMBOL(brcmf_sdio_remove);
 
-int brcmf_sdio_register(void)
-{
-	return brcmf_sdio_function_init();
-}
-
-void brcmf_sdio_unregister(void)
-{
-	brcmf_sdio_function_cleanup();
-}
-
 void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev, bool enable)
 {
 	if (enable)

@@ -211,10 +211,6 @@ extern int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw,
 extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
 /* platform specific/high level functions */
-extern int brcmf_sdio_function_init(void);
-extern int brcmf_sdio_register(void);
-extern void brcmf_sdio_unregister(void);
-extern void brcmf_sdio_function_cleanup(void);
 extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
 

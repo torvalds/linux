@@ -609,23 +609,15 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 #endif	/* CONFIG_PM_SLEEP */
 };
 
-/*
- * module init
-*/
-int brcmf_sdio_function_init(void)
+/* bus register interface */
+int brcmf_bus_register(void)
 {
-	int error = 0;
 	brcmf_dbg(TRACE, "Enter\n");
 
-	error = sdio_register_driver(&brcmf_sdmmc_driver);
-
-	return error;
+	return sdio_register_driver(&brcmf_sdmmc_driver);
 }
 
-/*
- * module cleanup
-*/
-void brcmf_sdio_function_cleanup(void)
+void brcmf_bus_unregister(void)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 

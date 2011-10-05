@@ -4533,20 +4533,6 @@ void brcmf_sdbrcm_disconnect(void *ptr)
 	brcmf_dbg(TRACE, "Disconnected\n");
 }
 
-int brcmf_bus_register(void)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	return brcmf_sdio_register();
-}
-
-void brcmf_bus_unregister(void)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	brcmf_sdio_unregister();
-}
-
 struct device *brcmf_bus_get_device(struct brcmf_bus *bus)
 {
 	return &bus->sdiodev->func[2]->dev;
