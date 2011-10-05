@@ -759,6 +759,8 @@ static int twl6040_put_volsw(struct snd_kcontrol *kcontrol,
 		out = &twl6040_priv->handsfree;
 		break;
 	default:
+		dev_warn(codec->dev, "%s: Unexpected register: 0x%02x\n",
+					__func__, mc->reg);
 		return -EINVAL;
 	}
 
