@@ -1210,6 +1210,7 @@ void ai_detach(struct si_pub *sih)
 		pcicore_deinit(sii->pch);
 	sii->pch = NULL;
 
+	srom_free_vars(sih);
 	kfree(sii);
 }
 

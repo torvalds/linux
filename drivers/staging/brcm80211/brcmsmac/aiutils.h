@@ -266,6 +266,7 @@ struct si_info {
 
 	struct pcicore_info *pch; /* PCI/E core handle */
 
+	struct list_head var_list; /* list of srom variables */
 	char *vars;
 	uint varsz;
 
