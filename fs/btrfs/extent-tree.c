@@ -3521,7 +3521,7 @@ again:
 			avail >>= 1;
 		 spin_unlock(&root->fs_info->free_chunk_lock);
 
-		if (used + orig_bytes < space_info->total_bytes + avail) {
+		if (used + num_bytes < space_info->total_bytes + avail) {
 			space_info->bytes_may_use += orig_bytes;
 			ret = 0;
 		}
