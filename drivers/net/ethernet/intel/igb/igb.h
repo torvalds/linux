@@ -47,6 +47,7 @@ struct igb_adapter;
 
 /* TX/RX descriptor defines */
 #define IGB_DEFAULT_TXD                  256
+#define IGB_DEFAULT_TX_WORK		 128
 #define IGB_MIN_TXD                       80
 #define IGB_MAX_TXD                     4096
 
@@ -177,6 +178,7 @@ struct igb_q_vector {
 
 	u32 eims_value;
 	u16 cpu;
+	u16 tx_work_limit;
 
 	u16 itr_val;
 	u8 set_itr;
@@ -266,6 +268,7 @@ struct igb_adapter {
 	u16 rx_itr;
 
 	/* TX */
+	u16 tx_work_limit;
 	u32 tx_timeout_count;
 	int num_tx_queues;
 	struct igb_ring *tx_ring[16];

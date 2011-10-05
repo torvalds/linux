@@ -136,8 +136,8 @@ static irqreturn_t igb_msix_ring(int irq, void *);
 static void igb_update_dca(struct igb_q_vector *);
 static void igb_setup_dca(struct igb_adapter *);
 #endif /* CONFIG_IGB_DCA */
-static bool igb_clean_tx_irq(struct igb_q_vector *);
 static int igb_poll(struct napi_struct *, int);
+static bool igb_clean_tx_irq(struct igb_q_vector *);
 static bool igb_clean_rx_irq(struct igb_q_vector *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
@@ -1120,6 +1120,7 @@ static void igb_map_tx_ring_to_vector(struct igb_adapter *adapter,
 	q_vector->tx_ring = adapter->tx_ring[ring_idx];
 	q_vector->tx_ring->q_vector = q_vector;
 	q_vector->itr_val = adapter->tx_itr_setting;
+	q_vector->tx_work_limit = adapter->tx_work_limit;
 	if (q_vector->itr_val && q_vector->itr_val <= 3)
 		q_vector->itr_val = IGB_START_ITR;
 }
@@ -2388,10 +2389,16 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
 
+	/* set default ring sizes */
 	adapter->tx_ring_count = IGB_DEFAULT_TXD;
 	adapter->rx_ring_count = IGB_DEFAULT_RXD;
+
+	/* set default ITR values */
 	adapter->rx_itr_setting = IGB_DEFAULT_ITR;
 	adapter->tx_itr_setting = IGB_DEFAULT_ITR;
+
+	/* set default work limits */
+	adapter->tx_work_limit = IGB_DEFAULT_TX_WORK;
 
 	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN +
 				  VLAN_HLEN;
@@ -5496,7 +5503,7 @@ static int igb_poll(struct napi_struct *napi, int budget)
 		igb_update_dca(q_vector);
 #endif
 	if (q_vector->tx_ring)
-		clean_complete = !!igb_clean_tx_irq(q_vector);
+		clean_complete = igb_clean_tx_irq(q_vector);
 
 	if (q_vector->rx_ring)
 		clean_complete &= igb_clean_rx_irq(q_vector, budget);
@@ -5578,64 +5585,69 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct igb_ring *tx_ring = q_vector->tx_ring;
-	struct net_device *netdev = tx_ring->netdev;
-	struct e1000_hw *hw = &adapter->hw;
-	struct igb_buffer *buffer_info;
-	union e1000_adv_tx_desc *tx_desc, *eop_desc;
+	struct igb_buffer *tx_buffer;
+	union e1000_adv_tx_desc *tx_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
-	unsigned int i, eop, count = 0;
-	bool cleaned = false;
+	unsigned int budget = q_vector->tx_work_limit;
+	u16 i = tx_ring->next_to_clean;
 
-	i = tx_ring->next_to_clean;
-	eop = tx_ring->buffer_info[i].next_to_watch;
-	eop_desc = IGB_TX_DESC(tx_ring, eop);
+	if (test_bit(__IGB_DOWN, &adapter->state))
+		return true;
 
-	while ((eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)) &&
-	       (count < tx_ring->count)) {
-		rmb();	/* read buffer_info after eop_desc status */
-		for (cleaned = false; !cleaned; count++) {
-			tx_desc = IGB_TX_DESC(tx_ring, i);
-			buffer_info = &tx_ring->buffer_info[i];
-			cleaned = (i == eop);
+	tx_buffer = &tx_ring->buffer_info[i];
+	tx_desc = IGB_TX_DESC(tx_ring, i);
 
-			if (buffer_info->skb) {
-				total_bytes += buffer_info->bytecount;
-				/* gso_segs is currently only valid for tcp */
-				total_packets += buffer_info->gso_segs;
-				igb_tx_hwtstamp(q_vector, buffer_info);
+	for (; budget; budget--) {
+		u16 eop = tx_buffer->next_to_watch;
+		union e1000_adv_tx_desc *eop_desc;
+
+		eop_desc = IGB_TX_DESC(tx_ring, eop);
+
+		/* if DD is not set pending work has not been completed */
+		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
+			break;
+
+		/* prevent any other reads prior to eop_desc being verified */
+		rmb();
+
+		do {
+			tx_desc->wb.status = 0;
+			if (likely(tx_desc == eop_desc)) {
+				eop_desc = NULL;
+
+				total_bytes += tx_buffer->bytecount;
+				total_packets += tx_buffer->gso_segs;
+				igb_tx_hwtstamp(q_vector, tx_buffer);
 			}
 
-			igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
-			tx_desc->wb.status = 0;
+			igb_unmap_and_free_tx_resource(tx_ring, tx_buffer);
 
+			tx_buffer++;
+			tx_desc++;
 			i++;
-			if (i == tx_ring->count)
+			if (unlikely(i == tx_ring->count)) {
 				i = 0;
-		}
-		eop = tx_ring->buffer_info[i].next_to_watch;
-		eop_desc = IGB_TX_DESC(tx_ring, eop);
+				tx_buffer = tx_ring->buffer_info;
+				tx_desc = IGB_TX_DESC(tx_ring, 0);
+			}
+		} while (eop_desc);
 	}
 
 	tx_ring->next_to_clean = i;
-
-	if (unlikely(count &&
-		     netif_carrier_ok(netdev) &&
-		     igb_desc_unused(tx_ring) >= IGB_TX_QUEUE_WAKE)) {
-		/* Make sure that anybody stopping the queue after this
-		 * sees the new next_to_clean.
-		 */
-		smp_mb();
-		if (__netif_subqueue_stopped(netdev, tx_ring->queue_index) &&
-		    !(test_bit(__IGB_DOWN, &adapter->state))) {
-			netif_wake_subqueue(netdev, tx_ring->queue_index);
-
-			u64_stats_update_begin(&tx_ring->tx_syncp);
-			tx_ring->tx_stats.restart_queue++;
-			u64_stats_update_end(&tx_ring->tx_syncp);
-		}
-	}
+	u64_stats_update_begin(&tx_ring->tx_syncp);
+	tx_ring->tx_stats.bytes += total_bytes;
+	tx_ring->tx_stats.packets += total_packets;
+	u64_stats_update_end(&tx_ring->tx_syncp);
+	tx_ring->total_bytes += total_bytes;
+	tx_ring->total_packets += total_packets;
 
 	if (tx_ring->detect_tx_hung) {
+		struct e1000_hw *hw = &adapter->hw;
+		u16 eop = tx_ring->buffer_info[i].next_to_watch;
+		union e1000_adv_tx_desc *eop_desc;
+
+		eop_desc = IGB_TX_DESC(tx_ring, eop);
+
 		/* Detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i */
 		tx_ring->detect_tx_hung = false;
@@ -5666,16 +5678,34 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				eop,
 				jiffies,
 				eop_desc->wb.status);
-			netif_stop_subqueue(netdev, tx_ring->queue_index);
+			netif_stop_subqueue(tx_ring->netdev,
+					    tx_ring->queue_index);
+
+			/* we are about to reset, no point in enabling stuff */
+			return true;
 		}
 	}
-	tx_ring->total_bytes += total_bytes;
-	tx_ring->total_packets += total_packets;
-	u64_stats_update_begin(&tx_ring->tx_syncp);
-	tx_ring->tx_stats.bytes += total_bytes;
-	tx_ring->tx_stats.packets += total_packets;
-	u64_stats_update_end(&tx_ring->tx_syncp);
-	return count < tx_ring->count;
+
+	if (unlikely(total_packets &&
+		     netif_carrier_ok(tx_ring->netdev) &&
+		     igb_desc_unused(tx_ring) >= IGB_TX_QUEUE_WAKE)) {
+		/* Make sure that anybody stopping the queue after this
+		 * sees the new next_to_clean.
+		 */
+		smp_mb();
+		if (__netif_subqueue_stopped(tx_ring->netdev,
+					     tx_ring->queue_index) &&
+		    !(test_bit(__IGB_DOWN, &adapter->state))) {
+			netif_wake_subqueue(tx_ring->netdev,
+					    tx_ring->queue_index);
+
+			u64_stats_update_begin(&tx_ring->tx_syncp);
+			tx_ring->tx_stats.restart_queue++;
+			u64_stats_update_end(&tx_ring->tx_syncp);
+		}
+	}
+
+	return !!budget;
 }
 
 static inline void igb_rx_checksum(struct igb_ring *ring,
