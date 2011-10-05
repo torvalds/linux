@@ -33,22 +33,27 @@ struct mfb_chroma_key {
 };
 
 struct aoi_display_offset {
-	int x_aoi_d;
-	int y_aoi_d;
+	__s32 x_aoi_d;
+	__s32 y_aoi_d;
 };
 
 #define MFB_SET_CHROMA_KEY	_IOW('M', 1, struct mfb_chroma_key)
 #define MFB_SET_BRIGHTNESS	_IOW('M', 3, __u8)
+#define MFB_SET_ALPHA		_IOW('M', 0, __u8)
+#define MFB_GET_ALPHA		_IOR('M', 0, __u8)
+#define MFB_SET_AOID		_IOW('M', 4, struct aoi_display_offset)
+#define MFB_GET_AOID		_IOR('M', 4, struct aoi_display_offset)
+#define MFB_SET_PIXFMT		_IOW('M', 8, __u32)
+#define MFB_GET_PIXFMT		_IOR('M', 8, __u32)
 
-#define MFB_SET_ALPHA		0x80014d00
-#define MFB_GET_ALPHA		0x40014d00
-#define MFB_SET_AOID		0x80084d04
-#define MFB_GET_AOID		0x40084d04
-#define MFB_SET_PIXFMT		0x80014d08
-#define MFB_GET_PIXFMT		0x40014d08
-
-#define FBIOGET_GWINFO		0x46E0
-#define FBIOPUT_GWINFO		0x46E1
+/*
+ * The original definitions of MFB_SET_PIXFMT and MFB_GET_PIXFMT used the
+ * wrong value for 'size' field of the ioctl.  The current macros above use the
+ * right size, but we still need to provide backwards compatibility, at least
+ * for a while.
+*/
+#define MFB_SET_PIXFMT_OLD	0x80014d08
+#define MFB_GET_PIXFMT_OLD	0x40014d08
 
 #ifdef __KERNEL__
 #include <linux/spinlock.h>

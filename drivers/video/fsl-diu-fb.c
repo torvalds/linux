@@ -966,11 +966,19 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 	if (!arg)
 		return -EINVAL;
 	switch (cmd) {
+	case MFB_SET_PIXFMT_OLD:
+		dev_warn(info->dev,
+			 "MFB_SET_PIXFMT value of 0x%08x is deprecated.\n",
+			 MFB_SET_PIXFMT_OLD);
 	case MFB_SET_PIXFMT:
 		if (copy_from_user(&pix_fmt, buf, sizeof(pix_fmt)))
 			return -EFAULT;
 		ad->pix_fmt = pix_fmt;
 		break;
+	case MFB_GET_PIXFMT_OLD:
+		dev_warn(info->dev,
+			 "MFB_GET_PIXFMT value of 0x%08x is deprecated.\n",
+			 MFB_GET_PIXFMT_OLD);
 	case MFB_GET_PIXFMT:
 		pix_fmt = ad->pix_fmt;
 		if (copy_to_user(buf, &pix_fmt, sizeof(pix_fmt)))
@@ -1030,14 +1038,6 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 			ad->ckmin_b = ck.blue_min;
 		}
 		break;
-	case FBIOGET_GWINFO:
-		if (mfbi->type == MFB_TYPE_OFF)
-			return -ENODEV;
-		/* get graphic window information */
-		if (copy_to_user(buf, ad, sizeof(*ad)))
-			return -EFAULT;
-		break;
-
 	default:
 		dev_err(info->dev, "unknown ioctl command (0x%08X)\n", cmd);
 		return -ENOIOCTLCMD;
