@@ -825,6 +825,10 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 		rtnl_unlock();
 	}
 
+	priv = adapter->priv[0];
+	if (!priv)
+		goto exit_remove;
+
 	wiphy_unregister(priv->wdev->wiphy);
 	wiphy_free(priv->wdev->wiphy);
 	kfree(priv->wdev);

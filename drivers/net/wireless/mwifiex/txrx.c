@@ -87,7 +87,8 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 			(adapter->pps_uapsd_mode) &&
 			(adapter->tx_lock_flag)) {
 				priv->adapter->tx_lock_flag = false;
-				local_tx_pd->flags = 0;
+				if (local_tx_pd)
+					local_tx_pd->flags = 0;
 		}
 		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
 		break;

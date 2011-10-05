@@ -763,7 +763,7 @@ static int mwifiex_rate_ioctl_set_rate_value(struct mwifiex_private *priv,
 			if ((rate[i] & 0x7f) == (rate_cfg->rate & 0x7f))
 				break;
 		}
-		if (!rate[i] || (i == MWIFIEX_SUPPORTED_RATES)) {
+		if ((i == MWIFIEX_SUPPORTED_RATES) || !rate[i]) {
 			dev_err(adapter->dev, "fixed data rate %#x is out "
 			       "of range\n", rate_cfg->rate);
 			return -1;
