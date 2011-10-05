@@ -58,11 +58,7 @@ struct brcmf_if {
 	struct net_device_stats stats;
 	int idx;		/* iface idx in dongle */
 	int state;		/* interface state */
-	uint subunit;		/* subunit */
 	u8 mac_addr[ETH_ALEN];	/* assigned MAC address */
-	bool attached;		/* Delayed attachment when unset */
-	bool txflowcontrol;	/* Per interface flow control indicator */
-	char name[IFNAMSIZ];	/* linux interface name */
 };
 
 /* Local private structure (extension of pub) */
@@ -100,14 +96,16 @@ static int brcmf_net2idx(struct brcmf_info *drvr_priv, struct net_device *ndev)
 int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name)
 {
 	int i = BRCMF_MAX_IFS;
+	struct brcmf_if *ifp;
 
 	if (name == NULL || *name == '\0')
 		return 0;
 
-	while (--i > 0)
-		if (drvr_priv->iflist[i]
-		    && !strncmp(drvr_priv->iflist[i]->name, name, IFNAMSIZ))
+	while (--i > 0) {
+		ifp = drvr_priv->iflist[i];
+		if (ifp && !strncmp(ifp->ndev->name, name, IFNAMSIZ))
 			break;
+	}
 
 	brcmf_dbg(TRACE, "return idx %d for \"%s\"\n", i, name);
 
@@ -315,7 +313,6 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 			ret = -ENOMEM;
 		}
 		if (ret == 0) {
-			strcpy(ifp->ndev->name, ifp->name);
 			memcpy(netdev_priv(ifp->ndev), &drvr_priv,
 			       sizeof(drvr_priv));
 			err = brcmf_net_attach(&drvr_priv->pub, ifp->idx);
@@ -980,7 +977,6 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, struct net_device *ndev,
 	memset(ifp, 0, sizeof(struct brcmf_if));
 	ifp->info = drvr_priv;
 	drvr_priv->iflist[ifidx] = ifp;
-	strlcpy(ifp->name, name, IFNAMSIZ);
 	if (mac_addr != NULL)
 		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
