@@ -39,7 +39,7 @@ void slide_own_bcast_window(struct hard_iface *hard_iface)
 	struct hlist_head *head;
 	struct orig_node *orig_node;
 	unsigned long *word;
-	int i;
+	uint32_t i;
 	size_t word_index;
 
 	for (i = 0; i < hash->size; i++) {
