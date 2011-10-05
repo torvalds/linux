@@ -262,7 +262,12 @@ int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, struct sk_buff *skb,
 			usr_pri = layer2_priority & 0x7;
 	}
 
-	/* workaround for WMM S5 */
+	/*
+	 * workaround for WMM S5
+	 *
+	 * FIXME: wmi->traffic_class is always 100 so this test doesn't
+	 * make sense
+	 */
 	if ((wmi->traffic_class == WMM_AC_VI) &&
 	    ((usr_pri == 5) || (usr_pri == 4)))
 		usr_pri = 1;
@@ -641,7 +646,6 @@ static int ath6kl_wmi_ready_event_rx(struct wmi *wmi, u8 *datap, int len)
 	if (len < sizeof(struct wmi_ready_event_2))
 		return -EINVAL;
 
-	wmi->ready = true;
 	ath6kl_ready_event(wmi->parent_dev, ev->mac_addr,
 			   le32_to_cpu(ev->sw_version),
 			   le32_to_cpu(ev->abi_version));
@@ -857,8 +861,6 @@ static int ath6kl_wmi_disconnect_event_rx(struct wmi *wmi, u8 *datap, int len)
 		   ev->disconn_reason, ev->assoc_resp_len);
 
 	wmi->is_wmm_enabled = false;
-	wmi->pair_crypto_type = NONE_CRYPT;
-	wmi->grp_crypto_type = NONE_CRYPT;
 
 	ath6kl_disconnect_event(wmi->parent_dev, ev->disconn_reason,
 				ev->bssid, ev->assoc_resp_len, ev->assoc_info,
@@ -1638,9 +1640,6 @@ int ath6kl_wmi_connect_cmd(struct wmi *wmi, enum network_type nw_type,
 
 	if (bssid != NULL)
 		memcpy(cc->bssid, bssid, ETH_ALEN);
-
-	wmi->pair_crypto_type = pairwise_crypto;
-	wmi->grp_crypto_type = group_crypto;
 
 	ret = ath6kl_wmi_cmd_send(wmi, skb, WMI_CONNECT_CMDID, NO_SYNC_WMIFLAG);
 
@@ -2477,7 +2476,6 @@ int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 keep_alive_intvl)
 
 	cmd = (struct wmi_set_keepalive_cmd *) skb->data;
 	cmd->keep_alive_intvl = keep_alive_intvl;
-	wmi->keep_alive_intvl = keep_alive_intvl;
 
 	ret = ath6kl_wmi_cmd_send(wmi, skb, WMI_SET_KEEPALIVE_CMDID,
 				  NO_SYNC_WMIFLAG);
@@ -2818,7 +2816,6 @@ static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 
 	if (skb->len < sizeof(struct wmix_cmd_hdr)) {
 		ath6kl_err("bad packet 1\n");
-		wmi->stat.cmd_len_err++;
 		return -EINVAL;
 	}
 
@@ -2840,7 +2837,6 @@ static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	default:
 		ath6kl_warn("unknown cmd id 0x%x\n", id);
-		wmi->stat.cmd_id_err++;
 		ret = -EINVAL;
 		break;
 	}
@@ -2863,7 +2859,6 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 	if (skb->len < sizeof(struct wmi_cmd_hdr)) {
 		ath6kl_err("bad packet 1\n");
 		dev_kfree_skb(skb);
-		wmi->stat.cmd_len_err++;
 		return -EINVAL;
 	}
 
@@ -3068,7 +3063,6 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	default:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "unknown cmd id 0x%x\n", id);
-		wmi->stat.cmd_id_err++;
 		ret = -EINVAL;
 		break;
 	}
@@ -3103,16 +3097,9 @@ void *ath6kl_wmi_init(struct ath6kl *dev)
 
 	wmi->parent_dev = dev;
 
-	ath6kl_wmi_qos_state_init(wmi);
-
 	wmi->pwr_mode = REC_POWER;
-	wmi->phy_mode = WMI_11G_MODE;
 
-	wmi->pair_crypto_type = NONE_CRYPT;
-	wmi->grp_crypto_type = NONE_CRYPT;
-
-	wmi->ht_allowed[A_BAND_24GHZ] = 1;
-	wmi->ht_allowed[A_BAND_5GHZ] = 1;
+	ath6kl_wmi_qos_state_init(wmi);
 
 	return wmi;
 }
