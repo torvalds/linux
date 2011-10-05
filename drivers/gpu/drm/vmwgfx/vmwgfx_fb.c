@@ -592,58 +592,6 @@ int vmw_fb_close(struct vmw_private *vmw_priv)
 	return 0;
 }
 
-int vmw_dmabuf_from_vram(struct vmw_private *vmw_priv,
-			 struct vmw_dma_buffer *vmw_bo)
-{
-	struct ttm_buffer_object *bo = &vmw_bo->base;
-	int ret = 0;
-
-	ret = ttm_bo_reserve(bo, false, false, false, 0);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_bo_validate(bo, &vmw_sys_placement, false, false, false);
-	ttm_bo_unreserve(bo);
-
-	return ret;
-}
-
-int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
-				struct vmw_dma_buffer *vmw_bo)
-{
-	struct ttm_buffer_object *bo = &vmw_bo->base;
-	struct ttm_placement ne_placement = vmw_vram_ne_placement;
-	int ret = 0;
-
-	ne_placement.lpfn = bo->num_pages;
-
-	/* interuptable? */
-	ret = ttm_write_lock(&vmw_priv->active_master->lock, false);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_bo_reserve(bo, false, false, false, 0);
-	if (unlikely(ret != 0))
-		goto err_unlock;
-
-	if (bo->mem.mem_type == TTM_PL_VRAM &&
-	    bo->mem.start < bo->num_pages &&
-	    bo->mem.start > 0)
-		(void) ttm_bo_validate(bo, &vmw_sys_placement, false,
-				       false, false);
-
-	ret = ttm_bo_validate(bo, &ne_placement, false, false, false);
-
-	/* Could probably bug on */
-	WARN_ON(bo->offset != 0);
-
-	ttm_bo_unreserve(bo);
-err_unlock:
-	ttm_write_unlock(&vmw_priv->active_master->lock);
-
-	return ret;
-}
-
 int vmw_fb_off(struct vmw_private *vmw_priv)
 {
 	struct fb_info *info;
@@ -665,7 +613,7 @@ int vmw_fb_off(struct vmw_private *vmw_priv)
 	par->bo_ptr = NULL;
 	ttm_bo_kunmap(&par->map);
 
-	vmw_dmabuf_from_vram(vmw_priv, par->vmw_bo);
+	vmw_dmabuf_unpin(vmw_priv, par->vmw_bo, false);
 
 	return 0;
 }
@@ -691,7 +639,7 @@ int vmw_fb_on(struct vmw_private *vmw_priv)
 	/* Make sure that all overlays are stoped when we take over */
 	vmw_overlay_stop_all(vmw_priv);
 
-	ret = vmw_dmabuf_to_start_of_vram(vmw_priv, par->vmw_bo);
+	ret = vmw_dmabuf_to_start_of_vram(vmw_priv, par->vmw_bo, true, false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("could not move buffer to start of VRAM\n");
 		goto err_no_buffer;

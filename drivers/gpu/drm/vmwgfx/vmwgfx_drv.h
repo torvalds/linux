@@ -40,9 +40,9 @@
 #include "ttm/ttm_module.h"
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20110901"
+#define VMWGFX_DRIVER_DATE "20110927"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 0
+#define VMWGFX_DRIVER_MINOR 1
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -79,9 +79,11 @@ struct vmw_resource {
 	int id;
 	enum ttm_object_type res_type;
 	bool avail;
+	void (*remove_from_lists) (struct vmw_resource *res);
 	void (*hw_destroy) (struct vmw_resource *res);
 	void (*res_free) (struct vmw_resource *res);
-	bool on_validate_list;
+	struct list_head validate_head;
+	struct list_head query_head; /* Protected by the cmdbuf mutex */
 	/* TODO is a generic snooper needed? */
 #if 0
 	void (*snoop)(struct vmw_resource *res,
@@ -97,8 +99,12 @@ struct vmw_cursor_snooper {
 	uint32_t *image;
 };
 
+struct vmw_framebuffer;
+struct vmw_surface_offset;
+
 struct vmw_surface {
 	struct vmw_resource res;
+	struct list_head lru_head; /* Protected by the resource lock */
 	uint32_t flags;
 	uint32_t format;
 	uint32_t mip_levels[DRM_VMW_MAX_SURFACE_FACES];
@@ -109,6 +115,9 @@ struct vmw_surface {
 
 	/* TODO so far just a extra pointer */
 	struct vmw_cursor_snooper snooper;
+	struct ttm_buffer_object *backup;
+	struct vmw_surface_offset *offsets;
+	uint32_t backup_size;
 };
 
 struct vmw_marker_queue {
@@ -139,6 +148,8 @@ struct vmw_sw_context{
 	struct ida bo_list;
 	uint32_t last_cid;
 	bool cid_valid;
+	bool kernel; /**< is the called made from the kernel */
+	struct vmw_resource *cur_ctx;
 	uint32_t last_sid;
 	uint32_t sid_translation;
 	bool sid_valid;
@@ -150,8 +161,12 @@ struct vmw_sw_context{
 	uint32_t cur_val_buf;
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
-	struct vmw_resource *resources[VMWGFX_MAX_VALIDATIONS];
-	uint32_t num_ref_resources;
+	struct list_head resource_list;
+	uint32_t fence_flags;
+	struct list_head query_list;
+	struct ttm_buffer_object *cur_query_bo;
+	uint32_t cur_query_cid;
+	bool query_cid_valid;
 };
 
 struct vmw_legacy_display;
@@ -216,6 +231,7 @@ struct vmw_private {
 
 	void *fb_info;
 	struct vmw_legacy_display *ldu_priv;
+	struct vmw_screen_object_display *sou_priv;
 	struct vmw_overlay *overlay_priv;
 
 	/*
@@ -290,6 +306,26 @@ struct vmw_private {
 
 	struct mutex release_mutex;
 	uint32_t num_3d_resources;
+
+	/*
+	 * Query processing. These members
+	 * are protected by the cmdbuf mutex.
+	 */
+
+	struct ttm_buffer_object *dummy_query_bo;
+	struct ttm_buffer_object *pinned_bo;
+	uint32_t query_cid;
+	bool dummy_query_bo_pinned;
+
+	/*
+	 * Surface swapping. The "surface_lru" list is protected by the
+	 * resource lock in order to be able to destroy a surface and take
+	 * it off the lru atomically. "used_memory_size" is currently
+	 * protected by the cmdbuf mutex for simplicity.
+	 */
+
+	struct list_head surface_lru;
+	uint32_t used_memory_size;
 };
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
@@ -369,6 +405,8 @@ extern int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 extern int vmw_surface_check(struct vmw_private *dev_priv,
 			     struct ttm_object_file *tfile,
 			     uint32_t handle, int *id);
+extern int vmw_surface_validate(struct vmw_private *dev_priv,
+				struct vmw_surface *srf);
 extern void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo);
 extern int vmw_dmabuf_init(struct vmw_private *dev_priv,
 			   struct vmw_dma_buffer *vmw_bo,
@@ -384,10 +422,6 @@ extern uint32_t vmw_dmabuf_validate_node(struct ttm_buffer_object *bo,
 extern void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo);
 extern int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 				  uint32_t id, struct vmw_dma_buffer **out);
-extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
-				       struct vmw_dma_buffer *bo);
-extern int vmw_dmabuf_from_vram(struct vmw_private *vmw_priv,
-				struct vmw_dma_buffer *bo);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -396,7 +430,30 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 				  struct ttm_object_file *tfile,
 				  uint32_t *inout_id,
 				  struct vmw_resource **out);
+extern void vmw_resource_unreserve(struct list_head *list);
 
+/**
+ * DMA buffer helper routines - vmwgfx_dmabuf.c
+ */
+extern int vmw_dmabuf_to_placement(struct vmw_private *vmw_priv,
+				   struct vmw_dma_buffer *bo,
+				   struct ttm_placement *placement,
+				   bool interruptible);
+extern int vmw_dmabuf_to_vram(struct vmw_private *dev_priv,
+			      struct vmw_dma_buffer *buf,
+			      bool pin, bool interruptible);
+extern int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
+				     struct vmw_dma_buffer *buf,
+				     bool pin, bool interruptible);
+extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
+				       struct vmw_dma_buffer *bo,
+				       bool pin, bool interruptible);
+extern int vmw_dmabuf_unpin(struct vmw_private *vmw_priv,
+			    struct vmw_dma_buffer *bo,
+			    bool interruptible);
+extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
+				 SVGAGuestPtr *ptr);
+extern void vmw_bo_pin(struct ttm_buffer_object *bo, bool pin);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
@@ -406,6 +463,10 @@ extern int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 extern int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
+extern int vmw_present_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv);
+extern int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv);
 
 /**
  * Fifo utilities - vmwgfx_fifo.c
@@ -422,6 +483,8 @@ extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
+extern int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
+				     uint32_t cid);
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -439,7 +502,10 @@ extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_ne_placement;
 extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_vram_gmr_placement;
+extern struct ttm_placement vmw_vram_gmr_ne_placement;
 extern struct ttm_placement vmw_sys_placement;
+extern struct ttm_placement vmw_evictable_placement;
+extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
 
@@ -449,6 +515,24 @@ extern int vmw_dma_quiescent(struct drm_device *dev);
 
 extern int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
+extern int vmw_execbuf_process(struct drm_file *file_priv,
+			       struct vmw_private *dev_priv,
+			       void __user *user_commands,
+			       void *kernel_commands,
+			       uint32_t command_size,
+			       uint64_t throttle_us,
+			       struct drm_vmw_fence_rep __user
+			       *user_fence_rep);
+
+extern void
+vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
+			      bool only_on_cid_match, uint32_t cid);
+
+extern int vmw_execbuf_fence_commands(struct drm_file *file_priv,
+				      struct vmw_private *dev_priv,
+				      struct vmw_fence_obj **p_fence,
+				      uint32_t *p_handle);
+
 
 /**
  * IRQs and wating - vmwgfx_irq.c
@@ -520,6 +604,19 @@ bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 				uint32_t pitch,
 				uint32_t height);
 u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
+int vmw_kms_present(struct vmw_private *dev_priv,
+		    struct drm_file *file_priv,
+		    struct vmw_framebuffer *vfb,
+		    struct vmw_surface *surface,
+		    uint32_t sid, int32_t destX, int32_t destY,
+		    struct drm_vmw_rect *clips,
+		    uint32_t num_clips);
+int vmw_kms_readback(struct vmw_private *dev_priv,
+		     struct drm_file *file_priv,
+		     struct vmw_framebuffer *vfb,
+		     struct drm_vmw_fence_rep __user *user_fence_rep,
+		     struct drm_vmw_rect *clips,
+		     uint32_t num_clips);
 
 /**
  * Overlay control - vmwgfx_overlay.c

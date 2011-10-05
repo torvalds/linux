@@ -27,6 +27,7 @@
 
 #include "vmwgfx_drv.h"
 #include "vmwgfx_drm.h"
+#include "vmwgfx_kms.h"
 
 int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
@@ -108,5 +109,176 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0))
 		DRM_ERROR("Failed to report 3D caps info.\n");
 
+	return ret;
+}
+
+int vmw_present_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv)
+{
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct drm_vmw_present_arg *arg =
+		(struct drm_vmw_present_arg *)data;
+	struct vmw_surface *surface;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
+	struct drm_vmw_rect __user *clips_ptr;
+	struct drm_vmw_rect *clips = NULL;
+	struct drm_mode_object *obj;
+	struct vmw_framebuffer *vfb;
+	uint32_t num_clips;
+	int ret;
+
+	num_clips = arg->num_clips;
+	clips_ptr = (struct drm_vmw_rect *)(unsigned long)arg->clips_ptr;
+
+	if (unlikely(num_clips == 0))
+		return 0;
+
+	if (clips_ptr == NULL) {
+		DRM_ERROR("Variable clips_ptr must be specified.\n");
+		ret = -EINVAL;
+		goto out_clips;
+	}
+
+	clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+	if (clips == NULL) {
+		DRM_ERROR("Failed to allocate clip rect list.\n");
+		ret = -ENOMEM;
+		goto out_clips;
+	}
+
+	ret = copy_from_user(clips, clips_ptr, num_clips * sizeof(*clips));
+	if (ret) {
+		DRM_ERROR("Failed to copy clip rects from userspace.\n");
+		goto out_no_copy;
+	}
+
+	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	if (unlikely(ret != 0)) {
+		ret = -ERESTARTSYS;
+		goto out_no_mode_mutex;
+	}
+
+	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
+	if (!obj) {
+		DRM_ERROR("Invalid framebuffer id.\n");
+		ret = -EINVAL;
+		goto out_no_fb;
+	}
+
+	vfb = vmw_framebuffer_to_vfb(obj_to_fb(obj));
+	if (!vfb->dmabuf) {
+		DRM_ERROR("Framebuffer not dmabuf backed.\n");
+		ret = -EINVAL;
+		goto out_no_fb;
+	}
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		goto out_no_ttm_lock;
+
+	ret = vmw_user_surface_lookup_handle(dev_priv, tfile, arg->sid,
+					     &surface);
+	if (ret)
+		goto out_no_surface;
+
+	ret = vmw_kms_present(dev_priv, file_priv,
+			      vfb, surface, arg->sid,
+			      arg->dest_x, arg->dest_y,
+			      clips, num_clips);
+
+	/* vmw_user_surface_lookup takes one ref so does new_fb */
+	vmw_surface_unreference(&surface);
+
+out_no_surface:
+	ttm_read_unlock(&vmaster->lock);
+out_no_ttm_lock:
+out_no_fb:
+	mutex_unlock(&dev->mode_config.mutex);
+out_no_mode_mutex:
+out_no_copy:
+	kfree(clips);
+out_clips:
+	return ret;
+}
+
+int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct drm_vmw_present_readback_arg *arg =
+		(struct drm_vmw_present_readback_arg *)data;
+	struct drm_vmw_fence_rep __user *user_fence_rep =
+		(struct drm_vmw_fence_rep __user *)
+		(unsigned long)arg->fence_rep;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
+	struct drm_vmw_rect __user *clips_ptr;
+	struct drm_vmw_rect *clips = NULL;
+	struct drm_mode_object *obj;
+	struct vmw_framebuffer *vfb;
+	uint32_t num_clips;
+	int ret;
+
+	num_clips = arg->num_clips;
+	clips_ptr = (struct drm_vmw_rect *)(unsigned long)arg->clips_ptr;
+
+	if (unlikely(num_clips == 0))
+		return 0;
+
+	if (clips_ptr == NULL) {
+		DRM_ERROR("Argument clips_ptr must be specified.\n");
+		ret = -EINVAL;
+		goto out_clips;
+	}
+
+	clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+	if (clips == NULL) {
+		DRM_ERROR("Failed to allocate clip rect list.\n");
+		ret = -ENOMEM;
+		goto out_clips;
+	}
+
+	ret = copy_from_user(clips, clips_ptr, num_clips * sizeof(*clips));
+	if (ret) {
+		DRM_ERROR("Failed to copy clip rects from userspace.\n");
+		goto out_no_copy;
+	}
+
+	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	if (unlikely(ret != 0)) {
+		ret = -ERESTARTSYS;
+		goto out_no_mode_mutex;
+	}
+
+	obj = drm_mode_object_find(dev, arg->fb_id, DRM_MODE_OBJECT_FB);
+	if (!obj) {
+		DRM_ERROR("Invalid framebuffer id.\n");
+		ret = -EINVAL;
+		goto out_no_fb;
+	}
+
+	vfb = vmw_framebuffer_to_vfb(obj_to_fb(obj));
+	if (!vfb->dmabuf) {
+		DRM_ERROR("Framebuffer not dmabuf backed.\n");
+		ret = -EINVAL;
+		goto out_no_fb;
+	}
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		goto out_no_ttm_lock;
+
+	ret = vmw_kms_readback(dev_priv, file_priv,
+			       vfb, user_fence_rep,
+			       clips, num_clips);
+
+	ttm_read_unlock(&vmaster->lock);
+out_no_ttm_lock:
+out_no_fb:
+	mutex_unlock(&dev->mode_config.mutex);
+out_no_mode_mutex:
+out_no_copy:
+	kfree(clips);
+out_clips:
 	return ret;
 }

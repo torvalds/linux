@@ -42,6 +42,10 @@ static uint32_t sys_placement_flags = TTM_PL_FLAG_SYSTEM |
 static uint32_t gmr_placement_flags = VMW_PL_FLAG_GMR |
 	TTM_PL_FLAG_CACHED;
 
+static uint32_t gmr_ne_placement_flags = VMW_PL_FLAG_GMR |
+	TTM_PL_FLAG_CACHED |
+	TTM_PL_FLAG_NO_EVICT;
+
 struct ttm_placement vmw_vram_placement = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -56,6 +60,11 @@ static uint32_t vram_gmr_placement_flags[] = {
 	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
 };
 
+static uint32_t gmr_vram_placement_flags[] = {
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED,
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+};
+
 struct ttm_placement vmw_vram_gmr_placement = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -63,6 +72,20 @@ struct ttm_placement vmw_vram_gmr_placement = {
 	.placement = vram_gmr_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &gmr_placement_flags
+};
+
+static uint32_t vram_gmr_ne_placement_flags[] = {
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT,
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+};
+
+struct ttm_placement vmw_vram_gmr_ne_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 2,
+	.placement = vram_gmr_ne_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &gmr_ne_placement_flags
 };
 
 struct ttm_placement vmw_vram_sys_placement = {
@@ -90,6 +113,30 @@ struct ttm_placement vmw_sys_placement = {
 	.placement = &sys_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &sys_placement_flags
+};
+
+static uint32_t evictable_placement_flags[] = {
+	TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED,
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED,
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+};
+
+struct ttm_placement vmw_evictable_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 3,
+	.placement = evictable_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &sys_placement_flags
+};
+
+struct ttm_placement vmw_srf_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 1,
+	.num_busy_placement = 2,
+	.placement = &gmr_placement_flags,
+	.busy_placement = gmr_vram_placement_flags
 };
 
 struct vmw_ttm_backend {

@@ -177,6 +177,9 @@ out_unlock:
 
 struct vmw_fence_obj *vmw_fence_obj_reference(struct vmw_fence_obj *fence)
 {
+	if (unlikely(fence == NULL))
+		return NULL;
+
 	kref_get(&fence->kref);
 	return fence;
 }
@@ -191,8 +194,12 @@ struct vmw_fence_obj *vmw_fence_obj_reference(struct vmw_fence_obj *fence)
 void vmw_fence_obj_unreference(struct vmw_fence_obj **fence_p)
 {
 	struct vmw_fence_obj *fence = *fence_p;
-	struct vmw_fence_manager *fman = fence->fman;
+	struct vmw_fence_manager *fman;
 
+	if (unlikely(fence == NULL))
+		return;
+
+	fman = fence->fman;
 	*fence_p = NULL;
 	spin_lock_irq(&fman->lock);
 	BUG_ON(atomic_read(&fence->kref.refcount) == 0);
