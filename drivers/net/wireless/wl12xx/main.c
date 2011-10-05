@@ -1636,7 +1636,7 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 	if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 		DECLARE_COMPLETION_ONSTACK(compl);
 
-		wl->ps_compl = &compl;
+		wlvif->ps_compl = &compl;
 		ret = wl1271_ps_set_mode(wl, wlvif, STATION_POWER_SAVE_MODE,
 				   wlvif->basic_rate, true);
 		if (ret < 0)

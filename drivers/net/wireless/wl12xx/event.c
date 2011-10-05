@@ -149,9 +149,9 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 			/* enable beacon early termination */
 			ret = wl1271_acx_bet_enable(wl, wlvif, true);
 
-		if (wl->ps_compl) {
-			complete(wl->ps_compl);
-			wl->ps_compl = NULL;
+		if (wlvif->ps_compl) {
+			complete(wlvif->ps_compl);
+			wlvif->ps_compl = NULL;
 		}
 		break;
 	default:

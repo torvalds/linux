@@ -509,7 +509,6 @@ struct wl1271 {
 	struct timer_list rx_streaming_timer;
 
 	struct completion *elp_compl;
-	struct completion *ps_compl;
 	struct delayed_work elp_work;
 
 	/* counter for ps-poll delivery failures */
@@ -651,6 +650,7 @@ struct wl12xx_vif {
 	/* Session counter for the chipset */
 	int session_counter;
 
+	struct completion *ps_compl;
 	struct delayed_work pspoll_work;
 };
 
