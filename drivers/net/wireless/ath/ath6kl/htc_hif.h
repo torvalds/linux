@@ -20,28 +20,15 @@
 #include "htc.h"
 #include "hif.h"
 
-#define ATH6KL_MAILBOXES	4
-
 /* HTC runs over mailbox 0 */
 #define HTC_MAILBOX	0
 
 #define ATH6KL_TARGET_DEBUG_INTR_MASK     0x01
 
-#define OTHER_INTS_ENABLED		(INT_STATUS_ENABLE_ERROR_MASK |	\
-					INT_STATUS_ENABLE_CPU_MASK   |	\
-					INT_STATUS_ENABLE_COUNTER_MASK)
-
-#define ATH6KL_REG_IO_BUFFER_SIZE			32
-#define ATH6KL_MAX_REG_IO_BUFFERS			8
+/* FIXME: are these duplicates with MAX_SCATTER_ values in hif.h? */
 #define ATH6KL_SCATTER_ENTRIES_PER_REQ            16
 #define ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER      (16 * 1024)
 #define ATH6KL_SCATTER_REQS                       4
-
-#ifndef A_CACHE_LINE_PAD
-#define A_CACHE_LINE_PAD                        128
-#endif
-#define ATH6KL_MIN_SCATTER_ENTRIES_PER_REQ        2
-#define ATH6KL_MIN_TRANSFER_SIZE_PER_SCATTER      (4 * 1024)
 
 struct ath6kl_irq_proc_registers {
 	u8 host_int_status;
@@ -65,11 +52,8 @@ struct ath6kl_irq_enable_reg {
 
 struct ath6kl_device {
 	spinlock_t lock;
-	u8 pad1[A_CACHE_LINE_PAD];
 	struct ath6kl_irq_proc_registers irq_proc_reg;
-	u8 pad2[A_CACHE_LINE_PAD];
 	struct ath6kl_irq_enable_reg irq_en_reg;
-	u8 pad3[A_CACHE_LINE_PAD];
 	struct htc_target *htc_cnxt;
 	struct ath6kl *ar;
 };
