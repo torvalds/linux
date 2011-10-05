@@ -115,9 +115,9 @@ struct wacom {
 	bool open;
 	char phys[32];
 	struct wacom_led {
-		u8 select; /* status led selector (0..3, -1=none) */
-		u8 llv;    /* status led brightness no button */
-		u8 hlv;    /* status led brightness button pressed */
+		u8 select; /* status led selector (0..3) */
+		u8 llv;    /* status led brightness no button (1..127) */
+		u8 hlv;    /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
 };

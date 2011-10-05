@@ -23,7 +23,7 @@ What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status0_lum
 Date:		August 2011
 Contact:	linux-input@vger.kernel.org
 Description:
-		Writing to this file sets the status LED luminance (0..127)
+		Writing to this file sets the status LED luminance (1..127)
 		when the stylus does not touch the tablet surface, and no
 		button is pressed on the stylus. This luminance level is
 		normally lower than the level when a button is pressed.
@@ -32,7 +32,7 @@ What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status1_lum
 Date:		August 2011
 Contact:	linux-input@vger.kernel.org
 Description:
-		Writing to this file sets the status LED luminance (0..127)
+		Writing to this file sets the status LED luminance (1..127)
 		when the stylus touches the tablet surface, or any button is
 		pressed on the stylus.
 
@@ -41,9 +41,7 @@ Date:		August 2011
 Contact:	linux-input@vger.kernel.org
 Description:
 		Writing to this file sets which one of the four status LEDs is
-		active (0..3). The other three LEDs are always inactive.  By
-		means of specifying "-1" it is possible to set all status LEDs
-		to inactive.
+		active (0..3). The other three LEDs are always inactive.
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/buttons_luminance
 Date:		August 2011
