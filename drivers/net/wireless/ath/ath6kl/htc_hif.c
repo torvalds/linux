@@ -621,6 +621,7 @@ int ath6kldev_setup(struct ath6kl_device *dev)
 	/* must be a power of 2 */
 	if ((dev->htc_cnxt->block_sz & (dev->htc_cnxt->block_sz - 1)) != 0) {
 		WARN_ON(1);
+		status = -EINVAL;
 		goto fail_setup;
 	}
 
