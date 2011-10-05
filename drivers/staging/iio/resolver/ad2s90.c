@@ -19,8 +19,6 @@
 #include "../iio.h"
 #include "../sysfs.h"
 
-#define DRV_NAME "ad2s90"
-
 struct ad2s90_state {
 	struct mutex lock;
 	struct spi_device *sdev;
@@ -85,6 +83,7 @@ static int __devinit ad2s90_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad2s90_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->name = spi_get_device_id(spi)->name;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
@@ -110,13 +109,19 @@ static int __devexit ad2s90_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id ad2s90_id[] = {
+	{ "ad2s90" },
+	{}
+};
+
 static struct spi_driver ad2s90_driver = {
 	.driver = {
-		.name = DRV_NAME,
+		.name = "ad2s90",
 		.owner = THIS_MODULE,
 	},
 	.probe = ad2s90_probe,
 	.remove = __devexit_p(ad2s90_remove),
+	.id_table = ad2s90_id,
 };
 
 static __init int ad2s90_spi_init(void)
