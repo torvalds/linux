@@ -65,13 +65,13 @@ void omap_sram_init(void);
 struct omap_globals {
 	u32		class;		/* OMAP class to detect */
 	void __iomem	*tap;		/* Control module ID code */
-	unsigned long   sdrc;           /* SDRAM Controller */
-	unsigned long   sms;            /* SDRAM Memory Scheduler */
-	unsigned long   ctrl;           /* System Control Module */
-	unsigned long   ctrl_pad;	/* PAD Control Module */
-	unsigned long   prm;            /* Power and Reset Management */
-	unsigned long   cm;             /* Clock Management */
-	unsigned long   cm2;
+	void __iomem	*sdrc;           /* SDRAM Controller */
+	void __iomem	*sms;            /* SDRAM Memory Scheduler */
+	void __iomem	*ctrl;           /* System Control Module */
+	void __iomem	*ctrl_pad;	/* PAD Control Module */
+	void __iomem	*prm;            /* Power and Reset Management */
+	void __iomem	*cm;             /* Clock Management */
+	void __iomem	*cm2;
 };
 
 void omap2_set_globals_242x(void);

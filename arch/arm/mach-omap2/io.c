@@ -44,6 +44,7 @@
 #include "clockdomain.h"
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
+#include <plat/common.h>
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -359,6 +360,7 @@ static void __init omap_hwmod_init_postsetup(void)
 
 void __init omap2420_init_early(void)
 {
+	omap2_set_globals_242x();
 	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap242x_powerdomains_init();
@@ -370,6 +372,7 @@ void __init omap2420_init_early(void)
 
 void __init omap2430_init_early(void)
 {
+	omap2_set_globals_243x();
 	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap243x_powerdomains_init();
@@ -385,6 +388,7 @@ void __init omap2430_init_early(void)
  */
 void __init omap3_init_early(void)
 {
+	omap2_set_globals_3xxx();
 	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
@@ -416,11 +420,19 @@ void __init am35xx_init_early(void)
 
 void __init ti816x_init_early(void)
 {
-	omap3_init_early();
+	omap2_set_globals_ti816x();
+	omap_common_init_early();
+	omap3xxx_voltagedomains_init();
+	omap3xxx_powerdomains_init();
+	omap3xxx_clockdomains_init();
+	omap3xxx_hwmod_init();
+	omap_hwmod_init_postsetup();
+	omap3xxx_clk_init();
 }
 
 void __init omap4430_init_early(void)
 {
+	omap2_set_globals_443x();
 	omap_common_init_early();
 	omap44xx_voltagedomains_init();
 	omap44xx_powerdomains_init();
