@@ -64,7 +64,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 		/* restore hardware connection monitoring template */
-		wl1271_cmd_build_ap_probe_req(wl, wl->probereq);
+		wl1271_cmd_build_ap_probe_req(wl, wlvif->probereq);
 	}
 
 	/* return to ROC if needed */

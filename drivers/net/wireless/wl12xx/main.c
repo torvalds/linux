@@ -3525,11 +3525,12 @@ sta_not_found:
 			/*
 			 * Get a template for hardware connection maintenance
 			 */
-			dev_kfree_skb(wl->probereq);
-			wl->probereq = wl1271_cmd_build_ap_probe_req(wl, NULL);
+			dev_kfree_skb(wlvif->probereq);
+			wlvif->probereq = wl1271_cmd_build_ap_probe_req(wl,
+									NULL);
 			ieoffset = offsetof(struct ieee80211_mgmt,
 					    u.probe_req.variable);
-			wl1271_ssid_set(vif, wl->probereq, ieoffset);
+			wl1271_ssid_set(vif, wlvif->probereq, ieoffset);
 
 			/* enable the connection monitoring feature */
 			ret = wl1271_acx_conn_monit_params(wl, true);
@@ -3546,8 +3547,8 @@ sta_not_found:
 			wl->aid = 0;
 
 			/* free probe-request template */
-			dev_kfree_skb(wl->probereq);
-			wl->probereq = NULL;
+			dev_kfree_skb(wlvif->probereq);
+			wlvif->probereq = NULL;
 
 			/* re-enable dynamic ps - just in case */
 			ieee80211_enable_dyn_ps(wl->vif);

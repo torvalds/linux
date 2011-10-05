@@ -507,9 +507,6 @@ struct wl1271 {
 
 	bool sched_scanning;
 
-	/* probe-req template for the current AP */
-	struct sk_buff *probereq;
-
 	/* Our association ID */
 	u16 aid;
 
@@ -641,6 +638,9 @@ struct wl12xx_vif {
 	 */
 	u32 basic_rate;
 	u32 rate_set;
+
+	/* probe-req template for the current AP */
+	struct sk_buff *probereq;
 };
 
 static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)
