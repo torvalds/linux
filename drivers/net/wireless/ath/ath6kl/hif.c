@@ -24,7 +24,8 @@
 
 #define ATH6KL_TIME_QUANTUM	10  /* in ms */
 
-static int ath6kldev_cp_scat_dma_buf(struct hif_scatter_req *req, bool from_dma)
+static int ath6kl_hif_cp_scat_dma_buf(struct hif_scatter_req *req,
+				      bool from_dma)
 {
 	u8 *buf;
 	int i;
@@ -46,12 +47,12 @@ static int ath6kldev_cp_scat_dma_buf(struct hif_scatter_req *req, bool from_dma)
 	return 0;
 }
 
-int ath6kldev_rw_comp_handler(void *context, int status)
+int ath6kl_hif_rw_comp_handler(void *context, int status)
 {
 	struct htc_packet *packet = context;
 
 	ath6kl_dbg(ATH6KL_DBG_HTC_RECV,
-		   "ath6kldev_rw_comp_handler (pkt:0x%p , status: %d\n",
+		   "ath6kl_hif_rw_comp_handler (pkt:0x%p , status: %d\n",
 		   packet, status);
 
 	packet->status = status;
@@ -60,7 +61,7 @@ int ath6kldev_rw_comp_handler(void *context, int status)
 	return 0;
 }
 
-static int ath6kldev_proc_dbg_intr(struct ath6kl_device *dev)
+static int ath6kl_hif_proc_dbg_intr(struct ath6kl_device *dev)
 {
 	u32 dummy;
 	int status;
@@ -82,7 +83,7 @@ static int ath6kldev_proc_dbg_intr(struct ath6kl_device *dev)
 }
 
 /* mailbox recv message polling */
-int ath6kldev_poll_mboxmsg_rx(struct ath6kl_device *dev, u32 *lk_ahd,
+int ath6kl_hif_poll_mboxmsg_rx(struct ath6kl_device *dev, u32 *lk_ahd,
 			      int timeout)
 {
 	struct ath6kl_irq_proc_registers *rg;
@@ -131,7 +132,7 @@ int ath6kldev_poll_mboxmsg_rx(struct ath6kl_device *dev, u32 *lk_ahd,
 			 * Target failure handler will be called in case of
 			 * an assert.
 			 */
-			ath6kldev_proc_dbg_intr(dev);
+			ath6kl_hif_proc_dbg_intr(dev);
 	}
 
 	return status;
@@ -141,7 +142,7 @@ int ath6kldev_poll_mboxmsg_rx(struct ath6kl_device *dev, u32 *lk_ahd,
  * Disable packet reception (used in case the host runs out of buffers)
  * using the interrupt enable registers through the host I/F
  */
-int ath6kldev_rx_control(struct ath6kl_device *dev, bool enable_rx)
+int ath6kl_hif_rx_control(struct ath6kl_device *dev, bool enable_rx)
 {
 	struct ath6kl_irq_enable_reg regs;
 	int status = 0;
@@ -168,7 +169,7 @@ int ath6kldev_rx_control(struct ath6kl_device *dev, bool enable_rx)
 	return status;
 }
 
-int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
+int ath6kl_hif_submit_scat_req(struct ath6kl_device *dev,
 			      struct hif_scatter_req *scat_req, bool read)
 {
 	int status = 0;
@@ -186,13 +187,13 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 	}
 
 	ath6kl_dbg((ATH6KL_DBG_HTC_RECV | ATH6KL_DBG_HTC_SEND),
-		   "ath6kldev_submit_scat_req, entries: %d, total len: %d mbox:0x%X (mode: %s : %s)\n",
+		   "ath6kl_hif_submit_scat_req, entries: %d, total len: %d mbox:0x%X (mode: %s : %s)\n",
 		   scat_req->scat_entries, scat_req->len,
 		   scat_req->addr, !read ? "async" : "sync",
 		   (read) ? "rd" : "wr");
 
 	if (!read && scat_req->virt_scat) {
-		status = ath6kldev_cp_scat_dma_buf(scat_req, false);
+		status = ath6kl_hif_cp_scat_dma_buf(scat_req, false);
 		if (status) {
 			scat_req->status = status;
 			scat_req->complete(dev->ar->htc_target, scat_req);
@@ -207,13 +208,13 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 		scat_req->status = status;
 		if (!status && scat_req->virt_scat)
 			scat_req->status =
-				ath6kldev_cp_scat_dma_buf(scat_req, true);
+				ath6kl_hif_cp_scat_dma_buf(scat_req, true);
 	}
 
 	return status;
 }
 
-static int ath6kldev_proc_counter_intr(struct ath6kl_device *dev)
+static int ath6kl_hif_proc_counter_intr(struct ath6kl_device *dev)
 {
 	u8 counter_int_status;
 
@@ -232,12 +233,12 @@ static int ath6kldev_proc_counter_intr(struct ath6kl_device *dev)
 	 * the debug assertion counter interrupt.
 	 */
 	if (counter_int_status & ATH6KL_TARGET_DEBUG_INTR_MASK)
-		return ath6kldev_proc_dbg_intr(dev);
+		return ath6kl_hif_proc_dbg_intr(dev);
 
 	return 0;
 }
 
-static int ath6kldev_proc_err_intr(struct ath6kl_device *dev)
+static int ath6kl_hif_proc_err_intr(struct ath6kl_device *dev)
 {
 	int status;
 	u8 error_int_status;
@@ -282,7 +283,7 @@ static int ath6kldev_proc_err_intr(struct ath6kl_device *dev)
 	return status;
 }
 
-static int ath6kldev_proc_cpu_intr(struct ath6kl_device *dev)
+static int ath6kl_hif_proc_cpu_intr(struct ath6kl_device *dev)
 {
 	int status;
 	u8 cpu_int_status;
@@ -436,21 +437,21 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 
 	if (MS(HOST_INT_STATUS_CPU, host_int_status)) {
 		/* CPU Interrupt */
-		status = ath6kldev_proc_cpu_intr(dev);
+		status = ath6kl_hif_proc_cpu_intr(dev);
 		if (status)
 			goto out;
 	}
 
 	if (MS(HOST_INT_STATUS_ERROR, host_int_status)) {
 		/* Error Interrupt */
-		status = ath6kldev_proc_err_intr(dev);
+		status = ath6kl_hif_proc_err_intr(dev);
 		if (status)
 			goto out;
 	}
 
 	if (MS(HOST_INT_STATUS_COUNTER, host_int_status))
 		/* Counter Interrupt */
-		status = ath6kldev_proc_counter_intr(dev);
+		status = ath6kl_hif_proc_counter_intr(dev);
 
 out:
 	/*
@@ -479,7 +480,7 @@ out:
 }
 
 /* interrupt handler, kicks off all interrupt processing */
-int ath6kldev_intr_bh_handler(struct ath6kl *ar)
+int ath6kl_hif_intr_bh_handler(struct ath6kl *ar)
 {
 	struct ath6kl_device *dev = ar->htc_target->dev;
 	int status = 0;
@@ -504,7 +505,7 @@ int ath6kldev_intr_bh_handler(struct ath6kl *ar)
 	return status;
 }
 
-static int ath6kldev_enable_intrs(struct ath6kl_device *dev)
+static int ath6kl_hif_enable_intrs(struct ath6kl_device *dev)
 {
 	struct ath6kl_irq_enable_reg regs;
 	int status;
@@ -552,7 +553,7 @@ static int ath6kldev_enable_intrs(struct ath6kl_device *dev)
 	return status;
 }
 
-int ath6kldev_disable_intrs(struct ath6kl_device *dev)
+int ath6kl_hif_disable_intrs(struct ath6kl_device *dev)
 {
 	struct ath6kl_irq_enable_reg regs;
 
@@ -571,7 +572,7 @@ int ath6kldev_disable_intrs(struct ath6kl_device *dev)
 }
 
 /* enable device interrupts */
-int ath6kldev_unmask_intrs(struct ath6kl_device *dev)
+int ath6kl_hif_unmask_intrs(struct ath6kl_device *dev)
 {
 	int status = 0;
 
@@ -583,29 +584,29 @@ int ath6kldev_unmask_intrs(struct ath6kl_device *dev)
 	 * target "soft" resets. The ATH6KL interrupt enables reset back to an
 	 * "enabled" state when this happens.
 	 */
-	ath6kldev_disable_intrs(dev);
+	ath6kl_hif_disable_intrs(dev);
 
 	/* unmask the host controller interrupts */
 	ath6kl_hif_irq_enable(dev->ar);
-	status = ath6kldev_enable_intrs(dev);
+	status = ath6kl_hif_enable_intrs(dev);
 
 	return status;
 }
 
 /* disable all device interrupts */
-int ath6kldev_mask_intrs(struct ath6kl_device *dev)
+int ath6kl_hif_mask_intrs(struct ath6kl_device *dev)
 {
 	/*
 	 * Mask the interrupt at the HIF layer to avoid any stray interrupt
 	 * taken while we zero out our shadow registers in
-	 * ath6kldev_disable_intrs().
+	 * ath6kl_hif_disable_intrs().
 	 */
 	ath6kl_hif_irq_disable(dev->ar);
 
-	return ath6kldev_disable_intrs(dev);
+	return ath6kl_hif_disable_intrs(dev);
 }
 
-int ath6kldev_setup(struct ath6kl_device *dev)
+int ath6kl_hif_setup(struct ath6kl_device *dev)
 {
 	int status = 0;
 
@@ -634,7 +635,7 @@ int ath6kldev_setup(struct ath6kl_device *dev)
 	ath6kl_dbg(ATH6KL_DBG_TRC,
 		   "hif interrupt processing is sync only\n");
 
-	status = ath6kldev_disable_intrs(dev);
+	status = ath6kl_hif_disable_intrs(dev);
 
 fail_setup:
 	return status;

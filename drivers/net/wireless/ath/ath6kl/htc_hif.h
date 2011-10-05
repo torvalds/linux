@@ -74,19 +74,19 @@ struct ath6kl_device {
 	struct ath6kl *ar;
 };
 
-int ath6kldev_setup(struct ath6kl_device *dev);
-int ath6kldev_unmask_intrs(struct ath6kl_device *dev);
-int ath6kldev_mask_intrs(struct ath6kl_device *dev);
-int ath6kldev_poll_mboxmsg_rx(struct ath6kl_device *dev,
-			      u32 *lk_ahd, int timeout);
-int ath6kldev_rx_control(struct ath6kl_device *dev, bool enable_rx);
-int ath6kldev_disable_intrs(struct ath6kl_device *dev);
+int ath6kl_hif_setup(struct ath6kl_device *dev);
+int ath6kl_hif_unmask_intrs(struct ath6kl_device *dev);
+int ath6kl_hif_mask_intrs(struct ath6kl_device *dev);
+int ath6kl_hif_poll_mboxmsg_rx(struct ath6kl_device *dev,
+			       u32 *lk_ahd, int timeout);
+int ath6kl_hif_rx_control(struct ath6kl_device *dev, bool enable_rx);
+int ath6kl_hif_disable_intrs(struct ath6kl_device *dev);
 
-int ath6kldev_rw_comp_handler(void *context, int status);
-int ath6kldev_intr_bh_handler(struct ath6kl *ar);
+int ath6kl_hif_rw_comp_handler(void *context, int status);
+int ath6kl_hif_intr_bh_handler(struct ath6kl *ar);
 
 /* Scatter Function and Definitions */
-int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
-			    struct hif_scatter_req *scat_req, bool read);
+int ath6kl_hif_submit_scat_req(struct ath6kl_device *dev,
+			       struct hif_scatter_req *scat_req, bool read);
 
 #endif /*ATH6KL_H_ */

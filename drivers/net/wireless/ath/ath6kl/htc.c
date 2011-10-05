@@ -482,7 +482,7 @@ static void ath6kl_htc_tx_bundle(struct htc_endpoint *endpoint,
 		ath6kl_dbg(ATH6KL_DBG_HTC_SEND,
 			   "send scatter total bytes: %d , entries: %d\n",
 			   scat_req->len, scat_req->scat_entries);
-		ath6kldev_submit_scat_req(target->dev, scat_req, false);
+		ath6kl_hif_submit_scat_req(target->dev, scat_req, false);
 
 		if (status)
 			break;
@@ -1620,7 +1620,7 @@ static int ath6kl_htc_rx_bundle(struct htc_target *target,
 	scat_req->len = len;
 	scat_req->scat_entries = i;
 
-	status = ath6kldev_submit_scat_req(target->dev, scat_req, true);
+	status = ath6kl_hif_submit_scat_req(target->dev, scat_req, true);
 
 	if (!status)
 		*n_pkt_fetched = i;
@@ -1865,7 +1865,7 @@ int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
 
 		if (target->htc_flags & HTC_OP_STATE_STOPPING) {
 			ath6kl_warn("host is going to stop blocking receiver for htc_stop\n");
-			ath6kldev_rx_control(target->dev, false);
+			ath6kl_hif_rx_control(target->dev, false);
 		}
 	}
 
@@ -1875,7 +1875,7 @@ int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
 	 */
 	if (target->rx_st_flags & HTC_RECV_WAIT_BUFFERS) {
 		ath6kl_warn("host has no rx buffers blocking receiver to prevent overrun\n");
-		ath6kldev_rx_control(target->dev, false);
+		ath6kl_hif_rx_control(target->dev, false);
 	}
 	*num_pkts = n_fetched;
 
@@ -1893,7 +1893,7 @@ static struct htc_packet *htc_wait_for_ctrl_msg(struct htc_target *target)
 	struct htc_frame_hdr *htc_hdr;
 	u32 look_ahead;
 
-	if (ath6kldev_poll_mboxmsg_rx(target->dev, &look_ahead,
+	if (ath6kl_hif_poll_mboxmsg_rx(target->dev, &look_ahead,
 			       HTC_TARGET_RESPONSE_TIMEOUT))
 		return NULL;
 
@@ -2001,7 +2001,7 @@ int ath6kl_htc_add_rxbuf_multiple(struct htc_target *target,
 
 	if (rx_unblock && !(target->htc_flags & HTC_OP_STATE_STOPPING))
 		/* TODO : implement a buffer threshold count? */
-		ath6kldev_rx_control(target->dev, true);
+		ath6kl_hif_rx_control(target->dev, true);
 
 	return status;
 }
@@ -2340,7 +2340,7 @@ int ath6kl_htc_start(struct htc_target *target)
 	int status;
 
 	/* Disable interrupts at the chip level */
-	ath6kldev_disable_intrs(target->dev);
+	ath6kl_hif_disable_intrs(target->dev);
 
 	target->htc_flags = 0;
 	target->rx_st_flags = 0;
@@ -2365,7 +2365,7 @@ int ath6kl_htc_start(struct htc_target *target)
 		return status;
 
 	/* unmask interrupts */
-	status = ath6kldev_unmask_intrs(target->dev);
+	status = ath6kl_hif_unmask_intrs(target->dev);
 
 	if (status)
 		ath6kl_htc_stop(target);
@@ -2385,7 +2385,7 @@ void ath6kl_htc_stop(struct htc_target *target)
 	 * function returns all pending HIF I/O has completed, we can
 	 * safely flush the queues.
 	 */
-	ath6kldev_mask_intrs(target->dev);
+	ath6kl_hif_mask_intrs(target->dev);
 
 	ath6kl_htc_flush_txep_all(target);
 
@@ -2428,7 +2428,7 @@ void *ath6kl_htc_create(struct ath6kl *ar)
 
 	reset_ep_state(target);
 
-	status = ath6kldev_setup(target->dev);
+	status = ath6kl_hif_setup(target->dev);
 
 	if (status)
 		goto fail_create_htc;

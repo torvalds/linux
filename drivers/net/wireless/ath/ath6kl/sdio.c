@@ -420,7 +420,7 @@ static void __ath6kl_sdio_write_async(struct ath6kl_sdio *ar_sdio,
 						     req->request);
 		context = req->packet;
 		ath6kl_sdio_free_bus_req(ar_sdio, req);
-		ath6kldev_rw_comp_handler(context, status);
+		ath6kl_hif_rw_comp_handler(context, status);
 	}
 }
 
@@ -457,7 +457,7 @@ static void ath6kl_sdio_irq_handler(struct sdio_func *func)
 	 */
 	sdio_release_host(ar_sdio->func);
 
-	status = ath6kldev_intr_bh_handler(ar_sdio->ar);
+	status = ath6kl_hif_intr_bh_handler(ar_sdio->ar);
 	sdio_claim_host(ar_sdio->func);
 	atomic_set(&ar_sdio->irq_handling, 0);
 	WARN_ON(status && status != -ECANCELED);
