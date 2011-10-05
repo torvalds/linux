@@ -377,6 +377,7 @@ static char *fwlog_param;
 static bool bug_on_recovery;
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
+					 struct ieee80211_vif *vif,
 					 bool reset_tx_queues);
 static void wl1271_free_ap_keys(struct wl1271 *wl);
 
@@ -844,6 +845,8 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 static void wl12xx_fw_status(struct wl1271 *wl,
 			     struct wl12xx_fw_status *status)
 {
+	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct timespec ts;
 	u32 old_tx_blk_count = wl->tx_blocks_available;
 	int avail, freed_blocks;
@@ -898,7 +901,7 @@ static void wl12xx_fw_status(struct wl1271 *wl,
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 
 	/* for AP update num of allocated TX blocks per link and ps status */
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		wl12xx_irq_update_links_status(wl, status);
 
 	/* update the host-chipset time offset */
@@ -1004,7 +1007,7 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 				 * In order to avoid starvation of the TX path,
 				 * call the work function directly.
 				 */
-				wl1271_tx_work_locked(wl);
+				wl1271_tx_work_locked(wl, wl->vif);
 			} else {
 				spin_unlock_irqrestore(&wl->wl_lock, flags);
 			}
@@ -1251,7 +1254,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 	}
 
 	/* reboot the chipset */
-	__wl1271_op_remove_interface(wl, false);
+	__wl1271_op_remove_interface(wl, wl->vif, false);
 
 	clear_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
 
@@ -1389,8 +1392,6 @@ int wl1271_plt_start(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl->bss_type = BSS_TYPE_STA_BSS;
-
 	while (retries) {
 		retries--;
 		ret = wl1271_chip_wakeup(wl);
@@ -1482,6 +1483,8 @@ int wl1271_plt_stop(struct wl1271 *wl)
 static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1271 *wl = hw->priv;
+	struct ieee80211_tx_info *control = IEEE80211_SKB_CB(skb);
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(control->control.vif);
 	unsigned long flags;
 	int q, mapping;
 	u8 hlid = 0;
@@ -1489,13 +1492,13 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	mapping = skb_get_queue_mapping(skb);
 	q = wl1271_tx_get_queue(mapping);
 
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		hlid = wl12xx_tx_get_hlid_ap(wl, skb);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
 	/* queue the packet */
-	if (wl->bss_type == BSS_TYPE_AP_BSS) {
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
 		if (!wl1271_is_active_sta(wl, hlid)) {
 			wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d",
 				     hlid, q);
@@ -1552,7 +1555,7 @@ int wl1271_tx_dummy_packet(struct wl1271 *wl)
 
 	/* The FW is low on RX memory blocks, so send the dummy packet asap */
 	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
-		wl1271_tx_work_locked(wl);
+		wl1271_tx_work_locked(wl, wl->vif);
 
 	/*
 	 * If the FW TX is busy, TX work will be scheduled by the threaded
@@ -1686,9 +1689,9 @@ out_unlock:
 static int wl1271_configure_suspend(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif)
 {
-	if (wl->bss_type == BSS_TYPE_STA_BSS)
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS)
 		return wl1271_configure_suspend_sta(wl, wlvif);
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		return wl1271_configure_suspend_ap(wl);
 	return 0;
 }
@@ -1697,8 +1700,8 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif)
 {
 	int ret;
-	bool is_sta = wl->bss_type == BSS_TYPE_STA_BSS;
-	bool is_ap = wl->bss_type == BSS_TYPE_AP_BSS;
+	bool is_sta = wlvif->bss_type == BSS_TYPE_STA_BSS;
+	bool is_ap = wlvif->bss_type == BSS_TYPE_AP_BSS;
 
 	if (!is_sta && !is_ap)
 		return;
@@ -1820,9 +1823,9 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl1271_debug(DEBUG_MAC80211, "mac80211 stop");
 }
 
-static u8 wl12xx_get_role_type(struct wl1271 *wl)
+static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
-	switch (wl->bss_type) {
+	switch (wlvif->bss_type) {
 	case BSS_TYPE_AP_BSS:
 		if (wl->p2p)
 			return WL1271_ROLE_P2P_GO;
@@ -1839,13 +1842,14 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl)
 		return WL1271_ROLE_IBSS;
 
 	default:
-		wl1271_error("invalid bss_type: %d", wl->bss_type);
+		wl1271_error("invalid bss_type: %d", wlvif->bss_type);
 	}
 	return WL12XX_INVALID_ROLE_TYPE;
 }
 
 static void wl12xx_init_vif_data(struct wl12xx_vif *wlvif)
 {
+	wlvif->bss_type = MAX_BSS_TYPE;
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -1856,6 +1860,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 {
 	struct wl1271 *wl = hw->priv;
 	struct wiphy *wiphy = hw->wiphy;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int retries = WL1271_BOOT_RETRIES;
 	int ret = 0;
 	u8 role_type;
@@ -1871,7 +1876,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		ret = -EBUSY;
 		goto out;
 	}
-	wl12xx_init_vif_data(wl12xx_vif_to_data(vif));
+	wl12xx_init_vif_data(wlvif);
 
 	/*
 	 * in some very corner case HW recovery scenarios its possible to
@@ -1888,25 +1893,25 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		wl->p2p = 1;
 		/* fall-through */
 	case NL80211_IFTYPE_STATION:
-		wl->bss_type = BSS_TYPE_STA_BSS;
+		wlvif->bss_type = BSS_TYPE_STA_BSS;
 		wl->set_bss_type = BSS_TYPE_STA_BSS;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		wl->bss_type = BSS_TYPE_IBSS;
+		wlvif->bss_type = BSS_TYPE_IBSS;
 		wl->set_bss_type = BSS_TYPE_STA_BSS;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
 		wl->p2p = 1;
 		/* fall-through */
 	case NL80211_IFTYPE_AP:
-		wl->bss_type = BSS_TYPE_AP_BSS;
+		wlvif->bss_type = BSS_TYPE_AP_BSS;
 		break;
 	default:
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
-	role_type = wl12xx_get_role_type(wl);
+	role_type = wl12xx_get_role_type(wl, wlvif);
 	if (role_type == WL12XX_INVALID_ROLE_TYPE) {
 		ret = -EINVAL;
 		goto out;
@@ -1938,8 +1943,8 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto irq_disable;
 
-		if (wl->bss_type == BSS_TYPE_STA_BSS ||
-		    wl->bss_type == BSS_TYPE_IBSS) {
+		if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
+		    wlvif->bss_type == BSS_TYPE_IBSS) {
 			/*
 			 * The device role is a special role used for
 			 * rx and tx frames prior to association (as
@@ -2020,8 +2025,10 @@ out:
 }
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
+					 struct ieee80211_vif *vif,
 					 bool reset_tx_queues)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret, i;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
@@ -2037,7 +2044,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	mutex_unlock(&wl_list_mutex);
 
 	/* enable dyn ps just in case (if left on due to fw crash etc) */
-	if (wl->bss_type == BSS_TYPE_STA_BSS)
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS)
 		ieee80211_enable_dyn_ps(wl->vif);
 
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
@@ -2054,7 +2061,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		if (ret < 0)
 			goto deinit;
 
-		if (wl->bss_type == BSS_TYPE_STA_BSS) {
+		if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
 			ret = wl12xx_cmd_role_disable(wl, &wl->dev_role_id);
 			if (ret < 0)
 				goto deinit;
@@ -2100,7 +2107,6 @@ deinit:
 
 	memset(wl->ssid, 0, IEEE80211_MAX_SSID_LEN + 1);
 	wl->ssid_len = 0;
-	wl->bss_type = MAX_BSS_TYPE;
 	wl->set_bss_type = MAX_BSS_TYPE;
 	wl->p2p = 0;
 	wl->band = IEEE80211_BAND_2GHZ;
@@ -2169,7 +2175,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	 */
 	if (wl->vif) {
 		WARN_ON(wl->vif != vif);
-		__wl1271_op_remove_interface(wl, true);
+		__wl1271_op_remove_interface(wl, vif, true);
 	}
 
 	mutex_unlock(&wl->mutex);
@@ -2180,7 +2186,7 @@ static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			  bool set_assoc)
 {
 	int ret;
-	bool is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
+	bool is_ibss = (wlvif->bss_type == BSS_TYPE_IBSS);
 
 	/*
 	 * One of the side effects of the JOIN command is that is clears
@@ -2364,7 +2370,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 	}
 
-	is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
@@ -2375,7 +2381,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	    ((wl->band != conf->channel->band) ||
 	     (wl->channel != channel))) {
 		/* send all pending packets */
-		wl1271_tx_work_locked(wl);
+		wl1271_tx_work_locked(wl, vif);
 		wl->band = conf->channel->band;
 		wl->channel = channel;
 
@@ -2536,6 +2542,9 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 {
 	struct wl1271_filter_params *fp = (void *)(unsigned long)multicast;
 	struct wl1271 *wl = hw->priv;
+	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 configure filter changed %x"
@@ -2553,7 +2562,7 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if (wl->bss_type != BSS_TYPE_AP_BSS) {
+	if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
 		if (*total & FIF_ALLMULTI)
 			ret = wl1271_acx_group_address_tbl(wl, false, NULL, 0);
 		else if (fp)
@@ -2673,12 +2682,13 @@ out:
 	return ret;
 }
 
-static int wl1271_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
+static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+		       u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, u32 tx_seq_32,
 		       u16 tx_seq_16, struct ieee80211_sta *sta)
 {
 	int ret;
-	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 
 	if (is_ap) {
 		struct wl1271_station *wl_sta;
@@ -2774,6 +2784,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			     struct ieee80211_key_conf *key_conf)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 	u32 tx_seq_32 = 0;
 	u16 tx_seq_16 = 0;
@@ -2833,7 +2844,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (cmd) {
 	case SET_KEY:
-		ret = wl1271_set_key(wl, KEY_ADD_OR_REPLACE,
+		ret = wl1271_set_key(wl, wlvif, KEY_ADD_OR_REPLACE,
 				 key_conf->keyidx, key_type,
 				 key_conf->keylen, key_conf->key,
 				 tx_seq_32, tx_seq_16, sta);
@@ -2844,7 +2855,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 
 	case DISABLE_KEY:
-		ret = wl1271_set_key(wl, KEY_REMOVE,
+		ret = wl1271_set_key(wl, wlvif, KEY_REMOVE,
 				     key_conf->keyidx, key_type,
 				     key_conf->keylen, key_conf->key,
 				     0, 0, sta);
@@ -2966,6 +2977,7 @@ static int wl1271_op_sched_scan_start(struct ieee80211_hw *hw,
 				      struct ieee80211_sched_scan_ies *ies)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "wl1271_op_sched_scan_start");
@@ -2976,11 +2988,11 @@ static int wl1271_op_sched_scan_start(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_scan_sched_scan_config(wl, req, ies);
+	ret = wl1271_scan_sched_scan_config(wl, wlvif, req, ies);
 	if (ret < 0)
 		goto out_sleep;
 
-	ret = wl1271_scan_sched_scan_start(wl);
+	ret = wl1271_scan_sched_scan_start(wl, wlvif);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -3225,7 +3237,7 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 					  u32 changed)
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
-	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 	int ret = 0;
 
 	if ((changed & BSS_CHANGED_BEACON_INT)) {
@@ -3387,7 +3399,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	bool do_join = false, set_assoc = false;
-	bool is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
+	bool is_ibss = (wlvif->bss_type == BSS_TYPE_IBSS);
 	bool ibss_joined = false;
 	u32 sta_rate_set = 0;
 	int ret;
@@ -3623,7 +3635,7 @@ sta_not_found:
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		__be32 addr = bss_conf->arp_addr_list[0];
-		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
+		WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS);
 
 		if (bss_conf->arp_addr_cnt == 1 &&
 		    bss_conf->arp_filter_enabled) {
@@ -3742,7 +3754,8 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				       u32 changed)
 {
 	struct wl1271 *wl = hw->priv;
-	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 bss info changed 0x%x",
@@ -3933,6 +3946,7 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 			     struct ieee80211_sta *sta)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret = 0;
 	u8 hlid;
 
@@ -3941,7 +3955,7 @@ static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
-	if (wl->bss_type != BSS_TYPE_AP_BSS)
+	if (wlvif->bss_type != BSS_TYPE_AP_BSS)
 		goto out;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add sta %d", (int)sta->aid);
@@ -3983,6 +3997,7 @@ static int wl1271_op_sta_remove(struct ieee80211_hw *hw,
 				struct ieee80211_sta *sta)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271_station *wl_sta;
 	int ret = 0, id;
 
@@ -3991,7 +4006,7 @@ static int wl1271_op_sta_remove(struct ieee80211_hw *hw,
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
-	if (wl->bss_type != BSS_TYPE_AP_BSS)
+	if (wlvif->bss_type != BSS_TYPE_AP_BSS)
 		goto out;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove sta %d", (int)sta->aid);
@@ -4026,6 +4041,7 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 				  u8 buf_size)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 	u8 hlid, *ba_bitmap;
 
@@ -4043,10 +4059,10 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (wl->bss_type == BSS_TYPE_STA_BSS) {
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
 		hlid = wl->sta_hlid;
 		ba_bitmap = &wl->ba_rx_bitmap;
-	} else if (wl->bss_type == BSS_TYPE_AP_BSS) {
+	} else if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
 		struct wl1271_station *wl_sta;
 
 		wl_sta = (struct wl1271_station *)sta->drv_priv;
@@ -4197,10 +4213,6 @@ static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
 
 	/* packets are considered pending if in the TX queue or the FW */
 	ret = (wl1271_tx_total_queue_count(wl) > 0) || (wl->tx_frames_cnt > 0);
-
-	/* the above is appropriate for STA mode for PS purposes */
-	WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
-
 out:
 	mutex_unlock(&wl->mutex);
 
@@ -4846,7 +4858,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->flags = 0;
 	wl->sg_enabled = true;
 	wl->hw_pg_ver = -1;
-	wl->bss_type = MAX_BSS_TYPE;
 	wl->set_bss_type = MAX_BSS_TYPE;
 	wl->last_tx_hlid = 0;
 	wl->ap_ps_map = 0;

@@ -34,6 +34,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
+	struct wl12xx_vif *wlvif;
 	int ret;
 	bool is_sta, is_ibss;
 
@@ -50,6 +51,8 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	if (wl->scan.state == WL1271_SCAN_STATE_IDLE)
 		goto out;
 
+	wlvif = wl12xx_vif_to_data(wl->scan_vif);
+
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
 	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 	wl->scan.req = NULL;
@@ -65,8 +68,8 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	}
 
 	/* return to ROC if needed */
-	is_sta = (wl->bss_type == BSS_TYPE_STA_BSS);
-	is_ibss = (wl->bss_type == BSS_TYPE_IBSS);
+	is_sta = (wlvif->bss_type == BSS_TYPE_STA_BSS);
+	is_ibss = (wlvif->bss_type == BSS_TYPE_IBSS);
 	if (((is_sta && !test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) ||
 	     (is_ibss && !test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags))) &&
 	    !test_bit(wl->dev_role_id, wl->roc_map)) {
@@ -589,6 +592,7 @@ out:
 }
 
 int wl1271_scan_sched_scan_config(struct wl1271 *wl,
+				  struct wl12xx_vif *wlvif,
 				  struct cfg80211_sched_scan_request *req,
 				  struct ieee80211_sched_scan_ies *ies)
 {
@@ -671,14 +675,14 @@ out:
 	return ret;
 }
 
-int wl1271_scan_sched_scan_start(struct wl1271 *wl)
+int wl1271_scan_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl1271_cmd_sched_scan_start *start;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_CMD, "cmd periodic scan start");
 
-	if (wl->bss_type != BSS_TYPE_STA_BSS)
+	if (wlvif->bss_type != BSS_TYPE_STA_BSS)
 		return -EOPNOTSUPP;
 
 	if (!test_bit(WL1271_FLAG_IDLE, &wl->flags))

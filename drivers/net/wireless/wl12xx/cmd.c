@@ -1042,7 +1042,7 @@ int wl12xx_cmd_build_null_data(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	int ret = -ENOMEM;
 
 
-	if (wl->bss_type == BSS_TYPE_IBSS) {
+	if (wlvif->bss_type == BSS_TYPE_IBSS) {
 		size = sizeof(struct wl12xx_null_data_template);
 		ptr = NULL;
 	} else {

@@ -478,7 +478,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return 0;
 }
 
-static int wl1271_set_ba_policies(struct wl1271 *wl)
+static int wl1271_set_ba_policies(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	/* Reset the BA RX indicators */
 	wl->ba_rx_bitmap = 0;
@@ -486,8 +486,8 @@ static int wl1271_set_ba_policies(struct wl1271 *wl)
 	wl->ba_rx_session_count = 0;
 
 	/* BA is supported in STA/AP modes */
-	if (wl->bss_type != BSS_TYPE_AP_BSS &&
-	    wl->bss_type != BSS_TYPE_STA_BSS) {
+	if (wlvif->bss_type != BSS_TYPE_AP_BSS &&
+	    wlvif->bss_type != BSS_TYPE_STA_BSS) {
 		wl->ba_support = false;
 		return 0;
 	}
@@ -572,7 +572,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct conf_tx_ac_category *conf_ac;
 	struct conf_tx_tid *conf_tid;
-	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 
 	int ret, i;
 
@@ -635,7 +635,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 		return ret;
 
 	/* Configure initiator BA sessions policies */
-	ret = wl1271_set_ba_policies(wl);
+	ret = wl1271_set_ba_policies(wl, wlvif);
 	if (ret < 0)
 		return ret;
 

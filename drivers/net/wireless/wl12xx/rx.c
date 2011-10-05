@@ -185,6 +185,8 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 {
 	struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
+	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	u32 buf_size;
 	u32 fw_rx_counter  = status->fw_rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
 	u32 drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
@@ -192,7 +194,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 	u32 mem_block;
 	u32 pkt_length;
 	u32 pkt_offset;
-	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 	bool had_data = false;
 	bool unaligned = false;
 

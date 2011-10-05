@@ -178,9 +178,9 @@ static void wl1271_event_rssi_trigger(struct wl1271 *wl,
 	wl->last_rssi_event = event;
 }
 
-static void wl1271_stop_ba_event(struct wl1271 *wl)
+static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
-	if (wl->bss_type != BSS_TYPE_AP_BSS) {
+	if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
 		if (!wl->ba_rx_bitmap)
 			return;
 		ieee80211_stop_rx_ba_session(wl->vif, wl->ba_rx_bitmap,
@@ -229,7 +229,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	int ret;
 	u32 vector;
 	bool beacon_loss = false;
-	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 	bool disconnect_sta = false;
 	unsigned long sta_bitmap = 0;
 
@@ -263,7 +263,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	}
 
 	if (vector & SOFT_GEMINI_SENSE_EVENT_ID &&
-	    wl->bss_type == BSS_TYPE_STA_BSS)
+	    wlvif->bss_type == BSS_TYPE_STA_BSS)
 		wl12xx_event_soft_gemini_sense(wl,
 					       mbox->soft_gemini_sense_info);
 
@@ -306,7 +306,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		wl->ba_allowed = !!mbox->rx_ba_allowed;
 
 		if (wl->vif && !wl->ba_allowed)
-			wl1271_stop_ba_event(wl);
+			wl1271_stop_ba_event(wl, wlvif);
 	}
 
 	if ((vector & CHANNEL_SWITCH_COMPLETE_EVENT_ID) && !is_ap) {
