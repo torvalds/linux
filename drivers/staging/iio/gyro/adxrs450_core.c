@@ -268,7 +268,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case 0:
 		switch (chan->type) {
-		case IIO_GYRO:
+		case IIO_ANGL_VEL:
 			ret = adxrs450_spi_sensor_data(indio_dev, &t);
 			if (ret)
 				break;
@@ -305,7 +305,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_chan_spec adxrs450_channels[] = {
 	{
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |

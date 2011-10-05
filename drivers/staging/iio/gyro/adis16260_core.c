@@ -390,7 +390,7 @@ enum adis16260_channel {
 };
 #define ADIS16260_GYRO_CHANNEL_SET(axis, mod)				\
 	struct iio_chan_spec adis16260_channels_##axis[] = {		\
-		IIO_CHAN(IIO_GYRO, 1, 0, 0, NULL, 0, mod,		\
+		IIO_CHAN(IIO_ANGL_VEL, 1, 0, 0, NULL, 0, mod,		\
 			 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |	\
 			 (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) |	\
 			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
@@ -468,7 +468,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
 		switch (chan->type) {
-		case IIO_GYRO:
+		case IIO_ANGL_VEL:
 			*val = 0;
 			if (spi_get_device_id(st->us)->driver_data)
 				*val2 = 320;
@@ -495,7 +495,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
 		switch (chan->type) {
-		case IIO_GYRO:
+		case IIO_ANGL_VEL:
 			bits = 12;
 			break;
 		default:
@@ -515,7 +515,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
 		switch (chan->type) {
-		case IIO_GYRO:
+		case IIO_ANGL_VEL:
 			bits = 12;
 			break;
 		default:

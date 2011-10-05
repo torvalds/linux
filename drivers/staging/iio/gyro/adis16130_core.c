@@ -97,7 +97,7 @@ static int adis16130_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_chan_spec adis16130_channels[] = {
 	{
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
 		.address = ADIS16130_RATEDATA,

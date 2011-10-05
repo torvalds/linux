@@ -507,7 +507,7 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
 	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
 		switch (chan->type) {
-		case IIO_GYRO:
+		case IIO_ANGL_VEL:
 			*val = 0;
 			*val2 = st->variant->gyro_scale_micro;
 			return IIO_VAL_INT_PLUS_MICRO;
@@ -565,7 +565,7 @@ static struct iio_chan_spec adis16400_channels[] = {
 		.scan_index = ADIS16400_SCAN_SUPPLY,
 		.scan_type = IIO_ST('u', 14, 16, 0)
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -574,7 +574,7 @@ static struct iio_chan_spec adis16400_channels[] = {
 		.scan_index = ADIS16400_SCAN_GYRO_X,
 		.scan_type = IIO_ST('s', 14, 16, 0)
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Y,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -583,7 +583,7 @@ static struct iio_chan_spec adis16400_channels[] = {
 		.scan_index = ADIS16400_SCAN_GYRO_Y,
 		.scan_type = IIO_ST('s', 14, 16, 0),
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -674,7 +674,7 @@ static struct iio_chan_spec adis16350_channels[] = {
 		.scan_index = ADIS16400_SCAN_SUPPLY,
 		.scan_type = IIO_ST('u', 12, 16, 0)
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -683,7 +683,7 @@ static struct iio_chan_spec adis16350_channels[] = {
 		.scan_index = ADIS16400_SCAN_GYRO_X,
 		.scan_type = IIO_ST('s', 14, 16, 0)
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Y,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -692,7 +692,7 @@ static struct iio_chan_spec adis16350_channels[] = {
 		.scan_index = ADIS16400_SCAN_GYRO_Y,
 		.scan_type = IIO_ST('s', 14, 16, 0),
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -780,7 +780,7 @@ static struct iio_chan_spec adis16300_channels[] = {
 		.scan_index = ADIS16400_SCAN_SUPPLY,
 		.scan_type = IIO_ST('u', 12, 16, 0)
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -854,7 +854,7 @@ static struct iio_chan_spec adis16300_channels[] = {
 
 static const struct iio_chan_spec adis16334_channels[] = {
 	{
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -863,7 +863,7 @@ static const struct iio_chan_spec adis16334_channels[] = {
 		.scan_index = ADIS16400_SCAN_GYRO_X,
 		.scan_type = IIO_ST('s', 14, 16, 0),
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Y,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
@@ -872,7 +872,7 @@ static const struct iio_chan_spec adis16334_channels[] = {
 		.scan_index = ADIS16400_SCAN_GYRO_Y,
 		.scan_type = IIO_ST('s', 14, 16, 0),
 	}, {
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
 		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |

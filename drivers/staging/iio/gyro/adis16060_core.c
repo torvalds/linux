@@ -117,7 +117,7 @@ static const struct iio_info adis16060_info = {
 
 static const struct iio_chan_spec adis16060_channels[] = {
 	{
-		.type = IIO_GYRO,
+		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
 		.address = ADIS16060_GYRO,
