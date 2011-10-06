@@ -518,7 +518,8 @@ static int tsl2563_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error_ret;
 	}
 
 error_ret:
