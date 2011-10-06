@@ -18,9 +18,9 @@
 
 #include "ad7298.h"
 
-int ad7298_scan_from_ring(struct iio_dev *dev_info, long ch)
+int ad7298_scan_from_ring(struct iio_dev *indio_dev, long ch)
 {
-	struct iio_buffer *ring = dev_info->buffer;
+	struct iio_buffer *ring = indio_dev->buffer;
 	int ret;
 	u16 *ring_data;
 

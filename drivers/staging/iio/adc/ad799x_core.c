@@ -136,25 +136,25 @@ static int ad799x_scan_direct(struct ad799x_state *st, unsigned ch)
 	return rxbuf;
 }
 
-static int ad799x_read_raw(struct iio_dev *dev_info,
+static int ad799x_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
 			   int *val2,
 			   long m)
 {
 	int ret;
-	struct ad799x_state *st = iio_priv(dev_info);
+	struct ad799x_state *st = iio_priv(indio_dev);
 	unsigned int scale_uv;
 
 	switch (m) {
 	case 0:
-		mutex_lock(&dev_info->mlock);
-		if (iio_buffer_enabled(dev_info))
-			ret = ad799x_single_channel_from_ring(dev_info,
+		mutex_lock(&indio_dev->mlock);
+		if (iio_buffer_enabled(indio_dev))
+			ret = ad799x_single_channel_from_ring(indio_dev,
 							      chan->scan_index);
 		else
 			ret = ad799x_scan_direct(st, chan->scan_index);
-		mutex_unlock(&dev_info->mlock);
+		mutex_unlock(&indio_dev->mlock);
 
 		if (ret < 0)
 			return ret;
@@ -182,8 +182,8 @@ static ssize_t ad799x_read_frequency(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad799x_state *st = iio_priv(indio_dev);
 
 	int ret;
 	u8 val;
@@ -201,8 +201,8 @@ static ssize_t ad799x_write_frequency(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad799x_state *st = iio_priv(indio_dev);
 
 	long val;
 	int ret, i;
@@ -212,7 +212,7 @@ static ssize_t ad799x_write_frequency(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
 	ret = ad799x_i2c_read8(st, AD7998_CYCLE_TMR_REG, &t);
 	if (ret)
 		goto error_ret_mutex;
@@ -230,12 +230,12 @@ static ssize_t ad799x_write_frequency(struct device *dev,
 	ret = ad799x_i2c_write8(st, AD7998_CYCLE_TMR_REG, t);
 
 error_ret_mutex:
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 	return ret ? ret : len;
 }
 
-static int ad799x_read_event_config(struct iio_dev *dev_info,
+static int ad799x_read_event_config(struct iio_dev *indio_dev,
 				    u64 event_code)
 {
 	return 1;
@@ -294,8 +294,8 @@ static ssize_t ad799x_read_channel_config(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad799x_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	int ret;
@@ -312,8 +312,8 @@ static ssize_t ad799x_write_channel_config(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad799x_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad799x_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	long val;
@@ -323,9 +323,9 @@ static ssize_t ad799x_write_channel_config(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
 	ret = ad799x_i2c_write16(st, this_attr->address, val);
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 	return ret ? ret : len;
 }
