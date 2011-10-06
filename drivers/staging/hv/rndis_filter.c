@@ -368,10 +368,10 @@ int rndis_filter_receive(struct hv_device *dev,
 	struct rndis_message *rndis_hdr;
 	struct net_device *ndev;
 
-	ndev = net_dev->ndev;
-
 	if (!net_dev)
 		return -EINVAL;
+
+	ndev = net_dev->ndev;
 
 	/* Make sure the rndis device state is initialized */
 	if (!net_dev->extension) {
