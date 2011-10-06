@@ -3,7 +3,7 @@
  *
  * Copyright 2006 Wolfson Microelectronics
  *
- * Author: Mike Arthur <linux@wolfsonmicro.com>
+ * Author: Mike Arthur <Mike.Arthur@wolfsonmicro.com>
  *
  * Based on wm8731.c by Richard Purdie
  *

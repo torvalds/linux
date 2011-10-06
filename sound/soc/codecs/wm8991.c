@@ -3,7 +3,7 @@
  *
  * Copyright 2007-2010 Wolfson Microelectronics PLC.
  * Author: Graeme Gregory
- *         linux@wolfsonmicro.com
+ *         Graeme.Gregory@wolfsonmicro.com
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
