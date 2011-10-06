@@ -81,12 +81,10 @@ static unsigned char hidp_mkeyspat[] = { 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 };
 static struct hidp_session *__hidp_get_session(bdaddr_t *bdaddr)
 {
 	struct hidp_session *session;
-	struct list_head *p;
 
 	BT_DBG("");
 
-	list_for_each(p, &hidp_session_list) {
-		session = list_entry(p, struct hidp_session, list);
+	list_for_each_entry(session, &hidp_session_list, list) {
 		if (!bacmp(bdaddr, &session->bdaddr))
 			return session;
 	}
@@ -1140,18 +1138,15 @@ int hidp_del_connection(struct hidp_conndel_req *req)
 
 int hidp_get_connlist(struct hidp_connlist_req *req)
 {
-	struct list_head *p;
+	struct hidp_session *session;
 	int err = 0, n = 0;
 
 	BT_DBG("");
 
 	down_read(&hidp_session_sem);
 
-	list_for_each(p, &hidp_session_list) {
-		struct hidp_session *session;
+	list_for_each_entry(session, &hidp_session_list, list) {
 		struct hidp_conninfo ci;
-
-		session = list_entry(p, struct hidp_session, list);
 
 		__hidp_copy_session(session, &ci);
 
