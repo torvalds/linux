@@ -569,7 +569,7 @@ static int tsl2563_read_thresh(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static ssize_t tsl2563_write_thresh(struct iio_dev *indio_dev,
+static int tsl2563_write_thresh(struct iio_dev *indio_dev,
 				  u64 event_code,
 				  int val)
 {
