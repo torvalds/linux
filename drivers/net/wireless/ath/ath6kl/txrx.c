@@ -1247,6 +1247,11 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		}
 		if (skb1)
 			ath6kl_data_tx(skb1, ar->net_dev);
+
+		if (skb == NULL) {
+			/* nothing to deliver up the stack */
+			return;
+		}
 	}
 
 	datap = (struct ethhdr *) skb->data;
