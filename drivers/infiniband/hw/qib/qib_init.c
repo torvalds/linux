@@ -398,6 +398,7 @@ static void enable_chip(struct qib_devdata *dd)
 		if (rcd)
 			dd->f_rcvctrl(rcd->ppd, rcvmask, i);
 	}
+	dd->freectxts = dd->cfgctxts - dd->first_user_ctxt;
 }
 
 static void verify_interrupt(unsigned long opaque)

@@ -807,6 +807,10 @@ struct qib_devdata {
 	 * supports, less gives more pio bufs/ctxt, etc.
 	 */
 	u32 cfgctxts;
+	/*
+	 * number of ctxts available for PSM open
+	 */
+	u32 freectxts;
 
 	/*
 	 * hint that we should update pioavailshadow before
