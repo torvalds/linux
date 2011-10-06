@@ -138,8 +138,9 @@ static struct i2c_algorithm i2c_dw_algo = {
 	.functionality	= i2c_dw_func,
 };
 
-static int i2c_dw_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
+static int i2c_dw_pci_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
 	struct dw_i2c_dev *i2c = pci_get_drvdata(pdev);
 	int err;
 
@@ -161,15 +162,9 @@ static int i2c_dw_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	return 0;
 }
 
-static int i2c_dw_pci_runtime_suspend(struct device *dev)
+static int i2c_dw_pci_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	dev_dbg(dev, "PCI suspend called\n");
-	return i2c_dw_pci_suspend(pdev, PMSG_SUSPEND);
-}
-
-static int i2c_dw_pci_resume(struct pci_dev *pdev)
-{
+	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
 	struct dw_i2c_dev *i2c = pci_get_drvdata(pdev);
 	int err;
 	u32 enabled;
@@ -191,13 +186,6 @@ static int i2c_dw_pci_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-static int i2c_dw_pci_runtime_resume(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	dev_dbg(dev, "runtime_resume called\n");
-	return i2c_dw_pci_resume(pdev);
-}
-
 static int i2c_dw_pci_runtime_idle(struct device *dev)
 {
 	int err = pm_schedule_suspend(dev, 500);
@@ -209,9 +197,10 @@ static int i2c_dw_pci_runtime_idle(struct device *dev)
 }
 
 static const struct dev_pm_ops i2c_dw_pm_ops = {
-	.runtime_suspend = i2c_dw_pci_runtime_suspend,
-	.runtime_resume = i2c_dw_pci_runtime_resume,
-	.runtime_idle = i2c_dw_pci_runtime_idle,
+	.resume         = i2c_dw_pci_resume,
+	.suspend        = i2c_dw_pci_suspend,
+	SET_RUNTIME_PM_OPS(i2c_dw_pci_suspend, i2c_dw_pci_resume,
+			   i2c_dw_pci_runtime_idle)
 };
 
 static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
@@ -381,8 +370,6 @@ static struct pci_driver dw_i2c_driver = {
 	.id_table	= i2_designware_pci_ids,
 	.probe		= i2c_dw_pci_probe,
 	.remove		= __devexit_p(i2c_dw_pci_remove),
-	.resume         = i2c_dw_pci_resume,
-	.suspend        = i2c_dw_pci_suspend,
 	.driver         = {
 		.pm     = &i2c_dw_pm_ops,
 	},
