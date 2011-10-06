@@ -470,6 +470,8 @@ static void r6040_down(struct net_device *dev)
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
+
+	phy_stop(lp->phydev);
 }
 
 static int r6040_close(struct net_device *dev)
@@ -726,6 +728,8 @@ static int r6040_up(struct net_device *dev)
 
 	/* Initialize all MAC registers */
 	r6040_init_mac_regs(dev);
+
+	phy_start(lp->phydev);
 
 	return 0;
 }
