@@ -750,7 +750,7 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 		tbi->map_type = VMXNET3_MAP_PAGE;
 		tbi->dma_addr = skb_frag_dma_map(&adapter->pdev->dev, frag,
 						 0, frag->size,
-						 PCI_DMA_TODEVICE);
+						 DMA_TO_DEVICE);
 
 		tbi->len = frag->size;
 

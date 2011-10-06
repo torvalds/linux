@@ -6539,7 +6539,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		len = frag->size;
 		mapping = skb_frag_dma_map(&bp->pdev->dev, frag, 0, len,
-					   PCI_DMA_TODEVICE);
+					   DMA_TO_DEVICE);
 		if (dma_mapping_error(&bp->pdev->dev, mapping))
 			goto dma_error;
 		dma_unmap_addr_set(&txr->tx_buf_ring[ring_prod], mapping,

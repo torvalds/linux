@@ -2777,7 +2777,7 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 			map = skb_frag_dma_map(&hw->pdev->dev, frag, 0,
-					       frag->size, PCI_DMA_TODEVICE);
+					       frag->size, DMA_TO_DEVICE);
 
 			e = e->next;
 			e->skb = skb;

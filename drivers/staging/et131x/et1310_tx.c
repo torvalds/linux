@@ -524,7 +524,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, struct tcb *tcb)
 							&frags[i - 1],
 							0,
 							frags[i - 1].size,
-							PCI_DMA_TODEVICE);
+							DMA_TO_DEVICE);
 		}
 	}
 

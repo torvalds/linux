@@ -1499,7 +1499,7 @@ bdx_tx_map_skb(struct bdx_priv *priv, struct sk_buff *skb,
 		db->wptr->len = frag->size;
 		db->wptr->addr.dma = skb_frag_dma_map(&priv->pdev->dev, frag,
 						      0, frag->size,
-						      PCI_DMA_TODEVICE);
+						      DMA_TO_DEVICE);
 
 		pbl++;
 		pbl->len = CPU_CHIP_SWAP32(db->wptr->len);

@@ -1506,9 +1506,9 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		map[i + 1] = skb_frag_dma_map(&mac->dma_pdev->dev, frag, 0,
-					      frag->size, PCI_DMA_TODEVICE);
+					      frag->size, DMA_TO_DEVICE);
 		map_size[i+1] = frag->size;
-		if (pci_dma_mapping_error(mac->dma_pdev, map[i+1])) {
+		if (dma_mapping_error(&mac->dma_pdev->dev, map[i + 1])) {
 			nfrags = i;
 			goto out_err_nolock;
 		}

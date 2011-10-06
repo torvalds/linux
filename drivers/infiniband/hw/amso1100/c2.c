@@ -803,8 +803,7 @@ static int c2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 			maplen = frag->size;
 			mapaddr = skb_frag_dma_map(&c2dev->pcidev->dev, frag,
-						   0, maplen,
-						   PCI_DMA_TODEVICE);
+						   0, maplen, DMA_TO_DEVICE);
 			elem = elem->next;
 			elem->skb = NULL;
 			elem->mapaddr = mapaddr;

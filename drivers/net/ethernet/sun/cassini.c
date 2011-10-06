@@ -2830,7 +2830,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 
 		len = fragp->size;
 		mapping = skb_frag_dma_map(&cp->pdev->dev, fragp, 0, len,
-					   PCI_DMA_TODEVICE);
+					   DMA_TO_DEVICE);
 
 		tabort = cas_calc_tabort(cp, fragp->page_offset, len);
 		if (unlikely(tabort)) {

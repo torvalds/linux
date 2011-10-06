@@ -1161,7 +1161,7 @@ again:
 			break;
 
 		buf = skb_frag_dma_map(&dev->pci_dev->dev, frag, 0,
-				       frag->size, PCI_DMA_TODEVICE);
+				       frag->size, DMA_TO_DEVICE);
 		dprintk("frag: buf=%08Lx  page=%08lx offset=%08lx\n",
 			(long long)buf, (long) page_to_pfn(frag->page),
 			frag->page_offset);

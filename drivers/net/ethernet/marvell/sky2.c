@@ -1229,9 +1229,9 @@ static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 
 		re->frag_addr[i] = skb_frag_dma_map(&pdev->dev, frag, 0,
 						    frag->size,
-						    PCI_DMA_FROMDEVICE);
+						    DMA_FROM_DEVICE);
 
-		if (pci_dma_mapping_error(pdev, re->frag_addr[i]))
+		if (dma_mapping_error(&pdev->dev, re->frag_addr[i]))
 			goto map_page_error;
 	}
 	return 0;
@@ -1936,9 +1936,9 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		mapping = skb_frag_dma_map(&hw->pdev->dev, frag, 0,
-					   frag->size, PCI_DMA_TODEVICE);
+					   frag->size, DMA_TO_DEVICE);
 
-		if (pci_dma_mapping_error(hw->pdev, mapping))
+		if (dma_mapping_error(&hw->pdev->dev, mapping))
 			goto mapping_unwind;
 
 		upper = upper_32_bits(mapping);

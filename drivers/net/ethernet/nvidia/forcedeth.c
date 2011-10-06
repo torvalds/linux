@@ -2150,7 +2150,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 							&np->pci_dev->dev,
 							frag, offset,
 							bcnt,
-							PCI_DMA_TODEVICE);
+							DMA_TO_DEVICE);
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
 			put_tx->buf = cpu_to_le32(np->put_tx_ctx->dma);
@@ -2264,7 +2264,7 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 							&np->pci_dev->dev,
 							frag, offset,
 							bcnt,
-							PCI_DMA_TODEVICE);
+							DMA_TO_DEVICE);
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
 			put_tx->bufhigh = cpu_to_le32(dma_high(np->put_tx_ctx->dma));

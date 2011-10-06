@@ -6779,12 +6779,12 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			len = frag->size;
 			mapping = skb_frag_dma_map(&tp->pdev->dev, frag, 0,
-						   len, PCI_DMA_TODEVICE);
+						   len, DMA_TO_DEVICE);
 
 			tnapi->tx_buffers[entry].skb = NULL;
 			dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
 					   mapping);
-			if (pci_dma_mapping_error(tp->pdev, mapping))
+			if (dma_mapping_error(&tp->pdev->dev, mapping))
 				goto dma_error;
 
 			if (tg3_tx_frag_set(tnapi, &entry, &budget, mapping,

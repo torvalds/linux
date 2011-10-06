@@ -607,7 +607,7 @@ static inline void enic_queue_wq_skb_cont(struct enic *enic,
 		enic_queue_wq_desc_cont(wq, skb,
 			skb_frag_dma_map(&enic->pdev->dev,
 					 frag, 0, frag->size,
-					 PCI_DMA_TODEVICE),
+					 DMA_TO_DEVICE),
 			frag->size,
 			(len_left == 0),	/* EOP? */
 			loopback);
@@ -726,7 +726,7 @@ static inline void enic_queue_wq_skb_tso(struct enic *enic,
 				(unsigned int)WQ_ENET_MAX_DESC_LEN);
 			dma_addr = skb_frag_dma_map(&enic->pdev->dev, frag,
 						    offset, len,
-						    PCI_DMA_TODEVICE);
+						    DMA_TO_DEVICE);
 			enic_queue_wq_desc_cont(wq, skb,
 				dma_addr,
 				len,

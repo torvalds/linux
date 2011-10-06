@@ -2285,7 +2285,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 			buf_len -= buffer_info->length;
 			buffer_info->dma = skb_frag_dma_map(&adapter->pdev->dev,
 				frag, i * ATL1_MAX_TX_BUF_LEN,
-				buffer_info->length, PCI_DMA_TODEVICE);
+				buffer_info->length, DMA_TO_DEVICE);
 
 			if (++next_to_use == tpd_ring->count)
 				next_to_use = 0;

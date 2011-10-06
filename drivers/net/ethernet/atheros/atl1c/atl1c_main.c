@@ -2183,7 +2183,7 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 		buffer_info->dma = skb_frag_dma_map(&adapter->pdev->dev,
 						    frag, 0,
 						    buffer_info->length,
-						    PCI_DMA_TODEVICE);
+						    DMA_TO_DEVICE);
 		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
 		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_PAGE,
 			ATL1C_PCIMAP_TODEVICE);

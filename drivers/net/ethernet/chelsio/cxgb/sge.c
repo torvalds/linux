@@ -1278,7 +1278,7 @@ static inline void write_tx_descs(struct adapter *adapter, struct sk_buff *skb,
 		}
 
 		mapping = skb_frag_dma_map(&adapter->pdev->dev, frag, 0,
-					   frag->size, PCI_DMA_TODEVICE);
+					   frag->size, DMA_TO_DEVICE);
 		desc_mapping = mapping;
 		desc_len = frag->size;
 

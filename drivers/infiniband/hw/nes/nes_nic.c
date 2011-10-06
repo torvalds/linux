@@ -445,7 +445,7 @@ static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 				&skb_shinfo(skb)->frags[skb_fragment_index];
 			bus_address = skb_frag_dma_map(&nesdev->pcidev->dev,
 						       frag, 0, frag->size,
-						       PCI_DMA_TODEVICE);
+						       DMA_TO_DEVICE);
 			wqe_fragment_length[wqe_fragment_index] =
 					cpu_to_le16(skb_shinfo(skb)->frags[skb_fragment_index].size);
 			set_wqe_64bit_value(nic_sqe->wqe_words, NES_NIC_SQ_WQE_FRAG0_LOW_IDX+(2*wqe_fragment_index),
@@ -566,7 +566,7 @@ tso_sq_no_longer_full:
 				tso_bus_address[tso_frag_count] =
 					skb_frag_dma_map(&nesdev->pcidev->dev,
 							 frag, 0, frag->size,
-							 PCI_DMA_TODEVICE);
+							 DMA_TO_DEVICE);
 			}
 
 			tso_frag_index = 0;

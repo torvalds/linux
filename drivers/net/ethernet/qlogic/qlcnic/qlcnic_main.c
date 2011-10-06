@@ -2136,8 +2136,8 @@ qlcnic_map_tx_skb(struct pci_dev *pdev,
 		nf = &pbuf->frag_array[i+1];
 
 		map = skb_frag_dma_map(&pdev->dev, frag, 0, frag->size,
-				       PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(pdev, map))
+				       DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, map))
 			goto unwind;
 
 		nf->dma = map;

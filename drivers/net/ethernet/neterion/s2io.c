@@ -4193,7 +4193,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Buffer_Pointer = (u64)skb_frag_dma_map(&sp->pdev->dev,
 							     frag, 0,
 							     frag->size,
-							     PCI_DMA_TODEVICE);
+							     DMA_TO_DEVICE);
 		txdp->Control_1 = TXD_BUFFER0_SIZE(frag->size);
 		if (offload_type == SKB_GSO_UDP)
 			txdp->Control_1 |= TXD_UFO_EN;

@@ -2487,7 +2487,7 @@ restart:
 
 			mapping = skb_frag_dma_map(&ap->pdev->dev, frag, 0,
 						   frag->size,
-						   PCI_DMA_TODEVICE);
+						   DMA_TO_DEVICE);
 
 			flagsize = (frag->size << 16);
 			if (skb->ip_summed == CHECKSUM_PARTIAL)

@@ -1432,9 +1432,9 @@ static int ql_map_send(struct ql_adapter *qdev,
 		}
 
 		map = skb_frag_dma_map(&qdev->pdev->dev, frag, 0, frag->size,
-				       PCI_DMA_TODEVICE);
+				       DMA_TO_DEVICE);
 
-		err = pci_dma_mapping_error(qdev->pdev, map);
+		err = dma_mapping_error(&qdev->pdev->dev, map);
 		if (err) {
 			netif_err(qdev, tx_queued, qdev->ndev,
 				  "PCI mapping frags failed with error: %d.\n",

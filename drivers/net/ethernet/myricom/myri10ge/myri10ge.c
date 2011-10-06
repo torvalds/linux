@@ -2928,7 +2928,7 @@ again:
 		frag_idx++;
 		len = frag->size;
 		bus = skb_frag_dma_map(&mgp->pdev->dev, frag, 0, len,
-				       PCI_DMA_TODEVICE);
+				       DMA_TO_DEVICE);
 		dma_unmap_addr_set(&tx->info[idx], bus, bus);
 		dma_unmap_len_set(&tx->info[idx], len, len);
 	}

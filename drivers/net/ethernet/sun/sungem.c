@@ -1072,7 +1072,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 
 			len = this_frag->size;
 			mapping = skb_frag_dma_map(&gp->pdev->dev, this_frag,
-						   0, len, PCI_DMA_TODEVICE);
+						   0, len, DMA_TO_DEVICE);
 			this_ctrl = ctrl;
 			if (frag == skb_shinfo(skb)->nr_frags - 1)
 				this_ctrl |= TXDCTRL_EOF;

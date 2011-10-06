@@ -1769,7 +1769,7 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 							  frag,
 							  (i * MAX_TX_BUF_LEN),
 							  tx_buffer->length,
-							  PCI_DMA_TODEVICE);
+							  DMA_TO_DEVICE);
 			ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_PAGE);
 			use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
 			use_tpd->word2 = (use_tpd->word2 & (~TPD_BUFLEN_MASK)) |
