@@ -38,6 +38,39 @@
 #include "nouveau_connector.h"
 #include "nv50_display.h"
 
+static int
+nv50_crtc_wait_complete(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+	struct nv50_display *disp = nv50_display(dev);
+	struct nouveau_channel *evo = disp->master;
+	u64 start;
+	int ret;
+
+	ret = RING_SPACE(evo, 6);
+	if (ret)
+		return ret;
+	BEGIN_RING(evo, 0, 0x0084, 1);
+	OUT_RING  (evo, 0x80000000);
+	BEGIN_RING(evo, 0, 0x0080, 1);
+	OUT_RING  (evo, 0);
+	BEGIN_RING(evo, 0, 0x0084, 1);
+	OUT_RING  (evo, 0x00000000);
+
+	nv_wo32(disp->ntfy, 0x000, 0x00000000);
+	FIRE_RING (evo);
+
+	start = ptimer->read(dev);
+	do {
+		if (nv_ro32(disp->ntfy, 0x000))
+			return 0;
+	} while (ptimer->read(dev) - start < 2000000000ULL);
+
+	return -EBUSY;
+}
+
 static void
 nv50_crtc_lut_load(struct drm_crtc *crtc)
 {
@@ -184,10 +217,11 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 {
 	struct nouveau_connector *nv_connector =
 		nouveau_crtc_connector_get(nv_crtc);
-	struct drm_device *dev = nv_crtc->base.dev;
+	struct drm_crtc *crtc = &nv_crtc->base;
+	struct drm_device *dev = crtc->dev;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct drm_display_mode *native_mode = NULL;
-	struct drm_display_mode *mode = &nv_crtc->base.mode;
+	struct drm_display_mode *mode = &crtc->mode;
 	uint32_t outX, outY, horiz, vert;
 	int ret;
 
@@ -231,7 +265,7 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 		break;
 	}
 
-	ret = RING_SPACE(evo, update ? 7 : 5);
+	ret = RING_SPACE(evo, 5);
 	if (ret)
 		return ret;
 
@@ -251,9 +285,9 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 	OUT_RING(evo, outY << 16 | outX);
 
 	if (update) {
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
-		OUT_RING(evo, 0);
-		FIRE_RING(evo);
+		nv50_display_flip_stop(crtc);
+		nv50_crtc_wait_complete(crtc);
+		nv50_display_flip_next(crtc, crtc->fb, NULL);
 	}
 
 	return 0;
@@ -439,39 +473,6 @@ static const struct drm_crtc_funcs nv50_crtc_funcs = {
 static void
 nv50_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-}
-
-static int
-nv50_crtc_wait_complete(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-	struct nv50_display *disp = nv50_display(dev);
-	struct nouveau_channel *evo = disp->master;
-	u64 start;
-	int ret;
-
-	ret = RING_SPACE(evo, 6);
-	if (ret)
-		return ret;
-	BEGIN_RING(evo, 0, 0x0084, 1);
-	OUT_RING  (evo, 0x80000000);
-	BEGIN_RING(evo, 0, 0x0080, 1);
-	OUT_RING  (evo, 0);
-	BEGIN_RING(evo, 0, 0x0084, 1);
-	OUT_RING  (evo, 0x00000000);
-
-	nv_wo32(disp->ntfy, 0x000, 0x00000000);
-	FIRE_RING (evo);
-
-	start = ptimer->read(dev);
-	do {
-		if (nv_ro32(disp->ntfy, 0x000))
-			return 0;
-	} while (ptimer->read(dev) - start < 2000000000ULL);
-
-	return -EBUSY;
 }
 
 static void
