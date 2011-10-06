@@ -47,10 +47,6 @@ static int wm8990_volatile_register(struct snd_soc_codec *codec,
 	}
 }
 
-/*
- * wm8990 register cache.  Note that register 0 is not included in the
- * cache.
- */
 static const u16 wm8990_reg[] = {
 	0x8990,     /* R0  - Reset */
 	0x0000,     /* R1  - Power Management (1) */
