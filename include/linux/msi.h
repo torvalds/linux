@@ -1,6 +1,7 @@
 #ifndef LINUX_MSI_H
 #define LINUX_MSI_H
 
+#include <linux/kobject.h>
 #include <linux/list.h>
 
 struct msi_msg {
@@ -44,6 +45,8 @@ struct msi_desc {
 
 	/* Last set MSI message */
 	struct msi_msg msg;
+
+	struct kobject kobj;
 };
 
 /*
