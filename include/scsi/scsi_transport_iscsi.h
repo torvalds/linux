@@ -208,6 +208,7 @@ struct iscsi_cls_session {
 	struct delayed_work recovery_work;
 
 	unsigned int target_id;
+	bool ida_used;
 
 	int state;
 	int sid;				/* session id */
