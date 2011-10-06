@@ -1442,6 +1442,8 @@ extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
 
 /* nouveau_display.c */
+int nouveau_display_create(struct drm_device *dev);
+void nouveau_display_destroy(struct drm_device *dev);
 int nouveau_vblank_enable(struct drm_device *dev, int crtc);
 void nouveau_vblank_disable(struct drm_device *dev, int crtc);
 int nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,

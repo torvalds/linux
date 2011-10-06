@@ -147,10 +147,55 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 	return &nouveau_fb->base;
 }
 
-const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
+static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 	.fb_create = nouveau_user_framebuffer_create,
 	.output_poll_changed = nouveau_fbcon_output_poll_changed,
 };
+
+int
+nouveau_display_create(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+	int ret;
+
+	drm_mode_config_init(dev);
+	drm_mode_create_scaling_mode_property(dev);
+	drm_mode_create_dithering_property(dev);
+
+	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
+	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);
+
+	dev->mode_config.min_width = 0;
+	dev->mode_config.min_height = 0;
+	if (dev_priv->card_type < NV_10) {
+		dev->mode_config.max_width = 2048;
+		dev->mode_config.max_height = 2048;
+	} else
+	if (dev_priv->card_type < NV_50) {
+		dev->mode_config.max_width = 4096;
+		dev->mode_config.max_height = 4096;
+	} else {
+		dev->mode_config.max_width = 8192;
+		dev->mode_config.max_height = 8192;
+	}
+
+	ret = disp->create(dev);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+void
+nouveau_display_destroy(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+
+	disp->destroy(dev);
+	drm_mode_config_cleanup(dev);
+}
 
 int
 nouveau_vblank_enable(struct drm_device *dev, int crtc)
