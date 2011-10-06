@@ -121,6 +121,7 @@ void __init omap16xx_map_io(void)
 void omap1_init_early(void)
 {
 	omap_check_revision();
+	omap_ioremap_init();
 
 	/* REVISIT: Refer to OMAP5910 Errata, Advisory SYS_1: "Timeout Abort
 	 * on a Posted Write in the TIPB Bridge".

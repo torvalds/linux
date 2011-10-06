@@ -323,6 +323,7 @@ void __iomem *omap_irq_base;
 static void __init omap_common_init_early(void)
 {
 	omap2_check_revision();
+	omap_ioremap_init();
 }
 
 static void __init omap_hwmod_init_postsetup(void)
