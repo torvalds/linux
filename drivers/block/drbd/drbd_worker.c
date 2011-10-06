@@ -77,10 +77,21 @@ void drbd_md_io_complete(struct bio *bio, int error)
 
 	md_io->error = error;
 
+	/* We grabbed an extra reference in _drbd_md_sync_page_io() to be able
+	 * to timeout on the lower level device, and eventually detach from it.
+	 * If this io completion runs after that timeout expired, this
+	 * drbd_md_put_buffer() may allow us to finally try and re-attach.
+	 * During normal operation, this only puts that extra reference
+	 * down to 1 again.
+	 * Make sure we first drop the reference, and only then signal
+	 * completion, or we may (in drbd_al_read_log()) cycle so fast into the
+	 * next drbd_md_sync_page_io(), that we trigger the
+	 * ASSERT(atomic_read(&mdev->md_io_in_use) == 1) there.
+	 */
+	drbd_md_put_buffer(mdev);
 	md_io->done = 1;
 	wake_up(&mdev->misc_wait);
 	bio_put(bio);
-	drbd_md_put_buffer(mdev);
 	put_ldev(mdev);
 }
 
