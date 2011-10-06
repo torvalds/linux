@@ -113,7 +113,7 @@ static int __devinit dw_i2c_probe(struct platform_device *pdev)
 		goto err_unuse_clocks;
 	}
 	{
-		u32 param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
+		u32 param1 = i2c_dw_read_comp_param(dev);
 
 		dev->tx_fifo_depth = ((param1 >> 16) & 0xff) + 1;
 		dev->rx_fifo_depth = ((param1 >> 8)  & 0xff) + 1;
@@ -122,7 +122,7 @@ static int __devinit dw_i2c_probe(struct platform_device *pdev)
 	if (r)
 		goto err_iounmap;
 
-	dw_writel(dev, 0, DW_IC_INTR_MASK); /* disable IRQ */
+	i2c_dw_disable_int(dev);
 	r = request_irq(dev->irq, i2c_dw_isr, IRQF_DISABLED, pdev->name, dev);
 	if (r) {
 		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
@@ -178,7 +178,7 @@ static int __devexit dw_i2c_remove(struct platform_device *pdev)
 	clk_put(dev->clk);
 	dev->clk = NULL;
 
-	dw_writel(dev, 0, DW_IC_ENABLE);
+	i2c_dw_disable(dev);
 	free_irq(dev->irq, dev);
 	kfree(dev);
 
