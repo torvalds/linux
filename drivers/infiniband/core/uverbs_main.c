@@ -557,8 +557,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (hdr.in_words * 4 != count)
 		return -EINVAL;
 
-	if (hdr.command < 0				||
-	    hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
+	if (hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
 	    !uverbs_cmd_table[hdr.command])
 		return -EINVAL;
 
