@@ -519,6 +519,7 @@ struct nouveau_pm_memtimings {
 };
 
 struct nouveau_pm_fan {
+	u32 percent;
 	u32 min_duty;
 	u32 max_duty;
 	u32 pwm_freq;

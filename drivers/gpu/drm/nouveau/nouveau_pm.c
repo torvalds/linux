@@ -89,7 +89,10 @@ nouveau_pwmfan_set(struct drm_device *dev, int percent)
 		if (dev_priv->card_type <= NV_40 || (gpio.log[0] & 1))
 			duty = divs - duty;
 
-		return pm->pwm_set(dev, gpio.line, divs, duty);
+		ret = pm->pwm_set(dev, gpio.line, divs, duty);
+		if (!ret)
+			pm->fan.percent = percent;
+		return ret;
 	}
 
 	return -ENODEV;
@@ -800,6 +803,9 @@ nouveau_pm_init(struct drm_device *dev)
 		}
 	}
 
+	/* determine the current fan speed */
+	pm->fan.percent = nouveau_pwmfan_get(dev);
+
 	nouveau_sysfs_init(dev);
 	nouveau_hwmon_init(dev);
 #if defined(CONFIG_ACPI) && defined(CONFIG_POWER_SUPPLY)
@@ -844,4 +850,5 @@ nouveau_pm_resume(struct drm_device *dev)
 	perflvl = pm->cur;
 	pm->cur = &pm->boot;
 	nouveau_pm_perflvl_set(dev, perflvl);
+	nouveau_pwmfan_set(dev, pm->fan.percent);
 }
