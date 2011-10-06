@@ -2338,8 +2338,10 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	skip_pages = ((u32)region->offset) >> 12;
 
-	if (ib_copy_from_udata(&req, udata, sizeof(req)))
+	if (ib_copy_from_udata(&req, udata, sizeof(req))) {
+		ib_umem_release(region);
 		return ERR_PTR(-EFAULT);
+	}
 	nes_debug(NES_DBG_MR, "Memory Registration type = %08X.\n", req.reg_type);
 
 	switch (req.reg_type) {
@@ -2631,6 +2633,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			return &nesmr->ibmr;
 	}
 
+	ib_umem_release(region);
 	return ERR_PTR(-ENOSYS);
 }
 
