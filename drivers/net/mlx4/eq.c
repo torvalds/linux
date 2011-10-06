@@ -484,7 +484,7 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 
 	mlx4_mtt_cleanup(dev, &eq->mtt);
 	for (i = 0; i < npages; ++i)
-		pci_free_consistent(dev->pdev, PAGE_SIZE,
+		dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
 				    eq->page_list[i].buf,
 				    eq->page_list[i].map);
 
