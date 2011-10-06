@@ -1255,7 +1255,7 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 
 	spin_lock(&dcb_lock);
 	list_for_each_entry(itr, &dcb_app_list, list) {
-		if (strncmp(itr->name, netdev->name, IFNAMSIZ) == 0) {
+		if (itr->ifindex == netdev->ifindex) {
 			err = nla_put(skb, DCB_ATTR_IEEE_APP, sizeof(itr->app),
 					 &itr->app);
 			if (err) {
@@ -1412,7 +1412,7 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 		goto dcb_unlock;
 
 	list_for_each_entry(itr, &dcb_app_list, list) {
-		if (strncmp(itr->name, netdev->name, IFNAMSIZ) == 0) {
+		if (itr->ifindex == netdev->ifindex) {
 			struct nlattr *app_nest = nla_nest_start(skb,
 								 DCB_ATTR_APP);
 			if (!app_nest)
@@ -2050,7 +2050,7 @@ u8 dcb_getapp(struct net_device *dev, struct dcb_app *app)
 	list_for_each_entry(itr, &dcb_app_list, list) {
 		if (itr->app.selector == app->selector &&
 		    itr->app.protocol == app->protocol &&
-		    (strncmp(itr->name, dev->name, IFNAMSIZ) == 0)) {
+		    itr->ifindex == dev->ifindex) {
 			prio = itr->app.priority;
 			break;
 		}
@@ -2073,7 +2073,7 @@ int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 	struct dcb_app_type *itr;
 	struct dcb_app_type event;
 
-	memcpy(&event.name, dev->name, sizeof(event.name));
+	event.ifindex = dev->ifindex;
 	memcpy(&event.app, new, sizeof(event.app));
 
 	spin_lock(&dcb_lock);
@@ -2081,7 +2081,7 @@ int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 	list_for_each_entry(itr, &dcb_app_list, list) {
 		if (itr->app.selector == new->selector &&
 		    itr->app.protocol == new->protocol &&
-		    (strncmp(itr->name, dev->name, IFNAMSIZ) == 0)) {
+		    itr->ifindex == dev->ifindex) {
 			if (new->priority)
 				itr->app.priority = new->priority;
 			else {
@@ -2101,7 +2101,7 @@ int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 		}
 
 		memcpy(&entry->app, new, sizeof(*new));
-		strncpy(entry->name, dev->name, IFNAMSIZ);
+		entry->ifindex = dev->ifindex;
 		list_add(&entry->list, &dcb_app_list);
 	}
 out:
@@ -2127,7 +2127,7 @@ u8 dcb_ieee_getapp_mask(struct net_device *dev, struct dcb_app *app)
 	list_for_each_entry(itr, &dcb_app_list, list) {
 		if (itr->app.selector == app->selector &&
 		    itr->app.protocol == app->protocol &&
-		    (strncmp(itr->name, dev->name, IFNAMSIZ) == 0)) {
+		    itr->ifindex == dev->ifindex) {
 			prio |= 1 << itr->app.priority;
 		}
 	}
@@ -2150,7 +2150,7 @@ int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
 	struct dcb_app_type event;
 	int err = 0;
 
-	memcpy(&event.name, dev->name, sizeof(event.name));
+	event.ifindex = dev->ifindex;
 	memcpy(&event.app, new, sizeof(event.app));
 
 	spin_lock(&dcb_lock);
@@ -2159,7 +2159,7 @@ int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
 		if (itr->app.selector == new->selector &&
 		    itr->app.protocol == new->protocol &&
 		    itr->app.priority == new->priority &&
-		    (strncmp(itr->name, dev->name, IFNAMSIZ) == 0)) {
+		    itr->ifindex == dev->ifindex) {
 			err = -EEXIST;
 			goto out;
 		}
@@ -2173,7 +2173,7 @@ int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
 	}
 
 	memcpy(&entry->app, new, sizeof(*new));
-	strncpy(entry->name, dev->name, IFNAMSIZ);
+	entry->ifindex = dev->ifindex;
 	list_add(&entry->list, &dcb_app_list);
 out:
 	spin_unlock(&dcb_lock);
@@ -2194,7 +2194,7 @@ int dcb_ieee_delapp(struct net_device *dev, struct dcb_app *del)
 	struct dcb_app_type event;
 	int err = -ENOENT;
 
-	memcpy(&event.name, dev->name, sizeof(event.name));
+	event.ifindex = dev->ifindex;
 	memcpy(&event.app, del, sizeof(event.app));
 
 	spin_lock(&dcb_lock);
@@ -2203,7 +2203,7 @@ int dcb_ieee_delapp(struct net_device *dev, struct dcb_app *del)
 		if (itr->app.selector == del->selector &&
 		    itr->app.protocol == del->protocol &&
 		    itr->app.priority == del->priority &&
-		    (strncmp(itr->name, dev->name, IFNAMSIZ) == 0)) {
+		    itr->ifindex == dev->ifindex) {
 			list_del(&itr->list);
 			kfree(itr);
 			err = 0;

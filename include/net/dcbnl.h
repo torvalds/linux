@@ -23,7 +23,7 @@
 #include <linux/dcbnl.h>
 
 struct dcb_app_type {
-	char		  name[IFNAMSIZ];
+	int	ifindex;
 	struct dcb_app	  app;
 	struct list_head  list;
 };
