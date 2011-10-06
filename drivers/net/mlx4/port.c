@@ -148,22 +148,26 @@ int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn, u8 wrap)
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER) {
 		err = mlx4_uc_steer_add(dev, port, mac, qpn, 1);
-		if (!err) {
-			entry = kmalloc(sizeof *entry, GFP_KERNEL);
-			if (!entry) {
-				mlx4_uc_steer_release(dev, port, mac, *qpn, 1);
-				return -ENOMEM;
-			}
-			entry->mac = mac;
-			err = radix_tree_insert(&info->mac_tree, *qpn, entry);
-			if (err) {
-				mlx4_uc_steer_release(dev, port, mac, *qpn, 1);
-				return err;
-			}
-		} else
+		if (err)
 			return err;
+
+		entry = kmalloc(sizeof *entry, GFP_KERNEL);
+		if (!entry) {
+			mlx4_uc_steer_release(dev, port, mac, *qpn, 1);
+			return -ENOMEM;
+		}
+
+		entry->mac = mac;
+		err = radix_tree_insert(&info->mac_tree, *qpn, entry);
+		if (err) {
+			kfree(entry);
+			mlx4_uc_steer_release(dev, port, mac, *qpn, 1);
+			return err;
+		}
 	}
+
 	mlx4_dbg(dev, "Registering MAC: 0x%llx\n", (unsigned long long) mac);
+
 	mutex_lock(&table->mutex);
 	for (i = 0; i < MLX4_MAX_MAC_NUM - 1; i++) {
 		if (free < 0 && !table->refs[i]) {
