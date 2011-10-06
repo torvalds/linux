@@ -3270,7 +3270,7 @@ int __init omap3xxx_hwmod_init(void)
 
 	/* Register hwmods common to all OMAP3 */
 	r = omap_hwmod_register(omap3xxx_hwmods);
-	if (!r)
+	if (r < 0)
 		return r;
 
 	rev = omap_rev();
@@ -3295,7 +3295,7 @@ int __init omap3xxx_hwmod_init(void)
 	};
 
 	r = omap_hwmod_register(h);
-	if (!r)
+	if (r < 0)
 		return r;
 
 	/*
