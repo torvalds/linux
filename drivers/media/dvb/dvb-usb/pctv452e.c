@@ -1012,7 +1012,7 @@ static struct dvb_usb_device_properties tt_connect_s2_3600_properties = {
 
 	.i2c_algo = &pctv452e_i2c_algo,
 
-	.generic_bulk_ctrl_endpoint = 1, /* allow generice rw function*/
+	.generic_bulk_ctrl_endpoint = 1, /* allow generic rw function*/
 
 	.num_device_descs = 2,
 	.devices = {
@@ -1055,22 +1055,9 @@ static struct usb_driver pctv452e_usb_driver = {
 	.id_table   = pctv452e_usb_table,
 };
 
-static struct usb_driver tt_connects2_3600_usb_driver = {
-	.name       = "dvb-usb-tt-connect-s2-3600-01.fw",
-	.probe      = pctv452e_usb_probe,
-	.disconnect = pctv452e_usb_disconnect,
-	.id_table   = pctv452e_usb_table,
-};
-
 static int __init pctv452e_usb_init(void)
 {
 	int ret = usb_register(&pctv452e_usb_driver);
-
-	if (ret) {
-		err("%s: usb_register failed! Error %d", __FILE__, ret);
-		return ret;
-	}
-	ret = usb_register(&tt_connects2_3600_usb_driver);
 	if (ret)
 		err("%s: usb_register failed! Error %d", __FILE__, ret);
 
@@ -1080,7 +1067,6 @@ static int __init pctv452e_usb_init(void)
 static void __exit pctv452e_usb_exit(void)
 {
 	usb_deregister(&pctv452e_usb_driver);
-	usb_deregister(&tt_connects2_3600_usb_driver);
 }
 
 module_init(pctv452e_usb_init);
