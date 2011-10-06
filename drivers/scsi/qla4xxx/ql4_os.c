@@ -78,8 +78,8 @@ static int qla4xxx_conn_get_param(struct iscsi_cls_conn *conn,
 				  enum iscsi_param param, char *buf);
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 				  enum iscsi_host_param param, char *buf);
-static int qla4xxx_iface_set_param(struct Scsi_Host *shost, char *data,
-				   int count);
+static int qla4xxx_iface_set_param(struct Scsi_Host *shost, void *data,
+				   uint32_t len);
 static int qla4xxx_get_iface_param(struct iscsi_iface *iface,
 				   enum iscsi_param_type param_type,
 				   int param, char *buf);
@@ -842,7 +842,7 @@ qla4xxx_initcb_to_acb(struct addr_ctrl_blk *init_fw_cb)
 }
 
 static int
-qla4xxx_iface_set_param(struct Scsi_Host *shost, char *data, int count)
+qla4xxx_iface_set_param(struct Scsi_Host *shost, void *data, uint32_t len)
 {
 	struct scsi_qla_host *ha = to_qla_host(shost);
 	int rval = 0;
@@ -851,8 +851,8 @@ qla4xxx_iface_set_param(struct Scsi_Host *shost, char *data, int count)
 	dma_addr_t init_fw_cb_dma;
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
-	uint32_t total_param_count;
-	uint32_t length;
+	uint32_t rem = len;
+	struct nlattr *attr;
 
 	init_fw_cb = dma_alloc_coherent(&ha->pdev->dev,
 					sizeof(struct addr_ctrl_blk),
@@ -873,11 +873,8 @@ qla4xxx_iface_set_param(struct Scsi_Host *shost, char *data, int count)
 		goto exit_init_fw_cb;
 	}
 
-	total_param_count = count;
-	iface_param = (struct iscsi_iface_param_info *)data;
-
-	for ( ; total_param_count != 0; total_param_count--) {
-		length = iface_param->len;
+	nla_for_each_attr(attr, data, len, rem) {
+		iface_param = nla_data(attr);
 
 		if (iface_param->param_type != ISCSI_NET_PARAM)
 			continue;
@@ -914,10 +911,6 @@ qla4xxx_iface_set_param(struct Scsi_Host *shost, char *data, int count)
 			ql4_printk(KERN_ERR, ha, "Invalid iface type\n");
 			break;
 		}
-
-		iface_param = (struct iscsi_iface_param_info *)
-						((uint8_t *)iface_param +
-			    sizeof(struct iscsi_iface_param_info) + length);
 	}
 
 	init_fw_cb->cookie = cpu_to_le32(0x11BEAD5A);

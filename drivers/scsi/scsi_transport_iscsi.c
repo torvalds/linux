@@ -1890,7 +1890,7 @@ iscsi_set_path(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 
 static int
 iscsi_set_iface_params(struct iscsi_transport *transport,
-		       struct iscsi_uevent *ev)
+		       struct iscsi_uevent *ev, uint32_t len)
 {
 	char *data = (char *)ev + sizeof(*ev);
 	struct Scsi_Host *shost;
@@ -1906,8 +1906,7 @@ iscsi_set_iface_params(struct iscsi_transport *transport,
 		return -ENODEV;
 	}
 
-	err = transport->set_iface_param(shost, data,
-					 ev->u.set_iface_params.count);
+	err = transport->set_iface_param(shost, data, len);
 	scsi_host_put(shost);
 	return err;
 }
@@ -2052,7 +2051,8 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		err = iscsi_set_path(transport, ev);
 		break;
 	case ISCSI_UEVENT_SET_IFACE_PARAMS:
-		err = iscsi_set_iface_params(transport, ev);
+		err = iscsi_set_iface_params(transport, ev,
+					     nlmsg_attrlen(nlh, sizeof(*ev)));
 		break;
 	default:
 		err = -ENOSYS;
