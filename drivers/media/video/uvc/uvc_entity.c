@@ -49,7 +49,7 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 		if (remote == NULL)
 			return -EINVAL;
 
-		source = (UVC_ENTITY_TYPE(remote) != UVC_TT_STREAMING)
+		source = (UVC_ENTITY_TYPE(remote) == UVC_TT_STREAMING)
 		       ? (remote->vdev ? &remote->vdev->entity : NULL)
 		       : &remote->subdev.entity;
 		if (source == NULL)
