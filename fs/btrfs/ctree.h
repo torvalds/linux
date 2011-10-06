@@ -838,6 +838,7 @@ struct btrfs_block_group_cache {
 	u64 bytes_super;
 	u64 flags;
 	u64 sectorsize;
+	u64 cache_generation;
 	unsigned int ro:1;
 	unsigned int dirty:1;
 	unsigned int iref:1;

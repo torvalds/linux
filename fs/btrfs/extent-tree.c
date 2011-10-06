@@ -2717,6 +2717,13 @@ again:
 		goto again;
 	}
 
+	/* We've already setup this transaction, go ahead and exit */
+	if (block_group->cache_generation == trans->transid &&
+	    i_size_read(inode)) {
+		dcs = BTRFS_DC_SETUP;
+		goto out_put;
+	}
+
 	/*
 	 * We want to set the generation to 0, that way if anything goes wrong
 	 * from here on out we know not to trust this cache when we load up next
@@ -2756,19 +2763,16 @@ again:
 	num_pages *= 16;
 	num_pages *= PAGE_CACHE_SIZE;
 
-	ret = btrfs_delalloc_reserve_space(inode, num_pages);
+	ret = btrfs_check_data_free_space(inode, num_pages);
 	if (ret)
 		goto out_put;
 
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, num_pages,
 					      num_pages, num_pages,
 					      &alloc_hint);
-	if (!ret) {
+	if (!ret)
 		dcs = BTRFS_DC_SETUP;
-		btrfs_free_reserved_data_space(inode, num_pages);
-	} else {
-		btrfs_delalloc_release_space(inode, num_pages);
-	}
+	btrfs_free_reserved_data_space(inode, num_pages);
 
 out_put:
 	iput(inode);
@@ -2776,6 +2780,8 @@ out_free:
 	btrfs_release_path(path);
 out:
 	spin_lock(&block_group->lock);
+	if (!ret)
+		block_group->cache_generation = trans->transid;
 	block_group->disk_cache_state = dcs;
 	spin_unlock(&block_group->lock);
 
