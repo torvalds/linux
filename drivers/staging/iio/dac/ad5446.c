@@ -68,8 +68,8 @@ static ssize_t ad5446_write(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 	int ret;
 	long val;
 
@@ -82,11 +82,11 @@ static ssize_t ad5446_write(struct device *dev,
 		goto error_ret;
 	}
 
-	mutex_lock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
 	st->cached_val = val;
 	st->chip_info->store_sample(st, val);
 	ret = spi_sync(st->spi, &st->msg);
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 error_ret:
 	return ret ? ret : len;
@@ -98,8 +98,8 @@ static ssize_t ad5446_show_scale(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 	/* Corresponds to Vref / 2^(bits) */
 	unsigned int scale_uv = (st->vref_mv * 1000) >> st->chip_info->bits;
 
@@ -111,8 +111,8 @@ static ssize_t ad5446_write_powerdown_mode(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	if (sysfs_streq(buf, "1kohm_to_gnd"))
 		st->pwr_down_mode = MODE_PWRDWN_1k;
@@ -129,8 +129,8 @@ static ssize_t ad5446_write_powerdown_mode(struct device *dev,
 static ssize_t ad5446_read_powerdown_mode(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	char mode[][15] = {"", "1kohm_to_gnd", "100kohm_to_gnd", "three_state"};
 
@@ -141,8 +141,8 @@ static ssize_t ad5446_read_dac_powerdown(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", st->pwr_down);
 }
@@ -151,8 +151,8 @@ static ssize_t ad5446_write_dac_powerdown(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 	unsigned long readin;
 	int ret;
 
@@ -163,7 +163,7 @@ static ssize_t ad5446_write_dac_powerdown(struct device *dev,
 	if (readin > 1)
 		ret = -EINVAL;
 
-	mutex_lock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
 	st->pwr_down = readin;
 
 	if (st->pwr_down)
@@ -172,7 +172,7 @@ static ssize_t ad5446_write_dac_powerdown(struct device *dev,
 		st->chip_info->store_sample(st, st->cached_val);
 
 	ret = spi_sync(st->spi, &st->msg);
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 	return ret ? ret : len;
 }
@@ -201,8 +201,8 @@ static mode_t ad5446_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	mode_t mode = attr->mode;
 
