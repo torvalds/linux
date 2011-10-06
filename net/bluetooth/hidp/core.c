@@ -663,7 +663,24 @@ static int hidp_send_frame(struct socket *sock, unsigned char *data, int len)
 	return kernel_sendmsg(sock, &msg, &iv, 1, len);
 }
 
-static void hidp_process_transmit(struct hidp_session *session)
+static void hidp_process_intr_transmit(struct hidp_session *session)
+{
+	struct sk_buff *skb;
+
+	BT_DBG("session %p", session);
+
+	while ((skb = skb_dequeue(&session->intr_transmit))) {
+		if (hidp_send_frame(session->intr_sock, skb->data, skb->len) < 0) {
+			skb_queue_head(&session->intr_transmit, skb);
+			break;
+		}
+
+		hidp_set_timer(session);
+		kfree_skb(skb);
+	}
+}
+
+static void hidp_process_ctrl_transmit(struct hidp_session *session)
 {
 	struct sk_buff *skb;
 
@@ -672,16 +689,6 @@ static void hidp_process_transmit(struct hidp_session *session)
 	while ((skb = skb_dequeue(&session->ctrl_transmit))) {
 		if (hidp_send_frame(session->ctrl_sock, skb->data, skb->len) < 0) {
 			skb_queue_head(&session->ctrl_transmit, skb);
-			break;
-		}
-
-		hidp_set_timer(session);
-		kfree_skb(skb);
-	}
-
-	while ((skb = skb_dequeue(&session->intr_transmit))) {
-		if (hidp_send_frame(session->intr_sock, skb->data, skb->len) < 0) {
-			skb_queue_head(&session->intr_transmit, skb);
 			break;
 		}
 
@@ -722,6 +729,8 @@ static int hidp_session(void *arg)
 				kfree_skb(skb);
 		}
 
+		hidp_process_intr_transmit(session);
+
 		while ((skb = skb_dequeue(&ctrl_sk->sk_receive_queue))) {
 			skb_orphan(skb);
 			if (!skb_linearize(skb))
@@ -730,7 +739,7 @@ static int hidp_session(void *arg)
 				kfree_skb(skb);
 		}
 
-		hidp_process_transmit(session);
+		hidp_process_ctrl_transmit(session);
 
 		schedule();
 		set_current_state(TASK_INTERRUPTIBLE);
