@@ -196,7 +196,7 @@ enum pll_types {
 	PLL_SHADER = 0x02,
 	PLL_UNK03  = 0x03,
 	PLL_MEMORY = 0x04,
-	PLL_UNK05  = 0x05,
+	PLL_VDEC   = 0x05,
 	PLL_UNK40  = 0x40,
 	PLL_UNK41  = 0x41,
 	PLL_UNK42  = 0x42,

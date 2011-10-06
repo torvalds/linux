@@ -4719,7 +4719,7 @@ static struct pll_mapping nv84_pll_mapping[] = {
 	{ PLL_CORE  , 0x004028 },
 	{ PLL_SHADER, 0x004020 },
 	{ PLL_MEMORY, 0x004008 },
-	{ PLL_UNK05 , 0x004030 },
+	{ PLL_VDEC  , 0x004030 },
 	{ PLL_UNK41 , 0x00e818 },
 	{ PLL_VPLL0 , 0x614100 },
 	{ PLL_VPLL1 , 0x614900 },
