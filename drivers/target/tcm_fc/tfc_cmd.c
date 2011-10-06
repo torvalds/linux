@@ -396,7 +396,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 	}
 
 	pr_debug("alloc tm cmd fn %d\n", tm_func);
-	tmr = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func);
+	tmr = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func, GFP_KERNEL);
 	if (!tmr) {
 		pr_debug("alloc failed\n");
 		ft_send_resp_code_and_free(cmd, FCP_TMF_FAILED);

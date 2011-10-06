@@ -43,12 +43,12 @@
 struct se_tmr_req *core_tmr_alloc_req(
 	struct se_cmd *se_cmd,
 	void *fabric_tmr_ptr,
-	u8 function)
+	u8 function,
+	gfp_t gfp_flags)
 {
 	struct se_tmr_req *tmr;
 
-	tmr = kmem_cache_zalloc(se_tmr_req_cache, (in_interrupt()) ?
-					GFP_ATOMIC : GFP_KERNEL);
+	tmr = kmem_cache_zalloc(se_tmr_req_cache, gfp_flags);
 	if (!tmr) {
 		pr_err("Unable to allocate struct se_tmr_req\n");
 		return ERR_PTR(-ENOMEM);
