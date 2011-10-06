@@ -323,23 +323,23 @@ struct iio_dev {
 
 /**
  * iio_device_register() - register a device with the IIO subsystem
- * @dev_info:		Device structure filled by the device driver
+ * @indio_dev:		Device structure filled by the device driver
  **/
-int iio_device_register(struct iio_dev *dev_info);
+int iio_device_register(struct iio_dev *indio_dev);
 
 /**
  * iio_device_unregister() - unregister a device from the IIO subsystem
- * @dev_info:		Device structure representing the device.
+ * @indio_dev:		Device structure representing the device.
  **/
-void iio_device_unregister(struct iio_dev *dev_info);
+void iio_device_unregister(struct iio_dev *indio_dev);
 
 /**
  * iio_push_event() - try to add event to the list for userspace reading
- * @dev_info:		IIO device structure
+ * @indio_dev:		IIO device structure
  * @ev_code:		What event
  * @timestamp:		When the event occurred
  **/
-int iio_push_event(struct iio_dev *dev_info, u64 ev_code, s64 timestamp);
+int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
 
 extern struct bus_type iio_bus_type;
 
@@ -347,10 +347,10 @@ extern struct bus_type iio_bus_type;
  * iio_put_device() - reference counted deallocation of struct device
  * @dev: the iio_device containing the device
  **/
-static inline void iio_put_device(struct iio_dev *dev)
+static inline void iio_put_device(struct iio_dev *indio_dev)
 {
-	if (dev)
-		put_device(&dev->dev);
+	if (indio_dev)
+		put_device(&indio_dev->dev);
 };
 
 /* Can we make this smaller? */
@@ -361,9 +361,9 @@ static inline void iio_put_device(struct iio_dev *dev)
  **/
 struct iio_dev *iio_allocate_device(int sizeof_priv);
 
-static inline void *iio_priv(const struct iio_dev *dev)
+static inline void *iio_priv(const struct iio_dev *indio_dev)
 {
-	return (char *)dev + ALIGN(sizeof(struct iio_dev), IIO_ALIGN);
+	return (char *)indio_dev + ALIGN(sizeof(struct iio_dev), IIO_ALIGN);
 }
 
 static inline struct iio_dev *iio_priv_to_dev(void *priv)
@@ -376,15 +376,15 @@ static inline struct iio_dev *iio_priv_to_dev(void *priv)
  * iio_free_device() - free an iio_dev from a driver
  * @dev: the iio_dev associated with the device
  **/
-void iio_free_device(struct iio_dev *dev);
+void iio_free_device(struct iio_dev *indio_dev);
 
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled
- * @dev_info:		IIO device info structure for device
+ * @indio_dev:		IIO device info structure for device
  **/
-static inline bool iio_buffer_enabled(struct iio_dev *dev_info)
+static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
 {
-	return dev_info->currentmode
+	return indio_dev->currentmode
 		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE);
 };
 

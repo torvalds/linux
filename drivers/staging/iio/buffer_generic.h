@@ -120,10 +120,10 @@ struct iio_buffer {
 /**
  * iio_buffer_init() - Initialize the buffer structure
  * @buffer: buffer to be initialized
- * @dev_info: the iio device the buffer is assocated with
+ * @indio_dev: the iio device the buffer is assocated with
  **/
 void iio_buffer_init(struct iio_buffer *buffer,
-			  struct iio_dev *dev_info);
+			  struct iio_dev *indio_dev);
 
 void iio_buffer_deinit(struct iio_buffer *buffer);
 

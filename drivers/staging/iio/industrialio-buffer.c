@@ -82,9 +82,9 @@ void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
 		rb->access->unmark_in_use(rb);
 }
 
-void iio_buffer_init(struct iio_buffer *buffer, struct iio_dev *dev_info)
+void iio_buffer_init(struct iio_buffer *buffer, struct iio_dev *indio_dev)
 {
-	buffer->indio_dev = dev_info;
+	buffer->indio_dev = indio_dev;
 	init_waitqueue_head(&buffer->pollq);
 }
 EXPORT_SYMBOL(iio_buffer_init);
@@ -123,9 +123,9 @@ static ssize_t iio_scan_el_show(struct device *dev,
 				char *buf)
 {
 	int ret;
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
-	ret = iio_scan_mask_query(dev_info->buffer,
+	ret = iio_scan_mask_query(indio_dev->buffer,
 				  to_iio_dev_attr(attr)->address);
 	if (ret < 0)
 		return ret;
@@ -180,8 +180,8 @@ static ssize_t iio_scan_el_ts_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", dev_info->buffer->scan_timestamp);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", indio_dev->buffer->scan_timestamp);
 }
 
 static ssize_t iio_scan_el_ts_store(struct device *dev,
@@ -427,11 +427,11 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 	int ret;
 	bool requested_state, current_state;
 	int previous_mode;
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct iio_buffer *buffer = dev_info->buffer;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_buffer *buffer = indio_dev->buffer;
 
-	mutex_lock(&dev_info->mlock);
-	previous_mode = dev_info->currentmode;
+	mutex_lock(&indio_dev->mlock);
+	previous_mode = indio_dev->currentmode;
 	requested_state = !(buf[0] == '0');
 	current_state = !!(previous_mode & INDIO_ALL_BUFFER_MODES);
 	if (current_state == requested_state) {
@@ -440,7 +440,7 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 	}
 	if (requested_state) {
 		if (buffer->setup_ops->preenable) {
-			ret = buffer->setup_ops->preenable(dev_info);
+			ret = buffer->setup_ops->preenable(indio_dev);
 			if (ret) {
 				printk(KERN_ERR
 				       "Buffer not started:"
@@ -460,8 +460,8 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 		if (buffer->access->mark_in_use)
 			buffer->access->mark_in_use(buffer);
 		/* Definitely possible for devices to support both of these.*/
-		if (dev_info->modes & INDIO_BUFFER_TRIGGERED) {
-			if (!dev_info->trig) {
+		if (indio_dev->modes & INDIO_BUFFER_TRIGGERED) {
+			if (!indio_dev->trig) {
 				printk(KERN_INFO
 				       "Buffer not started: no trigger\n");
 				ret = -EINVAL;
@@ -469,50 +469,50 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 					buffer->access->unmark_in_use(buffer);
 				goto error_ret;
 			}
-			dev_info->currentmode = INDIO_BUFFER_TRIGGERED;
-		} else if (dev_info->modes & INDIO_BUFFER_HARDWARE)
-			dev_info->currentmode = INDIO_BUFFER_HARDWARE;
+			indio_dev->currentmode = INDIO_BUFFER_TRIGGERED;
+		} else if (indio_dev->modes & INDIO_BUFFER_HARDWARE)
+			indio_dev->currentmode = INDIO_BUFFER_HARDWARE;
 		else { /* should never be reached */
 			ret = -EINVAL;
 			goto error_ret;
 		}
 
 		if (buffer->setup_ops->postenable) {
-			ret = buffer->setup_ops->postenable(dev_info);
+			ret = buffer->setup_ops->postenable(indio_dev);
 			if (ret) {
 				printk(KERN_INFO
 				       "Buffer not started:"
 				       "postenable failed\n");
 				if (buffer->access->unmark_in_use)
 					buffer->access->unmark_in_use(buffer);
-				dev_info->currentmode = previous_mode;
+				indio_dev->currentmode = previous_mode;
 				if (buffer->setup_ops->postdisable)
 					buffer->setup_ops->
-						postdisable(dev_info);
+						postdisable(indio_dev);
 				goto error_ret;
 			}
 		}
 	} else {
 		if (buffer->setup_ops->predisable) {
-			ret = buffer->setup_ops->predisable(dev_info);
+			ret = buffer->setup_ops->predisable(indio_dev);
 			if (ret)
 				goto error_ret;
 		}
 		if (buffer->access->unmark_in_use)
 			buffer->access->unmark_in_use(buffer);
-		dev_info->currentmode = INDIO_DIRECT_MODE;
+		indio_dev->currentmode = INDIO_DIRECT_MODE;
 		if (buffer->setup_ops->postdisable) {
-			ret = buffer->setup_ops->postdisable(dev_info);
+			ret = buffer->setup_ops->postdisable(indio_dev);
 			if (ret)
 				goto error_ret;
 		}
 	}
 done:
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 	return len;
 
 error_ret:
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 	return ret;
 }
 EXPORT_SYMBOL(iio_buffer_store_enable);
@@ -521,8 +521,8 @@ ssize_t iio_buffer_show_enable(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", !!(dev_info->currentmode
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", !!(indio_dev->currentmode
 				       & INDIO_ALL_BUFFER_MODES));
 }
 EXPORT_SYMBOL(iio_buffer_show_enable);
@@ -575,34 +575,34 @@ static unsigned long *iio_scan_mask_match(unsigned long *av_masks,
  **/
 int iio_scan_mask_set(struct iio_buffer *buffer, int bit)
 {
-	struct iio_dev *dev_info = buffer->indio_dev;
+	struct iio_dev *indio_dev = buffer->indio_dev;
 	unsigned long *mask;
 	unsigned long *trialmask;
 
 	trialmask = kmalloc(sizeof(*trialmask)*
-			    BITS_TO_LONGS(dev_info->masklength),
+			    BITS_TO_LONGS(indio_dev->masklength),
 			    GFP_KERNEL);
 
 	if (trialmask == NULL)
 		return -ENOMEM;
-	if (!dev_info->masklength) {
+	if (!indio_dev->masklength) {
 		WARN_ON("trying to set scanmask prior to registering buffer\n");
 		kfree(trialmask);
 		return -EINVAL;
 	}
-	bitmap_copy(trialmask, buffer->scan_mask, dev_info->masklength);
+	bitmap_copy(trialmask, buffer->scan_mask, indio_dev->masklength);
 	set_bit(bit, trialmask);
 
-	if (dev_info->available_scan_masks) {
-		mask = iio_scan_mask_match(dev_info->available_scan_masks,
-					   dev_info->masklength,
+	if (indio_dev->available_scan_masks) {
+		mask = iio_scan_mask_match(indio_dev->available_scan_masks,
+					   indio_dev->masklength,
 					   trialmask);
 		if (!mask) {
 			kfree(trialmask);
 			return -EINVAL;
 		}
 	}
-	bitmap_copy(buffer->scan_mask, trialmask, dev_info->masklength);
+	bitmap_copy(buffer->scan_mask, trialmask, indio_dev->masklength);
 	buffer->scan_count++;
 
 	kfree(trialmask);
@@ -613,17 +613,17 @@ EXPORT_SYMBOL_GPL(iio_scan_mask_set);
 
 int iio_scan_mask_query(struct iio_buffer *buffer, int bit)
 {
-	struct iio_dev *dev_info = buffer->indio_dev;
+	struct iio_dev *indio_dev = buffer->indio_dev;
 	long *mask;
 
-	if (bit > dev_info->masklength)
+	if (bit > indio_dev->masklength)
 		return -EINVAL;
 
 	if (!buffer->scan_mask)
 		return 0;
-	if (dev_info->available_scan_masks)
-		mask = iio_scan_mask_match(dev_info->available_scan_masks,
-					   dev_info->masklength,
+	if (indio_dev->available_scan_masks)
+		mask = iio_scan_mask_match(indio_dev->available_scan_masks,
+					   indio_dev->masklength,
 					   buffer->scan_mask);
 	else
 		mask = buffer->scan_mask;

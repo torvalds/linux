@@ -304,10 +304,10 @@ static ssize_t iio_trigger_read_current(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
-	if (dev_info->trig)
-		return sprintf(buf, "%s\n", dev_info->trig->name);
+	if (indio_dev->trig)
+		return sprintf(buf, "%s\n", indio_dev->trig->name);
 	return 0;
 }
 
@@ -323,38 +323,38 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct iio_trigger *oldtrig = dev_info->trig;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_trigger *oldtrig = indio_dev->trig;
 	struct iio_trigger *trig;
 	int ret;
 
-	mutex_lock(&dev_info->mlock);
-	if (dev_info->currentmode == INDIO_BUFFER_TRIGGERED) {
-		mutex_unlock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
+	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 	trig = iio_trigger_find_by_name(buf, len);
 
-	if (trig && dev_info->info->validate_trigger) {
-		ret = dev_info->info->validate_trigger(dev_info, trig);
+	if (trig && indio_dev->info->validate_trigger) {
+		ret = indio_dev->info->validate_trigger(indio_dev, trig);
 		if (ret)
 			return ret;
 	}
 
 	if (trig && trig->ops && trig->ops->validate_device) {
-		ret = trig->ops->validate_device(trig, dev_info);
+		ret = trig->ops->validate_device(trig, indio_dev);
 		if (ret)
 			return ret;
 	}
 
-	dev_info->trig = trig;
+	indio_dev->trig = trig;
 
-	if (oldtrig && dev_info->trig != oldtrig)
+	if (oldtrig && indio_dev->trig != oldtrig)
 		iio_put_trigger(oldtrig);
-	if (dev_info->trig)
-		iio_get_trigger(dev_info->trig);
+	if (indio_dev->trig)
+		iio_get_trigger(indio_dev->trig);
 
 	return len;
 }
@@ -473,19 +473,19 @@ void iio_free_trigger(struct iio_trigger *trig)
 }
 EXPORT_SYMBOL(iio_free_trigger);
 
-int iio_device_register_trigger_consumer(struct iio_dev *dev_info)
+int iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 {
-	dev_info->groups[dev_info->groupcounter++] =
+	indio_dev->groups[indio_dev->groupcounter++] =
 		&iio_trigger_consumer_attr_group;
 
 	return 0;
 }
 
-void iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
+void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
 {
 	/* Clean up and associated but not attached triggers references */
-	if (dev_info->trig)
-		iio_put_trigger(dev_info->trig);
+	if (indio_dev->trig)
+		iio_put_trigger(indio_dev->trig);
 }
 
 int iio_triggered_buffer_postenable(struct iio_dev *indio_dev)
