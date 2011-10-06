@@ -1351,7 +1351,9 @@ static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	}
 
 	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
+	drbd_md_get_buffer(mdev); /* make sure there is no in-flight meta-data IO */
 	retcode = drbd_request_state(mdev, NS(disk, D_FAILED));
+	drbd_md_put_buffer(mdev);
 	/* D_FAILED will transition to DISKLESS. */
 	ret = wait_event_interruptible(mdev->misc_wait,
 			mdev->state.disk != D_FAILED);
