@@ -331,7 +331,7 @@ dt3155_irq_handler_even(int irq, void *dev_id)
 		return IRQ_HANDLED; /* start of field irq */
 	}
 	if ((tmp & FLD_START) && (tmp & FLD_END_ODD))
-		!ipd->stats.start_before_end++;
+		ipd->stats.start_before_end++;
 	/*	check for corrupted fields     */
 /*	write_i2c_reg(ipd->regs, EVEN_CSR, CSR_ERROR | CSR_DONE);	*/
 /*	write_i2c_reg(ipd->regs, ODD_CSR, CSR_ERROR | CSR_DONE);	*/
