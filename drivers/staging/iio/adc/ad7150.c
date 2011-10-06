@@ -332,8 +332,8 @@ static int ad7150_write_event_value(struct iio_dev *indio_dev,
 	/* write back if active */
 	ret = ad7150_write_event_params(indio_dev, event_code);
 
-	mutex_unlock(&chip->state_lock);
 error_ret:
+	mutex_unlock(&chip->state_lock);
 	return ret;
 }
 
