@@ -1179,6 +1179,15 @@ static void cma_set_req_event_data(struct rdma_cm_event *event,
 	event->param.conn.qp_num = req_data->remote_qpn;
 }
 
+static int cma_check_req_qp_type(struct rdma_cm_id *id, struct ib_cm_event *ib_event)
+{
+	return (((ib_event->event == IB_CM_REQ_RECEIVED) ||
+		 (ib_event->param.req_rcvd.qp_type == id->qp_type)) ||
+		((ib_event->event == IB_CM_SIDR_REQ_RECEIVED) &&
+		 (id->qp_type == IB_QPT_UD)) ||
+		(!id->qp_type));
+}
+
 static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 {
 	struct rdma_id_private *listen_id, *conn_id;
@@ -1186,13 +1195,16 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	int offset, ret;
 
 	listen_id = cm_id->context;
+	if (!cma_check_req_qp_type(&listen_id->id, ib_event))
+		return -EINVAL;
+
 	if (cma_disable_callback(listen_id, RDMA_CM_LISTEN))
 		return -ECONNABORTED;
 
 	memset(&event, 0, sizeof event);
 	offset = cma_user_data_offset(listen_id->id.ps);
 	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
-	if (listen_id->id.qp_type == IB_QPT_UD) {
+	if (ib_event->event == IB_CM_SIDR_REQ_RECEIVED) {
 		conn_id = cma_new_udp_id(&listen_id->id, ib_event);
 		event.param.ud.private_data = ib_event->private_data + offset;
 		event.param.ud.private_data_len =
