@@ -215,74 +215,91 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 static int
 nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 {
-	struct nouveau_connector *nv_connector =
-		nouveau_crtc_connector_get(nv_crtc);
+	struct nouveau_connector *nv_connector;
 	struct drm_crtc *crtc = &nv_crtc->base;
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
-	struct drm_display_mode *native_mode = NULL;
 	struct drm_display_mode *mode = &crtc->mode;
-	uint32_t outX, outY, horiz, vert;
+	u32 ctrl = 0, oX, oY;
 	int ret;
 
 	NV_DEBUG_KMS(dev, "\n");
 
-	switch (scaling_mode) {
-	case DRM_MODE_SCALE_NONE:
-		break;
-	default:
-		if (!nv_connector || !nv_connector->native_mode) {
-			NV_ERROR(dev, "No native mode, forcing panel scaling\n");
-			scaling_mode = DRM_MODE_SCALE_NONE;
-		} else {
-			native_mode = nv_connector->native_mode;
-		}
-		break;
+	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	if (!nv_connector || !nv_connector->native_mode) {
+		NV_ERROR(dev, "no native mode, forcing panel scaling\n");
+		scaling_mode = DRM_MODE_SCALE_NONE;
 	}
 
-	switch (scaling_mode) {
-	case DRM_MODE_SCALE_ASPECT:
-		horiz = (native_mode->hdisplay << 19) / mode->hdisplay;
-		vert = (native_mode->vdisplay << 19) / mode->vdisplay;
+	/* start off at the resolution we programmed the crtc for, this
+	 * effectively handles NONE/FULL scaling
+	 */
+	if (scaling_mode != DRM_MODE_SCALE_NONE) {
+		oX = nv_connector->native_mode->hdisplay;
+		oY = nv_connector->native_mode->vdisplay;
+	} else {
+		oX = mode->hdisplay;
+		oY = mode->vdisplay;
+	}
 
-		if (vert > horiz) {
-			outX = (mode->hdisplay * horiz) >> 19;
-			outY = (mode->vdisplay * horiz) >> 19;
+	/* add overscan compensation if necessary, will keep the aspect
+	 * ratio the same as the backend mode unless overridden by the
+	 * user setting both hborder and vborder properties.
+	 */
+	if (nv_connector && ( nv_connector->underscan == UNDERSCAN_ON ||
+			     (nv_connector->underscan == UNDERSCAN_AUTO &&
+			      nv_connector->edid &&
+			      drm_detect_hdmi_monitor(nv_connector->edid)))) {
+		u32 bX = nv_connector->underscan_hborder;
+		u32 bY = nv_connector->underscan_vborder;
+		u32 aspect = (oY << 19) / oX;
+
+		if (bX) {
+			oX -= (bX * 2);
+			if (bY) oY -= (bY * 2);
+			else    oY  = ((oX * aspect) + (aspect / 2)) >> 19;
 		} else {
-			outX = (mode->hdisplay * vert) >> 19;
-			outY = (mode->vdisplay * vert) >> 19;
+			oX -= (oX >> 4) + 32;
+			if (bY) oY -= (bY * 2);
+			else    oY  = ((oX * aspect) + (aspect / 2)) >> 19;
 		}
-		break;
-	case DRM_MODE_SCALE_FULLSCREEN:
-		outX = native_mode->hdisplay;
-		outY = native_mode->vdisplay;
-		break;
+	}
+
+	/* handle CENTER/ASPECT scaling, taking into account the areas
+	 * removed already for overscan compensation
+	 */
+	switch (scaling_mode) {
 	case DRM_MODE_SCALE_CENTER:
-	case DRM_MODE_SCALE_NONE:
+		oX = min((u32)mode->hdisplay, oX);
+		oY = min((u32)mode->vdisplay, oY);
+		/* fall-through */
+	case DRM_MODE_SCALE_ASPECT:
+		if (oY < oX) {
+			u32 aspect = (mode->hdisplay << 19) / mode->vdisplay;
+			oX = ((oY * aspect) + (aspect / 2)) >> 19;
+		} else {
+			u32 aspect = (mode->vdisplay << 19) / mode->hdisplay;
+			oY = ((oX * aspect) + (aspect / 2)) >> 19;
+		}
+		break;
 	default:
-		outX = mode->hdisplay;
-		outY = mode->vdisplay;
 		break;
 	}
+
+	if (mode->hdisplay != oX || mode->vdisplay != oY ||
+	    mode->flags & DRM_MODE_FLAG_INTERLACE ||
+	    mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		ctrl |= NV50_EVO_CRTC_SCALE_CTRL_ACTIVE;
 
 	ret = RING_SPACE(evo, 5);
 	if (ret)
 		return ret;
 
-	/* Got a better name for SCALER_ACTIVE? */
-	/* One day i've got to really figure out why this is needed. */
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, SCALE_CTRL), 1);
-	if ((mode->flags & DRM_MODE_FLAG_DBLSCAN) ||
-	    (mode->flags & DRM_MODE_FLAG_INTERLACE) ||
-	    mode->hdisplay != outX || mode->vdisplay != outY) {
-		OUT_RING(evo, NV50_EVO_CRTC_SCALE_CTRL_ACTIVE);
-	} else {
-		OUT_RING(evo, NV50_EVO_CRTC_SCALE_CTRL_INACTIVE);
-	}
-
+	OUT_RING  (evo, ctrl);
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, SCALE_RES1), 2);
-	OUT_RING(evo, outY << 16 | outX);
-	OUT_RING(evo, outY << 16 | outX);
+	OUT_RING  (evo, oY << 16 | oX);
+	OUT_RING  (evo, oY << 16 | oX);
 
 	if (update) {
 		nv50_display_flip_stop(crtc);

@@ -420,15 +420,21 @@ static int
 nouveau_connector_set_property(struct drm_connector *connector,
 			       struct drm_property *property, uint64_t value)
 {
+	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	struct drm_device *dev = connector->dev;
+	struct nouveau_crtc *nv_crtc;
 	int ret;
+
+	nv_crtc = NULL;
+	if (connector->encoder && connector->encoder->crtc)
+		nv_crtc = nouveau_crtc(connector->encoder->crtc);
 
 	/* Scaling mode */
 	if (property == dev->mode_config.scaling_mode_property) {
-		struct nouveau_crtc *nv_crtc = NULL;
 		bool modeset = false;
 
 		switch (value) {
@@ -454,8 +460,6 @@ nouveau_connector_set_property(struct drm_connector *connector,
 			modeset = true;
 		nv_connector->scaling_mode = value;
 
-		if (connector->encoder && connector->encoder->crtc)
-			nv_crtc = nouveau_crtc(connector->encoder->crtc);
 		if (!nv_crtc)
 			return 0;
 
@@ -475,17 +479,55 @@ nouveau_connector_set_property(struct drm_connector *connector,
 		return 0;
 	}
 
+	/* Underscan */
+	if (property == disp->underscan_property) {
+		if (nv_connector->underscan != value) {
+			nv_connector->underscan = value;
+			if (!nv_crtc || !nv_crtc->set_scale)
+				return 0;
+
+			return nv_crtc->set_scale(nv_crtc,
+						  nv_connector->scaling_mode,
+						  true);
+		}
+
+		return 0;
+	}
+
+	if (property == disp->underscan_hborder_property) {
+		if (nv_connector->underscan_hborder != value) {
+			nv_connector->underscan_hborder = value;
+			if (!nv_crtc || !nv_crtc->set_scale)
+				return 0;
+
+			return nv_crtc->set_scale(nv_crtc,
+						  nv_connector->scaling_mode,
+						  true);
+		}
+
+		return 0;
+	}
+
+	if (property == disp->underscan_vborder_property) {
+		if (nv_connector->underscan_vborder != value) {
+			nv_connector->underscan_vborder = value;
+			if (!nv_crtc || !nv_crtc->set_scale)
+				return 0;
+
+			return nv_crtc->set_scale(nv_crtc,
+						  nv_connector->scaling_mode,
+						  true);
+		}
+
+		return 0;
+	}
+
 	/* Dithering */
 	if (property == dev->mode_config.dithering_mode_property) {
-		struct nouveau_crtc *nv_crtc = NULL;
-
 		if (value == DRM_MODE_DITHERING_ON)
 			nv_connector->use_dithering = true;
 		else
 			nv_connector->use_dithering = false;
-
-		if (connector->encoder && connector->encoder->crtc)
-			nv_crtc = nouveau_crtc(connector->encoder->crtc);
 
 		if (!nv_crtc || !nv_crtc->set_dither)
 			return 0;
@@ -773,6 +815,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 {
 	const struct drm_connector_funcs *funcs = &nouveau_connector_funcs;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
 	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_connector *nv_connector = NULL;
 	struct dcb_connector_table_entry *dcb = NULL;
@@ -855,6 +898,25 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		drm_mode_create_dvi_i_properties(dev);
 		drm_connector_attach_property(connector, dev->mode_config.dvi_i_subconnector_property, 0);
 		drm_connector_attach_property(connector, dev->mode_config.dvi_i_select_subconnector_property, 0);
+	}
+
+	/* Add overscan compensation options to digital outputs */
+	if ((dev_priv->card_type == NV_50 ||
+	     dev_priv->card_type == NV_C0) &&
+	    (dcb->type == DCB_CONNECTOR_DVI_D ||
+	     dcb->type == DCB_CONNECTOR_DVI_I ||
+	     dcb->type == DCB_CONNECTOR_HDMI_0 ||
+	     dcb->type == DCB_CONNECTOR_HDMI_1 ||
+	     dcb->type == DCB_CONNECTOR_DP)) {
+		drm_connector_attach_property(connector,
+					      disp->underscan_property,
+					      UNDERSCAN_OFF);
+		drm_connector_attach_property(connector,
+					      disp->underscan_hborder_property,
+					      0);
+		drm_connector_attach_property(connector,
+					      disp->underscan_vborder_property,
+					      0);
 	}
 
 	switch (dcb->type) {

@@ -391,6 +391,12 @@ struct nouveau_fifo_engine {
 	void (*tlb_flush)(struct drm_device *dev);
 };
 
+enum nouveau_underscan_type {
+	UNDERSCAN_OFF,
+	UNDERSCAN_ON,
+	UNDERSCAN_AUTO,
+};
+
 struct nouveau_display_engine {
 	void *priv;
 	int (*early_init)(struct drm_device *);
@@ -398,6 +404,10 @@ struct nouveau_display_engine {
 	int (*create)(struct drm_device *);
 	int (*init)(struct drm_device *);
 	void (*destroy)(struct drm_device *);
+
+	struct drm_property *underscan_property;
+	struct drm_property *underscan_hborder_property;
+	struct drm_property *underscan_vborder_property;
 };
 
 struct nouveau_gpio_engine {

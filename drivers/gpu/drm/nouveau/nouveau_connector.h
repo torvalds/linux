@@ -35,8 +35,11 @@ struct nouveau_connector {
 
 	struct dcb_connector_table_entry *dcb;
 
-	int scaling_mode;
 	bool use_dithering;
+	int scaling_mode;
+	enum nouveau_underscan_type underscan;
+	u32 underscan_hborder;
+	u32 underscan_vborder;
 
 	struct nouveau_encoder *detected_encoder;
 	struct edid *edid;

@@ -152,16 +152,49 @@ static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 	.output_poll_changed = nouveau_fbcon_output_poll_changed,
 };
 
+
+struct drm_prop_enum_list {
+	int type;
+	char *name;
+};
+
+static struct drm_prop_enum_list nouveau_underscan_enum_list[] = {
+	{ UNDERSCAN_OFF, "off" },
+	{ UNDERSCAN_ON, "on" },
+	{ UNDERSCAN_AUTO, "auto" },
+};
+
 int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_display_engine *disp = &dev_priv->engine.display;
-	int ret;
+	int ret, cnt, i;
 
 	drm_mode_config_init(dev);
 	drm_mode_create_scaling_mode_property(dev);
 	drm_mode_create_dithering_property(dev);
+
+	cnt = ARRAY_SIZE(nouveau_underscan_enum_list);
+	disp->underscan_property = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+						       "underscan", cnt);
+	for (i = 0; i < cnt; i++) {
+		drm_property_add_enum(disp->underscan_property, i,
+				      nouveau_underscan_enum_list[i].type,
+				      nouveau_underscan_enum_list[i].name);
+	}
+
+	disp->underscan_hborder_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "underscan hborder", 2);
+	disp->underscan_hborder_property->values[0] = 0;
+	disp->underscan_hborder_property->values[1] = 128;
+
+	disp->underscan_vborder_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "underscan vborder", 2);
+	disp->underscan_vborder_property->values[0] = 0;
+	disp->underscan_vborder_property->values[1] = 128;
 
 	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
 	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);
