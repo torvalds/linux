@@ -450,7 +450,7 @@ static void nuke(struct at91_ep *ep, int status)
 {
 	struct at91_request *req;
 
-	// terminer chaque requete dans la queue
+	/* terminate any request in the queue */
 	ep->stopped = 1;
 	if (list_empty(&ep->queue))
 		return;
@@ -778,7 +778,7 @@ static const struct usb_ep_ops at91_ep_ops = {
 	.queue		= at91_ep_queue,
 	.dequeue	= at91_ep_dequeue,
 	.set_halt	= at91_ep_set_halt,
-	// there's only imprecise fifo status reporting
+	/* there's only imprecise fifo status reporting */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -836,7 +836,7 @@ static void udc_reinit(struct at91_udc *udc)
 		ep->fifo_bank = 0;
 		ep->ep.maxpacket = ep->maxpacket;
 		ep->creg = (void __iomem *) udc->udp_baseaddr + AT91_UDP_CSR(i);
-		// initialiser une queue par endpoint
+		/* initialize one queue per endpoint */
 		INIT_LIST_HEAD(&ep->queue);
 	}
 }
@@ -942,7 +942,7 @@ static int at91_vbus_session(struct usb_gadget *gadget, int is_active)
 	struct at91_udc	*udc = to_udc(gadget);
 	unsigned long	flags;
 
-	// VDBG("vbus %s\n", is_active ? "on" : "off");
+	/* VDBG("vbus %s\n", is_active ? "on" : "off"); */
 	spin_lock_irqsave(&udc->lock, flags);
 	udc->vbus = (is_active != 0);
 	if (udc->driver)
@@ -993,7 +993,7 @@ static const struct usb_gadget_ops at91_udc_ops = {
 	 * VBUS-powered devices may also also want to support bigger
 	 * power budgets after an appropriate SET_CONFIGURATION.
 	 */
-	// .vbus_power		= at91_vbus_power,
+	/* .vbus_power		= at91_vbus_power, */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1062,7 +1062,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			ep->is_in = 0;
 		}
 	} else {
-		// REVISIT this happens sometimes under load; why??
+		/* REVISIT this happens sometimes under load; why?? */
 		ERR("SETUP len %d, csr %08x\n", rxcount, csr);
 		status = -EINVAL;
 	}
@@ -1441,7 +1441,7 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 			at91_udp_write(udc, AT91_UDP_IDR, AT91_UDP_RXSUSP);
 			at91_udp_write(udc, AT91_UDP_IER, AT91_UDP_RXRSM);
 			at91_udp_write(udc, AT91_UDP_ICR, AT91_UDP_RXSUSP);
-			// VDBG("bus suspend\n");
+			/* VDBG("bus suspend\n"); */
 			if (udc->suspended)
 				continue;
 			udc->suspended = 1;
@@ -1463,7 +1463,7 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 			at91_udp_write(udc, AT91_UDP_IDR, AT91_UDP_RXRSM);
 			at91_udp_write(udc, AT91_UDP_IER, AT91_UDP_RXSUSP);
 			at91_udp_write(udc, AT91_UDP_ICR, AT91_UDP_RXRSM);
-			// VDBG("bus resume\n");
+			/* VDBG("bus resume\n"); */
 			if (!udc->suspended)
 				continue;
 			udc->suspended = 0;
