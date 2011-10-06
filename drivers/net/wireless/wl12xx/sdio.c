@@ -47,7 +47,6 @@
 
 struct wl12xx_sdio_glue {
 	struct device *dev;
-	struct wl1271 *wl;
 	struct platform_device *core;
 };
 
@@ -57,67 +56,22 @@ static const struct sdio_device_id wl1271_devices[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(sdio, wl1271_devices);
 
-static void wl1271_sdio_set_block_size(struct wl1271 *wl, unsigned int blksz)
+static void wl1271_sdio_set_block_size(struct device *child,
+				       unsigned int blksz)
 {
-	sdio_claim_host(wl->if_priv);
-	sdio_set_block_size(wl->if_priv, blksz);
-	sdio_release_host(wl->if_priv);
+	struct wl12xx_sdio_glue *glue = dev_get_drvdata(child->parent);
+	struct sdio_func *func = dev_to_sdio_func(glue->dev);
+
+	sdio_claim_host(func);
+	sdio_set_block_size(func, blksz);
+	sdio_release_host(func);
 }
 
-static inline struct wl12xx_sdio_glue *wl_to_glue(struct wl1271 *wl)
-{
-	return wl->if_priv;
-}
-
-static struct device *wl1271_sdio_wl_to_dev(struct wl1271 *wl)
-{
-	return wl_to_glue(wl)->dev;
-}
-
-static irqreturn_t wl1271_hardirq(int irq, void *cookie)
-{
-	struct wl1271 *wl = cookie;
-	unsigned long flags;
-
-	wl1271_debug(DEBUG_IRQ, "IRQ");
-
-	/* complete the ELP completion */
-	spin_lock_irqsave(&wl->wl_lock, flags);
-	set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
-	if (wl->elp_compl) {
-		complete(wl->elp_compl);
-		wl->elp_compl = NULL;
-	}
-
-	if (test_bit(WL1271_FLAG_SUSPENDED, &wl->flags)) {
-		/* don't enqueue a work right now. mark it as pending */
-		set_bit(WL1271_FLAG_PENDING_WORK, &wl->flags);
-		wl1271_debug(DEBUG_IRQ, "should not enqueue work");
-		disable_irq_nosync(wl->irq);
-		pm_wakeup_event(wl1271_sdio_wl_to_dev(wl), 0);
-		spin_unlock_irqrestore(&wl->wl_lock, flags);
-		return IRQ_HANDLED;
-	}
-	spin_unlock_irqrestore(&wl->wl_lock, flags);
-
-	return IRQ_WAKE_THREAD;
-}
-
-static void wl1271_sdio_disable_interrupts(struct wl1271 *wl)
-{
-	disable_irq(wl->irq);
-}
-
-static void wl1271_sdio_enable_interrupts(struct wl1271 *wl)
-{
-	enable_irq(wl->irq);
-}
-
-static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
+static void wl12xx_sdio_raw_read(struct device *child, int addr, void *buf,
 				 size_t len, bool fixed)
 {
 	int ret;
-	struct wl12xx_sdio_glue *glue = wl_to_glue(wl);
+	struct wl12xx_sdio_glue *glue = dev_get_drvdata(child->parent);
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
@@ -139,11 +93,11 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 		wl1271_error("sdio read failed (%d)", ret);
 }
 
-static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
+static void wl12xx_sdio_raw_write(struct device *child, int addr, void *buf,
 				  size_t len, bool fixed)
 {
 	int ret;
-	struct wl12xx_sdio_glue *glue = wl_to_glue(wl);
+	struct wl12xx_sdio_glue *glue = dev_get_drvdata(child->parent);
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
@@ -165,10 +119,9 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 		wl1271_error("sdio write failed (%d)", ret);
 }
 
-static int wl1271_sdio_power_on(struct wl1271 *wl)
+static int wl12xx_sdio_power_on(struct wl12xx_sdio_glue *glue)
 {
 	int ret;
-	struct wl12xx_sdio_glue *glue = wl_to_glue(wl);
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
 	/* If enabled, tell runtime PM not to power off the card */
@@ -190,10 +143,9 @@ out:
 	return ret;
 }
 
-static int wl1271_sdio_power_off(struct wl1271 *wl)
+static int wl12xx_sdio_power_off(struct wl12xx_sdio_glue *glue)
 {
 	int ret;
-	struct wl12xx_sdio_glue *glue = wl_to_glue(wl);
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
 	sdio_disable_func(func);
@@ -211,33 +163,29 @@ static int wl1271_sdio_power_off(struct wl1271 *wl)
 	return ret;
 }
 
-static int wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
+static int wl12xx_sdio_set_power(struct device *child, bool enable)
 {
+	struct wl12xx_sdio_glue *glue = dev_get_drvdata(child->parent);
+
 	if (enable)
-		return wl1271_sdio_power_on(wl);
+		return wl12xx_sdio_power_on(glue);
 	else
-		return wl1271_sdio_power_off(wl);
+		return wl12xx_sdio_power_off(glue);
 }
 
 static struct wl1271_if_operations sdio_ops = {
-	.read		= wl1271_sdio_raw_read,
-	.write		= wl1271_sdio_raw_write,
-	.power		= wl1271_sdio_set_power,
-	.dev		= wl1271_sdio_wl_to_dev,
-	.enable_irq	= wl1271_sdio_enable_interrupts,
-	.disable_irq	= wl1271_sdio_disable_interrupts,
+	.read		= wl12xx_sdio_raw_read,
+	.write		= wl12xx_sdio_raw_write,
+	.power		= wl12xx_sdio_set_power,
 	.set_block_size = wl1271_sdio_set_block_size,
 };
 
 static int __devinit wl1271_probe(struct sdio_func *func,
 				  const struct sdio_device_id *id)
 {
-	struct ieee80211_hw *hw;
-	const struct wl12xx_platform_data *wlan_data;
-	struct wl1271 *wl;
+	struct wl12xx_platform_data *wlan_data;
 	struct wl12xx_sdio_glue *glue;
 	struct resource res[1];
-	unsigned long irqflags;
 	mmc_pm_flag_t mmcflags;
 	int ret = -ENOMEM;
 
@@ -251,20 +199,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 		goto out;
 	}
 
-	hw = wl1271_alloc_hw();
-	if (IS_ERR(hw)) {
-		wl1271_error("can't allocate hw");
-		ret = PTR_ERR(hw);
-		goto out_free_glue;
-	}
-
-	wl = hw->priv;
-
 	glue->dev = &func->dev;
-	glue->wl = wl;
-
-	wl->if_priv = glue;
-	wl->if_ops = &sdio_ops;
 
 	/* Grab access to FN0 for ELP reg. */
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
@@ -276,48 +211,17 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	if (IS_ERR(wlan_data)) {
 		ret = PTR_ERR(wlan_data);
 		wl1271_error("missing wlan platform data: %d", ret);
-		goto out_free_hw;
+		goto out_free_glue;
 	}
 
-	wl->irq = wlan_data->irq;
-	wl->ref_clock = wlan_data->board_ref_clock;
-	wl->tcxo_clock = wlan_data->board_tcxo_clock;
-	wl->platform_quirks = wlan_data->platform_quirks;
+	/* if sdio can keep power while host is suspended, enable wow */
+	mmcflags = sdio_get_host_pm_caps(func);
+	wl1271_debug(DEBUG_SDIO, "sdio PM caps = 0x%x", mmcflags);
 
-	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
-		irqflags = IRQF_TRIGGER_RISING;
-	else
-		irqflags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
+	if (mmcflags & MMC_PM_KEEP_POWER)
+		wlan_data->pwr_in_suspend = true;
 
-	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
-				   irqflags,
-				   DRIVER_NAME, wl);
-	if (ret < 0) {
-		wl1271_error("request_irq() failed: %d", ret);
-		goto out_free_hw;
-	}
-
-	ret = enable_irq_wake(wl->irq);
-	if (!ret) {
-		wl->irq_wake_enabled = true;
-		device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 1);
-
-		/* if sdio can keep power while host is suspended, enable wow */
-		mmcflags = sdio_get_host_pm_caps(func);
-		wl1271_debug(DEBUG_SDIO, "sdio PM caps = 0x%x", mmcflags);
-
-		if (mmcflags & MMC_PM_KEEP_POWER)
-			hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
-	}
-	disable_irq(wl->irq);
-
-	ret = wl1271_init_ieee80211(wl);
-	if (ret)
-		goto out_irq;
-
-	ret = wl1271_register_hw(wl);
-	if (ret)
-		goto out_irq;
+	wlan_data->ops = &sdio_ops;
 
 	sdio_set_drvdata(func, glue);
 
@@ -328,7 +232,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	if (!glue->core) {
 		wl1271_error("can't allocate platform_device");
 		ret = -ENOMEM;
-		goto out_unreg_hw;
+		goto out_free_glue;
 	}
 
 	glue->core->dev.parent = &func->dev;
@@ -362,17 +266,9 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 out_dev_put:
 	platform_device_put(glue->core);
 
-out_unreg_hw:
-	wl1271_unregister_hw(wl);
-
-out_irq:
-	free_irq(wl->irq, wl);
-
-out_free_hw:
-	wl1271_free_hw(wl);
-
 out_free_glue:
 	kfree(glue);
+
 out:
 	return ret;
 }
@@ -380,18 +276,10 @@ out:
 static void __devexit wl1271_remove(struct sdio_func *func)
 {
 	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
-	struct wl1271 *wl = glue->wl;
 
 	/* Undo decrement done above in wl1271_probe */
 	pm_runtime_get_noresume(&func->dev);
 
-	wl1271_unregister_hw(wl);
-	if (wl->irq_wake_enabled) {
-		device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 0);
-		disable_irq_wake(wl->irq);
-	}
-	free_irq(wl->irq, wl);
-	wl1271_free_hw(wl);
 	platform_device_del(glue->core);
 	platform_device_put(glue->core);
 	kfree(glue);

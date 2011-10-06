@@ -51,23 +51,17 @@ void wl1271_enable_interrupts(struct wl1271 *wl);
 void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
 
-static inline struct device *wl1271_wl_to_dev(struct wl1271 *wl)
-{
-	return wl->if_ops->dev(wl);
-}
-
-
 /* Raw target IO, address is not translated */
 static inline void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
 				    size_t len, bool fixed)
 {
-	wl->if_ops->write(wl, addr, buf, len, fixed);
+	wl->if_ops->write(wl->dev, addr, buf, len, fixed);
 }
 
 static inline void wl1271_raw_read(struct wl1271 *wl, int addr, void *buf,
 				   size_t len, bool fixed)
 {
-	wl->if_ops->read(wl, addr, buf, len, fixed);
+	wl->if_ops->read(wl->dev, addr, buf, len, fixed);
 }
 
 static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
@@ -155,13 +149,13 @@ static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
 
 static inline void wl1271_power_off(struct wl1271 *wl)
 {
-	wl->if_ops->power(wl, false);
+	wl->if_ops->power(wl->dev, false);
 	clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
 }
 
 static inline int wl1271_power_on(struct wl1271 *wl)
 {
-	int ret = wl->if_ops->power(wl, true);
+	int ret = wl->if_ops->power(wl->dev, true);
 	if (ret == 0)
 		set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
 

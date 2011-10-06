@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/wl12xx.h>
 #include <linux/sched.h>
+#include <linux/interrupt.h>
 
 #include "wl12xx.h"
 #include "wl12xx_80211.h"
@@ -1067,7 +1068,7 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_BOOT, "booting firmware %s", fw_name);
 
-	ret = request_firmware(&fw, fw_name, wl1271_wl_to_dev(wl));
+	ret = request_firmware(&fw, fw_name, wl->dev);
 
 	if (ret < 0) {
 		wl1271_error("could not get firmware: %d", ret);
@@ -1105,7 +1106,7 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 	const struct firmware *fw;
 	int ret;
 
-	ret = request_firmware(&fw, WL12XX_NVS_NAME, wl1271_wl_to_dev(wl));
+	ret = request_firmware(&fw, WL12XX_NVS_NAME, wl->dev);
 
 	if (ret < 0) {
 		wl1271_error("could not get nvs file: %d", ret);
@@ -4979,7 +4980,7 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->wiphy->reg_notifier = wl1271_reg_notify;
 
-	SET_IEEE80211_DEV(wl->hw, wl1271_wl_to_dev(wl));
+	SET_IEEE80211_DEV(wl->hw, wl->dev);
 
 	wl->hw->sta_data_size = sizeof(struct wl1271_station);
 	wl->hw->vif_data_size = sizeof(struct wl12xx_vif);
@@ -5200,13 +5201,116 @@ int wl1271_free_hw(struct wl1271 *wl)
 }
 EXPORT_SYMBOL_GPL(wl1271_free_hw);
 
+static irqreturn_t wl12xx_hardirq(int irq, void *cookie)
+{
+	struct wl1271 *wl = cookie;
+	unsigned long flags;
+
+	wl1271_debug(DEBUG_IRQ, "IRQ");
+
+	/* complete the ELP completion */
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
+	if (wl->elp_compl) {
+		complete(wl->elp_compl);
+		wl->elp_compl = NULL;
+	}
+
+	if (test_bit(WL1271_FLAG_SUSPENDED, &wl->flags)) {
+		/* don't enqueue a work right now. mark it as pending */
+		set_bit(WL1271_FLAG_PENDING_WORK, &wl->flags);
+		wl1271_debug(DEBUG_IRQ, "should not enqueue work");
+		disable_irq_nosync(wl->irq);
+		pm_wakeup_event(wl->dev, 0);
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+		return IRQ_HANDLED;
+	}
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	return IRQ_WAKE_THREAD;
+}
+
 static int __devinit wl12xx_probe(struct platform_device *pdev)
 {
+	struct wl12xx_platform_data *pdata = pdev->dev.platform_data;
+	struct ieee80211_hw *hw;
+	struct wl1271 *wl;
+	unsigned long irqflags;
+	int ret = -ENODEV;
+
+	hw = wl1271_alloc_hw();
+	if (IS_ERR(hw)) {
+		wl1271_error("can't allocate hw");
+		ret = PTR_ERR(hw);
+		goto out;
+	}
+
+	wl = hw->priv;
+	wl->irq = platform_get_irq(pdev, 0);
+	wl->ref_clock = pdata->board_ref_clock;
+	wl->tcxo_clock = pdata->board_tcxo_clock;
+	wl->platform_quirks = pdata->platform_quirks;
+	wl->set_power = pdata->set_power;
+	wl->dev = &pdev->dev;
+	wl->if_ops = pdata->ops;
+
+	platform_set_drvdata(pdev, wl);
+
+	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
+		irqflags = IRQF_TRIGGER_RISING;
+	else
+		irqflags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
+
+	ret = request_threaded_irq(wl->irq, wl12xx_hardirq, wl1271_irq,
+				   irqflags,
+				   pdev->name, wl);
+	if (ret < 0) {
+		wl1271_error("request_irq() failed: %d", ret);
+		goto out_free_hw;
+	}
+
+	ret = enable_irq_wake(wl->irq);
+	if (!ret) {
+		wl->irq_wake_enabled = true;
+		device_init_wakeup(wl->dev, 1);
+		if (pdata->pwr_in_suspend)
+			hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
+
+	}
+	disable_irq(wl->irq);
+
+	ret = wl1271_init_ieee80211(wl);
+	if (ret)
+		goto out_irq;
+
+	ret = wl1271_register_hw(wl);
+	if (ret)
+		goto out_irq;
+
 	return 0;
+
+out_irq:
+	free_irq(wl->irq, wl);
+
+out_free_hw:
+	wl1271_free_hw(wl);
+
+out:
+	return ret;
 }
 
 static int __devexit wl12xx_remove(struct platform_device *pdev)
 {
+	struct wl1271 *wl = platform_get_drvdata(pdev);
+
+	if (wl->irq_wake_enabled) {
+		device_init_wakeup(wl->dev, 0);
+		disable_irq_wake(wl->irq);
+	}
+	wl1271_unregister_hw(wl);
+	free_irq(wl->irq, wl);
+	wl1271_free_hw(wl);
+
 	return 0;
 }
 

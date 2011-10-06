@@ -72,33 +72,12 @@
 
 struct wl12xx_spi_glue {
 	struct device *dev;
-	struct wl1271 *wl;
 	struct platform_device *core;
 };
 
-static inline struct wl12xx_spi_glue *wl_to_glue(struct wl1271 *wl)
+static void wl12xx_spi_reset(struct device *child)
 {
-	return wl->if_priv;
-}
-
-static struct device *wl1271_spi_wl_to_dev(struct wl1271 *wl)
-{
-	return wl_to_glue(wl)->dev;
-}
-
-static void wl1271_spi_disable_interrupts(struct wl1271 *wl)
-{
-	disable_irq(wl->irq);
-}
-
-static void wl1271_spi_enable_interrupts(struct wl1271 *wl)
-{
-	enable_irq(wl->irq);
-}
-
-static void wl1271_spi_reset(struct wl1271 *wl)
-{
-	struct wl12xx_spi_glue *glue = wl_to_glue(wl);
+	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
 	u8 *cmd;
 	struct spi_transfer t;
 	struct spi_message m;
@@ -124,9 +103,9 @@ static void wl1271_spi_reset(struct wl1271 *wl)
 	kfree(cmd);
 }
 
-static void wl1271_spi_init(struct wl1271 *wl)
+static void wl12xx_spi_init(struct device *child)
 {
-	struct wl12xx_spi_glue *glue = wl_to_glue(wl);
+	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
 	u8 crc[WSPI_INIT_CMD_CRC_LEN], *cmd;
 	struct spi_transfer t;
 	struct spi_message m;
@@ -181,9 +160,10 @@ static void wl1271_spi_init(struct wl1271 *wl)
 
 #define WL1271_BUSY_WORD_TIMEOUT 1000
 
-static int wl1271_spi_read_busy(struct wl1271 *wl)
+static int wl12xx_spi_read_busy(struct device *child)
 {
-	struct wl12xx_spi_glue *glue = wl_to_glue(wl);
+	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
+	struct wl1271 *wl = dev_get_drvdata(child);
 	struct spi_transfer t[1];
 	struct spi_message m;
 	u32 *busy_buf;
@@ -215,10 +195,11 @@ static int wl1271_spi_read_busy(struct wl1271 *wl)
 	return -ETIMEDOUT;
 }
 
-static void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
+static void wl12xx_spi_raw_read(struct device *child, int addr, void *buf,
 				size_t len, bool fixed)
 {
-	struct wl12xx_spi_glue *glue = wl_to_glue(wl);
+	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
+	struct wl1271 *wl = dev_get_drvdata(child);
 	struct spi_transfer t[2];
 	struct spi_message m;
 	u32 *busy_buf;
@@ -257,7 +238,7 @@ static void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
 		spi_sync(to_spi_device(glue->dev), &m);
 
 		if (!(busy_buf[WL1271_BUSY_WORD_CNT - 1] & 0x1) &&
-		    wl1271_spi_read_busy(wl)) {
+		    wl12xx_spi_read_busy(child)) {
 			memset(buf, 0, chunk_len);
 			return;
 		}
@@ -282,10 +263,10 @@ static void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
 	}
 }
 
-static void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
-			  size_t len, bool fixed)
+static void wl12xx_spi_raw_write(struct device *child, int addr, void *buf,
+				 size_t len, bool fixed)
 {
-	struct wl12xx_spi_glue *glue = wl_to_glue(wl);
+	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
 	struct spi_transfer t[2 * WSPI_MAX_NUM_OF_CHUNKS];
 	struct spi_message m;
 	u32 commands[WSPI_MAX_NUM_OF_CHUNKS];
@@ -333,42 +314,11 @@ static void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
 	spi_sync(to_spi_device(glue->dev), &m);
 }
 
-static irqreturn_t wl1271_hardirq(int irq, void *cookie)
-{
-	struct wl1271 *wl = cookie;
-	unsigned long flags;
-
-	wl1271_debug(DEBUG_IRQ, "IRQ");
-
-	/* complete the ELP completion */
-	spin_lock_irqsave(&wl->wl_lock, flags);
-	set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
-	if (wl->elp_compl) {
-		complete(wl->elp_compl);
-		wl->elp_compl = NULL;
-	}
-	spin_unlock_irqrestore(&wl->wl_lock, flags);
-
-	return IRQ_WAKE_THREAD;
-}
-
-static int wl1271_spi_set_power(struct wl1271 *wl, bool enable)
-{
-	if (wl->set_power)
-		wl->set_power(enable);
-
-	return 0;
-}
-
 static struct wl1271_if_operations spi_ops = {
-	.read		= wl1271_spi_raw_read,
-	.write		= wl1271_spi_raw_write,
-	.reset		= wl1271_spi_reset,
-	.init		= wl1271_spi_init,
-	.power		= wl1271_spi_set_power,
-	.dev		= wl1271_spi_wl_to_dev,
-	.enable_irq	= wl1271_spi_enable_interrupts,
-	.disable_irq	= wl1271_spi_disable_interrupts,
+	.read		= wl12xx_spi_raw_read,
+	.write		= wl12xx_spi_raw_write,
+	.reset		= wl12xx_spi_reset,
+	.init		= wl12xx_spi_init,
 	.set_block_size = NULL,
 };
 
@@ -376,10 +326,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 {
 	struct wl12xx_spi_glue *glue;
 	struct wl12xx_platform_data *pdata;
-	struct ieee80211_hw *hw;
-	struct wl1271 *wl;
 	struct resource res[1];
-	unsigned long irqflags;
 	int ret = -ENOMEM;
 
 	pdata = spi->dev.platform_data;
@@ -388,27 +335,17 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
+	pdata->ops = &spi_ops;
+
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		wl1271_error("can't allocate glue");
 		goto out;
 	}
 
-	hw = wl1271_alloc_hw();
-	if (IS_ERR(hw)) {
-		ret = PTR_ERR(hw);
-		goto out_free_glue;
-	}
-
-	wl = hw->priv;
-
 	glue->dev = &spi->dev;
-	glue->wl = wl;
 
 	spi_set_drvdata(spi, glue);
-	wl->if_priv = glue;
-
-	wl->if_ops = &spi_ops;
 
 	/* This is the only SPI value that we need to set here, the rest
 	 * comes from the board-peripherals file */
@@ -417,55 +354,14 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	ret = spi_setup(spi);
 	if (ret < 0) {
 		wl1271_error("spi_setup failed");
-		goto out_free_hw;
+		goto out_free_glue;
 	}
-
-	wl->set_power = pdata->set_power;
-	if (!wl->set_power) {
-		wl1271_error("set power function missing in platform data");
-		ret = -ENODEV;
-		goto out_free_hw;
-	}
-
-	wl->ref_clock = pdata->board_ref_clock;
-	wl->tcxo_clock = pdata->board_tcxo_clock;
-	wl->platform_quirks = pdata->platform_quirks;
-
-	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
-		irqflags = IRQF_TRIGGER_RISING;
-	else
-		irqflags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
-
-	wl->irq = spi->irq;
-	if (wl->irq < 0) {
-		wl1271_error("irq missing in platform data");
-		ret = -ENODEV;
-		goto out_free_hw;
-	}
-
-	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
-				   irqflags,
-				   DRIVER_NAME, wl);
-	if (ret < 0) {
-		wl1271_error("request_irq() failed: %d", ret);
-		goto out_free_hw;
-	}
-
-	disable_irq(wl->irq);
-
-	ret = wl1271_init_ieee80211(wl);
-	if (ret)
-		goto out_irq;
-
-	ret = wl1271_register_hw(wl);
-	if (ret)
-		goto out_irq;
 
 	glue->core = platform_device_alloc("wl12xx-spi", -1);
 	if (!glue->core) {
 		wl1271_error("can't allocate platform_device");
 		ret = -ENOMEM;
-		goto out_unreg_hw;
+		goto out_free_glue;
 	}
 
 	glue->core->dev.parent = &spi->dev;
@@ -499,15 +395,6 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 out_dev_put:
 	platform_device_put(glue->core);
 
-out_unreg_hw:
-	wl1271_unregister_hw(wl);
-
-out_irq:
-	free_irq(wl->irq, wl);
-
-out_free_hw:
-	wl1271_free_hw(wl);
-
 out_free_glue:
 	kfree(glue);
 out:
@@ -517,11 +404,7 @@ out:
 static int __devexit wl1271_remove(struct spi_device *spi)
 {
 	struct wl12xx_spi_glue *glue = spi_get_drvdata(spi);
-	struct wl1271 *wl = glue->wl;
 
-	wl1271_unregister_hw(wl);
-	free_irq(wl->irq, wl);
-	wl1271_free_hw(wl);
 	platform_device_del(glue->core);
 	platform_device_put(glue->core);
 	kfree(glue);

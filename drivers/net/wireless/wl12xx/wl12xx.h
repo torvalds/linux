@@ -288,17 +288,14 @@ struct wl1271_scan {
 };
 
 struct wl1271_if_operations {
-	void (*read)(struct wl1271 *wl, int addr, void *buf, size_t len,
+	void (*read)(struct device *child, int addr, void *buf, size_t len,
 		     bool fixed);
-	void (*write)(struct wl1271 *wl, int addr, void *buf, size_t len,
+	void (*write)(struct device *child, int addr, void *buf, size_t len,
 		     bool fixed);
-	void (*reset)(struct wl1271 *wl);
-	void (*init)(struct wl1271 *wl);
-	int (*power)(struct wl1271 *wl, bool enable);
-	struct device* (*dev)(struct wl1271 *wl);
-	void (*enable_irq)(struct wl1271 *wl);
-	void (*disable_irq)(struct wl1271 *wl);
-	void (*set_block_size) (struct wl1271 *wl, unsigned int blksz);
+	void (*reset)(struct device *child);
+	void (*init)(struct device *child);
+	int (*power)(struct device *child, bool enable);
+	void (*set_block_size) (struct device *child, unsigned int blksz);
 };
 
 #define MAX_NUM_KEYS 14
@@ -361,6 +358,8 @@ struct wl1271 {
 	struct platform_device *plat_dev;
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
+
+	struct device *dev;
 
 	void *if_priv;
 
