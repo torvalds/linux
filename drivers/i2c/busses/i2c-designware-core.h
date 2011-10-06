@@ -183,6 +183,7 @@ struct dw_i2c_dev {
 	int			swab;
 	struct i2c_adapter	adapter;
 	u32			functionality;
+	u32			master_cfg;
 	unsigned int		tx_fifo_depth;
 	unsigned int		rx_fifo_depth;
 };

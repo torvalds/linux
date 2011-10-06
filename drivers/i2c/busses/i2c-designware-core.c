@@ -143,7 +143,7 @@ static u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset)
 int i2c_dw_init(struct dw_i2c_dev *dev)
 {
 	u32 input_clock_khz;
-	u32 ic_con, hcnt, lcnt;
+	u32 hcnt, lcnt;
 	u32 reg;
 
 	input_clock_khz = dev->get_clk_rate_khz(dev);
@@ -199,9 +199,7 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	dw_writel(dev, 0, DW_IC_RX_TL);
 
 	/* configure the i2c master */
-	ic_con = DW_IC_CON_MASTER | DW_IC_CON_SLAVE_DISABLE |
-		DW_IC_CON_RESTART_EN | DW_IC_CON_SPEED_FAST;
-	dw_writel(dev, ic_con, DW_IC_CON);
+	dw_writel(dev, dev->master_cfg , DW_IC_CON);
 	return 0;
 }
 
