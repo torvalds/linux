@@ -58,7 +58,7 @@ MODULE_PARM_DESC(gain, "Audio gain: 0,...,16(default),...31");
 
 static bool easycap_ntsc;
 module_param_named(ntsc, easycap_ntsc, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(ntsc, "NTCS default encoding (default PAL)");
+MODULE_PARM_DESC(ntsc, "NTSC default encoding (default PAL)");
 
 
 
