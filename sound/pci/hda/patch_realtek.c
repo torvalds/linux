@@ -3731,7 +3731,8 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 		return 0; /* can't find valid BIOS pin config */
 	}
 
-	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT && cfg->hp_outs > 0) {
+	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT &&
+	    cfg->line_outs <= cfg->hp_outs) {
 		/* use HP as primary out */
 		cfg->speaker_outs = cfg->line_outs;
 		memcpy(cfg->speaker_pins, cfg->line_out_pins,
