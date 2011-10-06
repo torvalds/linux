@@ -268,8 +268,8 @@ static ssize_t sca3000_show_rev(struct device *dev,
 				char *buf)
 {
 	int len = 0, ret;
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct sca3000_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_REVID, 1);
@@ -296,8 +296,8 @@ sca3000_show_available_measurement_modes(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct sca3000_state *st = iio_priv(indio_dev);
 	int len = 0;
 
 	len += sprintf(buf + len, "0 - normal mode");
@@ -328,8 +328,8 @@ sca3000_show_measurement_mode(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct sca3000_state *st = iio_priv(indio_dev);
 	int len = 0, ret;
 
 	mutex_lock(&st->lock);
@@ -379,8 +379,8 @@ sca3000_store_measurement_mode(struct device *dev,
 			       const char *buf,
 			       size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
 	int mask = 0x03;
 	long val;
