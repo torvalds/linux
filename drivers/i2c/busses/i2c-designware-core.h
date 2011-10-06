@@ -98,6 +98,7 @@ extern int i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 extern u32 i2c_dw_func(struct i2c_adapter *adap);
 extern irqreturn_t i2c_dw_isr(int this_irq, void *dev_id);
 extern void i2c_dw_enable(struct dw_i2c_dev *dev);
+extern u32 i2c_dw_is_enabled(struct dw_i2c_dev *dev);
 extern void i2c_dw_disable(struct dw_i2c_dev *dev);
 extern void i2c_dw_clear_int(struct dw_i2c_dev *dev);
 extern void i2c_dw_disable_int(struct dw_i2c_dev *dev);

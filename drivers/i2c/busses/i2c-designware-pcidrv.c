@@ -38,6 +38,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include "i2c-designware-core.h"
 
 #define DRIVER_NAME "i2c-designware-pci"
@@ -135,6 +136,82 @@ static struct  dw_pci_controller  dw_pci_controllers[] = {
 static struct i2c_algorithm i2c_dw_algo = {
 	.master_xfer	= i2c_dw_xfer,
 	.functionality	= i2c_dw_func,
+};
+
+static int i2c_dw_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
+{
+	struct dw_i2c_dev *i2c = pci_get_drvdata(pdev);
+	int err;
+
+
+	i2c_dw_disable(i2c);
+
+	err = pci_save_state(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "pci_save_state failed\n");
+		return err;
+	}
+
+	err = pci_set_power_state(pdev, PCI_D3hot);
+	if (err) {
+		dev_err(&pdev->dev, "pci_set_power_state failed\n");
+		return err;
+	}
+
+	return 0;
+}
+
+static int i2c_dw_pci_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	dev_dbg(dev, "PCI suspend called\n");
+	return i2c_dw_pci_suspend(pdev, PMSG_SUSPEND);
+}
+
+static int i2c_dw_pci_resume(struct pci_dev *pdev)
+{
+	struct dw_i2c_dev *i2c = pci_get_drvdata(pdev);
+	int err;
+	u32 enabled;
+
+	enabled = i2c_dw_is_enabled(i2c);
+	if (enabled)
+		return 0;
+
+	err = pci_set_power_state(pdev, PCI_D0);
+	if (err) {
+		dev_err(&pdev->dev, "pci_set_power_state() failed\n");
+		return err;
+	}
+
+	pci_restore_state(pdev);
+
+	i2c_dw_init(i2c);
+	i2c_dw_enable(i2c);
+	return 0;
+}
+
+static int i2c_dw_pci_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	dev_dbg(dev, "runtime_resume called\n");
+	return i2c_dw_pci_resume(pdev);
+}
+
+static int i2c_dw_pci_runtime_idle(struct device *dev)
+{
+	int err = pm_schedule_suspend(dev, 500);
+	dev_dbg(dev, "runtime_idle called\n");
+
+	if (err != 0)
+		return 0;
+	return -EBUSY;
+}
+
+static const struct dev_pm_ops i2c_dw_pm_ops = {
+	.runtime_suspend = i2c_dw_pci_runtime_suspend,
+	.runtime_resume = i2c_dw_pci_runtime_resume,
+	.runtime_idle = i2c_dw_pci_runtime_idle,
 };
 
 static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
@@ -245,6 +322,9 @@ const struct pci_device_id *id)
 		goto err_free_irq;
 	}
 
+	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_allow(&pdev->dev);
+
 	return 0;
 
 err_free_irq:
@@ -263,6 +343,10 @@ exit:
 static void __devexit i2c_dw_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_i2c_dev *dev = pci_get_drvdata(pdev);
+
+	i2c_dw_disable(dev);
+	pm_runtime_forbid(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
 
 	pci_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&dev->adapter);
@@ -297,6 +381,11 @@ static struct pci_driver dw_i2c_driver = {
 	.id_table	= i2_designware_pci_ids,
 	.probe		= i2c_dw_pci_probe,
 	.remove		= __devexit_p(i2c_dw_pci_remove),
+	.resume         = i2c_dw_pci_resume,
+	.suspend        = i2c_dw_pci_suspend,
+	.driver         = {
+		.pm     = &i2c_dw_pm_ops,
+	},
 };
 
 static int __init dw_i2c_init_driver(void)

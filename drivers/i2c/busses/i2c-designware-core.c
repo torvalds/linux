@@ -31,6 +31,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
 #include <linux/delay.h>
 #include "i2c-designware-core.h"
 
@@ -501,6 +502,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
 
 	mutex_lock(&dev->lock);
+	pm_runtime_get_sync(dev->dev);
 
 	INIT_COMPLETION(dev->cmd_complete);
 	dev->msgs = msgs;
@@ -550,6 +552,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	ret = -EIO;
 
 done:
+	pm_runtime_put(dev->dev);
 	mutex_unlock(&dev->lock);
 
 	return ret;
@@ -671,10 +674,13 @@ void i2c_dw_enable(struct dw_i2c_dev *dev)
 	dw_writel(dev, 1, DW_IC_ENABLE);
 }
 
+u32 i2c_dw_is_enabled(struct dw_i2c_dev *dev)
+{
+	return dw_readl(dev, DW_IC_ENABLE);
+}
+
 void i2c_dw_disable(struct dw_i2c_dev *dev)
 {
-	int ret;
-
 	/* Disable controller */
 	dw_writel(dev, 0, DW_IC_ENABLE);
 
