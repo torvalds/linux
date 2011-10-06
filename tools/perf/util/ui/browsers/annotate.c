@@ -184,8 +184,8 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 	int key;
 
 	if (ui_browser__show(&self->b, sym->name,
-			     "<-, -> or ESC: exit, TAB/shift+TAB: "
-			     "cycle hottest lines, H: Hottest") < 0)
+			     "<- or ESC: exit, TAB/shift+TAB: "
+			     "cycle hottest lines, H: Hottest, -> Line action") < 0)
 		return -1;
 
 	ui_browser__add_exit_keys(&self->b, exit_keys);
@@ -245,24 +245,39 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 			nd = self->curr_hot;
 			break;
 		case NEWT_KEY_ENTER:
-			if (self->selection != NULL) {
+		case NEWT_KEY_RIGHT:
+			if (self->selection == NULL) {
+				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
+				continue;
+			}
+
+			if (self->selection->offset == -1) {
+				ui_helpline__puts("Actions are only available for assembly lines.");
+				continue;
+			} else {
 				char *s = strstr(self->selection->line, "callq ");
 				struct annotation *notes;
 				struct symbol *target;
 				u64 ip;
 
-				if (s == NULL)
+				if (s == NULL) {
+					ui_helpline__puts("Actions are only available for the 'callq' instruction.");
 					continue;
+				}
 
 				s = strchr(s, ' ');
-				if (s++ == NULL)
+				if (s++ == NULL) {
+					ui_helpline__puts("Invallid callq instruction.");
 					continue;
+				}
 
 				ip = strtoull(s, NULL, 16);
 				ip = ms->map->map_ip(ms->map, ip);
 				target = map__find_symbol(ms->map, ip, NULL);
-				if (target == NULL)
+				if (target == NULL) {
+					ui_helpline__puts("The called function was not found.");
 					continue;
+				}
 
 				notes = symbol__annotation(target);
 				pthread_mutex_lock(&notes->lock);
