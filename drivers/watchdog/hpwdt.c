@@ -35,6 +35,7 @@
 #include <linux/notifier.h>
 #include <asm/cacheflush.h>
 #endif /* CONFIG_HPWDT_NMI_DECODING */
+#include <asm/nmi.h>
 
 #define HPWDT_VERSION			"1.3.0"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)

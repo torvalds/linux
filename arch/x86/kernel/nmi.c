@@ -18,6 +18,8 @@
 #include <linux/hardirq.h>
 #include <linux/slab.h>
 
+#include <linux/mca.h>
+
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
