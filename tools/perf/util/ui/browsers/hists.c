@@ -1107,12 +1107,14 @@ browse_hists:
 				pos = list_entry(evlist->entries.next, struct perf_evsel, node);
 			else
 				pos = list_entry(pos->node.next, struct perf_evsel, node);
+			perf_evlist__set_selected(evlist, pos);
 			goto browse_hists;
 		case NEWT_KEY_UNTAB:
 			if (pos->node.prev == &evlist->entries)
 				pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
 			else
 				pos = list_entry(pos->node.prev, struct perf_evsel, node);
+			perf_evlist__set_selected(evlist, pos);
 			goto browse_hists;
 		case 'q':
 		case CTRL('c'):
