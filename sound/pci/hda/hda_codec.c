@@ -5200,30 +5200,6 @@ void snd_array_free(struct snd_array *array)
 EXPORT_SYMBOL_HDA(snd_array_free);
 
 /**
- * snd_print_pcm_rates - Print the supported PCM rates to the string buffer
- * @pcm: PCM caps bits
- * @buf: the string buffer to write
- * @buflen: the max buffer length
- *
- * used by hda_proc.c
- */
-void snd_print_pcm_rates(int pcm, char *buf, int buflen)
-{
-	static unsigned int rates[] = {
-		8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
-		96000, 176400, 192000, 384000
-	};
-	int i, j;
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(rates); i++)
-		if (pcm & (1 << i))
-			j += snprintf(buf + j, buflen - j,  " %d", rates[i]);
-
-	buf[j] = '\0'; /* necessary when j == 0 */
-}
-EXPORT_SYMBOL_HDA(snd_print_pcm_rates);
-
-/**
  * snd_print_pcm_bits - Print the supported PCM fmt bits to the string buffer
  * @pcm: PCM caps bits
  * @buf: the string buffer to write

@@ -383,6 +383,8 @@ static void hdmi_print_pcm_rates(int pcm, char *buf, int buflen)
 	buf[j] = '\0'; /* necessary when j == 0 */
 }
 
+#define SND_PRINT_RATES_ADVISED_BUFSIZE	80
+
 static void hdmi_show_short_audio_desc(struct cea_sad *a)
 {
 	char buf[SND_PRINT_RATES_ADVISED_BUFSIZE];

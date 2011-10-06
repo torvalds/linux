@@ -336,9 +336,6 @@ int snd_hda_codec_proc_new(struct hda_codec *codec);
 static inline int snd_hda_codec_proc_new(struct hda_codec *codec) { return 0; }
 #endif
 
-#define SND_PRINT_RATES_ADVISED_BUFSIZE	80
-void snd_print_pcm_rates(int pcm, char *buf, int buflen);
-
 #define SND_PRINT_BITS_ADVISED_BUFSIZE	16
 void snd_print_pcm_bits(int pcm, char *buf, int buflen);
 
