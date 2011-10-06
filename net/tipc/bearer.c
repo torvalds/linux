@@ -81,6 +81,21 @@ static struct media *media_find(const char *name)
 }
 
 /**
+ * media_find_id - locates specified media object by type identifier
+ */
+
+static struct media *media_find_id(u8 type)
+{
+	u32 i;
+
+	for (i = 0; i < media_count; i++) {
+		if (media_list[i].type_id == type)
+			return &media_list[i];
+	}
+	return NULL;
+}
+
+/**
  * tipc_register_media - register a media type
  *
  * Bearers for this media type must be activated separately at a later stage.
@@ -88,8 +103,6 @@ static struct media *media_find(const char *name)
 
 int  tipc_register_media(struct media *m_ptr)
 {
-	u32 media_id;
-	u32 i;
 	int res = -EINVAL;
 
 	write_lock_bh(&tipc_net_lock);
@@ -121,29 +134,18 @@ int  tipc_register_media(struct media *m_ptr)
 		goto exit;
 	}
 
-	media_id = media_count++;
-	if (media_id >= MAX_MEDIA) {
+	if (media_count >= MAX_MEDIA) {
 		warn("Media <%s> rejected, media limit reached (%u)\n",
 		     m_ptr->name, MAX_MEDIA);
-		media_count--;
 		goto exit;
 	}
-	for (i = 0; i < media_id; i++) {
-		if (media_list[i].type_id == m_ptr->type_id) {
-			warn("Media <%s> rejected, duplicate type (%u)\n",
-			     m_ptr->name, m_ptr->type_id);
-			media_count--;
-			goto exit;
-		}
-		if (!strcmp(m_ptr->name, media_list[i].name)) {
-			warn("Media <%s> rejected, duplicate name\n",
-			     m_ptr->name);
-			media_count--;
-			goto exit;
-		}
+	if (media_find(m_ptr->name) || media_find_id(m_ptr->type_id)) {
+		warn("Media <%s> rejected, already registered\n", m_ptr->name);
+		goto exit;
 	}
 
-	media_list[media_id] = *m_ptr;
+	media_list[media_count] = *m_ptr;
+	media_count++;
 	res = 0;
 exit:
 	write_unlock_bh(&tipc_net_lock);
