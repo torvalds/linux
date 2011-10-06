@@ -86,21 +86,8 @@ static struct media *media_find(const char *name)
  * Bearers for this media type must be activated separately at a later stage.
  */
 
-int  tipc_register_media(u32 media_type,
-			 char *name,
-			 int (*enable)(struct tipc_bearer *),
-			 void (*disable)(struct tipc_bearer *),
-			 int (*send_msg)(struct sk_buff *,
-					 struct tipc_bearer *,
-					 struct tipc_media_addr *),
-			 char *(*addr2str)(struct tipc_media_addr *a,
-					   char *str_buf, int str_size),
-			 struct tipc_media_addr *bcast_addr,
-			 const u32 bearer_priority,
-			 const u32 link_tolerance,  /* [ms] */
-			 const u32 send_window_limit)
+int  tipc_register_media(struct media *m_ptr)
 {
-	struct media *m_ptr;
 	u32 media_id;
 	u32 i;
 	int res = -EINVAL;
@@ -108,62 +95,55 @@ int  tipc_register_media(u32 media_type,
 	write_lock_bh(&tipc_net_lock);
 
 	if (tipc_mode != TIPC_NET_MODE) {
-		warn("Media <%s> rejected, not in networked mode yet\n", name);
+		warn("Media <%s> rejected, not in networked mode yet\n",
+		     m_ptr->name);
 		goto exit;
 	}
-	if (!media_name_valid(name)) {
-		warn("Media <%s> rejected, illegal name\n", name);
+	if (!media_name_valid(m_ptr->name)) {
+		warn("Media <%s> rejected, illegal name\n", m_ptr->name);
 		goto exit;
 	}
-	if (!bcast_addr) {
-		warn("Media <%s> rejected, no broadcast address\n", name);
+	if (m_ptr->bcast_addr.type != htonl(m_ptr->type_id)) {
+		warn("Media <%s> rejected, illegal broadcast address\n",
+		     m_ptr->name);
 		goto exit;
 	}
-	if ((bearer_priority < TIPC_MIN_LINK_PRI) ||
-	    (bearer_priority > TIPC_MAX_LINK_PRI)) {
-		warn("Media <%s> rejected, illegal priority (%u)\n", name,
-		     bearer_priority);
+	if ((m_ptr->priority < TIPC_MIN_LINK_PRI) ||
+	    (m_ptr->priority > TIPC_MAX_LINK_PRI)) {
+		warn("Media <%s> rejected, illegal priority (%u)\n",
+		     m_ptr->name, m_ptr->priority);
 		goto exit;
 	}
-	if ((link_tolerance < TIPC_MIN_LINK_TOL) ||
-	    (link_tolerance > TIPC_MAX_LINK_TOL)) {
-		warn("Media <%s> rejected, illegal tolerance (%u)\n", name,
-		     link_tolerance);
+	if ((m_ptr->tolerance < TIPC_MIN_LINK_TOL) ||
+	    (m_ptr->tolerance > TIPC_MAX_LINK_TOL)) {
+		warn("Media <%s> rejected, illegal tolerance (%u)\n",
+		     m_ptr->name, m_ptr->tolerance);
 		goto exit;
 	}
 
 	media_id = media_count++;
 	if (media_id >= MAX_MEDIA) {
-		warn("Media <%s> rejected, media limit reached (%u)\n", name,
-		     MAX_MEDIA);
+		warn("Media <%s> rejected, media limit reached (%u)\n",
+		     m_ptr->name, MAX_MEDIA);
 		media_count--;
 		goto exit;
 	}
 	for (i = 0; i < media_id; i++) {
-		if (media_list[i].type_id == media_type) {
-			warn("Media <%s> rejected, duplicate type (%u)\n", name,
-			     media_type);
+		if (media_list[i].type_id == m_ptr->type_id) {
+			warn("Media <%s> rejected, duplicate type (%u)\n",
+			     m_ptr->name, m_ptr->type_id);
 			media_count--;
 			goto exit;
 		}
-		if (!strcmp(name, media_list[i].name)) {
-			warn("Media <%s> rejected, duplicate name\n", name);
+		if (!strcmp(m_ptr->name, media_list[i].name)) {
+			warn("Media <%s> rejected, duplicate name\n",
+			     m_ptr->name);
 			media_count--;
 			goto exit;
 		}
 	}
 
-	m_ptr = &media_list[media_id];
-	m_ptr->type_id = media_type;
-	m_ptr->send_msg = send_msg;
-	m_ptr->enable_bearer = enable;
-	m_ptr->disable_bearer = disable;
-	m_ptr->addr2str = addr2str;
-	memcpy(&m_ptr->bcast_addr, bcast_addr, sizeof(*bcast_addr));
-	strcpy(m_ptr->name, name);
-	m_ptr->priority = bearer_priority;
-	m_ptr->tolerance = link_tolerance;
-	m_ptr->window = send_window_limit;
+	media_list[media_id] = *m_ptr;
 	res = 0;
 exit:
 	write_unlock_bh(&tipc_net_lock);

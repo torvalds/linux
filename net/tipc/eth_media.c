@@ -38,9 +38,6 @@
 #include "bearer.h"
 
 #define MAX_ETH_BEARERS		MAX_BEARERS
-#define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
-#define ETH_LINK_TOLERANCE	TIPC_DEF_LINK_TOL
-#define ETH_LINK_WINDOW		TIPC_DEF_LINK_WIN
 
 /**
  * struct eth_bearer - Ethernet bearer data structure
@@ -257,6 +254,24 @@ static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size
 	return str_buf;
 }
 
+/*
+ * Ethernet media registration info
+ */
+
+static struct media eth_media_info = {
+	.send_msg	= send_msg,
+	.enable_bearer	= enable_bearer,
+	.disable_bearer	= disable_bearer,
+	.addr2str	= eth_addr2str,
+	.bcast_addr	= { htonl(TIPC_MEDIA_TYPE_ETH),
+			    { {0xff, 0xff, 0xff, 0xff, 0xff, 0xff} } },
+	.priority	= TIPC_DEF_LINK_PRI,
+	.tolerance	= TIPC_DEF_LINK_TOL,
+	.window		= TIPC_DEF_LINK_WIN,
+	.type_id	= TIPC_MEDIA_TYPE_ETH,
+	.name		= "eth"
+};
+
 /**
  * tipc_eth_media_start - activate Ethernet bearer support
  *
@@ -266,21 +281,14 @@ static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size
 
 int tipc_eth_media_start(void)
 {
-	struct tipc_media_addr bcast_addr;
 	int res;
 
 	if (eth_started)
 		return -EINVAL;
 
-	bcast_addr.type = htonl(TIPC_MEDIA_TYPE_ETH);
-	memset(&bcast_addr.dev_addr, 0xff, ETH_ALEN);
-
 	memset(eth_bearers, 0, sizeof(eth_bearers));
 
-	res = tipc_register_media(TIPC_MEDIA_TYPE_ETH, "eth",
-				  enable_bearer, disable_bearer, send_msg,
-				  eth_addr2str, &bcast_addr, ETH_LINK_PRIORITY,
-				  ETH_LINK_TOLERANCE, ETH_LINK_WINDOW);
+	res = tipc_register_media(&eth_media_info);
 	if (res)
 		return res;
 

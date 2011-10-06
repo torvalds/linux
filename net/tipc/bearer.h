@@ -145,16 +145,7 @@ extern struct tipc_bearer tipc_bearers[];
 /*
  * TIPC routines available to supported media types
  */
-int tipc_register_media(u32 media_type,
-		 char *media_name, int (*enable)(struct tipc_bearer *),
-		 void (*disable)(struct tipc_bearer *),
-		 int (*send_msg)(struct sk_buff *,
-			struct tipc_bearer *, struct tipc_media_addr *),
-		 char *(*addr2str)(struct tipc_media_addr *a,
-			char *str_buf, int str_size),
-		 struct tipc_media_addr *bcast_addr, const u32 bearer_priority,
-		 const u32 link_tolerance,  /* [ms] */
-		 const u32 send_window_limit);
+int tipc_register_media(struct media *m_ptr);
 
 void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 
