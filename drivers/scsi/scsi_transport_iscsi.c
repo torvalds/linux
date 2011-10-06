@@ -317,7 +317,7 @@ iscsi_iface_net_attr(ipv6_iface, link_local_addr, ISCSI_NET_PARAM_IPV6_LINKLOCAL
 iscsi_iface_net_attr(ipv6_iface, router_addr, ISCSI_NET_PARAM_IPV6_ROUTER);
 iscsi_iface_net_attr(ipv6_iface, ipaddr_autocfg,
 		     ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG);
-iscsi_iface_net_attr(ipv6_iface, linklocal_autocfg,
+iscsi_iface_net_attr(ipv6_iface, link_local_autocfg,
 		     ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG);
 
 /* common read only iface attribute */
@@ -368,7 +368,7 @@ static mode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
 			param = ISCSI_NET_PARAM_IPV6_ROUTER;
 		else if (attr == &dev_attr_ipv6_iface_ipaddr_autocfg.attr)
 			param = ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG;
-		else if (attr == &dev_attr_ipv6_iface_linklocal_autocfg.attr)
+		else if (attr == &dev_attr_ipv6_iface_link_local_autocfg.attr)
 			param = ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG;
 		else
 			return 0;
@@ -393,7 +393,7 @@ static struct attribute *iscsi_iface_attrs[] = {
 	&dev_attr_ipv6_iface_link_local_addr.attr,
 	&dev_attr_ipv6_iface_router_addr.attr,
 	&dev_attr_ipv6_iface_ipaddr_autocfg.attr,
-	&dev_attr_ipv6_iface_linklocal_autocfg.attr,
+	&dev_attr_ipv6_iface_link_local_autocfg.attr,
 	&dev_attr_iface_mtu.attr,
 	&dev_attr_iface_port.attr,
 	NULL,
