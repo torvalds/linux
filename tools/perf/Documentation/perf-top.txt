@@ -126,6 +126,16 @@ Default is to monitor all CPUS.
 --symbols::
 	Only consider these symbols.
 
+-M::
+--disassembler-style=:: Set disassembler style for objdump.
+
+--source::
+	Interleave source code with assembly code. Enabled by default,
+	disable with --no-source.
+
+--asm-raw::
+	Show raw instruction encoding of assembly instructions.
+
 -G [type,min,order]::
 --call-graph::
         Display call chains using type, min percent threshold and order.

@@ -1117,6 +1117,12 @@ static const struct option options[] = {
 		   "only consider symbols in these comms"),
 	OPT_STRING(0, "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
+	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
+		    "Interleave source code with assembly code (default)"),
+	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
+		    "Display raw encoding of assembly instructions (default)"),
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
+		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_END()
 };
 

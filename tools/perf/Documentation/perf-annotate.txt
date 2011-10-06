@@ -73,8 +73,7 @@ OPTIONS
 	CPUs.
 
 --asm-raw::
-	Show raw instruction encoding of assembly instructions. They
-	are displayed by default, disable with --no-asm-raw.
+	Show raw instruction encoding of assembly instructions.
 
 --source::
 	Interleave source code with assembly code. Enabled by default,
