@@ -1073,6 +1073,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (mode != DRM_MODE_DPMS_ON) {
+		ironlake_edp_panel_vdd_on(intel_dp);
 		if (is_edp(intel_dp))
 			ironlake_edp_backlight_off(dev);
 		intel_dp_sink_dpms(intel_dp, mode);
@@ -1080,6 +1081,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		ironlake_edp_panel_off(dev);
 		if (is_edp(intel_dp) && !is_pch_edp(intel_dp))
 			ironlake_edp_pll_off(encoder);
+		ironlake_edp_panel_vdd_off(intel_dp);
 	} else {
 		ironlake_edp_panel_vdd_on(intel_dp);
 		intel_dp_sink_dpms(intel_dp, mode);
