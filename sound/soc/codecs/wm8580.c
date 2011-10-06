@@ -213,7 +213,7 @@ static int wm8580_out_vu(struct snd_kcontrol *kcontrol,
 	reg_cache[reg] = 0;
 	reg_cache[reg2] = 0;
 
-	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 	if (ret < 0)
 		return ret;
 
@@ -228,15 +228,15 @@ static const struct snd_kcontrol_new wm8580_snd_controls[] = {
 SOC_DOUBLE_R_EXT_TLV("DAC1 Playback Volume",
 		     WM8580_DIGITAL_ATTENUATION_DACL1,
 		     WM8580_DIGITAL_ATTENUATION_DACR1,
-		     0, 0xff, 0, snd_soc_get_volsw_2r, wm8580_out_vu, dac_tlv),
+		     0, 0xff, 0, snd_soc_get_volsw, wm8580_out_vu, dac_tlv),
 SOC_DOUBLE_R_EXT_TLV("DAC2 Playback Volume",
 		     WM8580_DIGITAL_ATTENUATION_DACL2,
 		     WM8580_DIGITAL_ATTENUATION_DACR2,
-		     0, 0xff, 0, snd_soc_get_volsw_2r, wm8580_out_vu, dac_tlv),
+		     0, 0xff, 0, snd_soc_get_volsw, wm8580_out_vu, dac_tlv),
 SOC_DOUBLE_R_EXT_TLV("DAC3 Playback Volume",
 		     WM8580_DIGITAL_ATTENUATION_DACL3,
 		     WM8580_DIGITAL_ATTENUATION_DACR3,
-		     0, 0xff, 0, snd_soc_get_volsw_2r, wm8580_out_vu, dac_tlv),
+		     0, 0xff, 0, snd_soc_get_volsw, wm8580_out_vu, dac_tlv),
 
 SOC_SINGLE("DAC1 Deemphasis Switch", WM8580_DAC_CONTROL3, 0, 1, 0),
 SOC_SINGLE("DAC2 Deemphasis Switch", WM8580_DAC_CONTROL3, 1, 1, 0),

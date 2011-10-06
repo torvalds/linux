@@ -222,7 +222,7 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 	/* Updating the analogue gains invalidates the DC servo cache */
 	hubs->class_w_dcs = 0;
@@ -364,7 +364,7 @@ SOC_ENUM("Speaker Mode", speaker_mode),
 
 SOC_DOUBLE_R_EXT_TLV("Headphone Volume",
 		     WM8993_LEFT_OUTPUT_VOLUME, WM8993_RIGHT_OUTPUT_VOLUME,
-		     0, 63, 0, snd_soc_get_volsw_2r, wm8993_put_dc_servo,
+		     0, 63, 0, snd_soc_get_volsw, wm8993_put_dc_servo,
 		     outpga_tlv),
 
 SOC_DOUBLE_R("Headphone Switch", WM8993_LEFT_OUTPUT_VOLUME,

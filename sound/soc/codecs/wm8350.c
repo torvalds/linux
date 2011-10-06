@@ -355,7 +355,7 @@ static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 			return 1;
 	}
 
-	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 	if (ret < 0)
 		return ret;
 
@@ -392,7 +392,7 @@ static int wm8350_get_volsw_2r(struct snd_kcontrol *kcontrol,
 		break;
 	}
 
-	return snd_soc_get_volsw_2r(kcontrol, ucontrol);
+	return snd_soc_get_volsw(kcontrol, ucontrol);
 }
 
 static const char *wm8350_deemp[] = { "None", "32kHz", "44.1kHz", "48kHz" };
