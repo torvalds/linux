@@ -465,27 +465,28 @@ static int alua_check_sense(struct scsi_device *sdev,
 			 * Power On, Reset, or Bus Device Reset, just retry.
 			 */
 			return ADD_TO_MLQUEUE;
-		if (sense_hdr->asc == 0x2a && sense_hdr->ascq == 0x06) {
+		if (sense_hdr->asc == 0x2a && sense_hdr->ascq == 0x06)
 			/*
 			 * ALUA state changed
 			 */
 			return ADD_TO_MLQUEUE;
-		}
-		if (sense_hdr->asc == 0x2a && sense_hdr->ascq == 0x07) {
+		if (sense_hdr->asc == 0x2a && sense_hdr->ascq == 0x07)
 			/*
 			 * Implicit ALUA state transition failed
 			 */
 			return ADD_TO_MLQUEUE;
-		}
-		if (sense_hdr->asc == 0x3f && sense_hdr->ascq == 0x0e) {
+		if (sense_hdr->asc == 0x3f && sense_hdr->ascq == 0x03)
+			/*
+			 * Inquiry data has changed
+			 */
+			return ADD_TO_MLQUEUE;
+		if (sense_hdr->asc == 0x3f && sense_hdr->ascq == 0x0e)
 			/*
 			 * REPORTED_LUNS_DATA_HAS_CHANGED is reported
 			 * when switching controllers on targets like
 			 * Intel Multi-Flex. We can just retry.
 			 */
 			return ADD_TO_MLQUEUE;
-		}
-
 		break;
 	}
 
