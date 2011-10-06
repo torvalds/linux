@@ -2075,6 +2075,8 @@ int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 
 	event.ifindex = dev->ifindex;
 	memcpy(&event.app, new, sizeof(event.app));
+	if (dev->dcbnl_ops->getdcbx)
+		event.dcbx = dev->dcbnl_ops->getdcbx(dev);
 
 	spin_lock(&dcb_lock);
 	/* Search for existing match and replace */
@@ -2152,6 +2154,8 @@ int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
 
 	event.ifindex = dev->ifindex;
 	memcpy(&event.app, new, sizeof(event.app));
+	if (dev->dcbnl_ops->getdcbx)
+		event.dcbx = dev->dcbnl_ops->getdcbx(dev);
 
 	spin_lock(&dcb_lock);
 	/* Search for existing match and abort if found */
@@ -2196,6 +2200,8 @@ int dcb_ieee_delapp(struct net_device *dev, struct dcb_app *del)
 
 	event.ifindex = dev->ifindex;
 	memcpy(&event.app, del, sizeof(event.app));
+	if (dev->dcbnl_ops->getdcbx)
+		event.dcbx = dev->dcbnl_ops->getdcbx(dev);
 
 	spin_lock(&dcb_lock);
 	/* Search for existing match and remove it. */
