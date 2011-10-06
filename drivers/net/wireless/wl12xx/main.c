@@ -931,7 +931,7 @@ static void wl1271_netstack_work(struct work_struct *work)
 
 #define WL1271_IRQ_MAX_LOOPS 256
 
-irqreturn_t wl1271_irq(int irq, void *cookie)
+static irqreturn_t wl1271_irq(int irq, void *cookie)
 {
 	int ret;
 	u32 intr;
@@ -1053,7 +1053,6 @@ out:
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_GPL(wl1271_irq);
 
 static int wl1271_fetch_firmware(struct wl1271 *wl)
 {
@@ -4848,7 +4847,7 @@ static struct bin_attribute fwlog_attr = {
 	.read = wl1271_sysfs_read_fwlog,
 };
 
-int wl1271_register_hw(struct wl1271 *wl)
+static int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
 
@@ -4889,9 +4888,8 @@ int wl1271_register_hw(struct wl1271 *wl)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(wl1271_register_hw);
 
-void wl1271_unregister_hw(struct wl1271 *wl)
+static void wl1271_unregister_hw(struct wl1271 *wl)
 {
 	if (wl->state == WL1271_STATE_PLT)
 		__wl1271_plt_stop(wl);
@@ -4901,9 +4899,8 @@ void wl1271_unregister_hw(struct wl1271 *wl)
 	wl->mac80211_registered = false;
 
 }
-EXPORT_SYMBOL_GPL(wl1271_unregister_hw);
 
-int wl1271_init_ieee80211(struct wl1271 *wl)
+static int wl1271_init_ieee80211(struct wl1271 *wl)
 {
 	static const u32 cipher_suites[] = {
 		WLAN_CIPHER_SUITE_WEP40,
@@ -4989,11 +4986,10 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(wl1271_init_ieee80211);
 
 #define WL1271_DEFAULT_CHANNEL 0
 
-struct ieee80211_hw *wl1271_alloc_hw(void)
+static struct ieee80211_hw *wl1271_alloc_hw(void)
 {
 	struct ieee80211_hw *hw;
 	struct platform_device *plat_dev = NULL;
@@ -5162,9 +5158,8 @@ err_hw_alloc:
 
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 
-int wl1271_free_hw(struct wl1271 *wl)
+static int wl1271_free_hw(struct wl1271 *wl)
 {
 	/* Unblock any fwlog readers */
 	mutex_lock(&wl->mutex);
@@ -5199,7 +5194,6 @@ int wl1271_free_hw(struct wl1271 *wl)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(wl1271_free_hw);
 
 static irqreturn_t wl12xx_hardirq(int irq, void *cookie)
 {

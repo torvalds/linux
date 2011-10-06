@@ -170,15 +170,10 @@ u16 wl1271_top_reg_read(struct wl1271 *wl, int addr);
 int wl1271_set_partition(struct wl1271 *wl,
 			 struct wl1271_partition_set *p);
 
+bool wl1271_set_block_size(struct wl1271 *wl);
+
 /* Functions from wl1271_main.c */
 
-int wl1271_register_hw(struct wl1271 *wl);
-void wl1271_unregister_hw(struct wl1271 *wl);
-int wl1271_init_ieee80211(struct wl1271 *wl);
-struct ieee80211_hw *wl1271_alloc_hw(void);
-int wl1271_free_hw(struct wl1271 *wl);
-irqreturn_t wl1271_irq(int irq, void *data);
-bool wl1271_set_block_size(struct wl1271 *wl);
 int wl1271_tx_dummy_packet(struct wl1271 *wl);
 
 #endif
