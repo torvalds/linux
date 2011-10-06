@@ -270,6 +270,7 @@ struct _mmc_csd {
  * EXT_CSD fields
  */
 
+#define EXT_CSD_GP_SIZE_MULT		143	/* R/W */
 #define EXT_CSD_PARTITION_ATTRIBUTE	156	/* R/W */
 #define EXT_CSD_PARTITION_SUPPORT	160	/* RO */
 #define EXT_CSD_RST_N_FUNCTION		162	/* R/W */
@@ -313,7 +314,9 @@ struct _mmc_csd {
 
 #define EXT_CSD_PART_CONFIG_ACC_MASK	(0x7)
 #define EXT_CSD_PART_CONFIG_ACC_BOOT0	(0x1)
-#define EXT_CSD_PART_CONFIG_ACC_BOOT1	(0x2)
+#define EXT_CSD_PART_CONFIG_ACC_GP0	(0x4)
+
+#define EXT_CSD_PART_SUPPORT_PART_EN	(0x1)
 
 #define EXT_CSD_CMD_SET_NORMAL		(1<<0)
 #define EXT_CSD_CMD_SET_SECURE		(1<<1)

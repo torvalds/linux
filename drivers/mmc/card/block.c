@@ -1473,26 +1473,29 @@ static int mmc_blk_alloc_part(struct mmc_card *card,
 	return 0;
 }
 
+/* MMC Physical partitions consist of two boot partitions and
+ * up to four general purpose partitions.
+ * For each partition enabled in EXT_CSD a block device will be allocatedi
+ * to provide access to the partition.
+ */
+
 static int mmc_blk_alloc_parts(struct mmc_card *card, struct mmc_blk_data *md)
 {
-	int ret = 0;
+	int idx, ret = 0;
 
 	if (!mmc_card_mmc(card))
 		return 0;
 
-	if (card->ext_csd.boot_size && mmc_boot_partition_access(card->host)) {
-		ret = mmc_blk_alloc_part(card, md, EXT_CSD_PART_CONFIG_ACC_BOOT0,
-					 card->ext_csd.boot_size >> 9,
-					 true,
-					 "boot0");
-		if (ret)
-			return ret;
-		ret = mmc_blk_alloc_part(card, md, EXT_CSD_PART_CONFIG_ACC_BOOT1,
-					 card->ext_csd.boot_size >> 9,
-					 true,
-					 "boot1");
-		if (ret)
-			return ret;
+	for (idx = 0; idx < card->nr_parts; idx++) {
+		if (card->part[idx].size) {
+			ret = mmc_blk_alloc_part(card, md,
+				card->part[idx].part_cfg,
+				card->part[idx].size >> 9,
+				card->part[idx].force_ro,
+				card->part[idx].name);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return ret;

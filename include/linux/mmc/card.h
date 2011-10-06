@@ -12,6 +12,7 @@
 
 #include <linux/mmc/core.h>
 #include <linux/mod_devicetable.h>
+#include <linux/genhd.h>
 
 struct mmc_cid {
 	unsigned int		manfid;
@@ -64,7 +65,6 @@ struct mmc_ext_csd {
 	bool			enhanced_area_en;	/* enable bit */
 	unsigned long long	enhanced_area_offset;	/* Units: Byte */
 	unsigned int		enhanced_area_size;	/* Units: KB */
-	unsigned int		boot_size;		/* in bytes */
 	u8			raw_partition_support;	/* 160 */
 	u8			raw_erased_mem_count;	/* 181 */
 	u8			raw_ext_csd_structure;	/* 194 */
@@ -158,6 +158,23 @@ struct sdio_func_tuple;
 
 #define SDIO_MAX_FUNCS		7
 
+/* The number of MMC physical partitions.  These consist of:
+ * boot partitions (2), general purpose partitions (4) in MMC v4.4.
+ */
+#define MMC_NUM_BOOT_PARTITION	2
+#define MMC_NUM_GP_PARTITION	4
+#define MMC_NUM_PHY_PARTITION	6
+
+/*
+ * MMC Physical partitions
+ */
+struct mmc_part {
+	unsigned int	size;	/* partition size (in bytes) */
+	unsigned int	part_cfg;	/* partition type */
+	char	name[DISK_NAME_LEN];
+	bool	force_ro;	/* to make boot parts RO by default */
+};
+
 /*
  * MMC device
  */
@@ -219,7 +236,22 @@ struct mmc_card {
 	unsigned int		sd_bus_speed;	/* Bus Speed Mode set for the card */
 
 	struct dentry		*debugfs_root;
+	struct mmc_part	part[MMC_NUM_PHY_PARTITION]; /* physical partitions */
+	unsigned int    nr_parts;
 };
+
+/*
+ * This function fill contents in mmc_part.
+ */
+static inline void mmc_part_add(struct mmc_card *card, unsigned int size,
+			unsigned int part_cfg, char *name, int idx, bool ro)
+{
+	card->part[card->nr_parts].size = size;
+	card->part[card->nr_parts].part_cfg = part_cfg;
+	sprintf(card->part[card->nr_parts].name, name, idx);
+	card->part[card->nr_parts].force_ro = ro;
+	card->nr_parts++;
+}
 
 /*
  *  The world is not perfect and supplies us with broken mmc/sdio devices.
