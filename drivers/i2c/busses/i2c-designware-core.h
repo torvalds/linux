@@ -182,6 +182,7 @@ struct dw_i2c_dev {
 	int			irq;
 	int			swab;
 	struct i2c_adapter	adapter;
+	u32			functionality;
 	unsigned int		tx_fifo_depth;
 	unsigned int		rx_fifo_depth;
 };
