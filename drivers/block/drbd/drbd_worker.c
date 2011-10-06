@@ -1537,14 +1537,14 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	}
 
 	drbd_state_lock(mdev);
-
+	write_lock_irq(&global_state_lock);
 	if (!get_ldev_if_state(mdev, D_NEGOTIATING)) {
+		write_unlock_irq(&global_state_lock);
 		drbd_state_unlock(mdev);
 		return;
 	}
 
-	write_lock_irq(&global_state_lock);
-	ns = mdev->state;
+	ns.i = mdev->state.i;
 
 	ns.aftr_isp = !_drbd_may_sync_now(mdev);
 
