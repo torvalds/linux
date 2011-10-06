@@ -406,9 +406,18 @@ enum ip_defrag_users {
 	IP_DEFRAG_VS_OUT,
 	IP_DEFRAG_VS_FWD,
 	IP_DEFRAG_AF_PACKET,
+	IP_DEFRAG_MACVLAN,
 };
 
 int ip_defrag(struct sk_buff *skb, u32 user);
+#ifdef CONFIG_INET
+struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user);
+#else
+static inline struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
+{
+	return skb;
+}
+#endif
 int ip_frag_mem(struct net *net);
 int ip_frag_nqueues(struct net *net);
 
