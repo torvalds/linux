@@ -383,22 +383,6 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 static void wl1271_op_stop(struct ieee80211_hw *hw);
 static void wl1271_free_ap_keys(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 
-
-static void wl1271_device_release(struct device *dev)
-{
-
-}
-
-static struct platform_device wl1271_device = {
-	.name           = "wl1271",
-	.id             = -1,
-
-	/* device model insists to have a release function */
-	.dev            = {
-		.release = wl1271_device_release,
-	},
-};
-
 static DEFINE_MUTEX(wl_list_mutex);
 static LIST_HEAD(wl_list);
 
@@ -4992,7 +4976,6 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 static struct ieee80211_hw *wl1271_alloc_hw(void)
 {
 	struct ieee80211_hw *hw;
-	struct platform_device *plat_dev = NULL;
 	struct wl1271 *wl;
 	int i, j, ret;
 	unsigned int order;
@@ -5006,13 +4989,6 @@ static struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_hw_alloc;
 	}
 
-	plat_dev = kmemdup(&wl1271_device, sizeof(wl1271_device), GFP_KERNEL);
-	if (!plat_dev) {
-		wl1271_error("could not allocate platform_device");
-		ret = -ENOMEM;
-		goto err_plat_alloc;
-	}
-
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));
 
@@ -5020,7 +4996,6 @@ static struct ieee80211_hw *wl1271_alloc_hw(void)
 	INIT_LIST_HEAD(&wl->wlvif_list);
 
 	wl->hw = hw;
-	wl->plat_dev = plat_dev;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		for (j = 0; j < WL12XX_MAX_LINKS; j++)
@@ -5095,48 +5070,7 @@ static struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_dummy_packet;
 	}
 
-	/* Register platform device */
-	ret = platform_device_register(wl->plat_dev);
-	if (ret) {
-		wl1271_error("couldn't register platform device");
-		goto err_fwlog;
-	}
-	dev_set_drvdata(&wl->plat_dev->dev, wl);
-
-	/* Create sysfs file to control bt coex state */
-	ret = device_create_file(&wl->plat_dev->dev, &dev_attr_bt_coex_state);
-	if (ret < 0) {
-		wl1271_error("failed to create sysfs file bt_coex_state");
-		goto err_platform;
-	}
-
-	/* Create sysfs file to get HW PG version */
-	ret = device_create_file(&wl->plat_dev->dev, &dev_attr_hw_pg_ver);
-	if (ret < 0) {
-		wl1271_error("failed to create sysfs file hw_pg_ver");
-		goto err_bt_coex_state;
-	}
-
-	/* Create sysfs file for the FW log */
-	ret = device_create_bin_file(&wl->plat_dev->dev, &fwlog_attr);
-	if (ret < 0) {
-		wl1271_error("failed to create sysfs file fwlog");
-		goto err_hw_pg_ver;
-	}
-
 	return hw;
-
-err_hw_pg_ver:
-	device_remove_file(&wl->plat_dev->dev, &dev_attr_hw_pg_ver);
-
-err_bt_coex_state:
-	device_remove_file(&wl->plat_dev->dev, &dev_attr_bt_coex_state);
-
-err_platform:
-	platform_device_unregister(wl->plat_dev);
-
-err_fwlog:
-	free_page((unsigned long)wl->fwlog);
 
 err_dummy_packet:
 	dev_kfree_skb(wl->dummy_packet);
@@ -5149,9 +5083,6 @@ err_wq:
 
 err_hw:
 	wl1271_debugfs_exit(wl);
-	kfree(plat_dev);
-
-err_plat_alloc:
 	ieee80211_free_hw(hw);
 
 err_hw_alloc:
@@ -5167,17 +5098,15 @@ static int wl1271_free_hw(struct wl1271 *wl)
 	wake_up_interruptible_all(&wl->fwlog_waitq);
 	mutex_unlock(&wl->mutex);
 
-	device_remove_bin_file(&wl->plat_dev->dev, &fwlog_attr);
+	device_remove_bin_file(wl->dev, &fwlog_attr);
 
-	device_remove_file(&wl->plat_dev->dev, &dev_attr_hw_pg_ver);
+	device_remove_file(wl->dev, &dev_attr_hw_pg_ver);
 
-	device_remove_file(&wl->plat_dev->dev, &dev_attr_bt_coex_state);
-	platform_device_unregister(wl->plat_dev);
+	device_remove_file(wl->dev, &dev_attr_bt_coex_state);
 	free_page((unsigned long)wl->fwlog);
 	dev_kfree_skb(wl->dummy_packet);
 	free_pages((unsigned long)wl->aggr_buf,
 			get_order(WL1271_AGGR_BUFFER_SIZE));
-	kfree(wl->plat_dev);
 
 	wl1271_debugfs_exit(wl);
 
@@ -5281,7 +5210,34 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_irq;
 
+	/* Create sysfs file to control bt coex state */
+	ret = device_create_file(wl->dev, &dev_attr_bt_coex_state);
+	if (ret < 0) {
+		wl1271_error("failed to create sysfs file bt_coex_state");
+		goto out_irq;
+	}
+
+	/* Create sysfs file to get HW PG version */
+	ret = device_create_file(wl->dev, &dev_attr_hw_pg_ver);
+	if (ret < 0) {
+		wl1271_error("failed to create sysfs file hw_pg_ver");
+		goto out_bt_coex_state;
+	}
+
+	/* Create sysfs file for the FW log */
+	ret = device_create_bin_file(wl->dev, &fwlog_attr);
+	if (ret < 0) {
+		wl1271_error("failed to create sysfs file fwlog");
+		goto out_hw_pg_ver;
+	}
+
 	return 0;
+
+out_hw_pg_ver:
+	device_remove_file(wl->dev, &dev_attr_hw_pg_ver);
+
+out_bt_coex_state:
+	device_remove_file(wl->dev, &dev_attr_bt_coex_state);
 
 out_irq:
 	free_irq(wl->irq, wl);
