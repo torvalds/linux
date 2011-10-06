@@ -442,7 +442,11 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	struct usb_ctrlrequest *cmd;
  	u16		typeReq, wValue, wIndex, wLength;
 	u8		*ubuf = urb->transfer_buffer;
-	u8		tbuf [sizeof (struct usb_hub_descriptor)]
+	/*
+	 * tbuf should be as big as the BOS descriptor and
+	 * the USB hub descriptor.
+	 */
+	u8		tbuf[USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE]
 		__attribute__((aligned(4)));
 	const u8	*bufp = tbuf;
 	unsigned	len = 0;
@@ -562,6 +566,8 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			else /* unsupported IDs --> "protocol stall" */
 				goto error;
 			break;
+		case USB_DT_BOS << 8:
+			goto nongeneric;
 		default:
 			goto error;
 		}
@@ -596,6 +602,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	/* CLASS REQUESTS (and errors) */
 
 	default:
+nongeneric:
 		/* non-generic request */
 		switch (typeReq) {
 		case GetHubStatus:
@@ -604,6 +611,9 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			break;
 		case GetHubDescriptor:
 			len = sizeof (struct usb_hub_descriptor);
+			break;
+		case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
+			/* len is returned by hub_control */
 			break;
 		}
 		status = hcd->driver->hub_control (hcd,
@@ -615,7 +625,7 @@ error:
 		status = -EPIPE;
 	}
 
-	if (status) {
+	if (status < 0) {
 		len = 0;
 		if (status != -EPIPE) {
 			dev_dbg (hcd->self.controller,
@@ -624,6 +634,10 @@ error:
 				typeReq, wValue, wIndex,
 				wLength, status);
 		}
+	} else if (status > 0) {
+		/* hub_control may return the length of data copied. */
+		len = status;
+		status = 0;
 	}
 	if (len) {
 		if (urb->transfer_buffer_length < len)

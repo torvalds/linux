@@ -28,6 +28,25 @@
 #define	PORT_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
 			 PORT_RC | PORT_PLC | PORT_PE)
 
+/* usb 1.1 root hub device descriptor */
+static u8 usb_bos_descriptor [] = {
+	USB_DT_BOS_SIZE,		/*  __u8 bLength, 5 bytes */
+	USB_DT_BOS,			/*  __u8 bDescriptorType */
+	0x0F, 0x00,			/*  __le16 wTotalLength, 15 bytes */
+	0x1,				/*  __u8 bNumDeviceCaps */
+	/* First device capability */
+	USB_DT_USB_SS_CAP_SIZE,		/*  __u8 bLength, 10 bytes */
+	USB_DT_DEVICE_CAPABILITY,	/* Device Capability */
+	USB_SS_CAP_TYPE,		/* bDevCapabilityType, SUPERSPEED_USB */
+	0x00,				/* bmAttributes, LTM off by default */
+	USB_5GBPS_OPERATION, 0x00,	/* wSpeedsSupported, 5Gbps only */
+	0x03,				/* bFunctionalitySupport,
+					   USB 3.0 speed only */
+	0x00,				/* bU1DevExitLat, set later. */
+	0x00, 0x00			/* __le16 bU2DevExitLat, set later. */
+};
+
+
 static void xhci_common_hub_descriptor(struct xhci_hcd *xhci,
 		struct usb_hub_descriptor *desc, int ports)
 {
@@ -455,6 +474,21 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		xhci_hub_descriptor(hcd, xhci,
 				(struct usb_hub_descriptor *) buf);
 		break;
+	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
+		if ((wValue & 0xff00) != (USB_DT_BOS << 8))
+			goto error;
+
+		if (hcd->speed != HCD_USB3)
+			goto error;
+
+		memcpy(buf, &usb_bos_descriptor,
+				USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE);
+		temp = xhci_readl(xhci, &xhci->cap_regs->hcs_params3);
+		buf[12] = HCS_U1_LATENCY(temp);
+		put_unaligned_le16(HCS_U2_LATENCY(temp), &buf[13]);
+
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE;
 	case GetPortStatus:
 		if (!wIndex || wIndex > max_ports)
 			goto error;
