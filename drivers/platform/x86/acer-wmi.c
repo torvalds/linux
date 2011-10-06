@@ -206,6 +206,7 @@ static int threeg = -1;
 static int force_series;
 static bool ec_raw_mode;
 static bool has_type_aa;
+static u16 commun_func_bitmap;
 
 module_param(mailled, int, 0444);
 module_param(brightness, int, 0444);
@@ -955,10 +956,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 	struct wmid3_gds_input_param params = {
 		.function_num = 0x1,
 		.hotkey_number = 0x01,
-		.devices = ACER_WMID3_GDS_WIRELESS |
-				ACER_WMID3_GDS_THREEG |
-				ACER_WMID3_GDS_WIMAX |
-				ACER_WMID3_GDS_BLUETOOTH,
+		.devices = commun_func_bitmap,
 	};
 	struct acpi_buffer input = {
 		sizeof(struct wmid3_gds_input_param),
@@ -1062,6 +1060,7 @@ static void type_aa_dmi_decode(const struct dmi_header *header, void *dummy)
 
 	pr_info("Function bitmap for Communication Button: 0x%x\n",
 		type_aa->commun_func_bitmap);
+	commun_func_bitmap = type_aa->commun_func_bitmap;
 
 	if (type_aa->commun_func_bitmap & ACER_WMID3_GDS_WIRELESS)
 		interface->capability |= ACER_CAP_WIRELESS;
