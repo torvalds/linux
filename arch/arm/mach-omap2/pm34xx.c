@@ -407,13 +407,14 @@ void omap_sram_idle(void)
 	omap3_intc_prepare_idle();
 
 	/*
-	* On EMU/HS devices ROM code restores a SRDC value
-	* from scratchpad which has automatic self refresh on timeout
-	* of AUTO_CNT = 1 enabled. This takes care of erratum ID i443.
-	* Hence store/restore the SDRC_POWER register here.
-	*/
-	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
-	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
+	 * On EMU/HS devices ROM code restores a SRDC value
+	 * from scratchpad which has automatic self refresh on timeout
+	 * of AUTO_CNT = 1 enabled. This takes care of erratum ID i443.
+	 * Hence store/restore the SDRC_POWER register here.
+	 */
+	if (cpu_is_omap3430() && omap_rev() >= OMAP3430_REV_ES3_0 &&
+	    (omap_type() == OMAP2_DEVICE_TYPE_EMU ||
+	     omap_type() == OMAP2_DEVICE_TYPE_SEC) &&
 	    core_next_state == PWRDM_POWER_OFF)
 		sdrc_pwr = sdrc_read_reg(SDRC_POWER);
 
@@ -430,8 +431,9 @@ void omap_sram_idle(void)
 		omap34xx_do_sram_idle(save_state);
 
 	/* Restore normal SDRC POWER settings */
-	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
-	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
+	if (cpu_is_omap3430() && omap_rev() >= OMAP3430_REV_ES3_0 &&
+	    (omap_type() == OMAP2_DEVICE_TYPE_EMU ||
+	     omap_type() == OMAP2_DEVICE_TYPE_SEC) &&
 	    core_next_state == PWRDM_POWER_OFF)
 		sdrc_write_reg(sdrc_pwr, SDRC_POWER);
 
