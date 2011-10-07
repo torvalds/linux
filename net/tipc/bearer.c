@@ -106,48 +106,27 @@ int  tipc_register_media(struct media *m_ptr)
 
 	write_lock_bh(&tipc_net_lock);
 
-	if (tipc_mode != TIPC_NET_MODE) {
-		warn("Media <%s> rejected, not in networked mode yet\n",
-		     m_ptr->name);
+	if (!media_name_valid(m_ptr->name))
 		goto exit;
-	}
-	if (!media_name_valid(m_ptr->name)) {
-		warn("Media <%s> rejected, illegal name\n", m_ptr->name);
+	if (m_ptr->bcast_addr.type != htonl(m_ptr->type_id))
 		goto exit;
-	}
-	if (m_ptr->bcast_addr.type != htonl(m_ptr->type_id)) {
-		warn("Media <%s> rejected, illegal broadcast address\n",
-		     m_ptr->name);
+	if (m_ptr->priority > TIPC_MAX_LINK_PRI)
 		goto exit;
-	}
-	if ((m_ptr->priority < TIPC_MIN_LINK_PRI) ||
-	    (m_ptr->priority > TIPC_MAX_LINK_PRI)) {
-		warn("Media <%s> rejected, illegal priority (%u)\n",
-		     m_ptr->name, m_ptr->priority);
-		goto exit;
-	}
 	if ((m_ptr->tolerance < TIPC_MIN_LINK_TOL) ||
-	    (m_ptr->tolerance > TIPC_MAX_LINK_TOL)) {
-		warn("Media <%s> rejected, illegal tolerance (%u)\n",
-		     m_ptr->name, m_ptr->tolerance);
+	    (m_ptr->tolerance > TIPC_MAX_LINK_TOL))
 		goto exit;
-	}
-
-	if (media_count >= MAX_MEDIA) {
-		warn("Media <%s> rejected, media limit reached (%u)\n",
-		     m_ptr->name, MAX_MEDIA);
+	if (media_count >= MAX_MEDIA)
 		goto exit;
-	}
-	if (media_find(m_ptr->name) || media_find_id(m_ptr->type_id)) {
-		warn("Media <%s> rejected, already registered\n", m_ptr->name);
+	if (media_find(m_ptr->name) || media_find_id(m_ptr->type_id))
 		goto exit;
-	}
 
 	media_list[media_count] = m_ptr;
 	media_count++;
 	res = 0;
 exit:
 	write_unlock_bh(&tipc_net_lock);
+	if (res)
+		warn("Media <%s> registration error\n", m_ptr->name);
 	return res;
 }
 
