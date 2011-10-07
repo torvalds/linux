@@ -1562,6 +1562,20 @@ static ssize_t show_function(struct device *_dev,
 static DEVICE_ATTR(function, S_IRUGO, show_function, NULL);
 
 
+static inline enum usb_device_speed lpm_device_speed(u32 reg)
+{
+	switch (LPM_PSPD(reg)) {
+	case LPM_SPEED_HIGH:
+		return USB_SPEED_HIGH;
+	case LPM_SPEED_FULL:
+		return USB_SPEED_FULL;
+	case LPM_SPEED_LOW:
+		return USB_SPEED_LOW;
+	default:
+		return USB_SPEED_UNKNOWN;
+	}
+}
+
 /* device "langwell_udc" sysfs attribute file */
 static ssize_t show_langwell_udc(struct device *_dev,
 		struct device_attribute *attr, char *buf)
@@ -2632,20 +2646,6 @@ static void handle_trans_complete(struct langwell_udc *dev)
 	}
 done:
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
-}
-
-static inline enum usb_device_speed lpm_device_speed(u32 reg)
-{
-	switch (LPM_PSPD(reg)) {
-	case LPM_SPEED_HIGH:
-		return USB_SPEED_HIGH;
-	case LPM_SPEED_FULL:
-		return USB_SPEED_FULL;
-	case LPM_SPEED_LOW:
-		return USB_SPEED_LOW;
-	default:
-		return USB_SPEED_UNKNOWN;
-	}
 }
 
 /* port change detect interrupt handler */
