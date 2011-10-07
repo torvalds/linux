@@ -130,11 +130,14 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	u32 type = msg_type(msg);
 	int link_fully_up;
 
+	media_addr.broadcast = 1;
 	b_ptr->media->msg2addr(&media_addr, msg_media_addr(msg));
 	buf_discard(buf);
 
 	/* Validate discovery message from requesting node */
 	if (net_id != tipc_net_id)
+		return;
+	if (media_addr.broadcast)
 		return;
 	if (!tipc_addr_domain_valid(dest))
 		return;
