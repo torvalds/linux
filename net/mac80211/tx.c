@@ -1384,11 +1384,6 @@ static int ieee80211_skb_resize(struct ieee80211_sub_if_data *sdata,
 		tail_need = max_t(int, tail_need, 0);
 	}
 
-	if (head_need || tail_need) {
-		/* Sorry. Can't account for this any more */
-		skb_orphan(skb);
-	}
-
 	if (skb_cloned(skb))
 		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
 	else if (head_need || tail_need)
