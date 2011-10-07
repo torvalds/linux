@@ -5,8 +5,7 @@
 config NET_VENDOR_APPLE
 	bool "Apple devices"
 	default y
-	depends on (PPC_PMAC && PPC32) || MAC || ISA || EISA || MACH_IXDP2351 \
-		   || ARCH_IXDP2X01 || MACH_MX31ADS || MACH_QQ2440
+	depends on (PPC_PMAC && PPC32) || MAC
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -74,24 +73,5 @@ config MACMACE
 	  the 660AV and 840AV Macintosh.  If you have one of these Macintoshes
 	  say Y and read the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
-
-config CS89x0
-	tristate "CS89x0 support"
-	depends on (ISA || EISA || MACH_IXDP2351 \
-		|| ARCH_IXDP2X01 || MACH_MX31ADS || MACH_QQ2440)
-	---help---
-	  Support for CS89x0 chipset based Ethernet cards. If you have a
-	  network (Ethernet) card of this type, say Y and read the
-	  Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto> as well as
-	  <file:Documentation/networking/cs89x0.txt>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called cs89x0.
-
-config CS89x0_NONISA_IRQ
-	def_bool y
-	depends on CS89x0 != n
-	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || MACH_MX31ADS || MACH_QQ2440
 
 endif # NET_VENDOR_APPLE
