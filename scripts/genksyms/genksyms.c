@@ -40,7 +40,8 @@ static struct symbol *symtab[HASH_BUCKETS];
 static FILE *debugfile;
 
 int cur_line = 1;
-char *cur_filename;
+char *cur_filename, *source_file;
+int in_source_file;
 
 static int flag_debug, flag_dump_defs, flag_reference, flag_dump_types,
 	   flag_preserve, flag_warnings;

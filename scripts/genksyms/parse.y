@@ -58,6 +58,13 @@ static void record_compound(struct string_list **keyw,
 		       enum symbol_type type)
 {
 	struct string_list *b = *body, *i = *ident, *r;
+
+	if (i->in_source_file) {
+		remove_node(keyw);
+		(*ident)->tag = type;
+		remove_list(body, ident);
+		return;
+	}
 	r = copy_node(i); r->tag = type;
 	r->next = (*keyw)->next; *body = r; (*keyw)->next = NULL;
 	add_symbol(i->string, type, b, is_extern);

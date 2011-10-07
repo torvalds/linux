@@ -116,6 +116,7 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 			  cur_node->tag =				   \
 			    find_symbol(cur_node->string, SYM_ENUM_CONST, 1)?\
 			    SYM_ENUM_CONST : SYM_NORMAL ;		   \
+			  cur_node->in_source_file = in_source_file;       \
 			} while (0)
 
 #define APP		_APP(yytext, yyleng)
@@ -165,6 +166,13 @@ repeat:
       *e = '\0';
       cur_filename = memcpy(xmalloc(e-file+1), file, e-file+1);
       cur_line = atoi(yytext+2);
+
+      if (!source_file) {
+        source_file = xstrdup(cur_filename);
+        in_source_file = 1;
+      } else {
+        in_source_file = (strcmp(cur_filename, source_file) == 0);
+      }
 
       goto repeat;
     }
