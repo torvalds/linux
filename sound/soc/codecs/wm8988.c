@@ -55,7 +55,6 @@ struct wm8988_priv {
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
 };
 
-
 #define wm8988_reset(c)	snd_soc_write(c, WM8988_RESET, 0)
 
 /*
@@ -676,6 +675,8 @@ static int wm8988_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			snd_soc_cache_sync(codec);
+
 			/* VREF, VMID=2x5k */
 			snd_soc_write(codec, WM8988_PWR1, pwr_reg | 0x1c1);
 
@@ -736,21 +737,7 @@ static int wm8988_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 static int wm8988_resume(struct snd_soc_codec *codec)
 {
-	int i;
-	u8 data[2];
-	u16 *cache = codec->reg_cache;
-
-	/* Sync reg_cache with the hardware */
-	for (i = 0; i < WM8988_NUM_REG; i++) {
-		if (i == WM8988_RESET)
-			continue;
-		data[0] = (i << 1) | ((cache[i] >> 8) & 0x0001);
-		data[1] = cache[i] & 0x00ff;
-		codec->hw_write(codec->control_data, data, 2);
-	}
-
 	wm8988_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
