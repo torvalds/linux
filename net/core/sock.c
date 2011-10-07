@@ -738,10 +738,7 @@ set_rcvbuf:
 		/* We implement the SO_SNDLOWAT etc to
 		   not be settable (1003.1g 5.3) */
 	case SO_RXQ_OVFL:
-		if (valbool)
-			sock_set_flag(sk, SOCK_RXQ_OVFL);
-		else
-			sock_reset_flag(sk, SOCK_RXQ_OVFL);
+		sock_valbool_flag(sk, SOCK_RXQ_OVFL, valbool);
 		break;
 	default:
 		ret = -ENOPROTOOPT;
