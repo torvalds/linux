@@ -765,6 +765,44 @@ int qla4xxx_start_firmware(struct scsi_qla_host *ha)
 	}
 	return status;
 }
+/**
+ * qla4xxx_free_ddb_index - Free DDBs reserved by firmware
+ * @ha: pointer to adapter structure
+ *
+ * Since firmware is not running in autoconnect mode the DDB indices should
+ * be freed so that when login happens from user space there are free DDB
+ * indices available.
+ **/
+static void qla4xxx_free_ddb_index(struct scsi_qla_host *ha)
+{
+	int max_ddbs;
+	int ret;
+	uint32_t idx = 0, next_idx = 0;
+	uint32_t state = 0, conn_err = 0;
+
+	max_ddbs =  is_qla40XX(ha) ? MAX_PRST_DEV_DB_ENTRIES :
+				     MAX_DEV_DB_ENTRIES;
+
+	for (idx = 0; idx < max_ddbs; idx = next_idx) {
+		ret = qla4xxx_get_fwddb_entry(ha, idx, NULL, 0, NULL,
+					      &next_idx, &state, &conn_err,
+						NULL, NULL);
+		if (ret == QLA_ERROR)
+			continue;
+		if (state == DDB_DS_NO_CONNECTION_ACTIVE ||
+		    state == DDB_DS_SESSION_FAILED) {
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "Freeing DDB index = 0x%x\n", idx));
+			ret = qla4xxx_clear_ddb_entry(ha, idx);
+			if (ret == QLA_ERROR)
+				ql4_printk(KERN_ERR, ha,
+					   "Unable to clear DDB index = "
+					   "0x%x\n", idx);
+		}
+		if (next_idx == 0)
+			break;
+	}
+}
 
 
 /**
@@ -801,6 +839,8 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha)
 	status = qla4xxx_init_firmware(ha);
 	if (status == QLA_ERROR)
 		goto exit_init_hba;
+
+	qla4xxx_free_ddb_index(ha);
 
 	set_bit(AF_ONLINE, &ha->flags);
 exit_init_hba:
