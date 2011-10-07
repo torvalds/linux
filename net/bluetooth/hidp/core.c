@@ -496,10 +496,9 @@ static void hidp_process_handshake(struct hidp_session *session,
 	case HIDP_HSHK_ERR_INVALID_REPORT_ID:
 	case HIDP_HSHK_ERR_UNSUPPORTED_REQUEST:
 	case HIDP_HSHK_ERR_INVALID_PARAMETER:
-		if (test_bit(HIDP_WAITING_FOR_RETURN, &session->flags)) {
-			clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags);
+		if (test_and_clear_bit(HIDP_WAITING_FOR_RETURN, &session->flags))
 			wake_up_interruptible(&session->report_queue);
-		}
+
 		/* FIXME: Call into SET_ GET_ handlers here */
 		break;
 
@@ -520,10 +519,8 @@ static void hidp_process_handshake(struct hidp_session *session,
 	}
 
 	/* Wake up the waiting thread. */
-	if (test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags)) {
-		clear_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags);
+	if (test_and_clear_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags))
 		wake_up_interruptible(&session->report_queue);
-	}
 }
 
 static void hidp_process_hid_control(struct hidp_session *session,
