@@ -39,6 +39,7 @@ struct vmw_user_context {
 struct vmw_user_surface {
 	struct ttm_base_object base;
 	struct vmw_surface srf;
+	uint32_t size;
 };
 
 struct vmw_user_dma_buffer {
@@ -66,6 +67,11 @@ struct vmw_surface_offset {
 	uint32_t mip;
 	uint32_t bo_offset;
 };
+
+
+static uint64_t vmw_user_context_size;
+static uint64_t vmw_user_surface_size;
+static uint64_t vmw_user_stream_size;
 
 static inline struct vmw_dma_buffer *
 vmw_dma_buffer(struct ttm_buffer_object *bo)
@@ -343,8 +349,11 @@ static void vmw_user_context_free(struct vmw_resource *res)
 {
 	struct vmw_user_context *ctx =
 	    container_of(res, struct vmw_user_context, res);
+	struct vmw_private *dev_priv = res->dev_priv;
 
 	kfree(ctx);
+	ttm_mem_global_free(vmw_mem_glob(dev_priv),
+			    vmw_user_context_size);
 }
 
 /**
@@ -398,23 +407,56 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_user_context *ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	struct vmw_user_context *ctx;
 	struct vmw_resource *res;
 	struct vmw_resource *tmp;
 	struct drm_vmw_context_arg *arg = (struct drm_vmw_context_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
 
-	if (unlikely(ctx == NULL))
-		return -ENOMEM;
+
+	/*
+	 * Approximate idr memory usage with 128 bytes. It will be limited
+	 * by maximum number_of contexts anyway.
+	 */
+
+	if (unlikely(vmw_user_context_size == 0))
+		vmw_user_context_size = ttm_round_pot(sizeof(*ctx)) + 128;
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
+				   vmw_user_context_size,
+				   false, true);
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTARTSYS)
+			DRM_ERROR("Out of graphics memory for context"
+				  " creation.\n");
+		goto out_unlock;
+	}
+
+	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	if (unlikely(ctx == NULL)) {
+		ttm_mem_global_free(vmw_mem_glob(dev_priv),
+				    vmw_user_context_size);
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
 	res = &ctx->res;
 	ctx->base.shareable = false;
 	ctx->base.tfile = NULL;
 
+	/*
+	 * From here on, the destructor takes over resource freeing.
+	 */
+
 	ret = vmw_context_init(dev_priv, res, vmw_user_context_free);
 	if (unlikely(ret != 0))
-		return ret;
+		goto out_unlock;
 
 	tmp = vmw_resource_reference(&ctx->res);
 	ret = ttm_base_object_init(tfile, &ctx->base, false, VMW_RES_CONTEXT,
@@ -428,6 +470,8 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 	arg->cid = res->id;
 out_err:
 	vmw_resource_unreference(&res);
+out_unlock:
+	ttm_read_unlock(&vmaster->lock);
 	return ret;
 
 }
@@ -1095,6 +1139,8 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	struct vmw_surface *srf = container_of(res, struct vmw_surface, res);
 	struct vmw_user_surface *user_srf =
 	    container_of(srf, struct vmw_user_surface, srf);
+	struct vmw_private *dev_priv = srf->res.dev_priv;
+	uint32_t size = user_srf->size;
 
 	if (srf->backup)
 		ttm_bo_unref(&srf->backup);
@@ -1102,6 +1148,7 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	kfree(srf->sizes);
 	kfree(srf->snooper.image);
 	kfree(user_srf);
+	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 }
 
 /**
@@ -1226,9 +1273,45 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct vmw_surface_offset *cur_offset;
 	uint32_t stride_bpp;
 	uint32_t bpp;
+	uint32_t num_sizes;
+	uint32_t size;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 
-	if (unlikely(user_srf == NULL))
-		return -ENOMEM;
+	if (unlikely(vmw_user_surface_size == 0))
+		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
+			128;
+
+	num_sizes = 0;
+	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
+		num_sizes += req->mip_levels[i];
+
+	if (num_sizes > DRM_VMW_MAX_SURFACE_FACES *
+	    DRM_VMW_MAX_MIP_LEVELS)
+		return -EINVAL;
+
+	size = vmw_user_surface_size + 128 +
+		ttm_round_pot(num_sizes * sizeof(struct drm_vmw_size)) +
+		ttm_round_pot(num_sizes * sizeof(struct vmw_surface_offset));
+
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
+				   size, false, true);
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTARTSYS)
+			DRM_ERROR("Out of graphics memory for surface"
+				  " creation.\n");
+		goto out_unlock;
+	}
+
+	user_srf = kmalloc(sizeof(*user_srf), GFP_KERNEL);
+	if (unlikely(user_srf == NULL)) {
+		ret = -ENOMEM;
+		goto out_no_user_srf;
+	}
 
 	srf = &user_srf->srf;
 	res = &srf->res;
@@ -1239,20 +1322,13 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	srf->backup = NULL;
 
 	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
-	srf->num_sizes = 0;
-	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
-		srf->num_sizes += srf->mip_levels[i];
-
-	if (srf->num_sizes > DRM_VMW_MAX_SURFACE_FACES *
-	    DRM_VMW_MAX_MIP_LEVELS) {
-		ret = -EINVAL;
-		goto out_err0;
-	}
+	srf->num_sizes = num_sizes;
+	user_srf->size = size;
 
 	srf->sizes = kmalloc(srf->num_sizes * sizeof(*srf->sizes), GFP_KERNEL);
 	if (unlikely(srf->sizes == NULL)) {
 		ret = -ENOMEM;
-		goto out_err0;
+		goto out_no_sizes;
 	}
 	srf->offsets = kmalloc(srf->num_sizes * sizeof(*srf->offsets),
 			       GFP_KERNEL);
@@ -1268,7 +1344,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 			     srf->num_sizes * sizeof(*srf->sizes));
 	if (unlikely(ret != 0)) {
 		ret = -EFAULT;
-		goto out_err1;
+		goto out_no_copy;
 	}
 
 	cur_bo_offset = 0;
@@ -1305,7 +1381,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		if (!srf->snooper.image) {
 			DRM_ERROR("Failed to allocate cursor_image\n");
 			ret = -ENOMEM;
-			goto out_err1;
+			goto out_no_copy;
 		}
 	} else {
 		srf->snooper.image = NULL;
@@ -1322,7 +1398,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	ret = vmw_surface_init(dev_priv, srf, vmw_user_surface_free);
 	if (unlikely(ret != 0))
-		return ret;
+		goto out_unlock;
 
 	tmp = vmw_resource_reference(&srf->res);
 	ret = ttm_base_object_init(tfile, &user_srf->base,
@@ -1332,7 +1408,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&tmp);
 		vmw_resource_unreference(&res);
-		return ret;
+		goto out_unlock;
 	}
 
 	rep->sid = user_srf->base.hash.key;
@@ -1340,13 +1416,19 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		DRM_ERROR("Created bad Surface ID.\n");
 
 	vmw_resource_unreference(&res);
+
+	ttm_read_unlock(&vmaster->lock);
 	return 0;
-out_err1:
+out_no_copy:
 	kfree(srf->offsets);
 out_no_offsets:
 	kfree(srf->sizes);
-out_err0:
+out_no_sizes:
 	kfree(user_srf);
+out_no_user_srf:
+	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
+out_unlock:
+	ttm_read_unlock(&vmaster->lock);
 	return ret;
 }
 
@@ -1690,8 +1772,11 @@ static void vmw_user_stream_free(struct vmw_resource *res)
 {
 	struct vmw_user_stream *stream =
 	    container_of(res, struct vmw_user_stream, stream.res);
+	struct vmw_private *dev_priv = res->dev_priv;
 
 	kfree(stream);
+	ttm_mem_global_free(vmw_mem_glob(dev_priv),
+			    vmw_user_stream_size);
 }
 
 /**
@@ -1745,23 +1830,56 @@ int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_user_stream *stream = kmalloc(sizeof(*stream), GFP_KERNEL);
+	struct vmw_user_stream *stream;
 	struct vmw_resource *res;
 	struct vmw_resource *tmp;
 	struct drm_vmw_stream_arg *arg = (struct drm_vmw_stream_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
 
-	if (unlikely(stream == NULL))
-		return -ENOMEM;
+	/*
+	 * Approximate idr memory usage with 128 bytes. It will be limited
+	 * by maximum number_of streams anyway?
+	 */
+
+	if (unlikely(vmw_user_stream_size == 0))
+		vmw_user_stream_size = ttm_round_pot(sizeof(*stream)) + 128;
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
+				   vmw_user_stream_size,
+				   false, true);
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTARTSYS)
+			DRM_ERROR("Out of graphics memory for stream"
+				  " creation.\n");
+		goto out_unlock;
+	}
+
+
+	stream = kmalloc(sizeof(*stream), GFP_KERNEL);
+	if (unlikely(stream == NULL)) {
+		ttm_mem_global_free(vmw_mem_glob(dev_priv),
+				    vmw_user_stream_size);
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
 	res = &stream->stream.res;
 	stream->base.shareable = false;
 	stream->base.tfile = NULL;
 
+	/*
+	 * From here on, the destructor takes over resource freeing.
+	 */
+
 	ret = vmw_stream_init(dev_priv, &stream->stream, vmw_user_stream_free);
 	if (unlikely(ret != 0))
-		return ret;
+		goto out_unlock;
 
 	tmp = vmw_resource_reference(res);
 	ret = ttm_base_object_init(tfile, &stream->base, false, VMW_RES_STREAM,
@@ -1775,6 +1893,8 @@ int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 	arg->stream_id = res->id;
 out_err:
 	vmw_resource_unreference(&res);
+out_unlock:
+	ttm_read_unlock(&vmaster->lock);
 	return ret;
 }
 
