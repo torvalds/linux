@@ -2782,12 +2782,10 @@ static int get_fw_boot_info(struct scsi_qla_host *ha, uint16_t ddb_index[])
 
 	func_num = PCI_FUNC(ha->pdev->devfn);
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
-			  "%s: Get FW  boot info for 0x%x func %d\n", __func__,
-			  (is_qla4032(ha) ? PCI_DEVICE_ID_QLOGIC_ISP4032 :
-			   PCI_DEVICE_ID_QLOGIC_ISP8022), func_num));
+	ql4_printk(KERN_INFO, ha, "%s: Get FW boot info for 0x%x func %d\n",
+		   __func__, ha->pdev->device, func_num);
 
-	if (is_qla4032(ha)) {
+	if (is_qla40XX(ha)) {
 		if (func_num == 1) {
 			addr = NVRAM_PORT0_BOOT_MODE;
 			pri_addr = NVRAM_PORT0_BOOT_PRI_TGT;
