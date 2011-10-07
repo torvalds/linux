@@ -970,8 +970,14 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 	int cur_pipe;
 
 	/* Planes are fixed to pipes on ILK+ */
-	if (HAS_PCH_SPLIT(dev_priv->dev))
+	if (HAS_PCH_SPLIT(dev_priv->dev)) {
+		reg = DSPCNTR(pipe);
+		val = I915_READ(reg);
+		WARN((val & DISPLAY_PLANE_ENABLE),
+		     "plane %c assertion failure, should be disabled but not\n",
+		     plane_name(pipe));
 		return;
+	}
 
 	/* Need to check both planes against the pipe */
 	for (i = 0; i < 2; i++) {
