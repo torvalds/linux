@@ -47,6 +47,7 @@ struct igb_adapter;
 
 /* TX/RX descriptor defines */
 #define IGB_DEFAULT_TXD                  256
+#define IGB_DEFAULT_TX_WORK		 128
 #define IGB_MIN_TXD                       80
 #define IGB_MAX_TXD                     4096
 
@@ -129,29 +130,33 @@ struct vf_data_storage {
 
 #define IGB_MNG_VLAN_NONE -1
 
+#define IGB_TX_FLAGS_CSUM		0x00000001
+#define IGB_TX_FLAGS_VLAN		0x00000002
+#define IGB_TX_FLAGS_TSO		0x00000004
+#define IGB_TX_FLAGS_IPV4		0x00000008
+#define IGB_TX_FLAGS_TSTAMP		0x00000010
+#define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
+#define IGB_TX_FLAGS_VLAN_SHIFT	16
+
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
-struct igb_buffer {
+struct igb_tx_buffer {
+	union e1000_adv_tx_desc *next_to_watch;
+	unsigned long time_stamp;
+	struct sk_buff *skb;
+	unsigned int bytecount;
+	u16 gso_segs;
+	dma_addr_t dma;
+	u32 length;
+	u32 tx_flags;
+};
+
+struct igb_rx_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
-	union {
-		/* TX */
-		struct {
-			unsigned long time_stamp;
-			u16 length;
-			u16 next_to_watch;
-			unsigned int bytecount;
-			u16 gso_segs;
-			u8 tx_flags;
-			u8 mapped_as_page;
-		};
-		/* RX */
-		struct {
-			struct page *page;
-			dma_addr_t page_dma;
-			u16 page_offset;
-		};
-	};
+	struct page *page;
+	dma_addr_t page_dma;
+	u32 page_offset;
 };
 
 struct igb_tx_queue_stats {
@@ -177,6 +182,7 @@ struct igb_q_vector {
 
 	u32 eims_value;
 	u16 cpu;
+	u16 tx_work_limit;
 
 	u16 itr_val;
 	u8 set_itr;
@@ -189,7 +195,10 @@ struct igb_ring {
 	struct igb_q_vector *q_vector;	/* backlink to q_vector */
 	struct net_device *netdev;	/* back pointer to net_device */
 	struct device *dev;		/* device pointer for dma mapping */
-	struct igb_buffer *buffer_info;	/* array of buffer info structs */
+	union {				/* array of buffer info structs */
+		struct igb_tx_buffer *tx_buffer_info;
+		struct igb_rx_buffer *rx_buffer_info;
+	};
 	void *desc;			/* descriptor ring memory */
 	unsigned long flags;		/* ring specific flags */
 	void __iomem *tail;		/* pointer to ring tail register */
@@ -229,7 +238,7 @@ struct igb_ring {
 
 #define IGB_RING_FLAG_TX_CTX_IDX     0x00000001 /* HW requires context index */
 
-#define IGB_ADVTXD_DCMD (E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS)
+#define IGB_TXD_DCMD (E1000_ADVTXD_DCMD_EOP | E1000_ADVTXD_DCMD_RS)
 
 #define IGB_RX_DESC(R, i)	    \
 	(&(((union e1000_adv_rx_desc *)((R)->desc))[i]))
@@ -266,6 +275,7 @@ struct igb_adapter {
 	u16 rx_itr;
 
 	/* TX */
+	u16 tx_work_limit;
 	u32 tx_timeout_count;
 	int num_tx_queues;
 	struct igb_ring *tx_ring[16];
@@ -374,7 +384,7 @@ extern void igb_setup_tctl(struct igb_adapter *);
 extern void igb_setup_rctl(struct igb_adapter *);
 extern netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
 extern void igb_unmap_and_free_tx_resource(struct igb_ring *,
-					   struct igb_buffer *);
+					   struct igb_tx_buffer *);
 extern void igb_alloc_rx_buffers(struct igb_ring *, u16);
 extern void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 extern bool igb_has_link(struct igb_adapter *adapter);

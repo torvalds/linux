@@ -1578,7 +1578,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 		ret_val = e1e_wphy(hw, PHY_REG(776, 20), data);
 		if (ret_val)
 			goto out;
-		ret_val = e1e_wphy(hw, PHY_REG(776, 23), 0xFE00);
+		ret_val = e1e_wphy(hw, PHY_REG(776, 23), 0xF100);
 		if (ret_val)
 			goto out;
 		e1e_rphy(hw, HV_PM_CTRL, &data);

@@ -5385,7 +5385,7 @@ static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw, bool link_up)
 			if (ret_val)
 				return ret_val;
 
-			mdelay(20);
+			msleep(20);
 
 			ret_val = e1000_write_phy_reg(hw, 0x0000,
 						      IGP01E1000_IEEE_FORCE_GIGA);
@@ -5413,7 +5413,7 @@ static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw, bool link_up)
 			if (ret_val)
 				return ret_val;
 
-			mdelay(20);
+			msleep(20);
 
 			/* Now enable the transmitter */
 			ret_val =
@@ -5440,7 +5440,7 @@ static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw, bool link_up)
 			if (ret_val)
 				return ret_val;
 
-			mdelay(20);
+			msleep(20);
 
 			ret_val = e1000_write_phy_reg(hw, 0x0000,
 						      IGP01E1000_IEEE_FORCE_GIGA);
@@ -5457,7 +5457,7 @@ static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw, bool link_up)
 			if (ret_val)
 				return ret_val;
 
-			mdelay(20);
+			msleep(20);
 
 			/* Now enable the transmitter */
 			ret_val =
@@ -5750,26 +5750,26 @@ static s32 e1000_polarity_reversal_workaround(struct e1000_hw *hw)
 
 		if ((mii_status_reg & ~MII_SR_LINK_STATUS) == 0)
 			break;
-		mdelay(100);
+		msleep(100);
 	}
 
 	/* Recommended delay time after link has been lost */
-	mdelay(1000);
+	msleep(1000);
 
 	/* Now we will re-enable th transmitter on the PHY */
 
 	ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_PAGE_SELECT, 0x0019);
 	if (ret_val)
 		return ret_val;
-	mdelay(50);
+	msleep(50);
 	ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_GEN_CONTROL, 0xFFF0);
 	if (ret_val)
 		return ret_val;
-	mdelay(50);
+	msleep(50);
 	ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_GEN_CONTROL, 0xFF00);
 	if (ret_val)
 		return ret_val;
-	mdelay(50);
+	msleep(50);
 	ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_GEN_CONTROL, 0x0000);
 	if (ret_val)
 		return ret_val;
@@ -5794,7 +5794,7 @@ static s32 e1000_polarity_reversal_workaround(struct e1000_hw *hw)
 
 		if (mii_status_reg & MII_SR_LINK_STATUS)
 			break;
-		mdelay(100);
+		msleep(100);
 	}
 	return E1000_SUCCESS;
 }
@@ -5825,6 +5825,6 @@ static s32 e1000_get_auto_rd_done(struct e1000_hw *hw)
 static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw)
 {
 	e_dbg("e1000_get_phy_cfg_done");
-	mdelay(10);
+	msleep(10);
 	return E1000_SUCCESS;
 }

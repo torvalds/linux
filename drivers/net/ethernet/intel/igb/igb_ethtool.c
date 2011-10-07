@@ -1579,7 +1579,8 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
                                 unsigned int size)
 {
 	union e1000_adv_rx_desc *rx_desc;
-	struct igb_buffer *buffer_info;
+	struct igb_rx_buffer *rx_buffer_info;
+	struct igb_tx_buffer *tx_buffer_info;
 	int rx_ntc, tx_ntc, count = 0;
 	u32 staterr;
 
@@ -1591,22 +1592,22 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 
 	while (staterr & E1000_RXD_STAT_DD) {
 		/* check rx buffer */
-		buffer_info = &rx_ring->buffer_info[rx_ntc];
+		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
 		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
 		dma_unmap_single(rx_ring->dev,
-		                 buffer_info->dma,
+				 rx_buffer_info->dma,
 				 IGB_RX_HDR_LEN,
 				 DMA_FROM_DEVICE);
-		buffer_info->dma = 0;
+		rx_buffer_info->dma = 0;
 
 		/* verify contents of skb */
-		if (!igb_check_lbtest_frame(buffer_info->skb, size))
+		if (!igb_check_lbtest_frame(rx_buffer_info->skb, size))
 			count++;
 
 		/* unmap buffer on tx side */
-		buffer_info = &tx_ring->buffer_info[tx_ntc];
-		igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
+		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
+		igb_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 
 		/* increment rx/tx next to clean counters */
 		rx_ntc++;
@@ -2011,6 +2012,7 @@ static int igb_set_coalesce(struct net_device *netdev,
 
 	for (i = 0; i < adapter->num_q_vectors; i++) {
 		struct igb_q_vector *q_vector = adapter->q_vector[i];
+		q_vector->tx_work_limit = adapter->tx_work_limit;
 		if (q_vector->rx_ring)
 			q_vector->itr_val = adapter->rx_itr_setting;
 		else
