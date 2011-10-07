@@ -2877,6 +2877,60 @@ exit_boot_info:
 	return ret;
 }
 
+/**
+ * qla4xxx_get_bidi_chap - Get a BIDI CHAP user and password
+ * @ha: pointer to adapter structure
+ * @username: CHAP username to be returned
+ * @password: CHAP password to be returned
+ *
+ * If a boot entry has BIDI CHAP enabled then we need to set the BIDI CHAP
+ * user and password in the sysfs entry in /sys/firmware/iscsi_boot#/.
+ * So from the CHAP cache find the first BIDI CHAP entry and set it
+ * to the boot record in sysfs.
+ **/
+static int qla4xxx_get_bidi_chap(struct scsi_qla_host *ha, char *username,
+			    char *password)
+{
+	int i, ret = -EINVAL;
+	int max_chap_entries = 0;
+	struct ql4_chap_table *chap_table;
+
+	if (is_qla8022(ha))
+		max_chap_entries = (ha->hw.flt_chap_size / 2) /
+						sizeof(struct ql4_chap_table);
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+
+	if (!ha->chap_list) {
+		ql4_printk(KERN_ERR, ha, "Do not have CHAP table cache\n");
+		return ret;
+	}
+
+	mutex_lock(&ha->chap_sem);
+	for (i = 0; i < max_chap_entries; i++) {
+		chap_table = (struct ql4_chap_table *)ha->chap_list + i;
+		if (chap_table->cookie !=
+		    __constant_cpu_to_le16(CHAP_VALID_COOKIE)) {
+			continue;
+		}
+
+		if (chap_table->flags & BIT_7) /* local */
+			continue;
+
+		if (!(chap_table->flags & BIT_6)) /* Not BIDI */
+			continue;
+
+		strncpy(password, chap_table->secret, QL4_CHAP_MAX_SECRET_LEN);
+		strncpy(username, chap_table->name, QL4_CHAP_MAX_NAME_LEN);
+		ret = 0;
+		break;
+	}
+	mutex_unlock(&ha->chap_sem);
+
+	return ret;
+}
+
+
 static int qla4xxx_get_boot_target(struct scsi_qla_host *ha,
 				   struct ql4_boot_session_info *boot_sess,
 				   uint16_t ddb_index)
@@ -2948,10 +3002,10 @@ static int qla4xxx_get_boot_target(struct scsi_qla_host *ha,
 
 		DEBUG2(ql4_printk(KERN_INFO, ha, "Setting BIDI chap\n"));
 
-		ret = qla4xxx_get_chap(ha, (char *)&boot_conn->chap.
-				       intr_chap_name,
-				       (char *)&boot_conn->chap.intr_secret,
-				       (idx + 1));
+		ret = qla4xxx_get_bidi_chap(ha,
+				    (char *)&boot_conn->chap.intr_chap_name,
+				    (char *)&boot_conn->chap.intr_secret);
+
 		if (ret) {
 			ql4_printk(KERN_ERR, ha, "Failed to set BIDI chap\n");
 			ret = QLA_ERROR;
