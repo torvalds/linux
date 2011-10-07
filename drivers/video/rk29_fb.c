@@ -1516,7 +1516,7 @@ static int fb0_set_par(struct fb_info *info)
         {
             par->format = 1;
             #ifdef CONFIG_FB_SCALING_OSD
-            dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
+            dstoffset = (((ypos_virtual-2*var->yres)*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*4;
             ipp_req.src0.fmt = IPP_RGB_565;
             ipp_req.dst0.fmt = IPP_RGB_565;
             #endif
@@ -1650,7 +1650,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
         {
             par->format = 1;
             #ifdef CONFIG_FB_SCALING_OSD
-            dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
+           	dstoffset = (((ypos_virtual-2*var->yres)*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*4;
             ipp_req.src0.fmt = IPP_RGB_565;
             ipp_req.dst0.fmt = IPP_RGB_565;
             #endif
@@ -2236,7 +2236,7 @@ int fb1_release(struct fb_info *info, int user)
         par->par_seted = 0;
         par->addr_seted = 0;
         win1_blank(FB_BLANK_NORMAL, info);
-        if(inf->cur_screen->type != SCREEN_HDMI)
+        //if(inf->cur_screen->type != SCREEN_HDMI)
             fb0_set_par(inf->fb0);
 
         // unmap memory
