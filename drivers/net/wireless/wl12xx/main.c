@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "wl12xx_80211.h"
 #include "reg.h"
 #include "io.h"

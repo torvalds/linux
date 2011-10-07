@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "wl12xx_80211.h"
 #include "io.h"
 #include "tx.h"

@@ -26,6 +26,7 @@
 #include <linux/etherdevice.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "io.h"
 #include "reg.h"
 #include "ps.h"

@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include "debug.h"
 #include "init.h"
 #include "wl12xx_80211.h"
 #include "acx.h"

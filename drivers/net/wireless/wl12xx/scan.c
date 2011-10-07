@@ -24,6 +24,7 @@
 #include <linux/ieee80211.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "cmd.h"
 #include "scan.h"
 #include "acx.h"

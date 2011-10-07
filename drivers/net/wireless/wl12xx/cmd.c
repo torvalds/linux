@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "reg.h"
 #include "io.h"
 #include "acx.h"

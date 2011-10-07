@@ -25,6 +25,7 @@
 #include <linux/sched.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "acx.h"
 #include "reg.h"
 #include "rx.h"

@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "acx.h"
 #include "ps.h"
 #include "io.h"

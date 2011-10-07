@@ -25,6 +25,7 @@
 #include "ps.h"
 #include "io.h"
 #include "tx.h"
+#include "debug.h"
 
 #define WL1271_WAKEUP_TIMEOUT 500
 

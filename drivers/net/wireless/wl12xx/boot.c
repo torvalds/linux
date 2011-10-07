@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/wl12xx.h>
 
+#include "debug.h"
 #include "acx.h"
 #include "reg.h"
 #include "boot.h"
