@@ -1195,11 +1195,25 @@ static struct clk l4_wkup_clk_mux_ck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
+static const struct clksel_rate div2_2to1_rates[] = {
+	{ .div = 1, .val = 1, .flags = RATE_IN_4430 },
+	{ .div = 2, .val = 0, .flags = RATE_IN_4430 },
+	{ .div = 0 },
+};
+
+static const struct clksel ocp_abe_iclk_div[] = {
+	{ .parent = &aess_fclk, .rates = div2_2to1_rates },
+	{ .parent = NULL },
+};
+
 static struct clk ocp_abe_iclk = {
 	.name		= "ocp_abe_iclk",
 	.parent		= &aess_fclk,
+	.clksel		= ocp_abe_iclk_div,
+	.clksel_reg	= OMAP4430_CM1_ABE_AESS_CLKCTRL,
+	.clksel_mask	= OMAP4430_CLKSEL_AESS_FCLK_MASK,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.recalc		= &omap2_clksel_recalc,
 };
 
 static struct clk per_abe_24m_fclk = {
