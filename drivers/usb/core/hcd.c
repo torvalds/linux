@@ -1961,8 +1961,9 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 	int		status;
 	int		old_state = hcd->state;
 
-	dev_dbg(&rhdev->dev, "bus %s%s\n",
-			(msg.event & PM_EVENT_AUTO ? "auto-" : ""), "suspend");
+	dev_dbg(&rhdev->dev, "bus %ssuspend, wakeup %d\n",
+			(PMSG_IS_AUTO(msg) ? "auto-" : ""),
+			rhdev->do_remote_wakeup);
 	if (HCD_DEAD(hcd)) {
 		dev_dbg(&rhdev->dev, "skipped %s of dead bus\n", "suspend");
 		return 0;
@@ -1997,8 +1998,8 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 	int		status;
 	int		old_state = hcd->state;
 
-	dev_dbg(&rhdev->dev, "usb %s%s\n",
-			(msg.event & PM_EVENT_AUTO ? "auto-" : ""), "resume");
+	dev_dbg(&rhdev->dev, "usb %sresume\n",
+			(PMSG_IS_AUTO(msg) ? "auto-" : ""));
 	if (HCD_DEAD(hcd)) {
 		dev_dbg(&rhdev->dev, "skipped %s of dead bus\n", "resume");
 		return 0;

@@ -477,12 +477,14 @@ pm_runtime_autosuspend_expiration()
 If pm_runtime_irq_safe() has been called for a device then the following helper
 functions may also be used in interrupt context:
 
+pm_runtime_idle()
 pm_runtime_suspend()
 pm_runtime_autosuspend()
 pm_runtime_resume()
 pm_runtime_get_sync()
 pm_runtime_put_sync()
 pm_runtime_put_sync_suspend()
+pm_runtime_put_sync_autosuspend()
 
 5. Runtime PM Initialization, Device Probing and Removal
 

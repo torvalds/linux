@@ -631,7 +631,7 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 	if (chip == (void *)-1L)
 		return 0;
 
-	if (!(message.event & PM_EVENT_AUTO)) {
+	if (!PMSG_IS_AUTO(message)) {
 		snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 		if (!chip->num_suspended_intf++) {
 			list_for_each(p, &chip->pcm_list) {
