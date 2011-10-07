@@ -1324,6 +1324,15 @@ static void cp_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *info
 	strcpy (info->bus_info, pci_name(cp->pdev));
 }
 
+static void cp_get_ringparam(struct net_device *dev,
+				struct ethtool_ringparam *ring)
+{
+	ring->rx_max_pending = CP_RX_RING_SIZE;
+	ring->tx_max_pending = CP_TX_RING_SIZE;
+	ring->rx_pending = CP_RX_RING_SIZE;
+	ring->tx_pending = CP_TX_RING_SIZE;
+}
+
 static int cp_get_regs_len(struct net_device *dev)
 {
 	return CP_REGS_SIZE;
@@ -1525,6 +1534,7 @@ static const struct ethtool_ops cp_ethtool_ops = {
 	.get_eeprom_len		= cp_get_eeprom_len,
 	.get_eeprom		= cp_get_eeprom,
 	.set_eeprom		= cp_set_eeprom,
+	.get_ringparam		= cp_get_ringparam,
 };
 
 static int cp_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
