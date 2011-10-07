@@ -1045,7 +1045,8 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 	}
 
 	/* Download Firmare */
-	if ((status = BcmFileDownload(ps_adapter, BIN_FILE, FIRMWARE_BEGIN_ADDR))) {
+	status = BcmFileDownload(ps_adapter, BIN_FILE, FIRMWARE_BEGIN_ADDR);
+	if (status != 0) {
 		BCM_DEBUG_PRINT(ps_adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "No Firmware File is present...\n");
 		goto OUT;
 	}
