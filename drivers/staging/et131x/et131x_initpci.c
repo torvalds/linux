@@ -870,26 +870,27 @@ static void __devexit et131x_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int et131x_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int et131x_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 
 	if (netif_running(netdev)) {
 		netif_device_detach(netdev);
 		et131x_down(netdev);
 		pci_save_state(pdev);
-		pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	}
 
 	return 0;
 }
 
-static int et131x_pci_resume(struct pci_dev *pdev)
+static int et131x_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 
 	if (netif_running(netdev)) {
-		pci_set_power_state(pdev, PCI_D0);
 		pci_restore_state(pdev);
 		et131x_up(netdev);
 		netif_device_attach(netdev);
@@ -897,6 +898,12 @@ static int et131x_pci_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
+#define ET131X_PM_OPS (&et131x_pm_ops)
+#else
+#define ET131X_PM_OPS NULL
+#endif
 
 static struct pci_device_id et131x_pci_table[] __devinitdata = {
 	{ET131X_PCI_VENDOR_ID, ET131X_PCI_DEVICE_ID_GIG, PCI_ANY_ID,
@@ -913,10 +920,7 @@ static struct pci_driver et131x_driver = {
 	.id_table	= et131x_pci_table,
 	.probe		= et131x_pci_setup,
 	.remove		= __devexit_p(et131x_pci_remove),
-#ifdef CONFIG_PM
-	.suspend	= et131x_pci_suspend,
-	.resume		= et131x_pci_resume,
-#endif
+	.driver.pm	= ET131X_PM_OPS,
 };
 
 /**
