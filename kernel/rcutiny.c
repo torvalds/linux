@@ -157,6 +157,7 @@ int rcu_is_cpu_idle(void)
 {
 	return !rcu_dynticks_nesting;
 }
+EXPORT_SYMBOL(rcu_is_cpu_idle);
 
 #endif /* #ifdef CONFIG_PROVE_RCU */
 

@@ -567,6 +567,7 @@ int rcu_is_cpu_idle(void)
 	preempt_enable();
 	return ret;
 }
+EXPORT_SYMBOL(rcu_is_cpu_idle);
 
 #endif /* #ifdef CONFIG_PROVE_RCU */
 
