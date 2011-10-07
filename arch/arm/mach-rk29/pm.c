@@ -364,7 +364,7 @@ static void dump_io_pull(void)
 extern void vfp_save_state(void *location, u32 fpexc);
 extern void vfp_load_state(void *location, u32 fpexc);
 // extern  __sramdata u64  saveptr[33];
-u32  saveptr[2][60]={};
+static u32  saveptr[2][60]={};
 void  neon_powerdomain_off(void)
 {
 	int ret,i=0;
@@ -504,9 +504,9 @@ static int rk29_pm_enter(suspend_state_t state)
 	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
 
 	sram_printch('4');
-	pm_gpio_suspend();
+	
 	rk29_suspend();
-	pm_gpio_resume();
+	
 	sram_printch('4');
 	
 	/* resume general pll */
