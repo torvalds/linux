@@ -71,7 +71,7 @@ INT InitAdapter(PMINI_ADAPTER psAdapter)
 
 	/* Initialize PHS interface */
 	if (phs_init(&psAdapter->stBCMPhsContext, psAdapter) != 0) {
-		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "%s:%s:%d:Error PHS Init Failed=====>\n", __FILE__, __FUNCTION__, __LINE__);
+		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "%s:%s:%d:Error PHS Init Failed=====>\n", __FILE__, __func__, __LINE__);
 		return -ENOMEM;
 	}
 
@@ -489,10 +489,10 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 ************************************************************************/
 VOID StatisticsResponse(PMINI_ADAPTER Adapter, PVOID pvBuffer)
 {
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s====>", __FUNCTION__);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s====>", __func__);
 	Adapter->StatisticsPointer = ntohl(*(__be32 *)pvBuffer);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Stats at %x", (UINT)Adapter->StatisticsPointer);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s <====", __FUNCTION__);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s <====", __func__);
 	return;
 }
 
@@ -576,7 +576,7 @@ VOID LinkControlResponseMessage(PMINI_ADAPTER Adapter, PUCHAR pucBuffer)
 		LinkMessage(Adapter);
 		memcpy(Adapter->dev->dev_addr, puMacAddr, MAC_ADDRESS_SIZE);
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "%s <=====", __FUNCTION__);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "%s <=====", __func__);
 	return;
 }
 
@@ -928,7 +928,7 @@ int run_card_proc(PMINI_ADAPTER ps_adapter)
 	unsigned int value = 0;
 	{
 		if (rdmalt(ps_adapter, CLOCK_RESET_CNTRL_REG_1, &value, sizeof(value)) < 0) {
-			BCM_DEBUG_PRINT(ps_adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "%s:%d\n", __FUNCTION__, __LINE__);
+			BCM_DEBUG_PRINT(ps_adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "%s:%d\n", __func__, __LINE__);
 			return STATUS_FAILURE;
 		}
 
@@ -938,7 +938,7 @@ int run_card_proc(PMINI_ADAPTER ps_adapter)
 			value |= (1<<30);
 
 		if (wrmalt(ps_adapter, CLOCK_RESET_CNTRL_REG_1, &value, sizeof(value)) < 0) {
-			BCM_DEBUG_PRINT(ps_adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "%s:%d\n", __FUNCTION__, __LINE__);
+			BCM_DEBUG_PRINT(ps_adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "%s:%d\n", __func__, __LINE__);
 			return STATUS_FAILURE;
 		}
 	}
