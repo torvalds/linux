@@ -1447,7 +1447,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
 
 	id_ns = mem;
-	for (i = 0; i <= nn; i++) {
+	for (i = 1; i <= nn; i++) {
 		res = nvme_identify(dev, i, 0, dma_addr);
 		if (res)
 			continue;
