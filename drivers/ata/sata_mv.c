@@ -4087,8 +4087,11 @@ static int mv_platform_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "slots %u ports %d\n",
 		 (unsigned)MV_MAX_Q_DEPTH, host->n_ports);
 
-	return ata_host_activate(host, platform_get_irq(pdev, 0), mv_interrupt,
-				 IRQF_SHARED, &mv6_sht);
+	rc = ata_host_activate(host, platform_get_irq(pdev, 0), mv_interrupt,
+			       IRQF_SHARED, &mv6_sht);
+	if (!rc)
+		return 0;
+
 err:
 #if defined(CONFIG_HAVE_CLK)
 	if (!IS_ERR(hpriv->clk)) {
