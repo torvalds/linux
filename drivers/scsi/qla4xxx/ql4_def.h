@@ -351,6 +351,8 @@ struct ipaddress_config {
 
 #define QL4_CHAP_MAX_NAME_LEN 256
 #define QL4_CHAP_MAX_SECRET_LEN 100
+#define LOCAL_CHAP	0
+#define BIDI_CHAP	1
 
 struct ql4_chap_format {
 	u8  intr_chap_name[QL4_CHAP_MAX_NAME_LEN];

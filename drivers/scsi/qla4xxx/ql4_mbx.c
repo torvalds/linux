@@ -872,7 +872,6 @@ void qla4xxx_get_conn_event_log(struct scsi_qla_host * ha)
 	uint32_t	max_event_log_entries;
 	uint8_t		i;
 
-
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
 	memset(&mbox_sts, 0, sizeof(mbox_cmd));
 
@@ -1578,7 +1577,8 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 			}
 
 			rval = qla4xxx_set_chap(ha, sess->username,
-						sess->password, idx, 0);
+						sess->password, idx,
+						LOCAL_CHAP);
 			if (rval)
 				goto exit_set_param;
 
@@ -1599,7 +1599,8 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 				goto exit_set_param;
 			}
 			rval = qla4xxx_set_chap(ha, sess->username_in,
-						sess->password_in, idx, 0);
+						sess->password_in, idx,
+						BIDI_CHAP);
 			if (rval)
 				goto exit_set_param;
 		}
