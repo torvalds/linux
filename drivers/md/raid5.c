@@ -93,20 +93,6 @@ static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
 	else
 		return NULL;
 }
-/*
- * The following can be used to debug the driver
- */
-#define RAID5_PARANOIA	1
-#if RAID5_PARANOIA && defined(CONFIG_SMP)
-# define CHECK_DEVLOCK() assert_spin_locked(&conf->device_lock)
-#else
-# define CHECK_DEVLOCK()
-#endif
-
-#ifdef DEBUG
-#define inline
-#define __inline__
-#endif
 
 /*
  * We maintain a biased count of active stripes in the bottom 16 bits of
@@ -262,7 +248,6 @@ static inline void insert_hash(raid5_conf_t *conf, struct stripe_head *sh)
 	pr_debug("insert_hash(), stripe %llu\n",
 		(unsigned long long)sh->sector);
 
-	CHECK_DEVLOCK();
 	hlist_add_head(&sh->hash, hp);
 }
 
@@ -273,7 +258,6 @@ static struct stripe_head *get_free_stripe(raid5_conf_t *conf)
 	struct stripe_head *sh = NULL;
 	struct list_head *first;
 
-	CHECK_DEVLOCK();
 	if (list_empty(&conf->inactive_list))
 		goto out;
 	first = conf->inactive_list.next;
@@ -329,7 +313,6 @@ static void init_stripe(struct stripe_head *sh, sector_t sector, int previous)
 	BUG_ON(test_bit(STRIPE_HANDLE, &sh->state));
 	BUG_ON(stripe_operations_active(sh));
 
-	CHECK_DEVLOCK();
 	pr_debug("init_stripe called, stripe %llu\n",
 		(unsigned long long)sh->sector);
 
@@ -365,7 +348,6 @@ static struct stripe_head *__find_stripe(raid5_conf_t *conf, sector_t sector,
 	struct stripe_head *sh;
 	struct hlist_node *hn;
 
-	CHECK_DEVLOCK();
 	pr_debug("__find_stripe, sector %llu\n", (unsigned long long)sector);
 	hlist_for_each_entry(sh, hn, stripe_hash(conf, sector), hash)
 		if (sh->sector == sector && sh->generation == generation)
@@ -4973,41 +4955,6 @@ static int stop(mddev_t *mddev)
 	return 0;
 }
 
-#ifdef DEBUG
-static void print_sh(struct seq_file *seq, struct stripe_head *sh)
-{
-	int i;
-
-	seq_printf(seq, "sh %llu, pd_idx %d, state %ld.\n",
-		   (unsigned long long)sh->sector, sh->pd_idx, sh->state);
-	seq_printf(seq, "sh %llu,  count %d.\n",
-		   (unsigned long long)sh->sector, atomic_read(&sh->count));
-	seq_printf(seq, "sh %llu, ", (unsigned long long)sh->sector);
-	for (i = 0; i < sh->disks; i++) {
-		seq_printf(seq, "(cache%d: %p %ld) ",
-			   i, sh->dev[i].page, sh->dev[i].flags);
-	}
-	seq_printf(seq, "\n");
-}
-
-static void printall(struct seq_file *seq, raid5_conf_t *conf)
-{
-	struct stripe_head *sh;
-	struct hlist_node *hn;
-	int i;
-
-	spin_lock_irq(&conf->device_lock);
-	for (i = 0; i < NR_HASH; i++) {
-		hlist_for_each_entry(sh, hn, &conf->stripe_hashtbl[i], hash) {
-			if (sh->raid_conf != conf)
-				continue;
-			print_sh(seq, sh);
-		}
-	}
-	spin_unlock_irq(&conf->device_lock);
-}
-#endif
-
 static void status(struct seq_file *seq, mddev_t *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
@@ -5021,10 +4968,6 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 			       conf->disks[i].rdev &&
 			       test_bit(In_sync, &conf->disks[i].rdev->flags) ? "U" : "_");
 	seq_printf (seq, "]");
-#ifdef DEBUG
-	seq_printf (seq, "\n");
-	printall(seq, conf);
-#endif
 }
 
 static void print_raid5_conf (raid5_conf_t *conf)

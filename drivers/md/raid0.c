@@ -528,33 +528,6 @@ bad_map:
 
 static void raid0_status(struct seq_file *seq, mddev_t *mddev)
 {
-#undef MD_DEBUG
-#ifdef MD_DEBUG
-	int j, k, h;
-	char b[BDEVNAME_SIZE];
-	raid0_conf_t *conf = mddev->private;
-	int raid_disks = conf->strip_zone[0].nb_dev;
-
-	sector_t zone_size;
-	sector_t zone_start = 0;
-	h = 0;
-
-	for (j = 0; j < conf->nr_strip_zones; j++) {
-		seq_printf(seq, "      z%d", j);
-		seq_printf(seq, "=[");
-		for (k = 0; k < conf->strip_zone[j].nb_dev; k++)
-			seq_printf(seq, "%s/", bdevname(
-				conf->devlist[j*raid_disks + k]
-						->bdev, b));
-
-		zone_size  = conf->strip_zone[j].zone_end - zone_start;
-		seq_printf(seq, "] ze=%lld ds=%lld s=%lld\n",
-			(unsigned long long)zone_start>>1,
-			(unsigned long long)conf->strip_zone[j].dev_start>>1,
-			(unsigned long long)zone_size>>1);
-		zone_start = conf->strip_zone[j].zone_end;
-	}
-#endif
 	seq_printf(seq, " %dk chunks", mddev->chunk_sectors / 2);
 	return;
 }
