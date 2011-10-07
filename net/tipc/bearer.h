@@ -83,8 +83,7 @@ struct media {
 			struct tipc_media_addr *dest);
 	int (*enable_bearer)(struct tipc_bearer *b_ptr);
 	void (*disable_bearer)(struct tipc_bearer *b_ptr);
-	char *(*addr2str)(struct tipc_media_addr *a,
-			  char *str_buf, int str_size);
+	int (*addr2str)(struct tipc_media_addr *a, char *str_buf, int str_size);
 	struct tipc_media_addr bcast_addr;
 	u32 priority;
 	u32 tolerance;

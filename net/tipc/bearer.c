@@ -136,20 +136,18 @@ exit:
 
 void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 {
+	char addr_str[MAX_ADDR_STR];
 	struct media *m_ptr;
 	u32 media_type;
-	u32 i;
 
 	media_type = ntohl(a->type);
 	m_ptr = media_find_id(media_type);
 
-	if (m_ptr && (m_ptr->addr2str != NULL)) {
-		char addr_str[MAX_ADDR_STR];
-
-		tipc_printf(pb, "%s(%s)", m_ptr->name,
-			    m_ptr->addr2str(a, addr_str, sizeof(addr_str)));
-	} else {
+	if (m_ptr && !m_ptr->addr2str(a, addr_str, sizeof(addr_str)))
+		tipc_printf(pb, "%s(%s)", m_ptr->name, addr_str);
+	else {
 		unchar *addr = (unchar *)&a->dev_addr;
+		u32 i;
 
 		tipc_printf(pb, "UNKNOWN(%u)", media_type);
 		for (i = 0; i < (sizeof(*a) - sizeof(a->type)); i++)

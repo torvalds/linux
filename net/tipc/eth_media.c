@@ -243,15 +243,15 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
  * eth_addr2str - convert Ethernet address to string
  */
 
-static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
+static int eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 {
 	unchar *addr = (unchar *)&a->dev_addr;
 
-	if (str_size < 18)
-		*str_buf = '\0';
-	else
-		sprintf(str_buf, "%pM", addr);
-	return str_buf;
+	if (str_size < 18)	/* 18 = strlen("aa:bb:cc:dd:ee:ff\0") */
+		return 1;
+
+	sprintf(str_buf, "%pM", addr);
+	return 0;
 }
 
 /*
