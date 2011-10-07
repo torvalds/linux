@@ -84,6 +84,9 @@ long srcu_batches_completed(struct srcu_struct *sp);
  * this assumes we are in an SRCU read-side critical section unless it can
  * prove otherwise.
  *
+ * Checks debug_lockdep_rcu_enabled() to prevent false positives during boot
+ * and while lockdep is disabled.
+ *
  * Note that if the CPU is in the idle loop from an RCU point of view
  * (ie: that we are in the section between rcu_idle_enter() and
  * rcu_idle_exit()) then srcu_read_lock_held() returns false even if
@@ -102,7 +105,7 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
 	if (rcu_is_cpu_idle())
 		return 0;
 
-	if (!debug_locks)
+	if (!debug_lockdep_rcu_enabled())
 		return 1;
 
 	return lock_is_held(&sp->dep_map);
