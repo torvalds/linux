@@ -18,18 +18,6 @@
 #define MX51_GPU_CTRL_BASE_ADDR		0x30000000
 #define MX51_IPU_CTRL_BASE_ADDR		0x40000000
 
-#define MX51_DEBUG_BASE_ADDR		0x60000000
-#define MX51_DEBUG_SIZE			SZ_1M
-
-#define MX51_ETB_BASE_ADDR		(MX51_DEBUG_BASE_ADDR + 0x01000)
-#define MX51_ETM_BASE_ADDR		(MX51_DEBUG_BASE_ADDR + 0x02000)
-#define MX51_TPIU_BASE_ADDR		(MX51_DEBUG_BASE_ADDR + 0x03000)
-#define MX51_CTI0_BASE_ADDR		(MX51_DEBUG_BASE_ADDR + 0x04000)
-#define MX51_CTI1_BASE_ADDR		(MX51_DEBUG_BASE_ADDR + 0x05000)
-#define MX51_CTI2_BASE_ADDR		(MX51_DEBUG_BASE_ADDR + 0x06000)
-#define MX51_CTI3_BASE_ADDR		(MX51_DEBUG_BASE_ADDR + 0x07000)
-#define MX51_CORTEX_DBG_BASE_ADDR	(MX51_DEBUG_BASE_ADDR + 0x08000)
-
 /*
  * SPBA global module enabled #0
  */
@@ -135,6 +123,7 @@
 
 #define MX51_GPU2D_BASE_ADDR		0xd0000000
 #define MX51_TZIC_BASE_ADDR		0xe0000000
+#define MX51_TZIC_SIZE			SZ_16K
 
 #define MX51_IO_P2V(x)			IMX_IO_P2V(x)
 #define MX51_IO_ADDRESS(x)		IOMEM(MX51_IO_P2V(x))
@@ -352,8 +341,5 @@
 extern int mx51_revision(void);
 extern void mx51_display_revision(void);
 #endif
-
-/* tape-out 1 defines */
-#define MX51_TZIC_BASE_ADDR_TO1		0x8fffc000
 
 #endif	/* ifndef __MACH_MX51_H__ */
