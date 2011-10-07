@@ -70,7 +70,11 @@
 #define NR_HASH			(PAGE_SIZE / sizeof(struct hlist_head))
 #define HASH_MASK		(NR_HASH - 1)
 
-#define stripe_hash(conf, sect)	(&((conf)->stripe_hashtbl[((sect) >> STRIPE_SHIFT) & HASH_MASK]))
+static inline struct hlist_head *stripe_hash(raid5_conf_t *conf, sector_t sect)
+{
+	int hash = (sect >> STRIPE_SHIFT) & HASH_MASK;
+	return &conf->stripe_hashtbl[hash];
+}
 
 /* bio's attached to a stripe+device for I/O are linked together in bi_sector
  * order without overlap.  There may be several bio's per stripe+device, and
@@ -78,10 +82,17 @@
  * When walking this list for a particular stripe+device, we must never proceed
  * beyond a bio that extends past this device, as the next bio might no longer
  * be valid.
- * This macro is used to determine the 'next' bio in the list, given the sector
+ * This function is used to determine the 'next' bio in the list, given the sector
  * of the current stripe+device
  */
-#define r5_next_bio(bio, sect) ( ( (bio)->bi_sector + ((bio)->bi_size>>9) < sect + STRIPE_SECTORS) ? (bio)->bi_next : NULL)
+static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
+{
+	int sectors = bio->bi_size >> 9;
+	if (bio->bi_sector + sectors < sector + STRIPE_SECTORS)
+		return bio->bi_next;
+	else
+		return NULL;
+}
 /*
  * The following can be used to debug the driver
  */
