@@ -37,7 +37,7 @@
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>	/* need_resched() */
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
 #include <linux/irqflags.h>
