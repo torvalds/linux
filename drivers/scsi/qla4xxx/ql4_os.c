@@ -1158,7 +1158,11 @@ static int qla4xxx_conn_start(struct iscsi_cls_conn *cls_conn)
 		goto exit_conn_start;
 	}
 
-	ddb_entry->fw_ddb_device_state = DDB_DS_LOGIN_IN_PROCESS;
+	if (ddb_entry->fw_ddb_device_state == DDB_DS_NO_CONNECTION_ACTIVE)
+		ddb_entry->fw_ddb_device_state = DDB_DS_LOGIN_IN_PROCESS;
+
+	DEBUG2(printk(KERN_INFO "%s: DDB state [%d]\n", __func__,
+		      ddb_entry->fw_ddb_device_state));
 
 exit_set_param:
 	iscsi_conn_start(cls_conn);

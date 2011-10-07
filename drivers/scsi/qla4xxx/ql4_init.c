@@ -931,6 +931,22 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 			break;
 		}
 		break;
+	case DDB_DS_SESSION_FAILED:
+		switch (state) {
+		case DDB_DS_SESSION_ACTIVE:
+		case DDB_DS_DISCOVERY:
+			iscsi_conn_login_event(ddb_entry->conn,
+					       ISCSI_CONN_STATE_LOGGED_IN);
+			qla4xxx_update_session_conn_param(ha, ddb_entry);
+			status = QLA_SUCCESS;
+			break;
+		case DDB_DS_SESSION_FAILED:
+			iscsi_session_failure(ddb_entry->sess->dd_data,
+					      ISCSI_ERR_CONN_FAILED);
+			status = QLA_SUCCESS;
+			break;
+		}
+		break;
 	default:
 		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Unknown Event\n",
 				__func__));
