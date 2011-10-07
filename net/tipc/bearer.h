@@ -59,17 +59,16 @@
 #define TIPC_MEDIA_TYPE_ETH	1
 
 /*
- * Destination address structure used by TIPC bearers when sending messages
- *
- * IMPORTANT: The fields of this structure MUST be stored using the specified
- * byte order indicated below, as the structure is exchanged between nodes
- * as part of a link setup process.
+ * struct tipc_media_addr - destination address used by TIPC bearers
+ * @value: address info (format defined by media)
+ * @media_id: TIPC media type identifier
+ * @broadcast: non-zero if address is a broadcast address
  */
+
 struct tipc_media_addr {
-	__be32  type;			/* bearer type (network byte order) */
-	union {
-		__u8   eth_addr[6];	/* 48 bit Ethernet addr (byte array) */
-	} dev_addr;
+	u8 value[TIPC_MEDIA_ADDR_SIZE];
+	u8 media_id;
+	u8 broadcast;
 };
 
 struct tipc_bearer;

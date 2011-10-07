@@ -84,7 +84,7 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 		msg_set_non_seq(msg, 1);
 		msg_set_dest_domain(msg, dest_domain);
 		msg_set_bc_netid(msg, tipc_net_id);
-		msg_set_media_addr(msg, &b_ptr->addr);
+		b_ptr->media->addr2msg(&b_ptr->addr, msg_media_addr(msg));
 	}
 	return buf;
 }
@@ -130,7 +130,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	u32 type = msg_type(msg);
 	int link_fully_up;
 
-	msg_get_media_addr(msg, &media_addr);
+	b_ptr->media->msg2addr(&media_addr, msg_media_addr(msg));
 	buf_discard(buf);
 
 	/* Validate discovery message from requesting node */

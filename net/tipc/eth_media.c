@@ -54,18 +54,24 @@ struct eth_bearer {
 	struct packet_type tipc_packet_type;
 };
 
+static struct media eth_media_info;
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
 static int eth_started;
 static struct notifier_block notifier;
 
 /**
  * eth_media_addr_set - initialize Ethernet media address structure
+ *
+ * Media-dependent "value" field stores MAC address in first 6 bytes
+ * and zeroes out the remaining bytes.
  */
 
 static void eth_media_addr_set(struct tipc_media_addr *a, char *mac)
 {
-	a->type = htonl(TIPC_MEDIA_TYPE_ETH);
-	memcpy(&a->dev_addr.eth_addr, mac, ETH_ALEN);
+	memcpy(a->value, mac, ETH_ALEN);
+	memset(a->value + ETH_ALEN, 0, sizeof(a->value) - ETH_ALEN);
+	a->media_id = TIPC_MEDIA_TYPE_ETH;
+	a->broadcast = !memcmp(mac, eth_media_info.bcast_addr.value, ETH_ALEN);
 }
 
 /**
@@ -94,7 +100,7 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 
 	skb_reset_network_header(clone);
 	clone->dev = dev;
-	dev_hard_header(clone, dev, ETH_P_TIPC, &dest->dev_addr.eth_addr,
+	dev_hard_header(clone, dev, ETH_P_TIPC, dest->value,
 			dev->dev_addr, clone->len);
 	dev_queue_xmit(clone);
 	return 0;
@@ -256,12 +262,10 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 
 static int eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 {
-	unchar *addr = (unchar *)&a->dev_addr;
-
 	if (str_size < 18)	/* 18 = strlen("aa:bb:cc:dd:ee:ff\0") */
 		return 1;
 
-	sprintf(str_buf, "%pM", addr);
+	sprintf(str_buf, "%pM", a->value);
 	return 0;
 }
 
@@ -293,7 +297,7 @@ static int eth_addr2msg(struct tipc_media_addr *a, char *msg_area)
 {
 	memset(msg_area, 0, TIPC_MEDIA_ADDR_SIZE);
 	msg_area[TIPC_MEDIA_TYPE_OFFSET] = TIPC_MEDIA_TYPE_ETH;
-	memcpy(msg_area + ETH_ADDR_OFFSET, a->dev_addr.eth_addr, ETH_ALEN);
+	memcpy(msg_area + ETH_ADDR_OFFSET, a->value, ETH_ALEN);
 	return 0;
 }
 
@@ -322,8 +326,8 @@ static struct media eth_media_info = {
 	.str2addr	= eth_str2addr,
 	.addr2msg	= eth_addr2msg,
 	.msg2addr	= eth_msg2addr,
-	.bcast_addr	= { htonl(TIPC_MEDIA_TYPE_ETH),
-			    { {0xff, 0xff, 0xff, 0xff, 0xff, 0xff} } },
+	.bcast_addr	= { { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
+			    TIPC_MEDIA_TYPE_ETH, 1 },
 	.priority	= TIPC_DEF_LINK_PRI,
 	.tolerance	= TIPC_DEF_LINK_TOL,
 	.window		= TIPC_DEF_LINK_WIN,

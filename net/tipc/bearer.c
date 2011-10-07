@@ -108,7 +108,8 @@ int  tipc_register_media(struct media *m_ptr)
 
 	if (!media_name_valid(m_ptr->name))
 		goto exit;
-	if (m_ptr->bcast_addr.type != htonl(m_ptr->type_id))
+	if ((m_ptr->bcast_addr.media_id != m_ptr->type_id) ||
+	    !m_ptr->bcast_addr.broadcast)
 		goto exit;
 	if (m_ptr->priority > TIPC_MAX_LINK_PRI)
 		goto exit;
@@ -138,20 +139,17 @@ void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 {
 	char addr_str[MAX_ADDR_STR];
 	struct media *m_ptr;
-	u32 media_type;
 
-	media_type = ntohl(a->type);
-	m_ptr = media_find_id(media_type);
+	m_ptr = media_find_id(a->media_id);
 
 	if (m_ptr && !m_ptr->addr2str(a, addr_str, sizeof(addr_str)))
 		tipc_printf(pb, "%s(%s)", m_ptr->name, addr_str);
 	else {
-		unchar *addr = (unchar *)&a->dev_addr;
 		u32 i;
 
-		tipc_printf(pb, "UNKNOWN(%u)", media_type);
-		for (i = 0; i < (sizeof(*a) - sizeof(a->type)); i++)
-			tipc_printf(pb, "-%02x", addr[i]);
+		tipc_printf(pb, "UNKNOWN(%u)", a->media_id);
+		for (i = 0; i < sizeof(a->value); i++)
+			tipc_printf(pb, "-%02x", a->value[i]);
 	}
 }
 
