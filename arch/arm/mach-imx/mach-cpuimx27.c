@@ -315,6 +315,7 @@ MACHINE_START(EUKREA_CPUIMX27, "EUKREA CPUIMX27")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
+	.handle_irq = imx27_handle_irq,
 	.timer = &eukrea_cpuimx27_timer,
 	.init_machine = eukrea_cpuimx27_init,
 MACHINE_END

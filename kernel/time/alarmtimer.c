@@ -441,6 +441,8 @@ static int alarm_timer_create(struct k_itimer *new_timer)
 static void alarm_timer_get(struct k_itimer *timr,
 				struct itimerspec *cur_setting)
 {
+	memset(cur_setting, 0, sizeof(struct itimerspec));
+
 	cur_setting->it_interval =
 			ktime_to_timespec(timr->it.alarmtimer.period);
 	cur_setting->it_value =
@@ -479,11 +481,17 @@ static int alarm_timer_set(struct k_itimer *timr, int flags,
 	if (!rtcdev)
 		return -ENOTSUPP;
 
-	/* Save old values */
-	old_setting->it_interval =
-			ktime_to_timespec(timr->it.alarmtimer.period);
-	old_setting->it_value =
-			ktime_to_timespec(timr->it.alarmtimer.node.expires);
+	/*
+	 * XXX HACK! Currently we can DOS a system if the interval
+	 * period on alarmtimers is too small. Cap the interval here
+	 * to 100us and solve this properly in a future patch! -jstultz
+	 */
+	if ((new_setting->it_interval.tv_sec == 0) &&
+			(new_setting->it_interval.tv_nsec < 100000))
+		new_setting->it_interval.tv_nsec = 100000;
+
+	if (old_setting)
+		alarm_timer_get(timr, old_setting);
 
 	/* If the timer was already set, cancel it */
 	alarm_cancel(&timr->it.alarmtimer);

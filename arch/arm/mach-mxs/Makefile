@@ -1,11 +1,11 @@
 # Common support
-obj-y := clock.o devices.o icoll.o iomux.o system.o timer.o
+obj-y := clock.o devices.o icoll.o iomux.o system.o timer.o mm.o
 
 obj-$(CONFIG_MXS_OCOTP) += ocotp.o
 obj-$(CONFIG_PM) += pm.o
 
-obj-$(CONFIG_SOC_IMX23) += clock-mx23.o mm-mx23.o
-obj-$(CONFIG_SOC_IMX28) += clock-mx28.o mm-mx28.o
+obj-$(CONFIG_SOC_IMX23) += clock-mx23.o
+obj-$(CONFIG_SOC_IMX28) += clock-mx28.o
 
 obj-$(CONFIG_MACH_STMP378X_DEVB) += mach-stmp378x_devb.o
 obj-$(CONFIG_MACH_MX23EVK) += mach-mx23evk.o

@@ -359,7 +359,7 @@ static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
 		.bus_num	= 1,
 		.chip_select	= 0, /* SS0 */
 		.platform_data	= &mc13783_pdata,
-		.irq = gpio_to_irq(PMIC_INT),
+		.irq = IMX_GPIO_TO_IRQ(PMIC_INT),
 		.mode = SPI_CS_HIGH,
 	}, {
 		.modalias	= "l4f00242t03",
@@ -425,6 +425,7 @@ MACHINE_START(MX27_3DS, "Freescale MX27PDK")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
+	.handle_irq = imx27_handle_irq,
 	.timer = &mx27pdk_timer,
 	.init_machine = mx27pdk_init,
 MACHINE_END

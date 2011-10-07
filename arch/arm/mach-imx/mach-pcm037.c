@@ -693,6 +693,7 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
+	.handle_irq = imx31_handle_irq,
 	.timer = &pcm037_timer,
 	.init_machine = pcm037_init,
 MACHINE_END

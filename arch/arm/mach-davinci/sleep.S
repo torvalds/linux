@@ -217,7 +217,11 @@ ddr2clk_stop_done:
 ENDPROC(davinci_ddr_psc_config)
 
 CACHE_FLUSH:
-	.word	arm926_flush_kern_cache_all
+#ifdef CONFIG_CPU_V6
+	.word	v6_flush_kern_cache_all
+#else
+	.word   arm926_flush_kern_cache_all
+#endif
 
 ENTRY(davinci_cpu_suspend_sz)
 	.word	. - davinci_cpu_suspend

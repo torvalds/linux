@@ -134,8 +134,8 @@ static struct resource ard_smsc911x_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start =  gpio_to_irq(ARD_ETHERNET_INT_B),
-		.end =  gpio_to_irq(ARD_ETHERNET_INT_B),
+		.start =  IMX_GPIO_TO_IRQ(ARD_ETHERNET_INT_B),
+		.end =  IMX_GPIO_TO_IRQ(ARD_ETHERNET_INT_B),
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -249,6 +249,7 @@ MACHINE_START(MX53_ARD, "Freescale MX53 ARD Board")
 	.map_io = mx53_map_io,
 	.init_early = imx53_init_early,
 	.init_irq = mx53_init_irq,
+	.handle_irq = imx53_handle_irq,
 	.timer = &mx53_ard_timer,
 	.init_machine = mx53_ard_board_init,
 MACHINE_END
