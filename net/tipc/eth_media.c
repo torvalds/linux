@@ -39,6 +39,8 @@
 
 #define MAX_ETH_BEARERS		MAX_BEARERS
 
+#define ETH_ADDR_OFFSET	4	/* message header offset of MAC address */
+
 /**
  * struct eth_bearer - Ethernet bearer data structure
  * @bearer: ptr to associated "generic" bearer structure
@@ -55,6 +57,16 @@ struct eth_bearer {
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
 static int eth_started;
 static struct notifier_block notifier;
+
+/**
+ * eth_media_addr_set - initialize Ethernet media address structure
+ */
+
+static void eth_media_addr_set(struct tipc_media_addr *a, char *mac)
+{
+	a->type = htonl(TIPC_MEDIA_TYPE_ETH);
+	memcpy(&a->dev_addr.eth_addr, mac, ETH_ALEN);
+}
 
 /**
  * send_msg - send a TIPC message out over an Ethernet interface
@@ -169,8 +181,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	tb_ptr->usr_handle = (void *)eb_ptr;
 	tb_ptr->mtu = dev->mtu;
 	tb_ptr->blocked = 0;
-	tb_ptr->addr.type = htonl(TIPC_MEDIA_TYPE_ETH);
-	memcpy(&tb_ptr->addr.dev_addr, dev->dev_addr, ETH_ALEN);
+	eth_media_addr_set(&tb_ptr->addr, (char *)dev->dev_addr);
 	return 0;
 }
 
@@ -254,6 +265,51 @@ static int eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 	return 0;
 }
 
+/**
+ * eth_str2addr - convert string to Ethernet address
+ */
+
+static int eth_str2addr(struct tipc_media_addr *a, char *str_buf)
+{
+	char mac[ETH_ALEN];
+	int r;
+
+	r = sscanf(str_buf, "%02x:%02x:%02x:%02x:%02x:%02x",
+		       (u32 *)&mac[0], (u32 *)&mac[1], (u32 *)&mac[2],
+		       (u32 *)&mac[3], (u32 *)&mac[4], (u32 *)&mac[5]);
+
+	if (r != ETH_ALEN)
+		return 1;
+
+	eth_media_addr_set(a, mac);
+	return 0;
+}
+
+/**
+ * eth_str2addr - convert Ethernet address format to message header format
+ */
+
+static int eth_addr2msg(struct tipc_media_addr *a, char *msg_area)
+{
+	memset(msg_area, 0, TIPC_MEDIA_ADDR_SIZE);
+	msg_area[TIPC_MEDIA_TYPE_OFFSET] = TIPC_MEDIA_TYPE_ETH;
+	memcpy(msg_area + ETH_ADDR_OFFSET, a->dev_addr.eth_addr, ETH_ALEN);
+	return 0;
+}
+
+/**
+ * eth_str2addr - convert message header address format to Ethernet format
+ */
+
+static int eth_msg2addr(struct tipc_media_addr *a, char *msg_area)
+{
+	if (msg_area[TIPC_MEDIA_TYPE_OFFSET] != TIPC_MEDIA_TYPE_ETH)
+		return 1;
+
+	eth_media_addr_set(a, msg_area + ETH_ADDR_OFFSET);
+	return 0;
+}
+
 /*
  * Ethernet media registration info
  */
@@ -263,6 +319,9 @@ static struct media eth_media_info = {
 	.enable_bearer	= enable_bearer,
 	.disable_bearer	= disable_bearer,
 	.addr2str	= eth_addr2str,
+	.str2addr	= eth_str2addr,
+	.addr2msg	= eth_addr2msg,
+	.msg2addr	= eth_msg2addr,
 	.bcast_addr	= { htonl(TIPC_MEDIA_TYPE_ETH),
 			    { {0xff, 0xff, 0xff, 0xff, 0xff, 0xff} } },
 	.priority	= TIPC_DEF_LINK_PRI,

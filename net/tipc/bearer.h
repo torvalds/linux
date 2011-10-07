@@ -43,6 +43,17 @@
 #define MAX_MEDIA	2
 
 /*
+ * Identifiers associated with TIPC message header media address info
+ *
+ * - address info field is 20 bytes long
+ * - media type identifier located at offset 3
+ * - remaining bytes vary according to media type
+ */
+
+#define TIPC_MEDIA_ADDR_SIZE	20
+#define TIPC_MEDIA_TYPE_OFFSET	3
+
+/*
  * Identifiers of supported TIPC media types
  */
 #define TIPC_MEDIA_TYPE_ETH	1
@@ -68,7 +79,10 @@ struct tipc_bearer;
  * @send_msg: routine which handles buffer transmission
  * @enable_bearer: routine which enables a bearer
  * @disable_bearer: routine which disables a bearer
- * @addr2str: routine which converts bearer's address to string form
+ * @addr2str: routine which converts media address to string
+ * @str2addr: routine which converts media address from string
+ * @addr2msg: routine which converts media address to protocol message area
+ * @msg2addr: routine which converts media address from protocol message area
  * @bcast_addr: media address used in broadcasting
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
@@ -84,6 +98,9 @@ struct media {
 	int (*enable_bearer)(struct tipc_bearer *b_ptr);
 	void (*disable_bearer)(struct tipc_bearer *b_ptr);
 	int (*addr2str)(struct tipc_media_addr *a, char *str_buf, int str_size);
+	int (*str2addr)(struct tipc_media_addr *a, char *str_buf);
+	int (*addr2msg)(struct tipc_media_addr *a, char *msg_area);
+	int (*msg2addr)(struct tipc_media_addr *a, char *msg_area);
 	struct tipc_media_addr bcast_addr;
 	u32 priority;
 	u32 tolerance;
