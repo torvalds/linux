@@ -1450,6 +1450,8 @@ static struct xenbus_driver blkfront = {
 
 static int __init xlblk_init(void)
 {
+	int ret;
+
 	if (!xen_domain())
 		return -ENODEV;
 
@@ -1459,7 +1461,13 @@ static int __init xlblk_init(void)
 		return -ENODEV;
 	}
 
-	return xenbus_register_frontend(&blkfront);
+	ret = xenbus_register_frontend(&blkfront);
+	if (ret) {
+		unregister_blkdev(XENVBD_MAJOR, DEV_NAME);
+		return ret;
+	}
+
+	return 0;
 }
 module_init(xlblk_init);
 
