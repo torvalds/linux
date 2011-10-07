@@ -1466,7 +1466,8 @@ bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_txq *txq;
-	int i, npend = 0;
+	int i;
+	u32 npend = 0;
 
 	if (sc->sc_flags & SC_OP_INVALID)
 		return true;
@@ -1478,11 +1479,12 @@ bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 		if (!ATH_TXQ_SETUP(sc, i))
 			continue;
 
-		npend += ath9k_hw_numtxpending(ah, sc->tx.txq[i].axq_qnum);
+		if (ath9k_hw_numtxpending(ah, sc->tx.txq[i].axq_qnum))
+			npend |= BIT(i);
 	}
 
 	if (npend)
-		ath_err(common, "Failed to stop TX DMA!\n");
+		ath_err(common, "Failed to stop TX DMA, queues=0x%03x!\n", npend);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (!ATH_TXQ_SETUP(sc, i))
