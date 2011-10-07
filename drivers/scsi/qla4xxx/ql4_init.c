@@ -880,6 +880,10 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 	if (ddb_entry == NULL) {
 		ql4_printk(KERN_ERR, ha, "%s: No ddb_entry at FW index [%d]\n",
 			   __func__, fw_ddb_index);
+
+		if (state == DDB_DS_NO_CONNECTION_ACTIVE)
+			clear_bit(fw_ddb_index, ha->ddb_idx_map);
+
 		goto exit_ddb_event;
 	}
 
@@ -910,7 +914,8 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		}
 		break;
 	case DDB_DS_SESSION_ACTIVE:
-		if (state == DDB_DS_SESSION_FAILED) {
+		switch (state) {
+		case DDB_DS_SESSION_FAILED:
 			/*
 			 * iscsi_session failure  will cause userspace to
 			 * stop the connection which in turn would block the
@@ -919,6 +924,11 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 			iscsi_session_failure(ddb_entry->sess->dd_data,
 					      ISCSI_ERR_CONN_FAILED);
 			status = QLA_SUCCESS;
+			break;
+		case DDB_DS_NO_CONNECTION_ACTIVE:
+			clear_bit(fw_ddb_index, ha->ddb_idx_map);
+			status = QLA_SUCCESS;
+			break;
 		}
 		break;
 	default:
