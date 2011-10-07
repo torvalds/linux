@@ -136,7 +136,6 @@ typedef unsigned __bitwise__ ieee80211_tx_result;
 #define TX_DROP		((__force ieee80211_tx_result) 1u)
 #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
 
-#define IEEE80211_TX_FRAGMENTED		BIT(0)
 #define IEEE80211_TX_UNICAST		BIT(1)
 #define IEEE80211_TX_PS_BUFFERED	BIT(2)
 

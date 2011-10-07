@@ -53,7 +53,8 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	}
 
 	if (info->control.hw_key &&
-	    !(tx->flags & IEEE80211_TX_FRAGMENTED) &&
+	    (info->flags & IEEE80211_TX_CTL_DONTFRAG ||
+	     tx->local->ops->set_frag_threshold) &&
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC)) {
 		/* hwaccel - with no need for SW-generated MMIC */
 		return TX_CONTINUE;

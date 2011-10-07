@@ -898,7 +898,10 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	int hdrlen;
 	int fragnum;
 
-	if (!(tx->flags & IEEE80211_TX_FRAGMENTED))
+	if (info->flags & IEEE80211_TX_CTL_DONTFRAG)
+		return TX_CONTINUE;
+
+	if (tx->local->ops->set_frag_threshold)
 		return TX_CONTINUE;
 
 	/*
@@ -911,7 +914,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
-	/* internal error, why is TX_FRAGMENTED set? */
+	/* internal error, why isn't DONTFRAG set? */
 	if (WARN_ON(skb->len + FCS_LEN <= frag_threshold))
 		return TX_DROP;
 
@@ -1050,17 +1053,13 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	struct ieee80211_radiotap_iterator iterator;
 	struct ieee80211_radiotap_header *rthdr =
 		(struct ieee80211_radiotap_header *) skb->data;
-	bool hw_frag;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
 						   NULL);
 	u16 txflags;
 
-	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-	tx->flags &= ~IEEE80211_TX_FRAGMENTED;
-
-	/* packet is fragmented in HW if we have a non-NULL driver callback */
-	hw_frag = (tx->local->ops->set_frag_threshold != NULL);
+	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
+		       IEEE80211_TX_CTL_DONTFRAG;
 
 	/*
 	 * for every radiotap entry that is present
@@ -1098,9 +1097,8 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 			}
 			if (*iterator.this_arg & IEEE80211_RADIOTAP_F_WEP)
 				info->flags &= ~IEEE80211_TX_INTFL_DONT_ENCRYPT;
-			if ((*iterator.this_arg & IEEE80211_RADIOTAP_F_FRAG) &&
-								!hw_frag)
-				tx->flags |= IEEE80211_TX_FRAGMENTED;
+			if (*iterator.this_arg & IEEE80211_RADIOTAP_F_FRAG)
+				info->flags &= ~IEEE80211_TX_CTL_DONTFRAG;
 			break;
 
 		case IEEE80211_RADIOTAP_TX_FLAGS:
@@ -1206,13 +1204,6 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	tx->local = local;
 	tx->sdata = sdata;
 	tx->channel = local->hw.conf.channel;
-	/*
-	 * Set this flag (used below to indicate "automatic fragmentation"),
-	 * it will be cleared/left by radiotap as desired.
-	 * Only valid when fragmentation is done by the stack.
-	 */
-	if (!local->ops->set_frag_threshold)
-		tx->flags |= IEEE80211_TX_FRAGMENTED;
 
 	/* process and remove the injection radiotap header */
 	if (unlikely(info->flags & IEEE80211_TX_INTFL_HAS_RADIOTAP)) {
@@ -1281,13 +1272,11 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		 */
 	}
 
-	if (tx->flags & IEEE80211_TX_FRAGMENTED) {
-		if ((tx->flags & IEEE80211_TX_UNICAST) &&
-		    skb->len + FCS_LEN > local->hw.wiphy->frag_threshold &&
-		    !(info->flags & IEEE80211_TX_CTL_AMPDU))
-			tx->flags |= IEEE80211_TX_FRAGMENTED;
-		else
-			tx->flags &= ~IEEE80211_TX_FRAGMENTED;
+	if (!(info->flags & IEEE80211_TX_CTL_DONTFRAG)) {
+		if (!(tx->flags & IEEE80211_TX_UNICAST) ||
+		    skb->len + FCS_LEN <= local->hw.wiphy->frag_threshold ||
+		    info->flags & IEEE80211_TX_CTL_AMPDU)
+			info->flags |= IEEE80211_TX_CTL_DONTFRAG;
 	}
 
 	if (!tx->sta)
