@@ -26,10 +26,7 @@
 #define AD5686_ADDR(x)				((x) << 16)
 #define AD5686_CMD(x)				((x) << 20)
 
-#define AD5686_ADDR_DAC0			0x1
-#define AD5686_ADDR_DAC1			0x2
-#define AD5686_ADDR_DAC2			0x4
-#define AD5686_ADDR_DAC3			0x8
+#define AD5686_ADDR_DAC(chan)		(0x1 << (chan))
 #define AD5686_ADDR_ALL_DAC			0xF
 
 #define AD5686_CMD_NOOP				0x0
@@ -103,7 +100,7 @@ enum ad5686_supported_device_ids {
 		.output = 1,					\
 		.channel = chan,				\
 		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),	\
-		.address = AD5686_ADDR_DAC0,			\
+		.address = AD5686_ADDR_DAC(chan),			\
 		.scan_type = IIO_ST('u', bits, 16, shift)	\
 }
 static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
