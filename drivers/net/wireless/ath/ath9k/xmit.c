@@ -564,8 +564,10 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	rcu_read_unlock();
 
-	if (needreset)
+	if (needreset) {
+		RESET_STAT_INC(sc, RESET_TYPE_TX_ERROR);
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+	}
 }
 
 static bool ath_lookup_legacy(struct ath_buf *bf)
@@ -2206,6 +2208,7 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 	if (needreset) {
 		ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_RESET,
 			"tx hung, resetting the chip\n");
+		RESET_STAT_INC(sc, RESET_TYPE_TX_HANG);
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 	}
 

@@ -679,6 +679,16 @@ void ath9k_tasklet(unsigned long data)
 
 	if ((status & ATH9K_INT_FATAL) ||
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
+#ifdef CONFIG_ATH9K_DEBUGFS
+		enum ath_reset_type type;
+
+		if (status & ATH9K_INT_FATAL)
+			type = RESET_TYPE_FATAL_INT;
+		else
+			type = RESET_TYPE_BB_WATCHDOG;
+
+		RESET_STAT_INC(sc, type);
+#endif
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		goto out;
 	}
@@ -995,8 +1005,10 @@ void ath_hw_check(struct work_struct *work)
 	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
 		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
 	if (busy >= 99) {
-		if (++sc->hw_busy_count >= 3)
+		if (++sc->hw_busy_count >= 3) {
+			RESET_STAT_INC(sc, RESET_TYPE_BB_HANG);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+		}
 
 	} else if (busy >= 0)
 		sc->hw_busy_count = 0;
@@ -1016,6 +1028,7 @@ static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
 			/* Rx is hung for more than 500ms. Reset it */
 			ath_dbg(common, ATH_DBG_RESET,
 				"Possible RX hang, resetting");
+			RESET_STAT_INC(sc, RESET_TYPE_PLL_HANG);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 			count = 0;
 		}

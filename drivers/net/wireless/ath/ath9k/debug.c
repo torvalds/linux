@@ -523,9 +523,22 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 	if (tmp & ATH9K_RX_FILTER_PHYRADAR)
 		len += snprintf(buf + len, sizeof(buf) - len, " PHYRADAR");
 	if (tmp & ATH9K_RX_FILTER_MCAST_BCAST_ALL)
-		len += snprintf(buf + len, sizeof(buf) - len, " MCAST_BCAST_ALL\n");
-	else
-		len += snprintf(buf + len, sizeof(buf) - len, "\n");
+		len += snprintf(buf + len, sizeof(buf) - len, " MCAST_BCAST_ALL");
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+		       "\n\nReset causes:\n"
+		       "  baseband hang: %d\n"
+		       "  baseband watchdog: %d\n"
+		       "  fatal hardware error interrupt: %d\n"
+		       "  tx hardware error: %d\n"
+		       "  tx path hang: %d\n"
+		       "  pll rx hang: %d\n",
+		       sc->debug.stats.reset[RESET_TYPE_BB_HANG],
+		       sc->debug.stats.reset[RESET_TYPE_BB_WATCHDOG],
+		       sc->debug.stats.reset[RESET_TYPE_FATAL_INT],
+		       sc->debug.stats.reset[RESET_TYPE_TX_ERROR],
+		       sc->debug.stats.reset[RESET_TYPE_TX_HANG],
+		       sc->debug.stats.reset[RESET_TYPE_PLL_HANG]);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
