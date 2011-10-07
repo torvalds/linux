@@ -15,7 +15,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include "et131x_version.h"
+
 #include "et131x_defs.h"
 
 #include <linux/types.h>
@@ -181,7 +181,7 @@ static void et131x_get_drvinfo(struct net_device *netdev,
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
 	strncpy(info->driver, DRIVER_NAME, ET131X_DRVINFO_LEN);
-	strncpy(info->version, DRIVER_VERSION_STRING, ET131X_DRVINFO_LEN);
+	strncpy(info->version, DRIVER_VERSION, ET131X_DRVINFO_LEN);
 	strncpy(info->bus_info, pci_name(adapter->pdev), ET131X_DRVINFO_LEN);
 }
 

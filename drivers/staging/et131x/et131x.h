@@ -48,6 +48,9 @@
  *
  */
 
+#define DRIVER_NAME "et131x"
+#define DRIVER_VERSION "v2.0"
+
 /* et131x_eeprom.c */
 int et131x_init_eeprom(struct et131x_adapter *adapter);
 

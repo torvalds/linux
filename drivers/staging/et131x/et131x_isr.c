@@ -58,7 +58,6 @@
  *
  */
 
-#include "et131x_version.h"
 #include "et131x_defs.h"
 
 #include <linux/init.h>

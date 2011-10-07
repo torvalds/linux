@@ -59,7 +59,6 @@
  *
  */
 
-#include "et131x_version.h"
 #include "et131x_defs.h"
 
 #include <linux/pci.h>
@@ -944,8 +943,8 @@ static void __exit et131x_cleanup_module(void)
 module_init(et131x_init_module);
 module_exit(et131x_cleanup_module);
 
-/* Modinfo parameters (filled out using defines from et131x_version.h) */
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_AUTHOR(DRIVER_AUTHOR2);
-MODULE_DESCRIPTION(DRIVER_INFO);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_AUTHOR("Victor Soriano <vjsoriano@agere.com>");
+MODULE_AUTHOR("Mark Einon <mark.einon@gmail.com>");
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver "
+		   "for the ET1310 by Agere Systems");
