@@ -705,12 +705,8 @@ static void igb_get_ringparam(struct net_device *netdev,
 
 	ring->rx_max_pending = IGB_MAX_RXD;
 	ring->tx_max_pending = IGB_MAX_TXD;
-	ring->rx_mini_max_pending = 0;
-	ring->rx_jumbo_max_pending = 0;
 	ring->rx_pending = adapter->rx_ring_count;
 	ring->tx_pending = adapter->tx_ring_count;
-	ring->rx_mini_pending = 0;
-	ring->rx_jumbo_pending = 0;
 }
 
 static int igb_set_ringparam(struct net_device *netdev,

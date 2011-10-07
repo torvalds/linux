@@ -497,13 +497,9 @@ static void skge_get_ring_param(struct net_device *dev,
 
 	p->rx_max_pending = MAX_RX_RING_SIZE;
 	p->tx_max_pending = MAX_TX_RING_SIZE;
-	p->rx_mini_max_pending = 0;
-	p->rx_jumbo_max_pending = 0;
 
 	p->rx_pending = skge->rx_ring.count;
 	p->tx_pending = skge->tx_ring.count;
-	p->rx_mini_pending = 0;
-	p->rx_jumbo_pending = 0;
 }
 
 static int skge_set_ring_param(struct net_device *dev,

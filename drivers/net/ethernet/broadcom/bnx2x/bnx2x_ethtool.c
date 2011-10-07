@@ -1344,16 +1344,11 @@ static void bnx2x_get_ringparam(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	ering->rx_max_pending = MAX_RX_AVAIL;
-	ering->rx_mini_max_pending = 0;
-	ering->rx_jumbo_max_pending = 0;
 
 	if (bp->rx_ring_size)
 		ering->rx_pending = bp->rx_ring_size;
 	else
 		ering->rx_pending = MAX_RX_AVAIL;
-
-	ering->rx_mini_pending = 0;
-	ering->rx_jumbo_pending = 0;
 
 	ering->tx_max_pending = MAX_TX_AVAIL;
 	ering->tx_pending = bp->tx_ring_size;

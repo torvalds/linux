@@ -1547,13 +1547,9 @@ mv643xx_eth_get_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 
 	er->rx_max_pending = 4096;
 	er->tx_max_pending = 4096;
-	er->rx_mini_max_pending = 0;
-	er->rx_jumbo_max_pending = 0;
 
 	er->rx_pending = mp->rx_ring_size;
 	er->tx_pending = mp->tx_ring_size;
-	er->rx_mini_pending = 0;
-	er->rx_jumbo_pending = 0;
 }
 
 static int

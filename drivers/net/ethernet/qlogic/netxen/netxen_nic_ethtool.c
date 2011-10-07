@@ -413,9 +413,6 @@ netxen_nic_get_ringparam(struct net_device *dev,
 	}
 
 	ring->tx_max_pending = MAX_CMD_DESCRIPTORS;
-
-	ring->rx_mini_max_pending = 0;
-	ring->rx_mini_pending = 0;
 }
 
 static u32

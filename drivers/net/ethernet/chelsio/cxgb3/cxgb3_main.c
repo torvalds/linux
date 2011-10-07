@@ -1898,7 +1898,6 @@ static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	const struct qset_params *q = &adapter->params.sge.qset[pi->first_qset];
 
 	e->rx_max_pending = MAX_RX_BUFFERS;
-	e->rx_mini_max_pending = 0;
 	e->rx_jumbo_max_pending = MAX_RX_JUMBO_BUFFERS;
 	e->tx_max_pending = MAX_TXQ_ENTRIES;
 

@@ -4280,13 +4280,9 @@ static void nv_get_ringparam(struct net_device *dev, struct ethtool_ringparam* r
 	struct fe_priv *np = netdev_priv(dev);
 
 	ring->rx_max_pending = (np->desc_ver == DESC_VER_1) ? RING_MAX_DESC_VER_1 : RING_MAX_DESC_VER_2_3;
-	ring->rx_mini_max_pending = 0;
-	ring->rx_jumbo_max_pending = 0;
 	ring->tx_max_pending = (np->desc_ver == DESC_VER_1) ? RING_MAX_DESC_VER_1 : RING_MAX_DESC_VER_2_3;
 
 	ring->rx_pending = np->rx_ring_size;
-	ring->rx_mini_pending = 0;
-	ring->rx_jumbo_pending = 0;
 	ring->tx_pending = np->tx_ring_size;
 }
 

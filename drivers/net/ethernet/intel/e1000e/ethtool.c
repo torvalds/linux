@@ -612,12 +612,8 @@ static void e1000_get_ringparam(struct net_device *netdev,
 
 	ring->rx_max_pending = E1000_MAX_RXD;
 	ring->tx_max_pending = E1000_MAX_TXD;
-	ring->rx_mini_max_pending = 0;
-	ring->rx_jumbo_max_pending = 0;
 	ring->rx_pending = rx_ring->count;
 	ring->tx_pending = tx_ring->count;
-	ring->rx_mini_pending = 0;
-	ring->rx_jumbo_pending = 0;
 }
 
 static int e1000_set_ringparam(struct net_device *netdev,

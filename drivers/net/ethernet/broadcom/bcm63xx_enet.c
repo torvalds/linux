@@ -1398,8 +1398,6 @@ static void bcm_enet_get_ringparam(struct net_device *dev,
 	/* rx/tx ring is actually only limited by memory */
 	ering->rx_max_pending = 8192;
 	ering->tx_max_pending = 8192;
-	ering->rx_mini_max_pending = 0;
-	ering->rx_jumbo_max_pending = 0;
 	ering->rx_pending = priv->rx_ring_size;
 	ering->tx_pending = priv->tx_ring_size;
 }

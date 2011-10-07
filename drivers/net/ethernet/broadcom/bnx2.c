@@ -7155,11 +7155,9 @@ bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	ering->rx_max_pending = MAX_TOTAL_RX_DESC_CNT;
-	ering->rx_mini_max_pending = 0;
 	ering->rx_jumbo_max_pending = MAX_TOTAL_RX_PG_DESC_CNT;
 
 	ering->rx_pending = bp->rx_ring_size;
-	ering->rx_mini_pending = 0;
 	ering->rx_jumbo_pending = bp->rx_pg_ring_size;
 
 	ering->tx_max_pending = MAX_TX_DESC_CNT;

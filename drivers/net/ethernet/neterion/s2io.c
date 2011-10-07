@@ -5522,14 +5522,12 @@ static void s2io_ethtool_gringparam(struct net_device *dev,
 		ering->rx_jumbo_max_pending = MAX_RX_DESC_2;
 	}
 
-	ering->rx_mini_max_pending = 0;
 	ering->tx_max_pending = MAX_TX_DESC;
 
 	for (i = 0; i < sp->config.rx_ring_num; i++)
 		rx_desc_count += sp->config.rx_cfg[i].num_rxd;
 	ering->rx_pending = rx_desc_count;
 	ering->rx_jumbo_pending = rx_desc_count;
-	ering->rx_mini_pending = 0;
 
 	for (i = 0; i < sp->config.tx_fifo_num; i++)
 		tx_desc_count += sp->config.tx_cfg[i].fifo_len;

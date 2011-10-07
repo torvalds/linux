@@ -712,12 +712,10 @@ static void get_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	int jumbo_fl = t1_is_T1B(adapter) ? 1 : 0;
 
 	e->rx_max_pending = MAX_RX_BUFFERS;
-	e->rx_mini_max_pending = 0;
 	e->rx_jumbo_max_pending = MAX_RX_JUMBO_BUFFERS;
 	e->tx_max_pending = MAX_CMDQ_ENTRIES;
 
 	e->rx_pending = adapter->params.sge.freelQ_size[!jumbo_fl];
-	e->rx_mini_pending = 0;
 	e->rx_jumbo_pending = adapter->params.sge.freelQ_size[jumbo_fl];
 	e->tx_pending = adapter->params.sge.cmdQ_size[0];
 }

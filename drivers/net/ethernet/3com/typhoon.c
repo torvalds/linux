@@ -1148,13 +1148,9 @@ static void
 typhoon_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
 	ering->rx_max_pending = RXENT_ENTRIES;
-	ering->rx_mini_max_pending = 0;
-	ering->rx_jumbo_max_pending = 0;
 	ering->tx_max_pending = TXLO_ENTRIES - 1;
 
 	ering->rx_pending = RXENT_ENTRIES;
-	ering->rx_mini_pending = 0;
-	ering->rx_jumbo_pending = 0;
 	ering->tx_pending = TXLO_ENTRIES - 1;
 }
 

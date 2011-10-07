@@ -273,12 +273,8 @@ static void pch_gbe_get_ringparam(struct net_device *netdev,
 
 	ring->rx_max_pending = PCH_GBE_MAX_RXD;
 	ring->tx_max_pending = PCH_GBE_MAX_TXD;
-	ring->rx_mini_max_pending = 0;
-	ring->rx_jumbo_max_pending = 0;
 	ring->rx_pending = rxdr->count;
 	ring->tx_pending = txdr->count;
-	ring->rx_mini_pending = 0;
-	ring->rx_jumbo_pending = 0;
 }
 
 /**

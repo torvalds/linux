@@ -419,13 +419,9 @@ bnad_get_ringparam(struct net_device *netdev,
 	struct bnad *bnad = netdev_priv(netdev);
 
 	ringparam->rx_max_pending = BNAD_MAX_RXQ_DEPTH;
-	ringparam->rx_mini_max_pending = 0;
-	ringparam->rx_jumbo_max_pending = 0;
 	ringparam->tx_max_pending = BNAD_MAX_TXQ_DEPTH;
 
 	ringparam->rx_pending = bnad->rxq_depth;
-	ringparam->rx_mini_max_pending = 0;
-	ringparam->rx_jumbo_max_pending = 0;
 	ringparam->tx_pending = bnad->txq_depth;
 }
 
