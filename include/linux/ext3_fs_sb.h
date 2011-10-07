@@ -76,10 +76,6 @@ struct ext3_sb_info {
 	struct mutex s_resize_lock;
 	unsigned long s_commit_interval;
 	struct block_device *journal_bdev;
-#ifdef CONFIG_JBD_DEBUG
-	struct timer_list turn_ro_timer;	/* For turning read-only (crash simulation) */
-	wait_queue_head_t ro_wait_queue;	/* For people waiting for the fs to go read-only */
-#endif
 #ifdef CONFIG_QUOTA
 	char *s_qf_names[MAXQUOTAS];		/* Names of quota files with journalled quota */
 	int s_jquota_fmt;			/* Format of quota to use */
