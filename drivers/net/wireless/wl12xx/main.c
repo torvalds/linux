@@ -5266,8 +5266,7 @@ static int __devexit wl12xx_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id wl12xx_id_table[] __devinitconst = {
-	{ "wl12xx-sdio", 0 },
-	{ "wl12xx-spi", 0 },
+	{ "wl12xx", 0 },
 	{  } /* Terminating Entry */
 };
 MODULE_DEVICE_TABLE(platform, wl12xx_id_table);
@@ -5277,7 +5276,7 @@ static struct platform_driver wl12xx_driver = {
 	.remove		= __devexit_p(wl12xx_remove),
 	.id_table	= wl12xx_id_table,
 	.driver = {
-		.name	= "wl12xx",
+		.name	= "wl12xx_driver",
 		.owner	= THIS_MODULE,
 	}
 };

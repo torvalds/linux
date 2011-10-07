@@ -226,7 +226,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	/* Tell PM core that we don't need the card to be powered now */
 	pm_runtime_put_noidle(&func->dev);
 
-	glue->core = platform_device_alloc("wl12xx-sdio", -1);
+	glue->core = platform_device_alloc("wl12xx", -1);
 	if (!glue->core) {
 		dev_err(glue->dev, "can't allocate platform_device");
 		ret = -ENOMEM;
