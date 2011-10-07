@@ -85,6 +85,8 @@ void et1310_setup_device_for_unicast(struct et131x_adapter *adapter);
 /* et131x_netdev.c */
 int et131x_open(struct net_device *netdev);
 int et131x_close(struct net_device *netdev);
+void et131x_up(struct net_device *netdev);
+void et131x_down(struct net_device *netdev);
 struct net_device *et131x_device_alloc(void);
 void et131x_enable_txrx(struct net_device *netdev);
 void et131x_disable_txrx(struct net_device *netdev);

@@ -178,6 +178,18 @@ void et131x_disable_txrx(struct net_device *netdev)
 }
 
 /**
+ * et131x_up - Bring up a device for use.
+ * @netdev: device to be opened
+ */
+void et131x_up(struct net_device *netdev)
+{
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+
+	et131x_enable_txrx(netdev);
+	phy_start(adapter->phydev);
+}
+
+/**
  * et131x_open - Open the device for use.
  * @netdev: device to be opened
  *
@@ -205,10 +217,25 @@ int et131x_open(struct net_device *netdev)
 	}
 
 	adapter->flags |= fMP_ADAPTER_INTERRUPT_IN_USE;
-	et131x_enable_txrx(netdev);
-	phy_start(adapter->phydev);
+
+	et131x_up(netdev);
 
 	return result;
+}
+
+/**
+ * et131x_down - Bring down the device
+ * @netdev: device to be broght down
+ */
+void et131x_down(struct net_device *netdev)
+{
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+
+	/* Save the timestamp for the TX watchdog, prevent a timeout */
+	netdev->trans_start = jiffies;
+
+	phy_stop(adapter->phydev);
+	et131x_disable_txrx(netdev);
 }
 
 /**
@@ -221,18 +248,13 @@ int et131x_close(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	/* Save the timestamp for the TX watchdog, prevent a timeout */
-	netdev->trans_start = jiffies;
+	et131x_down(netdev);
 
-	et131x_disable_txrx(netdev);
-
-	/* Deregistering ISR */
 	adapter->flags &= ~fMP_ADAPTER_INTERRUPT_IN_USE;
 	free_irq(netdev->irq, netdev);
 
 	/* Stop the error timer */
-	del_timer_sync(&adapter->error_timer);
-	return 0;
+	return del_timer_sync(&adapter->error_timer);
 }
 
 /**

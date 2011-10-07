@@ -874,14 +874,12 @@ static int et131x_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 
-	if (!netif_running(netdev))
-		return 0;
-
-	et131x_close(netdev);
-	netif_device_detach(netdev);
-
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (netif_running(netdev)) {
+		netif_device_detach(netdev);
+		et131x_down(netdev);
+		pci_save_state(pdev);
+		pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	}
 
 	return 0;
 }
@@ -889,24 +887,15 @@ static int et131x_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 static int et131x_pci_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	int err = 0;
 
-	if (!netif_running(netdev))
-		return 0;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
-	err = et131x_open(netdev);
-	if (err) {
-		dev_err(&pdev->dev, "Can't resume interface!\n");
-		goto out;
+	if (netif_running(netdev)) {
+		pci_set_power_state(pdev, PCI_D0);
+		pci_restore_state(pdev);
+		et131x_up(netdev);
+		netif_device_attach(netdev);
 	}
 
-	netif_device_attach(netdev);
-
-out:
-	return err;
+	return 0;
 }
 
 static struct pci_device_id et131x_pci_table[] __devinitdata = {
