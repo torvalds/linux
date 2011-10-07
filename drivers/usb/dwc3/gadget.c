@@ -1183,7 +1183,7 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg &= ~(DWC3_DCFG_SPEED_MASK);
-	reg |= DWC3_DCFG_SUPERSPEED;
+	reg |= dwc->maximum_speed;
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
 
 	dwc->start_config_issued = false;

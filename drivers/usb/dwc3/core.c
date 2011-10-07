@@ -59,6 +59,10 @@
 
 #include "debug.h"
 
+static char *maximum_speed = "super";
+module_param(maximum_speed, charp, 0);
+MODULE_PARM_DESC(maximum_speed, "Maximum supported speed.");
+
 /**
  * dwc3_core_soft_reset - Issues core soft reset and PHY reset
  * @dwc: pointer to our context structure
@@ -369,6 +373,17 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 	dwc->regs_size	= resource_size(res);
 	dwc->dev	= &pdev->dev;
 	dwc->irq	= irq;
+
+	if (!strncmp("super", maximum_speed, 5))
+		dwc->maximum_speed = DWC3_DCFG_SUPERSPEED;
+	else if (!strncmp("high", maximum_speed, 4))
+		dwc->maximum_speed = DWC3_DCFG_HIGHSPEED;
+	else if (!strncmp("full", maximum_speed, 4))
+		dwc->maximum_speed = DWC3_DCFG_FULLSPEED1;
+	else if (!strncmp("low", maximum_speed, 3))
+		dwc->maximum_speed = DWC3_DCFG_LOWSPEED;
+	else
+		dwc->maximum_speed = DWC3_DCFG_SUPERSPEED;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);

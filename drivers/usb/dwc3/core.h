@@ -555,6 +555,7 @@ struct dwc3_hwparams {
  * @regs: base address for our registers
  * @regs_size: address space size
  * @irq: IRQ number
+ * @maximum_speed: maximum speed requested (mainly for testing purposes)
  * @revision: revision register contents
  * @is_selfpowered: true when we are selfpowered
  * @three_stage_setup: set if we perform a three phase setup
@@ -595,6 +596,7 @@ struct dwc3 {
 
 	int			irq;
 
+	u32			maximum_speed;
 	u32			revision;
 
 #define DWC3_REVISION_173A	0x5533173a
