@@ -17,12 +17,25 @@
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
-		ldr	\base, =gic_cpu_base_addr
+		mov	\tmp, #0
+
+		mrc	p15, 0, \base, c0, c0, 5
+		and	\base, \base, #3
+		cmp	\base, #0
+		beq	1f
+
+		ldr	\tmp, =gic_bank_offset
+		ldr	\tmp, [\tmp]
+		cmp	\base, #1
+		beq	1f
+
+		cmp	\base, #2
+		addeq	\tmp, \tmp, \tmp
+		addne	\tmp, \tmp, \tmp, LSL #1
+
+1:		ldr	\base, =gic_cpu_base_addr
 		ldr	\base, [\base]
-		mrc     p15, 0, \tmp, c0, c0, 5
-		and     \tmp, \tmp, #3
-		cmp     \tmp, #1
-		addeq   \base, \base, #EXYNOS4_GIC_BANK_OFFSET
+		add	\base, \base, \tmp
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2
@@ -80,4 +93,10 @@
 		/* As above, this assumes that irqstat and base are preserved.. */
 
 		.macro test_for_ltirq, irqnr, irqstat, base, tmp
+		bic	\irqnr, \irqstat, #0x1c00
+		mov	\tmp, #0
+		cmp	\irqnr, #28
+		moveq	\tmp, #1
+		streq	\irqstat, [\base, #GIC_CPU_EOI]
+		cmp	\tmp, #0
 		.endm

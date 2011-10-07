@@ -32,6 +32,8 @@
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
 
+unsigned int gic_bank_offset __read_mostly;
+
 extern int combiner_init(unsigned int combiner_nr, void __iomem *base,
 			 unsigned int irq_start);
 extern void combiner_cascade_irq(unsigned int combiner_nr, unsigned int irq);
@@ -191,27 +193,34 @@ void __init exynos4_init_clocks(int xtal)
 
 	if (soc_is_exynos4210())
 		exynos4210_register_clocks();
-	else if (soc_is_exynos4212())
+	else if (soc_is_exynos4212() || soc_is_exynos4412())
 		exynos4212_register_clocks();
 
 	exynos4_register_clocks();
 	exynos4_setup_clocks();
 }
 
-static void exynos4_gic_irq_eoi(struct irq_data *d)
+static void exynos4_gic_irq_fix_base(struct irq_data *d)
 {
 	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
 
 	gic_data->cpu_base = S5P_VA_GIC_CPU +
-			    (EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+			    (gic_bank_offset * smp_processor_id());
+
+	gic_data->dist_base = S5P_VA_GIC_DIST +
+			    (gic_bank_offset * smp_processor_id());
 }
 
 void __init exynos4_init_irq(void)
 {
 	int irq;
 
-	gic_init(0, IRQ_SPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
-	gic_arch_extn.irq_eoi = exynos4_gic_irq_eoi;
+	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
+
+	gic_init(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
+	gic_arch_extn.irq_eoi = exynos4_gic_irq_fix_base;
+	gic_arch_extn.irq_unmask = exynos4_gic_irq_fix_base;
+	gic_arch_extn.irq_mask = exynos4_gic_irq_fix_base;
 
 	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
 
@@ -250,7 +259,7 @@ static int __init exynos4_l2x0_cache_init(void)
 
 	if (soc_is_exynos4210())
 		__raw_writel(0x110, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
-	else if (soc_is_exynos4212())
+	else if (soc_is_exynos4212() || soc_is_exynos4412())
 		__raw_writel(0x120, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
 
 	/* L2X0 Prefetch Control */
