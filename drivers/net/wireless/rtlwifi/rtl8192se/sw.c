@@ -160,6 +160,8 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 
 	rtlpci->first_init = true;
 
+	/* for debug level */
+	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 	/* for LPS & IPS */
 	rtlpriv->psc.inactiveps = rtlpriv->cfg->mod_params->inactiveps;
 	rtlpriv->psc.swctrl_lps = rtlpriv->cfg->mod_params->swctrl_lps;
@@ -272,6 +274,7 @@ static struct rtl_mod_params rtl92se_mod_params = {
 	.inactiveps = true,
 	.swctrl_lps = true,
 	.fwctrl_lps = false,
+	.debug = DBG_EMERG,
 };
 
 /* Because memory R/W bursting will cause system hang/crash
@@ -388,6 +391,7 @@ MODULE_DESCRIPTION("Realtek 8192S/8191S 802.11n PCI wireless");
 MODULE_FIRMWARE("rtlwifi/rtl8192sefw.bin");
 
 module_param_named(swenc, rtl92se_mod_params.sw_crypto, bool, 0444);
+module_param_named(debug, rtl92se_mod_params.debug, int, 0444);
 module_param_named(ips, rtl92se_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl92se_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl92se_mod_params.fwctrl_lps, bool, 0444);
@@ -395,6 +399,7 @@ MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
 MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
+MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 
 static struct pci_driver rtl92se_driver = {
 	.name = KBUILD_MODNAME,

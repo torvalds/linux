@@ -1485,6 +1485,9 @@ struct rtl_mod_params {
 	/* default: 0 = using hardware encryption */
 	int sw_crypto;
 
+	/* default: 0 = DBG_EMERG (0)*/
+	int debug;
+
 	/* default: 1 = using no linked power save */
 	bool inactiveps;
 
