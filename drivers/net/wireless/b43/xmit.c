@@ -735,11 +735,13 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 
 	/* Link quality statistics */
-	if ((chanstat & B43_RX_CHAN_PHYTYPE) == B43_PHYTYPE_N) {
-//		s8 rssi = max(rxhdr->power0, rxhdr->power1);
-		//TODO: Find out what the rssi value is (dBm or percentage?)
-		//      and also find out what the maximum possible value is.
-		//      Fill status.ssi and status.signal fields.
+	if ((chanstat & B43_RX_CHAN_PHYTYPE) >= B43_PHYTYPE_N) {
+		/*
+		s8 rssi = max(rxhdr->power0, rxhdr->power1);
+		TODO: Find out what the rssi value is (dBm or percentage?)
+		      and also find out what the maximum possible value is.
+		      Fill status.ssi and status.signal fields.
+		*/
 	} else {
 		status.signal = b43_rssi_postprocess(dev, rxhdr->jssi,
 						  (phystat0 & B43_RX_PHYST0_OFDM),
