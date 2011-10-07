@@ -1198,7 +1198,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int hdrlen, tid;
+	int tid;
 	u8 *qc;
 
 	memset(tx, 0, sizeof(*tx));
@@ -1295,11 +1295,6 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	else if (test_and_clear_sta_flag(tx->sta, WLAN_STA_CLEAR_PS_FILT))
 		info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
 
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	if (skb->len > hdrlen + sizeof(rfc1042_header) + 2) {
-		u8 *pos = &skb->data[hdrlen + sizeof(rfc1042_header)];
-		tx->ethertype = (pos[0] << 8) | pos[1];
-	}
 	info->flags |= IEEE80211_TX_CTL_FIRST_FRAGMENT;
 
 	return TX_CONTINUE;
