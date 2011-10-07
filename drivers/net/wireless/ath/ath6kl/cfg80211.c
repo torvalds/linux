@@ -237,6 +237,53 @@ static bool ath6kl_cfg80211_ready(struct ath6kl *ar)
 	return true;
 }
 
+static bool ath6kl_is_wpa_ie(const u8 *pos)
+{
+	return pos[0] == WLAN_EID_WPA && pos[1] >= 4 &&
+		pos[2] == 0x00 && pos[3] == 0x50 &&
+		pos[4] == 0xf2 && pos[5] == 0x01;
+}
+
+static bool ath6kl_is_rsn_ie(const u8 *pos)
+{
+	return pos[0] == WLAN_EID_RSN;
+}
+
+static int ath6kl_set_assoc_req_ies(struct ath6kl *ar, const u8 *ies,
+					size_t ies_len)
+{
+	const u8 *pos;
+	u8 *buf = NULL;
+	size_t len = 0;
+	int ret;
+
+	/*
+	 * Filter out RSN/WPA IE(s)
+	 */
+
+	if (ies && ies_len) {
+		buf = kmalloc(ies_len, GFP_KERNEL);
+		if (buf == NULL)
+			return -ENOMEM;
+		pos = ies;
+
+		while (pos + 1 < ies + ies_len) {
+			if (pos + 2 + pos[1] > ies + ies_len)
+				break;
+			if (!(ath6kl_is_wpa_ie(pos) || ath6kl_is_rsn_ie(pos))) {
+				memcpy(buf + len, pos, 2 + pos[1]);
+				len += 2 + pos[1];
+			}
+			pos += 2 + pos[1];
+		}
+	}
+
+	ret = ath6kl_wmi_set_appie_cmd(ar->wmi, WMI_FRAME_ASSOC_REQ,
+				       buf, len);
+	kfree(buf);
+	return ret;
+}
+
 static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_connect_params *sme)
 {
@@ -283,6 +330,12 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			up(&ar->sem);
 			return -EINTR;
 		}
+	}
+
+	if (sme->ie && (sme->ie_len > 0)) {
+		status = ath6kl_set_assoc_req_ies(ar, sme->ie, sme->ie_len);
+		if (status)
+			return status;
 	}
 
 	if (test_bit(CONNECTED, &ar->flag) &&
