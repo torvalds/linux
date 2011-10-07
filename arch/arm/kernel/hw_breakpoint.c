@@ -892,6 +892,10 @@ static void reset_ctrl_regs(void *unused)
 	 * later on.
 	 */
 	switch (debug_arch) {
+	case ARM_DEBUG_ARCH_V6:
+	case ARM_DEBUG_ARCH_V6_1:
+		/* ARMv6 cores just need to reset the registers. */
+		goto reset_regs;
 	case ARM_DEBUG_ARCH_V7_ECP14:
 		/*
 		 * Ensure sticky power-down is clear (i.e. debug logic is
@@ -931,6 +935,7 @@ static void reset_ctrl_regs(void *unused)
 	asm volatile("mcr p14, 0, %0, c0, c7, 0" : : "r" (0));
 	isb();
 
+reset_regs:
 	if (enable_monitor_mode())
 		return;
 
