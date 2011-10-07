@@ -385,20 +385,28 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
 
 static int fimc_md_register_video_nodes(struct fimc_md *fmd)
 {
+	struct video_device *vdev;
 	int i, ret = 0;
 
 	for (i = 0; i < FIMC_MAX_DEVS && !ret; i++) {
 		if (!fmd->fimc[i])
 			continue;
 
-		if (fmd->fimc[i]->m2m.vfd)
-			ret = video_register_device(fmd->fimc[i]->m2m.vfd,
-						    VFL_TYPE_GRABBER, -1);
-		if (ret)
-			break;
-		if (fmd->fimc[i]->vid_cap.vfd)
-			ret = video_register_device(fmd->fimc[i]->vid_cap.vfd,
-						    VFL_TYPE_GRABBER, -1);
+		vdev = fmd->fimc[i]->m2m.vfd;
+		if (vdev) {
+			ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+			if (ret)
+				break;
+			v4l2_info(&fmd->v4l2_dev, "Registered %s as /dev/%s\n",
+				  vdev->name, video_device_node_name(vdev));
+		}
+
+		vdev = fmd->fimc[i]->vid_cap.vfd;
+		if (vdev == NULL)
+			continue;
+		ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+		v4l2_info(&fmd->v4l2_dev, "Registered %s as /dev/%s\n",
+			  vdev->name, video_device_node_name(vdev));
 	}
 
 	return ret;
@@ -746,9 +754,6 @@ static int __devinit fimc_md_probe(struct platform_device *pdev)
 	struct fimc_md *fmd;
 	int ret;
 
-	if (WARN(!pdev->dev.platform_data, "Platform data not specified!\n"))
-		return -EINVAL;
-
 	fmd = kzalloc(sizeof(struct fimc_md), GFP_KERNEL);
 	if (!fmd)
 		return -ENOMEM;
@@ -786,9 +791,11 @@ static int __devinit fimc_md_probe(struct platform_device *pdev)
 	if (ret)
 		goto err3;
 
-	ret = fimc_md_register_sensor_entities(fmd);
-	if (ret)
-		goto err3;
+	if (pdev->dev.platform_data) {
+		ret = fimc_md_register_sensor_entities(fmd);
+		if (ret)
+			goto err3;
+	}
 	ret = fimc_md_create_links(fmd);
 	if (ret)
 		goto err3;
