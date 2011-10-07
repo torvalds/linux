@@ -1358,8 +1358,7 @@ static void end_sync_read(struct bio *bio, int error)
 {
 	r1bio_t *r1_bio = bio->bi_private;
 
-	/* this will call update_head_pos() */
-	find_bio_disk(r1_bio, bio);
+	update_head_pos(r1_bio->read_disk, r1_bio);
 
 	/*
 	 * we have read a block, now it needs to be re-written,
