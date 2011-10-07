@@ -373,7 +373,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	struct ath_frame_info *fi;
 	int nframes;
 	u8 tidno;
-	bool clear_filter;
 
 	skb = bf->bf_mpdu;
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -463,11 +462,9 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				 */
 				txfail = 1;
 			} else if (fi->retries < ATH_MAX_SW_RETRIES) {
-				if (!(ts->ts_status & ATH9K_TXERR_FILT) ||
-				    !an->sleeping)
+				if (txok || !an->sleeping)
 					ath_tx_set_retry(sc, txq, bf->bf_mpdu);
 
-				clear_filter = true;
 				txpending = 1;
 			} else {
 				txfail = 1;
@@ -545,11 +542,13 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			ieee80211_sta_set_buffered(sta, tid->tidno, true);
 
 		spin_lock_bh(&txq->axq_lock);
-		if (clear_filter)
-			tid->ac->clear_ps_filter = true;
 		skb_queue_splice(&bf_pending, &tid->buf_q);
-		if (!an->sleeping)
+		if (!an->sleeping) {
 			ath_tx_queue_tid(txq, tid);
+
+			if (ts->ts_status & ATH9K_TXERR_FILT)
+				tid->ac->clear_ps_filter = true;
+		}
 		spin_unlock_bh(&txq->axq_lock);
 	}
 
