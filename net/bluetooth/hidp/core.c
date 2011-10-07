@@ -979,18 +979,20 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 			bacmp(&bt_sk(ctrl_sock->sk)->dst, &bt_sk(intr_sock->sk)->dst))
 		return -ENOTUNIQ;
 
-	session = kzalloc(sizeof(struct hidp_session), GFP_KERNEL);
-	if (!session)
-		return -ENOMEM;
-
 	BT_DBG("rd_data %p rd_size %d", req->rd_data, req->rd_size);
 
 	down_write(&hidp_session_sem);
 
 	s = __hidp_get_session(&bt_sk(ctrl_sock->sk)->dst);
 	if (s && s->state == BT_CONNECTED) {
-		err = -EEXIST;
-		goto failed;
+		up_write(&hidp_session_sem);
+		return -EEXIST;
+	}
+
+	session = kzalloc(sizeof(struct hidp_session), GFP_KERNEL);
+	if (!session) {
+		up_write(&hidp_session_sem);
+		return -ENOMEM;
 	}
 
 	session->conn = hidp_find_connection(session);
