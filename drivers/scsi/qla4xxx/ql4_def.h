@@ -279,7 +279,8 @@ struct ql82xx_hw_data {
 	uint32_t flt_region_fw;
 
 	uint32_t flt_iscsi_param;
-	uint32_t reserved;
+	uint32_t flt_region_chap;
+	uint32_t flt_chap_size;
 };
 
 struct qla4_8xxx_legacy_intr_set {
@@ -609,6 +610,8 @@ struct scsi_qla_host {
 #define	QLFLASH_READING		1
 #define	QLFLASH_WRITING		2
 	struct dma_pool *chap_dma_pool;
+	uint8_t *chap_list; /* CHAP table cache */
+	struct mutex  chap_sem;
 #define CHAP_DMA_BLOCK_SIZE    512
 	struct workqueue_struct *task_wq;
 	unsigned long ddb_idx_map[MAX_DDB_ENTRIES / BITS_PER_LONG];
@@ -669,6 +672,11 @@ static inline int is_qla4022(struct scsi_qla_host *ha)
 static inline int is_qla4032(struct scsi_qla_host *ha)
 {
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP4032;
+}
+
+static inline int is_qla40XX(struct scsi_qla_host *ha)
+{
+	return is_qla4032(ha) || is_qla4022(ha) || is_qla4010(ha);
 }
 
 static inline int is_qla8022(struct scsi_qla_host *ha)

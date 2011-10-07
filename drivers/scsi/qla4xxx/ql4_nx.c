@@ -2024,6 +2024,10 @@ qla4_8xxx_get_flt_info(struct scsi_qla_host *ha, uint32_t flt_addr)
 		case FLT_REG_ISCSI_PARAM:
 			hw->flt_iscsi_param =  start;
 			break;
+		case FLT_REG_ISCSI_CHAP:
+			hw->flt_region_chap =  start;
+			hw->flt_chap_size =  le32_to_cpu(region->size);
+			break;
 		}
 	}
 	goto done;
@@ -2036,6 +2040,9 @@ no_flash_data:
 	hw->flt_region_boot     = FA_BOOT_CODE_ADDR_82;
 	hw->flt_region_bootload = FA_BOOT_LOAD_ADDR_82;
 	hw->flt_region_fw       = FA_RISC_CODE_ADDR_82;
+	hw->flt_region_chap	= FA_FLASH_ISCSI_CHAP;
+	hw->flt_chap_size	= FA_FLASH_CHAP_SIZE;
+
 done:
 	DEBUG2(ql4_printk(KERN_INFO, ha, "FLT[%s]: flt=0x%x fdt=0x%x "
 	    "boot=0x%x bootload=0x%x fw=0x%x\n", loc, hw->flt_region_flt,

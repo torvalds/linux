@@ -1304,7 +1304,7 @@ int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
 {
 	int ret = 0;
 	int rval = QLA_ERROR;
-	uint32_t offset = 0;
+	uint32_t offset = 0, chap_size;
 	struct ql4_chap_table *chap_table;
 	dma_addr_t chap_dma;
 
@@ -1314,12 +1314,22 @@ int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
 		goto exit_get_chap;
 	}
 
-	memset(chap_table, 0, sizeof(struct ql4_chap_table));
+	chap_size = sizeof(struct ql4_chap_table);
+	memset(chap_table, 0, chap_size);
 
-	offset = 0x06000000 | (idx * sizeof(struct ql4_chap_table));
+	if (is_qla40XX(ha))
+		offset = FLASH_CHAP_OFFSET | (idx * chap_size);
+	else {
+		offset = FLASH_RAW_ACCESS_ADDR + (ha->hw.flt_region_chap << 2);
+		/* flt_chap_size is CHAP table size for both ports
+		 * so divide it by 2 to calculate the offset for second port
+		 */
+		if (ha->port_num == 1)
+			offset += (ha->hw.flt_chap_size / 2);
+		offset += (idx * chap_size);
+	}
 
-	rval = qla4xxx_get_flash(ha, chap_dma, offset,
-				 sizeof(struct ql4_chap_table));
+	rval = qla4xxx_get_flash(ha, chap_dma, offset, chap_size);
 	if (rval != QLA_SUCCESS) {
 		ret = -EINVAL;
 		goto exit_get_chap;
@@ -1366,16 +1376,99 @@ static int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username,
 	strncpy(chap_table->secret, password, MAX_CHAP_SECRET_LEN);
 	strncpy(chap_table->name, username, MAX_CHAP_NAME_LEN);
 	chap_table->cookie = __constant_cpu_to_le16(CHAP_VALID_COOKIE);
-	offset = 0x06000000 | (idx * sizeof(struct ql4_chap_table));
+	offset = FLASH_CHAP_OFFSET | (idx * sizeof(struct ql4_chap_table));
 	rval = qla4xxx_set_flash(ha, chap_dma, offset,
 				sizeof(struct ql4_chap_table),
 				FLASH_OPT_RMW_COMMIT);
+
+	if (rval == QLA_SUCCESS && ha->chap_list) {
+		/* Update ha chap_list cache */
+		memcpy((struct ql4_chap_table *)ha->chap_list + idx,
+		       chap_table, sizeof(struct ql4_chap_table));
+	}
 	dma_pool_free(ha->chap_dma_pool, chap_table, chap_dma);
 	if (rval != QLA_SUCCESS)
 		ret =  -EINVAL;
 
 exit_set_chap:
 	return ret;
+}
+
+/**
+ * qla4xxx_get_chap_index - Get chap index given username and secret
+ * @ha: pointer to adapter structure
+ * @username: CHAP username to be searched
+ * @password: CHAP password to be searched
+ * @bidi: Is this a BIDI CHAP
+ * @chap_index: CHAP index to be returned
+ *
+ * Match the username and password in the chap_list, return the index if a
+ * match is found. If a match is not found then add the entry in FLASH and
+ * return the index at which entry is written in the FLASH.
+ **/
+static int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
+			    char *password, int bidi, uint16_t *chap_index)
+{
+	int i, rval;
+	int free_index = -1;
+	int found_index = 0;
+	int max_chap_entries = 0;
+	struct ql4_chap_table *chap_table;
+
+	if (is_qla8022(ha))
+		max_chap_entries = (ha->hw.flt_chap_size / 2) /
+						sizeof(struct ql4_chap_table);
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+
+	if (!ha->chap_list) {
+		ql4_printk(KERN_ERR, ha, "Do not have CHAP table cache\n");
+		return QLA_ERROR;
+	}
+
+	mutex_lock(&ha->chap_sem);
+	for (i = 0; i < max_chap_entries; i++) {
+		chap_table = (struct ql4_chap_table *)ha->chap_list + i;
+		if (chap_table->cookie !=
+		    __constant_cpu_to_le16(CHAP_VALID_COOKIE)) {
+			if (i > MAX_RESRV_CHAP_IDX && free_index == -1)
+				free_index = i;
+			continue;
+		}
+		if (bidi) {
+			if (chap_table->flags & BIT_7)
+				continue;
+		} else {
+			if (chap_table->flags & BIT_6)
+				continue;
+		}
+		if (!strncmp(chap_table->secret, password,
+			     MAX_CHAP_SECRET_LEN) &&
+		    !strncmp(chap_table->name, username,
+			     MAX_CHAP_NAME_LEN)) {
+			*chap_index = i;
+			found_index = 1;
+			break;
+		}
+	}
+
+	/* If chap entry is not present and a free index is available then
+	 * write the entry in flash
+	 */
+	if (!found_index && free_index != -1) {
+		rval = qla4xxx_set_chap(ha, username, password,
+					free_index, bidi);
+		if (!rval) {
+			*chap_index = free_index;
+			found_index = 1;
+		}
+	}
+
+	mutex_unlock(&ha->chap_sem);
+
+	if (found_index)
+		return QLA_SUCCESS;
+	return QLA_ERROR;
 }
 
 int qla4xxx_conn_close_sess_logout(struct scsi_qla_host *ha,
@@ -1490,7 +1583,6 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 	uint16_t iscsi_opts = 0;
 	uint32_t options = 0;
 	uint16_t idx;
-	int max_chap_entries = 0;
 
 	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 					  &fw_ddb_entry_dma, GFP_KERNEL);
@@ -1559,26 +1651,14 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 		goto exit_set_param;
 	}
 
-	if (is_qla8022(ha))
-		max_chap_entries = MAX_CHAP_ENTRIES_82XX;
-	else
-		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
 	/* CHAP */
 	if (sess->username != NULL && sess->password != NULL) {
 		if (strlen(sess->username) && strlen(sess->password)) {
 			iscsi_opts |= BIT_7;
-			idx = ddb_entry->fw_ddb_index * 2;
-			if (idx > max_chap_entries) {
-				ql4_printk(KERN_ERR, ha,
-					   "%s: Invalid ddb or chap index\n",
-					   __func__);
-				rval  = -EINVAL;
-				goto exit_set_param;
-			}
 
-			rval = qla4xxx_set_chap(ha, sess->username,
-						sess->password, idx,
-						LOCAL_CHAP);
+			rval = qla4xxx_get_chap_index(ha, sess->username,
+						sess->password,
+						LOCAL_CHAP, &idx);
 			if (rval)
 				goto exit_set_param;
 
@@ -1590,17 +1670,10 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 		/* Check if BIDI CHAP */
 		if (strlen(sess->username_in) && strlen(sess->password_in)) {
 			iscsi_opts |= BIT_4;
-			idx = (ddb_entry->fw_ddb_index * 2) + 1;
-			if (idx > max_chap_entries) {
-				ql4_printk(KERN_ERR, ha,
-					   "%s: Invalid ddb or bidi chap "
-					   "index\n", __func__);
-				rval  = -EINVAL;
-				goto exit_set_param;
-			}
-			rval = qla4xxx_set_chap(ha, sess->username_in,
-						sess->password_in, idx,
-						BIDI_CHAP);
+
+			rval = qla4xxx_get_chap_index(ha, sess->username_in,
+						      sess->password_in,
+						      BIDI_CHAP, &idx);
 			if (rval)
 				goto exit_set_param;
 		}

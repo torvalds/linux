@@ -251,6 +251,8 @@ union external_hw_config_reg {
 #define FA_BOOT_CODE_ADDR_82		0x20000
 #define FA_RISC_CODE_ADDR_82		0x40000
 #define FA_GOLD_RISC_CODE_ADDR_82	0x80000
+#define FA_FLASH_ISCSI_CHAP		0x540000
+#define FA_FLASH_CHAP_SIZE		0xC0000
 
 /* Flash Description Table */
 struct qla_fdt_layout {
@@ -310,6 +312,7 @@ struct qla_flt_header {
 #define FLT_REG_GOLD_FW_82	0x75
 #define FLT_REG_BOOT_CODE_82	0x78
 #define FLT_REG_ISCSI_PARAM	0x65
+#define FLT_REG_ISCSI_CHAP	0x63
 
 struct qla_flt_region {
 	uint32_t code;
@@ -681,6 +684,8 @@ struct addr_ctrl_blk_def {
 
 #define MAX_CHAP_ENTRIES_40XX	128
 #define MAX_CHAP_ENTRIES_82XX	1024
+#define MAX_RESRV_CHAP_IDX	3
+#define FLASH_CHAP_OFFSET	0x06000000
 
 struct ql4_chap_table {
 	uint16_t link;
