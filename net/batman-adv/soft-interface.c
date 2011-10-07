@@ -566,7 +566,7 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	struct orig_node *orig_node = NULL;
 	int data_len = skb->len, ret;
 	short vid = -1;
-	bool do_bcast = false;
+	bool do_bcast;
 
 	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
 		goto dropped;
@@ -600,15 +600,15 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 
 	orig_node = transtable_search(bat_priv, ethhdr->h_source,
 				      ethhdr->h_dest);
-	if (is_multicast_ether_addr(ethhdr->h_dest) ||
-				(orig_node && orig_node->gw_flags)) {
+	do_bcast = is_multicast_ether_addr(ethhdr->h_dest);
+	if (do_bcast || (orig_node && orig_node->gw_flags)) {
 		ret = gw_is_target(bat_priv, skb, orig_node);
 
 		if (ret < 0)
 			goto dropped;
 
-		if (ret == 0)
-			do_bcast = true;
+		if (ret)
+			do_bcast = false;
 	}
 
 	/* ethernet packet should be broadcasted */

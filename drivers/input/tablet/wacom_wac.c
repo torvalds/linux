@@ -1124,11 +1124,8 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		for (i = 0; i < 8; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);
 
-		if (wacom_wac->features.type != WACOM_21UX2) {
-			input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
-			input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
-		}
-
+		input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
+		input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
