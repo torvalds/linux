@@ -1080,7 +1080,8 @@ static int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 	if (!buff)
 		return -ENOMEM;
 
-	if ((Adapter->pstargetparams = kmalloc(sizeof(STARGETPARAMS), GFP_KERNEL)) == NULL) {
+	Adapter->pstargetparams = kmalloc(sizeof(STARGETPARAMS), GFP_KERNEL);
+	if (Adapter->pstargetparams == NULL) {
 		kfree(buff);
 		return -ENOMEM;
 	}
