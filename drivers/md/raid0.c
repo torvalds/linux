@@ -49,32 +49,32 @@ static int raid0_congested(void *data, int bits)
 */
 static void dump_zones(mddev_t *mddev)
 {
-	int j, k, h;
+	int j, k;
 	sector_t zone_size = 0;
 	sector_t zone_start = 0;
 	char b[BDEVNAME_SIZE];
 	raid0_conf_t *conf = mddev->private;
 	int raid_disks = conf->strip_zone[0].nb_dev;
-	printk(KERN_INFO "******* %s configuration *********\n",
-		mdname(mddev));
-	h = 0;
+	printk(KERN_INFO "md: RAID0 configuration for %s - %d zone%s\n",
+	       mdname(mddev),
+	       conf->nr_strip_zones, conf->nr_strip_zones==1?"":"s");
 	for (j = 0; j < conf->nr_strip_zones; j++) {
-		printk(KERN_INFO "zone%d=[", j);
+		printk(KERN_INFO "md: zone%d=[", j);
 		for (k = 0; k < conf->strip_zone[j].nb_dev; k++)
-			printk(KERN_CONT "%s/",
+			printk(KERN_CONT "%s%s", k?"/":"",
 			bdevname(conf->devlist[j*raid_disks
 						+ k]->bdev, b));
 		printk(KERN_CONT "]\n");
 
 		zone_size  = conf->strip_zone[j].zone_end - zone_start;
-		printk(KERN_INFO "        zone offset=%llukb "
-				"device offset=%llukb size=%llukb\n",
+		printk(KERN_INFO "      zone-offset=%10lluKB, "
+				"device-offset=%10lluKB, size=%10lluKB\n",
 			(unsigned long long)zone_start>>1,
 			(unsigned long long)conf->strip_zone[j].dev_start>>1,
 			(unsigned long long)zone_size>>1);
 		zone_start = conf->strip_zone[j].zone_end;
 	}
-	printk(KERN_INFO "**********************************\n\n");
+	printk(KERN_INFO "\n");
 }
 
 static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
@@ -85,14 +85,15 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 	struct strip_zone *zone;
 	int cnt;
 	char b[BDEVNAME_SIZE];
+	char b2[BDEVNAME_SIZE];
 	raid0_conf_t *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
 
 	if (!conf)
 		return -ENOMEM;
 	list_for_each_entry(rdev1, &mddev->disks, same_set) {
-		printk(KERN_INFO "md/raid0:%s: looking at %s\n",
-		       mdname(mddev),
-		       bdevname(rdev1->bdev, b));
+		pr_debug("md/raid0:%s: looking at %s\n",
+			 mdname(mddev),
+			 bdevname(rdev1->bdev, b));
 		c = 0;
 
 		/* round size to chunk_size */
@@ -101,16 +102,16 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 		rdev1->sectors = sectors * mddev->chunk_sectors;
 
 		list_for_each_entry(rdev2, &mddev->disks, same_set) {
-			printk(KERN_INFO "md/raid0:%s:   comparing %s(%llu)",
-			       mdname(mddev),
-			       bdevname(rdev1->bdev,b),
-			       (unsigned long long)rdev1->sectors);
-			printk(KERN_CONT " with %s(%llu)\n",
-			       bdevname(rdev2->bdev,b),
-			       (unsigned long long)rdev2->sectors);
+			pr_debug("md/raid0:%s:   comparing %s(%llu)"
+				 " with %s(%llu)\n",
+				 mdname(mddev),
+				 bdevname(rdev1->bdev,b),
+				 (unsigned long long)rdev1->sectors,
+				 bdevname(rdev2->bdev,b2),
+				 (unsigned long long)rdev2->sectors);
 			if (rdev2 == rdev1) {
-				printk(KERN_INFO "md/raid0:%s:   END\n",
-				       mdname(mddev));
+				pr_debug("md/raid0:%s:   END\n",
+					 mdname(mddev));
 				break;
 			}
 			if (rdev2->sectors == rdev1->sectors) {
@@ -118,24 +119,24 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 				 * Not unique, don't count it as a new
 				 * group
 				 */
-				printk(KERN_INFO "md/raid0:%s:   EQUAL\n",
-				       mdname(mddev));
+				pr_debug("md/raid0:%s:   EQUAL\n",
+					 mdname(mddev));
 				c = 1;
 				break;
 			}
-			printk(KERN_INFO "md/raid0:%s:   NOT EQUAL\n",
-			       mdname(mddev));
+			pr_debug("md/raid0:%s:   NOT EQUAL\n",
+				 mdname(mddev));
 		}
 		if (!c) {
-			printk(KERN_INFO "md/raid0:%s:   ==> UNIQUE\n",
-			       mdname(mddev));
+			pr_debug("md/raid0:%s:   ==> UNIQUE\n",
+				 mdname(mddev));
 			conf->nr_strip_zones++;
-			printk(KERN_INFO "md/raid0:%s: %d zones\n",
-			       mdname(mddev), conf->nr_strip_zones);
+			pr_debug("md/raid0:%s: %d zones\n",
+				 mdname(mddev), conf->nr_strip_zones);
 		}
 	}
-	printk(KERN_INFO "md/raid0:%s: FINAL %d zones\n",
-	       mdname(mddev), conf->nr_strip_zones);
+	pr_debug("md/raid0:%s: FINAL %d zones\n",
+		 mdname(mddev), conf->nr_strip_zones);
 	err = -ENOMEM;
 	conf->strip_zone = kzalloc(sizeof(struct strip_zone)*
 				conf->nr_strip_zones, GFP_KERNEL);
@@ -218,44 +219,45 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 		zone = conf->strip_zone + i;
 		dev = conf->devlist + i * mddev->raid_disks;
 
-		printk(KERN_INFO "md/raid0:%s: zone %d\n",
-		       mdname(mddev), i);
+		pr_debug("md/raid0:%s: zone %d\n", mdname(mddev), i);
 		zone->dev_start = smallest->sectors;
 		smallest = NULL;
 		c = 0;
 
 		for (j=0; j<cnt; j++) {
 			rdev = conf->devlist[j];
-			printk(KERN_INFO "md/raid0:%s: checking %s ...",
-			       mdname(mddev),
-			       bdevname(rdev->bdev, b));
 			if (rdev->sectors <= zone->dev_start) {
-				printk(KERN_CONT " nope.\n");
+				pr_debug("md/raid0:%s: checking %s ... nope\n",
+					 mdname(mddev),
+					 bdevname(rdev->bdev, b));
 				continue;
 			}
-			printk(KERN_CONT " contained as device %d\n", c);
+			pr_debug("md/raid0:%s: checking %s ..."
+				 " contained as device %d\n",
+				 mdname(mddev),
+				 bdevname(rdev->bdev, b), c);
 			dev[c] = rdev;
 			c++;
 			if (!smallest || rdev->sectors < smallest->sectors) {
 				smallest = rdev;
-				printk(KERN_INFO "md/raid0:%s:  (%llu) is smallest!.\n",
-				       mdname(mddev),
-				       (unsigned long long)rdev->sectors);
+				pr_debug("md/raid0:%s:  (%llu) is smallest!.\n",
+					 mdname(mddev),
+					 (unsigned long long)rdev->sectors);
 			}
 		}
 
 		zone->nb_dev = c;
 		sectors = (smallest->sectors - zone->dev_start) * c;
-		printk(KERN_INFO "md/raid0:%s: zone->nb_dev: %d, sectors: %llu\n",
-		       mdname(mddev),
-		       zone->nb_dev, (unsigned long long)sectors);
+		pr_debug("md/raid0:%s: zone->nb_dev: %d, sectors: %llu\n",
+			 mdname(mddev),
+			 zone->nb_dev, (unsigned long long)sectors);
 
 		curr_zone_end += sectors;
 		zone->zone_end = curr_zone_end;
 
-		printk(KERN_INFO "md/raid0:%s: current zone start: %llu\n",
-		       mdname(mddev),
-		       (unsigned long long)smallest->sectors);
+		pr_debug("md/raid0:%s: current zone start: %llu\n",
+			 mdname(mddev),
+			 (unsigned long long)smallest->sectors);
 	}
 	mddev->queue->backing_dev_info.congested_fn = raid0_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
@@ -275,7 +277,7 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 	blk_queue_io_opt(mddev->queue,
 			 (mddev->chunk_sectors << 9) * mddev->raid_disks);
 
-	printk(KERN_INFO "md/raid0:%s: done.\n", mdname(mddev));
+	pr_debug("md/raid0:%s: done.\n", mdname(mddev));
 	*private_conf = conf;
 
 	return 0;
