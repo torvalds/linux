@@ -1167,7 +1167,7 @@ static bool bio_attempt_front_merge(struct request_queue *q,
  * true if merge was successful, otherwise false.
  */
 static bool attempt_plug_merge(struct task_struct *tsk, struct request_queue *q,
-			       struct bio *bio)
+			       struct bio *bio, unsigned int *request_count)
 {
 	struct blk_plug *plug;
 	struct request *rq;
@@ -1176,9 +1176,12 @@ static bool attempt_plug_merge(struct task_struct *tsk, struct request_queue *q,
 	plug = tsk->plug;
 	if (!plug)
 		goto out;
+	*request_count = 0;
 
 	list_for_each_entry_reverse(rq, &plug->list, queuelist) {
 		int el_ret;
+
+		(*request_count)++;
 
 		if (rq->q != q)
 			continue;
@@ -1219,6 +1222,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	struct blk_plug *plug;
 	int el_ret, rw_flags, where = ELEVATOR_INSERT_SORT;
 	struct request *req;
+	unsigned int request_count = 0;
 
 	/*
 	 * low level driver can indicate that it wants pages above a
@@ -1237,7 +1241,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (attempt_plug_merge(current, q, bio))
+	if (attempt_plug_merge(current, q, bio, &request_count))
 		goto out;
 
 	spin_lock_irq(q->queue_lock);
@@ -1302,11 +1306,10 @@ get_rq:
 			if (__rq->q != q)
 				plug->should_sort = 1;
 		}
-		list_add_tail(&req->queuelist, &plug->list);
-		plug->count++;
-		drive_stat_acct(req, 1);
-		if (plug->count >= BLK_MAX_REQUEST_COUNT)
+		if (request_count >= BLK_MAX_REQUEST_COUNT)
 			blk_flush_plug_list(plug, false);
+		list_add_tail(&req->queuelist, &plug->list);
+		drive_stat_acct(req, 1);
 	} else {
 		spin_lock_irq(q->queue_lock);
 		add_acct_request(q, req, where);
@@ -2634,7 +2637,6 @@ void blk_start_plug(struct blk_plug *plug)
 	INIT_LIST_HEAD(&plug->list);
 	INIT_LIST_HEAD(&plug->cb_list);
 	plug->should_sort = 0;
-	plug->count = 0;
 
 	/*
 	 * If this is a nested plug, don't actually assign it. It will be
@@ -2718,7 +2720,6 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		return;
 
 	list_splice_init(&plug->list, &list);
-	plug->count = 0;
 
 	if (plug->should_sort) {
 		list_sort(NULL, &list, plug_rq_cmp);

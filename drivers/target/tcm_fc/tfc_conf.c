@@ -327,7 +327,6 @@ static struct se_portal_group *ft_add_tpg(
 	tpg->index = index;
 	tpg->lport_acl = lacl;
 	INIT_LIST_HEAD(&tpg->lun_list);
-	transport_init_queue_obj(&tpg->qobj);
 
 	ret = core_tpg_register(&ft_configfs->tf_ops, wwn, &tpg->se_tpg,
 				tpg, TRANSPORT_TPG_TYPE_NORMAL);
@@ -336,8 +335,8 @@ static struct se_portal_group *ft_add_tpg(
 		return NULL;
 	}
 
-	tpg->thread = kthread_run(ft_thread, tpg, "ft_tpg%lu", index);
-	if (IS_ERR(tpg->thread)) {
+	tpg->workqueue = alloc_workqueue("tcm_fc", 0, 1);
+	if (!tpg->workqueue) {
 		kfree(tpg);
 		return NULL;
 	}
@@ -356,7 +355,7 @@ static void ft_del_tpg(struct se_portal_group *se_tpg)
 	pr_debug("del tpg %s\n",
 		    config_item_name(&tpg->se_tpg.tpg_group.cg_item));
 
-	kthread_stop(tpg->thread);
+	destroy_workqueue(tpg->workqueue);
 
 	/* Wait for sessions to be freed thru RCU, for BUG_ON below */
 	synchronize_rcu();

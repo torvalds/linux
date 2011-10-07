@@ -168,7 +168,7 @@ struct alc_spec {
 	unsigned int auto_mic_valid_imux:1;	/* valid imux for auto-mic */
 	unsigned int automute:1;	/* HP automute enabled */
 	unsigned int detect_line:1;	/* Line-out detection enabled */
-	unsigned int automute_lines:1;	/* automute line-out as well */
+	unsigned int automute_lines:1;	/* automute line-out as well; NOP when automute_hp_lo isn't set */
 	unsigned int automute_hp_lo:1;	/* both HP and LO available */
 
 	/* other flags */
@@ -551,7 +551,7 @@ static void update_speakers(struct hda_codec *codec)
 	if (spec->autocfg.line_out_pins[0] == spec->autocfg.hp_pins[0] ||
 	    spec->autocfg.line_out_pins[0] == spec->autocfg.speaker_pins[0])
 		return;
-	if (!spec->automute_lines || !spec->automute)
+	if (!spec->automute || (spec->automute_hp_lo && !spec->automute_lines))
 		on = 0;
 	else
 		on = spec->jack_present;
@@ -803,7 +803,7 @@ static int alc_automute_mode_get(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	if (!spec->automute)
 		val = 0;
-	else if (!spec->automute_lines)
+	else if (!spec->automute_hp_lo || !spec->automute_lines)
 		val = 1;
 	else
 		val = 2;
@@ -824,7 +824,8 @@ static int alc_automute_mode_put(struct snd_kcontrol *kcontrol,
 		spec->automute = 0;
 		break;
 	case 1:
-		if (spec->automute && !spec->automute_lines)
+		if (spec->automute &&
+		    (!spec->automute_hp_lo || !spec->automute_lines))
 			return 0;
 		spec->automute = 1;
 		spec->automute_lines = 0;
