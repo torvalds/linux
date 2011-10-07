@@ -1142,8 +1142,12 @@ static int qla4xxx_conn_start(struct iscsi_cls_conn *cls_conn)
 		*/
 		if (mbx_sts)
 			if (ddb_entry->fw_ddb_device_state ==
-							DDB_DS_SESSION_ACTIVE)
+						DDB_DS_SESSION_ACTIVE) {
+				iscsi_conn_start(ddb_entry->conn);
+				iscsi_conn_login_event(ddb_entry->conn,
+						ISCSI_CONN_STATE_LOGGED_IN);
 				goto exit_set_param;
+			}
 
 		ql4_printk(KERN_ERR, ha, "%s: Failed set param for index[%d]\n",
 			   __func__, ddb_entry->fw_ddb_index);
