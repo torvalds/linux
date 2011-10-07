@@ -3406,7 +3406,7 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 		}
 
 	}
-	if (reclaimed >= to_reclaim && !trans)
+	if (reclaimed < to_reclaim && !trans)
 		btrfs_wait_ordered_extents(root, 0, 0);
 	return reclaimed >= to_reclaim;
 }
