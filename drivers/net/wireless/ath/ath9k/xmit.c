@@ -373,6 +373,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	struct ath_frame_info *fi;
 	int nframes;
 	u8 tidno;
+	bool flush = !!(ts->ts_status & ATH9K_TX_FLUSH);
 
 	skb = bf->bf_mpdu;
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -461,6 +462,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				 * the un-acked sub-frames
 				 */
 				txfail = 1;
+			} else if (flush) {
+				txpending = 1;
 			} else if (fi->retries < ATH_MAX_SW_RETRIES) {
 				if (txok || !an->sleeping)
 					ath_tx_set_retry(sc, txq, bf->bf_mpdu);
@@ -518,7 +521,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 						ath_tx_complete_buf(sc, bf, txq,
 								    &bf_head,
-								    ts, 0, 1);
+								    ts, 0,
+								    !flush);
 						break;
 					}
 
@@ -1401,6 +1405,7 @@ static void ath_drain_txq_list(struct ath_softc *sc, struct ath_txq *txq,
 	struct ath_tx_status ts;
 
 	memset(&ts, 0, sizeof(ts));
+	ts.ts_status = ATH9K_TX_FLUSH;
 	INIT_LIST_HEAD(&bf_head);
 
 	while (!list_empty(list)) {
