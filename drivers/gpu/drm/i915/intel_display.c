@@ -1096,7 +1096,7 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 {
 	u32 val = I915_READ(reg);
 	WARN(hdmi_pipe_enabled(dev_priv, val, pipe),
-	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
+	     "PCH HDMI (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 }
 
