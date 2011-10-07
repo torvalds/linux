@@ -1398,9 +1398,9 @@ static struct clk dss_dss_clk = {
 };
 
 static const struct clksel_rate div3_8to32_rates[] = {
-	{ .div = 8, .val = 0, .flags = RATE_IN_44XX },
-	{ .div = 16, .val = 1, .flags = RATE_IN_44XX },
-	{ .div = 32, .val = 2, .flags = RATE_IN_44XX },
+	{ .div = 8, .val = 0, .flags = RATE_IN_4460 },
+	{ .div = 16, .val = 1, .flags = RATE_IN_4460 },
+	{ .div = 32, .val = 2, .flags = RATE_IN_4460 },
 	{ .div = 0 },
 };
 
@@ -3370,12 +3370,12 @@ int __init omap4xxx_clk_init(void)
 	struct omap_clk *c;
 	u32 cpu_clkflg;
 
-	if (cpu_is_omap44xx()) {
+	if (cpu_is_omap443x()) {
 		cpu_mask = RATE_IN_4430;
 		cpu_clkflg = CK_443X;
 	} else if (cpu_is_omap446x()) {
-		cpu_mask = RATE_IN_4460;
-		cpu_clkflg = CK_446X;
+		cpu_mask = RATE_IN_4460 | RATE_IN_4430;
+		cpu_clkflg = CK_446X | CK_443X;
 	} else {
 		return 0;
 	}
