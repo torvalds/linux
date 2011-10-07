@@ -943,6 +943,7 @@ static struct omap_hwmod omap2420_dss_dispc_hwmod = {
 	.slaves		= omap2420_dss_dispc_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap2420_dss_dispc_slaves),
 	.flags		= HWMOD_NO_IDLEST,
+	.dev_attr	= &omap2_3_dss_dispc_dev_attr
 };
 
 /* l4_core -> dss_rfbi */

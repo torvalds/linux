@@ -1327,6 +1327,11 @@ static struct omap_hwmod_addr_space omap44xx_dss_dispc_addrs[] = {
 	{ }
 };
 
+static struct omap_dss_dispc_dev_attr omap44xx_dss_dispc_dev_attr = {
+	.manager_count		= 3,
+	.has_framedonetv_irq	= 1
+};
+
 /* l4_per -> dss_dispc */
 static struct omap_hwmod_ocp_if omap44xx_l4_per__dss_dispc = {
 	.master		= &omap44xx_l4_per_hwmod,
@@ -1357,6 +1362,7 @@ static struct omap_hwmod omap44xx_dss_dispc_hwmod = {
 	},
 	.slaves		= omap44xx_dss_dispc_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_dss_dispc_slaves),
+	.dev_attr	= &omap44xx_dss_dispc_dev_attr
 };
 
 /*
