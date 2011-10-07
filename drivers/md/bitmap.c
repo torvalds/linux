@@ -50,14 +50,6 @@
 #define INJECT_FATAL_FAULT_3 0 /* undef */
 #endif
 
-#ifndef PRINTK
-#  if DEBUG > 0
-#    define PRINTK(x...) printk(KERN_DEBUG x)
-#  else
-#    define PRINTK(x...)
-#  endif
-#endif
-
 static inline char *bmname(struct bitmap *bitmap)
 {
 	return bitmap->mddev ? mdname(bitmap->mddev) : "mdX";
@@ -78,8 +70,8 @@ static unsigned char *bitmap_alloc_page(struct bitmap *bitmap)
 	if (!page)
 		printk("%s: bitmap_alloc_page FAILED\n", bmname(bitmap));
 	else
-		PRINTK("%s: bitmap_alloc_page: allocated page at %p\n",
-			bmname(bitmap), page);
+		pr_debug("%s: bitmap_alloc_page: allocated page at %p\n",
+			 bmname(bitmap), page);
 	return page;
 }
 
@@ -88,7 +80,7 @@ static unsigned char *bitmap_alloc_page(struct bitmap *bitmap)
  */
 static void bitmap_free_page(struct bitmap *bitmap, unsigned char *page)
 {
-	PRINTK("%s: bitmap_free_page: free page %p\n", bmname(bitmap), page);
+	pr_debug("%s: bitmap_free_page: free page %p\n", bmname(bitmap), page);
 	kfree(page);
 }
 
@@ -133,8 +125,8 @@ __acquires(bitmap->lock)
 	spin_lock_irq(&bitmap->lock);
 
 	if (mappage == NULL) {
-		PRINTK("%s: bitmap map page allocation failed, hijacking\n",
-			bmname(bitmap));
+		pr_debug("%s: bitmap map page allocation failed, hijacking\n",
+			 bmname(bitmap));
 		/* failed - set the hijacked flag so that we can use the
 		 * pointer as a counter */
 		if (!bitmap->bp[page].map)
@@ -409,8 +401,8 @@ static struct page *read_page(struct file *file, unsigned long index,
 	struct buffer_head *bh;
 	sector_t block;
 
-	PRINTK("read bitmap file (%dB @ %llu)\n", (int)PAGE_SIZE,
-			(unsigned long long)index << PAGE_SHIFT);
+	pr_debug("read bitmap file (%dB @ %llu)\n", (int)PAGE_SIZE,
+		 (unsigned long long)index << PAGE_SHIFT);
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
@@ -920,7 +912,7 @@ static void bitmap_file_set_bit(struct bitmap *bitmap, sector_t block)
 	else
 		__set_bit_le(bit, kaddr);
 	kunmap_atomic(kaddr, KM_USER0);
-	PRINTK("set file bit %lu page %lu\n", bit, page->index);
+	pr_debug("set file bit %lu page %lu\n", bit, page->index);
 	/* record page number so it gets flushed to disk when unplug occurs */
 	set_page_attr(bitmap, page, BITMAP_PAGE_DIRTY);
 }
@@ -1364,8 +1356,8 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 		if (bw > bitmap->behind_writes_used)
 			bitmap->behind_writes_used = bw;
 
-		PRINTK(KERN_DEBUG "inc write-behind count %d/%d\n",
-		       bw, bitmap->max_write_behind);
+		pr_debug("inc write-behind count %d/%lu\n",
+			 bw, bitmap->mddev->bitmap_info.max_write_behind);
 	}
 
 	while (sectors) {
@@ -1424,8 +1416,9 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 	if (behind) {
 		if (atomic_dec_and_test(&bitmap->behind_writes))
 			wake_up(&bitmap->behind_wait);
-		PRINTK(KERN_DEBUG "dec write-behind count %d/%d\n",
-		  atomic_read(&bitmap->behind_writes), bitmap->max_write_behind);
+		pr_debug("dec write-behind count %d/%lu\n",
+			 atomic_read(&bitmap->behind_writes),
+			 bitmap->mddev->bitmap_info.max_write_behind);
 	}
 	if (bitmap->mddev->degraded)
 		/* Never clear bits or update events_cleared when degraded */

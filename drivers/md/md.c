@@ -54,9 +54,6 @@
 #include "md.h"
 #include "bitmap.h"
 
-#define DEBUG 0
-#define dprintk(x...) ((void)(DEBUG && printk(x)))
-
 #ifndef MODULE
 static void autostart_arrays(int part);
 #endif
@@ -2442,27 +2439,23 @@ repeat:
 	sync_sbs(mddev, nospares);
 	spin_unlock_irq(&mddev->write_lock);
 
-	dprintk(KERN_INFO 
-		"md: updating %s RAID superblock on device (in sync %d)\n",
-		mdname(mddev),mddev->in_sync);
+	pr_debug("md: updating %s RAID superblock on device (in sync %d)\n",
+		 mdname(mddev), mddev->in_sync);
 
 	bitmap_update_sb(mddev->bitmap);
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		char b[BDEVNAME_SIZE];
-		dprintk(KERN_INFO "md: ");
+
 		if (rdev->sb_loaded != 1)
 			continue; /* no noise on spare devices */
-		if (test_bit(Faulty, &rdev->flags))
-			dprintk("(skipping faulty ");
 
-		dprintk("%s ", bdevname(rdev->bdev,b));
 		if (!test_bit(Faulty, &rdev->flags)) {
 			md_super_write(mddev,rdev,
 				       rdev->sb_start, rdev->sb_size,
 				       rdev->sb_page);
-			dprintk(KERN_INFO "(write) %s's sb offset: %llu\n",
-				bdevname(rdev->bdev,b),
-				(unsigned long long)rdev->sb_start);
+			pr_debug("md: (write) %s's sb offset: %llu\n",
+				 bdevname(rdev->bdev, b),
+				 (unsigned long long)rdev->sb_start);
 			rdev->sb_events = mddev->events;
 			if (rdev->badblocks.size) {
 				md_super_write(mddev, rdev,
@@ -2473,7 +2466,8 @@ repeat:
 			}
 
 		} else
-			dprintk(")\n");
+			pr_debug("md: %s (skipping faulty)\n",
+				 bdevname(rdev->bdev, b));
 		if (mddev->level == LEVEL_MULTIPATH)
 			/* only need to write one superblock... */
 			break;
@@ -6408,7 +6402,7 @@ static int md_thread(void * arg)
 void md_wakeup_thread(mdk_thread_t *thread)
 {
 	if (thread) {
-		dprintk("md: waking up MD thread %s.\n", thread->tsk->comm);
+		pr_debug("md: waking up MD thread %s.\n", thread->tsk->comm);
 		set_bit(THREAD_WAKEUP, &thread->flags);
 		wake_up(&thread->wqueue);
 	}
@@ -6444,7 +6438,7 @@ void md_unregister_thread(mdk_thread_t **threadp)
 	mdk_thread_t *thread = *threadp;
 	if (!thread)
 		return;
-	dprintk("interrupting MD-thread pid %d\n", task_pid_nr(thread->tsk));
+	pr_debug("interrupting MD-thread pid %d\n", task_pid_nr(thread->tsk));
 	/* Locking ensures that mddev_unlock does not wake_up a
 	 * non-existent thread
 	 */
@@ -8112,7 +8106,7 @@ static struct notifier_block md_notifier = {
 
 static void md_geninit(void)
 {
-	dprintk("md: sizeof(mdp_super_t) = %d\n", (int)sizeof(mdp_super_t));
+	pr_debug("md: sizeof(mdp_super_t) = %d\n", (int)sizeof(mdp_super_t));
 
 	proc_create("mdstat", S_IRUGO, NULL, &md_seq_fops);
 }

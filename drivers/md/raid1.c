@@ -40,9 +40,6 @@
 #include "raid1.h"
 #include "bitmap.h"
 
-#define DEBUG 0
-#define PRINTK(x...) do { if (DEBUG) printk(x); } while (0)
-
 /*
  * Number of guaranteed r1bios in case of extreme VM load:
  */
@@ -246,11 +243,11 @@ static void raid_end_bio_io(r1bio_t *r1_bio)
 
 	/* if nobody has done the final endio yet, do it now */
 	if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
-		PRINTK(KERN_DEBUG "raid1: sync end %s on sectors %llu-%llu\n",
-			(bio_data_dir(bio) == WRITE) ? "write" : "read",
-			(unsigned long long) bio->bi_sector,
-			(unsigned long long) bio->bi_sector +
-				(bio->bi_size >> 9) - 1);
+		pr_debug("raid1: sync end %s on sectors %llu-%llu\n",
+			 (bio_data_dir(bio) == WRITE) ? "write" : "read",
+			 (unsigned long long) bio->bi_sector,
+			 (unsigned long long) bio->bi_sector +
+			 (bio->bi_size >> 9) - 1);
 
 		call_bio_endio(r1_bio);
 	}
@@ -431,10 +428,11 @@ static void raid1_end_write_request(struct bio *bio, int error)
 			/* Maybe we can return now */
 			if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
 				struct bio *mbio = r1_bio->master_bio;
-				PRINTK(KERN_DEBUG "raid1: behind end write sectors %llu-%llu\n",
-				       (unsigned long long) mbio->bi_sector,
-				       (unsigned long long) mbio->bi_sector +
-				       (mbio->bi_size >> 9) - 1);
+				pr_debug("raid1: behind end write sectors"
+					 " %llu-%llu\n",
+					 (unsigned long long) mbio->bi_sector,
+					 (unsigned long long) mbio->bi_sector +
+					 (mbio->bi_size >> 9) - 1);
 				call_bio_endio(r1_bio);
 			}
 		}
@@ -795,7 +793,7 @@ do_sync_io:
 		if (bvecs[i].bv_page)
 			put_page(bvecs[i].bv_page);
 	kfree(bvecs);
-	PRINTK("%dB behind alloc failed, doing sync I/O\n", bio->bi_size);
+	pr_debug("%dB behind alloc failed, doing sync I/O\n", bio->bi_size);
 }
 
 static int make_request(mddev_t *mddev, struct bio * bio)
