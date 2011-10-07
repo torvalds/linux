@@ -2,7 +2,7 @@ This is a driver for the ET1310 network device.
 
 Based on the driver found at https://sourceforge.net/projects/et131x/
 
-Cleaned up immensely by Olaf Hartman <o.hartmann@telovital.com> and Christoph
+Cleaned up immensely by Olaf Hartman and Christoph
 Hellwig <hch@infradead.org>
 
 Note, the powermanagement options were removed from the vendor provided
@@ -13,7 +13,4 @@ TODO:
 Please send patches to:
 	Greg Kroah-Hartman <gregkh@suse.de>
 	Mark Einon <mark.einon@gmail.com>
-
-And Cc: Olaf Hartmann <o.hartmann@telovital.com> as he has this device and can
-test any changes.
 
