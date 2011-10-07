@@ -631,6 +631,7 @@ struct ql4_task_data {
 	dma_addr_t data_dma;
 	void *req_buffer;
 	dma_addr_t req_dma;
+	uint32_t req_len;
 	void *resp_buffer;
 	dma_addr_t resp_dma;
 	uint32_t resp_len;

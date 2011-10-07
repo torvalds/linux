@@ -407,7 +407,7 @@ int qla4xxx_send_passthru0(struct iscsi_task *task)
 	passthru_iocb->timeout = cpu_to_le16(PT_DEFAULT_TIMEOUT);
 
 	/* Setup the out & in DSDs */
-	if (task->data_count) {
+	if (task_data->req_len) {
 		memcpy((uint8_t *)task_data->req_buffer +
 		       sizeof(struct iscsi_hdr), task->data, task->data_count);
 		ctrl_flags |= PT_FLAG_SEND_BUFFER;

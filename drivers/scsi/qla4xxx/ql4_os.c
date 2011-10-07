@@ -1272,7 +1272,7 @@ static int qla4xxx_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: MaxRecvLen %u, iscsi hrd %d\n",
 		      __func__, task->conn->max_recv_dlength, hdr_len));
 
-	task_data->resp_len = task->conn->max_recv_dlength;
+	task_data->resp_len = task->conn->max_recv_dlength + hdr_len;
 	task_data->resp_buffer = dma_alloc_coherent(&ha->pdev->dev,
 						    task_data->resp_len,
 						    &task_data->resp_dma,
@@ -1280,8 +1280,9 @@ static int qla4xxx_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	if (!task_data->resp_buffer)
 		goto exit_alloc_pdu;
 
+	task_data->req_len = task->data_count + hdr_len;
 	task_data->req_buffer = dma_alloc_coherent(&ha->pdev->dev,
-						   task->data_count + hdr_len,
+						   task_data->req_len,
 						   &task_data->req_dma,
 						   GFP_ATOMIC);
 	if (!task_data->req_buffer)
@@ -1299,7 +1300,7 @@ exit_alloc_pdu:
 				  task_data->resp_buffer, task_data->resp_dma);
 
 	if (task_data->req_buffer)
-		dma_free_coherent(&ha->pdev->dev, task->data_count + hdr_len,
+		dma_free_coherent(&ha->pdev->dev, task_data->req_len,
 				  task_data->req_buffer, task_data->req_dma);
 	return -ENOMEM;
 }
@@ -1328,7 +1329,7 @@ static void qla4xxx_task_cleanup(struct iscsi_task *task)
 
 	dma_free_coherent(&ha->pdev->dev, task_data->resp_len,
 			  task_data->resp_buffer, task_data->resp_dma);
-	dma_free_coherent(&ha->pdev->dev, task->data_count + hdr_len,
+	dma_free_coherent(&ha->pdev->dev, task_data->req_len,
 			  task_data->req_buffer, task_data->req_dma);
 	return;
 }
