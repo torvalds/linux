@@ -32,14 +32,12 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
 
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 #include "efika.h"
 
 #define EFIKAMX_PCBID0		IMX_GPIO_NR(3, 16)

@@ -19,7 +19,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/irq.h>
 #include <linux/spi/spi.h>
 
 #include <asm/mach-types.h>

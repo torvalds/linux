@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/irq.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

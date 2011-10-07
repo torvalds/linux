@@ -81,11 +81,16 @@
  *	AIPS1	0x53f00000+0x100000	->	0xf5700000+0x100000
  *	AIPS2	0x63f00000+0x100000	->	0xf5300000+0x100000
  * mx51:
+ *	TZIC	0xe0000000+0x004000	->	0xf5000000+0x004000
  *	IRAM	0x1ffe0000+0x020000	->	0xf4fe0000+0x020000
- *	DEBUG	0x60000000+0x100000	->	0xf5000000+0x100000
  *	SPBA0	0x70000000+0x100000	->	0xf5400000+0x100000
  *	AIPS1	0x73f00000+0x100000	->	0xf5700000+0x100000
  *	AIPS2	0x83f00000+0x100000	->	0xf4300000+0x100000
+ * mx53:
+ *	TZIC	0x0fffc000+0x004000	->	0xf4bfc000+0x004000
+ *	SPBA0	0x50000000+0x100000	->	0xf5400000+0x100000
+ *	AIPS1	0x53f00000+0x100000	->	0xf5700000+0x100000
+ *	AIPS2	0x63f00000+0x100000	->	0xf5300000+0x100000
  */
 #define IMX_IO_P2V(x)	(						\
 			0xf4000000 +					\
@@ -115,5 +120,11 @@
 	.length = soc ## _ ## name ## _SIZE,				\
 	.type = _type,							\
 }
+
+/* There's a off-by-one betweem the gpio bank number and the gpiochip */
+/* range e.g. GPIO_1_5 is gpio 5 under linux */
+#define IMX_GPIO_NR(bank, nr)		(((bank) - 1) * 32 + (nr))
+
+#define IMX_GPIO_TO_IRQ(gpio)	(MXC_GPIO_IRQ_START + (gpio))
 
 #endif /* __ASM_ARCH_MXC_HARDWARE_H__ */

@@ -25,7 +25,6 @@
 #include <mach/3ds_debugboard.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 
 #define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(1, 6))
 #define MX51_3DS_ECSPI2_CS	(GPIO_PORTC + 28)
