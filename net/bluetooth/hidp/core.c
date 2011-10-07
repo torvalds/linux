@@ -783,7 +783,7 @@ static int hidp_session(void *arg)
 	return 0;
 }
 
-static struct hci_conn *hidp_find_connection(struct hidp_session *session)
+static struct hci_conn *hidp_get_connection(struct hidp_session *session)
 {
 	bdaddr_t *src = &bt_sk(session->ctrl_sock->sk)->src;
 	bdaddr_t *dst = &bt_sk(session->ctrl_sock->sk)->dst;
@@ -995,7 +995,7 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 		return -ENOMEM;
 	}
 
-	session->conn = hidp_find_connection(session);
+	session->conn = hidp_get_connection(session);
 	if (!session->conn) {
 		err = -ENOTCONN;
 		goto failed;
