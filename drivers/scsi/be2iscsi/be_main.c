@@ -4044,11 +4044,11 @@ static int beiscsi_mtask(struct iscsi_task *task)
 				      TGT_DM_CMD);
 			AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt,
 				      pwrb, 0);
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
+			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 1);
 		} else {
 			AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
 				      INI_RD_CMD);
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 1);
+			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		}
 		hwi_write_buffer(pwrb, task);
 		break;
