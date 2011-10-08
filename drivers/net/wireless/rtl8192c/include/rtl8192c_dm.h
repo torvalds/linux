@@ -191,6 +191,7 @@ typedef struct _Dynamic_Initial_Gain_Threshold_
 
 	u8		PreIGValue;
 	u8		CurIGValue;
+	u8		BackupIGValue;
 
 	char		BackoffVal;
 	char		BackoffVal_range_max;

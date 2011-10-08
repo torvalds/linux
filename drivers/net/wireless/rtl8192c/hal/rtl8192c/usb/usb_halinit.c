@@ -4855,8 +4855,27 @@ _func_enter_;
 			break;
 #endif //CONFIG_P2P
 		case HW_VAR_INITIAL_GAIN:
-			PHY_SetBBReg(Adapter, rOFDM0_XAAGCCore1, 0x7f, ((u32 *)(val))[0]);
-			PHY_SetBBReg(Adapter, rOFDM0_XBAGCCore1, 0x7f, ((u32 *)(val))[0]);
+			//PHY_SetBBReg(Adapter, rOFDM0_XAAGCCore1, 0x7f, ((u32 *)(val))[0]);
+			//PHY_SetBBReg(Adapter, rOFDM0_XBAGCCore1, 0x7f, ((u32 *)(val))[0]);
+			{
+				HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+				struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+				DIG_T	*pDigTable = &pdmpriv->DM_DigTable;					
+				u32 		rx_gain = ((u32 *)(val))[0];
+				
+				if(rx_gain == 0xff){//restore rx gain
+					pDigTable->CurIGValue = pDigTable->BackupIGValue;
+					rtw_write8(Adapter,rOFDM0_XAAGCCore1, pDigTable->CurIGValue);
+					rtw_write8(Adapter,rOFDM0_XBAGCCore1, pDigTable->CurIGValue);
+				}
+				else{
+					pDigTable->BackupIGValue = pDigTable->CurIGValue;					
+					PHY_SetBBReg(Adapter, rOFDM0_XAAGCCore1, 0x7f,rx_gain );
+					PHY_SetBBReg(Adapter, rOFDM0_XBAGCCore1, 0x7f,rx_gain);
+					pDigTable->CurIGValue = rx_gain;
+				}
+			}
+
 			break;
 		case HW_VAR_TRIGGER_GPIO_0:
 			rtl8192cu_trigger_gpio_0(Adapter);
