@@ -1263,7 +1263,7 @@ static int ext4_ext_search_left(struct inode *inode,
 /*
  * search the closest allocated block to the right for *logical
  * and returns it at @logical + it's physical address at @phys
- * if *logical is the smallest allocated block, the function
+ * if *logical is the largest allocated block, the function
  * returns 0 at @phys
  * return value contains 0 (success) or error code
  */
@@ -2168,7 +2168,7 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int nrblocks,
 			 *  need to account for leaf block credit
 			 *
 			 *  bitmaps and block group descriptor blocks
-			 *  and other metadat blocks still need to be
+			 *  and other metadata blocks still need to be
 			 *  accounted.
 			 */
 			/* 1 bitmap, 1 block group descriptor */
