@@ -220,7 +220,6 @@ enum eeprom_param {
 	EEP_MAC_MID,
 	EEP_MAC_LSW,
 	EEP_REG_0,
-	EEP_REG_1,
 	EEP_OP_CAP,
 	EEP_OP_MODE,
 	EEP_RF_SILENT,
