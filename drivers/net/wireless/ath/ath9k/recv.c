@@ -808,6 +808,7 @@ static bool ath9k_rx_accept(struct ath_common *common,
 			    struct ath_rx_status *rx_stats,
 			    bool *decrypt_error)
 {
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	bool is_mc, is_valid_tkip, strip_mic, mic_error;
 	struct ath_hw *ah = common->ah;
 	__le16 fc;
@@ -872,7 +873,7 @@ static bool ath9k_rx_accept(struct ath_common *common,
 		status_mask = ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
 			      ATH9K_RXERR_KEYMISS;
 
-		if (ah->is_monitoring)
+		if (ah->is_monitoring && (sc->rx.rxfilter & FIF_FCSFAIL))
 			status_mask |= ATH9K_RXERR_CRC;
 
 		if (rx_stats->rs_status & ~status_mask)
