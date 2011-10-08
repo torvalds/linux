@@ -4276,7 +4276,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 			gcrashmode++;
 			shost_printk(KERN_ERR, phba->shost,
 				"Loading Driver in crashdump mode\n");
-			ret = beiscsi_pci_soft_reset(phba);
+			ret = beiscsi_cmd_reset_function(phba);
 			if (ret) {
 				shost_printk(KERN_ERR, phba->shost,
 					"Reset Failed. Aborting Crashdump\n");
