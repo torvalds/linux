@@ -820,7 +820,8 @@ static bool ath9k_rx_accept(struct ath_common *common,
 		test_bit(rx_stats->rs_keyix, common->tkip_keymap);
 	strip_mic = is_valid_tkip && ieee80211_is_data(fc) &&
 		!(rx_stats->rs_status &
-		(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_CRC | ATH9K_RXERR_MIC));
+		(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_CRC | ATH9K_RXERR_MIC |
+		 ATH9K_RXERR_KEYMISS));
 
 	if (!rx_stats->rs_datalen)
 		return false;
@@ -848,6 +849,8 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	 * descriptors.
 	 */
 	if (rx_stats->rs_status != 0) {
+		u8 status_mask;
+
 		if (rx_stats->rs_status & ATH9K_RXERR_CRC) {
 			rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
 			mic_error = false;
@@ -855,7 +858,8 @@ static bool ath9k_rx_accept(struct ath_common *common,
 		if (rx_stats->rs_status & ATH9K_RXERR_PHY)
 			return false;
 
-		if (rx_stats->rs_status & ATH9K_RXERR_DECRYPT) {
+		if ((rx_stats->rs_status & ATH9K_RXERR_DECRYPT) ||
+		    (!is_mc && (rx_stats->rs_status & ATH9K_RXERR_KEYMISS))) {
 			*decrypt_error = true;
 			mic_error = false;
 		}
@@ -865,17 +869,14 @@ static bool ath9k_rx_accept(struct ath_common *common,
 		 * decryption and MIC failures. For monitor mode,
 		 * we also ignore the CRC error.
 		 */
-		if (ah->is_monitoring) {
-			if (rx_stats->rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
-			      ATH9K_RXERR_CRC))
-				return false;
-		} else {
-			if (rx_stats->rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
-				return false;
-			}
-		}
+		status_mask = ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
+			      ATH9K_RXERR_KEYMISS;
+
+		if (ah->is_monitoring)
+			status_mask |= ATH9K_RXERR_CRC;
+
+		if (rx_stats->rs_status & ~status_mask)
+			return false;
 	}
 
 	/*
