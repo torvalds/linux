@@ -912,6 +912,7 @@ struct hci_dev *hci_alloc_dev(void)
 	if (!hdev)
 		return NULL;
 
+	hci_init_sysfs(hdev);
 	skb_queue_head_init(&hdev->driver_init);
 
 	return hdev;
