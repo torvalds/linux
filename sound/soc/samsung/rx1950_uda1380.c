@@ -238,8 +238,6 @@ static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Speaker");
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
-	snd_soc_dapm_sync(dapm);
-
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
 		&hp_jack);
 

@@ -178,10 +178,6 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Internal Mic");
 	snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
 
-	err = snd_soc_dapm_sync(dapm);
-	if (err)
-		return err;
-
 	/* Headphone jack detection */
 	err = snd_soc_jack_new(codec, "Headphone Jack",
 			       SND_JACK_HEADPHONE, &smartq_jack);

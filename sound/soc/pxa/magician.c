@@ -423,7 +423,6 @@ static int magician_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up magician specific audio path interconnects */
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync(dapm);
 	return 0;
 }
 

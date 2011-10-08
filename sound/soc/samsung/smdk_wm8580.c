@@ -173,9 +173,6 @@ static int smdk_wm8580_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 	 */
 	snd_soc_dapm_disable_pin(dapm, "MicIn");
 
-	/* signal a DAPM event */
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 
@@ -190,9 +187,6 @@ static int smdk_wm8580_init_paifrx(struct snd_soc_pcm_runtime *rtd)
 
 	/* Set up PAIFRX audio path */
 	snd_soc_dapm_add_routes(dapm, audio_map_rx, ARRAY_SIZE(audio_map_rx));
-
-	/* signal a DAPM event */
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

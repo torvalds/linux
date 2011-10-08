@@ -65,7 +65,6 @@ static int simtec_tlv320aic23_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
 	simtec_audio_init(rtd);
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
