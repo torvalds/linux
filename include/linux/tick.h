@@ -7,6 +7,7 @@
 #define _LINUX_TICK_H
 
 #include <linux/clockchips.h>
+#include <linux/irqflags.h>
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 
@@ -121,18 +122,57 @@ static inline int tick_oneshot_mode_active(void) { return 0; }
 #endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 
 # ifdef CONFIG_NO_HZ
-extern void tick_nohz_idle_enter(void);
+extern void __tick_nohz_idle_enter(void);
+static inline void tick_nohz_idle_enter(void)
+{
+	local_irq_disable();
+	__tick_nohz_idle_enter();
+	local_irq_enable();
+}
 extern void tick_nohz_idle_exit(void);
+
+/*
+ * Call this pair of function if the arch doesn't make any use
+ * of RCU in-between. You won't need to call rcu_idle_enter() and
+ * rcu_idle_exit().
+ * Otherwise you need to call tick_nohz_idle_enter() and tick_nohz_idle_exit()
+ * and explicitly tell RCU about the window around the place the CPU enters low
+ * power mode where no RCU use is made. This is done by calling rcu_idle_enter()
+ * after the last use of RCU before the CPU is put to sleep and by calling
+ * rcu_idle_exit() before the first use of RCU after the CPU woke up.
+ */
+static inline void tick_nohz_idle_enter_norcu(void)
+{
+	/*
+	 * Also call rcu_idle_enter() in the irq disabled section even
+	 * if it disables irq itself.
+	 * Just an optimization that prevents from an interrupt happening
+	 * between it and __tick_nohz_idle_enter() to lose time to help
+	 * completing a grace period while we could be in extended grace
+	 * period already.
+	 */
+	local_irq_disable();
+	__tick_nohz_idle_enter();
+	rcu_idle_enter();
+	local_irq_enable();
+}
+static inline void tick_nohz_idle_exit_norcu(void)
+{
+	rcu_idle_exit();
+	tick_nohz_idle_exit();
+}
 extern void tick_nohz_irq_exit(void);
 extern ktime_t tick_nohz_get_sleep_length(void);
 extern u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time);
 extern u64 get_cpu_iowait_time_us(int cpu, u64 *last_update_time);
 # else
-static inline void tick_nohz_idle_enter(void)
+static inline void tick_nohz_idle_enter(void) { }
+static inline void tick_nohz_idle_exit(void) { }
+static inline void tick_nohz_idle_enter_norcu(void)
 {
 	rcu_idle_enter();
 }
-static inline void tick_nohz_idle_exit(void)
+static inline void tick_nohz_idle_exit_norcu(void)
 {
 	rcu_idle_exit();
 }

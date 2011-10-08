@@ -88,10 +88,10 @@ void cpu_idle(void)
 #endif
 		if (!idle)
 			idle = default_idle;
-		tick_nohz_idle_enter();
+		tick_nohz_idle_enter_norcu();
 		while (!need_resched())
 			idle();
-		tick_nohz_idle_exit();
+		tick_nohz_idle_exit_norcu();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();

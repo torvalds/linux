@@ -183,7 +183,7 @@ void cpu_idle(void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
-		tick_nohz_idle_enter();
+		tick_nohz_idle_enter_norcu();
 		leds_event(led_idle_start);
 		while (!need_resched()) {
 #ifdef CONFIG_HOTPLUG_CPU
@@ -213,7 +213,7 @@ void cpu_idle(void)
 			}
 		}
 		leds_event(led_idle_end);
-		tick_nohz_idle_exit();
+		tick_nohz_idle_exit_norcu();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
