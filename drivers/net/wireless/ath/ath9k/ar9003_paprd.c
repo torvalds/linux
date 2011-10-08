@@ -19,7 +19,6 @@
 
 void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath9k_channel *chan = ah->curchan;
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 
@@ -54,13 +53,7 @@ void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 
 	if (val) {
 		ah->paprd_table_write_done = true;
-
-		ah->eep_ops->set_txpower(ah, chan,
-				ath9k_regd_get_ctl(regulatory, chan),
-				chan->chan->max_antenna_gain * 2,
-				chan->chan->max_power * 2,
-				min((u32) MAX_RATE_POWER,
-				(u32) regulatory->power_limit), false);
+		ath9k_hw_apply_txpower(ah, chan);
 	}
 
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B0,

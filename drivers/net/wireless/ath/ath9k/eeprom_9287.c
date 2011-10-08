@@ -336,6 +336,9 @@ static u32 ath9k_hw_ar9287_get_eeprom(struct ath_hw *ah,
 			return pBase->tempSensSlopePalOn;
 		else
 			return 0;
+	case EEP_ANTENNA_GAIN_2G:
+		return max_t(u8, pModal->antennaGainCh[0],
+				 pModal->antennaGainCh[1]);
 	default:
 		return 0;
 	}
@@ -554,8 +557,7 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 						     struct ath9k_channel *chan,
 						     int16_t *ratesArray,
 						     u16 cfgCtl,
-						     u16 AntennaReduction,
-						     u16 twiceMaxRegulatoryPower,
+						     u16 antenna_reduction,
 						     u16 powerLimit)
 {
 #define CMP_CTL \
@@ -569,12 +571,8 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 #define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6
 #define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10
 
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	u16 twiceMaxEdgePower = MAX_RATE_POWER;
-	static const u16 tpScaleReductionTable[5] =
-		{ 0, 3, 6, 9, MAX_RATE_POWER };
 	int i;
-	int16_t twiceLargestAntenna;
 	struct cal_ctl_data_ar9287 *rep;
 	struct cal_target_power_leg targetPowerOfdm = {0, {0, 0, 0, 0} },
 				    targetPowerCck = {0, {0, 0, 0, 0} };
@@ -582,7 +580,7 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 				    targetPowerCckExt = {0, {0, 0, 0, 0} };
 	struct cal_target_power_ht targetPowerHt20,
 				    targetPowerHt40 = {0, {0, 0, 0, 0} };
-	u16 scaledPower = 0, minCtlPower, maxRegAllowedPower;
+	u16 scaledPower = 0, minCtlPower;
 	static const u16 ctlModesFor11g[] = {
 		CTL_11B, CTL_11G, CTL_2GHT20,
 		CTL_11B_EXT, CTL_11G_EXT, CTL_2GHT40
@@ -597,24 +595,7 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 	tx_chainmask = ah->txchainmask;
 
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
-
-	/* Compute TxPower reduction due to Antenna Gain */
-	twiceLargestAntenna = max(pEepData->modalHeader.antennaGainCh[0],
-				  pEepData->modalHeader.antennaGainCh[1]);
-	twiceLargestAntenna = (int16_t)min((AntennaReduction) -
-					   twiceLargestAntenna, 0);
-
-	/*
-	 * scaledPower is the minimum of the user input power level
-	 * and the regulatory allowed power level.
-	 */
-	maxRegAllowedPower = twiceMaxRegulatoryPower + twiceLargestAntenna;
-
-	if (regulatory->tp_scale != ATH9K_TP_SCALE_MAX)
-		maxRegAllowedPower -=
-			(tpScaleReductionTable[(regulatory->tp_scale)] * 2);
-
-	scaledPower = min(powerLimit, maxRegAllowedPower);
+	scaledPower = powerLimit - antenna_reduction;
 
 	/*
 	 * Reduce scaled Power by number of chains active
@@ -815,7 +796,6 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 					struct ath9k_channel *chan, u16 cfgCtl,
 					u8 twiceAntennaReduction,
-					u8 twiceMaxRegulatoryPower,
 					u8 powerLimit, bool test)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
@@ -834,7 +814,6 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 	ath9k_hw_set_ar9287_power_per_rate_table(ah, chan,
 						 &ratesArray[0], cfgCtl,
 						 twiceAntennaReduction,
-						 twiceMaxRegulatoryPower,
 						 powerLimit);
 
 	ath9k_hw_set_ar9287_power_cal_table(ah, chan);

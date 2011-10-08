@@ -631,9 +631,7 @@ static void ar9003_hw_prog_ini(struct ath_hw *ah,
 static int ar9003_hw_process_ini(struct ath_hw *ah,
 				 struct ath9k_channel *chan)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	unsigned int regWrites = 0, i;
-	struct ieee80211_channel *channel = chan->chan;
 	u32 modesIndex;
 
 	switch (chan->chanmode) {
@@ -693,14 +691,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	ar9003_hw_override_ini(ah);
 	ar9003_hw_set_channel_regs(ah, chan);
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
-
-	/* Set TX power */
-	ah->eep_ops->set_txpower(ah, chan,
-				 ath9k_regd_get_ctl(regulatory, chan),
-				 channel->max_antenna_gain * 2,
-				 channel->max_power * 2,
-				 min((u32) MAX_RATE_POWER,
-				 (u32) regulatory->power_limit), false);
+	ath9k_hw_apply_txpower(ah, chan);
 
 	return 0;
 }

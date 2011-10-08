@@ -433,7 +433,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 
 	regulatory->country_code = CTRY_DEFAULT;
 	regulatory->power_limit = MAX_RATE_POWER;
-	regulatory->tp_scale = ATH9K_TP_SCALE_MAX;
 
 	ah->hw_version.magic = AR5416_MAGIC;
 	ah->hw_version.subvendorid = 0;
@@ -1389,9 +1388,7 @@ static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 static bool ath9k_hw_channel_change(struct ath_hw *ah,
 				    struct ath9k_channel *chan)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *channel = chan->chan;
 	u32 qnum;
 	int r;
 
@@ -1416,14 +1413,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 		return false;
 	}
 	ath9k_hw_set_clockrate(ah);
-
-	ah->eep_ops->set_txpower(ah, chan,
-			     ath9k_regd_get_ctl(regulatory, chan),
-			     channel->max_antenna_gain * 2,
-			     channel->max_power * 2,
-			     min((u32) MAX_RATE_POWER,
-			     (u32) regulatory->power_limit), false);
-
+	ath9k_hw_apply_txpower(ah, chan);
 	ath9k_hw_rfbus_done(ah);
 
 	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
@@ -2498,23 +2488,56 @@ bool ath9k_hw_disable(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_disable);
 
-void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test)
+static int get_antenna_gain(struct ath_hw *ah, struct ath9k_channel *chan)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
-	struct ath9k_channel *chan = ah->curchan;
-	struct ieee80211_channel *channel = chan->chan;
-	int reg_pwr = min_t(int, MAX_RATE_POWER, limit);
-	int chan_pwr = channel->max_power * 2;
+	enum eeprom_param gain_param;
 
-	if (test)
-		reg_pwr = chan_pwr = MAX_RATE_POWER;
+	if (IS_CHAN_2GHZ(chan))
+		gain_param = EEP_ANTENNA_GAIN_2G;
+	else
+		gain_param = EEP_ANTENNA_GAIN_5G;
 
-	regulatory->power_limit = reg_pwr;
+	return ah->eep_ops->get_eeprom(ah, gain_param);
+}
+
+void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+	struct ieee80211_channel *channel;
+	int chan_pwr, new_pwr, max_gain;
+	int ant_gain, ant_reduction = 0;
+
+	if (!chan)
+		return;
+
+	channel = chan->chan;
+	chan_pwr = min_t(int, channel->max_power * 2, MAX_RATE_POWER);
+	new_pwr = min_t(int, chan_pwr, reg->power_limit);
+	max_gain = chan_pwr - new_pwr + channel->max_antenna_gain * 2;
+
+	ant_gain = get_antenna_gain(ah, chan);
+	if (ant_gain > max_gain)
+		ant_reduction = ant_gain - max_gain;
 
 	ah->eep_ops->set_txpower(ah, chan,
-				 ath9k_regd_get_ctl(regulatory, chan),
-				 channel->max_antenna_gain * 2,
-				 chan_pwr, reg_pwr, test);
+				 ath9k_regd_get_ctl(reg, chan),
+				 ant_reduction, new_pwr, false);
+}
+
+void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test)
+{
+	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+	struct ath9k_channel *chan = ah->curchan;
+	struct ieee80211_channel *channel = chan->chan;
+
+	reg->power_limit = min_t(int, limit, MAX_RATE_POWER);
+	if (test)
+		channel->max_power = MAX_RATE_POWER / 2;
+
+	ath9k_hw_apply_txpower(ah, chan);
+
+	if (test)
+		channel->max_power = DIV_ROUND_UP(reg->max_power_level, 2);
 }
 EXPORT_SYMBOL(ath9k_hw_set_txpowerlimit);
 

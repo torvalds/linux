@@ -390,14 +390,6 @@ enum ath9k_power_mode {
 	ATH9K_PM_UNDEFINED
 };
 
-enum ath9k_tp_scale {
-	ATH9K_TP_SCALE_MAX = 0,
-	ATH9K_TP_SCALE_50,
-	ATH9K_TP_SCALE_25,
-	ATH9K_TP_SCALE_12,
-	ATH9K_TP_SCALE_MIN
-};
-
 enum ser_reg_mode {
 	SER_REG_MODE_OFF = 0,
 	SER_REG_MODE_ON = 1,
@@ -968,6 +960,7 @@ void ath9k_hw_htc_resetinit(struct ath_hw *ah);
 /* PHY */
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
+void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan);
 
 /*
  * Code Specific to AR5008, AR9001 or AR9002,
