@@ -197,6 +197,10 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 			else
 				/* old connection must be powered down */
 				path->connect = invert ? 1 : 0;
+
+			dapm_mark_dirty(path->source, "tlv320aic3x source");
+			dapm_mark_dirty(path->sink, "tlv320aic3x sink");
+
 			break;
 		}
 

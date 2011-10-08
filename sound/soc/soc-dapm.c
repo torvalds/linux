@@ -124,7 +124,7 @@ static bool dapm_dirty_widget(struct snd_soc_dapm_widget *w)
 	return !list_empty(&w->dirty);
 }
 
-static void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason)
+void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason)
 {
 	if (!dapm_dirty_widget(w)) {
 		dev_vdbg(w->dapm->dev, "Marking %s dirty due to %s\n",
@@ -132,6 +132,7 @@ static void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason)
 		list_add_tail(&w->dirty, &w->dapm->card->dapm_dirty);
 	}
 }
+EXPORT_SYMBOL_GPL(dapm_mark_dirty);
 
 /* create a new dapm widget */
 static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
