@@ -1958,6 +1958,12 @@ config FB_SCALING_OSD
 	---help---
 	   this function be used scale-up UI when video, it only support RGB565 UI;
 
+config FB_SCALING_OSD_1080P
+	bool "fb scale OSD support when video playing in 1080P "
+	depends on FB_WORK_IPP && FB_SCALING_OSD
+	---help---
+	   this function be used scale-up UI when video, it only support RGB565 UI;
+	   should set SCALE_UI_1080P_VIDEO to 1 in android
 config FB_ROTATE_VIDEO
 	bool "fb video rotate support"
 	depends on FB_WORK_IPP

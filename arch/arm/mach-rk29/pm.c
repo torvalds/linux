@@ -26,6 +26,8 @@
 #include <mach/iomux.h>
 #include <mach/pm-vol.h>
 
+#include <asm/vfp.h>
+
 #define grf_readl(offset) readl(RK29_GRF_BASE + offset)
 #define grf_writel(v, offset) do { writel(v, RK29_GRF_BASE + offset); readl(RK29_GRF_BASE + offset); } while (0)
 
@@ -342,6 +344,67 @@ static void dump_io_pull(void)
 	DUMP_GPIO_PULL(5);
 	DUMP_GPIO_PULL(6);
 }
+#ifdef CONFIG_RK29_NEON_POWERDOMAIN_SET
+/*******************************neon powermain***********************/
+#define pmu_read(offset)		readl(RK29_PMU_BASE + (offset))
+#define pmu_write(offset, value)	writel((value), RK29_PMU_BASE + (offset))
+#define PMU_PG_CON 0x10
+#define vfpreg(_vfp_) #_vfp_
+
+#define fmrx(_vfp_) ({			\
+	u32 __v;			\
+	asm("mrc p10, 7, %0, " vfpreg(_vfp_) ", cr0, 0 @ fmrx	%0, " #_vfp_	\
+	    : "=r" (__v) : : "cc");	\
+	__v;				\
+ })
+
+#define fmxr(_vfp_,_var_)		\
+	asm("mcr p10, 7, %0, " vfpreg(_vfp_) ", cr0, 0 @ fmxr	" #_vfp_ ", %0"	\
+	   : : "r" (_var_) : "cc")
+extern void vfp_save_state(void *location, u32 fpexc);
+extern void vfp_load_state(void *location, u32 fpexc);
+// extern  __sramdata u64  saveptr[33];
+static u32  saveptr[2][60]={};
+void  neon_powerdomain_off(void)
+{
+	int ret,i=0;
+	int *p;
+	p=&saveptr[0][0];
+	
+	 unsigned int fpexc = fmrx(FPEXC);  //get neon Logic gate
+	 
+    	fmxr(FPEXC, fpexc | FPEXC_EN);  //open neon Logic gate
+  	for(i=0;i<36;i++){
+	vfp_save_state(p,fpexc);                        //save neon reg,32 D reg,2 control reg
+	p++;
+   	}  
+	fmxr(FPEXC, fpexc & ~FPEXC_EN);    //close neon Logic gate
+	
+	 ret=pmu_read(PMU_PG_CON);                   //get power domain state
+	pmu_write(PMU_PG_CON,ret|(0x1<<1));          //powerdomain off neon
+	printk("neon powerdomain is off\n");
+}
+void   neon_powerdomain_on(void)
+{
+	int ret,i=0;
+	int *p;
+	p=&saveptr[0][0];
+	
+	ret=pmu_read(PMU_PG_CON);                   //get power domain state
+	pmu_write(PMU_PG_CON,ret&~(0x1<<1));                //powerdomain on neon
+	mdelay(4);
+	
+	unsigned int fpexc = fmrx(FPEXC);              //get neon Logic gate
+	fmxr(FPEXC, fpexc | FPEXC_EN);                   //open neon Logic gate
+	for(i=0;i<36;i++){
+	vfp_load_state(p,fpexc);   //recovery neon reg, 32 D reg,2 control reg
+	p++;
+	}
+    	fmxr(FPEXC, fpexc | FPEXC_EN);	    //open neon Logic gate
+	printk("neon powerdomain is on\n");
+}
+#endif
+
 void pm_gpio_suspend(void);
 void pm_gpio_resume(void);
 
@@ -349,7 +412,11 @@ static int rk29_pm_enter(suspend_state_t state)
 {
 	u32 apll, cpll, gpll, mode, clksel0;
 	u32 clkgate[4];
-
+	
+	#ifdef CONFIG_RK29_NEON_POWERDOMAIN_SET
+	neon_powerdomain_off();
+	#endif
+	
 	// memory teseter
 	if (ddr_debug == 3)
 		ddr_testmode();
@@ -437,9 +504,9 @@ static int rk29_pm_enter(suspend_state_t state)
 	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
 
 	sram_printch('4');
-	pm_gpio_suspend();
+	
 	rk29_suspend();
-	pm_gpio_resume();
+	
 	sram_printch('4');
 	
 	/* resume general pll */
@@ -472,6 +539,11 @@ static int rk29_pm_enter(suspend_state_t state)
 	sram_printascii("0\n");
 
 	dump_irq();
+
+	#ifdef CONFIG_RK29_NEON_POWERDOMAIN_SET
+	neon_powerdomain_on();
+	#endif
+	
 	return 0;
 }
 

@@ -47,6 +47,7 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 
+#include <wifi_version.h>
 #include <epivers.h>
 #include <bcmutils.h>
 #include <bcmendian.h>
@@ -68,6 +69,9 @@
 struct semaphore wifi_control_sem;
 
 struct dhd_bus *g_bus;
+
+extern void bcm4329_power_save_exit(void);
+extern void bcm4329_power_save_init(void);
 
 static struct wifi_platform_data *wifi_control_data = NULL;
 static struct resource *wifi_irqres = NULL;
@@ -2528,6 +2532,7 @@ rockchip_wifi_exit_module(void)
 #endif
 	/* Call customer gpio to turn off power with WL_REG_ON signal */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
+	bcm4329_power_save_exit();
 }
 
 int
@@ -2537,6 +2542,7 @@ rockchip_wifi_init_module(void)
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
+	printk("BCM4329 Wi-Fi driver (Powered by Rockchip,Ver %s) init.\n", BCM4329_DRV_VERSION);
 	/* Sanity check on the module parameters */
 	do {
 		/* Both watchdog and DPC as tasklets are ok */
@@ -2595,6 +2601,8 @@ rockchip_wifi_init_module(void)
 		goto fail_2;
 	}
 #endif
+	bcm4329_power_save_init();
+
 	return error;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 fail_2:
@@ -2616,7 +2624,7 @@ fail_0:
 //module_exit(dhd_module_cleanup);
 int mv88w8686_if_sdio_init_module(void)
 {
-       return rockchip_wifi_init_module();
+	return rockchip_wifi_init_module();
 }
 
 void mv88w8686_if_sdio_exit_module(void)

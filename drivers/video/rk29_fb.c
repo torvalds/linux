@@ -1272,14 +1272,20 @@ static int win1_set_par(struct fb_info *info)
     cancel_delayed_work_sync(&rk29_win1_check_work);
  #endif   
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
-        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+	    #ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && !((screen->x_res>1280) && (var->bits_per_pixel == 32))
+		#endif
+		)
     {
         hdmi_set_fbscale(info);
-    }else  if(((screen->x_res==1920) ))
+    }
+		#ifndef	CONFIG_FB_SCALING_OSD_1080P
+		else  if(((screen->x_res==1920) ))
     {
     	if(hdmi_get_fbscale() < 100)
 			par->ypos -=screen->y_res * (100-hdmi_get_fbscale()) / 200;
 	}
+		#endif
     //u32 offset=0, addr=0, map_size=0, smem_len=0;
     addr=0;
     xres_virtual = 0;      //virtual screen size
@@ -1297,7 +1303,10 @@ static int win1_set_par(struct fb_info *info)
 
    #ifdef CONFIG_FB_SCALING_OSD
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
-            && (screen->x_res<=1280))
+        #ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && (screen->x_res<=1280)
+		#endif
+		)
     {
         addr = fix->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
         xres_virtual = screen->x_res* hdmi_get_fbscale()/100;      //virtual screen size
@@ -1359,7 +1368,10 @@ static int win1_pan( struct fb_info *info )
     struct rk29fb_screen *screen = inf->cur_screen;
     struct fb_var_screeninfo *var = &info->var;
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
-            && (screen->x_res<=1280))
+        #ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && (screen->x_res<=1280)
+		#endif
+		)
     {
         addr = fix1->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
     }
@@ -1516,7 +1528,7 @@ static int fb0_set_par(struct fb_info *info)
         {
             par->format = 1;
             #ifdef CONFIG_FB_SCALING_OSD
-            dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
+            dstoffset = (((ypos_virtual-2*var->yres)*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*4;
             ipp_req.src0.fmt = IPP_RGB_565;
             ipp_req.dst0.fmt = IPP_RGB_565;
             #endif
@@ -1552,7 +1564,10 @@ static int fb0_set_par(struct fb_info *info)
     {
         #ifdef CONFIG_FB_SCALING_OSD
         if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
-            && (screen->x_res<=1280))
+		#ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && (screen->x_res<=1280)
+		#endif
+		)
         {
             par->xpos = 0;
             par->ypos = 0;
@@ -1650,7 +1665,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
         {
             par->format = 1;
             #ifdef CONFIG_FB_SCALING_OSD
-            dstoffset = ((ypos_virtual*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*2;
+           	dstoffset = (((ypos_virtual-2*var->yres)*screen->y_res/var->yres) *screen->x_res + (xpos_virtual*screen->x_res)/var->xres )*4;
             ipp_req.src0.fmt = IPP_RGB_565;
             ipp_req.dst0.fmt = IPP_RGB_565;
             #endif
@@ -1668,7 +1683,10 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     {
         #ifdef CONFIG_FB_SCALING_OSD
         if(((screen->x_res != var->xres) || (screen->y_res != var->yres)) 
-            && (screen->x_res<=1280))
+        #ifndef	CONFIG_FB_SCALING_OSD_1080P
+            && (screen->x_res<=1280)
+		#endif
+		)
         {
             par->y_offset = dstoffset;
 
@@ -2236,7 +2254,8 @@ int fb1_release(struct fb_info *info, int user)
         par->par_seted = 0;
         par->addr_seted = 0;
         win1_blank(FB_BLANK_NORMAL, info);
-        if(inf->cur_screen->type != SCREEN_HDMI)
+
+        //if(inf->cur_screen->type != SCREEN_HDMI)
             fb0_set_par(inf->fb0);
 
         // unmap memory

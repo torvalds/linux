@@ -1453,6 +1453,193 @@ struct wm831x_pdata wm831x_platdata = {
 	.isink = {&wm831x_regulator_init_isink[0], &wm831x_regulator_init_isink[1]},
 };
 #endif
+#if defined(CONFIG_RK29_GPIO_SUSPEND)
+
+static void gpio_set_request(void)
+{
+	gpio_request(RK29_PIN6_PA0, NULL);
+	gpio_request(RK29_PIN6_PA1, NULL);
+	gpio_request(RK29_PIN6_PA2, NULL);
+	gpio_request(RK29_PIN6_PA3, NULL);
+	gpio_request(RK29_PIN6_PA4, NULL);
+	gpio_request(RK29_PIN6_PA5, NULL);
+	gpio_request(RK29_PIN6_PA6, NULL);
+	
+	gpio_request(RK29_PIN2_PA5, NULL);
+	gpio_request(RK29_PIN2_PA4, NULL);
+	gpio_request(RK29_PIN2_PB0, NULL);
+	gpio_request(RK29_PIN2_PB1, NULL);
+	gpio_request(RK29_PIN2_PB2, NULL);
+	gpio_request(RK29_PIN2_PB3, NULL);
+	
+	gpio_request(RK29_PIN1_PA4, NULL);
+	gpio_request(RK29_PIN1_PA3, NULL);
+	
+	gpio_request(RK29_PIN2_PC7, NULL);
+	gpio_request(RK29_PIN2_PC6, NULL);
+	gpio_request(RK29_PIN2_PC5, NULL);
+	gpio_request(RK29_PIN2_PC4, NULL);
+	gpio_request(RK29_PIN2_PC3, NULL);
+	gpio_request(RK29_PIN2_PC2, NULL);
+	gpio_request(RK29_PIN2_PC1, NULL);
+	gpio_request(RK29_PIN2_PC0, NULL);
+	
+}
+static void gpio_set_free(void)
+{
+	gpio_free(RK29_PIN6_PA0);
+	gpio_free(RK29_PIN6_PA1);
+	gpio_free(RK29_PIN6_PA2);
+	gpio_free(RK29_PIN6_PA3);
+	gpio_free(RK29_PIN6_PA4);
+	gpio_free(RK29_PIN6_PA5);
+	gpio_free(RK29_PIN6_PA6);
+	
+	gpio_free(RK29_PIN2_PA5);
+	gpio_free(RK29_PIN2_PA4);
+	gpio_free(RK29_PIN2_PB0);
+	gpio_free(RK29_PIN2_PB1);
+	gpio_free(RK29_PIN2_PB2);
+	gpio_free(RK29_PIN2_PB3);
+	
+	gpio_free(RK29_PIN1_PA4);
+	gpio_free(RK29_PIN1_PA3);
+	
+	gpio_free(RK29_PIN2_PC7);
+	gpio_free(RK29_PIN2_PC6);
+	gpio_free(RK29_PIN2_PC5);
+	gpio_free(RK29_PIN2_PC4);
+	gpio_free(RK29_PIN2_PC3);
+	gpio_free(RK29_PIN2_PC2);
+	gpio_free(RK29_PIN2_PC1);
+	gpio_free(RK29_PIN2_PC0);
+}
+static void rk29_keygpio_suspend(void)
+{
+	gpio_pull_updown(RK29_PIN6_PA0, 0);
+	 gpio_pull_updown(RK29_PIN6_PA1, 0);
+	 gpio_pull_updown(RK29_PIN6_PA2, 0);
+	 gpio_pull_updown(RK29_PIN6_PA3, 0);
+	 gpio_pull_updown(RK29_PIN6_PA4, 0);
+	 gpio_pull_updown(RK29_PIN6_PA5, 0);
+	 gpio_pull_updown(RK29_PIN6_PA6, 0);//key pullup/pulldown disable
+
+	 gpio_pull_updown(RK29_PIN2_PA4, 0);
+	 gpio_pull_updown(RK29_PIN2_PA5, 0);
+	 gpio_pull_updown(RK29_PIN2_PB0, 0);
+	 gpio_pull_updown(RK29_PIN2_PB1, 0);
+	 gpio_pull_updown(RK29_PIN2_PB2, 0);
+	 gpio_pull_updown(RK29_PIN2_PB3, 0);
+
+
+}
+static void rk29_keygpio_resume(void)
+{
+	gpio_pull_updown(RK29_PIN6_PA0, 1);
+	 gpio_pull_updown(RK29_PIN6_PA1, 1);
+	 gpio_pull_updown(RK29_PIN6_PA2, 1);
+	 gpio_pull_updown(RK29_PIN6_PA3, 1);
+	 gpio_pull_updown(RK29_PIN6_PA4, 1);
+	 gpio_pull_updown(RK29_PIN6_PA5, 1);
+	 gpio_pull_updown(RK29_PIN6_PA6, 1);//key pullup/pulldown enable
+
+	 gpio_pull_updown(RK29_PIN2_PA4, 1);
+	 gpio_pull_updown(RK29_PIN2_PA5, 1);
+	 gpio_pull_updown(RK29_PIN2_PB0, 1);
+	 gpio_pull_updown(RK29_PIN2_PB1, 1);
+	 gpio_pull_updown(RK29_PIN2_PB2, 1);
+	 gpio_pull_updown(RK29_PIN2_PB3, 1);
+}
+static void spi_gpio_suspend(void)
+{	
+	rk29_mux_api_set(GPIO1A4_EMMCWRITEPRT_SPI0CS1_NAME,GPIO1L_GPIO1A4);  //set iomux is gpio mode
+	rk29_mux_api_set(GPIO1A3_EMMCDETECTN_SPI1CS1_NAME,GPIO1L_GPIO1A3);
+	
+	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_GPIO2C7);
+	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_GPIO2C6);
+	//rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_GPIO2C5);
+	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME,GPIO2H_GPIO2C4);
+	rk29_mux_api_set(GPIO2C3_SPI0RXD_NAME,GPIO2H_GPIO2C3);
+	rk29_mux_api_set(GPIO2C2_SPI0TXD_NAME,GPIO2H_GPIO2C2);
+	rk29_mux_api_set(GPIO2C1_SPI0CSN0_NAME,GPIO2H_GPIO2C1);
+	rk29_mux_api_set(GPIO2C0_SPI0CLK_NAME,GPIO2H_GPIO2C0);
+	
+	gpio_direction_input(RK29_PIN1_PA4);             //set gpio is input
+	 gpio_direction_input(RK29_PIN1_PA3);
+	 gpio_direction_input(RK29_PIN2_PC7);
+	 gpio_direction_input(RK29_PIN2_PC6);
+	// gpio_direction_input(RK29_PIN2_PC5);
+	 gpio_direction_input(RK29_PIN2_PC4);
+	 gpio_direction_input(RK29_PIN2_PC3);
+	 gpio_direction_input(RK29_PIN2_PC2);
+	 gpio_direction_input(RK29_PIN2_PC1);
+	 gpio_direction_input(RK29_PIN2_PC0);
+	 
+	gpio_pull_updown(RK29_PIN1_PA4, 0);   //set gpio pullup/down disable
+	gpio_pull_updown(RK29_PIN1_PA3, 0);
+	
+	gpio_pull_updown(RK29_PIN2_PC7, 0);
+	gpio_pull_updown(RK29_PIN2_PC6, 0);
+	//gpio_pull_updown(RK29_PIN2_PC5, 0);
+	gpio_pull_updown(RK29_PIN2_PC4, 0);
+	gpio_pull_updown(RK29_PIN2_PC3, 0);
+	gpio_pull_updown(RK29_PIN2_PC2, 0);
+	gpio_pull_updown(RK29_PIN2_PC1, 0);
+	gpio_pull_updown(RK29_PIN2_PC0, 0);
+	
+}
+static void spi_gpio_resume(void)
+{	
+	gpio_pull_updown(RK29_PIN1_PA4, 1);         //set gpio pullup/down enable
+	gpio_pull_updown(RK29_PIN1_PA3, 1);
+	
+	gpio_pull_updown(RK29_PIN2_PC7, 1);
+	gpio_pull_updown(RK29_PIN2_PC6, 1);
+	//gpio_pull_updown(RK29_PIN2_PC5, 1);
+	gpio_pull_updown(RK29_PIN2_PC4, 1);
+	gpio_pull_updown(RK29_PIN2_PC3, 1);
+	gpio_pull_updown(RK29_PIN2_PC2, 1);
+	gpio_pull_updown(RK29_PIN2_PC1, 1);
+	gpio_pull_updown(RK29_PIN2_PC0, 1);
+
+	rk29_mux_api_set(GPIO1A4_EMMCWRITEPRT_SPI0CS1_NAME,GPIO1L_SPI0_CSN1);   //set iomux is spi mode
+	rk29_mux_api_set(GPIO1A3_EMMCDETECTN_SPI1CS1_NAME,GPIO1L_SPI1_CSN1);
+	
+	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_SPI1_RXD);
+	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_SPI1_TXD);
+	//rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_SPI1_CSN0);
+	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME, GPIO2H_SPI1_CLK);
+	rk29_mux_api_set(GPIO2C3_SPI0RXD_NAME,GPIO2H_SPI0_RXD);
+	rk29_mux_api_set(GPIO2C2_SPI0TXD_NAME,GPIO2H_SPI0_TXD);
+	rk29_mux_api_set(GPIO2C1_SPI0CSN0_NAME,GPIO2H_SPI0_CSN0);
+	rk29_mux_api_set(GPIO2C0_SPI0CLK_NAME,GPIO2H_SPI0_CLK);
+	
+		
+}
+
+void  rk29_setgpio_suspend_board(void)
+{
+	gpio_set_request();
+	rk29_keygpio_suspend();
+	spi_gpio_suspend();
+	gpio_set_free();
+	
+}
+
+void  rk29_setgpio_resume_board(void)
+{
+	gpio_set_request();
+	rk29_keygpio_resume();
+	spi_gpio_resume();
+	gpio_set_free();
+	
+}
+#else
+void rk29_setgpio_suspend_board(void)
+{}
+void rk29_setgpio_resume_board(void)
+{}
+#endif
 
 
 

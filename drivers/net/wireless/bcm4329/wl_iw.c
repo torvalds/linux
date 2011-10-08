@@ -57,7 +57,7 @@ typedef const struct si_pub  si_t;
 #define WL_TRACE_COEX(x)
 
 #include <wl_iw.h>
-
+#include <linux/wakelock.h>
 
 
 #ifndef IW_ENCODE_ALG_SM4
@@ -682,6 +682,33 @@ wl_iw_set_country(
 exit:
 	wrqu->data.length = p - extra + 1;
 	return error;
+}
+
+static int
+wl_iw_get_country(
+        struct net_device *dev,
+        struct iw_request_info *info,
+        union iwreq_data *wrqu,
+        char *extra
+)
+{
+	char *ccode;
+	int current_channels;
+	
+	WL_TRACE(("%s\n", __FUNCTION__));
+
+	ccode = dhd_bus_country_get(dev);
+	if(ccode){
+		if(0 == strcmp(ccode, "Q2"))
+			current_channels = 11;
+		else if(0 == strcmp(ccode, "EU"))
+			current_channels = 13;
+		else if(0 == strcmp(ccode, "JP"))
+			current_channels = 14;
+	}
+	sprintf(extra, "Scan-Channels = %d", current_channels);
+	printk("Get Channels return %d,(country code = %s)\n",current_channels, ccode);	
+	return 0;
 }
 
 #ifdef CUSTOMER_HW2
@@ -7045,6 +7072,30 @@ int wl_iw_process_private_ascii_cmd(
 }
 #endif
 
+#define BCM4329_WAKELOCK_NAME "bcm4329_wifi_wakelock"
+
+static struct wake_lock bcm4329_suspend_lock;
+
+int bcm4329_wakelock_init = 0;
+
+void bcm4329_power_save_init(void)
+{
+        wake_lock_init(&bcm4329_suspend_lock, WAKE_LOCK_SUSPEND, BCM4329_WAKELOCK_NAME);
+        wake_lock(&bcm4329_suspend_lock);
+        
+	bcm4329_wakelock_init = 2;
+}
+
+void bcm4329_power_save_exit(void)
+{
+        bcm4329_wakelock_init = 0;
+        msleep(100);
+        
+	if (bcm4329_wakelock_init == 2)
+                wake_unlock(&bcm4329_suspend_lock);
+        wake_lock_destroy(&bcm4329_suspend_lock);
+}
+
 static int wl_iw_set_priv(
 	struct net_device *dev,
 	struct iw_request_info *info,
@@ -7070,6 +7121,11 @@ static int wl_iw_set_priv(
 	
 	if (dwrq->length && extra) {
 		if (strnicmp(extra, "START", strlen("START")) == 0) {
+			if (bcm4329_wakelock_init == 1)
+                        {
+                                wake_lock(&bcm4329_suspend_lock);
+                                bcm4329_wakelock_init = 2;
+                        }
 			wl_iw_control_wl_on(dev, info);
 			WL_TRACE(("%s, Received regular START command\n", __FUNCTION__));
 		}
@@ -7101,8 +7157,16 @@ static int wl_iw_set_priv(
 			ret = wl_iw_get_macaddr(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, "COUNTRY", strlen("COUNTRY")) == 0)
 			ret = wl_iw_set_country(dev, info, (union iwreq_data *)dwrq, extra);
-		else if (strnicmp(extra, "STOP", strlen("STOP")) == 0)
+		else if (strnicmp(extra, "SCAN-CHANNELS", strlen("SCAN-CHANNELS")) == 0)
+			ret = wl_iw_get_country(dev, info, (union iwreq_data *)dwrq, extra);
+		else if (strnicmp(extra, "STOP", strlen("STOP")) == 0){
 			ret = wl_iw_control_wl_off(dev, info);
+			if (bcm4329_wakelock_init == 2)
+                        {
+                                wake_unlock(&bcm4329_suspend_lock);
+                                bcm4329_wakelock_init = 1;
+                        }
+		}
 		else if (strnicmp(extra, BAND_GET_CMD, strlen(BAND_GET_CMD)) == 0)
 			ret = wl_iw_get_band(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, BAND_SET_CMD, strlen(BAND_SET_CMD)) == 0)

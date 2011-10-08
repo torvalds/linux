@@ -112,7 +112,11 @@
 #endif
 #define MEM_FB_SIZE         (9*SZ_1M)
 #ifdef CONFIG_FB_WORK_IPP
+#ifdef CONFIG_FB_SCALING_OSD_1080P
+#define MEM_FBIPP_SIZE      SZ_16M   //1920 x 1080 x 2 x 2  //RGB565 = x2;RGB888 = x4
+#else
 #define MEM_FBIPP_SIZE      SZ_8M   //1920 x 1080 x 2 x 2  //RGB565 = x2;RGB888 = x4
+#endif
 #else
 #define MEM_FBIPP_SIZE      0
 #endif
@@ -166,44 +170,6 @@ struct rk29_nand_platform_data rk29_nand_data = {
 #define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
 #define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
 #define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
-
-#if 1
-void key_gpio_pullupdown_enable(void)
-{	 gpio_pull_updown(RK29_PIN6_PA0, 0);
-	 gpio_pull_updown(RK29_PIN6_PA1, 0);
-	 gpio_pull_updown(RK29_PIN6_PA2, 0);
-	 gpio_pull_updown(RK29_PIN6_PA3, 0);
-	 gpio_pull_updown(RK29_PIN6_PA4, 0);
-	 gpio_pull_updown(RK29_PIN6_PA5, 0);
-	 gpio_pull_updown(RK29_PIN6_PA6, 0);
-
-}
-void key_gpio_pullupdown_disable(void)
-{
-	 gpio_pull_updown(RK29_PIN6_PA0, 1);
-	 gpio_pull_updown(RK29_PIN6_PA1, 1);
-	 gpio_pull_updown(RK29_PIN6_PA2, 1);
-	 gpio_pull_updown(RK29_PIN6_PA3, 1);
-	 gpio_pull_updown(RK29_PIN6_PA4, 1);
-	 gpio_pull_updown(RK29_PIN6_PA5, 1);
-	 gpio_pull_updown(RK29_PIN6_PA6, 1);
-}
-void  rk29_setgpio_suspend_board(void)
-{	
-	
-	key_gpio_pullupdown_enable();
-	
-}
-
-void  rk29_setgpio_resume_board(void)
-{	 
-	
-	 key_gpio_pullupdown_disable();  
-
- }
-#endif 
-
-
 
 #ifdef CONFIG_FB_RK29
 /*****************************************************************************************
@@ -412,6 +378,47 @@ struct platform_device rk29_device_dma_cpy = {
 
 };
 
+#endif
+
+#if defined(CONFIG_RK29_GPIO_SUSPEND)
+void key_gpio_pullupdown_enable(void)
+{	 gpio_pull_updown(RK29_PIN6_PA0, 0);
+	 gpio_pull_updown(RK29_PIN6_PA1, 0);
+	 gpio_pull_updown(RK29_PIN6_PA2, 0);
+	 gpio_pull_updown(RK29_PIN6_PA3, 0);
+	 gpio_pull_updown(RK29_PIN6_PA4, 0);
+	 gpio_pull_updown(RK29_PIN6_PA5, 0);
+	 gpio_pull_updown(RK29_PIN6_PA6, 0);
+
+}
+void key_gpio_pullupdown_disable(void)
+{
+	 gpio_pull_updown(RK29_PIN6_PA0, 1);
+	 gpio_pull_updown(RK29_PIN6_PA1, 1);
+	 gpio_pull_updown(RK29_PIN6_PA2, 1);
+	 gpio_pull_updown(RK29_PIN6_PA3, 1);
+	 gpio_pull_updown(RK29_PIN6_PA4, 1);
+	 gpio_pull_updown(RK29_PIN6_PA5, 1);
+	 gpio_pull_updown(RK29_PIN6_PA6, 1);
+}
+void  rk29_setgpio_suspend_board(void)
+{	
+	
+	key_gpio_pullupdown_enable();
+	
+}
+
+void  rk29_setgpio_resume_board(void)
+{	 
+	
+	 key_gpio_pullupdown_disable();  
+
+ }
+#else
+void rk29_setgpio_suspend_board(void)
+{}
+void rk29_setgpio_resume_board(void)
+{}
 #endif
 
 #if defined(CONFIG_RK_IRDA) || defined(CONFIG_BU92747GUW_CIR)
