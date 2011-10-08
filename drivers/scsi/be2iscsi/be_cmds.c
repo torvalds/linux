@@ -660,6 +660,7 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 	spin_lock(&phba->ctrl.mbox_lock);
 	ctrl = &phba->ctrl;
 	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	memset(wrb, 0, sizeof(*wrb));
 	req = embedded_payload(wrb);
 	ctxt = &req->context;
 
