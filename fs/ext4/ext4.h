@@ -564,9 +564,6 @@ struct ext4_new_group_data {
 #define	EXT4_IOC_SETVERSION		_IOW('f', 4, long)
 #define	EXT4_IOC_GETVERSION_OLD		FS_IOC_GETVERSION
 #define	EXT4_IOC_SETVERSION_OLD		FS_IOC_SETVERSION
-#ifdef CONFIG_JBD2_DEBUG
-#define EXT4_IOC_WAIT_FOR_READONLY	_IOR('f', 99, long)
-#endif
 #define EXT4_IOC_GETRSVSZ		_IOR('f', 5, long)
 #define EXT4_IOC_SETRSVSZ		_IOW('f', 6, long)
 #define EXT4_IOC_GROUP_EXTEND		_IOW('f', 7, unsigned long)
@@ -589,9 +586,6 @@ struct ext4_new_group_data {
 #define EXT4_IOC32_SETRSVSZ		_IOW('f', 6, int)
 #define EXT4_IOC32_GROUP_EXTEND		_IOW('f', 7, unsigned int)
 #define EXT4_IOC32_GROUP_ADD		_IOW('f', 8, struct compat_ext4_new_group_input)
-#ifdef CONFIG_JBD2_DEBUG
-#define EXT4_IOC32_WAIT_FOR_READONLY	_IOR('f', 99, int)
-#endif
 #define EXT4_IOC32_GETVERSION_OLD	FS_IOC32_GETVERSION
 #define EXT4_IOC32_SETVERSION_OLD	FS_IOC32_SETVERSION
 #endif
@@ -1171,10 +1165,6 @@ struct ext4_sb_info {
 	u32 s_max_batch_time;
 	u32 s_min_batch_time;
 	struct block_device *journal_bdev;
-#ifdef CONFIG_JBD2_DEBUG
-	struct timer_list turn_ro_timer;	/* For turning read-only (crash simulation) */
-	wait_queue_head_t ro_wait_queue;	/* For people waiting for the fs to go read-only */
-#endif
 #ifdef CONFIG_QUOTA
 	char *s_qf_names[MAXQUOTAS];		/* Names of quota files with journalled quota */
 	int s_jquota_fmt;			/* Format of quota to use */

@@ -174,29 +174,6 @@ setversion_out:
 		mnt_drop_write(filp->f_path.mnt);
 		return err;
 	}
-#ifdef CONFIG_JBD2_DEBUG
-	case EXT4_IOC_WAIT_FOR_READONLY:
-		/*
-		 * This is racy - by the time we're woken up and running,
-		 * the superblock could be released.  And the module could
-		 * have been unloaded.  So sue me.
-		 *
-		 * Returns 1 if it slept, else zero.
-		 */
-		{
-			DECLARE_WAITQUEUE(wait, current);
-			int ret = 0;
-
-			set_current_state(TASK_INTERRUPTIBLE);
-			add_wait_queue(&EXT4_SB(sb)->ro_wait_queue, &wait);
-			if (timer_pending(&EXT4_SB(sb)->turn_ro_timer)) {
-				schedule();
-				ret = 1;
-			}
-			remove_wait_queue(&EXT4_SB(sb)->ro_wait_queue, &wait);
-			return ret;
-		}
-#endif
 	case EXT4_IOC_GROUP_EXTEND: {
 		ext4_fsblk_t n_blocks_count;
 		int err, err2=0;
@@ -421,11 +398,6 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC32_SETVERSION_OLD:
 		cmd = EXT4_IOC_SETVERSION_OLD;
 		break;
-#ifdef CONFIG_JBD2_DEBUG
-	case EXT4_IOC32_WAIT_FOR_READONLY:
-		cmd = EXT4_IOC_WAIT_FOR_READONLY;
-		break;
-#endif
 	case EXT4_IOC32_GETRSVSZ:
 		cmd = EXT4_IOC_GETRSVSZ;
 		break;
