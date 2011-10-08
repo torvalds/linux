@@ -1919,7 +1919,15 @@ static int ctrl_cmd_delete(const char *input)
 			tr_entry = lookup_tag_ref(st_entry->tag, NULL);
 			BUG_ON(tr_entry->num_sock_tags <= 0);
 			tr_entry->num_sock_tags--;
-			list_del(&st_entry->list);
+			/*
+			 * TODO: remove if, and start failing.
+			 * This is a hack to work around the fact that in some
+			 * places we have "if (IS_ERR_OR_NULL(pqd_entry))"
+			 * and are trying to work around apps
+			 * that didn't open the /dev/xt_qtaguid.
+			 */
+			if (st_entry->list.next && st_entry->list.prev)
+				list_del(&st_entry->list);
 		}
 	}
 	spin_unlock_bh(&sock_tag_list_lock);
