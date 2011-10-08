@@ -86,7 +86,7 @@ static u32 transport_allocate_tasks(struct se_cmd *cmd,
 		enum dma_data_direction data_direction,
 		struct scatterlist *sgl, unsigned int nents);
 static int transport_generic_get_mem(struct se_cmd *cmd);
-static bool transport_put_cmd(struct se_cmd *cmd);
+static void transport_put_cmd(struct se_cmd *cmd);
 static void transport_remove_cmd_from_queue(struct se_cmd *cmd,
 		struct se_queue_obj *qobj);
 static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
@@ -1638,7 +1638,7 @@ static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 	return 0;
 }
 
-static void transport_generic_wait_for_tasks(struct se_cmd *, int, int);
+static void transport_generic_wait_for_tasks(struct se_cmd *, int);
 
 /*	transport_generic_allocate_tasks():
  *
@@ -2504,7 +2504,7 @@ void transport_new_cmd_failure(struct se_cmd *se_cmd)
 	spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 }
 
-static void transport_nop_wait_for_tasks(struct se_cmd *, int, int);
+static void transport_nop_wait_for_tasks(struct se_cmd *, int);
 
 static inline u32 transport_get_sectors_6(
 	unsigned char *cdb,
@@ -3736,7 +3736,7 @@ static inline void transport_free_pages(struct se_cmd *cmd)
  *
  * This routine releases our reference to the command and frees it if possible.
  */
-static bool transport_put_cmd(struct se_cmd *cmd)
+static void transport_put_cmd(struct se_cmd *cmd)
 {
 	unsigned long flags;
 	int free_tasks = 0;
@@ -3764,10 +3764,9 @@ static bool transport_put_cmd(struct se_cmd *cmd)
 
 	transport_free_pages(cmd);
 	transport_release_cmd(cmd);
-	return true;
+	return;
 out_busy:
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	return false;
 }
 
 /*
@@ -4331,7 +4330,7 @@ void transport_release_cmd(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(transport_release_cmd);
 
-bool transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
+void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD))
 		transport_release_cmd(cmd);
@@ -4342,21 +4341,18 @@ bool transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 			transport_lun_remove_cmd(cmd);
 
 		if (wait_for_tasks && cmd->transport_wait_for_tasks)
-			cmd->transport_wait_for_tasks(cmd, 0, 0);
+			cmd->transport_wait_for_tasks(cmd, 0);
 
 		transport_free_dev_tasks(cmd);
 
-		return transport_put_cmd(cmd);
+		transport_put_cmd(cmd);
 	}
-
-	return true;
 }
 EXPORT_SYMBOL(transport_generic_free_cmd);
 
 static void transport_nop_wait_for_tasks(
 	struct se_cmd *cmd,
-	int remove_cmd,
-	int session_reinstatement)
+	int remove_cmd)
 {
 	return;
 }
@@ -4537,8 +4533,7 @@ int transport_clear_lun_from_sessions(struct se_lun *lun)
  */
 static void transport_generic_wait_for_tasks(
 	struct se_cmd *cmd,
-	int remove_cmd,
-	int session_reinstatement)
+	int remove_cmd)
 {
 	unsigned long flags;
 
@@ -4614,13 +4609,7 @@ remove:
 	if (!remove_cmd)
 		return;
 
-	if (!transport_generic_free_cmd(cmd, 0) && session_reinstatement) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		transport_all_task_dev_remove_state(cmd);
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	}
+	transport_generic_free_cmd(cmd, 0);
 }
 
 static int transport_get_sense_codes(

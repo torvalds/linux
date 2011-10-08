@@ -3960,7 +3960,7 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 			 * iscsit_get_lun_for_cmd() in iscsit_handle_scsi_cmd().
 			 */
 			if (cmd->tmr_req && se_cmd->transport_wait_for_tasks)
-				se_cmd->transport_wait_for_tasks(se_cmd, 1, 1);
+				se_cmd->transport_wait_for_tasks(se_cmd, 1);
 			else if (cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD)
 				transport_release_cmd(se_cmd);
 			else
@@ -3976,7 +3976,7 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 		se_cmd = &cmd->se_cmd;
 
 		if (se_cmd->transport_wait_for_tasks)
-			se_cmd->transport_wait_for_tasks(se_cmd, 1, 1);
+			se_cmd->transport_wait_for_tasks(se_cmd, 1);
 
 		spin_lock_bh(&conn->cmd_lock);
 	}
