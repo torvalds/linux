@@ -1506,7 +1506,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (!hdev->workqueue)
 		goto nomem;
 
-	hci_register_sysfs(hdev);
+	hci_add_sysfs(hdev);
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops, hdev);
@@ -1561,7 +1561,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_destroy(hdev->rfkill);
 	}
 
-	hci_unregister_sysfs(hdev);
+	hci_del_sysfs(hdev);
 
 	hci_del_off_timer(hdev);
 	del_timer(&hdev->adv_timer);
