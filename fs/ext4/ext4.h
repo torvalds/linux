@@ -913,7 +913,6 @@ struct ext4_inode_info {
 /*
  * Mount flags
  */
-#define EXT4_MOUNT_OLDALLOC		0x00002  /* Don't use the new Orlov allocator */
 #define EXT4_MOUNT_GRPID		0x00004	/* Create files with directory's group */
 #define EXT4_MOUNT_DEBUG		0x00008	/* Some debugging messages */
 #define EXT4_MOUNT_ERRORS_CONT		0x00010	/* Continue on errors */

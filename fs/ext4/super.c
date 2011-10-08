@@ -1073,8 +1073,6 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nouid32");
 	if (test_opt(sb, DEBUG) && !(def_mount_opts & EXT4_DEFM_DEBUG))
 		seq_puts(seq, ",debug");
-	if (test_opt(sb, OLDALLOC))
-		seq_puts(seq, ",oldalloc");
 #ifdef CONFIG_EXT4_FS_XATTR
 	if (test_opt(sb, XATTR_USER))
 		seq_puts(seq, ",user_xattr");
@@ -1583,10 +1581,12 @@ static int parse_options(char *options, struct super_block *sb,
 			set_opt(sb, DEBUG);
 			break;
 		case Opt_oldalloc:
-			set_opt(sb, OLDALLOC);
+			ext4_msg(sb, KERN_WARNING,
+				 "Ignoring deprecated oldalloc option");
 			break;
 		case Opt_orlov:
-			clear_opt(sb, OLDALLOC);
+			ext4_msg(sb, KERN_WARNING,
+				 "Ignoring deprecated orlov option");
 			break;
 #ifdef CONFIG_EXT4_FS_XATTR
 		case Opt_user_xattr:
