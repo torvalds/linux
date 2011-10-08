@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <mach/pmu.h>
 #include <mach/cru.h>
+#define IOREMAP_IN_NOPAGE           0
 
 #if !USE_NEW_LINUX_SIGNAL
 #define USER_SIGNAL_TABLE_LEN_INIT  64
@@ -1446,7 +1447,9 @@ gckOS_AllocateNonPagedMemory(
     gctINT          numPages;
     PLINUX_MDL      mdl;
     PLINUX_MDL_MAP  mdlMap = 0;
+#if IOREMAP_IN_NOPAGE
     gctSTRING       addr;
+#endif
 
 #ifdef NO_DMA_COHERENT
     struct page *   page;
@@ -1553,12 +1556,15 @@ gckOS_AllocateNonPagedMemory(
         reserved_size  -= PAGE_SIZE;
     }
 
-// dkm: gcdENABLE_MEM_CACHE
-#if (1==gcdENABLE_MEM_CACHE)
-    addr            = ioremap_cached(virt_to_phys(vaddr), size);
-#else
-    addr            = ioremap_nocache(virt_to_phys(vaddr), size);
+#if IOREMAP_IN_NOPAGE
+    // dkm: gcdENABLE_MEM_CACHE
+    #if (1==gcdENABLE_MEM_CACHE)
+        addr            = ioremap_cached(virt_to_phys(vaddr), size);
+    #else
+        addr            = ioremap_nocache(virt_to_phys(vaddr), size);
+    #endif
 #endif
+
     mdl->dmaHandle  = virt_to_phys(vaddr);
     mdl->kaddr      = vaddr;
 
@@ -1568,6 +1574,7 @@ gckOS_AllocateNonPagedMemory(
 
 #endif
 
+#if IOREMAP_IN_NOPAGE
     if (addr == gcvNULL)
     {
         gcmkTRACE_ZONE(gcvLEVEL_INFO,
@@ -1581,6 +1588,7 @@ gckOS_AllocateNonPagedMemory(
 
         return gcvSTATUS_OUT_OF_MEMORY;
     }
+#endif
 
     if ((Os->baseAddress & 0x80000000) != (mdl->dmaHandle & 0x80000000))
     {
@@ -1588,7 +1596,11 @@ gckOS_AllocateNonPagedMemory(
                        | (Os->baseAddress & 0x80000000);
     }
 
+#if IOREMAP_IN_NOPAGE
     mdl->addr = addr;
+#else
+    mdl->addr = vaddr;
+#endif
 
     /*
      * We will not do any mapping from here.
@@ -1873,7 +1885,9 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
     free_pages((unsigned long)mdl->kaddr, get_order(mdl->numPages * PAGE_SIZE));
 #endif
 
+#if IOREMAP_IN_NOPAGE
     iounmap(mdl->addr);
+#endif
 #endif /* NO_DMA_COHERENT */
 
     mdlMap = mdl->maps;
