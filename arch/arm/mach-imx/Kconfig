@@ -98,6 +98,7 @@ config MACH_SCB9328
 config MACH_APF9328
 	bool "APF9328"
 	select SOC_IMX1
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
 	help
 	  Say Yes here if you are using the Armadeus APF9328 development board
