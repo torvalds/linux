@@ -50,9 +50,6 @@ static const char driver_name[] = "langwell_udc";
 static const char driver_desc[] = DRIVER_DESC;
 
 
-/* controller device global variable */
-static struct langwell_udc	*the_controller;
-
 /* for endpoint 0 operations */
 static const struct usb_endpoint_descriptor
 langwell_ep0_desc = {
@@ -1311,9 +1308,12 @@ static int langwell_pullup(struct usb_gadget *_gadget, int is_on)
 	return 0;
 }
 
-static int langwell_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int langwell_stop(struct usb_gadget_driver *driver);
+static int langwell_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+
+static int langwell_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+
 /* device controller usb_gadget_ops structure */
 static const struct usb_gadget_ops langwell_ops = {
 
@@ -1335,8 +1335,8 @@ static const struct usb_gadget_ops langwell_ops = {
 	/* D+ pullup, software-controlled connect/disconnect to USB host */
 	.pullup		= langwell_pullup,
 
-	.start		= langwell_start,
-	.stop		= langwell_stop,
+	.udc_start	= langwell_start,
+	.udc_stop	= langwell_stop,
 };
 
 
@@ -1848,20 +1848,14 @@ static DEVICE_ATTR(remote_wakeup, S_IWUSR, NULL, store_remote_wakeup);
  * the driver might get unbound.
  */
 
-static int langwell_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int langwell_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = gadget_to_langwell(g);
 	unsigned long		flags;
 	int			retval;
 
-	if (!dev)
-		return -ENODEV;
-
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
-
-	if (dev->driver)
-		return -EBUSY;
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -1872,18 +1866,9 @@ static int langwell_start(struct usb_gadget_driver *driver,
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	retval = bind(&dev->gadget);
-	if (retval) {
-		dev_dbg(&dev->pdev->dev, "bind to driver %s --> %d\n",
-				driver->driver.name, retval);
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
-
 	retval = device_create_file(&dev->pdev->dev, &dev_attr_function);
 	if (retval)
-		goto err_unbind;
+		goto err;
 
 	dev->usb_state = USB_STATE_ATTACHED;
 	dev->ep0_state = WAIT_FOR_SETUP;
@@ -1900,30 +1885,26 @@ static int langwell_start(struct usb_gadget_driver *driver,
 	dev_info(&dev->pdev->dev, "register driver: %s\n",
 			driver->driver.name);
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
+
 	return 0;
 
-err_unbind:
-	driver->unbind(&dev->gadget);
+err:
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
+
 	return retval;
 }
 
 /* unregister gadget driver */
-static int langwell_stop(struct usb_gadget_driver *driver)
+static int langwell_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = gadget_to_langwell(g);
 	unsigned long		flags;
 
-	if (!dev)
-		return -ENODEV;
-
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
-
-	if (unlikely(!driver || !driver->unbind))
-		return -EINVAL;
 
 	/* exit PHY low power suspend */
 	if (dev->pdev->device != 0x0829)
@@ -1947,8 +1928,6 @@ static int langwell_stop(struct usb_gadget_driver *driver)
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	/* unbind gadget driver */
-	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
@@ -1957,6 +1936,7 @@ static int langwell_stop(struct usb_gadget_driver *driver)
 	dev_info(&dev->pdev->dev, "unregistered driver '%s'\n",
 			driver->driver.name);
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
+
 	return 0;
 }
 
@@ -3098,8 +3078,6 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 
 	/* free dev, wait for the release() finished */
 	wait_for_completion(&done);
-
-	the_controller = NULL;
 }
 
 
@@ -3117,11 +3095,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	void			__iomem *base = NULL;
 	size_t			size;
 	int			retval;
-
-	if (the_controller) {
-		dev_warn(&pdev->dev, "ignoring\n");
-		return -EBUSY;
-	}
 
 	/* alloc, and start init */
 	dev = kzalloc(sizeof *dev, GFP_KERNEL);
@@ -3341,8 +3314,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	dev_vdbg(&dev->pdev->dev,
 			"After langwell_udc_probe(), print all registers:\n");
 	print_all_registers(dev);
-
-	the_controller = dev;
 
 	retval = device_register(&dev->gadget.dev);
 	if (retval)
