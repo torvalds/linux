@@ -1426,7 +1426,7 @@ int hci_add_adv_entry(struct hci_dev *hdev,
 int hci_register_dev(struct hci_dev *hdev)
 {
 	struct list_head *head = &hci_dev_list, *p;
-	int i, id = 0;
+	int i, id = 0, error;
 
 	BT_DBG("%p name %s bus %d owner %p", hdev, hdev->name,
 						hdev->bus, hdev->owner);
@@ -1503,10 +1503,14 @@ int hci_register_dev(struct hci_dev *hdev)
 	write_unlock_bh(&hci_dev_list_lock);
 
 	hdev->workqueue = create_singlethread_workqueue(hdev->name);
-	if (!hdev->workqueue)
-		goto nomem;
+	if (!hdev->workqueue) {
+		error = -ENOMEM;
+		goto err;
+	}
 
-	hci_add_sysfs(hdev);
+	error = hci_add_sysfs(hdev);
+	if (error < 0)
+		goto err_wqueue;
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops, hdev);
@@ -1525,12 +1529,14 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	return id;
 
-nomem:
+err_wqueue:
+	destroy_workqueue(hdev->workqueue);
+err:
 	write_lock_bh(&hci_dev_list_lock);
 	list_del(&hdev->list);
 	write_unlock_bh(&hci_dev_list_lock);
 
-	return -ENOMEM;
+	return error;
 }
 EXPORT_SYMBOL(hci_register_dev);
 
