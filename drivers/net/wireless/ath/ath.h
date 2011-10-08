@@ -72,7 +72,6 @@ struct ath_regulatory {
 	u16 country_code;
 	u16 max_power_level;
 	u16 current_rd;
-	u16 current_rd_ext;
 	int16_t power_limit;
 	struct reg_dmn_pair_mapping *regpair;
 };
