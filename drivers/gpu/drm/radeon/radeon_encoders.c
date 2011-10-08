@@ -1507,7 +1507,14 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 		switch (mode) {
 		case DRM_MODE_DPMS_ON:
 			args.ucAction = ATOM_ENABLE;
-			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			/* workaround for DVOOutputControl on some RS690 systems */
+			if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DDI) {
+				u32 reg = RREG32(RADEON_BIOS_3_SCRATCH);
+				WREG32(RADEON_BIOS_3_SCRATCH, reg & ~ATOM_S3_DFP2I_ACTIVE);
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+				WREG32(RADEON_BIOS_3_SCRATCH, reg);
+			} else
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 				args.ucAction = ATOM_LCD_BLON;
 				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);

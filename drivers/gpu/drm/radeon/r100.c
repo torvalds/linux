@@ -773,8 +773,8 @@ int r100_copy_blit(struct radeon_device *rdev,
 		radeon_ring_write(rdev, (0x1fff) | (0x1fff << 16));
 		radeon_ring_write(rdev, 0);
 		radeon_ring_write(rdev, (0x1fff) | (0x1fff << 16));
-		radeon_ring_write(rdev, cur_pages);
-		radeon_ring_write(rdev, cur_pages);
+		radeon_ring_write(rdev, num_gpu_pages);
+		radeon_ring_write(rdev, num_gpu_pages);
 		radeon_ring_write(rdev, cur_pages | (stride_pixels << 16));
 	}
 	radeon_ring_write(rdev, PACKET0(RADEON_DSTCACHE_CTLSTAT, 0));
