@@ -2137,47 +2137,20 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 		case snd_soc_dapm_switch:
 		case snd_soc_dapm_mixer:
 		case snd_soc_dapm_mixer_named_ctl:
-			w->power_check = dapm_generic_check_power;
 			dapm_new_mixer(w);
 			break;
 		case snd_soc_dapm_mux:
 		case snd_soc_dapm_virt_mux:
 		case snd_soc_dapm_value_mux:
-			w->power_check = dapm_generic_check_power;
 			dapm_new_mux(w);
-			break;
-		case snd_soc_dapm_adc:
-		case snd_soc_dapm_aif_out:
-			w->power_check = dapm_adc_check_power;
-			break;
-		case snd_soc_dapm_dac:
-		case snd_soc_dapm_aif_in:
-			w->power_check = dapm_dac_check_power;
 			break;
 		case snd_soc_dapm_pga:
 		case snd_soc_dapm_out_drv:
-			w->power_check = dapm_generic_check_power;
 			dapm_new_pga(w);
 			break;
-		case snd_soc_dapm_input:
-		case snd_soc_dapm_output:
-		case snd_soc_dapm_micbias:
-		case snd_soc_dapm_spk:
-		case snd_soc_dapm_hp:
-		case snd_soc_dapm_mic:
-		case snd_soc_dapm_line:
-			w->power_check = dapm_generic_check_power;
-			break;
-		case snd_soc_dapm_supply:
-			w->power_check = dapm_supply_check_power;
-		case snd_soc_dapm_vmid:
-		case snd_soc_dapm_pre:
-		case snd_soc_dapm_post:
+		default:
 			break;
 		}
-
-		if (!w->power_check)
-			w->power_check = dapm_always_on_check_power;
 
 		/* Read the initial power state from the device */
 		if (w->reg >= 0) {
@@ -2666,6 +2639,44 @@ int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 			dapm->codec->name_prefix, widget->name);
 	else
 		snprintf(w->name, name_len, "%s", widget->name);
+
+	switch (w->id) {
+	case snd_soc_dapm_switch:
+	case snd_soc_dapm_mixer:
+	case snd_soc_dapm_mixer_named_ctl:
+		w->power_check = dapm_generic_check_power;
+		break;
+	case snd_soc_dapm_mux:
+	case snd_soc_dapm_virt_mux:
+	case snd_soc_dapm_value_mux:
+		w->power_check = dapm_generic_check_power;
+		break;
+	case snd_soc_dapm_adc:
+	case snd_soc_dapm_aif_out:
+		w->power_check = dapm_adc_check_power;
+		break;
+	case snd_soc_dapm_dac:
+	case snd_soc_dapm_aif_in:
+		w->power_check = dapm_dac_check_power;
+		break;
+	case snd_soc_dapm_pga:
+	case snd_soc_dapm_out_drv:
+	case snd_soc_dapm_input:
+	case snd_soc_dapm_output:
+	case snd_soc_dapm_micbias:
+	case snd_soc_dapm_spk:
+	case snd_soc_dapm_hp:
+	case snd_soc_dapm_mic:
+	case snd_soc_dapm_line:
+		w->power_check = dapm_generic_check_power;
+		break;
+	case snd_soc_dapm_supply:
+		w->power_check = dapm_supply_check_power;
+		break;
+	default:
+		w->power_check = dapm_always_on_check_power;
+		break;
+	}
 
 	dapm->n_widgets++;
 	w->dapm = dapm;
