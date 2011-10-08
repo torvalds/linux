@@ -195,7 +195,9 @@ static void mmc_wait_done(struct mmc_request *mrq)
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
-    unsigned long waittime;
+    unsigned long datasize, waittime=0xFFFF;
+    u32 multi, unit;
+    
 	DECLARE_COMPLETION_ONSTACK(complete);
 
 	mrq->done_data = &complete;
@@ -204,11 +206,34 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 	mmc_start_request(host, mrq);
 
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-    waittime = wait_for_completion_timeout(&complete,HZ*7); //for cmd dead. Modifyed by xbw at 2011-06-02
+    if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) ) 
+    {
+        waittime = wait_for_completion_timeout(&complete,HZ*2); //sdio; for cmd dead. Modifyed by xbw at 2011-06-02
+    }
+    else
+    {   
+        //calculate the timeout value for SDMMC; added by xbw at 2011-09-27
+        if(mrq->data)
+        {
+            unit = 3*(1<<20);// unit=3MB
+            datasize = mrq->data->blksz*mrq->data->blocks;
+            multi = datasize/unit;
+            multi += (datasize%unit)?1:0;
+            multi = (multi>0) ? multi : 1;
+            multi += (mrq->cmd->retries>0)?1:0;
+            waittime = wait_for_completion_timeout(&complete,HZ*2*multi);
+        }
+        else
+        {
+            waittime = wait_for_completion_timeout(&complete,HZ*2);
+        }
+    }
+    
     if(waittime <= 1)
     {
         host->doneflag = 0;
-        printk("%s...%d..  =====!!!!!!!!!CMD%d timeout ===xbw===\n",__FUNCTION__, __LINE__, mrq->cmd->opcode);
+        printk("%s..%d.. !!!!! wait for CMD%d timeout ===xbw[%s]===\n",\
+            __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
     }
 #else    
 	wait_for_completion(&complete);

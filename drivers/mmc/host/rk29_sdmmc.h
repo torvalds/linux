@@ -54,6 +54,7 @@
 #define SDMMC_CTRL_OD_PULLUP	  RK2818_BIT(24)
 #define SDMMC_CTRL_DMA_ENABLE     RK2818_BIT(5)
 #define SDMMC_CTRL_INT_ENABLE     RK2818_BIT(4)
+#define SDMMC_CTRL_DMA_RESET      RK2818_BIT(2)
 #define SDMMC_CTRL_FIFO_RESET     RK2818_BIT(1)
 #define SDMMC_CTRL_RESET          RK2818_BIT(0)
 
@@ -131,6 +132,7 @@
 
 
 /* Status register defines (base+0x48)*/
+#define SDMMC_STAUTS_MC_BUSY	RK2818_BIT(10)
 #define SDMMC_STAUTS_DATA_BUSY	RK2818_BIT(9)       //Card busy
 #define SDMMC_CMD_FSM_MASK		(0x0F << 4)	//Command FSM status mask
 #define SDMMC_CMD_FSM_IDLE      (0x00)			//CMD FSM is IDLE
