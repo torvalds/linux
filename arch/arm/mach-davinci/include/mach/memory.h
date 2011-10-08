@@ -36,9 +36,4 @@
 #define DDR2_MCLKSTOPEN_BIT	BIT(30)
 #define DDR2_LPMODEN_BIT	BIT(31)
 
-/*
- * Increase size of DMA-consistent memory region
- */
-#define CONSISTENT_DMA_SIZE (14<<20)
-
 #endif /* __ASM_ARCH_MEMORY_H */

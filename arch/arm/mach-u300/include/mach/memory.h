@@ -14,11 +14,6 @@
 #define __MACH_MEMORY_H
 
 #define PLAT_PHYS_OFFSET	UL(0x48000000)
-#define BOOT_PARAMS_OFFSET	(PLAT_PHYS_OFFSET + 0x100)
-
-/*
- * We enable a real big DMA buffer if need be.
- */
-#define CONSISTENT_DMA_SIZE SZ_4M
+#define BOOT_PARAMS_OFFSET	0x100
 
 #endif

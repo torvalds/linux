@@ -753,7 +753,7 @@ static void __init magician_init(void)
 
 
 MACHINE_START(MAGICIAN, "HTC Magician")
-	.boot_params = 0xa0000100,
+	.atag_offset = 0x100,
 	.map_io = pxa27x_map_io,
 	.nr_irqs = MAGICIAN_NR_IRQS,
 	.init_irq = pxa27x_init_irq,

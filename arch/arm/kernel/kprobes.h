@@ -413,6 +413,14 @@ struct decode_reject {
 	DECODE_HEADER(DECODE_TYPE_REJECT, _mask, _value, 0)
 
 
+#ifdef CONFIG_THUMB2_KERNEL
+extern const union decode_item kprobe_decode_thumb16_table[];
+extern const union decode_item kprobe_decode_thumb32_table[];
+#else
+extern const union decode_item kprobe_decode_arm_table[];
+#endif
+
+
 int kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi,
 			const union decode_item *table, bool thumb16);
 
