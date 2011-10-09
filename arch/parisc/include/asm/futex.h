@@ -8,6 +8,29 @@
 #include <asm/atomic.h>
 #include <asm/errno.h>
 
+/* The following has to match the LWS code in syscall.S.  We have
+   sixteen four-word locks. */
+
+static inline void
+_futex_spin_lock_irqsave(u32 __user *uaddr, unsigned long int *flags)
+{
+	extern u32 lws_lock_start[];
+	long index = ((long)uaddr & 0xf0) >> 2;
+	arch_spinlock_t *s = (arch_spinlock_t *)&lws_lock_start[index];
+	local_irq_save(*flags);
+	arch_spin_lock(s);
+}
+
+static inline void
+_futex_spin_unlock_irqrestore(u32 __user *uaddr, unsigned long int *flags)
+{
+	extern u32 lws_lock_start[];
+	long index = ((long)uaddr & 0xf0) >> 2;
+	arch_spinlock_t *s = (arch_spinlock_t *)&lws_lock_start[index];
+	arch_spin_unlock(s);
+	local_irq_restore(*flags);
+}
+
 static inline int
 futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 {
@@ -26,7 +49,7 @@ futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 
 	pagefault_disable();
 
-	_atomic_spin_lock_irqsave(uaddr, flags);
+	_futex_spin_lock_irqsave(uaddr, &flags);
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -71,7 +94,7 @@ futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 		ret = -ENOSYS;
 	}
 
-	_atomic_spin_unlock_irqrestore(uaddr, flags);
+	_futex_spin_unlock_irqrestore(uaddr, &flags);
 
 	pagefault_enable();
 
@@ -113,7 +136,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	 * address. This should scale to a couple of CPUs.
 	 */
 
-	_atomic_spin_lock_irqsave(uaddr, flags);
+	_futex_spin_lock_irqsave(uaddr, &flags);
 
 	ret = get_user(val, uaddr);
 
@@ -122,7 +145,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 
 	*uval = val;
 
-	_atomic_spin_unlock_irqrestore(uaddr, flags);
+	_futex_spin_unlock_irqrestore(uaddr, &flags);
 
 	return ret;
 }
