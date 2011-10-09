@@ -6,7 +6,8 @@
  *
  *   
  */
-
+#ifndef _RKNAND_BASE_H
+#define _RKNAND_BASE_H
 //#include "api_flash.h"
 
 #define DRIVER_NAME	"rk29xxnand"
@@ -67,13 +68,18 @@ struct rknand_info {
     char (*GetSNSectorInfo)(char * pbuf);
     char (*GetChipSectorInfo)(char * pbuf);
     int emmc_clk_power_save_en;
+    char *pdmaBuf;
     int reserved[20];
 };
 
 extern int rknand_queue_read(int Index, int nSec, void *buf);
 extern int rknand_queue_write(int Index, int nSec, void *buf,int mode);
+extern int rknand_panic_write(int Index, int nSec, void *buf);
 extern int rknand_buffer_init(char * pbuf,int size);
+extern void rknand_buffer_data_init(void);
 extern void rknand_buffer_shutdown(void);
 extern int add_rknand_device(struct rknand_info * prknand_Info);
 extern int get_rknand_device(struct rknand_info ** prknand_Info);
-extern void rknand_buffer_sync(void);
+extern int rknand_buffer_sync(void);
+
+#endif
