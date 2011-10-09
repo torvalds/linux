@@ -89,7 +89,7 @@ u8 MR_ValidateMapInfo(struct MR_FW_RAID_MAP_ALL *map,
 		      struct LD_LOAD_BALANCE_INFO *lbInfo);
 u16 get_updated_dev_handle(struct LD_LOAD_BALANCE_INFO *lbInfo,
 			   struct IO_REQUEST_INFO *in_info);
-int megasas_transition_to_ready(struct megasas_instance *instance);
+int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
 void megaraid_sas_kill_hba(struct megasas_instance *instance);
 
 extern u32 megasas_dbg_lvl;
@@ -2173,7 +2173,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 			}
 
 			/* Wait for FW to become ready */
-			if (megasas_transition_to_ready(instance)) {
+			if (megasas_transition_to_ready(instance, 1)) {
 				printk(KERN_WARNING "megaraid_sas: Failed to "
 				       "transition controller to ready.\n");
 				continue;

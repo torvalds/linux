@@ -84,7 +84,7 @@ MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux@lsi.com");
 MODULE_DESCRIPTION("LSI MegaRAID SAS Driver");
 
-int megasas_transition_to_ready(struct megasas_instance *instance);
+int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
 static int megasas_get_pd_list(struct megasas_instance *instance);
 static int megasas_issue_init_mfi(struct megasas_instance *instance);
 static int megasas_register_aen(struct megasas_instance *instance,
@@ -2477,7 +2477,7 @@ process_fw_state_change_wq(struct work_struct *work)
 			msleep(1000);
 		}
 
-		if (megasas_transition_to_ready(instance)) {
+		if (megasas_transition_to_ready(instance, 1)) {
 			printk(KERN_NOTICE "megaraid_sas:adapter not ready\n");
 
 			megaraid_sas_kill_hba(instance);
@@ -2617,7 +2617,7 @@ static irqreturn_t megasas_isr(int irq, void *devp)
  * has to wait for the ready state.
  */
 int
-megasas_transition_to_ready(struct megasas_instance* instance)
+megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 {
 	int i;
 	u8 max_wait;
@@ -2639,11 +2639,13 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 		switch (fw_state) {
 
 		case MFI_STATE_FAULT:
-
 			printk(KERN_DEBUG "megasas: FW in FAULT state!!\n");
-			max_wait = MEGASAS_RESET_WAIT_TIME;
-			cur_state = MFI_STATE_FAULT;
-			break;
+			if (ocr) {
+				max_wait = MEGASAS_RESET_WAIT_TIME;
+				cur_state = MFI_STATE_FAULT;
+				break;
+			} else
+				return -ENODEV;
 
 		case MFI_STATE_WAIT_HANDSHAKE:
 			/*
@@ -3520,7 +3522,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	/*
 	 * We expect the FW state to be READY
 	 */
-	if (megasas_transition_to_ready(instance))
+	if (megasas_transition_to_ready(instance, 0))
 		goto fail_ready_state;
 
 	/* Check if MSI-X is supported while in ready state */
@@ -4357,7 +4359,7 @@ megasas_resume(struct pci_dev *pdev)
 	/*
 	 * We expect the FW state to be READY
 	 */
-	if (megasas_transition_to_ready(instance))
+	if (megasas_transition_to_ready(instance, 0))
 		goto fail_ready_state;
 
 	/* Now re-enable MSI-X */
