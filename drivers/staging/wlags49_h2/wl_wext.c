@@ -3196,42 +3196,20 @@ out:
 
 
 
-static int wireless_get_genie(struct net_device *dev,
-					   struct iw_request_info *info,
-					   struct iw_point *data, char *extra)
+static int wireless_set_genie(struct net_device *dev,
+			      struct iw_request_info *info,
+			      struct iw_point *data, char *extra)
 
 {
-	struct wl_private *lp = wl_priv(dev);
-	unsigned long flags;
 	int   ret = 0;
-	ltv_t ltv;
 
-	DBG_FUNC( "wireless_get_genie" );
-	DBG_ENTER( DbgInfo );
+	DBG_ENTER(DbgInfo);
 
-	if(lp->portState == WVLAN_PORT_STATE_DISABLED) {
-		ret = -EBUSY;
-		goto out;
-	}
+	/* We can't write this to the card, but apparently this
+	 * operation needs to succeed */
+	ret = 0;
 
-	wl_lock( lp, &flags );
-
-    	wl_act_int_off( lp );
-
-	memset(&ltv, 0, sizeof(ltv));
-	ltv.len = 2;
-	ltv.typ = CFG_SET_WPA_AUTH_KEY_MGMT_SUITE;
-	lp->AuthKeyMgmtSuite = ltv.u.u16[0] = 4;
-	ltv.u.u16[0]  = CNV_INT_TO_LITTLE(ltv.u.u16[0]);
-
-	ret = hcf_put_info(&(lp->hcfCtx), (LTVP)&ltv);
-
-    	wl_act_int_on( lp );
-
-	wl_unlock(lp, &flags);
-
-out:
-	DBG_LEAVE( DbgInfo );
+	DBG_LEAVE(DbgInfo);
 	return ret;
 }
 /*============================================================================*/
@@ -3970,7 +3948,7 @@ static const iw_handler wl_handler[] =
 	IW_HANDLER(SIOCGIWENCODE, (iw_handler) wireless_get_encode),
 	IW_HANDLER(SIOCSIWPOWER, (iw_handler) wireless_set_power),
 	IW_HANDLER(SIOCGIWPOWER, (iw_handler) wireless_get_power),
-	IW_HANDLER(SIOCSIWGENIE, (iw_handler) wireless_get_genie),
+	IW_HANDLER(SIOCSIWGENIE, (iw_handler) wireless_set_genie),
 	IW_HANDLER(SIOCSIWAUTH, (iw_handler) wireless_set_auth),
 	IW_HANDLER(SIOCSIWENCODEEXT, (iw_handler) wireless_set_encodeext),
 };
