@@ -13,6 +13,7 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 
 #include <asm/mach/map.h>
 
@@ -21,10 +22,26 @@
 #include <mach/devices-common.h>
 #include <mach/iomux-v3.h>
 
+static struct clk *gpc_dvfs_clk;
+
 static void imx5_idle(void)
 {
-	if (!need_resched())
+	if (!need_resched()) {
+		/* gpc clock is needed for SRPG */
+		if (gpc_dvfs_clk == NULL) {
+			gpc_dvfs_clk = clk_get(NULL, "gpc_dvfs");
+			if (IS_ERR(gpc_dvfs_clk))
+				goto err0;
+		}
+		clk_enable(gpc_dvfs_clk);
 		mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
+		if (tzic_enable_wake())
+			goto err1;
+		cpu_do_idle();
+err1:
+		clk_disable(gpc_dvfs_clk);
+	}
+err0:
 	local_irq_enable();
 }
 

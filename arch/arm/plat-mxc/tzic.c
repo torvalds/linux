@@ -73,7 +73,28 @@ static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
 #define tzic_set_irq_fiq NULL
 #endif
 
-static unsigned int *wakeup_intr[4];
+#ifdef CONFIG_PM
+static void tzic_irq_suspend(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	int idx = gc->irq_base >> 5;
+
+	__raw_writel(gc->wake_active, tzic_base + TZIC_WAKEUP0(idx));
+}
+
+static void tzic_irq_resume(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	int idx = gc->irq_base >> 5;
+
+	__raw_writel(__raw_readl(tzic_base + TZIC_ENSET0(idx)),
+		     tzic_base + TZIC_WAKEUP0(idx));
+}
+
+#else
+#define tzic_irq_suspend NULL
+#define tzic_irq_resume NULL
+#endif
 
 static struct mxc_extra_irq tzic_extra_irq = {
 #ifdef CONFIG_FIQ
@@ -91,12 +112,13 @@ static __init void tzic_init_gc(unsigned int irq_start)
 				    handle_level_irq);
 	gc->private = &tzic_extra_irq;
 	gc->wake_enabled = IRQ_MSK(32);
-	wakeup_intr[idx] = &gc->wake_active;
 
 	ct = gc->chip_types;
 	ct->chip.irq_mask = irq_gc_mask_disable_reg;
 	ct->chip.irq_unmask = irq_gc_unmask_enable_reg;
 	ct->chip.irq_set_wake = irq_gc_set_wake;
+	ct->chip.irq_suspend = tzic_irq_suspend;
+	ct->chip.irq_resume = tzic_irq_resume;
 	ct->regs.disable = TZIC_ENCLEAR0(idx);
 	ct->regs.enable = TZIC_ENSET0(idx);
 
@@ -167,23 +189,19 @@ void __init tzic_init_irq(void __iomem *irqbase)
 /**
  * tzic_enable_wake() - enable wakeup interrupt
  *
- * @param is_idle		1 if called in idle loop (ENSET0 register);
- *				0 to be used when called from low power entry
  * @return			0 if successful; non-zero otherwise
  */
-int tzic_enable_wake(int is_idle)
+int tzic_enable_wake(void)
 {
-	unsigned int i, v;
+	unsigned int i;
 
 	__raw_writel(1, tzic_base + TZIC_DSMINT);
 	if (unlikely(__raw_readl(tzic_base + TZIC_DSMINT) == 0))
 		return -EAGAIN;
 
-	for (i = 0; i < 4; i++) {
-		v = is_idle ? __raw_readl(tzic_base + TZIC_ENSET0(i)) :
-			*wakeup_intr[i];
-		__raw_writel(v, tzic_base + TZIC_WAKEUP0(i));
-	}
+	for (i = 0; i < 4; i++)
+		__raw_writel(__raw_readl(tzic_base + TZIC_ENSET0(i)),
+			     tzic_base + TZIC_WAKEUP0(i));
 
 	return 0;
 }
