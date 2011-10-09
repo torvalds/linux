@@ -377,6 +377,8 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 {
 	int ret;
 
+	WARN_ON(map->cache_type != REGCACHE_NONE);
+
 	mutex_lock(&map->lock);
 
 	ret = _regmap_raw_write(map, reg, val, val_len);
@@ -480,6 +482,8 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		    size_t val_len)
 {
 	int ret;
+
+	WARN_ON(map->cache_type != REGCACHE_NONE);
 
 	mutex_lock(&map->lock);
 
