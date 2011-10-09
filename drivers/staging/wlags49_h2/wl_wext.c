@@ -2759,21 +2759,19 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 		buf = iwe_stream_add_point(info, buf, buf_end, &iwe, msg);
 
 
-		/* Custom info (WPA-IE) */
+		/* WPA-IE */
 		wpa_ie = NULL;
 		wpa_ie_len = 0;
 
 		wpa_ie = wl_parse_wpa_ie( probe_resp, &wpa_ie_len );
 		if( wpa_ie != NULL ) {
-			memset( &iwe, 0, sizeof( iwe ));
-			memset( msg, 0, sizeof( msg ));
+			memset(&iwe, 0, sizeof(iwe));
 
-			iwe.cmd = IWEVCUSTOM;
-			sprintf( msg, "wpa_ie=%s", wl_print_wpa_ie( wpa_ie, wpa_ie_len ));
-			iwe.u.data.length = strlen( msg );
+			iwe.cmd = IWEVGENIE;
+			iwe.u.data.length = wpa_ie_len;
 
 			buf = iwe_stream_add_point(info, buf, buf_end,
-						   &iwe, msg);
+						   &iwe, wpa_ie);
 		}
 
 		/* Add other custom info in formatted string format as needed... */
