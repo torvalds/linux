@@ -426,11 +426,11 @@ struct mlx4_en_priv {
 	struct mlx4_en_port_state port_state;
 	spinlock_t stats_lock;
 
-	unsigned long last_moder_packets;
+	unsigned long last_moder_packets[MAX_RX_RINGS];
 	unsigned long last_moder_tx_packets;
-	unsigned long last_moder_bytes;
+	unsigned long last_moder_bytes[MAX_RX_RINGS];
 	unsigned long last_moder_jiffies;
-	int last_moder_time;
+	int last_moder_time[MAX_RX_RINGS];
 	u16 rx_usecs;
 	u16 rx_frames;
 	u16 tx_usecs;

@@ -342,13 +342,13 @@ static int mlx4_en_set_coalesce(struct net_device *dev,
 	priv->rx_usecs_high = coal->rx_coalesce_usecs_high;
 	priv->sample_interval = coal->rate_sample_interval;
 	priv->adaptive_rx_coal = coal->use_adaptive_rx_coalesce;
-	priv->last_moder_time = MLX4_EN_AUTO_CONF;
 	if (priv->adaptive_rx_coal)
 		return 0;
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		priv->rx_cq[i].moder_cnt = priv->rx_frames;
 		priv->rx_cq[i].moder_time = priv->rx_usecs;
+		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
 		err = mlx4_en_set_cq_moder(priv, &priv->rx_cq[i]);
 		if (err)
 			return err;
@@ -394,6 +394,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	u32 rx_size, tx_size;
 	int port_up = 0;
 	int err = 0;
+	int i;
 
 	if (param->rx_jumbo_pending || param->rx_mini_pending)
 		return -EINVAL;
@@ -430,6 +431,15 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 		err = mlx4_en_start_port(dev);
 		if (err)
 			en_err(priv, "Failed starting port\n");
+	}
+
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		priv->rx_cq[i].moder_cnt = priv->rx_frames;
+		priv->rx_cq[i].moder_time = priv->rx_usecs;
+		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
+		err = mlx4_en_set_cq_moder(priv, &priv->rx_cq[i]);
+		if (err)
+			goto out;
 	}
 
 out:

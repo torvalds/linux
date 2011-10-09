@@ -415,6 +415,9 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 		cq = &priv->rx_cq[i];
 		cq->moder_cnt = priv->rx_frames;
 		cq->moder_time = priv->rx_usecs;
+		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
+		priv->last_moder_packets[i] = 0;
+		priv->last_moder_bytes[i] = 0;
 	}
 
 	for (i = 0; i < priv->tx_ring_num; i++) {
@@ -430,11 +433,8 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	priv->rx_usecs_high = MLX4_EN_RX_COAL_TIME_HIGH;
 	priv->sample_interval = MLX4_EN_SAMPLE_INTERVAL;
 	priv->adaptive_rx_coal = 1;
-	priv->last_moder_time = MLX4_EN_AUTO_CONF;
 	priv->last_moder_jiffies = 0;
-	priv->last_moder_packets = 0;
 	priv->last_moder_tx_packets = 0;
-	priv->last_moder_bytes = 0;
 }
 
 static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
@@ -446,43 +446,30 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 	unsigned long avg_pkt_size;
 	unsigned long rx_packets;
 	unsigned long rx_bytes;
-	unsigned long tx_packets;
-	unsigned long tx_pkt_diff;
 	unsigned long rx_pkt_diff;
 	int moder_time;
-	int i, err;
+	int ring, err;
 
 	if (!priv->adaptive_rx_coal || period < priv->sample_interval * HZ)
 		return;
 
-	spin_lock_bh(&priv->stats_lock);
-	rx_packets = priv->stats.rx_packets;
-	rx_bytes = priv->stats.rx_bytes;
-	tx_packets = priv->stats.tx_packets;
-	spin_unlock_bh(&priv->stats_lock);
+	for (ring = 0; ring < priv->rx_ring_num; ring++) {
+		spin_lock_bh(&priv->stats_lock);
+		rx_packets = priv->rx_ring[ring].packets;
+		rx_bytes = priv->rx_ring[ring].bytes;
+		spin_unlock_bh(&priv->stats_lock);
 
-	if (!priv->last_moder_jiffies || !period)
-		goto out;
+		rx_pkt_diff = ((unsigned long) (rx_packets -
+				priv->last_moder_packets[ring]));
+		packets = rx_pkt_diff;
+		rate = packets * HZ / period;
+		avg_pkt_size = packets ? ((unsigned long) (rx_bytes -
+				priv->last_moder_bytes[ring])) / packets : 0;
 
-	tx_pkt_diff = ((unsigned long) (tx_packets -
-					priv->last_moder_tx_packets));
-	rx_pkt_diff = ((unsigned long) (rx_packets -
-					priv->last_moder_packets));
-	packets = max(tx_pkt_diff, rx_pkt_diff);
-	rate = packets * HZ / period;
-	avg_pkt_size = packets ? ((unsigned long) (rx_bytes -
-				 priv->last_moder_bytes)) / packets : 0;
-
-	/* Apply auto-moderation only when packet rate exceeds a rate that
-	 * it matters */
-	if (rate > MLX4_EN_RX_RATE_THRESH && avg_pkt_size > MLX4_EN_AVG_PKT_SMALL) {
-		/* If tx and rx packet rates are not balanced, assume that
-		 * traffic is mainly BW bound and apply maximum moderation.
-		 * Otherwise, moderate according to packet rate */
-		if (2 * tx_pkt_diff > 3 * rx_pkt_diff ||
-		    2 * rx_pkt_diff > 3 * tx_pkt_diff) {
-			moder_time = priv->rx_usecs_high;
-		} else {
+		/* Apply auto-moderation only when packet rate
+		 * exceeds a rate that it matters */
+		if (rate > (MLX4_EN_RX_RATE_THRESH / priv->rx_ring_num) &&
+		    avg_pkt_size > MLX4_EN_AVG_PKT_SMALL) {
 			if (rate < priv->pkt_rate_low)
 				moder_time = priv->rx_usecs_low;
 			else if (rate > priv->pkt_rate_high)
@@ -492,36 +479,23 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 					(priv->rx_usecs_high - priv->rx_usecs_low) /
 					(priv->pkt_rate_high - priv->pkt_rate_low) +
 					priv->rx_usecs_low;
+		} else {
+			moder_time = priv->rx_usecs_low;
 		}
-	} else {
-		moder_time = priv->rx_usecs_low;
-	}
 
-	en_dbg(INTR, priv, "tx rate:%lu rx_rate:%lu\n",
-	       tx_pkt_diff * HZ / period, rx_pkt_diff * HZ / period);
-
-	en_dbg(INTR, priv, "Rx moder_time changed from:%d to %d period:%lu "
-	       "[jiff] packets:%lu avg_pkt_size:%lu rate:%lu [p/s])\n",
-		 priv->last_moder_time, moder_time, period, packets,
-		 avg_pkt_size, rate);
-
-	if (moder_time != priv->last_moder_time) {
-		priv->last_moder_time = moder_time;
-		for (i = 0; i < priv->rx_ring_num; i++) {
-			cq = &priv->rx_cq[i];
+		if (moder_time != priv->last_moder_time[ring]) {
+			priv->last_moder_time[ring] = moder_time;
+			cq = &priv->rx_cq[ring];
 			cq->moder_time = moder_time;
 			err = mlx4_en_set_cq_moder(priv, cq);
-			if (err) {
-				en_err(priv, "Failed modifying moderation for cq:%d\n", i);
-				break;
-			}
+			if (err)
+				en_err(priv, "Failed modifying moderation "
+					     "for cq:%d\n", ring);
 		}
+		priv->last_moder_packets[ring] = rx_packets;
+		priv->last_moder_bytes[ring] = rx_bytes;
 	}
 
-out:
-	priv->last_moder_packets = rx_packets;
-	priv->last_moder_tx_packets = tx_packets;
-	priv->last_moder_bytes = rx_bytes;
 	priv->last_moder_jiffies = jiffies;
 }
 
