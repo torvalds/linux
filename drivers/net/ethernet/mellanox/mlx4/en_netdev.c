@@ -587,7 +587,6 @@ int mlx4_en_start_port(struct net_device *dev)
 	int i;
 	int j;
 	u8 mc_list[16] = {0};
-	char name[32];
 
 	if (priv->port_up) {
 		en_dbg(DRV, priv, "start port called while port already up\n");
@@ -608,7 +607,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		cq = &priv->rx_cq[i];
 
-		err = mlx4_en_activate_cq(priv, cq);
+		err = mlx4_en_activate_cq(priv, cq, i);
 		if (err) {
 			en_err(priv, "Failed activating Rx CQ\n");
 			goto cq_err;
@@ -642,20 +641,11 @@ int mlx4_en_start_port(struct net_device *dev)
 		goto mac_err;
 	}
 
-	if (mdev->dev->caps.comp_pool && !priv->tx_vector) {
-		sprintf(name , "%s-tx", priv->dev->name);
-		if (mlx4_assign_eq(mdev->dev , name, &priv->tx_vector)) {
-			mlx4_warn(mdev, "Failed Assigning an EQ to "
-					"%s_tx ,Falling back to legacy "
-					"EQ's\n", priv->dev->name);
-		}
-	}
 	/* Configure tx cq's and rings */
 	for (i = 0; i < priv->tx_ring_num; i++) {
 		/* Configure cq */
 		cq = &priv->tx_cq[i];
-		cq->vector = priv->tx_vector;
-		err = mlx4_en_activate_cq(priv, cq);
+		err = mlx4_en_activate_cq(priv, cq, i);
 		if (err) {
 			en_err(priv, "Failed allocating Tx CQ\n");
 			goto tx_err;

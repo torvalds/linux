@@ -74,7 +74,8 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	return err;
 }
 
-int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
+int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
+			int cq_idx)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
@@ -90,13 +91,15 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 	if (cq->is_tx == RX) {
 		if (mdev->dev->caps.comp_pool) {
 			if (!cq->vector) {
-				sprintf(name , "%s-rx-%d", priv->dev->name, cq->ring);
+				sprintf(name, "%s-%d", priv->dev->name,
+					cq->ring);
+				/* Set IRQ for specific name (per ring) */
 				if (mlx4_assign_eq(mdev->dev, name, &cq->vector)) {
-					cq->vector = (cq->ring + 1 + priv->port) %
-						mdev->dev->caps.num_comp_vectors;
+					cq->vector = (cq->ring + 1 + priv->port)
+					    % mdev->dev->caps.num_comp_vectors;
 					mlx4_warn(mdev, "Failed Assigning an EQ to "
-						  "%s_rx-%d ,Falling back to legacy EQ's\n",
-						  priv->dev->name, cq->ring);
+						  "%s ,Falling back to legacy EQ's\n",
+						  name);
 				}
 			}
 		} else {
@@ -104,10 +107,13 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 				mdev->dev->caps.num_comp_vectors;
 		}
 	} else {
-		if (!cq->vector || !mdev->dev->caps.comp_pool) {
-			/*Fallback to legacy pool in case of error*/
-			cq->vector   = 0;
-		}
+		/* For TX we use the same irq per
+		ring we assigned for the RX    */
+		struct mlx4_en_cq *rx_cq;
+
+		cq_idx = cq_idx % priv->rx_ring_num;
+		rx_cq = &priv->rx_cq[cq_idx];
+		cq->vector = rx_cq->vector;
 	}
 
 	if (!cq->is_tx)
