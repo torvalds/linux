@@ -362,15 +362,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 
 	engine->display.init(dev);
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		u32 offset = nv_crtc->cursor.nvbo->bo.offset;
-
-		nv_crtc->cursor.set_offset(nv_crtc, offset);
-		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
-						 nv_crtc->cursor_saved_y);
-	}
-
 	/* Force CLUT to get re-loaded during modeset */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
@@ -385,6 +376,15 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	nouveau_fbcon_zfill_all(dev);
 
 	drm_helper_resume_force_mode(dev);
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		u32 offset = nv_crtc->cursor.nvbo->bo.offset;
+
+		nv_crtc->cursor.set_offset(nv_crtc, offset);
+		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
+						 nv_crtc->cursor_saved_y);
+	}
 
 	nouveau_fbcon_restore_accel(dev);
 	drm_kms_helper_poll_enable(dev);
