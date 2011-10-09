@@ -2057,8 +2057,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 	if (instance->adprecovery == MEGASAS_HW_CRITICAL_ERROR) {
 		printk(KERN_WARNING "megaraid_sas: Hardware critical error, "
 		       "returning FAILED.\n");
-		retval = FAILED;
-		goto out;
+		return FAILED;
 	}
 
 	mutex_lock(&instance->reset_mutex);
