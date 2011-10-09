@@ -139,11 +139,6 @@ megasas_clear_intr_fusion(struct megasas_register_set __iomem *regs)
 	if (!(status & MFI_FUSION_ENABLE_INTERRUPT_MASK))
 		return 0;
 
-	/*
-	 * dummy read to flush PCI
-	 */
-	readl(&regs->outbound_intr_status);
-
 	return 1;
 }
 
@@ -590,7 +585,6 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	struct megasas_init_frame *init_frame;
 	struct MPI2_IOC_INIT_REQUEST *IOCInitMessage;
 	dma_addr_t	ioc_init_handle;
-	u32 context;
 	struct megasas_cmd *cmd;
 	u8 ret;
 	struct fusion_context *fusion;
@@ -639,9 +633,6 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	memset(init_frame, 0, MEGAMFI_FRAME_SIZE);
 
 	frame_hdr = &cmd->frame->hdr;
-	context = init_frame->context;
-	init_frame->context = context;
-
 	frame_hdr->cmd_status = 0xFF;
 	frame_hdr->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 
@@ -1612,7 +1603,6 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 
 	req_desc->Words = 0;
 	cmd->request_desc = req_desc;
-	cmd->request_desc->Words = 0;
 
 	if (megasas_build_io_fusion(instance, scmd, cmd)) {
 		megasas_return_cmd_fusion(instance, cmd);
@@ -1928,15 +1918,12 @@ megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 			  struct megasas_cmd *cmd)
 {
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
-	union desc_value d_val;
 
 	req_desc = build_mpt_cmd(instance, cmd);
 	if (!req_desc) {
 		printk(KERN_ERR "Couldn't issue MFI pass thru cmd\n");
 		return;
 	}
-	d_val.word = req_desc->Words;
-
 	instance->instancet->fire_cmd(instance, req_desc->u.low,
 				      req_desc->u.high, instance->reg_set);
 }
