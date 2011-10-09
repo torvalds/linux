@@ -180,6 +180,7 @@ extern void __transport_stop_task_timer(struct se_task *, unsigned long *);
 extern int transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *, u32,
 				struct scatterlist *, u32);
 extern int transport_clear_lun_from_sessions(struct se_lun *);
+extern void transport_wait_for_tasks(struct se_cmd *);
 extern int transport_check_aborted_status(struct se_cmd *, int);
 extern int transport_send_check_condition_and_sense(struct se_cmd *, u8, int);
 extern void transport_send_task_abort(struct se_cmd *);

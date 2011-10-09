@@ -1638,8 +1638,6 @@ static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 	return 0;
 }
 
-static void transport_generic_wait_for_tasks(struct se_cmd *, int);
-
 /*	transport_generic_allocate_tasks():
  *
  *	Called from fabric RX Thread.
@@ -1651,12 +1649,6 @@ int transport_generic_allocate_tasks(
 	int ret;
 
 	transport_generic_prepare_cdb(cdb);
-
-	/*
-	 * This is needed for early exceptions.
-	 */
-	cmd->transport_wait_for_tasks = &transport_generic_wait_for_tasks;
-
 	/*
 	 * Ensure that the received CDB is less than the max (252 + 8) bytes
 	 * for VARIABLE_LENGTH_CMD
@@ -1739,7 +1731,7 @@ int transport_handle_cdb_direct(
 	 * Set TRANSPORT_NEW_CMD state and cmd->t_transport_active=1 following
 	 * transport_generic_handle_cdb*() -> transport_add_cmd_to_queue()
 	 * in existing usage to ensure that outstanding descriptors are handled
-	 * correctly during shutdown via transport_generic_wait_for_tasks()
+	 * correctly during shutdown via transport_wait_for_tasks()
 	 *
 	 * Also, we don't take cmd->t_state_lock here as we only expect
 	 * this to be called for initial descriptor submission.
@@ -1819,11 +1811,6 @@ EXPORT_SYMBOL(transport_generic_handle_data);
 int transport_generic_handle_tmr(
 	struct se_cmd *cmd)
 {
-	/*
-	 * This is needed for early exceptions.
-	 */
-	cmd->transport_wait_for_tasks = &transport_generic_wait_for_tasks;
-
 	transport_add_cmd_to_queue(cmd, TRANSPORT_PROCESS_TMR);
 	return 0;
 }
@@ -2504,8 +2491,6 @@ void transport_new_cmd_failure(struct se_cmd *se_cmd)
 	spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 }
 
-static void transport_nop_wait_for_tasks(struct se_cmd *, int);
-
 static inline u32 transport_get_sectors_6(
 	unsigned char *cdb,
 	struct se_cmd *cmd,
@@ -2780,7 +2765,6 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 static int
 transport_handle_reservation_conflict(struct se_cmd *cmd)
 {
-	cmd->transport_wait_for_tasks = &transport_nop_wait_for_tasks;
 	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 	cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
 	cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
@@ -2881,8 +2865,6 @@ static int transport_generic_cmd_sequencer(
 	 * Check for an existing UNIT ATTENTION condition
 	 */
 	if (core_scsi3_ua_check(cmd, cdb) < 0) {
-		cmd->transport_wait_for_tasks =
-				&transport_nop_wait_for_tasks;
 		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		cmd->scsi_sense_reason = TCM_CHECK_CONDITION_UNIT_ATTENTION;
 		return -EINVAL;
@@ -2892,7 +2874,6 @@ static int transport_generic_cmd_sequencer(
 	 */
 	ret = su_dev->t10_alua.alua_state_check(cmd, cdb, &alua_ascq);
 	if (ret != 0) {
-		cmd->transport_wait_for_tasks = &transport_nop_wait_for_tasks;
 		/*
 		 * Set SCSI additional sense code (ASC) to 'LUN Not Accessible';
 		 * The ALUA additional sense code qualifier (ASCQ) is determined
@@ -3396,7 +3377,6 @@ static int transport_generic_cmd_sequencer(
 		pr_warn("TARGET_CORE[%s]: Unsupported SCSI Opcode"
 			" 0x%02x, sending CHECK_CONDITION.\n",
 			cmd->se_tfo->get_fabric_name(), cdb[0]);
-		cmd->transport_wait_for_tasks = &transport_nop_wait_for_tasks;
 		goto out_unsupported_cdb;
 	}
 
@@ -4304,16 +4284,19 @@ EXPORT_SYMBOL(transport_release_cmd);
 
 void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
-	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD))
+	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD)) {
+		if (wait_for_tasks && cmd->se_tmr_req)
+			 transport_wait_for_tasks(cmd);
+
 		transport_release_cmd(cmd);
-	else {
+	} else {
+		if (wait_for_tasks)
+			transport_wait_for_tasks(cmd);
+
 		core_dec_lacl_count(cmd->se_sess->se_node_acl, cmd);
 
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
-
-		if (wait_for_tasks && cmd->transport_wait_for_tasks)
-			cmd->transport_wait_for_tasks(cmd, 0);
 
 		transport_free_dev_tasks(cmd);
 
@@ -4321,13 +4304,6 @@ void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 	}
 }
 EXPORT_SYMBOL(transport_generic_free_cmd);
-
-static void transport_nop_wait_for_tasks(
-	struct se_cmd *cmd,
-	int remove_cmd)
-{
-	return;
-}
 
 /*	transport_lun_wait_for_tasks():
  *
@@ -4498,21 +4474,30 @@ int transport_clear_lun_from_sessions(struct se_lun *lun)
 	return 0;
 }
 
-/*	transport_generic_wait_for_tasks():
+/**
+ * transport_wait_for_tasks - wait for completion to occur
+ * @cmd:	command to wait
  *
- *	Called from frontend or passthrough context to wait for storage engine
- *	to pause and/or release frontend generated struct se_cmd.
+ * Called from frontend fabric context to wait for storage engine
+ * to pause and/or release frontend generated struct se_cmd.
  */
-static void transport_generic_wait_for_tasks(
-	struct se_cmd *cmd,
-	int remove_cmd)
+void transport_wait_for_tasks(struct se_cmd *cmd)
 {
 	unsigned long flags;
 
-	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD) && !(cmd->se_tmr_req))
-		return;
-
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD) && !(cmd->se_tmr_req)) {
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		return;
+	}
+	/*
+	 * Only perform a possible wait_for_tasks if SCF_SUPPORTED_SAM_OPCODE
+	 * has been set in transport_set_supported_SAM_opcode().
+	 */
+	if (!(cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) && !cmd->se_tmr_req) {
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		return;
+	}
 	/*
 	 * If we are already stopped due to an external event (ie: LUN shutdown)
 	 * sleep until the connection can have the passed struct se_cmd back.
@@ -4552,8 +4537,10 @@ static void transport_generic_wait_for_tasks(
 		atomic_set(&cmd->transport_lun_stop, 0);
 	}
 	if (!atomic_read(&cmd->t_transport_active) ||
-	     atomic_read(&cmd->t_transport_aborted))
-		goto remove;
+	     atomic_read(&cmd->t_transport_aborted)) {
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		return;
+	}
 
 	atomic_set(&cmd->t_transport_stop, 1);
 
@@ -4576,13 +4563,10 @@ static void transport_generic_wait_for_tasks(
 	pr_debug("wait_for_tasks: Stopped wait_for_compltion("
 		"&cmd->t_transport_stop_comp) for ITT: 0x%08x\n",
 		cmd->se_tfo->get_task_tag(cmd));
-remove:
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	if (!remove_cmd)
-		return;
 
-	transport_generic_free_cmd(cmd, 0);
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 }
+EXPORT_SYMBOL(transport_wait_for_tasks);
 
 static int transport_get_sense_codes(
 	struct se_cmd *cmd,

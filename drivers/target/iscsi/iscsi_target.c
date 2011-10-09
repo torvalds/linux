@@ -3940,7 +3940,6 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 {
 	struct iscsi_cmd *cmd = NULL, *cmd_tmp = NULL;
 	struct iscsi_session *sess = conn->sess;
-	struct se_cmd *se_cmd;
 	/*
 	 * We expect this function to only ever be called from either RX or TX
 	 * thread context via iscsit_close_connection() once the other context
@@ -3953,16 +3952,13 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 			list_del(&cmd->i_list);
 			spin_unlock_bh(&conn->cmd_lock);
 			iscsit_increment_maxcmdsn(cmd, sess);
-			se_cmd = &cmd->se_cmd;
 			/*
 			 * Special cases for active iSCSI TMR, and
 			 * transport_lookup_cmd_lun() failing from
 			 * iscsit_get_lun_for_cmd() in iscsit_handle_scsi_cmd().
 			 */
-			if (cmd->tmr_req && se_cmd->transport_wait_for_tasks)
-				se_cmd->transport_wait_for_tasks(se_cmd, 1);
-			else if (cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD)
-				transport_release_cmd(se_cmd);
+			if (cmd->tmr_req)
+				transport_generic_free_cmd(&cmd->se_cmd, 1);
 			else
 				iscsit_release_cmd(cmd);
 
@@ -3973,10 +3969,8 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 		spin_unlock_bh(&conn->cmd_lock);
 
 		iscsit_increment_maxcmdsn(cmd, sess);
-		se_cmd = &cmd->se_cmd;
 
-		if (se_cmd->transport_wait_for_tasks)
-			se_cmd->transport_wait_for_tasks(se_cmd, 1);
+		transport_generic_free_cmd(&cmd->se_cmd, 1);
 
 		spin_lock_bh(&conn->cmd_lock);
 	}
