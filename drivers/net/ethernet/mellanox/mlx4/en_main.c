@@ -176,6 +176,7 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 	flush_workqueue(mdev->workqueue);
 	destroy_workqueue(mdev->workqueue);
 	mlx4_mr_free(dev, &mdev->mr);
+	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
 	kfree(mdev);
@@ -223,7 +224,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 			 MLX4_PERM_LOCAL_WRITE |  MLX4_PERM_LOCAL_READ,
 			 0, 0, &mdev->mr)) {
 		mlx4_err(mdev, "Failed allocating memory region\n");
-		goto err_uar;
+		goto err_map;
 	}
 	if (mlx4_mr_enable(mdev->dev, &mdev->mr)) {
 		mlx4_err(mdev, "Failed enabling memory region\n");
@@ -282,6 +283,9 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 
 err_mr:
 	mlx4_mr_free(dev, &mdev->mr);
+err_map:
+	if (!mdev->uar_map)
+		iounmap(mdev->uar_map);
 err_uar:
 	mlx4_uar_free(dev, &mdev->priv_uar);
 err_pd:
