@@ -1040,41 +1040,6 @@ void transport_dump_dev_state(
 	*bl += sprintf(b + *bl, "        ");
 }
 
-/*	transport_release_all_cmds():
- *
- *
- */
-static void transport_release_all_cmds(struct se_device *dev)
-{
-	struct se_cmd *cmd, *tcmd;
-	int bug_out = 0, t_state;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->dev_queue_obj.cmd_queue_lock, flags);
-	list_for_each_entry_safe(cmd, tcmd, &dev->dev_queue_obj.qobj_list,
-				se_queue_node) {
-		t_state = cmd->t_state;
-		list_del_init(&cmd->se_queue_node);
-		spin_unlock_irqrestore(&dev->dev_queue_obj.cmd_queue_lock,
-				flags);
-
-		pr_err("Releasing ITT: 0x%08x, i_state: %u,"
-			" t_state: %u directly\n",
-			cmd->se_tfo->get_task_tag(cmd),
-			cmd->se_tfo->get_cmd_state(cmd), t_state);
-
-		transport_put_cmd(cmd);
-		bug_out = 1;
-
-		spin_lock_irqsave(&dev->dev_queue_obj.cmd_queue_lock, flags);
-	}
-	spin_unlock_irqrestore(&dev->dev_queue_obj.cmd_queue_lock, flags);
-#if 0
-	if (bug_out)
-		BUG();
-#endif
-}
-
 void transport_dump_vpd_proto_id(
 	struct t10_vpd *vpd,
 	unsigned char *p_buf,
@@ -4859,180 +4824,6 @@ int transport_generic_do_tmr(struct se_cmd *cmd)
 	return 0;
 }
 
-/*
- *	Called with spin_lock_irq(&dev->execute_task_lock); held
- *
- */
-static struct se_task *
-transport_get_task_from_state_list(struct se_device *dev)
-{
-	struct se_task *task;
-
-	if (list_empty(&dev->state_task_list))
-		return NULL;
-
-	list_for_each_entry(task, &dev->state_task_list, t_state_list)
-		break;
-
-	list_del(&task->t_state_list);
-	atomic_set(&task->task_state_active, 0);
-
-	return task;
-}
-
-static void transport_processing_shutdown(struct se_device *dev)
-{
-	struct se_cmd *cmd;
-	struct se_task *task;
-	unsigned long flags;
-	/*
-	 * Empty the struct se_device's struct se_task state list.
-	 */
-	spin_lock_irqsave(&dev->execute_task_lock, flags);
-	while ((task = transport_get_task_from_state_list(dev))) {
-		if (!task->task_se_cmd) {
-			pr_err("task->task_se_cmd is NULL!\n");
-			continue;
-		}
-		cmd = task->task_se_cmd;
-
-		spin_unlock_irqrestore(&dev->execute_task_lock, flags);
-
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
-
-		pr_debug("PT: cmd: %p task: %p ITT: 0x%08x,"
-			" i_state: %d, t_state/def_t_state:"
-			" %d/%d cdb: 0x%02x\n", cmd, task,
-			cmd->se_tfo->get_task_tag(cmd),
-			cmd->se_tfo->get_cmd_state(cmd),
-			cmd->t_state, cmd->deferred_t_state,
-			cmd->t_task_cdb[0]);
-		pr_debug("PT: ITT[0x%08x] - t_tasks: %d t_task_cdbs_left:"
-			" %d t_task_cdbs_sent: %d -- t_transport_active: %d"
-			" t_transport_stop: %d t_transport_sent: %d\n",
-			cmd->se_tfo->get_task_tag(cmd),
-			cmd->t_task_list_num,
-			atomic_read(&cmd->t_task_cdbs_left),
-			atomic_read(&cmd->t_task_cdbs_sent),
-			atomic_read(&cmd->t_transport_active),
-			atomic_read(&cmd->t_transport_stop),
-			atomic_read(&cmd->t_transport_sent));
-
-		if (atomic_read(&task->task_active)) {
-			atomic_set(&task->task_stop, 1);
-			spin_unlock_irqrestore(
-				&cmd->t_state_lock, flags);
-
-			pr_debug("Waiting for task: %p to shutdown for dev:"
-				" %p\n", task, dev);
-			wait_for_completion(&task->task_stop_comp);
-			pr_debug("Completed task: %p shutdown for dev: %p\n",
-				task, dev);
-
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			atomic_dec(&cmd->t_task_cdbs_left);
-
-			atomic_set(&task->task_active, 0);
-			atomic_set(&task->task_stop, 0);
-		} else {
-			if (atomic_read(&task->task_execute_queue) != 0)
-				transport_remove_task_from_execute_queue(task, dev);
-		}
-		__transport_stop_task_timer(task, &flags);
-
-		if (!atomic_dec_and_test(&cmd->t_task_cdbs_ex_left)) {
-			spin_unlock_irqrestore(
-					&cmd->t_state_lock, flags);
-
-			pr_debug("Skipping task: %p, dev: %p for"
-				" t_task_cdbs_ex_left: %d\n", task, dev,
-				atomic_read(&cmd->t_task_cdbs_ex_left));
-
-			spin_lock_irqsave(&dev->execute_task_lock, flags);
-			continue;
-		}
-
-		if (atomic_read(&cmd->t_transport_active)) {
-			pr_debug("got t_transport_active = 1 for task: %p, dev:"
-					" %p\n", task, dev);
-
-			if (atomic_read(&cmd->t_fe_count)) {
-				spin_unlock_irqrestore(
-					&cmd->t_state_lock, flags);
-				transport_send_check_condition_and_sense(
-					cmd, TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE,
-					0);
-				transport_remove_cmd_from_queue(cmd,
-					&cmd->se_dev->dev_queue_obj);
-
-				transport_lun_remove_cmd(cmd);
-				transport_cmd_check_stop(cmd, 1, 0);
-			} else {
-				spin_unlock_irqrestore(
-					&cmd->t_state_lock, flags);
-
-				transport_remove_cmd_from_queue(cmd,
-					&cmd->se_dev->dev_queue_obj);
-
-				transport_lun_remove_cmd(cmd);
-
-				if (transport_cmd_check_stop(cmd, 1, 0))
-					transport_put_cmd(cmd);
-			}
-
-			spin_lock_irqsave(&dev->execute_task_lock, flags);
-			continue;
-		}
-		pr_debug("Got t_transport_active = 0 for task: %p, dev: %p\n",
-				task, dev);
-
-		if (atomic_read(&cmd->t_fe_count)) {
-			spin_unlock_irqrestore(
-				&cmd->t_state_lock, flags);
-			transport_send_check_condition_and_sense(cmd,
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
-			transport_remove_cmd_from_queue(cmd,
-				&cmd->se_dev->dev_queue_obj);
-
-			transport_lun_remove_cmd(cmd);
-			transport_cmd_check_stop(cmd, 1, 0);
-		} else {
-			spin_unlock_irqrestore(
-				&cmd->t_state_lock, flags);
-
-			transport_remove_cmd_from_queue(cmd,
-				&cmd->se_dev->dev_queue_obj);
-			transport_lun_remove_cmd(cmd);
-
-			if (transport_cmd_check_stop(cmd, 1, 0))
-				transport_put_cmd(cmd);
-		}
-
-		spin_lock_irqsave(&dev->execute_task_lock, flags);
-	}
-	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
-	/*
-	 * Empty the struct se_device's struct se_cmd list.
-	 */
-	while ((cmd = transport_get_cmd_from_queue(&dev->dev_queue_obj))) {
-
-		pr_debug("From Device Queue: cmd: %p t_state: %d\n",
-				cmd, cmd->t_state);
-
-		if (atomic_read(&cmd->t_fe_count)) {
-			transport_send_check_condition_and_sense(cmd,
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
-
-			transport_lun_remove_cmd(cmd);
-			transport_cmd_check_stop(cmd, 1, 0);
-		} else {
-			transport_lun_remove_cmd(cmd);
-			if (transport_cmd_check_stop(cmd, 1, 0))
-				transport_put_cmd(cmd);
-		}
-	}
-}
-
 /*	transport_processing_thread():
  *
  *
@@ -5051,14 +4842,6 @@ static int transport_processing_thread(void *param)
 				kthread_should_stop());
 		if (ret < 0)
 			goto out;
-
-		spin_lock_irq(&dev->dev_status_lock);
-		if (dev->dev_status & TRANSPORT_DEVICE_SHUTDOWN) {
-			spin_unlock_irq(&dev->dev_status_lock);
-			transport_processing_shutdown(dev);
-			continue;
-		}
-		spin_unlock_irq(&dev->dev_status_lock);
 
 get_cmd:
 		__transport_execute_tasks(dev);
@@ -5135,7 +4918,8 @@ get_cmd:
 	}
 
 out:
-	transport_release_all_cmds(dev);
+	WARN_ON(!list_empty(&dev->state_task_list));
+	WARN_ON(!list_empty(&dev->dev_queue_obj.qobj_list));
 	dev->process_thread = NULL;
 	return 0;
 }
