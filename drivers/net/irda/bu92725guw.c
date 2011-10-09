@@ -352,7 +352,6 @@ void BU92725GUW_set_trans_way(u32 way)
 
 	/* set bu92725guw registers */
 	/* [Modify] AIC 2011/09/27
-	 *    MS_EN(TRCR5)¤Ë¤è¤ëÍ¨ÐÅ¥â©`¥ÉÇÐÌæ„Ó×÷¤òÐÐ¤ï¤Ê¤¤¤è¤¦¤ËÐÞÕý¤·¤Þ¤·¤¿¡£
 	 *
 	 * internal_set(1);
 	 */
@@ -714,17 +713,17 @@ static void internal_set(u8 modeChg)
 		break;
 		
 	case BU92725GUW_FIR_REV: /* FIR use */
-		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF 
+		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF \
 			| REG_INT_AC | REG_INT_DECE; //IER1,2, 4, 5, 6, 7
 		break;
 		
 	case BU92725GUW_MULTI_REV: /* not used */
-		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE 
+		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE \
 			 | REG_INT_RDOE | REG_INT_DEX | REG_INT_RDUE; //IER1,2, 4, 5, 6, 7, 8, 9, 10
 		break;
 	
 	case BU92725GUW_AUTO_MULTI_REV: /* M/FIR use */
-		val = REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE 
+		val = REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE\
 			 | REG_INT_RDOE | REG_INT_DEX | REG_INT_RDE; //IER2, 4, 5, 6, 7, 8, 9, 12
 		break;
 		
@@ -754,4 +753,9 @@ void BU92725GUW_dump_register(void)
 	printk("IER: 0x%x\n", BU92725GUW_READ_REG(REG_IER_ADDR));
 }
 
-
+/* [Add] AIC 2011/09/29 */
+int BU92725GUW_get_length_in_fifo_buffer(void)
+{
+	return( (int)BU92725GUW_READ_REG(REG_FLV_ADDR) );
+}
+/* [Add-end] AIC 2011/09/29 */

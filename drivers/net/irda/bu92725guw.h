@@ -227,5 +227,8 @@ int irda_hw_shutdown(void);
 int irda_hw_startup(void);
 int irda_hw_set_speed(u32 speed);
 
+/* [Add] AIC 2011/09/29 */
+int BU92725GUW_get_length_in_fifo_buffer(void);
+/* [Add-end] AIC 2011/09/29 */
 
 #endif /*__BU92725GUW_H*/
