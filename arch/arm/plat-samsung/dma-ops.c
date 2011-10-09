@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/amba/pl330.h>
 #include <linux/scatterlist.h>
+#include <linux/export.h>
 
 #include <mach/dma.h>
 
