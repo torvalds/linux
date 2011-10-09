@@ -74,7 +74,8 @@ megasas_issue_polled(struct megasas_instance *instance,
 		     struct megasas_cmd *cmd);
 
 u8
-MR_BuildRaidContext(struct IO_REQUEST_INFO *io_info,
+MR_BuildRaidContext(struct megasas_instance *instance,
+		    struct IO_REQUEST_INFO *io_info,
 		    struct RAID_CONTEXT *pRAID_Context,
 		    struct MR_FW_RAID_MAP_ALL *map);
 u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
@@ -1038,7 +1039,9 @@ map_cmd_status(struct megasas_cmd_fusion *cmd, u8 status, u8 ext_status)
 	case MFI_STAT_DEVICE_NOT_FOUND:
 		cmd->scmd->result = DID_BAD_TARGET << 16;
 		break;
-
+	case MFI_STAT_CONFIG_SEQ_MISMATCH:
+		cmd->scmd->result = DID_IMM_RETRY << 16;
+		break;
 	default:
 		printk(KERN_DEBUG "megasas: FW status %#x\n", status);
 		cmd->scmd->result = DID_ERROR << 16;
@@ -1061,14 +1064,17 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 			struct MPI25_IEEE_SGE_CHAIN64 *sgl_ptr,
 			struct megasas_cmd_fusion *cmd)
 {
-	int i, sg_processed;
-	int sge_count, sge_idx;
+	int i, sg_processed, sge_count;
 	struct scatterlist *os_sgl;
 	struct fusion_context *fusion;
 
 	fusion = instance->ctrl_context;
 
-	cmd->io_request->ChainOffset = 0;
+	if (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) {
+		struct MPI25_IEEE_SGE_CHAIN64 *sgl_ptr_end = sgl_ptr;
+		sgl_ptr_end += fusion->max_sge_in_main_msg - 1;
+		sgl_ptr_end->Flags = 0;
+	}
 
 	sge_count = scsi_dma_map(scp);
 
@@ -1077,16 +1083,14 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 	if (sge_count > instance->max_num_sge || !sge_count)
 		return sge_count;
 
-	if (sge_count > fusion->max_sge_in_main_msg) {
-		/* One element to store the chain info */
-		sge_idx = fusion->max_sge_in_main_msg - 1;
-	} else
-		sge_idx = sge_count;
-
 	scsi_for_each_sg(scp, os_sgl, sge_count, i) {
 		sgl_ptr->Length = sg_dma_len(os_sgl);
 		sgl_ptr->Address = sg_dma_address(os_sgl);
 		sgl_ptr->Flags = 0;
+		if (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) {
+			if (i == sge_count - 1)
+				sgl_ptr->Flags = IEEE_SGE_FLAGS_END_OF_LIST;
+		}
 		sgl_ptr++;
 
 		sg_processed = i + 1;
@@ -1095,13 +1099,30 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 		    (sge_count > fusion->max_sge_in_main_msg)) {
 
 			struct MPI25_IEEE_SGE_CHAIN64 *sg_chain;
-			cmd->io_request->ChainOffset =
-				fusion->chain_offset_io_request;
+			if (instance->pdev->device ==
+			    PCI_DEVICE_ID_LSI_INVADER) {
+				if ((cmd->io_request->IoFlags &
+				MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH) !=
+				MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
+					cmd->io_request->ChainOffset =
+						fusion->
+						chain_offset_io_request;
+				else
+					cmd->io_request->ChainOffset = 0;
+			} else
+				cmd->io_request->ChainOffset =
+					fusion->chain_offset_io_request;
+
 			sg_chain = sgl_ptr;
 			/* Prepare chain element */
 			sg_chain->NextChainOffset = 0;
-			sg_chain->Flags = (IEEE_SGE_FLAGS_CHAIN_ELEMENT |
-					   MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR);
+			if (instance->pdev->device ==
+			    PCI_DEVICE_ID_LSI_INVADER)
+				sg_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT;
+			else
+				sg_chain->Flags =
+					(IEEE_SGE_FLAGS_CHAIN_ELEMENT |
+					 MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR);
 			sg_chain->Length =  (sizeof(union MPI2_SGE_IO_UNION)
 					     *(sge_count - sg_processed));
 			sg_chain->Address = cmd->sg_frame_phys_addr;
@@ -1394,7 +1415,8 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		io_request->RaidContext.regLockFlags  = 0;
 		fp_possible = 0;
 	} else {
-		if (MR_BuildRaidContext(&io_info, &io_request->RaidContext,
+		if (MR_BuildRaidContext(instance, &io_info,
+					&io_request->RaidContext,
 					local_map_ptr))
 			fp_possible = io_info.fpOkForIo;
 	}
@@ -1407,6 +1429,20 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+		if (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) {
+			if (io_request->RaidContext.regLockFlags ==
+			    REGION_TYPE_UNUSED)
+				cmd->request_desc->SCSIIO.RequestFlags =
+					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
+					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+			io_request->RaidContext.Type = MPI2_TYPE_CUDA;
+			io_request->RaidContext.nseg = 0x1;
+			io_request->IoFlags |=
+			  MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
+			io_request->RaidContext.regLockFlags |=
+			  (MR_RL_FLAGS_GRANT_DESTINATION_CUDA |
+			   MR_RL_FLAGS_SEQ_NUM_ENABLE);
+		}
 		if ((fusion->load_balance_info[device_id].loadBalanceFlag) &&
 		    (io_info.isRead)) {
 			io_info.devHandle =
@@ -1421,11 +1457,23 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	} else {
 		io_request->RaidContext.timeoutValue =
 			local_map_ptr->raidMap.fpPdIoTimeoutSec;
-		io_request->Function = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
-		io_request->DevHandle = device_id;
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MEGASAS_REQ_DESCRIPT_FLAGS_LD_IO
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+		if (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) {
+			if (io_request->RaidContext.regLockFlags ==
+			    REGION_TYPE_UNUSED)
+				cmd->request_desc->SCSIIO.RequestFlags =
+					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
+					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+			io_request->RaidContext.Type = MPI2_TYPE_CUDA;
+			io_request->RaidContext.regLockFlags |=
+				(MR_RL_FLAGS_GRANT_DESTINATION_CPU0 |
+				 MR_RL_FLAGS_SEQ_NUM_ENABLE);
+			io_request->RaidContext.nseg = 0x1;
+		}
+		io_request->Function = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
+		io_request->DevHandle = device_id;
 	} /* Not FP */
 }
 
@@ -1508,8 +1556,10 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	io_request->EEDPFlags = 0;
 	io_request->Control = 0;
 	io_request->EEDPBlockSize = 0;
-	io_request->IoFlags = 0;
+	io_request->ChainOffset = 0;
 	io_request->RaidContext.RAIDFlags = 0;
+	io_request->RaidContext.Type = 0;
+	io_request->RaidContext.nseg = 0;
 
 	memcpy(io_request->CDB.CDB32, scp->cmnd, scp->cmd_len);
 	/*
@@ -1863,6 +1913,14 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 
 	fusion = instance->ctrl_context;
 	io_req = cmd->io_request;
+
+	if (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) {
+		struct MPI25_IEEE_SGE_CHAIN64 *sgl_ptr_end =
+			(struct MPI25_IEEE_SGE_CHAIN64 *)&io_req->SGL;
+		sgl_ptr_end += fusion->max_sge_in_main_msg - 1;
+		sgl_ptr_end->Flags = 0;
+	}
+
 	mpi25_ieee_chain =
 	  (struct MPI25_IEEE_SGE_CHAIN64 *)&io_req->SGL.IeeeChain;
 
