@@ -15,7 +15,6 @@ INSTALLDIR := /lib/modules/$(shell uname -r)/kernel/drivers/net/wireless
 ccflags-y := -I$(KERNELDIR)/include
 ccflags-y += -I$(src) \
 		-DBUS_PCMCIA \
-		-DUSE_WPA \
 		-DUSE_WEXT \
 		-DSTA_ONLY \
 		-DWVLAN_49 \

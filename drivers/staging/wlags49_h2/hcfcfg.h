@@ -316,16 +316,25 @@ typedef unsigned long			hcf_32;
 //#define HCF_SLEEP (HCF_CDS | HCF_DDS )
 #define HCF_SLEEP (HCF_CDS)
 
-//#define HCF_TYPE    (HCF_TYPE_HII5|HCF_TYPE_STA|HCF_TYPE_AP)
+/* Note: Non-WARP firmware all support WPA. However the original Agere
+ * linux driver does not enable WPA. Enabling WPA here causes whatever
+ * preliminary WPA logic to be included, some of which may be specific
+ * to HERMESI.
+ *
+ * Various comment are clear that WARP and WPA are not compatible
+ * (which may just mean WARP does WPA in a different fashion).
+ */
+
+/* #define HCF_TYPE    (HCF_TYPE_HII5|HCF_TYPE_STA|HCF_TYPE_AP) */
 #ifdef HERMES25
 #ifdef WARP
 #define HCF_TYPE    ( HCF_TYPE_WARP | HCF_TYPE_HII5 )
 #else
-#define HCF_TYPE    HCF_TYPE_HII5
-#endif // WARP
+#define HCF_TYPE    (HCF_TYPE_HII5 | HCF_TYPE_WPA)
+#endif /* WARP */
 #else
-#define HCF_TYPE    HCF_TYPE_NONE
-#endif // HERMES25
+#define HCF_TYPE    HCF_TYPE_WPA
+#endif /* HERMES25 */
 
 #ifdef ENABLE_DMA
 #define HCF_DMA		1
