@@ -575,18 +575,14 @@ static int pwc_s_input(struct file *file, void *fh, unsigned int i)
 	return i ? -EINVAL : 0;
 }
 
-static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+static int pwc_g_volatile_ctrl_unlocked(struct v4l2_ctrl *ctrl)
 {
 	struct pwc_device *pdev =
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
 
-	mutex_lock(&pdev->udevlock);
-
-	if (!pdev->udev) {
-		ret = -ENODEV;
-		goto leave;
-	}
+	if (!pdev->udev)
+		return -ENODEV;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTO_WHITE_BALANCE:
@@ -651,7 +647,17 @@ static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		PWC_ERROR("g_ctrl %s error %d\n", ctrl->name, ret);
 
-leave:
+	return ret;
+}
+
+static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct pwc_device *pdev =
+		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
+	int ret;
+
+	mutex_lock(&pdev->udevlock);
+	ret = pwc_g_volatile_ctrl_unlocked(ctrl);
 	mutex_unlock(&pdev->udevlock);
 	return ret;
 }
@@ -669,6 +675,15 @@ static int pwc_set_awb(struct pwc_device *pdev)
 
 		if (pdev->auto_white_balance->val != awb_manual)
 			pdev->color_bal_valid = false; /* Force cache update */
+
+		/*
+		 * If this is a preset, update our red / blue balance values
+		 * so that events get generated for the new preset values
+		 */
+		if (pdev->auto_white_balance->val == awb_indoor ||
+		    pdev->auto_white_balance->val == awb_outdoor ||
+		    pdev->auto_white_balance->val == awb_fl)
+			pwc_g_volatile_ctrl_unlocked(pdev->auto_white_balance);
 	}
 	if (pdev->auto_white_balance->val != awb_manual)
 		return 0;
