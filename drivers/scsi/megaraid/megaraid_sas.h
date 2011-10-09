@@ -139,6 +139,7 @@
 #define MFI_CMD_ABORT				0x06
 #define MFI_CMD_SMP				0x07
 #define MFI_CMD_STP				0x08
+#define MFI_CMD_INVALID				0xff
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
 #define MR_DCMD_LD_GET_LIST			0x03010000
