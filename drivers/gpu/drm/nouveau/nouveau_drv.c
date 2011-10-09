@@ -178,6 +178,8 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
+	drm_kms_helper_poll_disable(dev);
+
 	NV_INFO(dev, "Disabling fbcon acceleration...\n");
 	nouveau_fbcon_save_disable_accel(dev);
 
@@ -385,6 +387,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	drm_helper_resume_force_mode(dev);
 
 	nouveau_fbcon_restore_accel(dev);
+	drm_kms_helper_poll_enable(dev);
 	return 0;
 }
 
