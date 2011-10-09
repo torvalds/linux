@@ -531,7 +531,7 @@ static void sleep_timer_expired(unsigned long data)
 	struct fiq_debugger_state *state = (struct fiq_debugger_state *)data;
 
 	if (state->uart_clk_enabled && !state->no_sleep) {
-		if (state->debug_enable) {
+		if (state->debug_enable && !state->console_enable) {
 			state->debug_enable = false;
 			debug_printf_nfiq(state, "suspending fiq debugger\n");
 		}
