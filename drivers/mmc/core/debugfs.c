@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/moduleparam.h>
 #include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
