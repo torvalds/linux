@@ -252,9 +252,6 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 		regcache_rbtree_set_register(rbnode, reg_tmp, value,
 					     map->cache_word_size);
 	} else {
-		/* bail out early, no need to create the rbnode yet */
-		if (!value)
-			return 0;
 		/* look for an adjacent register to the one we are about to add */
 		for (node = rb_first(&rbtree_ctx->root); node;
 		     node = rb_next(node)) {
