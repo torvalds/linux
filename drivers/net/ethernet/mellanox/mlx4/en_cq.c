@@ -139,14 +139,13 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	return 0;
 }
 
-void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
-			bool reserve_vectors)
+void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 
 	mlx4_en_unmap_buffer(&cq->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
-	if (priv->mdev->dev->caps.comp_pool && cq->vector && !reserve_vectors)
+	if (priv->mdev->dev->caps.comp_pool && cq->vector)
 		mlx4_release_eq(priv->mdev->dev, cq->vector);
 	cq->buf_size = 0;
 	cq->buf = NULL;
