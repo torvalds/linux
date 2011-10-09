@@ -304,7 +304,7 @@ static int regcache_rbtree_sync(struct regmap *map)
 	struct rb_node *node;
 	struct regcache_rbtree_node *rbnode;
 	unsigned int regtmp;
-	unsigned int val, def;
+	unsigned int val;
 	int ret;
 	int i;
 
@@ -315,13 +315,12 @@ static int regcache_rbtree_sync(struct regmap *map)
 			regtmp = rbnode->base_reg + i;
 			val = regcache_rbtree_get_register(rbnode, i,
 							   map->cache_word_size);
+
+			/* Is this the hardware default?  If so skip. */
 			ret = regcache_lookup_reg(map, i);
-			if (ret < 0)
-				def = 0;
-			else
-				def = map->reg_defaults[ret].def;
-			if (val == def)
+			if (ret > 0 && val == map->reg_defaults[ret].def)
 				continue;
+
 			map->cache_bypass = 1;
 			ret = _regmap_write(map, regtmp, val);
 			map->cache_bypass = 0;
