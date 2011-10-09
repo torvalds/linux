@@ -495,6 +495,8 @@ struct snd_soc_dapm_widget {
 	/* used during DAPM updates */
 	struct list_head power_list;
 	struct list_head dirty;
+	int inputs;
+	int outputs;
 };
 
 struct snd_soc_dapm_update {
