@@ -94,6 +94,14 @@ enum {
 	MLX4_MCAST_ENABLE       = 2,
 };
 
+enum {
+	MLX4_EN_1G_SPEED	= 0x02,
+	MLX4_EN_10G_SPEED_XFI	= 0x01,
+	MLX4_EN_10G_SPEED_XAUI	= 0x00,
+	MLX4_EN_40G_SPEED	= 0x40,
+	MLX4_EN_OTHER_SPEED	= 0x0f,
+};
+
 struct mlx4_en_query_port_context {
 	u8 link_up;
 #define MLX4_EN_LINK_UP_MASK	0x80
@@ -101,8 +109,7 @@ struct mlx4_en_query_port_context {
 	__be16 mtu;
 	u8 reserved2;
 	u8 link_speed;
-#define MLX4_EN_SPEED_MASK	0x3
-#define MLX4_EN_1G_SPEED	0x2
+#define MLX4_EN_SPEED_MASK	0x43
 	u16 reserved3[5];
 	__be64 mac;
 	u8 transceiver;
