@@ -980,6 +980,12 @@ struct wl_private
 #ifdef USE_WDS
 	WVLAN_WDS_IF                wds_port[NUM_WDS_PORTS];
 #endif // USE_WDS
+
+	/* Track whether the card is using WEP encryption or WPA
+	 * so we know what to disable next time through.
+	 *  IW_ENCODE_ALG_NONE, IW_ENCODE_ALG_WEP, IW_ENCODE_ALG_TKIP
+	 */
+	int wext_enc;
 }; // wl_private
 
 #define wl_priv(dev) ((struct wl_private *) netdev_priv(dev))
