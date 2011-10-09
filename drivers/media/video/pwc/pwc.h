@@ -332,6 +332,8 @@ struct pwc_device
 	struct v4l2_ctrl		*save_user;
 	struct v4l2_ctrl		*restore_user;
 	struct v4l2_ctrl		*restore_factory;
+	struct v4l2_ctrl		*awb_speed;
+	struct v4l2_ctrl		*awb_delay;
 	struct {
 		/* motor control cluster */
 		struct v4l2_ctrl	*motor_pan;

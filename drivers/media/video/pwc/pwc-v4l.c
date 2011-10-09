@@ -49,6 +49,7 @@ static const struct v4l2_ctrl_ops pwc_ctrl_ops = {
 
 enum { awb_indoor, awb_outdoor, awb_fl, awb_manual, awb_auto };
 enum { custom_autocontour, custom_contour, custom_noise_reduction,
+	custom_awb_speed, custom_awb_delay,
 	custom_save_user, custom_restore_user, custom_restore_factory };
 
 const char * const pwc_auto_whitebal_qmenu[] = {
@@ -136,6 +137,26 @@ static const struct v4l2_ctrl_config pwc_restore_factory_cfg = {
 	.id	= PWC_CID_CUSTOM(restore_factory),
 	.type	= V4L2_CTRL_TYPE_BUTTON,
 	.name    = "Restore Factory Settings",
+};
+
+static const struct v4l2_ctrl_config pwc_awb_speed_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(awb_speed),
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.name	= "Auto White Balance Speed",
+	.min	= 1,
+	.max	= 32,
+	.step	= 1,
+};
+
+static const struct v4l2_ctrl_config pwc_awb_delay_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(awb_delay),
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.name	= "Auto White Balance Delay",
+	.min	= 0,
+	.max	= 63,
+	.step	= 1,
 };
 
 int pwc_init_controls(struct pwc_device *pdev)
@@ -337,6 +358,23 @@ int pwc_init_controls(struct pwc_device *pdev)
 						     NULL);
 	if (pdev->restore_factory)
 		pdev->restore_factory->flags |= V4L2_CTRL_FLAG_UPDATE;
+
+	/* Auto White Balance speed & delay */
+	r = pwc_get_u8_ctrl(pdev, GET_CHROM_CTL,
+			    AWB_CONTROL_SPEED_FORMATTER, &def);
+	if (r || def < 1 || def > 32)
+		def = 1;
+	cfg = pwc_awb_speed_cfg;
+	cfg.def = def;
+	pdev->awb_speed = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+
+	r = pwc_get_u8_ctrl(pdev, GET_CHROM_CTL,
+			    AWB_CONTROL_DELAY_FORMATTER, &def);
+	if (r || def > 63)
+		def = 0;
+	cfg = pwc_awb_delay_cfg;
+	cfg.def = def;
+	pdev->awb_delay = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
 
 	if (!(pdev->features & FEATURE_MOTOR_PANTILT))
 		return hdl->error;
@@ -890,6 +928,16 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case PWC_CID_CUSTOM(restore_factory):
 		ret = pwc_button_ctrl(pdev,
 				      RESTORE_FACTORY_DEFAULTS_FORMATTER);
+		break;
+	case PWC_CID_CUSTOM(awb_speed):
+		ret = pwc_set_u8_ctrl(pdev, SET_CHROM_CTL,
+				      AWB_CONTROL_SPEED_FORMATTER,
+				      ctrl->val);
+		break;
+	case PWC_CID_CUSTOM(awb_delay):
+		ret = pwc_set_u8_ctrl(pdev, SET_CHROM_CTL,
+				      AWB_CONTROL_DELAY_FORMATTER,
+				      ctrl->val);
 		break;
 	case V4L2_CID_PAN_RELATIVE:
 		ret = pwc_set_motor(pdev);

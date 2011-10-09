@@ -597,54 +597,6 @@ void pwc_camera_power(struct pwc_device *pdev, int power)
 			  power ? "on" : "off", r);
 }
 
-static int pwc_set_wb_speed(struct pwc_device *pdev, int speed)
-{
-	unsigned char buf;
-
-	/* useful range is 0x01..0x20 */
-	buf = speed / 0x7f0;
-	return send_control_msg(pdev,
-		SET_CHROM_CTL, AWB_CONTROL_SPEED_FORMATTER, &buf, sizeof(buf));
-}
-
-static int pwc_get_wb_speed(struct pwc_device *pdev, int *value)
-{
-	unsigned char buf;
-	int ret;
-
-	ret = recv_control_msg(pdev,
-		GET_CHROM_CTL, AWB_CONTROL_SPEED_FORMATTER, &buf, sizeof(buf));
-	if (ret < 0)
-		return ret;
-	*value = buf * 0x7f0;
-	return 0;
-}
-
-
-static int pwc_set_wb_delay(struct pwc_device *pdev, int delay)
-{
-	unsigned char buf;
-
-	/* useful range is 0x01..0x3F */
-	buf = (delay >> 10);
-	return send_control_msg(pdev,
-		SET_CHROM_CTL, AWB_CONTROL_DELAY_FORMATTER, &buf, sizeof(buf));
-}
-
-static int pwc_get_wb_delay(struct pwc_device *pdev, int *value)
-{
-	unsigned char buf;
-	int ret;
-
-	ret = recv_control_msg(pdev,
-		GET_CHROM_CTL, AWB_CONTROL_DELAY_FORMATTER, &buf, sizeof(buf));
-	if (ret < 0)
-		return ret;
-	*value = buf << 10;
-	return 0;
-}
-
-
 int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 {
 	unsigned char buf[2];
@@ -963,10 +915,12 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		ARG_DEF(struct pwc_wb_speed, wbs)
 
 		if (ARGR(wbs).control_speed > 0) {
-			ret = pwc_set_wb_speed(pdev, ARGR(wbs).control_speed);
+			ret = pwc_ioctl_s_ctrl(pdev->awb_speed,
+					       ARGR(wbs).control_speed);
 		}
-		if (ARGR(wbs).control_delay > 0) {
-			ret = pwc_set_wb_delay(pdev, ARGR(wbs).control_delay);
+		if (ret == 0 && ARGR(wbs).control_delay > 0) {
+			ret = pwc_ioctl_s_ctrl(pdev->awb_delay,
+					       ARGR(wbs).control_delay);
 		}
 		break;
 	}
@@ -975,12 +929,8 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 	{
 		ARG_DEF(struct pwc_wb_speed, wbs)
 
-		ret = pwc_get_wb_speed(pdev, &ARGR(wbs).control_speed);
-		if (ret < 0)
-			break;
-		ret = pwc_get_wb_delay(pdev, &ARGR(wbs).control_delay);
-		if (ret < 0)
-			break;
+		ARGR(wbs).control_speed = v4l2_ctrl_g_ctrl(pdev->awb_speed);
+		ARGR(wbs).control_delay = v4l2_ctrl_g_ctrl(pdev->awb_delay);
 		ARG_OUT(wbs)
 		break;
 	}
