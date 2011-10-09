@@ -298,8 +298,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
-	nouveau_pm_resume(dev);
-
 	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
 		ret = nouveau_mem_init_agp(dev);
 		if (ret) {
@@ -338,6 +336,8 @@ nouveau_pci_resume(struct pci_dev *pdev)
 				nouveau_bo_wr32(chan->pushbuf_bo, i, 0);
 		}
 	}
+
+	nouveau_pm_resume(dev);
 
 	NV_INFO(dev, "Restoring mode...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
