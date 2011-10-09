@@ -3538,16 +3538,8 @@ get_immediate:
 				spin_lock_bh(&conn->cmd_lock);
 				list_del(&cmd->i_list);
 				spin_unlock_bh(&conn->cmd_lock);
-				/*
-				 * Determine if a struct se_cmd is assoicated with
-				 * this struct iscsi_cmd.
-				 */
-				if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD) &&
-				    !(cmd->tmr_req))
-					iscsit_release_cmd(cmd);
-				else
-					transport_generic_free_cmd(&cmd->se_cmd,
-								1);
+
+				iscsit_free_cmd(cmd);
 				goto get_immediate;
 			case ISTATE_SEND_NOPIN_WANT_RESPONSE:
 				spin_unlock_bh(&cmd->istate_lock);
@@ -3947,30 +3939,13 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 	 */
 	spin_lock_bh(&conn->cmd_lock);
 	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_list) {
-		if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD)) {
 
-			list_del(&cmd->i_list);
-			spin_unlock_bh(&conn->cmd_lock);
-			iscsit_increment_maxcmdsn(cmd, sess);
-			/*
-			 * Special cases for active iSCSI TMR, and
-			 * transport_lookup_cmd_lun() failing from
-			 * iscsit_get_lun_for_cmd() in iscsit_handle_scsi_cmd().
-			 */
-			if (cmd->tmr_req)
-				transport_generic_free_cmd(&cmd->se_cmd, 1);
-			else
-				iscsit_release_cmd(cmd);
-
-			spin_lock_bh(&conn->cmd_lock);
-			continue;
-		}
 		list_del(&cmd->i_list);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		iscsit_increment_maxcmdsn(cmd, sess);
 
-		transport_generic_free_cmd(&cmd->se_cmd, 1);
+		iscsit_free_cmd(cmd);
 
 		spin_lock_bh(&conn->cmd_lock);
 	}

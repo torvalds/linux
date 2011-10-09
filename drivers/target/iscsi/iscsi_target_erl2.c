@@ -143,10 +143,7 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 			list_del(&cmd->i_list);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
-			if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD))
-				iscsit_release_cmd(cmd);
-			else
-				transport_generic_free_cmd(&cmd->se_cmd, 1);
+			iscsit_free_cmd(cmd);
 			spin_lock(&cr->conn_recovery_cmd_lock);
 		}
 		spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -168,10 +165,7 @@ void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
 			list_del(&cmd->i_list);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
-			if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD))
-				iscsit_release_cmd(cmd);
-			else
-				transport_generic_free_cmd(&cmd->se_cmd, 1);
+			iscsit_free_cmd(cmd);
 			spin_lock(&cr->conn_recovery_cmd_lock);
 		}
 		spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -256,10 +250,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 		iscsit_remove_cmd_from_connection_recovery(cmd, sess);
 
 		spin_unlock(&cr->conn_recovery_cmd_lock);
-		if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD))
-			iscsit_release_cmd(cmd);
-		else
-			transport_generic_free_cmd(&cmd->se_cmd, 1);
+		iscsit_free_cmd(cmd);
 		spin_lock(&cr->conn_recovery_cmd_lock);
 	}
 	spin_unlock(&cr->conn_recovery_cmd_lock);
@@ -313,10 +304,7 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 		list_del(&cmd->i_list);
 
 		spin_unlock_bh(&conn->cmd_lock);
-		if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD))
-			iscsit_release_cmd(cmd);
-		else
-			transport_generic_free_cmd(&cmd->se_cmd, 1);
+		iscsit_free_cmd(cmd);
 		spin_lock_bh(&conn->cmd_lock);
 	}
 	spin_unlock_bh(&conn->cmd_lock);
@@ -369,11 +357,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 
 			list_del(&cmd->i_list);
 			spin_unlock_bh(&conn->cmd_lock);
-
-			if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD))
-				iscsit_release_cmd(cmd);
-			else
-				transport_generic_free_cmd(&cmd->se_cmd, 1);
+			iscsit_free_cmd(cmd);
 			spin_lock_bh(&conn->cmd_lock);
 			continue;
 		}
@@ -393,11 +377,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 		     (cmd->cmd_sn >= conn->sess->exp_cmd_sn)) {
 			list_del(&cmd->i_list);
 			spin_unlock_bh(&conn->cmd_lock);
-
-			if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD))
-				iscsit_release_cmd(cmd);
-			else
-				transport_generic_free_cmd(&cmd->se_cmd, 1);
+			iscsit_free_cmd(cmd);
 			spin_lock_bh(&conn->cmd_lock);
 			continue;
 		}
@@ -422,8 +402,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 
 		iscsit_free_all_datain_reqs(cmd);
 
-		if (cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD)
-			transport_wait_for_tasks(&cmd->se_cmd);
+		transport_wait_for_tasks(&cmd->se_cmd);
 		/*
 		 * Add the struct iscsi_cmd to the connection recovery cmd list
 		 */
