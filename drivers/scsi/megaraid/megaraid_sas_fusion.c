@@ -2179,6 +2179,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 				continue;
 			}
 
+			clear_bit(MEGASAS_FUSION_IN_RESET,
+				  &instance->reset_flags);
 			instance->instancet->enable_intr(instance->reg_set);
 			instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
 
@@ -2240,6 +2242,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 		megaraid_sas_kill_hba(instance);
 		retval = FAILED;
 	} else {
+		clear_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
 		instance->instancet->enable_intr(instance->reg_set);
 		instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
 	}
