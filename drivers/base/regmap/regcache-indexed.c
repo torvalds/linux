@@ -20,11 +20,10 @@ static int regcache_indexed_read(struct regmap *map, unsigned int reg,
 	int ret;
 
 	ret = regcache_lookup_reg(map, reg);
-	if (ret < 0)
-		*value = 0;
-	else
+	if (ret >= 0)
 		*value = map->reg_defaults[ret].def;
-	return 0;
+
+	return ret;
 }
 
 static int regcache_indexed_write(struct regmap *map, unsigned int reg,
