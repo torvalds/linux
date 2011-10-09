@@ -75,15 +75,6 @@
 #include <wl_wext.h>
 #include <wl_priv.h>
 
-
-
-#define IWE_STREAM_ADD_EVENT(info, buf, end, iwe, len) \
-    iwe_stream_add_event(info, buf, end, iwe, len)
-#define IWE_STREAM_ADD_POINT(info, buf, end, iwe, msg) \
-    iwe_stream_add_point(info, buf, end, iwe, msg)
-
-
-
 /*******************************************************************************
  * global definitions
  ******************************************************************************/
@@ -2681,8 +2672,8 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 		memcpy( iwe.u.ap_addr.sa_data, probe_resp->BSSID, ETH_ALEN);
 		iwe.len                 = IW_EV_ADDR_LEN;
 
-		buf = IWE_STREAM_ADD_EVENT(info, buf, buf_end, &iwe, IW_EV_ADDR_LEN);
-
+		buf = iwe_stream_add_event(info, buf, buf_end,
+					   &iwe, IW_EV_ADDR_LEN);
 
 		/* Use the mode to indicate if it's a station or AP */
 		/* Won't always be an AP if in IBSS mode */
@@ -2698,8 +2689,8 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 
 		iwe.len = IW_EV_UINT_LEN;
 
-		buf = IWE_STREAM_ADD_EVENT(info, buf, buf_end, &iwe, IW_EV_UINT_LEN);
-
+		buf = iwe_stream_add_event(info, buf, buf_end,
+					   &iwe, IW_EV_UINT_LEN);
 
 		/* Any quality information */
 		memset(&iwe, 0, sizeof(iwe));
@@ -2711,7 +2702,8 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 		iwe.u.qual.updated  = lp->probe_results.scan_complete | IW_QUAL_DBM;
 		iwe.len             = IW_EV_QUAL_LEN;
 
-		buf = IWE_STREAM_ADD_EVENT(info, buf, buf_end, &iwe, IW_EV_QUAL_LEN);
+		buf = iwe_stream_add_event(info, buf, buf_end,
+					   &iwe, IW_EV_QUAL_LEN);
 
 
 		/* ESSID information */
@@ -2722,7 +2714,8 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 			iwe.u.data.length = probe_resp->rawData[1];
 			iwe.u.data.flags = 1;
 
-			buf = IWE_STREAM_ADD_POINT(info, buf, buf_end, &iwe, &probe_resp->rawData[2]);
+			buf = iwe_stream_add_point(info, buf, buf_end,
+					       &iwe, &probe_resp->rawData[2]);
 		}
 
 
@@ -2740,7 +2733,7 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 			iwe.u.data.flags |= IW_ENCODE_DISABLED;
 		}
 
-		buf = IWE_STREAM_ADD_POINT(info, buf, buf_end, &iwe, NULL);
+		buf = iwe_stream_add_point(info, buf, buf_end, &iwe, NULL);
 
 
 		/* Frequency Info */
@@ -2751,7 +2744,8 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 		iwe.u.freq.m = wl_parse_ds_ie( probe_resp );
 		iwe.u.freq.e = 0;
 
-		buf = IWE_STREAM_ADD_EVENT(info, buf, buf_end, &iwe, IW_EV_FREQ_LEN);
+		buf = iwe_stream_add_event(info, buf, buf_end,
+					   &iwe, IW_EV_FREQ_LEN);
 
 
 		/* Custom info (Beacon Interval) */
@@ -2762,7 +2756,7 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 		sprintf( msg, "beacon_interval=%d", probe_resp->beaconInterval );
 		iwe.u.data.length = strlen( msg );
 
-		buf = IWE_STREAM_ADD_POINT(info, buf, buf_end, &iwe, msg);
+		buf = iwe_stream_add_point(info, buf, buf_end, &iwe, msg);
 
 
 		/* Custom info (WPA-IE) */
@@ -2778,7 +2772,8 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 			sprintf( msg, "wpa_ie=%s", wl_print_wpa_ie( wpa_ie, wpa_ie_len ));
 			iwe.u.data.length = strlen( msg );
 
-			buf = IWE_STREAM_ADD_POINT(info, buf, buf_end, &iwe, msg);
+			buf = iwe_stream_add_point(info, buf, buf_end,
+						   &iwe, msg);
 		}
 
 		/* Add other custom info in formatted string format as needed... */
