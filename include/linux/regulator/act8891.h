@@ -31,7 +31,7 @@
 
 
 #define act8891_NUM_REGULATORS 7
-static struct act8891 *act8891;
+struct act8891;
 
 struct act8891_regulator_subdev {
 	int id;
