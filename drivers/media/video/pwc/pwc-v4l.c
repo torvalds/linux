@@ -475,17 +475,11 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	struct pwc_device *pdev = video_drvdata(file);
 	int ret, fps, snapshot, compression, pixelformat;
 
-	if (!pdev->udev)
-		return -ENODEV;
-
-	if (pdev->capt_file != NULL &&
-	    pdev->capt_file != file)
+	if (pwc_test_n_set_capt_file(pdev, file))
 		return -EBUSY;
 
-	pdev->capt_file = file;
-
 	ret = pwc_vidioc_try_fmt(pdev, f);
-	if (ret<0)
+	if (ret < 0)
 		return ret;
 
 	pixelformat = f->fmt.pix.pixelformat;
@@ -505,8 +499,16 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	    pixelformat != V4L2_PIX_FMT_PWC2)
 		return -EINVAL;
 
-	if (vb2_is_streaming(&pdev->vb_queue))
-		return -EBUSY;
+	mutex_lock(&pdev->udevlock);
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
+	}
+
+	if (pdev->iso_init) {
+		ret = -EBUSY;
+		goto leave;
+	}
 
 	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d "
 			"compression=%d snapshot=%d format=%c%c%c%c\n",
@@ -526,15 +528,14 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 
 	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 
-	if (ret)
-		return ret;
+	if (ret == 0) {
+		pdev->pixfmt = pixelformat;
+		pwc_vidioc_fill_fmt(pdev, f);
+	}
 
-	pdev->pixfmt = pixelformat;
-
-	pwc_vidioc_fill_fmt(pdev, f);
-
-	return 0;
-
+leave:
+	mutex_unlock(&pdev->udevlock);
+	return ret;
 }
 
 static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
@@ -580,18 +581,6 @@ static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
 
-	/*
-	 * Sometimes it can take quite long for the pwc to complete usb control
-	 * transfers, so release the modlock to give streaming by another
-	 * process / thread the chance to continue with a dqbuf.
-	 */
-	mutex_unlock(&pdev->modlock);
-
-	/*
-	 * Take the udev-lock to protect against the disconnect handler
-	 * completing and setting dev->udev to NULL underneath us. Other code
-	 * does not need to do this since it is protected by the modlock.
-	 */
 	mutex_lock(&pdev->udevlock);
 
 	if (!pdev->udev) {
@@ -664,7 +653,6 @@ static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 
 leave:
 	mutex_unlock(&pdev->udevlock);
-	mutex_lock(&pdev->modlock);
 	return ret;
 }
 
@@ -844,8 +832,6 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
 
-	/* See the comments on locking in pwc_g_volatile_ctrl */
-	mutex_unlock(&pdev->modlock);
 	mutex_lock(&pdev->udevlock);
 
 	if (!pdev->udev) {
@@ -951,7 +937,6 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 
 leave:
 	mutex_unlock(&pdev->udevlock);
-	mutex_lock(&pdev->modlock);
 	return ret;
 }
 
@@ -981,9 +966,11 @@ static int pwc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
+	mutex_lock(&pdev->udevlock); /* To avoid race with s_fmt */
 	PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",
 			pdev->image.x, pdev->image.y);
 	pwc_vidioc_fill_fmt(pdev, f);
+	mutex_unlock(&pdev->udevlock);
 	return 0;
 }
 
@@ -999,11 +986,8 @@ static int pwc_reqbufs(struct file *file, void *fh,
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
-	if (pdev->capt_file != NULL &&
-	    pdev->capt_file != file)
+	if (pwc_test_n_set_capt_file(pdev, file))
 		return -EBUSY;
-
-	pdev->capt_file = file;
 
 	return vb2_reqbufs(&pdev->vb_queue, rb);
 }

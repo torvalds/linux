@@ -315,6 +315,8 @@ int pwc_dec23_init(struct pwc_device *pwc, int type, unsigned char *cmd)
 	}
 	pdec = pwc->decompress_data;
 
+	mutex_init(&pdec->lock);
+
 	if (DEVICE_USE_CODEC3(type)) {
 		flags = cmd[2] & 0x18;
 		if (flags == 8)
@@ -858,6 +860,9 @@ void pwc_dec23_decompress(const struct pwc_device *pwc,
 			  int flags)
 {
 	int bandlines_left, stride, bytes_per_block;
+	struct pwc_dec23_private *pdec = pwc->decompress_data;
+
+	mutex_lock(&pdec->lock);
 
 	bandlines_left = pwc->image.y / 4;
 	bytes_per_block = pwc->view.x * 4;
@@ -917,4 +922,6 @@ void pwc_dec23_decompress(const struct pwc_device *pwc,
 
 		}
 	}
+
+	mutex_unlock(&pdec->lock);
 }

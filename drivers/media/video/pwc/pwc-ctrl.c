@@ -649,10 +649,20 @@ static int pwc_get_leds(struct pwc_device *pdev, int *on_value, int *off_value)
 static int _pwc_mpt_reset(struct pwc_device *pdev, int flags)
 {
 	unsigned char buf;
+	int r;
+
+	mutex_lock(&pdev->udevlock);
+	if (!pdev->udev) {
+		r = -ENODEV;
+		goto leave;
+	}
 
 	buf = flags & 0x03; // only lower two bits are currently used
-	return send_control_msg(pdev,
+	r = send_control_msg(pdev,
 		SET_MPT_CTL, PT_RESET_CONTROL_FORMATTER, &buf, sizeof(buf));
+leave:
+	mutex_unlock(&pdev->udevlock);
+	return r;
 }
 
 int pwc_mpt_reset(struct pwc_device *pdev, int flags)
@@ -669,6 +679,13 @@ int pwc_mpt_reset(struct pwc_device *pdev, int flags)
 static int _pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt)
 {
 	unsigned char buf[4];
+	int r;
+
+	mutex_lock(&pdev->udevlock);
+	if (!pdev->udev) {
+		r = -ENODEV;
+		goto leave;
+	}
 
 	/* set new relative angle; angles are expressed in degrees * 100,
 	   but cam as .5 degree resolution, hence divide by 200. Also
@@ -681,8 +698,11 @@ static int _pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt)
 	buf[1] = (pan >> 8) & 0xFF;
 	buf[2] = tilt & 0xFF;
 	buf[3] = (tilt >> 8) & 0xFF;
-	return send_control_msg(pdev,
+	r = send_control_msg(pdev,
 		SET_MPT_CTL, PT_RELATIVE_CONTROL_FORMATTER, &buf, sizeof(buf));
+leave:
+	mutex_unlock(&pdev->udevlock);
+	return r;
 }
 
 int pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt)
@@ -718,14 +738,22 @@ static int pwc_mpt_get_status(struct pwc_device *pdev, struct pwc_mpt_status *st
 	int ret;
 	unsigned char buf[5];
 
+	mutex_lock(&pdev->udevlock);
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
+	}
+
 	ret = recv_control_msg(pdev,
 		GET_MPT_CTL, PT_STATUS_FORMATTER, &buf, sizeof(buf));
 	if (ret < 0)
-		return ret;
+		goto leave;
 	status->status = buf[0] & 0x7; // 3 bits are used for reporting
 	status->time_pan = (buf[1] << 8) + buf[2];
 	status->time_tilt = (buf[3] << 8) + buf[4];
-	return 0;
+leave:
+	mutex_unlock(&pdev->udevlock);
+	return ret;
 }
 
 #ifdef CONFIG_USB_PWC_DEBUG
@@ -794,24 +822,30 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 
 	switch(cmd) {
 	case VIDIOCPWCRUSER:
-		ret = pwc_button_ctrl(pdev, RESTORE_USER_DEFAULTS_FORMATTER);
+		ret = v4l2_ctrl_s_ctrl(pdev->restore_user, 0);
 		break;
 
 	case VIDIOCPWCSUSER:
-		ret = pwc_button_ctrl(pdev, SAVE_USER_DEFAULTS_FORMATTER);
+		ret = v4l2_ctrl_s_ctrl(pdev->save_user, 0);
 		break;
 
 	case VIDIOCPWCFACTORY:
-		ret = pwc_button_ctrl(pdev, RESTORE_FACTORY_DEFAULTS_FORMATTER);
+		ret = v4l2_ctrl_s_ctrl(pdev->restore_factory, 0);
 		break;
 
 	case VIDIOCPWCSCQUAL:
 	{
 		ARG_DEF(int, qual)
 
-		if (vb2_is_streaming(&pdev->vb_queue)) {
+		mutex_lock(&pdev->udevlock);
+		if (!pdev->udev) {
+			ret = -ENODEV;
+			goto leave;
+		}
+
+		if (pdev->iso_init) {
 			ret = -EBUSY;
-			break;
+			goto leave;
 		}
 
 		ARG_IN(qual)
@@ -819,6 +853,8 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 			ret = -EINVAL;
 		else
 			ret = pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, ARGR(qual), pdev->vsnapshot);
+leave:
+		mutex_unlock(&pdev->udevlock);
 		break;
 	}
 
@@ -939,8 +975,16 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 	{
 		ARG_DEF(struct pwc_leds, leds)
 
+		mutex_lock(&pdev->udevlock);
+		if (!pdev->udev) {
+			ret = -ENODEV;
+			break;
+		}
+
 		ARG_IN(leds)
 		ret = pwc_set_leds(pdev, ARGR(leds).led_on, ARGR(leds).led_off);
+
+		mutex_unlock(&pdev->udevlock);
 		break;
 	}
 
@@ -949,8 +993,16 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 	{
 		ARG_DEF(struct pwc_leds, leds)
 
+		mutex_lock(&pdev->udevlock);
+		if (!pdev->udev) {
+			ret = -ENODEV;
+			break;
+		}
+
 		ret = pwc_get_leds(pdev, &ARGR(leds).led_on, &ARGR(leds).led_off);
 		ARG_OUT(leds)
+
+		mutex_unlock(&pdev->udevlock);
 		break;
 	}
 

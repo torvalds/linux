@@ -29,6 +29,8 @@
 
 struct pwc_dec23_private
 {
+	struct mutex lock;
+
   unsigned int scalebits;
   unsigned int nbitsmask, nbits; /* Number of bits of a color in the compressed stream */
 
