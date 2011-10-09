@@ -625,9 +625,18 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	unsigned long req_events = poll_requested_events(wait);
 
 	if (!pdev->udev)
 		return POLL_ERR;
+
+	if ((req_events & (POLLIN | POLLRDNORM)) &&
+	    pdev->vb_queue.num_buffers == 0 &&
+	    !pdev->iso_init) {
+		/* This poll will start a read stream, check capt_file */
+		if (pwc_test_n_set_capt_file(pdev, file))
+			return POLL_ERR;
+	}
 
 	return vb2_poll(&pdev->vb_queue, file, wait);
 }
