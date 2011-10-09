@@ -385,7 +385,7 @@ static int megasas_create_frame_pool_fusion(struct megasas_instance *instance)
 int
 megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 {
-	int i, j;
+	int i, j, count;
 	u32 max_cmd, io_frames_sz;
 	struct fusion_context *fusion;
 	struct megasas_cmd_fusion *cmd;
@@ -409,9 +409,10 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 		goto fail_req_desc;
 	}
 
+	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
 	fusion->reply_frames_desc_pool =
 		pci_pool_create("reply_frames pool", instance->pdev,
-				fusion->reply_alloc_sz, 16, 0);
+				fusion->reply_alloc_sz * count, 16, 0);
 
 	if (!fusion->reply_frames_desc_pool) {
 		printk(KERN_ERR "megasas; Could not allocate memory for "
@@ -430,7 +431,7 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 	}
 
 	reply_desc = fusion->reply_frames_desc;
-	for (i = 0; i < fusion->reply_q_depth; i++, reply_desc++)
+	for (i = 0; i < fusion->reply_q_depth * count; i++, reply_desc++)
 		reply_desc->Words = ULLONG_MAX;
 
 	io_frames_sz = fusion->io_frames_alloc_sz;
@@ -633,7 +634,9 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		fusion->reply_frames_desc_phys;
 	IOCInitMessage->SystemRequestFrameBaseAddress =
 		fusion->io_request_frames_phys;
-
+	/* Set to 0 for none or 1 MSI-X vectors */
+	IOCInitMessage->HostMSIxVectors = (instance->msix_vectors > 0 ?
+					   instance->msix_vectors : 0);
 	init_frame = (struct megasas_init_frame *)cmd->frame;
 	memset(init_frame, 0, MEGAMFI_FRAME_SIZE);
 
@@ -877,7 +880,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 	struct megasas_register_set __iomem *reg_set;
 	struct fusion_context *fusion;
 	u32 max_cmd;
-	int i = 0;
+	int i = 0, count;
 
 	fusion = instance->ctrl_context;
 
@@ -929,7 +932,9 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 		(MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE -
 		 sizeof(union MPI2_SGE_IO_UNION))/16;
 
-	fusion->last_reply_idx = 0;
+	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
+	for (i = 0 ; i < count; i++)
+		fusion->last_reply_idx[i] = 0;
 
 	/*
 	 * Allocate memory for descriptors
@@ -1421,6 +1426,12 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			fp_possible = io_info.fpOkForIo;
 	}
 
+	/* Use smp_processor_id() for now until cmd->request->cpu is CPU
+	   id by default, not CPU group id, otherwise all MSI-X queues won't
+	   be utilized */
+	cmd->request_desc->SCSIIO.MSIxIndex = instance->msix_vectors ?
+		smp_processor_id() % instance->msix_vectors : 0;
+
 	if (fp_possible) {
 		megasas_set_pd_lba(io_request, scp->cmd_len, &io_info, scp,
 				   local_map_ptr, start_lba_lo);
@@ -1691,7 +1702,7 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
  * Completes all commands that is in reply descriptor queue
  */
 int
-complete_cmd_fusion(struct megasas_instance *instance)
+complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 {
 	union MPI2_REPLY_DESCRIPTORS_UNION *desc;
 	struct MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR *reply_desc;
@@ -1711,7 +1722,9 @@ complete_cmd_fusion(struct megasas_instance *instance)
 		return IRQ_HANDLED;
 
 	desc = fusion->reply_frames_desc;
-	desc += fusion->last_reply_idx;
+	desc += ((MSIxIndex * fusion->reply_alloc_sz)/
+		 sizeof(union MPI2_REPLY_DESCRIPTORS_UNION)) +
+		fusion->last_reply_idx[MSIxIndex];
 
 	reply_desc = (struct MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR *)desc;
 
@@ -1784,16 +1797,19 @@ complete_cmd_fusion(struct megasas_instance *instance)
 			break;
 		}
 
-		fusion->last_reply_idx++;
-		if (fusion->last_reply_idx >= fusion->reply_q_depth)
-			fusion->last_reply_idx = 0;
+		fusion->last_reply_idx[MSIxIndex]++;
+		if (fusion->last_reply_idx[MSIxIndex] >=
+		    fusion->reply_q_depth)
+			fusion->last_reply_idx[MSIxIndex] = 0;
 
 		desc->Words = ULLONG_MAX;
 		num_completed++;
 
 		/* Get the next reply descriptor */
-		if (!fusion->last_reply_idx)
-			desc = fusion->reply_frames_desc;
+		if (!fusion->last_reply_idx[MSIxIndex])
+			desc = fusion->reply_frames_desc +
+				((MSIxIndex * fusion->reply_alloc_sz)/
+				 sizeof(union MPI2_REPLY_DESCRIPTORS_UNION));
 		else
 			desc++;
 
@@ -1813,7 +1829,7 @@ complete_cmd_fusion(struct megasas_instance *instance)
 		return IRQ_NONE;
 
 	wmb();
-	writel(fusion->last_reply_idx,
+	writel((MSIxIndex << 24) | fusion->last_reply_idx[MSIxIndex],
 	       &instance->reg_set->reply_post_host_index);
 	megasas_check_and_restore_queue_depth(instance);
 	return IRQ_HANDLED;
@@ -1831,6 +1847,9 @@ megasas_complete_cmd_dpc_fusion(unsigned long instance_addr)
 	struct megasas_instance *instance =
 		(struct megasas_instance *)instance_addr;
 	unsigned long flags;
+	u32 count, MSIxIndex;
+
+	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
 
 	/* If we have already declared adapter dead, donot complete cmds */
 	spin_lock_irqsave(&instance->hba_lock, flags);
@@ -1841,7 +1860,8 @@ megasas_complete_cmd_dpc_fusion(unsigned long instance_addr)
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
 
 	spin_lock_irqsave(&instance->completion_lock, flags);
-	complete_cmd_fusion(instance);
+	for (MSIxIndex = 0 ; MSIxIndex < count; MSIxIndex++)
+		complete_cmd_fusion(instance, MSIxIndex);
 	spin_unlock_irqrestore(&instance->completion_lock, flags);
 }
 
@@ -1850,10 +1870,11 @@ megasas_complete_cmd_dpc_fusion(unsigned long instance_addr)
  */
 irqreturn_t megasas_isr_fusion(int irq, void *devp)
 {
-	struct megasas_instance *instance = (struct megasas_instance *)devp;
+	struct megasas_irq_context *irq_context = devp;
+	struct megasas_instance *instance = irq_context->instance;
 	u32 mfiStatus, fw_state;
 
-	if (!instance->msi_flag) {
+	if (!instance->msix_vectors) {
 		mfiStatus = instance->instancet->clear_intr(instance->reg_set);
 		if (!mfiStatus)
 			return IRQ_NONE;
@@ -1865,7 +1886,7 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 		return IRQ_HANDLED;
 	}
 
-	if (!complete_cmd_fusion(instance)) {
+	if (!complete_cmd_fusion(instance, irq_context->MSIxIndex)) {
 		instance->instancet->clear_intr(instance->reg_set);
 		/* If we didn't complete any commands, check for FW fault */
 		fw_state = instance->instancet->read_fw_status_reg(
@@ -2081,14 +2102,16 @@ out:
 
 void  megasas_reset_reply_desc(struct megasas_instance *instance)
 {
-	int i;
+	int i, count;
 	struct fusion_context *fusion;
 	union MPI2_REPLY_DESCRIPTORS_UNION *reply_desc;
 
 	fusion = instance->ctrl_context;
-	fusion->last_reply_idx = 0;
+	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
+	for (i = 0 ; i < count ; i++)
+		fusion->last_reply_idx[i] = 0;
 	reply_desc = fusion->reply_frames_desc;
-	for (i = 0 ; i < fusion->reply_q_depth; i++, reply_desc++)
+	for (i = 0 ; i < fusion->reply_q_depth * count; i++, reply_desc++)
 		reply_desc->Words = ULLONG_MAX;
 }
 

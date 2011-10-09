@@ -43,6 +43,7 @@
 #define HOST_DIAG_WRITE_ENABLE			    0x80
 #define HOST_DIAG_RESET_ADAPTER			    0x4
 #define MEGASAS_FUSION_MAX_RESET_TRIES		    3
+#define MAX_MSIX_QUEUES_FUSION			    16
 
 /* Invader defines */
 #define MPI2_TYPE_CUDA				    0x2
@@ -673,7 +674,7 @@ struct fusion_context {
 	union MPI2_REPLY_DESCRIPTORS_UNION *reply_frames_desc;
 	struct dma_pool *reply_frames_desc_pool;
 
-	u16 last_reply_idx;
+	u16 last_reply_idx[MAX_MSIX_QUEUES_FUSION];
 
 	u32 reply_q_depth;
 	u32 request_alloc_sz;

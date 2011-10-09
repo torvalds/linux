@@ -757,6 +757,7 @@ struct megasas_ctrl_info {
 #define MEGASAS_INT_CMDS			32
 #define MEGASAS_SKINNY_INT_CMDS			5
 
+#define MEGASAS_MAX_MSIX_QUEUES			16
 /*
  * FW can accept both 32 and 64 bit SGLs. We want to allocate 32/64 bit
  * SGLs based on the size of dma_addr_t
@@ -1278,6 +1279,11 @@ struct megasas_aen_event {
 	struct megasas_instance *instance;
 };
 
+struct megasas_irq_context {
+	struct megasas_instance *instance;
+	u32 MSIxIndex;
+};
+
 struct megasas_instance {
 
 	u32 *producer;
@@ -1351,8 +1357,9 @@ struct megasas_instance {
 
 	/* Ptr to hba specific information */
 	void *ctrl_context;
-	u8	msi_flag;
-	struct msix_entry msixentry;
+	unsigned int msix_vectors;
+	struct msix_entry msixentry[MEGASAS_MAX_MSIX_QUEUES];
+	struct megasas_irq_context irq_context[MEGASAS_MAX_MSIX_QUEUES];
 	u64 map_id;
 	struct megasas_cmd *map_update_cmd;
 	unsigned long bar;
