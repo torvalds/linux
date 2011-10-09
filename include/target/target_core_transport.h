@@ -134,7 +134,6 @@ extern void transport_free_session(struct se_session *);
 extern void transport_deregister_session_configfs(struct se_session *);
 extern void transport_deregister_session(struct se_session *);
 extern void transport_cmd_finish_abort(struct se_cmd *, int);
-extern void transport_cmd_finish_abort_tmr(struct se_cmd *);
 extern void transport_complete_sync_cache(struct se_cmd *, int);
 extern void transport_complete_task(struct se_task *, int);
 extern void transport_add_task_to_execute_queue(struct se_task *,

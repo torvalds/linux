@@ -161,7 +161,7 @@ static void core_tmr_drain_tmr_list(
 			(preempt_and_abort_list) ? "Preempt" : "", tmr,
 			tmr->function, tmr->response, cmd->t_state);
 
-		transport_cmd_finish_abort_tmr(cmd);
+		transport_cmd_finish_abort(cmd, 1);
 	}
 }
 

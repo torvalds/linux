@@ -591,7 +591,8 @@ check_lun:
 
 void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 {
-	transport_lun_remove_cmd(cmd);
+	if (!cmd->se_tmr_req)
+		transport_lun_remove_cmd(cmd);
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;
@@ -599,16 +600,6 @@ void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 		transport_remove_cmd_from_queue(cmd, &cmd->se_dev->dev_queue_obj);
 		transport_put_cmd(cmd);
 	}
-}
-
-void transport_cmd_finish_abort_tmr(struct se_cmd *cmd)
-{
-	transport_remove_cmd_from_queue(cmd, &cmd->se_dev->dev_queue_obj);
-
-	if (transport_cmd_check_stop_to_fabric(cmd))
-		return;
-
-	transport_put_cmd(cmd);
 }
 
 static void transport_add_cmd_to_queue(
