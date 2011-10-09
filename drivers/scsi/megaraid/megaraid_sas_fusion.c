@@ -101,6 +101,10 @@ extern u32 megasas_dbg_lvl;
 void
 megasas_enable_intr_fusion(struct megasas_register_set __iomem *regs)
 {
+	/* For Thunderbolt/Invader also clear intr on enable */
+	writel(~0, &regs->outbound_intr_status);
+	readl(&regs->outbound_intr_status);
+
 	writel(~MFI_FUSION_ENABLE_INTERRUPT_MASK, &(regs)->outbound_intr_mask);
 
 	/* Dummy readl to force pci flush */
@@ -1806,10 +1810,13 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 	}
 
 	/* If we are resetting, bail */
-	if (test_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags))
+	if (test_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags)) {
+		instance->instancet->clear_intr(instance->reg_set);
 		return IRQ_HANDLED;
+	}
 
 	if (!complete_cmd_fusion(instance)) {
+		instance->instancet->clear_intr(instance->reg_set);
 		/* If we didn't complete any commands, check for FW fault */
 		fw_state = instance->instancet->read_fw_status_reg(
 			instance->reg_set) & MFI_STATE_MASK;
