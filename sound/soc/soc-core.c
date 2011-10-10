@@ -1430,6 +1430,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
 					card->num_dapm_routes);
 
+	snd_soc_dapm_new_widgets(&card->dapm);
+
 	for (i = 0; i < card->num_links; i++) {
 		dai_link = &card->dai_link[i];
 
