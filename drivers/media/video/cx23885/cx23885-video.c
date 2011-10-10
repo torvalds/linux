@@ -1100,6 +1100,14 @@ static int vidioc_streamon(struct file *file, void *priv,
 
 	if (unlikely(!res_get(dev, fh, get_resource(fh))))
 		return -EBUSY;
+
+	/* Don't start VBI streaming unless vida streaming
+	 * has already started.
+	 */
+	if ((fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) &&
+		((cx_read(VID_A_DMA_CTL) & 0x11) == 0))
+		return -EINVAL;
+
 	return videobuf_streamon(get_queue(fh));
 }
 
