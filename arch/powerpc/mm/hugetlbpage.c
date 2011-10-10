@@ -28,10 +28,10 @@ unsigned int HPAGE_SHIFT;
 
 /*
  * Tracks gpages after the device tree is scanned and before the
- * huge_boot_pages list is ready.  On 64-bit implementations, this is
- * just used to track 16G pages and so is a single array.  32-bit
- * implementations may have more than one gpage size due to limitations
- * of the memory allocators, so we need multiple arrays
+ * huge_boot_pages list is ready.  On non-Freescale implementations, this is
+ * just used to track 16G pages and so is a single array.  FSL-based
+ * implementations may have more than one gpage size, so we need multiple
+ * arrays
  */
 #ifdef CONFIG_PPC_FSL_BOOK3E
 #define MAX_NUMBER_GPAGES	128

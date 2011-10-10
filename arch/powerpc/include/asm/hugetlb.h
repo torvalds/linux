@@ -5,7 +5,6 @@
 #include <asm/page.h>
 
 extern struct kmem_cache *hugepte_cache;
-extern void __init reserve_hugetlb_gpages(void);
 
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
@@ -153,12 +152,22 @@ static inline void arch_release_hugepage(struct page *page)
 }
 
 #else /* ! CONFIG_HUGETLB_PAGE */
-static inline void reserve_hugetlb_gpages(void)
-{
-	pr_err("Cannot reserve gpages without hugetlb enabled\n");
-}
 static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 				      unsigned long vmaddr)
+{
+}
+#endif /* CONFIG_HUGETLB_PAGE */
+
+
+/*
+ * FSL Book3E platforms require special gpage handling - the gpages
+ * are reserved early in the boot process by memblock instead of via
+ * the .dts as on IBM platforms.
+ */
+#if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_PPC_FSL_BOOK3E)
+extern void __init reserve_hugetlb_gpages(void);
+#else
+static inline void reserve_hugetlb_gpages(void)
 {
 }
 #endif
