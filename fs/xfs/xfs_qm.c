@@ -1681,7 +1681,7 @@ xfs_qm_quotacheck(
 	 * quotacheck'd stamp on the superblock. So, here we do a synchronous
 	 * flush.
 	 */
-	XFS_bflush(mp->m_ddev_targp);
+	xfs_flush_buftarg(mp->m_ddev_targp, 1);
 
 	/*
 	 * If one type of quotas is off, then it will lose its

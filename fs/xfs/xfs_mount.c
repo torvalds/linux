@@ -1481,7 +1481,7 @@ xfs_unmountfs(
 	 * state as much as possible.
 	 */
 	xfs_reclaim_inodes(mp, 0);
-	XFS_bflush(mp->m_ddev_targp);
+	xfs_flush_buftarg(mp->m_ddev_targp, 1);
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
 
 	xfs_qm_unmount(mp);

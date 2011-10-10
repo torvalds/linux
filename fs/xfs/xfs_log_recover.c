@@ -3654,7 +3654,7 @@ xlog_do_recover(
 		return error;
 	}
 
-	XFS_bflush(log->l_mp->m_ddev_targp);
+	xfs_flush_buftarg(log->l_mp->m_ddev_targp, 1);
 
 	/*
 	 * If IO errors happened during recovery, bail out.

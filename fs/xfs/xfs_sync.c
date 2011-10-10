@@ -377,7 +377,7 @@ xfs_quiesce_data(
 
 	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
-		XFS_bflush(mp->m_rtdev_targp);
+		xfs_flush_buftarg(mp->m_rtdev_targp, 1);
 
 	return error ? error : error2;
 }

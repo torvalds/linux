@@ -1015,7 +1015,7 @@ xfs_fs_put_super(
 	 */
 	xfs_filestream_unmount(mp);
 
-	XFS_bflush(mp->m_ddev_targp);
+	xfs_flush_buftarg(mp->m_ddev_targp, 1);
 
 	xfs_unmountfs(mp);
 	xfs_freesb(mp);
@@ -1439,7 +1439,7 @@ xfs_fs_fill_super(
 	 */
 	xfs_filestream_unmount(mp);
 
-	XFS_bflush(mp->m_ddev_targp);
+	xfs_flush_buftarg(mp->m_ddev_targp, 1);
 
 	xfs_unmountfs(mp);
 	goto out_free_sb;

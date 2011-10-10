@@ -294,6 +294,4 @@ extern int xfs_flush_buftarg(xfs_buftarg_t *, int);
 #define xfs_getsize_buftarg(buftarg)	block_size((buftarg)->bt_bdev)
 #define xfs_readonly_buftarg(buftarg)	bdev_read_only((buftarg)->bt_bdev)
 
-#define XFS_bflush(buftarg)		xfs_flush_buftarg(buftarg, 1)
-
 #endif	/* __XFS_BUF_H__ */
