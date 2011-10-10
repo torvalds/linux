@@ -89,16 +89,8 @@
 #include "et131x_adapter.h"
 #include "et131x.h"
 
-
-#define COUNTER_WRAP_28_BIT 0x10000000
-#define COUNTER_WRAP_22_BIT 0x400000
 #define COUNTER_WRAP_16_BIT 0x10000
 #define COUNTER_WRAP_12_BIT 0x1000
-
-#define COUNTER_MASK_28_BIT (COUNTER_WRAP_28_BIT - 1)
-#define COUNTER_MASK_22_BIT (COUNTER_WRAP_22_BIT - 1)
-#define COUNTER_MASK_16_BIT (COUNTER_WRAP_16_BIT - 1)
-#define COUNTER_MASK_12_BIT (COUNTER_WRAP_12_BIT - 1)
 
 /**
  * et1310_config_mac_regs1 - Initialize the first part of MAC regs
