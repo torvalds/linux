@@ -950,6 +950,11 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
 	iwl_hcmd_queue_reclaim(trans, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
+		if (!test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status)) {
+			IWL_WARN(trans,
+				 "HCMD_ACTIVE already clear for command %s\n",
+				 get_cmd_string(cmd->hdr.cmd));
+		}
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
