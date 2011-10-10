@@ -2408,54 +2408,13 @@ out:
 	return ret;
 }
 
-static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
+static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			     struct ieee80211_conf *conf, u32 changed)
 {
-	struct wl1271 *wl = hw->priv;
-	struct ieee80211_vif *vif = wl->vif; /* TODO: reconfig all vifs */
-	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
-	struct ieee80211_conf *conf = &hw->conf;
-	int channel, ret = 0;
-	bool is_ap;
+	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
+	int channel, ret;
 
 	channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
-
-	wl1271_debug(DEBUG_MAC80211, "mac80211 config ch %d psm %s power %d %s"
-		     " changed 0x%x",
-		     channel,
-		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
-		     conf->power_level,
-		     conf->flags & IEEE80211_CONF_IDLE ? "idle" : "in use",
-			 changed);
-
-	/*
-	 * mac80211 will go to idle nearly immediately after transmitting some
-	 * frames, such as the deauth. To make sure those frames reach the air,
-	 * wait here until the TX queue is fully flushed.
-	 */
-	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
-	    (conf->flags & IEEE80211_CONF_IDLE))
-		wl1271_tx_flush(wl);
-
-	mutex_lock(&wl->mutex);
-
-	if (unlikely(wl->state == WL1271_STATE_OFF)) {
-		/* we support configuring the channel and band while off */
-		if ((changed & IEEE80211_CONF_CHANGE_CHANNEL)) {
-			wl->band = conf->channel->band;
-			wl->channel = channel;
-		}
-
-		if ((changed & IEEE80211_CONF_CHANGE_POWER))
-			wl->power_level = conf->power_level;
-
-		goto out;
-	}
-
-	is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
-
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out;
 
 	/* if the channel changes while joined, join again */
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL &&
@@ -2463,8 +2422,6 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	     (wlvif->channel != channel))) {
 		/* send all pending packets */
 		wl1271_tx_work_locked(wl);
-		wl->band = conf->channel->band;
-		wl->channel = channel;
 		wlvif->band = conf->channel->band;
 		wlvif->channel = channel;
 
@@ -2493,7 +2450,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 					ret = wl12xx_croc(wl,
 							  wlvif->dev_role_id);
 					if (ret < 0)
-						goto out_sleep;
+						return ret;
 				}
 				ret = wl1271_join(wl, wlvif, false);
 				if (ret < 0)
@@ -2510,7 +2467,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 					ret = wl12xx_croc(wl,
 							  wlvif->dev_role_id);
 					if (ret < 0)
-						goto out_sleep;
+						return ret;
 
 					ret = wl12xx_roc(wl, wlvif,
 							 wlvif->dev_role_id);
@@ -2566,10 +2523,63 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (conf->power_level != wlvif->power_level) {
 		ret = wl1271_acx_tx_power(wl, wlvif, conf->power_level);
 		if (ret < 0)
-			goto out_sleep;
+			return ret;
 
-		wl->power_level = conf->power_level;
 		wlvif->power_level = conf->power_level;
+	}
+
+	return 0;
+}
+
+static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
+{
+	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif;
+	struct ieee80211_conf *conf = &hw->conf;
+	int channel, ret = 0;
+
+	channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
+
+	wl1271_debug(DEBUG_MAC80211, "mac80211 config ch %d psm %s power %d %s"
+		     " changed 0x%x",
+		     channel,
+		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
+		     conf->power_level,
+		     conf->flags & IEEE80211_CONF_IDLE ? "idle" : "in use",
+			 changed);
+
+	/*
+	 * mac80211 will go to idle nearly immediately after transmitting some
+	 * frames, such as the deauth. To make sure those frames reach the air,
+	 * wait here until the TX queue is fully flushed.
+	 */
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
+	    (conf->flags & IEEE80211_CONF_IDLE))
+		wl1271_tx_flush(wl);
+
+	mutex_lock(&wl->mutex);
+
+	/* we support configuring the channel and band even while off */
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		wl->band = conf->channel->band;
+		wl->channel = channel;
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER)
+		wl->power_level = conf->power_level;
+
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	/* configure each interface */
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		ret = wl12xx_config_vif(wl, wlvif, conf, changed);
+		if (ret < 0)
+			goto out_sleep;
 	}
 
 out_sleep:
