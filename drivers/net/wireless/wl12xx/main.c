@@ -1888,13 +1888,80 @@ static int wl12xx_init_vif_data(struct ieee80211_vif *vif)
 	return 0;
 }
 
+static bool wl12xx_init_fw(struct wl1271 *wl)
+{
+	int retries = WL1271_BOOT_RETRIES;
+	bool booted = false;
+	struct wiphy *wiphy = wl->hw->wiphy;
+	int ret;
+
+	while (retries) {
+		retries--;
+		ret = wl1271_chip_wakeup(wl);
+		if (ret < 0)
+			goto power_off;
+
+		ret = wl1271_boot(wl);
+		if (ret < 0)
+			goto power_off;
+
+		ret = wl1271_hw_init(wl);
+		if (ret < 0)
+			goto irq_disable;
+
+		booted = true;
+		break;
+
+irq_disable:
+		mutex_unlock(&wl->mutex);
+		/* Unlocking the mutex in the middle of handling is
+		   inherently unsafe. In this case we deem it safe to do,
+		   because we need to let any possibly pending IRQ out of
+		   the system (and while we are WL1271_STATE_OFF the IRQ
+		   work function will not do anything.) Also, any other
+		   possible concurrent operations will fail due to the
+		   current state, hence the wl1271 struct should be safe. */
+		wl1271_disable_interrupts(wl);
+		wl1271_flush_deferred_work(wl);
+		cancel_work_sync(&wl->netstack_work);
+		mutex_lock(&wl->mutex);
+power_off:
+		wl1271_power_off(wl);
+	}
+
+	if (!booted) {
+		wl1271_error("firmware boot failed despite %d retries",
+			     WL1271_BOOT_RETRIES);
+		goto out;
+	}
+
+	wl1271_info("firmware booted (%s)", wl->chip.fw_ver_str);
+
+	/* update hw/fw version info in wiphy struct */
+	wiphy->hw_version = wl->chip.id;
+	strncpy(wiphy->fw_version, wl->chip.fw_ver_str,
+		sizeof(wiphy->fw_version));
+
+	/*
+	 * Now we know if 11a is supported (info from the NVS), so disable
+	 * 11a channels if not supported
+	 */
+	if (!wl->enable_11a)
+		wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels = 0;
+
+	wl1271_debug(DEBUG_MAC80211, "11a is %ssupported",
+		     wl->enable_11a ? "" : "not ");
+
+	wl->state = WL1271_STATE_ON;
+out:
+	return booted;
+}
+
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
-	struct wiphy *wiphy = hw->wiphy;
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
-	int retries = WL1271_BOOT_RETRIES;
 	int ret = 0;
 	u8 role_type;
 	bool booted = false;
@@ -1930,103 +1997,51 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		ret = -EINVAL;
 		goto out;
 	}
+
 	/*
-	 * we still need this in order to configure the fw
-	 * while uploading the nvs
+	 * TODO: after the nvs issue will be solved, move this block
+	 * to start(), and make sure here the driver is ON.
 	 */
-	memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
+	if (wl->state == WL1271_STATE_OFF) {
+		/*
+		 * we still need this in order to configure the fw
+		 * while uploading the nvs
+		 */
+		memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 
-	if (wl->state != WL1271_STATE_OFF) {
-		wl1271_error("cannot start because not in off state: %d",
-			     wl->state);
-		ret = -EBUSY;
-		goto out;
-	}
-
-	while (retries) {
-		retries--;
-		ret = wl1271_chip_wakeup(wl);
-		if (ret < 0)
-			goto power_off;
-
-		ret = wl1271_boot(wl);
-		if (ret < 0)
-			goto power_off;
-
-		ret = wl1271_hw_init(wl);
-		if (ret < 0)
-			goto irq_disable;
-
-		if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
-		    wlvif->bss_type == BSS_TYPE_IBSS) {
-			/*
-			 * The device role is a special role used for
-			 * rx and tx frames prior to association (as
-			 * the STA role can get packets only from
-			 * its associated bssid)
-			 */
-			ret = wl12xx_cmd_role_enable(wl, vif->addr,
-							 WL1271_ROLE_DEVICE,
-							 &wlvif->dev_role_id);
-			if (ret < 0)
-				goto irq_disable;
+		booted = wl12xx_init_fw(wl);
+		if (!booted) {
+			ret = -EINVAL;
+			goto out;
 		}
+	}
 
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
+	    wlvif->bss_type == BSS_TYPE_IBSS) {
+		/*
+		 * The device role is a special role used for
+		 * rx and tx frames prior to association (as
+		 * the STA role can get packets only from
+		 * its associated bssid)
+		 */
 		ret = wl12xx_cmd_role_enable(wl, vif->addr,
-					     role_type, &wlvif->role_id);
+						 WL1271_ROLE_DEVICE,
+						 &wlvif->dev_role_id);
 		if (ret < 0)
-			goto irq_disable;
-
-		ret = wl1271_init_vif_specific(wl, vif);
-		if (ret < 0)
-			goto irq_disable;
-
-		booted = true;
-		break;
-
-irq_disable:
-		mutex_unlock(&wl->mutex);
-		/* Unlocking the mutex in the middle of handling is
-		   inherently unsafe. In this case we deem it safe to do,
-		   because we need to let any possibly pending IRQ out of
-		   the system (and while we are WL1271_STATE_OFF the IRQ
-		   work function will not do anything.) Also, any other
-		   possible concurrent operations will fail due to the
-		   current state, hence the wl1271 struct should be safe. */
-		wl1271_disable_interrupts(wl);
-		wl1271_flush_deferred_work(wl);
-		cancel_work_sync(&wl->netstack_work);
-		mutex_lock(&wl->mutex);
-power_off:
-		wl1271_power_off(wl);
+			goto out;
 	}
 
-	if (!booted) {
-		wl1271_error("firmware boot failed despite %d retries",
-			     WL1271_BOOT_RETRIES);
+	ret = wl12xx_cmd_role_enable(wl, vif->addr,
+				     role_type, &wlvif->role_id);
+	if (ret < 0)
 		goto out;
-	}
+
+	ret = wl1271_init_vif_specific(wl, vif);
+	if (ret < 0)
+		goto out;
 
 	wl->vif = vif;
-	wl->state = WL1271_STATE_ON;
 	set_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags);
-	wl1271_info("firmware booted (%s)", wl->chip.fw_ver_str);
-
-	/* update hw/fw version info in wiphy struct */
-	wiphy->hw_version = wl->chip.id;
-	strncpy(wiphy->fw_version, wl->chip.fw_ver_str,
-		sizeof(wiphy->fw_version));
-
-	/*
-	 * Now we know if 11a is supported (info from the NVS), so disable
-	 * 11a channels if not supported
-	 */
-	if (!wl->enable_11a)
-		wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels = 0;
-
-	wl1271_debug(DEBUG_MAC80211, "11a is %ssupported",
-		     wl->enable_11a ? "" : "not ");
-
 out:
 	mutex_unlock(&wl->mutex);
 
