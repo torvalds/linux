@@ -1974,15 +1974,20 @@ static int ftdi_process_packet(struct tty_struct *tty,
 		 * over framing errors */
 		if (packet[1] & FTDI_RS_BI) {
 			flag = TTY_BREAK;
+			priv->icount.brk++;
 			usb_serial_handle_break(port);
 		} else if (packet[1] & FTDI_RS_PE) {
 			flag = TTY_PARITY;
+			priv->icount.parity++;
 		} else if (packet[1] & FTDI_RS_FE) {
 			flag = TTY_FRAME;
+			priv->icount.frame++;
 		}
 		/* Overrun is special, not associated with a char */
-		if (packet[1] & FTDI_RS_OE)
+		if (packet[1] & FTDI_RS_OE) {
+			priv->icount.overrun++;
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		}
 	}
 
 	/* save if the transmitter is empty or not */
