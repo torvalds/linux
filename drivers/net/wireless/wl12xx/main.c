@@ -1973,6 +1973,7 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 	 * per-interface. thus, on init, we have to copy them from wl
 	 */
 	wlvif->band = wl->band;
+	wlvif->channel = wl->channel;
 
 	INIT_WORK(&wlvif->rx_streaming_enable_work,
 		  wl1271_rx_streaming_enable_work);
@@ -2458,12 +2459,13 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	/* if the channel changes while joined, join again */
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL &&
 	    ((wlvif->band != conf->channel->band) ||
-	     (wl->channel != channel))) {
+	     (wlvif->channel != channel))) {
 		/* send all pending packets */
 		wl1271_tx_work_locked(wl);
 		wl->band = conf->channel->band;
-		wlvif->band = conf->channel->band;
 		wl->channel = channel;
+		wlvif->band = conf->channel->band;
+		wlvif->channel = channel;
 
 		if (!is_ap) {
 			/*
