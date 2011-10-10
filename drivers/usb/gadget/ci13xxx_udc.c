@@ -2563,9 +2563,7 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 	if (driver             == NULL ||
 	    bind               == NULL ||
 	    driver->setup      == NULL ||
-	    driver->disconnect == NULL ||
-	    driver->suspend    == NULL ||
-	    driver->resume     == NULL)
+	    driver->disconnect == NULL)
 		return -EINVAL;
 	else if (udc         == NULL)
 		return -ENODEV;
@@ -2693,8 +2691,6 @@ static int ci13xxx_stop(struct usb_gadget_driver *driver)
 	    driver->unbind     == NULL ||
 	    driver->setup      == NULL ||
 	    driver->disconnect == NULL ||
-	    driver->suspend    == NULL ||
-	    driver->resume     == NULL ||
 	    driver             != udc->driver)
 		return -EINVAL;
 
@@ -2793,7 +2789,7 @@ static irqreturn_t udc_irq(void)
 			isr_statistics.pci++;
 			udc->gadget.speed = hw_port_is_high_speed() ?
 				USB_SPEED_HIGH : USB_SPEED_FULL;
-			if (udc->suspended) {
+			if (udc->suspended && udc->driver->resume) {
 				spin_unlock(udc->lock);
 				udc->driver->resume(&udc->gadget);
 				spin_lock(udc->lock);
@@ -2807,7 +2803,8 @@ static irqreturn_t udc_irq(void)
 			isr_tr_complete_handler(udc);
 		}
 		if (USBi_SLI & intr) {
-			if (udc->gadget.speed != USB_SPEED_UNKNOWN) {
+			if (udc->gadget.speed != USB_SPEED_UNKNOWN &&
+			    udc->driver->suspend) {
 				udc->suspended = 1;
 				spin_unlock(udc->lock);
 				udc->driver->suspend(&udc->gadget);
