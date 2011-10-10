@@ -702,6 +702,13 @@ static void cx231xx_initialize(struct i2c_client *client)
 
 	/* start microcontroller */
 	cx25840_and_or(client, 0x803, ~0x10, 0x10);
+
+	/* CC raw enable */
+	cx25840_write(client, 0x404, 0x0b);
+
+	/* CC on */
+	cx25840_write(client, 0x42f, 0x66);
+	cx25840_write4(client, 0x474, 0x1e1e601a);
 }
 
 /* ----------------------------------------------------------------------- */
