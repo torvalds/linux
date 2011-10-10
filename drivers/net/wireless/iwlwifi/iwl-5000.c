@@ -43,7 +43,6 @@
 #include "iwl-helpers.h"
 #include "iwl-agn.h"
 #include "iwl-agn-hw.h"
-#include "iwl-5000-hw.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
 #include "iwl-cfg.h"
@@ -133,6 +132,21 @@ static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 	.barker_corr_th_min_mrc = 390,
 	.nrg_th_cca = 62,
 };
+
+#define IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF	(-5)
+
+static s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
+{
+	u16 temperature, voltage;
+	__le16 *temp_calib = (__le16 *)iwl_eeprom_query_addr(priv,
+				EEPROM_KELVIN_TEMPERATURE);
+
+	temperature = le16_to_cpu(temp_calib[0]);
+	voltage = le16_to_cpu(temp_calib[1]);
+
+	/* offset = temp - volt / coeff */
+	return (s32)(temperature - voltage / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF);
+}
 
 static void iwl5150_set_ct_threshold(struct iwl_priv *priv)
 {
