@@ -480,11 +480,6 @@ struct wl1271 {
 	/* The current band */
 	enum ieee80211_band band;
 
-	/* Rx Streaming */
-	struct work_struct rx_streaming_enable_work;
-	struct work_struct rx_streaming_disable_work;
-	struct timer_list rx_streaming_timer;
-
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
 
@@ -635,6 +630,11 @@ struct wl12xx_vif {
 	bool ba_support;
 	bool ba_allowed;
 
+	/* Rx Streaming */
+	struct work_struct rx_streaming_enable_work;
+	struct work_struct rx_streaming_disable_work;
+	struct timer_list rx_streaming_timer;
+
 	/*
 	 * This struct must be last!
 	 * data that has to be saved acrossed reconfigs (e.g. recovery)
@@ -681,7 +681,7 @@ struct ieee80211_vif *wl12xx_wlvif_to_vif(struct wl12xx_vif *wlvif)
 
 int wl1271_plt_start(struct wl1271 *wl);
 int wl1271_plt_stop(struct wl1271 *wl);
-int wl1271_recalc_rx_streaming(struct wl1271 *wl);
+int wl1271_recalc_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 void wl12xx_queue_recovery_work(struct wl1271 *wl);
 size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen);
 

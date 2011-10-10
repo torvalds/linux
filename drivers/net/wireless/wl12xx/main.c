@@ -502,12 +502,13 @@ static int wl1271_reg_notify(struct wiphy *wiphy,
 	return 0;
 }
 
-static int wl1271_set_rx_streaming(struct wl1271 *wl, bool enable)
+static int wl1271_set_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				   bool enable)
 {
 	int ret = 0;
 
 	/* we should hold wl->mutex */
-	ret = wl1271_acx_ps_rx_streaming(wl, enable);
+	ret = wl1271_acx_ps_rx_streaming(wl, wlvif, enable);
 	if (ret < 0)
 		goto out;
 
@@ -523,7 +524,7 @@ out:
  * this function is being called when the rx_streaming interval
  * has beed changed or rx_streaming should be disabled
  */
-int wl1271_recalc_rx_streaming(struct wl1271 *wl)
+int wl1271_recalc_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret = 0;
 	int period = wl->conf.rx_streaming.interval;
@@ -537,11 +538,11 @@ int wl1271_recalc_rx_streaming(struct wl1271 *wl)
 	    test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) &&
 	    (wl->conf.rx_streaming.always ||
 	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags)))
-		ret = wl1271_set_rx_streaming(wl, true);
+		ret = wl1271_set_rx_streaming(wl, wlvif, true);
 	else {
-		ret = wl1271_set_rx_streaming(wl, false);
+		ret = wl1271_set_rx_streaming(wl, wlvif, false);
 		/* don't cancel_work_sync since we might deadlock */
-		del_timer_sync(&wl->rx_streaming_timer);
+		del_timer_sync(&wlvif->rx_streaming_timer);
 	}
 out:
 	return ret;
@@ -550,8 +551,9 @@ out:
 static void wl1271_rx_streaming_enable_work(struct work_struct *work)
 {
 	int ret;
-	struct wl1271 *wl =
-		container_of(work, struct wl1271, rx_streaming_enable_work);
+	struct wl12xx_vif *wlvif = container_of(work, struct wl12xx_vif,
+						rx_streaming_enable_work);
+	struct wl1271 *wl = wlvif->wl;
 
 	mutex_lock(&wl->mutex);
 
@@ -568,12 +570,12 @@ static void wl1271_rx_streaming_enable_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_set_rx_streaming(wl, true);
+	ret = wl1271_set_rx_streaming(wl, wlvif, true);
 	if (ret < 0)
 		goto out_sleep;
 
 	/* stop it after some time of inactivity */
-	mod_timer(&wl->rx_streaming_timer,
+	mod_timer(&wlvif->rx_streaming_timer,
 		  jiffies + msecs_to_jiffies(wl->conf.rx_streaming.duration));
 
 out_sleep:
@@ -585,8 +587,9 @@ out:
 static void wl1271_rx_streaming_disable_work(struct work_struct *work)
 {
 	int ret;
-	struct wl1271 *wl =
-		container_of(work, struct wl1271, rx_streaming_disable_work);
+	struct wl12xx_vif *wlvif = container_of(work, struct wl12xx_vif,
+						rx_streaming_disable_work);
+	struct wl1271 *wl = wlvif->wl;
 
 	mutex_lock(&wl->mutex);
 
@@ -597,7 +600,7 @@ static void wl1271_rx_streaming_disable_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_set_rx_streaming(wl, false);
+	ret = wl1271_set_rx_streaming(wl, wlvif, false);
 	if (ret)
 		goto out_sleep;
 
@@ -609,8 +612,9 @@ out:
 
 static void wl1271_rx_streaming_timer(unsigned long data)
 {
-	struct wl1271 *wl = (struct wl1271 *)data;
-	ieee80211_queue_work(wl->hw, &wl->rx_streaming_disable_work);
+	struct wl12xx_vif *wlvif = (struct wl12xx_vif *)data;
+	struct wl1271 *wl = wlvif->wl;
+	ieee80211_queue_work(wl->hw, &wlvif->rx_streaming_disable_work);
 }
 
 static void wl1271_conf_init(struct wl1271 *wl)
@@ -1827,9 +1831,6 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	cancel_delayed_work_sync(&wl->scan_complete_work);
 	cancel_work_sync(&wl->netstack_work);
 	cancel_work_sync(&wl->tx_work);
-	del_timer_sync(&wl->rx_streaming_timer);
-	cancel_work_sync(&wl->rx_streaming_enable_work);
-	cancel_work_sync(&wl->rx_streaming_disable_work);
 	cancel_delayed_work_sync(&wl->elp_work);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
@@ -1960,8 +1961,15 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->beacon_int = WL1271_DEFAULT_BEACON_INT;
 
+	INIT_WORK(&wlvif->rx_streaming_enable_work,
+		  wl1271_rx_streaming_enable_work);
+	INIT_WORK(&wlvif->rx_streaming_disable_work,
+		  wl1271_rx_streaming_disable_work);
 	INIT_DELAYED_WORK(&wlvif->pspoll_work, wl1271_pspoll_work);
 	INIT_LIST_HEAD(&wlvif->list);
+
+	setup_timer(&wlvif->rx_streaming_timer, wl1271_rx_streaming_timer,
+		    (unsigned long) wlvif);
 
 	return 0;
 }
@@ -2203,6 +2211,9 @@ deinit:
 		wl->sta_count--;
 
 	mutex_unlock(&wl->mutex);
+	del_timer_sync(&wlvif->rx_streaming_timer);
+	cancel_work_sync(&wlvif->rx_streaming_enable_work);
+	cancel_work_sync(&wlvif->rx_streaming_disable_work);
 	cancel_delayed_work_sync(&wlvif->pspoll_work);
 
 	mutex_lock(&wl->mutex);
@@ -4903,10 +4914,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	INIT_WORK(&wl->tx_work, wl1271_tx_work);
 	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
 	INIT_DELAYED_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
-	INIT_WORK(&wl->rx_streaming_enable_work,
-		  wl1271_rx_streaming_enable_work);
-	INIT_WORK(&wl->rx_streaming_disable_work,
-		  wl1271_rx_streaming_disable_work);
 
 	wl->freezable_wq = create_freezable_workqueue("wl12xx_wq");
 	if (!wl->freezable_wq) {
@@ -4930,8 +4937,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
 	wl->active_sta_count = 0;
-	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
-		    (unsigned long) wl);
 	wl->fwlog_size = 0;
 	init_waitqueue_head(&wl->fwlog_waitq);
 

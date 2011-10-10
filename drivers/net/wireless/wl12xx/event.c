@@ -220,12 +220,12 @@ static void wl12xx_event_soft_gemini_sense(struct wl1271 *wl,
 		}
 		set_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
 	} else {
+		clear_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
 		wl12xx_for_each_wlvif_sta(wl, wlvif) {
 			vif = wl12xx_wlvif_to_vif(wlvif);
 			ieee80211_enable_dyn_ps(vif);
+			wl1271_recalc_rx_streaming(wl, wlvif);
 		}
-		clear_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
-		wl1271_recalc_rx_streaming(wl);
 	}
 
 }

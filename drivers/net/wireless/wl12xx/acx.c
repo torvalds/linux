@@ -1510,10 +1510,9 @@ out:
 	return ret;
 }
 
-int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, bool enable)
+int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			       bool enable)
 {
-	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
-	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271_acx_ps_rx_streaming *rx_streaming;
 	u32 conf_queues, enable_queues;
 	int i, ret = 0;

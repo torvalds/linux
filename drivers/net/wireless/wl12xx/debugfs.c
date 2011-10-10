@@ -505,6 +505,7 @@ static ssize_t rx_streaming_interval_write(struct file *file,
 			   size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
+	struct wl12xx_vif *wlvif;
 	unsigned long value;
 	int ret;
 
@@ -528,7 +529,9 @@ static ssize_t rx_streaming_interval_write(struct file *file,
 	if (ret < 0)
 		goto out;
 
-	wl1271_recalc_rx_streaming(wl);
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		wl1271_recalc_rx_streaming(wl, wlvif);
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -557,6 +560,7 @@ static ssize_t rx_streaming_always_write(struct file *file,
 			   size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
+	struct wl12xx_vif *wlvif;
 	unsigned long value;
 	int ret;
 
@@ -580,7 +584,9 @@ static ssize_t rx_streaming_always_write(struct file *file,
 	if (ret < 0)
 		goto out;
 
-	wl1271_recalc_rx_streaming(wl);
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		wl1271_recalc_rx_streaming(wl, wlvif);
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:

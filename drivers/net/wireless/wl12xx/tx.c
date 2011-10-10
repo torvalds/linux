@@ -643,21 +643,58 @@ static bool wl1271_tx_is_data_present(struct sk_buff *skb)
 	return ieee80211_is_data_present(hdr->frame_control);
 }
 
+void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
+{
+	struct wl12xx_vif *wlvif;
+	u32 timeout;
+	u8 hlid;
+
+	if (!wl->conf.rx_streaming.interval)
+		return;
+
+	if (!wl->conf.rx_streaming.always &&
+	    !test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags))
+		return;
+
+	timeout = wl->conf.rx_streaming.duration;
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		bool found = false;
+		for_each_set_bit(hlid, active_hlids, WL12XX_MAX_LINKS) {
+			if (test_bit(hlid, wlvif->links_map)) {
+				found  = true;
+				break;
+			}
+		}
+
+		if (!found)
+			continue;
+
+		/* enable rx streaming */
+		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+			ieee80211_queue_work(wl->hw,
+					     &wlvif->rx_streaming_enable_work);
+
+		mod_timer(&wlvif->rx_streaming_timer,
+			  jiffies + msecs_to_jiffies(timeout));
+	}
+}
+
 void wl1271_tx_work_locked(struct wl1271 *wl)
 {
 	struct wl12xx_vif *wlvif;
 	struct sk_buff *skb;
+	struct wl1271_tx_hw_descr *desc;
 	u32 buf_offset = 0;
 	bool sent_packets = false;
-	bool had_data = false;
-	/* TODO: save bitmap of relevant stations */
-	bool is_sta = false;
+	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	int ret;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		return;
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
+		bool has_data = false;
+
 		wlvif = NULL;
 		if (!wl12xx_is_dummy_packet(wl, skb)) {
 			struct ieee80211_tx_info *info;
@@ -667,9 +704,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 			vif = info->control.vif;
 			wlvif = wl12xx_vif_to_data(vif);
 		}
-
-		if (wl1271_tx_is_data_present(skb))
-			had_data = true;
+		has_data = wlvif && wl1271_tx_is_data_present(skb);
 
 		ret = wl1271_prepare_tx_frame(wl, wlvif, skb, buf_offset);
 		if (ret == -EAGAIN) {
@@ -698,8 +733,10 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 		}
 		buf_offset += ret;
 		wl->tx_packets_count++;
-		if (wlvif && wlvif->bss_type == BSS_TYPE_STA_BSS)
-			is_sta = true;
+		if (has_data) {
+			desc = (struct wl1271_tx_hw_descr *) skb->data;
+			__set_bit(desc->hlid, active_hlids);
+		}
 	}
 
 out_ack:
@@ -719,19 +756,7 @@ out_ack:
 
 		wl1271_handle_tx_low_watermark(wl);
 	}
-	if (is_sta && wl->conf.rx_streaming.interval && had_data &&
-	    (wl->conf.rx_streaming.always ||
-	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags))) {
-		u32 timeout = wl->conf.rx_streaming.duration;
-
-		/* enable rx streaming */
-		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
-			ieee80211_queue_work(wl->hw,
-					     &wl->rx_streaming_enable_work);
-
-		mod_timer(&wl->rx_streaming_timer,
-			  jiffies + msecs_to_jiffies(timeout));
-	}
+	wl12xx_rearm_rx_streaming(wl, active_hlids);
 }
 
 void wl1271_tx_work(struct work_struct *work)
