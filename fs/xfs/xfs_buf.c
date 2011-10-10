@@ -151,6 +151,7 @@ xfs_buf_stale(
 	struct xfs_buf	*bp)
 {
 	bp->b_flags |= XBF_STALE;
+	xfs_buf_delwri_dequeue(bp);
 	atomic_set(&(bp)->b_lru_ref, 0);
 	if (!list_empty(&bp->b_lru)) {
 		struct xfs_buftarg *btp = bp->b_target;
@@ -1059,7 +1060,6 @@ xfs_bioerror(
 	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
 	 */
 	XFS_BUF_UNREAD(bp);
-	xfs_buf_delwri_dequeue(bp);
 	XFS_BUF_UNDONE(bp);
 	xfs_buf_stale(bp);
 
@@ -1088,7 +1088,6 @@ xfs_bioerror_relse(
 	 * change that interface.
 	 */
 	XFS_BUF_UNREAD(bp);
-	xfs_buf_delwri_dequeue(bp);
 	XFS_BUF_DONE(bp);
 	xfs_buf_stale(bp);
 	bp->b_iodone = NULL;

@@ -2169,7 +2169,6 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 		bp = xfs_incore(mp->m_ddev_targp, dblkno, blkcnt, XBF_TRYLOCK);
 		if (bp) {
 			xfs_buf_stale(bp);
-			xfs_buf_delwri_dequeue(bp);
 			xfs_buf_relse(bp);
 			bp = NULL;
 		}

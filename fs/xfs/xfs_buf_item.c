@@ -967,7 +967,6 @@ xfs_buf_iodone_callbacks(
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
 		xfs_buf_stale(bp);
-		xfs_buf_delwri_dequeue(bp);
 		XFS_BUF_DONE(bp);
 		trace_xfs_buf_item_iodone(bp, _RET_IP_);
 		goto do_callbacks;
@@ -1009,7 +1008,6 @@ xfs_buf_iodone_callbacks(
 	 */
 	xfs_buf_stale(bp);
 	XFS_BUF_DONE(bp);
-	xfs_buf_delwri_dequeue(bp);
 
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
 

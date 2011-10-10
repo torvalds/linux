@@ -162,7 +162,6 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 		ASSERT(xfs_buf_islocked(bp));
 		if (XFS_FORCED_SHUTDOWN(tp->t_mountp)) {
 			xfs_buf_stale(bp);
-			xfs_buf_delwri_dequeue(bp);
 			XFS_BUF_DONE(bp);
 		}
 
@@ -391,7 +390,6 @@ xfs_trans_read_buf(
 	if (bp->b_error) {
 		error = bp->b_error;
 		xfs_buf_stale(bp);
-		xfs_buf_delwri_dequeue(bp);
 		XFS_BUF_DONE(bp);
 		xfs_ioerror_alert("xfs_trans_read_buf", mp,
 				  bp, blkno);
@@ -744,7 +742,6 @@ xfs_trans_binval(
 	 * We set the stale bit in the buffer as well since we're getting
 	 * rid of it.
 	 */
-	xfs_buf_delwri_dequeue(bp);
 	xfs_buf_stale(bp);
 	bip->bli_flags |= XFS_BLI_STALE;
 	bip->bli_flags &= ~(XFS_BLI_INODE_BUF | XFS_BLI_LOGGED | XFS_BLI_DIRTY);
