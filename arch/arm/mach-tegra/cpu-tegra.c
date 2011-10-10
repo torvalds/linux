@@ -130,7 +130,7 @@ static int tegra_target(struct cpufreq_policy *policy,
 		       unsigned int target_freq,
 		       unsigned int relation)
 {
-	int idx;
+	unsigned int idx;
 	unsigned int freq;
 	int ret = 0;
 
