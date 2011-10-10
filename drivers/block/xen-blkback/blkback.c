@@ -707,8 +707,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * the hypercall to unmap the grants - that is all done in
 	 * xen_blkbk_unmap.
 	 */
-	if (operation != BLKIF_OP_DISCARD &&
-			xen_blkbk_map(req, pending_req, seg))
+	if (operation == REQ_DISCARD && xen_blkbk_map(req, pending_req, seg))
 		goto fail_flush;
 
 	/*
