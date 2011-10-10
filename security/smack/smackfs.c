@@ -1497,6 +1497,7 @@ static ssize_t smk_write_access(struct file *file, const char __user *buf,
 {
 	struct smack_rule rule;
 	char *data;
+	int res;
 
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
@@ -1508,8 +1509,10 @@ static ssize_t smk_write_access(struct file *file, const char __user *buf,
 	if (count < SMK_LOADLEN || smk_parse_rule(data, &rule))
 		return -EINVAL;
 
-	data[0] = smk_access(rule.smk_subject, rule.smk_object,
-			     rule.smk_access, NULL) == 0;
+	res = smk_access(rule.smk_subject, rule.smk_object, rule.smk_access,
+			  NULL);
+	data[0] = res == 0 ? '1' : '0';
+	data[1] = '\0';
 
 	simple_transaction_set(file, 1);
 	return SMK_LOADLEN;
