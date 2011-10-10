@@ -993,7 +993,7 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 				 * In order to avoid starvation of the TX path,
 				 * call the work function directly.
 				 */
-				wl1271_tx_work_locked(wl, wl->vif);
+				wl1271_tx_work_locked(wl);
 			} else {
 				spin_unlock_irqrestore(&wl->wl_lock, flags);
 			}
@@ -1537,7 +1537,7 @@ int wl1271_tx_dummy_packet(struct wl1271 *wl)
 
 	/* The FW is low on RX memory blocks, so send the dummy packet asap */
 	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags))
-		wl1271_tx_work_locked(wl, wl->vif);
+		wl1271_tx_work_locked(wl);
 
 	/*
 	 * If the FW TX is busy, TX work will be scheduled by the threaded
@@ -2413,7 +2413,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	    ((wl->band != conf->channel->band) ||
 	     (wl->channel != channel))) {
 		/* send all pending packets */
-		wl1271_tx_work_locked(wl, vif);
+		wl1271_tx_work_locked(wl);
 		wl->band = conf->channel->band;
 		wl->channel = channel;
 
