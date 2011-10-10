@@ -654,7 +654,8 @@ out:
 int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_start *cmd;
-	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	int ret;
 
 	wl1271_debug(DEBUG_CMD, "cmd role start ap %d", wlvif->role_id);
@@ -773,7 +774,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct wl12xx_cmd_role_start *cmd;
-	struct ieee80211_bss_conf *bss_conf = &wl->vif->bss_conf;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	int ret;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -1096,10 +1097,11 @@ out:
 int wl1271_cmd_build_ps_poll(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			     u16 aid)
 {
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct sk_buff *skb;
 	int ret = 0;
 
-	skb = ieee80211_pspoll_get(wl->hw, wl->vif);
+	skb = ieee80211_pspoll_get(wl->hw, vif);
 	if (!skb)
 		goto out;
 
@@ -1176,6 +1178,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			     __be32 ip_addr)
 {
 	int ret;
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct wl12xx_arp_rsp_template tmpl;
 	struct ieee80211_hdr_3addr *hdr;
 	struct arphdr *arp_hdr;
@@ -1187,8 +1190,8 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 					 IEEE80211_STYPE_DATA |
 					 IEEE80211_FCTL_TODS);
-	memcpy(hdr->addr1, wl->vif->bss_conf.bssid, ETH_ALEN);
-	memcpy(hdr->addr2, wl->vif->addr, ETH_ALEN);
+	memcpy(hdr->addr1, vif->bss_conf.bssid, ETH_ALEN);
+	memcpy(hdr->addr2, vif->addr, ETH_ALEN);
 	memset(hdr->addr3, 0xff, ETH_ALEN);
 
 	/* llc layer */
@@ -1204,7 +1207,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	arp_hdr->ar_op = cpu_to_be16(ARPOP_REPLY);
 
 	/* arp payload */
-	memcpy(tmpl.sender_hw, wl->vif->addr, ETH_ALEN);
+	memcpy(tmpl.sender_hw, vif->addr, ETH_ALEN);
 	tmpl.sender_ip = ip_addr;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_ARP_RSP,

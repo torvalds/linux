@@ -232,9 +232,11 @@ static void wl1271_ps_filter_frames(struct wl1271 *wl, u8 hlid)
 	wl1271_handle_tx_low_watermark(wl);
 }
 
-void wl1271_ps_link_start(struct wl1271 *wl, u8 hlid, bool clean_queues)
+void wl12xx_ps_link_start(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			  u8 hlid, bool clean_queues)
 {
 	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
 	if (test_bit(hlid, &wl->ap_ps_map))
 		return;
@@ -244,7 +246,7 @@ void wl1271_ps_link_start(struct wl1271 *wl, u8 hlid, bool clean_queues)
 		     clean_queues);
 
 	rcu_read_lock();
-	sta = ieee80211_find_sta(wl->vif, wl->links[hlid].addr);
+	sta = ieee80211_find_sta(vif, wl->links[hlid].addr);
 	if (!sta) {
 		wl1271_error("could not find sta %pM for starting ps",
 			     wl->links[hlid].addr);
@@ -262,9 +264,10 @@ void wl1271_ps_link_start(struct wl1271 *wl, u8 hlid, bool clean_queues)
 	__set_bit(hlid, &wl->ap_ps_map);
 }
 
-void wl1271_ps_link_end(struct wl1271 *wl, u8 hlid)
+void wl12xx_ps_link_end(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 {
 	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
 	if (!test_bit(hlid, &wl->ap_ps_map))
 		return;
@@ -274,7 +277,7 @@ void wl1271_ps_link_end(struct wl1271 *wl, u8 hlid)
 	__clear_bit(hlid, &wl->ap_ps_map);
 
 	rcu_read_lock();
-	sta = ieee80211_find_sta(wl->vif, wl->links[hlid].addr);
+	sta = ieee80211_find_sta(vif, wl->links[hlid].addr);
 	if (!sta) {
 		wl1271_error("could not find sta %pM for ending ps",
 			     wl->links[hlid].addr);

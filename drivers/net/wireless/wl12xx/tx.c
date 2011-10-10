@@ -146,7 +146,7 @@ static void wl1271_tx_regulate_link(struct wl1271 *wl,
 	 * case FW-memory congestion is not a problem.
 	 */
 	if (!single_sta && fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
-		wl1271_ps_link_start(wl, hlid, true);
+		wl12xx_ps_link_start(wl, wlvif, hlid, true);
 }
 
 bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb)
