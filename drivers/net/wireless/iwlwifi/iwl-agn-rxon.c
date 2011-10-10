@@ -28,7 +28,6 @@
 #include "iwl-agn.h"
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
-#include "iwl-helpers.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
 

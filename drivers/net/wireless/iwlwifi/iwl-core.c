@@ -40,7 +40,6 @@
 #include "iwl-io.h"
 #include "iwl-power.h"
 #include "iwl-agn.h"
-#include "iwl-helpers.h"
 #include "iwl-shared.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"

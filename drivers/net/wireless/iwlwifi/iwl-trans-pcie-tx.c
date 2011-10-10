@@ -37,7 +37,6 @@
 #include "iwl-prph.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
-#include "iwl-helpers.h"
 #include "iwl-trans-pcie-int.h"
 
 #define IWL_TX_CRC_SIZE 4
