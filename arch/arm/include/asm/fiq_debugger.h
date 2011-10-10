@@ -29,10 +29,16 @@
 
 /**
  * struct fiq_debugger_pdata - fiq debugger platform data
+ * @uart_resume:	used to restore uart state right before enabling
+ *			the fiq.
  * @uart_enable:	Do the work necessary to communicate with the uart
  *			hw (enable clocks, etc.). This must be ref-counted.
  * @uart_disable:	Do the work necessary to disable the uart hw
  *			(disable clocks, etc.). This must be ref-counted.
+ * @uart_dev_suspend:	called during PM suspend, generally not needed
+ *			for real fiq mode debugger.
+ * @uart_dev_resume:	called during PM resume, generally not needed
+ *			for real fiq mode debugger.
  */
 struct fiq_debugger_pdata {
 	int (*uart_init)(struct platform_device *pdev);
@@ -43,6 +49,9 @@ struct fiq_debugger_pdata {
 	void (*uart_flush)(struct platform_device *pdev);
 	void (*uart_enable)(struct platform_device *pdev);
 	void (*uart_disable)(struct platform_device *pdev);
+
+	int (*uart_dev_suspend)(struct platform_device *pdev);
+	int (*uart_dev_resume)(struct platform_device *pdev);
 
 	void (*fiq_enable)(struct platform_device *pdev, unsigned int fiq,
 								bool enable);
