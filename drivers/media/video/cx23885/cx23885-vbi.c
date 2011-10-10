@@ -151,7 +151,7 @@ int cx23885_restart_vbi_queue(struct cx23885_dev    *dev,
 		buf = list_entry(item, struct cx23885_buffer, vb.queue);
 		buf->count = q->count++;
 	}
-	mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
+	mod_timer(&q->timeout, jiffies + (BUFFER_TIMEOUT / 30));
 	return 0;
 }
 
@@ -255,7 +255,7 @@ vbi_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 		cx23885_start_vbi_dma(dev, q, buf);
 		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = q->count++;
-		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
+		mod_timer(&q->timeout, jiffies + (BUFFER_TIMEOUT / 30));
 		dprintk(2, "[%p/%d] vbi_queue - first active\n",
 			buf, buf->vb.i);
 
