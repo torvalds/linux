@@ -485,7 +485,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 		et1310_config_mac_regs2(adapter);
 	}
 
-	if (phydev->link != adapter->link) {
+	if (phydev && phydev->link != adapter->link) {
 		/*
 		 * Check to see if we are in coma mode and if
 		 * so, disable it because we will not be able
@@ -501,7 +501,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 			    "Link down - cable problem ?\n");
 			adapter->boot_coma = 0;
 
-			if (phydev && phydev->speed == SPEED_10) {
+			if (phydev->speed == SPEED_10) {
 				/* NOTE - Is there a way to query this without
 				 * TruePHY?
 				 * && TRU_QueryCoreType(adapter->hTruePhy, 0) ==
