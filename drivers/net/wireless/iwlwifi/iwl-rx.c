@@ -47,6 +47,7 @@ const char *get_cmd_string(u8 cmd)
 	switch (cmd) {
 		IWL_CMD(REPLY_ALIVE);
 		IWL_CMD(REPLY_ERROR);
+		IWL_CMD(REPLY_ECHO);
 		IWL_CMD(REPLY_RXON);
 		IWL_CMD(REPLY_RXON_ASSOC);
 		IWL_CMD(REPLY_QOS_PARAM);

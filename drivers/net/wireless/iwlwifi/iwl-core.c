@@ -1734,12 +1734,18 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 int iwl_cmd_echo_test(struct iwl_priv *priv)
 {
+	int ret;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_ECHO,
 		.flags = CMD_SYNC,
 	};
 
-	return iwl_trans_send_cmd(trans(priv), &cmd);
+	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	if (ret)
+		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
+	else
+		IWL_DEBUG_INFO(priv, "echo testing pass\n");
+	return ret;
 }
 
 static inline int iwl_check_stuck_queue(struct iwl_priv *priv, int txq)
