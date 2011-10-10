@@ -1037,6 +1037,71 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 	return 0;
 }
 
+/**
+ * vmw_execbuf_copy_fence_user - copy fence object information to
+ * user-space.
+ *
+ * @dev_priv: Pointer to a vmw_private struct.
+ * @vmw_fp: Pointer to the struct vmw_fpriv representing the calling file.
+ * @ret: Return value from fence object creation.
+ * @user_fence_rep: User space address of a struct drm_vmw_fence_rep to
+ * which the information should be copied.
+ * @fence: Pointer to the fenc object.
+ * @fence_handle: User-space fence handle.
+ *
+ * This function copies fence information to user-space. If copying fails,
+ * The user-space struct drm_vmw_fence_rep::error member is hopefully
+ * left untouched, and if it's preloaded with an -EFAULT by user-space,
+ * the error will hopefully be detected.
+ * Also if copying fails, user-space will be unable to signal the fence
+ * object so we wait for it immediately, and then unreference the
+ * user-space reference.
+ */
+static void
+vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
+			    struct vmw_fpriv *vmw_fp,
+			    int ret,
+			    struct drm_vmw_fence_rep __user *user_fence_rep,
+			    struct vmw_fence_obj *fence,
+			    uint32_t fence_handle)
+{
+	struct drm_vmw_fence_rep fence_rep;
+
+	if (user_fence_rep == NULL)
+		return;
+
+	fence_rep.error = ret;
+	if (ret == 0) {
+		BUG_ON(fence == NULL);
+
+		fence_rep.handle = fence_handle;
+		fence_rep.seqno = fence->seqno;
+		vmw_update_seqno(dev_priv, &dev_priv->fifo);
+		fence_rep.passed_seqno = dev_priv->last_read_seqno;
+	}
+
+	/*
+	 * copy_to_user errors will be detected by user space not
+	 * seeing fence_rep::error filled in. Typically
+	 * user-space would have pre-set that member to -EFAULT.
+	 */
+	ret = copy_to_user(user_fence_rep, &fence_rep,
+			   sizeof(fence_rep));
+
+	/*
+	 * User-space lost the fence object. We need to sync
+	 * and unreference the handle.
+	 */
+	if (unlikely(ret != 0) && (fence_rep.error == 0)) {
+		ttm_ref_object_base_unref(vmw_fp->tfile,
+					  fence_handle, TTM_REF_USAGE);
+		DRM_ERROR("Fence copy error. Syncing.\n");
+		(void) vmw_fence_obj_wait(fence, fence->signal_mask,
+					  false, false,
+					  VMW_FENCE_WAIT_TIMEOUT);
+	}
+}
+
 int vmw_execbuf_process(struct drm_file *file_priv,
 			struct vmw_private *dev_priv,
 			void __user *user_commands,
@@ -1046,7 +1111,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 			struct drm_vmw_fence_rep __user *user_fence_rep)
 {
 	struct vmw_sw_context *sw_context = &dev_priv->ctx;
-	struct drm_vmw_fence_rep fence_rep;
 	struct vmw_fence_obj *fence;
 	uint32_t handle;
 	void *cmd;
@@ -1140,38 +1204,8 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 				    (void *) fence);
 
 	vmw_clear_validations(sw_context);
-
-	if (user_fence_rep) {
-		fence_rep.error = ret;
-		fence_rep.handle = handle;
-		fence_rep.seqno = fence->seqno;
-		vmw_update_seqno(dev_priv, &dev_priv->fifo);
-		fence_rep.passed_seqno = dev_priv->last_read_seqno;
-
-		/*
-		 * copy_to_user errors will be detected by user space not
-		 * seeing fence_rep::error filled in. Typically
-		 * user-space would have pre-set that member to -EFAULT.
-		 */
-		ret = copy_to_user(user_fence_rep, &fence_rep,
-				   sizeof(fence_rep));
-
-		/*
-		 * User-space lost the fence object. We need to sync
-		 * and unreference the handle.
-		 */
-		if (unlikely(ret != 0) && (fence_rep.error == 0)) {
-			BUG_ON(fence == NULL);
-
-			ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
-						  handle, TTM_REF_USAGE);
-			DRM_ERROR("Fence copy error. Syncing.\n");
-			(void) vmw_fence_obj_wait(fence,
-						  fence->signal_mask,
-						  false, false,
-						  VMW_FENCE_WAIT_TIMEOUT);
-		}
-	}
+	vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv), ret,
+				    user_fence_rep, fence, handle);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
