@@ -914,6 +914,10 @@ static void __init s3c24xx_gpiolib_add_chips(struct samsung_gpio_chip *chip,
 	struct gpio_chip *gc = &chip->chip;
 
 	for (i = 0 ; i < nr_chips; i++, chip++) {
+		/* skip banks not present on SoC */
+		if (chip->chip.base >= S3C_GPIO_END)
+			continue;
+
 		if (!chip->config)
 			chip->config = &s3c24xx_gpiocfg_default;
 		if (!chip->pm)
