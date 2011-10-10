@@ -1377,8 +1377,13 @@ static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 	 * But of course ... if we have configured WoWLAN then we did other
 	 * things already :-)
 	 */
-	if (!trans->shrd->wowlan)
+	if (!trans->shrd->wowlan) {
 		iwl_apm_stop(priv(trans));
+	} else {
+		iwl_disable_interrupts(trans);
+		iwl_clear_bit(bus(trans), CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	}
 
 	return 0;
 }
