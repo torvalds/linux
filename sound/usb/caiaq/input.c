@@ -664,15 +664,17 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 	for (i = 0; i < input->keycodemax; i++)
 		__set_bit(dev->keycode[i], input->keybit);
 
+	dev->input_dev = input;
+
 	ret = input_register_device(input);
 	if (ret < 0)
 		goto exit_free_idev;
 
-	dev->input_dev = input;
 	return 0;
 
 exit_free_idev:
 	input_free_device(input);
+	dev->input_dev = NULL;
 	return ret;
 }
 
