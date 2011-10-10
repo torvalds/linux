@@ -71,6 +71,9 @@
 /******************************************************************************
  * DEFINE
  *****************************************************************************/
+
+#define DMA_ADDR_INVALID	(~(dma_addr_t)0)
+
 /* ctrl register bank access */
 static DEFINE_SPINLOCK(udc_lock);
 
@@ -1434,7 +1437,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 		return -EALREADY;
 
 	mReq->req.status = -EALREADY;
-	if (length && !mReq->req.dma) {
+	if (length && mReq->req.dma == DMA_ADDR_INVALID) {
 		mReq->req.dma = \
 			dma_map_single(mEp->device, mReq->req.buf,
 				       length, mEp->dir ? DMA_TO_DEVICE :
@@ -1453,7 +1456,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 				dma_unmap_single(mEp->device, mReq->req.dma,
 					length, mEp->dir ? DMA_TO_DEVICE :
 					DMA_FROM_DEVICE);
-				mReq->req.dma = 0;
+				mReq->req.dma = DMA_ADDR_INVALID;
 				mReq->map     = 0;
 			}
 			return -ENOMEM;
@@ -1549,7 +1552,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	if (mReq->map) {
 		dma_unmap_single(mEp->device, mReq->req.dma, mReq->req.length,
 				 mEp->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		mReq->req.dma = 0;
+		mReq->req.dma = DMA_ADDR_INVALID;
 		mReq->map     = 0;
 	}
 
@@ -2189,6 +2192,7 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	mReq = kzalloc(sizeof(struct ci13xxx_req), gfp_flags);
 	if (mReq != NULL) {
 		INIT_LIST_HEAD(&mReq->queue);
+		mReq->req.dma = DMA_ADDR_INVALID;
 
 		mReq->ptr = dma_pool_alloc(mEp->td_pool, gfp_flags,
 					   &mReq->dma);
@@ -2328,7 +2332,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	if (mReq->map) {
 		dma_unmap_single(mEp->device, mReq->req.dma, mReq->req.length,
 				 mEp->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		mReq->req.dma = 0;
+		mReq->req.dma = DMA_ADDR_INVALID;
 		mReq->map     = 0;
 	}
 	req->status = -ECONNRESET;
