@@ -394,6 +394,8 @@ struct wl1271 {
 	unsigned long roles_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 	unsigned long roc_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 
+	struct list_head wlvif_list;
+
 	struct wl1271_acx_mem_map *target_mem_map;
 
 	/* Accounting for allocated / available TX blocks on HW */
@@ -564,6 +566,7 @@ struct wl1271_station {
 
 struct wl12xx_vif {
 	struct wl1271 *wl;
+	struct list_head list;
 	u8 bss_type;
 	u8 p2p; /* we are using p2p role */
 	u8 role_id;
@@ -652,6 +655,9 @@ struct ieee80211_vif *wl12xx_wlvif_to_vif(struct wl12xx_vif *wlvif)
 {
 	return container_of((void *)wlvif, struct ieee80211_vif, drv_priv);
 }
+
+#define wl12xx_for_each_wlvif(wl, wlvif) \
+		list_for_each_entry(wlvif, &wl->wlvif_list, list)
 
 int wl1271_plt_start(struct wl1271 *wl);
 int wl1271_plt_stop(struct wl1271 *wl);

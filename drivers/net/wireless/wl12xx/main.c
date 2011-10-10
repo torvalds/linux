@@ -1957,6 +1957,7 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 	wlvif->beacon_int = WL1271_DEFAULT_BEACON_INT;
 
 	INIT_DELAYED_WORK(&wlvif->pspoll_work, wl1271_pspoll_work);
+	INIT_LIST_HEAD(&wlvif->list);
 
 	return 0;
 }
@@ -2114,6 +2115,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 
 	wl->vif = vif;
+	list_add(&wlvif->list, &wl->wlvif_list);
 	set_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags);
 out:
 	mutex_unlock(&wl->mutex);
@@ -2181,6 +2183,7 @@ deinit:
 
 	wl12xx_tx_reset_wlvif(wl, wlvif);
 	wl1271_free_ap_keys(wl, wlvif);
+	list_del(&wlvif->list);
 	memset(wlvif->ap.sta_hlid_map, 0, sizeof(wlvif->ap.sta_hlid_map));
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
@@ -4869,6 +4872,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	memset(wl, 0, sizeof(*wl));
 
 	INIT_LIST_HEAD(&wl->list);
+	INIT_LIST_HEAD(&wl->wlvif_list);
 
 	wl->hw = hw;
 	wl->plat_dev = plat_dev;
