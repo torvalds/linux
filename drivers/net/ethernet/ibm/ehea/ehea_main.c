@@ -1817,8 +1817,7 @@ static inline void write_swqe2_data(struct sk_buff *skb, struct net_device *dev,
 			sg1entry->l_key = lkey;
 			sg1entry->len = frag->size;
 			sg1entry->vaddr =
-				ehea_map_vaddr(page_address(frag->page)
-					       + frag->page_offset);
+				ehea_map_vaddr(skb_frag_address(frag));
 			swqe->descriptors++;
 			sg1entry_contains_frag_data = 1;
 		}
@@ -1830,9 +1829,7 @@ static inline void write_swqe2_data(struct sk_buff *skb, struct net_device *dev,
 
 			sgentry->l_key = lkey;
 			sgentry->len = frag->size;
-			sgentry->vaddr =
-				ehea_map_vaddr(page_address(frag->page)
-					       + frag->page_offset);
+			sgentry->vaddr = ehea_map_vaddr(skb_frag_address(frag));
 			swqe->descriptors++;
 		}
 	}
@@ -2222,9 +2219,7 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 		/* ... then copy data from the fragments */
 		for (i = 0; i < nfrags; i++) {
 			frag = &skb_shinfo(skb)->frags[i];
-			memcpy(imm_data,
-			       page_address(frag->page) + frag->page_offset,
-			       frag->size);
+			memcpy(imm_data, skb_frag_address(frag), frag->size);
 			imm_data += frag->size;
 		}
 	}
