@@ -393,6 +393,12 @@ struct iwl_cfg iwl6005_2agn_sff_cfg = {
 	.ht_params = &iwl6000_ht_params,
 };
 
+struct iwl_cfg iwl6005_2agn_d_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6205D AGN",
+	IWL_DEVICE_6005,
+	.ht_params = &iwl6000_ht_params,
+};
+
 #define IWL_DEVICE_6030						\
 	.fw_name_pre = IWL6030_FW_PRE,				\
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
