@@ -227,7 +227,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	props->pkey_tbl_len	= 1;
 	props->bad_pkey_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 46));
 	props->qkey_viol_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 48));
-	props->max_mtu		= IB_MTU_2048;
+	props->max_mtu		= IB_MTU_4096;
 	props->subnet_timeout	= 0;
 	props->max_vl_num	= out_mad->data[37] >> 4;
 	props->init_type_reply	= 0;
