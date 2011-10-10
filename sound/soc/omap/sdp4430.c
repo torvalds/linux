@@ -120,16 +120,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, hs_trim;
-
-	/* SDP4430 connected pins */
-	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
-	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
-	snd_soc_dapm_enable_pin(dapm, "AFML");
-	snd_soc_dapm_enable_pin(dapm, "AFMR");
-	snd_soc_dapm_enable_pin(dapm, "Headset Mic");
-	snd_soc_dapm_enable_pin(dapm, "Headset Stereophone");
 
 	/*
 	 * Configure McPDM offset cancellation based on the HSOTRIM value from
