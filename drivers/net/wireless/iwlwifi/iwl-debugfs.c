@@ -349,7 +349,6 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	struct iwl_priv *priv = file->private_data;
 	struct iwl_station_entry *station;
 	struct iwl_tid_data *tid_data;
-	int max_sta = hw_params(priv).max_stations;
 	char *buf;
 	int i, j, pos = 0;
 	ssize_t ret;
@@ -363,7 +362,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	pos += scnprintf(buf + pos, bufsz - pos, "num of stations: %d\n\n",
 			priv->num_stations);
 
-	for (i = 0; i < max_sta; i++) {
+	for (i = 0; i < IWLAGN_STATION_COUNT; i++) {
 		station = &priv->stations[i];
 		if (!station->used)
 			continue;

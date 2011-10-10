@@ -248,8 +248,7 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	else if (is_broadcast_ether_addr(addr))
 		sta_id = ctx->bcast_sta_id;
 	else
-		for (i = IWL_STA_ID;
-		     i < hw_params(priv).max_stations; i++) {
+		for (i = IWL_STA_ID; i < IWLAGN_STATION_COUNT; i++) {
 			if (!compare_ether_addr(priv->stations[i].sta.sta.addr,
 						addr)) {
 				sta_id = i;
@@ -535,7 +534,7 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv,
 	IWL_DEBUG_INFO(priv, "Clearing ucode stations in driver\n");
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
-	for (i = 0; i < hw_params(priv).max_stations; i++) {
+	for (i = 0; i < IWLAGN_STATION_COUNT; i++) {
 		if (ctx && ctx->ctxid != priv->stations[i].ctxid)
 			continue;
 
@@ -576,7 +575,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	IWL_DEBUG_ASSOC(priv, "Restoring all known stations ... start.\n");
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags_spin);
-	for (i = 0; i < hw_params(priv).max_stations; i++) {
+	for (i = 0; i < IWLAGN_STATION_COUNT; i++) {
 		if (ctx->ctxid != priv->stations[i].ctxid)
 			continue;
 		if ((priv->stations[i].used & IWL_STA_DRIVER_ACTIVE) &&
@@ -589,7 +588,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		}
 	}
 
-	for (i = 0; i < hw_params(priv).max_stations; i++) {
+	for (i = 0; i < IWLAGN_STATION_COUNT; i++) {
 		if ((priv->stations[i].used & IWL_STA_UCODE_INPROGRESS)) {
 			memcpy(&sta_cmd, &priv->stations[i].sta,
 			       sizeof(struct iwl_addsta_cmd));
@@ -692,7 +691,7 @@ void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 	int i;
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	for (i = 0; i < hw_params(priv).max_stations; i++) {
+	for (i = 0; i < IWLAGN_STATION_COUNT; i++) {
 		if (!(priv->stations[i].used & IWL_STA_BCAST))
 			continue;
 
