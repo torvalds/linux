@@ -554,7 +554,7 @@ static int wl12xx_init_ap_role(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		return ret;
 
 	/* initialize Tx power */
-	ret = wl1271_acx_tx_power(wl, wlvif, wl->power_level);
+	ret = wl1271_acx_tx_power(wl, wlvif, wlvif->power_level);
 	if (ret < 0)
 		return ret;
 

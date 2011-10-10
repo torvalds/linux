@@ -1974,6 +1974,7 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 	 */
 	wlvif->band = wl->band;
 	wlvif->channel = wl->channel;
+	wlvif->power_level = wl->power_level;
 
 	INIT_WORK(&wlvif->rx_streaming_enable_work,
 		  wl1271_rx_streaming_enable_work);
@@ -2562,12 +2563,13 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 						 wlvif->basic_rate, true);
 	}
 
-	if (conf->power_level != wl->power_level) {
+	if (conf->power_level != wlvif->power_level) {
 		ret = wl1271_acx_tx_power(wl, wlvif, conf->power_level);
 		if (ret < 0)
 			goto out_sleep;
 
 		wl->power_level = conf->power_level;
+		wlvif->power_level = conf->power_level;
 	}
 
 out_sleep:

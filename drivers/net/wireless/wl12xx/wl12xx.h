@@ -631,6 +631,9 @@ struct wl12xx_vif {
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
 
+	/* in dBm */
+	int power_level;
+
 	int rssi_thold;
 	int last_rssi_event;
 
