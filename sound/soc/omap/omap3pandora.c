@@ -173,10 +173,8 @@ static int omap3pandora_out_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0)
 		return ret;
 
-	snd_soc_dapm_add_routes(dapm, omap3pandora_out_map,
+	return snd_soc_dapm_add_routes(dapm, omap3pandora_out_map,
 		ARRAY_SIZE(omap3pandora_out_map));
-
-	return snd_soc_dapm_sync(dapm);
 }
 
 static int omap3pandora_in_init(struct snd_soc_pcm_runtime *rtd)
@@ -196,10 +194,8 @@ static int omap3pandora_in_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0)
 		return ret;
 
-	snd_soc_dapm_add_routes(dapm, omap3pandora_in_map,
+	return snd_soc_dapm_add_routes(dapm, omap3pandora_in_map,
 		ARRAY_SIZE(omap3pandora_in_map));
-
-	return snd_soc_dapm_sync(dapm);
 }
 
 static struct snd_soc_ops omap3pandora_ops = {

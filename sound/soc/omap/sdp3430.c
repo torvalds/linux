@@ -159,10 +159,6 @@ static int sdp3430_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "CARKITL");
 	snd_soc_dapm_nc_pin(dapm, "CARKITR");
 
-	ret = snd_soc_dapm_sync(dapm);
-	if (ret)
-		return ret;
-
 	/* Headset jack detection */
 	ret = snd_soc_jack_new(codec, "Headset Jack",
 				SND_JACK_HEADSET, &hs_jack);

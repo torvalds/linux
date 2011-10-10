@@ -317,8 +317,6 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	if (err < 0)
 		return err;
 
-	snd_soc_dapm_sync(dapm);
-
 	/* AV jack detection */
 	err = snd_soc_jack_new(codec, "AV Jack",
 			       SND_JACK_HEADSET | SND_JACK_VIDEOOUT,

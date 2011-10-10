@@ -140,10 +140,6 @@ static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Headset Mic");
 	snd_soc_dapm_enable_pin(dapm, "Headset Stereophone");
 
-	ret = snd_soc_dapm_sync(dapm);
-	if (ret)
-		return ret;
-
 	/*
 	 * Configure McPDM offset cancellation based on the HSOTRIM value from
 	 * twl6040.

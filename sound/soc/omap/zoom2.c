@@ -126,9 +126,7 @@ static int zoom2_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "CARKITL");
 	snd_soc_dapm_nc_pin(dapm, "CARKITR");
 
-	ret = snd_soc_dapm_sync(dapm);
-
-	return ret;
+	return 0;
 }
 
 static int zoom2_twl4030_voice_init(struct snd_soc_pcm_runtime *rtd)

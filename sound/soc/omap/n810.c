@@ -280,11 +280,7 @@ static int n810_aic33_init(struct snd_soc_pcm_runtime *rtd)
 				  ARRAY_SIZE(aic33_dapm_widgets));
 
 	/* Set up N810 specific audio path audio_map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	snd_soc_dapm_sync(dapm);
-
-	return 0;
+	return snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 }
 
 /* Digital audio interface glue - connects codec <--> CPU */
