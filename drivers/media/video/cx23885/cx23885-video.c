@@ -71,7 +71,7 @@ MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
 #define dprintk(level, fmt, arg...)\
 	do { if (video_debug >= level)\
-		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
+		printk(KERN_DEBUG "%s: " fmt, dev->name, ## arg);\
 	} while (0)
 
 /* ------------------------------------------------------------------- */
@@ -260,8 +260,8 @@ static const u32 *ctrl_classes[] = {
 	NULL
 };
 
-static void cx23885_video_wakeup(struct cx23885_dev *dev,
-		 struct cx23885_dmaqueue *q, u32 count)
+void cx23885_video_wakeup(struct cx23885_dev *dev,
+	struct cx23885_dmaqueue *q, u32 count)
 {
 	struct cx23885_buffer *buf;
 	int bc;
@@ -758,6 +758,14 @@ static int video_open(struct file *file)
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
 			    fh, NULL);
+
+	videobuf_queue_sg_init(&fh->vbiq, &cx23885_vbi_qops,
+		&dev->pci->dev, &dev->slock,
+		V4L2_BUF_TYPE_VBI_CAPTURE,
+		V4L2_FIELD_SEQ_TB,
+		sizeof(struct cx23885_buffer),
+		fh, NULL);
+
 
 	dprintk(1, "post videobuf_queue_init()\n");
 
@@ -1317,7 +1325,7 @@ static void cx23885_vid_timeout(unsigned long data)
 		list_del(&buf->vb.queue);
 		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
-		printk(KERN_ERR "%s/0: [%p/%d] timeout - dma=0x%08lx\n",
+		printk(KERN_ERR "%s: [%p/%d] timeout - dma=0x%08lx\n",
 			dev->name, buf, buf->vb.i,
 			(unsigned long)buf->risc.dma);
 	}
@@ -1333,33 +1341,52 @@ int cx23885_video_irq(struct cx23885_dev *dev, u32 status)
 	mask   = cx_read(VID_A_INT_MSK);
 	if (0 == (status & mask))
 		return handled;
+
 	cx_write(VID_A_INT_STAT, status);
 
-	dprintk(2, "%s() status = 0x%08x\n", __func__, status);
 	/* risc op code error */
-	if (status & (1 << 16)) {
-		printk(KERN_WARNING "%s/0: video risc op code error\n",
+	if ((status & VID_BC_MSK_OPC_ERR) ||
+		(status & VID_BC_MSK_SYNC) ||
+		(status & VID_BC_MSK_OF)) {
+
+		if (status & VID_BC_MSK_OPC_ERR)
+			dprintk(7, " (VID_BC_MSK_OPC_ERR 0x%08x)\n",
+				VID_BC_MSK_OPC_ERR);
+
+		if (status & VID_BC_MSK_SYNC)
+			dprintk(7, " (VID_BC_MSK_SYNC 0x%08x)\n",
+				VID_BC_MSK_SYNC);
+
+		if (status & VID_BC_MSK_OF)
+			dprintk(7, " (VID_BC_MSK_OF 0x%08x)\n",
+				VID_BC_MSK_OF);
+
+		printk(KERN_WARNING "%s: video risc op code error\n",
 			dev->name);
+
 		cx_clear(VID_A_DMA_CTL, 0x11);
 		cx23885_sram_channel_dump(dev, &dev->sram_channels[SRAM_CH01]);
+
 	}
 
-	/* risc1 y */
-	if (status & 0x01) {
+	/* Video */
+	if (status & VID_BC_MSK_RISCI1) {
 		spin_lock(&dev->slock);
 		count = cx_read(VID_A_GPCNT);
 		cx23885_video_wakeup(dev, &dev->vidq, count);
 		spin_unlock(&dev->slock);
 		handled++;
 	}
-	/* risc2 y */
-	if (status & 0x10) {
+	if (status & VID_BC_MSK_RISCI2) {
 		dprintk(2, "stopper video\n");
 		spin_lock(&dev->slock);
 		cx23885_restart_video_queue(dev, &dev->vidq);
 		spin_unlock(&dev->slock);
 		handled++;
 	}
+
+	/* Allow the VBI framework to process it's payload */
+	handled += cx23885_vbi_irq(dev, status);
 
 	return handled;
 }
@@ -1433,6 +1460,14 @@ void cx23885_video_unregister(struct cx23885_dev *dev)
 	dprintk(1, "%s()\n", __func__);
 	cx23885_irq_remove(dev, 0x01);
 
+	if (dev->vbi_dev) {
+		if (video_is_registered(dev->vbi_dev))
+			video_unregister_device(dev->vbi_dev);
+		else
+			video_device_release(dev->vbi_dev);
+		dev->vbi_dev = NULL;
+		btcx_riscmem_free(dev->pci, &dev->vbiq.stopper);
+	}
 	if (dev->video_dev) {
 		if (video_is_registered(dev->video_dev))
 			video_unregister_device(dev->video_dev);
@@ -1470,7 +1505,14 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	cx23885_risc_stopper(dev->pci, &dev->vidq.stopper,
 		VID_A_DMA_CTL, 0x11, 0x00);
 
-	/* Don't enable VBI yet */
+	/* init vbi dma queues */
+	INIT_LIST_HEAD(&dev->vbiq.active);
+	INIT_LIST_HEAD(&dev->vbiq.queued);
+	dev->vbiq.timeout.function = cx23885_vbi_timeout;
+	dev->vbiq.timeout.data = (unsigned long)dev;
+	init_timer(&dev->vbiq.timeout);
+	cx23885_risc_stopper(dev->pci, &dev->vbiq.stopper,
+		VID_A_DMA_CTL, 0x22, 0x00);
 
 	cx23885_irq_add_enable(dev, 0x01);
 
@@ -1511,7 +1553,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		}
 	}
 
-	/* register v4l devices */
+	/* register Video device */
 	dev->video_dev = cx23885_vdev_init(dev, dev->pci,
 		&cx23885_video_template, "video");
 	err = video_register_device(dev->video_dev, VFL_TYPE_GRABBER,
