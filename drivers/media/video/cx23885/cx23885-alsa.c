@@ -472,7 +472,7 @@ static int snd_cx23885_pcm(struct cx23885_audio_dev *chip, int device,
  * Alsa Constructor - Component probe
  */
 
-struct cx23885_audio_dev *cx23885_audio_initdev(struct cx23885_dev *dev)
+struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 {
 	struct snd_card *card;
 	struct cx23885_audio_dev *chip;
@@ -527,7 +527,7 @@ error:
 /*
  * ALSA destructor
  */
-void cx23885_audio_finidev(struct cx23885_dev *dev)
+void cx23885_audio_unregister(struct cx23885_dev *dev)
 {
 	struct cx23885_audio_dev *chip = dev->audio_dev;
 

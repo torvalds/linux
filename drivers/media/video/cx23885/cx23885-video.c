@@ -1444,7 +1444,7 @@ void cx23885_video_unregister(struct cx23885_dev *dev)
 	}
 
 	if (dev->audio_dev)
-		cx23885_audio_finidev(dev);
+		cx23885_audio_unregister(dev);
 }
 
 int cx23885_video_register(struct cx23885_dev *dev)
@@ -1525,7 +1525,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	       dev->name, video_device_node_name(dev->video_dev));
 
 	/* Register ALSA audio device */
-	dev->audio_dev = cx23885_audio_initdev(dev);
+	dev->audio_dev = cx23885_audio_register(dev);
 
 	/* initial device configuration */
 	mutex_lock(&dev->lock);

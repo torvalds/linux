@@ -596,8 +596,9 @@ extern void mc417_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput);
 
 /* ----------------------------------------------------------- */
 /* cx23885-alsa.c                                             */
-extern struct cx23885_audio_dev *cx23885_audio_initdev(struct cx23885_dev *dev);
-extern void cx23885_audio_finidev(struct cx23885_dev *dev);
+extern struct cx23885_audio_dev *cx23885_audio_register(
+					struct cx23885_dev *dev);
+extern void cx23885_audio_unregister(struct cx23885_dev *dev);
 extern int cx23885_audio_irq(struct cx23885_dev *dev, u32 status, u32 mask);
 extern int cx23885_risc_databuffer(struct pci_dev *pci,
 				   struct btcx_riscmem *risc,
