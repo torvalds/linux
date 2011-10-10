@@ -315,78 +315,126 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 }
 
 static void
-update_semaphore(struct intel_ring_buffer *ring, int i, u32 seqno)
+update_mboxes(struct intel_ring_buffer *ring,
+	    u32 seqno,
+	    u32 mmio_offset)
 {
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int id;
-
-	/*
-	 * cs -> 1 = vcs, 0 = bcs
-	 * vcs -> 1 = bcs, 0 = cs,
-	 * bcs -> 1 = cs, 0 = vcs.
-	 */
-	id = ring - dev_priv->ring;
-	id += 2 - i;
-	id %= 3;
-
-	intel_ring_emit(ring,
-			MI_SEMAPHORE_MBOX |
-			MI_SEMAPHORE_REGISTER |
-			MI_SEMAPHORE_UPDATE);
+	intel_ring_emit(ring, MI_SEMAPHORE_MBOX |
+			      MI_SEMAPHORE_GLOBAL_GTT |
+			      MI_SEMAPHORE_REGISTER |
+			      MI_SEMAPHORE_UPDATE);
 	intel_ring_emit(ring, seqno);
-	intel_ring_emit(ring,
-			RING_SYNC_0(dev_priv->ring[id].mmio_base) + 4*i);
+	intel_ring_emit(ring, mmio_offset);
 }
 
+/**
+ * gen6_add_request - Update the semaphore mailbox registers
+ * 
+ * @ring - ring that is adding a request
+ * @seqno - return seqno stuck into the ring
+ *
+ * Update the mailbox registers in the *other* rings with the current seqno.
+ * This acts like a signal in the canonical semaphore.
+ */
 static int
 gen6_add_request(struct intel_ring_buffer *ring,
-		 u32 *result)
+		 u32 *seqno)
 {
-	u32 seqno;
+	u32 mbox1_reg;
+	u32 mbox2_reg;
 	int ret;
 
 	ret = intel_ring_begin(ring, 10);
 	if (ret)
 		return ret;
 
-	seqno = i915_gem_get_seqno(ring->dev);
-	update_semaphore(ring, 0, seqno);
-	update_semaphore(ring, 1, seqno);
+	mbox1_reg = ring->signal_mbox[0];
+	mbox2_reg = ring->signal_mbox[1];
 
+	*seqno = i915_gem_get_seqno(ring->dev);
+
+	update_mboxes(ring, *seqno, mbox1_reg);
+	update_mboxes(ring, *seqno, mbox2_reg);
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, *seqno);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
-	*result = seqno;
 	return 0;
 }
 
-int
-intel_ring_sync(struct intel_ring_buffer *ring,
-		struct intel_ring_buffer *to,
+/**
+ * intel_ring_sync - sync the waiter to the signaller on seqno
+ *
+ * @waiter - ring that is waiting
+ * @signaller - ring which has, or will signal
+ * @seqno - seqno which the waiter will block on
+ */
+static int
+intel_ring_sync(struct intel_ring_buffer *waiter,
+		struct intel_ring_buffer *signaller,
+		int ring,
 		u32 seqno)
 {
 	int ret;
+	u32 dw1 = MI_SEMAPHORE_MBOX |
+		  MI_SEMAPHORE_COMPARE |
+		  MI_SEMAPHORE_REGISTER;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(waiter, 4);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring,
-			MI_SEMAPHORE_MBOX |
-			MI_SEMAPHORE_REGISTER |
-			intel_ring_sync_index(ring, to) << 17 |
-			MI_SEMAPHORE_COMPARE);
-	intel_ring_emit(ring, seqno);
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_advance(ring);
+	intel_ring_emit(waiter, dw1 | signaller->semaphore_register[ring]);
+	intel_ring_emit(waiter, seqno);
+	intel_ring_emit(waiter, 0);
+	intel_ring_emit(waiter, MI_NOOP);
+	intel_ring_advance(waiter);
 
 	return 0;
 }
+
+/* VCS->RCS (RVSYNC) or BCS->RCS (RBSYNC) */
+int
+render_ring_sync_to(struct intel_ring_buffer *waiter,
+		    struct intel_ring_buffer *signaller,
+		    u32 seqno)
+{
+	WARN_ON(signaller->semaphore_register[RCS] == MI_SEMAPHORE_SYNC_INVALID);
+	return intel_ring_sync(waiter,
+			       signaller,
+			       RCS,
+			       seqno);
+}
+
+/* RCS->VCS (VRSYNC) or BCS->VCS (VBSYNC) */
+int
+gen6_bsd_ring_sync_to(struct intel_ring_buffer *waiter,
+		      struct intel_ring_buffer *signaller,
+		      u32 seqno)
+{
+	WARN_ON(signaller->semaphore_register[VCS] == MI_SEMAPHORE_SYNC_INVALID);
+	return intel_ring_sync(waiter,
+			       signaller,
+			       VCS,
+			       seqno);
+}
+
+/* RCS->BCS (BRSYNC) or VCS->BCS (BVSYNC) */
+int
+gen6_blt_ring_sync_to(struct intel_ring_buffer *waiter,
+		      struct intel_ring_buffer *signaller,
+		      u32 seqno)
+{
+	WARN_ON(signaller->semaphore_register[BCS] == MI_SEMAPHORE_SYNC_INVALID);
+	return intel_ring_sync(waiter,
+			       signaller,
+			       BCS,
+			       seqno);
+}
+
+
 
 #define PIPE_CONTROL_FLUSH(ring__, addr__)					\
 do {									\
@@ -1027,6 +1075,11 @@ static const struct intel_ring_buffer render_ring = {
 	.irq_put		= render_ring_put_irq,
 	.dispatch_execbuffer	= render_ring_dispatch_execbuffer,
 	.cleanup		= render_ring_cleanup,
+	.sync_to		= render_ring_sync_to,
+	.semaphore_register	= {MI_SEMAPHORE_SYNC_INVALID,
+				   MI_SEMAPHORE_SYNC_RV,
+				   MI_SEMAPHORE_SYNC_RB},
+	.signal_mbox		= {GEN6_VRSYNC, GEN6_BRSYNC},
 };
 
 /* ring buffer for bit-stream decoder */
@@ -1154,6 +1207,11 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
 	.irq_get		= gen6_bsd_ring_get_irq,
 	.irq_put		= gen6_bsd_ring_put_irq,
 	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
+	.sync_to		= gen6_bsd_ring_sync_to,
+	.semaphore_register	= {MI_SEMAPHORE_SYNC_VR,
+				   MI_SEMAPHORE_SYNC_INVALID,
+				   MI_SEMAPHORE_SYNC_VB},
+	.signal_mbox		= {GEN6_RVSYNC, GEN6_BVSYNC},
 };
 
 /* Blitter support (SandyBridge+) */
@@ -1281,10 +1339,15 @@ static const struct intel_ring_buffer gen6_blt_ring = {
 	.flush			= blt_ring_flush,
 	.add_request		= gen6_add_request,
 	.get_seqno		= ring_get_seqno,
-	.irq_get			= blt_ring_get_irq,
-	.irq_put			= blt_ring_put_irq,
+	.irq_get		= blt_ring_get_irq,
+	.irq_put		= blt_ring_put_irq,
 	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
-	.cleanup			= blt_ring_cleanup,
+	.cleanup		= blt_ring_cleanup,
+	.sync_to		= gen6_blt_ring_sync_to,
+	.semaphore_register	= {MI_SEMAPHORE_SYNC_BR,
+				   MI_SEMAPHORE_SYNC_BV,
+				   MI_SEMAPHORE_SYNC_INVALID},
+	.signal_mbox		= {GEN6_RBSYNC, GEN6_VBSYNC},
 };
 
 int intel_init_render_ring_buffer(struct drm_device *dev)

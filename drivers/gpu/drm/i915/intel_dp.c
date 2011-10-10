@@ -773,8 +773,12 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		intel_dp->DP |= DP_PORT_WIDTH_4;
 		break;
 	}
-	if (intel_dp->has_audio)
+	if (intel_dp->has_audio) {
+		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
+				 pipe_name(intel_crtc->pipe));
 		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
+		intel_write_eld(encoder, adjusted_mode);
+	}
 
 	memset(intel_dp->link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
 	intel_dp->link_configuration[0] = intel_dp->link_bw;

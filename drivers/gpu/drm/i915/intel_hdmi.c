@@ -245,8 +245,11 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 		sdvox |= HDMI_MODE_SELECT;
 
 	if (intel_hdmi->has_audio) {
+		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
+				 pipe_name(intel_crtc->pipe));
 		sdvox |= SDVO_AUDIO_ENABLE;
 		sdvox |= SDVO_NULL_PACKETS_DURING_VSYNC;
+		intel_write_eld(encoder, adjusted_mode);
 	}
 
 	if (intel_crtc->pipe == 1) {

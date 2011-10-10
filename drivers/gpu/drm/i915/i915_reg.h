@@ -194,6 +194,13 @@
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
 #define  MI_SEMAPHORE_COMPARE	    (1<<20)
 #define  MI_SEMAPHORE_REGISTER	    (1<<18)
+#define  MI_SEMAPHORE_SYNC_RV	    (2<<16)
+#define  MI_SEMAPHORE_SYNC_RB	    (0<<16)
+#define  MI_SEMAPHORE_SYNC_VR	    (0<<16)
+#define  MI_SEMAPHORE_SYNC_VB	    (2<<16)
+#define  MI_SEMAPHORE_SYNC_BR	    (2<<16)
+#define  MI_SEMAPHORE_SYNC_BV	    (0<<16)
+#define  MI_SEMAPHORE_SYNC_INVALID  (1<<0)
 /*
  * 3D instructions used by the kernel
  */
@@ -296,6 +303,12 @@
 #define RING_CTL(base)		((base)+0x3c)
 #define RING_SYNC_0(base)	((base)+0x40)
 #define RING_SYNC_1(base)	((base)+0x44)
+#define GEN6_RVSYNC (RING_SYNC_0(RENDER_RING_BASE))
+#define GEN6_RBSYNC (RING_SYNC_1(RENDER_RING_BASE))
+#define GEN6_VRSYNC (RING_SYNC_1(GEN6_BSD_RING_BASE))
+#define GEN6_VBSYNC (RING_SYNC_0(GEN6_BSD_RING_BASE))
+#define GEN6_BRSYNC (RING_SYNC_0(BLT_RING_BASE))
+#define GEN6_BVSYNC (RING_SYNC_1(BLT_RING_BASE))
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
@@ -3469,5 +3482,30 @@
 #define   GEN6_PCODE_READ_MIN_FREQ_TABLE	0x9
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
+
+#define G4X_AUD_VID_DID			0x62020
+#define INTEL_AUDIO_DEVCL		0x808629FB
+#define INTEL_AUDIO_DEVBLC		0x80862801
+#define INTEL_AUDIO_DEVCTG		0x80862802
+
+#define G4X_AUD_CNTL_ST			0x620B4
+#define G4X_ELDV_DEVCL_DEVBLC		(1 << 13)
+#define G4X_ELDV_DEVCTG			(1 << 14)
+#define G4X_ELD_ADDR			(0xf << 5)
+#define G4X_ELD_ACK			(1 << 4)
+#define G4X_HDMIW_HDMIEDID		0x6210C
+
+#define GEN5_HDMIW_HDMIEDID_A		0xE2050
+#define GEN5_AUD_CNTL_ST_A		0xE20B4
+#define GEN5_ELD_BUFFER_SIZE		(0x1f << 10)
+#define GEN5_ELD_ADDRESS		(0x1f << 5)
+#define GEN5_ELD_ACK			(1 << 4)
+#define GEN5_AUD_CNTL_ST2		0xE20C0
+#define GEN5_ELD_VALIDB			(1 << 0)
+#define GEN5_CP_READYB			(1 << 1)
+
+#define GEN7_HDMIW_HDMIEDID_A		0xE5050
+#define GEN7_AUD_CNTRL_ST_A		0xE50B4
+#define GEN7_AUD_CNTRL_ST2		0xE50C0
 
 #endif /* _I915_REG_H_ */
