@@ -387,6 +387,70 @@ const struct v4l2_file_operations v4l2_subdev_fops = {
 	.poll = subdev_poll,
 };
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
+				      struct media_link *link,
+				      struct v4l2_subdev_format *source_fmt,
+				      struct v4l2_subdev_format *sink_fmt)
+{
+	if (source_fmt->format.width != sink_fmt->format.width
+	    || source_fmt->format.height != sink_fmt->format.height
+	    || source_fmt->format.code != sink_fmt->format.code)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate_default);
+
+static int
+v4l2_subdev_link_validate_get_format(struct media_pad *pad,
+				     struct v4l2_subdev_format *fmt)
+{
+	switch (media_entity_type(pad->entity)) {
+	case MEDIA_ENT_T_V4L2_SUBDEV:
+		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		fmt->pad = pad->index;
+		return v4l2_subdev_call(media_entity_to_v4l2_subdev(
+						pad->entity),
+					pad, get_fmt, NULL, fmt);
+	default:
+		WARN(1, "Driver bug! Wrong media entity type %d, entity %s\n",
+		     media_entity_type(pad->entity), pad->entity->name);
+		/* Fall through */
+	case MEDIA_ENT_T_DEVNODE_V4L:
+		return -EINVAL;
+	}
+}
+
+int v4l2_subdev_link_validate(struct media_link *link)
+{
+	struct v4l2_subdev *sink;
+	struct v4l2_subdev_format sink_fmt, source_fmt;
+	int rval;
+
+	rval = v4l2_subdev_link_validate_get_format(
+		link->source, &source_fmt);
+	if (rval < 0)
+		return 0;
+
+	rval = v4l2_subdev_link_validate_get_format(
+		link->sink, &sink_fmt);
+	if (rval < 0)
+		return 0;
+
+	sink = media_entity_to_v4l2_subdev(link->sink->entity);
+
+	rval = v4l2_subdev_call(sink, pad, link_validate, link,
+				&source_fmt, &sink_fmt);
+	if (rval != -ENOIOCTLCMD)
+		return rval;
+
+	return v4l2_subdev_link_validate_default(
+		sink, link, &source_fmt, &sink_fmt);
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate);
+#endif /* CONFIG_MEDIA_CONTROLLER */
+
 void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 {
 	INIT_LIST_HEAD(&sd->list);

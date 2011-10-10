@@ -316,6 +316,18 @@ If the subdev driver intends to process video and integrate with the media
 framework, it must implement format related functionality using
 v4l2_subdev_pad_ops instead of v4l2_subdev_video_ops.
 
+In that case, the subdev driver may set the link_validate field to provide
+its own link validation function. The link validation function is called for
+every link in the pipeline where both of the ends of the links are V4L2
+sub-devices. The driver is still responsible for validating the correctness
+of the format configuration between sub-devices and video nodes.
+
+If link_validate op is not set, the default function
+v4l2_subdev_link_validate_default() is used instead. This function ensures
+that width, height and the media bus pixel code are equal on both source and
+sink of the link. Subdev drivers are also free to use this function to
+perform the checks mentioned above in addition to their own checks.
+
 A device (bridge) driver needs to register the v4l2_subdev with the
 v4l2_device:
 
