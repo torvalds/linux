@@ -242,9 +242,8 @@ static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
 	sbi->s_partmaps = kcalloc(count, sizeof(struct udf_part_map),
 				  GFP_KERNEL);
 	if (!sbi->s_partmaps) {
-		udf_error(sb, __func__,
-			  "Unable to allocate space for %d partition maps",
-			  count);
+		udf_err(sb, "Unable to allocate space for %d partition maps\n",
+			count);
 		sbi->s_partitions = 0;
 		return -ENOMEM;
 	}
@@ -879,8 +878,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 
 	if (mdata->s_mirror_fe == NULL) {
 		if (fe_error) {
-			udf_error(sb, __func__, "mirror inode efe not found "
-			"and metadata inode is missing too, exiting...");
+			udf_err(sb, "mirror inode efe not found and metadata inode is missing too, exiting...\n");
 			goto error_exit;
 		} else
 			udf_warning(sb, __func__, "mirror inode efe not found,"
@@ -915,8 +913,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 					"not found but it's ok since the disc"
 					" is mounted read-only");
 			else {
-				udf_error(sb, __func__, "bitmap inode efe not "
-					"found and attempted read-write mount");
+				udf_err(sb, "bitmap inode efe not found and attempted read-write mount\n");
 				goto error_exit;
 			}
 		}
@@ -969,9 +966,8 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 		bitmap = vzalloc(size); /* TODO: get rid of vzalloc */
 
 	if (bitmap == NULL) {
-		udf_error(sb, __func__,
-			  "Unable to allocate space for bitmap "
-			  "and %d buffer_head pointers", nr_groups);
+		udf_err(sb, "Unable to allocate space for bitmap and %d buffer_head pointers\n",
+			nr_groups);
 		return NULL;
 	}
 
@@ -1935,8 +1931,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	if (uopt.flags & (1 << UDF_FLAG_UTF8) &&
 	    uopt.flags & (1 << UDF_FLAG_NLS_MAP)) {
-		udf_error(sb, "udf_read_super",
-			  "utf8 cannot be combined with iocharset\n");
+		udf_err(sb, "utf8 cannot be combined with iocharset\n");
 		goto error_out;
 	}
 #ifdef CONFIG_UDF_NLS
@@ -2094,8 +2089,8 @@ error_out:
 	return -EINVAL;
 }
 
-void udf_error(struct super_block *sb, const char *function,
-	       const char *fmt, ...)
+void _udf_err(struct super_block *sb, const char *function,
+	      const char *fmt, ...)
 {
 	va_list args;
 
@@ -2106,8 +2101,8 @@ void udf_error(struct super_block *sb, const char *function,
 	va_start(args, fmt);
 	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
-	printk(KERN_CRIT "UDF-fs error (device %s): %s: %s\n",
-		sb->s_id, function, error_buf);
+	printk(KERN_CRIT "UDF-fs error (device %s): %s: %s",
+	       sb->s_id, function, error_buf);
 }
 
 void udf_warning(struct super_block *sb, const char *function,

@@ -212,8 +212,8 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 
 	bh = udf_tread(sb, block);
 	if (!bh) {
-		udf_error(sb, __func__, "read failed, block=%u, location=%d\n",
-			  block, location);
+		udf_err(sb, "read failed, block=%u, location=%d\n",
+			block, location);
 		return NULL;
 	}
 
@@ -230,18 +230,16 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 	/* Verify the tag checksum */
 	checksum = udf_tag_checksum(tag_p);
 	if (checksum != tag_p->tagChecksum) {
-		udf_error(sb, __func__,
-			  "tag checksum failed, block %u: 0x%02x != 0x%02x\n",
-			  block, checksum, tag_p->tagChecksum);
+		udf_err(sb, "tag checksum failed, block %u: 0x%02x != 0x%02x\n",
+			block, checksum, tag_p->tagChecksum);
 		goto error_out;
 	}
 
 	/* Verify the tag version */
 	if (tag_p->descVersion != cpu_to_le16(0x0002U) &&
 	    tag_p->descVersion != cpu_to_le16(0x0003U)) {
-		udf_error(sb, __func__,
-			  "tag version 0x%04x != 0x0002 || 0x0003, block %u\n",
-			  le16_to_cpu(tag_p->descVersion), block);
+		udf_err(sb, "tag version 0x%04x != 0x0002 || 0x0003, block %u\n",
+			le16_to_cpu(tag_p->descVersion), block);
 		goto error_out;
 	}
 
@@ -253,8 +251,8 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 		return bh;
 
 	udf_debug("Crc failure block %d: crc = %d, crclen = %d\n", block,
-	    le16_to_cpu(tag_p->descCRC), le16_to_cpu(tag_p->descCRCLength));
-
+		  le16_to_cpu(tag_p->descCRC),
+		  le16_to_cpu(tag_p->descCRCLength));
 error_out:
 	brelse(bh);
 	return NULL;

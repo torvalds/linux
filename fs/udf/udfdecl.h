@@ -33,12 +33,13 @@ __attribute__((format(printf, 3, 4)))
 extern void udf_warning(struct super_block *, const char *, const char *, ...);
 
 __attribute__((format(printf, 3, 4)))
-extern void udf_error(struct super_block *sb, const char *function,
-		      const char *fmt, ...);
+extern void _udf_err(struct super_block *sb, const char *function,
+		     const char *fmt, ...);
+#define udf_err(sb, fmt, ...)					\
+	_udf_err(sb, __func__, fmt, ##__VA_ARGS__)
 
 #define udf_info(f, a...) \
 	printk(KERN_INFO "UDF-fs INFO " f, ##a);
-
 
 #define udf_fixed_to_variable(x) ( ( ( (x) >> 5 ) * 39 ) + ( (x) & 0x0000001F ) )
 #define udf_variable_to_fixed(x) ( ( ( (x) / 39 ) << 5 ) + ( (x) % 39 ) )
