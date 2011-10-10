@@ -661,6 +661,16 @@ struct ieee80211_vif *wl12xx_wlvif_to_vif(struct wl12xx_vif *wlvif)
 #define wl12xx_for_each_wlvif(wl, wlvif) \
 		list_for_each_entry(wlvif, &wl->wlvif_list, list)
 
+#define wl12xx_for_each_wlvif_bss_type(wl, wlvif, _bss_type)	\
+		wl12xx_for_each_wlvif(wl, wlvif)		\
+			if (wlvif->bss_type == _bss_type)
+
+#define wl12xx_for_each_wlvif_sta(wl, wlvif)	\
+		wl12xx_for_each_wlvif_bss_type(wl, wlvif, BSS_TYPE_STA_BSS)
+
+#define wl12xx_for_each_wlvif_ap(wl, wlvif)	\
+		wl12xx_for_each_wlvif_bss_type(wl, wlvif, BSS_TYPE_AP_BSS)
+
 int wl1271_plt_start(struct wl1271 *wl);
 int wl1271_plt_stop(struct wl1271 *wl);
 int wl1271_recalc_rx_streaming(struct wl1271 *wl);
