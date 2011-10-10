@@ -634,8 +634,9 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
 	case IWL_AGG_ON:
 		break;
 	default:
-		IWL_WARN(trans, "Stopping AGG while state not ON"
-				"or starting\n");
+		IWL_WARN(trans, "Stopping AGG while state not ON "
+			 "or starting for %d on %d (%d)\n", sta_id, tid,
+			 trans->shrd->tid_data[sta_id][tid].agg.state);
 		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 		return 0;
 	}
