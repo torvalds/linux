@@ -99,13 +99,6 @@ static int zoom2_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	/* Zoom2 connected pins */
-	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
-	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
-	snd_soc_dapm_enable_pin(dapm, "Headset Mic");
-	snd_soc_dapm_enable_pin(dapm, "Headset Stereophone");
-	snd_soc_dapm_enable_pin(dapm, "Aux In");
-
 	/* TWL4030 not connected pins */
 	snd_soc_dapm_nc_pin(dapm, "CARKITMIC");
 	snd_soc_dapm_nc_pin(dapm, "DIGIMIC0");
