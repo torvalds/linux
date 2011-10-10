@@ -89,9 +89,7 @@
 
 #define PXA_GPIO_IRQ_BASE	PXA_IRQ(96)
 #define PXA_GPIO_IRQ_NUM	(192)
-
-#define GPIO_2_x_TO_IRQ(x)	(PXA_GPIO_IRQ_BASE + (x))
-#define PXA_GPIO_TO_IRQ(x)	(((x) < 2) ? (IRQ_GPIO0 + (x)) : GPIO_2_x_TO_IRQ(x))
+#define PXA_GPIO_TO_IRQ(x)	(PXA_GPIO_IRQ_BASE + (x))
 
 /*
  * The following interrupts are for board specific purposes. Since

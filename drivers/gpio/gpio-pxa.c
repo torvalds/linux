@@ -283,6 +283,20 @@ void __init pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn)
 		__raw_writel(~0,c->regbase + GEDR_OFFSET);
 	}
 
+#ifdef CONFIG_ARCH_PXA
+	irq = gpio_to_irq(0);
+	irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
+				 handle_edge_irq);
+	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_chained_handler(IRQ_GPIO0, pxa_gpio_demux_handler);
+
+	irq = gpio_to_irq(1);
+	irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
+				 handle_edge_irq);
+	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_chained_handler(IRQ_GPIO1, pxa_gpio_demux_handler);
+#endif
+
 	for (irq  = gpio_to_irq(start); irq <= gpio_to_irq(end); irq++) {
 		irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 					 handle_edge_irq);

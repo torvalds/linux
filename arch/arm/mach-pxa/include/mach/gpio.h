@@ -29,20 +29,7 @@
 #include "gpio-pxa.h"
 
 #define gpio_to_irq(gpio)	PXA_GPIO_TO_IRQ(gpio)
-
-static inline int irq_to_gpio(unsigned int irq)
-{
-	int gpio;
-
-	if (irq == IRQ_GPIO0 || irq == IRQ_GPIO1)
-		return irq - IRQ_GPIO0;
-
-	gpio = irq - PXA_GPIO_IRQ_BASE;
-	if (gpio >= 2 && gpio < NR_BUILTIN_GPIO)
-		return gpio;
-
-	return -1;
-}
+#define irq_to_gpio(irq)	(irq - PXA_GPIO_TO_IRQ(0))
 
 #include <plat/gpio.h>
 #endif
