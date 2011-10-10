@@ -1372,8 +1372,9 @@ static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 {
 	/*
 	 * This function is called when system goes into suspend state
-	 * mac80211 will call iwl_mac_stop() from the mac80211 suspend function
-	 * first but since iwl_mac_stop() has no knowledge of who the caller is,
+	 * mac80211 will call iwlagn_mac_stop() from the mac80211 suspend
+	 * function first but since iwlagn_mac_stop() has no knowledge of
+	 * who the caller is,
 	 * it will not call apm_ops.stop() to stop the DMA operation.
 	 * Calling apm_ops.stop here to make sure we stop the DMA.
 	 *

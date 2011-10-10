@@ -940,7 +940,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwl_mac_hw_scan(struct ieee80211_hw *hw,
+int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
 		    struct cfg80211_scan_request *req)
 {

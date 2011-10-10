@@ -804,7 +804,7 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 {
 	/*
 	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
+	 * See iwlagn_mac_channel_switch.
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
@@ -1123,7 +1123,7 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 					&statistics_cmd);
 }
 
-int iwl_mac_conf_tx(struct ieee80211_hw *hw,
+int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif, u16 queue,
 		    const struct ieee80211_tx_queue_params *params)
 {
@@ -1170,7 +1170,7 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
-int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw)
+int iwlagn_mac_tx_last_beacon(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = hw->priv;
 
@@ -1223,7 +1223,8 @@ static int iwl_setup_interface(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
@@ -1319,7 +1320,7 @@ static void iwl_teardown_interface(struct iwl_priv *priv,
 		priv->bt_traffic_load = priv->last_bt_traffic_load;
 }
 
-void iwl_mac_remove_interface(struct ieee80211_hw *hw,
+void iwlagn_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -1651,8 +1652,9 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 	return 0;
 }
 
-int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			     enum nl80211_iftype newtype, bool newp2p)
+int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				enum nl80211_iftype newtype, bool newp2p)
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);

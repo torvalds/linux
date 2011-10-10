@@ -565,7 +565,7 @@ struct iwlagn_ucode_capabilities {
 };
 
 static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
-static int iwl_mac_setup_register(struct iwl_priv *priv,
+static int iwlagn_mac_setup_register(struct iwl_priv *priv,
 				  struct iwlagn_ucode_capabilities *capa);
 
 #define UCODE_EXPERIMENTAL_INDEX	100
@@ -1136,7 +1136,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 *
 	 * 9. Setup and register with mac80211 and debugfs
 	 **************************************************/
-	err = iwl_mac_setup_register(priv, &ucode_capa);
+	err = iwlagn_mac_setup_register(priv, &ucode_capa);
 	if (err)
 		goto out_unbind;
 
@@ -1642,7 +1642,7 @@ iwlagn_iface_combinations_p2p[] = {
  * Not a mac80211 entry point function, but it fits in with all the
  * other mac80211 functions grouped here.
  */
-static int iwl_mac_setup_register(struct iwl_priv *priv,
+static int iwlagn_mac_setup_register(struct iwl_priv *priv,
 				  struct iwlagn_ucode_capabilities *capa)
 {
 	int ret;
@@ -2761,7 +2761,7 @@ static void iwlagn_disable_roc_work(struct work_struct *work)
 	mutex_unlock(&priv->shrd->mutex);
 }
 
-static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
+static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 				     struct ieee80211_channel *channel,
 				     enum nl80211_channel_type channel_type,
 				     int duration)
@@ -2825,7 +2825,7 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	return err;
 }
 
-static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
+static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = hw->priv;
 
@@ -2842,8 +2842,10 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static int iwl_mac_tx_sync(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   const u8 *bssid, enum ieee80211_tx_sync_type type)
+static int iwlagn_mac_tx_sync(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      const u8 *bssid,
+			      enum ieee80211_tx_sync_type type)
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
@@ -2890,7 +2892,7 @@ static int iwl_mac_tx_sync(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return ret;
 }
 
-static void iwl_mac_finish_tx_sync(struct ieee80211_hw *hw,
+static void iwlagn_mac_finish_tx_sync(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   const u8 *bssid,
 				   enum ieee80211_tx_sync_type type)
@@ -3067,7 +3069,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 #endif
 }
 
-static void iwl_mac_rssi_callback(struct ieee80211_hw *hw,
+static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
 			   enum ieee80211_rssi_event rssi_event)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -3092,7 +3094,7 @@ static void iwl_mac_rssi_callback(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static int iwl_mac_set_tim(struct ieee80211_hw *hw,
+static int iwlagn_mac_set_tim(struct ieee80211_hw *hw,
 			   struct ieee80211_sta *sta, bool set)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -3110,32 +3112,32 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.suspend = iwlagn_mac_suspend,
 	.resume = iwlagn_mac_resume,
 #endif
-	.add_interface = iwl_mac_add_interface,
-	.remove_interface = iwl_mac_remove_interface,
-	.change_interface = iwl_mac_change_interface,
+	.add_interface = iwlagn_mac_add_interface,
+	.remove_interface = iwlagn_mac_remove_interface,
+	.change_interface = iwlagn_mac_change_interface,
 	.config = iwlagn_mac_config,
 	.configure_filter = iwlagn_configure_filter,
 	.set_key = iwlagn_mac_set_key,
 	.update_tkip_key = iwlagn_mac_update_tkip_key,
 	.set_rekey_data = iwlagn_mac_set_rekey_data,
-	.conf_tx = iwl_mac_conf_tx,
+	.conf_tx = iwlagn_mac_conf_tx,
 	.bss_info_changed = iwlagn_bss_info_changed,
 	.ampdu_action = iwlagn_mac_ampdu_action,
-	.hw_scan = iwl_mac_hw_scan,
+	.hw_scan = iwlagn_mac_hw_scan,
 	.sta_notify = iwlagn_mac_sta_notify,
 	.sta_add = iwlagn_mac_sta_add,
-	.sta_remove = iwl_mac_sta_remove,
+	.sta_remove = iwlagn_mac_sta_remove,
 	.channel_switch = iwlagn_mac_channel_switch,
 	.flush = iwlagn_mac_flush,
-	.tx_last_beacon = iwl_mac_tx_last_beacon,
-	.remain_on_channel = iwl_mac_remain_on_channel,
-	.cancel_remain_on_channel = iwl_mac_cancel_remain_on_channel,
-	.rssi_callback = iwl_mac_rssi_callback,
-	CFG80211_TESTMODE_CMD(iwl_testmode_cmd)
-	CFG80211_TESTMODE_DUMP(iwl_testmode_dump)
-	.tx_sync = iwl_mac_tx_sync,
-	.finish_tx_sync = iwl_mac_finish_tx_sync,
-	.set_tim = iwl_mac_set_tim,
+	.tx_last_beacon = iwlagn_mac_tx_last_beacon,
+	.remain_on_channel = iwlagn_mac_remain_on_channel,
+	.cancel_remain_on_channel = iwlagn_mac_cancel_remain_on_channel,
+	.rssi_callback = iwlagn_mac_rssi_callback,
+	CFG80211_TESTMODE_CMD(iwlagn_mac_testmode_cmd)
+	CFG80211_TESTMODE_DUMP(iwlagn_mac_testmode_dump)
+	.tx_sync = iwlagn_mac_tx_sync,
+	.finish_tx_sync = iwlagn_mac_finish_tx_sync,
+	.set_tim = iwlagn_mac_set_tim,
 };
 
 static u32 iwl_hw_detect(struct iwl_priv *priv)
@@ -3378,7 +3380,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 
 	iwl_dbgfs_unregister(priv);
 
-	/* ieee80211_unregister_hw call wil cause iwl_mac_stop to
+	/* ieee80211_unregister_hw call wil cause iwlagn_mac_stop to
 	 * to be called and iwl_down since we are removing the device
 	 * we need to set STATUS_EXIT_PENDING bit.
 	 */
@@ -3404,7 +3406,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->shrd->workqueue);
 
-	/* ieee80211_unregister_hw calls iwl_mac_stop, which flushes
+	/* ieee80211_unregister_hw calls iwlagn_mac_stop, which flushes
 	 * priv->shrd->workqueue... so we can't take down the workqueue
 	 * until now... */
 	destroy_workqueue(priv->shrd->workqueue);

@@ -239,7 +239,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 {
 	/*
 	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
+	 * See iwlagn_mac_channel_switch.
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl5000_channel_switch_cmd cmd;

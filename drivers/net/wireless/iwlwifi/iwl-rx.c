@@ -154,7 +154,7 @@ static int iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	struct iwl_csa_notification *csa = &(pkt->u.csa_notif);
 	/*
 	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
+	 * See iwlagn_mac_channel_switch.
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl_rxon_cmd *rxon = (void *)&ctx->active;

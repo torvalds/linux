@@ -815,7 +815,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	return ret;
 }
 
-int iwl_mac_sta_remove(struct ieee80211_hw *hw,
+int iwlagn_mac_sta_remove(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {

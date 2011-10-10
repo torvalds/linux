@@ -641,7 +641,7 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
  * @data: pointer to user space message
  * @len: length in byte of @data
  */
-int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
+int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 {
 	struct nlattr *tb[IWL_TM_ATTR_MAX];
 	struct iwl_priv *priv = hw->priv;
@@ -706,7 +706,7 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	return result;
 }
 
-int iwl_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 		      struct netlink_callback *cb,
 		      void *data, int len)
 {
