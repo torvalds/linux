@@ -115,16 +115,15 @@ DMAC1 interrupt Functions*/
 
 /**
  * dmac1_mask_periphral_intr -	mask the periphral interrupt
- * @midc: dma channel for which masking is required
+ * @mid: dma device for which masking is required
  *
  * Masks the DMA periphral interrupt
  * this is valid for DMAC1 family controllers only
  * This controller should have periphral mask registers already mapped
  */
-static void dmac1_mask_periphral_intr(struct intel_mid_dma_chan *midc)
+static void dmac1_mask_periphral_intr(struct middma_device *mid)
 {
 	u32 pimr;
-	struct middma_device *mid = to_middma_device(midc->chan.device);
 
 	if (mid->pimr_mask) {
 		pimr = readl(mid->mask_reg + LNW_PERIPHRAL_MASK);
@@ -184,7 +183,6 @@ static void enable_dma_interrupt(struct intel_mid_dma_chan *midc)
 static void disable_dma_interrupt(struct intel_mid_dma_chan *midc)
 {
 	/*Check LPE PISR, make sure fwd is disabled*/
-	dmac1_mask_periphral_intr(midc);
 	iowrite32(MASK_INTR_REG(midc->ch_id), midc->dma_base + MASK_BLOCK);
 	iowrite32(MASK_INTR_REG(midc->ch_id), midc->dma_base + MASK_TFR);
 	iowrite32(MASK_INTR_REG(midc->ch_id), midc->dma_base + MASK_ERR);
@@ -1348,6 +1346,7 @@ int dma_suspend(struct pci_dev *pci, pm_message_t state)
 		if (device->ch[i].in_use)
 			return -EAGAIN;
 	}
+	dmac1_mask_periphral_intr(device);
 	device->state = SUSPENDED;
 	pci_save_state(pci);
 	pci_disable_device(pci);
