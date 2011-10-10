@@ -44,11 +44,12 @@
 static struct {
 	bool active; /* transaction status - active or not */
 	int recv_len; /* number of bytes received. */
+	int index; /* current index */
 	struct vmbus_channel *recv_channel; /* chn we got the request */
 	u64 recv_req_id; /* request ID. */
 } kvp_transaction;
 
-static int kvp_send_key(int index);
+static void kvp_send_key(struct work_struct *dummy);
 
 #define TIMEOUT_FIRED 1
 
@@ -57,6 +58,7 @@ static void kvp_work_func(struct work_struct *dummy);
 static void kvp_register(void);
 
 static DECLARE_DELAYED_WORK(kvp_work, kvp_work_func);
+static DECLARE_WORK(kvp_sendkey_work, kvp_send_key);
 
 static struct cb_id kvp_id = { CN_KVP_IDX, CN_KVP_VAL };
 static const char kvp_name[] = "kvp_kernel_module";
@@ -121,10 +123,11 @@ kvp_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 	}
 }
 
-static int
-kvp_send_key(int index)
+static void
+kvp_send_key(struct work_struct *dummy)
 {
 	struct cn_msg *msg;
+	int index = kvp_transaction.index;
 
 	msg = kzalloc(sizeof(*msg) + sizeof(struct hv_kvp_msg) , GFP_ATOMIC);
 
@@ -136,9 +139,8 @@ kvp_send_key(int index)
 		msg->len = sizeof(struct hv_ku_msg);
 		cn_netlink_send(msg, 0, GFP_ATOMIC);
 		kfree(msg);
-		return 0;
 	}
-	return 1;
+	return;
 }
 
 /*
@@ -286,6 +288,7 @@ void hv_kvp_onchannelcallback(void *context)
 			kvp_transaction.recv_channel = channel;
 			kvp_transaction.recv_req_id = requestid;
 			kvp_transaction.active = true;
+			kvp_transaction.index = kvp_data->index;
 
 			/*
 			 * Get the information from the
@@ -296,8 +299,8 @@ void hv_kvp_onchannelcallback(void *context)
 			 * Set a timeout to deal with
 			 * user-mode not responding.
 			 */
-			kvp_send_key(kvp_data->index);
-			schedule_delayed_work(&kvp_work, 100);
+			schedule_work(&kvp_sendkey_work);
+			schedule_delayed_work(&kvp_work, 5*HZ);
 
 			return;
 
@@ -332,4 +335,5 @@ void hv_kvp_deinit(void)
 {
 	cn_del_callback(&kvp_id);
 	cancel_delayed_work_sync(&kvp_work);
+	cancel_work_sync(&kvp_sendkey_work);
 }
