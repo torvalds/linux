@@ -91,6 +91,29 @@ enum {
 };
 
 /**
+ * struct isp_csiphy_lane: CCP2/CSI2 lane position and polarity
+ * @pos: position of the lane
+ * @pol: polarity of the lane
+ */
+struct isp_csiphy_lane {
+	u8 pos;
+	u8 pol;
+};
+
+#define ISP_CSIPHY1_NUM_DATA_LANES	1
+#define ISP_CSIPHY2_NUM_DATA_LANES	2
+
+/**
+ * struct isp_csiphy_lanes_cfg - CCP2/CSI2 lane configuration
+ * @data: Configuration of one or two data lanes
+ * @clk: Clock lane configuration
+ */
+struct isp_csiphy_lanes_cfg {
+	struct isp_csiphy_lane data[ISP_CSIPHY2_NUM_DATA_LANES];
+	struct isp_csiphy_lane clk;
+};
+
+/**
  * struct isp_ccp2_platform_data - CCP2 interface platform data
  * @strobe_clk_pol: Strobe/clock polarity
  *		0 - Non Inverted, 1 - Inverted
@@ -109,6 +132,7 @@ struct isp_ccp2_platform_data {
 	unsigned int ccp2_mode:1;
 	unsigned int phy_layer:1;
 	unsigned int vpclk_div:2;
+	struct isp_csiphy_lanes_cfg lanecfg;
 };
 
 /**
@@ -119,6 +143,7 @@ struct isp_ccp2_platform_data {
 struct isp_csi2_platform_data {
 	unsigned crc:1;
 	unsigned vpclk_div:2;
+	struct isp_csiphy_lanes_cfg lanecfg;
 };
 
 struct isp_subdev_i2c_board_info {
