@@ -282,3 +282,46 @@ out_no_copy:
 out_clips:
 	return ret;
 }
+
+
+/**
+ * vmw_fops_poll - wrapper around the drm_poll function
+ *
+ * @filp: See the linux fops poll documentation.
+ * @wait: See the linux fops poll documentation.
+ *
+ * Wrapper around the drm_poll function that makes sure the device is
+ * processing the fifo if drm_poll decides to wait.
+ */
+unsigned int vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
+{
+	struct drm_file *file_priv = filp->private_data;
+	struct vmw_private *dev_priv =
+		vmw_priv(file_priv->minor->dev);
+
+	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
+	return drm_poll(filp, wait);
+}
+
+
+/**
+ * vmw_fops_read - wrapper around the drm_read function
+ *
+ * @filp: See the linux fops read documentation.
+ * @buffer: See the linux fops read documentation.
+ * @count: See the linux fops read documentation.
+ * offset: See the linux fops read documentation.
+ *
+ * Wrapper around the drm_read function that makes sure the device is
+ * processing the fifo if drm_read decides to wait.
+ */
+ssize_t vmw_fops_read(struct file *filp, char __user *buffer,
+		      size_t count, loff_t *offset)
+{
+	struct drm_file *file_priv = filp->private_data;
+	struct vmw_private *dev_priv =
+		vmw_priv(file_priv->minor->dev);
+
+	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
+	return drm_read(filp, buffer, count, offset);
+}

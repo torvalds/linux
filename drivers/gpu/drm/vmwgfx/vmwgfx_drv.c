@@ -1085,7 +1085,8 @@ static struct drm_driver driver = {
 		 .release = drm_release,
 		 .unlocked_ioctl = vmw_unlocked_ioctl,
 		 .mmap = vmw_mmap,
-		 .poll = drm_poll,
+		 .poll = vmw_fops_poll,
+		 .read = vmw_fops_read,
 		 .fasync = drm_fasync,
 #if defined(CONFIG_COMPAT)
 		 .compat_ioctl = drm_compat_ioctl,

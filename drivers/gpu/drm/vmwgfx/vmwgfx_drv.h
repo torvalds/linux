@@ -469,6 +469,10 @@ extern int vmw_present_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 extern int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
+extern unsigned int vmw_fops_poll(struct file *filp,
+				  struct poll_table_struct *wait);
+extern ssize_t vmw_fops_read(struct file *filp, char __user *buffer,
+			     size_t count, loff_t *offset);
 
 /**
  * Fifo utilities - vmwgfx_fifo.c
