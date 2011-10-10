@@ -1781,6 +1781,9 @@ void iwl_bg_watchdog(unsigned long data)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
+	if (iwl_is_rfkill(priv->shrd))
+		return;
+
 	timeout = priv->cfg->base_params->wd_timeout;
 	if (timeout == 0)
 		return;
