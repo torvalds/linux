@@ -1474,30 +1474,25 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	unsigned long flags;
 	int q, mapping;
-	u8 hlid = 0;
+	u8 hlid;
 
 	mapping = skb_get_queue_mapping(skb);
 	q = wl1271_tx_get_queue(mapping);
 
-	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-		hlid = wl12xx_tx_get_hlid_ap(wl, wlvif, skb);
+	hlid = wl12xx_tx_get_hlid(wl, wlvif, skb);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
 	/* queue the packet */
-	if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
-		if (!test_bit(hlid, wlvif->links_map)) {
-			wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d",
-				     hlid, q);
-			dev_kfree_skb(skb);
-			goto out;
-		}
-
-		wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d", hlid, q);
-		skb_queue_tail(&wl->links[hlid].tx_queue[q], skb);
-	} else {
-		skb_queue_tail(&wl->tx_queue[q], skb);
+	if (hlid == WL12XX_INVALID_LINK_ID ||
+	    !test_bit(hlid, wlvif->links_map)) {
+		wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d", hlid, q);
+		dev_kfree_skb(skb);
+		goto out;
 	}
+
+	wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d", hlid, q);
+	skb_queue_tail(&wl->links[hlid].tx_queue[q], skb);
 
 	wl->tx_queue_count[q]++;
 
@@ -2131,7 +2126,8 @@ deinit:
 	mutex_lock(&wl->mutex);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl1271_tx_reset(wl, reset_tx_queues);
+	wl12xx_tx_reset_wlvif(wl, wlvif);
+	wl12xx_tx_reset(wl, reset_tx_queues);
 	wl1271_power_off(wl);
 
 	wl->band = IEEE80211_BAND_2GHZ;
@@ -3968,7 +3964,6 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 	return 0;
 }
 
-/* TODO: change wl1271_tx_reset(), so we can get sta as param */
 void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 {
 	if (!test_bit(hlid, wlvif->ap.sta_hlid_map))
@@ -4866,9 +4861,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	wl->hw = hw;
 	wl->plat_dev = plat_dev;
-
-	for (i = 0; i < NUM_TX_QUEUES; i++)
-		skb_queue_head_init(&wl->tx_queue[i]);
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		for (j = 0; j < WL12XX_MAX_LINKS; j++)
