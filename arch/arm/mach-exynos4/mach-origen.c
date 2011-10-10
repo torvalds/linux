@@ -89,6 +89,8 @@ static struct s3c2410_uartcfg origen_uartcfgs[] __initdata = {
 
 static struct regulator_consumer_supply __initdata ldo3_consumer[] = {
 	REGULATOR_SUPPLY("vdd11", "s5p-mipi-csis.0"), /* MIPI */
+	REGULATOR_SUPPLY("vdd", "exynos4-hdmi"), /* HDMI */
+	REGULATOR_SUPPLY("vdd_pll", "exynos4-hdmi"), /* HDMI */
 };
 static struct regulator_consumer_supply __initdata ldo6_consumer[] = {
 	REGULATOR_SUPPLY("vdd18", "s5p-mipi-csis.0"), /* MIPI */
@@ -98,6 +100,7 @@ static struct regulator_consumer_supply __initdata ldo7_consumer[] = {
 };
 static struct regulator_consumer_supply __initdata ldo8_consumer[] = {
 	REGULATOR_SUPPLY("vdd", "s5p-adc"), /* ADC */
+	REGULATOR_SUPPLY("vdd_osc", "exynos4-hdmi"), /* HDMI */
 };
 static struct regulator_consumer_supply __initdata ldo9_consumer[] = {
 	REGULATOR_SUPPLY("dvdd", "swb-a31"), /* AR6003 WLAN & CSR 8810 BT */
