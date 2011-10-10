@@ -1918,6 +1918,7 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 			c = kfifo_out(&port->write_fifo, &buffer[i + 1], len);
 			if (!c)
 				break;
+			priv->icount.tx += c;
 			buffer[i] = (c << 2) + 1;
 			count += c + 1;
 		}
@@ -1925,6 +1926,7 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 	} else {
 		count = kfifo_out_locked(&port->write_fifo, dest, size,
 								&port->lock);
+		priv->icount.tx += count;
 	}
 
 	return count;
