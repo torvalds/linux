@@ -264,7 +264,7 @@ int et131x_close(struct net_device *netdev)
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
+static int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
@@ -282,7 +282,7 @@ int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
  *
  * Returns 0 on success, errno on failure
  */
-int et131x_set_packet_filter(struct et131x_adapter *adapter)
+static int et131x_set_packet_filter(struct et131x_adapter *adapter)
 {
 	int status = 0;
 	uint32_t filter = adapter->packet_filter;
@@ -344,7 +344,7 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
  * et131x_multicast - The handler to configure multicasting on the interface
  * @netdev: a pointer to a net_device struct representing the device
  */
-void et131x_multicast(struct net_device *netdev)
+static void et131x_multicast(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	uint32_t packet_filter = 0;
@@ -417,7 +417,7 @@ void et131x_multicast(struct net_device *netdev)
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
+static int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	int status = 0;
 
@@ -450,7 +450,7 @@ int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
  * specified by the 'tx_timeo" element in the net_device structure (see
  * et131x_alloc_device() to see how this value is set).
  */
-void et131x_tx_timeout(struct net_device *netdev)
+static void et131x_tx_timeout(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct tcb *tcb;
@@ -508,7 +508,7 @@ void et131x_tx_timeout(struct net_device *netdev)
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-int et131x_change_mtu(struct net_device *netdev, int new_mtu)
+static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	int result = 0;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
@@ -561,7 +561,7 @@ int et131x_change_mtu(struct net_device *netdev, int new_mtu)
  *
  * IMPLEMENTED BY : blux http://berndlux.de 22.01.2007 21:14
  */
-int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
+static int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 {
 	int result = 0;
 	struct et131x_adapter *adapter = netdev_priv(netdev);

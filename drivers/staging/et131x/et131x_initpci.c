@@ -552,7 +552,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 	}
 }
 
-int et131x_mii_probe(struct net_device *netdev)
+static int et131x_mii_probe(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct  phy_device *phydev = NULL;

@@ -372,7 +372,7 @@ void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 
 void et1310_config_txmac_regs(struct et131x_adapter *adapter)
 {
-	struct txmac_regs *txmac = &adapter->regs->txmac;
+	struct txmac_regs __iomem *txmac = &adapter->regs->txmac;
 
 	/* We need to update the Control Frame Parameters
 	 * cfpt - control frame pause timer set to 64 (0x40)
