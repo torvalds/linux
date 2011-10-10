@@ -1817,14 +1817,20 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 stop");
 
-	mutex_lock(&wl_list_mutex);
-	list_del(&wl->list);
-
+	mutex_lock(&wl->mutex);
+	if (wl->state == WL1271_STATE_OFF) {
+		mutex_unlock(&wl->mutex);
+		return;
+	}
 	/*
 	 * this must be before the cancel_work calls below, so that the work
 	 * functions don't perform further work.
 	 */
 	wl->state = WL1271_STATE_OFF;
+	mutex_unlock(&wl->mutex);
+
+	mutex_lock(&wl_list_mutex);
+	list_del(&wl->list);
 	mutex_unlock(&wl_list_mutex);
 
 	wl1271_disable_interrupts(wl);
@@ -1971,7 +1977,6 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 
 	setup_timer(&wlvif->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wlvif);
-
 	return 0;
 }
 
@@ -2069,7 +2074,8 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	 * get here before __wl1271_op_remove_interface is complete, so
 	 * opt out if that is the case.
 	 */
-	if (test_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags)) {
+	if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags) ||
+	    test_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags)) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -2129,7 +2135,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 
 	wl->vif = vif;
 	list_add(&wlvif->list, &wl->wlvif_list);
-	set_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags);
+	set_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags);
 
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		wl->ap_count++;
@@ -2154,6 +2160,9 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
+
+	if (!test_and_clear_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags))
+		return;
 
 	/* because of hardware recovery, we may get here twice */
 	if (wl->state != WL1271_STATE_ON)
@@ -2224,8 +2233,14 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 
 	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF ||
+	    !test_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags))
+		goto out;
+
 	/*
 	 * wl->vif can be null here if someone shuts down the interface
 	 * just when hardware recovery has been started.
@@ -2234,7 +2249,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 		WARN_ON(wl->vif != vif);
 		__wl1271_op_remove_interface(wl, vif, true);
 	}
-
+out:
 	mutex_unlock(&wl->mutex);
 	cancel_work_sync(&wl->recovery_work);
 }
@@ -3841,6 +3856,9 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
+	if (unlikely(!test_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags)))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl);
