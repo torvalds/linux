@@ -1206,6 +1206,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 {
 	struct wl1271 *wl =
 		container_of(work, struct wl1271, recovery_work);
+	struct wl12xx_vif *wlvif;
 
 	mutex_lock(&wl->mutex);
 
@@ -1227,9 +1228,12 @@ static void wl1271_recovery_work(struct work_struct *work)
 	 * in the firmware during recovery. This doens't hurt if the network is
 	 * not encrypted.
 	 */
-	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
-	    test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
-		wl->tx_security_seq += WL1271_TX_SQN_POST_RECOVERY_PADDING;
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
+		    test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+			wlvif->tx_security_seq +=
+				WL1271_TX_SQN_POST_RECOVERY_PADDING;
+	}
 
 	/* Prevent spurious TX during FW restart */
 	ieee80211_stop_queues(wl->hw);
@@ -1910,8 +1914,8 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 
-	/* make sure wlvif is zeroed */
-	memset(wlvif, 0, sizeof(*wlvif));
+	/* clear everything but the persistent data */
+	memset(wlvif, 0, offsetof(struct wl12xx_vif, persistent));
 
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -2297,8 +2301,8 @@ static int wl1271_unjoin(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto out;
 
 	/* reset TX security counters on a clean disconnect */
-	wl->tx_security_last_seq_lsb = 0;
-	wl->tx_security_seq = 0;
+	wlvif->tx_security_last_seq_lsb = 0;
+	wlvif->tx_security_seq = 0;
 
 out:
 	return ret;
@@ -2870,20 +2874,20 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		key_type = KEY_TKIP;
 
 		key_conf->hw_key_idx = key_conf->keyidx;
-		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
-		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
+		tx_seq_32 = WL1271_TX_SECURITY_HI32(wlvif->tx_security_seq);
+		tx_seq_16 = WL1271_TX_SECURITY_LO16(wlvif->tx_security_seq);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		key_type = KEY_AES;
 
 		key_conf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
-		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
+		tx_seq_32 = WL1271_TX_SECURITY_HI32(wlvif->tx_security_seq);
+		tx_seq_16 = WL1271_TX_SECURITY_LO16(wlvif->tx_security_seq);
 		break;
 	case WL1271_CIPHER_SUITE_GEM:
 		key_type = KEY_GEM;
-		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
-		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
+		tx_seq_32 = WL1271_TX_SECURITY_HI32(wlvif->tx_security_seq);
+		tx_seq_16 = WL1271_TX_SECURITY_LO16(wlvif->tx_security_seq);
 		break;
 	default:
 		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
@@ -4923,8 +4927,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->quirks = 0;
 	wl->platform_quirks = 0;
 	wl->sched_scanning = false;
-	wl->tx_security_seq = 0;
-	wl->tx_security_last_seq_lsb = 0;
 	wl->tx_spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
 	wl->active_sta_count = 0;

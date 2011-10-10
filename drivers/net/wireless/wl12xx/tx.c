@@ -755,6 +755,8 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 				      struct wl1271_tx_hw_res_descr *result)
 {
 	struct ieee80211_tx_info *info;
+	struct ieee80211_vif *vif;
+	struct wl12xx_vif *wlvif;
 	struct sk_buff *skb;
 	int id = result->id;
 	int rate = -1;
@@ -773,6 +775,10 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 		wl1271_free_tx_id(wl, id);
 		return;
 	}
+
+	/* info->control is valid as long as we don't update info->status */
+	vif = info->control.vif;
+	wlvif = wl12xx_vif_to_data(vif);
 
 	/* update the TX status info */
 	if (result->status == TX_SUCCESS) {
@@ -801,14 +807,14 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	     info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP ||
 	     info->control.hw_key->cipher == WL1271_CIPHER_SUITE_GEM)) {
 		u8 fw_lsb = result->tx_security_sequence_number_lsb;
-		u8 cur_lsb = wl->tx_security_last_seq_lsb;
+		u8 cur_lsb = wlvif->tx_security_last_seq_lsb;
 
 		/*
 		 * update security sequence number, taking care of potential
 		 * wrap-around
 		 */
-		wl->tx_security_seq += (fw_lsb - cur_lsb + 256) % 256;
-		wl->tx_security_last_seq_lsb = fw_lsb;
+		wlvif->tx_security_seq += (fw_lsb - cur_lsb) & 0xff;
+		wlvif->tx_security_last_seq_lsb = fw_lsb;
 	}
 
 	/* remove private header from packet */
