@@ -1433,18 +1433,21 @@ static int request_sga_clock(u8 clock, bool enable)
  */
 int db8500_prcmu_request_clock(u8 clock, bool enable)
 {
-	if (clock == PRCMU_SGACLK)
+	switch(clock) {
+	case PRCMU_SGACLK:
 		return request_sga_clock(clock, enable);
-	else if (clock < PRCMU_NUM_REG_CLOCKS)
-		return request_reg_clock(clock, enable);
-	else if (clock == PRCMU_TIMCLK)
+	case PRCMU_TIMCLK:
 		return request_timclk(enable);
-	else if (clock == PRCMU_SYSCLK)
+	case PRCMU_SYSCLK:
 		return request_sysclk(enable);
-	else if (clock == PRCMU_PLLSOC1)
+	case PRCMU_PLLSOC1:
 		return request_pll(clock, enable);
-	else
-		return -EINVAL;
+	default:
+		break;
+	}
+	if (clock < PRCMU_NUM_REG_CLOCKS)
+		return request_reg_clock(clock, enable);
+	return -EINVAL;
 }
 
 int db8500_prcmu_config_esram0_deep_sleep(u8 state)
