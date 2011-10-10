@@ -1004,6 +1004,17 @@ xfs_buf_ioerror(
 	trace_xfs_buf_ioerror(bp, error, _RET_IP_);
 }
 
+void
+xfs_buf_ioerror_alert(
+	struct xfs_buf		*bp,
+	const char		*func)
+{
+	xfs_alert(bp->b_target->bt_mount,
+"metadata I/O error: block 0x%llx (\"%s\") error %d buf count %zd",
+		(__uint64_t)XFS_BUF_ADDR(bp), func,
+		bp->b_error, XFS_BUF_COUNT(bp));
+}
+
 int
 xfs_bwrite(
 	struct xfs_buf		*bp)

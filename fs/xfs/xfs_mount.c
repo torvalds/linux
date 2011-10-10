@@ -1610,8 +1610,7 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 		xfsbdstrat(mp, sbp);
 		error = xfs_buf_iowait(sbp);
 		if (error)
-			xfs_ioerror_alert("xfs_unmountfs_writesb",
-					  mp, sbp, XFS_BUF_ADDR(sbp));
+			xfs_buf_ioerror_alert(sbp, __func__);
 		xfs_buf_relse(sbp);
 	}
 	return error;

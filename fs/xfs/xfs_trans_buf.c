@@ -296,8 +296,7 @@ xfs_trans_read_buf(
 
 		if (bp->b_error) {
 			error = bp->b_error;
-			xfs_ioerror_alert("xfs_trans_read_buf", mp,
-					  bp, blkno);
+			xfs_buf_ioerror_alert(bp, __func__);
 			xfs_buf_relse(bp);
 			return error;
 		}
@@ -339,8 +338,7 @@ xfs_trans_read_buf(
 			xfsbdstrat(tp->t_mountp, bp);
 			error = xfs_buf_iowait(bp);
 			if (error) {
-				xfs_ioerror_alert("xfs_trans_read_buf", mp,
-						  bp, blkno);
+				xfs_buf_ioerror_alert(bp, __func__);
 				xfs_buf_relse(bp);
 				/*
 				 * We can gracefully recover from most read
@@ -391,8 +389,7 @@ xfs_trans_read_buf(
 		error = bp->b_error;
 		xfs_buf_stale(bp);
 		XFS_BUF_DONE(bp);
-		xfs_ioerror_alert("xfs_trans_read_buf", mp,
-				  bp, blkno);
+		xfs_buf_ioerror_alert(bp, __func__);
 		if (tp->t_flags & XFS_TRANS_DIRTY)
 			xfs_force_shutdown(tp->t_mountp, SHUTDOWN_META_IO_ERROR);
 		xfs_buf_relse(bp);
