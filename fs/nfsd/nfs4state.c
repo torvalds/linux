@@ -1189,17 +1189,6 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	return clp;
 }
 
-static int check_name(struct xdr_netobj name)
-{
-	if (name.len == 0) 
-		return 0;
-	if (name.len > NFS4_OPAQUE_LIMIT) {
-		dprintk("NFSD: check_name: name too long(%d)!\n", name.len);
-		return 0;
-	}
-	return 1;
-}
-
 static void
 add_to_unconfirmed(struct nfs4_client *clp, unsigned int strhashval)
 {
@@ -1442,7 +1431,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		__func__, rqstp, exid, exid->clname.len, exid->clname.data,
 		addr_str, exid->flags, exid->spa_how);
 
-	if (!check_name(exid->clname) || (exid->flags & ~EXCHGID4_FLAG_MASK_A))
+	if (exid->flags & ~EXCHGID4_FLAG_MASK_A)
 		return nfserr_inval;
 
 	/* Currently only support SP4_NONE */
@@ -1992,19 +1981,13 @@ __be32
 nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		  struct nfsd4_setclientid *setclid)
 {
-	struct xdr_netobj 	clname = { 
-		.len = setclid->se_namelen,
-		.data = setclid->se_name,
-	};
+	struct xdr_netobj 	clname = setclid->se_name;
 	nfs4_verifier		clverifier = setclid->se_verf;
 	unsigned int 		strhashval;
 	struct nfs4_client	*conf, *unconf, *new;
 	__be32 			status;
 	char                    dname[HEXDIR_LEN];
 	
-	if (!check_name(clname))
-		return nfserr_inval;
-
 	status = nfs4_make_rec_clidname(dname, &clname);
 	if (status)
 		return status;
@@ -2522,9 +2505,6 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	unsigned int strhashval;
 	struct nfs4_openowner *oo = NULL;
 	__be32 status;
-
-	if (!check_name(open->op_owner))
-		return nfserr_inval;
 
 	if (STALE_CLIENTID(&open->op_clientid))
 		return nfserr_stale_clientid;

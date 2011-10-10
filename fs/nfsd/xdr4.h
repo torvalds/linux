@@ -317,8 +317,7 @@ struct nfsd4_setattr {
 
 struct nfsd4_setclientid {
 	nfs4_verifier	se_verf;            /* request */
-	u32		se_namelen;         /* request */
-	char *		se_name;            /* request */
+	struct xdr_netobj se_name;
 	u32		se_callback_prog;   /* request */
 	u32		se_callback_netid_len;  /* request */
 	char *		se_callback_netid_val;  /* request */

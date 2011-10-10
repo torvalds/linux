@@ -697,6 +697,23 @@ xdr_error:
 	return nfserr_bad_xdr;
 }
 
+static __be32 nfsd4_decode_opaque(struct nfsd4_compoundargs *argp, struct xdr_netobj *o)
+{
+	__be32 *p;
+
+	READ_BUF(4);
+	READ32(o->len);
+
+	if (o->len == 0 || o->len > NFS4_OPAQUE_LIMIT)
+		return nfserr_bad_xdr;
+
+	READ_BUF(o->len);
+	SAVEMEM(o->data, o->len);
+	return nfs_ok;
+xdr_error:
+	return nfserr_bad_xdr;
+}
+
 static __be32
 nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 {
@@ -715,13 +732,12 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 	status = nfsd4_decode_share_deny(argp, &open->op_share_deny);
 	if (status)
 		goto xdr_error;
-	READ_BUF(sizeof(clientid_t) + 4);
+	READ_BUF(sizeof(clientid_t));
 	COPYMEM(&open->op_clientid, sizeof(clientid_t));
-	READ32(open->op_owner.len);
-
-	/* owner, open_flag */
-	READ_BUF(open->op_owner.len + 4);
-	SAVEMEM(open->op_owner.data, open->op_owner.len);
+	status = nfsd4_decode_opaque(argp, &open->op_owner);
+	if (status)
+		goto xdr_error;
+	READ_BUF(4);
 	READ32(open->op_create);
 	switch (open->op_create) {
 	case NFS4_OPEN_NOCREATE:
@@ -964,12 +980,13 @@ nfsd4_decode_setclientid(struct nfsd4_compoundargs *argp, struct nfsd4_setclient
 {
 	DECODE_HEAD;
 
-	READ_BUF(12);
+	READ_BUF(8);
 	COPYMEM(setclientid->se_verf.data, 8);
-	READ32(setclientid->se_namelen);
 
-	READ_BUF(setclientid->se_namelen + 8);
-	SAVEMEM(setclientid->se_name, setclientid->se_namelen);
+	status = nfsd4_decode_opaque(argp, &setclientid->se_name);
+	if (status)
+		return nfserr_bad_xdr;
+	READ_BUF(8);
 	READ32(setclientid->se_callback_prog);
 	READ32(setclientid->se_callback_netid_len);
 
@@ -1112,11 +1129,9 @@ nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 	READ_BUF(NFS4_VERIFIER_SIZE);
 	COPYMEM(exid->verifier.data, NFS4_VERIFIER_SIZE);
 
-	READ_BUF(4);
-	READ32(exid->clname.len);
-
-	READ_BUF(exid->clname.len);
-	SAVEMEM(exid->clname.data, exid->clname.len);
+	status = nfsd4_decode_opaque(argp, &exid->clname);
+	if (status)
+		return nfserr_bad_xdr;
 
 	READ_BUF(4);
 	READ32(exid->flags);
