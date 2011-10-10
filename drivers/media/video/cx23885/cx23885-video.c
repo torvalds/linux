@@ -37,6 +37,8 @@
 #include "cx23885-ioctl.h"
 #include "tuner-xc2028.h"
 
+#include <media/cx25840.h>
+
 MODULE_DESCRIPTION("v4l2 driver module for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
@@ -884,8 +886,9 @@ static int cx23885_get_control(struct cx23885_dev *dev,
 static int cx23885_set_control(struct cx23885_dev *dev,
 	struct v4l2_control *ctl)
 {
-	dprintk(1, "%s() calling cx25840(VIDIOC_S_CTRL)"
-		" (disabled - no action)\n", __func__);
+	dprintk(1, "%s() calling cx25840(VIDIOC_S_CTRL)\n", __func__);
+	call_all(dev, core, s_ctrl, ctl);
+
 	return 0;
 }
 
@@ -1220,11 +1223,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
+	memset(t, 0, sizeof(*t));
 	strcpy(t->name, "Television");
-	t->type       = V4L2_TUNER_ANALOG_TV;
-	t->capability = V4L2_TUNER_CAP_NORM;
-	t->rangehigh  = 0xffffffffUL;
-	t->signal = 0xffff ; /* LOCKED */
+
 	return 0;
 }
 
@@ -1237,6 +1238,8 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
+	/* Update the A/V core */
+
 	return 0;
 }
 
@@ -1438,6 +1441,9 @@ void cx23885_video_unregister(struct cx23885_dev *dev)
 
 		btcx_riscmem_free(dev->pci, &dev->vidq.stopper);
 	}
+
+	if (dev->audio_dev)
+		cx23885_audio_finidev(dev);
 }
 
 int cx23885_video_register(struct cx23885_dev *dev)
@@ -1504,7 +1510,6 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		}
 	}
 
-
 	/* register v4l devices */
 	dev->video_dev = cx23885_vdev_init(dev, dev->pci,
 		&cx23885_video_template, "video");
@@ -1517,6 +1522,10 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	}
 	printk(KERN_INFO "%s/0: registered device %s [v4l2]\n",
 	       dev->name, video_device_node_name(dev->video_dev));
+
+	/* Register ALSA audio device */
+	dev->audio_dev = cx23885_audio_initdev(dev);
+
 	/* initial device configuration */
 	mutex_lock(&dev->lock);
 	cx23885_set_tvnorm(dev, dev->tvnorm);
