@@ -128,12 +128,15 @@ static int ip1001_config_init(struct phy_device *phydev)
 	if (c < 0)
 		return c;
 
-	/* Additional delay (2ns) used to adjust RX clock phase
-	 * at GMII/ RGMII interface */
-	c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
-	c |= IP1001_PHASE_SEL_MASK;
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
+		/* Additional delay (2ns) used to adjust RX clock phase
+		 * at RGMII interface */
+		c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
+		c |= IP1001_PHASE_SEL_MASK;
+		c = phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
+	}
 
-	return phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
+	return c;
 }
 
 static int ip101a_config_init(struct phy_device *phydev)
