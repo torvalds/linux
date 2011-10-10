@@ -2,13 +2,18 @@ This is a driver for the ET1310 network device.
 
 Based on the driver found at https://sourceforge.net/projects/et131x/
 
-Cleaned up immensely by Olaf Hartman and Christoph
-Hellwig <hch@infradead.org>
+Cleaned up immensely by Olaf Hartman and Christoph Hellwig <hch@infradead.org>
 
 Note, the powermanagement options were removed from the vendor provided
 driver as they did not build properly at the time.
 
 TODO:
+	- Put the driver into a single file, with a .h for the registers layout.
+	- rx_ring.fbr{0, 1} can probably share a common structure
+	- Use of kmem_cache seems a bit unusual
+	- Use dma_alloc_... in place of pci_alloc_...
+	- It's too late stopping the tx queue when there is no room for the current packet. The condition should be detected for the next packet.
+	- PCI_VDEVICE ?
 
 Please send patches to:
 	Greg Kroah-Hartman <gregkh@suse.de>
