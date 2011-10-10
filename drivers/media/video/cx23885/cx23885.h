@@ -192,6 +192,7 @@ struct cx23885_buffer {
 struct cx23885_input {
 	enum cx23885_itype type;
 	unsigned int    vmux;
+	unsigned int    amux;
 	u32             gpio0, gpio1, gpio2, gpio3;
 };
 
