@@ -1225,6 +1225,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 
 	strcpy(t->name, "Television");
 
+	call_all(dev, tuner, g_tuner, t);
 	return 0;
 }
 
@@ -1238,6 +1239,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 	/* Update the A/V core */
+	call_all(dev, tuner, s_tuner, t);
 
 	return 0;
 }
