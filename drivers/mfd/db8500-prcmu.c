@@ -1763,7 +1763,7 @@ retry:
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 			msecs_to_jiffies(5000))) {
-		panic("prcmu: %s timed out (5 s) waiting for a reply.\n",
+		pr_crit("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
 		goto unlock_and_return;
 	}
@@ -1785,7 +1785,7 @@ retry:
 		if (wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 				msecs_to_jiffies(5000)))
 			goto retry;
-		panic("prcmu: %s timed out (5 s) waiting for AC_SLEEP_ACK.\n",
+		pr_crit("prcmu: %s timed out (5 s) waiting for AC_SLEEP_ACK.\n",
 			__func__);
 	}
 
@@ -1811,7 +1811,7 @@ void prcmu_ac_sleep_req()
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 			msecs_to_jiffies(5000))) {
-		panic("prcmu: %s timed out (5 s) waiting for a reply.\n",
+		pr_crit("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
 	}
 
