@@ -1066,13 +1066,6 @@ static struct platform_device nuri_max8903_device = {
 	},
 };
 
-static struct device *nuri_cm_devices[] = {
-	&s3c_device_i2c5.dev,
-	&s3c_device_adc.dev,
-	NULL, /* Reserved for UART */
-	NULL,
-};
-
 static void __init nuri_power_init(void)
 {
 	int gpio;
