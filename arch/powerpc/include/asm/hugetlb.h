@@ -22,14 +22,14 @@ static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
 				    unsigned pdshift)
 {
 	/*
-	 * On 32-bit, we have multiple higher-level table entries that point to
-	 * the same hugepte.  Just use the first one since they're all
+	 * On FSL BookE, we have multiple higher-level table entries that
+	 * point to the same hugepte.  Just use the first one since they're all
 	 * identical.  So for that case, idx=0.
 	 */
 	unsigned long idx = 0;
 
 	pte_t *dir = hugepd_page(*hpdp);
-#ifdef CONFIG_PPC64
+#ifndef CONFIG_PPC_FSL_BOOK3E
 	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(*hpdp);
 #endif
 
