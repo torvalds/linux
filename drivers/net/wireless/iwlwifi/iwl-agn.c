@@ -463,7 +463,7 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 static void iwl_free_fw_desc(struct iwl_priv *priv, struct fw_desc *desc)
 {
 	if (desc->v_addr)
-		dma_free_coherent(priv->bus->dev, desc->len,
+		dma_free_coherent(bus(priv)->dev, desc->len,
 				  desc->v_addr, desc->p_addr);
 	desc->v_addr = NULL;
 	desc->len = 0;
@@ -490,7 +490,7 @@ static int iwl_alloc_fw_desc(struct iwl_priv *priv, struct fw_desc *desc,
 		return -EINVAL;
 	}
 
-	desc->v_addr = dma_alloc_coherent(priv->bus->dev, len,
+	desc->v_addr = dma_alloc_coherent(bus(priv)->dev, len,
 					  &desc->p_addr, GFP_KERNEL);
 	if (!desc->v_addr)
 		return -ENOMEM;
@@ -602,7 +602,7 @@ static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 		       priv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, priv->firmware_name,
-				       priv->bus->dev,
+				       bus(priv)->dev,
 				       GFP_KERNEL, priv, iwl_ucode_callback);
 }
 
@@ -1161,7 +1161,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	iwl_dealloc_ucode(priv);
  out_unbind:
 	complete(&priv->firmware_loading_complete);
-	device_release_driver(priv->bus->dev);
+	device_release_driver(bus(priv)->dev);
 	release_firmware(ucode_raw);
 }
 
@@ -1701,7 +1701,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
 			    WIPHY_FLAG_IBSS_RSN;
 
-	if (priv->ucode_wowlan.code.len && device_can_wakeup(priv->bus->dev)) {
+	if (priv->ucode_wowlan.code.len && device_can_wakeup(bus(priv)->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
 					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
@@ -2188,7 +2188,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto error;
 
-	device_set_wakeup_enable(priv->bus->dev, true);
+	device_set_wakeup_enable(bus(priv)->dev, true);
 
 	/* Now let the ucode operate on its own */
 	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_SET,
@@ -2251,7 +2251,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	priv->shrd->wowlan = false;
 
-	device_set_wakeup_enable(priv->bus->dev, false);
+	device_set_wakeup_enable(bus(priv)->dev, false);
 
 	iwlagn_prepare_restart(priv);
 
@@ -3193,7 +3193,6 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	}
 
 	priv = hw->priv;
-	priv->bus = bus;
 	priv->shrd = &priv->_shrd;
 	bus->shrd = priv->shrd;
 	priv->shrd->bus = bus;
@@ -3207,7 +3206,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 
 	/* At this point both hw and priv are allocated. */
 
-	SET_IEEE80211_DEV(hw, priv->bus->dev);
+	SET_IEEE80211_DEV(hw, bus(priv)->dev);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;

@@ -211,7 +211,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & EEPROM_SKU_CAP_BAND_52GHZ) {
 		char buf[32];
-		bus_get_hw_id(priv->bus, buf, sizeof(buf));
+		bus_get_hw_id(bus(priv), buf, sizeof(buf));
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
 			"Please send your %s to maintainer.\n", buf);
 		priv->cfg->sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
@@ -979,7 +979,7 @@ int iwl_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(bus(priv), CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
-	bus_apm_config(priv->bus);
+	bus_apm_config(bus(priv));
 
 	/* Configure analog phase-lock-loop before activating to D0A */
 	if (priv->cfg->base_params->pll_cfg_val)
