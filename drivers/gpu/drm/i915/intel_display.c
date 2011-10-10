@@ -4711,7 +4711,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 				lvds_bpc = 6;
 
 			if (lvds_bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
 				display_bpc = lvds_bpc;
 			}
 			continue;
@@ -4722,7 +4722,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			unsigned int edp_bpc = dev_priv->edp.bpp / 3;
 
 			if (edp_bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
 				display_bpc = edp_bpc;
 			}
 			continue;
@@ -4737,7 +4737,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			/* Don't use an invalid EDID bpc value */
 			if (connector->display_info.bpc &&
 			    connector->display_info.bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to EDID reported max of %d\n", display_bpc, connector->display_info.bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to EDID reported max of %d\n", display_bpc, connector->display_info.bpc);
 				display_bpc = connector->display_info.bpc;
 			}
 		}
@@ -4748,10 +4748,10 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 		 */
 		if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 			if (display_bpc > 8 && display_bpc < 12) {
-				DRM_DEBUG_DRIVER("forcing bpc to 12 for HDMI\n");
+				DRM_DEBUG_KMS("forcing bpc to 12 for HDMI\n");
 				display_bpc = 12;
 			} else {
-				DRM_DEBUG_DRIVER("forcing bpc to 8 for HDMI\n");
+				DRM_DEBUG_KMS("forcing bpc to 8 for HDMI\n");
 				display_bpc = 8;
 			}
 		}
@@ -4789,8 +4789,8 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 
 	display_bpc = min(display_bpc, bpc);
 
-	DRM_DEBUG_DRIVER("setting pipe bpc to %d (max display bpc %d)\n",
-			 bpc, display_bpc);
+	DRM_DEBUG_KMS("setting pipe bpc to %d (max display bpc %d)\n",
+		      bpc, display_bpc);
 
 	*pipe_bpp = display_bpc * 3;
 
