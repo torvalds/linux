@@ -542,9 +542,9 @@ static int bos_desc(struct usb_composite_dev *cdev)
 	if (cdev->gadget->ops->get_config_params)
 		cdev->gadget->ops->get_config_params(&dcd_config_params);
 	else {
-		dcd_config_params.bU1devExitLat = USB_DEFULT_U1_DEV_EXIT_LAT;
+		dcd_config_params.bU1devExitLat = USB_DEFAULT_U1_DEV_EXIT_LAT;
 		dcd_config_params.bU2DevExitLat =
-			cpu_to_le16(USB_DEFULT_U2_DEV_EXIT_LAT);
+			cpu_to_le16(USB_DEFAULT_U2_DEV_EXIT_LAT);
 	}
 	ss_cap->bU1devExitLat = dcd_config_params.bU1devExitLat;
 	ss_cap->bU2DevExitLat = dcd_config_params.bU2DevExitLat;
