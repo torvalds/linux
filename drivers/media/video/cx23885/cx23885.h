@@ -564,6 +564,8 @@ extern void cx23885_free_buffer(struct videobuf_queue *q,
 extern int cx23885_video_register(struct cx23885_dev *dev);
 extern void cx23885_video_unregister(struct cx23885_dev *dev);
 extern int cx23885_video_irq(struct cx23885_dev *dev, u32 status);
+extern void cx23885_video_wakeup(struct cx23885_dev *dev,
+	struct cx23885_dmaqueue *q, u32 count);
 
 /* ----------------------------------------------------------- */
 /* cx23885-vbi.c                                               */
@@ -571,6 +573,9 @@ extern int cx23885_vbi_fmt(struct file *file, void *priv,
 	struct v4l2_format *f);
 extern void cx23885_vbi_timeout(unsigned long data);
 extern struct videobuf_queue_ops cx23885_vbi_qops;
+extern int cx23885_restart_vbi_queue(struct cx23885_dev *dev,
+	struct cx23885_dmaqueue *q);
+extern int cx23885_vbi_irq(struct cx23885_dev *dev, u32 status);
 
 /* cx23885-i2c.c                                                */
 extern int cx23885_i2c_register(struct cx23885_i2c *bus);

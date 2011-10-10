@@ -62,30 +62,65 @@ int cx23885_vbi_fmt(struct file *file, void *priv,
 	return 0;
 }
 
+/* We're given the Video Interrupt status register.
+ * The cx23885_video_irq() func has already validated
+ * the potential error bits, we just need to
+ * deal with vbi payload and return indication if
+ * we actually processed any payload.
+ */
+int cx23885_vbi_irq(struct cx23885_dev *dev, u32 status)
+{
+	u32 count;
+	int handled = 0;
+
+	if (status & VID_BC_MSK_VBI_RISCI1) {
+		dprintk(1, "%s() VID_BC_MSK_VBI_RISCI1\n", __func__);
+		spin_lock(&dev->slock);
+		count = cx_read(VID_A_GPCNT);
+		cx23885_video_wakeup(dev, &dev->vbiq, count);
+		spin_unlock(&dev->slock);
+		handled++;
+	}
+
+	if (status & VID_BC_MSK_VBI_RISCI2) {
+		dprintk(1, "%s() VID_BC_MSK_VBI_RISCI2\n", __func__);
+		dprintk(2, "stopper vbi\n");
+		spin_lock(&dev->slock);
+		cx23885_restart_vbi_queue(dev, &dev->vbiq);
+		spin_unlock(&dev->slock);
+		handled++;
+	}
+
+	return handled;
+}
+
 static int cx23885_start_vbi_dma(struct cx23885_dev    *dev,
 			 struct cx23885_dmaqueue *q,
 			 struct cx23885_buffer   *buf)
 {
+	dprintk(1, "%s()\n", __func__);
+
 	/* setup fifo + format */
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH02],
 				buf->vb.width, buf->risc.dma);
 
 	/* reset counter */
+	cx_write(VID_A_GPCNT_CTL, 3);
 	q->count = 1;
 
-	/* enable irqs */
+	/* enable irq */
 	cx23885_irq_add_enable(dev, 0x01);
 	cx_set(VID_A_INT_MSK, 0x000022);
 
 	/* start dma */
 	cx_set(DEV_CNTRL2, (1<<5));
-	cx_set(VID_A_DMA_CTL, 0x00000022);
+	cx_set(VID_A_DMA_CTL, 0x22); /* FIFO and RISC enable */
 
 	return 0;
 }
 
 
-static int cx23885_restart_vbi_queue(struct cx23885_dev    *dev,
+int cx23885_restart_vbi_queue(struct cx23885_dev    *dev,
 			     struct cx23885_dmaqueue *q)
 {
 	struct cx23885_buffer *buf;
@@ -115,6 +150,7 @@ void cx23885_vbi_timeout(unsigned long data)
 
 	cx23885_sram_channel_dump(dev, &dev->sram_channels[SRAM_CH02]);
 
+	/* Stop the VBI engine */
 	cx_clear(VID_A_DMA_CTL, 0x22);
 
 	spin_lock_irqsave(&dev->slock, flags);
