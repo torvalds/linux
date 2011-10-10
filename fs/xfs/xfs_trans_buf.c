@@ -160,8 +160,11 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	bp = xfs_trans_buf_item_match(tp, target_dev, blkno, len);
 	if (bp != NULL) {
 		ASSERT(xfs_buf_islocked(bp));
-		if (XFS_FORCED_SHUTDOWN(tp->t_mountp))
-			XFS_BUF_SUPER_STALE(bp);
+		if (XFS_FORCED_SHUTDOWN(tp->t_mountp)) {
+			xfs_buf_stale(bp);
+			xfs_buf_delwri_dequeue(bp);
+			XFS_BUF_DONE(bp);
+		}
 
 		/*
 		 * If the buffer is stale then it was binval'ed
@@ -387,7 +390,9 @@ xfs_trans_read_buf(
 	}
 	if (bp->b_error) {
 		error = bp->b_error;
-		XFS_BUF_SUPER_STALE(bp);
+		xfs_buf_stale(bp);
+		xfs_buf_delwri_dequeue(bp);
+		XFS_BUF_DONE(bp);
 		xfs_ioerror_alert("xfs_trans_read_buf", mp,
 				  bp, blkno);
 		if (tp->t_flags & XFS_TRANS_DIRTY)
@@ -740,7 +745,7 @@ xfs_trans_binval(
 	 * rid of it.
 	 */
 	xfs_buf_delwri_dequeue(bp);
-	XFS_BUF_STALE(bp);
+	xfs_buf_stale(bp);
 	bip->bli_flags |= XFS_BLI_STALE;
 	bip->bli_flags &= ~(XFS_BLI_INODE_BUF | XFS_BLI_LOGGED | XFS_BLI_DIRTY);
 	bip->bli_format.blf_flags &= ~XFS_BLF_INODE_BUF;

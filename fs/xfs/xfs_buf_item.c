@@ -966,7 +966,9 @@ xfs_buf_iodone_callbacks(
 	 * I/O errors, there's no point in giving this a retry.
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		XFS_BUF_SUPER_STALE(bp);
+		xfs_buf_stale(bp);
+		xfs_buf_delwri_dequeue(bp);
+		XFS_BUF_DONE(bp);
 		trace_xfs_buf_item_iodone(bp, _RET_IP_);
 		goto do_callbacks;
 	}
@@ -1005,7 +1007,7 @@ xfs_buf_iodone_callbacks(
 	 * If the write of the buffer was synchronous, we want to make
 	 * sure to return the error to the caller of xfs_bwrite().
 	 */
-	XFS_BUF_STALE(bp);
+	xfs_buf_stale(bp);
 	XFS_BUF_DONE(bp);
 	xfs_buf_delwri_dequeue(bp);
 

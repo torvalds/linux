@@ -1061,7 +1061,7 @@ xfs_bioerror(
 	XFS_BUF_UNREAD(bp);
 	xfs_buf_delwri_dequeue(bp);
 	XFS_BUF_UNDONE(bp);
-	XFS_BUF_STALE(bp);
+	xfs_buf_stale(bp);
 
 	xfs_buf_ioend(bp, 0);
 
@@ -1090,7 +1090,7 @@ xfs_bioerror_relse(
 	XFS_BUF_UNREAD(bp);
 	xfs_buf_delwri_dequeue(bp);
 	XFS_BUF_DONE(bp);
-	XFS_BUF_STALE(bp);
+	xfs_buf_stale(bp);
 	bp->b_iodone = NULL;
 	if (!(fl & XBF_ASYNC)) {
 		/*

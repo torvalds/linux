@@ -242,14 +242,8 @@ xfs_buf_target_name(struct xfs_buftarg *target)
 			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH))
 
 void xfs_buf_stale(struct xfs_buf *bp);
-#define XFS_BUF_STALE(bp)	xfs_buf_stale(bp);
 #define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)
 #define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XBF_STALE)
-#define XFS_BUF_SUPER_STALE(bp)	do {				\
-					XFS_BUF_STALE(bp);	\
-					xfs_buf_delwri_dequeue(bp);	\
-					XFS_BUF_DONE(bp);	\
-				} while (0)
 
 #define XFS_BUF_ISDELAYWRITE(bp)	((bp)->b_flags & XBF_DELWRI)
 
