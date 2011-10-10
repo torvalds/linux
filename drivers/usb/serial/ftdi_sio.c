@@ -1984,6 +1984,7 @@ static int ftdi_process_packet(struct tty_struct *tty,
 	len -= 2;
 	if (!len)
 		return 0;	/* status only */
+	priv->icount.rx += len;
 	ch = packet + 2;
 
 	if (port->port.console && port->sysrq) {
