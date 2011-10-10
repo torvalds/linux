@@ -782,6 +782,7 @@ static int do_test(int m)
 	case 7:
 		ret += tcrypt_test("ecb(blowfish)");
 		ret += tcrypt_test("cbc(blowfish)");
+		ret += tcrypt_test("ctr(blowfish)");
 		break;
 
 	case 8:
