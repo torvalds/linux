@@ -203,6 +203,7 @@ Channel manager Data Structure entry = 20 DWORD
 #define SD2_BIAS_CTRL	0x0000000A
 #define AMP_BIAS_CTRL	0x0000000C
 #define CH_PWR_CTRL1	0x0000000E
+#define FLD_CH_SEL      (1 << 3)
 #define CH_PWR_CTRL2	0x0000000F
 #define DSM_STATUS1	0x00000010
 #define DSM_STATUS2	0x00000011
