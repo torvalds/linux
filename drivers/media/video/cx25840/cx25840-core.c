@@ -1074,6 +1074,17 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		cx25840_write(client, 0x919, 0x01);
 	}
 
+	if (is_cx2388x(state) && (aud_input == CX25840_AUDIO7)) {
+		/* Configure audio from LR1 or LR2 input */
+		cx25840_write4(client, 0x910, 0);
+		cx25840_write4(client, 0x8d0, 0x63073);
+	} else
+	if (is_cx2388x(state) && (aud_input == CX25840_AUDIO8)) {
+		/* Configure audio from tuner/sif input */
+		cx25840_write4(client, 0x910, 0x12b000c9);
+		cx25840_write4(client, 0x8d0, 0x1f063870);
+	}
+
 	return 0;
 }
 
