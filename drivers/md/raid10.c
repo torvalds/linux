@@ -2955,7 +2955,7 @@ static int run(mddev_t *mddev)
 	return 0;
 
 out_free_conf:
-	md_unregister_thread(mddev->thread);
+	md_unregister_thread(&mddev->thread);
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
 	safe_put_page(conf->tmppage);
@@ -2973,8 +2973,7 @@ static int stop(mddev_t *mddev)
 	raise_barrier(conf, 0);
 	lower_barrier(conf);
 
-	md_unregister_thread(mddev->thread);
-	mddev->thread = NULL;
+	md_unregister_thread(&mddev->thread);
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
