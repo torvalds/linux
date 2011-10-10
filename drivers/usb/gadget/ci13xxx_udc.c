@@ -182,6 +182,16 @@ static inline int hw_ep_bit(int num, int dir)
 	return num + (dir ? 16 : 0);
 }
 
+static int ep_to_bit(int n)
+{
+	int fill = 16 - hw_ep_max / 2;
+
+	if (n >= hw_ep_max / 2)
+		n += fill;
+
+	return n;
+}
+
 /**
  * hw_aread: reads from register bitfield
  * @addr: address relative to bus map
@@ -440,12 +450,13 @@ static int hw_ep_get_halt(int num, int dir)
 /**
  * hw_test_and_clear_setup_status: test & clear setup status (execute without
  *                                 interruption)
- * @n: bit number (endpoint)
+ * @n: endpoint number
  *
  * This function returns setup status
  */
 static int hw_test_and_clear_setup_status(int n)
 {
+	n = ep_to_bit(n);
 	return hw_ctest_and_clear(CAP_ENDPTSETUPSTAT, BIT(n));
 }
 
@@ -641,12 +652,13 @@ static int hw_register_write(u16 addr, u32 data)
 /**
  * hw_test_and_clear_complete: test & clear complete status (execute without
  *                             interruption)
- * @n: bit number (endpoint)
+ * @n: endpoint number
  *
  * This function returns complete status
  */
 static int hw_test_and_clear_complete(int n)
 {
+	n = ep_to_bit(n);
 	return hw_ctest_and_clear(CAP_ENDPTCOMPLETE, BIT(n));
 }
 
