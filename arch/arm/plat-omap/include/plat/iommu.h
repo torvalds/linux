@@ -189,8 +189,8 @@ extern int omap_iommu_set_isr(const char *name,
 				    void *priv),
 			 void *isr_priv);
 
-extern void omap_iommu_save_ctx(struct omap_iommu *obj);
-extern void omap_iommu_restore_ctx(struct omap_iommu *obj);
+extern void omap_iommu_save_ctx(struct device *dev);
+extern void omap_iommu_restore_ctx(struct device *dev);
 
 extern int omap_install_iommu_arch(const struct iommu_functions *ops);
 extern void omap_uninstall_iommu_arch(const struct iommu_functions *ops);
@@ -202,6 +202,5 @@ extern ssize_t
 omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t len);
 extern size_t
 omap_dump_tlb_entries(struct omap_iommu *obj, char *buf, ssize_t len);
-struct device *omap_find_iommu_device(const char *name);
 
 #endif /* __MACH_IOMMU_H */
