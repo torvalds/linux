@@ -2053,13 +2053,10 @@ xfs_da_do_buf(
 		if (!bp)
 			continue;
 		if (caller == 1) {
-			if (whichfork == XFS_ATTR_FORK) {
-				XFS_BUF_SET_VTYPE_REF(bp, B_FS_ATTR_BTREE,
-						XFS_ATTR_BTREE_REF);
-			} else {
-				XFS_BUF_SET_VTYPE_REF(bp, B_FS_DIR_BTREE,
-						XFS_DIR_BTREE_REF);
-			}
+			if (whichfork == XFS_ATTR_FORK)
+				xfs_buf_set_ref(bp, XFS_ATTR_BTREE_REF);
+			else
+				xfs_buf_set_ref(bp, XFS_DIR_BTREE_REF);
 		}
 		if (bplist) {
 			bplist[nbplist++] = bp;

@@ -605,7 +605,7 @@ xfs_qm_dqread(
 	dqp->q_res_rtbcount = be64_to_cpu(ddqp->d_rtbcount);
 
 	/* Mark the buf so that this will stay incore a little longer */
-	XFS_BUF_SET_VTYPE_REF(bp, B_FS_DQUOT, XFS_DQUOT_REF);
+	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
 
 	/*
 	 * We got the buffer with a xfs_trans_read_buf() (in dqtobp())

@@ -190,12 +190,6 @@ xfs_imap_to_bp(
 	}
 
 	xfs_inobp_check(mp, bp);
-
-	/*
-	 * Mark the buffer as an inode buffer now that it looks good
-	 */
-	XFS_BUF_SET_VTYPE(bp, B_FS_INO);
-
 	*bpp = bp;
 	return 0;
 }

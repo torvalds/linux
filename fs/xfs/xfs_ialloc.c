@@ -1505,7 +1505,7 @@ xfs_read_agi(
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
-	XFS_BUF_SET_VTYPE_REF(*bpp, B_FS_AGI, XFS_AGI_REF);
+	xfs_buf_set_ref(*bpp, XFS_AGI_REF);
 
 	xfs_check_agi_unlinked(agi);
 	return 0;
