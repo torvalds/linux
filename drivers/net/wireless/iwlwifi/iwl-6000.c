@@ -39,7 +39,6 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-sta.h"
 #include "iwl-agn.h"
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"

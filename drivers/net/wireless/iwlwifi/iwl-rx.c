@@ -35,7 +35,6 @@
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
-#include "iwl-sta.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-agn-calib.h"

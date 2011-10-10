@@ -26,7 +26,6 @@
 
 #include "iwl-dev.h"
 #include "iwl-agn.h"
-#include "iwl-sta.h"
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
 #include "iwl-helpers.h"
