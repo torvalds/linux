@@ -257,7 +257,6 @@ static int n810_aic33_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
 
 	/* Not connected */
 	snd_soc_dapm_nc_pin(dapm, "MONO_LOUT");
@@ -269,18 +268,7 @@ static int n810_aic33_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "LINE2L");
 	snd_soc_dapm_nc_pin(dapm, "LINE2R");
 
-	/* Add N810 specific controls */
-	err = snd_soc_add_controls(codec, aic33_n810_controls,
-				ARRAY_SIZE(aic33_n810_controls));
-	if (err < 0)
-		return err;
-
-	/* Add N810 specific widgets */
-	snd_soc_dapm_new_controls(dapm, aic33_dapm_widgets,
-				  ARRAY_SIZE(aic33_dapm_widgets));
-
-	/* Set up N810 specific audio path audio_map */
-	return snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
+	return 0;
 }
 
 /* Digital audio interface glue - connects codec <--> CPU */
@@ -302,6 +290,13 @@ static struct snd_soc_card snd_soc_n810 = {
 	.name = "N810",
 	.dai_link = &n810_dai,
 	.num_links = 1,
+
+	.controls = aic33_n810_controls,
+	.num_controls = ARRAY_SIZE(aic33_n810_controls),
+	.dapm_widgets = aic33_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(aic33_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct platform_device *n810_snd_device;
