@@ -85,6 +85,7 @@
 #define IWLAGN_MGMT_DFAULT_RETRY_LIMIT		3
 #define IWLAGN_RTS_DFAULT_RETRY_LIMIT		60
 #define IWLAGN_BAR_DFAULT_RETRY_LIMIT		60
+#define IWLAGN_LOW_RETRY_LIMIT			7
 
 /* Limit range of txpower output target to be between these values */
 #define IWLAGN_TX_POWER_TARGET_POWER_MIN	(0)	/* 0 dBm: 1 milliwatt */

@@ -124,17 +124,23 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	u8 data_retry_limit;
 	u8 rate_plcp;
 
-	/* Set retry limit on RTS packets */
-	rts_retry_limit = IWLAGN_RTS_DFAULT_RETRY_LIMIT;
+	if (priv->shrd->wowlan) {
+		rts_retry_limit = IWLAGN_LOW_RETRY_LIMIT;
+		data_retry_limit = IWLAGN_LOW_RETRY_LIMIT;
+	} else {
+		/* Set retry limit on RTS packets */
+		rts_retry_limit = IWLAGN_RTS_DFAULT_RETRY_LIMIT;
 
-	/* Set retry limit on DATA packets and Probe Responses*/
-	if (ieee80211_is_probe_resp(fc)) {
-		data_retry_limit = IWLAGN_MGMT_DFAULT_RETRY_LIMIT;
-		rts_retry_limit = min(data_retry_limit, rts_retry_limit);
-	} else if (ieee80211_is_back_req(fc))
-		data_retry_limit = IWLAGN_BAR_DFAULT_RETRY_LIMIT;
-	else
-		data_retry_limit = IWLAGN_DEFAULT_TX_RETRY;
+		/* Set retry limit on DATA packets and Probe Responses*/
+		if (ieee80211_is_probe_resp(fc)) {
+			data_retry_limit = IWLAGN_MGMT_DFAULT_RETRY_LIMIT;
+			rts_retry_limit =
+				min(data_retry_limit, rts_retry_limit);
+		} else if (ieee80211_is_back_req(fc))
+			data_retry_limit = IWLAGN_BAR_DFAULT_RETRY_LIMIT;
+		else
+			data_retry_limit = IWLAGN_DEFAULT_TX_RETRY;
+	}
 
 	tx_cmd->data_retry_limit = data_retry_limit;
 	tx_cmd->rts_retry_limit = rts_retry_limit;
