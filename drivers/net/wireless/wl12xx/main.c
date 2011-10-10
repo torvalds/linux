@@ -1618,7 +1618,7 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 		goto out_unlock;
 
 	/* enter psm if needed*/
-	if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+	if (!test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
 		DECLARE_COMPLETION_ONSTACK(compl);
 
 		wlvif->ps_compl = &compl;
@@ -1705,7 +1705,7 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 
 	if (is_sta) {
 		/* exit psm if it wasn't configured */
-		if (!test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags))
+		if (!test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags))
 			wl1271_ps_set_mode(wl, wlvif, STATION_ACTIVE_MODE,
 					   wlvif->basic_rate, true);
 	} else if (is_ap) {
@@ -2512,8 +2512,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
 
 	if (conf->flags & IEEE80211_CONF_PS &&
-	    !test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
-		set_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags);
+	    !test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags)) {
+		set_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags);
 
 		/*
 		 * We enter PSM only if we're already associated.
@@ -2527,12 +2527,12 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 						 wlvif->basic_rate, true);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
-		   test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
+		   test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags)) {
 		wl1271_debug(DEBUG_PSM, "psm disabled");
 
-		clear_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags);
+		clear_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags);
 
-		if (test_bit(WL1271_FLAG_PSM, &wl->flags))
+		if (test_bit(WLVIF_FLAG_PSM, &wlvif->flags))
 			ret = wl1271_ps_set_mode(wl, wlvif,
 						 STATION_ACTIVE_MODE,
 						 wlvif->basic_rate, true);
@@ -3769,8 +3769,8 @@ sta_not_found:
 		}
 
 		/* If we want to go in PSM but we're not there yet */
-		if (test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags) &&
-		    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+		if (test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags) &&
+		    !test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
 			enum wl1271_cmd_ps_mode mode;
 
 			mode = STATION_POWER_SAVE_MODE;

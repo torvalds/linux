@@ -84,7 +84,7 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl,
 			    "trying to work around it.");
 
 	/* force active mode receive data from the AP */
-	if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+	if (test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
 		ret = wl1271_ps_set_mode(wl, wlvif, STATION_ACTIVE_MODE,
 					 wlvif->basic_rate, true);
 		if (ret < 0)
@@ -116,7 +116,7 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 	case EVENT_ENTER_POWER_SAVE_FAIL:
 		wl1271_debug(DEBUG_PSM, "PSM entry failed");
 
-		if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+		if (!test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
 			/* remain in active mode */
 			wlvif->psm_entry_retry = 0;
 			break;

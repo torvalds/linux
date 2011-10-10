@@ -32,6 +32,7 @@ void wl1271_elp_work(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
+	struct wl12xx_vif *wlvif;
 
 	dwork = container_of(work, struct delayed_work, work);
 	wl = container_of(dwork, struct wl1271, elp_work);
@@ -47,10 +48,14 @@ void wl1271_elp_work(struct work_struct *work)
 	if (unlikely(!test_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags)))
 		goto out;
 
-	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags) ||
-	    (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
-	     !test_bit(WL1271_FLAG_IDLE, &wl->flags)))
+	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags))
 		goto out;
+
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		if (!test_bit(WLVIF_FLAG_PSM, &wlvif->flags) &&
+		    !test_bit(WL1271_FLAG_IDLE, &wl->flags))
+			goto out;
+	}
 
 	wl1271_debug(DEBUG_PSM, "chip to elp");
 	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
@@ -65,13 +70,17 @@ out:
 /* Routines to toggle sleep mode while in ELP */
 void wl1271_ps_elp_sleep(struct wl1271 *wl)
 {
+	struct wl12xx_vif *wlvif;
+
 	/* we shouldn't get consecutive sleep requests */
 	if (WARN_ON(test_and_set_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags)))
 		return;
 
-	if (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
-	    !test_bit(WL1271_FLAG_IDLE, &wl->flags))
-		return;
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		if (!test_bit(WLVIF_FLAG_PSM, &wlvif->flags) &&
+		    !test_bit(WL1271_FLAG_IDLE, &wl->flags))
+			return;
+	}
 
 	ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
 				     msecs_to_jiffies(ELP_ENTRY_DELAY));
@@ -162,7 +171,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (ret < 0)
 			return ret;
 
-		set_bit(WL1271_FLAG_PSM, &wl->flags);
+		set_bit(WLVIF_FLAG_PSM, &wlvif->flags);
 		break;
 	case STATION_ACTIVE_MODE:
 	default:
@@ -184,7 +193,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (ret < 0)
 			return ret;
 
-		clear_bit(WL1271_FLAG_PSM, &wl->flags);
+		clear_bit(WLVIF_FLAG_PSM, &wlvif->flags);
 		break;
 	}
 
