@@ -1055,6 +1055,13 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 	if (!max_to_defrag)
 		max_to_defrag = last_index - 1;
 
+	/*
+	 * make writeback starts from i, so the defrag range can be
+	 * written sequentially.
+	 */
+	if (i < inode->i_mapping->writeback_index)
+		inode->i_mapping->writeback_index = i;
+
 	while (i <= last_index && defrag_count < max_to_defrag) {
 		/*
 		 * make sure we stop running if someone unmounts
