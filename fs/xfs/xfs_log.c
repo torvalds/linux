@@ -1047,7 +1047,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	xlog_get_iclog_buffer_size(mp, log);
 
 	error = ENOMEM;
-	bp = xfs_buf_get_empty(log->l_iclog_size, mp->m_logdev_targp);
+	bp = xfs_buf_alloc(mp->m_logdev_targp, 0, log->l_iclog_size, 0);
 	if (!bp)
 		goto out_free_log;
 	bp->b_iodone = xlog_iodone;
