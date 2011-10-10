@@ -17,16 +17,18 @@
 
 #include "isp1760-hcd.h"
 
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #endif
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 #endif
 
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_OF
 static int of_isp1760_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
@@ -396,7 +398,7 @@ static int __init isp1760_init(void)
 	ret = platform_driver_register(&isp1760_plat_driver);
 	if (!ret)
 		any_ret = 0;
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_OF
 	ret = platform_driver_register(&isp1760_of_driver);
 	if (!ret)
 		any_ret = 0;
@@ -416,7 +418,7 @@ module_init(isp1760_init);
 static void __exit isp1760_exit(void)
 {
 	platform_driver_unregister(&isp1760_plat_driver);
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_OF
 	platform_driver_unregister(&isp1760_of_driver);
 #endif
 #ifdef CONFIG_PCI
