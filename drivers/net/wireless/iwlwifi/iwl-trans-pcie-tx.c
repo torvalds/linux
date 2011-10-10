@@ -1013,10 +1013,19 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status)) {
+			struct iwl_priv *priv = priv(trans);
+			struct iwl_tx_queue *txq =
+				&trans_pcie->txq[priv->shrd->cmd_queue];
+			struct iwl_queue *q = &txq->q;
+
 			IWL_ERR(trans,
 				"Error sending %s: time out after %dms.\n",
 				get_cmd_string(cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
+
+			IWL_ERR(trans,
+				"Current CMD queue read_ptr %d write_ptr %d\n",
+				q->read_ptr, q->write_ptr);
 
 			clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
 			IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command"
