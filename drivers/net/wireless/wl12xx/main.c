@@ -408,7 +408,7 @@ static int wl1271_check_operstate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (operstate != IF_OPER_UP)
 		return 0;
 
-	if (test_and_set_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags))
+	if (test_and_set_bit(WLVIF_FLAG_STA_STATE_SENT, &wlvif->flags))
 		return 0;
 
 	ret = wl12xx_cmd_set_peer_state(wl, wlvif->sta.hlid);
@@ -3624,8 +3624,8 @@ sta_not_found:
 			    !!test_and_clear_bit(WLVIF_FLAG_STA_ASSOCIATED,
 						 &wlvif->flags);
 			bool was_ifup =
-			    !!test_and_clear_bit(WL1271_FLAG_STA_STATE_SENT,
-						 &wl->flags);
+			    !!test_and_clear_bit(WLVIF_FLAG_STA_STATE_SENT,
+						 &wlvif->flags);
 			wlvif->aid = 0;
 
 			/* free probe-request template */
