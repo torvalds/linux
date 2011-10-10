@@ -34,7 +34,6 @@
 #include <net/mac80211.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-dev.h" /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-core.h"
 #include "iwl-io.h"

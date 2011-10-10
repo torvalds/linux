@@ -30,8 +30,6 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 
-/* TODO: remove include to iwl-dev.h */
-#include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
@@ -1020,9 +1018,8 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status)) {
-			struct iwl_priv *priv = priv(trans);
 			struct iwl_tx_queue *txq =
-				&trans_pcie->txq[priv->shrd->cmd_queue];
+				&trans_pcie->txq[trans->shrd->cmd_queue];
 			struct iwl_queue *q = &txq->q;
 
 			IWL_ERR(trans,
