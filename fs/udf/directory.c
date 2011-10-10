@@ -162,8 +162,8 @@ struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize, int *offset)
 	int padlen;
 
 	if ((!buffer) || (!offset)) {
-		udf_debug("invalidparms\n, buffer=%p, offset=%p\n", buffer,
-			  offset);
+		udf_debug("invalidparms, buffer=%p, offset=%p\n",
+			  buffer, offset);
 		return NULL;
 	}
 

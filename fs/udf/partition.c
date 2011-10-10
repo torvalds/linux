@@ -33,8 +33,8 @@ uint32_t udf_get_pblock(struct super_block *sb, uint32_t block,
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;
 	if (partition >= sbi->s_partitions) {
-		udf_debug("block=%d, partition=%d, offset=%d: "
-			  "invalid partition\n", block, partition, offset);
+		udf_debug("block=%d, partition=%d, offset=%d: invalid partition\n",
+			  block, partition, offset);
 		return 0xFFFFFFFF;
 	}
 	map = &sbi->s_partmaps[partition];
@@ -60,8 +60,8 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 	vdata = &map->s_type_specific.s_virtual;
 
 	if (block > vdata->s_num_entries) {
-		udf_debug("Trying to access block beyond end of VAT "
-			  "(%d max %d)\n", block, vdata->s_num_entries);
+		udf_debug("Trying to access block beyond end of VAT (%d max %d)\n",
+			  block, vdata->s_num_entries);
 		return 0xFFFFFFFF;
 	}
 
