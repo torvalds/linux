@@ -539,7 +539,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	const struct iwl_channel_info *ch_info;
 	int ret = 0;
 
-	IWL_DEBUG_MAC80211(priv, "changed %#x", changed);
+	IWL_DEBUG_MAC80211(priv, "enter: changed %#x", changed);
 
 	mutex_lock(&priv->shrd->mutex);
 
@@ -657,6 +657,8 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
  out:
 	mutex_unlock(&priv->shrd->mutex);
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
 	return ret;
 }
 

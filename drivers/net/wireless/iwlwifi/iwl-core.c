@@ -1662,6 +1662,8 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u32 interface_modes;
 	int err;
 
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
 	newtype = ieee80211_iftype_p2p(newtype, newp2p);
 
 	mutex_lock(&priv->shrd->mutex);
@@ -1729,6 +1731,8 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
  out:
 	mutex_unlock(&priv->shrd->mutex);
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
 	return err;
 }
 

@@ -685,6 +685,8 @@ void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	int sta_id;
 
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
 		WARN_ON(!sta_priv->client);
@@ -704,4 +706,5 @@ void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 	default:
 		break;
 	}
+	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
