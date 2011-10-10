@@ -2345,8 +2345,7 @@ static inline __be32 init_open_stateid(struct nfs4_ol_stateid *stp, struct nfs4_
 	stp->st_file = fp;
 	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = 0;
-	__set_bit(open->op_share_access & ~NFS4_SHARE_WANT_MASK,
-		  &stp->st_access_bmap);
+	__set_bit(open->op_share_access, &stp->st_access_bmap);
 	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
 	stp->st_openstp = NULL;
 	return nfs_ok;
@@ -2690,7 +2689,7 @@ nfsd4_truncate(struct svc_rqst *rqstp, struct svc_fh *fh,
 static __be32
 nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *cur_fh, struct nfs4_ol_stateid *stp, struct nfsd4_open *open)
 {
-	u32 op_share_access = open->op_share_access & ~NFS4_SHARE_WANT_MASK;
+	u32 op_share_access = open->op_share_access;
 	bool new_access;
 	__be32 status;
 
