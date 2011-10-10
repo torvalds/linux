@@ -604,6 +604,10 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mixer,
 	&exynos4_device_pd[PD_LCD0],
 	&exynos4_device_pd[PD_TV],
+	&exynos4_device_pd[PD_G3D],
+	&exynos4_device_pd[PD_LCD1],
+	&exynos4_device_pd[PD_CAM],
+	&exynos4_device_pd[PD_GPS],
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,
 };
