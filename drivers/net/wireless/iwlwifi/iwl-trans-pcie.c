@@ -406,6 +406,7 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	enum dma_data_direction dma_dir;
+	unsigned long flags;
 
 	if (!q->n_bd)
 		return;
@@ -418,12 +419,14 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	else
 		dma_dir = DMA_TO_DEVICE;
 
+	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
 	while (q->write_ptr != q->read_ptr) {
 		/* The read_ptr needs to bound by q->n_window */
 		iwlagn_txq_free_tfd(trans, txq, get_cmd_index(q, q->read_ptr),
 				    dma_dir);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
+	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 }
 
 /**
