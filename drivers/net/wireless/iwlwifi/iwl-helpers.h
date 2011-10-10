@@ -35,38 +35,10 @@
 
 #include "iwl-io.h"
 
-static inline struct ieee80211_conf *ieee80211_get_hw_conf(
-	struct ieee80211_hw *hw)
-{
-	return &hw->conf;
-}
-
 static inline void iwl_enable_rfkill_int(struct iwl_priv *priv)
 {
 	IWL_DEBUG_ISR(priv, "Enabling rfkill interrupt\n");
 	iwl_write32(bus(priv), CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
-}
-
-/**
- * iwl_beacon_time_mask_low - mask of lower 32 bit of beacon time
- * @priv -- pointer to iwl_priv data structure
- * @tsf_bits -- number of bits need to shift for masking)
- */
-static inline u32 iwl_beacon_time_mask_low(struct iwl_priv *priv,
-					   u16 tsf_bits)
-{
-	return (1 << tsf_bits) - 1;
-}
-
-/**
- * iwl_beacon_time_mask_high - mask of higher 32 bit of beacon time
- * @priv -- pointer to iwl_priv data structure
- * @tsf_bits -- number of bits need to shift for masking)
- */
-static inline u32 iwl_beacon_time_mask_high(struct iwl_priv *priv,
-					    u16 tsf_bits)
-{
-	return ((1 << (32 - tsf_bits)) - 1) << tsf_bits;
 }
 
 #endif				/* __iwl_helpers_h__ */
