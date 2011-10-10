@@ -1738,23 +1738,18 @@ static struct usb_ep_ops r8a66597_ep_ops = {
 };
 
 /*-------------------------------------------------------------------------*/
-static struct r8a66597 *the_controller;
-
-static int r8a66597_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int r8a66597_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct r8a66597 *r8a66597 = the_controller;
+	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 	int retval;
 
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
-			|| !bind
 			|| !driver->setup)
 		return -EINVAL;
 	if (!r8a66597)
 		return -ENODEV;
-	if (r8a66597->driver)
-		return -EBUSY;
 
 	/* hook up the driver */
 	driver->driver.bus = NULL;
@@ -1765,14 +1760,6 @@ static int r8a66597_start(struct usb_gadget_driver *driver,
 	if (retval) {
 		dev_err(r8a66597_to_dev(r8a66597), "device_add error (%d)\n",
 			retval);
-		goto error;
-	}
-
-	retval = bind(&r8a66597->gadget);
-	if (retval) {
-		dev_err(r8a66597_to_dev(r8a66597),
-			"bind to driver error (%d)\n", retval);
-		device_del(&r8a66597->gadget.dev);
 		goto error;
 	}
 
@@ -1796,22 +1783,16 @@ error:
 	return retval;
 }
 
-static int r8a66597_stop(struct usb_gadget_driver *driver)
+static int r8a66597_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct r8a66597 *r8a66597 = the_controller;
+	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 	unsigned long flags;
 
-	if (driver != r8a66597->driver || !driver->unbind)
-		return -EINVAL;
-
 	spin_lock_irqsave(&r8a66597->lock, flags);
-	if (r8a66597->gadget.speed != USB_SPEED_UNKNOWN)
-		r8a66597_usb_disconnect(r8a66597);
 	r8a66597_bclr(r8a66597, VBSE, INTENB0);
 	disable_controller(r8a66597);
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
-
-	driver->unbind(&r8a66597->gadget);
 
 	device_del(&r8a66597->gadget.dev);
 	r8a66597->driver = NULL;
@@ -1842,8 +1823,8 @@ static int r8a66597_pullup(struct usb_gadget *gadget, int is_on)
 
 static struct usb_gadget_ops r8a66597_gadget_ops = {
 	.get_frame		= r8a66597_get_frame,
-	.start			= r8a66597_start,
-	.stop			= r8a66597_stop,
+	.udc_start		= r8a66597_start,
+	.udc_stop		= r8a66597_stop,
 	.pullup			= r8a66597_pullup,
 };
 
@@ -2009,8 +1990,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597->ep[0].pipectr = get_pipectr_addr(0);
 	r8a66597->pipenum2ep[0] = &r8a66597->ep[0];
 	r8a66597->epaddr2ep[0] = &r8a66597->ep[0];
-
-	the_controller = r8a66597;
 
 	r8a66597->ep0_req = r8a66597_alloc_request(&r8a66597->ep[0].ep,
 							GFP_KERNEL);
