@@ -168,7 +168,7 @@ u8 wl12xx_tx_get_hlid_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	} else {
 		struct ieee80211_hdr *hdr;
 
-		if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+		if (!test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags))
 			return wl->system_hlid;
 
 		hdr = (struct ieee80211_hdr *)skb->data;

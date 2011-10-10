@@ -1235,7 +1235,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 	 */
 	wl12xx_for_each_wlvif(wl, wlvif) {
 		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
-		    test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+		    test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags))
 			wlvif->tx_security_seq +=
 				WL1271_TX_SQN_POST_RECOVERY_PADDING;
 	}
@@ -1662,7 +1662,7 @@ static int wl1271_configure_suspend_ap(struct wl1271 *wl,
 
 	mutex_lock(&wl->mutex);
 
-	if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+	if (!test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags))
 		goto out_unlock;
 
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -2768,7 +2768,7 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			hlid = wlvif->ap.bcast_hlid;
 		}
 
-		if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags)) {
+		if (!test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags)) {
 			/*
 			 * We do not support removing keys after AP shutdown.
 			 * Pretend we do to make mac80211 happy.
@@ -3426,7 +3426,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED)) {
 		if (bss_conf->enable_beacon) {
-			if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags)) {
+			if (!test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags)) {
 				ret = wl12xx_cmd_role_start_ap(wl, wlvif);
 				if (ret < 0)
 					goto out;
@@ -3435,16 +3435,16 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 				if (ret < 0)
 					goto out;
 
-				set_bit(WL1271_FLAG_AP_STARTED, &wl->flags);
+				set_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags);
 				wl1271_debug(DEBUG_AP, "started AP");
 			}
 		} else {
-			if (test_bit(WL1271_FLAG_AP_STARTED, &wl->flags)) {
+			if (test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags)) {
 				ret = wl12xx_cmd_role_stop_ap(wl, wlvif);
 				if (ret < 0)
 					goto out;
 
-				clear_bit(WL1271_FLAG_AP_STARTED, &wl->flags);
+				clear_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags);
 				wl1271_debug(DEBUG_AP, "stopped AP");
 			}
 		}
