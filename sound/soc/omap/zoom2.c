@@ -98,16 +98,6 @@ static int zoom2_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
-
-	/* Add Zoom2 specific widgets */
-	ret = snd_soc_dapm_new_controls(dapm, zoom2_twl4030_dapm_widgets,
-				ARRAY_SIZE(zoom2_twl4030_dapm_widgets));
-	if (ret)
-		return ret;
-
-	/* Set up Zoom2 specific audio path audio_map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* Zoom2 connected pins */
 	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
@@ -175,6 +165,11 @@ static struct snd_soc_card snd_soc_zoom2 = {
 	.name = "Zoom2",
 	.dai_link = zoom2_dai,
 	.num_links = ARRAY_SIZE(zoom2_dai),
+
+	.dapm_widgets = zoom2_twl4030_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(zoom2_twl4030_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct platform_device *zoom2_snd_device;
