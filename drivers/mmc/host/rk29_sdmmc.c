@@ -72,7 +72,7 @@ int debug_level = 4;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   1000  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        1000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.2.10 The last modify date is 2011-09-30,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.2.11 The last modify date is 2011-10-08,modifyed by XBW." 
 
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
 #define RK29_CTRL_SDIO1_ID   1  //mainly used by sdio-wifi
@@ -791,7 +791,7 @@ static int rk29_sdmmc_reset_fifo(struct rk29_sdmmc *host)
 
 static int rk29_sdmmc_wait_unbusy(struct rk29_sdmmc *host)
 {
-	int time_out = 250000; //max is 250ms
+	int time_out = 500000;//250000; //max is 250ms; //adapt the value to the sick card.  modify at 2011-10-08
 
 	while (rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_DATA_BUSY|SDMMC_STAUTS_MC_BUSY)) 
 	{
@@ -1784,6 +1784,7 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
                 printk("%s..Error happen in CMD_PRV_DAT_WAIT. STATUS-reg=0x%x ===xbw[%s]===\n", \
                     __FUNCTION__, rk29_sdmmc_read(host->regs, SDMMC_STATUS),host->dma_name);
             }
+            rk29_sdmmc_clear_fifo(host);
             goto start_request_Err; 
         }
     }
@@ -1958,6 +1959,11 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 	
 	#if 1
+    if(0 == host->mmc->doneflag)
+    {
+        host->state = STATE_IDLE;
+    }
+    
 	if(host->state != STATE_IDLE)
 	{
 	     printk("%s..%d..state Error! ,old_state=%d, OldCMD=%d ,NewCMD%2d,arg=0x%x ===xbw[%s]===\n", \
@@ -2176,14 +2182,10 @@ static int rk29_sdmmc_clear_fifo(struct rk29_sdmmc *host)
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
     }
 
-    //stop DMA
-    if(host->dodma)
-    {
-        rk29_sdmmc_stop_dma(host);
-        rk29_sdmmc_control_host_dma(host, FALSE);
-        host->dodma = 0;
-    }
-    
+    rk29_sdmmc_stop_dma(host);
+    rk29_sdmmc_control_host_dma(host, FALSE);
+    host->dodma = 0;
+   
     //Clean the fifo.
     for(timeout=0; timeout<FIFO_DEPTH; timeout++)
     {
@@ -2326,14 +2328,14 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_command *
         if ((mmc_resp_type(cmd) == MMC_RSP_R1B) || (MMC_STOP_TRANSMISSION == cmd->opcode))
         {
             output = rk29_sdmmc_wait_unbusy(host);
-            if(SDM_SUCCESS != output)
+            if((SDM_SUCCESS != output) && (!host->mrq->cmd->error))
             {
+                printk("%s..%d...   CMD12 wait busy timeout!!!!! errorStep=0x%x     ====xbw=[%s]====\n", \
+						__FUNCTION__, __LINE__, host->errorstep, host->dma_name);
                 rk29_sdmmc_clear_fifo(host);
                 cmd->error = -ETIMEDOUT;
                 host->mrq->cmd->error = -ETIMEDOUT;
                 host->errorstep = 0x1C;
-                printk("%s..%d...   CMD12 wait busy timeout!!!!!      ====xbw=[%s]====\n", \
-						__FUNCTION__, __LINE__,  host->dma_name);
             }
         }
     }
@@ -2342,7 +2344,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_command *
     //trace error
     if(cmd->data && cmd->data->error)
     { 
-        if( (!cmd->error) && (0==cmd->retries) && (host->error_times++%RK29_ERROR_PRINTK_INTERVAL == 0))
+        if( (!cmd->error) && (0==cmd->retries))
         {         
             printk("%s..%d......CMD=%d error!!!(arg=0x%x,cmdretry=%d,blksize=%d, blocks=%d), \n \
                 statusReg=0x%x, ctrlReg=0x%x, nerrorTimes=%d, errorStep=0x%x ====xbw[%s]====\n",\

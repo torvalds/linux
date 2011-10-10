@@ -221,7 +221,12 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
             multi += (datasize%unit)?1:0;
             multi = (multi>0) ? multi : 1;
             multi += (mrq->cmd->retries>0)?1:0;
-            waittime = wait_for_completion_timeout(&complete,HZ*2*multi);
+            waittime = wait_for_completion_timeout(&complete,HZ*5*multi); //It should be longer than bottom driver's time,due to the sum of two cmd time.
+                                                                          //modifyed by xbw at 2011-10-08
+                                                                          //
+                                                                          //example:
+                                                                          //rk29_sdmmc_request_end..2336...   CMD12 wait busy timeout!!!!! ====xbw=[sd_mmc]====
+                                                                          //mmc_wait_for_req..236.. !!!!! wait for CMD25 timeout ===xbw[mmc0]===
         }
         else
         {
@@ -232,6 +237,7 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
     if(waittime <= 1)
     {
         host->doneflag = 0;
+        mrq->cmd->error = -EIO;
         printk("%s..%d.. !!!!! wait for CMD%d timeout ===xbw[%s]===\n",\
             __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
     }
