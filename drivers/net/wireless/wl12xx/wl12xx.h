@@ -552,6 +552,9 @@ struct wl1271 {
 
 	/* AP-mode - number of currently connected stations */
 	int active_sta_count;
+
+	/* last wlvif we transmitted from */
+	struct wl12xx_vif *last_wlvif;
 };
 
 struct wl1271_station {
@@ -692,6 +695,9 @@ struct ieee80211_vif *wl12xx_wlvif_to_vif(struct wl12xx_vif *wlvif)
 
 #define wl12xx_for_each_wlvif(wl, wlvif) \
 		list_for_each_entry(wlvif, &wl->wlvif_list, list)
+
+#define wl12xx_for_each_wlvif_continue(wl, wlvif) \
+		list_for_each_entry_continue(wlvif, &wl->wlvif_list, list)
 
 #define wl12xx_for_each_wlvif_bss_type(wl, wlvif, _bss_type)	\
 		wl12xx_for_each_wlvif(wl, wlvif)		\

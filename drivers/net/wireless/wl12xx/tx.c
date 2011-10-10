@@ -590,14 +590,28 @@ static struct sk_buff *wl12xx_vif_skb_dequeue(struct wl1271 *wl,
 static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
 {
 	unsigned long flags;
-	struct wl12xx_vif *wlvif;
+	struct wl12xx_vif *wlvif = wl->last_wlvif;
 	struct sk_buff *skb = NULL;
 
-	/* TODO: rememeber last vif and consider it */
-	wl12xx_for_each_wlvif(wl, wlvif) {
-		skb = wl12xx_vif_skb_dequeue(wl, wlvif);
-		if (skb)
-			break;
+	if (wlvif) {
+		wl12xx_for_each_wlvif_continue(wl, wlvif) {
+			skb = wl12xx_vif_skb_dequeue(wl, wlvif);
+			if (skb) {
+				wl->last_wlvif = wlvif;
+				break;
+			}
+		}
+	}
+
+	/* do another pass */
+	if (!skb) {
+		wl12xx_for_each_wlvif(wl, wlvif) {
+			skb = wl12xx_vif_skb_dequeue(wl, wlvif);
+			if (skb) {
+				wl->last_wlvif = wlvif;
+				break;
+			}
+		}
 	}
 
 	if (!skb &&

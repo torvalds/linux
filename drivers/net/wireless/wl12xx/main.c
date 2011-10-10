@@ -2282,6 +2282,8 @@ deinit:
 
 	wl12xx_tx_reset_wlvif(wl, wlvif);
 	wl1271_free_ap_keys(wl, wlvif);
+	if (wl->last_wlvif == wlvif)
+		wl->last_wlvif = NULL;
 	list_del(&wlvif->list);
 	memset(wlvif->ap.sta_hlid_map, 0, sizeof(wlvif->ap.sta_hlid_map));
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
