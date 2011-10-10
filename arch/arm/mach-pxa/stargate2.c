@@ -546,7 +546,7 @@ static struct i2c_board_info __initdata imote2_pwr_i2c_board_info[] = {
 		.type = "da9030",
 		.addr = 0x49,
 		.platform_data = &imote2_da9030_pdata,
-		.irq = gpio_to_irq(1),
+		.irq = PXA_GPIO_TO_IRQ(1),
 	},
 };
 
@@ -913,7 +913,7 @@ static struct i2c_board_info __initdata stargate2_pwr_i2c_board_info[] = {
 		.type = "da9030",
 		.addr = 0x49,
 		.platform_data = &stargate2_da9030_pdata,
-		.irq = gpio_to_irq(1),
+		.irq = PXA_GPIO_TO_IRQ(1),
 	},
 };
 

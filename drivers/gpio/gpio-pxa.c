@@ -39,8 +39,19 @@ struct pxa_gpio_chip {
 #endif
 };
 
+enum {
+	PXA25X_GPIO = 0,
+	PXA26X_GPIO,
+	PXA27X_GPIO,
+	PXA3XX_GPIO,
+	PXA93X_GPIO,
+	MMP_GPIO = 0x10,
+	MMP2_GPIO,
+};
+
 static DEFINE_SPINLOCK(gpio_lock);
 static struct pxa_gpio_chip *pxa_gpio_chips;
+static int gpio_type;
 
 #define for_each_gpio_chip(i, c)			\
 	for (i = 0, c = &pxa_gpio_chips[0]; i <= pxa_last_gpio; i += 32, c++)
@@ -53,6 +64,75 @@ static inline void __iomem *gpio_chip_base(struct gpio_chip *c)
 static inline struct pxa_gpio_chip *gpio_to_pxachip(unsigned gpio)
 {
 	return &pxa_gpio_chips[gpio_to_bank(gpio)];
+}
+
+static inline int gpio_is_pxa_type(int type)
+{
+	return (type & MMP_GPIO) == 0;
+}
+
+static inline int gpio_is_mmp_type(int type)
+{
+	return (type & MMP_GPIO) != 0;
+}
+
+#ifdef CONFIG_ARCH_PXA
+static inline int __pxa_gpio_to_irq(int gpio)
+{
+	if (gpio_is_pxa_type(gpio_type))
+		return PXA_GPIO_TO_IRQ(gpio);
+	return -1;
+}
+
+static inline int __pxa_irq_to_gpio(int irq)
+{
+	if (gpio_is_pxa_type(gpio_type))
+		return irq - PXA_GPIO_TO_IRQ(0);
+	return -1;
+}
+#else
+static inline int __pxa_gpio_to_irq(int gpio) { return -1; }
+static inline int __pxa_irq_to_gpio(int irq) { return -1; }
+#endif
+
+#ifdef CONFIG_ARCH_MMP
+static inline int __mmp_gpio_to_irq(int gpio)
+{
+	if (gpio_is_mmp_type(gpio_type))
+		return MMP_GPIO_TO_IRQ(gpio);
+	return -1;
+}
+
+static inline int __mmp_irq_to_gpio(int irq)
+{
+	if (gpio_is_mmp_type(gpio_type))
+		return irq - MMP_GPIO_TO_IRQ(0);
+	return -1;
+}
+#else
+static inline int __mmp_gpio_to_irq(int gpio) { return -1; }
+static inline int __mmp_irq_to_gpio(int irq) { return -1; }
+#endif
+
+static int pxa_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	int gpio, ret;
+
+	gpio = chip->base + offset;
+	ret = __pxa_gpio_to_irq(gpio);
+	if (ret >= 0)
+		return ret;
+	return __mmp_gpio_to_irq(gpio);
+}
+
+int pxa_irq_to_gpio(int irq)
+{
+	int ret;
+
+	ret = __pxa_irq_to_gpio(irq);
+	if (ret >= 0)
+		return ret;
+	return __mmp_irq_to_gpio(irq);
 }
 
 static int pxa_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -131,6 +211,7 @@ static int __init pxa_init_gpio_chip(int gpio_end)
 		c->direction_output = pxa_gpio_direction_output;
 		c->get = pxa_gpio_get;
 		c->set = pxa_gpio_set;
+		c->to_irq = pxa_gpio_to_irq;
 
 		/* number of GPIOs on last bank may be less than 32 */
 		c->ngpio = (gpio + 31 > gpio_end) ? (gpio_end - gpio + 1) : 32;
@@ -158,7 +239,7 @@ static inline void update_edge_detect(struct pxa_gpio_chip *c)
 static int pxa_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct pxa_gpio_chip *c;
-	int gpio = irq_to_gpio(d->irq);
+	int gpio = pxa_irq_to_gpio(d->irq);
 	unsigned long gpdr, mask = GPIO_bit(gpio);
 
 	c = gpio_to_pxachip(gpio);
@@ -229,7 +310,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 
 static void pxa_ack_muxed_gpio(struct irq_data *d)
 {
-	int gpio = irq_to_gpio(d->irq);
+	int gpio = pxa_irq_to_gpio(d->irq);
 	struct pxa_gpio_chip *c = gpio_to_pxachip(gpio);
 
 	__raw_writel(GPIO_bit(gpio), c->regbase + GEDR_OFFSET);
@@ -237,7 +318,7 @@ static void pxa_ack_muxed_gpio(struct irq_data *d)
 
 static void pxa_mask_muxed_gpio(struct irq_data *d)
 {
-	int gpio = irq_to_gpio(d->irq);
+	int gpio = pxa_irq_to_gpio(d->irq);
 	struct pxa_gpio_chip *c = gpio_to_pxachip(gpio);
 	uint32_t grer, gfer;
 
@@ -251,7 +332,7 @@ static void pxa_mask_muxed_gpio(struct irq_data *d)
 
 static void pxa_unmask_muxed_gpio(struct irq_data *d)
 {
-	int gpio = irq_to_gpio(d->irq);
+	int gpio = pxa_irq_to_gpio(d->irq);
 	struct pxa_gpio_chip *c = gpio_to_pxachip(gpio);
 
 	c->irq_mask |= GPIO_bit(gpio);

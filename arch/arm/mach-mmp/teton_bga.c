@@ -66,7 +66,7 @@ static struct pxa27x_keypad_platform_data teton_bga_keypad_info __initdata = {
 static struct i2c_board_info teton_bga_i2c_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("ds1337", 0x68),
-		.irq = gpio_to_irq(RTC_INT_GPIO)
+		.irq = MMP_GPIO_TO_IRQ(RTC_INT_GPIO)
 	},
 };
 

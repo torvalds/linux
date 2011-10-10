@@ -40,5 +40,6 @@ extern int pxa_last_gpio;
 typedef int (*set_wake_t)(struct irq_data *d, unsigned int on);
 
 extern void pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn);
+extern int pxa_irq_to_gpio(int irq);
 
 #endif /* __PLAT_PXA_GPIO_H */

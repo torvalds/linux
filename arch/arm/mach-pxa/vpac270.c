@@ -610,8 +610,8 @@ static struct resource vpac270_ide_resources[] = {
 	       .flags	= IORESOURCE_DMA
 	},
 	[3] = {	/* IDE IRQ pin */
-	       .start	= gpio_to_irq(GPIO36_VPAC270_IDE_IRQ),
-	       .end	= gpio_to_irq(GPIO36_VPAC270_IDE_IRQ),
+	       .start	= PXA_GPIO_TO_IRQ(GPIO36_VPAC270_IDE_IRQ),
+	       .end	= PXA_GPIO_TO_IRQ(GPIO36_VPAC270_IDE_IRQ),
 	       .flags	= IORESOURCE_IRQ
 	}
 };

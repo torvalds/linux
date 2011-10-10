@@ -221,6 +221,7 @@
 #define IRQ_GPIO_START			128
 #define IRQ_GPIO_NUM			192
 #define IRQ_GPIO(x)			(IRQ_GPIO_START + (x))
+#define MMP_GPIO_TO_IRQ(gpio)		(IRQ_GPIO_START + (gpio))
 
 #define IRQ_BOARD_START			(IRQ_GPIO_START + IRQ_GPIO_NUM)
 

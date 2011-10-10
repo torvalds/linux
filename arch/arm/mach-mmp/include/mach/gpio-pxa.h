@@ -2,6 +2,7 @@
 #define __ASM_MACH_GPIO_PXA_H
 
 #include <mach/addr-map.h>
+#include <mach/cputype.h>
 #include <mach/irqs.h>
 
 #define GPIO_REGS_VIRT	(APB_VIRT_BASE + 0x19000)

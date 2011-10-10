@@ -87,8 +87,8 @@ static struct resource smc91x_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = gpio_to_irq(155),
-		.end    = gpio_to_irq(155),
+		.start  = MMP_GPIO_TO_IRQ(155),
+		.end    = MMP_GPIO_TO_IRQ(155),
 		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
