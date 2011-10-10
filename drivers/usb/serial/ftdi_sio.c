@@ -2328,6 +2328,8 @@ static int ftdi_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct async_icount cnow;
+	struct async_icount cprev;
 
 	dbg("%s cmd 0x%04x", __func__, cmd);
 
@@ -2347,41 +2349,30 @@ static int ftdi_ioctl(struct tty_struct *tty,
 	 * - mask passed in arg for lines of interest
 	 *   (use |'ed TIOCM_RNG/DSR/CD/CTS for masking)
 	 * Caller should use TIOCGICOUNT to see which one it was.
-	 * (except that the driver doesn't support it !)
 	 *
 	 * This code is borrowed from linux/drivers/char/serial.c
 	 */
 	case TIOCMIWAIT:
-		while (priv != NULL) {
+		cprev = priv->icount;
+		while (1) {
 			interruptible_sleep_on(&priv->delta_msr_wait);
 			/* see if a signal did it */
 			if (signal_pending(current))
 				return -ERESTARTSYS;
-			else {
-				char diff = priv->diff_status;
-
-				if (diff == 0)
-					return -EIO; /* no change => error */
-
-				/* Consume all events */
-				priv->diff_status = 0;
-
-				/* Return 0 if caller wanted to know about
-				   these bits */
-				if (((arg & TIOCM_RNG) && (diff & FTDI_RS0_RI)) ||
-				    ((arg & TIOCM_DSR) && (diff & FTDI_RS0_DSR)) ||
-				    ((arg & TIOCM_CD)  && (diff & FTDI_RS0_RLSD)) ||
-				    ((arg & TIOCM_CTS) && (diff & FTDI_RS0_CTS))) {
-					return 0;
-				}
-				/*
-				 * Otherwise caller can't care less about what
-				 * happened,and so we continue to wait for more
-				 * events.
-				 */
+			cnow = priv->icount;
+			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
+			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
+				return -EIO; /* no change => error */
+			if (((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
+			    ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
+			    ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
+			    ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts))) {
+				return 0;
 			}
+			cprev = cnow;
 		}
-		return 0;
+		/* not reached */
+		break;
 	case TIOCSERGETLSR:
 		return get_lsr_info(port, (struct serial_struct __user *)arg);
 		break;
