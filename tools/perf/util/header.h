@@ -12,6 +12,20 @@
 enum {
 	HEADER_TRACE_INFO = 1,
 	HEADER_BUILD_ID,
+
+	HEADER_HOSTNAME,
+	HEADER_OSRELEASE,
+	HEADER_VERSION,
+	HEADER_ARCH,
+	HEADER_NRCPUS,
+	HEADER_CPUDESC,
+	HEADER_CPUID,
+	HEADER_TOTAL_MEM,
+	HEADER_CMDLINE,
+	HEADER_EVENT_DESC,
+	HEADER_CPU_TOPOLOGY,
+	HEADER_NUMA_TOPOLOGY,
+
 	HEADER_LAST_FEATURE,
 };
 
@@ -68,10 +82,15 @@ void perf_header__set_feat(struct perf_header *header, int feat);
 void perf_header__clear_feat(struct perf_header *header, int feat);
 bool perf_header__has_feat(const struct perf_header *header, int feat);
 
+int perf_header__set_cmdline(int argc, const char **argv);
+
 int perf_header__process_sections(struct perf_header *header, int fd,
+				  void *data,
 				  int (*process)(struct perf_file_section *section,
-						 struct perf_header *ph,
-						 int feat, int fd));
+				  struct perf_header *ph,
+				  int feat, int fd, void *data));
+
+int perf_header__fprintf_info(struct perf_session *s, FILE *fp, bool full);
 
 int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 			  const char *name, bool is_kallsyms);
@@ -104,4 +123,10 @@ int perf_event__synthesize_build_id(struct dso *pos, u16 misc,
 				    struct perf_session *session);
 int perf_event__process_build_id(union perf_event *event,
 				 struct perf_session *session);
+
+/*
+ * arch specific callback
+ */
+int get_cpuid(char *buffer, size_t sz);
+
 #endif /* __PERF_HEADER_H */

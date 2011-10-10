@@ -45,6 +45,7 @@ extern enum sort_type sort__first_dimension;
  * @nr_rows - rows expanded in callchain, recalculated on folding/unfolding
  */
 struct hist_entry {
+	struct rb_node		rb_node_in;
 	struct rb_node		rb_node;
 	u64			period;
 	u64			period_sys;

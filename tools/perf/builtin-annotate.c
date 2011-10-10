@@ -114,7 +114,8 @@ static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
 				    print_line, full_paths, 0, 0);
 }
 
-static void hists__find_annotations(struct hists *self, int evidx)
+static void hists__find_annotations(struct hists *self, int evidx,
+				    int nr_events)
 {
 	struct rb_node *nd = rb_first(&self->entries), *next;
 	int key = KEY_RIGHT;
@@ -137,7 +138,8 @@ find_next:
 		}
 
 		if (use_browser > 0) {
-			key = hist_entry__tui_annotate(he, evidx);
+			key = hist_entry__tui_annotate(he, evidx, nr_events,
+						       NULL, NULL, 0);
 			switch (key) {
 			case KEY_RIGHT:
 				next = rb_next(nd);
@@ -215,7 +217,8 @@ static int __cmd_annotate(void)
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists);
 			hists__output_resort(hists);
-			hists__find_annotations(hists, pos->idx);
+			hists__find_annotations(hists, pos->idx,
+						session->evlist->nr_entries);
 		}
 	}
 
@@ -269,9 +272,9 @@ static const struct option options[] = {
 	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		   "Look for files with symbols relative to this directory"),
-	OPT_BOOLEAN('0', "source", &symbol_conf.annotate_src,
+	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
 		    "Interleave source code with assembly code (default)"),
-	OPT_BOOLEAN('0', "asm-raw", &symbol_conf.annotate_asm_raw,
+	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
