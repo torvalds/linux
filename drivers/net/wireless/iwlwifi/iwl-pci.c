@@ -355,6 +355,7 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0894, 0x0026, iwl105_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0895, 0x0226, iwl105_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0894, 0x0426, iwl105_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0822, iwl105_bgn_d_cfg)},
 
 /* 135 Series */
 	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl135_bgn_cfg)},

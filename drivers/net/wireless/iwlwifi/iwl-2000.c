@@ -340,6 +340,12 @@ struct iwl_cfg iwl105_bgn_cfg = {
 	.ht_params = &iwl2000_ht_params,
 };
 
+struct iwl_cfg iwl105_bgn_d_cfg = {
+	.name = "105D Series 1x1 BGN",
+	IWL_DEVICE_105,
+	.ht_params = &iwl2000_ht_params,
+};
+
 #define IWL_DEVICE_135						\
 	.fw_name_pre = IWL135_FW_PRE,				\
 	.ucode_api_max = IWL135_UCODE_API_MAX,			\
