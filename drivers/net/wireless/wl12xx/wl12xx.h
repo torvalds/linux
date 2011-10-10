@@ -542,9 +542,6 @@ struct wl1271 {
 	 */
 	struct wl1271_link links[WL12XX_MAX_LINKS];
 
-	/* the hlid of the link where the last transmitted skb came from */
-	int last_tx_hlid;
-
 	/* AP-mode - a bitmap of links currently in PS mode according to FW */
 	u32 ap_fw_ps_map;
 
@@ -595,6 +592,9 @@ struct wl12xx_vif {
 			struct wl1271_ap_key *recorded_keys[MAX_NUM_KEYS];
 		} ap;
 	};
+
+	/* the hlid of the last transmitted skb */
+	int last_tx_hlid;
 
 	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
 

@@ -570,7 +570,7 @@ static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl,
 	struct sk_buff_head *queue;
 
 	/* start from the link after the last one */
-	start_hlid = (wl->last_tx_hlid + 1) % WL12XX_MAX_LINKS;
+	start_hlid = (wlvif->last_tx_hlid + 1) % WL12XX_MAX_LINKS;
 
 	/* dequeue according to AC, round robin on each link */
 	for (i = 0; i < WL12XX_MAX_LINKS; i++) {
@@ -591,12 +591,12 @@ static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl,
 
 	if (skb) {
 		int q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
-		wl->last_tx_hlid = h;
+		wlvif->last_tx_hlid = h;
 		spin_lock_irqsave(&wl->wl_lock, flags);
 		wl->tx_queue_count[q]--;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	} else {
-		wl->last_tx_hlid = 0;
+		wlvif->last_tx_hlid = 0;
 	}
 
 	return skb;
@@ -641,7 +641,7 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct ieee80211_vif *vif,
 		skb_queue_head(&wl->links[hlid].tx_queue[q], skb);
 
 		/* make sure we dequeue the same packet next time */
-		wl->last_tx_hlid = (hlid + WL12XX_MAX_LINKS - 1) %
+		wlvif->last_tx_hlid = (hlid + WL12XX_MAX_LINKS - 1) %
 				   WL12XX_MAX_LINKS;
 	} else {
 		skb_queue_head(&wl->tx_queue[q], skb);
@@ -924,7 +924,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			wl->links[i].prev_freed_pkts = 0;
 		}
 
-		wl->last_tx_hlid = 0;
+		wlvif->last_tx_hlid = 0;
 	} else {
 		for (i = 0; i < NUM_TX_QUEUES; i++) {
 			while ((skb = skb_dequeue(&wl->tx_queue[i]))) {
