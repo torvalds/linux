@@ -1458,8 +1458,8 @@ static int emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
 		if (unlikely(dev->tx_cnt + mal_tx_chunks(len) >= NUM_TX_BUFF))
 			goto undo_frame;
 
-		pd = dma_map_page(&dev->ofdev->dev, frag->page, frag->page_offset, len,
-				  DMA_TO_DEVICE);
+		pd = skb_frag_dma_map(&dev->ofdev->dev, frag, 0, len,
+				      DMA_TO_DEVICE);
 
 		slot = emac_xmit_split(dev, slot, pd, len, i == nr_frags - 1,
 				       ctrl);
