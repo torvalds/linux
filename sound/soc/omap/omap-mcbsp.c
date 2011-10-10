@@ -617,8 +617,7 @@ static int mcbsp_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_driver omap_mcbsp_dai =
-{
+static struct snd_soc_dai_driver omap_mcbsp_dai = {
 	.probe = mcbsp_dai_probe,
 	.playback = {
 		.channels_min = 1,
