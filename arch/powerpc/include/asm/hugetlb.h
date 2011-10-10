@@ -124,7 +124,18 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 					     unsigned long addr, pte_t *ptep,
 					     pte_t pte, int dirty)
 {
+#if defined(CONFIG_PPC_MMU_NOHASH) && \
+	!(defined(CONFIG_PPC_FSL_BOOK3E) && defined(CONFIG_PPC32))
+	/*
+	 * The "return 1" forces a call of update_mmu_cache, which will write a
+	 * TLB entry.  Without this, platforms that don't do a write of the TLB
+	 * entry in the TLB miss handler asm will fault ad infinitum.
+	 */
+	ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+	return 1;
+#else
 	return ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+#endif
 }
 
 static inline pte_t huge_ptep_get(pte_t *ptep)
