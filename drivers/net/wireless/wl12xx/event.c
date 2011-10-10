@@ -52,7 +52,7 @@ void wl1271_pspoll_work(struct work_struct *work)
 	if (!test_and_clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags))
 		goto out;
 
-	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		goto out;
 
 	/*

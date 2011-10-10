@@ -313,7 +313,6 @@ struct wl1271_ap_key {
 };
 
 enum wl12xx_flags {
-	WL1271_FLAG_STA_ASSOCIATED,
 	WL1271_FLAG_IBSS_JOINED,
 	WL1271_FLAG_GPIO_POWER,
 	WL1271_FLAG_TX_QUEUE_STOPPED,
@@ -336,6 +335,10 @@ enum wl12xx_flags {
 	WL1271_FLAG_RX_STREAMING_STARTED,
 	WL1271_FLAG_RECOVERY_IN_PROGRESS,
 	WL1271_FLAG_CS_PROGRESS,
+};
+
+enum wl12xx_vif_flags {
+	WLVIF_FLAG_STA_ASSOCIATED,
 };
 
 struct wl1271_link {
@@ -553,6 +556,7 @@ struct wl1271_station {
 struct wl12xx_vif {
 	struct wl1271 *wl;
 	struct list_head list;
+	unsigned long flags;
 	u8 bss_type;
 	u8 p2p; /* we are using p2p role */
 	u8 role_id;

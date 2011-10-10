@@ -400,10 +400,9 @@ static struct platform_device wl1271_device = {
 static DEFINE_MUTEX(wl_list_mutex);
 static LIST_HEAD(wl_list);
 
-static int wl1271_check_operstate(struct wl1271 *wl, unsigned char operstate)
+static int wl1271_check_operstate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				  unsigned char operstate)
 {
-	struct ieee80211_vif *vif = wl->vif; /* TODO: get as param */
-	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 
 	if (operstate != IF_OPER_UP)
@@ -430,6 +429,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 	struct ieee80211_hw *hw;
 	struct wl1271 *wl;
 	struct wl1271 *wl_temp;
+	struct wl12xx_vif *wlvif;
 	int ret = 0;
 
 	/* Check that this notification is for us. */
@@ -463,17 +463,18 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 	if (wl->state == WL1271_STATE_OFF)
 		goto out;
 
-	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
-		goto out;
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+			continue;
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out;
+		ret = wl1271_ps_elp_wakeup(wl);
+		if (ret < 0)
+			goto out;
 
-	wl1271_check_operstate(wl, dev->operstate);
+		wl1271_check_operstate(wl, wlvif, dev->operstate);
 
-	wl1271_ps_elp_sleep(wl);
-
+		wl1271_ps_elp_sleep(wl);
+	}
 out:
 	mutex_unlock(&wl->mutex);
 
@@ -535,7 +536,7 @@ int wl1271_recalc_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	/* reconfigure/disable according to new streaming_period */
 	if (period &&
-	    test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) &&
+	    test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) &&
 	    (wl->conf.rx_streaming.always ||
 	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags)))
 		ret = wl1271_set_rx_streaming(wl, wlvif, true);
@@ -558,7 +559,7 @@ static void wl1271_rx_streaming_enable_work(struct work_struct *work)
 	mutex_lock(&wl->mutex);
 
 	if (test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags) ||
-	    !test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
+	    !test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
 	    (!wl->conf.rx_streaming.always &&
 	     !test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags)))
 		goto out;
@@ -1233,7 +1234,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 	 * not encrypted.
 	 */
 	wl12xx_for_each_wlvif(wl, wlvif) {
-		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
+		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
 		    test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
 			wlvif->tx_security_seq +=
 				WL1271_TX_SQN_POST_RECOVERY_PADDING;
@@ -1609,7 +1610,7 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 
 	mutex_lock(&wl->mutex);
 
-	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		goto out_unlock;
 
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -2253,11 +2254,11 @@ static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	 * Keep the below message for now, unless it starts bothering
 	 * users who really like to roam a lot :)
 	 */
-	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		wl1271_info("JOIN while associated.");
 
 	if (set_assoc)
-		set_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
+		set_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags);
 
 	if (is_ibss)
 		ret = wl12xx_cmd_role_start_ibss(wl, wlvif);
@@ -2266,7 +2267,7 @@ static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (ret < 0)
 		goto out;
 
-	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		goto out;
 
 	/*
@@ -2449,7 +2450,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			 * possible rate for the band as a fixed rate for
 			 * association frames and other control messages.
 			 */
-			if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+			if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 				wl1271_set_band_rate(wl, wlvif);
 
 			wlvif->basic_rate =
@@ -2460,7 +2461,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 				wl1271_warning("rate policy for channel "
 					       "failed %d", ret);
 
-			if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
+			if (test_bit(WLVIF_FLAG_STA_ASSOCIATED,
+				     &wlvif->flags)) {
 				if (wl12xx_is_roc(wl)) {
 					/* roaming */
 					ret = wl12xx_croc(wl,
@@ -2518,7 +2520,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * If we're not, we'll enter it when joining an SSID,
 		 * through the bss_info_changed() hook.
 		 */
-		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
+		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
 			wl1271_debug(DEBUG_PSM, "psm enabled");
 			ret = wl1271_ps_set_mode(wl, wlvif,
 						 STATION_POWER_SAVE_MODE,
@@ -2981,7 +2983,7 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 
 	/* cancel ROC before scanning */
 	if (wl12xx_is_roc(wl)) {
-		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
+		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
 			/* don't allow scanning right now */
 			ret = -EBUSY;
 			goto out_sleep;
@@ -3619,8 +3621,8 @@ sta_not_found:
 		} else {
 			/* use defaults when not associated */
 			bool was_assoc =
-			    !!test_and_clear_bit(WL1271_FLAG_STA_ASSOCIATED,
-						 &wl->flags);
+			    !!test_and_clear_bit(WLVIF_FLAG_STA_ASSOCIATED,
+						 &wlvif->flags);
 			bool was_ifup =
 			    !!test_and_clear_bit(WL1271_FLAG_STA_STATE_SENT,
 						 &wl->flags);
@@ -3749,7 +3751,7 @@ sta_not_found:
 			if (ret < 0)
 				goto out;
 
-			wl1271_check_operstate(wl,
+			wl1271_check_operstate(wl, wlvif,
 					       ieee80211_get_operstate(vif));
 		}
 		/*
