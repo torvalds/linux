@@ -102,7 +102,7 @@ static int wl1271_tx_update_filters(struct wl1271 *wl,
 	if (ret < 0)
 		goto out;
 
-	ret = wl12xx_roc(wl, wlvif->dev_role_id);
+	ret = wl12xx_roc(wl, wlvif, wlvif->dev_role_id);
 	if (ret < 0)
 		goto out;
 out:
@@ -809,7 +809,8 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	if (result->status == TX_SUCCESS) {
 		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 			info->flags |= IEEE80211_TX_STAT_ACK;
-		rate = wl1271_rate_to_idx(result->rate_class_index, wl->band);
+		rate = wl1271_rate_to_idx(result->rate_class_index,
+					  wlvif->band);
 		retries = result->ack_failures;
 	} else if (result->status == TX_RETRY_EXCEEDED) {
 		wl->stats.excessive_retries++;

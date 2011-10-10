@@ -178,7 +178,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		wl1271_debug(DEBUG_PSM, "leaving psm");
 
 		/* disable beacon early termination */
-		if (wl->band == IEEE80211_BAND_2GHZ) {
+		if (wlvif->band == IEEE80211_BAND_2GHZ) {
 			ret = wl1271_acx_bet_enable(wl, wlvif, false);
 			if (ret < 0)
 				return ret;
