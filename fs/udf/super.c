@@ -75,8 +75,6 @@
 
 #define UDF_DEFAULT_BLOCKSIZE 2048
 
-static char error_buf[1024];
-
 /* These are the "meat" - everything else is stuffing */
 static int udf_fill_super(struct super_block *, void *, int);
 static void udf_put_super(struct super_block *);
@@ -2077,29 +2075,37 @@ error_out:
 void _udf_err(struct super_block *sb, const char *function,
 	      const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		/* mark sb error */
+	/* mark sb error */
+	if (!(sb->s_flags & MS_RDONLY))
 		sb->s_dirt = 1;
-	}
+
 	va_start(args, fmt);
-	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_err("error (device %s): %s: %pV", sb->s_id, function, &vaf);
+
 	va_end(args);
-	pr_crit("error (device %s): %s: %s",
-	       sb->s_id, function, error_buf);
 }
 
 void _udf_warn(struct super_block *sb, const char *function,
 	       const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_warn("warning (device %s): %s: %pV", sb->s_id, function, &vaf);
+
 	va_end(args);
-	pr_warn("warning (device %s): %s: %s",
-	       sb->s_id, function, error_buf);
 }
 
 static void udf_put_super(struct super_block *sb)
