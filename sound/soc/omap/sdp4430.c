@@ -123,15 +123,6 @@ static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, hs_trim;
 
-	/* Add SDP4430 specific widgets */
-	ret = snd_soc_dapm_new_controls(dapm, sdp4430_twl6040_dapm_widgets,
-				ARRAY_SIZE(sdp4430_twl6040_dapm_widgets));
-	if (ret)
-		return ret;
-
-	/* Set up SDP4430 specific audio path audio_map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
 	/* SDP4430 connected pins */
 	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
 	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
@@ -182,6 +173,11 @@ static struct snd_soc_card snd_soc_sdp4430 = {
 	.name = "SDP4430",
 	.dai_link = &sdp4430_dai,
 	.num_links = 1,
+
+	.dapm_widgets = sdp4430_twl6040_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(sdp4430_twl6040_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct platform_device *sdp4430_snd_device;
