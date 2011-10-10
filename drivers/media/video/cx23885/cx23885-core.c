@@ -155,7 +155,6 @@ static struct sram_channel cx23885_sram_channels[] = {
 		.cnt2_reg	= DMA5_CNT2,
 	},
 	[SRAM_CH07] = {
-		.name		= "ch7",
 		.name		= "TV Audio",
 		.cmds_start	= 0x10190,
 		.ctrl_start	= 0x10480,
