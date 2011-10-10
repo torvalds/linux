@@ -595,8 +595,11 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			       sizeof(struct iwl_addsta_cmd));
 			send_lq = false;
 			if (priv->stations[i].lq) {
-				memcpy(&lq, priv->stations[i].lq,
-				       sizeof(struct iwl_link_quality_cmd));
+				if (priv->shrd->wowlan)
+					iwl_sta_fill_lq(priv, ctx, i, &lq);
+				else
+					memcpy(&lq, priv->stations[i].lq,
+					       sizeof(struct iwl_link_quality_cmd));
 				send_lq = true;
 			}
 			spin_unlock_irqrestore(&priv->shrd->sta_lock,

@@ -58,6 +58,8 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
 
+void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+		     u8 sta_id, struct iwl_link_quality_cmd *link_cmd);
 int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx);

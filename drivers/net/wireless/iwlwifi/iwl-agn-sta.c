@@ -35,21 +35,16 @@
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 
-static struct iwl_link_quality_cmd *
-iwl_sta_alloc_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx, u8 sta_id)
+void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+		     u8 sta_id, struct iwl_link_quality_cmd *link_cmd)
 {
 	int i, r;
-	struct iwl_link_quality_cmd *link_cmd;
 	u32 rate_flags = 0;
 	__le32 rate_n_flags;
 
-	link_cmd = kzalloc(sizeof(struct iwl_link_quality_cmd), GFP_KERNEL);
-	if (!link_cmd) {
-		IWL_ERR(priv, "Unable to allocate memory for LQ cmd.\n");
-		return NULL;
-	}
-
 	lockdep_assert_held(&priv->shrd->mutex);
+
+	memset(link_cmd, 0, sizeof(*link_cmd));
 
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
@@ -87,6 +82,20 @@ iwl_sta_alloc_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx, u8 sta_id)
 		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
 
 	link_cmd->sta_id = sta_id;
+}
+
+static struct iwl_link_quality_cmd *
+iwl_sta_alloc_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx, u8 sta_id)
+{
+	struct iwl_link_quality_cmd *link_cmd;
+
+	link_cmd = kzalloc(sizeof(struct iwl_link_quality_cmd), GFP_KERNEL);
+	if (!link_cmd) {
+		IWL_ERR(priv, "Unable to allocate memory for LQ cmd.\n");
+		return NULL;
+	}
+
+	iwl_sta_fill_lq(priv, ctx, sta_id, link_cmd);
 
 	return link_cmd;
 }
