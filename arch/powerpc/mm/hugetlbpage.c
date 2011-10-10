@@ -155,10 +155,27 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 			hpdp->pd = 0;
 		kmem_cache_free(cachep, new);
 	}
+#else
+	if (!hugepd_none(*hpdp))
+		kmem_cache_free(cachep, new);
+	else
+		hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
 #endif
 	spin_unlock(&mm->page_table_lock);
 	return 0;
 }
+
+/*
+ * These macros define how to determine which level of the page table holds
+ * the hpdp.
+ */
+#ifdef CONFIG_PPC_FSL_BOOK3E
+#define HUGEPD_PGD_SHIFT PGDIR_SHIFT
+#define HUGEPD_PUD_SHIFT PUD_SHIFT
+#else
+#define HUGEPD_PGD_SHIFT PUD_SHIFT
+#define HUGEPD_PUD_SHIFT PMD_SHIFT
+#endif
 
 pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
 {
@@ -172,12 +189,13 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
 	addr &= ~(sz-1);
 
 	pg = pgd_offset(mm, addr);
-	if (pshift >= PUD_SHIFT) {
+
+	if (pshift >= HUGEPD_PGD_SHIFT) {
 		hpdp = (hugepd_t *)pg;
 	} else {
 		pdshift = PUD_SHIFT;
 		pu = pud_alloc(mm, pg, addr);
-		if (pshift >= PMD_SHIFT) {
+		if (pshift >= HUGEPD_PUD_SHIFT) {
 			hpdp = (hugepd_t *)pu;
 		} else {
 			pdshift = PMD_SHIFT;
@@ -453,14 +471,23 @@ static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
 	unsigned long start;
 
 	start = addr;
-	pmd = pmd_offset(pud, addr);
 	do {
+		pmd = pmd_offset(pud, addr);
 		next = pmd_addr_end(addr, end);
 		if (pmd_none(*pmd))
 			continue;
+#ifdef CONFIG_PPC_FSL_BOOK3E
+		/*
+		 * Increment next by the size of the huge mapping since
+		 * there may be more than one entry at this level for a
+		 * single hugepage, but all of them point to
+		 * the same kmem cache that holds the hugepte.
+		 */
+		next = addr + (1 << hugepd_shift(*(hugepd_t *)pmd));
+#endif
 		free_hugepd_range(tlb, (hugepd_t *)pmd, PMD_SHIFT,
 				  addr, next, floor, ceiling);
-	} while (pmd++, addr = next, addr != end);
+	} while (addr = next, addr != end);
 
 	start &= PUD_MASK;
 	if (start < floor)
@@ -487,8 +514,8 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 	unsigned long start;
 
 	start = addr;
-	pud = pud_offset(pgd, addr);
 	do {
+		pud = pud_offset(pgd, addr);
 		next = pud_addr_end(addr, end);
 		if (!is_hugepd(pud)) {
 			if (pud_none_or_clear_bad(pud))
@@ -496,10 +523,19 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
 					       ceiling);
 		} else {
+#ifdef CONFIG_PPC_FSL_BOOK3E
+			/*
+			 * Increment next by the size of the huge mapping since
+			 * there may be more than one entry at this level for a
+			 * single hugepage, but all of them point to
+			 * the same kmem cache that holds the hugepte.
+			 */
+			next = addr + (1 << hugepd_shift(*(hugepd_t *)pud));
+#endif
 			free_hugepd_range(tlb, (hugepd_t *)pud, PUD_SHIFT,
 					  addr, next, floor, ceiling);
 		}
-	} while (pud++, addr = next, addr != end);
+	} while (addr = next, addr != end);
 
 	start &= PGDIR_MASK;
 	if (start < floor)
