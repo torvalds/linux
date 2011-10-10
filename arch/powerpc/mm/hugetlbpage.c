@@ -697,19 +697,17 @@ int gup_hugepd(hugepd_t *hugepd, unsigned pdshift,
 	return 1;
 }
 
+#ifdef CONFIG_PPC_MM_SLICES
 unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 					unsigned long len, unsigned long pgoff,
 					unsigned long flags)
 {
-#ifdef CONFIG_PPC_MM_SLICES
 	struct hstate *hstate = hstate_file(file);
 	int mmu_psize = shift_to_mmu_psize(huge_page_shift(hstate));
 
 	return slice_get_unmapped_area(addr, len, flags, mmu_psize, 1, 0);
-#else
-	return get_unmapped_area(file, addr, len, pgoff, flags);
-#endif
 }
+#endif
 
 unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
 {
