@@ -730,10 +730,6 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 
 	usbhsg_pipe_disable(dcp);
 
-	if (gpriv->driver &&
-	    gpriv->driver->disconnect)
-		gpriv->driver->disconnect(&gpriv->gadget);
-
 	dev_dbg(dev, "stop gadget\n");
 
 	return 0;
@@ -744,30 +740,18 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
  *		linux usb function
  *
  */
-static int usbhsg_gadget_start(struct usb_gadget_driver *driver,
-			    int (*bind)(struct usb_gadget *))
+static int usbhsg_gadget_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct usbhsg_gpriv *gpriv;
+	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
 	struct usbhs_priv *priv;
 	struct device *dev;
 	int ret;
 
-	if (!bind		||
-	    !driver		||
+	if (!driver		||
 	    !driver->setup	||
 	    driver->speed != USB_SPEED_HIGH)
 		return -EINVAL;
-
-	/*
-	 * find unused controller
-	 */
-	usbhsg_for_each_controller(gpriv) {
-		if (!gpriv->driver)
-			goto find_unused_controller;
-	}
-	return -ENODEV;
-
-find_unused_controller:
 
 	dev  = usbhsg_gpriv_to_dev(gpriv);
 	priv = usbhsg_gpriv_to_priv(gpriv);
@@ -782,19 +766,8 @@ find_unused_controller:
 		goto add_fail;
 	}
 
-	ret = bind(&gpriv->gadget);
-	if (ret) {
-		dev_err(dev, "bind to driver %s error %d\n",
-			driver->driver.name, ret);
-		goto bind_fail;
-	}
-
-	dev_dbg(dev, "bind %s\n", driver->driver.name);
-
 	return usbhsg_try_start(priv, USBHSG_STATUS_REGISTERD);
 
-bind_fail:
-	device_del(&gpriv->gadget.dev);
 add_fail:
 	gpriv->driver = NULL;
 	gpriv->gadget.dev.driver = NULL;
@@ -802,9 +775,10 @@ add_fail:
 	return ret;
 }
 
-static int usbhsg_gadget_stop(struct usb_gadget_driver *driver)
+static int usbhsg_gadget_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct usbhsg_gpriv *gpriv;
+	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
 	struct usbhs_priv *priv;
 	struct device *dev;
 
@@ -812,29 +786,12 @@ static int usbhsg_gadget_stop(struct usb_gadget_driver *driver)
 	    !driver->unbind)
 		return -EINVAL;
 
-	/*
-	 * find controller
-	 */
-	usbhsg_for_each_controller(gpriv) {
-		if (gpriv->driver == driver)
-			goto find_matching_controller;
-	}
-	return -ENODEV;
-
-find_matching_controller:
-
 	dev  = usbhsg_gpriv_to_dev(gpriv);
 	priv = usbhsg_gpriv_to_priv(gpriv);
 
 	usbhsg_try_stop(priv, USBHSG_STATUS_REGISTERD);
 	device_del(&gpriv->gadget.dev);
 	gpriv->driver = NULL;
-
-	if (driver->disconnect)
-		driver->disconnect(&gpriv->gadget);
-
-	driver->unbind(&gpriv->gadget);
-	dev_dbg(dev, "unbind %s\n", driver->driver.name);
 
 	return 0;
 }
@@ -852,8 +809,8 @@ static int usbhsg_get_frame(struct usb_gadget *gadget)
 
 static struct usb_gadget_ops usbhsg_gadget_ops = {
 	.get_frame		= usbhsg_get_frame,
-	.start			= usbhsg_gadget_start,
-	.stop			= usbhsg_gadget_stop,
+	.udc_start		= usbhsg_gadget_start,
+	.udc_stop		= usbhsg_gadget_stop,
 };
 
 static int usbhsg_start(struct usbhs_priv *priv)
