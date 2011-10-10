@@ -392,6 +392,7 @@ struct cx23885_dev {
 	/* Analog video */
 	u32                        resources;
 	unsigned int               input;
+	unsigned int               audinput; /* Selectable audio input */
 	u32                        tvaudio;
 	v4l2_std_id                tvnorm;
 	unsigned int               tuner_type;

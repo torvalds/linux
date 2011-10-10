@@ -517,6 +517,22 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 	return 0;
 }
 
+static int cx23885_audio_mux(struct cx23885_dev *dev, unsigned int input)
+{
+	dprintk(1, "%s(input=%d)\n", __func__, input);
+
+	if ((dev->board == CX23885_BOARD_HAUPPAUGE_HVR1800) ||
+		(dev->board == CX23885_BOARD_MPX885)) {
+
+		if (INPUT(input)->amux == CX25840_AUDIO7)
+			cx23885_flatiron_mux(dev, 1);
+		else if (INPUT(input)->amux == CX25840_AUDIO6)
+			cx23885_flatiron_mux(dev, 2);
+	}
+
+	return 0;
+}
+
 /* ------------------------------------------------------------------ */
 static int cx23885_set_scale(struct cx23885_dev *dev, unsigned int width,
 	unsigned int height, enum v4l2_field field)
@@ -1308,6 +1324,68 @@ static int vidioc_log_status(struct file *file, void *priv)
 	return 0;
 }
 
+static int cx23885_query_audinput(struct file *file, void *priv,
+	struct v4l2_audio *i)
+{
+	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	static const char *iname[] = {
+		[0] = "Baseband L/R 1",
+		[1] = "Baseband L/R 2",
+	};
+	unsigned int n;
+	dprintk(1, "%s()\n", __func__);
+
+	n = i->index;
+	if (n >= 2)
+		return -EINVAL;
+
+	memset(i, 0, sizeof(*i));
+	i->index = n;
+	strcpy(i->name, iname[n]);
+	i->capability  = V4L2_AUDCAP_STEREO;
+	i->mode  = V4L2_AUDMODE_AVL;
+	return 0;
+
+}
+
+static int vidioc_enum_audinput(struct file *file, void *priv,
+				struct v4l2_audio *i)
+{
+	return cx23885_query_audinput(file, priv, i);
+}
+
+static int vidioc_g_audinput(struct file *file, void *priv,
+	struct v4l2_audio *i)
+{
+	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+
+	i->index = dev->audinput;
+	dprintk(1, "%s(input=%d)\n", __func__, i->index);
+
+	return cx23885_query_audinput(file, priv, i);
+}
+
+static int vidioc_s_audinput(struct file *file, void *priv,
+	struct v4l2_audio *i)
+{
+	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+
+	/* cx23885 offers 2 different audio inputs on the A/V core, LR1 and LR2.
+	 * By default the driver has always used LR1 and we need support for
+	 * switching. This isn't board specific, is part of the base silicon.
+	 */
+	if (i->index >= 2)
+		return -EINVAL;
+
+	dprintk(1, "%s(%d)\n", __func__, i->index);
+
+	mutex_lock(&dev->lock);
+	dev->audinput = i->index;
+	cx23885_audio_mux(dev, dev->audinput);
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
 static int vidioc_queryctrl(struct file *file, void *priv,
 				struct v4l2_queryctrl *qctrl)
 {
@@ -1548,6 +1626,9 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_register    = cx23885_g_register,
 	.vidioc_s_register    = cx23885_s_register,
 #endif
+	.vidioc_enumaudio     = vidioc_enum_audinput,
+	.vidioc_g_audio       = vidioc_g_audinput,
+	.vidioc_s_audio       = vidioc_s_audinput,
 };
 
 static struct video_device cx23885_vbi_template;
