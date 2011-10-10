@@ -636,6 +636,8 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
 	default:
 		IWL_WARN(trans, "Stopping AGG while state not ON"
 				"or starting\n");
+		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
+		return 0;
 	}
 
 	write_ptr = trans_pcie->txq[txq_id].q.write_ptr;
