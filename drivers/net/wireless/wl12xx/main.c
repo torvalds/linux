@@ -1906,7 +1906,7 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return WL12XX_INVALID_ROLE_TYPE;
 }
 
-static int wl12xx_init_vif_data(struct ieee80211_vif *vif)
+static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 
@@ -1949,6 +1949,8 @@ static int wl12xx_init_vif_data(struct ieee80211_vif *vif)
 		wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
 	}
 
+	wlvif->bitrate_masks[IEEE80211_BAND_2GHZ] = wl->conf.tx.basic_rate;
+	wlvif->bitrate_masks[IEEE80211_BAND_5GHZ] = wl->conf.tx.basic_rate_5;
 	wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 	wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -2058,7 +2060,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ret = wl12xx_init_vif_data(vif);
+	ret = wl12xx_init_vif_data(wl, vif);
 	if (ret < 0)
 		goto out;
 
@@ -2178,8 +2180,6 @@ deinit:
 	wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
 
 	wl12xx_tx_reset_wlvif(wl, wlvif);
-	wl->bitrate_masks[IEEE80211_BAND_2GHZ] = wl->conf.tx.basic_rate;
-	wl->bitrate_masks[IEEE80211_BAND_5GHZ] = wl->conf.tx.basic_rate_5;
 	wl1271_free_ap_keys(wl, wlvif);
 	memset(wlvif->ap.sta_hlid_map, 0, sizeof(wlvif->ap.sta_hlid_map));
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
@@ -2293,7 +2293,7 @@ out:
 
 static void wl1271_set_band_rate(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
-	wlvif->basic_rate_set = wl->bitrate_masks[wl->band];
+	wlvif->basic_rate_set = wlvif->bitrate_masks[wl->band];
 	wlvif->rate_set = wlvif->basic_rate_set;
 }
 
@@ -3578,6 +3578,7 @@ sta_not_found:
 			 */
 			dev_kfree_skb(wlvif->probereq);
 			wlvif->probereq = wl1271_cmd_build_ap_probe_req(wl,
+									wlvif,
 									NULL);
 			ieoffset = offsetof(struct ieee80211_mgmt,
 					    u.probe_req.variable);
@@ -4202,6 +4203,7 @@ static int wl12xx_set_bitrate_mask(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   const struct cfg80211_bitrate_mask *mask)
 {
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271 *wl = hw->priv;
 	int i;
 
@@ -4212,7 +4214,7 @@ static int wl12xx_set_bitrate_mask(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
-		wl->bitrate_masks[i] =
+		wlvif->bitrate_masks[i] =
 			wl1271_tx_enabled_rates_get(wl,
 						    mask->control[i].legacy,
 						    i);
@@ -4931,8 +4933,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	/* Apply default driver configuration. */
 	wl1271_conf_init(wl);
-	wl->bitrate_masks[IEEE80211_BAND_2GHZ] = wl->conf.tx.basic_rate;
-	wl->bitrate_masks[IEEE80211_BAND_5GHZ] = wl->conf.tx.basic_rate_5;
 
 	order = get_order(WL1271_AGGR_BUFFER_SIZE);
 	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);
