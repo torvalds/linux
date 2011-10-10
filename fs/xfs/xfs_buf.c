@@ -1457,9 +1457,13 @@ xfs_setsize_buftarg_flags(
 	btp->bt_smask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
+		char name[BDEVNAME_SIZE];
+
+		bdevname(btp->bt_bdev, name);
+
 		xfs_warn(btp->bt_mount,
 			"Cannot set_blocksize to %u on device %s\n",
-			sectorsize, xfs_buf_target_name(btp));
+			sectorsize, name);
 		return EINVAL;
 	}
 

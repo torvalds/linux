@@ -230,15 +230,6 @@ extern void xfs_buf_delwri_promote(struct xfs_buf *);
 extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
 
-static inline const char *
-xfs_buf_target_name(struct xfs_buftarg *target)
-{
-	static char __b[BDEVNAME_SIZE];
-
-	return bdevname(target->bt_bdev, __b);
-}
-
-
 #define XFS_BUF_ZEROFLAGS(bp) \
 	((bp)->b_flags &= ~(XBF_READ|XBF_WRITE|XBF_ASYNC|XBF_DELWRI| \
 			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH))
