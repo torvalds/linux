@@ -2503,12 +2503,12 @@ static int ci13xxx_wakeup(struct usb_gadget *_gadget)
 	spin_lock_irqsave(udc->lock, flags);
 	if (!udc->remote_wakeup) {
 		ret = -EOPNOTSUPP;
-		dbg_trace("remote wakeup feature is not enabled\n");
+		trace("remote wakeup feature is not enabled\n");
 		goto out;
 	}
 	if (!hw_cread(CAP_PORTSC, PORTSC_SUSP)) {
 		ret = -EINVAL;
-		dbg_trace("port is not suspended\n");
+		trace("port is not suspended\n");
 		goto out;
 	}
 	hw_cwrite(CAP_PORTSC, PORTSC_FPR, PORTSC_FPR);
@@ -2855,7 +2855,7 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	struct ci13xxx *udc;
 	int retval = 0;
 
-	trace("%p, %p, %p", dev, regs, name);
+	trace("%p, %p, %p", dev, regs, driver->name);
 
 	if (dev == NULL || regs == NULL || driver == NULL ||
 			driver->name == NULL)
