@@ -1954,6 +1954,14 @@ static int ftdi_process_packet(struct tty_struct *tty,
 	   N.B. packet may be processed more than once, but differences
 	   are only processed once.  */
 	status = packet[0] & FTDI_STATUS_B0_MASK;
+	if (status & FTDI_RS0_CTS)
+		priv->icount.cts++;
+	if (status & FTDI_RS0_DSR)
+		priv->icount.dsr++;
+	if (status & FTDI_RS0_RI)
+		priv->icount.rng++;
+	if (status & FTDI_RS0_RLSD)
+		priv->icount.dcd++;
 	if (status != priv->prev_status) {
 		priv->diff_status |= status ^ priv->prev_status;
 		wake_up_interruptible(&priv->delta_msr_wait);
