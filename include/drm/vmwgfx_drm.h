@@ -685,6 +685,51 @@ struct drm_vmw_fence_arg {
 
 /*************************************************************************/
 /**
+ * DRM_VMW_FENCE_EVENT
+ *
+ * Queues an event on a fence to be delivered on the drm character device
+ * when the fence has signaled the DRM_VMW_FENCE_FLAG_EXEC flag.
+ * Optionally the approximate time when the fence signaled is
+ * given by the event.
+ */
+
+/*
+ * The event type
+ */
+#define DRM_VMW_EVENT_FENCE_SIGNALED 0x80000000
+
+struct drm_vmw_event_fence {
+	struct drm_event base;
+	uint64_t user_data;
+	uint32_t tv_sec;
+	uint32_t tv_usec;
+};
+
+/*
+ * Flags that may be given to the command.
+ */
+/* Request fence signaled time on the event. */
+#define DRM_VMW_FE_FLAG_REQ_TIME (1 << 0)
+
+/**
+ * struct drm_vmw_fence_event_arg
+ *
+ * @fence_rep: Pointer to fence_rep structure cast to uint64_t or 0 if
+ * the fence is not supposed to be referenced by user-space.
+ * @user_info: Info to be delivered with the event.
+ * @handle: Attach the event to this fence only.
+ * @flags: A set of flags as defined above.
+ */
+struct drm_vmw_fence_event_arg {
+	uint64_t fence_rep;
+	uint64_t user_data;
+	uint32_t handle;
+	uint32_t flags;
+};
+
+
+/*************************************************************************/
+/**
  * DRM_VMW_PRESENT
  *
  * Executes an SVGA present on a given fb for a given surface. The surface
@@ -743,6 +788,4 @@ struct drm_vmw_present_readback_arg {
 	 uint64_t clips_ptr;
 	 uint64_t fence_rep;
 };
-
-
 #endif

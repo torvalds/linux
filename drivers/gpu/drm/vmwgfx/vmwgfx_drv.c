@@ -94,6 +94,9 @@
 #define DRM_IOCTL_VMW_FENCE_UNREF				\
 	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_FENCE_UNREF,		\
 		 struct drm_vmw_fence_arg)
+#define DRM_IOCTL_VMW_FENCE_EVENT				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_FENCE_EVENT,		\
+		 struct drm_vmw_fence_event_arg)
 #define DRM_IOCTL_VMW_PRESENT					\
 	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_PRESENT,		\
 		 struct drm_vmw_present_arg)
@@ -149,6 +152,9 @@ static struct drm_ioctl_desc vmw_ioctls[] = {
 		      vmw_fence_obj_signaled_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_FENCE_UNREF, vmw_fence_obj_unref_ioctl,
+		      DRM_AUTH | DRM_UNLOCKED),
+	VMW_IOCTL_DEF(VMW_FENCE_EVENT,
+		      vmw_fence_event_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_GET_3D_CAP, vmw_get_cap_3d_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),

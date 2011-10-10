@@ -247,9 +247,8 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
 		outl(SVGA_IRQFLAG_FIFO_PROGRESS,
 		     dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-		vmw_write(dev_priv, SVGA_REG_IRQMASK,
-			  vmw_read(dev_priv, SVGA_REG_IRQMASK) |
-			  SVGA_IRQFLAG_FIFO_PROGRESS);
+		dev_priv->irq_mask |= SVGA_IRQFLAG_FIFO_PROGRESS;
+		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 	}
 	mutex_unlock(&dev_priv->hw_mutex);
@@ -271,9 +270,8 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 	mutex_lock(&dev_priv->hw_mutex);
 	if (atomic_dec_and_test(&dev_priv->fifo_queue_waiters)) {
 		spin_lock_irqsave(&dev_priv->irq_lock, irq_flags);
-		vmw_write(dev_priv, SVGA_REG_IRQMASK,
-			  vmw_read(dev_priv, SVGA_REG_IRQMASK) &
-			  ~SVGA_IRQFLAG_FIFO_PROGRESS);
+		dev_priv->irq_mask &= ~SVGA_IRQFLAG_FIFO_PROGRESS;
+		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irq_flags);
 	}
 	mutex_unlock(&dev_priv->hw_mutex);

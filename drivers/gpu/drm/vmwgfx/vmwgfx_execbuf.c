@@ -1057,7 +1057,7 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
  * object so we wait for it immediately, and then unreference the
  * user-space reference.
  */
-static void
+void
 vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 			    struct vmw_fpriv *vmw_fp,
 			    int ret,

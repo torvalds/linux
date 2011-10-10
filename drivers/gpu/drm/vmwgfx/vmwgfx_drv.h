@@ -40,9 +40,9 @@
 #include "ttm/ttm_module.h"
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20110927"
+#define VMWGFX_DRIVER_DATE "20111008"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 1
+#define VMWGFX_DRIVER_MINOR 2
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -264,10 +264,12 @@ struct vmw_private {
 	wait_queue_head_t fence_queue;
 	wait_queue_head_t fifo_queue;
 	int fence_queue_waiters; /* Protected by hw_mutex */
+	int goal_queue_waiters; /* Protected by hw_mutex */
 	atomic_t fifo_queue_waiters;
 	uint32_t last_read_seqno;
 	spinlock_t irq_lock;
 	struct vmw_fence_manager *fman;
+	uint32_t irq_mask;
 
 	/*
 	 * Device state
@@ -532,7 +534,13 @@ extern int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 				      struct vmw_private *dev_priv,
 				      struct vmw_fence_obj **p_fence,
 				      uint32_t *p_handle);
-
+extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
+					struct vmw_fpriv *vmw_fp,
+					int ret,
+					struct drm_vmw_fence_rep __user
+					*user_fence_rep,
+					struct vmw_fence_obj *fence,
+					uint32_t fence_handle);
 
 /**
  * IRQs and wating - vmwgfx_irq.c
@@ -557,6 +565,8 @@ extern void vmw_update_seqno(struct vmw_private *dev_priv,
 				struct vmw_fifo_state *fifo_state);
 extern void vmw_seqno_waiter_add(struct vmw_private *dev_priv);
 extern void vmw_seqno_waiter_remove(struct vmw_private *dev_priv);
+extern void vmw_goal_waiter_add(struct vmw_private *dev_priv);
+extern void vmw_goal_waiter_remove(struct vmw_private *dev_priv);
 
 /**
  * Rudimentary fence-like objects currently used only for throttling -

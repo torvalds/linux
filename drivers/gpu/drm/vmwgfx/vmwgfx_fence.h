@@ -37,8 +37,14 @@ struct vmw_fence_manager;
  *
  *
  */
+enum vmw_action_type {
+	VMW_ACTION_EVENT = 0,
+	VMW_ACTION_MAX
+};
+
 struct vmw_fence_action {
 	struct list_head head;
+	enum vmw_action_type type;
 	void (*seq_passed) (struct vmw_fence_action *action);
 	void (*cleanup) (struct vmw_fence_action *action);
 };
@@ -66,8 +72,7 @@ extern void vmw_fence_obj_unreference(struct vmw_fence_obj **fence_p);
 extern struct vmw_fence_obj *
 vmw_fence_obj_reference(struct vmw_fence_obj *fence);
 
-extern void vmw_fences_update(struct vmw_fence_manager *fman,
-			      u32 sequence);
+extern void vmw_fences_update(struct vmw_fence_manager *fman);
 
 extern bool vmw_fence_obj_signaled(struct vmw_fence_obj *fence,
 				   uint32_t flags);
@@ -102,4 +107,7 @@ extern int vmw_fence_obj_signaled_ioctl(struct drm_device *dev, void *data,
 
 extern int vmw_fence_obj_unref_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
+extern int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
+
 #endif /* _VMWGFX_FENCE_H_ */
