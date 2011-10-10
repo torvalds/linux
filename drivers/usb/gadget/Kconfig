@@ -873,6 +873,16 @@ config USB_G_NOKIA
 	  It's only really useful for N900 hardware. If you're building
 	  a kernel for N900, say Y or M here. If unsure, say N.
 
+config USB_G_ACM_MS
+	tristate "CDC Composite Device (ACM and mass storage)"
+	depends on BLOCK
+	help
+	  This driver provides two functions in one configuration:
+	  a mass storage, and a CDC ACM (serial port) link.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_acm_ms".
+
 config USB_G_MULTI
 	tristate "Multifunction Composite Gadget (EXPERIMENTAL)"
 	depends on BLOCK && NET
