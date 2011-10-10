@@ -855,13 +855,11 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 	mdata->s_metadata_fe = udf_iget(sb, &addr);
 
 	if (mdata->s_metadata_fe == NULL) {
-		udf_warning(sb, __func__, "metadata inode efe not found, "
-				"will try mirror inode.");
+		udf_warn(sb, "metadata inode efe not found, will try mirror inode\n");
 		fe_error = 1;
 	} else if (UDF_I(mdata->s_metadata_fe)->i_alloc_type !=
 		 ICBTAG_FLAG_AD_SHORT) {
-		udf_warning(sb, __func__, "metadata inode efe does not have "
-			"short allocation descriptors!");
+		udf_warn(sb, "metadata inode efe does not have short allocation descriptors!\n");
 		fe_error = 1;
 		iput(mdata->s_metadata_fe);
 		mdata->s_metadata_fe = NULL;
@@ -881,12 +879,10 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 			udf_err(sb, "mirror inode efe not found and metadata inode is missing too, exiting...\n");
 			goto error_exit;
 		} else
-			udf_warning(sb, __func__, "mirror inode efe not found,"
-					" but metadata inode is OK");
+			udf_warn(sb, "mirror inode efe not found, but metadata inode is OK\n");
 	} else if (UDF_I(mdata->s_mirror_fe)->i_alloc_type !=
 		 ICBTAG_FLAG_AD_SHORT) {
-		udf_warning(sb, __func__, "mirror inode efe does not have "
-			"short allocation descriptors!");
+		udf_warn(sb, "mirror inode efe does not have short allocation descriptors!\n");
 		iput(mdata->s_mirror_fe);
 		mdata->s_mirror_fe = NULL;
 		if (fe_error)
@@ -909,9 +905,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 
 		if (mdata->s_bitmap_fe == NULL) {
 			if (sb->s_flags & MS_RDONLY)
-				udf_warning(sb, __func__, "bitmap inode efe "
-					"not found but it's ok since the disc"
-					" is mounted read-only");
+				udf_warn(sb, "bitmap inode efe not found but it's ok since the disc is mounted read-only\n");
 			else {
 				udf_err(sb, "bitmap inode efe not found and attempted read-write mount\n");
 				goto error_exit;
@@ -2105,15 +2099,15 @@ void _udf_err(struct super_block *sb, const char *function,
 	       sb->s_id, function, error_buf);
 }
 
-void udf_warning(struct super_block *sb, const char *function,
-		 const char *fmt, ...)
+void _udf_warn(struct super_block *sb, const char *function,
+	       const char *fmt, ...)
 {
 	va_list args;
 
 	va_start(args, fmt);
 	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
 	va_end(args);
-	printk(KERN_WARNING "UDF-fs warning (device %s): %s: %s\n",
+	printk(KERN_WARNING "UDF-fs warning (device %s): %s: %s",
 	       sb->s_id, function, error_buf);
 }
 

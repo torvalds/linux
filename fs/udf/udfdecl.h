@@ -30,7 +30,10 @@ do { \
 #endif
 
 __attribute__((format(printf, 3, 4)))
-extern void udf_warning(struct super_block *, const char *, const char *, ...);
+extern void _udf_warn(struct super_block *sb, const char *function,
+		      const char *fmt, ...);
+#define udf_warn(sb, fmt, ...)					\
+	_udf_warn(sb, __func__, fmt, ##__VA_ARGS__)
 
 __attribute__((format(printf, 3, 4)))
 extern void _udf_err(struct super_block *sb, const char *function,

@@ -322,8 +322,7 @@ uint32_t udf_get_pblock_meta25(struct super_block *sb, uint32_t block,
 	BUG_ON(!inode);
 	retblk = udf_try_read_meta(inode, block, partition, offset);
 	if (retblk == 0xFFFFFFFF) {
-		udf_warning(sb, __func__, "error reading from METADATA, "
-			"trying to read from MIRROR");
+		udf_warn(sb, "error reading from METADATA, trying to read from MIRROR\n");
 		inode = mdata->s_mirror_fe;
 		if (!inode)
 			return 0xFFFFFFFF;
