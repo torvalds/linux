@@ -1098,7 +1098,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-			WARN_ON(tid_data->agg.state != IWL_AGG_ON);
+			WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON);
 			txq_id = tid_data->agg.txq_id;
 			is_agg = true;
 		}
