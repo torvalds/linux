@@ -324,13 +324,6 @@ struct easycap {
 	int lost[INPUT_MANY];
 	int merit[180];
 
-	struct timeval timeval0;
-	struct timeval timeval1;
-	struct timeval timeval2;
-	struct timeval timeval3;
-	struct timeval timeval6;
-	struct timeval timeval7;
-	struct timeval timeval8;
 	long long int dnbydt;
 
 	int    video_interface;
@@ -543,10 +536,6 @@ int              read_vt(struct usb_device *, u16);
 int              write_vt(struct usb_device *, u16, u16);
 int		isdongle(struct easycap *);
 /*---------------------------------------------------------------------------*/
-struct signed_div_result {
-	long long int quotient;
-	unsigned long long int remainder;
-} signed_div(long long int, long long int);
 
 
 /*---------------------------------------------------------------------------*/

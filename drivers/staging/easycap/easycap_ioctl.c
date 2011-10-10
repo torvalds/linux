@@ -931,7 +931,6 @@ static int adjust_mute(struct easycap *peasycap, int value)
 			switch (peasycap->mute) {
 			case 1: {
 				peasycap->audio_idle = 1;
-				peasycap->timeval0.tv_sec = 0;
 				SAM("adjusting mute: %i=peasycap->audio_idle\n",
 				    peasycap->audio_idle);
 				return 0;
@@ -2333,7 +2332,6 @@ long easycap_unlocked_ioctl(struct file *file,
 
 		peasycap->video_idle = 1;
 		peasycap->audio_idle = 1;
-		peasycap->timeval0.tv_sec = 0;
 /*---------------------------------------------------------------------------*/
 /*
  *  IF THE WAIT QUEUES ARE NOT CLEARED IN RESPONSE TO THE STREAMOFF COMMAND
