@@ -2418,31 +2418,6 @@ find_file(struct inode *ino)
 	return NULL;
 }
 
-static inline int access_valid(u32 x, u32 minorversion)
-{
-	if ((x & NFS4_SHARE_ACCESS_MASK) < NFS4_SHARE_ACCESS_READ)
-		return 0;
-	if ((x & NFS4_SHARE_ACCESS_MASK) > NFS4_SHARE_ACCESS_BOTH)
-		return 0;
-	x &= ~NFS4_SHARE_ACCESS_MASK;
-	if (minorversion && x) {
-		if ((x & NFS4_SHARE_WANT_MASK) > NFS4_SHARE_WANT_CANCEL)
-			return 0;
-		if ((x & NFS4_SHARE_WHEN_MASK) > NFS4_SHARE_PUSH_DELEG_WHEN_UNCONTENDED)
-			return 0;
-		x &= ~(NFS4_SHARE_WANT_MASK | NFS4_SHARE_WHEN_MASK);
-	}
-	if (x)
-		return 0;
-	return 1;
-}
-
-static inline int deny_valid(u32 x)
-{
-	/* Note: unlike access bits, deny bits may be zero. */
-	return x <= NFS4_SHARE_DENY_BOTH;
-}
-
 /*
  * Called to check deny when READ with all zero stateid or
  * WRITE with all zero or all one stateid
@@ -2918,10 +2893,6 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	struct nfs4_delegation *dp = NULL;
 	__be32 status;
 
-	status = nfserr_inval;
-	if (!access_valid(open->op_share_access, resp->cstate.minorversion)
-			|| !deny_valid(open->op_share_deny))
-		goto out;
 	/*
 	 * Lookup file; if found, lookup stateid and check open request,
 	 * and check for delegations in the process of being recalled.
@@ -3571,9 +3542,6 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 			(int)cstate->current_fh.fh_dentry->d_name.len,
 			cstate->current_fh.fh_dentry->d_name.name);
 
-	if (!access_valid(od->od_share_access, cstate->minorversion)
-			|| !deny_valid(od->od_share_deny))
-		return nfserr_inval;
 	/* We don't yet support WANT bits: */
 	od->od_share_access &= NFS4_SHARE_ACCESS_MASK;
 

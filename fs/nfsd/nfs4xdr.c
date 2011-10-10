@@ -639,6 +639,64 @@ nfsd4_decode_lookup(struct nfsd4_compoundargs *argp, struct nfsd4_lookup *lookup
 	DECODE_TAIL;
 }
 
+static __be32 nfsd4_decode_share_access(struct nfsd4_compoundargs *argp, u32 *x)
+{
+	__be32 *p;
+	u32 w;
+
+	READ_BUF(4);
+	READ32(w);
+	*x = w;
+	switch (w & NFS4_SHARE_ACCESS_MASK) {
+	case NFS4_SHARE_ACCESS_READ:
+	case NFS4_SHARE_ACCESS_WRITE:
+	case NFS4_SHARE_ACCESS_BOTH:
+		break;
+	default:
+		return nfserr_bad_xdr;
+	}
+	w &= !NFS4_SHARE_ACCESS_MASK;
+	if (!w)
+		return nfs_ok;
+	if (!argp->minorversion)
+		return nfserr_bad_xdr;
+	switch (w & NFS4_SHARE_WANT_MASK) {
+	case NFS4_SHARE_WANT_NO_PREFERENCE:
+	case NFS4_SHARE_WANT_READ_DELEG:
+	case NFS4_SHARE_WANT_WRITE_DELEG:
+	case NFS4_SHARE_WANT_ANY_DELEG:
+	case NFS4_SHARE_WANT_NO_DELEG:
+	case NFS4_SHARE_WANT_CANCEL:
+		break;
+	default:
+		return nfserr_bad_xdr;
+	}
+	w &= !NFS4_SHARE_WANT_MASK;
+	if (!w)
+		return nfs_ok;
+	switch (w) {
+	case NFS4_SHARE_SIGNAL_DELEG_WHEN_RESRC_AVAIL:
+	case NFS4_SHARE_PUSH_DELEG_WHEN_UNCONTENDED:
+		return nfs_ok;
+	}
+xdr_error:
+	return nfserr_bad_xdr;
+}
+
+static __be32 nfsd4_decode_share_deny(struct nfsd4_compoundargs *argp, u32 *x)
+{
+	__be32 *p;
+
+	READ_BUF(4);
+	READ32(*x);
+	/* Note: unlinke access bits, deny bits may be zero. */
+	if (*x & !NFS4_SHARE_DENY_BOTH)
+		return nfserr_bad_xdr;
+	return nfs_ok;
+xdr_error:
+	return nfserr_bad_xdr;
+}
+
 static __be32
 nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 {
@@ -649,10 +707,15 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 	open->op_openowner = NULL;
 
 	/* seqid, share_access, share_deny, clientid, ownerlen */
-	READ_BUF(16 + sizeof(clientid_t));
+	READ_BUF(4);
 	READ32(open->op_seqid);
-	READ32(open->op_share_access);
-	READ32(open->op_share_deny);
+	status = nfsd4_decode_share_access(argp, &open->op_share_access);
+	if (status)
+		goto xdr_error;
+	status = nfsd4_decode_share_deny(argp, &open->op_share_deny);
+	if (status)
+		goto xdr_error;
+	READ_BUF(sizeof(clientid_t) + 4);
 	COPYMEM(&open->op_clientid, sizeof(clientid_t));
 	READ32(open->op_owner.len);
 
@@ -753,11 +816,14 @@ nfsd4_decode_open_downgrade(struct nfsd4_compoundargs *argp, struct nfsd4_open_d
 	status = nfsd4_decode_stateid(argp, &open_down->od_stateid);
 	if (status)
 		return status;
-	READ_BUF(12);
+	READ_BUF(4);
 	READ32(open_down->od_seqid);
-	READ32(open_down->od_share_access);
-	READ32(open_down->od_share_deny);
-						        
+	status = nfsd4_decode_share_access(argp, &open_down->od_share_access);
+	if (status)
+		return status;
+	status = nfsd4_decode_share_deny(argp, &open_down->od_share_deny);
+	if (status)
+		return status;
 	DECODE_TAIL;
 }
 
