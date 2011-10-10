@@ -514,9 +514,9 @@ static int wl1271_set_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 
 	if (enable)
-		set_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags);
+		set_bit(WLVIF_FLAG_RX_STREAMING_STARTED, &wlvif->flags);
 	else
-		clear_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags);
+		clear_bit(WLVIF_FLAG_RX_STREAMING_STARTED, &wlvif->flags);
 out:
 	return ret;
 }
@@ -531,7 +531,7 @@ int wl1271_recalc_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	int period = wl->conf.rx_streaming.interval;
 
 	/* don't reconfigure if rx_streaming is disabled */
-	if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+	if (!test_bit(WLVIF_FLAG_RX_STREAMING_STARTED, &wlvif->flags))
 		goto out;
 
 	/* reconfigure/disable according to new streaming_period */
@@ -558,7 +558,7 @@ static void wl1271_rx_streaming_enable_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
-	if (test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags) ||
+	if (test_bit(WLVIF_FLAG_RX_STREAMING_STARTED, &wlvif->flags) ||
 	    !test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
 	    (!wl->conf.rx_streaming.always &&
 	     !test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags)))
@@ -594,7 +594,7 @@ static void wl1271_rx_streaming_disable_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
-	if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+	if (!test_bit(WLVIF_FLAG_RX_STREAMING_STARTED, &wlvif->flags))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl);

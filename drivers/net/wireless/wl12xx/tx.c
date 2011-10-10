@@ -670,7 +670,7 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
 			continue;
 
 		/* enable rx streaming */
-		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+		if (!test_bit(WLVIF_FLAG_RX_STREAMING_STARTED, &wlvif->flags))
 			ieee80211_queue_work(wl->hw,
 					     &wlvif->rx_streaming_enable_work);
 
