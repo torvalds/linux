@@ -255,6 +255,12 @@ static inline bool of_have_populated_dt(void)
 #define for_each_child_of_node(parent, child) \
 	while (0)
 
+static inline int of_device_is_compatible(const struct device_node *device,
+					  const char *name)
+{
+	return 0;
+}
+
 static inline struct property *of_find_property(const struct device_node *np,
 						const char *name,
 						int *lenp)
@@ -287,6 +293,13 @@ static inline int of_property_read_u64(const struct device_node *np,
 				       const char *propname, u64 *out_value)
 {
 	return -ENOSYS;
+}
+
+static inline struct device_node *of_parse_phandle(struct device_node *np,
+						   const char *phandle_name,
+						   int index)
+{
+	return NULL;
 }
 
 #define of_match_ptr(_ptr)	NULL
