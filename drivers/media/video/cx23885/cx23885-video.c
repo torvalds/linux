@@ -543,13 +543,6 @@ static int cx23885_audio_mux(struct cx23885_dev *dev, unsigned int input)
 }
 
 /* ------------------------------------------------------------------ */
-static int cx23885_set_scale(struct cx23885_dev *dev, unsigned int width,
-	unsigned int height, enum v4l2_field field)
-{
-	dprintk(1, "%s()\n", __func__);
-	return 0;
-}
-
 static int cx23885_start_video_dma(struct cx23885_dev *dev,
 			   struct cx23885_dmaqueue *q,
 			   struct cx23885_buffer *buf)
@@ -559,7 +552,6 @@ static int cx23885_start_video_dma(struct cx23885_dev *dev,
 	/* setup fifo + format */
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH01],
 				buf->bpl, buf->risc.dma);
-	cx23885_set_scale(dev, buf->vb.width, buf->vb.height, buf->vb.field);
 
 	/* reset counter */
 	cx_write(VID_A_GPCNT_CTL, 3);
