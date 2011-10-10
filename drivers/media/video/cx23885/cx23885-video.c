@@ -1278,6 +1278,11 @@ static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 		i->type = V4L2_INPUT_TYPE_TUNER;
 		i->std = CX23885_NORMS;
 	}
+
+	/* Two selectable audio inputs for non-tv inputs */
+	if (INPUT(n)->type != CX23885_VMUX_TELEVISION)
+		i->audioset = 0x3;
+
 	return 0;
 }
 
