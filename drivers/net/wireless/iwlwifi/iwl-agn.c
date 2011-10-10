@@ -3074,6 +3074,16 @@ static void iwl_mac_rssi_callback(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->shrd->mutex);
 }
 
+static int iwl_mac_set_tim(struct ieee80211_hw *hw,
+			   struct ieee80211_sta *sta, bool set)
+{
+	struct iwl_priv *priv = hw->priv;
+
+	queue_work(priv->shrd->workqueue, &priv->beacon_update);
+
+	return 0;
+}
+
 struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
 	.start = iwlagn_mac_start,
@@ -3107,6 +3117,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	CFG80211_TESTMODE_DUMP(iwl_testmode_dump)
 	.tx_sync = iwl_mac_tx_sync,
 	.finish_tx_sync = iwl_mac_finish_tx_sync,
+	.set_tim = iwl_mac_set_tim,
 };
 
 static u32 iwl_hw_detect(struct iwl_priv *priv)

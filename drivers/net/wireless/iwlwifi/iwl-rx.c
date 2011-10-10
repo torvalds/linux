@@ -243,8 +243,6 @@ static int iwl_rx_beacon_notif(struct iwl_priv *priv,
 
 	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 
-	if (!test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
-		queue_work(priv->shrd->workqueue, &priv->beacon_update);
 	return 0;
 }
 
