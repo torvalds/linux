@@ -1002,14 +1002,16 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
 	pipe->max_rate = pipe->l3_ick;
 
-	media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
+	ret = media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
+	if (ret < 0)
+		goto err_pipeline_start;
 
 	/* Verify that the currently configured format matches the output of
 	 * the connected subdev.
 	 */
 	ret = isp_video_check_format(video, vfh);
 	if (ret < 0)
-		goto error;
+		goto err_check_format;
 
 	video->bpl_padding = ret;
 	video->bpl_value = vfh->format.fmt.pix.bytesperline;
@@ -1026,7 +1028,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	} else {
 		if (far_end == NULL) {
 			ret = -EPIPE;
-			goto error;
+			goto err_check_format;
 		}
 
 		state = ISP_PIPELINE_STREAM_INPUT | ISP_PIPELINE_IDLE_INPUT;
@@ -1037,7 +1039,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	/* Validate the pipeline and update its state. */
 	ret = isp_video_validate_pipeline(pipe);
 	if (ret < 0)
-		goto error;
+		goto err_check_format;
 
 	pipe->error = false;
 
@@ -1059,7 +1061,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	ret = omap3isp_video_queue_streamon(&vfh->queue);
 	if (ret < 0)
-		goto error;
+		goto err_check_format;
 
 	/* In sensor-to-memory mode, the stream can be started synchronously
 	 * to the stream on command. In memory-to-memory mode, it will be
@@ -1069,32 +1071,34 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		ret = omap3isp_pipeline_set_stream(pipe,
 					      ISP_PIPELINE_STREAM_CONTINUOUS);
 		if (ret < 0)
-			goto error;
+			goto err_set_stream;
 		spin_lock_irqsave(&video->queue->irqlock, flags);
 		if (list_empty(&video->dmaqueue))
 			video->dmaqueue_flags |= ISP_VIDEO_DMAQUEUE_UNDERRUN;
 		spin_unlock_irqrestore(&video->queue->irqlock, flags);
 	}
 
-error:
-	if (ret < 0) {
-		omap3isp_video_queue_streamoff(&vfh->queue);
-		media_entity_pipeline_stop(&video->video.entity);
-		if (video->isp->pdata->set_constraints)
-			video->isp->pdata->set_constraints(video->isp, false);
-		/* The DMA queue must be emptied here, otherwise CCDC interrupts
-		 * that will get triggered the next time the CCDC is powered up
-		 * will try to access buffers that might have been freed but
-		 * still present in the DMA queue. This can easily get triggered
-		 * if the above omap3isp_pipeline_set_stream() call fails on a
-		 * system with a free-running sensor.
-		 */
-		INIT_LIST_HEAD(&video->dmaqueue);
-		video->queue = NULL;
-	}
+	video->streaming = 1;
 
-	if (!ret)
-		video->streaming = 1;
+	mutex_unlock(&video->stream_lock);
+	return 0;
+
+err_set_stream:
+	omap3isp_video_queue_streamoff(&vfh->queue);
+err_check_format:
+	media_entity_pipeline_stop(&video->video.entity);
+err_pipeline_start:
+	if (video->isp->pdata->set_constraints)
+		video->isp->pdata->set_constraints(video->isp, false);
+	/* The DMA queue must be emptied here, otherwise CCDC interrupts that
+	 * will get triggered the next time the CCDC is powered up will try to
+	 * access buffers that might have been freed but still present in the
+	 * DMA queue. This can easily get triggered if the above
+	 * omap3isp_pipeline_set_stream() call fails on a system with a
+	 * free-running sensor.
+	 */
+	INIT_LIST_HEAD(&video->dmaqueue);
+	video->queue = NULL;
 
 	mutex_unlock(&video->stream_lock);
 	return ret;
