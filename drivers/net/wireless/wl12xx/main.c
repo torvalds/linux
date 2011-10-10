@@ -2524,7 +2524,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	 * incorrectly changed after the pspoll failure active window.
 	 */
 	if (changed & IEEE80211_CONF_CHANGE_PS)
-		clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
+		clear_bit(WLVIF_FLAG_PSPOLL_FAILURE, &wlvif->flags);
 
 	if (conf->flags & IEEE80211_CONF_PS &&
 	    !test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags)) {

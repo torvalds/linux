@@ -49,7 +49,7 @@ void wl1271_pspoll_work(struct work_struct *work)
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
-	if (!test_and_clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags))
+	if (!test_and_clear_bit(WLVIF_FLAG_PSPOLL_FAILURE, &wlvif->flags))
 		goto out;
 
 	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
@@ -89,7 +89,7 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl,
 					 wlvif->basic_rate, true);
 		if (ret < 0)
 			return;
-		set_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
+		set_bit(WLVIF_FLAG_PSPOLL_FAILURE, &wlvif->flags);
 		ieee80211_queue_delayed_work(wl->hw, &wlvif->pspoll_work,
 					     msecs_to_jiffies(delay));
 	}
