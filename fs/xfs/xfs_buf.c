@@ -1100,7 +1100,7 @@ xfs_bioerror_relse(
 		 * ASYNC buffers.
 		 */
 		xfs_buf_ioerror(bp, EIO);
-		XFS_BUF_FINISH_IOWAIT(bp);
+		complete(&bp->b_iowait);
 	} else {
 		xfs_buf_relse(bp);
 	}

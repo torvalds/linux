@@ -293,8 +293,6 @@ static inline int xfs_buf_ispinned(struct xfs_buf *bp)
 	return atomic_read(&bp->b_pin_count);
 }
 
-#define XFS_BUF_FINISH_IOWAIT(bp)	complete(&bp->b_iowait);
-
 static inline void xfs_buf_relse(xfs_buf_t *bp)
 {
 	xfs_buf_unlock(bp);
