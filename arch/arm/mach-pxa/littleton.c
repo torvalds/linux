@@ -124,8 +124,8 @@ static struct resource smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_GPIO(mfp_to_gpio(MFP_PIN_GPIO90)),
-		.end	= IRQ_GPIO(mfp_to_gpio(MFP_PIN_GPIO90)),
+		.start	= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO90)),
+		.end	= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO90)),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	}
 };

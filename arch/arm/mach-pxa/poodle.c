@@ -166,8 +166,8 @@ static struct resource locomo_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= IRQ_GPIO(10),
-		.end		= IRQ_GPIO(10),
+		.start		= PXA_GPIO_TO_IRQ(10),
+		.end		= PXA_GPIO_TO_IRQ(10),
 		.flags		= IORESOURCE_IRQ,
 	},
 };

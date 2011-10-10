@@ -33,7 +33,7 @@
 /* GPIO IRQ usage */
 #define GPIO83_MMC_IRQ		(83)
 
-#define CMX270_MMC_IRQ		IRQ_GPIO(GPIO83_MMC_IRQ)
+#define CMX270_MMC_IRQ		PXA_GPIO_TO_IRQ(GPIO83_MMC_IRQ)
 
 /* MMC power enable */
 #define GPIO105_MMC_POWER	(105)

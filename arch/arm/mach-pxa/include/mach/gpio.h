@@ -28,7 +28,7 @@
 /* The defines for the driver are needed for the accelerated accessors */
 #include "gpio-pxa.h"
 
-#define gpio_to_irq(gpio)	IRQ_GPIO(gpio)
+#define gpio_to_irq(gpio)	PXA_GPIO_TO_IRQ(gpio)
 
 static inline int irq_to_gpio(unsigned int irq)
 {
