@@ -105,10 +105,12 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
  *
  * The active debug levels can be accessed via files
  *
- * 	/sys/module/iwlagn/parameters/debug{50}
- * 	/sys/class/net/wlan0/device/debug_level
- *
+ *	/sys/module/iwlwifi/parameters/debug
  * when CONFIG_IWLWIFI_DEBUG=y.
+ *
+ *	/sys/kernel/debug/phy0/iwlwifi/debug/debug_level
+ * when CONFIG_IWLWIFI_DEBUGFS=y.
+ *
  */
 
 /* 0x0000000F - 0x00000001 */
