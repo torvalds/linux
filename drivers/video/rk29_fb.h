@@ -440,8 +440,8 @@ typedef volatile struct tagLCDC_REG
 #define 	ROTATE_90		90
 #define 	ROTATE_180		180
 #define 	ROTATE_270		270
-#define 	X_MIRROR		1
-#define		Y_MIRROR		2
+#define 	X_MIRROR		(1<<10)
+#define		Y_MIRROR		(1<<11)
 
 
 extern void __init rk29_add_device_lcdc(void);

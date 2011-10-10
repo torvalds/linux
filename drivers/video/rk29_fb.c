@@ -1812,7 +1812,7 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		{
             u32 panel_size[2];
 			//struct rk29fb_inf *inf = dev_get_drvdata(info->device);
-             if(inf->fb1->var.rotate == 270) {
+             if((inf->fb1->var.rotate &0x1ff ) == 270) {
                 panel_size[0] = inf->cur_screen->y_res; //inf->cur_screen->y_res; change for hdmi video size
                 panel_size[1] = inf->cur_screen->x_res;
             } else {
@@ -1857,7 +1857,7 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct hdmi *hdmi = get_hdmi_struct(0);
 #endif
 
-    if((var->rotate / 90 == 1 )||(var->rotate / 90== 3)) {
+    if((var->rotate & 0x1ff) == 90 ||(var->rotate &0x1ff)== 270) {
       #ifdef CONFIG_FB_ROTATE_VIDEO
         xlcd = screen->y_res;
         ylcd = screen->x_res;
@@ -1949,7 +1949,7 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         return -EINVAL;
     }
 
-    if((var->rotate / 90 == 1 )||(var->rotate / 90== 3))
+    if((var->rotate & 0x1ff ) == 90 ||(var->rotate & 0x1ff ) == 270)
      {
          yres = var->xres;
      }
@@ -2013,7 +2013,7 @@ static int fb1_set_par(struct fb_info *info)
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
    	CHK_SUSPEND(inf);
-    if((var->rotate / 90 == 1 )||(var->rotate / 90== 3))
+    if((var->rotate & 0x1ff ) == 90 || (var->rotate & 0x1ff ) == 270)
     {
         #ifdef CONFIG_FB_ROTATE_VIDEO
         xpos = (var->nonstd>>20) & 0xfff;      //visiable pos in panel
@@ -2139,7 +2139,7 @@ static int fb1_set_par(struct fb_info *info)
 
                 ipp_req.dst0.fmt = 3;
 				#ifdef CONFIG_FB_MIRROR_X_Y
-				if(((var->rotate /90 != 0)&&(var->rotate %90 != 0)) ||(var->rotate == (X_MIRROR + Y_MIRROR)) )
+				if((var->rotate & 0x1ff)!=0 &&(var->rotate&(X_MIRROR|Y_MIRROR))!= 0 )
 				{
 				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*4;
 				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*5;
@@ -2160,28 +2160,30 @@ static int fb1_set_par(struct fb_info *info)
 				   }
 				 ipp_req.dst_vir_w = (ipp_req.dst0.w + 15) & (~15);
 				ipp_req.timeout = 100;
-				if(var->rotate / 90== 1)
+				if((var->rotate & 0x1ff) == 90)
 					ipp_req.flag = IPP_ROT_90;
-                else if (var->rotate / 90 == 2)
+                else if ((var->rotate & 0x1ff) == 180)
 					ipp_req.flag = IPP_ROT_180;
-				else if(var->rotate / 90 == 3)
+				else if((var->rotate & 0x1ff) == 270)
 					ipp_req.flag = IPP_ROT_270;
-				else if((var->rotate == X_MIRROR) || (var->rotate == (X_MIRROR + Y_MIRROR)))
+				else if((var->rotate & X_MIRROR) == X_MIRROR )
 					ipp_req.flag = IPP_ROT_X_FLIP;
-				else if(var->rotate == Y_MIRROR)
+				else if((var->rotate & Y_MIRROR) == Y_MIRROR)
 					ipp_req.flag = IPP_ROT_Y_FLIP;
 				//ipp_do_blit(&ipp_req);
 				ipp_blit_sync(&ipp_req);
 				yuv_phy[0] = ipp_req.dst0.YrgbMst;
 				yuv_phy[1] = ipp_req.dst0.CbrMst;
-				if(((var->rotate /90 != 0)&&(var->rotate %90 != 0)) ||(var->rotate == (X_MIRROR + Y_MIRROR)))
+				if((var->rotate & 0x1ff)!=0 &&(var->rotate&(X_MIRROR|Y_MIRROR))!= 0 )
 				{
 					memset(&ipp_req,0,sizeof(struct rk29_ipp_req));
 					
-					if(var->rotate % 90== X_MIRROR)
+					if((var->rotate & X_MIRROR) == X_MIRROR)
 						ipp_req.flag = IPP_ROT_X_FLIP;
-					else if((var->rotate %90 == Y_MIRROR) || (var->rotate == (X_MIRROR + Y_MIRROR)))
+					else if((var->rotate & Y_MIRROR) == Y_MIRROR)
 						ipp_req.flag = IPP_ROT_Y_FLIP;
+					else 
+						printk(">>>>>> %d rotate is not support!\n",var->rotate);
 					
 				  if(var->xres > screen->x_res)
 				   {
@@ -2376,7 +2378,7 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
     case FB1_IOCTL_GET_PANEL_SIZE:    //get panel size
         {
             u32 panel_size[2];
-             if((var->rotate == 270)||(var->rotate == 90)) {
+             if((var->rotate & 0x1ff) == 270 ||(var->rotate & 0x1ff) == 90) {
                 panel_size[0] = inf->panel1_info.y_res; //inf->cur_screen->y_res; change for hdmi video size
                 panel_size[1] = inf->panel1_info.x_res;
             } else {
@@ -2424,7 +2426,7 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 
                 ipp_req.dst0.fmt = 3;
 				#ifdef CONFIG_FB_MIRROR_X_Y
-				if(((var->rotate /90 != 0)&&(var->rotate %90 != 0)) ||(var->rotate == (X_MIRROR + Y_MIRROR)) )
+				if((var->rotate & 0x1ff)!=0 &&(var->rotate&(X_MIRROR|Y_MIRROR))!= 0 )
 				{
 				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*4;
 				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*5;
@@ -2445,28 +2447,30 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 				   }
 				 ipp_req.dst_vir_w = (ipp_req.dst0.w + 15) & (~15);
 				ipp_req.timeout = 100;
-				if(var->rotate / 90== 1)
+				if((var->rotate & 0x1ff) == 90)
 					ipp_req.flag = IPP_ROT_90;
-                else if (var->rotate / 90 == 2)
+                else if ((var->rotate & 0x1ff) == 180)
 					ipp_req.flag = IPP_ROT_180;
-				else if(var->rotate / 90 == 3)
+				else if((var->rotate & 0x1ff) == 270)
 					ipp_req.flag = IPP_ROT_270;
-				else if((var->rotate == X_MIRROR) || (var->rotate == (X_MIRROR + Y_MIRROR)))
+				else if((var->rotate & X_MIRROR) == X_MIRROR )
 					ipp_req.flag = IPP_ROT_X_FLIP;
-				else if(var->rotate == Y_MIRROR)
+				else if((var->rotate & Y_MIRROR) == Y_MIRROR)
 					ipp_req.flag = IPP_ROT_Y_FLIP;
 				//ipp_do_blit(&ipp_req);
 				ipp_blit_sync(&ipp_req);
 				yuv_phy[0] = ipp_req.dst0.YrgbMst;
 				yuv_phy[1] = ipp_req.dst0.CbrMst;
-				if(((var->rotate /90 != 0)&&(var->rotate %90 != 0)) ||(var->rotate == (X_MIRROR + Y_MIRROR)))
+				if((var->rotate & 0x1ff)!=0 &&(var->rotate&(X_MIRROR|Y_MIRROR))!= 0 )
 				{
 					memset(&ipp_req,0,sizeof(struct rk29_ipp_req));
 					
-					if(var->rotate % 90== X_MIRROR)
+					if((var->rotate & X_MIRROR) == X_MIRROR)
 						ipp_req.flag = IPP_ROT_X_FLIP;
-					else if((var->rotate %90 == Y_MIRROR) || (var->rotate == (X_MIRROR + Y_MIRROR)))
+					else if((var->rotate & Y_MIRROR) == Y_MIRROR)
 						ipp_req.flag = IPP_ROT_Y_FLIP;
+					else 
+						printk(">>>>>> %d rotate is not support!\n",var->rotate);
 					
 				  if(var->xres > screen->x_res)
 				   {
@@ -2555,19 +2559,19 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	  	//zyc add
     	has_set_rotate = true;
 		#ifdef CONFIG_FB_MIRROR_X_Y
-        if((arg == 0 || arg %90 ==0 || arg%90 ==1 ||arg %90 ==2 || arg %90 ==3)&&(arg<=360))
+        if( ((arg&0x1ff)%90) == 0 && ( arg&(~0xfff))==0 )
 			{
-			if(arg==(X_MIRROR + Y_MIRROR))
-				var->rotate = 180;
-			else if(arg==(90 + X_MIRROR + Y_MIRROR))
-				var->rotate = 270;
-			else if(arg==(270 + X_MIRROR + Y_MIRROR))
-				var->rotate = 90;
-			else if(arg==(180 + X_MIRROR + Y_MIRROR))
-				var->rotate = 0;
+			if( (arg&(  X_MIRROR | Y_MIRROR ) )== (X_MIRROR | Y_MIRROR) )
+				var->rotate = ROTATE_180;
+			else if((arg&( ROTATE_90 | X_MIRROR | Y_MIRROR ) )== ( ROTATE_90 | X_MIRROR | Y_MIRROR))
+				var->rotate = ROTATE_270;
+			else if((arg&( ROTATE_180 | X_MIRROR | Y_MIRROR ) )== ( ROTATE_180 | X_MIRROR | Y_MIRROR))
+				var->rotate = ROTATE_90;
+			else if((arg&( ROTATE_270 | X_MIRROR | Y_MIRROR ) )== ( ROTATE_270 | X_MIRROR | Y_MIRROR))
+				var->rotate = ROTATE_0;
 			else
 		#else 
-		if(arg == 0 || arg==180 || arg == 90 || arg==270)
+		if(arg == ROTATE_0 || arg==ROTATE_90 || arg == ROTATE_180 || arg==ROTATE_270)
 		{
 		#endif
 				var->rotate = arg;
