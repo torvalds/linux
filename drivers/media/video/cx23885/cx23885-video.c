@@ -78,7 +78,7 @@ MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 /* static data                                                         */
 
 #define FORMAT_FLAGS_PACKED       0x01
-
+#if 0
 static struct cx23885_fmt formats[] = {
 	{
 		.name     = "8 bpp, gray",
@@ -132,6 +132,23 @@ static struct cx23885_fmt formats[] = {
 		.flags    = FORMAT_FLAGS_PACKED,
 	},
 };
+#else
+static struct cx23885_fmt formats[] = {
+	{
+#if 0
+		.name     = "4:2:2, packed, UYVY",
+		.fourcc   = V4L2_PIX_FMT_UYVY,
+		.depth    = 16,
+		.flags    = FORMAT_FLAGS_PACKED,
+	}, {
+#endif
+		.name     = "4:2:2, packed, YUYV",
+		.fourcc   = V4L2_PIX_FMT_YUYV,
+		.depth    = 16,
+		.flags    = FORMAT_FLAGS_PACKED,
+	}
+};
+#endif
 
 static struct cx23885_fmt *format_by_fourcc(unsigned int fourcc)
 {
@@ -141,7 +158,12 @@ static struct cx23885_fmt *format_by_fourcc(unsigned int fourcc)
 		if (formats[i].fourcc == fourcc)
 			return formats+i;
 
-	printk(KERN_ERR "%s(0x%08x) NOT FOUND\n", __func__, fourcc);
+	printk(KERN_ERR "%s(%c%c%c%c) NOT FOUND\n", __func__,
+		(fourcc & 0xff),
+		((fourcc >> 8) & 0xff),
+		((fourcc >> 16) & 0xff),
+		((fourcc >> 24) & 0xff)
+		);
 	return NULL;
 }
 
@@ -750,7 +772,7 @@ static int video_open(struct file *file)
 	fh->type     = type;
 	fh->width    = 320;
 	fh->height   = 240;
-	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
+	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_YUYV);
 
 	videobuf_queue_sg_init(&fh->vidq, &cx23885_video_qops,
 			    &dev->pci->dev, &dev->slock,
