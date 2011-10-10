@@ -521,13 +521,22 @@ static int cx23885_audio_mux(struct cx23885_dev *dev, unsigned int input)
 {
 	dprintk(1, "%s(input=%d)\n", __func__, input);
 
-	if ((dev->board == CX23885_BOARD_HAUPPAUGE_HVR1800) ||
-		(dev->board == CX23885_BOARD_MPX885)) {
-
-		if (INPUT(input)->amux == CX25840_AUDIO7)
-			cx23885_flatiron_mux(dev, 1);
-		else if (INPUT(input)->amux == CX25840_AUDIO6)
-			cx23885_flatiron_mux(dev, 2);
+	/* The baseband video core of the cx23885 has two audio inputs.
+	 * LR1 and LR2. In almost every single case so far only HVR1xxx
+	 * cards we've only ever supported LR1. Time to support LR2,
+	 * which is available via the optional white breakout header on
+	 * the board.
+	 * We'll use a could of existing enums in the card struct to allow
+	 * devs to specify which baseband input they need, or just default
+	 * to what we've always used.
+	 */
+	if (INPUT(input)->amux == CX25840_AUDIO7)
+		cx23885_flatiron_mux(dev, 1);
+	else if (INPUT(input)->amux == CX25840_AUDIO6)
+		cx23885_flatiron_mux(dev, 2);
+	else {
+		/* Not specifically defined, assume the default. */
+		cx23885_flatiron_mux(dev, 1);
 	}
 
 	return 0;
@@ -1305,6 +1314,10 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	mutex_lock(&dev->lock);
 	cx23885_video_mux(dev, i);
+
+	/* By default establish the default audio input for the card also */
+	/* Caller is free to use VIDIOC_S_AUDIO to override afterwards */
+	cx23885_audio_mux(dev, i);
 	mutex_unlock(&dev->lock);
 	return 0;
 }
@@ -1369,20 +1382,16 @@ static int vidioc_s_audinput(struct file *file, void *priv,
 	struct v4l2_audio *i)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
-
-	/* cx23885 offers 2 different audio inputs on the A/V core, LR1 and LR2.
-	 * By default the driver has always used LR1 and we need support for
-	 * switching. This isn't board specific, is part of the base silicon.
-	 */
 	if (i->index >= 2)
 		return -EINVAL;
 
 	dprintk(1, "%s(%d)\n", __func__, i->index);
 
-	mutex_lock(&dev->lock);
 	dev->audinput = i->index;
-	cx23885_audio_mux(dev, dev->audinput);
-	mutex_unlock(&dev->lock);
+
+	/* Skip the audio defaults from the cards struct, caller wants
+	 * directly touch the audio mux hardware. */
+	cx23885_flatiron_mux(dev, dev->audinput + 1);
 	return 0;
 }
 
@@ -1780,6 +1789,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	cx23885_set_tvnorm(dev, dev->tvnorm);
 	init_controls(dev);
 	cx23885_video_mux(dev, 0);
+	cx23885_audio_mux(dev, 0);
 	mutex_unlock(&dev->lock);
 
 	return 0;
