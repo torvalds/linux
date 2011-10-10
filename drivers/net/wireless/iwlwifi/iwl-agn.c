@@ -2418,11 +2418,6 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
-		if (ret == 0) {
-			priv->agg_tids_count++;
-			IWL_DEBUG_HT(priv, "priv->agg_tids_count = %u\n",
-				     priv->agg_tids_count);
-		}
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
@@ -2434,7 +2429,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 			ret = 0;
-		if (priv->cfg->ht_params &&
+		if (!priv->agg_tids_count && priv->cfg->ht_params &&
 		    priv->cfg->ht_params->use_rts_for_aggregation) {
 			/*
 			 * switch off RTS/CTS if it was previously enabled
@@ -2481,6 +2476,9 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 			sta_priv->lq_sta.lq.general_params.flags |=
 				LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
 		}
+		priv->agg_tids_count++;
+		IWL_DEBUG_HT(priv, "priv->agg_tids_count = %u\n",
+			     priv->agg_tids_count);
 
 		sta_priv->lq_sta.lq.agg_params.agg_frame_cnt_limit =
 			sta_priv->max_agg_bufsize;
