@@ -114,6 +114,8 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	spin_lock_init(&blkif->blk_ring_lock);
 	atomic_set(&blkif->refcnt, 1);
 	init_waitqueue_head(&blkif->wq);
+	init_completion(&blkif->drain_complete);
+	atomic_set(&blkif->drain, 0);
 	blkif->st_print = jiffies;
 	init_waitqueue_head(&blkif->waiting_to_free);
 
@@ -474,6 +476,19 @@ kfree:
 out:
 	return err;
 }
+int xen_blkbk_barrier(struct xenbus_transaction xbt,
+		      struct backend_info *be, int state)
+{
+	struct xenbus_device *dev = be->dev;
+	int err;
+
+	err = xenbus_printf(xbt, dev->nodename, "feature-barrier",
+			    "%d", state);
+	if (err)
+		xenbus_dev_fatal(dev, err, "writing feature-barrier");
+
+	return err;
+}
 
 /*
  * Entry point to this code when a new device is created.  Allocate the basic
@@ -707,6 +722,9 @@ again:
 		goto abort;
 
 	err = xen_blkbk_discard(xbt, be);
+
+	/* If we can't advertise it is OK. */
+	err = xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
 
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));

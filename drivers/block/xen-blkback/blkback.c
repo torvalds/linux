@@ -452,6 +452,23 @@ static void xen_blk_discard(struct xen_blkif *blkif, struct blkif_request *req)
 	make_response(blkif, req->id, req->operation, status);
 }
 
+static void xen_blk_drain_io(struct xen_blkif *blkif)
+{
+	atomic_set(&blkif->drain, 1);
+	do {
+		wait_for_completion_interruptible_timeout(
+				&blkif->drain_complete, HZ);
+
+		if (!atomic_read(&blkif->drain))
+			break;
+		/* The initial value is one, and one refcnt taken at the
+		 * start of the xen_blkif_schedule thread. */
+		if (atomic_read(&blkif->refcnt) <= 2)
+			break;
+	} while (!kthread_should_stop());
+	atomic_set(&blkif->drain, 0);
+}
+
 /*
  * Completion callback on the bio's. Called as bh->b_end_io()
  */
@@ -463,6 +480,11 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	    (error == -EOPNOTSUPP)) {
 		pr_debug(DRV_PFX "flush diskcache op failed, not supported\n");
 		xen_blkbk_flush_diskcache(XBT_NIL, pending_req->blkif->be, 0);
+		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
+	} else if ((pending_req->operation == BLKIF_OP_WRITE_BARRIER) &&
+		    (error == -EOPNOTSUPP)) {
+		pr_debug(DRV_PFX "write barrier op failed, not supported\n");
+		xen_blkbk_barrier(XBT_NIL, pending_req->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
 	} else if (error) {
 		pr_debug(DRV_PFX "Buffer not up-to-date at end of operation,"
@@ -481,6 +503,10 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 			      pending_req->operation, pending_req->status);
 		xen_blkif_put(pending_req->blkif);
 		free_req(pending_req);
+		if (atomic_read(&pending_req->blkif->refcnt) <= 2) {
+			if (atomic_read(&pending_req->blkif->drain))
+				complete(&pending_req->blkif->drain_complete);
+		}
 	}
 }
 
@@ -574,7 +600,6 @@ do_block_io_op(struct xen_blkif *blkif)
 
 	return more_to_do;
 }
-
 /*
  * Transmutation of the 'struct blkif_request' to a proper 'struct bio'
  * and call the 'submit_bio' to pass it to the underlying storage.
@@ -591,6 +616,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	int i, nbio = 0;
 	int operation;
 	struct blk_plug plug;
+	bool drain = false;
 
 	switch (req->operation) {
 	case BLKIF_OP_READ:
@@ -601,6 +627,8 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		blkif->st_wr_req++;
 		operation = WRITE_ODIRECT;
 		break;
+	case BLKIF_OP_WRITE_BARRIER:
+		drain = true;
 	case BLKIF_OP_FLUSH_DISKCACHE:
 		blkif->st_f_req++;
 		operation = WRITE_FLUSH;
@@ -609,7 +637,6 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		blkif->st_ds_req++;
 		operation = REQ_DISCARD;
 		break;
-	case BLKIF_OP_WRITE_BARRIER:
 	default:
 		operation = 0; /* make gcc happy */
 		goto fail_response;
@@ -667,6 +694,12 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 			goto fail_response;
 		}
 	}
+
+	/* Wait on all outstanding I/O's and once that has been completed
+	 * issue the WRITE_FLUSH.
+	 */
+	if (drain)
+		xen_blk_drain_io(pending_req->blkif);
 
 	/*
 	 * If we have failed at this point, we need to undo the M2P override,
