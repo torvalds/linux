@@ -1510,10 +1510,6 @@ static void cx23885_vid_timeout(unsigned long data)
 	struct cx23885_buffer *buf;
 	unsigned long flags;
 
-	cx23885_sram_channel_dump(dev, &dev->sram_channels[SRAM_CH01]);
-
-	cx_clear(VID_A_DMA_CTL, 0x11);
-
 	spin_lock_irqsave(&dev->slock, flags);
 	while (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next,
