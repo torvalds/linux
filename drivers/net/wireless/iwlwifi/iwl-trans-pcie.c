@@ -1077,7 +1077,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		txq_id =
 		    trans_pcie->ac_to_queue[ctx][skb_get_queue_mapping(skb)];
 
-	if (ieee80211_is_data_qos(fc)) {
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		u8 *qc = NULL;
 		struct iwl_tid_data *tid_data;
 		qc = ieee80211_get_qos_ctl(hdr);
@@ -1206,7 +1206,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(trans, txq);
 
-	if (ieee80211_is_data_qos(fc)) {
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		trans->shrd->tid_data[sta_id][tid].tfds_in_queue++;
 		if (!ieee80211_has_morefrags(fc))
 			trans->shrd->tid_data[sta_id][tid].seq_number =
