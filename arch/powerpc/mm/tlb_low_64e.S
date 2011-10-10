@@ -136,22 +136,22 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 #ifndef CONFIG_PPC_64K_PAGES
 	rldicl	r15,r16,64-PUD_SHIFT+3,64-PUD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
-	cmlpdi	cr0,r14,0
-	beq	tlb_miss_fault_bolted	/* Bad pgd entry */
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_bolted	/* Bad pgd entry or hugepage; bail */
 	ldx	r14,r14,r15		/* grab pud entry */
 #endif /* CONFIG_PPC_64K_PAGES */
 
 	rldicl	r15,r16,64-PMD_SHIFT+3,64-PMD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
-	cmpldi	cr0,r14,0
-	beq	tlb_miss_fault_bolted
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_bolted
 	ldx	r14,r14,r15		/* Grab pmd entry */
 
 	rldicl	r15,r16,64-PAGE_SHIFT+3,64-PTE_INDEX_SIZE-3
 	clrrdi	r15,r15,3
-	cmpldi	cr0,r14,0
-	beq	tlb_miss_fault_bolted
-	ldx	r14,r14,r15		/* Grab PTE */
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_bolted
+	ldx	r14,r14,r15		/* Grab PTE, normal (!huge) page */
 
 	/* Check if required permissions are met */
 	andc.	r15,r11,r14
