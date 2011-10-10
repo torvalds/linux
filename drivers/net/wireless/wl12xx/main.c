@@ -1910,6 +1910,27 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&wl->mutex);
 }
 
+static int wl12xx_allocate_rate_policy(struct wl1271 *wl, u8 *idx)
+{
+	u8 policy = find_first_zero_bit(wl->rate_policies_map,
+					WL12XX_MAX_RATE_POLICIES);
+	if (policy >= WL12XX_MAX_RATE_POLICIES)
+		return -EBUSY;
+
+	__set_bit(policy, wl->rate_policies_map);
+	*idx = policy;
+	return 0;
+}
+
+static void wl12xx_free_rate_policy(struct wl1271 *wl, u8 *idx)
+{
+	if (WARN_ON(*idx >= WL12XX_MAX_RATE_POLICIES))
+		return;
+
+	__clear_bit(*idx, wl->rate_policies_map);
+	*idx = WL12XX_MAX_RATE_POLICIES;
+}
+
 static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	switch (wlvif->bss_type) {
@@ -1937,6 +1958,7 @@ static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	int i;
 
 	/* clear everything but the persistent data */
 	memset(wlvif, 0, offsetof(struct wl12xx_vif, persistent));
@@ -1970,11 +1992,18 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 	    wlvif->bss_type == BSS_TYPE_IBSS) {
 		/* init sta/ibss data */
 		wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
-
+		wl12xx_allocate_rate_policy(wl, &wlvif->sta.basic_rate_idx);
+		wl12xx_allocate_rate_policy(wl, &wlvif->sta.ap_rate_idx);
+		wl12xx_allocate_rate_policy(wl, &wlvif->sta.p2p_rate_idx);
 	} else {
 		/* init ap data */
 		wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
 		wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
+		wl12xx_allocate_rate_policy(wl, &wlvif->ap.mgmt_rate_idx);
+		wl12xx_allocate_rate_policy(wl, &wlvif->ap.bcast_rate_idx);
+		for (i = 0; i < CONF_TX_MAX_AC_COUNT; i++)
+			wl12xx_allocate_rate_policy(wl,
+						&wlvif->ap.ucast_rate_idx[i]);
 	}
 
 	wlvif->bitrate_masks[IEEE80211_BAND_2GHZ] = wl->conf.tx.basic_rate;
@@ -2181,7 +2210,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 bool reset_tx_queues)
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
-	int ret;
+	int i, ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
@@ -2227,10 +2256,23 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	}
 deinit:
 	/* clear all hlids (except system_hlid) */
-	wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
 	wlvif->dev_hlid = WL12XX_INVALID_LINK_ID;
-	wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
-	wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
+
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
+	    wlvif->bss_type == BSS_TYPE_IBSS) {
+		wlvif->sta.hlid = WL12XX_INVALID_LINK_ID;
+		wl12xx_free_rate_policy(wl, &wlvif->sta.basic_rate_idx);
+		wl12xx_free_rate_policy(wl, &wlvif->sta.ap_rate_idx);
+		wl12xx_free_rate_policy(wl, &wlvif->sta.p2p_rate_idx);
+	} else {
+		wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
+		wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
+		wl12xx_free_rate_policy(wl, &wlvif->ap.mgmt_rate_idx);
+		wl12xx_free_rate_policy(wl, &wlvif->ap.bcast_rate_idx);
+		for (i = 0; i < CONF_TX_MAX_AC_COUNT; i++)
+			wl12xx_free_rate_policy(wl,
+						&wlvif->ap.ucast_rate_idx[i]);
+	}
 
 	wl12xx_tx_reset_wlvif(wl, wlvif);
 	wl1271_free_ap_keys(wl, wlvif);

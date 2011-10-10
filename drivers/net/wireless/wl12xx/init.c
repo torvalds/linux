@@ -434,7 +434,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	rc.long_retry_limit = 10;
 	rc.short_retry_limit = 10;
 	rc.aflags = 0;
-	ret = wl1271_acx_ap_rate_policy(wl, &rc, ACX_TX_AP_MODE_MGMT_RATE);
+	ret = wl1271_acx_ap_rate_policy(wl, &rc, wlvif->ap.mgmt_rate_idx);
 	if (ret < 0)
 		return ret;
 
@@ -443,7 +443,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	rc.short_retry_limit = 10;
 	rc.long_retry_limit = 10;
 	rc.aflags = 0;
-	ret = wl1271_acx_ap_rate_policy(wl, &rc, ACX_TX_AP_MODE_BCST_RATE);
+	ret = wl1271_acx_ap_rate_policy(wl, &rc, wlvif->ap.bcast_rate_idx);
 	if (ret < 0)
 		return ret;
 
@@ -465,7 +465,8 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		rc.short_retry_limit = 10;
 		rc.long_retry_limit = 10;
 		rc.aflags = 0;
-		ret = wl1271_acx_ap_rate_policy(wl, &rc, i);
+		ret = wl1271_acx_ap_rate_policy(wl, &rc,
+						wlvif->ap.ucast_rate_idx[i]);
 		if (ret < 0)
 			return ret;
 	}

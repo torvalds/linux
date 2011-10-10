@@ -142,6 +142,8 @@ extern u32 wl12xx_debug_level;
 #define WL12XX_INVALID_ROLE_ID     0xff
 #define WL12XX_INVALID_LINK_ID     0xff
 
+#define WL12XX_MAX_RATE_POLICIES 16
+
 /* Defined by FW as 0. Will not be freed or allocated. */
 #define WL12XX_SYSTEM_HLID         0
 
@@ -396,8 +398,11 @@ struct wl1271 {
 	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
 	unsigned long roles_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 	unsigned long roc_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
+	unsigned long rate_policies_map[
+			BITS_TO_LONGS(WL12XX_MAX_RATE_POLICIES)];
 
 	struct list_head wlvif_list;
+
 	u8 sta_count;
 	u8 ap_count;
 
@@ -569,6 +574,10 @@ struct wl12xx_vif {
 		struct {
 			u8 hlid;
 			u8 ba_rx_bitmap;
+
+			u8 basic_rate_idx;
+			u8 ap_rate_idx;
+			u8 p2p_rate_idx;
 		} sta;
 		struct {
 			u8 global_hlid;
@@ -580,6 +589,10 @@ struct wl12xx_vif {
 
 			/* recoreded keys - set here before AP startup */
 			struct wl1271_ap_key *recorded_keys[MAX_NUM_KEYS];
+
+			u8 mgmt_rate_idx;
+			u8 bcast_rate_idx;
+			u8 ucast_rate_idx[CONF_TX_MAX_AC_COUNT];
 		} ap;
 	};
 

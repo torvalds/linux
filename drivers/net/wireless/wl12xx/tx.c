@@ -339,16 +339,16 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		   send them with AP rate policies, otherwise use default
 		   basic rates */
 		if (control->control.sta)
-			rate_idx = ACX_TX_AP_FULL_RATE;
+			rate_idx = wlvif->sta.ap_rate_idx;
 		else
-			rate_idx = ACX_TX_BASIC_RATE;
+			rate_idx = wlvif->sta.basic_rate_idx;
 	} else {
 		if (hlid == wlvif->ap.global_hlid)
-			rate_idx = ACX_TX_AP_MODE_MGMT_RATE;
+			rate_idx = wlvif->ap.mgmt_rate_idx;
 		else if (hlid == wlvif->ap.bcast_hlid)
-			rate_idx = ACX_TX_AP_MODE_BCST_RATE;
+			rate_idx = wlvif->ap.bcast_rate_idx;
 		else
-			rate_idx = ac;
+			rate_idx = wlvif->ap.ucast_rate_idx[ac];
 	}
 
 	tx_attr |= rate_idx << TX_HW_ATTR_OFST_RATE_POLICY;
