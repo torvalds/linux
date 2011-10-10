@@ -1239,7 +1239,7 @@ static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 	dprintk(1, "%s()\n", __func__);
 
 	n = i->index;
-	if (n >= 4)
+	if (n >= MAX_CX23885_INPUT)
 		return -EINVAL;
 
 	if (0 == INPUT(n)->type)
@@ -1279,10 +1279,13 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	dprintk(1, "%s(%d)\n", __func__, i);
 
-	if (i >= 4) {
+	if (i >= MAX_CX23885_INPUT) {
 		dprintk(1, "%s() -EINVAL\n", __func__);
 		return -EINVAL;
 	}
+
+	if (INPUT(i)->type == 0)
+		return -EINVAL;
 
 	mutex_lock(&dev->lock);
 	cx23885_video_mux(dev, i);
