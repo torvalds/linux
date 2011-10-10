@@ -185,6 +185,12 @@
 		 .rreg = xreg_right, .shift = xshift, \
 		 .min = xmin, .max = xmax} }
 
+#define SND_SOC_BYTES(xname, xbase, xregs)		      \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get, \
+	.put = snd_soc_bytes_put, .private_value =	      \
+		((unsigned long)&(struct soc_bytes)           \
+		{.base = xbase, .num_regs = xregs }) }
 
 /*
  * Simplified versions of above macros, declaring a struct and calculating
@@ -413,6 +419,13 @@ int snd_soc_get_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_bytes_info(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_info *uinfo);
+int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
+		      struct snd_ctl_elem_value *ucontrol);
+int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
+		      struct snd_ctl_elem_value *ucontrol);
+
 
 /**
  * struct snd_soc_reg_access - Describes whether a given register is
@@ -886,6 +899,11 @@ struct snd_soc_pcm_runtime {
 struct soc_mixer_control {
 	int min, max, platform_max;
 	unsigned int reg, rreg, shift, rshift, invert;
+};
+
+struct soc_bytes {
+	int base;
+	int num_regs;
 };
 
 /* enumerated kcontrol */

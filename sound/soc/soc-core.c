@@ -2736,6 +2736,55 @@ int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_2r_sx);
 
+int snd_soc_bytes_info(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_info *uinfo)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_bytes *params = (void *)kcontrol->private_value;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+	uinfo->count = params->num_regs * codec->val_bytes;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_bytes_info);
+
+int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
+		      struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_bytes *params = (void *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	int ret;
+
+	if (codec->using_regmap)
+		ret = regmap_raw_read(codec->control_data, params->base,
+				      ucontrol->value.bytes.data,
+				      params->num_regs * codec->val_bytes);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_bytes_get);
+
+int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
+		      struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_bytes *params = (void *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	int ret;
+
+	if (codec->using_regmap)
+		ret = regmap_raw_write(codec->control_data, params->base,
+				       ucontrol->value.bytes.data,
+				       params->num_regs * codec->val_bytes);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_bytes_put);
+
 /**
  * snd_soc_dai_set_sysclk - configure DAI system or master clock.
  * @dai: DAI
