@@ -345,16 +345,18 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		 * 1) channel switch complete with status=0
 		 * 2) channel switch failed status=1
 		 */
-		if (test_and_clear_bit(WL1271_FLAG_CS_PROGRESS, &wl->flags)) {
-			/* TODO: configure only the relevant vif */
-			wl12xx_for_each_wlvif_sta(wl, wlvif) {
-				struct ieee80211_vif *vif =
-					wl12xx_wlvif_to_vif(wlvif);
-				bool success = mbox->channel_switch_status ?
-					false : true;
 
-				ieee80211_chswitch_done(vif, success);
-			}
+		/* TODO: configure only the relevant vif */
+		wl12xx_for_each_wlvif_sta(wl, wlvif) {
+			struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+			bool success;
+
+			if (!test_and_clear_bit(WLVIF_FLAG_CS_PROGRESS,
+						&wl->flags))
+				continue;
+
+			success = mbox->channel_switch_status ? false : true;
+			ieee80211_chswitch_done(vif, success);
 		}
 	}
 

@@ -2317,7 +2317,7 @@ static int wl1271_unjoin(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
 
-	if (test_and_clear_bit(WL1271_FLAG_CS_PROGRESS, &wl->flags)) {
+	if (test_and_clear_bit(WLVIF_FLAG_CS_PROGRESS, &wlvif->flags)) {
 		wl12xx_cmd_stop_channel_switch(wl);
 		ieee80211_chswitch_done(wl->vif, false);
 	}
@@ -4275,6 +4275,7 @@ static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
 				     struct ieee80211_channel_switch *ch_switch)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif;
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 channel switch");
@@ -4291,10 +4292,13 @@ static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	ret = wl12xx_cmd_channel_switch(wl, ch_switch);
+	/* TODO: change mac80211 to pass vif as param */
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		ret = wl12xx_cmd_channel_switch(wl, ch_switch);
 
-	if (!ret)
-		set_bit(WL1271_FLAG_CS_PROGRESS, &wl->flags);
+		if (!ret)
+			set_bit(WLVIF_FLAG_CS_PROGRESS, &wlvif->flags);
+	}
 
 	wl1271_ps_elp_sleep(wl);
 
