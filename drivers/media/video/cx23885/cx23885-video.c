@@ -1070,7 +1070,8 @@ static int vidioc_streamon(struct file *file, void *priv,
 	struct cx23885_dev *dev = fh->dev;
 	dprintk(1, "%s()\n", __func__);
 
-	if (unlikely(fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE))
+	if ((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+		(fh->type != V4L2_BUF_TYPE_VBI_CAPTURE))
 		return -EINVAL;
 	if (unlikely(i != fh->type))
 		return -EINVAL;
@@ -1087,7 +1088,8 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	int err, res;
 	dprintk(1, "%s()\n", __func__);
 
-	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if ((fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+		(fh->type != V4L2_BUF_TYPE_VBI_CAPTURE))
 		return -EINVAL;
 	if (i != fh->type)
 		return -EINVAL;

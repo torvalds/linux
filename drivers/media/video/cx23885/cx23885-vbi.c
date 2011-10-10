@@ -56,12 +56,13 @@ int cx23885_vbi_fmt(struct file *file, void *priv,
 	if (dev->tvnorm & V4L2_STD_525_60) {
 		/* ntsc */
 		f->fmt.vbi.samples_per_line = VBI_LINE_LENGTH;
-		f->fmt.vbi.sampling_rate = 28636363;
+		f->fmt.vbi.sampling_rate = 27000000;
 		f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
-		f->fmt.vbi.offset = 64 * 4;
+		f->fmt.vbi.offset = 0;
+		f->fmt.vbi.flags = 0;
 		f->fmt.vbi.start[0] = 10;
 		f->fmt.vbi.count[0] = 17;
-		f->fmt.vbi.start[1] = 272;
+		f->fmt.vbi.start[1] = 263 + 10 + 1;
 		f->fmt.vbi.count[1] = 17;
 	} else if (dev->tvnorm & V4L2_STD_625_50) {
 		/* pal */
@@ -222,7 +223,7 @@ vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		rc = videobuf_iolock(q, &buf->vb, NULL);
 		if (0 != rc)
 			goto fail;
-		cx23885_risc_buffer(dev->pci, &buf->risc,
+		cx23885_risc_vbibuffer(dev->pci, &buf->risc,
 				 dma->sglist,
 				 0, buf->vb.width * buf->vb.height,
 				 buf->vb.width, 0,

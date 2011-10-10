@@ -509,6 +509,11 @@ extern int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	unsigned int top_offset, unsigned int bottom_offset,
 	unsigned int bpl, unsigned int padding, unsigned int lines);
 
+extern int cx23885_risc_vbibuffer(struct pci_dev *pci,
+	struct btcx_riscmem *risc, struct scatterlist *sglist,
+	unsigned int top_offset, unsigned int bottom_offset,
+	unsigned int bpl, unsigned int padding, unsigned int lines);
+
 void cx23885_cancel_buffers(struct cx23885_tsport *port);
 
 extern int cx23885_restart_queue(struct cx23885_tsport *port,
