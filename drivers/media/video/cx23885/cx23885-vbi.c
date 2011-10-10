@@ -41,6 +41,12 @@ MODULE_PARM_DESC(vbi_debug, "enable debug messages [vbi]");
 
 /* ------------------------------------------------------------------ */
 
+#define VBI_LINE_LENGTH 1440
+#define NTSC_VBI_START_LINE 10        /* line 10 - 21 */
+#define NTSC_VBI_END_LINE   21
+#define NTSC_VBI_LINES      (NTSC_VBI_END_LINE - NTSC_VBI_START_LINE + 1)
+
+
 int cx23885_vbi_fmt(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
@@ -49,16 +55,21 @@ int cx23885_vbi_fmt(struct file *file, void *priv,
 
 	if (dev->tvnorm & V4L2_STD_525_60) {
 		/* ntsc */
+		f->fmt.vbi.samples_per_line = VBI_LINE_LENGTH;
 		f->fmt.vbi.sampling_rate = 28636363;
+		f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
+		f->fmt.vbi.offset = 64 * 4;
 		f->fmt.vbi.start[0] = 10;
-		f->fmt.vbi.start[1] = 273;
-
+		f->fmt.vbi.count[0] = 17;
+		f->fmt.vbi.start[1] = 272;
+		f->fmt.vbi.count[1] = 17;
 	} else if (dev->tvnorm & V4L2_STD_625_50) {
 		/* pal */
 		f->fmt.vbi.sampling_rate = 35468950;
 		f->fmt.vbi.start[0] = 7 - 1;
 		f->fmt.vbi.start[1] = 319 - 1;
 	}
+
 	return 0;
 }
 
@@ -106,6 +117,8 @@ static int cx23885_start_vbi_dma(struct cx23885_dev    *dev,
 
 	/* reset counter */
 	cx_write(VID_A_GPCNT_CTL, 3);
+	cx_write(VID_A_VBI_CTRL, 3);
+	cx_write(VBI_A_GPCNT_CTL, 3);
 	q->count = 1;
 
 	/* enable irq */
@@ -168,7 +181,7 @@ void cx23885_vbi_timeout(unsigned long data)
 }
 
 /* ------------------------------------------------------------------ */
-#define VBI_LINE_LENGTH 2048
+#define VBI_LINE_LENGTH 1440
 #define VBI_LINE_COUNT 17
 
 static int
