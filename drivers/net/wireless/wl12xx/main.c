@@ -3494,11 +3494,11 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 
 	if (changed & BSS_CHANGED_IBSS) {
 		if (bss_conf->ibss_joined) {
-			set_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags);
+			set_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags);
 			ibss_joined = true;
 		} else {
-			if (test_and_clear_bit(WL1271_FLAG_IBSS_JOINED,
-					       &wl->flags)) {
+			if (test_and_clear_bit(WLVIF_FLAG_IBSS_JOINED,
+					       &wlvif->flags)) {
 				wl1271_unjoin(wl, wlvif);
 				wl12xx_cmd_role_start_dev(wl, wlvif);
 				wl12xx_roc(wl, wlvif->dev_role_id);

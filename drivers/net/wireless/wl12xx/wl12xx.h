@@ -313,7 +313,6 @@ struct wl1271_ap_key {
 };
 
 enum wl12xx_flags {
-	WL1271_FLAG_IBSS_JOINED,
 	WL1271_FLAG_GPIO_POWER,
 	WL1271_FLAG_TX_QUEUE_STOPPED,
 	WL1271_FLAG_TX_PENDING,
@@ -339,6 +338,7 @@ enum wl12xx_flags {
 
 enum wl12xx_vif_flags {
 	WLVIF_FLAG_STA_ASSOCIATED,
+	WLVIF_FLAG_IBSS_JOINED,
 };
 
 struct wl1271_link {

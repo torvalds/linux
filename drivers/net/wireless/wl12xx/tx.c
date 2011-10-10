@@ -193,7 +193,7 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	wl1271_tx_update_filters(wl, wlvif, skb);
 
 	if ((test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
-	     test_bit(WL1271_FLAG_IBSS_JOINED, &wl->flags)) &&
+	     test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags)) &&
 	    !ieee80211_is_auth(hdr->frame_control) &&
 	    !ieee80211_is_assoc_req(hdr->frame_control))
 		return wlvif->sta.hlid;
