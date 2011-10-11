@@ -77,8 +77,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	     (is_ibss && !test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags))) &&
 	    !test_bit(wlvif->dev_role_id, wl->roc_map)) {
 		/* restore remain on channel */
-		wl12xx_cmd_role_start_dev(wl, wlvif);
-		wl12xx_roc(wl, wlvif, wlvif->dev_role_id);
+		wl12xx_start_dev(wl, wlvif);
 	}
 	wl1271_ps_elp_sleep(wl);
 

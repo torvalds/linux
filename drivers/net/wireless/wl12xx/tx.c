@@ -99,11 +99,7 @@ static int wl1271_tx_update_filters(struct wl1271 *wl,
 		goto out;
 
 	wl1271_debug(DEBUG_CMD, "starting device role for roaming");
-	ret = wl12xx_cmd_role_start_dev(wl, wlvif);
-	if (ret < 0)
-		goto out;
-
-	ret = wl12xx_roc(wl, wlvif, wlvif->dev_role_id);
+	ret = wl12xx_start_dev(wl, wlvif);
 	if (ret < 0)
 		goto out;
 out:

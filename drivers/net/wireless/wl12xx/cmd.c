@@ -468,7 +468,8 @@ static int wl12xx_get_new_session_id(struct wl1271 *wl,
 	return wlvif->session_counter;
 }
 
-int wl12xx_cmd_role_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
+static int wl12xx_cmd_role_start_dev(struct wl1271 *wl,
+				     struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_start *cmd;
 	int ret;
@@ -516,7 +517,8 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_role_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
+static int wl12xx_cmd_role_stop_dev(struct wl1271 *wl,
+				    struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_role_stop *cmd;
 	int ret;
@@ -1773,6 +1775,53 @@ int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl)
 out_free:
 	kfree(cmd);
 
+out:
+	return ret;
+}
+
+/* start dev role and roc on its channel */
+int wl12xx_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
+{
+	int ret;
+
+	if (WARN_ON(!(wlvif->bss_type == BSS_TYPE_STA_BSS ||
+		      wlvif->bss_type == BSS_TYPE_IBSS)))
+		return -EINVAL;
+
+	ret = wl12xx_cmd_role_start_dev(wl, wlvif);
+	if (ret < 0)
+		goto out;
+
+	ret = wl12xx_roc(wl, wlvif, wlvif->dev_role_id);
+	if (ret < 0)
+		goto out_stop;
+
+	return 0;
+
+out_stop:
+	wl12xx_cmd_role_stop_dev(wl, wlvif);
+out:
+	return ret;
+}
+
+/* croc dev hlid, and stop the role */
+int wl12xx_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
+{
+	int ret;
+
+	if (WARN_ON(!(wlvif->bss_type == BSS_TYPE_STA_BSS ||
+		      wlvif->bss_type == BSS_TYPE_IBSS)))
+		return -EINVAL;
+
+	if (test_bit(wlvif->dev_role_id, wl->roc_map)) {
+		ret = wl12xx_croc(wl, wlvif->dev_role_id);
+		if (ret < 0)
+			goto out;
+	}
+
+	ret = wl12xx_cmd_role_stop_dev(wl, wlvif);
+	if (ret < 0)
+		goto out;
 out:
 	return ret;
 }
