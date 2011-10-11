@@ -565,6 +565,5 @@ static const struct _XGI_TV_filter {
 };
 
 static int           filter = -1;
-static unsigned char filter_tb;
 
 #endif

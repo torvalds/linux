@@ -946,6 +946,8 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 		reg = xgifb_reg_get(XGIPART4, 0x01);
 
 		if (reg < 0xB0) { /* Set filter for XGI301 */
+			int filter_tb;
+
 			switch (xgifb_info->video_width) {
 			case 320:
 				filter_tb = (xgifb_info->TV_type ==
@@ -964,6 +966,7 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 					     TVMODE_NTSC) ? 7 : 15;
 				break;
 			default:
+				filter_tb = 0;
 				filter = -1;
 				break;
 			}
