@@ -41,25 +41,47 @@ struct usbhs_mod {
 	int (*start)(struct usbhs_priv *priv);
 	int (*stop)(struct usbhs_priv *priv);
 
-	/* INTSTS0 :: DVST (DVSQ) */
+	/*
+	 * INTSTS0
+	 */
+
+	/* DVST (DVSQ) */
 	int (*irq_dev_state)(struct usbhs_priv *priv,
 			     struct usbhs_irq_state *irq_state);
 
-	/* INTSTS0 :: CTRT (CTSQ) */
+	/* CTRT (CTSQ) */
 	int (*irq_ctrl_stage)(struct usbhs_priv *priv,
 			      struct usbhs_irq_state *irq_state);
 
-	/* INTSTS0 :: BEMP */
-	/* BEMPSTS */
+	/* BEMP / BEMPSTS */
 	int (*irq_empty)(struct usbhs_priv *priv,
 			 struct usbhs_irq_state *irq_state);
 	u16 irq_bempsts;
 
-	/* INTSTS0 :: BRDY */
-	/* BRDYSTS */
+	/* BRDY / BRDYSTS */
 	int (*irq_ready)(struct usbhs_priv *priv,
 			 struct usbhs_irq_state *irq_state);
 	u16 irq_brdysts;
+
+	/*
+	 * INTSTS1
+	 */
+
+	/* ATTCHE */
+	int (*irq_attch)(struct usbhs_priv *priv,
+			 struct usbhs_irq_state *irq_state);
+
+	/* DTCHE */
+	int (*irq_dtch)(struct usbhs_priv *priv,
+			struct usbhs_irq_state *irq_state);
+
+	/* SIGN */
+	int (*irq_sign)(struct usbhs_priv *priv,
+			struct usbhs_irq_state *irq_state);
+
+	/* SACK */
+	int (*irq_sack)(struct usbhs_priv *priv,
+			struct usbhs_irq_state *irq_state);
 
 	struct usbhs_priv *priv;
 };

@@ -172,6 +172,15 @@ struct usbhs_priv;
 #define  NODATA_STATUS_STAGE	5	/* Control write NoData status stage */
 #define  SEQUENCE_ERROR		6	/* Control transfer sequence error */
 
+/* INTSTS1 */
+#define OVRCR	(1 << 15) /* OVRCR Interrupt Status */
+#define BCHG	(1 << 14) /* USB Bus Change Interrupt Status */
+#define DTCH	(1 << 12) /* USB Disconnection Detect Interrupt Status */
+#define ATTCH	(1 << 11) /* ATTCH Interrupt Status */
+#define EOFERR	(1 << 6)  /* EOF Error Detect Interrupt Status */
+#define SIGN	(1 << 5)  /* Setup Transaction Error Interrupt Status */
+#define SACK	(1 << 4)  /* Setup Transaction ACK Response Interrupt Status */
+
 /* PIPECFG */
 /* DCPCFG */
 #define TYPE_NONE	(0 << 14)	/* Transfer Type */

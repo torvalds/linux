@@ -254,6 +254,8 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	 * see also
 	 *	usbhs_irq_setting_update
 	 */
+
+	/* INTSTS0 */
 	if (irq_state.intsts0 & VBINT)
 		usbhs_mod_info_call(priv, irq_vbus, priv, &irq_state);
 
@@ -269,12 +271,26 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	if (irq_state.intsts0 & BRDY)
 		usbhs_mod_call(priv, irq_ready, priv, &irq_state);
 
+	/* INTSTS1 */
+	if (irq_state.intsts1 & ATTCH)
+		usbhs_mod_call(priv, irq_attch, priv, &irq_state);
+
+	if (irq_state.intsts1 & DTCH)
+		usbhs_mod_call(priv, irq_dtch, priv, &irq_state);
+
+	if (irq_state.intsts1 & SIGN)
+		usbhs_mod_call(priv, irq_sign, priv, &irq_state);
+
+	if (irq_state.intsts1 & SACK)
+		usbhs_mod_call(priv, irq_sack, priv, &irq_state);
+
 	return IRQ_HANDLED;
 }
 
 void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 {
 	u16 intenb0 = 0;
+	u16 intenb1 = 0;
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
 	/*
@@ -286,6 +302,7 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 	 *  - update INTSTS0
 	 */
 	usbhs_write(priv, INTENB0, 0);
+	usbhs_write(priv, INTENB1, 0);
 
 	usbhs_write(priv, BEMPENB, 0);
 	usbhs_write(priv, BRDYENB, 0);
@@ -303,6 +320,9 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 		intenb0 |= VBSE;
 
 	if (mod) {
+		/*
+		 * INTSTS0
+		 */
 		if (mod->irq_ctrl_stage)
 			intenb0 |= CTRE;
 
@@ -315,8 +335,26 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 			usbhs_write(priv, BRDYENB, mod->irq_brdysts);
 			intenb0 |= BRDYE;
 		}
+
+		/*
+		 * INTSTS1
+		 */
+		if (mod->irq_attch)
+			intenb1 |= ATTCHE;
+
+		if (mod->irq_attch)
+			intenb1 |= DTCHE;
+
+		if (mod->irq_sign)
+			intenb1 |= SIGNE;
+
+		if (mod->irq_sack)
+			intenb1 |= SACKE;
 	}
 
 	if (intenb0)
 		usbhs_write(priv, INTENB0, intenb0);
+
+	if (intenb1)
+		usbhs_write(priv, INTENB1, intenb1);
 }
