@@ -693,9 +693,6 @@ extern void vmbus_get_debug_info(struct vmbus_channel *channel,
 
 extern void vmbus_ontimer(unsigned long data);
 
-struct hv_driver;
-struct hv_device;
-
 struct hv_dev_port_info {
 	u32 int_mask;
 	u32 read_idx;
