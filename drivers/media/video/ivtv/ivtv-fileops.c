@@ -861,20 +861,10 @@ int ivtv_v4l2_close(struct file *filp)
 
 	IVTV_DEBUG_FILE("close %s\n", s->name);
 
-	v4l2_fh_del(fh);
-	v4l2_fh_exit(fh);
-
-	/* Easy case first: this stream was never claimed by us */
-	if (s->id != id->open_id) {
-		kfree(id);
-		return 0;
-	}
-
-	/* 'Unclaim' this stream */
-
-	/* Stop radio */
 	mutex_lock(&itv->serialize_lock);
-	if (id->type == IVTV_ENC_STREAM_TYPE_RAD) {
+	/* Stop radio */
+	if (id->type == IVTV_ENC_STREAM_TYPE_RAD &&
+			v4l2_fh_is_singular_file(filp)) {
 		/* Closing radio device, return to TV mode */
 		ivtv_mute(itv);
 		/* Mark that the radio is no longer in use */
@@ -890,13 +880,26 @@ int ivtv_v4l2_close(struct file *filp)
 		if (atomic_read(&itv->capturing) > 0) {
 			/* Undo video mute */
 			ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
-				v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute) |
-				(v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute_yuv) << 8));
+					v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute) |
+					(v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute_yuv) << 8));
 		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);
-		ivtv_release_stream(s);
-	} else if (s->type >= IVTV_DEC_STREAM_TYPE_MPG) {
+	}
+
+	v4l2_fh_del(fh);
+	v4l2_fh_exit(fh);
+
+	/* Easy case first: this stream was never claimed by us */
+	if (s->id != id->open_id) {
+		kfree(id);
+		mutex_unlock(&itv->serialize_lock);
+		return 0;
+	}
+
+	/* 'Unclaim' this stream */
+
+	if (s->type >= IVTV_DEC_STREAM_TYPE_MPG) {
 		struct ivtv_stream *s_vout = &itv->streams[IVTV_DEC_STREAM_TYPE_VOUT];
 
 		ivtv_stop_decoding(id, VIDEO_CMD_STOP_TO_BLACK | VIDEO_CMD_STOP_IMMEDIATELY, 0);
@@ -966,31 +969,20 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		return -ENOMEM;
 	}
 	v4l2_fh_init(&item->fh, s->vdev);
-	if (res < 0) {
-		v4l2_fh_exit(&item->fh);
-		kfree(item);
-		return res;
-	}
 	item->itv = itv;
 	item->type = s->type;
 
 	item->open_id = itv->open_id++;
 	filp->private_data = &item->fh;
+	v4l2_fh_add(&item->fh);
 
-	if (item->type == IVTV_ENC_STREAM_TYPE_RAD) {
-		/* Try to claim this stream */
-		if (ivtv_claim_stream(item, item->type)) {
-			/* No, it's already in use */
-			v4l2_fh_exit(&item->fh);
-			kfree(item);
-			return -EBUSY;
-		}
-
+	if (item->type == IVTV_ENC_STREAM_TYPE_RAD &&
+			v4l2_fh_is_singular_file(filp)) {
 		if (!test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
 			if (atomic_read(&itv->capturing) > 0) {
 				/* switching to radio while capture is
 				   in progress is not polite */
-				ivtv_release_stream(s);
+				v4l2_fh_del(&item->fh);
 				v4l2_fh_exit(&item->fh);
 				kfree(item);
 				return -EBUSY;
@@ -1022,7 +1014,6 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 				1080 * ((itv->yuv_info.v4l2_src_h + 31) & ~31);
 		itv->yuv_info.stream_size = 0;
 	}
-	v4l2_fh_add(&item->fh);
 	return 0;
 }
 
