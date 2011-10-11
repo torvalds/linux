@@ -292,6 +292,14 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 	u16 intenb0 = 0;
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
+	/*
+	 * BEMPENB/BRDYENB are picky.
+	 * below method is required
+	 *
+	 *  - clear  INTSTS0
+	 *  - update BEMPENB/BRDYENB
+	 *  - update INTSTS0
+	 */
 	usbhs_write(priv, INTENB0, 0);
 
 	usbhs_write(priv, BEMPENB, 0);
@@ -324,5 +332,6 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 		}
 	}
 
-	usbhs_write(priv, INTENB0, intenb0);
+	if (intenb0)
+		usbhs_write(priv, INTENB0, intenb0);
 }
