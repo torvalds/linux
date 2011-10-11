@@ -332,13 +332,7 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 		case -1:
 			/* FIXME we need to check if it was es.reason == NEWT_EXIT_TIMER */
 			timer(arg);
-			/*
-			 * The timer may have changed the number of entries.
-			 * XXX: Find better way to keep this in synch, probably
-			 * removing this timer function altogether and just sync
-			 * using the hists->lock...
-			 */
-			self->b.nr_entries = self->hists->nr_entries;
+			ui_browser__update_nr_entries(&self->b, self->hists->nr_entries);
 			hists__browser_title(self->hists, title, sizeof(title),
 					     ev_name, self->dso_filter,
 					     self->thread_filter);
@@ -985,6 +979,7 @@ do_annotate:
 
 			hist_entry__tui_annotate(he, evsel->idx, nr_events,
 						 timer, arg, delay_secs);
+			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
