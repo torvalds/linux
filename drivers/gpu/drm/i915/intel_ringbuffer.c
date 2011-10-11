@@ -438,8 +438,8 @@ gen6_blt_ring_sync_to(struct intel_ring_buffer *waiter,
 
 #define PIPE_CONTROL_FLUSH(ring__, addr__)					\
 do {									\
-	intel_ring_emit(ring__, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |		\
-		 PIPE_CONTROL_DEPTH_STALL | 2);				\
+	intel_ring_emit(ring__, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |		\
+		 PIPE_CONTROL_DEPTH_STALL);				\
 	intel_ring_emit(ring__, (addr__) | PIPE_CONTROL_GLOBAL_GTT);			\
 	intel_ring_emit(ring__, 0);							\
 	intel_ring_emit(ring__, 0);							\
@@ -467,7 +467,7 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |
 			PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
 	intel_ring_emit(ring, seqno);
@@ -483,7 +483,7 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 	scratch_addr += 128;
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
-	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |
 			PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
 			PIPE_CONTROL_NOTIFY);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);

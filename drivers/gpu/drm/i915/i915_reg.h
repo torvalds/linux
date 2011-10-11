@@ -242,7 +242,7 @@
 #define   ASYNC_FLIP                (1<<22)
 #define   DISPLAY_PLANE_A           (0<<20)
 #define   DISPLAY_PLANE_B           (1<<20)
-#define GFX_OP_PIPE_CONTROL	((0x3<<29)|(0x3<<27)|(0x2<<24)|2)
+#define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|(len-2))
 #define   PIPE_CONTROL_QW_WRITE	(1<<14)
 #define   PIPE_CONTROL_DEPTH_STALL (1<<13)
 #define   PIPE_CONTROL_WC_FLUSH	(1<<12)
