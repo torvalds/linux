@@ -280,8 +280,9 @@ static int AllocUsbCb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	int i = 0;
 
 	for (i = 0; i < MAXIMUM_USB_TCB; i++) {
-		if ((psIntfAdapter->asUsbTcb[i].urb =
-				usb_alloc_urb(0, GFP_KERNEL)) == NULL) {
+		psIntfAdapter->asUsbTcb[i].urb = usb_alloc_urb(0, GFP_KERNEL);
+
+		if (psIntfAdapter->asUsbTcb[i].urb == NULL) {
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
 				"Can't allocate Tx urb for index %d\n", i);
 			return -ENOMEM;
@@ -289,14 +290,17 @@ static int AllocUsbCb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	}
 
 	for (i = 0; i < MAXIMUM_USB_RCB; i++) {
-		if ((psIntfAdapter->asUsbRcb[i].urb =
-				usb_alloc_urb(0, GFP_KERNEL)) == NULL) {
+		psIntfAdapter->asUsbRcb[i].urb = usb_alloc_urb(0, GFP_KERNEL);
+
+		if (psIntfAdapter->asUsbRcb[i].urb == NULL) {
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
 				"Can't allocate Rx urb for index %d\n", i);
 			return -ENOMEM;
 		}
-		if ((psIntfAdapter->asUsbRcb[i].urb->transfer_buffer =
-			kmalloc(MAX_DATA_BUFFER_SIZE, GFP_KERNEL)) == NULL) {
+
+		psIntfAdapter->asUsbRcb[i].urb->transfer_buffer = kmalloc(MAX_DATA_BUFFER_SIZE, GFP_KERNEL);
+
+		if (psIntfAdapter->asUsbRcb[i].urb->transfer_buffer == NULL) {
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
 				"Can't allocate Rx buffer for index %d\n", i);
 			return -ENOMEM;
