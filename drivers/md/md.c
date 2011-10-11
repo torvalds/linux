@@ -6362,7 +6362,7 @@ static const struct block_device_operations md_fops =
 
 static int md_thread(void * arg)
 {
-	mdk_thread_t *thread = arg;
+	struct md_thread *thread = arg;
 
 	/*
 	 * md_thread is a 'system-thread', it's priority should be very
@@ -6401,7 +6401,7 @@ static int md_thread(void * arg)
 	return 0;
 }
 
-void md_wakeup_thread(mdk_thread_t *thread)
+void md_wakeup_thread(struct md_thread *thread)
 {
 	if (thread) {
 		pr_debug("md: waking up MD thread %s.\n", thread->tsk->comm);
@@ -6410,12 +6410,12 @@ void md_wakeup_thread(mdk_thread_t *thread)
 	}
 }
 
-mdk_thread_t *md_register_thread(void (*run) (struct mddev *), struct mddev *mddev,
+struct md_thread *md_register_thread(void (*run) (struct mddev *), struct mddev *mddev,
 				 const char *name)
 {
-	mdk_thread_t *thread;
+	struct md_thread *thread;
 
-	thread = kzalloc(sizeof(mdk_thread_t), GFP_KERNEL);
+	thread = kzalloc(sizeof(struct md_thread), GFP_KERNEL);
 	if (!thread)
 		return NULL;
 
@@ -6435,9 +6435,9 @@ mdk_thread_t *md_register_thread(void (*run) (struct mddev *), struct mddev *mdd
 	return thread;
 }
 
-void md_unregister_thread(mdk_thread_t **threadp)
+void md_unregister_thread(struct md_thread **threadp)
 {
-	mdk_thread_t *thread = *threadp;
+	struct md_thread *thread = *threadp;
 	if (!thread)
 		return;
 	pr_debug("interrupting MD-thread pid %d\n", task_pid_nr(thread->tsk));
