@@ -10,8 +10,6 @@
  * Trademarks are the property of their respective owners.
  */
 
-#define pr_fmt(fmt) KBUILD_BASENAME ": " fmt
-
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -25,7 +23,8 @@
 #define elantech_debug(fmt, ...)					\
 	do {								\
 		if (etd->debug)						\
-			printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
+			psmouse_printk(KERN_DEBUG, psmouse,		\
+					fmt, ##__VA_ARGS__);		\
 	} while (0)
 
 /*
@@ -36,7 +35,7 @@ static int synaptics_send_cmd(struct psmouse *psmouse, unsigned char c,
 {
 	if (psmouse_sliced_command(psmouse, c) ||
 	    ps2_command(&psmouse->ps2dev, param, PSMOUSE_CMD_GETINFO)) {
-		pr_err("synaptics_send_cmd query 0x%02x failed.\n", c);
+		psmouse_err(psmouse, "%s query 0x%02x failed.\n", __func__, c);
 		return -1;
 	}
 
@@ -65,7 +64,7 @@ static int elantech_ps2_command(struct psmouse *psmouse,
 	} while (tries > 0);
 
 	if (rc)
-		pr_err("ps2 command 0x%02x failed.\n", command);
+		psmouse_err(psmouse, "ps2 command 0x%02x failed.\n", command);
 
 	return rc;
 }
@@ -117,7 +116,7 @@ static int elantech_read_reg(struct psmouse *psmouse, unsigned char reg,
 	}
 
 	if (rc)
-		pr_err("failed to read register 0x%02x.\n", reg);
+		psmouse_err(psmouse, "failed to read register 0x%02x.\n", reg);
 	else if (etd->hw_version != 4)
 		*val = param[0];
 	else
@@ -191,8 +190,9 @@ static int elantech_write_reg(struct psmouse *psmouse, unsigned char reg,
 	}
 
 	if (rc)
-		pr_err("failed to write register 0x%02x with value 0x%02x.\n",
-			reg, val);
+		psmouse_err(psmouse,
+			    "failed to write register 0x%02x with value 0x%02x.\n",
+			    reg, val);
 
 	return rc;
 }
@@ -200,13 +200,13 @@ static int elantech_write_reg(struct psmouse *psmouse, unsigned char reg,
 /*
  * Dump a complete mouse movement packet to the syslog
  */
-static void elantech_packet_dump(unsigned char *packet, int size)
+static void elantech_packet_dump(struct psmouse *psmouse)
 {
 	int	i;
 
-	printk(KERN_DEBUG pr_fmt("PS/2 packet ["));
-	for (i = 0; i < size; i++)
-		printk("%s0x%02x ", (i) ? ", " : " ", packet[i]);
+	psmouse_printk(KERN_DEBUG, psmouse, "PS/2 packet [");
+	for (i = 0; i < psmouse->pktsize; i++)
+		printk("%s0x%02x ", i ? ", " : " ", psmouse->packet[i]);
 	printk("]\n");
 }
 
@@ -705,7 +705,7 @@ static psmouse_ret_t elantech_process_byte(struct psmouse *psmouse)
 		return PSMOUSE_GOOD_DATA;
 
 	if (etd->debug > 1)
-		elantech_packet_dump(psmouse->packet, psmouse->pktsize);
+		elantech_packet_dump(psmouse);
 
 	switch (etd->hw_version) {
 	case 1:
@@ -801,7 +801,7 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 		/*
 		 * Read back reg 0x10. For hardware version 1 we must make
 		 * sure the absolute mode bit is set. For hardware version 2
-		 * the touchpad is probably initalising and not ready until
+		 * the touchpad is probably initializing and not ready until
 		 * we read back the value we just wrote.
 		 */
 		do {
@@ -814,17 +814,19 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 		} while (tries > 0);
 
 		if (rc) {
-			pr_err("failed to read back register 0x10.\n");
+			psmouse_err(psmouse,
+				    "failed to read back register 0x10.\n");
 		} else if (etd->hw_version == 1 &&
 			   !(val & ETP_R10_ABSOLUTE_MODE)) {
-			pr_err("touchpad refuses to switch to absolute mode.\n");
+			psmouse_err(psmouse,
+				    "touchpad refuses to switch to absolute mode.\n");
 			rc = -1;
 		}
 	}
 
  skip_readback_reg_10:
 	if (rc)
-		pr_err("failed to initialise registers.\n");
+		psmouse_err(psmouse, "failed to initialise registers.\n");
 
 	return rc;
 }
@@ -1131,7 +1133,7 @@ int elantech_detect(struct psmouse *psmouse, bool set_properties)
 	    ps2_command(ps2dev,  NULL, PSMOUSE_CMD_SETSCALE11) ||
 	    ps2_command(ps2dev,  NULL, PSMOUSE_CMD_SETSCALE11) ||
 	    ps2_command(ps2dev, param, PSMOUSE_CMD_GETINFO)) {
-		pr_debug("sending Elantech magic knock failed.\n");
+		psmouse_dbg(psmouse, "sending Elantech magic knock failed.\n");
 		return -1;
 	}
 
@@ -1141,8 +1143,9 @@ int elantech_detect(struct psmouse *psmouse, bool set_properties)
 	 */
 	if (param[0] != 0x3c || param[1] != 0x03 ||
 	    (param[2] != 0xc8 && param[2] != 0x00)) {
-		pr_debug("unexpected magic knock result 0x%02x, 0x%02x, 0x%02x.\n",
-			 param[0], param[1], param[2]);
+		psmouse_dbg(psmouse,
+			    "unexpected magic knock result 0x%02x, 0x%02x, 0x%02x.\n",
+			    param[0], param[1], param[2]);
 		return -1;
 	}
 
@@ -1152,15 +1155,17 @@ int elantech_detect(struct psmouse *psmouse, bool set_properties)
 	 * to Elantech magic knock and there might be more.
 	 */
 	if (synaptics_send_cmd(psmouse, ETP_FW_VERSION_QUERY, param)) {
-		pr_debug("failed to query firmware version.\n");
+		psmouse_dbg(psmouse, "failed to query firmware version.\n");
 		return -1;
 	}
 
-	pr_debug("Elantech version query result 0x%02x, 0x%02x, 0x%02x.\n",
-		 param[0], param[1], param[2]);
+	psmouse_dbg(psmouse,
+		    "Elantech version query result 0x%02x, 0x%02x, 0x%02x.\n",
+		    param[0], param[1], param[2]);
 
 	if (!elantech_is_signature_valid(param)) {
-		pr_debug("Probably not a real Elantech touchpad. Aborting.\n");
+		psmouse_dbg(psmouse,
+			    "Probably not a real Elantech touchpad. Aborting.\n");
 		return -1;
 	}
 
@@ -1192,7 +1197,8 @@ static int elantech_reconnect(struct psmouse *psmouse)
 		return -1;
 
 	if (elantech_set_absolute_mode(psmouse)) {
-		pr_err("failed to put touchpad back into absolute mode.\n");
+		psmouse_err(psmouse,
+			    "failed to put touchpad back into absolute mode.\n");
 		return -1;
 	}
 
@@ -1262,42 +1268,46 @@ int elantech_init(struct psmouse *psmouse)
 	 * Do the version query again so we can store the result
 	 */
 	if (synaptics_send_cmd(psmouse, ETP_FW_VERSION_QUERY, param)) {
-		pr_err("failed to query firmware version.\n");
+		psmouse_err(psmouse, "failed to query firmware version.\n");
 		goto init_fail;
 	}
 	etd->fw_version = (param[0] << 16) | (param[1] << 8) | param[2];
 
 	if (elantech_set_properties(etd)) {
-		pr_err("unknown hardware version, aborting...\n");
+		psmouse_err(psmouse, "unknown hardware version, aborting...\n");
 		goto init_fail;
 	}
-	pr_info("assuming hardware version %d "
-		"(with firmware version 0x%02x%02x%02x)\n",
-		etd->hw_version, param[0], param[1], param[2]);
+	psmouse_info(psmouse,
+		     "assuming hardware version %d (with firmware version 0x%02x%02x%02x)\n",
+		     etd->hw_version, param[0], param[1], param[2]);
 
 	if (synaptics_send_cmd(psmouse, ETP_CAPABILITIES_QUERY,
 	    etd->capabilities)) {
-		pr_err("failed to query capabilities.\n");
+		psmouse_err(psmouse, "failed to query capabilities.\n");
 		goto init_fail;
 	}
-	pr_info("Synaptics capabilities query result 0x%02x, 0x%02x, 0x%02x.\n",
-		etd->capabilities[0], etd->capabilities[1],
-		etd->capabilities[2]);
+	psmouse_info(psmouse,
+		     "Synaptics capabilities query result 0x%02x, 0x%02x, 0x%02x.\n",
+		     etd->capabilities[0], etd->capabilities[1],
+		     etd->capabilities[2]);
 
 	if (elantech_set_absolute_mode(psmouse)) {
-		pr_err("failed to put touchpad into absolute mode.\n");
+		psmouse_err(psmouse,
+			    "failed to put touchpad into absolute mode.\n");
 		goto init_fail;
 	}
 
 	if (elantech_set_input_params(psmouse)) {
-		pr_err("failed to query touchpad range.\n");
+		psmouse_err(psmouse, "failed to query touchpad range.\n");
 		goto init_fail;
 	}
 
 	error = sysfs_create_group(&psmouse->ps2dev.serio->dev.kobj,
 				   &elantech_attr_group);
 	if (error) {
-		pr_err("failed to create sysfs attributes, error: %d.\n", error);
+		psmouse_err(psmouse,
+			    "failed to create sysfs attributes, error: %d.\n",
+			    error);
 		goto init_fail;
 	}
 
