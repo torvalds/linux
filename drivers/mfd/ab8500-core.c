@@ -844,7 +844,6 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 		return ret;
 
 	switch (value) {
-	case AB8500_CUTEARLY:
 	case AB8500_CUT1P0:
 	case AB8500_CUT1P1:
 	case AB8500_CUT2P0:
