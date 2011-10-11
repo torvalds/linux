@@ -1253,7 +1253,8 @@ static void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	BT_DBG("chan %p, skb %p len %d", chan, skb, skb->len);
 
-	if (!chan->flushable && lmp_no_flush_capable(hcon->hdev))
+	if (!test_bit(FLAG_FLUSHABLE, &chan->flags) &&
+					lmp_no_flush_capable(hcon->hdev))
 		flags = ACL_START_NO_FLUSH;
 	else
 		flags = ACL_START;

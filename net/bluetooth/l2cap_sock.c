@@ -446,7 +446,8 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 		break;
 
 	case BT_FLUSHABLE:
-		if (put_user(chan->flushable, (u32 __user *) optval))
+		if (put_user(test_bit(FLAG_FLUSHABLE, &chan->flags),
+						(u32 __user *) optval))
 			err = -EFAULT;
 
 		break;
@@ -655,7 +656,10 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 			}
 		}
 
-		chan->flushable = opt;
+		if (opt)
+			set_bit(FLAG_FLUSHABLE, &chan->flags);
+		else
+			clear_bit(FLAG_FLUSHABLE, &chan->flags);
 		break;
 
 	case BT_POWER:
@@ -931,7 +935,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->sec_level = pchan->sec_level;
 		chan->role_switch = pchan->role_switch;
 		chan->force_reliable = pchan->force_reliable;
-		chan->flushable = pchan->flushable;
+		chan->flags = pchan->flags;
 		chan->force_active = pchan->force_active;
 	} else {
 
@@ -962,7 +966,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->sec_level = BT_SECURITY_LOW;
 		chan->role_switch = 0;
 		chan->force_reliable = 0;
-		chan->flushable = BT_FLUSHABLE_OFF;
+		chan->flags = 0;
 		chan->force_active = BT_POWER_FORCE_ACTIVE_ON;
 
 	}

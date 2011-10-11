@@ -326,7 +326,6 @@ struct l2cap_chan {
 	__u8		sec_level;
 	__u8		role_switch;
 	__u8		force_reliable;
-	__u8		flushable;
 	__u8		force_active;
 
 	__u8		ident;
@@ -346,6 +345,7 @@ struct l2cap_chan {
 
 	unsigned long	conf_state;
 	unsigned long	conn_state;
+	unsigned long	flags;
 
 	__u8		next_tx_seq;
 	__u8		expected_ack_seq;
@@ -461,6 +461,11 @@ enum {
 	CONN_REJ_ACT,
 	CONN_SEND_FBIT,
 	CONN_RNR_SENT,
+};
+
+/* Definitions for flags in l2cap_chan */
+enum {
+	FLAG_FLUSHABLE,
 };
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
