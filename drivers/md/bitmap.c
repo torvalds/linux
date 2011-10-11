@@ -29,27 +29,6 @@
 #include "md.h"
 #include "bitmap.h"
 
-/* debug macros */
-
-#define DEBUG 0
-
-#if DEBUG
-/* these are for debugging purposes only! */
-
-/* define one and only one of these */
-#define INJECT_FAULTS_1 0 /* cause bitmap_alloc_page to fail always */
-#define INJECT_FAULTS_2 0 /* cause bitmap file to be kicked when first bit set*/
-#define INJECT_FAULTS_3 0 /* treat bitmap file as kicked at init time */
-#define INJECT_FAULTS_4 0 /* undef */
-#define INJECT_FAULTS_5 0 /* undef */
-#define INJECT_FAULTS_6 0
-
-/* if these are defined, the driver will fail! debug only */
-#define INJECT_FATAL_FAULT_1 0 /* fail kmalloc, causing bitmap_create to fail */
-#define INJECT_FATAL_FAULT_2 0 /* undef */
-#define INJECT_FATAL_FAULT_3 0 /* undef */
-#endif
-
 static inline char *bmname(struct bitmap *bitmap)
 {
 	return bitmap->mddev ? mdname(bitmap->mddev) : "mdX";
@@ -62,11 +41,7 @@ static unsigned char *bitmap_alloc_page(struct bitmap *bitmap)
 {
 	unsigned char *page;
 
-#ifdef INJECT_FAULTS_1
-	page = NULL;
-#else
 	page = kzalloc(PAGE_SIZE, GFP_NOIO);
-#endif
 	if (!page)
 		printk("%s: bitmap_alloc_page FAILED\n", bmname(bitmap));
 	else
@@ -990,11 +965,7 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 
 	BUG_ON(!file && !bitmap->mddev->bitmap_info.offset);
 
-#ifdef INJECT_FAULTS_3
-	outofdate = 1;
-#else
 	outofdate = bitmap->flags & BITMAP_STALE;
-#endif
 	if (outofdate)
 		printk(KERN_INFO "%s: bitmap file is out of date, doing full "
 			"recovery\n", bmname(bitmap));
@@ -1800,11 +1771,8 @@ int bitmap_create(struct mddev *mddev)
 	bitmap->pages = pages;
 	bitmap->missing_pages = pages;
 
-#ifdef INJECT_FATAL_FAULT_1
-	bitmap->bp = NULL;
-#else
 	bitmap->bp = kzalloc(pages * sizeof(*bitmap->bp), GFP_KERNEL);
-#endif
+
 	err = -ENOMEM;
 	if (!bitmap->bp)
 		goto error;
