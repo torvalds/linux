@@ -185,6 +185,7 @@ struct usbhs_priv;
 /* PIPEnCTR */
 /* DCPCTR */
 #define BSTS		(1 << 15)	/* Buffer Status */
+#define SUREQ		(1 << 14)	/* Sending SETUP Token */
 #define CSSTS		(1 << 12)	/* CSSTS Status */
 #define SQCLR		(1 << 8)	/* Toggle Bit Clear */
 #define	ACLRM		(1 << 9)	/* Buffer Auto-Clear Mode */
@@ -258,6 +259,12 @@ void usbhs_sys_hispeed_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_usb_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable);
+
+/*
+ * usb request
+ */
+void usbhs_usbreq_get_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req);
+void usbhs_usbreq_set_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req);
 
 /*
  * bus

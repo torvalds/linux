@@ -71,12 +71,6 @@ struct usbhs_pipe_info {
 #define usbhs_priv_to_pipeinfo(pr)	(&(pr)->pipe_info)
 
 /*
- * usb request
- */
-void usbhs_usbreq_get_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req);
-void usbhs_usbreq_set_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req);
-
-/*
  * pipe control
  */
 struct usbhs_pipe

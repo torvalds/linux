@@ -40,30 +40,6 @@ static char *usbhsp_pipe_name[] = {
 };
 
 /*
- *		usb request functions
- */
-void usbhs_usbreq_get_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
-{
-	u16 val;
-
-	val = usbhs_read(priv, USBREQ);
-	req->bRequest		= (val >> 8) & 0xFF;
-	req->bRequestType	= (val >> 0) & 0xFF;
-
-	req->wValue	= usbhs_read(priv, USBVAL);
-	req->wIndex	= usbhs_read(priv, USBINDX);
-	req->wLength	= usbhs_read(priv, USBLENG);
-}
-
-void usbhs_usbreq_set_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
-{
-	usbhs_write(priv, USBREQ,  (req->bRequest << 8) | req->bRequestType);
-	usbhs_write(priv, USBVAL,  req->wValue);
-	usbhs_write(priv, USBINDX, req->wIndex);
-	usbhs_write(priv, USBLENG, req->wLength);
-}
-
-/*
  *		DCPCTR/PIPEnCTR functions
  */
 static void usbhsp_pipectrl_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
