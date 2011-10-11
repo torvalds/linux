@@ -28,7 +28,7 @@
 #include <linux/gpio.h>
 #include <plat/usb.h>
 
-#define USBHS_DRIVER_NAME	"usbhs-omap"
+#define USBHS_DRIVER_NAME	"usbhs_omap"
 #define OMAP_EHCI_DEVICE	"ehci-omap"
 #define OMAP_OHCI_DEVICE	"ohci-omap3"
 
