@@ -1898,6 +1898,22 @@ static inline __u8 l2cap_select_mode(__u8 mode, __u16 remote_feat_mask)
 	}
 }
 
+static inline bool __l2cap_ews_supported(struct l2cap_chan *chan)
+{
+	return enable_hs && chan->conn->feat_mask & L2CAP_FEAT_EXT_WINDOW;
+}
+
+static inline void l2cap_txwin_setup(struct l2cap_chan *chan)
+{
+	if (chan->tx_win > L2CAP_DEFAULT_TX_WINDOW &&
+						__l2cap_ews_supported(chan))
+		/* use extended control field */
+		set_bit(FLAG_EXT_CTRL, &chan->flags);
+	else
+		chan->tx_win = min_t(u16, chan->tx_win,
+						L2CAP_DEFAULT_TX_WINDOW);
+}
+
 static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
 {
 	struct l2cap_conf_req *req = data;
@@ -1944,13 +1960,17 @@ done:
 
 	case L2CAP_MODE_ERTM:
 		rfc.mode            = L2CAP_MODE_ERTM;
-		rfc.txwin_size      = chan->tx_win;
 		rfc.max_transmit    = chan->max_tx;
 		rfc.retrans_timeout = 0;
 		rfc.monitor_timeout = 0;
 		rfc.max_pdu_size    = cpu_to_le16(L2CAP_DEFAULT_MAX_PDU_SIZE);
 		if (L2CAP_DEFAULT_MAX_PDU_SIZE > chan->conn->mtu - 10)
 			rfc.max_pdu_size = cpu_to_le16(chan->conn->mtu - 10);
+
+		l2cap_txwin_setup(chan);
+
+		rfc.txwin_size = min_t(u16, chan->tx_win,
+						L2CAP_DEFAULT_TX_WINDOW);
 
 		l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC, sizeof(rfc),
 							(unsigned long) &rfc);
@@ -1963,6 +1983,10 @@ done:
 			chan->fcs = L2CAP_FCS_NONE;
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1, chan->fcs);
 		}
+
+		if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EWS, 2,
+								chan->tx_win);
 		break;
 
 	case L2CAP_MODE_STREAMING:
@@ -2038,6 +2062,15 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 
 			break;
 
+		case L2CAP_CONF_EWS:
+			if (!enable_hs)
+				return -ECONNREFUSED;
+
+			set_bit(FLAG_EXT_CTRL, &chan->flags);
+			set_bit(CONF_EWS_RECV, &chan->conf_state);
+			chan->remote_tx_win = val;
+			break;
+
 		default:
 			if (hint)
 				break;
@@ -2098,7 +2131,11 @@ done:
 			break;
 
 		case L2CAP_MODE_ERTM:
-			chan->remote_tx_win = rfc.txwin_size;
+			if (!test_bit(CONF_EWS_RECV, &chan->conf_state))
+				chan->remote_tx_win = rfc.txwin_size;
+			else
+				rfc.txwin_size = L2CAP_DEFAULT_TX_WINDOW;
+
 			chan->remote_max_tx = rfc.max_transmit;
 
 			if (le16_to_cpu(rfc.max_pdu_size) > chan->conn->mtu - 10)
@@ -2189,6 +2226,13 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
 					sizeof(rfc), (unsigned long) &rfc);
+			break;
+
+		case L2CAP_CONF_EWS:
+			chan->tx_win = min_t(u16, val,
+						L2CAP_DEFAULT_EXT_WINDOW);
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EWS,
+							2, chan->tx_win);
 			break;
 		}
 	}
@@ -2785,7 +2829,8 @@ static inline int l2cap_information_req(struct l2cap_conn *conn, struct l2cap_cm
 			feat_mask |= L2CAP_FEAT_ERTM | L2CAP_FEAT_STREAMING
 							 | L2CAP_FEAT_FCS;
 		if (enable_hs)
-			feat_mask |= L2CAP_FEAT_EXT_FLOW;
+			feat_mask |= L2CAP_FEAT_EXT_FLOW
+						| L2CAP_FEAT_EXT_WINDOW;
 
 		put_unaligned_le32(feat_mask, rsp->data);
 		l2cap_send_cmd(conn, cmd->ident,

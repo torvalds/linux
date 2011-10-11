@@ -32,6 +32,7 @@
 #define L2CAP_DEFAULT_MIN_MTU		48
 #define L2CAP_DEFAULT_FLUSH_TO		0xffff
 #define L2CAP_DEFAULT_TX_WINDOW		63
+#define L2CAP_DEFAULT_EXT_WINDOW	0x3FFF
 #define L2CAP_DEFAULT_MAX_TX		3
 #define L2CAP_DEFAULT_RETRANS_TO	2000    /* 2 seconds */
 #define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
@@ -233,6 +234,7 @@ struct l2cap_conf_opt {
 #define L2CAP_CONF_QOS		0x03
 #define L2CAP_CONF_RFC		0x04
 #define L2CAP_CONF_FCS		0x05
+#define L2CAP_CONF_EWS		0x07
 
 #define L2CAP_CONF_MAX_SIZE	22
 
@@ -333,7 +335,7 @@ struct l2cap_chan {
 
 	__u8		fcs;
 
-	__u8		tx_win;
+	__u16		tx_win;
 	__u8		max_tx;
 	__u16		retrans_timeout;
 	__u16		monitor_timeout;
@@ -357,7 +359,7 @@ struct l2cap_chan {
 	struct sk_buff	*sdu;
 	struct sk_buff	*sdu_last_frag;
 
-	__u8		remote_tx_win;
+	__u16		remote_tx_win;
 	__u8		remote_max_tx;
 	__u16		remote_mps;
 
@@ -442,6 +444,7 @@ enum {
 	CONF_CONNECT_PEND,
 	CONF_NO_FCS_RECV,
 	CONF_STATE2_DEVICE,
+	CONF_EWS_RECV,
 };
 
 #define L2CAP_CONF_MAX_CONF_REQ 2
@@ -465,6 +468,7 @@ enum {
 	FLAG_FORCE_ACTIVE,
 	FLAG_FORCE_RELIABLE,
 	FLAG_FLUSHABLE,
+	FLAG_EXT_CTRL,
 };
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
