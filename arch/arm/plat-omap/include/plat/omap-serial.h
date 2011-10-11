@@ -62,6 +62,8 @@ struct omap_uart_port_info {
 	bool			dma_enabled;	/* To specify DMA Mode */
 	unsigned int		uartclk;	/* UART clock rate */
 	upf_t			flags;		/* UPF_* flags */
+
+	int (*get_context_loss_count)(struct device *);
 };
 
 struct uart_omap_dma {
@@ -114,6 +116,7 @@ struct uart_omap_port {
 	unsigned char		msr_saved_flags;
 	char			name[20];
 	unsigned long		port_activity;
+	u32			context_loss_cnt;
 };
 
 #endif /* __OMAP_SERIAL_H__ */

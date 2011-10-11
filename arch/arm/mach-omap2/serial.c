@@ -33,6 +33,7 @@
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
+#include <plat/omap-pm.h>
 
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
@@ -478,6 +479,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 	omap_up.dma_enabled = uart->dma_enabled;
 	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
 	omap_up.flags = UPF_BOOT_AUTOCONF;
+	omap_up.get_context_loss_count = omap_pm_get_dev_context_loss_count;
 
 	pdata = &omap_up;
 	pdata_size = sizeof(struct omap_uart_port_info);
