@@ -162,6 +162,12 @@ struct l2cap_hdr {
 	__le16     cid;
 } __packed;
 #define L2CAP_HDR_SIZE		4
+#define L2CAP_ENH_HDR_SIZE	6
+#define L2CAP_EXT_HDR_SIZE	8
+
+#define L2CAP_FCS_SIZE		2
+#define L2CAP_SDULEN_SIZE	2
+#define L2CAP_PSMLEN_SIZE	2
 
 struct l2cap_cmd_hdr {
 	__u8       code;
