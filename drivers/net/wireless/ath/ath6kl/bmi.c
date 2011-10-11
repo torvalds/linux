@@ -62,14 +62,14 @@ static int ath6kl_get_bmi_cmd_credits(struct ath6kl *ar)
 	return 0;
 }
 
-static int ath6kl_bmi_get_rx_lkahd(struct ath6kl *ar, bool need_timeout)
+static int ath6kl_bmi_get_rx_lkahd(struct ath6kl *ar)
 {
 	unsigned long timeout;
 	u32 rx_word = 0;
 	int ret = 0;
 
 	timeout = jiffies + msecs_to_jiffies(BMI_COMMUNICATION_TIMEOUT);
-	while ((!need_timeout || time_before(jiffies, timeout)) && !rx_word) {
+	while (time_before(jiffies, timeout) && !rx_word) {
 		ret = hif_read_write_sync(ar, RX_LOOKAHEAD_VALID_ADDRESS,
 					  (u8 *)&rx_word, sizeof(rx_word),
 					  HIF_RD_SYNC_BYTE_INC);
@@ -109,8 +109,7 @@ static int ath6kl_bmi_send_buf(struct ath6kl *ar, u8 *buf, u32 len)
 	return ret;
 }
 
-static int ath6kl_bmi_recv_buf(struct ath6kl *ar,
-			u8 *buf, u32 len, bool want_timeout)
+static int ath6kl_bmi_recv_buf(struct ath6kl *ar, u8 *buf, u32 len)
 {
 	int ret;
 	u32 addr;
@@ -162,7 +161,7 @@ static int ath6kl_bmi_recv_buf(struct ath6kl *ar,
 	 * a function of Host processor speed.
 	 */
 	if (len >= 4) { /* NB: Currently, always true */
-		ret = ath6kl_bmi_get_rx_lkahd(ar, want_timeout);
+		ret = ath6kl_bmi_get_rx_lkahd(ar);
 		if (ret)
 			return ret;
 	}
@@ -220,7 +219,7 @@ int ath6kl_bmi_get_target_info(struct ath6kl *ar,
 	}
 
 	ret = ath6kl_bmi_recv_buf(ar, (u8 *)&targ_info->version,
-			sizeof(targ_info->version), true);
+				  sizeof(targ_info->version));
 	if (ret) {
 		ath6kl_err("Unable to recv target info: %d\n", ret);
 		return ret;
@@ -230,8 +229,7 @@ int ath6kl_bmi_get_target_info(struct ath6kl *ar,
 		/* Determine how many bytes are in the Target's targ_info */
 		ret = ath6kl_bmi_recv_buf(ar,
 				   (u8 *)&targ_info->byte_count,
-				   sizeof(targ_info->byte_count),
-				   true);
+				   sizeof(targ_info->byte_count));
 		if (ret) {
 			ath6kl_err("unable to read target info byte count: %d\n",
 				   ret);
@@ -252,8 +250,7 @@ int ath6kl_bmi_get_target_info(struct ath6kl *ar,
 				   ((u8 *)targ_info) +
 				   sizeof(targ_info->byte_count),
 				   sizeof(*targ_info) -
-				   sizeof(targ_info->byte_count),
-				   true);
+				   sizeof(targ_info->byte_count));
 
 		if (ret) {
 			ath6kl_err("Unable to read target info (%d bytes): %d\n",
@@ -311,7 +308,7 @@ int ath6kl_bmi_read(struct ath6kl *ar, u32 addr, u8 *buf, u32 len)
 				   ret);
 			return ret;
 		}
-		ret = ath6kl_bmi_recv_buf(ar, ar->bmi.cmd_buf, rx_len, true);
+		ret = ath6kl_bmi_recv_buf(ar, ar->bmi.cmd_buf, rx_len);
 		if (ret) {
 			ath6kl_err("Unable to read from the device: %d\n",
 				   ret);
@@ -424,7 +421,7 @@ int ath6kl_bmi_execute(struct ath6kl *ar, u32 addr, u32 *param)
 		return ret;
 	}
 
-	ret = ath6kl_bmi_recv_buf(ar, ar->bmi.cmd_buf, sizeof(*param), false);
+	ret = ath6kl_bmi_recv_buf(ar, ar->bmi.cmd_buf, sizeof(*param));
 	if (ret) {
 		ath6kl_err("Unable to read from the device: %d\n", ret);
 		return ret;
@@ -504,7 +501,7 @@ int ath6kl_bmi_reg_read(struct ath6kl *ar, u32 addr, u32 *param)
 		return ret;
 	}
 
-	ret = ath6kl_bmi_recv_buf(ar, ar->bmi.cmd_buf, sizeof(*param), true);
+	ret = ath6kl_bmi_recv_buf(ar, ar->bmi.cmd_buf, sizeof(*param));
 	if (ret) {
 		ath6kl_err("Unable to read from the device: %d\n", ret);
 		return ret;

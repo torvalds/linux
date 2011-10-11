@@ -2174,7 +2174,10 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn && conn->state == BT_CONNECTED) {
+	if (!conn)
+		goto unlock;
+
+	if (conn->state == BT_CONNECTED) {
 		hci_conn_hold(conn);
 		conn->disc_timeout = HCI_PAIRING_TIMEOUT;
 		hci_conn_put(conn);
@@ -2194,6 +2197,7 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 		mgmt_pin_code_request(hdev->id, &ev->bdaddr, secure);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -2834,19 +2838,17 @@ unlock:
 static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 						struct sk_buff *skb)
 {
-	struct hci_ev_le_advertising_info *ev;
-	u8 num_reports;
-
-	num_reports = skb->data[0];
-	ev = (void *) &skb->data[1];
+	u8 num_reports = skb->data[0];
+	void *ptr = &skb->data[1];
 
 	hci_dev_lock(hdev);
 
-	hci_add_adv_entry(hdev, ev);
+	while (num_reports--) {
+		struct hci_ev_le_advertising_info *ev = ptr;
 
-	while (--num_reports) {
-		ev = (void *) (ev->data + ev->length + 1);
 		hci_add_adv_entry(hdev, ev);
+
+		ptr += sizeof(*ev) + ev->length + 1;
 	}
 
 	hci_dev_unlock(hdev);

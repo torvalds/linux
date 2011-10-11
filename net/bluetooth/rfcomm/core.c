@@ -1853,7 +1853,10 @@ static inline void rfcomm_process_rx(struct rfcomm_session *s)
 	/* Get data directly from socket receive queue without copying it. */
 	while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
 		skb_orphan(skb);
-		rfcomm_recv_frame(s, skb);
+		if (!skb_linearize(skb))
+			rfcomm_recv_frame(s, skb);
+		else
+			kfree_skb(skb);
 	}
 
 	if (sk->sk_state == BT_CLOSED) {

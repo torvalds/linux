@@ -14,6 +14,7 @@
 #include "rate.h"
 #include "mesh.h"
 #include "led.h"
+#include "wme.h"
 
 
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
@@ -43,6 +44,8 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 					    struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+	int ac;
 
 	/*
 	 * This skb 'survived' a round-trip through the driver, and
@@ -63,11 +66,37 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	sta->tx_filtered_count++;
 
 	/*
+	 * Clear more-data bit on filtered frames, it might be set
+	 * but later frames might time out so it might have to be
+	 * clear again ... It's all rather unlikely (this frame
+	 * should time out first, right?) but let's not confuse
+	 * peers unnecessarily.
+	 */
+	if (hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_MOREDATA))
+		hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		u8 *p = ieee80211_get_qos_ctl(hdr);
+		int tid = *p & IEEE80211_QOS_CTL_TID_MASK;
+
+		/*
+		 * Clear EOSP if set, this could happen e.g.
+		 * if an absence period (us being a P2P GO)
+		 * shortens the SP.
+		 */
+		if (*p & IEEE80211_QOS_CTL_EOSP)
+			*p &= ~IEEE80211_QOS_CTL_EOSP;
+		ac = ieee802_1d_to_ac[tid & 7];
+	} else {
+		ac = IEEE80211_AC_BE;
+	}
+
+	/*
 	 * Clear the TX filter mask for this STA when sending the next
 	 * packet. If the STA went to power save mode, this will happen
 	 * when it wakes up for the next time.
 	 */
-	set_sta_flags(sta, WLAN_STA_CLEAR_PS_FILT);
+	set_sta_flag(sta, WLAN_STA_CLEAR_PS_FILT);
 
 	/*
 	 * This code races in the following way:
@@ -103,13 +132,19 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 *      changes before calling TX status events if ordering can be
 	 *	unknown.
 	 */
-	if (test_sta_flags(sta, WLAN_STA_PS_STA) &&
-	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
-		skb_queue_tail(&sta->tx_filtered, skb);
+	if (test_sta_flag(sta, WLAN_STA_PS_STA) &&
+	    skb_queue_len(&sta->tx_filtered[ac]) < STA_MAX_TX_BUFFER) {
+		skb_queue_tail(&sta->tx_filtered[ac], skb);
+		sta_info_recalc_tim(sta);
+
+		if (!timer_pending(&local->sta_cleanup))
+			mod_timer(&local->sta_cleanup,
+				  round_jiffies(jiffies +
+						STA_INFO_CLEANUP_INTERVAL));
 		return;
 	}
 
-	if (!test_sta_flags(sta, WLAN_STA_PS_STA) &&
+	if (!test_sta_flag(sta, WLAN_STA_PS_STA) &&
 	    !(info->flags & IEEE80211_TX_INTFL_RETRIED)) {
 		/* Software retry the packet once */
 		info->flags |= IEEE80211_TX_INTFL_RETRIED;
@@ -121,8 +156,8 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	if (net_ratelimit())
 		wiphy_debug(local->hw.wiphy,
 			    "dropped TX filtered frame, queue_len=%d PS=%d @%lu\n",
-			    skb_queue_len(&sta->tx_filtered),
-			    !!test_sta_flags(sta, WLAN_STA_PS_STA), jiffies);
+			    skb_queue_len(&sta->tx_filtered[ac]),
+			    !!test_sta_flag(sta, WLAN_STA_PS_STA), jiffies);
 #endif
 	dev_kfree_skb(skb);
 }
@@ -249,8 +284,11 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (memcmp(hdr->addr2, sta->sdata->vif.addr, ETH_ALEN))
 			continue;
 
+		if (info->flags & IEEE80211_TX_STATUS_EOSP)
+			clear_sta_flag(sta, WLAN_STA_SP);
+
 		acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
-		if (!acked && test_sta_flags(sta, WLAN_STA_PS_STA)) {
+		if (!acked && test_sta_flag(sta, WLAN_STA_PS_STA)) {
 			/*
 			 * The STA is in power save mode, so assume
 			 * that this TX packet failed because of that.

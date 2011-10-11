@@ -1241,7 +1241,8 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 	rtl818x_iowrite32_async(priv, &priv->map->RX_CONF, priv->rx_conf);
 }
 
-static int rtl8187_conf_tx(struct ieee80211_hw *dev, u16 queue,
+static int rtl8187_conf_tx(struct ieee80211_hw *dev,
+			   struct ieee80211_vif *vif, u16 queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct rtl8187_priv *priv = dev->priv;

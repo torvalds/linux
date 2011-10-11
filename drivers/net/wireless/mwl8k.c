@@ -4915,7 +4915,8 @@ static int mwl8k_sta_add(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int mwl8k_conf_tx(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif, u16 queue,
 			 const struct ieee80211_tx_queue_params *params)
 {
 	struct mwl8k_priv *priv = hw->priv;
@@ -5462,7 +5463,7 @@ static int mwl8k_reload_firmware(struct ieee80211_hw *hw, char *fw_image)
 		goto fail;
 
 	for (i = 0; i < MWL8K_TX_WMM_QUEUES; i++) {
-		rc = mwl8k_conf_tx(hw, i, &priv->wmm_params[i]);
+		rc = mwl8k_conf_tx(hw, NULL, i, &priv->wmm_params[i]);
 		if (rc)
 			goto fail;
 	}

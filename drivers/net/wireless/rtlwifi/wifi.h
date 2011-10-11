@@ -942,16 +942,12 @@ struct rtl_io {
 	unsigned long pci_base_addr;	/*device I/O address */
 
 	void (*write8_async) (struct rtl_priv *rtlpriv, u32 addr, u8 val);
-	void (*write16_async) (struct rtl_priv *rtlpriv, u32 addr, u16 val);
-	void (*write32_async) (struct rtl_priv *rtlpriv, u32 addr, u32 val);
-	int (*writeN_async) (struct rtl_priv *rtlpriv, u32 addr, u16 len,
-			     u8 *pdata);
+	void (*write16_async) (struct rtl_priv *rtlpriv, u32 addr, __le16 val);
+	void (*write32_async) (struct rtl_priv *rtlpriv, u32 addr, __le32 val);
 
 	u8(*read8_sync) (struct rtl_priv *rtlpriv, u32 addr);
 	u16(*read16_sync) (struct rtl_priv *rtlpriv, u32 addr);
 	u32(*read32_sync) (struct rtl_priv *rtlpriv, u32 addr);
-	int (*readN_sync) (struct rtl_priv *rtlpriv, u32 addr, u16 len,
-			    u8 *pdata);
 
 };
 

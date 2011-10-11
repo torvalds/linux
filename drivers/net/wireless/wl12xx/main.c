@@ -3744,7 +3744,8 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
-static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int wl1271_op_conf_tx(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif, u16 queue,
 			     const struct ieee80211_tx_queue_params *params)
 {
 	struct wl1271 *wl = hw->priv;

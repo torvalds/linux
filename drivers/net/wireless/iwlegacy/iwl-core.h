@@ -286,7 +286,8 @@ struct iwl_cfg {
  ***************************/
 
 struct ieee80211_hw *iwl_legacy_alloc_all(struct iwl_cfg *cfg);
-int iwl_legacy_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
+int iwl_legacy_mac_conf_tx(struct ieee80211_hw *hw,
+		    struct ieee80211_vif *vif, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_legacy_mac_tx_last_beacon(struct ieee80211_hw *hw);
 void iwl_legacy_set_rxon_hwcrypto(struct iwl_priv *priv,

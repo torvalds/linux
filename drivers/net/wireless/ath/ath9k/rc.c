@@ -1362,12 +1362,6 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	if (tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED)
 		return;
 
-	if (!(tx_info->flags & IEEE80211_TX_STAT_AMPDU)) {
-		tx_info->status.ampdu_ack_len =
-			(tx_info->flags & IEEE80211_TX_STAT_ACK ? 1 : 0);
-		tx_info->status.ampdu_len = 1;
-	}
-
 	if (!(tx_info->flags & IEEE80211_TX_STAT_ACK))
 		tx_status = 1;
 

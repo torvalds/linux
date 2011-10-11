@@ -841,7 +841,7 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 		      ieee80211_is_pspoll(hdr->frame_control)) &&
 		     rx->sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 		     rx->sdata->vif.type != NL80211_IFTYPE_WDS &&
-		     (!rx->sta || !test_sta_flags(rx->sta, WLAN_STA_ASSOC)))) {
+		     (!rx->sta || !test_sta_flag(rx->sta, WLAN_STA_ASSOC)))) {
 		if (rx->sta && rx->sta->dummy &&
 		    ieee80211_is_data_present(hdr->frame_control)) {
 			u16 ethertype;
@@ -1110,7 +1110,7 @@ static void ap_sta_ps_start(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 
 	atomic_inc(&sdata->bss->num_sta_ps);
-	set_sta_flags(sta, WLAN_STA_PS_STA);
+	set_sta_flag(sta, WLAN_STA_PS_STA);
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_SLEEP, &sta->sta);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
@@ -1130,7 +1130,7 @@ static void ap_sta_ps_end(struct sta_info *sta)
 	       sdata->name, sta->sta.addr, sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
-	if (test_sta_flags(sta, WLAN_STA_PS_DRIVER)) {
+	if (test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "%s: STA %pM aid %d driver-ps-blocked\n",
 		       sdata->name, sta->sta.addr, sta->sta.aid);
@@ -1149,7 +1149,7 @@ int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start)
 	WARN_ON(!(sta_inf->local->hw.flags & IEEE80211_HW_AP_LINK_PS));
 
 	/* Don't let the same PS state be set twice */
-	in_ps = test_sta_flags(sta_inf, WLAN_STA_PS_STA);
+	in_ps = test_sta_flag(sta_inf, WLAN_STA_PS_STA);
 	if ((start && in_ps) || (!start && !in_ps))
 		return -EINVAL;
 
@@ -1161,6 +1161,81 @@ int ieee80211_sta_ps_transition(struct ieee80211_sta *sta, bool start)
 	return 0;
 }
 EXPORT_SYMBOL(ieee80211_sta_ps_transition);
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_sub_if_data *sdata = rx->sdata;
+	struct ieee80211_hdr *hdr = (void *)rx->skb->data;
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
+	int tid, ac;
+
+	if (!rx->sta || !(status->rx_flags & IEEE80211_RX_RA_MATCH))
+		return RX_CONTINUE;
+
+	if (sdata->vif.type != NL80211_IFTYPE_AP &&
+	    sdata->vif.type != NL80211_IFTYPE_AP_VLAN)
+		return RX_CONTINUE;
+
+	/*
+	 * The device handles station powersave, so don't do anything about
+	 * uAPSD and PS-Poll frames (the latter shouldn't even come up from
+	 * it to mac80211 since they're handled.)
+	 */
+	if (sdata->local->hw.flags & IEEE80211_HW_AP_LINK_PS)
+		return RX_CONTINUE;
+
+	/*
+	 * Don't do anything if the station isn't already asleep. In
+	 * the uAPSD case, the station will probably be marked asleep,
+	 * in the PS-Poll case the station must be confused ...
+	 */
+	if (!test_sta_flag(rx->sta, WLAN_STA_PS_STA))
+		return RX_CONTINUE;
+
+	if (unlikely(ieee80211_is_pspoll(hdr->frame_control))) {
+		if (!test_sta_flag(rx->sta, WLAN_STA_SP)) {
+			if (!test_sta_flag(rx->sta, WLAN_STA_PS_DRIVER))
+				ieee80211_sta_ps_deliver_poll_response(rx->sta);
+			else
+				set_sta_flag(rx->sta, WLAN_STA_PSPOLL);
+		}
+
+		/* Free PS Poll skb here instead of returning RX_DROP that would
+		 * count as an dropped frame. */
+		dev_kfree_skb(rx->skb);
+
+		return RX_QUEUED;
+	} else if (!ieee80211_has_morefrags(hdr->frame_control) &&
+		   !(status->rx_flags & IEEE80211_RX_DEFERRED_RELEASE) &&
+		   ieee80211_has_pm(hdr->frame_control) &&
+		   (ieee80211_is_data_qos(hdr->frame_control) ||
+		    ieee80211_is_qos_nullfunc(hdr->frame_control))) {
+		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+		ac = ieee802_1d_to_ac[tid & 7];
+
+		/*
+		 * If this AC is not trigger-enabled do nothing.
+		 *
+		 * NB: This could/should check a separate bitmap of trigger-
+		 * enabled queues, but for now we only implement uAPSD w/o
+		 * TSPEC changes to the ACs, so they're always the same.
+		 */
+		if (!(rx->sta->sta.uapsd_queues & BIT(ac)))
+			return RX_CONTINUE;
+
+		/* if we are in a service period, do nothing */
+		if (test_sta_flag(rx->sta, WLAN_STA_SP))
+			return RX_CONTINUE;
+
+		if (!test_sta_flag(rx->sta, WLAN_STA_PS_DRIVER))
+			ieee80211_sta_ps_deliver_uapsd(rx->sta);
+		else
+			set_sta_flag(rx->sta, WLAN_STA_UAPSD);
+	}
+
+	return RX_CONTINUE;
+}
 
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
@@ -1220,7 +1295,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	    !(status->rx_flags & IEEE80211_RX_DEFERRED_RELEASE) &&
 	    (rx->sdata->vif.type == NL80211_IFTYPE_AP ||
 	     rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)) {
-		if (test_sta_flags(sta, WLAN_STA_PS_STA)) {
+		if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
 			/*
 			 * Ignore doze->wake transitions that are
 			 * indicated by non-data frames, the standard
@@ -1473,33 +1548,6 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 }
 
 static ieee80211_rx_result debug_noinline
-ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
-{
-	struct ieee80211_sub_if_data *sdata = rx->sdata;
-	__le16 fc = ((struct ieee80211_hdr *)rx->skb->data)->frame_control;
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
-
-	if (likely(!rx->sta || !ieee80211_is_pspoll(fc) ||
-		   !(status->rx_flags & IEEE80211_RX_RA_MATCH)))
-		return RX_CONTINUE;
-
-	if ((sdata->vif.type != NL80211_IFTYPE_AP) &&
-	    (sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
-		return RX_DROP_UNUSABLE;
-
-	if (!test_sta_flags(rx->sta, WLAN_STA_PS_DRIVER))
-		ieee80211_sta_ps_deliver_poll_response(rx->sta);
-	else
-		set_sta_flags(rx->sta, WLAN_STA_PSPOLL);
-
-	/* Free PS Poll skb here instead of returning RX_DROP that would
-	 * count as an dropped frame. */
-	dev_kfree_skb(rx->skb);
-
-	return RX_QUEUED;
-}
-
-static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_remove_qos_control(struct ieee80211_rx_data *rx)
 {
 	u8 *data = rx->skb->data;
@@ -1522,7 +1570,7 @@ static int
 ieee80211_802_1x_port_control(struct ieee80211_rx_data *rx)
 {
 	if (unlikely(!rx->sta ||
-	    !test_sta_flags(rx->sta, WLAN_STA_AUTHORIZED)))
+	    !test_sta_flag(rx->sta, WLAN_STA_AUTHORIZED)))
 		return -EACCES;
 
 	return 0;
@@ -1565,7 +1613,7 @@ ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 	if (status->flag & RX_FLAG_DECRYPTED)
 		return 0;
 
-	if (rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP)) {
+	if (rx->sta && test_sta_flag(rx->sta, WLAN_STA_MFP)) {
 		if (unlikely(!ieee80211_has_protected(fc) &&
 			     ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
 			     rx->key)) {
@@ -2567,9 +2615,9 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx)
 
 		CALL_RXH(ieee80211_rx_h_decrypt)
 		CALL_RXH(ieee80211_rx_h_check_more_data)
+		CALL_RXH(ieee80211_rx_h_uapsd_and_pspoll)
 		CALL_RXH(ieee80211_rx_h_sta_process)
 		CALL_RXH(ieee80211_rx_h_defragment)
-		CALL_RXH(ieee80211_rx_h_ps_poll)
 		CALL_RXH(ieee80211_rx_h_michael_mic_verify)
 		/* must be after MMIC verify so header is counted in MPDU mic */
 #ifdef CONFIG_MAC80211_MESH

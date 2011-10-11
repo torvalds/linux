@@ -41,7 +41,7 @@ obj-$(CONFIG_ADM8211)	+= adm8211.o
 
 obj-$(CONFIG_MWL8K)	+= mwl8k.o
 
-obj-$(CONFIG_IWLAGN)	+= iwlwifi/
+obj-$(CONFIG_IWLWIFI)	+= iwlwifi/
 obj-$(CONFIG_IWLWIFI_LEGACY)	+= iwlegacy/
 obj-$(CONFIG_RT2X00)	+= rt2x00/
 

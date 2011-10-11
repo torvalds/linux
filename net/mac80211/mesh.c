@@ -320,64 +320,6 @@ mesh_add_rsn_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
-int
-mesh_add_srates_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
-	int rate;
-	u8 i, rates, *pos;
-
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	rates = sband->n_bitrates;
-	if (rates > 8)
-		rates = 8;
-
-	if (skb_tailroom(skb) < rates + 2)
-		return -ENOMEM;
-
-	pos = skb_put(skb, rates + 2);
-	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos++ = rates;
-	for (i = 0; i < rates; i++) {
-		rate = sband->bitrates[i].bitrate;
-		*pos++ = (u8) (rate / 5);
-	}
-
-	return 0;
-}
-
-int
-mesh_add_ext_srates_ie(struct sk_buff *skb,
-		       struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
-	int rate;
-	u8 i, exrates, *pos;
-
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	exrates = sband->n_bitrates;
-	if (exrates > 8)
-		exrates -= 8;
-	else
-		exrates = 0;
-
-	if (skb_tailroom(skb) < exrates + 2)
-		return -ENOMEM;
-
-	if (exrates) {
-		pos = skb_put(skb, exrates + 2);
-		*pos++ = WLAN_EID_EXT_SUPP_RATES;
-		*pos++ = exrates;
-		for (i = 8; i < sband->n_bitrates; i++) {
-			rate = sband->bitrates[i].bitrate;
-			*pos++ = (u8) (rate / 5);
-		}
-	}
-	return 0;
-}
-
 int mesh_add_ds_params_ie(struct sk_buff *skb,
 			  struct ieee80211_sub_if_data *sdata)
 {

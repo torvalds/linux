@@ -504,7 +504,8 @@ static int _rtl_get_hal_qnum(u16 queue)
  *for mac80211 VO=0, VI=1, BE=2, BK=3
  *for rtl819x  BE=0, BK=1, VI=2, VO=3
  */
-static int rtl_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int rtl_op_conf_tx(struct ieee80211_hw *hw,
+		   struct ieee80211_vif *vif, u16 queue,
 		   const struct ieee80211_tx_queue_params *param)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);

@@ -2883,7 +2883,8 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 /*
  * IEEE80211 stack callback functions.
  */
-static int rt61pci_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
+static int rt61pci_conf_tx(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif, u16 queue_idx,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -2899,7 +2900,7 @@ static int rt61pci_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	 * we are free to update the registers based on the value
 	 * in the queue parameter.
 	 */
-	retval = rt2x00mac_conf_tx(hw, queue_idx, params);
+	retval = rt2x00mac_conf_tx(hw, vif, queue_idx, params);
 	if (retval)
 		return retval;
 

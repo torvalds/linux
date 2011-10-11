@@ -61,7 +61,8 @@ static void ath6kl_add_new_sta(struct ath6kl *ar, u8 *mac, u16 aid, u8 *wpaie,
 
 	sta = &ar->sta_list[free_slot];
 	memcpy(sta->mac, mac, ETH_ALEN);
-	memcpy(sta->wpa_ie, wpaie, ielen);
+	if (ielen <= ATH6KL_MAX_IE)
+		memcpy(sta->wpa_ie, wpaie, ielen);
 	sta->aid = aid;
 	sta->keymgmt = keymgmt;
 	sta->ucipher = ucipher;
@@ -177,8 +178,8 @@ void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie)
 static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 {
 	int status;
-	u8 addr_val[4];
 	s32 i;
+	__le32 addr_val;
 
 	/*
 	 * Write bytes 1,2,3 of the register to set the upper address bytes,
@@ -188,16 +189,18 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 	for (i = 1; i <= 3; i++) {
 		/*
 		 * Fill the buffer with the address byte value we want to
-		 * hit 4 times.
+		 * hit 4 times. No need to worry about endianness as the
+		 * same byte is copied to all four bytes of addr_val at
+		 * any time.
 		 */
-		memset(addr_val, ((u8 *)&addr)[i], 4);
+		memset((u8 *)&addr_val, ((u8 *)&addr)[i], 4);
 
 		/*
 		 * Hit each byte of the register address with a 4-byte
 		 * write operation to the same address, this is a harmless
 		 * operation.
 		 */
-		status = hif_read_write_sync(ar, reg_addr + i, addr_val,
+		status = hif_read_write_sync(ar, reg_addr + i, (u8 *)&addr_val,
 					     4, HIF_WR_SYNC_BYTE_FIX);
 		if (status)
 			break;
@@ -215,7 +218,9 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 	 * cycle to start, the extra 3 byte write to bytes 1,2,3 has no
 	 * effect since we are writing the same values again
 	 */
-	status = hif_read_write_sync(ar, reg_addr, (u8 *)(&addr),
+	addr_val = cpu_to_le32(addr);
+	status = hif_read_write_sync(ar, reg_addr,
+				     (u8 *)&(addr_val),
 				     4, HIF_WR_SYNC_BYTE_INC);
 
 	if (status) {
@@ -228,90 +233,193 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 }
 
 /*
- * Read from the ATH6KL through its diagnostic window. No cooperation from
- * the Target is required for this.
+ * Read from the hardware through its diagnostic window. No cooperation
+ * from the firmware is required for this.
  */
-int ath6kl_read_reg_diag(struct ath6kl *ar, u32 *address, u32 *data)
+int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value)
 {
-	int status;
+	int ret;
 
 	/* set window register to start read cycle */
-	status = ath6kl_set_addrwin_reg(ar, WINDOW_READ_ADDR_ADDRESS,
-					*address);
-
-	if (status)
-		return status;
+	ret = ath6kl_set_addrwin_reg(ar, WINDOW_READ_ADDR_ADDRESS, address);
+	if (ret)
+		return ret;
 
 	/* read the data */
-	status = hif_read_write_sync(ar, WINDOW_DATA_ADDRESS, (u8 *)data,
-				     sizeof(u32), HIF_RD_SYNC_BYTE_INC);
-	if (status) {
-		ath6kl_err("failed to read from window data addr\n");
-		return status;
+	ret = hif_read_write_sync(ar, WINDOW_DATA_ADDRESS, (u8 *) value,
+				  sizeof(*value), HIF_RD_SYNC_BYTE_INC);
+	if (ret) {
+		ath6kl_warn("failed to read32 through diagnose window: %d\n",
+			    ret);
+		return ret;
 	}
 
-	return status;
+	return 0;
 }
-
 
 /*
  * Write to the ATH6KL through its diagnostic window. No cooperation from
  * the Target is required for this.
  */
-static int ath6kl_write_reg_diag(struct ath6kl *ar, u32 *address, u32 *data)
+int ath6kl_diag_write32(struct ath6kl *ar, u32 address, __le32 value)
 {
-	int status;
+	int ret;
 
 	/* set write data */
-	status = hif_read_write_sync(ar, WINDOW_DATA_ADDRESS, (u8 *)data,
-				     sizeof(u32), HIF_WR_SYNC_BYTE_INC);
-	if (status) {
-		ath6kl_err("failed to write 0x%x to window data addr\n", *data);
-		return status;
+	ret = hif_read_write_sync(ar, WINDOW_DATA_ADDRESS, (u8 *) &value,
+				  sizeof(value), HIF_WR_SYNC_BYTE_INC);
+	if (ret) {
+		ath6kl_err("failed to write 0x%x during diagnose window to 0x%d\n",
+			   address, value);
+		return ret;
 	}
 
 	/* set window register, which starts the write cycle */
 	return ath6kl_set_addrwin_reg(ar, WINDOW_WRITE_ADDR_ADDRESS,
-				      *address);
+				      address);
 }
 
-int ath6kl_access_datadiag(struct ath6kl *ar, u32 address,
-			   u8 *data, u32 length, bool read)
+int ath6kl_diag_read(struct ath6kl *ar, u32 address, void *data, u32 length)
 {
-	u32 count;
-	int status = 0;
+	u32 count, *buf = data;
+	int ret;
 
-	for (count = 0; count < length; count += 4, address += 4) {
-		if (read) {
-			status = ath6kl_read_reg_diag(ar, &address,
-						      (u32 *) &data[count]);
-			if (status)
-				break;
-		} else {
-			status = ath6kl_write_reg_diag(ar, &address,
-						       (u32 *) &data[count]);
-			if (status)
-				break;
-		}
+	if (WARN_ON(length % 4))
+		return -EINVAL;
+
+	for (count = 0; count < length / 4; count++, address += 4) {
+		ret = ath6kl_diag_read32(ar, address, &buf[count]);
+		if (ret)
+			return ret;
 	}
 
-	return status;
+	return 0;
 }
+
+int ath6kl_diag_write(struct ath6kl *ar, u32 address, void *data, u32 length)
+{
+	u32 count;
+	__le32 *buf = data;
+	int ret;
+
+	if (WARN_ON(length % 4))
+		return -EINVAL;
+
+	for (count = 0; count < length / 4; count++, address += 4) {
+		ret = ath6kl_diag_write32(ar, address, buf[count]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int ath6kl_read_fwlogs(struct ath6kl *ar)
+{
+	struct ath6kl_dbglog_hdr debug_hdr;
+	struct ath6kl_dbglog_buf debug_buf;
+	u32 address, length, dropped, firstbuf, debug_hdr_addr;
+	int ret = 0, loop;
+	u8 *buf;
+
+	buf = kmalloc(ATH6KL_FWLOG_PAYLOAD_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	address = TARG_VTOP(ar->target_type,
+			    ath6kl_get_hi_item_addr(ar,
+						    HI_ITEM(hi_dbglog_hdr)));
+
+	ret = ath6kl_diag_read32(ar, address, &debug_hdr_addr);
+	if (ret)
+		goto out;
+
+	/* Get the contents of the ring buffer */
+	if (debug_hdr_addr == 0) {
+		ath6kl_warn("Invalid address for debug_hdr_addr\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	address = TARG_VTOP(ar->target_type, debug_hdr_addr);
+	ath6kl_diag_read(ar, address, &debug_hdr, sizeof(debug_hdr));
+
+	address = TARG_VTOP(ar->target_type,
+			    le32_to_cpu(debug_hdr.dbuf_addr));
+	firstbuf = address;
+	dropped = le32_to_cpu(debug_hdr.dropped);
+	ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
+
+	loop = 100;
+
+	do {
+		address = TARG_VTOP(ar->target_type,
+				    le32_to_cpu(debug_buf.buffer_addr));
+		length = le32_to_cpu(debug_buf.length);
+
+		if (length != 0 && (le32_to_cpu(debug_buf.length) <=
+				    le32_to_cpu(debug_buf.bufsize))) {
+			length = ALIGN(length, 4);
+
+			ret = ath6kl_diag_read(ar, address,
+					       buf, length);
+			if (ret)
+				goto out;
+
+			ath6kl_debug_fwlog_event(ar, buf, length);
+		}
+
+		address = TARG_VTOP(ar->target_type,
+				    le32_to_cpu(debug_buf.next));
+		ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
+		if (ret)
+			goto out;
+
+		loop--;
+
+		if (WARN_ON(loop == 0)) {
+			ret = -ETIMEDOUT;
+			goto out;
+		}
+	} while (address != firstbuf);
+
+out:
+	kfree(buf);
+
+	return ret;
+}
+
+/* FIXME: move to a better place, target.h? */
+#define AR6003_RESET_CONTROL_ADDRESS 0x00004000
+#define AR6004_RESET_CONTROL_ADDRESS 0x00004000
 
 static void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 				bool wait_fot_compltn, bool cold_reset)
 {
 	int status = 0;
 	u32 address;
-	u32 data;
+	__le32 data;
 
-	if (target_type != TARGET_TYPE_AR6003)
+	if (target_type != TARGET_TYPE_AR6003 &&
+		target_type != TARGET_TYPE_AR6004)
 		return;
 
-	data = cold_reset ? RESET_CONTROL_COLD_RST : RESET_CONTROL_MBOX_RST;
+	data = cold_reset ? cpu_to_le32(RESET_CONTROL_COLD_RST) :
+			    cpu_to_le32(RESET_CONTROL_MBOX_RST);
 
-	address = RTC_BASE_ADDRESS;
-	status = ath6kl_write_reg_diag(ar, &address, &data);
+	switch (target_type) {
+	case TARGET_TYPE_AR6003:
+		address = AR6003_RESET_CONTROL_ADDRESS;
+		break;
+	case TARGET_TYPE_AR6004:
+		address = AR6004_RESET_CONTROL_ADDRESS;
+		break;
+	default:
+		address = AR6003_RESET_CONTROL_ADDRESS;
+		break;
+	}
+
+	status = ath6kl_diag_write32(ar, address, data);
 
 	if (status)
 		ath6kl_err("failed to reset target\n");
@@ -411,68 +519,107 @@ static void ath6kl_install_static_wep_keys(struct ath6kl *ar)
 	}
 }
 
-static void ath6kl_connect_ap_mode(struct ath6kl *ar, u16 channel, u8 *bssid,
-				   u16 listen_int, u16 beacon_int,
-				   u8 assoc_resp_len, u8 *assoc_info)
+void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel)
 {
-	struct net_device *dev = ar->net_dev;
-	struct station_info sinfo;
 	struct ath6kl_req_key *ik;
-	enum crypto_type keyType = NONE_CRYPT;
+	int res;
+	u8 key_rsc[ATH6KL_KEY_SEQ_LEN];
 
-	if (memcmp(dev->dev_addr, bssid, ETH_ALEN) == 0) {
-		ik = &ar->ap_mode_bkey;
+	ik = &ar->ap_mode_bkey;
 
-		switch (ar->auth_mode) {
-		case NONE_AUTH:
-			if (ar->prwise_crypto == WEP_CRYPT)
-				ath6kl_install_static_wep_keys(ar);
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "AP mode started on %u MHz\n", channel);
+
+	switch (ar->auth_mode) {
+	case NONE_AUTH:
+		if (ar->prwise_crypto == WEP_CRYPT)
+			ath6kl_install_static_wep_keys(ar);
+		break;
+	case WPA_PSK_AUTH:
+	case WPA2_PSK_AUTH:
+	case (WPA_PSK_AUTH | WPA2_PSK_AUTH):
+		if (!ik->valid)
 			break;
-		case WPA_PSK_AUTH:
-		case WPA2_PSK_AUTH:
-		case (WPA_PSK_AUTH|WPA2_PSK_AUTH):
-			switch (ik->ik_type) {
-			case ATH6KL_CIPHER_TKIP:
-				keyType = TKIP_CRYPT;
-				break;
-			case ATH6KL_CIPHER_AES_CCM:
-				keyType = AES_CRYPT;
-				break;
-			default:
-				goto skip_key;
-			}
-			ath6kl_wmi_addkey_cmd(ar->wmi, ik->ik_keyix, keyType,
-					      GROUP_USAGE, ik->ik_keylen,
-					      (u8 *)&ik->ik_keyrsc,
-					      ik->ik_keydata,
-					      KEY_OP_INIT_VAL, ik->ik_macaddr,
-					      SYNC_BOTH_WMIFLAG);
-			break;
+
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed addkey for "
+			   "the initial group key for AP mode\n");
+		memset(key_rsc, 0, sizeof(key_rsc));
+		res = ath6kl_wmi_addkey_cmd(
+			ar->wmi, ik->key_index, ik->key_type,
+			GROUP_USAGE, ik->key_len, key_rsc, ik->key,
+			KEY_OP_INIT_VAL, NULL, SYNC_BOTH_WMIFLAG);
+		if (res) {
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delayed "
+				   "addkey failed: %d\n", res);
 		}
-skip_key:
-		set_bit(CONNECTED, &ar->flag);
-		return;
+		break;
 	}
 
-	ath6kl_dbg(ATH6KL_DBG_TRC, "new station %pM aid=%d\n",
-		   bssid, channel);
+	ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+	set_bit(CONNECTED, &ar->flag);
+	netif_carrier_on(ar->net_dev);
+}
 
-	ath6kl_add_new_sta(ar, bssid, channel, assoc_info, assoc_resp_len,
-			   listen_int & 0xFF, beacon_int,
-			   (listen_int >> 8) & 0xFF);
+void ath6kl_connect_ap_mode_sta(struct ath6kl *ar, u16 aid, u8 *mac_addr,
+				u8 keymgmt, u8 ucipher, u8 auth,
+				u8 assoc_req_len, u8 *assoc_info)
+{
+	u8 *ies = NULL, *wpa_ie = NULL, *pos;
+	size_t ies_len = 0;
+	struct station_info sinfo;
+
+	ath6kl_dbg(ATH6KL_DBG_TRC, "new station %pM aid=%d\n", mac_addr, aid);
+
+	if (assoc_req_len > sizeof(struct ieee80211_hdr_3addr)) {
+		struct ieee80211_mgmt *mgmt =
+			(struct ieee80211_mgmt *) assoc_info;
+		if (ieee80211_is_assoc_req(mgmt->frame_control) &&
+		    assoc_req_len >= sizeof(struct ieee80211_hdr_3addr) +
+		    sizeof(mgmt->u.assoc_req)) {
+			ies = mgmt->u.assoc_req.variable;
+			ies_len = assoc_info + assoc_req_len - ies;
+		} else if (ieee80211_is_reassoc_req(mgmt->frame_control) &&
+			   assoc_req_len >= sizeof(struct ieee80211_hdr_3addr)
+			   + sizeof(mgmt->u.reassoc_req)) {
+			ies = mgmt->u.reassoc_req.variable;
+			ies_len = assoc_info + assoc_req_len - ies;
+		}
+	}
+
+	pos = ies;
+	while (pos && pos + 1 < ies + ies_len) {
+		if (pos + 2 + pos[1] > ies + ies_len)
+			break;
+		if (pos[0] == WLAN_EID_RSN)
+			wpa_ie = pos; /* RSN IE */
+		else if (pos[0] == WLAN_EID_VENDOR_SPECIFIC &&
+			 pos[1] >= 4 &&
+			 pos[2] == 0x00 && pos[3] == 0x50 && pos[4] == 0xf2) {
+			if (pos[5] == 0x01)
+				wpa_ie = pos; /* WPA IE */
+			else if (pos[5] == 0x04) {
+				wpa_ie = pos; /* WPS IE */
+				break; /* overrides WPA/RSN IE */
+			}
+		}
+		pos += 2 + pos[1];
+	}
+
+	ath6kl_add_new_sta(ar, mac_addr, aid, wpa_ie,
+			   wpa_ie ? 2 + wpa_ie[1] : 0,
+			   keymgmt, ucipher, auth);
 
 	/* send event to application */
 	memset(&sinfo, 0, sizeof(sinfo));
 
 	/* TODO: sinfo.generation */
-	/* TODO: need to deliver (Re)AssocReq IEs somehow.. change in
-	 * cfg80211 needed, e.g., by adding those into sinfo
-	 */
-	cfg80211_new_sta(ar->net_dev, bssid, &sinfo, GFP_KERNEL);
+
+	sinfo.assoc_req_ies = ies;
+	sinfo.assoc_req_ies_len = ies_len;
+	sinfo.filled |= STATION_INFO_ASSOC_REQ_IES;
+
+	cfg80211_new_sta(ar->net_dev, mac_addr, &sinfo, GFP_KERNEL);
 
 	netif_wake_queue(ar->net_dev);
-
-	return;
 }
 
 /* Functions for Tx credit handling */
@@ -779,6 +926,41 @@ void ath6kl_disconnect(struct ath6kl *ar)
 	}
 }
 
+void ath6kl_deep_sleep_enable(struct ath6kl *ar)
+{
+	switch (ar->sme_state) {
+	case SME_CONNECTING:
+		cfg80211_connect_result(ar->net_dev, ar->bssid, NULL, 0,
+					NULL, 0,
+					WLAN_STATUS_UNSPECIFIED_FAILURE,
+					GFP_KERNEL);
+		break;
+	case SME_CONNECTED:
+	default:
+		/*
+		 * FIXME: oddly enough smeState is in DISCONNECTED during
+		 * suspend, why? Need to send disconnected event in that
+		 * state.
+		 */
+		cfg80211_disconnected(ar->net_dev, 0, NULL, 0, GFP_KERNEL);
+		break;
+	}
+
+	if (test_bit(CONNECTED, &ar->flag) ||
+	    test_bit(CONNECT_PEND, &ar->flag))
+		ath6kl_wmi_disconnect_cmd(ar->wmi);
+
+	ar->sme_state = SME_DISCONNECTED;
+
+	/* disable scanning */
+	if (ath6kl_wmi_scanparams_cmd(ar->wmi, 0xFFFF, 0, 0, 0, 0, 0, 0, 0,
+				      0, 0) != 0)
+		printk(KERN_WARNING "ath6kl: failed to disable scan "
+		       "during suspend\n");
+
+	ath6kl_cfg80211_scan_complete_event(ar, -ECANCELED);
+}
+
 /* WMI Event handlers */
 
 static const char *get_hw_id_string(u32 id)
@@ -819,17 +1001,20 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 	set_bit(WMI_READY, &ar->flag);
 	wake_up(&ar->event_wq);
 
-	ath6kl_info("hw %s fw %s\n",
+	ath6kl_info("hw %s fw %s%s\n",
 		    get_hw_id_string(ar->wdev->wiphy->hw_version),
-		    ar->wdev->wiphy->fw_version);
+		    ar->wdev->wiphy->fw_version,
+		    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
 }
 
 void ath6kl_scan_complete_evt(struct ath6kl *ar, int status)
 {
 	ath6kl_cfg80211_scan_complete_event(ar, status);
 
-	if (!ar->usr_bss_filter)
+	if (!ar->usr_bss_filter) {
+		clear_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
 		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+	}
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_SCAN, "scan complete: %d\n", status);
 }
@@ -841,13 +1026,6 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 			  u8 *assoc_info)
 {
 	unsigned long flags;
-
-	if (ar->nw_type == AP_NETWORK) {
-		ath6kl_connect_ap_mode(ar, channel, bssid, listen_int,
-				       beacon_int, assoc_resp_len,
-				       assoc_info);
-		return;
-	}
 
 	ath6kl_cfg80211_connect_event(ar, channel, bssid,
 				      listen_int, beacon_int,
@@ -880,8 +1058,10 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel, u8 *bssid,
 		ar->next_ep_id = ENDPOINT_2;
 	}
 
-	if (!ar->usr_bss_filter)
-		ath6kl_wmi_bssfilter_cmd(ar->wmi, NONE_BSS_FILTER, 0);
+	if (!ar->usr_bss_filter) {
+		set_bit(CLEAR_BSSFILTER_ON_BEACON, &ar->flag);
+		ath6kl_wmi_bssfilter_cmd(ar->wmi, CURRENT_BSS_FILTER, 0);
+	}
 }
 
 void ath6kl_tkip_micerr_event(struct ath6kl *ar, u8 keyid, bool ismcast)
@@ -915,25 +1095,10 @@ static void ath6kl_update_target_stats(struct ath6kl *ar, u8 *ptr, u32 len)
 		(struct wmi_target_stats *) ptr;
 	struct target_stats *stats = &ar->target_stats;
 	struct tkip_ccmp_stats *ccmp_stats;
-	struct bss *conn_bss = NULL;
-	struct cserv_stats *c_stats;
 	u8 ac;
 
 	if (len < sizeof(*tgt_stats))
 		return;
-
-	/* update the RSSI of the connected bss */
-	if (test_bit(CONNECTED, &ar->flag)) {
-		conn_bss = ath6kl_wmi_find_node(ar->wmi, ar->bssid);
-		if (conn_bss) {
-			c_stats = &tgt_stats->cserv_stats;
-			conn_bss->ni_rssi =
-				a_sle16_to_cpu(c_stats->cs_ave_beacon_rssi);
-			conn_bss->ni_snr =
-				tgt_stats->cserv_stats.cs_ave_beacon_snr;
-			ath6kl_wmi_node_return(ar->wmi, conn_bss);
-		}
-	}
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "updating target stats\n");
 
@@ -1165,7 +1330,6 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 			     u8 assoc_resp_len, u8 *assoc_info,
 			     u16 prot_reason_status)
 {
-	struct bss *wmi_ssid_node = NULL;
 	unsigned long flags;
 
 	if (ar->nw_type == AP_NETWORK) {
@@ -1188,7 +1352,10 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 			cfg80211_del_sta(ar->net_dev, bssid, GFP_KERNEL);
 		}
 
-		clear_bit(CONNECTED, &ar->flag);
+		if (memcmp(ar->net_dev->dev_addr, bssid, ETH_ALEN) == 0) {
+			memset(ar->wep_key_list, 0, sizeof(ar->wep_key_list));
+			clear_bit(CONNECTED, &ar->flag);
+		}
 		return;
 	}
 
@@ -1220,33 +1387,6 @@ void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason, u8 *bssid,
 			set_bit(CONNECTED, &ar->flag);
 			return;
 		}
-	}
-
-	if ((reason == NO_NETWORK_AVAIL) && test_bit(WMI_READY, &ar->flag))  {
-		ath6kl_wmi_node_free(ar->wmi, bssid);
-
-		/*
-		 * In case any other same SSID nodes are present remove it,
-		 * since those nodes also not available now.
-		 */
-		do {
-			/*
-			 * Find the nodes based on SSID and remove it
-			 *
-			 * Note: This case will not work out for
-			 * Hidden-SSID
-			 */
-			wmi_ssid_node = ath6kl_wmi_find_ssid_node(ar->wmi,
-								  ar->ssid,
-								  ar->ssid_len,
-								  false,
-								  true);
-
-			if (wmi_ssid_node)
-				ath6kl_wmi_node_free(ar->wmi,
-						     wmi_ssid_node->ni_macaddr);
-
-		} while (wmi_ssid_node);
 	}
 
 	/* update connect & link status atomically */
@@ -1331,7 +1471,7 @@ void init_netdev(struct net_device *dev)
 	dev->needed_headroom = ETH_HLEN;
 	dev->needed_headroom += sizeof(struct ath6kl_llc_snap_hdr) +
 				sizeof(struct wmi_data_hdr) + HTC_HDR_LENGTH
-				+ WMI_MAX_TX_META_SZ;
+				+ WMI_MAX_TX_META_SZ + ATH6KL_HTC_ALIGN_BYTES;
 
 	return;
 }

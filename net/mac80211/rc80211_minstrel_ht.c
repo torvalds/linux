@@ -281,6 +281,8 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 
 		mr = minstrel_get_ratestats(mi, mg->max_tp_rate);
 		if (cur_tp < mr->cur_tp) {
+			mi->max_tp_rate2 = mi->max_tp_rate;
+			cur_tp2 = cur_tp;
 			mi->max_tp_rate = mg->max_tp_rate;
 			cur_tp = mr->cur_tp;
 		}

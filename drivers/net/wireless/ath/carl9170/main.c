@@ -1305,7 +1305,8 @@ static int carl9170_op_sta_remove(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int carl9170_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int carl9170_op_conf_tx(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif, u16 queue,
 			       const struct ieee80211_tx_queue_params *param)
 {
 	struct ar9170 *ar = hw->priv;

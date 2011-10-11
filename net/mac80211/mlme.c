@@ -348,6 +348,7 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 {
 	struct sk_buff *skb;
 	struct ieee80211_hdr_3addr *nullfunc;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif);
 	if (!skb)
@@ -358,6 +359,10 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 		nullfunc->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	if (ifmgd->flags & (IEEE80211_STA_BEACON_POLL |
+			    IEEE80211_STA_CONNECTION_POLL))
+		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_USE_MINRATE;
+
 	ieee80211_tx_skb(sdata, skb);
 }
 
@@ -627,7 +632,7 @@ static bool ieee80211_powersave_allowed(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *mgd = &sdata->u.mgd;
 	struct sta_info *sta = NULL;
-	u32 sta_flags = 0;
+	bool authorized = false;
 
 	if (!mgd->powersave)
 		return false;
@@ -645,13 +650,10 @@ static bool ieee80211_powersave_allowed(struct ieee80211_sub_if_data *sdata)
 	rcu_read_lock();
 	sta = sta_info_get(sdata, mgd->bssid);
 	if (sta)
-		sta_flags = get_sta_flags(sta);
+		authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
 	rcu_read_unlock();
 
-	if (!(sta_flags & WLAN_STA_AUTHORIZED))
-		return false;
-
-	return true;
+	return authorized;
 }
 
 /* need to hold RTNL or interface lock */
@@ -1095,7 +1097,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, bssid);
 	if (sta) {
-		set_sta_flags(sta, WLAN_STA_BLOCK_BA);
+		set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 		ieee80211_sta_tear_down_BA_sessions(sta, tx);
 	}
 	mutex_unlock(&local->sta_mtx);
@@ -1137,8 +1139,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
+	/* remove AP and TDLS peers */
 	if (remove_sta)
-		sta_info_destroy_addr(sdata, bssid);
+		sta_info_flush(local, sdata);
 
 	del_timer_sync(&sdata->u.mgd.conn_mon_timer);
 	del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
@@ -1512,10 +1515,11 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 		return false;
 	}
 
-	set_sta_flags(sta, WLAN_STA_AUTH | WLAN_STA_ASSOC |
-			   WLAN_STA_ASSOC_AP);
+	set_sta_flag(sta, WLAN_STA_AUTH);
+	set_sta_flag(sta, WLAN_STA_ASSOC);
+	set_sta_flag(sta, WLAN_STA_ASSOC_AP);
 	if (!(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
-		set_sta_flags(sta, WLAN_STA_AUTHORIZED);
+		set_sta_flag(sta, WLAN_STA_AUTHORIZED);
 
 	rates = 0;
 	basic_rates = 0;
@@ -1574,10 +1578,10 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	rate_control_rate_init(sta);
 
 	if (ifmgd->flags & IEEE80211_STA_MFP_ENABLED)
-		set_sta_flags(sta, WLAN_STA_MFP);
+		set_sta_flag(sta, WLAN_STA_MFP);
 
 	if (elems.wmm_param)
-		set_sta_flags(sta, WLAN_STA_WME);
+		set_sta_flag(sta, WLAN_STA_WME);
 
 	/* sta_info_reinsert will also unlock the mutex lock */
 	err = sta_info_reinsert(sta);
@@ -2738,7 +2742,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 				       req->reason_code, cookie,
 				       !req->local_state_change);
 	if (assoc_bss)
-		sta_info_destroy_addr(sdata, bssid);
+		sta_info_flush(sdata->local, sdata);
 
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
@@ -2778,7 +2782,7 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_send_deauth_disassoc(sdata, req->bss->bssid,
 			IEEE80211_STYPE_DISASSOC, req->reason_code,
 			cookie, !req->local_state_change);
-	sta_info_destroy_addr(sdata, bssid);
+	sta_info_flush(sdata->local, sdata);
 
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
