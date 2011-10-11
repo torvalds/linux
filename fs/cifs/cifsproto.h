@@ -380,7 +380,7 @@ extern void tconInfoFree(struct cifs_tcon *);
 extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
 extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 			  __u32 *);
-extern int cifs_verify_signature(struct smb_hdr *,
+extern int cifs_verify_signature(struct kvec *iov, unsigned int nr_iov,
 				 struct TCP_Server_Info *server,
 				__u32 expected_sequence_number);
 extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *);

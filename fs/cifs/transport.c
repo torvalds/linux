@@ -496,13 +496,18 @@ int
 cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		   bool log_error)
 {
-	dump_smb(mid->resp_buf,
-		 min_t(u32, 92, be32_to_cpu(mid->resp_buf->smb_buf_length)));
+	unsigned int len = be32_to_cpu(mid->resp_buf->smb_buf_length) + 4;
+
+	dump_smb(mid->resp_buf, min_t(u32, 92, len));
 
 	/* convert the length into a more usable form */
 	if (server->sec_mode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
+		struct kvec iov;
+
+		iov.iov_base = mid->resp_buf;
+		iov.iov_len = len;
 		/* FIXME: add code to kill session */
-		if (cifs_verify_signature(mid->resp_buf, server,
+		if (cifs_verify_signature(&iov, 1, server,
 					  mid->sequence_number + 1) != 0)
 			cERROR(1, "Unexpected SMB signature");
 	}
