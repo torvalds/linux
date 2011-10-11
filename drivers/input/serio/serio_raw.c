@@ -279,7 +279,7 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	int err;
 
 	if (!(serio_raw = kzalloc(sizeof(struct serio_raw), GFP_KERNEL))) {
-		printk(KERN_ERR "serio_raw.c: can't allocate memory for a device\n");
+		dev_dbg(&serio->dev, "can't allocate memory for a device\n");
 		return -ENOMEM;
 	}
 
@@ -311,13 +311,14 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	}
 
 	if (err) {
-		printk(KERN_INFO "serio_raw: failed to register raw access device for %s\n",
+		dev_err(&serio->dev,
+			"failed to register raw access device for %s\n",
 			serio->phys);
 		goto out_close;
 	}
 
-	printk(KERN_INFO "serio_raw: raw access enabled on %s (%s, minor %d)\n",
-		serio->phys, serio_raw->name, serio_raw->dev.minor);
+	dev_info(&serio->dev, "raw access enabled on %s (%s, minor %d)\n",
+		 serio->phys, serio_raw->name, serio_raw->dev.minor);
 	goto out;
 
 out_close:
@@ -337,7 +338,8 @@ static int serio_raw_reconnect(struct serio *serio)
 	struct serio_driver *drv = serio->drv;
 
 	if (!drv || !serio_raw) {
-		printk(KERN_DEBUG "serio_raw: reconnect request, but serio is disconnected, ignoring...\n");
+		dev_dbg(&serio->dev,
+			"reconnect request, but serio is disconnected, ignoring...\n");
 		return -1;
 	}
 
