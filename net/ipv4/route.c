@@ -2845,7 +2845,7 @@ static int rt_fill_info(struct net *net,
 	struct rtable *rt = skb_rtable(skb);
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
-	long expires = 0;
+	unsigned long expires = 0;
 	const struct inet_peer *peer = rt->peer;
 	u32 id = 0, ts = 0, tsage = 0, error;
 
@@ -2902,8 +2902,12 @@ static int rt_fill_info(struct net *net,
 			tsage = get_seconds() - peer->tcp_ts_stamp;
 		}
 		expires = ACCESS_ONCE(peer->pmtu_expires);
-		if (expires)
-			expires -= jiffies;
+		if (expires) {
+			if (time_before(jiffies, expires))
+				expires -= jiffies;
+			else
+				expires = 0;
+		}
 	}
 
 	if (rt_is_input_route(rt)) {
