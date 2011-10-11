@@ -720,11 +720,6 @@ extern void vmbus_ontimer(unsigned long data);
 							INPUTVSC_DRV|\
 							BLKVSC_DRV)
 
-/* Logging Level */
-#define INFO_LVL				6
-
-extern unsigned int vmbus_loglevel;
-
 struct hv_driver;
 struct hv_device;
 

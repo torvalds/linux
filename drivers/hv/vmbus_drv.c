@@ -41,10 +41,6 @@ static struct acpi_device  *hv_acpi_dev;
 
 static struct tasklet_struct msg_dpc;
 static struct tasklet_struct event_dpc;
-
-unsigned int vmbus_loglevel = (ALL_MODULES << 16 | INFO_LVL);
-EXPORT_SYMBOL(vmbus_loglevel);
-
 static struct completion probe_event;
 static int irq;
 
@@ -767,6 +763,5 @@ cleanup:
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
-module_param(vmbus_loglevel, int, S_IRUGO|S_IWUSR);
 
 module_init(hv_acpi_init);
