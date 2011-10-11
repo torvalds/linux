@@ -92,7 +92,7 @@ static int tmio_mmc_next_sg(struct tmio_mmc_host *host)
 static void pr_debug_status(u32 status)
 {
 	int i = 0;
-	printk(KERN_DEBUG "status: %08x = ", status);
+	pr_debug("status: %08x = ", status);
 	STATUS_TO_TEXT(CARD_REMOVE, status, i);
 	STATUS_TO_TEXT(CARD_INSERT, status, i);
 	STATUS_TO_TEXT(SIGSTATE, status, i);
