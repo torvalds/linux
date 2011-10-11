@@ -413,14 +413,15 @@ static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
 	return XGIfb_mode_idx;
 }
 
-static void XGIfb_search_mode(const char *name)
+static void XGIfb_search_mode(struct xgifb_video_info *xgifb_info,
+			      const char *name)
 {
 	int i = 0, j = 0, l;
 
 	while (XGIbios_mode[i].mode_no != 0) {
 		l = min(strlen(name), strlen(XGIbios_mode[i].name));
 		if (!strncmp(name, XGIbios_mode[i].name, l)) {
-			xgifb_mode_idx = i;
+			xgifb_info->mode_idx = i;
 			j = 1;
 			break;
 		}
@@ -430,7 +431,8 @@ static void XGIfb_search_mode(const char *name)
 		printk(KERN_INFO "XGIfb: Invalid mode '%s'\n", name);
 }
 
-static void XGIfb_search_vesamode(unsigned int vesamode)
+static void XGIfb_search_vesamode(struct xgifb_video_info *xgifb_info,
+				  unsigned int vesamode)
 {
 	int i = 0, j = 0;
 
@@ -442,7 +444,7 @@ static void XGIfb_search_vesamode(unsigned int vesamode)
 	while (XGIbios_mode[i].mode_no != 0) {
 		if ((XGIbios_mode[i].vesa_mode_no_1 == vesamode) ||
 		    (XGIbios_mode[i].vesa_mode_no_2 == vesamode)) {
-			xgifb_mode_idx = i;
+			xgifb_info->mode_idx = i;
 			j = 1;
 			break;
 		}
@@ -747,8 +749,8 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 	u16 xres, yres;
 	int i = 0;
 
-	xres = XGIbios_mode[xgifb_mode_idx].xres;
-	yres = XGIbios_mode[xgifb_mode_idx].yres;
+	xres = XGIbios_mode[xgifb_info->mode_idx].xres;
+	yres = XGIbios_mode[xgifb_info->mode_idx].yres;
 
 	XGIfb_rate_idx = 0;
 	while ((XGIfb_vrate[i].idx != 0) && (XGIfb_vrate[i].xres <= xres)) {
@@ -1174,38 +1176,37 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	       var->bits_per_pixel,
 	       xgifb_info->refresh_rate);
 
-	old_mode = xgifb_mode_idx;
-	xgifb_mode_idx = 0;
+	old_mode = xgifb_info->mode_idx;
+	xgifb_info->mode_idx = 0;
 
-	while ((XGIbios_mode[xgifb_mode_idx].mode_no != 0)
-			&& (XGIbios_mode[xgifb_mode_idx].xres <= var->xres)) {
-		if ((XGIbios_mode[xgifb_mode_idx].xres == var->xres)
-				&& (XGIbios_mode[xgifb_mode_idx].yres
-						== var->yres)
-				&& (XGIbios_mode[xgifb_mode_idx].bpp
+	while ((XGIbios_mode[xgifb_info->mode_idx].mode_no != 0) &&
+	       (XGIbios_mode[xgifb_info->mode_idx].xres <= var->xres)) {
+		if ((XGIbios_mode[xgifb_info->mode_idx].xres == var->xres) &&
+		    (XGIbios_mode[xgifb_info->mode_idx].yres == var->yres) &&
+		    (XGIbios_mode[xgifb_info->mode_idx].bpp
 						== var->bits_per_pixel)) {
 			found_mode = 1;
 			break;
 		}
-		xgifb_mode_idx++;
+		xgifb_info->mode_idx++;
 	}
 
 	if (found_mode)
-		xgifb_mode_idx = XGIfb_validate_mode(xgifb_info,
-						     xgifb_mode_idx);
+		xgifb_info->mode_idx = XGIfb_validate_mode(xgifb_info,
+							xgifb_info->mode_idx);
 	else
-		xgifb_mode_idx = -1;
+		xgifb_info->mode_idx = -1;
 
-	if (xgifb_mode_idx < 0) {
+	if (xgifb_info->mode_idx < 0) {
 		printk(KERN_ERR "XGIfb: Mode %dx%dx%d not supported\n",
 		       var->xres, var->yres, var->bits_per_pixel);
-		xgifb_mode_idx = old_mode;
+		xgifb_info->mode_idx = old_mode;
 		return -EINVAL;
 	}
 
 	if (XGIfb_search_refresh_rate(xgifb_info,
 				      xgifb_info->refresh_rate) == 0) {
-		XGIfb_rate_idx = XGIbios_mode[xgifb_mode_idx].rate_idx;
+		XGIfb_rate_idx = XGIbios_mode[xgifb_info->mode_idx].rate_idx;
 		xgifb_info->refresh_rate = 60;
 	}
 
@@ -1213,9 +1214,10 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 
 		XGIfb_pre_setmode(xgifb_info);
 		if (XGISetModeNew(hw_info,
-				  XGIbios_mode[xgifb_mode_idx].mode_no) == 0) {
+				  XGIbios_mode[xgifb_info->mode_idx].mode_no)
+					== 0) {
 			printk(KERN_ERR "XGIfb: Setting mode[0x%x] failed\n",
-			       XGIbios_mode[xgifb_mode_idx].mode_no);
+			       XGIbios_mode[xgifb_info->mode_idx].mode_no);
 			return -EINVAL;
 		}
 		info->fix.line_length = ((info->var.xres_virtual
@@ -1231,16 +1233,18 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		XGIfb_post_setmode(xgifb_info);
 
 		DPRINTK("XGIfb: Set new mode: %dx%dx%d-%d\n",
-				XGIbios_mode[xgifb_mode_idx].xres,
-				XGIbios_mode[xgifb_mode_idx].yres,
-				XGIbios_mode[xgifb_mode_idx].bpp,
+				XGIbios_mode[xgifb_info->mode_idx].xres,
+				XGIbios_mode[xgifb_info->mode_idx].yres,
+				XGIbios_mode[xgifb_info->mode_idx].bpp,
 				xgifb_info->refresh_rate);
 
-		xgifb_info->video_bpp = XGIbios_mode[xgifb_mode_idx].bpp;
+		xgifb_info->video_bpp = XGIbios_mode[xgifb_info->mode_idx].bpp;
 		xgifb_info->video_vwidth = info->var.xres_virtual;
-		xgifb_info->video_width = XGIbios_mode[xgifb_mode_idx].xres;
+		xgifb_info->video_width =
+			XGIbios_mode[xgifb_info->mode_idx].xres;
 		xgifb_info->video_vheight = info->var.yres_virtual;
-		xgifb_info->video_height = XGIbios_mode[xgifb_mode_idx].yres;
+		xgifb_info->video_height =
+			XGIbios_mode[xgifb_info->mode_idx].yres;
 		xgifb_info->org_x = xgifb_info->org_y = 0;
 		xgifb_info->video_linelength = info->var.xres_virtual
 				* (xgifb_info->video_bpp >> 3);
@@ -2250,25 +2254,28 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	}
 
+	xgifb_info->mode_idx = -1;
+
 	if (mode)
-		XGIfb_search_mode(mode);
+		XGIfb_search_mode(xgifb_info, mode);
 	else if (vesa != -1)
-		XGIfb_search_vesamode(vesa);
+		XGIfb_search_vesamode(xgifb_info, vesa);
 
-	if (xgifb_mode_idx >= 0)
-		xgifb_mode_idx = XGIfb_validate_mode(xgifb_info,
-						     xgifb_mode_idx);
+	if (xgifb_info->mode_idx >= 0)
+		xgifb_info->mode_idx =
+			XGIfb_validate_mode(xgifb_info, xgifb_info->mode_idx);
 
-	if (xgifb_mode_idx < 0) {
+	if (xgifb_info->mode_idx < 0) {
 		if ((xgifb_info->disp_state & DISPTYPE_DISP2) ==
 			DISPTYPE_LCD &&
 		    xgifb_info->chip == XG21)
-			xgifb_mode_idx = XGIfb_GetXG21DefaultLVDSModeIdx();
+			xgifb_info->mode_idx =
+				XGIfb_GetXG21DefaultLVDSModeIdx();
 		else
-			xgifb_mode_idx = DEFAULT_MODE;
+			xgifb_info->mode_idx = DEFAULT_MODE;
 	}
 
-	if (xgifb_mode_idx < 0) {
+	if (xgifb_info->mode_idx < 0) {
 		dev_err(&pdev->dev, "no supported video mode found\n");
 		goto error_1;
 	}
@@ -2278,9 +2285,9 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 		for (m = 0; m < ARRAY_SIZE(XGI21_LCDCapList); m++)
 			if ((XGI21_LCDCapList[m].LVDSHDE ==
-				XGIbios_mode[xgifb_mode_idx].xres) &&
+				XGIbios_mode[xgifb_info->mode_idx].xres) &&
 			    (XGI21_LCDCapList[m].LVDSVDE ==
-				XGIbios_mode[xgifb_mode_idx].yres)) {
+				XGIbios_mode[xgifb_info->mode_idx].yres)) {
 				xgifb_reg_set(XGI_Pr.P3d4, 0x36, m);
 				break;
 			}
@@ -2292,17 +2299,17 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		xgifb_info->refresh_rate = 60;
 	if (XGIfb_search_refresh_rate(xgifb_info,
 			xgifb_info->refresh_rate) == 0) {
-		XGIfb_rate_idx = XGIbios_mode[xgifb_mode_idx].rate_idx;
+		XGIfb_rate_idx = XGIbios_mode[xgifb_info->mode_idx].rate_idx;
 		xgifb_info->refresh_rate = 60;
 	}
 
-	xgifb_info->video_bpp = XGIbios_mode[xgifb_mode_idx].bpp;
+	xgifb_info->video_bpp = XGIbios_mode[xgifb_info->mode_idx].bpp;
 	xgifb_info->video_vwidth =
 		xgifb_info->video_width =
-			XGIbios_mode[xgifb_mode_idx].xres;
+			XGIbios_mode[xgifb_info->mode_idx].xres;
 	xgifb_info->video_vheight =
 		xgifb_info->video_height =
-			XGIbios_mode[xgifb_mode_idx].yres;
+			XGIbios_mode[xgifb_info->mode_idx].yres;
 	xgifb_info->org_x = xgifb_info->org_y = 0;
 	xgifb_info->video_linelength =
 		xgifb_info->video_width *
@@ -2348,11 +2355,11 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	default_var.pixclock = (u32) (1000000000 /
 			XGIfb_mode_rate_to_dclock(&XGI_Pr, hw_info,
-					XGIbios_mode[xgifb_mode_idx].mode_no,
-					XGIfb_rate_idx));
+				XGIbios_mode[xgifb_info->mode_idx].mode_no,
+				XGIfb_rate_idx));
 
 	if (XGIfb_mode_rate_to_ddata(&XGI_Pr, hw_info,
-		XGIbios_mode[xgifb_mode_idx].mode_no, XGIfb_rate_idx,
+		XGIbios_mode[xgifb_info->mode_idx].mode_no, XGIfb_rate_idx,
 		&default_var.left_margin, &default_var.right_margin,
 		&default_var.upper_margin, &default_var.lower_margin,
 		&default_var.hsync_len, &default_var.vsync_len,
