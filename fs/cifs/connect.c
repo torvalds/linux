@@ -694,12 +694,6 @@ incomplete_rcv:
 		 * The right amount was read from socket - 4 bytes,
 		 * so we can now interpret the length field.
 		 */
-
-		/*
-		 * Note that RFC 1001 length is big endian on the wire,
-		 * but we convert it here so it is always manipulated
-		 * as host byte order.
-		 */
 		pdu_length = be32_to_cpu(smb_buffer->smb_buf_length);
 
 		cFYI(1, "rfc1002 length 0x%x", pdu_length+4);
