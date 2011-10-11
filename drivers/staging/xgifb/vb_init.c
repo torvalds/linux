@@ -15,7 +15,7 @@
 
 #include <linux/io.h>
 
-static unsigned char XGINew_ChannelAB, XGINew_DataBusWidth;
+static unsigned char XGINew_DataBusWidth;
 
 static unsigned short XGINew_DDRDRAM_TYPE340[4][5] = {
 	{ 2, 13, 9, 64, 0x45},
@@ -619,10 +619,10 @@ static unsigned short XGINew_SetDRAMSizeReg(int index,
 
 	data = 0;
 
-	if (XGINew_ChannelAB == 3)
+	if (pVBInfo->ram_channel == 3)
 		ChannelNo = 4;
 	else
-		ChannelNo = XGINew_ChannelAB;
+		ChannelNo = pVBInfo->ram_channel;
 
 	if (ChannelNo * RankSize <= 256) {
 		while ((RankSize >>= 1) > 0)
@@ -636,7 +636,7 @@ static unsigned short XGINew_SetDRAMSizeReg(int index,
 			      (xgifb_reg_get(pVBInfo->P3c4, 0x14) & 0x0F) |
 			       (data & 0xF0));
 
-		/* data |= XGINew_ChannelAB << 2; */
+		/* data |= pVBInfo->ram_channel << 2; */
 		/* data |= (XGINew_DataBusWidth / 64) << 1; */
 		/* xgifb_reg_set(pVBInfo->P3c4, 0x14, data); */
 
@@ -663,10 +663,10 @@ static unsigned short XGINew_SetDRAMSize20Reg(int index,
 
 	data = 0;
 
-	if (XGINew_ChannelAB == 3)
+	if (pVBInfo->ram_channel == 3)
 		ChannelNo = 4;
 	else
-		ChannelNo = XGINew_ChannelAB;
+		ChannelNo = pVBInfo->ram_channel;
 
 	if (ChannelNo * RankSize <= 256) {
 		while ((RankSize >>= 1) > 0)
@@ -681,7 +681,7 @@ static unsigned short XGINew_SetDRAMSize20Reg(int index,
 				(data & 0xF0));
 		udelay(15);
 
-		/* data |= XGINew_ChannelAB << 2; */
+		/* data |= pVBInfo->ram_channel << 2; */
 		/* data |= (XGINew_DataBusWidth / 64) << 1; */
 		/* xgifb_reg_set(pVBInfo->P3c4, 0x14, data); */
 
@@ -746,7 +746,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 	case XG21:
 		data = xgifb_reg_get(pVBInfo->P3d4, 0x97);
 		data = data & 0x01;
-		XGINew_ChannelAB = 1; /* XG20 "JUST" one channel */
+		pVBInfo->ram_channel = 1; /* XG20 "JUST" one channel */
 
 		if (data == 0) { /* Single_32_16 */
 
@@ -851,20 +851,20 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 	case XG27:
 		XGINew_DataBusWidth = 16; /* 16 bits */
-		XGINew_ChannelAB = 1; /* Single channel */
+		pVBInfo->ram_channel = 1; /* Single channel */
 		xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x51); /* 32Mx16 bit*/
 		break;
 	case XG41:
 		if (XGINew_CheckFrequence(pVBInfo) == 1) {
 			XGINew_DataBusWidth = 32; /* 32 bits */
-			XGINew_ChannelAB = 3; /* Quad Channel */
+			pVBInfo->ram_channel = 3; /* Quad Channel */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4C);
 
 			if (XGINew_ReadWriteRest(25, 23, pVBInfo) == 1)
 				return;
 
-			XGINew_ChannelAB = 2; /* Dual channels */
+			pVBInfo->ram_channel = 2; /* Dual channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x48);
 
 			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
@@ -875,7 +875,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
 				return;
 
-			XGINew_ChannelAB = 3;
+			pVBInfo->ram_channel = 3;
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x3C);
 
@@ -890,14 +890,14 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x39);
 		} else { /* DDR */
 			XGINew_DataBusWidth = 64; /* 64 bits */
-			XGINew_ChannelAB = 2; /* Dual channels */
+			pVBInfo->ram_channel = 2; /* Dual channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x5A);
 
 			if (XGINew_ReadWriteRest(25, 24, pVBInfo) == 1)
 				return;
 
-			XGINew_ChannelAB = 1; /* Single channels */
+			pVBInfo->ram_channel = 1; /* Single channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x52);
 
 			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
@@ -908,14 +908,14 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
 				return;
 
-			XGINew_ChannelAB = 2; /* Dual channels */
+			pVBInfo->ram_channel = 2; /* Dual channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0x21);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4A);
 
 			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
 				return;
 
-			XGINew_ChannelAB = 1; /* Single channels */
+			pVBInfo->ram_channel = 1; /* Single channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x42);
 
 			if (XGINew_ReadWriteRest(8, 4, pVBInfo) == 1)
@@ -936,7 +936,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 		 */
 		if (XGINew_CheckFrequence(pVBInfo) == 1) { /* DDRII, DDR2x */
 			XGINew_DataBusWidth = 32; /* 32 bits */
-			XGINew_ChannelAB = 2; /* 2 Channel */
+			pVBInfo->ram_channel = 2; /* 2 Channel */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x44);
 
@@ -948,7 +948,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 			if (XGINew_ReadWriteRest(23, 22, pVBInfo) == 1)
 				return;
 
-			XGINew_ChannelAB = 1; /* Single Channel */
+			pVBInfo->ram_channel = 1; /* Single Channel */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x40);
 
@@ -960,7 +960,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 			}
 		} else { /* DDR */
 			XGINew_DataBusWidth = 64; /* 64 bits */
-			XGINew_ChannelAB = 1; /* 1 channels */
+			pVBInfo->ram_channel = 1; /* 1 channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x52);
 
@@ -978,14 +978,14 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 		if (XGINew_CheckFrequence(pVBInfo) == 1) { /* DDRII */
 			XGINew_DataBusWidth = 32; /* 32 bits */
-			XGINew_ChannelAB = 3;
+			pVBInfo->ram_channel = 3;
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4C);
 
 			if (XGINew_ReadWriteRest(25, 23, pVBInfo) == 1)
 				return;
 
-			XGINew_ChannelAB = 2; /* 2 channels */
+			pVBInfo->ram_channel = 2; /* 2 channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x48);
 
 			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1)
@@ -995,14 +995,14 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x3C);
 
 			if (XGINew_ReadWriteRest(24, 23, pVBInfo) == 1) {
-				XGINew_ChannelAB = 3; /* 4 channels */
+				pVBInfo->ram_channel = 3; /* 4 channels */
 			} else {
-				XGINew_ChannelAB = 2; /* 2 channels */
+				pVBInfo->ram_channel = 2; /* 2 channels */
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x38);
 			}
 		} else { /* DDR */
 			XGINew_DataBusWidth = 64; /* 64 bits */
-			XGINew_ChannelAB = 2; /* 2 channels */
+			pVBInfo->ram_channel = 2; /* 2 channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x5A);
 
@@ -1038,7 +1038,7 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 			if (memsize == 0)
 				continue;
 
-			addr = memsize + (XGINew_ChannelAB - 2) + 20;
+			addr = memsize + (pVBInfo->ram_channel - 2) + 20;
 			if ((HwDeviceExtension->ulVideoMemorySize - 1) <
 			    (unsigned long) (1 << addr))
 				continue;
@@ -1058,7 +1058,7 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 			if (memsize == 0)
 				continue;
 
-			addr = memsize + (XGINew_ChannelAB - 2) + 20;
+			addr = memsize + (pVBInfo->ram_channel - 2) + 20;
 			if ((HwDeviceExtension->ulVideoMemorySize - 1) <
 			    (unsigned long) (1 << addr))
 				continue;

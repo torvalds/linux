@@ -394,6 +394,7 @@ struct vb_device_info {
 	struct XGI_XG21CRT1Struct	  *UpdateCRT1;
 
 	int ram_type;
+	int ram_channel;
 };  /* _struct vb_device_info */
 
 #endif /* _VB_STRUCT_ */
