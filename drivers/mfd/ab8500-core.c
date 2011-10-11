@@ -293,6 +293,7 @@ static struct irq_chip ab8500_irq_chip = {
 	.irq_bus_lock		= ab8500_irq_lock,
 	.irq_bus_sync_unlock	= ab8500_irq_sync_unlock,
 	.irq_mask		= ab8500_irq_mask,
+	.irq_disable		= ab8500_irq_mask,
 	.irq_unmask		= ab8500_irq_unmask,
 };
 
