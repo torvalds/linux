@@ -73,6 +73,7 @@ struct usbhs_pipe_info {
 /*
  * pipe control
  */
+char *usbhs_pipe_name(struct usbhs_pipe *pipe);
 struct usbhs_pipe
 *usbhs_pipe_malloc(struct usbhs_priv *priv, int endpoint_type, int dir_in);
 int usbhs_pipe_probe(struct usbhs_priv *priv);

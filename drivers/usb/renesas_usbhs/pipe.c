@@ -39,6 +39,11 @@ static char *usbhsp_pipe_name[] = {
 	[USB_ENDPOINT_XFER_ISOC]	= "ISO",
 };
 
+char *usbhs_pipe_name(struct usbhs_pipe *pipe)
+{
+	return usbhsp_pipe_name[usbhs_pipe_type(pipe)];
+}
+
 /*
  *		DCPCTR/PIPEnCTR functions
  */
@@ -592,7 +597,7 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 
 	dev_dbg(dev, "enable pipe %d : %s (%s)\n",
 		usbhs_pipe_number(pipe),
-		usbhsp_pipe_name[endpoint_type],
+		usbhs_pipe_name(pipe),
 		usbhs_pipe_is_dir_in(pipe) ? "in" : "out");
 
 	/*
