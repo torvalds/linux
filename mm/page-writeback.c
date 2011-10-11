@@ -618,8 +618,8 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
 	x_intercept = bdi_setpoint + span;
 
 	if (bdi_dirty < x_intercept - span / 4) {
-		pos_ratio *= x_intercept - bdi_dirty;
-		do_div(pos_ratio, x_intercept - bdi_setpoint + 1);
+		pos_ratio = div_u64(pos_ratio * (x_intercept - bdi_dirty),
+				    x_intercept - bdi_setpoint + 1);
 	} else
 		pos_ratio /= 4;
 
@@ -630,10 +630,9 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
 	 */
 	x_intercept = bdi_thresh / 2;
 	if (bdi_dirty < x_intercept) {
-		if (bdi_dirty > x_intercept / 8) {
-			pos_ratio *= x_intercept;
-			do_div(pos_ratio, bdi_dirty);
-		} else
+		if (bdi_dirty > x_intercept / 8)
+			pos_ratio = div_u64(pos_ratio * x_intercept, bdi_dirty);
+		else
 			pos_ratio *= 8;
 	}
 
@@ -1010,10 +1009,10 @@ static void balance_dirty_pages(struct address_space *mapping,
 	unsigned long dirty_thresh;
 	unsigned long bdi_thresh;
 	long pause = 0;
-	long max_pause;
+	long uninitialized_var(max_pause);
 	bool dirty_exceeded = false;
 	unsigned long task_ratelimit;
-	unsigned long dirty_ratelimit;
+	unsigned long uninitialized_var(dirty_ratelimit);
 	unsigned long pos_ratio;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	unsigned long start_time = jiffies;
