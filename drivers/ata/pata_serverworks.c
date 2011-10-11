@@ -65,7 +65,8 @@ static const char *csb_bad_ata100[] = {
  *	bits of the subsystem ID.
  */
 
-static int dell_cable(struct ata_port *ap) {
+static int dell_cable(struct ata_port *ap)
+{
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (pdev->subsystem_device & (1 << (ap->port_no + 14)))
@@ -82,35 +83,13 @@ static int dell_cable(struct ata_port *ap) {
  *	need to extend the Dell one in future
  */
 
-static int sun_cable(struct ata_port *ap) {
+static int sun_cable(struct ata_port *ap)
+{
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (pdev->subsystem_device & (1 << (ap->port_no + 14)))
 		return ATA_CBL_PATA80;
 	return ATA_CBL_PATA40;
-}
-
-/**
- *	osb4_cable	-	OSB4 cable detect
- *	@ap: ATA port to check
- *
- *	The OSB4 isn't UDMA66 capable so this is easy
- */
-
-static int osb4_cable(struct ata_port *ap) {
-	return ATA_CBL_PATA40;
-}
-
-/**
- *	csb_cable	-	CSB5/6 cable detect
- *	@ap: ATA port to check
- *
- *	Serverworks default arrangement is to use the drive side detection
- *	only.
- */
-
-static int csb_cable(struct ata_port *ap) {
-	return ATA_CBL_PATA_UNK;
 }
 
 struct sv_cable_table {
@@ -125,14 +104,14 @@ struct sv_cable_table {
  */
 
 static struct sv_cable_table cable_detect[] = {
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, PCI_VENDOR_ID_DELL, dell_cable },
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE, PCI_VENDOR_ID_DELL, dell_cable },
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, PCI_VENDOR_ID_SUN,  sun_cable },
-	{ PCI_DEVICE_ID_SERVERWORKS_OSB4IDE, PCI_ANY_ID, osb4_cable },
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, PCI_ANY_ID, csb_cable },
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE, PCI_ANY_ID, csb_cable },
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2, PCI_ANY_ID, csb_cable },
-	{ PCI_DEVICE_ID_SERVERWORKS_HT1000IDE, PCI_ANY_ID, csb_cable },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE,   PCI_VENDOR_ID_DELL, dell_cable },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE,   PCI_VENDOR_ID_DELL, dell_cable },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE,   PCI_VENDOR_ID_SUN,  sun_cable  },
+	{ PCI_DEVICE_ID_SERVERWORKS_OSB4IDE,   PCI_ANY_ID, ata_cable_40wire  },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE,   PCI_ANY_ID, ata_cable_unknown },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE,   PCI_ANY_ID, ata_cable_unknown },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2,  PCI_ANY_ID, ata_cable_unknown },
+	{ PCI_DEVICE_ID_SERVERWORKS_HT1000IDE, PCI_ANY_ID, ata_cable_unknown },
 	{ }
 };
 
