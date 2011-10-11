@@ -693,29 +693,6 @@ extern void vmbus_get_debug_info(struct vmbus_channel *channel,
 
 extern void vmbus_ontimer(unsigned long data);
 
-
-#define VMBUS				0x0001
-#define STORVSC				0x0002
-#define NETVSC				0x0004
-#define INPUTVSC			0x0008
-#define BLKVSC				0x0010
-#define VMBUS_DRV			0x0100
-#define STORVSC_DRV			0x0200
-#define NETVSC_DRV			0x0400
-#define INPUTVSC_DRV		0x0800
-#define BLKVSC_DRV			0x1000
-
-#define ALL_MODULES			(VMBUS		|\
-							STORVSC		|\
-							NETVSC		|\
-							INPUTVSC	|\
-							BLKVSC		|\
-							VMBUS_DRV	|\
-							STORVSC_DRV	|\
-							NETVSC_DRV	|\
-							INPUTVSC_DRV|\
-							BLKVSC_DRV)
-
 struct hv_driver;
 struct hv_device;
 
