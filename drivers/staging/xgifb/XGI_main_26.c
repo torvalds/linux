@@ -50,6 +50,7 @@
 
 static char *mode;
 static int vesa = -1;
+static unsigned int refresh_rate;
 
 /* -------------------- Macro definitions ---------------------------- */
 
@@ -1890,9 +1891,9 @@ static int __init XGIfb_setup(char *options)
 		} else if (!strncmp(this_opt, "vesa:", 5)) {
 			vesa = xgifb_optval(this_opt, 5);
 		} else if (!strncmp(this_opt, "vrate:", 6)) {
-			xgi_video_info.refresh_rate = xgifb_optval(this_opt, 6);
+			refresh_rate = xgifb_optval(this_opt, 6);
 		} else if (!strncmp(this_opt, "rate:", 5)) {
-			xgi_video_info.refresh_rate = xgifb_optval(this_opt, 5);
+			refresh_rate = xgifb_optval(this_opt, 5);
 		} else if (!strncmp(this_opt, "crt1off", 7)) {
 			XGIfb_crt1off = 1;
 		} else if (!strncmp(this_opt, "filter:", 7)) {
@@ -2276,6 +2277,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	XGIfb_mode_no = XGIbios_mode[xgifb_mode_idx].mode_no;
 
 	/* yilin set default refresh rate */
+	xgi_video_info.refresh_rate = refresh_rate;
 	if (xgi_video_info.refresh_rate == 0)
 		xgi_video_info.refresh_rate = 60;
 	if (XGIfb_search_refresh_rate(
