@@ -184,7 +184,7 @@ extern void md_ack_all_badblocks(struct badblocks *bb);
 
 struct mddev {
 	void				*private;
-	struct mdk_personality		*pers;
+	struct md_personality		*pers;
 	dev_t				unit;
 	int				md_minor;
 	struct list_head 		disks;
@@ -413,7 +413,7 @@ static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sect
         atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
 }
 
-struct mdk_personality
+struct md_personality
 {
 	char *name;
 	int level;
@@ -551,8 +551,8 @@ static inline void safe_put_page(struct page *p)
 	if (p) put_page(p);
 }
 
-extern int register_md_personality(struct mdk_personality *p);
-extern int unregister_md_personality(struct mdk_personality *p);
+extern int register_md_personality(struct md_personality *p);
+extern int unregister_md_personality(struct md_personality *p);
 extern struct md_thread *md_register_thread(
 	void (*run)(struct mddev *mddev),
 	struct mddev *mddev,

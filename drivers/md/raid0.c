@@ -670,7 +670,7 @@ static void raid0_quiesce(struct mddev *mddev, int state)
 {
 }
 
-static struct mdk_personality raid0_personality=
+static struct md_personality raid0_personality=
 {
 	.name		= "raid0",
 	.level		= 0,

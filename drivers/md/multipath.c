@@ -523,7 +523,7 @@ static int multipath_stop (struct mddev *mddev)
 	return 0;
 }
 
-static struct mdk_personality multipath_personality =
+static struct md_personality multipath_personality =
 {
 	.name		= "multipath",
 	.level		= LEVEL_MULTIPATH,

@@ -771,9 +771,9 @@ static struct md_rdev * find_rdev(struct mddev * mddev, dev_t dev)
 	return NULL;
 }
 
-static struct mdk_personality *find_pers(int level, char *clevel)
+static struct md_personality *find_pers(int level, char *clevel)
 {
-	struct mdk_personality *pers;
+	struct md_personality *pers;
 	list_for_each_entry(pers, &pers_list, list) {
 		if (level != LEVEL_NONE && pers->level == level)
 			return pers;
@@ -3272,7 +3272,7 @@ __ATTR(safe_mode_delay, S_IRUGO|S_IWUSR,safe_delay_show, safe_delay_store);
 static ssize_t
 level_show(struct mddev *mddev, char *page)
 {
-	struct mdk_personality *p = mddev->pers;
+	struct md_personality *p = mddev->pers;
 	if (p)
 		return sprintf(page, "%s\n", p->name);
 	else if (mddev->clevel[0])
@@ -3288,7 +3288,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	char clevel[16];
 	ssize_t rv = len;
-	struct mdk_personality *pers;
+	struct md_personality *pers;
 	long level;
 	void *priv;
 	struct md_rdev *rdev;
@@ -4700,7 +4700,7 @@ int md_run(struct mddev *mddev)
 {
 	int err;
 	struct md_rdev *rdev;
-	struct mdk_personality *pers;
+	struct md_personality *pers;
 
 	if (list_empty(&mddev->disks))
 		/* cannot run an array with no devices.. */
@@ -6655,7 +6655,7 @@ static int md_seq_show(struct seq_file *seq, void *v)
 	struct bitmap *bitmap;
 
 	if (v == (void*)1) {
-		struct mdk_personality *pers;
+		struct md_personality *pers;
 		seq_printf(seq, "Personalities : ");
 		spin_lock(&pers_lock);
 		list_for_each_entry(pers, &pers_list, list)
@@ -6811,7 +6811,7 @@ static const struct file_operations md_seq_fops = {
 	.poll		= mdstat_poll,
 };
 
-int register_md_personality(struct mdk_personality *p)
+int register_md_personality(struct md_personality *p)
 {
 	spin_lock(&pers_lock);
 	list_add_tail(&p->list, &pers_list);
@@ -6820,7 +6820,7 @@ int register_md_personality(struct mdk_personality *p)
 	return 0;
 }
 
-int unregister_md_personality(struct mdk_personality *p)
+int unregister_md_personality(struct md_personality *p)
 {
 	printk(KERN_INFO "md: %s personality unregistered\n", p->name);
 	spin_lock(&pers_lock);

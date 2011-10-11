@@ -330,7 +330,7 @@ static void linear_status (struct seq_file *seq, struct mddev *mddev)
 }
 
 
-static struct mdk_personality linear_personality =
+static struct md_personality linear_personality =
 {
 	.name		= "linear",
 	.level		= LEVEL_LINEAR,

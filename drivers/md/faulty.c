@@ -334,7 +334,7 @@ static int stop(struct mddev *mddev)
 	return 0;
 }
 
-static struct mdk_personality faulty_personality =
+static struct md_personality faulty_personality =
 {
 	.name		= "faulty",
 	.level		= LEVEL_FAULTY,
