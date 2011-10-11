@@ -43,7 +43,6 @@ struct dice {
 	bool global_enabled;
 	wait_queue_head_t hwdep_wait;
 	u32 notification_bits;
-	struct snd_pcm_substream *pcm;
 	struct fw_iso_resources resources;
 	struct amdtp_out_stream stream;
 };
@@ -564,8 +563,7 @@ static int dice_create_pcm(struct dice *dice)
 		return err;
 	pcm->private_data = dice;
 	strcpy(pcm->name, dice->card->shortname);
-	dice->pcm = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
-	dice->pcm->ops = &ops;
+	pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->ops = &ops;
 
 	return 0;
 }
