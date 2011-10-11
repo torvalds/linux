@@ -26,7 +26,7 @@
 /*
  * find which device holds a particular offset 
  */
-static inline dev_info_t *which_dev(struct mddev *mddev, sector_t sector)
+static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
 {
 	int lo, mid, hi;
 	linear_conf_t *conf;
@@ -64,7 +64,7 @@ static int linear_mergeable_bvec(struct request_queue *q,
 				 struct bio_vec *biovec)
 {
 	struct mddev *mddev = q->queuedata;
-	dev_info_t *dev0;
+	struct dev_info *dev0;
 	unsigned long maxsectors, bio_sectors = bvm->bi_size >> 9;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 
@@ -129,7 +129,7 @@ static linear_conf_t *linear_conf(struct mddev *mddev, int raid_disks)
 	struct md_rdev *rdev;
 	int i, cnt;
 
-	conf = kzalloc (sizeof (*conf) + raid_disks*sizeof(dev_info_t),
+	conf = kzalloc (sizeof (*conf) + raid_disks*sizeof(struct dev_info),
 			GFP_KERNEL);
 	if (!conf)
 		return NULL;
@@ -139,7 +139,7 @@ static linear_conf_t *linear_conf(struct mddev *mddev, int raid_disks)
 
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		int j = rdev->raid_disk;
-		dev_info_t *disk = conf->disks + j;
+		struct dev_info *disk = conf->disks + j;
 		sector_t sectors;
 
 		if (j < 0 || j >= raid_disks || disk->rdev) {
@@ -266,7 +266,7 @@ static int linear_stop (struct mddev *mddev)
 
 static int linear_make_request (struct mddev *mddev, struct bio *bio)
 {
-	dev_info_t *tmp_dev;
+	struct dev_info *tmp_dev;
 	sector_t start_sector;
 
 	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
