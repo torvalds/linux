@@ -6,13 +6,10 @@
 #include "vb_struct.h"
 #include "vgatypes.h"
 
-#define DISPTYPE_CRT1       0x00000008L
 #define DISPTYPE_CRT2       0x00000004L
 #define DISPTYPE_LCD        0x00000002L
 #define DISPTYPE_TV         0x00000001L
 #define DISPTYPE_DISP2      (DISPTYPE_CRT2 | DISPTYPE_LCD | DISPTYPE_TV)
-#define DISPMODE_SINGLE	    0x00000020L
-#define DISPMODE_MIRROR	    0x00000010L
 
 #define HASVB_NONE	    0x00
 #define HASVB_301	    0x01

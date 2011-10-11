@@ -2204,17 +2204,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (xgifb_info->hasVB != HASVB_NONE)
 		XGIfb_detect_VB(xgifb_info);
 
-	if (xgifb_info->disp_state & DISPTYPE_DISP2) {
-		if (XGIfb_crt1off)
-			xgifb_info->disp_state |= DISPMODE_SINGLE;
-		else
-			xgifb_info->disp_state |= (DISPMODE_MIRROR |
-						      DISPTYPE_CRT1);
-	} else {
-		xgifb_info->disp_state = DISPMODE_SINGLE |
-					    DISPTYPE_CRT1;
-	}
-
 	if (xgifb_info->disp_state & DISPTYPE_LCD) {
 		if (!enable_dstn) {
 			reg = xgifb_reg_get(XGICR, IND_XGI_LCD_PANEL);
