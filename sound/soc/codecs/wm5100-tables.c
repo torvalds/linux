@@ -794,6 +794,7 @@ u16 wm5100_reg_defaults[WM5100_MAX_REGISTER + 1] = {
 	[0x0030] = 0x0000,     /* R48    - PWM Drive 1 */
 	[0x0031] = 0x0100,     /* R49    - PWM Drive 2 */
 	[0x0032] = 0x0100,     /* R50    - PWM Drive 3 */
+	[0x0100] = 0x0002,     /* R256   - Clocking 1 */
 	[0x0101] = 0x0000,     /* R257   - Clocking 3 */
 	[0x0102] = 0x0011,     /* R258   - Clocking 4 */
 	[0x0103] = 0x0011,     /* R259   - Clocking 5 */
