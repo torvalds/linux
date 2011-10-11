@@ -1733,11 +1733,20 @@ lpfc_parse_vpd(struct lpfc_hba *phba, uint8_t *vpd, int len)
 				j = 0;
 				Length -= (3+i);
 				while(i--) {
-				phba->Port[j++] = vpd[index++];
-				if (j == 19)
-					break;
+					if ((phba->sli_rev == LPFC_SLI_REV4) &&
+					    (phba->sli4_hba.pport_name_sta ==
+					     LPFC_SLI4_PPNAME_GET)) {
+						j++;
+						index++;
+					} else
+						phba->Port[j++] = vpd[index++];
+					if (j == 19)
+						break;
 				}
-				phba->Port[j] = 0;
+				if ((phba->sli_rev != LPFC_SLI_REV4) ||
+				    (phba->sli4_hba.pport_name_sta ==
+				     LPFC_SLI4_PPNAME_NON))
+					phba->Port[j] = 0;
 				continue;
 			}
 			else {

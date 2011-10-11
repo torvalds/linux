@@ -389,6 +389,16 @@ struct lpfc_iov {
 	uint32_t vf_number;
 };
 
+struct lpfc_sli4_lnk_info {
+	uint8_t lnk_dv;
+#define LPFC_LNK_DAT_INVAL	0
+#define LPFC_LNK_DAT_VAL	1
+	uint8_t lnk_tp;
+#define LPFC_LNK_GE	0x0 /* FCoE */
+#define LPFC_LNK_FC	0x1 /* FC   */
+	uint8_t lnk_no;
+};
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
@@ -504,6 +514,10 @@ struct lpfc_sli4_hba {
 	struct list_head sp_els_xri_aborted_work_queue;
 	struct list_head sp_unsol_work_queue;
 	struct lpfc_sli4_link link_state;
+	struct lpfc_sli4_lnk_info lnk_info;
+	uint32_t pport_name_sta;
+#define LPFC_SLI4_PPNAME_NON	0
+#define LPFC_SLI4_PPNAME_GET	1
 	struct lpfc_iov iov;
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_sgl_list_lock; /* list of aborted els IOs */
