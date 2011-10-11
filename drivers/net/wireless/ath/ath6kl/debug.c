@@ -624,8 +624,9 @@ static ssize_t ath6kl_endpoint_stats_read(struct file *file,
 	unsigned int buf_len, len = 0;
 	ssize_t ret_cnt;
 
-	buf_len = 1000 + ENDPOINT_MAX * 100;
-	buf = kzalloc(buf_len, GFP_KERNEL);
+	buf_len = sizeof(struct htc_endpoint_stats) / sizeof(u32) *
+		(25 + ENDPOINT_MAX * 11);
+	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -640,6 +641,7 @@ static ssize_t ath6kl_endpoint_stats_read(struct file *file,
 	EPSTAT(tx_dropped);
 	EPSTAT(tx_cred_rpt);
 	EPSTAT(cred_rpt_from_rx);
+	EPSTAT(cred_rpt_from_other);
 	EPSTAT(cred_rpt_ep0);
 	EPSTAT(cred_from_rx);
 	EPSTAT(cred_from_other);
