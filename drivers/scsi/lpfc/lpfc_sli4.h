@@ -23,7 +23,6 @@
 #define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
 #define LPFC_XRI_EXCH_BUSY_WAIT_T2              30000
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
-#define LPFC_GET_QE_REL_INT			32
 #define LPFC_RPI_LOW_WATER_MARK			10
 
 #define LPFC_UNREG_FCF                          1
@@ -126,6 +125,8 @@ struct lpfc_queue {
 	struct list_head child_list;
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
+	uint32_t entry_repost;	/* Count of entries before doorbell is rung */
+#define LPFC_QUEUE_MIN_REPOST	8
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	struct list_head page_list;
@@ -553,6 +554,7 @@ struct lpfc_rsrc_blks {
  * SLI4 specific function prototypes
  */
 int lpfc_pci_function_reset(struct lpfc_hba *);
+int lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *);
 int lpfc_sli4_hba_setup(struct lpfc_hba *);
 int lpfc_sli4_config(struct lpfc_hba *, struct lpfcMboxq *, uint8_t,
 		     uint8_t, uint32_t, bool);
@@ -576,6 +578,7 @@ uint32_t lpfc_wq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t);
 uint32_t lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, struct lpfc_queue *, uint32_t);
+void lpfc_rq_adjust_repost(struct lpfc_hba *, struct lpfc_queue *, int);
 uint32_t lpfc_eq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 uint32_t lpfc_cq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 uint32_t lpfc_mq_destroy(struct lpfc_hba *, struct lpfc_queue *);

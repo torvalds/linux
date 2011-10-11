@@ -379,10 +379,10 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 	dq->host_index = ((dq->host_index + 1) % dq->entry_count);
 
 	/* Ring The Header Receive Queue Doorbell */
-	if (!(hq->host_index % LPFC_RQ_POST_BATCH)) {
+	if (!(hq->host_index % hq->entry_repost)) {
 		doorbell.word0 = 0;
 		bf_set(lpfc_rq_doorbell_num_posted, &doorbell,
-		       LPFC_RQ_POST_BATCH);
+		       hq->entry_repost);
 		bf_set(lpfc_rq_doorbell_id, &doorbell, hq->queue_id);
 		writel(doorbell.word0, hq->phba->sli4_hba.RQDBregaddr);
 	}
@@ -1864,7 +1864,7 @@ lpfc_sli_hbqbuf_init_hbqs(struct lpfc_hba *phba, uint32_t qno)
 {
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		return lpfc_sli_hbqbuf_fill_hbqs(phba, qno,
-					 lpfc_hbq_defs[qno]->entry_count);
+					lpfc_hbq_defs[qno]->entry_count);
 	else
 		return lpfc_sli_hbqbuf_fill_hbqs(phba, qno,
 					 lpfc_hbq_defs[qno]->init_count);
@@ -10419,12 +10419,17 @@ lpfc_sli4_sp_handle_mbox_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
 	/* Move mbox data to caller's mailbox region, do endian swapping */
 	if (pmb->mbox_cmpl && mbox)
 		lpfc_sli_pcimem_bcopy(mbox, mqe, sizeof(struct lpfc_mqe));
-	/* Set the mailbox status with SLI4 range 0x4000 */
-	mcqe_status = bf_get(lpfc_mcqe_status, mcqe);
-	if (mcqe_status != MB_CQE_STATUS_SUCCESS)
-		bf_set(lpfc_mqe_status, mqe,
-		       (LPFC_MBX_ERROR_RANGE | mcqe_status));
 
+	/*
+	 * For mcqe errors, conditionally move a modified error code to
+	 * the mbox so that the error will not be missed.
+	 */
+	mcqe_status = bf_get(lpfc_mcqe_status, mcqe);
+	if (mcqe_status != MB_CQE_STATUS_SUCCESS) {
+		if (bf_get(lpfc_mqe_status, mqe) == MBX_SUCCESS)
+			bf_set(lpfc_mqe_status, mqe,
+			       (LPFC_MBX_ERROR_RANGE | mcqe_status));
+	}
 	if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
 		pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_MBOX_VPORT,
@@ -10800,7 +10805,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 	case LPFC_MCQ:
 		while ((cqe = lpfc_sli4_cq_get(cq))) {
 			workposted |= lpfc_sli4_sp_handle_mcqe(phba, cqe);
-			if (!(++ecount % LPFC_GET_QE_REL_INT))
+			if (!(++ecount % cq->entry_repost))
 				lpfc_sli4_cq_release(cq, LPFC_QUEUE_NOARM);
 		}
 		break;
@@ -10812,7 +10817,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 			else
 				workposted |= lpfc_sli4_sp_handle_cqe(phba, cq,
 								      cqe);
-			if (!(++ecount % LPFC_GET_QE_REL_INT))
+			if (!(++ecount % cq->entry_repost))
 				lpfc_sli4_cq_release(cq, LPFC_QUEUE_NOARM);
 		}
 		break;
@@ -11044,7 +11049,7 @@ lpfc_sli4_fp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	/* Process all the entries to the CQ */
 	while ((cqe = lpfc_sli4_cq_get(cq))) {
 		workposted |= lpfc_sli4_fp_handle_wcqe(phba, cq, cqe);
-		if (!(++ecount % LPFC_GET_QE_REL_INT))
+		if (!(++ecount % cq->entry_repost))
 			lpfc_sli4_cq_release(cq, LPFC_QUEUE_NOARM);
 	}
 
@@ -11131,7 +11136,7 @@ lpfc_sli4_sp_intr_handler(int irq, void *dev_id)
 	 */
 	while ((eqe = lpfc_sli4_eq_get(speq))) {
 		lpfc_sli4_sp_handle_eqe(phba, eqe);
-		if (!(++ecount % LPFC_GET_QE_REL_INT))
+		if (!(++ecount % speq->entry_repost))
 			lpfc_sli4_eq_release(speq, LPFC_QUEUE_NOARM);
 	}
 
@@ -11211,7 +11216,7 @@ lpfc_sli4_fp_intr_handler(int irq, void *dev_id)
 	 */
 	while ((eqe = lpfc_sli4_eq_get(fpeq))) {
 		lpfc_sli4_fp_handle_eqe(phba, eqe, fcp_eqidx);
-		if (!(++ecount % LPFC_GET_QE_REL_INT))
+		if (!(++ecount % fpeq->entry_repost))
 			lpfc_sli4_eq_release(fpeq, LPFC_QUEUE_NOARM);
 	}
 
@@ -11363,6 +11368,15 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t entry_size,
 	}
 	queue->entry_size = entry_size;
 	queue->entry_count = entry_count;
+
+	/*
+	 * entry_repost is calculated based on the number of entries in the
+	 * queue. This works out except for RQs. If buffers are NOT initially
+	 * posted for every RQE, entry_repost should be adjusted accordingly.
+	 */
+	queue->entry_repost = (entry_count >> 3);
+	if (queue->entry_repost < LPFC_QUEUE_MIN_REPOST)
+		queue->entry_repost = LPFC_QUEUE_MIN_REPOST;
 	queue->phba = phba;
 
 	return queue;
@@ -11925,6 +11939,31 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 out:
 	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
+}
+
+/**
+ * lpfc_rq_adjust_repost - Adjust entry_repost for an RQ
+ * @phba: HBA structure that indicates port to create a queue on.
+ * @rq:   The queue structure to use for the receive queue.
+ * @qno:  The associated HBQ number
+ *
+ *
+ * For SLI4 we need to adjust the RQ repost value based on
+ * the number of buffers that are initially posted to the RQ.
+ */
+void
+lpfc_rq_adjust_repost(struct lpfc_hba *phba, struct lpfc_queue *rq, int qno)
+{
+	uint32_t cnt;
+
+	cnt = lpfc_hbq_defs[qno]->entry_count;
+
+	/* Recalc repost for RQs based on buffers initially posted */
+	cnt = (cnt >> 3);
+	if (cnt < LPFC_QUEUE_MIN_REPOST)
+		cnt = LPFC_QUEUE_MIN_REPOST;
+
+	rq->entry_repost = cnt;
 }
 
 /**

@@ -3386,7 +3386,14 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			cmdiocb->context1 = NULL;
 		}
 	}
+
+	/*
+	 * The driver received a LOGO from the rport and has ACK'd it.
+	 * At this point, the driver is done so release the IOCB and
+	 * remove the ndlp reference.
+	 */
 	lpfc_els_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(ndlp);
 	return;
 }
 
@@ -7257,16 +7264,11 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	icmd->un.elsreq64.myID = 0;
 	icmd->un.elsreq64.fl = 1;
 
-	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
-	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
-	      LPFC_SLI_INTF_IF_TYPE_0)) {
-		/* FDISC needs to be 1 for WQE VPI */
-		elsiocb->iocb.ulpCt_h = (SLI4_CT_VPI >> 1) & 1;
-		elsiocb->iocb.ulpCt_l = SLI4_CT_VPI & 1 ;
-		/* Set the ulpContext to the vpi */
-		elsiocb->iocb.ulpContext = phba->vpi_ids[vport->vpi];
-	} else {
-		/* For FDISC, Let FDISC rsp set the NPortID for this VPI */
+	/*
+	 * SLI3 ports require a different context type value than SLI4.
+	 * Catch SLI3 ports here and override the prep.
+	 */
+	if (phba->sli_rev == LPFC_SLI_REV3) {
 		icmd->ulpCt_h = 1;
 		icmd->ulpCt_l = 0;
 	}

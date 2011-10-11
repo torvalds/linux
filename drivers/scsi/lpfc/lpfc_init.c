@@ -1438,6 +1438,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	struct Scsi_Host *shost;
 	uint32_t if_type;
 	struct lpfc_register portstat_reg;
+	int rc;
 
 	/* If the pci channel is offline, ignore possible errors, since
 	 * we cannot communicate with the pci card anyway.
@@ -1480,7 +1481,12 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			lpfc_sli4_offline_eratt(phba);
 			return;
 		}
-		if (bf_get(lpfc_sliport_status_rn, &portstat_reg)) {
+		/*
+		 * On error status condition, driver need to wait for port
+		 * ready before performing reset.
+		 */
+		rc = lpfc_sli4_pdev_status_reg_wait(phba);
+		if (!rc) {
 			/* need reset: attempt for port recovery */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"2887 Port Error: Attempting "
@@ -6725,6 +6731,10 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				"0540 Receive Queue not allocated\n");
 		goto out_destroy_fcp_wq;
 	}
+
+	lpfc_rq_adjust_repost(phba, phba->sli4_hba.hdr_rq, LPFC_ELS_HBQ);
+	lpfc_rq_adjust_repost(phba, phba->sli4_hba.dat_rq, LPFC_ELS_HBQ);
+
 	rc = lpfc_rq_create(phba, phba->sli4_hba.hdr_rq, phba->sli4_hba.dat_rq,
 			    phba->sli4_hba.els_cq, LPFC_USOL);
 	if (rc) {
@@ -6733,6 +6743,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				"rc = 0x%x\n", rc);
 		goto out_destroy_fcp_wq;
 	}
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"2592 USL RQ setup: hdr-rq-id=%d, dat-rq-id=%d "
 			"parent cq-id=%d\n",
@@ -7042,10 +7053,11 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			 * the loop again.
 			 */
 			for (rdy_chk = 0; rdy_chk < 1000; rdy_chk++) {
+				msleep(10);
 				if (lpfc_readl(phba->sli4_hba.u.if_type2.
 					      STATUSregaddr, &reg_data.word0)) {
 					rc = -ENODEV;
-					break;
+					goto out;
 				}
 				if (bf_get(lpfc_sliport_status_rdy, &reg_data))
 					break;
@@ -7053,7 +7065,6 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 					reset_again++;
 					break;
 				}
-				msleep(10);
 			}
 
 			/*
@@ -7067,11 +7078,6 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			}
 
 			/* Detect any port errors. */
-			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
-				 &reg_data.word0)) {
-				rc = -ENODEV;
-				break;
-			}
 			if ((bf_get(lpfc_sliport_status_err, &reg_data)) ||
 			    (rdy_chk >= 1000)) {
 				phba->work_status[0] = readl(
@@ -7104,6 +7110,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 		break;
 	}
 
+out:
 	/* Catch the not-ready port failure after a port reset. */
 	if (num_resets >= MAX_IF_TYPE_2_RESETS)
 		rc = -ENODEV;

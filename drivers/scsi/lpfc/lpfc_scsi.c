@@ -2325,8 +2325,9 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	}
 	lp = (uint32_t *)cmnd->sense_buffer;
 
-	if (!scsi_status && (resp_info & RESID_UNDER))
-		logit = LOG_FCP;
+	if (!scsi_status && (resp_info & RESID_UNDER) &&
+		vport->cfg_log_verbose & LOG_FCP_UNDER)
+		logit = LOG_FCP_UNDER;
 
 	lpfc_printf_vlog(vport, KERN_WARNING, logit,
 			 "9024 FCP command x%x failed: x%x SNS x%x x%x "
@@ -2342,7 +2343,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	if (resp_info & RESID_UNDER) {
 		scsi_set_resid(cmnd, be32_to_cpu(fcprsp->rspResId));
 
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP_UNDER,
 				 "9025 FCP Read Underrun, expected %d, "
 				 "residual %d Data: x%x x%x x%x\n",
 				 be32_to_cpu(fcpcmd->fcpDl),
@@ -2449,6 +2450,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_fast_path_event *fast_path_evt;
 	struct Scsi_Host *shost;
 	uint32_t queue_depth, scsi_id;
+	uint32_t logit = LOG_FCP;
 
 	/* Sanity check on return of outstanding command */
 	if (!(lpfc_cmd->pCmd))
@@ -2470,16 +2472,22 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
 		else if (lpfc_cmd->status >= IOSTAT_CNT)
 			lpfc_cmd->status = IOSTAT_DEFAULT;
-
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
-				 "9030 FCP cmd x%x failed <%d/%d> "
-				 "status: x%x result: x%x Data: x%x x%x\n",
-				 cmd->cmnd[0],
-				 cmd->device ? cmd->device->id : 0xffff,
-				 cmd->device ? cmd->device->lun : 0xffff,
-				 lpfc_cmd->status, lpfc_cmd->result,
-				 pIocbOut->iocb.ulpContext,
-				 lpfc_cmd->cur_iocbq.iocb.ulpIoTag);
+		if (lpfc_cmd->status == IOSTAT_FCP_RSP_ERROR
+			&& !lpfc_cmd->fcp_rsp->rspStatus3
+			&& (lpfc_cmd->fcp_rsp->rspStatus2 & RESID_UNDER)
+			&& !(phba->cfg_log_verbose & LOG_FCP_UNDER))
+			logit = 0;
+		else
+			logit = LOG_FCP | LOG_FCP_UNDER;
+		lpfc_printf_vlog(vport, KERN_WARNING, logit,
+			 "9030 FCP cmd x%x failed <%d/%d> "
+			 "status: x%x result: x%x Data: x%x x%x\n",
+			 cmd->cmnd[0],
+			 cmd->device ? cmd->device->id : 0xffff,
+			 cmd->device ? cmd->device->lun : 0xffff,
+			 lpfc_cmd->status, lpfc_cmd->result,
+			 pIocbOut->iocb.ulpContext,
+			 lpfc_cmd->cur_iocbq.iocb.ulpIoTag);
 
 		switch (lpfc_cmd->status) {
 		case IOSTAT_FCP_RSP_ERROR:

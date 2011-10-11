@@ -749,8 +749,10 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-
 	int status = -EINVAL;
+
+	if (!phba->cfg_enable_hba_reset)
+		return -EACCES;
 
 	if (strncmp(buf, "selective", sizeof("selective") - 1) == 0)
 		status = phba->lpfc_selective_reset(phba);
@@ -772,7 +774,7 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
  * Returns:
  * zero for success
  **/
-static int
+int
 lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 {
 	struct lpfc_register portstat_reg = {0};
@@ -4494,9 +4496,10 @@ lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 
 	spin_lock_irq(shost->host_lock);
 
-	if ((vport->fc_flag & FC_FABRIC) ||
-	    ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
-	     (vport->fc_flag & FC_PUBLIC_LOOP)))
+	if ((vport->port_state > LPFC_FLOGI) &&
+	    ((vport->fc_flag & FC_FABRIC) ||
+	     ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
+	      (vport->fc_flag & FC_PUBLIC_LOOP))))
 		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.u.wwn);
 	else
 		/* fabric is local port if there is no F/FL_Port */
@@ -4569,9 +4572,17 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	memset(hs, 0, sizeof (struct fc_host_statistics));
 
 	hs->tx_frames = pmb->un.varRdStatus.xmitFrameCnt;
-	hs->tx_words = (pmb->un.varRdStatus.xmitByteCnt * 256);
+	/*
+	 * The MBX_READ_STATUS returns tx_k_bytes which has to
+	 * converted to words
+	 */
+	hs->tx_words = (uint64_t)
+			((uint64_t)pmb->un.varRdStatus.xmitByteCnt
+			* (uint64_t)256);
 	hs->rx_frames = pmb->un.varRdStatus.rcvFrameCnt;
-	hs->rx_words = (pmb->un.varRdStatus.rcvByteCnt * 256);
+	hs->rx_words = (uint64_t)
+			((uint64_t)pmb->un.varRdStatus.rcvByteCnt
+			 * (uint64_t)256);
 
 	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
