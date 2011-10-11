@@ -387,44 +387,6 @@ static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 
 }
 
-/* ------------ Interface for init & mode switching code ------------- */
-
-static unsigned char XGIfb_query_VGA_config_space(
-		struct xgi_hw_device_info *pXGIhw_ext, unsigned long offset,
-		unsigned long set, unsigned long *value)
-{
-	static struct pci_dev *pdev;
-	static unsigned char init, valid_pdev;
-
-	if (!set)
-		DPRINTK("XGIfb: Get VGA offset 0x%lx\n", offset);
-	else
-		DPRINTK("XGIfb: Set offset 0x%lx to 0x%lx\n", offset, *value);
-
-	if (!init) {
-		init = 1;
-		pdev = pci_get_device(PCI_VENDOR_ID_XG, xgi_video_info.chip_id,
-				pdev);
-		if (pdev) {
-			valid_pdev = 1;
-			pci_dev_put(pdev);
-		}
-	}
-
-	if (!valid_pdev) {
-		printk(KERN_DEBUG "XGIfb: Can't find XGI %d VGA device.\n",
-				xgi_video_info.chip_id);
-		return 0;
-	}
-
-	if (set == 0)
-		pci_read_config_dword(pdev, offset, (u32 *) value);
-	else
-		pci_write_config_dword(pdev, offset, (u32)(*value));
-
-	return 1;
-}
-
 /* ------------------ Internal helper routines ----------------- */
 
 static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
@@ -2078,7 +2040,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		hw_info->pjVirtualRomBase = NULL;
 		printk(KERN_INFO "XGIfb: Video ROM usage disabled\n");
 	}
-	hw_info->pQueryVGAConfigSpace = &XGIfb_query_VGA_config_space;
 
 	if (XGIfb_get_dram_size()) {
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
@@ -2128,7 +2089,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	       xgi_video_info.mmio_base, xgi_video_info.mmio_vbase,
 	       xgi_video_info.mmio_size / 1024);
 	printk("XGIfb: XGIInitNew() ...");
-	if (XGIInitNew(hw_info))
+	pci_set_drvdata(pdev, &xgi_video_info);
+	if (XGIInitNew(pdev))
 		printk("OK\n");
 	else
 		printk("Fail\n");
@@ -2418,8 +2380,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		ret = -EINVAL;
 		goto error_mtrr;
 	}
-
-	pci_set_drvdata(pdev, &xgi_video_info);
 
 	dumpVGAReg();
 

@@ -73,10 +73,6 @@ struct xgi_hw_device_info {
 				  /* "XGI_VB_CHIP_TYPE" */
 
 	unsigned long ulCRT2LCDType; /* defined in the data structure type */
-
-	unsigned char(*pQueryVGAConfigSpace)(struct xgi_hw_device_info *,
-					    unsigned long, unsigned long,
-					    unsigned long *);
 };
 
 /* Additional IOCTL for communication xgifb <> X driver        */

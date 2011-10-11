@@ -1,5 +1,7 @@
 #include <linux/types.h>
 #include <linux/delay.h> /* udelay */
+#include <linux/pci.h>
+
 #include "vgatypes.h"
 #include "XGIfb.h"
 
@@ -1427,8 +1429,10 @@ static unsigned char GetXG27FPBits(struct vb_device_info *pVBInfo)
 	return temp;
 }
 
-unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
+unsigned char XGIInitNew(struct pci_dev *pdev)
 {
+	struct video_info *xgifb_info = pci_get_drvdata(pdev);
+	struct xgi_hw_device_info *HwDeviceExtension = &xgifb_info->hw_info;
 	struct vb_device_info VBINF;
 	struct vb_device_info *pVBInfo = &VBINF;
 	unsigned char i, temp = 0, temp1;
@@ -1436,8 +1440,6 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	volatile unsigned char *pVideoMemory;
 
 	/* unsigned long j, k; */
-
-	unsigned long Temp;
 
 	pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 
@@ -1578,6 +1580,8 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	printk("12");
 
 	if (HwDeviceExtension->jChipType < XG20) { /* kuku 2004/06/25 */
+		u32 Temp;
+
 		/* Set AGP Rate */
 		/*
 		temp1 = xgifb_reg_get(pVBInfo->P3c4, 0x3B);
@@ -1644,10 +1648,7 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 		/*        if (ChipsetID == 0x25308086) */
 		/*            xgifb_reg_set(pVBInfo->P3d4, 0x77, 0xF0); */
 
-		HwDeviceExtension->pQueryVGAConfigSpace(HwDeviceExtension,
-							0x50,
-							0,
-							&Temp); /* Get */
+		pci_read_config_dword(pdev, 0x50, &Temp);
 		Temp >>= 20;
 		Temp &= 0xF;
 
