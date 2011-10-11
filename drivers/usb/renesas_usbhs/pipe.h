@@ -91,7 +91,8 @@ void usbhs_pipe_enable(struct usbhs_pipe *pipe);
 void usbhs_pipe_disable(struct usbhs_pipe *pipe);
 void usbhs_pipe_stall(struct usbhs_pipe *pipe);
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo);
-void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 epnum, u16 maxp);
+void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
+			      u16 epnum, u16 maxp);
 
 #define usbhs_pipe_to_priv(p)	((p)->priv)
 #define usbhs_pipe_number(p)	(int)((p) - (p)->priv->pipe_info.pipe)

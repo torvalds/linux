@@ -418,14 +418,26 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
 		(0xff & bufnmb)		<<  0;
 }
 
-void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 epnum, u16 maxp)
+void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
+			      u16 epnum, u16 maxp)
 {
+	if (devsel > 0xA) {
+		struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+		struct device *dev = usbhs_priv_to_dev(priv);
+
+		dev_err(dev, "devsel error %d\n", devsel);
+
+		devsel = 0;
+	}
+
 	usbhsp_pipe_barrier(pipe);
 
 	pipe->maxp = maxp;
 
 	usbhsp_pipe_select(pipe);
-	usbhsp_pipe_maxp_set(pipe, 0xFFFF, maxp);
+	usbhsp_pipe_maxp_set(pipe, 0xFFFF,
+			     (devsel << 12) |
+			     maxp);
 
 	if (!usbhs_pipe_is_dcp(pipe))
 		usbhsp_pipe_cfg_set(pipe,  0x000F, epnum);

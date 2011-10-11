@@ -489,7 +489,7 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		pipe->mod_private	= uep;
 
 		/* set epnum / maxp */
-		usbhs_pipe_config_update(pipe,
+		usbhs_pipe_config_update(pipe, 0,
 					 usb_endpoint_num(desc),
 					 usb_endpoint_maxp(desc));
 
@@ -672,7 +672,7 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	/* dcp init */
 	dcp->pipe		= usbhs_dcp_malloc(priv);
 	dcp->pipe->mod_private	= dcp;
-	usbhs_pipe_config_update(dcp->pipe, 0, 64);
+	usbhs_pipe_config_update(dcp->pipe, 0, 0, 64);
 
 	/*
 	 * system config enble
