@@ -566,11 +566,16 @@ static inline void l2cap_send_sframe(struct l2cap_chan *chan, u16 control)
 	struct sk_buff *skb;
 	struct l2cap_hdr *lh;
 	struct l2cap_conn *conn = chan->conn;
-	int count, hlen = L2CAP_HDR_SIZE + 2;
+	int count, hlen;
 	u8 flags;
 
 	if (chan->state != BT_CONNECTED)
 		return;
+
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		hlen = L2CAP_EXT_HDR_SIZE;
+	else
+		hlen = L2CAP_ENH_HDR_SIZE;
 
 	if (chan->fcs == L2CAP_FCS_CRC16)
 		hlen += 2;
@@ -1534,13 +1539,18 @@ static struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan,
 	struct sock *sk = chan->sk;
 	struct l2cap_conn *conn = chan->conn;
 	struct sk_buff *skb;
-	int err, count, hlen = L2CAP_HDR_SIZE + 2;
+	int err, count, hlen;
 	struct l2cap_hdr *lh;
 
 	BT_DBG("sk %p len %d", sk, (int)len);
 
 	if (!conn)
 		return ERR_PTR(-ENOTCONN);
+
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		hlen = L2CAP_EXT_HDR_SIZE;
+	else
+		hlen = L2CAP_ENH_HDR_SIZE;
 
 	if (sdulen)
 		hlen += 2;
@@ -3098,7 +3108,12 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 static int l2cap_check_fcs(struct l2cap_chan *chan,  struct sk_buff *skb)
 {
 	u16 our_fcs, rcv_fcs;
-	int hdr_size = L2CAP_HDR_SIZE + 2;
+	int hdr_size;
+
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		hdr_size = L2CAP_EXT_HDR_SIZE;
+	else
+		hdr_size = L2CAP_ENH_HDR_SIZE;
 
 	if (chan->fcs == L2CAP_FCS_CRC16) {
 		skb_trim(skb, skb->len - 2);
