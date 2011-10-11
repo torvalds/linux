@@ -67,8 +67,6 @@
 
 #define CS5535_CABLE_DETECT    0x48
 
-#define CS5535_BAD_PIO(timings) ( (timings&~0x80000000UL)==0x00009172 )
-
 /**
  *	cs5535_cable_detect	-	detect cable type
  *	@ap: Port to detect on
@@ -188,16 +186,6 @@ static int cs5535_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 	const struct ata_port_info *ppi[] = { &info, &ata_dummy_port_info };
 
-	u32 timings, dummy;
-
-	/* Check the BIOS set the initial timing clock. If not set the
-	   timings for PIO0 */
-	rdmsr(ATAC_CH0D0_PIO, timings, dummy);
-	if (CS5535_BAD_PIO(timings))
-		wrmsr(ATAC_CH0D0_PIO, 0xF7F4F7F4UL, 0);
-	rdmsr(ATAC_CH0D1_PIO, timings, dummy);
-	if (CS5535_BAD_PIO(timings))
-		wrmsr(ATAC_CH0D1_PIO, 0xF7F4F7F4UL, 0);
 	return ata_pci_bmdma_init_one(dev, ppi, &cs5535_sht, NULL, 0);
 }
 
