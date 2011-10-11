@@ -468,7 +468,8 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 		return ret;
 
 	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |
-			PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
+			PIPE_CONTROL_WRITE_FLUSH |
+			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
 	intel_ring_emit(ring, seqno);
 	intel_ring_emit(ring, 0);
@@ -484,7 +485,8 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 	scratch_addr += 128;
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE |
-			PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
+			PIPE_CONTROL_WRITE_FLUSH |
+			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
 			PIPE_CONTROL_NOTIFY);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
 	intel_ring_emit(ring, seqno);
