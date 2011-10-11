@@ -722,16 +722,8 @@ extern void vmbus_ontimer(unsigned long data);
 
 /* Logging Level */
 #define INFO_LVL				6
-#define DEBUG_RING_LVL				9
 
 extern unsigned int vmbus_loglevel;
-
-#define DPRINT(mod, lvl, fmt, args...) do {\
-	if ((mod & (HIWORD(vmbus_loglevel))) &&	\
-	    (lvl <= LOWORD(vmbus_loglevel)))	\
-		printk(KERN_DEBUG #mod": %s() " fmt "\n", __func__, ## args);\
-	} while (0)
-
 
 struct hv_driver;
 struct hv_device;

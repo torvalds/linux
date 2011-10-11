@@ -172,37 +172,6 @@ hv_get_ring_bufferindices(struct hv_ring_buffer_info *ring_info)
 	return (u64)ring_info->ring_buffer->write_index << 32;
 }
 
-
-/*
- *
- * hv_dump_ring_info()
- *
- * Dump out to console the ring buffer info
- *
- */
-void hv_dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix)
-{
-	u32 bytes_avail_towrite;
-	u32 bytes_avail_toread;
-
-	hv_get_ringbuffer_availbytes(ring_info,
-	&bytes_avail_toread,
-	&bytes_avail_towrite);
-
-	DPRINT(VMBUS,
-		DEBUG_RING_LVL,
-		"%s <<ringinfo %p buffer %p avail write %u "
-		"avail read %u read idx %u write idx %u>>",
-		prefix,
-		ring_info,
-		ring_info->ring_buffer->buffer,
-		bytes_avail_towrite,
-		bytes_avail_toread,
-		ring_info->ring_buffer->read_index,
-		ring_info->ring_buffer->write_index);
-}
-
-
 /*
  *
  * hv_copyfrom_ringbuffer()
