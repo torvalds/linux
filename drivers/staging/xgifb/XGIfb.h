@@ -6,10 +6,12 @@
 #include "vb_struct.h"
 #include "vgatypes.h"
 
-#define DISPTYPE_CRT2       0x00000004L
-#define DISPTYPE_LCD        0x00000002L
-#define DISPTYPE_TV         0x00000001L
-#define DISPTYPE_DISP2      (DISPTYPE_CRT2 | DISPTYPE_LCD | DISPTYPE_TV)
+enum xgifb_display_type {
+	XGIFB_DISP_NONE = 0,
+	XGIFB_DISP_CRT,
+	XGIFB_DISP_LCD,
+	XGIFB_DISP_TV,
+};
 
 #define HASVB_NONE	    0x00
 #define HASVB_301	    0x01
@@ -83,7 +85,7 @@ struct xgifb_video_info {
 	int    video_linelength;
 	unsigned int refresh_rate;
 
-	unsigned long disp_state;
+	enum xgifb_display_type display2; /* the second display output type */
 	unsigned char hasVB;
 	unsigned char TV_type;
 	unsigned char TV_plug;

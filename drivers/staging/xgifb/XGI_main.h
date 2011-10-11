@@ -326,19 +326,19 @@ static const struct _XGI_crt2type {
 	int tvplug_no;
 } XGI_crt2type[] = {
 	{"NONE",	0,		-1},
-	{"LCD",		DISPTYPE_LCD,	-1},
-	{"TV",		DISPTYPE_TV,	-1},
-	{"VGA",		DISPTYPE_CRT2,	-1},
-	{"SVIDEO",	DISPTYPE_TV,	TVPLUG_SVIDEO},
-	{"COMPOSITE",	DISPTYPE_TV,	TVPLUG_COMPOSITE},
-	{"SCART",	DISPTYPE_TV,	TVPLUG_SCART},
+	{"LCD",		XGIFB_DISP_LCD,	-1},
+	{"TV",		XGIFB_DISP_TV,	-1},
+	{"VGA",		XGIFB_DISP_CRT,	-1},
+	{"SVIDEO",	XGIFB_DISP_TV,	TVPLUG_SVIDEO},
+	{"COMPOSITE",	XGIFB_DISP_TV,	TVPLUG_COMPOSITE},
+	{"SCART",	XGIFB_DISP_TV,	TVPLUG_SCART},
 	{"none",	0,		-1},
-	{"lcd",		DISPTYPE_LCD,	-1},
-	{"tv",		DISPTYPE_TV,	-1},
-	{"vga",		DISPTYPE_CRT2,	-1},
-	{"svideo",	DISPTYPE_TV,	TVPLUG_SVIDEO},
-	{"composite",	DISPTYPE_TV,	TVPLUG_COMPOSITE},
-	{"scart",	DISPTYPE_TV,	TVPLUG_SCART},
+	{"lcd",		XGIFB_DISP_LCD,	-1},
+	{"tv",		XGIFB_DISP_TV,	-1},
+	{"vga",		XGIFB_DISP_CRT,	-1},
+	{"svideo",	XGIFB_DISP_TV,	TVPLUG_SVIDEO},
+	{"composite",	XGIFB_DISP_TV,	TVPLUG_COMPOSITE},
+	{"scart",	XGIFB_DISP_TV,	TVPLUG_SCART},
 	{"\0",		-1,		-1}
 };
 

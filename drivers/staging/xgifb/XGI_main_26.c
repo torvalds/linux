@@ -507,8 +507,7 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 	struct xgi_hw_device_info *hw_info = &xgifb_info->hw_info;
 
 	if (xgifb_info->chip == XG21) {
-		if ((xgifb_info->disp_state & DISPTYPE_DISP2)
-				== DISPTYPE_LCD) {
+		if (xgifb_info->display2 == XGIFB_DISP_LCD) {
 			xres = XGI21_LCDCapList[0].LVDSHDE;
 			yres = XGI21_LCDCapList[0].LVDSVDE;
 			if (XGIbios_mode[myindex].xres > xres)
@@ -533,8 +532,8 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 	if (!(XGIbios_mode[myindex].chipset & MD_XGI315))
 		return -1;
 
-	switch (xgifb_info->disp_state & DISPTYPE_DISP2) {
-	case DISPTYPE_LCD:
+	switch (xgifb_info->display2) {
+	case XGIFB_DISP_LCD:
 		switch (hw_info->ulCRT2LCDType) {
 		case LCD_640x480:
 			xres = 640;
@@ -685,7 +684,7 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 			}
 		}
 		break;
-	case DISPTYPE_TV:
+	case XGIFB_DISP_TV:
 		switch (XGIbios_mode[myindex].xres) {
 		case 512:
 		case 640:
@@ -715,9 +714,11 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 			return -1;
 		}
 		break;
-	case DISPTYPE_CRT2:
+	case XGIFB_DISP_CRT:
 		if (XGIbios_mode[myindex].xres > 1280)
 			return -1;
+		break;
+	case XGIFB_DISP_NONE:
 		break;
 	}
 	return myindex;
@@ -857,16 +858,16 @@ static void XGIfb_pre_setmode(struct xgifb_video_info *xgifb_info)
 	cr31 = xgifb_reg_get(XGICR, 0x31);
 	cr31 &= ~0x60;
 
-	switch (xgifb_info->disp_state & DISPTYPE_DISP2) {
-	case DISPTYPE_CRT2:
+	switch (xgifb_info->display2) {
+	case XGIFB_DISP_CRT:
 		cr30 = (XGI_VB_OUTPUT_CRT2 | XGI_SIMULTANEOUS_VIEW_ENABLE);
 		cr31 |= XGI_DRIVER_MODE;
 		break;
-	case DISPTYPE_LCD:
+	case XGIFB_DISP_LCD:
 		cr30 = (XGI_VB_OUTPUT_LCD | XGI_SIMULTANEOUS_VIEW_ENABLE);
 		cr31 |= XGI_DRIVER_MODE;
 		break;
-	case DISPTYPE_TV:
+	case XGIFB_DISP_TV:
 		if (xgifb_info->TV_type == TVMODE_HIVISION)
 			cr30 = (XGI_VB_OUTPUT_HIVISION
 					| XGI_SIMULTANEOUS_VIEW_ENABLE);
@@ -916,7 +917,7 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 		}
 		/* TW: We can't switch off CRT1 on 301B-DH
 		 * in 8bpp Modes if using LCD */
-		if (xgifb_info->disp_state & DISPTYPE_LCD)
+		if (xgifb_info->display2 == XGIFB_DISP_LCD)
 			doit = 0;
 	}
 
@@ -940,8 +941,8 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 
 	xgifb_reg_and(XGISR, IND_XGI_RAMDAC_CONTROL, ~0x04);
 
-	if ((xgifb_info->disp_state & DISPTYPE_TV) && (xgifb_info->hasVB
-			== HASVB_301)) {
+	if (xgifb_info->display2 == XGIFB_DISP_TV &&
+	    xgifb_info->hasVB == HASVB_301) {
 
 		reg = xgifb_reg_get(XGIPART4, 0x01);
 
@@ -1339,7 +1340,7 @@ static int XGIfb_pan_var(struct xgifb_video_info *xgifb_info,
 	xgifb_reg_set(XGISR, 0x37, (base >> 24) & 0x03);
 	xgifb_reg_and_or(XGISR, 0x37, 0xDF, (base >> 21) & 0x04);
 
-	if (xgifb_info->disp_state & DISPTYPE_DISP2) {
+	if (xgifb_info->display2 != XGIFB_DISP_NONE) {
 		xgifb_reg_or(XGIPART1, IND_XGI_CRT2_WRITE_ENABLE_315, 0x01);
 		xgifb_reg_set(XGIPART1, 0x06, (base & 0xFF));
 		xgifb_reg_set(XGIPART1, 0x05, ((base >> 8) & 0xFF));
@@ -1395,7 +1396,7 @@ static int XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		outb((red >> 10), XGIDACD);
 		outb((green >> 10), XGIDACD);
 		outb((blue >> 10), XGIDACD);
-		if (xgifb_info->disp_state & DISPTYPE_DISP2) {
+		if (xgifb_info->display2 != XGIFB_DISP_NONE) {
 			outb(regno, XGIDAC2A);
 			outb((red >> 8), XGIDAC2D);
 			outb((green >> 8), XGIDAC2D);
@@ -1806,15 +1807,15 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 
 	if (XGIfb_crt2type != -1)
 		/* TW: Override with option */
-		xgifb_info->disp_state = XGIfb_crt2type;
+		xgifb_info->display2 = XGIfb_crt2type;
 	else if (cr32 & XGI_VB_TV)
-		xgifb_info->disp_state = DISPTYPE_TV;
+		xgifb_info->display2 = XGIFB_DISP_TV;
 	else if (cr32 & XGI_VB_LCD)
-		xgifb_info->disp_state = DISPTYPE_LCD;
+		xgifb_info->display2 = XGIFB_DISP_LCD;
 	else if (cr32 & XGI_VB_CRT2)
-		xgifb_info->disp_state = DISPTYPE_CRT2;
+		xgifb_info->display2 = XGIFB_DISP_CRT;
 	else
-		xgifb_info->disp_state = 0;
+		xgifb_info->display2 = XGIFB_DISP_NONE;
 
 	if (XGIfb_tvplug != -1)
 		/* PR/TW: Override with option */
@@ -1932,7 +1933,7 @@ static int __init XGIfb_setup(char *options)
 		} else if (!strncmp(this_opt, "dstn", 4)) {
 			enable_dstn = 1;
 			/* TW: DSTN overrules forcecrt2type */
-			XGIfb_crt2type = DISPTYPE_LCD;
+			XGIfb_crt2type = XGIFB_DISP_LCD;
 		} else if (!strncmp(this_opt, "noypan", 6)) {
 			XGIfb_ypan = 0;
 		} else if (!strncmp(this_opt, "userom:", 7)) {
@@ -2126,7 +2127,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	} else if (xgifb_info->chip == XG21) {
 		CR38 = xgifb_reg_get(XGICR, 0x38);
 		if ((CR38&0xE0) == 0xC0) {
-			xgifb_info->disp_state = DISPTYPE_LCD;
+			xgifb_info->display2 = XGIFB_DISP_LCD;
 			if (!XGIfb_GetXG21LVDSData(xgifb_info))
 				xgi21_drvlcdcaplist = true;
 		} else if ((CR38&0xE0) == 0x60) {
@@ -2204,7 +2205,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (xgifb_info->hasVB != HASVB_NONE)
 		XGIfb_detect_VB(xgifb_info);
 
-	if (xgifb_info->disp_state & DISPTYPE_LCD) {
+	if (xgifb_info->display2 == XGIFB_DISP_LCD) {
 		if (!enable_dstn) {
 			reg = xgifb_reg_get(XGICR, IND_XGI_LCD_PANEL);
 			reg &= 0x0f;
@@ -2261,8 +2262,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			XGIfb_validate_mode(xgifb_info, xgifb_info->mode_idx);
 
 	if (xgifb_info->mode_idx < 0) {
-		if ((xgifb_info->disp_state & DISPTYPE_DISP2) ==
-			DISPTYPE_LCD &&
+		if (xgifb_info->display2 == XGIFB_DISP_LCD &&
 		    xgifb_info->chip == XG21)
 			xgifb_info->mode_idx =
 				XGIfb_GetXG21DefaultLVDSModeIdx();
