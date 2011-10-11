@@ -106,17 +106,6 @@ static void __usbhsp_pipe_xxx_set(struct usbhs_pipe *pipe,
 		usbhs_bset(priv, pipe_reg, mask, val);
 }
 
-static u16 __usbhsp_pipe_xxx_get(struct usbhs_pipe *pipe,
-				 u16 dcp_reg, u16 pipe_reg)
-{
-	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-
-	if (usbhs_pipe_is_dcp(pipe))
-		return usbhs_read(priv, dcp_reg);
-	else
-		return usbhs_read(priv, pipe_reg);
-}
-
 /*
  *		DCPCFG/PIPECFG functions
  */
@@ -142,11 +131,6 @@ static void usbhsp_pipe_buf_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
 static void usbhsp_pipe_maxp_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
 {
 	__usbhsp_pipe_xxx_set(pipe, DCPMAXP, PIPEMAXP, mask, val);
-}
-
-static u16 usbhsp_pipe_maxp_get(struct usbhs_pipe *pipe)
-{
-	return __usbhsp_pipe_xxx_get(pipe, DCPMAXP, PIPEMAXP);
 }
 
 /*
@@ -465,6 +449,8 @@ void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 epnum, u16 maxp)
 {
 	usbhsp_pipe_barrier(pipe);
 
+	pipe->maxp = maxp;
+
 	usbhsp_pipe_select(pipe);
 	usbhsp_pipe_maxp_set(pipe, 0xFFFF, maxp);
 
@@ -477,11 +463,12 @@ void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 epnum, u16 maxp)
  */
 int usbhs_pipe_get_maxpacket(struct usbhs_pipe *pipe)
 {
-	u16 mask = usbhs_pipe_is_dcp(pipe) ? DCP_MAXP_MASK : PIPE_MAXP_MASK;
-
-	usbhsp_pipe_select(pipe);
-
-	return (int)(usbhsp_pipe_maxp_get(pipe) & mask);
+	/*
+	 * see
+	 *	usbhs_pipe_config_update()
+	 *	usbhs_dcp_malloc()
+	 */
+	return pipe->maxp;
 }
 
 int usbhs_pipe_is_dir_in(struct usbhs_pipe *pipe)

@@ -30,6 +30,8 @@ struct usbhs_pipe {
 	struct usbhs_fifo *fifo;
 	struct list_head list;
 
+	int maxp;
+
 	u32 flags;
 #define USBHS_PIPE_FLAGS_IS_USED		(1 << 0)
 #define USBHS_PIPE_FLAGS_IS_DIR_IN		(1 << 1)
