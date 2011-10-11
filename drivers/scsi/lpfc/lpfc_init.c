@@ -2441,17 +2441,19 @@ lpfc_block_mgmt_io(struct lpfc_hba * phba)
 	uint8_t actcmd = MBX_HEARTBEAT;
 	unsigned long timeout;
 
-
+	timeout = msecs_to_jiffies(LPFC_MBOX_TMO * 1000) + jiffies;
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	phba->sli.sli_flag |= LPFC_BLOCK_MGMT_IO;
-	if (phba->sli.mbox_active)
+	if (phba->sli.mbox_active) {
 		actcmd = phba->sli.mbox_active->u.mb.mbxCommand;
+		/* Determine how long we might wait for the active mailbox
+		 * command to be gracefully completed by firmware.
+		 */
+		timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba,
+				phba->sli.mbox_active) * 1000) + jiffies;
+	}
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
-	/* Determine how long we might wait for the active mailbox
-	 * command to be gracefully completed by firmware.
-	 */
-	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, actcmd) * 1000) +
-			jiffies;
+
 	/* Wait for the outstnading mailbox command to complete */
 	while (phba->sli.mbox_active) {
 		/* Check active mailbox complete status every 2ms */
@@ -7158,12 +7160,13 @@ lpfc_sli4_send_nop_mbox_cmds(struct lpfc_hba *phba, uint32_t cnt)
 	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
 			 LPFC_MBOX_OPCODE_NOP, length, LPFC_SLI4_MBX_EMBED);
 
-	mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
 	for (cmdsent = 0; cmdsent < cnt; cmdsent++) {
 		if (!phba->sli4_hba.intr_enable)
 			rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-		else
+		else {
+			mbox_tmo = lpfc_mbox_tmo_val(phba, mboxq);
 			rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
+		}
 		if (rc == MBX_TIMEOUT)
 			break;
 		/* Check return status */
@@ -8129,7 +8132,7 @@ lpfc_pc_sli4_params_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	else {
-		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_PORT_CAPABILITIES);
+		mbox_tmo = lpfc_mbox_tmo_val(phba, mboxq);
 		rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
 	}
 
@@ -8191,6 +8194,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	int rc;
 	struct lpfc_mqe *mqe = &mboxq->u.mqe;
 	struct lpfc_pc_sli4_params *sli4_params;
+	uint32_t mbox_tmo;
 	int length;
 	struct lpfc_sli4_parameters *mbx_sli4_parameters;
 
@@ -8209,9 +8213,10 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			 length, LPFC_SLI4_MBX_EMBED);
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	else
-		rc = lpfc_sli_issue_mbox_wait(phba, mboxq,
-			lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG));
+	else {
+		mbox_tmo = lpfc_mbox_tmo_val(phba, mboxq);
+		rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
+	}
 	if (unlikely(rc))
 		return rc;
 	sli4_params = &phba->sli4_hba.pc_sli4_params;

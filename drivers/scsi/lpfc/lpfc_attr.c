@@ -4113,8 +4113,10 @@ sysfs_mbox_read(struct file *filp, struct kobject *kobj,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	int rc;
+	LPFC_MBOXQ_t *mboxq;
 	MAILBOX_t *pmb;
+	uint32_t mbox_tmo;
+	int rc;
 
 	if (off > MAILBOX_CMD_SIZE)
 		return -ERANGE;
@@ -4139,7 +4141,8 @@ sysfs_mbox_read(struct file *filp, struct kobject *kobj,
 	if (off == 0 &&
 	    phba->sysfs_mbox.state  == SMBOX_WRITING &&
 	    phba->sysfs_mbox.offset >= 2 * sizeof(uint32_t)) {
-		pmb = &phba->sysfs_mbox.mbox->u.mb;
+		mboxq = (LPFC_MBOXQ_t *)&phba->sysfs_mbox.mbox;
+		pmb = &mboxq->u.mb;
 		switch (pmb->mbxCommand) {
 			/* Offline only */
 		case MBX_INIT_LINK:
@@ -4249,9 +4252,8 @@ sysfs_mbox_read(struct file *filp, struct kobject *kobj,
 
 		} else {
 			spin_unlock_irq(&phba->hbalock);
-			rc = lpfc_sli_issue_mbox_wait (phba,
-						       phba->sysfs_mbox.mbox,
-				lpfc_mbox_tmo_val(phba, pmb->mbxCommand) * HZ);
+			mbox_tmo = lpfc_mbox_tmo_val(phba, mboxq);
+			rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
 			spin_lock_irq(&phba->hbalock);
 		}
 

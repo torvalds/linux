@@ -209,7 +209,7 @@ void __lpfc_mbox_cmpl_put(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbox_cmpl_put(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_mbox_cmd_check(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_mbox_dev_check(struct lpfc_hba *);
-int lpfc_mbox_tmo_val(struct lpfc_hba *, int);
+int lpfc_mbox_tmo_val(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_init_vfi(struct lpfcMboxq *, struct lpfc_vport *);
 void lpfc_reg_vfi(struct lpfcMboxq *, struct lpfc_vport *, dma_addr_t);
 void lpfc_init_vpi(struct lpfc_hba *, struct lpfcMboxq *, uint16_t);
