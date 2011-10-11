@@ -203,13 +203,10 @@ static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
 }
 
 /*
- *		notify hotplug
+ *		hotplug
  */
-static void usbhsc_notify_hotplug(struct work_struct *work)
+static void usbhsc_hotplug(struct usbhs_priv *priv)
 {
-	struct usbhs_priv *priv = container_of(work,
-					       struct usbhs_priv,
-					       notify_hotplug_work.work);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	int id;
@@ -255,6 +252,17 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 		/* reset phy for next connection */
 		usbhs_platform_call(priv, phy_reset, pdev);
 	}
+}
+
+/*
+ *		notify hotplug
+ */
+static void usbhsc_notify_hotplug(struct work_struct *work)
+{
+	struct usbhs_priv *priv = container_of(work,
+					       struct usbhs_priv,
+					       notify_hotplug_work.work);
+	usbhsc_hotplug(priv);
 }
 
 int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
@@ -443,9 +451,60 @@ static int __devexit usbhs_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int usbhsc_suspend(struct device *dev)
+{
+	struct usbhs_priv *priv = dev_get_drvdata(dev);
+	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
+
+	if (mod) {
+		usbhs_mod_call(priv, stop, priv);
+		usbhs_mod_change(priv, -1);
+	}
+
+	if (mod || !usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+		usbhsc_power_ctrl(priv, 0);
+
+	return 0;
+}
+
+static int usbhsc_resume(struct device *dev)
+{
+	struct usbhs_priv *priv = dev_get_drvdata(dev);
+	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
+
+	usbhs_platform_call(priv, phy_reset, pdev);
+
+	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+		usbhsc_power_ctrl(priv, 1);
+
+	usbhsc_hotplug(priv);
+
+	return 0;
+}
+
+static int usbhsc_runtime_nop(struct device *dev)
+{
+	/* Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static const struct dev_pm_ops usbhsc_pm_ops = {
+	.suspend		= usbhsc_suspend,
+	.resume			= usbhsc_resume,
+	.runtime_suspend	= usbhsc_runtime_nop,
+	.runtime_resume		= usbhsc_runtime_nop,
+};
+
 static struct platform_driver renesas_usbhs_driver = {
 	.driver		= {
 		.name	= "renesas_usbhs",
+		.pm	= &usbhsc_pm_ops,
 	},
 	.probe		= usbhs_probe,
 	.remove		= __devexit_p(usbhs_remove),
