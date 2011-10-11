@@ -471,9 +471,12 @@ int usbhs_pipe_is_dir_host(struct usbhs_pipe *pipe)
 	return usbhsp_flags_has(pipe, IS_DIR_HOST);
 }
 
-void usbhs_pipe_clear_sequence(struct usbhs_pipe *pipe)
+void usbhs_pipe_data_sequence(struct usbhs_pipe *pipe, int data)
 {
-	usbhsp_pipectrl_set(pipe, SQCLR, SQCLR);
+	u16 mask = (SQCLR | SQSET);
+	u16 val = (data) ? SQSET : SQCLR;
+
+	usbhsp_pipectrl_set(pipe, mask, val);
 }
 
 void usbhs_pipe_clear(struct usbhs_pipe *pipe)
@@ -584,7 +587,7 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 	usbhsp_pipe_cfg_set(pipe, 0xFFFF, pipecfg);
 	usbhsp_pipe_buf_set(pipe, 0xFFFF, pipebuf);
 
-	usbhs_pipe_clear_sequence(pipe);
+	usbhs_pipe_sequence_data0(pipe);
 
 	dev_dbg(dev, "enable pipe %d : %s (%s)\n",
 		usbhs_pipe_number(pipe),

@@ -265,7 +265,7 @@ static int usbhsg_recip_handler_std_clear_endpoint(struct usbhs_priv *priv,
 
 	if (!usbhsg_status_has(gpriv, USBHSG_STATUS_WEDGE)) {
 		usbhs_pipe_disable(pipe);
-		usbhs_pipe_clear_sequence(pipe);
+		usbhs_pipe_sequence_data0(pipe);
 		usbhs_pipe_enable(pipe);
 	}
 
@@ -479,7 +479,7 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	 */
 	if (uep->pipe) {
 		usbhs_pipe_clear(uep->pipe);
-		usbhs_pipe_clear_sequence(uep->pipe);
+		usbhs_pipe_sequence_data0(uep->pipe);
 		return 0;
 	}
 

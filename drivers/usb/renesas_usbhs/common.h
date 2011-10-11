@@ -187,8 +187,9 @@ struct usbhs_priv;
 #define BSTS		(1 << 15)	/* Buffer Status */
 #define SUREQ		(1 << 14)	/* Sending SETUP Token */
 #define CSSTS		(1 << 12)	/* CSSTS Status */
-#define SQCLR		(1 << 8)	/* Toggle Bit Clear */
 #define	ACLRM		(1 << 9)	/* Buffer Auto-Clear Mode */
+#define SQCLR		(1 << 8)	/* Toggle Bit Clear */
+#define SQSET		(1 << 7)	/* Toggle Bit Set */
 #define PBUSY		(1 << 5)	/* Pipe Busy */
 #define PID_MASK	(0x3)		/* Response PID */
 #define  PID_NAK	0

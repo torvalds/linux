@@ -82,7 +82,6 @@ int usbhs_pipe_is_dir_host(struct usbhs_pipe *pipe);
 void usbhs_pipe_init(struct usbhs_priv *priv,
 		     int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map));
 int usbhs_pipe_get_maxpacket(struct usbhs_pipe *pipe);
-void usbhs_pipe_clear_sequence(struct usbhs_pipe *pipe);
 void usbhs_pipe_clear(struct usbhs_pipe *pipe);
 int usbhs_pipe_is_accessible(struct usbhs_pipe *pipe);
 void usbhs_pipe_enable(struct usbhs_pipe *pipe);
@@ -91,6 +90,10 @@ void usbhs_pipe_stall(struct usbhs_pipe *pipe);
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo);
 void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
 			      u16 epnum, u16 maxp);
+
+#define usbhs_pipe_sequence_data0(pipe)	usbhs_pipe_data_sequence(pipe, 0)
+#define usbhs_pipe_sequence_data1(pipe)	usbhs_pipe_data_sequence(pipe, 1)
+void usbhs_pipe_data_sequence(struct usbhs_pipe *pipe, int data);
 
 #define usbhs_pipe_to_priv(p)	((p)->priv)
 #define usbhs_pipe_number(p)	(int)((p) - (p)->priv->pipe_info.pipe)
