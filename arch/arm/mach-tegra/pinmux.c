@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include <mach/iomap.h>
 #include <mach/pinmux.h>
@@ -664,6 +665,31 @@ void tegra_pinmux_config_pullupdown_table(const struct tegra_pingroup_config *co
 		}
 	}
 }
+
+static int __devinit tegra_pinmux_probe(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static struct of_device_id tegra_pinmux_of_match[] __devinitdata = {
+	{ .compatible = "nvidia,tegra20-pinmux", },
+	{ },
+};
+
+static struct platform_driver tegra_pinmux_driver = {
+	.driver		= {
+		.name	= "tegra-pinmux",
+		.owner	= THIS_MODULE,
+		.of_match_table = tegra_pinmux_of_match,
+	},
+	.probe		= tegra_pinmux_probe,
+};
+
+static int __init tegra_pinmux_init(void)
+{
+	return platform_driver_register(&tegra_pinmux_driver);
+}
+postcore_initcall(tegra_pinmux_init);
 
 #ifdef	CONFIG_DEBUG_FS
 
