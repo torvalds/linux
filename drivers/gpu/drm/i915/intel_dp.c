@@ -1191,6 +1191,8 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 static void intel_dp_commit(struct drm_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
 
 	ironlake_edp_panel_vdd_on(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
@@ -1202,6 +1204,9 @@ static void intel_dp_commit(struct drm_encoder *encoder)
 	ironlake_edp_backlight_on(intel_dp);
 
 	intel_dp->dpms_mode = DRM_MODE_DPMS_ON;
+
+	if (HAS_PCH_CPT(dev))
+		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
 }
 
 static void
