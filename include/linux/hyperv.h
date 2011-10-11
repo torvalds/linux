@@ -694,10 +694,6 @@ extern void vmbus_get_debug_info(struct vmbus_channel *channel,
 extern void vmbus_ontimer(unsigned long data);
 
 
-#define LOWORD(dw) ((unsigned short)(dw))
-#define HIWORD(dw) ((unsigned short)(((unsigned int) (dw) >> 16) & 0xFFFF))
-
-
 #define VMBUS				0x0001
 #define STORVSC				0x0002
 #define NETVSC				0x0004
