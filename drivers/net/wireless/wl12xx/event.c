@@ -300,6 +300,21 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			wl1271_stop_ba_event(wl);
 	}
 
+	if ((vector & CHANNEL_SWITCH_COMPLETE_EVENT_ID) && !is_ap) {
+		wl1271_debug(DEBUG_EVENT, "CHANNEL_SWITCH_COMPLETE_EVENT_ID. "
+					  "status = 0x%x",
+					  mbox->channel_switch_status);
+		/*
+		 * That event uses for two cases:
+		 * 1) channel switch complete with status=0
+		 * 2) channel switch failed status=1
+		 */
+		if (test_and_clear_bit(WL1271_FLAG_CS_PROGRESS, &wl->flags) &&
+		    (wl->vif))
+			ieee80211_chswitch_done(wl->vif,
+				mbox->channel_switch_status ? false : true);
+	}
+
 	if ((vector & DUMMY_PACKET_EVENT_ID)) {
 		wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
 		if (wl->vif)
