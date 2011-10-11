@@ -141,9 +141,6 @@ static inline void dumpVGAReg(void)
 }
 #endif
 
-/* data for XGI components */
-struct xgifb_video_info xgi_video_info;
-
 #if 1
 #define DEBUGPRN(x)
 #else
@@ -1964,14 +1961,15 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	int ret;
 	bool xgi21_drvlcdcaplist = false;
 	struct fb_info *fb_info;
-	struct xgifb_video_info *xgifb_info = &xgi_video_info;
-	struct xgi_hw_device_info *hw_info = &xgifb_info->hw_info;
+	struct xgifb_video_info *xgifb_info;
+	struct xgi_hw_device_info *hw_info;
 
-	memset(hw_info, 0, sizeof(struct xgi_hw_device_info));
-	fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
+	fb_info = framebuffer_alloc(sizeof(*xgifb_info), &pdev->dev);
 	if (!fb_info)
 		return -ENOMEM;
 
+	xgifb_info = fb_info->par;
+	hw_info = &xgifb_info->hw_info;
 	xgifb_info->fb_info = fb_info;
 	xgifb_info->chip_id = pdev->device;
 	pci_read_config_byte(pdev,
@@ -2104,7 +2102,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	       xgifb_info->mmio_base, xgifb_info->mmio_vbase,
 	       xgifb_info->mmio_size / 1024);
 	printk("XGIfb: XGIInitNew() ...");
-	pci_set_drvdata(pdev, &xgi_video_info);
+	pci_set_drvdata(pdev, xgifb_info);
 	if (XGIInitNew(pdev))
 		printk("OK\n");
 	else
@@ -2378,7 +2376,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	fb_info->flags = FBINFO_FLAG_DEFAULT;
 	fb_info->var = default_var;
 	fb_info->fix = XGIfb_fix;
-	fb_info->par = &xgi_video_info;
 	fb_info->screen_base = xgifb_info->video_vbase;
 	fb_info->fbops = &XGIfb_ops;
 	XGIfb_get_fix(&fb_info->fix, -1, fb_info);

@@ -101,7 +101,4 @@ struct xgifb_video_info {
 	char reserved[236];
 };
 
-
-extern struct xgifb_video_info xgi_video_info;
-
 #endif
