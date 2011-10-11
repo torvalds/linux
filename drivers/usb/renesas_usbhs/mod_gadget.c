@@ -165,6 +165,7 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 	req->status = -EINPROGRESS;
 	usbhs_pkt_push(pipe, pkt, usbhsg_queue_done,
 		       req->buf, req->length, req->zero);
+	usbhs_pkt_start(pipe);
 
 	dev_dbg(dev, "pipe %d : queue push (%d)\n",
 		usbhs_pipe_number(pipe),

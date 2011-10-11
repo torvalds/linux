@@ -93,8 +93,6 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ******************/
-
-	usbhs_pkt_start(pipe);
 }
 
 static void __usbhsf_pkt_del(struct usbhs_pkt *pkt)
