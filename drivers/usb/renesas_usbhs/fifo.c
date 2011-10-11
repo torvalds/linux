@@ -476,6 +476,20 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 	total_len	= len;
 
 	/*
+	 * update actual length first here to decide disable pipe.
+	 * if this pipe keeps BUF status and all data were popped,
+	 * then, next interrupt/token will be issued again
+	 */
+	pkt->actual += total_len;
+
+	if ((pkt->actual == pkt->length) ||	/* receive all data */
+	    (total_len < maxp)) {		/* short packet */
+		*is_done = 1;
+		usbhsf_rx_irq_ctrl(pipe, 0);
+		usbhs_pipe_disable(pipe);	/* disable pipe first */
+	}
+
+	/*
 	 * Buffer clear if Zero-Length packet
 	 *
 	 * see
@@ -505,16 +519,7 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 		buf[i] = (data >> ((i & 0x03) * 8)) & 0xff;
 	}
 
-	pkt->actual += total_len;
-
 usbhs_fifo_read_end:
-	if ((pkt->actual == pkt->length) ||	/* receive all data */
-	    (total_len < maxp)) {		/* short packet */
-		*is_done = 1;
-		usbhsf_rx_irq_ctrl(pipe, 0);
-		usbhs_pipe_disable(pipe);
-	}
-
 	dev_dbg(dev, "  recv %d (%d/ %d/ %d/ %d)\n",
 		usbhs_pipe_number(pipe),
 		pkt->length, pkt->actual, *is_done, pkt->zero);
