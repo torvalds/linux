@@ -42,8 +42,11 @@
 
 struct igb_adapter;
 
-/* ((1000000000ns / (6000ints/s * 1024ns)) << 2 = 648 */
-#define IGB_START_ITR 648
+/* Interrupt defines */
+#define IGB_START_ITR                    648 /* ~6000 ints/sec */
+#define IGB_4K_ITR                       980
+#define IGB_20K_ITR                      196
+#define IGB_70K_ITR                       56
 
 /* TX/RX descriptor defines */
 #define IGB_DEFAULT_TXD                  256
@@ -146,6 +149,7 @@ struct igb_tx_buffer {
 	struct sk_buff *skb;
 	unsigned int bytecount;
 	u16 gso_segs;
+	__be16 protocol;
 	dma_addr_t dma;
 	u32 length;
 	u32 tx_flags;
@@ -174,15 +178,24 @@ struct igb_rx_queue_stats {
 	u64 alloc_failed;
 };
 
-struct igb_q_vector {
-	struct igb_adapter *adapter; /* backlink */
-	struct igb_ring *rx_ring;
-	struct igb_ring *tx_ring;
-	struct napi_struct napi;
+struct igb_ring_container {
+	struct igb_ring *ring;		/* pointer to linked list of rings */
+	unsigned int total_bytes;	/* total bytes processed this int */
+	unsigned int total_packets;	/* total packets processed this int */
+	u16 work_limit;			/* total work allowed per interrupt */
+	u8 count;			/* total number of rings in vector */
+	u8 itr;				/* current ITR setting for ring */
+};
 
-	u32 eims_value;
-	u16 cpu;
-	u16 tx_work_limit;
+struct igb_q_vector {
+	struct igb_adapter *adapter;	/* backlink */
+	int cpu;			/* CPU for DCA */
+	u32 eims_value;			/* EIMS mask value */
+
+	struct igb_ring_container rx, tx;
+
+	struct napi_struct napi;
+	int numa_node;
 
 	u16 itr_val;
 	u8 set_itr;
@@ -212,16 +225,12 @@ struct igb_ring {
 	u16 next_to_clean ____cacheline_aligned_in_smp;
 	u16 next_to_use;
 
-	unsigned int total_bytes;
-	unsigned int total_packets;
-
 	union {
 		/* TX */
 		struct {
 			struct igb_tx_queue_stats tx_stats;
 			struct u64_stats_sync tx_syncp;
 			struct u64_stats_sync tx_syncp2;
-			bool detect_tx_hung;
 		};
 		/* RX */
 		struct {
@@ -231,12 +240,14 @@ struct igb_ring {
 	};
 	/* Items past this point are only used during ring alloc / free */
 	dma_addr_t dma;                /* phys address of the ring */
+	int numa_node;                  /* node to alloc ring memory on */
 };
 
-#define IGB_RING_FLAG_RX_CSUM        0x00000001 /* RX CSUM enabled */
-#define IGB_RING_FLAG_RX_SCTP_CSUM   0x00000002 /* SCTP CSUM offload enabled */
-
-#define IGB_RING_FLAG_TX_CTX_IDX     0x00000001 /* HW requires context index */
+enum e1000_ring_flags_t {
+	IGB_RING_FLAG_RX_SCTP_CSUM,
+	IGB_RING_FLAG_TX_CTX_IDX,
+	IGB_RING_FLAG_TX_DETECT_HANG
+};
 
 #define IGB_TXD_DCMD (E1000_ADVTXD_DCMD_EOP | E1000_ADVTXD_DCMD_RS)
 
@@ -246,6 +257,13 @@ struct igb_ring {
 	(&(((union e1000_adv_tx_desc *)((R)->desc))[i]))
 #define IGB_TX_CTXTDESC(R, i)	    \
 	(&(((struct e1000_adv_tx_context_desc *)((R)->desc))[i]))
+
+/* igb_test_staterr - tests bits within Rx descriptor status and error fields */
+static inline __le32 igb_test_staterr(union e1000_adv_rx_desc *rx_desc,
+				      const u32 stat_err_bits)
+{
+	return rx_desc->wb.upper.status_error & cpu_to_le32(stat_err_bits);
+}
 
 /* igb_desc_unused - calculate if we have unused descriptors */
 static inline int igb_desc_unused(struct igb_ring *ring)
@@ -340,6 +358,7 @@ struct igb_adapter {
 	int vf_rate_link_speed;
 	u32 rss_queues;
 	u32 wvbr;
+	int node;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
