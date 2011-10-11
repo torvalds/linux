@@ -2283,6 +2283,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	struct ip_vs_service *svc;
 	struct ip_vs_dest_user *udest_compat;
 	struct ip_vs_dest_user_kern udest;
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -2303,6 +2304,24 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	/* increase the module use count */
 	ip_vs_use_count_inc();
 
+	/* Handle daemons since they have another lock */
+	if (cmd == IP_VS_SO_SET_STARTDAEMON ||
+	    cmd == IP_VS_SO_SET_STOPDAEMON) {
+		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
+
+		if (mutex_lock_interruptible(&ipvs->sync_mutex)) {
+			ret = -ERESTARTSYS;
+			goto out_dec;
+		}
+		if (cmd == IP_VS_SO_SET_STARTDAEMON)
+			ret = start_sync_thread(net, dm->state, dm->mcast_ifn,
+						dm->syncid);
+		else
+			ret = stop_sync_thread(net, dm->state);
+		mutex_unlock(&ipvs->sync_mutex);
+		goto out_dec;
+	}
+
 	if (mutex_lock_interruptible(&__ip_vs_mutex)) {
 		ret = -ERESTARTSYS;
 		goto out_dec;
@@ -2315,15 +2334,6 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	} else if (cmd == IP_VS_SO_SET_TIMEOUT) {
 		/* Set timeout values for (tcp tcpfin udp) */
 		ret = ip_vs_set_timeout(net, (struct ip_vs_timeout_user *)arg);
-		goto out_unlock;
-	} else if (cmd == IP_VS_SO_SET_STARTDAEMON) {
-		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
-		ret = start_sync_thread(net, dm->state, dm->mcast_ifn,
-					dm->syncid);
-		goto out_unlock;
-	} else if (cmd == IP_VS_SO_SET_STOPDAEMON) {
-		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
-		ret = stop_sync_thread(net, dm->state);
 		goto out_unlock;
 	}
 
@@ -2584,6 +2594,33 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 	if (copy_from_user(arg, user, copylen) != 0)
 		return -EFAULT;
+	/*
+	 * Handle daemons first since it has its own locking
+	 */
+	if (cmd == IP_VS_SO_GET_DAEMON) {
+		struct ip_vs_daemon_user d[2];
+
+		memset(&d, 0, sizeof(d));
+		if (mutex_lock_interruptible(&ipvs->sync_mutex))
+			return -ERESTARTSYS;
+
+		if (ipvs->sync_state & IP_VS_STATE_MASTER) {
+			d[0].state = IP_VS_STATE_MASTER;
+			strlcpy(d[0].mcast_ifn, ipvs->master_mcast_ifn,
+				sizeof(d[0].mcast_ifn));
+			d[0].syncid = ipvs->master_syncid;
+		}
+		if (ipvs->sync_state & IP_VS_STATE_BACKUP) {
+			d[1].state = IP_VS_STATE_BACKUP;
+			strlcpy(d[1].mcast_ifn, ipvs->backup_mcast_ifn,
+				sizeof(d[1].mcast_ifn));
+			d[1].syncid = ipvs->backup_syncid;
+		}
+		if (copy_to_user(user, &d, sizeof(d)) != 0)
+			ret = -EFAULT;
+		mutex_unlock(&ipvs->sync_mutex);
+		return ret;
+	}
 
 	if (mutex_lock_interruptible(&__ip_vs_mutex))
 		return -ERESTARTSYS;
@@ -2677,28 +2714,6 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 		__ip_vs_get_timeouts(net, &t);
 		if (copy_to_user(user, &t, sizeof(t)) != 0)
-			ret = -EFAULT;
-	}
-	break;
-
-	case IP_VS_SO_GET_DAEMON:
-	{
-		struct ip_vs_daemon_user d[2];
-
-		memset(&d, 0, sizeof(d));
-		if (ipvs->sync_state & IP_VS_STATE_MASTER) {
-			d[0].state = IP_VS_STATE_MASTER;
-			strlcpy(d[0].mcast_ifn, ipvs->master_mcast_ifn,
-				sizeof(d[0].mcast_ifn));
-			d[0].syncid = ipvs->master_syncid;
-		}
-		if (ipvs->sync_state & IP_VS_STATE_BACKUP) {
-			d[1].state = IP_VS_STATE_BACKUP;
-			strlcpy(d[1].mcast_ifn, ipvs->backup_mcast_ifn,
-				sizeof(d[1].mcast_ifn));
-			d[1].syncid = ipvs->backup_syncid;
-		}
-		if (copy_to_user(user, &d, sizeof(d)) != 0)
 			ret = -EFAULT;
 	}
 	break;
@@ -3205,7 +3220,7 @@ static int ip_vs_genl_dump_daemons(struct sk_buff *skb,
 	struct net *net = skb_sknet(skb);
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	mutex_lock(&__ip_vs_mutex);
+	mutex_lock(&ipvs->sync_mutex);
 	if ((ipvs->sync_state & IP_VS_STATE_MASTER) && !cb->args[0]) {
 		if (ip_vs_genl_dump_daemon(skb, IP_VS_STATE_MASTER,
 					   ipvs->master_mcast_ifn,
@@ -3225,7 +3240,7 @@ static int ip_vs_genl_dump_daemons(struct sk_buff *skb,
 	}
 
 nla_put_failure:
-	mutex_unlock(&__ip_vs_mutex);
+	mutex_unlock(&ipvs->sync_mutex);
 
 	return skb->len;
 }
@@ -3271,6 +3286,38 @@ static int ip_vs_genl_set_config(struct net *net, struct nlattr **attrs)
 	return ip_vs_set_timeout(net, &t);
 }
 
+static int ip_vs_genl_set_daemon(struct sk_buff *skb, struct genl_info *info)
+{
+	int ret = 0, cmd;
+	struct net *net;
+	struct netns_ipvs *ipvs;
+
+	net = skb_sknet(skb);
+	ipvs = net_ipvs(net);
+	cmd = info->genlhdr->cmd;
+
+	if (cmd == IPVS_CMD_NEW_DAEMON || cmd == IPVS_CMD_DEL_DAEMON) {
+		struct nlattr *daemon_attrs[IPVS_DAEMON_ATTR_MAX + 1];
+
+		mutex_lock(&ipvs->sync_mutex);
+		if (!info->attrs[IPVS_CMD_ATTR_DAEMON] ||
+		    nla_parse_nested(daemon_attrs, IPVS_DAEMON_ATTR_MAX,
+				     info->attrs[IPVS_CMD_ATTR_DAEMON],
+				     ip_vs_daemon_policy)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (cmd == IPVS_CMD_NEW_DAEMON)
+			ret = ip_vs_genl_new_daemon(net, daemon_attrs);
+		else
+			ret = ip_vs_genl_del_daemon(net, daemon_attrs);
+out:
+		mutex_unlock(&ipvs->sync_mutex);
+	}
+	return ret;
+}
+
 static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct ip_vs_service *svc = NULL;
@@ -3292,24 +3339,6 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	} else if (cmd == IPVS_CMD_SET_CONFIG) {
 		ret = ip_vs_genl_set_config(net, info->attrs);
-		goto out;
-	} else if (cmd == IPVS_CMD_NEW_DAEMON ||
-		   cmd == IPVS_CMD_DEL_DAEMON) {
-
-		struct nlattr *daemon_attrs[IPVS_DAEMON_ATTR_MAX + 1];
-
-		if (!info->attrs[IPVS_CMD_ATTR_DAEMON] ||
-		    nla_parse_nested(daemon_attrs, IPVS_DAEMON_ATTR_MAX,
-				     info->attrs[IPVS_CMD_ATTR_DAEMON],
-				     ip_vs_daemon_policy)) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (cmd == IPVS_CMD_NEW_DAEMON)
-			ret = ip_vs_genl_new_daemon(net, daemon_attrs);
-		else
-			ret = ip_vs_genl_del_daemon(net, daemon_attrs);
 		goto out;
 	} else if (cmd == IPVS_CMD_ZERO &&
 		   !info->attrs[IPVS_CMD_ATTR_SERVICE]) {
@@ -3536,13 +3565,13 @@ static struct genl_ops ip_vs_genl_ops[] __read_mostly = {
 		.cmd	= IPVS_CMD_NEW_DAEMON,
 		.flags	= GENL_ADMIN_PERM,
 		.policy	= ip_vs_cmd_policy,
-		.doit	= ip_vs_genl_set_cmd,
+		.doit	= ip_vs_genl_set_daemon,
 	},
 	{
 		.cmd	= IPVS_CMD_DEL_DAEMON,
 		.flags	= GENL_ADMIN_PERM,
 		.policy	= ip_vs_cmd_policy,
-		.doit	= ip_vs_genl_set_cmd,
+		.doit	= ip_vs_genl_set_daemon,
 	},
 	{
 		.cmd	= IPVS_CMD_GET_DAEMON,
