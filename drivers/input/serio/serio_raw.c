@@ -156,7 +156,8 @@ static bool serio_raw_fetch_byte(struct serio_raw *serio_raw, char *c)
 	return !empty;
 }
 
-static ssize_t serio_raw_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t serio_raw_read(struct file *file, char __user *buffer,
+			      size_t count, loff_t *ppos)
 {
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
@@ -187,7 +188,8 @@ static ssize_t serio_raw_read(struct file *file, char __user *buffer, size_t cou
 	return retval;
 }
 
-static ssize_t serio_raw_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
+			       size_t count, loff_t *ppos)
 {
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
@@ -250,7 +252,7 @@ static const struct file_operations serio_raw_fops = {
 
 
 /*********************************************************************
- *                   Interface with serio port   	             *
+ *                   Interface with serio port                       *
  *********************************************************************/
 
 static irqreturn_t serio_raw_interrupt(struct serio *serio, unsigned char data,
@@ -278,14 +280,16 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	struct serio_raw *serio_raw;
 	int err;
 
-	if (!(serio_raw = kzalloc(sizeof(struct serio_raw), GFP_KERNEL))) {
+	serio_raw = kzalloc(sizeof(struct serio_raw), GFP_KERNEL);
+	if (!serio_raw) {
 		dev_dbg(&serio->dev, "can't allocate memory for a device\n");
 		return -ENOMEM;
 	}
 
 	mutex_lock(&serio_raw_mutex);
 
-	snprintf(serio_raw->name, sizeof(serio_raw->name), "serio_raw%d", serio_raw_no++);
+	snprintf(serio_raw->name, sizeof(serio_raw->name),
+		 "serio_raw%d", serio_raw_no++);
 	kref_init(&serio_raw->kref);
 	serio_raw->serio = serio;
 	INIT_LIST_HEAD(&serio_raw->client_list);
