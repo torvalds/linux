@@ -392,6 +392,8 @@ struct vb_device_info {
 	struct XGI_StResInfoStruct   *StResInfo;
 	struct XGI_ModeResInfoStruct *ModeResInfo;
 	struct XGI_XG21CRT1Struct	  *UpdateCRT1;
+
+	int ram_type;
 };  /* _struct vb_device_info */
 
 #endif /* _VB_STRUCT_ */
