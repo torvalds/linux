@@ -264,6 +264,7 @@ void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable);
  */
 void usbhs_bus_send_sof_enable(struct usbhs_priv *priv);
 void usbhs_bus_send_reset(struct usbhs_priv *priv);
+int usbhs_bus_get_speed(struct usbhs_priv *priv);
 int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable);
 
 /*

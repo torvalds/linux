@@ -168,20 +168,6 @@ void usbhs_mod_remove(struct usbhs_priv *priv)
 /*
  *		status functions
  */
-int usbhs_status_get_usb_speed(struct usbhs_irq_state *irq_state)
-{
-	switch (irq_state->dvstctr & RHST) {
-	case RHST_LOW_SPEED:
-		return USB_SPEED_LOW;
-	case RHST_FULL_SPEED:
-		return USB_SPEED_FULL;
-	case RHST_HIGH_SPEED:
-		return USB_SPEED_HIGH;
-	}
-
-	return USB_SPEED_UNKNOWN;
-}
-
 int usbhs_status_get_device_state(struct usbhs_irq_state *irq_state)
 {
 	int state = irq_state->intsts0 & DVSQ_MASK;
@@ -220,8 +206,6 @@ static void usbhs_status_get_each_irq(struct usbhs_priv *priv,
 
 	state->intsts0 = usbhs_read(priv, INTSTS0);
 	state->intsts1 = usbhs_read(priv, INTSTS1);
-
-	state->dvstctr = usbhs_read(priv, DVSTCTR);
 
 	/* mask */
 	if (mod) {

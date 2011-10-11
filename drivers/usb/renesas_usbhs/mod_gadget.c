@@ -353,7 +353,7 @@ static int usbhsg_irq_dev_state(struct usbhs_priv *priv,
 	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
 
-	gpriv->gadget.speed = usbhs_status_get_usb_speed(irq_state);
+	gpriv->gadget.speed = usbhs_bus_get_speed(priv);
 
 	dev_dbg(dev, "state = %x : speed : %d\n",
 		usbhs_status_get_device_state(irq_state),

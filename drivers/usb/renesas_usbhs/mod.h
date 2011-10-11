@@ -30,7 +30,6 @@ struct usbhs_irq_state {
 	u16 brdysts;
 	u16 nrdysts;
 	u16 bempsts;
-	u16 dvstctr;
 };
 
 struct usbhs_mod {
@@ -99,7 +98,6 @@ void usbhs_mod_autonomy_mode(struct usbhs_priv *priv);
 /*
  *		status functions
  */
-int usbhs_status_get_usb_speed(struct usbhs_irq_state *irq_state);
 int usbhs_status_get_device_state(struct usbhs_irq_state *irq_state);
 int usbhs_status_get_ctrl_stage(struct usbhs_irq_state *irq_state);
 

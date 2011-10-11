@@ -159,6 +159,22 @@ void usbhs_bus_send_reset(struct usbhs_priv *priv)
 	usbhs_bset(priv, DVSTCTR, (USBRST | UACT), USBRST);
 }
 
+int usbhs_bus_get_speed(struct usbhs_priv *priv)
+{
+	u16 dvstctr = usbhs_read(priv, DVSTCTR);
+
+	switch (RHST & dvstctr) {
+	case RHST_LOW_SPEED:
+		return USB_SPEED_LOW;
+	case RHST_FULL_SPEED:
+		return USB_SPEED_FULL;
+	case RHST_HIGH_SPEED:
+		return USB_SPEED_HIGH;
+	}
+
+	return USB_SPEED_UNKNOWN;
+}
+
 int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable)
 {
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
