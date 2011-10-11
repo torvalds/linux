@@ -146,10 +146,10 @@ struct l2cap_conninfo {
 #define L2CAP_SUPER_SREJ	0x03
 
 /* L2CAP Segmentation and Reassembly */
-#define L2CAP_SDU_UNSEGMENTED       0x0000
-#define L2CAP_SDU_START             0x4000
-#define L2CAP_SDU_END               0x8000
-#define L2CAP_SDU_CONTINUE          0xC000
+#define L2CAP_SAR_UNSEGMENTED	0x00
+#define L2CAP_SAR_START		0x01
+#define L2CAP_SAR_END		0x02
+#define L2CAP_SAR_CONTINUE	0x03
 
 /* L2CAP Command rej. reasons */
 #define L2CAP_REJ_NOT_UNDERSTOOD	0x0000
@@ -516,7 +516,34 @@ static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 #define __get_reqseq(ctrl)	(((ctrl) & L2CAP_CTRL_REQSEQ) >> 8)
 #define __is_iframe(ctrl)	(!((ctrl) & L2CAP_CTRL_FRAME_TYPE))
 #define __is_sframe(ctrl)	((ctrl) & L2CAP_CTRL_FRAME_TYPE)
-#define __is_sar_start(ctrl)	(((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START)
+static inline __u8 __get_ctrl_sar(struct l2cap_chan *chan, __u32 ctrl)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return (ctrl & L2CAP_EXT_CTRL_SAR) >> L2CAP_EXT_CTRL_SAR_SHIFT;
+	else
+		return (ctrl & L2CAP_CTRL_SAR) >> L2CAP_CTRL_SAR_SHIFT;
+}
+
+static inline __u32 __set_ctrl_sar(struct l2cap_chan *chan, __u32 sar)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return (sar << L2CAP_EXT_CTRL_SAR_SHIFT) & L2CAP_EXT_CTRL_SAR;
+	else
+		return (sar << L2CAP_CTRL_SAR_SHIFT) & L2CAP_CTRL_SAR;
+}
+
+static inline bool __is_sar_start(struct l2cap_chan *chan, __u32 ctrl)
+{
+	return __get_ctrl_sar(chan, ctrl) == L2CAP_SAR_START;
+}
+
+static inline __u32 __get_sar_mask(struct l2cap_chan *chan)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return L2CAP_EXT_CTRL_SAR;
+	else
+		return L2CAP_CTRL_SAR;
+}
 
 static inline __u8 __get_ctrl_super(struct l2cap_chan *chan, __u32 ctrl)
 {

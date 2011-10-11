@@ -1311,7 +1311,7 @@ static void l2cap_retransmit_one_frame(struct l2cap_chan *chan, u8 tx_seq)
 	tx_skb = skb_clone(skb, GFP_ATOMIC);
 	bt_cb(skb)->retries++;
 	control = get_unaligned_le16(tx_skb->data + L2CAP_HDR_SIZE);
-	control &= L2CAP_CTRL_SAR;
+	control &= __get_sar_mask(chan);
 
 	if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
 		control |= L2CAP_CTRL_FINAL;
@@ -1351,7 +1351,7 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 		bt_cb(skb)->retries++;
 
 		control = get_unaligned_le16(tx_skb->data + L2CAP_HDR_SIZE);
-		control &= L2CAP_CTRL_SAR;
+		control &= __get_sar_mask(chan);
 
 		if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
 			control |= L2CAP_CTRL_FINAL;
@@ -1582,7 +1582,7 @@ static int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, si
 	size_t size = 0;
 
 	skb_queue_head_init(&sar_queue);
-	control = L2CAP_SDU_START;
+	control = __set_ctrl_sar(chan, L2CAP_SAR_START);
 	skb = l2cap_create_iframe_pdu(chan, msg, chan->remote_mps, control, len);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -1595,10 +1595,10 @@ static int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, si
 		size_t buflen;
 
 		if (len > chan->remote_mps) {
-			control = L2CAP_SDU_CONTINUE;
+			control = __set_ctrl_sar(chan, L2CAP_SAR_CONTINUE);
 			buflen = chan->remote_mps;
 		} else {
-			control = L2CAP_SDU_END;
+			control = __set_ctrl_sar(chan, L2CAP_SAR_END);
 			buflen = len;
 		}
 
@@ -1654,7 +1654,7 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 	case L2CAP_MODE_STREAMING:
 		/* Entire SDU fits into one PDU */
 		if (len <= chan->remote_mps) {
-			control = L2CAP_SDU_UNSEGMENTED;
+			control = __set_ctrl_sar(chan, L2CAP_SAR_UNSEGMENTED);
 			skb = l2cap_create_iframe_pdu(chan, msg, len, control,
 									0);
 			if (IS_ERR(skb))
@@ -3201,15 +3201,15 @@ static int l2cap_reassemble_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u1
 {
 	int err = -EINVAL;
 
-	switch (control & L2CAP_CTRL_SAR) {
-	case L2CAP_SDU_UNSEGMENTED:
+	switch (__get_ctrl_sar(chan, control)) {
+	case L2CAP_SAR_UNSEGMENTED:
 		if (chan->sdu)
 			break;
 
 		err = chan->ops->recv(chan->data, skb);
 		break;
 
-	case L2CAP_SDU_START:
+	case L2CAP_SAR_START:
 		if (chan->sdu)
 			break;
 
@@ -3231,7 +3231,7 @@ static int l2cap_reassemble_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u1
 		err = 0;
 		break;
 
-	case L2CAP_SDU_CONTINUE:
+	case L2CAP_SAR_CONTINUE:
 		if (!chan->sdu)
 			break;
 
@@ -3245,7 +3245,7 @@ static int l2cap_reassemble_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u1
 		err = 0;
 		break;
 
-	case L2CAP_SDU_END:
+	case L2CAP_SAR_END:
 		if (!chan->sdu)
 			break;
 
@@ -3343,7 +3343,7 @@ static void l2cap_check_srej_gap(struct l2cap_chan *chan, u8 tx_seq)
 			break;
 
 		skb = skb_dequeue(&chan->srej_q);
-		control = bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
+		control = __set_ctrl_sar(chan, bt_cb(skb)->sar);
 		err = l2cap_reassemble_sdu(chan, skb, control);
 
 		if (err < 0) {
@@ -3398,7 +3398,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 {
 	u8 tx_seq = __get_txseq(rx_control);
 	u8 req_seq = __get_reqseq(rx_control);
-	u8 sar = rx_control >> L2CAP_CTRL_SAR_SHIFT;
+	u8 sar = __get_ctrl_sar(chan, rx_control);
 	int tx_seq_offset, expected_tx_seq_offset;
 	int num_to_ack = (chan->tx_win/6) + 1;
 	int err = 0;
@@ -3707,7 +3707,7 @@ static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb)
 	if (l2cap_check_fcs(chan, skb))
 		goto drop;
 
-	if (__is_sar_start(control) && __is_iframe(control))
+	if (__is_sar_start(chan, control) && __is_iframe(control))
 		len -= 2;
 
 	if (chan->fcs == L2CAP_FCS_CRC16)
@@ -3811,7 +3811,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		if (l2cap_check_fcs(chan, skb))
 			goto drop;
 
-		if (__is_sar_start(control))
+		if (__is_sar_start(chan, control))
 			len -= 2;
 
 		if (chan->fcs == L2CAP_FCS_CRC16)
