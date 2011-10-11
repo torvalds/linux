@@ -105,8 +105,12 @@ static int sil680_cable_detect(struct ata_port *ap) {
 
 static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-	static u16 speed_p[5] = { 0x328A, 0x2283, 0x1104, 0x10C3, 0x10C1 };
-	static u16 speed_t[5] = { 0x328A, 0x2283, 0x1281, 0x10C3, 0x10C1 };
+	static const u16 speed_p[5] = {
+		0x328A, 0x2283, 0x1104, 0x10C3, 0x10C1
+	};
+	static const u16 speed_t[5] = {
+		0x328A, 0x2283, 0x1281, 0x10C3, 0x10C1
+	};
 
 	unsigned long tfaddr = sil680_selreg(ap, 0x02);
 	unsigned long addr = sil680_seldev(ap, adev, 0x04);
@@ -153,11 +157,11 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	static u8 ultra_table[2][7] = {
+	static const u8 ultra_table[2][7] = {
 		{ 0x0C, 0x07, 0x05, 0x04, 0x02, 0x01, 0xFF },	/* 100MHz */
 		{ 0x0F, 0x0B, 0x07, 0x05, 0x03, 0x02, 0x01 },	/* 133Mhz */
 	};
-	static u16 dma_table[3] = { 0x2208, 0x10C2, 0x10C1 };
+	static const u16 dma_table[3] = { 0x2208, 0x10C2, 0x10C1 };
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned long ma = sil680_seldev(ap, adev, 0x08);
