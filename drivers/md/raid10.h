@@ -16,7 +16,7 @@ struct mirror_info {
 typedef struct r10bio_s r10bio_t;
 
 struct r10_private_data_s {
-	mddev_t			*mddev;
+	struct mddev		*mddev;
 	mirror_info_t		*mirrors;
 	int			raid_disks;
 	spinlock_t		device_lock;
@@ -87,7 +87,7 @@ struct r10bio_s {
 	sector_t		sector;	/* virtual sector number */
 	int			sectors;
 	unsigned long		state;
-	mddev_t			*mddev;
+	struct mddev		*mddev;
 	/*
 	 * original bio going to /dev/mdx
 	 */

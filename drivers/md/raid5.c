@@ -1719,7 +1719,7 @@ static void raid5_build_block(struct stripe_head *sh, int i, int previous)
 	dev->sector = compute_blocknr(sh, i, previous);
 }
 
-static void error(mddev_t *mddev, struct md_rdev *rdev)
+static void error(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char b[BDEVNAME_SIZE];
 	raid5_conf_t *conf = mddev->private;
@@ -3403,7 +3403,7 @@ static void activate_bit_delay(raid5_conf_t *conf)
 	}
 }
 
-int md_raid5_congested(mddev_t *mddev, int bits)
+int md_raid5_congested(struct mddev *mddev, int bits)
 {
 	raid5_conf_t *conf = mddev->private;
 
@@ -3424,7 +3424,7 @@ EXPORT_SYMBOL_GPL(md_raid5_congested);
 
 static int raid5_congested(void *data, int bits)
 {
-	mddev_t *mddev = data;
+	struct mddev *mddev = data;
 
 	return mddev_congested(mddev, bits) ||
 		md_raid5_congested(mddev, bits);
@@ -3437,7 +3437,7 @@ static int raid5_mergeable_bvec(struct request_queue *q,
 				struct bvec_merge_data *bvm,
 				struct bio_vec *biovec)
 {
-	mddev_t *mddev = q->queuedata;
+	struct mddev *mddev = q->queuedata;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 	int max;
 	unsigned int chunk_sectors = mddev->chunk_sectors;
@@ -3457,7 +3457,7 @@ static int raid5_mergeable_bvec(struct request_queue *q,
 }
 
 
-static int in_chunk_boundary(mddev_t *mddev, struct bio *bio)
+static int in_chunk_boundary(struct mddev *mddev, struct bio *bio)
 {
 	sector_t sector = bio->bi_sector + get_start_sect(bio->bi_bdev);
 	unsigned int chunk_sectors = mddev->chunk_sectors;
@@ -3520,7 +3520,7 @@ static struct bio *remove_bio_from_retry(raid5_conf_t *conf)
 static void raid5_align_endio(struct bio *bi, int error)
 {
 	struct bio* raid_bi  = bi->bi_private;
-	mddev_t *mddev;
+	struct mddev *mddev;
 	raid5_conf_t *conf;
 	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
 	struct md_rdev *rdev;
@@ -3567,7 +3567,7 @@ static int bio_fits_rdev(struct bio *bi)
 }
 
 
-static int chunk_aligned_read(mddev_t *mddev, struct bio * raid_bio)
+static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
 {
 	raid5_conf_t *conf = mddev->private;
 	int dd_idx;
@@ -3688,7 +3688,7 @@ static struct stripe_head *__get_priority_stripe(raid5_conf_t *conf)
 	return sh;
 }
 
-static int make_request(mddev_t *mddev, struct bio * bi)
+static int make_request(struct mddev *mddev, struct bio * bi)
 {
 	raid5_conf_t *conf = mddev->private;
 	int dd_idx;
@@ -3848,9 +3848,9 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 	return 0;
 }
 
-static sector_t raid5_size(mddev_t *mddev, sector_t sectors, int raid_disks);
+static sector_t raid5_size(struct mddev *mddev, sector_t sectors, int raid_disks);
 
-static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped)
+static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *skipped)
 {
 	/* reshaping is quite different to recovery/resync so it is
 	 * handled quite separately ... here.
@@ -4068,7 +4068,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 }
 
 /* FIXME go_faster isn't used */
-static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster)
+static inline sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipped, int go_faster)
 {
 	raid5_conf_t *conf = mddev->private;
 	struct stripe_head *sh;
@@ -4227,7 +4227,7 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
  * During the scan, completed stripes are saved for us by the interrupt
  * handler, so that they will not have to wait for our next wakeup.
  */
-static void raid5d(mddev_t *mddev)
+static void raid5d(struct mddev *mddev)
 {
 	struct stripe_head *sh;
 	raid5_conf_t *conf = mddev->private;
@@ -4294,7 +4294,7 @@ static void raid5d(mddev_t *mddev)
 }
 
 static ssize_t
-raid5_show_stripe_cache_size(mddev_t *mddev, char *page)
+raid5_show_stripe_cache_size(struct mddev *mddev, char *page)
 {
 	raid5_conf_t *conf = mddev->private;
 	if (conf)
@@ -4304,7 +4304,7 @@ raid5_show_stripe_cache_size(mddev_t *mddev, char *page)
 }
 
 int
-raid5_set_cache_size(mddev_t *mddev, int size)
+raid5_set_cache_size(struct mddev *mddev, int size)
 {
 	raid5_conf_t *conf = mddev->private;
 	int err;
@@ -4330,7 +4330,7 @@ raid5_set_cache_size(mddev_t *mddev, int size)
 EXPORT_SYMBOL(raid5_set_cache_size);
 
 static ssize_t
-raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
+raid5_store_stripe_cache_size(struct mddev *mddev, const char *page, size_t len)
 {
 	raid5_conf_t *conf = mddev->private;
 	unsigned long new;
@@ -4355,7 +4355,7 @@ raid5_stripecache_size = __ATTR(stripe_cache_size, S_IRUGO | S_IWUSR,
 				raid5_store_stripe_cache_size);
 
 static ssize_t
-raid5_show_preread_threshold(mddev_t *mddev, char *page)
+raid5_show_preread_threshold(struct mddev *mddev, char *page)
 {
 	raid5_conf_t *conf = mddev->private;
 	if (conf)
@@ -4365,7 +4365,7 @@ raid5_show_preread_threshold(mddev_t *mddev, char *page)
 }
 
 static ssize_t
-raid5_store_preread_threshold(mddev_t *mddev, const char *page, size_t len)
+raid5_store_preread_threshold(struct mddev *mddev, const char *page, size_t len)
 {
 	raid5_conf_t *conf = mddev->private;
 	unsigned long new;
@@ -4389,7 +4389,7 @@ raid5_preread_bypass_threshold = __ATTR(preread_bypass_threshold,
 					raid5_store_preread_threshold);
 
 static ssize_t
-stripe_cache_active_show(mddev_t *mddev, char *page)
+stripe_cache_active_show(struct mddev *mddev, char *page)
 {
 	raid5_conf_t *conf = mddev->private;
 	if (conf)
@@ -4413,7 +4413,7 @@ static struct attribute_group raid5_attrs_group = {
 };
 
 static sector_t
-raid5_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+raid5_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	raid5_conf_t *conf = mddev->private;
 
@@ -4540,7 +4540,7 @@ static int raid5_alloc_percpu(raid5_conf_t *conf)
 	return err;
 }
 
-static raid5_conf_t *setup_conf(mddev_t *mddev)
+static raid5_conf_t *setup_conf(struct mddev *mddev)
 {
 	raid5_conf_t *conf;
 	int raid_disk, memory, max_disks;
@@ -4705,7 +4705,7 @@ static int only_parity(int raid_disk, int algo, int raid_disks, int max_degraded
 	return 0;
 }
 
-static int run(mddev_t *mddev)
+static int run(struct mddev *mddev)
 {
 	raid5_conf_t *conf;
 	int working_disks = 0;
@@ -4942,7 +4942,7 @@ abort:
 	return -EIO;
 }
 
-static int stop(mddev_t *mddev)
+static int stop(struct mddev *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
 
@@ -4955,7 +4955,7 @@ static int stop(mddev_t *mddev)
 	return 0;
 }
 
-static void status(struct seq_file *seq, mddev_t *mddev)
+static void status(struct seq_file *seq, struct mddev *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
 	int i;
@@ -4994,7 +4994,7 @@ static void print_raid5_conf (raid5_conf_t *conf)
 	}
 }
 
-static int raid5_spare_active(mddev_t *mddev)
+static int raid5_spare_active(struct mddev *mddev)
 {
 	int i;
 	raid5_conf_t *conf = mddev->private;
@@ -5019,7 +5019,7 @@ static int raid5_spare_active(mddev_t *mddev)
 	return count;
 }
 
-static int raid5_remove_disk(mddev_t *mddev, int number)
+static int raid5_remove_disk(struct mddev *mddev, int number)
 {
 	raid5_conf_t *conf = mddev->private;
 	int err = 0;
@@ -5062,7 +5062,7 @@ abort:
 	return err;
 }
 
-static int raid5_add_disk(mddev_t *mddev, struct md_rdev *rdev)
+static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
 	raid5_conf_t *conf = mddev->private;
 	int err = -EEXIST;
@@ -5105,7 +5105,7 @@ static int raid5_add_disk(mddev_t *mddev, struct md_rdev *rdev)
 	return err;
 }
 
-static int raid5_resize(mddev_t *mddev, sector_t sectors)
+static int raid5_resize(struct mddev *mddev, sector_t sectors)
 {
 	/* no resync is happening, and there is enough space
 	 * on all devices, so we can resize.
@@ -5132,7 +5132,7 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 	return 0;
 }
 
-static int check_stripe_cache(mddev_t *mddev)
+static int check_stripe_cache(struct mddev *mddev)
 {
 	/* Can only proceed if there are plenty of stripe_heads.
 	 * We need a minimum of one full stripe,, and for sensible progress
@@ -5156,7 +5156,7 @@ static int check_stripe_cache(mddev_t *mddev)
 	return 1;
 }
 
-static int check_reshape(mddev_t *mddev)
+static int check_reshape(struct mddev *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
 
@@ -5188,7 +5188,7 @@ static int check_reshape(mddev_t *mddev)
 	return resize_stripes(conf, conf->raid_disks + mddev->delta_disks);
 }
 
-static int raid5_start_reshape(mddev_t *mddev)
+static int raid5_start_reshape(struct mddev *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
 	struct md_rdev *rdev;
@@ -5332,7 +5332,7 @@ static void end_reshape(raid5_conf_t *conf)
 /* This is called from the raid5d thread with mddev_lock held.
  * It makes config changes to the device.
  */
-static void raid5_finish_reshape(mddev_t *mddev)
+static void raid5_finish_reshape(struct mddev *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
 
@@ -5367,7 +5367,7 @@ static void raid5_finish_reshape(mddev_t *mddev)
 	}
 }
 
-static void raid5_quiesce(mddev_t *mddev, int state)
+static void raid5_quiesce(struct mddev *mddev, int state)
 {
 	raid5_conf_t *conf = mddev->private;
 
@@ -5403,7 +5403,7 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 }
 
 
-static void *raid45_takeover_raid0(mddev_t *mddev, int level)
+static void *raid45_takeover_raid0(struct mddev *mddev, int level)
 {
 	struct raid0_private_data *raid0_priv = mddev->private;
 	sector_t sectors;
@@ -5430,7 +5430,7 @@ static void *raid45_takeover_raid0(mddev_t *mddev, int level)
 }
 
 
-static void *raid5_takeover_raid1(mddev_t *mddev)
+static void *raid5_takeover_raid1(struct mddev *mddev)
 {
 	int chunksect;
 
@@ -5457,7 +5457,7 @@ static void *raid5_takeover_raid1(mddev_t *mddev)
 	return setup_conf(mddev);
 }
 
-static void *raid5_takeover_raid6(mddev_t *mddev)
+static void *raid5_takeover_raid6(struct mddev *mddev)
 {
 	int new_layout;
 
@@ -5491,7 +5491,7 @@ static void *raid5_takeover_raid6(mddev_t *mddev)
 }
 
 
-static int raid5_check_reshape(mddev_t *mddev)
+static int raid5_check_reshape(struct mddev *mddev)
 {
 	/* For a 2-drive array, the layout and chunk size can be changed
 	 * immediately as not restriping is needed.
@@ -5531,7 +5531,7 @@ static int raid5_check_reshape(mddev_t *mddev)
 	return check_reshape(mddev);
 }
 
-static int raid6_check_reshape(mddev_t *mddev)
+static int raid6_check_reshape(struct mddev *mddev)
 {
 	int new_chunk = mddev->new_chunk_sectors;
 
@@ -5551,7 +5551,7 @@ static int raid6_check_reshape(mddev_t *mddev)
 	return check_reshape(mddev);
 }
 
-static void *raid5_takeover(mddev_t *mddev)
+static void *raid5_takeover(struct mddev *mddev)
 {
 	/* raid5 can take over:
 	 *  raid0 - if there is only one strip zone - make it a raid4 layout
@@ -5574,7 +5574,7 @@ static void *raid5_takeover(mddev_t *mddev)
 	return ERR_PTR(-EINVAL);
 }
 
-static void *raid4_takeover(mddev_t *mddev)
+static void *raid4_takeover(struct mddev *mddev)
 {
 	/* raid4 can take over:
 	 *  raid0 - if there is only one strip zone
@@ -5593,7 +5593,7 @@ static void *raid4_takeover(mddev_t *mddev)
 
 static struct mdk_personality raid5_personality;
 
-static void *raid6_takeover(mddev_t *mddev)
+static void *raid6_takeover(struct mddev *mddev)
 {
 	/* Currently can only take over a raid5.  We map the
 	 * personality to an equivalent raid6 personality

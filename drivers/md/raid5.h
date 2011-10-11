@@ -349,7 +349,7 @@ struct disk_info {
 
 struct raid5_private_data {
 	struct hlist_head	*stripe_hashtbl;
-	mddev_t			*mddev;
+	struct mddev		*mddev;
 	struct disk_info	*spare;
 	int			chunk_sectors;
 	int			level, algorithm;
@@ -503,7 +503,7 @@ static inline int algorithm_is_DDF(int layout)
 	return layout >= 8 && layout <= 10;
 }
 
-extern int md_raid5_congested(mddev_t *mddev, int bits);
+extern int md_raid5_congested(struct mddev *mddev, int bits);
 extern void md_raid5_kick_device(raid5_conf_t *conf);
-extern int raid5_set_cache_size(mddev_t *mddev, int size);
+extern int raid5_set_cache_size(struct mddev *mddev, int size);
 #endif

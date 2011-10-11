@@ -169,7 +169,7 @@ static void add_sector(conf_t *conf, sector_t start, int mode)
 		conf->nfaults = n+1;
 }
 
-static int make_request(mddev_t *mddev, struct bio *bio)
+static int make_request(struct mddev *mddev, struct bio *bio)
 {
 	conf_t *conf = mddev->private;
 	int failit = 0;
@@ -222,7 +222,7 @@ static int make_request(mddev_t *mddev, struct bio *bio)
 	}
 }
 
-static void status(struct seq_file *seq, mddev_t *mddev)
+static void status(struct seq_file *seq, struct mddev *mddev)
 {
 	conf_t *conf = mddev->private;
 	int n;
@@ -255,7 +255,7 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 }
 
 
-static int reshape(mddev_t *mddev)
+static int reshape(struct mddev *mddev)
 {
 	int mode = mddev->new_layout & ModeMask;
 	int count = mddev->new_layout >> ModeShift;
@@ -284,7 +284,7 @@ static int reshape(mddev_t *mddev)
 	return 0;
 }
 
-static sector_t faulty_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+static sector_t faulty_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	WARN_ONCE(raid_disks,
 		  "%s does not support generic reshape\n", __func__);
@@ -295,7 +295,7 @@ static sector_t faulty_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	return sectors;
 }
 
-static int run(mddev_t *mddev)
+static int run(struct mddev *mddev)
 {
 	struct md_rdev *rdev;
 	int i;
@@ -325,7 +325,7 @@ static int run(mddev_t *mddev)
 	return 0;
 }
 
-static int stop(mddev_t *mddev)
+static int stop(struct mddev *mddev)
 {
 	conf_t *conf = mddev->private;
 

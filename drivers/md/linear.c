@@ -26,7 +26,7 @@
 /*
  * find which device holds a particular offset 
  */
-static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
+static inline dev_info_t *which_dev(struct mddev *mddev, sector_t sector)
 {
 	int lo, mid, hi;
 	linear_conf_t *conf;
@@ -63,7 +63,7 @@ static int linear_mergeable_bvec(struct request_queue *q,
 				 struct bvec_merge_data *bvm,
 				 struct bio_vec *biovec)
 {
-	mddev_t *mddev = q->queuedata;
+	struct mddev *mddev = q->queuedata;
 	dev_info_t *dev0;
 	unsigned long maxsectors, bio_sectors = bvm->bi_size >> 9;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
@@ -89,7 +89,7 @@ static int linear_mergeable_bvec(struct request_queue *q,
 
 static int linear_congested(void *data, int bits)
 {
-	mddev_t *mddev = data;
+	struct mddev *mddev = data;
 	linear_conf_t *conf;
 	int i, ret = 0;
 
@@ -108,7 +108,7 @@ static int linear_congested(void *data, int bits)
 	return ret;
 }
 
-static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+static sector_t linear_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	linear_conf_t *conf;
 	sector_t array_sectors;
@@ -123,7 +123,7 @@ static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	return array_sectors;
 }
 
-static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
+static linear_conf_t *linear_conf(struct mddev *mddev, int raid_disks)
 {
 	linear_conf_t *conf;
 	struct md_rdev *rdev;
@@ -194,7 +194,7 @@ out:
 	return NULL;
 }
 
-static int linear_run (mddev_t *mddev)
+static int linear_run (struct mddev *mddev)
 {
 	linear_conf_t *conf;
 
@@ -213,7 +213,7 @@ static int linear_run (mddev_t *mddev)
 	return md_integrity_register(mddev);
 }
 
-static int linear_add(mddev_t *mddev, struct md_rdev *rdev)
+static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 {
 	/* Adding a drive to a linear array allows the array to grow.
 	 * It is permitted if the new drive has a matching superblock
@@ -245,7 +245,7 @@ static int linear_add(mddev_t *mddev, struct md_rdev *rdev)
 	return 0;
 }
 
-static int linear_stop (mddev_t *mddev)
+static int linear_stop (struct mddev *mddev)
 {
 	linear_conf_t *conf = mddev->private;
 
@@ -264,7 +264,7 @@ static int linear_stop (mddev_t *mddev)
 	return 0;
 }
 
-static int linear_make_request (mddev_t *mddev, struct bio *bio)
+static int linear_make_request (struct mddev *mddev, struct bio *bio)
 {
 	dev_info_t *tmp_dev;
 	sector_t start_sector;
@@ -323,7 +323,7 @@ static int linear_make_request (mddev_t *mddev, struct bio *bio)
 	return 1;
 }
 
-static void linear_status (struct seq_file *seq, mddev_t *mddev)
+static void linear_status (struct seq_file *seq, struct mddev *mddev)
 {
 
 	seq_printf(seq, " %dk rounding", mddev->chunk_sectors / 2);

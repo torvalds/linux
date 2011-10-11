@@ -6,7 +6,7 @@ struct multipath_info {
 };
 
 struct multipath_private_data {
-	mddev_t			*mddev;
+	struct mddev			*mddev;
 	struct multipath_info	*multipaths;
 	int			raid_disks;
 	spinlock_t		device_lock;
@@ -24,7 +24,7 @@ typedef struct multipath_private_data multipath_conf_t;
  */
 
 struct multipath_bh {
-	mddev_t			*mddev;
+	struct mddev			*mddev;
 	struct bio		*master_bio;
 	struct bio		bio;
 	int			path;

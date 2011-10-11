@@ -57,7 +57,7 @@ struct raid_set {
 
 	uint64_t print_flags;
 
-	struct mddev_s md;
+	struct mddev md;
 	struct raid_type *raid_type;
 	struct dm_target_callbacks callbacks;
 
@@ -611,7 +611,7 @@ static int read_disk_sb(struct md_rdev *rdev, int size)
 	return 0;
 }
 
-static void super_sync(mddev_t *mddev, struct md_rdev *rdev)
+static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct md_rdev *r, *t;
 	uint64_t failed_devices;
@@ -689,7 +689,7 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 	return (events_sb > events_refsb) ? 1 : 0;
 }
 
-static int super_init_validation(mddev_t *mddev, struct md_rdev *rdev)
+static int super_init_validation(struct mddev *mddev, struct md_rdev *rdev)
 {
 	int role;
 	struct raid_set *rs = container_of(mddev, struct raid_set, md);
@@ -809,7 +809,7 @@ static int super_init_validation(mddev_t *mddev, struct md_rdev *rdev)
 	return 0;
 }
 
-static int super_validate(mddev_t *mddev, struct md_rdev *rdev)
+static int super_validate(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct dm_raid_superblock *sb = page_address(rdev->sb_page);
 
@@ -850,7 +850,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 {
 	int ret;
 	struct md_rdev *rdev, *freshest, *tmp;
-	mddev_t *mddev = &rs->md;
+	struct mddev *mddev = &rs->md;
 
 	freshest = NULL;
 	rdev_for_each(rdev, tmp, mddev) {
@@ -1004,7 +1004,7 @@ static void raid_dtr(struct dm_target *ti)
 static int raid_map(struct dm_target *ti, struct bio *bio, union map_info *map_context)
 {
 	struct raid_set *rs = ti->private;
-	mddev_t *mddev = &rs->md;
+	struct mddev *mddev = &rs->md;
 
 	mddev->pers->make_request(mddev, bio);
 

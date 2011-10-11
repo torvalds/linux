@@ -179,7 +179,7 @@ static void bitmap_checkfree(struct bitmap *bitmap, unsigned long page)
  */
 
 /* IO operations when bitmap is stored near all superblocks */
-static struct page *read_sb_page(mddev_t *mddev, loff_t offset,
+static struct page *read_sb_page(struct mddev *mddev, loff_t offset,
 				 struct page *page,
 				 unsigned long index, int size)
 {
@@ -218,7 +218,7 @@ static struct page *read_sb_page(mddev_t *mddev, loff_t offset,
 
 }
 
-static struct md_rdev *next_active_rdev(struct md_rdev *rdev, mddev_t *mddev)
+static struct md_rdev *next_active_rdev(struct md_rdev *rdev, struct mddev *mddev)
 {
 	/* Iterate the disks of an mddev, using rcu to protect access to the
 	 * linked list, and raising the refcount of devices we return to ensure
@@ -256,7 +256,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
 	struct md_rdev *rdev = NULL;
 	struct block_device *bdev;
-	mddev_t *mddev = bitmap->mddev;
+	struct mddev *mddev = bitmap->mddev;
 
 	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 		int size = PAGE_SIZE;
@@ -1157,7 +1157,7 @@ static bitmap_counter_t *bitmap_get_counter(struct bitmap *bitmap,
  *			out to disk
  */
 
-void bitmap_daemon_work(mddev_t *mddev)
+void bitmap_daemon_work(struct mddev *mddev)
 {
 	struct bitmap *bitmap;
 	unsigned long j;
@@ -1647,7 +1647,7 @@ void bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long e)
 /*
  * flush out any pending updates
  */
-void bitmap_flush(mddev_t *mddev)
+void bitmap_flush(struct mddev *mddev)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 	long sleep;
@@ -1695,7 +1695,7 @@ static void bitmap_free(struct bitmap *bitmap)
 	kfree(bitmap);
 }
 
-void bitmap_destroy(mddev_t *mddev)
+void bitmap_destroy(struct mddev *mddev)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 
@@ -1718,7 +1718,7 @@ void bitmap_destroy(mddev_t *mddev)
  * initialize the bitmap structure
  * if this returns an error, bitmap_destroy must be called to do clean up
  */
-int bitmap_create(mddev_t *mddev)
+int bitmap_create(struct mddev *mddev)
 {
 	struct bitmap *bitmap;
 	sector_t blocks = mddev->resync_max_sectors;
@@ -1822,7 +1822,7 @@ int bitmap_create(mddev_t *mddev)
 	return err;
 }
 
-int bitmap_load(mddev_t *mddev)
+int bitmap_load(struct mddev *mddev)
 {
 	int err = 0;
 	sector_t start = 0;
@@ -1868,7 +1868,7 @@ out:
 EXPORT_SYMBOL_GPL(bitmap_load);
 
 static ssize_t
-location_show(mddev_t *mddev, char *page)
+location_show(struct mddev *mddev, char *page)
 {
 	ssize_t len;
 	if (mddev->bitmap_info.file)
@@ -1882,7 +1882,7 @@ location_show(mddev_t *mddev, char *page)
 }
 
 static ssize_t
-location_store(mddev_t *mddev, const char *buf, size_t len)
+location_store(struct mddev *mddev, const char *buf, size_t len)
 {
 
 	if (mddev->pers) {
@@ -1959,7 +1959,7 @@ static struct md_sysfs_entry bitmap_location =
 __ATTR(location, S_IRUGO|S_IWUSR, location_show, location_store);
 
 static ssize_t
-timeout_show(mddev_t *mddev, char *page)
+timeout_show(struct mddev *mddev, char *page)
 {
 	ssize_t len;
 	unsigned long secs = mddev->bitmap_info.daemon_sleep / HZ;
@@ -1973,7 +1973,7 @@ timeout_show(mddev_t *mddev, char *page)
 }
 
 static ssize_t
-timeout_store(mddev_t *mddev, const char *buf, size_t len)
+timeout_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	/* timeout can be set at any time */
 	unsigned long timeout;
@@ -2009,13 +2009,13 @@ static struct md_sysfs_entry bitmap_timeout =
 __ATTR(time_base, S_IRUGO|S_IWUSR, timeout_show, timeout_store);
 
 static ssize_t
-backlog_show(mddev_t *mddev, char *page)
+backlog_show(struct mddev *mddev, char *page)
 {
 	return sprintf(page, "%lu\n", mddev->bitmap_info.max_write_behind);
 }
 
 static ssize_t
-backlog_store(mddev_t *mddev, const char *buf, size_t len)
+backlog_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	unsigned long backlog;
 	int rv = strict_strtoul(buf, 10, &backlog);
@@ -2031,13 +2031,13 @@ static struct md_sysfs_entry bitmap_backlog =
 __ATTR(backlog, S_IRUGO|S_IWUSR, backlog_show, backlog_store);
 
 static ssize_t
-chunksize_show(mddev_t *mddev, char *page)
+chunksize_show(struct mddev *mddev, char *page)
 {
 	return sprintf(page, "%lu\n", mddev->bitmap_info.chunksize);
 }
 
 static ssize_t
-chunksize_store(mddev_t *mddev, const char *buf, size_t len)
+chunksize_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	/* Can only be changed when no bitmap is active */
 	int rv;
@@ -2057,13 +2057,13 @@ chunksize_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry bitmap_chunksize =
 __ATTR(chunksize, S_IRUGO|S_IWUSR, chunksize_show, chunksize_store);
 
-static ssize_t metadata_show(mddev_t *mddev, char *page)
+static ssize_t metadata_show(struct mddev *mddev, char *page)
 {
 	return sprintf(page, "%s\n", (mddev->bitmap_info.external
 				      ? "external" : "internal"));
 }
 
-static ssize_t metadata_store(mddev_t *mddev, const char *buf, size_t len)
+static ssize_t metadata_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	if (mddev->bitmap ||
 	    mddev->bitmap_info.file ||
@@ -2081,7 +2081,7 @@ static ssize_t metadata_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry bitmap_metadata =
 __ATTR(metadata, S_IRUGO|S_IWUSR, metadata_show, metadata_store);
 
-static ssize_t can_clear_show(mddev_t *mddev, char *page)
+static ssize_t can_clear_show(struct mddev *mddev, char *page)
 {
 	int len;
 	if (mddev->bitmap)
@@ -2092,7 +2092,7 @@ static ssize_t can_clear_show(mddev_t *mddev, char *page)
 	return len;
 }
 
-static ssize_t can_clear_store(mddev_t *mddev, const char *buf, size_t len)
+static ssize_t can_clear_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	if (mddev->bitmap == NULL)
 		return -ENOENT;
@@ -2111,7 +2111,7 @@ static struct md_sysfs_entry bitmap_can_clear =
 __ATTR(can_clear, S_IRUGO|S_IWUSR, can_clear_show, can_clear_store);
 
 static ssize_t
-behind_writes_used_show(mddev_t *mddev, char *page)
+behind_writes_used_show(struct mddev *mddev, char *page)
 {
 	if (mddev->bitmap == NULL)
 		return sprintf(page, "0\n");
@@ -2120,7 +2120,7 @@ behind_writes_used_show(mddev_t *mddev, char *page)
 }
 
 static ssize_t
-behind_writes_used_reset(mddev_t *mddev, const char *buf, size_t len)
+behind_writes_used_reset(struct mddev *mddev, const char *buf, size_t len)
 {
 	if (mddev->bitmap)
 		mddev->bitmap->behind_writes_used = 0;

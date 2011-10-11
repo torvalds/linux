@@ -58,7 +58,7 @@ static int multipath_map (multipath_conf_t *conf)
 static void multipath_reschedule_retry (struct multipath_bh *mp_bh)
 {
 	unsigned long flags;
-	mddev_t *mddev = mp_bh->mddev;
+	struct mddev *mddev = mp_bh->mddev;
 	multipath_conf_t *conf = mddev->private;
 
 	spin_lock_irqsave(&conf->device_lock, flags);
@@ -106,7 +106,7 @@ static void multipath_end_request(struct bio *bio, int error)
 	rdev_dec_pending(rdev, conf->mddev);
 }
 
-static int multipath_make_request(mddev_t *mddev, struct bio * bio)
+static int multipath_make_request(struct mddev *mddev, struct bio * bio)
 {
 	multipath_conf_t *conf = mddev->private;
 	struct multipath_bh * mp_bh;
@@ -140,7 +140,7 @@ static int multipath_make_request(mddev_t *mddev, struct bio * bio)
 	return 0;
 }
 
-static void multipath_status (struct seq_file *seq, mddev_t *mddev)
+static void multipath_status (struct seq_file *seq, struct mddev *mddev)
 {
 	multipath_conf_t *conf = mddev->private;
 	int i;
@@ -156,7 +156,7 @@ static void multipath_status (struct seq_file *seq, mddev_t *mddev)
 
 static int multipath_congested(void *data, int bits)
 {
-	mddev_t *mddev = data;
+	struct mddev *mddev = data;
 	multipath_conf_t *conf = mddev->private;
 	int i, ret = 0;
 
@@ -183,7 +183,7 @@ static int multipath_congested(void *data, int bits)
 /*
  * Careful, this can execute in IRQ contexts as well!
  */
-static void multipath_error (mddev_t *mddev, struct md_rdev *rdev)
+static void multipath_error (struct mddev *mddev, struct md_rdev *rdev)
 {
 	multipath_conf_t *conf = mddev->private;
 	char b[BDEVNAME_SIZE];
@@ -242,7 +242,7 @@ static void print_multipath_conf (multipath_conf_t *conf)
 }
 
 
-static int multipath_add_disk(mddev_t *mddev, struct md_rdev *rdev)
+static int multipath_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
 	multipath_conf_t *conf = mddev->private;
 	struct request_queue *q;
@@ -291,7 +291,7 @@ static int multipath_add_disk(mddev_t *mddev, struct md_rdev *rdev)
 	return err;
 }
 
-static int multipath_remove_disk(mddev_t *mddev, int number)
+static int multipath_remove_disk(struct mddev *mddev, int number)
 {
 	multipath_conf_t *conf = mddev->private;
 	int err = 0;
@@ -335,7 +335,7 @@ abort:
  *	3.	Performs writes following reads for array syncronising.
  */
 
-static void multipathd (mddev_t *mddev)
+static void multipathd (struct mddev *mddev)
 {
 	struct multipath_bh *mp_bh;
 	struct bio *bio;
@@ -379,7 +379,7 @@ static void multipathd (mddev_t *mddev)
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 }
 
-static sector_t multipath_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+static sector_t multipath_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	WARN_ONCE(sectors || raid_disks,
 		  "%s does not support generic reshape\n", __func__);
@@ -387,7 +387,7 @@ static sector_t multipath_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	return mddev->dev_sectors;
 }
 
-static int multipath_run (mddev_t *mddev)
+static int multipath_run (struct mddev *mddev)
 {
 	multipath_conf_t *conf;
 	int disk_idx;
@@ -510,7 +510,7 @@ out:
 }
 
 
-static int multipath_stop (mddev_t *mddev)
+static int multipath_stop (struct mddev *mddev)
 {
 	multipath_conf_t *conf = mddev->private;
 

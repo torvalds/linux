@@ -17,7 +17,7 @@ struct mirror_info {
  */
 
 struct pool_info {
-	mddev_t *mddev;
+	struct mddev *mddev;
 	int	raid_disks;
 };
 
@@ -25,7 +25,7 @@ struct pool_info {
 typedef struct r1bio_s r1bio_t;
 
 struct r1_private_data_s {
-	mddev_t			*mddev;
+	struct mddev		*mddev;
 	mirror_info_t		*mirrors;
 	int			raid_disks;
 
@@ -114,7 +114,7 @@ struct r1bio_s {
 	sector_t		sector;
 	int			sectors;
 	unsigned long		state;
-	mddev_t			*mddev;
+	struct mddev		*mddev;
 	/*
 	 * original bio going to /dev/mdx
 	 */
@@ -173,6 +173,6 @@ struct r1bio_s {
 #define	R1BIO_MadeGood 7
 #define	R1BIO_WriteError 8
 
-extern int md_raid1_congested(mddev_t *mddev, int bits);
+extern int md_raid1_congested(struct mddev *mddev, int bits);
 
 #endif
