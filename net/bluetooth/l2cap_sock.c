@@ -459,7 +459,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 			break;
 		}
 
-		pwr.force_active = chan->force_active;
+		pwr.force_active = test_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 
 		len = min_t(unsigned int, len, sizeof(pwr));
 		if (copy_to_user(optval, (char *) &pwr, len))
@@ -680,7 +680,11 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 			err = -EFAULT;
 			break;
 		}
-		chan->force_active = pwr.force_active;
+
+		if (pwr.force_active)
+			set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
+		else
+			clear_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 		break;
 
 	default:
@@ -939,7 +943,6 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->sec_level = pchan->sec_level;
 		chan->role_switch = pchan->role_switch;
 		chan->flags = pchan->flags;
-		chan->force_active = pchan->force_active;
 	} else {
 
 		switch (sk->sk_type) {
@@ -969,8 +972,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->sec_level = BT_SECURITY_LOW;
 		chan->role_switch = 0;
 		chan->flags = 0;
-		chan->force_active = BT_POWER_FORCE_ACTIVE_ON;
-
+		set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 	}
 
 	/* Default config options */
