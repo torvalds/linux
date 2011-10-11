@@ -195,7 +195,7 @@ config UNIX98_PTYS
 
 source "drivers/char/pcmcia/Kconfig"
 
-source "drivers/serial/Kconfig"
+source "drivers/tty/serial/Kconfig"
 
 source "drivers/i2c/Kconfig"
 
