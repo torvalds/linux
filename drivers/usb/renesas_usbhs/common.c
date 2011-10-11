@@ -227,6 +227,48 @@ static void usbhsc_bus_init(struct usbhs_priv *priv)
 }
 
 /*
+ *		device configuration
+ */
+int usbhs_set_device_speed(struct usbhs_priv *priv, int devnum,
+			   u16 upphub, u16 hubport, u16 speed)
+{
+	struct device *dev = usbhs_priv_to_dev(priv);
+	u16 usbspd = 0;
+	u32 reg = DEVADD0 + (2 * devnum);
+
+	if (devnum > 10) {
+		dev_err(dev, "cannot set speed to unknown device %d\n", devnum);
+		return -EIO;
+	}
+
+	if (upphub > 0xA) {
+		dev_err(dev, "unsupported hub number %d\n", upphub);
+		return -EIO;
+	}
+
+	switch (speed) {
+	case USB_SPEED_LOW:
+		usbspd = USBSPD_SPEED_LOW;
+		break;
+	case USB_SPEED_FULL:
+		usbspd = USBSPD_SPEED_FULL;
+		break;
+	case USB_SPEED_HIGH:
+		usbspd = USBSPD_SPEED_HIGH;
+		break;
+	default:
+		dev_err(dev, "unsupported speed %d\n", speed);
+		return -EIO;
+	}
+
+	usbhs_write(priv, reg,	UPPHUB(upphub)	|
+				HUBPORT(hubport)|
+				USBSPD(usbspd));
+
+	return 0;
+}
+
+/*
  *		local functions
  */
 static void usbhsc_set_buswait(struct usbhs_priv *priv)

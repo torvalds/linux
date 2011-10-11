@@ -90,6 +90,17 @@ struct usbhs_priv;
 #define PIPE9TRN	0x00BA
 #define PIPEATRE	0x00BC
 #define PIPEATRN	0x00BE
+#define DEVADD0		0x00D0 /* Device address n configuration */
+#define DEVADD1		0x00D2
+#define DEVADD2		0x00D4
+#define DEVADD3		0x00D6
+#define DEVADD4		0x00D8
+#define DEVADD5		0x00DA
+#define DEVADD6		0x00DC
+#define DEVADD7		0x00DE
+#define DEVADD8		0x00E0
+#define DEVADD9		0x00E2
+#define DEVADDA		0x00E4
 
 /* SYSCFG */
 #define SCKE	(1 << 10)	/* USB Module Clock Enable */
@@ -206,6 +217,14 @@ struct usbhs_priv;
 /* FRMNUM */
 #define FRNM_MASK	(0x7FF)
 
+/* DEVADDn */
+#define UPPHUB(x)	(((x) & 0xF) << 11)	/* HUB Register */
+#define HUBPORT(x)	(((x) & 0x7) << 8)	/* HUB Port for Target Device */
+#define USBSPD(x)	(((x) & 0x3) << 6)	/* Device Transfer Rate */
+#define USBSPD_SPEED_LOW	0x1
+#define USBSPD_SPEED_FULL	0x2
+#define USBSPD_SPEED_HIGH	0x3
+
 /*
  *		struct
  */
@@ -279,6 +298,12 @@ int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable);
  * frame
  */
 int usbhs_frame_get_num(struct usbhs_priv *priv);
+
+/*
+ * device config
+ */
+int usbhs_set_device_speed(struct usbhs_priv *priv, int devnum, u16 upphub,
+			   u16 hubport, u16 speed);
 
 /*
  * data
