@@ -3031,15 +3031,15 @@ static void *raid10_takeover_raid0(struct mddev *mddev)
 
 static void *raid10_takeover(struct mddev *mddev)
 {
-	struct raid0_private_data *raid0_priv;
+	struct r0conf *raid0_conf;
 
 	/* raid10 can take over:
 	 *  raid0 - providing it has only two drives
 	 */
 	if (mddev->level == 0) {
 		/* for raid0 takeover only one zone is supported */
-		raid0_priv = mddev->private;
-		if (raid0_priv->nr_strip_zones > 1) {
+		raid0_conf = mddev->private;
+		if (raid0_conf->nr_strip_zones > 1) {
 			printk(KERN_ERR "md/raid10:%s: cannot takeover raid 0"
 			       " with more than one zone.\n",
 			       mdname(mddev));

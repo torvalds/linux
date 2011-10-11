@@ -5405,18 +5405,18 @@ static void raid5_quiesce(struct mddev *mddev, int state)
 
 static void *raid45_takeover_raid0(struct mddev *mddev, int level)
 {
-	struct raid0_private_data *raid0_priv = mddev->private;
+	struct r0conf *raid0_conf = mddev->private;
 	sector_t sectors;
 
 	/* for raid0 takeover only one zone is supported */
-	if (raid0_priv->nr_strip_zones > 1) {
+	if (raid0_conf->nr_strip_zones > 1) {
 		printk(KERN_ERR "md/raid:%s: cannot takeover raid0 with more than one zone.\n",
 		       mdname(mddev));
 		return ERR_PTR(-EINVAL);
 	}
 
-	sectors = raid0_priv->strip_zone[0].zone_end;
-	sector_div(sectors, raid0_priv->strip_zone[0].nb_dev);
+	sectors = raid0_conf->strip_zone[0].zone_end;
+	sector_div(sectors, raid0_conf->strip_zone[0].nb_dev);
 	mddev->dev_sectors = sectors;
 	mddev->new_level = level;
 	mddev->new_layout = ALGORITHM_PARITY_N;
