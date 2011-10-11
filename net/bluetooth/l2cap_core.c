@@ -948,7 +948,7 @@ static void l2cap_conn_unreliable(struct l2cap_conn *conn, int err)
 	list_for_each_entry(chan, &conn->chan_l, list) {
 		struct sock *sk = chan->sk;
 
-		if (chan->force_reliable)
+		if (test_bit(FLAG_FORCE_RELIABLE, &chan->flags))
 			sk->sk_err = err;
 	}
 
