@@ -101,6 +101,14 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	if (!rfkill)
 		return -ENOMEM;
 
+	if (pdata->gpio_runtime_setup) {
+		ret = pdata->gpio_runtime_setup(pdev);
+		if (ret) {
+			pr_warn("%s: can't set up gpio\n", __func__);
+			return ret;
+		}
+	}
+
 	rfkill->pdata = pdata;
 
 	len = strlen(pdata->name);
@@ -182,7 +190,10 @@ fail_alloc:
 static int rfkill_gpio_remove(struct platform_device *pdev)
 {
 	struct rfkill_gpio_data *rfkill = platform_get_drvdata(pdev);
+	struct rfkill_gpio_platform_data *pdata = pdev->dev.platform_data;
 
+	if (pdata->gpio_runtime_close)
+		pdata->gpio_runtime_close(pdev);
 	rfkill_unregister(rfkill->rfkill_dev);
 	rfkill_destroy(rfkill->rfkill_dev);
 	if (gpio_is_valid(rfkill->pdata->shutdown_gpio))

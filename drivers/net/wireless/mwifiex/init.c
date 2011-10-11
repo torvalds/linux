@@ -76,7 +76,7 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 	memset(priv->curr_addr, 0xff, ETH_ALEN);
 
 	priv->pkt_tx_ctrl = 0;
-	priv->bss_mode = NL80211_IFTYPE_STATION;
+	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->data_rate = 0;	/* Initially indicate the rate as auto */
 	priv->is_data_rate_auto = true;
 	priv->bcn_avg_factor = DEFAULT_BCN_AVG_FACTOR;

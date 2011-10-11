@@ -2273,9 +2273,6 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
 
-	if (!sta || !lq_sta)
-		return;
-
 	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
 
 	tid = rs_tl_add_packet(lq_sta, hdr);

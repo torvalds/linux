@@ -223,7 +223,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	status = WLAN_STATUS_REQUEST_DECLINED;
 
-	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA)) {
+	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Suspend in progress. "
 		       "Denying ADDBA request\n");

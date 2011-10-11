@@ -34,8 +34,12 @@ enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_TRC	        = BIT(11),    /* generic func tracing */
 	ATH6KL_DBG_SCATTER	= BIT(12),    /* hif scatter tracing */
 	ATH6KL_DBG_WLAN_CFG     = BIT(13),    /* cfg80211 i/f file tracing */
-	ATH6KL_DBG_RAW_BYTES    = BIT(14),    /* dump tx/rx and wmi frames */
+	ATH6KL_DBG_RAW_BYTES    = BIT(14),    /* dump tx/rx frames */
 	ATH6KL_DBG_AGGR		= BIT(15),    /* aggregation */
+	ATH6KL_DBG_SDIO		= BIT(16),
+	ATH6KL_DBG_SDIO_DUMP	= BIT(17),
+	ATH6KL_DBG_BOOT		= BIT(18),    /* driver init and fw boot */
+	ATH6KL_DBG_WMI_DUMP	= BIT(19),
 	ATH6KL_DBG_ANY	        = 0xffffffff  /* enable all logs */
 };
 
@@ -52,6 +56,10 @@ extern int ath6kl_printk(const char *level, const char *fmt, ...)
 
 #define AR_DBG_LVL_CHECK(mask)	(debug_mask & mask)
 
+enum ath6kl_war {
+	ATH6KL_WAR_INVALID_RATE,
+};
+
 #ifdef CONFIG_ATH6KL_DEBUG
 #define ath6kl_dbg(mask, fmt, ...)					\
 	({								\
@@ -65,12 +73,14 @@ extern int ath6kl_printk(const char *level, const char *fmt, ...)
 	 })
 
 static inline void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
-				   const char *msg, const void *buf,
-				   size_t len)
+				   const char *msg, const char *prefix,
+				   const void *buf, size_t len)
 {
 	if (debug_mask & mask) {
-		ath6kl_dbg(mask, "%s\n", msg);
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, buf, len);
+		if (msg)
+			ath6kl_dbg(mask, "%s\n", msg);
+
+		print_hex_dump_bytes(prefix, DUMP_PREFIX_OFFSET, buf, len);
 	}
 }
 
@@ -78,6 +88,11 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			   struct ath6kl_irq_proc_registers *irq_proc_reg,
 			   struct ath6kl_irq_enable_reg *irq_en_reg);
 void dump_cred_dist_stats(struct htc_target *target);
+void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len);
+void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war);
+int ath6kl_debug_init(struct ath6kl *ar);
+void ath6kl_debug_cleanup(struct ath6kl *ar);
+
 #else
 static inline int ath6kl_dbg(enum ATH6K_DEBUG_MASK dbg_mask,
 			     const char *fmt, ...)
@@ -86,8 +101,8 @@ static inline int ath6kl_dbg(enum ATH6K_DEBUG_MASK dbg_mask,
 }
 
 static inline void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
-				   const char *msg, const void *buf,
-				   size_t len)
+				   const char *msg, const char *prefix,
+				   const void *buf, size_t len)
 {
 }
 
@@ -100,6 +115,24 @@ static inline void ath6kl_dump_registers(struct ath6kl_device *dev,
 static inline void dump_cred_dist_stats(struct htc_target *target)
 {
 }
-#endif
 
+static inline void ath6kl_debug_fwlog_event(struct ath6kl *ar,
+					    const void *buf, size_t len)
+{
+}
+
+static inline void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war)
+{
+}
+
+static inline int ath6kl_debug_init(struct ath6kl *ar)
+{
+	return 0;
+}
+
+static inline void ath6kl_debug_cleanup(struct ath6kl *ar)
+{
+}
+
+#endif
 #endif

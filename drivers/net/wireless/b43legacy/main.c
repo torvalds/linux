@@ -2466,7 +2466,8 @@ out:
 	}
 }
 
-static int b43legacy_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int b43legacy_op_conf_tx(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif, u16 queue,
 				const struct ieee80211_tx_queue_params *params)
 {
 	return 0;

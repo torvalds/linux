@@ -141,8 +141,9 @@ static void brcms_ops_sta_notify(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      enum sta_notify_cmd cmd,
 			      struct ieee80211_sta *sta);
-static int brcms_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
-			  const struct ieee80211_tx_queue_params *params);
+static int brcms_ops_conf_tx(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif, u16 queue,
+			     const struct ieee80211_tx_queue_params *params);
 static u64 brcms_ops_get_tsf(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
 static int brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -556,7 +557,7 @@ brcms_ops_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 static int
-brcms_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
+brcms_ops_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct brcms_info *wl = hw->priv;

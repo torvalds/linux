@@ -21,10 +21,12 @@
 #include <linux/rtnetlink.h>
 #include <linux/firmware.h>
 #include <linux/sched.h>
+#include <linux/circ_buf.h>
 #include <net/cfg80211.h>
 #include "htc.h"
 #include "wmi.h"
 #include "bmi.h"
+#include "target.h"
 
 #define MAX_ATH6KL                        1
 #define ATH6KL_MAX_RX_BUFFERS             16
@@ -42,6 +44,9 @@
 #define ATH6KL_MAX_ENDPOINTS   4
 #define MAX_NODE_NUM           15
 
+/* Extra bytes for htc header alignment */
+#define ATH6KL_HTC_ALIGN_BYTES 3
+
 /* MAX_HI_COOKIE_NUM are reserved for high priority traffic */
 #define MAX_DEF_COOKIE_NUM                180
 #define MAX_HI_COOKIE_NUM                 18	/* 10% of MAX_COOKIE_NUM */
@@ -53,6 +58,35 @@
 #define A_DEFAULT_LISTEN_INTERVAL         100
 #define A_MAX_WOW_LISTEN_INTERVAL         1000
 
+/* includes also the null byte */
+#define ATH6KL_FIRMWARE_MAGIC               "QCA-ATH6KL"
+
+enum ath6kl_fw_ie_type {
+	ATH6KL_FW_IE_FW_VERSION = 0,
+	ATH6KL_FW_IE_TIMESTAMP = 1,
+	ATH6KL_FW_IE_OTP_IMAGE = 2,
+	ATH6KL_FW_IE_FW_IMAGE = 3,
+	ATH6KL_FW_IE_PATCH_IMAGE = 4,
+	ATH6KL_FW_IE_RESERVED_RAM_SIZE = 5,
+	ATH6KL_FW_IE_CAPABILITIES = 6,
+	ATH6KL_FW_IE_PATCH_ADDR = 7,
+};
+
+enum ath6kl_fw_capability {
+	ATH6KL_FW_CAPABILITY_HOST_P2P = 0,
+
+	/* this needs to be last */
+	ATH6KL_FW_CAPABILITY_MAX,
+};
+
+#define ATH6KL_CAPABILITY_LEN (ALIGN(ATH6KL_FW_CAPABILITY_MAX, 32) / 32)
+
+struct ath6kl_fw_ie {
+	__le32 id;
+	__le32 len;
+	u8 data[0];
+};
+
 /* AR6003 1.0 definitions */
 #define AR6003_REV1_VERSION                 0x300002ba
 
@@ -61,7 +95,9 @@
 #define AR6003_REV2_PATCH_DOWNLOAD_ADDRESS  0x57e910
 #define AR6003_REV2_OTP_FILE                "ath6k/AR6003/hw2.0/otp.bin.z77"
 #define AR6003_REV2_FIRMWARE_FILE           "ath6k/AR6003/hw2.0/athwlan.bin.z77"
+#define AR6003_REV2_TCMD_FIRMWARE_FILE      "ath6k/AR6003/hw2.0/athtcmd_ram.bin"
 #define AR6003_REV2_PATCH_FILE              "ath6k/AR6003/hw2.0/data.patch.bin"
+#define AR6003_REV2_FIRMWARE_2_FILE         "ath6k/AR6003/hw2.0/fw-2.bin"
 #define AR6003_REV2_BOARD_DATA_FILE         "ath6k/AR6003/hw2.0/bdata.bin"
 #define AR6003_REV2_DEFAULT_BOARD_DATA_FILE "ath6k/AR6003/hw2.0/bdata.SD31.bin"
 
@@ -69,10 +105,20 @@
 #define AR6003_REV3_VERSION                 0x30000582
 #define AR6003_REV3_OTP_FILE                "ath6k/AR6003/hw2.1.1/otp.bin"
 #define AR6003_REV3_FIRMWARE_FILE           "ath6k/AR6003/hw2.1.1/athwlan.bin"
+#define AR6003_REV3_TCMD_FIRMWARE_FILE    "ath6k/AR6003/hw2.1.1/athtcmd_ram.bin"
 #define AR6003_REV3_PATCH_FILE            "ath6k/AR6003/hw2.1.1/data.patch.bin"
+#define AR6003_REV3_FIRMWARE_2_FILE           "ath6k/AR6003/hw2.1.1/fw-2.bin"
 #define AR6003_REV3_BOARD_DATA_FILE       "ath6k/AR6003/hw2.1.1/bdata.bin"
 #define AR6003_REV3_DEFAULT_BOARD_DATA_FILE	\
 	"ath6k/AR6003/hw2.1.1/bdata.SD31.bin"
+
+/* AR6004 1.0 definitions */
+#define AR6004_REV1_VERSION                 0x30000623
+#define AR6004_REV1_FIRMWARE_FILE           "ath6k/AR6004/hw6.1/fw.ram.bin"
+#define AR6004_REV1_FIRMWARE_2_FILE         "ath6k/AR6004/hw6.1/fw-2.bin"
+#define AR6004_REV1_BOARD_DATA_FILE         "ath6k/AR6004/hw6.1/bdata.bin"
+#define AR6004_REV1_DEFAULT_BOARD_DATA_FILE "ath6k/AR6004/hw6.1/bdata.DB132.bin"
+#define AR6004_REV1_EPPING_FIRMWARE_FILE "ath6k/AR6004/hw6.1/endpointping.bin"
 
 /* Per STA data, used in AP mode */
 #define STA_PS_AWAKE		BIT(0)
@@ -325,26 +371,13 @@ struct ath6kl_mbox_info {
 #define ATH6KL_KEY_RECV  0x02
 #define ATH6KL_KEY_DEFAULT   0x80	/* default xmit key */
 
-/*
- * WPA/RSN get/set key request.  Specify the key/cipher
- * type and whether the key is to be used for sending and/or
- * receiving.  The key index should be set only when working
- * with global keys (use IEEE80211_KEYIX_NONE for ``no index'').
- * Otherwise a unicast/pairwise key is specified by the bssid
- * (on a station) or mac address (on an ap).  They key length
- * must include any MIC key data; otherwise it should be no
- * more than ATH6KL_KEYBUF_SIZE.
- */
+/* Initial group key for AP mode */
 struct ath6kl_req_key {
-	u8 ik_type;	/* key/cipher type */
-	u8 ik_pad;
-	u16 ik_keyix;	/* key index */
-	u8 ik_keylen;	/* key length in bytes */
-	u8 ik_flags;
-	u8 ik_macaddr[ETH_ALEN];
-	u64 ik_keyrsc;	/* key receive sequence counter */
-	u64 ik_keytsc;	/* key transmit sequence counter */
-	u8 ik_keydata[ATH6KL_KEYBUF_SIZE + ATH6KL_MICBUF_SIZE];
+	bool valid;
+	u8 key_index;
+	int key_type;
+	u8 key[WLAN_MAX_KEY_LEN];
+	u8 key_len;
 };
 
 /* Flag info */
@@ -361,6 +394,9 @@ struct ath6kl_req_key {
 #define NETDEV_REGISTERED    10
 #define SKIP_SCAN	     11
 #define WLAN_ENABLED	     12
+#define TESTMODE	     13
+#define CLEAR_BSSFILTER_ON_BEACON 14
+#define DTIM_PERIOD_AVAIL    15
 
 struct ath6kl {
 	struct device *dev;
@@ -383,7 +419,7 @@ struct ath6kl {
 	u8 prwise_crypto;
 	u8 prwise_crypto_len;
 	u8 grp_crypto;
-	u8 grp_crpto_len;
+	u8 grp_crypto_len;
 	u8 def_txkey_index;
 	struct ath6kl_wep_key wep_key_list[WMI_MAX_KEY_INDEX + 1];
 	u8 bssid[ETH_ALEN];
@@ -392,6 +428,7 @@ struct ath6kl {
 	u16 bss_ch;
 	u16 listen_intvl_b;
 	u16 listen_intvl_t;
+	u8 lrssi_roam_threshold;
 	struct ath6kl_version version;
 	u32 target_type;
 	u8 tx_pwr;
@@ -432,7 +469,18 @@ struct ath6kl {
 	enum wlan_low_pwr_state wlan_pwr_state;
 	struct wmi_scan_params_cmd sc_params;
 #define AR_MCAST_FILTER_MAC_ADDR_SIZE  4
-	u8 auto_auth_stage;
+	struct {
+		void *rx_report;
+		size_t rx_report_len;
+	} tm;
+
+	struct {
+		u32 dataset_patch_addr;
+		u32 app_load_addr;
+		u32 app_start_override_addr;
+		u32 board_ext_data_addr;
+		u32 reserved_ram_size;
+	} hw;
 
 	u16 conf_flags;
 	wait_queue_head_t event_wq;
@@ -454,9 +502,35 @@ struct ath6kl {
 	u8 *fw_patch;
 	size_t fw_patch_len;
 
+	unsigned long fw_capabilities[ATH6KL_CAPABILITY_LEN];
+
 	struct workqueue_struct *ath6kl_wq;
 
-	struct ath6kl_node_table scan_table;
+	struct dentry *debugfs_phy;
+
+	u32 send_action_id;
+	bool probe_req_report;
+	u16 next_chan;
+
+	bool p2p;
+	u16 assoc_bss_beacon_int;
+	u8 assoc_bss_dtim_period;
+
+#ifdef CONFIG_ATH6KL_DEBUG
+	struct {
+		struct circ_buf fwlog_buf;
+		spinlock_t fwlog_lock;
+		void *fwlog_tmp;
+		u32 fwlog_mask;
+		unsigned int dbgfs_diag_reg;
+		u32 diag_reg_addr_wr;
+		u32 diag_reg_val_wr;
+
+		struct {
+			unsigned int invalid_rate;
+		} war_stats;
+	} debug;
+#endif /* CONFIG_ATH6KL_DEBUG */
 };
 
 static inline void *ath6kl_priv(struct net_device *dev)
@@ -474,6 +548,19 @@ static inline void ath6kl_deposit_credit_to_ep(struct htc_credit_state_info
 	cred_info->cur_free_credits -= credits;
 }
 
+static inline u32 ath6kl_get_hi_item_addr(struct ath6kl *ar,
+					  u32 item_offset)
+{
+	u32 addr = 0;
+
+	if (ar->target_type == TARGET_TYPE_AR6003)
+		addr = ATH6KL_AR6003_HI_START_ADDR + item_offset;
+	else if (ar->target_type == TARGET_TYPE_AR6004)
+		addr = ATH6KL_AR6004_HI_START_ADDR + item_offset;
+
+	return addr;
+}
+
 void ath6kl_destroy(struct net_device *dev, unsigned int unregister);
 int ath6kl_configure_target(struct ath6kl *ar);
 void ath6kl_detect_error(unsigned long ptr);
@@ -487,9 +574,11 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 					       struct htc_packet *packet);
 void ath6kl_stop_txrx(struct ath6kl *ar);
 void ath6kl_cleanup_amsdu_rxbufs(struct ath6kl *ar);
-int ath6kl_access_datadiag(struct ath6kl *ar, u32 address,
-			   u8 *data, u32 length, bool read);
-int ath6kl_read_reg_diag(struct ath6kl *ar, u32 *address, u32 *data);
+int ath6kl_diag_write32(struct ath6kl *ar, u32 address, __le32 value);
+int ath6kl_diag_write(struct ath6kl *ar, u32 address, void *data, u32 length);
+int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value);
+int ath6kl_diag_read(struct ath6kl *ar, u32 address, void *data, u32 length);
+int ath6kl_read_fwlogs(struct ath6kl *ar);
 void ath6kl_init_profile_info(struct ath6kl *ar);
 void ath6kl_tx_data_cleanup(struct ath6kl *ar);
 void ath6kl_stop_endpoint(struct net_device *dev, bool keep_profile,
@@ -520,6 +609,10 @@ void ath6kl_connect_event(struct ath6kl *ar, u16 channel,
 			  u16 beacon_int, enum network_type net_type,
 			  u8 beacon_ie_len, u8 assoc_req_len,
 			  u8 assoc_resp_len, u8 *assoc_info);
+void ath6kl_connect_ap_mode_bss(struct ath6kl *ar, u16 channel);
+void ath6kl_connect_ap_mode_sta(struct ath6kl *ar, u16 aid, u8 *mac_addr,
+				u8 keymgmt, u8 ucipher, u8 auth,
+				u8 assoc_req_len, u8 *assoc_info);
 void ath6kl_disconnect_event(struct ath6kl *ar, u8 reason,
 			     u8 *bssid, u8 assoc_resp_len,
 			     u8 *assoc_info, u16 prot_reason_status);
@@ -534,11 +627,11 @@ void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid);
 
 void ath6kl_dtimexpiry_event(struct ath6kl *ar);
 void ath6kl_disconnect(struct ath6kl *ar);
+void ath6kl_deep_sleep_enable(struct ath6kl *ar);
 void aggr_recv_delba_req_evt(struct ath6kl *ar, u8 tid);
 void aggr_recv_addba_req_evt(struct ath6kl *ar, u8 tid, u16 seq_no,
 			     u8 win_sz);
 void ath6kl_wakeup_event(void *dev);
 void ath6kl_target_failure(struct ath6kl *ar);
 
-void ath6kl_cfg80211_scan_node(struct wiphy *wiphy, struct bss *ni);
 #endif /* CORE_H */

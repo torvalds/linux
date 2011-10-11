@@ -759,6 +759,12 @@ struct ieee80211_mgmt {
 					u8 action;
 					u8 smps_control;
 				} __attribute__ ((packed)) ht_smps;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					__le16 capability;
+					u8 variable[0];
+				} __packed tdls_discover_resp;
 			} u;
 		} __attribute__ ((packed)) action;
 	} u;
@@ -804,6 +810,52 @@ struct ieee80211_pspoll {
 	u8 bssid[6];
 	u8 ta[6];
 } __attribute__ ((packed));
+
+/* TDLS */
+
+/* Link-id information element */
+struct ieee80211_tdls_lnkie {
+	u8 ie_type; /* Link Identifier IE */
+	u8 ie_len;
+	u8 bssid[6];
+	u8 init_sta[6];
+	u8 resp_sta[6];
+} __packed;
+
+struct ieee80211_tdls_data {
+	u8 da[6];
+	u8 sa[6];
+	__be16 ether_type;
+	u8 payload_type;
+	u8 category;
+	u8 action_code;
+	union {
+		struct {
+			u8 dialog_token;
+			__le16 capability;
+			u8 variable[0];
+		} __packed setup_req;
+		struct {
+			__le16 status_code;
+			u8 dialog_token;
+			__le16 capability;
+			u8 variable[0];
+		} __packed setup_resp;
+		struct {
+			__le16 status_code;
+			u8 dialog_token;
+			u8 variable[0];
+		} __packed setup_cfm;
+		struct {
+			__le16 reason_code;
+			u8 variable[0];
+		} __packed teardown;
+		struct {
+			u8 dialog_token;
+			u8 variable[0];
+		} __packed discover_req;
+	} u;
+} __packed;
 
 /**
  * struct ieee80211_bar - HT Block Ack Request
@@ -1196,6 +1248,8 @@ enum ieee80211_eid {
 	WLAN_EID_TS_DELAY = 43,
 	WLAN_EID_TCLAS_PROCESSING = 44,
 	WLAN_EID_QOS_CAPA = 46,
+	/* 802.11z */
+	WLAN_EID_LINK_ID = 101,
 	/* 802.11s */
 	WLAN_EID_MESH_CONFIG = 113,
 	WLAN_EID_MESH_ID = 114,
@@ -1279,6 +1333,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_HT = 7,
 	WLAN_CATEGORY_SA_QUERY = 8,
 	WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION = 9,
+	WLAN_CATEGORY_TDLS = 12,
 	WLAN_CATEGORY_MESH_ACTION = 13,
 	WLAN_CATEGORY_MULTIHOP_ACTION = 14,
 	WLAN_CATEGORY_SELF_PROTECTED = 15,
@@ -1341,6 +1396,36 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_TKIP = 32,
 	WLAN_KEY_LEN_AES_CMAC = 16,
 };
+
+/* Public action codes */
+enum ieee80211_pub_actioncode {
+	WLAN_PUB_ACTION_TDLS_DISCOVER_RES = 14,
+};
+
+/* TDLS action codes */
+enum ieee80211_tdls_actioncode {
+	WLAN_TDLS_SETUP_REQUEST = 0,
+	WLAN_TDLS_SETUP_RESPONSE = 1,
+	WLAN_TDLS_SETUP_CONFIRM = 2,
+	WLAN_TDLS_TEARDOWN = 3,
+	WLAN_TDLS_PEER_TRAFFIC_INDICATION = 4,
+	WLAN_TDLS_CHANNEL_SWITCH_REQUEST = 5,
+	WLAN_TDLS_CHANNEL_SWITCH_RESPONSE = 6,
+	WLAN_TDLS_PEER_PSM_REQUEST = 7,
+	WLAN_TDLS_PEER_PSM_RESPONSE = 8,
+	WLAN_TDLS_PEER_TRAFFIC_RESPONSE = 9,
+	WLAN_TDLS_DISCOVERY_REQUEST = 10,
+};
+
+/*
+ * TDLS capabililites to be enabled in the 5th byte of the
+ * @WLAN_EID_EXT_CAPABILITY information element
+ */
+#define WLAN_EXT_CAPA5_TDLS_ENABLED	BIT(5)
+#define WLAN_EXT_CAPA5_TDLS_PROHIBITED	BIT(6)
+
+/* TDLS specific payload type in the LLC/SNAP header */
+#define WLAN_TDLS_SNAP_RFTYPE	0x2
 
 /**
  * enum - mesh path selection protocol identifier

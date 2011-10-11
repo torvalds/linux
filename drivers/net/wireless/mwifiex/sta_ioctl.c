@@ -720,51 +720,9 @@ done:
 static int mwifiex_rate_ioctl_get_rate_value(struct mwifiex_private *priv,
 					     struct mwifiex_rate_cfg *rate_cfg)
 {
-	struct mwifiex_adapter *adapter = priv->adapter;
-
 	rate_cfg->is_rate_auto = priv->is_data_rate_auto;
-	if (!priv->media_connected) {
-		switch (adapter->config_bands) {
-		case BAND_B:
-			/* Return the lowest supported rate for B band */
-			rate_cfg->rate = supported_rates_b[0] & 0x7f;
-			break;
-		case BAND_G:
-		case BAND_G | BAND_GN:
-			/* Return the lowest supported rate for G band */
-			rate_cfg->rate = supported_rates_g[0] & 0x7f;
-			break;
-		case BAND_B | BAND_G:
-		case BAND_A | BAND_B | BAND_G:
-		case BAND_A | BAND_B:
-		case BAND_A | BAND_B | BAND_G | BAND_AN | BAND_GN:
-		case BAND_B | BAND_G | BAND_GN:
-			/* Return the lowest supported rate for BG band */
-			rate_cfg->rate = supported_rates_bg[0] & 0x7f;
-			break;
-		case BAND_A:
-		case BAND_A | BAND_G:
-		case BAND_A | BAND_G | BAND_AN | BAND_GN:
-		case BAND_A | BAND_AN:
-			/* Return the lowest supported rate for A band */
-			rate_cfg->rate = supported_rates_a[0] & 0x7f;
-			break;
-		case BAND_GN:
-			/* Return the lowest supported rate for N band */
-			rate_cfg->rate = supported_rates_n[0] & 0x7f;
-			break;
-		default:
-			dev_warn(adapter->dev, "invalid band %#x\n",
-			       adapter->config_bands);
-			break;
-		}
-	} else {
-		return mwifiex_send_cmd_sync(priv,
-					    HostCmd_CMD_802_11_TX_RATE_QUERY,
-					    HostCmd_ACT_GEN_GET, 0, NULL);
-	}
-
-	return 0;
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_TX_RATE_QUERY,
+				     HostCmd_ACT_GEN_GET, 0, NULL);
 }
 
 /*

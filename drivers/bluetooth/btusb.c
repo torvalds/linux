@@ -60,6 +60,9 @@ static struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth USB device */
 	{ USB_DEVICE_INFO(0xe0, 0x01, 0x01) },
 
+	/* Broadcom SoftSailing reporting vendor specific */
+	{ USB_DEVICE(0x05ac, 0x21e1) },
+
 	/* Apple MacBookPro 7,1 */
 	{ USB_DEVICE(0x05ac, 0x8213) },
 
@@ -708,8 +711,7 @@ static int btusb_send_frame(struct sk_buff *skb)
 		break;
 
 	case HCI_ACLDATA_PKT:
-		if (!data->bulk_tx_ep || (hdev->conn_hash.acl_num < 1 &&
-						hdev->conn_hash.le_num < 1))
+		if (!data->bulk_tx_ep)
 			return -ENODEV;
 
 		urb = usb_alloc_urb(0, GFP_ATOMIC);

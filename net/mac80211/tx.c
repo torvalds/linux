@@ -253,7 +253,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
-	u32 sta_flags;
+	bool assoc = false;
 
 	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED))
 		return TX_CONTINUE;
@@ -284,10 +284,11 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	if (tx->flags & IEEE80211_TX_PS_BUFFERED)
 		return TX_CONTINUE;
 
-	sta_flags = tx->sta ? get_sta_flags(tx->sta) : 0;
+	if (tx->sta)
+		assoc = test_sta_flag(tx->sta, WLAN_STA_ASSOC);
 
 	if (likely(tx->flags & IEEE80211_TX_UNICAST)) {
-		if (unlikely(!(sta_flags & WLAN_STA_ASSOC) &&
+		if (unlikely(!assoc &&
 			     tx->sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 			     ieee80211_is_data(hdr->frame_control))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -343,13 +344,22 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 		total += skb_queue_len(&ap->ps_bc_buf);
 	}
 
+	/*
+	 * Drop one frame from each station from the lowest-priority
+	 * AC that has frames at all.
+	 */
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
-		skb = skb_dequeue(&sta->ps_tx_buf);
-		if (skb) {
-			purged++;
-			dev_kfree_skb(skb);
+		int ac;
+
+		for (ac = IEEE80211_AC_BK; ac >= IEEE80211_AC_VO; ac--) {
+			skb = skb_dequeue(&sta->ps_tx_buf[ac]);
+			total += skb_queue_len(&sta->ps_tx_buf[ac]);
+			if (skb) {
+				purged++;
+				dev_kfree_skb(skb);
+				break;
+			}
 		}
-		total += skb_queue_len(&sta->ps_tx_buf);
 	}
 
 	rcu_read_unlock();
@@ -418,7 +428,7 @@ static int ieee80211_use_mfp(__le16 fc, struct sta_info *sta,
 	if (!ieee80211_is_mgmt(fc))
 		return 0;
 
-	if (sta == NULL || !test_sta_flags(sta, WLAN_STA_MFP))
+	if (sta == NULL || !test_sta_flag(sta, WLAN_STA_MFP))
 		return 0;
 
 	if (!ieee80211_is_robust_mgmt_frame((struct ieee80211_hdr *)
@@ -435,7 +445,6 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	struct ieee80211_local *local = tx->local;
-	u32 staflags;
 
 	if (unlikely(!sta ||
 		     ieee80211_is_probe_resp(hdr->frame_control) ||
@@ -444,57 +453,52 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		     ieee80211_is_reassoc_resp(hdr->frame_control)))
 		return TX_CONTINUE;
 
-	staflags = get_sta_flags(sta);
+	if (unlikely((test_sta_flag(sta, WLAN_STA_PS_STA) ||
+		      test_sta_flag(sta, WLAN_STA_PS_DRIVER)) &&
+		     !(info->flags & IEEE80211_TX_CTL_POLL_RESPONSE))) {
+		int ac = skb_get_queue_mapping(tx->skb);
 
-	if (unlikely((staflags & (WLAN_STA_PS_STA | WLAN_STA_PS_DRIVER)) &&
-		     !(info->flags & IEEE80211_TX_CTL_PSPOLL_RESPONSE))) {
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA %pM aid %d: PS buffer (entries "
-		       "before %d)\n",
-		       sta->sta.addr, sta->sta.aid,
-		       skb_queue_len(&sta->ps_tx_buf));
+		printk(KERN_DEBUG "STA %pM aid %d: PS buffer for AC %d\n",
+		       sta->sta.addr, sta->sta.aid, ac);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
 			purge_old_ps_buffers(tx->local);
-		if (skb_queue_len(&sta->ps_tx_buf) >= STA_MAX_TX_BUFFER) {
-			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf);
+		if (skb_queue_len(&sta->ps_tx_buf[ac]) >= STA_MAX_TX_BUFFER) {
+			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf[ac]);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-			if (net_ratelimit()) {
-				printk(KERN_DEBUG "%s: STA %pM TX "
-				       "buffer full - dropping oldest frame\n",
-				       tx->sdata->name, sta->sta.addr);
-			}
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: STA %pM TX buffer for "
+				       "AC %d full - dropping oldest frame\n",
+				       tx->sdata->name, sta->sta.addr, ac);
 #endif
 			dev_kfree_skb(old);
 		} else
 			tx->local->total_ps_buffered++;
 
-		/*
-		 * Queue frame to be sent after STA wakes up/polls,
-		 * but don't set the TIM bit if the driver is blocking
-		 * wakeup or poll response transmissions anyway.
-		 */
-		if (skb_queue_empty(&sta->ps_tx_buf) &&
-		    !(staflags & WLAN_STA_PS_DRIVER))
-			sta_info_set_tim_bit(sta);
-
 		info->control.jiffies = jiffies;
 		info->control.vif = &tx->sdata->vif;
 		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-		skb_queue_tail(&sta->ps_tx_buf, tx->skb);
+		skb_queue_tail(&sta->ps_tx_buf[ac], tx->skb);
 
 		if (!timer_pending(&local->sta_cleanup))
 			mod_timer(&local->sta_cleanup,
 				  round_jiffies(jiffies +
 						STA_INFO_CLEANUP_INTERVAL));
 
+		/*
+		 * We queued up some frames, so the TIM bit might
+		 * need to be set, recalculate it.
+		 */
+		sta_info_recalc_tim(sta);
+
 		return TX_QUEUED;
 	}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	else if (unlikely(staflags & WLAN_STA_PS_STA)) {
-		printk(KERN_DEBUG "%s: STA %pM in PS mode, but pspoll "
-		       "set -> send frame\n", tx->sdata->name,
-		       sta->sta.addr);
+	else if (unlikely(test_sta_flag(sta, WLAN_STA_PS_STA))) {
+		printk(KERN_DEBUG
+		       "%s: STA %pM in PS mode, but polling/in SP -> send frame\n",
+		       tx->sdata->name, sta->sta.addr);
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
@@ -552,7 +556,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		 !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
 		 (!ieee80211_is_robust_mgmt_frame(hdr) ||
 		  (ieee80211_is_action(hdr->frame_control) &&
-		   tx->sta && test_sta_flags(tx->sta, WLAN_STA_MFP)))) {
+		   tx->sta && test_sta_flag(tx->sta, WLAN_STA_MFP)))) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
 		return TX_DROP;
 	} else
@@ -611,7 +615,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	u32 len;
 	bool inval = false, rts = false, short_preamble = false;
 	struct ieee80211_tx_rate_control txrc;
-	u32 sta_flags;
+	bool assoc = false;
 
 	memset(&txrc, 0, sizeof(txrc));
 
@@ -647,17 +651,17 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	 */
 	if (tx->sdata->vif.bss_conf.use_short_preamble &&
 	    (ieee80211_is_data(hdr->frame_control) ||
-	     (tx->sta && test_sta_flags(tx->sta, WLAN_STA_SHORT_PREAMBLE))))
+	     (tx->sta && test_sta_flag(tx->sta, WLAN_STA_SHORT_PREAMBLE))))
 		txrc.short_preamble = short_preamble = true;
 
-	sta_flags = tx->sta ? get_sta_flags(tx->sta) : 0;
+	if (tx->sta)
+		assoc = test_sta_flag(tx->sta, WLAN_STA_ASSOC);
 
 	/*
 	 * Lets not bother rate control if we're associated and cannot
 	 * talk to the sta. This should not happen.
 	 */
-	if (WARN(test_bit(SCAN_SW_SCANNING, &tx->local->scanning) &&
-		 (sta_flags & WLAN_STA_ASSOC) &&
+	if (WARN(test_bit(SCAN_SW_SCANNING, &tx->local->scanning) && assoc &&
 		 !rate_usable_index_exists(sband, &tx->sta->sta),
 		 "%s: Dropped data frame as no usable bitrate found while "
 		 "scanning and associated. Target station: "
@@ -798,6 +802,9 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 		return TX_CONTINUE;
 
 	if (ieee80211_hdrlen(hdr->frame_control) < 24)
+		return TX_CONTINUE;
+
+	if (ieee80211_is_qos_nullfunc(hdr->frame_control))
 		return TX_CONTINUE;
 
 	/*
@@ -1047,6 +1054,7 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
 						   NULL);
+	u16 txflags;
 
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	tx->flags &= ~IEEE80211_TX_FRAGMENTED;
@@ -1093,6 +1101,13 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 			if ((*iterator.this_arg & IEEE80211_RADIOTAP_F_FRAG) &&
 								!hw_frag)
 				tx->flags |= IEEE80211_TX_FRAGMENTED;
+			break;
+
+		case IEEE80211_RADIOTAP_TX_FLAGS:
+			txflags = le16_to_cpu(get_unaligned((__le16*)
+						iterator.this_arg));
+			if (txflags & IEEE80211_RADIOTAP_F_TX_NOACK)
+				info->flags |= IEEE80211_TX_CTL_NO_ACK;
 			break;
 
 		/*
@@ -1232,6 +1247,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		tx->sta = sta_info_get(sdata, hdr->addr1);
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
+	    !ieee80211_is_qos_nullfunc(hdr->frame_control) &&
 	    (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION) &&
 	    !(local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW)) {
 		struct tid_ampdu_tx *tid_tx;
@@ -1258,8 +1274,11 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		tx->flags |= IEEE80211_TX_UNICAST;
 		if (unlikely(local->wifi_wme_noack_test))
 			info->flags |= IEEE80211_TX_CTL_NO_ACK;
-		else
-			info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
+		/*
+		 * Flags are initialized to 0. Hence, no need to
+		 * explicitly unset IEEE80211_TX_CTL_NO_ACK since
+		 * it might already be set for injected frames.
+		 */
 	}
 
 	if (tx->flags & IEEE80211_TX_FRAGMENTED) {
@@ -1273,7 +1292,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 
 	if (!tx->sta)
 		info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
-	else if (test_and_clear_sta_flags(tx->sta, WLAN_STA_CLEAR_PS_FILT))
+	else if (test_and_clear_sta_flag(tx->sta, WLAN_STA_CLEAR_PS_FILT))
 		info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
@@ -1515,8 +1534,7 @@ static int ieee80211_skb_resize(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
-			   struct sk_buff *skb)
+void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1724,8 +1742,9 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
 	struct sta_info *sta = NULL;
-	u32 sta_flags = 0;
+	bool wme_sta = false, authorized = false, tdls_auth = false;
 	struct sk_buff *tmp_skb;
+	bool tdls_direct = false;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		ret = NETDEV_TX_OK;
@@ -1749,7 +1768,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 			hdrlen = 30;
-			sta_flags = get_sta_flags(sta);
+			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
+			wme_sta = test_sta_flag(sta, WLAN_STA_WME);
 		}
 		rcu_read_unlock();
 		if (sta)
@@ -1837,11 +1857,50 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:
-		memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
-		if (sdata->u.mgd.use_4addr &&
-		    cpu_to_be16(ethertype) != sdata->control_port_protocol) {
-			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
+		if (sdata->wdev.wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) {
+			bool tdls_peer = false;
+
+			rcu_read_lock();
+			sta = sta_info_get(sdata, skb->data);
+			if (sta) {
+				authorized = test_sta_flag(sta,
+							WLAN_STA_AUTHORIZED);
+				wme_sta = test_sta_flag(sta, WLAN_STA_WME);
+				tdls_peer = test_sta_flag(sta,
+							 WLAN_STA_TDLS_PEER);
+				tdls_auth = test_sta_flag(sta,
+						WLAN_STA_TDLS_PEER_AUTH);
+			}
+			rcu_read_unlock();
+
+			/*
+			 * If the TDLS link is enabled, send everything
+			 * directly. Otherwise, allow TDLS setup frames
+			 * to be transmitted indirectly.
+			 */
+			tdls_direct = tdls_peer && (tdls_auth ||
+				 !(ethertype == ETH_P_TDLS && skb->len > 14 &&
+				   skb->data[14] == WLAN_TDLS_SNAP_RFTYPE));
+		}
+
+		if (tdls_direct) {
+			/* link during setup - throw out frames to peer */
+			if (!tdls_auth) {
+				ret = NETDEV_TX_OK;
+				goto fail;
+			}
+
+			/* DA SA BSSID */
+			memcpy(hdr.addr1, skb->data, ETH_ALEN);
+			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
+			memcpy(hdr.addr3, sdata->u.mgd.bssid, ETH_ALEN);
+			hdrlen = 24;
+		}  else if (sdata->u.mgd.use_4addr &&
+			    cpu_to_be16(ethertype) != sdata->control_port_protocol) {
+			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
+					  IEEE80211_FCTL_TODS);
 			/* RA TA DA SA */
+			memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
 			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
@@ -1849,6 +1908,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		} else {
 			fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 			/* BSSID SA DA */
+			memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
 			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			hdrlen = 24;
@@ -1874,17 +1934,19 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	if (!is_multicast_ether_addr(hdr.addr1)) {
 		rcu_read_lock();
 		sta = sta_info_get(sdata, hdr.addr1);
-		if (sta)
-			sta_flags = get_sta_flags(sta);
+		if (sta) {
+			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
+			wme_sta = test_sta_flag(sta, WLAN_STA_WME);
+		}
 		rcu_read_unlock();
 	}
 
 	/* For mesh, the use of the QoS header is mandatory */
 	if (ieee80211_vif_is_mesh(&sdata->vif))
-		sta_flags |= WLAN_STA_WME;
+		wme_sta = true;
 
 	/* receiver and we are QoS enabled, use a QoS type frame */
-	if ((sta_flags & WLAN_STA_WME) && local->hw.queues >= 4) {
+	if (wme_sta && local->hw.queues >= 4) {
 		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 		hdrlen += 2;
 	}
@@ -1894,8 +1956,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * EAPOL frames from the local station.
 	 */
 	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
-		unlikely(!is_multicast_ether_addr(hdr.addr1) &&
-		      !(sta_flags & WLAN_STA_AUTHORIZED) &&
+		unlikely(!is_multicast_ether_addr(hdr.addr1) && !authorized &&
 		      !(cpu_to_be16(ethertype) == sdata->control_port_protocol &&
 		       compare_ether_addr(sdata->vif.addr,
 					  skb->data + ETH_ALEN) == 0))) {
@@ -2307,9 +2368,9 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		*pos++ = WLAN_EID_SSID;
 		*pos++ = 0x0;
 
-		if (mesh_add_srates_ie(skb, sdata) ||
+		if (ieee80211_add_srates_ie(&sdata->vif, skb) ||
 		    mesh_add_ds_params_ie(skb, sdata) ||
-		    mesh_add_ext_srates_ie(skb, sdata) ||
+		    ieee80211_add_ext_srates_ie(&sdata->vif, skb) ||
 		    mesh_add_rsn_ie(skb, sdata) ||
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata) ||

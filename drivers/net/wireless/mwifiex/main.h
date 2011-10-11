@@ -45,15 +45,6 @@ enum {
 	MWIFIEX_SYNC_CMD
 };
 
-#define DRV_MODE_STA       0x1
-
-struct mwifiex_drv_mode {
-	u16 drv_mode;
-	u16 intf_num;
-	struct mwifiex_bss_attr *bss_attr;
-};
-
-
 #define MWIFIEX_MAX_AP				64
 
 #define MWIFIEX_DEFAULT_WATCHDOG_TIMEOUT	(5 * HZ)
@@ -182,7 +173,6 @@ struct mwifiex_ra_list_tbl {
 	struct sk_buff_head skb_head;
 	u8 ra[ETH_ALEN];
 	u32 total_pkts_size;
-	u32 total_pkts;
 	u32 is_11n_enabled;
 };
 
@@ -546,7 +536,6 @@ struct mwifiex_if_ops {
 struct mwifiex_adapter {
 	struct mwifiex_private *priv[MWIFIEX_MAX_BSS_NUM];
 	u8 priv_num;
-	struct mwifiex_drv_mode *drv_mode;
 	const struct firmware *firmware;
 	char fw_name[32];
 	struct device *dev;
@@ -792,6 +781,8 @@ int mwifiex_cmd_get_hw_spec(struct mwifiex_private *priv,
 int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 			    struct host_cmd_ds_command *resp);
 int is_command_pending(struct mwifiex_adapter *adapter);
+void mwifiex_init_priv_params(struct mwifiex_private *priv,
+						struct net_device *dev);
 
 /*
  * This function checks if the queuing is RA based or not.
@@ -965,6 +956,12 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 				u8 *ie_buf, u32 ie_len);
 int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 					struct mwifiex_bssdescriptor *bss_desc);
+
+struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
+					char *name, enum nl80211_iftype type,
+					u32 *flags, struct vif_params *params);
+int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev);
+
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

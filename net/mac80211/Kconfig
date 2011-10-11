@@ -225,6 +225,18 @@ config MAC80211_VERBOSE_MHWMP_DEBUG
 
 	  Do not select this option.
 
+config MAC80211_VERBOSE_TDLS_DEBUG
+	bool "Verbose TDLS debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out very
+	  verbose TDLS selection debugging messages (when mac80211
+	  is a TDLS STA).
+	  It should not be selected on production systems as those
+	  messages are remotely triggerable.
+
+	  Do not select this option.
+
 config MAC80211_DEBUG_COUNTERS
 	bool "Extra statistics for TX/RX debugging"
 	depends on MAC80211_DEBUG_MENU
