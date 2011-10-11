@@ -5,7 +5,7 @@ struct multipath_info {
 	struct md_rdev	*rdev;
 };
 
-struct multipath_private_data {
+struct mpconf {
 	struct mddev			*mddev;
 	struct multipath_info	*multipaths;
 	int			raid_disks;
@@ -14,8 +14,6 @@ struct multipath_private_data {
 
 	mempool_t		*pool;
 };
-
-typedef struct multipath_private_data multipath_conf_t;
 
 /*
  * this is our 'private' 'collective' MULTIPATH buffer head.
