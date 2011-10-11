@@ -1868,7 +1868,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 		if ((pTcon->ses) &&
 			!(pTcon->ses->capabilities & CAP_LARGE_FILES)) {
 			current_read_size = min_t(const int, current_read_size,
-					pTcon->ses->server->maxBuf - 128);
+					CIFSMaxBufSize);
 		}
 		rc = -EAGAIN;
 		while (rc == -EAGAIN) {

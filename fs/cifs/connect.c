@@ -181,7 +181,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		-EINVAL = invalid transact2
 
  */
-static int check2ndT2(struct smb_hdr *pSMB, unsigned int maxBufSize)
+static int check2ndT2(struct smb_hdr *pSMB)
 {
 	struct smb_t2_rsp *pSMBt;
 	int remaining;
@@ -214,9 +214,9 @@ static int check2ndT2(struct smb_hdr *pSMB, unsigned int maxBufSize)
 
 	cFYI(1, "missing %d bytes from transact2, check next response",
 		remaining);
-	if (total_data_size > maxBufSize) {
+	if (total_data_size > CIFSMaxBufSize) {
 		cERROR(1, "TotalDataSize %d is over maximum buffer %d",
-			total_data_size, maxBufSize);
+			total_data_size, CIFSMaxBufSize);
 		return -EINVAL;
 	}
 	return remaining;
@@ -486,7 +486,7 @@ find_cifs_mid(struct TCP_Server_Info *server, struct smb_hdr *buf,
 		    mid->command != buf->Command)
 			continue;
 
-		if (*length == 0 && check2ndT2(buf, server->maxBuf) > 0) {
+		if (*length == 0 && check2ndT2(buf) > 0) {
 			/* We have a multipart transact2 resp */
 			*is_multi_rsp = true;
 			if (mid->resp_buf) {
@@ -3130,8 +3130,7 @@ try_mount_again:
 		cFYI(DBG2, "no very large read support, rsize now 127K");
 	}
 	if (!(tcon->ses->capabilities & CAP_LARGE_READ_X))
-		cifs_sb->rsize = min(cifs_sb->rsize,
-			       (tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE));
+		cifs_sb->rsize = min(cifs_sb->rsize, CIFSMaxBufSize);
 
 	cifs_sb->wsize = cifs_negotiate_wsize(tcon, volume_info);
 
