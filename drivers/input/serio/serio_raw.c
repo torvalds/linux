@@ -40,6 +40,7 @@ struct serio_raw {
 	wait_queue_head_t wait;
 	struct list_head client_list;
 	struct list_head node;
+	bool dead;
 };
 
 struct serio_raw_client {
@@ -91,7 +92,7 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	if (!serio_raw->serio) {
+	if (serio_raw->dead) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -123,6 +124,8 @@ static void serio_raw_cleanup(struct kref *kref)
 
 	misc_deregister(&serio_raw->dev);
 	list_del_init(&serio_raw->node);
+
+	put_device(&serio_raw->serio->dev);
 	kfree(serio_raw);
 }
 
@@ -164,19 +167,18 @@ static ssize_t serio_raw_read(struct file *file, char __user *buffer,
 	char uninitialized_var(c);
 	ssize_t retval = 0;
 
-	if (!serio_raw->serio)
+	if (serio_raw->dead)
 		return -ENODEV;
 
 	if (serio_raw->head == serio_raw->tail && (file->f_flags & O_NONBLOCK))
 		return -EAGAIN;
 
 	retval = wait_event_interruptible(serio_raw->wait,
-					  serio_raw->head != serio_raw->tail ||
-						!serio_raw->serio);
+			serio_raw->head != serio_raw->tail || serio_raw->dead);
 	if (retval)
 		return retval;
 
-	if (!serio_raw->serio)
+	if (serio_raw->dead)
 		return -ENODEV;
 
 	while (retval < count && serio_raw_fetch_byte(serio_raw, &c)) {
@@ -201,7 +203,7 @@ static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
 	if (retval)
 		return retval;
 
-	if (!serio_raw->serio) {
+	if (serio_raw->dead) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -291,9 +293,11 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	snprintf(serio_raw->name, sizeof(serio_raw->name),
 		 "serio_raw%d", serio_raw_no++);
 	kref_init(&serio_raw->kref);
-	serio_raw->serio = serio;
 	INIT_LIST_HEAD(&serio_raw->client_list);
 	init_waitqueue_head(&serio_raw->wait);
+
+	serio_raw->serio = serio;
+	get_device(&serio->dev);
 
 	serio_set_drvdata(serio, serio_raw);
 
@@ -330,6 +334,7 @@ out_close:
 	list_del_init(&serio_raw->node);
 out_free:
 	serio_set_drvdata(serio, NULL);
+	put_device(&serio->dev);
 	kfree(serio_raw);
 out:
 	mutex_unlock(&serio_raw_mutex);
@@ -365,7 +370,7 @@ static void serio_raw_disconnect(struct serio *serio)
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
 
-	serio_raw->serio = NULL;
+	serio_raw->dead = true;
 	wake_up_interruptible(&serio_raw->wait);
 	kref_put(&serio_raw->kref, serio_raw_cleanup);
 
