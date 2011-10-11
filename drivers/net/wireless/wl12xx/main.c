@@ -1477,10 +1477,13 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct wl1271 *wl = hw->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
-	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	struct wl12xx_vif *wlvif = NULL;
 	unsigned long flags;
 	int q, mapping;
 	u8 hlid;
+
+	if (vif)
+		wlvif = wl12xx_vif_to_data(vif);
 
 	mapping = skb_get_queue_mapping(skb);
 	q = wl1271_tx_get_queue(mapping);
@@ -1491,7 +1494,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	/* queue the packet */
 	if (hlid == WL12XX_INVALID_LINK_ID ||
-	    !test_bit(hlid, wlvif->links_map)) {
+	    (wlvif && !test_bit(hlid, wlvif->links_map))) {
 		wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d", hlid, q);
 		dev_kfree_skb(skb);
 		goto out;
