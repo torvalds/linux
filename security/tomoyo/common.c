@@ -984,14 +984,12 @@ static bool tomoyo_select_domain(struct tomoyo_io_buffer *head,
 	    (global_pid = true, sscanf(data, "global-pid=%u", &pid) == 1)) {
 		struct task_struct *p;
 		rcu_read_lock();
-		read_lock(&tasklist_lock);
 		if (global_pid)
 			p = find_task_by_pid_ns(pid, &init_pid_ns);
 		else
 			p = find_task_by_vpid(pid);
 		if (p)
 			domain = tomoyo_real_domain(p);
-		read_unlock(&tasklist_lock);
 		rcu_read_unlock();
 	} else if (!strncmp(data, "domain=", 7)) {
 		if (tomoyo_domain_def(data + 7))
@@ -1664,14 +1662,12 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 		global_pid = true;
 	pid = (unsigned int) simple_strtoul(buf, NULL, 10);
 	rcu_read_lock();
-	read_lock(&tasklist_lock);
 	if (global_pid)
 		p = find_task_by_pid_ns(pid, &init_pid_ns);
 	else
 		p = find_task_by_vpid(pid);
 	if (p)
 		domain = tomoyo_real_domain(p);
-	read_unlock(&tasklist_lock);
 	rcu_read_unlock();
 	if (!domain)
 		return;
