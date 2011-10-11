@@ -196,7 +196,7 @@ static void release_channel(struct work_struct *work)
 /*
  * free_channel - Release the resources used by the vmbus channel object
  */
-void free_channel(struct vmbus_channel *channel)
+static void free_channel(struct vmbus_channel *channel)
 {
 
 	/*

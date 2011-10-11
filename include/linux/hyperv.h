@@ -606,8 +606,6 @@ struct vmbus_channel {
 	void *channel_callback_context;
 };
 
-void free_channel(struct vmbus_channel *channel);
-
 void vmbus_onmessage(void *context);
 
 int vmbus_request_offers(void);
