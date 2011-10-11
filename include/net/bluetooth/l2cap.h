@@ -365,11 +365,11 @@ struct l2cap_chan {
 	__u8		next_tx_seq;
 	__u8		expected_ack_seq;
 	__u8		expected_tx_seq;
-	__u8		buffer_seq;
 	__u8		buffer_seq_srej;
 	__u8		srej_save_reqseq;
 	__u8		frames_sent;
 	__u8		unacked_frames;
+	__u16		buffer_seq;
 	__u8		retry_count;
 	__u8		num_acked;
 	__u16		sdu_len;
@@ -512,8 +512,24 @@ static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 	return sub == ch->remote_tx_win;
 }
 
+static inline __u16 __get_reqseq(struct l2cap_chan *chan, __u32 ctrl)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return (ctrl & L2CAP_EXT_CTRL_REQSEQ) >>
+						L2CAP_EXT_CTRL_REQSEQ_SHIFT;
+	else
+		return (ctrl & L2CAP_CTRL_REQSEQ) >> L2CAP_CTRL_REQSEQ_SHIFT;
+}
+
+static inline __u32 __set_reqseq(struct l2cap_chan *chan, __u32 reqseq)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return (reqseq << L2CAP_EXT_CTRL_REQSEQ_SHIFT) &
+							L2CAP_EXT_CTRL_REQSEQ;
+	else
+		return (reqseq << L2CAP_CTRL_REQSEQ_SHIFT) & L2CAP_CTRL_REQSEQ;
+}
 #define __get_txseq(ctrl)	(((ctrl) & L2CAP_CTRL_TXSEQ) >> 1)
-#define __get_reqseq(ctrl)	(((ctrl) & L2CAP_CTRL_REQSEQ) >> 8)
 #define __is_iframe(ctrl)	(!((ctrl) & L2CAP_CTRL_FRAME_TYPE))
 #define __is_sframe(ctrl)	((ctrl) & L2CAP_CTRL_FRAME_TYPE)
 static inline __u8 __get_ctrl_sar(struct l2cap_chan *chan, __u32 ctrl)
