@@ -268,11 +268,13 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 		}
 
 		/* wait for more data to arrive */
+		mutex_unlock(&itv->serialize_lock);
 		prepare_to_wait(&s->waitq, &wait, TASK_INTERRUPTIBLE);
 		/* New buffers might have become available before we were added to the waitqueue */
 		if (!s->q_full.buffers)
 			schedule();
 		finish_wait(&s->waitq, &wait);
+		mutex_lock(&itv->serialize_lock);
 		if (signal_pending(current)) {
 			/* return if a signal was received */
 			IVTV_DEBUG_INFO("User stopped %s\n", s->name);
@@ -507,9 +509,7 @@ ssize_t ivtv_v4l2_read(struct file * filp, char __user *buf, size_t count, loff_
 
 	IVTV_DEBUG_HI_FILE("read %zd bytes from %s\n", count, s->name);
 
-	mutex_lock(&itv->serialize_lock);
 	rc = ivtv_start_capture(id);
-	mutex_unlock(&itv->serialize_lock);
 	if (rc)
 		return rc;
 	return ivtv_read_pos(s, buf, count, pos, filp->f_flags & O_NONBLOCK);
@@ -584,9 +584,7 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 
 	/* Start decoder (returns 0 if already started) */
-	mutex_lock(&itv->serialize_lock);
 	rc = ivtv_start_decoding(id, itv->speed);
-	mutex_unlock(&itv->serialize_lock);
 	if (rc) {
 		IVTV_DEBUG_WARN("Failed start decode stream %s\n", s->name);
 
@@ -627,11 +625,13 @@ retry:
 			break;
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
+		mutex_unlock(&itv->serialize_lock);
 		prepare_to_wait(&s->waitq, &wait, TASK_INTERRUPTIBLE);
 		/* New buffers might have become free before we were added to the waitqueue */
 		if (!s->q_free.buffers)
 			schedule();
 		finish_wait(&s->waitq, &wait);
+		mutex_lock(&itv->serialize_lock);
 		if (signal_pending(current)) {
 			IVTV_DEBUG_INFO("User stopped %s\n", s->name);
 			return -EINTR;
@@ -686,12 +686,14 @@ retry:
 			if (mode == OUT_YUV)
 				ivtv_yuv_setup_stream_frame(itv);
 
+			mutex_unlock(&itv->serialize_lock);
 			prepare_to_wait(&itv->dma_waitq, &wait, TASK_INTERRUPTIBLE);
 			while (!(got_sig = signal_pending(current)) &&
 					test_bit(IVTV_F_S_DMA_PENDING, &s->s_flags)) {
 				schedule();
 			}
 			finish_wait(&itv->dma_waitq, &wait);
+			mutex_lock(&itv->serialize_lock);
 			if (got_sig) {
 				IVTV_DEBUG_INFO("User interrupted %s\n", s->name);
 				return -EINTR;
@@ -756,9 +758,7 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
 		int rc;
 
-		mutex_lock(&itv->serialize_lock);
 		rc = ivtv_start_capture(id);
-		mutex_unlock(&itv->serialize_lock);
 		if (rc) {
 			IVTV_DEBUG_INFO("Could not start capture for %s (%d)\n",
 					s->name, rc);
@@ -861,7 +861,6 @@ int ivtv_v4l2_close(struct file *filp)
 
 	IVTV_DEBUG_FILE("close %s\n", s->name);
 
-	mutex_lock(&itv->serialize_lock);
 	/* Stop radio */
 	if (id->type == IVTV_ENC_STREAM_TYPE_RAD &&
 			v4l2_fh_is_singular_file(filp)) {
@@ -893,7 +892,6 @@ int ivtv_v4l2_close(struct file *filp)
 	/* Easy case first: this stream was never claimed by us */
 	if (s->id != id->open_id) {
 		kfree(id);
-		mutex_unlock(&itv->serialize_lock);
 		return 0;
 	}
 
@@ -914,20 +912,24 @@ int ivtv_v4l2_close(struct file *filp)
 		ivtv_stop_capture(id, 0);
 	}
 	kfree(id);
-	mutex_unlock(&itv->serialize_lock);
 	return 0;
 }
 
-static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
+int ivtv_v4l2_open(struct file *filp)
 {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
 	struct video_device *vdev = video_devdata(filp);
-#endif
+	struct ivtv_stream *s = video_get_drvdata(vdev);
 	struct ivtv *itv = s->itv;
 	struct ivtv_open_id *item;
 	int res = 0;
 
 	IVTV_DEBUG_FILE("open %s\n", s->name);
+
+	if (ivtv_init_on_first_open(itv)) {
+		IVTV_ERR("Failed to initialize on device %s\n",
+			 video_device_node_name(vdev));
+		return -ENXIO;
+	}
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/* Unless ivtv_fw_debug is set, error out if firmware dead. */
@@ -1015,28 +1017,6 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		itv->yuv_info.stream_size = 0;
 	}
 	return 0;
-}
-
-int ivtv_v4l2_open(struct file *filp)
-{
-	int res;
-	struct ivtv *itv = NULL;
-	struct ivtv_stream *s = NULL;
-	struct video_device *vdev = video_devdata(filp);
-
-	s = video_get_drvdata(vdev);
-	itv = s->itv;
-
-	mutex_lock(&itv->serialize_lock);
-	if (ivtv_init_on_first_open(itv)) {
-		IVTV_ERR("Failed to initialize on device %s\n",
-			 video_device_node_name(vdev));
-		mutex_unlock(&itv->serialize_lock);
-		return -ENXIO;
-	}
-	res = ivtv_serialized_open(s, filp);
-	mutex_unlock(&itv->serialize_lock);
-	return res;
 }
 
 void ivtv_mute(struct ivtv *itv)
