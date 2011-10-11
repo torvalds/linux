@@ -6,14 +6,10 @@ struct dev_info {
 	sector_t	end_sector;
 };
 
-struct linear_private_data
+struct linear_conf
 {
 	struct rcu_head		rcu;
 	sector_t		array_sectors;
 	struct dev_info		disks[0];
 };
-
-
-typedef struct linear_private_data linear_conf_t;
-
 #endif
