@@ -243,6 +243,11 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info)
 	/* IEEE80211_RADIOTAP_DATA_RETRIES */
 	len += 1;
 
+	/* IEEE80211_TX_RC_MCS */
+	if (info->status.rates[0].idx >= 0 &&
+	    info->status.rates[0].flags & IEEE80211_TX_RC_MCS)
+		len += 3;
+
 	return len;
 }
 
@@ -299,6 +304,24 @@ static void ieee80211_add_tx_radiotap_header(struct ieee80211_supported_band
 	/* for now report the total retry_count */
 	*pos = retry_count;
 	pos++;
+
+	/* IEEE80211_TX_RC_MCS */
+	if (info->status.rates[0].idx >= 0 &&
+	    info->status.rates[0].flags & IEEE80211_TX_RC_MCS) {
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_MCS);
+		pos[0] = IEEE80211_RADIOTAP_MCS_HAVE_MCS |
+			 IEEE80211_RADIOTAP_MCS_HAVE_GI |
+			 IEEE80211_RADIOTAP_MCS_HAVE_BW;
+		if (info->status.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
+			pos[1] |= IEEE80211_RADIOTAP_MCS_SGI;
+		if (info->status.rates[0].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			pos[1] |= IEEE80211_RADIOTAP_MCS_BW_40;
+		if (info->status.rates[0].flags & IEEE80211_TX_RC_GREEN_FIELD)
+			pos[1] |= IEEE80211_RADIOTAP_MCS_FMT_GF;
+		pos[2] = info->status.rates[0].idx;
+		pos += 3;
+	}
+
 }
 
 /*
