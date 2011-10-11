@@ -752,18 +752,19 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 	xres = XGIbios_mode[xgifb_info->mode_idx].xres;
 	yres = XGIbios_mode[xgifb_info->mode_idx].yres;
 
-	XGIfb_rate_idx = 0;
+	xgifb_info->rate_idx = 0;
 	while ((XGIfb_vrate[i].idx != 0) && (XGIfb_vrate[i].xres <= xres)) {
 		if ((XGIfb_vrate[i].xres == xres) &&
 		    (XGIfb_vrate[i].yres == yres)) {
 			if (XGIfb_vrate[i].refresh == rate) {
-				XGIfb_rate_idx = XGIfb_vrate[i].idx;
+				xgifb_info->rate_idx = XGIfb_vrate[i].idx;
 				break;
 			} else if (XGIfb_vrate[i].refresh > rate) {
 				if ((XGIfb_vrate[i].refresh - rate) <= 3) {
 					DPRINTK("XGIfb: Adjusting rate from %d up to %d\n",
 						rate, XGIfb_vrate[i].refresh);
-					XGIfb_rate_idx = XGIfb_vrate[i].idx;
+					xgifb_info->rate_idx =
+						XGIfb_vrate[i].idx;
 					xgifb_info->refresh_rate =
 						XGIfb_vrate[i].refresh;
 				} else if (((rate - XGIfb_vrate[i - 1].refresh)
@@ -771,7 +772,8 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 						!= 1)) {
 					DPRINTK("XGIfb: Adjusting rate from %d down to %d\n",
 						rate, XGIfb_vrate[i-1].refresh);
-					XGIfb_rate_idx = XGIfb_vrate[i - 1].idx;
+					xgifb_info->rate_idx =
+						XGIfb_vrate[i - 1].idx;
 					xgifb_info->refresh_rate =
 						XGIfb_vrate[i - 1].refresh;
 				}
@@ -779,14 +781,14 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 			} else if ((rate - XGIfb_vrate[i].refresh) <= 2) {
 				DPRINTK("XGIfb: Adjusting rate from %d down to %d\n",
 					rate, XGIfb_vrate[i].refresh);
-				XGIfb_rate_idx = XGIfb_vrate[i].idx;
+				xgifb_info->rate_idx = XGIfb_vrate[i].idx;
 				break;
 			}
 		}
 		i++;
 	}
-	if (XGIfb_rate_idx > 0) {
-		return XGIfb_rate_idx;
+	if (xgifb_info->rate_idx > 0) {
+		return xgifb_info->rate_idx;
 	} else {
 		printk(KERN_INFO "XGIfb: Unsupported rate %d for %dx%d\n",
 		       rate, xres, yres);
@@ -891,7 +893,8 @@ static void XGIfb_pre_setmode(struct xgifb_video_info *xgifb_info)
 
 	xgifb_reg_set(XGICR, IND_XGI_SCRATCH_REG_CR30, cr30);
 	xgifb_reg_set(XGICR, IND_XGI_SCRATCH_REG_CR31, cr31);
-	xgifb_reg_set(XGICR, IND_XGI_SCRATCH_REG_CR33, (XGIfb_rate_idx & 0x0F));
+	xgifb_reg_set(XGICR, IND_XGI_SCRATCH_REG_CR33,
+						(xgifb_info->rate_idx & 0x0F));
 }
 
 static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
@@ -1206,7 +1209,8 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 
 	if (XGIfb_search_refresh_rate(xgifb_info,
 				      xgifb_info->refresh_rate) == 0) {
-		XGIfb_rate_idx = XGIbios_mode[xgifb_info->mode_idx].rate_idx;
+		xgifb_info->rate_idx =
+			XGIbios_mode[xgifb_info->mode_idx].rate_idx;
 		xgifb_info->refresh_rate = 60;
 	}
 
@@ -2299,7 +2303,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		xgifb_info->refresh_rate = 60;
 	if (XGIfb_search_refresh_rate(xgifb_info,
 			xgifb_info->refresh_rate) == 0) {
-		XGIfb_rate_idx = XGIbios_mode[xgifb_info->mode_idx].rate_idx;
+		xgifb_info->rate_idx =
+			XGIbios_mode[xgifb_info->mode_idx].rate_idx;
 		xgifb_info->refresh_rate = 60;
 	}
 
@@ -2356,10 +2361,11 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	default_var.pixclock = (u32) (1000000000 /
 			XGIfb_mode_rate_to_dclock(&XGI_Pr, hw_info,
 				XGIbios_mode[xgifb_info->mode_idx].mode_no,
-				XGIfb_rate_idx));
+				xgifb_info->rate_idx));
 
 	if (XGIfb_mode_rate_to_ddata(&XGI_Pr, hw_info,
-		XGIbios_mode[xgifb_info->mode_idx].mode_no, XGIfb_rate_idx,
+		XGIbios_mode[xgifb_info->mode_idx].mode_no,
+		xgifb_info->rate_idx,
 		&default_var.left_margin, &default_var.right_margin,
 		&default_var.upper_margin, &default_var.lower_margin,
 		&default_var.hsync_len, &default_var.vsync_len,

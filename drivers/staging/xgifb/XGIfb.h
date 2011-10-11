@@ -59,6 +59,7 @@ struct xgifb_video_info {
 	struct xgi_hw_device_info hw_info;
 
 	int mode_idx;
+	int rate_idx;
 
 	int           chip_id;
 	unsigned int  video_size;
