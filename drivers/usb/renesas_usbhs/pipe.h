@@ -47,7 +47,7 @@ struct usbhs_pipe_info {
 	int size;	/* array size of "pipe" */
 	int bufnmb_last;	/* FIXME : driver needs good allocator */
 
-	void (*done)(struct usbhs_pkt *pkt);
+	void (*done)(struct usbhs_priv *priv, struct usbhs_pkt *pkt);
 	int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map);
 };
 
@@ -80,7 +80,8 @@ void usbhs_pipe_remove(struct usbhs_priv *priv);
 int usbhs_pipe_is_dir_in(struct usbhs_pipe *pipe);
 int usbhs_pipe_is_dir_host(struct usbhs_pipe *pipe);
 void usbhs_pipe_init(struct usbhs_priv *priv,
-		     void (*done)(struct usbhs_pkt *pkt),
+		     void (*done)(struct usbhs_priv *priv,
+				  struct usbhs_pkt *pkt),
 		     int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map));
 int usbhs_pipe_get_maxpacket(struct usbhs_pipe *pipe);
 void usbhs_pipe_clear_sequence(struct usbhs_pipe *pipe);

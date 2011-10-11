@@ -497,7 +497,8 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 }
 
 void usbhs_pipe_init(struct usbhs_priv *priv,
-		     void (*done)(struct usbhs_pkt *pkt),
+		     void (*done)(struct usbhs_priv *priv,
+				  struct usbhs_pkt *pkt),
 		     int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map))
 {
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);

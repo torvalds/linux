@@ -159,7 +159,7 @@ static void usbhsg_queue_pop(struct usbhsg_uep *uep,
 	ureq->req.complete(&uep->ep, &ureq->req);
 }
 
-static void usbhsg_queue_done(struct usbhs_pkt *pkt)
+static void usbhsg_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);

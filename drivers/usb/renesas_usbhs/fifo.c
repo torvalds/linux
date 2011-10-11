@@ -171,7 +171,7 @@ __usbhs_pkt_handler_end:
 	/********************  spin unlock ******************/
 
 	if (is_done) {
-		info->done(pkt);
+		info->done(priv, pkt);
 		usbhs_pkt_start(pipe);
 	}
 
