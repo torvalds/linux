@@ -46,6 +46,7 @@ struct r1conf {
 
 	/* queue pending writes to be submitted on unplug */
 	struct bio_list		pending_bio_list;
+	int			pending_count;
 
 	/* for use when syncing mirrors:
 	 * We don't allow both normal IO and resync/recovery IO at
