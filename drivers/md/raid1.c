@@ -799,7 +799,7 @@ do_sync_io:
 static int make_request(struct mddev *mddev, struct bio * bio)
 {
 	conf_t *conf = mddev->private;
-	mirror_info_t *mirror;
+	struct mirror_info *mirror;
 	struct r1bio *r1_bio;
 	struct bio *read_bio;
 	int i, disks;
@@ -1268,7 +1268,7 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	conf_t *conf = mddev->private;
 	int err = -EEXIST;
 	int mirror = 0;
-	mirror_info_t *p;
+	struct mirror_info *p;
 	int first = 0;
 	int last = mddev->raid_disks - 1;
 
@@ -1316,7 +1316,7 @@ static int raid1_remove_disk(struct mddev *mddev, int number)
 	conf_t *conf = mddev->private;
 	int err = 0;
 	struct md_rdev *rdev;
-	mirror_info_t *p = conf->mirrors+ number;
+	struct mirror_info *p = conf->mirrors+ number;
 
 	print_conf(conf);
 	rdev = p->rdev;
@@ -2369,7 +2369,7 @@ static conf_t *setup_conf(struct mddev *mddev)
 {
 	conf_t *conf;
 	int i;
-	mirror_info_t *disk;
+	struct mirror_info *disk;
 	struct md_rdev *rdev;
 	int err = -ENOMEM;
 
@@ -2612,7 +2612,7 @@ static int raid1_reshape(struct mddev *mddev)
 	 */
 	mempool_t *newpool, *oldpool;
 	struct pool_info *newpoolinfo;
-	mirror_info_t *newmirrors;
+	struct mirror_info *newmirrors;
 	conf_t *conf = mddev->private;
 	int cnt, raid_disks;
 	unsigned long flags;

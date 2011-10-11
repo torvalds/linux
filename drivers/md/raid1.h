@@ -1,8 +1,6 @@
 #ifndef _RAID1_H
 #define _RAID1_H
 
-typedef struct mirror_info mirror_info_t;
-
 struct mirror_info {
 	struct md_rdev	*rdev;
 	sector_t	head_position;
@@ -23,7 +21,7 @@ struct pool_info {
 
 struct r1_private_data_s {
 	struct mddev		*mddev;
-	mirror_info_t		*mirrors;
+	struct mirror_info		*mirrors;
 	int			raid_disks;
 
 	/* When choose the best device for a read (read_balance())

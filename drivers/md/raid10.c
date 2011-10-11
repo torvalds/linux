@@ -833,7 +833,7 @@ static void unfreeze_array(conf_t *conf)
 static int make_request(struct mddev *mddev, struct bio * bio)
 {
 	conf_t *conf = mddev->private;
-	mirror_info_t *mirror;
+	struct mirror_info *mirror;
 	struct r10bio *r10_bio;
 	struct bio *read_bio;
 	int i;
@@ -1249,7 +1249,7 @@ static void error(struct mddev *mddev, struct md_rdev *rdev)
 static void print_conf(conf_t *conf)
 {
 	int i;
-	mirror_info_t *tmp;
+	struct mirror_info *tmp;
 
 	printk(KERN_DEBUG "RAID10 conf printout:\n");
 	if (!conf) {
@@ -1283,7 +1283,7 @@ static int raid10_spare_active(struct mddev *mddev)
 {
 	int i;
 	conf_t *conf = mddev->private;
-	mirror_info_t *tmp;
+	struct mirror_info *tmp;
 	int count = 0;
 	unsigned long flags;
 
@@ -1334,7 +1334,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	else
 		mirror = first;
 	for ( ; mirror <= last ; mirror++) {
-		mirror_info_t *p = &conf->mirrors[mirror];
+		struct mirror_info *p = &conf->mirrors[mirror];
 		if (p->recovery_disabled == mddev->recovery_disabled)
 			continue;
 		if (!p->rdev)
@@ -1373,7 +1373,7 @@ static int raid10_remove_disk(struct mddev *mddev, int number)
 	conf_t *conf = mddev->private;
 	int err = 0;
 	struct md_rdev *rdev;
-	mirror_info_t *p = conf->mirrors+ number;
+	struct mirror_info *p = conf->mirrors+ number;
 
 	print_conf(conf);
 	rdev = p->rdev;
@@ -2840,7 +2840,7 @@ static int run(struct mddev *mddev)
 {
 	conf_t *conf;
 	int i, disk_idx, chunk_size;
-	mirror_info_t *disk;
+	struct mirror_info *disk;
 	struct md_rdev *rdev;
 	sector_t size;
 
