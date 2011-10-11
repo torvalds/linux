@@ -19,7 +19,7 @@ struct pool_info {
 	int	raid_disks;
 };
 
-struct r1_private_data_s {
+struct r1conf {
 	struct mddev		*mddev;
 	struct mirror_info		*mirrors;
 	int			raid_disks;
@@ -89,8 +89,6 @@ struct r1_private_data_s {
 	 */
 	struct md_thread	*thread;
 };
-
-typedef struct r1_private_data_s conf_t;
 
 /*
  * this is our 'private' RAID1 bio.
