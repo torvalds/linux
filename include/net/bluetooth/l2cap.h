@@ -140,10 +140,10 @@ struct l2cap_conninfo {
 #define L2CAP_EXT_CTRL_TXSEQ_SHIFT	18
 
 /* L2CAP Supervisory Function */
-#define L2CAP_SUPER_RCV_READY           0x0000
-#define L2CAP_SUPER_REJECT              0x0004
-#define L2CAP_SUPER_RCV_NOT_READY       0x0008
-#define L2CAP_SUPER_SELECT_REJECT       0x000C
+#define L2CAP_SUPER_RR		0x00
+#define L2CAP_SUPER_REJ		0x01
+#define L2CAP_SUPER_RNR		0x02
+#define L2CAP_SUPER_SREJ	0x03
 
 /* L2CAP Segmentation and Reassembly */
 #define L2CAP_SDU_UNSEGMENTED       0x0000
@@ -517,6 +517,25 @@ static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 #define __is_iframe(ctrl)	(!((ctrl) & L2CAP_CTRL_FRAME_TYPE))
 #define __is_sframe(ctrl)	((ctrl) & L2CAP_CTRL_FRAME_TYPE)
 #define __is_sar_start(ctrl)	(((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START)
+
+static inline __u8 __get_ctrl_super(struct l2cap_chan *chan, __u32 ctrl)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return (ctrl & L2CAP_EXT_CTRL_SUPERVISE) >>
+						L2CAP_EXT_CTRL_SUPER_SHIFT;
+	else
+		return (ctrl & L2CAP_CTRL_SUPERVISE) >> L2CAP_CTRL_SUPER_SHIFT;
+}
+
+static inline __u32 __set_ctrl_super(struct l2cap_chan *chan, __u32 super)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return (super << L2CAP_EXT_CTRL_SUPER_SHIFT) &
+						L2CAP_EXT_CTRL_SUPERVISE;
+	else
+		return (super << L2CAP_CTRL_SUPER_SHIFT) &
+							L2CAP_CTRL_SUPERVISE;
+}
 
 extern int disable_ertm;
 
