@@ -53,6 +53,8 @@ enum xgi_tv_plug { /* vicki@030226 */
 };
 
 struct video_info {
+	struct fb_info *fb_info;
+
 	int           chip_id;
 	unsigned int  video_size;
 	unsigned long video_base;

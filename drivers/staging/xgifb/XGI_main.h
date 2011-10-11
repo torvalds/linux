@@ -125,9 +125,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 /* ------------------- Global Variables ----------------------------- */
 
-/* Fbcon variables */
-static struct fb_info *fb_info;
-
 static struct fb_var_screeninfo default_var = {
 	.xres		= 0,
 	.yres		= 0,

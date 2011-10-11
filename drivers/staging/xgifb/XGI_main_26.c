@@ -1986,12 +1986,14 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	u8 CR48, CR38;
 	int ret;
 	bool xgi21_drvlcdcaplist = false;
+	struct fb_info *fb_info;
 
 	memset(&XGIhw_ext, 0, sizeof(struct xgi_hw_device_info));
 	fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
 	if (!fb_info)
 		return -ENOMEM;
 
+	xgi_video_info.fb_info = fb_info;
 	xgi_video_info.chip_id = pdev->device;
 	pci_read_config_byte(pdev,
 			     PCI_REVISION_ID,
@@ -2447,6 +2449,7 @@ error:
 static void __devexit xgifb_remove(struct pci_dev *pdev)
 {
 	struct video_info *xgifb_info = pci_get_drvdata(pdev);
+	struct fb_info *fb_info = xgifb_info->fb_info;
 
 	unregister_framebuffer(fb_info);
 #ifdef CONFIG_MTRR
