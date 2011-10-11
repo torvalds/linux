@@ -582,7 +582,7 @@ static inline void l2cap_send_sframe(struct l2cap_chan *chan, u16 control)
 	control |= __set_sframe(chan);
 
 	if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
-		control |= L2CAP_CTRL_FINAL;
+		control |= __set_ctrl_final(chan);
 
 	if (test_and_clear_bit(CONN_SEND_PBIT, &chan->conn_state))
 		control |= L2CAP_CTRL_POLL;
@@ -1315,7 +1315,7 @@ static void l2cap_retransmit_one_frame(struct l2cap_chan *chan, u16 tx_seq)
 	control &= __get_sar_mask(chan);
 
 	if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
-		control |= L2CAP_CTRL_FINAL;
+		control |= __set_ctrl_final(chan);
 
 	control |= __set_reqseq(chan, chan->buffer_seq);
 	control |= __set_txseq(chan, tx_seq);
@@ -1355,7 +1355,7 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 		control &= __get_sar_mask(chan);
 
 		if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
-			control |= L2CAP_CTRL_FINAL;
+			control |= __set_ctrl_final(chan);
 
 		control |= __set_reqseq(chan, chan->buffer_seq);
 		control |= __set_txseq(chan, chan->next_tx_seq);
@@ -1428,7 +1428,7 @@ static void l2cap_send_srejtail(struct l2cap_chan *chan)
 	u16 control;
 
 	control = __set_ctrl_super(chan, L2CAP_SUPER_SREJ);
-	control |= L2CAP_CTRL_FINAL;
+	control |= __set_ctrl_final(chan);
 
 	tail = list_entry((&chan->srej_l)->prev, struct srej_list, list);
 	control |= __set_reqseq(chan, tail->tx_seq);
@@ -3407,7 +3407,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 	BT_DBG("chan %p len %d tx_seq %d rx_control 0x%4.4x", chan, skb->len,
 							tx_seq, rx_control);
 
-	if (L2CAP_CTRL_FINAL & rx_control &&
+	if (__is_ctrl_final(chan, rx_control) &&
 			test_bit(CONN_WAIT_F, &chan->conn_state)) {
 		__clear_monitor_timer(chan);
 		if (chan->unacked_frames > 0)
@@ -3512,7 +3512,7 @@ expected:
 		return err;
 	}
 
-	if (rx_control & L2CAP_CTRL_FINAL) {
+	if (__is_ctrl_final(chan, rx_control)) {
 		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
 			l2cap_retransmit_frames(chan);
 	}
@@ -3551,7 +3551,7 @@ static inline void l2cap_data_channel_rrframe(struct l2cap_chan *chan, u16 rx_co
 			l2cap_send_i_or_rr_or_rnr(chan);
 		}
 
-	} else if (rx_control & L2CAP_CTRL_FINAL) {
+	} else if (__is_ctrl_final(chan, rx_control)) {
 		clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
 
 		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
@@ -3581,7 +3581,7 @@ static inline void l2cap_data_channel_rejframe(struct l2cap_chan *chan, u16 rx_c
 	chan->expected_ack_seq = tx_seq;
 	l2cap_drop_acked_frames(chan);
 
-	if (rx_control & L2CAP_CTRL_FINAL) {
+	if (__is_ctrl_final(chan, rx_control)) {
 		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
 			l2cap_retransmit_frames(chan);
 	} else {
@@ -3612,7 +3612,7 @@ static inline void l2cap_data_channel_srejframe(struct l2cap_chan *chan, u16 rx_
 			chan->srej_save_reqseq = tx_seq;
 			set_bit(CONN_SREJ_ACT, &chan->conn_state);
 		}
-	} else if (rx_control & L2CAP_CTRL_FINAL) {
+	} else if (__is_ctrl_final(chan, rx_control)) {
 		if (test_bit(CONN_SREJ_ACT, &chan->conn_state) &&
 				chan->srej_save_reqseq == tx_seq)
 			clear_bit(CONN_SREJ_ACT, &chan->conn_state);
@@ -3659,7 +3659,7 @@ static inline int l2cap_data_channel_sframe(struct l2cap_chan *chan, u16 rx_cont
 {
 	BT_DBG("chan %p rx_control 0x%4.4x len %d", chan, rx_control, skb->len);
 
-	if (L2CAP_CTRL_FINAL & rx_control &&
+	if (__is_ctrl_final(chan, rx_control) &&
 			test_bit(CONN_WAIT_F, &chan->conn_state)) {
 		__clear_monitor_timer(chan);
 		if (chan->unacked_frames > 0)

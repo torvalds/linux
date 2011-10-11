@@ -612,6 +612,21 @@ static inline __u32 __set_ctrl_super(struct l2cap_chan *chan, __u32 super)
 							L2CAP_CTRL_SUPERVISE;
 }
 
+static inline __u32 __set_ctrl_final(struct l2cap_chan *chan)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return L2CAP_EXT_CTRL_FINAL;
+	else
+		return L2CAP_CTRL_FINAL;
+}
+
+static inline bool __is_ctrl_final(struct l2cap_chan *chan, __u32 ctrl)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return ctrl & L2CAP_EXT_CTRL_FINAL;
+	else
+		return ctrl & L2CAP_CTRL_FINAL;
+}
 extern int disable_ertm;
 
 int l2cap_init_sockets(void);
