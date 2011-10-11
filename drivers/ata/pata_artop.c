@@ -39,31 +39,15 @@
 
 static int clock = 0;
 
-static int artop6210_pre_reset(struct ata_link *link, unsigned long deadline)
-{
-	struct ata_port *ap = link->ap;
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	const struct pci_bits artop_enable_bits[] = {
-		{ 0x4AU, 1U, 0x02UL, 0x02UL },	/* port 0 */
-		{ 0x4AU, 1U, 0x04UL, 0x04UL },	/* port 1 */
-	};
-
-	if (!pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no]))
-		return -ENOENT;
-
-	return ata_sff_prereset(link, deadline);
-}
-
 /**
- *	artop6260_pre_reset	-	check for 40/80 pin
+ *	artop62x0_pre_reset	-	probe begin
  *	@link: link
  *	@deadline: deadline jiffies for the operation
  *
- *	The ARTOP hardware reports the cable detect bits in register 0x49.
  *	Nothing complicated needed here.
  */
 
-static int artop6260_pre_reset(struct ata_link *link, unsigned long deadline)
+static int artop62x0_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits artop_enable_bits[] = {
 		{ 0x4AU, 1U, 0x02UL, 0x02UL },	/* port 0 */
@@ -73,7 +57,7 @@ static int artop6260_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	/* Odd numbered device ids are the units with enable bits (the -R cards) */
+	/* Odd numbered device ids are the units with enable bits. */
 	if ((pdev->device & 1) &&
 	    !pci_test_config_bits(pdev, &artop_enable_bits[ap->port_no]))
 		return -ENOENT;
@@ -317,7 +301,7 @@ static struct ata_port_operations artop6210_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= artop6210_set_piomode,
 	.set_dmamode		= artop6210_set_dmamode,
-	.prereset		= artop6210_pre_reset,
+	.prereset		= artop62x0_pre_reset,
 	.qc_defer		= artop6210_qc_defer,
 };
 
@@ -326,7 +310,7 @@ static struct ata_port_operations artop6260_ops = {
 	.cable_detect		= artop6260_cable_detect,
 	.set_piomode		= artop6260_set_piomode,
 	.set_dmamode		= artop6260_set_dmamode,
-	.prereset		= artop6260_pre_reset,
+	.prereset		= artop62x0_pre_reset,
 };
 
 
