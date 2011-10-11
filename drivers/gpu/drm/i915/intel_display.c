@@ -5671,7 +5671,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	pipeconf &= ~PIPECONF_DITHER_TYPE_MASK;
 	if ((is_lvds && dev_priv->lvds_dither) || dither) {
 		pipeconf |= PIPECONF_DITHER_EN;
-		pipeconf |= PIPECONF_DITHER_TYPE_ST1;
+		pipeconf |= PIPECONF_DITHER_TYPE_SP;
 	}
 	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
