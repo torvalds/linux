@@ -2345,17 +2345,22 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	       xgifb_info->video_bpp,
 	       xgifb_info->refresh_rate);
 
-	default_var.xres =
-		default_var.xres_virtual =
-			xgifb_info->video_width;
-	default_var.yres =
-		default_var.yres_virtual =
-			xgifb_info->video_height;
-	default_var.bits_per_pixel = xgifb_info->video_bpp;
+	fb_info->var.red.length		= 8;
+	fb_info->var.green.length	= 8;
+	fb_info->var.blue.length	= 8;
+	fb_info->var.activate		= FB_ACTIVATE_NOW;
+	fb_info->var.height		= -1;
+	fb_info->var.width		= -1;
+	fb_info->var.vmode		= FB_VMODE_NONINTERLACED;
+	fb_info->var.xres		= xgifb_info->video_width;
+	fb_info->var.xres_virtual	= xgifb_info->video_width;
+	fb_info->var.yres		= xgifb_info->video_height;
+	fb_info->var.yres_virtual	= xgifb_info->video_height;
+	fb_info->var.bits_per_pixel	= xgifb_info->video_bpp;
 
-	XGIfb_bpp_to_var(xgifb_info, &default_var);
+	XGIfb_bpp_to_var(xgifb_info, &fb_info->var);
 
-	default_var.pixclock = (u32) (1000000000 /
+	fb_info->var.pixclock = (u32) (1000000000 /
 			XGIfb_mode_rate_to_dclock(&XGI_Pr, hw_info,
 				XGIbios_mode[xgifb_info->mode_idx].mode_no,
 				xgifb_info->rate_idx));
@@ -2363,26 +2368,29 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (XGIfb_mode_rate_to_ddata(&XGI_Pr, hw_info,
 		XGIbios_mode[xgifb_info->mode_idx].mode_no,
 		xgifb_info->rate_idx,
-		&default_var.left_margin, &default_var.right_margin,
-		&default_var.upper_margin, &default_var.lower_margin,
-		&default_var.hsync_len, &default_var.vsync_len,
-		&default_var.sync, &default_var.vmode)) {
+		&fb_info->var.left_margin,
+		&fb_info->var.right_margin,
+		&fb_info->var.upper_margin,
+		&fb_info->var.lower_margin,
+		&fb_info->var.hsync_len,
+		&fb_info->var.vsync_len,
+		&fb_info->var.sync,
+		&fb_info->var.vmode)) {
 
-		if ((default_var.vmode & FB_VMODE_MASK) ==
+		if ((fb_info->var.vmode & FB_VMODE_MASK) ==
 		    FB_VMODE_INTERLACED) {
-			default_var.yres <<= 1;
-			default_var.yres_virtual <<= 1;
-		} else if ((default_var.vmode & FB_VMODE_MASK) ==
+			fb_info->var.yres <<= 1;
+			fb_info->var.yres_virtual <<= 1;
+		} else if ((fb_info->var.vmode & FB_VMODE_MASK) ==
 			   FB_VMODE_DOUBLE) {
-			default_var.pixclock >>= 1;
-			default_var.yres >>= 1;
-			default_var.yres_virtual >>= 1;
+			fb_info->var.pixclock >>= 1;
+			fb_info->var.yres >>= 1;
+			fb_info->var.yres_virtual >>= 1;
 		}
 
 	}
 
 	fb_info->flags = FBINFO_FLAG_DEFAULT;
-	fb_info->var = default_var;
 	fb_info->fix = XGIfb_fix;
 	fb_info->screen_base = xgifb_info->video_vbase;
 	fb_info->fbops = &XGIfb_ops;
