@@ -171,9 +171,6 @@ static int XGIfb_tvmode;
 static int enable_dstn;
 static int XGIfb_ypan = -1;
 
-
-static int XGIfb_CRT2_write_enable;
-
 /* TW: CRT2 type (for overriding autodetection) */
 static int XGIfb_crt2type = -1;
 /* PR: Tv plug type (for overriding autodetection) */

@@ -967,7 +967,9 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 				filter = -1;
 				break;
 			}
-			xgifb_reg_or(XGIPART1, XGIfb_CRT2_write_enable, 0x01);
+			xgifb_reg_or(XGIPART1,
+				     IND_XGI_CRT2_WRITE_ENABLE_315,
+				     0x01);
 
 			if (xgifb_info->TV_type == TVMODE_NTSC) {
 
@@ -1335,7 +1337,7 @@ static int XGIfb_pan_var(struct xgifb_video_info *xgifb_info,
 	xgifb_reg_and_or(XGISR, 0x37, 0xDF, (base >> 21) & 0x04);
 
 	if (xgifb_info->disp_state & DISPTYPE_DISP2) {
-		xgifb_reg_or(XGIPART1, XGIfb_CRT2_write_enable, 0x01);
+		xgifb_reg_or(XGIPART1, IND_XGI_CRT2_WRITE_ENABLE_315, 0x01);
 		xgifb_reg_set(XGIPART1, 0x06, (base & 0xFF));
 		xgifb_reg_set(XGIPART1, 0x05, ((base >> 8) & 0xFF));
 		xgifb_reg_set(XGIPART1, 0x04, ((base >> 16) & 0xFF));
@@ -2023,23 +2025,18 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			xgifb_info->chip = XG21;
 		else
 			xgifb_info->chip = XG20;
-		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_40:
 		xgifb_info->chip = XG40;
-		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_41:
 		xgifb_info->chip = XG41;
-		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_42:
 		xgifb_info->chip = XG42;
-		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_27:
 		xgifb_info->chip = XG27;
-		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	default:
 		ret = -ENODEV;
