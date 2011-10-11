@@ -358,6 +358,23 @@ allocate_buffers(char **bigbuf, char **smallbuf, unsigned int size,
 	return true;
 }
 
+static bool
+server_unresponsive(struct TCP_Server_Info *server)
+{
+	if (echo_retries > 0 && server->tcpStatus == CifsGood &&
+	    time_after(jiffies, server->lstrp +
+				(echo_retries * SMB_ECHO_INTERVAL))) {
+		cERROR(1, "Server %s has not responded in %d seconds. "
+			  "Reconnecting...", server->hostname,
+			  (echo_retries * SMB_ECHO_INTERVAL / HZ));
+		cifs_reconnect(server);
+		wake_up(&server->response_q);
+		return true;
+	}
+
+	return false;
+}
+
 static int
 read_from_socket(struct TCP_Server_Info *server,
 		 struct kvec *iov, unsigned int to_read,
@@ -372,6 +389,11 @@ read_from_socket(struct TCP_Server_Info *server,
 	smb_msg.msg_controllen = 0;
 
 	for (total_read = 0; total_read < to_read; total_read += length) {
+		if (server_unresponsive(server)) {
+			rc = 1;
+			break;
+		}
+
 		length = kernel_recvmsg(server->ssocket, &smb_msg, iov, 1,
 					to_read - total_read, 0);
 		if (server->tcpStatus == CifsExiting) {
@@ -669,17 +691,6 @@ cifs_demultiplex_thread(void *p)
 		pdu_length = 4; /* enough to get RFC1001 header */
 
 incomplete_rcv:
-		if (echo_retries > 0 && server->tcpStatus == CifsGood &&
-		    time_after(jiffies, server->lstrp +
-					(echo_retries * SMB_ECHO_INTERVAL))) {
-			cERROR(1, "Server %s has not responded in %d seconds. "
-				  "Reconnecting...", server->hostname,
-				  (echo_retries * SMB_ECHO_INTERVAL / HZ));
-			cifs_reconnect(server);
-			wake_up(&server->response_q);
-			continue;
-		}
-
 		rc = read_from_socket(server, &iov, pdu_length,
 				      &total_read, true /* header read */);
 		if (rc == 3)
