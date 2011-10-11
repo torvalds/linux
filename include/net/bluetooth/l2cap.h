@@ -627,6 +627,22 @@ static inline bool __is_ctrl_final(struct l2cap_chan *chan, __u32 ctrl)
 	else
 		return ctrl & L2CAP_CTRL_FINAL;
 }
+
+static inline __u32 __set_ctrl_poll(struct l2cap_chan *chan)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return L2CAP_EXT_CTRL_POLL;
+	else
+		return L2CAP_CTRL_POLL;
+}
+
+static inline bool __is_ctrl_poll(struct l2cap_chan *chan, __u32 ctrl)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return ctrl & L2CAP_EXT_CTRL_POLL;
+	else
+		return ctrl & L2CAP_CTRL_POLL;
+}
 extern int disable_ertm;
 
 int l2cap_init_sockets(void);

@@ -585,7 +585,7 @@ static inline void l2cap_send_sframe(struct l2cap_chan *chan, u16 control)
 		control |= __set_ctrl_final(chan);
 
 	if (test_and_clear_bit(CONN_SEND_PBIT, &chan->conn_state))
-		control |= L2CAP_CTRL_POLL;
+		control |= __set_ctrl_poll(chan);
 
 	skb = bt_skb_alloc(count, GFP_ATOMIC);
 	if (!skb)
@@ -3304,7 +3304,7 @@ static void l2cap_ertm_exit_local_busy(struct l2cap_chan *chan)
 		goto done;
 
 	control = __set_reqseq(chan, chan->buffer_seq);
-	control |= L2CAP_CTRL_POLL;
+	control |= __set_ctrl_poll(chan);
 	control |= __set_ctrl_super(chan, L2CAP_SUPER_RR);
 	l2cap_send_sframe(chan, control);
 	chan->retry_count = 1;
@@ -3538,7 +3538,7 @@ static inline void l2cap_data_channel_rrframe(struct l2cap_chan *chan, u16 rx_co
 	chan->expected_ack_seq = __get_reqseq(chan, rx_control);
 	l2cap_drop_acked_frames(chan);
 
-	if (rx_control & L2CAP_CTRL_POLL) {
+	if (__is_ctrl_poll(chan, rx_control)) {
 		set_bit(CONN_SEND_FBIT, &chan->conn_state);
 		if (test_bit(CONN_SREJ_SENT, &chan->conn_state)) {
 			if (test_bit(CONN_REMOTE_BUSY, &chan->conn_state) &&
@@ -3599,7 +3599,7 @@ static inline void l2cap_data_channel_srejframe(struct l2cap_chan *chan, u16 rx_
 
 	clear_bit(CONN_REMOTE_BUSY, &chan->conn_state);
 
-	if (rx_control & L2CAP_CTRL_POLL) {
+	if (__is_ctrl_poll(chan, rx_control)) {
 		chan->expected_ack_seq = tx_seq;
 		l2cap_drop_acked_frames(chan);
 
@@ -3637,17 +3637,17 @@ static inline void l2cap_data_channel_rnrframe(struct l2cap_chan *chan, u16 rx_c
 	chan->expected_ack_seq = tx_seq;
 	l2cap_drop_acked_frames(chan);
 
-	if (rx_control & L2CAP_CTRL_POLL)
+	if (__is_ctrl_poll(chan, rx_control))
 		set_bit(CONN_SEND_FBIT, &chan->conn_state);
 
 	if (!test_bit(CONN_SREJ_SENT, &chan->conn_state)) {
 		__clear_retrans_timer(chan);
-		if (rx_control & L2CAP_CTRL_POLL)
+		if (__is_ctrl_poll(chan, rx_control))
 			l2cap_send_rr_or_rnr(chan, L2CAP_CTRL_FINAL);
 		return;
 	}
 
-	if (rx_control & L2CAP_CTRL_POLL) {
+	if (__is_ctrl_poll(chan, rx_control)) {
 		l2cap_send_srejtail(chan);
 	} else {
 		rx_control = __set_ctrl_super(chan, L2CAP_SUPER_RR);
