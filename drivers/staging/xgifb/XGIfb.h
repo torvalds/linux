@@ -3,6 +3,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
+#include "vb_struct.h"
 #include "vgatypes.h"
 
 #define DISPTYPE_CRT1       0x00000008L
@@ -57,6 +58,7 @@ enum xgi_tv_plug { /* vicki@030226 */
 struct xgifb_video_info {
 	struct fb_info *fb_info;
 	struct xgi_hw_device_info hw_info;
+	struct vb_device_info dev_info;
 
 	int mode_idx;
 	int rate_idx;

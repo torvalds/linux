@@ -1650,6 +1650,7 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 
 static int XGIfb_blank(int blank, struct fb_info *info)
 {
+	struct xgifb_video_info *xgifb_info = info->par;
 	u8 reg;
 
 	reg = xgifb_reg_get(XGICR, 0x17);
@@ -2002,14 +2003,15 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	hw_info->pjIOAddress = (unsigned char *)xgifb_info->vga_base;
 	/* XGI_Pr.RelIO  = ioremap(pci_resource_start(pdev, 2), 128) + 0x30; */
 	printk("XGIfb: Relocate IO address: %lx [%08lx]\n",
-	       (unsigned long)pci_resource_start(pdev, 2), XGI_Pr.RelIO);
+	       (unsigned long)pci_resource_start(pdev, 2),
+	       xgifb_info->dev_info.RelIO);
 
 	if (pci_enable_device(pdev)) {
 		ret = -EIO;
 		goto error;
 	}
 
-	XGIRegInit(&XGI_Pr, (unsigned long)hw_info->pjIOAddress);
+	XGIRegInit(&xgifb_info->dev_info, (unsigned long)hw_info->pjIOAddress);
 
 	xgifb_reg_set(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
 	reg1 = xgifb_reg_get(XGISR, IND_XGI_PASSWORD);
@@ -2292,7 +2294,9 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 				XGIbios_mode[xgifb_info->mode_idx].xres) &&
 			    (XGI21_LCDCapList[m].LVDSVDE ==
 				XGIbios_mode[xgifb_info->mode_idx].yres)) {
-				xgifb_reg_set(XGI_Pr.P3d4, 0x36, m);
+				xgifb_reg_set(xgifb_info->dev_info.P3d4,
+					      0x36,
+					      m);
 				break;
 			}
 	}
@@ -2364,11 +2368,12 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	XGIfb_bpp_to_var(xgifb_info, &fb_info->var);
 
 	fb_info->var.pixclock = (u32) (1000000000 /
-			XGIfb_mode_rate_to_dclock(&XGI_Pr, hw_info,
+			XGIfb_mode_rate_to_dclock(&xgifb_info->dev_info,
+				hw_info,
 				XGIbios_mode[xgifb_info->mode_idx].mode_no,
 				xgifb_info->rate_idx));
 
-	if (XGIfb_mode_rate_to_ddata(&XGI_Pr, hw_info,
+	if (XGIfb_mode_rate_to_ddata(&xgifb_info->dev_info, hw_info,
 		XGIbios_mode[xgifb_info->mode_idx].mode_no,
 		xgifb_info->rate_idx,
 		&fb_info->var.left_margin,

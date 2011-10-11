@@ -52,15 +52,15 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 #define SEQ_DATA                  0x15
 
-#define XGISR			  XGI_Pr.P3c4
-#define XGICR                     XGI_Pr.P3d4
-#define XGIDACA                   XGI_Pr.P3c8
-#define XGIDACD                   XGI_Pr.P3c9
-#define XGIPART1                  XGI_Pr.Part1Port
-#define XGIPART2                  XGI_Pr.Part2Port
-#define XGIPART3                  XGI_Pr.Part3Port
-#define XGIPART4                  XGI_Pr.Part4Port
-#define XGIPART5                  XGI_Pr.Part5Port
+#define XGISR			  (xgifb_info->dev_info.P3c4)
+#define XGICR			  (xgifb_info->dev_info.P3d4)
+#define XGIDACA			  (xgifb_info->dev_info.P3c8)
+#define XGIDACD			  (xgifb_info->dev_info.P3c9)
+#define XGIPART1		  (xgifb_info->dev_info.Part1Port)
+#define XGIPART2		  (xgifb_info->dev_info.Part2Port)
+#define XGIPART3		  (xgifb_info->dev_info.Part3Port)
+#define XGIPART4		  (xgifb_info->dev_info.Part4Port)
+#define XGIPART5		  (xgifb_info->dev_info.Part5Port)
 #define XGIDAC2A                  XGIPART5
 #define XGIDAC2D                  (XGIPART5 + 1)
 
@@ -142,9 +142,6 @@ static int XGIfb_tvplug = -1;
 
 /* TW: For ioctl XGIFB_GET_INFO */
 /* XGIfb_info XGIfbinfo; */
-
-/* TW: XGI private structure */
-static struct vb_device_info  XGI_Pr;
 
 #define MD_XGI300 1
 #define MD_XGI315 2
