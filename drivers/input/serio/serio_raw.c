@@ -139,9 +139,9 @@ static int serio_raw_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int serio_raw_fetch_byte(struct serio_raw *serio_raw, char *c)
+static bool serio_raw_fetch_byte(struct serio_raw *serio_raw, char *c)
 {
-	int empty;
+	bool empty;
 
 	serio_pause_rx(serio_raw->serio);
 
@@ -394,7 +394,7 @@ static struct serio_driver serio_raw_drv = {
 	.connect	= serio_raw_connect,
 	.reconnect	= serio_raw_reconnect,
 	.disconnect	= serio_raw_disconnect,
-	.manual_bind	= 1,
+	.manual_bind	= true,
 };
 
 static int __init serio_raw_init(void)
