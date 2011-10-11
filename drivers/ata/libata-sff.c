@@ -2507,6 +2507,56 @@ static const struct ata_port_info *ata_sff_find_valid_pi(
 	return NULL;
 }
 
+static int ata_pci_init_one(struct pci_dev *pdev,
+		const struct ata_port_info * const *ppi,
+		struct scsi_host_template *sht, void *host_priv,
+		int hflags, bool bmdma)
+{
+	struct device *dev = &pdev->dev;
+	const struct ata_port_info *pi;
+	struct ata_host *host = NULL;
+	int rc;
+
+	DPRINTK("ENTER\n");
+
+	pi = ata_sff_find_valid_pi(ppi);
+	if (!pi) {
+		dev_err(&pdev->dev, "no valid port_info specified\n");
+		return -EINVAL;
+	}
+
+	if (!devres_open_group(dev, NULL, GFP_KERNEL))
+		return -ENOMEM;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		goto out;
+
+	if (bmdma)
+		/* prepare and activate BMDMA host */
+		rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
+	else
+		/* prepare and activate SFF host */
+		rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
+	if (rc)
+		goto out;
+	host->private_data = host_priv;
+	host->flags |= hflags;
+
+	if (bmdma) {
+		pci_set_master(pdev);
+		rc = ata_pci_sff_activate_host(host, ata_bmdma_interrupt, sht);
+	} else
+		rc = ata_pci_sff_activate_host(host, ata_sff_interrupt, sht);
+out:
+	if (rc == 0)
+		devres_remove_group(&pdev->dev, NULL);
+	else
+		devres_release_group(&pdev->dev, NULL);
+
+	return rc;
+}
+
 /**
  *	ata_pci_sff_init_one - Initialize/register PIO-only PCI IDE controller
  *	@pdev: Controller to be initialized
@@ -2533,41 +2583,7 @@ int ata_pci_sff_init_one(struct pci_dev *pdev,
 		 const struct ata_port_info * const *ppi,
 		 struct scsi_host_template *sht, void *host_priv, int hflag)
 {
-	struct device *dev = &pdev->dev;
-	const struct ata_port_info *pi;
-	struct ata_host *host = NULL;
-	int rc;
-
-	DPRINTK("ENTER\n");
-
-	pi = ata_sff_find_valid_pi(ppi);
-	if (!pi) {
-		dev_err(&pdev->dev, "no valid port_info specified\n");
-		return -EINVAL;
-	}
-
-	if (!devres_open_group(dev, NULL, GFP_KERNEL))
-		return -ENOMEM;
-
-	rc = pcim_enable_device(pdev);
-	if (rc)
-		goto out;
-
-	/* prepare and activate SFF host */
-	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
-	if (rc)
-		goto out;
-	host->private_data = host_priv;
-	host->flags |= hflag;
-
-	rc = ata_pci_sff_activate_host(host, ata_sff_interrupt, sht);
-out:
-	if (rc == 0)
-		devres_remove_group(&pdev->dev, NULL);
-	else
-		devres_release_group(&pdev->dev, NULL);
-
-	return rc;
+	return ata_pci_init_one(pdev, ppi, sht, host_priv, hflag, 0);
 }
 EXPORT_SYMBOL_GPL(ata_pci_sff_init_one);
 
@@ -3286,42 +3302,7 @@ int ata_pci_bmdma_init_one(struct pci_dev *pdev,
 			   struct scsi_host_template *sht, void *host_priv,
 			   int hflags)
 {
-	struct device *dev = &pdev->dev;
-	const struct ata_port_info *pi;
-	struct ata_host *host = NULL;
-	int rc;
-
-	DPRINTK("ENTER\n");
-
-	pi = ata_sff_find_valid_pi(ppi);
-	if (!pi) {
-		dev_err(&pdev->dev, "no valid port_info specified\n");
-		return -EINVAL;
-	}
-
-	if (!devres_open_group(dev, NULL, GFP_KERNEL))
-		return -ENOMEM;
-
-	rc = pcim_enable_device(pdev);
-	if (rc)
-		goto out;
-
-	/* prepare and activate BMDMA host */
-	rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
-	if (rc)
-		goto out;
-	host->private_data = host_priv;
-	host->flags |= hflags;
-
-	pci_set_master(pdev);
-	rc = ata_pci_sff_activate_host(host, ata_bmdma_interrupt, sht);
- out:
-	if (rc == 0)
-		devres_remove_group(&pdev->dev, NULL);
-	else
-		devres_release_group(&pdev->dev, NULL);
-
-	return rc;
+	return ata_pci_init_one(pdev, ppi, sht, host_priv, hflags, 1);
 }
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_init_one);
 
