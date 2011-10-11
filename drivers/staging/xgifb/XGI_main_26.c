@@ -543,6 +543,7 @@ static int XGIfb_GetXG21LVDSData(void)
 static int XGIfb_validate_mode(int myindex)
 {
 	u16 xres, yres;
+	struct xgi_hw_device_info *hw_info = &xgi_video_info.hw_info;
 
 	if (xgi_video_info.chip == XG21) {
 		if ((xgi_video_info.disp_state & DISPTYPE_DISP2)
@@ -573,7 +574,7 @@ static int XGIfb_validate_mode(int myindex)
 
 	switch (xgi_video_info.disp_state & DISPTYPE_DISP2) {
 	case DISPTYPE_LCD:
-		switch (XGIhw_ext.ulCRT2LCDType) {
+		switch (hw_info->ulCRT2LCDType) {
 		case LCD_640x480:
 			xres = 640;
 			yres = 480;
@@ -629,13 +630,13 @@ static int XGIfb_validate_mode(int myindex)
 			return -1;
 		if (XGIbios_mode[myindex].yres > yres)
 			return -1;
-		if ((XGIhw_ext.ulExternalChip == 0x01) || /* LVDS */
-		    (XGIhw_ext.ulExternalChip == 0x05)) { /* LVDS+Chrontel */
+		if ((hw_info->ulExternalChip == 0x01) || /* LVDS */
+		    (hw_info->ulExternalChip == 0x05)) { /* LVDS+Chrontel */
 			switch (XGIbios_mode[myindex].xres) {
 			case 512:
 				if (XGIbios_mode[myindex].yres != 512)
 					return -1;
-				if (XGIhw_ext.ulCRT2LCDType == LCD_1024x600)
+				if (hw_info->ulCRT2LCDType == LCD_1024x600)
 					return -1;
 				break;
 			case 640:
@@ -653,13 +654,13 @@ static int XGIfb_validate_mode(int myindex)
 				    (XGIbios_mode[myindex].yres != 768))
 					return -1;
 				if ((XGIbios_mode[myindex].yres == 600) &&
-				    (XGIhw_ext.ulCRT2LCDType != LCD_1024x600))
+				    (hw_info->ulCRT2LCDType != LCD_1024x600))
 					return -1;
 				break;
 			case 1152:
 				if ((XGIbios_mode[myindex].yres) != 768)
 					return -1;
-				if (XGIhw_ext.ulCRT2LCDType != LCD_1152x768)
+				if (hw_info->ulCRT2LCDType != LCD_1152x768)
 					return -1;
 				break;
 			case 1280:
@@ -667,7 +668,7 @@ static int XGIfb_validate_mode(int myindex)
 				    (XGIbios_mode[myindex].yres != 1024))
 					return -1;
 				if ((XGIbios_mode[myindex].yres == 768) &&
-				    (XGIhw_ext.ulCRT2LCDType != LCD_1280x768))
+				    (hw_info->ulCRT2LCDType != LCD_1280x768))
 					return -1;
 				break;
 			case 1400:
@@ -705,7 +706,7 @@ static int XGIfb_validate_mode(int myindex)
 				    (XGIbios_mode[myindex].yres != 1024))
 					return -1;
 				if (XGIbios_mode[myindex].yres == 960) {
-					if (XGIhw_ext.ulCRT2LCDType ==
+					if (hw_info->ulCRT2LCDType ==
 					    LCD_1400x1050)
 						return -1;
 				}
@@ -1161,7 +1162,7 @@ static void XGIfb_post_setmode(void)
 static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		struct fb_info *info)
 {
-
+	struct xgi_hw_device_info *hw_info = &xgi_video_info.hw_info;
 	unsigned int htotal = var->left_margin + var->xres + var->right_margin
 			+ var->hsync_len;
 	unsigned int vtotal = var->upper_margin + var->yres + var->lower_margin
@@ -1248,7 +1249,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	if (isactive) {
 
 		XGIfb_pre_setmode();
-		if (XGISetModeNew(&XGIhw_ext, XGIfb_mode_no) == 0) {
+		if (XGISetModeNew(hw_info, XGIfb_mode_no) == 0) {
 			printk(KERN_ERR "XGIfb: Setting mode[0x%x] failed\n",
 			       XGIfb_mode_no);
 			return -EINVAL;
@@ -1987,8 +1988,9 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	int ret;
 	bool xgi21_drvlcdcaplist = false;
 	struct fb_info *fb_info;
+	struct xgi_hw_device_info *hw_info = &xgi_video_info.hw_info;
 
-	memset(&XGIhw_ext, 0, sizeof(struct xgi_hw_device_info));
+	memset(hw_info, 0, sizeof(struct xgi_hw_device_info));
 	fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
 	if (!fb_info)
 		return -ENOMEM;
@@ -1998,7 +2000,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	pci_read_config_byte(pdev,
 			     PCI_REVISION_ID,
 			     &xgi_video_info.revision_id);
-	XGIhw_ext.jChipRevision = xgi_video_info.revision_id;
+	hw_info->jChipRevision = xgi_video_info.revision_id;
 
 	xgi_video_info.pcibus = pdev->bus->number;
 	xgi_video_info.pcislot = PCI_SLOT(pdev->devfn);
@@ -2010,7 +2012,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgi_video_info.mmio_base = pci_resource_start(pdev, 1);
 	xgi_video_info.mmio_size = pci_resource_len(pdev, 1);
 	xgi_video_info.vga_base = pci_resource_start(pdev, 2) + 0x30;
-	XGIhw_ext.pjIOAddress = (unsigned char *)xgi_video_info.vga_base;
+	hw_info->pjIOAddress = (unsigned char *)xgi_video_info.vga_base;
 	/* XGI_Pr.RelIO  = ioremap(pci_resource_start(pdev, 2), 128) + 0x30; */
 	printk("XGIfb: Relocate IO address: %lx [%08lx]\n",
 	       (unsigned long)pci_resource_start(pdev, 2), XGI_Pr.RelIO);
@@ -2020,7 +2022,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		goto error;
 	}
 
-	XGIRegInit(&XGI_Pr, (unsigned long)XGIhw_ext.pjIOAddress);
+	XGIRegInit(&XGI_Pr, (unsigned long)hw_info->pjIOAddress);
 
 	xgifb_reg_set(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
 	reg1 = xgifb_reg_get(XGISR, IND_XGI_PASSWORD);
@@ -2063,20 +2065,20 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	}
 
 	printk("XGIfb:chipid = %x\n", xgi_video_info.chip);
-	XGIhw_ext.jChipType = xgi_video_info.chip;
+	hw_info->jChipType = xgi_video_info.chip;
 
 	if ((xgi_video_info.chip == XG21) || (XGIfb_userom)) {
-		XGIhw_ext.pjVirtualRomBase = xgifb_copy_rom(pdev);
-		if (XGIhw_ext.pjVirtualRomBase)
+		hw_info->pjVirtualRomBase = xgifb_copy_rom(pdev);
+		if (hw_info->pjVirtualRomBase)
 			printk(KERN_INFO "XGIfb: Video ROM found and mapped to %p\n",
-			       XGIhw_ext.pjVirtualRomBase);
+			       hw_info->pjVirtualRomBase);
 		else
 			printk(KERN_INFO "XGIfb: Video ROM not found\n");
 	} else {
-		XGIhw_ext.pjVirtualRomBase = NULL;
+		hw_info->pjVirtualRomBase = NULL;
 		printk(KERN_INFO "XGIfb: Video ROM usage disabled\n");
 	}
-	XGIhw_ext.pQueryVGAConfigSpace = &XGIfb_query_VGA_config_space;
+	hw_info->pQueryVGAConfigSpace = &XGIfb_query_VGA_config_space;
 
 	if (XGIfb_get_dram_size()) {
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
@@ -2091,7 +2093,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	/* Enable 2D accelerator engine */
 	xgifb_reg_or(XGISR, IND_XGI_MODULE_ENABLE, XGI_ENABLE_2D);
 
-	XGIhw_ext.ulVideoMemorySize = xgi_video_info.video_size;
+	hw_info->ulVideoMemorySize = xgi_video_info.video_size;
 
 	if (!request_mem_region(xgi_video_info.video_base,
 				xgi_video_info.video_size,
@@ -2112,7 +2114,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		goto error_0;
 	}
 
-	xgi_video_info.video_vbase = XGIhw_ext.pjVideoMemoryAddress =
+	xgi_video_info.video_vbase = hw_info->pjVideoMemoryAddress =
 	ioremap(xgi_video_info.video_base, xgi_video_info.video_size);
 	xgi_video_info.mmio_vbase = ioremap(xgi_video_info.mmio_base,
 					    xgi_video_info.mmio_size);
@@ -2126,7 +2128,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	       xgi_video_info.mmio_base, xgi_video_info.mmio_vbase,
 	       xgi_video_info.mmio_size / 1024);
 	printk("XGIfb: XGIInitNew() ...");
-	if (XGIInitNew(&XGIhw_ext))
+	if (XGIInitNew(hw_info))
 		printk("OK\n");
 	else
 		printk("Fail\n");
@@ -2152,62 +2154,62 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		XGIfb_get_VB_type();
 	}
 
-	XGIhw_ext.ujVBChipID = VB_CHIP_UNKNOWN;
+	hw_info->ujVBChipID = VB_CHIP_UNKNOWN;
 
-	XGIhw_ext.ulExternalChip = 0;
+	hw_info->ulExternalChip = 0;
 
 	switch (xgi_video_info.hasVB) {
 	case HASVB_301:
 		reg = xgifb_reg_get(XGIPART4, 0x01);
 		if (reg >= 0xE0) {
-			XGIhw_ext.ujVBChipID = VB_CHIP_302LV;
+			hw_info->ujVBChipID = VB_CHIP_302LV;
 			printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
 		} else if (reg >= 0xD0) {
-			XGIhw_ext.ujVBChipID = VB_CHIP_301LV;
+			hw_info->ujVBChipID = VB_CHIP_301LV;
 			printk(KERN_INFO "XGIfb: XGI301LV bridge detected (revision 0x%02x)\n", reg);
 		}
 		/* else if (reg >= 0xB0) {
-			XGIhw_ext.ujVBChipID = VB_CHIP_301B;
+			hw_info->ujVBChipID = VB_CHIP_301B;
 			reg1 = xgifb_reg_get(XGIPART4, 0x23);
 			printk("XGIfb: XGI301B bridge detected\n");
 		} */
 		else {
-			XGIhw_ext.ujVBChipID = VB_CHIP_301;
+			hw_info->ujVBChipID = VB_CHIP_301;
 			printk("XGIfb: XGI301 bridge detected\n");
 		}
 		break;
 	case HASVB_302:
 		reg = xgifb_reg_get(XGIPART4, 0x01);
 		if (reg >= 0xE0) {
-			XGIhw_ext.ujVBChipID = VB_CHIP_302LV;
+			hw_info->ujVBChipID = VB_CHIP_302LV;
 			printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
 		} else if (reg >= 0xD0) {
-			XGIhw_ext.ujVBChipID = VB_CHIP_301LV;
+			hw_info->ujVBChipID = VB_CHIP_301LV;
 			printk(KERN_INFO "XGIfb: XGI302LV bridge detected (revision 0x%02x)\n", reg);
 		} else if (reg >= 0xB0) {
 			reg1 = xgifb_reg_get(XGIPART4, 0x23);
 
-			XGIhw_ext.ujVBChipID = VB_CHIP_302B;
+			hw_info->ujVBChipID = VB_CHIP_302B;
 
 		} else {
-			XGIhw_ext.ujVBChipID = VB_CHIP_302;
+			hw_info->ujVBChipID = VB_CHIP_302;
 			printk(KERN_INFO "XGIfb: XGI302 bridge detected\n");
 		}
 		break;
 	case HASVB_LVDS:
-		XGIhw_ext.ulExternalChip = 0x1;
+		hw_info->ulExternalChip = 0x1;
 		printk(KERN_INFO "XGIfb: LVDS transmitter detected\n");
 		break;
 	case HASVB_TRUMPION:
-		XGIhw_ext.ulExternalChip = 0x2;
+		hw_info->ulExternalChip = 0x2;
 		printk(KERN_INFO "XGIfb: Trumpion Zurac LVDS scaler detected\n");
 		break;
 	case HASVB_CHRONTEL:
-		XGIhw_ext.ulExternalChip = 0x4;
+		hw_info->ulExternalChip = 0x4;
 		printk(KERN_INFO "XGIfb: Chrontel TV encoder detected\n");
 		break;
 	case HASVB_LVDS_CHRONTEL:
-		XGIhw_ext.ulExternalChip = 0x5;
+		hw_info->ulExternalChip = 0x5;
 		printk(KERN_INFO "XGIfb: LVDS transmitter and Chrontel TV encoder detected\n");
 		break;
 	default:
@@ -2233,17 +2235,17 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		if (!enable_dstn) {
 			reg = xgifb_reg_get(XGICR, IND_XGI_LCD_PANEL);
 			reg &= 0x0f;
-			XGIhw_ext.ulCRT2LCDType = XGI310paneltype[reg];
+			hw_info->ulCRT2LCDType = XGI310paneltype[reg];
 
 		} else {
 			/* TW: FSTN/DSTN */
-			XGIhw_ext.ulCRT2LCDType = LCD_320x480;
+			hw_info->ulCRT2LCDType = LCD_320x480;
 		}
 	}
 
-	if ((XGIhw_ext.ujVBChipID == VB_CHIP_302B) ||
-			(XGIhw_ext.ujVBChipID == VB_CHIP_301LV) ||
-			(XGIhw_ext.ujVBChipID == VB_CHIP_302LV)) {
+	if ((hw_info->ujVBChipID == VB_CHIP_302B) ||
+			(hw_info->ujVBChipID == VB_CHIP_301LV) ||
+			(hw_info->ujVBChipID == VB_CHIP_302LV)) {
 		int tmp;
 		tmp = xgifb_reg_get(XGICR, 0x34);
 		if (tmp <= 0x13) {
@@ -2371,10 +2373,10 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	XGIfb_bpp_to_var(&default_var);
 
 	default_var.pixclock = (u32) (1000000000 /
-			XGIfb_mode_rate_to_dclock(&XGI_Pr, &XGIhw_ext,
+			XGIfb_mode_rate_to_dclock(&XGI_Pr, hw_info,
 					XGIfb_mode_no, XGIfb_rate_idx));
 
-	if (XGIfb_mode_rate_to_ddata(&XGI_Pr, &XGIhw_ext,
+	if (XGIfb_mode_rate_to_ddata(&XGI_Pr, hw_info,
 		XGIfb_mode_no, XGIfb_rate_idx,
 		&default_var.left_margin, &default_var.right_margin,
 		&default_var.upper_margin, &default_var.lower_margin,
@@ -2437,7 +2439,7 @@ error_0:
 	release_mem_region(xgi_video_info.video_base,
 			   xgi_video_info.video_size);
 error:
-	vfree(XGIhw_ext.pjVirtualRomBase);
+	vfree(hw_info->pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	return ret;
 }
@@ -2461,7 +2463,7 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	iounmap(xgifb_info->video_vbase);
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
-	vfree(XGIhw_ext.pjVirtualRomBase);
+	vfree(xgifb_info->hw_info.pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	pci_set_drvdata(pdev, NULL);
 }

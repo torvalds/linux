@@ -3,6 +3,8 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
+#include "vgatypes.h"
+
 #define DISPTYPE_CRT1       0x00000008L
 #define DISPTYPE_CRT2       0x00000004L
 #define DISPTYPE_LCD        0x00000002L
@@ -54,6 +56,7 @@ enum xgi_tv_plug { /* vicki@030226 */
 
 struct video_info {
 	struct fb_info *fb_info;
+	struct xgi_hw_device_info hw_info;
 
 	int           chip_id;
 	unsigned int  video_size;

@@ -184,9 +184,6 @@ static int XGIfb_tvplug = -1;
 /* TW: For ioctl XGIFB_GET_INFO */
 /* XGIfb_info XGIfbinfo; */
 
-/* TW: Hardware extension; contains data on hardware */
-static struct xgi_hw_device_info XGIhw_ext;
-
 /* TW: XGI private structure */
 static struct vb_device_info  XGI_Pr;
 
