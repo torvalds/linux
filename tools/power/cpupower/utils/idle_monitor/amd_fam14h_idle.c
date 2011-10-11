@@ -281,13 +281,13 @@ struct cpuidle_monitor *amd_fam14h_register(void)
 	if (cpupower_cpu_info.vendor != X86_VENDOR_AMD)
 		return NULL;
 
-	if (cpupower_cpu_info.family == 0x14) {
-		if (cpu_count <= 0 || cpu_count > 2) {
-			fprintf(stderr, "AMD fam14h: Invalid cpu count: %d\n",
-				cpu_count);
-			return NULL;
-		}
-	} else
+	if (cpupower_cpu_info.family == 0x14)
+		strncpy(amd_fam14h_monitor.name, "Fam_14h",
+			MONITOR_NAME_LEN - 1);
+	else if (cpupower_cpu_info.family == 0x12)
+		strncpy(amd_fam14h_monitor.name, "Fam_12h",
+			MONITOR_NAME_LEN - 1);
+	else
 		return NULL;
 
 	/* We do not alloc for nbp1 machine wide counter */
@@ -322,7 +322,7 @@ static void amd_fam14h_unregister(void)
 }
 
 struct cpuidle_monitor amd_fam14h_monitor = {
-	.name			= "Ontario",
+	.name			= "",
 	.hw_states		= amd_fam14h_cstates,
 	.hw_states_num		= AMD_FAM14H_STATE_NUM,
 	.start			= amd_fam14h_start,
