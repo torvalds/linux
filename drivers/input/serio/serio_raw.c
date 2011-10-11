@@ -51,7 +51,6 @@ struct serio_raw_client {
 
 static DEFINE_MUTEX(serio_raw_mutex);
 static LIST_HEAD(serio_raw_list);
-static unsigned int serio_raw_no;
 
 /*********************************************************************
  *             Interface with userspace (file operations)            *
@@ -117,13 +116,10 @@ out:
 	return retval;
 }
 
-static void serio_raw_cleanup(struct kref *kref)
+static void serio_raw_free(struct kref *kref)
 {
 	struct serio_raw *serio_raw =
 			container_of(kref, struct serio_raw, kref);
-
-	misc_deregister(&serio_raw->dev);
-	list_del_init(&serio_raw->node);
 
 	put_device(&serio_raw->serio->dev);
 	kfree(serio_raw);
@@ -134,11 +130,14 @@ static int serio_raw_release(struct inode *inode, struct file *file)
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
 
-	mutex_lock(&serio_raw_mutex);
+	serio_pause_rx(serio_raw->serio);
+	list_del(&client->node);
+	serio_continue_rx(serio_raw->serio);
 
-	kref_put(&serio_raw->kref, serio_raw_cleanup);
+	kfree(client);
 
-	mutex_unlock(&serio_raw_mutex);
+	kref_put(&serio_raw->kref, serio_raw_free);
+
 	return 0;
 }
 
@@ -281,6 +280,7 @@ static irqreturn_t serio_raw_interrupt(struct serio *serio, unsigned char data,
 
 static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 {
+	static atomic_t serio_raw_no = ATOMIC_INIT(0);
 	struct serio_raw *serio_raw;
 	int err;
 
@@ -290,10 +290,8 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 		return -ENOMEM;
 	}
 
-	mutex_lock(&serio_raw_mutex);
-
 	snprintf(serio_raw->name, sizeof(serio_raw->name),
-		 "serio_raw%d", serio_raw_no++);
+		 "serio_raw%ld", (long)atomic_inc_return(&serio_raw_no) - 1);
 	kref_init(&serio_raw->kref);
 	INIT_LIST_HEAD(&serio_raw->client_list);
 	init_waitqueue_head(&serio_raw->wait);
@@ -305,9 +303,14 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 
 	err = serio_open(serio, drv);
 	if (err)
-		goto out_free;
+		goto err_free;
+
+	err = mutex_lock_killable(&serio_raw_mutex);
+	if (err)
+		goto err_close;
 
 	list_add_tail(&serio_raw->node, &serio_raw_list);
+	mutex_unlock(&serio_raw_mutex);
 
 	serio_raw->dev.minor = PSMOUSE_MINOR;
 	serio_raw->dev.name = serio_raw->name;
@@ -324,22 +327,20 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 		dev_err(&serio->dev,
 			"failed to register raw access device for %s\n",
 			serio->phys);
-		goto out_close;
+		goto err_unlink;
 	}
 
 	dev_info(&serio->dev, "raw access enabled on %s (%s, minor %d)\n",
 		 serio->phys, serio_raw->name, serio_raw->dev.minor);
-	goto out;
+	return 0;
 
-out_close:
-	serio_close(serio);
+err_unlink:
 	list_del_init(&serio_raw->node);
-out_free:
+err_close:
+	serio_close(serio);
+err_free:
 	serio_set_drvdata(serio, NULL);
-	put_device(&serio->dev);
-	kfree(serio_raw);
-out:
-	mutex_unlock(&serio_raw_mutex);
+	kref_put(&serio_raw->kref, serio_raw_free);
 	return err;
 }
 
@@ -382,14 +383,17 @@ static void serio_raw_disconnect(struct serio *serio)
 {
 	struct serio_raw *serio_raw = serio_get_drvdata(serio);
 
+	misc_deregister(&serio_raw->dev);
+
 	mutex_lock(&serio_raw_mutex);
+	serio_raw->dead = true;
+	list_del_init(&serio_raw->node);
+	mutex_unlock(&serio_raw_mutex);
+
+	serio_raw_hangup(serio_raw);
 
 	serio_close(serio);
-	serio_raw->dead = true;
-	serio_raw_hangup(serio_raw);
-	kref_put(&serio_raw->kref, serio_raw_cleanup);
-
-	mutex_unlock(&serio_raw_mutex);
+	kref_put(&serio_raw->kref, serio_raw_free);
 
 	serio_set_drvdata(serio, NULL);
 }
