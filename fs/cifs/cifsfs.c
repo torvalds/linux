@@ -532,7 +532,6 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	char *full_path = NULL;
 	char *s, *p;
 	char sep;
-	int xid;
 
 	full_path = cifs_build_path_to_root(vol, cifs_sb,
 					    cifs_sb_master_tcon(cifs_sb));
@@ -541,7 +540,6 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 
 	cFYI(1, "Get root dentry for %s", full_path);
 
-	xid = GetXid();
 	sep = CIFS_DIR_SEP(cifs_sb);
 	dentry = dget(sb->s_root);
 	p = s = full_path;
@@ -572,7 +570,6 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 		dput(dentry);
 		dentry = child;
 	} while (!IS_ERR(dentry));
-	_FreeXid(xid);
 	kfree(full_path);
 	return dentry;
 }
