@@ -1609,17 +1609,6 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 };
 
-static int twl4030_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, twl4030_dapm_widgets,
-				 ARRAY_SIZE(twl4030_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
-	return 0;
-}
-
 static int twl4030_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
 {
@@ -2241,9 +2230,6 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 
 	twl4030_init_chip(codec);
 
-	snd_soc_add_controls(codec, twl4030_snd_controls,
-				ARRAY_SIZE(twl4030_snd_controls));
-	twl4030_add_widgets(codec);
 	return 0;
 }
 
@@ -2269,6 +2255,13 @@ static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 	.reg_cache_size = sizeof(twl4030_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = twl4030_reg,
+
+	.controls = twl4030_snd_controls,
+	.num_controls = ARRAY_SIZE(twl4030_snd_controls),
+	.dapm_widgets = twl4030_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(twl4030_dapm_widgets),
+	.dapm_routes = intercon,
+	.num_dapm_routes = ARRAY_SIZE(intercon),
 };
 
 static int __devinit twl4030_codec_probe(struct platform_device *pdev)
