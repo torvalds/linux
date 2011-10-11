@@ -92,6 +92,8 @@
 #define AB8500_REV_REG			0x80
 #define AB8500_SWITCH_OFF_STATUS	0x00
 
+#define AB8500_TURN_ON_STATUS		0x00
+
 /*
  * Map interrupt numbers to the LATCH and MASK register offsets, Interrupt
  * numbers are indexed into this array with (num / 8).
@@ -812,12 +814,40 @@ static ssize_t show_switch_off_status(struct device *dev,
 	return sprintf(buf, "%#x\n", value);
 }
 
+/*
+ * ab8500 has turned on due to (TURN_ON_STATUS):
+ * 0x01 PORnVbat
+ * 0x02 PonKey1dbF
+ * 0x04 PonKey2dbF
+ * 0x08 RTCAlarm
+ * 0x10 MainChDet
+ * 0x20 VbusDet
+ * 0x40 UsbIDDetect
+ * 0x80 Reserved
+ */
+static ssize_t show_turn_on_status(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	u8 value;
+	struct ab8500 *ab8500;
+
+	ab8500 = dev_get_drvdata(dev);
+	ret = get_register_interruptible(ab8500, AB8500_SYS_CTRL1_BLOCK,
+		AB8500_TURN_ON_STATUS, &value);
+	if (ret < 0)
+		return ret;
+	return sprintf(buf, "%#x\n", value);
+}
+
 static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
 static DEVICE_ATTR(switch_off_status, S_IRUGO, show_switch_off_status, NULL);
+static DEVICE_ATTR(turn_on_status, S_IRUGO, show_turn_on_status, NULL);
 
 static struct attribute *ab8500_sysfs_entries[] = {
 	&dev_attr_chip_id.attr,
 	&dev_attr_switch_off_status.attr,
+	&dev_attr_turn_on_status.attr,
 	NULL,
 };
 
