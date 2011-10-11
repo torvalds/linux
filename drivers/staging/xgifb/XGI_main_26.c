@@ -2415,6 +2415,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		goto error_mtrr;
 	}
 
+	pci_set_drvdata(pdev, &xgi_video_info);
+
 	dumpVGAReg();
 
 	return 0;
@@ -2444,17 +2446,18 @@ error:
 
 static void __devexit xgifb_remove(struct pci_dev *pdev)
 {
+	struct video_info *xgifb_info = pci_get_drvdata(pdev);
+
 	unregister_framebuffer(fb_info);
 #ifdef CONFIG_MTRR
-	if (xgi_video_info.mtrr >= 0)
-		mtrr_del(xgi_video_info.mtrr, xgi_video_info.video_base,
-			xgi_video_info.video_size);
+	if (xgifb_info->mtrr >= 0)
+		mtrr_del(xgifb_info->mtrr, xgifb_info->video_base,
+			xgifb_info->video_size);
 #endif /* CONFIG_MTRR */
-	iounmap(xgi_video_info.mmio_vbase);
-	iounmap(xgi_video_info.video_vbase);
-	release_mem_region(xgi_video_info.mmio_base, xgi_video_info.mmio_size);
-	release_mem_region(xgi_video_info.video_base,
-			   xgi_video_info.video_size);
+	iounmap(xgifb_info->mmio_vbase);
+	iounmap(xgifb_info->video_vbase);
+	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
+	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
 	vfree(XGIhw_ext.pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	pci_set_drvdata(pdev, NULL);
