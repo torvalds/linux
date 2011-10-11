@@ -960,7 +960,7 @@ struct hyperv_service_callback {
 	void (*callback) (void *context);
 };
 
-extern void prep_negotiate_resp(struct icmsg_hdr *,
-				struct icmsg_negotiate *, u8 *);
+extern void vmbus_prep_negotiate_resp(struct icmsg_hdr *,
+				      struct icmsg_negotiate *, u8 *);
 
 #endif /* _HYPERV_H */

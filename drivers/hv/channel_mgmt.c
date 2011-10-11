@@ -114,7 +114,7 @@ static const uuid_le
 
 
 /**
- * prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
+ * vmbus_prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
  * @icmsghdrp: Pointer to msg header structure
  * @icmsg_negotiate: Pointer to negotiate message structure
  * @buf: Raw buffer channel data
@@ -128,9 +128,8 @@ static const uuid_le
  *
  * Mainly used by Hyper-V drivers.
  */
-void prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
-			     struct icmsg_negotiate *negop,
-			     u8 *buf)
+void vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
+			       struct icmsg_negotiate *negop, u8 *buf)
 {
 	if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
 		icmsghdrp->icmsgsize = 0x10;
@@ -156,7 +155,7 @@ void prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
 		negop->icmsg_vercnt = 1;
 	}
 }
-EXPORT_SYMBOL(prep_negotiate_resp);
+EXPORT_SYMBOL_GPL(vmbus_prep_negotiate_resp);
 
 /*
  * alloc_channel - Allocate and initialize a vmbus channel object

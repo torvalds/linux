@@ -260,7 +260,7 @@ void hv_kvp_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			prep_negotiate_resp(icmsghdrp, negop, recv_buffer);
+			vmbus_prep_negotiate_resp(icmsghdrp, negop, recv_buffer);
 		} else {
 			kvp_msg = (struct hv_kvp_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +
