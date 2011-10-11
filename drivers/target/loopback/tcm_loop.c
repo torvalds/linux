@@ -290,6 +290,15 @@ static int tcm_loop_queuecommand(
 	 */
 	tl_hba = *(struct tcm_loop_hba **)shost_priv(sc->device->host);
 	tl_tpg = &tl_hba->tl_hba_tpgs[sc->device->id];
+	/*
+	 * Ensure that this tl_tpg reference from the incoming sc->device->id
+	 * has already been configured via tcm_loop_make_naa_tpg().
+	 */
+	if (!tl_tpg->tl_hba) {
+		set_host_byte(sc, DID_NO_CONNECT);
+		sc->scsi_done(sc);
+		return 0;
+	}
 	se_tpg = &tl_tpg->tl_se_tpg;
 	/*
 	 * Determine the SAM Task Attribute and allocate tl_cmd and
@@ -1244,6 +1253,9 @@ void tcm_loop_drop_naa_tpg(
 	 * Deregister the tl_tpg as a emulated SAS TCM Target Endpoint
 	 */
 	core_tpg_deregister(se_tpg);
+
+	tl_tpg->tl_hba = NULL;
+	tl_tpg->tl_tpgt = 0;
 
 	pr_debug("TCM_Loop_ConfigFS: Deallocated Emulated %s"
 		" Target Port %s,t,0x%04x\n", tcm_loop_dump_proto_id(tl_hba),
