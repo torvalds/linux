@@ -402,7 +402,6 @@ static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
 				&& (XGIbios_mode[XGIfb_mode_idx].yres
 						== XGI21_LCDCapList[0].LVDSVDE)
 				&& (XGIbios_mode[XGIfb_mode_idx].bpp == 8)) {
-			XGIfb_mode_no = XGIbios_mode[XGIfb_mode_idx].mode_no;
 			found_mode = 1;
 			break;
 		}
@@ -1185,7 +1184,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 						== var->yres)
 				&& (XGIbios_mode[xgifb_mode_idx].bpp
 						== var->bits_per_pixel)) {
-			XGIfb_mode_no = XGIbios_mode[xgifb_mode_idx].mode_no;
 			found_mode = 1;
 			break;
 		}
@@ -1214,9 +1212,10 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	if (isactive) {
 
 		XGIfb_pre_setmode(xgifb_info);
-		if (XGISetModeNew(hw_info, XGIfb_mode_no) == 0) {
+		if (XGISetModeNew(hw_info,
+				  XGIbios_mode[xgifb_mode_idx].mode_no) == 0) {
 			printk(KERN_ERR "XGIfb: Setting mode[0x%x] failed\n",
-			       XGIfb_mode_no);
+			       XGIbios_mode[xgifb_mode_idx].mode_no);
 			return -EINVAL;
 		}
 		info->fix.line_length = ((info->var.xres_virtual
@@ -2287,8 +2286,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			}
 	}
 
-	XGIfb_mode_no = XGIbios_mode[xgifb_mode_idx].mode_no;
-
 	/* yilin set default refresh rate */
 	xgifb_info->refresh_rate = refresh_rate;
 	if (xgifb_info->refresh_rate == 0)
@@ -2351,10 +2348,11 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	default_var.pixclock = (u32) (1000000000 /
 			XGIfb_mode_rate_to_dclock(&XGI_Pr, hw_info,
-					XGIfb_mode_no, XGIfb_rate_idx));
+					XGIbios_mode[xgifb_mode_idx].mode_no,
+					XGIfb_rate_idx));
 
 	if (XGIfb_mode_rate_to_ddata(&XGI_Pr, hw_info,
-		XGIfb_mode_no, XGIfb_rate_idx,
+		XGIbios_mode[xgifb_mode_idx].mode_no, XGIfb_rate_idx,
 		&default_var.left_margin, &default_var.right_margin,
 		&default_var.upper_margin, &default_var.lower_margin,
 		&default_var.hsync_len, &default_var.vsync_len,

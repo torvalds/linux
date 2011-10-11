@@ -354,7 +354,6 @@ static struct _XGIbios_mode {
 
 /* mode-related variables */
 static int xgifb_mode_idx = -1;
-static u8  XGIfb_mode_no;
 static u8  XGIfb_rate_idx;
 
 /* TW: CR36 evaluation */
