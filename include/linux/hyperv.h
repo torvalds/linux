@@ -721,11 +721,8 @@ extern void vmbus_ontimer(unsigned long data);
 							BLKVSC_DRV)
 
 /* Logging Level */
-#define ERROR_LVL				3
 #define WARNING_LVL				4
 #define INFO_LVL				6
-#define DEBUG_LVL				7
-#define DEBUG_LVL_ENTEREXIT			8
 #define DEBUG_RING_LVL				9
 
 extern unsigned int vmbus_loglevel;
@@ -736,32 +733,11 @@ extern unsigned int vmbus_loglevel;
 		printk(KERN_DEBUG #mod": %s() " fmt "\n", __func__, ## args);\
 	} while (0)
 
-#define DPRINT_DBG(mod, fmt, args...) do {\
-	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
-	    (DEBUG_LVL <= LOWORD(vmbus_loglevel)))	\
-		printk(KERN_DEBUG #mod": %s() " fmt "\n", __func__, ## args);\
-	} while (0)
-
-#define DPRINT_INFO(mod, fmt, args...) do {\
-	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
-	    (INFO_LVL <= LOWORD(vmbus_loglevel)))	\
-		printk(KERN_INFO #mod": " fmt "\n", ## args);\
-	} while (0)
-
 #define DPRINT_WARN(mod, fmt, args...) do {\
 	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
 	    (WARNING_LVL <= LOWORD(vmbus_loglevel)))	\
 		printk(KERN_WARNING #mod": WARNING! " fmt "\n", ## args);\
 	} while (0)
-
-#define DPRINT_ERR(mod, fmt, args...) do {\
-	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
-	    (ERROR_LVL <= LOWORD(vmbus_loglevel)))	\
-		printk(KERN_ERR #mod": %s() ERROR!! " fmt "\n",	\
-		       __func__, ## args);\
-	} while (0)
-
-
 
 struct hv_driver;
 struct hv_device;
