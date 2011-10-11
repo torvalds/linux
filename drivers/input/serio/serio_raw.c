@@ -232,9 +232,11 @@ static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
 {
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
+	unsigned int mask;
 
 	poll_wait(file, &serio_raw->wait, wait);
 
+	mask = serio_raw->dead ? POLLHUP | POLLERR : POLLOUT | POLLWRNORM;
 	if (serio_raw->head != serio_raw->tail)
 		return POLLIN | POLLRDNORM;
 
@@ -359,22 +361,37 @@ static int serio_raw_reconnect(struct serio *serio)
 	return 0;
 }
 
+/*
+ * Wake up users waiting for IO so they can disconnect from
+ * dead device.
+ */
+static void serio_raw_hangup(struct serio_raw *serio_raw)
+{
+	struct serio_raw_client *client;
+
+	serio_pause_rx(serio_raw->serio);
+	list_for_each_entry(client, &serio_raw->client_list, node)
+		kill_fasync(&client->fasync, SIGIO, POLL_HUP);
+	serio_continue_rx(serio_raw->serio);
+
+	wake_up_interruptible(&serio_raw->wait);
+}
+
+
 static void serio_raw_disconnect(struct serio *serio)
 {
-	struct serio_raw *serio_raw;
+	struct serio_raw *serio_raw = serio_get_drvdata(serio);
 
 	mutex_lock(&serio_raw_mutex);
 
-	serio_raw = serio_get_drvdata(serio);
-
 	serio_close(serio);
-	serio_set_drvdata(serio, NULL);
-
 	serio_raw->dead = true;
-	wake_up_interruptible(&serio_raw->wait);
+	serio_raw_hangup(serio_raw);
 	kref_put(&serio_raw->kref, serio_raw_cleanup);
 
 	mutex_unlock(&serio_raw_mutex);
+
+	serio_set_drvdata(serio, NULL);
 }
 
 static struct serio_device_id serio_raw_serio_ids[] = {
