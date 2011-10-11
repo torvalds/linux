@@ -15,8 +15,6 @@
 
 #include <linux/io.h>
 
-static unsigned char XGINew_DataBusWidth;
-
 static unsigned short XGINew_DDRDRAM_TYPE340[4][5] = {
 	{ 2, 13, 9, 64, 0x45},
 	{ 2, 12, 9, 32, 0x35},
@@ -610,7 +608,7 @@ static unsigned short XGINew_SetDRAMSizeReg(int index,
 	int RankSize;
 	unsigned char ChannelNo;
 
-	RankSize = DRAMTYPE_TABLE[index][3] * XGINew_DataBusWidth / 32;
+	RankSize = DRAMTYPE_TABLE[index][3] * pVBInfo->ram_bus / 32;
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x13);
 	data &= 0x80;
 
@@ -637,7 +635,7 @@ static unsigned short XGINew_SetDRAMSizeReg(int index,
 			       (data & 0xF0));
 
 		/* data |= pVBInfo->ram_channel << 2; */
-		/* data |= (XGINew_DataBusWidth / 64) << 1; */
+		/* data |= (pVBInfo->ram_bus / 64) << 1; */
 		/* xgifb_reg_set(pVBInfo->P3c4, 0x14, data); */
 
 		/* should delay */
@@ -654,7 +652,7 @@ static unsigned short XGINew_SetDRAMSize20Reg(int index,
 	int RankSize;
 	unsigned char ChannelNo;
 
-	RankSize = DRAMTYPE_TABLE[index][3] * XGINew_DataBusWidth / 8;
+	RankSize = DRAMTYPE_TABLE[index][3] * pVBInfo->ram_bus / 8;
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x13);
 	data &= 0x80;
 
@@ -682,7 +680,7 @@ static unsigned short XGINew_SetDRAMSize20Reg(int index,
 		udelay(15);
 
 		/* data |= pVBInfo->ram_channel << 2; */
-		/* data |= (XGINew_DataBusWidth / 64) << 1; */
+		/* data |= (pVBInfo->ram_bus / 64) << 1; */
 		/* xgifb_reg_set(pVBInfo->P3c4, 0x14, data); */
 
 		/* should delay */
@@ -753,7 +751,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 			if ((HwDeviceExtension->ulVideoMemorySize - 1)
 					> 0x1000000) {
 
-				XGINew_DataBusWidth = 32; /* 32 bits */
+				pVBInfo->ram_bus = 32; /* 32 bits */
 				/* 22bit + 2 rank + 32bit */
 				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xB1);
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x52);
@@ -782,7 +780,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 			if ((HwDeviceExtension->ulVideoMemorySize - 1) >
 			    0x800000) {
-				XGINew_DataBusWidth = 16; /* 16 bits */
+				pVBInfo->ram_bus = 16; /* 16 bits */
 				/* 22bit + 2 rank + 16bit */
 				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xB1);
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x41);
@@ -800,7 +798,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 		} else { /* Dual_16_8 */
 			if ((HwDeviceExtension->ulVideoMemorySize - 1) >
 			    0x800000) {
-				XGINew_DataBusWidth = 16; /* 16 bits */
+				pVBInfo->ram_bus = 16; /* 16 bits */
 				/* (0x31:12x8x2) 22bit + 2 rank */
 				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xB1);
 				/* 0x41:16Mx16 bit*/
@@ -831,7 +829,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 
 			if ((HwDeviceExtension->ulVideoMemorySize - 1) >
 			    0x400000) {
-				XGINew_DataBusWidth = 8; /* 8 bits */
+				pVBInfo->ram_bus = 8; /* 8 bits */
 				/* (0x31:12x8x2) 22bit + 2 rank */
 				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xB1);
 				/* 0x30:8Mx8 bit*/
@@ -850,13 +848,13 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 		break;
 
 	case XG27:
-		XGINew_DataBusWidth = 16; /* 16 bits */
+		pVBInfo->ram_bus = 16; /* 16 bits */
 		pVBInfo->ram_channel = 1; /* Single channel */
 		xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x51); /* 32Mx16 bit*/
 		break;
 	case XG41:
 		if (XGINew_CheckFrequence(pVBInfo) == 1) {
-			XGINew_DataBusWidth = 32; /* 32 bits */
+			pVBInfo->ram_bus = 32; /* 32 bits */
 			pVBInfo->ram_channel = 3; /* Quad Channel */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4C);
@@ -889,7 +887,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 			else
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x39);
 		} else { /* DDR */
-			XGINew_DataBusWidth = 64; /* 64 bits */
+			pVBInfo->ram_bus = 64; /* 64 bits */
 			pVBInfo->ram_channel = 2; /* Dual channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x5A);
@@ -935,7 +933,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 		 It's Different from Other XG40 Series.
 		 */
 		if (XGINew_CheckFrequence(pVBInfo) == 1) { /* DDRII, DDR2x */
-			XGINew_DataBusWidth = 32; /* 32 bits */
+			pVBInfo->ram_bus = 32; /* 32 bits */
 			pVBInfo->ram_channel = 2; /* 2 Channel */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x44);
@@ -959,7 +957,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x30);
 			}
 		} else { /* DDR */
-			XGINew_DataBusWidth = 64; /* 64 bits */
+			pVBInfo->ram_bus = 64; /* 64 bits */
 			pVBInfo->ram_channel = 1; /* 1 channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x52);
@@ -977,7 +975,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 	default: /* XG40 */
 
 		if (XGINew_CheckFrequence(pVBInfo) == 1) { /* DDRII */
-			XGINew_DataBusWidth = 32; /* 32 bits */
+			pVBInfo->ram_bus = 32; /* 32 bits */
 			pVBInfo->ram_channel = 3;
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x4C);
@@ -1001,7 +999,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x38);
 			}
 		} else { /* DDR */
-			XGINew_DataBusWidth = 64; /* 64 bits */
+			pVBInfo->ram_bus = 64; /* 64 bits */
 			pVBInfo->ram_channel = 2; /* 2 channels */
 			xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xA1);
 			xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x5A);

@@ -395,6 +395,7 @@ struct vb_device_info {
 
 	int ram_type;
 	int ram_channel;
+	int ram_bus;
 };  /* _struct vb_device_info */
 
 #endif /* _VB_STRUCT_ */
