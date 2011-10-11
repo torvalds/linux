@@ -808,6 +808,7 @@ static struct usbhs_private usbhs1_private = {
 		},
 		.driver_param = {
 			.buswait_bwait	= 4,
+			.has_otg	= 1,
 			.pipe_type	= usbhs1_pipe_cfg,
 			.pipe_size	= ARRAY_SIZE(usbhs1_pipe_cfg),
 		},

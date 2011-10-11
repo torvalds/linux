@@ -114,6 +114,10 @@ void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable)
 {
 	u16 mask = DCFM | DRPD | DPRPU;
 	u16 val  = DCFM | DRPD;
+	int has_otg = usbhs_get_dparam(priv, has_otg);
+
+	if (has_otg)
+		usbhs_bset(priv, DVSTCTR, (EXTLP | PWEN), (EXTLP | PWEN));
 
 	/*
 	 * if enable

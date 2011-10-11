@@ -136,6 +136,11 @@ struct renesas_usbhs_driver_param {
 	 * pio <--> dma border.
 	 */
 	int pio_dma_border; /* default is 64byte */
+
+	/*
+	 * option:
+	 */
+	u32 has_otg:1; /* for controlling PWEN/EXTLP */
 };
 
 /*
