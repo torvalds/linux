@@ -1071,6 +1071,84 @@ static const struct file_operations fops_roam_table = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath6kl_force_roam_write(struct file *file,
+				       const char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	char buf[20];
+	size_t len;
+	u8 bssid[ETH_ALEN];
+	int i;
+	int addr[ETH_ALEN];
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	if (sscanf(buf, "%02x:%02x:%02x:%02x:%02x:%02x",
+		   &addr[0], &addr[1], &addr[2], &addr[3], &addr[4], &addr[5])
+	    != ETH_ALEN)
+		return -EINVAL;
+	for (i = 0; i < ETH_ALEN; i++)
+		bssid[i] = addr[i];
+
+	ret = ath6kl_wmi_force_roam_cmd(ar->wmi, bssid);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_force_roam = {
+	.write = ath6kl_force_roam_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_roam_mode_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	char buf[20];
+	size_t len;
+	enum wmi_roam_mode mode;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+	if (len > 0 && buf[len - 1] == '\n')
+		buf[len - 1] = '\0';
+
+	if (strcasecmp(buf, "default") == 0)
+		mode = WMI_DEFAULT_ROAM_MODE;
+	else if (strcasecmp(buf, "bssbias") == 0)
+		mode = WMI_HOST_BIAS_ROAM_MODE;
+	else if (strcasecmp(buf, "lock") == 0)
+		mode = WMI_LOCK_BSS_MODE;
+	else
+		return -EINVAL;
+
+	ret = ath6kl_wmi_set_roam_mode_cmd(ar->wmi, mode);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_roam_mode = {
+	.write = ath6kl_roam_mode_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath6kl_debug_init(struct ath6kl *ar)
 {
 	ar->debug.fwlog_buf.buf = vmalloc(ATH6KL_FWLOG_SIZE);
@@ -1131,6 +1209,12 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("roam_table", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_roam_table);
+
+	debugfs_create_file("force_roam", S_IWUSR, ar->debugfs_phy, ar,
+			    &fops_force_roam);
+
+	debugfs_create_file("roam_mode", S_IWUSR, ar->debugfs_phy, ar,
+			    &fops_roam_mode);
 
 	return 0;
 }

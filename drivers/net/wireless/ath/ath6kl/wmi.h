@@ -1354,14 +1354,20 @@ enum wmi_roam_ctrl {
 	WMI_SET_LRSSI_SCAN_PARAMS,
 };
 
+enum wmi_roam_mode {
+	WMI_DEFAULT_ROAM_MODE = 1, /* RSSI based roam */
+	WMI_HOST_BIAS_ROAM_MODE = 2, /* Host bias based roam */
+	WMI_LOCK_BSS_MODE = 3, /* Lock to the current BSS */
+};
+
 struct bss_bias {
 	u8 bssid[ETH_ALEN];
-	u8  bias;
+	s8 bias;
 } __packed;
 
 struct bss_bias_info {
 	u8 num_bss;
-	struct bss_bias bss_bias[1];
+	struct bss_bias bss_bias[0];
 } __packed;
 
 struct low_rssi_scan_params {
@@ -1374,10 +1380,11 @@ struct low_rssi_scan_params {
 
 struct roam_ctrl_cmd {
 	union {
-		u8 bssid[ETH_ALEN];
-		u8 roam_mode;
-		struct bss_bias_info bss;
-		struct low_rssi_scan_params params;
+		u8 bssid[ETH_ALEN]; /* WMI_FORCE_ROAM */
+		u8 roam_mode; /* WMI_SET_ROAM_MODE */
+		struct bss_bias_info bss; /* WMI_SET_HOST_BIAS */
+		struct low_rssi_scan_params params; /* WMI_SET_LRSSI_SCAN_PARAMS
+						     */
 	} __packed info;
 	u8 roam_ctrl;
 } __packed;
@@ -2237,6 +2244,8 @@ s32 ath6kl_wmi_get_rate(s8 rate_index);
 
 int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd);
 int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);
+int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid);
+int ath6kl_wmi_set_roam_mode_cmd(struct wmi *wmi, enum wmi_roam_mode mode);
 
 /* AP mode */
 int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, struct wmi_connect_cmd *p);
