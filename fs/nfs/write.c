@@ -1526,6 +1526,10 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
 	int flags = FLUSH_SYNC;
 	int ret = 0;
 
+	/* no commits means nothing needs to be done */
+	if (!nfsi->ncommit)
+		return ret;
+
 	if (wbc->sync_mode == WB_SYNC_NONE) {
 		/* Don't commit yet if this is a non-blocking flush and there
 		 * are a lot of outstanding writes for this mapping.
