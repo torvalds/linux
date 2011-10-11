@@ -35,9 +35,6 @@
 #include <linux/mod_devicetable.h>
 
 
-#include <asm/hyperv.h>
-
-
 #define MAX_PAGE_BUFFER_COUNT				16
 #define MAX_MULTIPAGE_BUFFER_COUNT			32 /* 128K */
 

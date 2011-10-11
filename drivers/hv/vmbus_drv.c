@@ -33,7 +33,7 @@
 #include <acpi/acpi_bus.h>
 #include <linux/completion.h>
 #include <linux/hyperv.h>
-
+#include <asm/hyperv.h>
 #include "hyperv_vmbus.h"
 
 
