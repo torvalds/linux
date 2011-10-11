@@ -118,7 +118,13 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
 	return pkt;
 }
 
-int __usbhs_pkt_handler(struct usbhs_pipe *pipe, int type)
+enum {
+	USBHSF_PKT_PREPARE,
+	USBHSF_PKT_TRY_RUN,
+	USBHSF_PKT_DMA_DONE,
+};
+
+static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
@@ -166,6 +172,11 @@ __usbhs_pkt_handler_end:
 	}
 
 	return ret;
+}
+
+void usbhs_pkt_start(struct usbhs_pipe *pipe)
+{
+	usbhsf_pkt_handler(pipe, USBHSF_PKT_PREPARE);
 }
 
 /*
@@ -884,7 +895,7 @@ static int usbhsf_irq_empty(struct usbhs_priv *priv,
 		if (!(irq_state->bempsts & (1 << i)))
 			continue;
 
-		ret = usbhs_pkt_run(pipe);
+		ret = usbhsf_pkt_handler(pipe, USBHSF_PKT_TRY_RUN);
 		if (ret < 0)
 			dev_err(dev, "irq_empty run_error %d : %d\n", i, ret);
 	}
@@ -914,7 +925,7 @@ static int usbhsf_irq_ready(struct usbhs_priv *priv,
 		if (!(irq_state->brdysts & (1 << i)))
 			continue;
 
-		ret = usbhs_pkt_run(pipe);
+		ret = usbhsf_pkt_handler(pipe, USBHSF_PKT_TRY_RUN);
 		if (ret < 0)
 			dev_err(dev, "irq_ready run_error %d : %d\n", i, ret);
 	}
@@ -929,7 +940,7 @@ static void usbhsf_dma_complete(void *arg)
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int ret;
 
-	ret = usbhs_pkt_dmadone(pipe);
+	ret = usbhsf_pkt_handler(pipe, USBHSF_PKT_DMA_DONE);
 	if (ret < 0)
 		dev_err(dev, "dma_complete run_error %d : %d\n",
 			usbhs_pipe_number(pipe), ret);
