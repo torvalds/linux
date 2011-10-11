@@ -316,7 +316,7 @@ struct l2cap_conn_param_update_rsp {
 
 /* ----- L2CAP channels and connections ----- */
 struct srej_list {
-	__u8	tx_seq;
+	__u16	tx_seq;
 	struct list_head list;
 };
 
@@ -362,14 +362,14 @@ struct l2cap_chan {
 	unsigned long	conn_state;
 	unsigned long	flags;
 
-	__u8		next_tx_seq;
-	__u8		expected_ack_seq;
-	__u8		expected_tx_seq;
-	__u8		buffer_seq_srej;
-	__u8		srej_save_reqseq;
-	__u8		frames_sent;
-	__u8		unacked_frames;
+	__u16		next_tx_seq;
+	__u16		expected_ack_seq;
+	__u16		expected_tx_seq;
 	__u16		buffer_seq;
+	__u16		buffer_seq_srej;
+	__u16		srej_save_reqseq;
+	__u16		frames_sent;
+	__u16		unacked_frames;
 	__u8		retry_count;
 	__u8		num_acked;
 	__u16		sdu_len;
@@ -529,7 +529,25 @@ static inline __u32 __set_reqseq(struct l2cap_chan *chan, __u32 reqseq)
 	else
 		return (reqseq << L2CAP_CTRL_REQSEQ_SHIFT) & L2CAP_CTRL_REQSEQ;
 }
-#define __get_txseq(ctrl)	(((ctrl) & L2CAP_CTRL_TXSEQ) >> 1)
+
+static inline __u16 __get_txseq(struct l2cap_chan *chan, __u32 ctrl)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return (ctrl & L2CAP_EXT_CTRL_TXSEQ) >>
+						L2CAP_EXT_CTRL_TXSEQ_SHIFT;
+	else
+		return (ctrl & L2CAP_CTRL_TXSEQ) >> L2CAP_CTRL_TXSEQ_SHIFT;
+}
+
+static inline __u32 __set_txseq(struct l2cap_chan *chan, __u32 txseq)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return (txseq << L2CAP_EXT_CTRL_TXSEQ_SHIFT) &
+							L2CAP_EXT_CTRL_TXSEQ;
+	else
+		return (txseq << L2CAP_CTRL_TXSEQ_SHIFT) & L2CAP_CTRL_TXSEQ;
+}
+
 #define __is_iframe(ctrl)	(!((ctrl) & L2CAP_CTRL_FRAME_TYPE))
 #define __is_sframe(ctrl)	((ctrl) & L2CAP_CTRL_FRAME_TYPE)
 static inline __u8 __get_ctrl_sar(struct l2cap_chan *chan, __u32 ctrl)
