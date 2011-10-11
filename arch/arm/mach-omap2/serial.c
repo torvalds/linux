@@ -605,8 +605,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 
 	omap_up.dma_enabled = uart->dma_enabled;
 	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
-	omap_up.mapbase = oh->slaves[0]->addr->pa_start;
-	omap_up.membase = omap_hwmod_get_mpu_rt_va(oh);
 	omap_up.flags = UPF_BOOT_AUTOCONF;
 
 	pdata = &omap_up;
