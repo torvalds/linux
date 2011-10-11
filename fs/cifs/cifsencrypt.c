@@ -92,7 +92,7 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 		return rc;
 
 	if (!server->session_estab) {
-		strncpy(cifs_pdu->Signature.SecuritySignature, "BSRSPYL", 8);
+		memcpy(cifs_pdu->Signature.SecuritySignature, "BSRSPYL", 8);
 		return rc;
 	}
 
@@ -189,7 +189,7 @@ int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 		return rc;
 
 	if (!server->session_estab) {
-		strncpy(cifs_pdu->Signature.SecuritySignature, "BSRSPYL", 8);
+		memcpy(cifs_pdu->Signature.SecuritySignature, "BSRSPYL", 8);
 		return rc;
 	}
 
