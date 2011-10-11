@@ -7538,6 +7538,8 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				if (inbound == 1)
 					offset = 0;
 				bf_set(lpfc_sli4_sge_offset, sgl, offset);
+				bf_set(lpfc_sli4_sge_type, sgl,
+					LPFC_SGE_TYPE_DATA);
 				offset += bde.tus.f.bdeSize;
 			}
 			sgl->word2 = cpu_to_le32(sgl->word2);

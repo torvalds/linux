@@ -1484,14 +1484,79 @@ struct sli4_sge {	/* SLI-4 */
 	uint32_t addr_lo;
 
 	uint32_t word2;
-#define lpfc_sli4_sge_offset_SHIFT	0 /* Offset of buffer - Not used*/
-#define lpfc_sli4_sge_offset_MASK	0x1FFFFFFF
+#define lpfc_sli4_sge_offset_SHIFT	0
+#define lpfc_sli4_sge_offset_MASK	0x07FFFFFF
 #define lpfc_sli4_sge_offset_WORD	word2
-#define lpfc_sli4_sge_last_SHIFT	31 /* Last SEG in the SGL sets
-						this  flag !! */
+#define lpfc_sli4_sge_type_SHIFT	27
+#define lpfc_sli4_sge_type_MASK		0x0000000F
+#define lpfc_sli4_sge_type_WORD		word2
+#define LPFC_SGE_TYPE_DATA		0x0
+#define LPFC_SGE_TYPE_DIF		0x4
+#define LPFC_SGE_TYPE_LSP		0x5
+#define LPFC_SGE_TYPE_PEDIF		0x6
+#define LPFC_SGE_TYPE_PESEED		0x7
+#define LPFC_SGE_TYPE_DISEED		0x8
+#define LPFC_SGE_TYPE_ENC		0x9
+#define LPFC_SGE_TYPE_ATM		0xA
+#define LPFC_SGE_TYPE_SKIP		0xC
+#define lpfc_sli4_sge_last_SHIFT	31 /* Last SEG in the SGL sets it */
 #define lpfc_sli4_sge_last_MASK		0x00000001
 #define lpfc_sli4_sge_last_WORD		word2
 	uint32_t sge_len;
+};
+
+struct sli4_sge_diseed {	/* SLI-4 */
+	uint32_t ref_tag;
+	uint32_t ref_tag_tran;
+
+	uint32_t word2;
+#define lpfc_sli4_sge_dif_apptran_SHIFT	0
+#define lpfc_sli4_sge_dif_apptran_MASK	0x0000FFFF
+#define lpfc_sli4_sge_dif_apptran_WORD	word2
+#define lpfc_sli4_sge_dif_af_SHIFT	24
+#define lpfc_sli4_sge_dif_af_MASK	0x00000001
+#define lpfc_sli4_sge_dif_af_WORD	word2
+#define lpfc_sli4_sge_dif_na_SHIFT	25
+#define lpfc_sli4_sge_dif_na_MASK	0x00000001
+#define lpfc_sli4_sge_dif_na_WORD	word2
+#define lpfc_sli4_sge_dif_hi_SHIFT	26
+#define lpfc_sli4_sge_dif_hi_MASK	0x00000001
+#define lpfc_sli4_sge_dif_hi_WORD	word2
+#define lpfc_sli4_sge_dif_type_SHIFT	27
+#define lpfc_sli4_sge_dif_type_MASK	0x0000000F
+#define lpfc_sli4_sge_dif_type_WORD	word2
+#define lpfc_sli4_sge_dif_last_SHIFT	31 /* Last SEG in the SGL sets it */
+#define lpfc_sli4_sge_dif_last_MASK	0x00000001
+#define lpfc_sli4_sge_dif_last_WORD	word2
+	uint32_t word3;
+#define lpfc_sli4_sge_dif_apptag_SHIFT	0
+#define lpfc_sli4_sge_dif_apptag_MASK	0x0000FFFF
+#define lpfc_sli4_sge_dif_apptag_WORD	word3
+#define lpfc_sli4_sge_dif_bs_SHIFT	16
+#define lpfc_sli4_sge_dif_bs_MASK	0x00000007
+#define lpfc_sli4_sge_dif_bs_WORD	word3
+#define lpfc_sli4_sge_dif_ai_SHIFT	19
+#define lpfc_sli4_sge_dif_ai_MASK	0x00000001
+#define lpfc_sli4_sge_dif_ai_WORD	word3
+#define lpfc_sli4_sge_dif_me_SHIFT	20
+#define lpfc_sli4_sge_dif_me_MASK	0x00000001
+#define lpfc_sli4_sge_dif_me_WORD	word3
+#define lpfc_sli4_sge_dif_re_SHIFT	21
+#define lpfc_sli4_sge_dif_re_MASK	0x00000001
+#define lpfc_sli4_sge_dif_re_WORD	word3
+#define lpfc_sli4_sge_dif_ce_SHIFT	22
+#define lpfc_sli4_sge_dif_ce_MASK	0x00000001
+#define lpfc_sli4_sge_dif_ce_WORD	word3
+#define lpfc_sli4_sge_dif_nr_SHIFT	23
+#define lpfc_sli4_sge_dif_nr_MASK	0x00000001
+#define lpfc_sli4_sge_dif_nr_WORD	word3
+#define lpfc_sli4_sge_dif_oprx_SHIFT	24
+#define lpfc_sli4_sge_dif_oprx_MASK	0x0000000F
+#define lpfc_sli4_sge_dif_oprx_WORD	word3
+#define lpfc_sli4_sge_dif_optx_SHIFT	28
+#define lpfc_sli4_sge_dif_optx_MASK	0x0000000F
+#define lpfc_sli4_sge_dif_optx_WORD	word3
+/* optx and oprx use BG_OP_IN defines in lpfc_hw.h */
 };
 
 struct fcf_record {
@@ -3023,6 +3088,9 @@ struct wqe_common {
 #define wqe_ctxt_tag_MASK     0x0000FFFF
 #define wqe_ctxt_tag_WORD     word6
 	uint32_t word7;
+#define wqe_dif_SHIFT         0
+#define wqe_dif_MASK          0x00000003
+#define wqe_dif_WORD          word7
 #define wqe_ct_SHIFT          2
 #define wqe_ct_MASK           0x00000003
 #define wqe_ct_WORD           word7
@@ -3035,12 +3103,21 @@ struct wqe_common {
 #define wqe_class_SHIFT       16
 #define wqe_class_MASK        0x00000007
 #define wqe_class_WORD        word7
+#define wqe_ar_SHIFT          19
+#define wqe_ar_MASK           0x00000001
+#define wqe_ar_WORD           word7
+#define wqe_ag_SHIFT          wqe_ar_SHIFT
+#define wqe_ag_MASK           wqe_ar_MASK
+#define wqe_ag_WORD           wqe_ar_WORD
 #define wqe_pu_SHIFT          20
 #define wqe_pu_MASK           0x00000003
 #define wqe_pu_WORD           word7
 #define wqe_erp_SHIFT         22
 #define wqe_erp_MASK          0x00000001
 #define wqe_erp_WORD          word7
+#define wqe_conf_SHIFT        wqe_erp_SHIFT
+#define wqe_conf_MASK         wqe_erp_MASK
+#define wqe_conf_WORD         wqe_erp_WORD
 #define wqe_lnk_SHIFT         23
 #define wqe_lnk_MASK          0x00000001
 #define wqe_lnk_WORD          word7
@@ -3099,6 +3176,9 @@ struct wqe_common {
 #define wqe_xc_SHIFT          21
 #define wqe_xc_MASK           0x00000001
 #define wqe_xc_WORD           word10
+#define wqe_sr_SHIFT          22
+#define wqe_sr_MASK           0x00000001
+#define wqe_sr_WORD           word10
 #define wqe_ccpe_SHIFT        23
 #define wqe_ccpe_MASK         0x00000001
 #define wqe_ccpe_WORD         word10

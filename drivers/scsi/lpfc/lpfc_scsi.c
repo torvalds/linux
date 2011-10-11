@@ -58,6 +58,13 @@ static char *dif_op_str[] = {
 	"SCSI_PROT_READ_PASS",
 	"SCSI_PROT_WRITE_PASS",
 };
+
+struct scsi_dif_tuple {
+	__be16 guard_tag;       /* Checksum */
+	__be16 app_tag;         /* Opaque storage */
+	__be32 ref_tag;         /* Target LBA or indirect LBA */
+};
+
 static void
 lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb);
 static void
@@ -1263,6 +1270,174 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	return 0;
 }
 
+static inline unsigned
+lpfc_cmd_blksize(struct scsi_cmnd *sc)
+{
+	return sc->device->sector_size;
+}
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+/*
+ * Given a scsi cmnd, determine the BlockGuard tags to be used with it
+ * @sc: The SCSI command to examine
+ * @reftag: (out) BlockGuard reference tag for transmitted data
+ * @apptag: (out) BlockGuard application tag for transmitted data
+ * @new_guard (in) Value to replace CRC with if needed
+ *
+ * Returns (1) if error injection was performed, (0) otherwise
+ */
+static int
+lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
+		uint32_t *reftag, uint16_t *apptag, uint32_t new_guard)
+{
+	struct scatterlist *sgpe; /* s/g prot entry */
+	struct scatterlist *sgde; /* s/g data entry */
+	struct scsi_dif_tuple *src;
+	uint32_t op = scsi_get_prot_op(sc);
+	uint32_t blksize;
+	uint32_t numblks;
+	sector_t lba;
+	int rc = 0;
+
+	if (op == SCSI_PROT_NORMAL)
+		return 0;
+
+	lba = scsi_get_lba(sc);
+	if (phba->lpfc_injerr_lba != LPFC_INJERR_LBA_OFF) {
+		blksize = lpfc_cmd_blksize(sc);
+		numblks = (scsi_bufflen(sc) + blksize - 1) / blksize;
+
+		/* Make sure we have the right LBA if one is specified */
+		if ((phba->lpfc_injerr_lba < lba) ||
+			(phba->lpfc_injerr_lba >= (lba + numblks)))
+			return 0;
+	}
+
+	sgpe = scsi_prot_sglist(sc);
+	sgde = scsi_sglist(sc);
+
+	/* Should we change the Reference Tag */
+	if (reftag) {
+		/*
+		 * If we are SCSI_PROT_WRITE_STRIP, the protection data is
+		 * being stripped from the wire, thus it doesn't matter.
+		 */
+		if ((op == SCSI_PROT_WRITE_PASS) ||
+			(op == SCSI_PROT_WRITE_INSERT)) {
+			if (phba->lpfc_injerr_wref_cnt) {
+
+				/* DEADBEEF will be the reftag on the wire */
+				*reftag = 0xDEADBEEF;
+				phba->lpfc_injerr_wref_cnt--;
+				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				rc = 1;
+
+				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9081 BLKGRD: Injecting reftag error: "
+					"write lba x%lx\n", (unsigned long)lba);
+			}
+		} else {
+			if (phba->lpfc_injerr_rref_cnt) {
+				*reftag = 0xDEADBEEF;
+				phba->lpfc_injerr_rref_cnt--;
+				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				rc = 1;
+
+				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9076 BLKGRD: Injecting reftag error: "
+					"read lba x%lx\n", (unsigned long)lba);
+			}
+		}
+	}
+
+	/* Should we change the Application Tag */
+	if (apptag) {
+		/*
+		 * If we are SCSI_PROT_WRITE_STRIP, the protection data is
+		 * being stripped from the wire, thus it doesn't matter.
+		 */
+		if ((op == SCSI_PROT_WRITE_PASS) ||
+			(op == SCSI_PROT_WRITE_INSERT)) {
+			if (phba->lpfc_injerr_wapp_cnt) {
+
+				/* DEAD will be the apptag on the wire */
+				*apptag = 0xDEAD;
+				phba->lpfc_injerr_wapp_cnt--;
+				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				rc = 1;
+
+				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9077 BLKGRD: Injecting apptag error: "
+					"write lba x%lx\n", (unsigned long)lba);
+			}
+		} else {
+			if (phba->lpfc_injerr_rapp_cnt) {
+				*apptag = 0xDEAD;
+				phba->lpfc_injerr_rapp_cnt--;
+				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				rc = 1;
+
+				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9078 BLKGRD: Injecting apptag error: "
+					"read lba x%lx\n", (unsigned long)lba);
+			}
+		}
+	}
+
+	/* Should we change the Guard Tag */
+
+	/*
+	 * If we are SCSI_PROT_WRITE_INSERT, the protection data is
+	 * being on the wire is being fully generated on the HBA.
+	 * The host cannot change it or force an error.
+	 */
+	if (((op == SCSI_PROT_WRITE_STRIP) ||
+		(op == SCSI_PROT_WRITE_PASS)) &&
+		phba->lpfc_injerr_wgrd_cnt) {
+		if (sgpe) {
+			src = (struct scsi_dif_tuple *)sg_virt(sgpe);
+			/*
+			 * Just inject an error in the first
+			 * prot block.
+			 */
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				"9079 BLKGRD: Injecting guard error: "
+				"write lba x%lx oldGuard x%x refTag x%x\n",
+				(unsigned long)lba, src->guard_tag,
+				src->ref_tag);
+
+			src->guard_tag = (uint16_t)new_guard;
+			phba->lpfc_injerr_wgrd_cnt--;
+			phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+			rc = 1;
+
+		} else {
+			blksize = lpfc_cmd_blksize(sc);
+			/*
+			 * Jump past the first data block
+			 * and inject an error in the
+			 * prot data. The prot data is already
+			 * embedded after the regular data.
+			 */
+			src = (struct scsi_dif_tuple *)
+					(sg_virt(sgde) + blksize);
+
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				"9080 BLKGRD: Injecting guard error: "
+				"write lba x%lx oldGuard x%x refTag x%x\n",
+				(unsigned long)lba, src->guard_tag,
+				src->ref_tag);
+
+			src->guard_tag = (uint16_t)new_guard;
+			phba->lpfc_injerr_wgrd_cnt--;
+			phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+			rc = 1;
+		}
+	}
+	return rc;
+}
+#endif
+
 /*
  * Given a scsi cmnd, determine the BlockGuard opcodes to be used with it
  * @sc: The SCSI command to examine
@@ -1341,18 +1516,6 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	return ret;
 }
 
-struct scsi_dif_tuple {
-	__be16 guard_tag;       /* Checksum */
-	__be16 app_tag;         /* Opaque storage */
-	__be32 ref_tag;         /* Target LBA or indirect LBA */
-};
-
-static inline unsigned
-lpfc_cmd_blksize(struct scsi_cmnd *sc)
-{
-	return sc->device->sector_size;
-}
-
 /*
  * This function sets up buffer list for protection groups of
  * type LPFC_PG_TYPE_NO_DIF
@@ -1400,6 +1563,11 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	/* extract some info from the scsi command for pde*/
 	blksize = lpfc_cmd_blksize(sc);
 	reftag = scsi_get_lba(sc) & 0xffffffff;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	/* reftag is the only error we can inject here */
+	lpfc_bg_err_inject(phba, sc, &reftag, 0, 0);
+#endif
 
 	/* setup PDE5 with what we have */
 	pde5 = (struct lpfc_pde5 *) bpl;
@@ -1531,6 +1699,11 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	/* extract some info from the scsi command */
 	blksize = lpfc_cmd_blksize(sc);
 	reftag = scsi_get_lba(sc) & 0xffffffff;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	/* reftag / guard tag are the only errors we can inject here */
+	lpfc_bg_err_inject(phba, sc, &reftag, 0, 0xDEAD);
+#endif
 
 	split_offset = 0;
 	do {
@@ -1671,7 +1844,6 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		}
 
 	} while (!alldone);
-
 out:
 
 	return num_bde;
@@ -2075,6 +2247,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 			else
 				bf_set(lpfc_sli4_sge_last, sgl, 0);
 			bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
+			bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_DATA);
 			sgl->word2 = cpu_to_le32(sgl->word2);
 			sgl->sge_len = cpu_to_le32(dma_len);
 			dma_offset += dma_len;
