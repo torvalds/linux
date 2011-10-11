@@ -112,14 +112,12 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 int amd_pci_get_num_boost_states(int *active, int *states)
 {
 	struct pci_access *pci_acc;
-	int vendor_id = 0x1022;
-	int boost_dev_ids[4] = {0x1204, 0x1604, 0x1704, 0};
 	struct pci_dev *device;
 	uint8_t val = 0;
 
 	*active = *states = 0;
 
-	device = pci_acc_init(&pci_acc, vendor_id, boost_dev_ids);
+	device = pci_slot_func_init(&pci_acc, 0x18, 4);
 
 	if (device == NULL)
 		return -ENODEV;

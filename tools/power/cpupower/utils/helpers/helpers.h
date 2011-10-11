@@ -132,8 +132,11 @@ extern unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu);
 
 /* PCI stuff ****************************/
 extern int amd_pci_get_num_boost_states(int *active, int *states);
-extern struct pci_dev *pci_acc_init(struct pci_access **pacc, int vendor_id,
-				    int *dev_ids);
+extern struct pci_dev *pci_acc_init(struct pci_access **pacc, int domain,
+				    int bus, int slot, int func, int vendor,
+				    int dev);
+extern struct pci_dev *pci_slot_func_init(struct pci_access **pacc,
+					      int slot, int func);
 
 /* PCI stuff ****************************/
 
