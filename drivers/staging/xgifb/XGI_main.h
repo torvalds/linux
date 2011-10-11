@@ -150,8 +150,7 @@ static struct vb_device_info  XGI_Pr;
 #define MD_XGI315 2
 
 /* mode table */
-/* NOT const - will be patched for 1280x960 mode number chaos reasons */
-static struct _XGIbios_mode {
+static const struct _XGIbios_mode {
 	char name[15];
 	u8 mode_no;
 	u16 vesa_mode_no_1;  /* "XGI defined" VESA mode number */
@@ -261,7 +260,7 @@ static struct _XGIbios_mode {
 	{"1280x768x32",  0x25, 0x0000, 0x0000, 1280,  768, 32, 1, 160, 48,
 	 MD_XGI315},
 	{"1280x960x8",   0x7C, 0x0000, 0x0000, 1280,  960,  8, 1, 160, 60,
-	 MD_XGI300|MD_XGI315},  /* TW: Modenumbers being patched */
+	 MD_XGI300|MD_XGI315},
 	{"1280x960x16",  0x7D, 0x0000, 0x0000, 1280,  960, 16, 1, 160, 60,
 	 MD_XGI300|MD_XGI315},
 	{"1280x960x24",  0x7E, 0x0000, 0x0000, 1280,  960, 32, 1, 160, 60,
