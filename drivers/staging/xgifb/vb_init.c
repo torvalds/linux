@@ -15,13 +15,13 @@
 
 #include <linux/io.h>
 
-static unsigned short XGINew_DDRDRAM_TYPE340[4][5] = {
+static const unsigned short XGINew_DDRDRAM_TYPE340[4][5] = {
 	{ 2, 13, 9, 64, 0x45},
 	{ 2, 12, 9, 32, 0x35},
 	{ 2, 12, 8, 16, 0x31},
 	{ 2, 11, 8,  8, 0x21} };
 
-static unsigned short XGINew_DDRDRAM_TYPE20[12][5] = {
+static const unsigned short XGINew_DDRDRAM_TYPE20[12][5] = {
 	{ 2, 14, 11, 128, 0x5D},
 	{ 2, 14, 10, 64, 0x59},
 	{ 2, 13, 11, 64, 0x4D},
@@ -589,7 +589,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 }
 
 static void XGINew_SetDRAMSizingType(int index,
-		unsigned short DRAMTYPE_TABLE[][5],
+		const unsigned short DRAMTYPE_TABLE[][5],
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short data;
@@ -601,7 +601,7 @@ static void XGINew_SetDRAMSizingType(int index,
 }
 
 static unsigned short XGINew_SetDRAMSizeReg(int index,
-		unsigned short DRAMTYPE_TABLE[][5],
+		const unsigned short DRAMTYPE_TABLE[][5],
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short data = 0, memsize = 0;
@@ -645,7 +645,7 @@ static unsigned short XGINew_SetDRAMSizeReg(int index,
 }
 
 static unsigned short XGINew_SetDRAMSize20Reg(int index,
-		unsigned short DRAMTYPE_TABLE[][5],
+		const unsigned short DRAMTYPE_TABLE[][5],
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short data = 0, memsize = 0;
