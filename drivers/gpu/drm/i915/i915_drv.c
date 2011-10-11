@@ -106,7 +106,7 @@ static struct drm_driver driver;
 extern int intel_agp_enabled;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
-	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
+	.class = PCI_BASE_CLASS_DISPLAY << 16,	\
 	.class_mask = 0xff0000,			\
 	.vendor = 0x8086,			\
 	.device = id,				\
