@@ -102,6 +102,8 @@ struct usbhs_priv;
 /* DVSTCTR */
 #define EXTLP	(1 << 10)	/* Controls the EXTLP pin output state */
 #define PWEN	(1 << 9)	/* Controls the PWEN pin output state */
+#define USBRST	(1 << 6)	/* Bus Reset Output */
+#define UACT	(1 << 4)	/* USB Bus Enable */
 #define RHST	(0x7)		/* Reset Handshake */
 #define  RHST_LOW_SPEED  1	/* Low-speed connection */
 #define  RHST_FULL_SPEED 2	/* Full-speed connection */
@@ -256,6 +258,13 @@ void usbhs_sys_hispeed_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_usb_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable);
+
+/*
+ * bus
+ */
+void usbhs_bus_send_sof_enable(struct usbhs_priv *priv);
+void usbhs_bus_send_reset(struct usbhs_priv *priv);
+int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable);
 
 /*
  * frame

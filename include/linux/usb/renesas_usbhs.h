@@ -82,6 +82,13 @@ struct renesas_usbhs_platform_callback {
 	 * get VBUS status function.
 	 */
 	int (*get_vbus)(struct platform_device *pdev);
+
+	/*
+	 * option:
+	 *
+	 * VBUS control is needed for Host
+	 */
+	int (*set_vbus)(struct platform_device *pdev, int enable);
 };
 
 /*
