@@ -636,10 +636,14 @@ struct usbhs_pipe *usbhs_dcp_malloc(struct usbhs_priv *priv)
 
 void usbhs_dcp_control_transfer_done(struct usbhs_pipe *pipe)
 {
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+
 	WARN_ON(!usbhs_pipe_is_dcp(pipe));
 
 	usbhs_pipe_enable(pipe);
-	usbhsp_pipectrl_set(pipe, CCPL, CCPL);
+
+	if (!usbhs_mod_is_host(priv)) /* funconly */
+		usbhsp_pipectrl_set(pipe, CCPL, CCPL);
 }
 
 void usbhs_dcp_dir_for_host(struct usbhs_pipe *pipe, int dir_out)
