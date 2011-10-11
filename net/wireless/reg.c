@@ -1946,6 +1946,42 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 	}
 }
 
+bool reg_supported_dfs_region(u8 dfs_region)
+{
+	switch (dfs_region) {
+	case NL80211_DFS_UNSET:
+	case NL80211_DFS_FCC:
+	case NL80211_DFS_ETSI:
+	case NL80211_DFS_JP:
+		return true;
+	default:
+		REG_DBG_PRINT("Ignoring uknown DFS master region: %d\n",
+			      dfs_region);
+		return false;
+	}
+}
+
+static void print_dfs_region(u8 dfs_region)
+{
+	if (!dfs_region)
+		return;
+
+	switch (dfs_region) {
+	case NL80211_DFS_FCC:
+		pr_info(" DFS Master region FCC");
+		break;
+	case NL80211_DFS_ETSI:
+		pr_info(" DFS Master region ETSI");
+		break;
+	case NL80211_DFS_JP:
+		pr_info(" DFS Master region JP");
+		break;
+	default:
+		pr_info(" DFS Master region Uknown");
+		break;
+	}
+}
+
 static void print_regdomain(const struct ieee80211_regdomain *rd)
 {
 
@@ -1973,6 +2009,7 @@ static void print_regdomain(const struct ieee80211_regdomain *rd)
 			pr_info("Regulatory domain changed to country: %c%c\n",
 				rd->alpha2[0], rd->alpha2[1]);
 	}
+	print_dfs_region(rd->dfs_region);
 	print_rd_rules(rd);
 }
 

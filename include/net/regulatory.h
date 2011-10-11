@@ -93,6 +93,7 @@ struct ieee80211_reg_rule {
 struct ieee80211_regdomain {
 	u32 n_reg_rules;
 	char alpha2[2];
+	u8 dfs_region;
 	struct ieee80211_reg_rule reg_rules[];
 };
 

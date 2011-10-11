@@ -199,6 +199,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_DONT_WAIT_FOR_ACK] = { .type = NLA_FLAG },
 	[NL80211_ATTR_PROBE_RESP] = { .type = NLA_BINARY,
 				      .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_ATTR_DFS_REGION] = { .type = NLA_U8 },
 };
 
 /* policy for the key attributes */
@@ -3382,6 +3383,9 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 
 	NLA_PUT_STRING(msg, NL80211_ATTR_REG_ALPHA2,
 		cfg80211_regdomain->alpha2);
+	if (cfg80211_regdomain->dfs_region)
+		NLA_PUT_U8(msg, NL80211_ATTR_DFS_REGION,
+			   cfg80211_regdomain->dfs_region);
 
 	nl_reg_rules = nla_nest_start(msg, NL80211_ATTR_REG_RULES);
 	if (!nl_reg_rules)
@@ -3440,6 +3444,7 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 	char *alpha2 = NULL;
 	int rem_reg_rules = 0, r = 0;
 	u32 num_rules = 0, rule_idx = 0, size_of_regd;
+	u8 dfs_region = 0;
 	struct ieee80211_regdomain *rd = NULL;
 
 	if (!info->attrs[NL80211_ATTR_REG_ALPHA2])
@@ -3449,6 +3454,9 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	alpha2 = nla_data(info->attrs[NL80211_ATTR_REG_ALPHA2]);
+
+	if (info->attrs[NL80211_ATTR_DFS_REGION])
+		dfs_region = nla_get_u8(info->attrs[NL80211_ATTR_DFS_REGION]);
 
 	nla_for_each_nested(nl_reg_rule, info->attrs[NL80211_ATTR_REG_RULES],
 			rem_reg_rules) {
@@ -3476,6 +3484,13 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 	rd->n_reg_rules = num_rules;
 	rd->alpha2[0] = alpha2[0];
 	rd->alpha2[1] = alpha2[1];
+
+	/*
+	 * Disable DFS master mode if the DFS region was
+	 * not supported or known on this kernel.
+	 */
+	if (reg_supported_dfs_region(dfs_region))
+		rd->dfs_region = dfs_region;
 
 	nla_for_each_nested(nl_reg_rule, info->attrs[NL80211_ATTR_REG_RULES],
 			rem_reg_rules) {

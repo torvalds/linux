@@ -1170,6 +1170,10 @@ enum nl80211_commands {
  *	probe-response frame. The DA field in the 802.11 header is zero-ed out,
  *	to be filled by the FW.
  *
+ * @NL80211_ATTR_DFS_REGION: region for regulatory rules which this country
+ *    abides to when initiating radiation on DFS channels. A country maps
+ *    to one DFS region.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1407,6 +1411,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_PROBE_RESP_OFFLOAD,
 
 	NL80211_ATTR_PROBE_RESP,
+
+	NL80211_ATTR_DFS_REGION,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -1914,6 +1920,21 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_PTMP_ONLY		= 1<<6,
 	NL80211_RRF_PASSIVE_SCAN	= 1<<7,
 	NL80211_RRF_NO_IBSS		= 1<<8,
+};
+
+/**
+ * enum nl80211_dfs_regions - regulatory DFS regions
+ *
+ * @NL80211_DFS_UNSET: Country has no DFS master region specified
+ * @NL80211_DFS_FCC_: Country follows DFS master rules from FCC
+ * @NL80211_DFS_FCC_: Country follows DFS master rules from ETSI
+ * @NL80211_DFS_JP_: Country follows DFS master rules from JP/MKK/Telec
+ */
+enum nl80211_dfs_regions {
+	NL80211_DFS_UNSET	= 0,
+	NL80211_DFS_FCC		= 1,
+	NL80211_DFS_ETSI	= 2,
+	NL80211_DFS_JP		= 3,
 };
 
 /**

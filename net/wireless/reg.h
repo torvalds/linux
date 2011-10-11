@@ -5,6 +5,7 @@ extern const struct ieee80211_regdomain *cfg80211_regdomain;
 
 bool is_world_regdom(const char *alpha2);
 bool reg_is_valid_request(const char *alpha2);
+bool reg_supported_dfs_region(u8 dfs_region);
 
 int regulatory_hint_user(const char *alpha2);
 
