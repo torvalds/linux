@@ -106,7 +106,10 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 	file->private_data = client;
 
 	kref_get(&serio_raw->kref);
+
+	serio_pause_rx(serio_raw->serio);
 	list_add_tail(&client->node, &serio_raw->client_list);
+	serio_continue_rx(serio_raw->serio);
 
 out:
 	mutex_unlock(&serio_raw_mutex);
@@ -138,10 +141,9 @@ static int serio_raw_release(struct inode *inode, struct file *file)
 
 static int serio_raw_fetch_byte(struct serio_raw *serio_raw, char *c)
 {
-	unsigned long flags;
 	int empty;
 
-	spin_lock_irqsave(&serio_raw->serio->lock, flags);
+	serio_pause_rx(serio_raw->serio);
 
 	empty = serio_raw->head == serio_raw->tail;
 	if (!empty) {
@@ -149,7 +151,7 @@ static int serio_raw_fetch_byte(struct serio_raw *serio_raw, char *c)
 		serio_raw->tail = (serio_raw->tail + 1) % SERIO_RAW_QUEUE_LEN;
 	}
 
-	spin_unlock_irqrestore(&serio_raw->serio->lock, flags);
+	serio_continue_rx(serio_raw->serio);
 
 	return !empty;
 }
