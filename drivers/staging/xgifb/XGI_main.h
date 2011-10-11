@@ -160,8 +160,6 @@ static struct fb_fix_screeninfo XGIfb_fix = {
 	.xpanstep	= 1,
 	.ypanstep	= 1,
 };
-static u32 pseudo_palette[17];
-
 
 /* display status */
 static int XGIfb_crt1off;

@@ -61,6 +61,8 @@ struct xgifb_video_info {
 	int mode_idx;
 	int rate_idx;
 
+	u32 pseudo_palette[17];
+
 	int           chip_id;
 	unsigned int  video_size;
 	unsigned long video_base;

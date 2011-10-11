@@ -2390,7 +2390,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	fb_info->screen_base = xgifb_info->video_vbase;
 	fb_info->fbops = &XGIfb_ops;
 	XGIfb_get_fix(&fb_info->fix, -1, fb_info);
-	fb_info->pseudo_palette = pseudo_palette;
+	fb_info->pseudo_palette = xgifb_info->pseudo_palette;
 
 	fb_alloc_cmap(&fb_info->cmap, 256 , 0);
 
