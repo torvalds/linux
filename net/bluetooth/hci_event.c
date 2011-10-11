@@ -3104,5 +3104,5 @@ void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 	kfree_skb(skb);
 }
 
-module_param(enable_le, bool, 0444);
+module_param(enable_le, bool, 0644);
 MODULE_PARM_DESC(enable_le, "Enable LE support");
