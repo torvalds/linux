@@ -2117,6 +2117,11 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	wl->vif = vif;
 	list_add(&wlvif->list, &wl->wlvif_list);
 	set_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags);
+
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
+		wl->ap_count++;
+	else
+		wl->sta_count++;
 out:
 	mutex_unlock(&wl->mutex);
 
@@ -2187,6 +2192,11 @@ deinit:
 	memset(wlvif->ap.sta_hlid_map, 0, sizeof(wlvif->ap.sta_hlid_map));
 	wlvif->role_id = WL12XX_INVALID_ROLE_ID;
 	wlvif->dev_role_id = WL12XX_INVALID_ROLE_ID;
+
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
+		wl->ap_count--;
+	else
+		wl->sta_count--;
 
 	mutex_unlock(&wl->mutex);
 	cancel_delayed_work_sync(&wlvif->pspoll_work);

@@ -395,6 +395,8 @@ struct wl1271 {
 	unsigned long roc_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 
 	struct list_head wlvif_list;
+	u8 sta_count;
+	u8 ap_count;
 
 	struct wl1271_acx_mem_map *target_mem_map;
 
