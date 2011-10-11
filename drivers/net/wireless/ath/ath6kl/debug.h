@@ -90,6 +90,8 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 void dump_cred_dist_stats(struct htc_target *target);
 void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len);
 void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war);
+int ath6kl_debug_roam_tbl_event(struct ath6kl *ar, const void *buf,
+				size_t len);
 int ath6kl_debug_init(struct ath6kl *ar);
 void ath6kl_debug_cleanup(struct ath6kl *ar);
 
@@ -123,6 +125,12 @@ static inline void ath6kl_debug_fwlog_event(struct ath6kl *ar,
 
 static inline void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war)
 {
+}
+
+static inline int ath6kl_debug_roam_tbl_event(struct ath6kl *ar,
+					      const void *buf, size_t len)
+{
+	return 0;
 }
 
 static inline int ath6kl_debug_init(struct ath6kl *ar)

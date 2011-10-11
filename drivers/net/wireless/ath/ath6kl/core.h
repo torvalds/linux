@@ -397,6 +397,7 @@ struct ath6kl_req_key {
 #define TESTMODE	     13
 #define CLEAR_BSSFILTER_ON_BEACON 14
 #define DTIM_PERIOD_AVAIL    15
+#define ROAM_TBL_PEND        16
 
 struct ath6kl {
 	struct device *dev;
@@ -529,6 +530,9 @@ struct ath6kl {
 		struct {
 			unsigned int invalid_rate;
 		} war_stats;
+
+		u8 *roam_tbl;
+		unsigned int roam_tbl_len;
 	} debug;
 #endif /* CONFIG_ATH6KL_DEBUG */
 };
