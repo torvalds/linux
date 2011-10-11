@@ -85,6 +85,11 @@ extern struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
 extern struct usbhs_pkt_handle usbhs_fifo_dma_push_handler;
 extern struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler;
 
+extern struct usbhs_pkt_handle usbhs_dcp_status_stage_in_handler;
+extern struct usbhs_pkt_handle usbhs_dcp_status_stage_out_handler;
+
+extern struct usbhs_pkt_handle usbhs_dcp_data_stage_in_handler;
+extern struct usbhs_pkt_handle usbhs_dcp_data_stage_out_handler;
 
 void usbhs_pkt_init(struct usbhs_pkt *pkt);
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,

@@ -321,6 +321,151 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
 }
 
 /*
+ *		DCP status stage
+ */
+static int usbhs_dcp_dir_switch_to_write(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_fifo *fifo = usbhsf_get_cfifo(priv); /* CFIFO */
+	struct device *dev = usbhs_priv_to_dev(priv);
+	int ret;
+
+	usbhs_pipe_disable(pipe);
+
+	ret = usbhsf_fifo_select(pipe, fifo, 1);
+	if (ret < 0) {
+		dev_err(dev, "%s() faile\n", __func__);
+		return ret;
+	}
+
+	usbhs_pipe_sequence_data1(pipe); /* DATA1 */
+
+	usbhsf_fifo_clear(pipe, fifo);
+	usbhsf_send_terminator(pipe, fifo);
+
+	usbhsf_fifo_unselect(pipe, fifo);
+
+	usbhsf_tx_irq_ctrl(pipe, 1);
+	usbhs_pipe_enable(pipe);
+
+	return ret;
+}
+
+static int usbhs_dcp_dir_switch_to_read(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_fifo *fifo = usbhsf_get_cfifo(priv); /* CFIFO */
+	struct device *dev = usbhs_priv_to_dev(priv);
+	int ret;
+
+	usbhs_pipe_disable(pipe);
+
+	ret = usbhsf_fifo_select(pipe, fifo, 0);
+	if (ret < 0) {
+		dev_err(dev, "%s() fail\n", __func__);
+		return ret;
+	}
+
+	usbhs_pipe_sequence_data1(pipe); /* DATA1 */
+	usbhsf_fifo_clear(pipe, fifo);
+
+	usbhsf_fifo_unselect(pipe, fifo);
+
+	usbhsf_rx_irq_ctrl(pipe, 1);
+	usbhs_pipe_enable(pipe);
+
+	return ret;
+
+}
+
+static int usbhs_dcp_dir_switch_done(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+
+	if (pkt->handler == &usbhs_dcp_status_stage_in_handler)
+		usbhsf_tx_irq_ctrl(pipe, 0);
+	else
+		usbhsf_rx_irq_ctrl(pipe, 0);
+
+	pkt->actual = pkt->length;
+	*is_done = 1;
+
+	return 0;
+}
+
+struct usbhs_pkt_handle usbhs_dcp_status_stage_in_handler = {
+	.prepare = usbhs_dcp_dir_switch_to_write,
+	.try_run = usbhs_dcp_dir_switch_done,
+};
+
+struct usbhs_pkt_handle usbhs_dcp_status_stage_out_handler = {
+	.prepare = usbhs_dcp_dir_switch_to_read,
+	.try_run = usbhs_dcp_dir_switch_done,
+};
+
+/*
+ *		DCP data stage (push)
+ */
+static int usbhsf_dcp_data_stage_try_push(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+
+	usbhs_pipe_sequence_data1(pipe); /* DATA1 */
+
+	/*
+	 * change handler to PIO push
+	 */
+	pkt->handler = &usbhs_fifo_pio_push_handler;
+
+	return pkt->handler->prepare(pkt, is_done);
+}
+
+struct usbhs_pkt_handle usbhs_dcp_data_stage_out_handler = {
+	.prepare = usbhsf_dcp_data_stage_try_push,
+};
+
+/*
+ *		DCP data stage (pop)
+ */
+static int usbhsf_dcp_data_stage_prepare_pop(struct usbhs_pkt *pkt,
+					     int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_fifo *fifo = usbhsf_get_cfifo(priv);
+
+	if (usbhs_pipe_is_busy(pipe))
+		return 0;
+
+	/*
+	 * prepare pop for DCP should
+	 *  - change DCP direction,
+	 *  - clear fifo
+	 *  - DATA1
+	 */
+	usbhs_pipe_disable(pipe);
+
+	usbhs_pipe_sequence_data1(pipe); /* DATA1 */
+
+	usbhsf_fifo_select(pipe, fifo, 0);
+	usbhsf_fifo_clear(pipe, fifo);
+	usbhsf_fifo_unselect(pipe, fifo);
+
+	/*
+	 * change handler to PIO pop
+	 */
+	pkt->handler = &usbhs_fifo_pio_pop_handler;
+
+	return pkt->handler->prepare(pkt, is_done);
+}
+
+struct usbhs_pkt_handle usbhs_dcp_data_stage_in_handler = {
+	.prepare = usbhsf_dcp_data_stage_prepare_pop,
+};
+
+/*
  *		PIO push handler
  */
 static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
