@@ -101,6 +101,8 @@ struct renesas_usbhs_driver_param {
 	 * option:
 	 *
 	 * for BUSWAIT :: BWAIT
+	 * see
+	 *	renesas_usbhs/common.c :: usbhsc_set_buswait()
 	 * */
 	int buswait_bwait;
 

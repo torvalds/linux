@@ -149,17 +149,13 @@ int usbhs_frame_get_num(struct usbhs_priv *priv)
 /*
  *		local functions
  */
-static void usbhsc_bus_ctrl(struct usbhs_priv *priv, int enable)
+static void usbhsc_set_buswait(struct usbhs_priv *priv)
 {
 	int wait = usbhs_get_dparam(priv, buswait_bwait);
-	u16 data = 0;
 
-	if (enable) {
-		/* set bus wait if platform have */
-		if (wait)
-			usbhs_bset(priv, BUSWAIT, 0x000F, wait);
-	}
-	usbhs_write(priv, DVSTCTR, data);
+	/* set bus wait if platform have */
+	if (wait)
+		usbhs_bset(priv, BUSWAIT, 0x000F, wait);
 }
 
 /*
@@ -191,10 +187,9 @@ static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
 
 		/* USB on */
 		usbhs_sys_clock_ctrl(priv, enable);
-		usbhsc_bus_ctrl(priv, enable);
+		usbhsc_set_buswait(priv);
 	} else {
 		/* USB off */
-		usbhsc_bus_ctrl(priv, enable);
 		usbhs_sys_clock_ctrl(priv, enable);
 
 		/* disable PM */
