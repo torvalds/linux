@@ -29,7 +29,7 @@ static int raid0_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
 	raid0_conf_t *conf = mddev->private;
-	mdk_rdev_t **devlist = conf->devlist;
+	struct md_rdev **devlist = conf->devlist;
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	int i, ret = 0;
 
@@ -81,7 +81,7 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 {
 	int i, c, err;
 	sector_t curr_zone_end, sectors;
-	mdk_rdev_t *smallest, *rdev1, *rdev2, *rdev, **dev;
+	struct md_rdev *smallest, *rdev1, *rdev2, *rdev, **dev;
 	struct strip_zone *zone;
 	int cnt;
 	char b[BDEVNAME_SIZE];
@@ -142,7 +142,7 @@ static int create_strip_zones(mddev_t *mddev, raid0_conf_t **private_conf)
 				conf->nr_strip_zones, GFP_KERNEL);
 	if (!conf->strip_zone)
 		goto abort;
-	conf->devlist = kzalloc(sizeof(mdk_rdev_t*)*
+	conf->devlist = kzalloc(sizeof(struct md_rdev*)*
 				conf->nr_strip_zones*mddev->raid_disks,
 				GFP_KERNEL);
 	if (!conf->devlist)
@@ -323,7 +323,7 @@ static int raid0_mergeable_bvec(struct request_queue *q,
 static sector_t raid0_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 {
 	sector_t array_sectors = 0;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 
 	WARN_ONCE(sectors || raid_disks,
 		  "%s does not support generic reshape\n", __func__);
@@ -419,7 +419,7 @@ static struct strip_zone *find_zone(struct raid0_private_data *conf,
  * remaps the bio to the target device. we separate two flows.
  * power 2 flow and a general flow for the sake of perfromance
 */
-static mdk_rdev_t *map_sector(mddev_t *mddev, struct strip_zone *zone,
+static struct md_rdev *map_sector(mddev_t *mddev, struct strip_zone *zone,
 				sector_t sector, sector_t *sector_offset)
 {
 	unsigned int sect_in_chunk;
@@ -473,7 +473,7 @@ static int raid0_make_request(mddev_t *mddev, struct bio *bio)
 	unsigned int chunk_sects;
 	sector_t sector_offset;
 	struct strip_zone *zone;
-	mdk_rdev_t *tmp_dev;
+	struct md_rdev *tmp_dev;
 
 	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bio);
@@ -536,7 +536,7 @@ static void raid0_status(struct seq_file *seq, mddev_t *mddev)
 
 static void *raid0_takeover_raid45(mddev_t *mddev)
 {
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	raid0_conf_t *priv_conf;
 
 	if (mddev->degraded != 1) {

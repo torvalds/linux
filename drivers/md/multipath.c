@@ -42,7 +42,7 @@ static int multipath_map (multipath_conf_t *conf)
 
 	rcu_read_lock();
 	for (i = 0; i < disks; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
 		if (rdev && test_bit(In_sync, &rdev->flags)) {
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
@@ -87,7 +87,7 @@ static void multipath_end_request(struct bio *bio, int error)
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct multipath_bh *mp_bh = bio->bi_private;
 	multipath_conf_t *conf = mp_bh->mddev->private;
-	mdk_rdev_t *rdev = conf->multipaths[mp_bh->path].rdev;
+	struct md_rdev *rdev = conf->multipaths[mp_bh->path].rdev;
 
 	if (uptodate)
 		multipath_end_bh_io(mp_bh, 0);
@@ -165,7 +165,7 @@ static int multipath_congested(void *data, int bits)
 
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks ; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct request_queue *q = bdev_get_queue(rdev->bdev);
 
@@ -183,7 +183,7 @@ static int multipath_congested(void *data, int bits)
 /*
  * Careful, this can execute in IRQ contexts as well!
  */
-static void multipath_error (mddev_t *mddev, mdk_rdev_t *rdev)
+static void multipath_error (mddev_t *mddev, struct md_rdev *rdev)
 {
 	multipath_conf_t *conf = mddev->private;
 	char b[BDEVNAME_SIZE];
@@ -242,7 +242,7 @@ static void print_multipath_conf (multipath_conf_t *conf)
 }
 
 
-static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
+static int multipath_add_disk(mddev_t *mddev, struct md_rdev *rdev)
 {
 	multipath_conf_t *conf = mddev->private;
 	struct request_queue *q;
@@ -295,7 +295,7 @@ static int multipath_remove_disk(mddev_t *mddev, int number)
 {
 	multipath_conf_t *conf = mddev->private;
 	int err = 0;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	struct multipath_info *p = conf->multipaths + number;
 
 	print_multipath_conf(conf);
@@ -392,7 +392,7 @@ static int multipath_run (mddev_t *mddev)
 	multipath_conf_t *conf;
 	int disk_idx;
 	struct multipath_info *disk;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	int working_disks;
 
 	if (md_check_no_bitmap(mddev))

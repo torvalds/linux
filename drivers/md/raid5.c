@@ -379,7 +379,7 @@ static int has_failed(raid5_conf_t *conf)
 	rcu_read_lock();
 	degraded = 0;
 	for (i = 0; i < conf->previous_raid_disks; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->disks[i].rdev);
 		if (!rdev || test_bit(Faulty, &rdev->flags))
 			degraded++;
 		else if (test_bit(In_sync, &rdev->flags))
@@ -403,7 +403,7 @@ static int has_failed(raid5_conf_t *conf)
 	rcu_read_lock();
 	degraded = 0;
 	for (i = 0; i < conf->raid_disks; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->disks[i].rdev);
 		if (!rdev || test_bit(Faulty, &rdev->flags))
 			degraded++;
 		else if (test_bit(In_sync, &rdev->flags))
@@ -492,7 +492,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 	for (i = disks; i--; ) {
 		int rw;
 		struct bio *bi;
-		mdk_rdev_t *rdev;
+		struct md_rdev *rdev;
 		if (test_and_clear_bit(R5_Wantwrite, &sh->dev[i].flags)) {
 			if (test_and_clear_bit(R5_WantFUA, &sh->dev[i].flags))
 				rw = WRITE_FUA;
@@ -1582,7 +1582,7 @@ static void raid5_end_read_request(struct bio * bi, int error)
 	int disks = sh->disks, i;
 	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
 	char b[BDEVNAME_SIZE];
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 
 
 	for (i=0 ; i<disks; i++)
@@ -1719,7 +1719,7 @@ static void raid5_build_block(struct stripe_head *sh, int i, int previous)
 	dev->sector = compute_blocknr(sh, i, previous);
 }
 
-static void error(mddev_t *mddev, mdk_rdev_t *rdev)
+static void error(mddev_t *mddev, struct md_rdev *rdev)
 {
 	char b[BDEVNAME_SIZE];
 	raid5_conf_t *conf = mddev->private;
@@ -2257,7 +2257,7 @@ handle_failed_stripe(raid5_conf_t *conf, struct stripe_head *sh,
 		int bitmap_end = 0;
 
 		if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
-			mdk_rdev_t *rdev;
+			struct md_rdev *rdev;
 			rcu_read_lock();
 			rdev = rcu_dereference(conf->disks[i].rdev);
 			if (rdev && test_bit(In_sync, &rdev->flags))
@@ -2371,7 +2371,7 @@ handle_failed_sync(raid5_conf_t *conf, struct stripe_head *sh,
 	 * refcounting of rdevs is not needed
 	 */
 	for (i = 0; i < conf->raid_disks; i++) {
-		mdk_rdev_t *rdev = conf->disks[i].rdev;
+		struct md_rdev *rdev = conf->disks[i].rdev;
 		if (!rdev
 		    || test_bit(Faulty, &rdev->flags)
 		    || test_bit(In_sync, &rdev->flags))
@@ -2995,7 +2995,7 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 	rcu_read_lock();
 	spin_lock_irq(&conf->device_lock);
 	for (i=disks; i--; ) {
-		mdk_rdev_t *rdev;
+		struct md_rdev *rdev;
 		sector_t first_bad;
 		int bad_sectors;
 		int is_bad = 0;
@@ -3334,7 +3334,7 @@ finish:
 
 	if (s.handle_bad_blocks)
 		for (i = disks; i--; ) {
-			mdk_rdev_t *rdev;
+			struct md_rdev *rdev;
 			struct r5dev *dev = &sh->dev[i];
 			if (test_and_clear_bit(R5_WriteError, &dev->flags)) {
 				/* We own a safe reference to the rdev */
@@ -3523,7 +3523,7 @@ static void raid5_align_endio(struct bio *bi, int error)
 	mddev_t *mddev;
 	raid5_conf_t *conf;
 	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 
 	bio_put(bi);
 
@@ -3572,7 +3572,7 @@ static int chunk_aligned_read(mddev_t *mddev, struct bio * raid_bio)
 	raid5_conf_t *conf = mddev->private;
 	int dd_idx;
 	struct bio* align_bi;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 
 	if (!in_chunk_boundary(mddev, raid_bio)) {
 		pr_debug("chunk_aligned_read : non aligned\n");
@@ -4544,7 +4544,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
 	int raid_disk, memory, max_disks;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	struct disk_info *disk;
 
 	if (mddev->new_level != 5
@@ -4710,7 +4710,7 @@ static int run(mddev_t *mddev)
 	raid5_conf_t *conf;
 	int working_disks = 0;
 	int dirty_parity_disks = 0;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	sector_t reshape_offset = 0;
 
 	if (mddev->recovery_cp != MaxSector)
@@ -5023,7 +5023,7 @@ static int raid5_remove_disk(mddev_t *mddev, int number)
 {
 	raid5_conf_t *conf = mddev->private;
 	int err = 0;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	struct disk_info *p = conf->disks + number;
 
 	print_raid5_conf(conf);
@@ -5062,7 +5062,7 @@ abort:
 	return err;
 }
 
-static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
+static int raid5_add_disk(mddev_t *mddev, struct md_rdev *rdev)
 {
 	raid5_conf_t *conf = mddev->private;
 	int err = -EEXIST;
@@ -5191,7 +5191,7 @@ static int check_reshape(mddev_t *mddev)
 static int raid5_start_reshape(mddev_t *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	int spares = 0;
 	unsigned long flags;
 
@@ -5353,7 +5353,7 @@ static void raid5_finish_reshape(mddev_t *mddev)
 			for (d = conf->raid_disks ;
 			     d < conf->raid_disks - mddev->delta_disks;
 			     d++) {
-				mdk_rdev_t *rdev = conf->disks[d].rdev;
+				struct md_rdev *rdev = conf->disks[d].rdev;
 				if (rdev && raid5_remove_disk(mddev, d) == 0) {
 					sysfs_unlink_rdev(mddev, rdev);
 					rdev->raid_disk = -1;

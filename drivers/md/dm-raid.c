@@ -37,7 +37,7 @@ struct raid_dev {
 	 */
 	struct dm_dev *meta_dev;
 	struct dm_dev *data_dev;
-	struct mdk_rdev_s rdev;
+	struct md_rdev rdev;
 };
 
 /*
@@ -594,7 +594,7 @@ struct dm_raid_superblock {
 				/* Always set to 0 when writing. */
 } __packed;
 
-static int read_disk_sb(mdk_rdev_t *rdev, int size)
+static int read_disk_sb(struct md_rdev *rdev, int size)
 {
 	BUG_ON(!rdev->sb_page);
 
@@ -611,9 +611,9 @@ static int read_disk_sb(mdk_rdev_t *rdev, int size)
 	return 0;
 }
 
-static void super_sync(mddev_t *mddev, mdk_rdev_t *rdev)
+static void super_sync(mddev_t *mddev, struct md_rdev *rdev)
 {
-	mdk_rdev_t *r, *t;
+	struct md_rdev *r, *t;
 	uint64_t failed_devices;
 	struct dm_raid_superblock *sb;
 
@@ -651,7 +651,7 @@ static void super_sync(mddev_t *mddev, mdk_rdev_t *rdev)
  *
  * Return: 1 if use rdev, 0 if use refdev, -Exxx otherwise
  */
-static int super_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev)
+static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 {
 	int ret;
 	struct dm_raid_superblock *sb;
@@ -689,7 +689,7 @@ static int super_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev)
 	return (events_sb > events_refsb) ? 1 : 0;
 }
 
-static int super_init_validation(mddev_t *mddev, mdk_rdev_t *rdev)
+static int super_init_validation(mddev_t *mddev, struct md_rdev *rdev)
 {
 	int role;
 	struct raid_set *rs = container_of(mddev, struct raid_set, md);
@@ -698,7 +698,7 @@ static int super_init_validation(mddev_t *mddev, mdk_rdev_t *rdev)
 	struct dm_raid_superblock *sb;
 	uint32_t new_devs = 0;
 	uint32_t rebuilds = 0;
-	mdk_rdev_t *r, *t;
+	struct md_rdev *r, *t;
 	struct dm_raid_superblock *sb2;
 
 	sb = page_address(rdev->sb_page);
@@ -809,7 +809,7 @@ static int super_init_validation(mddev_t *mddev, mdk_rdev_t *rdev)
 	return 0;
 }
 
-static int super_validate(mddev_t *mddev, mdk_rdev_t *rdev)
+static int super_validate(mddev_t *mddev, struct md_rdev *rdev)
 {
 	struct dm_raid_superblock *sb = page_address(rdev->sb_page);
 
@@ -849,7 +849,7 @@ static int super_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 {
 	int ret;
-	mdk_rdev_t *rdev, *freshest, *tmp;
+	struct md_rdev *rdev, *freshest, *tmp;
 	mddev_t *mddev = &rs->md;
 
 	freshest = NULL;

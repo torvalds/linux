@@ -2,7 +2,7 @@
 #define _LINEAR_H
 
 struct dev_info {
-	mdk_rdev_t	*rdev;
+	struct md_rdev	*rdev;
 	sector_t	end_sector;
 };
 

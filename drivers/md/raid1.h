@@ -4,7 +4,7 @@
 typedef struct mirror_info mirror_info_t;
 
 struct mirror_info {
-	mdk_rdev_t	*rdev;
+	struct md_rdev	*rdev;
 	sector_t	head_position;
 };
 

@@ -248,7 +248,7 @@ struct stripe_head_state {
 	unsigned long ops_request;
 
 	struct bio *return_bi;
-	mdk_rdev_t *blocked_rdev;
+	struct md_rdev *blocked_rdev;
 	int handle_bad_blocks;
 };
 
@@ -344,7 +344,7 @@ enum {
 
 
 struct disk_info {
-	mdk_rdev_t	*rdev;
+	struct md_rdev	*rdev;
 };
 
 struct raid5_private_data {

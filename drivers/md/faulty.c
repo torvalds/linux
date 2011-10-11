@@ -87,7 +87,7 @@ typedef struct faulty_conf {
 	sector_t faults[MaxFault];
 	int	modes[MaxFault];
 	int nfaults;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 } conf_t;
 
 static int check_mode(conf_t *conf, int mode)
@@ -297,7 +297,7 @@ static sector_t faulty_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 
 static int run(mddev_t *mddev)
 {
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	int i;
 	conf_t *conf;
 

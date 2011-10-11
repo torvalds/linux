@@ -475,7 +475,7 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio, int *max_sectors)
 	int best_disk;
 	int i;
 	sector_t best_dist;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	int choose_first;
 
 	rcu_read_lock();
@@ -600,7 +600,7 @@ int md_raid1_congested(mddev_t *mddev, int bits)
 
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct request_queue *q = bdev_get_queue(rdev->bdev);
 
@@ -808,7 +808,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 	const int rw = bio_data_dir(bio);
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
 	const unsigned long do_flush_fua = (bio->bi_rw & (REQ_FLUSH | REQ_FUA));
-	mdk_rdev_t *blocked_rdev;
+	struct md_rdev *blocked_rdev;
 	int plugged;
 	int first_clone;
 	int sectors_handled;
@@ -963,7 +963,7 @@ read_again:
 	rcu_read_lock();
 	max_sectors = r1_bio->sectors;
 	for (i = 0;  i < disks; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
 			atomic_inc(&rdev->nr_pending);
 			blocked_rdev = rdev;
@@ -1147,7 +1147,7 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 		   conf->raid_disks - mddev->degraded);
 	rcu_read_lock();
 	for (i = 0; i < conf->raid_disks; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		seq_printf(seq, "%s",
 			   rdev && test_bit(In_sync, &rdev->flags) ? "U" : "_");
 	}
@@ -1156,7 +1156,7 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 }
 
 
-static void error(mddev_t *mddev, mdk_rdev_t *rdev)
+static void error(mddev_t *mddev, struct md_rdev *rdev)
 {
 	char b[BDEVNAME_SIZE];
 	conf_t *conf = mddev->private;
@@ -1214,7 +1214,7 @@ static void print_conf(conf_t *conf)
 	rcu_read_lock();
 	for (i = 0; i < conf->raid_disks; i++) {
 		char b[BDEVNAME_SIZE];
-		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev)
 			printk(KERN_DEBUG " disk %d, wo:%d, o:%d, dev:%s\n",
 			       i, !test_bit(In_sync, &rdev->flags),
@@ -1246,7 +1246,7 @@ static int raid1_spare_active(mddev_t *mddev)
 	 * Called under mddev lock, so rcu protection not needed.
 	 */
 	for (i = 0; i < conf->raid_disks; i++) {
-		mdk_rdev_t *rdev = conf->mirrors[i].rdev;
+		struct md_rdev *rdev = conf->mirrors[i].rdev;
 		if (rdev
 		    && !test_bit(Faulty, &rdev->flags)
 		    && !test_and_set_bit(In_sync, &rdev->flags)) {
@@ -1263,7 +1263,7 @@ static int raid1_spare_active(mddev_t *mddev)
 }
 
 
-static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
+static int raid1_add_disk(mddev_t *mddev, struct md_rdev *rdev)
 {
 	conf_t *conf = mddev->private;
 	int err = -EEXIST;
@@ -1315,7 +1315,7 @@ static int raid1_remove_disk(mddev_t *mddev, int number)
 {
 	conf_t *conf = mddev->private;
 	int err = 0;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	mirror_info_t *p = conf->mirrors+ number;
 
 	print_conf(conf);
@@ -1419,7 +1419,7 @@ static void end_sync_write(struct bio *bio, int error)
 	}
 }
 
-static int r1_sync_page_io(mdk_rdev_t *rdev, sector_t sector,
+static int r1_sync_page_io(struct md_rdev *rdev, sector_t sector,
 			    int sectors, struct page *page, int rw)
 {
 	if (sync_page_io(rdev, sector, sectors << 9, page, rw, false))
@@ -1457,7 +1457,7 @@ static int fix_sync_read_error(r1bio_t *r1_bio)
 		int s = sectors;
 		int d = r1_bio->read_disk;
 		int success = 0;
-		mdk_rdev_t *rdev;
+		struct md_rdev *rdev;
 		int start;
 
 		if (s > (PAGE_SIZE>>9))
@@ -1696,7 +1696,7 @@ static void fix_read_error(conf_t *conf, int read_disk,
 		int d = read_disk;
 		int success = 0;
 		int start;
-		mdk_rdev_t *rdev;
+		struct md_rdev *rdev;
 
 		if (s > (PAGE_SIZE>>9))
 			s = PAGE_SIZE >> 9;
@@ -1727,7 +1727,7 @@ static void fix_read_error(conf_t *conf, int read_disk,
 
 		if (!success) {
 			/* Cannot read from anywhere - mark it bad */
-			mdk_rdev_t *rdev = conf->mirrors[read_disk].rdev;
+			struct md_rdev *rdev = conf->mirrors[read_disk].rdev;
 			if (!rdev_set_badblocks(rdev, sect, s, 0))
 				md_error(mddev, rdev);
 			break;
@@ -1794,7 +1794,7 @@ static int narrow_write_error(r1bio_t *r1_bio, int i)
 {
 	mddev_t *mddev = r1_bio->mddev;
 	conf_t *conf = mddev->private;
-	mdk_rdev_t *rdev = conf->mirrors[i].rdev;
+	struct md_rdev *rdev = conf->mirrors[i].rdev;
 	int vcnt, idx;
 	struct bio_vec *vec;
 
@@ -1871,7 +1871,7 @@ static void handle_sync_write_finished(conf_t *conf, r1bio_t *r1_bio)
 	int m;
 	int s = r1_bio->sectors;
 	for (m = 0; m < conf->raid_disks ; m++) {
-		mdk_rdev_t *rdev = conf->mirrors[m].rdev;
+		struct md_rdev *rdev = conf->mirrors[m].rdev;
 		struct bio *bio = r1_bio->bios[m];
 		if (bio->bi_end_io == NULL)
 			continue;
@@ -1894,7 +1894,7 @@ static void handle_write_finished(conf_t *conf, r1bio_t *r1_bio)
 	int m;
 	for (m = 0; m < conf->raid_disks ; m++)
 		if (r1_bio->bios[m] == IO_MADE_GOOD) {
-			mdk_rdev_t *rdev = conf->mirrors[m].rdev;
+			struct md_rdev *rdev = conf->mirrors[m].rdev;
 			rdev_clear_badblocks(rdev,
 					     r1_bio->sector,
 					     r1_bio->sectors);
@@ -1925,7 +1925,7 @@ static void handle_read_error(conf_t *conf, r1bio_t *r1_bio)
 	mddev_t *mddev = conf->mddev;
 	struct bio *bio;
 	char b[BDEVNAME_SIZE];
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 
 	clear_bit(R1BIO_ReadError, &r1_bio->state);
 	/* we got a read error. Maybe the drive is bad.  Maybe just
@@ -2168,7 +2168,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	set_bit(R1BIO_IsSync, &r1_bio->state);
 
 	for (i=0; i < conf->raid_disks; i++) {
-		mdk_rdev_t *rdev;
+		struct md_rdev *rdev;
 		bio = r1_bio->bios[i];
 
 		/* take from bio_init */
@@ -2240,7 +2240,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		int ok = 1;
 		for (i = 0 ; i < conf->raid_disks ; i++)
 			if (r1_bio->bios[i]->bi_end_io == end_sync_write) {
-				mdk_rdev_t *rdev =
+				struct md_rdev *rdev =
 					rcu_dereference(conf->mirrors[i].rdev);
 				ok = rdev_set_badblocks(rdev, sector_nr,
 							min_bad, 0
@@ -2370,7 +2370,7 @@ static conf_t *setup_conf(mddev_t *mddev)
 	conf_t *conf;
 	int i;
 	mirror_info_t *disk;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	int err = -ENOMEM;
 
 	conf = kzalloc(sizeof(conf_t), GFP_KERNEL);
@@ -2470,7 +2470,7 @@ static int run(mddev_t *mddev)
 {
 	conf_t *conf;
 	int i;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 
 	if (mddev->level != 1) {
 		printk(KERN_ERR "md/raid1:%s: raid level not set to mirroring (%d)\n",
@@ -2669,7 +2669,7 @@ static int raid1_reshape(mddev_t *mddev)
 	conf->r1bio_pool = newpool;
 
 	for (d = d2 = 0; d < conf->raid_disks; d++) {
-		mdk_rdev_t *rdev = conf->mirrors[d].rdev;
+		struct md_rdev *rdev = conf->mirrors[d].rdev;
 		if (rdev && rdev->raid_disk != d2) {
 			sysfs_unlink_rdev(mddev, rdev);
 			rdev->raid_disk = d2;

@@ -185,7 +185,7 @@ static struct page *read_sb_page(mddev_t *mddev, loff_t offset,
 {
 	/* choose a good rdev and read the page from there */
 
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	sector_t target;
 	int did_alloc = 0;
 
@@ -218,7 +218,7 @@ static struct page *read_sb_page(mddev_t *mddev, loff_t offset,
 
 }
 
-static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
+static struct md_rdev *next_active_rdev(struct md_rdev *rdev, mddev_t *mddev)
 {
 	/* Iterate the disks of an mddev, using rcu to protect access to the
 	 * linked list, and raising the refcount of devices we return to ensure
@@ -239,7 +239,7 @@ static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
 		pos = &rdev->same_set;
 	}
 	list_for_each_continue_rcu(pos, &mddev->disks) {
-		rdev = list_entry(pos, mdk_rdev_t, same_set);
+		rdev = list_entry(pos, struct md_rdev, same_set);
 		if (rdev->raid_disk >= 0 &&
 		    !test_bit(Faulty, &rdev->flags)) {
 			/* this is a usable devices */
@@ -254,7 +254,7 @@ static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
 
 static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
-	mdk_rdev_t *rdev = NULL;
+	struct md_rdev *rdev = NULL;
 	struct block_device *bdev;
 	mddev_t *mddev = bitmap->mddev;
 

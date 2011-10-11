@@ -2,7 +2,7 @@
 #define _MULTIPATH_H
 
 struct multipath_info {
-	mdk_rdev_t	*rdev;
+	struct md_rdev	*rdev;
 };
 
 struct multipath_private_data {
