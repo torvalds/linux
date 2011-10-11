@@ -76,8 +76,7 @@ void usbhs_usbreq_set_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req);
  * pipe control
  */
 struct usbhs_pipe
-*usbhs_pipe_malloc(struct usbhs_priv *priv,
-		   const struct usb_endpoint_descriptor *desc);
+*usbhs_pipe_malloc(struct usbhs_priv *priv, int endpoint_type, int dir_in);
 int usbhs_pipe_probe(struct usbhs_priv *priv);
 void usbhs_pipe_remove(struct usbhs_priv *priv);
 int usbhs_pipe_is_dir_in(struct usbhs_pipe *pipe);
@@ -93,6 +92,7 @@ void usbhs_pipe_enable(struct usbhs_pipe *pipe);
 void usbhs_pipe_disable(struct usbhs_pipe *pipe);
 void usbhs_pipe_stall(struct usbhs_pipe *pipe);
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo);
+void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 epnum, u16 maxp);
 
 #define usbhs_pipe_to_priv(p)	((p)->priv)
 #define usbhs_pipe_number(p)	(int)((p) - (p)->priv->pipe_info.pipe)
