@@ -630,6 +630,12 @@ void usbhs_dcp_control_transfer_done(struct usbhs_pipe *pipe)
 	usbhsp_pipectrl_set(pipe, CCPL, CCPL);
 }
 
+void usbhs_dcp_dir_for_host(struct usbhs_pipe *pipe, int dir_out)
+{
+	usbhsp_pipe_cfg_set(pipe, DIR_OUT,
+			    dir_out ? DIR_OUT : 0);
+}
+
 /*
  *		pipe module function
  */

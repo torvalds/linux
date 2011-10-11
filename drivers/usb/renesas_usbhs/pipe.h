@@ -106,5 +106,6 @@ void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 epnum, u16 maxp);
  */
 struct usbhs_pipe *usbhs_dcp_malloc(struct usbhs_priv *priv);
 void usbhs_dcp_control_transfer_done(struct usbhs_pipe *pipe);
+void usbhs_dcp_dir_for_host(struct usbhs_pipe *pipe, int dir_out);
 
 #endif /* RENESAS_USB_PIPE_H */

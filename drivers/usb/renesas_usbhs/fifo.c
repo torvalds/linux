@@ -291,8 +291,12 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
 	    usbhsf_fifo_is_busy(fifo))
 		return -EBUSY;
 
-	if (usbhs_pipe_is_dcp(pipe))
+	if (usbhs_pipe_is_dcp(pipe)) {
 		base |= (1 == write) << 5;	/* ISEL */
+
+		if (usbhs_mod_is_host(priv))
+			usbhs_dcp_dir_for_host(pipe, write);
+	}
 
 	/* "base" will be used below  */
 	usbhs_write(priv, fifo->sel, base | MBW_32);
