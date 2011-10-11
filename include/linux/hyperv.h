@@ -699,24 +699,6 @@ struct hv_dev_port_info {
 	u32 bytes_avail_towrite;
 };
 
-struct hv_device_info {
-	u32 chn_id;
-	u32 chn_state;
-	uuid_le chn_type;
-	uuid_le chn_instance;
-
-	u32 monitor_id;
-	u32 server_monitor_pending;
-	u32 server_monitor_latency;
-	u32 server_monitor_conn_id;
-	u32 client_monitor_pending;
-	u32 client_monitor_latency;
-	u32 client_monitor_conn_id;
-
-	struct hv_dev_port_info inbound;
-	struct hv_dev_port_info outbound;
-};
-
 /* Base driver object */
 struct hv_driver {
 	const char *name;

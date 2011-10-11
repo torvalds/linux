@@ -44,6 +44,25 @@ static struct tasklet_struct event_dpc;
 static struct completion probe_event;
 static int irq;
 
+struct hv_device_info {
+	u32 chn_id;
+	u32 chn_state;
+	uuid_le chn_type;
+	uuid_le chn_instance;
+
+	u32 monitor_id;
+	u32 server_monitor_pending;
+	u32 server_monitor_latency;
+	u32 server_monitor_conn_id;
+	u32 client_monitor_pending;
+	u32 client_monitor_latency;
+	u32 client_monitor_conn_id;
+
+	struct hv_dev_port_info inbound;
+	struct hv_dev_port_info outbound;
+};
+
+
 static void get_channel_info(struct hv_device *device,
 			     struct hv_device_info *info)
 {
