@@ -849,6 +849,7 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	case AB8500_CUT1P1:
 	case AB8500_CUT2P0:
 	case AB8500_CUT3P0:
+	case AB8500_CUT3P3:
 		dev_info(ab8500->dev, "detected chip, revision: %#x\n", value);
 		break;
 	default:
