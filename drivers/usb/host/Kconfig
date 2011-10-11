@@ -515,6 +515,19 @@ config USB_R8A66597_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8a66597-hcd.
 
+config USB_RENESAS_USBHS_HCD
+	tristate "Renesas USBHS HCD support"
+	depends on USB
+	depends on USB_RENESAS_USBHS
+	help
+	  The Renesas USBHS is a USB 2.0 host and peripheral controller.
+
+	  Enable this option if your board has this chip, and you want
+	  to use it as a host controller.  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called renesas-usbhs.
+
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
