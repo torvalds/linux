@@ -1149,6 +1149,95 @@ static const struct file_operations fops_roam_mode = {
 	.llseek = default_llseek,
 };
 
+void ath6kl_debug_set_keepalive(struct ath6kl *ar, u8 keepalive)
+{
+	ar->debug.keepalive = keepalive;
+}
+
+static ssize_t ath6kl_keepalive_read(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char buf[16];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "%u\n", ar->debug.keepalive);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath6kl_keepalive_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	u8 val;
+
+	ret = kstrtou8_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = ath6kl_wmi_set_keepalive_cmd(ar->wmi, val);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_keepalive = {
+	.open = ath6kl_debugfs_open,
+	.read = ath6kl_keepalive_read,
+	.write = ath6kl_keepalive_write,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath6kl_debug_set_disconnect_timeout(struct ath6kl *ar, u8 timeout)
+{
+	ar->debug.disc_timeout = timeout;
+}
+
+static ssize_t ath6kl_disconnect_timeout_read(struct file *file,
+					      char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char buf[16];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "%u\n", ar->debug.disc_timeout);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath6kl_disconnect_timeout_write(struct file *file,
+					       const char __user *user_buf,
+					       size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	u8 val;
+
+	ret = kstrtou8_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = ath6kl_wmi_disctimeout_cmd(ar->wmi, val);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_disconnect_timeout = {
+	.open = ath6kl_debugfs_open,
+	.read = ath6kl_disconnect_timeout_read,
+	.write = ath6kl_disconnect_timeout_write,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath6kl_debug_init(struct ath6kl *ar)
 {
 	ar->debug.fwlog_buf.buf = vmalloc(ATH6KL_FWLOG_SIZE);
@@ -1215,6 +1304,12 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("roam_mode", S_IWUSR, ar->debugfs_phy, ar,
 			    &fops_roam_mode);
+
+	debugfs_create_file("keepalive", S_IRUSR | S_IWUSR, ar->debugfs_phy, ar,
+			    &fops_keepalive);
+
+	debugfs_create_file("disconnect_timeout", S_IRUSR | S_IWUSR,
+			    ar->debugfs_phy, ar, &fops_disconnect_timeout);
 
 	return 0;
 }

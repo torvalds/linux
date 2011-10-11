@@ -92,6 +92,8 @@ void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len);
 void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war);
 int ath6kl_debug_roam_tbl_event(struct ath6kl *ar, const void *buf,
 				size_t len);
+void ath6kl_debug_set_keepalive(struct ath6kl *ar, u8 keepalive);
+void ath6kl_debug_set_disconnect_timeout(struct ath6kl *ar, u8 timeout);
 int ath6kl_debug_init(struct ath6kl *ar);
 void ath6kl_debug_cleanup(struct ath6kl *ar);
 
@@ -131,6 +133,15 @@ static inline int ath6kl_debug_roam_tbl_event(struct ath6kl *ar,
 					      const void *buf, size_t len)
 {
 	return 0;
+}
+
+static inline void ath6kl_debug_set_keepalive(struct ath6kl *ar, u8 keepalive)
+{
+}
+
+static inline void ath6kl_debug_set_disconnect_timeout(struct ath6kl *ar,
+						       u8 timeout)
+{
 }
 
 static inline int ath6kl_debug_init(struct ath6kl *ar)

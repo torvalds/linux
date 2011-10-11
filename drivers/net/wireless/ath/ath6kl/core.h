@@ -533,6 +533,9 @@ struct ath6kl {
 
 		u8 *roam_tbl;
 		unsigned int roam_tbl_len;
+
+		u8 keepalive;
+		u8 disc_timeout;
 	} debug;
 #endif /* CONFIG_ATH6KL_DEBUG */
 };
