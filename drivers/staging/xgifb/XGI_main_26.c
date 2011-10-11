@@ -142,7 +142,7 @@ static inline void dumpVGAReg(void)
 #endif
 
 /* data for XGI components */
-struct video_info xgi_video_info;
+struct xgifb_video_info xgi_video_info;
 
 #if 1
 #define DEBUGPRN(x)
@@ -2412,7 +2412,7 @@ error:
 
 static void __devexit xgifb_remove(struct pci_dev *pdev)
 {
-	struct video_info *xgifb_info = pci_get_drvdata(pdev);
+	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	struct fb_info *fb_info = xgifb_info->fb_info;
 
 	unregister_framebuffer(fb_info);

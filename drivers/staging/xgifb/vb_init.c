@@ -1431,7 +1431,7 @@ static unsigned char GetXG27FPBits(struct vb_device_info *pVBInfo)
 
 unsigned char XGIInitNew(struct pci_dev *pdev)
 {
-	struct video_info *xgifb_info = pci_get_drvdata(pdev);
+	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	struct xgi_hw_device_info *HwDeviceExtension = &xgifb_info->hw_info;
 	struct vb_device_info VBINF;
 	struct vb_device_info *pVBInfo = &VBINF;

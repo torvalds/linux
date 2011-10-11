@@ -54,7 +54,7 @@ enum xgi_tv_plug { /* vicki@030226 */
 	TVPLUG_TOTAL
 };
 
-struct video_info {
+struct xgifb_video_info {
 	struct fb_info *fb_info;
 	struct xgi_hw_device_info hw_info;
 
@@ -102,6 +102,6 @@ struct video_info {
 };
 
 
-extern struct video_info xgi_video_info;
+extern struct xgifb_video_info xgi_video_info;
 
 #endif
