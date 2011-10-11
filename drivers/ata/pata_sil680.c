@@ -38,11 +38,12 @@
 
 /**
  *	sil680_selreg		-	return register base
- *	@hwif: interface
+ *	@ap: ATA interface
  *	@r: config offset
  *
- *	Turn a config register offset into the right address in either
- *	PCI space or MMIO space to access the control register in question
+ *	Turn a config register offset into the right address in PCI space
+ *	to access the control register in question.
+ *
  *	Thankfully this is a configuration operation so isn't performance
  *	criticial.
  */
@@ -56,12 +57,12 @@ static unsigned long sil680_selreg(struct ata_port *ap, int r)
 
 /**
  *	sil680_seldev		-	return register base
- *	@hwif: interface
+ *	@ap: ATA interface
  *	@r: config offset
  *
- *	Turn a config register offset into the right address in either
- *	PCI space or MMIO space to access the control register in question
- *	including accounting for the unit shift.
+ *	Turn a config register offset into the right address in PCI space
+ *	to access the control register in question including accounting for
+ *	the unit shift.
  */
 
 static unsigned long sil680_seldev(struct ata_port *ap, struct ata_device *adev, int r)
@@ -93,7 +94,7 @@ static int sil680_cable_detect(struct ata_port *ap) {
 }
 
 /**
- *	sil680_set_piomode	-	set initial PIO mode data
+ *	sil680_set_piomode	-	set PIO mode data
  *	@ap: ATA interface
  *	@adev: ATA device
  *
@@ -140,12 +141,13 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	sil680_set_dmamode	-	set initial DMA mode data
+ *	sil680_set_dmamode	-	set DMA mode data
  *	@ap: ATA interface
  *	@adev: ATA device
  *
- *	Program the MWDMA/UDMA modes for the sil680 k
- *	chipset. The MWDMA mode values are pulled from a lookup table
+ *	Program the MWDMA/UDMA modes for the sil680 chipset.
+ *
+ *	The MWDMA mode values are pulled from a lookup table
  *	while the chipset uses mode number for UDMA.
  */
 
