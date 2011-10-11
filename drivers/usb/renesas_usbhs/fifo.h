@@ -86,7 +86,6 @@ extern struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler;
 
 void usbhs_pkt_init(struct usbhs_pkt *pkt);
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
-		    struct usbhs_pkt_handle *handler,
 		    void *buf, int len, int zero);
 struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt);
 void usbhs_pkt_start(struct usbhs_pipe *pipe);

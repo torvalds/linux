@@ -54,7 +54,6 @@ static struct usbhs_pkt_handle usbhsf_null_handler = {
 };
 
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
-		    struct usbhs_pkt_handle *handler,
 		    void *buf, int len, int zero)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
@@ -64,17 +63,22 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
 
-	if (!handler) {
+	if (!pipe->handler) {
 		dev_err(dev, "no handler function\n");
-		handler = &usbhsf_null_handler;
+		pipe->handler = &usbhsf_null_handler;
 	}
 
 	list_del_init(&pkt->node);
 	list_add_tail(&pkt->node, &pipe->list);
 
+	/*
+	 * each pkt must hold own handler.
+	 * because handler might be changed by its situation.
+	 * dma handler -> pio handler.
+	 */
 	pkt->pipe	= pipe;
 	pkt->buf	= buf;
-	pkt->handler	= handler;
+	pkt->handler	= pipe->handler;
 	pkt->length	= len;
 	pkt->zero	= zero;
 	pkt->actual	= 0;

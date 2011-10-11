@@ -39,7 +39,6 @@ struct usbhsg_uep {
 	char ep_name[EP_NAME_SIZE];
 
 	struct usbhsg_gpriv *gpriv;
-	struct usbhs_pkt_handle *handler;
 };
 
 struct usbhsg_gpriv {
@@ -139,8 +138,7 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 
 	req->actual = 0;
 	req->status = -EINPROGRESS;
-	usbhs_pkt_push(pipe, pkt, uep->handler,
-		       req->buf, req->length, req->zero);
+	usbhs_pkt_push(pipe, pkt, req->buf, req->length, req->zero);
 
 	dev_dbg(dev, "pipe %d : queue push (%d)\n",
 		usbhs_pipe_number(pipe),
@@ -389,13 +387,13 @@ static int usbhsg_irq_ctrl_stage(struct usbhs_priv *priv,
 
 	switch (stage) {
 	case READ_DATA_STAGE:
-		dcp->handler = &usbhs_fifo_pio_push_handler;
+		pipe->handler = &usbhs_fifo_pio_push_handler;
 		break;
 	case WRITE_DATA_STAGE:
-		dcp->handler = &usbhs_fifo_pio_pop_handler;
+		pipe->handler = &usbhs_fifo_pio_pop_handler;
 		break;
 	case NODATA_STATUS_STAGE:
-		dcp->handler = &usbhs_ctrl_stage_end_handler;
+		pipe->handler = &usbhs_ctrl_stage_end_handler;
 		break;
 	default:
 		return ret;
@@ -501,9 +499,9 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		 * It will use pio handler if impossible.
 		 */
 		if (usb_endpoint_dir_in(desc))
-			uep->handler = &usbhs_fifo_dma_push_handler;
+			pipe->handler = &usbhs_fifo_dma_push_handler;
 		else
-			uep->handler = &usbhs_fifo_dma_pop_handler;
+			pipe->handler = &usbhs_fifo_dma_pop_handler;
 
 		ret = 0;
 	}
