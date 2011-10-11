@@ -5840,7 +5840,7 @@ QAllEAsRetry:
 
 		if (ea_name) {
 			if (ea_name_len == name_len &&
-			    strncmp(ea_name, temp_ptr, name_len) == 0) {
+			    memcmp(ea_name, temp_ptr, name_len) == 0) {
 				temp_ptr += name_len + 1;
 				rc = value_len;
 				if (buf_size == 0)
