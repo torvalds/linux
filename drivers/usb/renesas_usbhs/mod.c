@@ -93,8 +93,9 @@ struct usbhs_mod *usbhs_mod_get(struct usbhs_priv *priv, int id)
 	return ret;
 }
 
-int usbhs_mod_is_host(struct usbhs_priv *priv, struct usbhs_mod *mod)
+int usbhs_mod_is_host(struct usbhs_priv *priv)
 {
+	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
 	if (!mod)

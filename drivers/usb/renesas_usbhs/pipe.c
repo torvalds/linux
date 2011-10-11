@@ -545,9 +545,8 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 				     int dir_in)
 {
 	struct device *dev = usbhs_priv_to_dev(priv);
-	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	struct usbhs_pipe *pipe;
-	int is_host = usbhs_mod_is_host(priv, mod);
+	int is_host = usbhs_mod_is_host(priv);
 	int ret;
 	u16 pipecfg, pipebuf;
 
