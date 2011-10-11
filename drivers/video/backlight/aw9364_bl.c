@@ -97,12 +97,8 @@ static int aw9364_backlight_update_status(struct backlight_device *bl)
 
 	int brightness = bl->props.brightness;
 	
-	if(g_aw9364_data->suspend_flag == 1) {
+	if(g_aw9364_data->suspend_flag == 1)
 		brightness = 0;
-		g_aw9364_data->suspend_flag = 2;
-	} else if (g_aw9364_data->suspend_flag > 1) {
-		return 0;
-	}
 	
 	if (g_aw9364_data->shutdown_flag == 1)
 		brightness = 0;
@@ -156,12 +152,7 @@ static void aw9364_bl_resume(struct early_suspend *h)
 	aw9364_data = container_of(h, struct aw9364_backlight_data, early_suspend);
 	aw9364_data->suspend_flag = 0;
 
-	struct backlight_device *bl = g_aw9364_bl;
-	int brightness = bl->props.brightness;
-	bl->props.brightness = brightness >> 1;
-	backlight_update_status(bl);
-	bl->props.brightness = brightness;
-	schedule_delayed_work(&aw9364_data->work, msecs_to_jiffies(0));
+	schedule_delayed_work(&aw9364_data->work, msecs_to_jiffies(100));
 	
 }
 
@@ -214,7 +205,7 @@ static int aw9364_backlight_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bl);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND	
-	data->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING - 1;
+	data->early_suspend.level = ~0x0;
 	data->early_suspend.suspend = aw9364_bl_suspend;
 	data->early_suspend.resume = aw9364_bl_resume;
 	register_early_suspend(&data->early_suspend);
