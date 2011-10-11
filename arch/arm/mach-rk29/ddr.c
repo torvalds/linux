@@ -1359,7 +1359,10 @@ static void inline ddr_change_host_priority(void)
                    [7:6]: GPU       (host 3)
                    [9:8]: VCODEC    (host 4)
     */
-    pGRF_Reg->GRF_MEM_CON = (pGRF_Reg->GRF_MEM_CON & ~0x3FF) | ((2<<0)|(1<<2)|(0<<4)|(1<<6)|(2<<8));
+    if(mem_type == Mobile_DDR)
+        pGRF_Reg->GRF_MEM_CON = (pGRF_Reg->GRF_MEM_CON & ~0x3FF) | ((2<<0)|(2<<2)|(0<<4)|(2<<6)|(2<<8));
+    else
+        pGRF_Reg->GRF_MEM_CON = (pGRF_Reg->GRF_MEM_CON & ~0x3FF) | ((2<<0)|(1<<2)|(0<<4)|(1<<6)|(2<<8));
 }
 
 typedef struct _dtt_cnt_t
