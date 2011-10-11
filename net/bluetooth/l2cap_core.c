@@ -578,7 +578,8 @@ static inline void l2cap_send_sframe(struct l2cap_chan *chan, u16 control)
 	BT_DBG("chan %p, control 0x%2.2x", chan, control);
 
 	count = min_t(unsigned int, conn->mtu, hlen);
-	control |= L2CAP_CTRL_FRAME_TYPE;
+
+	control |= __set_sframe(chan);
 
 	if (test_and_clear_bit(CONN_SEND_FBIT, &chan->conn_state))
 		control |= L2CAP_CTRL_FINAL;
@@ -3707,7 +3708,7 @@ static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb)
 	if (l2cap_check_fcs(chan, skb))
 		goto drop;
 
-	if (__is_sar_start(chan, control) && __is_iframe(control))
+	if (__is_sar_start(chan, control) && !__is_sframe(chan, control))
 		len -= 2;
 
 	if (chan->fcs == L2CAP_FCS_CRC16)
@@ -3734,7 +3735,7 @@ static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	if (__is_iframe(control)) {
+	if (!__is_sframe(chan, control)) {
 		if (len < 0) {
 			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
 			goto drop;
@@ -3817,7 +3818,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		if (chan->fcs == L2CAP_FCS_CRC16)
 			len -= 2;
 
-		if (len > chan->mps || len < 0 || __is_sframe(control))
+		if (len > chan->mps || len < 0 || __is_sframe(chan, control))
 			goto drop;
 
 		tx_seq = __get_txseq(chan, control);

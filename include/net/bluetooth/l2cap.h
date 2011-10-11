@@ -548,8 +548,22 @@ static inline __u32 __set_txseq(struct l2cap_chan *chan, __u32 txseq)
 		return (txseq << L2CAP_CTRL_TXSEQ_SHIFT) & L2CAP_CTRL_TXSEQ;
 }
 
-#define __is_iframe(ctrl)	(!((ctrl) & L2CAP_CTRL_FRAME_TYPE))
-#define __is_sframe(ctrl)	((ctrl) & L2CAP_CTRL_FRAME_TYPE)
+static inline bool __is_sframe(struct l2cap_chan *chan, __u32 ctrl)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return ctrl & L2CAP_EXT_CTRL_FRAME_TYPE;
+	else
+		return ctrl & L2CAP_CTRL_FRAME_TYPE;
+}
+
+static inline __u32 __set_sframe(struct l2cap_chan *chan)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return L2CAP_EXT_CTRL_FRAME_TYPE;
+	else
+		return L2CAP_CTRL_FRAME_TYPE;
+}
+
 static inline __u8 __get_ctrl_sar(struct l2cap_chan *chan, __u32 ctrl)
 {
 	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
