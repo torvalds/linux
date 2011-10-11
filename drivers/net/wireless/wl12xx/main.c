@@ -4318,7 +4318,7 @@ static int wl12xx_set_bitrate_mask(struct ieee80211_hw *hw,
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271 *wl = hw->priv;
-	int i;
+	int i, ret = 0;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 set_bitrate_mask 0x%x 0x%x",
 		mask->control[NL80211_BAND_2GHZ].legacy,
@@ -4331,9 +4331,28 @@ static int wl12xx_set_bitrate_mask(struct ieee80211_hw *hw,
 			wl1271_tx_enabled_rates_get(wl,
 						    mask->control[i].legacy,
 						    i);
+
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS &&
+	    !test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
+
+		ret = wl1271_ps_elp_wakeup(wl);
+		if (ret < 0)
+			goto out;
+
+		wl1271_set_band_rate(wl, wlvif);
+		wlvif->basic_rate =
+			wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
+		ret = wl1271_acx_sta_rate_policies(wl, wlvif);
+
+		wl1271_ps_elp_sleep(wl);
+	}
+out:
 	mutex_unlock(&wl->mutex);
 
-	return 0;
+	return ret;
 }
 
 static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
