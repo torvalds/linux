@@ -125,13 +125,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 /* ------------------- Global Variables ----------------------------- */
 
-static struct fb_fix_screeninfo XGIfb_fix = {
-	.id		= "XGI",
-	.type		= FB_TYPE_PACKED_PIXELS,
-	.xpanstep	= 1,
-	.ypanstep	= 1,
-};
-
 /* display status */
 static int XGIfb_crt1off;
 static int XGIfb_forcecrt1 = -1;
