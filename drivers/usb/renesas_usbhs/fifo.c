@@ -54,6 +54,8 @@ static struct usbhs_pkt_handle usbhsf_null_handler = {
 };
 
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
+		    void (*done)(struct usbhs_priv *priv,
+				 struct usbhs_pkt *pkt),
 		    void *buf, int len, int zero)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
@@ -62,6 +64,11 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
+
+	if (!done) {
+		dev_err(dev, "no done function\n");
+		return;
+	}
 
 	if (!pipe->handler) {
 		dev_err(dev, "no handler function\n");
@@ -82,6 +89,7 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	pkt->length	= len;
 	pkt->zero	= zero;
 	pkt->actual	= 0;
+	pkt->done	= done;
 
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ******************/
@@ -131,7 +139,6 @@ enum {
 static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	struct usbhs_pkt *pkt;
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int (*func)(struct usbhs_pkt *pkt, int *is_done);
@@ -171,7 +178,7 @@ __usbhs_pkt_handler_end:
 	/********************  spin unlock ******************/
 
 	if (is_done) {
-		info->done(priv, pkt);
+		pkt->done(priv, pkt);
 		usbhs_pkt_start(pipe);
 	}
 

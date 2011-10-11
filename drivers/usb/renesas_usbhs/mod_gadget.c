@@ -127,24 +127,6 @@ LIST_HEAD(the_controller_link);
 /*
  *		queue push/pop
  */
-static void usbhsg_queue_push(struct usbhsg_uep *uep,
-			      struct usbhsg_request *ureq)
-{
-	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
-	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
-	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
-	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
-	struct usb_request *req = &ureq->req;
-
-	req->actual = 0;
-	req->status = -EINPROGRESS;
-	usbhs_pkt_push(pipe, pkt, req->buf, req->length, req->zero);
-
-	dev_dbg(dev, "pipe %d : queue push (%d)\n",
-		usbhs_pipe_number(pipe),
-		req->length);
-}
-
 static void usbhsg_queue_pop(struct usbhsg_uep *uep,
 			     struct usbhsg_request *ureq,
 			     int status)
@@ -168,6 +150,25 @@ static void usbhsg_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	ureq->req.actual = pkt->actual;
 
 	usbhsg_queue_pop(uep, ureq, 0);
+}
+
+static void usbhsg_queue_push(struct usbhsg_uep *uep,
+			      struct usbhsg_request *ureq)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
+	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
+	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
+	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
+	struct usb_request *req = &ureq->req;
+
+	req->actual = 0;
+	req->status = -EINPROGRESS;
+	usbhs_pkt_push(pipe, pkt, usbhsg_queue_done,
+		       req->buf, req->length, req->zero);
+
+	dev_dbg(dev, "pipe %d : queue push (%d)\n",
+		usbhs_pipe_number(pipe),
+		req->length);
 }
 
 /*
@@ -664,7 +665,6 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	 * pipe initialize and enable DCP
 	 */
 	usbhs_pipe_init(priv,
-			usbhsg_queue_done,
 			usbhsg_dma_map_ctrl);
 	usbhs_fifo_init(priv);
 	usbhsg_uep_init(gpriv);

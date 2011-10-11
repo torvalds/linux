@@ -514,19 +514,11 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 }
 
 void usbhs_pipe_init(struct usbhs_priv *priv,
-		     void (*done)(struct usbhs_priv *priv,
-				  struct usbhs_pkt *pkt),
 		     int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map))
 {
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
-	struct device *dev = usbhs_priv_to_dev(priv);
 	struct usbhs_pipe *pipe;
 	int i;
-
-	if (!done) {
-		dev_err(dev, "no done function\n");
-		return;
-	}
 
 	/*
 	 * FIXME
@@ -554,7 +546,6 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 		usbhs_pipe_clear(pipe);
 	}
 
-	info->done = done;
 	info->dma_map_ctrl = dma_map_ctrl;
 }
 
