@@ -197,7 +197,7 @@ enum reconstruct_states {
 struct stripe_head {
 	struct hlist_node	hash;
 	struct list_head	lru;	      /* inactive_list or handle_list */
-	struct raid5_private_data *raid_conf;
+	struct r5conf		*raid_conf;
 	short			generation;	/* increments with every
 						 * reshape */
 	sector_t		sector;		/* sector of this row */
@@ -347,7 +347,7 @@ struct disk_info {
 	struct md_rdev	*rdev;
 };
 
-struct raid5_private_data {
+struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
 	struct mddev		*mddev;
 	struct disk_info	*spare;
@@ -439,8 +439,6 @@ struct raid5_private_data {
 	struct md_thread	*thread;
 };
 
-typedef struct raid5_private_data raid5_conf_t;
-
 /*
  * Our supported algorithms
  */
@@ -504,6 +502,6 @@ static inline int algorithm_is_DDF(int layout)
 }
 
 extern int md_raid5_congested(struct mddev *mddev, int bits);
-extern void md_raid5_kick_device(raid5_conf_t *conf);
+extern void md_raid5_kick_device(struct r5conf *conf);
 extern int raid5_set_cache_size(struct mddev *mddev, int size);
 #endif

@@ -1097,7 +1097,7 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 			       rs->md.bitmap_info.max_write_behind);
 
 		if (rs->print_flags & DMPF_STRIPE_CACHE) {
-			raid5_conf_t *conf = rs->md.private;
+			struct r5conf *conf = rs->md.private;
 
 			/* convert from kiB to sectors */
 			DMEMIT(" stripe_cache %d",
@@ -1146,7 +1146,7 @@ static void raid_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct raid_set *rs = ti->private;
 	unsigned chunk_size = rs->md.chunk_sectors << 9;
-	raid5_conf_t *conf = rs->md.private;
+	struct r5conf *conf = rs->md.private;
 
 	blk_limits_io_min(limits, chunk_size);
 	blk_limits_io_opt(limits, chunk_size * (conf->raid_disks - conf->max_degraded));
