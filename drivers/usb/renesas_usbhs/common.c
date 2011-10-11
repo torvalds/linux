@@ -181,6 +181,13 @@ void usbhs_usbreq_set_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
  */
 void usbhs_bus_send_sof_enable(struct usbhs_priv *priv)
 {
+	u16 status = usbhs_read(priv, DVSTCTR) & (USBRST | UACT);
+
+	if (status != USBRST) {
+		struct device *dev = usbhs_priv_to_dev(priv);
+		dev_err(dev, "usbhs should be reset\n");
+	}
+
 	usbhs_bset(priv, DVSTCTR, (USBRST | UACT), UACT);
 }
 
