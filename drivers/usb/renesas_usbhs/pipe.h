@@ -104,6 +104,9 @@ void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 epnum, u16 maxp);
 #define usbhs_pipe_to_fifo(p)	((p)->fifo)
 #define usbhs_pipe_is_busy(p)	usbhs_pipe_to_fifo(p)
 
+#define usbhs_pipe_type(p)		((p)->pipe_type)
+#define usbhs_pipe_type_is(p, t)	((p)->pipe_type == t)
+
 /*
  * dcp control
  */

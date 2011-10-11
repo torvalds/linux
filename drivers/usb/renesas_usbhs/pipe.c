@@ -29,9 +29,6 @@
 #define usbhsp_flags_has(p, f)	((p)->flags &   USBHS_PIPE_FLAGS_##f)
 #define usbhsp_flags_init(p)	do {(p)->flags = 0; } while (0)
 
-#define usbhsp_type(p)		((p)->pipe_type)
-#define usbhsp_type_is(p, t)	((p)->pipe_type == t)
-
 /*
  * for debug
  */
@@ -287,8 +284,8 @@ static int usbhsp_possible_double_buffer(struct usbhs_pipe *pipe)
 	/*
 	 * only ISO / BULK pipe can use double buffer
 	 */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK) ||
-	    usbhsp_type_is(pipe, USB_ENDPOINT_XFER_ISOC))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK) ||
+	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC))
 		return 1;
 
 	return 0;
@@ -325,20 +322,20 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 	 */
 
 	/* TYPE */
-	type = type_array[usbhsp_type(pipe)];
+	type = type_array[usbhs_pipe_type(pipe)];
 
 	/* BFRE */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
-	    usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
+	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
 		bfre = 0; /* FIXME */
 
 	/* DBLB */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
-	    usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
+	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
 		dblb = (is_double) ? DBLB : 0;
 
 	/* CNTMD */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
 		cntmd = 0; /* FIXME */
 
 	/* DIR */
@@ -353,7 +350,7 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 		usbhsp_flags_set(pipe, IS_DIR_IN);
 
 	/* SHTNAK */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK) &&
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK) &&
 	    !dir)
 		shtnak = SHTNAK;
 
@@ -413,9 +410,9 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
 	 * INT :  64 byte
 	 * ISOC: 512 byte
 	 */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_CONTROL))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_CONTROL))
 		buff_size = 256;
-	else if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_INT))
+	else if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT))
 		buff_size = 64;
 	else
 		buff_size = 512;
@@ -425,7 +422,7 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
 
 	/* BUFNMB has been reserved for INT pipe
 	 * see above */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_INT)) {
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT)) {
 		bufnmb = pipe_num - 2;
 	} else {
 		bufnmb = info->bufnmb_last;
@@ -502,7 +499,7 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 	 */
 	pipe = NULL;
 	usbhs_for_each_pipe_with_dcp(pos, priv, i) {
-		if (!usbhsp_type_is(pos, type))
+		if (!usbhs_pipe_type_is(pos, type))
 			continue;
 		if (usbhsp_flags_has(pos, IS_USED))
 			continue;
@@ -551,7 +548,7 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 	 */
 	info->bufnmb_last = 4;
 	usbhs_for_each_pipe_with_dcp(pipe, priv, i) {
-		if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_INT))
+		if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT))
 			info->bufnmb_last++;
 
 		usbhsp_flags_init(pipe);
@@ -689,7 +686,9 @@ int usbhs_pipe_probe(struct usbhs_priv *priv)
 	 */
 	usbhs_for_each_pipe_with_dcp(pipe, priv, i) {
 		pipe->priv = priv;
-		usbhsp_type(pipe) = pipe_type[i] & USB_ENDPOINT_XFERTYPE_MASK;
+
+		usbhs_pipe_type(pipe) =
+			pipe_type[i] & USB_ENDPOINT_XFERTYPE_MASK;
 
 		dev_dbg(dev, "pipe %x\t: %s\n",
 			i, usbhsp_pipe_name[pipe_type[i]]);
