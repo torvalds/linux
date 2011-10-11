@@ -542,8 +542,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 		goto out;
 
 	offset = rp->offset;
-	total_len = inet_sk(sk)->cork.base.length - (skb_network_header(skb) -
-						     skb->data);
+	total_len = inet_sk(sk)->cork.base.length;
 	if (offset >= total_len - 1) {
 		err = -EINVAL;
 		ip6_flush_pending_frames(sk);
