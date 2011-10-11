@@ -134,10 +134,9 @@ struct l2cap_conninfo {
 #define L2CAP_SDU_CONTINUE          0xC000
 
 /* L2CAP Command rej. reasons */
-#define L2CAP_REJ_NOT_UNDERSTOOD      0x0000
-#define L2CAP_REJ_MTU_EXCEEDED        0x0001
-#define L2CAP_REJ_INVALID_CID         0x0002
-
+#define L2CAP_REJ_NOT_UNDERSTOOD	0x0000
+#define L2CAP_REJ_MTU_EXCEEDED		0x0001
+#define L2CAP_REJ_INVALID_CID		0x0002
 
 /* L2CAP structures */
 struct l2cap_hdr {
@@ -273,13 +272,13 @@ struct l2cap_info_rsp {
 } __packed;
 
 /* info type */
-#define L2CAP_IT_CL_MTU     0x0001
-#define L2CAP_IT_FEAT_MASK  0x0002
-#define L2CAP_IT_FIXED_CHAN 0x0003
+#define L2CAP_IT_CL_MTU		0x0001
+#define L2CAP_IT_FEAT_MASK	0x0002
+#define L2CAP_IT_FIXED_CHAN	0x0003
 
 /* info result */
-#define L2CAP_IR_SUCCESS    0x0000
-#define L2CAP_IR_NOTSUPP    0x0001
+#define L2CAP_IR_SUCCESS	0x0000
+#define L2CAP_IR_NOTSUPP	0x0001
 
 struct l2cap_conn_param_update_req {
 	__le16      min;
