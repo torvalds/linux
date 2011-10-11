@@ -221,6 +221,13 @@ static void tomoyo_del_acl(struct list_head *element)
 			tomoyo_put_name_union(&entry->name);
 		}
 		break;
+	case TOMOYO_TYPE_MANUAL_TASK_ACL:
+		{
+			struct tomoyo_task_acl *entry =
+				container_of(acl, typeof(*entry), head);
+			tomoyo_put_name(entry->domainname);
+		}
+		break;
 	}
 }
 

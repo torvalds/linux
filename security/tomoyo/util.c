@@ -1057,6 +1057,17 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 			perm = container_of(ptr, struct tomoyo_mkdev_acl,
 					    head)->perm;
 			break;
+		case TOMOYO_TYPE_INET_ACL:
+			perm = container_of(ptr, struct tomoyo_inet_acl,
+					    head)->perm;
+			break;
+		case TOMOYO_TYPE_UNIX_ACL:
+			perm = container_of(ptr, struct tomoyo_unix_acl,
+					    head)->perm;
+			break;
+		case TOMOYO_TYPE_MANUAL_TASK_ACL:
+			perm = 0;
+			break;
 		default:
 			perm = 1;
 		}
