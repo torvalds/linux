@@ -13,8 +13,6 @@ struct mirror_info {
 						 */
 };
 
-typedef struct r10bio_s r10bio_t;
-
 struct r10_private_data_s {
 	struct mddev		*mddev;
 	mirror_info_t		*mirrors;
@@ -80,7 +78,7 @@ typedef struct r10_private_data_s conf_t;
  * for this RAID10 operation, and about their status:
  */
 
-struct r10bio_s {
+struct r10bio {
 	atomic_t		remaining; /* 'have we finished' count,
 					    * used from IRQ handlers
 					    */

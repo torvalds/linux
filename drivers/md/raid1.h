@@ -21,9 +21,6 @@ struct pool_info {
 	int	raid_disks;
 };
 
-
-typedef struct r1bio_s r1bio_t;
-
 struct r1_private_data_s {
 	struct mddev		*mddev;
 	mirror_info_t		*mirrors;
@@ -43,9 +40,9 @@ struct r1_private_data_s {
 
 	spinlock_t		device_lock;
 
-	/* list of 'r1bio_t' that need to be processed by raid1d, whether
-	 * to retry a read, writeout a resync or recovery block, or
-	 * anything else.
+	/* list of 'struct r1bio' that need to be processed by raid1d,
+	 * whether to retry a read, writeout a resync or recovery
+	 * block, or anything else.
 	 */
 	struct list_head	retry_list;
 
@@ -80,8 +77,8 @@ struct r1_private_data_s {
 	 * mempools - it changes when the array grows or shrinks
 	 */
 	struct pool_info	*poolinfo;
-	mempool_t *r1bio_pool;
-	mempool_t *r1buf_pool;
+	mempool_t		*r1bio_pool;
+	mempool_t		*r1buf_pool;
 
 	/* temporary buffer to synchronous IO when attempting to repair
 	 * a read error.
@@ -104,7 +101,7 @@ typedef struct r1_private_data_s conf_t;
  * for this RAID1 operation, and about their status:
  */
 
-struct r1bio_s {
+struct r1bio {
 	atomic_t		remaining; /* 'have we finished' count,
 					    * used from IRQ handlers
 					    */
