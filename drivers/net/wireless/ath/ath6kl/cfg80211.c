@@ -121,6 +121,8 @@ static struct ieee80211_supported_band ath6kl_band_5ghz = {
 	.bitrates = ath6kl_a_rates,
 };
 
+#define CCKM_KRK_CIPHER_SUITE 0x004096ff /* use for KRK */
+
 static int ath6kl_set_wpa_version(struct ath6kl *ar,
 				  enum nl80211_wpa_versions wpa_version)
 {
@@ -217,6 +219,11 @@ static void ath6kl_set_key_mgmt(struct ath6kl *ar, u32 key_mgmt)
 			ar->auth_mode = WPA_PSK_AUTH;
 		else if (ar->auth_mode == WPA2_AUTH)
 			ar->auth_mode = WPA2_PSK_AUTH;
+	} else if (key_mgmt == 0x00409600) {
+		if (ar->auth_mode == WPA_AUTH)
+			ar->auth_mode = WPA_AUTH_CCKM;
+		else if (ar->auth_mode == WPA2_AUTH)
+			ar->auth_mode = WPA2_AUTH_CCKM;
 	} else if (key_mgmt != WLAN_AKM_SUITE_8021X) {
 		ar->auth_mode = NONE_AUTH;
 	}
@@ -811,6 +818,12 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	if (!ath6kl_cfg80211_ready(ar))
 		return -EIO;
 
+	if (params->cipher == CCKM_KRK_CIPHER_SUITE) {
+		if (params->key_len != WMI_KRK_LEN)
+			return -EINVAL;
+		return ath6kl_wmi_add_krk_cmd(ar->wmi, params->key);
+	}
+
 	if (key_index < WMI_MIN_KEY_INDEX || key_index > WMI_MAX_KEY_INDEX) {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 			   "%s: key index %d out of bounds\n", __func__,
@@ -1281,6 +1294,7 @@ static const u32 cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP104,
 	WLAN_CIPHER_SUITE_TKIP,
 	WLAN_CIPHER_SUITE_CCMP,
+	CCKM_KRK_CIPHER_SUITE,
 };
 
 static bool is_rate_legacy(s32 rate)
