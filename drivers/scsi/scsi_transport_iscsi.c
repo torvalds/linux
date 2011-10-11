@@ -322,7 +322,7 @@ iscsi_iface_net_attr(ipv6_iface, link_local_autocfg,
 
 /* common read only iface attribute */
 iscsi_iface_net_attr(iface, enabled, ISCSI_NET_PARAM_IFACE_ENABLE);
-iscsi_iface_net_attr(iface, vlan, ISCSI_NET_PARAM_VLAN_ID);
+iscsi_iface_net_attr(iface, vlan_id, ISCSI_NET_PARAM_VLAN_ID);
 iscsi_iface_net_attr(iface, vlan_priority, ISCSI_NET_PARAM_VLAN_PRIORITY);
 iscsi_iface_net_attr(iface, vlan_enabled, ISCSI_NET_PARAM_VLAN_ENABLED);
 iscsi_iface_net_attr(iface, mtu, ISCSI_NET_PARAM_MTU);
@@ -338,7 +338,7 @@ static mode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_iface_enabled.attr)
 		param = ISCSI_NET_PARAM_IFACE_ENABLE;
-	else if (attr == &dev_attr_iface_vlan.attr)
+	else if (attr == &dev_attr_iface_vlan_id.attr)
 		param = ISCSI_NET_PARAM_VLAN_ID;
 	else if (attr == &dev_attr_iface_vlan_priority.attr)
 		param = ISCSI_NET_PARAM_VLAN_PRIORITY;
@@ -382,7 +382,7 @@ static mode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
 
 static struct attribute *iscsi_iface_attrs[] = {
 	&dev_attr_iface_enabled.attr,
-	&dev_attr_iface_vlan.attr,
+	&dev_attr_iface_vlan_id.attr,
 	&dev_attr_iface_vlan_priority.attr,
 	&dev_attr_iface_vlan_enabled.attr,
 	&dev_attr_ipv4_iface_ipaddress.attr,
