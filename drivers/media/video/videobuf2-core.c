@@ -296,14 +296,14 @@ static bool __buffer_in_use(struct vb2_queue *q, struct vb2_buffer *vb)
 {
 	unsigned int plane;
 	for (plane = 0; plane < vb->num_planes; ++plane) {
+		void *mem_priv = vb->planes[plane].mem_priv;
 		/*
 		 * If num_users() has not been provided, call_memop
 		 * will return 0, apparently nobody cares about this
 		 * case anyway. If num_users() returns more than 1,
 		 * we are not the only user of the plane's memory.
 		 */
-		if (call_memop(q, plane, num_users,
-				vb->planes[plane].mem_priv) > 1)
+		if (mem_priv && call_memop(q, plane, num_users, mem_priv) > 1)
 			return true;
 	}
 	return false;
