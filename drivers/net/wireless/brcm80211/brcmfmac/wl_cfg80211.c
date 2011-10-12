@@ -2467,9 +2467,12 @@ brcmf_update_pmklist(struct net_device *ndev,
 		     struct brcmf_cfg80211_pmk_list *pmk_list, s32 err)
 {
 	int i, j;
+	int pmkid_len;
 
-	WL_CONN("No of elements %d\n", pmk_list->pmkids.npmkid);
-	for (i = 0; i < pmk_list->pmkids.npmkid; i++) {
+	pmkid_len = le32_to_cpu(pmk_list->pmkids.npmkid);
+
+	WL_CONN("No of elements %d\n", pmkid_len);
+	for (i = 0; i < pmkid_len; i++) {
 		WL_CONN("PMKID[%d]: %pM =\n", i,
 			&pmk_list->pmkids.pmkid[i].BSSID);
 		for (j = 0; j < WLAN_PMKID_LEN; j++)
@@ -2491,26 +2494,30 @@ brcmf_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 	struct pmkid_list *pmkids = &cfg_priv->pmk_list->pmkids;
 	s32 err = 0;
 	int i;
+	int pmkid_len;
 
 	WL_TRACE("Enter\n");
 	if (!check_sys_up(wiphy))
 		return -EIO;
 
-	for (i = 0; i < pmkids->npmkid; i++)
+	pmkid_len = le32_to_cpu(pmkids->npmkid);
+	for (i = 0; i < pmkid_len; i++)
 		if (!memcmp(pmksa->bssid, pmkids->pmkid[i].BSSID, ETH_ALEN))
 			break;
 	if (i < WL_NUM_PMKIDS_MAX) {
 		memcpy(pmkids->pmkid[i].BSSID, pmksa->bssid, ETH_ALEN);
 		memcpy(pmkids->pmkid[i].PMKID, pmksa->pmkid, WLAN_PMKID_LEN);
-		if (i == pmkids->npmkid)
-			pmkids->npmkid++;
+		if (i == pmkid_len) {
+			pmkid_len++;
+			pmkids->npmkid = cpu_to_le32(pmkid_len);
+		}
 	} else
 		err = -EINVAL;
 
 	WL_CONN("set_pmksa,IW_PMKSA_ADD - PMKID: %pM =\n",
-		pmkids->pmkid[pmkids->npmkid].BSSID);
+		pmkids->pmkid[pmkid_len].BSSID);
 	for (i = 0; i < WLAN_PMKID_LEN; i++)
-		WL_CONN("%02x\n", pmkids->pmkid[pmkids->npmkid].PMKID[i]);
+		WL_CONN("%02x\n", pmkids->pmkid[pmkid_len].PMKID[i]);
 
 	err = brcmf_update_pmklist(ndev, cfg_priv->pmk_list, err);
 
@@ -2525,7 +2532,7 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	struct pmkid_list pmkid;
 	s32 err = 0;
-	int i;
+	int i, pmkid_len;
 
 	WL_TRACE("Enter\n");
 	if (!check_sys_up(wiphy))
@@ -2539,17 +2546,18 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 	for (i = 0; i < WLAN_PMKID_LEN; i++)
 		WL_CONN("%02x\n", pmkid.pmkid[0].PMKID[i]);
 
-	for (i = 0; i < cfg_priv->pmk_list->pmkids.npmkid; i++)
+	pmkid_len = le32_to_cpu(cfg_priv->pmk_list->pmkids.npmkid);
+	for (i = 0; i < pmkid_len; i++)
 		if (!memcmp
 		    (pmksa->bssid, &cfg_priv->pmk_list->pmkids.pmkid[i].BSSID,
 		     ETH_ALEN))
 			break;
 
-	if ((cfg_priv->pmk_list->pmkids.npmkid > 0)
-	    && (i < cfg_priv->pmk_list->pmkids.npmkid)) {
+	if ((pmkid_len > 0)
+	    && (i < pmkid_len)) {
 		memset(&cfg_priv->pmk_list->pmkids.pmkid[i], 0,
 		       sizeof(struct pmkid));
-		for (; i < (cfg_priv->pmk_list->pmkids.npmkid - 1); i++) {
+		for (; i < (pmkid_len - 1); i++) {
 			memcpy(&cfg_priv->pmk_list->pmkids.pmkid[i].BSSID,
 			       &cfg_priv->pmk_list->pmkids.pmkid[i + 1].BSSID,
 			       ETH_ALEN);
@@ -2557,7 +2565,7 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 			       &cfg_priv->pmk_list->pmkids.pmkid[i + 1].PMKID,
 			       WLAN_PMKID_LEN);
 		}
-		cfg_priv->pmk_list->pmkids.npmkid--;
+		cfg_priv->pmk_list->pmkids.npmkid = cpu_to_le32(pmkid_len - 1);
 	} else
 		err = -EINVAL;
 

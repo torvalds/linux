@@ -258,7 +258,7 @@ struct pmkid {
 };
 
 struct pmkid_list {
-	u32 npmkid;
+	__le32 npmkid;
 	struct pmkid pmkid[1];
 };
 
