@@ -584,17 +584,3 @@ u8 brcmu_mw_to_qdbm(u16 mw)
 }
 EXPORT_SYMBOL(brcmu_mw_to_qdbm);
 
-uint brcmu_bitcount(u8 *bitmap, uint length)
-{
-	uint bitcount = 0, i;
-	u8 tmp;
-	for (i = 0; i < length; i++) {
-		tmp = bitmap[i];
-		while (tmp) {
-			bitcount++;
-			tmp &= (tmp - 1);
-		}
-	}
-	return bitcount;
-}
-EXPORT_SYMBOL(brcmu_bitcount);

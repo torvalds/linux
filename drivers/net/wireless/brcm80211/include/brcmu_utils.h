@@ -218,6 +218,5 @@ extern u8 brcmu_mw_to_qdbm(u16 mw);
 
 extern uint brcmu_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);
-extern uint brcmu_bitcount(u8 *bitmap, uint bytelength);
 
 #endif				/* _BRCMU_UTILS_H_ */

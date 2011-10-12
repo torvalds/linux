@@ -176,34 +176,6 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
  */
 extern bool brcmu_chspec_malformed(u16 chanspec);
 
-/*
- * This function returns the channel number that control traffic is being sent
- * on, for legacy channels this is just the channel number, for 40MHZ channels
- * it is the upper or lower 20MHZ sideband depending on the chanspec selected.
- */
-extern u8 brcmu_chspec_ctlchan(u16 chspec);
-
-/*
- * Return the channel number for a given frequency and base frequency.
- * The returned channel number is relative to the given base frequency.
- * If the given base frequency is zero, a base frequency of 5 GHz is assumed for
- * frequencies from 5 - 6 GHz, and 2.407 GHz is assumed for 2.4 - 2.5 GHz.
- *
- * Frequency is specified in MHz.
- * The base frequency is specified as (start_factor * 500 kHz).
- * Constants WF_CHAN_FACTOR_2_4_G, WF_CHAN_FACTOR_5_G are defined for
- * 2.4 GHz and 5 GHz bands.
- *
- * The returned channel will be in the range [1, 14] in the 2.4 GHz band
- * and [0, 200] otherwise.
- * -1 is returned if the start_factor is WF_CHAN_FACTOR_2_4_G and the
- * frequency is not a 2.4 GHz channel, or if the frequency is not and even
- * multiple of 5 MHz from the base frequency to the base plus 1 GHz.
- *
- * Reference 802.11 REVma, section 17.3.8.3, and 802.11B section 18.4.6.2
- */
-extern int brcmu_mhz2channel(uint freq, uint start_factor);
-
 /* Enumerate crypto algorithms */
 #define	CRYPTO_ALGO_OFF			0
 #define	CRYPTO_ALGO_WEP1		1
