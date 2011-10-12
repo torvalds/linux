@@ -371,7 +371,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	cFYI(1, "inode = 0x%p file flags are 0x%x for %s",
 		 inode, file->f_flags, full_path);
 
-	if (oplockEnabled)
+	if (enable_oplocks)
 		oplock = REQ_OPLOCK;
 	else
 		oplock = 0;
@@ -495,7 +495,7 @@ static int cifs_reopen_file(struct cifsFileInfo *pCifsFile, bool can_flush)
 	cFYI(1, "inode = 0x%p file flags 0x%x for %s",
 		 inode, pCifsFile->f_flags, full_path);
 
-	if (oplockEnabled)
+	if (enable_oplocks)
 		oplock = REQ_OPLOCK;
 	else
 		oplock = 0;

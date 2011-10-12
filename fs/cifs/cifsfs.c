@@ -53,7 +53,7 @@
 int cifsFYI = 0;
 int cifsERROR = 1;
 int traceSMB = 0;
-unsigned int oplockEnabled = 1;
+bool enable_oplocks = true;
 unsigned int linuxExtEnabled = 1;
 unsigned int lookupCacheEnabled = 1;
 unsigned int multiuser_mount = 0;
@@ -82,6 +82,10 @@ module_param(echo_retries, ushort, 0644);
 MODULE_PARM_DESC(echo_retries, "Number of echo attempts before giving up and "
 			       "reconnecting server. Default: 5. 0 means "
 			       "never reconnect.");
+module_param(enable_oplocks, bool, 0644);
+MODULE_PARM_DESC(enable_oplocks, "Enable or disable oplocks (bool). Default:"
+				 "y/Y/1");
+
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;

@@ -171,7 +171,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	}
 	tcon = tlink_tcon(tlink);
 
-	if (oplockEnabled)
+	if (enable_oplocks)
 		oplock = REQ_OPLOCK;
 
 	if (nd)
