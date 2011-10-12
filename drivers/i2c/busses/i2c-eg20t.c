@@ -289,6 +289,7 @@ static s32 pch_i2c_wait_for_bus_idle(struct i2c_algo_pch_data *adap,
 
 	pch_dbg(adap, "I2CSR = %x\n", ioread32(p + PCH_I2CSR));
 	pch_err(adap, "%s: Timeout Error.return%d\n", __func__, -ETIME);
+	pch_i2c_init(adap);
 
 	return -ETIME;
 }
@@ -456,6 +457,7 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 		pch_err(adap, "Lost Arbitration\n");
 		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMAL_BIT);
 		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMIF_BIT);
+		pch_i2c_init(adap);
 		return -EAGAIN;
 	} else { /* wait-event timeout */
 		pch_i2c_stop(adap);
@@ -634,6 +636,7 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 		pch_err(adap, "Lost Arbitration\n");
 		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMAL_BIT);
 		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMIF_BIT);
+		pch_i2c_init(adap);
 		return -EAGAIN;
 	} else { /* wait-event timeout */
 		pch_i2c_stop(adap);
