@@ -171,6 +171,9 @@ struct intel_crtc {
 	int16_t cursor_width, cursor_height;
 	bool cursor_visible;
 	unsigned int bpp;
+
+	bool no_pll; /* tertiary pipe for IVB */
+	bool use_pll_a;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)

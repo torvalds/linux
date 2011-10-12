@@ -2893,7 +2893,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp;
+	u32 reg, temp, transc_sel;
 
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
@@ -2901,6 +2901,9 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	intel_enable_pch_pll(dev_priv, pipe);
 
 	if (HAS_PCH_CPT(dev)) {
+		transc_sel = intel_crtc->use_pll_a ? TRANSC_DPLLA_SEL :
+			TRANSC_DPLLB_SEL;
+
 		/* Be sure PCH DPLL SEL is set */
 		temp = I915_READ(PCH_DPLL_SEL);
 		if (pipe == 0 && (temp & TRANSA_DPLL_ENABLE) == 0)
@@ -2908,7 +2911,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 		else if (pipe == 1 && (temp & TRANSB_DPLL_ENABLE) == 0)
 			temp |= (TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
 		else if (pipe == 2 && (temp & TRANSC_DPLL_ENABLE) == 0)
-			temp |= (TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
+			temp |= (TRANSC_DPLL_ENABLE | transc_sel);
 		I915_WRITE(PCH_DPLL_SEL, temp);
 	}
 
@@ -3080,8 +3083,8 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 			temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
 			break;
 		case 2:
-			/* FIXME: manage transcoder PLLs? */
-			temp &= ~(TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
+			/* C shares PLL A or B */
+			temp &= ~(TRANSC_DPLL_ENABLE | TRANSB_DPLLB_SEL);
 			break;
 		default:
 			BUG(); /* wtf */
@@ -3090,7 +3093,8 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	}
 
 	/* disable PCH DPLL */
-	intel_disable_pch_pll(dev_priv, pipe);
+	if (!intel_crtc->no_pll)
+		intel_disable_pch_pll(dev_priv, pipe);
 
 	/* Switch from PCDclk to Rawclk */
 	reg = FDI_RX_CTL(pipe);
@@ -5549,16 +5553,34 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	drm_mode_debug_printmodeline(mode);
 
 	/* PCH eDP needs FDI, but CPU eDP does not */
-	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-		I915_WRITE(PCH_FP0(pipe), fp);
-		I915_WRITE(PCH_DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
+	if (!intel_crtc->no_pll) {
+		if (!has_edp_encoder ||
+		    intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+			I915_WRITE(PCH_FP0(pipe), fp);
+			I915_WRITE(PCH_DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
 
-		POSTING_READ(PCH_DPLL(pipe));
-		udelay(150);
+			POSTING_READ(PCH_DPLL(pipe));
+			udelay(150);
+		}
+	} else {
+		if (dpll == (I915_READ(PCH_DPLL(0)) & 0x7fffffff) &&
+		    fp == I915_READ(PCH_FP0(0))) {
+			intel_crtc->use_pll_a = true;
+			DRM_DEBUG_KMS("using pipe a dpll\n");
+		} else if (dpll == (I915_READ(PCH_DPLL(1)) & 0x7fffffff) &&
+			   fp == I915_READ(PCH_FP0(1))) {
+			intel_crtc->use_pll_a = false;
+			DRM_DEBUG_KMS("using pipe b dpll\n");
+		} else {
+			DRM_DEBUG_KMS("no matching PLL configuration for pipe 2\n");
+			return -EINVAL;
+		}
 	}
 
 	/* enable transcoder DPLL */
 	if (HAS_PCH_CPT(dev)) {
+		u32 transc_sel = intel_crtc->use_pll_a ? TRANSC_DPLLA_SEL :
+			TRANSC_DPLLB_SEL;
 		temp = I915_READ(PCH_DPLL_SEL);
 		switch (pipe) {
 		case 0:
@@ -5568,8 +5590,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 			temp |=	TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL;
 			break;
 		case 2:
-			/* FIXME: manage transcoder PLLs? */
-			temp |= TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL;
+			temp |= TRANSC_DPLL_ENABLE | transc_sel;
 			break;
 		default:
 			BUG();
@@ -5587,17 +5608,13 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_lvds) {
 		temp = I915_READ(PCH_LVDS);
 		temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
-		if (pipe == 1) {
-			if (HAS_PCH_CPT(dev))
-				temp |= PORT_TRANS_B_SEL_CPT;
-			else
-				temp |= LVDS_PIPEB_SELECT;
-		} else {
-			if (HAS_PCH_CPT(dev))
-				temp &= ~PORT_TRANS_SEL_MASK;
-			else
-				temp &= ~LVDS_PIPEB_SELECT;
-		}
+		if (HAS_PCH_CPT(dev))
+			temp |= PORT_TRANS_SEL_CPT(pipe);
+		else if (pipe == 1)
+			temp |= LVDS_PIPEB_SELECT;
+		else
+			temp &= ~LVDS_PIPEB_SELECT;
+
 		/* set the corresponsding LVDS_BORDER bit */
 		temp |= dev_priv->lvds_border_bits;
 		/* Set the B0-B3 data pairs corresponding to whether we're going to
@@ -5647,8 +5664,9 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(TRANSDPLINK_N1(pipe), 0);
 	}
 
-	if (!has_edp_encoder ||
-	    intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+	if (!intel_crtc->no_pll &&
+	    (!has_edp_encoder ||
+	     intel_encoder_is_pch_edp(&has_edp_encoder->base))) {
 		I915_WRITE(PCH_DPLL(pipe), dpll);
 
 		/* Wait for the clocks to stabilize. */
@@ -5664,18 +5682,20 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	intel_crtc->lowfreq_avail = false;
-	if (is_lvds && has_reduced_clock && i915_powersave) {
-		I915_WRITE(PCH_FP1(pipe), fp2);
-		intel_crtc->lowfreq_avail = true;
-		if (HAS_PIPE_CXSR(dev)) {
-			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
-			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
-		}
-	} else {
-		I915_WRITE(PCH_FP1(pipe), fp);
-		if (HAS_PIPE_CXSR(dev)) {
-			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
-			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
+	if (!intel_crtc->no_pll) {
+		if (is_lvds && has_reduced_clock && i915_powersave) {
+			I915_WRITE(PCH_FP1(pipe), fp2);
+			intel_crtc->lowfreq_avail = true;
+			if (HAS_PIPE_CXSR(dev)) {
+				DRM_DEBUG_KMS("enabling CxSR downclocking\n");
+				pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
+			}
+		} else {
+			I915_WRITE(PCH_FP1(pipe), fp);
+			if (HAS_PIPE_CXSR(dev)) {
+				DRM_DEBUG_KMS("disabling CxSR downclocking\n");
+				pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
+			}
 		}
 	}
 
@@ -7291,6 +7311,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	intel_crtc->bpp = 24; /* default for pre-Ironlake */
 
 	if (HAS_PCH_SPLIT(dev)) {
+		if (pipe == 2 && IS_IVYBRIDGE(dev))
+			intel_crtc->no_pll = true;
 		intel_helper_funcs.prepare = ironlake_crtc_prepare;
 		intel_helper_funcs.commit = ironlake_crtc_commit;
 	} else {
