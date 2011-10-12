@@ -138,6 +138,7 @@ static int process_ep_req(struct mv_udc *udc, int index,
 	int i, direction;
 	int retval = 0;
 	u32 errors;
+	u32 bit_pos;
 
 	curr_dqh = &udc->ep_dqh[index];
 	direction = index % 2;
@@ -155,10 +156,20 @@ static int process_ep_req(struct mv_udc *udc, int index,
 
 		errors = curr_dtd->size_ioc_sts & DTD_ERROR_MASK;
 		if (!errors) {
-			remaining_length +=
+			remaining_length =
 				(curr_dtd->size_ioc_sts	& DTD_PACKET_SIZE)
 					>> DTD_LENGTH_BIT_POS;
 			actual -= remaining_length;
+
+			if (remaining_length) {
+				if (direction) {
+					dev_dbg(&udc->dev->dev,
+						"TX dTD remains data\n");
+					retval = -EPROTO;
+					break;
+				} else
+					break;
+			}
 		} else {
 			dev_info(&udc->dev->dev,
 				"complete_tr error: ep=%d %s: error = 0x%x\n",
@@ -179,6 +190,20 @@ static int process_ep_req(struct mv_udc *udc, int index,
 	}
 	if (retval)
 		return retval;
+
+	if (direction == EP_DIR_OUT)
+		bit_pos = 1 << curr_req->ep->ep_num;
+	else
+		bit_pos = 1 << (16 + curr_req->ep->ep_num);
+
+	while ((curr_dqh->curr_dtd_ptr == curr_dtd->td_dma)) {
+		if (curr_dtd->dtd_next == EP_QUEUE_HEAD_NEXT_TERMINATE) {
+			while (readl(&udc->op_regs->epstatus) & bit_pos)
+				udelay(1);
+			break;
+		}
+		udelay(1);
+	}
 
 	curr_req->req.actual = actual;
 
