@@ -209,10 +209,13 @@ int twl6040_get_pll(struct twl6040 *twl6040);
 unsigned int twl6040_get_sysclk(struct twl6040 *twl6040);
 int twl6040_irq_init(struct twl6040 *twl6040);
 void twl6040_irq_exit(struct twl6040 *twl6040);
+/* Get the combined status of the vibra control register */
+int twl6040_get_vibralr_status(struct twl6040 *twl6040);
 
 static inline int twl6040_get_revid(struct twl6040 *twl6040)
 {
 	return twl6040->rev;
 }
+
 
 #endif  /* End of __TWL6040_CODEC_H__ */

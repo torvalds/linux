@@ -444,6 +444,18 @@ unsigned int twl6040_get_sysclk(struct twl6040 *twl6040)
 }
 EXPORT_SYMBOL(twl6040_get_sysclk);
 
+/* Get the combined status of the vibra control register */
+int twl6040_get_vibralr_status(struct twl6040 *twl6040)
+{
+	u8 status;
+
+	status = twl6040->vibra_ctrl_cache[0] | twl6040->vibra_ctrl_cache[1];
+	status &= (TWL6040_VIBENA | TWL6040_VIBSEL);
+
+	return status;
+}
+EXPORT_SYMBOL(twl6040_get_vibralr_status);
+
 static struct resource twl6040_vibra_rsrc[] = {
 	{
 		.flags = IORESOURCE_IRQ,
