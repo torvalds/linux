@@ -69,9 +69,6 @@ struct kmem_cache *t10_alua_lu_gp_mem_cache;
 struct kmem_cache *t10_alua_tg_pt_gp_cache;
 struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 
-/* Used for transport_dev_get_map_*() */
-typedef int (*map_func_t)(struct se_task *, u32);
-
 static int transport_generic_write_pending(struct se_cmd *);
 static int transport_processing_thread(void *param);
 static int __transport_execute_tasks(struct se_device *dev);

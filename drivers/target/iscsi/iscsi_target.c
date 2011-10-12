@@ -765,7 +765,7 @@ static int iscsit_allocate_iovecs(struct iscsi_cmd *cmd)
 	u32 iov_count = (cmd->se_cmd.t_data_nents == 0) ? 1 :
 				cmd->se_cmd.t_data_nents;
 
-	iov_count += TRANSPORT_IOV_DATA_BUFFER;
+	iov_count += ISCSI_IOV_DATA_BUFFER;
 
 	cmd->iov_data = kzalloc(iov_count * sizeof(struct kvec), GFP_KERNEL);
 	if (!cmd->iov_data) {
