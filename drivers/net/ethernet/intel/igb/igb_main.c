@@ -6268,6 +6268,7 @@ static int igb_hwtstamp_ioctl(struct net_device *netdev,
 		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_EVENT_V2;
 		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		is_l2 = true;
+		is_l4 = true;
 		break;
 	default:
 		return -ERANGE;
