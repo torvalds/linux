@@ -803,6 +803,23 @@ static int twl6040_get_volsw(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int twl6040_soc_dapm_put_vibra_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct snd_soc_codec *codec = widget->codec;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int val;
+
+	/* Do not allow changes while Input/FF efect is running */
+	val = twl6040_read_reg_volatile(codec, e->reg);
+	if (val & TWL6040_VIBENA && !(val & TWL6040_VIBSEL))
+		return -EBUSY;
+
+	return snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+}
+
 /*
  * MICATT volume control:
  * from -6 to 0 dB in 6 dB steps
@@ -874,6 +891,19 @@ static const struct soc_enum twl6040_hf_enum[] = {
 			twl6040_hf_texts),
 };
 
+static const char *twl6040_vibrapath_texts[] = {
+	"Input FF", "Audio PDM"
+};
+
+static const struct soc_enum twl6040_vibra_enum[] = {
+	SOC_ENUM_SINGLE(TWL6040_REG_VIBCTLL, 1,
+			ARRAY_SIZE(twl6040_vibrapath_texts),
+			twl6040_vibrapath_texts),
+	SOC_ENUM_SINGLE(TWL6040_REG_VIBCTLR, 1,
+			ARRAY_SIZE(twl6040_vibrapath_texts),
+			twl6040_vibrapath_texts),
+};
+
 static const struct snd_kcontrol_new amicl_control =
 	SOC_DAPM_ENUM("Route", twl6040_enum[0]);
 
@@ -902,6 +932,17 @@ static const struct snd_kcontrol_new auxl_switch_control =
 
 static const struct snd_kcontrol_new auxr_switch_control =
 	SOC_DAPM_SINGLE("Switch", TWL6040_REG_HFRCTL, 6, 1, 0);
+
+/* Vibra playback switches */
+static const struct snd_kcontrol_new vibral_mux_controls =
+	SOC_DAPM_ENUM_EXT("Route", twl6040_vibra_enum[0],
+		snd_soc_dapm_get_enum_double,
+		twl6040_soc_dapm_put_vibra_enum);
+
+static const struct snd_kcontrol_new vibrar_mux_controls =
+	SOC_DAPM_ENUM_EXT("Route", twl6040_vibra_enum[1],
+		snd_soc_dapm_get_enum_double,
+		twl6040_soc_dapm_put_vibra_enum);
 
 /* Headset power mode */
 static const char *twl6040_power_mode_texts[] = {
@@ -1024,6 +1065,8 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("EP"),
 	SND_SOC_DAPM_OUTPUT("AUXL"),
 	SND_SOC_DAPM_OUTPUT("AUXR"),
+	SND_SOC_DAPM_OUTPUT("VIBRAL"),
+	SND_SOC_DAPM_OUTPUT("VIBRAR"),
 
 	/* Analog input muxes for the capture amplifiers */
 	SND_SOC_DAPM_MUX("Analog Left Capture Route",
@@ -1076,6 +1119,9 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			TWL6040_REG_HFRCTL, 0, 0,
 			twl6040_power_mode_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	/* Virtual DAC for vibra path (DL4 channel) */
+	SND_SOC_DAPM_DAC("VIBRA DAC", "Vibra Playback",
+			SND_SOC_NOPM, 0, 0),
 
 	SND_SOC_DAPM_MUX("Handsfree Left Playback",
 			SND_SOC_NOPM, 0, 0, &hfl_mux_controls),
@@ -1086,6 +1132,11 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			SND_SOC_NOPM, 0, 0, &hsl_mux_controls),
 	SND_SOC_DAPM_MUX("Headset Right Playback",
 			SND_SOC_NOPM, 0, 0, &hsr_mux_controls),
+
+	SND_SOC_DAPM_MUX("Vibra Left Playback", SND_SOC_NOPM, 0, 0,
+			&vibral_mux_controls),
+	SND_SOC_DAPM_MUX("Vibra Right Playback", SND_SOC_NOPM, 0, 0,
+			&vibrar_mux_controls),
 
 	SND_SOC_DAPM_SWITCH("Earphone Playback", SND_SOC_NOPM, 0, 0,
 			&ep_path_enable_control),
@@ -1115,6 +1166,15 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			TWL6040_REG_EARCTL, 0, 0, NULL, 0,
 			twl6040_power_mode_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_OUT_DRV("Vibra Left Driver",
+			TWL6040_REG_VIBCTLL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("Vibra Right Driver",
+			TWL6040_REG_VIBCTLR, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_SUPPLY("Vibra Left Control", TWL6040_REG_VIBCTLL, 2, 0,
+			    NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Vibra Right Control", TWL6040_REG_VIBCTLR, 2, 0,
+			    NULL, 0),
 
 	/* Analog playback PGAs */
 	SND_SOC_DAPM_PGA("HF Left PGA",
@@ -1181,6 +1241,18 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	{"AUXL", NULL, "AUXL Playback"},
 	{"AUXR", NULL, "AUXR Playback"},
+
+	/* Vibrator paths */
+	{"Vibra Left Playback", "Audio PDM", "VIBRA DAC"},
+	{"Vibra Right Playback", "Audio PDM", "VIBRA DAC"},
+
+	{"Vibra Left Driver", NULL, "Vibra Left Playback"},
+	{"Vibra Right Driver", NULL, "Vibra Right Playback"},
+	{"Vibra Left Driver", NULL, "Vibra Left Control"},
+	{"Vibra Right Driver", NULL, "Vibra Right Control"},
+
+	{"VIBRAL", NULL, "Vibra Left Driver"},
+	{"VIBRAR", NULL, "Vibra Right Driver"},
 };
 
 static int twl6040_set_bias_level(struct snd_soc_codec *codec,
