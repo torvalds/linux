@@ -4888,6 +4888,7 @@ static int __net_init bond_net_init(struct net *net)
 	INIT_LIST_HEAD(&bn->dev_list);
 
 	bond_create_proc_dir(bn);
+	bond_create_sysfs(bn);
 	
 	return 0;
 }
@@ -4896,6 +4897,7 @@ static void __net_exit bond_net_exit(struct net *net)
 {
 	struct bond_net *bn = net_generic(net, bond_net_id);
 
+	bond_destroy_sysfs(bn);
 	bond_destroy_proc_dir(bn);
 }
 
@@ -4933,10 +4935,6 @@ static int __init bonding_init(void)
 			goto err;
 	}
 
-	res = bond_create_sysfs();
-	if (res)
-		goto err;
-
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
 out:
@@ -4954,7 +4952,6 @@ static void __exit bonding_exit(void)
 	unregister_netdevice_notifier(&bond_netdev_notifier);
 	unregister_inetaddr_notifier(&bond_inetaddr_notifier);
 
-	bond_destroy_sysfs();
 	bond_destroy_debugfs();
 
 	rtnl_link_unregister(&bond_link_ops);
