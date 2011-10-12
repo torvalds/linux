@@ -308,6 +308,8 @@ static const struct serial8250_config uart_config[] = {
 		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_01 |
 				  UART_FCR_T_TRIG_01,
 		.flags		= UART_CAP_FIFO | UART_CAP_RTOIE,
+		.mcr_mask	= ~UART_MCR_DTR,
+		.mcr_force	= UART_MCR_DTR,
 	},
 	[PORT_XR17D15X] = {
 		.name		= "XR17D15X",
@@ -1229,6 +1231,10 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	up->port.fifosize = uart_config[up->port.type].fifo_size;
 	up->capabilities = uart_config[up->port.type].flags;
 	up->tx_loadsz = uart_config[up->port.type].tx_loadsz;
+	if (!ALPHA_KLUDGE_MCR) {
+		up->mcr_mask = uart_config[up->port.type].mcr_mask;
+		up->mcr_force = uart_config[up->port.type].mcr_force;
+	}
 
 	if (up->port.type == PORT_UNKNOWN)
 		goto out;
@@ -1987,6 +1993,10 @@ static int serial8250_startup(struct uart_port *port)
 	up->port.fifosize = uart_config[up->port.type].fifo_size;
 	up->tx_loadsz = uart_config[up->port.type].tx_loadsz;
 	up->capabilities = uart_config[up->port.type].flags;
+	if (!ALPHA_KLUDGE_MCR) {
+		up->mcr_mask = uart_config[up->port.type].mcr_mask;
+		up->mcr_force = uart_config[up->port.type].mcr_force;
+	}
 	up->mcr = 0;
 
 	if (up->port.iotype != up->cur_iotype)
@@ -2793,6 +2803,10 @@ serial8250_init_fixed_type_port(struct uart_8250_port *up, unsigned int type)
 	up->port.fifosize = uart_config[type].fifo_size;
 	up->capabilities = uart_config[type].flags;
 	up->tx_loadsz = uart_config[type].tx_loadsz;
+	if (!ALPHA_KLUDGE_MCR) {
+		up->mcr_mask = uart_config[type].mcr_mask;
+		up->mcr_force = uart_config[type].mcr_force;
+	}
 }
 
 static void __init

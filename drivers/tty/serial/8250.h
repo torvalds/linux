@@ -35,6 +35,8 @@ struct serial8250_config {
 	unsigned short	tx_loadsz;
 	unsigned char	fcr;
 	unsigned int	flags;
+	unsigned char	mcr_mask;
+	unsigned char	mcr_force;
 };
 
 #define UART_CAP_FIFO	(1 << 8)	/* UART has FIFO */
