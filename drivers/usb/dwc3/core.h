@@ -536,6 +536,15 @@ struct dwc3_hwparams {
 	u32	hwparams8;
 };
 
+/* HWPARAMS0 */
+#define DWC3_MODE(n)		((n) & 0x7)
+
+#define DWC3_MODE_DEVICE	0
+#define DWC3_MODE_HOST		1
+#define DWC3_MODE_DRD		2
+#define DWC3_MODE_HUB		3
+
+/* HWPARAMS1 */
 #define DWC3_NUM_INT(n)	(((n) & (0x3f << 15)) >> 15)
 
 /**
@@ -560,6 +569,7 @@ struct dwc3_hwparams {
  * @num_event_buffers: calculated number of event buffers
  * @maximum_speed: maximum speed requested (mainly for testing purposes)
  * @revision: revision register contents
+ * @mode: mode of operation
  * @is_selfpowered: true when we are selfpowered
  * @three_stage_setup: set if we perform a three phase setup
  * @ep0_status_pending: ep0 status response without a req is pending
@@ -602,6 +612,7 @@ struct dwc3 {
 	u32			num_event_buffers;
 	u32			maximum_speed;
 	u32			revision;
+	u32			mode;
 
 #define DWC3_REVISION_173A	0x5533173a
 #define DWC3_REVISION_175A	0x5533175a

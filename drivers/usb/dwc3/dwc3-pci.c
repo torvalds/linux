@@ -118,7 +118,7 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 	if (devid < 0)
 		goto err2;
 
-	dwc3 = platform_device_alloc("dwc3-pci", devid);
+	dwc3 = platform_device_alloc("dwc3", devid);
 	if (!dwc3) {
 		dev_err(&pci->dev, "couldn't allocate dwc3 device\n");
 		goto err3;
@@ -196,7 +196,7 @@ static DEFINE_PCI_DEVICE_TABLE(dwc3_pci_id_table) = {
 MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
 
 static struct pci_driver dwc3_pci_driver = {
-	.name		= "pci-dwc3",
+	.name		= "dwc3-pci",
 	.id_table	= dwc3_pci_id_table,
 	.probe		= dwc3_pci_probe,
 	.remove		= __devexit_p(dwc3_pci_remove),

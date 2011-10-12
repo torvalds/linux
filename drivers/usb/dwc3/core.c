@@ -325,14 +325,16 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 
 static int __devinit dwc3_probe(struct platform_device *pdev)
 {
-	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct resource		*res;
 	struct dwc3		*dwc;
-	void __iomem		*regs;
-	unsigned int		features = id->driver_data;
+
 	int			ret = -ENOMEM;
 	int			irq;
+
+	void __iomem		*regs;
 	void			*mem;
+
+	u8			mode;
 
 	mem = kzalloc(sizeof(*dwc) + DWC3_ALIGN_MASK, GFP_KERNEL);
 	if (!mem) {
@@ -396,13 +398,22 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	if (features & DWC3_HAS_PERIPHERAL) {
+	mode = DWC3_MODE(dwc->hwparams.hwparams0);
+
+	switch (mode) {
+	case DWC3_MODE_DRD:
+	case DWC3_MODE_DEVICE:
 		ret = dwc3_gadget_init(dwc);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to initialized gadget\n");
+			dev_err(&pdev->dev, "failed to initialize gadget\n");
 			goto err4;
 		}
+		break;
+	default:
+		dev_err(&pdev->dev, "Unsupported mode of operation %d\n", mode);
+		goto err4;
 	}
+	dwc->mode = mode;
 
 	ret = dwc3_debugfs_init(dwc);
 	if (ret) {
@@ -415,8 +426,15 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 	return 0;
 
 err5:
-	if (features & DWC3_HAS_PERIPHERAL)
+	switch (mode) {
+	case DWC3_MODE_DRD:
+	case DWC3_MODE_DEVICE:
 		dwc3_gadget_exit(dwc);
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
 
 err4:
 	dwc3_core_exit(dwc);
@@ -436,10 +454,8 @@ err0:
 
 static int __devexit dwc3_remove(struct platform_device *pdev)
 {
-	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct dwc3	*dwc = platform_get_drvdata(pdev);
 	struct resource	*res;
-	unsigned int	features = id->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -448,8 +464,15 @@ static int __devexit dwc3_remove(struct platform_device *pdev)
 
 	dwc3_debugfs_exit(dwc);
 
-	if (features & DWC3_HAS_PERIPHERAL)
+	switch (dwc->mode) {
+	case DWC3_MODE_DRD:
+	case DWC3_MODE_DEVICE:
 		dwc3_gadget_exit(dwc);
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
 
 	dwc3_core_exit(dwc);
 	release_mem_region(res->start, resource_size(res));
@@ -459,28 +482,12 @@ static int __devexit dwc3_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id dwc3_id_table[] __devinitconst = {
-	{
-		.name	= "dwc3-omap",
-		.driver_data = (DWC3_HAS_PERIPHERAL
-			| DWC3_HAS_XHCI
-			| DWC3_HAS_OTG),
-	},
-	{
-		.name	= "dwc3-pci",
-		.driver_data = DWC3_HAS_PERIPHERAL,
-	},
-	{  },	/* Terminating Entry */
-};
-MODULE_DEVICE_TABLE(platform, dwc3_id_table);
-
 static struct platform_driver dwc3_driver = {
 	.probe		= dwc3_probe,
 	.remove		= __devexit_p(dwc3_remove),
 	.driver		= {
 		.name	= "dwc3",
 	},
-	.id_table	= dwc3_id_table,
 };
 
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");

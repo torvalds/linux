@@ -236,7 +236,7 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	dwc3 = platform_device_alloc("dwc3-omap", -1);
+	dwc3 = platform_device_alloc("dwc3", -1);
 	if (!dwc3) {
 		dev_err(&pdev->dev, "couldn't allocate dwc3 device\n");
 		goto err2;
