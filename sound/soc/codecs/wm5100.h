@@ -96,6 +96,7 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
 #define WM5100_MIC_DETECT_1                     0x290
 #define WM5100_MIC_DETECT_2                     0x291
 #define WM5100_MIC_DETECT_3                     0x292
+#define WM5100_MISC_CONTROL                     0x2BB
 #define WM5100_INPUT_ENABLES                    0x301
 #define WM5100_INPUT_ENABLES_STATUS             0x302
 #define WM5100_IN1L_CONTROL                     0x310
@@ -1387,6 +1388,12 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
 #define WM5100_ACCDET_STS_MASK                  0x0001  /* ACCDET_STS */
 #define WM5100_ACCDET_STS_SHIFT                      0  /* ACCDET_STS */
 #define WM5100_ACCDET_STS_WIDTH                      1  /* ACCDET_STS */
+
+/*
+ * R699 (0x2BB) - Misc Control
+ */
+#define WM5100_HPCOM_SRC                         0x200  /* HPCOM_SRC */
+#define WM5100_HPCOM_SRC_SHIFT                       9  /* HPCOM_SRC */
 
 /*
  * R769 (0x301) - Input Enables

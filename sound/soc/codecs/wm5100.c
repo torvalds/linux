@@ -2132,6 +2132,9 @@ static void wm5100_set_detect_mode(struct snd_soc_codec *codec, int the_mode)
 			    WM5100_ACCDET_SRC,
 			    (mode->bias << WM5100_ACCDET_BIAS_SRC_SHIFT) |
 			    mode->micd_src << WM5100_ACCDET_SRC_SHIFT);
+	snd_soc_update_bits(codec, WM5100_MISC_CONTROL,
+			    WM5100_HPCOM_SRC,
+			    mode->micd_src << WM5100_HPCOM_SRC_SHIFT);
 
 	wm5100->jack_mode = the_mode;
 
