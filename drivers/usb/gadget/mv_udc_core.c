@@ -590,14 +590,14 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	 */
 	epctrlx = readl(&udc->op_regs->epctrlx[ep->ep_num]);
 	if ((epctrlx & EPCTRL_RX_ENABLE) == 0) {
-		epctrlx |= ((desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+		epctrlx |= (USB_ENDPOINT_XFER_BULK
 				<< EPCTRL_RX_EP_TYPE_SHIFT);
 		writel(epctrlx, &udc->op_regs->epctrlx[ep->ep_num]);
 	}
 
 	epctrlx = readl(&udc->op_regs->epctrlx[ep->ep_num]);
 	if ((epctrlx & EPCTRL_TX_ENABLE) == 0) {
-		epctrlx |= ((desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+		epctrlx |= (USB_ENDPOINT_XFER_BULK
 				<< EPCTRL_TX_EP_TYPE_SHIFT);
 		writel(epctrlx, &udc->op_regs->epctrlx[ep->ep_num]);
 	}
