@@ -74,12 +74,12 @@ static irqreturn_t twl6040_vib_irq_handler(int irq, void *data)
 	if (status & TWL6040_VIBLOCDET) {
 		dev_warn(info->dev, "Left Vibrator overcurrent detected\n");
 		twl6040_clear_bits(twl6040, TWL6040_REG_VIBCTLL,
-				   TWL6040_VIBENAL);
+				   TWL6040_VIBENA);
 	}
 	if (status & TWL6040_VIBROCDET) {
 		dev_warn(info->dev, "Right Vibrator overcurrent detected\n");
 		twl6040_clear_bits(twl6040, TWL6040_REG_VIBCTLR,
-				   TWL6040_VIBENAR);
+				   TWL6040_VIBENA);
 	}
 
 	return IRQ_HANDLED;
@@ -104,16 +104,16 @@ static void twl6040_vibra_enable(struct vibra_info *info)
 		 * overcurrent detection
 		 */
 		twl6040_reg_write(twl6040, TWL6040_REG_VIBCTLL,
-				  TWL6040_VIBENAL | TWL6040_VIBCTRLL);
+				  TWL6040_VIBENA | TWL6040_VIBCTRL);
 		twl6040_reg_write(twl6040, TWL6040_REG_VIBCTLR,
-				  TWL6040_VIBENAR | TWL6040_VIBCTRLR);
+				  TWL6040_VIBENA | TWL6040_VIBCTRL);
 		usleep_range(3000, 3500);
 	}
 
 	twl6040_reg_write(twl6040, TWL6040_REG_VIBCTLL,
-			  TWL6040_VIBENAL);
+			  TWL6040_VIBENA);
 	twl6040_reg_write(twl6040, TWL6040_REG_VIBCTLR,
-			  TWL6040_VIBENAR);
+			  TWL6040_VIBENA);
 
 	info->enabled = true;
 }

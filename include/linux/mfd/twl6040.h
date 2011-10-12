@@ -125,23 +125,17 @@
 #define TWL6040_HSDACMODE		(1 << 1)
 #define TWL6040_HSDRVMODE		(1 << 3)
 
-/* VIBCTLL (0x18) fields */
+/* VIBCTLL/R (0x18/0x1A) fields */
 
-#define TWL6040_VIBENAL			0x01
-#define TWL6040_VIBCTRLL		0x04
-#define TWL6040_VIBCTRLLP		0x08
-#define TWL6040_VIBCTRLLN		0x10
+#define TWL6040_VIBENA			(1 << 0)
+#define TWL6040_VIBSEL			(1 << 1)
+#define TWL6040_VIBCTRL			(1 << 2)
+#define TWL6040_VIBCTRL_P		(1 << 3)
+#define TWL6040_VIBCTRL_N		(1 << 4)
 
-/* VIBDATL (0x19) fields */
+/* VIBDATL/R (0x19/0x1B) fields */
 
 #define TWL6040_VIBDAT_MAX		0x64
-
-/* VIBCTLR (0x1A) fields */
-
-#define TWL6040_VIBENAR			0x01
-#define TWL6040_VIBCTRLR		0x04
-#define TWL6040_VIBCTRLRP		0x08
-#define TWL6040_VIBCTRLRN		0x10
 
 /* GPOCTL (0x1E) fields */
 
