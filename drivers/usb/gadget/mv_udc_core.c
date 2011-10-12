@@ -681,37 +681,28 @@ static void mv_ep_fifo_flush(struct usb_ep *_ep)
 {
 	struct mv_udc *udc;
 	u32 bit_pos, direction;
-	struct mv_ep *ep = container_of(_ep, struct mv_ep, ep);
+	struct mv_ep *ep;
 	unsigned int loops;
+
+	if (!_ep)
+		return;
+
+	ep = container_of(_ep, struct mv_ep, ep);
+	if (!ep->desc)
+		return;
 
 	udc = ep->udc;
 	direction = ep_dir(ep);
-	bit_pos = 1 << ((direction == EP_DIR_OUT ? 0 : 16) + ep->ep_num);
-	/*
-	 * Flushing will halt the pipe
-	 * Write 1 to the Flush register
-	 */
-	writel(bit_pos, &udc->op_regs->epflush);
 
-	/* Wait until flushing completed */
-	loops = LOOPS(FLUSH_TIMEOUT);
-	while (readl(&udc->op_regs->epflush) & bit_pos) {
-		/*
-		 * ENDPTFLUSH bit should be cleared to indicate this
-		 * operation is complete
-		 */
-		if (loops == 0) {
-			dev_err(&udc->dev->dev,
-				"TIMEOUT for ENDPTFLUSH=0x%x, bit_pos=0x%x\n",
-				(unsigned)readl(&udc->op_regs->epflush),
-				(unsigned)bit_pos);
-			return;
-		}
-		loops--;
-		udelay(LOOPS_USEC);
-	}
+	if (ep->ep_num == 0)
+		bit_pos = (1 << 16) | 1;
+	else if (direction == EP_DIR_OUT)
+		bit_pos = 1 << ep->ep_num;
+	else
+		bit_pos = 1 << (16 + ep->ep_num);
+
 	loops = LOOPS(EPSTATUS_TIMEOUT);
-	while (readl(&udc->op_regs->epstatus) & bit_pos) {
+	do {
 		unsigned int inter_loops;
 
 		if (loops == 0) {
@@ -726,7 +717,7 @@ static void mv_ep_fifo_flush(struct usb_ep *_ep)
 
 		/* Wait until flushing completed */
 		inter_loops = LOOPS(FLUSH_TIMEOUT);
-		while (readl(&udc->op_regs->epflush) & bit_pos) {
+		while (readl(&udc->op_regs->epflush)) {
 			/*
 			 * ENDPTFLUSH bit should be cleared to indicate this
 			 * operation is complete
@@ -743,7 +734,7 @@ static void mv_ep_fifo_flush(struct usb_ep *_ep)
 			udelay(LOOPS_USEC);
 		}
 		loops--;
-	}
+	} while (readl(&udc->op_regs->epstatus) & bit_pos);
 }
 
 /* queues (submits) an I/O request to an endpoint */
