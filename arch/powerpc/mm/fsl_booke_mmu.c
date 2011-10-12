@@ -101,17 +101,17 @@ unsigned long p_mapped_by_tlbcam(phys_addr_t pa)
 
 /*
  * Set up a variable-size TLB entry (tlbcam). The parameters are not checked;
- * in particular size must be a power of 4 between 4k and 256M (or 1G, for cpus
- * that support extended page sizes).  Note that while some cpus support a
- * page size of 4G, we don't allow its use here.
+ * in particular size must be a power of 4 between 4k and the max supported by
+ * an implementation; max may further be limited by what can be represented in
+ * an unsigned long (for example, 32-bit implementations cannot support a 4GB
+ * size).
  */
 static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 		unsigned long size, unsigned long flags, unsigned int pid)
 {
-	unsigned int tsize, lz;
+	unsigned int tsize;
 
-	asm (PPC_CNTLZL "%0,%1" : "=r" (lz) : "r" (size));
-	tsize = 21 - lz;
+	tsize = __ilog2(size) - 10;
 
 #ifdef CONFIG_SMP
 	if ((flags & _PAGE_NO_CACHE) == 0)
