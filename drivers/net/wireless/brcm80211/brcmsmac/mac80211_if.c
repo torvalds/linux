@@ -963,7 +963,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 		if (phy_type == PHY_TYPE_LCN) {
 			/* Single stream */
 			band->ht_cap.mcs.rx_mask[1] = 0;
-			band->ht_cap.mcs.rx_highest = 72;
+			band->ht_cap.mcs.rx_highest = cpu_to_le16(72);
 		}
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = band;
 	} else {
