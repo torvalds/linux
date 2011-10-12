@@ -3561,6 +3561,9 @@ static int dsi_enter_ulps(struct platform_device *dsidev)
 	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG2, (1 << 0) | (1 << 1) | (1 << 2),
 		7, 5);
 
+	/* flush posted write and wait for SCP interface to finish the write */
+	dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG2);
+
 	if (wait_for_completion_timeout(&completion,
 				msecs_to_jiffies(1000)) == 0) {
 		DSSERR("ULPS enable timeout\n");
@@ -3574,6 +3577,9 @@ static int dsi_enter_ulps(struct platform_device *dsidev)
 	/* Reset LANEx_ULPS_SIG2 */
 	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG2, (0 << 0) | (0 << 1) | (0 << 2),
 		7, 5);
+
+	/* flush posted write and wait for SCP interface to finish the write */
+	dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG2);
 
 	dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_ULPS);
 
