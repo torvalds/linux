@@ -291,11 +291,11 @@ static int rpm_callback(int (*cb)(struct device *), struct device *dev)
  * another suspend has been started earlier, either return immediately
  * or wait for it to finish, depending on the RPM_NOWAIT and RPM_ASYNC
  * flags. If the RPM_ASYNC flag is set then queue a suspend request;
- * otherwise run the ->runtime_suspend() callback directly. If a deferred
- * resume was requested while the callback was running then carry it out;
- * otherwise send an idle notification for its parent (if the suspend
- * succeeded and both ignore_children of parent->power and irq_safe of
- * dev->power are not set).
+ * otherwise run the ->runtime_suspend() callback directly. When
+ * ->runtime_suspend succeeded, if a deferred resume was requested while
+ * the callback was running then carry it out, otherwise send an idle
+ * notification for its parent (if the suspend succeeded and both
+ * ignore_children of parent->power and irq_safe of dev->power are not set).
  *
  * This function must be called under dev->power.lock with interrupts disabled.
  */
@@ -420,15 +420,16 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 			dev->power.runtime_error = 0;
 		else
 			pm_runtime_cancel_pending(dev);
-	} else {
+		wake_up_all(&dev->power.wait_queue);
+		goto out;
+	}
  no_callback:
-		__update_runtime_status(dev, RPM_SUSPENDED);
-		pm_runtime_deactivate_timer(dev);
+	__update_runtime_status(dev, RPM_SUSPENDED);
+	pm_runtime_deactivate_timer(dev);
 
-		if (dev->parent) {
-			parent = dev->parent;
-			atomic_add_unless(&parent->power.child_count, -1, 0);
-		}
+	if (dev->parent) {
+		parent = dev->parent;
+		atomic_add_unless(&parent->power.child_count, -1, 0);
 	}
 	wake_up_all(&dev->power.wait_queue);
 
