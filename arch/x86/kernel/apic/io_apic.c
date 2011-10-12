@@ -1324,8 +1324,8 @@ static int setup_ioapic_entry(int apic_id, int irq,
 	return 0;
 }
 
-static void setup_ioapic_irq(int apic_id, int pin, unsigned int irq,
-			     struct irq_cfg *cfg, int trigger, int polarity)
+static void setup_ioapic_irq(unsigned int irq, struct irq_cfg *cfg,
+				struct io_apic_irq_attr *attr)
 {
 	struct IO_APIC_route_entry entry;
 	unsigned int dest;
@@ -1348,23 +1348,24 @@ static void setup_ioapic_irq(int apic_id, int pin, unsigned int irq,
 	apic_printk(APIC_VERBOSE,KERN_DEBUG
 		    "IOAPIC[%d]: Set routing entry (%d-%d -> 0x%x -> "
 		    "IRQ %d Mode:%i Active:%i Dest:%d)\n",
-		    apic_id, mpc_ioapic_id(apic_id), pin, cfg->vector,
-		    irq, trigger, polarity, dest);
+		    attr->ioapic, mpc_ioapic_id(attr->ioapic), attr->ioapic_pin,
+		    cfg->vector, irq, attr->trigger, attr->polarity, dest);
 
 
-	if (setup_ioapic_entry(mpc_ioapic_id(apic_id), irq, &entry,
-			       dest, trigger, polarity, cfg->vector, pin)) {
+	if (setup_ioapic_entry(mpc_ioapic_id(attr->ioapic), irq, &entry,
+			       dest, attr->trigger, attr->polarity, cfg->vector,
+			       attr->ioapic_pin)) {
 		printk("Failed to setup ioapic entry for ioapic  %d, pin %d\n",
-		       mpc_ioapic_id(apic_id), pin);
+		       mpc_ioapic_id(attr->ioapic), attr->ioapic_pin);
 		__clear_irq_vector(irq, cfg);
 		return;
 	}
 
-	ioapic_register_intr(irq, cfg, trigger);
+	ioapic_register_intr(irq, cfg, attr->trigger);
 	if (irq < legacy_pic->nr_legacy_irqs)
 		legacy_pic->mask(irq);
 
-	ioapic_write_entry(apic_id, pin, entry);
+	ioapic_write_entry(attr->ioapic, attr->ioapic_pin, entry);
 }
 
 static bool __init io_apic_pin_not_connected(int idx, int apic_id, int pin)
@@ -3566,8 +3567,7 @@ io_apic_setup_irq_pin(unsigned int irq, int node, struct io_apic_irq_attr *attr)
 		return -EINVAL;
 	ret = __add_pin_to_irq_node(cfg, node, attr->ioapic, attr->ioapic_pin);
 	if (!ret)
-		setup_ioapic_irq(attr->ioapic, attr->ioapic_pin, irq, cfg,
-				 attr->trigger, attr->polarity);
+		setup_ioapic_irq(irq, cfg, attr);
 	return ret;
 }
 
