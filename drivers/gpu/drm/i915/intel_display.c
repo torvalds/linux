@@ -803,6 +803,19 @@ static void assert_pch_pll(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
+	if (HAS_PCH_CPT(dev_priv->dev)) {
+		u32 pch_dpll;
+
+		pch_dpll = I915_READ(PCH_DPLL_SEL);
+
+		/* Make sure the selected PLL is enabled to the transcoder */
+		WARN(!((pch_dpll >> (4 * pipe)) & 8),
+		     "transcoder %d PLL not enabled\n", pipe);
+
+		/* Convert the transcoder pipe number to a pll pipe number */
+		pipe = (pch_dpll >> (4 * pipe)) & 1;
+	}
+
 	reg = PCH_DPLL(pipe);
 	val = I915_READ(reg);
 	cur_state = !!(val & DPLL_VCO_ENABLE);
