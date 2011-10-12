@@ -720,7 +720,7 @@ extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 extern int brcmf_os_proto_block(struct brcmf_pub *drvr);
 extern int brcmf_os_proto_unblock(struct brcmf_pub *drvr);
 #ifdef BCMDBG
-extern int brcmf_write_to_file(struct brcmf_pub *drvr, u8 *buf, int size);
+extern int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size);
 #endif				/* BCMDBG */
 
 extern int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name);

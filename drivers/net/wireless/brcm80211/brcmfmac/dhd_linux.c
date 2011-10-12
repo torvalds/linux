@@ -1318,7 +1318,7 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 }
 
 #ifdef BCMDBG
-int brcmf_write_to_file(struct brcmf_pub *drvr, u8 *buf, int size)
+int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size)
 {
 	int ret = 0;
 	struct file *fp;
@@ -1338,7 +1338,7 @@ int brcmf_write_to_file(struct brcmf_pub *drvr, u8 *buf, int size)
 	}
 
 	/* Write buf to file */
-	fp->f_op->write(fp, buf, size, &pos);
+	fp->f_op->write(fp, (char __user *)buf, size, &pos);
 
 exit:
 	/* free buf before return */
