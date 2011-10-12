@@ -20,8 +20,7 @@ ccflags-y :=				\
 	-Idrivers/net/wireless/brcm80211/include
 
 BRCMUTIL_OFILES := \
-	utils.o \
-	wifi.o
+	utils.o
 
 MODULEPFX := brcmutil
 
