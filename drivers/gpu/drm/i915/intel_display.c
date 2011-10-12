@@ -4540,6 +4540,20 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		enabled |= 2;
 	}
 
+	/* IVB has 3 pipes */
+	if (IS_IVYBRIDGE(dev) &&
+	    g4x_compute_wm0(dev, 2,
+			    &sandybridge_display_wm_info, latency,
+			    &sandybridge_cursor_wm_info, latency,
+			    &plane_wm, &cursor_wm)) {
+		I915_WRITE(WM0_PIPEC_IVB,
+			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		DRM_DEBUG_KMS("FIFO watermarks For pipe C -"
+			      " plane %d, cursor: %d\n",
+			      plane_wm, cursor_wm);
+		enabled |= 3;
+	}
+
 	/*
 	 * Calculate and update the self-refresh watermark only when one
 	 * display plane is used.

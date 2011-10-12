@@ -2435,6 +2435,7 @@
 #define  WM0_PIPE_CURSOR_MASK	(0x1f)
 
 #define WM0_PIPEB_ILK		0x45104
+#define WM0_PIPEC_IVB		0x45200
 #define WM1_LP_ILK		0x45108
 #define  WM1_LP_SR_EN		(1<<31)
 #define  WM1_LP_LATENCY_SHIFT	24
