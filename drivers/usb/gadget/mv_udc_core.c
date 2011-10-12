@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2011 Marvell International Ltd. All rights reserved.
+ * Author: Chao Xie <chao.xie@marvell.com>
+ *	   Neil Zhang <zhangwm@marvell.com>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -22,6 +33,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/platform_data/mv_usb.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
 
@@ -44,6 +56,8 @@
 #define LOOPS_USEC_SHIFT	4
 #define LOOPS_USEC		(1 << LOOPS_USEC_SHIFT)
 #define LOOPS(timeout)		((timeout) >> LOOPS_USEC_SHIFT)
+
+static DECLARE_COMPLETION(release_done);
 
 static const char driver_name[] = "mv_udc";
 static const char driver_desc[] = DRIVER_DESC;
@@ -987,6 +1001,22 @@ static struct usb_ep_ops mv_ep_ops = {
 	.fifo_flush	= mv_ep_fifo_flush,	/* flush fifo */
 };
 
+static void udc_clock_enable(struct mv_udc *udc)
+{
+	unsigned int i;
+
+	for (i = 0; i < udc->clknum; i++)
+		clk_enable(udc->clk[i]);
+}
+
+static void udc_clock_disable(struct mv_udc *udc)
+{
+	unsigned int i;
+
+	for (i = 0; i < udc->clknum; i++)
+		clk_disable(udc->clk[i]);
+}
+
 static void udc_stop(struct mv_udc *udc)
 {
 	u32 tmp;
@@ -1877,17 +1907,14 @@ static void gadget_release(struct device *_dev)
 	struct mv_udc *udc = the_controller;
 
 	complete(udc->done);
-	kfree(udc);
 }
 
 static int mv_udc_remove(struct platform_device *dev)
 {
 	struct mv_udc *udc = the_controller;
-	DECLARE_COMPLETION(done);
+	int clk_i;
 
 	usb_del_gadget_udc(&udc->gadget);
-
-	udc->done = &done;
 
 	/* free memory allocated in probe */
 	if (udc->dtd_pool)
@@ -1915,10 +1942,14 @@ static int mv_udc_remove(struct platform_device *dev)
 		kfree(udc->status_req);
 	}
 
+	for (clk_i = 0; clk_i <= udc->clknum; clk_i++)
+		clk_put(udc->clk[clk_i]);
+
 	device_unregister(&udc->gadget.dev);
 
 	/* free dev, wait for the release() finished */
-	wait_for_completion(&done);
+	wait_for_completion(udc->done);
+	kfree(udc);
 
 	the_controller = NULL;
 
@@ -1927,33 +1958,46 @@ static int mv_udc_remove(struct platform_device *dev)
 
 int mv_udc_probe(struct platform_device *dev)
 {
+	struct mv_usb_platform_data *pdata = dev->dev.platform_data;
 	struct mv_udc *udc;
 	int retval = 0;
+	int clk_i = 0;
 	struct resource *r;
 	size_t size;
 
-	udc = kzalloc(sizeof *udc, GFP_KERNEL);
-	if (udc == NULL) {
-		dev_err(&dev->dev, "failed to allocate memory for udc\n");
-		retval = -ENOMEM;
-		goto error;
+	if (pdata == NULL) {
+		dev_err(&dev->dev, "missing platform_data\n");
+		return -ENODEV;
 	}
 
+	size = sizeof(*udc) + sizeof(struct clk *) * pdata->clknum;
+	udc = kzalloc(size, GFP_KERNEL);
+	if (udc == NULL) {
+		dev_err(&dev->dev, "failed to allocate memory for udc\n");
+		return -ENOMEM;
+	}
+
+	the_controller = udc;
+	udc->done = &release_done;
+	udc->pdata = dev->dev.platform_data;
 	spin_lock_init(&udc->lock);
 
 	udc->dev = dev;
 
-	udc->clk = clk_get(&dev->dev, "U2OCLK");
-	if (IS_ERR(udc->clk)) {
-		retval = PTR_ERR(udc->clk);
-		goto error;
+	udc->clknum = pdata->clknum;
+	for (clk_i = 0; clk_i < udc->clknum; clk_i++) {
+		udc->clk[clk_i] = clk_get(&dev->dev, pdata->clkname[clk_i]);
+		if (IS_ERR(udc->clk[clk_i])) {
+			retval = PTR_ERR(udc->clk[clk_i]);
+			goto err_put_clk;
+		}
 	}
 
-	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "u2o");
+	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "capregs");
 	if (r == NULL) {
 		dev_err(&dev->dev, "no I/O memory resource defined\n");
 		retval = -ENODEV;
-		goto error;
+		goto err_put_clk;
 	}
 
 	udc->cap_regs = (struct mv_cap_regs __iomem *)
@@ -1961,29 +2005,31 @@ int mv_udc_probe(struct platform_device *dev)
 	if (udc->cap_regs == NULL) {
 		dev_err(&dev->dev, "failed to map I/O memory\n");
 		retval = -EBUSY;
-		goto error;
+		goto err_put_clk;
 	}
 
-	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "u2ophy");
+	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "phyregs");
 	if (r == NULL) {
 		dev_err(&dev->dev, "no phy I/O memory resource defined\n");
 		retval = -ENODEV;
-		goto error;
+		goto err_iounmap_capreg;
 	}
 
 	udc->phy_regs = (unsigned int)ioremap(r->start, resource_size(r));
 	if (udc->phy_regs == 0) {
 		dev_err(&dev->dev, "failed to map phy I/O memory\n");
 		retval = -EBUSY;
-		goto error;
+		goto err_iounmap_capreg;
 	}
 
 	/* we will acces controller register, so enable the clk */
-	clk_enable(udc->clk);
-	retval = mv_udc_phy_init(udc->phy_regs);
-	if (retval) {
-		dev_err(&dev->dev, "phy initialization error %d\n", retval);
-		goto error;
+	udc_clock_enable(udc);
+	if (pdata->phy_init) {
+		retval = pdata->phy_init(udc->phy_regs);
+		if (retval) {
+			dev_err(&dev->dev, "phy init error %d\n", retval);
+			goto err_iounmap_phyreg;
+		}
 	}
 
 	udc->op_regs = (struct mv_op_regs __iomem *)((u32)udc->cap_regs
@@ -1999,7 +2045,7 @@ int mv_udc_probe(struct platform_device *dev)
 	if (udc->ep_dqh == NULL) {
 		dev_err(&dev->dev, "allocate dQH memory failed\n");
 		retval = -ENOMEM;
-		goto error;
+		goto err_disable_clock;
 	}
 	udc->ep_dqh_size = size;
 
@@ -2012,7 +2058,7 @@ int mv_udc_probe(struct platform_device *dev)
 
 	if (!udc->dtd_pool) {
 		retval = -ENOMEM;
-		goto error;
+		goto err_free_dma;
 	}
 
 	size = udc->max_eps * sizeof(struct mv_ep) *2;
@@ -2020,7 +2066,7 @@ int mv_udc_probe(struct platform_device *dev)
 	if (udc->eps == NULL) {
 		dev_err(&dev->dev, "allocate ep memory failed\n");
 		retval = -ENOMEM;
-		goto error;
+		goto err_destroy_dma;
 	}
 
 	/* initialize ep0 status request structure */
@@ -2028,7 +2074,7 @@ int mv_udc_probe(struct platform_device *dev)
 	if (!udc->status_req) {
 		dev_err(&dev->dev, "allocate status_req memory failed\n");
 		retval = -ENOMEM;
-		goto error;
+		goto err_free_eps;
 	}
 	INIT_LIST_HEAD(&udc->status_req->queue);
 
@@ -2045,7 +2091,7 @@ int mv_udc_probe(struct platform_device *dev)
 	if (r == NULL) {
 		dev_err(&dev->dev, "no IRQ resource defined\n");
 		retval = -ENODEV;
-		goto error;
+		goto err_free_status_req;
 	}
 	udc->irq = r->start;
 	if (request_irq(udc->irq, mv_udc_irq,
@@ -2053,7 +2099,7 @@ int mv_udc_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "Request irq %d for UDC failed\n",
 			udc->irq);
 		retval = -ENODEV;
-		goto error;
+		goto err_free_status_req;
 	}
 
 	/* initialize gadget structure */
@@ -2072,18 +2118,43 @@ int mv_udc_probe(struct platform_device *dev)
 
 	retval = device_register(&udc->gadget.dev);
 	if (retval)
-		goto error;
+		goto err_free_irq;
 
 	eps_init(udc);
 
-	the_controller = udc;
-
 	retval = usb_add_gadget_udc(&dev->dev, &udc->gadget);
-	if (!retval)
-		return retval;
-error:
-	if (udc)
-		mv_udc_remove(udc->dev);
+	if (retval)
+		goto err_unregister;
+
+	return 0;
+
+err_unregister:
+	device_unregister(&udc->gadget.dev);
+err_free_irq:
+	free_irq(udc->irq, &dev->dev);
+err_free_status_req:
+	kfree(udc->status_req->req.buf);
+	kfree(udc->status_req);
+err_free_eps:
+	kfree(udc->eps);
+err_destroy_dma:
+	dma_pool_destroy(udc->dtd_pool);
+err_free_dma:
+	dma_free_coherent(&dev->dev, udc->ep_dqh_size,
+			udc->ep_dqh, udc->ep_dqh_dma);
+err_disable_clock:
+	if (udc->pdata->phy_deinit)
+		udc->pdata->phy_deinit(udc->phy_regs);
+	udc_clock_disable(udc);
+err_iounmap_phyreg:
+	iounmap((void *)udc->phy_regs);
+err_iounmap_capreg:
+	iounmap(udc->cap_regs);
+err_put_clk:
+	for (clk_i--; clk_i >= 0; clk_i--)
+		clk_put(udc->clk[clk_i]);
+	the_controller = NULL;
+	kfree(udc);
 	return retval;
 }
 
@@ -2102,11 +2173,16 @@ static int mv_udc_resume(struct device *_dev)
 	struct mv_udc *udc = the_controller;
 	int retval;
 
-	retval = mv_udc_phy_init(udc->phy_regs);
-	if (retval) {
-		dev_err(_dev, "phy initialization error %d\n", retval);
-		return retval;
+	if (udc->pdata->phy_init) {
+		retval = udc->pdata->phy_init(udc->phy_regs);
+		if (retval) {
+			dev_err(&udc->dev->dev,
+				"init phy error %d when resume back\n",
+				retval);
+			return retval;
+		}
 	}
+
 	udc_reset(udc);
 	ep0_reset(udc);
 	udc_start(udc);

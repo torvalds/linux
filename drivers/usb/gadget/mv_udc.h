@@ -1,3 +1,11 @@
+/*
+ * Copyright (C) 2011 Marvell International Ltd. All rights reserved.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
 
 #ifndef __MV_UDC_H
 #define __MV_UDC_H
@@ -201,7 +209,12 @@ struct mv_udc {
 				remote_wakeup:1,
 				softconnected:1,
 				force_fs:1;
-	struct clk		*clk;
+
+	struct mv_usb_platform_data     *pdata;
+
+	/* some SOC has mutiple clock sources for USB*/
+	unsigned int    clknum;
+	struct clk      *clk[0];
 };
 
 /* endpoint data structure */
@@ -288,7 +301,5 @@ struct mv_dtd {
 	dma_addr_t td_dma;		/* dma address for this td */
 	struct mv_dtd *next_dtd_virt;
 };
-
-extern int mv_udc_phy_init(unsigned int base);
 
 #endif
