@@ -2767,7 +2767,7 @@ static void brcmf_clear_assoc_ies(struct brcmf_cfg80211_priv *cfg_priv)
 static s32 brcmf_get_assoc_ies(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct net_device *ndev = cfg_to_ndev(cfg_priv);
-	struct brcmf_cfg80211_assoc_ielen *assoc_info;
+	struct brcmf_cfg80211_assoc_ielen_le *assoc_info;
 	struct brcmf_cfg80211_connect_info *conn_info = cfg_to_conn(cfg_priv);
 	u32 req_len;
 	u32 resp_len;
@@ -2781,9 +2781,10 @@ static s32 brcmf_get_assoc_ies(struct brcmf_cfg80211_priv *cfg_priv)
 		WL_ERR("could not get assoc info (%d)\n", err);
 		return err;
 	}
-	assoc_info = (struct brcmf_cfg80211_assoc_ielen *)cfg_priv->extra_buf;
-	req_len = assoc_info->req_len;
-	resp_len = assoc_info->resp_len;
+	assoc_info =
+		(struct brcmf_cfg80211_assoc_ielen_le *)cfg_priv->extra_buf;
+	req_len = le32_to_cpu(assoc_info->req_len);
+	resp_len = le32_to_cpu(assoc_info->resp_len);
 	if (req_len) {
 		err = brcmf_dev_bufvar_get(ndev, "assoc_req_ies",
 					   cfg_priv->extra_buf,

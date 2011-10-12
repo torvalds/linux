@@ -264,9 +264,9 @@ struct brcmf_cfg80211_connect_info {
 };
 
 /* assoc ie length */
-struct brcmf_cfg80211_assoc_ielen {
-	u32 req_len;
-	u32 resp_len;
+struct brcmf_cfg80211_assoc_ielen_le {
+	__le32 req_len;
+	__le32 resp_len;
 };
 
 /* wpa2 pmk list */
