@@ -1512,30 +1512,14 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic_id, unsigned int pin,
 	ioapic_write_entry(apic_id, pin, entry);
 }
 
-
-__apicdebuginit(void) print_IO_APIC(void)
+__apicdebuginit(void) print_IO_APIC(int apic)
 {
-	int apic, i;
+	int i;
 	union IO_APIC_reg_00 reg_00;
 	union IO_APIC_reg_01 reg_01;
 	union IO_APIC_reg_02 reg_02;
 	union IO_APIC_reg_03 reg_03;
 	unsigned long flags;
-	struct irq_cfg *cfg;
-	unsigned int irq;
-
-	printk(KERN_DEBUG "number of MP IRQ sources: %d.\n", mp_irq_entries);
-	for (i = 0; i < nr_ioapics; i++)
-		printk(KERN_DEBUG "number of IO-APIC #%d registers: %d.\n",
-		       mpc_ioapic_id(i), ioapics[i].nr_registers);
-
-	/*
-	 * We are a bit conservative about what we expect.  We have to
-	 * know about every hardware change ASAP.
-	 */
-	printk(KERN_INFO "testing the IO APIC.......................\n");
-
-	for (apic = 0; apic < nr_ioapics; apic++) {
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	reg_00.raw = io_apic_read(apic, 0);
@@ -1636,7 +1620,27 @@ __apicdebuginit(void) print_IO_APIC(void)
 			);
 		}
 	}
-	}
+}
+
+__apicdebuginit(void) print_IO_APICs(void)
+{
+	int apic, i;
+	struct irq_cfg *cfg;
+	unsigned int irq;
+
+	printk(KERN_DEBUG "number of MP IRQ sources: %d.\n", mp_irq_entries);
+	for (i = 0; i < nr_ioapics; i++)
+		printk(KERN_DEBUG "number of IO-APIC #%d registers: %d.\n",
+		       mpc_ioapic_id(i), ioapics[i].nr_registers);
+
+	/*
+	 * We are a bit conservative about what we expect.  We have to
+	 * know about every hardware change ASAP.
+	 */
+	printk(KERN_INFO "testing the IO APIC.......................\n");
+
+	for (apic = 0; apic < nr_ioapics; apic++)
+		print_IO_APIC(apic);
 
 	printk(KERN_DEBUG "IRQ to pin mappings:\n");
 	for_each_active_irq(irq) {
@@ -1655,8 +1659,6 @@ __apicdebuginit(void) print_IO_APIC(void)
 	}
 
 	printk(KERN_INFO ".................................... done.\n");
-
-	return;
 }
 
 __apicdebuginit(void) print_APIC_field(int base)
@@ -1850,7 +1852,7 @@ __apicdebuginit(int) print_ICs(void)
 		return 0;
 
 	print_local_APICs(show_lapic);
-	print_IO_APIC();
+	print_IO_APICs();
 
 	return 0;
 }
