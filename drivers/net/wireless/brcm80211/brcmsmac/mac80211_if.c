@@ -1409,18 +1409,22 @@ void brcms_down(struct brcms_info *wl)
 /*
 * precondition: perimeter lock is not acquired
  */
-void brcms_timer(struct brcms_timer *t)
+static void _brcms_timer(struct work_struct *work)
 {
+	struct brcms_timer *t = container_of(work, struct brcms_timer,
+					     dly_wrk.work);
+
 	spin_lock_bh(&t->wl->lock);
 
 	if (t->set) {
 		if (t->periodic) {
-			t->timer.expires = jiffies + t->ms * HZ / 1000;
 			atomic_inc(&t->wl->callbacks);
-			add_timer(&t->timer);
-			t->set = true;
-		} else
+			ieee80211_queue_delayed_work(t->wl->pub->ieee_hw,
+						     &t->dly_wrk,
+						     msecs_to_jiffies(t->ms));
+		} else {
 			t->set = false;
+		}
 
 		t->fn(t->arg);
 	}
@@ -1428,14 +1432,6 @@ void brcms_timer(struct brcms_timer *t)
 	atomic_dec(&t->wl->callbacks);
 
 	spin_unlock_bh(&t->wl->lock);
-}
-
-/*
- * is called by the kernel from software irq context
- */
-static void _brcms_timer(unsigned long data)
-{
-	brcms_timer((struct brcms_timer *) data);
 }
 
 /*
@@ -1454,9 +1450,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 	if (!t)
 		return NULL;
 
-	init_timer(&t->timer);
-	t->timer.data = (unsigned long) t;
-	t->timer.function = _brcms_timer;
+	INIT_DELAYED_WORK(&t->dly_wrk, _brcms_timer);
 	t->wl = wl;
 	t->fn = fn;
 	t->arg = arg;
@@ -1478,22 +1472,22 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
  *
  * precondition: perimeter lock has been acquired
  */
-void brcms_add_timer(struct brcms_timer *t, uint ms,
-		     int periodic)
+void brcms_add_timer(struct brcms_timer *t, uint ms, int periodic)
 {
+	struct ieee80211_hw *hw = t->wl->pub->ieee_hw;
+
 #ifdef BCMDBG
 	if (t->set)
-		wiphy_err(t->wl->wiphy, "%s: Already set. Name: %s, per %d\n",
+		wiphy_err(hw->wiphy, "%s: Already set. Name: %s, per %d\n",
 			  __func__, t->name, periodic);
-
 #endif
 	t->ms = ms;
 	t->periodic = (bool) periodic;
 	t->set = true;
-	t->timer.expires = jiffies + ms * HZ / 1000;
 
 	atomic_inc(&t->wl->callbacks);
-	add_timer(&t->timer);
+
+	ieee80211_queue_delayed_work(hw, &t->dly_wrk, msecs_to_jiffies(ms));
 }
 
 /*
@@ -1505,7 +1499,7 @@ bool brcms_del_timer(struct brcms_timer *t)
 {
 	if (t->set) {
 		t->set = false;
-		if (!del_timer(&t->timer))
+		if (!cancel_delayed_work(&t->dly_wrk))
 			return false;
 
 		atomic_dec(&t->wl->callbacks);

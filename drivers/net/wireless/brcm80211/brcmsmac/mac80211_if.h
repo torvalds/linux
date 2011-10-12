@@ -19,6 +19,8 @@
 
 #include <linux/timer.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
+
 #include "ucode_loader.h"
 /*
  * Starting index for 5G rates in the
@@ -30,14 +32,14 @@
 #define BRCMS_SET_SHORTSLOT_OVERRIDE		146
 
 struct brcms_timer {
-	struct timer_list timer;
+	struct delayed_work dly_wrk;
 	struct brcms_info *wl;
-	void (*fn) (void *);
-	void *arg;		/* argument to fn */
+	void (*fn) (void *);	/* function called upon expiration */
+	void *arg;		/* fixed argument provided to called function */
 	uint ms;
 	bool periodic;
-	bool set;
-	struct brcms_timer *next;
+	bool set;		/* indicates if timer is active */
+	struct brcms_timer *next;	/* for freeing on unload */
 #ifdef BCMDBG
 	char *name;		/* Description of the timer */
 #endif
