@@ -1756,10 +1756,15 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	if (ASIC_IS_DCE4(rdev)) {
 		dig = radeon_encoder->enc_priv;
 		if (ASIC_IS_DCE41(rdev)) {
-			if (dig->linkb)
-				return 1;
-			else
-				return 0;
+			/* ontario follows DCE4 */
+			if (rdev->family == CHIP_PALM) {
+				if (dig->linkb)
+					return 1;
+				else
+					return 0;
+			} else
+				/* llano follows DCE3.2 */
+				return radeon_crtc->crtc_id;
 		} else {
 			switch (radeon_encoder->encoder_id) {
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
