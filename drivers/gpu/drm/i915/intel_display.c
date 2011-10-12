@@ -2906,12 +2906,16 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 
 		/* Be sure PCH DPLL SEL is set */
 		temp = I915_READ(PCH_DPLL_SEL);
-		if (pipe == 0 && (temp & TRANSA_DPLL_ENABLE) == 0)
+		if (pipe == 0) {
+			temp &= ~(TRANSA_DPLLB_SEL);
 			temp |= (TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL);
-		else if (pipe == 1 && (temp & TRANSB_DPLL_ENABLE) == 0)
+		} else if (pipe == 1) {
+			temp &= ~(TRANSB_DPLLB_SEL);
 			temp |= (TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
-		else if (pipe == 2 && (temp & TRANSC_DPLL_ENABLE) == 0)
+		} else if (pipe == 2) {
+			temp &= ~(TRANSC_DPLLB_SEL);
 			temp |= (TRANSC_DPLL_ENABLE | transc_sel);
+		}
 		I915_WRITE(PCH_DPLL_SEL, temp);
 	}
 
@@ -3077,14 +3081,14 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		temp = I915_READ(PCH_DPLL_SEL);
 		switch (pipe) {
 		case 0:
-			temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL);
+			temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
 			break;
 		case 1:
 			temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
 			break;
 		case 2:
 			/* C shares PLL A or B */
-			temp &= ~(TRANSC_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+			temp &= ~(TRANSC_DPLL_ENABLE | TRANSC_DPLLB_SEL);
 			break;
 		default:
 			BUG(); /* wtf */
@@ -5590,6 +5594,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 			temp |=	TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL;
 			break;
 		case 2:
+			temp &= ~(TRANSC_DPLLB_SEL);
 			temp |= TRANSC_DPLL_ENABLE | transc_sel;
 			break;
 		default:
