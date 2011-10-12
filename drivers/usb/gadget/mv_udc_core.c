@@ -96,6 +96,8 @@ static void ep0_reset(struct mv_udc *udc)
 			(EP0_MAX_PKT_SIZE << EP_QUEUE_HEAD_MAX_PKT_LEN_POS)
 			| EP_QUEUE_HEAD_IOS;
 
+		ep->dqh->next_dtd_ptr = EP_QUEUE_HEAD_NEXT_TERMINATE;
+
 		epctrlx = readl(&udc->op_regs->epctrlx[0]);
 		if (i) {	/* TX */
 			epctrlx |= EPCTRL_TX_ENABLE
