@@ -252,12 +252,10 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 		intel_write_eld(encoder, adjusted_mode);
 	}
 
-	if (intel_crtc->pipe == 1) {
-		if (HAS_PCH_CPT(dev))
-			sdvox |= PORT_TRANS_B_SEL_CPT;
-		else
-			sdvox |= SDVO_PIPE_B_SELECT;
-	}
+	if (HAS_PCH_CPT(dev))
+		sdvox |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
+	else if (intel_crtc->pipe == 1)
+		sdvox |= SDVO_PIPE_B_SELECT;
 
 	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
 	POSTING_READ(intel_hdmi->sdvox_reg);
