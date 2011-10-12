@@ -3263,7 +3263,7 @@ static void alc_auto_init_extra_out(struct hda_codec *codec)
 	int i;
 	hda_nid_t pin, dac;
 
-	for (i = 0; i < spec->autocfg.speaker_outs; i++) {
+	for (i = 0; i < spec->autocfg.hp_outs; i++) {
 		pin = spec->autocfg.hp_pins[i];
 		if (!pin)
 			break;
