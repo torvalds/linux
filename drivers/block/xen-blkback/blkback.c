@@ -422,13 +422,16 @@ static void xen_blk_discard(struct xen_blkif *blkif, struct blkif_request *req)
 	int status = BLKIF_RSP_OKAY;
 	struct block_device *bdev = blkif->vbd.bdev;
 
-	if (blkif->blk_backend_type == BLKIF_BACKEND_PHY)
+	if (blkif->blk_backend_type == BLKIF_BACKEND_PHY) {
+		unsigned long secure = (blkif->vbd.discard_secure &&
+			(req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
+			BLKDEV_DISCARD_SECURE : 0;
 		/* just forward the discard request */
 		err = blkdev_issue_discard(bdev,
 				req->u.discard.sector_number,
 				req->u.discard.nr_sectors,
-				GFP_KERNEL, 0);
-	else if (blkif->blk_backend_type == BLKIF_BACKEND_FILE) {
+				GFP_KERNEL, secure);
+	} else if (blkif->blk_backend_type == BLKIF_BACKEND_FILE) {
 		/* punch a hole in the backing file */
 		struct loop_device *lo = bdev->bd_disk->private_data;
 		struct file *file = lo->lo_backing_file;
@@ -643,8 +646,11 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		break;
 	}
 
-	/* Check that the number of segments is sane. */
-	nseg = req->u.rw.nr_segments;
+	if (unlikely(operation == REQ_DISCARD))
+		nseg = 0;
+	else
+		/* Check that the number of segments is sane. */
+		nseg = req->u.rw.nr_segments;
 
 	if (unlikely(nseg == 0 && operation != WRITE_FLUSH &&
 				operation != REQ_DISCARD) ||
@@ -708,7 +714,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * the hypercall to unmap the grants - that is all done in
 	 * xen_blkbk_unmap.
 	 */
-	if (operation != REQ_DISCARD && xen_blkbk_map(req, pending_req, seg))
+	if (nseg && xen_blkbk_map(req, pending_req, seg))
 		goto fail_flush;
 
 	/*
