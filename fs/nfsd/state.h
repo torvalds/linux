@@ -335,13 +335,13 @@ struct nfs4_replay {
 struct nfs4_stateowner {
 	struct list_head        so_strhash;   /* hash by op_name */
 	struct list_head        so_stateids;
-	int			so_is_open_owner; /* 1=openowner,0=lockowner */
 	struct nfs4_client *    so_client;
 	/* after increment in ENCODE_SEQID_OP_TAIL, represents the next
 	 * sequence id expected from the client: */
 	u32                     so_seqid;
 	struct xdr_netobj       so_owner;     /* open owner name */
 	struct nfs4_replay	so_replay;
+	bool			so_is_open_owner;
 };
 
 struct nfs4_openowner {
