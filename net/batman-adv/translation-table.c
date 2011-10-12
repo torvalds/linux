@@ -1188,11 +1188,11 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 		(tt_request->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	/* Let's get the orig node of the REAL destination */
-	req_dst_orig_node = get_orig_node(bat_priv, tt_request->dst);
+	req_dst_orig_node = orig_hash_find(bat_priv, tt_request->dst);
 	if (!req_dst_orig_node)
 		goto out;
 
-	res_dst_orig_node = get_orig_node(bat_priv, tt_request->src);
+	res_dst_orig_node = orig_hash_find(bat_priv, tt_request->src);
 	if (!res_dst_orig_node)
 		goto out;
 
@@ -1318,7 +1318,7 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 	my_ttvn = (uint8_t)atomic_read(&bat_priv->ttvn);
 	req_ttvn = tt_request->ttvn;
 
-	orig_node = get_orig_node(bat_priv, tt_request->src);
+	orig_node = orig_hash_find(bat_priv, tt_request->src);
 	if (!orig_node)
 		goto out;
 
