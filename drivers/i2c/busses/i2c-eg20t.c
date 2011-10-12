@@ -391,6 +391,7 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 	u32 addr_2_msb;
 	u32 addr_8_lsb;
 	s32 wrcount;
+	s32 rtn;
 	void __iomem *p = adap->pch_base_address;
 
 	length = msgs->len;
@@ -413,11 +414,25 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 		iowrite32(addr_2_msb | TEN_BIT_ADDR_MASK, p + PCH_I2CDR);
 		if (first)
 			pch_i2c_start(adap);
-		if (pch_i2c_wait_for_xfer_complete(adap) == 0 &&
-		    pch_i2c_getack(adap) == 0) {
+
+		rtn = pch_i2c_wait_for_xfer_complete(adap);
+		if (rtn == 0) {
+			if (pch_i2c_getack(adap)) {
+				pch_dbg(adap, "Receive NACK for slave address"
+					"setting\n");
+				return -EIO;
+			}
 			addr_8_lsb = (addr & I2C_ADDR_MSK);
 			iowrite32(addr_8_lsb, p + PCH_I2CDR);
-		} else {
+		} else if (rtn == -EIO) { /* Arbitration Lost */
+			pch_err(adap, "Lost Arbitration\n");
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMAL_BIT);
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMIF_BIT);
+			pch_i2c_init(adap);
+			return -EAGAIN;
+		} else { /* wait-event timeout */
 			pch_i2c_stop(adap);
 			return -ETIME;
 		}
@@ -428,30 +443,48 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 			pch_i2c_start(adap);
 	}
 
-	if ((pch_i2c_wait_for_xfer_complete(adap) == 0) &&
-	    (pch_i2c_getack(adap) == 0)) {
-		for (wrcount = 0; wrcount < length; ++wrcount) {
-			/* write buffer value to I2C data register */
-			iowrite32(buf[wrcount], p + PCH_I2CDR);
-			pch_dbg(adap, "writing %x to Data register\n",
-				buf[wrcount]);
-
-			if (pch_i2c_wait_for_xfer_complete(adap) != 0)
-				return -ETIME;
-
-			if (pch_i2c_getack(adap))
-				return -EIO;
+	rtn = pch_i2c_wait_for_xfer_complete(adap);
+	if (rtn == 0) {
+		if (pch_i2c_getack(adap)) {
+			pch_dbg(adap, "Receive NACK for slave address"
+				"setting\n");
+			return -EIO;
 		}
-
-		/* check if this is the last message */
-		if (last)
-			pch_i2c_stop(adap);
-		else
-			pch_i2c_repstart(adap);
-	} else {
-		pch_i2c_stop(adap);
-		return -EIO;
+	} else if (rtn == -EIO) { /* Arbitration Lost */
+		pch_err(adap, "Lost Arbitration\n");
+		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMAL_BIT);
+		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMIF_BIT);
+		return -EAGAIN;
+	} else { /* wait-event timeout */
+		return -ETIME;
 	}
+
+	for (wrcount = 0; wrcount < length; ++wrcount) {
+		/* write buffer value to I2C data register */
+		iowrite32(buf[wrcount], p + PCH_I2CDR);
+		pch_dbg(adap, "writing %x to Data register\n", buf[wrcount]);
+
+		rtn = pch_i2c_wait_for_xfer_complete(adap);
+		if (rtn == 0) {
+			if (pch_i2c_getack(adap)) {
+				pch_dbg(adap, "Receive NACK for slave address"
+					"setting\n");
+				return -EIO;
+			}
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMCF_BIT);
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMIF_BIT);
+		} else { /* wait-event timeout */
+			return -ETIME;
+		}
+	}
+
+	/* check if this is the last message */
+	if (last)
+		pch_i2c_stop(adap);
+	else
+		pch_i2c_repstart(adap);
 
 	pch_dbg(adap, "return=%d\n", wrcount);
 
@@ -512,6 +545,7 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 	u32 addr_2_msb;
 	u32 addr_8_lsb;
 	void __iomem *p = adap->pch_base_address;
+	s32 rtn;
 
 	length = msgs->len;
 	buf = msgs->buf;
@@ -585,56 +619,79 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 	if (first)
 		pch_i2c_start(adap);
 
-	if ((pch_i2c_wait_for_xfer_complete(adap) == 0) &&
-	    (pch_i2c_getack(adap) == 0)) {
-		pch_dbg(adap, "return %d\n", 0);
+	rtn = pch_i2c_wait_for_xfer_complete(adap);
+	if (rtn == 0) {
+		if (pch_i2c_getack(adap)) {
+			pch_dbg(adap, "Receive NACK for slave address"
+				"setting\n");
+			return -EIO;
+		}
+	} else if (rtn == -EIO) { /* Arbitration Lost */
+		pch_err(adap, "Lost Arbitration\n");
+		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMAL_BIT);
+		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMIF_BIT);
+		return -EAGAIN;
+	} else { /* wait-event timeout */
+		return -ETIME;
+	}
 
-		if (length == 0) {
-			pch_i2c_stop(adap);
-			ioread32(p + PCH_I2CDR); /* Dummy read needs */
+	if (length == 0) {
+		pch_i2c_stop(adap);
+		ioread32(p + PCH_I2CDR); /* Dummy read needs */
 
-			count = length;
-		} else {
-			int read_index;
-			int loop;
-			pch_i2c_sendack(adap);
+		count = length;
+	} else {
+		int read_index;
+		int loop;
+		pch_i2c_sendack(adap);
 
-			/* Dummy read */
-			for (loop = 1, read_index = 0; loop < length; loop++) {
-				buf[read_index] = ioread32(p + PCH_I2CDR);
-
-				if (loop != 1)
-					read_index++;
-
-				if (pch_i2c_wait_for_xfer_complete(adap) != 0) {
-					pch_i2c_stop(adap);
-					return -ETIME;
-				}
-			}	/* end for */
-
-			pch_i2c_sendnack(adap);
-
+		/* Dummy read */
+		for (loop = 1, read_index = 0; loop < length; loop++) {
 			buf[read_index] = ioread32(p + PCH_I2CDR);
 
-			if (length != 1)
+			if (loop != 1)
 				read_index++;
 
-			if (pch_i2c_wait_for_xfer_complete(adap) == 0) {
-				if (last)
-					pch_i2c_stop(adap);
-				else
-					pch_i2c_repstart(adap);
-
-				buf[read_index++] = ioread32(p + PCH_I2CDR);
-				count = read_index;
-			} else {
-				count = -ETIME;
+			rtn = pch_i2c_wait_for_xfer_complete(adap);
+			if (rtn == 0) {
+				if (pch_i2c_getack(adap)) {
+					pch_dbg(adap, "Receive NACK for slave"
+						"address setting\n");
+					return -EIO;
+				}
+			} else { /* wait-event timeout */
+				pch_i2c_stop(adap);
+				return -ETIME;
 			}
 
+		}	/* end for */
+
+		pch_i2c_sendnack(adap);
+
+		buf[read_index] = ioread32(p + PCH_I2CDR); /* Read final - 1 */
+
+		if (length != 1)
+			read_index++;
+
+		rtn = pch_i2c_wait_for_xfer_complete(adap);
+		if (rtn == 0) {
+			if (pch_i2c_getack(adap)) {
+				pch_dbg(adap, "Receive NACK for slave"
+					"address setting\n");
+				return -EIO;
+			}
+		} else { /* wait-event timeout */
+			pch_i2c_stop(adap);
+			return -ETIME;
 		}
-	} else {
-		count = -ETIME;
-		pch_i2c_stop(adap);
+
+		if (last)
+			pch_i2c_stop(adap);
+		else
+			pch_i2c_repstart(adap);
+
+		buf[read_index++] = ioread32(p + PCH_I2CDR); /* Read Final */
+		count = read_index;
 	}
 
 	return count;
