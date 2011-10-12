@@ -1631,8 +1631,7 @@ static void get_setup_data(struct mv_udc *udc, u8 ep_num, u8 *buffer_ptr)
 	dqh = &udc->ep_dqh[ep_num * 2 + EP_DIR_OUT];
 
 	/* Clear bit in ENDPTSETUPSTAT */
-	temp = readl(&udc->op_regs->epsetupstat);
-	writel(temp | (1 << ep_num), &udc->op_regs->epsetupstat);
+	writel((1 << ep_num), &udc->op_regs->epsetupstat);
 
 	/* while a hazard exists when setup package arrives */
 	do {
