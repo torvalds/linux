@@ -1289,7 +1289,7 @@ static int setup_ir_ioapic_entry(int irq,
 		"Redir_hint:%d Trig_Mode:%d Dlvry_Mode:%X "
 		"Avail:%X Vector:%02X Dest:%08X "
 		"SID:%04X SQ:%X SVT:%X)\n",
-		apic_id, irte.present, irte.fpd, irte.dst_mode,
+		attr->ioapic, irte.present, irte.fpd, irte.dst_mode,
 		irte.redir_hint, irte.trigger_mode, irte.dlvry_mode,
 		irte.avail, irte.vector, irte.dest_id,
 		irte.sid, irte.sq, irte.svt);
