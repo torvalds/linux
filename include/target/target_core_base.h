@@ -470,7 +470,6 @@ struct se_cmd {
 	struct list_head	se_queue_node;
 	struct target_core_fabric_ops *se_tfo;
 	int (*transport_emulate_cdb)(struct se_cmd *);
-	void (*transport_split_cdb)(unsigned long long, u32, unsigned char *);
 	void (*transport_complete_callback)(struct se_cmd *);
 	int (*transport_qf_callback)(struct se_cmd *);
 
