@@ -113,12 +113,26 @@ static const struct pci_device_id triflex_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, triflex_pci_tbl);
 
+#ifdef CONFIG_PM
+static int triflex_ide_pci_suspend(struct pci_dev *dev, pm_message_t state)
+{
+	/*
+	 * We must not disable or powerdown the device.
+	 * APM bios refuses to suspend if IDE is not accessible.
+	 */
+	pci_save_state(dev);
+	return 0;
+}
+#else
+#define triflex_ide_pci_suspend NULL
+#endif
+
 static struct pci_driver triflex_pci_driver = {
 	.name		= "TRIFLEX_IDE",
 	.id_table	= triflex_pci_tbl,
 	.probe		= triflex_init_one,
 	.remove		= ide_pci_remove,
-	.suspend	= ide_pci_suspend,
+	.suspend	= triflex_ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };
 
