@@ -2913,6 +2913,9 @@ static int dsi_vc_send_bta(struct platform_device *dsidev, int channel)
 
 	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 6, 6); /* BTA_EN */
 
+	/* flush posted write */
+	dsi_read_reg(dsidev, DSI_VC_CTRL(channel));
+
 	return 0;
 }
 
