@@ -450,6 +450,7 @@ enum rtl_var_map {
 	EFUSE_HWSET_MAX_SIZE,
 	EFUSE_MAX_SECTION_MAP,
 	EFUSE_REAL_CONTENT_SIZE,
+	EFUSE_OOB_PROTECT_BYTES_LEN,
 
 	/*CAM map */
 	RWCAM,
@@ -1324,6 +1325,7 @@ struct rtl_stats {
 	s8 rx_mimo_signalquality[2];
 	bool packet_matchbssid;
 	bool is_cck;
+	bool is_ht;
 	bool packet_toself;
 	bool packet_beacon;	/*for rssi */
 	char cck_adc_pwdb[4];	/*for rx path selection */
