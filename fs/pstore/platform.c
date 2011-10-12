@@ -87,7 +87,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	unsigned long	size, total = 0;
 	char		*dst, *why;
 	u64		id;
-	int		hsize;
+	int		hsize, ret;
 	unsigned int	part = 1;
 	unsigned long	flags = 0;
 	int		is_locked = 0;
@@ -122,9 +122,9 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		memcpy(dst, s1 + s1_start, l1_cpy);
 		memcpy(dst + l1_cpy, s2 + s2_start, l2_cpy);
 
-		id = psinfo->write(PSTORE_TYPE_DMESG, part,
+		ret = psinfo->write(PSTORE_TYPE_DMESG, &id, part,
 				   hsize + l1_cpy + l2_cpy, psinfo);
-		if (reason == KMSG_DUMP_OOPS && pstore_is_mounted())
+		if (ret == 0 && reason == KMSG_DUMP_OOPS && pstore_is_mounted())
 			pstore_new_entry = 1;
 		l1 -= l1_cpy;
 		l2 -= l2_cpy;
@@ -247,6 +247,7 @@ static void pstore_timefunc(unsigned long dummy)
 int pstore_write(enum pstore_type_id type, char *buf, size_t size)
 {
 	u64		id;
+	int		ret;
 	unsigned long	flags;
 
 	if (!psinfo)
@@ -257,8 +258,8 @@ int pstore_write(enum pstore_type_id type, char *buf, size_t size)
 
 	spin_lock_irqsave(&psinfo->buf_lock, flags);
 	memcpy(psinfo->buf, buf, size);
-	id = psinfo->write(type, 0, size, psinfo);
-	if (pstore_is_mounted())
+	ret = psinfo->write(type, &id, 0, size, psinfo);
+	if (ret == 0 && pstore_is_mounted())
 		pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id, psinfo->buf,
 			      size, CURRENT_TIME, psinfo);
 	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
