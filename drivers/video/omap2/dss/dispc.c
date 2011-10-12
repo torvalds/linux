@@ -1916,10 +1916,14 @@ static void dispc_disable_isr(void *data, u32 mask)
 
 static void _enable_lcd_out(enum omap_channel channel, bool enable)
 {
-	if (channel == OMAP_DSS_CHANNEL_LCD2)
+	if (channel == OMAP_DSS_CHANNEL_LCD2) {
 		REG_FLD_MOD(DISPC_CONTROL2, enable ? 1 : 0, 0, 0);
-	else
+		/* flush posted write */
+		dispc_read_reg(DISPC_CONTROL2);
+	} else {
 		REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 0, 0);
+		dispc_read_reg(DISPC_CONTROL);
+	}
 }
 
 static void dispc_mgr_enable_lcd_out(enum omap_channel channel, bool enable)
@@ -1967,6 +1971,8 @@ static void dispc_mgr_enable_lcd_out(enum omap_channel channel, bool enable)
 static void _enable_digit_out(bool enable)
 {
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 1, 1);
+	/* flush posted write */
+	dispc_read_reg(DISPC_CONTROL);
 }
 
 static void dispc_mgr_enable_digit_out(bool enable)
