@@ -4236,8 +4236,7 @@ static void brcms_c_radio_monitor_start(struct brcms_c_info *wlc)
 
 	wlc->radio_monitor = true;
 	brcms_b_pllreq(wlc->hw, true, BRCMS_PLLREQ_RADIO_MON);
-	brcms_add_timer(wlc->wl, wlc->radio_timer, TIMER_INTERVAL_RADIOCHK,
-			true);
+	brcms_add_timer(wlc->radio_timer, TIMER_INTERVAL_RADIOCHK, true);
 }
 
 void brcms_c_radio_disable(struct brcms_c_info *wlc)
@@ -4269,7 +4268,7 @@ bool brcms_c_radio_monitor_stop(struct brcms_c_info *wlc)
 
 	wlc->radio_monitor = false;
 	brcms_b_pllreq(wlc->hw, false, BRCMS_PLLREQ_RADIO_MON);
-	return brcms_del_timer(wlc->wl, wlc->radio_timer);
+	return brcms_del_timer(wlc->radio_timer);
 }
 
 /* read hwdisable state and propagate to wlc flag */
@@ -5221,11 +5220,11 @@ static void brcms_c_timers_deinit(struct brcms_c_info *wlc)
 {
 	/* free timer state */
 	if (wlc->wdtimer) {
-		brcms_free_timer(wlc->wl, wlc->wdtimer);
+		brcms_free_timer(wlc->wdtimer);
 		wlc->wdtimer = NULL;
 	}
 	if (wlc->radio_timer) {
-		brcms_free_timer(wlc->wl, wlc->radio_timer);
+		brcms_free_timer(wlc->radio_timer);
 		wlc->radio_timer = NULL;
 	}
 }
@@ -5607,7 +5606,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	brcms_c_wme_retries_write(wlc);
 
 	/* start one second watchdog timer */
-	brcms_add_timer(wlc->wl, wlc->wdtimer, TIMER_INTERVAL_WATCHDOG, true);
+	brcms_add_timer(wlc->wdtimer, TIMER_INTERVAL_WATCHDOG, true);
 	wlc->WDarmed = true;
 
 	/* ensure antenna config is up to date */
@@ -5736,7 +5735,7 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 
 	/* cancel the watchdog timer */
 	if (wlc->WDarmed) {
-		if (!brcms_del_timer(wlc->wl, wlc->wdtimer))
+		if (!brcms_del_timer(wlc->wdtimer))
 			callbacks++;
 		wlc->WDarmed = false;
 	}

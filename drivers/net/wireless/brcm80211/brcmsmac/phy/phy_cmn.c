@@ -442,7 +442,7 @@ static void wlc_phy_timercb_phycal(struct brcms_phy *pi)
 			wlc_phy_cal_perical_mphase_restart(pi);
 		} else
 			wlc_phy_cal_perical_nphy_run(pi, PHY_PERICAL_AUTO);
-		wlapi_add_timer(pi->sh->physhim, pi->phycal_timer, delay, 0);
+		wlapi_add_timer(pi->phycal_timer, delay, 0);
 		return;
 	}
 
@@ -625,7 +625,7 @@ void wlc_phy_detach(struct brcms_phy_pub *pih)
 			return;
 
 		if (pi->phycal_timer) {
-			wlapi_free_timer(pi->sh->physhim, pi->phycal_timer);
+			wlapi_free_timer(pi->phycal_timer);
 			pi->phycal_timer = NULL;
 		}
 
@@ -852,7 +852,7 @@ int wlc_phy_down(struct brcms_phy_pub *pih)
 	int callbacks = 0;
 
 	if (pi->phycal_timer
-	    && !wlapi_del_timer(pi->sh->physhim, pi->phycal_timer))
+	    && !wlapi_del_timer(pi->phycal_timer))
 		callbacks++;
 
 	pi->nphy_iqcal_chanspec_2G = 0;
@@ -2715,7 +2715,7 @@ wlc_phy_papd_decode_epsilon(u32 epsilon, s32 *eps_real, s32 *eps_imag)
 
 void wlc_phy_cal_perical_mphase_reset(struct brcms_phy *pi)
 {
-	wlapi_del_timer(pi->sh->physhim, pi->phycal_timer);
+	wlapi_del_timer(pi->phycal_timer);
 
 	pi->cal_type_override = PHY_PERICAL_AUTO;
 	pi->mphase_cal_phase_id = MPHASE_CAL_STATE_IDLE;
@@ -2730,10 +2730,10 @@ wlc_phy_cal_perical_mphase_schedule(struct brcms_phy *pi, uint delay)
 	    (pi->nphy_perical != PHY_PERICAL_MANUAL))
 		return;
 
-	wlapi_del_timer(pi->sh->physhim, pi->phycal_timer);
+	wlapi_del_timer(pi->phycal_timer);
 
 	pi->mphase_cal_phase_id = MPHASE_CAL_STATE_INIT;
-	wlapi_add_timer(pi->sh->physhim, pi->phycal_timer, delay, 0);
+	wlapi_add_timer(pi->phycal_timer, delay, 0);
 }
 
 void wlc_phy_cal_perical(struct brcms_phy_pub *pih, u8 reason)

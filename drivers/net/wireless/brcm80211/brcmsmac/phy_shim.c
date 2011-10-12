@@ -65,21 +65,20 @@ struct wlapi_timer *wlapi_init_timer(struct phy_shim_info *physhim,
 					 arg, name);
 }
 
-void wlapi_free_timer(struct phy_shim_info *physhim, struct wlapi_timer *t)
+void wlapi_free_timer(struct wlapi_timer *t)
 {
-	brcms_free_timer(physhim->wl, (struct brcms_timer *)t);
+	brcms_free_timer((struct brcms_timer *)t);
 }
 
 void
-wlapi_add_timer(struct phy_shim_info *physhim, struct wlapi_timer *t, uint ms,
-		int periodic)
+wlapi_add_timer(struct wlapi_timer *t, uint ms, int periodic)
 {
-	brcms_add_timer(physhim->wl, (struct brcms_timer *)t, ms, periodic);
+	brcms_add_timer((struct brcms_timer *)t, ms, periodic);
 }
 
-bool wlapi_del_timer(struct phy_shim_info *physhim, struct wlapi_timer *t)
+bool wlapi_del_timer(struct wlapi_timer *t)
 {
-	return brcms_del_timer(physhim->wl, (struct brcms_timer *)t);
+	return brcms_del_timer((struct brcms_timer *)t);
 }
 
 void wlapi_intrson(struct phy_shim_info *physhim)

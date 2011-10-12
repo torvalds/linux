@@ -1478,12 +1478,12 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
  *
  * precondition: perimeter lock has been acquired
  */
-void brcms_add_timer(struct brcms_info *wl, struct brcms_timer *t, uint ms,
+void brcms_add_timer(struct brcms_timer *t, uint ms,
 		     int periodic)
 {
 #ifdef BCMDBG
 	if (t->set)
-		wiphy_err(wl->wiphy, "%s: Already set. Name: %s, per %d\n",
+		wiphy_err(t->wl->wiphy, "%s: Already set. Name: %s, per %d\n",
 			  __func__, t->name, periodic);
 
 #endif
@@ -1492,7 +1492,7 @@ void brcms_add_timer(struct brcms_info *wl, struct brcms_timer *t, uint ms,
 	t->set = true;
 	t->timer.expires = jiffies + ms * HZ / 1000;
 
-	atomic_inc(&wl->callbacks);
+	atomic_inc(&t->wl->callbacks);
 	add_timer(&t->timer);
 }
 
@@ -1501,14 +1501,14 @@ void brcms_add_timer(struct brcms_info *wl, struct brcms_timer *t, uint ms,
  *
  * precondition: perimeter lock has been acquired
  */
-bool brcms_del_timer(struct brcms_info *wl, struct brcms_timer *t)
+bool brcms_del_timer(struct brcms_timer *t)
 {
 	if (t->set) {
 		t->set = false;
 		if (!del_timer(&t->timer))
 			return false;
 
-		atomic_dec(&wl->callbacks);
+		atomic_dec(&t->wl->callbacks);
 	}
 
 	return true;
@@ -1517,12 +1517,13 @@ bool brcms_del_timer(struct brcms_info *wl, struct brcms_timer *t)
 /*
  * precondition: perimeter lock has been acquired
  */
-void brcms_free_timer(struct brcms_info *wl, struct brcms_timer *t)
+void brcms_free_timer(struct brcms_timer *t)
 {
+	struct brcms_info *wl = t->wl;
 	struct brcms_timer *tmp;
 
 	/* delete the timer in case it is active */
-	brcms_del_timer(wl, t);
+	brcms_del_timer(t);
 
 	if (wl->timers == t) {
 		wl->timers = wl->timers->next;

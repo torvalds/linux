@@ -133,12 +133,9 @@ extern void wlc_phy_shim_detach(struct phy_shim_info *physhim);
 extern struct wlapi_timer *wlapi_init_timer(struct phy_shim_info *physhim,
 					    void (*fn) (struct brcms_phy *pi),
 					    void *arg, const char *name);
-extern void wlapi_free_timer(struct phy_shim_info *physhim,
-			     struct wlapi_timer *t);
-extern void wlapi_add_timer(struct phy_shim_info *physhim,
-			    struct wlapi_timer *t, uint ms, int periodic);
-extern bool wlapi_del_timer(struct phy_shim_info *physhim,
-			    struct wlapi_timer *t);
+extern void wlapi_free_timer(struct wlapi_timer *t);
+extern void wlapi_add_timer(struct wlapi_timer *t, uint ms, int periodic);
+extern bool wlapi_del_timer(struct wlapi_timer *t);
 extern void wlapi_intrson(struct phy_shim_info *physhim);
 extern u32 wlapi_intrsoff(struct phy_shim_info *physhim);
 extern void wlapi_intrsrestore(struct phy_shim_info *physhim,
