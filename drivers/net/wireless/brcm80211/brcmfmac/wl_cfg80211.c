@@ -247,6 +247,13 @@ static const u32 __wl_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_AES_CMAC,
 };
 
+/* tag_ID/length/value_buffer tuple */
+struct brcmf_tlv {
+	u8 id;
+	u8 len;
+	u8 data[1];
+};
+
 /* Quarter dBm units to mW
  * Table starts at QDBM_OFFSET, so the first entry is mW for qdBm=153
  * Table is offset so the last entry is largest mW value that fits in
@@ -2151,11 +2158,39 @@ static bool brcmf_is_ibssmode(struct brcmf_cfg80211_priv *cfg_priv)
 	return cfg_priv->conf->mode == WL_MODE_IBSS;
 }
 
+/*
+ * Traverse a string of 1-byte tag/1-byte length/variable-length value
+ * triples, returning a pointer to the substring whose first element
+ * matches tag
+ */
+static struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key)
+{
+	struct brcmf_tlv *elt;
+	int totlen;
+
+	elt = (struct brcmf_tlv *) buf;
+	totlen = buflen;
+
+	/* find tagged parameter */
+	while (totlen >= 2) {
+		int len = elt->len;
+
+		/* validate remaining totlen */
+		if ((elt->id == key) && (totlen >= (len + 2)))
+			return elt;
+
+		elt = (struct brcmf_tlv *) ((u8 *) elt + (len + 2));
+		totlen -= (len + 2);
+	}
+
+	return NULL;
+}
+
 static s32 brcmf_update_bss_info(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct brcmf_bss_info *bi;
 	struct brcmf_ssid *ssid;
-	struct brcmu_tlv *tim;
+	struct brcmf_tlv *tim;
 	u16 beacon_interval;
 	u8 dtim_period;
 	size_t ie_len;
@@ -2185,7 +2220,7 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_priv *cfg_priv)
 	ie_len = le32_to_cpu(bi->ie_length);
 	beacon_interval = le16_to_cpu(bi->beacon_period);
 
-	tim = brcmu_parse_tlvs(ie, ie_len, WLAN_EID_TIM);
+	tim = brcmf_parse_tlvs(ie, ie_len, WLAN_EID_TIM);
 	if (tim)
 		dtim_period = tim->data[1];
 	else {

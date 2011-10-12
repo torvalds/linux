@@ -192,13 +192,6 @@ struct brcmu_bit_desc {
 	const char *name;
 };
 
-/* tag_ID/length/value_buffer tuple */
-struct brcmu_tlv {
-	u8 id;
-	u8 len;
-	u8 data[1];
-};
-
 /* externs */
 /* format/print */
 #if defined(BCMDBG)
@@ -206,9 +199,6 @@ extern int brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags,
 			      char *buf, int len);
 extern int brcmu_format_hex(char *str, const void *bytes, int len);
 #endif
-
-extern struct brcmu_tlv *brcmu_parse_tlvs(void *buf, int buflen,
-					  uint key);
 
 extern uint brcmu_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);

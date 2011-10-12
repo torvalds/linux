@@ -364,36 +364,6 @@ void brcmu_prpkt(const char *msg, struct sk_buff *p0)
 EXPORT_SYMBOL(brcmu_prpkt);
 #endif				/* defined(BCMDBG) */
 
-/*
- * Traverse a string of 1-byte tag/1-byte length/variable-length value
- * triples, returning a pointer to the substring whose first element
- * matches tag
- */
-struct brcmu_tlv *brcmu_parse_tlvs(void *buf, int buflen, uint key)
-{
-	struct brcmu_tlv *elt;
-	int totlen;
-
-	elt = (struct brcmu_tlv *) buf;
-	totlen = buflen;
-
-	/* find tagged parameter */
-	while (totlen >= 2) {
-		int len = elt->len;
-
-		/* validate remaining totlen */
-		if ((elt->id == key) && (totlen >= (len + 2)))
-			return elt;
-
-		elt = (struct brcmu_tlv *) ((u8 *) elt + (len + 2));
-		totlen -= (len + 2);
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(brcmu_parse_tlvs);
-
-
 #if defined(BCMDBG)
 int
 brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags, char *buf,
