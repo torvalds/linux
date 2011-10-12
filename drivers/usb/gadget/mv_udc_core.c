@@ -1204,11 +1204,6 @@ static const struct usb_gadget_ops mv_ops = {
 	.stop		= mv_udc_stop,
 };
 
-static void mv_udc_testmode(struct mv_udc *udc, u16 index, bool enter)
-{
-	dev_info(&udc->dev->dev, "Test Mode is not support yet\n");
-}
-
 static int eps_init(struct mv_udc *udc)
 {
 	struct mv_ep	*ep;
@@ -1359,6 +1354,31 @@ static int mv_udc_stop(struct usb_gadget_driver *driver)
 	return 0;
 }
 
+static void mv_set_ptc(struct mv_udc *udc, u32 mode)
+{
+	u32 portsc;
+
+	portsc = readl(&udc->op_regs->portsc[0]);
+	portsc |= mode << 16;
+	writel(portsc, &udc->op_regs->portsc[0]);
+}
+
+static void prime_status_complete(struct usb_ep *ep, struct usb_request *_req)
+{
+	struct mv_udc *udc = the_controller;
+	struct mv_req *req = container_of(_req, struct mv_req, req);
+	unsigned long flags;
+
+	dev_info(&udc->dev->dev, "switch to test mode %d\n", req->test_mode);
+
+	spin_lock_irqsave(&udc->lock, flags);
+	if (req->test_mode) {
+		mv_set_ptc(udc, req->test_mode);
+		req->test_mode = 0;
+	}
+	spin_unlock_irqrestore(&udc->lock, flags);
+}
+
 static int
 udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 {
@@ -1382,7 +1402,12 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 	req->ep = ep;
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
-	req->req.complete = NULL;
+	if (udc->test_mode) {
+		req->req.complete = prime_status_complete;
+		req->test_mode = udc->test_mode;
+		udc->test_mode = 0;
+	} else
+		req->req.complete = NULL;
 	req->dtd_count = 0;
 
 	if (req->req.dma == DMA_ADDR_INVALID) {
@@ -1410,6 +1435,17 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 	return 0;
 out:
 	return retval;
+}
+
+static void mv_udc_testmode(struct mv_udc *udc, u16 index)
+{
+	if (index <= TEST_FORCE_EN) {
+		udc->test_mode = index;
+		if (udc_prime_status(udc, EP_DIR_IN, 0, true))
+			ep0_stall(udc);
+	} else
+		dev_err(&udc->dev->dev,
+			"This test mode(%d) is not supported\n", index);
 }
 
 static void ch9setaddress(struct mv_udc *udc, struct usb_ctrlrequest *setup)
@@ -1470,9 +1506,6 @@ static void ch9clearfeature(struct mv_udc *udc, struct usb_ctrlrequest *setup)
 		case USB_DEVICE_REMOTE_WAKEUP:
 			udc->remote_wakeup = 0;
 			break;
-		case USB_DEVICE_TEST_MODE:
-			mv_udc_testmode(udc, 0, false);
-			break;
 		default:
 			goto out;
 		}
@@ -1518,16 +1551,16 @@ static void ch9setfeature(struct mv_udc *udc, struct usb_ctrlrequest *setup)
 			break;
 		case USB_DEVICE_TEST_MODE:
 			if (setup->wIndex & 0xFF
-				&& udc->gadget.speed != USB_SPEED_HIGH)
-				goto out;
-			if (udc->usb_state == USB_STATE_CONFIGURED
-				|| udc->usb_state == USB_STATE_ADDRESS
-				|| udc->usb_state == USB_STATE_DEFAULT)
-				mv_udc_testmode(udc,
-					setup->wIndex & 0xFF00, true);
-			else
-				goto out;
-			break;
+				||  udc->gadget.speed != USB_SPEED_HIGH)
+				ep0_stall(udc);
+
+			if (udc->usb_state != USB_STATE_CONFIGURED
+				&& udc->usb_state != USB_STATE_ADDRESS
+				&& udc->usb_state != USB_STATE_DEFAULT)
+				ep0_stall(udc);
+
+			mv_udc_testmode(udc, (setup->wIndex >> 8));
+			goto out;
 		default:
 			goto out;
 		}

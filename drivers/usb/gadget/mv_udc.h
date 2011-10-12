@@ -202,6 +202,7 @@ struct mv_udc {
 	unsigned int		ep0_dir;
 
 	unsigned int		dev_addr;
+	unsigned int		test_mode;
 
 	int			errors;
 	unsigned		softconnect:1,
@@ -238,6 +239,7 @@ struct mv_req {
 	struct mv_dtd		*dtd, *head, *tail;
 	struct mv_ep		*ep;
 	struct list_head	queue;
+	unsigned int            test_mode;
 	unsigned		dtd_count;
 	unsigned		mapped:1;
 };
