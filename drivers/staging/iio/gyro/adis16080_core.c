@@ -5,7 +5,6 @@
  *
  * Licensed under the GPL-2 or later.
  */
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/device.h>

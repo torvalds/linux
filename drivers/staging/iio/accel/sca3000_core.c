@@ -11,7 +11,6 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -1167,7 +1166,7 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 		iio_scan_mask_set(indio_dev->buffer, 2);
 	}
 
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
+	if (spi->irq) {
 		ret = request_threaded_irq(spi->irq,
 					   NULL,
 					   &sca3000_event_handler,
@@ -1184,7 +1183,7 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	return 0;
 
 error_free_irq:
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
+	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 error_unregister_ring:
 	iio_buffer_unregister(indio_dev);
@@ -1226,7 +1225,7 @@ static int sca3000_remove(struct spi_device *spi)
 	ret = sca3000_stop_all_interrupts(st);
 	if (ret)
 		return ret;
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
+	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 	iio_buffer_unregister(indio_dev);
 	sca3000_unconfigure_ring(indio_dev);
