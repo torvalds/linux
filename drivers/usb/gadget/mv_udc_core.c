@@ -2206,9 +2206,21 @@ static const struct dev_pm_ops mv_udc_pm_ops = {
 };
 #endif
 
+static void mv_udc_shutdown(struct platform_device *dev)
+{
+	struct mv_udc *udc = the_controller;
+	u32 mode;
+
+	/* reset controller mode to IDLE */
+	mode = readl(&udc->op_regs->usbmode);
+	mode &= ~3;
+	writel(mode, &udc->op_regs->usbmode);
+}
+
 static struct platform_driver udc_driver = {
 	.probe		= mv_udc_probe,
 	.remove		= __exit_p(mv_udc_remove),
+	.shutdown	= mv_udc_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "pxa-u2o",
