@@ -168,14 +168,6 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 	return (bitmap & (1 << (prec))) != 0;
 }
 
-/*
- * Verify the chanspec is using a legal set of parameters, i.e. that the
- * chanspec specified a band, bw, ctl_sb and channel and that the
- * combination could be legal given any set of circumstances.
- * RETURNS: true is the chanspec is malformed, false if it looks good.
- */
-extern bool brcmu_chspec_malformed(u16 chanspec);
-
 /* Enumerate crypto algorithms */
 #define	CRYPTO_ALGO_OFF			0
 #define	CRYPTO_ALGO_WEP1		1

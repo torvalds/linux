@@ -1485,6 +1485,32 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 }
 
 /*
+ * Verify the chanspec is using a legal set of parameters, i.e. that the
+ * chanspec specified a band, bw, ctl_sb and channel and that the
+ * combination could be legal given any set of circumstances.
+ * RETURNS: true is the chanspec is malformed, false if it looks good.
+ */
+static bool brcms_c_chspec_malformed(u16 chanspec)
+{
+	/* must be 2G or 5G band */
+	if (!CHSPEC_IS5G(chanspec) && !CHSPEC_IS2G(chanspec))
+		return true;
+	/* must be 20 or 40 bandwidth */
+	if (!CHSPEC_IS40(chanspec) && !CHSPEC_IS20(chanspec))
+		return true;
+
+	/* 20MHZ b/w must have no ctl sb, 40 must have a ctl sb */
+	if (CHSPEC_IS20(chanspec)) {
+		if (!CHSPEC_SB_NONE(chanspec))
+			return true;
+	} else if (!CHSPEC_SB_UPPER(chanspec) && !CHSPEC_SB_LOWER(chanspec)) {
+		return true;
+	}
+
+	return false;
+}
+
+/*
  * Validate the chanspec for this locale, for 40MHZ we need to also
  * check that the sidebands are valid 20MZH channels in this locale
  * and they are also a legal HT combination
@@ -1497,7 +1523,7 @@ brcms_c_valid_chanspec_ext(struct brcms_cm_info *wlc_cm, u16 chspec,
 	u8 channel = CHSPEC_CHANNEL(chspec);
 
 	/* check the chanspec */
-	if (brcmu_chspec_malformed(chspec)) {
+	if (brcms_c_chspec_malformed(chspec)) {
 		wiphy_err(wlc->wiphy, "wl%d: malformed chanspec 0x%x\n",
 			wlc->pub->unit, chspec);
 		return false;
