@@ -791,4 +791,7 @@ union dwc3_event {
 int dwc3_host_init(struct dwc3 *dwc);
 void dwc3_host_exit(struct dwc3 *dwc);
 
+int dwc3_gadget_init(struct dwc3 *dwc);
+void dwc3_gadget_exit(struct dwc3 *dwc);
+
 #endif /* __DRIVERS_USB_DWC3_CORE_H */

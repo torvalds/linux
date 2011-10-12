@@ -110,9 +110,6 @@ static inline void dwc3_gadget_move_request_queued(struct dwc3_request *req)
 	list_move_tail(&req->list, &dep->req_queued);
 }
 
-int dwc3_gadget_init(struct dwc3 *dwc);
-void dwc3_gadget_exit(struct dwc3 *dwc);
-
 void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 		int status);
 
