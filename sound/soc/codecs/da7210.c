@@ -105,12 +105,17 @@
 
 /* DAI_CFG1 bit fields */
 #define DA7210_DAI_WORD_S16_LE		(0 << 0)
+#define DA7210_DAI_WORD_S20_3LE		(1 << 0)
 #define DA7210_DAI_WORD_S24_LE		(2 << 0)
+#define DA7210_DAI_WORD_S32_LE		(3 << 0)
 #define DA7210_DAI_FLEN_64BIT		(1 << 2)
+#define DA7210_DAI_MODE_SLAVE		(0 << 7)
 #define DA7210_DAI_MODE_MASTER		(1 << 7)
 
 /* DAI_CFG3 bit fields */
 #define DA7210_DAI_FORMAT_I2SMODE	(0 << 0)
+#define DA7210_DAI_FORMAT_LEFT_J	(1 << 0)
+#define DA7210_DAI_FORMAT_RIGHT_J	(2 << 0)
 #define DA7210_DAI_OE			(1 << 3)
 #define DA7210_DAI_EN			(1 << 7)
 
@@ -247,8 +252,14 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		dai_cfg1 |= DA7210_DAI_WORD_S16_LE;
 		break;
+	case SNDRV_PCM_FORMAT_S20_3LE:
+		dai_cfg1 |= DA7210_DAI_WORD_S20_3LE;
+		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		dai_cfg1 |= DA7210_DAI_WORD_S24_LE;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		dai_cfg1 |= DA7210_DAI_WORD_S32_LE;
 		break;
 	default:
 		return -EINVAL;
@@ -354,6 +365,9 @@ static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 	case SND_SOC_DAIFMT_CBM_CFM:
 		dai_cfg1 |= DA7210_DAI_MODE_MASTER;
 		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		dai_cfg1 |= DA7210_DAI_MODE_SLAVE;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -365,6 +379,12 @@ static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		dai_cfg3 |= DA7210_DAI_FORMAT_I2SMODE;
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		dai_cfg3 |= DA7210_DAI_FORMAT_LEFT_J;
+		break;
+	case SND_SOC_DAIFMT_RIGHT_J:
+		dai_cfg3 |= DA7210_DAI_FORMAT_RIGHT_J;
 		break;
 	default:
 		return -EINVAL;
@@ -382,7 +402,8 @@ static int da7210_set_dai_fmt(struct snd_soc_dai *codec_dai, u32 fmt)
 	return 0;
 }
 
-#define DA7210_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
+#define DA7210_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 /* DAI operations */
 static struct snd_soc_dai_ops da7210_dai_ops = {
