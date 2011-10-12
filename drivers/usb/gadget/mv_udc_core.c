@@ -1385,6 +1385,13 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 	req->req.complete = NULL;
 	req->dtd_count = 0;
 
+	if (req->req.dma == DMA_ADDR_INVALID) {
+		req->req.dma = dma_map_single(ep->udc->gadget.dev.parent,
+				req->req.buf, req->req.length,
+				ep_dir(ep) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		req->mapped = 1;
+	}
+
 	/* prime the data phase */
 	if (!req_to_dtd(req))
 		retval = queue_dtd(ep, req);
@@ -2115,7 +2122,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 
 	/* allocate a small amount of memory to get valid address */
 	udc->status_req->req.buf = kzalloc(8, GFP_KERNEL);
-	udc->status_req->req.dma = virt_to_phys(udc->status_req->req.buf);
+	udc->status_req->req.dma = DMA_ADDR_INVALID;
 
 	udc->resume_state = USB_STATE_NOTATTACHED;
 	udc->usb_state = USB_STATE_POWERED;
