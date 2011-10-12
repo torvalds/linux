@@ -243,6 +243,7 @@ void __init mpc85xx_smp_init(void)
 		 * If left NULL, .message_pass defaults to
 		 * smp_muxed_ipi_message_pass
 		 */
+		smp_85xx_ops.message_pass = NULL;
 		smp_85xx_ops.cause_ipi = doorbell_cause_ipi;
 	}
 
