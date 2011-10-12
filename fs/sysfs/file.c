@@ -466,9 +466,6 @@ void sysfs_notify(struct kobject *k, const char *dir, const char *attr)
 	mutex_lock(&sysfs_mutex);
 
 	if (sd && dir)
-		/* Only directories are tagged, so no need to pass
-		 * a tag explicitly.
-		 */
 		sd = sysfs_find_dirent(sd, NULL, dir);
 	if (sd && attr)
 		sd = sysfs_find_dirent(sd, NULL, attr);

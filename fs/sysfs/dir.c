@@ -384,6 +384,13 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
 	struct sysfs_inode_attrs *ps_iattr;
 
+	if (!!sysfs_ns_type(acxt->parent_sd) != !!sd->s_ns) {
+		WARN(1, KERN_WARNING "sysfs: ns %s in '%s' for '%s'\n",
+			sysfs_ns_type(acxt->parent_sd)? "required": "invalid",
+			acxt->parent_sd->s_name, sd->s_name);
+		return -EINVAL;
+	}
+
 	if (sysfs_find_dirent(acxt->parent_sd, sd->s_ns, sd->s_name))
 		return -EEXIST;
 
@@ -541,6 +548,13 @@ struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
 				       const unsigned char *name)
 {
 	struct sysfs_dirent *sd;
+
+	if (!!sysfs_ns_type(parent_sd) != !!ns) {
+		WARN(1, KERN_WARNING "sysfs: ns %s in '%s' for '%s'\n",
+			sysfs_ns_type(parent_sd)? "required": "invalid",
+			parent_sd->s_name, name);
+		return NULL;
+	}
 
 	for (sd = parent_sd->s_dir.children; sd; sd = sd->s_sibling) {
 		if (sd->s_ns != ns)
