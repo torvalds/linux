@@ -497,6 +497,7 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	u16 max = 0;
 	u32 bit_pos, epctrlx, direction;
 	unsigned char zlt = 0, ios = 0, mult = 0;
+	unsigned long flags;
 
 	ep = container_of(_ep, struct mv_ep, ep);
 	udc = ep->udc;
@@ -516,9 +517,6 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	 * driver handles zero length packet through req->req.zero
 	 */
 	zlt = 1;
-
-	/* Get the endpoint queue head address */
-	dqh = (struct mv_dqh *)ep->dqh;
 
 	bit_pos = 1 << ((direction == EP_DIR_OUT ? 0 : 16) + ep->ep_num);
 
@@ -556,6 +554,10 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	default:
 		goto en_done;
 	}
+
+	spin_lock_irqsave(&udc->lock, flags);
+	/* Get the endpoint queue head address */
+	dqh = ep->dqh;
 	dqh->max_packet_length = (max << EP_QUEUE_HEAD_MAX_PKT_LEN_POS)
 		| (mult << EP_QUEUE_HEAD_MULT_POS)
 		| (zlt ? EP_QUEUE_HEAD_ZLT_SEL : 0)
@@ -600,6 +602,8 @@ static int mv_ep_enable(struct usb_ep *_ep,
 		writel(epctrlx, &udc->op_regs->epctrlx[ep->ep_num]);
 	}
 
+	spin_unlock_irqrestore(&udc->lock, flags);
+
 	return 0;
 en_done:
 	return -EINVAL;
@@ -611,6 +615,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	struct mv_ep *ep;
 	struct mv_dqh *dqh;
 	u32 bit_pos, epctrlx, direction;
+	unsigned long flags;
 
 	ep = container_of(_ep, struct mv_ep, ep);
 	if ((_ep == NULL) || !ep->desc)
@@ -620,6 +625,8 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 
 	/* Get the endpoint queue head address */
 	dqh = ep->dqh;
+
+	spin_lock_irqsave(&udc->lock, flags);
 
 	direction = ep_dir(ep);
 	bit_pos = 1 << ((direction == EP_DIR_OUT ? 0 : 16) + ep->ep_num);
@@ -639,6 +646,9 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 
 	ep->desc = NULL;
 	ep->stopped = 1;
+
+	spin_unlock_irqrestore(&udc->lock, flags);
+
 	return 0;
 }
 
