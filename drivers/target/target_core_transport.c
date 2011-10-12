@@ -3958,17 +3958,6 @@ static int transport_allocate_data_tasks(
 		task->task_sectors = min(sectors, dev_max_sectors);
 		task->task_size = task->task_sectors * sector_size;
 
-		if (dev->transport->get_cdb) {
-			unsigned char *cdb = dev->transport->get_cdb(task);
-
-			memcpy(cdb, cmd->t_task_cdb,
-			       scsi_command_size(cmd->t_task_cdb));
-
-			/* Update new cdb with updated lba/sectors */
-			cmd->transport_split_cdb(task->task_lba,
-						 task->task_sectors, cdb);
-		}
-
 		/*
 		 * This now assumes that passed sg_ents are in PAGE_SIZE chunks
 		 * in order to calculate the number per task SGL entries
@@ -4022,19 +4011,12 @@ static int transport_allocate_data_tasks(
 static int
 transport_allocate_control_task(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
 	struct se_task *task;
 	unsigned long flags;
 
 	task = transport_generic_get_task(cmd, cmd->data_direction);
 	if (!task)
 		return -ENOMEM;
-
-	if (dev->transport->get_cdb) {
-		unsigned char *cdb = dev->transport->get_cdb(task);
-
-		memcpy(cdb, cmd->t_task_cdb, scsi_command_size(cmd->t_task_cdb));
-	}
 
 	task->task_sg = kmalloc(sizeof(struct scatterlist) * cmd->t_data_nents,
 				GFP_KERNEL);

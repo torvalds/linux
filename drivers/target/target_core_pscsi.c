@@ -1068,6 +1068,8 @@ static int pscsi_do_task(struct se_task *task)
 	struct bio *hbio;
 	int ret;
 
+	target_get_task_cdb(task, pt->pscsi_cdb);
+
 	if (task->task_se_cmd->se_cmd_flags & SCF_SCSI_NON_DATA_CDB) {
 		req = blk_get_request(pdv->pdv_sd->request_queue,
 				(task->task_data_direction == DMA_TO_DEVICE),
@@ -1148,18 +1150,6 @@ fail:
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
 	return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
-}
-
-
-/*	pscsi_get_cdb():
- *
- *
- */
-static unsigned char *pscsi_get_cdb(struct se_task *task)
-{
-	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
-
-	return pt->pscsi_cdb;
 }
 
 /*	pscsi_get_sense_buffer():
@@ -1276,7 +1266,6 @@ static struct se_subsystem_api pscsi_template = {
 	.check_configfs_dev_params = pscsi_check_configfs_dev_params,
 	.set_configfs_dev_params = pscsi_set_configfs_dev_params,
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,
-	.get_cdb		= pscsi_get_cdb,
 	.get_sense_buffer	= pscsi_get_sense_buffer,
 	.get_device_rev		= pscsi_get_device_rev,
 	.get_device_type	= pscsi_get_device_type,

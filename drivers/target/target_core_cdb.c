@@ -1265,3 +1265,19 @@ transport_emulate_control_cdb(struct se_task *task)
 
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
+
+/*
+ * Write a CDB into @cdb that is based on the one the intiator sent us,
+ * but updated to only cover the sectors that the current task handles.
+ */
+void target_get_task_cdb(struct se_task *task, unsigned char *cdb)
+{
+	struct se_cmd *cmd = task->task_se_cmd;
+
+	memcpy(cdb, cmd->t_task_cdb, scsi_command_size(cmd->t_task_cdb));
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+		cmd->transport_split_cdb(task->task_lba, task->task_sectors,
+					 cdb);
+	}
+}
+EXPORT_SYMBOL(target_get_task_cdb);

@@ -190,6 +190,7 @@ extern int transport_generic_do_tmr(struct se_cmd *);
 extern int core_alua_check_nonop_delay(struct se_cmd *);
 /* From target_core_cdb.c */
 extern int transport_emulate_control_cdb(struct se_task *);
+extern void target_get_task_cdb(struct se_task *task, unsigned char *cdb);
 
 /*
  * Each se_transport_task_t can have N number of possible struct se_task's
@@ -308,10 +309,6 @@ struct se_subsystem_api {
 	 */
 	ssize_t (*show_configfs_dev_params)(struct se_hba *, struct se_subsystem_dev *,
 						char *);
-	/*
-	 * get_cdb():
-	 */
-	unsigned char *(*get_cdb)(struct se_task *);
 	/*
 	 * get_device_rev():
 	 */
