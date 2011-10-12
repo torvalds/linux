@@ -2037,6 +2037,13 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 			& CAPLENGTH_MASK));
 	udc->max_eps = readl(&udc->cap_regs->dccparams) & DCCPARAMS_DEN_MASK;
 
+	/*
+	 * some platform will use usb to download image, it may not disconnect
+	 * usb gadget before loading kernel. So first stop udc here.
+	 */
+	udc_stop(udc);
+	writel(0xFFFFFFFF, &udc->op_regs->usbsts);
+
 	size = udc->max_eps * sizeof(struct mv_dqh) *2;
 	size = (size + DQH_ALIGNMENT - 1) & ~(DQH_ALIGNMENT - 1);
 	udc->ep_dqh = dma_alloc_coherent(&dev->dev, size,
