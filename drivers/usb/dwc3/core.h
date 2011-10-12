@@ -41,6 +41,7 @@
 
 #include <linux/device.h>
 #include <linux/spinlock.h>
+#include <linux/ioport.h>
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
@@ -560,6 +561,7 @@ struct dwc3_hwparams {
  * @ep0_bounce_addr: dma address of ep0_bounce
  * @lock: for synchronizing
  * @dev: pointer to our struct device
+ * @xhci: pointer to our xHCI child
  * @event_buffer_list: a list of event buffers
  * @gadget: device side representation of the peripheral controller
  * @gadget_driver: pointer to the gadget driver
@@ -597,6 +599,9 @@ struct dwc3 {
 	/* device lock */
 	spinlock_t		lock;
 	struct device		*dev;
+
+	struct platform_device	*xhci;
+	struct resource		*res;
 
 	struct dwc3_event_buffer *ev_buffs[DWC3_EVENT_BUFFERS_MAX];
 	struct dwc3_ep		*eps[DWC3_ENDPOINTS_NUM];
@@ -781,5 +786,9 @@ union dwc3_event {
 #define DWC3_HAS_PERIPHERAL		BIT(0)
 #define DWC3_HAS_XHCI			BIT(1)
 #define DWC3_HAS_OTG			BIT(3)
+
+/* prototypes */
+int dwc3_host_init(struct dwc3 *dwc);
+void dwc3_host_exit(struct dwc3 *dwc);
 
 #endif /* __DRIVERS_USB_DWC3_CORE_H */
