@@ -186,17 +186,9 @@ extern void brcmu_prpkt(const char *msg, struct sk_buff *p0);
 #define brcmu_prpkt(a, b)
 #endif				/* BCMDBG */
 
-/* brcmu_format_flags() bit description structure */
-struct brcmu_bit_desc {
-	u32 bit;
-	const char *name;
-};
-
 /* externs */
 /* format/print */
 #if defined(BCMDBG)
-extern int brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags,
-			      char *buf, int len);
 extern int brcmu_format_hex(char *str, const void *bytes, int len);
 #endif
 

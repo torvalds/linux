@@ -365,61 +365,6 @@ EXPORT_SYMBOL(brcmu_prpkt);
 #endif				/* defined(BCMDBG) */
 
 #if defined(BCMDBG)
-int
-brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags, char *buf,
-		   int len)
-{
-	int i;
-	char *p = buf;
-	char hexstr[16];
-	int slen = 0, nlen = 0;
-	u32 bit;
-	const char *name;
-
-	if (len < 2 || !buf)
-		return 0;
-
-	buf[0] = '\0';
-
-	for (i = 0; flags != 0; i++) {
-		bit = bd[i].bit;
-		name = bd[i].name;
-		if (bit == 0 && flags != 0) {
-			/* print any unnamed bits */
-			snprintf(hexstr, 16, "0x%X", flags);
-			name = hexstr;
-			flags = 0;	/* exit loop */
-		} else if ((flags & bit) == 0)
-			continue;
-		flags &= ~bit;
-		nlen = strlen(name);
-		slen += nlen;
-		/* count btwn flag space */
-		if (flags != 0)
-			slen += 1;
-		/* need NULL char as well */
-		if (len <= slen)
-			break;
-		/* copy NULL char but don't count it */
-		strncpy(p, name, nlen + 1);
-		p += nlen;
-		/* copy btwn flag space and NULL char */
-		if (flags != 0)
-			p += snprintf(p, 2, " ");
-		len -= slen;
-	}
-
-	/* indicate the str was too short */
-	if (flags != 0) {
-		if (len < 2)
-			p -= 2 - len;	/* overwrite last char */
-		p += snprintf(p, 2, ">");
-	}
-
-	return (int)(p - buf);
-}
-EXPORT_SYMBOL(brcmu_format_flags);
-
 /*
  * print bytes formatted as hex to a string. return the resulting
  * string length
