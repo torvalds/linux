@@ -559,6 +559,7 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 static int brcmf_toe_get(struct brcmf_info *drvr_priv, int ifidx, u32 *toe_ol)
 {
 	struct brcmf_dcmd dcmd;
+	__le32 toe_le;
 	char buf[32];
 	int ret;
 
@@ -584,7 +585,8 @@ static int brcmf_toe_get(struct brcmf_info *drvr_priv, int ifidx, u32 *toe_ol)
 		return ret;
 	}
 
-	memcpy(toe_ol, buf, sizeof(u32));
+	memcpy(&toe_le, buf, sizeof(u32));
+	*toe_ol = le32_to_cpu(toe_le);
 	return 0;
 }
 
@@ -594,7 +596,8 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 {
 	struct brcmf_dcmd dcmd;
 	char buf[32];
-	int toe, ret;
+	int ret;
+	__le32 toe_le = cpu_to_le32(toe_ol);
 
 	memset(&dcmd, 0, sizeof(dcmd));
 
@@ -604,9 +607,8 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 	dcmd.set = true;
 
 	/* Set toe_ol as requested */
-
 	strcpy(buf, "toe_ol");
-	memcpy(&buf[sizeof("toe_ol")], &toe_ol, sizeof(u32));
+	memcpy(&buf[sizeof("toe_ol")], &toe_le, sizeof(u32));
 
 	ret = brcmf_proto_dcmd(&drvr_priv->pub, ifidx, &dcmd, dcmd.len);
 	if (ret < 0) {
@@ -616,11 +618,10 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 	}
 
 	/* Enable toe globally only if any components are enabled. */
-
-	toe = (toe_ol != 0);
+	toe_le = cpu_to_le32(toe_ol != 0);
 
 	strcpy(buf, "toe");
-	memcpy(&buf[sizeof("toe")], &toe, sizeof(u32));
+	memcpy(&buf[sizeof("toe")], &toe_le, sizeof(u32));
 
 	ret = brcmf_proto_dcmd(&drvr_priv->pub, ifidx, &dcmd, dcmd.len);
 	if (ret < 0) {
