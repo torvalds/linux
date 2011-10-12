@@ -72,9 +72,13 @@ enum transport_tpg_type_table {
 };
 
 /* Used for generate timer flags */
-enum timer_flags_table {
-	TF_RUNNING	= 0x01,
-	TF_STOP		= 0x02,
+enum se_task_flags {
+	TF_ACTIVE		= (1 << 0),
+	TF_SENT			= (1 << 1),
+	TF_TIMEOUT		= (1 << 2),
+	TF_REQUEST_STOP		= (1 << 3),
+	TF_TIMER_RUNNING	= (1 << 4),
+	TF_TIMER_STOP		= (1 << 5),
 };
 
 /* Special transport agnostic struct se_cmd->t_states */
@@ -413,11 +417,7 @@ struct se_task {
 	enum dma_data_direction	task_data_direction;
 	struct se_cmd *task_se_cmd;
 	struct completion	task_stop_comp;
-	atomic_t	task_active;
 	atomic_t	task_execute_queue;
-	atomic_t	task_timeout;
-	atomic_t	task_sent;
-	atomic_t	task_stop;
 	atomic_t	task_state_active;
 	struct timer_list	task_timer;
 	struct list_head t_list;

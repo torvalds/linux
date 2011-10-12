@@ -259,8 +259,8 @@ static void core_tmr_drain_task_list(
 			atomic_read(&cmd->t_transport_stop),
 			atomic_read(&cmd->t_transport_sent));
 
-		if (atomic_read(&task->task_active)) {
-			atomic_set(&task->task_stop, 1);
+		if (task->task_flags & TF_ACTIVE) {
+			task->task_flags |= TF_REQUEST_STOP;
 			spin_unlock_irqrestore(
 				&cmd->t_state_lock, flags);
 
@@ -269,11 +269,10 @@ static void core_tmr_drain_task_list(
 			wait_for_completion(&task->task_stop_comp);
 			pr_debug("LUN_RESET Completed task: %p shutdown for"
 				" dev: %p\n", task, dev);
+
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
 			atomic_dec(&cmd->t_task_cdbs_left);
-
-			atomic_set(&task->task_active, 0);
-			atomic_set(&task->task_stop, 0);
+			task->task_flags &= ~(TF_ACTIVE | TF_REQUEST_STOP);
 		}
 		__transport_stop_task_timer(task, &flags);
 

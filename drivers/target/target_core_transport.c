@@ -440,7 +440,7 @@ static void transport_all_task_dev_remove_state(struct se_cmd *cmd)
 		return;
 
 	list_for_each_entry(task, &cmd->t_task_list, t_list) {
-		if (atomic_read(&task->task_active))
+		if (task->task_flags & TF_ACTIVE)
 			continue;
 
 		if (!atomic_read(&task->task_state_active))
@@ -718,7 +718,7 @@ void transport_complete_task(struct se_task *task, int success)
 		atomic_inc(&dev->depth_left);
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	atomic_set(&task->task_active, 0);
+	task->task_flags &= ~TF_ACTIVE;
 
 	/*
 	 * See if any sense data exists, if so set the TASK_SENSE flag.
@@ -737,14 +737,14 @@ void transport_complete_task(struct se_task *task, int success)
 	 * See if we are waiting for outstanding struct se_task
 	 * to complete for an exception condition
 	 */
-	if (atomic_read(&task->task_stop)) {
+	if (task->task_flags & TF_REQUEST_STOP) {
 		/*
 		 * Decrement cmd->t_se_count if this task had
 		 * previously thrown its timeout exception handler.
 		 */
-		if (atomic_read(&task->task_timeout)) {
+		if (task->task_flags & TF_TIMEOUT) {
 			atomic_dec(&cmd->t_se_count);
-			atomic_set(&task->task_timeout, 0);
+			task->task_flags &= ~TF_TIMEOUT;
 		}
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -756,7 +756,7 @@ void transport_complete_task(struct se_task *task, int success)
 	 * left counter to determine when the struct se_cmd is ready to be queued to
 	 * the processing thread.
 	 */
-	if (atomic_read(&task->task_timeout)) {
+	if (task->task_flags & TF_TIMEOUT) {
 		if (!atomic_dec_and_test(
 				&cmd->t_task_cdbs_timeout_left)) {
 			spin_unlock_irqrestore(&cmd->t_state_lock,
@@ -1793,8 +1793,7 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 		 * If the struct se_task has not been sent and is not active,
 		 * remove the struct se_task from the execution queue.
 		 */
-		if (!atomic_read(&task->task_sent) &&
-		    !atomic_read(&task->task_active)) {
+		if (!(task->task_flags & (TF_ACTIVE | TF_SENT))) {
 			spin_unlock_irqrestore(&cmd->t_state_lock,
 					flags);
 			transport_remove_task_from_execute_queue(task,
@@ -1810,8 +1809,8 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 		 * If the struct se_task is active, sleep until it is returned
 		 * from the plugin.
 		 */
-		if (atomic_read(&task->task_active)) {
-			atomic_set(&task->task_stop, 1);
+		if (task->task_flags & TF_ACTIVE) {
+			task->task_flags |= TF_REQUEST_STOP;
 			spin_unlock_irqrestore(&cmd->t_state_lock,
 					flags);
 
@@ -1823,9 +1822,7 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
 			atomic_dec(&cmd->t_task_cdbs_left);
-
-			atomic_set(&task->task_active, 0);
-			atomic_set(&task->task_stop, 0);
+			task->task_flags &= ~(TF_ACTIVE | TF_REQUEST_STOP);
 		} else {
 			pr_debug("task_no[%d] - Did nothing\n", task->task_no);
 			ret++;
@@ -2074,18 +2071,18 @@ static void transport_task_timeout_handler(unsigned long data)
 	pr_debug("transport task timeout fired! task: %p cmd: %p\n", task, cmd);
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (task->task_flags & TF_STOP) {
+	if (task->task_flags & TF_TIMER_STOP) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return;
 	}
-	task->task_flags &= ~TF_RUNNING;
+	task->task_flags &= ~TF_TIMER_RUNNING;
 
 	/*
 	 * Determine if transport_complete_task() has already been called.
 	 */
-	if (!atomic_read(&task->task_active)) {
-		pr_debug("transport task: %p cmd: %p timeout task_active"
-				" == 0\n", task, cmd);
+	if (!(task->task_flags & TF_ACTIVE)) {
+		pr_debug("transport task: %p cmd: %p timeout !TF_ACTIVE\n",
+			 task, cmd);
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return;
 	}
@@ -2094,12 +2091,12 @@ static void transport_task_timeout_handler(unsigned long data)
 	atomic_inc(&cmd->t_transport_timeout);
 	cmd->t_tasks_failed = 1;
 
-	atomic_set(&task->task_timeout, 1);
+	task->task_flags |= TF_TIMEOUT;
 	task->task_error_status = PYX_TRANSPORT_TASK_TIMEOUT;
 	task->task_scsi_status = 1;
 
-	if (atomic_read(&task->task_stop)) {
-		pr_debug("transport task: %p cmd: %p timeout task_stop"
+	if (task->task_flags & TF_REQUEST_STOP) {
+		pr_debug("transport task: %p cmd: %p timeout TF_REQUEST_STOP"
 				" == 1\n", task, cmd);
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		complete(&task->task_stop_comp);
@@ -2129,7 +2126,7 @@ static void transport_start_task_timer(struct se_task *task)
 	struct se_device *dev = task->task_se_cmd->se_dev;
 	int timeout;
 
-	if (task->task_flags & TF_RUNNING)
+	if (task->task_flags & TF_TIMER_RUNNING)
 		return;
 	/*
 	 * If the task_timeout is disabled, exit now.
@@ -2143,7 +2140,7 @@ static void transport_start_task_timer(struct se_task *task)
 	task->task_timer.data = (unsigned long) task;
 	task->task_timer.function = transport_task_timeout_handler;
 
-	task->task_flags |= TF_RUNNING;
+	task->task_flags |= TF_TIMER_RUNNING;
 	add_timer(&task->task_timer);
 #if 0
 	pr_debug("Starting task timer for cmd: %p task: %p seconds:"
@@ -2158,17 +2155,17 @@ void __transport_stop_task_timer(struct se_task *task, unsigned long *flags)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 
-	if (!task->task_flags & TF_RUNNING)
+	if (!(task->task_flags & TF_TIMER_RUNNING))
 		return;
 
-	task->task_flags |= TF_STOP;
+	task->task_flags |= TF_TIMER_STOP;
 	spin_unlock_irqrestore(&cmd->t_state_lock, *flags);
 
 	del_timer_sync(&task->task_timer);
 
 	spin_lock_irqsave(&cmd->t_state_lock, *flags);
-	task->task_flags &= ~TF_RUNNING;
-	task->task_flags &= ~TF_STOP;
+	task->task_flags &= ~TF_TIMER_RUNNING;
+	task->task_flags &= ~TF_TIMER_STOP;
 }
 
 static void transport_stop_all_task_timers(struct se_cmd *cmd)
@@ -2360,8 +2357,7 @@ check_depth:
 	cmd = task->task_se_cmd;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	atomic_set(&task->task_active, 1);
-	atomic_set(&task->task_sent, 1);
+	task->task_flags |= (TF_ACTIVE | TF_SENT);
 	atomic_inc(&cmd->t_task_cdbs_sent);
 
 	if (atomic_read(&cmd->t_task_cdbs_sent) ==
@@ -2379,7 +2375,9 @@ check_depth:
 		error = cmd->transport_emulate_cdb(cmd);
 		if (error != 0) {
 			cmd->transport_error_status = error;
-			atomic_set(&task->task_active, 0);
+			spin_lock_irqsave(&cmd->t_state_lock, flags);
+			task->task_flags &= ~TF_ACTIVE;
+			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 			atomic_set(&cmd->transport_sent, 0);
 			transport_stop_tasks_for_cmd(cmd);
 			transport_generic_request_failure(cmd, dev, 0, 1);
@@ -2415,7 +2413,9 @@ check_depth:
 
 		if (error != 0) {
 			cmd->transport_error_status = error;
-			atomic_set(&task->task_active, 0);
+			spin_lock_irqsave(&cmd->t_state_lock, flags);
+			task->task_flags &= ~TF_ACTIVE;
+			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 			atomic_set(&cmd->transport_sent, 0);
 			transport_stop_tasks_for_cmd(cmd);
 			transport_generic_request_failure(cmd, dev, 0, 1);
@@ -3613,7 +3613,7 @@ static void transport_free_dev_tasks(struct se_cmd *cmd)
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	list_for_each_entry_safe(task, task_tmp,
 				&cmd->t_task_list, t_list) {
-		if (atomic_read(&task->task_active))
+		if (task->task_flags & TF_ACTIVE)
 			continue;
 
 		kfree(task->task_sg_bidi);
