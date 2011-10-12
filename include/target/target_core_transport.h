@@ -45,9 +45,6 @@
 #define TRANSPORT_TIMEOUT_TYPE_TAPE		600
 #define TRANSPORT_TIMEOUT_TYPE_OTHER		300
 
-/* For se_task->task_state_flags */
-#define TSF_EXCEPTION_CLEARED			0x01
-
 /*
  * struct se_subsystem_dev->su_dev_flags
 */

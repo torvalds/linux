@@ -499,7 +499,7 @@ static ssize_t iblock_show_configfs_dev_params(
 static void iblock_bio_destructor(struct bio *bio)
 {
 	struct se_task *task = bio->bi_private;
-	struct iblock_dev *ib_dev = task->se_dev->dev_ptr;
+	struct iblock_dev *ib_dev = task->task_se_cmd->se_dev->dev_ptr;
 
 	bio_free(bio, ib_dev->ibd_bio_set);
 }
@@ -507,7 +507,7 @@ static void iblock_bio_destructor(struct bio *bio)
 static struct bio *
 iblock_get_bio(struct se_task *task, sector_t lba, u32 sg_num)
 {
-	struct iblock_dev *ib_dev = task->se_dev->dev_ptr;
+	struct iblock_dev *ib_dev = task->task_se_cmd->se_dev->dev_ptr;
 	struct iblock_req *ib_req = IBLOCK_REQ(task);
 	struct bio *bio;
 

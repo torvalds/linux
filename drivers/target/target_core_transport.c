@@ -432,15 +432,14 @@ EXPORT_SYMBOL(transport_deregister_session);
  */
 static void transport_all_task_dev_remove_state(struct se_cmd *cmd)
 {
-	struct se_device *dev;
+	struct se_device *dev = cmd->se_dev;
 	struct se_task *task;
 	unsigned long flags;
 
-	list_for_each_entry(task, &cmd->t_task_list, t_list) {
-		dev = task->se_dev;
-		if (!dev)
-			continue;
+	if (!dev)
+		return;
 
+	list_for_each_entry(task, &cmd->t_task_list, t_list) {
 		if (atomic_read(&task->task_active))
 			continue;
 
@@ -708,7 +707,7 @@ EXPORT_SYMBOL(transport_complete_sync_cache);
 void transport_complete_task(struct se_task *task, int success)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
-	struct se_device *dev = task->se_dev;
+	struct se_device *dev = cmd->se_dev;
 	int t_state;
 	unsigned long flags;
 #if 0
@@ -886,14 +885,12 @@ static void __transport_add_task_to_execute_queue(
 
 static void transport_add_tasks_to_state_queue(struct se_cmd *cmd)
 {
-	struct se_device *dev;
+	struct se_device *dev = cmd->se_dev;
 	struct se_task *task;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	list_for_each_entry(task, &cmd->t_task_list, t_list) {
-		dev = task->se_dev;
-
 		if (atomic_read(&task->task_state_active))
 			continue;
 
@@ -1522,7 +1519,6 @@ transport_generic_get_task(struct se_cmd *cmd,
 	INIT_LIST_HEAD(&task->t_state_list);
 	init_completion(&task->task_stop_comp);
 	task->task_se_cmd = cmd;
-	task->se_dev = dev;
 	task->task_data_direction = data_direction;
 
 	return task;
@@ -1802,7 +1798,7 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 			spin_unlock_irqrestore(&cmd->t_state_lock,
 					flags);
 			transport_remove_task_from_execute_queue(task,
-					task->se_dev);
+					cmd->se_dev);
 
 			pr_debug("task_no[%d] - Removed from execute queue\n",
 				task->task_no);
@@ -2130,7 +2126,7 @@ static void transport_task_timeout_handler(unsigned long data)
  */
 static void transport_start_task_timer(struct se_task *task)
 {
-	struct se_device *dev = task->se_dev;
+	struct se_device *dev = task->task_se_cmd->se_dev;
 	int timeout;
 
 	if (task->task_flags & TF_RUNNING)
@@ -2656,12 +2652,15 @@ out:
 static int transport_get_sense_data(struct se_cmd *cmd)
 {
 	unsigned char *buffer = cmd->sense_buffer, *sense_buffer = NULL;
-	struct se_device *dev;
+	struct se_device *dev = cmd->se_dev;
 	struct se_task *task = NULL, *task_tmp;
 	unsigned long flags;
 	u32 offset = 0;
 
 	WARN_ON(!cmd->se_lun);
+
+	if (!dev)
+		return 0;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {
@@ -2671,12 +2670,7 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 
 	list_for_each_entry_safe(task, task_tmp,
 				&cmd->t_task_list, t_list) {
-
 		if (!task->task_sense)
-			continue;
-
-		dev = task->se_dev;
-		if (!dev)
 			continue;
 
 		if (!dev->transport->get_sense_buffer) {
@@ -3628,11 +3622,7 @@ static void transport_free_dev_tasks(struct se_cmd *cmd)
 		list_del(&task->t_list);
 
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		if (task->se_dev)
-			task->se_dev->transport->free_task(task);
-		else
-			pr_err("task[%u] - task->se_dev is NULL\n",
-				task->task_no);
+		cmd->se_dev->transport->free_task(task);
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);

@@ -350,7 +350,7 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 static int rd_MEMCPY_read(struct rd_request *req)
 {
 	struct se_task *task = &req->rd_task;
-	struct rd_dev *dev = req->rd_task.se_dev->dev_ptr;
+	struct rd_dev *dev = req->rd_task.task_se_cmd->se_dev->dev_ptr;
 	struct rd_dev_sg_table *table;
 	struct scatterlist *sg_d, *sg_s;
 	void *dst, *src;
@@ -466,7 +466,7 @@ static int rd_MEMCPY_read(struct rd_request *req)
 static int rd_MEMCPY_write(struct rd_request *req)
 {
 	struct se_task *task = &req->rd_task;
-	struct rd_dev *dev = req->rd_task.se_dev->dev_ptr;
+	struct rd_dev *dev = req->rd_task.task_se_cmd->se_dev->dev_ptr;
 	struct rd_dev_sg_table *table;
 	struct scatterlist *sg_d, *sg_s;
 	void *dst, *src;
@@ -581,7 +581,7 @@ static int rd_MEMCPY_write(struct rd_request *req)
  */
 static int rd_MEMCPY_do_task(struct se_task *task)
 {
-	struct se_device *dev = task->se_dev;
+	struct se_device *dev = task->task_se_cmd->se_dev;
 	struct rd_request *req = RD_REQ(task);
 	unsigned long long lba;
 	int ret;

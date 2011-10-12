@@ -272,13 +272,14 @@ fd_alloc_task(unsigned char *cdb)
 static int fd_do_readv(struct se_task *task)
 {
 	struct fd_request *req = FILE_REQ(task);
-	struct fd_dev *dev = req->fd_task.se_dev->dev_ptr;
+	struct se_device *se_dev = req->fd_task.task_se_cmd->se_dev;
+	struct fd_dev *dev = se_dev->dev_ptr;
 	struct file *fd = dev->fd_file;
 	struct scatterlist *sg = task->task_sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
 	loff_t pos = (task->task_lba *
-		      task->se_dev->se_sub_dev->se_dev_attrib.block_size);
+		      se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret = 0, i;
 
 	iov = kzalloc(sizeof(struct iovec) * task->task_sg_nents, GFP_KERNEL);
@@ -324,13 +325,14 @@ static int fd_do_readv(struct se_task *task)
 static int fd_do_writev(struct se_task *task)
 {
 	struct fd_request *req = FILE_REQ(task);
-	struct fd_dev *dev = req->fd_task.se_dev->dev_ptr;
+	struct se_device *se_dev = req->fd_task.task_se_cmd->se_dev;
+	struct fd_dev *dev = se_dev->dev_ptr;
 	struct file *fd = dev->fd_file;
 	struct scatterlist *sg = task->task_sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
 	loff_t pos = (task->task_lba *
-		      task->se_dev->se_sub_dev->se_dev_attrib.block_size);
+		      se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret, i = 0;
 
 	iov = kzalloc(sizeof(struct iovec) * task->task_sg_nents, GFP_KERNEL);

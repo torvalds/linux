@@ -405,7 +405,6 @@ struct se_task {
 	u8		task_scsi_status;
 	u8		task_flags;
 	int		task_error_status;
-	int		task_state_flags;
 	bool		task_padded_sg;
 	unsigned long long	task_lba;
 	u32		task_no;
@@ -413,7 +412,6 @@ struct se_task {
 	u32		task_size;
 	enum dma_data_direction	task_data_direction;
 	struct se_cmd *task_se_cmd;
-	struct se_device	*se_dev;
 	struct completion	task_stop_comp;
 	atomic_t	task_active;
 	atomic_t	task_execute_queue;
@@ -422,7 +420,6 @@ struct se_task {
 	atomic_t	task_stop;
 	atomic_t	task_state_active;
 	struct timer_list	task_timer;
-	struct se_device *se_obj_ptr;
 	struct list_head t_list;
 	struct list_head t_execute_list;
 	struct list_head t_state_list;

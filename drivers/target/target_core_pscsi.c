@@ -676,7 +676,7 @@ static inline struct pscsi_plugin_task *PSCSI_TASK(struct se_task *task)
  */
 static int pscsi_transport_complete(struct se_task *task)
 {
-	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
+	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
 	struct scsi_device *sd = pdv->pdv_sd;
 	int result;
 	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
@@ -962,7 +962,7 @@ static inline struct bio *pscsi_get_bio(int sg_num)
 static int pscsi_map_sg(struct se_task *task, struct scatterlist *task_sg,
 		struct bio **hbio)
 {
-	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
+	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
 	u32 task_sg_num = task->task_sg_nents;
 	struct bio *bio = NULL, *tbio = NULL;
 	struct page *page;
@@ -1062,7 +1062,7 @@ fail:
 
 static int pscsi_do_task(struct se_task *task)
 {
-	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
+	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
 	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
 	struct request *req;
 	struct bio *hbio;
