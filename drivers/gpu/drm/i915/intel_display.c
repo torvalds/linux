@@ -5334,6 +5334,31 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 	I915_WRITE(CURBASE(pipe), base);
 }
 
+static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	bool visible = base != 0;
+
+	if (intel_crtc->cursor_visible != visible) {
+		uint32_t cntl = I915_READ(CURCNTR_IVB(pipe));
+		if (base) {
+			cntl &= ~CURSOR_MODE;
+			cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+		} else {
+			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
+			cntl |= CURSOR_MODE_DISABLE;
+		}
+		I915_WRITE(CURCNTR_IVB(pipe), cntl);
+
+		intel_crtc->cursor_visible = visible;
+	}
+	/* and commit changes on next vblank */
+	I915_WRITE(CURBASE_IVB(pipe), base);
+}
+
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
 static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 				     bool on)
@@ -5381,11 +5406,16 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
-	I915_WRITE(CURPOS(pipe), pos);
-	if (IS_845G(dev) || IS_I865G(dev))
-		i845_update_cursor(crtc, base);
-	else
-		i9xx_update_cursor(crtc, base);
+	if (IS_IVYBRIDGE(dev)) {
+		I915_WRITE(CURPOS_IVB(pipe), pos);
+		ivb_update_cursor(crtc, base);
+	} else {
+		I915_WRITE(CURPOS(pipe), pos);
+		if (IS_845G(dev) || IS_I865G(dev))
+			i845_update_cursor(crtc, base);
+		else
+			i9xx_update_cursor(crtc, base);
+	}
 
 	if (visible)
 		intel_mark_busy(dev, to_intel_framebuffer(crtc->fb)->obj);
