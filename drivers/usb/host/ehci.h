@@ -137,6 +137,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		fs_i_thresh:1;	/* Intel iso scheduling */
 	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
 	unsigned		has_synopsys_hc_bug:1; /* Synopsys HC */
+	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -732,6 +733,22 @@ static inline u32 hc32_to_cpu (const struct ehci_hcd *ehci, const __hc32 x)
 static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 {
 	return le32_to_cpup(x);
+}
+
+#endif
+
+/*-------------------------------------------------------------------------*/
+
+#ifdef CONFIG_PCI
+
+/* For working around the MosChip frame-index-register bug */
+static unsigned ehci_read_frame_index(struct ehci_hcd *ehci);
+
+#else
+
+static inline unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
+{
+	return ehci_readl(ehci, &ehci->regs->frame_index);
 }
 
 #endif

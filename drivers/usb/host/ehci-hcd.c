@@ -1188,8 +1188,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 static int ehci_get_frame (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	return (ehci_readl(ehci, &ehci->regs->frame_index) >> 3) %
-		ehci->periodic_size;
+	return (ehci_read_frame_index(ehci) >> 3) % ehci->periodic_size;
 }
 
 /*-------------------------------------------------------------------------*/
