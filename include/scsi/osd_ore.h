@@ -40,6 +40,7 @@ struct ore_layout {
 	unsigned mirrors_p1;
 
 	unsigned group_width;
+	unsigned parity;
 	u64	 group_depth;
 	unsigned group_count;
 
@@ -89,11 +90,16 @@ static inline void ore_comp_set_dev(
 }
 
 struct ore_striping_info {
+	u64 offset;
 	u64 obj_offset;
-	u64 group_length;
+	u64 length;
+	u64 first_stripe_start; /* only used in raid writes */
 	u64 M; /* for truncate */
+	unsigned bytes_in_stripe;
 	unsigned dev;
+	unsigned par_dev;
 	unsigned unit_off;
+	unsigned cur_comp;
 };
 
 struct ore_io_state;
@@ -127,6 +133,13 @@ struct ore_io_state {
 
 	bool			reading;
 
+	/* House keeping of Parity pages */
+	bool			extra_part_alloc;
+	struct page		**parity_pages;
+	unsigned		max_par_pages;
+	unsigned		cur_par_page;
+	unsigned		sgs_per_dev;
+
 	/* Variable array of size numdevs */
 	unsigned numdevs;
 	struct ore_per_dev_state {
@@ -134,7 +147,10 @@ struct ore_io_state {
 		struct bio *bio;
 		loff_t offset;
 		unsigned length;
+		unsigned last_sgs_total;
 		unsigned dev;
+		struct osd_sg_entry *sglist;
+		unsigned cur_sg;
 	} per_dev[];
 };
 
@@ -147,8 +163,7 @@ static inline unsigned ore_io_state_size(unsigned numdevs)
 /* ore.c */
 int ore_verify_layout(unsigned total_comps, struct ore_layout *layout);
 void ore_calc_stripe_info(struct ore_layout *layout, u64 file_offset,
-			  struct ore_striping_info *si);
-
+			  u64 length, struct ore_striping_info *si);
 int ore_get_rw_state(struct ore_layout *layout, struct ore_components *comps,
 		     bool is_reading, u64 offset, u64 length,
 		     struct ore_io_state **ios);
