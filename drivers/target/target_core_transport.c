@@ -915,38 +915,36 @@ static void transport_add_tasks_from_cmd(struct se_cmd *cmd)
 
 	spin_lock_irqsave(&dev->execute_task_lock, flags);
 	list_for_each_entry(task, &cmd->t_task_list, t_list) {
-		if (atomic_read(&task->task_execute_queue))
+		if (!list_empty(&task->t_execute_list))
 			continue;
 		/*
 		 * __transport_add_task_to_execute_queue() handles the
 		 * SAM Task Attribute emulation if enabled
 		 */
 		__transport_add_task_to_execute_queue(task, task_prev, dev);
-		atomic_set(&task->task_execute_queue, 1);
 		task_prev = task;
 	}
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
-/*	transport_remove_task_from_execute_queue():
- *
- *
- */
+void __transport_remove_task_from_execute_queue(struct se_task *task,
+		struct se_device *dev)
+{
+	list_del_init(&task->t_execute_list);
+	atomic_dec(&dev->execute_tasks);
+}
+
 void transport_remove_task_from_execute_queue(
 	struct se_task *task,
 	struct se_device *dev)
 {
 	unsigned long flags;
 
-	if (atomic_read(&task->task_execute_queue) == 0) {
-		dump_stack();
+	if (WARN_ON(list_empty(&task->t_execute_list)))
 		return;
-	}
 
 	spin_lock_irqsave(&dev->execute_task_lock, flags);
-	list_del(&task->t_execute_list);
-	atomic_set(&task->task_execute_queue, 0);
-	atomic_dec(&dev->execute_tasks);
+	__transport_remove_task_from_execute_queue(task, dev);
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
@@ -1787,8 +1785,7 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	list_for_each_entry_safe(task, task_tmp,
 				&cmd->t_task_list, t_list) {
-		pr_debug("task_no[%d] - Processing task %p\n",
-				task->task_no, task);
+		pr_debug("Processing task %p\n", task);
 		/*
 		 * If the struct se_task has not been sent and is not active,
 		 * remove the struct se_task from the execution queue.
@@ -1799,8 +1796,7 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 			transport_remove_task_from_execute_queue(task,
 					cmd->se_dev);
 
-			pr_debug("task_no[%d] - Removed from execute queue\n",
-				task->task_no);
+			pr_debug("Task %p removed from execute queue\n", task);
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
 			continue;
 		}
@@ -1814,17 +1810,15 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 			spin_unlock_irqrestore(&cmd->t_state_lock,
 					flags);
 
-			pr_debug("task_no[%d] - Waiting to complete\n",
-				task->task_no);
+			pr_debug("Task %p waiting to complete\n", task);
 			wait_for_completion(&task->task_stop_comp);
-			pr_debug("task_no[%d] - Stopped successfully\n",
-				task->task_no);
+			pr_debug("Task %p stopped successfully\n", task);
 
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
 			atomic_dec(&cmd->t_task_cdbs_left);
 			task->task_flags &= ~(TF_ACTIVE | TF_REQUEST_STOP);
 		} else {
-			pr_debug("task_no[%d] - Did nothing\n", task->task_no);
+			pr_debug("Task %p - did nothing\n", task);
 			ret++;
 		}
 
@@ -2347,9 +2341,7 @@ check_depth:
 	}
 	task = list_first_entry(&dev->execute_task_list,
 				struct se_task, t_execute_list);
-	list_del(&task->t_execute_list);
-	atomic_set(&task->task_execute_queue, 0);
-	atomic_dec(&dev->execute_tasks);
+	__transport_remove_task_from_execute_queue(task, dev);
 	spin_unlock_irq(&dev->execute_task_lock);
 
 	atomic_dec(&dev->depth_left);
@@ -2681,9 +2673,9 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 
 		sense_buffer = dev->transport->get_sense_buffer(task);
 		if (!sense_buffer) {
-			pr_err("ITT[0x%08x]_TASK[%d]: Unable to locate"
+			pr_err("ITT[0x%08x]_TASK[%p]: Unable to locate"
 				" sense buffer for task with sense\n",
-				cmd->se_tfo->get_task_tag(cmd), task->task_no);
+				cmd->se_tfo->get_task_tag(cmd), task);
 			continue;
 		}
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -3897,15 +3889,13 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 		/*
 		 * For the padded tasks, use the extra SGL vector allocated
 		 * in transport_allocate_data_tasks() for the sg_prev_nents
-		 * offset into sg_chain() above..  The last task of a
-		 * multi-task list, or a single task will not have
-		 * task->task_sg_padded set..
+		 * offset into sg_chain() above.
+		 *
+		 * We do not need the padding for the last task (or a single
+		 * task), but in that case we will never use the sg_prev_nents
+		 * value below which would be incorrect.
 		 */
-		if (task->task_padded_sg)
-			sg_prev_nents = (task->task_sg_nents + 1);
-		else
-			sg_prev_nents = task->task_sg_nents;
-
+		sg_prev_nents = (task->task_sg_nents + 1);
 		sg_prev = task->task_sg;
 	}
 	/*
@@ -3992,7 +3982,6 @@ static int transport_allocate_data_tasks(
 		 */
 		if (cmd->se_tfo->task_sg_chaining && (i < (task_count - 1))) {
 			task_sg_nents_padded = (task->task_sg_nents + 1);
-			task->task_padded_sg = 1;
 		} else
 			task_sg_nents_padded = task->task_sg_nents;
 

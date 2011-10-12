@@ -226,11 +226,8 @@ static void core_tmr_drain_task_list(
 		/*
 		 * Remove from task execute list before processing drain_task_list
 		 */
-		if (atomic_read(&task->task_execute_queue) != 0) {
-			list_del(&task->t_execute_list);
-			atomic_set(&task->task_execute_queue, 0);
-			atomic_dec(&dev->execute_tasks);
-		}
+		if (!list_empty(&task->t_execute_list))
+			__transport_remove_task_from_execute_queue(task, dev);
 	}
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 
