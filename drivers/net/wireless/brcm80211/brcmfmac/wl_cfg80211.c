@@ -3497,12 +3497,15 @@ dongle_rom_out:
 
 static s32
 brcmf_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
-		s32 scan_unassoc_time, s32 scan_passive_time)
+		      s32 scan_unassoc_time, s32 scan_passive_time)
 {
 	s32 err = 0;
+	__le32 scan_assoc_tm_le = cpu_to_le32(scan_assoc_time);
+	__le32 scan_unassoc_tm_le = cpu_to_le32(scan_unassoc_time);
+	__le32 scan_passive_tm_le = cpu_to_le32(scan_passive_time);
 
 	err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_SCAN_CHANNEL_TIME,
-			   &scan_assoc_time, sizeof(scan_assoc_time));
+			   &scan_assoc_tm_le, sizeof(scan_assoc_tm_le));
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			WL_INFO("Scan assoc time is not supported\n");
@@ -3511,7 +3514,7 @@ brcmf_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
 		goto dongle_scantime_out;
 	}
 	err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_SCAN_UNASSOC_TIME,
-			   &scan_unassoc_time, sizeof(scan_unassoc_time));
+			   &scan_unassoc_tm_le, sizeof(scan_unassoc_tm_le));
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			WL_INFO("Scan unassoc time is not supported\n");
@@ -3521,7 +3524,7 @@ brcmf_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
 	}
 
 	err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_SCAN_PASSIVE_TIME,
-			   &scan_passive_time, sizeof(scan_passive_time));
+			   &scan_passive_tm_le, sizeof(scan_passive_tm_le));
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			WL_INFO("Scan passive time is not supported\n");
