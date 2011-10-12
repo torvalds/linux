@@ -94,7 +94,7 @@ mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
 		skb_trim(cmd_node->cmd_skb, 0);
 
 	if (cmd_node->resp_skb) {
-		dev_kfree_skb_any(cmd_node->resp_skb);
+		adapter->if_ops.cmdrsp_complete(adapter, cmd_node->resp_skb);
 		cmd_node->resp_skb = NULL;
 	}
 }
@@ -176,8 +176,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	skb_push(cmd_node->cmd_skb, INTF_HEADER_LEN);
 
 	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
-					     cmd_node->cmd_skb->data,
-					     cmd_node->cmd_skb->len, NULL);
+					   cmd_node->cmd_skb, NULL);
 
 	skb_pull(cmd_node->cmd_skb, INTF_HEADER_LEN);
 
@@ -238,8 +237,7 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 
 	skb_push(adapter->sleep_cfm, INTF_HEADER_LEN);
 	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
-					     adapter->sleep_cfm->data,
-					     adapter->sleep_cfm->len, NULL);
+					   adapter->sleep_cfm, NULL);
 	skb_pull(adapter->sleep_cfm, INTF_HEADER_LEN);
 
 	if (ret == -1) {
@@ -402,8 +400,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 
 	adapter->event_cause = 0;
 	adapter->event_skb = NULL;
-
-	dev_kfree_skb_any(skb);
+	adapter->if_ops.event_complete(adapter, skb);
 
 	return ret;
 }

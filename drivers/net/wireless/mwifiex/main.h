@@ -37,6 +37,7 @@
 #include "ioctl.h"
 #include "util.h"
 #include "fw.h"
+#include "pcie.h"
 
 extern const char driver_version[];
 
@@ -107,6 +108,8 @@ enum {
 
 #define MAX_FREQUENCY_BAND_BG   2484
 
+#define MWIFIEX_EVENT_HEADER_LEN           4
+
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
 	u32 num_cmd_sleep_cfm_host_to_card_failure;
@@ -154,6 +157,11 @@ enum MWIFIEX_PS_STATE {
 	PS_STATE_PRE_SLEEP,
 	PS_STATE_SLEEP_CFM,
 	PS_STATE_SLEEP
+};
+
+enum mwifiex_iface_type {
+	MWIFIEX_SDIO,
+	MWIFIEX_PCIE,
 };
 
 struct mwifiex_add_ba_param {
@@ -517,27 +525,31 @@ struct cmd_ctrl_node {
 struct mwifiex_if_ops {
 	int (*init_if) (struct mwifiex_adapter *);
 	void (*cleanup_if) (struct mwifiex_adapter *);
-	int (*check_fw_status) (struct mwifiex_adapter *, u32, int *);
+	int (*check_fw_status) (struct mwifiex_adapter *, u32);
 	int (*prog_fw) (struct mwifiex_adapter *, struct mwifiex_fw_image *);
 	int (*register_dev) (struct mwifiex_adapter *);
 	void (*unregister_dev) (struct mwifiex_adapter *);
 	int (*enable_int) (struct mwifiex_adapter *);
 	int (*process_int_status) (struct mwifiex_adapter *);
-	int (*host_to_card) (struct mwifiex_adapter *, u8,
-			     u8 *payload, u32 pkt_len,
+	int (*host_to_card) (struct mwifiex_adapter *, u8, struct sk_buff *,
 			     struct mwifiex_tx_param *);
 	int (*wakeup) (struct mwifiex_adapter *);
 	int (*wakeup_complete) (struct mwifiex_adapter *);
 
+	/* Interface specific functions */
 	void (*update_mp_end_port) (struct mwifiex_adapter *, u16);
 	void (*cleanup_mpa_buf) (struct mwifiex_adapter *);
+	int (*cmdrsp_complete) (struct mwifiex_adapter *, struct sk_buff *);
+	int (*event_complete) (struct mwifiex_adapter *, struct sk_buff *);
 };
 
 struct mwifiex_adapter {
+	u8 iface_type;
 	struct mwifiex_private *priv[MWIFIEX_MAX_BSS_NUM];
 	u8 priv_num;
 	const struct firmware *firmware;
 	char fw_name[32];
+	int winner;
 	struct device *dev;
 	bool surprise_removed;
 	u32 fw_release_number;
@@ -872,7 +884,7 @@ struct mwifiex_private *mwifiex_bss_index_to_priv(struct mwifiex_adapter
 						*adapter, u8 bss_index);
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
-int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *);
+int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
 int mwifiex_remove_card(struct mwifiex_adapter *, struct semaphore *);
 
 void mwifiex_get_version(struct mwifiex_adapter *adapter, char *version,

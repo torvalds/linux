@@ -78,7 +78,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 				(struct txpd *) (head_ptr + INTF_HEADER_LEN);
 
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					     skb->data, skb->len, tx_param);
+						   skb, tx_param);
 	}
 
 	switch (ret) {

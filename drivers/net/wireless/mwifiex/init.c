@@ -191,7 +191,12 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 						(adapter->sleep_cfm->data);
 
 	adapter->cmd_sent = false;
-	adapter->data_sent = true;
+
+	if (adapter->iface_type == MWIFIEX_PCIE)
+		adapter->data_sent = false;
+	else
+		adapter->data_sent = true;
+
 	adapter->cmd_resp_received = false;
 	adapter->event_received = false;
 	adapter->data_received = false;
@@ -581,11 +586,13 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 		    struct mwifiex_fw_image *pmfw)
 {
-	int ret, winner;
+	int ret;
 	u32 poll_num = 1;
 
+	adapter->winner = 0;
+
 	/* Check if firmware is already running */
-	ret = adapter->if_ops.check_fw_status(adapter, poll_num, &winner);
+	ret = adapter->if_ops.check_fw_status(adapter, poll_num);
 	if (!ret) {
 		dev_notice(adapter->dev,
 				"WLAN FW already running! Skip FW download\n");
@@ -594,7 +601,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 	poll_num = MAX_FIRMWARE_POLL_TRIES;
 
 	/* Check if we are the winner for downloading FW */
-	if (!winner) {
+	if (!adapter->winner) {
 		dev_notice(adapter->dev,
 				"Other interface already running!"
 				" Skip FW download\n");
@@ -612,7 +619,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 
 poll_fw:
 	/* Check if the firmware is downloaded successfully or not */
-	ret = adapter->if_ops.check_fw_status(adapter, poll_num, NULL);
+	ret = adapter->if_ops.check_fw_status(adapter, poll_num);
 	if (ret) {
 		dev_err(adapter->dev, "FW failed to be active in time\n");
 		return -1;
