@@ -31,6 +31,7 @@
 #include <linux/hardirq.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
+#include <linux/module.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
 #include <defs.h>

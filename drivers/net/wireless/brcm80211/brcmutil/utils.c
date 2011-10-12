@@ -15,6 +15,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/module.h>
 #include <brcmu_utils.h>
 
 MODULE_AUTHOR("Broadcom Corporation");

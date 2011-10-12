@@ -23,6 +23,7 @@
 #include <linux/suspend.h>
 #include <linux/errno.h>
 #include <linux/sched.h>	/* request_irq() */
+#include <linux/module.h>
 #include <net/cfg80211.h>
 
 #include <defs.h>
