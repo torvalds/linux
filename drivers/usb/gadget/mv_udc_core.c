@@ -98,12 +98,12 @@ static void ep0_reset(struct mv_udc *udc)
 
 		epctrlx = readl(&udc->op_regs->epctrlx[0]);
 		if (i) {	/* TX */
-			epctrlx |= EPCTRL_TX_ENABLE | EPCTRL_TX_DATA_TOGGLE_RST
+			epctrlx |= EPCTRL_TX_ENABLE
 				| (USB_ENDPOINT_XFER_CONTROL
 					<< EPCTRL_TX_EP_TYPE_SHIFT);
 
 		} else {	/* RX */
-			epctrlx |= EPCTRL_RX_ENABLE | EPCTRL_RX_DATA_TOGGLE_RST
+			epctrlx |= EPCTRL_RX_ENABLE
 				| (USB_ENDPOINT_XFER_CONTROL
 					<< EPCTRL_RX_EP_TYPE_SHIFT);
 		}
