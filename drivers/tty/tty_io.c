@@ -1821,7 +1821,7 @@ int tty_release(struct inode *inode, struct file *filp)
 
 static int tty_open(struct inode *inode, struct file *filp)
 {
-	struct tty_struct *tty = NULL;
+	struct tty_struct *tty;
 	int noctty, retval;
 	struct tty_driver *driver;
 	int index;
@@ -1892,17 +1892,14 @@ retry_open:
 		return -ENODEV;
 	}
 got_driver:
-	if (!tty) {
-		/* check whether we're reopening an existing tty */
-		tty = tty_driver_lookup_tty(driver, inode, index);
-
-		if (IS_ERR(tty)) {
-			tty_unlock();
-			mutex_unlock(&tty_mutex);
-			tty_driver_kref_put(driver);
-			tty_free_file(filp);
-			return PTR_ERR(tty);
-		}
+	/* check whether we're reopening an existing tty */
+	tty = tty_driver_lookup_tty(driver, inode, index);
+	if (IS_ERR(tty)) {
+		tty_unlock();
+		mutex_unlock(&tty_mutex);
+		tty_driver_kref_put(driver);
+		tty_free_file(filp);
+		return PTR_ERR(tty);
 	}
 
 	if (tty) {
