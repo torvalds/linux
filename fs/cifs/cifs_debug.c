@@ -526,6 +526,9 @@ static ssize_t cifs_oplock_proc_write(struct file *file,
 	char c;
 	int rc;
 
+	printk(KERN_WARNING "CIFS: The /proc/fs/cifs/OplockEnabled interface "
+	       "will be removed in kernel version 3.4. Please migrate to "
+	       "using the 'enable_oplocks' module parameter in cifs.ko.\n");
 	rc = get_user(c, buffer);
 	if (rc)
 		return rc;
