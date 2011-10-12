@@ -122,6 +122,7 @@
 
 /* HSLCTL/R (0x10/0x11) fields */
 
+#define TWL6040_HSDACENA		(1 << 0)
 #define TWL6040_HSDACMODE		(1 << 1)
 #define TWL6040_HSDRVMODE		(1 << 3)
 

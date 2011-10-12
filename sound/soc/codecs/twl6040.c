@@ -654,6 +654,26 @@ static int headset_power_mode(struct snd_soc_codec *codec, int high_perf)
 static int twl6040_hs_dac_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = w->codec;
+	u8 hslctl, hsrctl;
+
+	/*
+	 * Workaround for Headset DC offset caused pop noise:
+	 * Both HS DAC need to be turned on (before the HS driver) and off at
+	 * the same time.
+	 */
+	hslctl = twl6040_read_reg_cache(codec, TWL6040_REG_HSLCTL);
+	hsrctl = twl6040_read_reg_cache(codec, TWL6040_REG_HSRCTL);
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		hslctl |= TWL6040_HSDACENA;
+		hsrctl |= TWL6040_HSDACENA;
+	} else {
+		hslctl &= ~TWL6040_HSDACENA;
+		hsrctl &= ~TWL6040_HSDACENA;
+	}
+	twl6040_write(codec, TWL6040_REG_HSLCTL, hslctl);
+	twl6040_write(codec, TWL6040_REG_HSRCTL, hsrctl);
+
 	msleep(1);
 	return 0;
 }
@@ -1103,14 +1123,8 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			TWL6040_REG_DMICBCTL, 4, 0),
 
 	/* DACs */
-	SND_SOC_DAPM_DAC_E("HSDAC Left", "Headset Playback",
-			TWL6040_REG_HSLCTL, 0, 0,
-			twl6040_hs_dac_event,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("HSDAC Right", "Headset Playback",
-			TWL6040_REG_HSRCTL, 0, 0,
-			twl6040_hs_dac_event,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_DAC("HSDAC Left", "Headset Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("HSDAC Right", "Headset Playback", SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC_E("HFDAC Left", "Handsfree Playback",
 			TWL6040_REG_HFLCTL, 0, 0,
 			twl6040_power_mode_event,
@@ -1175,6 +1189,9 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			    NULL, 0),
 	SND_SOC_DAPM_SUPPLY("Vibra Right Control", TWL6040_REG_VIBCTLR, 2, 0,
 			    NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("HSDAC Power", 1, SND_SOC_NOPM, 0, 0,
+			      twl6040_hs_dac_event,
+			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Analog playback PGAs */
 	SND_SOC_DAPM_PGA("HF Left PGA",
@@ -1203,6 +1220,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	/* AFM path */
 	{"AFMAmpL", NULL, "AFML"},
 	{"AFMAmpR", NULL, "AFMR"},
+
+	{"HSDAC Left", NULL, "HSDAC Power"},
+	{"HSDAC Right", NULL, "HSDAC Power"},
 
 	{"Headset Left Playback", "HS DAC", "HSDAC Left"},
 	{"Headset Left Playback", "Line-In amp", "AFMAmpL"},
