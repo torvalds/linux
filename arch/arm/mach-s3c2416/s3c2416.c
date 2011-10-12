@@ -60,6 +60,7 @@
 #include <plat/iic-core.h>
 #include <plat/fb-core.h>
 #include <plat/nand-core.h>
+#include <plat/adc-core.h>
 
 static struct map_desc s3c2416_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
@@ -96,6 +97,8 @@ int __init s3c2416_init(void)
 	s3c_i2c1_setname("s3c2440-i2c");
 
 	s3c_fb_setname("s3c2443-fb");
+
+	s3c_adc_setname("s3c2416-adc");
 
 	register_syscore_ops(&s3c2416_pm_syscore_ops);
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
