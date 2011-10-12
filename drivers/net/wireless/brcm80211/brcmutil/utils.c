@@ -469,16 +469,6 @@ int brcmu_format_hex(char *str, const void *bytes, int len)
 EXPORT_SYMBOL(brcmu_format_hex);
 #endif				/* defined(BCMDBG) */
 
-char *brcmu_chipname(uint chipid, char *buf, uint len)
-{
-	const char *fmt;
-
-	fmt = ((chipid > 0xa000) || (chipid < 0x4000)) ? "%d" : "%x";
-	snprintf(buf, len, fmt, chipid);
-	return buf;
-}
-EXPORT_SYMBOL(brcmu_chipname);
-
 uint brcmu_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 {
 	uint len;

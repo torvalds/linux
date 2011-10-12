@@ -3991,6 +3991,15 @@ static const struct sdiod_drive_str sdiod_drive_strength_tab3[] = {
 
 #define SDIOD_DRVSTR_KEY(chip, pmu)     (((chip) << 16) | (pmu))
 
+static char *brcmf_chipname(uint chipid, char *buf, uint len)
+{
+	const char *fmt;
+
+	fmt = ((chipid > 0xa000) || (chipid < 0x4000)) ? "%d" : "%x";
+	snprintf(buf, len, fmt, chipid);
+	return buf;
+}
+
 static void brcmf_sdbrcm_sdiod_drive_strength_init(struct brcmf_bus *bus,
 						   u32 drivestrength) {
 	struct sdiod_drive_str *str_tab = NULL;
@@ -4020,7 +4029,7 @@ static void brcmf_sdbrcm_sdiod_drive_strength_init(struct brcmf_bus *bus,
 		break;
 	default:
 		brcmf_dbg(ERROR, "No SDIO Drive strength init done for chip %s rev %d pmurev %d\n",
-			  brcmu_chipname(bus->ci->chip, chn, 8),
+			  brcmf_chipname(bus->ci->chip, chn, 8),
 			  bus->ci->chiprev, bus->ci->pmurev);
 		break;
 	}

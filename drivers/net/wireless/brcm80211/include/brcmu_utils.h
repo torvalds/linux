@@ -207,8 +207,6 @@ extern int brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags,
 extern int brcmu_format_hex(char *str, const void *bytes, int len);
 #endif
 
-extern char *brcmu_chipname(uint chipid, char *buf, uint len);
-
 extern struct brcmu_tlv *brcmu_parse_tlvs(void *buf, int buflen,
 					  uint key);
 
