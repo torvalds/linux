@@ -310,6 +310,12 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 	ts->get_pendown_state = pdata->get_pendown_state;
 	ts->clear_penirq      = pdata->clear_penirq;
 
+	if (pdata->x_plate_ohms == 0) {
+		dev_err(&client->dev, "x_plate_ohms is not set up in platform data");
+		err = -EINVAL;
+		goto err_free_mem;
+	}
+
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
 
