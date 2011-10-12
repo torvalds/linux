@@ -939,6 +939,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 		s->s_flags = flags | MS_NOSEC;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
+		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
 		if (error) {
@@ -946,7 +947,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 			return ERR_PTR(error);
 		}
 
-		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
 		s->s_flags |= MS_ACTIVE;
 	}
 
