@@ -200,7 +200,4 @@ extern int brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags,
 extern int brcmu_format_hex(char *str, const void *bytes, int len);
 #endif
 
-extern uint brcmu_mkiovar(char *name, char *data, uint datalen,
-			  char *buf, uint len);
-
 #endif				/* _BRCMU_UTILS_H_ */

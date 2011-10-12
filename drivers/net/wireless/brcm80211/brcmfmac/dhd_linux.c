@@ -203,7 +203,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 
 	dcmd_le_value = cpu_to_le32(dcmd_value);
 
-	if (!brcmu_mkiovar
+	if (!brcmf_c_mkiovar
 	    ("allmulti", (void *)&dcmd_le_value,
 	    sizeof(dcmd_le_value), buf, buflen)) {
 		brcmf_dbg(ERROR, "%s: mkiovar failed for allmulti, datalen %d buflen %u\n",
@@ -259,7 +259,7 @@ _brcmf_set_mac_address(struct work_struct *work)
 						    setmacaddr_work);
 
 	brcmf_dbg(TRACE, "enter\n");
-	if (!brcmu_mkiovar("cur_etheraddr", (char *)drvr_priv->macvalue,
+	if (!brcmf_c_mkiovar("cur_etheraddr", (char *)drvr_priv->macvalue,
 			   ETH_ALEN, buf, 32)) {
 		brcmf_dbg(ERROR, "%s: mkiovar failed for cur_etheraddr\n",
 			  brcmf_ifname(&drvr_priv->pub, 0));
@@ -1083,7 +1083,7 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 		return -ENODEV;
 	}
 
-	brcmu_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
+	brcmf_c_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR, iovbuf,
 				    sizeof(iovbuf));

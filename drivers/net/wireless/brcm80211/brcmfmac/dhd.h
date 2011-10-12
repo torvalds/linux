@@ -680,6 +680,9 @@ struct bcmevent_name {
 
 extern const struct bcmevent_name bcmevent_names[];
 
+extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
+			  char *buf, uint len);
+
 /* Indication from bus module regarding presence/insertion of dongle.
  * Return struct brcmf_pub pointer, used as handle to OS module in later calls.
  * Returned structure should have bus and prot pointers filled in.

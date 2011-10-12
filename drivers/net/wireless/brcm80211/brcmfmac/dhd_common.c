@@ -65,6 +65,26 @@ struct msgtrace_hdr {
 				 because of trace overflow */
 } __packed;
 
+
+uint
+brcmf_c_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
+{
+	uint len;
+
+	len = strlen(name) + 1;
+
+	if ((len + datalen) > buflen)
+		return 0;
+
+	strncpy(buf, name, buflen);
+
+	/* append data onto the end of the name string */
+	memcpy(&buf[len], data, datalen);
+	len += datalen;
+
+	return len;
+}
+
 void brcmf_c_init(void)
 {
 	/* Init global variables at run-time, not as part of the declaration.
@@ -607,7 +627,7 @@ brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg, int enable,
 
 	/* Contorl the master mode */
 	mmode_le = cpu_to_le32(master_mode);
-	brcmu_mkiovar("pkt_filter_mode", (char *)&mmode_le, 4, buf,
+	brcmf_c_mkiovar("pkt_filter_mode", (char *)&mmode_le, 4, buf,
 		    sizeof(buf));
 	rc = brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, buf,
 				       sizeof(buf));
@@ -756,7 +776,7 @@ static void brcmf_c_arp_offload_set(struct brcmf_pub *drvr, int arp_mode)
 	char iovbuf[32];
 	int retcode;
 
-	brcmu_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
+	brcmf_c_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
 	retcode = brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
@@ -773,7 +793,8 @@ static void brcmf_c_arp_offload_enable(struct brcmf_pub *drvr, int arp_enable)
 	char iovbuf[32];
 	int retcode;
 
-	brcmu_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
+	brcmf_c_mkiovar("arpoe", (char *)&arp_enable, 4,
+			iovbuf, sizeof(iovbuf));
 	retcode = brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
@@ -812,33 +833,33 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));
 	ptr = buf;
-	brcmu_mkiovar("ver", NULL, 0, buf, sizeof(buf));
+	brcmf_c_mkiovar("ver", NULL, 0, buf, sizeof(buf));
 	brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
 	strsep(&ptr, "\n");
 	/* Print fw version info */
 	brcmf_dbg(ERROR, "Firmware version = %s\n", buf);
 
 	/* Match Host and Dongle rx alignment */
-	brcmu_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
+	brcmf_c_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
 		    sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
 	/* disable glom option per default */
-	brcmu_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
+	brcmf_c_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
 	/* Setup timeout if Beacons are lost and roam is off to report
 		 link down */
-	brcmu_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf,
+	brcmf_c_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf,
 		    sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take
 		 of romaing */
-	brcmu_mkiovar("roam_off", (char *)&roaming, 4,
+	brcmf_c_mkiovar("roam_off", (char *)&roaming, 4,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
@@ -847,7 +868,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_UP, (char *)&up, sizeof(up));
 
 	/* Setup event_msgs */
-	brcmu_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
+	brcmf_c_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));

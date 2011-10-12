@@ -437,7 +437,7 @@ static s32 brcmf_dev_intvar_set(struct net_device *ndev, s8 *name, s32 val)
 	__le32 val_le;
 
 	val_le = cpu_to_le32(val);
-	len = brcmu_mkiovar(name, (char *)(&val_le), sizeof(val_le), buf,
+	len = brcmf_c_mkiovar(name, (char *)(&val_le), sizeof(val_le), buf,
 			    sizeof(buf));
 	BUG_ON(!len);
 
@@ -460,7 +460,7 @@ brcmf_dev_intvar_get(struct net_device *ndev, s8 *name, s32 *retval)
 	s32 err = 0;
 
 	len =
-	    brcmu_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
+	    brcmf_c_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
 			sizeof(var.buf));
 	BUG_ON(!len);
 	err = brcmf_exec_dcmd(ndev, BRCMF_C_GET_VAR, &var, len);
@@ -508,7 +508,7 @@ brcmf_dev_iovar_setbuf(struct net_device *ndev, s8 * iovar, void *param,
 {
 	s32 iolen;
 
-	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
+	iolen = brcmf_c_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	BUG_ON(!iolen);
 
 	return brcmf_exec_dcmd(ndev, BRCMF_C_SET_VAR, bufptr, iolen);
@@ -520,7 +520,7 @@ brcmf_dev_iovar_getbuf(struct net_device *ndev, s8 * iovar, void *param,
 {
 	s32 iolen;
 
-	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
+	iolen = brcmf_c_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	BUG_ON(!iolen);
 
 	return brcmf_exec_dcmd(ndev, BRCMF_C_GET_VAR, bufptr, buflen);
@@ -2554,7 +2554,7 @@ brcmf_dev_bufvar_set(struct net_device *ndev, s8 *name, s8 *buf, s32 len)
 	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	u32 buflen;
 
-	buflen = brcmu_mkiovar(name, buf, len, cfg_priv->dcmd_buf,
+	buflen = brcmf_c_mkiovar(name, buf, len, cfg_priv->dcmd_buf,
 			       WL_DCMD_LEN_MAX);
 	BUG_ON(!buflen);
 
@@ -2570,7 +2570,7 @@ brcmf_dev_bufvar_get(struct net_device *ndev, s8 *name, s8 *buf,
 	u32 len;
 	s32 err = 0;
 
-	len = brcmu_mkiovar(name, NULL, 0, cfg_priv->dcmd_buf,
+	len = brcmf_c_mkiovar(name, NULL, 0, cfg_priv->dcmd_buf,
 			    WL_DCMD_LEN_MAX);
 	BUG_ON(!len);
 	err = brcmf_exec_dcmd(ndev, BRCMF_C_GET_VAR, cfg_priv->dcmd_buf,
@@ -3513,8 +3513,8 @@ static s32 brcmf_dongle_eventmsg(struct net_device *ndev)
 	WL_TRACE("Enter\n");
 
 	/* Setup event_msgs */
-	brcmu_mkiovar("event_msgs", eventmask, BRCMF_EVENTING_MASK_LEN, iovbuf,
-		    sizeof(iovbuf));
+	brcmf_c_mkiovar("event_msgs", eventmask, BRCMF_EVENTING_MASK_LEN,
+			iovbuf, sizeof(iovbuf));
 	err = brcmf_exec_dcmd(ndev, BRCMF_C_GET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
 		WL_ERR("Get event_msgs error (%d)\n", err);
@@ -3542,8 +3542,8 @@ static s32 brcmf_dongle_eventmsg(struct net_device *ndev)
 	setbit(eventmask, BRCMF_E_JOIN_START);
 	setbit(eventmask, BRCMF_E_SCAN_COMPLETE);
 
-	brcmu_mkiovar("event_msgs", eventmask, BRCMF_EVENTING_MASK_LEN, iovbuf,
-		    sizeof(iovbuf));
+	brcmf_c_mkiovar("event_msgs", eventmask, BRCMF_EVENTING_MASK_LEN,
+			iovbuf, sizeof(iovbuf));
 	err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
 		WL_ERR("Set event_msgs error (%d)\n", err);
@@ -3571,7 +3571,7 @@ brcmf_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 	 */
 	if (roamvar) {
 		bcn_to_le = cpu_to_le32(bcn_timeout);
-		brcmu_mkiovar("bcn_timeout", (char *)&bcn_to_le,
+		brcmf_c_mkiovar("bcn_timeout", (char *)&bcn_to_le,
 			sizeof(bcn_to_le), iovbuf, sizeof(iovbuf));
 		err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
@@ -3587,7 +3587,7 @@ brcmf_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 	 */
 	WL_INFO("Internal Roaming = %s\n", roamvar ? "Off" : "On");
 	roamvar_le = cpu_to_le32(roamvar);
-	brcmu_mkiovar("roam_off", (char *)&roamvar_le,
+	brcmf_c_mkiovar("roam_off", (char *)&roamvar_le,
 				sizeof(roamvar_le), iovbuf, sizeof(iovbuf));
 	err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
