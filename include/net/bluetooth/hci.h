@@ -726,6 +726,21 @@ struct hci_cp_write_page_scan_activity {
 	#define PAGE_SCAN_TYPE_STANDARD		0x00
 	#define PAGE_SCAN_TYPE_INTERLACED	0x01
 
+#define HCI_OP_READ_LOCAL_AMP_INFO	0x1409
+struct hci_rp_read_local_amp_info {
+	__u8     status;
+	__u8     amp_status;
+	__le32   total_bw;
+	__le32   max_bw;
+	__le32   min_latency;
+	__le32   max_pdu;
+	__u8     amp_type;
+	__le16   pal_cap;
+	__le16   max_assoc_size;
+	__le32   max_flush_to;
+	__le32   be_flush_to;
+} __packed;
+
 #define HCI_OP_LE_SET_EVENT_MASK	0x2001
 struct hci_cp_le_set_event_mask {
 	__u8     mask[8];

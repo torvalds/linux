@@ -150,6 +150,17 @@ struct hci_dev {
 	__u16		sniff_min_interval;
 	__u16		sniff_max_interval;
 
+	__u8		amp_status;
+	__u32		amp_total_bw;
+	__u32		amp_max_bw;
+	__u32		amp_min_latency;
+	__u32		amp_max_pdu;
+	__u8		amp_type;
+	__u16		amp_pal_cap;
+	__u16		amp_assoc_size;
+	__u32		amp_max_flush_to;
+	__u32		amp_be_flush_to;
+
 	unsigned int	auto_accept_delay;
 
 	unsigned long	quirks;
