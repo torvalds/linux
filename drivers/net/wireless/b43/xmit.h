@@ -248,7 +248,15 @@ struct b43_rxhdr_fw4 {
 			__s8 power1;	/* PHY RX Status 1: Power 1 */
 		} __packed;
 	} __packed;
-	__le16 phy_status2;	/* PHY RX Status 2 */
+	union {
+		/* RSSI for N-PHYs */
+		struct {
+			__s8 power2;
+			PAD_BYTES(1);
+		} __packed;
+
+		__le16 phy_status2;	/* PHY RX Status 2 */
+	} __packed;
 	__le16 phy_status3;	/* PHY RX Status 3 */
 	union {
 		/* Tested with 598.314, 644.1001 and 666.2 */
