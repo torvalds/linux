@@ -247,6 +247,90 @@ static const u32 __wl_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_AES_CMAC,
 };
 
+/* Quarter dBm units to mW
+ * Table starts at QDBM_OFFSET, so the first entry is mW for qdBm=153
+ * Table is offset so the last entry is largest mW value that fits in
+ * a u16.
+ */
+
+#define QDBM_OFFSET 153		/* Offset for first entry */
+#define QDBM_TABLE_LEN 40	/* Table size */
+
+/* Smallest mW value that will round up to the first table entry, QDBM_OFFSET.
+ * Value is ( mW(QDBM_OFFSET - 1) + mW(QDBM_OFFSET) ) / 2
+ */
+#define QDBM_TABLE_LOW_BOUND 6493	/* Low bound */
+
+/* Largest mW value that will round down to the last table entry,
+ * QDBM_OFFSET + QDBM_TABLE_LEN-1.
+ * Value is ( mW(QDBM_OFFSET + QDBM_TABLE_LEN - 1) +
+ * mW(QDBM_OFFSET + QDBM_TABLE_LEN) ) / 2.
+ */
+#define QDBM_TABLE_HIGH_BOUND 64938	/* High bound */
+
+static const u16 nqdBm_to_mW_map[QDBM_TABLE_LEN] = {
+/* qdBm:	+0	+1	+2	+3	+4	+5	+6	+7 */
+/* 153: */ 6683, 7079, 7499, 7943, 8414, 8913, 9441, 10000,
+/* 161: */ 10593, 11220, 11885, 12589, 13335, 14125, 14962, 15849,
+/* 169: */ 16788, 17783, 18836, 19953, 21135, 22387, 23714, 25119,
+/* 177: */ 26607, 28184, 29854, 31623, 33497, 35481, 37584, 39811,
+/* 185: */ 42170, 44668, 47315, 50119, 53088, 56234, 59566, 63096
+};
+
+static u16 brcmf_qdbm_to_mw(u8 qdbm)
+{
+	uint factor = 1;
+	int idx = qdbm - QDBM_OFFSET;
+
+	if (idx >= QDBM_TABLE_LEN)
+		/* clamp to max u16 mW value */
+		return 0xFFFF;
+
+	/* scale the qdBm index up to the range of the table 0-40
+	 * where an offset of 40 qdBm equals a factor of 10 mW.
+	 */
+	while (idx < 0) {
+		idx += 40;
+		factor *= 10;
+	}
+
+	/* return the mW value scaled down to the correct factor of 10,
+	 * adding in factor/2 to get proper rounding.
+	 */
+	return (nqdBm_to_mW_map[idx] + factor / 2) / factor;
+}
+
+static u8 brcmf_mw_to_qdbm(u16 mw)
+{
+	u8 qdbm;
+	int offset;
+	uint mw_uint = mw;
+	uint boundary;
+
+	/* handle boundary case */
+	if (mw_uint <= 1)
+		return 0;
+
+	offset = QDBM_OFFSET;
+
+	/* move mw into the range of the table */
+	while (mw_uint < QDBM_TABLE_LOW_BOUND) {
+		mw_uint *= 10;
+		offset -= 40;
+	}
+
+	for (qdbm = 0; qdbm < QDBM_TABLE_LEN - 1; qdbm++) {
+		boundary = nqdBm_to_mW_map[qdbm] + (nqdBm_to_mW_map[qdbm + 1] -
+						    nqdBm_to_mW_map[qdbm]) / 2;
+		if (mw_uint < boundary)
+			break;
+	}
+
+	qdbm += (u8) offset;
+
+	return qdbm;
+}
+
 /* function for reading/writing a single u32 from/to the dongle */
 static int
 brcmf_exec_dcmd_u32(struct net_device *ndev, u32 cmd, u32 *par)
@@ -1380,7 +1464,7 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
 	else
 		txpwrmw = (u16) dbm;
 	err = brcmf_dev_intvar_set(ndev, "qtxpower",
-			(s32) (brcmu_mw_to_qdbm(txpwrmw)));
+			(s32) (brcmf_mw_to_qdbm(txpwrmw)));
 	if (err)
 		WL_ERR("qtxpower error (%d)\n", err);
 	cfg_priv->conf->tx_power = dbm;
@@ -1409,7 +1493,7 @@ static s32 brcmf_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm)
 	}
 
 	result = (u8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
-	*dbm = (s32) brcmu_qdbm_to_mw(result);
+	*dbm = (s32) brcmf_qdbm_to_mw(result);
 
 done:
 	WL_TRACE("Exit\n");

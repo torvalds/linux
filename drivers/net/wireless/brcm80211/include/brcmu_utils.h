@@ -212,10 +212,6 @@ extern char *brcmu_chipname(uint chipid, char *buf, uint len);
 extern struct brcmu_tlv *brcmu_parse_tlvs(void *buf, int buflen,
 					  uint key);
 
-/* power conversion */
-extern u16 brcmu_qdbm_to_mw(u8 qdbm);
-extern u8 brcmu_mw_to_qdbm(u16 mw);
-
 extern uint brcmu_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);
 
