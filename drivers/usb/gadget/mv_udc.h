@@ -209,7 +209,12 @@ struct mv_udc {
 				vbus_active:1,
 				remote_wakeup:1,
 				softconnected:1,
-				force_fs:1;
+				force_fs:1,
+				clock_gating:1,
+				active:1;
+
+	struct work_struct	vbus_work;
+	struct workqueue_struct *qwork;
 
 	struct mv_usb_platform_data     *pdata;
 

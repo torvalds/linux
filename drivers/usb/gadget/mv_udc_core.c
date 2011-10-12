@@ -67,6 +67,7 @@ static struct mv_udc	*the_controller;
 int mv_usb_otgsc;
 
 static void nuke(struct mv_ep *ep, int status);
+static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver);
 
 /* for endpoint 0 operations */
 static const struct usb_endpoint_descriptor mv_ep0_desc = {
@@ -1133,6 +1134,40 @@ static int udc_reset(struct mv_udc *udc)
 	return 0;
 }
 
+static int mv_udc_enable(struct mv_udc *udc)
+{
+	int retval;
+
+	if (udc->clock_gating == 0 || udc->active)
+		return 0;
+
+	dev_dbg(&udc->dev->dev, "enable udc\n");
+	udc_clock_enable(udc);
+	if (udc->pdata->phy_init) {
+		retval = udc->pdata->phy_init(udc->phy_regs);
+		if (retval) {
+			dev_err(&udc->dev->dev,
+				"init phy error %d\n", retval);
+			udc_clock_disable(udc);
+			return retval;
+		}
+	}
+	udc->active = 1;
+
+	return 0;
+}
+
+static void mv_udc_disable(struct mv_udc *udc)
+{
+	if (udc->clock_gating && udc->active) {
+		dev_dbg(&udc->dev->dev, "disable udc\n");
+		if (udc->pdata->phy_deinit)
+			udc->pdata->phy_deinit(udc->phy_regs);
+		udc_clock_disable(udc);
+		udc->active = 0;
+	}
+}
+
 static int mv_udc_get_frame(struct usb_gadget *gadget)
 {
 	struct mv_udc *udc;
@@ -1168,22 +1203,68 @@ static int mv_udc_wakeup(struct usb_gadget *gadget)
 	return 0;
 }
 
-static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
+static int mv_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 {
 	struct mv_udc *udc;
 	unsigned long flags;
+	int retval = 0;
 
 	udc = container_of(gadget, struct mv_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
 
-	udc->softconnect = (is_on != 0);
-	if (udc->driver && udc->softconnect)
-		udc_start(udc);
-	else
+	dev_dbg(&udc->dev->dev, "%s: softconnect %d, vbus_active %d\n",
+		__func__, udc->softconnect, udc->vbus_active);
+
+	udc->vbus_active = (is_active != 0);
+	if (udc->driver && udc->softconnect && udc->vbus_active) {
+		retval = mv_udc_enable(udc);
+		if (retval == 0) {
+			/* Clock is disabled, need re-init registers */
+			udc_reset(udc);
+			ep0_reset(udc);
+			udc_start(udc);
+		}
+	} else if (udc->driver && udc->softconnect) {
+		/* stop all the transfer in queue*/
+		stop_activity(udc, udc->driver);
 		udc_stop(udc);
+		mv_udc_disable(udc);
+	}
 
 	spin_unlock_irqrestore(&udc->lock, flags);
-	return 0;
+	return retval;
+}
+
+static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
+{
+	struct mv_udc *udc;
+	unsigned long flags;
+	int retval = 0;
+
+	udc = container_of(gadget, struct mv_udc, gadget);
+	spin_lock_irqsave(&udc->lock, flags);
+
+	dev_dbg(&udc->dev->dev, "%s: softconnect %d, vbus_active %d\n",
+			__func__, udc->softconnect, udc->vbus_active);
+
+	udc->softconnect = (is_on != 0);
+	if (udc->driver && udc->softconnect && udc->vbus_active) {
+		retval = mv_udc_enable(udc);
+		if (retval == 0) {
+			/* Clock is disabled, need re-init registers */
+			udc_reset(udc);
+			ep0_reset(udc);
+			udc_start(udc);
+		}
+	} else if (udc->driver && udc->vbus_active) {
+		/* stop all the transfer in queue*/
+		stop_activity(udc, udc->driver);
+		udc_stop(udc);
+		mv_udc_disable(udc);
+	}
+
+	spin_unlock_irqrestore(&udc->lock, flags);
+	return retval;
 }
 
 static int mv_udc_start(struct usb_gadget_driver *driver,
@@ -1197,6 +1278,9 @@ static const struct usb_gadget_ops mv_ops = {
 
 	/* tries to wake up the host connected to this gadget */
 	.wakeup		= mv_udc_wakeup,
+
+	/* notify controller that VBUS is powered or not */
+	.vbus_session	= mv_udc_vbus_session,
 
 	/* D+ pullup, software-controlled connect/disconnect to USB host */
 	.pullup		= mv_udc_pullup,
@@ -1310,7 +1394,7 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 
 	udc->usb_state = USB_STATE_ATTACHED;
 	udc->ep0_state = WAIT_FOR_SETUP;
-	udc->ep0_dir = USB_DIR_OUT;
+	udc->ep0_dir = EP_DIR_OUT;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
@@ -1322,9 +1406,13 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 		udc->gadget.dev.driver = NULL;
 		return retval;
 	}
-	udc_reset(udc);
-	ep0_reset(udc);
-	udc_start(udc);
+
+	/* pullup is always on */
+	mv_udc_pullup(&udc->gadget, 1);
+
+	/* When boot with cable attached, there will be no vbus irq occurred */
+	if (udc->qwork)
+		queue_work(udc->qwork, &udc->vbus_work);
 
 	return 0;
 }
@@ -1337,13 +1425,16 @@ static int mv_udc_stop(struct usb_gadget_driver *driver)
 	if (!udc)
 		return -ENODEV;
 
-	udc_stop(udc);
-
 	spin_lock_irqsave(&udc->lock, flags);
+
+	mv_udc_enable(udc);
+	udc_stop(udc);
 
 	/* stop all usb activities */
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	stop_activity(udc, driver);
+	mv_udc_disable(udc);
+
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	/* unbind gadget driver */
@@ -1969,6 +2060,35 @@ static irqreturn_t mv_udc_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t mv_udc_vbus_irq(int irq, void *dev)
+{
+	struct mv_udc *udc = (struct mv_udc *)dev;
+
+	/* polling VBUS and init phy may cause too much time*/
+	if (udc->qwork)
+		queue_work(udc->qwork, &udc->vbus_work);
+
+	return IRQ_HANDLED;
+}
+
+static void mv_udc_vbus_work(struct work_struct *work)
+{
+	struct mv_udc *udc;
+	unsigned int vbus;
+
+	udc = container_of(work, struct mv_udc, vbus_work);
+	if (!udc->pdata->vbus)
+		return;
+
+	vbus = udc->pdata->vbus->poll();
+	dev_info(&udc->dev->dev, "vbus is %d\n", vbus);
+
+	if (vbus == VBUS_HIGH)
+		mv_udc_vbus_session(&udc->gadget, 1);
+	else if (vbus == VBUS_LOW)
+		mv_udc_vbus_session(&udc->gadget, 0);
+}
+
 /* release device structure */
 static void gadget_release(struct device *_dev)
 {
@@ -1984,6 +2104,14 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 
 	usb_del_gadget_udc(&udc->gadget);
 
+	if (udc->qwork) {
+		flush_workqueue(udc->qwork);
+		destroy_workqueue(udc->qwork);
+	}
+
+	if (udc->pdata && udc->pdata->vbus && udc->clock_gating)
+		free_irq(udc->pdata->vbus->irq, &dev->dev);
+
 	/* free memory allocated in probe */
 	if (udc->dtd_pool)
 		dma_pool_destroy(udc->dtd_pool);
@@ -1996,6 +2124,8 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 
 	if (udc->irq)
 		free_irq(udc->irq, &dev->dev);
+
+	mv_udc_disable(udc);
 
 	if (udc->cap_regs)
 		iounmap(udc->cap_regs);
@@ -2197,13 +2327,52 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 
 	eps_init(udc);
 
+	/* VBUS detect: we can disable/enable clock on demand.*/
+	if (pdata->vbus) {
+		udc->clock_gating = 1;
+		retval = request_threaded_irq(pdata->vbus->irq, NULL,
+				mv_udc_vbus_irq, IRQF_ONESHOT, "vbus", udc);
+		if (retval) {
+			dev_info(&dev->dev,
+				"Can not request irq for VBUS, "
+				"disable clock gating\n");
+			udc->clock_gating = 0;
+		}
+
+		udc->qwork = create_singlethread_workqueue("mv_udc_queue");
+		if (!udc->qwork) {
+			dev_err(&dev->dev, "cannot create workqueue\n");
+			retval = -ENOMEM;
+			goto err_unregister;
+		}
+
+		INIT_WORK(&udc->vbus_work, mv_udc_vbus_work);
+	}
+
+	/*
+	 * When clock gating is supported, we can disable clk and phy.
+	 * If not, it means that VBUS detection is not supported, we
+	 * have to enable vbus active all the time to let controller work.
+	 */
+	if (udc->clock_gating) {
+		if (udc->pdata->phy_deinit)
+			udc->pdata->phy_deinit(udc->phy_regs);
+		udc_clock_disable(udc);
+	} else
+		udc->vbus_active = 1;
+
 	retval = usb_add_gadget_udc(&dev->dev, &udc->gadget);
 	if (retval)
 		goto err_unregister;
 
+	dev_info(&dev->dev, "successful probe UDC device %s clock gating.\n",
+		udc->clock_gating ? "with" : "without");
+
 	return 0;
 
 err_unregister:
+	if (udc->pdata && udc->pdata->vbus && udc->clock_gating)
+		free_irq(pdata->vbus->irq, &dev->dev);
 	device_unregister(&udc->gadget.dev);
 err_free_irq:
 	free_irq(udc->irq, &dev->dev);
