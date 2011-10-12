@@ -272,10 +272,13 @@ static int rk29_sensor_io_init(void)
             ret = gpio_request(camera_power, "camera power");
             if (ret) {
                 if (i == 0) {
+                    printk("\n%s..%s..power pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_power);
 				    goto sensor_io_int_loop_end;
                 } else {
-                    if (camera_power != rk29_camera_platform_data.gpio_res[0].gpio_power)
+                    if (camera_power != rk29_camera_platform_data.gpio_res[0].gpio_power) {
+                        printk("\n%s..%s..power pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_power);
                         goto sensor_io_int_loop_end;
+                    }
                 }
             }
 
@@ -289,8 +292,10 @@ static int rk29_sensor_io_init(void)
 
         if (camera_reset != INVALID_GPIO) {
             ret = gpio_request(camera_reset, "camera reset");
-            if (ret)
-				goto sensor_io_int_loop_end;
+            if (ret) {
+                printk("\n%s..%s..reset pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_reset);
+                goto sensor_io_int_loop_end;
+            }
 			rk29_camera_platform_data.gpio_res[i].gpio_init |= RK29_CAM_RESETACTIVE_MASK;
             gpio_set_value(camera_reset, ((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
             gpio_direction_output(camera_reset, ((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
@@ -301,8 +306,10 @@ static int rk29_sensor_io_init(void)
 
 		if (camera_powerdown != INVALID_GPIO) {
             ret = gpio_request(camera_powerdown, "camera powerdown");
-            if (ret)
-				goto sensor_io_int_loop_end;
+            if (ret) {
+                printk("\n%s..%s..powerdown pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_powerdown);
+                goto sensor_io_int_loop_end;
+            }
 			rk29_camera_platform_data.gpio_res[i].gpio_init |= RK29_CAM_POWERDNACTIVE_MASK;
             gpio_set_value(camera_powerdown, ((camera_ioflag&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS));
             gpio_direction_output(camera_powerdown, ((camera_ioflag&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS));
@@ -313,8 +320,10 @@ static int rk29_sensor_io_init(void)
 
 		if (camera_flash != INVALID_GPIO) {
             ret = gpio_request(camera_flash, "camera flash");
-            if (ret)
+            if (ret) {
+                printk("\n%s..%s..flash pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_flash);
 				goto sensor_io_int_loop_end;
+            }
 			rk29_camera_platform_data.gpio_res[i].gpio_init |= RK29_CAM_FLASHACTIVE_MASK;
             gpio_set_value(camera_flash, ((~camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));    /* falsh off */
             gpio_direction_output(camera_flash, ((~camera_ioflag&RK29_CAM_FLASHACTIVE_MASK)>>RK29_CAM_FLASHACTIVE_BITPOS));
@@ -340,6 +349,8 @@ static int rk29_sensor_io_deinit(int sensor)
     camera_power = rk29_camera_platform_data.gpio_res[sensor].gpio_power;
 	camera_powerdown = rk29_camera_platform_data.gpio_res[sensor].gpio_powerdown;
     camera_flash = rk29_camera_platform_data.gpio_res[sensor].gpio_flash;
+
+    printk("\n%s..%s enter..",__FUNCTION__,rk29_camera_platform_data.gpio_res[sensor].dev_name);
 
 	if (rk29_camera_platform_data.gpio_res[sensor].gpio_init & RK29_CAM_POWERACTIVE_MASK) {
 	    if (camera_power != INVALID_GPIO) {
@@ -446,7 +457,7 @@ static int rk29_sensor_power(struct device *dev, int on)
 	rk29_sensor_ioctrl(dev,Cam_Power,on);
     return 0;
 }
-#if 0
+#if (CONFIG_SENSOR_RESET_PIN_0 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO)
 static int rk29_sensor_reset(struct device *dev)
 {
 	rk29_sensor_ioctrl(dev,Cam_Reset,1);
@@ -469,6 +480,9 @@ static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 static struct soc_camera_link rk29_iclink_0 = {
 	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
 	.power		= rk29_sensor_power,
+#if (CONFIG_SENSOR_RESET_PIN_0 != INVALID_GPIO)
+    .reset      = rk29_sensor_reset,
+#endif    
 	.powerdown  = rk29_sensor_powerdown,
 	.board_info	= &rk29_i2c_cam_info_0[0],
 	.i2c_adapter_id	= CONFIG_SENSOR_IIC_ADAPTER_ID_0,
@@ -494,6 +508,9 @@ static struct i2c_board_info rk29_i2c_cam_info_1[] = {
 static struct soc_camera_link rk29_iclink_1 = {
 	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
 	.power		= rk29_sensor_power,
+#if (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO)
+    .reset      = rk29_sensor_reset,
+#endif  	
 	.powerdown  = rk29_sensor_powerdown,
 	.board_info	= &rk29_i2c_cam_info_1[0],
 	.i2c_adapter_id	= CONFIG_SENSOR_IIC_ADAPTER_ID_1,
