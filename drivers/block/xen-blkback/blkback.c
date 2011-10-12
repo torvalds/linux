@@ -362,7 +362,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 {
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	int i;
-	int nseg = req->nr_segments;
+	int nseg = req->u.rw.nr_segments;
 	int ret = 0;
 
 	/*
@@ -449,7 +449,7 @@ static void xen_blk_discard(struct xen_blkif *blkif, struct blkif_request *req)
 	} else if (err)
 		status = BLKIF_RSP_ERROR;
 
-	make_response(blkif, req->id, req->operation, status);
+	make_response(blkif, req->u.discard.id, req->operation, status);
 }
 
 static void xen_blk_drain_io(struct xen_blkif *blkif)
@@ -644,7 +644,8 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	}
 
 	/* Check that the number of segments is sane. */
-	nseg = req->nr_segments;
+	nseg = req->u.rw.nr_segments;
+
 	if (unlikely(nseg == 0 && operation != WRITE_FLUSH &&
 				operation != REQ_DISCARD) ||
 	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
@@ -654,12 +655,12 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		goto fail_response;
 	}
 
-	preq.dev           = req->handle;
+	preq.dev           = req->u.rw.handle;
 	preq.sector_number = req->u.rw.sector_number;
 	preq.nr_sects      = 0;
 
 	pending_req->blkif     = blkif;
-	pending_req->id        = req->id;
+	pending_req->id        = req->u.rw.id;
 	pending_req->operation = req->operation;
 	pending_req->status    = BLKIF_RSP_OKAY;
 	pending_req->nr_pages  = nseg;
@@ -784,7 +785,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	xen_blkbk_unmap(pending_req);
  fail_response:
 	/* Haven't submitted any bio's yet. */
-	make_response(blkif, req->id, req->operation, BLKIF_RSP_ERROR);
+	make_response(blkif, req->u.rw.id, req->operation, BLKIF_RSP_ERROR);
 	free_req(pending_req);
 	msleep(1); /* back off a bit */
 	return -EIO;

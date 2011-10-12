@@ -95,6 +95,12 @@ typedef uint64_t blkif_sector_t;
 #define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
 
 struct blkif_request_rw {
+	uint8_t        nr_segments;  /* number of segments                   */
+	blkif_vdev_t   handle;       /* only for read/write requests         */
+#ifdef CONFIG_X86_64
+	uint32_t       _pad1;	     /* offsetof(blkif_request,u.rw.id) == 8 */
+#endif
+	uint64_t       id;           /* private guest value, echoed in resp  */
 	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
 	struct blkif_request_segment {
 		grant_ref_t gref;        /* reference to I/O buffer frame        */
@@ -102,23 +108,27 @@ struct blkif_request_rw {
 		/* @last_sect: last sector in frame to transfer (inclusive).     */
 		uint8_t     first_sect, last_sect;
 	} seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-};
+} __attribute__((__packed__));
 
 struct blkif_request_discard {
+	uint8_t        nr_segments;  /* number of segments                   */
+	blkif_vdev_t   _pad1;        /* only for read/write requests         */
+#ifdef CONFIG_X86_64
+	uint32_t       _pad2;        /* offsetof(blkif_req..,u.discard.id)==8*/
+#endif
+	uint64_t       id;           /* private guest value, echoed in resp  */
 	blkif_sector_t sector_number;
-	uint64_t nr_sectors;
-};
+	uint64_t       nr_sectors;
+	uint8_t        _pad3;
+} __attribute__((__packed__));
 
 struct blkif_request {
 	uint8_t        operation;    /* BLKIF_OP_???                         */
-	uint8_t        nr_segments;  /* number of segments                   */
-	blkif_vdev_t   handle;       /* only for read/write requests         */
-	uint64_t       id;           /* private guest value, echoed in resp  */
 	union {
 		struct blkif_request_rw rw;
 		struct blkif_request_discard discard;
 	} u;
-};
+} __attribute__((__packed__));
 
 struct blkif_response {
 	uint64_t        id;              /* copied from request */
