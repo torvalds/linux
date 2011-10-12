@@ -186,11 +186,7 @@ static struct irq_pin_list *alloc_irq_pin_list(int node)
 
 
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
-#ifdef CONFIG_SPARSE_IRQ
 static struct irq_cfg irq_cfgx[NR_IRQS_LEGACY];
-#else
-static struct irq_cfg irq_cfgx[NR_IRQS];
-#endif
 
 int __init arch_early_irq_init(void)
 {
@@ -234,7 +230,6 @@ int __init arch_early_irq_init(void)
 	return 0;
 }
 
-#ifdef CONFIG_SPARSE_IRQ
 static struct irq_cfg *irq_cfg(unsigned int irq)
 {
 	return irq_get_chip_data(irq);
@@ -268,22 +263,6 @@ static void free_irq_cfg(unsigned int at, struct irq_cfg *cfg)
 	free_cpumask_var(cfg->old_domain);
 	kfree(cfg);
 }
-
-#else
-
-struct irq_cfg *irq_cfg(unsigned int irq)
-{
-	return irq < nr_irqs ? irq_cfgx + irq : NULL;
-}
-
-static struct irq_cfg *alloc_irq_cfg(unsigned int irq, int node)
-{
-	return irq_cfgx + irq;
-}
-
-static inline void free_irq_cfg(unsigned int at, struct irq_cfg *cfg) { }
-
-#endif
 
 static struct irq_cfg *alloc_irq_and_cfg_at(unsigned int at, int node)
 {
@@ -3644,7 +3623,6 @@ int get_nr_irqs_gsi(void)
 	return nr_irqs_gsi;
 }
 
-#ifdef CONFIG_SPARSE_IRQ
 int __init arch_probe_nr_irqs(void)
 {
 	int nr;
@@ -3664,7 +3642,6 @@ int __init arch_probe_nr_irqs(void)
 
 	return NR_IRQS_LEGACY;
 }
-#endif
 
 int io_apic_set_pci_routing(struct device *dev, int irq,
 			    struct io_apic_irq_attr *irq_attr)
