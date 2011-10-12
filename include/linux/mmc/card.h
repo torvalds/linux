@@ -12,7 +12,6 @@
 
 #include <linux/mmc/core.h>
 #include <linux/mod_devicetable.h>
-#include <linux/genhd.h>
 
 struct mmc_cid {
 	unsigned int		manfid;
@@ -175,6 +174,7 @@ struct sdio_func_tuple;
 #define MMC_NUM_BOOT_PARTITION	2
 #define MMC_NUM_GP_PARTITION	4
 #define MMC_NUM_PHY_PARTITION	6
+#define MAX_MMC_PART_NAME_LEN	20
 
 /*
  * MMC Physical partitions
@@ -182,7 +182,7 @@ struct sdio_func_tuple;
 struct mmc_part {
 	unsigned int	size;	/* partition size (in bytes) */
 	unsigned int	part_cfg;	/* partition type */
-	char	name[DISK_NAME_LEN];
+	char	name[MAX_MMC_PART_NAME_LEN];
 	bool	force_ro;	/* to make boot parts RO by default */
 };
 
