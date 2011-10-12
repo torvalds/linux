@@ -670,12 +670,18 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	nonseekable_open(inode, filp);
 
+	retval = tty_alloc_file(filp);
+	if (retval)
+		return retval;
+
 	/* find a device that is not in use. */
 	tty_lock();
 	index = devpts_new_index(inode);
 	tty_unlock();
-	if (index < 0)
-		return index;
+	if (index < 0) {
+		retval = index;
+		goto err_file;
+	}
 
 	mutex_lock(&tty_mutex);
 	tty_lock();
@@ -689,9 +695,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
 
-	retval = tty_add_file(tty, filp);
-	if (retval)
-		goto out;
+	tty_add_file(tty, filp);
 
 	retval = devpts_pty_new(inode, tty->link);
 	if (retval)
@@ -710,6 +714,8 @@ out2:
 out:
 	devpts_kill_index(inode, index);
 	tty_unlock();
+err_file:
+	tty_free_file(filp);
 	return retval;
 }
 
