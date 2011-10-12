@@ -154,7 +154,7 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
 	struct dwc3_event_buffer	*evt;
 	int i;
 
-	for (i = 0; i < DWC3_EVENT_BUFFERS_NUM; i++) {
+	for (i = 0; i < dwc->num_event_buffers; i++) {
 		evt = dwc->ev_buffs[i];
 		if (evt) {
 			dwc3_free_one_event_buffer(dwc, evt);
@@ -166,16 +166,18 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
 /**
  * dwc3_alloc_event_buffers - Allocates @num event buffers of size @length
  * @dwc: Pointer to out controller context structure
- * @num: number of event buffers to allocate
  * @length: size of event buffer
  *
  * Returns 0 on success otherwise negative errno. In error the case, dwc
  * may contain some buffers allocated but not all which were requested.
  */
-static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned num,
-		unsigned length)
+static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 {
+	int			num;
 	int			i;
+
+	num = DWC3_NUM_INT(dwc->hwparams.hwparams1);
+	dwc->num_event_buffers = num;
 
 	for (i = 0; i < num; i++) {
 		struct dwc3_event_buffer	*evt;
@@ -202,7 +204,7 @@ static int __devinit dwc3_event_buffers_setup(struct dwc3 *dwc)
 	struct dwc3_event_buffer	*evt;
 	int				n;
 
-	for (n = 0; n < DWC3_EVENT_BUFFERS_NUM; n++) {
+	for (n = 0; n < dwc->num_event_buffers; n++) {
 		evt = dwc->ev_buffs[n];
 		dev_dbg(dwc->dev, "Event buf %p dma %08llx length %d\n",
 				evt->buf, (unsigned long long) evt->dma,
@@ -225,7 +227,7 @@ static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 	struct dwc3_event_buffer	*evt;
 	int				n;
 
-	for (n = 0; n < DWC3_EVENT_BUFFERS_NUM; n++) {
+	for (n = 0; n < dwc->num_event_buffers; n++) {
 		evt = dwc->ev_buffs[n];
 		dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(n), 0);
 		dwc3_writel(dwc->regs, DWC3_GEVNTADRHI(n), 0);
@@ -289,8 +291,9 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 		cpu_relax();
 	} while (true);
 
-	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_NUM,
-			DWC3_EVENT_BUFFERS_SIZE);
+	dwc3_cache_hwparams(dwc);
+
+	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
 	if (ret) {
 		dev_err(dwc->dev, "failed to allocate event buffers\n");
 		ret = -ENOMEM;
@@ -302,8 +305,6 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 		dev_err(dwc->dev, "failed to setup event buffers\n");
 		goto err1;
 	}
-
-	dwc3_cache_hwparams(dwc);
 
 	return 0;
 

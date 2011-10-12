@@ -52,7 +52,7 @@
 /* Global constants */
 #define DWC3_ENDPOINTS_NUM	32
 
-#define DWC3_EVENT_BUFFERS_NUM	2
+#define DWC3_EVENT_BUFFERS_MAX	2
 #define DWC3_EVENT_BUFFERS_SIZE	PAGE_SIZE
 #define DWC3_EVENT_TYPE_MASK	0xfe
 
@@ -536,6 +536,8 @@ struct dwc3_hwparams {
 	u32	hwparams8;
 };
 
+#define DWC3_NUM_INT(n)	(((n) & (0x3f << 15)) >> 15)
+
 /**
  * struct dwc3 - representation of our controller
  * @ctrl_req: usb control request which is used for ep0
@@ -555,6 +557,7 @@ struct dwc3_hwparams {
  * @regs: base address for our registers
  * @regs_size: address space size
  * @irq: IRQ number
+ * @num_event_buffers: calculated number of event buffers
  * @maximum_speed: maximum speed requested (mainly for testing purposes)
  * @revision: revision register contents
  * @is_selfpowered: true when we are selfpowered
@@ -585,7 +588,7 @@ struct dwc3 {
 	spinlock_t		lock;
 	struct device		*dev;
 
-	struct dwc3_event_buffer *ev_buffs[DWC3_EVENT_BUFFERS_NUM];
+	struct dwc3_event_buffer *ev_buffs[DWC3_EVENT_BUFFERS_MAX];
 	struct dwc3_ep		*eps[DWC3_ENDPOINTS_NUM];
 
 	struct usb_gadget	gadget;
@@ -596,6 +599,7 @@ struct dwc3 {
 
 	int			irq;
 
+	u32			num_event_buffers;
 	u32			maximum_speed;
 	u32			revision;
 
