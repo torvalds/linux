@@ -192,6 +192,7 @@ int32_t dwc_otg_hcd_handle_sof_intr (dwc_otg_hcd_t *_hcd)
 		qh = list_entry(qh_entry, dwc_otg_qh_t, qh_list_entry);
 		qh_entry = qh_entry->next;
 		if (dwc_frame_num_le(qh->sched_frame, _hcd->frame_number)) {
+		    #if 1
 			/* yk@rk 20100514
 			 * fix bug for alcro hub
 			 * do not send csplit after start_split_frame+4
@@ -213,12 +214,13 @@ int32_t dwc_otg_hcd_handle_sof_intr (dwc_otg_hcd_t *_hcd)
 				qh->start_split_frame = qh->sched_frame;
 			}
 			else
+			#endif
 			{
 				/* 
 				 * Move QH to the ready list to be executed next
 				 * (micro)frame.
 				 */
-				list_move(&qh->qh_list_entry, &_hcd->periodic_sched_ready);
+				list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_ready);
 			}
 		}
 	}
@@ -473,23 +475,23 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
  * host channel interrupt and handles them appropriately. */
 int32_t dwc_otg_hcd_handle_hc_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 {
-	int i;
 	int retval = 0;
 	haint_data_t haint;
+	int hcnum;
+	struct list_head 	*qh_entry;
+	dwc_otg_qh_t 		*qh;
 
 	/* Clear appropriate bits in HCINTn to clear the interrupt bit in
 	 * GINTSTS */
 
 	haint.d32 = dwc_otg_read_host_all_channels_intr(_dwc_otg_hcd->core_if);
-#if 1
+#if 0
+	int i;
 	for (i = 0; i < _dwc_otg_hcd->core_if->core_params->host_channels; i++) {
 		if (haint.b2.chint & (1 << i))
 			retval |= dwc_otg_hcd_handle_hc_n_intr(_dwc_otg_hcd, i);
 	}
 #else
-	int hcnum;
-	struct list_head 	*qh_entry;
-	dwc_otg_qh_t 		*qh;
 	/* yk@rk 20100511
  	 * USB Spec2.0 11.18.4
 	 * for all periodic endpoints that have split transactions scheduled within 
@@ -498,10 +500,10 @@ int32_t dwc_otg_hcd_handle_hc_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 	 * were issued.
 	 */
 	
-	qh_entry = _dwc_otg_hcd->periodic_sched_queued.prev;
+	qh_entry = _dwc_otg_hcd->periodic_sched_queued.next;
 	while (qh_entry != &_dwc_otg_hcd->periodic_sched_queued) {
 		qh = list_entry(qh_entry, dwc_otg_qh_t, qh_list_entry);
-		qh_entry = qh_entry->prev;
+		qh_entry = qh_entry->next;
 		hcnum = qh->channel->hc_num;
 		if (haint.b2.chint & (1 << hcnum)) {
 			retval |= dwc_otg_hcd_handle_hc_n_intr (_dwc_otg_hcd, hcnum);
@@ -757,6 +759,7 @@ update_isoc_urb_state(dwc_otg_hcd_t *_hcd,
 		frame_desc->actual_length =
 			get_actual_xfer_length(_hc, _hc_regs, _qtd,
 					       _halt_status, NULL);
+	    break;
 	default:
 		DWC_ERROR("%s: Unhandled _halt_status (%d)\n", __func__,
 			  _halt_status);
@@ -796,7 +799,10 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 {
 	dwc_otg_transaction_type_e tr_type;
 	int free_qtd;
-
+    if((!_qtd)|(_qtd->urb == NULL))
+    {
+        goto cleanup;
+    }
 	DWC_DEBUGPL(DBG_HCDV, "  %s: channel %d, halt_status %d\n",
 		    __func__, _hc->hc_num, _halt_status);
 	switch (_halt_status) {
@@ -921,7 +927,7 @@ static void halt_channel(dwc_otg_hcd_t *_hcd,
 			 * halt to be queued when the periodic schedule is
 			 * processed.
 			 */
-			list_move(&_hc->qh->qh_list_entry,
+			list_move_tail(&_hc->qh->qh_list_entry,
 				  &_hcd->periodic_sched_assigned);
 
 			/*
@@ -1130,12 +1136,10 @@ static int32_t handle_hc_stall_intr(dwc_otg_hcd_t *_hcd,
 
 	if (pipe_type == PIPE_CONTROL) {
 		dwc_otg_hcd_complete_urb(_hcd, _qtd->urb, -EPIPE);
-		_qtd->urb = NULL;
 	}
 
 	if (pipe_type == PIPE_BULK || pipe_type == PIPE_INTERRUPT) {
 		dwc_otg_hcd_complete_urb(_hcd, _qtd->urb, -EPIPE);
-		_qtd->urb = NULL;
 		/*
 		 * USB protocol requires resetting the data toggle for bulk
 		 * and interrupt endpoints when a CLEAR_FEATURE(ENDPOINT_HALT)
@@ -1434,7 +1438,6 @@ static int32_t handle_hc_babble_intr(dwc_otg_hcd_t *_hcd,
 		    "Babble Error--\n", _hc->hc_num);
 	if (_hc->ep_type != DWC_OTG_EP_TYPE_ISOC) {
 		dwc_otg_hcd_complete_urb(_hcd, _qtd->urb, -EOVERFLOW);
-		_qtd->urb = NULL;
 		halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_BABBLE_ERR);
 	} else {
 		dwc_otg_halt_status_e halt_status;
@@ -1523,9 +1526,14 @@ static int32_t handle_hc_xacterr_intr(dwc_otg_hcd_t *_hcd,
 				      dwc_otg_hc_regs_t *_hc_regs,
 				      dwc_otg_qtd_t *_qtd)
 {
+    dwc_otg_halt_status_e halt_status = DWC_OTG_HC_XFER_NO_HALT_STATUS;
 	DWC_DEBUGPL(DBG_HCD, "--Host Channel %d Interrupt: "
 		    "Transaction Error--\n", _hc->hc_num);
-
+    
+    if((_qtd==NULL)||(_qtd->urb == NULL))
+    {
+        goto out;
+    }
 	switch (usb_pipetype(_qtd->urb->pipe)) {
 	case PIPE_CONTROL:
 	case PIPE_BULK:
@@ -1543,27 +1551,26 @@ static int32_t handle_hc_xacterr_intr(dwc_otg_hcd_t *_hcd,
 		 * Halt the channel so the transfer can be re-started from
 		 * the appropriate point or the PING protocol will start.
 		 */
-		halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_XACT_ERR);
+		halt_status = DWC_OTG_HC_XFER_XACT_ERR;
 		break;
 	case PIPE_INTERRUPT:
 		_qtd->error_count++;
 		if ((_hc->do_split) && (_hc->complete_split)) {
 			_qtd->complete_split = 0;
 		}
-		halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_XACT_ERR);
+		halt_status = DWC_OTG_HC_XFER_XACT_ERR;
 		break;
 	case PIPE_ISOCHRONOUS:
 		{
-			dwc_otg_halt_status_e halt_status;
 			halt_status = update_isoc_urb_state(_hcd, _hc, _hc_regs, _qtd,
 							    DWC_OTG_HC_XFER_XACT_ERR);
 							    
-			halt_channel(_hcd, _hc, _qtd, halt_status);
 		}
 		break;
 	}
 		
-
+out:
+    halt_channel(_hcd, _hc, _qtd, halt_status);
 	disable_hc_int(_hc_regs,xacterr);
 
 	return 1;
@@ -1894,7 +1901,6 @@ int32_t dwc_otg_hcd_handle_hc_n_intr (dwc_otg_hcd_t *_dwc_otg_hcd, uint32_t _num
 	if (hcint.b.datatglerr) {
 		retval |= handle_hc_datatglerr_intr(_dwc_otg_hcd, hc, hc_regs, qtd);
 	}
-
 	return retval;
 }
 
