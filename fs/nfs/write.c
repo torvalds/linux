@@ -1664,34 +1664,20 @@ out_error:
 int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 		struct page *page)
 {
-	struct nfs_page *req;
-	int ret;
+	/*
+	 * If PagePrivate is set, then the page is currently associated with
+	 * an in-progress read or write request. Don't try to migrate it.
+	 *
+	 * FIXME: we could do this in principle, but we'll need a way to ensure
+	 *        that we can safely release the inode reference while holding
+	 *        the page lock.
+	 */
+	if (PagePrivate(page))
+		return -EBUSY;
 
 	nfs_fscache_release_page(page, GFP_KERNEL);
 
-	req = nfs_find_and_lock_request(page, false);
-	ret = PTR_ERR(req);
-	if (IS_ERR(req))
-		goto out;
-
-	ret = migrate_page(mapping, newpage, page);
-	if (!req)
-		goto out;
-	if (ret)
-		goto out_unlock;
-	page_cache_get(newpage);
-	spin_lock(&mapping->host->i_lock);
-	req->wb_page = newpage;
-	SetPagePrivate(newpage);
-	set_page_private(newpage, (unsigned long)req);
-	ClearPagePrivate(page);
-	set_page_private(page, 0);
-	spin_unlock(&mapping->host->i_lock);
-	page_cache_release(page);
-out_unlock:
-	nfs_clear_page_tag_locked(req);
-out:
-	return ret;
+	return migrate_page(mapping, newpage, page);
 }
 #endif
 
