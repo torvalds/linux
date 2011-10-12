@@ -1182,6 +1182,7 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 static int ath6kl_upload_otp(struct ath6kl *ar)
 {
 	u32 address, param;
+	bool from_hw = false;
 	int ret;
 
 	if (WARN_ON(ar->fw_otp == NULL))
@@ -1210,15 +1211,20 @@ static int ath6kl_upload_otp(struct ath6kl *ar)
 		return ret;
 	}
 
-	ar->hw.app_start_override_addr = address;
+	if (ar->hw.app_start_override_addr == 0) {
+		ar->hw.app_start_override_addr = address;
+		from_hw = true;
+	}
 
-	ath6kl_dbg(ATH6KL_DBG_BOOT, "app_start_override_addr 0x%x\n",
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "app_start_override_addr%s 0x%x\n",
+		   from_hw ? " (from hw)" : "",
 		   ar->hw.app_start_override_addr);
 
 	/* execute the OTP code */
-	ath6kl_dbg(ATH6KL_DBG_BOOT, "executing OTP at 0x%x\n", address);
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "executing OTP at 0x%x\n",
+		   ar->hw.app_start_override_addr);
 	param = 0;
-	ath6kl_bmi_execute(ar, address, &param);
+	ath6kl_bmi_execute(ar, ar->hw.app_start_override_addr, &param);
 
 	return ret;
 }
@@ -1420,6 +1426,10 @@ static int ath6kl_init_hw_params(struct ath6kl *ar)
 		ar->hw.app_load_addr = AR6003_REV2_APP_LOAD_ADDRESS;
 		ar->hw.board_ext_data_addr = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
 		ar->hw.reserved_ram_size = AR6003_REV2_RAM_RESERVE_SIZE;
+
+		/* hw2.0 needs override address hardcoded */
+		ar->hw.app_start_override_addr = 0x944C00;
+
 		break;
 	case AR6003_REV3_VERSION:
 		ar->hw.dataset_patch_addr = AR6003_REV3_DATASET_PATCH_ADDRESS;
