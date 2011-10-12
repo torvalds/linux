@@ -1896,11 +1896,10 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * Drop unicast frames to unauthorised stations unless they are
 	 * EAPOL frames from the local station.
 	 */
-	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
-		unlikely(!is_multicast_ether_addr(hdr.addr1) && !authorized &&
-		      !(cpu_to_be16(ethertype) == sdata->control_port_protocol &&
-		       compare_ether_addr(sdata->vif.addr,
-					  skb->data + ETH_ALEN) == 0))) {
+	if (unlikely(!ieee80211_vif_is_mesh(&sdata->vif) &&
+		     !is_multicast_ether_addr(hdr.addr1) && !authorized &&
+		     (cpu_to_be16(ethertype) != sdata->control_port_protocol ||
+		      compare_ether_addr(sdata->vif.addr, skb->data + ETH_ALEN)))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: dropped frame to %pM"
