@@ -653,9 +653,6 @@ struct brcms_bss_cfg {
 	struct brcms_bss_info *current_bss;
 };
 
-extern void brcms_c_fatal_error(struct brcms_c_info *wlc);
-extern void brcms_b_rpc_watchdog(struct brcms_c_info *wlc);
-extern void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p);
 extern void brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo,
 			   struct sk_buff *p,
 			   bool commit, s8 txpktpend);
@@ -663,47 +660,22 @@ extern void brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo,
 				    s8 txpktpend);
 extern void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
 			    struct sk_buff *sdu, uint prec);
-extern void brcms_c_info_init(struct brcms_c_info *wlc, int unit);
 extern void brcms_c_print_txstatus(struct tx_status *txs);
 extern int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 		   uint *blocks);
 
 #if defined(BCMDBG)
-extern void brcms_c_print_rxh(struct d11rxhdr *rxh);
 extern void brcms_c_print_txdesc(struct d11txh *txh);
 #else
 #define brcms_c_print_txdesc(a)
 #endif
 
-extern void brcms_c_setxband(struct brcms_hardware *wlc_hw, uint bandunit);
-extern void brcms_c_coredisable(struct brcms_hardware *wlc_hw);
-
-extern bool brcms_c_valid_rate(struct brcms_c_info *wlc, u32 rate,
-			       int band, bool verbose);
-extern void brcms_c_ap_upd(struct brcms_c_info *wlc);
-
-/* helper functions */
-extern void brcms_c_shm_ssid_upd(struct brcms_c_info *wlc,
-				 struct brcms_bss_cfg *cfg);
 extern int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config);
-
 extern void brcms_c_mac_bcn_promisc_change(struct brcms_c_info *wlc,
 					   bool promisc);
-extern void brcms_c_mac_bcn_promisc(struct brcms_c_info *wlc);
-extern void brcms_c_mac_promisc(struct brcms_c_info *wlc);
-extern void brcms_c_txflowcontrol(struct brcms_c_info *wlc,
-				  struct brcms_txq_info *qi,
-				  bool on, int prio);
-extern void brcms_c_txflowcontrol_override(struct brcms_c_info *wlc,
-				       struct brcms_txq_info *qi,
-				       bool on, uint override);
-extern bool brcms_c_txflowcontrol_prio_isset(struct brcms_c_info *wlc,
-					     struct brcms_txq_info *qi,
-					     int prio);
 extern void brcms_c_send_q(struct brcms_c_info *wlc);
 extern int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu,
 			    uint *fifo);
-
 extern u16 brcms_c_calc_lsig_len(struct brcms_c_info *wlc, u32 ratespec,
 				uint mac_len);
 extern u32 brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc,
@@ -715,82 +687,26 @@ extern u16 brcms_c_compute_rtscts_dur(struct brcms_c_info *wlc, bool cts_only,
 				      u8 rts_preamble_type,
 				      u8 frame_preamble_type, uint frame_len,
 				      bool ba);
-
-extern void brcms_c_tbtt(struct brcms_c_info *wlc);
 extern void brcms_c_inval_dma_pkts(struct brcms_hardware *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn));
-
-/* Shared memory access */
-extern void brcms_c_copyto_shm(struct brcms_c_info *wlc, uint offset,
-			       const void *buf, int len);
-
 extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
-
 extern void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend);
-extern void brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
-					  struct brcms_bss_cfg *cfg,
-					  bool suspend);
-extern bool brcms_c_ismpc(struct brcms_c_info *wlc);
-extern bool brcms_c_is_non_delay_mpc(struct brcms_c_info *wlc);
-extern void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc);
-extern bool brcms_c_prec_enq_head(struct brcms_c_info *wlc, struct pktq *q,
-			      struct sk_buff *pkt, int prec, bool head);
-extern u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, u32 rspec);
-extern void brcms_c_compute_plcp(struct brcms_c_info *wlc, u32 rate,
-				 uint length, u8 *plcp);
-extern uint brcms_c_calc_frame_time(struct brcms_c_info *wlc,
-				    u32 ratespec,
-				    u8 preamble_type, uint mac_len);
-
-extern void brcms_c_set_chanspec(struct brcms_c_info *wlc,
-				 u16 chanspec);
-
-extern bool brcms_c_timers_init(struct brcms_c_info *wlc, int unit);
-
 extern int brcms_c_set_nmode(struct brcms_c_info *wlc);
-extern void brcms_c_mimops_action_ht_send(struct brcms_c_info *wlc,
-				      struct brcms_bss_cfg *bsscfg,
-				      u8 mimops_mode);
-
-extern void brcms_c_switch_shortslot(struct brcms_c_info *wlc, bool shortslot);
-extern void brcms_c_set_bssid(struct brcms_bss_cfg *cfg);
-extern void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend);
-
-extern void brcms_c_set_ratetable(struct brcms_c_info *wlc);
-extern int brcms_c_set_mac(struct brcms_bss_cfg *cfg);
 extern void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
 					  u32 bcn_rate);
-extern void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc,
-					   uint frame_len);
-extern u32 brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
-					     struct brcms_c_rateset *rs);
-extern void brcms_c_radio_disable(struct brcms_c_info *wlc);
-extern void brcms_c_bcn_li_upd(struct brcms_c_info *wlc);
-extern void brcms_c_set_home_chanspec(struct brcms_c_info *wlc,
-				      u16 chanspec);
-extern bool brcms_c_ps_allowed(struct brcms_c_info *wlc);
-extern bool brcms_c_stay_awake(struct brcms_c_info *wlc);
-
 extern void brcms_b_antsel_type_set(struct brcms_hardware *wlc_hw,
 				     u8 antsel_type);
-
-/* chanspec, ucode interface */
 extern void brcms_b_set_chanspec(struct brcms_hardware *wlc_hw,
 				  u16 chanspec,
 				  bool mute, struct txpwr_limits *txpwr);
-
 extern void brcms_b_write_shm(struct brcms_hardware *wlc_hw, uint offset,
 			      u16 v);
 extern u16 brcms_b_read_shm(struct brcms_hardware *wlc_hw, uint offset);
-
 extern void brcms_b_mhf(struct brcms_hardware *wlc_hw, u8 idx, u16 mask,
 			u16 val, int bands);
-
 extern void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags);
-
 extern void brcms_b_mctrl(struct brcms_hardware *wlc_hw, u32 mask, u32 val);
-
 extern void brcms_b_phy_reset(struct brcms_hardware *wlc_hw);
 extern void brcms_b_bw_set(struct brcms_hardware *wlc_hw, u16 bw);
 extern void brcms_b_core_phypll_reset(struct brcms_hardware *wlc_hw);
