@@ -872,8 +872,7 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 	int i;
 
 	nr_channels = id->driver_data;
-	pd = kzalloc(sizeof(struct pch_dma)+
-		sizeof(struct pch_dma_chan) * nr_channels, GFP_KERNEL);
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 
