@@ -962,15 +962,6 @@ out:
 static unsigned long zcache_failed_get_free_pages;
 static unsigned long zcache_failed_alloc;
 static unsigned long zcache_put_to_flush;
-static unsigned long zcache_aborted_preload;
-static unsigned long zcache_aborted_shrink;
-
-/*
- * Ensure that memory allocation requests in zcache don't result
- * in direct reclaim requests via the shrinker, which would cause
- * an infinite loop.  Maybe a GFP flag would be better?
- */
-static DEFINE_SPINLOCK(zcache_direct_reclaim_lock);
 
 /*
  * for now, used named slabs so can easily track usage; later can
@@ -1009,10 +1000,6 @@ static int zcache_do_preload(struct tmem_pool *pool)
 		goto out;
 	if (unlikely(zcache_obj_cache == NULL))
 		goto out;
-	if (!spin_trylock(&zcache_direct_reclaim_lock)) {
-		zcache_aborted_preload++;
-		goto out;
-	}
 	preempt_disable();
 	kp = &__get_cpu_var(zcache_preloads);
 	while (kp->nr < ARRAY_SIZE(kp->objnodes)) {
@@ -1021,7 +1008,7 @@ static int zcache_do_preload(struct tmem_pool *pool)
 				ZCACHE_GFP_MASK);
 		if (unlikely(objnode == NULL)) {
 			zcache_failed_alloc++;
-			goto unlock_out;
+			goto out;
 		}
 		preempt_disable();
 		kp = &__get_cpu_var(zcache_preloads);
@@ -1034,13 +1021,13 @@ static int zcache_do_preload(struct tmem_pool *pool)
 	obj = kmem_cache_alloc(zcache_obj_cache, ZCACHE_GFP_MASK);
 	if (unlikely(obj == NULL)) {
 		zcache_failed_alloc++;
-		goto unlock_out;
+		goto out;
 	}
 	page = (void *)__get_free_page(ZCACHE_GFP_MASK);
 	if (unlikely(page == NULL)) {
 		zcache_failed_get_free_pages++;
 		kmem_cache_free(zcache_obj_cache, obj);
-		goto unlock_out;
+		goto out;
 	}
 	preempt_disable();
 	kp = &__get_cpu_var(zcache_preloads);
@@ -1053,8 +1040,6 @@ static int zcache_do_preload(struct tmem_pool *pool)
 	else
 		free_page((unsigned long)page);
 	ret = 0;
-unlock_out:
-	spin_unlock(&zcache_direct_reclaim_lock);
 out:
 	return ret;
 }
@@ -1429,8 +1414,6 @@ ZCACHE_SYSFS_RO(evicted_buddied_pages);
 ZCACHE_SYSFS_RO(failed_get_free_pages);
 ZCACHE_SYSFS_RO(failed_alloc);
 ZCACHE_SYSFS_RO(put_to_flush);
-ZCACHE_SYSFS_RO(aborted_preload);
-ZCACHE_SYSFS_RO(aborted_shrink);
 ZCACHE_SYSFS_RO(compress_poor);
 ZCACHE_SYSFS_RO(mean_compress_poor);
 ZCACHE_SYSFS_RO_ATOMIC(zbud_curr_raw_pages);
@@ -1472,8 +1455,6 @@ static struct attribute *zcache_attrs[] = {
 	&zcache_failed_get_free_pages_attr.attr,
 	&zcache_failed_alloc_attr.attr,
 	&zcache_put_to_flush_attr.attr,
-	&zcache_aborted_preload_attr.attr,
-	&zcache_aborted_shrink_attr.attr,
 	&zcache_zbud_unbuddied_list_counts_attr.attr,
 	&zcache_zbud_cumul_chunk_counts_attr.attr,
 	&zcache_zv_curr_dist_counts_attr.attr,
@@ -1513,11 +1494,7 @@ static int shrink_zcache_memory(struct shrinker *shrink,
 		if (!(gfp_mask & __GFP_FS))
 			/* does this case really need to be skipped? */
 			goto out;
-		if (spin_trylock(&zcache_direct_reclaim_lock)) {
-			zbud_evict_pages(nr);
-			spin_unlock(&zcache_direct_reclaim_lock);
-		} else
-			zcache_aborted_shrink++;
+		zbud_evict_pages(nr);
 	}
 	ret = (int)atomic_read(&zcache_zbud_curr_raw_pages);
 out:
