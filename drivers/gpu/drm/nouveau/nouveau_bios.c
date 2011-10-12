@@ -4541,7 +4541,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 	NV_DEBUG_KMS(dev, "Searching for output entry for %d %d %d\n",
 			dcbent->type, dcbent->location, dcbent->or);
 	for (i = 0; i < table[3]; i++) {
-		otable = ROMPTR(bios, table[table[1] + (i * table[2])]);
+		otable = ROMPTR(dev, table[table[1] + (i * table[2])]);
 		if (otable && bios_encoder_match(dcbent, ROM32(otable[0])))
 			break;
 	}
@@ -5493,7 +5493,7 @@ bit_table(struct drm_device *dev, u8 id, struct bit_entry *bit)
 			bit->version = entry[1];
 			bit->length = ROM16(entry[2]);
 			bit->offset = ROM16(entry[4]);
-			bit->data = ROMPTR(bios, entry[4]);
+			bit->data = ROMPTR(dev, entry[4]);
 			return 0;
 		}
 
@@ -5807,9 +5807,9 @@ parse_dcb_gpio_table(struct nvbios *bios)
 	u8 *dcb, *gpio = NULL, *entry;
 	int i;
 
-	dcb = ROMPTR(bios, bios->data[0x36]);
+	dcb = ROMPTR(dev, bios->data[0x36]);
 	if (dcb[0] >= 0x30) {
-		gpio = ROMPTR(bios, dcb[10]);
+		gpio = ROMPTR(dev, dcb[10]);
 		if (!gpio)
 			goto no_table;
 
@@ -5818,7 +5818,7 @@ parse_dcb_gpio_table(struct nvbios *bios)
 		recordlen = gpio[3];
 	} else
 	if (dcb[0] >= 0x22 && dcb[-1] >= 0x13) {
-		gpio = ROMPTR(bios, dcb[-15]);
+		gpio = ROMPTR(dev, dcb[-15]);
 		if (!gpio)
 			goto no_table;
 

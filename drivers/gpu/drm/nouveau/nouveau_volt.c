@@ -117,10 +117,10 @@ nouveau_volt_init(struct drm_device *dev)
 			return;
 
 		if (P.version == 1)
-			volt = ROMPTR(bios, P.data[16]);
+			volt = ROMPTR(dev, P.data[16]);
 		else
 		if (P.version == 2)
-			volt = ROMPTR(bios, P.data[12]);
+			volt = ROMPTR(dev, P.data[12]);
 		else {
 			NV_WARN(dev, "unknown volt for BIT P %d\n", P.version);
 		}
@@ -130,7 +130,7 @@ nouveau_volt_init(struct drm_device *dev)
 			return;
 		}
 
-		volt = ROMPTR(bios, bios->data[bios->offset + 0x98]);
+		volt = ROMPTR(dev, bios->data[bios->offset + 0x98]);
 	}
 
 	if (!volt) {

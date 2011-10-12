@@ -41,7 +41,7 @@ legacy_perf_init(struct drm_device *dev)
 		return;
 	}
 
-	perf = ROMPTR(bios, bmp[0x73]);
+	perf = ROMPTR(dev, bmp[0x73]);
 	if (!perf) {
 		NV_DEBUG(dev, "No memclock table pointer found.\n");
 		return;
@@ -87,7 +87,7 @@ nouveau_perf_timing(struct drm_device *dev, struct bit_entry *P,
 	 * ramcfg to select the correct subentry
 	 */
 	if (P->version == 2) {
-		u8 *tmap = ROMPTR(bios, P->data[4]);
+		u8 *tmap = ROMPTR(dev, P->data[4]);
 		if (!tmap) {
 			NV_DEBUG(dev, "no timing map pointer\n");
 			return NULL;
@@ -140,7 +140,6 @@ nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
 		     struct nouveau_pm_level *perflvl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
 	u8 *vmap;
 	int id;
 
@@ -165,7 +164,7 @@ nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
 		return;
 	}
 
-	vmap = ROMPTR(bios, P->data[32]);
+	vmap = ROMPTR(dev, P->data[32]);
 	if (!vmap) {
 		NV_DEBUG(dev, "volt map table pointer invalid\n");
 		return;
@@ -200,7 +199,7 @@ nouveau_perf_init(struct drm_device *dev)
 			return;
 		}
 
-		perf = ROMPTR(bios, P.data[0]);
+		perf = ROMPTR(dev, P.data[0]);
 		version   = perf[0];
 		headerlen = perf[1];
 		if (version < 0x40) {
@@ -218,7 +217,7 @@ nouveau_perf_init(struct drm_device *dev)
 			return;
 		}
 
-		perf = ROMPTR(bios, bios->data[bios->offset + 0x94]);
+		perf = ROMPTR(dev, bios->data[bios->offset + 0x94]);
 		if (!perf) {
 			NV_DEBUG(dev, "perf table pointer invalid\n");
 			return;

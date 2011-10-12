@@ -316,9 +316,9 @@ nouveau_temp_init(struct drm_device *dev)
 			return;
 
 		if (P.version == 1)
-			temp = ROMPTR(bios, P.data[12]);
+			temp = ROMPTR(dev, P.data[12]);
 		else if (P.version == 2)
-			temp = ROMPTR(bios, P.data[16]);
+			temp = ROMPTR(dev, P.data[16]);
 		else
 			NV_WARN(dev, "unknown temp for BIT P %d\n", P.version);
 

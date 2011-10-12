@@ -273,8 +273,6 @@ nouveau_dp_tu_update(struct drm_device *dev, int or, int link, u32 clk, u32 bpp)
 u8 *
 nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
 	struct bit_entry d;
 	u8 *table;
 	int i;
@@ -289,7 +287,7 @@ nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
 		return NULL;
 	}
 
-	table = ROMPTR(bios, d.data[0]);
+	table = ROMPTR(dev, d.data[0]);
 	if (!table) {
 		NV_ERROR(dev, "displayport table pointer invalid\n");
 		return NULL;
@@ -306,7 +304,7 @@ nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
 	}
 
 	for (i = 0; i < table[3]; i++) {
-		*entry = ROMPTR(bios, table[table[1] + (i * table[2])]);
+		*entry = ROMPTR(dev, table[table[1] + (i * table[2])]);
 		if (*entry && bios_encoder_match(dcb, ROM32((*entry)[0])))
 			return table;
 	}
@@ -336,7 +334,6 @@ struct dp_state {
 static void
 dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int or = dp->or, link = dp->link;
 	u8 *entry, sink[2];
 	u32 dp_ctrl;
@@ -360,7 +357,7 @@ dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 	 * table, that has (among other things) pointers to more scripts that
 	 * need to be executed, this time depending on link speed.
 	 */
-	entry = ROMPTR(&dev_priv->vbios, dp->entry[10]);
+	entry = ROMPTR(dev, dp->entry[10]);
 	if (entry) {
 		if (dp->table[0] < 0x30) {
 			while (dp->link_bw < (ROM16(entry[0]) * 10))

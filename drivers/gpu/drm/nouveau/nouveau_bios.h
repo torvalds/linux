@@ -34,9 +34,14 @@
 
 #define DCB_LOC_ON_CHIP 0
 
-#define ROM16(x) le16_to_cpu(*(uint16_t *)&(x))
-#define ROM32(x) le32_to_cpu(*(uint32_t *)&(x))
-#define ROMPTR(bios, x) (ROM16(x) ? &(bios)->data[ROM16(x)] : NULL)
+#define ROM16(x) le16_to_cpu(*(u16 *)&(x))
+#define ROM32(x) le32_to_cpu(*(u32 *)&(x))
+#define ROM48(x) ({ u8 *p = &(x); (u64)ROM16(p[4]) << 32 | ROM32(p[0]); })
+#define ROM64(x) le64_to_cpu(*(u64 *)&(x))
+#define ROMPTR(d,x) ({            \
+	struct drm_nouveau_private *dev_priv = (d)->dev_private; \
+	ROM16(x) ? &dev_priv->vbios.data[ROM16(x)] : NULL; \
+})
 
 struct bit_entry {
 	uint8_t  id;
