@@ -793,6 +793,7 @@ struct drm_nouveau_private {
 	struct nouveau_vm *chan_vm;
 
 	struct nvbios vbios;
+	u8 *mxms;
 	struct list_head i2c_ports;
 
 	struct nv04_mode_state mode_reg;
@@ -864,6 +865,7 @@ extern char *nouveau_perflvl;
 extern int nouveau_perflvl_wr;
 extern int nouveau_msi;
 extern int nouveau_ctxfw;
+extern int nouveau_mxmdcb;
 
 extern int nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state);
 extern int nouveau_pci_resume(struct pci_dev *pdev);
@@ -1107,6 +1109,10 @@ extern int run_tmds_table(struct drm_device *, struct dcb_entry *,
 extern int call_lvds_script(struct drm_device *, struct dcb_entry *, int head,
 			    enum LVDS_script, int pxclk);
 bool bios_encoder_match(struct dcb_entry *, u32 hash);
+
+/* nouveau_mxm.c */
+int  nouveau_mxm_init(struct drm_device *dev);
+void nouveau_mxm_fini(struct drm_device *dev);
 
 /* nouveau_ttm.c */
 int nouveau_ttm_global_init(struct drm_nouveau_private *);

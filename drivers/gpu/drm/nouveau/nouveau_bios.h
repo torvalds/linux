@@ -315,7 +315,7 @@ struct nvbios {
 };
 
 void *dcb_table(struct drm_device *);
-u8 *dcb_outp(struct drm_device *, u8 idx);
+void *dcb_outp(struct drm_device *, u8 idx);
 int dcb_outp_foreach(struct drm_device *, void *data,
 		     int (*)(struct drm_device *, void *, int idx, u8 *outp));
 u8 *dcb_conntab(struct drm_device *);

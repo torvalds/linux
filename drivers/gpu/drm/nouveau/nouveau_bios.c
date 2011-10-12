@@ -5382,6 +5382,9 @@ bit_table(struct drm_device *dev, u8 id, struct bit_entry *bit)
 	struct nvbios *bios = &dev_priv->vbios;
 	u8 entries, *entry;
 
+	if (bios->type != NVBIOS_BIT)
+		return -ENODEV;
+
 	entries = bios->data[bios->offset + 10];
 	entry   = &bios->data[bios->offset + 12];
 	while (entries--) {
@@ -5832,7 +5835,7 @@ dcb_table(struct drm_device *dev)
 	return NULL;
 }
 
-u8 *
+void *
 dcb_outp(struct drm_device *dev, u8 idx)
 {
 	u8 *dcb = dcb_table(dev);
@@ -6663,6 +6666,10 @@ nouveau_bios_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
+	ret = nouveau_mxm_init(dev);
+	if (ret)
+		return ret;
+
 	ret = parse_dcb_table(dev, bios);
 	if (ret)
 		return ret;
@@ -6703,5 +6710,6 @@ nouveau_bios_init(struct drm_device *dev)
 void
 nouveau_bios_takedown(struct drm_device *dev)
 {
+	nouveau_mxm_fini(dev);
 	nouveau_i2c_fini(dev);
 }

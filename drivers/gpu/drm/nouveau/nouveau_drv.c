@@ -124,6 +124,10 @@ MODULE_PARM_DESC(ctxfw, "Use external HUB/GPC ucode (fermi)\n");
 int nouveau_ctxfw;
 module_param_named(ctxfw, nouveau_ctxfw, int, 0400);
 
+MODULE_PARM_DESC(ctxfw, "Santise DCB table according to MXM-SIS\n");
+int nouveau_mxmdcb = 1;
+module_param_named(mxmdcb, nouveau_mxmdcb, int, 0400);
+
 int nouveau_fbpercrtc;
 #if 0
 module_param_named(fbpercrtc, nouveau_fbpercrtc, int, 0400);
