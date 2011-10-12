@@ -31,10 +31,16 @@
 #include <mach/pinmux.h>
 #include <mach/suspend.h>
 
+#define TRISTATE_REG_A		0x14
+#define PIN_MUX_CTL_REG_A	0x80
+#define PULLUPDOWN_REG_A	0xa0
+#define PINGROUP_REG_A		0x868
+
 #define DRIVE_PINGROUP(pg_name, r)				\
 	[TEGRA_DRIVE_PINGROUP_ ## pg_name] = {			\
 		.name = #pg_name,				\
-		.reg = r					\
+		.reg_bank = 3,					\
+		.reg = ((r) - PINGROUP_REG_A)			\
 	}
 
 const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE_PINGROUP] = {
@@ -90,11 +96,14 @@ const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE
 			TEGRA_MUX_ ## f3,			\
 		},						\
 		.func_safe = TEGRA_MUX_ ## f_safe,		\
-		.tri_reg = tri_r,				\
+		.tri_bank = 0,					\
+		.tri_reg = ((tri_r) - TRISTATE_REG_A),		\
 		.tri_bit = tri_b,				\
-		.mux_reg = mux_r,				\
+		.mux_bank = 1,					\
+		.mux_reg = ((mux_r) - PIN_MUX_CTL_REG_A),	\
 		.mux_bit = mux_b,				\
-		.pupd_reg = pupd_r,				\
+		.pupd_bank = 2,				\
+		.pupd_reg = ((pupd_r) - PULLUPDOWN_REG_A),	\
 		.pupd_bit = pupd_b,				\
 	}
 
@@ -217,62 +226,3 @@ const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
 	PINGROUP(XM2C,  DDR,   RSVD,      RSVD,      RSVD,      RSVD,          RSVD,      -1,   -1, -1,   -1, 0xA8, 30),
 	PINGROUP(XM2D,  DDR,   RSVD,      RSVD,      RSVD,      RSVD,          RSVD,      -1,   -1, -1,   -1, 0xA8, 28),
 };
-
-#ifdef CONFIG_PM
-#define TRISTATE_REG_A         0x14
-#define TRISTATE_REG_NUM       4
-#define PIN_MUX_CTL_REG_A      0x80
-#define PIN_MUX_CTL_REG_NUM    8
-#define PULLUPDOWN_REG_A       0xa0
-#define PULLUPDOWN_REG_NUM     5
-
-static u32 pinmux_reg[TRISTATE_REG_NUM + PIN_MUX_CTL_REG_NUM +
-		      PULLUPDOWN_REG_NUM +
-		      ARRAY_SIZE(tegra_soc_drive_pingroups)];
-
-static inline unsigned long pg_readl(unsigned long offset)
-{
-	return readl(IO_TO_VIRT(TEGRA_APB_MISC_BASE + offset));
-}
-
-static inline void pg_writel(unsigned long value, unsigned long offset)
-{
-	writel(value, IO_TO_VIRT(TEGRA_APB_MISC_BASE + offset));
-}
-
-void tegra_pinmux_suspend(void)
-{
-	unsigned int i;
-	u32 *ctx = pinmux_reg;
-
-	for (i = 0; i < PIN_MUX_CTL_REG_NUM; i++)
-		*ctx++ = pg_readl(PIN_MUX_CTL_REG_A + i*4);
-
-	for (i = 0; i < PULLUPDOWN_REG_NUM; i++)
-		*ctx++ = pg_readl(PULLUPDOWN_REG_A + i*4);
-
-	for (i = 0; i < TRISTATE_REG_NUM; i++)
-		*ctx++ = pg_readl(TRISTATE_REG_A + i*4);
-
-	for (i = 0; i < ARRAY_SIZE(tegra_soc_drive_pingroups); i++)
-		*ctx++ = pg_readl(tegra_soc_drive_pingroups[i].reg);
-}
-
-void tegra_pinmux_resume(void)
-{
-	unsigned int i;
-	u32 *ctx = pinmux_reg;
-
-	for (i = 0; i < PIN_MUX_CTL_REG_NUM; i++)
-		pg_writel(*ctx++, PIN_MUX_CTL_REG_A + i*4);
-
-	for (i = 0; i < PULLUPDOWN_REG_NUM; i++)
-		pg_writel(*ctx++, PULLUPDOWN_REG_A + i*4);
-
-	for (i = 0; i < TRISTATE_REG_NUM; i++)
-		pg_writel(*ctx++, TRISTATE_REG_A + i*4);
-
-	for (i = 0; i < ARRAY_SIZE(tegra_soc_drive_pingroups); i++)
-		pg_writel(*ctx++, tegra_soc_drive_pingroups[i].reg);
-}
-#endif
