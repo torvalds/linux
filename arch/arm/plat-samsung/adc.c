@@ -41,6 +41,7 @@
 
 enum s3c_cpu_type {
 	TYPE_ADCV1, /* S3C24XX */
+	TYPE_ADCV11, /* S3C2443 */
 	TYPE_ADCV2, /* S3C64XX, S5P64X0, S5PC100 */
 	TYPE_ADCV3, /* S5PV210, S5PC110, EXYNOS4210 */
 };
@@ -106,6 +107,9 @@ static inline void s3c_adc_select(struct adc_device *adc,
 	if (!client->is_ts) {
 		if (cpu == TYPE_ADCV3)
 			writel(client->channel & 0xf, adc->regs + S5P_ADCMUX);
+		else if (cpu == TYPE_ADCV11)
+			writel(client->channel & 0xf,
+						adc->regs + S3C2443_ADCMUX);
 		else
 			con |= S3C2410_ADCCON_SELMUX(client->channel);
 	}
@@ -294,13 +298,13 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 
 	client->nr_samples--;
 
-	if (cpu != TYPE_ADCV1) {
+	if (cpu == TYPE_ADCV1 || cpu == TYPE_ADCV11) {
+		data0 &= 0x3ff;
+		data1 &= 0x3ff;
+	} else {
 		/* S3C64XX/S5P ADC resolution is 12-bit */
 		data0 &= 0xfff;
 		data1 &= 0xfff;
-	} else {
-		data0 &= 0x3ff;
-		data1 &= 0x3ff;
 	}
 
 	if (client->convert_cb)
@@ -321,7 +325,7 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 	}
 
 exit:
-	if (cpu != TYPE_ADCV1) {
+	if (cpu == TYPE_ADCV2 || cpu == TYPE_ADCV3) {
 		/* Clear ADC interrupt */
 		writel(0, adc->regs + S3C64XX_ADCCLRINT);
 	}
@@ -492,6 +496,9 @@ static struct platform_device_id s3c_adc_driver_ids[] = {
 	{
 		.name           = "s3c24xx-adc",
 		.driver_data    = TYPE_ADCV1,
+	}, {
+		.name		= "s3c2443-adc",
+		.driver_data	= TYPE_ADCV11,
 	}, {
 		.name           = "s3c64xx-adc",
 		.driver_data    = TYPE_ADCV2,
