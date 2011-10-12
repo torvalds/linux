@@ -1343,6 +1343,7 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 
 	ep = &udc->eps[0];
 	udc->ep0_dir = direction;
+	udc->ep0_state = WAIT_FOR_OUT_STATUS;
 
 	req = udc->status_req;
 
@@ -1421,6 +1422,8 @@ static void ch9getstatus(struct mv_udc *udc, u8 ep_num,
 	retval = udc_prime_status(udc, EP_DIR_IN, status, false);
 	if (retval)
 		ep0_stall(udc);
+	else
+		udc->ep0_state = DATA_STATE_XMIT;
 }
 
 static void ch9clearfeature(struct mv_udc *udc, struct usb_ctrlrequest *setup)
@@ -1466,8 +1469,6 @@ static void ch9clearfeature(struct mv_udc *udc, struct usb_ctrlrequest *setup)
 
 	if (udc_prime_status(udc, EP_DIR_IN, 0, true))
 		ep0_stall(udc);
-	else
-		udc->ep0_state = DATA_STATE_XMIT;
 out:
 	return;
 }
