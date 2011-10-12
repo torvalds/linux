@@ -475,7 +475,7 @@ static s32 brcmf_do_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 	struct brcmf_cfg80211_iscan_ctrl *iscan = cfg_to_iscan(cfg_priv);
 	struct net_device *ndev = cfg_to_ndev(cfg_priv);
 	struct brcmf_ssid ssid;
-	s32 passive_scan;
+	__le32 passive_scan;
 	s32 err = 0;
 
 	/* Broadcast scan by default */
@@ -483,7 +483,7 @@ static s32 brcmf_do_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 
 	iscan->state = WL_ISCAN_STATE_SCANING;
 
-	passive_scan = cfg_priv->active_scan ? 0 : 1;
+	passive_scan = cfg_priv->active_scan ? 0 : cpu_to_le32(1);
 	err = brcmf_exec_dcmd(cfg_to_ndev(cfg_priv), BRCMF_C_SET_PASSIVE_SCAN,
 			&passive_scan, sizeof(passive_scan));
 	if (err) {
@@ -511,7 +511,7 @@ __brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	struct cfg80211_ssid *ssids;
 	struct brcmf_cfg80211_scan_req *sr = cfg_priv->scan_req_int;
-	s32 passive_scan;
+	__le32 passive_scan;
 	bool iscan_req;
 	bool spec_scan;
 	s32 err = 0;
@@ -567,7 +567,7 @@ __brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			WL_SCAN("Broadcast scan\n");
 		}
 
-		passive_scan = cfg_priv->active_scan ? 0 : 1;
+		passive_scan = cfg_priv->active_scan ? 0 : cpu_to_le32(1);
 		err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_PASSIVE_SCAN,
 				&passive_scan, sizeof(passive_scan));
 		if (err) {
