@@ -136,9 +136,9 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 {
 	struct net_device *ndev;
 	struct netdev_hw_addr *ha;
-	u32 allmulti, cnt;
+	u32 dcmd_value, cnt;
 	__le32 cnt_le;
-	__le32 allmulti_le;
+	__le32 dcmd_le_value;
 
 	struct brcmf_dcmd dcmd;
 	char *buf, *bufp;
@@ -152,7 +152,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	cnt = netdev_mc_count(ndev);
 
 	/* Determine initial value of allmulti flag */
-	allmulti = (ndev->flags & IFF_ALLMULTI) ? true : false;
+	dcmd_value = (ndev->flags & IFF_ALLMULTI) ? true : false;
 
 	/* Send down the multicast list first. */
 
@@ -186,7 +186,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set mcast_list failed, cnt %d\n",
 			  brcmf_ifname(&drvr_priv->pub, 0), cnt);
-		allmulti = cnt ? true : allmulti;
+		dcmd_value = cnt ? true : dcmd_value;
 	}
 
 	kfree(buf);
@@ -196,19 +196,19 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	 * were trying to set some addresses and dongle rejected it...
 	 */
 
-	buflen = sizeof("allmulti") + sizeof(allmulti);
+	buflen = sizeof("allmulti") + sizeof(dcmd_value);
 	buf = kmalloc(buflen, GFP_ATOMIC);
 	if (!buf)
 		return;
 
-	allmulti_le = cpu_to_le32(allmulti);
+	dcmd_le_value = cpu_to_le32(dcmd_value);
 
 	if (!brcmu_mkiovar
-	    ("allmulti", (void *)&allmulti_le,
-	    sizeof(allmulti_le), buf, buflen)) {
+	    ("allmulti", (void *)&dcmd_le_value,
+	    sizeof(dcmd_le_value), buf, buflen)) {
 		brcmf_dbg(ERROR, "%s: mkiovar failed for allmulti, datalen %d buflen %u\n",
 			  brcmf_ifname(&drvr_priv->pub, 0),
-			  (int)sizeof(allmulti), buflen);
+			  (int)sizeof(dcmd_value), buflen);
 		kfree(buf);
 		return;
 	}
@@ -223,7 +223,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set allmulti %d failed\n",
 			  brcmf_ifname(&drvr_priv->pub, 0),
-			  le32_to_cpu(allmulti_le));
+			  le32_to_cpu(dcmd_le_value));
 	}
 
 	kfree(buf);
@@ -231,20 +231,20 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	/* Finally, pick up the PROMISC flag as well, like the NIC
 		 driver does */
 
-	allmulti = (ndev->flags & IFF_PROMISC) ? true : false;
-	allmulti_le = cpu_to_le32(allmulti);
+	dcmd_value = (ndev->flags & IFF_PROMISC) ? true : false;
+	dcmd_le_value = cpu_to_le32(dcmd_value);
 
 	memset(&dcmd, 0, sizeof(dcmd));
 	dcmd.cmd = BRCMF_C_SET_PROMISC;
-	dcmd.buf = &allmulti_le;
-	dcmd.len = sizeof(allmulti_le);
+	dcmd.buf = &dcmd_le_value;
+	dcmd.len = sizeof(dcmd_le_value);
 	dcmd.set = true;
 
 	ret = brcmf_proto_dcmd(&drvr_priv->pub, 0, &dcmd, dcmd.len);
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "%s: set promisc %d failed\n",
 			  brcmf_ifname(&drvr_priv->pub, 0),
-			  le32_to_cpu(allmulti_le));
+			  le32_to_cpu(dcmd_le_value));
 	}
 }
 
