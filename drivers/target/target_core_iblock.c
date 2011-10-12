@@ -618,11 +618,6 @@ fail:
 	return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
 }
 
-static unsigned char *iblock_get_cdb(struct se_task *task)
-{
-	return IBLOCK_REQ(task)->ib_scsi_cdb;
-}
-
 static u32 iblock_get_device_rev(struct se_device *dev)
 {
 	return SCSI_SPC_2; /* Returns SPC-3 in Initiator Data */
@@ -696,7 +691,6 @@ static struct se_subsystem_api iblock_template = {
 	.check_configfs_dev_params = iblock_check_configfs_dev_params,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
-	.get_cdb		= iblock_get_cdb,
 	.get_device_rev		= iblock_get_device_rev,
 	.get_device_type	= iblock_get_device_type,
 	.get_blocks		= iblock_get_blocks,

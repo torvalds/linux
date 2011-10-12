@@ -691,17 +691,6 @@ static ssize_t rd_show_configfs_dev_params(
 	return bl;
 }
 
-/*	rd_get_cdb(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static unsigned char *rd_get_cdb(struct se_task *task)
-{
-	struct rd_request *req = RD_REQ(task);
-
-	return req->rd_scsi_cdb;
-}
-
 static u32 rd_get_device_rev(struct se_device *dev)
 {
 	return SCSI_SPC_2; /* Returns SPC-3 in Initiator Data */
@@ -735,7 +724,6 @@ static struct se_subsystem_api rd_mcp_template = {
 	.check_configfs_dev_params = rd_check_configfs_dev_params,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,
-	.get_cdb		= rd_get_cdb,
 	.get_device_rev		= rd_get_device_rev,
 	.get_device_type	= rd_get_device_type,
 	.get_blocks		= rd_get_blocks,

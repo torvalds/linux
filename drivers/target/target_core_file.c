@@ -609,17 +609,6 @@ static ssize_t fd_show_configfs_dev_params(
 	return bl;
 }
 
-/*	fd_get_cdb(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static unsigned char *fd_get_cdb(struct se_task *task)
-{
-	struct fd_request *req = FILE_REQ(task);
-
-	return req->fd_scsi_cdb;
-}
-
 /*	fd_get_device_rev(): (Part of se_subsystem_api_t template)
  *
  *
@@ -667,7 +656,6 @@ static struct se_subsystem_api fileio_template = {
 	.check_configfs_dev_params = fd_check_configfs_dev_params,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
-	.get_cdb		= fd_get_cdb,
 	.get_device_rev		= fd_get_device_rev,
 	.get_device_type	= fd_get_device_type,
 	.get_blocks		= fd_get_blocks,

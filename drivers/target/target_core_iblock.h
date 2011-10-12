@@ -8,7 +8,6 @@
 
 struct iblock_req {
 	struct se_task ib_task;
-	unsigned char ib_scsi_cdb[TCM_MAX_COMMAND_SIZE];
 	atomic_t ib_bio_cnt;
 	atomic_t ib_bio_err_cnt;
 } ____cacheline_aligned;
