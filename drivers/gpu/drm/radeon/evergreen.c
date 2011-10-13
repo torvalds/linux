@@ -3180,14 +3180,14 @@ int evergreen_copy_blit(struct radeon_device *rdev,
 
 	mutex_lock(&rdev->r600_blit.mutex);
 	rdev->r600_blit.vb_ib = NULL;
-	r = evergreen_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
+	r = evergreen_blit_prepare_copy(rdev, num_pages);
 	if (r) {
 		if (rdev->r600_blit.vb_ib)
 			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 		mutex_unlock(&rdev->r600_blit.mutex);
 		return r;
 	}
-	evergreen_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * RADEON_GPU_PAGE_SIZE);
+	evergreen_kms_blit_copy(rdev, src_offset, dst_offset, num_pages);
 	evergreen_blit_done_copy(rdev, fence);
 	mutex_unlock(&rdev->r600_blit.mutex);
 	return 0;

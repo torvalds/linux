@@ -44,6 +44,10 @@
 #define COLOR_5_6_5           0x8
 #define COLOR_8_8_8_8         0x1a
 
+#define RECT_UNIT_H           32
+#define RECT_UNIT_W           (RADEON_GPU_PAGE_SIZE / 4 / RECT_UNIT_H)
+#define MAX_RECT_DIM          16384
+
 /* emits 17 */
 static void
 set_render_target(struct radeon_device *rdev, int format,
@@ -56,7 +60,7 @@ set_render_target(struct radeon_device *rdev, int format,
 	if (h < 8)
 		h = 8;
 
-	cb_color_info = ((format << 2) | (1 << 24) | (1 << 8));
+	cb_color_info = ((format << 2) | (1 << 24) | (2 << 8));
 	pitch = (w / 8) - 1;
 	slice = ((w * h) / 64) - 1;
 
@@ -67,7 +71,7 @@ set_render_target(struct radeon_device *rdev, int format,
 	radeon_ring_write(rdev, slice);
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, cb_color_info);
-	radeon_ring_write(rdev, (1 << 4));
+	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, (w - 1) | ((h - 1) << 16));
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, 0);
@@ -179,7 +183,7 @@ set_tex_resource(struct radeon_device *rdev,
 	sq_tex_resource_word0 = (1 << 0); /* 2D */
 	sq_tex_resource_word0 |= ((((pitch >> 3) - 1) << 6) |
 				  ((w - 1) << 18));
-	sq_tex_resource_word1 = ((h - 1) << 0) | (1 << 28);
+	sq_tex_resource_word1 = ((h - 1) << 0) | (2 << 28);
 	/* xyzw swizzles */
 	sq_tex_resource_word4 = (0 << 16) | (1 << 19) | (2 << 22) | (3 << 25);
 
@@ -751,30 +755,80 @@ static void evergreen_vb_ib_put(struct radeon_device *rdev)
 	radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 }
 
-int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
+
+/* maps the rectangle to the buffer so that satisfies the following properties:
+ *     - dimensions are less or equal to the hardware limit (MAX_RECT_DIM)
+ *     - rectangle consists of integer number of pages
+ *     - height is an integer multiple of RECT_UNIT_H
+ *     - width is an integer multiple of RECT_UNIT_W
+ *     - (the above three conditions also guarantee tile-aligned size)
+ *     - it is as square as possible (sides ratio never greater than 2:1)
+ *     - uses maximum number of pages that fit the above constraints
+ *
+ *  input:  buffer size, pointers to width/height variables
+ *  return: number of pages that were successfully mapped to the rectangle
+ *          width/height of the rectangle
+ */
+static unsigned evergreen_blit_create_rect(unsigned num_pages, int *width, int *height)
+{
+	unsigned max_pages;
+	unsigned pages = num_pages;
+	int w, h;
+
+	if (num_pages == 0) {
+		/* not supposed to be called with no pages, but just in case */
+		h = 0;
+		w = 0;
+		pages = 0;
+		WARN_ON(1);
+	} else {
+		int rect_order = 2;
+		h = RECT_UNIT_H;
+		while (num_pages / rect_order) {
+			h *= 2;
+			rect_order *= 4;
+			if (h >= MAX_RECT_DIM) {
+				h = MAX_RECT_DIM;
+				break;
+			}
+		}
+		max_pages = (MAX_RECT_DIM * h) / (RECT_UNIT_W * RECT_UNIT_H);
+		if (pages > max_pages)
+			pages = max_pages;
+		w = (pages * RECT_UNIT_W * RECT_UNIT_H) / h;
+		w = (w / RECT_UNIT_W) * RECT_UNIT_W;
+		pages = (w * h) / (RECT_UNIT_W * RECT_UNIT_H);
+		BUG_ON(pages == 0);
+	}
+
+
+	DRM_DEBUG("blit_rectangle: h=%d, w=%d, pages=%d\n", h, w, pages);
+
+	/* return width and height only of the caller wants it */
+	if (height)
+		*height = h;
+	if (width)
+		*width = w;
+
+	return pages;
+}
+
+int evergreen_blit_prepare_copy(struct radeon_device *rdev, unsigned num_pages)
 {
 	int r;
-	int ring_size, line_size;
-	int max_size;
+	int ring_size;
 	/* loops of emits + fence emit possible */
-	int dwords_per_loop = 74, num_loops;
+	int dwords_per_loop = 74, num_loops = 0;
 
 	r = evergreen_vb_ib_get(rdev);
 	if (r)
 		return r;
 
-	/* 8 bpp vs 32 bpp for xfer unit */
-	if (size_bytes & 3)
-		line_size = 8192;
-	else
-		line_size = 8192 * 4;
-
-	max_size = 8192 * line_size;
-
-	/* major loops cover the max size transfer */
-	num_loops = ((size_bytes + max_size) / max_size);
-	/* minor loops cover the extra non aligned bits */
-	num_loops += ((size_bytes % line_size) ? 1 : 0);
+	/* num loops */
+	while (num_pages) {
+		num_pages -= evergreen_blit_create_rect(num_pages, NULL, NULL);
+		num_loops++;
+	}
 	/* calculate number of loops correctly */
 	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
@@ -806,183 +860,72 @@ void evergreen_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *f
 
 void evergreen_kms_blit_copy(struct radeon_device *rdev,
 			     u64 src_gpu_addr, u64 dst_gpu_addr,
-			     int size_bytes)
+			     unsigned num_pages)
 {
-	int max_bytes;
 	u64 vb_gpu_addr;
 	u32 *vb;
 
 	DRM_DEBUG("emitting copy %16llx %16llx %d %d\n", src_gpu_addr, dst_gpu_addr,
-		  size_bytes, rdev->r600_blit.vb_used);
+		  num_pages, rdev->r600_blit.vb_used);
 	vb = (u32 *)(rdev->r600_blit.vb_ib->ptr + rdev->r600_blit.vb_used);
-	if ((size_bytes & 3) || (src_gpu_addr & 3) || (dst_gpu_addr & 3)) {
-		max_bytes = 8192;
 
-		while (size_bytes) {
-			int cur_size = size_bytes;
-			int src_x = src_gpu_addr & 255;
-			int dst_x = dst_gpu_addr & 255;
-			int h = 1;
-			src_gpu_addr = src_gpu_addr & ~255ULL;
-			dst_gpu_addr = dst_gpu_addr & ~255ULL;
+	while (num_pages) {
+		int w, h;
+		unsigned size_in_bytes;
+		unsigned pages_per_loop = evergreen_blit_create_rect(num_pages, &w, &h);
 
-			if (!src_x && !dst_x) {
-				h = (cur_size / max_bytes);
-				if (h > 8192)
-					h = 8192;
-				if (h == 0)
-					h = 1;
-				else
-					cur_size = max_bytes;
-			} else {
-				if (cur_size > max_bytes)
-					cur_size = max_bytes;
-				if (cur_size > (max_bytes - dst_x))
-					cur_size = (max_bytes - dst_x);
-				if (cur_size > (max_bytes - src_x))
-					cur_size = (max_bytes - src_x);
-			}
+		size_in_bytes = pages_per_loop * RADEON_GPU_PAGE_SIZE;
+		DRM_DEBUG("rectangle w=%d h=%d\n", w, h);
 
-			if ((rdev->r600_blit.vb_used + 48) > rdev->r600_blit.vb_total) {
-				WARN_ON(1);
-			}
-
-			vb[0] = i2f(dst_x);
-			vb[1] = 0;
-			vb[2] = i2f(src_x);
-			vb[3] = 0;
-
-			vb[4] = i2f(dst_x);
-			vb[5] = i2f(h);
-			vb[6] = i2f(src_x);
-			vb[7] = i2f(h);
-
-			vb[8] = i2f(dst_x + cur_size);
-			vb[9] = i2f(h);
-			vb[10] = i2f(src_x + cur_size);
-			vb[11] = i2f(h);
-
-			/* src 10 */
-			set_tex_resource(rdev, FMT_8,
-					 src_x + cur_size, h, src_x + cur_size,
-					 src_gpu_addr);
-
-			/* 5 */
-			cp_set_surface_sync(rdev,
-					    PACKET3_TC_ACTION_ENA, (src_x + cur_size * h), src_gpu_addr);
-
-
-			/* dst 17 */
-			set_render_target(rdev, COLOR_8,
-					  dst_x + cur_size, h,
-					  dst_gpu_addr);
-
-			/* scissors 12 */
-			set_scissors(rdev, dst_x, 0, dst_x + cur_size, h);
-
-			/* 15 */
-			vb_gpu_addr = rdev->r600_blit.vb_ib->gpu_addr + rdev->r600_blit.vb_used;
-			set_vtx_resource(rdev, vb_gpu_addr);
-
-			/* draw 10 */
-			draw_auto(rdev);
-
-			/* 5 */
-			cp_set_surface_sync(rdev,
-					    PACKET3_CB_ACTION_ENA | PACKET3_CB0_DEST_BASE_ENA,
-					    cur_size * h, dst_gpu_addr);
-
-			vb += 12;
-			rdev->r600_blit.vb_used += 12 * 4;
-
-			src_gpu_addr += cur_size * h;
-			dst_gpu_addr += cur_size * h;
-			size_bytes -= cur_size * h;
+		if ((rdev->r600_blit.vb_used + 48) > rdev->r600_blit.vb_total) {
+			WARN_ON(1);
 		}
-	} else {
-		max_bytes = 8192 * 4;
 
-		while (size_bytes) {
-			int cur_size = size_bytes;
-			int src_x = (src_gpu_addr & 255);
-			int dst_x = (dst_gpu_addr & 255);
-			int h = 1;
-			src_gpu_addr = src_gpu_addr & ~255ULL;
-			dst_gpu_addr = dst_gpu_addr & ~255ULL;
+		vb[0] = 0;
+		vb[1] = 0;
+		vb[2] = 0;
+		vb[3] = 0;
 
-			if (!src_x && !dst_x) {
-				h = (cur_size / max_bytes);
-				if (h > 8192)
-					h = 8192;
-				if (h == 0)
-					h = 1;
-				else
-					cur_size = max_bytes;
-			} else {
-				if (cur_size > max_bytes)
-					cur_size = max_bytes;
-				if (cur_size > (max_bytes - dst_x))
-					cur_size = (max_bytes - dst_x);
-				if (cur_size > (max_bytes - src_x))
-					cur_size = (max_bytes - src_x);
-			}
+		vb[4] = 0;
+		vb[5] = i2f(h);
+		vb[6] = 0;
+		vb[7] = i2f(h);
 
-			if ((rdev->r600_blit.vb_used + 48) > rdev->r600_blit.vb_total) {
-				WARN_ON(1);
-			}
+		vb[8] = i2f(w);
+		vb[9] = i2f(h);
+		vb[10] = i2f(w);
+		vb[11] = i2f(h);
 
-			vb[0] = i2f(dst_x / 4);
-			vb[1] = 0;
-			vb[2] = i2f(src_x / 4);
-			vb[3] = 0;
+		/* src 10 */
+		set_tex_resource(rdev, FMT_8_8_8_8, w, h, w, src_gpu_addr);
 
-			vb[4] = i2f(dst_x / 4);
-			vb[5] = i2f(h);
-			vb[6] = i2f(src_x / 4);
-			vb[7] = i2f(h);
+		/* 5 */
+		cp_set_surface_sync(rdev,
+				    PACKET3_TC_ACTION_ENA, size_in_bytes, src_gpu_addr);
 
-			vb[8] = i2f((dst_x + cur_size) / 4);
-			vb[9] = i2f(h);
-			vb[10] = i2f((src_x + cur_size) / 4);
-			vb[11] = i2f(h);
+		/* dst 17 */
+		set_render_target(rdev, COLOR_8_8_8_8, w, h, dst_gpu_addr);
 
-			/* src 10 */
-			set_tex_resource(rdev, FMT_8_8_8_8,
-					 (src_x + cur_size) / 4,
-					 h, (src_x + cur_size) / 4,
-					 src_gpu_addr);
-			/* 5 */
-			cp_set_surface_sync(rdev,
-					    PACKET3_TC_ACTION_ENA, (src_x + cur_size * h), src_gpu_addr);
+		/* scissors 12  */
+		set_scissors(rdev, 0, 0, w, h);
 
-			/* dst 17 */
-			set_render_target(rdev, COLOR_8_8_8_8,
-					  (dst_x + cur_size) / 4, h,
-					  dst_gpu_addr);
+		/* Vertex buffer setup 15 */
+		vb_gpu_addr = rdev->r600_blit.vb_ib->gpu_addr + rdev->r600_blit.vb_used;
+		set_vtx_resource(rdev, vb_gpu_addr);
 
-			/* scissors 12  */
-			set_scissors(rdev, (dst_x / 4), 0, (dst_x + cur_size / 4), h);
+		/* draw 10 */
+		draw_auto(rdev);
 
-			/* Vertex buffer setup 15 */
-			vb_gpu_addr = rdev->r600_blit.vb_ib->gpu_addr + rdev->r600_blit.vb_used;
-			set_vtx_resource(rdev, vb_gpu_addr);
+		/* 5 */
+		cp_set_surface_sync(rdev,
+				    PACKET3_CB_ACTION_ENA | PACKET3_CB0_DEST_BASE_ENA,
+				    size_in_bytes, dst_gpu_addr);
 
-			/* draw 10 */
-			draw_auto(rdev);
-
-			/* 5 */
-			cp_set_surface_sync(rdev,
-					    PACKET3_CB_ACTION_ENA | PACKET3_CB0_DEST_BASE_ENA,
-					    cur_size * h, dst_gpu_addr);
-
-			/* 74 ring dwords per loop */
-			vb += 12;
-			rdev->r600_blit.vb_used += 12 * 4;
-
-			src_gpu_addr += cur_size * h;
-			dst_gpu_addr += cur_size * h;
-			size_bytes -= cur_size * h;
-		}
+		/* 74 ring dwords per loop */
+		vb += 12;
+		rdev->r600_blit.vb_used += 4*12;
+		src_gpu_addr += size_in_bytes;
+		dst_gpu_addr += size_in_bytes;
+		num_pages -= pages_per_loop;
 	}
 }
-

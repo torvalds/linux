@@ -423,11 +423,11 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 int evergreen_blit_init(struct radeon_device *rdev);
 void evergreen_blit_fini(struct radeon_device *rdev);
 /* evergreen blit */
-int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
+int evergreen_blit_prepare_copy(struct radeon_device *rdev, unsigned num_pages);
 void evergreen_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
 void evergreen_kms_blit_copy(struct radeon_device *rdev,
 			     u64 src_gpu_addr, u64 dst_gpu_addr,
-			     int size_bytes);
+			     unsigned num_pages);
 
 /*
  * cayman
