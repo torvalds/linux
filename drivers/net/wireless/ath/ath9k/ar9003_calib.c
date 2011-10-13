@@ -18,7 +18,7 @@
 #include "hw-ops.h"
 #include "ar9003_phy.h"
 
-#define MAX_MEASUREMENT	8
+#define MAX_MEASUREMENT	MAX_IQCAL_MEASUREMENT
 #define MAX_MAG_DELTA	11
 #define MAX_PHS_DELTA	10
 
@@ -663,6 +663,7 @@ static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
 {
 	int i, im, nmeasurement;
 	u32 tx_corr_coeff[MAX_MEASUREMENT][AR9300_MAX_CHAINS];
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 
 	memset(tx_corr_coeff, 0, sizeof(tx_corr_coeff));
 	for (i = 0; i < MAX_MEASUREMENT / 2; i++) {
@@ -712,13 +713,21 @@ static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
 				REG_RMW_FIELD(ah, tx_corr_coeff[im][i],
 					AR_PHY_TX_IQCAL_CORR_COEFF_01_COEFF_TABLE,
 					coeff->iqc_coeff[0]);
+
+			if (caldata)
+				caldata->tx_corr_coeff[im][i] =
+					coeff->iqc_coeff[0];
 		}
+		if (caldata)
+			caldata->num_measures[i] = nmeasurement;
 	}
 
 	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_3,
 		      AR_PHY_TX_IQCAL_CONTROL_3_IQCORR_EN, 0x1);
 	REG_RMW_FIELD(ah, AR_PHY_RX_IQCAL_CORR_B0,
 		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
+	if (caldata)
+		caldata->done_txiqcal_once = true;
 
 	return;
 
@@ -845,10 +854,55 @@ tx_iqcal_fail:
 	ath_dbg(common, ATH_DBG_CALIBRATE, "Tx IQ Cal failed\n");
 	return;
 }
+
+static void ar9003_hw_tx_iq_cal_reload(struct ath_hw *ah)
+{
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
+	u32 tx_corr_coeff[MAX_MEASUREMENT][AR9300_MAX_CHAINS];
+	int i, im;
+
+	memset(tx_corr_coeff, 0, sizeof(tx_corr_coeff));
+	for (i = 0; i < MAX_MEASUREMENT / 2; i++) {
+		tx_corr_coeff[i * 2][0] = tx_corr_coeff[(i * 2) + 1][0] =
+					AR_PHY_TX_IQCAL_CORR_COEFF_B0(i);
+		if (!AR_SREV_9485(ah)) {
+			tx_corr_coeff[i * 2][1] =
+			tx_corr_coeff[(i * 2) + 1][1] =
+					AR_PHY_TX_IQCAL_CORR_COEFF_B1(i);
+
+			tx_corr_coeff[i * 2][2] =
+			tx_corr_coeff[(i * 2) + 1][2] =
+					AR_PHY_TX_IQCAL_CORR_COEFF_B2(i);
+		}
+	}
+
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		if (!(ah->txchainmask & (1 << i)))
+			continue;
+
+		for (im = 0; im < caldata->num_measures[i]; im++) {
+			if ((im % 2) == 0)
+				REG_RMW_FIELD(ah, tx_corr_coeff[im][i],
+				     AR_PHY_TX_IQCAL_CORR_COEFF_00_COEFF_TABLE,
+				     caldata->tx_corr_coeff[im][i]);
+			else
+				REG_RMW_FIELD(ah, tx_corr_coeff[im][i],
+				     AR_PHY_TX_IQCAL_CORR_COEFF_01_COEFF_TABLE,
+				     caldata->tx_corr_coeff[im][i]);
+		}
+	}
+
+	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_3,
+		      AR_PHY_TX_IQCAL_CONTROL_3_IQCORR_EN, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_RX_IQCAL_CORR_B0,
+		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
+}
+
 static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			       struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	bool txiqcal_done = false;
 
 	/* Do Tx IQ Calibration */
@@ -860,9 +914,15 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	 * For AR9485 or later chips, TxIQ cal runs as part of
 	 * AGC calibration
 	 */
-	if (AR_SREV_9485_OR_LATER(ah))
+	if (AR_SREV_9485_OR_LATER(ah) && !AR_SREV_9340(ah)) {
+		if (caldata && !caldata->done_txiqcal_once)
+			REG_SET_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
+				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
+		else
+			REG_CLR_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
+				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
 		txiqcal_done = true;
-	else {
+	} else {
 		txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
 		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
 		udelay(5);
@@ -884,6 +944,8 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 
 	if (txiqcal_done)
 		ar9003_hw_tx_iq_cal_post_proc(ah);
+	else if (caldata && caldata->done_txiqcal_once)
+		ar9003_hw_tx_iq_cal_reload(ah);
 
 	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);
@@ -912,8 +974,8 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	if (ah->cal_list_curr)
 		ath9k_hw_reset_calibration(ah, ah->cal_list_curr);
 
-	if (ah->caldata)
-		ah->caldata->CalValid = 0;
+	if (caldata)
+		caldata->CalValid = 0;
 
 	return true;
 }

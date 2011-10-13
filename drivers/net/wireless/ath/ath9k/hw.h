@@ -337,6 +337,8 @@ enum ath9k_int {
 	 CHANNEL_HT40PLUS |			\
 	 CHANNEL_HT40MINUS)
 
+#define MAX_IQCAL_MEASUREMENT	8
+
 struct ath9k_hw_cal_data {
 	u16 channel;
 	u32 channelFlags;
@@ -346,8 +348,11 @@ struct ath9k_hw_cal_data {
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;
+	bool done_txiqcal_once;
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
+	u32 num_measures[AR9300_MAX_CHAINS];
+	int tx_corr_coeff[MAX_IQCAL_MEASUREMENT][AR9300_MAX_CHAINS];
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
 };
 
@@ -583,6 +588,8 @@ struct ath_hw_private_ops {
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 	void (*set_radar_params)(struct ath_hw *ah,
 				 struct ath_hw_radar_conf *conf);
+	int (*fast_chan_change)(struct ath_hw *ah, struct ath9k_channel *chan,
+				u8 *ini_reloaded);
 
 	/* ANI */
 	void (*ani_cache_ini_regs)(struct ath_hw *ah);
@@ -684,6 +691,7 @@ struct ath_hw {
 	atomic_t intr_ref_cnt;
 	bool chip_fullsleep;
 	u32 atim_window;
+	u32 modes_index;
 
 	/* Calibration */
 	u32 supp_cals;

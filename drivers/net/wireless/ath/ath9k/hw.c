@@ -1394,6 +1394,14 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 qnum;
 	int r;
+	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
+	bool band_switch, mode_diff;
+	u8 ini_reloaded;
+
+	band_switch = (chan->channelFlags & (CHANNEL_2GHZ | CHANNEL_5GHZ)) !=
+		      (ah->curchan->channelFlags & (CHANNEL_2GHZ |
+						    CHANNEL_5GHZ));
+	mode_diff = (chan->chanmode != ah->curchan->chanmode);
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
 		if (ath9k_hw_numtxpending(ah, qnum)) {
@@ -1406,6 +1414,18 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	if (!ath9k_hw_rfbus_req(ah)) {
 		ath_err(common, "Could not kill baseband RX\n");
 		return false;
+	}
+
+	if (edma && (band_switch || mode_diff)) {
+		ath9k_hw_mark_phy_inactive(ah);
+		udelay(5);
+
+		ath9k_hw_init_pll(ah, NULL);
+
+		if (ath9k_hw_fast_chan_change(ah, chan, &ini_reloaded)) {
+			ath_err(common, "Failed to do fast channel change\n");
+			return false;
+		}
 	}
 
 	ath9k_hw_set_channel_regs(ah, chan);
@@ -1423,6 +1443,16 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 		ath9k_hw_set_delta_slope(ah, chan);
 
 	ath9k_hw_spur_mitigate_freq(ah, chan);
+
+	if (edma && (band_switch || mode_diff)) {
+		if (band_switch || ini_reloaded)
+			ah->eep_ops->set_board_values(ah, chan);
+
+		ath9k_hw_init_bb(ah, chan);
+
+		if (band_switch || ini_reloaded)
+			ath9k_hw_init_cal(ah, chan);
+	}
 
 	return true;
 }
@@ -1677,6 +1707,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_init_bb(ah, chan);
 
+	if (caldata)
+		caldata->done_txiqcal_once = false;
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;
 
