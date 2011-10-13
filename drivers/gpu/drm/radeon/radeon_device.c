@@ -818,7 +818,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		radeon_test_moves(rdev);
 	}
 	if (radeon_benchmarking) {
-		radeon_benchmark(rdev);
+		radeon_benchmark(rdev, radeon_benchmarking);
 	}
 	return 0;
 }

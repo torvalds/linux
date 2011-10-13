@@ -843,7 +843,7 @@ struct radeon_pm {
 /*
  * Benchmarking
  */
-void radeon_benchmark(struct radeon_device *rdev);
+void radeon_benchmark(struct radeon_device *rdev, int test_number);
 
 
 /*

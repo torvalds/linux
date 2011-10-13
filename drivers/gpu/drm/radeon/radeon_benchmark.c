@@ -30,6 +30,7 @@
 #define RADEON_BENCHMARK_COPY_DMA  0
 
 #define RADEON_BENCHMARK_ITERATIONS 1024
+#define RADEON_BENCHMARK_COMMON_MODES_N 17
 
 static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 				    uint64_t saddr, uint64_t daddr,
@@ -126,7 +127,9 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	}
 
 	/* r100 doesn't have dma engine so skip the test */
-	if (rdev->asic->copy_dma) {
+	/* also, VRAM-to-VRAM test doesn't make much sense for DMA */
+	/* skip it as well if domains are the same */
+	if ((rdev->asic->copy_dma) && (sdomain != ddomain)) {
 		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
 						RADEON_BENCHMARK_COPY_DMA, n);
 		if (time < 0)
@@ -167,10 +170,86 @@ out_cleanup:
 	}
 }
 
-void radeon_benchmark(struct radeon_device *rdev)
+void radeon_benchmark(struct radeon_device *rdev, int test_number)
 {
-	radeon_benchmark_move(rdev, 1024*1024, RADEON_GEM_DOMAIN_GTT,
-			      RADEON_GEM_DOMAIN_VRAM);
-	radeon_benchmark_move(rdev, 1024*1024, RADEON_GEM_DOMAIN_VRAM,
-			      RADEON_GEM_DOMAIN_GTT);
+	int i;
+	int common_modes[RADEON_BENCHMARK_COMMON_MODES_N] = {
+		640 * 480 * 4,
+		720 * 480 * 4,
+		800 * 600 * 4,
+		848 * 480 * 4,
+		1024 * 768 * 4,
+		1152 * 768 * 4,
+		1280 * 720 * 4,
+		1280 * 800 * 4,
+		1280 * 854 * 4,
+		1280 * 960 * 4,
+		1280 * 1024 * 4,
+		1440 * 900 * 4,
+		1400 * 1050 * 4,
+		1680 * 1050 * 4,
+		1600 * 1200 * 4,
+		1920 * 1080 * 4,
+		1920 * 1200 * 4
+	};
+
+	switch (test_number) {
+	case 1:
+		/* simple test, VRAM to GTT and GTT to VRAM */
+		radeon_benchmark_move(rdev, 1024*1024, RADEON_GEM_DOMAIN_GTT,
+				      RADEON_GEM_DOMAIN_VRAM);
+		radeon_benchmark_move(rdev, 1024*1024, RADEON_GEM_DOMAIN_VRAM,
+				      RADEON_GEM_DOMAIN_GTT);
+		break;
+	case 2:
+		/* simple test, VRAM to VRAM */
+		radeon_benchmark_move(rdev, 1024*1024, RADEON_GEM_DOMAIN_VRAM,
+				      RADEON_GEM_DOMAIN_VRAM);
+		break;
+	case 3:
+		/* GTT to VRAM, buffer size sweep, powers of 2 */
+		for (i = 1; i <= 65536; i <<= 1)
+			radeon_benchmark_move(rdev, i*1024,
+					      RADEON_GEM_DOMAIN_GTT,
+					      RADEON_GEM_DOMAIN_VRAM);
+		break;
+	case 4:
+		/* VRAM to GTT, buffer size sweep, powers of 2 */
+		for (i = 1; i <= 65536; i <<= 1)
+			radeon_benchmark_move(rdev, i*1024,
+					      RADEON_GEM_DOMAIN_VRAM,
+					      RADEON_GEM_DOMAIN_GTT);
+		break;
+	case 5:
+		/* VRAM to VRAM, buffer size sweep, powers of 2 */
+		for (i = 1; i <= 65536; i <<= 1)
+			radeon_benchmark_move(rdev, i*1024,
+					      RADEON_GEM_DOMAIN_VRAM,
+					      RADEON_GEM_DOMAIN_VRAM);
+		break;
+	case 6:
+		/* GTT to VRAM, buffer size sweep, common modes */
+		for (i = 1; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
+			radeon_benchmark_move(rdev, common_modes[i],
+					      RADEON_GEM_DOMAIN_GTT,
+					      RADEON_GEM_DOMAIN_VRAM);
+		break;
+	case 7:
+		/* VRAM to GTT, buffer size sweep, common modes */
+		for (i = 1; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
+			radeon_benchmark_move(rdev, common_modes[i],
+					      RADEON_GEM_DOMAIN_VRAM,
+					      RADEON_GEM_DOMAIN_GTT);
+		break;
+	case 8:
+		/* VRAM to VRAM, buffer size sweep, common modes */
+		for (i = 1; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
+			radeon_benchmark_move(rdev, common_modes[i],
+					      RADEON_GEM_DOMAIN_VRAM,
+					      RADEON_GEM_DOMAIN_VRAM);
+		break;
+
+	default:
+		DRM_ERROR("Unknown benchmark\n");
+	}
 }
