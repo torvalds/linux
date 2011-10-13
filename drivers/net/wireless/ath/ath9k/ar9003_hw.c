@@ -22,8 +22,8 @@
 #include "ar9330_1p1_initvals.h"
 #include "ar9330_1p2_initvals.h"
 #include "ar9580_1p0_initvals.h"
-#include "ar9480_1p0_initvals.h"
-#include "ar9480_2p0_initvals.h"
+#include "ar9462_1p0_initvals.h"
+#include "ar9462_2p0_initvals.h"
 
 /* General hardware code for the AR9003 hadware family */
 
