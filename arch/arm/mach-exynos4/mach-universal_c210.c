@@ -920,11 +920,6 @@ static struct s5p_platform_fimc fimc_md_platdata = {
 	.num_clients	= ARRAY_SIZE(universal_camera_sensors),
 };
 
-struct platform_device s5p_device_fimc_md = {
-	.name	= "s5p-fimc-md",
-	.id	= -1,
-};
-
 static struct gpio universal_camera_gpios[] = {
 	{ GPIO_CAM_LEVEL_EN(1),	GPIOF_OUT_INIT_HIGH, "CAM_LVL_EN1" },
 	{ GPIO_CAM_LEVEL_EN(2),	GPIOF_OUT_INIT_LOW,  "CAM_LVL_EN2" },

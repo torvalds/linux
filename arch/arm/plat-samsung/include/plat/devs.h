@@ -77,6 +77,7 @@ extern struct platform_device s5p_device_fimc0;
 extern struct platform_device s5p_device_fimc1;
 extern struct platform_device s5p_device_fimc2;
 extern struct platform_device s5p_device_fimc3;
+extern struct platform_device s5p_device_fimc_md;
 extern struct platform_device s5p_device_fimd0;
 extern struct platform_device s5p_device_hdmi;
 extern struct platform_device s5p_device_i2c_hdmiphy;

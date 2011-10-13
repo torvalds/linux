@@ -204,6 +204,11 @@ struct platform_device s5p_device_fimc0 = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
+
+struct platform_device s5p_device_fimc_md = {
+	.name	= "s5p-fimc-md",
+	.id	= -1,
+};
 #endif /* CONFIG_S5P_DEV_FIMC0 */
 
 #ifdef CONFIG_S5P_DEV_FIMC1

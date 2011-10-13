@@ -849,11 +849,6 @@ struct s5p_platform_fimc goni_fimc_md_platdata __initdata = {
 	.num_clients	= ARRAY_SIZE(goni_camera_sensors),
 };
 
-struct platform_device s5p_device_fimc_md = {
-	.name		= "s5p-fimc-md",
-	.id		= -1,
-};
-
 static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_fb,
 	&s5p_device_onenand,
