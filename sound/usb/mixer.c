@@ -1259,7 +1259,7 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 				build_feature_ctl(state, _ftr, 0, i, &iterm, unitid, 0);
 		}
 	} else { /* UAC_VERSION_2 */
-		for (i = 0; i < 30/2; i++) {
+		for (i = 0; i < ARRAY_SIZE(audio_feature_info); i++) {
 			unsigned int ch_bits = 0;
 			unsigned int ch_read_only = 0;
 
