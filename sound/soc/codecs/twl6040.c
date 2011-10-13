@@ -673,7 +673,7 @@ static int twl6040_hs_dac_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int twl6040_power_mode_event(struct snd_soc_dapm_widget *w,
+static int twl6040_ep_drv_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
@@ -1163,7 +1163,7 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUT_DRV_E("Earphone Driver",
 			TWL6040_REG_EARCTL, 0, 0, NULL, 0,
-			twl6040_power_mode_event,
+			twl6040_ep_drv_event,
 			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUT_DRV("Vibra Left Driver",
 			TWL6040_REG_VIBCTLL, 0, 0, NULL, 0),
