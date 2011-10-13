@@ -1074,30 +1074,44 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 			if (!menu->selection)
 				continue;
 			pos = menu->selection;
-			perf_evlist__set_selected(evlist, pos);
 browse_hists:
+			perf_evlist__set_selected(evlist, pos);
+			/*
+			 * Give the calling tool a chance to populate the non
+			 * default evsel resorted hists tree.
+			 */
+			if (timer)
+				timer(arg);
 			ev_name = event_name(pos);
 			key = perf_evsel__hists_browse(pos, nr_events, help,
 						       ev_name, true, timer,
 						       arg, delay_secs);
 			ui_browser__show_title(&menu->b, title);
-			break;
+			switch (key) {
+			case NEWT_KEY_TAB:
+				if (pos->node.next == &evlist->entries)
+					pos = list_entry(evlist->entries.next, struct perf_evsel, node);
+				else
+					pos = list_entry(pos->node.next, struct perf_evsel, node);
+				goto browse_hists;
+			case NEWT_KEY_UNTAB:
+				if (pos->node.prev == &evlist->entries)
+					pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
+				else
+					pos = list_entry(pos->node.prev, struct perf_evsel, node);
+				goto browse_hists;
+			case NEWT_KEY_ESCAPE:
+				if (!ui__dialog_yesno("Do you really want to exit?"))
+					continue;
+				/* Fall thru */
+			case 'q':
+			case CTRL('c'):
+				goto out;
+			default:
+				continue;
+			}
 		case NEWT_KEY_LEFT:
 			continue;
-		case NEWT_KEY_TAB:
-			if (pos->node.next == &evlist->entries)
-				pos = list_entry(evlist->entries.next, struct perf_evsel, node);
-			else
-				pos = list_entry(pos->node.next, struct perf_evsel, node);
-			perf_evlist__set_selected(evlist, pos);
-			goto browse_hists;
-		case NEWT_KEY_UNTAB:
-			if (pos->node.prev == &evlist->entries)
-				pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
-			else
-				pos = list_entry(pos->node.prev, struct perf_evsel, node);
-			perf_evlist__set_selected(evlist, pos);
-			goto browse_hists;
 		case NEWT_KEY_ESCAPE:
 			if (!ui__dialog_yesno("Do you really want to exit?"))
 				continue;
@@ -1106,7 +1120,7 @@ browse_hists:
 		case CTRL('c'):
 			goto out;
 		default:
-			break;
+			continue;
 		}
 	}
 
