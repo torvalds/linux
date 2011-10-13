@@ -5425,9 +5425,7 @@ static void stac92hd8x_fill_auto_spec(struct hda_codec *codec)
 static int patch_stac92hd83xxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
-	hda_nid_t conn[STAC92HD83_DAC_COUNT + 1];
 	int err;
-	int num_dacs;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -5520,22 +5518,6 @@ again:
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
-	}
-
-	/* docking output support */
-	num_dacs = snd_hda_get_connections(codec, 0xF,
-				conn, STAC92HD83_DAC_COUNT + 1) - 1;
-	/* skip non-DAC connections */
-	while (num_dacs >= 0 &&
-			(get_wcaps_type(get_wcaps(codec, conn[num_dacs]))
-					!= AC_WID_AUD_OUT))
-		num_dacs--;
-	/* set port E and F to select the last DAC */
-	if (num_dacs >= 0) {
-		snd_hda_codec_write_cache(codec, 0xE, 0,
-			AC_VERB_SET_CONNECT_SEL, num_dacs);
-		snd_hda_codec_write_cache(codec, 0xF, 0,
-			AC_VERB_SET_CONNECT_SEL, num_dacs);
 	}
 
 	codec->proc_widget_hook = stac92hd_proc_hook;
