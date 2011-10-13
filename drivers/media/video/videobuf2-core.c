@@ -131,6 +131,7 @@ static void __setup_offsets(struct vb2_queue *q, unsigned int n)
 			continue;
 
 		for (plane = 0; plane < vb->num_planes; ++plane) {
+			vb->v4l2_planes[plane].length = q->plane_sizes[plane];
 			vb->v4l2_planes[plane].m.mem_offset = off;
 
 			dprintk(3, "Buffer %d, plane %d offset 0x%08lx\n",
