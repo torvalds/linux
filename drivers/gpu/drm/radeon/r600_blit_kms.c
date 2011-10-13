@@ -628,14 +628,14 @@ static void r600_vb_ib_put(struct radeon_device *rdev)
 	radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 }
 
-static unsigned r600_blit_create_rect(unsigned num_pages,
+static unsigned r600_blit_create_rect(unsigned num_gpu_pages,
 				      int *width, int *height, int max_dim)
 {
 	unsigned max_pages;
-	unsigned pages = num_pages;
+	unsigned pages = num_gpu_pages;
 	int w, h;
 
-	if (num_pages == 0) {
+	if (num_gpu_pages == 0) {
 		/* not supposed to be called with no pages, but just in case */
 		h = 0;
 		w = 0;
@@ -644,7 +644,7 @@ static unsigned r600_blit_create_rect(unsigned num_pages,
 	} else {
 		int rect_order = 2;
 		h = RECT_UNIT_H;
-		while (num_pages / rect_order) {
+		while (num_gpu_pages / rect_order) {
 			h *= 2;
 			rect_order *= 4;
 			if (h >= max_dim) {
@@ -674,7 +674,7 @@ static unsigned r600_blit_create_rect(unsigned num_pages,
 }
 
 
-int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_pages)
+int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages)
 {
 	int r;
 	int ring_size;
@@ -686,9 +686,10 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_pages)
 		return r;
 
 	/* num loops */
-	while (num_pages) {
-		num_pages -= r600_blit_create_rect(num_pages, NULL, NULL,
-						   rdev->r600_blit.max_dim);
+	while (num_gpu_pages) {
+		num_gpu_pages -=
+			r600_blit_create_rect(num_gpu_pages, NULL, NULL,
+					      rdev->r600_blit.max_dim);
 		num_loops++;
 	}
 
@@ -719,21 +720,21 @@ void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence)
 
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
-			unsigned num_pages)
+			unsigned num_gpu_pages)
 {
 	u64 vb_gpu_addr;
 	u32 *vb;
 
 	DRM_DEBUG("emitting copy %16llx %16llx %d %d\n",
 		  src_gpu_addr, dst_gpu_addr,
-		  num_pages, rdev->r600_blit.vb_used);
+		  num_gpu_pages, rdev->r600_blit.vb_used);
 	vb = (u32 *)(rdev->r600_blit.vb_ib->ptr + rdev->r600_blit.vb_used);
 
-	while (num_pages) {
+	while (num_gpu_pages) {
 		int w, h;
 		unsigned size_in_bytes;
 		unsigned pages_per_loop =
-			r600_blit_create_rect(num_pages, &w, &h,
+			r600_blit_create_rect(num_gpu_pages, &w, &h,
 					      rdev->r600_blit.max_dim);
 
 		size_in_bytes = pages_per_loop * RADEON_GPU_PAGE_SIZE;
@@ -777,6 +778,6 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 		rdev->r600_blit.vb_used += 4*12;
 		src_gpu_addr += size_in_bytes;
 		dst_gpu_addr += size_in_bytes;
-		num_pages -= pages_per_loop;
+		num_gpu_pages -= pages_per_loop;
 	}
 }

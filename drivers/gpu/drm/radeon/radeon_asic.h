@@ -364,11 +364,11 @@ void r600_hdmi_init(struct drm_encoder *encoder);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 /* r600 blit */
-int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_pages);
+int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages);
 void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
-			unsigned num_pages);
+			unsigned num_gpu_pages);
 
 /*
  * rv770,rv730,rv710,rv740
