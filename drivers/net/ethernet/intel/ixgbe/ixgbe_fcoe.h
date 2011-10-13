@@ -73,6 +73,8 @@ struct ixgbe_fcoe {
 	unsigned char *extra_ddp_buffer;
 	dma_addr_t extra_ddp_buffer_dma;
 	unsigned long mode;
+	u64 __percpu *pcpu_noddp;
+	u64 __percpu *pcpu_noddp_ext_buff;
 #ifdef CONFIG_IXGBE_DCB
 	u8 up;
 #endif

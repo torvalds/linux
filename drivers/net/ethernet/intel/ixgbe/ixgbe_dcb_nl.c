@@ -318,7 +318,15 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 			      .selector = DCB_APP_IDTYPE_ETHTYPE,
 			      .protocol = ETH_P_FCOE,
 			     };
-	u8 up = dcb_getapp(netdev, &app);
+	u8 up;
+
+	/* In IEEE mode, use the IEEE Ethertype selector value */
+	if (adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) {
+		app.selector = IEEE_8021QAZ_APP_SEL_ETHERTYPE;
+		up = dcb_ieee_getapp_mask(netdev, &app);
+	} else {
+		up = dcb_getapp(netdev, &app);
+	}
 #endif
 
 	/* Fail command if not in CEE mode */
@@ -331,7 +339,7 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		return DCB_NO_HW_CHG;
 
 #ifdef IXGBE_FCOE
-	if (up && (up != (1 << adapter->fcoe.up)))
+	if (up && !(up & (1 << adapter->fcoe.up)))
 		adapter->dcb_set_bitmap |= BIT_APP_UPCHG;
 
 	/*

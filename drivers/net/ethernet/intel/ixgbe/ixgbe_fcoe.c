@@ -145,6 +145,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	u32 fcbuff, fcdmarw, fcfltrw, fcrxctl;
 	dma_addr_t addr = 0;
 	struct pci_pool *pool;
+	unsigned int cpu;
 
 	if (!netdev || !sgl)
 		return 0;
@@ -182,7 +183,8 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	}
 
 	/* alloc the udl from per cpu ddp pool */
-	pool = *per_cpu_ptr(fcoe->pool, get_cpu());
+	cpu = get_cpu();
+	pool = *per_cpu_ptr(fcoe->pool, cpu);
 	ddp->udl = pci_pool_alloc(pool, GFP_ATOMIC, &ddp->udp);
 	if (!ddp->udl) {
 		e_err(drv, "failed allocated ddp context\n");
@@ -199,9 +201,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 		while (len) {
 			/* max number of buffers allowed in one DDP context */
 			if (j >= IXGBE_BUFFCNT_MAX) {
-				e_err(drv, "xid=%x:%d,%d,%d:addr=%llx "
-				      "not enough descriptors\n",
-				      xid, i, j, dmacount, (u64)addr);
+				*per_cpu_ptr(fcoe->pcpu_noddp, cpu) += 1;
 				goto out_noddp_free;
 			}
 
@@ -241,12 +241,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	 */
 	if (lastsize == bufflen) {
 		if (j >= IXGBE_BUFFCNT_MAX) {
-			printk_once("Will NOT use DDP since there are not "
-				    "enough user buffers. We need an  extra "
-				    "buffer because lastsize is bufflen. "
-				    "xid=%x:%d,%d,%d:addr=%llx\n",
-				    xid, i, j, dmacount, (u64)addr);
-
+			*per_cpu_ptr(fcoe->pcpu_noddp_ext_buff, cpu) += 1;
 			goto out_noddp_free;
 		}
 
@@ -600,6 +595,7 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
 	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
+	unsigned int cpu;
 
 	if (!fcoe->pool) {
 		spin_lock_init(&fcoe->lock);
@@ -626,6 +622,24 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 				      fcoe->extra_ddp_buffer_dma)) {
 			e_err(drv, "failed to map extra DDP buffer\n");
 			goto out_extra_ddp_buffer;
+		}
+
+		/* Alloc per cpu mem to count the ddp alloc failure number */
+		fcoe->pcpu_noddp = alloc_percpu(u64);
+		if (!fcoe->pcpu_noddp) {
+			e_err(drv, "failed to alloc noddp counter\n");
+			goto out_pcpu_noddp_alloc_fail;
+		}
+
+		fcoe->pcpu_noddp_ext_buff = alloc_percpu(u64);
+		if (!fcoe->pcpu_noddp_ext_buff) {
+			e_err(drv, "failed to alloc noddp extra buff cnt\n");
+			goto out_pcpu_noddp_extra_buff_alloc_fail;
+		}
+
+		for_each_possible_cpu(cpu) {
+			*per_cpu_ptr(fcoe->pcpu_noddp, cpu) = 0;
+			*per_cpu_ptr(fcoe->pcpu_noddp_ext_buff, cpu) = 0;
 		}
 	}
 
@@ -664,7 +678,13 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_FCRXCTRL, IXGBE_FCRXCTRL_FCCRCBO |
 			(FC_FCOE_VER << IXGBE_FCRXCTRL_FCOEVER_SHIFT));
 	return;
-
+out_pcpu_noddp_extra_buff_alloc_fail:
+	free_percpu(fcoe->pcpu_noddp);
+out_pcpu_noddp_alloc_fail:
+	dma_unmap_single(&adapter->pdev->dev,
+			 fcoe->extra_ddp_buffer_dma,
+			 IXGBE_FCBUFF_MIN,
+			 DMA_FROM_DEVICE);
 out_extra_ddp_buffer:
 	kfree(fcoe->extra_ddp_buffer);
 out_ddp_pools:
@@ -693,6 +713,8 @@ void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter)
 			 fcoe->extra_ddp_buffer_dma,
 			 IXGBE_FCBUFF_MIN,
 			 DMA_FROM_DEVICE);
+	free_percpu(fcoe->pcpu_noddp);
+	free_percpu(fcoe->pcpu_noddp_ext_buff);
 	kfree(fcoe->extra_ddp_buffer);
 	ixgbe_fcoe_ddp_pools_free(fcoe);
 }

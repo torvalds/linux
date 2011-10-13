@@ -66,10 +66,6 @@ static s32  igb_set_pcie_completion_timeout(struct e1000_hw *hw);
 static s32  igb_reset_mdicnfg_82580(struct e1000_hw *hw);
 static s32  igb_validate_nvm_checksum_82580(struct e1000_hw *hw);
 static s32  igb_update_nvm_checksum_82580(struct e1000_hw *hw);
-static s32  igb_update_nvm_checksum_with_offset(struct e1000_hw *hw,
-						u16 offset);
-static s32 igb_validate_nvm_checksum_with_offset(struct e1000_hw *hw,
-						u16 offset);
 static s32 igb_validate_nvm_checksum_i350(struct e1000_hw *hw);
 static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
 static const u16 e1000_82580_rxpbs_table[] =
@@ -1584,14 +1580,31 @@ void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
  **/
 void igb_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
 {
-	u32 dtxswc = rd32(E1000_DTXSWC);
+	u32 dtxswc;
 
-	if (enable)
-		dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
-	else
-		dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+	switch (hw->mac.type) {
+	case e1000_82576:
+		dtxswc = rd32(E1000_DTXSWC);
+		if (enable)
+			dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		else
+			dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		wr32(E1000_DTXSWC, dtxswc);
+		break;
+	case e1000_i350:
+		dtxswc = rd32(E1000_TXSWC);
+		if (enable)
+			dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		else
+			dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+		wr32(E1000_TXSWC, dtxswc);
+		break;
+	default:
+		/* Currently no other hardware supports loopback */
+		break;
+	}
 
-	wr32(E1000_DTXSWC, dtxswc);
+
 }
 
 /**
@@ -1820,7 +1833,8 @@ u16 igb_rxpbs_adjust_82580(u32 data)
  *  Calculates the EEPROM checksum by reading/adding each word of the EEPROM
  *  and then verifies that the sum of the EEPROM is equal to 0xBABA.
  **/
-s32 igb_validate_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
+static s32 igb_validate_nvm_checksum_with_offset(struct e1000_hw *hw,
+						 u16 offset)
 {
 	s32 ret_val = 0;
 	u16 checksum = 0;
@@ -1855,7 +1869,7 @@ out:
  *  up to the checksum.  Then calculates the EEPROM checksum and writes the
  *  value to the EEPROM.
  **/
-s32 igb_update_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
+static s32 igb_update_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
 {
 	s32 ret_val;
 	u16 checksum = 0;
