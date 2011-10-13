@@ -108,6 +108,7 @@ struct cfhsi_dev {
 	int (*cfhsi_rx) (u8 *ptr, int len, struct cfhsi_dev *dev);
 	int (*cfhsi_wake_up) (struct cfhsi_dev *dev);
 	int (*cfhsi_wake_down) (struct cfhsi_dev *dev);
+	int (*cfhsi_get_peer_wake) (struct cfhsi_dev *dev, bool *status);
 	int (*cfhsi_fifo_occupancy)(struct cfhsi_dev *dev, size_t *occupancy);
 	int (*cfhsi_rx_cancel)(struct cfhsi_dev *dev);
 	struct cfhsi_drv *drv;

@@ -674,6 +674,7 @@ static void cfhsi_wake_up(struct work_struct *work)
 		/* It happenes when wakeup is requested by
 		 * both ends at the same time. */
 		clear_bit(CFHSI_WAKE_UP, &cfhsi->bits);
+		clear_bit(CFHSI_WAKE_UP_ACK, &cfhsi->bits);
 		return;
 	}
 
@@ -690,19 +691,47 @@ static void cfhsi_wake_up(struct work_struct *work)
 							&cfhsi->bits), ret);
 	if (unlikely(ret < 0)) {
 		/* Interrupted by signal. */
-		dev_info(&cfhsi->ndev->dev, "%s: Signalled: %ld.\n",
+		dev_err(&cfhsi->ndev->dev, "%s: Signalled: %ld.\n",
 			__func__, ret);
+
 		clear_bit(CFHSI_WAKE_UP, &cfhsi->bits);
 		cfhsi->dev->cfhsi_wake_down(cfhsi->dev);
 		return;
 	} else if (!ret) {
+		bool ca_wake = false;
+		size_t fifo_occupancy = 0;
+
 		/* Wakeup timeout */
 		dev_err(&cfhsi->ndev->dev, "%s: Timeout.\n",
 			__func__);
+
+		/* Check FIFO to check if modem has sent something. */
+		WARN_ON(cfhsi->dev->cfhsi_fifo_occupancy(cfhsi->dev,
+					&fifo_occupancy));
+
+		dev_err(&cfhsi->ndev->dev, "%s: Bytes in FIFO: %u.\n",
+				__func__, (unsigned) fifo_occupancy);
+
+		/* Check if we misssed the interrupt. */
+		WARN_ON(cfhsi->dev->cfhsi_get_peer_wake(cfhsi->dev,
+							&ca_wake));
+
+		if (ca_wake) {
+			dev_err(&cfhsi->ndev->dev, "%s: CA Wake missed !.\n",
+				__func__);
+
+			/* Clear the CFHSI_WAKE_UP_ACK bit to prevent race. */
+			clear_bit(CFHSI_WAKE_UP_ACK, &cfhsi->bits);
+
+			/* Continue execution. */
+			goto wake_ack;
+		}
+
 		clear_bit(CFHSI_WAKE_UP, &cfhsi->bits);
 		cfhsi->dev->cfhsi_wake_down(cfhsi->dev);
 		return;
 	}
+wake_ack:
 	dev_dbg(&cfhsi->ndev->dev, "%s: Woken.\n",
 		__func__);
 
@@ -779,12 +808,21 @@ static void cfhsi_wake_down(struct work_struct *work)
 							&cfhsi->bits), ret);
 	if (ret < 0) {
 		/* Interrupted by signal. */
-		dev_info(&cfhsi->ndev->dev, "%s: Signalled: %ld.\n",
+		dev_err(&cfhsi->ndev->dev, "%s: Signalled: %ld.\n",
 			__func__, ret);
 		return;
 	} else if (!ret) {
+		bool ca_wake = true;
+
 		/* Timeout */
 		dev_err(&cfhsi->ndev->dev, "%s: Timeout.\n", __func__);
+
+		/* Check if we misssed the interrupt. */
+		WARN_ON(cfhsi->dev->cfhsi_get_peer_wake(cfhsi->dev,
+							&ca_wake));
+		if (!ca_wake)
+			dev_err(&cfhsi->ndev->dev, "%s: CA Wake missed !.\n",
+				__func__);
 	}
 
 	/* Check FIFO occupancy. */
