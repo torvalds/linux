@@ -175,12 +175,6 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 	struct rb_node *nd = NULL;
 	struct map_symbol *ms = self->b.priv;
 	struct symbol *sym = ms->sym;
-	/*
-	 * RIGHT To allow builtin-annotate to cycle thru multiple symbols by
-	 * examining the exit key for this function.
-	 */
-	int exit_keys[] = { 'H', NEWT_KEY_TAB, NEWT_KEY_UNTAB,
-			    NEWT_KEY_RIGHT, NEWT_KEY_ENTER, 0 };
 	int key;
 
 	if (ui_browser__show(&self->b, sym->name,
@@ -188,7 +182,6 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 			     "cycle hottest lines, H: Hottest, -> Line action") < 0)
 		return -1;
 
-	ui_browser__add_exit_keys(&self->b, exit_keys);
 	annotate_browser__calc_percent(self, evidx);
 
 	if (self->curr_hot)
@@ -292,8 +285,11 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 						     timer, arg, delay_secs);
 			}
 			break;
-		default:
+		case 'q':
+		case CTRL('c'):
 			goto out;
+		default:
+			continue;
 		}
 
 		if (nd != NULL)

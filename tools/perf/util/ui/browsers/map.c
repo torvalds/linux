@@ -109,9 +109,6 @@ static int map_browser__run(struct map_browser *self)
 			     verbose ? "" : "restart with -v to use") < 0)
 		return -1;
 
-	if (verbose)
-		ui_browser__add_exit_key(&self->b, '/');
-
 	while (1) {
 		key = ui_browser__run(&self->b, 0);
 

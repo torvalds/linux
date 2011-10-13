@@ -142,20 +142,6 @@ void ui_browser__reset_index(struct ui_browser *self)
 	self->seek(self, 0, SEEK_SET);
 }
 
-void ui_browser__add_exit_key(struct ui_browser *browser __used, int key __used)
-{
-}
-
-void ui_browser__add_exit_keys(struct ui_browser *self, int keys[])
-{
-	int i = 0;
-
-	while (keys[i] && i < 64) {
-		ui_browser__add_exit_key(self, keys[i]);
-		++i;
-	}
-}
-
 void __ui_browser__show_title(struct ui_browser *browser, const char *title)
 {
 	SLsmg_gotorc(0, 0);
@@ -175,16 +161,12 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 {
 	int err;
 	va_list ap;
-	int keys[] = { NEWT_KEY_UP, NEWT_KEY_DOWN, NEWT_KEY_PGUP,
-		       NEWT_KEY_PGDN, NEWT_KEY_HOME, NEWT_KEY_END, ' ',
-		       NEWT_KEY_LEFT, NEWT_KEY_ESCAPE, 'q', CTRL('c'), 0 };
 
 	ui_browser__refresh_dimensions(self);
 
 	pthread_mutex_lock(&ui__lock);
 	__ui_browser__show_title(self, title);
 
-	ui_browser__add_exit_keys(self, keys);
 	self->title = title;
 	free(self->helpline);
 	self->helpline = NULL;

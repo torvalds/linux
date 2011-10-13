@@ -302,9 +302,6 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 {
 	int key;
 	char title[160];
-	int sym_exit_keys[] = { 'a', 'h', 'C', 'd', 'E', 't', 0, };
-	int exit_keys[] = { '?', 'h', 'D', NEWT_KEY_LEFT, NEWT_KEY_RIGHT,
-			    NEWT_KEY_TAB, NEWT_KEY_UNTAB, NEWT_KEY_ENTER, 0, };
 
 	self->b.entries = &self->hists->entries;
 	self->b.nr_entries = self->hists->nr_entries;
@@ -316,10 +313,6 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 	if (ui_browser__show(&self->b, title,
 			     "Press '?' for help on key bindings") < 0)
 		return -1;
-
-	ui_browser__add_exit_keys(&self->b, exit_keys);
-	if (self->has_symbols)
-		ui_browser__add_exit_keys(&self->b, sym_exit_keys);
 
 	while (1) {
 		key = ui_browser__run(&self->b, delay_secs);
@@ -921,8 +914,11 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			    !ui__dialog_yesno("Do you really want to exit?"))
 				continue;
 			/* Fall thru */
-		default:
+		case 'q':
+		case CTRL('c'):
 			goto out_free_stack;
+		default:
+			continue;
 		}
 
 		if (!browser->has_symbols)
@@ -1056,7 +1052,6 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 				int nr_events, const char *help,
 				void(*timer)(void *arg), void *arg, int delay_secs)
 {
-	int exit_keys[] = { NEWT_KEY_ENTER, NEWT_KEY_RIGHT, 0, };
 	struct perf_evlist *evlist = menu->b.priv;
 	struct perf_evsel *pos;
 	const char *ev_name, *title = "Available samples";
@@ -1065,8 +1060,6 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 	if (ui_browser__show(&menu->b, title,
 			     "ESC: exit, ENTER|->: Browse histograms") < 0)
 		return -1;
-
-	ui_browser__add_exit_keys(&menu->b, exit_keys);
 
 	while (1) {
 		key = ui_browser__run(&menu->b, delay_secs);
@@ -1091,15 +1084,6 @@ browse_hists:
 			break;
 		case NEWT_KEY_LEFT:
 			continue;
-		case NEWT_KEY_ESCAPE:
-			if (!ui__dialog_yesno("Do you really want to exit?"))
-				continue;
-			/* Fall thru */
-		default:
-			goto out;
-		}
-
-		switch (key) {
 		case NEWT_KEY_TAB:
 			if (pos->node.next == &evlist->entries)
 				pos = list_entry(evlist->entries.next, struct perf_evsel, node);
@@ -1114,6 +1098,10 @@ browse_hists:
 				pos = list_entry(pos->node.prev, struct perf_evsel, node);
 			perf_evlist__set_selected(evlist, pos);
 			goto browse_hists;
+		case NEWT_KEY_ESCAPE:
+			if (!ui__dialog_yesno("Do you really want to exit?"))
+				continue;
+			/* Fall thru */
 		case 'q':
 		case CTRL('c'):
 			goto out;
