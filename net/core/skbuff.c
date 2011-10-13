@@ -184,11 +184,20 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 		goto out;
 	prefetchw(skb);
 
-	size = SKB_DATA_ALIGN(size);
-	data = kmalloc_node_track_caller(size + sizeof(struct skb_shared_info),
-			gfp_mask, node);
+	/* We do our best to align skb_shared_info on a separate cache
+	 * line. It usually works because kmalloc(X > SMP_CACHE_BYTES) gives
+	 * aligned memory blocks, unless SLUB/SLAB debug is enabled.
+	 * Both skb->head and skb_shared_info are cache line aligned.
+	 */
+	size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	data = kmalloc_node_track_caller(size, gfp_mask, node);
 	if (!data)
 		goto nodata;
+	/* kmalloc(size) might give us more room than requested.
+	 * Put skb_shared_info exactly at the end of allocated zone,
+	 * to allow max possible filling before reallocation.
+	 */
+	size = SKB_WITH_OVERHEAD(ksize(data));
 	prefetchw(data + size);
 
 	/*
@@ -197,7 +206,8 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	 * the tail pointer in struct sk_buff!
 	 */
 	memset(skb, 0, offsetof(struct sk_buff, tail));
-	skb->truesize = size + sizeof(struct sk_buff);
+	/* Account for allocated memory : skb + skb->head */
+	skb->truesize = SKB_TRUESIZE(size);
 	atomic_set(&skb->users, 1);
 	skb->head = data;
 	skb->data = data;

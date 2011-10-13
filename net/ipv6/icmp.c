@@ -835,8 +835,7 @@ static int __net_init icmpv6_sk_init(struct net *net)
 		/* Enough space for 2 64K ICMP packets, including
 		 * sk_buff struct overhead.
 		 */
-		sk->sk_sndbuf =
-			(2 * ((64 * 1024) + sizeof(struct sk_buff)));
+		sk->sk_sndbuf = 2 * SKB_TRUESIZE(64 * 1024);
 	}
 	return 0;
 

@@ -207,7 +207,7 @@ static struct lock_class_key af_callback_keys[AF_MAX];
  * not depend upon such differences.
  */
 #define _SK_MEM_PACKETS		256
-#define _SK_MEM_OVERHEAD	(sizeof(struct sk_buff) + 256)
+#define _SK_MEM_OVERHEAD	SKB_TRUESIZE(256)
 #define SK_WMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
 #define SK_RMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
 

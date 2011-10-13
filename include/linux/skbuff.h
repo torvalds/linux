@@ -46,6 +46,11 @@
 #define SKB_MAX_HEAD(X)		(SKB_MAX_ORDER((X), 0))
 #define SKB_MAX_ALLOC		(SKB_MAX_ORDER(0, 2))
 
+/* return minimum truesize of one skb containing X bytes of data */
+#define SKB_TRUESIZE(X) ((X) +						\
+			 SKB_DATA_ALIGN(sizeof(struct sk_buff)) +	\
+			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+
 /* A. Checksumming of received packets by device.
  *
  *	NONE: device failed to checksum this packet.
