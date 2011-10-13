@@ -29,6 +29,10 @@ MODULE_DESCRIPTION("CAIF HSI driver");
 #define PAD_POW2(x, pow) ((((x)&((pow)-1)) == 0) ? 0 :\
 				(((pow)-((x)&((pow)-1)))))
 
+static int inactivity_timeout = 1000;
+module_param(inactivity_timeout, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(inactivity_timeout, "Inactivity timeout on HSI, ms.");
+
 /*
  * HSI padding options.
  * Warning: must be a base of 2 (& operation used) and can not be zero !
@@ -98,7 +102,8 @@ static void cfhsi_abort_tx(struct cfhsi *cfhsi)
 	}
 	cfhsi->tx_state = CFHSI_TX_STATE_IDLE;
 	if (!test_bit(CFHSI_SHUTDOWN, &cfhsi->bits))
-		mod_timer(&cfhsi->timer, jiffies + CFHSI_INACTIVITY_TOUT);
+		mod_timer(&cfhsi->timer,
+			jiffies + cfhsi->inactivity_timeout);
 	spin_unlock_bh(&cfhsi->lock);
 }
 
@@ -312,7 +317,7 @@ static void cfhsi_tx_done(struct cfhsi *cfhsi)
 				cfhsi->tx_state = CFHSI_TX_STATE_IDLE;
 				/* Start inactivity timer. */
 				mod_timer(&cfhsi->timer,
-					jiffies + CFHSI_INACTIVITY_TOUT);
+					jiffies + cfhsi->inactivity_timeout);
 				spin_unlock_bh(&cfhsi->lock);
 				goto done;
 			}
@@ -534,7 +539,8 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 
 	/* Update inactivity timer if pending. */
 	spin_lock_bh(&cfhsi->lock);
-	mod_timer_pending(&cfhsi->timer, jiffies + CFHSI_INACTIVITY_TOUT);
+	mod_timer_pending(&cfhsi->timer,
+			jiffies + cfhsi->inactivity_timeout);
 	spin_unlock_bh(&cfhsi->lock);
 
 	if (cfhsi->rx_state.state == CFHSI_RX_STATE_DESC) {
@@ -715,7 +721,7 @@ static void cfhsi_wake_up(struct work_struct *work)
 			__func__);
 		/* Start inactivity timer. */
 		mod_timer(&cfhsi->timer,
-				jiffies + CFHSI_INACTIVITY_TOUT);
+				jiffies + cfhsi->inactivity_timeout);
 		spin_unlock_bh(&cfhsi->lock);
 		return;
 	}
@@ -989,7 +995,19 @@ int cfhsi_probe(struct platform_device *pdev)
 		goto err_alloc_rx;
 	}
 
-	/* Initialize receive variables. */
+	/* Pre-calculate inactivity timeout. */
+	if (inactivity_timeout != -1) {
+		cfhsi->inactivity_timeout =
+				inactivity_timeout * HZ / 1000;
+		if (!cfhsi->inactivity_timeout)
+			cfhsi->inactivity_timeout = 1;
+		else if (cfhsi->inactivity_timeout > NEXT_TIMER_MAX_DELTA)
+			cfhsi->inactivity_timeout = NEXT_TIMER_MAX_DELTA;
+	} else {
+		cfhsi->inactivity_timeout = NEXT_TIMER_MAX_DELTA;
+	}
+
+	/* Initialize recieve vaiables. */
 	cfhsi->rx_ptr = cfhsi->rx_buf;
 	cfhsi->rx_len = CFHSI_DESC_SZ;
 

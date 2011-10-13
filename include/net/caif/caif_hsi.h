@@ -131,6 +131,7 @@ struct cfhsi {
 	struct cfhsi_dev *dev;
 	int tx_state;
 	struct cfhsi_rx_state rx_state;
+	unsigned long inactivity_timeout;
 	int rx_len;
 	u8 *rx_ptr;
 	u8 *tx_buf;
