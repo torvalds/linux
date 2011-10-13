@@ -202,6 +202,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_2GHZ			= BIT(13),
 	ATH9K_HW_CAP_5GHZ			= BIT(14),
 	ATH9K_HW_CAP_APM			= BIT(15),
+	ATH9K_HW_CAP_RTT			= BIT(16),
 };
 
 struct ath9k_hw_capabilities {
@@ -337,6 +338,13 @@ enum ath9k_int {
 	 CHANNEL_HT40PLUS |			\
 	 CHANNEL_HT40MINUS)
 
+#define MAX_RTT_TABLE_ENTRY     6
+#define RTT_HIST_MAX            3
+struct ath9k_rtt_hist {
+	u32 table[AR9300_MAX_CHAINS][RTT_HIST_MAX][MAX_RTT_TABLE_ENTRY];
+	u8 num_readings;
+};
+
 #define MAX_IQCAL_MEASUREMENT	8
 #define MAX_CL_TAB_ENTRY	16
 
@@ -357,6 +365,7 @@ struct ath9k_hw_cal_data {
 	int tx_corr_coeff[MAX_IQCAL_MEASUREMENT][AR9300_MAX_CHAINS];
 	u32 tx_clcal[AR9300_MAX_CHAINS][MAX_CL_TAB_ENTRY];
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ath9k_rtt_hist rtt_hist;
 };
 
 struct ath9k_channel {

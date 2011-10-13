@@ -17,6 +17,7 @@
 #include "hw.h"
 #include "hw-ops.h"
 #include "ar9003_phy.h"
+#include "ar9003_rtt.h"
 
 #define MAX_MEASUREMENT	MAX_IQCAL_MEASUREMENT
 #define MAX_MAG_DELTA	11
@@ -900,25 +901,81 @@ static void ar9003_hw_tx_iq_cal_reload(struct ath_hw *ah)
 		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
 }
 
+static bool ar9003_hw_rtt_restore(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	struct ath9k_rtt_hist *hist;
+	u32 *table;
+	int i;
+	bool restore;
+
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_RTT) || !ah->caldata)
+		return false;
+
+	hist = &ah->caldata->rtt_hist;
+	ar9003_hw_rtt_enable(ah);
+	ar9003_hw_rtt_set_mask(ah, 0x10);
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		if (!(ah->rxchainmask & (1 << i)))
+			continue;
+		table = &hist->table[i][hist->num_readings][0];
+		ar9003_hw_rtt_load_hist(ah, i, table);
+	}
+	restore = ar9003_hw_rtt_force_restore(ah);
+	ar9003_hw_rtt_disable(ah);
+
+	return restore;
+}
+
 static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			       struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	bool txiqcal_done = false, txclcal_done = false;
-	bool is_reusable = true;
+	bool is_reusable = true, status = true;
+	bool run_rtt_cal = false, run_agc_cal;
+	bool rtt = !!(ah->caps.hw_caps & ATH9K_HW_CAP_RTT);
+	u32 agc_ctrl = 0, agc_supp_cals = AR_PHY_AGC_CONTROL_OFFSET_CAL |
+					  AR_PHY_AGC_CONTROL_FLTR_CAL   |
+					  AR_PHY_AGC_CONTROL_PKDET_CAL;
 	int i, j;
 	u32 cl_idx[AR9300_MAX_CHAINS] = { AR_PHY_CL_TAB_0,
 					  AR_PHY_CL_TAB_1,
 					  AR_PHY_CL_TAB_2 };
 
+	if (rtt) {
+		if (!ar9003_hw_rtt_restore(ah, chan))
+			run_rtt_cal = true;
+
+		ath_dbg(common, ATH_DBG_CALIBRATE, "RTT restore %s\n",
+			run_rtt_cal ? "failed" : "succeed");
+	}
+	run_agc_cal = run_rtt_cal;
+
+	if (run_rtt_cal) {
+		ar9003_hw_rtt_enable(ah);
+		ar9003_hw_rtt_set_mask(ah, 0x00);
+		ar9003_hw_rtt_clear_hist(ah);
+	}
+
+	if (rtt && !run_rtt_cal) {
+		agc_ctrl = REG_READ(ah, AR_PHY_AGC_CONTROL);
+		agc_supp_cals &= agc_ctrl;
+		agc_ctrl &= ~(AR_PHY_AGC_CONTROL_OFFSET_CAL |
+			     AR_PHY_AGC_CONTROL_FLTR_CAL |
+			     AR_PHY_AGC_CONTROL_PKDET_CAL);
+		REG_WRITE(ah, AR_PHY_AGC_CONTROL, agc_ctrl);
+	}
+
 	if (ah->enabled_cals & TX_CL_CAL) {
 		if (caldata && caldata->done_txclcal_once)
 			REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL,
 				    AR_PHY_CL_CAL_ENABLE);
-		else
+		else {
 			REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL,
 				    AR_PHY_CL_CAL_ENABLE);
+			run_agc_cal = true;
+		}
 	}
 
 	if (!(ah->enabled_cals & TX_IQ_CAL))
@@ -940,25 +997,41 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		else
 			REG_CLR_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
 				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
-		txiqcal_done = true;
+		txiqcal_done = run_agc_cal = true;
 		goto skip_tx_iqcal;
-	}
+	} else if (caldata && !caldata->done_txiqcal_once)
+		run_agc_cal = true;
+
 	txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
 	udelay(5);
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 
 skip_tx_iqcal:
-	/* Calibrate the AGC */
-	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
-		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
-		  AR_PHY_AGC_CONTROL_CAL);
 
-	/* Poll for offset calibration complete */
-	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL,
-			   0, AH_WAIT_TIMEOUT)) {
+	if (run_agc_cal) {
+		/* Calibrate the AGC */
+		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
+			  REG_READ(ah, AR_PHY_AGC_CONTROL) |
+			  AR_PHY_AGC_CONTROL_CAL);
+
+		/* Poll for offset calibration complete */
+		status = ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
+				       AR_PHY_AGC_CONTROL_CAL,
+				       0, AH_WAIT_TIMEOUT);
+	}
+	if (rtt && !run_rtt_cal) {
+		agc_ctrl |= agc_supp_cals;
+		REG_WRITE(ah, AR_PHY_AGC_CONTROL, agc_ctrl);
+	}
+
+	if (!status) {
+		if (run_rtt_cal)
+			ar9003_hw_rtt_disable(ah);
+
 		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"offset calibration failed to complete in 1ms; noisy environment?\n");
+			"offset calibration failed to complete in 1ms;"
+			"noisy environment?\n");
 		return false;
 	}
 
@@ -992,6 +1065,22 @@ skip_tx_iqcal:
 		}
 	}
 #undef CL_TAB_ENTRY
+
+	if (run_rtt_cal && caldata) {
+		struct ath9k_rtt_hist *hist = &caldata->rtt_hist;
+		if (is_reusable && (hist->num_readings < RTT_HIST_MAX)) {
+			u32 *table;
+
+			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+				if (!(ah->rxchainmask & (1 << i)))
+					continue;
+				table = &hist->table[i][hist->num_readings][0];
+				ar9003_hw_rtt_fill_hist(ah, i, table);
+			}
+		}
+
+		ar9003_hw_rtt_disable(ah);
+	}
 
 	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);

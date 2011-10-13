@@ -1709,6 +1709,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (caldata) {
 		caldata->done_txiqcal_once = false;
 		caldata->done_txclcal_once = false;
+		caldata->rtt_hist.num_readings = 0;
 	}
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;
@@ -2319,6 +2320,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		if (!AR_SREV_9330(ah))
 			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
 	}
+	if (AR_SREV_9480(ah))
+		pCap->hw_caps |= ATH9K_HW_CAP_RTT;
+
 	return 0;
 }
 

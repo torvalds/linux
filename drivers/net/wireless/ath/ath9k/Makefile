@@ -21,6 +21,7 @@ ath9k_hw-y:=	\
 		ar5008_phy.o \
 		ar9002_calib.o \
 		ar9003_calib.o \
+		ar9003_rtt.o \
 		calib.o \
 		eeprom.o \
 		eeprom_def.o \
