@@ -2144,7 +2144,7 @@ static int r600_cp_load_microcode(struct radeon_device *rdev)
 
 int r600_cp_start(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 	uint32_t cp_me;
 
@@ -2174,7 +2174,7 @@ int r600_cp_start(struct radeon_device *rdev)
 
 int r600_cp_resume(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 tmp;
 	u32 rb_bufsz;
 	int r;
@@ -2248,7 +2248,7 @@ void r600_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned r
 void r600_cp_fini(struct radeon_device *rdev)
 {
 	r600_cp_stop(rdev);
-	radeon_ring_fini(rdev, &rdev->cp);
+	radeon_ring_fini(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX]);
 }
 
 
@@ -2271,7 +2271,7 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	uint32_t scratch;
 	uint32_t tmp = 0;
-	unsigned i;
+	unsigned i, ridx = radeon_ring_index(rdev, cp);
 	int r;
 
 	r = radeon_scratch_get(rdev, &scratch);
@@ -2282,7 +2282,7 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_cp *cp)
 	WREG32(scratch, 0xCAFEDEAD);
 	r = radeon_ring_lock(rdev, cp, 3);
 	if (r) {
-		DRM_ERROR("radeon: cp failed to lock ring %p (%d).\n", cp, r);
+		DRM_ERROR("radeon: cp failed to lock ring %d (%d).\n", ridx, r);
 		radeon_scratch_free(rdev, scratch);
 		return r;
 	}
@@ -2297,10 +2297,10 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_cp *cp)
 		DRM_UDELAY(1);
 	}
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ring test on %p succeeded in %d usecs\n", cp, i);
+		DRM_INFO("ring test on %d succeeded in %d usecs\n", ridx, i);
 	} else {
-		DRM_ERROR("radeon: ring %p test failed (scratch(0x%04X)=0x%08X)\n",
-			  cp, scratch, tmp);
+		DRM_ERROR("radeon: ring %d test failed (scratch(0x%04X)=0x%08X)\n",
+			  ridx, scratch, tmp);
 		r = -EINVAL;
 	}
 	radeon_scratch_free(rdev, scratch);
@@ -2310,7 +2310,7 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_cp *cp)
 void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[fence->ring];
 
 	if (rdev->wb.use_event) {
 		u64 addr = rdev->wb.gpu_addr + R600_WB_EVENT_OFFSET +
@@ -2420,7 +2420,7 @@ void r600_clear_surface_reg(struct radeon_device *rdev, int reg)
 
 int r600_startup(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
 	/* enable pcie gen2 link */
@@ -2534,7 +2534,7 @@ int r600_suspend(struct radeon_device *rdev)
 	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
-	rdev->cp.ready = false;
+	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
@@ -2609,8 +2609,8 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	rdev->cp.ring_obj = NULL;
-	r600_ring_init(rdev, &rdev->cp, 1024 * 1024);
+	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
@@ -2677,7 +2677,7 @@ void r600_fini(struct radeon_device *rdev)
  */
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[ib->fence->ring];
 
 	/* FIXME: implement */
 	radeon_ring_write(cp, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
@@ -3518,7 +3518,7 @@ static int r600_debugfs_cp_ring_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	unsigned count, i, j;
 
 	radeon_ring_free_size(rdev, cp);

@@ -87,7 +87,7 @@ int r200_copy_dma(struct radeon_device *rdev,
 		  unsigned num_gpu_pages,
 		  struct radeon_fence *fence)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t size;
 	uint32_t cur_size;
 	int i, num_loops;

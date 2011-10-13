@@ -811,7 +811,7 @@ u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc)
 void r100_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[fence->ring];
 
 	/* We have to make sure that caches are flushed before
 	 * CPU might read something from VRAM. */
@@ -849,7 +849,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 		   unsigned num_gpu_pages,
 		   struct radeon_fence *fence)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t cur_pages;
 	uint32_t stride_bytes = RADEON_GPU_PAGE_SIZE;
 	uint32_t pitch;
@@ -934,7 +934,7 @@ static int r100_cp_wait_for_idle(struct radeon_device *rdev)
 
 void r100_ring_start(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
 	r = radeon_ring_lock(rdev, cp, 2);
@@ -1048,7 +1048,7 @@ static void r100_cp_load_microcode(struct radeon_device *rdev)
 
 int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	unsigned rb_bufsz;
 	unsigned rb_blksz;
 	unsigned max_fetch;
@@ -1162,7 +1162,7 @@ void r100_cp_fini(struct radeon_device *rdev)
 	}
 	/* Disable ring */
 	r100_cp_disable(rdev);
-	radeon_ring_fini(rdev, &rdev->cp);
+	radeon_ring_fini(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX]);
 	DRM_INFO("radeon: cp finalized\n");
 }
 
@@ -1170,7 +1170,7 @@ void r100_cp_disable(struct radeon_device *rdev)
 {
 	/* Disable ring */
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
-	rdev->cp.ready = false;
+	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	WREG32(RADEON_CP_CSQ_MODE, 0);
 	WREG32(RADEON_CP_CSQ_CNTL, 0);
 	WREG32(R_000770_SCRATCH_UMSK, 0);
@@ -2587,7 +2587,7 @@ static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t rdp, wdp;
 	unsigned count, i, j;
 
@@ -3686,7 +3686,7 @@ int r100_ring_test(struct radeon_device *rdev, struct radeon_cp *cp)
 
 void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 
 	radeon_ring_write(cp, PACKET0(RADEON_CP_IB_BASE, 1));
 	radeon_ring_write(cp, ib->gpu_addr);
@@ -3778,7 +3778,7 @@ void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save)
 	/* Shutdown CP we shouldn't need to do that but better be safe than
 	 * sorry
 	 */
-	rdev->cp.ready = false;
+	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	WREG32(R_000740_CP_CSQ_CNTL, 0);
 
 	/* Save few CRTC registers */

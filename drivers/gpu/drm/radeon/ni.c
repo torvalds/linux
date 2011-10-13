@@ -1049,7 +1049,7 @@ static int cayman_cp_load_microcode(struct radeon_device *rdev)
 
 static int cayman_cp_start(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	int r, i;
 
 	r = radeon_ring_lock(rdev, cp, 7);
@@ -1116,7 +1116,7 @@ static int cayman_cp_start(struct radeon_device *rdev)
 static void cayman_cp_fini(struct radeon_device *rdev)
 {
 	cayman_cp_enable(rdev, false);
-	radeon_ring_fini(rdev, &rdev->cp);
+	radeon_ring_fini(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX]);
 }
 
 int cayman_cp_resume(struct radeon_device *rdev)
@@ -1147,7 +1147,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 
 	/* ring 0 - compute and gfx */
 	/* Set ring buffer size */
-	cp = &rdev->cp;
+	cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	rb_bufsz = drm_order(cp->ring_size / 8);
 	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
@@ -1181,7 +1181,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 
 	/* ring1  - compute only */
 	/* Set ring buffer size */
-	cp = &rdev->cp1;
+	cp = &rdev->cp[CAYMAN_RING_TYPE_CP1_INDEX];
 	rb_bufsz = drm_order(cp->ring_size / 8);
 	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
@@ -1207,7 +1207,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 
 	/* ring2 - compute only */
 	/* Set ring buffer size */
-	cp = &rdev->cp2;
+	cp = &rdev->cp[CAYMAN_RING_TYPE_CP2_INDEX];
 	rb_bufsz = drm_order(cp->ring_size / 8);
 	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
@@ -1233,15 +1233,15 @@ int cayman_cp_resume(struct radeon_device *rdev)
 
 	/* start the rings */
 	cayman_cp_start(rdev);
-	rdev->cp.ready = true;
-	rdev->cp1.ready = true;
-	rdev->cp2.ready = true;
+	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ready = true;
+	rdev->cp[CAYMAN_RING_TYPE_CP1_INDEX].ready = true;
+	rdev->cp[CAYMAN_RING_TYPE_CP2_INDEX].ready = true;
 	/* this only test cp0 */
-	r = radeon_ring_test(rdev, &rdev->cp);
+	r = radeon_ring_test(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
-		rdev->cp.ready = false;
-		rdev->cp1.ready = false;
-		rdev->cp2.ready = false;
+		rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ready = false;
+		rdev->cp[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
+		rdev->cp[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
 		return r;
 	}
 
@@ -1343,7 +1343,7 @@ int cayman_asic_reset(struct radeon_device *rdev)
 
 static int cayman_startup(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
 	/* enable pcie gen2 link */
@@ -1438,7 +1438,7 @@ int cayman_suspend(struct radeon_device *rdev)
 {
 	/* FIXME: we should wait for ring to be empty */
 	cayman_cp_enable(rdev, false);
-	rdev->cp.ready = false;
+	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	cayman_pcie_gart_disable(rdev);
@@ -1455,7 +1455,7 @@ int cayman_suspend(struct radeon_device *rdev)
  */
 int cayman_init(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
 	/* This don't do much */

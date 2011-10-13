@@ -43,7 +43,8 @@ void radeon_test_moves(struct radeon_device *rdev)
 	 * (Total GTT - IB pool - writeback page - ring buffers) / test size
 	 */
 	n = rdev->mc.gtt_size - RADEON_IB_POOL_SIZE*64*1024;
-	n -= rdev->cp.ring_size;
+	for (i = 0; i < RADEON_NUM_RINGS; ++i)
+		n -= rdev->cp[i].ring_size;
 	if (rdev->wb.wb_obj)
 		n -= RADEON_GPU_PAGE_SIZE;
 	if (rdev->ih.ring_obj)

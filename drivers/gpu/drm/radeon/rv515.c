@@ -55,7 +55,7 @@ void rv515_debugfs(struct radeon_device *rdev)
 
 void rv515_ring_start(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
 	r = radeon_ring_lock(rdev, cp, 64);

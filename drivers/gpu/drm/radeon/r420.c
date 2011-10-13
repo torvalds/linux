@@ -199,7 +199,7 @@ static void r420_clock_resume(struct radeon_device *rdev)
 
 static void r420_cp_errata_init(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 
 	/* RV410 and R420 can lock up if CP DMA to host memory happens
 	 * while the 2D engine is busy.
@@ -217,7 +217,7 @@ static void r420_cp_errata_init(struct radeon_device *rdev)
 
 static void r420_cp_errata_fini(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 
 	/* Catch the RESYNC we dispatched all the way back,
 	 * at the very beginning of the CP init.

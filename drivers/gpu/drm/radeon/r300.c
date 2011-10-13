@@ -175,7 +175,7 @@ void rv370_pcie_gart_fini(struct radeon_device *rdev)
 void r300_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[fence->ring];
 
 	/* Who ever call radeon_fence_emit should call ring_lock and ask
 	 * for enough space (today caller are ib schedule and buffer move) */
@@ -208,7 +208,7 @@ void r300_fence_ring_emit(struct radeon_device *rdev,
 
 void r300_ring_start(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	unsigned gb_tile_config;
 	int r;
 

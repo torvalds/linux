@@ -121,13 +121,13 @@ int radeon_semaphore_create(struct radeon_device *rdev,
 void radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
 			          struct radeon_semaphore *semaphore)
 {
-	radeon_semaphore_ring_emit(rdev, &rdev->cp, semaphore, false);
+	radeon_semaphore_ring_emit(rdev, &rdev->cp[ring], semaphore, false);
 }
 
 void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 			        struct radeon_semaphore *semaphore)
 {
-	radeon_semaphore_ring_emit(rdev, &rdev->cp, semaphore, true);
+	radeon_semaphore_ring_emit(rdev, &rdev->cp[ring], semaphore, true);
 }
 
 void radeon_semaphore_free(struct radeon_device *rdev,

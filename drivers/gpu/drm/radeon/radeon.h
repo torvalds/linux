@@ -547,6 +547,7 @@ struct r600_ih {
 	struct radeon_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr;
+	unsigned		rptr_offs;
 	unsigned		wptr;
 	unsigned		wptr_old;
 	unsigned		ring_size;
@@ -598,6 +599,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev);
 int radeon_ib_test(struct radeon_device *rdev);
 extern void radeon_ib_bogus_add(struct radeon_device *rdev, struct radeon_ib *ib);
 /* Ring access between begin & end cannot sleep */
+int radeon_ring_index(struct radeon_device *rdev, struct radeon_cp *cp);
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_cp *cp);
 int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ndw);
 int radeon_ring_lock(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ndw);
@@ -1284,9 +1286,7 @@ struct radeon_device {
 	rwlock_t			fence_lock;
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	struct radeon_semaphore_driver	semaphore_drv;
-	struct radeon_cp		cp;
-	struct radeon_cp		cp1;
-	struct radeon_cp		cp2;
+	struct radeon_cp		cp[RADEON_NUM_RINGS];
 	struct radeon_ib_pool		ib_pool;
 	struct radeon_irq		irq;
 	struct radeon_asic		*asic;

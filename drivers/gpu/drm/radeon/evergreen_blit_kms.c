@@ -49,7 +49,7 @@ static void
 set_render_target(struct radeon_device *rdev, int format,
 		  int w, int h, u64 gpu_addr)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 cb_color_info;
 	int pitch, slice;
 
@@ -88,7 +88,7 @@ cp_set_surface_sync(struct radeon_device *rdev,
 		    u32 sync_type, u32 size,
 		    u64 mc_addr)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 cp_coher_size;
 
 	if (size == 0xffffffff)
@@ -116,7 +116,7 @@ cp_set_surface_sync(struct radeon_device *rdev,
 static void
 set_shaders(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u64 gpu_addr;
 
 	/* VS */
@@ -144,7 +144,7 @@ set_shaders(struct radeon_device *rdev)
 static void
 set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 sq_vtx_constant_word2, sq_vtx_constant_word3;
 
 	/* high addr, stride */
@@ -189,7 +189,7 @@ set_tex_resource(struct radeon_device *rdev,
 		 int format, int w, int h, int pitch,
 		 u64 gpu_addr, u32 size)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 sq_tex_resource_word0, sq_tex_resource_word1;
 	u32 sq_tex_resource_word4, sq_tex_resource_word7;
 
@@ -230,7 +230,7 @@ static void
 set_scissors(struct radeon_device *rdev, int x1, int y1,
 	     int x2, int y2)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	/* workaround some hw bugs */
 	if (x2 == 0)
 		x1 = 1;
@@ -261,7 +261,7 @@ set_scissors(struct radeon_device *rdev, int x1, int y1,
 static void
 draw_auto(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	radeon_ring_write(cp, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 	radeon_ring_write(cp, (VGT_PRIMITIVE_TYPE - PACKET3_SET_CONFIG_REG_START) >> 2);
 	radeon_ring_write(cp, DI_PT_RECTLIST);
@@ -286,7 +286,7 @@ draw_auto(struct radeon_device *rdev)
 static void
 set_default_state(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 sq_config, sq_gpr_resource_mgmt_1, sq_gpr_resource_mgmt_2, sq_gpr_resource_mgmt_3;
 	u32 sq_thread_resource_mgmt, sq_thread_resource_mgmt_2;
 	u32 sq_stack_resource_mgmt_1, sq_stack_resource_mgmt_2, sq_stack_resource_mgmt_3;

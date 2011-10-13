@@ -50,7 +50,7 @@ static void
 set_render_target(struct radeon_device *rdev, int format,
 		  int w, int h, u64 gpu_addr)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 cb_color_info;
 	int pitch, slice;
 
@@ -104,7 +104,7 @@ cp_set_surface_sync(struct radeon_device *rdev,
 		    u32 sync_type, u32 size,
 		    u64 mc_addr)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 cp_coher_size;
 
 	if (size == 0xffffffff)
@@ -123,7 +123,7 @@ cp_set_surface_sync(struct radeon_device *rdev,
 static void
 set_shaders(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u64 gpu_addr;
 	u32 sq_pgm_resources;
 
@@ -170,7 +170,7 @@ set_shaders(struct radeon_device *rdev)
 static void
 set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 sq_vtx_constant_word2;
 
 	sq_vtx_constant_word2 = SQ_VTXC_BASE_ADDR_HI(upper_32_bits(gpu_addr) & 0xff) |
@@ -207,7 +207,7 @@ set_tex_resource(struct radeon_device *rdev,
 		 int format, int w, int h, int pitch,
 		 u64 gpu_addr, u32 size)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t sq_tex_resource_word0, sq_tex_resource_word1, sq_tex_resource_word4;
 
 	if (h < 1)
@@ -246,7 +246,7 @@ static void
 set_scissors(struct radeon_device *rdev, int x1, int y1,
 	     int x2, int y2)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	radeon_ring_write(cp, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
 	radeon_ring_write(cp, (PA_SC_SCREEN_SCISSOR_TL - PACKET3_SET_CONTEXT_REG_OFFSET) >> 2);
 	radeon_ring_write(cp, (x1 << 0) | (y1 << 16));
@@ -267,7 +267,7 @@ set_scissors(struct radeon_device *rdev, int x1, int y1,
 static void
 draw_auto(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	radeon_ring_write(cp, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 	radeon_ring_write(cp, (VGT_PRIMITIVE_TYPE - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
 	radeon_ring_write(cp, DI_PT_RECTLIST);
@@ -292,7 +292,7 @@ draw_auto(struct radeon_device *rdev)
 static void
 set_default_state(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	u32 sq_config, sq_gpr_resource_mgmt_1, sq_gpr_resource_mgmt_2;
 	u32 sq_thread_resource_mgmt, sq_stack_resource_mgmt_1, sq_stack_resource_mgmt_2;
 	int num_ps_gprs, num_vs_gprs, num_temp_gprs, num_gs_gprs, num_es_gprs;
@@ -687,7 +687,7 @@ static unsigned r600_blit_create_rect(unsigned num_gpu_pages,
 
 int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 	int ring_size;
 	int num_loops = 0;
@@ -727,7 +727,7 @@ void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence)
 	if (fence)
 		r = radeon_fence_emit(rdev, fence);
 
-	radeon_ring_unlock_commit(rdev, &rdev->cp);
+	radeon_ring_unlock_commit(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX]);
 }
 
 void r600_kms_blit_copy(struct radeon_device *rdev,

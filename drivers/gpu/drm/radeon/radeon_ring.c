@@ -178,7 +178,7 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_cp *cp = &rdev->cp;
+	struct radeon_cp *cp = &rdev->cp[ib->fence->ring];
 	int r = 0;
 
 	if (!ib->length_dw || !cp->ready) {
@@ -284,6 +284,21 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 /*
  * Ring.
  */
+int radeon_ring_index(struct radeon_device *rdev, struct radeon_cp *cp)
+{
+	/* r1xx-r5xx only has CP ring */
+	if (rdev->family < CHIP_R600)
+		return RADEON_RING_TYPE_GFX_INDEX;
+
+	if (rdev->family >= CHIP_CAYMAN) {
+		if (cp == &rdev->cp[CAYMAN_RING_TYPE_CP1_INDEX])
+			return CAYMAN_RING_TYPE_CP1_INDEX;
+		else if (cp == &rdev->cp[CAYMAN_RING_TYPE_CP2_INDEX])
+			return CAYMAN_RING_TYPE_CP2_INDEX;
+	}
+	return RADEON_RING_TYPE_GFX_INDEX;
+}
+
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	if (rdev->wb.enabled)
@@ -312,7 +327,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_cp *cp, unsigned
 		if (ndw < cp->ring_free_dw) {
 			break;
 		}
-		r = radeon_fence_wait_next(rdev, RADEON_RING_TYPE_GFX_INDEX);
+		r = radeon_fence_wait_next(rdev, radeon_ring_index(rdev, cp));
 		if (r)
 			return r;
 	}
