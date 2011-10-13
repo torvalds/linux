@@ -1326,7 +1326,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 
 			skb->len += upper_len;
 			skb->data_len += upper_len;
-			skb->truesize += upper_len;
+			skb->truesize += PAGE_SIZE / 2;
 		}
 
 		i++;
