@@ -2633,7 +2633,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	return 0;
 }
 
-static inline void evergreen_irq_ack(struct radeon_device *rdev)
+static void evergreen_irq_ack(struct radeon_device *rdev)
 {
 	u32 tmp;
 
@@ -2744,7 +2744,7 @@ void evergreen_irq_suspend(struct radeon_device *rdev)
 	r600_rlc_stop(rdev);
 }
 
-static inline u32 evergreen_get_ih_wptr(struct radeon_device *rdev)
+static u32 evergreen_get_ih_wptr(struct radeon_device *rdev)
 {
 	u32 wptr, tmp;
 

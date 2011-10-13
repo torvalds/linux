@@ -584,7 +584,7 @@ set_default_state(struct radeon_device *rdev)
 
 }
 
-static inline uint32_t i2f(uint32_t input)
+static uint32_t i2f(uint32_t input)
 {
 	u32 result, i, exponent, fraction;
 
