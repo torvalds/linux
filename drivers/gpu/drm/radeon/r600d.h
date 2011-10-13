@@ -79,6 +79,11 @@
 #define CB_COLOR0_SIZE                                  0x28060
 #define CB_COLOR0_VIEW                                  0x28080
 #define CB_COLOR0_INFO                                  0x280a0
+#	define CB_FORMAT(x)				((x) << 2)
+#       define CB_ARRAY_MODE(x)                         ((x) << 8)
+#	define CB_SOURCE_FORMAT(x)			((x) << 27)
+#	define CB_SF_EXPORT_FULL			0
+#	define CB_SF_EXPORT_NORM			1
 #define CB_COLOR0_TILE                                  0x280c0
 #define CB_COLOR0_FRAG                                  0x280e0
 #define CB_COLOR0_MASK                                  0x28100
@@ -417,6 +422,17 @@
 #define	SQ_PGM_START_VS					0x28858
 #define SQ_PGM_RESOURCES_VS                             0x28868
 #define SQ_PGM_CF_OFFSET_VS                             0x288d0
+
+#define SQ_VTX_CONSTANT_WORD0_0				0x30000
+#define SQ_VTX_CONSTANT_WORD1_0				0x30004
+#define SQ_VTX_CONSTANT_WORD2_0				0x30008
+#	define SQ_VTXC_BASE_ADDR_HI(x)			((x) << 0)
+#	define SQ_VTXC_STRIDE(x)			((x) << 8)
+#	define SQ_VTXC_ENDIAN_SWAP(x)			((x) << 30)
+#	define SQ_ENDIAN_NONE				0
+#	define SQ_ENDIAN_8IN16				1
+#	define SQ_ENDIAN_8IN32				2
+#define SQ_VTX_CONSTANT_WORD3_0				0x3000c
 #define	SQ_VTX_CONSTANT_WORD6_0				0x38018
 #define		S__SQ_VTX_CONSTANT_TYPE(x)			(((x) & 3) << 30)
 #define		G__SQ_VTX_CONSTANT_TYPE(x)			(((x) >> 30) & 3)
@@ -1352,6 +1368,12 @@
 #define   S_038010_DST_SEL_W(x)                        (((x) & 0x7) << 25)
 #define   G_038010_DST_SEL_W(x)                        (((x) >> 25) & 0x7)
 #define   C_038010_DST_SEL_W                           0xF1FFFFFF
+#	define SQ_SEL_X					0
+#	define SQ_SEL_Y					1
+#	define SQ_SEL_Z					2
+#	define SQ_SEL_W					3
+#	define SQ_SEL_0					4
+#	define SQ_SEL_1					5
 #define   S_038010_BASE_LEVEL(x)                       (((x) & 0xF) << 28)
 #define   G_038010_BASE_LEVEL(x)                       (((x) >> 28) & 0xF)
 #define   C_038010_BASE_LEVEL                          0x0FFFFFFF

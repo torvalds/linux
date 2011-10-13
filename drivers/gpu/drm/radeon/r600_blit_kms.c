@@ -58,7 +58,9 @@ set_render_target(struct radeon_device *rdev, int format,
 	if (h < 8)
 		h = 8;
 
-	cb_color_info = ((format << 2) | (1 << 27) | (1 << 8));
+	cb_color_info = CB_FORMAT(format) |
+		CB_SOURCE_FORMAT(CB_SF_EXPORT_NORM) |
+		CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
 	pitch = (w / 8) - 1;
 	slice = ((w * h) / 64) - 1;
 
@@ -168,9 +170,10 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 {
 	u32 sq_vtx_constant_word2;
 
-	sq_vtx_constant_word2 = ((upper_32_bits(gpu_addr) & 0xff) | (16 << 8));
+	sq_vtx_constant_word2 = SQ_VTXC_BASE_ADDR_HI(upper_32_bits(gpu_addr) & 0xff) |
+		SQ_VTXC_STRIDE(16);
 #ifdef __BIG_ENDIAN
-	sq_vtx_constant_word2 |= (2 << 30);
+	sq_vtx_constant_word2 |=  SQ_VTXC_ENDIAN_SWAP(SQ_ENDIAN_8IN32);
 #endif
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_RESOURCE, 7));
@@ -206,18 +209,19 @@ set_tex_resource(struct radeon_device *rdev,
 	if (h < 1)
 		h = 1;
 
-	sq_tex_resource_word0 = (1 << 0) | (1 << 3);
-	sq_tex_resource_word0 |= ((((pitch >> 3) - 1) << 8) |
-				  ((w - 1) << 19));
+	sq_tex_resource_word0 = S_038000_DIM(V_038000_SQ_TEX_DIM_2D) |
+		S_038000_TILE_MODE(V_038000_ARRAY_1D_TILED_THIN1);
+	sq_tex_resource_word0 |= S_038000_PITCH((pitch >> 3) - 1) |
+		S_038000_TEX_WIDTH(w - 1);
 
-	sq_tex_resource_word1 = (format << 26);
-	sq_tex_resource_word1 |= ((h - 1) << 0);
+	sq_tex_resource_word1 = S_038004_DATA_FORMAT(format);
+	sq_tex_resource_word1 |= S_038004_TEX_HEIGHT(h - 1);
 
-	sq_tex_resource_word4 = ((1 << 14) |
-				 (0 << 16) |
-				 (1 << 19) |
-				 (2 << 22) |
-				 (3 << 25));
+	sq_tex_resource_word4 = S_038010_REQUEST_SIZE(1) |
+		S_038010_DST_SEL_X(SQ_SEL_X) |
+		S_038010_DST_SEL_Y(SQ_SEL_Y) |
+		S_038010_DST_SEL_Z(SQ_SEL_Z) |
+		S_038010_DST_SEL_W(SQ_SEL_W);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_RESOURCE, 7));
 	radeon_ring_write(rdev, 0);
