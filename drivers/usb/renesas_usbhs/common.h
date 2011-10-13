@@ -242,8 +242,8 @@ struct usbhs_priv {
 	void __iomem *base;
 	unsigned int irq;
 
-	struct renesas_usbhs_platform_callback	*pfunc;
-	struct renesas_usbhs_driver_param	*dparam;
+	struct renesas_usbhs_platform_callback	pfunc;
+	struct renesas_usbhs_driver_param	dparam;
 
 	struct delayed_work notify_hotplug_work;
 	struct platform_device *pdev;
@@ -318,7 +318,7 @@ int usbhs_set_device_speed(struct usbhs_priv *priv, int devnum, u16 upphub,
  * data
  */
 struct usbhs_priv *usbhs_pdev_to_priv(struct platform_device *pdev);
-#define usbhs_get_dparam(priv, param)	(priv->dparam->param)
+#define usbhs_get_dparam(priv, param)	(priv->dparam.param)
 #define usbhs_priv_to_pdev(priv)	(priv->pdev)
 #define usbhs_priv_to_dev(priv)		(&priv->pdev->dev)
 #define usbhs_priv_to_lock(priv)	(&priv->lock)

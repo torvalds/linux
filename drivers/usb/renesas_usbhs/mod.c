@@ -58,7 +58,7 @@ void usbhs_mod_autonomy_mode(struct usbhs_priv *priv)
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
 	info->irq_vbus		= usbhsm_autonomy_irq_vbus;
-	priv->pfunc->get_vbus	= usbhsm_autonomy_get_vbus;
+	priv->pfunc.get_vbus	= usbhsm_autonomy_get_vbus;
 
 	usbhs_irq_callback_update(priv, NULL);
 }

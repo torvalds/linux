@@ -61,8 +61,8 @@
  */
 #define usbhs_platform_call(priv, func, args...)\
 	(!(priv) ? -ENODEV :			\
-	 !((priv)->pfunc->func) ? 0 :		\
-	 (priv)->pfunc->func(args))
+	 !((priv)->pfunc.func) ? 0 :		\
+	 (priv)->pfunc.func(args))
 
 /*
  *		common functions
@@ -446,24 +446,28 @@ static int __devinit usbhs_probe(struct platform_device *pdev)
 	/*
 	 * care platform info
 	 */
-	priv->pfunc	= &info->platform_callback;
-	priv->dparam	= &info->driver_param;
+	memcpy(&priv->pfunc,
+	       &info->platform_callback,
+	       sizeof(struct renesas_usbhs_platform_callback));
+	memcpy(&priv->dparam,
+	       &info->driver_param,
+	       sizeof(struct renesas_usbhs_driver_param));
 
 	/* set driver callback functions for platform */
 	dfunc			= &info->driver_callback;
 	dfunc->notify_hotplug	= usbhsc_drvcllbck_notify_hotplug;
 
 	/* set default param if platform doesn't have */
-	if (!priv->dparam->pipe_type) {
-		priv->dparam->pipe_type = usbhsc_default_pipe_type;
-		priv->dparam->pipe_size = ARRAY_SIZE(usbhsc_default_pipe_type);
+	if (!priv->dparam.pipe_type) {
+		priv->dparam.pipe_type = usbhsc_default_pipe_type;
+		priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_default_pipe_type);
 	}
-	if (!priv->dparam->pio_dma_border)
-		priv->dparam->pio_dma_border = 64; /* 64byte */
+	if (!priv->dparam.pio_dma_border)
+		priv->dparam.pio_dma_border = 64; /* 64byte */
 
 	/* FIXME */
 	/* runtime power control ? */
-	if (priv->pfunc->get_vbus)
+	if (priv->pfunc.get_vbus)
 		usbhsc_flags_set(priv, USBHSF_RUNTIME_PWCTRL);
 
 	/*
