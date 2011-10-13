@@ -3463,7 +3463,7 @@ qsec_out:
 
 int
 CIFSSMBSetCIFSACL(const int xid, struct cifs_tcon *tcon, __u16 fid,
-			struct cifs_ntsd *pntsd, __u32 acllen)
+			struct cifs_ntsd *pntsd, __u32 acllen, int aclflag)
 {
 	__u16 byte_count, param_count, data_count, param_offset, data_offset;
 	int rc = 0;
@@ -3500,7 +3500,7 @@ setCifsAclRetry:
 
 	pSMB->Fid = fid; /* file handle always le */
 	pSMB->Reserved2 = 0;
-	pSMB->AclFlags = cpu_to_le32(CIFS_ACL_DACL);
+	pSMB->AclFlags = cpu_to_le32(aclflag);
 
 	if (pntsd && acllen) {
 		memcpy((char *) &pSMBr->hdr.Protocol + data_offset,

@@ -178,7 +178,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 #ifdef CONFIG_CIFS_ACL
 			memcpy(pacl, ea_value, value_size);
 			rc = set_cifs_acl(pacl, value_size,
-				direntry->d_inode, full_path);
+				direntry->d_inode, full_path, CIFS_ACL_DACL);
 			if (rc == 0) /* force revalidate of the inode */
 				CIFS_I(direntry->d_inode)->time = 0;
 			kfree(pacl);

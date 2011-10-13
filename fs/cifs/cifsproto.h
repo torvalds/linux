@@ -146,11 +146,12 @@ extern int cifs_get_inode_info_unix(struct inode **pinode,
 extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      const char *path, const __u16 *pfid);
-extern int mode_to_cifs_acl(struct inode *inode, const char *path, __u64);
+extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64,
+					uid_t, gid_t);
 extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
 					const char *, u32 *);
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
-				const char *);
+				const char *, int);
 
 extern void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			       struct cifs_sb_info *cifs_sb);
@@ -420,7 +421,7 @@ extern int CIFSSMBSetEA(const int xid, struct cifs_tcon *tcon,
 extern int CIFSSMBGetCIFSACL(const int xid, struct cifs_tcon *tcon,
 			__u16 fid, struct cifs_ntsd **acl_inf, __u32 *buflen);
 extern int CIFSSMBSetCIFSACL(const int, struct cifs_tcon *, __u16,
-			struct cifs_ntsd *, __u32);
+			struct cifs_ntsd *, __u32, int);
 extern int CIFSSMBGetPosixACL(const int xid, struct cifs_tcon *tcon,
 		const unsigned char *searchName,
 		char *acl_inf, const int buflen, const int acl_type,
