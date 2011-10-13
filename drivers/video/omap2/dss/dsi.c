@@ -3544,9 +3544,11 @@ static int dsi_enter_ulps(struct platform_device *dsidev)
 	if (dsi->ulps_enabled)
 		return 0;
 
+	/* DDR_CLK_ALWAYS_ON */
 	if (REG_GET(dsidev, DSI_CLK_CTRL, 13, 13)) {
-		DSSERR("DDR_CLK_ALWAYS_ON enabled when entering ULPS\n");
-		return -EIO;
+		dsi_if_enable(dsidev, 0);
+		REG_FLD_MOD(dsidev, DSI_CLK_CTRL, 0, 13, 13);
+		dsi_if_enable(dsidev, 1);
 	}
 
 	dsi_sync_vc(dsidev, 0);
