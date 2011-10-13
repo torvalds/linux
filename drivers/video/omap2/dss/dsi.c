@@ -418,14 +418,29 @@ static void dsi_completion_handler(void *data, u32 mask)
 static inline int wait_for_bit_change(struct platform_device *dsidev,
 		const struct dsi_reg idx, int bitnum, int value)
 {
-	int t = 100000;
+	unsigned long timeout;
+	ktime_t wait;
+	int t;
 
-	while (REG_GET(dsidev, idx, bitnum, bitnum) != value) {
-		if (--t == 0)
-			return !value;
+	/* first busyloop to see if the bit changes right away */
+	t = 100;
+	while (t-- > 0) {
+		if (REG_GET(dsidev, idx, bitnum, bitnum) == value)
+			return value;
 	}
 
-	return value;
+	/* then loop for 500ms, sleeping for 1ms in between */
+	timeout = jiffies + msecs_to_jiffies(500);
+	while (time_before(jiffies, timeout)) {
+		if (REG_GET(dsidev, idx, bitnum, bitnum) == value)
+			return value;
+
+		wait = ns_to_ktime(1000 * 1000);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_hrtimeout(&wait, HRTIMER_MODE_REL);
+	}
+
+	return !value;
 }
 
 u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
