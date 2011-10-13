@@ -775,6 +775,9 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 
 		/* Measured voltages and limits */
 		for (i = 0; i < data->in_num; i++) {
+			if ((i == 6) && data->in6_skip)
+				continue;
+
 			data->in[i] = w83627ehf_read_value(data,
 				      W83627EHF_REG_IN(i));
 			data->in_min[i] = w83627ehf_read_value(data,
