@@ -178,6 +178,9 @@ static int cfhsi_tx_frm(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	if (!skb)
 		return 0;
 
+	/* Clear offset. */
+	desc->offset = 0;
+
 	/* Check if we can embed a CAIF frame. */
 	if (skb->len < CFHSI_MAX_EMB_FRM_SZ) {
 		struct caif_payload_info *info;
@@ -206,9 +209,7 @@ static int cfhsi_tx_frm(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 			consume_skb(skb);
 			skb = NULL;
 		}
-	} else
-		/* Clear offset. */
-		desc->offset = 0;
+	}
 
 	/* Create payload CAIF frames. */
 	pfrm = desc->emb_frm + CFHSI_MAX_EMB_FRM_SZ;
@@ -990,6 +991,8 @@ int cfhsi_probe(struct platform_device *pdev)
 	/* Set up the driver. */
 	cfhsi->drv.tx_done_cb = cfhsi_tx_done_cb;
 	cfhsi->drv.rx_done_cb = cfhsi_rx_done_cb;
+	cfhsi->drv.wake_up_cb = cfhsi_wake_up_cb;
+	cfhsi->drv.wake_down_cb = cfhsi_wake_down_cb;
 
 	/* Initialize the work queues. */
 	INIT_WORK(&cfhsi->wake_up_work, cfhsi_wake_up);
@@ -1044,9 +1047,6 @@ int cfhsi_probe(struct platform_device *pdev)
 			__func__, res);
 		goto err_net_reg;
 	}
-
-	cfhsi->drv.wake_up_cb = cfhsi_wake_up_cb;
-	cfhsi->drv.wake_down_cb = cfhsi_wake_down_cb;
 
 	/* Register network device. */
 	res = register_netdev(ndev);
