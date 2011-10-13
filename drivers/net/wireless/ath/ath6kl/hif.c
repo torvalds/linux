@@ -51,8 +51,7 @@ int ath6kl_hif_rw_comp_handler(void *context, int status)
 {
 	struct htc_packet *packet = context;
 
-	ath6kl_dbg(ATH6KL_DBG_HTC,
-		   "ath6kl_hif_rw_comp_handler (pkt:0x%p , status: %d\n",
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif rw completion pkt 0x%p status %d\n",
 		   packet, status);
 
 	packet->status = status;
@@ -119,7 +118,7 @@ int ath6kl_hif_poll_mboxmsg_rx(struct ath6kl_device *dev, u32 *lk_ahd,
 
 		/* delay a little  */
 		mdelay(ATH6KL_TIME_QUANTUM);
-		ath6kl_dbg(ATH6KL_DBG_HTC, "retry mbox poll : %d\n", i);
+		ath6kl_dbg(ATH6KL_DBG_HIF, "hif retry mbox poll try %d\n", i);
 	}
 
 	if (i == 0) {
@@ -146,6 +145,9 @@ int ath6kl_hif_rx_control(struct ath6kl_device *dev, bool enable_rx)
 {
 	struct ath6kl_irq_enable_reg regs;
 	int status = 0;
+
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif rx %s\n",
+		   enable_rx ? "enable" : "disable");
 
 	/* take the lock to protect interrupt enable shadows */
 	spin_lock_bh(&dev->lock);
@@ -186,8 +188,8 @@ int ath6kl_hif_submit_scat_req(struct ath6kl_device *dev,
 			dev->ar->mbox_info.htc_addr;
 	}
 
-	ath6kl_dbg(ATH6KL_DBG_HTC,
-		   "ath6kl_hif_submit_scat_req, entries: %d, total len: %d mbox:0x%X (mode: %s : %s)\n",
+	ath6kl_dbg(ATH6KL_DBG_HIF,
+		   "hif submit scatter request entries %d len %d mbox 0x%x %s %s\n",
 		   scat_req->scat_entries, scat_req->len,
 		   scat_req->addr, !read ? "async" : "sync",
 		   (read) ? "rd" : "wr");
@@ -629,11 +631,8 @@ int ath6kl_hif_setup(struct ath6kl_device *dev)
 	/* assemble mask, used for padding to a block */
 	dev->htc_cnxt->block_mask = dev->htc_cnxt->block_sz - 1;
 
-	ath6kl_dbg(ATH6KL_DBG_TRC, "block size: %d, mbox addr:0x%X\n",
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif block size %d mbox addr 0x%x\n",
 		   dev->htc_cnxt->block_sz, dev->ar->mbox_info.htc_addr);
-
-	ath6kl_dbg(ATH6KL_DBG_TRC,
-		   "hif interrupt processing is sync only\n");
 
 	status = ath6kl_hif_disable_intrs(dev);
 
