@@ -520,6 +520,8 @@ struct cmd_ctrl_node {
 	void *data_buf;
 	u32 wait_q_enabled;
 	struct sk_buff *skb;
+	u8 *condition;
+	u8 cmd_wait_q_woken;
 };
 
 struct mwifiex_if_ops {
@@ -651,6 +653,8 @@ struct mwifiex_adapter {
 	u32 arp_filter_size;
 	u16 cmd_wait_q_required;
 	struct mwifiex_wait_queue cmd_wait_q;
+	u8 scan_wait_q_woken;
+	struct cmd_ctrl_node *cmd_queued;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -670,7 +674,8 @@ int mwifiex_recv_packet(struct mwifiex_adapter *, struct sk_buff *skb);
 
 int mwifiex_process_event(struct mwifiex_adapter *adapter);
 
-int mwifiex_complete_cmd(struct mwifiex_adapter *adapter);
+int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
+			 struct cmd_ctrl_node *cmd_node);
 
 int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 			   u16 cmd_action, u32 cmd_oid, void *data_buf);

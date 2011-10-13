@@ -40,8 +40,12 @@ mwifiex_init_cmd_node(struct mwifiex_private *priv,
 {
 	cmd_node->priv = priv;
 	cmd_node->cmd_oid = cmd_oid;
-	cmd_node->wait_q_enabled = priv->adapter->cmd_wait_q_required;
-	priv->adapter->cmd_wait_q_required = false;
+	if (priv->adapter->cmd_wait_q_required) {
+		cmd_node->wait_q_enabled = priv->adapter->cmd_wait_q_required;
+		priv->adapter->cmd_wait_q_required = false;
+		cmd_node->cmd_wait_q_woken = false;
+		cmd_node->condition = &cmd_node->cmd_wait_q_woken;
+	}
 	cmd_node->data_buf = data_buf;
 	cmd_node->cmd_skb = cmd_node->skb;
 }
@@ -418,7 +422,6 @@ int mwifiex_send_cmd_sync(struct mwifiex_private *priv, uint16_t cmd_no,
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	adapter->cmd_wait_q_required = true;
-	adapter->cmd_wait_q.condition = false;
 
 	ret = mwifiex_send_cmd_async(priv, cmd_no, cmd_action, cmd_oid,
 				     data_buf);
@@ -511,10 +514,12 @@ int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 	}
 
 	/* Send command */
-	if (cmd_no == HostCmd_CMD_802_11_SCAN)
+	if (cmd_no == HostCmd_CMD_802_11_SCAN) {
 		mwifiex_queue_scan_cmd(priv, cmd_node);
-	else
+	} else {
+		adapter->cmd_queued = cmd_node;
 		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
+	}
 
 	return ret;
 }
@@ -535,7 +540,7 @@ mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
 		return;
 
 	if (cmd_node->wait_q_enabled)
-		mwifiex_complete_cmd(adapter);
+		mwifiex_complete_cmd(adapter, cmd_node);
 	/* Clean the node */
 	mwifiex_clean_cmd_node(adapter, cmd_node);
 
@@ -882,7 +887,7 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 		adapter->curr_cmd->wait_q_enabled = false;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 		adapter->cmd_wait_q.status = -1;
-		mwifiex_complete_cmd(adapter);
+		mwifiex_complete_cmd(adapter, adapter->curr_cmd);
 	}
 	/* Cancel all pending command */
 	spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
@@ -893,7 +898,7 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 
 		if (cmd_node->wait_q_enabled) {
 			adapter->cmd_wait_q.status = -1;
-			mwifiex_complete_cmd(adapter);
+			mwifiex_complete_cmd(adapter, cmd_node);
 			cmd_node->wait_q_enabled = false;
 		}
 		mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
@@ -976,7 +981,7 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
 	}
 	adapter->cmd_wait_q.status = -1;
-	mwifiex_complete_cmd(adapter);
+	mwifiex_complete_cmd(adapter, adapter->curr_cmd);
 }
 
 /*

@@ -685,8 +685,8 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	init_waitqueue_head(&adapter->hs_activate_wait_q);
 	adapter->cmd_wait_q_required = false;
 	init_waitqueue_head(&adapter->cmd_wait_q.wait);
-	adapter->cmd_wait_q.condition = false;
 	adapter->cmd_wait_q.status = 0;
+	adapter->scan_wait_q_woken = false;
 
 	adapter->workqueue = create_workqueue("MWIFIEX_WORK_QUEUE");
 	if (!adapter->workqueue)

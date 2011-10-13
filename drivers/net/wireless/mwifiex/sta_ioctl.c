@@ -55,7 +55,9 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 {
 	bool cancel_flag = false;
 	int status = adapter->cmd_wait_q.status;
+	struct cmd_ctrl_node *cmd_queued = adapter->cmd_queued;
 
+	adapter->cmd_queued = NULL;
 	dev_dbg(adapter->dev, "cmd pending\n");
 	atomic_inc(&adapter->cmd_pending);
 
@@ -64,8 +66,8 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 
 	/* Wait for completion */
 	wait_event_interruptible(adapter->cmd_wait_q.wait,
-					adapter->cmd_wait_q.condition);
-	if (!adapter->cmd_wait_q.condition)
+					*(cmd_queued->condition));
+	if (!*(cmd_queued->condition))
 		cancel_flag = true;
 
 	if (cancel_flag) {
