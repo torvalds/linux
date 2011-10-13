@@ -3438,10 +3438,8 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	} else {
 		use_doorbell = misc_fw_support & MISC_FW_DOORBELL_RESET;
 		if (use_doorbell) {
-			dev_warn(&pdev->dev, "Controller claims that "
-				"'Bit 2 doorbell reset' is "
-				"supported, but not 'bit 5 doorbell reset'.  "
-				"Firmware update is recommended.\n");
+			dev_warn(&pdev->dev, "Soft reset not supported. "
+				"Firmware update is required.\n");
 			rc = -ENOTSUPP; /* try soft reset */
 			goto unmap_cfgtable;
 		}
