@@ -241,6 +241,7 @@ struct l2cap_conf_rsp {
 #define L2CAP_CONF_UNACCEPT	0x0001
 #define L2CAP_CONF_REJECT	0x0002
 #define L2CAP_CONF_UNKNOWN	0x0003
+#define L2CAP_CONF_EFS_REJECT	0x0005
 
 struct l2cap_conf_opt {
 	__u8       type;
@@ -257,6 +258,7 @@ struct l2cap_conf_opt {
 #define L2CAP_CONF_QOS		0x03
 #define L2CAP_CONF_RFC		0x04
 #define L2CAP_CONF_FCS		0x05
+#define L2CAP_CONF_EFS		0x06
 #define L2CAP_CONF_EWS		0x07
 
 #define L2CAP_CONF_MAX_SIZE	22
@@ -275,6 +277,15 @@ struct l2cap_conf_rfc {
 #define L2CAP_MODE_FLOWCTL	0x02
 #define L2CAP_MODE_ERTM		0x03
 #define L2CAP_MODE_STREAMING	0x04
+
+struct l2cap_conf_efs {
+	__u8	id;
+	__u8	stype;
+	__le16	msdu;
+	__le32	sdu_itime;
+	__le32	acc_lat;
+	__le32	flush_to;
+} __packed;
 
 struct l2cap_disconn_req {
 	__le16     dcid;
@@ -386,6 +397,20 @@ struct l2cap_chan {
 	__u8		remote_max_tx;
 	__u16		remote_mps;
 
+	__u8		local_id;
+	__u8		local_stype;
+	__u16		local_msdu;
+	__u32		local_sdu_itime;
+	__u32		local_acc_lat;
+	__u32		local_flush_to;
+
+	__u8		remote_id;
+	__u8		remote_stype;
+	__u16		remote_msdu;
+	__u32		remote_sdu_itime;
+	__u32		remote_acc_lat;
+	__u32		remote_flush_to;
+
 	struct timer_list	chan_timer;
 	struct timer_list	retrans_timer;
 	struct timer_list	monitor_timer;
@@ -492,6 +517,7 @@ enum {
 	FLAG_FORCE_RELIABLE,
 	FLAG_FLUSHABLE,
 	FLAG_EXT_CTRL,
+	FLAG_EFS_ENABLE,
 };
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
