@@ -32,6 +32,11 @@ Supported chips:
     Addresses scanned: I2C 0x48 - 0x4f
     Datasheet: Publicly available at the Microchip website
                http://www.microchip.com/
+  * Analog Devices ADT75
+    Prefix: 'adt75'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the Analog Devices website
+               http://www.analog.com/adt75
 
 Author: Frodo Looijaard <frodol@dds.nl>
 

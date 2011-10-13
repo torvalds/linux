@@ -35,6 +35,7 @@
  */
 
 enum lm75_type {		/* keep sorted in alphabetical order */
+	adt75,
 	ds1775,
 	ds75,
 	lm75,
@@ -213,6 +214,7 @@ static int lm75_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm75_ids[] = {
+	{ "adt75", adt75, },
 	{ "ds1775", ds1775, },
 	{ "ds75", ds75, },
 	{ "lm75", lm75, },

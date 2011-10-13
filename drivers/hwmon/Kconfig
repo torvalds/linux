@@ -551,6 +551,7 @@ config SENSORS_LM75
 	  If you say yes here you get support for one common type of
 	  temperature sensor chip, with models including:
 
+		- Analog Devices ADT75
 		- Dallas Semiconductor DS75 and DS1775
 		- Maxim MAX6625 and MAX6626
 		- Microchip MCP980x
