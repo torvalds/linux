@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/if_arp.h>
 #include <linux/timer.h>
+#include <linux/rtnetlink.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/caif_hsi.h>
 
@@ -348,8 +349,7 @@ static void cfhsi_tx_done_cb(struct cfhsi_drv *drv)
 	cfhsi_tx_done(cfhsi);
 }
 
-static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi,
-				bool *dump)
+static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 {
 	int xfer_sz = 0;
 	int nfrms = 0;
@@ -360,8 +360,7 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi,
 			(desc->offset > CFHSI_MAX_EMB_FRM_SZ)) {
 		dev_err(&cfhsi->ndev->dev, "%s: Invalid descriptor.\n",
 			__func__);
-		*dump = true;
-		return 0;
+		return -EPROTO;
 	}
 
 	/* Check for embedded CAIF frame. */
@@ -379,6 +378,12 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi,
 		len |= ((*(pfrm+1)) << 8) & 0xFF00;
 		len += 2;	/* Add FCS fields. */
 
+		/* Sanity check length of CAIF frame. */
+		if (unlikely(len > CFHSI_MAX_CAIF_FRAME_SZ)) {
+			dev_err(&cfhsi->ndev->dev, "%s: Invalid length.\n",
+				__func__);
+			return -EPROTO;
+		}
 
 		/* Allocate SKB (OK even in IRQ context). */
 		skb = alloc_skb(len + 1, GFP_ATOMIC);
@@ -423,18 +428,16 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi,
 	if (desc->header & CFHSI_PIGGY_DESC)
 		xfer_sz += CFHSI_DESC_SZ;
 
-	if (xfer_sz % 4) {
+	if ((xfer_sz % 4) || (xfer_sz > (CFHSI_BUF_SZ_RX - CFHSI_DESC_SZ))) {
 		dev_err(&cfhsi->ndev->dev,
 				"%s: Invalid payload len: %d, ignored.\n",
 			__func__, xfer_sz);
-		xfer_sz = 0;
-		*dump = true;
+		return -EPROTO;
 	}
 	return xfer_sz;
 }
 
-static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi,
-				bool *dump)
+static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 {
 	int rx_sz = 0;
 	int nfrms = 0;
@@ -446,8 +449,7 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi,
 			(desc->offset > CFHSI_MAX_EMB_FRM_SZ))) {
 		dev_err(&cfhsi->ndev->dev, "%s: Invalid descriptor.\n",
 			__func__);
-		*dump = true;
-		return -EINVAL;
+		return -EPROTO;
 	}
 
 	/* Set frame pointer to start of payload. */
@@ -469,13 +471,6 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi,
 		u8 *pcffrm = NULL;
 		int len = 0;
 
-		if (WARN_ON(desc->cffrm_len[nfrms] > CFHSI_MAX_PAYLOAD_SZ)) {
-			dev_err(&cfhsi->ndev->dev, "%s: Invalid payload.\n",
-				__func__);
-			*dump = true;
-			return -EINVAL;
-		}
-
 		/* CAIF frame starts after head padding. */
 		pcffrm = pfrm + *pfrm + 1;
 
@@ -483,6 +478,13 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi,
 		len = *pcffrm;
 		len |= ((*(pcffrm + 1)) << 8) & 0xFF00;
 		len += 2;	/* Add FCS fields. */
+
+		/* Sanity check length of CAIF frames. */
+		if (unlikely(len > CFHSI_MAX_CAIF_FRAME_SZ)) {
+			dev_err(&cfhsi->ndev->dev, "%s: Invalid length.\n",
+				__func__);
+			return -EPROTO;
+		}
 
 		/* Allocate SKB (OK even in IRQ context). */
 		skb = alloc_skb(len + 1, GFP_ATOMIC);
@@ -528,7 +530,6 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 	int res;
 	int desc_pld_len = 0;
 	struct cfhsi_desc *desc = NULL;
-	bool dump = false;
 
 	desc = (struct cfhsi_desc *)cfhsi->rx_buf;
 
@@ -544,16 +545,20 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 	spin_unlock_bh(&cfhsi->lock);
 
 	if (cfhsi->rx_state.state == CFHSI_RX_STATE_DESC) {
-		desc_pld_len = cfhsi_rx_desc(desc, cfhsi, &dump);
+		desc_pld_len = cfhsi_rx_desc(desc, cfhsi);
 		if (desc_pld_len == -ENOMEM)
 			goto restart;
+		if (desc_pld_len == -EPROTO)
+			goto out_of_sync;
 	} else {
 		int pld_len;
 
 		if (!cfhsi->rx_state.piggy_desc) {
-			pld_len = cfhsi_rx_pld(desc, cfhsi, &dump);
+			pld_len = cfhsi_rx_pld(desc, cfhsi);
 			if (pld_len == -ENOMEM)
 				goto restart;
+			if (pld_len == -EPROTO)
+				goto out_of_sync;
 			cfhsi->rx_state.pld_len = pld_len;
 		} else {
 			pld_len = cfhsi->rx_state.pld_len;
@@ -567,7 +572,7 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 			cfhsi->rx_state.piggy_desc = true;
 
 			/* Extract piggy-backed descriptor. */
-			desc_pld_len = cfhsi_rx_desc(piggy_desc, cfhsi, &dump);
+			desc_pld_len = cfhsi_rx_desc(piggy_desc, cfhsi);
 			if (desc_pld_len == -ENOMEM)
 				goto restart;
 
@@ -577,15 +582,10 @@ static void cfhsi_rx_done(struct cfhsi *cfhsi)
 			 */
 			memcpy((u8 *)desc, (u8 *)piggy_desc,
 					CFHSI_DESC_SHORT_SZ);
-		}
-	}
 
-	if (unlikely(dump)) {
-		size_t rx_offset = cfhsi->rx_ptr - cfhsi->rx_buf;
-		dev_err(&cfhsi->ndev->dev, "%s: RX offset: %u.\n",
-			__func__, (unsigned) rx_offset);
-		print_hex_dump_bytes("--> ", DUMP_PREFIX_NONE,
-				cfhsi->rx_buf, cfhsi->rx_len + rx_offset);
+			if (desc_pld_len == -EPROTO)
+				goto out_of_sync;
+		}
 	}
 
 	memset(&cfhsi->rx_state, 0, sizeof(cfhsi->rx_state));
@@ -622,6 +622,13 @@ restart:
 		BUG();
 	}
 	mod_timer(&cfhsi->rx_slowpath_timer, jiffies + 1);
+	return;
+
+out_of_sync:
+	dev_err(&cfhsi->ndev->dev, "%s: Out of sync.\n", __func__);
+	print_hex_dump_bytes("--> ", DUMP_PREFIX_NONE,
+			cfhsi->rx_buf, CFHSI_DESC_SZ);
+	schedule_work(&cfhsi->out_of_sync_work);
 }
 
 static void cfhsi_rx_slowpath(unsigned long arg)
@@ -802,6 +809,17 @@ static void cfhsi_wake_down(struct work_struct *work)
 	/* Cancel pending RX requests. */
 	cfhsi->dev->cfhsi_rx_cancel(cfhsi->dev);
 
+}
+
+static void cfhsi_out_of_sync(struct work_struct *work)
+{
+	struct cfhsi *cfhsi = NULL;
+
+	cfhsi = container_of(work, struct cfhsi, out_of_sync_work);
+
+	rtnl_lock();
+	dev_close(cfhsi->ndev);
+	rtnl_unlock();
 }
 
 static void cfhsi_wake_up_cb(struct cfhsi_drv *drv)
@@ -1023,6 +1041,7 @@ int cfhsi_probe(struct platform_device *pdev)
 	/* Initialize the work queues. */
 	INIT_WORK(&cfhsi->wake_up_work, cfhsi_wake_up);
 	INIT_WORK(&cfhsi->wake_down_work, cfhsi_wake_down);
+	INIT_WORK(&cfhsi->out_of_sync_work, cfhsi_out_of_sync);
 
 	/* Clear all bit fields. */
 	clear_bit(CFHSI_WAKE_UP_ACK, &cfhsi->bits);

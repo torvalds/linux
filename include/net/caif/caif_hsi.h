@@ -52,8 +52,9 @@ struct cfhsi_desc {
 /*
  * Maximum bytes transferred in one transfer.
  */
-/* TODO: 4096 is temporary... */
-#define CFHSI_MAX_PAYLOAD_SZ (CFHSI_MAX_PKTS * 4096)
+#define CFHSI_MAX_CAIF_FRAME_SZ 4096
+
+#define CFHSI_MAX_PAYLOAD_SZ (CFHSI_MAX_PKTS * CFHSI_MAX_CAIF_FRAME_SZ)
 
 /* Size of the complete HSI TX buffer. */
 #define CFHSI_BUF_SZ_TX (CFHSI_DESC_SZ + CFHSI_MAX_PAYLOAD_SZ)
@@ -143,6 +144,7 @@ struct cfhsi {
 	struct list_head list;
 	struct work_struct wake_up_work;
 	struct work_struct wake_down_work;
+	struct work_struct out_of_sync_work;
 	struct workqueue_struct *wq;
 	wait_queue_head_t wake_up_wait;
 	wait_queue_head_t wake_down_wait;
