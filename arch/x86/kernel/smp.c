@@ -249,6 +249,11 @@ static void native_irq_stop_other_cpus(int wait)
 	local_irq_restore(flags);
 }
 
+static void native_smp_disable_nmi_ipi(void)
+{
+	smp_ops.stop_other_cpus = native_irq_stop_other_cpus;
+}
+
 /*
  * Reschedule call back.
  */
@@ -279,6 +284,14 @@ void smp_call_function_single_interrupt(struct pt_regs *regs)
 	inc_irq_stat(irq_call_count);
 	irq_exit();
 }
+
+static int __init nonmi_ipi_setup(char *str)
+{
+        native_smp_disable_nmi_ipi();
+        return 1;
+}
+
+__setup("nonmi_ipi", nonmi_ipi_setup);
 
 struct smp_ops smp_ops = {
 	.smp_prepare_boot_cpu	= native_smp_prepare_boot_cpu,
