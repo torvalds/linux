@@ -38,7 +38,7 @@
 #include <linux/libata.h>
 #include <asm/msr.h>
 
-#define DRV_NAME	"cs5535"
+#define DRV_NAME	"pata_cs5535"
 #define DRV_VERSION	"0.2.12"
 
 /*
@@ -230,7 +230,7 @@ static void __exit cs5535_exit(void)
 }
 
 MODULE_AUTHOR("Alan Cox, Jens Altmann, Wolfgan Zuleger, Alexander Kiausch");
-MODULE_DESCRIPTION("low-level driver for the NS/AMD 5530");
+MODULE_DESCRIPTION("low-level driver for the NS/AMD 5535");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, cs5535);
 MODULE_VERSION(DRV_VERSION);
