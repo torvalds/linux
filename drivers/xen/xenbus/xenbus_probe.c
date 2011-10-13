@@ -724,7 +724,7 @@ static int __init xenbus_init(void)
 
 		/* Next allocate a local port which xenstored can bind to */
 		alloc_unbound.dom        = DOMID_SELF;
-		alloc_unbound.remote_dom = 0;
+		alloc_unbound.remote_dom = DOMID_SELF;
 
 		err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
 						  &alloc_unbound);
