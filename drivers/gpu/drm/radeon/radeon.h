@@ -522,9 +522,30 @@ struct r600_ih {
 	bool                    enabled;
 };
 
+struct r600_blit_cp_primitives {
+	void (*set_render_target)(struct radeon_device *rdev, int format,
+				  int w, int h, u64 gpu_addr);
+	void (*cp_set_surface_sync)(struct radeon_device *rdev,
+				    u32 sync_type, u32 size,
+				    u64 mc_addr);
+	void (*set_shaders)(struct radeon_device *rdev);
+	void (*set_vtx_resource)(struct radeon_device *rdev, u64 gpu_addr);
+	void (*set_tex_resource)(struct radeon_device *rdev,
+				 int format, int w, int h, int pitch,
+				 u64 gpu_addr);
+	void (*set_scissors)(struct radeon_device *rdev, int x1, int y1,
+			     int x2, int y2);
+	void (*draw_auto)(struct radeon_device *rdev);
+	void (*set_default_state)(struct radeon_device *rdev);
+};
+
 struct r600_blit {
 	struct mutex		mutex;
 	struct radeon_bo	*shader_obj;
+	struct r600_blit_cp_primitives primitives;
+	int max_dim;
+	int ring_size_common;
+	int ring_size_per_loop;
 	u64 shader_gpu_addr;
 	u32 vs_offset, ps_offset;
 	u32 state_offset;

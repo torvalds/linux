@@ -44,7 +44,6 @@
 
 #define RECT_UNIT_H           32
 #define RECT_UNIT_W           (RADEON_GPU_PAGE_SIZE / 4 / RECT_UNIT_H)
-#define MAX_RECT_DIM          8192
 
 /* emits 21 on rv770+, 23 on r600 */
 static void
@@ -491,6 +490,27 @@ int r600_blit_init(struct radeon_device *rdev)
 	u32 packet2s[16];
 	int num_packet2s = 0;
 
+	rdev->r600_blit.primitives.set_render_target = set_render_target;
+	rdev->r600_blit.primitives.cp_set_surface_sync = cp_set_surface_sync;
+	rdev->r600_blit.primitives.set_shaders = set_shaders;
+	rdev->r600_blit.primitives.set_vtx_resource = set_vtx_resource;
+	rdev->r600_blit.primitives.set_tex_resource = set_tex_resource;
+	rdev->r600_blit.primitives.set_scissors = set_scissors;
+	rdev->r600_blit.primitives.draw_auto = draw_auto;
+	rdev->r600_blit.primitives.set_default_state = set_default_state;
+
+	rdev->r600_blit.ring_size_common = 40; /* shaders + def state */
+	rdev->r600_blit.ring_size_common += 10; /* fence emit for VB IB */
+	rdev->r600_blit.ring_size_common += 5; /* done copy */
+	rdev->r600_blit.ring_size_common += 10; /* fence emit for done copy */
+
+	rdev->r600_blit.ring_size_per_loop = 76;
+	/* set_render_target emits 2 extra dwords on rv6xx */
+	if (rdev->family > CHIP_R600 && rdev->family < CHIP_RV770)
+		rdev->r600_blit.ring_size_per_loop += 2;
+
+	rdev->r600_blit.max_dim = 8192;
+
 	/* pin copy shader into vram if already initialized */
 	if (rdev->r600_blit.shader_obj)
 		goto done;
@@ -608,9 +628,8 @@ static void r600_vb_ib_put(struct radeon_device *rdev)
 	radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 }
 
-/* FIXME: the function is very similar to evergreen_blit_create_rect, except
-   that it different predefined constants; consider commonizing */
-static unsigned r600_blit_create_rect(unsigned num_pages, int *width, int *height)
+static unsigned r600_blit_create_rect(unsigned num_pages,
+				      int *width, int *height, int max_dim)
 {
 	unsigned max_pages;
 	unsigned pages = num_pages;
@@ -628,12 +647,12 @@ static unsigned r600_blit_create_rect(unsigned num_pages, int *width, int *heigh
 		while (num_pages / rect_order) {
 			h *= 2;
 			rect_order *= 4;
-			if (h >= MAX_RECT_DIM) {
-				h = MAX_RECT_DIM;
+			if (h >= max_dim) {
+				h = max_dim;
 				break;
 			}
 		}
-		max_pages = (MAX_RECT_DIM * h) / (RECT_UNIT_W * RECT_UNIT_H);
+		max_pages = (max_dim * h) / (RECT_UNIT_W * RECT_UNIT_H);
 		if (pages > max_pages)
 			pages = max_pages;
 		w = (pages * RECT_UNIT_W * RECT_UNIT_H) / h;
@@ -659,36 +678,29 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_pages)
 {
 	int r;
 	int ring_size;
-	/* loops of emits 64 + fence emit possible */
-	int dwords_per_loop = 76, num_loops = 0;
+	int num_loops = 0;
+	int dwords_per_loop = rdev->r600_blit.ring_size_per_loop;
 
 	r = r600_vb_ib_get(rdev);
 	if (r)
 		return r;
 
-	/* set_render_target emits 2 extra dwords on rv6xx */
-	if (rdev->family > CHIP_R600 && rdev->family < CHIP_RV770)
-		dwords_per_loop += 2;
-
 	/* num loops */
 	while (num_pages) {
-		num_pages -= r600_blit_create_rect(num_pages, NULL, NULL);
+		num_pages -= r600_blit_create_rect(num_pages, NULL, NULL,
+						   rdev->r600_blit.max_dim);
 		num_loops++;
 	}
 
 	/* calculate number of loops correctly */
 	ring_size = num_loops * dwords_per_loop;
-	/* set default  + shaders */
-	ring_size += 40; /* shaders + def state */
-	ring_size += 10; /* fence emit for VB IB */
-	ring_size += 5; /* done copy */
-	ring_size += 10; /* fence emit for done copy */
+	ring_size += rdev->r600_blit.ring_size_common;
 	r = radeon_ring_lock(rdev, ring_size);
 	if (r)
 		return r;
 
-	set_default_state(rdev); /* 14 */
-	set_shaders(rdev); /* 26 */
+	rdev->r600_blit.primitives.set_default_state(rdev);
+	rdev->r600_blit.primitives.set_shaders(rdev);
 	return 0;
 }
 
@@ -712,14 +724,17 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 	u64 vb_gpu_addr;
 	u32 *vb;
 
-	DRM_DEBUG("emitting copy %16llx %16llx %d %d\n", src_gpu_addr, dst_gpu_addr,
+	DRM_DEBUG("emitting copy %16llx %16llx %d %d\n",
+		  src_gpu_addr, dst_gpu_addr,
 		  num_pages, rdev->r600_blit.vb_used);
 	vb = (u32 *)(rdev->r600_blit.vb_ib->ptr + rdev->r600_blit.vb_used);
 
 	while (num_pages) {
 		int w, h;
 		unsigned size_in_bytes;
-		unsigned pages_per_loop = r600_blit_create_rect(num_pages, &w, &h);
+		unsigned pages_per_loop =
+			r600_blit_create_rect(num_pages, &w, &h,
+					      rdev->r600_blit.max_dim);
 
 		size_in_bytes = pages_per_loop * RADEON_GPU_PAGE_SIZE;
 		DRM_DEBUG("rectangle w=%d h=%d\n", w, h);
@@ -743,32 +758,21 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 		vb[10] = i2f(w);
 		vb[11] = i2f(h);
 
-		/* src 9 */
-		set_tex_resource(rdev, FMT_8_8_8_8, w, h, w, src_gpu_addr);
-
-		/* 5 */
-		cp_set_surface_sync(rdev,
-				    PACKET3_TC_ACTION_ENA, size_in_bytes, src_gpu_addr);
-
-		/* dst 23 */
-		set_render_target(rdev, COLOR_8_8_8_8, w, h, dst_gpu_addr);
-
-		/* scissors 12  */
-		set_scissors(rdev, 0, 0, w, h);
-
-		/* Vertex buffer setup 14 */
+		rdev->r600_blit.primitives.set_tex_resource(rdev, FMT_8_8_8_8,
+							    w, h, w, src_gpu_addr);
+		rdev->r600_blit.primitives.cp_set_surface_sync(rdev,
+							       PACKET3_TC_ACTION_ENA,
+							       size_in_bytes, src_gpu_addr);
+		rdev->r600_blit.primitives.set_render_target(rdev, COLOR_8_8_8_8,
+							     w, h, dst_gpu_addr);
+		rdev->r600_blit.primitives.set_scissors(rdev, 0, 0, w, h);
 		vb_gpu_addr = rdev->r600_blit.vb_ib->gpu_addr + rdev->r600_blit.vb_used;
-		set_vtx_resource(rdev, vb_gpu_addr);
-
-		/* draw 10 */
-		draw_auto(rdev);
-
-		/* 5 */
-		cp_set_surface_sync(rdev,
+		rdev->r600_blit.primitives.set_vtx_resource(rdev, vb_gpu_addr);
+		rdev->r600_blit.primitives.draw_auto(rdev);
+		rdev->r600_blit.primitives.cp_set_surface_sync(rdev,
 				    PACKET3_CB_ACTION_ENA | PACKET3_CB0_DEST_BASE_ENA,
 				    size_in_bytes, dst_gpu_addr);
 
-		/* 78 ring dwords per loop */
 		vb += 12;
 		rdev->r600_blit.vb_used += 4*12;
 		src_gpu_addr += size_in_bytes;
