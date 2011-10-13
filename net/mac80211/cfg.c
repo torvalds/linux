@@ -344,7 +344,8 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			STATION_INFO_RX_BITRATE |
 			STATION_INFO_RX_DROP_MISC |
 			STATION_INFO_BSS_PARAM |
-			STATION_INFO_CONNECTED_TIME;
+			STATION_INFO_CONNECTED_TIME |
+			STATION_INFO_STA_FLAGS;
 
 	do_posix_clock_monotonic_gettime(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
@@ -404,6 +405,23 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
 	sinfo->bss_param.dtim_period = sdata->local->hw.conf.ps_dtim_period;
 	sinfo->bss_param.beacon_interval = sdata->vif.bss_conf.beacon_int;
+
+	sinfo->sta_flags.set = 0;
+	sinfo->sta_flags.mask = BIT(NL80211_STA_FLAG_AUTHORIZED) |
+				BIT(NL80211_STA_FLAG_SHORT_PREAMBLE) |
+				BIT(NL80211_STA_FLAG_WME) |
+				BIT(NL80211_STA_FLAG_MFP) |
+				BIT(NL80211_STA_FLAG_AUTHENTICATED);
+	if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHORIZED);
+	if (test_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+	if (test_sta_flag(sta, WLAN_STA_WME))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_WME);
+	if (test_sta_flag(sta, WLAN_STA_MFP))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_MFP);
+	if (test_sta_flag(sta, WLAN_STA_AUTH))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
 }
 
 
