@@ -756,10 +756,6 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* read reg reset values into cache */
-	for (i = 0; i < STA32X_REGISTER_COUNT; i++)
-		snd_soc_cache_write(codec, i, sta32x_regs[i]);
-
 	/* preserve reset values of reserved register bits */
 	snd_soc_cache_write(codec, STA32X_CONFC,
 			    codec->hw_read(codec, STA32X_CONFC));
@@ -837,6 +833,7 @@ static const struct snd_soc_codec_driver sta32x_codec = {
 	.resume =		sta32x_resume,
 	.reg_cache_size =	STA32X_REGISTER_COUNT,
 	.reg_word_size =	sizeof(u8),
+	.reg_cache_default =	sta32x_regs,
 	.volatile_register =	sta32x_reg_is_volatile,
 	.set_bias_level =	sta32x_set_bias_level,
 	.controls =		sta32x_snd_controls,
