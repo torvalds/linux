@@ -25,8 +25,8 @@ enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_WLAN_TX      = BIT(2),     /* wlan tx */
 	ATH6KL_DBG_WLAN_RX      = BIT(3),     /* wlan rx */
 	ATH6KL_DBG_BMI		= BIT(4),     /* bmi tracing */
-	ATH6KL_DBG_HTC_SEND     = BIT(5),     /* htc send */
-	ATH6KL_DBG_HTC_RECV     = BIT(6),     /* htc recv */
+	ATH6KL_DBG_HTC		= BIT(5),
+	/* hole */
 	ATH6KL_DBG_IRQ		= BIT(7),     /* interrupt processing */
 	ATH6KL_DBG_PM           = BIT(8),     /* power management */
 	ATH6KL_DBG_WLAN_NODE    = BIT(9),     /* general wlan node tracing */

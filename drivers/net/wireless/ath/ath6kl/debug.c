@@ -180,9 +180,10 @@ void dump_cred_dist_stats(struct htc_target *target)
 	list_for_each_entry(ep_list, &target->cred_dist_list, list)
 		dump_cred_dist(ep_list);
 
-	ath6kl_dbg(ATH6KL_DBG_HTC_SEND, "ctxt:%p dist:%p\n",
+	ath6kl_dbg(ATH6KL_DBG_HTC, "ctxt:%p dist:%p\n",
 		   target->cred_dist_cntxt, NULL);
-	ath6kl_dbg(ATH6KL_DBG_TRC, "credit distribution, total : %d, free : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_HTC,
+		   "credit distribution, total : %d, free : %d\n",
 		   target->cred_dist_cntxt->total_avail_credits,
 		   target->cred_dist_cntxt->cur_free_credits);
 }

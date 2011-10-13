@@ -51,7 +51,7 @@ int ath6kl_hif_rw_comp_handler(void *context, int status)
 {
 	struct htc_packet *packet = context;
 
-	ath6kl_dbg(ATH6KL_DBG_HTC_RECV,
+	ath6kl_dbg(ATH6KL_DBG_HTC,
 		   "ath6kl_hif_rw_comp_handler (pkt:0x%p , status: %d\n",
 		   packet, status);
 
@@ -119,7 +119,7 @@ int ath6kl_hif_poll_mboxmsg_rx(struct ath6kl_device *dev, u32 *lk_ahd,
 
 		/* delay a little  */
 		mdelay(ATH6KL_TIME_QUANTUM);
-		ath6kl_dbg(ATH6KL_DBG_HTC_RECV, "retry mbox poll : %d\n", i);
+		ath6kl_dbg(ATH6KL_DBG_HTC, "retry mbox poll : %d\n", i);
 	}
 
 	if (i == 0) {
@@ -186,7 +186,7 @@ int ath6kl_hif_submit_scat_req(struct ath6kl_device *dev,
 			dev->ar->mbox_info.htc_addr;
 	}
 
-	ath6kl_dbg((ATH6KL_DBG_HTC_RECV | ATH6KL_DBG_HTC_SEND),
+	ath6kl_dbg(ATH6KL_DBG_HTC,
 		   "ath6kl_hif_submit_scat_req, entries: %d, total len: %d mbox:0x%X (mode: %s : %s)\n",
 		   scat_req->scat_entries, scat_req->len,
 		   scat_req->addr, !read ? "async" : "sync",
