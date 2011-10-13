@@ -551,7 +551,9 @@ static void cfhsi_rx_done_work(struct work_struct *work)
 		return;
 
 	/* Update inactivity timer if pending. */
+	spin_lock_bh(&cfhsi->lock);
 	mod_timer_pending(&cfhsi->timer, jiffies + CFHSI_INACTIVITY_TOUT);
+	spin_unlock_bh(&cfhsi->lock);
 
 	if (cfhsi->rx_state == CFHSI_RX_STATE_DESC) {
 		desc_pld_len = cfhsi_rx_desc(desc, cfhsi);
@@ -866,10 +868,10 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 		start_xfer = 1;
 	}
 
-	spin_unlock_bh(&cfhsi->lock);
-
-	if (!start_xfer)
+	if (!start_xfer) {
+		spin_unlock_bh(&cfhsi->lock);
 		return 0;
+	}
 
 	/* Delete inactivity timer if started. */
 #ifdef CONFIG_SMP
@@ -877,6 +879,8 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 #else
 	timer_active = del_timer(&cfhsi->timer);
 #endif /* CONFIG_SMP */
+
+	spin_unlock_bh(&cfhsi->lock);
 
 	if (timer_active) {
 		struct cfhsi_desc *desc = (struct cfhsi_desc *)cfhsi->tx_buf;
