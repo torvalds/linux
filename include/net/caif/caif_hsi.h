@@ -75,18 +75,21 @@ struct cfhsi_desc {
 #define CFHSI_WAKE_UP_ACK			1
 #define CFHSI_WAKE_DOWN_ACK			2
 #define CFHSI_AWAKE				3
-#define CFHSI_PENDING_RX			4
-#define CFHSI_SHUTDOWN				6
-#define CFHSI_FLUSH_FIFO			7
+#define CFHSI_WAKELOCK_HELD			4
+#define CFHSI_SHUTDOWN				5
+#define CFHSI_FLUSH_FIFO			6
 
 #ifndef CFHSI_INACTIVITY_TOUT
 #define CFHSI_INACTIVITY_TOUT			(1 * HZ)
 #endif /* CFHSI_INACTIVITY_TOUT */
 
-#ifndef CFHSI_WAKEUP_TOUT
-#define CFHSI_WAKEUP_TOUT			(3 * HZ)
-#endif /* CFHSI_WAKEUP_TOUT */
+#ifndef CFHSI_WAKE_TOUT
+#define CFHSI_WAKE_TOUT			(3 * HZ)
+#endif /* CFHSI_WAKE_TOUT */
 
+#ifndef CFHSI_MAX_RX_RETRIES
+#define CFHSI_MAX_RX_RETRIES		(10 * HZ)
+#endif
 
 /* Structure implemented by the CAIF HSI driver. */
 struct cfhsi_drv {
@@ -109,6 +112,15 @@ struct cfhsi_dev {
 	struct cfhsi_drv *drv;
 };
 
+/* Structure holds status of received CAIF frames processing */
+struct cfhsi_rx_state {
+	int state;
+	int nfrms;
+	int pld_len;
+	int retries;
+	bool piggy_desc;
+};
+
 /* Structure implemented by CAIF HSI drivers. */
 struct cfhsi {
 	struct caif_dev_common cfdev;
@@ -118,7 +130,7 @@ struct cfhsi {
 	struct cfhsi_drv drv;
 	struct cfhsi_dev *dev;
 	int tx_state;
-	int rx_state;
+	struct cfhsi_rx_state rx_state;
 	int rx_len;
 	u8 *rx_ptr;
 	u8 *tx_buf;
@@ -130,13 +142,12 @@ struct cfhsi {
 	struct list_head list;
 	struct work_struct wake_up_work;
 	struct work_struct wake_down_work;
-	struct work_struct rx_done_work;
-	struct work_struct tx_done_work;
 	struct workqueue_struct *wq;
 	wait_queue_head_t wake_up_wait;
 	wait_queue_head_t wake_down_wait;
 	wait_queue_head_t flush_fifo_wait;
 	struct timer_list timer;
+	struct timer_list rx_slowpath_timer;
 	unsigned long bits;
 };
 
