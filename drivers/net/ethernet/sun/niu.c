@@ -3287,17 +3287,13 @@ static u16 tcam_get_valid_entry_cnt(struct niu *np)
 }
 
 static void niu_rx_skb_append(struct sk_buff *skb, struct page *page,
-			      u32 offset, u32 size)
+			      u32 offset, u32 size, u32 truesize)
 {
-	int i = skb_shinfo(skb)->nr_frags;
-
-	__skb_fill_page_desc(skb, i, page, offset, size);
+	skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags, page, offset, size);
 
 	skb->len += size;
 	skb->data_len += size;
-	skb->truesize += size;
-
-	skb_shinfo(skb)->nr_frags = i + 1;
+	skb->truesize += truesize;
 }
 
 static unsigned int niu_hash_rxaddr(struct rx_ring_info *rp, u64 a)
@@ -3480,7 +3476,7 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 		} else if (!(val & RCR_ENTRY_MULTI))
 			append_size = len - skb->len;
 
-		niu_rx_skb_append(skb, page, off, append_size);
+		niu_rx_skb_append(skb, page, off, append_size, rcr_size);
 		if ((page->index + rp->rbr_block_size) - rcr_size == addr) {
 			*link = (struct page *) page->mapping;
 			np->ops->unmap_page(np->device, page->index,
