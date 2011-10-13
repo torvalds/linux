@@ -3153,6 +3153,15 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 	DBG(fsg, "unbind\n");
 	clear_bit(REGISTERED, &fsg->atomic_bitflags);
 
+	/* If the thread isn't already dead, tell it to exit now */
+	if (fsg->state != FSG_STATE_TERMINATED) {
+		raise_exception(fsg, FSG_STATE_EXIT);
+		wait_for_completion(&fsg->thread_notifier);
+
+		/* The cleanup routine waits for this completion also */
+		complete(&fsg->thread_notifier);
+	}
+
 	/* Unregister the sysfs attribute files and the LUNs */
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
@@ -3164,15 +3173,6 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 			device_unregister(&curlun->dev);
 			curlun->registered = 0;
 		}
-	}
-
-	/* If the thread isn't already dead, tell it to exit now */
-	if (fsg->state != FSG_STATE_TERMINATED) {
-		raise_exception(fsg, FSG_STATE_EXIT);
-		wait_for_completion(&fsg->thread_notifier);
-
-		/* The cleanup routine waits for this completion also */
-		complete(&fsg->thread_notifier);
 	}
 
 	/* Free the data buffers */
