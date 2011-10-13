@@ -1370,7 +1370,7 @@ __be32
 do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		char *fname, int flen, struct iattr *iap,
 		struct svc_fh *resfhp, int createmode, u32 *verifier,
-	        int *truncp, int *created)
+	        bool *truncp, bool *created)
 {
 	struct dentry	*dentry, *dchild = NULL;
 	struct inode	*dirp;

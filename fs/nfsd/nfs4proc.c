@@ -194,7 +194,6 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 {
 	struct svc_fh resfh;
 	__be32 status;
-	int created = 0;
 
 	fh_init(&resfh, NFS4_FHSIZE);
 	open->op_truncate = 0;
@@ -223,7 +222,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 					open->op_fname.len, &open->op_iattr,
 					&resfh, open->op_createmode,
 					(u32 *)open->op_verf.data,
-					&open->op_truncate, &created);
+					&open->op_truncate, &open->op_created);
 
 		/*
 		 * Following rfc 3530 14.2.16, use the returned bitmask
@@ -253,7 +252,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 	/* set reply cache */
 	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
 			&resfh.fh_handle);
-	if (!created)
+	if (!open->op_created)
 		status = do_open_permission(rqstp, current_fh, open,
 					    NFSD_MAY_NOP);
 
@@ -318,6 +317,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/* We don't yet support WANT bits: */
 	open->op_share_access &= NFS4_SHARE_ACCESS_MASK;
 
+	open->op_created = 0;
 	/*
 	 * RFC5661 18.51.3
 	 * Before RECLAIM_COMPLETE done, server should deny new lock
@@ -408,6 +408,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * set, (2) sets open->op_stateid, (3) sets open->op_delegation.
 	 */
 	status = nfsd4_process_open2(rqstp, &cstate->current_fh, open);
+	WARN_ON(status && open->op_created);
 out:
 	nfsd4_cleanup_open_state(open, status);
 	if (open->op_openowner)

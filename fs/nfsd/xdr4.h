@@ -226,7 +226,8 @@ struct nfsd4_open {
 	u32		op_recall;          /* recall */
 	struct nfsd4_change_info  op_cinfo; /* response */
 	u32		op_rflags;          /* response */
-	int		op_truncate;        /* used during processing */
+	bool		op_truncate;        /* used during processing */
+	bool		op_created;         /* used during processing */
 	struct nfs4_openowner *op_openowner; /* used during processing */
 	struct nfs4_file *op_file;          /* used during processing */
 	struct nfs4_ol_stateid *op_stp;	    /* used during processing */
