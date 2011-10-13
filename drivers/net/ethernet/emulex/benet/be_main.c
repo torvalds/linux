@@ -1071,6 +1071,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter, struct be_rx_obj *rxo,
 					page_info->page_offset + hdr_len;
 		skb_shinfo(skb)->frags[0].size = curr_frag_len - hdr_len;
 		skb->data_len = curr_frag_len - hdr_len;
+		skb->truesize += rx_frag_size;
 		skb->tail += hdr_len;
 	}
 	page_info->page = NULL;
@@ -1103,7 +1104,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter, struct be_rx_obj *rxo,
 		skb_shinfo(skb)->frags[j].size += curr_frag_len;
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
-
+		skb->truesize += rx_frag_size;
 		remaining -= curr_frag_len;
 		index_inc(&rxcp->rxq_idx, rxq->len);
 		page_info->page = NULL;
@@ -1133,7 +1134,6 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	else
 		skb_checksum_none_assert(skb);
 
-	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, netdev);
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
@@ -1181,7 +1181,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 			put_page(page_info->page);
 		}
 		skb_shinfo(skb)->frags[j].size += curr_frag_len;
-
+		skb->truesize += rx_frag_size;
 		remaining -= curr_frag_len;
 		index_inc(&rxcp->rxq_idx, rxq->len);
 		memset(page_info, 0, sizeof(*page_info));
@@ -1191,7 +1191,6 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	skb_shinfo(skb)->nr_frags = j + 1;
 	skb->len = rxcp->pkt_size;
 	skb->data_len = rxcp->pkt_size;
-	skb->truesize += rxcp->pkt_size;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
