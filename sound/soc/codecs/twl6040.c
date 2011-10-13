@@ -1351,13 +1351,6 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 				rate);
 			return -EINVAL;
 		}
-		/* Capture is not supported with 17.64MHz sysclk */
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-			dev_err(codec->dev,
-				"capture mode is not supported at %dHz\n",
-				rate);
-			return -EINVAL;
-		}
 		priv->sysclk = 17640000;
 		break;
 	case 8000:
