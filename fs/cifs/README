@@ -751,7 +751,7 @@ These module parameters can be specified or modified either during the time of
 module loading or during the runtime by using the interface
 	/proc/module/cifs/parameters/<param>
 
-i.e. echo "value" > /proc/module/cifs/parameters/<param>
+i.e. echo "value" > /sys/module/cifs/parameters/<param>
 
 1. echo_retries - The number of echo attempts before giving up and
 		  reconnecting to the server. The default is 5. The value 0
