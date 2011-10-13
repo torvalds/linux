@@ -439,7 +439,10 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 	skb_fill_page_desc(skb, 0, page, 0, length);
 	skb->len += length;
 	skb->data_len += length;
-	skb->truesize += length;
+
+	/* page might be freed in __pskb_pull_tail() */
+	if (length > 64)
+		skb->truesize += PAGE_SIZE;
 	__pskb_pull_tail(skb, min(length, 64));
 
 	ftmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
