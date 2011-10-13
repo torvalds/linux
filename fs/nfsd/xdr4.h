@@ -228,6 +228,7 @@ struct nfsd4_open {
 	u32		op_rflags;          /* response */
 	int		op_truncate;        /* used during processing */
 	struct nfs4_openowner *op_openowner; /* used during processing */
+	struct nfs4_file *op_file;          /* used during processing */
 	struct nfs4_acl *op_acl;
 };
 #define op_iattr	iattr
