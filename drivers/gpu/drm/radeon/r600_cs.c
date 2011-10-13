@@ -223,25 +223,6 @@ static int fmt_get_nblocksy(u32 format, u32 h)
 	return (h + bh - 1) / bh;
 }
 
-static int r600_bpe_from_format(u32 *bpe, u32 format)
-{
- 	unsigned res;
-
-	if (format >= ARRAY_SIZE(color_formats_table))
-		goto fail;
-
-	res = color_formats_table[format].blocksize;
-	if (res == 0)
-		goto fail;
-
-	*bpe = res;
-	return 0;
-
-fail:
-	*bpe = 16;
-	return -EINVAL;
-}
-
 struct array_mode_checker {
 	int array_mode;
 	u32 group_size;

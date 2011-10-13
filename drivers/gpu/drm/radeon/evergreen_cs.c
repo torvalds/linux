@@ -122,12 +122,6 @@ static void evergreen_cs_track_init(struct evergreen_cs_track *track)
 	track->db_s_write_bo = NULL;
 }
 
-static int evergreen_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
-{
-	/* XXX fill in */
-	return 0;
-}
-
 static int evergreen_cs_track_check(struct radeon_cs_parser *p)
 {
 	struct evergreen_cs_track *track = p->track;
@@ -233,28 +227,6 @@ static int evergreen_cs_packet_next_reloc(struct radeon_cs_parser *p,
 	/* FIXME: we assume reloc size is 4 dwords */
 	*cs_reloc = p->relocs_ptr[(idx / 4)];
 	return 0;
-}
-
-/**
- * evergreen_cs_packet_next_is_pkt3_nop() - test if next packet is packet3 nop for reloc
- * @parser:		parser structure holding parsing context.
- *
- * Check next packet is relocation packet3, do bo validation and compute
- * GPU offset using the provided start.
- **/
-static int evergreen_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
-{
-	struct radeon_cs_packet p3reloc;
-	int r;
-
-	r = evergreen_cs_packet_parse(p, &p3reloc, p->idx);
-	if (r) {
-		return 0;
-	}
-	if (p3reloc.type != PACKET_TYPE3 || p3reloc.opcode != PACKET3_NOP) {
-		return 0;
-	}
-	return 1;
 }
 
 /**
