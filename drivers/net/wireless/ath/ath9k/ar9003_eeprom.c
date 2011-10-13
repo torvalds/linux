@@ -3556,7 +3556,7 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 
 	if (AR_SREV_9485(ah) || AR_SREV_9330(ah) || AR_SREV_9340(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP2, AR_CH0_TOP2_XPABIASLVL, bias);
-	else if (AR_SREV_9480(ah))
+	else if (AR_SREV_9462(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
 	else {
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
@@ -3635,20 +3635,20 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 
 	u32 value = ar9003_hw_ant_ctrl_common_get(ah, is2ghz);
 
-	if (AR_SREV_9480(ah)) {
-		if (AR_SREV_9480_10(ah)) {
+	if (AR_SREV_9462(ah)) {
+		if (AR_SREV_9462_10(ah)) {
 			value &= ~AR_SWITCH_TABLE_COM_SPDT;
 			value |= 0x00100000;
 		}
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
-				AR_SWITCH_TABLE_COM_AR9480_ALL, value);
+				AR_SWITCH_TABLE_COM_AR9462_ALL, value);
 	} else
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 			      AR_SWITCH_TABLE_COM_ALL, value);
 
 
 	/*
-	 *   AR9480 defines new switch table for BT/WLAN,
+	 *   AR9462 defines new switch table for BT/WLAN,
 	 *       here's new field name in XXX.ref for both 2G and 5G.
 	 *   Register: [GLB_CONTROL] GLB_CONTROL (@0x20044)
 	 *   15:12   R/W     SWITCH_TABLE_COM_SPDT_WLAN_RX
@@ -3660,7 +3660,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	 *   7:4 R/W  SWITCH_TABLE_COM_SPDT_WLAN_IDLE
 	 * SWITCH_TABLE_COM_SPDT_WLAN_IDLE
 	 */
-	if (AR_SREV_9480_20_OR_LATER(ah)) {
+	if (AR_SREV_9462_20_OR_LATER(ah)) {
 		value = ar9003_switch_com_spdt_get(ah, is2ghz);
 		REG_RMW_FIELD(ah, AR_PHY_GLB_CONTROL,
 				AR_SWITCH_TABLE_COM_SPDT_ALL, value);
@@ -3909,7 +3909,7 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 			REG_WRITE(ah, AR_PHY_PMU2, reg_pmu_set);
 			if (!is_pmu_set(ah, AR_PHY_PMU2, reg_pmu_set))
 				return;
-		} else if (AR_SREV_9480(ah)) {
+		} else if (AR_SREV_9462(ah)) {
 			reg_val = ath9k_hw_ar9300_get_eeprom(ah, EEP_SWREG);
 			REG_WRITE(ah, AR_PHY_PMU1, reg_val);
 		} else {
@@ -3940,7 +3940,7 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 			while (!REG_READ_FIELD(ah, AR_PHY_PMU2,
 						AR_PHY_PMU2_PGM))
 				udelay(10);
-		} else if (AR_SREV_9480(ah))
+		} else if (AR_SREV_9462(ah))
 			REG_RMW_FIELD(ah, AR_PHY_PMU1, AR_PHY_PMU1_PWD, 0x1);
 		else {
 			reg_val = REG_READ(ah, AR_RTC_SLEEP_CLK) |
@@ -4527,7 +4527,7 @@ static int ar9003_hw_power_control_override(struct ath_hw *ah,
 
 	REG_RMW_FIELD(ah, AR_PHY_TPC_19, AR_PHY_TPC_19_ALPHA_THERM, tempSlope);
 
-	if (AR_SREV_9480_20(ah))
+	if (AR_SREV_9462_20(ah))
 		REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
 			      AR_PHY_TPC_19_B1_ALPHA_THERM, tempSlope);
 

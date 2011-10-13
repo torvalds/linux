@@ -325,10 +325,10 @@
 
 #define AR_PHY_RX_OCGAIN        (AR_AGC_BASE + 0x200)
 
-#define AR_PHY_CCA_NOM_VAL_9300_2GHZ          (AR_SREV_9480(ah) ? -127 : -110)
-#define AR_PHY_CCA_NOM_VAL_9300_5GHZ          (AR_SREV_9480(ah) ? -127 : -115)
-#define AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ     (AR_SREV_9480(ah) ? -127 : -125)
-#define AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ     (AR_SREV_9480(ah) ? -127 : -125)
+#define AR_PHY_CCA_NOM_VAL_9300_2GHZ          (AR_SREV_9462(ah) ? -127 : -110)
+#define AR_PHY_CCA_NOM_VAL_9300_5GHZ          (AR_SREV_9462(ah) ? -127 : -115)
+#define AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ     (AR_SREV_9462(ah) ? -127 : -125)
+#define AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ     (AR_SREV_9462(ah) ? -127 : -125)
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ     -95
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ     -100
 
@@ -608,9 +608,9 @@
 #define AR_PHY_AIC_CTRL_1_B0	(AR_SM_BASE + 0x4b4)
 #define AR_PHY_AIC_CTRL_2_B0	(AR_SM_BASE + 0x4b8)
 #define AR_PHY_AIC_CTRL_3_B0	(AR_SM_BASE + 0x4bc)
-#define AR_PHY_AIC_STAT_0_B0	(AR_SM_BASE + (AR_SREV_9480_10(ah) ? \
+#define AR_PHY_AIC_STAT_0_B0	(AR_SM_BASE + (AR_SREV_9462_10(ah) ? \
 					0x4c0 : 0x4c4))
-#define AR_PHY_AIC_STAT_1_B0	(AR_SM_BASE + (AR_SREV_9480_10(ah) ? \
+#define AR_PHY_AIC_STAT_1_B0	(AR_SM_BASE + (AR_SREV_9462_10(ah) ? \
 					0x4c4 : 0x4c8))
 #define AR_PHY_AIC_CTRL_4_B0	(AR_SM_BASE + 0x4c0)
 #define AR_PHY_AIC_STAT_2_B0	(AR_SM_BASE + 0x4cc)
@@ -625,7 +625,7 @@
 #define AR_PHY_65NM_CH0_RXTX4       0x1610c
 
 #define AR_CH0_TOP	(AR_SREV_9300(ah) ? 0x16288 : \
-				((AR_SREV_9480(ah) ? 0x1628c : 0x16280)))
+				((AR_SREV_9462(ah) ? 0x1628c : 0x16280)))
 #define AR_CH0_TOP_XPABIASLVL (0x300)
 #define AR_CH0_TOP_XPABIASLVL_S (8)
 
@@ -638,8 +638,8 @@
 
 #define AR_SWITCH_TABLE_COM_ALL (0xffff)
 #define AR_SWITCH_TABLE_COM_ALL_S (0)
-#define AR_SWITCH_TABLE_COM_AR9480_ALL (0xffffff)
-#define AR_SWITCH_TABLE_COM_AR9480_ALL_S (0)
+#define AR_SWITCH_TABLE_COM_AR9462_ALL (0xffffff)
+#define AR_SWITCH_TABLE_COM_AR9462_ALL_S (0)
 #define AR_SWITCH_TABLE_COM_SPDT (0x00f00000)
 #define AR_SWITCH_TABLE_COM_SPDT_ALL (0x0000fff0)
 #define AR_SWITCH_TABLE_COM_SPDT_ALL_S (4)
@@ -679,11 +679,11 @@
 #define AR_CH0_XTAL_CAPOUTDAC	0x00fe0000
 #define AR_CH0_XTAL_CAPOUTDAC_S	17
 
-#define AR_PHY_PMU1		(AR_SREV_9480(ah) ? 0x16340 : 0x16c40)
+#define AR_PHY_PMU1		(AR_SREV_9462(ah) ? 0x16340 : 0x16c40)
 #define AR_PHY_PMU1_PWD		0x1
 #define AR_PHY_PMU1_PWD_S	0
 
-#define AR_PHY_PMU2		(AR_SREV_9480(ah) ? 0x16344 : 0x16c44)
+#define AR_PHY_PMU2		(AR_SREV_9462(ah) ? 0x16344 : 0x16c44)
 #define AR_PHY_PMU2_PGM		0x00200000
 #define AR_PHY_PMU2_PGM_S	21
 
@@ -921,9 +921,9 @@
 #define AR_PHY_AIC_CTRL_0_B1	(AR_SM1_BASE + 0x4b0)
 #define AR_PHY_AIC_CTRL_1_B1	(AR_SM1_BASE + 0x4b4)
 #define AR_PHY_AIC_CTRL_2_B1	(AR_SM1_BASE + 0x4b8)
-#define AR_PHY_AIC_STAT_0_B1	(AR_SM1_BASE + (AR_SREV_9480_10(ah) ? \
+#define AR_PHY_AIC_STAT_0_B1	(AR_SM1_BASE + (AR_SREV_9462_10(ah) ? \
 					0x4c0 : 0x4c4))
-#define AR_PHY_AIC_STAT_1_B1	(AR_SM1_BASE + (AR_SREV_9480_10(ah) ? \
+#define AR_PHY_AIC_STAT_1_B1	(AR_SM1_BASE + (AR_SREV_9462_10(ah) ? \
 					0x4c4 : 0x4c8))
 #define AR_PHY_AIC_CTRL_4_B1	(AR_SM1_BASE + 0x4c0)
 #define AR_PHY_AIC_STAT_2_B1	(AR_SM1_BASE + 0x4cc)
@@ -1001,7 +1001,7 @@
 #define AR_GLB_BASE	0x20000
 #define AR_PHY_GLB_CONTROL	(AR_GLB_BASE + 0x44)
 #define AR_GLB_SCRATCH(_ah)	(AR_GLB_BASE + \
-					(AR_SREV_9480_20(_ah) ? 0x4c : 0x50))
+					(AR_SREV_9462_20(_ah) ? 0x4c : 0x50))
 #define AR_GLB_STATUS		(AR_GLB_BASE + 0x48)
 
 /*

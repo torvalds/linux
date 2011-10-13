@@ -559,7 +559,7 @@ static void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
 
 	if ((ah->caps.hw_caps & ATH9K_HW_CAP_APM) && (tx == 0x7))
 		REG_WRITE(ah, AR_SELFGEN_MASK, 0x3);
-	else if (AR_SREV_9480(ah))
+	else if (AR_SREV_9462(ah))
 		/* xxx only when MCI support is enabled */
 		REG_WRITE(ah, AR_SELFGEN_MASK, 0x3);
 	else
@@ -662,7 +662,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		ar9003_hw_prog_ini(ah, &ah->iniMac[i], modesIndex);
 		ar9003_hw_prog_ini(ah, &ah->iniBB[i], modesIndex);
 		ar9003_hw_prog_ini(ah, &ah->iniRadio[i], modesIndex);
-		if (i == ATH_INI_POST && AR_SREV_9480_20(ah))
+		if (i == ATH_INI_POST && AR_SREV_9462_20(ah))
 			ar9003_hw_prog_ini(ah,
 					   &ah->ini_radio_post_sys2ant,
 					   modesIndex);
@@ -685,7 +685,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	if (AR_SREV_9340(ah) && !ah->is_clk_25mhz)
 		REG_WRITE_ARRAY(&ah->iniModesAdditional_40M, 1, regWrites);
 
-	if (AR_SREV_9480(ah))
+	if (AR_SREV_9462(ah))
 		ar9003_hw_prog_ini(ah, &ah->ini_BTCOEX_MAX_TXPWR, 1);
 
 	ah->modes_index = modesIndex;
@@ -694,7 +694,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 	ath9k_hw_apply_txpower(ah, chan);
 
-	if (AR_SREV_9480(ah)) {
+	if (AR_SREV_9462(ah)) {
 		if (REG_READ_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_0,
 				AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL))
 			ah->enabled_cals |= TX_IQ_CAL;
@@ -1300,7 +1300,7 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 	ar9003_hw_prog_ini(ah, &ah->iniMac[ATH_INI_POST], modesIndex);
 	ar9003_hw_prog_ini(ah, &ah->iniBB[ATH_INI_POST], modesIndex);
 	ar9003_hw_prog_ini(ah, &ah->iniRadio[ATH_INI_POST], modesIndex);
-	if (AR_SREV_9480_20(ah))
+	if (AR_SREV_9462_20(ah))
 		ar9003_hw_prog_ini(ah,
 				&ah->ini_radio_post_sys2ant,
 				modesIndex);

@@ -285,7 +285,7 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 			(val & AR_SREV_VERSION2) >> AR_SREV_TYPE2_S;
 		ah->hw_version.macRev = MS(val, AR_SREV_REVISION2);
 
-		if (AR_SREV_9480(ah))
+		if (AR_SREV_9462(ah))
 			ah->is_pciexpress = true;
 		else
 			ah->is_pciexpress = (val &
@@ -541,7 +541,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		return -EIO;
 	}
 
-	if (AR_SREV_9480(ah))
+	if (AR_SREV_9462(ah))
 		ah->WARegVal &= ~AR_WA_D3_L1_DISABLE;
 
 	ath9k_hw_init_defaults(ah);
@@ -587,7 +587,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	case AR_SREV_VERSION_9330:
 	case AR_SREV_VERSION_9485:
 	case AR_SREV_VERSION_9340:
-	case AR_SREV_VERSION_9480:
+	case AR_SREV_VERSION_9462:
 		break;
 	default:
 		ath_err(common,
@@ -672,7 +672,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9330:
 	case AR9300_DEVID_AR9340:
 	case AR9300_DEVID_AR9580:
-	case AR9300_DEVID_AR9480:
+	case AR9300_DEVID_AR9462:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -1790,7 +1790,7 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 {
 	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	if (setChip) {
-		if (AR_SREV_9480(ah)) {
+		if (AR_SREV_9462(ah)) {
 			REG_WRITE(ah, AR_TIMER_MODE,
 				  REG_READ(ah, AR_TIMER_MODE) & 0xFFFFFF00);
 			REG_WRITE(ah, AR_NDP2_TIMER_MODE, REG_READ(ah,
@@ -1808,7 +1808,7 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 		 */
 		REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN);
 
-		if (AR_SREV_9480(ah))
+		if (AR_SREV_9462(ah))
 			udelay(100);
 
 		if (!AR_SREV_9100(ah) && !AR_SREV_9300_20_OR_LATER(ah))
@@ -1816,7 +1816,7 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 
 		/* Shutdown chip. Active low */
 		if (!AR_SREV_5416(ah) &&
-				!AR_SREV_9271(ah) && !AR_SREV_9480_10(ah)) {
+				!AR_SREV_9271(ah) && !AR_SREV_9462_10(ah)) {
 			REG_CLR_BIT(ah, AR_RTC_RESET, AR_RTC_RESET_EN);
 			udelay(2);
 		}
@@ -1854,7 +1854,7 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 			 * SYS_WAKING and SYS_SLEEPING messages which will make
 			 * BT CPU to busy to process.
 			 */
-			if (AR_SREV_9480(ah)) {
+			if (AR_SREV_9462(ah)) {
 				val = REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_EN) &
 					~AR_MCI_INTERRUPT_RX_HW_MSG_MASK;
 				REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_EN, val);
@@ -1866,7 +1866,7 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 			REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE,
 				    AR_RTC_FORCE_WAKE_EN);
 
-			if (AR_SREV_9480(ah))
+			if (AR_SREV_9462(ah))
 				udelay(30);
 		}
 	}
@@ -2330,7 +2330,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		if (!AR_SREV_9330(ah))
 			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
 	}
-	if (AR_SREV_9480(ah))
+	if (AR_SREV_9462(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_RTT;
 
 	return 0;
@@ -2493,7 +2493,7 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits)
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
-	if (AR_SREV_9480(ah))
+	if (AR_SREV_9462(ah))
 		bits |= ATH9K_RX_FILTER_CONTROL_WRAPPER;
 
 	REG_WRITE(ah, AR_RX_FILTER, bits);
@@ -2785,9 +2785,9 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 	REG_SET_BIT(ah, gen_tmr_configuration[timer->index].mode_addr,
 		    gen_tmr_configuration[timer->index].mode_mask);
 
-	if (AR_SREV_9480(ah)) {
+	if (AR_SREV_9462(ah)) {
 		/*
-		 * Starting from AR9480, each generic timer can select which tsf
+		 * Starting from AR9462, each generic timer can select which tsf
 		 * to use. But we still follow the old rule, 0 - 7 use tsf and
 		 * 8 - 15  use tsf2.
 		 */
@@ -2904,7 +2904,7 @@ static struct {
 	{ AR_SREV_VERSION_9330,         "9330" },
 	{ AR_SREV_VERSION_9340,		"9340" },
 	{ AR_SREV_VERSION_9485,         "9485" },
-	{ AR_SREV_VERSION_9480,         "9480" },
+	{ AR_SREV_VERSION_9462,         "9462" },
 };
 
 /* For devices with external radios */
