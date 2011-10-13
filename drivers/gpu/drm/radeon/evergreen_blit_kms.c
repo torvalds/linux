@@ -60,7 +60,9 @@ set_render_target(struct radeon_device *rdev, int format,
 	if (h < 8)
 		h = 8;
 
-	cb_color_info = ((format << 2) | (1 << 24) | (2 << 8));
+	cb_color_info = CB_FORMAT(format) |
+		CB_SOURCE_FORMAT(CB_SF_EXPORT_NORM) |
+		CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
 	pitch = (w / 8) - 1;
 	slice = ((w * h) / 64) - 1;
 
@@ -137,12 +139,16 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 	u32 sq_vtx_constant_word2, sq_vtx_constant_word3;
 
 	/* high addr, stride */
-	sq_vtx_constant_word2 = ((upper_32_bits(gpu_addr) & 0xff) | (16 << 8));
+	sq_vtx_constant_word2 = SQ_VTXC_BASE_ADDR_HI(upper_32_bits(gpu_addr) & 0xff) |
+		SQ_VTXC_STRIDE(16);
 #ifdef __BIG_ENDIAN
-	sq_vtx_constant_word2 |= (2 << 30);
+	sq_vtx_constant_word2 |= SQ_VTXC_ENDIAN_SWAP(SQ_ENDIAN_8IN32);
 #endif
 	/* xyzw swizzles */
-	sq_vtx_constant_word3 = (0 << 3) | (1 << 6) | (2 << 9) | (3 << 12);
+	sq_vtx_constant_word3 = SQ_VTCX_SEL_X(SQ_SEL_X) |
+		SQ_VTCX_SEL_Y(SQ_SEL_Y) |
+		SQ_VTCX_SEL_Z(SQ_SEL_Z) |
+		SQ_VTCX_SEL_W(SQ_SEL_W);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_RESOURCE, 8));
 	radeon_ring_write(rdev, 0x580);
@@ -153,7 +159,7 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, SQ_TEX_VTX_VALID_BUFFER << 30);
+	radeon_ring_write(rdev, S__SQ_CONSTANT_TYPE(SQ_TEX_VTX_VALID_BUFFER));
 
 	if ((rdev->family == CHIP_CEDAR) ||
 	    (rdev->family == CHIP_PALM) ||
@@ -180,14 +186,19 @@ set_tex_resource(struct radeon_device *rdev,
 	if (h < 1)
 		h = 1;
 
-	sq_tex_resource_word0 = (1 << 0); /* 2D */
+	sq_tex_resource_word0 = TEX_DIM(SQ_TEX_DIM_2D);
 	sq_tex_resource_word0 |= ((((pitch >> 3) - 1) << 6) |
 				  ((w - 1) << 18));
-	sq_tex_resource_word1 = ((h - 1) << 0) | (2 << 28);
+	sq_tex_resource_word1 = ((h - 1) << 0) |
+				TEX_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
 	/* xyzw swizzles */
-	sq_tex_resource_word4 = (0 << 16) | (1 << 19) | (2 << 22) | (3 << 25);
+	sq_tex_resource_word4 = TEX_DST_SEL_X(SQ_SEL_X) |
+				TEX_DST_SEL_Y(SQ_SEL_Y) |
+				TEX_DST_SEL_Z(SQ_SEL_Z) |
+				TEX_DST_SEL_W(SQ_SEL_W);
 
-	sq_tex_resource_word7 = format | (SQ_TEX_VTX_VALID_TEXTURE << 30);
+	sq_tex_resource_word7 = format |
+		S__SQ_CONSTANT_TYPE(SQ_TEX_VTX_VALID_TEXTURE);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_RESOURCE, 8));
 	radeon_ring_write(rdev, 0);
