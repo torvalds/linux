@@ -1496,8 +1496,23 @@ static int serial_omap_runtime_suspend(struct device *dev)
 	if (!up)
 		return -EINVAL;
 
+	if (!pdata->enable_wakeup)
+		return 0;
+
 	if (pdata->get_context_loss_count)
 		up->context_loss_cnt = pdata->get_context_loss_count(dev);
+
+	if (device_may_wakeup(dev)) {
+		if (!up->wakeups_enabled) {
+			pdata->enable_wakeup(up->pdev, true);
+			up->wakeups_enabled = true;
+		}
+	} else {
+		if (up->wakeups_enabled) {
+			pdata->enable_wakeup(up->pdev, false);
+			up->wakeups_enabled = false;
+		}
+	}
 
 	/* Errata i291 */
 	if (up->use_dma && pdata->set_forceidle &&
