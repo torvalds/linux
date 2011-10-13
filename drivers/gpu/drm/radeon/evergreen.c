@@ -3087,7 +3087,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 
 	r = evergreen_blit_init(rdev);
 	if (r) {
-		evergreen_blit_fini(rdev);
+		r600_blit_fini(rdev);
 		rdev->asic->copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
@@ -3169,27 +3169,6 @@ int evergreen_suspend(struct radeon_device *rdev)
 		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 	}
 
-	return 0;
-}
-
-int evergreen_copy_blit(struct radeon_device *rdev,
-			uint64_t src_offset, uint64_t dst_offset,
-			unsigned num_pages, struct radeon_fence *fence)
-{
-	int r;
-
-	mutex_lock(&rdev->r600_blit.mutex);
-	rdev->r600_blit.vb_ib = NULL;
-	r = evergreen_blit_prepare_copy(rdev, num_pages);
-	if (r) {
-		if (rdev->r600_blit.vb_ib)
-			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
-		mutex_unlock(&rdev->r600_blit.mutex);
-		return r;
-	}
-	evergreen_kms_blit_copy(rdev, src_offset, dst_offset, num_pages);
-	evergreen_blit_done_copy(rdev, fence);
-	mutex_unlock(&rdev->r600_blit.mutex);
 	return 0;
 }
 
@@ -3301,7 +3280,7 @@ int evergreen_init(struct radeon_device *rdev)
 
 void evergreen_fini(struct radeon_device *rdev)
 {
-	evergreen_blit_fini(rdev);
+	r600_blit_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
