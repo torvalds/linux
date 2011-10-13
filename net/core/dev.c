@@ -5235,7 +5235,7 @@ static void rollback_registered_many(struct list_head *head)
 	dev = list_first_entry(head, struct net_device, unreg_list);
 	call_netdevice_notifiers(NETDEV_UNREGISTER_BATCH, dev);
 
-	rcu_barrier();
+	synchronize_net();
 
 	list_for_each_entry(dev, head, unreg_list)
 		dev_put(dev);
@@ -5747,6 +5747,12 @@ void netdev_run_todo(void)
 	list_replace_init(&net_todo_list, &list);
 
 	__rtnl_unlock();
+
+	/* Wait for rcu callbacks to finish before attempting to drain
+	 * the device list.  This usually avoids a 250ms wait.
+	 */
+	if (!list_empty(&list))
+		rcu_barrier();
 
 	while (!list_empty(&list)) {
 		struct net_device *dev
