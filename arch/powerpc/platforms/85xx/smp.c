@@ -48,10 +48,11 @@ smp_85xx_kick_cpu(int nr)
 	const u64 *cpu_rel_addr;
 	__iomem u32 *bptr_vaddr;
 	struct device_node *np;
-	int n = 0;
+	int n = 0, hw_cpu = get_hard_smp_processor_id(nr);
 	int ioremappable;
 
-	WARN_ON (nr < 0 || nr >= NR_CPUS);
+	WARN_ON(nr < 0 || nr >= NR_CPUS);
+	WARN_ON(hw_cpu < 0 || hw_cpu >= NR_CPUS);
 
 	pr_debug("smp_85xx_kick_cpu: kick CPU #%d\n", nr);
 
@@ -79,7 +80,7 @@ smp_85xx_kick_cpu(int nr)
 
 	local_irq_save(flags);
 
-	out_be32(bptr_vaddr + BOOT_ENTRY_PIR, nr);
+	out_be32(bptr_vaddr + BOOT_ENTRY_PIR, hw_cpu);
 #ifdef CONFIG_PPC32
 	out_be32(bptr_vaddr + BOOT_ENTRY_ADDR_LOWER, __pa(__early_start));
 
@@ -88,7 +89,7 @@ smp_85xx_kick_cpu(int nr)
 				(ulong)(bptr_vaddr + SIZE_BOOT_ENTRY));
 
 	/* Wait a bit for the CPU to ack. */
-	while ((__secondary_hold_acknowledge != nr) && (++n < 1000))
+	while ((__secondary_hold_acknowledge != hw_cpu) && (++n < 1000))
 		mdelay(1);
 #else
 	smp_generic_kick_cpu(nr);
