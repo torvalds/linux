@@ -2320,7 +2320,7 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 		return NULL;
 	oo->oo_owner.so_is_open_owner = 1;
 	oo->oo_owner.so_seqid = open->op_seqid;
-	oo->oo_flags = 0;
+	oo->oo_flags = NFS4_OO_NEW;
 	oo->oo_time = 0;
 	oo->oo_last_closed_stid = NULL;
 	INIT_LIST_HEAD(&oo->oo_close_lru);
@@ -2526,7 +2526,6 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 		open->op_openowner = NULL;
 		goto new_owner;
 	}
-	list_del_init(&oo->oo_close_lru);
 	return nfsd4_check_seqid(cstate, &oo->oo_owner, open->op_seqid);
 new_owner:
 	oo = alloc_init_open_stateowner(strhashval, clp, open);
@@ -2944,6 +2943,23 @@ out:
 		open->op_rflags |= NFS4_OPEN_RESULT_CONFIRM;
 
 	return status;
+}
+
+void nfsd4_cleanup_open_state(struct nfsd4_open *open, __be32 status)
+{
+	if (open->op_openowner) {
+		struct nfs4_openowner *oo = open->op_openowner;
+
+		if (!list_empty(&oo->oo_owner.so_stateids))
+			list_del_init(&oo->oo_close_lru);
+		if (oo->oo_flags & NFS4_OO_NEW) {
+			if (status) {
+				release_openowner(oo);
+				open->op_openowner = NULL;
+			} else
+				oo->oo_flags &= ~NFS4_OO_NEW;
+		}
+	}
 }
 
 __be32

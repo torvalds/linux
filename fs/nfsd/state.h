@@ -359,6 +359,7 @@ struct nfs4_openowner {
 	time_t			oo_time; /* time of placement on so_close_lru */
 #define NFS4_OO_CONFIRMED   1
 #define NFS4_OO_PURGE_CLOSE 2
+#define NFS4_OO_NEW         4
 	unsigned char		oo_flags;
 };
 

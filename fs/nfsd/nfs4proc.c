@@ -409,6 +409,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 */
 	status = nfsd4_process_open2(rqstp, &cstate->current_fh, open);
 out:
+	nfsd4_cleanup_open_state(open, status);
 	if (open->op_openowner)
 		cstate->replay_owner = &open->op_openowner->oo_owner;
 	else
