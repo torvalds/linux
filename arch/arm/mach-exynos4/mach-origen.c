@@ -39,6 +39,7 @@
 #include <plat/backlight.h>
 #include <plat/pd.h>
 #include <plat/fb.h>
+#include <plat/mfc.h>
 
 #include <mach/map.h>
 
@@ -601,6 +602,9 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_fimd0,
 	&s5p_device_hdmi,
 	&s5p_device_i2c_hdmiphy,
+	&s5p_device_mfc,
+	&s5p_device_mfc_l,
+	&s5p_device_mfc_r,
 	&s5p_device_mixer,
 	&exynos4_device_pd[PD_LCD0],
 	&exynos4_device_pd[PD_TV],
@@ -608,6 +612,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&exynos4_device_pd[PD_LCD1],
 	&exynos4_device_pd[PD_CAM],
 	&exynos4_device_pd[PD_GPS],
+	&exynos4_device_pd[PD_MFC],
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,
 };
@@ -645,6 +650,11 @@ static void __init origen_power_init(void)
 	s3c_gpio_setpull(EXYNOS4_GPX0(4), S3C_GPIO_PULL_NONE);
 }
 
+static void __init origen_reserve(void)
+{
+	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
+}
+
 static void __init origen_machine_init(void)
 {
 	origen_power_init();
@@ -668,10 +678,13 @@ static void __init origen_machine_init(void)
 	s5p_fimd0_set_platdata(&origen_lcd_pdata);
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
+
 	s5p_device_fimd0.dev.parent = &exynos4_device_pd[PD_LCD0].dev;
 
 	s5p_device_hdmi.dev.parent = &exynos4_device_pd[PD_TV].dev;
 	s5p_device_mixer.dev.parent = &exynos4_device_pd[PD_TV].dev;
+
+	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
 
 	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 }
@@ -683,4 +696,5 @@ MACHINE_START(ORIGEN, "ORIGEN")
 	.map_io		= origen_map_io,
 	.init_machine	= origen_machine_init,
 	.timer		= &exynos4_timer,
+	.reserve	= &origen_reserve,
 MACHINE_END
