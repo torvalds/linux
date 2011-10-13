@@ -694,6 +694,19 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 	ath9k_hw_apply_txpower(ah, chan);
 
+	if (AR_SREV_9480(ah)) {
+		if (REG_READ_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_0,
+				AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL))
+			ah->enabled_cals |= TX_IQ_CAL;
+		else
+			ah->enabled_cals &= ~TX_IQ_CAL;
+
+		if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
+			ah->enabled_cals |= TX_CL_CAL;
+		else
+			ah->enabled_cals &= ~TX_CL_CAL;
+	}
+
 	return 0;
 }
 

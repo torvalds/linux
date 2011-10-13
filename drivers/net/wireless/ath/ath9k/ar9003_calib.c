@@ -906,15 +906,13 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	bool txiqcal_done = false, txclcal_done = false;
-	bool is_reusable = true, txclcal_enabled;
+	bool is_reusable = true;
+	int i, j;
 	u32 cl_idx[AR9300_MAX_CHAINS] = { AR_PHY_CL_TAB_0,
 					  AR_PHY_CL_TAB_1,
 					  AR_PHY_CL_TAB_2 };
 
-	txclcal_enabled = !!(REG_READ(ah, AR_PHY_CL_CAL_CTL) &
-				      AR_PHY_CL_CAL_ENABLE);
-
-	if (txclcal_enabled) {
+	if (ah->enabled_cals & TX_CL_CAL) {
 		if (caldata && caldata->done_txclcal_once)
 			REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL,
 				    AR_PHY_CL_CAL_ENABLE);
@@ -922,6 +920,9 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL,
 				    AR_PHY_CL_CAL_ENABLE);
 	}
+
+	if (!(ah->enabled_cals & TX_IQ_CAL))
+		goto skip_tx_iqcal;
 
 	/* Do Tx IQ Calibration */
 	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_1,
@@ -932,7 +933,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	 * For AR9485 or later chips, TxIQ cal runs as part of
 	 * AGC calibration
 	 */
-	if (AR_SREV_9485_OR_LATER(ah) && !AR_SREV_9340(ah)) {
+	if (ah->enabled_cals & TX_IQ_ON_AGC_CAL) {
 		if (caldata && !caldata->done_txiqcal_once)
 			REG_SET_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
 				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
@@ -940,13 +941,14 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			REG_CLR_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
 				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
 		txiqcal_done = true;
-	} else {
-		txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
-		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
-		udelay(5);
-		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
+		goto skip_tx_iqcal;
 	}
+	txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+	udelay(5);
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 
+skip_tx_iqcal:
 	/* Calibrate the AGC */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
@@ -966,8 +968,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		ar9003_hw_tx_iq_cal_reload(ah);
 
 #define CL_TAB_ENTRY(reg_base)	(reg_base + (4 * j))
-	if (caldata && txclcal_enabled) {
-		int i, j;
+	if (caldata && (ah->enabled_cals & TX_CL_CAL)) {
 		txclcal_done = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) &
 					   AR_PHY_AGC_CONTROL_CLC_SUCCESS);
 		if (caldata->done_txclcal_once) {

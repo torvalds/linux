@@ -634,6 +634,12 @@ struct ath_nf_limits {
 	s16 nominal;
 };
 
+enum ath_cal_list {
+	TX_IQ_CAL         =	BIT(0),
+	TX_IQ_ON_AGC_CAL  =	BIT(1),
+	TX_CL_CAL         =	BIT(2),
+};
+
 /* ah_flags */
 #define AH_USE_EEPROM   0x1
 #define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
@@ -733,6 +739,7 @@ struct ath_hw {
 		int32_t sign[AR5416_MAX_CHAINS];
 	} meas3;
 	u16 cal_samples;
+	u8 enabled_cals;
 
 	u32 sta_id1_defaults;
 	u32 misc_mode;
