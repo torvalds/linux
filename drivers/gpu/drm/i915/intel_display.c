@@ -5620,31 +5620,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	/* enable transcoder DPLL */
-	if (HAS_PCH_CPT(dev)) {
-		u32 transc_sel = intel_crtc->use_pll_a ? TRANSC_DPLLA_SEL :
-			TRANSC_DPLLB_SEL;
-		temp = I915_READ(PCH_DPLL_SEL);
-		switch (pipe) {
-		case 0:
-			temp |= TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL;
-			break;
-		case 1:
-			temp |=	TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL;
-			break;
-		case 2:
-			temp &= ~(TRANSC_DPLLB_SEL);
-			temp |= TRANSC_DPLL_ENABLE | transc_sel;
-			break;
-		default:
-			BUG();
-		}
-		I915_WRITE(PCH_DPLL_SEL, temp);
-
-		POSTING_READ(PCH_DPLL_SEL);
-		udelay(150);
-	}
-
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
 	 * This is an exception to the general rule that mode_set doesn't turn
 	 * things on.
