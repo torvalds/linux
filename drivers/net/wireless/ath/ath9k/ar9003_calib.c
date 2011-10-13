@@ -659,7 +659,8 @@ static void ar9003_hw_detect_outlier(int *mp_coeff, int nmeasurement,
 
 static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
 						 u8 num_chains,
-						 struct coeff *coeff)
+						 struct coeff *coeff,
+						 bool is_reusable)
 {
 	int i, im, nmeasurement;
 	u32 tx_corr_coeff[MAX_MEASUREMENT][AR9300_MAX_CHAINS];
@@ -726,11 +727,11 @@ static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
 		      AR_PHY_TX_IQCAL_CONTROL_3_IQCORR_EN, 0x1);
 	REG_RMW_FIELD(ah, AR_PHY_RX_IQCAL_CORR_B0,
 		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
+
 	if (caldata)
-		caldata->done_txiqcal_once = true;
+		caldata->done_txiqcal_once = is_reusable;
 
 	return;
-
 }
 
 static bool ar9003_hw_tx_iq_cal_run(struct ath_hw *ah)
@@ -757,7 +758,7 @@ static bool ar9003_hw_tx_iq_cal_run(struct ath_hw *ah)
 	return true;
 }
 
-static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah)
+static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	const u32 txiqcal_status[AR9300_MAX_CHAINS] = {
@@ -846,7 +847,8 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah)
 				coeff.phs_coeff[i][im] -= 128;
 		}
 	}
-	ar9003_hw_tx_iqcal_load_avg_2_passes(ah, num_chains, &coeff);
+	ar9003_hw_tx_iqcal_load_avg_2_passes(ah, num_chains,
+					     &coeff, is_reusable);
 
 	return;
 
@@ -904,6 +906,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	bool txiqcal_done = false;
+	bool is_reusable = true;
 
 	/* Do Tx IQ Calibration */
 	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_1,
@@ -943,7 +946,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	}
 
 	if (txiqcal_done)
-		ar9003_hw_tx_iq_cal_post_proc(ah);
+		ar9003_hw_tx_iq_cal_post_proc(ah, is_reusable);
 	else if (caldata && caldata->done_txiqcal_once)
 		ar9003_hw_tx_iq_cal_reload(ah);
 
