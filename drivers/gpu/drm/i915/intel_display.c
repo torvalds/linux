@@ -1276,7 +1276,7 @@ static void intel_disable_transcoder(struct drm_i915_private *dev_priv,
 	I915_WRITE(reg, val);
 	/* wait for PCH transcoder off, transcoder state */
 	if (wait_for((I915_READ(reg) & TRANS_STATE_ENABLE) == 0, 50))
-		DRM_ERROR("failed to disable transcoder\n");
+		DRM_ERROR("failed to disable transcoder %d\n", pipe);
 }
 
 /**
