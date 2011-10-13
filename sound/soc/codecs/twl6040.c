@@ -87,7 +87,6 @@ struct twl6040_data {
 	int plug_irq;
 	int codec_powered;
 	int pll;
-	int non_lp;
 	int pll_power_mode;
 	int hs_power_mode;
 	int hs_power_mode_locked;
@@ -588,10 +587,6 @@ static int out_drv_event(struct snd_soc_dapm_widget *w,
 		out->left_step = priv->hf_left_step;
 		out->right_step = priv->hf_right_step;
 		out->step_delay = 5;	/* 5 ms between volume ramp steps */
-		if (SND_SOC_DAPM_EVENT_ON(event))
-			priv->non_lp++;
-		else
-			priv->non_lp--;
 		break;
 	default:
 		return -1;
@@ -686,18 +681,12 @@ static int twl6040_power_mode_event(struct snd_soc_dapm_widget *w,
 	int ret = 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		priv->non_lp++;
-		if (!strcmp(w->name, "Earphone Driver")) {
-			/* Earphone doesn't support low power mode */
-			priv->hs_power_mode_locked = 1;
-			ret = headset_power_mode(codec, 1);
-		}
+		/* Earphone doesn't support low power mode */
+		priv->hs_power_mode_locked = 1;
+		ret = headset_power_mode(codec, 1);
 	} else {
-		priv->non_lp--;
-		if (!strcmp(w->name, "Earphone Driver")) {
-			priv->hs_power_mode_locked = 0;
-			ret = headset_power_mode(codec, priv->hs_power_mode);
-		}
+		priv->hs_power_mode_locked = 0;
+		ret = headset_power_mode(codec, priv->hs_power_mode);
 	}
 
 	msleep(1);
@@ -1125,14 +1114,10 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 	/* DACs */
 	SND_SOC_DAPM_DAC("HSDAC Left", "Headset Playback", SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC("HSDAC Right", "Headset Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("HFDAC Left", "Handsfree Playback",
-			TWL6040_REG_HFLCTL, 0, 0,
-			twl6040_power_mode_event,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_DAC_E("HFDAC Right", "Handsfree Playback",
-			TWL6040_REG_HFRCTL, 0, 0,
-			twl6040_power_mode_event,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_DAC("HFDAC Left", "Handsfree Playback",
+			 TWL6040_REG_HFLCTL, 0, 0),
+	SND_SOC_DAPM_DAC("HFDAC Right", "Handsfree Playback",
+			 TWL6040_REG_HFRCTL, 0, 0),
 	/* Virtual DAC for vibra path (DL4 channel) */
 	SND_SOC_DAPM_DAC("VIBRA DAC", "Vibra Playback",
 			SND_SOC_NOPM, 0, 0),
@@ -1381,13 +1366,6 @@ static int twl6040_prepare(struct snd_pcm_substream *substream,
 		dev_err(codec->dev,
 			"no mclk configured, call set_sysclk() on init\n");
 		return -EINVAL;
-	}
-
-	if ((priv->sysclk == 17640000) && priv->non_lp) {
-			dev_err(codec->dev,
-				"some enabled paths aren't supported at %dHz\n",
-				priv->sysclk);
-			return -EPERM;
 	}
 
 	ret = twl6040_set_pll(twl6040, priv->pll, priv->clk_in, priv->sysclk);
