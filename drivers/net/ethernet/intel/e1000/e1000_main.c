@@ -3737,7 +3737,7 @@ static void e1000_consume_page(struct e1000_buffer *bi, struct sk_buff *skb,
 	bi->page = NULL;
 	skb->len += length;
 	skb->data_len += length;
-	skb->truesize += length;
+	skb->truesize += PAGE_SIZE;
 }
 
 /**
