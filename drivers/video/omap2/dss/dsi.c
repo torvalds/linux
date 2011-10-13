@@ -203,6 +203,21 @@ struct dsi_reg { u16 idx; };
 typedef void (*omap_dsi_isr_t) (void *arg, u32 mask);
 
 #define DSI_MAX_NR_ISRS                2
+#define DSI_MAX_NR_LANES	5
+
+enum dsi_lane_function {
+	DSI_LANE_UNUSED	= 0,
+	DSI_LANE_CLK,
+	DSI_LANE_DATA1,
+	DSI_LANE_DATA2,
+	DSI_LANE_DATA3,
+	DSI_LANE_DATA4,
+};
+
+struct dsi_lane_config {
+	enum dsi_lane_function function;
+	u8 polarity;
+};
 
 struct dsi_isr_data {
 	omap_dsi_isr_t	isr;
@@ -328,6 +343,9 @@ struct dsi_data {
 	unsigned long lpdiv_max;
 
 	unsigned num_lanes_supported;
+
+	struct dsi_lane_config lanes[DSI_MAX_NR_LANES];
+	unsigned num_lanes_used;
 
 	unsigned scp_clk_refcount;
 };
@@ -2075,6 +2093,65 @@ static unsigned dsi_get_line_buf_size(struct platform_device *dsidev)
 	default:
 		BUG();
 	}
+}
+
+static int dsi_parse_lane_config(struct omap_dss_device *dssdev)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	u8 lanes[DSI_MAX_NR_LANES];
+	u8 polarities[DSI_MAX_NR_LANES];
+	int num_lanes, i;
+
+	static const enum dsi_lane_function functions[] = {
+		DSI_LANE_CLK,
+		DSI_LANE_DATA1,
+		DSI_LANE_DATA2,
+		DSI_LANE_DATA3,
+		DSI_LANE_DATA4,
+	};
+
+	lanes[0] = dssdev->phy.dsi.clk_lane;
+	lanes[1] = dssdev->phy.dsi.data1_lane;
+	lanes[2] = dssdev->phy.dsi.data2_lane;
+	lanes[3] = dssdev->phy.dsi.data3_lane;
+	lanes[4] = dssdev->phy.dsi.data4_lane;
+	polarities[0] = dssdev->phy.dsi.clk_pol;
+	polarities[1] = dssdev->phy.dsi.data1_pol;
+	polarities[2] = dssdev->phy.dsi.data2_pol;
+	polarities[3] = dssdev->phy.dsi.data3_pol;
+	polarities[4] = dssdev->phy.dsi.data4_pol;
+
+	num_lanes = 0;
+
+	for (i = 0; i < dsi->num_lanes_supported; ++i)
+		dsi->lanes[i].function = DSI_LANE_UNUSED;
+
+	for (i = 0; i < dsi->num_lanes_supported; ++i) {
+		int num;
+
+		if (lanes[i] == DSI_LANE_UNUSED)
+			break;
+
+		num = lanes[i] - 1;
+
+		if (num >= dsi->num_lanes_supported)
+			return -EINVAL;
+
+		if (dsi->lanes[num].function != DSI_LANE_UNUSED)
+			return -EINVAL;
+
+		dsi->lanes[num].function = functions[i];
+		dsi->lanes[num].polarity = polarities[i];
+		num_lanes++;
+	}
+
+	if (num_lanes < 2 || num_lanes > dsi->num_lanes_supported)
+		return -EINVAL;
+
+	dsi->num_lanes_used = num_lanes;
+
+	return 0;
 }
 
 static void dsi_set_lane_config(struct omap_dss_device *dssdev)
@@ -4327,6 +4404,12 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	int dsi_module = dsi_get_dsidev_id(dsidev);
 	int r;
+
+	r = dsi_parse_lane_config(dssdev);
+	if (r) {
+		DSSERR("illegal lane config");
+		goto err0;
+	}
 
 	r = dsi_pll_init(dsidev, true, true);
 	if (r)
