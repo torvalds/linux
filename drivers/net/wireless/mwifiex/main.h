@@ -658,7 +658,6 @@ struct mwifiex_adapter {
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
-void mwifiex_free_lock_list(struct mwifiex_adapter *adapter);
 
 int mwifiex_init_fw(struct mwifiex_adapter *adapter);
 
@@ -709,8 +708,6 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags);
 int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 				struct sk_buff *skb, int status);
-int mwifiex_recv_packet_complete(struct mwifiex_adapter *,
-				 struct sk_buff *skb, int status);
 void mwifiex_clean_txrx(struct mwifiex_private *priv);
 u8 mwifiex_check_last_packet_indication(struct mwifiex_private *priv);
 void mwifiex_check_ps_cond(struct mwifiex_adapter *adapter);
@@ -740,8 +737,6 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *,
 int mwifiex_process_sta_event(struct mwifiex_private *);
 void *mwifiex_process_sta_txpd(struct mwifiex_private *, struct sk_buff *skb);
 int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta);
-int mwifiex_scan_networks(struct mwifiex_private *priv,
-			  const struct mwifiex_user_scan_cfg *user_scan_in);
 int mwifiex_cmd_802_11_scan(struct host_cmd_ds_command *cmd,
 			    struct mwifiex_scan_cmd_config *scan_cfg);
 void mwifiex_queue_scan_cmd(struct mwifiex_private *priv,
@@ -901,9 +896,6 @@ int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
 int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter);
 int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		      struct mwifiex_802_11_ssid *req_ssid);
-int mwifiex_set_hs_params(struct mwifiex_private *priv,
-			      u16 action, int cmd_type,
-			      struct mwifiex_ds_hs_cfg *hscfg);
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type);
 int mwifiex_enable_hs(struct mwifiex_adapter *adapter);
 int mwifiex_disable_auto_ds(struct mwifiex_private *priv);

@@ -283,6 +283,34 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 }
 
 /*
+ *  This function releases the lock variables and frees the locks and
+ *  associated locks.
+ */
+static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv;
+	s32 i, j;
+
+	/* Free lists */
+	list_del(&adapter->cmd_free_q);
+	list_del(&adapter->cmd_pending_q);
+	list_del(&adapter->scan_pending_q);
+
+	for (i = 0; i < adapter->priv_num; i++)
+		list_del(&adapter->bss_prio_tbl[i].bss_prio_head);
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		if (adapter->priv[i]) {
+			priv = adapter->priv[i];
+			for (j = 0; j < MAX_NUM_TID; ++j)
+				list_del(&priv->wmm.tid_tbl_ptr[j].ra_list);
+			list_del(&priv->tx_ba_stream_tbl_ptr);
+			list_del(&priv->rx_reorder_tbl_ptr);
+		}
+	}
+}
+
+/*
  * This function frees the adapter structure.
  *
  * The freeing operation is done recursively, by canceling all
@@ -373,34 +401,6 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	}
 
 	return 0;
-}
-
-/*
- *  This function releases the lock variables and frees the locks and
- *  associated locks.
- */
-void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
-{
-	struct mwifiex_private *priv;
-	s32 i, j;
-
-	/* Free lists */
-	list_del(&adapter->cmd_free_q);
-	list_del(&adapter->cmd_pending_q);
-	list_del(&adapter->scan_pending_q);
-
-	for (i = 0; i < adapter->priv_num; i++)
-		list_del(&adapter->bss_prio_tbl[i].bss_prio_head);
-
-	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			priv = adapter->priv[i];
-			for (j = 0; j < MAX_NUM_TID; ++j)
-				list_del(&priv->wmm.tid_tbl_ptr[j].ra_list);
-			list_del(&priv->tx_ba_stream_tbl_ptr);
-			list_del(&priv->rx_reorder_tbl_ptr);
-		}
-	}
 }
 
 /*

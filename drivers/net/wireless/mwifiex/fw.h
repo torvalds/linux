@@ -57,12 +57,6 @@ struct tx_packet_hdr {
 #define GET_FW_DEFAULT_BANDS(adapter)  \
 	((adapter->fw_cap_info >> 8) & ALL_802_11_BANDS)
 
-extern u8 supported_rates_b[B_SUPPORTED_RATES];
-extern u8 supported_rates_g[G_SUPPORTED_RATES];
-extern u8 supported_rates_bg[BG_SUPPORTED_RATES];
-extern u8 supported_rates_a[A_SUPPORTED_RATES];
-extern u8 supported_rates_n[N_SUPPORTED_RATES];
-
 #define HostCmd_WEP_KEY_INDEX_MASK              0x3fff
 
 #define KEY_INFO_ENABLED        0x01
