@@ -1372,7 +1372,7 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp)
 		radeon_ring_write(cp, 0x80000000);
 		radeon_ring_unlock_commit(rdev, cp);
 	}
-	cp->rptr = RREG32(R600_CP_RB_RPTR);
+	cp->rptr = RREG32(cp->rptr_reg);
 	return r100_gpu_cp_is_lockup(rdev, lockup, cp);
 }
 
@@ -2234,12 +2234,6 @@ int r600_cp_resume(struct radeon_device *rdev)
 	return 0;
 }
 
-void r600_cp_commit(struct radeon_device *rdev, struct radeon_cp *cp)
-{
-	WREG32(CP_RB_WPTR, cp->wptr);
-	(void)RREG32(CP_RB_WPTR);
-}
-
 void r600_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size)
 {
 	u32 rb_bufsz;
@@ -2474,7 +2468,9 @@ int r600_startup(struct radeon_device *rdev)
 	}
 	r600_irq_set(rdev);
 
-	r = radeon_ring_init(rdev, cp, cp->ring_size);
+	r = radeon_ring_init(rdev, cp, cp->ring_size, RADEON_WB_CP_RPTR_OFFSET,
+			     R600_CP_RB_RPTR, R600_CP_RB_WPTR);
+
 	if (r)
 		return r;
 	r = r600_cp_load_microcode(rdev);

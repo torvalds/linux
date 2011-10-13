@@ -525,8 +525,11 @@ struct radeon_cp {
 	struct radeon_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr;
+	unsigned		rptr_offs;
+	unsigned		rptr_reg;
 	unsigned		wptr;
 	unsigned		wptr_old;
+	unsigned		wptr_reg;
 	unsigned		ring_size;
 	unsigned		ring_free_dw;
 	int			count_dw;
@@ -602,7 +605,8 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_cp *cp);
 void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_cp *cp);
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_cp *cp);
 int radeon_ring_test(struct radeon_device *rdev, struct radeon_cp *cp);
-int radeon_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size);
+int radeon_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size,
+		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg);
 void radeon_ring_fini(struct radeon_device *rdev, struct radeon_cp *cp);
 
 
@@ -939,7 +943,6 @@ struct radeon_asic {
 	int (*cp_init)(struct radeon_device *rdev, unsigned ring_size);
 	void (*cp_fini)(struct radeon_device *rdev);
 	void (*cp_disable)(struct radeon_device *rdev);
-	void (*cp_commit)(struct radeon_device *rdev, struct radeon_cp *cp);
 	void (*ring_start)(struct radeon_device *rdev);
 	int (*ring_test)(struct radeon_device *rdev, struct radeon_cp *cp);
 	void (*ring_ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
@@ -1491,7 +1494,6 @@ void radeon_ring_write(struct radeon_cp *cp, uint32_t v);
 #define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart_tlb_flush((rdev))
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart_set_page((rdev), (i), (p))
-#define radeon_cp_commit(rdev, cp) (rdev)->asic->cp_commit((rdev), (cp))
 #define radeon_ring_start(rdev) (rdev)->asic->ring_start((rdev))
 #define radeon_ring_test(rdev, cp) (rdev)->asic->ring_test((rdev), (cp))
 #define radeon_ring_ib_execute(rdev, ib) (rdev)->asic->ring_ib_execute((rdev), (ib))

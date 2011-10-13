@@ -1273,7 +1273,7 @@ bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp)
 		radeon_ring_unlock_commit(rdev, cp);
 	}
 	/* XXX deal with CP0,1,2 */
-	cp->rptr = RREG32(CP_RB0_RPTR);
+	cp->rptr = RREG32(cp->rptr_reg);
 	return r100_gpu_cp_is_lockup(rdev, lockup, cp);
 }
 
@@ -1393,7 +1393,8 @@ static int cayman_startup(struct radeon_device *rdev)
 	}
 	evergreen_irq_set(rdev);
 
-	r = radeon_ring_init(rdev, cp, cp->ring_size);
+	r = radeon_ring_init(rdev, cp, cp->ring_size, RADEON_WB_CP_RPTR_OFFSET,
+			     CP_RB0_RPTR, CP_RB0_WPTR);
 	if (r)
 		return r;
 	r = cayman_cp_load_microcode(rdev);

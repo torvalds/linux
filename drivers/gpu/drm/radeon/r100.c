@@ -1074,7 +1074,8 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	rb_bufsz = drm_order(ring_size / 8);
 	ring_size = (1 << (rb_bufsz + 1)) * 4;
 	r100_cp_load_microcode(rdev);
-	r = radeon_ring_init(rdev, cp, ring_size);
+	r = radeon_ring_init(rdev, cp, ring_size, RADEON_WB_CP_RPTR_OFFSET,
+			     RADEON_CP_RB_RPTR, RADEON_CP_RB_WPTR);
 	if (r) {
 		return r;
 	}
@@ -1178,13 +1179,6 @@ void r100_cp_disable(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 }
-
-void r100_cp_commit(struct radeon_device *rdev, struct radeon_cp *cp)
-{
-	WREG32(RADEON_CP_RB_WPTR, cp->wptr);
-	(void)RREG32(RADEON_CP_RB_WPTR);
-}
-
 
 /*
  * CS functions
@@ -2184,7 +2178,7 @@ bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp)
 		radeon_ring_write(cp, 0x80000000);
 		radeon_ring_unlock_commit(rdev, cp);
 	}
-	cp->rptr = RREG32(RADEON_CP_RB_RPTR);
+	cp->rptr = RREG32(cp->rptr_reg);
 	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r100.lockup, cp);
 }
 

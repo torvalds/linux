@@ -287,13 +287,9 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_cp *cp)
 {
 	if (rdev->wb.enabled)
-		rdev->cp.rptr = le32_to_cpu(rdev->wb.wb[RADEON_WB_CP_RPTR_OFFSET/4]);
-	else {
-		if (rdev->family >= CHIP_R600)
-			rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
-		else
-			rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
-	}
+		cp->rptr = le32_to_cpu(rdev->wb.wb[cp->rptr_offs/4]);
+	else
+		cp->rptr = RREG32(cp->rptr_reg);
 	/* This works because ring_size is a power of 2 */
 	cp->ring_free_dw = (cp->rptr + (cp->ring_size / 4));
 	cp->ring_free_dw -= cp->wptr;
@@ -350,7 +346,8 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_cp *cp)
 		radeon_ring_write(cp, 2 << 30);
 	}
 	DRM_MEMORYBARRIER();
-	radeon_cp_commit(rdev, cp);
+	WREG32(cp->wptr_reg, cp->wptr);
+	(void)RREG32(cp->wptr_reg);
 }
 
 void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_cp *cp)
@@ -365,11 +362,15 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_cp *cp)
 	mutex_unlock(&cp->mutex);
 }
 
-int radeon_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size)
+int radeon_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size,
+		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg)
 {
 	int r;
 
 	cp->ring_size = ring_size;
+	cp->rptr_offs = rptr_offs;
+	cp->rptr_reg = rptr_reg;
+	cp->wptr_reg = wptr_reg;
 	/* Allocate ring buffer */
 	if (cp->ring_obj == NULL) {
 		r = radeon_bo_create(rdev, cp->ring_size, PAGE_SIZE, true,

@@ -1092,7 +1092,8 @@ static int rv770_startup(struct radeon_device *rdev)
 	}
 	r600_irq_set(rdev);
 
-	r = radeon_ring_init(rdev, cp, cp->ring_size);
+	r = radeon_ring_init(rdev, cp, cp->ring_size, RADEON_WB_CP_RPTR_OFFSET,
+			     R600_CP_RB_RPTR, R600_CP_RB_WPTR);
 	if (r)
 		return r;
 	r = rv770_cp_load_microcode(rdev);
