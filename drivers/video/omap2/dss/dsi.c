@@ -3517,7 +3517,8 @@ static int dsi_enter_ulps(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	DECLARE_COMPLETION_ONSTACK(completion);
-	int r;
+	int r, i;
+	unsigned mask;
 
 	DSSDBGF();
 
@@ -3560,10 +3561,16 @@ static int dsi_enter_ulps(struct platform_device *dsidev)
 	if (r)
 		return r;
 
+	mask = 0;
+
+	for (i = 0; i < dsi->num_lanes_supported; ++i) {
+		if (dsi->lanes[i].function == DSI_LANE_UNUSED)
+			continue;
+		mask |= 1 << i;
+	}
 	/* Assert TxRequestEsc for data lanes and TxUlpsClk for clk lane */
 	/* LANEx_ULPS_SIG2 */
-	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG2, (1 << 0) | (1 << 1) | (1 << 2),
-		7, 5);
+	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG2, mask, 9, 5);
 
 	/* flush posted write and wait for SCP interface to finish the write */
 	dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG2);
@@ -3579,8 +3586,7 @@ static int dsi_enter_ulps(struct platform_device *dsidev)
 			DSI_CIO_IRQ_ULPSACTIVENOT_ALL0);
 
 	/* Reset LANEx_ULPS_SIG2 */
-	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG2, (0 << 0) | (0 << 1) | (0 << 2),
-		7, 5);
+	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG2, 0, 9, 5);
 
 	/* flush posted write and wait for SCP interface to finish the write */
 	dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG2);
