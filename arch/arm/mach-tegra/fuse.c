@@ -30,9 +30,52 @@
 #define FUSE_SKU_INFO		0x110
 #define FUSE_SPARE_BIT		0x200
 
+int tegra_sku_id;
+int tegra_cpu_process_id;
+int tegra_core_process_id;
+enum tegra_revision tegra_revision;
+
+static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
+	[TEGRA_REVISION_UNKNOWN] = "unknown",
+	[TEGRA_REVISION_A01]     = "A01",
+	[TEGRA_REVISION_A02]     = "A02",
+	[TEGRA_REVISION_A03]     = "A03",
+	[TEGRA_REVISION_A03p]    = "A03 prime",
+	[TEGRA_REVISION_A04]     = "A04",
+};
+
 static inline u32 tegra_fuse_readl(unsigned long offset)
 {
 	return tegra_apb_readl(TEGRA_FUSE_BASE + offset);
+}
+
+static inline bool get_spare_fuse(int bit)
+{
+	return tegra_fuse_readl(FUSE_SPARE_BIT + bit * 4);
+}
+
+static enum tegra_revision tegra_get_revision(void)
+{
+	void __iomem *chip_id = IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804;
+	u32 id = readl(chip_id);
+	u32 minor_rev = (id >> 16) & 0xf;
+	u32 chipid = (id >> 8) & 0xff;
+
+	switch (minor_rev) {
+	case 1:
+		return TEGRA_REVISION_A01;
+	case 2:
+		return TEGRA_REVISION_A02;
+	case 3:
+		if (chipid == 0x20 && (get_spare_fuse(18) || get_spare_fuse(19)))
+			return TEGRA_REVISION_A03p;
+		else
+			return TEGRA_REVISION_A03;
+	case 4:
+		return TEGRA_REVISION_A04;
+	default:
+		return TEGRA_REVISION_UNKNOWN;
+	}
 }
 
 void tegra_init_fuse(void)
@@ -41,9 +84,21 @@ void tegra_init_fuse(void)
 	reg |= 1 << 28;
 	writel(reg, IO_TO_VIRT(TEGRA_CLK_RESET_BASE + 0x48));
 
-	pr_info("Tegra SKU: %d CPU Process: %d Core Process: %d\n",
-		tegra_sku_id(), tegra_cpu_process_id(),
-		tegra_core_process_id());
+	reg = tegra_fuse_readl(FUSE_SKU_INFO);
+	tegra_sku_id = reg & 0xFF;
+
+	reg = tegra_fuse_readl(FUSE_SPARE_BIT);
+	tegra_cpu_process_id = (reg >> 6) & 3;
+
+	reg = tegra_fuse_readl(FUSE_SPARE_BIT);
+	tegra_core_process_id = (reg >> 12) & 3;
+
+	tegra_revision = tegra_get_revision();
+
+	pr_info("Tegra Revision: %s SKU: %d CPU Process: %d Core Process: %d\n",
+		tegra_revision_name[tegra_get_revision()],
+		tegra_sku_id, tegra_cpu_process_id,
+		tegra_core_process_id);
 }
 
 unsigned long long tegra_chip_uid(void)
@@ -53,28 +108,4 @@ unsigned long long tegra_chip_uid(void)
 	lo = tegra_fuse_readl(FUSE_UID_LOW);
 	hi = tegra_fuse_readl(FUSE_UID_HIGH);
 	return (hi << 32ull) | lo;
-}
-
-int tegra_sku_id(void)
-{
-	int sku_id;
-	u32 reg = tegra_fuse_readl(FUSE_SKU_INFO);
-	sku_id = reg & 0xFF;
-	return sku_id;
-}
-
-int tegra_cpu_process_id(void)
-{
-	int cpu_process_id;
-	u32 reg = tegra_fuse_readl(FUSE_SPARE_BIT);
-	cpu_process_id = (reg >> 6) & 3;
-	return cpu_process_id;
-}
-
-int tegra_core_process_id(void)
-{
-	int core_process_id;
-	u32 reg = tegra_fuse_readl(FUSE_SPARE_BIT);
-	core_process_id = (reg >> 12) & 3;
-	return core_process_id;
 }
