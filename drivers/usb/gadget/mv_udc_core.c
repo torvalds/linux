@@ -1553,7 +1553,7 @@ static void ch9setaddress(struct mv_udc *udc, struct usb_ctrlrequest *setup)
 static void ch9getstatus(struct mv_udc *udc, u8 ep_num,
 	struct usb_ctrlrequest *setup)
 {
-	u16 status;
+	u16 status = 0;
 	int retval;
 
 	if ((setup->bRequestType & (USB_DIR_IN | USB_TYPE_MASK))
