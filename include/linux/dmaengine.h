@@ -23,7 +23,6 @@
 
 #include <linux/device.h>
 #include <linux/uio.h>
-#include <linux/dma-direction.h>
 #include <linux/scatterlist.h>
 
 /**
@@ -75,6 +74,19 @@ enum dma_transaction_type {
 /* last transaction type for creation of the capabilities mask */
 #define DMA_TX_TYPE_END (DMA_CYCLIC + 1)
 
+/**
+ * enum dma_transfer_direction - dma transfer mode and direction indicator
+ * @DMA_MEM_TO_MEM: Async/Memcpy mode
+ * @DMA_MEM_TO_DEV: Slave mode & From Memory to Device
+ * @DMA_DEV_TO_MEM: Slave mode & From Device to Memory
+ * @DMA_DEV_TO_DEV: Slave mode & From Device to Device
+ */
+enum dma_transfer_direction {
+	DMA_MEM_TO_MEM,
+	DMA_MEM_TO_DEV,
+	DMA_DEV_TO_MEM,
+	DMA_DEV_TO_DEV,
+};
 
 /**
  * enum dma_ctrl_flags - DMA flags to augment operation preparation,
@@ -267,7 +279,7 @@ enum dma_slave_buswidth {
  * struct, if applicable.
  */
 struct dma_slave_config {
-	enum dma_data_direction direction;
+	enum dma_transfer_direction direction;
 	dma_addr_t src_addr;
 	dma_addr_t dst_addr;
 	enum dma_slave_buswidth src_addr_width;
@@ -490,11 +502,11 @@ struct dma_device {
 
 	struct dma_async_tx_descriptor *(*device_prep_slave_sg)(
 		struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
+		unsigned int sg_len, enum dma_transfer_direction direction,
 		unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_cyclic)(
 		struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
-		size_t period_len, enum dma_data_direction direction);
+		size_t period_len, enum dma_transfer_direction direction);
 	int (*device_control)(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		unsigned long arg);
 
@@ -520,7 +532,7 @@ static inline int dmaengine_slave_config(struct dma_chan *chan,
 
 static inline struct dma_async_tx_descriptor *dmaengine_prep_slave_single(
 	struct dma_chan *chan, void *buf, size_t len,
-	enum dma_data_direction dir, unsigned long flags)
+	enum dma_transfer_direction dir, unsigned long flags)
 {
 	struct scatterlist sg;
 	sg_init_one(&sg, buf, len);
