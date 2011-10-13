@@ -38,7 +38,7 @@
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
-#define DRV_NAME	"sc1200"
+#define DRV_NAME	"pata_sc1200"
 #define DRV_VERSION	"0.2.6"
 
 #define SC1200_REV_A	0x00
