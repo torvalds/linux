@@ -98,6 +98,7 @@
 #define CX25821_BOARD_CONEXANT_ATHENA10 1
 #define MAX_VID_CHANNEL_NUM     12
 #define VID_CHANNEL_NUM 8
+#define CX25821_NR_INPUT 2
 
 struct cx25821_fmt {
 	char *name;
@@ -196,7 +197,7 @@ struct cx25821_board {
 	unsigned char radio_addr;
 
 	u32 clk_freq;
-	struct cx25821_input input[2];
+	struct cx25821_input input[CX25821_NR_INPUT];
 };
 
 struct cx25821_subid {
