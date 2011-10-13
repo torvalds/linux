@@ -196,11 +196,8 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 
 	nd = self->curr_hot;
 
-	if (delay_secs != 0)
-		newtFormSetTimer(self->b.form, delay_secs * 1000);
-
 	while (1) {
-		key = ui_browser__run(&self->b);
+		key = ui_browser__run(&self->b, delay_secs);
 
 		if (delay_secs != 0) {
 			annotate_browser__calc_percent(self, evidx);

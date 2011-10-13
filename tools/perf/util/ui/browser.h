@@ -2,7 +2,6 @@
 #define _PERF_UI_BROWSER_H_ 1
 
 #include <stdbool.h>
-#include <newt.h>
 #include <sys/types.h>
 #include "../types.h"
 
@@ -13,11 +12,12 @@
 #define HE_COLORSET_CODE	54
 
 struct ui_browser {
-	newtComponent form, sb;
 	u64	      index, top_idx;
 	void	      *top, *entries;
 	u16	      y, x, width, height;
 	void	      *priv;
+	const char    *title;
+	char	      *helpline;
 	unsigned int  (*refresh)(struct ui_browser *self);
 	void	      (*write)(struct ui_browser *self, void *entry, int row);
 	void	      (*seek)(struct ui_browser *self, off_t offset, int whence);
@@ -40,7 +40,7 @@ int ui_browser__show(struct ui_browser *self, const char *title,
 		     const char *helpline, ...);
 void ui_browser__hide(struct ui_browser *self);
 int ui_browser__refresh(struct ui_browser *self);
-int ui_browser__run(struct ui_browser *self);
+int ui_browser__run(struct ui_browser *browser, int delay_secs);
 void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries);
 
 void ui_browser__rb_tree_seek(struct ui_browser *self, off_t offset, int whence);

@@ -301,7 +301,6 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 			     void(*timer)(void *arg), void *arg, int delay_secs)
 {
 	int key;
-	int delay_msecs = delay_secs * 1000;
 	char title[160];
 	int sym_exit_keys[] = { 'a', 'h', 'C', 'd', 'E', 't', 0, };
 	int exit_keys[] = { '?', 'h', 'D', NEWT_KEY_LEFT, NEWT_KEY_RIGHT,
@@ -318,15 +317,12 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 			     "Press '?' for help on key bindings") < 0)
 		return -1;
 
-	if (timer != NULL)
-		newtFormSetTimer(self->b.form, delay_msecs);
-
 	ui_browser__add_exit_keys(&self->b, exit_keys);
 	if (self->has_symbols)
 		ui_browser__add_exit_keys(&self->b, sym_exit_keys);
 
 	while (1) {
-		key = ui_browser__run(&self->b);
+		key = ui_browser__run(&self->b, delay_secs);
 
 		switch (key) {
 		case -1:
@@ -1061,7 +1057,6 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 				void(*timer)(void *arg), void *arg, int delay_secs)
 {
 	int exit_keys[] = { NEWT_KEY_ENTER, NEWT_KEY_RIGHT, 0, };
-	int delay_msecs = delay_secs * 1000;
 	struct perf_evlist *evlist = menu->b.priv;
 	struct perf_evsel *pos;
 	const char *ev_name, *title = "Available samples";
@@ -1071,13 +1066,10 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 			     "ESC: exit, ENTER|->: Browse histograms") < 0)
 		return -1;
 
-	if (timer != NULL)
-		newtFormSetTimer(menu->b.form, delay_msecs);
-
 	ui_browser__add_exit_keys(&menu->b, exit_keys);
 
 	while (1) {
-		key = ui_browser__run(&menu->b);
+		key = ui_browser__run(&menu->b, delay_secs);
 
 		switch (key) {
 		case -1:
