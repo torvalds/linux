@@ -467,7 +467,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 		skb->len += size;
 		skb->data_len += size;
-		skb->truesize += size;
+		skb->truesize += PAGE_SIZE;
 
 		if (ftgmac100_rxdes_last_segment(rxdes))
 			done = true;
@@ -478,6 +478,8 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		rxdes = ftgmac100_current_rxdes(priv);
 	} while (!done);
 
+	if (skb->len <= 64)
+		skb->truesize -= PAGE_SIZE;
 	__pskb_pull_tail(skb, min(skb->len, 64U));
 	skb->protocol = eth_type_trans(skb, netdev);
 
