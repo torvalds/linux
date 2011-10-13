@@ -1083,7 +1083,7 @@ int cfhsi_probe(struct platform_device *pdev)
 	return res;
 }
 
-static void cfhsi_shutdown(struct cfhsi *cfhsi, bool remove_platform_dev)
+static void cfhsi_shutdown(struct cfhsi *cfhsi)
 {
 	u8 *tx_buf, *rx_buf;
 
@@ -1092,14 +1092,6 @@ static void cfhsi_shutdown(struct cfhsi *cfhsi, bool remove_platform_dev)
 
 	/* going to shutdown driver */
 	set_bit(CFHSI_SHUTDOWN, &cfhsi->bits);
-
-	if (remove_platform_dev) {
-		/* Flush workqueue */
-		flush_workqueue(cfhsi->wq);
-
-		/* Notify device. */
-		platform_device_unregister(cfhsi->pdev);
-	}
 
 	/* Flush workqueue */
 	flush_workqueue(cfhsi->wq);
@@ -1111,7 +1103,7 @@ static void cfhsi_shutdown(struct cfhsi *cfhsi, bool remove_platform_dev)
 	/* Cancel pending RX request (if any) */
 	cfhsi->dev->cfhsi_rx_cancel(cfhsi->dev);
 
-	/* Flush again and destroy workqueue */
+	/* Destroy workqueue */
 	destroy_workqueue(cfhsi->wq);
 
 	/* Store bufferes: will be freed later. */
@@ -1150,7 +1142,7 @@ int cfhsi_remove(struct platform_device *pdev)
 			spin_unlock(&cfhsi_list_lock);
 
 			/* Shutdown driver. */
-			cfhsi_shutdown(cfhsi, false);
+			cfhsi_shutdown(cfhsi);
 
 			return 0;
 		}
@@ -1183,7 +1175,7 @@ static void __exit cfhsi_exit_module(void)
 		spin_unlock(&cfhsi_list_lock);
 
 		/* Shutdown driver. */
-		cfhsi_shutdown(cfhsi, true);
+		cfhsi_shutdown(cfhsi);
 
 		spin_lock(&cfhsi_list_lock);
 	}
