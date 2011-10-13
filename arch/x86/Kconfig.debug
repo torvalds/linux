@@ -287,4 +287,16 @@ config DEBUG_STRICT_USER_COPY_CHECKS
 
 	  If unsure, or if you run an older (pre 4.4) gcc, say N.
 
+config DEBUG_NMI_SELFTEST
+	bool "NMI Selftest"
+	depends on DEBUG_KERNEL
+	---help---
+	  Enabling this option turns on a quick NMI selftest to verify
+	  that the NMI behaves correctly.
+
+	  This might help diagnose strange hangs that rely on NMI to
+	  function properly.
+
+	  If unsure, say N.
+
 endmenu
