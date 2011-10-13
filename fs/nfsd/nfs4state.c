@@ -2506,7 +2506,6 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	struct nfs4_client *clp = NULL;
 	unsigned int strhashval;
 	struct nfs4_openowner *oo = NULL;
-	__be32 status;
 
 	if (STALE_CLIENTID(&open->op_clientid))
 		return nfserr_stale_clientid;
@@ -2515,30 +2514,25 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	oo = find_openstateowner_str(strhashval, open);
 	open->op_openowner = oo;
 	if (!oo) {
-		/* Make sure the client's lease hasn't expired. */
 		clp = find_confirmed_client(clientid);
 		if (clp == NULL)
 			return nfserr_expired;
-		goto renew;
+		goto new_owner;
 	}
 	if (!(oo->oo_flags & NFS4_OO_CONFIRMED)) {
 		/* Replace unconfirmed owners without checking for replay. */
 		clp = oo->oo_owner.so_client;
 		release_openowner(oo);
 		open->op_openowner = NULL;
-		goto renew;
-	}
-	status = nfsd4_check_seqid(cstate, &oo->oo_owner, open->op_seqid);
-	if (status)
-		return status;
-renew:
-	if (open->op_openowner == NULL) {
-		oo = alloc_init_open_stateowner(strhashval, clp, open);
-		if (oo == NULL)
-			return nfserr_jukebox;
-		open->op_openowner = oo;
+		goto new_owner;
 	}
 	list_del_init(&oo->oo_close_lru);
+	return nfsd4_check_seqid(cstate, &oo->oo_owner, open->op_seqid);
+new_owner:
+	oo = alloc_init_open_stateowner(strhashval, clp, open);
+	if (oo == NULL)
+		return nfserr_jukebox;
+	open->op_openowner = oo;
 	return nfs_ok;
 }
 
