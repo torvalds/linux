@@ -212,7 +212,7 @@ static void __init cap9adk_add_device_nand(void)
 		cap9adk_nand_smc_config.mode |= AT91_SMC_DBW_8;
 
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &cap9adk_nand_smc_config);
+	sam9_smc_configure(0, 3, &cap9adk_nand_smc_config);
 
 	at91_add_device_nand(&cap9adk_nand_data);
 }
@@ -282,7 +282,7 @@ static __init void cap9adk_add_device_nor(void)
 	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_EBI_VDDIOMSEL_3_3V);
 
 	/* configure chip-select 0 (NOR) */
-	sam9_smc_configure(0, &cap9adk_nor_smc_config);
+	sam9_smc_configure(0, 0, &cap9adk_nor_smc_config);
 
 	platform_device_register(&cap9adk_nor_flash);
 }

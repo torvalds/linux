@@ -96,9 +96,9 @@ static struct sam9_smc_config __initdata pcontrol_smc_config[2] = { {
 static void __init add_device_pcontrol(void)
 {
 	/* configure chip-select 4 (IO compatible to 8051  X4 ) */
-	sam9_smc_configure(4, &pcontrol_smc_config[0]);
+	sam9_smc_configure(0, 4, &pcontrol_smc_config[0]);
 	/* configure chip-select 7 (FerroRAM 256KiBx16bit MR2A16A  D4 ) */
-	sam9_smc_configure(7, &pcontrol_smc_config[1]);
+	sam9_smc_configure(0, 7, &pcontrol_smc_config[1]);
 }
 
 

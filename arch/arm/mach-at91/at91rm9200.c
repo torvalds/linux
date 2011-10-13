@@ -23,6 +23,7 @@
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
+#include "sam9_smc.h"
 
 static struct map_desc at91rm9200_io_desc[] __initdata = {
 	{

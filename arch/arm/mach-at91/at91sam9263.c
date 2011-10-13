@@ -24,6 +24,7 @@
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
+#include "sam9_smc.h"
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -306,6 +307,8 @@ static void __init at91sam9263_map_io(void)
 static void __init at91sam9263_ioremap_registers(void)
 {
 	at91sam926x_ioremap_pit(AT91SAM9263_BASE_PIT);
+	at91sam9_ioremap_smc(0, AT91SAM9263_BASE_SMC0);
+	at91sam9_ioremap_smc(1, AT91SAM9263_BASE_SMC1);
 }
 
 static void __init at91sam9263_initialize(void)

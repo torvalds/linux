@@ -131,7 +131,7 @@ static struct sam9_smc_config __initdata dm9000_smc_config = {
 static void __init ek_add_device_dm9000(void)
 {
 	/* Configure chip-select 2 (DM9000) */
-	sam9_smc_configure(2, &dm9000_smc_config);
+	sam9_smc_configure(0, 2, &dm9000_smc_config);
 
 	/* Configure Reset signal as output */
 	at91_set_gpio_output(AT91_PIN_PC10, 0);
@@ -217,7 +217,7 @@ static void __init ek_add_device_nand(void)
 		ek_nand_smc_config.mode |= AT91_SMC_DBW_8;
 
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &ek_nand_smc_config);
+	sam9_smc_configure(0, 3, &ek_nand_smc_config);
 
 	at91_add_device_nand(&ek_nand_data);
 }

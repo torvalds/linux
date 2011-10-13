@@ -149,7 +149,7 @@ static struct i2c_board_info __initdata snapper9260_i2c_devices[] = {
 static void __init snapper9260_add_device_nand(void)
 {
 	at91_set_A_periph(AT91_PIN_PC14, 0);
-	sam9_smc_configure(3, &snapper9260_nand_smc_config);
+	sam9_smc_configure(0, 3, &snapper9260_nand_smc_config);
 	at91_add_device_nand(&snapper9260_nand_data);
 }
 

@@ -245,9 +245,9 @@ static void __init ek_add_device_nand(void)
 
 	/* configure chip-select 3 (NAND) */
 	if (machine_is_usb_a9g20())
-		sam9_smc_configure(3, &usb_a9g20_nand_smc_config);
+		sam9_smc_configure(0, 3, &usb_a9g20_nand_smc_config);
 	else
-		sam9_smc_configure(3, &usb_a9260_nand_smc_config);
+		sam9_smc_configure(0, 3, &usb_a9260_nand_smc_config);
 
 	at91_add_device_nand(&ek_nand_data);
 }

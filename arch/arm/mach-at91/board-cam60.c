@@ -163,7 +163,7 @@ static struct sam9_smc_config __initdata cam60_nand_smc_config = {
 static void __init cam60_add_device_nand(void)
 {
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &cam60_nand_smc_config);
+	sam9_smc_configure(0, 3, &cam60_nand_smc_config);
 
 	at91_add_device_nand(&cam60_nand_data);
 }

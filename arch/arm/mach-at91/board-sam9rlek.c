@@ -119,7 +119,7 @@ static struct sam9_smc_config __initdata ek_nand_smc_config = {
 static void __init ek_add_device_nand(void)
 {
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &ek_nand_smc_config);
+	sam9_smc_configure(0, 3, &ek_nand_smc_config);
 
 	at91_add_device_nand(&ek_nand_data);
 }

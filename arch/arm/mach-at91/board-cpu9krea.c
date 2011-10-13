@@ -156,7 +156,7 @@ static struct sam9_smc_config __initdata cpu9krea_nand_smc_config = {
 
 static void __init cpu9krea_add_device_nand(void)
 {
-	sam9_smc_configure(3, &cpu9krea_nand_smc_config);
+	sam9_smc_configure(0, 3, &cpu9krea_nand_smc_config);
 	at91_add_device_nand(&cpu9krea_nand_data);
 }
 
@@ -238,7 +238,7 @@ static __init void cpu9krea_add_device_nor(void)
 	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_VDDIOMSEL_3_3V);
 
 	/* configure chip-select 0 (NOR) */
-	sam9_smc_configure(0, &cpu9krea_nor_smc_config);
+	sam9_smc_configure(0, 0, &cpu9krea_nor_smc_config);
 
 	platform_device_register(&cpu9krea_nor_flash);
 }

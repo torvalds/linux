@@ -213,7 +213,7 @@ static struct sam9_smc_config __initdata neocore926_nand_smc_config = {
 static void __init neocore926_add_device_nand(void)
 {
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &neocore926_nand_smc_config);
+	sam9_smc_configure(0, 3, &neocore926_nand_smc_config);
 
 	at91_add_device_nand(&neocore926_nand_data);
 }
