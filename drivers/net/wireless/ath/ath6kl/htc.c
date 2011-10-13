@@ -1431,10 +1431,6 @@ static int ath6kl_htc_rx_process_hdr(struct htc_target *target,
 	if (n_lkahds != NULL)
 		*n_lkahds = 0;
 
-	/* FIXME: is this needed? */
-	ath6kl_dbg_dump(ATH6KL_DBG_HTC, "htc rx", "htc rx",
-			packet->buf, packet->act_len);
-
 	/*
 	 * NOTE: we cannot assume the alignment of buf, so we use the safe
 	 * macros to retrieve 16 bit fields.
@@ -1516,13 +1512,6 @@ fail_rx:
 	if (status)
 		ath6kl_dbg_dump(ATH6KL_DBG_HTC, "htc rx bad packet",
 				"", packet->buf, packet->act_len);
-	else {
-		/* FIXME: is this needed? */
-		if (packet->act_len > 0)
-			ath6kl_dbg_dump(ATH6KL_DBG_HTC,
-					"htc rx application message", "",
-					packet->buf, packet->act_len);
-	}
 
 	return status;
 }
