@@ -185,7 +185,7 @@ static void insert_recv_cqe(struct t4_wq *wq, struct t4_cq *cq)
 				 V_CQE_OPCODE(FW_RI_SEND) |
 				 V_CQE_TYPE(0) |
 				 V_CQE_SWCQE(1) |
-				 V_CQE_QPID(wq->rq.qid));
+				 V_CQE_QPID(wq->sq.qid));
 	cqe.bits_type_ts = cpu_to_be64(V_CQE_GENBIT((u64)cq->gen));
 	cq->sw_queue[cq->sw_pidx] = cqe;
 	t4_swcq_produce(cq);
