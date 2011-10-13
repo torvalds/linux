@@ -404,8 +404,9 @@ static int get_brightness(struct backlight_device *bd)
 
 static void check_for_stepping_quirk(void)
 {
-	u8 initial_level = read_brightness();
+	u8 initial_level;
 	u8 check_level;
+	u8 orig_level = read_brightness();
 
 	/*
 	 * Some laptops exhibit the strange behaviour of stepping toward
@@ -413,6 +414,11 @@ static void check_for_stepping_quirk(void)
 	 * brightness level 0. This behaviour is checked for here and worked
 	 * around in set_brightness.
 	 */
+
+	if (orig_level == 0)
+		set_brightness(1);
+
+	initial_level = read_brightness();
 
 	if (initial_level <= 2)
 		check_level = initial_level + 2;
@@ -427,7 +433,7 @@ static void check_for_stepping_quirk(void)
 		pr_info("enabled workaround for brightness stepping quirk\n");
 	}
 
-	set_brightness(initial_level);
+	set_brightness(orig_level);
 }
 
 static int update_status(struct backlight_device *bd)
