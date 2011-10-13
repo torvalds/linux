@@ -44,7 +44,9 @@ __init_begin = .;
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 
+  _sbss = .;
   BSS_SECTION(0, 0, 0)
+  _ebss = .;
 
   _end = . ;
 
