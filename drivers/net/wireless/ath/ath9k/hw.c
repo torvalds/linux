@@ -1445,6 +1445,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 
 	if (edma && (band_switch || mode_diff)) {
+		ah->ah_flags |= AH_FASTCC;
 		if (band_switch || ini_reloaded)
 			ah->eep_ops->set_board_values(ah, chan);
 
@@ -1452,6 +1453,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 		if (band_switch || ini_reloaded)
 			ath9k_hw_init_cal(ah, chan);
+		ah->ah_flags &= ~AH_FASTCC;
 	}
 
 	return true;
@@ -1509,6 +1511,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u32 macStaId1;
 	u64 tsf = 0;
 	int i, r;
+	bool allow_fbs = false;
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return -EIO;
@@ -1530,12 +1533,19 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (AR_SREV_9280(ah) && common->bus_ops->ath_bus_type == ATH_PCI)
 		bChannelChange = false;
 
+	if (caldata &&
+	    caldata->done_txiqcal_once &&
+	    caldata->done_txclcal_once &&
+	    caldata->rtt_hist.num_readings)
+		allow_fbs = true;
+
 	if (bChannelChange &&
 	    (ah->chip_fullsleep != true) &&
 	    (ah->curchan != NULL) &&
 	    (chan->channel != ah->curchan->channel) &&
-	    ((chan->channelFlags & CHANNEL_ALL) ==
-	     (ah->curchan->channelFlags & CHANNEL_ALL))) {
+	    (allow_fbs ||
+	     ((chan->channelFlags & CHANNEL_ALL) ==
+	      (ah->curchan->channelFlags & CHANNEL_ALL)))) {
 		if (ath9k_hw_channel_change(ah, chan)) {
 			ath9k_hw_loadnf(ah, ah->curchan);
 			ath9k_hw_start_nfcal(ah, true);

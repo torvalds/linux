@@ -1008,8 +1008,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 
 skip_tx_iqcal:
-
-	if (run_agc_cal) {
+	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
 		/* Calibrate the AGC */
 		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 			  REG_READ(ah, AR_PHY_AGC_CONTROL) |
