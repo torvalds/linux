@@ -5950,7 +5950,7 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 
 			skb->len += length;
 			skb->data_len += length;
-			skb->truesize += length;
+			skb->truesize += PAGE_SIZE / 2;
 
 			if ((page_count(buffer_info->page) != 1) ||
 			    (page_to_nid(buffer_info->page) != current_node))
