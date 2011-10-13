@@ -304,14 +304,22 @@ static void cfhsi_tx_done_work(struct work_struct *work)
 		spin_unlock_bh(&cfhsi->lock);
 
 		/* Create HSI frame. */
-		len = cfhsi_tx_frm(desc, cfhsi);
-		if (!len) {
-			cfhsi->tx_state = CFHSI_TX_STATE_IDLE;
-			/* Start inactivity timer. */
-			mod_timer(&cfhsi->timer,
+		do {
+			len = cfhsi_tx_frm(desc, cfhsi);
+			if (!len) {
+				spin_lock_bh(&cfhsi->lock);
+				if (unlikely(skb_peek(&cfhsi->qhead))) {
+					spin_unlock_bh(&cfhsi->lock);
+					continue;
+				}
+				cfhsi->tx_state = CFHSI_TX_STATE_IDLE;
+				/* Start inactivity timer. */
+				mod_timer(&cfhsi->timer,
 					jiffies + CFHSI_INACTIVITY_TOUT);
-			break;
-		}
+				spin_unlock_bh(&cfhsi->lock);
+				goto done;
+			}
+		} while (!len);
 
 		/* Set up new transfer. */
 		res = cfhsi->dev->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->dev);
@@ -320,6 +328,9 @@ static void cfhsi_tx_done_work(struct work_struct *work)
 				__func__, res);
 		}
 	} while (res < 0);
+
+done:
+	return;
 }
 
 static void cfhsi_tx_done_cb(struct cfhsi_drv *drv)
