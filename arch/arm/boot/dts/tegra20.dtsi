@@ -120,6 +120,13 @@
 		interrupts = < 0 91 0x04 >;
 	};
 
+	emc@7000f400 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nvidia,tegra20-emc";
+		reg = <0x7000f400 0x200>;
+	};
+
 	sdhci@c8000000 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000000 0x200>;
