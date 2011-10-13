@@ -2422,22 +2422,20 @@ static int dsi_cio_wait_tx_clk_esc_reset(struct omap_dss_device *dssdev)
 	return 0;
 }
 
+/* return bitmask of enabled lanes, lane0 being the lsb */
 static unsigned dsi_get_lane_mask(struct omap_dss_device *dssdev)
 {
-	unsigned lanes = 0;
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	unsigned mask = 0;
+	int i;
 
-	if (dssdev->phy.dsi.clk_lane != 0)
-		lanes |= 1 << (dssdev->phy.dsi.clk_lane - 1);
-	if (dssdev->phy.dsi.data1_lane != 0)
-		lanes |= 1 << (dssdev->phy.dsi.data1_lane - 1);
-	if (dssdev->phy.dsi.data2_lane != 0)
-		lanes |= 1 << (dssdev->phy.dsi.data2_lane - 1);
-	if (dssdev->phy.dsi.data3_lane != 0)
-		lanes |= 1 << (dssdev->phy.dsi.data3_lane - 1);
-	if (dssdev->phy.dsi.data4_lane != 0)
-		lanes |= 1 << (dssdev->phy.dsi.data4_lane - 1);
+	for (i = 0; i < dsi->num_lanes_supported; ++i) {
+		if (dsi->lanes[i].function != DSI_LANE_UNUSED)
+			mask |= 1 << i;
+	}
 
-	return lanes;
+	return mask;
 }
 
 static int dsi_cio_init(struct omap_dss_device *dssdev)
