@@ -338,6 +338,13 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 		chan->omtu = L2CAP_DEFAULT_MTU;
 	}
 
+	chan->local_id		= L2CAP_BESTEFFORT_ID;
+	chan->local_stype	= L2CAP_SERV_BESTEFFORT;
+	chan->local_msdu	= L2CAP_DEFAULT_MAX_SDU_SIZE;
+	chan->local_sdu_itime	= L2CAP_DEFAULT_SDU_ITIME;
+	chan->local_acc_lat	= L2CAP_DEFAULT_ACC_LAT;
+	chan->local_flush_to	= L2CAP_DEFAULT_FLUSH_TO;
+
 	chan_hold(chan);
 
 	list_add(&chan->list, &conn->chan_l);

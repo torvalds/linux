@@ -39,6 +39,9 @@
 #define L2CAP_DEFAULT_MAX_PDU_SIZE	1009    /* Sized for 3-DH5 packet */
 #define L2CAP_DEFAULT_ACK_TO		200
 #define L2CAP_LE_DEFAULT_MTU		23
+#define L2CAP_DEFAULT_MAX_SDU_SIZE	0xFFFF
+#define L2CAP_DEFAULT_SDU_ITIME		0xFFFFFFFF
+#define L2CAP_DEFAULT_ACC_LAT		0xFFFFFFFF
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
 #define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
@@ -286,6 +289,12 @@ struct l2cap_conf_efs {
 	__le32	acc_lat;
 	__le32	flush_to;
 } __packed;
+
+#define L2CAP_SERV_NOTRAFIC	0x00
+#define L2CAP_SERV_BESTEFFORT	0x01
+#define L2CAP_SERV_GUARANTEED	0x02
+
+#define L2CAP_BESTEFFORT_ID	0x01
 
 struct l2cap_disconn_req {
 	__le16     dcid;
