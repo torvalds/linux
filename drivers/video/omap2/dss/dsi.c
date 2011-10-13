@@ -2365,51 +2365,40 @@ static void dsi_cio_disable_lane_override(struct platform_device *dsidev)
 static int dsi_cio_wait_tx_clk_esc_reset(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int t;
-	int bits[3];
-	bool in_use[3];
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	int t, i;
+	bool in_use[DSI_MAX_NR_LANES];
+	static const u8 offsets_old[] = { 28, 27, 26 };
+	static const u8 offsets_new[] = { 24, 25, 26, 27, 28 };
+	const u8 *offsets;
 
-	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC)) {
-		bits[0] = 28;
-		bits[1] = 27;
-		bits[2] = 26;
-	} else {
-		bits[0] = 24;
-		bits[1] = 25;
-		bits[2] = 26;
-	}
+	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC))
+		offsets = offsets_old;
+	else
+		offsets = offsets_new;
 
-	in_use[0] = false;
-	in_use[1] = false;
-	in_use[2] = false;
-
-	if (dssdev->phy.dsi.clk_lane != 0)
-		in_use[dssdev->phy.dsi.clk_lane - 1] = true;
-	if (dssdev->phy.dsi.data1_lane != 0)
-		in_use[dssdev->phy.dsi.data1_lane - 1] = true;
-	if (dssdev->phy.dsi.data2_lane != 0)
-		in_use[dssdev->phy.dsi.data2_lane - 1] = true;
+	for (i = 0; i < dsi->num_lanes_supported; ++i)
+		in_use[i] = dsi->lanes[i].function != DSI_LANE_UNUSED;
 
 	t = 100000;
 	while (true) {
 		u32 l;
-		int i;
 		int ok;
 
 		l = dsi_read_reg(dsidev, DSI_DSIPHY_CFG5);
 
 		ok = 0;
-		for (i = 0; i < 3; ++i) {
-			if (!in_use[i] || (l & (1 << bits[i])))
+		for (i = 0; i < dsi->num_lanes_supported; ++i) {
+			if (!in_use[i] || (l & (1 << offsets[i])))
 				ok++;
 		}
 
-		if (ok == 3)
+		if (ok == dsi->num_lanes_supported)
 			break;
 
 		if (--t == 0) {
-			for (i = 0; i < 3; ++i) {
-				if (!in_use[i] || (l & (1 << bits[i])))
+			for (i = 0; i < dsi->num_lanes_supported; ++i) {
+				if (!in_use[i] || (l & (1 << offsets[i])))
 					continue;
 
 				DSSERR("CIO TXCLKESC%d domain not coming " \
