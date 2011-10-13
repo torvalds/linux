@@ -450,7 +450,7 @@ set_default_state(struct radeon_device *rdev)
 	radeon_ring_write(rdev, sq_stack_resource_mgmt_2);
 }
 
-static inline uint32_t i2f(uint32_t input)
+static uint32_t i2f(uint32_t input)
 {
 	u32 result, i, exponent, fraction;
 

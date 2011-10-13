@@ -3138,7 +3138,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	return 0;
 }
 
-static inline void r600_irq_ack(struct radeon_device *rdev)
+static void r600_irq_ack(struct radeon_device *rdev)
 {
 	u32 tmp;
 
@@ -3239,7 +3239,7 @@ void r600_irq_disable(struct radeon_device *rdev)
 	r600_disable_interrupt_state(rdev);
 }
 
-static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
+static u32 r600_get_ih_wptr(struct radeon_device *rdev)
 {
 	u32 wptr, tmp;
 
