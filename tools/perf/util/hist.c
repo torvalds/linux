@@ -100,6 +100,8 @@ static void hist_entry__decay(struct hist_entry *he)
 
 static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 {
+	if (he->period == 0)
+		return true;
 	hists->stats.total_period -= he->period;
 	hist_entry__decay(he);
 	hists->stats.total_period += he->period;
@@ -114,8 +116,12 @@ void hists__decay_entries(struct hists *hists)
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node);
 		next = rb_next(&n->rb_node);
-
-		if (hists__decay_entry(hists, n)) {
+		/*
+		 * We may be annotating this, for instance, so keep it here in
+		 * case some it gets new samples, we'll eventually free it when
+		 * the user stops browsing and it agains gets fully decayed.
+		 */
+		if (hists__decay_entry(hists, n) && !n->used) {
 			rb_erase(&n->rb_node, &hists->entries);
 
 			if (sort__need_collapse)
