@@ -191,6 +191,13 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
 	u8 alt_mac_addr[ETH_ALEN];
 
+	/*
+	 * Alternate MAC address is handled by the option ROM for 82580
+	 * and newer. SW support not required.
+	 */
+	if (hw->mac.type >= e1000_82580)
+		goto out;
+
 	ret_val = hw->nvm.ops.read(hw, NVM_ALT_MAC_ADDR_PTR, 1,
 				 &nvm_alt_mac_addr_offset);
 	if (ret_val) {
