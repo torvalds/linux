@@ -377,7 +377,7 @@ static void mxs_dma_free_chan_resources(struct dma_chan *chan)
 
 static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
+		unsigned int sg_len, enum dma_transfer_direction direction,
 		unsigned long append)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
@@ -450,7 +450,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 			ccw->bits |= CCW_CHAIN;
 			ccw->bits |= CCW_HALT_ON_TERM;
 			ccw->bits |= CCW_TERM_FLUSH;
-			ccw->bits |= BF_CCW(direction == DMA_FROM_DEVICE ?
+			ccw->bits |= BF_CCW(direction == DMA_DEV_TO_MEM ?
 					MXS_DMA_CMD_WRITE : MXS_DMA_CMD_READ,
 					COMMAND);
 
@@ -472,7 +472,7 @@ err_out:
 
 static struct dma_async_tx_descriptor *mxs_dma_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_len,
-		size_t period_len, enum dma_data_direction direction)
+		size_t period_len, enum dma_transfer_direction direction)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
@@ -515,7 +515,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_dma_cyclic(
 		ccw->bits |= CCW_IRQ;
 		ccw->bits |= CCW_HALT_ON_TERM;
 		ccw->bits |= CCW_TERM_FLUSH;
-		ccw->bits |= BF_CCW(direction == DMA_FROM_DEVICE ?
+		ccw->bits |= BF_CCW(direction == DMA_DEV_TO_MEM ?
 				MXS_DMA_CMD_WRITE : MXS_DMA_CMD_READ, COMMAND);
 
 		dma_addr += period_len;

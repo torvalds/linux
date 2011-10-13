@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
-#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
@@ -479,19 +478,19 @@ static void sh_dmae_free_chan_resources(struct dma_chan *chan)
  * @sh_chan:	DMA channel
  * @flags:	DMA transfer flags
  * @dest:	destination DMA address, incremented when direction equals
- *		DMA_FROM_DEVICE or DMA_BIDIRECTIONAL
+ *		DMA_DEV_TO_MEM
  * @src:	source DMA address, incremented when direction equals
- *		DMA_TO_DEVICE or DMA_BIDIRECTIONAL
+ *		DMA_MEM_TO_DEV
  * @len:	DMA transfer length
  * @first:	if NULL, set to the current descriptor and cookie set to -EBUSY
  * @direction:	needed for slave DMA to decide which address to keep constant,
- *		equals DMA_BIDIRECTIONAL for MEMCPY
+ *		equals DMA_MEM_TO_MEM for MEMCPY
  * Returns 0 or an error
  * Locks: called with desc_lock held
  */
 static struct sh_desc *sh_dmae_add_desc(struct sh_dmae_chan *sh_chan,
 	unsigned long flags, dma_addr_t *dest, dma_addr_t *src, size_t *len,
-	struct sh_desc **first, enum dma_data_direction direction)
+	struct sh_desc **first, enum dma_transfer_direction direction)
 {
 	struct sh_desc *new;
 	size_t copy_size;
@@ -531,9 +530,9 @@ static struct sh_desc *sh_dmae_add_desc(struct sh_dmae_chan *sh_chan,
 	new->direction = direction;
 
 	*len -= copy_size;
-	if (direction == DMA_BIDIRECTIONAL || direction == DMA_TO_DEVICE)
+	if (direction == DMA_MEM_TO_MEM || direction == DMA_MEM_TO_DEV)
 		*src += copy_size;
-	if (direction == DMA_BIDIRECTIONAL || direction == DMA_FROM_DEVICE)
+	if (direction == DMA_MEM_TO_MEM || direction == DMA_DEV_TO_MEM)
 		*dest += copy_size;
 
 	return new;
@@ -546,12 +545,12 @@ static struct sh_desc *sh_dmae_add_desc(struct sh_dmae_chan *sh_chan,
  * converted to scatter-gather to guarantee consistent locking and a correct
  * list manipulation. For slave DMA direction carries the usual meaning, and,
  * logically, the SG list is RAM and the addr variable contains slave address,
- * e.g., the FIFO I/O register. For MEMCPY direction equals DMA_BIDIRECTIONAL
+ * e.g., the FIFO I/O register. For MEMCPY direction equals DMA_MEM_TO_MEM
  * and the SG list contains only one element and points at the source buffer.
  */
 static struct dma_async_tx_descriptor *sh_dmae_prep_sg(struct sh_dmae_chan *sh_chan,
 	struct scatterlist *sgl, unsigned int sg_len, dma_addr_t *addr,
-	enum dma_data_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags)
 {
 	struct scatterlist *sg;
 	struct sh_desc *first = NULL, *new = NULL /* compiler... */;
@@ -592,7 +591,7 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_sg(struct sh_dmae_chan *sh_c
 			dev_dbg(sh_chan->dev, "Add SG #%d@%p[%d], dma %llx\n",
 				i, sg, len, (unsigned long long)sg_addr);
 
-			if (direction == DMA_FROM_DEVICE)
+			if (direction == DMA_DEV_TO_MEM)
 				new = sh_dmae_add_desc(sh_chan, flags,
 						&sg_addr, addr, &len, &first,
 						direction);
@@ -646,13 +645,13 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_memcpy(
 	sg_dma_address(&sg) = dma_src;
 	sg_dma_len(&sg) = len;
 
-	return sh_dmae_prep_sg(sh_chan, &sg, 1, &dma_dest, DMA_BIDIRECTIONAL,
+	return sh_dmae_prep_sg(sh_chan, &sg, 1, &dma_dest, DMA_MEM_TO_MEM,
 			       flags);
 }
 
 static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 	struct dma_chan *chan, struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_data_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags)
 {
 	struct sh_dmae_slave *param;
 	struct sh_dmae_chan *sh_chan;
@@ -996,7 +995,7 @@ static void dmae_do_tasklet(unsigned long data)
 	spin_lock_irq(&sh_chan->desc_lock);
 	list_for_each_entry(desc, &sh_chan->ld_queue, node) {
 		if (desc->mark == DESC_SUBMITTED &&
-		    ((desc->direction == DMA_FROM_DEVICE &&
+		    ((desc->direction == DMA_DEV_TO_MEM &&
 		      (desc->hw.dar + desc->hw.tcr) == dar_buf) ||
 		     (desc->hw.sar + desc->hw.tcr) == sar_buf)) {
 			dev_dbg(sh_chan->dev, "done #%d@%p dst %u\n",

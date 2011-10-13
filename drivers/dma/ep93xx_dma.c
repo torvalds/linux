@@ -330,7 +330,7 @@ static void m2p_fill_desc(struct ep93xx_dma_chan *edmac)
 	struct ep93xx_dma_desc *desc = ep93xx_dma_get_active(edmac);
 	u32 bus_addr;
 
-	if (ep93xx_dma_chan_direction(&edmac->chan) == DMA_TO_DEVICE)
+	if (ep93xx_dma_chan_direction(&edmac->chan) == DMA_MEM_TO_DEV)
 		bus_addr = desc->src_addr;
 	else
 		bus_addr = desc->dst_addr;
@@ -443,7 +443,7 @@ static int m2m_hw_setup(struct ep93xx_dma_chan *edmac)
 		control = (5 << M2M_CONTROL_PWSC_SHIFT);
 		control |= M2M_CONTROL_NO_HDSK;
 
-		if (data->direction == DMA_TO_DEVICE) {
+		if (data->direction == DMA_MEM_TO_DEV) {
 			control |= M2M_CONTROL_DAH;
 			control |= M2M_CONTROL_TM_TX;
 			control |= M2M_CONTROL_RSS_SSPTX;
@@ -463,7 +463,7 @@ static int m2m_hw_setup(struct ep93xx_dma_chan *edmac)
 		control |= M2M_CONTROL_RSS_IDE;
 		control |= M2M_CONTROL_PW_16;
 
-		if (data->direction == DMA_TO_DEVICE) {
+		if (data->direction == DMA_MEM_TO_DEV) {
 			/* Worst case from the UG */
 			control = (3 << M2M_CONTROL_PWSC_SHIFT);
 			control |= M2M_CONTROL_DAH;
@@ -803,8 +803,8 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 			switch (data->port) {
 			case EP93XX_DMA_SSP:
 			case EP93XX_DMA_IDE:
-				if (data->direction != DMA_TO_DEVICE &&
-				    data->direction != DMA_FROM_DEVICE)
+				if (data->direction != DMA_MEM_TO_DEV &&
+				    data->direction != DMA_DEV_TO_MEM)
 					return -EINVAL;
 				break;
 			default:
@@ -952,7 +952,7 @@ fail:
  */
 static struct dma_async_tx_descriptor *
 ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
-			 unsigned int sg_len, enum dma_data_direction dir,
+			 unsigned int sg_len, enum dma_transfer_direction dir,
 			 unsigned long flags)
 {
 	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
@@ -988,7 +988,7 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			goto fail;
 		}
 
-		if (dir == DMA_TO_DEVICE) {
+		if (dir == DMA_MEM_TO_DEV) {
 			desc->src_addr = sg_dma_address(sg);
 			desc->dst_addr = edmac->runtime_addr;
 		} else {
@@ -1032,7 +1032,7 @@ fail:
 static struct dma_async_tx_descriptor *
 ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 			   size_t buf_len, size_t period_len,
-			   enum dma_data_direction dir)
+			   enum dma_transfer_direction dir)
 {
 	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
 	struct ep93xx_dma_desc *desc, *first;
@@ -1065,7 +1065,7 @@ ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 			goto fail;
 		}
 
-		if (dir == DMA_TO_DEVICE) {
+		if (dir == DMA_MEM_TO_DEV) {
 			desc->src_addr = dma_addr + offset;
 			desc->dst_addr = edmac->runtime_addr;
 		} else {
@@ -1133,12 +1133,12 @@ static int ep93xx_dma_slave_config(struct ep93xx_dma_chan *edmac,
 		return -EINVAL;
 
 	switch (config->direction) {
-	case DMA_FROM_DEVICE:
+	case DMA_DEV_TO_MEM:
 		width = config->src_addr_width;
 		addr = config->src_addr;
 		break;
 
-	case DMA_TO_DEVICE:
+	case DMA_MEM_TO_DEV:
 		width = config->dst_addr_width;
 		addr = config->dst_addr;
 		break;

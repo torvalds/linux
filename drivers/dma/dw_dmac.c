@@ -696,7 +696,7 @@ err_desc_get:
 
 static struct dma_async_tx_descriptor *
 dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
+		unsigned int sg_len, enum dma_transfer_direction direction,
 		unsigned long flags)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
@@ -720,7 +720,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	prev = first = NULL;
 
 	switch (direction) {
-	case DMA_TO_DEVICE:
+	case DMA_MEM_TO_DEV:
 		ctllo = (DWC_DEFAULT_CTLLO(chan->private)
 				| DWC_CTLL_DST_WIDTH(reg_width)
 				| DWC_CTLL_DST_FIX
@@ -777,7 +777,7 @@ slave_sg_todev_fill_desc:
 				goto slave_sg_todev_fill_desc;
 		}
 		break;
-	case DMA_FROM_DEVICE:
+	case DMA_DEV_TO_MEM:
 		ctllo = (DWC_DEFAULT_CTLLO(chan->private)
 				| DWC_CTLL_SRC_WIDTH(reg_width)
 				| DWC_CTLL_DST_INC
@@ -1165,7 +1165,7 @@ EXPORT_SYMBOL(dw_dma_cyclic_stop);
  */
 struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 		dma_addr_t buf_addr, size_t buf_len, size_t period_len,
-		enum dma_data_direction direction)
+		enum dma_transfer_direction direction)
 {
 	struct dw_dma_chan		*dwc = to_dw_dma_chan(chan);
 	struct dw_cyclic_desc		*cdesc;
@@ -1206,7 +1206,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 		goto out_err;
 	if (unlikely(buf_addr & ((1 << reg_width) - 1)))
 		goto out_err;
-	if (unlikely(!(direction & (DMA_TO_DEVICE | DMA_FROM_DEVICE))))
+	if (unlikely(!(direction & (DMA_MEM_TO_DEV | DMA_DEV_TO_MEM))))
 		goto out_err;
 
 	retval = ERR_PTR(-ENOMEM);
@@ -1228,7 +1228,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 			goto out_err_desc_get;
 
 		switch (direction) {
-		case DMA_TO_DEVICE:
+		case DMA_MEM_TO_DEV:
 			desc->lli.dar = dws->tx_reg;
 			desc->lli.sar = buf_addr + (period_len * i);
 			desc->lli.ctllo = (DWC_DEFAULT_CTLLO(chan->private)
@@ -1239,7 +1239,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 					| DWC_CTLL_FC(dws->fc)
 					| DWC_CTLL_INT_EN);
 			break;
-		case DMA_FROM_DEVICE:
+		case DMA_DEV_TO_MEM:
 			desc->lli.dar = buf_addr + (period_len * i);
 			desc->lli.sar = dws->rx_reg;
 			desc->lli.ctllo = (DWC_DEFAULT_CTLLO(chan->private)
