@@ -1707,8 +1707,10 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_init_bb(ah, chan);
 
-	if (caldata)
+	if (caldata) {
 		caldata->done_txiqcal_once = false;
+		caldata->done_txclcal_once = false;
+	}
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;
 

@@ -905,8 +905,23 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
-	bool txiqcal_done = false;
-	bool is_reusable = true;
+	bool txiqcal_done = false, txclcal_done = false;
+	bool is_reusable = true, txclcal_enabled;
+	u32 cl_idx[AR9300_MAX_CHAINS] = { AR_PHY_CL_TAB_0,
+					  AR_PHY_CL_TAB_1,
+					  AR_PHY_CL_TAB_2 };
+
+	txclcal_enabled = !!(REG_READ(ah, AR_PHY_CL_CAL_CTL) &
+				      AR_PHY_CL_CAL_ENABLE);
+
+	if (txclcal_enabled) {
+		if (caldata && caldata->done_txclcal_once)
+			REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL,
+				    AR_PHY_CL_CAL_ENABLE);
+		else
+			REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL,
+				    AR_PHY_CL_CAL_ENABLE);
+	}
 
 	/* Do Tx IQ Calibration */
 	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_1,
@@ -949,6 +964,33 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		ar9003_hw_tx_iq_cal_post_proc(ah, is_reusable);
 	else if (caldata && caldata->done_txiqcal_once)
 		ar9003_hw_tx_iq_cal_reload(ah);
+
+#define CL_TAB_ENTRY(reg_base)	(reg_base + (4 * j))
+	if (caldata && txclcal_enabled) {
+		int i, j;
+		txclcal_done = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) &
+					   AR_PHY_AGC_CONTROL_CLC_SUCCESS);
+		if (caldata->done_txclcal_once) {
+			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+				if (!(ah->txchainmask & (1 << i)))
+					continue;
+				for (j = 0; j < MAX_CL_TAB_ENTRY; j++)
+					REG_WRITE(ah, CL_TAB_ENTRY(cl_idx[i]),
+						  caldata->tx_clcal[i][j]);
+			}
+		} else if (is_reusable && txclcal_done) {
+			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+				if (!(ah->txchainmask & (1 << i)))
+					continue;
+				for (j = 0; j < MAX_CL_TAB_ENTRY; j++)
+					caldata->tx_clcal[i][j] =
+						REG_READ(ah,
+						  CL_TAB_ENTRY(cl_idx[i]));
+			}
+			caldata->done_txclcal_once = true;
+		}
+	}
+#undef CL_TAB_ENTRY
 
 	ath9k_hw_loadnf(ah, chan);
 	ath9k_hw_start_nfcal(ah, true);
