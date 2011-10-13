@@ -966,8 +966,12 @@ static void flush_qp(struct c4iw_qp *qhp)
 	if (qhp->ibqp.uobject) {
 		t4_set_wq_in_error(&qhp->wq);
 		t4_set_cq_in_error(&rchp->cq);
-		if (schp != rchp)
+		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
+		if (schp != rchp) {
 			t4_set_cq_in_error(&schp->cq);
+			(*schp->ibcq.comp_handler)(&schp->ibcq,
+					schp->ibcq.cq_context);
+		}
 		return;
 	}
 	__flush_qp(qhp, rchp, schp);
