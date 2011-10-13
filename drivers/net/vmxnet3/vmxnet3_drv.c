@@ -658,6 +658,7 @@ vmxnet3_append_frag(struct sk_buff *skb, struct Vmxnet3_RxCompDesc *rcd,
 	frag->page_offset = 0;
 	frag->size = rcd->len;
 	skb->data_len += frag->size;
+	skb->truesize += PAGE_SIZE;
 	skb_shinfo(skb)->nr_frags++;
 }
 
@@ -1277,7 +1278,6 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 		skb = ctx->skb;
 		if (rcd->eop) {
 			skb->len += skb->data_len;
-			skb->truesize += skb->data_len;
 
 			vmxnet3_rx_csum(adapter, skb,
 					(union Vmxnet3_GenericDesc *)rcd);
