@@ -485,6 +485,30 @@ void consume_skb(struct sk_buff *skb)
 EXPORT_SYMBOL(consume_skb);
 
 /**
+ * 	skb_recycle - clean up an skb for reuse
+ * 	@skb: buffer
+ *
+ * 	Recycles the skb to be reused as a receive buffer. This
+ * 	function does any necessary reference count dropping, and
+ * 	cleans up the skbuff as if it just came from __alloc_skb().
+ */
+void skb_recycle(struct sk_buff *skb)
+{
+	struct skb_shared_info *shinfo;
+
+	skb_release_head_state(skb);
+
+	shinfo = skb_shinfo(skb);
+	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
+	atomic_set(&shinfo->dataref, 1);
+
+	memset(skb, 0, offsetof(struct sk_buff, tail));
+	skb->data = skb->head + NET_SKB_PAD;
+	skb_reset_tail_pointer(skb);
+}
+EXPORT_SYMBOL(skb_recycle);
+
+/**
  *	skb_recycle_check - check if skb can be reused for receive
  *	@skb: buffer
  *	@skb_size: minimum receive buffer size
@@ -498,33 +522,10 @@ EXPORT_SYMBOL(consume_skb);
  */
 bool skb_recycle_check(struct sk_buff *skb, int skb_size)
 {
-	struct skb_shared_info *shinfo;
-
-	if (irqs_disabled())
+	if (!skb_is_recycleable(skb, skb_size))
 		return false;
 
-	if (skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY)
-		return false;
-
-	if (skb_is_nonlinear(skb) || skb->fclone != SKB_FCLONE_UNAVAILABLE)
-		return false;
-
-	skb_size = SKB_DATA_ALIGN(skb_size + NET_SKB_PAD);
-	if (skb_end_pointer(skb) - skb->head < skb_size)
-		return false;
-
-	if (skb_shared(skb) || skb_cloned(skb))
-		return false;
-
-	skb_release_head_state(skb);
-
-	shinfo = skb_shinfo(skb);
-	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
-	atomic_set(&shinfo->dataref, 1);
-
-	memset(skb, 0, offsetof(struct sk_buff, tail));
-	skb->data = skb->head + NET_SKB_PAD;
-	skb_reset_tail_pointer(skb);
+	skb_recycle(skb);
 
 	return true;
 }
