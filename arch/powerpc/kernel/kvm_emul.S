@@ -167,6 +167,9 @@ maybe_stay_in_guest:
 kvm_emulate_mtmsr_reg2:
 	ori	r30, r0, 0
 
+	/* Put MSR into magic page because we don't call mtmsr */
+	STL64(r30, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
+
 	/* Check if we have to fetch an interrupt */
 	lwz	r31, (KVM_MAGIC_PAGE + KVM_MAGIC_INT)(0)
 	cmpwi	r31, 0
@@ -174,14 +177,9 @@ kvm_emulate_mtmsr_reg2:
 
 	/* Check if we may trigger an interrupt */
 	andi.	r31, r30, MSR_EE
-	beq	no_mtmsr
-
-	b	do_mtmsr
+	bne	do_mtmsr
 
 no_mtmsr:
-
-	/* Put MSR into magic page because we don't call mtmsr */
-	STL64(r30, KVM_MAGIC_PAGE + KVM_MAGIC_MSR, 0)
 
 	SCRATCH_RESTORE
 
