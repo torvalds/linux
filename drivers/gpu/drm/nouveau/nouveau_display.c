@@ -215,6 +215,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	drm_mode_config_init(dev);
 	drm_mode_create_scaling_mode_property(dev);
+	drm_mode_create_dvi_i_properties(dev);
 
 	if (dev_priv->card_type < NV_50)
 		gen = 0;

@@ -935,11 +935,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	}
 
 	/* Init DVI-I specific properties */
-	if (dcb->type == DCB_CONNECTOR_DVI_I) {
-		drm_mode_create_dvi_i_properties(dev);
+	if (dcb->type == DCB_CONNECTOR_DVI_I)
 		drm_connector_attach_property(connector, dev->mode_config.dvi_i_subconnector_property, 0);
-		drm_connector_attach_property(connector, dev->mode_config.dvi_i_select_subconnector_property, 0);
-	}
 
 	/* Add overscan compensation options to digital outputs */
 	if (disp->underscan_property &&
