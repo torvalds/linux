@@ -50,9 +50,50 @@ nv50_sor_nr(struct drm_device *dev)
 	return 4;
 }
 
+static int
+evo_icmd(struct drm_device *dev, int ch, u32 mthd, u32 data)
+{
+	int ret = 0;
+	if (nouveau_reg_debug & NOUVEAU_REG_DEBUG_EVO)
+		NV_INFO(dev, "EvoPIO: %d 0x%04x 0x%08x\n", ch, mthd, data);
+	nv_mask(dev, 0x610300 + (ch * 0x08), 0x00000001, 0x00000001);
+	nv_wr32(dev, 0x610304 + (ch * 0x08), data);
+	nv_wr32(dev, 0x610300 + (ch * 0x08), 0x80000001 | mthd);
+	if (!nv_wait(dev, 0x610300 + (ch * 0x08), 0x80000000, 0x00000000))
+		ret = -EBUSY;
+	nv_mask(dev, 0x610300 + (ch * 0x08), 0x00000001, 0x00000000);
+	return ret;
+}
+
 int
 nv50_display_early_init(struct drm_device *dev)
 {
+	int i;
+	/* check if master evo channel is already active, a good a sign as any
+	 * that the display engine is in a weird state (hibernate/kexec), if
+	 * it is, do our best to reset the display engine...
+	 */
+	if (nv_rd32(dev, 0x610200) & 0x00000001) {
+		NV_INFO(dev, "PDISP: already active, attempting to reset...\n");
+
+		/* deactivate both heads first, PDISP will disappear forever
+		 * (well, until you power cycle) on some boards as soon as
+		 * PMC_ENABLE is hit unless they are..
+		 */
+		for (i = 0; i < 2; i++) {
+			evo_icmd(dev, 0, 0x0880 + (i * 0x400), 0x05000000);
+			evo_icmd(dev, 0, 0x089c + (i * 0x400), 0);
+			evo_icmd(dev, 0, 0x0840 + (i * 0x400), 0);
+			evo_icmd(dev, 0, 0x0844 + (i * 0x400), 0);
+			evo_icmd(dev, 0, 0x085c + (i * 0x400), 0);
+			evo_icmd(dev, 0, 0x0874 + (i * 0x400), 0);
+		}
+		evo_icmd(dev, 0, 0x0080, 0);
+
+		/* reset PDISP */
+		nv_mask(dev, 0x000200, 0x40000000, 0x00000000);
+		nv_mask(dev, 0x000200, 0x40000000, 0x40000000);
+	}
 	return 0;
 }
 
