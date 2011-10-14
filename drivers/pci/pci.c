@@ -3202,8 +3202,6 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	if (rq < 128 || rq > 4096 || !is_power_of_2(rq))
 		goto out;
 
-	v = (ffs(rq) - 8) << 12;
-
 	cap = pci_pcie_cap(dev);
 	if (!cap)
 		goto out;
@@ -3211,6 +3209,22 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	err = pci_read_config_word(dev, cap + PCI_EXP_DEVCTL, &ctl);
 	if (err)
 		goto out;
+	/*
+	 * If using the "performance" PCIe config, we clamp the
+	 * read rq size to the max packet size to prevent the
+	 * host bridge generating requests larger than we can
+	 * cope with
+	 */
+	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
+		int mps = pcie_get_mps(dev);
+
+		if (mps < 0)
+			return mps;
+		if (mps < rq)
+			rq = mps;
+	}
+
+	v = (ffs(rq) - 8) << 12;
 
 	if ((ctl & PCI_EXP_DEVCTL_READRQ) != v) {
 		ctl &= ~PCI_EXP_DEVCTL_READRQ;
