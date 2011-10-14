@@ -59,8 +59,10 @@
 struct fimd_win_data {
 	unsigned int		offset_x;
 	unsigned int		offset_y;
-	unsigned int		width;
-	unsigned int		height;
+	unsigned int		ovl_width;
+	unsigned int		ovl_height;
+	unsigned int		fb_width;
+	unsigned int		fb_height;
 	unsigned int		bpp;
 	dma_addr_t		paddr;
 	void __iomem		*vaddr;
@@ -233,6 +235,7 @@ static void fimd_win_mode_set(struct device *dev,
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
 	struct fimd_win_data *win_data;
+	unsigned long offset;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -241,17 +244,35 @@ static void fimd_win_mode_set(struct device *dev,
 		return;
 	}
 
+	offset = overlay->fb_x * (overlay->bpp >> 3);
+	offset += overlay->fb_y * overlay->pitch;
+
+	DRM_DEBUG_KMS("offset = 0x%lx, pitch = %x\n", offset, overlay->pitch);
+
 	win_data = &ctx->win_data[ctx->default_win];
 
-	win_data->offset_x = overlay->offset_x;
-	win_data->offset_y = overlay->offset_y;
-	win_data->width = overlay->width;
-	win_data->height = overlay->height;
-	win_data->paddr = overlay->paddr;
-	win_data->vaddr = overlay->vaddr;
+	win_data->offset_x = overlay->crtc_x;
+	win_data->offset_y = overlay->crtc_y;
+	win_data->ovl_width = overlay->crtc_width;
+	win_data->ovl_height = overlay->crtc_height;
+	win_data->fb_width = overlay->fb_width;
+	win_data->fb_height = overlay->fb_height;
+	win_data->paddr = overlay->paddr + offset;
+	win_data->vaddr = overlay->vaddr + offset;
 	win_data->bpp = overlay->bpp;
-	win_data->buf_offsize = overlay->buf_offsize * (overlay->bpp >> 3);
-	win_data->line_size = overlay->line_size * (overlay->bpp >> 3);
+	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
+				(overlay->bpp >> 3);
+	win_data->line_size = overlay->crtc_width * (overlay->bpp >> 3);
+
+	DRM_DEBUG_KMS("offset_x = %d, offset_y = %d\n",
+			win_data->offset_x, win_data->offset_y);
+	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
+			win_data->ovl_width, win_data->ovl_height);
+	DRM_DEBUG_KMS("paddr = 0x%lx, vaddr = 0x%lx\n",
+			(unsigned long)win_data->paddr,
+			(unsigned long)win_data->vaddr);
+	DRM_DEBUG_KMS("fb_width = %d, crtc_width = %d\n",
+			overlay->fb_width, overlay->crtc_width);
 }
 
 static void fimd_win_set_pixfmt(struct device *dev, unsigned int win)
@@ -365,12 +386,14 @@ static void fimd_win_commit(struct device *dev)
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
-	size = win_data->width * win_data->height * (win_data->bpp >> 3);
+	size = win_data->fb_width * win_data->ovl_height * (win_data->bpp >> 3);
 	val = win_data->paddr + size;
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
 			(unsigned long)win_data->paddr, val, size);
+	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
+			win_data->ovl_width, win_data->ovl_height);
 
 	/* buffer size */
 	val = VIDW_BUF_SIZE_OFFSET(win_data->buf_offsize) |
@@ -382,14 +405,16 @@ static void fimd_win_commit(struct device *dev)
 		VIDOSDxA_TOPLEFT_Y(win_data->offset_y);
 	writel(val, ctx->regs + VIDOSD_A(win));
 
-	val = VIDOSDxB_BOTRIGHT_X(win_data->offset_x + win_data->width - 1) |
-		VIDOSDxB_BOTRIGHT_Y(win_data->offset_y + win_data->height - 1);
+	val = VIDOSDxB_BOTRIGHT_X(win_data->offset_x +
+					win_data->ovl_width - 1) |
+		VIDOSDxB_BOTRIGHT_Y(win_data->offset_y +
+					win_data->ovl_height - 1);
 	writel(val, ctx->regs + VIDOSD_B(win));
 
-	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %x\n",
+	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
 			win_data->offset_x, win_data->offset_y,
-			win_data->offset_x + win_data->width - 1,
-			win_data->offset_y + win_data->height - 1);
+			win_data->offset_x + win_data->ovl_width - 1,
+			win_data->offset_y + win_data->ovl_height - 1);
 
 	/* hardware window 0 doesn't support alpha channel. */
 	if (win != 0) {
@@ -406,7 +431,7 @@ static void fimd_win_commit(struct device *dev)
 		u32 offset = VIDOSD_D(win);
 		if (win == 0)
 			offset = VIDOSD_C_SIZE_W0;
-		val = win_data->width * win_data->height;
+		val = win_data->ovl_width * win_data->ovl_height;
 		writel(val, ctx->regs + offset);
 
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);

@@ -63,18 +63,26 @@ struct exynos_drm_overlay_ops {
 /*
  * Exynos drm common overlay structure.
  *
- * @offset_x: offset to x position.
- * @offset_y: offset to y position.
- * @width: window width.
- * @height: window height.
+ * @fb_x: offset x on a framebuffer to be displayed.
+ *	- the unit is screen coordinates.
+ * @fb_y: offset y on a framebuffer to be displayed.
+ *	- the unit is screen coordinates.
+ * @fb_width: width of a framebuffer.
+ * @fb_height: height of a framebuffer.
+ * @crtc_x: offset x on hardware screen.
+ * @crtc_y: offset y on hardware screen.
+ * @crtc_width: window width to be displayed (hardware screen).
+ * @crtc_height: window height to be displayed (hardware screen).
+ * @mode_width: width of screen mode.
+ * @mode_height: height of screen mode.
+ * @refresh: refresh rate.
+ * @scan_flag: interlace or progressive way.
+ *	(it could be DRM_MODE_FLAG_*)
  * @bpp: pixel size.(in bit)
  * @paddr: bus(accessed by dma) physical memory address to this overlay
  *		and this is physically continuous.
  * @vaddr: virtual memory addresss to this overlay.
  * @buf_off: start offset of framebuffer to be displayed.
- * @buf_offsize: this value has result from
- *			(framebuffer width - display width) * bpp.
- * @line_size: line size to this overlay memory in bytes.
  * @default_win: a window to be enabled.
  * @color_key: color key on or off.
  * @index_color: if using color key feature then this value would be used
@@ -87,16 +95,23 @@ struct exynos_drm_overlay_ops {
  * to hardware specific overlay info.
  */
 struct exynos_drm_overlay {
-	unsigned int offset_x;
-	unsigned int offset_y;
-	unsigned int width;
-	unsigned int height;
+	unsigned int fb_x;
+	unsigned int fb_y;
+	unsigned int fb_width;
+	unsigned int fb_height;
+	unsigned int crtc_x;
+	unsigned int crtc_y;
+	unsigned int crtc_width;
+	unsigned int crtc_height;
+	unsigned int mode_width;
+	unsigned int mode_height;
+	unsigned int refresh;
+	unsigned int scan_flag;
 	unsigned int bpp;
+	unsigned int pitch;
 	dma_addr_t paddr;
 	void __iomem *vaddr;
 	unsigned int buf_off;
-	unsigned int buf_offsize;
-	unsigned int line_size;
 
 	bool default_win;
 	bool color_key;

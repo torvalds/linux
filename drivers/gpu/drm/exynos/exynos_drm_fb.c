@@ -220,28 +220,22 @@ struct drm_framebuffer *exynos_drm_fb_create(struct drm_device *dev,
 	return exynos_drm_fb_init(file_priv, dev, mode_cmd);
 }
 
-void exynos_drm_fb_update_buf_off(struct drm_framebuffer *fb,
-				   unsigned int x, unsigned int y,
-				   struct exynos_drm_buffer_info *info)
+struct exynos_drm_buf_entry *exynos_drm_fb_get_buf(struct drm_framebuffer *fb)
 {
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
 	struct exynos_drm_buf_entry *entry;
-	unsigned long offset;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	offset = x * (fb->bits_per_pixel >> 3);
-	offset += y * fb->pitch;
-
 	entry = exynos_fb->entry;
+	if (!entry)
+		return NULL;
 
-	info->base_addr = entry->paddr;
-	info->vaddr = entry->vaddr + offset;
-	info->paddr = entry->paddr + offset;
+	DRM_DEBUG_KMS("vaddr = 0x%lx, paddr = 0x%lx\n",
+			(unsigned long)entry->vaddr,
+			(unsigned long)entry->paddr);
 
-	DRM_DEBUG_KMS("updated vaddr = 0x%lx, paddr = 0x%lx, offset = 0x%x\n",
-			(unsigned long)info->vaddr, (unsigned long)info->paddr,
-			(unsigned int)offset);
+	return entry;
 }
 
 static struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {

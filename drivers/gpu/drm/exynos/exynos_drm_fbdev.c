@@ -33,6 +33,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
+#include "exynos_drm_buf.h"
 
 #define MAX_CONNECTOR		4
 #define PREFERRED_BPP		32
@@ -83,7 +84,7 @@ static struct fb_ops exynos_drm_fb_ops = {
 	.fb_setcmap	= drm_fb_helper_setcmap,
 };
 
-static void exynos_drm_fbdev_update(struct drm_fb_helper *helper,
+static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 				     struct drm_framebuffer *fb,
 				     unsigned int fb_width,
 				     unsigned int fb_height)
@@ -91,8 +92,9 @@ static void exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	struct fb_info *fbi = helper->fbdev;
 	struct drm_device *dev = helper->dev;
 	struct exynos_drm_fbdev *exynos_fb = to_exynos_fbdev(helper);
-	struct exynos_drm_buffer_info buffer_info;
+	struct exynos_drm_buf_entry *entry;
 	unsigned int size = fb_width * fb_height * (fb->bits_per_pixel >> 3);
+	unsigned long offset;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -101,15 +103,22 @@ static void exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, fb_width, fb_height);
 
-	exynos_drm_fb_update_buf_off(fb, fbi->var.xoffset, fbi->var.yoffset,
-			&buffer_info);
+	entry = exynos_drm_fb_get_buf(fb);
+	if (!entry) {
+		DRM_LOG_KMS("entry is null.\n");
+		return -EFAULT;
+	}
 
-	dev->mode_config.fb_base = buffer_info.base_addr;
+	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
+	offset += fbi->var.yoffset * fb->pitch;
 
-	fbi->screen_base = buffer_info.vaddr;
+	dev->mode_config.fb_base = entry->paddr;
+	fbi->screen_base = entry->vaddr + offset;
+	fbi->fix.smem_start = entry->paddr + offset;
 	fbi->screen_size = size;
-	fbi->fix.smem_start = buffer_info.paddr;
 	fbi->fix.smem_len = size;
+
+	return 0;
 }
 
 static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
@@ -162,8 +171,10 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	exynos_drm_fbdev_update(helper, helper->fb, sizes->fb_width,
+	ret = exynos_drm_fbdev_update(helper, helper->fb, sizes->fb_width,
 			sizes->fb_height);
+	if (ret < 0)
+		fb_dealloc_cmap(&fbi->cmap);
 
 /*
  * if failed, all resources allocated above would be released by
@@ -224,10 +235,8 @@ static int exynos_drm_fbdev_recreate(struct drm_fb_helper *helper,
 	}
 
 	helper->fb = exynos_fbdev->fb;
-	exynos_drm_fbdev_update(helper, helper->fb, sizes->fb_width,
+	return exynos_drm_fbdev_update(helper, helper->fb, sizes->fb_width,
 			sizes->fb_height);
-
-	return 0;
 }
 
 static int exynos_drm_fbdev_probe(struct drm_fb_helper *helper,

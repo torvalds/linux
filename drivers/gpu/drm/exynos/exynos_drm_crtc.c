@@ -32,23 +32,28 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_encoder.h"
+#include "exynos_drm_buf.h"
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc,\
 				drm_crtc)
 
 /*
- * @fb_x: horizontal position from framebuffer base
- * @fb_y: vertical position from framebuffer base
- * @base_x: horizontal position from screen base
- * @base_y: vertical position from screen base
- * @crtc_w: width of crtc
- * @crtc_h: height of crtc
+ * Exynos specific crtc postion structure.
+ *
+ * @fb_x: offset x on a framebuffer to be displyed
+ *	- the unit is screen coordinates.
+ * @fb_y: offset y on a framebuffer to be displayed
+ *	- the unit is screen coordinates.
+ * @crtc_x: offset x on hardware screen.
+ * @crtc_y: offset y on hardware screen.
+ * @crtc_w: width of hardware screen.
+ * @crtc_h: height of hardware screen.
  */
 struct exynos_drm_crtc_pos {
 	unsigned int fb_x;
 	unsigned int fb_y;
-	unsigned int base_x;
-	unsigned int base_y;
+	unsigned int crtc_x;
+	unsigned int crtc_y;
 	unsigned int crtc_w;
 	unsigned int crtc_h;
 };
@@ -83,42 +88,56 @@ void exynos_drm_crtc_apply(struct drm_crtc *crtc)
 	exynos_drm_fn_encoder(crtc, NULL, exynos_drm_encoder_crtc_commit);
 }
 
-static void exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
+static int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
 				       struct drm_framebuffer *fb,
 				       struct drm_display_mode *mode,
 				       struct exynos_drm_crtc_pos *pos)
 {
-	struct exynos_drm_buffer_info buffer_info;
-	unsigned int actual_w = pos->crtc_w;
-	unsigned int actual_h = pos->crtc_h;
-	unsigned int hw_w;
-	unsigned int hw_h;
+	struct exynos_drm_buf_entry *entry;
+	unsigned int actual_w;
+	unsigned int actual_h;
 
-	/* update buffer address of framebuffer. */
-	exynos_drm_fb_update_buf_off(fb, pos->fb_x, pos->fb_y, &buffer_info);
-	overlay->paddr = buffer_info.paddr;
-	overlay->vaddr = buffer_info.vaddr;
+	entry = exynos_drm_fb_get_buf(fb);
+	if (!entry) {
+		DRM_LOG_KMS("entry is null.\n");
+		return -EFAULT;
+	}
 
-	hw_w = mode->hdisplay - pos->base_x;
-	hw_h = mode->vdisplay - pos->base_y;
+	overlay->paddr = entry->paddr;
+	overlay->vaddr = entry->vaddr;
 
-	if (actual_w > hw_w)
-		actual_w = hw_w;
-	if (actual_h > hw_h)
-		actual_h = hw_h;
+	DRM_DEBUG_KMS("vaddr = 0x%lx, paddr = 0x%lx\n",
+			(unsigned long)overlay->vaddr,
+			(unsigned long)overlay->paddr);
 
-	overlay->offset_x = pos->base_x;
-	overlay->offset_y = pos->base_y;
-	overlay->width = actual_w;
-	overlay->height = actual_h;
+	actual_w = min((mode->hdisplay - pos->crtc_x), pos->crtc_w);
+	actual_h = min((mode->vdisplay - pos->crtc_y), pos->crtc_h);
+
+	/* set drm framebuffer data. */
+	overlay->fb_x = pos->fb_x;
+	overlay->fb_y = pos->fb_y;
+	overlay->fb_width = fb->width;
+	overlay->fb_height = fb->height;
 	overlay->bpp = fb->bits_per_pixel;
+	overlay->pitch = fb->pitch;
+
+	/* set overlay range to be displayed. */
+	overlay->crtc_x = pos->crtc_x;
+	overlay->crtc_y = pos->crtc_y;
+	overlay->crtc_width = actual_w;
+	overlay->crtc_height = actual_h;
+
+	/* set drm mode data. */
+	overlay->mode_width = mode->hdisplay;
+	overlay->mode_height = mode->vdisplay;
+	overlay->refresh = mode->vrefresh;
+	overlay->scan_flag = mode->flags;
 
 	DRM_DEBUG_KMS("overlay : offset_x/y(%d,%d), width/height(%d,%d)",
-			overlay->offset_x, overlay->offset_y,
-			overlay->width, overlay->height);
+			overlay->crtc_x, overlay->crtc_y,
+			overlay->crtc_width, overlay->crtc_height);
 
-	overlay->buf_offsize = fb->width - actual_w;
-	overlay->line_size = actual_w;
+	return 0;
 }
 
 static int exynos_drm_crtc_update(struct drm_crtc *crtc)
@@ -136,14 +155,18 @@ static int exynos_drm_crtc_update(struct drm_crtc *crtc)
 	overlay = &exynos_crtc->overlay;
 
 	memset(&pos, 0, sizeof(struct exynos_drm_crtc_pos));
+
+	/* it means the offset of framebuffer to be displayed. */
 	pos.fb_x = crtc->x;
 	pos.fb_y = crtc->y;
+
+	/* OSD position to be displayed. */
+	pos.crtc_x = 0;
+	pos.crtc_y = 0;
 	pos.crtc_w = fb->width - crtc->x;
 	pos.crtc_h = fb->height - crtc->y;
 
-	exynos_drm_overlay_update(overlay, crtc->fb, mode, &pos);
-
-	return 0;
+	return exynos_drm_overlay_update(overlay, crtc->fb, mode, &pos);
 }
 
 static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)

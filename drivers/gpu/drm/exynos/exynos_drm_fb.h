@@ -28,16 +28,6 @@
 #ifndef _EXYNOS_DRM_FB_H_
 #define _EXYNOS_DRM_FB_H
 
-struct exynos_drm_buffer_info {
-	unsigned long base_addr;
-	dma_addr_t paddr;
-	void __iomem *vaddr;
-};
-
-void exynos_drm_fb_update_buf_off(struct drm_framebuffer *fb,
-				   unsigned int x, unsigned int y,
-				   struct exynos_drm_buffer_info *info);
-
 struct drm_framebuffer *exynos_drm_fb_create(struct drm_device *dev,
 					      struct drm_file *filp,
 					      struct drm_mode_fb_cmd *mode_cmd);
