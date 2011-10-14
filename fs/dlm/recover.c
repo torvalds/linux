@@ -542,8 +542,6 @@ int dlm_recover_locks(struct dlm_ls *ls)
  out:
 	if (error)
 		recover_list_clear(ls);
-	else
-		dlm_set_recover_status(ls, DLM_RS_LOCKS);
 	return error;
 }
 

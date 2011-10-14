@@ -251,7 +251,6 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	ls->ls_low_nodeid = low;
 
 	make_member_array(ls);
-	dlm_set_recover_status(ls, DLM_RS_NODES);
 	*neg_out = neg;
 
 	error = ping_members(ls);
@@ -261,12 +260,8 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 		ls->ls_members_result = error;
 		complete(&ls->ls_members_done);
 	}
-	if (error)
-		goto out;
 
-	error = dlm_recover_members_wait(ls);
- out:
-	log_debug(ls, "total members %d error %d", ls->ls_num_nodes, error);
+	log_debug(ls, "dlm_recover_members %d nodes", ls->ls_num_nodes);
 	return error;
 }
 
