@@ -180,7 +180,7 @@ static void ehea_set_msglevel(struct net_device *dev, u32 value)
 	port->msg_enable = value;
 }
 
-static char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
+static const char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
 	{"sig_comp_iv"},
 	{"swqe_refill_th"},
 	{"port resets"},
@@ -189,7 +189,6 @@ static char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
 	{"IP cksum errors"},
 	{"Frame cksum errors"},
 	{"num SQ stopped"},
-	{"SQ stopped"},
 	{"PR0 free_swqes"},
 	{"PR1 free_swqes"},
 	{"PR2 free_swqes"},
@@ -198,6 +197,14 @@ static char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
 	{"PR5 free_swqes"},
 	{"PR6 free_swqes"},
 	{"PR7 free_swqes"},
+	{"PR8 free_swqes"},
+	{"PR9 free_swqes"},
+	{"PR10 free_swqes"},
+	{"PR11 free_swqes"},
+	{"PR12 free_swqes"},
+	{"PR13 free_swqes"},
+	{"PR14 free_swqes"},
+	{"PR15 free_swqes"},
 	{"LRO aggregated"},
 	{"LRO flushed"},
 	{"LRO no_desc"},
@@ -255,11 +262,7 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 		tmp += port->port_res[k].p_stats.queue_stopped;
 	data[i++] = tmp;
 
-	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
-		tmp |= port->port_res[k].queue_stopped;
-	data[i++] = tmp;
-
-	for (k = 0; k < 8; k++)
+	for (k = 0; k < 16; k++)
 		data[i++] = atomic_read(&port->port_res[k].swqe_avail);
 
 	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)

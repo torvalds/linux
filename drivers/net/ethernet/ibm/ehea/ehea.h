@@ -375,8 +375,6 @@ struct ehea_port_res {
 	struct ehea_q_skb_arr rq3_skba;
 	struct ehea_q_skb_arr sq_skba;
 	int sq_skba_size;
-	spinlock_t netif_queue;
-	int queue_stopped;
 	int swqe_refill_th;
 	atomic_t swqe_avail;
 	int swqe_ll_count;
