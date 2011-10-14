@@ -185,7 +185,8 @@ static unsigned long s3c2443_armclk_roundrate(struct clk *clk,
 	for (ptr = 0; ptr < nr_armdiv; ptr++) {
 		div = armdiv[ptr];
 		if (div) {
-			calc = parent / div;
+			/* cpufreq provides 266mhz as 266666000 not 266666666 */
+			calc = (parent / div / 1000) * 1000;
 			if (calc <= rate && div < best)
 				best = div;
 		}
@@ -225,7 +226,8 @@ static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
 	for (ptr = 0; ptr < nr_armdiv; ptr++) {
 		div = armdiv[ptr];
 		if (div) {
-			calc = parent / div;
+			/* cpufreq provides 266mhz as 266666000 not 266666666 */
+			calc = (parent / div / 1000) * 1000;
 			if (calc <= rate && div < best) {
 				best = div;
 				val = ptr;
