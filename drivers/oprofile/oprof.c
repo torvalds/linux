@@ -262,9 +262,7 @@ static int __init oprofile_init(void)
 		return 0;
 
 	/* failed */
-	if (timer_mode)
-		oprofile_timer_exit();
-	else
+	if (!timer_mode)
 		oprofile_arch_exit();
 
 	return err;
@@ -274,9 +272,7 @@ static int __init oprofile_init(void)
 static void __exit oprofile_exit(void)
 {
 	oprofilefs_unregister();
-	if (timer_mode)
-		oprofile_timer_exit();
-	else
+	if (!timer_mode)
 		oprofile_arch_exit();
 }
 
