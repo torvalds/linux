@@ -448,7 +448,7 @@ struct ehea_bcmc_reg_array {
 struct ehea_port {
 	struct ehea_adapter *adapter;	 /* adapter that owns this port */
 	struct net_device *netdev;
-	struct net_device_stats stats;
+	struct rtnl_link_stats64 stats;
 	struct ehea_port_res port_res[EHEA_MAX_PORT_RES];
 	struct platform_device  ofdev; /* Open Firmware Device */
 	struct ehea_mc_list *mc_list;	 /* Multicast MAC addresses */

@@ -323,10 +323,10 @@ out:
 	spin_unlock_irqrestore(&ehea_bcmc_regs.lock, flags);
 }
 
-static struct net_device_stats *ehea_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *ehea_get_stats64(struct net_device *dev,
+					struct rtnl_link_stats64 *stats)
 {
 	struct ehea_port *port = netdev_priv(dev);
-	struct net_device_stats *stats = &port->stats;
 	u64 rx_packets = 0, tx_packets = 0, rx_bytes = 0, tx_bytes = 0;
 	int i;
 
@@ -353,7 +353,7 @@ static void ehea_update_stats(struct work_struct *work)
 	struct ehea_port *port =
 		container_of(work, struct ehea_port, stats_work.work);
 	struct net_device *dev = port->netdev;
-	struct net_device_stats *stats = &port->stats;
+	struct rtnl_link_stats64 *stats = &port->stats;
 	struct hcp_ehea_port_cb2 *cb2;
 	u64 hret;
 
@@ -3004,7 +3004,7 @@ static const struct net_device_ops ehea_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ehea_netpoll,
 #endif
-	.ndo_get_stats		= ehea_get_stats,
+	.ndo_get_stats64	= ehea_get_stats64,
 	.ndo_set_mac_address	= ehea_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= ehea_set_multicast_list,
