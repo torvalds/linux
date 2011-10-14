@@ -113,9 +113,9 @@ static int ep93xx_pcm_open(struct snd_pcm_substream *substream)
 	rtd->dma_data.name = dma_params->name;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		rtd->dma_data.direction = DMA_TO_DEVICE;
+		rtd->dma_data.direction = DMA_MEM_TO_DEV;
 	else
-		rtd->dma_data.direction = DMA_FROM_DEVICE;
+		rtd->dma_data.direction = DMA_DEV_TO_MEM;
 
 	rtd->dma_chan = dma_request_channel(mask, ep93xx_pcm_dma_filter,
 					    &rtd->dma_data);
