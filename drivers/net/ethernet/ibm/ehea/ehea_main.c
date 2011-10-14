@@ -647,15 +647,6 @@ static int ehea_treat_poll_error(struct ehea_port_res *pr, int rq,
 	return 0;
 }
 
-static void ehea_proc_skb(struct ehea_port_res *pr, struct ehea_cqe *cqe,
-			  struct sk_buff *skb)
-{
-	if (cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
-		__vlan_hwaccel_put_tag(skb, cqe->vlan_tag);
-
-	netif_receive_skb(skb);
-}
-
 static int ehea_proc_rwqes(struct net_device *dev,
 			   struct ehea_port_res *pr,
 			   int budget)
@@ -732,7 +723,11 @@ static int ehea_proc_rwqes(struct net_device *dev,
 			}
 
 			processed_bytes += skb->len;
-			ehea_proc_skb(pr, cqe, skb);
+
+			if (cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
+				__vlan_hwaccel_put_tag(skb, cqe->vlan_tag);
+
+			napi_gro_receive(&pr->napi, skb);
 		} else {
 			pr->p_stats.poll_receive_errors++;
 			port_reset = ehea_treat_poll_error(pr, rq, cqe,
