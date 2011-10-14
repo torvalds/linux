@@ -3334,7 +3334,8 @@ out:
  * shrink metadata reservation for delalloc
  */
 static int shrink_delalloc(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, u64 to_reclaim, int sync)
+			   struct btrfs_root *root, u64 to_reclaim,
+			   bool wait_ordered)
 {
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_space_info *space_info;
@@ -3387,11 +3388,15 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 		if (trans && trans->transaction->blocked)
 			return -EAGAIN;
 
-		time_left = schedule_timeout_interruptible(1);
+		if (wait_ordered && !trans) {
+			btrfs_wait_ordered_extents(root, 0, 0);
+		} else {
+			time_left = schedule_timeout_interruptible(1);
 
-		/* We were interrupted, exit */
-		if (time_left)
-			break;
+			/* We were interrupted, exit */
+			if (time_left)
+				break;
+		}
 
 		/* we've kicked the IO a few times, if anything has been freed,
 		 * exit.  There is no sense in looping here for a long time
@@ -3406,8 +3411,7 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 		}
 
 	}
-	if (reclaimed < to_reclaim && !trans)
-		btrfs_wait_ordered_extents(root, 0, 0);
+
 	return reclaimed >= to_reclaim;
 }
 
@@ -3438,6 +3442,7 @@ static int reserve_metadata_bytes(struct btrfs_root *root,
 	int ret = 0;
 	bool committed = false;
 	bool flushing = false;
+	bool wait_ordered = false;
 
 	trans = (struct btrfs_trans_handle *)current->journal_info;
 again:
@@ -3496,6 +3501,7 @@ again:
 		 * amount plus the amount of bytes that we need for this
 		 * reservation.
 		 */
+		wait_ordered = true;
 		num_bytes = used - space_info->total_bytes +
 			(orig_bytes * (retries + 1));
 	}
@@ -3530,6 +3536,8 @@ again:
 		if (used + num_bytes < space_info->total_bytes + avail) {
 			space_info->bytes_may_use += orig_bytes;
 			ret = 0;
+		} else {
+			wait_ordered = true;
 		}
 	}
 
@@ -3552,7 +3560,7 @@ again:
 	 * We do synchronous shrinking since we don't actually unreserve
 	 * metadata until after the IO is completed.
 	 */
-	ret = shrink_delalloc(trans, root, num_bytes, 1);
+	ret = shrink_delalloc(trans, root, num_bytes, wait_ordered);
 	if (ret < 0)
 		goto out;
 
@@ -3564,6 +3572,7 @@ again:
 	 * so go back around and try again.
 	 */
 	if (retries < 2) {
+		wait_ordered = true;
 		retries++;
 		goto again;
 	}
