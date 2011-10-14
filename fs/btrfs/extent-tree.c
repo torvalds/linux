@@ -3909,13 +3909,10 @@ static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root)
 {
-	struct btrfs_block_rsv *block_rsv;
-
 	if (!trans->bytes_reserved)
 		return;
 
-	block_rsv = &root->fs_info->trans_block_rsv;
-	btrfs_block_rsv_release(root, block_rsv, trans->bytes_reserved);
+	btrfs_block_rsv_release(root, trans->block_rsv, trans->bytes_reserved);
 	trans->bytes_reserved = 0;
 }
 

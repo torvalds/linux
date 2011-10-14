@@ -462,6 +462,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
+	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
 	while (count < 4) {
 		unsigned long cur = trans->delayed_ref_updates;
@@ -482,8 +483,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		}
 		count++;
 	}
-
-	btrfs_trans_release_metadata(trans, root);
 
 	if (lock && !atomic_read(&root->fs_info->open_ioctl_trans) &&
 	    should_end_transaction(trans, root)) {
@@ -1128,6 +1127,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_run_ordered_operations(root, 0);
 
+	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
 
 	/* make a pass through all the delayed refs we have so far
@@ -1135,8 +1135,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 */
 	ret = btrfs_run_delayed_refs(trans, root, 0);
 	BUG_ON(ret);
-
-	btrfs_trans_release_metadata(trans, root);
 
 	cur_trans = trans->transaction;
 	/*
