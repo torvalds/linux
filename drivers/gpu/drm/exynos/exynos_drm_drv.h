@@ -187,9 +187,8 @@ struct exynos_drm_manager {
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
 
-	/* for pageflip */
+	/* list head for new event to be added. */
 	struct list_head pageflip_event_list;
-	bool pageflip_event;
 
 	/*
 	 * created crtc object would be contained at this array and

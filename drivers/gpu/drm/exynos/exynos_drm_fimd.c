@@ -487,21 +487,24 @@ static struct exynos_drm_overlay_ops fimd_overlay_ops = {
 	.disable = fimd_win_disable,
 };
 
-/* for pageflip event */
 static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 {
 	struct exynos_drm_private *dev_priv = drm_dev->dev_private;
 	struct drm_pending_vblank_event *e, *t;
 	struct timeval now;
 	unsigned long flags;
-
-	if (!dev_priv->pageflip_event)
-		return;
+	bool is_checked = false;
 
 	spin_lock_irqsave(&drm_dev->event_lock, flags);
 
 	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
 			base.link) {
+		/* if event's pipe isn't same as crtc then ignor it. */
+		if (crtc != e->pipe)
+			continue;
+
+		is_checked = true;
+
 		do_gettimeofday(&now);
 		e->event.sequence = 0;
 		e->event.tv_sec = now.tv_sec;
@@ -511,8 +514,8 @@ static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 		wake_up_interruptible(&e->base.file_priv->event_wait);
 	}
 
-	drm_vblank_put(drm_dev, crtc);
-	dev_priv->pageflip_event = false;
+	if (is_checked)
+		drm_vblank_put(drm_dev, crtc);
 
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
 }

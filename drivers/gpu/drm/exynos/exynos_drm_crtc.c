@@ -259,13 +259,21 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (event && !dev_priv->pageflip_event) {
+	if (event) {
+		/*
+		 * the pipe from user always is 0 so we can set pipe number
+		 * of current owner to event.
+		 */
+		event->pipe = exynos_crtc->pipe;
+
 		list_add_tail(&event->base.link,
 				&dev_priv->pageflip_event_list);
 
 		ret = drm_vblank_get(dev, exynos_crtc->pipe);
 		if (ret) {
 			DRM_DEBUG("failed to acquire vblank counter\n");
+			list_del(&event->base.link);
+
 			goto out;
 		}
 
@@ -274,7 +282,7 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		if (ret) {
 			crtc->fb = old_fb;
 			drm_vblank_put(dev, exynos_crtc->pipe);
-			dev_priv->pageflip_event = false;
+			list_del(&event->base.link);
 
 			goto out;
 		}
@@ -282,12 +290,10 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		/*
 		 * the values related to a buffer of the drm framebuffer
 		 * to be applied should be set at here. because these values
-		 * first, is set to shadow registers and then to
+		 * first, are set to shadow registers and then to
 		 * real registers at vsync front porch period.
 		 */
 		exynos_drm_crtc_apply(crtc);
-
-		dev_priv->pageflip_event = true;
 	}
 out:
 	mutex_unlock(&dev->struct_mutex);

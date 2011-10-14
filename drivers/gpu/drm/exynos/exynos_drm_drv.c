@@ -124,6 +124,19 @@ static int exynos_drm_unload(struct drm_device *dev)
 	return 0;
 }
 
+static void exynos_drm_preclose(struct drm_device *dev,
+					struct drm_file *file_priv)
+{
+	struct exynos_drm_private *dev_priv = dev->dev_private;
+
+	/*
+	 * drm framework frees all events at release time,
+	 * so private event list should be cleared.
+	 */
+	if (!list_empty(&dev_priv->pageflip_event_list))
+		INIT_LIST_HEAD(&dev_priv->pageflip_event_list);
+}
+
 static void exynos_drm_lastclose(struct drm_device *dev)
 {
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
@@ -152,6 +165,7 @@ static struct drm_driver exynos_drm_driver = {
 				  DRIVER_MODESET | DRIVER_GEM,
 	.load			= exynos_drm_load,
 	.unload			= exynos_drm_unload,
+	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
