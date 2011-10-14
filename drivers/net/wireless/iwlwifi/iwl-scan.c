@@ -678,7 +678,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			priv->contexts[IWL_RXON_CTX_BSS].active.flags &
 						RXON_FLG_CHANNEL_MODE_MSK)
 				       >> RXON_FLG_CHANNEL_MODE_POS;
-		if (chan_mod == CHANNEL_MODE_PURE_40) {
+		if ((priv->scan_request && priv->scan_request->no_cck) ||
+		    chan_mod == CHANNEL_MODE_PURE_40) {
 			rate = IWL_RATE_6M_PLCP;
 		} else {
 			rate = IWL_RATE_1M_PLCP;
