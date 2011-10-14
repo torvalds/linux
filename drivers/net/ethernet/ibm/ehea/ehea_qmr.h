@@ -107,7 +107,7 @@ struct ehea_swqe {
 	u8 immediate_data_length;
 	u8 tcp_offset;
 	u8 reserved2;
-	u16 tcp_end;
+	u16 reserved2b;
 	u8 wrap_tag;
 	u8 descriptors;		/* number of valid descriptors in WQE */
 	u16 reserved3;
