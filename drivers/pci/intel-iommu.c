@@ -307,6 +307,11 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 	return (pte->val & 3) != 0;
 }
 
+static inline bool dma_pte_superpage(struct dma_pte *pte)
+{
+	return (pte->val & (1 << 7));
+}
+
 static inline int first_pte_in_page(struct dma_pte *pte)
 {
 	return !((unsigned long)pte & ~VTD_PAGE_MASK);
@@ -732,29 +737,23 @@ out:
 }
 
 static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
-				      unsigned long pfn, int large_level)
+				      unsigned long pfn, int target_level)
 {
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 	struct dma_pte *parent, *pte = NULL;
 	int level = agaw_to_level(domain->agaw);
-	int offset, target_level;
+	int offset;
 
 	BUG_ON(!domain->pgd);
 	BUG_ON(addr_width < BITS_PER_LONG && pfn >> addr_width);
 	parent = domain->pgd;
-
-	/* Search pte */
-	if (!large_level)
-		target_level = 1;
-	else
-		target_level = large_level;
 
 	while (level > 0) {
 		void *tmp_page;
 
 		offset = pfn_level_offset(pfn, level);
 		pte = &parent[offset];
-		if (!large_level && (pte->val & DMA_PTE_LARGE_PAGE))
+		if (!target_level && (dma_pte_superpage(pte) || !dma_pte_present(pte)))
 			break;
 		if (level == target_level)
 			break;
