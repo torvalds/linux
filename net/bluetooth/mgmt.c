@@ -48,6 +48,7 @@ static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 	struct sk_buff *skb;
 	struct mgmt_hdr *hdr;
 	struct mgmt_ev_cmd_status *ev;
+	int err;
 
 	BT_DBG("sock %p, index %u, cmd %u, status %u", sk, index, cmd, status);
 
@@ -65,10 +66,11 @@ static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 	ev->status = status;
 	put_unaligned_le16(cmd, &ev->opcode);
 
-	if (sock_queue_rcv_skb(sk, skb) < 0)
+	err = sock_queue_rcv_skb(sk, skb);
+	if (err < 0)
 		kfree_skb(skb);
 
-	return 0;
+	return err;
 }
 
 static int cmd_complete(struct sock *sk, u16 index, u16 cmd, void *rp,
@@ -77,6 +79,7 @@ static int cmd_complete(struct sock *sk, u16 index, u16 cmd, void *rp,
 	struct sk_buff *skb;
 	struct mgmt_hdr *hdr;
 	struct mgmt_ev_cmd_complete *ev;
+	int err;
 
 	BT_DBG("sock %p", sk);
 
@@ -96,10 +99,11 @@ static int cmd_complete(struct sock *sk, u16 index, u16 cmd, void *rp,
 	if (rp)
 		memcpy(ev->data, rp, rp_len);
 
-	if (sock_queue_rcv_skb(sk, skb) < 0)
+	err = sock_queue_rcv_skb(sk, skb);
+	if (err < 0)
 		kfree_skb(skb);
 
-	return 0;
+	return err;;
 }
 
 static int read_version(struct sock *sk)
