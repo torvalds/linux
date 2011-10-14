@@ -1676,65 +1676,35 @@ static int ehea_clean_portres(struct ehea_port *port, struct ehea_port_res *pr)
 	return ret;
 }
 
-static void write_swqe2_TSO(struct sk_buff *skb,
-			    struct ehea_swqe *swqe, u32 lkey)
-{
-	struct ehea_vsgentry *sg1entry = &swqe->u.immdata_desc.sg_entry;
-	u8 *imm_data = &swqe->u.immdata_desc.immediate_data[0];
-	int skb_data_size = skb_headlen(skb);
-	int headersize;
-
-	/* Packet is TCP with TSO enabled */
-	swqe->tx_control |= EHEA_SWQE_TSO;
-	swqe->mss = skb_shinfo(skb)->gso_size;
-	/* copy only eth/ip/tcp headers to immediate data and
-	 * the rest of skb->data to sg1entry
-	 */
-	headersize = ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
-
-	skb_data_size = skb_headlen(skb);
-
-	if (skb_data_size >= headersize) {
-		/* copy immediate data */
-		skb_copy_from_linear_data(skb, imm_data, headersize);
-		swqe->immediate_data_length = headersize;
-
-		if (skb_data_size > headersize) {
-			/* set sg1entry data */
-			sg1entry->l_key = lkey;
-			sg1entry->len = skb_data_size - headersize;
-			sg1entry->vaddr =
-				ehea_map_vaddr(skb->data + headersize);
-			swqe->descriptors++;
-		}
-	} else
-		pr_err("cannot handle fragmented headers\n");
-}
-
-static void write_swqe2_nonTSO(struct sk_buff *skb,
-			       struct ehea_swqe *swqe, u32 lkey)
+static void write_swqe2_immediate(struct sk_buff *skb, struct ehea_swqe *swqe,
+				  u32 lkey)
 {
 	int skb_data_size = skb_headlen(skb);
 	u8 *imm_data = &swqe->u.immdata_desc.immediate_data[0];
 	struct ehea_vsgentry *sg1entry = &swqe->u.immdata_desc.sg_entry;
+	unsigned int immediate_len = SWQE2_MAX_IMM;
 
-	/* Packet is any nonTSO type
-	 *
-	 * Copy as much as possible skb->data to immediate data and
-	 * the rest to sg1entry
-	 */
-	if (skb_data_size >= SWQE2_MAX_IMM) {
-		/* copy immediate data */
-		skb_copy_from_linear_data(skb, imm_data, SWQE2_MAX_IMM);
+	swqe->descriptors = 0;
 
-		swqe->immediate_data_length = SWQE2_MAX_IMM;
+	if (skb_is_gso(skb)) {
+		swqe->tx_control |= EHEA_SWQE_TSO;
+		swqe->mss = skb_shinfo(skb)->gso_size;
+		/*
+		 * For TSO packets we only copy the headers into the
+		 * immediate area.
+		 */
+		immediate_len = ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
+	}
 
-		if (skb_data_size > SWQE2_MAX_IMM) {
-			/* copy sg1entry data */
+	if (skb_is_gso(skb) || skb_data_size >= SWQE2_MAX_IMM) {
+		skb_copy_from_linear_data(skb, imm_data, immediate_len);
+		swqe->immediate_data_length = immediate_len;
+
+		if (skb_data_size > immediate_len) {
 			sg1entry->l_key = lkey;
-			sg1entry->len = skb_data_size - SWQE2_MAX_IMM;
+			sg1entry->len = skb_data_size - immediate_len;
 			sg1entry->vaddr =
-				ehea_map_vaddr(skb->data + SWQE2_MAX_IMM);
+				ehea_map_vaddr(skb->data + immediate_len);
 			swqe->descriptors++;
 		}
 	} else {
@@ -1753,13 +1723,9 @@ static inline void write_swqe2_data(struct sk_buff *skb, struct net_device *dev,
 	nfrags = skb_shinfo(skb)->nr_frags;
 	sg1entry = &swqe->u.immdata_desc.sg_entry;
 	sg_list = (struct ehea_vsgentry *)&swqe->u.immdata_desc.sg_list;
-	swqe->descriptors = 0;
 	sg1entry_contains_frag_data = 0;
 
-	if (skb_is_gso(skb))
-		write_swqe2_TSO(skb, swqe, lkey);
-	else
-		write_swqe2_nonTSO(skb, swqe, lkey);
+	write_swqe2_immediate(skb, swqe, lkey);
 
 	/* write descriptors */
 	if (nfrags > 0) {
