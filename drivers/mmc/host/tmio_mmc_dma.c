@@ -77,7 +77,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_FROM_DEVICE);
 	if (ret > 0)
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
-			DMA_FROM_DEVICE, DMA_CTRL_ACK);
+			DMA_DEV_TO_MEM, DMA_CTRL_ACK);
 
 	if (desc) {
 		cookie = dmaengine_submit(desc);
@@ -158,7 +158,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_TO_DEVICE);
 	if (ret > 0)
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
-			DMA_TO_DEVICE, DMA_CTRL_ACK);
+			DMA_MEM_TO_DEV, DMA_CTRL_ACK);
 
 	if (desc) {
 		cookie = dmaengine_submit(desc);
