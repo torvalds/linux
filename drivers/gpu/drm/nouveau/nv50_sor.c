@@ -174,6 +174,7 @@ nv50_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 static void
 nv50_sor_prepare(struct drm_encoder *encoder)
 {
+	nv50_sor_disconnect(encoder);
 }
 
 static void
