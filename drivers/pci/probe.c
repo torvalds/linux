@@ -1428,24 +1428,25 @@ static void pcie_write_mrrs(struct pci_dev *dev)
 
 static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 {
-	int mps = 128 << *(u8 *)data;
+	int mps, orig_mps;
 
 	if (!pci_is_pcie(dev))
 		return 0;
 
-	dev_dbg(&dev->dev, "Dev MPS %d MPSS %d MRRS %d\n",
-		 pcie_get_mps(dev), 128<<dev->pcie_mpss, pcie_get_readrq(dev));
+	mps = 128 << *(u8 *)data;
+	orig_mps = pcie_get_mps(dev);
 
 	pcie_write_mps(dev, mps);
 	pcie_write_mrrs(dev);
 
-	dev_dbg(&dev->dev, "Dev MPS %d MPSS %d MRRS %d\n",
-		 pcie_get_mps(dev), 128<<dev->pcie_mpss, pcie_get_readrq(dev));
+	dev_info(&dev->dev, "PCI-E Max Payload Size set to %4d/%4d (was %4d), "
+		 "Max Read Rq %4d\n", pcie_get_mps(dev), 128 << dev->pcie_mpss,
+		 orig_mps, pcie_get_readrq(dev));
 
 	return 0;
 }
 
-/* pcie_bus_configure_mps requires that pci_walk_bus work in a top-down,
+/* pcie_bus_configure_settings requires that pci_walk_bus work in a top-down,
  * parents then children fashion.  If this changes, then this code will not
  * work as designed.
  */
