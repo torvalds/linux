@@ -347,12 +347,51 @@ static struct irq_chip pxa_muxed_gpio_chip = {
 	.irq_set_type	= pxa_gpio_irq_type,
 };
 
+static int pxa_gpio_nums(void)
+{
+	int count = 0;
+
+#ifdef CONFIG_ARCH_PXA
+	if (cpu_is_pxa25x()) {
+#ifdef CONFIG_CPU_PXA26x
+		count = 89;
+		gpio_type = PXA26X_GPIO;
+#elif defined(CONFIG_PXA25x)
+		count = 84;
+		gpio_type = PXA26X_GPIO;
+#endif /* CONFIG_CPU_PXA26x */
+	} else if (cpu_is_pxa27x()) {
+		count = 120;
+		gpio_type = PXA27X_GPIO;
+	} else if (cpu_is_pxa93x() || cpu_is_pxa95x()) {
+		count = 191;
+		gpio_type = PXA93X_GPIO;
+	} else if (cpu_is_pxa3xx()) {
+		count = 127;
+		gpio_type = PXA3XX_GPIO;
+	}
+#endif /* CONFIG_ARCH_PXA */
+
+#ifdef CONFIG_ARCH_MMP
+	if (cpu_is_pxa168() || cpu_is_pxa910()) {
+		count = 127;
+		gpio_type = MMP_GPIO;
+	} else if (cpu_is_mmp2()) {
+		count = 191;
+		gpio_type = MMP2_GPIO;
+	}
+#endif /* CONFIG_ARCH_MMP */
+	return count;
+}
+
 void __init pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn)
 {
 	struct pxa_gpio_chip *c;
 	int gpio, irq;
 
-	pxa_last_gpio = end;
+	pxa_last_gpio = pxa_gpio_nums();
+	if (!pxa_last_gpio)
+		return;
 
 	/* Initialize GPIO chips */
 	pxa_init_gpio_chip(end);
