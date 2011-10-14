@@ -280,18 +280,14 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static int inotify_fasync(int fd, struct file *file, int on)
-{
-	struct fsnotify_group *group = file->private_data;
-
-	return fasync_helper(fd, file, on, &group->inotify_data.fa) >= 0 ? 0 : -EIO;
-}
-
 static int inotify_release(struct inode *ignored, struct file *file)
 {
 	struct fsnotify_group *group = file->private_data;
 
 	pr_debug("%s: group=%p\n", __func__, group);
+
+	if (file->f_flags & FASYNC)
+		fsnotify_fasync(-1, file, 0);
 
 	/* free this group, matching get was inotify_init->fsnotify_obtain_group */
 	fsnotify_destroy_group(group);
@@ -335,7 +331,7 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 static const struct file_operations inotify_fops = {
 	.poll		= inotify_poll,
 	.read		= inotify_read,
-	.fasync		= inotify_fasync,
+	.fasync		= fsnotify_fasync,
 	.release	= inotify_release,
 	.unlocked_ioctl	= inotify_ioctl,
 	.compat_ioctl	= inotify_ioctl,
@@ -706,7 +702,6 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
 	spin_lock_init(&group->inotify_data.idr_lock);
 	idr_init(&group->inotify_data.idr);
 	group->inotify_data.last_wd = 0;
-	group->inotify_data.fa = NULL;
 	group->inotify_data.user = get_current_user();
 
 	if (atomic_inc_return(&group->inotify_data.user->inotify_devs) >

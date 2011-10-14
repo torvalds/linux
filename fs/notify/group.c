@@ -102,3 +102,10 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 
 	return group;
 }
+
+int fsnotify_fasync(int fd, struct file *file, int on)
+{
+	struct fsnotify_group *group = file->private_data;
+
+	return fasync_helper(fd, file, on, &group->fsn_fa) >= 0 ? 0 : -EIO;
+}
