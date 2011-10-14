@@ -189,6 +189,19 @@ static unsigned long s3c2443_armclk_roundrate(struct clk *clk,
 	return parent / best;
 }
 
+static unsigned long s3c2443_armclk_getrate(struct clk *clk)
+{
+	unsigned long rate = clk_get_rate(clk->parent);
+	unsigned long clkcon0;
+	int val;
+
+	clkcon0 = __raw_readl(S3C2443_CLKDIV0);
+	clkcon0 &= armdivmask;
+	val = clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT;
+
+	return rate / armdiv[val];
+}
+
 static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
 {
 	unsigned long parent = clk_get_rate(clk->parent);
@@ -224,6 +237,7 @@ static struct clk clk_armdiv = {
 	.parent		= &clk_msysclk.clk,
 	.ops		= &(struct clk_ops) {
 		.round_rate = s3c2443_armclk_roundrate,
+		.get_rate = s3c2443_armclk_getrate,
 		.set_rate = s3c2443_armclk_setrate,
 	},
 };
