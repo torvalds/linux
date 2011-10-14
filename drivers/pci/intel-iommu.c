@@ -578,17 +578,18 @@ static void domain_update_iommu_snooping(struct dmar_domain *domain)
 
 static void domain_update_iommu_superpage(struct dmar_domain *domain)
 {
-	int i, mask = 0xf;
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu = NULL;
+	int mask = 0xf;
 
 	if (!intel_iommu_superpage) {
 		domain->iommu_superpage = 0;
 		return;
 	}
 
-	domain->iommu_superpage = 4; /* 1TiB */
-
-	for_each_set_bit(i, &domain->iommu_bmp, g_num_of_iommus) {
-		mask |= cap_super_page_val(g_iommus[i]->cap);
+	/* set iommu_superpage to the smallest common denominator */
+	for_each_active_iommu(iommu, drhd) {
+		mask &= cap_super_page_val(iommu->cap);
 		if (!mask) {
 			break;
 		}
@@ -3744,6 +3745,7 @@ static int intel_iommu_domain_init(struct iommu_domain *domain)
 		vm_domain_exit(dmar_domain);
 		return -ENOMEM;
 	}
+	domain_update_iommu_cap(dmar_domain);
 	domain->priv = dmar_domain;
 
 	return 0;
