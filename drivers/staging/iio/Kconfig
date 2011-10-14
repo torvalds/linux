@@ -70,4 +70,12 @@ source "drivers/staging/iio/meter/Kconfig"
 source "drivers/staging/iio/resolver/Kconfig"
 source "drivers/staging/iio/trigger/Kconfig"
 
+config IIO_SIMPLE_DUMMY
+       tristate "An example driver with no hardware requirements"
+       help
+	Driver intended mainly as documentation for how to write
+	a driver. May also be useful for testing userspace code
+	without hardward.
+
+
 endif # IIO
