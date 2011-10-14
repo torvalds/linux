@@ -66,6 +66,9 @@ config CPU_HAS_NO_BITFIELDS
 config CPU_HAS_NO_MULDIV64
 	bool
 
+config CPU_HAS_ADDRESS_SPACES
+	bool
+
 config HZ
 	int
 	default 1000 if CLEOPATRA

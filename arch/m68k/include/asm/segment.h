@@ -31,7 +31,7 @@ typedef struct {
 
 static inline mm_segment_t get_fs(void)
 {
-#ifdef CONFIG_MMU
+#ifdef CONFIG_CPU_HAS_ADDRESS_SPACES
 	mm_segment_t _v;
 	__asm__ ("movec %/dfc,%0":"=r" (_v.seg):);
 
@@ -49,7 +49,7 @@ static inline mm_segment_t get_ds(void)
 
 static inline void set_fs(mm_segment_t val)
 {
-#ifdef CONFIG_MMU
+#ifdef CONFIG_CPU_HAS_ADDRESS_SPACES
 	__asm__ __volatile__ ("movec %0,%/sfc\n\t"
 			      "movec %0,%/dfc\n\t"
 			      : /* no outputs */ : "r" (val.seg) : "memory");
