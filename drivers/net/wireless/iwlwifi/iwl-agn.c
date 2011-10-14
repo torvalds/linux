@@ -3178,7 +3178,7 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 }
 
 /* This function both allocates and initializes hw and priv. */
-static struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
+static struct ieee80211_hw *iwl_alloc_all(void)
 {
 	struct iwl_priv *priv;
 	/* mac80211 allocates memory for this device instance, including
@@ -3186,11 +3186,8 @@ static struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
 	struct ieee80211_hw *hw;
 
 	hw = ieee80211_alloc_hw(sizeof(struct iwl_priv), &iwlagn_hw_ops);
-	if (hw == NULL) {
-		pr_err("%s: Can not allocate network device\n",
-		       cfg->name);
+	if (!hw)
 		goto out;
-	}
 
 	priv = hw->priv;
 	priv->hw = hw;
@@ -3211,8 +3208,9 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	/************************
 	 * 1. Allocating HW data
 	 ************************/
-	hw = iwl_alloc_all(cfg);
+	hw = iwl_alloc_all();
 	if (!hw) {
+		pr_err("%s: Cannot allocate network device\n", cfg->name);
 		err = -ENOMEM;
 		goto out;
 	}
