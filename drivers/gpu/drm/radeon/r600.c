@@ -2376,6 +2376,20 @@ int r600_copy_blit(struct radeon_device *rdev,
 	return 0;
 }
 
+void r600_blit_suspend(struct radeon_device *rdev)
+{
+	int r;
+
+	/* unpin shaders bo */
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (!r) {
+			radeon_bo_unpin(rdev->r600_blit.shader_obj);
+			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+		}
+	}
+}
+
 int r600_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
 			 uint32_t offset, uint32_t obj_size)
@@ -2495,8 +2509,6 @@ int r600_resume(struct radeon_device *rdev)
 
 int r600_suspend(struct radeon_device *rdev)
 {
-	int r;
-
 	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
@@ -2504,14 +2516,8 @@ int r600_suspend(struct radeon_device *rdev)
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
-	/* unpin shaders bo */
-	if (rdev->r600_blit.shader_obj) {
-		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-		if (!r) {
-			radeon_bo_unpin(rdev->r600_blit.shader_obj);
-			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-		}
-	}
+	r600_blit_suspend(rdev);
+
 	return 0;
 }
 

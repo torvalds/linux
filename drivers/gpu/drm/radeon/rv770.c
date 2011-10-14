@@ -1238,8 +1238,6 @@ int rv770_resume(struct radeon_device *rdev)
 
 int rv770_suspend(struct radeon_device *rdev)
 {
-	int r;
-
 	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
@@ -1247,14 +1245,8 @@ int rv770_suspend(struct radeon_device *rdev)
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
-	/* unpin shaders bo */
-	if (rdev->r600_blit.shader_obj) {
-		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-		if (likely(r == 0)) {
-			radeon_bo_unpin(rdev->r600_blit.shader_obj);
-			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-		}
-	}
+	r600_blit_suspend(rdev);
+
 	return 0;
 }
 

@@ -1462,21 +1462,13 @@ int cayman_resume(struct radeon_device *rdev)
 
 int cayman_suspend(struct radeon_device *rdev)
 {
-	int r;
-
 	/* FIXME: we should wait for ring to be empty */
 	cayman_cp_enable(rdev, false);
 	rdev->cp.ready = false;
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	cayman_pcie_gart_disable(rdev);
-
-	/* unpin shaders bo */
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (likely(r == 0)) {
-		radeon_bo_unpin(rdev->r600_blit.shader_obj);
-		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-	}
+	r600_blit_suspend(rdev);
 
 	return 0;
 }

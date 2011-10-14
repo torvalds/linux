@@ -554,6 +554,8 @@ struct r600_blit {
 	struct radeon_ib *vb_ib;
 };
 
+void r600_blit_suspend(struct radeon_device *rdev);
+
 int radeon_ib_get(struct radeon_device *rdev, struct radeon_ib **ib);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
