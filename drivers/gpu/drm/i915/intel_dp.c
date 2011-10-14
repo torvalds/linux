@@ -236,11 +236,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	/* only refuse the mode on non eDP since we have seen some weird eDP panels
-	   which are outside spec tolerances but somehow work by magic */
-	if (!is_edp(intel_dp) &&
-	    (intel_dp_link_required(intel_dp, mode->clock)
-	     > intel_dp_max_data_rate(max_link_clock, max_lanes)))
+	if (intel_dp_link_required(intel_dp, mode->clock)
+	    > intel_dp_max_data_rate(max_link_clock, max_lanes))
 		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
@@ -698,19 +695,6 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 				return true;
 			}
 		}
-	}
-
-	if (is_edp(intel_dp)) {
-		/* okay we failed just pick the highest */
-		intel_dp->lane_count = max_lane_count;
-		intel_dp->link_bw = bws[max_clock];
-		adjusted_mode->clock = intel_dp_link_clock(intel_dp->link_bw);
-		DRM_DEBUG_KMS("Force picking display port link bw %02x lane "
-			      "count %d clock %d\n",
-			      intel_dp->link_bw, intel_dp->lane_count,
-			      adjusted_mode->clock);
-
-		return true;
 	}
 
 	return false;
