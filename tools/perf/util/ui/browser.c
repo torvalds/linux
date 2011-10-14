@@ -42,31 +42,62 @@ void ui_browser__gotorc(struct ui_browser *self, int y, int x)
 	SLsmg_gotorc(self->y + y, self->x + x);
 }
 
+static struct list_head *
+ui_browser__list_head_filter_entries(struct ui_browser *browser,
+				     struct list_head *pos)
+{
+	do {
+		if (!browser->filter || !browser->filter(browser, pos))
+			return pos;
+		pos = pos->next;
+	} while (pos != browser->entries);
+
+	return NULL;
+}
+
+static struct list_head *
+ui_browser__list_head_filter_prev_entries(struct ui_browser *browser,
+					  struct list_head *pos)
+{
+	do {
+		if (!browser->filter || !browser->filter(browser, pos))
+			return pos;
+		pos = pos->prev;
+	} while (pos != browser->entries);
+
+	return NULL;
+}
+
 void ui_browser__list_head_seek(struct ui_browser *self, off_t offset, int whence)
 {
 	struct list_head *head = self->entries;
 	struct list_head *pos;
 
+	if (self->nr_entries == 0)
+		return;
+
 	switch (whence) {
 	case SEEK_SET:
-		pos = head->next;
+		pos = ui_browser__list_head_filter_entries(self, head->next);
 		break;
 	case SEEK_CUR:
 		pos = self->top;
 		break;
 	case SEEK_END:
-		pos = head->prev;
+		pos = ui_browser__list_head_filter_prev_entries(self, head->prev);
 		break;
 	default:
 		return;
 	}
 
+	assert(pos != NULL);
+
 	if (offset > 0) {
 		while (offset-- != 0)
-			pos = pos->next;
+			pos = ui_browser__list_head_filter_entries(self, pos->next);
 	} else {
 		while (offset++ != 0)
-			pos = pos->prev;
+			pos = ui_browser__list_head_filter_prev_entries(self, pos->prev);
 	}
 
 	self->top = pos;
@@ -365,15 +396,17 @@ unsigned int ui_browser__list_head_refresh(struct ui_browser *self)
 	int row = 0;
 
 	if (self->top == NULL || self->top == self->entries)
-                self->top = head->next;
+                self->top = ui_browser__list_head_filter_entries(self, head->next);
 
 	pos = self->top;
 
 	list_for_each_from(pos, head) {
-		ui_browser__gotorc(self, row, 0);
-		self->write(self, pos, row);
-		if (++row == self->height)
-			break;
+		if (!self->filter || !self->filter(self, pos)) {
+			ui_browser__gotorc(self, row, 0);
+			self->write(self, pos, row);
+			if (++row == self->height)
+				break;
+		}
 	}
 
 	return row;

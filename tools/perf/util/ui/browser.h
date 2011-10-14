@@ -21,6 +21,7 @@ struct ui_browser {
 	unsigned int  (*refresh)(struct ui_browser *self);
 	void	      (*write)(struct ui_browser *self, void *entry, int row);
 	void	      (*seek)(struct ui_browser *self, off_t offset, int whence);
+	bool	      (*filter)(struct ui_browser *self, void *entry);
 	u32	      nr_entries;
 };
 
