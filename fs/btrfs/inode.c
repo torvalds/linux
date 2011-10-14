@@ -2790,7 +2790,8 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	trans = btrfs_start_transaction(root, 0);
+	/* 1 for the orphan item */
+	trans = btrfs_start_transaction(root, 1);
 	if (IS_ERR(trans)) {
 		btrfs_free_path(path);
 		root->fs_info->enospc_unlink = 0;
@@ -2895,6 +2896,12 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	err = 0;
 out:
 	btrfs_free_path(path);
+	/* Migrate the orphan reservation over */
+	if (!err)
+		err = btrfs_block_rsv_migrate(trans->block_rsv,
+				&root->fs_info->global_block_rsv,
+				btrfs_calc_trans_metadata_size(root, 1));
+
 	if (err) {
 		btrfs_end_transaction(trans, root);
 		root->fs_info->enospc_unlink = 0;
