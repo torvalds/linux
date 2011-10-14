@@ -179,11 +179,16 @@ static unsigned long s3c2443_armclk_roundrate(struct clk *clk,
 	unsigned div;
 	int ptr;
 
+	if (!nr_armdiv)
+		return -EINVAL;
+
 	for (ptr = 0; ptr < nr_armdiv; ptr++) {
 		div = armdiv[ptr];
-		calc = parent / div;
-		if (calc <= rate && div < best)
-			best = div;
+		if (div) {
+			calc = parent / div;
+			if (calc <= rate && div < best)
+				best = div;
+		}
 	}
 
 	return parent / best;
@@ -194,6 +199,9 @@ static unsigned long s3c2443_armclk_getrate(struct clk *clk)
 	unsigned long rate = clk_get_rate(clk->parent);
 	unsigned long clkcon0;
 	int val;
+
+	if (!nr_armdiv || !armdivmask)
+		return -EINVAL;
 
 	clkcon0 = __raw_readl(S3C2443_CLKDIV0);
 	clkcon0 &= armdivmask;
@@ -211,12 +219,17 @@ static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
 	int ptr;
 	int val = -1;
 
+	if (!nr_armdiv || !armdivmask)
+		return -EINVAL;
+
 	for (ptr = 0; ptr < nr_armdiv; ptr++) {
 		div = armdiv[ptr];
-		calc = parent / div;
-		if (calc <= rate && div < best) {
-			best = div;
-			val = ptr;
+		if (div) {
+			calc = parent / div;
+			if (calc <= rate && div < best) {
+				best = div;
+				val = ptr;
+			}
 		}
 	}
 
