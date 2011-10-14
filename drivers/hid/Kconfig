@@ -594,6 +594,12 @@ config SMARTJOYPLUS_FF
 	Say Y here if you have a SmartJoy PLUS PS2/USB adapter and want to
 	enable force feedback support for it.
 
+config HID_TIVO_SLIDE
+	tristate "TiVo Slide Bluetooth remote control support"
+	depends on USB_HID
+	---help---
+	Say Y if you have a TiVo Slide Bluetooth remote control.
+
 config HID_TOPSEED
 	tristate "TopSeed Cyberlink, BTC Emprex, Conceptronic remote control support"
 	depends on USB_HID
