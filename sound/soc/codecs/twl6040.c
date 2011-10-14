@@ -1504,6 +1504,7 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 
 	priv->codec = codec;
 	codec->control_data = dev_get_drvdata(codec->dev->parent);
+	codec->ignore_pmdown_time = 1;
 
 	if (pdata && pdata->hs_left_step && pdata->hs_right_step) {
 		priv->hs_left_step = pdata->hs_left_step;
