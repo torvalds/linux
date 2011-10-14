@@ -829,7 +829,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		intel_dp->DP |= DP_SYNC_VS_HIGH;
 
-	if (HAS_PCH_CPT(dev) && !is_edp(intel_dp))
+	if (HAS_PCH_CPT(dev) && !is_cpu_edp(intel_dp))
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 	else
 		intel_dp->DP |= DP_LINK_TRAIN_OFF;
@@ -1558,7 +1558,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 				  DP_LINK_CONFIGURATION_SIZE);
 
 	DP |= DP_PORT_EN;
-	if (HAS_PCH_CPT(dev) && !is_edp(intel_dp))
+	if (HAS_PCH_CPT(dev) && !is_cpu_edp(intel_dp))
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 	else
 		DP &= ~DP_LINK_TRAIN_MASK;
@@ -1577,7 +1577,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
 
-		if (HAS_PCH_CPT(dev) && !is_edp(intel_dp))
+		if (HAS_PCH_CPT(dev) && !is_cpu_edp(intel_dp))
 			reg = DP | DP_LINK_TRAIN_PAT_1_CPT;
 		else
 			reg = DP | DP_LINK_TRAIN_PAT_1;
@@ -1652,7 +1652,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
 
-		if (HAS_PCH_CPT(dev) && !is_edp(intel_dp))
+		if (HAS_PCH_CPT(dev) && !is_cpu_edp(intel_dp))
 			reg = DP | DP_LINK_TRAIN_PAT_2_CPT;
 		else
 			reg = DP | DP_LINK_TRAIN_PAT_2;
@@ -1693,7 +1693,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		++tries;
 	}
 
-	if (HAS_PCH_CPT(dev) && !is_edp(intel_dp))
+	if (HAS_PCH_CPT(dev) && !is_cpu_edp(intel_dp))
 		reg = DP | DP_LINK_TRAIN_OFF_CPT;
 	else
 		reg = DP | DP_LINK_TRAIN_OFF;
@@ -1723,7 +1723,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		udelay(100);
 	}
 
-	if (HAS_PCH_CPT(dev) && !is_edp(intel_dp)) {
+	if (HAS_PCH_CPT(dev) && !is_cpu_edp(intel_dp)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
 	} else {
