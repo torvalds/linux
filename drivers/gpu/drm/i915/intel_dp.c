@@ -95,6 +95,17 @@ static bool is_pch_edp(struct intel_dp *intel_dp)
 	return intel_dp->is_pch_edp;
 }
 
+/**
+ * is_cpu_edp - is the port on the CPU and attached to an eDP panel?
+ * @intel_dp: DP struct
+ *
+ * Returns true if the given DP struct corresponds to a CPU eDP port.
+ */
+static bool is_cpu_edp(struct intel_dp *intel_dp)
+{
+	return is_edp(intel_dp) && !is_pch_edp(intel_dp);
+}
+
 static struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_dp, base.base);
@@ -355,7 +366,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	 * Note that PCH attached eDP panels should use a 125MHz input
 	 * clock divider.
 	 */
-	if (is_edp(intel_dp) && !is_pch_edp(intel_dp)) {
+	if (is_cpu_edp(intel_dp)) {
 		if (IS_GEN6(dev))
 			aux_clock_divider = 200; /* SNB eDP input clock at 400Mhz */
 		else
@@ -859,7 +870,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	if (intel_crtc->pipe == 1 && !HAS_PCH_CPT(dev))
 		intel_dp->DP |= DP_PIPEB_SELECT;
 
-	if (is_edp(intel_dp) && !is_pch_edp(intel_dp)) {
+	if (is_cpu_edp(intel_dp)) {
 		/* don't miss out required setting for eDP */
 		intel_dp->DP |= DP_PLL_ENABLE;
 		if (adjusted_mode->clock < 200000)
