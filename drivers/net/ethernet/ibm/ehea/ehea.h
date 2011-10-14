@@ -58,7 +58,6 @@
 #define EHEA_MIN_ENTRIES_QP  127
 
 #define EHEA_SMALL_QUEUES
-#define EHEA_NUM_TX_QP 1
 #define EHEA_LRO_MAX_AGGR 64
 
 #ifdef EHEA_SMALL_QUEUES
@@ -460,8 +459,6 @@ struct ehea_port {
 	char int_aff_name[EHEA_IRQ_NAME_SIZE];
 	int allmulti;			 /* Indicates IFF_ALLMULTI state */
 	int promisc;		 	 /* Indicates IFF_PROMISC state */
-	int num_tx_qps;
-	int num_add_tx_qps;
 	int num_mcs;
 	int resets;
 	unsigned long flags;
