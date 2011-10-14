@@ -2087,27 +2087,14 @@ static void ehea_xmit2(struct sk_buff *skb, struct net_device *dev,
 static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 		       struct ehea_swqe *swqe)
 {
-	int nfrags = skb_shinfo(skb)->nr_frags;
 	u8 *imm_data = &swqe->u.immdata_nodesc.immediate_data[0];
-	skb_frag_t *frag;
-	int i;
 
 	xmit_common(skb, swqe);
 
-	if (nfrags == 0) {
+	if (!skb->data_len)
 		skb_copy_from_linear_data(skb, imm_data, skb->len);
-	} else {
-		skb_copy_from_linear_data(skb, imm_data,
-					  skb_headlen(skb));
-		imm_data += skb_headlen(skb);
-
-		/* ... then copy data from the fragments */
-		for (i = 0; i < nfrags; i++) {
-			frag = &skb_shinfo(skb)->frags[i];
-			memcpy(imm_data, skb_frag_address(frag), frag->size);
-			imm_data += frag->size;
-		}
-	}
+	else
+		skb_copy_bits(skb, 0, imm_data, skb->len);
 
 	swqe->immediate_data_length = skb->len;
 	dev_kfree_skb(skb);
