@@ -33,6 +33,7 @@
 		0)
 #define cpu_is_mx28()		(					\
 		machine_is_mx28evk() ||					\
+		machine_is_m28evk() ||					\
 		machine_is_tx28() ||					\
 		0)
 
