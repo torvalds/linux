@@ -160,9 +160,94 @@ static struct clk clk_prediv = {
 	},
 };
 
+/* armdiv
+ *
+ * this clock is sourced from msysclk and can have a number of
+ * divider values applied to it to then be fed into armclk.
+*/
+
 static unsigned int *armdiv;
 static int nr_armdiv;
 static int armdivmask;
+
+static unsigned long s3c2443_armclk_roundrate(struct clk *clk,
+					      unsigned long rate)
+{
+	unsigned long parent = clk_get_rate(clk->parent);
+	unsigned long calc;
+	unsigned best = 256; /* bigger than any value */
+	unsigned div;
+	int ptr;
+
+	for (ptr = 0; ptr < nr_armdiv; ptr++) {
+		div = armdiv[ptr];
+		calc = parent / div;
+		if (calc <= rate && div < best)
+			best = div;
+	}
+
+	return parent / best;
+}
+
+static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
+{
+	unsigned long parent = clk_get_rate(clk->parent);
+	unsigned long calc;
+	unsigned div;
+	unsigned best = 256; /* bigger than any value */
+	int ptr;
+	int val = -1;
+
+	for (ptr = 0; ptr < nr_armdiv; ptr++) {
+		div = armdiv[ptr];
+		calc = parent / div;
+		if (calc <= rate && div < best) {
+			best = div;
+			val = ptr;
+		}
+	}
+
+	if (val >= 0) {
+		unsigned long clkcon0;
+
+		clkcon0 = __raw_readl(S3C2443_CLKDIV0);
+		clkcon0 &= ~armdivmask;
+		clkcon0 |= val << S3C2443_CLKDIV0_ARMDIV_SHIFT;
+		__raw_writel(clkcon0, S3C2443_CLKDIV0);
+	}
+
+	return (val == -1) ? -EINVAL : 0;
+}
+
+static struct clk clk_armdiv = {
+	.name		= "armdiv",
+	.parent		= &clk_msysclk.clk,
+	.ops		= &(struct clk_ops) {
+		.round_rate = s3c2443_armclk_roundrate,
+		.set_rate = s3c2443_armclk_setrate,
+	},
+};
+
+/* armclk
+ *
+ * this is the clock fed into the ARM core itself, from armdiv or from hclk.
+ */
+
+static struct clk *clk_arm_sources[] = {
+	[0] = &clk_armdiv,
+	[1] = &clk_h,
+};
+
+static struct clksrc_clk clk_arm = {
+	.clk	= {
+		.name		= "armclk",
+	},
+	.sources = &(struct clksrc_sources) {
+		.sources = clk_arm_sources,
+		.nr_sources = ARRAY_SIZE(clk_arm_sources),
+	},
+	.reg_src = { .reg = S3C2443_CLKDIV0, .size = 1, .shift = 13 },
+};
 
 /* usbhost
  *
@@ -462,6 +547,7 @@ static struct clk *clks[] __initdata = {
 	&clk_ext,
 	&clk_epll,
 	&clk_usb_bus,
+	&clk_armdiv,
 };
 
 static struct clksrc_clk *clksrcs[] __initdata = {
@@ -471,6 +557,7 @@ static struct clksrc_clk *clksrcs[] __initdata = {
 	&clk_epllref,
 	&clk_esysclk,
 	&clk_msysclk,
+	&clk_arm,
 };
 
 void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
