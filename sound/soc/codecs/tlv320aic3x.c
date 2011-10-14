@@ -137,7 +137,10 @@ static int aic3x_read(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg >= AIC3X_CACHEREGNUM)
 		return -1;
 
-	*value = codec->hw_read(codec, reg);
+	codec->cache_bypass = 1;
+	*value = snd_soc_read(codec, reg);
+	codec->cache_bypass = 0;
+
 	cache[reg] = *value;
 
 	return 0;
