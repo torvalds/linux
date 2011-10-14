@@ -127,7 +127,7 @@ static struct clk hsmmc0_clk = {
 
 static inline unsigned int s3c2416_fclk_div(unsigned long clkcon0)
 {
-	clkcon0 &= 7 << S3C2443_CLKDIV0_ARMDIV_SHIFT;
+	clkcon0 &= S3C2416_CLKDIV0_ARMDIV_MASK;
 
 	return armdiv[clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT];
 }
