@@ -466,6 +466,10 @@ struct v4l2_subdev_pad_ops {
 		       struct v4l2_subdev_crop *crop);
 	int (*get_crop)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		       struct v4l2_subdev_crop *crop);
+	int (*get_selection)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+			     struct v4l2_subdev_selection *sel);
+	int (*set_selection)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+			     struct v4l2_subdev_selection *sel);
 };
 
 struct v4l2_subdev_ops {
@@ -549,8 +553,11 @@ struct v4l2_subdev {
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	struct v4l2_mbus_framefmt *try_fmt;
-	struct v4l2_rect *try_crop;
+	struct {
+		struct v4l2_mbus_framefmt try_fmt;
+		struct v4l2_rect try_crop;
+		struct v4l2_rect try_compose;
+	} *pad;
 #endif
 };
 
@@ -561,13 +568,19 @@ struct v4l2_subdev_fh {
 static inline struct v4l2_mbus_framefmt *
 v4l2_subdev_get_try_format(struct v4l2_subdev_fh *fh, unsigned int pad)
 {
-	return &fh->try_fmt[pad];
+	return &fh->pad[pad].try_fmt;
 }
 
 static inline struct v4l2_rect *
 v4l2_subdev_get_try_crop(struct v4l2_subdev_fh *fh, unsigned int pad)
 {
-	return &fh->try_crop[pad];
+	return &fh->pad[pad].try_crop;
+}
+
+static inline struct v4l2_rect *
+v4l2_subdev_get_try_compose(struct v4l2_subdev_fh *fh, unsigned int pad)
+{
+	return &fh->pad[pad].try_compose;
 }
 #endif
 

@@ -35,14 +35,9 @@
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	/* Allocate try format and crop in the same memory block */
-	fh->try_fmt = kzalloc((sizeof(*fh->try_fmt) + sizeof(*fh->try_crop))
-			      * sd->entity.num_pads, GFP_KERNEL);
-	if (fh->try_fmt == NULL)
+	fh->pad = kzalloc(sizeof(*fh->pad) * sd->entity.num_pads, GFP_KERNEL);
+	if (fh->pad == NULL)
 		return -ENOMEM;
-
-	fh->try_crop = (struct v4l2_rect *)
-		(fh->try_fmt + sd->entity.num_pads);
 #endif
 	return 0;
 }
@@ -50,9 +45,8 @@ static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 static void subdev_fh_free(struct v4l2_subdev_fh *fh)
 {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	kfree(fh->try_fmt);
-	fh->try_fmt = NULL;
-	fh->try_crop = NULL;
+	kfree(fh->pad);
+	fh->pad = NULL;
 #endif
 }
 
@@ -292,6 +286,34 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		return v4l2_subdev_call(sd, pad, enum_frame_interval, subdev_fh,
 					fie);
+	}
+
+	case VIDIOC_SUBDEV_G_SELECTION: {
+		struct v4l2_subdev_selection *sel = arg;
+
+		if (sel->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
+		if (sel->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(
+			sd, pad, get_selection, subdev_fh, sel);
+	}
+
+	case VIDIOC_SUBDEV_S_SELECTION: {
+		struct v4l2_subdev_selection *sel = arg;
+
+		if (sel->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
+		if (sel->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(
+			sd, pad, set_selection, subdev_fh, sel);
 	}
 #endif
 	default:
