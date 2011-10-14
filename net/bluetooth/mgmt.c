@@ -917,7 +917,7 @@ static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	cp = (void *) data;
 
 	if (len < sizeof(*cp))
-		return -EINVAL;
+		return cmd_status(sk, index, MGMT_OP_LOAD_KEYS, EINVAL);
 
 	key_count = get_unaligned_le16(&cp->key_count);
 
@@ -925,7 +925,7 @@ static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	if (expected_len != len) {
 		BT_ERR("load_keys: expected %u bytes, got %u bytes",
 							len, expected_len);
-		return -EINVAL;
+		return cmd_status(sk, index, MGMT_OP_LOAD_KEYS, EINVAL);
 	}
 
 	hdev = hci_dev_get(index);
