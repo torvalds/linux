@@ -528,9 +528,6 @@ static int da7210_probe(struct snd_soc_codec *codec)
 	/* Activate all enabled subsystem */
 	snd_soc_write(codec, DA7210_STARTUP1, DA7210_SC_MST_EN);
 
-	snd_soc_add_controls(codec, da7210_snd_controls,
-			     ARRAY_SIZE(da7210_snd_controls));
-
 	dev_info(codec->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
 
 	return 0;
@@ -542,6 +539,9 @@ static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.reg_word_size		= sizeof(u8),
 	.reg_cache_default	= da7210_reg,
 	.volatile_register	= da7210_volatile_register,
+
+	.controls		= da7210_snd_controls,
+	.num_controls		= ARRAY_SIZE(da7210_snd_controls),
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
