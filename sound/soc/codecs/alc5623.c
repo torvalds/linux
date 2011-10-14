@@ -53,8 +53,10 @@ static void alc5623_fill_cache(struct snd_soc_codec *codec)
 	u16 *cache = codec->reg_cache;
 
 	/* not really efficient ... */
+	codec->cache_bypass = 1;
 	for (i = 0 ; i < codec->driver->reg_cache_size ; i += step)
-		cache[i] = codec->hw_read(codec, i);
+		cache[i] = snd_soc_read(codec, i);
+	codec->cache_bypass = 0;
 }
 
 static inline int alc5623_reset(struct snd_soc_codec *codec)
