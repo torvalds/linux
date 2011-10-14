@@ -198,6 +198,7 @@ enum {
 	REPLY_WOWLAN_TKIP_PARAMS = 0xe3,
 	REPLY_WOWLAN_KEK_KCK_MATERIAL = 0xe4,
 	REPLY_WOWLAN_GET_STATUS = 0xe5,
+	REPLY_D3_CONFIG = 0xd3,
 
 	REPLY_MAX = 0xff
 };
@@ -3801,6 +3802,19 @@ struct iwl_bt_coex_prot_env_cmd {
 } __attribute__((packed));
 
 /*
+ * REPLY_D3_CONFIG
+ */
+enum iwlagn_d3_wakeup_filters {
+	IWLAGN_D3_WAKEUP_RFKILL		= BIT(0),
+	IWLAGN_D3_WAKEUP_SYSASSERT	= BIT(1),
+};
+
+struct iwlagn_d3_config_cmd {
+	__le32 min_sleep_time;
+	__le32 wakeup_flags;
+} __packed;
+
+/*
  * REPLY_WOWLAN_PATTERNS
  */
 #define IWLAGN_WOWLAN_MIN_PATTERN_LEN	16
@@ -3830,19 +3844,16 @@ enum iwlagn_wowlan_wakeup_filters {
 	IWLAGN_WOWLAN_WAKEUP_BEACON_MISS	= BIT(2),
 	IWLAGN_WOWLAN_WAKEUP_LINK_CHANGE	= BIT(3),
 	IWLAGN_WOWLAN_WAKEUP_GTK_REKEY_FAIL	= BIT(4),
-	IWLAGN_WOWLAN_WAKEUP_RFKILL		= BIT(5),
-	IWLAGN_WOWLAN_WAKEUP_UCODE_ERROR	= BIT(6),
-	IWLAGN_WOWLAN_WAKEUP_EAP_IDENT_REQ	= BIT(7),
-	IWLAGN_WOWLAN_WAKEUP_4WAY_HANDSHAKE	= BIT(8),
-	IWLAGN_WOWLAN_WAKEUP_ALWAYS		= BIT(9),
-	IWLAGN_WOWLAN_WAKEUP_ENABLE_NET_DETECT	= BIT(10),
+	IWLAGN_WOWLAN_WAKEUP_EAP_IDENT_REQ	= BIT(5),
+	IWLAGN_WOWLAN_WAKEUP_4WAY_HANDSHAKE	= BIT(6),
+	IWLAGN_WOWLAN_WAKEUP_ALWAYS		= BIT(7),
+	IWLAGN_WOWLAN_WAKEUP_ENABLE_NET_DETECT	= BIT(8),
 };
 
 struct iwlagn_wowlan_wakeup_filter_cmd {
 	__le32 enabled;
 	__le16 non_qos_seq;
-	u8 min_sleep_seconds;
-	u8 reserved;
+	__le16 reserved;
 	__le16 qos_seq[8];
 };
 

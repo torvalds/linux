@@ -2028,6 +2028,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 		.tkip = &tkip_cmd,
 		.use_tkip = false,
 	};
+	struct iwlagn_d3_config_cmd d3_cfg_cmd = {};
 	int ret, i;
 	u16 seq;
 
@@ -2085,12 +2086,13 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (wowlan->four_way_handshake)
 		wakeup_filter_cmd.enabled |=
 			cpu_to_le32(IWLAGN_WOWLAN_WAKEUP_4WAY_HANDSHAKE);
-	if (wowlan->rfkill_release)
-		wakeup_filter_cmd.enabled |=
-			cpu_to_le32(IWLAGN_WOWLAN_WAKEUP_RFKILL);
 	if (wowlan->n_patterns)
 		wakeup_filter_cmd.enabled |=
 			cpu_to_le32(IWLAGN_WOWLAN_WAKEUP_PATTERN_MATCH);
+
+	if (wowlan->rfkill_release)
+		d3_cfg_cmd.wakeup_flags |=
+			cpu_to_le32(IWLAGN_D3_WAKEUP_RFKILL);
 
 	iwl_scan_cancel_timeout(priv, 200);
 
@@ -2178,6 +2180,11 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 				goto error;
 		}
 	}
+
+	ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_D3_CONFIG, CMD_SYNC,
+				     sizeof(d3_cfg_cmd), &d3_cfg_cmd);
+	if (ret)
+		goto error;
 
 	ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_WOWLAN_WAKEUP_FILTER,
 				 CMD_SYNC, sizeof(wakeup_filter_cmd),
