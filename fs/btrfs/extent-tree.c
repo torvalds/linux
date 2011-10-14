@@ -3343,7 +3343,7 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	u64 max_reclaim;
 	u64 reclaimed = 0;
 	long time_left;
-	int nr_pages = (2 * 1024 * 1024) >> PAGE_CACHE_SHIFT;
+	unsigned long nr_pages = (2 * 1024 * 1024) >> PAGE_CACHE_SHIFT;
 	int loops = 0;
 	unsigned long progress;
 
@@ -3366,7 +3366,8 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	}
 
 	max_reclaim = min(reserved, to_reclaim);
-
+	nr_pages = max_t(unsigned long, nr_pages,
+			 max_reclaim >> PAGE_CACHE_SHIFT);
 	while (loops < 1024) {
 		/* have the flusher threads jump in and do some IO */
 		smp_mb();
