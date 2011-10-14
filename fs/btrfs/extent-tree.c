@@ -3568,17 +3568,6 @@ again:
 		goto again;
 	}
 
-	/*
-	 * Not enough space to be reclaimed, don't bother committing the
-	 * transaction.
-	 */
-	spin_lock(&space_info->lock);
-	if (space_info->bytes_pinned < orig_bytes)
-		ret = -ENOSPC;
-	spin_unlock(&space_info->lock);
-	if (ret)
-		goto out;
-
 	ret = -EAGAIN;
 	if (trans)
 		goto out;
