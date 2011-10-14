@@ -162,6 +162,9 @@ static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate);
 static int igb_ndo_get_vf_config(struct net_device *netdev, int vf,
 				 struct ifla_vf_info *ivi);
 static void igb_check_vf_rate_limit(struct igb_adapter *);
+static int igb_vf_configure(struct igb_adapter *adapter, int vf);
+static int igb_find_enabled_vfs(struct igb_adapter *adapter);
+static int igb_check_vf_assignment(struct igb_adapter *adapter);
 
 #ifdef CONFIG_PM
 static int igb_suspend(struct pci_dev *, pm_message_t);
@@ -2232,8 +2235,12 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	/* reclaim resources allocated to VFs */
 	if (adapter->vf_data) {
 		/* disable iov and allow time for transactions to clear */
-		pci_disable_sriov(pdev);
-		msleep(500);
+		if (!igb_check_vf_assignment(adapter)) {
+			pci_disable_sriov(pdev);
+			msleep(500);
+		} else {
+			dev_info(&pdev->dev, "VF(s) assigned to guests!\n");
+		}
 
 		kfree(adapter->vf_data);
 		adapter->vf_data = NULL;
@@ -2270,41 +2277,48 @@ static void __devinit igb_probe_vfs(struct igb_adapter * adapter)
 {
 #ifdef CONFIG_PCI_IOV
 	struct pci_dev *pdev = adapter->pdev;
+	int old_vfs = igb_find_enabled_vfs(adapter);
+	int i;
 
-	if (adapter->vfs_allocated_count) {
-		adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
-		                           sizeof(struct vf_data_storage),
-		                           GFP_KERNEL);
-		/* if allocation failed then we do not support SR-IOV */
-		if (!adapter->vf_data) {
-			adapter->vfs_allocated_count = 0;
-			dev_err(&pdev->dev, "Unable to allocate memory for VF "
-			        "Data Storage\n");
-		}
+	if (old_vfs) {
+		dev_info(&pdev->dev, "%d pre-allocated VFs found - override "
+			 "max_vfs setting of %d\n", old_vfs, max_vfs);
+		adapter->vfs_allocated_count = old_vfs;
 	}
 
-	if (pci_enable_sriov(pdev, adapter->vfs_allocated_count)) {
-		kfree(adapter->vf_data);
-		adapter->vf_data = NULL;
-#endif /* CONFIG_PCI_IOV */
+	if (!adapter->vfs_allocated_count)
+		return;
+
+	adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
+				sizeof(struct vf_data_storage), GFP_KERNEL);
+	/* if allocation failed then we do not support SR-IOV */
+	if (!adapter->vf_data) {
 		adapter->vfs_allocated_count = 0;
-#ifdef CONFIG_PCI_IOV
-	} else {
-		unsigned char mac_addr[ETH_ALEN];
-		int i;
-		dev_info(&pdev->dev, "%d vfs allocated\n",
-		         adapter->vfs_allocated_count);
-		for (i = 0; i < adapter->vfs_allocated_count; i++) {
-			random_ether_addr(mac_addr);
-			igb_set_vf_mac(adapter, i, mac_addr);
-		}
-		/* DMA Coalescing is not supported in IOV mode. */
-		if (adapter->flags & IGB_FLAG_DMAC)
-			adapter->flags &= ~IGB_FLAG_DMAC;
+		dev_err(&pdev->dev, "Unable to allocate memory for VF "
+			"Data Storage\n");
+		goto out;
 	}
+
+	if (!old_vfs) {
+		if (pci_enable_sriov(pdev, adapter->vfs_allocated_count))
+			goto err_out;
+	}
+	dev_info(&pdev->dev, "%d VFs allocated\n",
+		 adapter->vfs_allocated_count);
+	for (i = 0; i < adapter->vfs_allocated_count; i++)
+		igb_vf_configure(adapter, i);
+
+	/* DMA Coalescing is not supported in IOV mode. */
+	adapter->flags &= ~IGB_FLAG_DMAC;
+	goto out;
+err_out:
+	kfree(adapter->vf_data);
+	adapter->vf_data = NULL;
+	adapter->vfs_allocated_count = 0;
+out:
+	return;
 #endif /* CONFIG_PCI_IOV */
 }
-
 
 /**
  * igb_init_hw_timer - Initialize hardware timer used with IEEE 1588 timestamp
@@ -4917,6 +4931,109 @@ static int igb_notify_dca(struct notifier_block *nb, unsigned long event,
 }
 #endif /* CONFIG_IGB_DCA */
 
+#ifdef CONFIG_PCI_IOV
+static int igb_vf_configure(struct igb_adapter *adapter, int vf)
+{
+	unsigned char mac_addr[ETH_ALEN];
+	struct pci_dev *pdev = adapter->pdev;
+	struct e1000_hw *hw = &adapter->hw;
+	struct pci_dev *pvfdev;
+	unsigned int device_id;
+	u16 thisvf_devfn;
+
+	random_ether_addr(mac_addr);
+	igb_set_vf_mac(adapter, vf, mac_addr);
+
+	switch (adapter->hw.mac.type) {
+	case e1000_82576:
+		device_id = IGB_82576_VF_DEV_ID;
+		/* VF Stride for 82576 is 2 */
+		thisvf_devfn = (pdev->devfn + 0x80 + (vf << 1)) |
+			(pdev->devfn & 1);
+		break;
+	case e1000_i350:
+		device_id = IGB_I350_VF_DEV_ID;
+		/* VF Stride for I350 is 4 */
+		thisvf_devfn = (pdev->devfn + 0x80 + (vf << 2)) |
+				(pdev->devfn & 3);
+		break;
+	default:
+		device_id = 0;
+		thisvf_devfn = 0;
+		break;
+	}
+
+	pvfdev = pci_get_device(hw->vendor_id, device_id, NULL);
+	while (pvfdev) {
+		if (pvfdev->devfn == thisvf_devfn)
+			break;
+		pvfdev = pci_get_device(hw->vendor_id,
+					device_id, pvfdev);
+	}
+
+	if (pvfdev)
+		adapter->vf_data[vf].vfdev = pvfdev;
+	else
+		dev_err(&pdev->dev,
+			"Couldn't find pci dev ptr for VF %4.4x\n",
+			thisvf_devfn);
+	return pvfdev != NULL;
+}
+
+static int igb_find_enabled_vfs(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *pvfdev;
+	u16 vf_devfn = 0;
+	u16 vf_stride;
+	unsigned int device_id;
+	int vfs_found = 0;
+
+	switch (adapter->hw.mac.type) {
+	case e1000_82576:
+		device_id = IGB_82576_VF_DEV_ID;
+		/* VF Stride for 82576 is 2 */
+		vf_stride = 2;
+		break;
+	case e1000_i350:
+		device_id = IGB_I350_VF_DEV_ID;
+		/* VF Stride for I350 is 4 */
+		vf_stride = 4;
+		break;
+	default:
+		device_id = 0;
+		vf_stride = 0;
+		break;
+	}
+
+	vf_devfn = pdev->devfn + 0x80;
+	pvfdev = pci_get_device(hw->vendor_id, device_id, NULL);
+	while (pvfdev) {
+		if (pvfdev->devfn == vf_devfn)
+			vfs_found++;
+		vf_devfn += vf_stride;
+		pvfdev = pci_get_device(hw->vendor_id,
+					device_id, pvfdev);
+	}
+
+	return vfs_found;
+}
+
+static int igb_check_vf_assignment(struct igb_adapter *adapter)
+{
+	int i;
+	for (i = 0; i < adapter->vfs_allocated_count; i++) {
+		if (adapter->vf_data[i].vfdev) {
+			if (adapter->vf_data[i].vfdev->dev_flags &
+			    PCI_DEV_FLAGS_ASSIGNED)
+				return true;
+		}
+	}
+	return false;
+}
+
+#endif
 static void igb_ping_all_vfs(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
