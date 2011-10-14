@@ -160,6 +160,10 @@ static struct clk clk_prediv = {
 	},
 };
 
+static unsigned int *armdiv;
+static int nr_armdiv;
+static int armdivmask;
+
 /* usbhost
  *
  * usb host bus-clock, usually 48MHz to provide USB bus clock timing
@@ -470,9 +474,15 @@ static struct clksrc_clk *clksrcs[] __initdata = {
 };
 
 void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
-				       fdiv_fn get_fdiv)
+				       fdiv_fn get_fdiv,
+				       unsigned int *divs, int nr_divs,
+				       int divmask)
 {
 	int ptr;
+
+	armdiv = divs;
+	nr_armdiv = nr_divs;
+	armdivmask = divmask;
 
 	/* s3c2443 parents h and p clocks from prediv */
 	clk_h.parent = &clk_prediv;

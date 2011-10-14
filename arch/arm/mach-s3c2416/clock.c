@@ -158,7 +158,9 @@ void __init s3c2416_init_clocks(int xtal)
 
 	clk_epll.parent = &clk_epllref.clk;
 
-	s3c2443_common_init_clocks(xtal, s3c2416_get_pll, s3c2416_fclk_div);
+	s3c2443_common_init_clocks(xtal, s3c2416_get_pll, s3c2416_fclk_div,
+				   armdiv, ARRAY_SIZE(armdiv),
+				   S3C2416_CLKDIV0_ARMDIV_MASK);
 
 	for (ptr = 0; ptr < ARRAY_SIZE(clksrcs); ptr++)
 		s3c_register_clksrc(clksrcs[ptr], 1);

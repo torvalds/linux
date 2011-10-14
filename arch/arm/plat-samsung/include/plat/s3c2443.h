@@ -40,7 +40,9 @@ typedef unsigned int (*pll_fn)(unsigned int reg, unsigned int base);
 typedef unsigned int (*fdiv_fn)(unsigned long clkcon0);
 
 extern void s3c2443_common_setup_clocks(pll_fn get_mpll, fdiv_fn fdiv);
-extern void s3c2443_common_init_clocks(int xtal, pll_fn get_mpll, fdiv_fn fdiv);
+extern void s3c2443_common_init_clocks(int xtal, pll_fn get_mpll, fdiv_fn fdiv,
+				       unsigned int *divs, int nr_divs,
+				       int divmask);
 
 extern int s3c2443_clkcon_enable_h(struct clk *clk, int enable);
 extern int s3c2443_clkcon_enable_p(struct clk *clk, int enable);

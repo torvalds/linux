@@ -283,7 +283,9 @@ void __init s3c2443_init_clocks(int xtal)
 	clk_epll.rate = s3c2443_get_epll(epllcon, xtal);
 	clk_epll.parent = &clk_epllref.clk;
 
-	s3c2443_common_init_clocks(xtal, s3c2443_get_mpll, s3c2443_fclk_div);
+	s3c2443_common_init_clocks(xtal, s3c2443_get_mpll, s3c2443_fclk_div,
+				   armdiv, ARRAY_SIZE(armdiv),
+				   S3C2443_CLKDIV0_ARMDIV_MASK);
 
 	s3c2443_setup_clocks();
 
