@@ -3,7 +3,7 @@
 /*
  *	head.S -- common startup code for ColdFire CPUs.
  *
- *	(C) Copyright 1999-2010, Greg Ungerer <gerg@snapgear.com>.
+ *	(C) Copyright 1999-2011, Greg Ungerer <gerg@snapgear.com>.
  */
 
 /*****************************************************************************/
@@ -13,6 +13,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#include <asm/mcfmmu.h>
 #include <asm/thread_info.h>
 
 /*****************************************************************************/
@@ -135,6 +136,14 @@ _init_sp:
 
 __HEAD
 
+#ifdef CONFIG_MMU
+_start0:
+	jmp	_start
+.global kernel_pg_dir
+.equ	kernel_pg_dir,_start0
+.equ	.,_start0+0x1000
+#endif
+
 /*
  *	This is the codes first entry point. This is where it all
  *	begins...
@@ -193,6 +202,26 @@ _start:
 	movec	%d0,%CACR
 	nop
 
+#ifdef CONFIG_MMU
+	/*
+	 *	Identity mapping for the kernel region.
+	 */
+	movel	#(MMUBASE+1),%d0		/* enable MMUBAR registers */
+	movec	%d0,%MMUBAR
+	movel	#MMUOR_CA,%d0			/* clear TLB entries */
+	movel	%d0,MMUOR
+	movel	#0,%d0				/* set ASID to 0 */
+	movec	%d0,%asid
+
+	movel	#MMUCR_EN,%d0			/* Enable the identity map */
+	movel	%d0,MMUCR
+	nop					/* sync i-pipeline */
+
+	movel	#_vstart,%a0			/* jump to "virtual" space */
+	jmp	%a0@
+_vstart:
+#endif /* CONFIG_MMU */
+
 #ifdef CONFIG_ROMFS_FS
 	/*
 	 *	Move ROM filesystem above bss :-)
@@ -237,6 +266,22 @@ _clear_bss:
 	 */
 	lea	init_thread_union,%a0
 	lea	THREAD_SIZE(%a0),%sp
+
+#ifdef CONFIG_MMU
+.global m68k_cputype
+.global m68k_mmutype
+.global m68k_fputype
+.global m68k_machtype
+	movel	#CPU_COLDFIRE,%d0
+	movel	%d0,m68k_cputype		/* Mark us as a ColdFire */
+	movel	#MMU_COLDFIRE,%d0
+	movel	%d0,m68k_mmutype
+	movel	#FPU_COLDFIRE,%d0
+	movel	%d0,m68k_fputype
+	movel	#MACH_M54XX,%d0
+	movel	%d0,m68k_machtype		/* Mark us as a 54xx machine */
+	lea	init_task,%a2			/* Set "current" init task */
+#endif
 
 	/*
 	 *	Assember start up done, start code proper.
