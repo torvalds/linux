@@ -101,10 +101,6 @@ config GENERIC_LOCKBREAK
 	def_bool y
 	depends on SMP && PREEMPT
 
-config SYS_SUPPORTS_PM
-	bool
-	depends on !SMP
-
 config ARCH_SUSPEND_POSSIBLE
 	def_bool n
 
