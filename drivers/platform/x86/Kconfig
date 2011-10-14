@@ -69,10 +69,11 @@ config ASUS_LAPTOP
 	  This is a driver for Asus laptops, Lenovo SL and the Pegatron
 	  Lucid tablet. It may also support some MEDION, JVC or VICTOR
 	  laptops. It makes all the extra buttons generate standard
-	  ACPI events and input events. It also adds support for video
-	  output switching, LCD backlight control, Bluetooth and Wlan
-	  control, and most importantly, allows you to blink those
-	  fancy LEDs.
+	  ACPI events and input events, and on the Lucid the built-in
+	  accelerometer appears as an input device.  It also adds
+	  support for video output switching, LCD backlight control,
+	  Bluetooth and Wlan control, and most importantly, allows you
+	  to blink those fancy LEDs.
 
 	  For more information see <http://acpi4asus.sf.net>.
 
