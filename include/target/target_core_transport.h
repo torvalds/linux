@@ -218,6 +218,10 @@ struct se_subsystem_api {
 	 * Transport Type.
 	 */
 	u8 transport_type;
+
+	unsigned int fua_write_emulated : 1;
+	unsigned int write_cache_emulated : 1;
+
 	/*
 	 * struct module for struct se_hba references
 	 */
@@ -253,22 +257,6 @@ struct se_subsystem_api {
 	 */
 	void (*free_device)(void *);
 
-	/*
-	 * dpo_emulated():
-	 */
-	int (*dpo_emulated)(struct se_device *);
-	/*
-	 * fua_write_emulated():
-	 */
-	int (*fua_write_emulated)(struct se_device *);
-	/*
-	 * fua_read_emulated():
-	 */
-	int (*fua_read_emulated)(struct se_device *);
-	/*
-	 * write_cache_emulated():
-	 */
-	int (*write_cache_emulated)(struct se_device *);
 	/*
 	 * transport_complete():
 	 *

@@ -400,33 +400,6 @@ static void fd_emulate_sync_cache(struct se_task *task)
 }
 
 /*
- * Tell TCM Core that we are capable of WriteCache emulation for
- * an underlying struct se_device.
- */
-static int fd_emulated_write_cache(struct se_device *dev)
-{
-	return 1;
-}
-
-static int fd_emulated_dpo(struct se_device *dev)
-{
-	return 0;
-}
-/*
- * Tell TCM Core that we will be emulating Forced Unit Access (FUA) for WRITEs
- * for TYPE_DISK.
- */
-static int fd_emulated_fua_write(struct se_device *dev)
-{
-	return 1;
-}
-
-static int fd_emulated_fua_read(struct se_device *dev)
-{
-	return 0;
-}
-
-/*
  * WRITE Force Unit Access (FUA) emulation on a per struct se_task
  * LBA range basis..
  */
@@ -640,15 +613,13 @@ static struct se_subsystem_api fileio_template = {
 	.name			= "fileio",
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
+	.write_cache_emulated	= 1,
+	.fua_write_emulated	= 1,
 	.attach_hba		= fd_attach_hba,
 	.detach_hba		= fd_detach_hba,
 	.allocate_virtdevice	= fd_allocate_virtdevice,
 	.create_virtdevice	= fd_create_virtdevice,
 	.free_device		= fd_free_device,
-	.dpo_emulated		= fd_emulated_dpo,
-	.fua_write_emulated	= fd_emulated_fua_write,
-	.fua_read_emulated	= fd_emulated_fua_read,
-	.write_cache_emulated	= fd_emulated_write_cache,
 	.alloc_task		= fd_alloc_task,
 	.do_task		= fd_do_task,
 	.do_sync_cache		= fd_emulate_sync_cache,

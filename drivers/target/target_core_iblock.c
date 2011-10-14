@@ -351,34 +351,6 @@ static void iblock_emulate_sync_cache(struct se_task *task)
 	submit_bio(WRITE_FLUSH, bio);
 }
 
-/*
- * Tell TCM Core that we are capable of WriteCache emulation for
- * an underlying struct se_device.
- */
-static int iblock_emulated_write_cache(struct se_device *dev)
-{
-	return 1;
-}
-
-static int iblock_emulated_dpo(struct se_device *dev)
-{
-	return 0;
-}
-
-/*
- * Tell TCM Core that we will be emulating Forced Unit Access (FUA) for WRITEs
- * for TYPE_DISK.
- */
-static int iblock_emulated_fua_write(struct se_device *dev)
-{
-	return 1;
-}
-
-static int iblock_emulated_fua_read(struct se_device *dev)
-{
-	return 0;
-}
-
 static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
 {
 	struct iblock_dev *ibd = dev->dev_ptr;
@@ -679,15 +651,13 @@ static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
+	.write_cache_emulated	= 1,
+	.fua_write_emulated	= 1,
 	.attach_hba		= iblock_attach_hba,
 	.detach_hba		= iblock_detach_hba,
 	.allocate_virtdevice	= iblock_allocate_virtdevice,
 	.create_virtdevice	= iblock_create_virtdevice,
 	.free_device		= iblock_free_device,
-	.dpo_emulated		= iblock_emulated_dpo,
-	.fua_write_emulated	= iblock_emulated_fua_write,
-	.fua_read_emulated	= iblock_emulated_fua_read,
-	.write_cache_emulated	= iblock_emulated_write_cache,
 	.alloc_task		= iblock_alloc_task,
 	.do_task		= iblock_do_task,
 	.do_discard		= iblock_do_discard,
