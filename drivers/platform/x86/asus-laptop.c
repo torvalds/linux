@@ -1342,6 +1342,14 @@ static void asus_acpi_notify(struct acpi_device *device, u32 event)
 		}
 		return ;
 	}
+
+	/* Accelerometer "coarse orientation change" event */
+	if (asus->pega_accel_poll && event == 0xEA) {
+		kobject_uevent(&asus->pega_accel_poll->input->dev.kobj,
+			       KOBJ_CHANGE);
+		return ;
+	}
+
 	asus_input_notify(asus, event);
 }
 
