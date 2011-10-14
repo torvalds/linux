@@ -298,7 +298,7 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	reg = snd_soc_read(codec, AD193X_PLL_CLK_CTRL0);
-	reg = (reg & AD193X_PLL_INPUT_MASK) | master_rate;
+	reg = (reg & (~AD193X_PLL_INPUT_MASK)) | master_rate;
 	snd_soc_write(codec, AD193X_PLL_CLK_CTRL0, reg);
 
 	reg = snd_soc_read(codec, AD193X_DAC_CTRL2);
