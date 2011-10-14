@@ -789,6 +789,8 @@ static int tsl2563_remove(struct i2c_client *client)
 {
 	struct tsl2563_chip *chip = i2c_get_clientdata(client);
 	struct iio_dev *indio_dev = iio_priv_to_dev(chip);
+
+	iio_device_unregister(indio_dev);
 	if (!chip->int_enabled)
 		cancel_delayed_work(&chip->poweroff_work);
 	/* Ensure that interrupts are disabled - then flush any bottom halves */
@@ -799,7 +801,8 @@ static int tsl2563_remove(struct i2c_client *client)
 	tsl2563_set_power(chip, 0);
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
-	iio_device_unregister(indio_dev);
+
+	iio_free_device(indio_dev);
 
 	return 0;
 }

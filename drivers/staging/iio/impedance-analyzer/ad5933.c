@@ -768,13 +768,14 @@ static __devexit int ad5933_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ad5933_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	iio_sw_rb_free(indio_dev->buffer);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

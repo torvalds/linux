@@ -255,13 +255,14 @@ static int ad7780_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7780_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
 	free_irq(spi->irq, st);
 	gpio_free(st->pdata->gpio_pdrst);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

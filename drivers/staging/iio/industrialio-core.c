@@ -971,7 +971,6 @@ static int iio_device_register_eventset(struct iio_dev *indio_dev)
 			    l)
 		indio_dev->event_interface->group.attrs[attrn++] =
 			&p->dev_attr.attr;
-
 	indio_dev->groups[indio_dev->groupcounter++] =
 		&indio_dev->event_interface->group;
 
@@ -1002,8 +1001,6 @@ static void iio_dev_release(struct device *device)
 		iio_device_unregister_trigger_consumer(indio_dev);
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
-	ida_simple_remove(&iio_ida, indio_dev->id);
-	kfree(indio_dev);
 }
 
 static struct device_type iio_dev_type = {

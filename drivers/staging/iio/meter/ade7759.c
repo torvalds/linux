@@ -502,11 +502,12 @@ static int ade7759_remove(struct spi_device *spi)
 	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
+	iio_device_unregister(indio_dev);
 	ret = ade7759_stop_device(&(indio_dev->dev));
 	if (ret)
 		goto err_ret;
 
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 err_ret:
 	return ret;

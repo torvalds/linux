@@ -267,6 +267,7 @@ error_ret:
 static int __devexit ad9852_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
+	iio_free_device(spi_get_drvdata(spi));
 
 	return 0;
 }

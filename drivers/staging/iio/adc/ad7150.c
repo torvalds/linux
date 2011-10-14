@@ -628,13 +628,14 @@ static int __devexit ad7150_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
+	iio_device_unregister(indio_dev);
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 
 	if (client->dev.platform_data)
 		free_irq(*(unsigned int *)client->dev.platform_data, indio_dev);
 
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

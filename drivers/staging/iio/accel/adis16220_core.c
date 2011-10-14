@@ -624,7 +624,7 @@ static const struct iio_info adis16220_info = {
 
 static int __devinit adis16220_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct adis16220_state *st;
 	struct iio_dev *indio_dev;
 
@@ -652,11 +652,10 @@ static int __devinit adis16220_probe(struct spi_device *spi)
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
-	regdone = 1;
 
 	ret = sysfs_create_bin_file(&indio_dev->dev.kobj, &accel_bin);
 	if (ret)
-		goto error_free_dev;
+		goto error_unregister_dev;
 
 	ret = sysfs_create_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	if (ret)
@@ -678,11 +677,10 @@ error_rm_adc1_bin:
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 error_rm_accel_bin:
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
+error_unregister_dev:
+	iio_device_unregister(indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
@@ -697,6 +695,7 @@ static int adis16220_remove(struct spi_device *spi)
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
 	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

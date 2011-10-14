@@ -1122,7 +1122,7 @@ static const struct iio_info sca3000_info_with_temp = {
 
 static int __devinit sca3000_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct sca3000_state *st;
 	struct iio_dev *indio_dev;
 
@@ -1154,7 +1154,7 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
 		goto error_free_dev;
-	regdone = 1;
+
 	ret = iio_buffer_register(indio_dev,
 				  sca3000_channels,
 				  ARRAY_SIZE(sca3000_channels));
@@ -1188,11 +1188,9 @@ error_free_irq:
 error_unregister_ring:
 	iio_buffer_unregister(indio_dev);
 error_unregister_dev:
+	iio_device_unregister(indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 error_ret:
 	return ret;
@@ -1227,9 +1225,10 @@ static int sca3000_remove(struct spi_device *spi)
 		return ret;
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
+	iio_device_unregister(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	sca3000_unconfigure_ring(indio_dev);
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

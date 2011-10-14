@@ -349,6 +349,7 @@ static int __devexit ad5504_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5504_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 
@@ -356,8 +357,7 @@ static int __devexit ad5504_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

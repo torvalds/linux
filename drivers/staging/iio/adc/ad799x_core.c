@@ -892,6 +892,7 @@ static __devexit int ad799x_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ad799x_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
 	if (client->irq > 0)
 		free_irq(client->irq, indio_dev);
 
@@ -901,7 +902,7 @@ static __devexit int ad799x_remove(struct i2c_client *client)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

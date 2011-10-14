@@ -590,6 +590,7 @@ EXPORT_SYMBOL(ade7854_probe);
 int ade7854_remove(struct iio_dev *indio_dev)
 {
 	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

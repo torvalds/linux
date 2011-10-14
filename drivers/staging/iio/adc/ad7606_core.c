@@ -545,6 +545,7 @@ int ad7606_remove(struct iio_dev *indio_dev, int irq)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	ad7606_ring_cleanup(indio_dev);
 
@@ -555,7 +556,7 @@ int ad7606_remove(struct iio_dev *indio_dev, int irq)
 	}
 
 	ad7606_free_gpios(st);
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

@@ -819,11 +819,12 @@ static int __devexit adt7410_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	unsigned long *adt7410_platform_data = client->dev.platform_data;
 
+	iio_device_unregister(indio_dev);
 	if (adt7410_platform_data[0])
 		free_irq(adt7410_platform_data[0], indio_dev);
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

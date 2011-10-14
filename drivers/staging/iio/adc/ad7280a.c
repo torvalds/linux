@@ -831,7 +831,7 @@ static int __devinit ad7280_probe(struct spi_device *spi)
 {
 	const struct ad7280_platform_data *pdata = spi->dev.platform_data;
 	struct ad7280_state *st;
-	int ret, regdone = 0;
+	int ret;
 	const unsigned short tACQ_ns[4] = {465, 1010, 1460, 1890};
 	const unsigned short nAVG[4] = {1, 2, 4, 8};
 	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
@@ -903,21 +903,20 @@ static int __devinit ad7280_probe(struct spi_device *spi)
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_attr;
-	regdone = 1;
 
 	if (spi->irq > 0) {
 		ret = ad7280_write(st, AD7280A_DEVADDR_MASTER,
 				   AD7280A_ALERT, 1,
 				   AD7280A_ALERT_RELAY_SIG_CHAIN_DOWN);
 		if (ret)
-			goto error_free_attr;
+			goto error_unregister;
 
 		ret = ad7280_write(st, AD7280A_DEVADDR(st->slave_num),
 				   AD7280A_ALERT, 0,
 				   AD7280A_ALERT_GEN_STATIC_HIGH |
 				   (pdata->chain_last_alert_ignore & 0xF));
 		if (ret)
-			goto error_free_attr;
+			goto error_unregister;
 
 		ret = request_threaded_irq(spi->irq,
 					   NULL,
@@ -927,10 +926,12 @@ static int __devinit ad7280_probe(struct spi_device *spi)
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
-			goto error_free_attr;
+			goto error_unregister;
 	}
 
 	return 0;
+error_unregister:
+	iio_device_unregister(indio_dev);
 
 error_free_attr:
 	kfree(st->iio_attr);
@@ -939,10 +940,7 @@ error_free_channels:
 	kfree(st->channels);
 
 error_free_device:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 	return ret;
 }
@@ -954,13 +952,14 @@ static int __devexit ad7280_remove(struct spi_device *spi)
 
 	if (spi->irq > 0)
 		free_irq(spi->irq, indio_dev);
+	iio_device_unregister(indio_dev);
 
 	ad7280_write(st, AD7280A_DEVADDR_MASTER, AD7280A_CONTROL_HB, 1,
 			AD7280A_CTRL_HB_PWRDN_SW | st->ctrl_hb);
 
 	kfree(st->channels);
 	kfree(st->iio_attr);
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

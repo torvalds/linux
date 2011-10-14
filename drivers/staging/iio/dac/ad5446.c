@@ -424,13 +424,14 @@ static int ad5446_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5446_state *st = iio_priv(indio_dev);
-	struct regulator *reg = st->reg;
 
 	iio_device_unregister(indio_dev);
-	if (!IS_ERR(reg)) {
-		regulator_disable(reg);
-		regulator_put(reg);
+	if (!IS_ERR(st->reg)) {
+		regulator_disable(st->reg);
+		regulator_put(st->reg);
 	}
+	iio_free_device(indio_dev);
+
 	return 0;
 }
 

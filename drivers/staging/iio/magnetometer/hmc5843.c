@@ -579,9 +579,11 @@ exit:
 static int hmc5843_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+
+	iio_device_unregister(indio_dev);
 	 /*  sleep mode to save power */
 	hmc5843_configure(client, MODE_SLEEP);
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

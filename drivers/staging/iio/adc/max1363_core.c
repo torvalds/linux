@@ -1347,6 +1347,7 @@ static int max1363_remove(struct i2c_client *client)
 	struct max1363_state *st = iio_priv(indio_dev);
 	struct regulator *reg = st->reg;
 
+	iio_device_unregister(indio_dev);
 	if (client->irq)
 		free_irq(st->client->irq, indio_dev);
 	iio_buffer_unregister(indio_dev);
@@ -1356,7 +1357,7 @@ static int max1363_remove(struct i2c_client *client)
 		regulator_disable(reg);
 		regulator_put(reg);
 	}
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

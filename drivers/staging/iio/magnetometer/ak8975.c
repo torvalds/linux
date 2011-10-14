@@ -546,12 +546,13 @@ static int ak8975_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ak8975_data *data = iio_priv(indio_dev);
-	int eoc_gpio = data->eoc_gpio;
 
 	iio_device_unregister(indio_dev);
 
-	if (gpio_is_valid(eoc_gpio))
-		gpio_free(eoc_gpio);
+	if (gpio_is_valid(data->eoc_gpio))
+		gpio_free(data->eoc_gpio);
+
+	iio_free_device(indio_dev);
 
 	return 0;
 }

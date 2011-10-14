@@ -560,10 +560,11 @@ static int adis16204_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
+	iio_device_unregister(indio_dev);
 	adis16204_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	adis16204_unconfigure_ring(indio_dev);
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

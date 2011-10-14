@@ -736,7 +736,7 @@ error_uninitialize_buffer:
 error_unreg_buffer_funcs:
 	lis3l02dq_unconfigure_buffer(indio_dev);
 error_free_dev:
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
@@ -774,6 +774,8 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
+
 	ret = lis3l02dq_disable_all_events(indio_dev);
 	if (ret)
 		goto err_ret;
@@ -789,8 +791,7 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	iio_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_buffer(indio_dev);
 
-	iio_device_unregister(indio_dev);
-
+	iio_free_device(indio_dev);
 err_ret:
 	return ret;
 }

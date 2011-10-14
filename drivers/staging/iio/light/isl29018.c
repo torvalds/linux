@@ -581,6 +581,7 @@ static int __devexit isl29018_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "%s()\n", __func__);
 	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

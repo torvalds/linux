@@ -1032,7 +1032,7 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	struct ad7192_platform_data *pdata = spi->dev.platform_data;
 	struct ad7192_state *st;
 	struct iio_dev *indio_dev;
-	int ret, i , voltage_uv = 0, regdone = 0;
+	int ret, i , voltage_uv = 0;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform data?\n");
@@ -1090,14 +1090,9 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring;
-	regdone = 1;
-
 	ret = ad7192_probe_trigger(indio_dev);
 	if (ret)
-		goto error_unreg_ring;
+		goto error_ring_cleanup;
 
 	ret = iio_buffer_register(indio_dev,
 				  indio_dev->channels,
@@ -1107,15 +1102,18 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 
 	ret = ad7192_setup(st);
 	if (ret)
-		goto error_uninitialize_ring;
+		goto error_unreg_ring;
 
+	ret = iio_device_register(indio_dev);
+	if (ret < 0)
+		goto error_unreg_ring;
 	return 0;
 
-error_uninitialize_ring:
+error_unreg_ring:
 	iio_buffer_unregister(indio_dev);
 error_remove_trigger:
 	ad7192_remove_trigger(indio_dev);
-error_unreg_ring:
+error_ring_cleanup:
 	ad7192_ring_cleanup(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
@@ -1124,10 +1122,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 	return ret;
 }
@@ -1137,6 +1132,7 @@ static int ad7192_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7192_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	ad7192_remove_trigger(indio_dev);
 	ad7192_ring_cleanup(indio_dev);
@@ -1145,8 +1141,6 @@ static int ad7192_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-
-	iio_device_unregister(indio_dev);
 
 	return 0;
 }

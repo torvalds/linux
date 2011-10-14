@@ -324,7 +324,7 @@ static const struct iio_info adxrs450_info = {
 
 static int __devinit adxrs450_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct adxrs450_state *st;
 	struct iio_dev *indio_dev;
 
@@ -350,20 +350,16 @@ static int __devinit adxrs450_probe(struct spi_device *spi)
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
-	regdone = 1;
 
 	/* Get the device into a sane initial state */
 	ret = adxrs450_initial_setup(indio_dev);
 	if (ret)
 		goto error_initial;
 	return 0;
-
 error_initial:
+	iio_device_unregister(indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 error_ret:
 	return ret;
@@ -372,6 +368,7 @@ error_ret:
 static int adxrs450_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
+	iio_free_device(spi_get_drvdata(spi));
 
 	return 0;
 }
