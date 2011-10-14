@@ -285,6 +285,8 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 						     timer, arg, delay_secs);
 			}
 			break;
+		case NEWT_KEY_LEFT:
+		case NEWT_KEY_ESCAPE:
 		case 'q':
 		case CTRL('c'):
 			goto out;
