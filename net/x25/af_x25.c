@@ -959,6 +959,12 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	skb_pull(skb,len);
 
 	/*
+	 *	Ensure that the amount of call user data is valid.
+	 */
+	if (skb->len > X25_MAX_CUD_LEN)
+		goto out_clear_request;
+
+	/*
 	 *	Find a listener for the particular address/cud pair.
 	 */
 	sk = x25_find_listener(&source_addr,skb);

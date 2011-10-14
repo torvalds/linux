@@ -127,6 +127,9 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 		 *	Copy any Call User Data.
 		 */
 		if (skb->len > 0) {
+			if (skb->len > X25_MAX_CUD_LEN)
+				goto out_clear;
+
 			skb_copy_from_linear_data(skb,
 						  x25->calluserdata.cuddata,
 						  skb->len);
