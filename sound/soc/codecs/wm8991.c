@@ -393,7 +393,7 @@ static int inmixer_event(struct snd_soc_dapm_widget *w,
 			 (1 << WM8991_AINRMUX_PWR_BIT)))
 		reg |= WM8991_AINR_ENA;
 	else
-		reg &= ~WM8991_AINL_ENA;
+		reg &= ~WM8991_AINR_ENA;
 
 	snd_soc_write(w->codec, WM8991_POWER_MANAGEMENT_2, reg);
 	return 0;
