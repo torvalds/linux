@@ -673,10 +673,8 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 
 	if (chip->chip_type == PCA953X_TYPE)
 		device_pca953x_init(chip, invert);
-	else if (chip->chip_type == PCA957X_TYPE)
-		device_pca957x_init(chip, invert);
 	else
-		goto out_failed;
+		device_pca957x_init(chip, invert);
 
 	ret = pca953x_irq_setup(chip, id, irq_base);
 	if (ret)
