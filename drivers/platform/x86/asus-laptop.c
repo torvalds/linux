@@ -90,22 +90,22 @@ static int als_status;
 module_param(wlan_status, int, 0444);
 MODULE_PARM_DESC(wlan_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
-		 "default is 1");
+		 "default is -1");
 
 module_param(bluetooth_status, int, 0444);
 MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
-		 "default is 1");
+		 "default is -1");
 
 module_param(wimax_status, int, 0444);
 MODULE_PARM_DESC(wimax_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
-		 "default is 1");
+		 "default is -1");
 
 module_param(wwan_status, int, 0444);
 MODULE_PARM_DESC(wwan_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
-		 "default is 1");
+		 "default is -1");
 
 module_param(als_status, int, 0444);
 MODULE_PARM_DESC(als_status, "Set the ALS status on boot "
