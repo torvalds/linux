@@ -694,14 +694,11 @@ static int update_eir(struct hci_dev *hdev)
 
 static u8 get_service_classes(struct hci_dev *hdev)
 {
-	struct list_head *p;
+	struct bt_uuid *uuid;
 	u8 val = 0;
 
-	list_for_each(p, &hdev->uuids) {
-		struct bt_uuid *uuid = list_entry(p, struct bt_uuid, list);
-
+	list_for_each_entry(uuid, &hdev->uuids, list)
 		val |= uuid->svc_hint;
-	}
 
 	return val;
 }
