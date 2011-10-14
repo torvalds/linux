@@ -1223,7 +1223,6 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	memset(t, 0, sizeof(*t));
 	strcpy(t->name, "Television");
 
 	return 0;
