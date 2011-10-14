@@ -279,6 +279,12 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 			goto out;
 		}
 
+		/*
+		 * the values related to a buffer of the drm framebuffer
+		 * to be applied should be set at here. because these values
+		 * first, is set to shadow registers and then to
+		 * real registers at vsync front porch period.
+		 */
 		exynos_drm_crtc_apply(crtc);
 
 		dev_priv->pageflip_event = true;

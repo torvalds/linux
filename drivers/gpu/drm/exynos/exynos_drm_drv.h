@@ -82,7 +82,6 @@ struct exynos_drm_overlay_ops {
  * @paddr: bus(accessed by dma) physical memory address to this overlay
  *		and this is physically continuous.
  * @vaddr: virtual memory addresss to this overlay.
- * @buf_off: start offset of framebuffer to be displayed.
  * @default_win: a window to be enabled.
  * @color_key: color key on or off.
  * @index_color: if using color key feature then this value would be used
@@ -111,7 +110,6 @@ struct exynos_drm_overlay {
 	unsigned int pitch;
 	dma_addr_t paddr;
 	void __iomem *vaddr;
-	unsigned int buf_off;
 
 	bool default_win;
 	bool color_key;

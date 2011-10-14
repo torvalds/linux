@@ -393,6 +393,10 @@ int exynos_drm_fbdev_reinit(struct drm_device *dev)
 	if (!private)
 		return -EINVAL;
 
+	/*
+	 * if all sub drivers were unloaded then num_connector is 0
+	 * so at this time, the framebuffers also should be destroyed.
+	 */
 	if (!dev->mode_config.num_connector) {
 		exynos_drm_fbdev_fini(dev);
 		return 0;
@@ -429,7 +433,7 @@ int exynos_drm_fbdev_reinit(struct drm_device *dev)
 		 * re-configure the fb helper. it means that this function
 		 * has been called by the specific drivers.
 		 */
-		return exynos_drm_fbdev_init(dev);
+		ret = exynos_drm_fbdev_init(dev);
 	}
 
 	return ret;
