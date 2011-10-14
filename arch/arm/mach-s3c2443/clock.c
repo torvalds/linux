@@ -168,9 +168,6 @@ static struct clk init_clocks_off[] = {
 	}
 };
 
-static struct clk init_clocks[] = {
-};
-
 /* clocks to add straight away */
 
 static struct clksrc_clk *clksrcs[] __initdata = {
@@ -205,10 +202,6 @@ void __init s3c2443_init_clocks(int xtal)
 
 	for (ptr = 0; ptr < ARRAY_SIZE(clksrcs); ptr++)
 		s3c_register_clksrc(clksrcs[ptr], 1);
-
-	/* register clocks from clock array */
-
-	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
 	/* We must be careful disabling the clocks we are not intending to
 	 * be using at boot time, as subsystems such as the LCD which do
