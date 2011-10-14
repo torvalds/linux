@@ -2836,6 +2836,75 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SOLARFLARE,
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SOLARFLARE,
 			 PCI_DEVICE_ID_SOLARFLARE_SFC4000B, fixup_mpss_256);
 
+/* Intel 5000 and 5100 Memory controllers have an errata with read completion
+ * coalescing (which is enabled by default on some BIOSes) and MPS of 256B.
+ * Since there is no way of knowing what the PCIE MPS on each fabric will be
+ * until all of the devices are discovered and buses walked, read completion
+ * coalescing must be disabled.  Unfortunately, it cannot be re-enabled because
+ * it is possible to hotplug a device with MPS of 256B.
+ */
+static void __devinit quirk_intel_mc_errata(struct pci_dev *dev)
+{
+	int err;
+	u16 rcc;
+
+	if (pcie_bus_config == PCIE_BUS_TUNE_OFF)
+		return;
+
+	/* Intel errata specifies bits to change but does not say what they are.
+	 * Keeping them magical until such time as the registers and values can
+	 * be explained.
+	 */
+	err = pci_read_config_word(dev, 0x48, &rcc);
+	if (err) {
+		dev_err(&dev->dev, "Error attempting to read the read "
+			"completion coalescing register.\n");
+		return;
+	}
+
+	if (!(rcc & (1 << 10)))
+		return;
+
+	rcc &= ~(1 << 10);
+
+	err = pci_write_config_word(dev, 0x48, rcc);
+	if (err) {
+		dev_err(&dev->dev, "Error attempting to write the read "
+			"completion coalescing register.\n");
+		return;
+	}
+
+	pr_info_once("Read completion coalescing disabled due to hardware "
+		     "errata relating to 256B MPS.\n");
+}
+/* Intel 5000 series memory controllers and ports 2-7 */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25c0, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25d0, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25d4, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25d8, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25e2, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25e3, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25e4, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25e5, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25e6, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25e7, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25f7, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25f8, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25f9, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25fa, quirk_intel_mc_errata);
+/* Intel 5100 series memory controllers and ports 2-7 */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65c0, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65e2, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65e3, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65e4, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65e5, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65e6, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65e7, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65f7, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65f8, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65f9, quirk_intel_mc_errata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x65fa, quirk_intel_mc_errata);
+
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
 {
