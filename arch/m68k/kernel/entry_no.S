@@ -44,6 +44,7 @@
 
 ENTRY(buserr)
 	SAVE_ALL_INT
+	GET_CURRENT(%d0)
 	movel	%sp,%sp@- 		/* stack frame pointer argument */
 	jsr	buserr_c
 	addql	#4,%sp
@@ -51,6 +52,7 @@ ENTRY(buserr)
 
 ENTRY(trap)
 	SAVE_ALL_INT
+	GET_CURRENT(%d0)
 	movel	%sp,%sp@- 		/* stack frame pointer argument */
 	jsr	trap_c
 	addql	#4,%sp
@@ -61,6 +63,7 @@ ENTRY(trap)
 .globl dbginterrupt
 ENTRY(dbginterrupt)
 	SAVE_ALL_INT
+	GET_CURRENT(%d0)
 	movel	%sp,%sp@- 		/* stack frame pointer argument */
 	jsr	dbginterrupt_c
 	addql	#4,%sp

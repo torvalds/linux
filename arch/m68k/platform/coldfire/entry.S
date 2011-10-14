@@ -62,6 +62,7 @@ enosys:
 ENTRY(system_call)
 	SAVE_ALL_SYS
 	move	#0x2000,%sr		/* enable intrs again */
+	GET_CURRENT(%d2)
 
 	cmpl	#NR_syscalls,%d0
 	jcc	enosys
@@ -165,6 +166,7 @@ Lsignal_return:
  */
 ENTRY(inthandler)
 	SAVE_ALL_INT
+	GET_CURRENT(%d2)
 
 	movew	%sp@(PT_OFF_FORMATVEC),%d0 /* put exception # in d0 */
 	andl	#0x03fc,%d0		/* mask out vector only */
@@ -190,7 +192,9 @@ ENTRY(resume)
 	movel	%sp,%a0@(TASK_THREAD+THREAD_KSP) /* save kernel stack pointer */
 	RDUSP					 /* movel %usp,%a3 */
 	movel	%a3,%a0@(TASK_THREAD+THREAD_USP) /* save thread user stack */
-
+#ifdef CONFIG_MMU
+	movel	%a1,%a2				 /* set new current */
+#endif
 	movel	%a1@(TASK_THREAD+THREAD_USP),%a3 /* restore thread user stack */
 	WRUSP					 /* movel %a3,%usp */
 	movel	%a1@(TASK_THREAD+THREAD_KSP),%sp /* restore new kernel stack */
