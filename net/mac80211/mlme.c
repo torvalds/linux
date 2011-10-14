@@ -1466,6 +1466,47 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	return RX_MGMT_CFG80211_DISASSOC;
 }
 
+static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
+				u8 *supp_rates, unsigned int supp_rates_len,
+				u32 *rates, u32 *basic_rates,
+				bool *have_higher_than_11mbit,
+				int *min_rate, int *min_rate_index)
+{
+	int i, j;
+
+	for (i = 0; i < supp_rates_len; i++) {
+		int rate = (supp_rates[i] & 0x7f) * 5;
+		bool is_basic = !!(supp_rates[i] & 0x80);
+
+		if (rate > 110)
+			*have_higher_than_11mbit = true;
+
+		/*
+		 * BSS_MEMBERSHIP_SELECTOR_HT_PHY is defined in 802.11n-2009
+		 * 7.3.2.2 as a magic value instead of a rate. Hence, skip it.
+		 *
+		 * Note: Even through the membership selector and the basic
+		 *	 rate flag share the same bit, they are not exactly
+		 *	 the same.
+		 */
+		if (!!(supp_rates[i] & 0x80) &&
+		    (supp_rates[i] & 0x7f) == BSS_MEMBERSHIP_SELECTOR_HT_PHY)
+			continue;
+
+		for (j = 0; j < sband->n_bitrates; j++) {
+			if (sband->bitrates[j].bitrate == rate) {
+				*rates |= BIT(j);
+				if (is_basic)
+					*basic_rates |= BIT(j);
+				if (rate < *min_rate) {
+					*min_rate = rate;
+					*min_rate_index = j;
+				}
+				break;
+			}
+		}
+	}
+}
 
 static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 				    struct ieee80211_mgmt *mgmt, size_t len)
@@ -1482,7 +1523,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	struct ieee802_11_elems elems;
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	u32 changed = 0;
-	int i, j, err;
+	int err;
 	bool have_higher_than_11mbit = false;
 	u16 ap_ht_cap_flags;
 	int min_rate = INT_MAX, min_rate_index = -1;
@@ -1540,47 +1581,14 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	basic_rates = 0;
 	sband = local->hw.wiphy->bands[wk->chan->band];
 
-	for (i = 0; i < elems.supp_rates_len; i++) {
-		int rate = (elems.supp_rates[i] & 0x7f) * 5;
-		bool is_basic = !!(elems.supp_rates[i] & 0x80);
+	ieee80211_get_rates(sband, elems.supp_rates, elems.supp_rates_len,
+			    &rates, &basic_rates, &have_higher_than_11mbit,
+			    &min_rate, &min_rate_index);
 
-		if (rate > 110)
-			have_higher_than_11mbit = true;
-
-		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].bitrate == rate) {
-				rates |= BIT(j);
-				if (is_basic)
-					basic_rates |= BIT(j);
-				if (rate < min_rate) {
-					min_rate = rate;
-					min_rate_index = j;
-				}
-				break;
-			}
-		}
-	}
-
-	for (i = 0; i < elems.ext_supp_rates_len; i++) {
-		int rate = (elems.ext_supp_rates[i] & 0x7f) * 5;
-		bool is_basic = !!(elems.ext_supp_rates[i] & 0x80);
-
-		if (rate > 110)
-			have_higher_than_11mbit = true;
-
-		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].bitrate == rate) {
-				rates |= BIT(j);
-				if (is_basic)
-					basic_rates |= BIT(j);
-				if (rate < min_rate) {
-					min_rate = rate;
-					min_rate_index = j;
-				}
-				break;
-			}
-		}
-	}
+	ieee80211_get_rates(sband, elems.ext_supp_rates,
+			    elems.ext_supp_rates_len, &rates, &basic_rates,
+			    &have_higher_than_11mbit,
+			    &min_rate, &min_rate_index);
 
 	/*
 	 * some buggy APs don't advertise basic_rates. use the lowest
