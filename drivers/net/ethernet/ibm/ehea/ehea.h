@@ -82,7 +82,7 @@
 #define EHEA_SG_RQ3 0
 
 #define EHEA_MAX_PACKET_SIZE    9022	/* for jumbo frames */
-#define EHEA_RQ2_PKT_SIZE       1522
+#define EHEA_RQ2_PKT_SIZE       2048
 #define EHEA_L_PKT_SIZE         256	/* low latency */
 
 #define MAX_LRO_DESCRIPTORS 8
@@ -93,7 +93,7 @@
 #define EHEA_PD_ID        0xaabcdeff
 
 #define EHEA_RQ2_THRESHOLD 	   1
-#define EHEA_RQ3_THRESHOLD 	   9	/* use RQ3 threshold of 1522 bytes */
+#define EHEA_RQ3_THRESHOLD	   4	/* use RQ3 threshold of 2048 bytes */
 
 #define EHEA_SPEED_10G         10000
 #define EHEA_SPEED_1G           1000
