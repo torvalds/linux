@@ -432,6 +432,8 @@ int exynos_drm_fbdev_reinit(struct drm_device *dev)
 		return exynos_drm_fbdev_init(dev);
 	}
 
+	return ret;
+
 err:
 	/*
 	 * if drm_load() failed when drm load() was called prior
