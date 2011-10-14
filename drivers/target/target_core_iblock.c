@@ -313,37 +313,42 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 	return blocks_long;
 }
 
+static void iblock_end_io_flush(struct bio *bio, int err)
+{
+	struct se_cmd *cmd = bio->bi_private;
+
+	if (err)
+		pr_err("IBLOCK: cache flush failed: %d\n", err);
+
+	if (cmd)
+		transport_complete_sync_cache(cmd, err == 0);
+	bio_put(bio);
+}
+
 /*
- * Emulate SYCHRONIZE_CACHE_*
+ * Implement SYCHRONIZE CACHE.  Note that we can't handle lba ranges and must
+ * always flush the whole cache.
  */
 static void iblock_emulate_sync_cache(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
 	int immed = (cmd->t_task_cdb[1] & 0x2);
-	sector_t error_sector;
-	int ret;
+	struct bio *bio;
 
 	/*
 	 * If the Immediate bit is set, queue up the GOOD response
-	 * for this SYNCHRONIZE_CACHE op
+	 * for this SYNCHRONIZE_CACHE op.
 	 */
 	if (immed)
 		transport_complete_sync_cache(cmd, 1);
 
-	/*
-	 * blkdev_issue_flush() does not support a specifying a range, so
-	 * we have to flush the entire cache.
-	 */
-	ret = blkdev_issue_flush(ib_dev->ibd_bd, GFP_KERNEL, &error_sector);
-	if (ret != 0) {
-		pr_err("IBLOCK: block_issue_flush() failed: %d "
-			" error_sector: %llu\n", ret,
-			(unsigned long long)error_sector);
-	}
-
+	bio = bio_alloc(GFP_KERNEL, 0);
+	bio->bi_end_io = iblock_end_io_flush;
+	bio->bi_bdev = ib_dev->ibd_bd;
 	if (!immed)
-		transport_complete_sync_cache(cmd, ret == 0);
+		bio->bi_private = cmd;
+	submit_bio(WRITE_FLUSH, bio);
 }
 
 /*
