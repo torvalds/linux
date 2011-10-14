@@ -251,7 +251,7 @@ static int mx3_videobuf_prepare(struct vb2_buffer *vb)
 		sg_dma_len(sg)		= new_size;
 
 		buf->txd = ichan->dma_chan.device->device_prep_slave_sg(
-			&ichan->dma_chan, sg, 1, DMA_FROM_DEVICE,
+			&ichan->dma_chan, sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT);
 		if (!buf->txd)
 			return -EIO;
