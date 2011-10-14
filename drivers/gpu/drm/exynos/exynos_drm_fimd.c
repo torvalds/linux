@@ -500,8 +500,6 @@ static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 
 	spin_lock_irqsave(&drm_dev->event_lock, flags);
 
-	exynos_drm_crtc_apply(dev_priv->crtc[crtc]);
-
 	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
 			base.link) {
 		do_gettimeofday(&now);

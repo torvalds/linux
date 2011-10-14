@@ -78,7 +78,7 @@ struct exynos_drm_crtc {
 	unsigned int			pipe;
 };
 
-void exynos_drm_crtc_apply(struct drm_crtc *crtc)
+static void exynos_drm_crtc_apply(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_overlay *overlay = &exynos_crtc->overlay;
@@ -278,6 +278,8 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 
 			goto out;
 		}
+
+		exynos_drm_crtc_apply(crtc);
 
 		dev_priv->pageflip_event = true;
 	}
