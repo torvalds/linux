@@ -1756,6 +1756,22 @@ static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 
 	switch (speed) {
 	case DWC3_DCFG_SUPERSPEED:
+		/*
+		 * WORKAROUND: DWC3 revisions <1.90a have an issue which
+		 * would cause a missing USB3 Reset event.
+		 *
+		 * In such situations, we should force a USB3 Reset
+		 * event by calling our dwc3_gadget_reset_interrupt()
+		 * routine.
+		 *
+		 * Refers to:
+		 *
+		 * STAR#9000483510: RTL: SS : USB3 reset event may
+		 * not be generated always when the link enters poll
+		 */
+		if (dwc->revision < DWC3_REVISION_190A)
+			dwc3_gadget_reset_interrupt(dwc);
+
 		dwc3_gadget_ep0_desc.wMaxPacketSize = cpu_to_le16(512);
 		dwc->gadget.ep0->maxpacket = 512;
 		dwc->gadget.speed = USB_SPEED_SUPER;
