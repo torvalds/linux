@@ -1787,7 +1787,7 @@ static inline void write_swqe2_data(struct sk_buff *skb, struct net_device *dev,
 	swqe->descriptors = 0;
 	sg1entry_contains_frag_data = 0;
 
-	if ((dev->features & NETIF_F_TSO) && skb_shinfo(skb)->gso_size)
+	if (skb_is_gso(skb))
 		write_swqe2_TSO(skb, swqe, lkey);
 	else
 		write_swqe2_nonTSO(skb, swqe, lkey);
