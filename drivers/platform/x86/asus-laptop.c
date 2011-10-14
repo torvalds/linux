@@ -629,6 +629,13 @@ static int asus_led_init(struct asus_laptop *asus)
 	int r;
 
 	/*
+	 * The Pegatron Lucid has no physical leds, but all methods are
+	 * available in the DSDT...
+	 */
+	if (asus->is_pega_lucid)
+		return 0;
+
+	/*
 	 * Functions that actually update the LED's are called from a
 	 * workqueue. By doing this as separate work rather than when the LED
 	 * subsystem asks, we avoid messing with the Asus ACPI stuff during a
