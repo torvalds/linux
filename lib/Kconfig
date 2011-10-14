@@ -293,4 +293,12 @@ config MPILIB_EXTRA
 	  This code in unnecessary for RSA digital signature verification,
 	  and can be compiled if needed.
 
+config DIGSIG
+	tristate "In-kernel signature checker"
+	depends on CRYPTO
+	select MPILIB
+	help
+	  Digital signature verification. Currently only RSA is supported.
+	  Implementation is done using GnuPG MPI library
+
 endmenu
