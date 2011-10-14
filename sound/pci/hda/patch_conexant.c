@@ -136,6 +136,7 @@ struct conexant_spec {
 	unsigned int thinkpad:1;
 	unsigned int hp_laptop:1;
 	unsigned int asus:1;
+	unsigned int pin_eapd_ctrls:1;
 
 	unsigned int adc_switching:1;
 
@@ -3430,12 +3431,14 @@ static void cx_auto_turn_eapd(struct hda_codec *codec, int num_pins,
 static void do_automute(struct hda_codec *codec, int num_pins,
 			hda_nid_t *pins, bool on)
 {
+	struct conexant_spec *spec = codec->spec;
 	int i;
 	for (i = 0; i < num_pins; i++)
 		snd_hda_codec_write(codec, pins[i], 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    on ? PIN_OUT : 0);
-	cx_auto_turn_eapd(codec, num_pins, pins, on);
+	if (spec->pin_eapd_ctrls)
+		cx_auto_turn_eapd(codec, num_pins, pins, on);
 }
 
 static int detect_jacks(struct hda_codec *codec, int num_pins, hda_nid_t *pins)
@@ -3460,9 +3463,12 @@ static void cx_auto_update_speakers(struct hda_codec *codec)
 	int on = 1;
 
 	/* turn on HP EAPD when HP jacks are present */
-	if (spec->auto_mute)
-		on = spec->hp_present;
-	cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins, on);
+	if (spec->pin_eapd_ctrls) {
+		if (spec->auto_mute)
+			on = spec->hp_present;
+		cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins, on);
+	}
+
 	/* mute speakers in auto-mode if HP or LO jacks are plugged */
 	if (spec->auto_mute)
 		on = !(spec->hp_present ||
@@ -3889,20 +3895,10 @@ static void cx_auto_parse_beep(struct hda_codec *codec)
 #define cx_auto_parse_beep(codec)
 #endif
 
-static bool found_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
-{
-	int i;
-	for (i = 0; i < nums; i++)
-		if (list[i] == nid)
-			return true;
-	return false;
-}
-
-/* parse extra-EAPD that aren't assigned to any pins */
+/* parse EAPDs */
 static void cx_auto_parse_eapd(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t nid, end_nid;
 
 	end_nid = codec->start_nid + codec->num_nodes;
@@ -3911,14 +3907,18 @@ static void cx_auto_parse_eapd(struct hda_codec *codec)
 			continue;
 		if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD))
 			continue;
-		if (found_in_nid_list(nid, cfg->line_out_pins, cfg->line_outs) ||
-		    found_in_nid_list(nid, cfg->hp_pins, cfg->hp_outs) ||
-		    found_in_nid_list(nid, cfg->speaker_pins, cfg->speaker_outs))
-			continue;
 		spec->eapds[spec->num_eapds++] = nid;
 		if (spec->num_eapds >= ARRAY_SIZE(spec->eapds))
 			break;
 	}
+
+	/* NOTE: below is a wild guess; if we have more than two EAPDs,
+	 * it's a new chip, where EAPDs are supposed to be associated to
+	 * pins, and we can control EAPD per pin.
+	 * OTOH, if only one or two EAPDs are found, it's an old chip,
+	 * thus it might control over all pins.
+	 */
+	spec->pin_eapd_ctrls = spec->num_eapds > 2;
 }
 
 static int cx_auto_parse_auto_config(struct hda_codec *codec)
@@ -4024,8 +4024,9 @@ static void cx_auto_init_output(struct hda_codec *codec)
 		}
 	}
 	cx_auto_update_speakers(codec);
-	/* turn on/off extra EAPDs, too */
-	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, true);
+	/* turn on all EAPDs if no individual EAPD control is available */
+	if (!spec->pin_eapd_ctrls)
+		cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, true);
 }
 
 static void cx_auto_init_input(struct hda_codec *codec)
