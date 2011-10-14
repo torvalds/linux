@@ -270,6 +270,8 @@ struct _mmc_csd {
  * EXT_CSD fields
  */
 
+#define EXT_CSD_FLUSH_CACHE		32      /* W */
+#define EXT_CSD_CACHE_CTRL		33      /* R/W */
 #define EXT_CSD_POWER_OFF_NOTIFICATION	34	/* R/W */
 #define EXT_CSD_GP_SIZE_MULT		143	/* R/W */
 #define EXT_CSD_PARTITION_ATTRIBUTE	156	/* R/W */
@@ -308,6 +310,7 @@ struct _mmc_csd {
 #define EXT_CSD_PWR_CL_DDR_52_360	239	/* RO */
 #define EXT_CSD_POWER_OFF_LONG_TIME	247	/* RO */
 #define EXT_CSD_GENERIC_CMD6_TIME	248	/* RO */
+#define EXT_CSD_CACHE_SIZE		249	/* RO, 4 bytes */
 
 /*
  * EXT_CSD field definitions

@@ -2158,6 +2158,65 @@ int mmc_card_can_sleep(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_card_can_sleep);
 
+/*
+ * Flush the cache to the non-volatile storage.
+ */
+int mmc_flush_cache(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	int err = 0;
+
+	if (!(host->caps2 & MMC_CAP2_CACHE_CTRL))
+		return err;
+
+	if (mmc_card_mmc(card) &&
+			(card->ext_csd.cache_size > 0) &&
+			(card->ext_csd.cache_ctrl & 1)) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+				EXT_CSD_FLUSH_CACHE, 1, 0);
+		if (err)
+			pr_err("%s: cache flush error %d\n",
+					mmc_hostname(card->host), err);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(mmc_flush_cache);
+
+/*
+ * Turn the cache ON/OFF.
+ * Turning the cache OFF shall trigger flushing of the data
+ * to the non-volatile storage.
+ */
+int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
+{
+	struct mmc_card *card = host->card;
+	int err = 0;
+
+	if (!(host->caps2 & MMC_CAP2_CACHE_CTRL) ||
+			mmc_card_is_removable(host))
+		return err;
+
+	if (card && mmc_card_mmc(card) &&
+			(card->ext_csd.cache_size > 0)) {
+		enable = !!enable;
+
+		if (card->ext_csd.cache_ctrl ^ enable)
+			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+					EXT_CSD_CACHE_CTRL, enable, 0);
+		if (err)
+			pr_err("%s: cache %s error %d\n",
+					mmc_hostname(card->host),
+					enable ? "on" : "off",
+					err);
+		else
+			card->ext_csd.cache_ctrl = enable;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(mmc_cache_ctrl);
+
 #ifdef CONFIG_PM
 
 /**
@@ -2172,6 +2231,9 @@ int mmc_suspend_host(struct mmc_host *host)
 		cancel_delayed_work(&host->disable);
 	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
+	err = mmc_cache_ctrl(host, 0);
+	if (err)
+		goto out;
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
@@ -2197,6 +2259,7 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (!err && !mmc_card_keep_power(host))
 		mmc_power_off(host);
 
+out:
 	return err;
 }
 
