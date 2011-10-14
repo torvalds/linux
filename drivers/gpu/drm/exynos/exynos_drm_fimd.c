@@ -538,7 +538,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int fimd_subdrv_probe(struct drm_device *drm_dev)
+static int fimd_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 {
 	struct drm_driver *drm_driver = drm_dev->driver;
 

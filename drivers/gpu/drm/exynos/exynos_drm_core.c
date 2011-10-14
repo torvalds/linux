@@ -55,7 +55,7 @@ static int exynos_drm_subdrv_probe(struct drm_device *dev,
 		 *
 		 * P.S. note that this driver is considered for modularization.
 		 */
-		ret = subdrv->probe(dev);
+		ret = subdrv->probe(dev, subdrv->manager.dev);
 		if (ret)
 			return ret;
 	}

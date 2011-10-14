@@ -219,7 +219,7 @@ struct exynos_drm_subdrv {
 	struct list_head list;
 	struct drm_device *drm_dev;
 
-	int (*probe)(struct drm_device *dev);
+	int (*probe)(struct drm_device *drm_dev, struct device *dev);
 	void (*remove)(struct drm_device *dev);
 
 	struct exynos_drm_manager manager;
