@@ -1868,6 +1868,7 @@ again:
 			ctl->total_bitmaps--;
 		}
 		kmem_cache_free(btrfs_free_space_cachep, info);
+		ret = 0;
 		goto out_lock;
 	}
 
@@ -1875,7 +1876,8 @@ again:
 		unlink_free_space(ctl, info);
 		info->offset += bytes;
 		info->bytes -= bytes;
-		link_free_space(ctl, info);
+		ret = link_free_space(ctl, info);
+		WARN_ON(ret);
 		goto out_lock;
 	}
 
