@@ -78,4 +78,31 @@ iio_simple_dummy_events_unregister(struct iio_dev *indio_dev)
 
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS*/
 
+/**
+ * enum iio_simple_dummy_scan_elements - scan index enum
+ * @voltage0:		the single ended voltage channel
+ * @diffvoltage1m2:	first differential channel
+ * @diffvoltage3m4:	second differenial channel
+ * @accelx:		acceleration channel
+ *
+ * Enum provides convenient numbering for the scan index.
+ */
+enum iio_simple_dummy_scan_elements {
+	voltage0,
+	diffvoltage1m2,
+	diffvoltage3m4,
+	accelx,
+};
 
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_BUFFER
+int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev);
+void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev);
+#else
+static inline int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
+{
+	return 0;
+};
+static inline
+void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev)
+{};
+#endif /* CONFIG_IIO_SIMPLE_DUMMY_BUFFER */

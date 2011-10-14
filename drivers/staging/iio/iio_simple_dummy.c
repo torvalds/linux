@@ -21,6 +21,7 @@
 
 #include "iio.h"
 #include "sysfs.h"
+#include "buffer_generic.h"
 #include "iio_simple_dummy.h"
 
 /*
@@ -82,7 +83,14 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		 * when converting to standard units (microvolts)
 		 */
 		(1 << IIO_CHAN_INFO_SCALE_SEPARATE),
-
+		/* The ordering of elements in the buffer via an enum */
+		.scan_index = voltage0,
+		.scan_type = { /* Description of storage in buffer */
+			.sign = 'u', /* unsigned */
+			.realbits = 13, /* 13 bits */
+			.storagebits = 16, /* 16 bits used for storage */
+			.shift = 0, /* zero shift */
+		},
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 		/*
 		 * simple event - triggered when value rises above
@@ -110,6 +118,13 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		 * input channels of type IIO_VOLTAGE.
 		 */
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		.scan_index = diffvoltage1m2,
+		.scan_type = { /* Description of storage in buffer */
+			.sign = 's', /* signed */
+			.realbits = 12, /* 12 bits */
+			.storagebits = 16, /* 16 bits used for storage */
+			.shift = 0, /* zero shift */
+		},
 	},
 	/* Differential ADC channel in_voltage3-voltage4_raw etc*/
 	{
@@ -120,13 +135,13 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		.channel2 = 4,
 		.info_mask =
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
-	},
-	/* DAC channel out_voltage0_raw */
-	{
-		.type = IIO_VOLTAGE,
-		.output = 1,
-		.indexed = 1,
-		.channel = 0,
+		.scan_index = diffvoltage3m4,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 11,
+			.storagebits = 16,
+			.shift = 0,
+		},
 	},
 	/*
 	 * 'modified' (i.e. axis specified) acceleration channel
@@ -145,6 +160,25 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		 * calibration.
 		 */
 		(1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),
+		.scan_index = accelx,
+		.scan_type = { /* Description of storage in buffer */
+			.sign = 's', /* signed */
+			.realbits = 16, /* 12 bits */
+			.storagebits = 16, /* 16 bits used for storage */
+			.shift = 0, /* zero shift */
+		},
+	},
+	/*
+	 * Convenience macro for timestamps. 4 is the index in
+	 * the buffer.
+	 */
+	IIO_CHAN_SOFT_TIMESTAMP(4),
+	/* DAC channel out_voltage0_raw */
+	{
+		.type = IIO_VOLTAGE,
+		.output = 1,
+		.indexed = 1,
+		.channel = 0,
 	},
 };
 
@@ -391,11 +425,29 @@ static int __devinit iio_dummy_probe(int index)
 	ret = iio_simple_dummy_events_register(indio_dev);
 	if (ret < 0)
 		goto error_free_device;
-	ret = iio_device_register(indio_dev);
+
+	/* Configure buffered capture support. */
+	ret = iio_simple_dummy_configure_buffer(indio_dev);
 	if (ret < 0)
 		goto error_unregister_events;
 
+	/*
+	 * Register the channels with the buffer, but avoid the output
+	 * channel being registered by reducing the number of channels by 1.
+	 */
+	ret = iio_buffer_register(indio_dev, iio_dummy_channels, 5);
+	if (ret < 0)
+		goto error_unconfigure_buffer;
+
+	ret = iio_device_register(indio_dev);
+	if (ret < 0)
+		goto error_unregister_buffer;
+
 	return 0;
+error_unregister_buffer:
+	iio_buffer_unregister(indio_dev);
+error_unconfigure_buffer:
+	iio_simple_dummy_unconfigure_buffer(indio_dev);
 error_unregister_events:
 	iio_simple_dummy_events_unregister(indio_dev);
 error_free_device:
@@ -429,6 +481,9 @@ static int iio_dummy_remove(int index)
 
 	/* Device specific code to power down etc */
 
+	/* Buffered capture related cleanup */
+	iio_buffer_unregister(indio_dev);
+	iio_simple_dummy_unconfigure_buffer(indio_dev);
 
 	ret = iio_simple_dummy_events_unregister(indio_dev);
 	if (ret)
