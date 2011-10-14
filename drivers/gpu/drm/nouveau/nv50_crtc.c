@@ -627,7 +627,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		}
 	}
 
-	ret = RING_SPACE(evo, 17);
+	ret = RING_SPACE(evo, 19);
 	if (ret)
 		return ret;
 
@@ -652,7 +652,10 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	}
 
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, UNK082C), 1);
-	OUT_RING(evo, 0);
+	OUT_RING  (evo, 0);
+	/* required to make display sync channel not hate life */
+	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, UNK900), 1);
+	OUT_RING  (evo, 0x00000311);
 
 	/* This is the actual resolution of the mode. */
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, REAL_RES), 1);

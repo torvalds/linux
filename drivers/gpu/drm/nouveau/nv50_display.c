@@ -210,31 +210,14 @@ nv50_display_init(struct drm_device *dev)
 
 	nv_wr32(dev, NV50_PDISPLAY_OBJECTS, (evo->ramin->vinst >> 8) | 9);
 
-	ret = RING_SPACE(evo, 15);
+	ret = RING_SPACE(evo, 3);
 	if (ret)
 		return ret;
 	BEGIN_RING(evo, 0, NV50_EVO_UNK84, 2);
-	OUT_RING(evo, NV50_EVO_UNK84_NOTIFY_DISABLED);
-	OUT_RING(evo, NvEvoSync);
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(0, FB_DMA), 1);
-	OUT_RING(evo, NV50_EVO_CRTC_FB_DMA_HANDLE_NONE);
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(0, UNK0800), 1);
-	OUT_RING(evo, 0);
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(0, DISPLAY_START), 1);
-	OUT_RING(evo, 0);
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(0, UNK082C), 1);
-	OUT_RING(evo, 0);
-	/* required to make display sync channels not hate life */
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(0, UNK900), 1);
-	OUT_RING  (evo, 0x00000311);
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(1, UNK900), 1);
-	OUT_RING  (evo, 0x00000311);
-	FIRE_RING(evo);
-	if (!nv_wait(dev, 0x640004, 0xffffffff, evo->dma.put << 2))
-		NV_ERROR(dev, "evo pushbuf stalled\n");
+	OUT_RING  (evo, NV50_EVO_UNK84_NOTIFY_DISABLED);
+	OUT_RING  (evo, NvEvoSync);
 
-
-	return 0;
+	return nv50_display_sync(dev);
 }
 
 static int nv50_display_disable(struct drm_device *dev)
@@ -754,8 +737,8 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	if (crtc >= 0) {
 		pclk  = nv_rd32(dev, NV50_PDISPLAY_CRTC_P(crtc, CLOCK));
 		pclk &= 0x003fffff;
-
-		nv50_crtc_set_clock(dev, crtc, pclk);
+		if (pclk)
+			nv50_crtc_set_clock(dev, crtc, pclk);
 
 		tmp = nv_rd32(dev, NV50_PDISPLAY_CRTC_CLK_CTRL2(crtc));
 		tmp &= ~0x000000f;
