@@ -90,8 +90,6 @@ struct fimd_context {
 
 static bool fimd_display_is_connected(struct device *dev)
 {
-	struct fimd_context *ctx = get_fimd_context(dev);
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* TODO. */
@@ -110,8 +108,6 @@ static void *fimd_get_timing(struct device *dev)
 
 static int fimd_check_timing(struct device *dev, void *timing)
 {
-	struct fimd_context *ctx = get_fimd_context(dev);
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* TODO. */
@@ -121,8 +117,6 @@ static int fimd_check_timing(struct device *dev, void *timing)
 
 static int fimd_display_power_on(struct device *dev, int mode)
 {
-	struct fimd_context *ctx = get_fimd_context(dev);
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* TODO. */
@@ -499,7 +493,7 @@ static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 
 	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
 			base.link) {
-		/* if event's pipe isn't same as crtc then ignor it. */
+		/* if event's pipe isn't same as crtc then ignore it. */
 		if (crtc != e->pipe)
 			continue;
 
@@ -525,7 +519,6 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
 	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
 	struct drm_device *drm_dev = subdrv->drm_dev;
-	struct device *dev = subdrv->manager.dev;
 	struct exynos_drm_manager *manager = &subdrv->manager;
 	u32 val;
 
@@ -543,8 +536,6 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 
 static int fimd_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 {
-	struct drm_driver *drm_driver = drm_dev->driver;
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/*
@@ -569,8 +560,6 @@ static int fimd_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 
 static void fimd_subdrv_remove(struct drm_device *drm_dev)
 {
-	struct drm_driver *drm_driver = drm_dev->driver;
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* TODO. */

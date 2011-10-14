@@ -123,7 +123,7 @@ struct exynos_drm_overlay {
  * Exynos DRM Display Structure.
  *	- this structure is common to analog tv, digital tv and lcd panel.
  *
- * @type: one of exynos_DISPLAY_TYPE_LCD and HDMI.
+ * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
  * @is_connected: check for that display is connected or not.
  * @get_edid: get edid modes from display driver.
  * @get_timing: get timing object from display driver.
