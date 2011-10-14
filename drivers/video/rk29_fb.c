@@ -2814,6 +2814,7 @@ static void rk29fb_early_suspend(struct early_suspend *h)
 		fbprintk(">>>>>> power down the screen! \n");
 		inf->cur_screen->standby(1);
 	}
+	LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W1_ENABLE, v_W0_ENABLE(0) | v_W1_ENABLE(0));
 
     LcdMskReg(inf, DSP_CTRL0, m_HSYNC_POLARITY | m_VSYNC_POLARITY | m_DEN_POLARITY ,
        v_HSYNC_POLARITY(1) | v_VSYNC_POLARITY(1) | v_DEN_POLARITY(1) );
