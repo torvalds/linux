@@ -2206,6 +2206,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	pci_release_selected_regions(pdev,
 	                             pci_select_bars(pdev, IORESOURCE_MEM));
 
+	kfree(adapter->shadow_vfta);
 	free_netdev(netdev);
 
 	pci_disable_pcie_error_reporting(pdev);
@@ -2437,6 +2438,11 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	if ((adapter->rss_queues > 4) ||
 	    ((adapter->rss_queues > 1) && (adapter->vfs_allocated_count > 6)))
 		adapter->flags |= IGB_FLAG_QUEUE_PAIRS;
+
+	/* Setup and initialize a copy of the hw vlan table array */
+	adapter->shadow_vfta = kzalloc(sizeof(u32) *
+				E1000_VLAN_FILTER_TBL_SIZE,
+				GFP_ATOMIC);
 
 	/* This call may decrease the number of queues */
 	if (igb_init_interrupt_scheme(adapter)) {
