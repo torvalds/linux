@@ -268,7 +268,7 @@ static void pl011_dma_probe_initcall(struct uart_amba_port *uap)
 	struct dma_slave_config tx_conf = {
 		.dst_addr = uap->port.mapbase + UART01x_DR,
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
-		.direction = DMA_TO_DEVICE,
+		.direction = DMA_MEM_TO_DEV,
 		.dst_maxburst = uap->fifosize >> 1,
 	};
 	struct dma_chan *chan;
@@ -301,7 +301,7 @@ static void pl011_dma_probe_initcall(struct uart_amba_port *uap)
 		struct dma_slave_config rx_conf = {
 			.src_addr = uap->port.mapbase + UART01x_DR,
 			.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
-			.direction = DMA_FROM_DEVICE,
+			.direction = DMA_DEV_TO_MEM,
 			.src_maxburst = uap->fifosize >> 1,
 		};
 
@@ -480,7 +480,7 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 		return -EBUSY;
 	}
 
-	desc = dma_dev->device_prep_slave_sg(chan, &dmatx->sg, 1, DMA_TO_DEVICE,
+	desc = dma_dev->device_prep_slave_sg(chan, &dmatx->sg, 1, DMA_MEM_TO_DEV,
 					     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dma_unmap_sg(dma_dev->dev, &dmatx->sg, 1, DMA_TO_DEVICE);
@@ -676,7 +676,7 @@ static int pl011_dma_rx_trigger_dma(struct uart_amba_port *uap)
 		&uap->dmarx.sgbuf_b : &uap->dmarx.sgbuf_a;
 	dma_dev = rxchan->device;
 	desc = rxchan->device->device_prep_slave_sg(rxchan, &sgbuf->sg, 1,
-					DMA_FROM_DEVICE,
+					DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	/*
 	 * If the DMA engine is busy and cannot prepare a
