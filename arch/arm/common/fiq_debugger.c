@@ -73,6 +73,7 @@ struct fiq_debugger_state {
 	bool debug_enable;
 	bool ignore_next_wakeup_irq;
 	struct timer_list sleep_timer;
+	spinlock_t sleep_timer_lock;
 	bool uart_enabled;
 	struct wake_lock debugger_wake_lock;
 	bool console_enable;
@@ -579,7 +580,9 @@ static bool debug_exec(struct fiq_debugger_state *state,
 static void sleep_timer_expired(unsigned long data)
 {
 	struct fiq_debugger_state *state = (struct fiq_debugger_state *)data;
+	unsigned long flags;
 
+	spin_lock_irqsave(&state->sleep_timer_lock, flags);
 	if (state->uart_enabled && !state->no_sleep) {
 		if (state->debug_enable && !state->console_enable) {
 			state->debug_enable = false;
@@ -591,10 +594,14 @@ static void sleep_timer_expired(unsigned long data)
 		enable_wakeup_irq(state);
 	}
 	wake_unlock(&state->debugger_wake_lock);
+	spin_unlock_irqrestore(&state->sleep_timer_lock, flags);
 }
 
 static void handle_wakeup(struct fiq_debugger_state *state)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&state->sleep_timer_lock, flags);
 	if (state->wakeup_irq >= 0 && state->ignore_next_wakeup_irq) {
 		state->ignore_next_wakeup_irq = false;
 	} else if (!state->uart_enabled) {
@@ -604,6 +611,7 @@ static void handle_wakeup(struct fiq_debugger_state *state)
 		disable_wakeup_irq(state);
 		mod_timer(&state->sleep_timer, jiffies + HZ / 2);
 	}
+	spin_unlock_irqrestore(&state->sleep_timer_lock, flags);
 }
 
 static irqreturn_t wakeup_irq_handler(int irq, void *dev)
@@ -621,8 +629,12 @@ static irqreturn_t wakeup_irq_handler(int irq, void *dev)
 static void debug_handle_irq_context(struct fiq_debugger_state *state)
 {
 	if (!state->no_sleep) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&state->sleep_timer_lock, flags);
 		wake_lock(&state->debugger_wake_lock);
 		mod_timer(&state->sleep_timer, jiffies + HZ * 5);
+		spin_unlock_irqrestore(&state->sleep_timer_lock, flags);
 	}
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
 	if (state->tty) {
@@ -991,6 +1003,8 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	state->wakeup_irq = platform_get_irq_byname(pdev, "wakeup");
 
 	platform_set_drvdata(pdev, state);
+
+	spin_lock_init(&state->sleep_timer_lock);
 
 	if (state->wakeup_irq < 0 && debug_have_fiq(state))
 		state->no_sleep = true;
