@@ -4,6 +4,7 @@
  *
  *  Copyright (C) 2002-2005 Julien Lerouge, 2003-2006 Karol Kozimor
  *  Copyright (C) 2006-2007 Corentin Chary
+ *  Copyright (C) 2011 Wind River Systems
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -48,6 +49,7 @@
 #include <linux/uaccess.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/input-polldev.h>
 #include <linux/rfkill.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
@@ -173,6 +175,12 @@ MODULE_PARM_DESC(wwan_status, "Set the wireless status on boot "
 #define METHOD_KBD_LIGHT_SET	"SLKB"
 #define METHOD_KBD_LIGHT_GET	"GLKB"
 
+/* For Pegatron Lucid tablet */
+#define DEVICE_NAME_PEGA	"Lucid"
+#define METHOD_PEGA_ENABLE	"ENPR"
+#define METHOD_PEGA_DISABLE	"DAPR"
+#define METHOD_PEGA_READ	"RDLN"
+
 /*
  * Define a specific led structure to keep the main structure clean
  */
@@ -209,6 +217,7 @@ struct asus_laptop {
 
 	int wireless_status;
 	bool have_rsts;
+	bool is_pega_lucid;
 
 	struct rfkill *gps_rfkill;
 
@@ -321,6 +330,14 @@ static int acpi_check_handle(acpi_handle handle, const char *method,
 		return -ENODEV;
 	}
 	return 0;
+}
+
+static bool asus_check_pega_lucid(struct asus_laptop *asus)
+{
+	return !strcmp(asus->name, DEVICE_NAME_PEGA) &&
+	   !acpi_check_handle(asus->handle, METHOD_PEGA_ENABLE, NULL) &&
+	   !acpi_check_handle(asus->handle, METHOD_PEGA_DISABLE, NULL) &&
+	   !acpi_check_handle(asus->handle, METHOD_PEGA_READ, NULL);
 }
 
 /* Generic LED function */
@@ -1203,7 +1220,6 @@ static mode_t asus_sysfs_is_visible(struct kobject *kobj,
 		   attr == &dev_attr_ls_level.attr) {
 		supported = !acpi_check_handle(handle, METHOD_ALS_CONTROL, NULL) &&
 			    !acpi_check_handle(handle, METHOD_ALS_LEVEL, NULL);
-
 	} else if (attr == &dev_attr_gps.attr) {
 		supported = !acpi_check_handle(handle, METHOD_GPS_ON, NULL) &&
 			    !acpi_check_handle(handle, METHOD_GPS_OFF, NULL) &&
@@ -1439,9 +1455,10 @@ static int __devinit asus_acpi_add(struct acpi_device *device)
 		goto fail_platform;
 
 	/*
-	 * Register the platform device first.  It is used as a parent for the
-	 * sub-devices below.
+	 * Need platform type detection first, then the platform
+	 * device.  It is used as a parent for the sub-devices below.
 	 */
+	asus->is_pega_lucid = asus_check_pega_lucid(asus);
 	result = asus_platform_init(asus);
 	if (result)
 		goto fail_platform;
