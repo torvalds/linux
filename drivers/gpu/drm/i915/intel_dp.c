@@ -184,9 +184,25 @@ intel_dp_link_clock(uint8_t link_bw)
 		return 162000;
 }
 
-/* I think this is a fiction */
+/*
+ * The units on the numbers in the next two are... bizarre.  Examples will
+ * make it clearer; this one parallels an example in the eDP spec.
+ *
+ * intel_dp_max_data_rate for one lane of 2.7GHz evaluates as:
+ *
+ *     270000 * 1 * 8 / 10 == 216000
+ *
+ * The actual data capacity of that configuration is 2.16Gbit/s, so the
+ * units are decakilobits.  ->clock in a drm_display_mode is in kilohertz -
+ * or equivalently, kilopixels per second - so for 1680x1050R it'd be
+ * 119000.  At 18bpp that's 2142000 kilobits per second.
+ *
+ * Thus the strange-looking division by 10 in intel_dp_link_required, to
+ * get the result in decakilobits instead of kilobits.
+ */
+
 static int
-intel_dp_link_required(struct drm_device *dev, struct intel_dp *intel_dp, int pixel_clock)
+intel_dp_link_required(struct intel_dp *intel_dp, int pixel_clock)
 {
 	struct drm_crtc *crtc = intel_dp->base.base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -195,7 +211,7 @@ intel_dp_link_required(struct drm_device *dev, struct intel_dp *intel_dp, int pi
 	if (intel_crtc)
 		bpp = intel_crtc->bpp;
 
-	return (pixel_clock * bpp + 7) / 8;
+	return (pixel_clock * bpp + 9) / 10;
 }
 
 static int
@@ -223,7 +239,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	/* only refuse the mode on non eDP since we have seen some weird eDP panels
 	   which are outside spec tolerances but somehow work by magic */
 	if (!is_edp(intel_dp) &&
-	    (intel_dp_link_required(connector->dev, intel_dp, mode->clock)
+	    (intel_dp_link_required(intel_dp, mode->clock)
 	     > intel_dp_max_data_rate(max_link_clock, max_lanes)))
 		return MODE_CLOCK_HIGH;
 
@@ -670,7 +686,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		for (clock = 0; clock <= max_clock; clock++) {
 			int link_avail = intel_dp_max_data_rate(intel_dp_link_clock(bws[clock]), lane_count);
 
-			if (intel_dp_link_required(encoder->dev, intel_dp, mode->clock)
+			if (intel_dp_link_required(intel_dp, mode->clock)
 					<= link_avail) {
 				intel_dp->link_bw = bws[clock];
 				intel_dp->lane_count = lane_count;
