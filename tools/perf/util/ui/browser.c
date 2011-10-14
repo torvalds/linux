@@ -249,6 +249,7 @@ void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries)
 		browser->top_idx += offset;
 	}
 
+	browser->top = NULL;
 	browser->seek(browser, browser->top_idx, SEEK_SET);
 }
 

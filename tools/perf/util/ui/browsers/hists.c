@@ -600,14 +600,23 @@ static int hist_browser__show_entry(struct hist_browser *self,
 	return printed;
 }
 
+static void ui_browser__hists_init_top(struct ui_browser *browser)
+{
+	if (browser->top == NULL) {
+		struct hist_browser *hb;
+
+		hb = container_of(browser, struct hist_browser, b);
+		browser->top = rb_first(&hb->hists->entries);
+	}
+}
+
 static unsigned int hist_browser__refresh(struct ui_browser *self)
 {
 	unsigned row = 0;
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(self, struct hist_browser, b);
 
-	if (self->top == NULL)
-		self->top = rb_first(&hb->hists->entries);
+	ui_browser__hists_init_top(self);
 
 	for (nd = self->top; nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
@@ -658,6 +667,8 @@ static void ui_browser__hists_seek(struct ui_browser *self,
 
 	if (self->nr_entries == 0)
 		return;
+
+	ui_browser__hists_init_top(self);
 
 	switch (whence) {
 	case SEEK_SET:
