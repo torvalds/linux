@@ -625,6 +625,7 @@ static void dwc3_ep0_xfer_complete(struct dwc3 *dwc,
 	struct dwc3_ep		*dep = dwc->eps[event->endpoint_number];
 
 	dep->flags &= ~DWC3_EP_BUSY;
+	dwc->setup_packet_pending = false;
 
 	switch (dwc->ep0state) {
 	case EP0_SETUP_PHASE:
@@ -726,6 +727,8 @@ static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum)
 static void dwc3_ep0_xfernotready(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
+	dwc->setup_packet_pending = true;
+
 	/*
 	 * This part is very tricky: If we has just handled
 	 * XferNotReady(Setup) and we're now expecting a

@@ -578,6 +578,7 @@ struct dwc3_hwparams {
  * @ep0_bounced: true when we used bounce buffer
  * @ep0_expect_in: true when we expect a DATA IN transfer
  * @start_config_issued: true when StartConfig command has been issued
+ * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
  * @ep0_next_event: hold the next expected event
  * @ep0state: state of endpoint zero
  * @link_state: link state
@@ -633,6 +634,7 @@ struct dwc3 {
 	unsigned		ep0_bounced:1;
 	unsigned		ep0_expect_in:1;
 	unsigned		start_config_issued:1;
+	unsigned		setup_packet_pending:1;
 	unsigned		delayed_status:1;
 
 	enum dwc3_ep0_next	ep0_next_event;
