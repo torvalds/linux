@@ -520,8 +520,7 @@ static inline unsigned long s3c2443_get_hdiv(unsigned long clkcon0)
 
 /* EPLLCON compatible enough to get on/off information */
 
-void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll,
-						   fdiv_fn get_fdiv)
+void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
 {
 	unsigned long epllcon = __raw_readl(S3C2443_EPLLCON);
 	unsigned long mpllcon = __raw_readl(S3C2443_MPLLCON);
@@ -541,7 +540,7 @@ void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll,
 	pll = get_mpll(mpllcon, xtal);
 	clk_msysclk.clk.rate = pll;
 
-	fclk = pll / get_fdiv(clkdiv0);
+	fclk = clk_get_rate(&clk_armdiv);
 	hclk = s3c2443_prediv_getrate(&clk_prediv);
 	hclk /= s3c2443_get_hdiv(clkdiv0);
 	pclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_PCLK) ? 2 : 1);
@@ -590,7 +589,6 @@ static struct clksrc_clk *clksrcs[] __initdata = {
 };
 
 void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
-				       fdiv_fn get_fdiv,
 				       unsigned int *divs, int nr_divs,
 				       int divmask)
 {
@@ -620,5 +618,5 @@ void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
-	s3c2443_common_setup_clocks(get_mpll, get_fdiv);
+	s3c2443_common_setup_clocks(get_mpll);
 }
