@@ -28,6 +28,14 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-s3c2443-clock.h>
 
+/* armdiv
+ *
+ * this clock is sourced from msysclk and can have a number of
+ * divider values applied to it to then be fed into armclk.
+ * The real clock definition is done in s3c2443-clock.c,
+ * only the armdiv divisor table must be defined here.
+*/
+
 static unsigned int armdiv[8] = {
 	[0] = 1,
 	[1] = 2,
