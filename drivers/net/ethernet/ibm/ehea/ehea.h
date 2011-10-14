@@ -363,7 +363,6 @@ struct ehea_port_res {
 	struct port_stats p_stats;
 	struct ehea_mr send_mr;       	/* send memory region */
 	struct ehea_mr recv_mr;       	/* receive memory region */
-	spinlock_t xmit_lock;
 	struct ehea_port *port;
 	char int_recv_name[EHEA_IRQ_NAME_SIZE];
 	char int_send_name[EHEA_IRQ_NAME_SIZE];
