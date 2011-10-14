@@ -10,7 +10,11 @@ industrialio-$(CONFIG_IIO_TRIGGER) += industrialio-trigger.o
 obj-$(CONFIG_IIO_SW_RING) += ring_sw.o
 obj-$(CONFIG_IIO_KFIFO_BUF) += kfifo_buf.o
 
-obj-$(CONFIG_IIO_SIMPLE_DUMMY) += iio_simple_dummy.o
+obj-$(CONFIG_IIO_SIMPLE_DUMMY) += iio_dummy.o
+iio_dummy-y := iio_simple_dummy.o
+iio_dummy-$(CONFIG_IIO_SIMPLE_DUMMY_EVENTS) += iio_simple_dummy_events.o
+
+obj-$(CONFIG_IIO_DUMMY_EVGEN) += iio_dummy_evgen.o
 
 obj-y += accel/
 obj-y += adc/

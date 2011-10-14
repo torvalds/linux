@@ -20,6 +20,8 @@
 #include <linux/moduleparam.h>
 
 #include "iio.h"
+#include "sysfs.h"
+#include "iio_simple_dummy.h"
 
 /*
  * A few elements needed to fake a bus for this driver
@@ -53,26 +55,6 @@ static const struct iio_dummy_accel_calibscale dummy_scales[] = {
 	{ 733, 13, 0x9 }, /* 733.00013 */
 };
 
-/**
- * struct iio_dummy_state - device instance specific state.
- * @dac_val:			cache for dac value
- * @single_ended_adc_val:	cache for single ended adc value
- * @differential_adc_val:	cache for differential adc value
- * @accel_val:			cache for acceleration value
- * @accel_calibbias:		cache for acceleration calibbias
- * @accel_calibscale:		cache for acceleration calibscale
- * @lock:			lock to ensure state is consistent
- */
-struct iio_dummy_state {
-	int dac_val;
-	int single_ended_adc_val;
-	int differential_adc_val[2];
-	int accel_val;
-	int accel_calibbias;
-	const struct iio_dummy_accel_calibscale *accel_calibscale;
-	struct mutex lock;
-};
-
 /*
  * iio_dummy_channels - Description of available channels
  *
@@ -101,6 +83,14 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		 */
 		(1 << IIO_CHAN_INFO_SCALE_SEPARATE),
 
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
+		/*
+		 * simple event - triggered when value rises above
+		 * a threshold
+		 */
+		.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH,
+					 IIO_EV_DIR_RISING),
+#endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 	},
 	/* Differential ADC channel in_voltage1-voltage2_raw etc*/
 	{
@@ -296,6 +286,12 @@ static const struct iio_info iio_dummy_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = &iio_dummy_read_raw,
 	.write_raw = &iio_dummy_write_raw,
+#ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
+	.read_event_config = &iio_simple_dummy_read_event_config,
+	.write_event_config = &iio_simple_dummy_write_event_config,
+	.read_event_value = &iio_simple_dummy_read_event_value,
+	.write_event_value = &iio_simple_dummy_write_event_value,
+#endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS */
 };
 
 /**
@@ -392,11 +388,16 @@ static int __devinit iio_dummy_probe(int index)
 	/* Specify that device provides sysfs type interfaces */
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
+	ret = iio_simple_dummy_events_register(indio_dev);
 	if (ret < 0)
 		goto error_free_device;
+	ret = iio_device_register(indio_dev);
+	if (ret < 0)
+		goto error_unregister_events;
 
 	return 0;
+error_unregister_events:
+	iio_simple_dummy_events_unregister(indio_dev);
 error_free_device:
 	/* Note free device should only be called, before registration
 	 * has succeeded. */
@@ -413,6 +414,7 @@ error_ret:
  */
 static int iio_dummy_remove(int index)
 {
+	int ret;
 	/*
 	 * Get a pointer to the device instance iio_dev structure
 	 * from the bus subsystem. E.g.
@@ -421,15 +423,22 @@ static int iio_dummy_remove(int index)
 	 */
 	struct iio_dev *indio_dev = iio_dummy_devs[index];
 
+
 	/* Unregister the device */
 	iio_device_unregister(indio_dev);
 
 	/* Device specific code to power down etc */
 
+
+	ret = iio_simple_dummy_events_unregister(indio_dev);
+	if (ret)
+		goto error_ret;
+
 	/* Free all structures */
 	iio_free_device(indio_dev);
 
-	return 0;
+error_ret:
+	return ret;
 }
 
 /**
