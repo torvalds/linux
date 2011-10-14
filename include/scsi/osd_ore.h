@@ -99,11 +99,17 @@ struct ore_striping_info {
 	unsigned dev;
 	unsigned par_dev;
 	unsigned unit_off;
+	unsigned cur_pg;
 	unsigned cur_comp;
 };
 
 struct ore_io_state;
 typedef void (*ore_io_done_fn)(struct ore_io_state *ios, void *private);
+struct _ore_r4w_op {
+	/* @Priv given here is passed ios->private */
+	struct page * (*get_page)(void *priv, u64 page_index, bool *uptodate);
+	void (*put_page)(void *priv, struct page *page);
+};
 
 struct ore_io_state {
 	struct kref		kref;
@@ -139,6 +145,9 @@ struct ore_io_state {
 	unsigned		max_par_pages;
 	unsigned		cur_par_page;
 	unsigned		sgs_per_dev;
+	struct __stripe_pages_2d *sp2d;
+	struct ore_io_state	 *ios_read_4_write;
+	const struct _ore_r4w_op *r4w;
 
 	/* Variable array of size numdevs */
 	unsigned numdevs;

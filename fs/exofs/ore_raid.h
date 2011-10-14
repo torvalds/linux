@@ -57,8 +57,23 @@ void _ore_add_sg_seg(struct ore_per_dev_state *per_dev, unsigned cur_len,
 		 bool not_last);
 int _ore_add_parity_unit(struct ore_io_state *ios, struct ore_striping_info *si,
 		     struct ore_per_dev_state *per_dev, unsigned cur_len);
+void _ore_add_stripe_page(struct __stripe_pages_2d *sp2d,
+		       struct ore_striping_info *si, struct page *page);
+static inline void _add_stripe_page(struct __stripe_pages_2d *sp2d,
+				struct ore_striping_info *si, struct page *page)
+{
+	if (!sp2d) /* Inline the fast path */
+		return; /* Hay no raid stuff */
+	_ore_add_stripe_page(sp2d, si, page);
+}
 
 /* ios.c stuff needed by ios_raid.c */
+int  _ore_get_io_state(struct ore_layout *layout,
+			struct ore_components *oc, unsigned numdevs,
+			unsigned sgs_per_dev, unsigned num_par_pages,
+			struct ore_io_state **pios);
 int _ore_add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 		unsigned pgbase, struct page **pages,
 		struct ore_per_dev_state *per_dev, int cur_len);
+int _ore_read_mirror(struct ore_io_state *ios, unsigned cur_comp);
+int ore_io_execute(struct ore_io_state *ios);

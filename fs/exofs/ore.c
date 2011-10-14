@@ -95,6 +95,14 @@ int ore_verify_layout(unsigned total_comps, struct ore_layout *layout)
 	layout->max_io_length =
 		(BIO_MAX_PAGES_KMALLOC * PAGE_SIZE - layout->stripe_unit) *
 							layout->group_width;
+	if (layout->parity) {
+		unsigned stripe_length =
+				(layout->group_width - layout->parity) *
+				layout->stripe_unit;
+
+		layout->max_io_length /= stripe_length;
+		layout->max_io_length *= stripe_length;
+	}
 	return 0;
 }
 EXPORT_SYMBOL(ore_verify_layout);
@@ -118,7 +126,7 @@ static struct osd_dev *_ios_od(struct ore_io_state *ios, unsigned index)
 	return ore_comp_dev(ios->oc, index);
 }
 
-static int  _ore_get_io_state(struct ore_layout *layout,
+int  _ore_get_io_state(struct ore_layout *layout,
 			struct ore_components *oc, unsigned numdevs,
 			unsigned sgs_per_dev, unsigned num_par_pages,
 			struct ore_io_state **pios)
@@ -334,7 +342,7 @@ static void _done_io(struct osd_request *or, void *p)
 	kref_put(&ios->kref, _last_io);
 }
 
-static int ore_io_execute(struct ore_io_state *ios)
+int ore_io_execute(struct ore_io_state *ios)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	bool sync = (ios->done == NULL);
@@ -597,6 +605,8 @@ int _ore_add_stripe_unit(struct ore_io_state *ios,  unsigned *cur_pg,
 			ret = -ENOMEM;
 			goto out;
 		}
+		_add_stripe_page(ios->sp2d, &ios->si, pages[pg]);
+
 		pgbase = 0;
 		++pg;
 	}
@@ -636,6 +646,7 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 
 	dev_order = _dev_order(devs_in_group, mirrors_p1, si->par_dev, dev);
 	si->cur_comp = dev_order;
+	si->cur_pg = si->unit_off / PAGE_SIZE;
 
 	while (length) {
 		unsigned comp = dev - first_dev;
@@ -677,14 +688,14 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 		length -= cur_len;
 
 		si->cur_comp = (si->cur_comp + 1) % group_width;
-		if (unlikely((dev == si->par_dev) ||
-			     (!length && ios->parity_pages))) {
-			if (!length)
+		if (unlikely((dev == si->par_dev) || (!length && ios->sp2d))) {
+			if (!length && ios->sp2d) {
 				/* If we are writing and this is the very last
 				 * stripe. then operate on parity dev.
 				 */
 				dev = si->par_dev;
-			if (ios->reading)
+			}
+			if (ios->sp2d)
 				/* In writes cur_len just means if it's the
 				 * last one. See _ore_add_parity_unit.
 				 */
@@ -709,6 +720,7 @@ static int _prepare_for_striping(struct ore_io_state *ios)
 				      devs_in_group + first_dev;
 			/* Next stripe, start fresh */
 			si->cur_comp = 0;
+			si->cur_pg = 0;
 		}
 	}
 out:
@@ -873,6 +885,14 @@ int ore_write(struct ore_io_state *ios)
 	int i;
 	int ret;
 
+	if (unlikely(ios->sp2d && !ios->r4w)) {
+		/* A library is attempting a RAID-write without providing
+		 * a pages lock interface.
+		 */
+		WARN_ON_ONCE(1);
+		return -ENOTSUPP;
+	}
+
 	ret = _prepare_for_striping(ios);
 	if (unlikely(ret))
 		return ret;
@@ -888,7 +908,7 @@ int ore_write(struct ore_io_state *ios)
 }
 EXPORT_SYMBOL(ore_write);
 
-static int _read_mirror(struct ore_io_state *ios, unsigned cur_comp)
+int _ore_read_mirror(struct ore_io_state *ios, unsigned cur_comp)
 {
 	struct osd_request *or;
 	struct ore_per_dev_state *per_dev = &ios->per_dev[cur_comp];
@@ -952,7 +972,7 @@ int ore_read(struct ore_io_state *ios)
 		return ret;
 
 	for (i = 0; i < ios->numdevs; i += ios->layout->mirrors_p1) {
-		ret = _read_mirror(ios, i);
+		ret = _ore_read_mirror(ios, i);
 		if (unlikely(ret))
 			return ret;
 	}
