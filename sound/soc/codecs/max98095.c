@@ -617,14 +617,13 @@ static int max98095_volatile(struct snd_soc_codec *codec, unsigned int reg)
 static int max98095_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 			     unsigned int value)
 {
-	u8 data[2];
+	int ret;
 
-	data[0] = reg;
-	data[1] = value;
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
+	codec->cache_bypass = 1;
+	ret = snd_soc_write(codec, reg, value);
+	codec->cache_bypass = 0;
+
+	return ret ? -EIO : 0;
 }
 
 /*
