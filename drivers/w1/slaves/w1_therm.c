@@ -1,7 +1,7 @@
 /*
  *	w1_therm.c
  *
- * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+ * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -34,7 +34,7 @@
 #include "../w1_family.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
+MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, temperature family.");
 
 /* Allow the strong pullup to be disabled, but default to enabled.

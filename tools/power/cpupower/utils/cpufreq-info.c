@@ -510,37 +510,6 @@ static int get_latency(unsigned int cpu, unsigned int human)
 	return 0;
 }
 
-void freq_info_help(void)
-{
-	printf(_("Usage: cpupower freqinfo [options]\n"));
-	printf(_("Options:\n"));
-	printf(_("  -e, --debug          Prints out debug information [default]\n"));
-	printf(_("  -f, --freq           Get frequency the CPU currently runs at, according\n"
-	       "                       to the cpufreq core *\n"));
-	printf(_("  -w, --hwfreq         Get frequency the CPU currently runs at, by reading\n"
-	       "                       it from hardware (only available to root) *\n"));
-	printf(_("  -l, --hwlimits       Determine the minimum and maximum CPU frequency allowed *\n"));
-	printf(_("  -d, --driver         Determines the used cpufreq kernel driver *\n"));
-	printf(_("  -p, --policy         Gets the currently used cpufreq policy *\n"));
-	printf(_("  -g, --governors      Determines available cpufreq governors *\n"));
-	printf(_("  -r, --related-cpus   Determines which CPUs run at the same hardware frequency *\n"));
-	printf(_("  -a, --affected-cpus  Determines which CPUs need to have their frequency\n"
-			"                       coordinated by software *\n"));
-	printf(_("  -s, --stats          Shows cpufreq statistics if available\n"));
-	printf(_("  -y, --latency        Determines the maximum latency on CPU frequency changes *\n"));
-	printf(_("  -b, --boost          Checks for turbo or boost modes  *\n"));
-	printf(_("  -o, --proc           Prints out information like provided by the /proc/cpufreq\n"
-	       "                       interface in 2.4. and early 2.6. kernels\n"));
-	printf(_("  -m, --human          human-readable output for the -f, -w, -s and -y parameters\n"));
-	printf(_("  -h, --help           Prints out this screen\n"));
-
-	printf("\n");
-	printf(_("If no argument is given, full output about\n"
-	       "cpufreq is printed which is useful e.g. for reporting bugs.\n\n"));
-	printf(_("By default info of CPU 0 is shown which can be overridden\n"
-		 "with the cpupower --cpu main command option.\n"));
-}
-
 static struct option info_opts[] = {
 	{ .name = "debug",	.has_arg = no_argument,		.flag = NULL,	.val = 'e'},
 	{ .name = "boost",	.has_arg = no_argument,		.flag = NULL,	.val = 'b'},
@@ -556,7 +525,6 @@ static struct option info_opts[] = {
 	{ .name = "latency",	.has_arg = no_argument,		.flag = NULL,	.val = 'y'},
 	{ .name = "proc",	.has_arg = no_argument,		.flag = NULL,	.val = 'o'},
 	{ .name = "human",	.has_arg = no_argument,		.flag = NULL,	.val = 'm'},
-	{ .name = "help",	.has_arg = no_argument,		.flag = NULL,	.val = 'h'},
 	{ },
 };
 
@@ -570,14 +538,10 @@ int cmd_freq_info(int argc, char **argv)
 	int output_param = 0;
 
 	do {
-		ret = getopt_long(argc, argv, "hoefwldpgrasmyb", info_opts, NULL);
+		ret = getopt_long(argc, argv, "oefwldpgrasmyb", info_opts, NULL);
 		switch (ret) {
 		case '?':
 			output_param = '?';
-			cont = 0;
-			break;
-		case 'h':
-			output_param = 'h';
 			cont = 0;
 			break;
 		case -1:
@@ -642,11 +606,7 @@ int cmd_freq_info(int argc, char **argv)
 		return -EINVAL;
 	case '?':
 		printf(_("invalid or unknown argument\n"));
-		freq_info_help();
 		return -EINVAL;
-	case 'h':
-		freq_info_help();
-		return EXIT_SUCCESS;
 	case 'o':
 		proc_cpufreq_output();
 		return EXIT_SUCCESS;

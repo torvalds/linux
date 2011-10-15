@@ -3336,7 +3336,7 @@ static void handle_stripe(struct stripe_head *sh)
 
 finish:
 	/* wait for this device to become unblocked */
-	if (unlikely(s.blocked_rdev))
+	if (conf->mddev->external && unlikely(s.blocked_rdev))
 		md_wait_for_blocked_rdev(s.blocked_rdev, conf->mddev);
 
 	if (s.handle_bad_blocks)

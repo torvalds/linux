@@ -2221,6 +2221,8 @@ static int sysclk_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (fll) {
+			try_wait_for_completion(&wm8962->fll_lock);
+
 			snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 					    WM8962_FLL_ENA, WM8962_FLL_ENA);
 			if (wm8962->irq) {
@@ -2927,10 +2929,6 @@ static int wm8962_set_bias_level(struct snd_soc_codec *codec,
 					    WM8962_BIAS_ENA | 0x180);
 
 			msleep(5);
-
-			snd_soc_update_bits(codec, WM8962_CLOCKING2,
-					    WM8962_CLKREG_OVD,
-					    WM8962_CLKREG_OVD);
 		}
 
 		/* VMID 2*250k */
@@ -3288,6 +3286,8 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	snd_soc_write(codec, WM8962_FLL_CONTROL_7, fll_div.lambda);
 	snd_soc_write(codec, WM8962_FLL_CONTROL_8, fll_div.n);
 
+	try_wait_for_completion(&wm8962->fll_lock);
+
 	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 			    WM8962_FLL_FRAC | WM8962_FLL_REFCLK_SRC_MASK |
 			    WM8962_FLL_ENA, fll1);
@@ -3478,31 +3478,6 @@ int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm8962_mic_detect);
-
-#ifdef CONFIG_PM
-static int wm8962_resume(struct snd_soc_codec *codec)
-{
-	u16 *reg_cache = codec->reg_cache;
-	int i;
-
-	/* Restore the registers */
-	for (i = 1; i < codec->driver->reg_cache_size; i++) {
-		switch (i) {
-		case WM8962_SOFTWARE_RESET:
-			continue;
-		default:
-			break;
-		}
-
-		if (reg_cache[i] != wm8962_reg[i])
-			snd_soc_write(codec, i, reg_cache[i]);
-	}
-
-	return 0;
-}
-#else
-#define wm8962_resume NULL
-#endif
 
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int beep_rates[] = {
@@ -3868,6 +3843,10 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	 */
 	snd_soc_update_bits(codec, WM8962_CLOCKING2, WM8962_SYSCLK_ENA, 0);
 
+	/* Ensure we have soft control over all registers */
+	snd_soc_update_bits(codec, WM8962_CLOCKING2,
+			    WM8962_CLKREG_OVD, WM8962_CLKREG_OVD);
+
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 
 	if (pdata) {
@@ -4011,7 +3990,6 @@ static int wm8962_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 	.probe =	wm8962_probe,
 	.remove =	wm8962_remove,
-	.resume =	wm8962_resume,
 	.set_bias_level = wm8962_set_bias_level,
 	.reg_cache_size = WM8962_MAX_REGISTER + 1,
 	.reg_word_size = sizeof(u16),

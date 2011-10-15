@@ -515,10 +515,6 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 	mac_set_cam_mask(regs, vptr->mCAMmask);
 
 	/* Enable VCAMs */
-
-	if (test_bit(0, vptr->active_vlans))
-		WORD_REG_BITS_ON(MCFG_RTGOPT, &regs->MCFG);
-
 	for_each_set_bit(vid, vptr->active_vlans, VLAN_N_VID) {
 		mac_set_vlan_cam(regs, i, (u8 *) &vid);
 		vptr->vCAMmask[i / 8] |= 0x1 << (i % 8);

@@ -2243,7 +2243,6 @@ static int iscsit_handle_snack(
 	case 0:
 		return iscsit_handle_recovery_datain_or_r2t(conn, buf,
 			hdr->itt, hdr->ttt, hdr->begrun, hdr->runlength);
-		return 0;
 	case ISCSI_FLAG_SNACK_TYPE_STATUS:
 		return iscsit_handle_status_snack(conn, hdr->itt, hdr->ttt,
 			hdr->begrun, hdr->runlength);

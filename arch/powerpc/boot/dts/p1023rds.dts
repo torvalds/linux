@@ -387,7 +387,7 @@
 			#size-cells = <1>;
 			compatible = "cfi-flash";
 			reg = <0x0 0x0 0x02000000>;
-			bank-width = <1>;
+			bank-width = <2>;
 			device-width = <1>;
 			partition@0 {
 				label = "ramdisk";
