@@ -3345,34 +3345,25 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 	hw->mac.ops.set_vfta(&adapter->hw, 0, 0, true);
 
+#ifdef IXGBE_FCOE
+	if (adapter->netdev->features & NETIF_F_FCOE_MTU)
+		max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
+#endif
+
 	/* reconfigure the hardware */
 	if (adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE) {
-#ifdef IXGBE_FCOE
-		if (adapter->netdev->features & NETIF_F_FCOE_MTU)
-			max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
-#endif
 		ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
 						DCB_TX_CONFIG);
 		ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
 						DCB_RX_CONFIG);
 		ixgbe_dcb_hw_config(hw, &adapter->dcb_cfg);
-	} else {
-		struct net_device *dev = adapter->netdev;
-
-		if (adapter->ixgbe_ieee_ets) {
-			struct ieee_ets *ets = adapter->ixgbe_ieee_ets;
-			int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
-
-			ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
-		}
-
-		if (adapter->ixgbe_ieee_pfc) {
-			struct ieee_pfc *pfc = adapter->ixgbe_ieee_pfc;
-			u8 *prio_tc = adapter->ixgbe_ieee_ets->prio_tc;
-
-			ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en,
-						prio_tc);
-		}
+	} else if (adapter->ixgbe_ieee_ets && adapter->ixgbe_ieee_pfc) {
+		ixgbe_dcb_hw_ets(&adapter->hw,
+				 adapter->ixgbe_ieee_ets,
+				 max_frame);
+		ixgbe_dcb_hw_pfc_config(&adapter->hw,
+					adapter->ixgbe_ieee_pfc->pfc_en,
+					adapter->ixgbe_ieee_ets->prio_tc);
 	}
 
 	/* Enable RSS Hash per TC */
