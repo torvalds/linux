@@ -79,6 +79,7 @@ void hists__collapse_resort(struct hists *self);
 void hists__collapse_resort_threaded(struct hists *hists);
 
 void hists__decay_entries(struct hists *hists);
+void hists__decay_entries_threaded(struct hists *hists);
 void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 
 void hists__inc_nr_events(struct hists *self, u32 type);
@@ -103,16 +104,20 @@ struct perf_evlist;
 #ifdef NO_NEWT_SUPPORT
 static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __used,
-				  const char *help __used, void(*timer)(void *arg) __used, void *arg,
+				  const char *help __used,
+				  void(*timer)(void *arg) __used,
+				  void *arg __used,
 				  int refresh __used)
 {
 	return 0;
 }
 
 static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
-					   int evidx __used, int nr_events __used,
+					   int evidx __used,
+					   int nr_events __used,
 					   void(*timer)(void *arg) __used,
-					   void *arg __used, int delay_secs __used);
+					   void *arg __used,
+					   int delay_secs __used)
 {
 	return 0;
 }

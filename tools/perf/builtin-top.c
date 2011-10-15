@@ -304,7 +304,7 @@ static void print_sym_table(void)
 
 	hists__collapse_resort_threaded(&top.sym_evsel->hists);
 	hists__output_resort_threaded(&top.sym_evsel->hists);
-	hists__decay_entries(&top.sym_evsel->hists);
+	hists__decay_entries_threaded(&top.sym_evsel->hists);
 	hists__output_recalc_col_len(&top.sym_evsel->hists, winsize.ws_row - 3);
 	putchar('\n');
 	hists__fprintf(&top.sym_evsel->hists, NULL, false, false,
@@ -555,7 +555,7 @@ static void perf_top__sort_new_samples(void *arg)
 
 	hists__collapse_resort_threaded(&t->sym_evsel->hists);
 	hists__output_resort_threaded(&t->sym_evsel->hists);
-	hists__decay_entries(&t->sym_evsel->hists);
+	hists__decay_entries_threaded(&t->sym_evsel->hists);
 	hists__output_recalc_col_len(&t->sym_evsel->hists, winsize.ws_row - 3);
 }
 
@@ -585,16 +585,31 @@ static void *display_thread(void *arg __used)
 	tc.c_cc[VMIN] = 0;
 	tc.c_cc[VTIME] = 0;
 
+	pthread__unblock_sigwinch();
 repeat:
 	delay_msecs = top.delay_secs * 1000;
 	tcsetattr(0, TCSANOW, &tc);
 	/* trash return*/
 	getc(stdin);
 
-	do {
+	while (1) {
 		print_sym_table();
-	} while (!poll(&stdin_poll, 1, delay_msecs) == 1);
-
+		/*
+		 * Either timeout expired or we got an EINTR due to SIGWINCH,
+		 * refresh screen in both cases.
+		 */
+		switch (poll(&stdin_poll, 1, delay_msecs)) {
+		case 0:
+			continue;
+		case -1:
+			if (errno == EINTR)
+				continue;
+			/* Fall trhu */
+		default:
+			goto process_hotkey;
+		}
+	}
+process_hotkey:
 	c = getc(stdin);
 	tcsetattr(0, TCSAFLUSH, &save);
 

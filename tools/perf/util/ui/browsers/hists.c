@@ -301,11 +301,7 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 			     void(*timer)(void *arg), void *arg, int delay_secs)
 {
 	int key;
-	int delay_msecs = delay_secs * 1000;
 	char title[160];
-	int sym_exit_keys[] = { 'a', 'h', 'C', 'd', 'E', 't', 0, };
-	int exit_keys[] = { '?', 'h', 'D', NEWT_KEY_LEFT, NEWT_KEY_RIGHT,
-			    NEWT_KEY_TAB, NEWT_KEY_UNTAB, NEWT_KEY_ENTER, 0, };
 
 	self->b.entries = &self->hists->entries;
 	self->b.nr_entries = self->hists->nr_entries;
@@ -318,27 +314,14 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 			     "Press '?' for help on key bindings") < 0)
 		return -1;
 
-	if (timer != NULL)
-		newtFormSetTimer(self->b.form, delay_msecs);
-
-	ui_browser__add_exit_keys(&self->b, exit_keys);
-	if (self->has_symbols)
-		ui_browser__add_exit_keys(&self->b, sym_exit_keys);
-
 	while (1) {
-		key = ui_browser__run(&self->b);
+		key = ui_browser__run(&self->b, delay_secs);
 
 		switch (key) {
 		case -1:
 			/* FIXME we need to check if it was es.reason == NEWT_EXIT_TIMER */
 			timer(arg);
-			/*
-			 * The timer may have changed the number of entries.
-			 * XXX: Find better way to keep this in synch, probably
-			 * removing this timer function altogether and just sync
-			 * using the hists->lock...
-			 */
-			self->b.nr_entries = self->hists->nr_entries;
+			ui_browser__update_nr_entries(&self->b, self->hists->nr_entries);
 			hists__browser_title(self->hists, title, sizeof(title),
 					     ev_name, self->dso_filter,
 					     self->thread_filter);
@@ -617,14 +600,23 @@ static int hist_browser__show_entry(struct hist_browser *self,
 	return printed;
 }
 
+static void ui_browser__hists_init_top(struct ui_browser *browser)
+{
+	if (browser->top == NULL) {
+		struct hist_browser *hb;
+
+		hb = container_of(browser, struct hist_browser, b);
+		browser->top = rb_first(&hb->hists->entries);
+	}
+}
+
 static unsigned int hist_browser__refresh(struct ui_browser *self)
 {
 	unsigned row = 0;
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(self, struct hist_browser, b);
 
-	if (self->top == NULL)
-		self->top = rb_first(&hb->hists->entries);
+	ui_browser__hists_init_top(self);
 
 	for (nd = self->top; nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
@@ -675,6 +667,8 @@ static void ui_browser__hists_seek(struct ui_browser *self,
 
 	if (self->nr_entries == 0)
 		return;
+
+	ui_browser__hists_init_top(self);
 
 	switch (whence) {
 	case SEEK_SET:
@@ -931,8 +925,11 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			    !ui__dialog_yesno("Do you really want to exit?"))
 				continue;
 			/* Fall thru */
-		default:
+		case 'q':
+		case CTRL('c'):
 			goto out_free_stack;
+		default:
+			continue;
 		}
 
 		if (!browser->has_symbols)
@@ -982,9 +979,14 @@ do_annotate:
 			he = hist_browser__selected_entry(browser);
 			if (he == NULL)
 				continue;
-
+			/*
+			 * Don't let this be freed, say, by hists__decay_entry.
+			 */
+			he->used = true;
 			hist_entry__tui_annotate(he, evsel->idx, nr_events,
 						 timer, arg, delay_secs);
+			he->used = false;
+			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
 		} else if (choice == browse_map)
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
@@ -1061,8 +1063,6 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 				int nr_events, const char *help,
 				void(*timer)(void *arg), void *arg, int delay_secs)
 {
-	int exit_keys[] = { NEWT_KEY_ENTER, NEWT_KEY_RIGHT, 0, };
-	int delay_msecs = delay_secs * 1000;
 	struct perf_evlist *evlist = menu->b.priv;
 	struct perf_evsel *pos;
 	const char *ev_name, *title = "Available samples";
@@ -1072,13 +1072,8 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 			     "ESC: exit, ENTER|->: Browse histograms") < 0)
 		return -1;
 
-	if (timer != NULL)
-		newtFormSetTimer(menu->b.form, delay_msecs);
-
-	ui_browser__add_exit_keys(&menu->b, exit_keys);
-
 	while (1) {
-		key = ui_browser__run(&menu->b);
+		key = ui_browser__run(&menu->b, delay_secs);
 
 		switch (key) {
 		case -1:
@@ -1090,44 +1085,53 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 			if (!menu->selection)
 				continue;
 			pos = menu->selection;
-			perf_evlist__set_selected(evlist, pos);
 browse_hists:
+			perf_evlist__set_selected(evlist, pos);
+			/*
+			 * Give the calling tool a chance to populate the non
+			 * default evsel resorted hists tree.
+			 */
+			if (timer)
+				timer(arg);
 			ev_name = event_name(pos);
 			key = perf_evsel__hists_browse(pos, nr_events, help,
 						       ev_name, true, timer,
 						       arg, delay_secs);
 			ui_browser__show_title(&menu->b, title);
-			break;
+			switch (key) {
+			case NEWT_KEY_TAB:
+				if (pos->node.next == &evlist->entries)
+					pos = list_entry(evlist->entries.next, struct perf_evsel, node);
+				else
+					pos = list_entry(pos->node.next, struct perf_evsel, node);
+				goto browse_hists;
+			case NEWT_KEY_UNTAB:
+				if (pos->node.prev == &evlist->entries)
+					pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
+				else
+					pos = list_entry(pos->node.prev, struct perf_evsel, node);
+				goto browse_hists;
+			case NEWT_KEY_ESCAPE:
+				if (!ui__dialog_yesno("Do you really want to exit?"))
+					continue;
+				/* Fall thru */
+			case 'q':
+			case CTRL('c'):
+				goto out;
+			default:
+				continue;
+			}
 		case NEWT_KEY_LEFT:
 			continue;
 		case NEWT_KEY_ESCAPE:
 			if (!ui__dialog_yesno("Do you really want to exit?"))
 				continue;
 			/* Fall thru */
-		default:
-			goto out;
-		}
-
-		switch (key) {
-		case NEWT_KEY_TAB:
-			if (pos->node.next == &evlist->entries)
-				pos = list_entry(evlist->entries.next, struct perf_evsel, node);
-			else
-				pos = list_entry(pos->node.next, struct perf_evsel, node);
-			perf_evlist__set_selected(evlist, pos);
-			goto browse_hists;
-		case NEWT_KEY_UNTAB:
-			if (pos->node.prev == &evlist->entries)
-				pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
-			else
-				pos = list_entry(pos->node.prev, struct perf_evsel, node);
-			perf_evlist__set_selected(evlist, pos);
-			goto browse_hists;
 		case 'q':
 		case CTRL('c'):
 			goto out;
 		default:
-			break;
+			continue;
 		}
 	}
 

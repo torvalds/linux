@@ -1289,7 +1289,7 @@ int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
 	if (access(linkname, F_OK))
 		goto out_free;
 
-	if (readlink(linkname, filename, size) < 0)
+	if (readlink(linkname, filename, size - 1) < 0)
 		goto out_free;
 
 	if (unlink(linkname))

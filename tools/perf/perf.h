@@ -183,4 +183,6 @@ struct ip_callchain {
 extern bool perf_host, perf_guest;
 extern const char perf_version_string[];
 
+void pthread__unblock_sigwinch(void);
+
 #endif

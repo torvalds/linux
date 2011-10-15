@@ -100,13 +100,15 @@ static void hist_entry__decay(struct hist_entry *he)
 
 static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 {
+	if (he->period == 0)
+		return true;
 	hists->stats.total_period -= he->period;
 	hist_entry__decay(he);
 	hists->stats.total_period += he->period;
 	return he->period == 0;
 }
 
-void hists__decay_entries(struct hists *hists)
+static void __hists__decay_entries(struct hists *hists, bool threaded)
 {
 	struct rb_node *next = rb_first(&hists->entries);
 	struct hist_entry *n;
@@ -114,17 +116,31 @@ void hists__decay_entries(struct hists *hists)
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node);
 		next = rb_next(&n->rb_node);
-
-		if (hists__decay_entry(hists, n)) {
+		/*
+		 * We may be annotating this, for instance, so keep it here in
+		 * case some it gets new samples, we'll eventually free it when
+		 * the user stops browsing and it agains gets fully decayed.
+		 */
+		if (hists__decay_entry(hists, n) && !n->used) {
 			rb_erase(&n->rb_node, &hists->entries);
 
-			if (sort__need_collapse)
+			if (sort__need_collapse || threaded)
 				rb_erase(&n->rb_node_in, &hists->entries_collapsed);
 
 			hist_entry__free(n);
 			--hists->nr_entries;
 		}
 	}
+}
+
+void hists__decay_entries(struct hists *hists)
+{
+	return __hists__decay_entries(hists, false);
+}
+
+void hists__decay_entries_threaded(struct hists *hists)
+{
+	return __hists__decay_entries(hists, true);
 }
 
 /*

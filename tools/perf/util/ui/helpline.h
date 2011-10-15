@@ -1,6 +1,8 @@
 #ifndef _PERF_UI_HELPLINE_H_
 #define _PERF_UI_HELPLINE_H_ 1
 
+#include <stdio.h>
+
 void ui_helpline__init(void);
 void ui_helpline__pop(void);
 void ui_helpline__push(const char *msg);
