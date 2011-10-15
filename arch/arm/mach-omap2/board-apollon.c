@@ -40,6 +40,9 @@
 #include <plat/common.h>
 #include <plat/gpmc.h>
 
+#include <video/omapdss.h>
+#include <video/omap-panel-generic-dpi.h>
+
 #include "mux.h"
 #include "control.h"
 
@@ -149,11 +152,6 @@ static struct platform_device apollon_smc91x_device = {
 	.resource	= apollon_smc91x_resources,
 };
 
-static struct platform_device apollon_lcd_device = {
-	.name		= "apollon_lcd",
-	.id		= -1,
-};
-
 static struct omap_led_config apollon_led_config[] = {
 	{
 		.cdev	= {
@@ -191,7 +189,6 @@ static struct platform_device apollon_led_device = {
 static struct platform_device *apollon_devices[] __initdata = {
 	&apollon_onenand_device,
 	&apollon_smc91x_device,
-	&apollon_lcd_device,
 	&apollon_led_device,
 };
 
@@ -265,12 +262,26 @@ static struct omap_usb_config apollon_usb_config __initdata = {
 	.pins[0]	= 6,
 };
 
-static struct omap_lcd_config apollon_lcd_config __initdata = {
-	.ctrl_name	= "internal",
+static struct panel_generic_dpi_data apollon_panel_data = {
+	.name			= "apollon",
 };
 
-static struct omap_board_config_kernel apollon_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&apollon_lcd_config },
+static struct omap_dss_device apollon_lcd_device = {
+	.name			= "lcd",
+	.driver_name		= "generic_dpi_panel",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.phy.dpi.data_lines	= 18,
+	.data			= &apollon_panel_data,
+};
+
+static struct omap_dss_device *apollon_dss_devices[] = {
+	&apollon_lcd_device,
+};
+
+static struct omap_dss_board_info apollon_dss_data = {
+	.num_devices	= ARRAY_SIZE(apollon_dss_devices),
+	.devices	= apollon_dss_devices,
+	.default_device	= &apollon_lcd_device,
 };
 
 static void __init omap_apollon_init_early(void)
@@ -314,8 +325,6 @@ static void __init omap_apollon_init(void)
 	u32 v;
 
 	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAC);
-	omap_board_config = apollon_config;
-	omap_board_config_size = ARRAY_SIZE(apollon_config);
 
 	apollon_init_smc91x();
 	apollon_led_init();
@@ -340,6 +349,8 @@ static void __init omap_apollon_init(void)
 	 */
 	platform_add_devices(apollon_devices, ARRAY_SIZE(apollon_devices));
 	omap_serial_init();
+
+	omap_display_init(&apollon_dss_data);
 }
 
 static void __init omap_apollon_map_io(void)

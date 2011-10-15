@@ -41,6 +41,7 @@
 #include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-dvi.h>
 
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
@@ -107,39 +108,6 @@ static void __init omap3_stalker_display_init(void)
 	return;
 }
 
-static int omap3_stalker_enable_lcd(struct omap_dss_device *dssdev)
-{
-	if (dvi_enabled) {
-		printk(KERN_ERR "cannot enable LCD, DVI is enabled\n");
-		return -EINVAL;
-	}
-	gpio_set_value(DSS_ENABLE_GPIO, 1);
-	gpio_set_value(LCD_PANEL_BKLIGHT_GPIO, 1);
-	lcd_enabled = 1;
-	return 0;
-}
-
-static void omap3_stalker_disable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(DSS_ENABLE_GPIO, 0);
-	gpio_set_value(LCD_PANEL_BKLIGHT_GPIO, 0);
-	lcd_enabled = 0;
-}
-
-static struct panel_generic_dpi_data lcd_panel = {
-	.name			= "generic",
-	.platform_enable	= omap3_stalker_enable_lcd,
-	.platform_disable	= omap3_stalker_disable_lcd,
-};
-
-static struct omap_dss_device omap3_stalker_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "generic_dpi_panel",
-	.data			= &lcd_panel,
-	.phy.dpi.data_lines	= 24,
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-};
-
 static int omap3_stalker_enable_tv(struct omap_dss_device *dssdev)
 {
 	return 0;
@@ -179,8 +147,7 @@ static void omap3_stalker_disable_dvi(struct omap_dss_device *dssdev)
 	dvi_enabled = 0;
 }
 
-static struct panel_generic_dpi_data dvi_panel = {
-	.name			= "generic",
+static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable	= omap3_stalker_enable_dvi,
 	.platform_disable	= omap3_stalker_disable_dvi,
 };
@@ -188,13 +155,12 @@ static struct panel_generic_dpi_data dvi_panel = {
 static struct omap_dss_device omap3_stalker_dvi_device = {
 	.name			= "dvi",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "generic_dpi_panel",
+	.driver_name		= "dvi",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
 
 static struct omap_dss_device *omap3_stalker_dss_devices[] = {
-	&omap3_stalker_lcd_device,
 	&omap3_stalker_tv_device,
 	&omap3_stalker_dvi_device,
 };
