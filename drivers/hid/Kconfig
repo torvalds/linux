@@ -441,6 +441,14 @@ config HID_PICOLCD_LEDS
 	---help---
 	  Provide access to PicoLCD's GPO pins via leds class.
 
+config HID_PRIMAX
+	tristate "Primax non-fully HID-compliant devices" if EXPERT
+	depends on USB_HID
+	default !EXPERT
+	---help---
+	Support for Primax devices that are not fully compliant with the
+	HID standard.
+
 config HID_QUANTA
 	tristate "Quanta Optical Touch panels"
 	depends on USB_HID
