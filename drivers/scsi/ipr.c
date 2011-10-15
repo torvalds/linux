@@ -3109,7 +3109,7 @@ static void ipr_worker_thread(struct work_struct *work)
 		kref_put(&dump->kref, ipr_release_dump);
 
 		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
-		if (ioa_cfg->sdt_state == DUMP_OBTAINED)
+		if (ioa_cfg->sdt_state == DUMP_OBTAINED && !ioa_cfg->dump_timeout)
 			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 		return;
@@ -7447,6 +7447,7 @@ static int ipr_reset_wait_for_dump(struct ipr_cmnd *ipr_cmd)
 	else if (ioa_cfg->sdt_state == READ_DUMP)
 		ioa_cfg->sdt_state = ABORT_DUMP;
 
+	ioa_cfg->dump_timeout = 1;
 	ipr_cmd->job_step = ipr_reset_alert;
 
 	return IPR_RC_JOB_CONTINUE;
@@ -7611,6 +7612,7 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 
 		if (GET_DUMP == ioa_cfg->sdt_state) {
 			ioa_cfg->sdt_state = READ_DUMP;
+			ioa_cfg->dump_timeout = 0;
 			if (ioa_cfg->sis64)
 				ipr_reset_start_timer(ipr_cmd, IPR_SIS64_DUMP_TIMEOUT);
 			else

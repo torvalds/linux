@@ -1385,6 +1385,7 @@ struct ipr_ioa_cfg {
 	u8 needs_warm_reset:1;
 	u8 msi_received:1;
 	u8 sis64:1;
+	u8 dump_timeout:1;
 
 	u8 revid;
 
