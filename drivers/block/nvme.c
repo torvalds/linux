@@ -135,8 +135,12 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_lba_range_type) != 64);
 }
 
+typedef void (*nvme_completion_fn)(struct nvme_queue *, void *,
+						struct nvme_completion *);
+
 struct nvme_cmd_info {
-	unsigned long ctx;
+	nvme_completion_fn fn;
+	void *ctx;
 	unsigned long timeout;
 };
 
@@ -149,7 +153,7 @@ static struct nvme_cmd_info *nvme_cmd_info(struct nvme_queue *nvmeq)
  * alloc_cmdid() - Allocate a Command ID
  * @nvmeq: The queue that will be used for this command
  * @ctx: A pointer that will be passed to the handler
- * @handler: The ID of the handler to call
+ * @handler: The function to call on completion
  *
  * Allocate a Command ID for a queue.  The data passed in will
  * be passed to the completion handler.  This is implemented by using
@@ -160,14 +164,12 @@ static struct nvme_cmd_info *nvme_cmd_info(struct nvme_queue *nvmeq)
  * May be called with local interrupts disabled and the q_lock held,
  * or with interrupts enabled and no locks held.
  */
-static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx, int handler,
-							unsigned timeout)
+static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx,
+				nvme_completion_fn handler, unsigned timeout)
 {
 	int depth = nvmeq->q_depth - 1;
 	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
 	int cmdid;
-
-	BUG_ON((unsigned long)ctx & 3);
 
 	do {
 		cmdid = find_first_zero_bit(nvmeq->cmdid_data, depth);
@@ -175,13 +177,14 @@ static int alloc_cmdid(struct nvme_queue *nvmeq, void *ctx, int handler,
 			return -EBUSY;
 	} while (test_and_set_bit(cmdid, nvmeq->cmdid_data));
 
-	info[cmdid].ctx = (unsigned long)ctx | handler;
+	info[cmdid].fn = handler;
+	info[cmdid].ctx = ctx;
 	info[cmdid].timeout = jiffies + timeout;
 	return cmdid;
 }
 
 static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
-						int handler, unsigned timeout)
+				nvme_completion_fn handler, unsigned timeout)
 {
 	int cmdid;
 	wait_event_killable(nvmeq->sq_full,
@@ -189,47 +192,69 @@ static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
 	return (cmdid < 0) ? -EINTR : cmdid;
 }
 
-/*
- * If you need more than four handlers, you'll need to change how
- * alloc_cmdid and nvme_process_cq work.  Consider using a special
- * CMD_CTX value instead, if that works for your situation.
- */
-enum {
-	sync_completion_id = 0,
-	bio_completion_id,
-};
-
-/* Special values must be a multiple of 4, and less than 0x1000 */
-#define CMD_CTX_BASE		(POISON_POINTER_DELTA + sync_completion_id)
+/* Special values must be less than 0x1000 */
+#define CMD_CTX_BASE		((void *)POISON_POINTER_DELTA)
 #define CMD_CTX_CANCELLED	(0x30C + CMD_CTX_BASE)
 #define CMD_CTX_COMPLETED	(0x310 + CMD_CTX_BASE)
 #define CMD_CTX_INVALID		(0x314 + CMD_CTX_BASE)
 #define CMD_CTX_FLUSH		(0x318 + CMD_CTX_BASE)
 
+static void special_completion(struct nvme_queue *nvmeq, void *ctx,
+						struct nvme_completion *cqe)
+{
+	if (ctx == CMD_CTX_CANCELLED)
+		return;
+	if (ctx == CMD_CTX_FLUSH)
+		return;
+	if (ctx == CMD_CTX_COMPLETED) {
+		dev_warn(nvmeq->q_dmadev,
+				"completed id %d twice on queue %d\n",
+				cqe->command_id, le16_to_cpup(&cqe->sq_id));
+		return;
+	}
+	if (ctx == CMD_CTX_INVALID) {
+		dev_warn(nvmeq->q_dmadev,
+				"invalid id %d completed on queue %d\n",
+				cqe->command_id, le16_to_cpup(&cqe->sq_id));
+		return;
+	}
+
+	dev_warn(nvmeq->q_dmadev, "Unknown special completion %p\n", ctx);
+}
+
 /*
  * Called with local interrupts disabled and the q_lock held.  May not sleep.
  */
-static unsigned long free_cmdid(struct nvme_queue *nvmeq, int cmdid)
+static void *free_cmdid(struct nvme_queue *nvmeq, int cmdid,
+						nvme_completion_fn *fn)
 {
-	unsigned long data;
+	void *ctx;
 	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
 
-	if (cmdid >= nvmeq->q_depth)
+	if (cmdid >= nvmeq->q_depth) {
+		*fn = special_completion;
 		return CMD_CTX_INVALID;
-	data = info[cmdid].ctx;
+	}
+	*fn = info[cmdid].fn;
+	ctx = info[cmdid].ctx;
+	info[cmdid].fn = special_completion;
 	info[cmdid].ctx = CMD_CTX_COMPLETED;
 	clear_bit(cmdid, nvmeq->cmdid_data);
 	wake_up(&nvmeq->sq_full);
-	return data;
+	return ctx;
 }
 
-static unsigned long cancel_cmdid(struct nvme_queue *nvmeq, int cmdid)
+static void *cancel_cmdid(struct nvme_queue *nvmeq, int cmdid,
+						nvme_completion_fn *fn)
 {
-	unsigned long data;
+	void *ctx;
 	struct nvme_cmd_info *info = nvme_cmd_info(nvmeq);
-	data = info[cmdid].ctx;
+	if (fn)
+		*fn = info[cmdid].fn;
+	ctx = info[cmdid].ctx;
+	info[cmdid].fn = special_completion;
 	info[cmdid].ctx = CMD_CTX_CANCELLED;
-	return data;
+	return ctx;
 }
 
 static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
@@ -485,7 +510,7 @@ static int nvme_submit_flush(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 static int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns)
 {
 	int cmdid = alloc_cmdid(nvmeq, (void *)CMD_CTX_FLUSH,
-						sync_completion_id, IO_TIMEOUT);
+						special_completion, IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
 		return cmdid;
 
@@ -518,7 +543,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	nbio->bio = bio;
 
 	result = -EBUSY;
-	cmdid = alloc_cmdid(nvmeq, nbio, bio_completion_id, IO_TIMEOUT);
+	cmdid = alloc_cmdid(nvmeq, nbio, bio_completion, IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
 		goto free_nbio;
 
@@ -599,45 +624,6 @@ static int nvme_make_request(struct request_queue *q, struct bio *bio)
 	return 0;
 }
 
-struct sync_cmd_info {
-	struct task_struct *task;
-	u32 result;
-	int status;
-};
-
-static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
-						struct nvme_completion *cqe)
-{
-	struct sync_cmd_info *cmdinfo = ctx;
-	if (unlikely((unsigned long)cmdinfo == CMD_CTX_CANCELLED))
-		return;
-	if ((unsigned long)cmdinfo == CMD_CTX_FLUSH)
-		return;
-	if (unlikely((unsigned long)cmdinfo == CMD_CTX_COMPLETED)) {
-		dev_warn(nvmeq->q_dmadev,
-				"completed id %d twice on queue %d\n",
-				cqe->command_id, le16_to_cpup(&cqe->sq_id));
-		return;
-	}
-	if (unlikely((unsigned long)cmdinfo == CMD_CTX_INVALID)) {
-		dev_warn(nvmeq->q_dmadev,
-				"invalid id %d completed on queue %d\n",
-				cqe->command_id, le16_to_cpup(&cqe->sq_id));
-		return;
-	}
-	cmdinfo->result = le32_to_cpup(&cqe->result);
-	cmdinfo->status = le16_to_cpup(&cqe->status) >> 1;
-	wake_up_process(cmdinfo->task);
-}
-
-typedef void (*completion_fn)(struct nvme_queue *, void *,
-						struct nvme_completion *);
-
-static const completion_fn nvme_completions[4] = {
-	[sync_completion_id] = sync_completion,
-	[bio_completion_id]  = bio_completion,
-};
-
 static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 {
 	u16 head, phase;
@@ -646,9 +632,8 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 	phase = nvmeq->cq_phase;
 
 	for (;;) {
-		unsigned long data;
-		void *ptr;
-		unsigned char handler;
+		void *ctx;
+		nvme_completion_fn fn;
 		struct nvme_completion cqe = nvmeq->cqes[head];
 		if ((le16_to_cpu(cqe.status) & 1) != phase)
 			break;
@@ -658,10 +643,8 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 			phase = !phase;
 		}
 
-		data = free_cmdid(nvmeq, cqe.command_id);
-		handler = data & 3;
-		ptr = (void *)(data & ~3UL);
-		nvme_completions[handler](nvmeq, ptr, &cqe);
+		ctx = free_cmdid(nvmeq, cqe.command_id, &fn);
+		fn(nvmeq, ctx, &cqe);
 	}
 
 	/* If the controller ignores the cq head doorbell and continuously
@@ -702,8 +685,23 @@ static irqreturn_t nvme_irq_check(int irq, void *data)
 static void nvme_abort_command(struct nvme_queue *nvmeq, int cmdid)
 {
 	spin_lock_irq(&nvmeq->q_lock);
-	cancel_cmdid(nvmeq, cmdid);
+	cancel_cmdid(nvmeq, cmdid, NULL);
 	spin_unlock_irq(&nvmeq->q_lock);
+}
+
+struct sync_cmd_info {
+	struct task_struct *task;
+	u32 result;
+	int status;
+};
+
+static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
+						struct nvme_completion *cqe)
+{
+	struct sync_cmd_info *cmdinfo = ctx;
+	cmdinfo->result = le32_to_cpup(&cqe->result);
+	cmdinfo->status = le16_to_cpup(&cqe->status) >> 1;
+	wake_up_process(cmdinfo->task);
 }
 
 /*
@@ -719,7 +717,7 @@ static int nvme_submit_sync_cmd(struct nvme_queue *nvmeq,
 	cmdinfo.task = current;
 	cmdinfo.status = -EINTR;
 
-	cmdid = alloc_cmdid_killable(nvmeq, &cmdinfo, sync_completion_id,
+	cmdid = alloc_cmdid_killable(nvmeq, &cmdinfo, sync_completion,
 								timeout);
 	if (cmdid < 0)
 		return cmdid;
@@ -1201,18 +1199,15 @@ static void nvme_timeout_ios(struct nvme_queue *nvmeq)
 	int cmdid;
 
 	for_each_set_bit(cmdid, nvmeq->cmdid_data, depth) {
-		unsigned long data;
-		void *ptr;
-		unsigned char handler;
+		void *ctx;
+		nvme_completion_fn fn;
 		static struct nvme_completion cqe = { .status = cpu_to_le16(NVME_SC_ABORT_REQ) << 1, };
 
 		if (!time_after(now, info[cmdid].timeout))
 			continue;
 		dev_warn(nvmeq->q_dmadev, "Timing out I/O %d\n", cmdid);
-		data = cancel_cmdid(nvmeq, cmdid);
-		handler = data & 3;
-		ptr = (void *)(data & ~3UL);
-		nvme_completions[handler](nvmeq, ptr, &cqe);
+		ctx = cancel_cmdid(nvmeq, cmdid, &fn);
+		fn(nvmeq, ctx, &cqe);
 	}
 }
 
