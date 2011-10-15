@@ -1860,8 +1860,22 @@ static void bus_reset_work(struct work_struct *work)
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
 		if (ohci->self_id_cpu[i] != ~ohci->self_id_cpu[i + 1]) {
-			fw_notify("inconsistent self IDs\n");
-			return;
+			/*
+			 * If the invalid data looks like a cycle start packet,
+			 * it's likely to be the result of the cycle master
+			 * having a wrong gap count.  In this case, the self IDs
+			 * so far are valid and should be processed so that the
+			 * bus manager can then correct the gap count.
+			 */
+			if (cond_le32_to_cpu(ohci->self_id_cpu[i])
+							== 0xffff008f) {
+				fw_notify("ignoring spurious self IDs\n");
+				self_id_count = j;
+				break;
+			} else {
+				fw_notify("inconsistent self IDs\n");
+				return;
+			}
 		}
 		ohci->self_id_buffer[j] =
 				cond_le32_to_cpu(ohci->self_id_cpu[i]);
