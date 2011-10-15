@@ -39,8 +39,8 @@ static struct at_dma_platform_data atdma_pdata = {
 
 static struct resource hdmac_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_SYS + AT91_DMA,
-		.end	= AT91_BASE_SYS + AT91_DMA + SZ_512 - 1,
+		.start	= AT91SAM9RL_BASE_DMA,
+		.end	= AT91SAM9RL_BASE_DMA + SZ_512 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {

@@ -84,7 +84,6 @@
 #define AT91_SMC	(0xffffe800 - AT91_BASE_SYS)
 #define AT91_MATRIX	(0xffffea00 - AT91_BASE_SYS)
 #define AT91_CCFG	(0xffffeb10 - AT91_BASE_SYS)
-#define AT91_DMA	(0xffffec00 - AT91_BASE_SYS)
 #define AT91_DBGU	(0xffffee00 - AT91_BASE_SYS)
 #define AT91_AIC	(0xfffff000 - AT91_BASE_SYS)
 #define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)
@@ -98,6 +97,7 @@
 			(0xfffffd60 - AT91_BASE_SYS))
 
 #define AT91CAP9_BASE_ECC	0xffffe200
+#define AT91CAP9_BASE_DMA	0xffffec00
 #define AT91CAP9_BASE_PIOA	0xfffff200
 #define AT91CAP9_BASE_PIOB	0xfffff400
 #define AT91CAP9_BASE_PIOC	0xfffff600
