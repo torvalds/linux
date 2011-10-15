@@ -522,8 +522,9 @@ static void storvsc_on_io_completion(struct hv_device *device,
 		if (vstor_packet->vm_srb.srb_status & 0x80) {
 			/* autosense data available */
 			dev_warn(&device->device,
-				 "storvsc pkt %p autosense data valid - len %d\n",
-				 request, vstor_packet->vm_srb.sense_info_length);
+				 "stor pkt %p autosense data valid - len %d\n",
+				 request,
+				 vstor_packet->vm_srb.sense_info_length);
 
 			memcpy(request->sense_buffer,
 			       vstor_packet->vm_srb.sense_data,
@@ -1128,13 +1129,13 @@ static bool storvsc_check_scsi_cmd(struct scsi_cmnd *scmnd)
 	u8 scsi_op = scmnd->cmnd[0];
 
 	switch (scsi_op) {
-		/* smartd sends this command, which will offline the device */
-		case SET_WINDOW:
-			scmnd->result = DID_ERROR << 16;
-			allowed = false;
-			break;
-		default:
-			break;
+	/* smartd sends this command, which will offline the device */
+	case SET_WINDOW:
+		scmnd->result = DID_ERROR << 16;
+		allowed = false;
+		break;
+	default:
+		break;
 	}
 	return allowed;
 }
