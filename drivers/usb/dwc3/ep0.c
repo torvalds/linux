@@ -422,8 +422,15 @@ static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	u32 reg;
 
 	addr = le16_to_cpu(ctrl->wValue);
-	if (addr > 127)
+	if (addr > 127) {
+		dev_dbg(dwc->dev, "invalid device address %d\n", addr);
 		return -EINVAL;
+	}
+
+	if (dwc->dev_state == DWC3_CONFIGURED_STATE) {
+		dev_dbg(dwc->dev, "trying to set address when configured\n");
+		return -EINVAL;
+	}
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg &= ~(DWC3_DCFG_DEVADDR_MASK);
