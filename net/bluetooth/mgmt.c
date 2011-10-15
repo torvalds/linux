@@ -897,6 +897,9 @@ static int set_service_cache(struct sock *sk, u16 index,  unsigned char *data,
 	if (err == 0)
 		err = cmd_complete(sk, index, MGMT_OP_SET_SERVICE_CACHE, NULL,
 									0);
+	else
+		cmd_status(sk, index, MGMT_OP_SET_SERVICE_CACHE, -err);
+
 
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
