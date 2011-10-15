@@ -34,10 +34,16 @@
 #define DA7210_INMIX_R			0x0E
 #define DA7210_ADC_HPF			0x0F
 #define DA7210_ADC			0x10
+#define DA7210_ADC_EQ1_2		0X11
+#define DA7210_ADC_EQ3_4		0x12
+#define DA7210_ADC_EQ5			0x13
 #define DA7210_DAC_HPF			0x14
 #define DA7210_DAC_L			0x15
 #define DA7210_DAC_R			0x16
 #define DA7210_DAC_SEL			0x17
+#define DA7210_DAC_EQ1_2		0x19
+#define DA7210_DAC_EQ3_4		0x1A
+#define DA7210_DAC_EQ5			0x1B
 #define DA7210_OUTMIX_L			0x1C
 #define DA7210_OUTMIX_R			0x1D
 #define DA7210_HP_L_VOL			0x21
@@ -158,11 +164,42 @@ static const unsigned int hp_out_tlv[] = {
 	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0),
 };
 
+static const DECLARE_TLV_DB_SCALE(eq_gain_tlv, -1050, 150, 0);
+static const DECLARE_TLV_DB_SCALE(adc_eq_master_gain_tlv, -1800, 600, 1);
+
 static const struct snd_kcontrol_new da7210_snd_controls[] = {
 
 	SOC_DOUBLE_R_TLV("HeadPhone Playback Volume",
 			 DA7210_HP_L_VOL, DA7210_HP_R_VOL,
 			 0, 0x3F, 0, hp_out_tlv),
+
+	/* DAC Equalizer  controls */
+	SOC_SINGLE("DAC EQ Switch", DA7210_DAC_EQ5, 7, 1, 0),
+	SOC_SINGLE_TLV("DAC EQ1 Volume", DA7210_DAC_EQ1_2, 0, 0xf, 1,
+		       eq_gain_tlv),
+	SOC_SINGLE_TLV("DAC EQ2 Volume", DA7210_DAC_EQ1_2, 4, 0xf, 1,
+		       eq_gain_tlv),
+	SOC_SINGLE_TLV("DAC EQ3 Volume", DA7210_DAC_EQ3_4, 0, 0xf, 1,
+		       eq_gain_tlv),
+	SOC_SINGLE_TLV("DAC EQ4 Volume", DA7210_DAC_EQ3_4, 4, 0xf, 1,
+		       eq_gain_tlv),
+	SOC_SINGLE_TLV("DAC EQ5 Volume", DA7210_DAC_EQ5, 0, 0xf, 1,
+		       eq_gain_tlv),
+
+	/* ADC Equalizer  controls */
+	SOC_SINGLE("ADC EQ Switch", DA7210_ADC_EQ5, 7, 1, 0),
+	SOC_SINGLE_TLV("ADC EQ Master Volume", DA7210_ADC_EQ5, 4, 0x3,
+		       1, adc_eq_master_gain_tlv),
+	SOC_SINGLE_TLV("ADC EQ1 Volume", DA7210_ADC_EQ1_2, 0, 0xf, 1,
+		       eq_gain_tlv),
+	SOC_SINGLE_TLV("ADC EQ2 Volume", DA7210_ADC_EQ1_2, 4, 0xf, 1,
+		       eq_gain_tlv),
+	SOC_SINGLE_TLV("ADC EQ3 Volume", DA7210_ADC_EQ3_4, 0, 0xf, 1,
+		       eq_gain_tlv),
+	SOC_SINGLE_TLV("ADC EQ4 Volume", DA7210_ADC_EQ3_4, 4, 0xf, 1,
+		       eq_gain_tlv),
+	SOC_SINGLE_TLV("ADC EQ5 Volume", DA7210_ADC_EQ5, 0, 0xf, 1,
+		       eq_gain_tlv),
 };
 
 /* Codec private data */
