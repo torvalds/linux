@@ -333,7 +333,7 @@ int m5mols_mode(struct m5mols_info *info, u8 mode)
 	int ret = -EINVAL;
 	u8 reg;
 
-	if (mode < REG_PARAMETER && mode > REG_CAPTURE)
+	if (mode < REG_PARAMETER || mode > REG_CAPTURE)
 		return ret;
 
 	ret = m5mols_read_u8(sd, SYSTEM_SYSMODE, &reg);
