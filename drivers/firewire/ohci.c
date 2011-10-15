@@ -126,6 +126,7 @@ struct context {
 	struct fw_ohci *ohci;
 	u32 regs;
 	int total_allocation;
+	u32 current_bus;
 	bool running;
 	bool flushing;
 
@@ -1057,6 +1058,7 @@ static void context_tasklet(unsigned long data)
 		address = le32_to_cpu(last->branch_address);
 		z = address & 0xf;
 		address &= ~0xf;
+		ctx->current_bus = address;
 
 		/* If the branch address points to a buffer outside of the
 		 * current buffer, advance to the next buffer. */
@@ -2697,6 +2699,7 @@ static int handle_ir_packet_per_buffer(struct context *context,
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
 	struct descriptor *pd;
+	u32 buffer_dma;
 	__le32 *ir_header;
 	void *p;
 
@@ -2706,6 +2709,16 @@ static int handle_ir_packet_per_buffer(struct context *context,
 	if (pd > last)
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
+
+	while (!(d->control & cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS))) {
+		d++;
+		buffer_dma = le32_to_cpu(d->data_address);
+		dma_sync_single_range_for_cpu(context->ohci->card.device,
+					      buffer_dma & PAGE_MASK,
+					      buffer_dma & ~PAGE_MASK,
+					      le16_to_cpu(d->req_count),
+					      DMA_FROM_DEVICE);
+	}
 
 	p = last + 1;
 	copy_iso_headers(ctx, p);
@@ -2729,10 +2742,18 @@ static int handle_ir_buffer_fill(struct context *context,
 {
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
+	u32 buffer_dma;
 
 	if (!last->transfer_status)
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
+
+	buffer_dma = le32_to_cpu(last->data_address);
+	dma_sync_single_range_for_cpu(context->ohci->card.device,
+				      buffer_dma & PAGE_MASK,
+				      buffer_dma & ~PAGE_MASK,
+				      le16_to_cpu(last->req_count),
+				      DMA_FROM_DEVICE);
 
 	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS)
 		ctx->base.callback.mc(&ctx->base,
@@ -2742,6 +2763,43 @@ static int handle_ir_buffer_fill(struct context *context,
 				      ctx->base.callback_data);
 
 	return 1;
+}
+
+static inline void sync_it_packet_for_cpu(struct context *context,
+					  struct descriptor *pd)
+{
+	__le16 control;
+	u32 buffer_dma;
+
+	/* only packets beginning with OUTPUT_MORE* have data buffers */
+	if (pd->control & cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS))
+		return;
+
+	/* skip over the OUTPUT_MORE_IMMEDIATE descriptor */
+	pd += 2;
+
+	/*
+	 * If the packet has a header, the first OUTPUT_MORE/LAST descriptor's
+	 * data buffer is in the context program's coherent page and must not
+	 * be synced.
+	 */
+	if ((le32_to_cpu(pd->data_address) & PAGE_MASK) ==
+	    (context->current_bus          & PAGE_MASK)) {
+		if (pd->control & cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS))
+			return;
+		pd++;
+	}
+
+	do {
+		buffer_dma = le32_to_cpu(pd->data_address);
+		dma_sync_single_range_for_cpu(context->ohci->card.device,
+					      buffer_dma & PAGE_MASK,
+					      buffer_dma & ~PAGE_MASK,
+					      le16_to_cpu(pd->req_count),
+					      DMA_TO_DEVICE);
+		control = pd->control;
+		pd++;
+	} while (!(control & cpu_to_le16(DESCRIPTOR_BRANCH_ALWAYS)));
 }
 
 static int handle_it_packet(struct context *context,
@@ -2759,6 +2817,8 @@ static int handle_it_packet(struct context *context,
 	if (pd > last)
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
+
+	sync_it_packet_for_cpu(context, d);
 
 	i = ctx->header_length;
 	if (i + 4 < PAGE_SIZE) {
@@ -3129,6 +3189,10 @@ static int queue_iso_transmit(struct iso_context *ctx,
 		page_bus = page_private(buffer->pages[page]);
 		pd[i].data_address = cpu_to_le32(page_bus + offset);
 
+		dma_sync_single_range_for_device(ctx->context.ohci->card.device,
+						 page_bus, offset, length,
+						 DMA_TO_DEVICE);
+
 		payload_index += length;
 	}
 
@@ -3153,6 +3217,7 @@ static int queue_iso_packet_per_buffer(struct iso_context *ctx,
 				       struct fw_iso_buffer *buffer,
 				       unsigned long payload)
 {
+	struct device *device = ctx->context.ohci->card.device;
 	struct descriptor *d, *pd;
 	dma_addr_t d_bus, page_bus;
 	u32 z, header_z, rest;
@@ -3206,6 +3271,10 @@ static int queue_iso_packet_per_buffer(struct iso_context *ctx,
 
 			page_bus = page_private(buffer->pages[page]);
 			pd->data_address = cpu_to_le32(page_bus + offset);
+
+			dma_sync_single_range_for_device(device, page_bus,
+							 offset, length,
+							 DMA_FROM_DEVICE);
 
 			offset = (offset + length) & ~PAGE_MASK;
 			rest -= length;
@@ -3265,6 +3334,10 @@ static int queue_iso_buffer_fill(struct iso_context *ctx,
 
 		page_bus = page_private(buffer->pages[page]);
 		d->data_address = cpu_to_le32(page_bus + offset);
+
+		dma_sync_single_range_for_device(ctx->context.ohci->card.device,
+						 page_bus, offset, length,
+						 DMA_FROM_DEVICE);
 
 		rest -= length;
 		offset = 0;
