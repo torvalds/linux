@@ -844,17 +844,17 @@ static int wm8900_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 	case WM8900_DAC_CLKDIV:
 		reg = snd_soc_read(codec, WM8900_REG_CLOCKING2);
 		snd_soc_write(codec, WM8900_REG_CLOCKING2,
-			     div | (reg & WM8900_REG_CLOCKING2_DAC_CLKDIV));
+			     div | (reg & ~WM8900_REG_CLOCKING2_DAC_CLKDIV));
 		break;
 	case WM8900_ADC_CLKDIV:
 		reg = snd_soc_read(codec, WM8900_REG_CLOCKING2);
 		snd_soc_write(codec, WM8900_REG_CLOCKING2,
-			     div | (reg & WM8900_REG_CLOCKING2_ADC_CLKDIV));
+			     div | (reg & ~WM8900_REG_CLOCKING2_ADC_CLKDIV));
 		break;
 	case WM8900_LRCLK_MODE:
 		reg = snd_soc_read(codec, WM8900_REG_DACCTRL);
 		snd_soc_write(codec, WM8900_REG_DACCTRL,
-			     div | (reg & WM8900_REG_DACCTRL_AIF_LRCLKRATE));
+			     div | (reg & ~WM8900_REG_DACCTRL_AIF_LRCLKRATE));
 		break;
 	default:
 		return -EINVAL;
