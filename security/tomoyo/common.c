@@ -502,8 +502,10 @@ static struct tomoyo_profile *tomoyo_assign_profile
 			TOMOYO_CONFIG_WANT_REJECT_LOG;
 		memset(ptr->config, TOMOYO_CONFIG_USE_DEFAULT,
 		       sizeof(ptr->config));
-		ptr->pref[TOMOYO_PREF_MAX_AUDIT_LOG] = 1024;
-		ptr->pref[TOMOYO_PREF_MAX_LEARNING_ENTRY] = 2048;
+		ptr->pref[TOMOYO_PREF_MAX_AUDIT_LOG] =
+			CONFIG_SECURITY_TOMOYO_MAX_AUDIT_LOG;
+		ptr->pref[TOMOYO_PREF_MAX_LEARNING_ENTRY] =
+			CONFIG_SECURITY_TOMOYO_MAX_ACCEPT_ENTRY;
 		mb(); /* Avoid out-of-order execution. */
 		ns->profile_ptr[profile] = ptr;
 		entry = NULL;
