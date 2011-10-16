@@ -1802,6 +1802,45 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	return 0;
 }
 
+static int vidioc_enum_framesizes(struct file *file, void *priv,
+				  struct v4l2_frmsizeenum *fsize)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	struct em28xx_fmt     *fmt;
+	unsigned int	      maxw = norm_maxw(dev);
+	unsigned int	      maxh = norm_maxh(dev);
+
+	fmt = format_by_fourcc(fsize->pixel_format);
+	if (!fmt) {
+		em28xx_videodbg("Fourcc format (%08x) invalid.\n",
+				fsize->pixel_format);
+		return -EINVAL;
+	}
+
+	if (dev->board.is_em2800) {
+		if (fsize->index > 1)
+			return -EINVAL;
+		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		fsize->discrete.width = maxw / (1 + fsize->index);
+		fsize->discrete.height = maxh / (1 + fsize->index);
+		return 0;
+	}
+
+	if (fsize->index != 0)
+		return -EINVAL;
+
+	/* Report a continuous range */
+	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+	fsize->stepwise.min_width = 48;
+	fsize->stepwise.min_height = 32;
+	fsize->stepwise.max_width = maxw;
+	fsize->stepwise.max_height = maxh;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.step_height = 1;
+	return 0;
+}
+
 /* Sliced VBI ioctls */
 static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
@@ -2356,10 +2395,10 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
 	.vidioc_g_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap       = vidioc_s_fmt_vbi_cap,
+	.vidioc_enum_framesizes     = vidioc_enum_framesizes,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
 	.vidioc_cropcap             = vidioc_cropcap,
-
 	.vidioc_g_fmt_sliced_vbi_cap   = vidioc_g_fmt_sliced_vbi_cap,
 	.vidioc_try_fmt_sliced_vbi_cap = vidioc_try_set_sliced_vbi_cap,
 	.vidioc_s_fmt_sliced_vbi_cap   = vidioc_try_set_sliced_vbi_cap,
