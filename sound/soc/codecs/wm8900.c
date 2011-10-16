@@ -110,8 +110,8 @@
 
 #define WM8900_REG_CLOCKING1_BCLK_DIR   0x1
 #define WM8900_REG_CLOCKING1_MCLK_SRC   0x100
-#define WM8900_REG_CLOCKING1_BCLK_MASK  (~0x01e)
-#define WM8900_REG_CLOCKING1_OPCLK_MASK (~0x7000)
+#define WM8900_REG_CLOCKING1_BCLK_MASK  0x01e
+#define WM8900_REG_CLOCKING1_OPCLK_MASK 0x7000
 
 #define WM8900_REG_CLOCKING2_ADC_CLKDIV 0xe0
 #define WM8900_REG_CLOCKING2_DAC_CLKDIV 0x1c
@@ -135,7 +135,7 @@
 #define WM8900_REG_HPCTL1_HP_SHORT       0x08
 #define WM8900_REG_HPCTL1_HP_SHORT2      0x04
 
-#define WM8900_LRC_MASK 0xfc00
+#define WM8900_LRC_MASK 0x03ff
 
 struct wm8900_priv {
 	enum snd_soc_control_type control_type;
@@ -824,22 +824,22 @@ static int wm8900_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 	case WM8900_BCLK_DIV:
 		reg = snd_soc_read(codec, WM8900_REG_CLOCKING1);
 		snd_soc_write(codec, WM8900_REG_CLOCKING1,
-			     div | (reg & WM8900_REG_CLOCKING1_BCLK_MASK));
+			     div | (reg & ~WM8900_REG_CLOCKING1_BCLK_MASK));
 		break;
 	case WM8900_OPCLK_DIV:
 		reg = snd_soc_read(codec, WM8900_REG_CLOCKING1);
 		snd_soc_write(codec, WM8900_REG_CLOCKING1,
-			     div | (reg & WM8900_REG_CLOCKING1_OPCLK_MASK));
+			     div | (reg & ~WM8900_REG_CLOCKING1_OPCLK_MASK));
 		break;
 	case WM8900_DAC_LRCLK:
 		reg = snd_soc_read(codec, WM8900_REG_AUDIO4);
 		snd_soc_write(codec, WM8900_REG_AUDIO4,
-			     div | (reg & WM8900_LRC_MASK));
+			     div | (reg & ~WM8900_LRC_MASK));
 		break;
 	case WM8900_ADC_LRCLK:
 		reg = snd_soc_read(codec, WM8900_REG_AUDIO3);
 		snd_soc_write(codec, WM8900_REG_AUDIO3,
-			     div | (reg & WM8900_LRC_MASK));
+			     div | (reg & ~WM8900_LRC_MASK));
 		break;
 	case WM8900_DAC_CLKDIV:
 		reg = snd_soc_read(codec, WM8900_REG_CLOCKING2);
