@@ -286,6 +286,13 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 			netif_carrier_off(dev);
 		else
 			netif_carrier_on(dev);
+
+		/*
+		 * set default queue parameters so drivers don't
+		 * need to initialise the hardware if the hardware
+		 * doesn't start up with sane defaults
+		 */
+		ieee80211_set_wmm_default(sdata);
 	}
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
@@ -329,15 +336,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 	if (coming_up)
 		local->open_count++;
 
-	if (hw_reconf_flags) {
+	if (hw_reconf_flags)
 		ieee80211_hw_config(local, hw_reconf_flags);
-		/*
-		 * set default queue parameters so drivers don't
-		 * need to initialise the hardware if the hardware
-		 * doesn't start up with sane defaults
-		 */
-		ieee80211_set_wmm_default(sdata);
-	}
 
 	ieee80211_recalc_ps(local, -1);
 
