@@ -174,7 +174,12 @@ nv50_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 static void
 nv50_sor_prepare(struct drm_encoder *encoder)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	nv50_sor_disconnect(encoder);
+	if (nv_encoder->dcb->type == OUTPUT_DP) {
+		/* avoid race between link training and supervisor intr */
+		nv50_display_sync(encoder->dev);
+	}
 }
 
 static void
