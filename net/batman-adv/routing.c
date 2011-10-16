@@ -578,6 +578,7 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct tt_query_packet *tt_query;
+	uint16_t tt_len;
 	struct ethhdr *ethhdr;
 
 	/* drop packet if it has not necessary minimum size */
@@ -620,6 +621,14 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 			/* packet needs to be linearized to access the TT
 			 * changes */
 			if (skb_linearize(skb) < 0)
+				goto out;
+
+			tt_len = tt_query->tt_data * sizeof(struct tt_change);
+
+			/* Ensure we have all the claimed data */
+			if (unlikely(skb_headlen(skb) <
+					sizeof(struct tt_query_packet) +
+					tt_len))
 				goto out;
 
 			handle_tt_response(bat_priv, tt_query);
