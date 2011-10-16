@@ -1668,6 +1668,8 @@ static void tt_local_reset_flags(struct bat_priv *bat_priv, uint16_t flags)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(tt_local_entry, node,
 					 head, hash_entry) {
+			if (!(tt_local_entry->flags & flags))
+				continue;
 			tt_local_entry->flags &= ~flags;
 			atomic_inc(&bat_priv->num_local_tt);
 		}
