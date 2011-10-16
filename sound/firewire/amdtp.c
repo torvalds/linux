@@ -65,7 +65,7 @@ void amdtp_out_stream_destroy(struct amdtp_out_stream *s)
 }
 EXPORT_SYMBOL(amdtp_out_stream_destroy);
 
-unsigned int amdtp_syt_intervals[CIP_SFC_COUNT] = {
+const unsigned int amdtp_syt_intervals[CIP_SFC_COUNT] = {
 	[CIP_SFC_32000]  =  8,
 	[CIP_SFC_44100]  =  8,
 	[CIP_SFC_48000]  =  8,

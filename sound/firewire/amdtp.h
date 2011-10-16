@@ -103,7 +103,7 @@ void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s);
 unsigned long amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s);
 void amdtp_out_stream_pcm_abort(struct amdtp_out_stream *s);
 
-extern unsigned int amdtp_syt_intervals[CIP_SFC_COUNT];
+extern const unsigned int amdtp_syt_intervals[CIP_SFC_COUNT];
 
 static inline bool amdtp_out_stream_running(struct amdtp_out_stream *s)
 {
