@@ -103,12 +103,14 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 static int ad193x_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	int reg;
 
-	reg = snd_soc_read(codec, AD193X_DAC_CTRL2);
-	reg = (mute > 0) ? reg | AD193X_DAC_MASTER_MUTE : reg &
-		(~AD193X_DAC_MASTER_MUTE);
-	snd_soc_write(codec, AD193X_DAC_CTRL2, reg);
+	if (mute)
+		snd_soc_update_bits(codec, AD193X_DAC_CTRL2,
+				    AD193X_DAC_MASTER_MUTE,
+				    AD193X_DAC_MASTER_MUTE);
+	else
+		snd_soc_update_bits(codec, AD193X_DAC_CTRL2,
+				    AD193X_DAC_MASTER_MUTE, 0);
 
 	return 0;
 }
@@ -262,7 +264,7 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params,
 		struct snd_soc_dai *dai)
 {
-	int word_len = 0, reg = 0, master_rate = 0;
+	int word_len = 0, master_rate = 0;
 
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
@@ -297,18 +299,15 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	reg = snd_soc_read(codec, AD193X_PLL_CLK_CTRL0);
-	reg = (reg & (~AD193X_PLL_INPUT_MASK)) | master_rate;
-	snd_soc_write(codec, AD193X_PLL_CLK_CTRL0, reg);
+	snd_soc_update_bits(codec, AD193X_PLL_CLK_CTRL0,
+			    AD193X_PLL_INPUT_MASK, master_rate);
 
-	reg = snd_soc_read(codec, AD193X_DAC_CTRL2);
-	reg = (reg & (~AD193X_DAC_WORD_LEN_MASK))
-		| (word_len << AD193X_DAC_WORD_LEN_SHFT);
-	snd_soc_write(codec, AD193X_DAC_CTRL2, reg);
+	snd_soc_update_bits(codec, AD193X_DAC_CTRL2,
+			    AD193X_DAC_WORD_LEN_MASK,
+			    word_len << AD193X_DAC_WORD_LEN_SHFT);
 
-	reg = snd_soc_read(codec, AD193X_ADC_CTRL1);
-	reg = (reg & (~AD193X_ADC_WORD_LEN_MASK)) | word_len;
-	snd_soc_write(codec, AD193X_ADC_CTRL1, reg);
+	snd_soc_update_bits(codec, AD193X_ADC_CTRL1,
+			    AD193X_ADC_WORD_LEN_MASK, word_len);
 
 	return 0;
 }
