@@ -102,6 +102,7 @@ enum transport_state_table {
 	TRANSPORT_NEW_CMD_MAP	= 16,
 	TRANSPORT_FREE_CMD_INTR = 17,
 	TRANSPORT_COMPLETE_QF_WP = 18,
+	TRANSPORT_COMPLETE_QF_OK = 19,
 };
 
 /* Used for struct se_cmd->se_cmd_flags */
@@ -471,7 +472,6 @@ struct se_cmd {
 	struct target_core_fabric_ops *se_tfo;
 	int (*transport_emulate_cdb)(struct se_cmd *);
 	void (*transport_complete_callback)(struct se_cmd *);
-	int (*transport_qf_callback)(struct se_cmd *);
 
 	unsigned char		*t_task_cdb;
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
