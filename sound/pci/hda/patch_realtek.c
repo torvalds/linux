@@ -197,6 +197,7 @@ struct alc_spec {
 	/* for PLL fix */
 	hda_nid_t pll_nid;
 	unsigned int pll_coef_idx, pll_coef_bit;
+	unsigned int coef0;
 
 	/* fix-up list */
 	int fixup_id;
@@ -1554,6 +1555,15 @@ static void alc_write_coef_idx(struct hda_codec *codec, unsigned int coef_idx,
 			    coef_val);
 }
 
+/* a special bypass for COEF 0; read the cached value at the second time */
+static unsigned int alc_get_coef0(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	if (!spec->coef0)
+		spec->coef0 = alc_read_coef_idx(codec, 0);
+	return spec->coef0;
+}
+
 /*
  * Digital I/O handling
  */
@@ -2510,13 +2520,11 @@ static struct alc_codec_rename_table rename_tbl[] = {
 static int alc_codec_rename_from_preset(struct hda_codec *codec)
 {
 	const struct alc_codec_rename_table *p;
-	unsigned short coef;
 
 	for (p = rename_tbl; p->vendor_id; p++) {
 		if (p->vendor_id != codec->vendor_id)
 			continue;
-		coef = alc_read_coef_idx(codec, 0);
-		if ((coef & p->coef_mask) == p->coef_bits)
+		if ((alc_get_coef0(codec) & p->coef_mask) == p->coef_bits)
 			return alc_codec_rename(codec, p->name);
 	}
 	return 0;
@@ -4613,9 +4621,9 @@ static void alc269_toggle_power_output(struct hda_codec *codec, int power_up)
 
 static void alc269_shutup(struct hda_codec *codec)
 {
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x017)
+	if ((alc_get_coef0(codec) & 0x00ff) == 0x017)
 		alc269_toggle_power_output(codec, 0);
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
+	if ((alc_get_coef0(codec) & 0x00ff) == 0x018) {
 		alc269_toggle_power_output(codec, 0);
 		msleep(150);
 	}
@@ -4624,19 +4632,19 @@ static void alc269_shutup(struct hda_codec *codec)
 #ifdef CONFIG_PM
 static int alc269_resume(struct hda_codec *codec)
 {
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
+	if ((alc_get_coef0(codec) & 0x00ff) == 0x018) {
 		alc269_toggle_power_output(codec, 0);
 		msleep(150);
 	}
 
 	codec->patch_ops.init(codec);
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x017) {
+	if ((alc_get_coef0(codec) & 0x00ff) == 0x017) {
 		alc269_toggle_power_output(codec, 1);
 		msleep(200);
 	}
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018)
+	if ((alc_get_coef0(codec) & 0x00ff) == 0x018)
 		alc269_toggle_power_output(codec, 1);
 
 	snd_hda_codec_resume_amp(codec);
@@ -4954,23 +4962,23 @@ static int alc269_fill_coef(struct hda_codec *codec)
 {
 	int val;
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) < 0x015) {
+	if ((alc_get_coef0(codec) & 0x00ff) < 0x015) {
 		alc_write_coef_idx(codec, 0xf, 0x960b);
 		alc_write_coef_idx(codec, 0xe, 0x8817);
 	}
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x016) {
+	if ((alc_get_coef0(codec) & 0x00ff) == 0x016) {
 		alc_write_coef_idx(codec, 0xf, 0x960b);
 		alc_write_coef_idx(codec, 0xe, 0x8814);
 	}
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x017) {
+	if ((alc_get_coef0(codec) & 0x00ff) == 0x017) {
 		val = alc_read_coef_idx(codec, 0x04);
 		/* Power up output pin */
 		alc_write_coef_idx(codec, 0x04, val | (1<<11));
 	}
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00ff) == 0x018) {
+	if ((alc_get_coef0(codec) & 0x00ff) == 0x018) {
 		val = alc_read_coef_idx(codec, 0xd);
 		if ((val & 0x0c00) >> 10 != 0x1) {
 			/* Capless ramp up clock control */
@@ -5014,21 +5022,23 @@ static int patch_alc269(struct hda_codec *codec)
 		goto error;
 
 	if (codec->vendor_id == 0x10ec0269) {
-		unsigned int coef;
 		spec->codec_variant = ALC269_TYPE_ALC269VA;
-		coef = alc_read_coef_idx(codec, 0);
-		if ((coef & 0x00f0) == 0x0010) {
+		switch (alc_get_coef0(codec) & 0x00f0) {
+		case 0x0010:
 			if (codec->bus->pci->subsystem_vendor == 0x1025 &&
 			    spec->cdefine.platform_type == 1)
 				err = alc_codec_rename(codec, "ALC271X");
 			spec->codec_variant = ALC269_TYPE_ALC269VB;
-		} else if ((coef & 0x00f0) == 0x0020) {
+			break;
+		case 0x0020:
 			if (codec->bus->pci->subsystem_vendor == 0x17aa &&
 			    codec->bus->pci->subsystem_device == 0x21f3)
 				err = alc_codec_rename(codec, "ALC3202");
 			spec->codec_variant = ALC269_TYPE_ALC269VC;
-		} else
+			break;
+		default:
 			alc_fix_pll_init(codec, 0x20, 0x04, 15);
+		}
 		if (err < 0)
 			goto error;
 		alc269_fill_coef(codec);
@@ -5615,7 +5625,6 @@ static int patch_alc662(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
 	int err = 0;
-	int coef;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -5636,8 +5645,7 @@ static int patch_alc662(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	coef = alc_read_coef_idx(codec, 0);
-	if (coef & (1 << 14) &&
+	if ((alc_get_coef0(codec) & (1 << 14)) &&
 	    codec->bus->pci->subsystem_vendor == 0x1025 &&
 	    spec->cdefine.platform_type == 1) {
 		if (alc_codec_rename(codec, "ALC272X") < 0)
