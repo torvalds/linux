@@ -644,6 +644,46 @@ nouveau_connector_scaler_modes_add(struct drm_connector *connector)
 	return modes;
 }
 
+static void
+nouveau_connector_detect_depth(struct drm_connector *connector)
+{
+	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct drm_display_mode *mode = nv_connector->native_mode;
+	bool duallink;
+
+	/* if the edid is feeling nice enough to provide this info, use it */
+	if (nv_connector->edid && connector->display_info.bpc)
+		return;
+
+	/* if not, we're out of options unless we're LVDS, default to 6bpc */
+	connector->display_info.bpc = 6;
+	if (nv_encoder->dcb->type != OUTPUT_LVDS)
+		return;
+
+	/* LVDS: panel straps */
+	if (bios->fp_no_ddc) {
+		if (bios->fp.if_is_24bit)
+			connector->display_info.bpc = 8;
+		return;
+	}
+
+	/* LVDS: DDC panel, need to first determine the number of links to
+	 * know which if_is_24bit flag to check...
+	 */
+	if (nv_connector->edid &&
+	    nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG)
+		duallink = ((u8 *)nv_connector->edid)[121] == 2;
+	else
+		duallink = mode->clock >= bios->fp.duallink_transition_clk;
+
+	if ((!duallink && (bios->fp.strapless_is_24bit & 1)) ||
+	    ( duallink && (bios->fp.strapless_is_24bit & 2)))
+		connector->display_info.bpc = 8;
+}
+
 static int
 nouveau_connector_get_modes(struct drm_connector *connector)
 {
@@ -687,6 +727,12 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 		drm_mode_probed_add(connector, mode);
 		ret = 1;
 	}
+
+	/* Attempt to determine display colour depth, this has to happen after
+	 * we've determined the "native" mode for LVDS, as the VBIOS tables
+	 * require us to compare against a pixel clock in some cases..
+	 */
+	nouveau_connector_detect_depth(connector);
 
 	if (nv_encoder->dcb->type == OUTPUT_TV)
 		ret = get_slave_funcs(encoder)->get_modes(encoder, connector);
