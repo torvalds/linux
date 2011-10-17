@@ -291,7 +291,6 @@ char *rpc_sockaddr2uaddr(const struct sockaddr *sap, gfp_t gfp_flags)
 
 	return kstrdup(addrbuf, gfp_flags);
 }
-EXPORT_SYMBOL_GPL(rpc_sockaddr2uaddr);
 
 /**
  * rpc_uaddr2sockaddr - convert a universal address to a socket address.
