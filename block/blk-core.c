@@ -1725,6 +1725,8 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 		where = ELEVATOR_INSERT_FLUSH;
 
 	add_acct_request(q, rq, where);
+	if (where == ELEVATOR_INSERT_FLUSH)
+		__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	return 0;
