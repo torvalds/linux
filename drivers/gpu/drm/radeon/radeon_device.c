@@ -765,7 +765,13 @@ int radeon_device_init(struct radeon_device *rdev,
 	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
 		rdev->need_dma32 = true;
+		dma_bits = 32;
 		printk(KERN_WARNING "radeon: No suitable DMA available.\n");
+	}
+	r = pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
+	if (r) {
+		pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
+		printk(KERN_WARNING "radeon: No coherent DMA available.\n");
 	}
 
 	/* Registers mapping */

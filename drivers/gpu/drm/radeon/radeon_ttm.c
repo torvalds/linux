@@ -578,11 +578,73 @@ struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
 	return &gtt->ttm;
 }
 
+static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
+{
+	struct radeon_device *rdev;
+	unsigned i;
+	int r;
+
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	rdev = radeon_get_rdev(ttm->bdev);
+
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		return ttm_dma_populate(ttm, rdev->dev);
+	}
+#endif
+
+	r = ttm_pool_populate(ttm);
+	if (r) {
+		return r;
+	}
+
+	for (i = 0; i < ttm->num_pages; i++) {
+		ttm->dma_address[i] = pci_map_page(rdev->pdev, ttm->pages[i],
+						   0, PAGE_SIZE,
+						   PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(rdev->pdev, ttm->dma_address[i])) {
+			while (--i) {
+				pci_unmap_page(rdev->pdev, ttm->dma_address[i],
+					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+				ttm->dma_address[i] = 0;
+			}
+			ttm_pool_unpopulate(ttm);
+			return -EFAULT;
+		}
+	}
+	return 0;
+}
+
+static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
+{
+	struct radeon_device *rdev;
+	unsigned i;
+
+	rdev = radeon_get_rdev(ttm->bdev);
+
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		ttm_dma_unpopulate(ttm, rdev->dev);
+		return;
+	}
+#endif
+
+	for (i = 0; i < ttm->num_pages; i++) {
+		if (ttm->dma_address[i]) {
+			pci_unmap_page(rdev->pdev, ttm->dma_address[i],
+				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+		}
+	}
+
+	ttm_pool_unpopulate(ttm);
+}
 
 static struct ttm_bo_driver radeon_bo_driver = {
 	.ttm_tt_create = &radeon_ttm_tt_create,
-	.ttm_tt_populate = &ttm_pool_populate,
-	.ttm_tt_unpopulate = &ttm_pool_unpopulate,
+	.ttm_tt_populate = &radeon_ttm_tt_populate,
+	.ttm_tt_unpopulate = &radeon_ttm_tt_unpopulate,
 	.invalidate_caches = &radeon_invalidate_caches,
 	.init_mem_type = &radeon_init_mem_type,
 	.evict_flags = &radeon_evict_flags,
@@ -768,8 +830,8 @@ static int radeon_mm_dump_table(struct seq_file *m, void *data)
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	static struct drm_info_list radeon_mem_types_list[RADEON_DEBUGFS_MEM_TYPES+1];
-	static char radeon_mem_types_names[RADEON_DEBUGFS_MEM_TYPES+1][32];
+	static struct drm_info_list radeon_mem_types_list[RADEON_DEBUGFS_MEM_TYPES+2];
+	static char radeon_mem_types_names[RADEON_DEBUGFS_MEM_TYPES+2][32];
 	unsigned i;
 
 	for (i = 0; i < RADEON_DEBUGFS_MEM_TYPES; i++) {
@@ -791,8 +853,17 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 	radeon_mem_types_list[i].name = radeon_mem_types_names[i];
 	radeon_mem_types_list[i].show = &ttm_page_alloc_debugfs;
 	radeon_mem_types_list[i].driver_features = 0;
-	radeon_mem_types_list[i].data = NULL;
-	return radeon_debugfs_add_files(rdev, radeon_mem_types_list, RADEON_DEBUGFS_MEM_TYPES+1);
+	radeon_mem_types_list[i++].data = NULL;
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		sprintf(radeon_mem_types_names[i], "ttm_dma_page_pool");
+		radeon_mem_types_list[i].name = radeon_mem_types_names[i];
+		radeon_mem_types_list[i].show = &ttm_dma_page_alloc_debugfs;
+		radeon_mem_types_list[i].driver_features = 0;
+		radeon_mem_types_list[i++].data = NULL;
+	}
+#endif
+	return radeon_debugfs_add_files(rdev, radeon_mem_types_list, i);
 
 #endif
 	return 0;

@@ -157,9 +157,6 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 	p = t / (PAGE_SIZE / RADEON_GPU_PAGE_SIZE);
 	for (i = 0; i < pages; i++, p++) {
 		if (rdev->gart.pages[p]) {
-			if (!rdev->gart.ttm_alloced[p])
-				pci_unmap_page(rdev->pdev, rdev->gart.pages_addr[p],
-						PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 			rdev->gart.pages[p] = NULL;
 			rdev->gart.pages_addr[p] = rdev->dummy_page.addr;
 			page_base = rdev->gart.pages_addr[p];
@@ -191,23 +188,7 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 	p = t / (PAGE_SIZE / RADEON_GPU_PAGE_SIZE);
 
 	for (i = 0; i < pages; i++, p++) {
-		/* we reverted the patch using dma_addr in TTM for now but this
-		 * code stops building on alpha so just comment it out for now */
-		if (0) { /*dma_addr[i] != DMA_ERROR_CODE) */
-			rdev->gart.ttm_alloced[p] = true;
-			rdev->gart.pages_addr[p] = dma_addr[i];
-		} else {
-			/* we need to support large memory configurations */
-			/* assume that unbind have already been call on the range */
-			rdev->gart.pages_addr[p] = pci_map_page(rdev->pdev, pagelist[i],
-							0, PAGE_SIZE,
-							PCI_DMA_BIDIRECTIONAL);
-			if (pci_dma_mapping_error(rdev->pdev, rdev->gart.pages_addr[p])) {
-				/* FIXME: failed to map page (return -ENOMEM?) */
-				radeon_gart_unbind(rdev, offset, pages);
-				return -ENOMEM;
-			}
-		}
+		rdev->gart.pages_addr[p] = dma_addr[i];
 		rdev->gart.pages[p] = pagelist[i];
 		if (rdev->gart.ptr) {
 			page_base = rdev->gart.pages_addr[p];
@@ -274,12 +255,6 @@ int radeon_gart_init(struct radeon_device *rdev)
 		radeon_gart_fini(rdev);
 		return -ENOMEM;
 	}
-	rdev->gart.ttm_alloced = kzalloc(sizeof(bool) *
-					 rdev->gart.num_cpu_pages, GFP_KERNEL);
-	if (rdev->gart.ttm_alloced == NULL) {
-		radeon_gart_fini(rdev);
-		return -ENOMEM;
-	}
 	/* set GART entry to point to the dummy page by default */
 	for (i = 0; i < rdev->gart.num_cpu_pages; i++) {
 		rdev->gart.pages_addr[i] = rdev->dummy_page.addr;
@@ -296,10 +271,8 @@ void radeon_gart_fini(struct radeon_device *rdev)
 	rdev->gart.ready = false;
 	kfree(rdev->gart.pages);
 	kfree(rdev->gart.pages_addr);
-	kfree(rdev->gart.ttm_alloced);
 	rdev->gart.pages = NULL;
 	rdev->gart.pages_addr = NULL;
-	rdev->gart.ttm_alloced = NULL;
 
 	radeon_dummy_page_fini(rdev);
 }
