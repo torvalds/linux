@@ -2239,6 +2239,11 @@ done:
 				l2cap_add_conf_opt(&ptr, L2CAP_CONF_EFS,
 								sizeof(efs),
 							(unsigned long) &efs);
+			} else {
+				/* Send PENDING Conf Rsp and mark state
+				   local PENDING */
+				result = L2CAP_CONF_PENDING;
+				set_bit(CONF_LOC_CONF_PEND, &chan->conf_state);
 			}
 		}
 
@@ -2379,7 +2384,7 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 
 	chan->mode = rfc.mode;
 
-	if (*result == L2CAP_CONF_SUCCESS) {
+	if (*result == L2CAP_CONF_SUCCESS || *result == L2CAP_CONF_PENDING) {
 		switch (rfc.mode) {
 		case L2CAP_MODE_ERTM:
 			chan->retrans_timeout = le16_to_cpu(rfc.retrans_timeout);
@@ -2785,6 +2790,21 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		chan->num_conf_req++;
 	}
 
+	/* Got Conf Rsp PENDING from remote side and asume we sent
+	   Conf Rsp PENDING in the code above */
+	if (test_bit(CONF_REM_CONF_PEND, &chan->conf_state) &&
+			test_bit(CONF_LOC_CONF_PEND, &chan->conf_state)) {
+
+		/* check compatibility */
+
+		clear_bit(CONF_LOC_CONF_PEND, &chan->conf_state);
+		set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
+
+		l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
+				l2cap_build_conf_rsp(chan, rsp,
+					L2CAP_CONF_SUCCESS, 0x0000), rsp);
+	}
+
 unlock:
 	bh_unlock_sock(sk);
 	return 0;
@@ -2814,7 +2834,32 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	switch (result) {
 	case L2CAP_CONF_SUCCESS:
 		l2cap_conf_rfc_get(chan, rsp->data, len);
+		clear_bit(CONF_REM_CONF_PEND, &chan->conf_state);
 		break;
+
+	case L2CAP_CONF_PENDING:
+		set_bit(CONF_REM_CONF_PEND, &chan->conf_state);
+
+		if (test_bit(CONF_LOC_CONF_PEND, &chan->conf_state)) {
+			char buf[64];
+
+			len = l2cap_parse_conf_rsp(chan, rsp->data, len,
+								buf, &result);
+			if (len < 0) {
+				l2cap_send_disconn_req(conn, chan, ECONNRESET);
+				goto done;
+			}
+
+			/* check compatibility */
+
+			clear_bit(CONF_LOC_CONF_PEND, &chan->conf_state);
+			set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
+
+			l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
+					l2cap_build_conf_rsp(chan, buf,
+						L2CAP_CONF_SUCCESS, 0x0000), buf);
+		}
+		goto done;
 
 	case L2CAP_CONF_UNACCEPT:
 		if (chan->num_conf_rsp <= L2CAP_CONF_MAX_CONF_RSP) {
