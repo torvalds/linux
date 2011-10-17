@@ -349,7 +349,7 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 									\
 		reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_##fr);	\
 		reg &= ~BM_CLKCTRL_##fr##_##fs##FRAC;			\
-		reg |= frac;						\
+		reg |= frac << BP_CLKCTRL_##fr##_##fs##FRAC;		\
 		__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_##fr);	\
 	}								\
 									\
