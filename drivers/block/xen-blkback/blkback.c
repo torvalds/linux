@@ -456,14 +456,14 @@ static void xen_blk_drain_io(struct xen_blkif *blkif)
 {
 	atomic_set(&blkif->drain, 1);
 	do {
+		/* The initial value is one, and one refcnt taken at the
+		 * start of the xen_blkif_schedule thread. */
+		if (atomic_read(&blkif->refcnt) <= 2)
+			break;
 		wait_for_completion_interruptible_timeout(
 				&blkif->drain_complete, HZ);
 
 		if (!atomic_read(&blkif->drain))
-			break;
-		/* The initial value is one, and one refcnt taken at the
-		 * start of the xen_blkif_schedule thread. */
-		if (atomic_read(&blkif->refcnt) <= 2)
 			break;
 	} while (!kthread_should_stop());
 	atomic_set(&blkif->drain, 0);
@@ -502,11 +502,11 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 		make_response(pending_req->blkif, pending_req->id,
 			      pending_req->operation, pending_req->status);
 		xen_blkif_put(pending_req->blkif);
-		free_req(pending_req);
 		if (atomic_read(&pending_req->blkif->refcnt) <= 2) {
 			if (atomic_read(&pending_req->blkif->drain))
 				complete(&pending_req->blkif->drain_complete);
 		}
+		free_req(pending_req);
 	}
 }
 
