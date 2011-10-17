@@ -221,7 +221,7 @@ static void print_mce(struct mce *m)
 	 * Note this output is parsed by external tools and old fields
 	 * should not be changed.
 	 */
-	pr_emerg(HW_ERR "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x microcode %u\n",
+	pr_emerg(HW_ERR "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x microcode %x\n",
 		m->cpuvendor, m->cpuid, m->time, m->socketid, m->apicid,
 		cpu_data(m->extcpu).microcode);
 
