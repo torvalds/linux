@@ -35,6 +35,17 @@ int tegra_cpu_process_id;
 int tegra_core_process_id;
 enum tegra_revision tegra_revision;
 
+/* The BCT to use at boot is specified by board straps that can be read
+ * through a APB misc register and decoded. 2 bits, i.e. 4 possible BCTs.
+ */
+int tegra_bct_strapping;
+
+#define STRAP_OPT 0x008
+#define GMI_AD0 (1 << 4)
+#define GMI_AD1 (1 << 5)
+#define RAM_ID_MASK (GMI_AD0 | GMI_AD1)
+#define RAM_CODE_SHIFT 4
+
 static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
 	[TEGRA_REVISION_UNKNOWN] = "unknown",
 	[TEGRA_REVISION_A01]     = "A01",
@@ -92,6 +103,9 @@ void tegra_init_fuse(void)
 
 	reg = tegra_fuse_readl(FUSE_SPARE_BIT);
 	tegra_core_process_id = (reg >> 12) & 3;
+
+	reg = tegra_apb_readl(TEGRA_APB_MISC_BASE + STRAP_OPT);
+	tegra_bct_strapping = (reg & RAM_ID_MASK) >> RAM_CODE_SHIFT;
 
 	tegra_revision = tegra_get_revision();
 

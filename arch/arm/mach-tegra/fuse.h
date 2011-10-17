@@ -40,6 +40,8 @@ extern int tegra_cpu_process_id;
 extern int tegra_core_process_id;
 extern enum tegra_revision tegra_revision;
 
+extern int tegra_bct_strapping;
+
 unsigned long long tegra_chip_uid(void);
 void tegra_init_fuse(void);
 
