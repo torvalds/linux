@@ -4950,7 +4950,7 @@ static int alc269_fill_coef(struct hda_codec *codec)
 static int patch_alc269(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int err;
+	int err = 0;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -4969,30 +4969,34 @@ static int patch_alc269(struct hda_codec *codec)
 		if ((coef & 0x00f0) == 0x0010) {
 			if (codec->bus->pci->subsystem_vendor == 0x1025 &&
 			    spec->cdefine.platform_type == 1) {
-				alc_codec_rename(codec, "ALC271X");
+				err = alc_codec_rename(codec, "ALC271X");
 			} else if ((coef & 0xf000) == 0x2000) {
-				alc_codec_rename(codec, "ALC259");
+				err = alc_codec_rename(codec, "ALC259");
 			} else if ((coef & 0xf000) == 0x3000) {
-				alc_codec_rename(codec, "ALC258");
+				err = alc_codec_rename(codec, "ALC258");
 			} else if ((coef & 0xfff0) == 0x3010) {
-				alc_codec_rename(codec, "ALC277");
+				err = alc_codec_rename(codec, "ALC277");
 			} else {
-				alc_codec_rename(codec, "ALC269VB");
+				err = alc_codec_rename(codec, "ALC269VB");
 			}
 			spec->codec_variant = ALC269_TYPE_ALC269VB;
 		} else if ((coef & 0x00f0) == 0x0020) {
 			if (coef == 0xa023)
-				alc_codec_rename(codec, "ALC259");
+				err = alc_codec_rename(codec, "ALC259");
 			else if (coef == 0x6023)
-				alc_codec_rename(codec, "ALC281X");
+				err = alc_codec_rename(codec, "ALC281X");
 			else if (codec->bus->pci->subsystem_vendor == 0x17aa &&
 				 codec->bus->pci->subsystem_device == 0x21f3)
-				alc_codec_rename(codec, "ALC3202");
+				err = alc_codec_rename(codec, "ALC3202");
 			else
-				alc_codec_rename(codec, "ALC269VC");
+				err = alc_codec_rename(codec, "ALC269VC");
 			spec->codec_variant = ALC269_TYPE_ALC269VC;
 		} else
 			alc_fix_pll_init(codec, 0x20, 0x04, 15);
+		if (err < 0) {
+			alc_free(codec);
+			return err;
+		}
 		alc269_fill_coef(codec);
 	}
 
@@ -5576,7 +5580,7 @@ static const struct alc_model_fixup alc662_fixup_models[] = {
 static int patch_alc662(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int err;
+	int err = 0;
 	int coef;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -5596,13 +5600,17 @@ static int patch_alc662(struct hda_codec *codec)
 
 	coef = alc_read_coef_idx(codec, 0);
 	if (coef == 0x8020 || coef == 0x8011)
-		alc_codec_rename(codec, "ALC661");
+		err = alc_codec_rename(codec, "ALC661");
 	else if (coef & (1 << 14) &&
 		codec->bus->pci->subsystem_vendor == 0x1025 &&
 		spec->cdefine.platform_type == 1)
-		alc_codec_rename(codec, "ALC272X");
+		err = alc_codec_rename(codec, "ALC272X");
 	else if (coef == 0x4011)
-		alc_codec_rename(codec, "ALC656");
+		err = alc_codec_rename(codec, "ALC656");
+	if (err < 0) {
+		alc_free(codec);
+		return err;
+	}
 
 	alc_pick_fixup(codec, alc662_fixup_models,
 		       alc662_fixup_tbl, alc662_fixups);
