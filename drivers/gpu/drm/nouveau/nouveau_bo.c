@@ -1049,10 +1049,79 @@ nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 	nouveau_fence_unref(&old_fence);
 }
 
+static int
+nouveau_ttm_tt_populate(struct ttm_tt *ttm)
+{
+	struct drm_nouveau_private *dev_priv;
+	struct drm_device *dev;
+	unsigned i;
+	int r;
+
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	dev_priv = nouveau_bdev(ttm->bdev);
+	dev = dev_priv->dev;
+
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		return ttm_dma_populate(ttm, dev->dev);
+	}
+#endif
+
+	r = ttm_pool_populate(ttm);
+	if (r) {
+		return r;
+	}
+
+	for (i = 0; i < ttm->num_pages; i++) {
+		ttm->dma_address[i] = pci_map_page(dev->pdev, ttm->pages[i],
+						   0, PAGE_SIZE,
+						   PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(dev->pdev, ttm->dma_address[i])) {
+			while (--i) {
+				pci_unmap_page(dev->pdev, ttm->dma_address[i],
+					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+				ttm->dma_address[i] = 0;
+			}
+			ttm_pool_unpopulate(ttm);
+			return -EFAULT;
+		}
+	}
+	return 0;
+}
+
+static void
+nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
+{
+	struct drm_nouveau_private *dev_priv;
+	struct drm_device *dev;
+	unsigned i;
+
+	dev_priv = nouveau_bdev(ttm->bdev);
+	dev = dev_priv->dev;
+
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		ttm_dma_unpopulate(ttm, dev->dev);
+		return;
+	}
+#endif
+
+	for (i = 0; i < ttm->num_pages; i++) {
+		if (ttm->dma_address[i]) {
+			pci_unmap_page(dev->pdev, ttm->dma_address[i],
+				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+		}
+	}
+
+	ttm_pool_unpopulate(ttm);
+}
+
 struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
-	.ttm_tt_populate = &ttm_pool_populate,
-	.ttm_tt_unpopulate = &ttm_pool_unpopulate,
+	.ttm_tt_populate = &nouveau_ttm_tt_populate,
+	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
 	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
 	.evict_flags = nouveau_bo_evict_flags,
