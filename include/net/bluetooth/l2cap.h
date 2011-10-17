@@ -27,6 +27,8 @@
 #ifndef __L2CAP_H
 #define __L2CAP_H
 
+#include <asm/unaligned.h>
+
 /* L2CAP defaults */
 #define L2CAP_DEFAULT_MTU		672
 #define L2CAP_DEFAULT_MIN_MTU		48
@@ -684,6 +686,32 @@ static inline bool __is_ctrl_poll(struct l2cap_chan *chan, __u32 ctrl)
 	else
 		return ctrl & L2CAP_CTRL_POLL;
 }
+
+static inline __u32 __get_control(struct l2cap_chan *chan, void *p)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return get_unaligned_le32(p);
+	else
+		return get_unaligned_le16(p);
+}
+
+static inline void __put_control(struct l2cap_chan *chan, __u32 control,
+								void *p)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return put_unaligned_le32(control, p);
+	else
+		return put_unaligned_le16(control, p);
+}
+
+static inline __u8 __ctrl_size(struct l2cap_chan *chan)
+{
+	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
+		return L2CAP_EXT_HDR_SIZE - L2CAP_HDR_SIZE;
+	else
+		return L2CAP_ENH_HDR_SIZE - L2CAP_HDR_SIZE;
+}
+
 extern int disable_ertm;
 
 int l2cap_init_sockets(void);
