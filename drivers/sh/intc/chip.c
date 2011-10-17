@@ -202,11 +202,16 @@ static int intc_set_type(struct irq_data *data, unsigned int type)
 	if (!value)
 		return -EINVAL;
 
+	value &= ~SENSE_VALID_FLAG;
+
 	ihp = intc_find_irq(d->sense, d->nr_sense, irq);
 	if (ihp) {
+		/* PINT has 2-bit sense registers, should fail on EDGE_BOTH */
+		if (value >= (1 << _INTC_WIDTH(ihp->handle)))
+			return -EINVAL;
+
 		addr = INTC_REG(d, _INTC_ADDR_E(ihp->handle), 0);
-		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle,
-						    value & ~SENSE_VALID_FLAG);
+		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle, value);
 	}
 
 	return 0;
