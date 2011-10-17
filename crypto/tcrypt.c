@@ -1292,6 +1292,21 @@ static int do_test(int m)
 				  speed_template_16_32);
 		break;
 
+	case 207:
+		test_cipher_speed("ecb(serpent)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_32);
+		test_cipher_speed("ecb(serpent)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_32);
+		test_cipher_speed("cbc(serpent)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_32);
+		test_cipher_speed("cbc(serpent)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_32);
+		test_cipher_speed("ctr(serpent)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_32);
+		test_cipher_speed("ctr(serpent)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_32);
+		break;
+
 	case 300:
 		/* fall through */
 
@@ -1491,6 +1506,21 @@ static int do_test(int m)
 				   speed_template_8);
 		test_acipher_speed("cbc(des)", DECRYPT, sec, NULL, 0,
 				   speed_template_8);
+		break;
+
+	case 503:
+		test_acipher_speed("ecb(serpent)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("ecb(serpent)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("cbc(serpent)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("cbc(serpent)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("ctr(serpent)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_32);
+		test_acipher_speed("ctr(serpent)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_32);
 		break;
 
 	case 1000:
