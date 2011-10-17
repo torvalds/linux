@@ -740,7 +740,14 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 
 	/* Link quality statistics */
 	switch (chanstat & B43_RX_CHAN_PHYTYPE) {
+	case B43_PHYTYPE_HT:
+		/* TODO: is max the right choice? */
+		status.signal = max_t(__s8,
+			max(rxhdr->phy_ht_power0, rxhdr->phy_ht_power1),
+			rxhdr->phy_ht_power2);
+		break;
 	case B43_PHYTYPE_N:
+		/* Broadcom has code for min and avg, but always uses max */
 		if (rxhdr->power0 == 16 || rxhdr->power0 == 32)
 			status.signal = max(rxhdr->power1, rxhdr->power2);
 		else
