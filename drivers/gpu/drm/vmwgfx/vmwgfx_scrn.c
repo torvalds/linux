@@ -502,8 +502,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int i;
-	int ret;
+	int i, ret;
 
 	if (dev_priv->sou_priv) {
 		DRM_INFO("sou system already on\n");
@@ -530,7 +529,7 @@ int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv)
 	if (unlikely(ret != 0))
 		goto err_free;
 
-	ret = drm_mode_create_dirty_info_property(dev_priv->dev);
+	ret = drm_mode_create_dirty_info_property(dev);
 	if (unlikely(ret != 0))
 		goto err_vblank_cleanup;
 

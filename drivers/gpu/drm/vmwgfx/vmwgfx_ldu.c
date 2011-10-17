@@ -362,8 +362,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int i;
-	int ret;
+	int i, ret;
 
 	if (dev_priv->ldu_priv) {
 		DRM_INFO("ldu system already on\n");
@@ -371,7 +370,6 @@ int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 	}
 
 	dev_priv->ldu_priv = kmalloc(sizeof(*dev_priv->ldu_priv), GFP_KERNEL);
-
 	if (!dev_priv->ldu_priv)
 		return -ENOMEM;
 
