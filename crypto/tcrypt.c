@@ -793,6 +793,8 @@ static int do_test(int m)
 
 	case 9:
 		ret += tcrypt_test("ecb(serpent)");
+		ret += tcrypt_test("cbc(serpent)");
+		ret += tcrypt_test("ctr(serpent)");
 		break;
 
 	case 10:
