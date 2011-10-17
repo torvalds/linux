@@ -2115,6 +2115,8 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 	int type, hint, olen;
 	unsigned long val;
 	struct l2cap_conf_rfc rfc = { .mode = L2CAP_MODE_BASIC };
+	struct l2cap_conf_efs efs;
+	u8 remote_efs = 0;
 	u16 mtu = L2CAP_DEFAULT_MTU;
 	u16 result = L2CAP_CONF_SUCCESS;
 	u16 size;
@@ -2147,7 +2149,12 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 		case L2CAP_CONF_FCS:
 			if (val == L2CAP_FCS_NONE)
 				set_bit(CONF_NO_FCS_RECV, &chan->conf_state);
+			break;
 
+		case L2CAP_CONF_EFS:
+			remote_efs = 1;
+			if (olen == sizeof(efs))
+				memcpy(&efs, (void *) val, olen);
 			break;
 
 		case L2CAP_CONF_EWS:
@@ -2182,6 +2189,13 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 			break;
 		}
 
+		if (remote_efs) {
+			if (__l2cap_efs_supported(chan))
+				set_bit(FLAG_EFS_ENABLE, &chan->flags);
+			else
+				return -ECONNREFUSED;
+		}
+
 		if (chan->mode != rfc.mode)
 			return -ECONNREFUSED;
 
@@ -2200,7 +2214,6 @@ done:
 					sizeof(rfc), (unsigned long) &rfc);
 	}
 
-
 	if (result == L2CAP_CONF_SUCCESS) {
 		/* Configure output options and let the other side know
 		 * which ones we don't like. */
@@ -2212,6 +2225,22 @@ done:
 			set_bit(CONF_MTU_DONE, &chan->conf_state);
 		}
 		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, chan->omtu);
+
+		if (remote_efs) {
+			if (chan->local_stype != L2CAP_SERV_NOTRAFIC &&
+					efs.stype != L2CAP_SERV_NOTRAFIC &&
+					efs.stype != chan->local_stype) {
+
+				result = L2CAP_CONF_UNACCEPT;
+
+				if (chan->num_conf_req >= 1)
+					return -ECONNREFUSED;
+
+				l2cap_add_conf_opt(&ptr, L2CAP_CONF_EFS,
+								sizeof(efs),
+							(unsigned long) &efs);
+			}
+		}
 
 		switch (rfc.mode) {
 		case L2CAP_MODE_BASIC:
@@ -2245,6 +2274,19 @@ done:
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
 					sizeof(rfc), (unsigned long) &rfc);
 
+			if (test_bit(FLAG_EFS_ENABLE, &chan->flags)) {
+				chan->remote_id = efs.id;
+				chan->remote_stype = efs.stype;
+				chan->remote_msdu = le16_to_cpu(efs.msdu);
+				chan->remote_flush_to =
+						le32_to_cpu(efs.flush_to);
+				chan->remote_acc_lat =
+						le32_to_cpu(efs.acc_lat);
+				chan->remote_sdu_itime =
+					le32_to_cpu(efs.sdu_itime);
+				l2cap_add_conf_opt(&ptr, L2CAP_CONF_EFS,
+					sizeof(efs), (unsigned long) &efs);
+			}
 			break;
 
 		case L2CAP_MODE_STREAMING:
