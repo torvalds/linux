@@ -449,6 +449,7 @@ sub __read_config {
     my $num_tests_set = 0;
     my $skip = 0;
     my $rest;
+    my $line;
     my $test_case = 0;
     my $if = 0;
     my $if_set = 0;
@@ -465,6 +466,7 @@ sub __read_config {
 
 	    my $type = $1;
 	    $rest = $2;
+	    $line = $2;
 
 	    my $old_test_num;
 	    my $old_repeat;
@@ -486,32 +488,28 @@ sub __read_config {
 		$default = 1;
 	    }
 
-	    if ($rest =~ /\s+SKIP\b(.*)/) {
-		$rest = $1;
+	    # If SKIP is anywhere in the line, the command will be skipped
+	    if ($rest =~ s/\s+SKIP\b//) {
 		$skip = 1;
 	    } else {
 		$test_case = 1;
 		$skip = 0;
 	    }
 
-	    if (!$skip) {
-		if ($type eq "TEST_START") {
-		    if ($rest =~ /\s+ITERATE\s+(\d+)(.*)$/) {
-			$repeat = $1;
-			$rest = $2;
-			$repeat_tests{"$test_num"} = $repeat;
-		    }
-		} elsif ($rest =~ /\sOVERRIDE\b(.*)/) {
-		    # DEFAULT only
-		    $rest = $1;
-		    $override = 1;
-		    # Clear previous overrides
-		    %overrides = ();
+	    if ($rest =~ s/\sELSE\b//) {
+		if (!$if) {
+		    die "$name: $.: ELSE found with out matching IF section\n$_";
+		}
+		$if = 0;
+
+		if ($if_set) {
+		    $skip = 1;
+		} else {
+		    $skip = 0;
 		}
 	    }
 
-	    if ($rest =~ /\sIF\s+(.*)/) {
-		$rest = "";
+	    if ($rest =~ s/\sIF\s+(.*)//) {
 		if (process_if($name, $1)) {
 		    $if_set = 1;
 		} else {
@@ -520,9 +518,24 @@ sub __read_config {
 		$if = 1;
 	    } else {
 		$if = 0;
+		$if_set = 0;
 	    }
 
-	    if ($rest !~ /^\s*$/) {
+	    if (!$skip) {
+		if ($type eq "TEST_START") {
+		    if ($rest =~ s/\s+ITERATE\s+(\d+)//) {
+			$repeat = $1;
+			$repeat_tests{"$test_num"} = $repeat;
+		    }
+		} elsif ($rest =~ s/\sOVERRIDE\b//) {
+		    # DEFAULT only
+		    $override = 1;
+		    # Clear previous overrides
+		    %overrides = ();
+		}
+	    }
+
+	    if (!$skip && $rest !~ /^\s*$/) {
 		die "$name: $.: Gargbage found after $type\n$_";
 	    }
 
