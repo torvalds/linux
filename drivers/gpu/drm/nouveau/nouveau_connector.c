@@ -471,7 +471,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 			if (!ret)
 				return -EINVAL;
 		} else {
-			ret = nv_crtc->set_scale(nv_crtc, value, true);
+			ret = nv_crtc->set_scale(nv_crtc, true);
 			if (ret)
 				return ret;
 		}
@@ -486,9 +486,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 			if (!nv_crtc || !nv_crtc->set_scale)
 				return 0;
 
-			return nv_crtc->set_scale(nv_crtc,
-						  nv_connector->scaling_mode,
-						  true);
+			return nv_crtc->set_scale(nv_crtc, true);
 		}
 
 		return 0;
@@ -500,9 +498,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 			if (!nv_crtc || !nv_crtc->set_scale)
 				return 0;
 
-			return nv_crtc->set_scale(nv_crtc,
-						  nv_connector->scaling_mode,
-						  true);
+			return nv_crtc->set_scale(nv_crtc, true);
 		}
 
 		return 0;
@@ -514,9 +510,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 			if (!nv_crtc || !nv_crtc->set_scale)
 				return 0;
 
-			return nv_crtc->set_scale(nv_crtc,
-						  nv_connector->scaling_mode,
-						  true);
+			return nv_crtc->set_scale(nv_crtc, true);
 		}
 
 		return 0;
@@ -532,8 +526,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 		if (!nv_crtc || !nv_crtc->set_dither)
 			return 0;
 
-		return nv_crtc->set_dither(nv_crtc, nv_connector->use_dithering,
-					   true);
+		return nv_crtc->set_dither(nv_crtc, true);
 	}
 
 	if (nv_encoder && nv_encoder->dcb->type == OUTPUT_TV)

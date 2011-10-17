@@ -107,13 +107,14 @@ nvd0_display_crtc_get(struct drm_encoder *encoder)
  * CRTC
  *****************************************************************************/
 static int
-nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool on, bool update)
+nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 {
+	struct nouveau_connector *nv_connector;
 	struct drm_device *dev = nv_crtc->base.dev;
-	u32 *push, mode;
+	u32 *push, mode = 0;
 
-	mode = 0x00000000;
-	if (on) {
+	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	if (nv_connector->use_dithering) {
 		/* 0x11: 6bpc dynamic 2x2
 		 * 0x13: 8bpc dynamic 2x2
 		 * 0x19: 6bpc static 2x2
@@ -139,7 +140,7 @@ nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool on, bool update)
 }
 
 static int
-nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, int type, bool update)
+nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 {
 	struct drm_display_mode *mode = &nv_crtc->base.mode;
 	struct drm_device *dev = nv_crtc->base.dev;
@@ -155,7 +156,7 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, int type, bool update)
 		u32 xratio = (native->hdisplay << 19) / mode->hdisplay;
 		u32 yratio = (native->vdisplay << 19) / mode->vdisplay;
 
-		switch (type) {
+		switch (nv_connector->scaling_mode) {
 		case DRM_MODE_SCALE_ASPECT:
 			if (xratio > yratio) {
 				outX = (mode->hdisplay * yratio) >> 19;
@@ -378,8 +379,8 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	}
 
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
-	nvd0_crtc_set_dither(nv_crtc, nv_connector->use_dithering, false);
-	nvd0_crtc_set_scale(nv_crtc, nv_connector->scaling_mode, false);
+	nvd0_crtc_set_dither(nv_crtc, false);
+	nvd0_crtc_set_scale(nv_crtc, false);
 	nvd0_crtc_set_image(nv_crtc, crtc->fb, x, y, false);
 	return 0;
 }

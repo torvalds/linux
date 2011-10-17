@@ -132,10 +132,12 @@ nv50_crtc_blank(struct nouveau_crtc *nv_crtc, bool blanked)
 }
 
 static int
-nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool on, bool update)
+nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
+	struct nouveau_connector *nv_connector =
+		nouveau_crtc_connector_get(nv_crtc);
 	int ret;
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -147,7 +149,7 @@ nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool on, bool update)
 	}
 
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, DITHER_CTRL), 1);
-	if (on)
+	if (nv_connector->use_dithering)
 		OUT_RING(evo, NV50_EVO_CRTC_DITHER_CTRL_ON);
 	else
 		OUT_RING(evo, NV50_EVO_CRTC_DITHER_CTRL_OFF);
@@ -180,15 +182,15 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 }
 
 static int
-nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
+nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 {
 	struct nouveau_connector *nv_connector;
 	struct drm_crtc *crtc = &nv_crtc->base;
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct drm_display_mode *mode = &crtc->mode;
+	int scaling_mode, ret;
 	u32 ctrl = 0, oX, oY;
-	int ret;
 
 	NV_DEBUG_KMS(dev, "\n");
 
@@ -196,6 +198,8 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 	if (!nv_connector || !nv_connector->native_mode) {
 		NV_ERROR(dev, "no native mode, forcing panel scaling\n");
 		scaling_mode = DRM_MODE_SCALE_NONE;
+	} else {
+		scaling_mode = nv_connector->scaling_mode;
 	}
 
 	/* start off at the resolution we programmed the crtc for, this
@@ -663,8 +667,8 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, SCALE_CENTER_OFFSET), 1);
 	OUT_RING(evo, NV50_EVO_CRTC_SCALE_CENTER_OFFSET_VAL(0, 0));
 
-	nv_crtc->set_dither(nv_crtc, nv_connector->use_dithering, false);
-	nv_crtc->set_scale(nv_crtc, nv_connector->scaling_mode, false);
+	nv_crtc->set_dither(nv_crtc, false);
+	nv_crtc->set_scale(nv_crtc, false);
 
 	return nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
 }
