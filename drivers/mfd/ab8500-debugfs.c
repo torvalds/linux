@@ -144,7 +144,7 @@ static struct hwreg_cfg hwreg_cfg = {
 
 #define AB8500_NAME_STRING "ab8500"
 #define AB8500_ADC_NAME_STRING "gpadc"
-#define AB8500_NUM_BANKS 22
+#define AB8500_NUM_BANKS 24
 
 #define AB8500_REV_REG 0x80
 
@@ -316,7 +316,7 @@ static struct ab8500_prcmu_ranges debug_ranges[AB8500_NUM_BANKS] = {
 		},
 	},
 	[AB8500_CHARGER] = {
-		.num_ranges = 8,
+		.num_ranges = 9,
 		.range = (struct ab8500_reg_range[]) {
 			{
 				.first = 0x00,
@@ -350,6 +350,10 @@ static struct ab8500_prcmu_ranges debug_ranges[AB8500_NUM_BANKS] = {
 				.first = 0xC0,
 				.last = 0xC2,
 			},
+			{
+				.first = 0xf5,
+				.last =	0xf6,
+			},
 		},
 	},
 	[AB8500_GAS_GAUGE] = {
@@ -366,6 +370,24 @@ static struct ab8500_prcmu_ranges debug_ranges[AB8500_NUM_BANKS] = {
 			{
 				.first = 0x10,
 				.last = 0x14,
+			},
+		},
+	},
+	[AB8500_DEVELOPMENT] = {
+		.num_ranges = 1,
+		.range = (struct ab8500_reg_range[]) {
+			{
+				.first = 0x00,
+				.last = 0x00,
+			},
+		},
+	},
+	[AB8500_DEBUG] = {
+		.num_ranges = 1,
+		.range = (struct ab8500_reg_range[]) {
+			{
+				.first = 0x05,
+				.last = 0x07,
 			},
 		},
 	},
