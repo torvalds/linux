@@ -690,7 +690,7 @@ static __be32 nfsd4_decode_share_deny(struct nfsd4_compoundargs *argp, u32 *x)
 	READ_BUF(4);
 	READ32(*x);
 	/* Note: unlinke access bits, deny bits may be zero. */
-	if (*x & !NFS4_SHARE_DENY_BOTH)
+	if (*x & ~NFS4_SHARE_DENY_BOTH)
 		return nfserr_bad_xdr;
 	return nfs_ok;
 xdr_error:
