@@ -3858,9 +3858,18 @@ wl_cfg80211_add_set_beacon(struct wiphy *wiphy, struct net_device *dev,
 					return BCME_ERROR;
 				}
 				wl->ap_info->security_mode = true;
-				kfree(wl->ap_info->rsn_ie);
-				kfree(wl->ap_info->wpa_ie);
-				kfree(wl->ap_info->wps_ie);
+				if (wl->ap_info->rsn_ie) {
+					kfree(wl->ap_info->rsn_ie);
+					wl->ap_info->rsn_ie = NULL;
+				}
+				if (wl->ap_info->wpa_ie) {
+					kfree(wl->ap_info->wpa_ie);
+					wl->ap_info->wpa_ie = NULL;
+				}
+				if (wl->ap_info->wps_ie) {
+					kfree(wl->ap_info->wps_ie);
+					wl->ap_info->wps_ie = NULL;
+				}
 				if (wpa_ie != NULL) {
 					/* WPAIE */
 					wl->ap_info->rsn_ie = NULL;

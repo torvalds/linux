@@ -112,6 +112,7 @@ wl_cfgp2p_deinit_priv(struct wl_priv *wl)
 {
 	if (wl->p2p) {
 		kfree(wl->p2p);
+		wl->p2p = NULL;
 	}
 	wl->p2p_supported = 0;
 }
