@@ -23,6 +23,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include "at_hdmac_regs.h"
 
@@ -1175,6 +1177,20 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 
 /*--  Module Management  -----------------------------------------------*/
 
+#if defined(CONFIG_OF)
+static const struct of_device_id atmel_dma_dt_ids[] = {
+	{
+		.compatible = "atmel,at91sam9rl-dma",
+		.data = (void *)ATDMA_DEVTYPE_SAM9RL
+	}, {
+		.compatible = "atmel,at91sam9g45-dma",
+		.data = (void *)ATDMA_DEVTYPE_SAM9G45
+	}, { /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, atmel_dma_dt_ids);
+#endif
+
 static struct platform_device_id atdma_devtypes[] = {
 	{
 		.name = "at91sam9rl_dma",
@@ -1186,6 +1202,19 @@ static struct platform_device_id atdma_devtypes[] = {
 		/* sentinel */
 	}
 };
+
+static inline enum atdma_devtype __init at_dma_get_driver_data(
+					struct platform_device *pdev)
+{
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(atmel_dma_dt_ids, pdev->dev.of_node);
+		if (match == NULL)
+			return ATDMA_DEVTYPE_UNDEFINED;
+		return (enum atdma_devtype)match->data;
+	}
+	return platform_get_device_id(pdev)->driver_data;
+}
 
 /**
  * at_dma_off - disable DMA controller
@@ -1218,7 +1247,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, cap_mask);
 
 	/* get DMA parameters from controller type */
-	atdmatype = platform_get_device_id(pdev)->driver_data;
+	atdmatype = at_dma_get_driver_data(pdev);
 
 	switch (atdmatype) {
 	case ATDMA_DEVTYPE_SAM9RL:
@@ -1526,6 +1555,7 @@ static struct platform_driver at_dma_driver = {
 	.driver = {
 		.name	= "at_hdmac",
 		.pm	= &at_dma_dev_pm_ops,
+		.of_match_table	= of_match_ptr(atmel_dma_dt_ids),
 	},
 };
 
