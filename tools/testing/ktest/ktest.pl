@@ -304,7 +304,7 @@ sub get_ktest_configs {
 }
 
 sub process_variables {
-    my ($value) = @_;
+    my ($value, $remove_undef) = @_;
     my $retval = "";
 
     # We want to check for '\', and it is just easier
@@ -322,6 +322,10 @@ sub process_variables {
 	$retval = "$retval$begin";
 	if (defined($variable{$var})) {
 	    $retval = "$retval$variable{$var}";
+	} elsif (defined($remove_undef) && $remove_undef) {
+	    # for if statements, any variable that is not defined,
+	    # we simple convert to 0
+	    $retval = "${retval}0";
 	} else {
 	    # put back the origin piece.
 	    $retval = "$retval\$\{$var\}";
@@ -403,10 +407,40 @@ sub value_defined {
 	defined($opt{$2});
 }
 
-sub process_if {
-    my ($name, $value) = @_;
+my $d = 0;
+sub process_expression {
+    my ($name, $val) = @_;
 
-    my $val = process_variables($value);
+    my $c = $d++;
+
+    while ($val =~ s/\(([^\(]*?)\)/\&\&\&\&VAL\&\&\&\&/) {
+	my $express = $1;
+
+	if (process_expression($name, $express)) {
+	    $val =~ s/\&\&\&\&VAL\&\&\&\&/ 1 /;
+	} else {
+	    $val =~ s/\&\&\&\&VAL\&\&\&\&/ 0 /;
+	}
+    }
+
+    $d--;
+    my $OR = "\\|\\|";
+    my $AND = "\\&\\&";
+
+    while ($val =~ s/^(.*?)($OR|$AND)//) {
+	my $express = $1;
+	my $op = $2;
+
+	if (process_expression($name, $express)) {
+	    if ($op eq "||") {
+		return 1;
+	    }
+	} else {
+	    if ($op eq "&&") {
+		return 0;
+	    }
+	}
+    }
 
     if ($val =~ /(.*)(==|\!=|>=|<=|>|<)(.*)/) {
 	my $ret = process_compare($1, $2, $3);
@@ -431,7 +465,16 @@ sub process_if {
     }
 
     die ("$name: $.: Undefined content $val in if statement\n");
-    return 1;
+}
+
+sub process_if {
+    my ($name, $value) = @_;
+
+    # Convert variables and replace undefined ones with 0
+    my $val = process_variables($value, 1);
+    my $ret = process_expression $name, $val;
+
+    return $ret;
 }
 
 sub __read_config {
