@@ -1459,9 +1459,28 @@ bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 	return ((u64) pitch * (u64) height) < (u64) dev_priv->vram_size;
 }
 
+
+/**
+ * Function called by DRM code called with vbl_lock held.
+ */
 u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc)
 {
 	return 0;
+}
+
+/**
+ * Function called by DRM code called with vbl_lock held.
+ */
+int vmw_enable_vblank(struct drm_device *dev, int crtc)
+{
+	return -ENOSYS;
+}
+
+/**
+ * Function called by DRM code called with vbl_lock held.
+ */
+void vmw_disable_vblank(struct drm_device *dev, int crtc)
+{
 }
 
 
