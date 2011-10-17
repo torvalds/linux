@@ -62,6 +62,15 @@ endif # ARCH_MX50_SUPPORTED
 if ARCH_MX51
 comment "i.MX51 machines:"
 
+config MACH_IMX51_DT
+	bool "Support i.MX51 platforms from device tree"
+	select SOC_IMX51
+	select USE_OF
+	select MACH_MX51_BABBAGE
+	help
+	  Include support for Freescale i.MX51 based platforms
+	  using the device tree for discovery
+
 config MACH_MX51_BABBAGE
 	bool "Support MX51 BABBAGE platforms"
 	select SOC_IMX51

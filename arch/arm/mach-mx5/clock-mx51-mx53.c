@@ -1633,6 +1633,14 @@ static void __init clk_get_freq_dt(unsigned long *ckil, unsigned long *osc,
 	}
 }
 
+int __init mx51_clocks_init_dt(void)
+{
+	unsigned long ckil, osc, ckih1, ckih2;
+
+	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
+	return mx51_clocks_init(ckil, osc, ckih1, ckih2);
+}
+
 int __init mx53_clocks_init_dt(void)
 {
 	unsigned long ckil, osc, ckih1, ckih2;

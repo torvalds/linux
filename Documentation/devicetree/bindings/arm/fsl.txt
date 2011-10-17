@@ -1,3 +1,7 @@
+i.MX51 Babbage Board
+Required root node properties:
+    - compatible = "fsl,imx51-babbage", "fsl,imx51";
+
 i.MX53 Automotive Reference Design Board
 Required root node properties:
     - compatible = "fsl,imx53-ard", "fsl,imx53";
