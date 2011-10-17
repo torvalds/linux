@@ -436,7 +436,7 @@ error:
  *
  * Returns 0 if the rule set is legal or -EINVAL if not.
  */
-int sk_chk_filter(struct sock_filter *filter, int flen)
+int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 {
 	/*
 	 * Valid instructions are initialized to non-0.
