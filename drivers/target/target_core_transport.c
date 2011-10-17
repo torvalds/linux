@@ -82,8 +82,7 @@ static u32 transport_allocate_tasks(struct se_cmd *cmd,
 		struct scatterlist *sgl, unsigned int nents);
 static int transport_generic_get_mem(struct se_cmd *cmd);
 static void transport_put_cmd(struct se_cmd *cmd);
-static void transport_remove_cmd_from_queue(struct se_cmd *cmd,
-		struct se_queue_obj *qobj);
+static void transport_remove_cmd_from_queue(struct se_cmd *cmd);
 static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
 static void transport_stop_all_task_timers(struct se_cmd *cmd);
 
@@ -591,7 +590,7 @@ void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;
 	if (remove) {
-		transport_remove_cmd_from_queue(cmd, &cmd->se_dev->dev_queue_obj);
+		transport_remove_cmd_from_queue(cmd);
 		transport_put_cmd(cmd);
 	}
 }
@@ -650,9 +649,9 @@ transport_get_cmd_from_queue(struct se_queue_obj *qobj)
 	return cmd;
 }
 
-static void transport_remove_cmd_from_queue(struct se_cmd *cmd,
-		struct se_queue_obj *qobj)
+static void transport_remove_cmd_from_queue(struct se_cmd *cmd)
 {
+	struct se_queue_obj *qobj = &cmd->se_dev->dev_queue_obj;
 	unsigned long flags;
 
 	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
@@ -4232,7 +4231,7 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 		pr_debug("ConfigFS: ITT[0x%08x] - stopped cmd....\n",
 				cmd->se_tfo->get_task_tag(cmd));
 	}
-	transport_remove_cmd_from_queue(cmd, &cmd->se_dev->dev_queue_obj);
+	transport_remove_cmd_from_queue(cmd);
 
 	return 0;
 }
