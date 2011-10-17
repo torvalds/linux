@@ -4752,7 +4752,7 @@ int transport_generic_do_tmr(struct se_cmd *cmd)
 	cmd->t_state = TRANSPORT_ISTATE_PROCESSING;
 	cmd->se_tfo->queue_tm_rsp(cmd);
 
-	transport_cmd_check_stop(cmd, 2, 0);
+	transport_cmd_check_stop_to_fabric(cmd);
 	return 0;
 }
 
