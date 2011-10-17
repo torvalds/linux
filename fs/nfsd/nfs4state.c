@@ -268,6 +268,11 @@ static struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct kmem_cac
 	return kmem_cache_alloc(slab, GFP_KERNEL);
 }
 
+static struct nfs4_ol_stateid * nfs4_alloc_stateid(struct nfs4_client *clp)
+{
+	return openlockstateid(nfs4_alloc_stid(clp, stateid_slab));
+}
+
 static struct nfs4_delegation *
 alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct svc_fh *current_fh, u32 type)
 {
@@ -2511,6 +2516,7 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	struct nfs4_client *clp = NULL;
 	unsigned int strhashval;
 	struct nfs4_openowner *oo = NULL;
+	__be32 status;
 
 	if (STALE_CLIENTID(&open->op_clientid))
 		return nfserr_stale_clientid;
@@ -2538,12 +2544,20 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 		open->op_openowner = NULL;
 		goto new_owner;
 	}
-	return nfsd4_check_seqid(cstate, &oo->oo_owner, open->op_seqid);
+	status = nfsd4_check_seqid(cstate, &oo->oo_owner, open->op_seqid);
+	if (status)
+		return status;
+	clp = oo->oo_owner.so_client;
+	goto alloc_stateid;
 new_owner:
 	oo = alloc_init_open_stateowner(strhashval, clp, open);
 	if (oo == NULL)
 		return nfserr_jukebox;
 	open->op_openowner = oo;
+alloc_stateid:
+	open->op_stp = nfs4_alloc_stateid(clp);
+	if (!open->op_stp)
+		return nfserr_jukebox;
 	return nfs_ok;
 }
 
@@ -2616,11 +2630,6 @@ nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_ol_st
 	return nfs_ok;
 }
 
-static struct nfs4_ol_stateid * nfs4_alloc_stateid(struct nfs4_client *clp)
-{
-	return openlockstateid(nfs4_alloc_stid(clp, stateid_slab));
-}
-
 static void nfs4_free_stateid(struct nfs4_ol_stateid *s)
 {
 	kmem_cache_free(stateid_slab, s);
@@ -2659,28 +2668,6 @@ static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
 	nfs4_file_get_access(fp, oflag);
 
 	return nfs_ok;
-}
-
-static __be32
-nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_ol_stateid **stpp,
-		struct nfs4_file *fp, struct svc_fh *cur_fh,
-		struct nfsd4_open *open)
-{
-	struct nfs4_ol_stateid *stp;
-	struct nfs4_client *cl = open->op_openowner->oo_owner.so_client;
-	__be32 status;
-
-	stp = nfs4_alloc_stateid(cl);
-	if (stp == NULL)
-		return nfserr_jukebox;
-
-	status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open);
-	if (status) {
-		nfs4_free_stateid(stp);
-		return status;
-	}
-	*stpp = stp;
-	return 0;
 }
 
 static inline __be32
@@ -2916,9 +2903,11 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		if (status)
 			goto out;
 	} else {
-		status = nfs4_new_open(rqstp, &stp, fp, current_fh, open);
+		status = nfs4_get_vfs_file(rqstp, fp, current_fh, open);
 		if (status)
 			goto out;
+		stp = open->op_stp;
+		open->op_stp = NULL;
 		init_open_stateid(stp, fp, open);
 		status = nfsd4_truncate(rqstp, current_fh, open);
 		if (status) {
@@ -2975,6 +2964,8 @@ void nfsd4_cleanup_open_state(struct nfsd4_open *open, __be32 status)
 	}
 	if (open->op_file)
 		nfsd4_free_file(open->op_file);
+	if (open->op_stp)
+		nfs4_free_stateid(open->op_stp);
 }
 
 __be32
