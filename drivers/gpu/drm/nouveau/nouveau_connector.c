@@ -517,12 +517,16 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	}
 
 	/* Dithering */
-	if (property == dev->mode_config.dithering_mode_property) {
-		if (value == DRM_MODE_DITHERING_ON)
-			nv_connector->use_dithering = true;
-		else
-			nv_connector->use_dithering = false;
+	if (property == disp->dithering_mode) {
+		nv_connector->dithering_mode = value;
+		if (!nv_crtc || !nv_crtc->set_dither)
+			return 0;
 
+		return nv_crtc->set_dither(nv_crtc, true);
+	}
+
+	if (property == disp->dithering_depth) {
+		nv_connector->dithering_depth = value;
 		if (!nv_crtc || !nv_crtc->set_dither)
 			return 0;
 
@@ -918,7 +922,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	drm_connector_init(dev, connector, funcs, type);
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
 
-	/* Check if we need dithering enabled */
+	/* parse lvds table now, we depend on bios->fp.* values later */
 	if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 		bool dummy, is_24bit = false;
 
@@ -928,8 +932,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 				 "LVDS\n");
 			goto fail;
 		}
-
-		nv_connector->use_dithering = !is_24bit;
 	}
 
 	/* Init DVI-I specific properties */
@@ -940,8 +942,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	}
 
 	/* Add overscan compensation options to digital outputs */
-	if ((dev_priv->card_type == NV_50 ||
-	     dev_priv->card_type == NV_C0) &&
+	if (disp->underscan_property &&
 	    (dcb->type == DCB_CONNECTOR_DVI_D ||
 	     dcb->type == DCB_CONNECTOR_DVI_I ||
 	     dcb->type == DCB_CONNECTOR_HDMI_0 ||
@@ -977,10 +978,18 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		drm_connector_attach_property(connector,
 				dev->mode_config.scaling_mode_property,
 				nv_connector->scaling_mode);
-		drm_connector_attach_property(connector,
-				dev->mode_config.dithering_mode_property,
-				nv_connector->use_dithering ?
-				DRM_MODE_DITHERING_ON : DRM_MODE_DITHERING_OFF);
+		if (disp->dithering_mode) {
+			nv_connector->dithering_mode = DITHERING_MODE_AUTO;
+			drm_connector_attach_property(connector,
+						disp->dithering_mode,
+						nv_connector->dithering_mode);
+		}
+		if (disp->dithering_depth) {
+			nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
+			drm_connector_attach_property(connector,
+						disp->dithering_depth,
+						nv_connector->dithering_depth);
+		}
 		break;
 	}
 

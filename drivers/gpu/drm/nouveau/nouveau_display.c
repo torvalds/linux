@@ -32,6 +32,7 @@
 #include "nouveau_hw.h"
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
+#include "nouveau_connector.h"
 #include "nv50_display.h"
 
 static void
@@ -154,35 +155,78 @@ static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 
 
 struct drm_prop_enum_list {
+	u8 gen_mask;
 	int type;
 	char *name;
 };
 
-static struct drm_prop_enum_list nouveau_underscan_enum_list[] = {
-	{ UNDERSCAN_OFF, "off" },
-	{ UNDERSCAN_ON, "on" },
-	{ UNDERSCAN_AUTO, "auto" },
+static struct drm_prop_enum_list underscan[] = {
+	{ 2, UNDERSCAN_AUTO, "auto" },
+	{ 2, UNDERSCAN_OFF, "off" },
+	{ 2, UNDERSCAN_ON, "on" },
+	{}
 };
+
+static struct drm_prop_enum_list dither_mode[] = {
+	{ 7, DITHERING_MODE_AUTO, "auto" },
+	{ 7, DITHERING_MODE_OFF, "off" },
+	{ 1, DITHERING_MODE_ON, "on" },
+	{ 6, DITHERING_MODE_STATIC2X2, "static 2x2" },
+	{ 6, DITHERING_MODE_DYNAMIC2X2, "dynamic 2x2" },
+	{ 4, DITHERING_MODE_TEMPORAL, "temporal" },
+	{}
+};
+
+static struct drm_prop_enum_list dither_depth[] = {
+	{ 6, DITHERING_DEPTH_AUTO, "auto" },
+	{ 6, DITHERING_DEPTH_6BPC, "6 bpc" },
+	{ 6, DITHERING_DEPTH_8BPC, "8 bpc" },
+	{}
+};
+
+#define PROP_ENUM(p,gen,n,list) do {                                           \
+	struct drm_prop_enum_list *l = (list);                                 \
+	int c = 0;                                                             \
+	while (l->gen_mask) {                                                  \
+		if (l->gen_mask & (1 << (gen)))                                \
+			c++;                                                   \
+		l++;                                                           \
+	}                                                                      \
+	if (c) {                                                               \
+		p = drm_property_create(dev, DRM_MODE_PROP_ENUM, n, c);        \
+		l = (list);                                                    \
+		c = 0;                                                         \
+		while (p && l->gen_mask) {                                     \
+			if (l->gen_mask & (1 << (gen))) {                      \
+				drm_property_add_enum(p, c, l->type, l->name); \
+				c++;                                           \
+			}                                                      \
+			l++;                                                   \
+		}                                                              \
+	}                                                                      \
+} while(0)
 
 int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_display_engine *disp = &dev_priv->engine.display;
-	int ret, cnt, i;
+	int ret, gen;
 
 	drm_mode_config_init(dev);
 	drm_mode_create_scaling_mode_property(dev);
-	drm_mode_create_dithering_property(dev);
 
-	cnt = ARRAY_SIZE(nouveau_underscan_enum_list);
-	disp->underscan_property = drm_property_create(dev, DRM_MODE_PROP_ENUM,
-						       "underscan", cnt);
-	for (i = 0; i < cnt; i++) {
-		drm_property_add_enum(disp->underscan_property, i,
-				      nouveau_underscan_enum_list[i].type,
-				      nouveau_underscan_enum_list[i].name);
-	}
+	if (dev_priv->card_type < NV_50)
+		gen = 0;
+	else
+	if (dev_priv->card_type < NV_D0)
+		gen = 1;
+	else
+		gen = 2;
+
+	PROP_ENUM(disp->dithering_mode, gen, "dithering mode", dither_mode);
+	PROP_ENUM(disp->dithering_depth, gen, "dithering depth", dither_depth);
+	PROP_ENUM(disp->underscan_property, gen, "underscan", underscan);
 
 	disp->underscan_hborder_property =
 		drm_property_create(dev, DRM_MODE_PROP_RANGE,

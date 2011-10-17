@@ -134,33 +134,40 @@ nv50_crtc_blank(struct nouveau_crtc *nv_crtc, bool blanked)
 static int
 nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct drm_device *dev = nv_crtc->base.dev;
-	struct nouveau_channel *evo = nv50_display(dev)->master;
-	struct nouveau_connector *nv_connector =
-		nouveau_crtc_connector_get(nv_crtc);
-	int ret;
+	struct nouveau_channel *evo = nv50_display(nv_crtc->base.dev)->master;
+	struct nouveau_connector *nv_connector;
+	struct drm_connector *connector;
+	int head = nv_crtc->index, ret;
+	u32 mode = 0x00;
 
-	NV_DEBUG_KMS(dev, "\n");
+	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	connector = &nv_connector->base;
+	if (nv_connector->dithering_mode == DITHERING_MODE_AUTO) {
+		if (nv_crtc->base.fb->depth > connector->display_info.bpc * 3)
+			mode = DITHERING_MODE_DYNAMIC2X2;
+	} else {
+		mode = nv_connector->dithering_mode;
+	}
+
+	if (nv_connector->dithering_depth == DITHERING_DEPTH_AUTO) {
+		if (connector->display_info.bpc >= 8)
+			mode |= DITHERING_DEPTH_8BPC;
+	} else {
+		mode |= nv_connector->dithering_depth;
+	}
 
 	ret = RING_SPACE(evo, 2 + (update ? 2 : 0));
-	if (ret) {
-		NV_ERROR(dev, "no space while setting dither\n");
-		return ret;
+	if (ret == 0) {
+		BEGIN_RING(evo, 0, NV50_EVO_CRTC(head, DITHER_CTRL), 1);
+		OUT_RING  (evo, mode);
+		if (update) {
+			BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+			OUT_RING  (evo, 0);
+			FIRE_RING (evo);
+		}
 	}
 
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, DITHER_CTRL), 1);
-	if (nv_connector->use_dithering)
-		OUT_RING(evo, NV50_EVO_CRTC_DITHER_CTRL_ON);
-	else
-		OUT_RING(evo, NV50_EVO_CRTC_DITHER_CTRL_OFF);
-
-	if (update) {
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
-		OUT_RING(evo, 0);
-		FIRE_RING(evo);
-	}
-
-	return 0;
+	return ret;
 }
 
 struct nouveau_connector *

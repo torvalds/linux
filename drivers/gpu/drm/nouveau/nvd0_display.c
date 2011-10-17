@@ -109,20 +109,25 @@ nvd0_display_crtc_get(struct drm_encoder *encoder)
 static int
 nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct nouveau_connector *nv_connector;
 	struct drm_device *dev = nv_crtc->base.dev;
-	u32 *push, mode = 0;
+	struct nouveau_connector *nv_connector;
+	struct drm_connector *connector;
+	u32 *push, mode = 0x00;
 
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
-	if (nv_connector->use_dithering) {
-		/* 0x11: 6bpc dynamic 2x2
-		 * 0x13: 8bpc dynamic 2x2
-		 * 0x19: 6bpc static 2x2
-		 * 0x1b: 8bpc static 2x2
-		 * 0x21: 6bpc temporal
-		 * 0x23: 8bpc temporal
-		 */
-		mode = 0x00000011;
+	connector = &nv_connector->base;
+	if (nv_connector->dithering_mode == DITHERING_MODE_AUTO) {
+		if (nv_crtc->base.fb->depth > connector->display_info.bpc * 3)
+			mode = DITHERING_MODE_DYNAMIC2X2;
+	} else {
+		mode = nv_connector->dithering_mode;
+	}
+
+	if (nv_connector->dithering_depth == DITHERING_DEPTH_AUTO) {
+		if (connector->display_info.bpc >= 8)
+			mode |= DITHERING_DEPTH_8BPC;
+	} else {
+		mode |= nv_connector->dithering_depth;
 	}
 
 	push = evo_wait(dev, 0, 4);
