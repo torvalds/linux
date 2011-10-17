@@ -236,7 +236,6 @@ static void core_tmr_drain_task_list(
 		list_del(&task->t_state_list);
 		cmd = task->task_se_cmd;
 
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
 		pr_debug("LUN_RESET: %s cmd: %p task: %p"
 			" ITT/CmdSN: 0x%08x/0x%08x, i_state: %d, t_state/"
 			"def_t_state: %d/%d cdb: 0x%02x\n",
@@ -256,22 +255,8 @@ static void core_tmr_drain_task_list(
 			atomic_read(&cmd->t_transport_stop),
 			atomic_read(&cmd->t_transport_sent));
 
-		if (task->task_flags & TF_ACTIVE) {
-			task->task_flags |= TF_REQUEST_STOP;
-			spin_unlock_irqrestore(
-				&cmd->t_state_lock, flags);
-
-			pr_debug("LUN_RESET: Waiting for task: %p to shutdown"
-				" for dev: %p\n", task, dev);
-			wait_for_completion(&task->task_stop_comp);
-			pr_debug("LUN_RESET Completed task: %p shutdown for"
-				" dev: %p\n", task, dev);
-
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			atomic_dec(&cmd->t_task_cdbs_left);
-			task->task_flags &= ~(TF_ACTIVE | TF_REQUEST_STOP);
-		}
-		__transport_stop_task_timer(task, &flags);
+		spin_lock_irqsave(&cmd->t_state_lock, flags);
+		target_stop_task(task, &flags);
 
 		if (!atomic_dec_and_test(&cmd->t_task_cdbs_ex_left)) {
 			spin_unlock_irqrestore(&cmd->t_state_lock, flags);

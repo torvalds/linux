@@ -1762,6 +1762,33 @@ void transport_generic_free_cmd_intr(
 }
 EXPORT_SYMBOL(transport_generic_free_cmd_intr);
 
+/*
+ * If the task is active, request it to be stopped and sleep until it
+ * has completed.
+ */
+bool target_stop_task(struct se_task *task, unsigned long *flags)
+{
+	struct se_cmd *cmd = task->task_se_cmd;
+	bool was_active = false;
+
+	if (task->task_flags & TF_ACTIVE) {
+		task->task_flags |= TF_REQUEST_STOP;
+		spin_unlock_irqrestore(&cmd->t_state_lock, *flags);
+
+		pr_debug("Task %p waiting to complete\n", task);
+		wait_for_completion(&task->task_stop_comp);
+		pr_debug("Task %p stopped successfully\n", task);
+
+		spin_lock_irqsave(&cmd->t_state_lock, *flags);
+		atomic_dec(&cmd->t_task_cdbs_left);
+		task->task_flags &= ~(TF_ACTIVE | TF_REQUEST_STOP);
+		was_active = true;
+	}
+
+	__transport_stop_task_timer(task, flags);
+	return was_active;
+}
+
 static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 {
 	struct se_task *task, *task_tmp;
@@ -1793,28 +1820,10 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 			continue;
 		}
 
-		/*
-		 * If the struct se_task is active, sleep until it is returned
-		 * from the plugin.
-		 */
-		if (task->task_flags & TF_ACTIVE) {
-			task->task_flags |= TF_REQUEST_STOP;
-			spin_unlock_irqrestore(&cmd->t_state_lock,
-					flags);
-
-			pr_debug("Task %p waiting to complete\n", task);
-			wait_for_completion(&task->task_stop_comp);
-			pr_debug("Task %p stopped successfully\n", task);
-
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			atomic_dec(&cmd->t_task_cdbs_left);
-			task->task_flags &= ~(TF_ACTIVE | TF_REQUEST_STOP);
-		} else {
+		if (!target_stop_task(task, &flags)) {
 			pr_debug("Task %p - did nothing\n", task);
 			ret++;
 		}
-
-		__transport_stop_task_timer(task, &flags);
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
