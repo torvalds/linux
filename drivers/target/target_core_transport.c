@@ -1646,8 +1646,8 @@ int transport_generic_allocate_tasks(
 }
 EXPORT_SYMBOL(transport_generic_allocate_tasks);
 
-static void transport_generic_request_failure(struct se_cmd *,
-			struct se_device *, int, int);
+static void transport_generic_request_failure(struct se_cmd *, int, int);
+
 /*
  * Used by fabric module frontends to queue tasks directly.
  * Many only be used from process context only
@@ -1689,7 +1689,7 @@ int transport_handle_cdb_direct(
 		return 0;
 	else if (ret < 0) {
 		cmd->transport_error_status = ret;
-		transport_generic_request_failure(cmd, NULL, 0,
+		transport_generic_request_failure(cmd, 0,
 				(cmd->data_direction != DMA_TO_DEVICE));
 	}
 	return 0;
@@ -1837,7 +1837,6 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
  */
 static void transport_generic_request_failure(
 	struct se_cmd *cmd,
-	struct se_device *dev,
 	int complete,
 	int sc)
 {
@@ -1862,8 +1861,6 @@ static void transport_generic_request_failure(
 		atomic_read(&cmd->t_transport_stop),
 		atomic_read(&cmd->t_transport_sent));
 
-	if (dev)
-		atomic_inc(&dev->depth_left);
 	/*
 	 * For SAM Task Attribute emulation for failed struct se_cmd
 	 */
@@ -2230,7 +2227,7 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 
 	if (se_dev_check_online(cmd->se_orig_obj_ptr) != 0) {
 		cmd->transport_error_status = PYX_TRANSPORT_LU_COMM_FAILURE;
-		transport_generic_request_failure(cmd, NULL, 0, 1);
+		transport_generic_request_failure(cmd, 0, 1);
 		return 0;
 	}
 
@@ -2325,7 +2322,8 @@ check_depth:
 			del_timer_sync(&task->task_timer);
 			atomic_set(&cmd->transport_sent, 0);
 			transport_stop_tasks_for_cmd(cmd);
-			transport_generic_request_failure(cmd, dev, 0, 1);
+			atomic_inc(&dev->depth_left);
+			transport_generic_request_failure(cmd, 0, 1);
 			goto check_depth;
 		}
 		/*
@@ -2364,7 +2362,8 @@ check_depth:
 			del_timer_sync(&task->task_timer);
 			atomic_set(&cmd->transport_sent, 0);
 			transport_stop_tasks_for_cmd(cmd);
-			transport_generic_request_failure(cmd, dev, 0, 1);
+			atomic_inc(&dev->depth_left);
+			transport_generic_request_failure(cmd, 0, 1);
 		}
 	}
 
@@ -4767,7 +4766,7 @@ get_cmd:
 			ret = cmd->se_tfo->new_cmd_map(cmd);
 			if (ret < 0) {
 				cmd->transport_error_status = ret;
-				transport_generic_request_failure(cmd, NULL,
+				transport_generic_request_failure(cmd,
 						0, (cmd->data_direction !=
 						    DMA_TO_DEVICE));
 				break;
@@ -4777,7 +4776,7 @@ get_cmd:
 				break;
 			else if (ret < 0) {
 				cmd->transport_error_status = ret;
-				transport_generic_request_failure(cmd, NULL,
+				transport_generic_request_failure(cmd,
 					0, (cmd->data_direction !=
 					 DMA_TO_DEVICE));
 			}
@@ -4798,7 +4797,7 @@ get_cmd:
 			transport_generic_do_tmr(cmd);
 			break;
 		case TRANSPORT_COMPLETE_FAILURE:
-			transport_generic_request_failure(cmd, NULL, 1, 1);
+			transport_generic_request_failure(cmd, 1, 1);
 			break;
 		case TRANSPORT_COMPLETE_TIMEOUT:
 			transport_generic_request_timeout(cmd);
