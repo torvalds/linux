@@ -203,74 +203,6 @@ lo_do_transfer(struct loop_device *lo, int cmd,
 }
 
 /**
- * do_lo_send_aops - helper for writing data to a loop device
- *
- * This is the fast version for backing filesystems which implement the address
- * space operations write_begin and write_end.
- */
-static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
-		loff_t pos, struct page *unused)
-{
-	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
-	struct address_space *mapping = file->f_mapping;
-	pgoff_t index;
-	unsigned offset, bv_offs;
-	int len, ret;
-
-	mutex_lock(&mapping->host->i_mutex);
-	index = pos >> PAGE_CACHE_SHIFT;
-	offset = pos & ((pgoff_t)PAGE_CACHE_SIZE - 1);
-	bv_offs = bvec->bv_offset;
-	len = bvec->bv_len;
-	while (len > 0) {
-		sector_t IV;
-		unsigned size, copied;
-		int transfer_result;
-		struct page *page;
-		void *fsdata;
-
-		IV = ((sector_t)index << (PAGE_CACHE_SHIFT - 9))+(offset >> 9);
-		size = PAGE_CACHE_SIZE - offset;
-		if (size > len)
-			size = len;
-
-		ret = pagecache_write_begin(file, mapping, pos, size, 0,
-							&page, &fsdata);
-		if (ret)
-			goto fail;
-
-		file_update_time(file);
-
-		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
-				bvec->bv_page, bv_offs, size, IV);
-		copied = size;
-		if (unlikely(transfer_result))
-			copied = 0;
-
-		ret = pagecache_write_end(file, mapping, pos, size, copied,
-							page, fsdata);
-		if (ret < 0 || ret != copied)
-			goto fail;
-
-		if (unlikely(transfer_result))
-			goto fail;
-
-		bv_offs += copied;
-		len -= copied;
-		offset = 0;
-		index++;
-		pos += copied;
-	}
-	ret = 0;
-out:
-	mutex_unlock(&mapping->host->i_mutex);
-	return ret;
-fail:
-	ret = -1;
-	goto out;
-}
-
-/**
  * __do_lo_send_write - helper for writing data to a loop device
  *
  * This helper just factors out common code between do_lo_send_direct_write()
@@ -297,10 +229,8 @@ static int __do_lo_send_write(struct file *file,
 /**
  * do_lo_send_direct_write - helper for writing data to a loop device
  *
- * This is the fast, non-transforming version for backing filesystems which do
- * not implement the address space operations write_begin and write_end.
- * It uses the write file operation which should be present on all writeable
- * filesystems.
+ * This is the fast, non-transforming version that does not need double
+ * buffering.
  */
 static int do_lo_send_direct_write(struct loop_device *lo,
 		struct bio_vec *bvec, loff_t pos, struct page *page)
@@ -316,15 +246,9 @@ static int do_lo_send_direct_write(struct loop_device *lo,
 /**
  * do_lo_send_write - helper for writing data to a loop device
  *
- * This is the slow, transforming version for filesystems which do not
- * implement the address space operations write_begin and write_end.  It
- * uses the write file operation which should be present on all writeable
- * filesystems.
- *
- * Using fops->write is slower than using aops->{prepare,commit}_write in the
- * transforming case because we need to double buffer the data as we cannot do
- * the transformations in place as we do not have direct access to the
- * destination pages of the backing file.
+ * This is the slow, transforming version that needs to double buffer the
+ * data as it cannot do the transformations in place without having direct
+ * access to the destination pages of the backing file.
  */
 static int do_lo_send_write(struct loop_device *lo, struct bio_vec *bvec,
 		loff_t pos, struct page *page)
@@ -350,17 +274,16 @@ static int lo_send(struct loop_device *lo, struct bio *bio, loff_t pos)
 	struct page *page = NULL;
 	int i, ret = 0;
 
-	do_lo_send = do_lo_send_aops;
-	if (!(lo->lo_flags & LO_FLAGS_USE_AOPS)) {
+	if (lo->transfer != transfer_none) {
+		page = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
+		if (unlikely(!page))
+			goto fail;
+		kmap(page);
+		do_lo_send = do_lo_send_write;
+	} else {
 		do_lo_send = do_lo_send_direct_write;
-		if (lo->transfer != transfer_none) {
-			page = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
-			if (unlikely(!page))
-				goto fail;
-			kmap(page);
-			do_lo_send = do_lo_send_write;
-		}
 	}
+
 	bio_for_each_segment(bvec, bio, i) {
 		ret = do_lo_send(lo, bvec, pos, page);
 		if (ret < 0)
@@ -849,35 +772,23 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	mapping = file->f_mapping;
 	inode = mapping->host;
 
-	if (!(file->f_mode & FMODE_WRITE))
-		lo_flags |= LO_FLAGS_READ_ONLY;
-
 	error = -EINVAL;
-	if (S_ISREG(inode->i_mode) || S_ISBLK(inode->i_mode)) {
-		const struct address_space_operations *aops = mapping->a_ops;
-
-		if (aops->write_begin)
-			lo_flags |= LO_FLAGS_USE_AOPS;
-		if (!(lo_flags & LO_FLAGS_USE_AOPS) && !file->f_op->write)
-			lo_flags |= LO_FLAGS_READ_ONLY;
-
-		lo_blocksize = S_ISBLK(inode->i_mode) ?
-			inode->i_bdev->bd_block_size : PAGE_SIZE;
-
-		error = 0;
-	} else {
+	if (!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))
 		goto out_putf;
-	}
 
-	size = get_loop_size(lo, file);
-
-	if ((loff_t)(sector_t)size != size) {
-		error = -EFBIG;
-		goto out_putf;
-	}
-
-	if (!(mode & FMODE_WRITE))
+	if (!(file->f_mode & FMODE_WRITE) || !(mode & FMODE_WRITE) ||
+	    !file->f_op->write)
 		lo_flags |= LO_FLAGS_READ_ONLY;
+
+	lo_blocksize = S_ISBLK(inode->i_mode) ?
+		inode->i_bdev->bd_block_size : PAGE_SIZE;
+
+	error = -EFBIG;
+	size = get_loop_size(lo, file);
+	if ((loff_t)(sector_t)size != size)
+		goto out_putf;
+
+	error = 0;
 
 	set_device_ro(bdev, (lo_flags & LO_FLAGS_READ_ONLY) != 0);
 
