@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/sh_intc.h>
 #include <mach/intc.h>
+#include <mach/sh73a0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -363,6 +364,59 @@ static irqreturn_t sh73a0_irq_pin_demux(int irq, void *dev_id)
 
 static struct irqaction sh73a0_irq_pin_cascade[32];
 
+#define PINTER0 0xe69000a0
+#define PINTER1 0xe69000a4
+#define PINTRR0 0xe69000d0
+#define PINTRR1 0xe69000d4
+
+#define PINT0A_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT0_IRQ(irq))
+#define PINT0B_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT0_IRQ(irq + 8))
+#define PINT0C_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT0_IRQ(irq + 16))
+#define PINT0D_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT0_IRQ(irq + 24))
+#define PINT1E_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT1_IRQ(irq))
+
+INTC_PINT(intc_pint0, PINTER0, 0xe69000b0, "sh73a0-pint0",		\
+  INTC_PINT_E(A), INTC_PINT_E(B), INTC_PINT_E(C), INTC_PINT_E(D),	\
+  INTC_PINT_V(A, PINT0A_IRQ), INTC_PINT_V(B, PINT0B_IRQ),		\
+  INTC_PINT_V(C, PINT0C_IRQ), INTC_PINT_V(D, PINT0D_IRQ),		\
+  INTC_PINT_E(A), INTC_PINT_E(B), INTC_PINT_E(C), INTC_PINT_E(D),	\
+  INTC_PINT_E(A), INTC_PINT_E(B), INTC_PINT_E(C), INTC_PINT_E(D));
+
+INTC_PINT(intc_pint1, PINTER1, 0xe69000c0, "sh73a0-pint1",		\
+  INTC_PINT_E(E), INTC_PINT_E_EMPTY, INTC_PINT_E_EMPTY, INTC_PINT_E_EMPTY, \
+  INTC_PINT_V(E, PINT1E_IRQ), INTC_PINT_V_NONE,				\
+  INTC_PINT_V_NONE, INTC_PINT_V_NONE,					\
+  INTC_PINT_E_NONE, INTC_PINT_E_NONE, INTC_PINT_E_NONE, INTC_PINT_E(E), \
+  INTC_PINT_E(E), INTC_PINT_E_NONE, INTC_PINT_E_NONE, INTC_PINT_E_NONE);
+
+static struct irqaction sh73a0_pint0_cascade;
+static struct irqaction sh73a0_pint1_cascade;
+
+static void pint_demux(unsigned long rr, unsigned long er, int base_irq)
+{
+	unsigned long value =  ioread32(rr) & ioread32(er);
+	int k;
+
+	for (k = 0; k < 32; k++) {
+		if (value & (1 << (31 - k))) {
+			generic_handle_irq(base_irq + k);
+			iowrite32(~(1 << (31 - k)), rr);
+		}
+	}
+}
+
+static irqreturn_t sh73a0_pint0_demux(int irq, void *dev_id)
+{
+	pint_demux(PINTRR0, PINTER0, SH73A0_PINT0_IRQ(0));
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t sh73a0_pint1_demux(int irq, void *dev_id)
+{
+	pint_demux(PINTRR1, PINTER1, SH73A0_PINT1_IRQ(0));
+	return IRQ_HANDLED;
+}
+
 void __init sh73a0_init_irq(void)
 {
 	void __iomem *gic_dist_base = __io(0xf0001000);
@@ -375,6 +429,8 @@ void __init sh73a0_init_irq(void)
 
 	register_intc_controller(&intcs_desc);
 	register_intc_controller(&intca_irq_pins_desc);
+	register_intc_controller(&intc_pint0_desc);
+	register_intc_controller(&intc_pint1_desc);
 
 	/* demux using INTEVTSA */
 	sh73a0_intcs_cascade.name = "INTCS cascade";
@@ -393,4 +449,13 @@ void __init sh73a0_init_irq(void)
 					      handle_level_irq, "level");
 		set_irq_flags(n, IRQF_VALID); /* yuck */
 	}
+
+	/* PINT pins are sanely tied to the GIC as SPI */
+	sh73a0_pint0_cascade.name = "PINT0 cascade";
+	sh73a0_pint0_cascade.handler = sh73a0_pint0_demux;
+	setup_irq(gic_spi(33), &sh73a0_pint0_cascade);
+
+	sh73a0_pint1_cascade.name = "PINT1 cascade";
+	sh73a0_pint1_cascade.handler = sh73a0_pint1_demux;
+	setup_irq(gic_spi(34), &sh73a0_pint1_cascade);
 }

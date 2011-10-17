@@ -59,7 +59,7 @@ static struct resource smsc9220_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= gic_spi(33), /* PINT1 */
+		.start		= SH73A0_PINT0_IRQ(2), /* PINTA2 */
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -474,19 +474,6 @@ static void __init ag5evm_map_io(void)
 	shmobile_setup_console();
 }
 
-#define PINTC_ADDR	0xe6900000
-#define PINTER0A	(PINTC_ADDR + 0xa0)
-#define PINTCR0A	(PINTC_ADDR + 0xb0)
-
-void __init ag5evm_init_irq(void)
-{
-	sh73a0_init_irq();
-
-	/* setup PINT: enable PINTA2 as active low */
-	__raw_writel(__raw_readl(PINTER0A) | (1<<29), PINTER0A);
-	__raw_writew(__raw_readw(PINTCR0A) | (2<<10), PINTCR0A);
-}
-
 #define DSI0PHYCR	0xe615006c
 
 static void __init ag5evm_init(void)
@@ -620,7 +607,7 @@ struct sys_timer ag5evm_timer = {
 
 MACHINE_START(AG5EVM, "ag5evm")
 	.map_io		= ag5evm_map_io,
-	.init_irq	= ag5evm_init_irq,
+	.init_irq	= sh73a0_init_irq,
 	.handle_irq	= shmobile_handle_irq_gic,
 	.init_machine	= ag5evm_init,
 	.timer		= &ag5evm_timer,
