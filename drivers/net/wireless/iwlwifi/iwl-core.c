@@ -34,14 +34,11 @@
 #include <net/mac80211.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-dev.h" /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-power.h"
-#include "iwl-sta.h"
 #include "iwl-agn.h"
-#include "iwl-helpers.h"
 #include "iwl-shared.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
@@ -211,7 +208,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & EEPROM_SKU_CAP_BAND_52GHZ) {
 		char buf[32];
-		bus_get_hw_id(priv->bus, buf, sizeof(buf));
+		bus_get_hw_id(bus(priv), buf, sizeof(buf));
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
 			"Please send your %s to maintainer.\n", buf);
 		priv->cfg->sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
@@ -323,7 +320,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	u16 beacon_int;
 	struct ieee80211_vif *vif = ctx->vif;
 
-	conf = ieee80211_get_hw_conf(priv->hw);
+	conf = &priv->hw->conf;
 
 	lockdep_assert_held(&priv->shrd->mutex);
 
@@ -804,7 +801,7 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 {
 	/*
 	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
+	 * See iwlagn_mac_channel_switch.
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
@@ -979,7 +976,7 @@ int iwl_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(bus(priv), CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
-	bus_apm_config(priv->bus);
+	bus_apm_config(bus(priv));
 
 	/* Configure analog phase-lock-loop before activating to D0A */
 	if (priv->cfg->base_params->pll_cfg_val)
@@ -1123,7 +1120,7 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 					&statistics_cmd);
 }
 
-int iwl_mac_conf_tx(struct ieee80211_hw *hw,
+int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif, u16 queue,
 		    const struct ieee80211_tx_queue_params *params)
 {
@@ -1170,7 +1167,7 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
-int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw)
+int iwlagn_mac_tx_last_beacon(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = hw->priv;
 
@@ -1223,7 +1220,8 @@ static int iwl_setup_interface(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
@@ -1319,7 +1317,7 @@ static void iwl_teardown_interface(struct iwl_priv *priv,
 		priv->bt_traffic_load = priv->last_bt_traffic_load;
 }
 
-void iwl_mac_remove_interface(struct ieee80211_hw *hw,
+void iwlagn_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -1651,8 +1649,9 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 	return 0;
 }
 
-int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			     enum nl80211_iftype newtype, bool newp2p)
+int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				enum nl80211_iftype newtype, bool newp2p)
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
@@ -1661,6 +1660,8 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	enum nl80211_iftype newviftype = newtype;
 	u32 interface_modes;
 	int err;
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	newtype = ieee80211_iftype_p2p(newtype, newp2p);
 
@@ -1729,13 +1730,42 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
  out:
 	mutex_unlock(&priv->shrd->mutex);
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
 	return err;
+}
+
+int iwl_cmd_echo_test(struct iwl_priv *priv)
+{
+	int ret;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_ECHO,
+		.flags = CMD_SYNC,
+	};
+
+	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	if (ret)
+		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
+	else
+		IWL_DEBUG_INFO(priv, "echo testing pass\n");
+	return ret;
 }
 
 static inline int iwl_check_stuck_queue(struct iwl_priv *priv, int txq)
 {
 	if (iwl_trans_check_stuck_queue(trans(priv), txq)) {
-		int ret = iwl_force_reset(priv, IWL_FW_RESET, false);
+		int ret;
+		if (txq == priv->shrd->cmd_queue) {
+			/*
+			 * validate command queue still working
+			 * by sending "ECHO" command
+			 */
+			if (!iwl_cmd_echo_test(priv))
+				return 0;
+			else
+				IWL_DEBUG_HC(priv, "echo testing fail\n");
+		}
+		ret = iwl_force_reset(priv, IWL_FW_RESET, false);
 		return (ret == -EAGAIN) ? 0 : 1;
 	}
 	return 0;
@@ -1758,6 +1788,9 @@ void iwl_bg_watchdog(unsigned long data)
 	unsigned long timeout;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+		return;
+
+	if (iwl_is_rfkill(priv->shrd))
 		return;
 
 	timeout = priv->cfg->base_params->wd_timeout;
@@ -1792,6 +1825,28 @@ void iwl_setup_watchdog(struct iwl_priv *priv)
 			  jiffies + msecs_to_jiffies(IWL_WD_TICK(timeout)));
 	else
 		del_timer(&priv->watchdog);
+}
+
+/**
+ * iwl_beacon_time_mask_low - mask of lower 32 bit of beacon time
+ * @priv -- pointer to iwl_priv data structure
+ * @tsf_bits -- number of bits need to shift for masking)
+ */
+static inline u32 iwl_beacon_time_mask_low(struct iwl_priv *priv,
+					   u16 tsf_bits)
+{
+	return (1 << tsf_bits) - 1;
+}
+
+/**
+ * iwl_beacon_time_mask_high - mask of higher 32 bit of beacon time
+ * @priv -- pointer to iwl_priv data structure
+ * @tsf_bits -- number of bits need to shift for masking)
+ */
+static inline u32 iwl_beacon_time_mask_high(struct iwl_priv *priv,
+					    u16 tsf_bits)
+{
+	return ((1 << (32 - tsf_bits)) - 1) << tsf_bits;
 }
 
 /*

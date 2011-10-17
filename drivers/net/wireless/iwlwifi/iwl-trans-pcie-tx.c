@@ -30,14 +30,11 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 
-/* TODO: remove include to iwl-dev.h */
-#include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
-#include "iwl-helpers.h"
 #include "iwl-trans-pcie-int.h"
 
 #define IWL_TX_CRC_SIZE 4
@@ -634,8 +631,11 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
 	case IWL_AGG_ON:
 		break;
 	default:
-		IWL_WARN(trans, "Stopping AGG while state not ON"
-				"or starting\n");
+		IWL_WARN(trans, "Stopping AGG while state not ON "
+			 "or starting for %d on %d (%d)\n", sta_id, tid,
+			 trans->shrd->tid_data[sta_id][tid].agg.state);
+		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
+		return 0;
 	}
 
 	write_ptr = trans_pcie->txq[txq_id].q.write_ptr;
@@ -950,6 +950,11 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
 	iwl_hcmd_queue_reclaim(trans, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
+		if (!test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status)) {
+			IWL_WARN(trans,
+				 "HCMD_ACTIVE already clear for command %s\n",
+				 get_cmd_string(cmd->hdr.cmd));
+		}
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
@@ -1013,10 +1018,18 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status)) {
+			struct iwl_tx_queue *txq =
+				&trans_pcie->txq[trans->shrd->cmd_queue];
+			struct iwl_queue *q = &txq->q;
+
 			IWL_ERR(trans,
 				"Error sending %s: time out after %dms.\n",
 				get_cmd_string(cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
+
+			IWL_ERR(trans,
+				"Current CMD queue read_ptr %d write_ptr %d\n",
+				q->read_ptr, q->write_ptr);
 
 			clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
 			IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command"

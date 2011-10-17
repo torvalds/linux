@@ -1666,27 +1666,19 @@ static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
 	if (dev == priv->mesh_dev)
 		return -EOPNOTSUPP;
 
-	lbs_deb_enter(LBS_DEB_CFG80211);
-
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
-		ret = lbs_set_monitor_mode(priv, 1);
-		break;
 	case NL80211_IFTYPE_STATION:
-		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_set_monitor_mode(priv, 0);
-		if (!ret)
-			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 1);
-		break;
 	case NL80211_IFTYPE_ADHOC:
-		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_set_monitor_mode(priv, 0);
-		if (!ret)
-			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 2);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
+
+	lbs_deb_enter(LBS_DEB_CFG80211);
+
+	if (priv->iface_running)
+		ret = lbs_set_iface_type(priv, type);
 
 	if (!ret)
 		priv->wdev->iftype = type;

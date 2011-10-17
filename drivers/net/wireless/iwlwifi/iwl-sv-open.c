@@ -184,7 +184,7 @@ static void iwl_trace_cleanup(struct iwl_priv *priv)
 	if (priv->testmode_trace.trace_enabled) {
 		if (priv->testmode_trace.cpu_addr &&
 		    priv->testmode_trace.dma_addr)
-			dma_free_coherent(priv->bus->dev,
+			dma_free_coherent(bus(priv)->dev,
 					priv->testmode_trace.total_size,
 					priv->testmode_trace.cpu_addr,
 					priv->testmode_trace.dma_addr);
@@ -484,7 +484,7 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 	struct iwl_priv *priv = hw->priv;
 	struct sk_buff *skb;
 	int status = 0;
-	struct device *dev = priv->bus->dev;
+	struct device *dev = bus(priv)->dev;
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:
@@ -641,7 +641,7 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
  * @data: pointer to user space message
  * @len: length in byte of @data
  */
-int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
+int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 {
 	struct nlattr *tb[IWL_TM_ATTR_MAX];
 	struct iwl_priv *priv = hw->priv;
@@ -706,7 +706,7 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	return result;
 }
 
-int iwl_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 		      struct netlink_callback *cb,
 		      void *data, int len)
 {

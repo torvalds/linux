@@ -165,7 +165,6 @@ struct iwl_mod_params {
  * @rx_chains_num: Number of RX chains
  * @valid_tx_ant: usable antennas for TX
  * @valid_rx_ant: usable antennas for RX
- * @max_stations: the maximal number of stations
  * @ht40_channel: is 40MHz width possible: BIT(IEEE80211_BAND_XXX)
  * @sku: sku read from EEPROM
  * @rx_page_order: Rx buffer page order
@@ -186,7 +185,6 @@ struct iwl_hw_params {
 	u8  rx_chains_num;
 	u8  valid_tx_ant;
 	u8  valid_rx_ant;
-	u8  max_stations;
 	u8  ht40_channel;
 	bool shadow_reg_enable;
 	u16 sku;

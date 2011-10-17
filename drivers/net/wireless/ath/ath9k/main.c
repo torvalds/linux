@@ -273,7 +273,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 	ath9k_cmn_update_txpow(ah, sc->curtxpow,
 			       sc->config.txpowlimit, &sc->curtxpow);
-	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
 
 	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL)) && start) {
@@ -679,6 +679,16 @@ void ath9k_tasklet(unsigned long data)
 
 	if ((status & ATH9K_INT_FATAL) ||
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
+#ifdef CONFIG_ATH9K_DEBUGFS
+		enum ath_reset_type type;
+
+		if (status & ATH9K_INT_FATAL)
+			type = RESET_TYPE_FATAL_INT;
+		else
+			type = RESET_TYPE_BB_WATCHDOG;
+
+		RESET_STAT_INC(sc, type);
+#endif
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		goto out;
 	}
@@ -823,7 +833,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	if (status & ATH9K_INT_RXEOL) {
 		ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
-		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_set_interrupts(ah);
 	}
 
 	if (status & ATH9K_INT_MIB) {
@@ -995,8 +1005,10 @@ void ath_hw_check(struct work_struct *work)
 	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
 		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
 	if (busy >= 99) {
-		if (++sc->hw_busy_count >= 3)
+		if (++sc->hw_busy_count >= 3) {
+			RESET_STAT_INC(sc, RESET_TYPE_BB_HANG);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+		}
 
 	} else if (busy >= 0)
 		sc->hw_busy_count = 0;
@@ -1016,6 +1028,7 @@ static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
 			/* Rx is hung for more than 500ms. Reset it */
 			ath_dbg(common, ATH_DBG_RESET,
 				"Possible RX hang, resetting");
+			RESET_STAT_INC(sc, RESET_TYPE_PLL_HANG);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 			count = 0;
 		}
@@ -1396,7 +1409,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 		ah->imask &= ~ATH9K_INT_TSFOOR;
 	}
 
-	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_hw_set_interrupts(ah);
 
 	/* Set up ANI */
 	if (iter_data.naps > 0) {
@@ -1571,7 +1584,7 @@ static void ath9k_enable_ps(struct ath_softc *sc)
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
 		if ((ah->imask & ATH9K_INT_TIM_TIMER) == 0) {
 			ah->imask |= ATH9K_INT_TIM_TIMER;
-			ath9k_hw_set_interrupts(ah, ah->imask);
+			ath9k_hw_set_interrupts(ah);
 		}
 		ath9k_hw_setrxabort(ah, 1);
 	}
@@ -1591,7 +1604,7 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 				  PS_WAIT_FOR_TX_ACK);
 		if (ah->imask & ATH9K_INT_TIM_TIMER) {
 			ah->imask &= ~ATH9K_INT_TIM_TIMER;
-			ath9k_hw_set_interrupts(ah, ah->imask);
+			ath9k_hw_set_interrupts(ah);
 		}
 	}
 

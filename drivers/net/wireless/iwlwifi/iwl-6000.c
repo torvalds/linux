@@ -39,11 +39,8 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-sta.h"
 #include "iwl-agn.h"
-#include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
-#include "iwl-6000-hw.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
 #include "iwl-cfg.h"
@@ -147,7 +144,6 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
-	hw_params(priv).max_stations = IWLAGN_STATION_COUNT;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	hw_params(priv).max_data_size = IWL60_RTC_DATA_SIZE;
@@ -188,7 +184,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 {
 	/*
 	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
+	 * See iwlagn_mac_channel_switch.
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl6000_channel_switch_cmd cmd;
@@ -390,6 +386,12 @@ struct iwl_cfg iwl6005_2bg_cfg = {
 
 struct iwl_cfg iwl6005_2agn_sff_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6205S AGN",
+	IWL_DEVICE_6005,
+	.ht_params = &iwl6000_ht_params,
+};
+
+struct iwl_cfg iwl6005_2agn_d_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6205D AGN",
 	IWL_DEVICE_6005,
 	.ht_params = &iwl6000_ht_params,
 };

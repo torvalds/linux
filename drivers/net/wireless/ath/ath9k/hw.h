@@ -46,7 +46,7 @@
 #define AR9300_DEVID_AR9340	0x0031
 #define AR9300_DEVID_AR9485_PCIE 0x0032
 #define AR9300_DEVID_AR9580	0x0033
-#define AR9300_DEVID_AR9480	0x0034
+#define AR9300_DEVID_AR9462	0x0034
 #define AR9300_DEVID_AR9330	0x0035
 
 #define AR5416_AR9100_DEVID	0x000b
@@ -202,6 +202,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_2GHZ			= BIT(13),
 	ATH9K_HW_CAP_5GHZ			= BIT(14),
 	ATH9K_HW_CAP_APM			= BIT(15),
+	ATH9K_HW_CAP_RTT			= BIT(16),
 };
 
 struct ath9k_hw_capabilities {
@@ -337,6 +338,16 @@ enum ath9k_int {
 	 CHANNEL_HT40PLUS |			\
 	 CHANNEL_HT40MINUS)
 
+#define MAX_RTT_TABLE_ENTRY     6
+#define RTT_HIST_MAX            3
+struct ath9k_rtt_hist {
+	u32 table[AR9300_MAX_CHAINS][RTT_HIST_MAX][MAX_RTT_TABLE_ENTRY];
+	u8 num_readings;
+};
+
+#define MAX_IQCAL_MEASUREMENT	8
+#define MAX_CL_TAB_ENTRY	16
+
 struct ath9k_hw_cal_data {
 	u16 channel;
 	u32 channelFlags;
@@ -346,9 +357,15 @@ struct ath9k_hw_cal_data {
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;
+	bool done_txiqcal_once;
+	bool done_txclcal_once;
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
+	u32 num_measures[AR9300_MAX_CHAINS];
+	int tx_corr_coeff[MAX_IQCAL_MEASUREMENT][AR9300_MAX_CHAINS];
+	u32 tx_clcal[AR9300_MAX_CHAINS][MAX_CL_TAB_ENTRY];
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ath9k_rtt_hist rtt_hist;
 };
 
 struct ath9k_channel {
@@ -388,14 +405,6 @@ enum ath9k_power_mode {
 	ATH9K_PM_FULL_SLEEP,
 	ATH9K_PM_NETWORK_SLEEP,
 	ATH9K_PM_UNDEFINED
-};
-
-enum ath9k_tp_scale {
-	ATH9K_TP_SCALE_MAX = 0,
-	ATH9K_TP_SCALE_50,
-	ATH9K_TP_SCALE_25,
-	ATH9K_TP_SCALE_12,
-	ATH9K_TP_SCALE_MIN
 };
 
 enum ser_reg_mode {
@@ -591,6 +600,8 @@ struct ath_hw_private_ops {
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 	void (*set_radar_params)(struct ath_hw *ah,
 				 struct ath_hw_radar_conf *conf);
+	int (*fast_chan_change)(struct ath_hw *ah, struct ath9k_channel *chan,
+				u8 *ini_reloaded);
 
 	/* ANI */
 	void (*ani_cache_ini_regs)(struct ath_hw *ah);
@@ -632,9 +643,16 @@ struct ath_nf_limits {
 	s16 nominal;
 };
 
+enum ath_cal_list {
+	TX_IQ_CAL         =	BIT(0),
+	TX_IQ_ON_AGC_CAL  =	BIT(1),
+	TX_CL_CAL         =	BIT(2),
+};
+
 /* ah_flags */
 #define AH_USE_EEPROM   0x1
 #define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
+#define AH_FASTCC       0x4
 
 struct ath_hw {
 	struct ath_ops reg_ops;
@@ -692,6 +710,7 @@ struct ath_hw {
 	atomic_t intr_ref_cnt;
 	bool chip_fullsleep;
 	u32 atim_window;
+	u32 modes_index;
 
 	/* Calibration */
 	u32 supp_cals;
@@ -730,6 +749,7 @@ struct ath_hw {
 		int32_t sign[AR5416_MAX_CHAINS];
 	} meas3;
 	u16 cal_samples;
+	u8 enabled_cals;
 
 	u32 sta_id1_defaults;
 	u32 misc_mode;
@@ -968,6 +988,7 @@ void ath9k_hw_htc_resetinit(struct ath_hw *ah);
 /* PHY */
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
+void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan);
 
 /*
  * Code Specific to AR5008, AR9001 or AR9002,

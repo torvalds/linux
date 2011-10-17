@@ -134,11 +134,6 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 	/* Override the REF CLK from the NVS with the one from platform data */
 	gen_parms->general_params.ref_clock = wl->ref_clock;
 
-	/* LPD mode enable (bits 6-7) in WL1271 AP mode only */
-	if (wl->quirks & WL12XX_QUIRK_LPD_MODE)
-		gen_parms->general_params.general_settings |=
-			GENERAL_SETTINGS_DRPW_LPD;
-
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
 		wl1271_warning("CMD_INI_FILE_GENERAL_PARAM failed");
@@ -1697,6 +1692,64 @@ int wl12xx_croc(struct wl1271 *wl, u8 role_id)
 		goto out;
 
 	__clear_bit(role_id, wl->roc_map);
+out:
+	return ret;
+}
+
+int wl12xx_cmd_channel_switch(struct wl1271 *wl,
+			      struct ieee80211_channel_switch *ch_switch)
+{
+	struct wl12xx_cmd_channel_switch *cmd;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "cmd channel switch");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->channel = ch_switch->channel->hw_value;
+	cmd->switch_time = ch_switch->count;
+	cmd->tx_suspend = ch_switch->block_tx;
+	cmd->flush = 0; /* this value is ignored by the FW */
+
+	ret = wl1271_cmd_send(wl, CMD_CHANNEL_SWITCH, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send channel switch command");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}
+
+int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_stop_channel_switch *cmd;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "cmd stop channel switch");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = wl1271_cmd_send(wl, CMD_STOP_CHANNEL_SWICTH, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to stop channel switch command");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
 out:
 	return ret;
 }

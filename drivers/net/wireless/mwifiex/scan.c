@@ -172,29 +172,6 @@ mwifiex_ssid_cmp(struct mwifiex_802_11_ssid *ssid1,
 }
 
 /*
- * Sends IOCTL request to start a scan with user configurations.
- *
- * This function allocates the IOCTL request buffer, fills it
- * with requisite parameters and calls the IOCTL handler.
- *
- * Upon completion, it also generates a wireless event to notify
- * applications.
- */
-int mwifiex_set_user_scan_ioctl(struct mwifiex_private *priv,
-				struct mwifiex_user_scan_cfg *scan_req)
-{
-	int status;
-
-	priv->adapter->cmd_wait_q.condition = false;
-
-	status = mwifiex_scan_networks(priv, scan_req);
-	if (!status)
-		status = mwifiex_wait_queue_complete(priv->adapter);
-
-	return status;
-}
-
-/*
  * This function checks if wapi is enabled in driver and scanned network is
  * compatible with it.
  */
@@ -1316,8 +1293,8 @@ mwifiex_radio_type_to_band(u8 radio_type)
  * order to send the appropriate scan commands to firmware to populate or
  * update the internal driver scan table.
  */
-int mwifiex_scan_networks(struct mwifiex_private *priv,
-			  const struct mwifiex_user_scan_cfg *user_scan_in)
+static int mwifiex_scan_networks(struct mwifiex_private *priv,
+		const struct mwifiex_user_scan_cfg *user_scan_in)
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -1380,6 +1357,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 			list_del(&cmd_node->list);
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 									flags);
+			adapter->cmd_queued = cmd_node;
 			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
 							true);
 		} else {
@@ -1395,6 +1373,29 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	kfree(scan_cfg_out);
 	kfree(scan_chan_list);
 	return ret;
+}
+
+/*
+ * Sends IOCTL request to start a scan with user configurations.
+ *
+ * This function allocates the IOCTL request buffer, fills it
+ * with requisite parameters and calls the IOCTL handler.
+ *
+ * Upon completion, it also generates a wireless event to notify
+ * applications.
+ */
+int mwifiex_set_user_scan_ioctl(struct mwifiex_private *priv,
+				struct mwifiex_user_scan_cfg *scan_req)
+{
+	int status;
+
+	priv->adapter->scan_wait_q_woken = false;
+
+	status = mwifiex_scan_networks(priv, scan_req);
+	if (!status)
+		status = mwifiex_wait_queue_complete(priv->adapter);
+
+	return status;
 }
 
 /*
@@ -1788,7 +1789,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		/* Need to indicate IOCTL complete */
 		if (adapter->curr_cmd->wait_q_enabled) {
 			adapter->cmd_wait_q.status = 0;
-			mwifiex_complete_cmd(adapter);
+			mwifiex_complete_cmd(adapter, adapter->curr_cmd);
 		}
 		if (priv->report_scan_result)
 			priv->report_scan_result = false;
@@ -1845,6 +1846,7 @@ mwifiex_queue_scan_cmd(struct mwifiex_private *priv,
 	unsigned long flags;
 
 	cmd_node->wait_q_enabled = true;
+	cmd_node->condition = &adapter->scan_wait_q_woken;
 	spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
 	list_add_tail(&cmd_node->list, &adapter->scan_pending_q);
 	spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
@@ -1911,7 +1913,7 @@ int mwifiex_request_scan(struct mwifiex_private *priv,
 	}
 	priv->scan_pending_on_block = true;
 
-	priv->adapter->cmd_wait_q.condition = false;
+	priv->adapter->scan_wait_q_woken = false;
 
 	if (req_ssid && req_ssid->ssid_len != 0)
 		/* Specific SSID scan */

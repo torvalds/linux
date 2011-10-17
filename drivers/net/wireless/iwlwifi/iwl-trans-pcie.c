@@ -406,6 +406,7 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	enum dma_data_direction dma_dir;
+	unsigned long flags;
 
 	if (!q->n_bd)
 		return;
@@ -418,12 +419,14 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	else
 		dma_dir = DMA_TO_DEVICE;
 
+	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
 	while (q->write_ptr != q->read_ptr) {
 		/* The read_ptr needs to bound by q->n_window */
 		iwlagn_txq_free_tfd(trans, txq, get_cmd_index(q, q->read_ptr),
 				    dma_dir);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
+	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 }
 
 /**
@@ -1077,7 +1080,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		txq_id =
 		    trans_pcie->ac_to_queue[ctx][skb_get_queue_mapping(skb)];
 
-	if (ieee80211_is_data_qos(fc)) {
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		u8 *qc = NULL;
 		struct iwl_tid_data *tid_data;
 		qc = ieee80211_get_qos_ctl(hdr);
@@ -1095,7 +1098,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-			WARN_ON(tid_data->agg.state != IWL_AGG_ON);
+			WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON);
 			txq_id = tid_data->agg.txq_id;
 			is_agg = true;
 		}
@@ -1206,7 +1209,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(trans, txq);
 
-	if (ieee80211_is_data_qos(fc)) {
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		trans->shrd->tid_data[sta_id][tid].tfds_in_queue++;
 		if (!ieee80211_has_morefrags(fc))
 			trans->shrd->tid_data[sta_id][tid].seq_number =
@@ -1369,16 +1372,22 @@ static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 {
 	/*
 	 * This function is called when system goes into suspend state
-	 * mac80211 will call iwl_mac_stop() from the mac80211 suspend function
-	 * first but since iwl_mac_stop() has no knowledge of who the caller is,
+	 * mac80211 will call iwlagn_mac_stop() from the mac80211 suspend
+	 * function first but since iwlagn_mac_stop() has no knowledge of
+	 * who the caller is,
 	 * it will not call apm_ops.stop() to stop the DMA operation.
 	 * Calling apm_ops.stop here to make sure we stop the DMA.
 	 *
 	 * But of course ... if we have configured WoWLAN then we did other
 	 * things already :-)
 	 */
-	if (!trans->shrd->wowlan)
+	if (!trans->shrd->wowlan) {
 		iwl_apm_stop(priv(trans));
+	} else {
+		iwl_disable_interrupts(trans);
+		iwl_clear_bit(bus(trans), CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	}
 
 	return 0;
 }

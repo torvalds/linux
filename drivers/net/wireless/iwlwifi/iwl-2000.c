@@ -39,11 +39,8 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-sta.h"
 #include "iwl-agn.h"
-#include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
-#include "iwl-6000-hw.h"
 #include "iwl-shared.h"
 #include "iwl-cfg.h"
 
@@ -127,7 +124,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
-	hw_params(priv).max_stations = IWLAGN_STATION_COUNT;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	hw_params(priv).max_data_size = IWL60_RTC_DATA_SIZE;
@@ -337,6 +333,12 @@ struct iwl_cfg iwl105_bg_cfg = {
 
 struct iwl_cfg iwl105_bgn_cfg = {
 	.name = "105 Series 1x1 BGN",
+	IWL_DEVICE_105,
+	.ht_params = &iwl2000_ht_params,
+};
+
+struct iwl_cfg iwl105_bgn_d_cfg = {
+	.name = "105D Series 1x1 BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };

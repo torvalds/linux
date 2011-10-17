@@ -89,6 +89,7 @@ struct iwl_priv;
 enum {
 	REPLY_ALIVE = 0x1,
 	REPLY_ERROR = 0x2,
+	REPLY_ECHO = 0x3,		/* test command */
 
 	/* RXON and QOS commands */
 	REPLY_RXON = 0x10,
@@ -3213,6 +3214,16 @@ enum iwl_ucode_calib_cfg {
 					IWL_CALIB_CFG_LO_IDX |		\
 					IWL_CALIB_CFG_TX_IQ_IDX |	\
 					IWL_CALIB_CFG_RX_IQ_IDX |	\
+					IWL_CALIB_CFG_CRYSTAL_IDX)
+
+#define IWL_CALIB_RT_CFG_ALL	cpu_to_le32(IWL_CALIB_CFG_RX_BB_IDX |	\
+					IWL_CALIB_CFG_DC_IDX |		\
+					IWL_CALIB_CFG_LO_IDX |		\
+					IWL_CALIB_CFG_TX_IQ_IDX |	\
+					IWL_CALIB_CFG_RX_IQ_IDX |	\
+					IWL_CALIB_CFG_TEMPERATURE_IDX |	\
+					IWL_CALIB_CFG_PAPD_IDX |	\
+					IWL_CALIB_CFG_TX_PWR_IDX |	\
 					IWL_CALIB_CFG_CRYSTAL_IDX)
 
 #define IWL_CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_MSK	cpu_to_le32(BIT(0))

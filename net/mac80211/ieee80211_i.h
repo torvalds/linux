@@ -136,7 +136,6 @@ typedef unsigned __bitwise__ ieee80211_tx_result;
 #define TX_DROP		((__force ieee80211_tx_result) 1u)
 #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
 
-#define IEEE80211_TX_FRAGMENTED		BIT(0)
 #define IEEE80211_TX_UNICAST		BIT(1)
 #define IEEE80211_TX_PS_BUFFERED	BIT(2)
 
@@ -149,7 +148,6 @@ struct ieee80211_tx_data {
 
 	struct ieee80211_channel *channel;
 
-	u16 ethertype;
 	unsigned int flags;
 };
 
@@ -346,6 +344,7 @@ struct ieee80211_work {
 		struct {
 			struct sk_buff *frame;
 			u32 wait;
+			bool status;
 		} offchan_tx;
 	};
 
@@ -1177,18 +1176,6 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 					 struct net_device *dev);
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev);
-
-/*
- * radiotap header for status frames
- */
-struct ieee80211_tx_status_rtap_hdr {
-	struct ieee80211_radiotap_header hdr;
-	u8 rate;
-	u8 padding_for_rate;
-	__le16 tx_flags;
-	u8 data_retries;
-} __packed;
-
 
 /* HT */
 void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,

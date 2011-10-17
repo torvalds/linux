@@ -33,7 +33,6 @@
 /*TODO: Remove include to iwl-core.h*/
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-helpers.h"
 #include "iwl-trans-pcie-int.h"
 
 /******************************************************************************

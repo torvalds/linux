@@ -285,7 +285,7 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 			(val & AR_SREV_VERSION2) >> AR_SREV_TYPE2_S;
 		ah->hw_version.macRev = MS(val, AR_SREV_REVISION2);
 
-		if (AR_SREV_9480(ah))
+		if (AR_SREV_9462(ah))
 			ah->is_pciexpress = true;
 		else
 			ah->is_pciexpress = (val &
@@ -433,7 +433,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 
 	regulatory->country_code = CTRY_DEFAULT;
 	regulatory->power_limit = MAX_RATE_POWER;
-	regulatory->tp_scale = ATH9K_TP_SCALE_MAX;
 
 	ah->hw_version.magic = AR5416_MAGIC;
 	ah->hw_version.subvendorid = 0;
@@ -542,6 +541,9 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		return -EIO;
 	}
 
+	if (AR_SREV_9462(ah))
+		ah->WARegVal &= ~AR_WA_D3_L1_DISABLE;
+
 	ath9k_hw_init_defaults(ah);
 	ath9k_hw_init_config(ah);
 
@@ -585,7 +587,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	case AR_SREV_VERSION_9330:
 	case AR_SREV_VERSION_9485:
 	case AR_SREV_VERSION_9340:
-	case AR_SREV_VERSION_9480:
+	case AR_SREV_VERSION_9462:
 		break;
 	default:
 		ath_err(common,
@@ -670,7 +672,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9330:
 	case AR9300_DEVID_AR9340:
 	case AR9300_DEVID_AR9580:
-	case AR9300_DEVID_AR9480:
+	case AR9300_DEVID_AR9462:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -1389,11 +1391,17 @@ static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 static bool ath9k_hw_channel_change(struct ath_hw *ah,
 				    struct ath9k_channel *chan)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *channel = chan->chan;
 	u32 qnum;
 	int r;
+	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
+	bool band_switch, mode_diff;
+	u8 ini_reloaded;
+
+	band_switch = (chan->channelFlags & (CHANNEL_2GHZ | CHANNEL_5GHZ)) !=
+		      (ah->curchan->channelFlags & (CHANNEL_2GHZ |
+						    CHANNEL_5GHZ));
+	mode_diff = (chan->chanmode != ah->curchan->chanmode);
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
 		if (ath9k_hw_numtxpending(ah, qnum)) {
@@ -1408,6 +1416,18 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 		return false;
 	}
 
+	if (edma && (band_switch || mode_diff)) {
+		ath9k_hw_mark_phy_inactive(ah);
+		udelay(5);
+
+		ath9k_hw_init_pll(ah, NULL);
+
+		if (ath9k_hw_fast_chan_change(ah, chan, &ini_reloaded)) {
+			ath_err(common, "Failed to do fast channel change\n");
+			return false;
+		}
+	}
+
 	ath9k_hw_set_channel_regs(ah, chan);
 
 	r = ath9k_hw_rf_set_freq(ah, chan);
@@ -1416,20 +1436,25 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 		return false;
 	}
 	ath9k_hw_set_clockrate(ah);
-
-	ah->eep_ops->set_txpower(ah, chan,
-			     ath9k_regd_get_ctl(regulatory, chan),
-			     channel->max_antenna_gain * 2,
-			     channel->max_power * 2,
-			     min((u32) MAX_RATE_POWER,
-			     (u32) regulatory->power_limit), false);
-
+	ath9k_hw_apply_txpower(ah, chan);
 	ath9k_hw_rfbus_done(ah);
 
 	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
 		ath9k_hw_set_delta_slope(ah, chan);
 
 	ath9k_hw_spur_mitigate_freq(ah, chan);
+
+	if (edma && (band_switch || mode_diff)) {
+		ah->ah_flags |= AH_FASTCC;
+		if (band_switch || ini_reloaded)
+			ah->eep_ops->set_board_values(ah, chan);
+
+		ath9k_hw_init_bb(ah, chan);
+
+		if (band_switch || ini_reloaded)
+			ath9k_hw_init_cal(ah, chan);
+		ah->ah_flags &= ~AH_FASTCC;
+	}
 
 	return true;
 }
@@ -1486,6 +1511,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u32 macStaId1;
 	u64 tsf = 0;
 	int i, r;
+	bool allow_fbs = false;
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return -EIO;
@@ -1504,16 +1530,22 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 	ah->noise = ath9k_hw_getchan_noise(ah, chan);
 
-	if ((AR_SREV_9280(ah) && common->bus_ops->ath_bus_type == ATH_PCI) ||
-	    (AR_SREV_9300_20_OR_LATER(ah) && IS_CHAN_5GHZ(chan)))
+	if (AR_SREV_9280(ah) && common->bus_ops->ath_bus_type == ATH_PCI)
 		bChannelChange = false;
+
+	if (caldata &&
+	    caldata->done_txiqcal_once &&
+	    caldata->done_txclcal_once &&
+	    caldata->rtt_hist.num_readings)
+		allow_fbs = true;
 
 	if (bChannelChange &&
 	    (ah->chip_fullsleep != true) &&
 	    (ah->curchan != NULL) &&
 	    (chan->channel != ah->curchan->channel) &&
-	    ((chan->channelFlags & CHANNEL_ALL) ==
-	     (ah->curchan->channelFlags & CHANNEL_ALL))) {
+	    (allow_fbs ||
+	     ((chan->channelFlags & CHANNEL_ALL) ==
+	      (ah->curchan->channelFlags & CHANNEL_ALL)))) {
 		if (ath9k_hw_channel_change(ah, chan)) {
 			ath9k_hw_loadnf(ah, ah->curchan);
 			ath9k_hw_start_nfcal(ah, true);
@@ -1684,6 +1716,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_init_bb(ah, chan);
 
+	if (caldata) {
+		caldata->done_txiqcal_once = false;
+		caldata->done_txclcal_once = false;
+		caldata->rtt_hist.num_readings = 0;
+	}
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;
 
@@ -1753,7 +1790,7 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 {
 	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	if (setChip) {
-		if (AR_SREV_9480(ah)) {
+		if (AR_SREV_9462(ah)) {
 			REG_WRITE(ah, AR_TIMER_MODE,
 				  REG_READ(ah, AR_TIMER_MODE) & 0xFFFFFF00);
 			REG_WRITE(ah, AR_NDP2_TIMER_MODE, REG_READ(ah,
@@ -1771,7 +1808,7 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 		 */
 		REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN);
 
-		if (AR_SREV_9480(ah))
+		if (AR_SREV_9462(ah))
 			udelay(100);
 
 		if (!AR_SREV_9100(ah) && !AR_SREV_9300_20_OR_LATER(ah))
@@ -1779,15 +1816,14 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 
 		/* Shutdown chip. Active low */
 		if (!AR_SREV_5416(ah) &&
-				!AR_SREV_9271(ah) && !AR_SREV_9480_10(ah)) {
+				!AR_SREV_9271(ah) && !AR_SREV_9462_10(ah)) {
 			REG_CLR_BIT(ah, AR_RTC_RESET, AR_RTC_RESET_EN);
 			udelay(2);
 		}
 	}
 
 	/* Clear Bit 14 of AR_WA after putting chip into Full Sleep mode. */
-	if (!AR_SREV_9480(ah))
-		REG_WRITE(ah, AR_WA, ah->WARegVal & ~AR_WA_D3_L1_DISABLE);
+	REG_WRITE(ah, AR_WA, ah->WARegVal & ~AR_WA_D3_L1_DISABLE);
 }
 
 /*
@@ -1818,7 +1854,7 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 			 * SYS_WAKING and SYS_SLEEPING messages which will make
 			 * BT CPU to busy to process.
 			 */
-			if (AR_SREV_9480(ah)) {
+			if (AR_SREV_9462(ah)) {
 				val = REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_EN) &
 					~AR_MCI_INTERRUPT_RX_HW_MSG_MASK;
 				REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_EN, val);
@@ -1830,7 +1866,7 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 			REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE,
 				    AR_RTC_FORCE_WAKE_EN);
 
-			if (AR_SREV_9480(ah))
+			if (AR_SREV_9462(ah))
 				udelay(30);
 		}
 	}
@@ -2082,11 +2118,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
 	regulatory->current_rd = eeval;
 
-	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_1);
-	if (AR_SREV_9285_12_OR_LATER(ah))
-		eeval |= AR9285_RDEXT_DEFAULT;
-	regulatory->current_rd_ext = eeval;
-
 	if (ah->opmode != NL80211_IFTYPE_AP &&
 	    ah->hw_version.subvendorid == AR_SUBVENDOR_ID_NEW_A) {
 		if (regulatory->current_rd == 0x64 ||
@@ -2294,6 +2325,14 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		rx_chainmask >>= 1;
 	}
 
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		ah->enabled_cals |= TX_IQ_CAL;
+		if (!AR_SREV_9330(ah))
+			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
+	}
+	if (AR_SREV_9462(ah))
+		pCap->hw_caps |= ATH9K_HW_CAP_RTT;
+
 	return 0;
 }
 
@@ -2454,7 +2493,7 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits)
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
-	if (AR_SREV_9480(ah))
+	if (AR_SREV_9462(ah))
 		bits |= ATH9K_RX_FILTER_CONTROL_WRAPPER;
 
 	REG_WRITE(ah, AR_RX_FILTER, bits);
@@ -2498,23 +2537,56 @@ bool ath9k_hw_disable(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_disable);
 
-void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test)
+static int get_antenna_gain(struct ath_hw *ah, struct ath9k_channel *chan)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
-	struct ath9k_channel *chan = ah->curchan;
-	struct ieee80211_channel *channel = chan->chan;
-	int reg_pwr = min_t(int, MAX_RATE_POWER, limit);
-	int chan_pwr = channel->max_power * 2;
+	enum eeprom_param gain_param;
 
-	if (test)
-		reg_pwr = chan_pwr = MAX_RATE_POWER;
+	if (IS_CHAN_2GHZ(chan))
+		gain_param = EEP_ANTENNA_GAIN_2G;
+	else
+		gain_param = EEP_ANTENNA_GAIN_5G;
 
-	regulatory->power_limit = reg_pwr;
+	return ah->eep_ops->get_eeprom(ah, gain_param);
+}
+
+void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+	struct ieee80211_channel *channel;
+	int chan_pwr, new_pwr, max_gain;
+	int ant_gain, ant_reduction = 0;
+
+	if (!chan)
+		return;
+
+	channel = chan->chan;
+	chan_pwr = min_t(int, channel->max_power * 2, MAX_RATE_POWER);
+	new_pwr = min_t(int, chan_pwr, reg->power_limit);
+	max_gain = chan_pwr - new_pwr + channel->max_antenna_gain * 2;
+
+	ant_gain = get_antenna_gain(ah, chan);
+	if (ant_gain > max_gain)
+		ant_reduction = ant_gain - max_gain;
 
 	ah->eep_ops->set_txpower(ah, chan,
-				 ath9k_regd_get_ctl(regulatory, chan),
-				 channel->max_antenna_gain * 2,
-				 chan_pwr, reg_pwr, test);
+				 ath9k_regd_get_ctl(reg, chan),
+				 ant_reduction, new_pwr, false);
+}
+
+void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test)
+{
+	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+	struct ath9k_channel *chan = ah->curchan;
+	struct ieee80211_channel *channel = chan->chan;
+
+	reg->power_limit = min_t(int, limit, MAX_RATE_POWER);
+	if (test)
+		channel->max_power = MAX_RATE_POWER / 2;
+
+	ath9k_hw_apply_txpower(ah, chan);
+
+	if (test)
+		channel->max_power = DIV_ROUND_UP(reg->max_power_level, 2);
 }
 EXPORT_SYMBOL(ath9k_hw_set_txpowerlimit);
 
@@ -2713,9 +2785,9 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 	REG_SET_BIT(ah, gen_tmr_configuration[timer->index].mode_addr,
 		    gen_tmr_configuration[timer->index].mode_mask);
 
-	if (AR_SREV_9480(ah)) {
+	if (AR_SREV_9462(ah)) {
 		/*
-		 * Starting from AR9480, each generic timer can select which tsf
+		 * Starting from AR9462, each generic timer can select which tsf
 		 * to use. But we still follow the old rule, 0 - 7 use tsf and
 		 * 8 - 15  use tsf2.
 		 */
@@ -2832,7 +2904,7 @@ static struct {
 	{ AR_SREV_VERSION_9330,         "9330" },
 	{ AR_SREV_VERSION_9340,		"9340" },
 	{ AR_SREV_VERSION_9485,         "9485" },
-	{ AR_SREV_VERSION_9480,         "9480" },
+	{ AR_SREV_VERSION_9462,         "9462" },
 };
 
 /* For devices with external radios */

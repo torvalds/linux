@@ -2344,6 +2344,10 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 
 		nla_nest_end(msg, bss_param);
 	}
+	if (sinfo->filled & STATION_INFO_STA_FLAGS)
+		NLA_PUT(msg, NL80211_STA_INFO_STA_FLAGS,
+			sizeof(struct nl80211_sta_flag_update),
+			&sinfo->sta_flags);
 	nla_nest_end(msg, sinfoattr);
 
 	if (sinfo->filled & STATION_INFO_ASSOC_REQ_IES)

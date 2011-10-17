@@ -656,6 +656,7 @@ struct acx_rate_class {
 
 #define ACX_TX_BASIC_RATE      0
 #define ACX_TX_AP_FULL_RATE    1
+#define ACX_TX_BASIC_RATE_P2P  2
 #define ACX_TX_AP_MODE_MGMT_RATE 4
 #define ACX_TX_AP_MODE_BCST_RATE 5
 struct acx_rate_policy {

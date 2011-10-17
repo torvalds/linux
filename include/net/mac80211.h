@@ -349,8 +349,6 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_INTFL_RETRANSMISSION: This frame is being retransmitted
  *	after TX status because the destination was asleep, it must not
  *	be modified again (no seqno assignment, crypto, etc.)
- * @IEEE80211_TX_INTFL_HAS_RADIOTAP: This frame was injected and still
- *	has a radiotap header at skb->data.
  * @IEEE80211_TX_INTFL_NL80211_FRAME_TX: Frame was requested through nl80211
  *	MLME command (internal to mac80211 to figure out whether to send TX
  *	status to user space)
@@ -375,6 +373,9 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_USE_MINRATE: This frame will be sent at lowest rate.
  *	This flag is used to send nullfunc frame at minimum rate when
  *	the nullfunc is used for connection monitoring purpose.
+ * @IEEE80211_TX_CTL_DONTFRAG: Don't fragment this packet even if it
+ *	would be fragmented by size (this is optional, only used for
+ *	monitor injection).
  *
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
@@ -399,7 +400,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_POLL_RESPONSE		= BIT(17),
 	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
 	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
-	IEEE80211_TX_INTFL_HAS_RADIOTAP		= BIT(20),
+	/* hole at 20, use later */
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
 	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
@@ -408,6 +409,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_NO_CCK_RATE		= BIT(27),
 	IEEE80211_TX_STATUS_EOSP		= BIT(28),
 	IEEE80211_TX_CTL_USE_MINRATE		= BIT(29),
+	IEEE80211_TX_CTL_DONTFRAG		= BIT(30),
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
@@ -2520,7 +2522,7 @@ static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
  * The TX headroom reserved by mac80211 for its own tx_status functions.
  * This is enough for the radiotap header.
  */
-#define IEEE80211_TX_STATUS_HEADROOM	13
+#define IEEE80211_TX_STATUS_HEADROOM	14
 
 /**
  * ieee80211_sta_set_buffered - inform mac80211 about driver-buffered frames

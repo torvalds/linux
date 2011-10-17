@@ -2995,8 +2995,6 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 		return get_unaligned_be16(eep->macAddr + 4);
 	case EEP_REG_0:
 		return le16_to_cpu(pBase->regDmn[0]);
-	case EEP_REG_1:
-		return le16_to_cpu(pBase->regDmn[1]);
 	case EEP_OP_CAP:
 		return pBase->deviceCap;
 	case EEP_OP_MODE:
@@ -3021,6 +3019,10 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 		return (pBase->miscConfiguration >> 0x3) & 0x1;
 	case EEP_ANT_DIV_CTL1:
 		return eep->base_ext1.ant_div_control;
+	case EEP_ANTENNA_GAIN_5G:
+		return eep->modalHeader5G.antennaGain;
+	case EEP_ANTENNA_GAIN_2G:
+		return eep->modalHeader2G.antennaGain;
 	default:
 		return 0;
 	}
@@ -3554,7 +3556,7 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 
 	if (AR_SREV_9485(ah) || AR_SREV_9330(ah) || AR_SREV_9340(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP2, AR_CH0_TOP2_XPABIASLVL, bias);
-	else if (AR_SREV_9480(ah))
+	else if (AR_SREV_9462(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
 	else {
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
@@ -3633,20 +3635,20 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 
 	u32 value = ar9003_hw_ant_ctrl_common_get(ah, is2ghz);
 
-	if (AR_SREV_9480(ah)) {
-		if (AR_SREV_9480_10(ah)) {
+	if (AR_SREV_9462(ah)) {
+		if (AR_SREV_9462_10(ah)) {
 			value &= ~AR_SWITCH_TABLE_COM_SPDT;
 			value |= 0x00100000;
 		}
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
-				AR_SWITCH_TABLE_COM_AR9480_ALL, value);
+				AR_SWITCH_TABLE_COM_AR9462_ALL, value);
 	} else
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 			      AR_SWITCH_TABLE_COM_ALL, value);
 
 
 	/*
-	 *   AR9480 defines new switch table for BT/WLAN,
+	 *   AR9462 defines new switch table for BT/WLAN,
 	 *       here's new field name in XXX.ref for both 2G and 5G.
 	 *   Register: [GLB_CONTROL] GLB_CONTROL (@0x20044)
 	 *   15:12   R/W     SWITCH_TABLE_COM_SPDT_WLAN_RX
@@ -3658,7 +3660,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	 *   7:4 R/W  SWITCH_TABLE_COM_SPDT_WLAN_IDLE
 	 * SWITCH_TABLE_COM_SPDT_WLAN_IDLE
 	 */
-	if (AR_SREV_9480_20_OR_LATER(ah)) {
+	if (AR_SREV_9462_20_OR_LATER(ah)) {
 		value = ar9003_switch_com_spdt_get(ah, is2ghz);
 		REG_RMW_FIELD(ah, AR_PHY_GLB_CONTROL,
 				AR_SWITCH_TABLE_COM_SPDT_ALL, value);
@@ -3907,7 +3909,7 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 			REG_WRITE(ah, AR_PHY_PMU2, reg_pmu_set);
 			if (!is_pmu_set(ah, AR_PHY_PMU2, reg_pmu_set))
 				return;
-		} else if (AR_SREV_9480(ah)) {
+		} else if (AR_SREV_9462(ah)) {
 			reg_val = ath9k_hw_ar9300_get_eeprom(ah, EEP_SWREG);
 			REG_WRITE(ah, AR_PHY_PMU1, reg_val);
 		} else {
@@ -3938,7 +3940,7 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 			while (!REG_READ_FIELD(ah, AR_PHY_PMU2,
 						AR_PHY_PMU2_PGM))
 				udelay(10);
-		} else if (AR_SREV_9480(ah))
+		} else if (AR_SREV_9462(ah))
 			REG_RMW_FIELD(ah, AR_PHY_PMU1, AR_PHY_PMU1_PWD, 0x1);
 		else {
 			reg_val = REG_READ(ah, AR_RTC_SLEEP_CLK) |
@@ -4525,7 +4527,7 @@ static int ar9003_hw_power_control_override(struct ath_hw *ah,
 
 	REG_RMW_FIELD(ah, AR_PHY_TPC_19, AR_PHY_TPC_19_ALPHA_THERM, tempSlope);
 
-	if (AR_SREV_9480_20(ah))
+	if (AR_SREV_9462_20(ah))
 		REG_RMW_FIELD(ah, AR_PHY_TPC_19_B1,
 			      AR_PHY_TPC_19_B1_ALPHA_THERM, tempSlope);
 
@@ -4764,20 +4766,14 @@ static u16 ar9003_hw_get_max_edge_power(struct ar9300_eeprom *eep,
 static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 					       struct ath9k_channel *chan,
 					       u8 *pPwrArray, u16 cfgCtl,
-					       u8 twiceAntennaReduction,
-					       u8 twiceMaxRegulatoryPower,
+					       u8 antenna_reduction,
 					       u16 powerLimit)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ar9300_eeprom *pEepData = &ah->eeprom.ar9300_eep;
 	u16 twiceMaxEdgePower = MAX_RATE_POWER;
-	static const u16 tpScaleReductionTable[5] = {
-		0, 3, 6, 9, MAX_RATE_POWER
-	};
 	int i;
-	int16_t  twiceLargestAntenna;
-	u16 scaledPower = 0, minCtlPower, maxRegAllowedPower;
+	u16 scaledPower = 0, minCtlPower;
 	static const u16 ctlModesFor11a[] = {
 		CTL_11A, CTL_5GHT20, CTL_11A_EXT, CTL_5GHT40
 	};
@@ -4795,28 +4791,7 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 	bool is2ghz = IS_CHAN_2GHZ(chan);
 
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
-
-	/* Compute TxPower reduction due to Antenna Gain */
-	if (is2ghz)
-		twiceLargestAntenna = pEepData->modalHeader2G.antennaGain;
-	else
-		twiceLargestAntenna = pEepData->modalHeader5G.antennaGain;
-
-	twiceLargestAntenna = (int16_t)min((twiceAntennaReduction) -
-				twiceLargestAntenna, 0);
-
-	/*
-	 * scaledPower is the minimum of the user input power level
-	 * and the regulatory allowed power level
-	 */
-	maxRegAllowedPower = twiceMaxRegulatoryPower + twiceLargestAntenna;
-
-	if (regulatory->tp_scale != ATH9K_TP_SCALE_MAX) {
-		maxRegAllowedPower -=
-			(tpScaleReductionTable[(regulatory->tp_scale)] * 2);
-	}
-
-	scaledPower = min(powerLimit, maxRegAllowedPower);
+	scaledPower = powerLimit - antenna_reduction;
 
 	/*
 	 * Reduce scaled Power by number of chains active to get
@@ -5003,7 +4978,6 @@ static inline u8 mcsidx_to_tgtpwridx(unsigned int mcs_idx, u8 base_pwridx)
 static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					struct ath9k_channel *chan, u16 cfgCtl,
 					u8 twiceAntennaReduction,
-					u8 twiceMaxRegulatoryPower,
 					u8 powerLimit, bool test)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
@@ -5056,7 +5030,6 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	ar9003_hw_set_power_per_rate_table(ah, chan,
 					   targetPowerValT2, cfgCtl,
 					   twiceAntennaReduction,
-					   twiceMaxRegulatoryPower,
 					   powerLimit);
 
 	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {

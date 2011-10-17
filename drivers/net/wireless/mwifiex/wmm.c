@@ -1125,8 +1125,8 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	tx_param.next_pkt_len =
 		((skb_next) ? skb_next->len +
 		 sizeof(struct txpd) : 0);
-	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					   skb->data, skb->len, &tx_param);
+	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA, skb,
+					   &tx_param);
 	switch (ret) {
 	case -EBUSY:
 		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");

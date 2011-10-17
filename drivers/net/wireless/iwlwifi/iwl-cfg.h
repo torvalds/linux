@@ -79,6 +79,7 @@ extern struct iwl_cfg iwl6005_2agn_cfg;
 extern struct iwl_cfg iwl6005_2abg_cfg;
 extern struct iwl_cfg iwl6005_2bg_cfg;
 extern struct iwl_cfg iwl6005_2agn_sff_cfg;
+extern struct iwl_cfg iwl6005_2agn_d_cfg;
 extern struct iwl_cfg iwl1030_bgn_cfg;
 extern struct iwl_cfg iwl1030_bg_cfg;
 extern struct iwl_cfg iwl6030_2agn_cfg;
@@ -109,6 +110,7 @@ extern struct iwl_cfg iwl6035_2abg_cfg;
 extern struct iwl_cfg iwl6035_2bg_cfg;
 extern struct iwl_cfg iwl105_bg_cfg;
 extern struct iwl_cfg iwl105_bgn_cfg;
+extern struct iwl_cfg iwl105_bgn_d_cfg;
 extern struct iwl_cfg iwl135_bg_cfg;
 extern struct iwl_cfg iwl135_bgn_cfg;
 

@@ -1203,11 +1203,9 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	memcpy(nullfunc->addr2, sdata->vif.addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, sdata->vif.addr, ETH_ALEN);
 
+	skb->priority = tid;
+	skb_set_queue_mapping(skb, ieee802_1d_to_ac[tid]);
 	if (qos) {
-		skb->priority = tid;
-
-		skb_set_queue_mapping(skb, ieee802_1d_to_ac[tid]);
-
 		nullfunc->qos_ctrl = cpu_to_le16(tid);
 
 		if (reason == IEEE80211_FRAME_RELEASE_UAPSD)

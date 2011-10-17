@@ -1993,35 +1993,24 @@ call rtl_mac_stop() from the mac80211
 suspend function first, So there is
 no need to call hw_disable here.
 ****************************************/
-int rtl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+int rtl_pci_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->cfg->ops->hw_suspend(hw);
 	rtl_deinit_rfkill(hw);
 
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
 	return 0;
 }
 EXPORT_SYMBOL(rtl_pci_suspend);
 
-int rtl_pci_resume(struct pci_dev *pdev)
+int rtl_pci_resume(struct device *dev)
 {
-	int ret;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	pci_set_power_state(pdev, PCI_D0);
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		RT_ASSERT(false, ("ERR: <======\n"));
-		return ret;
-	}
-
-	pci_restore_state(pdev);
 
 	rtlpriv->cfg->ops->hw_resume(hw);
 	rtl_init_rfkill(hw);

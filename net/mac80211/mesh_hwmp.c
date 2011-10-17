@@ -789,10 +789,19 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 	struct ieee802_11_elems elems;
 	size_t baselen;
 	u32 last_hop_metric;
+	struct sta_info *sta;
 
 	/* need action_code */
 	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 		return;
+
+	rcu_read_lock();
+	sta = sta_info_get(sdata, mgmt->sa);
+	if (!sta || sta->plink_state != NL80211_PLINK_ESTAB) {
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
 
 	baselen = (u8 *) mgmt->u.action.u.mesh_action.variable - (u8 *) mgmt;
 	ieee802_11_parse_elems(mgmt->u.action.u.mesh_action.variable,

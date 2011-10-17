@@ -26,10 +26,8 @@
 
 #include "iwl-dev.h"
 #include "iwl-agn.h"
-#include "iwl-sta.h"
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
-#include "iwl-helpers.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
 
@@ -296,8 +294,8 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 		return ret;
 	}
 
-	if ((ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION) &&
-	    priv->cfg->ht_params->smps_mode)
+	if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION &&
+	    priv->cfg->ht_params && priv->cfg->ht_params->smps_mode)
 		ieee80211_request_smps(ctx->vif,
 				       priv->cfg->ht_params->smps_mode);
 
@@ -539,7 +537,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	const struct iwl_channel_info *ch_info;
 	int ret = 0;
 
-	IWL_DEBUG_MAC80211(priv, "changed %#x", changed);
+	IWL_DEBUG_MAC80211(priv, "enter: changed %#x", changed);
 
 	mutex_lock(&priv->shrd->mutex);
 
@@ -657,6 +655,8 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
  out:
 	mutex_unlock(&priv->shrd->mutex);
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
 	return ret;
 }
 

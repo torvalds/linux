@@ -35,9 +35,7 @@
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
-#include "iwl-sta.h"
 #include "iwl-io.h"
-#include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
@@ -113,8 +111,6 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 	tx_cmd->next_frame_len = 0;
 }
 
-#define RTS_DFAULT_RETRY_LIMIT		60
-
 static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 				     struct iwl_tx_cmd *tx_cmd,
 				     struct ieee80211_tx_info *info,
@@ -126,17 +122,25 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	u8 data_retry_limit;
 	u8 rate_plcp;
 
-	/* Set retry limit on DATA packets and Probe Responses*/
-	if (ieee80211_is_probe_resp(fc))
-		data_retry_limit = 3;
-	else
-		data_retry_limit = IWLAGN_DEFAULT_TX_RETRY;
-	tx_cmd->data_retry_limit = data_retry_limit;
+	if (priv->shrd->wowlan) {
+		rts_retry_limit = IWLAGN_LOW_RETRY_LIMIT;
+		data_retry_limit = IWLAGN_LOW_RETRY_LIMIT;
+	} else {
+		/* Set retry limit on RTS packets */
+		rts_retry_limit = IWLAGN_RTS_DFAULT_RETRY_LIMIT;
 
-	/* Set retry limit on RTS packets */
-	rts_retry_limit = RTS_DFAULT_RETRY_LIMIT;
-	if (data_retry_limit < rts_retry_limit)
-		rts_retry_limit = data_retry_limit;
+		/* Set retry limit on DATA packets and Probe Responses*/
+		if (ieee80211_is_probe_resp(fc)) {
+			data_retry_limit = IWLAGN_MGMT_DFAULT_RETRY_LIMIT;
+			rts_retry_limit =
+				min(data_retry_limit, rts_retry_limit);
+		} else if (ieee80211_is_back_req(fc))
+			data_retry_limit = IWLAGN_BAR_DFAULT_RETRY_LIMIT;
+		else
+			data_retry_limit = IWLAGN_DEFAULT_TX_RETRY;
+	}
+
+	tx_cmd->data_retry_limit = data_retry_limit;
 	tx_cmd->rts_retry_limit = rts_retry_limit;
 
 	/* DATA packets will use the uCode station table for rate/antenna

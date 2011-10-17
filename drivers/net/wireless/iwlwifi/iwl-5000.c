@@ -40,11 +40,8 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-sta.h"
-#include "iwl-helpers.h"
 #include "iwl-agn.h"
 #include "iwl-agn-hw.h"
-#include "iwl-5000-hw.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
 #include "iwl-cfg.h"
@@ -135,6 +132,21 @@ static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 	.nrg_th_cca = 62,
 };
 
+#define IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF	(-5)
+
+static s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
+{
+	u16 temperature, voltage;
+	__le16 *temp_calib = (__le16 *)iwl_eeprom_query_addr(priv,
+				EEPROM_KELVIN_TEMPERATURE);
+
+	temperature = le16_to_cpu(temp_calib[0]);
+	voltage = le16_to_cpu(temp_calib[1]);
+
+	/* offset = temp - volt / coeff */
+	return (s32)(temperature - voltage / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF);
+}
+
 static void iwl5150_set_ct_threshold(struct iwl_priv *priv)
 {
 	const s32 volt2temp_coef = IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF;
@@ -158,7 +170,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
-	hw_params(priv).max_stations = IWLAGN_STATION_COUNT;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
@@ -195,7 +206,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
-	hw_params(priv).max_stations = IWLAGN_STATION_COUNT;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
@@ -241,7 +251,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 {
 	/*
 	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
+	 * See iwlagn_mac_channel_switch.
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl5000_channel_switch_cmd cmd;

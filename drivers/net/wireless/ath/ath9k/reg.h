@@ -796,9 +796,9 @@
 #define AR_SREV_VERSION_9340		0x300
 #define AR_SREV_VERSION_9580		0x1C0
 #define AR_SREV_REVISION_9580_10	4 /* AR9580 1.0 */
-#define AR_SREV_VERSION_9480		0x280
-#define AR_SREV_REVISION_9480_10	0
-#define AR_SREV_REVISION_9480_20	2
+#define AR_SREV_VERSION_9462		0x280
+#define AR_SREV_REVISION_9462_10	0
+#define AR_SREV_REVISION_9462_20	2
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -895,20 +895,20 @@
     (AR_SREV_9285_12_OR_LATER(_ah) && \
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
 
-#define AR_SREV_9480(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9480))
+#define AR_SREV_9462(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462))
 
-#define AR_SREV_9480_10(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9480) && \
-	((_ah)->hw_version.macRev == AR_SREV_REVISION_9480_10))
+#define AR_SREV_9462_10(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_10))
 
-#define AR_SREV_9480_20(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9480) && \
-	((_ah)->hw_version.macRev == AR_SREV_REVISION_9480_20))
+#define AR_SREV_9462_20(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_20))
 
-#define AR_SREV_9480_20_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9480) && \
-	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9480_20))
+#define AR_SREV_9462_20_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_20))
 
 #define AR_SREV_9580(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9580) && \
@@ -1933,6 +1933,7 @@ enum {
 #define AR_PHY_AGC_CONTROL_NO_UPDATE_NF		0x00020000  /* don't update noise floor automatically */
 #define AR_PHY_AGC_CONTROL_EXT_NF_PWR_MEAS	0x00040000  /* extend noise floor power measurement */
 #define AR_PHY_AGC_CONTROL_CLC_SUCCESS		0x00080000  /* carrier leak calibration done */
+#define AR_PHY_AGC_CONTROL_PKDET_CAL		0x00100000
 #define AR_PHY_AGC_CONTROL_YCOK_MAX		0x000003c0
 #define AR_PHY_AGC_CONTROL_YCOK_MAX_S		6
 
