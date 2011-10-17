@@ -820,7 +820,7 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		/* VMID 2*240k */
 		reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
 		reg &= ~WM9081_VMID_SEL_MASK;
-		reg |= 0x40;
+		reg |= 0x04;
 		snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
 
 		/* Standby bias current on */
