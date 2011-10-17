@@ -78,8 +78,9 @@ void hists__output_resort_threaded(struct hists *hists);
 void hists__collapse_resort(struct hists *self);
 void hists__collapse_resort_threaded(struct hists *hists);
 
-void hists__decay_entries(struct hists *hists);
-void hists__decay_entries_threaded(struct hists *hists);
+void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel);
+void hists__decay_entries_threaded(struct hists *hists, bool zap_user,
+				   bool zap_kernel);
 void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 
 void hists__inc_nr_events(struct hists *self, u32 type);

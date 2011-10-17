@@ -304,7 +304,9 @@ static void print_sym_table(void)
 
 	hists__collapse_resort_threaded(&top.sym_evsel->hists);
 	hists__output_resort_threaded(&top.sym_evsel->hists);
-	hists__decay_entries_threaded(&top.sym_evsel->hists);
+	hists__decay_entries_threaded(&top.sym_evsel->hists,
+				      top.hide_user_symbols,
+				      top.hide_kernel_symbols);
 	hists__output_recalc_col_len(&top.sym_evsel->hists, winsize.ws_row - 3);
 	putchar('\n');
 	hists__fprintf(&top.sym_evsel->hists, NULL, false, false,
@@ -436,6 +438,7 @@ static int key_mapped(int c)
 		case 'S':
 			return 1;
 		case 'E':
+			return top.evlist->nr_entries > 1 ? 1 : 0;
 		default:
 			break;
 	}
@@ -555,7 +558,9 @@ static void perf_top__sort_new_samples(void *arg)
 
 	hists__collapse_resort_threaded(&t->sym_evsel->hists);
 	hists__output_resort_threaded(&t->sym_evsel->hists);
-	hists__decay_entries_threaded(&t->sym_evsel->hists);
+	hists__decay_entries_threaded(&t->sym_evsel->hists,
+				      top.hide_user_symbols,
+				      top.hide_kernel_symbols);
 	hists__output_recalc_col_len(&t->sym_evsel->hists, winsize.ws_row - 3);
 }
 

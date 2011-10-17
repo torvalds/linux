@@ -108,7 +108,8 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 	return he->period == 0;
 }
 
-static void __hists__decay_entries(struct hists *hists, bool threaded)
+static void __hists__decay_entries(struct hists *hists, bool zap_user,
+				   bool zap_kernel, bool threaded)
 {
 	struct rb_node *next = rb_first(&hists->entries);
 	struct hist_entry *n;
@@ -121,7 +122,10 @@ static void __hists__decay_entries(struct hists *hists, bool threaded)
 		 * case some it gets new samples, we'll eventually free it when
 		 * the user stops browsing and it agains gets fully decayed.
 		 */
-		if (hists__decay_entry(hists, n) && !n->used) {
+		if (((zap_user && n->level == '.') ||
+		     (zap_kernel && n->level != '.') ||
+		     hists__decay_entry(hists, n)) &&
+		    !n->used) {
 			rb_erase(&n->rb_node, &hists->entries);
 
 			if (sort__need_collapse || threaded)
@@ -133,14 +137,15 @@ static void __hists__decay_entries(struct hists *hists, bool threaded)
 	}
 }
 
-void hists__decay_entries(struct hists *hists)
+void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel)
 {
-	return __hists__decay_entries(hists, false);
+	return __hists__decay_entries(hists, zap_user, zap_kernel, false);
 }
 
-void hists__decay_entries_threaded(struct hists *hists)
+void hists__decay_entries_threaded(struct hists *hists,
+				   bool zap_user, bool zap_kernel)
 {
-	return __hists__decay_entries(hists, true);
+	return __hists__decay_entries(hists, zap_user, zap_kernel, true);
 }
 
 /*
