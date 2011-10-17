@@ -12,13 +12,42 @@
  *  published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio-pxa.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
 
-#include <mach/gpio-pxa.h>
+/*
+ * We handle the GPIOs by banks, each bank covers up to 32 GPIOs with
+ * one set of registers. The register offsets are organized below:
+ *
+ *           GPLR    GPDR    GPSR    GPCR    GRER    GFER    GEDR
+ * BANK 0 - 0x0000  0x000C  0x0018  0x0024  0x0030  0x003C  0x0048
+ * BANK 1 - 0x0004  0x0010  0x001C  0x0028  0x0034  0x0040  0x004C
+ * BANK 2 - 0x0008  0x0014  0x0020  0x002C  0x0038  0x0044  0x0050
+ *
+ * BANK 3 - 0x0100  0x010C  0x0118  0x0124  0x0130  0x013C  0x0148
+ * BANK 4 - 0x0104  0x0110  0x011C  0x0128  0x0134  0x0140  0x014C
+ * BANK 5 - 0x0108  0x0114  0x0120  0x012C  0x0138  0x0144  0x0150
+ *
+ * NOTE:
+ *   BANK 3 is only available on PXA27x and later processors.
+ *   BANK 4 and 5 are only available on PXA935
+ */
+
+#define GPLR_OFFSET	0x00
+#define GPDR_OFFSET	0x0C
+#define GPSR_OFFSET	0x18
+#define GPCR_OFFSET	0x24
+#define GRER_OFFSET	0x30
+#define GFER_OFFSET	0x3C
+#define GEDR_OFFSET	0x48
+#define GAFR_OFFSET	0x54
+
+#define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
 
 int pxa_last_gpio;
 
@@ -52,6 +81,7 @@ enum {
 static DEFINE_SPINLOCK(gpio_lock);
 static struct pxa_gpio_chip *pxa_gpio_chips;
 static int gpio_type;
+static void __iomem *gpio_reg_base;
 
 #define for_each_gpio_chip(i, c)			\
 	for (i = 0, c = &pxa_gpio_chips[0]; i <= pxa_last_gpio; i += 32, c++)
@@ -74,6 +104,53 @@ static inline int gpio_is_pxa_type(int type)
 static inline int gpio_is_mmp_type(int type)
 {
 	return (type & MMP_GPIO) != 0;
+}
+
+/* GPIO86/87/88/89 on PXA26x have their direction bits in PXA_GPDR(2 inverted,
+ * as well as their Alternate Function value being '1' for GPIO in GAFRx.
+ */
+static inline int __gpio_is_inverted(int gpio)
+{
+	if ((gpio_type == PXA26X_GPIO) && (gpio > 85))
+		return 1;
+	return 0;
+}
+
+/*
+ * On PXA25x and PXA27x, GAFRx and GPDRx together decide the alternate
+ * function of a GPIO, and GPDRx cannot be altered once configured. It
+ * is attributed as "occupied" here (I know this terminology isn't
+ * accurate, you are welcome to propose a better one :-)
+ */
+static inline int __gpio_is_occupied(unsigned gpio)
+{
+	struct pxa_gpio_chip *pxachip;
+	void __iomem *base;
+	unsigned long gafr = 0, gpdr = 0;
+	int ret, af = 0, dir = 0;
+
+	pxachip = gpio_to_pxachip(gpio);
+	base = gpio_chip_base(&pxachip->chip);
+	gpdr = readl_relaxed(base + GPDR_OFFSET);
+
+	switch (gpio_type) {
+	case PXA25X_GPIO:
+	case PXA26X_GPIO:
+	case PXA27X_GPIO:
+		gafr = readl_relaxed(base + GAFR_OFFSET);
+		af = (gafr >> ((gpio & 0xf) * 2)) & 0x3;
+		dir = gpdr & GPIO_bit(gpio);
+
+		if (__gpio_is_inverted(gpio))
+			ret = (af != 1) || (dir == 0);
+		else
+			ret = (af != 0) || (dir != 0);
+		break;
+	default:
+		ret = gpdr & GPIO_bit(gpio);
+		break;
+	}
+	return ret;
 }
 
 #ifdef CONFIG_ARCH_PXA
@@ -187,7 +264,7 @@ static void pxa_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 				(value ? GPSR_OFFSET : GPCR_OFFSET));
 }
 
-static int __init pxa_init_gpio_chip(int gpio_end)
+static int __devinit pxa_init_gpio_chip(int gpio_end)
 {
 	int i, gpio, nbanks = gpio_to_bank(gpio_end) + 1;
 	struct pxa_gpio_chip *chips;
@@ -202,7 +279,7 @@ static int __init pxa_init_gpio_chip(int gpio_end)
 		struct gpio_chip *c = &chips[i].chip;
 
 		sprintf(chips[i].label, "gpio-%d", i);
-		chips[i].regbase = GPIO_BANK(i);
+		chips[i].regbase = gpio_reg_base + BANK_OFF(i);
 
 		c->base  = gpio;
 		c->label = chips[i].label;
@@ -384,17 +461,35 @@ static int pxa_gpio_nums(void)
 	return count;
 }
 
-void __init pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn)
+static int __devinit pxa_gpio_probe(struct platform_device *pdev)
 {
 	struct pxa_gpio_chip *c;
+	struct resource *res;
 	int gpio, irq;
+	int irq0 = 0, irq1 = 0, irq_mux, gpio_offset = 0;
 
 	pxa_last_gpio = pxa_gpio_nums();
 	if (!pxa_last_gpio)
-		return;
+		return -EINVAL;
+
+	irq0 = platform_get_irq_byname(pdev, "gpio0");
+	irq1 = platform_get_irq_byname(pdev, "gpio1");
+	irq_mux = platform_get_irq_byname(pdev, "gpio_mux");
+	if ((irq0 > 0 && irq1 <= 0) || (irq0 <= 0 && irq1 > 0)
+		|| (irq_mux <= 0))
+		return -EINVAL;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
+	gpio_reg_base = ioremap(res->start, resource_size(res));
+	if (!gpio_reg_base)
+		return -EINVAL;
+
+	if (irq0 > 0)
+		gpio_offset = 2;
 
 	/* Initialize GPIO chips */
-	pxa_init_gpio_chip(end);
+	pxa_init_gpio_chip(pxa_last_gpio);
 
 	/* clear all GPIO edge detects */
 	for_each_gpio_chip(gpio, c) {
@@ -417,16 +512,29 @@ void __init pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn)
 	irq_set_chained_handler(IRQ_GPIO1, pxa_gpio_demux_handler);
 #endif
 
-	for (irq  = gpio_to_irq(start); irq <= gpio_to_irq(end); irq++) {
+	for (irq  = gpio_to_irq(gpio_offset);
+		irq <= gpio_to_irq(pxa_last_gpio); irq++) {
 		irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	/* Install handler for GPIO>=2 edge detect interrupts */
-	irq_set_chained_handler(mux_irq, pxa_gpio_demux_handler);
-	pxa_muxed_gpio_chip.irq_set_wake = fn;
+	irq_set_chained_handler(irq_mux, pxa_gpio_demux_handler);
+	return 0;
 }
+
+static struct platform_driver pxa_gpio_driver = {
+	.probe		= pxa_gpio_probe,
+	.driver		= {
+		.name	= "pxa-gpio",
+	},
+};
+
+static int __init pxa_gpio_init(void)
+{
+	return platform_driver_register(&pxa_gpio_driver);
+}
+postcore_initcall(pxa_gpio_init);
 
 #ifdef CONFIG_PM
 static int pxa_gpio_suspend(void)
@@ -470,3 +578,10 @@ struct syscore_ops pxa_gpio_syscore_ops = {
 	.suspend	= pxa_gpio_suspend,
 	.resume		= pxa_gpio_resume,
 };
+
+static int __init pxa_gpio_sysinit(void)
+{
+	register_syscore_ops(&pxa_gpio_syscore_ops);
+	return 0;
+}
+postcore_initcall(pxa_gpio_sysinit);

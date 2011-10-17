@@ -25,7 +25,8 @@
 #define __ASM_ARCH_PXA_GPIO_H
 
 #include <asm-generic/gpio.h>
-/* The defines for the driver are needed for the accelerated accessors */
-#include "gpio-pxa.h"
+
+#include <mach/irqs.h>
+#include <mach/hardware.h>
 
 #endif

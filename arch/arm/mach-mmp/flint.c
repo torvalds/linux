@@ -110,6 +110,7 @@ static void __init flint_init(void)
 	/* on-chip devices */
 	mmp2_add_uart(1);
 	mmp2_add_uart(2);
+	platform_device_register(&mmp2_device_gpio);
 
 	/* off-chip devices */
 	platform_device_register(&smc91x_device);

@@ -3,7 +3,6 @@
 
 #include <asm-generic/gpio.h>
 
-#define __gpio_is_inverted(gpio)	(0)
-#define __gpio_is_occupied(gpio)	(0)
+#include <mach/cputype.h>
 
 #endif /* __ASM_MACH_GPIO_H */

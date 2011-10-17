@@ -22,7 +22,6 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/gpio-pxa.h>
 
 #include "generic.h"
 
@@ -122,7 +121,7 @@ asmlinkage void __exception_irq_entry ichp_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
-void __init pxa_init_irq(int irq_nr, set_wake_t fn)
+void __init pxa_init_irq(int irq_nr, int (*fn)(struct irq_data *, unsigned int))
 {
 	int irq, i, n;
 

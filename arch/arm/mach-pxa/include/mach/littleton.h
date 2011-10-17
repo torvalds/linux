@@ -1,8 +1,6 @@
 #ifndef __ASM_ARCH_LITTLETON_H
 #define __ASM_ARCH_LITTLETON_H
 
-#include <mach/gpio-pxa.h>
-
 #define LITTLETON_ETH_PHYS	0x30000000
 
 #define LITTLETON_GPIO_LCD_CS	(17)

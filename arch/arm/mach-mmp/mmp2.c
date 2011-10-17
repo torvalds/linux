@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware/cache-tauros2.h>
 
@@ -24,7 +25,6 @@
 #include <mach/irqs.h>
 #include <mach/dma.h>
 #include <mach/mfp.h>
-#include <mach/gpio-pxa.h>
 #include <mach/devices.h>
 #include <mach/mmp2.h>
 
@@ -32,8 +32,6 @@
 #include "clock.h"
 
 #define MFPR_VIRT_BASE	(APB_VIRT_BASE + 0x1e000)
-
-#define APMASK(i)	(GPIO_REGS_VIRT + BANK_OFF(i) + 0x9c)
 
 static struct mfp_addr_map mmp2_addr_map[] __initdata = {
 
@@ -101,12 +99,6 @@ static void __init mmp2_init_gpio(void)
 
 	/* enable GPIO clock */
 	__raw_writel(APBC_APBCLK | APBC_FNCLK, APBC_MMP2_GPIO);
-
-	/* unmask GPIO edge detection for all 6 banks -- APMASKx */
-	for (i = 0; i < 6; i++)
-		__raw_writel(0xffffffff, APMASK(i));
-
-	pxa_init_gpio(IRQ_MMP2_GPIO, 0, 167, NULL);
 }
 
 void __init mmp2_init_irq(void)
@@ -230,3 +222,21 @@ MMP2_DEVICE(asram, "asram", -1, NONE, 0xe0000000, 0x4000);
 /* 0xd1000000 ~ 0xd101ffff is reserved for secure processor */
 MMP2_DEVICE(isram, "isram", -1, NONE, 0xd1020000, 0x18000);
 
+struct resource mmp2_resource_gpio[] = {
+	{
+		.start	= 0xd4019000,
+		.end	= 0xd4019fff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_MMP2_GPIO,
+		.end	= IRQ_MMP2_GPIO,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mmp2_device_gpio = {
+	.name		= "pxa-gpio",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(mmp2_resource_gpio),
+	.resource	= mmp2_resource_gpio,
+};

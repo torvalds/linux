@@ -131,8 +131,6 @@
 #define PCC_VS2		(1 << 1)
 #define PCC_VS1		(1 << 0)
 
-#define PCC_DETECT(x)	(GPLR(7 + (x)) & GPIO_bit(7 + (x)))
-
 /* A listing of interrupts used by external hardware devices */
 
 #define TOUCH_PANEL_IRQ			PXA_GPIO_TO_IRQ(5)

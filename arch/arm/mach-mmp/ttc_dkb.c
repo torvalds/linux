@@ -123,6 +123,7 @@ static struct platform_device ttc_dkb_device_onenand = {
 };
 
 static struct platform_device *ttc_dkb_devices[] = {
+	&pxa910_device_gpio,
 	&ttc_dkb_device_onenand,
 };
 
