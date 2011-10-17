@@ -111,12 +111,17 @@ static const struct imxi2c_platform_data mx53_smd_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
+void __init imx53_smd_common_init(void)
+{
+	mxc_iomux_v3_setup_multiple_pads(mx53_smd_pads,
+					 ARRAY_SIZE(mx53_smd_pads));
+}
+
 static void __init mx53_smd_board_init(void)
 {
 	imx53_soc_init();
+	imx53_smd_common_init();
 
-	mxc_iomux_v3_setup_multiple_pads(mx53_smd_pads,
-					ARRAY_SIZE(mx53_smd_pads));
 	mx53_smd_init_uart();
 	mx53_smd_fec_reset();
 	imx53_add_fec(&mx53_smd_fec_data);
