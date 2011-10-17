@@ -3585,23 +3585,26 @@ static void transport_free_dev_tasks(struct se_cmd *cmd)
 {
 	struct se_task *task, *task_tmp;
 	unsigned long flags;
+	LIST_HEAD(dispose_list);
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	list_for_each_entry_safe(task, task_tmp,
 				&cmd->t_task_list, t_list) {
-		if (task->task_flags & TF_ACTIVE)
-			continue;
+		if (!(task->task_flags & TF_ACTIVE))
+			list_move_tail(&task->t_list, &dispose_list);
+	}
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
+	while (!list_empty(&dispose_list)) {
+		task = list_first_entry(&dispose_list, struct se_task, t_list);
 
 		kfree(task->task_sg_bidi);
 		kfree(task->task_sg);
 
 		list_del(&task->t_list);
 
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		cmd->se_dev->transport->free_task(task);
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
 	}
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 }
 
 static inline void transport_free_sgl(struct scatterlist *sgl, int nents)
