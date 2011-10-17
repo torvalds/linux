@@ -1145,7 +1145,7 @@ static void read_slab_dir(void)
 		switch (de->d_type) {
 		   case DT_LNK:
 			alias->name = strdup(de->d_name);
-			count = readlink(de->d_name, buffer, sizeof(buffer));
+			count = readlink(de->d_name, buffer, sizeof(buffer)-1);
 
 			if (count < 0)
 				fatal("Cannot read symlink %s\n", de->d_name);
