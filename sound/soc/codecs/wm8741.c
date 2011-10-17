@@ -404,15 +404,7 @@ static struct snd_soc_dai_driver wm8741_dai = {
 #ifdef CONFIG_PM
 static int wm8741_resume(struct snd_soc_codec *codec)
 {
-	u16 *cache = codec->reg_cache;
-	int i;
-
-	/* RESTORE REG Cache */
-	for (i = 0; i < WM8741_REGISTER_COUNT; i++) {
-		if (cache[i] == wm8741_reg_defaults[i] || WM8741_RESET == i)
-			continue;
-		snd_soc_write(codec, i, cache[i]);
-	}
+	snd_soc_cache_sync(codec);
 	return 0;
 }
 #else
