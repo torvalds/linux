@@ -5678,10 +5678,10 @@ static int patch_alc888(struct hda_codec *codec)
 	if ((coef & 0x00f0) == 0x0030) {
 		kfree(codec->chip_name);
 		if (codec->vendor_id == 0x10ec0887)
-			codec->chip_name = kstrdup("ALC887-VD", GFP_KERNEL);
+			err = alc_codec_rename(codec, "ALC887-VD");
 		else
-			codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
-		if (!codec->chip_name) {
+			err = alc_codec_rename(codec, "ALC888-VD");
+		if (err < 0) {
 			alc_free(codec);
 			return -ENOMEM;
 		}
@@ -5691,9 +5691,8 @@ static int patch_alc888(struct hda_codec *codec)
 	/* For ALC888S-VC */
 	if (codec->vendor_id == 0x10ec0888) {
 		if ((coef & 0xf0f0) == 0x3020) {
-			kfree(codec->chip_name);
-			codec->chip_name = kstrdup("ALC886", GFP_KERNEL);
-			if (!codec->chip_name) {
+			err = alc_codec_rename(codec, "ALC886");
+			if (err < 0) {
 				alc_free(codec);
 				return -ENOMEM;
 			}
@@ -5705,8 +5704,10 @@ static int patch_alc888(struct hda_codec *codec)
 static int patch_alc899(struct hda_codec *codec)
 {
 	if ((alc_read_coef_idx(codec, 0) & 0x2000) != 0x2000) {
-		kfree(codec->chip_name);
-		codec->chip_name = kstrdup("ALC898", GFP_KERNEL);
+		if (alc_codec_rename(codec, "ALC898") < 0) {
+			alc_free(codec);
+			return -ENOMEM;
+		}
 	}
 	return patch_alc882(codec);
 }
