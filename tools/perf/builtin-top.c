@@ -438,6 +438,7 @@ static int key_mapped(int c)
 		case 'S':
 			return 1;
 		case 'E':
+			return top.evlist->nr_entries > 1 ? 1 : 0;
 		default:
 			break;
 	}
