@@ -255,6 +255,16 @@ static void core_tmr_drain_task_list(
 			atomic_read(&cmd->t_transport_stop),
 			atomic_read(&cmd->t_transport_sent));
 
+		/*
+		 * If the command may be queued onto a workqueue cancel it now.
+		 *
+		 * This is equivalent to removal from the execute queue in the
+		 * loop above, but we do it down here given that
+		 * cancel_work_sync may block.
+		 */
+		if (cmd->t_state == TRANSPORT_COMPLETE)
+			cancel_work_sync(&cmd->work);
+
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 		target_stop_task(task, &flags);
 

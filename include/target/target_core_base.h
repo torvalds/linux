@@ -86,9 +86,7 @@ enum transport_state_table {
 	TRANSPORT_WRITE_PENDING	= 3,
 	TRANSPORT_PROCESS_WRITE	= 4,
 	TRANSPORT_PROCESSING	= 5,
-	TRANSPORT_COMPLETE_OK	= 6,
-	TRANSPORT_COMPLETE_FAILURE = 7,
-	TRANSPORT_COMPLETE_TIMEOUT = 8,
+	TRANSPORT_COMPLETE	= 6,
 	TRANSPORT_PROCESS_TMR	= 9,
 	TRANSPORT_ISTATE_PROCESSING = 11,
 	TRANSPORT_NEW_CMD_MAP	= 16,
@@ -491,6 +489,8 @@ struct se_cmd {
 	struct completion	transport_lun_fe_stop_comp;
 	struct completion	transport_lun_stop_comp;
 	struct scatterlist	*t_tasks_sg_chained;
+
+	struct work_struct	work;
 
 	/*
 	 * Used for pre-registered fabric SGL passthrough WRITE and READ
