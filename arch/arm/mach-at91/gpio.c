@@ -29,7 +29,7 @@
 struct at91_gpio_chip {
 	struct gpio_chip	chip;
 	struct at91_gpio_chip	*next;		/* Bank sharing same clock */
-	struct at91_gpio_bank	*bank;		/* Bank definition */
+	int			id;		/* ID of register bank */
 	void __iomem		*regbase;	/* Base of register bank */
 	struct clk		*clock;		/* associated clock */
 };
@@ -286,7 +286,7 @@ static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 	else
 		wakeups[bank] &= ~mask;
 
-	irq_set_irq_wake(gpio_chip[bank].bank->id, state);
+	irq_set_irq_wake(gpio_chip[bank].id, state);
 
 	return 0;
 }
@@ -498,7 +498,7 @@ void __init at91_gpio_irq_setup(void)
 	for (pioc = 0, pin = PIN_BASE, this = gpio_chip, prev = NULL;
 			pioc++ < gpio_banks;
 			prev = this, this++) {
-		unsigned	id = this->bank->id;
+		unsigned	id = this->id;
 		unsigned	i;
 
 		__raw_writel(~0, this->regbase + PIO_IDR);
@@ -613,10 +613,10 @@ void __init at91_gpio_init(struct at91_gpio_bank *data, int nr_banks)
 	for (i = 0; i < nr_banks; i++) {
 		at91_gpio = &gpio_chip[i];
 
-		at91_gpio->bank = &data[i];
+		at91_gpio->id = data[i].id;
 		at91_gpio->chip.base = PIN_BASE + i * 32;
 
-		at91_gpio->regbase = ioremap(at91_gpio->bank->regbase, 512);
+		at91_gpio->regbase = ioremap(data[i].regbase, 512);
 		if (!at91_gpio->regbase) {
 			pr_err("at91_gpio.%d, failed to map registers, ignoring.\n", i);
 			continue;
@@ -632,7 +632,7 @@ void __init at91_gpio_init(struct at91_gpio_bank *data, int nr_banks)
 		clk_enable(at91_gpio->clock);
 
 		/* AT91SAM9263_ID_PIOCDE groups PIOC, PIOD, PIOE */
-		if (last && last->bank->id == at91_gpio->bank->id)
+		if (last && last->id == at91_gpio->id)
 			last->next = at91_gpio;
 		last = at91_gpio;
 

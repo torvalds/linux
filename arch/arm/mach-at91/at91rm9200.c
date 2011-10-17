@@ -273,7 +273,7 @@ void __init at91rm9200_set_console_clock(int id)
  *  GPIO
  * -------------------------------------------------------------------- */
 
-static struct at91_gpio_bank at91rm9200_gpio[] = {
+static struct at91_gpio_bank at91rm9200_gpio[] __initdata = {
 	{
 		.id		= AT91RM9200_ID_PIOA,
 		.regbase	= AT91RM9200_BASE_PIOA,
