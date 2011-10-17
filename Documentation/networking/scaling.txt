@@ -27,7 +27,7 @@ applying a filter to each packet that assigns it to one of a small number
 of logical flows. Packets for each flow are steered to a separate receive
 queue, which in turn can be processed by separate CPUs. This mechanism is
 generally known as “Receive-side Scaling” (RSS). The goal of RSS and
-the other scaling techniques to increase performance uniformly.
+the other scaling techniques is to increase performance uniformly.
 Multi-queue distribution can also be used for traffic prioritization, but
 that is not the focus of these techniques.
 
@@ -186,10 +186,10 @@ are steered using plain RPS. Multiple table entries may point to the
 same CPU. Indeed, with many flows and few CPUs, it is very likely that
 a single application thread handles flows with many different flow hashes.
 
-rps_sock_table is a global flow table that contains the *desired* CPU for
-flows: the CPU that is currently processing the flow in userspace. Each
-table value is a CPU index that is updated during calls to recvmsg and
-sendmsg (specifically, inet_recvmsg(), inet_sendmsg(), inet_sendpage()
+rps_sock_flow_table is a global flow table that contains the *desired* CPU
+for flows: the CPU that is currently processing the flow in userspace.
+Each table value is a CPU index that is updated during calls to recvmsg
+and sendmsg (specifically, inet_recvmsg(), inet_sendmsg(), inet_sendpage()
 and tcp_splice_read()).
 
 When the scheduler moves a thread to a new CPU while it has outstanding
