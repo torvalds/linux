@@ -1043,7 +1043,8 @@ static void dw_mci_push_data16(struct dw_mci *host, void *buf, int cnt)
 		buf += len;
 		cnt -= len;
 		if (!sg_next(host->sg) || host->part_buf_count == 2) {
-			mci_writew(host, DATA, host->part_buf16);
+			mci_writew(host, DATA(host->data_offset),
+					host->part_buf16);
 			host->part_buf_count = 0;
 		}
 	}
@@ -1060,21 +1061,23 @@ static void dw_mci_push_data16(struct dw_mci *host, void *buf, int cnt)
 			cnt -= len;
 			/* push data from aligned buffer into fifo */
 			for (i = 0; i < items; ++i)
-				mci_writew(host, DATA, aligned_buf[i]);
+				mci_writew(host, DATA(host->data_offset),
+						aligned_buf[i]);
 		}
 	} else
 #endif
 	{
 		u16 *pdata = buf;
 		for (; cnt >= 2; cnt -= 2)
-			mci_writew(host, DATA, *pdata++);
+			mci_writew(host, DATA(host->data_offset), *pdata++);
 		buf = pdata;
 	}
 	/* put anything remaining in the part_buf */
 	if (cnt) {
 		dw_mci_set_part_bytes(host, buf, cnt);
 		if (!sg_next(host->sg))
-			mci_writew(host, DATA, host->part_buf16);
+			mci_writew(host, DATA(host->data_offset),
+					host->part_buf16);
 	}
 }
 
@@ -1089,7 +1092,8 @@ static void dw_mci_pull_data16(struct dw_mci *host, void *buf, int cnt)
 			int items = len >> 1;
 			int i;
 			for (i = 0; i < items; ++i)
-				aligned_buf[i] = mci_readw(host, DATA);
+				aligned_buf[i] = mci_readw(host,
+						DATA(host->data_offset));
 			/* memcpy from aligned buffer into output buffer */
 			memcpy(buf, aligned_buf, len);
 			buf += len;
@@ -1100,11 +1104,11 @@ static void dw_mci_pull_data16(struct dw_mci *host, void *buf, int cnt)
 	{
 		u16 *pdata = buf;
 		for (; cnt >= 2; cnt -= 2)
-			*pdata++ = mci_readw(host, DATA);
+			*pdata++ = mci_readw(host, DATA(host->data_offset));
 		buf = pdata;
 	}
 	if (cnt) {
-		host->part_buf16 = mci_readw(host, DATA);
+		host->part_buf16 = mci_readw(host, DATA(host->data_offset));
 		dw_mci_pull_final_bytes(host, buf, cnt);
 	}
 }
@@ -1117,7 +1121,8 @@ static void dw_mci_push_data32(struct dw_mci *host, void *buf, int cnt)
 		buf += len;
 		cnt -= len;
 		if (!sg_next(host->sg) || host->part_buf_count == 4) {
-			mci_writel(host, DATA, host->part_buf32);
+			mci_writel(host, DATA(host->data_offset),
+					host->part_buf32);
 			host->part_buf_count = 0;
 		}
 	}
@@ -1134,21 +1139,23 @@ static void dw_mci_push_data32(struct dw_mci *host, void *buf, int cnt)
 			cnt -= len;
 			/* push data from aligned buffer into fifo */
 			for (i = 0; i < items; ++i)
-				mci_writel(host, DATA, aligned_buf[i]);
+				mci_writel(host, DATA(host->data_offset),
+						aligned_buf[i]);
 		}
 	} else
 #endif
 	{
 		u32 *pdata = buf;
 		for (; cnt >= 4; cnt -= 4)
-			mci_writel(host, DATA, *pdata++);
+			mci_writel(host, DATA(host->data_offset), *pdata++);
 		buf = pdata;
 	}
 	/* put anything remaining in the part_buf */
 	if (cnt) {
 		dw_mci_set_part_bytes(host, buf, cnt);
 		if (!sg_next(host->sg))
-			mci_writel(host, DATA, host->part_buf32);
+			mci_writel(host, DATA(host->data_offset),
+						host->part_buf32);
 	}
 }
 
@@ -1163,7 +1170,8 @@ static void dw_mci_pull_data32(struct dw_mci *host, void *buf, int cnt)
 			int items = len >> 2;
 			int i;
 			for (i = 0; i < items; ++i)
-				aligned_buf[i] = mci_readl(host, DATA);
+				aligned_buf[i] = mci_readl(host,
+						DATA(host->data_offset));
 			/* memcpy from aligned buffer into output buffer */
 			memcpy(buf, aligned_buf, len);
 			buf += len;
@@ -1174,11 +1182,11 @@ static void dw_mci_pull_data32(struct dw_mci *host, void *buf, int cnt)
 	{
 		u32 *pdata = buf;
 		for (; cnt >= 4; cnt -= 4)
-			*pdata++ = mci_readl(host, DATA);
+			*pdata++ = mci_readl(host, DATA(host->data_offset));
 		buf = pdata;
 	}
 	if (cnt) {
-		host->part_buf32 = mci_readl(host, DATA);
+		host->part_buf32 = mci_readl(host, DATA(host->data_offset));
 		dw_mci_pull_final_bytes(host, buf, cnt);
 	}
 }
@@ -1191,7 +1199,8 @@ static void dw_mci_push_data64(struct dw_mci *host, void *buf, int cnt)
 		buf += len;
 		cnt -= len;
 		if (!sg_next(host->sg) || host->part_buf_count == 8) {
-			mci_writew(host, DATA, host->part_buf);
+			mci_writew(host, DATA(host->data_offset),
+					host->part_buf);
 			host->part_buf_count = 0;
 		}
 	}
@@ -1208,21 +1217,23 @@ static void dw_mci_push_data64(struct dw_mci *host, void *buf, int cnt)
 			cnt -= len;
 			/* push data from aligned buffer into fifo */
 			for (i = 0; i < items; ++i)
-				mci_writeq(host, DATA, aligned_buf[i]);
+				mci_writeq(host, DATA(host->data_offset),
+						aligned_buf[i]);
 		}
 	} else
 #endif
 	{
 		u64 *pdata = buf;
 		for (; cnt >= 8; cnt -= 8)
-			mci_writeq(host, DATA, *pdata++);
+			mci_writeq(host, DATA(host->data_offset), *pdata++);
 		buf = pdata;
 	}
 	/* put anything remaining in the part_buf */
 	if (cnt) {
 		dw_mci_set_part_bytes(host, buf, cnt);
 		if (!sg_next(host->sg))
-			mci_writeq(host, DATA, host->part_buf);
+			mci_writeq(host, DATA(host->data_offset),
+					host->part_buf);
 	}
 }
 
@@ -1237,7 +1248,8 @@ static void dw_mci_pull_data64(struct dw_mci *host, void *buf, int cnt)
 			int items = len >> 3;
 			int i;
 			for (i = 0; i < items; ++i)
-				aligned_buf[i] = mci_readq(host, DATA);
+				aligned_buf[i] = mci_readq(host,
+						DATA(host->data_offset));
 			/* memcpy from aligned buffer into output buffer */
 			memcpy(buf, aligned_buf, len);
 			buf += len;
@@ -1248,11 +1260,11 @@ static void dw_mci_pull_data64(struct dw_mci *host, void *buf, int cnt)
 	{
 		u64 *pdata = buf;
 		for (; cnt >= 8; cnt -= 8)
-			*pdata++ = mci_readq(host, DATA);
+			*pdata++ = mci_readq(host, DATA(host->data_offset));
 		buf = pdata;
 	}
 	if (cnt) {
-		host->part_buf = mci_readq(host, DATA);
+		host->part_buf = mci_readq(host, DATA(host->data_offset));
 		dw_mci_pull_final_bytes(host, buf, cnt);
 	}
 }
@@ -1950,6 +1962,18 @@ static int dw_mci_probe(struct platform_device *pdev)
 			goto err_init_slot;
 		}
 	}
+
+	/*
+	 * In 2.40a spec, Data offset is changed.
+	 * Need to check the version-id and set data-offset for DATA register.
+	 */
+	host->verid = SDMMC_GET_VERID(mci_readl(host, VERID));
+	dev_info(&pdev->dev, "Version ID is %04x\n", host->verid);
+
+	if (host->verid < DW_MMC_240A)
+		host->data_offset = DATA_OFFSET;
+	else
+		host->data_offset = DATA_240A_OFFSET;
 
 	/*
 	 * Enable interrupts for command done, data over, data empty, card det,
