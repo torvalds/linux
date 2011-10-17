@@ -404,6 +404,9 @@ static int dmar_forcedac;
 static int intel_iommu_strict;
 static int intel_iommu_superpage = 1;
 
+int intel_iommu_gfx_mapped;
+EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
+
 #define DUMMY_DEVICE_DOMAIN_INFO ((struct device_domain_info *)(-1))
 static DEFINE_SPINLOCK(device_domain_lock);
 static LIST_HEAD(device_domain_list);
@@ -3226,9 +3229,6 @@ static void __init init_no_remapping_devices(void)
 		}
 	}
 
-	if (dmar_map_gfx)
-		return;
-
 	for_each_drhd_unit(drhd) {
 		int i;
 		if (drhd->ignored || drhd->include_all)
@@ -3236,18 +3236,23 @@ static void __init init_no_remapping_devices(void)
 
 		for (i = 0; i < drhd->devices_cnt; i++)
 			if (drhd->devices[i] &&
-				!IS_GFX_DEVICE(drhd->devices[i]))
+			    !IS_GFX_DEVICE(drhd->devices[i]))
 				break;
 
 		if (i < drhd->devices_cnt)
 			continue;
 
-		/* bypass IOMMU if it is just for gfx devices */
-		drhd->ignored = 1;
-		for (i = 0; i < drhd->devices_cnt; i++) {
-			if (!drhd->devices[i])
-				continue;
-			drhd->devices[i]->dev.archdata.iommu = DUMMY_DEVICE_DOMAIN_INFO;
+		/* This IOMMU has *only* gfx devices. Either bypass it or
+		   set the gfx_mapped flag, as appropriate */
+		if (dmar_map_gfx) {
+			intel_iommu_gfx_mapped = 1;
+		} else {
+			drhd->ignored = 1;
+			for (i = 0; i < drhd->devices_cnt; i++) {
+				if (!drhd->devices[i])
+					continue;
+				drhd->devices[i]->dev.archdata.iommu = DUMMY_DEVICE_DOMAIN_INFO;
+			}
 		}
 	}
 }
