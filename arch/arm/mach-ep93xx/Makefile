@@ -15,3 +15,4 @@ obj-$(CONFIG_MACH_MICRO9)	+= micro9.o
 obj-$(CONFIG_MACH_SIM_ONE)	+= simone.o
 obj-$(CONFIG_MACH_SNAPPER_CL15)	+= snappercl15.o
 obj-$(CONFIG_MACH_TS72XX)	+= ts72xx.o
+obj-$(CONFIG_MACH_VISION_EP9307)+= vision_ep9307.o

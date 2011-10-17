@@ -1721,10 +1721,8 @@ void __init xen_setup_machphys_mapping(void)
 		machine_to_phys_nr = MACH2PHYS_NR_ENTRIES;
 	}
 #ifdef CONFIG_X86_32
-	if ((machine_to_phys_mapping + machine_to_phys_nr)
-	    < machine_to_phys_mapping)
-		machine_to_phys_nr = (unsigned long *)NULL
-				     - machine_to_phys_mapping;
+	WARN_ON((machine_to_phys_mapping + (machine_to_phys_nr - 1))
+		< machine_to_phys_mapping);
 #endif
 }
 

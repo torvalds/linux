@@ -243,7 +243,7 @@ configured. The number of entries in the global flow table is set through:
 
 The number of entries in the per-queue flow table are set through:
 
- /sys/class/net/<dev>/queues/tx-<n>/rps_flow_cnt
+ /sys/class/net/<dev>/queues/rx-<n>/rps_flow_cnt
 
 == Suggested Configuration
 

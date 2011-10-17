@@ -123,10 +123,11 @@ be automatically shutdown if it's set to "never".
 khugepaged runs usually at low frequency so while one may not want to
 invoke defrag algorithms synchronously during the page faults, it
 should be worth invoking defrag at least in khugepaged. However it's
-also possible to disable defrag in khugepaged:
+also possible to disable defrag in khugepaged by writing 0 or enable
+defrag in khugepaged by writing 1:
 
-echo yes >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
-echo no >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
+echo 1 >/sys/kernel/mm/transparent_hugepage/khugepaged/defrag
 
 You can also control how many pages khugepaged should scan at each
 pass:
