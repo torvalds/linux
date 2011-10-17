@@ -2486,6 +2486,9 @@ static __init int samsung_gpiolib_init(void)
 		s5p_register_gpioint_bank(IRQ_GPIO_XA, 0, IRQ_GPIO1_NR_GROUPS);
 		s5p_register_gpioint_bank(IRQ_GPIO_XB, IRQ_GPIO1_NR_GROUPS, IRQ_GPIO2_NR_GROUPS);
 #endif
+	} else {
+		WARN(1, "Unknown SoC in gpio-samsung, no GPIOs added\n");
+		return -ENODEV;
 	}
 
 	return 0;
