@@ -217,7 +217,7 @@ static int get_config_reg(struct pinmux_info *gpioc, pinmux_enum_t enum_id,
 
 		if (!r_width)
 			break;
-		for (n = 0; n < (r_width / f_width) * 1 << f_width; n++) {
+		for (n = 0; n < (r_width / f_width) * (1 << f_width); n++) {
 			if (config_reg->enum_ids[n] == enum_id) {
 				*crp = config_reg;
 				*indexp = n;
