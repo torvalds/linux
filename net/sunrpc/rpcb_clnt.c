@@ -410,7 +410,7 @@ static int rpcb_register_inet4(const struct sockaddr *sap,
 	unsigned short port = ntohs(sin->sin_port);
 	int result;
 
-	map->r_addr = rpc_sockaddr2uaddr(sap);
+	map->r_addr = rpc_sockaddr2uaddr(sap, GFP_KERNEL);
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
 		"local rpcbind\n", (port ? "" : "un"),
@@ -437,7 +437,7 @@ static int rpcb_register_inet6(const struct sockaddr *sap,
 	unsigned short port = ntohs(sin6->sin6_port);
 	int result;
 
-	map->r_addr = rpc_sockaddr2uaddr(sap);
+	map->r_addr = rpc_sockaddr2uaddr(sap, GFP_KERNEL);
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
 		"local rpcbind\n", (port ? "" : "un"),
@@ -686,7 +686,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	case RPCBVERS_4:
 	case RPCBVERS_3:
 		map->r_netid = rpc_peeraddr2str(clnt, RPC_DISPLAY_NETID);
-		map->r_addr = rpc_sockaddr2uaddr(sap);
+		map->r_addr = rpc_sockaddr2uaddr(sap, GFP_ATOMIC);
 		map->r_owner = "";
 		break;
 	case RPCBVERS_2:
