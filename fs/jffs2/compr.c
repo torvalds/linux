@@ -76,13 +76,18 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			uint32_t *datalen, uint32_t *cdatalen)
 {
 	int ret = JFFS2_COMPR_NONE;
-	int compr_ret;
+	int mode, compr_ret;
 	struct jffs2_compressor *this, *best=NULL;
 	unsigned char *output_buf = NULL, *tmp_buf;
 	uint32_t orig_slen, orig_dlen;
 	uint32_t best_slen=0, best_dlen=0;
 
-	switch (jffs2_compression_mode) {
+	if (c->mount_opts.override_compr)
+		mode = c->mount_opts.compr;
+	else
+		mode = jffs2_compression_mode;
+
+	switch (mode) {
 	case JFFS2_COMPR_MODE_NONE:
 		break;
 	case JFFS2_COMPR_MODE_PRIORITY:
