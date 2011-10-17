@@ -1075,6 +1075,7 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part);
 static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 {
 	struct gendisk *disk;
+	struct module *owner;
 	int ret;
 	int partno;
 	int perm = 0;
@@ -1100,6 +1101,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	disk = get_gendisk(bdev->bd_dev, &partno);
 	if (!disk)
 		goto out;
+	owner = disk->fops->owner;
 
 	disk_block_events(disk);
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
@@ -1127,8 +1129,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					bdev->bd_disk = NULL;
 					mutex_unlock(&bdev->bd_mutex);
 					disk_unblock_events(disk);
-					module_put(disk->fops->owner);
 					put_disk(disk);
+					module_put(owner);
 					goto restart;
 				}
 			}
@@ -1184,8 +1186,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				goto out_unlock_bdev;
 		}
 		/* only one opener holds refs to the module and disk */
-		module_put(disk->fops->owner);
 		put_disk(disk);
+		module_put(owner);
 	}
 	bdev->bd_openers++;
 	if (for_part)
@@ -1205,8 +1207,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
  out_unlock_bdev:
 	mutex_unlock(&bdev->bd_mutex);
 	disk_unblock_events(disk);
-	module_put(disk->fops->owner);
 	put_disk(disk);
+	module_put(owner);
  out:
 	bdput(bdev);
 
@@ -1432,14 +1434,15 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 	if (!bdev->bd_openers) {
 		struct module *owner = disk->fops->owner;
 
-		put_disk(disk);
-		module_put(owner);
 		disk_put_part(bdev->bd_part);
 		bdev->bd_part = NULL;
 		bdev->bd_disk = NULL;
 		if (bdev != bdev->bd_contains)
 			victim = bdev->bd_contains;
 		bdev->bd_contains = NULL;
+
+		put_disk(disk);
+		module_put(owner);
 	}
 	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);
