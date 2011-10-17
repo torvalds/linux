@@ -596,9 +596,8 @@ void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 	}
 }
 
-static void transport_add_cmd_to_queue(
-	struct se_cmd *cmd,
-	int t_state)
+static void transport_add_cmd_to_queue(struct se_cmd *cmd, int t_state,
+		bool at_head)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_queue_obj *qobj = &dev->dev_queue_obj;
@@ -619,10 +618,9 @@ static void transport_add_cmd_to_queue(
 	else
 		atomic_inc(&qobj->queue_cnt);
 
-	if (cmd->se_cmd_flags & SCF_EMULATE_QUEUE_FULL) {
-		cmd->se_cmd_flags &= ~SCF_EMULATE_QUEUE_FULL;
+	if (at_head)
 		list_add(&cmd->se_queue_node, &qobj->qobj_list);
-	} else
+	else
 		list_add_tail(&cmd->se_queue_node, &qobj->qobj_list);
 	atomic_set(&cmd->t_transport_queue_active, 1);
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
@@ -764,7 +762,7 @@ void transport_complete_task(struct se_task *task, int success)
 		t_state = TRANSPORT_COMPLETE_TIMEOUT;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-		transport_add_cmd_to_queue(cmd, t_state);
+		transport_add_cmd_to_queue(cmd, t_state, false);
 		return;
 	}
 	atomic_dec(&cmd->t_task_cdbs_timeout_left);
@@ -796,7 +794,7 @@ void transport_complete_task(struct se_task *task, int success)
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	transport_add_cmd_to_queue(cmd, t_state);
+	transport_add_cmd_to_queue(cmd, t_state, false);
 }
 EXPORT_SYMBOL(transport_complete_task);
 
@@ -971,11 +969,8 @@ static void target_qf_do_work(struct work_struct *work)
 			(cmd->t_state == TRANSPORT_COMPLETE_QF_OK) ? "COMPLETE_OK" :
 			(cmd->t_state == TRANSPORT_COMPLETE_QF_WP) ? "WRITE_PENDING"
 			: "UNKNOWN");
-		/*
-		 * The SCF_EMULATE_QUEUE_FULL flag will be cleared once se_cmd
-		 * has been added to head of queue
-		 */
-		transport_add_cmd_to_queue(cmd, cmd->t_state);
+
+		transport_add_cmd_to_queue(cmd, cmd->t_state, true);
 	}
 }
 
@@ -1714,7 +1709,7 @@ int transport_generic_handle_cdb_map(
 		return -EINVAL;
 	}
 
-	transport_add_cmd_to_queue(cmd, TRANSPORT_NEW_CMD_MAP);
+	transport_add_cmd_to_queue(cmd, TRANSPORT_NEW_CMD_MAP, false);
 	return 0;
 }
 EXPORT_SYMBOL(transport_generic_handle_cdb_map);
@@ -1744,7 +1739,7 @@ int transport_generic_handle_data(
 	if (transport_check_aborted_status(cmd, 1) != 0)
 		return 0;
 
-	transport_add_cmd_to_queue(cmd, TRANSPORT_PROCESS_WRITE);
+	transport_add_cmd_to_queue(cmd, TRANSPORT_PROCESS_WRITE, false);
 	return 0;
 }
 EXPORT_SYMBOL(transport_generic_handle_data);
@@ -1756,7 +1751,7 @@ EXPORT_SYMBOL(transport_generic_handle_data);
 int transport_generic_handle_tmr(
 	struct se_cmd *cmd)
 {
-	transport_add_cmd_to_queue(cmd, TRANSPORT_PROCESS_TMR);
+	transport_add_cmd_to_queue(cmd, TRANSPORT_PROCESS_TMR, false);
 	return 0;
 }
 EXPORT_SYMBOL(transport_generic_handle_tmr);
@@ -1764,7 +1759,7 @@ EXPORT_SYMBOL(transport_generic_handle_tmr);
 void transport_generic_free_cmd_intr(
 	struct se_cmd *cmd)
 {
-	transport_add_cmd_to_queue(cmd, TRANSPORT_FREE_CMD_INTR);
+	transport_add_cmd_to_queue(cmd, TRANSPORT_FREE_CMD_INTR, false);
 }
 EXPORT_SYMBOL(transport_generic_free_cmd_intr);
 
@@ -2107,7 +2102,7 @@ static void transport_task_timeout_handler(unsigned long data)
 	cmd->t_state = TRANSPORT_COMPLETE_FAILURE;
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	transport_add_cmd_to_queue(cmd, TRANSPORT_COMPLETE_FAILURE);
+	transport_add_cmd_to_queue(cmd, TRANSPORT_COMPLETE_FAILURE, false);
 }
 
 /*
@@ -3476,7 +3471,6 @@ static void transport_handle_queue_full(
 	struct se_device *dev)
 {
 	spin_lock_irq(&dev->qf_cmd_lock);
-	cmd->se_cmd_flags |= SCF_EMULATE_QUEUE_FULL;
 	list_add_tail(&cmd->se_qf_node, &cmd->se_dev->qf_cmd_list);
 	atomic_inc(&dev->dev_qf_count);
 	smp_mb__after_atomic_inc();

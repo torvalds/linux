@@ -127,7 +127,6 @@ enum se_cmd_flags_table {
 	SCF_UNUSED			= 0x00100000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00400000,
 	SCF_EMULATE_CDB_ASYNC		= 0x01000000,
-	SCF_EMULATE_QUEUE_FULL		= 0x02000000,
 };
 
 /* struct se_dev_entry->lun_flags and struct se_lun->lun_access */
