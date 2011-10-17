@@ -267,7 +267,6 @@ static void ft_recv_seq(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 
 	if (IS_ERR(fp)) {
 		/* XXX need to find cmd if queued */
-		cmd->se_cmd.t_state = TRANSPORT_REMOVE;
 		cmd->seq = NULL;
 		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		return;
