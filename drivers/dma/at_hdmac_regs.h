@@ -248,9 +248,16 @@ static inline struct at_dma_chan *to_at_dma_chan(struct dma_chan *dchan)
 
 /*--  Controller  ------------------------------------------------------*/
 
+enum atdma_devtype {
+	ATDMA_DEVTYPE_UNDEFINED = 0,
+	ATDMA_DEVTYPE_SAM9RL,	/* compatible with SAM9RL DMA controller */
+	ATDMA_DEVTYPE_SAM9G45,	/* compatible with SAM9G45 DMA controller */
+};
+
 /**
  * struct at_dma - internal representation of an Atmel HDMA Controller
  * @chan_common: common dmaengine dma_device object members
+ * @atdma_devtype: identifier of DMA controller compatibility
  * @ch_regs: memory mapped register base
  * @clk: dma controller clock
  * @save_imr: interrupt mask register that is saved on suspend/resume cycle
@@ -260,6 +267,7 @@ static inline struct at_dma_chan *to_at_dma_chan(struct dma_chan *dchan)
  */
 struct at_dma {
 	struct dma_device	dma_common;
+	enum atdma_devtype	devtype;
 	void __iomem		*regs;
 	struct clk		*clk;
 	u32			save_imr;

@@ -1175,6 +1175,18 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 
 /*--  Module Management  -----------------------------------------------*/
 
+static struct platform_device_id atdma_devtypes[] = {
+	{
+		.name = "at91sam9rl_dma",
+		.driver_data = ATDMA_DEVTYPE_SAM9RL,
+	}, {
+		.name = "at91sam9g45_dma",
+		.driver_data = ATDMA_DEVTYPE_SAM9G45,
+	}, {
+		/* sentinel */
+	}
+};
+
 /**
  * at_dma_off - disable DMA controller
  * @atdma: the Atmel HDAMC device
@@ -1193,18 +1205,32 @@ static void at_dma_off(struct at_dma *atdma)
 
 static int __init at_dma_probe(struct platform_device *pdev)
 {
-	struct at_dma_platform_data *pdata;
 	struct resource		*io;
 	struct at_dma		*atdma;
 	size_t			size;
 	int			irq;
 	int			err;
 	int			i;
+	u32                     nr_channels;
+	dma_cap_mask_t          cap_mask = {};
+	enum atdma_devtype	atdmatype;
 
-	/* get DMA Controller parameters from platform */
-	pdata = pdev->dev.platform_data;
-	if (!pdata || pdata->nr_channels > AT_DMA_MAX_NR_CHANNELS)
+	dma_cap_set(DMA_MEMCPY, cap_mask);
+
+	/* get DMA parameters from controller type */
+	atdmatype = platform_get_device_id(pdev)->driver_data;
+
+	switch (atdmatype) {
+	case ATDMA_DEVTYPE_SAM9RL:
+		nr_channels = 2;
+		break;
+	case ATDMA_DEVTYPE_SAM9G45:
+		nr_channels = 8;
+		dma_cap_set(DMA_SLAVE, cap_mask);
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!io)
@@ -1215,14 +1241,15 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		return irq;
 
 	size = sizeof(struct at_dma);
-	size += pdata->nr_channels * sizeof(struct at_dma_chan);
+	size += nr_channels * sizeof(struct at_dma_chan);
 	atdma = kzalloc(size, GFP_KERNEL);
 	if (!atdma)
 		return -ENOMEM;
 
-	/* discover transaction capabilites from the platform data */
-	atdma->dma_common.cap_mask = pdata->cap_mask;
-	atdma->all_chan_mask = (1 << pdata->nr_channels) - 1;
+	/* discover transaction capabilities */
+	atdma->dma_common.cap_mask = cap_mask;
+	atdma->all_chan_mask = (1 << nr_channels) - 1;
+	atdma->devtype = atdmatype;
 
 	size = resource_size(io);
 	if (!request_mem_region(io->start, size, pdev->dev.driver->name)) {
@@ -1268,7 +1295,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	/* initialize channels related values */
 	INIT_LIST_HEAD(&atdma->dma_common.channels);
-	for (i = 0; i < pdata->nr_channels; i++) {
+	for (i = 0; i < nr_channels; i++) {
 		struct at_dma_chan	*atchan = &atdma->chan[i];
 
 		atchan->chan_common.device = &atdma->dma_common;
@@ -1313,7 +1340,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s), %d channels\n",
 	  dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask) ? "cpy " : "",
 	  dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)  ? "slave " : "",
-	  pdata->nr_channels);
+	  nr_channels);
 
 	dma_async_device_register(&atdma->dma_common);
 
@@ -1495,6 +1522,7 @@ static const struct dev_pm_ops at_dma_dev_pm_ops = {
 static struct platform_driver at_dma_driver = {
 	.remove		= __exit_p(at_dma_remove),
 	.shutdown	= at_dma_shutdown,
+	.id_table	= atdma_devtypes,
 	.driver = {
 		.name	= "at_hdmac",
 		.pm	= &at_dma_dev_pm_ops,
