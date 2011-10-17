@@ -2,6 +2,7 @@
 #define _PERF_UI_HELPLINE_H_ 1
 
 #include <stdio.h>
+#include <stdarg.h>
 
 void ui_helpline__init(void);
 void ui_helpline__pop(void);
