@@ -27,7 +27,7 @@ struct regcache_lzo_ctx {
 };
 
 #define LZO_BLOCK_NUM 8
-static int regcache_lzo_block_count(void)
+static int regcache_lzo_block_count(struct regmap *map)
 {
 	return LZO_BLOCK_NUM;
 }
@@ -106,19 +106,22 @@ static inline int regcache_lzo_get_blkindex(struct regmap *map,
 					    unsigned int reg)
 {
 	return (reg * map->cache_word_size) /
-		DIV_ROUND_UP(map->cache_size_raw, regcache_lzo_block_count());
+		DIV_ROUND_UP(map->cache_size_raw,
+			     regcache_lzo_block_count(map));
 }
 
 static inline int regcache_lzo_get_blkpos(struct regmap *map,
 					  unsigned int reg)
 {
-	return reg % (DIV_ROUND_UP(map->cache_size_raw, regcache_lzo_block_count()) /
+	return reg % (DIV_ROUND_UP(map->cache_size_raw,
+				   regcache_lzo_block_count(map)) /
 		      map->cache_word_size);
 }
 
 static inline int regcache_lzo_get_blksize(struct regmap *map)
 {
-	return DIV_ROUND_UP(map->cache_size_raw, regcache_lzo_block_count());
+	return DIV_ROUND_UP(map->cache_size_raw,
+			    regcache_lzo_block_count(map));
 }
 
 static int regcache_lzo_init(struct regmap *map)
@@ -131,7 +134,7 @@ static int regcache_lzo_init(struct regmap *map)
 
 	ret = 0;
 
-	blkcount = regcache_lzo_block_count();
+	blkcount = regcache_lzo_block_count(map);
 	map->cache = kzalloc(blkcount * sizeof *lzo_blocks,
 			     GFP_KERNEL);
 	if (!map->cache)
@@ -203,7 +206,7 @@ static int regcache_lzo_exit(struct regmap *map)
 	if (!lzo_blocks)
 		return 0;
 
-	blkcount = regcache_lzo_block_count();
+	blkcount = regcache_lzo_block_count(map);
 	/*
 	 * the pointer to the bitmap used for syncing the cache
 	 * is shared amongst all lzo_blocks.  Ensure it is freed
