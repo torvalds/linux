@@ -85,6 +85,7 @@ struct nfs4_stid {
 };
 
 struct nfs4_delegation {
+	struct nfs4_stid	dl_stid; /* must be first field */
 	struct list_head	dl_perfile;
 	struct list_head	dl_perclnt;
 	struct list_head	dl_recall_lru;  /* delegation recalled */
@@ -93,7 +94,6 @@ struct nfs4_delegation {
 	u32			dl_type;
 	time_t			dl_time;
 /* For recall: */
-	struct nfs4_stid	dl_stid;
 	struct knfsd_fh		dl_fh;
 	int			dl_retries;
 	struct nfsd4_callback	dl_recall;
@@ -434,7 +434,7 @@ static inline struct file *find_any_file(struct nfs4_file *f)
 
 /* "ol" stands for "Open or Lock".  Better suggestions welcome. */
 struct nfs4_ol_stateid {
-	struct nfs4_stid    st_stid;
+	struct nfs4_stid    st_stid; /* must be first field */
 	struct list_head              st_perfile;
 	struct list_head              st_perstateowner;
 	struct list_head              st_lockowners;
