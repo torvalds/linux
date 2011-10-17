@@ -41,6 +41,7 @@ static int spitz_last_ac_status;
 static struct gpio spitz_charger_gpios[] = {
 	{ SPITZ_GPIO_KEY_INT,	GPIOF_IN, "Keyboard Interrupt" },
 	{ SPITZ_GPIO_SYNC,	GPIOF_IN, "Sync" },
+	{ SPITZ_GPIO_AC_IN,     GPIOF_IN, "Charger Detection" },
 	{ SPITZ_GPIO_ADC_TEMP_ON, GPIOF_OUT_INIT_LOW, "ADC Temp On" },
 	{ SPITZ_GPIO_JK_B,	  GPIOF_OUT_INIT_LOW, "JK B" },
 	{ SPITZ_GPIO_CHRG_ON,	  GPIOF_OUT_INIT_LOW, "Charger On" },
@@ -169,14 +170,19 @@ static int spitz_should_wakeup(unsigned int resume_on_alarm)
 
 static unsigned long spitz_charger_wakeup(void)
 {
-	return (~GPLR0 & GPIO_bit(SPITZ_GPIO_KEY_INT)) | (GPLR0 & GPIO_bit(SPITZ_GPIO_SYNC));
+	unsigned long ret;
+	ret = (!gpio_get_value(SPITZ_GPIO_KEY_INT)
+		<< GPIO_bit(SPITZ_GPIO_KEY_INT))
+		| (!gpio_get_value(SPITZ_GPIO_SYNC)
+		<< GPIO_bit(SPITZ_GPIO_SYNC));
+	return ret;
 }
 
 unsigned long spitzpm_read_devdata(int type)
 {
 	switch (type) {
 	case SHARPSL_STATUS_ACIN:
-		return (((~GPLR(SPITZ_GPIO_AC_IN)) & GPIO_bit(SPITZ_GPIO_AC_IN)) != 0);
+		return !gpio_get_value(SPITZ_GPIO_AC_IN);
 	case SHARPSL_STATUS_LOCK:
 		return gpio_get_value(sharpsl_pm.machinfo->gpio_batlock);
 	case SHARPSL_STATUS_CHRGFULL:
