@@ -82,6 +82,14 @@ static const char *jffs2_compr_name(unsigned int compr)
 	switch (compr) {
 	case JFFS2_COMPR_MODE_NONE:
 		return "none";
+#ifdef CONFIG_JFFS2_LZO
+	case JFFS2_COMPR_MODE_FORCELZO:
+		return "lzo";
+#endif
+#ifdef CONFIG_JFFS2_ZLIB
+	case JFFS2_COMPR_MODE_FORCEZLIB:
+		return "zlib";
+#endif
 	default:
 		/* should never happen; programmer error */
 		WARN_ON(1);
@@ -195,11 +203,25 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 
 			if (!name)
 				return -ENOMEM;
-			if (!strcmp(name, "none")) {
+			if (!strcmp(name, "none"))
 				c->mount_opts.compr = JFFS2_COMPR_MODE_NONE;
-				c->mount_opts.override_compr = true;
+#ifdef CONFIG_JFFS2_LZO
+			else if (!strcmp(name, "lzo"))
+				c->mount_opts.compr = JFFS2_COMPR_MODE_FORCELZO;
+#endif
+#ifdef CONFIG_JFFS2_ZLIB
+			else if (!strcmp(name, "zlib"))
+				c->mount_opts.compr =
+						JFFS2_COMPR_MODE_FORCEZLIB;
+#endif
+			else {
+				printk(KERN_ERR "JFFS2 Error: unknown compressor \"%s\"",
+						name);
+				kfree(name);
+				return -EINVAL;
 			}
 			kfree(name);
+			c->mount_opts.override_compr = true;
 			break;
 		default:
 			printk(KERN_ERR "JFFS2 Error: unrecognized mount option '%s' or missing value\n",
