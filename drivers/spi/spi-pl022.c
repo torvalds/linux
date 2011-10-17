@@ -2310,11 +2310,6 @@ static int pl022_suspend(struct device *dev)
 		return status;
 	}
 
-	amba_vcore_enable(pl022->adev);
-	amba_pclk_enable(pl022->adev);
-	load_ssp_default_config(pl022);
-	amba_pclk_disable(pl022->adev);
-	amba_vcore_disable(pl022->adev);
 	dev_dbg(dev, "suspended\n");
 	return 0;
 }
