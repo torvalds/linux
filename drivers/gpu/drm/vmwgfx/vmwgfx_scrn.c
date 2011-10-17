@@ -545,6 +545,7 @@ err_vblank_cleanup:
 	drm_vblank_cleanup(dev);
 err_free:
 	kfree(dev_priv->sou_priv);
+	dev_priv->sou_priv = NULL;
 err_no_mem:
 	return ret;
 }
@@ -553,9 +554,10 @@ int vmw_kms_close_screen_object_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	drm_vblank_cleanup(dev);
 	if (!dev_priv->sou_priv)
 		return -ENOSYS;
+
+	drm_vblank_cleanup(dev);
 
 	if (!list_empty(&dev_priv->sou_priv->active))
 		DRM_ERROR("Still have active outputs when unloading driver");
