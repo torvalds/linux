@@ -78,7 +78,6 @@ enum se_task_flags {
 	TF_TIMEOUT		= (1 << 2),
 	TF_REQUEST_STOP		= (1 << 3),
 	TF_TIMER_RUNNING	= (1 << 4),
-	TF_TIMER_STOP		= (1 << 5),
 };
 
 /* Special transport agnostic struct se_cmd->t_states */

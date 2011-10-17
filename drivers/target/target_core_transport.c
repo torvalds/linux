@@ -2066,10 +2066,6 @@ static void transport_task_timeout_handler(unsigned long data)
 	pr_debug("transport task timeout fired! task: %p cmd: %p\n", task, cmd);
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (task->task_flags & TF_TIMER_STOP) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
-	}
 	task->task_flags &= ~TF_TIMER_RUNNING;
 
 	/*
@@ -2153,14 +2149,12 @@ void __transport_stop_task_timer(struct se_task *task, unsigned long *flags)
 	if (!(task->task_flags & TF_TIMER_RUNNING))
 		return;
 
-	task->task_flags |= TF_TIMER_STOP;
 	spin_unlock_irqrestore(&cmd->t_state_lock, *flags);
 
 	del_timer_sync(&task->task_timer);
 
 	spin_lock_irqsave(&cmd->t_state_lock, *flags);
 	task->task_flags &= ~TF_TIMER_RUNNING;
-	task->task_flags &= ~TF_TIMER_STOP;
 }
 
 static void transport_stop_all_task_timers(struct se_cmd *cmd)
