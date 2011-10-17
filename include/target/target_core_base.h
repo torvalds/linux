@@ -83,7 +83,6 @@ enum se_task_flags {
 enum transport_state_table {
 	TRANSPORT_NO_STATE	= 0,
 	TRANSPORT_NEW_CMD	= 1,
-	TRANSPORT_DEFERRED_CMD	= 2,
 	TRANSPORT_WRITE_PENDING	= 3,
 	TRANSPORT_PROCESS_WRITE	= 4,
 	TRANSPORT_PROCESSING	= 5,
@@ -434,8 +433,6 @@ struct se_cmd {
 	int			sam_task_attr;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
-	/* Transport protocol dependent state for out of order CmdSNs */
-	int			deferred_t_state;
 	/* Transport specific error status */
 	int			transport_error_status;
 	/* See se_cmd_flags_table */

@@ -478,8 +478,6 @@ static int transport_cmd_check_stop(
 			" == TRUE for ITT: 0x%08x\n", __func__, __LINE__,
 			cmd->se_tfo->get_task_tag(cmd));
 
-		cmd->deferred_t_state = cmd->t_state;
-		cmd->t_state = TRANSPORT_DEFERRED_CMD;
 		atomic_set(&cmd->t_transport_active, 0);
 		if (transport_off == 2)
 			transport_all_task_dev_remove_state(cmd);
@@ -497,8 +495,6 @@ static int transport_cmd_check_stop(
 			" TRUE for ITT: 0x%08x\n", __func__, __LINE__,
 			cmd->se_tfo->get_task_tag(cmd));
 
-		cmd->deferred_t_state = cmd->t_state;
-		cmd->t_state = TRANSPORT_DEFERRED_CMD;
 		if (transport_off == 2)
 			transport_all_task_dev_remove_state(cmd);
 
@@ -1845,10 +1841,9 @@ static void transport_generic_request_failure(
 	pr_debug("-----[ Storage Engine Exception for cmd: %p ITT: 0x%08x"
 		" CDB: 0x%02x\n", cmd, cmd->se_tfo->get_task_tag(cmd),
 		cmd->t_task_cdb[0]);
-	pr_debug("-----[ i_state: %d t_state/def_t_state:"
-		" %d/%d transport_error_status: %d\n",
+	pr_debug("-----[ i_state: %d t_state: %d transport_error_status: %d\n",
 		cmd->se_tfo->get_cmd_state(cmd),
-		cmd->t_state, cmd->deferred_t_state,
+		cmd->t_state,
 		cmd->transport_error_status);
 	pr_debug("-----[ t_tasks: %d t_task_cdbs_left: %d"
 		" t_task_cdbs_sent: %d t_task_cdbs_ex_left: %d --"
@@ -4404,10 +4399,9 @@ void transport_wait_for_tasks(struct se_cmd *cmd)
 	atomic_set(&cmd->t_transport_stop, 1);
 
 	pr_debug("wait_for_tasks: Stopping %p ITT: 0x%08x"
-		" i_state: %d, t_state/def_t_state: %d/%d, t_transport_stop"
-		" = TRUE\n", cmd, cmd->se_tfo->get_task_tag(cmd),
-		cmd->se_tfo->get_cmd_state(cmd), cmd->t_state,
-		cmd->deferred_t_state);
+		" i_state: %d, t_state: %d, t_transport_stop = TRUE\n",
+		cmd, cmd->se_tfo->get_task_tag(cmd),
+		cmd->se_tfo->get_cmd_state(cmd), cmd->t_state);
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -4806,9 +4800,9 @@ get_cmd:
 			transport_complete_qf(cmd);
 			break;
 		default:
-			pr_err("Unknown t_state: %d deferred_t_state:"
-				" %d for ITT: 0x%08x i_state: %d on SE LUN:"
-				" %u\n", cmd->t_state, cmd->deferred_t_state,
+			pr_err("Unknown t_state: %d  for ITT: 0x%08x "
+				"i_state: %d on SE LUN: %u\n",
+				cmd->t_state,
 				cmd->se_tfo->get_task_tag(cmd),
 				cmd->se_tfo->get_cmd_state(cmd),
 				cmd->se_lun->unpacked_lun);

@@ -237,12 +237,12 @@ static void core_tmr_drain_task_list(
 		cmd = task->task_se_cmd;
 
 		pr_debug("LUN_RESET: %s cmd: %p task: %p"
-			" ITT/CmdSN: 0x%08x/0x%08x, i_state: %d, t_state/"
-			"def_t_state: %d/%d cdb: 0x%02x\n",
+			" ITT/CmdSN: 0x%08x/0x%08x, i_state: %d, t_state: %d"
+			"cdb: 0x%02x\n",
 			(preempt_and_abort_list) ? "Preempt" : "", cmd, task,
 			cmd->se_tfo->get_task_tag(cmd), 0,
 			cmd->se_tfo->get_cmd_state(cmd), cmd->t_state,
-			cmd->deferred_t_state, cmd->t_task_cdb[0]);
+			cmd->t_task_cdb[0]);
 		pr_debug("LUN_RESET: ITT[0x%08x] - pr_res_key: 0x%016Lx"
 			" t_task_cdbs: %d t_task_cdbs_left: %d"
 			" t_task_cdbs_sent: %d -- t_transport_active: %d"
