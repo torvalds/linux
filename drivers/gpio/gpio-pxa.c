@@ -11,6 +11,8 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/gpio-pxa.h>
 #include <linux/init.h>
@@ -466,7 +468,8 @@ static int __devinit pxa_gpio_probe(struct platform_device *pdev)
 {
 	struct pxa_gpio_chip *c;
 	struct resource *res;
-	int gpio, irq;
+	struct clk *clk;
+	int gpio, irq, ret;
 	int irq0 = 0, irq1 = 0, irq_mux, gpio_offset = 0;
 
 	pxa_last_gpio = pxa_gpio_nums();
@@ -488,6 +491,27 @@ static int __devinit pxa_gpio_probe(struct platform_device *pdev)
 
 	if (irq0 > 0)
 		gpio_offset = 2;
+
+	clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "Error %ld to get gpio clock\n",
+			PTR_ERR(clk));
+		iounmap(gpio_reg_base);
+		return PTR_ERR(clk);
+	}
+	ret = clk_prepare(clk);
+	if (ret) {
+		clk_put(clk);
+		iounmap(gpio_reg_base);
+		return ret;
+	}
+	ret = clk_enable(clk);
+	if (ret) {
+		clk_unprepare(clk);
+		clk_put(clk);
+		iounmap(gpio_reg_base);
+		return ret;
+	}
 
 	/* Initialize GPIO chips */
 	pxa_init_gpio_chip(pxa_last_gpio);

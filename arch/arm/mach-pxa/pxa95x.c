@@ -211,6 +211,7 @@ static DEFINE_PXA3_CKEN(pxa95x_ssp3, SSP3, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa95x_ssp4, SSP4, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa95x_pwm0, PWM0, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa95x_pwm1, PWM1, 13000000, 0);
+static DEFINE_PXA3_CKEN(pxa95x_gpio, GPIO, 13000000, 0);
 
 static struct clk_lookup pxa95x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa95x_pout, NULL, "CLK_POUT"),
@@ -229,6 +230,7 @@ static struct clk_lookup pxa95x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa95x_ssp4, "pxa27x-ssp.3", NULL),
 	INIT_CLKREG(&clk_pxa95x_pwm0, "pxa27x-pwm.0", NULL),
 	INIT_CLKREG(&clk_pxa95x_pwm1, "pxa27x-pwm.1", NULL),
+	INIT_CLKREG(&clk_pxa95x_gpio, "pxa-gpio", NULL),
 };
 
 void __init pxa95x_init_irq(void)

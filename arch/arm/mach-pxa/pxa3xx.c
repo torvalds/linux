@@ -55,6 +55,7 @@ static DEFINE_PXA3_CKEN(pxa3xx_pwm0, PWM0, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_pwm1, PWM1, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_mmc1, MMC1, 19500000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_mmc2, MMC2, 19500000, 0);
+static DEFINE_PXA3_CKEN(pxa3xx_gpio, GPIO, 13000000, 0);
 
 static DEFINE_CK(pxa3xx_lcd, LCD, &clk_pxa3xx_hsio_ops);
 static DEFINE_CK(pxa3xx_smemc, SMC, &clk_pxa3xx_smemc_ops);
@@ -87,6 +88,7 @@ static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_mmc1, "pxa2xx-mci.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_mmc2, "pxa2xx-mci.1", NULL),
 	INIT_CLKREG(&clk_pxa3xx_smemc, "pxa2xx-pcmcia", NULL),
+	INIT_CLKREG(&clk_pxa3xx_gpio, "pxa-gpio", NULL),
 };
 
 #ifdef CONFIG_PM
