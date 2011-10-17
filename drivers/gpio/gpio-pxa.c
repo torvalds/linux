@@ -46,6 +46,7 @@
 #define GFER_OFFSET	0x3C
 #define GEDR_OFFSET	0x48
 #define GAFR_OFFSET	0x54
+#define ED_MASK_OFFSET	0x9C	/* GPIO edge detection for AP side */
 
 #define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
 
@@ -496,6 +497,9 @@ static int __devinit pxa_gpio_probe(struct platform_device *pdev)
 		writel_relaxed(0, c->regbase + GFER_OFFSET);
 		writel_relaxed(0, c->regbase + GRER_OFFSET);
 		writel_relaxed(~0,c->regbase + GEDR_OFFSET);
+		/* unmask GPIO edge detect for AP side */
+		if (gpio_is_mmp_type(gpio_type))
+			writel_relaxed(~0, c->regbase + ED_MASK_OFFSET);
 	}
 
 #ifdef CONFIG_ARCH_PXA
