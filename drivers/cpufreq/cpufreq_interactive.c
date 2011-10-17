@@ -59,7 +59,7 @@ static spinlock_t down_cpumask_lock;
 static struct mutex set_speed_lock;
 
 /* Go to max speed when CPU load at or above this value. */
-#define DEFAULT_GO_MAXSPEED_LOAD 85
+#define DEFAULT_GO_MAXSPEED_LOAD 95
 static unsigned long go_maxspeed_load;
 
 /*
@@ -71,7 +71,7 @@ static unsigned long min_sample_time;
 /*
  * The sample rate of the timer used to increase frequency
  */
-#define DEFAULT_TIMER_RATE 30000;
+#define DEFAULT_TIMER_RATE 10000;
 static unsigned long timer_rate;
 
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
