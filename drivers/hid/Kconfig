@@ -442,9 +442,8 @@ config HID_PICOLCD_LEDS
 	  Provide access to PicoLCD's GPO pins via leds class.
 
 config HID_PRIMAX
-	tristate "Primax non-fully HID-compliant devices" if EXPERT
+	tristate "Primax non-fully HID-compliant devices"
 	depends on USB_HID
-	default !EXPERT
 	---help---
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
