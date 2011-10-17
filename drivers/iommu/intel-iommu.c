@@ -3950,7 +3950,11 @@ static void __devinit quirk_calpella_no_shadow_gtt(struct pci_dev *dev)
 	if (!(ggc & GGC_MEMORY_VT_ENABLED)) {
 		printk(KERN_INFO "DMAR: BIOS has allocated no shadow GTT; disabling IOMMU for graphics\n");
 		dmar_map_gfx = 0;
-	}
+	} else if (dmar_map_gfx) {
+		/* we have to ensure the gfx device is idle before we flush */
+		printk(KERN_INFO "DMAR: Disabling batched IOTLB flush on Ironlake\n");
+		intel_iommu_strict = 1;
+       }
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0040, quirk_calpella_no_shadow_gtt);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0044, quirk_calpella_no_shadow_gtt);
