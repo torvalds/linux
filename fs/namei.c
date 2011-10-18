@@ -230,6 +230,20 @@ static int acl_permission_check(struct inode *inode, int mask)
 	if (current_user_ns() != inode_userns(inode))
 		goto other_perms;
 
+	if (IS_RICHACL(inode)) {
+		int error = check_acl(inode, mask);
+		if (error != -EAGAIN)
+			return error;
+		if (mask & (MAY_DELETE_SELF | MAY_TAKE_OWNERSHIP |
+			    MAY_CHMOD | MAY_SET_TIMES)) {
+			/*
+			 * The file permission bit cannot grant these
+			 * permissions.
+			 */
+			return -EACCES;
+		}
+	}
+
 	if (likely(current_fsuid() == inode->i_uid))
 		mode >>= 6;
 	else {
