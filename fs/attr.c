@@ -13,6 +13,7 @@
 #include <linux/fsnotify.h>
 #include <linux/fcntl.h>
 #include <linux/security.h>
+#include <linux/richacl.h>
 
 static int richacl_change_ok(struct inode *inode, int mask)
 {
@@ -21,8 +22,9 @@ static int richacl_change_ok(struct inode *inode, int mask)
 
 	if (inode->i_op->permission)
 		return inode->i_op->permission(inode, mask);
-
-	return check_acl(inode, mask);
+	if (inode->i_op->get_richacl)
+		return check_richacl(inode, mask);
+	return -EPERM;
 }
 
 static bool inode_uid_change_ok(struct inode *inode, uid_t ia_uid)

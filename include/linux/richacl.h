@@ -360,6 +360,8 @@ extern int richacl_permission(struct inode *, const struct richacl *,
 			      unsigned int);
 extern struct richacl *richacl_inherit(const struct richacl *, int);
 extern int richacl_equiv_mode(const struct richacl *, mode_t *);
+extern int check_richacl(struct inode *, int);
+extern int richacl_check_acl(struct inode *, int);
 
 /* richacl_inode.c */
 extern struct richacl *richacl_inherit_inode(const struct richacl *,

@@ -582,3 +582,57 @@ richacl_equiv_mode(const struct richacl *acl, mode_t *mode_p)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(richacl_equiv_mode);
+
+int check_richacl(struct inode *inode, int want)
+{
+#ifdef CONFIG_FS_RICHACL
+	struct richacl *acl;
+	int richacl_mask = richacl_want_to_mask(want);
+
+	if (want & MAY_NOT_BLOCK) {
+		acl = rcu_dereference(inode->i_richacl);
+		if (!acl)
+			return -EAGAIN;
+		/* no ->get_acl() calls in RCU mode... */
+		if (acl == ACL_NOT_CACHED)
+			return -ECHILD;
+		return richacl_permission(inode, acl, richacl_mask);
+	}
+	return richacl_check_acl(inode, richacl_mask);
+#endif
+	return -EAGAIN;
+}
+
+int richacl_check_acl(struct inode *inode, int richacl_mask)
+{
+
+#ifdef CONFIG_FS_RICHACL
+	struct richacl *acl;
+	acl = get_cached_richacl(inode);
+	/*
+	 * A filesystem can force a ACL callback by just never filling the
+	 * ACL cache. But normally you'd fill the cache either at inode
+	 * instantiation time, or on the first ->get_acl call.
+	 *
+	 * If the filesystem doesn't have a get_acl() function at all, we'll
+	 * just create the negative cache entry.
+	 */
+	if (acl == ACL_NOT_CACHED) {
+		if (inode->i_op->get_acl) {
+			acl = inode->i_op->get_richacl(inode);
+			if (IS_ERR(acl))
+				return PTR_ERR(acl);
+		} else {
+			set_cached_richacl(inode, NULL);
+			return -EAGAIN;
+		}
+	}
+	if (acl) {
+		int error = richacl_permission(inode, acl, richacl_mask);
+		richacl_put(acl);
+		return error;
+	}
+#endif
+	return -EAGAIN;
+}
+EXPORT_SYMBOL_GPL(richacl_check_acl);

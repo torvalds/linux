@@ -33,6 +33,7 @@
 #include <linux/device_cgroup.h>
 #include <linux/fs_struct.h>
 #include <linux/posix_acl.h>
+#include <linux/richacl.h>
 #include <asm/uaccess.h>
 
 #include "internal.h"
@@ -174,7 +175,7 @@ void putname(const char *name)
 EXPORT_SYMBOL(putname);
 #endif
 
-int check_acl(struct inode *inode, int mask)
+static int check_posix_acl(struct inode *inode, int mask)
 {
 #ifdef CONFIG_FS_POSIX_ACL
 	struct posix_acl *acl;
@@ -218,6 +219,16 @@ int check_acl(struct inode *inode, int mask)
 #endif
 
 	return -EAGAIN;
+}
+
+static int check_acl(struct inode *inode, int mask)
+{
+	if (IS_POSIXACL(inode))
+		return check_posix_acl(inode, mask);
+	else if (IS_RICHACL(inode))
+		return check_richacl(inode, mask);
+	else
+		return -EAGAIN;
 }
 
 /*
