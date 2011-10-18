@@ -1070,6 +1070,8 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 	if (user_fence_rep == NULL)
 		return;
 
+	memset(&fence_rep, 0, sizeof(fence_rep));
+
 	fence_rep.error = ret;
 	if (ret == 0) {
 		BUG_ON(fence == NULL);
