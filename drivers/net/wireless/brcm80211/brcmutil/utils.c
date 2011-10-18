@@ -16,6 +16,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/module.h>
+
 #include <brcmu_utils.h>
 
 MODULE_AUTHOR("Broadcom Corporation");
@@ -65,36 +66,6 @@ void brcmu_pkt_buf_free_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(brcmu_pkt_buf_free_skb);
 
-
-/* copy a buffer into a pkt buffer chain */
-uint brcmu_pktfrombuf(struct sk_buff *p, uint offset, int len,
-		unsigned char *buf)
-{
-	uint n, ret = 0;
-
-	/* skip 'offset' bytes */
-	for (; p && offset; p = p->next) {
-		if (offset < (uint) (p->len))
-			break;
-		offset -= p->len;
-	}
-
-	if (!p)
-		return 0;
-
-	/* copy the data */
-	for (; p && len; p = p->next) {
-		n = min((uint) (p->len) - offset, (uint) len);
-		memcpy(p->data + offset, buf, n);
-		buf += n;
-		len -= n;
-		ret += n;
-		offset = 0;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(brcmu_pktfrombuf);
 
 /* return total length of buffer chain */
 uint brcmu_pkttotlen(struct sk_buff *p)

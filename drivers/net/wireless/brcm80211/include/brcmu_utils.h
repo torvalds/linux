@@ -173,8 +173,6 @@ extern void brcmu_pktq_flush(struct pktq *pq, bool dir,
 
 /* externs */
 /* packet */
-extern uint brcmu_pktfrombuf(struct sk_buff *p,
-	uint offset, int len, unsigned char *buf);
 extern uint brcmu_pkttotlen(struct sk_buff *p);
 
 /* ip address */

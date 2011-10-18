@@ -1222,6 +1222,28 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_bus *bus, bool abort, bool rtx)
 		bus->drvr->busstate = BRCMF_BUS_DOWN;
 }
 
+/* copy a buffer into a pkt buffer chain */
+static uint brcmf_sdbrcm_glom_from_buf(struct brcmf_bus *bus, uint len)
+{
+	uint n, ret = 0;
+	struct sk_buff *p;
+	u8 *buf;
+
+	p = bus->glom;
+	buf = bus->dataptr;
+
+	/* copy the data */
+	for (; p && len; p = p->next) {
+		n = min_t(uint, p->len, len);
+		memcpy(p->data, buf, n);
+		buf += n;
+		len -= n;
+		ret += n;
+	}
+
+	return ret;
+}
+
 static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 {
 	u16 dlen, totlen;
@@ -1354,8 +1376,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 					SDIO_FUNC_2,
 					F2SYNC, bus->dataptr, dlen,
 					NULL);
-			sublen = (u16) brcmu_pktfrombuf(pfirst, 0, dlen,
-						bus->dataptr);
+			sublen = (u16) brcmf_sdbrcm_glom_from_buf(bus, dlen);
 			if (sublen != dlen) {
 				brcmf_dbg(ERROR, "FAILED TO COPY, dlen %d sublen %d\n",
 					  dlen, sublen);
