@@ -24,6 +24,8 @@
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>
 
+#define XTS_BLOCK_SIZE 16
+
 struct priv {
 	struct crypto_cipher *child;
 	struct crypto_cipher *tweak;
@@ -96,7 +98,7 @@ static int crypt(struct blkcipher_desc *d,
 {
 	int err;
 	unsigned int avail;
-	const int bs = crypto_cipher_blocksize(ctx->child);
+	const int bs = XTS_BLOCK_SIZE;
 	struct sinfo s = {
 		.tfm = crypto_cipher_tfm(ctx->child),
 		.fn = fn
@@ -177,7 +179,7 @@ static int init_tfm(struct crypto_tfm *tfm)
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
 
-	if (crypto_cipher_blocksize(cipher) != 16) {
+	if (crypto_cipher_blocksize(cipher) != XTS_BLOCK_SIZE) {
 		*flags |= CRYPTO_TFM_RES_BAD_BLOCK_LEN;
 		crypto_free_cipher(cipher);
 		return -EINVAL;
@@ -192,7 +194,7 @@ static int init_tfm(struct crypto_tfm *tfm)
 	}
 
 	/* this check isn't really needed, leave it here just in case */
-	if (crypto_cipher_blocksize(cipher) != 16) {
+	if (crypto_cipher_blocksize(cipher) != XTS_BLOCK_SIZE) {
 		crypto_free_cipher(cipher);
 		crypto_free_cipher(ctx->child);
 		*flags |= CRYPTO_TFM_RES_BAD_BLOCK_LEN;
