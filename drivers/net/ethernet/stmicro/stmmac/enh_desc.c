@@ -23,6 +23,7 @@
 *******************************************************************************/
 
 #include "common.h"
+#include "descs_com.h"
 
 static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 				  struct dma_desc *p, void __iomem *ioaddr)
@@ -233,10 +234,9 @@ static void enh_desc_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 	for (i = 0; i < ring_size; i++) {
 		p->des01.erx.own = 1;
 		p->des01.erx.buffer1_size = BUF_SIZE_8KiB - 1;
-		/* To support jumbo frames */
-		p->des01.erx.buffer2_size = BUF_SIZE_8KiB - 1;
-		if (i == ring_size - 1)
-			p->des01.erx.end_ring = 1;
+
+		ehn_desc_rx_set_on_ring_chain(p, (i == ring_size - 1));
+
 		if (disable_rx_ic)
 			p->des01.erx.disable_ic = 1;
 		p++;
@@ -249,8 +249,7 @@ static void enh_desc_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
 
 	for (i = 0; i < ring_size; i++) {
 		p->des01.etx.own = 0;
-		if (i == ring_size - 1)
-			p->des01.etx.end_ring = 1;
+		ehn_desc_tx_set_on_ring_chain(p, (i == ring_size - 1));
 		p++;
 	}
 }
@@ -285,19 +284,16 @@ static void enh_desc_release_tx_desc(struct dma_desc *p)
 	int ter = p->des01.etx.end_ring;
 
 	memset(p, 0, offsetof(struct dma_desc, des2));
-	p->des01.etx.end_ring = ter;
+	enh_desc_end_tx_desc(p, ter);
 }
 
 static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				     int csum_flag)
 {
 	p->des01.etx.first_segment = is_fs;
-	if (unlikely(len > BUF_SIZE_4KiB)) {
-		p->des01.etx.buffer1_size = BUF_SIZE_4KiB;
-		p->des01.etx.buffer2_size = len - BUF_SIZE_4KiB;
-	} else {
-		p->des01.etx.buffer1_size = len;
-	}
+
+	enh_set_tx_desc_len(p, len);
+
 	if (likely(csum_flag))
 		p->des01.etx.checksum_insertion = cic_full;
 }

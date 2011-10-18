@@ -23,6 +23,7 @@
 *******************************************************************************/
 
 #include "common.h"
+#include "descs_com.h"
 
 static int ndesc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 			       struct dma_desc *p, void __iomem *ioaddr)
@@ -126,9 +127,9 @@ static void ndesc_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 	for (i = 0; i < ring_size; i++) {
 		p->des01.rx.own = 1;
 		p->des01.rx.buffer1_size = BUF_SIZE_2KiB - 1;
-		p->des01.rx.buffer2_size = BUF_SIZE_2KiB - 1;
-		if (i == ring_size - 1)
-			p->des01.rx.end_ring = 1;
+
+		ndesc_rx_set_on_ring_chain(p, (i == ring_size - 1));
+
 		if (disable_rx_ic)
 			p->des01.rx.disable_ic = 1;
 		p++;
@@ -140,8 +141,7 @@ static void ndesc_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
 	int i;
 	for (i = 0; i < ring_size; i++) {
 		p->des01.tx.own = 0;
-		if (i == ring_size - 1)
-			p->des01.tx.end_ring = 1;
+		ndesc_tx_set_on_ring_chain(p, (i == (ring_size - 1)));
 		p++;
 	}
 }
@@ -176,20 +176,14 @@ static void ndesc_release_tx_desc(struct dma_desc *p)
 	int ter = p->des01.tx.end_ring;
 
 	memset(p, 0, offsetof(struct dma_desc, des2));
-	/* set termination field */
-	p->des01.tx.end_ring = ter;
+	ndesc_end_tx_desc(p, ter);
 }
 
 static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				  int csum_flag)
 {
 	p->des01.tx.first_segment = is_fs;
-
-	if (unlikely(len > BUF_SIZE_2KiB)) {
-		p->des01.etx.buffer1_size = BUF_SIZE_2KiB - 1;
-		p->des01.etx.buffer2_size = len - p->des01.etx.buffer1_size;
-	} else
-		p->des01.tx.buffer1_size = len;
+	norm_set_tx_desc_len(p, len);
 }
 
 static void ndesc_clear_tx_ic(struct dma_desc *p)

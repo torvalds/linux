@@ -287,10 +287,22 @@ struct mii_regs {
 	unsigned int data;	/* MII Data */
 };
 
+struct stmmac_ring_mode_ops {
+	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
+	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
+	void (*refill_desc3) (int bfsize, struct dma_desc *p);
+	void (*init_desc3) (int des3_as_data_buf, struct dma_desc *p);
+	void (*init_dma_chain) (struct dma_desc *des, dma_addr_t phy_addr,
+				unsigned int size);
+	void (*clean_desc3) (struct dma_desc *p);
+	int (*set_16kib_bfsize) (int mtu);
+};
+
 struct mac_device_info {
 	const struct stmmac_ops		*mac;
 	const struct stmmac_desc_ops	*desc;
 	const struct stmmac_dma_ops	*dma;
+	const struct stmmac_ring_mode_ops	*ring;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 	unsigned int synopsys_uid;
@@ -304,3 +316,4 @@ extern void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 extern void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 				unsigned int high, unsigned int low);
 extern void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
+extern const struct stmmac_ring_mode_ops ring_mode_ops;

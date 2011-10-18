@@ -22,7 +22,7 @@
 
 #define DRV_MODULE_VERSION	"Oct_2011"
 #include <linux/stmmac.h>
-
+#include <linux/phy.h>
 #include "common.h"
 #ifdef CONFIG_STMMAC_TIMER
 #include "stmmac_timer.h"
