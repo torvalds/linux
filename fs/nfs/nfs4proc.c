@@ -1593,8 +1593,14 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	int status;
 
 	status = nfs4_run_open_task(data, 0);
-	if (status != 0 || !data->rpc_done)
+	if (!data->rpc_done)
 		return status;
+	if (status != 0) {
+		if (status == -NFS4ERR_BADNAME &&
+				!(o_arg->open_flags & O_CREAT))
+			return -ENOENT;
+		return status;
+	}
 
 	if (o_arg->open_flags & O_CREAT) {
 		update_changeattr(dir, &o_res->cinfo);
@@ -2455,6 +2461,8 @@ static int nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir, struct qst
 
 		status = _nfs4_proc_lookup(clnt, dir, name, fhandle, fattr);
 		switch (status) {
+		case -NFS4ERR_BADNAME:
+			return -ENOENT;
 		case -NFS4ERR_MOVED:
 			err = nfs4_get_referral(dir, name, fattr, fhandle);
 			break;
