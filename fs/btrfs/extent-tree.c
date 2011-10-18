@@ -3510,6 +3510,20 @@ again:
 		u64 profile = btrfs_get_alloc_profile(root, 0);
 		u64 avail;
 
+		/*
+		 * If we have a lot of space that's pinned, don't bother doing
+		 * the overcommit dance yet and just commit the transaction.
+		 */
+		avail = (space_info->total_bytes - space_info->bytes_used) * 8;
+		do_div(avail, 10);
+		if (space_info->bytes_pinned >= avail && flush && !trans &&
+		    !committed) {
+			space_info->flush = 1;
+			flushing = true;
+			spin_unlock(&space_info->lock);
+			goto commit;
+		}
+
 		spin_lock(&root->fs_info->free_chunk_lock);
 		avail = root->fs_info->free_chunk_space;
 
@@ -3581,6 +3595,7 @@ again:
 	if (trans)
 		goto out;
 
+commit:
 	ret = -ENOSPC;
 	if (committed)
 		goto out;
