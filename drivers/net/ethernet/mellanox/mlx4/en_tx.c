@@ -695,7 +695,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		tx_desc->ctrl.srcrb_flags |= cpu_to_be32(MLX4_WQE_CTRL_IP_CSUM |
 							 MLX4_WQE_CTRL_TCP_UDP_CSUM);
-		priv->port_stats.tx_chksum_offload++;
+		ring->tx_csum++;
 	}
 
 	if (unlikely(priv->validate_loopback)) {
