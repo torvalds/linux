@@ -75,7 +75,7 @@ static void dump_completed_IO(struct inode * inode)
  * to written.
  * The function return the number of pending IOs on success.
  */
-extern int ext4_flush_completed_IO(struct inode *inode)
+int ext4_flush_completed_IO(struct inode *inode)
 {
 	ext4_io_end_t *io;
 	struct ext4_inode_info *ei = EXT4_I(inode);

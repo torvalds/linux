@@ -1100,7 +1100,7 @@ unsigned long ext4_count_dirs(struct super_block * sb)
  * inode allocation from the current group, so we take alloc_sem lock, to
  * block ext4_claim_inode until we are finished.
  */
-extern int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
+int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 				 int barrier)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
