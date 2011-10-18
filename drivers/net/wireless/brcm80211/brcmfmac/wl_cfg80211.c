@@ -2057,6 +2057,15 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
 	return err;
 }
 
+static struct brcmf_bss_info_le *
+next_bss_le(struct brcmf_scan_results *list, struct brcmf_bss_info_le *bss)
+{
+	if (bss == NULL)
+		return list->bss_info_le;
+	return (struct brcmf_bss_info_le *)((unsigned long)bss +
+					    le32_to_cpu(bss->length));
+}
+
 static s32 brcmf_inform_bss(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct brcmf_scan_results *bss_list;
@@ -2072,7 +2081,7 @@ static s32 brcmf_inform_bss(struct brcmf_cfg80211_priv *cfg_priv)
 	}
 	WL_SCAN("scanned AP count (%d)\n", bss_list->count);
 	for (i = 0; i < bss_list->count && i < WL_AP_MAX; i++) {
-		bi = next_bss(bss_list, bi);
+		bi = next_bss_le(bss_list, bi);
 		err = brcmf_inform_single_bss(cfg_priv, bi);
 		if (err)
 			break;
