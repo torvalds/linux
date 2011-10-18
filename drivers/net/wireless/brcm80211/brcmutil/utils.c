@@ -335,23 +335,3 @@ void brcmu_prpkt(const char *msg, struct sk_buff *p0)
 }
 EXPORT_SYMBOL(brcmu_prpkt);
 #endif				/* defined(BCMDBG) */
-
-#if defined(BCMDBG)
-/*
- * print bytes formatted as hex to a string. return the resulting
- * string length
- */
-int brcmu_format_hex(char *str, const void *bytes, int len)
-{
-	int i;
-	char *p = str;
-	const u8 *src = (const u8 *)bytes;
-
-	for (i = 0; i < len; i++) {
-		p += snprintf(p, 3, "%02X", *src);
-		src++;
-	}
-	return (int)(p - str);
-}
-EXPORT_SYMBOL(brcmu_format_hex);
-#endif				/* defined(BCMDBG) */

@@ -178,16 +178,13 @@ extern uint brcmu_pkttotlen(struct sk_buff *p);
 /* ip address */
 struct ipv4_addr;
 
+
+/* externs */
+/* format/print */
 #ifdef BCMDBG
 extern void brcmu_prpkt(const char *msg, struct sk_buff *p0);
 #else
 #define brcmu_prpkt(a, b)
 #endif				/* BCMDBG */
-
-/* externs */
-/* format/print */
-#if defined(BCMDBG)
-extern int brcmu_format_hex(char *str, const void *bytes, int len);
-#endif
 
 #endif				/* _BRCMU_UTILS_H_ */

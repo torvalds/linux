@@ -6044,7 +6044,6 @@ void brcms_c_print_txdesc(struct d11txh *txh)
 
 	u8 *rtsph = txh->RTSPhyHeader;
 	struct ieee80211_rts rts = txh->rts_frame;
-	char hexbuf[256];
 
 	/* add plcp header along with txh descriptor */
 	printk(KERN_DEBUG "Raw TxDesc + plcp header:\n");
@@ -6065,17 +6064,16 @@ void brcms_c_print_txdesc(struct d11txh *txh)
 	printk(KERN_DEBUG "XtraFrameTypes: %04x ", xtraft);
 	printk(KERN_DEBUG "\n");
 
-	brcmu_format_hex(hexbuf, iv, sizeof(txh->IV));
-	printk(KERN_DEBUG "SecIV:       %s\n", hexbuf);
-	brcmu_format_hex(hexbuf, ra, sizeof(txh->TxFrameRA));
-	printk(KERN_DEBUG "RA:          %s\n", hexbuf);
+	print_hex_dump_bytes("SecIV:", DUMP_PREFIX_OFFSET, iv, sizeof(txh->IV));
+	print_hex_dump_bytes("RA:", DUMP_PREFIX_OFFSET,
+			     ra, sizeof(txh->TxFrameRA));
 
 	printk(KERN_DEBUG "Fb FES Time: %04x ", tfestfb);
-	brcmu_format_hex(hexbuf, rtspfb, sizeof(txh->RTSPLCPFallback));
-	printk(KERN_DEBUG "RTS PLCP: %s ", hexbuf);
+	print_hex_dump_bytes("Fb RTS PLCP:", DUMP_PREFIX_OFFSET,
+			     rtspfb, sizeof(txh->RTSPLCPFallback));
 	printk(KERN_DEBUG "RTS DUR: %04x ", rtsdfb);
-	brcmu_format_hex(hexbuf, fragpfb, sizeof(txh->FragPLCPFallback));
-	printk(KERN_DEBUG "PLCP: %s ", hexbuf);
+	print_hex_dump_bytes("PLCP:", DUMP_PREFIX_OFFSET,
+			     fragpfb, sizeof(txh->FragPLCPFallback));
 	printk(KERN_DEBUG "DUR: %04x", fragdfb);
 	printk(KERN_DEBUG "\n");
 
@@ -6090,10 +6088,10 @@ void brcms_c_print_txdesc(struct d11txh *txh)
 	printk(KERN_DEBUG "MaxAggbyte_fb:  %04x\n", mabyte_f);
 	printk(KERN_DEBUG "MinByte:     %04x\n", mmbyte);
 
-	brcmu_format_hex(hexbuf, rtsph, sizeof(txh->RTSPhyHeader));
-	printk(KERN_DEBUG "RTS PLCP: %s ", hexbuf);
-	brcmu_format_hex(hexbuf, (u8 *) &rts, sizeof(txh->rts_frame));
-	printk(KERN_DEBUG "RTS Frame: %s", hexbuf);
+	print_hex_dump_bytes("RTS PLCP:", DUMP_PREFIX_OFFSET,
+			     rtsph, sizeof(txh->RTSPhyHeader));
+	print_hex_dump_bytes("RTS Frame:", DUMP_PREFIX_OFFSET,
+			     (u8 *)&rts, sizeof(txh->rts_frame));
 	printk(KERN_DEBUG "\n");
 }
 #endif				/* defined(BCMDBG) */
