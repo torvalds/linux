@@ -175,6 +175,8 @@ int kvm_arch_init_vm(struct kvm *kvm)
 	if (rc)
 		goto out_err;
 
+	rc = -ENOMEM;
+
 	kvm->arch.sca = (struct sca_block *) get_zeroed_page(GFP_KERNEL);
 	if (!kvm->arch.sca)
 		goto out_err;
