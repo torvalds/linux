@@ -32,6 +32,11 @@
 #include <crypto/algapi.h>
 #include <crypto/twofish.h>
 #include <crypto/b128ops.h>
+#include <crypto/lrw.h>
+
+#if defined(CONFIG_CRYPTO_LRW) || defined(CONFIG_CRYPTO_LRW_MODULE)
+#define HAS_LRW
+#endif
 
 /* regular block cipher functions from twofish_x86_64 module */
 asmlinkage void twofish_enc_blk(struct twofish_ctx *ctx, u8 *dst,
@@ -432,6 +437,124 @@ static struct crypto_alg blk_ctr_alg = {
 	},
 };
 
+#ifdef HAS_LRW
+
+static void encrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
+{
+	const unsigned int bsize = TF_BLOCK_SIZE;
+	struct twofish_ctx *ctx = priv;
+	int i;
+
+	if (nbytes == 3 * bsize) {
+		twofish_enc_blk_3way(ctx, srcdst, srcdst);
+		return;
+	}
+
+	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
+		twofish_enc_blk(ctx, srcdst, srcdst);
+}
+
+static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
+{
+	const unsigned int bsize = TF_BLOCK_SIZE;
+	struct twofish_ctx *ctx = priv;
+	int i;
+
+	if (nbytes == 3 * bsize) {
+		twofish_dec_blk_3way(ctx, srcdst, srcdst);
+		return;
+	}
+
+	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
+		twofish_dec_blk(ctx, srcdst, srcdst);
+}
+
+struct twofish_lrw_ctx {
+	struct lrw_table_ctx lrw_table;
+	struct twofish_ctx twofish_ctx;
+};
+
+static int lrw_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
+			      unsigned int keylen)
+{
+	struct twofish_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
+	int err;
+
+	err = __twofish_setkey(&ctx->twofish_ctx, key, keylen - TF_BLOCK_SIZE,
+			       &tfm->crt_flags);
+	if (err)
+		return err;
+
+	return lrw_init_table(&ctx->lrw_table, key + keylen - TF_BLOCK_SIZE);
+}
+
+static int lrw_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes)
+{
+	struct twofish_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	be128 buf[3];
+	struct lrw_crypt_req req = {
+		.tbuf = buf,
+		.tbuflen = sizeof(buf),
+
+		.table_ctx = &ctx->lrw_table,
+		.crypt_ctx = &ctx->twofish_ctx,
+		.crypt_fn = encrypt_callback,
+	};
+
+	return lrw_crypt(desc, dst, src, nbytes, &req);
+}
+
+static int lrw_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
+		       struct scatterlist *src, unsigned int nbytes)
+{
+	struct twofish_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	be128 buf[3];
+	struct lrw_crypt_req req = {
+		.tbuf = buf,
+		.tbuflen = sizeof(buf),
+
+		.table_ctx = &ctx->lrw_table,
+		.crypt_ctx = &ctx->twofish_ctx,
+		.crypt_fn = decrypt_callback,
+	};
+
+	return lrw_crypt(desc, dst, src, nbytes, &req);
+}
+
+static void lrw_exit_tfm(struct crypto_tfm *tfm)
+{
+	struct twofish_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	lrw_free_table(&ctx->lrw_table);
+}
+
+static struct crypto_alg blk_lrw_alg = {
+	.cra_name		= "lrw(twofish)",
+	.cra_driver_name	= "lrw-twofish-3way",
+	.cra_priority		= 300,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_blocksize		= TF_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct twofish_lrw_ctx),
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_blkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(blk_lrw_alg.cra_list),
+	.cra_exit		= lrw_exit_tfm,
+	.cra_u = {
+		.blkcipher = {
+			.min_keysize	= TF_MIN_KEY_SIZE + TF_BLOCK_SIZE,
+			.max_keysize	= TF_MAX_KEY_SIZE + TF_BLOCK_SIZE,
+			.ivsize		= TF_BLOCK_SIZE,
+			.setkey		= lrw_twofish_setkey,
+			.encrypt	= lrw_encrypt,
+			.decrypt	= lrw_decrypt,
+		},
+	},
+};
+
+#endif
+
 int __init init(void)
 {
 	int err;
@@ -445,9 +568,18 @@ int __init init(void)
 	err = crypto_register_alg(&blk_ctr_alg);
 	if (err)
 		goto ctr_err;
+#ifdef HAS_LRW
+	err = crypto_register_alg(&blk_lrw_alg);
+	if (err)
+		goto blk_lrw_err;
+#endif
 
 	return 0;
 
+#ifdef HAS_LRW
+blk_lrw_err:
+	crypto_unregister_alg(&blk_ctr_alg);
+#endif
 ctr_err:
 	crypto_unregister_alg(&blk_cbc_alg);
 cbc_err:
@@ -458,6 +590,9 @@ ecb_err:
 
 void __exit fini(void)
 {
+#ifdef HAS_LRW
+	crypto_unregister_alg(&blk_lrw_alg);
+#endif
 	crypto_unregister_alg(&blk_ctr_alg);
 	crypto_unregister_alg(&blk_cbc_alg);
 	crypto_unregister_alg(&blk_ecb_alg);
