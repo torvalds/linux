@@ -88,9 +88,12 @@ config MMU
 config MMU_MOTOROLA
 	bool
 
+config MMU_COLDFIRE
+	bool
+
 config MMU_SUN3
 	bool
-	depends on MMU && !MMU_MOTOROLA
+	depends on MMU && !MMU_MOTOROLA && !MMU_COLDFIRE
 
 menu "Platform setup"
 
