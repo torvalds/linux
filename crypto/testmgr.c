@@ -2574,6 +2574,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "xts(serpent)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = serpent_xts_enc_tv_template,
+					.count = SERPENT_XTS_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = serpent_xts_dec_tv_template,
+					.count = SERPENT_XTS_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "zlib",
 		.test = alg_test_pcomp,
 		.suite = {
