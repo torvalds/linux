@@ -1713,7 +1713,7 @@ static unsigned int tile_net_tx_frags(lepp_frag_t *frags,
 		cpa = ((phys_addr_t)pfn << PAGE_SHIFT) + f->page_offset;
 		frags[n].cpa_lo = cpa;
 		frags[n].cpa_hi = cpa >> 32;
-		frags[n].length = f->size;
+		frags[n].length = skb_frag_size(f);
 		frags[n].hash_for_home = hash_for_home;
 		n++;
 	}

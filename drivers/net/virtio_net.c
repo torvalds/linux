@@ -147,14 +147,14 @@ static void set_skb_frag(struct sk_buff *skb, struct page *page,
 	skb_frag_t *f;
 
 	f = &skb_shinfo(skb)->frags[i];
-	f->size = min((unsigned)PAGE_SIZE - offset, *len);
+	skb_frag_size_set(f, min((unsigned)PAGE_SIZE - offset, *len));
 	f->page_offset = offset;
 	__skb_frag_set_page(f, page);
 
-	skb->data_len += f->size;
-	skb->len += f->size;
+	skb->data_len += skb_frag_size(f);
+	skb->len += skb_frag_size(f);
 	skb_shinfo(skb)->nr_frags++;
-	*len -= f->size;
+	*len -= skb_frag_size(f);
 }
 
 static struct sk_buff *page_to_skb(struct virtnet_info *vi,

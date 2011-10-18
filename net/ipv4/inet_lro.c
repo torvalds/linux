@@ -244,11 +244,11 @@ static void lro_add_frags(struct net_lro_desc *lro_desc,
 	skb->truesize += truesize;
 
 	skb_frags[0].page_offset += hlen;
-	skb_frags[0].size -= hlen;
+	skb_frag_size_sub(&skb_frags[0], hlen);
 
 	while (tcp_data_len > 0) {
 		*(lro_desc->next_frag) = *skb_frags;
-		tcp_data_len -= skb_frags->size;
+		tcp_data_len -= skb_frag_size(skb_frags);
 		lro_desc->next_frag++;
 		skb_frags++;
 		skb_shinfo(skb)->nr_frags++;
@@ -400,14 +400,14 @@ static struct sk_buff *lro_gen_skb(struct net_lro_mgr *lro_mgr,
 	skb_frags = skb_shinfo(skb)->frags;
 	while (data_len > 0) {
 		*skb_frags = *frags;
-		data_len -= frags->size;
+		data_len -= skb_frag_size(frags);
 		skb_frags++;
 		frags++;
 		skb_shinfo(skb)->nr_frags++;
 	}
 
 	skb_shinfo(skb)->frags[0].page_offset += hdr_len;
-	skb_shinfo(skb)->frags[0].size -= hdr_len;
+	skb_frag_size_sub(&skb_shinfo(skb)->frags[0], hdr_len);
 
 	skb->ip_summed = ip_summed;
 	skb->csum = sum;

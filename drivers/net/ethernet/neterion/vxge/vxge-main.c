@@ -585,7 +585,7 @@ vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
 		for (j = 0; j < frg_cnt; j++) {
 			pci_unmap_page(fifo->pdev,
 					txd_priv->dma_buffers[i++],
-					frag->size, PCI_DMA_TODEVICE);
+					skb_frag_size(frag), PCI_DMA_TODEVICE);
 			frag += 1;
 		}
 
@@ -920,11 +920,11 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 	frag = &skb_shinfo(skb)->frags[0];
 	for (i = 0; i < frg_cnt; i++) {
 		/* ignore 0 length fragment */
-		if (!frag->size)
+		if (!skb_frag_size(frag))
 			continue;
 
 		dma_pointer = (u64)skb_frag_dma_map(&fifo->pdev->dev, frag,
-						    0, frag->size,
+						    0, skb_frag_size(frag),
 						    DMA_TO_DEVICE);
 
 		if (unlikely(dma_mapping_error(&fifo->pdev->dev, dma_pointer)))
@@ -936,7 +936,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		txdl_priv->dma_buffers[j] = dma_pointer;
 		vxge_hw_fifo_txdl_buffer_set(fifo_hw, dtr, j++, dma_pointer,
-					frag->size);
+					skb_frag_size(frag));
 		frag += 1;
 	}
 
@@ -979,7 +979,7 @@ _exit1:
 
 	for (; j < i; j++) {
 		pci_unmap_page(fifo->pdev, txdl_priv->dma_buffers[j],
-			frag->size, PCI_DMA_TODEVICE);
+			skb_frag_size(frag), PCI_DMA_TODEVICE);
 		frag += 1;
 	}
 
@@ -1050,7 +1050,7 @@ vxge_tx_term(void *dtrh, enum vxge_hw_txdl_state state, void *userdata)
 
 	for (j = 0; j < frg_cnt; j++) {
 		pci_unmap_page(fifo->pdev, txd_priv->dma_buffers[i++],
-			       frag->size, PCI_DMA_TODEVICE);
+			       skb_frag_size(frag), PCI_DMA_TODEVICE);
 		frag += 1;
 	}
 

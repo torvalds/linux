@@ -135,7 +135,7 @@ static void mlx4_en_init_rx_desc(struct mlx4_en_priv *priv,
 
 	/* Set size and memtype fields */
 	for (i = 0; i < priv->num_frags; i++) {
-		skb_frags[i].size = priv->frag_info[i].frag_size;
+		skb_frag_size_set(&skb_frags[i], priv->frag_info[i].frag_size);
 		rx_desc->data[i].byte_count =
 			cpu_to_be32(priv->frag_info[i].frag_size);
 		rx_desc->data[i].lkey = cpu_to_be32(priv->mdev->mr.key);
@@ -194,7 +194,7 @@ static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
 		en_dbg(DRV, priv, "Unmapping buffer at dma:0x%llx\n", (u64) dma);
-		pci_unmap_single(mdev->pdev, dma, skb_frags[nr].size,
+		pci_unmap_single(mdev->pdev, dma, skb_frag_size(&skb_frags[nr]),
 				 PCI_DMA_FROMDEVICE);
 		put_page(skb_frags[nr].page);
 	}
@@ -421,7 +421,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 
 		/* Save page reference in skb */
 		skb_frags_rx[nr].page = skb_frags[nr].page;
-		skb_frags_rx[nr].size = skb_frags[nr].size;
+		skb_frag_size_set(&skb_frags_rx[nr], skb_frag_size(&skb_frags[nr]));
 		skb_frags_rx[nr].page_offset = skb_frags[nr].page_offset;
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
@@ -430,13 +430,13 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 			goto fail;
 
 		/* Unmap buffer */
-		pci_unmap_single(mdev->pdev, dma, skb_frags_rx[nr].size,
+		pci_unmap_single(mdev->pdev, dma, skb_frag_size(&skb_frags_rx[nr]),
 				 PCI_DMA_FROMDEVICE);
 	}
 	/* Adjust size of last fragment to match actual length */
 	if (nr > 0)
-		skb_frags_rx[nr - 1].size = length -
-			priv->frag_info[nr - 1].frag_prefix_size;
+		skb_frag_size_set(&skb_frags_rx[nr - 1],
+			length - priv->frag_info[nr - 1].frag_prefix_size);
 	return nr;
 
 fail:
@@ -506,7 +506,7 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 		skb_shinfo(skb)->frags[0].page_offset += HEADER_COPY_SIZE;
 
 		/* Adjust size of first fragment */
-		skb_shinfo(skb)->frags[0].size -= HEADER_COPY_SIZE;
+		skb_frag_size_sub(&skb_shinfo(skb)->frags[0], HEADER_COPY_SIZE);
 		skb->data_len = length - HEADER_COPY_SIZE;
 	}
 	return skb;

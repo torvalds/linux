@@ -543,7 +543,7 @@ static void skb_put_frags(struct sk_buff *skb, unsigned int hdr_space,
 		} else {
 			size = min(length, (unsigned) PAGE_SIZE);
 
-			frag->size = size;
+			skb_frag_size_set(frag, size);
 			skb->data_len += size;
 			skb->truesize += size;
 			skb->len += size;

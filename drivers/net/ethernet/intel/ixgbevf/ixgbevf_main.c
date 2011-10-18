@@ -2912,10 +2912,10 @@ static int ixgbevf_tx_map(struct ixgbevf_adapter *adapter,
 	}
 
 	for (f = 0; f < nr_frags; f++) {
-		struct skb_frag_struct *frag;
+		const struct skb_frag_struct *frag;
 
 		frag = &skb_shinfo(skb)->frags[f];
-		len = min((unsigned int)frag->size, total);
+		len = min((unsigned int)skb_frag_size(frag), total);
 		offset = 0;
 
 		while (len) {
@@ -3096,7 +3096,7 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	count += TXD_USE_COUNT(skb_headlen(skb));
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
-		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
+		count += TXD_USE_COUNT(skb_frag_size(&skb_shinfo(skb)->frags[f]));
 
 	if (ixgbevf_maybe_stop_tx(netdev, tx_ring, count)) {
 		adapter->tx_busy++;

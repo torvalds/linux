@@ -2051,7 +2051,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 		__skb_frag_set_page(frag, page->buffer);
 		__skb_frag_ref(frag);
 		frag->page_offset = off;
-		frag->size = hlen - swivel;
+		skb_frag_size_set(frag, hlen - swivel);
 
 		/* any more data? */
 		if ((words[0] & RX_COMP1_SPLIT_PKT) && ((dlen -= hlen) > 0)) {
@@ -2075,7 +2075,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 			__skb_frag_set_page(frag, page->buffer);
 			__skb_frag_ref(frag);
 			frag->page_offset = 0;
-			frag->size = hlen;
+			skb_frag_size_set(frag, hlen);
 			RX_USED_ADD(page, hlen + cp->crc_size);
 		}
 
@@ -2826,9 +2826,9 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	entry = TX_DESC_NEXT(ring, entry);
 
 	for (frag = 0; frag < nr_frags; frag++) {
-		skb_frag_t *fragp = &skb_shinfo(skb)->frags[frag];
+		const skb_frag_t *fragp = &skb_shinfo(skb)->frags[frag];
 
-		len = fragp->size;
+		len = skb_frag_size(fragp);
 		mapping = skb_frag_dma_map(&cp->pdev->dev, fragp, 0, len,
 					   DMA_TO_DEVICE);
 

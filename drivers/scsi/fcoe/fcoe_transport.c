@@ -105,7 +105,7 @@ u32 fcoe_fc_crc(struct fc_frame *fp)
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		frag = &skb_shinfo(skb)->frags[i];
 		off = frag->page_offset;
-		len = frag->size;
+		len = skb_frag_size(frag);
 		while (len > 0) {
 			clen = min(len, PAGE_SIZE - (off & ~PAGE_MASK));
 			data = kmap_atomic(

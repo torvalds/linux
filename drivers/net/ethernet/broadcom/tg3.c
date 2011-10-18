@@ -5356,7 +5356,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 
 			pci_unmap_page(tp->pdev,
 				       dma_unmap_addr(ri, mapping),
-				       skb_shinfo(skb)->frags[i].size,
+				       skb_frag_size(&skb_shinfo(skb)->frags[i]),
 				       PCI_DMA_TODEVICE);
 
 			while (ri->fragmented) {
@@ -6510,14 +6510,14 @@ static void tg3_tx_skb_unmap(struct tg3_napi *tnapi, u32 entry, int last)
 	}
 
 	for (i = 0; i < last; i++) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		entry = NEXT_TX(entry);
 		txb = &tnapi->tx_buffers[entry];
 
 		pci_unmap_page(tnapi->tp->pdev,
 			       dma_unmap_addr(txb, mapping),
-			       frag->size, PCI_DMA_TODEVICE);
+			       skb_frag_size(frag), PCI_DMA_TODEVICE);
 
 		while (txb->fragmented) {
 			txb->fragmented = false;
@@ -6777,7 +6777,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		for (i = 0; i <= last; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-			len = frag->size;
+			len = skb_frag_size(frag);
 			mapping = skb_frag_dma_map(&tp->pdev->dev, frag, 0,
 						   len, DMA_TO_DEVICE);
 

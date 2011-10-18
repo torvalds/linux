@@ -713,8 +713,9 @@ static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 	int frag;
 
 	for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-		skb_frag_t *fragp = &skb_shinfo(skb)->frags[frag];
-		if (fragp->size <= 8 && fragp->page_offset & 7)
+		const skb_frag_t *fragp = &skb_shinfo(skb)->frags[frag];
+
+		if (skb_frag_size(fragp) <= 8 && fragp->page_offset & 7)
 			return 1;
 	}
 
@@ -751,10 +752,10 @@ static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 		}
 
 		desc->l4i_chk = 0;
-		desc->byte_cnt = this_frag->size;
+		desc->byte_cnt = skb_frag_size(this_frag);
 		desc->buf_ptr = skb_frag_dma_map(mp->dev->dev.parent,
 						 this_frag, 0,
-						 this_frag->size,
+						 skb_frag_size(this_frag),
 						 DMA_TO_DEVICE);
 	}
 }

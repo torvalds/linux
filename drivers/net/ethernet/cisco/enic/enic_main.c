@@ -599,16 +599,16 @@ static inline void enic_queue_wq_skb_cont(struct enic *enic,
 	struct vnic_wq *wq, struct sk_buff *skb,
 	unsigned int len_left, int loopback)
 {
-	skb_frag_t *frag;
+	const skb_frag_t *frag;
 
 	/* Queue additional data fragments */
 	for (frag = skb_shinfo(skb)->frags; len_left; frag++) {
-		len_left -= frag->size;
+		len_left -= skb_frag_size(frag);
 		enic_queue_wq_desc_cont(wq, skb,
 			skb_frag_dma_map(&enic->pdev->dev,
-					 frag, 0, frag->size,
+					 frag, 0, skb_frag_size(frag),
 					 DMA_TO_DEVICE),
-			frag->size,
+			skb_frag_size(frag),
 			(len_left == 0),	/* EOP? */
 			loopback);
 	}
@@ -717,8 +717,8 @@ static inline void enic_queue_wq_skb_tso(struct enic *enic,
 	 * for additional data fragments
 	 */
 	for (frag = skb_shinfo(skb)->frags; len_left; frag++) {
-		len_left -= frag->size;
-		frag_len_left = frag->size;
+		len_left -= skb_frag_size(frag);
+		frag_len_left = skb_frag_size(frag);
 		offset = 0;
 
 		while (frag_len_left) {

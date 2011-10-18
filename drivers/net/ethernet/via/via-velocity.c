@@ -2554,16 +2554,16 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 
 	/* Handle fragments */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		tdinfo->skb_dma[i + 1] = skb_frag_dma_map(&vptr->pdev->dev,
 							  frag, 0,
-							  frag->size,
+							  skb_frag_size(frag),
 							  DMA_TO_DEVICE);
 
 		td_ptr->td_buf[i + 1].pa_low = cpu_to_le32(tdinfo->skb_dma[i + 1]);
 		td_ptr->td_buf[i + 1].pa_high = 0;
-		td_ptr->td_buf[i + 1].size = cpu_to_le16(frag->size);
+		td_ptr->td_buf[i + 1].size = cpu_to_le16(skb_frag_size(frag));
 	}
 	tdinfo->nskb_dma = i + 1;
 

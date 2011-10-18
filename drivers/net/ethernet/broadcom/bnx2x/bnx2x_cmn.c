@@ -2363,7 +2363,7 @@ static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			/* Calculate the first sum - it's special */
 			for (frag_idx = 0; frag_idx < wnd_size - 1; frag_idx++)
 				wnd_sum +=
-					skb_shinfo(skb)->frags[frag_idx].size;
+					skb_frag_size(&skb_shinfo(skb)->frags[frag_idx]);
 
 			/* If there was data on linear skb data - check it */
 			if (first_bd_sz > 0) {
@@ -2379,14 +2379,14 @@ static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			   check all windows */
 			for (wnd_idx = 0; wnd_idx <= num_wnds; wnd_idx++) {
 				wnd_sum +=
-			  skb_shinfo(skb)->frags[wnd_idx + wnd_size - 1].size;
+			  skb_frag_size(&skb_shinfo(skb)->frags[wnd_idx + wnd_size - 1]);
 
 				if (unlikely(wnd_sum < lso_mss)) {
 					to_copy = 1;
 					break;
 				}
 				wnd_sum -=
-					skb_shinfo(skb)->frags[wnd_idx].size;
+					skb_frag_size(&skb_shinfo(skb)->frags[wnd_idx]);
 			}
 		} else {
 			/* in non-LSO too fragmented packet should always
@@ -2796,8 +2796,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		mapping = skb_frag_dma_map(&bp->pdev->dev, frag, 0, frag->size,
-					   DMA_TO_DEVICE);
+		mapping = skb_frag_dma_map(&bp->pdev->dev, frag, 0,
+					   skb_frag_size(frag), DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 
 			DP(NETIF_MSG_TX_QUEUED, "Unable to map page - "
@@ -2821,8 +2821,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		tx_data_bd->addr_hi = cpu_to_le32(U64_HI(mapping));
 		tx_data_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
-		tx_data_bd->nbytes = cpu_to_le16(frag->size);
-		le16_add_cpu(&pkt_size, frag->size);
+		tx_data_bd->nbytes = cpu_to_le16(skb_frag_size(frag));
+		le16_add_cpu(&pkt_size, skb_frag_size(frag));
 		nbd++;
 
 		DP(NETIF_MSG_TX_QUEUED,

@@ -334,7 +334,7 @@ unsigned int xen_netbk_count_skb_slots(struct xenvif *vif, struct sk_buff *skb)
 		count++;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		unsigned long size = skb_shinfo(skb)->frags[i].size;
+		unsigned long size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
 		unsigned long bytes;
 		while (size > 0) {
 			BUG_ON(copy_off > MAX_BUFFER_OFFSET);
@@ -526,7 +526,7 @@ static int netbk_gop_skb(struct sk_buff *skb,
 	for (i = 0; i < nr_frags; i++) {
 		netbk_gop_frag_copy(vif, skb, npo,
 				    skb_frag_page(&skb_shinfo(skb)->frags[i]),
-				    skb_shinfo(skb)->frags[i].size,
+				    skb_frag_size(&skb_shinfo(skb)->frags[i]),
 				    skb_shinfo(skb)->frags[i].page_offset,
 				    &head);
 	}

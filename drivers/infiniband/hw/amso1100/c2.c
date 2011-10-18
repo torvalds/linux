@@ -800,8 +800,8 @@ static int c2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* Loop thru additional data fragments and queue them */
 	if (skb_shinfo(skb)->nr_frags) {
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			maplen = frag->size;
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			maplen = skb_frag_size(frag);
 			mapaddr = skb_frag_dma_map(&c2dev->pcidev->dev, frag,
 						   0, maplen, DMA_TO_DEVICE);
 			elem = elem->next;

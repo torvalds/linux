@@ -777,12 +777,12 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		entry = NEXT_TX(entry);
 
 		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-			skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
+			const skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
 			u32 len;
 			u32 ctrl;
 			dma_addr_t mapping;
 
-			len = this_frag->size;
+			len = skb_frag_size(this_frag);
 			mapping = dma_map_single(&cp->pdev->dev,
 						 skb_frag_address(this_frag),
 						 len, PCI_DMA_TODEVICE);

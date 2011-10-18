@@ -1135,8 +1135,8 @@ static inline unsigned int compute_large_page_tx_descs(struct sk_buff *skb)
 			len -= SGE_TX_DESC_MAX_PLEN;
 		}
 		for (i = 0; nfrags--; i++) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			len = frag->size;
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			len = skb_frag_size(frag);
 			while (len > SGE_TX_DESC_MAX_PLEN) {
 				count++;
 				len -= SGE_TX_DESC_MAX_PLEN;
@@ -1278,9 +1278,9 @@ static inline void write_tx_descs(struct adapter *adapter, struct sk_buff *skb,
 		}
 
 		mapping = skb_frag_dma_map(&adapter->pdev->dev, frag, 0,
-					   frag->size, DMA_TO_DEVICE);
+					   skb_frag_size(frag), DMA_TO_DEVICE);
 		desc_mapping = mapping;
-		desc_len = frag->size;
+		desc_len = skb_frag_size(frag);
 
 		pidx = write_large_page_tx_descs(pidx, &e1, &ce, &gen,
 						 &desc_mapping, &desc_len,
@@ -1290,7 +1290,7 @@ static inline void write_tx_descs(struct adapter *adapter, struct sk_buff *skb,
 				      nfrags == 0);
 		ce->skb = NULL;
 		dma_unmap_addr_set(ce, dma_addr, mapping);
-		dma_unmap_len_set(ce, dma_len, frag->size);
+		dma_unmap_len_set(ce, dma_len, skb_frag_size(frag));
 	}
 	ce->skb = skb;
 	wmb();

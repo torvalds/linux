@@ -1453,7 +1453,7 @@ static int emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
 	/* skb fragments */
 	for (i = 0; i < nr_frags; ++i) {
 		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
-		len = frag->size;
+		len = skb_frag_size(frag);
 
 		if (unlikely(dev->tx_cnt + mal_tx_chunks(len) >= NUM_TX_BUFF))
 			goto undo_frame;

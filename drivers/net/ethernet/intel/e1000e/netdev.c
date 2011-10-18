@@ -4673,10 +4673,10 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 	}
 
 	for (f = 0; f < nr_frags; f++) {
-		struct skb_frag_struct *frag;
+		const struct skb_frag_struct *frag;
 
 		frag = &skb_shinfo(skb)->frags[f];
-		len = frag->size;
+		len = skb_frag_size(frag);
 		offset = 0;
 
 		while (len) {
@@ -4943,7 +4943,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	for (f = 0; f < nr_frags; f++)
-		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size,
+		count += TXD_USE_COUNT(skb_frag_size(&skb_shinfo(skb)->frags[f]),
 				       max_txd_pwr);
 
 	if (adapter->hw.mac.tx_pkt_filtering)

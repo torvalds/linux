@@ -1493,12 +1493,12 @@ bdx_tx_map_skb(struct bdx_priv *priv, struct sk_buff *skb,
 	bdx_tx_db_inc_wptr(db);
 
 	for (i = 0; i < nr_frags; i++) {
-		struct skb_frag_struct *frag;
+		const struct skb_frag_struct *frag;
 
 		frag = &skb_shinfo(skb)->frags[i];
-		db->wptr->len = frag->size;
+		db->wptr->len = skb_frag_size(frag);
 		db->wptr->addr.dma = skb_frag_dma_map(&priv->pdev->dev, frag,
-						      0, frag->size,
+						      0, skb_frag_size(frag),
 						      DMA_TO_DEVICE);
 
 		pbl++;

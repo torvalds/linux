@@ -2388,7 +2388,7 @@ static int ql_send_map(struct ql3_adapter *qdev,
 			seg++;
 		}
 
-		map = skb_frag_dma_map(&qdev->pdev->dev, frag, 0, frag->size,
+		map = skb_frag_dma_map(&qdev->pdev->dev, frag, 0, skb_frag_size(frag),
 				       DMA_TO_DEVICE);
 
 		err = dma_mapping_error(&qdev->pdev->dev, map);
@@ -2401,9 +2401,9 @@ static int ql_send_map(struct ql3_adapter *qdev,
 
 		oal_entry->dma_lo = cpu_to_le32(LS_64BITS(map));
 		oal_entry->dma_hi = cpu_to_le32(MS_64BITS(map));
-		oal_entry->len = cpu_to_le32(frag->size);
+		oal_entry->len = cpu_to_le32(skb_frag_size(frag));
 		dma_unmap_addr_set(&tx_cb->map[seg], mapaddr, map);
-		dma_unmap_len_set(&tx_cb->map[seg], maplen, frag->size);
+		dma_unmap_len_set(&tx_cb->map[seg], maplen, skb_frag_size(frag));
 		}
 	/* Terminate the last segment. */
 	oal_entry->len |= cpu_to_le32(OAL_LAST_ENTRY);

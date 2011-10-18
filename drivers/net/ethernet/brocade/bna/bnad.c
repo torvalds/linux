@@ -116,7 +116,7 @@ bnad_pci_unmap_skb(struct device *pdev, struct bnad_skb_unmap *array,
 
 	for (j = 0; j < frag; j++) {
 		dma_unmap_page(pdev, dma_unmap_addr(&array[index], dma_addr),
-			  skb_shinfo(skb)->frags[j].size, DMA_TO_DEVICE);
+			  skb_frag_size(&skb_shinfo(skb)->frags[j]), DMA_TO_DEVICE);
 		dma_unmap_addr_set(&array[index], dma_addr, 0);
 		BNA_QE_INDX_ADD(index, 1, depth);
 	}
@@ -2741,8 +2741,8 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	wis_used = 1;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
-		u16		size = frag->size;
+		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		u16		size = skb_frag_size(frag);
 
 		if (unlikely(size == 0)) {
 			unmap_prod = unmap_q->producer_index;

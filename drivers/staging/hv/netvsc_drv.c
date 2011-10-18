@@ -169,11 +169,11 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* Additional fragments are after SKB data */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *f = &skb_shinfo(skb)->frags[i];
 
 		packet->page_buf[i+2].pfn = page_to_pfn(skb_frag_page(f));
 		packet->page_buf[i+2].offset = f->page_offset;
-		packet->page_buf[i+2].len = f->size;
+		packet->page_buf[i+2].len = skb_frag_size(f);
 	}
 
 	/* Set the completion routine */

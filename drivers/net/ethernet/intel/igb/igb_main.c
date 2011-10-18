@@ -4268,7 +4268,7 @@ static void igb_tx_map(struct igb_ring *tx_ring,
 			i = 0;
 		}
 
-		size = frag->size;
+		size = skb_frag_size(frag);
 		data_len -= size;
 
 		dma = skb_frag_dma_map(tx_ring->dev, frag, 0,

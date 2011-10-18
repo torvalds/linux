@@ -3594,7 +3594,7 @@ static int release_tx_packet(struct niu *np, struct tx_ring_info *rp, int idx)
 		tb = &rp->tx_buffs[idx];
 		BUG_ON(tb->skb != NULL);
 		np->ops->unmap_page(np->device, tb->mapping,
-				    skb_shinfo(skb)->frags[i].size,
+				    skb_frag_size(&skb_shinfo(skb)->frags[i]),
 				    DMA_TO_DEVICE);
 		idx = NEXT_TX(rp, idx);
 	}
@@ -6727,9 +6727,9 @@ static netdev_tx_t niu_start_xmit(struct sk_buff *skb,
 	}
 
 	for (i = 0; i <  skb_shinfo(skb)->nr_frags; i++) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		len = frag->size;
+		len = skb_frag_size(frag);
 		mapping = np->ops->map_page(np->device, skb_frag_page(frag),
 					    frag->page_offset, len,
 					    DMA_TO_DEVICE);

@@ -2350,12 +2350,12 @@ static struct sk_buff *s2io_txdl_getskb(struct fifo_info *fifo_data,
 	if (frg_cnt) {
 		txds++;
 		for (j = 0; j < frg_cnt; j++, txds++) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[j];
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[j];
 			if (!txds->Buffer_Pointer)
 				break;
 			pci_unmap_page(nic->pdev,
 				       (dma_addr_t)txds->Buffer_Pointer,
-				       frag->size, PCI_DMA_TODEVICE);
+				       skb_frag_size(frag), PCI_DMA_TODEVICE);
 		}
 	}
 	memset(txdlp, 0, (sizeof(struct TxD) * fifo_data->max_txds));
@@ -4185,16 +4185,16 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	frg_cnt = skb_shinfo(skb)->nr_frags;
 	/* For fragmented SKB. */
 	for (i = 0; i < frg_cnt; i++) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		/* A '0' length fragment will be ignored */
-		if (!frag->size)
+		if (!skb_frag_size(frag))
 			continue;
 		txdp++;
 		txdp->Buffer_Pointer = (u64)skb_frag_dma_map(&sp->pdev->dev,
 							     frag, 0,
-							     frag->size,
+							     skb_frag_size(frag),
 							     DMA_TO_DEVICE);
-		txdp->Control_1 = TXD_BUFFER0_SIZE(frag->size);
+		txdp->Control_1 = TXD_BUFFER0_SIZE(skb_frag_size(frag));
 		if (offload_type == SKB_GSO_UDP)
 			txdp->Control_1 |= TXD_UFO_EN;
 	}

@@ -6545,9 +6545,9 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 
 		frag = &skb_shinfo(skb)->frags[f];
 #ifdef IXGBE_FCOE
-		size = min_t(unsigned int, data_len, frag->size);
+		size = min_t(unsigned int, data_len, skb_frag_size(frag));
 #else
-		size = frag->size;
+		size = skb_frag_size(frag);
 #endif
 		data_len -= size;
 		f++;

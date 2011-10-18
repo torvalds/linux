@@ -4700,7 +4700,7 @@ static void send_packet(struct sk_buff *skb, struct net_device *dev)
 			++hw->tx_int_cnt;
 
 			dma_buf = DMA_BUFFER(desc);
-			dma_buf->len = this_frag->size;
+			dma_buf->len = skb_frag_size(this_frag);
 
 			dma_buf->dma = pci_map_single(
 				hw_priv->pdev,

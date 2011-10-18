@@ -215,8 +215,8 @@ static int map_skb(struct device *dev, const struct sk_buff *skb,
 	end = &si->frags[si->nr_frags];
 
 	for (fp = si->frags; fp < end; fp++) {
-		*++addr = dma_map_page(dev, fp->page, fp->page_offset, fp->size,
-				       DMA_TO_DEVICE);
+		*++addr = dma_map_page(dev, fp->page, fp->page_offset,
+				       skb_frag_size(fp), DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, *addr))
 			goto unwind;
 	}
@@ -224,7 +224,7 @@ static int map_skb(struct device *dev, const struct sk_buff *skb,
 
 unwind:
 	while (fp-- > si->frags)
-		dma_unmap_page(dev, *--addr, fp->size, DMA_TO_DEVICE);
+		dma_unmap_page(dev, *--addr, skb_frag_size(fp), DMA_TO_DEVICE);
 
 	dma_unmap_single(dev, addr[-1], skb_headlen(skb), DMA_TO_DEVICE);
 out_err:
@@ -243,7 +243,7 @@ static void unmap_skb(struct device *dev, const struct sk_buff *skb,
 	si = skb_shinfo(skb);
 	end = &si->frags[si->nr_frags];
 	for (fp = si->frags; fp < end; fp++)
-		dma_unmap_page(dev, *addr++, fp->size, DMA_TO_DEVICE);
+		dma_unmap_page(dev, *addr++, skb_frag_size(fp), DMA_TO_DEVICE);
 }
 
 /**
@@ -717,7 +717,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		sgl->addr0 = cpu_to_be64(addr[0] + start);
 		nfrags++;
 	} else {
-		sgl->len0 = htonl(si->frags[0].size);
+		sgl->len0 = htonl(skb_frag_size(&si->frags[0]));
 		sgl->addr0 = cpu_to_be64(addr[1]);
 	}
 
@@ -732,13 +732,13 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 	to = (u8 *)end > (u8 *)q->stat ? buf : sgl->sge;
 
 	for (i = (nfrags != si->nr_frags); nfrags >= 2; nfrags -= 2, to++) {
-		to->len[0] = cpu_to_be32(si->frags[i].size);
-		to->len[1] = cpu_to_be32(si->frags[++i].size);
+		to->len[0] = cpu_to_be32(skb_frag_size(&si->frags[i]));
+		to->len[1] = cpu_to_be32(skb_frag_size(&si->frags[++i]));
 		to->addr[0] = cpu_to_be64(addr[i]);
 		to->addr[1] = cpu_to_be64(addr[++i]);
 	}
 	if (nfrags) {
-		to->len[0] = cpu_to_be32(si->frags[i].size);
+		to->len[0] = cpu_to_be32(skb_frag_size(&si->frags[i]));
 		to->len[1] = cpu_to_be32(0);
 		to->addr[0] = cpu_to_be64(addr[i + 1]);
 	}
@@ -1417,7 +1417,7 @@ static inline void copy_frags(struct skb_shared_info *ssi,
 	/* usually there's just one frag */
 	ssi->frags[0].page = gl->frags[0].page;
 	ssi->frags[0].page_offset = gl->frags[0].page_offset + offset;
-	ssi->frags[0].size = gl->frags[0].size - offset;
+	skb_frag_size_set(&ssi->frags[0], skb_frag_size(&gl->frags[0]) - offset);
 	ssi->nr_frags = gl->nfrags;
 	n = gl->nfrags - 1;
 	if (n)
@@ -1718,8 +1718,8 @@ static int process_responses(struct sge_rspq *q, int budget)
 				bufsz = get_buf_size(rsd);
 				fp->page = rsd->page;
 				fp->page_offset = q->offset;
-				fp->size = min(bufsz, len);
-				len -= fp->size;
+				skb_frag_size_set(fp, min(bufsz, len));
+				len -= skb_frag_size(fp);
 				if (!len)
 					break;
 				unmap_rx_buf(q->adap, &rxq->fl);
@@ -1731,7 +1731,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 			 */
 			dma_sync_single_for_cpu(q->adap->pdev_dev,
 						get_buf_addr(rsd),
-						fp->size, DMA_FROM_DEVICE);
+						skb_frag_size(fp), DMA_FROM_DEVICE);
 
 			si.va = page_address(si.frags[0].page) +
 				si.frags[0].page_offset;
@@ -1740,7 +1740,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 			si.nfrags = frags + 1;
 			ret = q->handler(q, q->cur_desc, &si);
 			if (likely(ret == 0))
-				q->offset += ALIGN(fp->size, FL_ALIGN);
+				q->offset += ALIGN(skb_frag_size(fp), FL_ALIGN);
 			else
 				restore_rx_bufs(&si, &rxq->fl, frags);
 		} else if (likely(rsp_type == RSP_TYPE_CPL)) {

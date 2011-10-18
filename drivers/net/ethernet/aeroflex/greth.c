@@ -198,7 +198,7 @@ static void greth_clean_rings(struct greth_private *greth)
 
 				dma_unmap_page(greth->dev,
 					       greth_read_bd(&tx_bdp->addr),
-					       frag->size,
+					       skb_frag_size(frag),
 					       DMA_TO_DEVICE);
 
 				greth->tx_last = NEXT_TX(greth->tx_last);
@@ -517,7 +517,7 @@ greth_start_xmit_gbit(struct sk_buff *skb, struct net_device *dev)
 		status = GRETH_BD_EN;
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			status |= GRETH_TXBD_CSALL;
-		status |= frag->size & GRETH_BD_LEN;
+		status |= skb_frag_size(frag) & GRETH_BD_LEN;
 
 		/* Wrap around descriptor ring */
 		if (curr_tx == GRETH_TXBD_NUM_MASK)
@@ -531,7 +531,7 @@ greth_start_xmit_gbit(struct sk_buff *skb, struct net_device *dev)
 
 		greth_write_bd(&bdp->stat, status);
 
-		dma_addr = skb_frag_dma_map(greth->dev, frag, 0, frag->size,
+		dma_addr = skb_frag_dma_map(greth->dev, frag, 0, skb_frag_size(frag),
 					    DMA_TO_DEVICE);
 
 		if (unlikely(dma_mapping_error(greth->dev, dma_addr)))
@@ -713,7 +713,7 @@ static void greth_clean_tx_gbit(struct net_device *dev)
 
 			dma_unmap_page(greth->dev,
 				       greth_read_bd(&bdp->addr),
-				       frag->size,
+				       skb_frag_size(frag),
 				       DMA_TO_DEVICE);
 
 			greth->tx_last = NEXT_TX(greth->tx_last);

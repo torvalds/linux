@@ -1593,7 +1593,7 @@ static u16 atl1e_cal_tdp_req(const struct sk_buff *skb)
 	u16 proto_hdr_len = 0;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		fg_size = skb_shinfo(skb)->frags[i].size;
+		fg_size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
 		tpd_req += ((fg_size + MAX_TX_BUF_LEN - 1) >> MAX_TX_BUF_SHIFT);
 	}
 
@@ -1744,12 +1744,12 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 	}
 
 	for (f = 0; f < nr_frags; f++) {
-		struct skb_frag_struct *frag;
+		const struct skb_frag_struct *frag;
 		u16 i;
 		u16 seg_num;
 
 		frag = &skb_shinfo(skb)->frags[f];
-		buf_len = frag->size;
+		buf_len = skb_frag_size(frag);
 
 		seg_num = (buf_len + MAX_TX_BUF_LEN - 1) / MAX_TX_BUF_LEN;
 		for (i = 0; i < seg_num; i++) {

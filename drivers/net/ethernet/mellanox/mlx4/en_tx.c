@@ -226,7 +226,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				frag = &skb_shinfo(skb)->frags[i];
 				pci_unmap_page(mdev->pdev,
 					(dma_addr_t) be64_to_cpu(data[i].addr),
-					frag->size, PCI_DMA_TODEVICE);
+					skb_frag_size(frag), PCI_DMA_TODEVICE);
 			}
 		}
 		/* Stamp the freed descriptor */
@@ -256,7 +256,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				frag = &skb_shinfo(skb)->frags[i];
 				pci_unmap_page(mdev->pdev,
 					(dma_addr_t) be64_to_cpu(data->addr),
-					 frag->size, PCI_DMA_TODEVICE);
+					 skb_frag_size(frag), PCI_DMA_TODEVICE);
 				++data;
 			}
 		}
@@ -550,7 +550,7 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 		skb_copy_from_linear_data(skb, inl + 1, skb_headlen(skb));
 		if (skb_shinfo(skb)->nr_frags)
 			memcpy(((void *)(inl + 1)) + skb_headlen(skb), fragptr,
-			       skb_shinfo(skb)->frags[0].size);
+			       skb_frag_size(&skb_shinfo(skb)->frags[0]));
 
 	} else {
 		inl->byte_count = cpu_to_be32(1 << 31 | spc);
@@ -570,7 +570,7 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 					skb_headlen(skb) - spc);
 			if (skb_shinfo(skb)->nr_frags)
 				memcpy(((void *)(inl + 1)) + skb_headlen(skb) - spc,
-					fragptr, skb_shinfo(skb)->frags[0].size);
+					fragptr, skb_frag_size(&skb_shinfo(skb)->frags[0]));
 		}
 
 		wmb();
@@ -757,11 +757,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		for (i = skb_shinfo(skb)->nr_frags - 1; i >= 0; i--) {
 			frag = &skb_shinfo(skb)->frags[i];
 			dma = pci_map_page(mdev->dev->pdev, frag->page, frag->page_offset,
-					   frag->size, PCI_DMA_TODEVICE);
+					   skb_frag_size(frag), PCI_DMA_TODEVICE);
 			data->addr = cpu_to_be64(dma);
 			data->lkey = cpu_to_be32(mdev->mr.key);
 			wmb();
-			data->byte_count = cpu_to_be32(frag->size);
+			data->byte_count = cpu_to_be32(skb_frag_size(frag));
 			--data;
 		}
 

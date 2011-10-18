@@ -2099,8 +2099,10 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
-		entries += (skb_shinfo(skb)->frags[i].size >> NV_TX2_TSO_MAX_SHIFT) +
-			   ((skb_shinfo(skb)->frags[i].size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
+		u32 size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
+
+		entries += (size >> NV_TX2_TSO_MAX_SHIFT) +
+			   ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
 	}
 
 	spin_lock_irqsave(&np->lock, flags);
@@ -2138,8 +2140,8 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* setup the fragments */
 	for (i = 0; i < fragments; i++) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		u32 size = frag->size;
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		u32 size = skb_frag_size(frag);
 		offset = 0;
 
 		do {
@@ -2211,8 +2213,10 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
-		entries += (skb_shinfo(skb)->frags[i].size >> NV_TX2_TSO_MAX_SHIFT) +
-			   ((skb_shinfo(skb)->frags[i].size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
+		u32 size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
+
+		entries += (size >> NV_TX2_TSO_MAX_SHIFT) +
+			   ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
 	}
 
 	spin_lock_irqsave(&np->lock, flags);
@@ -2253,7 +2257,7 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	/* setup the fragments */
 	for (i = 0; i < fragments; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		u32 size = frag->size;
+		u32 size = skb_frag_size(frag);
 		offset = 0;
 
 		do {

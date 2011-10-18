@@ -2770,10 +2770,10 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 
 		control |= BMU_STFWD;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 			map = skb_frag_dma_map(&hw->pdev->dev, frag, 0,
-					       frag->size, DMA_TO_DEVICE);
+					       skb_frag_size(frag), DMA_TO_DEVICE);
 
 			e = e->next;
 			e->skb = skb;
@@ -2783,9 +2783,9 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 			tf->dma_lo = map;
 			tf->dma_hi = (u64) map >> 32;
 			dma_unmap_addr_set(e, mapaddr, map);
-			dma_unmap_len_set(e, maplen, frag->size);
+			dma_unmap_len_set(e, maplen, skb_frag_size(frag));
 
-			tf->control = BMU_OWN | BMU_SW | control | frag->size;
+			tf->control = BMU_OWN | BMU_SW | control | skb_frag_size(frag);
 		}
 		tf->control |= BMU_EOF | BMU_IRQ_EOF;
 	}

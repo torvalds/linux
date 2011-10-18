@@ -1065,12 +1065,12 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 		entry = NEXT_TX(entry);
 
 		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-			skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
+			const skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
 			u32 len;
 			dma_addr_t mapping;
 			u64 this_ctrl;
 
-			len = this_frag->size;
+			len = skb_frag_size(this_frag);
 			mapping = skb_frag_dma_map(&gp->pdev->dev, this_frag,
 						   0, len, DMA_TO_DEVICE);
 			this_ctrl = ctrl;

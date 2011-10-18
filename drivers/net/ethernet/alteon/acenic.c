@@ -2478,18 +2478,18 @@ restart:
 		idx = (idx + 1) % ACE_TX_RING_ENTRIES(ap);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 			struct tx_ring_info *info;
 
-			len += frag->size;
+			len += skb_frag_size(frag);
 			info = ap->skb->tx_skbuff + idx;
 			desc = ap->tx_ring + idx;
 
 			mapping = skb_frag_dma_map(&ap->pdev->dev, frag, 0,
-						   frag->size,
+						   skb_frag_size(frag),
 						   DMA_TO_DEVICE);
 
-			flagsize = (frag->size << 16);
+			flagsize = skb_frag_size(frag) << 16;
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				flagsize |= BD_FLG_TCP_UDP_SUM;
 			idx = (idx + 1) % ACE_TX_RING_ENTRIES(ap);
@@ -2508,7 +2508,7 @@ restart:
 				info->skb = NULL;
 			}
 			dma_unmap_addr_set(info, mapping, mapping);
-			dma_unmap_len_set(info, maplen, frag->size);
+			dma_unmap_len_set(info, maplen, skb_frag_size(frag));
 			ace_load_tx_bd(ap, desc, mapping, flagsize, vlan_tag);
 		}
 	}

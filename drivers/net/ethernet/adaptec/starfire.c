@@ -1256,12 +1256,12 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 			np->tx_info[entry].mapping =
 				pci_map_single(np->pci_dev, skb->data, skb_first_frag_len(skb), PCI_DMA_TODEVICE);
 		} else {
-			skb_frag_t *this_frag = &skb_shinfo(skb)->frags[i - 1];
-			status |= this_frag->size;
+			const skb_frag_t *this_frag = &skb_shinfo(skb)->frags[i - 1];
+			status |= skb_frag_size(this_frag);
 			np->tx_info[entry].mapping =
 				pci_map_single(np->pci_dev,
 					       skb_frag_address(this_frag),
-					       this_frag->size,
+					       skb_frag_size(this_frag),
 					       PCI_DMA_TODEVICE);
 		}
 
@@ -1378,7 +1378,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 					for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 						pci_unmap_single(np->pci_dev,
 								 np->tx_info[entry].mapping,
-								 skb_shinfo(skb)->frags[i].size,
+								 skb_frag_size(&skb_shinfo(skb)->frags[i]),
 								 PCI_DMA_TODEVICE);
 						np->dirty_tx++;
 						entry++;

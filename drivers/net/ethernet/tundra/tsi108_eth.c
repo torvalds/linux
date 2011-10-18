@@ -709,13 +709,13 @@ static int tsi108_send_packet(struct sk_buff * skb, struct net_device *dev)
 			data->txring[tx].len = skb_headlen(skb);
 			misc |= TSI108_TX_SOF;
 		} else {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
 			data->txring[tx].buf0 = skb_frag_dma_map(NULL, frag,
 								 0,
-								 frag->size,
+								 skb_frag_size(frag),
 								 DMA_TO_DEVICE);
-			data->txring[tx].len = frag->size;
+			data->txring[tx].len = skb_frag_size(frag);
 		}
 
 		if (i == frags - 1)

@@ -1905,13 +1905,13 @@ netxen_map_tx_skb(struct pci_dev *pdev,
 		frag = &skb_shinfo(skb)->frags[i];
 		nf = &pbuf->frag_array[i+1];
 
-		map = skb_frag_dma_map(&pdev->dev, frag, 0, frag->size,
+		map = skb_frag_dma_map(&pdev->dev, frag, 0, skb_frag_size(frag),
 				       DMA_TO_DEVICE);
 		if (dma_mapping_error(&pdev->dev, map))
 			goto unwind;
 
 		nf->dma = map;
-		nf->length = frag->size;
+		nf->length = skb_frag_size(frag);
 	}
 
 	return 0;
@@ -1962,7 +1962,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 		for (i = 0; i < (frag_count - NETXEN_MAX_FRAGS_PER_TX); i++) {
 			frag = &skb_shinfo(skb)->frags[i];
-			delta += frag->size;
+			delta += skb_frag_size(frag);
 		}
 
 		if (!__pskb_pull_tail(skb, delta))

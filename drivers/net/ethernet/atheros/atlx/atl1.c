@@ -2267,11 +2267,11 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 	}
 
 	for (f = 0; f < nr_frags; f++) {
-		struct skb_frag_struct *frag;
+		const struct skb_frag_struct *frag;
 		u16 i, nseg;
 
 		frag = &skb_shinfo(skb)->frags[f];
-		buf_len = frag->size;
+		buf_len = skb_frag_size(frag);
 
 		nseg = (buf_len + ATL1_MAX_TX_BUF_LEN - 1) /
 			ATL1_MAX_TX_BUF_LEN;
@@ -2356,7 +2356,6 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 	int count = 1;
 	int ret_val;
 	struct tx_packet_desc *ptpd;
-	u16 frag_size;
 	u16 vlan_tag;
 	unsigned int nr_frags = 0;
 	unsigned int mss = 0;
@@ -2372,10 +2371,9 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	for (f = 0; f < nr_frags; f++) {
-		frag_size = skb_shinfo(skb)->frags[f].size;
-		if (frag_size)
-			count += (frag_size + ATL1_MAX_TX_BUF_LEN - 1) /
-				ATL1_MAX_TX_BUF_LEN;
+		unsigned int f_size = skb_frag_size(&skb_shinfo(skb)->frags[f]);
+		count += (f_size + ATL1_MAX_TX_BUF_LEN - 1) /
+			 ATL1_MAX_TX_BUF_LEN;
 	}
 
 	mss = skb_shinfo(skb)->gso_size;

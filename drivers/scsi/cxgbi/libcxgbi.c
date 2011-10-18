@@ -1814,8 +1814,8 @@ static int sgl_read_to_frags(struct scatterlist *sg, unsigned int sgoffset,
 		copy = min(datalen, sglen);
 		if (i && page == frags[i - 1].page &&
 		    sgoffset + sg->offset ==
-			frags[i - 1].page_offset + frags[i - 1].size) {
-			frags[i - 1].size += copy;
+			frags[i - 1].page_offset + skb_frag_size(&frags[i - 1])) {
+			skb_frag_size_add(&frags[i - 1], copy);
 		} else {
 			if (i >= frag_max) {
 				pr_warn("too many pages %u, dlen %u.\n",
@@ -1825,7 +1825,7 @@ static int sgl_read_to_frags(struct scatterlist *sg, unsigned int sgoffset,
 
 			frags[i].page = page;
 			frags[i].page_offset = sg->offset + sgoffset;
-			frags[i].size = copy;
+			skb_frag_size_set(&frags[i], copy);
 			i++;
 		}
 		datalen -= copy;
@@ -1951,8 +1951,8 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 				char *src = kmap_atomic(frag->page,
 							KM_SOFTIRQ0);
 
-				memcpy(dst, src+frag->page_offset, frag->size);
-				dst += frag->size;
+				memcpy(dst, src+frag->page_offset, skb_frag_size(frag));
+				dst += skb_frag_size(frag);
 				kunmap_atomic(src, KM_SOFTIRQ0);
 			}
 			if (padlen) {

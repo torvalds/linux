@@ -1216,7 +1216,7 @@ myri10ge_rx_skb_build(struct sk_buff *skb, u8 * va,
 	skb_frags = skb_shinfo(skb)->frags;
 	while (len > 0) {
 		memcpy(skb_frags, rx_frags, sizeof(*skb_frags));
-		len -= rx_frags->size;
+		len -= skb_frag_size(rx_frags);
 		skb_frags++;
 		rx_frags++;
 		skb_shinfo(skb)->nr_frags++;
@@ -1228,7 +1228,7 @@ myri10ge_rx_skb_build(struct sk_buff *skb, u8 * va,
 	 * manually */
 	skb_copy_to_linear_data(skb, va, hlen);
 	skb_shinfo(skb)->frags[0].page_offset += hlen;
-	skb_shinfo(skb)->frags[0].size -= hlen;
+	skb_frag_size_sub(&skb_shinfo(skb)->frags[0], hlen);
 	skb->data_len -= hlen;
 	skb->tail += hlen;
 	skb_pull(skb, MXGEFW_PAD);
@@ -1345,9 +1345,9 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum,
 		__skb_frag_set_page(&rx_frags[i], rx->info[idx].page);
 		rx_frags[i].page_offset = rx->info[idx].page_offset;
 		if (remainder < MYRI10GE_ALLOC_SIZE)
-			rx_frags[i].size = remainder;
+			skb_frag_size_set(&rx_frags[i], remainder);
 		else
-			rx_frags[i].size = MYRI10GE_ALLOC_SIZE;
+			skb_frag_size_set(&rx_frags[i], MYRI10GE_ALLOC_SIZE);
 		rx->cnt++;
 		idx = rx->cnt & rx->mask;
 		remainder -= MYRI10GE_ALLOC_SIZE;
@@ -1355,7 +1355,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum,
 
 	if (lro_enabled) {
 		rx_frags[0].page_offset += MXGEFW_PAD;
-		rx_frags[0].size -= MXGEFW_PAD;
+		skb_frag_size_sub(&rx_frags[0], MXGEFW_PAD);
 		len -= MXGEFW_PAD;
 		lro_receive_frags(&ss->rx_done.lro_mgr, rx_frags,
 				  /* opaque, will come back in get_frag_header */
@@ -1382,7 +1382,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum,
 
 	/* Attach the pages to the skb, and trim off any padding */
 	myri10ge_rx_skb_build(skb, va, rx_frags, len, hlen);
-	if (skb_shinfo(skb)->frags[0].size <= 0) {
+	if (skb_frag_size(&skb_shinfo(skb)->frags[0]) <= 0) {
 		skb_frag_unref(skb, 0);
 		skb_shinfo(skb)->nr_frags = 0;
 	}
@@ -2926,7 +2926,7 @@ again:
 		idx = (count + tx->req) & tx->mask;
 		frag = &skb_shinfo(skb)->frags[frag_idx];
 		frag_idx++;
-		len = frag->size;
+		len = skb_frag_size(frag);
 		bus = skb_frag_dma_map(&mgp->pdev->dev, frag, 0, len,
 				       DMA_TO_DEVICE);
 		dma_unmap_addr_set(&tx->info[idx], bus, bus);

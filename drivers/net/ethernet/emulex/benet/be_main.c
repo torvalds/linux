@@ -636,17 +636,17 @@ static int make_tx_wrbs(struct be_adapter *adapter, struct be_queue_info *txq,
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		struct skb_frag_struct *frag =
+		const struct skb_frag_struct *frag =
 			&skb_shinfo(skb)->frags[i];
 		busaddr = skb_frag_dma_map(dev, frag, 0,
-					   frag->size, DMA_TO_DEVICE);
+					   skb_frag_size(frag), DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, busaddr))
 			goto dma_err;
 		wrb = queue_head_node(txq);
-		wrb_fill(wrb, busaddr, frag->size);
+		wrb_fill(wrb, busaddr, skb_frag_size(frag));
 		be_dws_cpu_to_le(wrb, sizeof(*wrb));
 		queue_head_inc(txq);
-		copied += frag->size;
+		copied += skb_frag_size(frag);
 	}
 
 	if (dummy_wrb) {
@@ -1069,7 +1069,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter, struct be_rx_obj *rxo,
 		skb_frag_set_page(skb, 0, page_info->page);
 		skb_shinfo(skb)->frags[0].page_offset =
 					page_info->page_offset + hdr_len;
-		skb_shinfo(skb)->frags[0].size = curr_frag_len - hdr_len;
+		skb_frag_size_set(&skb_shinfo(skb)->frags[0], curr_frag_len - hdr_len);
 		skb->data_len = curr_frag_len - hdr_len;
 		skb->truesize += rx_frag_size;
 		skb->tail += hdr_len;
@@ -1095,13 +1095,13 @@ static void skb_fill_rx_data(struct be_adapter *adapter, struct be_rx_obj *rxo,
 			skb_frag_set_page(skb, j, page_info->page);
 			skb_shinfo(skb)->frags[j].page_offset =
 							page_info->page_offset;
-			skb_shinfo(skb)->frags[j].size = 0;
+			skb_frag_size_set(&skb_shinfo(skb)->frags[j], 0);
 			skb_shinfo(skb)->nr_frags++;
 		} else {
 			put_page(page_info->page);
 		}
 
-		skb_shinfo(skb)->frags[j].size += curr_frag_len;
+		skb_frag_size_add(&skb_shinfo(skb)->frags[j], curr_frag_len);
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
 		skb->truesize += rx_frag_size;
@@ -1176,11 +1176,11 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 			skb_frag_set_page(skb, j, page_info->page);
 			skb_shinfo(skb)->frags[j].page_offset =
 							page_info->page_offset;
-			skb_shinfo(skb)->frags[j].size = 0;
+			skb_frag_size_set(&skb_shinfo(skb)->frags[j], 0);
 		} else {
 			put_page(page_info->page);
 		}
-		skb_shinfo(skb)->frags[j].size += curr_frag_len;
+		skb_frag_size_add(&skb_shinfo(skb)->frags[j], curr_frag_len);
 		skb->truesize += rx_frag_size;
 		remaining -= curr_frag_len;
 		index_inc(&rxcp->rxq_idx, rxq->len);

@@ -1225,10 +1225,10 @@ static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 	dma_unmap_len_set(re, data_size, size);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		re->frag_addr[i] = skb_frag_dma_map(&pdev->dev, frag, 0,
-						    frag->size,
+						    skb_frag_size(frag),
 						    DMA_FROM_DEVICE);
 
 		if (dma_mapping_error(&pdev->dev, re->frag_addr[i]))
@@ -1239,7 +1239,7 @@ static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 map_page_error:
 	while (--i >= 0) {
 		pci_unmap_page(pdev, re->frag_addr[i],
-			       skb_shinfo(skb)->frags[i].size,
+			       skb_frag_size(&skb_shinfo(skb)->frags[i]),
 			       PCI_DMA_FROMDEVICE);
 	}
 
@@ -1263,7 +1263,7 @@ static void sky2_rx_unmap_skb(struct pci_dev *pdev, struct rx_ring_info *re)
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
 		pci_unmap_page(pdev, re->frag_addr[i],
-			       skb_shinfo(skb)->frags[i].size,
+			       skb_frag_size(&skb_shinfo(skb)->frags[i]),
 			       PCI_DMA_FROMDEVICE);
 }
 
@@ -1936,7 +1936,7 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		mapping = skb_frag_dma_map(&hw->pdev->dev, frag, 0,
-					   frag->size, DMA_TO_DEVICE);
+					   skb_frag_size(frag), DMA_TO_DEVICE);
 
 		if (dma_mapping_error(&hw->pdev->dev, mapping))
 			goto mapping_unwind;
@@ -1952,11 +1952,11 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 		re = sky2->tx_ring + slot;
 		re->flags = TX_MAP_PAGE;
 		dma_unmap_addr_set(re, mapaddr, mapping);
-		dma_unmap_len_set(re, maplen, frag->size);
+		dma_unmap_len_set(re, maplen, skb_frag_size(frag));
 
 		le = get_tx_le(sky2, &slot);
 		le->addr = cpu_to_le32(lower_32_bits(mapping));
-		le->length = cpu_to_le16(frag->size);
+		le->length = cpu_to_le16(skb_frag_size(frag));
 		le->ctrl = ctrl;
 		le->opcode = OP_BUFFER | HW_OWNER;
 	}
@@ -2484,7 +2484,7 @@ static void skb_put_frags(struct sk_buff *skb, unsigned int hdr_space,
 		} else {
 			size = min(length, (unsigned) PAGE_SIZE);
 
-			frag->size = size;
+			skb_frag_size_set(frag, size);
 			skb->data_len += size;
 			skb->truesize += PAGE_SIZE;
 			skb->len += size;

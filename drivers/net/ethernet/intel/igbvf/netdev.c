@@ -2045,7 +2045,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 
 
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
-		struct skb_frag_struct *frag;
+		const struct skb_frag_struct *frag;
 
 		count++;
 		i++;
@@ -2053,7 +2053,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 			i = 0;
 
 		frag = &skb_shinfo(skb)->frags[f];
-		len = frag->size;
+		len = skb_frag_size(frag);
 
 		buffer_info = &tx_ring->buffer_info[i];
 		BUG_ON(len >= IGBVF_MAX_DATA_PER_TXD);
