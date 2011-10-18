@@ -105,6 +105,8 @@ static inline void mmu_write(u32 a, u32 v)
 	__asm__ __volatile__ ("nop");
 }
 
+int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word);
+
 #endif
 
 #endif	/* MCFMMU_H */
