@@ -266,15 +266,13 @@ static void omap_serial_fill_default_pads(struct omap_board_data *bdata) {}
 
 static int __init omap_serial_early_init(void)
 {
-	int i = 0;
-
 	do {
 		char oh_name[MAX_UART_HWMOD_NAME_LEN];
 		struct omap_hwmod *oh;
 		struct omap_uart_state *uart;
 
 		snprintf(oh_name, MAX_UART_HWMOD_NAME_LEN,
-			 "uart%d", i + 1);
+			 "uart%d", num_uarts + 1);
 		oh = omap_hwmod_lookup(oh_name);
 		if (!oh)
 			break;
@@ -284,9 +282,8 @@ static int __init omap_serial_early_init(void)
 			return -ENODEV;
 
 		uart->oh = oh;
-		uart->num = i++;
+		uart->num = num_uarts++;
 		list_add_tail(&uart->node, &uart_list);
-		num_uarts++;
 
 		/*
 		 * NOTE: omap_hwmod_setup*() has not yet been called,
