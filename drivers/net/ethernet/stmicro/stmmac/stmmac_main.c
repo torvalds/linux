@@ -588,6 +588,8 @@ static void stmmac_tx(struct stmmac_priv *priv)
 {
 	unsigned int txsize = priv->dma_tx_size;
 
+	spin_lock(&priv->tx_lock);
+
 	while (priv->dirty_tx != priv->cur_tx) {
 		int last;
 		unsigned int entry = priv->dirty_tx % txsize;
@@ -651,6 +653,7 @@ static void stmmac_tx(struct stmmac_priv *priv)
 		}
 		netif_tx_unlock(priv->dev);
 	}
+	spin_unlock(&priv->tx_lock);
 }
 
 static inline void stmmac_enable_irq(struct stmmac_priv *priv)
@@ -1078,6 +1081,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
+	spin_lock(&priv->tx_lock);
+
 	entry = priv->cur_tx % txsize;
 
 #ifdef STMMAC_XMIT_DEBUG
@@ -1165,6 +1170,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr);
+
+	spin_unlock(&priv->tx_lock);
 
 	return NETDEV_TX_OK;
 }
@@ -1731,6 +1738,7 @@ static int stmmac_probe(struct net_device *dev)
 			"please, use ifconfig or nwhwconfig!\n");
 
 	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->tx_lock);
 
 	ret = register_netdev(dev);
 	if (ret) {
