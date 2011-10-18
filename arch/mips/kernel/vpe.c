@@ -192,7 +192,7 @@ static struct tc *get_tc(int index)
 	}
 	spin_unlock(&vpecontrol.tc_list_lock);
 
-	return NULL;
+	return res;
 }
 
 /* allocate a vpe and associate it with this minor (or index) */

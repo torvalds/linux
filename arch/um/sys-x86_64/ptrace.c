@@ -145,7 +145,7 @@ int is_syscall(unsigned long addr)
 	return instr == 0x050f;
 }
 
-int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
+static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
 	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
 	long fpregs[HOST_FP_SIZE];
@@ -162,7 +162,7 @@ int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 	return n;
 }
 
-int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
+static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
 	int n, cpu = ((struct thread_info *) child->stack)->cpu;
 	long fpregs[HOST_FP_SIZE];
@@ -182,11 +182,15 @@ long subarch_ptrace(struct task_struct *child, long request,
 	void __user *datap = (void __user *) data;
 
 	switch (request) {
-	case PTRACE_GETFPXREGS: /* Get the child FPU state. */
+	case PTRACE_GETFPREGS: /* Get the child FPU state. */
 		ret = get_fpregs(datap, child);
 		break;
-	case PTRACE_SETFPXREGS: /* Set the child FPU state. */
+	case PTRACE_SETFPREGS: /* Set the child FPU state. */
 		ret = set_fpregs(datap, child);
+		break;
+	case PTRACE_ARCH_PRCTL:
+		/* XXX Calls ptrace on the host - needs some SMP thinking */
+		ret = arch_prctl(child, data, (void __user *) addr);
 		break;
 	}
 

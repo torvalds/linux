@@ -24,6 +24,7 @@ config MIPS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_JUMP_LABEL
+	select IRQ_FORCED_THREADING
 
 menu "Machine selection"
 
@@ -722,6 +723,7 @@ config CAVIUM_OCTEON_SIMULATOR
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_HOTPLUG_CPU
 	select SYS_HAS_CPU_CAVIUM_OCTEON
+	select HOLES_IN_ZONE
 	help
 	  The Octeon simulator is software performance model of the Cavium
 	  Octeon Processor. It supports simulating Octeon processors on x86
@@ -744,6 +746,7 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select ZONE_DMA32
 	select USB_ARCH_HAS_OHCI
 	select USB_ARCH_HAS_EHCI
+	select HOLES_IN_ZONE
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
@@ -971,6 +974,9 @@ config ISA_DMA_API
 	bool
 
 config GENERIC_GPIO
+	bool
+
+config HOLES_IN_ZONE
 	bool
 
 #

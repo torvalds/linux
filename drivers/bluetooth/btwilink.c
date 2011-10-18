@@ -125,6 +125,13 @@ static long st_receive(void *priv_data, struct sk_buff *skb)
 /* protocol structure registered with shared transport */
 static struct st_proto_s ti_st_proto[MAX_BT_CHNL_IDS] = {
 	{
+		.chnl_id = HCI_EVENT_PKT, /* HCI Events */
+		.hdr_len = sizeof(struct hci_event_hdr),
+		.offset_len_in_hdr = offsetof(struct hci_event_hdr, plen),
+		.len_size = 1, /* sizeof(plen) in struct hci_event_hdr */
+		.reserve = 8,
+	},
+	{
 		.chnl_id = HCI_ACLDATA_PKT, /* ACL */
 		.hdr_len = sizeof(struct hci_acl_hdr),
 		.offset_len_in_hdr = offsetof(struct hci_acl_hdr, dlen),
@@ -136,13 +143,6 @@ static struct st_proto_s ti_st_proto[MAX_BT_CHNL_IDS] = {
 		.hdr_len = sizeof(struct hci_sco_hdr),
 		.offset_len_in_hdr = offsetof(struct hci_sco_hdr, dlen),
 		.len_size = 1, /* sizeof(dlen) in struct hci_sco_hdr */
-		.reserve = 8,
-	},
-	{
-		.chnl_id = HCI_EVENT_PKT, /* HCI Events */
-		.hdr_len = sizeof(struct hci_event_hdr),
-		.offset_len_in_hdr = offsetof(struct hci_event_hdr, plen),
-		.len_size = 1, /* sizeof(plen) in struct hci_event_hdr */
 		.reserve = 8,
 	},
 };
@@ -240,7 +240,7 @@ static int ti_st_close(struct hci_dev *hdev)
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
 
-	for (i = 0; i < MAX_BT_CHNL_IDS; i++) {
+	for (i = MAX_BT_CHNL_IDS-1; i >= 0; i--) {
 		err = st_unregister(&ti_st_proto[i]);
 		if (err)
 			BT_ERR("st_unregister(%d) failed with error %d",

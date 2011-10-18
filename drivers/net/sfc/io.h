@@ -103,7 +103,6 @@ static inline void efx_writeo(struct efx_nic *efx, efx_oword_t *value,
 	_efx_writed(efx, value->u32[2], reg + 8);
 	_efx_writed(efx, value->u32[3], reg + 12);
 #endif
-	wmb();
 	mmiowb();
 	spin_unlock_irqrestore(&efx->biu_lock, flags);
 }
@@ -126,7 +125,6 @@ static inline void efx_sram_writeq(struct efx_nic *efx, void __iomem *membase,
 	__raw_writel((__force u32)value->u32[0], membase + addr);
 	__raw_writel((__force u32)value->u32[1], membase + addr + 4);
 #endif
-	wmb();
 	mmiowb();
 	spin_unlock_irqrestore(&efx->biu_lock, flags);
 }
@@ -141,7 +139,6 @@ static inline void efx_writed(struct efx_nic *efx, efx_dword_t *value,
 
 	/* No lock required */
 	_efx_writed(efx, value->u32[0], reg);
-	wmb();
 }
 
 /* Read a 128-bit CSR, locking as appropriate. */
@@ -152,7 +149,6 @@ static inline void efx_reado(struct efx_nic *efx, efx_oword_t *value,
 
 	spin_lock_irqsave(&efx->biu_lock, flags);
 	value->u32[0] = _efx_readd(efx, reg + 0);
-	rmb();
 	value->u32[1] = _efx_readd(efx, reg + 4);
 	value->u32[2] = _efx_readd(efx, reg + 8);
 	value->u32[3] = _efx_readd(efx, reg + 12);
@@ -175,7 +171,6 @@ static inline void efx_sram_readq(struct efx_nic *efx, void __iomem *membase,
 	value->u64[0] = (__force __le64)__raw_readq(membase + addr);
 #else
 	value->u32[0] = (__force __le32)__raw_readl(membase + addr);
-	rmb();
 	value->u32[1] = (__force __le32)__raw_readl(membase + addr + 4);
 #endif
 	spin_unlock_irqrestore(&efx->biu_lock, flags);
@@ -249,7 +244,6 @@ static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
 	_efx_writed(efx, value->u32[2], reg + 8);
 	_efx_writed(efx, value->u32[3], reg + 12);
 #endif
-	wmb();
 }
 #define efx_writeo_page(efx, value, reg, page)				\
 	_efx_writeo_page(efx, value,					\
