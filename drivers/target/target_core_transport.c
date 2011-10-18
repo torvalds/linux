@@ -77,10 +77,6 @@ static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
 static void transport_direct_request_timeout(struct se_cmd *cmd);
 static void transport_free_dev_tasks(struct se_cmd *cmd);
-static u32 transport_allocate_tasks(struct se_cmd *cmd,
-		unsigned long long starting_lba,
-		enum dma_data_direction data_direction,
-		struct scatterlist *sgl, unsigned int nents);
 static int transport_generic_get_mem(struct se_cmd *cmd);
 static void transport_put_cmd(struct se_cmd *cmd);
 static void transport_remove_cmd_from_queue(struct se_cmd *cmd);
@@ -3666,62 +3662,6 @@ int transport_generic_map_mem_to_cmd(
 }
 EXPORT_SYMBOL(transport_generic_map_mem_to_cmd);
 
-static int transport_new_cmd_obj(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	int set_counts = 1, rc, task_cdbs;
-
-	/*
-	 * Setup any BIDI READ tasks and memory from
-	 * cmd->t_mem_bidi_list so the READ struct se_tasks
-	 * are queued first for the non pSCSI passthrough case.
-	 */
-	if (cmd->t_bidi_data_sg &&
-	    (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV)) {
-		rc = transport_allocate_tasks(cmd,
-					      cmd->t_task_lba,
-					      DMA_FROM_DEVICE,
-					      cmd->t_bidi_data_sg,
-					      cmd->t_bidi_data_nents);
-		if (rc <= 0) {
-			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-			cmd->scsi_sense_reason =
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-			return -EINVAL;
-		}
-		atomic_inc(&cmd->t_fe_count);
-		atomic_inc(&cmd->t_se_count);
-		set_counts = 0;
-	}
-	/*
-	 * Setup the tasks and memory from cmd->t_mem_list
-	 * Note for BIDI transfers this will contain the WRITE payload
-	 */
-	task_cdbs = transport_allocate_tasks(cmd,
-					     cmd->t_task_lba,
-					     cmd->data_direction,
-					     cmd->t_data_sg,
-					     cmd->t_data_nents);
-	if (task_cdbs <= 0) {
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason =
-			TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		return -EINVAL;
-	}
-
-	if (set_counts) {
-		atomic_inc(&cmd->t_fe_count);
-		atomic_inc(&cmd->t_se_count);
-	}
-
-	cmd->t_task_list_num = task_cdbs;
-
-	atomic_set(&cmd->t_task_cdbs_left, task_cdbs);
-	atomic_set(&cmd->t_task_cdbs_ex_left, task_cdbs);
-	atomic_set(&cmd->t_task_cdbs_timeout_left, task_cdbs);
-	return 0;
-}
-
 void *transport_kmap_first_data_page(struct se_cmd *cmd)
 {
 	struct scatterlist *sg = cmd->t_data_sg;
@@ -4000,17 +3940,16 @@ static u32 transport_allocate_tasks(
 }
 
 
-/*	 transport_generic_new_cmd(): Called from transport_processing_thread()
- *
- *	 Allocate storage transport resources from a set of values predefined
- *	 by transport_generic_cmd_sequencer() from the iSCSI Target RX process.
- *	 Any non zero return here is treated as an "out of resource' op here.
+/*
+ * Allocate any required ressources to execute the command, and either place
+ * it on the execution queue if possible.  For writes we might not have the
+ * payload yet, thus notify the fabric via a call to ->write_pending instead.
  */
-	/*
-	 * Generate struct se_task(s) and/or their payloads for this CDB.
-	 */
 int transport_generic_new_cmd(struct se_cmd *cmd)
 {
+	struct se_device *dev = cmd->se_dev;
+	int task_cdbs;
+	int set_counts = 1;
 	int ret = 0;
 
 	/*
@@ -4024,16 +3963,49 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		if (ret < 0)
 			return ret;
 	}
+
 	/*
-	 * Call transport_new_cmd_obj() to invoke transport_allocate_tasks() for
-	 * control or data CDB types, and perform the map to backend subsystem
-	 * code from SGL memory allocated here by transport_generic_get_mem(), or
-	 * via pre-existing SGL memory setup explictly by fabric module code with
-	 * transport_generic_map_mem_to_cmd().
+	 * Setup any BIDI READ tasks and memory from
+	 * cmd->t_mem_bidi_list so the READ struct se_tasks
+	 * are queued first for the non pSCSI passthrough case.
 	 */
-	ret = transport_new_cmd_obj(cmd);
-	if (ret < 0)
-		return ret;
+	if (cmd->t_bidi_data_sg &&
+	    (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV)) {
+		ret = transport_allocate_tasks(cmd,
+					      cmd->t_task_lba,
+					      DMA_FROM_DEVICE,
+					      cmd->t_bidi_data_sg,
+					      cmd->t_bidi_data_nents);
+		if (ret <= 0)
+			goto out_fail;
+
+		atomic_inc(&cmd->t_fe_count);
+		atomic_inc(&cmd->t_se_count);
+		set_counts = 0;
+	}
+	/*
+	 * Setup the tasks and memory from cmd->t_mem_list
+	 * Note for BIDI transfers this will contain the WRITE payload
+	 */
+	task_cdbs = transport_allocate_tasks(cmd,
+					     cmd->t_task_lba,
+					     cmd->data_direction,
+					     cmd->t_data_sg,
+					     cmd->t_data_nents);
+	if (task_cdbs <= 0)
+		goto out_fail;
+
+	if (set_counts) {
+		atomic_inc(&cmd->t_fe_count);
+		atomic_inc(&cmd->t_se_count);
+	}
+
+	cmd->t_task_list_num = task_cdbs;
+
+	atomic_set(&cmd->t_task_cdbs_left, task_cdbs);
+	atomic_set(&cmd->t_task_cdbs_ex_left, task_cdbs);
+	atomic_set(&cmd->t_task_cdbs_timeout_left, task_cdbs);
+
 	/*
 	 * For WRITEs, let the fabric know its buffer is ready..
 	 * This WRITE struct se_cmd (and all of its associated struct se_task's)
@@ -4051,6 +4023,11 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	 */
 	transport_execute_tasks(cmd);
 	return 0;
+
+out_fail:
+	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(transport_generic_new_cmd);
 
