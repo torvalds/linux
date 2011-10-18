@@ -101,6 +101,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u64 flags)
 		[25] = "Router support",
 		[30] = "IBoE support",
 		[32] = "Unicast loopback support",
+		[34] = "FCS header control",
 		[38] = "Wake On LAN support",
 		[40] = "UDP RSS support",
 		[41] = "Unicast VEP steering support",
