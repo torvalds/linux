@@ -579,6 +579,9 @@ static int hist_browser__show_entry(struct hist_browser *self,
 		if (!self->b.navkeypressed)
 			width += 1;
 
+		if (!current_entry || !self->b.navkeypressed)
+			ui_browser__set_color(&self->b, HE_COLORSET_NORMAL);
+
 		slsmg_write_nstring(s, width);
 		++row;
 		++printed;
