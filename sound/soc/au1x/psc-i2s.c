@@ -290,7 +290,7 @@ static const struct snd_soc_dai_driver au1xpsc_i2s_dai_template = {
 
 static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 {
-	struct resource *r;
+	struct resource *iores, *dmares;
 	unsigned long sel;
 	int ret;
 	struct au1xpsc_audio_data *wd;
@@ -299,29 +299,30 @@ static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	if (!wd)
 		return -ENOMEM;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
+	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!iores) {
 		ret = -ENODEV;
 		goto out0;
 	}
 
 	ret = -EBUSY;
-	if (!request_mem_region(r->start, resource_size(r), pdev->name))
+	if (!request_mem_region(iores->start, resource_size(iores),
+				pdev->name))
 		goto out0;
 
-	wd->mmio = ioremap(r->start, resource_size(r));
+	wd->mmio = ioremap(iores->start, resource_size(iores));
 	if (!wd->mmio)
 		goto out1;
 
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!r)
+	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!dmares)
 		goto out2;
-	wd->dmaids[SNDRV_PCM_STREAM_PLAYBACK] = r->start;
+	wd->dmaids[SNDRV_PCM_STREAM_PLAYBACK] = dmares->start;
 
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!r)
+	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!dmares)
 		goto out2;
-	wd->dmaids[SNDRV_PCM_STREAM_CAPTURE] = r->start;
+	wd->dmaids[SNDRV_PCM_STREAM_CAPTURE] = dmares->start;
 
 	/* preserve PSC clock source set up by platform (dev.platform_data
 	 * is already occupied by soc layer)
@@ -355,7 +356,7 @@ static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 out2:
 	iounmap(wd->mmio);
 out1:
-	release_mem_region(r->start, resource_size(r));
+	release_mem_region(iores->start, resource_size(iores));
 out0:
 	kfree(wd);
 	return ret;

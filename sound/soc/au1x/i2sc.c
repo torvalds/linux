@@ -228,47 +228,50 @@ static struct snd_soc_dai_driver au1xi2s_dai_driver = {
 static int __devinit au1xi2s_drvprobe(struct platform_device *pdev)
 {
 	int ret;
-	struct resource *r;
+	struct resource *iores, *dmares;
 	struct au1xpsc_audio_data *ctx;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
+	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!iores) {
 		ret = -ENODEV;
 		goto out0;
 	}
 
 	ret = -EBUSY;
-	if (!request_mem_region(r->start, resource_size(r), pdev->name))
+	if (!request_mem_region(iores->start, resource_size(iores),
+				pdev->name))
 		goto out0;
 
-	ctx->mmio = ioremap_nocache(r->start, resource_size(r));
+	ctx->mmio = ioremap_nocache(iores->start, resource_size(iores));
 	if (!ctx->mmio)
 		goto out1;
 
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!r)
-		goto out1;
-	ctx->dmaids[SNDRV_PCM_STREAM_PLAYBACK] = r->start;
+	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!dmares)
+		goto out2;
+	ctx->dmaids[SNDRV_PCM_STREAM_PLAYBACK] = dmares->start;
 
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!r)
-		goto out1;
-	ctx->dmaids[SNDRV_PCM_STREAM_CAPTURE] = r->start;
+	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!dmares)
+		goto out2;
+	ctx->dmaids[SNDRV_PCM_STREAM_CAPTURE] = dmares->start;
 
 	platform_set_drvdata(pdev, ctx);
 
 	ret = snd_soc_register_dai(&pdev->dev, &au1xi2s_dai_driver);
 	if (ret)
-		goto out1;
+		goto out2;
 
 	return 0;
 
+out2:
+	iounmap(ctx->mmio);
 out1:
-	release_mem_region(r->start, resource_size(r));
+	release_mem_region(iores->start, resource_size(iores));
 out0:
 	kfree(ctx);
 	return ret;
