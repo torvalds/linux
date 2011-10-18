@@ -2252,6 +2252,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "lrw(twofish)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = tf_lrw_enc_tv_template,
+					.count = TF_LRW_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = tf_lrw_dec_tv_template,
+					.count = TF_LRW_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "lzo",
 		.test = alg_test_comp,
 		.suite = {
