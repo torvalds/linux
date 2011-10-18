@@ -118,6 +118,8 @@ struct media {
  * @name: bearer name (format = media:interface)
  * @media: ptr to media structure associated with bearer
  * @priority: default link priority for bearer
+ * @window: default window size for bearer
+ * @tolerance: default link tolerance for bearer
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
  * @links: list of non-congested links associated with bearer
@@ -139,6 +141,8 @@ struct tipc_bearer {
 	spinlock_t lock;
 	struct media *media;
 	u32 priority;
+	u32 window;
+	u32 tolerance;
 	u32 identity;
 	struct link_req *link_req;
 	struct list_head links;
@@ -176,6 +180,8 @@ int tipc_disable_bearer(const char *name);
 int  tipc_eth_media_start(void);
 void tipc_eth_media_stop(void);
 
+int tipc_media_set_priority(const char *name, u32 new_value);
+int tipc_media_set_window(const char *name, u32 new_value);
 void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
 
@@ -183,7 +189,9 @@ struct sk_buff *tipc_bearer_get_names(void);
 void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest);
 void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest);
 void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr);
+struct tipc_bearer *tipc_bearer_find(const char *name);
 struct tipc_bearer *tipc_bearer_find_interface(const char *if_name);
+struct media *tipc_media_find(const char *name);
 int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr);
 int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr);
 void tipc_bearer_stop(void);

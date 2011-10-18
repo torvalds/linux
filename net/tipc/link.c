@@ -343,7 +343,7 @@ struct link *tipc_link_create(struct tipc_node *n_ptr,
 	l_ptr->checkpoint = 1;
 	l_ptr->peer_session = INVALID_SESSION;
 	l_ptr->b_ptr = b_ptr;
-	link_set_supervision_props(l_ptr, b_ptr->media->tolerance);
+	link_set_supervision_props(l_ptr, b_ptr->tolerance);
 	l_ptr->state = RESET_UNKNOWN;
 
 	l_ptr->pmsg = (struct tipc_msg *)&l_ptr->proto_msg;
@@ -355,7 +355,7 @@ struct link *tipc_link_create(struct tipc_node *n_ptr,
 	strcpy((char *)msg_data(msg), if_name);
 
 	l_ptr->priority = b_ptr->priority;
-	tipc_link_set_queue_limits(l_ptr, b_ptr->media->window);
+	tipc_link_set_queue_limits(l_ptr, b_ptr->window);
 
 	link_init_max_pkt(l_ptr);
 
@@ -2754,13 +2754,113 @@ static struct link *link_find_link(const char *name, struct tipc_node **node)
 	return l_ptr;
 }
 
+/**
+ * link_value_is_valid -- validate proposed link tolerance/priority/window
+ *
+ * @cmd - value type (TIPC_CMD_SET_LINK_*)
+ * @new_value - the new value
+ *
+ * Returns 1 if value is within range, 0 if not.
+ */
+
+static int link_value_is_valid(u16 cmd, u32 new_value)
+{
+	switch (cmd) {
+	case TIPC_CMD_SET_LINK_TOL:
+		return (new_value >= TIPC_MIN_LINK_TOL) &&
+			(new_value <= TIPC_MAX_LINK_TOL);
+	case TIPC_CMD_SET_LINK_PRI:
+		return (new_value <= TIPC_MAX_LINK_PRI);
+	case TIPC_CMD_SET_LINK_WINDOW:
+		return (new_value >= TIPC_MIN_LINK_WIN) &&
+			(new_value <= TIPC_MAX_LINK_WIN);
+	}
+	return 0;
+}
+
+
+/**
+ * link_cmd_set_value - change priority/tolerance/window for link/bearer/media
+ * @name - ptr to link, bearer, or media name
+ * @new_value - new value of link, bearer, or media setting
+ * @cmd - which link, bearer, or media attribute to set (TIPC_CMD_SET_LINK_*)
+ *
+ * Caller must hold 'tipc_net_lock' to ensure link/bearer/media is not deleted.
+ *
+ * Returns 0 if value updated and negative value on error.
+ */
+
+static int link_cmd_set_value(const char *name, u32 new_value, u16 cmd)
+{
+	struct tipc_node *node;
+	struct link *l_ptr;
+	struct tipc_bearer *b_ptr;
+	struct media *m_ptr;
+
+	l_ptr = link_find_link(name, &node);
+	if (l_ptr) {
+		/*
+		 * acquire node lock for tipc_link_send_proto_msg().
+		 * see "TIPC locking policy" in net.c.
+		 */
+		tipc_node_lock(node);
+		switch (cmd) {
+		case TIPC_CMD_SET_LINK_TOL:
+			link_set_supervision_props(l_ptr, new_value);
+			tipc_link_send_proto_msg(l_ptr,
+				STATE_MSG, 0, 0, new_value, 0, 0);
+			break;
+		case TIPC_CMD_SET_LINK_PRI:
+			l_ptr->priority = new_value;
+			tipc_link_send_proto_msg(l_ptr,
+				STATE_MSG, 0, 0, 0, new_value, 0);
+			break;
+		case TIPC_CMD_SET_LINK_WINDOW:
+			tipc_link_set_queue_limits(l_ptr, new_value);
+			break;
+		}
+		tipc_node_unlock(node);
+		return 0;
+	}
+
+	b_ptr = tipc_bearer_find(name);
+	if (b_ptr) {
+		switch (cmd) {
+		case TIPC_CMD_SET_LINK_TOL:
+			b_ptr->tolerance = new_value;
+			return 0;
+		case TIPC_CMD_SET_LINK_PRI:
+			b_ptr->priority = new_value;
+			return 0;
+		case TIPC_CMD_SET_LINK_WINDOW:
+			b_ptr->window = new_value;
+			return 0;
+		}
+		return -EINVAL;
+	}
+
+	m_ptr = tipc_media_find(name);
+	if (!m_ptr)
+		return -ENODEV;
+	switch (cmd) {
+	case TIPC_CMD_SET_LINK_TOL:
+		m_ptr->tolerance = new_value;
+		return 0;
+	case TIPC_CMD_SET_LINK_PRI:
+		m_ptr->priority = new_value;
+		return 0;
+	case TIPC_CMD_SET_LINK_WINDOW:
+		m_ptr->window = new_value;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space,
 				     u16 cmd)
 {
 	struct tipc_link_config *args;
 	u32 new_value;
-	struct link *l_ptr;
-	struct tipc_node *node;
 	int res;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_LINK_CONFIG))
@@ -2768,6 +2868,10 @@ struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space
 
 	args = (struct tipc_link_config *)TLV_DATA(req_tlv_area);
 	new_value = ntohl(args->value);
+
+	if (!link_value_is_valid(cmd, new_value))
+		return tipc_cfg_reply_error_string(
+			"cannot change, value invalid");
 
 	if (!strcmp(args->name, tipc_bclink_name)) {
 		if ((cmd == TIPC_CMD_SET_LINK_WINDOW) &&
@@ -2778,43 +2882,7 @@ struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space
 	}
 
 	read_lock_bh(&tipc_net_lock);
-	l_ptr = link_find_link(args->name, &node);
-	if (!l_ptr) {
-		read_unlock_bh(&tipc_net_lock);
-		return tipc_cfg_reply_error_string("link not found");
-	}
-
-	tipc_node_lock(node);
-	res = -EINVAL;
-	switch (cmd) {
-	case TIPC_CMD_SET_LINK_TOL:
-		if ((new_value >= TIPC_MIN_LINK_TOL) &&
-		    (new_value <= TIPC_MAX_LINK_TOL)) {
-			link_set_supervision_props(l_ptr, new_value);
-			tipc_link_send_proto_msg(l_ptr, STATE_MSG,
-						 0, 0, new_value, 0, 0);
-			res = 0;
-		}
-		break;
-	case TIPC_CMD_SET_LINK_PRI:
-		if ((new_value >= TIPC_MIN_LINK_PRI) &&
-		    (new_value <= TIPC_MAX_LINK_PRI)) {
-			l_ptr->priority = new_value;
-			tipc_link_send_proto_msg(l_ptr, STATE_MSG,
-						 0, 0, 0, new_value, 0);
-			res = 0;
-		}
-		break;
-	case TIPC_CMD_SET_LINK_WINDOW:
-		if ((new_value >= TIPC_MIN_LINK_WIN) &&
-		    (new_value <= TIPC_MAX_LINK_WIN)) {
-			tipc_link_set_queue_limits(l_ptr, new_value);
-			res = 0;
-		}
-		break;
-	}
-	tipc_node_unlock(node);
-
+	res = link_cmd_set_value(args->name, new_value, cmd);
 	read_unlock_bh(&tipc_net_lock);
 	if (res)
 		return tipc_cfg_reply_error_string("cannot change link setting");

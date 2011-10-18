@@ -65,10 +65,10 @@ static int media_name_valid(const char *name)
 }
 
 /**
- * media_find - locates specified media object by name
+ * tipc_media_find - locates specified media object by name
  */
 
-static struct media *media_find(const char *name)
+struct media *tipc_media_find(const char *name)
 {
 	u32 i;
 
@@ -118,7 +118,7 @@ int  tipc_register_media(struct media *m_ptr)
 		goto exit;
 	if (media_count >= MAX_MEDIA)
 		goto exit;
-	if (media_find(m_ptr->name) || media_find_id(m_ptr->type_id))
+	if (tipc_media_find(m_ptr->name) || media_find_id(m_ptr->type_id))
 		goto exit;
 
 	media_list[media_count] = m_ptr;
@@ -229,10 +229,10 @@ static int bearer_name_validate(const char *name,
 }
 
 /**
- * bearer_find - locates bearer object with matching bearer name
+ * tipc_bearer_find - locates bearer object with matching bearer name
  */
 
-static struct tipc_bearer *bearer_find(const char *name)
+struct tipc_bearer *tipc_bearer_find(const char *name)
 {
 	struct tipc_bearer *b_ptr;
 	u32 i;
@@ -463,7 +463,7 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 
 	write_lock_bh(&tipc_net_lock);
 
-	m_ptr = media_find(b_name.media_name);
+	m_ptr = tipc_media_find(b_name.media_name);
 	if (!m_ptr) {
 		warn("Bearer <%s> rejected, media <%s> not registered\n", name,
 		     b_name.media_name);
@@ -513,6 +513,8 @@ restart:
 
 	b_ptr->identity = bearer_id;
 	b_ptr->media = m_ptr;
+	b_ptr->tolerance = m_ptr->tolerance;
+	b_ptr->window = m_ptr->window;
 	b_ptr->net_plane = bearer_id + 'A';
 	b_ptr->active = 1;
 	b_ptr->priority = priority;
@@ -546,7 +548,7 @@ int tipc_block_bearer(const char *name)
 	struct link *temp_l_ptr;
 
 	read_lock_bh(&tipc_net_lock);
-	b_ptr = bearer_find(name);
+	b_ptr = tipc_bearer_find(name);
 	if (!b_ptr) {
 		warn("Attempt to block unknown bearer <%s>\n", name);
 		read_unlock_bh(&tipc_net_lock);
@@ -600,7 +602,7 @@ int tipc_disable_bearer(const char *name)
 	int res;
 
 	write_lock_bh(&tipc_net_lock);
-	b_ptr = bearer_find(name);
+	b_ptr = tipc_bearer_find(name);
 	if (b_ptr == NULL) {
 		warn("Attempt to disable unknown bearer <%s>\n", name);
 		res = -EINVAL;
