@@ -3,6 +3,7 @@ comment "Processor Type"
 config M68000
 	bool
 	select CPU_HAS_NO_BITFIELDS
+	select GENERIC_CSUM
 	help
 	  The Freescale (was Motorola) 68000 CPU is the first generation of
 	  the well known M68K family of processors. The CPU core as well as
@@ -23,6 +24,7 @@ config COLDFIRE
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_HAS_NO_BITFIELDS
+	select GENERIC_CSUM
 	help
 	  The Freescale ColdFire family of processors is a modern derivitive
 	  of the 68000 processor family. They are mainly targeted at embedded

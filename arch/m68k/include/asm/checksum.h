@@ -3,6 +3,10 @@
 
 #include <linux/in6.h>
 
+#ifdef CONFIG_GENERIC_CSUM
+#include <asm-generic/checksum.h>
+#else
+
 /*
  * computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit)
@@ -33,30 +37,6 @@ extern __wsum csum_partial_copy_from_user(const void __user *src,
 extern __wsum csum_partial_copy_nocheck(const void *src,
 					      void *dst, int len,
 					      __wsum sum);
-
-
-#ifdef CONFIG_COLDFIRE
-
-/*
- *	The ColdFire cores don't support all the 68k instructions used
- *	in the optimized checksum code below. So it reverts back to using
- *	more standard C coded checksums. The fast checksum code is
- *	significantly larger than the optimized version, so it is not
- *	inlined here.
- */
-__sum16 ip_fast_csum(const void *iph, unsigned int ihl);
-
-static inline __sum16 csum_fold(__wsum sum)
-{
-	unsigned int tmp = (__force u32)sum;
-
-	tmp = (tmp & 0xffff) + (tmp >> 16);
-	tmp = (tmp & 0xffff) + (tmp >> 16);
-
-	return (__force __sum16)~tmp;
-}
-
-#else
 
 /*
  *	This is a version of ip_fast_csum() optimized for IP headers,
@@ -96,8 +76,6 @@ static inline __sum16 csum_fold(__wsum sum)
 
 	return (__force __sum16)~sum;
 }
-
-#endif /* CONFIG_COLDFIRE */
 
 static inline __wsum
 csum_tcpudp_nofold(__be32 saddr, __be32 daddr, unsigned short len,
@@ -167,4 +145,5 @@ csum_ipv6_magic(const struct in6_addr *saddr, const struct in6_addr *daddr,
 	return csum_fold(sum);
 }
 
+#endif /* CONFIG_GENERIC_CSUM */
 #endif /* _M68K_CHECKSUM_H */

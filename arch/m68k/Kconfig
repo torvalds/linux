@@ -40,6 +40,9 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_IOMAP
 	def_bool MMU
 
+config GENERIC_CSUM
+	bool
+
 config TIME_LOW_RES
 	bool
 	default y
