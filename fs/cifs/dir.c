@@ -648,8 +648,16 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 	if (direntry->d_inode) {
 		if (cifs_revalidate_dentry(direntry))
 			return 0;
-		else
+		else {
+			/*
+			 * Forcibly invalidate automounting directory inodes
+			 * (remote DFS directories) so to have them
+			 * instantiated again for automount
+			 */
+			if (IS_AUTOMOUNT(direntry->d_inode))
+				return 0;
 			return 1;
+		}
 	}
 
 	/*
