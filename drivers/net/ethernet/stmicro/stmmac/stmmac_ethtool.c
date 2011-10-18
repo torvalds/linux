@@ -96,7 +96,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	{ #m, FIELD_SIZEOF(struct stmmac_counters, m),	\
 	offsetof(struct stmmac_priv, mmc.m)}
 
-static const struct stmmac_stats stmmac_gstr_mmc[] = {
+static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_tx_octetcount_gb),
 	STMMAC_MMC_STAT(mmc_tx_framecount_gb),
 	STMMAC_MMC_STAT(mmc_tx_broadcastframe_g),
@@ -177,7 +177,7 @@ static const struct stmmac_stats stmmac_gstr_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_icmp_gd_octets),
 	STMMAC_MMC_STAT(mmc_rx_icmp_err_octets),
 };
-#define STMMAC_MMC_STATS_LEN ARRAY_SIZE(stmmac_gstr_mmc)
+#define STMMAC_MMC_STATS_LEN ARRAY_SIZE(stmmac_mmc)
 
 static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 				      struct ethtool_drvinfo *info)
@@ -348,13 +348,17 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 						 priv->ioaddr);
 	else {
 		/* If supported, for new GMAC chips expose the MMC counters */
-		dwmac_mmc_read(priv->ioaddr, &priv->mmc);
+		if (priv->dma_cap.rmon) {
+			dwmac_mmc_read(priv->ioaddr, &priv->mmc);
 
-		for (i = 0; i < STMMAC_MMC_STATS_LEN; i++) {
-			char *p = (char *)priv + stmmac_gstr_mmc[i].stat_offset;
+			for (i = 0; i < STMMAC_MMC_STATS_LEN; i++) {
+				char *p;
+				p = (char *)priv + stmmac_mmc[i].stat_offset;
 
-			data[j++] = (stmmac_gstr_mmc[i].sizeof_stat ==
-				     sizeof(u64)) ? (*(u64 *)p) : (*(u32 *)p);
+				data[j++] = (stmmac_mmc[i].sizeof_stat ==
+					     sizeof(u64)) ? (*(u64 *)p) :
+					     (*(u32 *)p);
+			}
 		}
 	}
 	for (i = 0; i < STMMAC_STATS_LEN; i++) {
@@ -373,7 +377,7 @@ static int stmmac_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		len = STMMAC_STATS_LEN;
 
-		if (priv->plat->has_gmac)
+		if (priv->dma_cap.rmon)
 			len += STMMAC_MMC_STATS_LEN;
 
 		return len;
@@ -390,9 +394,9 @@ static void stmmac_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		if (priv->plat->has_gmac)
+		if (priv->dma_cap.rmon)
 			for (i = 0; i < STMMAC_MMC_STATS_LEN; i++) {
-				memcpy(p, stmmac_gstr_mmc[i].stat_string,
+				memcpy(p, stmmac_mmc[i].stat_string,
 				       ETH_GSTRING_LEN);
 				p += ETH_GSTRING_LEN;
 			}
