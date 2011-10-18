@@ -173,6 +173,7 @@ static int wm9081_volatile_register(struct snd_soc_codec *codec, unsigned int re
 {
 	switch (reg) {
 	case WM9081_SOFTWARE_RESET:
+	case WM9081_INTERRUPT_STATUS:
 		return 1;
 	default:
 		return 0;
