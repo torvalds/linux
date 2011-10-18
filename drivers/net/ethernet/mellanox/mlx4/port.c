@@ -65,7 +65,7 @@ void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table)
 		table->entries[i] = 0;
 		table->refs[i]	 = 0;
 	}
-	table->max   = 1 << dev->caps.log_num_vlans;
+	table->max   = (1 << dev->caps.log_num_vlans) - MLX4_VLAN_REGULAR;
 	table->total = 0;
 }
 
@@ -354,6 +354,13 @@ int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 	int free = -1;
 
 	mutex_lock(&table->mutex);
+
+	if (table->total == table->max) {
+		/* No free vlan entries */
+		err = -ENOSPC;
+		goto out;
+	}
+
 	for (i = MLX4_VLAN_REGULAR; i < MLX4_MAX_VLAN_NUM; i++) {
 		if (free < 0 && (table->refs[i] == 0)) {
 			free = i;
@@ -372,12 +379,6 @@ int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 
 	if (free < 0) {
 		err = -ENOMEM;
-		goto out;
-	}
-
-	if (table->total == table->max) {
-		/* No free vlan entries */
-		err = -ENOSPC;
 		goto out;
 	}
 
