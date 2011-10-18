@@ -14,6 +14,55 @@
 #include <linux/fcntl.h>
 #include <linux/security.h>
 
+static int richacl_change_ok(struct inode *inode, int mask)
+{
+	if (!IS_RICHACL(inode))
+		return -EPERM;
+
+	if (inode->i_op->permission)
+		return inode->i_op->permission(inode, mask);
+
+	return check_acl(inode, mask);
+}
+
+static bool inode_uid_change_ok(struct inode *inode, uid_t ia_uid)
+{
+	if (current_fsuid() == inode->i_uid && ia_uid == inode->i_uid)
+		return true;
+	if (current_fsuid() == ia_uid &&
+	    richacl_change_ok(inode, MAY_TAKE_OWNERSHIP) == 0)
+		return true;
+	if (capable(CAP_CHOWN))
+		return true;
+	return false;
+}
+
+static bool inode_gid_change_ok(struct inode *inode, gid_t ia_gid)
+{
+	int in_group = in_group_p(ia_gid);
+	if (current_fsuid() == inode->i_uid &&
+	    (in_group || ia_gid == inode->i_gid))
+		return true;
+	if (in_group && richacl_change_ok(inode, MAY_TAKE_OWNERSHIP) == 0)
+		return true;
+	if (capable(CAP_CHOWN))
+		return true;
+	return false;
+}
+
+static bool inode_owner_permitted_or_capable(struct inode *inode, int mask)
+{
+	struct user_namespace *ns = inode_userns(inode);
+
+	if (current_user_ns() == ns && current_fsuid() == inode->i_uid)
+		return true;
+	if (richacl_change_ok(inode, mask) == 0)
+		return true;
+	if (ns_capable(ns, CAP_FOWNER))
+		return true;
+	return false;
+}
+
 /**
  * inode_change_ok - check if attribute changes to an inode are allowed
  * @inode:	inode to check
@@ -45,21 +94,20 @@ int inode_change_ok(struct inode *inode, struct iattr *attr)
 		return 0;
 
 	/* Make sure a caller can chown. */
-	if ((ia_valid & ATTR_UID) &&
-	    (current_fsuid() != inode->i_uid ||
-	     attr->ia_uid != inode->i_uid) && !capable(CAP_CHOWN))
-		return -EPERM;
+	if (ia_valid & ATTR_UID) {
+		if (!inode_uid_change_ok(inode, attr->ia_uid))
+			return -EPERM;
+	}
 
 	/* Make sure caller can chgrp. */
-	if ((ia_valid & ATTR_GID) &&
-	    (current_fsuid() != inode->i_uid ||
-	    (!in_group_p(attr->ia_gid) && attr->ia_gid != inode->i_gid)) &&
-	    !capable(CAP_CHOWN))
-		return -EPERM;
+	if (ia_valid & ATTR_GID) {
+		if (!inode_gid_change_ok(inode, attr->ia_gid))
+			return -EPERM;
+	}
 
 	/* Make sure a caller can chmod. */
 	if (ia_valid & ATTR_MODE) {
-		if (!inode_owner_or_capable(inode))
+		if (!inode_owner_permitted_or_capable(inode, MAY_CHMOD))
 			return -EPERM;
 		/* Also check the setgid bit! */
 		if (!in_group_p((ia_valid & ATTR_GID) ? attr->ia_gid :
@@ -69,7 +117,7 @@ int inode_change_ok(struct inode *inode, struct iattr *attr)
 
 	/* Check for setting the inode time. */
 	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)) {
-		if (!inode_owner_or_capable(inode))
+		if (!inode_owner_permitted_or_capable(inode, MAY_SET_TIMES))
 			return -EPERM;
 	}
 
