@@ -1394,7 +1394,7 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 	    (old_oper_type != local->_oper_channel_type))
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
-	if ((sdata && sdata->vif.type != NL80211_IFTYPE_MONITOR) &&
+	if (sdata && sdata->vif.type != NL80211_IFTYPE_MONITOR &&
 	    old_vif_oper_type != sdata->vif.bss_conf.channel_type)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
 
