@@ -886,17 +886,20 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		case NEWT_KEY_F1:
 		case 'h':
 		case '?':
-			ui__help_window("h/?/F1    Show this window\n"
-					"TAB/UNTAB Switch events\n"
-					"q/CTRL+C  Exit browser\n\n"
+			ui__help_window("h/?/F1        Show this window\n"
+					"UP/DOWN/PGUP\n"
+					"PGDN/SPACE    Navigate\n"
+					"q/ESC/CTRL+C  Exit browser\n\n"
+					"For multiple event sessions:\n\n"
+					"TAB/UNTAB Switch events\n\n"
 					"For symbolic views (--sort has sym):\n\n"
-					"->        Zoom into DSO/Threads & Annotate current symbol\n"
-					"<-        Zoom out\n"
-					"a         Annotate current symbol\n"
-					"C         Collapse all callchains\n"
-					"E         Expand all callchains\n"
-					"d         Zoom into current DSO\n"
-					"t         Zoom into current Thread\n");
+					"->            Zoom into DSO/Threads & Annotate current symbol\n"
+					"<-            Zoom out\n"
+					"a             Annotate current symbol\n"
+					"C             Collapse all callchains\n"
+					"E             Expand all callchains\n"
+					"d             Zoom into current DSO\n"
+					"t             Zoom into current Thread\n");
 			continue;
 		case NEWT_KEY_ENTER:
 		case NEWT_KEY_RIGHT:
