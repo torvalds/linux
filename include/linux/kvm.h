@@ -371,6 +371,7 @@ struct kvm_s390_psw {
 #define KVM_S390_INT_VIRTIO		0xffff2603u
 #define KVM_S390_INT_SERVICE		0xffff2401u
 #define KVM_S390_INT_EMERGENCY		0xffff1201u
+#define KVM_S390_INT_EXTERNAL_CALL	0xffff1202u
 
 struct kvm_s390_interrupt {
 	__u32 type;
