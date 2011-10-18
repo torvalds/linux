@@ -618,6 +618,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 						__vlan_hwaccel_put_tag(gro_skb, vid);
 					}
 
+					skb_record_rx_queue(gro_skb, cq->ring);
 					napi_gro_frags(&cq->napi);
 
 					goto next;
