@@ -951,7 +951,7 @@ int __init f_midi_bind_config(struct usb_configuration *c,
 		struct gmidi_in_port *port = kzalloc(sizeof(*port), GFP_KERNEL);
 		if (!port) {
 			status = -ENOMEM;
-			goto fail;
+			goto setup_fail;
 		}
 
 		port->midi = midi;
@@ -989,6 +989,8 @@ int __init f_midi_bind_config(struct usb_configuration *c,
 	return 0;
 
 setup_fail:
+	for (--i; i >= 0; i--)
+		kfree(midi->in_port[i]);
 	kfree(midi);
 fail:
 	return status;
