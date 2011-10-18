@@ -29,7 +29,9 @@
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
+#include "drm_fb_helper.h"
 
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_buf.h"
 #include "exynos_drm_gem.h"
@@ -238,8 +240,18 @@ struct exynos_drm_buf_entry *exynos_drm_fb_get_buf(struct drm_framebuffer *fb)
 	return entry;
 }
 
+static void exynos_drm_output_poll_changed(struct drm_device *dev)
+{
+	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_fb_helper *fb_helper = private->fb_helper;
+
+	if (fb_helper)
+		drm_fb_helper_hotplug_event(fb_helper);
+}
+
 static struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
 	.fb_create = exynos_drm_fb_create,
+	.output_poll_changed = exynos_drm_output_poll_changed,
 };
 
 void exynos_drm_mode_config_init(struct drm_device *dev)
