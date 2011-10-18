@@ -774,11 +774,6 @@ struct brcms_phy {
 	s16 nphy_noise_win[PHY_CORE_MAX][PHY_NOISE_WINDOW_SZ];
 	u8 nphy_noise_index;
 
-	u8 nphy_txpid2g[PHY_CORE_NUM_2];
-	u8 nphy_txpid5g[PHY_CORE_NUM_2];
-	u8 nphy_txpid5gl[PHY_CORE_NUM_2];
-	u8 nphy_txpid5gh[PHY_CORE_NUM_2];
-
 	bool nphy_gain_boost;
 	bool nphy_elna_gain_config;
 	u16 old_bphy_test;
