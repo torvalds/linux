@@ -131,8 +131,7 @@ fail:
  *
  * inode->i_mutex: don't care
  */
-struct posix_acl *
-ext4_get_acl(struct inode *inode, int type)
+struct posix_acl *ext4_get_posix_acl(struct inode *inode, int type)
 {
 	int name_index;
 	char *value = NULL;
@@ -249,7 +248,7 @@ ext4_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
 
 	if (!S_ISLNK(inode->i_mode)) {
 		if (IS_POSIXACL(inode)) {
-			acl = ext4_get_acl(dir, ACL_TYPE_DEFAULT);
+			acl = ext4_get_posix_acl(dir, ACL_TYPE_DEFAULT);
 			if (IS_ERR(acl))
 				return PTR_ERR(acl);
 		}
@@ -304,7 +303,7 @@ ext4_acl_chmod(struct inode *inode)
 		return -EOPNOTSUPP;
 	if (!IS_POSIXACL(inode))
 		return 0;
-	acl = ext4_get_acl(inode, ACL_TYPE_ACCESS);
+	acl = ext4_get_posix_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
 	error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
@@ -369,7 +368,7 @@ ext4_xattr_get_acl(struct dentry *dentry, const char *name, void *buffer,
 	if (!IS_POSIXACL(dentry->d_inode))
 		return -EOPNOTSUPP;
 
-	acl = ext4_get_acl(dentry->d_inode, type);
+	acl = ext4_get_posix_acl(dentry->d_inode, type);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)

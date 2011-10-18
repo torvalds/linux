@@ -28,6 +28,7 @@
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
+#include "richacl.h"
 
 /*
  * Called when an inode is released. Note that this is different
@@ -301,7 +302,8 @@ const struct inode_operations ext4_file_inode_operations = {
 	.listxattr	= ext4_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.get_acl	= ext4_get_acl,
+	.get_acl	= ext4_get_posix_acl,
+	.get_richacl	= ext4_get_richacl,
 	.fiemap		= ext4_fiemap,
 };
 
