@@ -441,14 +441,13 @@ void usbhsh_endpoint_free(struct usbhsh_hpriv *hpriv,
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
 	struct device *dev = usbhs_priv_to_dev(priv);
 	struct usbhsh_ep *uep = usbhsh_ep_to_uep(ep);
-	struct usbhsh_device *udev = usbhsh_uep_to_udev(uep);
 	struct usbhsh_pipe_info *info;
 
 	if (!uep)
 		return;
 
 	dev_dbg(dev, "%s [%d-%s](%p)\n", __func__,
-		usbhsh_device_number(hpriv, udev),
+		usbhsh_device_number(hpriv, usbhsh_uep_to_udev(uep)),
 		usbhs_pipe_name(uep->pipe), uep);
 
 	info = usbhsh_pipe_info(uep->pipe);
