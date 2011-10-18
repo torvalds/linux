@@ -3551,7 +3551,9 @@ static void transport_free_dev_tasks(struct se_cmd *cmd)
 		 */
 		del_timer_sync(&task->task_timer);
 
-		kfree(task->task_sg);
+		if (task->task_sg != cmd->t_data_sg &&
+		    task->task_sg != cmd->t_bidi_data_sg)
+			kfree(task->task_sg);
 
 		list_del(&task->t_list);
 
@@ -3830,7 +3832,33 @@ transport_allocate_data_tasks(struct se_cmd *cmd,
 	lba = cmd->t_task_lba;
 	sectors = DIV_ROUND_UP(cmd->data_length, sector_size);
 	task_count = DIV_ROUND_UP_SECTOR_T(sectors, dev_max_sectors);
-	
+
+	/*
+	 * If we need just a single task reuse the SG list in the command
+	 * and avoid a lot of work.
+	 */
+	if (task_count == 1) {
+		struct se_task *task;
+		unsigned long flags;
+
+		task = transport_generic_get_task(cmd, data_direction);
+		if (!task)
+			return -ENOMEM;
+
+		task->task_sg = cmd_sg;
+		task->task_sg_nents = sgl_nents;
+
+		task->task_lba = lba;
+		task->task_sectors = sectors;
+		task->task_size = task->task_sectors * sector_size;
+
+		spin_lock_irqsave(&cmd->t_state_lock, flags);
+		list_add_tail(&task->t_list, &cmd->t_task_list);
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
+		return task_count;
+	}
+
 	for (i = 0; i < task_count; i++) {
 		struct se_task *task;
 		unsigned int task_size, task_sg_nents_padded;
@@ -3906,15 +3934,7 @@ transport_allocate_control_task(struct se_cmd *cmd)
 	if (!task)
 		return -ENOMEM;
 
-	task->task_sg = kmalloc(sizeof(struct scatterlist) * cmd->t_data_nents,
-				GFP_KERNEL);
-	if (!task->task_sg) {
-		cmd->se_dev->transport->free_task(task);
-		return -ENOMEM;
-	}
-
-	memcpy(task->task_sg, cmd->t_data_sg,
-	       sizeof(struct scatterlist) * cmd->t_data_nents);
+	task->task_sg = cmd->t_data_sg;
 	task->task_size = cmd->data_length;
 	task->task_sg_nents = cmd->t_data_nents;
 
