@@ -3808,29 +3808,34 @@ EXPORT_SYMBOL(transport_do_task_sg_chain);
 /*
  * Break up cmd into chunks transport can handle
  */
-static int transport_allocate_data_tasks(
-	struct se_cmd *cmd,
-	unsigned long long lba,
+static int
+transport_allocate_data_tasks(struct se_cmd *cmd,
 	enum dma_data_direction data_direction,
-	struct scatterlist *sgl,
-	unsigned int sgl_nents)
+	struct scatterlist *cmd_sg, unsigned int sgl_nents)
 {
-	struct se_task *task;
 	struct se_device *dev = cmd->se_dev;
-	unsigned long flags;
 	int task_count, i;
-	sector_t sectors, dev_max_sectors = dev->se_sub_dev->se_dev_attrib.max_sectors;
-	u32 sector_size = dev->se_sub_dev->se_dev_attrib.block_size;
-	struct scatterlist *sg;
-	struct scatterlist *cmd_sg;
+	unsigned long long lba;
+	sector_t sectors, dev_max_sectors;
+	u32 sector_size;
+
+	if (transport_cmd_get_valid_sectors(cmd) < 0)
+		return -EINVAL;
+
+	dev_max_sectors = dev->se_sub_dev->se_dev_attrib.max_sectors;
+	sector_size = dev->se_sub_dev->se_dev_attrib.block_size;
 
 	WARN_ON(cmd->data_length % sector_size);
+
+	lba = cmd->t_task_lba;
 	sectors = DIV_ROUND_UP(cmd->data_length, sector_size);
 	task_count = DIV_ROUND_UP_SECTOR_T(sectors, dev_max_sectors);
 	
-	cmd_sg = sgl;
 	for (i = 0; i < task_count; i++) {
+		struct se_task *task;
 		unsigned int task_size, task_sg_nents_padded;
+		struct scatterlist *sg;
+		unsigned long flags;
 		int count;
 
 		task = transport_generic_get_task(cmd, data_direction);
@@ -3921,25 +3926,6 @@ transport_allocate_control_task(struct se_cmd *cmd)
 	return 1;
 }
 
-static u32 transport_allocate_tasks(
-	struct se_cmd *cmd,
-	unsigned long long lba,
-	enum dma_data_direction data_direction,
-	struct scatterlist *sgl,
-	unsigned int sgl_nents)
-{
-	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
-		if (transport_cmd_get_valid_sectors(cmd) < 0)
-			return -EINVAL;
-
-		return transport_allocate_data_tasks(cmd, lba, data_direction,
-						     sgl, sgl_nents);
-	} else
-		return transport_allocate_control_task(cmd);
-
-}
-
-
 /*
  * Allocate any required ressources to execute the command, and either place
  * it on the execution queue if possible.  For writes we might not have the
@@ -3965,17 +3951,14 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	}
 
 	/*
-	 * Setup any BIDI READ tasks and memory from
-	 * cmd->t_mem_bidi_list so the READ struct se_tasks
-	 * are queued first for the non pSCSI passthrough case.
+	 * For BIDI command set up the read tasks first.
 	 */
 	if (cmd->t_bidi_data_sg &&
-	    (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV)) {
-		ret = transport_allocate_tasks(cmd,
-					      cmd->t_task_lba,
-					      DMA_FROM_DEVICE,
-					      cmd->t_bidi_data_sg,
-					      cmd->t_bidi_data_nents);
+	    dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
+		BUG_ON(!(cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB));
+
+		ret = transport_allocate_data_tasks(cmd, DMA_FROM_DEVICE,
+				cmd->t_bidi_data_sg, cmd->t_bidi_data_nents);
 		if (ret <= 0)
 			goto out_fail;
 
@@ -3983,15 +3966,15 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		atomic_inc(&cmd->t_se_count);
 		set_counts = 0;
 	}
-	/*
-	 * Setup the tasks and memory from cmd->t_mem_list
-	 * Note for BIDI transfers this will contain the WRITE payload
-	 */
-	task_cdbs = transport_allocate_tasks(cmd,
-					     cmd->t_task_lba,
-					     cmd->data_direction,
-					     cmd->t_data_sg,
-					     cmd->t_data_nents);
+
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+		task_cdbs = transport_allocate_data_tasks(cmd,
+					cmd->data_direction, cmd->t_data_sg,
+					cmd->t_data_nents);
+	} else {
+		task_cdbs = transport_allocate_control_task(cmd);
+	}
+
 	if (task_cdbs <= 0)
 		goto out_fail;
 
