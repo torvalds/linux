@@ -119,6 +119,49 @@ struct richacl {
 	ACE4_WRITE_OWNER |				\
 	ACE4_SYNCHRONIZE)
 
+/*
+ * The POSIX permissions are supersets of the following NFSv4 permissions:
+ *
+ *  - MAY_READ maps to READ_DATA or LIST_DIRECTORY, depending on the type
+ *    of the file system object.
+ *
+ *  - MAY_WRITE maps to WRITE_DATA or ACE4_APPEND_DATA for files, and to
+ *    ADD_FILE, ACE4_ADD_SUBDIRECTORY, or ACE4_DELETE_CHILD for directories.
+ *
+ *  - MAY_EXECUTE maps to ACE4_EXECUTE.
+ *
+ *  (Some of these NFSv4 permissions have the same bit values.)
+ */
+#define ACE4_POSIX_MODE_READ (			\
+		ACE4_READ_DATA |		\
+		ACE4_LIST_DIRECTORY)
+#define ACE4_POSIX_MODE_WRITE (			\
+		ACE4_WRITE_DATA |		\
+		ACE4_ADD_FILE |			\
+		ACE4_APPEND_DATA |		\
+		ACE4_ADD_SUBDIRECTORY |		\
+		ACE4_DELETE_CHILD)
+#define ACE4_POSIX_MODE_EXEC ACE4_EXECUTE
+#define ACE4_POSIX_MODE_ALL (			\
+		ACE4_POSIX_MODE_READ |		\
+		ACE4_POSIX_MODE_WRITE |		\
+		ACE4_POSIX_MODE_EXEC)
+/*
+ * These permissions are always allowed
+ * no matter what the acl says.
+ */
+#define ACE4_POSIX_ALWAYS_ALLOWED (	\
+		ACE4_SYNCHRONIZE |	\
+		ACE4_READ_ATTRIBUTES |	\
+		ACE4_READ_ACL)
+/*
+ * The owner is implicitly granted
+ * these permissions under POSIX.
+ */
+#define ACE4_POSIX_OWNER_ALLOWED (		\
+		ACE4_WRITE_ATTRIBUTES |		\
+		ACE4_WRITE_OWNER |		\
+		ACE4_WRITE_ACL)
 /**
  * richacl_get  -  grab another reference to a richacl handle
  */
@@ -234,4 +277,8 @@ richace_is_deny(const struct richace *ace)
 extern struct richacl *richacl_alloc(int);
 extern int richace_is_same_identifier(const struct richace *,
 				      const struct richace *);
+extern int richacl_masks_to_mode(const struct richacl *);
+extern unsigned int richacl_mode_to_mask(mode_t);
+extern unsigned int richacl_want_to_mask(unsigned int);
+
 #endif /* __RICHACL_H */
