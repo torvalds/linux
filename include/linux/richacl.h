@@ -284,5 +284,9 @@ extern void richacl_compute_max_masks(struct richacl *);
 extern struct richacl *richacl_chmod(struct richacl *, mode_t);
 extern int richacl_permission(struct inode *, const struct richacl *,
 			      unsigned int);
+extern struct richacl *richacl_inherit(const struct richacl *, int);
 
+/* richacl_inode.c */
+extern struct richacl *richacl_inherit_inode(const struct richacl *,
+					     struct inode *);
 #endif /* __RICHACL_H */
