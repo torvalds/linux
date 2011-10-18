@@ -304,7 +304,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	struct phy_device *phydev;
 	char phy_id[MII_BUS_ID_SIZE + 3];
 	char bus_id[MII_BUS_ID_SIZE];
-
+	int interface = priv->plat->interface;
 	priv->oldlink = 0;
 	priv->speed = 0;
 	priv->oldduplex = -1;
@@ -314,12 +314,19 @@ static int stmmac_init_phy(struct net_device *dev)
 		 priv->plat->phy_addr);
 	pr_debug("stmmac_init_phy:  trying to attach to %s\n", phy_id);
 
-	phydev = phy_connect(dev, phy_id, &stmmac_adjust_link, 0,
-			     priv->plat->interface);
+	phydev = phy_connect(dev, phy_id, &stmmac_adjust_link, 0, interface);
 
 	if (IS_ERR(phydev)) {
 		pr_err("%s: Could not attach to PHY\n", dev->name);
 		return PTR_ERR(phydev);
+	}
+
+	/* Stop Advertising 1000BASE Capability if interface is not GMII */
+	if ((interface) && ((interface == PHY_INTERFACE_MODE_MII) ||
+	    (interface == PHY_INTERFACE_MODE_RMII))) {
+		phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
+				      SUPPORTED_Asym_Pause);
+		priv->phydev->advertising = priv->phydev->supported;
 	}
 
 	/*
