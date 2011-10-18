@@ -1997,7 +1997,7 @@ done:
 }
 
 static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
-				   struct brcmf_bss_info *bi)
+				   struct brcmf_bss_info_le *bi)
 {
 	struct wiphy *wiphy = cfg_to_wiphy(cfg_priv);
 	struct ieee80211_channel *notify_channel;
@@ -2060,7 +2060,7 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
 static s32 brcmf_inform_bss(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct brcmf_scan_results *bss_list;
-	struct brcmf_bss_info *bi = NULL;	/* must be initialized */
+	struct brcmf_bss_info_le *bi = NULL;	/* must be initialized */
 	s32 err = 0;
 	int i;
 
@@ -2085,7 +2085,7 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 {
 	struct wiphy *wiphy = cfg_to_wiphy(cfg_priv);
 	struct ieee80211_channel *notify_channel;
-	struct brcmf_bss_info *bi = NULL;
+	struct brcmf_bss_info_le *bi = NULL;
 	struct ieee80211_supported_band *band;
 	u8 *buf = NULL;
 	s32 err = 0;
@@ -2114,7 +2114,7 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 		goto CleanUp;
 	}
 
-	bi = (struct brcmf_bss_info *)(buf + 4);
+	bi = (struct brcmf_bss_info_le *)(buf + 4);
 
 	channel = bi->ctl_ch ? bi->ctl_ch :
 				CHSPEC_CHANNEL(le16_to_cpu(bi->chanspec));
@@ -2188,7 +2188,7 @@ static struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key)
 
 static s32 brcmf_update_bss_info(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	struct brcmf_bss_info *bi;
+	struct brcmf_bss_info_le *bi;
 	struct brcmf_ssid *ssid;
 	struct brcmf_tlv *tim;
 	u16 beacon_interval;
@@ -2211,7 +2211,7 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_priv *cfg_priv)
 		goto update_bss_info_out;
 	}
 
-	bi = (struct brcmf_bss_info *)(cfg_priv->extra_buf + 4);
+	bi = (struct brcmf_bss_info_le *)(cfg_priv->extra_buf + 4);
 	err = brcmf_inform_single_bss(cfg_priv, bi);
 	if (err)
 		goto update_bss_info_out;
