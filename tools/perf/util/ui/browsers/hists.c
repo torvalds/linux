@@ -24,14 +24,11 @@ struct hist_browser {
 	struct hists	    *hists;
 	struct hist_entry   *he_selection;
 	struct map_symbol   *selection;
-	const struct thread *thread_filter;
-	const struct dso    *dso_filter;
 	bool		     has_symbols;
 };
 
 static int hists__browser_title(struct hists *self, char *bf, size_t size,
-				const char *ev_name, const struct dso *dso,
-				const struct thread *thread);
+				const char *ev_name);
 
 static void hist_browser__refresh_dimensions(struct hist_browser *self)
 {
@@ -307,8 +304,7 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 	self->b.nr_entries = self->hists->nr_entries;
 
 	hist_browser__refresh_dimensions(self);
-	hists__browser_title(self->hists, title, sizeof(title), ev_name,
-			     self->dso_filter, self->thread_filter);
+	hists__browser_title(self->hists, title, sizeof(title), ev_name);
 
 	if (ui_browser__show(&self->b, title,
 			     "Press '?' for help on key bindings") < 0)
@@ -323,8 +319,7 @@ static int hist_browser__run(struct hist_browser *self, const char *ev_name,
 			timer(arg);
 			ui_browser__update_nr_entries(&self->b, self->hists->nr_entries);
 			hists__browser_title(self->hists, title, sizeof(title),
-					     ev_name, self->dso_filter,
-					     self->thread_filter);
+					     ev_name);
 			ui_browser__show_title(&self->b, title);
 			continue;
 		case 'D': { /* Debug */
@@ -809,11 +804,12 @@ static struct thread *hist_browser__selected_thread(struct hist_browser *self)
 }
 
 static int hists__browser_title(struct hists *self, char *bf, size_t size,
-				const char *ev_name, const struct dso *dso,
-				const struct thread *thread)
+				const char *ev_name)
 {
 	char unit;
 	int printed;
+	const struct dso *dso = self->dso_filter;
+	const struct thread *thread = self->thread_filter;
 	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
 
 	nr_events = convert_unit(nr_events, &unit);
@@ -917,9 +913,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				continue;
 			}
 			top = pstack__pop(fstack);
-			if (top == &browser->dso_filter)
+			if (top == &browser->hists->dso_filter)
 				goto zoom_out_dso;
-			if (top == &browser->thread_filter)
+			if (top == &browser->hists->thread_filter)
 				goto zoom_out_thread;
 			continue;
 		}
@@ -947,14 +943,14 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
-			     (browser->thread_filter ? "out of" : "into"),
+			     (browser->hists->thread_filter ? "out of" : "into"),
 			     (thread->comm_set ? thread->comm : ""),
 			     thread->pid) > 0)
 			zoom_thread = nr_options++;
 
 		if (dso != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s DSO",
-			     (browser->dso_filter ? "out of" : "into"),
+			     (browser->hists->dso_filter ? "out of" : "into"),
 			     (dso->kernel ? "the Kernel" : dso->short_name)) > 0)
 			zoom_dso = nr_options++;
 
@@ -994,36 +990,36 @@ do_annotate:
 			map__browse(browser->selection->map);
 		else if (choice == zoom_dso) {
 zoom_dso:
-			if (browser->dso_filter) {
-				pstack__remove(fstack, &browser->dso_filter);
+			if (browser->hists->dso_filter) {
+				pstack__remove(fstack, &browser->hists->dso_filter);
 zoom_out_dso:
 				ui_helpline__pop();
-				browser->dso_filter = NULL;
+				browser->hists->dso_filter = NULL;
 			} else {
 				if (dso == NULL)
 					continue;
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
 						   dso->kernel ? "the Kernel" : dso->short_name);
-				browser->dso_filter = dso;
-				pstack__push(fstack, &browser->dso_filter);
+				browser->hists->dso_filter = dso;
+				pstack__push(fstack, &browser->hists->dso_filter);
 			}
-			hists__filter_by_dso(self, browser->dso_filter);
+			hists__filter_by_dso(self);
 			hist_browser__reset(browser);
 		} else if (choice == zoom_thread) {
 zoom_thread:
-			if (browser->thread_filter) {
-				pstack__remove(fstack, &browser->thread_filter);
+			if (browser->hists->thread_filter) {
+				pstack__remove(fstack, &browser->hists->thread_filter);
 zoom_out_thread:
 				ui_helpline__pop();
-				browser->thread_filter = NULL;
+				browser->hists->thread_filter = NULL;
 			} else {
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
 						   thread->comm_set ? thread->comm : "",
 						   thread->pid);
-				browser->thread_filter = thread;
-				pstack__push(fstack, &browser->thread_filter);
+				browser->hists->thread_filter = thread;
+				pstack__push(fstack, &browser->hists->thread_filter);
 			}
-			hists__filter_by_thread(self, browser->thread_filter);
+			hists__filter_by_thread(self);
 			hist_browser__reset(browser);
 		}
 	}

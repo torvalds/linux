@@ -43,12 +43,17 @@ enum hist_column {
 	HISTC_NR_COLS, /* Last entry */
 };
 
+struct thread;
+struct dso;
+
 struct hists {
 	struct rb_root		entries_in_array[2];
 	struct rb_root		*entries_in;
 	struct rb_root		entries;
 	struct rb_root		entries_collapsed;
 	u64			nr_entries;
+	const struct thread	*thread_filter;
+	const struct dso	*dso_filter;
 	pthread_mutex_t		lock;
 	struct events_stats	stats;
 	u64			event_stream;
@@ -91,8 +96,8 @@ size_t hists__fprintf(struct hists *self, struct hists *pair,
 int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
 int hist_entry__annotate(struct hist_entry *self, size_t privsize);
 
-void hists__filter_by_dso(struct hists *self, const struct dso *dso);
-void hists__filter_by_thread(struct hists *self, const struct thread *thread);
+void hists__filter_by_dso(struct hists *hists);
+void hists__filter_by_thread(struct hists *hists);
 
 u16 hists__col_len(struct hists *self, enum hist_column col);
 void hists__set_col_len(struct hists *self, enum hist_column col, u16 len);

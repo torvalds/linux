@@ -1087,7 +1087,7 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 	hists__calc_col_len(hists, h);
 }
 
-void hists__filter_by_dso(struct hists *hists, const struct dso *dso)
+void hists__filter_by_dso(struct hists *hists)
 {
 	struct rb_node *nd;
 
@@ -1101,7 +1101,8 @@ void hists__filter_by_dso(struct hists *hists, const struct dso *dso)
 		if (symbol_conf.exclude_other && !h->parent)
 			continue;
 
-		if (dso != NULL && (h->ms.map == NULL || h->ms.map->dso != dso)) {
+		if (hists->dso_filter != NULL &&
+		    (h->ms.map == NULL || h->ms.map->dso != hists->dso_filter)) {
 			h->filtered |= (1 << HIST_FILTER__DSO);
 			continue;
 		}
@@ -1110,7 +1111,7 @@ void hists__filter_by_dso(struct hists *hists, const struct dso *dso)
 	}
 }
 
-void hists__filter_by_thread(struct hists *hists, const struct thread *thread)
+void hists__filter_by_thread(struct hists *hists)
 {
 	struct rb_node *nd;
 
@@ -1121,7 +1122,8 @@ void hists__filter_by_thread(struct hists *hists, const struct thread *thread)
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 
-		if (thread != NULL && h->thread != thread) {
+		if (hists->thread_filter != NULL &&
+		    h->thread != hists->thread_filter) {
 			h->filtered |= (1 << HIST_FILTER__THREAD);
 			continue;
 		}
