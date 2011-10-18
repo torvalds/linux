@@ -27,6 +27,8 @@
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>
 
+#define LRW_BLOCK_SIZE 16
+
 struct priv {
 	struct crypto_cipher *child;
 	/* optimizes multiplying a random (non incrementing, as at the
@@ -61,7 +63,7 @@ static int setkey(struct crypto_tfm *parent, const u8 *key,
 	struct crypto_cipher *child = ctx->child;
 	int err, i;
 	be128 tmp = { 0 };
-	int bsize = crypto_cipher_blocksize(child);
+	int bsize = LRW_BLOCK_SIZE;
 
 	crypto_cipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_cipher_set_flags(child, crypto_tfm_get_flags(parent) &
@@ -134,7 +136,7 @@ static int crypt(struct blkcipher_desc *d,
 {
 	int err;
 	unsigned int avail;
-	const int bs = crypto_cipher_blocksize(ctx->child);
+	const int bs = LRW_BLOCK_SIZE;
 	struct sinfo s = {
 		.tfm = crypto_cipher_tfm(ctx->child),
 		.fn = fn
@@ -218,7 +220,7 @@ static int init_tfm(struct crypto_tfm *tfm)
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
 
-	if (crypto_cipher_blocksize(cipher) != 16) {
+	if (crypto_cipher_blocksize(cipher) != LRW_BLOCK_SIZE) {
 		*flags |= CRYPTO_TFM_RES_BAD_BLOCK_LEN;
 		crypto_free_cipher(cipher);
 		return -EINVAL;
