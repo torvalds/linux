@@ -547,7 +547,7 @@ static int hist_browser__show_entry(struct hist_browser *self,
 	char s[256];
 	double percent;
 	int printed = 0;
-	int width = self->b.width;
+	int width = self->b.width - 6; /* The percentage */
 	char folded_sign = ' ';
 	bool current_entry = ui_browser__is_current_entry(&self->b, row);
 	off_t row_offset = entry->row_offset;
@@ -563,8 +563,7 @@ static int hist_browser__show_entry(struct hist_browser *self,
 	}
 
 	if (row_offset == 0) {
-		hist_entry__snprintf(entry, s, sizeof(s), self->hists, NULL, false,
-				     0, false, self->hists->stats.total_period);
+		hist_entry__snprintf(entry, s, sizeof(s), self->hists);
 		percent = (entry->period * 100.0) / self->hists->stats.total_period;
 
 		ui_browser__set_percent_color(&self->b, percent, current_entry);
@@ -573,6 +572,8 @@ static int hist_browser__show_entry(struct hist_browser *self,
 			slsmg_printf("%c ", folded_sign);
 			width -= 2;
 		}
+
+		slsmg_printf(" %5.2f%%", percent);
 
 		/* The scroll bar isn't being used */
 		if (!self->b.navkeypressed)

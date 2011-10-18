@@ -68,9 +68,7 @@ int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
 			struct hists *pair_hists, bool show_displacement,
 			long displacement, FILE *fp, u64 session_total);
 int hist_entry__snprintf(struct hist_entry *self, char *bf, size_t size,
-			 struct hists *hists, struct hists *pair_hists,
-			 bool show_displacement, long displacement,
-			 bool color, u64 total);
+			 struct hists *hists);
 void hist_entry__free(struct hist_entry *);
 
 void hists__output_resort(struct hists *self);

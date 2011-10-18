@@ -707,12 +707,11 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows)
 	}
 }
 
-int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
-			 struct hists *hists, struct hists *pair_hists,
-			 bool show_displacement, long displacement,
-			 bool color, u64 session_total)
+static int hist_entry__pcnt_snprintf(struct hist_entry *self, char *s,
+				     size_t size, struct hists *pair_hists,
+				     bool show_displacement, long displacement,
+				     bool color, u64 session_total)
 {
-	struct sort_entry *se;
 	u64 period, total, period_sys, period_us, period_guest_sys, period_guest_us;
 	u64 nr_events;
 	const char *sep = symbol_conf.field_sep;
@@ -818,12 +817,22 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 		}
 	}
 
+	return ret;
+}
+
+int hist_entry__snprintf(struct hist_entry *he, char *s, size_t size,
+			 struct hists *hists)
+{
+	const char *sep = symbol_conf.field_sep;
+	struct sort_entry *se;
+	int ret = 0;
+
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
 			continue;
 
 		ret += snprintf(s + ret, size - ret, "%s", sep ?: "  ");
-		ret += se->se_snprintf(self, s + ret, size - ret,
+		ret += se->se_snprintf(he, s + ret, size - ret,
 				       hists__col_len(hists, se->se_width_idx));
 	}
 
@@ -835,13 +844,15 @@ int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
 			long displacement, FILE *fp, u64 session_total)
 {
 	char bf[512];
+	int ret;
 
 	if (size == 0 || size > sizeof(bf))
 		size = sizeof(bf);
 
-	hist_entry__snprintf(he, bf, size, hists, pair_hists,
-			     show_displacement, displacement,
-			     true, session_total);
+	ret = hist_entry__pcnt_snprintf(he, bf, size, pair_hists,
+					show_displacement, displacement,
+					true, session_total);
+	hist_entry__snprintf(he, bf + ret, size - ret, hists);
 	return fprintf(fp, "%s\n", bf);
 }
 
