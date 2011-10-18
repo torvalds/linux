@@ -663,7 +663,7 @@ static int mmc_select_powerclass(struct mmc_card *card,
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_POWER_CLASS,
 				 pwrclass_val,
-				 0);
+				 card->ext_csd.generic_cmd6_time);
 	}
 
 	return err;
