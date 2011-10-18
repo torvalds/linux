@@ -559,6 +559,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 	unsigned long last_page = 0;
 	u32 reg;
 	enum edac_type mode;
+	enum mem_type mtype;
 
 	pci_read_config_dword(pvt->pci_br, SAD_TARGET, &reg);
 	pvt->sbridge_dev->source_id = SOURCE_ID(reg);
@@ -601,10 +602,10 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 	if (IS_RDIMM_ENABLED(reg)) {
 		/* FIXME: Can also be LRDIMM */
 		debugf0("Memory is registered\n");
-		mode = MEM_RDDR3;
+		mtype = MEM_RDDR3;
 	} else {
 		debugf0("Memory is unregistered\n");
-		mode = MEM_DDR3;
+		mtype = MEM_DDR3;
 	}
 
 	/* On all supported DDR3 DIMM types, there are 8 banks available */
@@ -643,7 +644,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 				csr->dtype = (banks == 8) ? DEV_X8 : DEV_X4;
 				csr->ce_count = 0;
 				csr->ue_count = 0;
-				csr->mtype = mode;
+				csr->mtype = mtype;
 				csr->edac_mode = mode;
 				csr->nr_channels = 1;
 				csr->channels[0].chan_idx = i;
