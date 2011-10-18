@@ -20,7 +20,7 @@
 #include <mach/msm_iomap.h>
 
 #if defined(CONFIG_HAS_MSM_DEBUG_UART_PHYS) && !defined(CONFIG_MSM_DEBUG_UART_NONE)
-	.macro	addruart, rp, rv
+	.macro	addruart, rp, rv, tmp
 	ldr	\rp, =MSM_DEBUG_UART_PHYS
 	ldr	\rv, =MSM_DEBUG_UART_BASE
 	.endm
@@ -37,7 +37,7 @@
 	beq	1001b
 	.endm
 #else
-	.macro  addruart, rp, rv
+	.macro  addruart, rp, rv, tmp
 	mov	\rv, #0xff000000
 	orr	\rv, \rv, #0x00f00000
 	.endm
