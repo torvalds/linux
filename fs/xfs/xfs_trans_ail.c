@@ -434,7 +434,7 @@ xfsaild_push(
 
 			if (!IOP_PUSHBUF(lip)) {
 				stuck++;
-				flush_log = 1;
+				ailp->xa_log_flush++;
 			} else {
 				ailp->xa_last_pushed_lsn = lsn;
 			}
