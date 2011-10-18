@@ -1786,7 +1786,6 @@ static inline void *skb_frag_address_safe(const skb_frag_t *frag)
 static inline void __skb_frag_set_page(skb_frag_t *frag, struct page *page)
 {
 	frag->page = page;
-	__skb_frag_ref(frag);
 }
 
 /**
