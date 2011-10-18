@@ -397,7 +397,6 @@ struct se_task {
 	u32			task_size;
 	struct se_cmd		*task_se_cmd;
 	struct scatterlist	*task_sg;
-	struct scatterlist	*task_sg_bidi;
 	u32			task_sg_nents;
 	u16			task_flags;
 	u8			task_sense;

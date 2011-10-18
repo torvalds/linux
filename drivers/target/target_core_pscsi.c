@@ -1095,32 +1095,6 @@ static int pscsi_do_task(struct se_task *task)
 			pr_err("pSCSI: blk_make_request() failed\n");
 			goto fail;
 		}
-
-		if (task->task_sg_bidi) {
-			/*
-			 * If present, set up the extra BIDI-COMMAND SCSI READ
-			 * struct request and payload.
-			 */
-			ret = pscsi_map_sg(task, task->task_sg_bidi, &hbio);
-			if (ret < 0) {
-				/* XXX: free the main request? */
-				return PYX_TRANSPORT_LU_COMM_FAILURE;
-			}
-
-			/*
-			 * Setup the secondary pt->pscsi_req->next_rq used for the extra
-			 * BIDI READ payload.
-			 */
-			req->next_rq = blk_make_request(pdv->pdv_sd->request_queue,
-							hbio, GFP_KERNEL);
-			if (!req) {
-				pr_err("pSCSI: blk_make_request() failed for BIDI\n");
-				/* XXX: free the main request? */
-				goto fail;
-			}
-
-			req->next_rq->cmd_type = REQ_TYPE_BLOCK_PC;
-		}
 	}
 
 	req->cmd_type = REQ_TYPE_BLOCK_PC;
@@ -1240,12 +1214,6 @@ static void pscsi_req_done(struct request *req, int uptodate)
 	pt->pscsi_resid = req->resid_len;
 
 	pscsi_process_SAM_status(task, pt);
-	/*
-	 * Release BIDI-READ if present
-	 */
-	if (req->next_rq != NULL)
-		__blk_put_request(req->q, req->next_rq);
-
 	__blk_put_request(req->q, req);
 }
 
