@@ -2449,7 +2449,8 @@ repeat:
 		if (rdev->sb_loaded != 1)
 			continue; /* no noise on spare devices */
 
-		if (!test_bit(Faulty, &rdev->flags)) {
+		if (!test_bit(Faulty, &rdev->flags) &&
+		    rdev->saved_raid_disk == -1) {
 			md_super_write(mddev,rdev,
 				       rdev->sb_start, rdev->sb_size,
 				       rdev->sb_page);
@@ -2465,9 +2466,12 @@ repeat:
 				rdev->badblocks.size = 0;
 			}
 
-		} else
+		} else if (test_bit(Faulty, &rdev->flags))
 			pr_debug("md: %s (skipping faulty)\n",
 				 bdevname(rdev->bdev, b));
+		else
+			pr_debug("(skipping incremental s/r ");
+
 		if (mddev->level == LEVEL_MULTIPATH)
 			/* only need to write one superblock... */
 			break;
@@ -7366,15 +7370,19 @@ static void reap_sync_thread(struct mddev *mddev)
 	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
 	    mddev->pers->finish_reshape)
 		mddev->pers->finish_reshape(mddev);
-	md_update_sb(mddev, 1);
 
-	/* if array is no-longer degraded, then any saved_raid_disk
-	 * information must be scrapped
+	/* If array is no-longer degraded, then any saved_raid_disk
+	 * information must be scrapped.  Also if any device is now
+	 * In_sync we must scrape the saved_raid_disk for that device
+	 * do the superblock for an incrementally recovered device
+	 * written out.
 	 */
-	if (!mddev->degraded)
-		list_for_each_entry(rdev, &mddev->disks, same_set)
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		if (!mddev->degraded ||
+		    test_bit(In_sync, &rdev->flags))
 			rdev->saved_raid_disk = -1;
 
+	md_update_sb(mddev, 1);
 	clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 	clear_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
