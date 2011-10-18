@@ -150,6 +150,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	ret = copy_from_user(clips, clips_ptr, num_clips * sizeof(*clips));
 	if (ret) {
 		DRM_ERROR("Failed to copy clip rects from userspace.\n");
+		ret = -EFAULT;
 		goto out_no_copy;
 	}
 
@@ -241,6 +242,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	ret = copy_from_user(clips, clips_ptr, num_clips * sizeof(*clips));
 	if (ret) {
 		DRM_ERROR("Failed to copy clip rects from userspace.\n");
+		ret = -EFAULT;
 		goto out_no_copy;
 	}
 
