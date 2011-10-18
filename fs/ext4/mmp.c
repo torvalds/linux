@@ -125,8 +125,9 @@ static int kmmpd(void *data)
 		 * Don't spew too many error messages. Print one every
 		 * (s_mmp_update_interval * 60) seconds.
 		 */
-		if (retval && (failed_writes % 60) == 0) {
-			ext4_error(sb, "Error writing to MMP block");
+		if (retval) {
+			if ((failed_writes % 60) == 0)
+				ext4_error(sb, "Error writing to MMP block");
 			failed_writes++;
 		}
 
