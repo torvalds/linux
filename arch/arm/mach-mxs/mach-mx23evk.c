@@ -182,6 +182,6 @@ MACHINE_START(MX23EVK, "Freescale MX23 EVK")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.map_io		= mx23_map_io,
 	.init_irq	= mx23_init_irq,
-	.init_machine	= mx23evk_init,
 	.timer		= &mx23evk_timer,
+	.init_machine	= mx23evk_init,
 MACHINE_END
