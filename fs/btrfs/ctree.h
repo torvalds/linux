@@ -2252,8 +2252,10 @@ int btrfs_block_rsv_add(struct btrfs_root *root,
 			struct btrfs_block_rsv *block_rsv,
 			u64 num_bytes);
 int btrfs_block_rsv_check(struct btrfs_root *root,
+			  struct btrfs_block_rsv *block_rsv, int min_factor);
+int btrfs_block_rsv_refill(struct btrfs_root *root,
 			  struct btrfs_block_rsv *block_rsv,
-			  u64 min_reserved, int min_factor, int flush);
+			  u64 min_reserved);
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
 			    struct btrfs_block_rsv *dst_rsv,
 			    u64 num_bytes);

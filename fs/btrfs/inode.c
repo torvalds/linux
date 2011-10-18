@@ -3604,7 +3604,7 @@ void btrfs_evict_inode(struct inode *inode)
 	 * doing the truncate.
 	 */
 	while (1) {
-		ret = btrfs_block_rsv_check(root, rsv, min_size, 0, 1);
+		ret = btrfs_block_rsv_refill(root, rsv, min_size);
 
 		/*
 		 * Try and steal from the global reserve since we will
@@ -6613,7 +6613,7 @@ static int btrfs_truncate(struct inode *inode)
 		btrfs_add_ordered_operation(trans, root, inode);
 
 	while (1) {
-		ret = btrfs_block_rsv_check(root, rsv, min_size, 0, 1);
+		ret = btrfs_block_rsv_refill(root, rsv, min_size);
 		if (ret) {
 			/*
 			 * This can only happen with the original transaction we

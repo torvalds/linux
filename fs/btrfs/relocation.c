@@ -2041,8 +2041,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 		BUG_ON(IS_ERR(trans));
 		trans->block_rsv = rc->block_rsv;
 
-		ret = btrfs_block_rsv_check(root, rc->block_rsv, min_reserved,
-					    0, 0);
+		ret = btrfs_block_rsv_refill(root, rc->block_rsv, min_reserved);
 		if (ret) {
 			BUG_ON(ret != -EAGAIN);
 			ret = btrfs_commit_transaction(trans, root);
@@ -3774,8 +3773,7 @@ restart:
 			}
 		}
 
-		ret = btrfs_block_rsv_check(rc->extent_root, rc->block_rsv, 0,
-					    5, 0);
+		ret = btrfs_block_rsv_check(rc->extent_root, rc->block_rsv, 5);
 		if (ret < 0) {
 			if (ret != -EAGAIN) {
 				err = ret;

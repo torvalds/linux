@@ -203,7 +203,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 
 	rsv = trans->block_rsv;
 	trans->block_rsv = root->orphan_block_rsv;
-	ret = btrfs_block_rsv_check(root, root->orphan_block_rsv, 0, 5, 0);
+	ret = btrfs_block_rsv_check(root, root->orphan_block_rsv, 5);
 	if (ret)
 		return ret;
 
