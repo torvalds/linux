@@ -191,8 +191,7 @@ int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
 
 	/* we share one TRB for ep0/1 */
 	if (!list_empty(&dwc->eps[0]->request_list) ||
-			!list_empty(&dwc->eps[1]->request_list) ||
-			dwc->ep0_status_pending) {
+			!list_empty(&dwc->eps[1]->request_list)) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -224,7 +223,6 @@ static void dwc3_ep0_stall_and_restart(struct dwc3 *dwc)
 		dwc3_gadget_giveback(dep, req, -ECONNRESET);
 	}
 
-	dwc->ep0_status_pending = 0;
 	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc3_ep0_out_start(dwc);
 }
@@ -255,13 +253,9 @@ static struct dwc3_ep *dwc3_wIndex_to_dep(struct dwc3 *dwc, __le16 wIndex_le)
 	return NULL;
 }
 
-static void dwc3_ep0_send_status_response(struct dwc3 *dwc)
+static void dwc3_ep0_status_cmpl(struct usb_ep *ep, struct usb_request *req)
 {
-	dwc3_ep0_start_trans(dwc, 1, dwc->setup_buf_addr,
-			dwc->ep0_usb_req.length,
-			DWC3_TRBCTL_CONTROL_DATA);
 }
-
 /*
  * ch 9.4.5
  */
@@ -304,9 +298,10 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl
 	response_pkt = (__le16 *) dwc->setup_buf;
 	*response_pkt = cpu_to_le16(usb_status);
 	dwc->ep0_usb_req.length = sizeof(*response_pkt);
-	dwc->ep0_status_pending = 1;
-
-	return 0;
+	dwc->ep0_usb_req.dma = dwc->setup_buf_addr;
+	dwc->ep0_usb_req.complete = dwc3_ep0_status_cmpl;
+	return usb_ep_queue(&dwc->eps[1]->endpoint, &dwc->ep0_usb_req,
+			GFP_ATOMIC);
 }
 
 static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
@@ -567,13 +562,8 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 	dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
 
-	if (!dwc->ep0_status_pending) {
-		r = next_request(&dwc->eps[0]->request_list);
-		ur = &r->request;
-	} else {
-		ur = &dwc->ep0_usb_req;
-		dwc->ep0_status_pending = 0;
-	}
+	r = next_request(&dwc->eps[0]->request_list);
+	ur = &r->request;
 
 	dwc3_trb_to_nat(dwc->ep0_trb, &trb);
 
@@ -664,11 +654,6 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 
 	dep = dwc->eps[0];
 	dwc->ep0state = EP0_DATA_PHASE;
-
-	if (dwc->ep0_status_pending) {
-		dwc3_ep0_send_status_response(dwc);
-		return;
-	}
 
 	if (list_empty(&dep->request_list)) {
 		dev_vdbg(dwc->dev, "pending request for EP0 Data phase\n");

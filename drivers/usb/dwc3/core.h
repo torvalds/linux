@@ -575,7 +575,6 @@ struct dwc3_hwparams {
  * @mode: mode of operation
  * @is_selfpowered: true when we are selfpowered
  * @three_stage_setup: set if we perform a three phase setup
- * @ep0_status_pending: ep0 status response without a req is pending
  * @ep0_bounced: true when we used bounce buffer
  * @ep0_expect_in: true when we expect a DATA IN transfer
  * @start_config_issued: true when StartConfig command has been issued
@@ -630,7 +629,6 @@ struct dwc3 {
 
 	unsigned		is_selfpowered:1;
 	unsigned		three_stage_setup:1;
-	unsigned		ep0_status_pending:1;
 	unsigned		ep0_bounced:1;
 	unsigned		ep0_expect_in:1;
 	unsigned		start_config_issued:1;
