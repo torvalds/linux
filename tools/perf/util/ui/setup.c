@@ -44,7 +44,6 @@ void setup_browser(bool fallback_to_pager)
 
 	use_browser = 1;
 	newtInit();
-	newtCls();
 	newtSetSuspendCallback(newt_suspend, NULL);
 	ui_helpline__init();
 	ui_browser__init();
