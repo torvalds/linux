@@ -203,6 +203,8 @@ static mode_t ql4_attr_is_visible(int param_type, int param)
 		}
 	case ISCSI_PARAM:
 		switch (param) {
+		case ISCSI_PARAM_PERSISTENT_ADDRESS:
+		case ISCSI_PARAM_PERSISTENT_PORT:
 		case ISCSI_PARAM_CONN_ADDRESS:
 		case ISCSI_PARAM_CONN_PORT:
 		case ISCSI_PARAM_TARGET_NAME:
