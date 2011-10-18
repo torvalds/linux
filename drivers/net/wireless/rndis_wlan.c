@@ -414,6 +414,7 @@ struct ndis_80211_pmkid {
 #define RNDIS_WLAN_ALG_TKIP	(1<<1)
 #define RNDIS_WLAN_ALG_CCMP	(1<<2)
 
+#define RNDIS_WLAN_NUM_KEYS		4
 #define RNDIS_WLAN_KEY_MGMT_NONE	0
 #define RNDIS_WLAN_KEY_MGMT_802_1X	(1<<0)
 #define RNDIS_WLAN_KEY_MGMT_PSK		(1<<1)
@@ -516,7 +517,7 @@ struct rndis_wlan_private {
 
 	/* encryption stuff */
 	int  encr_tx_key_index;
-	struct rndis_wlan_encr_key encr_keys[4];
+	struct rndis_wlan_encr_key encr_keys[RNDIS_WLAN_NUM_KEYS];
 	int  wpa_version;
 
 	u8 command_buffer[COMMAND_BUFFER_SIZE];
@@ -1535,6 +1536,9 @@ static int remove_key(struct usbnet *usbdev, int index, const u8 *bssid)
 	bool is_wpa;
 	int ret;
 
+	if (index >= RNDIS_WLAN_NUM_KEYS)
+		return -ENOENT;
+
 	if (priv->encr_keys[index].len == 0)
 		return 0;
 
@@ -2450,6 +2454,9 @@ static int rndis_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 	struct rndis_wlan_encr_key key;
 
 	netdev_dbg(usbdev->net, "%s(%i)\n", __func__, key_index);
+
+	if (key_index >= RNDIS_WLAN_NUM_KEYS)
+		return -ENOENT;
 
 	priv->encr_tx_key_index = key_index;
 
