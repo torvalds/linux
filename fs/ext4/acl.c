@@ -139,7 +139,7 @@ ext4_get_acl(struct inode *inode, int type)
 	struct posix_acl *acl;
 	int retval;
 
-	if (!test_opt(inode->i_sb, POSIX_ACL))
+	if (!IS_POSIXACL(inode))
 		return NULL;
 
 	acl = get_cached_acl(inode, type);
@@ -248,7 +248,7 @@ ext4_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
 	int error = 0;
 
 	if (!S_ISLNK(inode->i_mode)) {
-		if (test_opt(dir->i_sb, POSIX_ACL)) {
+		if (IS_POSIXACL(inode)) {
 			acl = ext4_get_acl(dir, ACL_TYPE_DEFAULT);
 			if (IS_ERR(acl))
 				return PTR_ERR(acl);
@@ -256,7 +256,7 @@ ext4_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
 		if (!acl)
 			inode->i_mode &= ~current_umask();
 	}
-	if (test_opt(inode->i_sb, POSIX_ACL) && acl) {
+	if (IS_POSIXACL(inode) && acl) {
 		if (S_ISDIR(inode->i_mode)) {
 			error = ext4_set_acl(handle, inode,
 					     ACL_TYPE_DEFAULT, acl);
@@ -302,7 +302,7 @@ ext4_acl_chmod(struct inode *inode)
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
-	if (!test_opt(inode->i_sb, POSIX_ACL))
+	if (!IS_POSIXACL(inode))
 		return 0;
 	acl = ext4_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl) || !acl)
@@ -337,7 +337,7 @@ ext4_xattr_list_acl_access(struct dentry *dentry, char *list, size_t list_len,
 {
 	const size_t size = sizeof(POSIX_ACL_XATTR_ACCESS);
 
-	if (!test_opt(dentry->d_sb, POSIX_ACL))
+	if (!IS_POSIXACL(dentry->d_inode))
 		return 0;
 	if (list && size <= list_len)
 		memcpy(list, POSIX_ACL_XATTR_ACCESS, size);
@@ -350,7 +350,7 @@ ext4_xattr_list_acl_default(struct dentry *dentry, char *list, size_t list_len,
 {
 	const size_t size = sizeof(POSIX_ACL_XATTR_DEFAULT);
 
-	if (!test_opt(dentry->d_sb, POSIX_ACL))
+	if (!IS_POSIXACL(dentry->d_inode))
 		return 0;
 	if (list && size <= list_len)
 		memcpy(list, POSIX_ACL_XATTR_DEFAULT, size);
@@ -366,7 +366,7 @@ ext4_xattr_get_acl(struct dentry *dentry, const char *name, void *buffer,
 
 	if (strcmp(name, "") != 0)
 		return -EINVAL;
-	if (!test_opt(dentry->d_sb, POSIX_ACL))
+	if (!IS_POSIXACL(dentry->d_inode))
 		return -EOPNOTSUPP;
 
 	acl = ext4_get_acl(dentry->d_inode, type);
@@ -391,7 +391,7 @@ ext4_xattr_set_acl(struct dentry *dentry, const char *name, const void *value,
 
 	if (strcmp(name, "") != 0)
 		return -EINVAL;
-	if (!test_opt(inode->i_sb, POSIX_ACL))
+	if (!IS_POSIXACL(dentry->d_inode))
 		return -EOPNOTSUPP;
 	if (!inode_owner_or_capable(inode))
 		return -EPERM;
