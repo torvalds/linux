@@ -344,6 +344,7 @@ struct d40_base {
 	int				  irq;
 	int				  num_phy_chans;
 	int				  num_log_chans;
+	struct device_dma_parameters	  dma_parms;
 	struct dma_device		  dma_both;
 	struct dma_device		  dma_slave;
 	struct dma_device		  dma_memcpy;
@@ -3361,6 +3362,13 @@ static int __init d40_probe(struct platform_device *pdev)
 	err = d40_dmaengine_init(base, num_reserved_chans);
 	if (err)
 		goto failure;
+
+	base->dev->dma_parms = &base->dma_parms;
+	err = dma_set_max_seg_size(base->dev, STEDMA40_MAX_SEG_SIZE);
+	if (err) {
+		d40_err(&pdev->dev, "Failed to set dma max seg size\n");
+		goto failure;
+	}
 
 	d40_hw_init(base);
 
