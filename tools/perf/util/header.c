@@ -1703,21 +1703,41 @@ int perf_file_header__read(struct perf_file_header *header,
 			bitmap_zero(header->adds_features, HEADER_FEAT_BITS);
 		else
 			return -1;
+	} else if (ph->needs_swap) {
+		unsigned int i;
+		/*
+		 * feature bitmap is declared as an array of unsigned longs --
+		 * not good since its size can differ between the host that
+		 * generated the data file and the host analyzing the file.
+		 *
+		 * We need to handle endianness, but we don't know the size of
+		 * the unsigned long where the file was generated. Take a best
+		 * guess at determining it: try 64-bit swap first (ie., file
+		 * created on a 64-bit host), and check if the hostname feature
+		 * bit is set (this feature bit is forced on as of fbe96f2).
+		 * If the bit is not, undo the 64-bit swap and try a 32-bit
+		 * swap. If the hostname bit is still not set (e.g., older data
+		 * file), punt and fallback to the original behavior --
+		 * clearing all feature bits and setting buildid.
+		 */
+		for (i = 0; i < BITS_TO_LONGS(HEADER_FEAT_BITS); ++i)
+			header->adds_features[i] = bswap_64(header->adds_features[i]);
+
+		if (!test_bit(HEADER_HOSTNAME, header->adds_features)) {
+			for (i = 0; i < BITS_TO_LONGS(HEADER_FEAT_BITS); ++i) {
+				header->adds_features[i] = bswap_64(header->adds_features[i]);
+				header->adds_features[i] = bswap_32(header->adds_features[i]);
+			}
+		}
+
+		if (!test_bit(HEADER_HOSTNAME, header->adds_features)) {
+			bitmap_zero(header->adds_features, HEADER_FEAT_BITS);
+			set_bit(HEADER_BUILD_ID, header->adds_features);
+		}
 	}
 
 	memcpy(&ph->adds_features, &header->adds_features,
 	       sizeof(ph->adds_features));
-	/*
-	 * FIXME: hack that assumes that if we need swap the perf.data file
-	 * may be coming from an arch with a different word-size, ergo different
-	 * DEFINE_BITMAP format, investigate more later, but for now its mostly
-	 * safe to assume that we have a build-id section. Trace files probably
-	 * have several other issues in this realm anyway...
-	 */
-	if (ph->needs_swap) {
-		memset(&ph->adds_features, 0, sizeof(ph->adds_features));
-		perf_header__set_feat(ph, HEADER_BUILD_ID);
-	}
 
 	ph->event_offset = header->event_types.offset;
 	ph->event_size   = header->event_types.size;
