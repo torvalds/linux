@@ -303,9 +303,6 @@ config COBRA5282
 	help
 	  Support for the senTec COBRA5282 board.
 
-config EMAC_INC
-	bool
-
 config SOM5282EM
 	bool "EMAC.Inc SOM5282EM board support"
 	depends on M528x
@@ -371,27 +368,21 @@ config FIREBEE
 	help
 	  Support for the FireBee ColdFire 5475 based board.
 
-config HW_FEITH
-	bool
-
 config CLEOPATRA
 	bool "Feith CLEOPATRA board support"
 	depends on (M5307 || M5407)
-	select HW_FEITH
 	help
 	  Support for the Feith Cleopatra boards.
 
 config CANCam
 	bool "Feith CANCam board support"
 	depends on M5272
-	select HW_FEITH
 	help
 	  Support for the Feith CANCam board.
 
 config SCALES
 	bool "Feith SCALES board support"
 	depends on M5272
-	select HW_FEITH
 	help
 	  Support for the Feith SCALES board.
 
@@ -437,13 +428,6 @@ config SAVANTrosie1
 if !MMU || COLDFIRE
 
 comment "Machine Options"
-
-config ROMFS_FROM_ROM
-	bool "ROMFS image not RAM resident"
-	depends on (NETtel || SNAPGEAR)
-	help
-	  The ROMfs filesystem will stay resident in the FLASH/ROM, not be
-	  moved into RAM.
 
 config UBOOT
 	bool "Support for U-Boot command line parameters"
@@ -523,33 +507,6 @@ config KERNELBASE
 	  and the kernel starts after that. The 0x400 default was based on
 	  a system with the RAM based at address 0, and leaving enough room
 	  for the theoretical maximum number of 256 vectors.
-
-choice
-	prompt "RAM bus width"
-	default RAMAUTOBIT
-
-config RAMAUTOBIT
-	bool "AUTO"
-	help
-	  Select the physical RAM data bus size. Not needed on most platforms,
-	  so you can generally choose AUTO.
-
-config RAM8BIT
-	bool "8bit"
-	help
-	  Configure RAM bus to be 8 bits wide.
-
-config RAM16BIT
-	bool "16bit"
-	help
-	  Configure RAM bus to be 16 bits wide.
-
-config RAM32BIT
-	bool "32bit"
-	help
-	  Configure RAM bus to be 32 bits wide.
-
-endchoice
 
 comment "ROM configuration"
 
