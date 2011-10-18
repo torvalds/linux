@@ -28,8 +28,6 @@
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
 
-struct workqueue_struct	*xfs_ail_wq;	/* AIL workqueue */
-
 #ifdef DEBUG
 /*
  * Check that the list is sorted as it should be.
@@ -406,16 +404,10 @@ xfs_ail_delete(
 	xfs_trans_ail_cursor_clear(ailp, lip);
 }
 
-/*
- * xfs_ail_worker does the work of pushing on the AIL. It will requeue itself
- * to run at a later time if there is more work to do to complete the push.
- */
-STATIC void
-xfs_ail_worker(
-	struct work_struct	*work)
+static long
+xfsaild_push(
+	struct xfs_ail		*ailp)
 {
-	struct xfs_ail		*ailp = container_of(to_delayed_work(work),
-					struct xfs_ail, xa_work);
 	xfs_mount_t		*mp = ailp->xa_mount;
 	struct xfs_ail_cursor	*cur = &ailp->xa_cursors;
 	xfs_log_item_t		*lip;
@@ -556,20 +548,6 @@ out_done:
 		/* We're past our target or empty, so idle */
 		ailp->xa_last_pushed_lsn = 0;
 
-		/*
-		 * We clear the XFS_AIL_PUSHING_BIT first before checking
-		 * whether the target has changed. If the target has changed,
-		 * this pushes the requeue race directly onto the result of the
-		 * atomic test/set bit, so we are guaranteed that either the
-		 * the pusher that changed the target or ourselves will requeue
-		 * the work (but not both).
-		 */
-		clear_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags);
-		smp_rmb();
-		if (XFS_LSN_CMP(ailp->xa_target, target) == 0 ||
-		    test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
-			return;
-
 		tout = 50;
 	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
 		/*
@@ -592,9 +570,30 @@ out_done:
 		tout = 20;
 	}
 
-	/* There is more to do, requeue us.  */
-	queue_delayed_work(xfs_syncd_wq, &ailp->xa_work,
-					msecs_to_jiffies(tout));
+	return tout;
+}
+
+static int
+xfsaild(
+	void		*data)
+{
+	struct xfs_ail	*ailp = data;
+	long		tout = 0;	/* milliseconds */
+
+	while (!kthread_should_stop()) {
+		if (tout && tout <= 20)
+			__set_current_state(TASK_KILLABLE);
+		else
+			__set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(tout ?
+				 msecs_to_jiffies(tout) : MAX_SCHEDULE_TIMEOUT);
+
+		try_to_freeze();
+
+		tout = xfsaild_push(ailp);
+	}
+
+	return 0;
 }
 
 /*
@@ -629,8 +628,9 @@ xfs_ail_push(
 	 */
 	smp_wmb();
 	xfs_trans_ail_copy_lsn(ailp, &ailp->xa_target, &threshold_lsn);
-	if (!test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
-		queue_delayed_work(xfs_syncd_wq, &ailp->xa_work, 0);
+	smp_wmb();
+
+	wake_up_process(ailp->xa_task);
 }
 
 /*
@@ -865,9 +865,18 @@ xfs_trans_ail_init(
 	ailp->xa_mount = mp;
 	INIT_LIST_HEAD(&ailp->xa_ail);
 	spin_lock_init(&ailp->xa_lock);
-	INIT_DELAYED_WORK(&ailp->xa_work, xfs_ail_worker);
+
+	ailp->xa_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
+			ailp->xa_mount->m_fsname);
+	if (IS_ERR(ailp->xa_task))
+		goto out_free_ailp;
+
 	mp->m_ail = ailp;
 	return 0;
+
+out_free_ailp:
+	kmem_free(ailp);
+	return ENOMEM;
 }
 
 void
@@ -876,6 +885,6 @@ xfs_trans_ail_destroy(
 {
 	struct xfs_ail	*ailp = mp->m_ail;
 
-	cancel_delayed_work_sync(&ailp->xa_work);
+	kthread_stop(ailp->xa_task);
 	kmem_free(ailp);
 }
