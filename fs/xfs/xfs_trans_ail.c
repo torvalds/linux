@@ -491,7 +491,6 @@ xfs_ail_worker(
 
 		case XFS_ITEM_LOCKED:
 			XFS_STATS_INC(xs_push_ail_locked);
-			ailp->xa_last_pushed_lsn = lsn;
 			stuck++;
 			break;
 
