@@ -618,9 +618,8 @@ static void brcms_b_update_slot_timing(struct brcms_hardware *wlc_hw,
  * calculate frame duration of a given rate and length, return
  * time in usec unit
  */
-uint
-brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
-			u8 preamble_type, uint mac_len)
+static uint brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
+				    u8 preamble_type, uint mac_len)
 {
 	uint nsyms, dur = 0, Ndps, kNdps;
 	uint rate = rspec2rate(ratespec);
@@ -4184,7 +4183,7 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 	}
 }
 
-void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
+static void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 {
 	u16 aci;
 	int i_ac;
@@ -6100,9 +6099,9 @@ void brcms_c_print_txdesc(struct d11txh *txh)
 #endif				/* defined(BCMDBG) */
 
 #if defined(BCMDBG)
-int
+static int
 brcms_c_format_flags(const struct brcms_c_bit_desc *bd, u32 flags, char *buf,
-		   int len)
+		     int len)
 {
 	int i;
 	char *p = buf;
