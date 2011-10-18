@@ -2722,6 +2722,7 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 			rdev->saved_raid_disk = slot;
 		else
 			rdev->saved_raid_disk = -1;
+		clear_bit(In_sync, &rdev->flags);
 		err = rdev->mddev->pers->
 			hot_add_disk(rdev->mddev, rdev);
 		if (err) {
