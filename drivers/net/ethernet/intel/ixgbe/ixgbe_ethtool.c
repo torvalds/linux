@@ -814,26 +814,97 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 	return ret_val;
 }
 
+static int ixgbe_set_eeprom(struct net_device *netdev,
+			    struct ethtool_eeprom *eeprom, u8 *bytes)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u16 *eeprom_buff;
+	void *ptr;
+	int max_len, first_word, last_word, ret_val = 0;
+	u16 i;
+
+	if (eeprom->len == 0)
+		return -EINVAL;
+
+	if (eeprom->magic != (hw->vendor_id | (hw->device_id << 16)))
+		return -EINVAL;
+
+	max_len = hw->eeprom.word_size * 2;
+
+	first_word = eeprom->offset >> 1;
+	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
+	eeprom_buff = kmalloc(max_len, GFP_KERNEL);
+	if (!eeprom_buff)
+		return -ENOMEM;
+
+	ptr = eeprom_buff;
+
+	if (eeprom->offset & 1) {
+		/*
+		 * need read/modify/write of first changed EEPROM word
+		 * only the second byte of the word is being modified
+		 */
+		ret_val = hw->eeprom.ops.read(hw, first_word, &eeprom_buff[0]);
+		if (ret_val)
+			goto err;
+
+		ptr++;
+	}
+	if ((eeprom->offset + eeprom->len) & 1) {
+		/*
+		 * need read/modify/write of last changed EEPROM word
+		 * only the first byte of the word is being modified
+		 */
+		ret_val = hw->eeprom.ops.read(hw, last_word,
+					  &eeprom_buff[last_word - first_word]);
+		if (ret_val)
+			goto err;
+	}
+
+	/* Device's eeprom is always little-endian, word addressable */
+	for (i = 0; i < last_word - first_word + 1; i++)
+		le16_to_cpus(&eeprom_buff[i]);
+
+	memcpy(ptr, bytes, eeprom->len);
+
+	for (i = 0; i < last_word - first_word + 1; i++)
+		cpu_to_le16s(&eeprom_buff[i]);
+
+	ret_val = hw->eeprom.ops.write_buffer(hw, first_word,
+					      last_word - first_word + 1,
+					      eeprom_buff);
+
+	/* Update the checksum */
+	if (ret_val == 0)
+		hw->eeprom.ops.update_checksum(hw);
+
+err:
+	kfree(eeprom_buff);
+	return ret_val;
+}
+
 static void ixgbe_get_drvinfo(struct net_device *netdev,
                               struct ethtool_drvinfo *drvinfo)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	char firmware_version[32];
+	u32 nvm_track_id;
 
 	strncpy(drvinfo->driver, ixgbe_driver_name,
 	        sizeof(drvinfo->driver) - 1);
 	strncpy(drvinfo->version, ixgbe_driver_version,
 	        sizeof(drvinfo->version) - 1);
 
-	snprintf(firmware_version, sizeof(firmware_version), "%d.%d-%d",
-	         (adapter->eeprom_version & 0xF000) >> 12,
-	         (adapter->eeprom_version & 0x0FF0) >> 4,
-	         adapter->eeprom_version & 0x000F);
+	nvm_track_id = (adapter->eeprom_verh << 16) |
+			adapter->eeprom_verl;
+	snprintf(firmware_version, sizeof(firmware_version), "0x%08x",
+		 nvm_track_id);
 
 	strncpy(drvinfo->fw_version, firmware_version,
-	        sizeof(drvinfo->fw_version));
+		sizeof(drvinfo->fw_version) - 1);
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
-	        sizeof(drvinfo->bus_info));
+		sizeof(drvinfo->bus_info) - 1);
 	drvinfo->n_stats = IXGBE_STATS_LEN;
 	drvinfo->testinfo_len = IXGBE_TEST_LEN;
 	drvinfo->regdump_len = ixgbe_get_regs_len(netdev);
@@ -2524,6 +2595,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_link               = ethtool_op_get_link,
 	.get_eeprom_len         = ixgbe_get_eeprom_len,
 	.get_eeprom             = ixgbe_get_eeprom,
+	.set_eeprom             = ixgbe_set_eeprom,
 	.get_ringparam          = ixgbe_get_ringparam,
 	.set_ringparam          = ixgbe_set_ringparam,
 	.get_pauseparam         = ixgbe_get_pauseparam,

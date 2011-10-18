@@ -102,8 +102,8 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
 {
 	if (status & E1000_RXD_STAT_VP) {
 		u16 vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
-
-		__vlan_hwaccel_put_tag(skb, vid);
+		if (test_bit(vid, adapter->active_vlans))
+			__vlan_hwaccel_put_tag(skb, vid);
 	}
 	netif_receive_skb(skb);
 }
