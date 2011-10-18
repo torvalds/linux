@@ -953,8 +953,7 @@ int vmw_event_fence_action_create(struct drm_file *file_priv,
 				  uint32_t *tv_usec,
 				  bool interruptible)
 {
-	struct vmw_event_fence_action *eaction =
-		kzalloc(sizeof(*eaction), GFP_KERNEL);
+	struct vmw_event_fence_action *eaction;
 	struct ttm_mem_global *mem_glob =
 		vmw_mem_glob(fence->fman->dev_priv);
 	struct vmw_fence_manager *fman = fence->fman;

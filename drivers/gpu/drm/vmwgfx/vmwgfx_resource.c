@@ -1255,8 +1255,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_user_surface *user_srf =
-	    kmalloc(sizeof(*user_srf), GFP_KERNEL);
+	struct vmw_user_surface *user_srf;
 	struct vmw_surface *srf;
 	struct vmw_resource *res;
 	struct vmw_resource *tmp;
