@@ -618,6 +618,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 						__vlan_hwaccel_put_tag(gro_skb, vid);
 					}
 
+					if (dev->features & NETIF_F_RXHASH)
+						gro_skb->rxhash = be32_to_cpu(cqe->immed_rss_invalid);
+
 					skb_record_rx_queue(gro_skb, cq->ring);
 					napi_gro_frags(&cq->napi);
 
@@ -650,6 +653,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		skb->ip_summed = ip_summed;
 		skb->protocol = eth_type_trans(skb, dev);
 		skb_record_rx_queue(skb, cq->ring);
+
+		if (dev->features & NETIF_F_RXHASH)
+			skb->rxhash = be32_to_cpu(cqe->immed_rss_invalid);
 
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
 		    MLX4_CQE_VLAN_PRESENT_MASK)
@@ -834,6 +840,9 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	int i, qpn;
 	int err = 0;
 	int good_qps = 0;
+	static const u32 rsskey[10] = { 0xD181C62C, 0xF7F4DB5B, 0x1983A2FC,
+				0x943E1ADB, 0xD9389E6B, 0xD1039C2C, 0xA74499AD,
+				0x593D56D9, 0xF3253C06, 0x2ADC1FFC};
 
 	en_dbg(DRV, priv, "Configuring rss steering\n");
 	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
@@ -871,6 +880,9 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 					    (rss_map->base_qpn));
 	rss_context->default_qpn = cpu_to_be32(rss_map->base_qpn);
 	rss_context->flags = rss_mask;
+	rss_context->hash_fn = 1;
+	for (i = 0; i < 10; i++)
+		rss_context->rss_key[i] = rsskey[i];
 
 	if (priv->mdev->profile.udp_rss)
 		rss_context->base_qpn_udp = rss_context->default_qpn;
