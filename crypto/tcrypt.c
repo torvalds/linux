@@ -991,6 +991,7 @@ static int do_test(int m)
 		ret += tcrypt_test("cbc(twofish)");
 		ret += tcrypt_test("ctr(twofish)");
 		ret += tcrypt_test("lrw(twofish)");
+		ret += tcrypt_test("xts(twofish)");
 		break;
 
 	case 9:
@@ -1255,6 +1256,10 @@ static int do_test(int m)
 				speed_template_32_40_48);
 		test_cipher_speed("lrw(twofish)", DECRYPT, sec, NULL, 0,
 				speed_template_32_40_48);
+		test_cipher_speed("xts(twofish)", ENCRYPT, sec, NULL, 0,
+				speed_template_32_48_64);
+		test_cipher_speed("xts(twofish)", DECRYPT, sec, NULL, 0,
+				speed_template_32_48_64);
 		break;
 
 	case 203:
