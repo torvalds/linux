@@ -452,6 +452,10 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		card->ext_csd.rst_n_function = ext_csd[EXT_CSD_RST_N_FUNCTION];
 	}
 
+	/* eMMC v4.5 or later */
+	if (card->ext_csd.rev >= 6)
+		card->ext_csd.feature_support |= MMC_DISCARD_FEATURE;
+
 	card->ext_csd.raw_erased_mem_count = ext_csd[EXT_CSD_ERASED_MEM_CONT];
 	if (ext_csd[EXT_CSD_ERASED_MEM_CONT])
 		card->erased_byte = 0xFF;
