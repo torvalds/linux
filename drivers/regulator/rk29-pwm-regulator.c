@@ -27,7 +27,6 @@ REVISION 0.01
 
 #include <linux/bug.h>
 #include <linux/err.h>
-#include <linux/hardirq.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
@@ -102,10 +101,7 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 	return -1;
 	}
 
-	if (in_atomic() || irqs_disabled())
-		mdelay(10);
-	else
-		usleep_range(10*1000, 10*1000);
+	usleep_range(10*1000, 10*1000);
 	
 	
     return (0);
