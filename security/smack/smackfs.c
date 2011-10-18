@@ -1514,7 +1514,7 @@ static ssize_t smk_write_access(struct file *file, const char __user *buf,
 	data[0] = res == 0 ? '1' : '0';
 	data[1] = '\0';
 
-	simple_transaction_set(file, 1);
+	simple_transaction_set(file, 2);
 	return SMK_LOADLEN;
 }
 
