@@ -30,6 +30,7 @@
 #include "mac80211_if.h"
 #include "ucode_loader.h"
 #include "main.h"
+#include "soc.h"
 
 /*
  * Indication for txflowcontrol that all priority bits in

@@ -28,6 +28,7 @@
 #include "aiutils.h"
 #include "otp.h"
 #include "srom.h"
+#include "soc.h"
 
 /*
  * SROM CRC8 polynomial value:

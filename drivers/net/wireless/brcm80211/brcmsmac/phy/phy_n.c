@@ -29,6 +29,7 @@
 #include "phy_radio.h"
 #include "phyreg_n.h"
 #include "phytbl_n.h"
+#include "soc.h"
 
 #define READ_RADIO_REG2(pi, radio_type, jspace, core, reg_name)	\
 	read_radio_reg(pi, radio_type##_##jspace##_##reg_name |	\

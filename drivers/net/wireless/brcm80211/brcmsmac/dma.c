@@ -22,6 +22,7 @@
 #include <aiutils.h>
 #include "types.h"
 #include "dma.h"
+#include "soc.h"
 
 /*
  * DMA hardware requires each descriptor ring to be 8kB aligned, and fit within
