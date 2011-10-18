@@ -162,9 +162,12 @@ static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate);
 static int igb_ndo_get_vf_config(struct net_device *netdev, int vf,
 				 struct ifla_vf_info *ivi);
 static void igb_check_vf_rate_limit(struct igb_adapter *);
+
+#ifdef CONFIG_PCI_IOV
 static int igb_vf_configure(struct igb_adapter *adapter, int vf);
 static int igb_find_enabled_vfs(struct igb_adapter *adapter);
 static int igb_check_vf_assignment(struct igb_adapter *adapter);
+#endif
 
 #ifdef CONFIG_PM
 static int igb_suspend(struct pci_dev *, pm_message_t);
