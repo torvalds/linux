@@ -799,33 +799,45 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 	u32 hw_cap = priv->hw->dma->get_hw_feature(priv->ioaddr);
 
 	if (likely(hw_cap)) {
-		priv->dma_cap.mbps_10_100 = (hw_cap & 0x1);
-		priv->dma_cap.mbps_1000 = (hw_cap & 0x2) >> 1;
-		priv->dma_cap.half_duplex = (hw_cap & 0x4) >> 2;
-		priv->dma_cap.hash_filter = (hw_cap & 0x10) >> 4;
-		priv->dma_cap.multi_addr = (hw_cap & 0x20) >> 5;
-		priv->dma_cap.pcs = (hw_cap & 0x40) >> 6;
-		priv->dma_cap.sma_mdio = (hw_cap & 0x100) >> 8;
-		priv->dma_cap.pmt_remote_wake_up = (hw_cap & 0x200) >> 9;
-		priv->dma_cap.pmt_magic_frame = (hw_cap & 0x400) >> 10;
-		priv->dma_cap.rmon = (hw_cap & 0x800) >> 11; /* MMC */
+		priv->dma_cap.mbps_10_100 = (hw_cap & DMA_HW_FEAT_MIISEL);
+		priv->dma_cap.mbps_1000 = (hw_cap & DMA_HW_FEAT_GMIISEL) >> 1;
+		priv->dma_cap.half_duplex = (hw_cap & DMA_HW_FEAT_HDSEL) >> 2;
+		priv->dma_cap.hash_filter = (hw_cap & DMA_HW_FEAT_HASHSEL) >> 4;
+		priv->dma_cap.multi_addr =
+			(hw_cap & DMA_HW_FEAT_ADDMACADRSEL) >> 5;
+		priv->dma_cap.pcs = (hw_cap & DMA_HW_FEAT_PCSSEL) >> 6;
+		priv->dma_cap.sma_mdio = (hw_cap & DMA_HW_FEAT_SMASEL) >> 8;
+		priv->dma_cap.pmt_remote_wake_up =
+			(hw_cap & DMA_HW_FEAT_RWKSEL) >> 9;
+		priv->dma_cap.pmt_magic_frame =
+			(hw_cap & DMA_HW_FEAT_MGKSEL) >> 10;
+		/*MMC*/
+		priv->dma_cap.rmon = (hw_cap & DMA_HW_FEAT_MMCSEL) >> 11;
 		/* IEEE 1588-2002*/
-		priv->dma_cap.time_stamp = (hw_cap & 0x1000) >> 12;
+		priv->dma_cap.time_stamp =
+			(hw_cap & DMA_HW_FEAT_TSVER1SEL) >> 12;
 		/* IEEE 1588-2008*/
-		priv->dma_cap.atime_stamp = (hw_cap & 0x2000) >> 13;
+		priv->dma_cap.atime_stamp =
+			(hw_cap & DMA_HW_FEAT_TSVER2SEL) >> 13;
 		/* 802.3az - Energy-Efficient Ethernet (EEE) */
-		priv->dma_cap.eee = (hw_cap & 0x4000) >> 14;
-		priv->dma_cap.av = (hw_cap & 0x8000) >> 15;
+		priv->dma_cap.eee = (hw_cap & DMA_HW_FEAT_EEESEL) >> 14;
+		priv->dma_cap.av = (hw_cap & DMA_HW_FEAT_AVSEL) >> 15;
 		/* TX and RX csum */
-		priv->dma_cap.tx_coe = (hw_cap & 0x10000) >> 16;
-		priv->dma_cap.rx_coe_type1 = (hw_cap & 0x20000) >> 17;
-		priv->dma_cap.rx_coe_type2 = (hw_cap & 0x40000) >> 18;
-		priv->dma_cap.rxfifo_over_2048 = (hw_cap & 0x80000) >> 19;
+		priv->dma_cap.tx_coe = (hw_cap & DMA_HW_FEAT_TXCOESEL) >> 16;
+		priv->dma_cap.rx_coe_type1 =
+			(hw_cap & DMA_HW_FEAT_RXTYP1COE) >> 17;
+		priv->dma_cap.rx_coe_type2 =
+			(hw_cap & DMA_HW_FEAT_RXTYP2COE) >> 18;
+		priv->dma_cap.rxfifo_over_2048 =
+			(hw_cap & DMA_HW_FEAT_RXFIFOSIZE) >> 19;
 		/* TX and RX number of channels */
-		priv->dma_cap.number_rx_channel = (hw_cap & 0x300000) >> 20;
-		priv->dma_cap.number_tx_channel = (hw_cap & 0xc00000) >> 22;
+		priv->dma_cap.number_rx_channel =
+			(hw_cap & DMA_HW_FEAT_RXCHCNT) >> 20;
+		priv->dma_cap.number_tx_channel =
+			(hw_cap & DMA_HW_FEAT_TXCHCNT) >> 22;
 		/* Alternate (enhanced) DESC mode*/
-		priv->dma_cap.enh_desc = (hw_cap & 0x1000000) >> 24;
+		priv->dma_cap.enh_desc =
+			(hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
 
 	} else
 		pr_debug("\tNo HW DMA feature register supported");
