@@ -1065,13 +1065,15 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (!test_opt(sb, XATTR_USER))
 		seq_puts(seq, ",nouser_xattr");
 #endif
-#if defined(CONFIG_EXT4_FS_POSIX_ACL) || defined(CONFIG_EXT4_FS_RICHACL)
-	if ((sb->s_flags & (MS_POSIXACL|MS_RICHACL)) &&
-	    !(def_mount_opts & EXT4_DEFM_ACL))
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
+	if ((sb->s_flags & MS_POSIXACL) && !(def_mount_opts & EXT4_DEFM_ACL))
 		seq_puts(seq, ",acl");
-	if (!(sb->s_flags & (MS_POSIXACL|MS_RICHACL)) &&
-	    (def_mount_opts & EXT4_DEFM_ACL))
+	if (!(sb->s_flags & MS_POSIXACL) && (def_mount_opts & EXT4_DEFM_ACL))
 		seq_puts(seq, ",noacl");
+#endif
+#ifdef CONFIG_EXT4_FS_RICHACL
+	if (sb->s_flags & MS_RICHACL)
+		seq_puts(seq, ",richacl");
 #endif
 	if (sbi->s_commit_interval != JBD2_DEFAULT_MAX_COMMIT_AGE*HZ) {
 		seq_printf(seq, ",commit=%u",
@@ -1322,6 +1324,7 @@ enum {
 	Opt_dioread_nolock, Opt_dioread_lock,
 	Opt_discard, Opt_nodiscard,
 	Opt_init_inode_table, Opt_noinit_inode_table,
+	Opt_richacl,
 };
 
 static const match_table_t tokens = {
@@ -1397,6 +1400,7 @@ static const match_table_t tokens = {
 	{Opt_init_inode_table, "init_itable=%u"},
 	{Opt_init_inode_table, "init_itable"},
 	{Opt_noinit_inode_table, "noinit_itable"},
+	{Opt_richacl, "richacl"},
 	{Opt_err, NULL},
 };
 
@@ -1425,27 +1429,31 @@ static ext4_fsblk_t get_sb_block(void **data)
 
 static void enable_acl(struct super_block *sb)
 {
-#if !defined(CONFIG_EXT4_FS_POSIX_ACL) && !defined(CONFIG_EXT4_FS_RICHACL)
+#if !defined(CONFIG_EXT4_FS_POSIX_ACL)
 	ext4_msg(sb, KERN_ERR, "acl options not supported");
 	return;
 #endif
-	if (EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_RICHACL)) {
-		sb->s_flags |= MS_RICHACL;
-		sb->s_flags &= ~MS_POSIXACL;
-	} else {
-		sb->s_flags |= MS_POSIXACL;
-		sb->s_flags &= ~MS_RICHACL;
-	}
-	return;
+	sb->s_flags |= MS_POSIXACL;
 }
 
 static void disable_acl(struct super_block *sb)
 {
-#if !defined(CONFIG_EXT4_FS_POSIX_ACL) && !defined(CONFIG_EXT4_FS_RICHACL)
+#if !defined(CONFIG_EXT4_FS_POSIX_ACL)
 	ext4_msg(sb, KERN_ERR, "acl options not supported");
 	return;
 #endif
-	sb->s_flags &= ~(MS_POSIXACL | MS_RICHACL);
+	sb->s_flags &= ~MS_POSIXACL;
+	return;
+}
+
+static void enable_richacl(struct super_block *sb)
+{
+#if !defined(CONFIG_EXT4_FS_RICHACL)
+	ext4_msg(sb, KERN_ERR, "richacl options not supported");
+	return;
+#endif
+	sb->s_flags |= MS_RICHACL;
+	sb->s_flags &= ~MS_POSIXACL;
 	return;
 }
 
@@ -1905,6 +1913,8 @@ set_qf_format:
 			break;
 		case Opt_noinit_inode_table:
 			clear_opt(sb, INIT_INODE_TABLE);
+		case Opt_richacl:
+			enable_richacl(sb);
 			break;
 		default:
 			ext4_msg(sb, KERN_ERR,
@@ -3190,8 +3200,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_EXT4_FS_XATTR
 	set_opt(sb, XATTR_USER);
 #endif
-#if defined(CONFIG_EXT4_FS_POSIX_ACL) || defined(CONFIG_EXT4_FS_RICHACL)
-		enable_acl(sb);
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
+	enable_acl(sb);
 #endif
 	set_opt(sb, MBLK_IO_SUBMIT);
 	if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_DATA)
