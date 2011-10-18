@@ -112,7 +112,7 @@ static const struct chan_info_basic chan_info_all[] = {
 	{216, 50800}
 };
 
-const u8 ofdm_rate_lookup[] = {
+static const u8 ofdm_rate_lookup[] = {
 
 	BRCM_RATE_48M,
 	BRCM_RATE_24M,
