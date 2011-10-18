@@ -632,7 +632,7 @@ xfs_buf_item_push(
  * the xfsbufd to get this buffer written. We have to unlock the buffer
  * to allow the xfsbufd to write it, too.
  */
-STATIC void
+STATIC bool
 xfs_buf_item_pushbuf(
 	struct xfs_log_item	*lip)
 {
@@ -646,6 +646,7 @@ xfs_buf_item_pushbuf(
 
 	xfs_buf_delwri_promote(bp);
 	xfs_buf_relse(bp);
+	return true;
 }
 
 STATIC void
