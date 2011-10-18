@@ -220,6 +220,7 @@ static int init_tfm(struct crypto_tfm *tfm)
 
 	if (crypto_cipher_blocksize(cipher) != 16) {
 		*flags |= CRYPTO_TFM_RES_BAD_BLOCK_LEN;
+		crypto_free_cipher(cipher);
 		return -EINVAL;
 	}
 
