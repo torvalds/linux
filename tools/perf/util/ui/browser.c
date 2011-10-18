@@ -1,4 +1,5 @@
 #include "../util.h"
+#include "../cache.h"
 #include "../../perf.h"
 #include "libslang.h"
 #include <newt.h>
@@ -430,27 +431,89 @@ unsigned int ui_browser__list_head_refresh(struct ui_browser *self)
 	return row;
 }
 
-static struct ui_browser__colors {
-	const char *topColorFg, *topColorBg;
-	const char *mediumColorFg, *mediumColorBg;
-	const char *normalColorFg, *normalColorBg;
-	const char *selColorFg, *selColorBg;
-	const char *codeColorFg, *codeColorBg;
-} ui_browser__default_colors = {
-	"red",       "lightgray",
-	"green",     "lightgray",
-	"black",     "lightgray",
-	"lightgray", "magenta",
-	"blue",	     "lightgray",
+static struct ui_browser__colorset {
+	const char *name, *fg, *bg;
+	int colorset;
+} ui_browser__colorsets[] = {
+	{
+		.colorset = HE_COLORSET_TOP,
+		.name	  = "top",
+		.fg	  = "red",
+		.bg	  = "black",
+	},
+	{
+		.colorset = HE_COLORSET_MEDIUM,
+		.name	  = "medium",
+		.fg	  = "green",
+		.bg	  = "black",
+	},
+	{
+		.colorset = HE_COLORSET_NORMAL,
+		.name	  = "normal",
+		.fg	  = "brightgreen",
+		.bg	  = "black",
+	},
+	{
+		.colorset = HE_COLORSET_SELECTED,
+		.name	  = "selected",
+		.fg	  = "black",
+		.bg	  = "lightgray",
+	},
+	{
+		.colorset = HE_COLORSET_CODE,
+		.name	  = "code",
+		.fg	  = "blue",
+		.bg	  = "black",
+	},
+	{
+		.name = NULL,
+	}
 };
+
+
+static int ui_browser__color_config(const char *var, const char *value,
+				    void *data __used)
+{
+	char *fg = NULL, *bg;
+	int i;
+
+	/* same dir for all commands */
+	if (prefixcmp(var, "colors.") != 0)
+		return 0;
+
+	for (i = 0; ui_browser__colorsets[i].name != NULL; ++i) {
+		const char *name = var + 7;
+
+		if (strcmp(ui_browser__colorsets[i].name, name) != 0)
+			continue;
+
+		fg = strdup(value);
+		if (fg == NULL)
+			break;
+
+		bg = strchr(fg, ',');
+		if (bg == NULL)
+			break;
+
+		*bg = '\0';
+		while (isspace(*++bg));
+		ui_browser__colorsets[i].bg = bg;
+		ui_browser__colorsets[i].fg = fg;
+		return 0;
+	}
+
+	free(fg);
+	return -1;
+}
 
 void ui_browser__init(void)
 {
-	struct ui_browser__colors *c = &ui_browser__default_colors;
+	int i = 0;
 
-	sltt_set_color(HE_COLORSET_TOP, NULL, c->topColorFg, c->topColorBg);
-	sltt_set_color(HE_COLORSET_MEDIUM, NULL, c->mediumColorFg, c->mediumColorBg);
-	sltt_set_color(HE_COLORSET_NORMAL, NULL, c->normalColorFg, c->normalColorBg);
-	sltt_set_color(HE_COLORSET_SELECTED, NULL, c->selColorFg, c->selColorBg);
-	sltt_set_color(HE_COLORSET_CODE, NULL, c->codeColorFg, c->codeColorBg);
+	perf_config(ui_browser__color_config, NULL);
+
+	while (ui_browser__colorsets[i].name) {
+		struct ui_browser__colorset *c = &ui_browser__colorsets[i++];
+		sltt_set_color(c->colorset, c->name, c->fg, c->bg);
+	}
 }
