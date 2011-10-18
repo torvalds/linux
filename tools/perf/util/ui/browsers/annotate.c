@@ -69,6 +69,11 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 
 	SLsmg_write_char(':');
 	slsmg_write_nstring(" ", 8);
+
+	/* The scroll bar isn't being used */
+	if (!self->navkeypressed)
+		width += 1;
+
 	if (!*ol->line)
 		slsmg_write_nstring(" ", width - 18);
 	else
@@ -386,6 +391,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			.write	 = annotate_browser__write,
 			.filter  = objdump_line__filter,
 			.priv	 = &ms,
+			.use_navkeypressed = true,
 		},
 	};
 	int ret;

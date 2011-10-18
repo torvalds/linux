@@ -14,9 +14,10 @@
 
 int newtGetKey(void);
 
-static int ui_browser__percent_color(double percent, bool current)
+static int ui_browser__percent_color(struct ui_browser *browser,
+				     double percent, bool current)
 {
-	if (current)
+	if (current && (!browser->use_navkeypressed || browser->navkeypressed))
 		return HE_COLORSET_SELECTED;
 	if (percent >= MIN_RED)
 		return HE_COLORSET_TOP;
@@ -33,7 +34,7 @@ void ui_browser__set_color(struct ui_browser *self __used, int color)
 void ui_browser__set_percent_color(struct ui_browser *self,
 				   double percent, bool current)
 {
-	 int color = ui_browser__percent_color(percent, current);
+	 int color = ui_browser__percent_color(self, percent, current);
 	 ui_browser__set_color(self, color);
 }
 
@@ -241,12 +242,18 @@ static void ui_browser__scrollbar_set(struct ui_browser *browser)
 static int __ui_browser__refresh(struct ui_browser *browser)
 {
 	int row;
+	int width = browser->width;
 
 	row = browser->refresh(browser);
 	ui_browser__set_color(browser, HE_COLORSET_NORMAL);
+
+	if (!browser->use_navkeypressed || browser->navkeypressed)
+		ui_browser__scrollbar_set(browser);
+	else
+		width += 1;
+
 	SLsmg_fill_region(browser->y + row, browser->x,
-			  browser->height - row, browser->width, ' ');
-	ui_browser__scrollbar_set(browser);
+			  browser->height - row, width, ' ');
 
 	return 0;
 }
@@ -324,6 +331,17 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 			__ui_browser__show_title(self, self->title);
 			ui_helpline__puts(self->helpline);
 			continue;
+		}
+
+		if (self->use_navkeypressed && !self->navkeypressed) {
+			if (key == NEWT_KEY_DOWN || key == NEWT_KEY_UP ||
+			    key == NEWT_KEY_PGDN || key == NEWT_KEY_PGUP ||
+			    key == NEWT_KEY_HOME || key == NEWT_KEY_END ||
+			    key == ' ') {
+				self->navkeypressed = true;
+				continue;
+			} else
+				return key;
 		}
 
 		switch (key) {

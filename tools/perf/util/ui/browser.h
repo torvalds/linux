@@ -23,6 +23,8 @@ struct ui_browser {
 	void	      (*seek)(struct ui_browser *self, off_t offset, int whence);
 	bool	      (*filter)(struct ui_browser *self, void *entry);
 	u32	      nr_entries;
+	bool	      navkeypressed;
+	bool	      use_navkeypressed;
 };
 
 void ui_browser__set_color(struct ui_browser *self, int color);

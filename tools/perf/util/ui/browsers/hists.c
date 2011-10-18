@@ -547,7 +547,7 @@ static int hist_browser__show_entry(struct hist_browser *self,
 	char s[256];
 	double percent;
 	int printed = 0;
-	int color, width = self->b.width;
+	int width = self->b.width;
 	char folded_sign = ' ';
 	bool current_entry = ui_browser__is_current_entry(&self->b, row);
 	off_t row_offset = entry->row_offset;
@@ -567,22 +567,17 @@ static int hist_browser__show_entry(struct hist_browser *self,
 				     0, false, self->hists->stats.total_period);
 		percent = (entry->period * 100.0) / self->hists->stats.total_period;
 
-		color = HE_COLORSET_SELECTED;
-		if (!current_entry) {
-			if (percent >= MIN_RED)
-				color = HE_COLORSET_TOP;
-			else if (percent >= MIN_GREEN)
-				color = HE_COLORSET_MEDIUM;
-			else
-				color = HE_COLORSET_NORMAL;
-		}
-
-		ui_browser__set_color(&self->b, color);
+		ui_browser__set_percent_color(&self->b, percent, current_entry);
 		ui_browser__gotorc(&self->b, row, 0);
 		if (symbol_conf.use_callchain) {
 			slsmg_printf("%c ", folded_sign);
 			width -= 2;
 		}
+
+		/* The scroll bar isn't being used */
+		if (!self->b.navkeypressed)
+			width += 1;
+
 		slsmg_write_nstring(s, width);
 		++row;
 		++printed;
@@ -787,6 +782,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 		self->hists = hists;
 		self->b.refresh = hist_browser__refresh;
 		self->b.seek = ui_browser__hists_seek;
+		self->b.use_navkeypressed = true,
 		self->has_symbols = sort_sym.list.next != NULL;
 	}
 
