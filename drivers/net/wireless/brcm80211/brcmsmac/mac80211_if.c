@@ -1334,6 +1334,14 @@ uint brcms_reset(struct brcms_info *wl)
 	return 0;
 }
 
+void brcms_fatal_error(struct brcms_info *wl)
+{
+	wiphy_err(wl->wlc->wiphy, "wl%d: fatal error, reinitializing\n",
+		  wl->wlc->pub->unit);
+	brcms_reset(wl);
+	ieee80211_restart_hw(wl->pub->ieee_hw);
+}
+
 /*
  * These are interrupt on/off entry points. Disable interrupts
  * during interrupt state transition.

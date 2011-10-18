@@ -2301,13 +2301,6 @@ void brcms_b_antsel_type_set(struct brcms_hardware *wlc_hw, u8 antsel_type)
 	wlc_phy_antsel_type_set(wlc_hw->band->pi, antsel_type);
 }
 
-static void brcms_c_fatal_error(struct brcms_c_info *wlc)
-{
-	wiphy_err(wlc->wiphy, "wl%d: fatal error, reinitializing\n",
-		  wlc->pub->unit);
-	brcms_init(wlc->wl);
-}
-
 static void brcms_b_fifoerrors(struct brcms_hardware *wlc_hw)
 {
 	bool fatal = false;
@@ -2363,7 +2356,7 @@ static void brcms_b_fifoerrors(struct brcms_hardware *wlc_hw)
 		}
 
 		if (fatal) {
-			brcms_c_fatal_error(wlc_hw->wlc);	/* big hammer */
+			brcms_fatal_error(wlc_hw->wlc->wl); /* big hammer */
 			break;
 		} else
 			W_REG(&regs->intctrlregs[idx].intstatus,
@@ -8397,8 +8390,7 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 		printk_once("%s : PSM Watchdog, chipid 0x%x, chiprev 0x%x\n",
 					__func__, wlc_hw->sih->chip,
 					wlc_hw->sih->chiprev);
-		/* big hammer */
-		brcms_init(wlc->wl);
+		brcms_fatal_error(wlc_hw->wlc->wl);
 	}
 
 	/* gptimer timeout */
@@ -8419,7 +8411,7 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 	return wlc->macintstatus != 0;
 
  fatal:
-	brcms_init(wlc->wl);
+	brcms_fatal_error(wlc_hw->wlc->wl);
 	return wlc->macintstatus != 0;
 }
 
