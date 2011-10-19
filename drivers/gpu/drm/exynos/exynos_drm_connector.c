@@ -47,6 +47,7 @@ convert_to_display_mode(struct drm_display_mode *mode,
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	mode->clock = timing->pixclock / 1000;
+	mode->vrefresh = timing->refresh;
 
 	mode->hdisplay = timing->xres;
 	mode->hsync_start = mode->hdisplay + timing->left_margin;
@@ -57,6 +58,12 @@ convert_to_display_mode(struct drm_display_mode *mode,
 	mode->vsync_start = mode->vdisplay + timing->upper_margin;
 	mode->vsync_end = mode->vsync_start + timing->vsync_len;
 	mode->vtotal = mode->vsync_end + timing->lower_margin;
+
+	if (timing->vmode & FB_VMODE_INTERLACED)
+		mode->flags |= DRM_MODE_FLAG_INTERLACE;
+
+	if (timing->vmode & FB_VMODE_DOUBLE)
+		mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 }
 
 /* convert drm_display_mode to exynos_video_timings */
@@ -69,7 +76,7 @@ convert_to_video_timing(struct fb_videomode *timing,
 	memset(timing, 0, sizeof(*timing));
 
 	timing->pixclock = mode->clock * 1000;
-	timing->refresh = mode->vrefresh;
+	timing->refresh = drm_mode_vrefresh(mode);
 
 	timing->xres = mode->hdisplay;
 	timing->left_margin = mode->hsync_start - mode->hdisplay;
