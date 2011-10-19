@@ -37,6 +37,8 @@
 
 struct exynos_drm_connector {
 	struct drm_connector	drm_connector;
+	uint32_t		encoder_id;
+	struct exynos_drm_manager *manager;
 };
 
 /* convert exynos_video_timings to drm_display_mode */
@@ -99,8 +101,9 @@ convert_to_video_timing(struct fb_videomode *timing,
 
 static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 {
-	struct exynos_drm_manager *manager =
-				exynos_drm_get_manager(connector->encoder);
+	struct exynos_drm_connector *exynos_connector =
+					to_exynos_connector(connector);
+	struct exynos_drm_manager *manager = exynos_connector->manager;
 	struct exynos_drm_display *display = manager->display;
 	unsigned int count;
 
@@ -169,8 +172,9 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 					    struct drm_display_mode *mode)
 {
-	struct exynos_drm_manager *manager =
-				exynos_drm_get_manager(connector->encoder);
+	struct exynos_drm_connector *exynos_connector =
+					to_exynos_connector(connector);
+	struct exynos_drm_manager *manager = exynos_connector->manager;
 	struct exynos_drm_display *display = manager->display;
 	struct fb_videomode timing;
 	int ret = MODE_BAD;
@@ -188,9 +192,25 @@ static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 
 struct drm_encoder *exynos_drm_best_encoder(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
+	struct exynos_drm_connector *exynos_connector =
+					to_exynos_connector(connector);
+	struct drm_mode_object *obj;
+	struct drm_encoder *encoder;
+
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	return connector->encoder;
+	obj = drm_mode_object_find(dev, exynos_connector->encoder_id,
+				   DRM_MODE_OBJECT_ENCODER);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown ENCODER ID %d\n",
+				exynos_connector->encoder_id);
+		return NULL;
+	}
+
+	encoder = obj_to_encoder(obj);
+
+	return encoder;
 }
 
 static struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
@@ -203,8 +223,9 @@ static struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
 static enum drm_connector_status
 exynos_drm_connector_detect(struct drm_connector *connector, bool force)
 {
-	struct exynos_drm_manager *manager =
-				exynos_drm_get_manager(connector->encoder);
+	struct exynos_drm_connector *exynos_connector =
+					to_exynos_connector(connector);
+	struct exynos_drm_manager *manager = exynos_connector->manager;
 	struct exynos_drm_display *display = manager->display;
 	enum drm_connector_status status = connector_status_disconnected;
 
@@ -276,7 +297,10 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 	if (err)
 		goto err_connector;
 
+	exynos_connector->encoder_id = encoder->base.id;
+	exynos_connector->manager = manager;
 	connector->encoder = encoder;
+
 	err = drm_mode_connector_attach_encoder(connector, encoder);
 	if (err) {
 		DRM_ERROR("failed to attach a connector to a encoder\n");
