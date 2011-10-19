@@ -59,8 +59,7 @@ struct pin_desc {
 	spinlock_t lock;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
-	bool	mux_requested;
-	char	mux_function[16];
+	const char *mux_function;
 #endif
 };
 
