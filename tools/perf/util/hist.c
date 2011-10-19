@@ -6,6 +6,11 @@
 #include "sort.h"
 #include <math.h>
 
+static bool hists__filter_entry_by_dso(struct hists *hists,
+				       struct hist_entry *he);
+static bool hists__filter_entry_by_thread(struct hists *hists,
+					  struct hist_entry *he);
+
 enum hist_filter {
 	HIST_FILTER__DSO,
 	HIST_FILTER__THREAD,
@@ -338,6 +343,12 @@ static struct rb_root *hists__get_rotate_entries_in(struct hists *hists)
 	return root;
 }
 
+static void hists__apply_filters(struct hists *hists, struct hist_entry *he)
+{
+	hists__filter_entry_by_dso(hists, he);
+	hists__filter_entry_by_thread(hists, he);
+}
+
 static void __hists__collapse_resort(struct hists *hists, bool threaded)
 {
 	struct rb_root *root;
@@ -356,8 +367,15 @@ static void __hists__collapse_resort(struct hists *hists, bool threaded)
 		next = rb_next(&n->rb_node_in);
 
 		rb_erase(&n->rb_node_in, root);
-		if (hists__collapse_insert_entry(hists, &hists->entries_collapsed, n))
+		if (hists__collapse_insert_entry(hists, &hists->entries_collapsed, n)) {
+			/*
+			 * If it wasn't combined with one of the entries already
+			 * collapsed, we need to apply the filters that may have
+			 * been set by, say, the hist_browser.
+			 */
+			hists__apply_filters(hists, n);
 			hists__inc_nr_entries(hists, n);
+		}
 	}
 }
 
@@ -1087,6 +1105,19 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 	hists__calc_col_len(hists, h);
 }
 
+
+static bool hists__filter_entry_by_dso(struct hists *hists,
+				       struct hist_entry *he)
+{
+	if (hists->dso_filter != NULL &&
+	    (he->ms.map == NULL || he->ms.map->dso != hists->dso_filter)) {
+		he->filtered |= (1 << HIST_FILTER__DSO);
+		return true;
+	}
+
+	return false;
+}
+
 void hists__filter_by_dso(struct hists *hists)
 {
 	struct rb_node *nd;
@@ -1101,14 +1132,23 @@ void hists__filter_by_dso(struct hists *hists)
 		if (symbol_conf.exclude_other && !h->parent)
 			continue;
 
-		if (hists->dso_filter != NULL &&
-		    (h->ms.map == NULL || h->ms.map->dso != hists->dso_filter)) {
-			h->filtered |= (1 << HIST_FILTER__DSO);
+		if (hists__filter_entry_by_dso(hists, h))
 			continue;
-		}
 
 		hists__remove_entry_filter(hists, h, HIST_FILTER__DSO);
 	}
+}
+
+static bool hists__filter_entry_by_thread(struct hists *hists,
+					  struct hist_entry *he)
+{
+	if (hists->thread_filter != NULL &&
+	    he->thread != hists->thread_filter) {
+		he->filtered |= (1 << HIST_FILTER__THREAD);
+		return true;
+	}
+
+	return false;
 }
 
 void hists__filter_by_thread(struct hists *hists)
@@ -1122,11 +1162,8 @@ void hists__filter_by_thread(struct hists *hists)
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 
-		if (hists->thread_filter != NULL &&
-		    h->thread != hists->thread_filter) {
-			h->filtered |= (1 << HIST_FILTER__THREAD);
+		if (hists__filter_entry_by_thread(hists, h))
 			continue;
-		}
 
 		hists__remove_entry_filter(hists, h, HIST_FILTER__THREAD);
 	}
