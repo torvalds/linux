@@ -2254,10 +2254,10 @@ dhd_stop(struct net_device *net)
 {
 	int ifidx;
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(net);
-
+	DHD_OS_WAKE_LOCK(&dhd->pub);
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 	if (dhd->pub.up == 0) {
-		return 0;
+		goto exit;
 	}
 	ifidx = dhd_net2idx(dhd, net);
 
@@ -2286,13 +2286,15 @@ dhd_stop(struct net_device *net)
 	dhd_prot_stop(&dhd->pub);
 
 #if defined(WL_CFG80211)
-	if (ifidx == 0)
+	if (ifidx == 0 && !dhd_download_fw_on_driverload)
 		wl_android_wifi_off(net);
 #endif
 	dhd->pub.hang_was_sent = 0;
 	dhd->pub.rxcnt_timeout = 0;
 	dhd->pub.txcnt_timeout = 0;
 	OLD_MOD_DEC_USE_COUNT;
+exit:
+	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 	return 0;
 }
 
@@ -2306,7 +2308,7 @@ dhd_open(struct net_device *net)
 #endif
 	int ifidx;
 	int32 ret = 0;
-
+	DHD_OS_WAKE_LOCK(&dhd->pub);
 	/* Update FW path if it was changed */
 	if ((firmware_path != NULL) && (firmware_path[0] != '\0')) {
 		if (firmware_path[strlen(firmware_path)-1] == '\n')
@@ -2328,20 +2330,23 @@ dhd_open(struct net_device *net)
 
 	if (ifidx < 0) {
 		DHD_ERROR(("%s: Error: called with invalid IF\n", __FUNCTION__));
-		return -1;
+		ret = -1;
+		goto exit;
 	}
 
 	if (!dhd->iflist[ifidx] || dhd->iflist[ifidx]->state == WLC_E_IF_DEL) {
 		DHD_ERROR(("%s: Error: called when IF already deleted\n", __FUNCTION__));
-		return -1;
+		ret = -1;
+		goto exit;
 	}
 
 	if (ifidx == 0) {
 		atomic_set(&dhd->pend_8021x_cnt, 0);
 #if defined(WL_CFG80211)
 		DHD_ERROR(("\n%s\n", dhd_version));
-		wl_android_wifi_on(net);
-#endif
+		if (!dhd_download_fw_on_driverload)
+			wl_android_wifi_on(net);
+#endif /* defined(WL_CFG80211) */
 
 		if (dhd->pub.busstate != DHD_BUS_DATA) {
 			int ret;
@@ -2349,7 +2354,8 @@ dhd_open(struct net_device *net)
 			/* try to bring up bus */
 			if ((ret = dhd_bus_start(&dhd->pub)) != 0) {
 				DHD_ERROR(("%s: failed with code %d\n", __FUNCTION__, ret));
-				return -1;
+				ret = -1;
+				goto exit;
 			}
 
 		}
@@ -2368,7 +2374,8 @@ dhd_open(struct net_device *net)
 #if defined(WL_CFG80211)
 		if (unlikely(wl_cfg80211_up())) {
 			DHD_ERROR(("%s: failed to bring up cfg80211\n", __FUNCTION__));
-			return -1;
+			ret = -1;
+			goto exit;
 		}
 #endif /* WL_CFG80211 */
 	}
@@ -2382,6 +2389,8 @@ dhd_open(struct net_device *net)
 #endif
 
 	OLD_MOD_INC_USE_COUNT;
+exit:
+	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 	return ret;
 }
 
