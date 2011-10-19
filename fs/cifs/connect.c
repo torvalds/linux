@@ -422,9 +422,9 @@ get_server_iovec(struct TCP_Server_Info *server, unsigned int nr_segs)
 	return new_iov;
 }
 
-static int
-readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
-		  unsigned int nr_segs, unsigned int to_read)
+int
+cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
+		       unsigned int nr_segs, unsigned int to_read)
 {
 	int length = 0;
 	int total_read;
@@ -479,16 +479,16 @@ readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 	return total_read;
 }
 
-static int
-read_from_socket(struct TCP_Server_Info *server, char *buf,
-		 unsigned int to_read)
+int
+cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
+		      unsigned int to_read)
 {
 	struct kvec iov;
 
 	iov.iov_base = buf;
 	iov.iov_len = to_read;
 
-	return readv_from_socket(server, &iov, 1, to_read);
+	return cifs_readv_from_socket(server, &iov, 1, to_read);
 }
 
 static bool
@@ -553,8 +553,8 @@ find_mid(struct TCP_Server_Info *server, struct smb_hdr *buf)
 	return NULL;
 }
 
-static void
-dequeue_mid(struct mid_q_entry *mid, int malformed)
+void
+dequeue_mid(struct mid_q_entry *mid, bool malformed)
 {
 #ifdef CONFIG_CIFS_STATS2
 	mid->when_received = jiffies;
@@ -730,7 +730,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	/* now read the rest */
-	length = read_from_socket(server,
+	length = cifs_read_from_socket(server,
 			  buf + sizeof(struct smb_hdr) - 1,
 			  pdu_length - sizeof(struct smb_hdr) + 1 + 4);
 	if (length < 0)
@@ -791,7 +791,7 @@ cifs_demultiplex_thread(void *p)
 		buf = server->smallbuf;
 		pdu_length = 4; /* enough to get RFC1001 header */
 
-		length = read_from_socket(server, buf, pdu_length);
+		length = cifs_read_from_socket(server, buf, pdu_length);
 		if (length < 0)
 			continue;
 		server->total_read = length;
@@ -816,8 +816,8 @@ cifs_demultiplex_thread(void *p)
 		}
 
 		/* read down to the MID */
-		length = read_from_socket(server, buf + 4,
-					  sizeof(struct smb_hdr) - 1 - 4);
+		length = cifs_read_from_socket(server, buf + 4,
+					sizeof(struct smb_hdr) - 1 - 4);
 		if (length < 0)
 			continue;
 		server->total_read += length;

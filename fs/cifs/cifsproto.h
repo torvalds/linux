@@ -154,6 +154,12 @@ extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 				const char *, int);
 
+extern void dequeue_mid(struct mid_q_entry *mid, bool malformed);
+extern int cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
+		     unsigned int to_read);
+extern int cifs_readv_from_socket(struct TCP_Server_Info *server,
+		struct kvec *iov_orig, unsigned int nr_segs,
+		unsigned int to_read);
 extern void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			       struct cifs_sb_info *cifs_sb);
 extern int cifs_match_super(struct super_block *, void *);
@@ -442,6 +448,24 @@ extern int mdfour(unsigned char *, unsigned char *, int);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16);
 extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 			unsigned char *p24);
+
+/* asynchronous read support */
+struct cifs_readdata {
+	struct cifsFileInfo		*cfile;
+	struct address_space		*mapping;
+	__u64				offset;
+	unsigned int			bytes;
+	pid_t				pid;
+	int				result;
+	struct list_head		pages;
+	struct work_struct		work;
+	unsigned int			nr_iov;
+	struct kvec			iov[1];
+};
+
+struct cifs_readdata *cifs_readdata_alloc(unsigned int nr_pages);
+void cifs_readdata_free(struct cifs_readdata *rdata);
+int cifs_async_readv(struct cifs_readdata *rdata);
 
 /* asynchronous write support */
 struct cifs_writedata {
