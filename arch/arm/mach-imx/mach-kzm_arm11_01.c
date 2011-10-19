@@ -36,6 +36,7 @@
 
 #include <mach/clock.h>
 #include <mach/common.h>
+#include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
 
 #include "devices-imx31.h"
