@@ -62,13 +62,13 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	struct device *dev = usbhs_priv_to_dev(priv);
 	unsigned long flags;
 
-	/********************  spin lock ********************/
-	usbhs_lock(priv, flags);
-
 	if (!done) {
 		dev_err(dev, "no done function\n");
 		return;
 	}
+
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
 
 	if (!pipe->handler) {
 		dev_err(dev, "no handler function\n");
