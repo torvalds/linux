@@ -1305,7 +1305,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 				 */
 				argp->stable = NFS_FILE_SYNC;
 			}
-			nfs_restart_rpc(task, server->nfs_client);
+			rpc_restart_call_prepare(task);
 			return;
 		}
 		if (time_before(complain, jiffies)) {
