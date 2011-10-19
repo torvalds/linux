@@ -143,18 +143,15 @@ static void skb_xmit_done(struct virtqueue *svq)
 static void set_skb_frag(struct sk_buff *skb, struct page *page,
 			 unsigned int offset, unsigned int *len)
 {
+	int size = min((unsigned)PAGE_SIZE - offset, *len);
 	int i = skb_shinfo(skb)->nr_frags;
-	skb_frag_t *f;
 
-	f = &skb_shinfo(skb)->frags[i];
-	skb_frag_size_set(f, min((unsigned)PAGE_SIZE - offset, *len));
-	f->page_offset = offset;
-	__skb_frag_set_page(f, page);
+	__skb_fill_page_desc(skb, i, page, offset, size);
 
-	skb->data_len += skb_frag_size(f);
-	skb->len += skb_frag_size(f);
+	skb->data_len += size;
+	skb->len += size;
 	skb_shinfo(skb)->nr_frags++;
-	*len -= skb_frag_size(f);
+	*len -= size;
 }
 
 static struct sk_buff *page_to_skb(struct virtnet_info *vi,
