@@ -376,10 +376,6 @@ void tipc_eth_media_stop(void)
 
 	unregister_netdevice_notifier(&notifier);
 	for (i = 0; i < MAX_ETH_BEARERS ; i++) {
-		if (eth_bearers[i].bearer) {
-			eth_bearers[i].bearer->blocked = 1;
-			eth_bearers[i].bearer = NULL;
-		}
 		if (eth_bearers[i].dev) {
 			dev_remove_pack(&eth_bearers[i].tipc_packet_type);
 			dev_put(eth_bearers[i].dev);
