@@ -24,6 +24,7 @@
 #include <linux/timer.h>
 #include <asm/unaligned.h>
 #include <asm/cacheflush.h>
+#include <linux/gpio.h>
 
 #include "isp1760-hcd.h"
 
@@ -48,6 +49,8 @@ struct isp1760_hcd {
 	unsigned long		reset_done;
 	unsigned long		next_statechange;
 	unsigned int		devflags;
+
+	int			rst_gpio;
 };
 
 static inline struct isp1760_hcd *hcd_to_priv(struct usb_hcd *hcd)
@@ -432,6 +435,18 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	int result;
 	u32 scratch, hwmode;
+
+	/* low-level chip reset */
+	if (gpio_is_valid(priv->rst_gpio)) {
+		unsigned int rst_lvl;
+
+		rst_lvl = (priv->devflags &
+			   ISP1760_FLAG_RESET_ACTIVE_HIGH) ? 1 : 0;
+
+		gpio_set_value(priv->rst_gpio, rst_lvl);
+		mdelay(50);
+		gpio_set_value(priv->rst_gpio, !rst_lvl);
+	}
 
 	/* Setup HW Mode Control: This assumes a level active-low interrupt */
 	hwmode = HW_DATA_BUS_32BIT;
@@ -2207,6 +2222,7 @@ void deinit_kmem_cache(void)
 
 struct usb_hcd *isp1760_register(phys_addr_t res_start, resource_size_t res_len,
 				 int irq, unsigned long irqflags,
+				 int rst_gpio,
 				 struct device *dev, const char *busname,
 				 unsigned int devflags)
 {
@@ -2226,6 +2242,7 @@ struct usb_hcd *isp1760_register(phys_addr_t res_start, resource_size_t res_len,
 
 	priv = hcd_to_priv(hcd);
 	priv->devflags = devflags;
+	priv->rst_gpio = rst_gpio;
 	init_memory(priv);
 	hcd->regs = ioremap(res_start, res_len);
 	if (!hcd->regs) {
