@@ -1203,18 +1203,32 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 	return true;
 }
 
-/*
- * Attempts to merge with the plugged list in the current process. Returns
- * true if merge was successful, otherwise false.
+/**
+ * attempt_plug_merge - try to merge with %current's plugged list
+ * @q: request_queue new bio is being queued at
+ * @bio: new bio being queued
+ * @request_count: out parameter for number of traversed plugged requests
+ *
+ * Determine whether @bio being queued on @q can be merged with a request
+ * on %current's plugged list.  Returns %true if merge was successful,
+ * otherwise %false.
+ *
+ * This function is called without @q->queue_lock; however, elevator is
+ * accessed iff there already are requests on the plugged list which in
+ * turn guarantees validity of the elevator.
+ *
+ * Note that, on successful merge, elevator operation
+ * elevator_bio_merged_fn() will be called without queue lock.  Elevator
+ * must be ready for this.
  */
-static bool attempt_plug_merge(struct task_struct *tsk, struct request_queue *q,
-			       struct bio *bio, unsigned int *request_count)
+static bool attempt_plug_merge(struct request_queue *q, struct bio *bio,
+			       unsigned int *request_count)
 {
 	struct blk_plug *plug;
 	struct request *rq;
 	bool ret = false;
 
-	plug = tsk->plug;
+	plug = current->plug;
 	if (!plug)
 		goto out;
 	*request_count = 0;
@@ -1282,7 +1296,7 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (attempt_plug_merge(current, q, bio, &request_count))
+	if (attempt_plug_merge(q, bio, &request_count))
 		return;
 
 	spin_lock_irq(q->queue_lock);
