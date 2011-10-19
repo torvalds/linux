@@ -236,7 +236,7 @@ void __init setup_arch(char **cmdline_p)
 	 *  with them, we should add a test to check_bugs() below] */
 #ifndef CONFIG_M68KFPU_EMU_ONLY
 	/* clear the fpu if we have one */
-	if (m68k_fputype & (FPU_68881|FPU_68882|FPU_68040|FPU_68060)) {
+	if (m68k_fputype & (FPU_68881|FPU_68882|FPU_68040|FPU_68060|FPU_COLDFIRE)) {
 		volatile int zero = 0;
 		asm volatile ("frestore %0" : : "m" (zero));
 	}
