@@ -1089,9 +1089,7 @@ typedef struct smb_com_read_rsp {
 	__le16 DataLengthHigh;
 	__u64 Reserved2;
 	__u16 ByteCount;
-	__u8 Pad;		/* BB check for whether padded to DWORD
-				   boundary and optimum performance here */
-	char Data[1];
+	/* read response data immediately follows */
 } __attribute__((packed)) READ_RSP;
 
 typedef struct locking_andx_range {
