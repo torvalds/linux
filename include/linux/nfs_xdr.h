@@ -1155,7 +1155,6 @@ struct nfs_read_data {
 };
 
 struct nfs_write_data {
-	int			flags;
 	struct rpc_task		task;
 	struct inode		*inode;
 	struct rpc_cred		*cred;
