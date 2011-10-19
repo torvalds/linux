@@ -460,26 +460,13 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 		}
 }
 
-static void *get_frag_ptr(struct sk_buff *skb)
-{
-	struct skb_frag_struct *frag =  &skb_shinfo(skb)->frags[0];
-	struct page *page = frag->page;
-	void *ptr;
-
-	ptr = page_address(page);
-	if (unlikely(!ptr))
-		return NULL;
-
-	return ptr + frag->page_offset;
-}
-
 static int is_inline(struct sk_buff *skb, void **pfrag)
 {
 	void *ptr;
 
 	if (inline_thold && !skb_is_gso(skb) && skb->len <= inline_thold) {
 		if (skb_shinfo(skb)->nr_frags == 1) {
-			ptr = get_frag_ptr(skb);
+			ptr = skb_frag_address_safe(&skb_shinfo(skb)->frags[0]);
 			if (unlikely(!ptr))
 				return 0;
 
@@ -756,8 +743,9 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Map fragments */
 		for (i = skb_shinfo(skb)->nr_frags - 1; i >= 0; i--) {
 			frag = &skb_shinfo(skb)->frags[i];
-			dma = pci_map_page(mdev->dev->pdev, frag->page, frag->page_offset,
-					   skb_frag_size(frag), PCI_DMA_TODEVICE);
+			dma = skb_frag_dma_map(&mdev->dev->pdev->dev, frag,
+					       0, skb_frag_size(frag),
+					       DMA_TO_DEVICE);
 			data->addr = cpu_to_be64(dma);
 			data->lkey = cpu_to_be32(mdev->mr.key);
 			wmb();

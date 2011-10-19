@@ -44,7 +44,7 @@
 
 static int mlx4_en_alloc_frag(struct mlx4_en_priv *priv,
 			      struct mlx4_en_rx_desc *rx_desc,
-			      struct skb_frag_struct *skb_frags,
+			      struct page_frag *skb_frags,
 			      struct mlx4_en_rx_alloc *ring_alloc,
 			      int i)
 {
@@ -61,7 +61,7 @@ static int mlx4_en_alloc_frag(struct mlx4_en_priv *priv,
 			return -ENOMEM;
 
 		skb_frags[i].page = page_alloc->page;
-		skb_frags[i].page_offset = page_alloc->offset;
+		skb_frags[i].offset = page_alloc->offset;
 		page_alloc->page = page;
 		page_alloc->offset = frag_info->frag_align;
 	} else {
@@ -69,11 +69,11 @@ static int mlx4_en_alloc_frag(struct mlx4_en_priv *priv,
 		get_page(page);
 
 		skb_frags[i].page = page;
-		skb_frags[i].page_offset = page_alloc->offset;
+		skb_frags[i].offset = page_alloc->offset;
 		page_alloc->offset += frag_info->frag_stride;
 	}
 	dma = pci_map_single(mdev->pdev, page_address(skb_frags[i].page) +
-			     skb_frags[i].page_offset, frag_info->frag_size,
+			     skb_frags[i].offset, frag_info->frag_size,
 			     PCI_DMA_FROMDEVICE);
 	rx_desc->data[i].addr = cpu_to_be64(dma);
 	return 0;
@@ -157,8 +157,8 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 				   struct mlx4_en_rx_ring *ring, int index)
 {
 	struct mlx4_en_rx_desc *rx_desc = ring->buf + (index * ring->stride);
-	struct skb_frag_struct *skb_frags = ring->rx_info +
-					    (index << priv->log_rx_info);
+	struct page_frag *skb_frags = ring->rx_info +
+				      (index << priv->log_rx_info);
 	int i;
 
 	for (i = 0; i < priv->num_frags; i++)
@@ -183,7 +183,7 @@ static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
 				 int index)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
-	struct skb_frag_struct *skb_frags;
+	struct page_frag *skb_frags;
 	struct mlx4_en_rx_desc *rx_desc = ring->buf + (index << ring->log_stride);
 	dma_addr_t dma;
 	int nr;
@@ -194,7 +194,7 @@ static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
 		en_dbg(DRV, priv, "Unmapping buffer at dma:0x%llx\n", (u64) dma);
-		pci_unmap_single(mdev->pdev, dma, skb_frag_size(&skb_frags[nr]),
+		pci_unmap_single(mdev->pdev, dma, skb_frags[nr].size,
 				 PCI_DMA_FROMDEVICE);
 		put_page(skb_frags[nr].page);
 	}
@@ -403,7 +403,7 @@ void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 /* Unmap a completed descriptor and free unused pages */
 static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 				    struct mlx4_en_rx_desc *rx_desc,
-				    struct skb_frag_struct *skb_frags,
+				    struct page_frag *skb_frags,
 				    struct sk_buff *skb,
 				    struct mlx4_en_rx_alloc *page_alloc,
 				    int length)
@@ -421,9 +421,9 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 			break;
 
 		/* Save page reference in skb */
-		skb_frags_rx[nr].page = skb_frags[nr].page;
-		skb_frag_size_set(&skb_frags_rx[nr], skb_frag_size(&skb_frags[nr]));
-		skb_frags_rx[nr].page_offset = skb_frags[nr].page_offset;
+		__skb_frag_set_page(&skb_frags_rx[nr], skb_frags[nr].page);
+		skb_frag_size_set(&skb_frags_rx[nr], skb_frags[nr].size);
+		skb_frags_rx[nr].page_offset = skb_frags[nr].offset;
 		skb->truesize += frag_info->frag_stride;
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
@@ -446,7 +446,7 @@ fail:
 	 * the descriptor) of this packet; remaining fragments are reused... */
 	while (nr > 0) {
 		nr--;
-		put_page(skb_frags_rx[nr].page);
+		__skb_frag_unref(&skb_frags_rx[nr]);
 	}
 	return 0;
 }
@@ -454,7 +454,7 @@ fail:
 
 static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 				      struct mlx4_en_rx_desc *rx_desc,
-				      struct skb_frag_struct *skb_frags,
+				      struct page_frag *skb_frags,
 				      struct mlx4_en_rx_alloc *page_alloc,
 				      unsigned int length)
 {
@@ -475,7 +475,7 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 
 	/* Get pointer to first fragment so we could copy the headers into the
 	 * (linear part of the) skb */
-	va = page_address(skb_frags[0].page) + skb_frags[0].page_offset;
+	va = page_address(skb_frags[0].page) + skb_frags[0].offset;
 
 	if (length <= SMALL_PACKET_SIZE) {
 		/* We are copying all relevant data to the skb - temporarily
@@ -533,7 +533,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cqe *cqe;
 	struct mlx4_en_rx_ring *ring = &priv->rx_ring[cq->ring];
-	struct skb_frag_struct *skb_frags;
+	struct page_frag *skb_frags;
 	struct mlx4_en_rx_desc *rx_desc;
 	struct sk_buff *skb;
 	int index;
