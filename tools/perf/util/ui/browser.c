@@ -439,19 +439,19 @@ static struct ui_browser__colorset {
 		.colorset = HE_COLORSET_TOP,
 		.name	  = "top",
 		.fg	  = "red",
-		.bg	  = "black",
+		.bg	  = "default",
 	},
 	{
 		.colorset = HE_COLORSET_MEDIUM,
 		.name	  = "medium",
 		.fg	  = "green",
-		.bg	  = "black",
+		.bg	  = "default",
 	},
 	{
 		.colorset = HE_COLORSET_NORMAL,
 		.name	  = "normal",
-		.fg	  = "brightgreen",
-		.bg	  = "black",
+		.fg	  = "default",
+		.bg	  = "default",
 	},
 	{
 		.colorset = HE_COLORSET_SELECTED,
@@ -463,7 +463,7 @@ static struct ui_browser__colorset {
 		.colorset = HE_COLORSET_CODE,
 		.name	  = "code",
 		.fg	  = "blue",
-		.bg	  = "black",
+		.bg	  = "default",
 	},
 	{
 		.name = NULL,
