@@ -668,14 +668,14 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 
 	/* skb frags release userspace buffers */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-		put_page(skb_shinfo(skb)->frags[i].page);
+		skb_frag_unref(skb, i);
 
 	uarg->callback(uarg);
 
 	/* skb frags point to kernel buffers */
 	for (i = skb_shinfo(skb)->nr_frags; i > 0; i--) {
-		skb_shinfo(skb)->frags[i - 1].page_offset = 0;
-		skb_shinfo(skb)->frags[i - 1].page = head;
+		__skb_fill_page_desc(skb, i-1, head, 0,
+				     skb_shinfo(skb)->frags[i - 1].size);
 		head = (struct page *)head->private;
 	}
 
