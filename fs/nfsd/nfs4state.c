@@ -2653,12 +2653,6 @@ static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
 	int oflag = nfs4_access_to_omode(open->op_share_access);
 	int access = nfs4_access_to_access(open->op_share_access);
 
-	/* CLAIM_DELEGATE_CUR is used in response to a broken lease;
-	 * allowing it to break the lease and return EAGAIN leaves the
-	 * client unable to make progress in returning the delegation */
-	if (open->op_claim_type == NFS4_OPEN_CLAIM_DELEGATE_CUR)
-		access |= NFSD_MAY_NOT_BREAK_LEASE;
-
 	if (!fp->fi_fds[oflag]) {
 		status = nfsd_open(rqstp, cur_fh, S_IFREG, access,
 			&fp->fi_fds[oflag]);
