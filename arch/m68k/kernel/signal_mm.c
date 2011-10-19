@@ -56,7 +56,11 @@ static const int frame_extra_sizes[16] = {
   [1]	= -1, /* sizeof(((struct frame *)0)->un.fmt1), */
   [2]	= sizeof(((struct frame *)0)->un.fmt2),
   [3]	= sizeof(((struct frame *)0)->un.fmt3),
+#ifdef CONFIG_COLDFIRE
+  [4]	= 0,
+#else
   [4]	= sizeof(((struct frame *)0)->un.fmt4),
+#endif
   [5]	= -1, /* sizeof(((struct frame *)0)->un.fmt5), */
   [6]	= -1, /* sizeof(((struct frame *)0)->un.fmt6), */
   [7]	= sizeof(((struct frame *)0)->un.fmt7),
@@ -84,7 +88,11 @@ int handle_kernel_fault(struct pt_regs *regs)
 	regs->stkadj = frame_extra_sizes[regs->format];
 	tregs =	(struct pt_regs *)((long)regs + regs->stkadj);
 	tregs->vector = regs->vector;
+#ifdef CONFIG_COLDFIRE
+	tregs->format = 4;
+#else
 	tregs->format = 0;
+#endif
 	tregs->pc = fixup->fixup;
 	tregs->sr = regs->sr;
 
@@ -336,8 +344,12 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 		regs->format = formatvec >> 12;
 		regs->vector = formatvec & 0xfff;
 #define frame_offset (sizeof(struct pt_regs)+sizeof(struct switch_stack))
-		__asm__ __volatile__
-			("   movel %0,%/a0\n\t"
+		__asm__ __volatile__ (
+#ifdef CONFIG_COLDFIRE
+			 "   movel %0,%/sp\n\t"
+			 "   bra ret_from_signal\n"
+#else
+			 "   movel %0,%/a0\n\t"
 			 "   subl %1,%/a0\n\t"     /* make room on stack */
 			 "   movel %/a0,%/sp\n\t"  /* set stack pointer */
 			 /* move switch_stack and pt_regs */
@@ -350,6 +362,7 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 			 "2: movel %4@+,%/a0@+\n\t"
 			 "   dbra %1,2b\n\t"
 			 "   bral ret_from_signal\n"
+#endif
 			 : /* no outputs, it doesn't ever return */
 			 : "a" (sw), "d" (fsize), "d" (frame_offset/4-1),
 			   "n" (frame_offset), "a" (buf + fsize/4)
