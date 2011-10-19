@@ -829,10 +829,6 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	if (!i_size_read(inode))
 		return -1;
 
-	filemap_write_and_wait(inode->i_mapping);
-	btrfs_wait_ordered_range(inode, inode->i_size &
-				 ~(root->sectorsize - 1), (u64)-1);
-
 	io_ctl_init(&io_ctl, inode, root);
 
 	/* Get the cluster for this block_group if it exists */
