@@ -130,7 +130,7 @@ struct exynos_drm_overlay {
  * @check_timing: check if timing is valid or not.
  * @power_on: display device on or off.
  */
-struct exynos_drm_display {
+struct exynos_drm_display_ops {
 	enum exynos_drm_output_type type;
 	bool (*is_connected)(struct device *dev);
 	int (*get_edid)(struct device *dev, struct drm_connector *connector,
@@ -178,7 +178,7 @@ struct exynos_drm_manager {
 	int pipe;
 	struct exynos_drm_manager_ops *ops;
 	struct exynos_drm_overlay_ops *overlay_ops;
-	struct exynos_drm_display *display;
+	struct exynos_drm_display_ops *display_ops;
 };
 
 /*

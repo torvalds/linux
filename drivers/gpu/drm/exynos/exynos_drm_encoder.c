@@ -58,11 +58,11 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
-			struct exynos_drm_display *display =
-							manager->display;
+			struct exynos_drm_display_ops *display_ops =
+							manager->display_ops;
 
-			if (display && display->power_on)
-				display->power_on(manager->dev, mode);
+			if (display_ops && display_ops->power_on)
+				display_ops->power_on(manager->dev, mode);
 		}
 	}
 }

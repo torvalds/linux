@@ -104,13 +104,13 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 	struct exynos_drm_connector *exynos_connector =
 					to_exynos_connector(connector);
 	struct exynos_drm_manager *manager = exynos_connector->manager;
-	struct exynos_drm_display *display = manager->display;
+	struct exynos_drm_display_ops *display_ops = manager->display_ops;
 	unsigned int count;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	if (!display) {
-		DRM_DEBUG_KMS("display is null.\n");
+	if (!display_ops) {
+		DRM_DEBUG_KMS("display_ops is null.\n");
 		return 0;
 	}
 
@@ -122,7 +122,7 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 	 * P.S. in case of lcd panel, count is always 1 if success
 	 * because lcd panel has only one mode.
 	 */
-	if (display->get_edid) {
+	if (display_ops->get_edid) {
 		int ret;
 		void *edid;
 
@@ -132,7 +132,7 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 			return 0;
 		}
 
-		ret = display->get_edid(manager->dev, connector,
+		ret = display_ops->get_edid(manager->dev, connector,
 						edid, MAX_EDID);
 		if (ret < 0) {
 			DRM_ERROR("failed to get edid data.\n");
@@ -150,8 +150,8 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
 		struct fb_videomode *timing;
 
-		if (display->get_timing)
-			timing = display->get_timing(manager->dev);
+		if (display_ops->get_timing)
+			timing = display_ops->get_timing(manager->dev);
 		else {
 			drm_mode_destroy(connector->dev, mode);
 			return 0;
@@ -175,7 +175,7 @@ static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 	struct exynos_drm_connector *exynos_connector =
 					to_exynos_connector(connector);
 	struct exynos_drm_manager *manager = exynos_connector->manager;
-	struct exynos_drm_display *display = manager->display;
+	struct exynos_drm_display_ops *display_ops = manager->display_ops;
 	struct fb_videomode timing;
 	int ret = MODE_BAD;
 
@@ -183,8 +183,8 @@ static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 
 	convert_to_video_timing(&timing, mode);
 
-	if (display && display->check_timing)
-		if (!display->check_timing(manager->dev, (void *)&timing))
+	if (display_ops && display_ops->check_timing)
+		if (!display_ops->check_timing(manager->dev, (void *)&timing))
 			ret = MODE_OK;
 
 	return ret;
@@ -226,13 +226,14 @@ exynos_drm_connector_detect(struct drm_connector *connector, bool force)
 	struct exynos_drm_connector *exynos_connector =
 					to_exynos_connector(connector);
 	struct exynos_drm_manager *manager = exynos_connector->manager;
-	struct exynos_drm_display *display = manager->display;
+	struct exynos_drm_display_ops *display_ops =
+					manager->display_ops;
 	enum drm_connector_status status = connector_status_disconnected;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	if (display && display->is_connected) {
-		if (display->is_connected(manager->dev))
+	if (display_ops && display_ops->is_connected) {
+		if (display_ops->is_connected(manager->dev))
 			status = connector_status_connected;
 		else
 			status = connector_status_disconnected;
@@ -279,7 +280,7 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 
 	connector = &exynos_connector->drm_connector;
 
-	switch (manager->display->type) {
+	switch (manager->display_ops->type) {
 	case EXYNOS_DISPLAY_TYPE_HDMI:
 		type = DRM_MODE_CONNECTOR_HDMIA;
 		connector->interlace_allowed = true;

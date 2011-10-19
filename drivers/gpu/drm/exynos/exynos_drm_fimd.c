@@ -124,7 +124,7 @@ static int fimd_display_power_on(struct device *dev, int mode)
 	return 0;
 }
 
-static struct exynos_drm_display fimd_display = {
+static struct exynos_drm_display_ops fimd_display_ops = {
 	.type = EXYNOS_DISPLAY_TYPE_LCD,
 	.is_connected = fimd_display_is_connected,
 	.get_timing = fimd_get_timing,
@@ -731,7 +731,7 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	subdrv->manager.pipe = -1;
 	subdrv->manager.ops = &fimd_manager_ops;
 	subdrv->manager.overlay_ops = &fimd_overlay_ops;
-	subdrv->manager.display = &fimd_display;
+	subdrv->manager.display_ops = &fimd_display_ops;
 	subdrv->manager.dev = dev;
 
 	platform_set_drvdata(pdev, ctx);
