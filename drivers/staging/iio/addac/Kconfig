@@ -1,7 +1,7 @@
 #
 # ADDAC drivers
 #
-menu "Analog digital bi-direction convertors"
+menu "Analog digital bi-direction converters"
 
 config ADT7316
 	tristate "Analog Devices ADT7316/7/8 ADT7516/7/9 temperature sensor, ADC and DAC driver"

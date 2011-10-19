@@ -1,7 +1,7 @@
 #
 # ADC drivers
 #
-menu "Analog to digital convertors"
+menu "Analog to digital converters"
 
 config AD7150
 	tristate "Analog Devices ad7150/1/6 capacitive sensor driver"
@@ -42,7 +42,7 @@ config AD7606
 	select IIO_SW_RING
 	help
 	  Say yes here to build support for Analog Devices:
-	  ad7606, ad7606-6, ad7606-4 analog to digital convertors (ADC).
+	  ad7606, ad7606-6, ad7606-4 analog to digital converters (ADC).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7606.
@@ -70,7 +70,7 @@ config AD799X
 	help
 	  Say yes here to build support for Analog Devices:
 	  ad7991, ad7995, ad7999, ad7992, ad7993, ad7994, ad7997, ad7998
-	  i2c analog to digital convertors (ADC). Provides direct access
+	  i2c analog to digital converters (ADC). Provides direct access
 	  via sysfs.
 
 config AD799X_RING_BUFFER
@@ -91,7 +91,7 @@ config AD7476
 	help
 	  Say yes here to build support for Analog Devices
 	  AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468, AD7495
-	  SPI analog to digital convertors (ADC).
+	  SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -105,7 +105,7 @@ config AD7887
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
-	  AD7887 SPI analog to digital convertor (ADC).
+	  AD7887 SPI analog to digital converter (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -117,7 +117,7 @@ config AD7780
 	depends on GPIOLIB
 	help
 	  Say yes here to build support for Analog Devices
-	  AD7780 and AD7781 SPI analog to digital convertors (ADC).
+	  AD7780 and AD7781 SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -131,7 +131,7 @@ config AD7793
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
-	  AD7792 and AD7793 SPI analog to digital convertors (ADC).
+	  AD7792 and AD7793 SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -163,7 +163,7 @@ config AD7192
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices AD7190,
-	  AD7192 or AD7195 SPI analog to digital convertors (ADC).
+	  AD7192 or AD7195 SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -200,7 +200,7 @@ config MAX1363
 	select MAX1363_RING_BUFFER
 	help
 	  Say yes here to build support for many Maxim i2c analog to digital
-	  convertors (ADC). (max1361, max1362, max1363, max1364, max1036,
+	  converters (ADC). (max1361, max1362, max1363, max1364, max1036,
 	  max1037, max1038, max1039, max1136, max1136, max1137, max1138,
 	  max1139, max1236, max1237, max11238, max1239, max11600, max11601,
 	  max11602, max11603, max11604, max11605, max11606, max11607,
