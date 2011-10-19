@@ -326,7 +326,7 @@ static int acquire_pins(struct pinctrl_dev *pctldev,
 	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
 	const char *func = pmxops->get_function_name(pctldev,
 						     func_selector);
-	unsigned *pins;
+	const unsigned *pins;
 	unsigned num_pins;
 	int ret;
 	int i;
@@ -367,7 +367,7 @@ static void release_pins(struct pinctrl_dev *pctldev,
 			 unsigned group_selector)
 {
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	unsigned *pins;
+	const unsigned *pins;
 	unsigned num_pins;
 	int ret;
 	int i;

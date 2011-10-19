@@ -75,8 +75,8 @@ struct pinctrl_ops {
 				       unsigned selector);
 	int (*get_group_pins) (struct pinctrl_dev *pctldev,
 			       unsigned selector,
-			       unsigned ** const pins,
-			       unsigned * const num_pins);
+			       const unsigned **pins,
+			       unsigned *num_pins);
 	void (*pin_dbg_show) (struct pinctrl_dev *pctldev, struct seq_file *s,
 			  unsigned offset);
 };

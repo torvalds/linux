@@ -869,12 +869,12 @@ static const char *sirfsoc_get_group_name(struct pinctrl_dev *pctldev,
 }
 
 static int sirfsoc_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-			       unsigned ** const pins,
-			       unsigned * const num_pins)
+			       const unsigned **pins,
+			       const unsigned *num_pins)
 {
 	if (selector >= ARRAY_SIZE(sirfsoc_pin_groups))
 		return -EINVAL;
-	*pins = (unsigned *) sirfsoc_pin_groups[selector].pins;
+	*pins = sirfsoc_pin_groups[selector].pins;
 	*num_pins = sirfsoc_pin_groups[selector].num_pins;
 	return 0;
 }

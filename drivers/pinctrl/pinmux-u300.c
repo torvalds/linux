@@ -849,12 +849,12 @@ static const char *u300_get_group_name(struct pinctrl_dev *pctldev,
 }
 
 static int u300_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-			       unsigned ** const pins,
-			       unsigned * const num_pins)
+			       const unsigned **pins,
+			       unsigned *num_pins)
 {
 	if (selector >= ARRAY_SIZE(u300_pin_groups))
 		return -EINVAL;
-	*pins = (unsigned *) u300_pin_groups[selector].pins;
+	*pins = u300_pin_groups[selector].pins;
 	*num_pins = u300_pin_groups[selector].num_pins;
 	return 0;
 }
