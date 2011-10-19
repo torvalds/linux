@@ -864,6 +864,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		switch (key) {
 		case NEWT_KEY_TAB:
 		case NEWT_KEY_UNTAB:
+			if (nr_events == 1)
+				continue;
 			/*
 			 * Exit the browser, let hists__browser_tree
 			 * go to the next or previous
