@@ -2535,9 +2535,9 @@ out:
 
 static void drbd_init_workqueue(struct drbd_work_queue* wq)
 {
-	sema_init(&wq->s, 0);
 	spin_lock_init(&wq->q_lock);
 	INIT_LIST_HEAD(&wq->q);
+	init_waitqueue_head(&wq->q_wait);
 }
 
 struct drbd_tconn *conn_get_by_name(const char *name)

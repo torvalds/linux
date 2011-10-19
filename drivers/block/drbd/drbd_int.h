@@ -735,8 +735,8 @@ enum bm_flag {
 
 struct drbd_work_queue {
 	struct list_head q;
-	struct semaphore s; /* producers up it, worker down()s it */
 	spinlock_t q_lock;  /* to protect the list. */
+	wait_queue_head_t q_wait;
 };
 
 struct drbd_socket {
@@ -1832,9 +1832,8 @@ drbd_queue_work_front(struct drbd_work_queue *q, struct drbd_work *w)
 	unsigned long flags;
 	spin_lock_irqsave(&q->q_lock, flags);
 	list_add(&w->list, &q->q);
-	up(&q->s); /* within the spinlock,
-		      see comment near end of drbd_worker() */
 	spin_unlock_irqrestore(&q->q_lock, flags);
+	wake_up(&q->q_wait);
 }
 
 static inline void
@@ -1843,9 +1842,8 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
 	unsigned long flags;
 	spin_lock_irqsave(&q->q_lock, flags);
 	list_add_tail(&w->list, &q->q);
-	up(&q->s); /* within the spinlock,
-		      see comment near end of drbd_worker() */
 	spin_unlock_irqrestore(&q->q_lock, flags);
+	wake_up(&q->q_wait);
 }
 
 static inline void wake_asender(struct drbd_tconn *tconn)
