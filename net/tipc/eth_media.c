@@ -371,8 +371,6 @@ int tipc_eth_media_start(void)
 	if (eth_started)
 		return -EINVAL;
 
-	memset(eth_bearers, 0, sizeof(eth_bearers));
-
 	res = tipc_register_media(&eth_media_info);
 	if (res)
 		return res;
@@ -396,6 +394,5 @@ void tipc_eth_media_stop(void)
 
 	flush_scheduled_work();
 	unregister_netdevice_notifier(&notifier);
-	memset(&eth_bearers, 0, sizeof(eth_bearers));
 	eth_started = 0;
 }
