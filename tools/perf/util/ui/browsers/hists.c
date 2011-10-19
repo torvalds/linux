@@ -577,6 +577,16 @@ static int hist_browser__show_entry(struct hist_browser *self,
 		if (!current_entry || !self->b.navkeypressed)
 			ui_browser__set_color(&self->b, HE_COLORSET_NORMAL);
 
+		if (symbol_conf.show_nr_samples) {
+			slsmg_printf(" %11u", entry->nr_events);
+			width -= 12;
+		}
+
+		if (symbol_conf.show_total_period) {
+			slsmg_printf(" %12" PRIu64, entry->period);
+			width -= 13;
+		}
+
 		slsmg_write_nstring(s, width);
 		++row;
 		++printed;
