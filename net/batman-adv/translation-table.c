@@ -698,6 +698,9 @@ void tt_global_del_orig(struct bat_priv *bat_priv,
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* protects write access to the hash lists */
 
+	if (!hash)
+		return;
+
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 		list_lock = &hash->list_locks[i];
