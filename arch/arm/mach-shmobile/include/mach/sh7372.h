@@ -479,7 +479,9 @@ struct platform_device;
 
 struct sh7372_pm_domain {
 	struct generic_pm_domain genpd;
+	struct dev_power_governor *gov;
 	unsigned int bit_shift;
+	bool no_debug;
 };
 
 static inline struct sh7372_pm_domain *to_sh7372_pd(struct generic_pm_domain *d)
@@ -493,6 +495,7 @@ extern struct sh7372_pm_domain sh7372_a4mp;
 extern struct sh7372_pm_domain sh7372_d4;
 extern struct sh7372_pm_domain sh7372_a3rv;
 extern struct sh7372_pm_domain sh7372_a3ri;
+extern struct sh7372_pm_domain sh7372_a3sp;
 extern struct sh7372_pm_domain sh7372_a3sg;
 
 extern void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd);
