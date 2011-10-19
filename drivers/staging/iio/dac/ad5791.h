@@ -82,6 +82,7 @@ struct ad5791_chip_info {
  * @reg_vss:		negative supply regulator
  * @chip_info:		chip model specific constants
  * @vref_mv:		actual reference voltage used
+ * @vref_neg_mv:	voltage of the negative supply
  * @pwr_down_mode	current power down mode
  */
 
@@ -91,6 +92,7 @@ struct ad5791_state {
 	struct regulator		*reg_vss;
 	const struct ad5791_chip_info	*chip_info;
 	unsigned short			vref_mv;
+	unsigned int			vref_neg_mv;
 	unsigned			ctrl;
 	unsigned			pwr_down_mode;
 	bool				pwr_down;

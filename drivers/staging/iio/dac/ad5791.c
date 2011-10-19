@@ -77,7 +77,8 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 	.indexed = 1,					\
 	.address = AD5791_ADDR_DAC0,			\
 	.channel = 0,					\
-	.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),	\
+	.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED) | \
+		(1 << IIO_CHAN_INFO_OFFSET_SHARED),	\
 	.scan_type = IIO_ST('u', bits, 24, shift)	\
 }
 
@@ -225,6 +226,7 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5791_state *st = iio_priv(indio_dev);
+	u64 val64;
 	int ret;
 
 	switch (m) {
@@ -234,12 +236,16 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val &= AD5791_DAC_MASK;
 		*val >>= chan->scan_type.shift;
-		*val -= (1 << (chan->scan_type.realbits - 1));
 		return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
 		*val = 0;
 		*val2 = (st->vref_mv * 1000) >> chan->scan_type.realbits;
 		return IIO_VAL_INT_PLUS_MICRO;
+	case (1 << IIO_CHAN_INFO_OFFSET_SHARED):
+		val64 = (((u64)st->vref_neg_mv) << chan->scan_type.realbits);
+		do_div(val64, st->vref_mv);
+		*val = -val64;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -257,7 +263,6 @@ static int ad5791_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case 0:
-		val += (1 << (chan->scan_type.realbits - 1));
 		val &= AD5791_RES_MASK(chan->scan_type.realbits);
 		val <<= chan->scan_type.shift;
 
@@ -309,12 +314,15 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 	st->pwr_down = true;
 	st->spi = spi;
 
-	if (!IS_ERR(st->reg_vss) && !IS_ERR(st->reg_vdd))
-		st->vref_mv = (pos_voltage_uv - neg_voltage_uv) / 1000;
-	else if (pdata)
-		st->vref_mv = pdata->vref_pos_mv - pdata->vref_neg_mv;
-	else
+	if (!IS_ERR(st->reg_vss) && !IS_ERR(st->reg_vdd)) {
+		st->vref_mv = (pos_voltage_uv + neg_voltage_uv) / 1000;
+		st->vref_neg_mv = neg_voltage_uv / 1000;
+	} else if (pdata) {
+		st->vref_mv = pdata->vref_pos_mv + pdata->vref_neg_mv;
+		st->vref_neg_mv = pdata->vref_neg_mv;
+	} else {
 		dev_warn(&spi->dev, "reference voltage unspecified\n");
+	}
 
 	ret = ad5791_spi_write(spi, AD5791_ADDR_SW_CTRL, AD5791_SWCTRL_RESET);
 	if (ret)
