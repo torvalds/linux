@@ -292,6 +292,8 @@ struct TCP_Server_Info {
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
 	struct delayed_work	echo; /* echo ping workqueue job */
+	struct kvec *iov;	/* reusable kvec array for receives */
+	unsigned int nr_iov;	/* number of kvecs in array */
 #ifdef CONFIG_CIFS_FSCACHE
 	struct fscache_cookie   *fscache; /* client index cache cookie */
 #endif

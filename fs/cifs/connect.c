@@ -410,6 +410,24 @@ kvec_array_init(struct kvec *new, struct kvec *iov, unsigned int nr_segs,
 	return nr_segs;
 }
 
+static struct kvec *
+get_server_iovec(struct TCP_Server_Info *server, unsigned int nr_segs)
+{
+	struct kvec *new_iov;
+
+	if (server->iov && nr_segs <= server->nr_iov)
+		return server->iov;
+
+	/* not big enough -- allocate a new one and release the old */
+	new_iov = kmalloc(sizeof(*new_iov) * nr_segs, GFP_NOFS);
+	if (new_iov) {
+		kfree(server->iov);
+		server->iov = new_iov;
+		server->nr_iov = nr_segs;
+	}
+	return new_iov;
+}
+
 static int
 readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 		  unsigned int nr_segs, unsigned int to_read)
@@ -420,7 +438,7 @@ readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 	struct msghdr smb_msg;
 	struct kvec *iov;
 
-	iov = kmalloc(sizeof(*iov_orig) * nr_segs, GFP_NOFS);
+	iov = get_server_iovec(server, nr_segs);
 	if (!iov)
 		return -ENOMEM;
 
@@ -464,7 +482,6 @@ readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 			break;
 		}
 	}
-	kfree(iov);
 	return total_read;
 }
 
@@ -669,6 +686,7 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 	}
 
 	kfree(server->hostname);
+	kfree(server->iov);
 	kfree(server);
 
 	length = atomic_dec_return(&tcpSesAllocCount);
