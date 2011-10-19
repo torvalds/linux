@@ -741,8 +741,8 @@ static void mddev_unlock(struct mddev * mddev)
 	} else
 		mutex_unlock(&mddev->reconfig_mutex);
 
-	/* was we've dropped the mutex we need a spinlock to
-	 * make sur the thread doesn't disappear
+	/* As we've dropped the mutex we need a spinlock to
+	 * make sure the thread doesn't disappear
 	 */
 	spin_lock(&pers_lock);
 	md_wakeup_thread(mddev->thread);
