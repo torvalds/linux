@@ -585,10 +585,6 @@ int qib_init(struct qib_devdata *dd, int reinit)
 			continue;
 		}
 
-		/* let link come up, and enable IBC */
-		spin_lock_irqsave(&ppd->lflags_lock, flags);
-		ppd->lflags &= ~QIBL_IB_LINK_DISABLED;
-		spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 		portok++;
 	}
 
