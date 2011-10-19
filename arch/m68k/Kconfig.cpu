@@ -33,6 +33,7 @@ config COLDFIRE
 config M68020
 	bool "68020 support"
 	depends on MMU
+	select GENERIC_ATOMIC64
 	help
 	  If you anticipate running this kernel on a computer with a MC68020
 	  processor, say Y. Otherwise, say N. Note that the 68020 requires a
@@ -42,6 +43,7 @@ config M68020
 config M68030
 	bool "68030 support"
 	depends on MMU && !MMU_SUN3
+	select GENERIC_ATOMIC64
 	help
 	  If you anticipate running this kernel on a computer with a MC68030
 	  processor, say Y. Otherwise, say N. Note that a MC68EC030 will not
@@ -50,6 +52,7 @@ config M68030
 config M68040
 	bool "68040 support"
 	depends on MMU && !MMU_SUN3
+	select GENERIC_ATOMIC64
 	help
 	  If you anticipate running this kernel on a computer with a MC68LC040
 	  or MC68040 processor, say Y. Otherwise, say N. Note that an
@@ -59,6 +62,7 @@ config M68040
 config M68060
 	bool "68060 support"
 	depends on MMU && !MMU_SUN3
+	select GENERIC_ATOMIC64
 	help
 	  If you anticipate running this kernel on a computer with a MC68060
 	  processor, say Y. Otherwise, say N.
