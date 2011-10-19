@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2010 LSI Corporation.
+ *  Copyright (c) 2000-2011 LSI Corporation.
  *
  *
  *           Name:  mpi2_ioc.h
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.16
+ *  mpi2_ioc.h Version:  02.00.17
  *
  *  Version History
  *  ---------------
@@ -104,6 +104,12 @@
  *  05-12-10  02.00.15  Marked Task Set Full Event as obsolete.
  *                      Added MPI2_EVENT_SAS_TOPO_LR_UNSUPPORTED_PHY define.
  *  11-10-10  02.00.16  Added MPI2_FW_DOWNLOAD_ITYPE_MIN_PRODUCT_SPECIFIC.
+ *  02-23-11  02.00.17  Added SAS NOTIFY Primitive event, and added
+ *                      SASNotifyPrimitiveMasks field to
+ *                      MPI2_EVENT_NOTIFICATION_REQUEST.
+ *                      Added Temperature Threshold Event.
+ *                      Added Host Message Event.
+ *                      Added Send Host Message request and reply.
  *  --------------------------------------------------------------------------
  */
 
@@ -421,7 +427,7 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REQUEST
     U32                     Reserved6;                      /* 0x10 */
     U32                     EventMasks[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];/* 0x14 */
     U16                     SASBroadcastPrimitiveMasks;     /* 0x24 */
-    U16                     Reserved7;                      /* 0x26 */
+	 U16                     SASNotifyPrimitiveMasks;        /* 0x26 */
     U32                     Reserved8;                      /* 0x28 */
 } MPI2_EVENT_NOTIFICATION_REQUEST,
   MPI2_POINTER PTR_MPI2_EVENT_NOTIFICATION_REQUEST,
@@ -476,6 +482,9 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY
 #define MPI2_EVENT_GPIO_INTERRUPT                   (0x0023)
 #define MPI2_EVENT_HOST_BASED_DISCOVERY_PHY         (0x0024)
 #define MPI2_EVENT_SAS_QUIESCE                      (0x0025)
+#define MPI2_EVENT_SAS_NOTIFY_PRIMITIVE             (0x0026)
+#define MPI2_EVENT_TEMP_THRESHOLD                   (0x0027)
+#define MPI2_EVENT_HOST_MESSAGE                     (0x0028)
 
 
 /* Log Entry Added Event data */
@@ -506,6 +515,39 @@ typedef struct _MPI2_EVENT_DATA_GPIO_INTERRUPT {
 } MPI2_EVENT_DATA_GPIO_INTERRUPT,
   MPI2_POINTER PTR_MPI2_EVENT_DATA_GPIO_INTERRUPT,
   Mpi2EventDataGpioInterrupt_t, MPI2_POINTER pMpi2EventDataGpioInterrupt_t;
+
+/* Temperature Threshold Event data */
+
+typedef struct _MPI2_EVENT_DATA_TEMPERATURE {
+	U16         Status;                             /* 0x00 */
+	U8          SensorNum;                          /* 0x02 */
+	U8          Reserved1;                          /* 0x03 */
+	U16         CurrentTemperature;                 /* 0x04 */
+	U16         Reserved2;                          /* 0x06 */
+	U32         Reserved3;                          /* 0x08 */
+	U32         Reserved4;                          /* 0x0C */
+} MPI2_EVENT_DATA_TEMPERATURE,
+MPI2_POINTER PTR_MPI2_EVENT_DATA_TEMPERATURE,
+Mpi2EventDataTemperature_t, MPI2_POINTER pMpi2EventDataTemperature_t;
+
+/* Temperature Threshold Event data Status bits */
+#define MPI2_EVENT_TEMPERATURE3_EXCEEDED            (0x0008)
+#define MPI2_EVENT_TEMPERATURE2_EXCEEDED            (0x0004)
+#define MPI2_EVENT_TEMPERATURE1_EXCEEDED            (0x0002)
+#define MPI2_EVENT_TEMPERATURE0_EXCEEDED            (0x0001)
+
+
+/* Host Message Event data */
+
+typedef struct _MPI2_EVENT_DATA_HOST_MESSAGE {
+	U8          SourceVF_ID;                        /* 0x00 */
+	U8          Reserved1;                          /* 0x01 */
+	U16         Reserved2;                          /* 0x02 */
+	U32         Reserved3;                          /* 0x04 */
+	U32         HostData[1];                        /* 0x08 */
+} MPI2_EVENT_DATA_HOST_MESSAGE, MPI2_POINTER PTR_MPI2_EVENT_DATA_HOST_MESSAGE,
+Mpi2EventDataHostMessage_t, MPI2_POINTER pMpi2EventDataHostMessage_t;
+
 
 /* Hard Reset Received Event data */
 
@@ -748,6 +790,24 @@ typedef struct _MPI2_EVENT_DATA_SAS_BROADCAST_PRIMITIVE
 #define MPI2_EVENT_PRIMITIVE_RESERVED4                      (0x06)
 #define MPI2_EVENT_PRIMITIVE_CHANGE0_RESERVED               (0x07)
 #define MPI2_EVENT_PRIMITIVE_CHANGE1_RESERVED               (0x08)
+
+/* SAS Notify Primitive Event data */
+
+typedef struct _MPI2_EVENT_DATA_SAS_NOTIFY_PRIMITIVE {
+	U8                      PhyNum;                     /* 0x00 */
+	U8                      Port;                       /* 0x01 */
+	U8                      Reserved1;                  /* 0x02 */
+	U8                      Primitive;                  /* 0x03 */
+} MPI2_EVENT_DATA_SAS_NOTIFY_PRIMITIVE,
+MPI2_POINTER PTR_MPI2_EVENT_DATA_SAS_NOTIFY_PRIMITIVE,
+Mpi2EventDataSasNotifyPrimitive_t,
+MPI2_POINTER pMpi2EventDataSasNotifyPrimitive_t;
+
+/* defines for the Primitive field */
+#define MPI2_EVENT_NOTIFY_ENABLE_SPINUP                     (0x01)
+#define MPI2_EVENT_NOTIFY_POWER_LOSS_EXPECTED               (0x02)
+#define MPI2_EVENT_NOTIFY_RESERVED1                         (0x03)
+#define MPI2_EVENT_NOTIFY_RESERVED2                         (0x04)
 
 
 /* SAS Initiator Device Status Change Event data */
@@ -998,6 +1058,53 @@ typedef struct _MPI2_EVENT_ACK_REPLY
     U32                     IOCLogInfo;                     /* 0x10 */
 } MPI2_EVENT_ACK_REPLY, MPI2_POINTER PTR_MPI2_EVENT_ACK_REPLY,
   Mpi2EventAckReply_t, MPI2_POINTER pMpi2EventAckReply_t;
+
+
+/****************************************************************************
+*  SendHostMessage message
+****************************************************************************/
+
+/* SendHostMessage Request message */
+typedef struct _MPI2_SEND_HOST_MESSAGE_REQUEST {
+	U16                     HostDataLength;                 /* 0x00 */
+	U8                      ChainOffset;                    /* 0x02 */
+	U8                      Function;                       /* 0x03 */
+	U16                     Reserved1;                      /* 0x04 */
+	U8                      Reserved2;                      /* 0x06 */
+	U8                      MsgFlags;                       /* 0x07 */
+	U8                      VP_ID;                          /* 0x08 */
+	U8                      VF_ID;                          /* 0x09 */
+	U16                     Reserved3;                      /* 0x0A */
+	U8                      Reserved4;                      /* 0x0C */
+	U8                      DestVF_ID;                      /* 0x0D */
+	U16                     Reserved5;                      /* 0x0E */
+	U32                     Reserved6;                      /* 0x10 */
+	U32                     Reserved7;                      /* 0x14 */
+	U32                     Reserved8;                      /* 0x18 */
+	U32                     Reserved9;                      /* 0x1C */
+	U32                     Reserved10;                     /* 0x20 */
+	U32                     HostData[1];                    /* 0x24 */
+} MPI2_SEND_HOST_MESSAGE_REQUEST,
+MPI2_POINTER PTR_MPI2_SEND_HOST_MESSAGE_REQUEST,
+Mpi2SendHostMessageRequest_t, MPI2_POINTER pMpi2SendHostMessageRequest_t;
+
+
+/* SendHostMessage Reply message */
+typedef struct _MPI2_SEND_HOST_MESSAGE_REPLY {
+	U16                     HostDataLength;                 /* 0x00 */
+	U8                      MsgLength;                      /* 0x02 */
+	U8                      Function;                       /* 0x03 */
+	U16                     Reserved1;                      /* 0x04 */
+	U8                      Reserved2;                      /* 0x06 */
+	U8                      MsgFlags;                       /* 0x07 */
+	U8                      VP_ID;                          /* 0x08 */
+	U8                      VF_ID;                          /* 0x09 */
+	U16                     Reserved3;                      /* 0x0A */
+	U16                     Reserved4;                      /* 0x0C */
+	U16                     IOCStatus;                      /* 0x0E */
+	U32                     IOCLogInfo;                     /* 0x10 */
+} MPI2_SEND_HOST_MESSAGE_REPLY, MPI2_POINTER PTR_MPI2_SEND_HOST_MESSAGE_REPLY,
+Mpi2SendHostMessageReply_t, MPI2_POINTER pMpi2SendHostMessageReply_t;
 
 
 /****************************************************************************
