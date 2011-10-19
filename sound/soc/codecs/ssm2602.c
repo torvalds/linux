@@ -343,12 +343,14 @@ static void ssm2602_shutdown(struct snd_pcm_substream *substream,
 static int ssm2602_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = snd_soc_read(codec, SSM2602_APDIGI) & ~APDIGI_ENABLE_DAC_MUTE;
+
 	if (mute)
-		snd_soc_write(codec, SSM2602_APDIGI,
-				mute_reg | APDIGI_ENABLE_DAC_MUTE);
+		snd_soc_update_bits(codec, SSM2602_APDIGI,
+				    APDIGI_ENABLE_DAC_MUTE,
+				    APDIGI_ENABLE_DAC_MUTE);
 	else
-		snd_soc_write(codec, SSM2602_APDIGI, mute_reg);
+		snd_soc_update_bits(codec, SSM2602_APDIGI,
+				    APDIGI_ENABLE_DAC_MUTE, 0);
 	return 0;
 }
 
@@ -540,12 +542,12 @@ static int ssm2602_resume(struct snd_soc_codec *codec)
 static int ssm2602_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret, reg;
+	int ret;
 
-	reg = snd_soc_read(codec, SSM2602_LOUT1V);
-	snd_soc_write(codec, SSM2602_LOUT1V, reg | LOUT1V_LRHP_BOTH);
-	reg = snd_soc_read(codec, SSM2602_ROUT1V);
-	snd_soc_write(codec, SSM2602_ROUT1V, reg | ROUT1V_RLHP_BOTH);
+	snd_soc_update_bits(codec, SSM2602_LOUT1V,
+			    LOUT1V_LRHP_BOTH, LOUT1V_LRHP_BOTH);
+	snd_soc_update_bits(codec, SSM2602_ROUT1V,
+			    ROUT1V_RLHP_BOTH, ROUT1V_RLHP_BOTH);
 
 	ret = snd_soc_add_controls(codec, ssm2602_snd_controls,
 			ARRAY_SIZE(ssm2602_snd_controls));
@@ -578,7 +580,7 @@ static int ssm2604_probe(struct snd_soc_codec *codec)
 static int ssm260x_probe(struct snd_soc_codec *codec)
 {
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
-	int ret, reg;
+	int ret;
 
 	pr_info("ssm2602 Audio Codec %s", SSM2602_VERSION);
 
@@ -595,10 +597,10 @@ static int ssm260x_probe(struct snd_soc_codec *codec)
 	}
 
 	/* set the update bits */
-	reg = snd_soc_read(codec, SSM2602_LINVOL);
-	snd_soc_write(codec, SSM2602_LINVOL, reg | LINVOL_LRIN_BOTH);
-	reg = snd_soc_read(codec, SSM2602_RINVOL);
-	snd_soc_write(codec, SSM2602_RINVOL, reg | RINVOL_RLIN_BOTH);
+	snd_soc_update_bits(codec, SSM2602_LINVOL,
+			    LINVOL_LRIN_BOTH, LINVOL_LRIN_BOTH);
+	snd_soc_update_bits(codec, SSM2602_RINVOL,
+			    RINVOL_RLIN_BOTH, RINVOL_RLIN_BOTH);
 	/*select Line in as default input*/
 	snd_soc_write(codec, SSM2602_APANA, APANA_SELECT_DAC |
 			APANA_ENABLE_MIC_BOOST);
