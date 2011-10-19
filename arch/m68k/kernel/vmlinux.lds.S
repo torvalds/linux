@@ -1,4 +1,4 @@
-#ifdef CONFIG_MMU
+#if defined(CONFIG_MMU) && !defined(CONFIG_COLDFIRE)
 PHDRS
 {
   text PT_LOAD FILEHDR PHDRS FLAGS (7);
