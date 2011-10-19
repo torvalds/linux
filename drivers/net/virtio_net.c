@@ -877,8 +877,21 @@ static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 		dev_warn(&dev->dev, "Failed to kill VLAN ID %d.\n", vid);
 }
 
+static void virtnet_get_ringparam(struct net_device *dev,
+				struct ethtool_ringparam *ring)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	ring->rx_max_pending = virtqueue_get_vring_size(vi->rvq);
+	ring->tx_max_pending = virtqueue_get_vring_size(vi->svq);
+	ring->rx_pending = ring->rx_max_pending;
+	ring->tx_pending = ring->tx_max_pending;
+
+}
+
 static const struct ethtool_ops virtnet_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
+	.get_ringparam = virtnet_get_ringparam,
 };
 
 #define MIN_MTU 68
