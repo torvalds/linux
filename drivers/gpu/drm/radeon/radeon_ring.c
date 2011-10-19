@@ -193,7 +193,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 		DRM_ERROR("radeon: scheduling IB failed (%d).\n", r);
 		return r;
 	}
-	radeon_ring_ib_execute(rdev, ib);
+	radeon_ring_ib_execute(rdev, ib->fence->ring, ib);
 	radeon_fence_emit(rdev, ib->fence);
 	mutex_lock(&rdev->ib_pool.mutex);
 	/* once scheduled IB is considered free and protected by the fence */

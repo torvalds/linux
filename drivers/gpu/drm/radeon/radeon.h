@@ -950,16 +950,18 @@ struct radeon_asic {
 	void (*cp_fini)(struct radeon_device *rdev);
 	void (*cp_disable)(struct radeon_device *rdev);
 	void (*ring_start)(struct radeon_device *rdev);
+
+	struct {
+		void (*ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
+		void (*emit_fence)(struct radeon_device *rdev, struct radeon_fence *fence);
+		void (*emit_semaphore)(struct radeon_device *rdev, struct radeon_cp *cp,
+				       struct radeon_semaphore *semaphore, bool emit_wait);
+	} ring[RADEON_NUM_RINGS];
+
 	int (*ring_test)(struct radeon_device *rdev, struct radeon_cp *cp);
-	void (*ring_ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
 	int (*irq_set)(struct radeon_device *rdev);
 	int (*irq_process)(struct radeon_device *rdev);
 	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
-	void (*fence_ring_emit)(struct radeon_device *rdev, struct radeon_fence *fence);
-	void (*semaphore_ring_emit)(struct radeon_device *rdev,
-				    struct radeon_cp *cp,
-				    struct radeon_semaphore *semaphore,
-				    bool emit_wait);
 	int (*cs_parse)(struct radeon_cs_parser *p);
 	int (*copy_blit)(struct radeon_device *rdev,
 			 uint64_t src_offset,
@@ -1500,12 +1502,12 @@ void radeon_ring_write(struct radeon_cp *cp, uint32_t v);
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart_set_page((rdev), (i), (p))
 #define radeon_ring_start(rdev) (rdev)->asic->ring_start((rdev))
 #define radeon_ring_test(rdev, cp) (rdev)->asic->ring_test((rdev), (cp))
-#define radeon_ring_ib_execute(rdev, ib) (rdev)->asic->ring_ib_execute((rdev), (ib))
+#define radeon_ring_ib_execute(rdev, r, ib) (rdev)->asic->ring[(r)].ib_execute((rdev), (ib))
 #define radeon_irq_set(rdev) (rdev)->asic->irq_set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq_process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->get_vblank_counter((rdev), (crtc))
-#define radeon_fence_ring_emit(rdev, fence) (rdev)->asic->fence_ring_emit((rdev), (fence))
-#define radeon_semaphore_ring_emit(rdev, cp, semaphore, emit_wait) (rdev)->asic->semaphore_ring_emit((rdev), (cp), (semaphore), (emit_wait))
+#define radeon_fence_ring_emit(rdev, r, fence) (rdev)->asic->ring[(r)].emit_fence((rdev), (fence))
+#define radeon_semaphore_ring_emit(rdev, r, cp, semaphore, emit_wait) (rdev)->asic->ring[(r)].emit_semaphore((rdev), (cp), (semaphore), (emit_wait))
 #define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy_blit((rdev), (s), (d), (np), (f))
 #define radeon_copy_dma(rdev, s, d, np, f) (rdev)->asic->copy_dma((rdev), (s), (d), (np), (f))
 #define radeon_copy(rdev, s, d, np, f) (rdev)->asic->copy((rdev), (s), (d), (np), (f))

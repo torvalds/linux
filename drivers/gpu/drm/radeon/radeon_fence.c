@@ -90,7 +90,7 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence)
 		 */
 		radeon_fence_write(rdev, fence->seq, fence->ring);
 	else
-		radeon_fence_ring_emit(rdev, fence);
+		radeon_fence_ring_emit(rdev, fence->ring, fence);
 
 	trace_radeon_fence_emit(rdev->ddev, fence->seq);
 	fence->emitted = true;
