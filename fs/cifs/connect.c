@@ -746,11 +746,25 @@ cifs_demultiplex_thread(void *p)
 		if (!is_smb_response(server, buf[0]))
 			continue;
 
-		/* check the length */
-		if ((pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) ||
-		    (pdu_length < sizeof(struct smb_hdr) - 1 - 4)) {
-			cERROR(1, "Invalid size SMB length %d pdu_length %d",
-			       4, pdu_length + 4);
+		/* make sure we have enough to get to the MID */
+		if (pdu_length < sizeof(struct smb_hdr) - 1 - 4) {
+			cERROR(1, "SMB response too short (%u bytes)",
+				pdu_length);
+			cifs_reconnect(server);
+			wake_up(&server->response_q);
+			continue;
+		}
+
+		/* read down to the MID */
+		length = read_from_socket(server, buf + 4,
+					  sizeof(struct smb_hdr) - 1 - 4);
+		if (length < 0)
+			continue;
+		total_read += length;
+
+		if (pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
+			cERROR(1, "SMB response too long (%u bytes)",
+				pdu_length);
 			cifs_reconnect(server);
 			wake_up(&server->response_q);
 			continue;
@@ -759,12 +773,15 @@ cifs_demultiplex_thread(void *p)
 		/* else length ok */
 		if (pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE - 4) {
 			isLargeBuf = true;
-			memcpy(bigbuf, smallbuf, 4);
+			memcpy(bigbuf, smallbuf, total_read);
 			smb_buffer = (struct smb_hdr *)bigbuf;
 			buf = bigbuf;
 		}
 
-		length = read_from_socket(server, buf + 4, pdu_length);
+		/* now read the rest */
+		length = read_from_socket(server,
+				  buf + sizeof(struct smb_hdr) - 1,
+				  pdu_length - sizeof(struct smb_hdr) + 1 + 4);
 		if (length < 0)
 			continue;
 		total_read += length;
