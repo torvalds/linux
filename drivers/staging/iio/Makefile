@@ -20,6 +20,7 @@ obj-$(CONFIG_IIO_DUMMY_EVGEN) += iio_dummy_evgen.o
 obj-y += accel/
 obj-y += adc/
 obj-y += addac/
+obj-y += cdc/
 obj-y += dac/
 obj-y += dds/
 obj-y += gyro/
