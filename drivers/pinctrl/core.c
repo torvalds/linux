@@ -164,9 +164,8 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	/* Set owner */
 	pindesc->pctldev = pctldev;
 
-	/* Copy optional basic pin info */
-	if (name)
-		strlcpy(pindesc->name, name, sizeof(pindesc->name));
+	/* Copy basic pin info */
+	pindesc->name = name;
 
 	spin_lock(&pctldev->pin_desc_tree_lock);
 	radix_tree_insert(&pctldev->pin_desc_tree, number, pindesc);

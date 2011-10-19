@@ -55,7 +55,7 @@ struct pinctrl_dev {
  */
 struct pin_desc {
 	struct pinctrl_dev *pctldev;
-	char	name[16];
+	const char *name;
 	spinlock_t lock;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
