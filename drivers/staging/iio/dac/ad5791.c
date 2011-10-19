@@ -239,7 +239,7 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
 		*val = 0;
-		*val2 = (st->vref_mv * 1000) >> chan->scan_type.realbits;
+		*val2 = (((u64)st->vref_mv) * 1000000ULL) >> chan->scan_type.realbits;
 		return IIO_VAL_INT_PLUS_MICRO;
 	case (1 << IIO_CHAN_INFO_OFFSET_SHARED):
 		val64 = (((u64)st->vref_neg_mv) << chan->scan_type.realbits);
