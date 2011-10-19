@@ -349,11 +349,13 @@ EXPORT_SYMBOL(blk_put_queue);
 /**
  * blk_drain_queue - drain requests from request_queue
  * @q: queue to drain
+ * @drain_all: whether to drain all requests or only the ones w/ ELVPRIV
  *
- * Drain ELV_PRIV requests from @q.  The caller is responsible for ensuring
- * that no new requests which need to be drained are queued.
+ * Drain requests from @q.  If @drain_all is set, all requests are drained.
+ * If not, only ELVPRIV requests are drained.  The caller is responsible
+ * for ensuring that no new requests which need to be drained are queued.
  */
-void blk_drain_queue(struct request_queue *q)
+void blk_drain_queue(struct request_queue *q, bool drain_all)
 {
 	while (true) {
 		int nr_rqs;
@@ -361,9 +363,15 @@ void blk_drain_queue(struct request_queue *q)
 		spin_lock_irq(q->queue_lock);
 
 		elv_drain_elevator(q);
+		if (drain_all)
+			blk_throtl_drain(q);
 
 		__blk_run_queue(q);
-		nr_rqs = q->rq.elvpriv;
+
+		if (drain_all)
+			nr_rqs = q->rq.count[0] + q->rq.count[1];
+		else
+			nr_rqs = q->rq.elvpriv;
 
 		spin_unlock_irq(q->queue_lock);
 
@@ -373,30 +381,40 @@ void blk_drain_queue(struct request_queue *q)
 	}
 }
 
-/*
- * Note: If a driver supplied the queue lock, it is disconnected
- * by this function. The actual state of the lock doesn't matter
- * here as the request_queue isn't accessible after this point
- * (QUEUE_FLAG_DEAD is set) and no other requests will be queued.
+/**
+ * blk_cleanup_queue - shutdown a request queue
+ * @q: request queue to shutdown
+ *
+ * Mark @q DEAD, drain all pending requests, destroy and put it.  All
+ * future requests will be failed immediately with -ENODEV.
  */
 void blk_cleanup_queue(struct request_queue *q)
 {
-	/*
-	 * We know we have process context here, so we can be a little
-	 * cautious and ensure that pending block actions on this device
-	 * are done before moving on. Going into this function, we should
-	 * not have processes doing IO to this device.
-	 */
-	blk_sync_queue(q);
+	spinlock_t *lock = q->queue_lock;
 
-	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
+	/* mark @q DEAD, no new request or merges will be allowed afterwards */
 	mutex_lock(&q->sysfs_lock);
 	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
-	mutex_unlock(&q->sysfs_lock);
+
+	spin_lock_irq(lock);
+	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+	queue_flag_set(QUEUE_FLAG_DEAD, q);
 
 	if (q->queue_lock != &q->__queue_lock)
 		q->queue_lock = &q->__queue_lock;
 
+	spin_unlock_irq(lock);
+	mutex_unlock(&q->sysfs_lock);
+
+	/* drain all requests queued before DEAD marking */
+	blk_drain_queue(q, true);
+
+	/* @q won't process any more request, flush async actions */
+	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
+	blk_sync_queue(q);
+
+	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
@@ -1508,9 +1526,6 @@ generic_make_request_checks(struct bio *bio)
 		       queue_max_hw_sectors(q));
 		goto end_io;
 	}
-
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-		goto end_io;
 
 	part = bio->bi_bdev->bd_part;
 	if (should_fail_request(part, bio->bi_size) ||

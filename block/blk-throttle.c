@@ -309,6 +309,10 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	struct blkio_cgroup *blkcg;
 	struct request_queue *q = td->queue;
 
+	/* no throttling for dead queue */
+	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+		return NULL;
+
 	rcu_read_lock();
 	blkcg = task_blkio_cgroup(current);
 	tg = throtl_find_tg(td, blkcg);
@@ -1001,11 +1005,6 @@ static void throtl_release_tgs(struct throtl_data *td)
 	}
 }
 
-static void throtl_td_free(struct throtl_data *td)
-{
-	kfree(td);
-}
-
 /*
  * Blk cgroup controller notification saying that blkio_group object is being
  * delinked as associated cgroup object is going away. That also means that
@@ -1204,6 +1203,41 @@ out:
 	return throttled;
 }
 
+/**
+ * blk_throtl_drain - drain throttled bios
+ * @q: request_queue to drain throttled bios for
+ *
+ * Dispatch all currently throttled bios on @q through ->make_request_fn().
+ */
+void blk_throtl_drain(struct request_queue *q)
+	__releases(q->queue_lock) __acquires(q->queue_lock)
+{
+	struct throtl_data *td = q->td;
+	struct throtl_rb_root *st = &td->tg_service_tree;
+	struct throtl_grp *tg;
+	struct bio_list bl;
+	struct bio *bio;
+
+	lockdep_is_held(q->queue_lock);
+
+	bio_list_init(&bl);
+
+	while ((tg = throtl_rb_first(st))) {
+		throtl_dequeue_tg(td, tg);
+
+		while ((bio = bio_list_peek(&tg->bio_lists[READ])))
+			tg_dispatch_one_bio(td, tg, bio_data_dir(bio), &bl);
+		while ((bio = bio_list_peek(&tg->bio_lists[WRITE])))
+			tg_dispatch_one_bio(td, tg, bio_data_dir(bio), &bl);
+	}
+	spin_unlock_irq(q->queue_lock);
+
+	while ((bio = bio_list_pop(&bl)))
+		generic_make_request(bio);
+
+	spin_lock_irq(q->queue_lock);
+}
+
 int blk_throtl_init(struct request_queue *q)
 {
 	struct throtl_data *td;
@@ -1276,7 +1310,11 @@ void blk_throtl_exit(struct request_queue *q)
 	 * it.
 	 */
 	throtl_shutdown_wq(q);
-	throtl_td_free(td);
+}
+
+void blk_throtl_release(struct request_queue *q)
+{
+	kfree(q->td);
 }
 
 static int __init throtl_init(void)

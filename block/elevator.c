@@ -626,7 +626,7 @@ void elv_quiesce_start(struct request_queue *q)
 	queue_flag_set(QUEUE_FLAG_ELVSWITCH, q);
 	spin_unlock_irq(q->queue_lock);
 
-	blk_drain_queue(q);
+	blk_drain_queue(q, false);
 }
 
 void elv_quiesce_end(struct request_queue *q)
