@@ -234,11 +234,11 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val &= AD5791_DAC_MASK;
 		*val >>= chan->scan_type.shift;
-		*val -= (1 << (chan->scan_type.storagebits - 1));
+		*val -= (1 << (chan->scan_type.realbits - 1));
 		return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
 		*val = 0;
-		*val2 = (st->vref_mv * 1000) >> chan->scan_type.storagebits;
+		*val2 = (st->vref_mv * 1000) >> chan->scan_type.realbits;
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
@@ -257,8 +257,8 @@ static int ad5791_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case 0:
-		val += (1 << (chan->scan_type.storagebits - 1));
-		val &= AD5791_RES_MASK(chan->scan_type.storagebits);
+		val += (1 << (chan->scan_type.realbits - 1));
+		val &= AD5791_RES_MASK(chan->scan_type.realbits);
 		val <<= chan->scan_type.shift;
 
 		return ad5791_spi_write(st->spi, chan->address, val);
