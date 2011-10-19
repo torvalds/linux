@@ -178,6 +178,7 @@ struct qib_qsfp_data {
 	struct work_struct work;
 	struct qib_qsfp_cache cache;
 	u64 t_insert;
+	u8 modpresent;
 };
 
 extern int qib_refresh_qsfp_cache(struct qib_pportdata *ppd,

@@ -2310,12 +2310,15 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	val = ppd->cpspec->ibcctrl_a | (QLOGIC_IB_IBCC_LINKINITCMD_DISABLE <<
 		QLOGIC_IB_IBCC_LINKINITCMD_SHIFT);
 
+	ppd->cpspec->ibcctrl_a = val;
 	/*
 	 * Reset the PCS interface to the serdes (and also ibc, which is still
 	 * in reset from above).  Writes new value of ibcctrl_a as last step.
 	 */
 	qib_7322_mini_pcs_reset(ppd);
 	qib_write_kreg(dd, kr_scratch, 0ULL);
+	/* clear the linkinit cmds */
+	ppd->cpspec->ibcctrl_a &= ~SYM_MASK(IBCCtrlA_0, LinkInitCmd);
 
 	if (!ppd->cpspec->ibcctrl_b) {
 		unsigned lse = ppd->link_speed_enabled;
@@ -2380,11 +2383,6 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	/* Enable port */
 	ppd->cpspec->ibcctrl_a |= SYM_MASK(IBCCtrlA_0, IBLinkEn);
 	set_vls(ppd);
-
-	/* Hold the link state machine for mezz boards */
-	qib_set_ib_7322_lstate(ppd, 0,
-			       QLOGIC_IB_IBCC_LINKINITCMD_DISABLE);
-
 
 	/* be paranoid against later code motion, etc. */
 	spin_lock_irqsave(&dd->cspec->rcvmod_lock, flags);
@@ -5594,6 +5592,7 @@ static void qsfp_7322_event(struct work_struct *work)
 	struct qib_qsfp_data *qd;
 	struct qib_pportdata *ppd;
 	u64 pwrup;
+	unsigned long flags;
 	int ret;
 	u32 le2;
 
@@ -5605,11 +5604,15 @@ static void qsfp_7322_event(struct work_struct *work)
 	/* Delay for 20 msecs to allow ModPrs resistor to setup */
 	mdelay(QSFP_MODPRS_LAG_MSEC);
 
-	if (!qib_qsfp_mod_present(ppd))
+	if (!qib_qsfp_mod_present(ppd)) {
+		ppd->cpspec->qsfp_data.modpresent = 0;
 		/* Set the physical link to disabled */
 		qib_set_ib_7322_lstate(ppd, 0,
 				       QLOGIC_IB_IBCC_LINKINITCMD_DISABLE);
-	else {
+		spin_lock_irqsave(&ppd->lflags_lock, flags);
+		ppd->lflags &= ~QIBL_LINKV;
+		spin_unlock_irqrestore(&ppd->lflags_lock, flags);
+	} else {
 		/*
 		 * Some QSFP's not only do not respond until the full power-up
 		 * time, but may behave badly if we try. So hold off responding
@@ -5649,11 +5652,18 @@ static void qsfp_7322_event(struct work_struct *work)
 		 */
 		init_txdds_table(ppd, 0);
 		/* The physical link is being re-enabled only when the
-		   previous state was DISABLED. This should only happen when
-		   the cable has been physically pulled. */
-		if (ppd->lflags & QIBL_IB_LINK_DISABLED)
+		 * previous state was DISABLED and the VALID bit is not
+		 * set. This should only happen when  the cable has been
+		 * physically pulled. */
+		if (!ppd->cpspec->qsfp_data.modpresent &&
+		    (ppd->lflags & (QIBL_LINKV | QIBL_IB_LINK_DISABLED))) {
+			ppd->cpspec->qsfp_data.modpresent = 1;
 			qib_set_ib_7322_lstate(ppd, 0,
 				QLOGIC_IB_IBCC_LINKINITCMD_SLEEP);
+			spin_lock_irqsave(&ppd->lflags_lock, flags);
+			ppd->lflags |= QIBL_LINKV;
+			spin_unlock_irqrestore(&ppd->lflags_lock, flags);
+		}
 	}
 }
 
