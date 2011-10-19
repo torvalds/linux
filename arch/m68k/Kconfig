@@ -48,7 +48,7 @@ config TIME_LOW_RES
 	default y
 
 config ARCH_USES_GETTIMEOFFSET
-	def_bool MMU
+	def_bool MMU && !COLDFIRE
 
 config NO_IOPORT
 	def_bool y
