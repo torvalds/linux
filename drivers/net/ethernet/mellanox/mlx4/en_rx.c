@@ -404,10 +404,11 @@ void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 				    struct mlx4_en_rx_desc *rx_desc,
 				    struct skb_frag_struct *skb_frags,
-				    struct skb_frag_struct *skb_frags_rx,
+				    struct sk_buff *skb,
 				    struct mlx4_en_rx_alloc *page_alloc,
 				    int length)
 {
+	struct skb_frag_struct *skb_frags_rx = skb_shinfo(skb)->frags;
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_frag_info *frag_info;
 	int nr;
@@ -423,6 +424,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		skb_frags_rx[nr].page = skb_frags[nr].page;
 		skb_frag_size_set(&skb_frags_rx[nr], skb_frag_size(&skb_frags[nr]));
 		skb_frags_rx[nr].page_offset = skb_frags[nr].page_offset;
+		skb->truesize += frag_info->frag_stride;
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
 		/* Allocate a replacement page */
@@ -470,7 +472,6 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 	skb->dev = priv->dev;
 	skb_reserve(skb, NET_IP_ALIGN);
 	skb->len = length;
-	skb->truesize = length + sizeof(struct sk_buff);
 
 	/* Get pointer to first fragment so we could copy the headers into the
 	 * (linear part of the) skb */
@@ -490,8 +491,7 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 
 		/* Move relevant fragments to skb */
 		used_frags = mlx4_en_complete_rx_desc(priv, rx_desc, skb_frags,
-						      skb_shinfo(skb)->frags,
-						      page_alloc, length);
+						      skb, page_alloc, length);
 		if (unlikely(!used_frags)) {
 			kfree_skb(skb);
 			return NULL;
@@ -600,7 +600,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 					nr = mlx4_en_complete_rx_desc(
 						priv, rx_desc,
-						skb_frags, skb_shinfo(gro_skb)->frags,
+						skb_frags, gro_skb,
 						ring->page_alloc, length);
 					if (!nr)
 						goto next;
@@ -608,7 +608,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					skb_shinfo(gro_skb)->nr_frags = nr;
 					gro_skb->len = length;
 					gro_skb->data_len = length;
-					gro_skb->truesize += length;
 					gro_skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 					if (cqe->vlan_my_qpn &
