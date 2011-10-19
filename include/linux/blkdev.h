@@ -1197,20 +1197,6 @@ static inline uint64_t rq_io_start_time_ns(struct request *req)
 }
 #endif
 
-#ifdef CONFIG_BLK_DEV_THROTTLING
-extern int blk_throtl_init(struct request_queue *q);
-extern void blk_throtl_exit(struct request_queue *q);
-extern int blk_throtl_bio(struct request_queue *q, struct bio **bio);
-#else /* CONFIG_BLK_DEV_THROTTLING */
-static inline int blk_throtl_bio(struct request_queue *q, struct bio **bio)
-{
-	return 0;
-}
-
-static inline int blk_throtl_init(struct request_queue *q) { return 0; }
-static inline int blk_throtl_exit(struct request_queue *q) { return 0; }
-#endif /* CONFIG_BLK_DEV_THROTTLING */
-
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))
 #define MODULE_ALIAS_BLOCKDEV_MAJOR(major) \

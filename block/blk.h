@@ -188,4 +188,17 @@ static inline int blk_do_io_stat(struct request *rq)
 	        (rq->cmd_flags & REQ_DISCARD));
 }
 
-#endif
+#ifdef CONFIG_BLK_DEV_THROTTLING
+extern int blk_throtl_bio(struct request_queue *q, struct bio **bio);
+extern int blk_throtl_init(struct request_queue *q);
+extern void blk_throtl_exit(struct request_queue *q);
+#else /* CONFIG_BLK_DEV_THROTTLING */
+static inline int blk_throtl_bio(struct request_queue *q, struct bio **bio)
+{
+	return 0;
+}
+static inline int blk_throtl_init(struct request_queue *q) { return 0; }
+static inline void blk_throtl_exit(struct request_queue *q) { }
+#endif /* CONFIG_BLK_DEV_THROTTLING */
+
+#endif /* BLK_INTERNAL_H */

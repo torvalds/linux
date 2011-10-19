@@ -10,6 +10,7 @@
 #include <linux/bio.h>
 #include <linux/blktrace_api.h>
 #include "blk-cgroup.h"
+#include "blk.h"
 
 /* Max dispatch from a group in 1 round */
 static int throtl_grp_quantum = 8;
