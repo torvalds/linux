@@ -655,7 +655,12 @@ enum mutex_type {
  * @ignore_loginfos: ignore loginfos during task management
  * @remove_host: flag for when driver unloads, to avoid sending dev resets
  * @pci_error_recovery: flag to prevent ioc access until slot reset completes
- * @wait_for_port_enable_to_complete:
+ * @wait_for_discovery_to_complete: flag set at driver load time when
+ *                                               waiting on reporting devices
+ * @is_driver_loading: flag set at driver load time
+ * @port_enable_failed: flag set when port enable has failed
+ * @start_scan: flag set from scan_start callback, cleared from _mpt2sas_fw_work
+ * @start_scan_failed: means port enable failed, return's the ioc_status
  * @msix_enable: flag indicating msix is enabled
  * @msix_vector_count: number msix vectors
  * @cpu_msix_table: table for mapping cpus to msix index
@@ -790,15 +795,20 @@ struct MPT2SAS_ADAPTER {
 	u8		shost_recovery;
 
 	struct mutex	reset_in_progress_mutex;
-	struct completion	shost_recovery_done;
 	spinlock_t 	ioc_reset_in_progress_lock;
 	u8		ioc_link_reset_in_progress;
-	int		ioc_reset_in_progress_status;
+	u8		ioc_reset_in_progress_status;
 
 	u8		ignore_loginfos;
 	u8		remove_host;
 	u8		pci_error_recovery;
-	u8		wait_for_port_enable_to_complete;
+	u8		wait_for_discovery_to_complete;
+	struct completion	port_enable_done;
+	u8		is_driver_loading;
+	u8		port_enable_failed;
+
+	u8		start_scan;
+	u16		start_scan_failed;
 
 	u8		msix_enable;
 	u16		msix_vector_count;
@@ -814,11 +824,13 @@ struct MPT2SAS_ADAPTER {
 	u8		scsih_cb_idx;
 	u8		ctl_cb_idx;
 	u8		base_cb_idx;
+	u8		port_enable_cb_idx;
 	u8		config_cb_idx;
 	u8		tm_tr_cb_idx;
 	u8		tm_tr_volume_cb_idx;
 	u8		tm_sas_control_cb_idx;
 	struct _internal_cmd base_cmds;
+	struct _internal_cmd port_enable_cmds;
 	struct _internal_cmd transport_cmds;
 	struct _internal_cmd scsih_cmds;
 	struct _internal_cmd tm_cmds;
@@ -1001,6 +1013,8 @@ void mpt2sas_base_release_callback_handler(u8 cb_idx);
 
 u8 mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply);
+u8 mpt2sas_port_enable_done(struct MPT2SAS_ADAPTER *ioc, u16 smid,
+	u8 msix_index,	u32 reply);
 void *mpt2sas_base_get_reply_virt_addr(struct MPT2SAS_ADAPTER *ioc, u32 phys_addr);
 
 u32 mpt2sas_base_get_iocstate(struct MPT2SAS_ADAPTER *ioc, int cooked);
@@ -1014,6 +1028,8 @@ int mpt2sas_base_scsi_enclosure_processor(struct MPT2SAS_ADAPTER *ioc,
 void mpt2sas_base_validate_event_type(struct MPT2SAS_ADAPTER *ioc, u32 *event_type);
 
 void mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc);
+
+int mpt2sas_port_enable(struct MPT2SAS_ADAPTER *ioc);
 
 /* scsih shared API */
 u8 mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
@@ -1031,6 +1047,8 @@ struct _sas_node *mpt2sas_scsih_expander_find_by_sas_address(struct MPT2SAS_ADAP
     *ioc, u64 sas_address);
 struct _sas_device *mpt2sas_scsih_sas_device_find_by_sas_address(
     struct MPT2SAS_ADAPTER *ioc, u64 sas_address);
+
+void mpt2sas_port_enable_complete(struct MPT2SAS_ADAPTER *ioc);
 
 void mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase);
 
