@@ -454,7 +454,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		skb_fill_page_desc(skb, j, old_rx_pg.page, 0, frag_len);
 
 		skb->data_len += frag_len;
-		skb->truesize += frag_len;
+		skb->truesize += SGE_PAGE_SIZE * PAGES_PER_SGE;
 		skb->len += frag_len;
 
 		frag_size -= frag_len;
