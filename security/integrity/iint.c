@@ -80,24 +80,26 @@ static void iint_free(struct integrity_iint_cache *iint)
 }
 
 /**
- * integrity_inode_alloc - allocate an iint associated with an inode
+ * integrity_inode_get - find or allocate an iint associated with an inode
  * @inode: pointer to the inode
+ * @return: allocated iint
+ *
+ * Caller must lock i_mutex
  */
-int integrity_inode_alloc(struct inode *inode)
+struct integrity_iint_cache *integrity_inode_get(struct inode *inode)
 {
 	struct rb_node **p;
-	struct rb_node *new_node, *parent = NULL;
-	struct integrity_iint_cache *new_iint, *test_iint;
-	int rc;
+	struct rb_node *node, *parent = NULL;
+	struct integrity_iint_cache *iint, *test_iint;
 
-	new_iint = kmem_cache_alloc(iint_cache, GFP_NOFS);
-	if (!new_iint)
-		return -ENOMEM;
+	iint = integrity_iint_find(inode);
+	if (iint)
+		return iint;
 
-	new_iint->inode = inode;
-	new_node = &new_iint->rb_node;
+	iint = kmem_cache_alloc(iint_cache, GFP_NOFS);
+	if (!iint)
+		return NULL;
 
-	mutex_lock(&inode->i_mutex);	/* i_flags */
 	spin_lock(&integrity_iint_lock);
 
 	p = &integrity_iint_tree.rb_node;
@@ -105,29 +107,20 @@ int integrity_inode_alloc(struct inode *inode)
 		parent = *p;
 		test_iint = rb_entry(parent, struct integrity_iint_cache,
 				     rb_node);
-		rc = -EEXIST;
 		if (inode < test_iint->inode)
 			p = &(*p)->rb_left;
-		else if (inode > test_iint->inode)
-			p = &(*p)->rb_right;
 		else
-			goto out_err;
+			p = &(*p)->rb_right;
 	}
 
+	iint->inode = inode;
+	node = &iint->rb_node;
 	inode->i_flags |= S_IMA;
-	rb_link_node(new_node, parent, p);
-	rb_insert_color(new_node, &integrity_iint_tree);
+	rb_link_node(node, parent, p);
+	rb_insert_color(node, &integrity_iint_tree);
 
 	spin_unlock(&integrity_iint_lock);
-	mutex_unlock(&inode->i_mutex);	/* i_flags */
-
-	return 0;
-out_err:
-	spin_unlock(&integrity_iint_lock);
-	mutex_unlock(&inode->i_mutex);	/* i_flags */
-	iint_free(new_iint);
-
-	return rc;
+	return iint;
 }
 
 /**

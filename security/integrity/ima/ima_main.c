@@ -162,18 +162,13 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	if (!action)
 		return 0;
 
-retry:
-	iint = integrity_iint_find(inode);
-	if (!iint) {
-		rc = integrity_inode_alloc(inode);
-		if (!rc || rc == -EEXIST)
-			goto retry;
-		return rc;
-	}
-
 	must_appraise = action & IMA_APPRAISE;
 
 	mutex_lock(&inode->i_mutex);
+
+	iint = integrity_inode_get(inode);
+	if (!iint)
+		goto out;
 
 	/* Determine if already appraised/measured based on bitmask
 	 * (IMA_MEASURE, IMA_MEASURED, IMA_APPRAISE, IMA_APPRAISED) */
