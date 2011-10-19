@@ -296,8 +296,8 @@ static int map_skb(struct device *dev, const struct sk_buff *skb,
 	si = skb_shinfo(skb);
 	end = &si->frags[si->nr_frags];
 	for (fp = si->frags; fp < end; fp++) {
-		*++addr = dma_map_page(dev, fp->page, fp->page_offset,
-				       skb_frag_size(fp), DMA_TO_DEVICE);
+		*++addr = skb_frag_dma_map(dev, fp, 0, skb_frag_size(fp),
+					   DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, *addr))
 			goto unwind;
 	}
@@ -1357,6 +1357,35 @@ out_free:
 }
 
 /**
+ *	copy_frags - copy fragments from gather list into skb_shared_info
+ *	@skb: destination skb
+ *	@gl: source internal packet gather list
+ *	@offset: packet start offset in first page
+ *
+ *	Copy an internal packet gather list into a Linux skb_shared_info
+ *	structure.
+ */
+static inline void copy_frags(struct sk_buff *skb,
+			      const struct pkt_gl *gl,
+			      unsigned int offset)
+{
+	int i;
+
+	/* usually there's just one frag */
+	__skb_fill_page_desc(skb, 0, gl->frags[0].page,
+			     gl->frags[0].offset + offset,
+			     gl->frags[0].size - offset);
+	skb_shinfo(skb)->nr_frags = gl->nfrags;
+	for (i = 1; i < gl->nfrags; i++)
+		__skb_fill_page_desc(skb, i, gl->frags[i].page,
+				     gl->frags[i].offset,
+				     gl->frags[i].size);
+
+	/* get a reference to the last page, we don't own it */
+	get_page(gl->frags[gl->nfrags - 1].page);
+}
+
+/**
  *	t4vf_pktgl_to_skb - build an sk_buff from a packet gather list
  *	@gl: the gather list
  *	@skb_len: size of sk_buff main body if it carries fragments
@@ -1369,7 +1398,6 @@ struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
 				  unsigned int skb_len, unsigned int pull_len)
 {
 	struct sk_buff *skb;
-	struct skb_shared_info *ssi;
 
 	/*
 	 * If the ingress packet is small enough, allocate an skb large enough
@@ -1396,21 +1424,10 @@ struct sk_buff *t4vf_pktgl_to_skb(const struct pkt_gl *gl,
 		__skb_put(skb, pull_len);
 		skb_copy_to_linear_data(skb, gl->va, pull_len);
 
-		ssi = skb_shinfo(skb);
-		ssi->frags[0].page = gl->frags[0].page;
-		ssi->frags[0].page_offset = gl->frags[0].page_offset + pull_len;
-		skb_frag_size_set(&ssi->frags[0], skb_frag_size(&gl->frags[0]) - pull_len);
-		if (gl->nfrags > 1)
-			memcpy(&ssi->frags[1], &gl->frags[1],
-			       (gl->nfrags-1) * sizeof(skb_frag_t));
-		ssi->nr_frags = gl->nfrags;
-
+		copy_frags(skb, gl, pull_len);
 		skb->len = gl->tot_len;
 		skb->data_len = skb->len - pull_len;
 		skb->truesize += skb->data_len;
-
-		/* Get a reference for the last page, we don't own it */
-		get_page(gl->frags[gl->nfrags - 1].page);
 	}
 
 out:
@@ -1431,35 +1448,6 @@ void t4vf_pktgl_free(const struct pkt_gl *gl)
 	frag = gl->nfrags - 1;
 	while (frag--)
 		put_page(gl->frags[frag].page);
-}
-
-/**
- *	copy_frags - copy fragments from gather list into skb_shared_info
- *	@si: destination skb shared info structure
- *	@gl: source internal packet gather list
- *	@offset: packet start offset in first page
- *
- *	Copy an internal packet gather list into a Linux skb_shared_info
- *	structure.
- */
-static inline void copy_frags(struct skb_shared_info *si,
-			      const struct pkt_gl *gl,
-			      unsigned int offset)
-{
-	unsigned int n;
-
-	/* usually there's just one frag */
-	si->frags[0].page = gl->frags[0].page;
-	si->frags[0].page_offset = gl->frags[0].page_offset + offset;
-	skb_frag_size_set(&si->frags[0], skb_frag_size(&gl->frags[0]) - offset);
-	si->nr_frags = gl->nfrags;
-
-	n = gl->nfrags - 1;
-	if (n)
-		memcpy(&si->frags[1], &gl->frags[1], n * sizeof(skb_frag_t));
-
-	/* get a reference to the last page, we don't own it */
-	get_page(gl->frags[n].page);
 }
 
 /**
@@ -1484,7 +1472,7 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		return;
 	}
 
-	copy_frags(skb_shinfo(skb), gl, PKTSHIFT);
+	copy_frags(skb, gl, PKTSHIFT);
 	skb->len = gl->tot_len - PKTSHIFT;
 	skb->data_len = skb->len;
 	skb->truesize += skb->data_len;
@@ -1667,7 +1655,7 @@ int process_responses(struct sge_rspq *rspq, int budget)
 		rmb();
 		rsp_type = RSPD_TYPE(rc->type_gen);
 		if (likely(rsp_type == RSP_TYPE_FLBUF)) {
-			skb_frag_t *fp;
+			struct page_frag *fp;
 			struct pkt_gl gl;
 			const struct rx_sw_desc *sdesc;
 			u32 bufsz, frag;
@@ -1701,9 +1689,9 @@ int process_responses(struct sge_rspq *rspq, int budget)
 				sdesc = &rxq->fl.sdesc[rxq->fl.cidx];
 				bufsz = get_buf_size(sdesc);
 				fp->page = sdesc->page;
-				fp->page_offset = rspq->offset;
-				skb_frag_size_set(fp, min(bufsz, len));
-				len -= skb_frag_size(fp);
+				fp->offset = rspq->offset;
+				fp->size = min(bufsz, len);
+				len -= fp->size;
 				if (!len)
 					break;
 				unmap_rx_buf(rspq->adapter, &rxq->fl);
@@ -1717,9 +1705,9 @@ int process_responses(struct sge_rspq *rspq, int budget)
 			 */
 			dma_sync_single_for_cpu(rspq->adapter->pdev_dev,
 						get_buf_addr(sdesc),
-						skb_frag_size(fp), DMA_FROM_DEVICE);
+						fp->size, DMA_FROM_DEVICE);
 			gl.va = (page_address(gl.frags[0].page) +
-				 gl.frags[0].page_offset);
+				 gl.frags[0].offset);
 			prefetch(gl.va);
 
 			/*
@@ -1728,7 +1716,7 @@ int process_responses(struct sge_rspq *rspq, int budget)
 			 */
 			ret = rspq->handler(rspq, rspq->cur_desc, &gl);
 			if (likely(ret == 0))
-				rspq->offset += ALIGN(skb_frag_size(fp), FL_ALIGN);
+				rspq->offset += ALIGN(fp->size, FL_ALIGN);
 			else
 				restore_rx_bufs(&gl, &rxq->fl, frag);
 		} else if (likely(rsp_type == RSP_TYPE_CPL)) {
