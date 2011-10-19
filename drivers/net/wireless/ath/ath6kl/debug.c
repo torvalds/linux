@@ -1455,6 +1455,39 @@ static const struct file_operations fops_delete_qos = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath6kl_bgscan_int_write(struct file *file,
+				const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	u16 bgscan_int;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtou16(buf, 0, &bgscan_int))
+		return -EINVAL;
+
+	if (bgscan_int == 0)
+		bgscan_int = 0xffff;
+
+	ath6kl_wmi_scanparams_cmd(ar->wmi, 0, 0, bgscan_int, 0, 0, 0, 3,
+				  0, 0, 0);
+
+	return count;
+}
+
+static const struct file_operations fops_bgscan_int = {
+	.write = ath6kl_bgscan_int_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath6kl_debug_init(struct ath6kl *ar)
 {
 	ar->debug.fwlog_buf.buf = vmalloc(ATH6KL_FWLOG_SIZE);
@@ -1533,6 +1566,9 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("delete_qos", S_IWUSR, ar->debugfs_phy, ar,
 				&fops_delete_qos);
+
+	debugfs_create_file("bgscan_interval", S_IWUSR,
+				ar->debugfs_phy, ar, &fops_bgscan_int);
 
 	return 0;
 }
