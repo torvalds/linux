@@ -198,6 +198,10 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		return;
 	nv_connector->detected_encoder = nv_encoder;
 
+	if (dev_priv->card_type >= NV_50) {
+		connector->interlace_allowed = true;
+		connector->doublescan_allowed = true;
+	} else
 	if (nv_encoder->dcb->type == OUTPUT_LVDS ||
 	    nv_encoder->dcb->type == OUTPUT_TMDS) {
 		connector->doublescan_allowed = false;
