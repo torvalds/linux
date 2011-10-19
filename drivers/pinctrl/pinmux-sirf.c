@@ -30,7 +30,7 @@
  * pad list for the pinmux subsystem
  * refer to CS-131858-DC-6A.xls
  */
-static const struct pinctrl_pin_desc __refdata sirfsoc_pads[] = {
+static const struct pinctrl_pin_desc sirfsoc_pads[] = {
 	PINCTRL_PIN(4, "pwm0"),
 	PINCTRL_PIN(5, "pwm1"),
 	PINCTRL_PIN(6, "pwm2"),

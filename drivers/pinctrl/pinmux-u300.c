@@ -179,7 +179,7 @@
 #define U300_NUM_PADS 467
 
 /* Pad names for the pinmux subsystem */
-static const struct pinctrl_pin_desc __refdata u300_pads[] = {
+static const struct pinctrl_pin_desc u300_pads[] = {
 	/* Pads along the top edge of the chip */
 	PINCTRL_PIN(0, "P PAD VDD 28"),
 	PINCTRL_PIN(1, "P PAD GND 28"),
