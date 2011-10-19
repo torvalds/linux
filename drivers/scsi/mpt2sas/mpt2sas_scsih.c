@@ -3019,11 +3019,23 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	struct MPT2SAS_TARGET *sas_target_priv_data;
 	unsigned long flags;
 	struct _tr_list *delayed_tr;
+	u32 ioc_state;
 
-	if (ioc->shost_recovery || ioc->remove_host ||
-	    ioc->pci_error_recovery) {
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
-		   "progress!\n", __func__, ioc->name));
+	if (ioc->remove_host) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host has been "
+		    "removed: handle(0x%04x)\n", __func__, ioc->name, handle));
+		return;
+	} else if (ioc->pci_error_recovery) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host in pci "
+		    "error recovery: handle(0x%04x)\n", __func__, ioc->name,
+		    handle));
+		return;
+	}
+	ioc_state = mpt2sas_base_get_iocstate(ioc, 1);
+	if (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host is not "
+		   "operational: handle(0x%04x)\n", __func__, ioc->name,
+		   handle));
 		return;
 	}
 
@@ -3224,11 +3236,21 @@ _scsih_tm_tr_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	    mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	Mpi2SasIoUnitControlRequest_t *mpi_request;
 	u16 smid_sas_ctrl;
+	u32 ioc_state;
 
-	if (ioc->shost_recovery || ioc->remove_host ||
-	    ioc->pci_error_recovery) {
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
-		   "progress!\n", __func__, ioc->name));
+	if (ioc->remove_host) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host has been "
+		   "removed\n", __func__, ioc->name));
+		return 1;
+	} else if (ioc->pci_error_recovery) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host in pci "
+		    "error recovery\n", __func__, ioc->name));
+		return 1;
+	}
+	ioc_state = mpt2sas_base_get_iocstate(ioc, 1);
+	if (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host is not "
+		    "operational\n", __func__, ioc->name));
 		return 1;
 	}
 
