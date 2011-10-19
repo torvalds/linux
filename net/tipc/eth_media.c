@@ -46,12 +46,14 @@
  * @bearer: ptr to associated "generic" bearer structure
  * @dev: ptr to associated Ethernet network device
  * @tipc_packet_type: used in binding TIPC to Ethernet driver
+ * @cleanup: work item used when disabling bearer
  */
 
 struct eth_bearer {
 	struct tipc_bearer *bearer;
 	struct net_device *dev;
 	struct packet_type tipc_packet_type;
+	struct work_struct cleanup;
 };
 
 static struct media eth_media_info;
@@ -192,16 +194,36 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 }
 
 /**
+ * cleanup_bearer - break association between Ethernet bearer and interface
+ *
+ * This routine must be invoked from a work queue because it can sleep.
+ */
+
+static void cleanup_bearer(struct work_struct *work)
+{
+	struct eth_bearer *eb_ptr =
+		container_of(work, struct eth_bearer, cleanup);
+
+	dev_remove_pack(&eb_ptr->tipc_packet_type);
+	dev_put(eb_ptr->dev);
+	eb_ptr->dev = NULL;
+}
+
+/**
  * disable_bearer - detach TIPC bearer from an Ethernet interface
  *
- * We really should do dev_remove_pack() here, but this function can not be
- * called at tasklet level. => Use eth_bearer->bearer as a flag to throw away
- * incoming buffers, & postpone dev_remove_pack() to eth_media_stop() on exit.
+ * Mark Ethernet bearer as inactive so that incoming buffers are thrown away,
+ * then get worker thread to complete bearer cleanup.  (Can't do cleanup
+ * here because cleanup code needs to sleep and caller holds spinlocks.)
  */
 
 static void disable_bearer(struct tipc_bearer *tb_ptr)
 {
-	((struct eth_bearer *)tb_ptr->usr_handle)->bearer = NULL;
+	struct eth_bearer *eb_ptr = (struct eth_bearer *)tb_ptr->usr_handle;
+
+	eb_ptr->bearer = NULL;
+	INIT_WORK(&eb_ptr->cleanup, cleanup_bearer);
+	schedule_work(&eb_ptr->cleanup);
 }
 
 /**
@@ -369,18 +391,11 @@ int tipc_eth_media_start(void)
 
 void tipc_eth_media_stop(void)
 {
-	int i;
-
 	if (!eth_started)
 		return;
 
+	flush_scheduled_work();
 	unregister_netdevice_notifier(&notifier);
-	for (i = 0; i < MAX_ETH_BEARERS ; i++) {
-		if (eth_bearers[i].dev) {
-			dev_remove_pack(&eth_bearers[i].tipc_packet_type);
-			dev_put(eth_bearers[i].dev);
-		}
-	}
 	memset(&eth_bearers, 0, sizeof(eth_bearers));
 	eth_started = 0;
 }
