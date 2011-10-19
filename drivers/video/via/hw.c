@@ -1758,13 +1758,13 @@ static void set_display_channel(void)
 	}
 }
 
-static u8 get_sync(struct fb_info *info)
+static u8 get_sync(struct fb_var_screeninfo *var)
 {
 	u8 polarity = 0;
 
-	if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
+	if (!(var->sync & FB_SYNC_HOR_HIGH_ACT))
 		polarity |= VIA_HSYNC_NEGATIVE;
-	if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
+	if (!(var->sync & FB_SYNC_VERT_HIGH_ACT))
 		polarity |= VIA_VSYNC_NEGATIVE;
 	return polarity;
 }
@@ -1976,13 +1976,13 @@ int viafb_setmode(int video_bpp, int video_bpp1)
 			viafb_DeviceStatus = CRT_Device;
 	}
 	device_on();
-	if (!viafb_dual_fb)
-		via_set_sync_polarity(devices, get_sync(viafbinfo));
+	if (!viafb_SAMM_ON)
+		via_set_sync_polarity(devices, get_sync(&viafbinfo->var));
 	else {
 		via_set_sync_polarity(viaparinfo->shared->iga1_devices,
-			get_sync(viafbinfo));
+			get_sync(&viafbinfo->var));
 		via_set_sync_polarity(viaparinfo->shared->iga2_devices,
-			get_sync(viafbinfo1));
+			get_sync(&var2));
 	}
 
 	clock.set_engine_pll_state(VIA_STATE_ON);
