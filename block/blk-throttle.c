@@ -303,10 +303,6 @@ throtl_grp *throtl_find_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 	return tg;
 }
 
-/*
- * This function returns with queue lock unlocked in case of error, like
- * request queue is no more
- */
 static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 {
 	struct throtl_grp *tg = NULL, *__tg = NULL;
@@ -330,19 +326,15 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	spin_unlock_irq(q->queue_lock);
 
 	tg = throtl_alloc_tg(td);
-	/*
-	 * We might have slept in group allocation. Make sure queue is not
-	 * dead
-	 */
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))) {
-		if (tg)
-			kfree(tg);
-
-		return ERR_PTR(-ENODEV);
-	}
 
 	/* Group allocated and queue is still alive. take the lock */
 	spin_lock_irq(q->queue_lock);
+
+	/* Make sure @q is still alive */
+	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))) {
+		kfree(tg);
+		return NULL;
+	}
 
 	/*
 	 * Initialize the new group. After sleeping, read the blkcg again.
@@ -1118,17 +1110,17 @@ static struct blkio_policy_type blkio_policy_throtl = {
 	.plid = BLKIO_POLICY_THROTL,
 };
 
-int blk_throtl_bio(struct request_queue *q, struct bio **biop)
+bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 {
 	struct throtl_data *td = q->td;
 	struct throtl_grp *tg;
-	struct bio *bio = *biop;
 	bool rw = bio_data_dir(bio), update_disptime = true;
 	struct blkio_cgroup *blkcg;
+	bool throttled = false;
 
 	if (bio->bi_rw & REQ_THROTTLED) {
 		bio->bi_rw &= ~REQ_THROTTLED;
-		return 0;
+		goto out;
 	}
 
 	/*
@@ -1147,7 +1139,7 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 			blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size,
 					rw, rw_is_sync(bio->bi_rw));
 			rcu_read_unlock();
-			return 0;
+			goto out;
 		}
 	}
 	rcu_read_unlock();
@@ -1156,18 +1148,10 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 	 * Either group has not been allocated yet or it is not an unlimited
 	 * IO group
 	 */
-
 	spin_lock_irq(q->queue_lock);
 	tg = throtl_get_tg(td);
-
-	if (IS_ERR(tg)) {
-		if (PTR_ERR(tg)	== -ENODEV) {
-			/*
-			 * Queue is gone. No queue lock held here.
-			 */
-			return -ENODEV;
-		}
-	}
+	if (unlikely(!tg))
+		goto out_unlock;
 
 	if (tg->nr_queued[rw]) {
 		/*
@@ -1195,7 +1179,7 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 		 * So keep on trimming slice even if bio is not queued.
 		 */
 		throtl_trim_slice(td, tg, rw);
-		goto out;
+		goto out_unlock;
 	}
 
 queue_bio:
@@ -1207,16 +1191,17 @@ queue_bio:
 			tg->nr_queued[READ], tg->nr_queued[WRITE]);
 
 	throtl_add_bio_tg(q->td, tg, bio);
-	*biop = NULL;
+	throttled = true;
 
 	if (update_disptime) {
 		tg_update_disptime(td, tg);
 		throtl_schedule_next_dispatch(td);
 	}
 
-out:
+out_unlock:
 	spin_unlock_irq(q->queue_lock);
-	return 0;
+out:
+	return throttled;
 }
 
 int blk_throtl_init(struct request_queue *q)

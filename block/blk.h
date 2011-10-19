@@ -190,13 +190,13 @@ static inline int blk_do_io_stat(struct request *rq)
 }
 
 #ifdef CONFIG_BLK_DEV_THROTTLING
-extern int blk_throtl_bio(struct request_queue *q, struct bio **bio);
+extern bool blk_throtl_bio(struct request_queue *q, struct bio *bio);
 extern int blk_throtl_init(struct request_queue *q);
 extern void blk_throtl_exit(struct request_queue *q);
 #else /* CONFIG_BLK_DEV_THROTTLING */
-static inline int blk_throtl_bio(struct request_queue *q, struct bio **bio)
+static inline bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 {
-	return 0;
+	return false;
 }
 static inline int blk_throtl_init(struct request_queue *q) { return 0; }
 static inline void blk_throtl_exit(struct request_queue *q) { }

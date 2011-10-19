@@ -1515,12 +1515,8 @@ generic_make_request_checks(struct bio *bio)
 		goto end_io;
 	}
 
-	if (blk_throtl_bio(q, &bio))
-		goto end_io;
-
-	/* if bio = NULL, bio has been throttled and will be submitted later. */
-	if (!bio)
-		return false;
+	if (blk_throtl_bio(q, bio))
+		return false;	/* throttled, will be resubmitted later */
 
 	trace_block_bio_queue(q, bio);
 	return true;
