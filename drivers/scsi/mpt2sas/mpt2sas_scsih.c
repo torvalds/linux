@@ -3059,6 +3059,7 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		"handle(0x%04x), sas_addr(0x%016llx)\n", ioc->name, handle,
 			(unsigned long long)sas_address));
 		_scsih_ublock_io_device(ioc, handle);
+		sas_target_priv_data->handle = MPT2SAS_INVALID_DEVICE_HANDLE;
 	}
 
 	smid = mpt2sas_base_get_smid_hpr(ioc, ioc->tm_tr_cb_idx);
@@ -5201,6 +5202,9 @@ _scsih_remove_device(struct MPT2SAS_ADAPTER *ioc,
 	if (sas_device_backup.starget && sas_device_backup.starget->hostdata) {
 		sas_target_priv_data = sas_device_backup.starget->hostdata;
 		sas_target_priv_data->deleted = 1;
+		_scsih_ublock_io_device(ioc, sas_device_backup.handle);
+		sas_target_priv_data->handle =
+		     MPT2SAS_INVALID_DEVICE_HANDLE;
 	}
 
 	_scsih_ublock_io_device(ioc, sas_device_backup.handle);
@@ -5354,7 +5358,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		_scsih_sas_topology_change_event_debug(ioc, event_data);
 #endif
 
-	if (ioc->shost_recovery || ioc->remove_host || ioc->pci_error_recovery)
+	if (ioc->remove_host || ioc->pci_error_recovery)
 		return;
 
 	if (!ioc->sas_hba.num_phys)
@@ -5415,6 +5419,9 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		switch (reason_code) {
 		case MPI2_EVENT_SAS_TOPO_RC_PHY_CHANGED:
 
+			if (ioc->shost_recovery)
+				break;
+
 			if (link_rate == prev_link_rate)
 				break;
 
@@ -5427,6 +5434,9 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 			_scsih_check_device(ioc, handle);
 			break;
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
+
+			if (ioc->shost_recovery)
+				break;
 
 			mpt2sas_transport_update_links(ioc, sas_address,
 			    handle, phy_number, link_rate);
@@ -7091,7 +7101,13 @@ mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 		_scsih_search_responding_sas_devices(ioc);
 		_scsih_search_responding_raid_devices(ioc);
 		_scsih_search_responding_expanders(ioc);
+		if (!ioc->is_driver_loading) {
+			_scsih_prep_device_scan(ioc);
+			_scsih_search_responding_sas_devices(ioc);
+			_scsih_search_responding_raid_devices(ioc);
+			_scsih_search_responding_expanders(ioc);
 			_scsih_error_recovery_delete_devices(ioc);
+		}
 		break;
 	}
 }
@@ -7126,17 +7142,7 @@ _firmware_event_work(struct work_struct *work)
 		_scsih_scan_for_devices_after_reset(ioc);
 		break;
 	case MPT2SAS_PORT_ENABLE_COMPLETE:
-		if (!ioc->is_driver_loading && ioc->shost_recovery) {
-			_scsih_prep_device_scan(ioc);
-			_scsih_search_responding_sas_devices(ioc);
-			_scsih_search_responding_raid_devices(ioc);
-			_scsih_search_responding_expanders(ioc);
-		}
-
-		if (ioc->start_scan)
-			ioc->start_scan = 0;
-		else
-			complete(&ioc->port_enable_done);
+		ioc->start_scan = 0;
 
 
 
