@@ -398,7 +398,7 @@ static int __devinit pch_gpio_probe(struct pci_dev *pdev,
 		goto err_gpiochip_add;
 	}
 
-	irq_base = irq_alloc_descs(-1, 0, gpio_pins[chip->ioh], GFP_KERNEL);
+	irq_base = irq_alloc_descs(-1, 0, gpio_pins[chip->ioh], NUMA_NO_NODE);
 	if (irq_base < 0) {
 		dev_warn(&pdev->dev, "PCH gpio: Failed to get IRQ base num\n");
 		chip->irq_base = -1;
