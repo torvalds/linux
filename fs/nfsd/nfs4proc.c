@@ -366,12 +366,6 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	switch (open->op_claim_type) {
 		case NFS4_OPEN_CLAIM_DELEGATE_CUR:
 		case NFS4_OPEN_CLAIM_NULL:
-			/*
-			 * (1) set CURRENT_FH to the file being opened,
-			 * creating it if necessary, (2) set open->op_cinfo,
-			 * (3) set open->op_truncate if the file is to be
-			 * truncated after opening, (4) do permission checking.
-			 */
 			status = do_open_lookup(rqstp, &cstate->current_fh,
 						open);
 			if (status)
@@ -379,17 +373,14 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
 			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
-			/*
-			 * The CURRENT_FH is already set to the file being
-			 * opened.  (1) set open->op_cinfo, (2) set
-			 * open->op_truncate if the file is to be truncated
-			 * after opening, (3) do permission checking.
-			*/
+		case NFS4_OPEN_CLAIM_FH:
+		case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
 			status = do_open_fhandle(rqstp, &cstate->current_fh,
 						 open);
 			if (status)
 				goto out;
 			break;
+		case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
 			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 			dprintk("NFSD: unsupported OPEN claim type %d\n",

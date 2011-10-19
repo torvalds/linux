@@ -803,6 +803,19 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 		if ((status = check_filename(open->op_fname.data, open->op_fname.len, nfserr_inval)))
 			return status;
 		break;
+	case NFS4_OPEN_CLAIM_FH:
+	case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
+		if (argp->minorversion < 1)
+			goto xdr_error;
+		/* void */
+		break;
+	case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
+		if (argp->minorversion < 1)
+			goto xdr_error;
+		status = nfsd4_decode_stateid(argp, &open->op_delegate_stateid);
+		if (status)
+			return status;
+		break;
 	default:
 		goto xdr_error;
 	}
