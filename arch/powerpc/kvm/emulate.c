@@ -84,6 +84,7 @@ static int kvmppc_dec_enabled(struct kvm_vcpu *vcpu)
 void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 {
 	unsigned long dec_nsec;
+	unsigned long long dec_time;
 
 	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
 #ifdef CONFIG_PPC_BOOK3S
@@ -103,11 +104,12 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 		 * host ticks. */
 
 		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
-		dec_nsec = vcpu->arch.dec;
-		dec_nsec *= 1000;
-		dec_nsec /= tb_ticks_per_usec;
-		hrtimer_start(&vcpu->arch.dec_timer, ktime_set(0, dec_nsec),
-			      HRTIMER_MODE_REL);
+		dec_time = vcpu->arch.dec;
+		dec_time *= 1000;
+		do_div(dec_time, tb_ticks_per_usec);
+		dec_nsec = do_div(dec_time, NSEC_PER_SEC);
+		hrtimer_start(&vcpu->arch.dec_timer,
+			ktime_set(dec_time, dec_nsec), HRTIMER_MODE_REL);
 		vcpu->arch.dec_jiffies = get_tb();
 	} else {
 		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
