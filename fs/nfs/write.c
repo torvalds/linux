@@ -1011,7 +1011,6 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc, struct list_head *r
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &data->pages);
-		ClearPageError(req->wb_page);
 		*pages++ = req->wb_page;
 	}
 	req = nfs_list_entry(data->pages.next);
