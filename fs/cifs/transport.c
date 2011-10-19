@@ -339,8 +339,8 @@ wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ)
  */
 int
 cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
-		unsigned int nvec, mid_callback_t *callback, void *cbdata,
-		bool ignore_pend)
+		unsigned int nvec, mid_receive_t *receive,
+		mid_callback_t *callback, void *cbdata, bool ignore_pend)
 {
 	int rc;
 	struct mid_q_entry *mid;
@@ -374,6 +374,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 		goto out_err;
 	}
 
+	mid->receive = receive;
 	mid->callback = callback;
 	mid->callback_data = cbdata;
 	mid->midState = MID_REQUEST_SUBMITTED;

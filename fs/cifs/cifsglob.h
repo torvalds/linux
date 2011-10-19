@@ -656,8 +656,24 @@ static inline void cifs_stats_bytes_read(struct cifs_tcon *tcon,
 struct mid_q_entry;
 
 /*
- * This is the prototype for the mid callback function. When creating one,
- * take special care to avoid deadlocks. Things to bear in mind:
+ * This is the prototype for the mid receive function. This function is for
+ * receiving the rest of the SMB frame, starting with the WordCount (which is
+ * just after the MID in struct smb_hdr). Note:
+ *
+ * - This will be called by cifsd, with no locks held.
+ * - The mid will still be on the pending_mid_q.
+ * - mid->resp_buf will point to the current buffer.
+ *
+ * Returns zero on a successful receive, or an error. The receive state in
+ * the TCP_Server_Info will also be updated.
+ */
+typedef int (mid_receive_t)(struct TCP_Server_Info *server,
+			    struct mid_q_entry *mid);
+
+/*
+ * This is the prototype for the mid callback function. This is called once the
+ * mid has been received off of the socket. When creating one, take special
+ * care to avoid deadlocks. Things to bear in mind:
  *
  * - it will be called by cifsd, with no locks held
  * - the mid will be removed from any lists
@@ -675,9 +691,10 @@ struct mid_q_entry {
 	unsigned long when_sent; /* time when smb send finished */
 	unsigned long when_received; /* when demux complete (taken off wire) */
 #endif
+	mid_receive_t *receive; /* call receive callback */
 	mid_callback_t *callback; /* call completion callback */
 	void *callback_data;	  /* general purpose pointer for callback */
-	struct smb_hdr *resp_buf;	/* response buffer */
+	struct smb_hdr *resp_buf;	/* pointer to received SMB header */
 	int midState;	/* wish this were enum but can not pass to wait_event */
 	__u8 command;	/* smb command code */
 	bool largeBuf:1;	/* if valid response, is pointer to large buf */

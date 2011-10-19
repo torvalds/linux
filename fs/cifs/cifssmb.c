@@ -737,7 +737,8 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	iov.iov_base = smb;
 	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
-	rc = cifs_call_async(server, &iov, 1, cifs_echo_callback, server, true);
+	rc = cifs_call_async(server, &iov, 1, NULL, cifs_echo_callback,
+			     server, true);
 	if (rc)
 		cFYI(1, "Echo request failed: %d", rc);
 
@@ -1834,7 +1835,7 @@ cifs_async_writev(struct cifs_writedata *wdata)
 
 	kref_get(&wdata->refcount);
 	rc = cifs_call_async(tcon->ses->server, iov, wdata->nr_pages + 1,
-			     cifs_writev_callback, wdata, false);
+			     NULL, cifs_writev_callback, wdata, false);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->num_writes);

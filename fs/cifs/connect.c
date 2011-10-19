@@ -824,7 +824,11 @@ cifs_demultiplex_thread(void *p)
 
 		mid_entry = find_mid(server, smb_buffer);
 
-		length = standard_receive3(server, mid_entry);
+		if (!mid_entry || !mid_entry->receive)
+			length = standard_receive3(server, mid_entry);
+		else
+			length = mid_entry->receive(server, mid_entry);
+
 		if (length < 0)
 			continue;
 

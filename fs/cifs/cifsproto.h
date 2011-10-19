@@ -69,8 +69,9 @@ extern struct mid_q_entry *AllocMidQEntry(const struct smb_hdr *smb_buffer,
 					struct TCP_Server_Info *server);
 extern void DeleteMidQEntry(struct mid_q_entry *midEntry);
 extern int cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
-			   unsigned int nvec, mid_callback_t *callback,
-			   void *cbdata, bool ignore_pend);
+			   unsigned int nvec, mid_receive_t *receive,
+			   mid_callback_t *callback, void *cbdata,
+			   bool ignore_pend);
 extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
