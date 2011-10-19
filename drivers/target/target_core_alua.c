@@ -60,10 +60,30 @@ int core_emulate_report_target_port_groups(struct se_cmd *cmd)
 	unsigned char *buf = (unsigned char *)T_TASK(cmd)->t_task_buf;
 	u32 rd_len = 0, off = 4; /* Skip over RESERVED area to first
 				    Target port group descriptor */
+	/*
+	 * Need at least 4 bytes of response data or else we can't
+	 * even fit the return data length.
+	 */
+	if (cmd->data_length < 4) {
+		pr_warn("REPORT TARGET PORT GROUPS allocation length %u"
+			" too small\n", cmd->data_length);
+		return -EINVAL;
+	}
 
 	spin_lock(&T10_ALUA(su_dev)->tg_pt_gps_lock);
 	list_for_each_entry(tg_pt_gp, &T10_ALUA(su_dev)->tg_pt_gps_list,
 			tg_pt_gp_list) {
+		/*
+		 * Check if the Target port group and Target port descriptor list
+		 * based on tg_pt_gp_members count will fit into the response payload.
+		 * Otherwise, bump rd_len to let the initiator know we have exceeded
+		 * the allocation length and the response is truncated.
+		 */
+		if ((off + 8 + (tg_pt_gp->tg_pt_gp_members * 4)) >
+		     cmd->data_length) {
+			rd_len += 8 + (tg_pt_gp->tg_pt_gp_members * 4);
+			continue;
+		}
 		/*
 		 * PREF: Preferred target port bit, determine if this
 		 * bit should be set for port group.
