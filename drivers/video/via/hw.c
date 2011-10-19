@@ -2125,7 +2125,6 @@ void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 	}
 }
 
-/*According var's xres, yres fill var's other timing information*/
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var,
 	struct crt_mode_table *mode)
 {
@@ -2134,6 +2133,8 @@ void viafb_fill_var_timing_info(struct fb_var_screeninfo *var,
 	crt_reg = mode->crtc;
 	var->pixclock = 1000000000 / (crt_reg.hor_total * crt_reg.ver_total)
 		* 1000 / mode->refresh_rate;
+	var->xres = crt_reg.hor_addr;
+	var->yres = crt_reg.ver_addr;
 	var->left_margin =
 	    crt_reg.hor_total - (crt_reg.hor_sync_start + crt_reg.hor_sync_end);
 	var->right_margin = crt_reg.hor_sync_start - crt_reg.hor_addr;
