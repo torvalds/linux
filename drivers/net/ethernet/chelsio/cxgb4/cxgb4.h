@@ -326,7 +326,7 @@ struct sge_fl {                     /* SGE free-buffer queue state */
 
 /* A packet gather list */
 struct pkt_gl {
-	skb_frag_t frags[MAX_SKB_FRAGS];
+	struct page_frag frags[MAX_SKB_FRAGS];
 	void *va;                         /* virtual address of first byte */
 	unsigned int nfrags;              /* # of fragments */
 	unsigned int tot_len;             /* total length of fragments */
