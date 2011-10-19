@@ -1895,6 +1895,21 @@ static int perf_file_section__process(struct perf_file_section *section,
 		if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
 			pr_debug("Failed to read buildids, continuing...\n");
 		break;
+
+	case HEADER_HOSTNAME:
+	case HEADER_OSRELEASE:
+	case HEADER_VERSION:
+	case HEADER_ARCH:
+	case HEADER_NRCPUS:
+	case HEADER_CPUDESC:
+	case HEADER_CPUID:
+	case HEADER_TOTAL_MEM:
+	case HEADER_CMDLINE:
+	case HEADER_EVENT_DESC:
+	case HEADER_CPU_TOPOLOGY:
+	case HEADER_NUMA_TOPOLOGY:
+		break;
+
 	default:
 		pr_debug("unknown feature %d, continuing...\n", feat);
 	}
