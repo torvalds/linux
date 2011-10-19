@@ -743,11 +743,17 @@ static long wb_writeback(struct bdi_writeback *wb,
 		if (work->for_background && !over_bground_thresh(wb->bdi))
 			break;
 
+		/*
+		 * Kupdate and background works are special and we want to
+		 * include all inodes that need writing. Livelock avoidance is
+		 * handled by these works yielding to any other work so we are
+		 * safe.
+		 */
 		if (work->for_kupdate) {
 			oldest_jif = jiffies -
 				msecs_to_jiffies(dirty_expire_interval * 10);
-			work->older_than_this = &oldest_jif;
-		}
+		} else if (work->for_background)
+			oldest_jif = jiffies;
 
 		trace_writeback_start(wb->bdi, work);
 		if (list_empty(&wb->b_io))
