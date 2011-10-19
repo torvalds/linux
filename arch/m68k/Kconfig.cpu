@@ -236,8 +236,8 @@ config M54xx
 
 config M547x
 	bool "MCF547x"
-	depends on !MMU
 	select M54xx
+	select MMU_COLDFIRE if MMU
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
 	help
@@ -245,7 +245,7 @@ config M547x
 
 config M548x
 	bool "MCF548x"
-	depends on !MMU
+	select MMU_COLDFIRE if MMU
 	select M54xx
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
