@@ -258,6 +258,10 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)_end;
 
+#if defined(CONFIG_BOOTPARAM)
+	strncpy(m68k_command_line, CONFIG_BOOTPARAM_STRING, CL_SIZE);
+	m68k_command_line[CL_SIZE - 1] = 0;
+#endif /* CONFIG_BOOTPARAM */
 	*cmdline_p = m68k_command_line;
 	memcpy(boot_command_line, *cmdline_p, CL_SIZE);
 
