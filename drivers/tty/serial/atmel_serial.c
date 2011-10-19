@@ -1674,7 +1674,6 @@ static int __init atmel_console_init(void)
 		int id = atmel_default_console_device->id;
 		struct atmel_uart_port *port = &atmel_ports[id];
 
-		set_bit(id, &atmel_ports_in_use);
 		port->backup_imr = 0;
 		port->uart.line = id;
 
