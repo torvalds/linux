@@ -235,7 +235,7 @@ FUNC(memcpy)	/* %o0=dst %o1=src %o2=len */
 	add		%o1, 4, %o1
 	add		%o0, 4, %o0
 2:
-	andcc		%g1, 0xffffff80, %g7
+	andcc		%g1, 0xffffff80, %g0
 	be		3f
 	 andcc		%o0, 4, %g0
 
@@ -245,22 +245,23 @@ FUNC(memcpy)	/* %o0=dst %o1=src %o2=len */
 	MOVE_BIGCHUNK(o1, o0, 0x20, o2, o3, o4, o5, g2, g3, g4, g5)
 	MOVE_BIGCHUNK(o1, o0, 0x40, o2, o3, o4, o5, g2, g3, g4, g5)
 	MOVE_BIGCHUNK(o1, o0, 0x60, o2, o3, o4, o5, g2, g3, g4, g5)
-	subcc		%g7, 128, %g7
+	sub		%g1, 128, %g1
 	add		%o1, 128, %o1
-	bne		5b
+	cmp		%g1, 128
+	bge		5b
 	 add		%o0, 128, %o0
 3:
-	andcc		%g1, 0x70, %g7
+	andcc		%g1, 0x70, %g4
 	be		80f
 	 andcc		%g1, 8, %g0
 
 	sethi		%hi(80f), %o5
-	srl		%g7, 1, %o4
-	add		%g7, %o4, %o4
-	add		%o1, %g7, %o1
+	srl		%g4, 1, %o4
+	add		%g4, %o4, %o4
+	add		%o1, %g4, %o1
 	sub		%o5, %o4, %o5
 	jmpl		%o5 + %lo(80f), %g0
-	 add		%o0, %g7, %o0
+	 add		%o0, %g4, %o0
 
 79:	/* memcpy_table */
 
@@ -314,20 +315,21 @@ FUNC(memcpy)	/* %o0=dst %o1=src %o2=len */
 	MOVE_BIGALIGNCHUNK(o1, o0, 0x20, o2, o3, o4, o5, g2, g3, g4, g5)
 	MOVE_BIGALIGNCHUNK(o1, o0, 0x40, o2, o3, o4, o5, g2, g3, g4, g5)
 	MOVE_BIGALIGNCHUNK(o1, o0, 0x60, o2, o3, o4, o5, g2, g3, g4, g5)
-	subcc		%g7, 128, %g7
+	subcc		%g1, 128, %g1
 	add		%o1, 128, %o1
-	bne		82b
+	cmp		%g1, 128
+	bge		82b
 	 add		%o0, 128, %o0
 
-	andcc		%g1, 0x70, %g7
+	andcc		%g1, 0x70, %g4
 	be		84f
 	 andcc		%g1, 8, %g0
 
 	sethi		%hi(84f), %o5
-	add		%o1, %g7, %o1
-	sub		%o5, %g7, %o5
+	add		%o1, %g4, %o1
+	sub		%o5, %g4, %o5
 	jmpl		%o5 + %lo(84f), %g0
-	 add		%o0, %g7, %o0
+	 add		%o0, %g4, %o0
 
 83:	/* amemcpy_table */
 
@@ -376,124 +378,127 @@ FUNC(memcpy)	/* %o0=dst %o1=src %o2=len */
 86:	/* non_aligned */
 	cmp		%o2, 6
 	bleu		88f
-	 andcc		%o0, 3, %g0
-	be		61f
-	 andcc		%o0, 1, %g0
-	be		60f
-	 andcc		%o0, 2, %g0
+	 nop
 
-	ldub		[%o1], %g5
-	add		%o1, 1, %o1
-	stb		%g5, [%o0]
-	sub		%o2, 1, %o2
+	save		%sp, -96, %sp
+	andcc		%i0, 3, %g0
+	be		61f
+	 andcc		%i0, 1, %g0
+	be		60f
+	 andcc		%i0, 2, %g0
+
+	ldub		[%i1], %g5
+	add		%i1, 1, %i1
+	stb		%g5, [%i0]
+	sub		%i2, 1, %i2
 	bne		61f
-	 add		%o0, 1, %o0
+	 add		%i0, 1, %i0
 60:
-	ldub		[%o1], %g3
-	add		%o1, 2, %o1
-	stb		%g3, [%o0]
-	sub		%o2, 2, %o2
-	ldub		[%o1 - 1], %g3
-	add		%o0, 2, %o0
-	stb		%g3, [%o0 - 1]
+	ldub		[%i1], %g3
+	add		%i1, 2, %i1
+	stb		%g3, [%i0]
+	sub		%i2, 2, %i2
+	ldub		[%i1 - 1], %g3
+	add		%i0, 2, %i0
+	stb		%g3, [%i0 - 1]
 61:
-	and		%o1, 3, %g2
-	and		%o2, 0xc, %g3
-	and		%o1, -4, %o1
+	and		%i1, 3, %g2
+	and		%i2, 0xc, %g3
+	and		%i1, -4, %i1
 	cmp		%g3, 4
 	sll		%g2, 3, %g4
 	mov		32, %g2
 	be		4f
-	 sub		%g2, %g4, %g7
+	 sub		%g2, %g4, %l0
 	
 	blu		3f
 	 cmp		%g3, 0x8
 
 	be		2f
-	 srl		%o2, 2, %g3
+	 srl		%i2, 2, %g3
 
-	ld		[%o1], %o3
-	add		%o0, -8, %o0
-	ld		[%o1 + 4], %o4
+	ld		[%i1], %i3
+	add		%i0, -8, %i0
+	ld		[%i1 + 4], %i4
 	b		8f
 	 add		%g3, 1, %g3
 2:
-	ld		[%o1], %o4
-	add		%o0, -12, %o0
-	ld		[%o1 + 4], %o5
+	ld		[%i1], %i4
+	add		%i0, -12, %i0
+	ld		[%i1 + 4], %i5
 	add		%g3, 2, %g3
 	b		9f
-	 add		%o1, -4, %o1
+	 add		%i1, -4, %i1
 3:
-	ld		[%o1], %g1
-	add		%o0, -4, %o0
-	ld		[%o1 + 4], %o3
-	srl		%o2, 2, %g3
+	ld		[%i1], %g1
+	add		%i0, -4, %i0
+	ld		[%i1 + 4], %i3
+	srl		%i2, 2, %g3
 	b		7f
-	 add		%o1, 4, %o1
+	 add		%i1, 4, %i1
 4:
-	ld		[%o1], %o5
-	cmp		%o2, 7
-	ld		[%o1 + 4], %g1
-	srl		%o2, 2, %g3
+	ld		[%i1], %i5
+	cmp		%i2, 7
+	ld		[%i1 + 4], %g1
+	srl		%i2, 2, %g3
 	bleu		10f
-	 add		%o1, 8, %o1
+	 add		%i1, 8, %i1
 
-	ld		[%o1], %o3
+	ld		[%i1], %i3
 	add		%g3, -1, %g3
 5:
-	sll		%o5, %g4, %g2
-	srl		%g1, %g7, %g5
+	sll		%i5, %g4, %g2
+	srl		%g1, %l0, %g5
 	or		%g2, %g5, %g2
-	st		%g2, [%o0]
+	st		%g2, [%i0]
 7:
-	ld		[%o1 + 4], %o4
+	ld		[%i1 + 4], %i4
 	sll		%g1, %g4, %g2
-	srl		%o3, %g7, %g5
+	srl		%i3, %l0, %g5
 	or		%g2, %g5, %g2
-	st		%g2, [%o0 + 4]
+	st		%g2, [%i0 + 4]
 8:
-	ld		[%o1 + 8], %o5
-	sll		%o3, %g4, %g2
-	srl		%o4, %g7, %g5
+	ld		[%i1 + 8], %i5
+	sll		%i3, %g4, %g2
+	srl		%i4, %l0, %g5
 	or		%g2, %g5, %g2
-	st		%g2, [%o0 + 8]
+	st		%g2, [%i0 + 8]
 9:
-	ld		[%o1 + 12], %g1
-	sll		%o4, %g4, %g2
-	srl		%o5, %g7, %g5
+	ld		[%i1 + 12], %g1
+	sll		%i4, %g4, %g2
+	srl		%i5, %l0, %g5
 	addcc		%g3, -4, %g3
 	or		%g2, %g5, %g2
-	add		%o1, 16, %o1
-	st		%g2, [%o0 + 12]
-	add		%o0, 16, %o0
+	add		%i1, 16, %i1
+	st		%g2, [%i0 + 12]
+	add		%i0, 16, %i0
 	bne,a		5b
-	 ld		[%o1], %o3
+	 ld		[%i1], %i3
 10:
-	sll		%o5, %g4, %g2
-	srl		%g1, %g7, %g5
-	srl		%g7, 3, %g3
+	sll		%i5, %g4, %g2
+	srl		%g1, %l0, %g5
+	srl		%l0, 3, %g3
 	or		%g2, %g5, %g2
-	sub		%o1, %g3, %o1
-	andcc		%o2, 2, %g0
-	st		%g2, [%o0]
+	sub		%i1, %g3, %i1
+	andcc		%i2, 2, %g0
+	st		%g2, [%i0]
 	be		1f
-	 andcc		%o2, 1, %g0
+	 andcc		%i2, 1, %g0
 
-	ldub		[%o1], %g2
-	add		%o1, 2, %o1
-	stb		%g2, [%o0 + 4]
-	add		%o0, 2, %o0
-	ldub		[%o1 - 1], %g2
-	stb		%g2, [%o0 + 3]
+	ldub		[%i1], %g2
+	add		%i1, 2, %i1
+	stb		%g2, [%i0 + 4]
+	add		%i0, 2, %i0
+	ldub		[%i1 - 1], %g2
+	stb		%g2, [%i0 + 3]
 1:
 	be		1f
 	 nop
-	ldub		[%o1], %g2
-	stb		%g2, [%o0 + 4]
+	ldub		[%i1], %g2
+	stb		%g2, [%i0 + 4]
 1:
-	retl
-	 RETL_INSN
+	ret
+	 restore	%g0, %g0, %o0
 
 88:	/* short_end */
 
