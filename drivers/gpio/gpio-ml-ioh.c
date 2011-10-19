@@ -428,7 +428,7 @@ static int __devinit ioh_gpio_probe(struct pci_dev *pdev,
 	chip = chip_save;
 	for (j = 0; j < 8; j++, chip++) {
 		irq_base = irq_alloc_descs(-1, IOH_IRQ_BASE, num_ports[j],
-					   GFP_KERNEL);
+					   NUMA_NO_NODE);
 		if (irq_base < 0) {
 			dev_warn(&pdev->dev,
 				"ml_ioh_gpio: Failed to get IRQ base num\n");
