@@ -324,12 +324,8 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	/*
 	 * Need to allocate a group. Allocation of group also needs allocation
 	 * of per cpu stats which in-turn takes a mutex() and can block. Hence
-	 * we need to drop rcu lock and queue_lock before we call alloc
-	 *
-	 * Take the request queue reference to make sure queue does not
-	 * go away once we return from allocation.
+	 * we need to drop rcu lock and queue_lock before we call alloc.
 	 */
-	blk_get_queue(q);
 	rcu_read_unlock();
 	spin_unlock_irq(q->queue_lock);
 
@@ -339,13 +335,11 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	 * dead
 	 */
 	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))) {
-		blk_put_queue(q);
 		if (tg)
 			kfree(tg);
 
 		return ERR_PTR(-ENODEV);
 	}
-	blk_put_queue(q);
 
 	/* Group allocated and queue is still alive. take the lock */
 	spin_lock_irq(q->queue_lock);
