@@ -3016,7 +3016,8 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	Mpi2SCSITaskManagementRequest_t *mpi_request;
 	u16 smid;
 	struct _sas_device *sas_device;
-	struct MPT2SAS_TARGET *sas_target_priv_data;
+	struct MPT2SAS_TARGET *sas_target_priv_data = NULL;
+	u64 sas_address = 0;
 	unsigned long flags;
 	struct _tr_list *delayed_tr;
 	u32 ioc_state;
@@ -3049,12 +3050,16 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	     sas_device->starget->hostdata) {
 		sas_target_priv_data = sas_device->starget->hostdata;
 		sas_target_priv_data->deleted = 1;
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
-		    "setting delete flag: handle(0x%04x), "
-		    "sas_addr(0x%016llx)\n", ioc->name, handle,
-		    (unsigned long long) sas_device->sas_address));
+		sas_address = sas_device->sas_address;
 	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+
+	if (sas_target_priv_data) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "setting delete flag: "
+		"handle(0x%04x), sas_addr(0x%016llx)\n", ioc->name, handle,
+			(unsigned long long)sas_address));
+		_scsih_ublock_io_device(ioc, handle);
+	}
 
 	smid = mpt2sas_base_get_smid_hpr(ioc, ioc->tm_tr_cb_idx);
 	if (!smid) {
