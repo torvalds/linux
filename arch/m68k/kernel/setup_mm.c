@@ -221,7 +221,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/* The bootinfo is located right after the kernel bss */
-	m68k_parse_bootinfo((const struct bi_record *)_end);
+	if (!CPU_IS_COLDFIRE)
+		m68k_parse_bootinfo((const struct bi_record *)_end);
 
 	if (CPU_IS_040)
 		m68k_is040or060 = 4;
@@ -325,6 +326,11 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_SUN3X
 	case MACH_SUN3X:
 		config_sun3x();
+		break;
+#endif
+#ifdef CONFIG_COLDFIRE
+	case MACH_M54XX:
+		config_BSP(NULL, 0);
 		break;
 #endif
 	default:
