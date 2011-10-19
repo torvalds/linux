@@ -9,6 +9,10 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/pinctrl/pinconf.h>
+
+struct pinctrl_gpio_range;
+
 /**
  * struct pinctrl_dev - pin control class device
  * @node: node to include this pin controller in the global pin controller list
@@ -66,6 +70,7 @@ struct pin_desc {
 struct pinctrl_dev *get_pinctrl_dev_from_dev(struct device *dev,
 					     const char *dev_name);
 struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev, unsigned int pin);
+int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name);
 int pinctrl_get_device_gpio_range(unsigned gpio,
 				  struct pinctrl_dev **outdev,
 				  struct pinctrl_gpio_range **outrange);

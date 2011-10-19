@@ -12,7 +12,10 @@ menu "Pin controllers"
 	depends on PINCTRL
 
 config PINMUX
-	bool "Support pinmux controllers"
+	bool "Support pin multiplexing controllers"
+
+config PINCONF
+	bool "Support pin configuration controllers"
 
 config DEBUG_PINCTRL
 	bool "Debug PINCTRL calls"

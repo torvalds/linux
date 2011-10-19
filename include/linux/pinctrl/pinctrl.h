@@ -21,6 +21,7 @@
 
 struct pinctrl_dev;
 struct pinmux_ops;
+struct pinconf_ops;
 struct gpio_chip;
 
 /**
@@ -97,7 +98,9 @@ struct pinctrl_ops {
  *	but may be equal to npins if you have no holes in the pin range.
  * @pctlops: pin control operation vtable, to support global concepts like
  *	grouping of pins, this is optional.
- * @pmxops: pinmux operation vtable, if you support pinmuxing in your driver
+ * @pmxops: pinmux operations vtable, if you support pinmuxing in your driver
+ * @confops: pin config operations vtable, if you support pin configuration in
+ *	your driver
  * @owner: module providing the pin controller, used for refcounting
  */
 struct pinctrl_desc {
@@ -107,6 +110,7 @@ struct pinctrl_desc {
 	unsigned int maxpin;
 	struct pinctrl_ops *pctlops;
 	struct pinmux_ops *pmxops;
+	struct pinconf_ops *confops;
 	struct module *owner;
 };
 
@@ -125,7 +129,7 @@ extern void *pinctrl_dev_get_drvdata(struct pinctrl_dev *pctldev);
 
 struct pinctrl_dev;
 
-/* Sufficiently stupid default function when pinctrl is not in use */
+/* Sufficiently stupid default functions when pinctrl is not in use */
 static inline bool pin_is_valid(struct pinctrl_dev *pctldev, int pin)
 {
 	return pin >= 0;

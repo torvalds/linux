@@ -7,12 +7,9 @@ This subsystem deals with:
 
 - Multiplexing of pins, pads, fingers (etc) see below for details
 
-The intention is to also deal with:
-
-- Software-controlled biasing and driving mode specific pins, such as
-  pull-up/down, open drain etc, load capacitance configuration when controlled
-  by software, etc.
-
+- Configuration of pins, pads, fingers (etc), such as software-controlled
+  biasing and driving mode specific pins, such as pull-up/down, open drain,
+  load capacitance etc.
 
 Top-level interface
 ===================
@@ -87,6 +84,11 @@ int __init foo_probe(void)
 	if (IS_ERR(pctl))
 		pr_err("could not register foo pin driver\n");
 }
+
+To enable the pinctrl subsystem and the subgroups for PINMUX and PINCONF and
+selected drivers, you need to select them from your machine's Kconfig entry,
+since these are so tightly integrated with the machines they are used on.
+See for example arch/arm/mach-u300/Kconfig for an example.
 
 Pins usually have fancier names than this. You can find these in the dataheet
 for your chip. Notice that the core pinctrl.h file provides a fancy macro
@@ -191,6 +193,88 @@ Maintaining the data structure of the groups is up to the driver, this is
 just a simple example - in practice you may need more entries in your group
 structure, for example specific register ranges associated with each group
 and so on.
+
+
+Pin configuration
+=================
+
+Pins can sometimes be software-configured in an various ways, mostly related
+to their electronic properties when used as inputs or outputs. For example you
+may be able to make an output pin high impedance, or "tristate" meaning it is
+effectively disconnected. You may be able to connect an input pin to VDD or GND
+using a certain resistor value - pull up and pull down - so that the pin has a
+stable value when nothing is driving the rail it is connected to, or when it's
+unconnected.
+
+For example, a platform may do this:
+
+ret = pin_config_set(dev, "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
+
+To pull up a pin to VDD. The pin configuration driver implements callbacks for
+changing pin configuration in the pin controller ops like this:
+
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinconf.h>
+#include "platform_x_pindefs.h"
+
+int foo_pin_config_get(struct pinctrl_dev *pctldev,
+		    unsigned offset,
+		    unsigned long *config)
+{
+	struct my_conftype conf;
+
+	... Find setting for pin @ offset ...
+
+	*config = (unsigned long) conf;
+}
+
+int foo_pin_config_set(struct pinctrl_dev *pctldev,
+		    unsigned offset,
+		    unsigned long config)
+{
+	struct my_conftype *conf = (struct my_conftype *) config;
+
+	switch (conf) {
+		case PLATFORM_X_PULL_UP:
+		...
+		}
+	}
+}
+
+int foo_pin_config_group_get (struct pinctrl_dev *pctldev,
+		    unsigned selector,
+		    unsigned long *config)
+{
+	...
+}
+
+int foo_pin_config_group_set (struct pinctrl_dev *pctldev,
+		    unsigned selector,
+		    unsigned long config)
+{
+	...
+}
+
+static struct pinconf_ops foo_pconf_ops = {
+	.pin_config_get = foo_pin_config_get,
+	.pin_config_set = foo_pin_config_set,
+	.pin_config_group_get = foo_pin_config_group_get,
+	.pin_config_group_set = foo_pin_config_group_set,
+};
+
+/* Pin config operations are handled by some pin controller */
+static struct pinctrl_desc foo_desc = {
+	...
+	.confops = &foo_pconf_ops,
+};
+
+Since some controllers have special logic for handling entire groups of pins
+they can exploit the special whole-group pin control function. The
+pin_config_group_set() callback is allowed to return the error code -EAGAIN,
+for groups it does not want to handle, or if it just wants to do some
+group-level handling and then fall through to iterate over all pins, in which
+case each individual pin will be treated by separate pin_config_set() calls as
+well.
 
 
 Interaction with the GPIO subsystem

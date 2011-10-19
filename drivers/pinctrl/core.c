@@ -28,6 +28,7 @@
 #include <linux/pinctrl/machine.h>
 #include "core.h"
 #include "pinmux.h"
+#include "pinconf.h"
 
 /* Global list of pin control devices */
 static DEFINE_MUTEX(pinctrldev_list_mutex);
@@ -101,6 +102,30 @@ struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev, unsigned int pin)
 }
 
 /**
+ * pin_get_from_name() - look up a pin number from a name
+ * @pctldev: the pin control device to lookup the pin on
+ * @name: the name of the pin to look up
+ */
+int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name)
+{
+	unsigned pin;
+
+	/* The highest pin number need to be included in the loop, thus <= */
+	for (pin = 0; pin <= pctldev->desc->maxpin; pin++) {
+		struct pin_desc *desc;
+
+		desc = pin_desc_get(pctldev, pin);
+		/* Pin space may be sparse */
+		if (desc == NULL)
+			continue;
+		if (desc->name && !strcmp(name, desc->name))
+			return pin;
+	}
+
+	return -EINVAL;
+}
+
+/**
  * pin_is_valid() - check if pin exists on controller
  * @pctldev: the pin control device to check the pin on
  * @pin: pin to check, use the local pin controller index number
@@ -160,6 +185,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	pindesc = kzalloc(sizeof(*pindesc), GFP_KERNEL);
 	if (pindesc == NULL)
 		return -ENOMEM;
+
 	spin_lock_init(&pindesc->lock);
 
 	/* Set owner */
@@ -409,11 +435,15 @@ static int pinctrl_devices_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev;
 
-	seq_puts(s, "name [pinmux]\n");
+	seq_puts(s, "name [pinmux] [pinconf]\n");
 	mutex_lock(&pinctrldev_list_mutex);
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
 		seq_printf(s, "%s ", pctldev->desc->name);
 		if (pctldev->desc->pmxops)
+			seq_puts(s, "yes ");
+		else
+			seq_puts(s, "no ");
+		if (pctldev->desc->confops)
 			seq_puts(s, "yes");
 		else
 			seq_puts(s, "no");
@@ -492,6 +522,7 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 	debugfs_create_file("gpio-ranges", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinctrl_gpioranges_ops);
 	pinmux_init_device_debugfs(device_root, pctldev);
+	pinconf_init_device_debugfs(device_root, pctldev);
 }
 
 static void pinctrl_init_debugfs(void)
@@ -543,6 +574,16 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		ret = pinmux_check_ops(pctldesc->pmxops);
 		if (ret) {
 			pr_err("%s pinmux ops lacks necessary functions\n",
+			       pctldesc->name);
+			return NULL;
+		}
+	}
+
+	/* If we're implementing pinconfig, check the ops for sanity */
+	if (pctldesc->confops) {
+		ret = pinconf_check_ops(pctldesc->confops);
+		if (ret) {
+			pr_err("%s pin config ops lacks necessary functions\n",
 			       pctldesc->name);
 			return NULL;
 		}
