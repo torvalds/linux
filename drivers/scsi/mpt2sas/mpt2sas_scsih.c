@@ -388,31 +388,34 @@ _scsih_get_sas_address(struct MPT2SAS_ADAPTER *ioc, u16 handle,
 	Mpi2SasDevicePage0_t sas_device_pg0;
 	Mpi2ConfigReply_t mpi_reply;
 	u32 ioc_status;
+	*sas_address = 0;
 
 	if (handle <= ioc->sas_hba.num_phys) {
 		*sas_address = ioc->sas_hba.sas_address;
 		return 0;
-	} else
-		*sas_address = 0;
+	}
 
 	if ((mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
 	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
-		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n", ioc->name,
+		__FILE__, __LINE__, __func__);
 		return -ENXIO;
 	}
 
-	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
-	    MPI2_IOCSTATUS_MASK;
-	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
-		printk(MPT2SAS_ERR_FMT "handle(0x%04x), ioc_status(0x%04x)"
-		    "\nfailure at %s:%d/%s()!\n", ioc->name, handle, ioc_status,
-		     __FILE__, __LINE__, __func__);
-		return -EIO;
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
+		*sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
+		return 0;
 	}
 
-	*sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
-	return 0;
+	/* we hit this becuase the given parent handle doesn't exist */
+	if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
+		return -ENXIO;
+	/* else error case */
+	printk(MPT2SAS_ERR_FMT "handle(0x%04x), ioc_status(0x%04x), "
+	    "failure at %s:%d/%s()!\n", ioc->name, handle, ioc_status,
+	     __FILE__, __LINE__, __func__);
+	return -EIO;
 }
 
 /**
