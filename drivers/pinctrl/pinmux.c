@@ -390,37 +390,6 @@ static void release_pins(struct pinctrl_dev *pctldev,
 }
 
 /**
- * pinmux_get_group_selector() - returns the group selector for a group
- * @pctldev: the pin controller handling the group
- * @pin_group: the pin group to look up
- */
-static int pinmux_get_group_selector(struct pinctrl_dev *pctldev,
-				     const char *pin_group)
-{
-	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	unsigned group_selector = 0;
-
-	while (pctlops->list_groups(pctldev, group_selector) >= 0) {
-		const char *gname = pctlops->get_group_name(pctldev,
-							    group_selector);
-		if (!strcmp(gname, pin_group)) {
-			dev_dbg(&pctldev->dev,
-				"found group selector %u for %s\n",
-				group_selector,
-				pin_group);
-			return group_selector;
-		}
-
-		group_selector++;
-	}
-
-	dev_err(&pctldev->dev, "does not have pin group %s\n",
-		pin_group);
-
-	return -EINVAL;
-}
-
-/**
  * pinmux_check_pin_group() - check function and pin group combo
  * @pctldev: device to check the pin group vs function for
  * @func_selector: the function selector to check the pin group for, we have
@@ -461,7 +430,7 @@ static int pinmux_check_pin_group(struct pinctrl_dev *pctldev,
 			return ret;
 		if (num_groups < 1)
 			return -EINVAL;
-		ret = pinmux_get_group_selector(pctldev, groups[0]);
+		ret = pinctrl_get_group_selector(pctldev, groups[0]);
 		if (ret < 0) {
 			dev_err(&pctldev->dev,
 				"function %s wants group %s but the pin "
@@ -486,7 +455,7 @@ static int pinmux_check_pin_group(struct pinctrl_dev *pctldev,
 		"check if we have pin group %s on controller %s\n",
 		pin_group, pinctrl_dev_get_name(pctldev));
 
-	ret = pinmux_get_group_selector(pctldev, pin_group);
+	ret = pinctrl_get_group_selector(pctldev, pin_group);
 	if (ret < 0) {
 		dev_dbg(&pctldev->dev,
 			"%s does not support pin group %s with function %s\n",

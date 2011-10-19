@@ -69,3 +69,5 @@ struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev, int pin);
 int pinctrl_get_device_gpio_range(unsigned gpio,
 				  struct pinctrl_dev **outdev,
 				  struct pinctrl_gpio_range **outrange);
+int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
+			       const char *pin_group);
