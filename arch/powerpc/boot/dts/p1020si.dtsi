@@ -352,26 +352,58 @@
 	pci0: pcie@ffe09000 {
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
-		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
-		reg = <0 0xffe09000 0 0x1000>;
 		bus-range = <0 255>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
 		interrupts = <16 2>;
+
+		pcie@0 {
+			reg = <0 0 0 0 0>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			interrupts = <16 2>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <
+				/* IDSEL 0x0 */
+				0000 0x0 0x0 0x1 &mpic 0x4 0x1
+				0000 0x0 0x0 0x2 &mpic 0x5 0x1
+				0000 0x0 0x0 0x3 &mpic 0x6 0x1
+				0000 0x0 0x0 0x4 &mpic 0x7 0x1
+				>;
+		};
+
 	};
 
 	pci1: pcie@ffe0a000 {
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
-		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
-		reg = <0 0xffe0a000 0 0x1000>;
 		bus-range = <0 255>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
 		interrupts = <16 2>;
+
+		pcie@0 {
+			reg = <0 0 0 0 0>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			interrupts = <16 2>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+
+			interrupt-map = <
+				/* IDSEL 0x0 */
+				0000 0x0 0x0 0x1 &mpic 0x0 0x1
+				0000 0x0 0x0 0x2 &mpic 0x1 0x1
+				0000 0x0 0x0 0x3 &mpic 0x2 0x1
+				0000 0x0 0x0 0x4 &mpic 0x3 0x1
+				>;
+		};
 	};
 };
