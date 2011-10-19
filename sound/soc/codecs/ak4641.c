@@ -31,7 +31,6 @@
 
 /* codec private data */
 struct ak4641_priv {
-	struct snd_soc_codec *codec;
 	unsigned int sysclk;
 	int deemph;
 	int playback_fs;
