@@ -367,6 +367,13 @@ static int hidg_setup(struct usb_function *f,
 	case ((USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_INTERFACE) << 8
 		  | USB_REQ_GET_DESCRIPTOR):
 		switch (value >> 8) {
+		case HID_DT_HID:
+			VDBG(cdev, "USB_REQ_GET_DESCRIPTOR: HID\n");
+			length = min_t(unsigned short, length,
+						   hidg_desc.bLength);
+			memcpy(req->buf, &hidg_desc, length);
+			goto respond;
+			break;
 		case HID_DT_REPORT:
 			VDBG(cdev, "USB_REQ_GET_DESCRIPTOR: REPORT\n");
 			length = min_t(unsigned short, length,

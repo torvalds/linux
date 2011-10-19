@@ -85,6 +85,8 @@ void rtc_time_to_tm(unsigned long time, struct rtc_time *tm)
 	time -= tm->tm_hour * 3600;
 	tm->tm_min = time / 60;
 	tm->tm_sec = time - tm->tm_min * 60;
+
+	tm->tm_isdst = 0;
 }
 EXPORT_SYMBOL(rtc_time_to_tm);
 

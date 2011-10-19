@@ -365,7 +365,7 @@ void __init sh73a0_clock_init(void)
 	__raw_writel(0x108, SD2CKCR);
 
 	/* detect main clock parent */
-	switch ((__raw_readl(CKSCR) >> 24) & 0x03) {
+	switch ((__raw_readl(CKSCR) >> 28) & 0x03) {
 	case 0:
 		main_clk.parent = &sh73a0_extal1_clk;
 		break;

@@ -25,7 +25,7 @@
 #include "xfs_trans.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
-#include "quota/xfs_qm.h"
+#include "xfs_qm.h"
 #include <linux/quota.h>
 
 

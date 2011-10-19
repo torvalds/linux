@@ -30,6 +30,7 @@
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <sound/tlv320aic32x4.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -196,6 +197,17 @@ static struct pca953x_platform_data visstrim_m10_pca9555_pdata = {
 	.invert = 0,
 };
 
+static struct aic32x4_pdata visstrim_m10_aic32x4_pdata = {
+	.power_cfg = AIC32X4_PWR_MICBIAS_2075_LDOIN |
+		     AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE |
+		     AIC32X4_PWR_AIC32X4_LDO_ENABLE |
+		     AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36 |
+		     AIC32X4_PWR_CMMODE_HP_LDOIN_POWERED,
+	.micpga_routing = AIC32X4_MICPGA_ROUTE_LMIC_IN2R_10K |
+			 AIC32X4_MICPGA_ROUTE_RMIC_IN1L_10K,
+	.swapdacs = false,
+};
+
 static struct i2c_board_info visstrim_m10_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("pca9555", 0x20),
@@ -203,6 +215,7 @@ static struct i2c_board_info visstrim_m10_i2c_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("tlv320aic32x4", 0x18),
+		.platform_data = &visstrim_m10_aic32x4_pdata,
 	}
 };
 

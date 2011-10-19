@@ -156,23 +156,24 @@ static struct gpio_keys_button mx51_efikasb_keys[] = {
 	{
 		.code = KEY_POWER,
 		.gpio = EFIKASB_PWRKEY,
-		.type = EV_PWR,
+		.type = EV_KEY,
 		.desc = "Power Button",
 		.wakeup = 1,
-		.debounce_interval = 10, /* ms */
+		.active_low = 1,
 	},
 	{
 		.code = SW_LID,
 		.gpio = EFIKASB_LID,
 		.type = EV_SW,
 		.desc = "Lid Switch",
+		.active_low = 1,
 	},
 	{
-		/* SW_RFKILLALL vs KEY_RFKILL ? */
-		.code = SW_RFKILL_ALL,
+		.code = KEY_RFKILL,
 		.gpio = EFIKASB_RFKILL,
-		.type = EV_SW,
+		.type = EV_KEY,
 		.desc = "rfkill",
+		.active_low = 1,
 	},
 };
 
@@ -224,8 +225,8 @@ static void __init mx51_efikasb_board_id(void)
 	gpio_request(EFIKASB_PCBID1, "pcb id1");
 	gpio_direction_input(EFIKASB_PCBID1);
 
-	id = gpio_get_value(EFIKASB_PCBID0);
-	id |= gpio_get_value(EFIKASB_PCBID1) << 1;
+	id = gpio_get_value(EFIKASB_PCBID0) ? 1 : 0;
+	id |= (gpio_get_value(EFIKASB_PCBID1) ? 1 : 0) << 1;
 
 	switch (id) {
 	default:

@@ -392,7 +392,7 @@ sys_call_table:
 	PTR	sys_getresuid
 	PTR	sys_ni_syscall			/* was query_module */
 	PTR	sys_poll
-	PTR	compat_sys_nfsservctl
+	PTR	sys_ni_syscall			/* was nfsservctl */
 	PTR	sys_setresgid			/* 4190 */
 	PTR	sys_getresgid
 	PTR	sys_prctl
@@ -441,7 +441,7 @@ sys_call_table:
 	PTR	sys_fremovexattr		/* 4235 */
 	PTR	sys_tkill
 	PTR	sys_sendfile64
-	PTR	compat_sys_futex
+	PTR	sys_32_futex
 	PTR	compat_sys_sched_setaffinity
 	PTR	compat_sys_sched_getaffinity	/* 4240 */
 	PTR	compat_sys_io_setup

@@ -28,8 +28,6 @@
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
 
-struct workqueue_struct	*xfs_ail_wq;	/* AIL workqueue */
-
 #ifdef DEBUG
 /*
  * Check that the list is sorted as it should be.
@@ -299,7 +297,7 @@ xfs_trans_ail_cursor_last(
  * Splice the log item list into the AIL at the given LSN. We splice to the
  * tail of the given LSN to maintain insert order for push traversals. The
  * cursor is optional, allowing repeated updates to the same LSN to avoid
- * repeated traversals.
+ * repeated traversals.  This should not be called with an empty list.
  */
 static void
 xfs_ail_splice(
@@ -308,50 +306,39 @@ xfs_ail_splice(
 	struct list_head	*list,
 	xfs_lsn_t		lsn)
 {
-	struct xfs_log_item	*lip = cur ? cur->item : NULL;
-	struct xfs_log_item	*next_lip;
+	struct xfs_log_item	*lip;
+
+	ASSERT(!list_empty(list));
 
 	/*
-	 * Get a new cursor if we don't have a placeholder or the existing one
-	 * has been invalidated.
+	 * Use the cursor to determine the insertion point if one is
+	 * provided.  If not, or if the one we got is not valid,
+	 * find the place in the AIL where the items belong.
 	 */
-	if (!lip || (__psint_t)lip & 1) {
+	lip = cur ? cur->item : NULL;
+	if (!lip || (__psint_t) lip & 1)
 		lip = __xfs_trans_ail_cursor_last(ailp, lsn);
 
-		if (!lip) {
-			/* The list is empty, so just splice and return.  */
-			if (cur)
-				cur->item = NULL;
-			list_splice(list, &ailp->xa_ail);
-			return;
-		}
-	}
+	/*
+	 * If a cursor is provided, we know we're processing the AIL
+	 * in lsn order, and future items to be spliced in will
+	 * follow the last one being inserted now.  Update the
+	 * cursor to point to that last item, now while we have a
+	 * reliable pointer to it.
+	 */
+	if (cur)
+		cur->item = list_entry(list->prev, struct xfs_log_item, li_ail);
 
 	/*
-	 * Our cursor points to the item we want to insert _after_, so we have
-	 * to update the cursor to point to the end of the list we are splicing
-	 * in so that it points to the correct location for the next splice.
-	 * i.e. before the splice
-	 *
-	 *  lsn -> lsn -> lsn + x -> lsn + x ...
-	 *          ^
-	 *          | cursor points here
-	 *
-	 * After the splice we have:
-	 *
-	 *  lsn -> lsn -> lsn -> lsn -> .... -> lsn -> lsn + x -> lsn + x ...
-	 *          ^                            ^
-	 *          | cursor points here         | needs to move here
-	 *
-	 * So we set the cursor to the last item in the list to be spliced
-	 * before we execute the splice, resulting in the cursor pointing to
-	 * the correct item after the splice occurs.
+	 * Finally perform the splice.  Unless the AIL was empty,
+	 * lip points to the item in the AIL _after_ which the new
+	 * items should go.  If lip is null the AIL was empty, so
+	 * the new items go at the head of the AIL.
 	 */
-	if (cur) {
-		next_lip = list_entry(list->prev, struct xfs_log_item, li_ail);
-		cur->item = next_lip;
-	}
-	list_splice(list, &lip->li_ail);
+	if (lip)
+		list_splice(list, &lip->li_ail);
+	else
+		list_splice(list, &ailp->xa_ail);
 }
 
 /*
@@ -367,16 +354,10 @@ xfs_ail_delete(
 	xfs_trans_ail_cursor_clear(ailp, lip);
 }
 
-/*
- * xfs_ail_worker does the work of pushing on the AIL. It will requeue itself
- * to run at a later time if there is more work to do to complete the push.
- */
-STATIC void
-xfs_ail_worker(
-	struct work_struct	*work)
+static long
+xfsaild_push(
+	struct xfs_ail		*ailp)
 {
-	struct xfs_ail		*ailp = container_of(to_delayed_work(work),
-					struct xfs_ail, xa_work);
 	xfs_mount_t		*mp = ailp->xa_mount;
 	struct xfs_ail_cursor	cur;
 	xfs_log_item_t		*lip;
@@ -438,8 +419,13 @@ xfs_ail_worker(
 
 		case XFS_ITEM_PUSHBUF:
 			XFS_STATS_INC(xs_push_ail_pushbuf);
-			IOP_PUSHBUF(lip);
-			ailp->xa_last_pushed_lsn = lsn;
+
+			if (!IOP_PUSHBUF(lip)) {
+				stuck++;
+				flush_log = 1;
+			} else {
+				ailp->xa_last_pushed_lsn = lsn;
+			}
 			push_xfsbufd = 1;
 			break;
 
@@ -451,7 +437,6 @@ xfs_ail_worker(
 
 		case XFS_ITEM_LOCKED:
 			XFS_STATS_INC(xs_push_ail_locked);
-			ailp->xa_last_pushed_lsn = lsn;
 			stuck++;
 			break;
 
@@ -512,20 +497,6 @@ out_done:
 		/* We're past our target or empty, so idle */
 		ailp->xa_last_pushed_lsn = 0;
 
-		/*
-		 * We clear the XFS_AIL_PUSHING_BIT first before checking
-		 * whether the target has changed. If the target has changed,
-		 * this pushes the requeue race directly onto the result of the
-		 * atomic test/set bit, so we are guaranteed that either the
-		 * the pusher that changed the target or ourselves will requeue
-		 * the work (but not both).
-		 */
-		clear_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags);
-		smp_rmb();
-		if (XFS_LSN_CMP(ailp->xa_target, target) == 0 ||
-		    test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
-			return;
-
 		tout = 50;
 	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
 		/*
@@ -548,9 +519,30 @@ out_done:
 		tout = 20;
 	}
 
-	/* There is more to do, requeue us.  */
-	queue_delayed_work(xfs_syncd_wq, &ailp->xa_work,
-					msecs_to_jiffies(tout));
+	return tout;
+}
+
+static int
+xfsaild(
+	void		*data)
+{
+	struct xfs_ail	*ailp = data;
+	long		tout = 0;	/* milliseconds */
+
+	while (!kthread_should_stop()) {
+		if (tout && tout <= 20)
+			__set_current_state(TASK_KILLABLE);
+		else
+			__set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(tout ?
+				 msecs_to_jiffies(tout) : MAX_SCHEDULE_TIMEOUT);
+
+		try_to_freeze();
+
+		tout = xfsaild_push(ailp);
+	}
+
+	return 0;
 }
 
 /*
@@ -585,8 +577,9 @@ xfs_ail_push(
 	 */
 	smp_wmb();
 	xfs_trans_ail_copy_lsn(ailp, &ailp->xa_target, &threshold_lsn);
-	if (!test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
-		queue_delayed_work(xfs_syncd_wq, &ailp->xa_work, 0);
+	smp_wmb();
+
+	wake_up_process(ailp->xa_task);
 }
 
 /*
@@ -682,6 +675,7 @@ xfs_trans_ail_update_bulk(
 	int			i;
 	LIST_HEAD(tmp);
 
+	ASSERT(nr_items > 0);		/* Not required, but true. */
 	mlip = xfs_ail_min(ailp);
 
 	for (i = 0; i < nr_items; i++) {
@@ -701,7 +695,8 @@ xfs_trans_ail_update_bulk(
 		list_add(&lip->li_ail, &tmp);
 	}
 
-	xfs_ail_splice(ailp, cur, &tmp, lsn);
+	if (!list_empty(&tmp))
+		xfs_ail_splice(ailp, cur, &tmp, lsn);
 
 	if (!mlip_changed) {
 		spin_unlock(&ailp->xa_lock);
@@ -822,9 +817,18 @@ xfs_trans_ail_init(
 	INIT_LIST_HEAD(&ailp->xa_ail);
 	INIT_LIST_HEAD(&ailp->xa_cursors);
 	spin_lock_init(&ailp->xa_lock);
-	INIT_DELAYED_WORK(&ailp->xa_work, xfs_ail_worker);
+
+	ailp->xa_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
+			ailp->xa_mount->m_fsname);
+	if (IS_ERR(ailp->xa_task))
+		goto out_free_ailp;
+
 	mp->m_ail = ailp;
 	return 0;
+
+out_free_ailp:
+	kmem_free(ailp);
+	return ENOMEM;
 }
 
 void
@@ -833,6 +837,6 @@ xfs_trans_ail_destroy(
 {
 	struct xfs_ail	*ailp = mp->m_ail;
 
-	cancel_delayed_work_sync(&ailp->xa_work);
+	kthread_stop(ailp->xa_task);
 	kmem_free(ailp);
 }

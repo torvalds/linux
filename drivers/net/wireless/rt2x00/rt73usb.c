@@ -2420,6 +2420,7 @@ static struct usb_device_id rt73usb_device_table[] = {
 	/* Buffalo */
 	{ USB_DEVICE(0x0411, 0x00d8) },
 	{ USB_DEVICE(0x0411, 0x00d9) },
+	{ USB_DEVICE(0x0411, 0x00e6) },
 	{ USB_DEVICE(0x0411, 0x00f4) },
 	{ USB_DEVICE(0x0411, 0x0116) },
 	{ USB_DEVICE(0x0411, 0x0119) },

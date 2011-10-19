@@ -275,8 +275,7 @@ xfs_btree_dup_cursor(
 				return error;
 			}
 			new->bc_bufs[i] = bp;
-			ASSERT(bp);
-			ASSERT(!XFS_BUF_GETERROR(bp));
+			ASSERT(!xfs_buf_geterror(bp));
 		} else
 			new->bc_bufs[i] = NULL;
 	}
@@ -467,8 +466,7 @@ xfs_btree_get_bufl(
 	ASSERT(fsbno != NULLFSBLOCK);
 	d = XFS_FSB_TO_DADDR(mp, fsbno);
 	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, lock);
-	ASSERT(bp);
-	ASSERT(!XFS_BUF_GETERROR(bp));
+	ASSERT(!xfs_buf_geterror(bp));
 	return bp;
 }
 
@@ -491,8 +489,7 @@ xfs_btree_get_bufs(
 	ASSERT(agbno != NULLAGBLOCK);
 	d = XFS_AGB_TO_DADDR(mp, agno, agbno);
 	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, lock);
-	ASSERT(bp);
-	ASSERT(!XFS_BUF_GETERROR(bp));
+	ASSERT(!xfs_buf_geterror(bp));
 	return bp;
 }
 
@@ -632,7 +629,7 @@ xfs_btree_read_bufl(
 			mp->m_bsize, lock, &bp))) {
 		return error;
 	}
-	ASSERT(!bp || !XFS_BUF_GETERROR(bp));
+	ASSERT(!xfs_buf_geterror(bp));
 	if (bp)
 		XFS_BUF_SET_VTYPE_REF(bp, B_FS_MAP, refval);
 	*bpp = bp;
@@ -973,8 +970,7 @@ xfs_btree_get_buf_block(
 	*bpp = xfs_trans_get_buf(cur->bc_tp, mp->m_ddev_targp, d,
 				 mp->m_bsize, flags);
 
-	ASSERT(*bpp);
-	ASSERT(!XFS_BUF_GETERROR(*bpp));
+	ASSERT(!xfs_buf_geterror(*bpp));
 
 	*block = XFS_BUF_TO_BLOCK(*bpp);
 	return 0;
@@ -1006,8 +1002,7 @@ xfs_btree_read_buf_block(
 	if (error)
 		return error;
 
-	ASSERT(*bpp != NULL);
-	ASSERT(!XFS_BUF_GETERROR(*bpp));
+	ASSERT(!xfs_buf_geterror(*bpp));
 
 	xfs_btree_set_refs(cur, *bpp);
 	*block = XFS_BUF_TO_BLOCK(*bpp);

@@ -182,6 +182,24 @@ int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 }
 EXPORT_SYMBOL_GPL(pmbus_write_byte);
 
+/*
+ * _pmbus_write_byte() is similar to pmbus_write_byte(), but checks if
+ * a device specific mapping funcion exists and calls it if necessary.
+ */
+static int _pmbus_write_byte(struct i2c_client *client, int page, u8 value)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+	int status;
+
+	if (info->write_byte) {
+		status = info->write_byte(client, page, value);
+		if (status != -ENODATA)
+			return status;
+	}
+	return pmbus_write_byte(client, page, value);
+}
+
 int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word)
 {
 	int rv;
@@ -281,7 +299,7 @@ static int _pmbus_read_byte_data(struct i2c_client *client, int page, int reg)
 
 static void pmbus_clear_fault_page(struct i2c_client *client, int page)
 {
-	pmbus_write_byte(client, page, PMBUS_CLEAR_FAULTS);
+	_pmbus_write_byte(client, page, PMBUS_CLEAR_FAULTS);
 }
 
 void pmbus_clear_faults(struct i2c_client *client)
@@ -960,6 +978,8 @@ static void pmbus_find_max_attr(struct i2c_client *client,
 struct pmbus_limit_attr {
 	u16 reg;		/* Limit register */
 	bool update;		/* True if register needs updates */
+	bool low;		/* True if low limit; for limits with compare
+				   functions only */
 	const char *attr;	/* Attribute name */
 	const char *alarm;	/* Alarm attribute name */
 	u32 sbit;		/* Alarm attribute status bit */
@@ -1011,7 +1031,8 @@ static bool pmbus_add_limit_attrs(struct i2c_client *client,
 				if (attr->compare) {
 					pmbus_add_boolean_cmp(data, name,
 						l->alarm, index,
-						cbase, cindex,
+						l->low ? cindex : cbase,
+						l->low ? cbase : cindex,
 						attr->sbase + page, l->sbit);
 				} else {
 					pmbus_add_boolean_reg(data, name,
@@ -1348,11 +1369,13 @@ static const struct pmbus_sensor_attr power_attributes[] = {
 static const struct pmbus_limit_attr temp_limit_attrs[] = {
 	{
 		.reg = PMBUS_UT_WARN_LIMIT,
+		.low = true,
 		.attr = "min",
 		.alarm = "min_alarm",
 		.sbit = PB_TEMP_UT_WARNING,
 	}, {
 		.reg = PMBUS_UT_FAULT_LIMIT,
+		.low = true,
 		.attr = "lcrit",
 		.alarm = "lcrit_alarm",
 		.sbit = PB_TEMP_UT_FAULT,
@@ -1381,11 +1404,13 @@ static const struct pmbus_limit_attr temp_limit_attrs[] = {
 static const struct pmbus_limit_attr temp_limit_attrs23[] = {
 	{
 		.reg = PMBUS_UT_WARN_LIMIT,
+		.low = true,
 		.attr = "min",
 		.alarm = "min_alarm",
 		.sbit = PB_TEMP_UT_WARNING,
 	}, {
 		.reg = PMBUS_UT_FAULT_LIMIT,
+		.low = true,
 		.attr = "lcrit",
 		.alarm = "lcrit_alarm",
 		.sbit = PB_TEMP_UT_FAULT,

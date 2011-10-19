@@ -271,7 +271,11 @@ static int _clk_pll_enable(struct clk *clk)
 	int i = 0;
 
 	pllbase = _get_pll_base(clk);
-	reg = __raw_readl(pllbase + MXC_PLL_DP_CTL) | MXC_PLL_DP_CTL_UPEN;
+	reg = __raw_readl(pllbase + MXC_PLL_DP_CTL);
+	if (reg & MXC_PLL_DP_CTL_UPEN)
+		return 0;
+
+	reg |= MXC_PLL_DP_CTL_UPEN;
 	__raw_writel(reg, pllbase + MXC_PLL_DP_CTL);
 
 	/* Wait for lock */

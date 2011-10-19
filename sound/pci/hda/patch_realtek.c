@@ -168,7 +168,7 @@ struct alc_spec {
 	unsigned int auto_mic_valid_imux:1;	/* valid imux for auto-mic */
 	unsigned int automute:1;	/* HP automute enabled */
 	unsigned int detect_line:1;	/* Line-out detection enabled */
-	unsigned int automute_lines:1;	/* automute line-out as well */
+	unsigned int automute_lines:1;	/* automute line-out as well; NOP when automute_hp_lo isn't set */
 	unsigned int automute_hp_lo:1;	/* both HP and LO available */
 
 	/* other flags */
@@ -551,7 +551,7 @@ static void update_speakers(struct hda_codec *codec)
 	if (spec->autocfg.line_out_pins[0] == spec->autocfg.hp_pins[0] ||
 	    spec->autocfg.line_out_pins[0] == spec->autocfg.speaker_pins[0])
 		return;
-	if (!spec->automute_lines || !spec->automute)
+	if (!spec->automute || (spec->automute_hp_lo && !spec->automute_lines))
 		on = 0;
 	else
 		on = spec->jack_present;
@@ -565,11 +565,11 @@ static void alc_hp_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!spec->automute)
-		return;
 	spec->jack_present =
 		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
 			     spec->autocfg.hp_pins);
+	if (!spec->automute)
+		return;
 	update_speakers(codec);
 }
 
@@ -578,11 +578,15 @@ static void alc_line_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
-	if (!spec->automute || !spec->detect_line)
+	/* check LO jack only when it's different from HP */
+	if (spec->autocfg.line_out_pins[0] == spec->autocfg.hp_pins[0])
 		return;
+
 	spec->line_jack_present =
 		detect_jacks(codec, ARRAY_SIZE(spec->autocfg.line_out_pins),
 			     spec->autocfg.line_out_pins);
+	if (!spec->automute || !spec->detect_line)
+		return;
 	update_speakers(codec);
 }
 
@@ -803,7 +807,7 @@ static int alc_automute_mode_get(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	if (!spec->automute)
 		val = 0;
-	else if (!spec->automute_lines)
+	else if (!spec->automute_hp_lo || !spec->automute_lines)
 		val = 1;
 	else
 		val = 2;
@@ -824,7 +828,8 @@ static int alc_automute_mode_put(struct snd_kcontrol *kcontrol,
 		spec->automute = 0;
 		break;
 	case 1:
-		if (spec->automute && !spec->automute_lines)
+		if (spec->automute &&
+		    (!spec->automute_hp_lo || !spec->automute_lines))
 			return 0;
 		spec->automute = 1;
 		spec->automute_lines = 0;
@@ -1320,7 +1325,9 @@ do_sku:
 	 * 15   : 1 --> enable the function "Mute internal speaker
 	 *	        when the external headphone out jack is plugged"
 	 */
-	if (!spec->autocfg.hp_pins[0]) {
+	if (!spec->autocfg.hp_pins[0] &&
+	    !(spec->autocfg.line_out_pins[0] &&
+	      spec->autocfg.line_out_type == AUTO_PIN_HP_OUT)) {
 		hda_nid_t nid;
 		tmp = (ass >> 11) & 0x3;	/* HP to chassis */
 		if (tmp == 0)
@@ -1784,6 +1791,7 @@ static const char * const alc_slave_vols[] = {
 	"Speaker Playback Volume",
 	"Mono Playback Volume",
 	"Line-Out Playback Volume",
+	"PCM Playback Volume",
 	NULL,
 };
 
@@ -1798,6 +1806,7 @@ static const char * const alc_slave_sws[] = {
 	"Mono Playback Switch",
 	"IEC958 Playback Switch",
 	"Line-Out Playback Switch",
+	"PCM Playback Switch",
 	NULL,
 };
 
@@ -3081,16 +3090,22 @@ static void alc_auto_init_multi_out(struct hda_codec *codec)
 static void alc_auto_init_extra_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t pin;
+	hda_nid_t pin, dac;
 
 	pin = spec->autocfg.hp_pins[0];
-	if (pin)
-		alc_auto_set_output_and_unmute(codec, pin, PIN_HP,
-						  spec->multiout.hp_nid);
+	if (pin) {
+		dac = spec->multiout.hp_nid;
+		if (!dac)
+			dac = spec->multiout.dac_nids[0];
+		alc_auto_set_output_and_unmute(codec, pin, PIN_HP, dac);
+	}
 	pin = spec->autocfg.speaker_pins[0];
-	if (pin)
-		alc_auto_set_output_and_unmute(codec, pin, PIN_OUT,
-					spec->multiout.extra_out_nid[0]);
+	if (pin) {
+		dac = spec->multiout.extra_out_nid[0];
+		if (!dac)
+			dac = spec->multiout.dac_nids[0];
+		alc_auto_set_output_and_unmute(codec, pin, PIN_OUT, dac);
+	}
 }
 
 /*
@@ -4484,6 +4499,22 @@ static void alc269_fixup_pcm_44k(struct hda_codec *codec,
 	spec->stream_analog_capture = &alc269_44k_pcm_analog_capture;
 }
 
+static void alc269_fixup_stereo_dmic(struct hda_codec *codec,
+				     const struct alc_fixup *fix, int action)
+{
+	int coef;
+
+	if (action != ALC_FIXUP_ACT_INIT)
+		return;
+	/* The digital-mic unit sends PDM (differential signal) instead of
+	 * the standard PCM, thus you can't record a valid mono stream as is.
+	 * Below is a workaround specific to ALC269 to control the dmic
+	 * signal source as mono.
+	 */
+	coef = alc_read_coef_idx(codec, 0x07);
+	alc_write_coef_idx(codec, 0x07, coef | 0x80);
+}
+
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC275_FIXUP_SONY_VAIO_GPIO2,
@@ -4494,6 +4525,7 @@ enum {
 	ALC275_FIXUP_SONY_HWEQ,
 	ALC271_FIXUP_DMIC,
 	ALC269_FIXUP_PCM_44K,
+	ALC269_FIXUP_STEREO_DMIC,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -4556,10 +4588,19 @@ static const struct alc_fixup alc269_fixups[] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc269_fixup_pcm_44k,
 	},
+	[ALC269_FIXUP_STEREO_DMIC] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc269_fixup_stereo_dmic,
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
+	SND_PCI_QUIRK(0x1043, 0x16e3, "ASUS UX50", ALC269_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1043, 0x831a, "ASUS P901", ALC269_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1043, 0x834a, "ASUS S101", ALC269_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1043, 0x8398, "ASUS P1005", ALC269_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x1043, 0x83ce, "ASUS P1005", ALC269_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x104d, 0x9073, "Sony VAIO", ALC275_FIXUP_SONY_VAIO_GPIO2),
 	SND_PCI_QUIRK(0x104d, 0x907b, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
 	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),

@@ -3,7 +3,7 @@
 cpupower \- Shows and sets processor power related values
 .SH SYNOPSIS
 .ft B
-.B cpupower [ \-c cpulist ] subcommand [ARGS]
+.B cpupower [ \-c cpulist ] <command> [ARGS]
 
 .B cpupower \-v|\-\-version
 
@@ -13,24 +13,24 @@ cpupower \- Shows and sets processor power related values
 \fBcpupower \fP is a collection of tools to examine and tune power saving
 related features of your processor.
 
-The manpages of the subcommands (cpupower\-<subcommand>(1)) provide detailed
+The manpages of the commands (cpupower\-<command>(1)) provide detailed
 descriptions of supported features. Run \fBcpupower help\fP to get an overview
-of supported subcommands.
+of supported commands.
 
 .SH Options
 .PP
 \-\-help, \-h
 .RS 4
-Shows supported subcommands and general usage.
+Shows supported commands and general usage.
 .RE
 .PP
 \-\-cpu cpulist,  \-c cpulist
 .RS 4
 Only show or set values for specific cores.
-This option is not supported by all subcommands, details can be found in the
-manpages of the subcommands.
+This option is not supported by all commands, details can be found in the
+manpages of the commands.
 
-Some subcommands access all cores (typically the *\-set commands), some only
+Some commands access all cores (typically the *\-set commands), some only
 the first core (typically the *\-info commands) by default.
 
 The syntax for <cpulist> is based on how the kernel exports CPU bitmasks via

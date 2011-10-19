@@ -115,7 +115,7 @@ void __blk_complete_request(struct request *req)
 	/*
 	 * Select completion CPU
 	 */
-	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) && req->cpu != -1) {
+	if (req->cpu != -1) {
 		ccpu = req->cpu;
 		if (!test_bit(QUEUE_FLAG_SAME_FORCE, &q->queue_flags)) {
 			ccpu = blk_cpu_to_group(ccpu);
@@ -124,6 +124,14 @@ void __blk_complete_request(struct request *req)
 	} else
 		ccpu = cpu;
 
+	/*
+	 * If current CPU and requested CPU are in the same group, running
+	 * softirq in current CPU. One might concern this is just like
+	 * QUEUE_FLAG_SAME_FORCE, but actually not. blk_complete_request() is
+	 * running in interrupt handler, and currently I/O controller doesn't
+	 * support multiple interrupts, so current CPU is unique actually. This
+	 * avoids IPI sending from current CPU to the first CPU of a group.
+	 */
 	if (ccpu == cpu || ccpu == group_cpu) {
 		struct list_head *list;
 do_local:

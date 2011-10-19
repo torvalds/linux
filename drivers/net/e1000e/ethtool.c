@@ -1206,7 +1206,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	rx_ring->next_to_clean = 0;
 
 	rctl = er32(RCTL);
-	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+	if (!(adapter->flags2 & FLAG2_NO_DISABLE_RX))
+		ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	ew32(RDBAL, ((u64) rx_ring->dma & 0xFFFFFFFF));
 	ew32(RDBAH, ((u64) rx_ring->dma >> 32));
 	ew32(RDLEN, rx_ring->size);

@@ -920,7 +920,7 @@ static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 
 void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled)
 {
-	if (!CHIP_IS_E1x(bp)) {
+	if (!CHIP_IS_E1x(bp) && !CHIP_IS_E3(bp)) {
 		bp->dcb_state = dcb_on;
 		bp->dcbx_enabled = dcbx_enabled;
 	} else {
@@ -2120,6 +2120,7 @@ static u8 bnx2x_dcbnl_get_cap(struct net_device *netdev, int capid, u8 *cap)
 			break;
 		case DCB_CAP_ATTR_DCBX:
 			*cap = BNX2X_DCBX_CAPS;
+			break;
 		default:
 			rval = -EINVAL;
 			break;

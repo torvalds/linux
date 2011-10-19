@@ -41,6 +41,8 @@ struct cpuid_core_info {
 	unsigned int pkg;
 	unsigned int thread;
 	unsigned int cpu;
+	/* flags */
+	unsigned int is_online:1;
 };
 
 static int __compare(const void *t1, const void *t2)
@@ -78,6 +80,8 @@ int get_cpu_topology(struct cpupower_topology *cpu_top)
 		return -ENOMEM;
 	cpu_top->pkgs = cpu_top->cores = 0;
 	for (cpu = 0; cpu < cpus; cpu++) {
+		cpu_top->core_info[cpu].cpu = cpu;
+		cpu_top->core_info[cpu].is_online = sysfs_is_cpu_online(cpu);
 		cpu_top->core_info[cpu].pkg =
 			sysfs_topology_read_file(cpu, "physical_package_id");
 		if ((int)cpu_top->core_info[cpu].pkg != -1 &&
@@ -85,7 +89,6 @@ int get_cpu_topology(struct cpupower_topology *cpu_top)
 			cpu_top->pkgs = cpu_top->core_info[cpu].pkg;
 		cpu_top->core_info[cpu].core =
 			sysfs_topology_read_file(cpu, "core_id");
-		cpu_top->core_info[cpu].cpu = cpu;
 	}
 	cpu_top->pkgs++;
 

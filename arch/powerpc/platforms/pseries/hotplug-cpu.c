@@ -135,7 +135,7 @@ static void pseries_mach_cpu_die(void)
 		get_lppaca()->idle = 0;
 
 		if (get_preferred_offline_state(cpu) == CPU_STATE_ONLINE) {
-			unregister_slb_shadow(hwcpu, __pa(get_slb_shadow()));
+			unregister_slb_shadow(hwcpu);
 
 			/*
 			 * Call to start_secondary_resume() will not return.
@@ -150,7 +150,7 @@ static void pseries_mach_cpu_die(void)
 	WARN_ON(get_preferred_offline_state(cpu) != CPU_STATE_OFFLINE);
 
 	set_cpu_current_state(cpu, CPU_STATE_OFFLINE);
-	unregister_slb_shadow(hwcpu, __pa(get_slb_shadow()));
+	unregister_slb_shadow(hwcpu);
 	rtas_stop_self();
 
 	/* Should never get here... */

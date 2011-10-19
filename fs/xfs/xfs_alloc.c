@@ -451,8 +451,7 @@ xfs_alloc_read_agfl(
 			XFS_FSS_TO_BB(mp, 1), 0, &bp);
 	if (error)
 		return error;
-	ASSERT(bp);
-	ASSERT(!XFS_BUF_GETERROR(bp));
+	ASSERT(!xfs_buf_geterror(bp));
 	XFS_BUF_SET_VTYPE_REF(bp, B_FS_AGFL, XFS_AGFL_REF);
 	*bpp = bp;
 	return 0;
@@ -2116,7 +2115,7 @@ xfs_read_agf(
 	if (!*bpp)
 		return 0;
 
-	ASSERT(!XFS_BUF_GETERROR(*bpp));
+	ASSERT(!(*bpp)->b_error);
 	agf = XFS_BUF_TO_AGF(*bpp);
 
 	/*
@@ -2168,7 +2167,7 @@ xfs_alloc_read_agf(
 		return error;
 	if (!*bpp)
 		return 0;
-	ASSERT(!XFS_BUF_GETERROR(*bpp));
+	ASSERT(!(*bpp)->b_error);
 
 	agf = XFS_BUF_TO_AGF(*bpp);
 	pag = xfs_perag_get(mp, agno);

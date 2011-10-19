@@ -346,9 +346,10 @@ void blk_put_queue(struct request_queue *q)
 EXPORT_SYMBOL(blk_put_queue);
 
 /*
- * Note: If a driver supplied the queue lock, it should not zap that lock
- * unexpectedly as some queue cleanup components like elevator_exit() and
- * blk_throtl_exit() need queue lock.
+ * Note: If a driver supplied the queue lock, it is disconnected
+ * by this function. The actual state of the lock doesn't matter
+ * here as the request_queue isn't accessible after this point
+ * (QUEUE_FLAG_DEAD is set) and no other requests will be queued.
  */
 void blk_cleanup_queue(struct request_queue *q)
 {
@@ -365,10 +366,8 @@ void blk_cleanup_queue(struct request_queue *q)
 	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
 	mutex_unlock(&q->sysfs_lock);
 
-	if (q->elevator)
-		elevator_exit(q->elevator);
-
-	blk_throtl_exit(q);
+	if (q->queue_lock != &q->__queue_lock)
+		q->queue_lock = &q->__queue_lock;
 
 	blk_put_queue(q);
 }
@@ -1165,7 +1164,7 @@ static bool bio_attempt_front_merge(struct request_queue *q,
  * true if merge was successful, otherwise false.
  */
 static bool attempt_plug_merge(struct task_struct *tsk, struct request_queue *q,
-			       struct bio *bio)
+			       struct bio *bio, unsigned int *request_count)
 {
 	struct blk_plug *plug;
 	struct request *rq;
@@ -1174,9 +1173,12 @@ static bool attempt_plug_merge(struct task_struct *tsk, struct request_queue *q,
 	plug = tsk->plug;
 	if (!plug)
 		goto out;
+	*request_count = 0;
 
 	list_for_each_entry_reverse(rq, &plug->list, queuelist) {
 		int el_ret;
+
+		(*request_count)++;
 
 		if (rq->q != q)
 			continue;
@@ -1217,6 +1219,7 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	struct blk_plug *plug;
 	int el_ret, rw_flags, where = ELEVATOR_INSERT_SORT;
 	struct request *req;
+	unsigned int request_count = 0;
 
 	/*
 	 * low level driver can indicate that it wants pages above a
@@ -1235,7 +1238,7 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (attempt_plug_merge(current, q, bio))
+	if (attempt_plug_merge(current, q, bio, &request_count))
 		return;
 
 	spin_lock_irq(q->queue_lock);
@@ -1300,11 +1303,10 @@ get_rq:
 			if (__rq->q != q)
 				plug->should_sort = 1;
 		}
-		list_add_tail(&req->queuelist, &plug->list);
-		plug->count++;
-		drive_stat_acct(req, 1);
-		if (plug->count >= BLK_MAX_REQUEST_COUNT)
+		if (request_count >= BLK_MAX_REQUEST_COUNT)
 			blk_flush_plug_list(plug, false);
+		list_add_tail(&req->queuelist, &plug->list);
+		drive_stat_acct(req, 1);
 	} else {
 		spin_lock_irq(q->queue_lock);
 		add_acct_request(q, req, where);
@@ -1675,6 +1677,7 @@ EXPORT_SYMBOL_GPL(blk_rq_check_limits);
 int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 {
 	unsigned long flags;
+	int where = ELEVATOR_INSERT_BACK;
 
 	if (blk_rq_check_limits(q, rq))
 		return -EIO;
@@ -1691,7 +1694,10 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 	 */
 	BUG_ON(blk_queued_rq(rq));
 
-	add_acct_request(q, rq, ELEVATOR_INSERT_BACK);
+	if (rq->cmd_flags & (REQ_FLUSH|REQ_FUA))
+		where = ELEVATOR_INSERT_FLUSH;
+
+	add_acct_request(q, rq, where);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	return 0;
@@ -2248,7 +2254,7 @@ static bool blk_end_bidi_request(struct request *rq, int error,
  *     %false - we are done with this request
  *     %true  - still buffers pending for this request
  **/
-static bool __blk_end_bidi_request(struct request *rq, int error,
+bool __blk_end_bidi_request(struct request *rq, int error,
 				   unsigned int nr_bytes, unsigned int bidi_bytes)
 {
 	if (blk_update_bidi_request(rq, error, nr_bytes, bidi_bytes))
@@ -2617,7 +2623,6 @@ void blk_start_plug(struct blk_plug *plug)
 	INIT_LIST_HEAD(&plug->list);
 	INIT_LIST_HEAD(&plug->cb_list);
 	plug->should_sort = 0;
-	plug->count = 0;
 
 	/*
 	 * If this is a nested plug, don't actually assign it. It will be
@@ -2701,7 +2706,6 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		return;
 
 	list_splice_init(&plug->list, &list);
-	plug->count = 0;
 
 	if (plug->should_sort) {
 		list_sort(NULL, &list, plug_rq_cmp);

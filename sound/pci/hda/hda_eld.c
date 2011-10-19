@@ -144,25 +144,17 @@ static int cea_sampling_frequencies[8] = {
 	SNDRV_PCM_RATE_192000,	/* 7: 192000Hz */
 };
 
-static unsigned char hdmi_get_eld_byte(struct hda_codec *codec, hda_nid_t nid,
+static unsigned int hdmi_get_eld_data(struct hda_codec *codec, hda_nid_t nid,
 					int byte_index)
 {
 	unsigned int val;
 
 	val = snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_GET_HDMI_ELDD, byte_index);
-
 #ifdef BE_PARANOID
 	printk(KERN_INFO "HDMI: ELD data byte %d: 0x%x\n", byte_index, val);
 #endif
-
-	if ((val & AC_ELDD_ELD_VALID) == 0) {
-		snd_printd(KERN_INFO "HDMI: invalid ELD data byte %d\n",
-								byte_index);
-		val = 0;
-	}
-
-	return val & AC_ELDD_ELD_DATA;
+	return val;
 }
 
 #define GRAB_BITS(buf, byte, lowbit, bits) 		\
@@ -344,11 +336,26 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	if (!buf)
 		return -ENOMEM;
 
-	for (i = 0; i < size; i++)
-		buf[i] = hdmi_get_eld_byte(codec, nid, i);
+	for (i = 0; i < size; i++) {
+		unsigned int val = hdmi_get_eld_data(codec, nid, i);
+		if (!(val & AC_ELDD_ELD_VALID)) {
+			if (!i) {
+				snd_printd(KERN_INFO
+					   "HDMI: invalid ELD data\n");
+				ret = -EINVAL;
+				goto error;
+			}
+			snd_printd(KERN_INFO
+				  "HDMI: invalid ELD data byte %d\n", i);
+			val = 0;
+		} else
+			val &= AC_ELDD_ELD_DATA;
+		buf[i] = val;
+	}
 
 	ret = hdmi_update_eld(eld, buf, size);
 
+error:
 	kfree(buf);
 	return ret;
 }

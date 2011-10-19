@@ -519,11 +519,17 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
-	struct drm_framebuffer *drm_fb = nv_crtc->base.fb;
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
+	struct drm_framebuffer *drm_fb;
+	struct nouveau_framebuffer *fb;
 	int ret;
 
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
+
+	/* no fb bound */
+	if (!atomic && !crtc->fb) {
+		NV_DEBUG_KMS(dev, "No FB bound\n");
+		return 0;
+	}
 
 	/* If atomic, we want to switch to the fb we were passed, so
 	 * now we update pointers to do that.  (We don't pin; just
@@ -533,6 +539,8 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		drm_fb = passed_fb;
 		fb = nouveau_framebuffer(passed_fb);
 	} else {
+		drm_fb = crtc->fb;
+		fb = nouveau_framebuffer(crtc->fb);
 		/* If not atomic, we can go ahead and pin, and unpin the
 		 * old fb we were passed.
 		 */

@@ -209,7 +209,6 @@ int dsp_clk_enable(enum dsp_clk_id clk_id)
 		break;
 #ifdef CONFIG_OMAP_MCBSP
 	case MCBSP_CLK:
-		omap_mcbsp_set_io_type(MCBSP_ID(clk_id), OMAP_MCBSP_POLL_IO);
 		omap_mcbsp_request(MCBSP_ID(clk_id));
 		omap2_mcbsp_set_clks_src(MCBSP_ID(clk_id), MCBSP_CLKS_PAD_SRC);
 		break;

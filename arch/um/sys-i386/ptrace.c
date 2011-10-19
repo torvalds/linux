@@ -145,7 +145,7 @@ int peek_user(struct task_struct *child, long addr, long data)
 	return put_user(tmp, (unsigned long __user *) data);
 }
 
-int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
+static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
 	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
 	struct user_i387_struct fpregs;
@@ -161,7 +161,7 @@ int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 	return n;
 }
 
-int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
+static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
 	int n, cpu = ((struct thread_info *) child->stack)->cpu;
 	struct user_i387_struct fpregs;
@@ -174,7 +174,7 @@ int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 				    (unsigned long *) &fpregs);
 }
 
-int get_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
+static int get_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 {
 	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
 	struct user_fxsr_struct fpregs;
@@ -190,7 +190,7 @@ int get_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 	return n;
 }
 
-int set_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
+static int set_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 {
 	int n, cpu = ((struct thread_info *) child->stack)->cpu;
 	struct user_fxsr_struct fpregs;
@@ -206,5 +206,23 @@ int set_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 long subarch_ptrace(struct task_struct *child, long request,
 		    unsigned long addr, unsigned long data)
 {
-	return -EIO;
+	int ret = -EIO;
+	void __user *datap = (void __user *) data;
+	switch (request) {
+	case PTRACE_GETFPREGS: /* Get the child FPU state. */
+		ret = get_fpregs(datap, child);
+		break;
+	case PTRACE_SETFPREGS: /* Set the child FPU state. */
+		ret = set_fpregs(datap, child);
+		break;
+	case PTRACE_GETFPXREGS: /* Get the child FPU state. */
+		ret = get_fpxregs(datap, child);
+		break;
+	case PTRACE_SETFPXREGS: /* Set the child FPU state. */
+		ret = set_fpxregs(datap, child);
+		break;
+	default:
+		ret = -EIO;
+	}
+	return ret;
 }

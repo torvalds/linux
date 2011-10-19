@@ -297,9 +297,10 @@ extern void intel_pch_panel_fitting(struct drm_device *dev,
 extern u32 intel_panel_get_max_backlight(struct drm_device *dev);
 extern u32 intel_panel_get_backlight(struct drm_device *dev);
 extern void intel_panel_set_backlight(struct drm_device *dev, u32 level);
-extern void intel_panel_setup_backlight(struct drm_device *dev);
+extern int intel_panel_setup_backlight(struct drm_device *dev);
 extern void intel_panel_enable_backlight(struct drm_device *dev);
 extern void intel_panel_disable_backlight(struct drm_device *dev);
+extern void intel_panel_destroy_backlight(struct drm_device *dev);
 extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
@@ -336,9 +337,6 @@ extern void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 					   struct drm_connector *connector,
 					   struct intel_load_detect_pipe *old);
 
-extern struct drm_connector* intel_sdvo_find(struct drm_device *dev, int sdvoB);
-extern int intel_sdvo_supports_hotplug(struct drm_connector *connector);
-extern void intel_sdvo_set_hotplug(struct drm_connector *connector, int enable);
 extern void intelfb_restore(void);
 extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				    u16 blue, int regno);
