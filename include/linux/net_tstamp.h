@@ -45,7 +45,7 @@ struct hwtstamp_config {
 };
 
 /* possible values for hwtstamp_config->tx_type */
-enum {
+enum hwtstamp_tx_types {
 	/*
 	 * No outgoing packet will need hardware time stamping;
 	 * should a packet arrive which asks for it, no hardware
@@ -72,7 +72,7 @@ enum {
 };
 
 /* possible values for hwtstamp_config->rx_filter */
-enum {
+enum hwtstamp_rx_filters {
 	/* time stamp no incoming packet at all */
 	HWTSTAMP_FILTER_NONE,
 
