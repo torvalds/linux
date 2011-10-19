@@ -375,14 +375,54 @@ server_unresponsive(struct TCP_Server_Info *server)
 	return false;
 }
 
+/*
+ * kvec_array_init - clone a kvec array, and advance into it
+ * @new:	pointer to memory for cloned array
+ * @iov:	pointer to original array
+ * @nr_segs:	number of members in original array
+ * @bytes:	number of bytes to advance into the cloned array
+ *
+ * This function will copy the array provided in iov to a section of memory
+ * and advance the specified number of bytes into the new array. It returns
+ * the number of segments in the new array. "new" must be at least as big as
+ * the original iov array.
+ */
+static unsigned int
+kvec_array_init(struct kvec *new, struct kvec *iov, unsigned int nr_segs,
+		size_t bytes)
+{
+	size_t base = 0;
+
+	while (bytes || !iov->iov_len) {
+		int copy = min(bytes, iov->iov_len);
+
+		bytes -= copy;
+		base += copy;
+		if (iov->iov_len == base) {
+			iov++;
+			nr_segs--;
+			base = 0;
+		}
+	}
+	memcpy(new, iov, sizeof(*iov) * nr_segs);
+	new->iov_base += base;
+	new->iov_len -= base;
+	return nr_segs;
+}
+
 static int
-read_from_socket(struct TCP_Server_Info *server, char *buf,
-		 unsigned int to_read)
+readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
+		  unsigned int nr_segs, unsigned int to_read)
 {
 	int length = 0;
 	int total_read;
+	unsigned int segs;
 	struct msghdr smb_msg;
-	struct kvec iov;
+	struct kvec *iov;
+
+	iov = kmalloc(sizeof(*iov_orig) * nr_segs, GFP_NOFS);
+	if (!iov)
+		return -ENOMEM;
 
 	smb_msg.msg_control = NULL;
 	smb_msg.msg_controllen = 0;
@@ -393,10 +433,11 @@ read_from_socket(struct TCP_Server_Info *server, char *buf,
 			break;
 		}
 
-		iov.iov_base = buf + total_read;
-		iov.iov_len = to_read;
-		length = kernel_recvmsg(server->ssocket, &smb_msg, &iov, 1,
-					to_read, 0);
+		segs = kvec_array_init(iov, iov_orig, nr_segs, total_read);
+
+		length = kernel_recvmsg(server->ssocket, &smb_msg,
+					iov, segs, to_read, 0);
+
 		if (server->tcpStatus == CifsExiting) {
 			total_read = -ESHUTDOWN;
 			break;
@@ -423,7 +464,20 @@ read_from_socket(struct TCP_Server_Info *server, char *buf,
 			break;
 		}
 	}
+	kfree(iov);
 	return total_read;
+}
+
+static int
+read_from_socket(struct TCP_Server_Info *server, char *buf,
+		 unsigned int to_read)
+{
+	struct kvec iov;
+
+	iov.iov_base = buf;
+	iov.iov_len = to_read;
+
+	return readv_from_socket(server, &iov, 1, to_read);
 }
 
 static bool
