@@ -2187,6 +2187,8 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	u32 wpsie_len = 0;
 	u32 chan_cnt = 0;
 	u8 wpsie[IE_MAX_LEN];
+	struct ether_addr bssid;
+
 	WL_DBG(("In\n"));
 	CHECK_SYS_UP(wl);
 
@@ -2196,6 +2198,10 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (wl->scan_request) {
 		wl_cfg80211_scan_abort(wl, dev);
 	}
+
+	/* Clean BSSID */
+	bzero(&bssid, sizeof(bssid));
+	wl_update_prof(wl, NULL, (void *)&bssid, WL_PROF_BSSID);
 
 	if (IS_P2P_SSID(sme->ssid) && (dev != wl_to_prmry_ndev(wl))) {
 		/* we only allow to connect using virtual interface in case of P2P */
@@ -2302,7 +2308,6 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		return err;
 	}
 
-	wl_update_prof(wl, NULL, sme->bssid, WL_PROF_BSSID);
 	/*
 	 *  Join with specific BSSID and cached SSID
 	 *  If SSID is zero join based on BSSID only
@@ -2835,8 +2840,10 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)
 	s8 eabuf[ETHER_ADDR_STR_LEN];
 #endif
+	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
 
 	CHECK_SYS_UP(wl);
+	WL_DBG((" Enter\n"));
 	if (get_mode_by_netdev(wl, dev) == WL_MODE_AP) {
 		err = wldev_iovar_getbuf(dev, "sta_info", (struct ether_addr *)mac,
 			ETHER_ADDR_LEN, ioctlbuf, sizeof(ioctlbuf));
@@ -2863,12 +2870,19 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 #endif
 	} else if (get_mode_by_netdev(wl, dev) == WL_MODE_BSS) {
 			u8 *curmacp = wl_read_prof(wl, WL_PROF_BSSID);
+
+			if (!wl_get_drv_status(wl, CONNECTED) ||
+			    (is_associated(dhd, NULL) == FALSE)) {
+				WL_ERR(("NOT assoc\n"));
+				err = -ENODEV;
+				goto get_station_err;
+			}
+
 			if (memcmp(mac, curmacp, ETHER_ADDR_LEN)) {
 				WL_ERR(("Wrong Mac address: "MACSTR" != "MACSTR"\n",
 					MAC2STR(mac), MAC2STR(curmacp)));
-				err = -ENOENT;
-				goto get_station_err;
 			}
+
 			/* Report the current tx rate */
 			err = wldev_ioctl(dev, WLC_GET_RATE, &rate, sizeof(rate), false);
 			if (err) {
@@ -2880,23 +2894,27 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 				WL_DBG(("Rate %d Mbps\n", (rate / 2)));
 			}
 
-			if (wl_get_drv_status(wl, CONNECTED)) {
-				memset(&scb_val, 0, sizeof(scb_val));
-				scb_val.val = 0;
-				err = wldev_ioctl(dev, WLC_GET_RSSI, &scb_val,
+			memset(&scb_val, 0, sizeof(scb_val));
+			scb_val.val = 0;
+			err = wldev_ioctl(dev, WLC_GET_RSSI, &scb_val,
 					sizeof(scb_val_t), false);
-				if (err) {
-					WL_ERR(("Could not get rssi (%d)\n", err));
-					goto get_station_err;
-				}
-				rssi = dtoh32(scb_val.val);
-				sinfo->filled |= STATION_INFO_SIGNAL;
-				sinfo->signal = rssi;
-				WL_DBG(("RSSI %d dBm\n", rssi));
+			if (err) {
+				WL_ERR(("Could not get rssi (%d)\n", err));
+				goto get_station_err;
 			}
+
+			rssi = dtoh32(scb_val.val);
+			sinfo->filled |= STATION_INFO_SIGNAL;
+			sinfo->signal = rssi;
+			WL_DBG(("RSSI %d dBm\n", rssi));
+
 get_station_err:
-		if (err)
+		if (err) {
+			WL_ERR(("force cfg80211_disconnected\n"));
+			wl_clr_drv_status(wl, CONNECTED);
 			cfg80211_disconnected(dev, 0, NULL, 0, GFP_KERNEL);
+			wl_link_down(wl);
+		}
 	}
 
 	return err;
@@ -4427,6 +4445,7 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 			wl_link_up(wl);
 			act = true;
 			wl_update_prof(wl, e, &act, WL_PROF_ACT);
+			wl_update_prof(wl, NULL, (void *)&e->addr, WL_PROF_BSSID);
 			if (wl_is_ibssmode(wl, ndev)) {
 				printk("cfg80211_ibss_joined\n");
 				cfg80211_ibss_joined(ndev, (s8 *)&e->addr,
@@ -4511,6 +4530,7 @@ wl_notify_roaming_status(struct wl_priv *wl, struct net_device *ndev,
 			wl_bss_connect_done(wl, ndev, e, data, true);
 		act = true;
 		wl_update_prof(wl, e, &act, WL_PROF_ACT);
+		wl_update_prof(wl, NULL, (void *)&e->addr, WL_PROF_BSSID);
 	}
 	return err;
 }
