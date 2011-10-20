@@ -1945,8 +1945,14 @@ out:
 
 		nfsd4_get_session(cstate->session);
 		atomic_inc(&clp->cl_refcount);
-		if (clp->cl_cb_state == NFSD4_CB_DOWN)
+		switch (clp->cl_cb_state) {
+		case NFSD4_CB_DOWN:
 			seq->status_flags |= SEQ4_STATUS_CB_PATH_DOWN;
+			break;
+		case NFSD4_CB_FAULT:
+			seq->status_flags |= SEQ4_STATUS_BACKCHANNEL_FAULT;
+			break;
+		}
 	}
 	kfree(conn);
 	spin_unlock(&client_lock);

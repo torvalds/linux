@@ -39,6 +39,8 @@
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
+static void nfsd4_mark_cb_fault(struct nfs4_client *, int reason);
+
 #define NFSPROC4_CB_NULL 0
 #define NFSPROC4_CB_COMPOUND 1
 
@@ -460,6 +462,8 @@ static int decode_cb_sequence4resok(struct xdr_stream *xdr,
 	 */
 	status = 0;
 out:
+	if (status)
+		nfsd4_mark_cb_fault(cb->cb_clp, status);
 	return status;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -683,6 +687,12 @@ static void warn_no_callback_path(struct nfs4_client *clp, int reason)
 static void nfsd4_mark_cb_down(struct nfs4_client *clp, int reason)
 {
 	clp->cl_cb_state = NFSD4_CB_DOWN;
+	warn_no_callback_path(clp, reason);
+}
+
+static void nfsd4_mark_cb_fault(struct nfs4_client *clp, int reason)
+{
+	clp->cl_cb_state = NFSD4_CB_FAULT;
 	warn_no_callback_path(clp, reason);
 }
 

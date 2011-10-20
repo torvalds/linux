@@ -258,6 +258,7 @@ struct nfs4_client {
 #define NFSD4_CB_UP		0
 #define NFSD4_CB_UNKNOWN	1
 #define NFSD4_CB_DOWN		2
+#define NFSD4_CB_FAULT		3
 	int			cl_cb_state;
 	struct nfsd4_callback	cl_cb_null;
 	struct nfsd4_session	*cl_cb_session;
