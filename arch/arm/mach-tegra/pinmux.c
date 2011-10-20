@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include <mach/iomap.h>
 #include <mach/pinmux.h>
@@ -169,15 +170,17 @@ static const char *pupd_name(unsigned long val)
 	}
 }
 
+static int nbanks;
+static void __iomem **regs;
 
-static inline unsigned long pg_readl(unsigned long offset)
+static inline u32 pg_readl(u32 bank, u32 reg)
 {
-	return readl(IO_TO_VIRT(TEGRA_APB_MISC_BASE + offset));
+	return readl(regs[bank] + reg);
 }
 
-static inline void pg_writel(unsigned long value, unsigned long offset)
+static inline void pg_writel(u32 val, u32 bank, u32 reg)
 {
-	writel(value, IO_TO_VIRT(TEGRA_APB_MISC_BASE + offset));
+	writel(val, regs[bank] + reg);
 }
 
 static int tegra_pinmux_set_func(const struct tegra_pingroup_config *config)
@@ -217,10 +220,10 @@ static int tegra_pinmux_set_func(const struct tegra_pingroup_config *config)
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(pingroups[pg].mux_reg);
+	reg = pg_readl(pingroups[pg].mux_bank, pingroups[pg].mux_reg);
 	reg &= ~(0x3 << pingroups[pg].mux_bit);
 	reg |= mux << pingroups[pg].mux_bit;
-	pg_writel(reg, pingroups[pg].mux_reg);
+	pg_writel(reg, pingroups[pg].mux_bank, pingroups[pg].mux_reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -241,11 +244,11 @@ int tegra_pinmux_set_tristate(enum tegra_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(pingroups[pg].tri_reg);
+	reg = pg_readl(pingroups[pg].tri_bank, pingroups[pg].tri_reg);
 	reg &= ~(0x1 << pingroups[pg].tri_bit);
 	if (tristate)
 		reg |= 1 << pingroups[pg].tri_bit;
-	pg_writel(reg, pingroups[pg].tri_reg);
+	pg_writel(reg, pingroups[pg].tri_bank, pingroups[pg].tri_reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -272,10 +275,10 @@ int tegra_pinmux_set_pullupdown(enum tegra_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(pingroups[pg].pupd_reg);
+	reg = pg_readl(pingroups[pg].pupd_bank, pingroups[pg].pupd_reg);
 	reg &= ~(0x3 << pingroups[pg].pupd_bit);
 	reg |= pupd << pingroups[pg].pupd_bit;
-	pg_writel(reg, pingroups[pg].pupd_reg);
+	pg_writel(reg, pingroups[pg].pupd_bank, pingroups[pg].pupd_reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -362,12 +365,12 @@ static int tegra_drive_pinmux_set_hsm(enum tegra_drive_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(drive_pingroups[pg].reg);
+	reg = pg_readl(drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 	if (hsm == TEGRA_HSM_ENABLE)
 		reg |= (1 << 2);
 	else
 		reg &= ~(1 << 2);
-	pg_writel(reg, drive_pingroups[pg].reg);
+	pg_writel(reg, drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -387,12 +390,12 @@ static int tegra_drive_pinmux_set_schmitt(enum tegra_drive_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(drive_pingroups[pg].reg);
+	reg = pg_readl(drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 	if (schmitt == TEGRA_SCHMITT_ENABLE)
 		reg |= (1 << 3);
 	else
 		reg &= ~(1 << 3);
-	pg_writel(reg, drive_pingroups[pg].reg);
+	pg_writel(reg, drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -412,10 +415,10 @@ static int tegra_drive_pinmux_set_drive(enum tegra_drive_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(drive_pingroups[pg].reg);
+	reg = pg_readl(drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 	reg &= ~(0x3 << 4);
 	reg |= drive << 4;
-	pg_writel(reg, drive_pingroups[pg].reg);
+	pg_writel(reg, drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -435,10 +438,10 @@ static int tegra_drive_pinmux_set_pull_down(enum tegra_drive_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(drive_pingroups[pg].reg);
+	reg = pg_readl(drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 	reg &= ~(0x1f << 12);
 	reg |= pull_down << 12;
-	pg_writel(reg, drive_pingroups[pg].reg);
+	pg_writel(reg, drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -458,10 +461,10 @@ static int tegra_drive_pinmux_set_pull_up(enum tegra_drive_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(drive_pingroups[pg].reg);
+	reg = pg_readl(drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 	reg &= ~(0x1f << 12);
 	reg |= pull_up << 12;
-	pg_writel(reg, drive_pingroups[pg].reg);
+	pg_writel(reg, drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -481,10 +484,10 @@ static int tegra_drive_pinmux_set_slew_rising(enum tegra_drive_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(drive_pingroups[pg].reg);
+	reg = pg_readl(drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 	reg &= ~(0x3 << 28);
 	reg |= slew_rising << 28;
-	pg_writel(reg, drive_pingroups[pg].reg);
+	pg_writel(reg, drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -504,10 +507,10 @@ static int tegra_drive_pinmux_set_slew_falling(enum tegra_drive_pingroup pg,
 
 	spin_lock_irqsave(&mux_lock, flags);
 
-	reg = pg_readl(drive_pingroups[pg].reg);
+	reg = pg_readl(drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 	reg &= ~(0x3 << 30);
 	reg |= slew_falling << 30;
-	pg_writel(reg, drive_pingroups[pg].reg);
+	pg_writel(reg, drive_pingroups[pg].reg_bank, drive_pingroups[pg].reg);
 
 	spin_unlock_irqrestore(&mux_lock, flags);
 
@@ -665,6 +668,99 @@ void tegra_pinmux_config_pullupdown_table(const struct tegra_pingroup_config *co
 	}
 }
 
+static int __devinit tegra_pinmux_probe(struct platform_device *pdev)
+{
+	struct resource *res;
+	int i;
+	int config_bad = 0;
+
+	for (i = 0; ; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res)
+			break;
+	}
+	nbanks = i;
+
+	for (i = 0; i < TEGRA_MAX_PINGROUP; i++) {
+		if (pingroups[i].tri_bank >= nbanks) {
+			dev_err(&pdev->dev, "pingroup %d: bad tri_bank\n", i);
+			config_bad = 1;
+		}
+
+		if (pingroups[i].mux_bank >= nbanks) {
+			dev_err(&pdev->dev, "pingroup %d: bad mux_bank\n", i);
+			config_bad = 1;
+		}
+
+		if (pingroups[i].pupd_bank >= nbanks) {
+			dev_err(&pdev->dev, "pingroup %d: bad pupd_bank\n", i);
+			config_bad = 1;
+		}
+	}
+
+	for (i = 0; i < TEGRA_MAX_DRIVE_PINGROUP; i++) {
+		if (drive_pingroups[i].reg_bank >= nbanks) {
+			dev_err(&pdev->dev,
+				"drive pingroup %d: bad reg_bank\n", i);
+			config_bad = 1;
+		}
+	}
+
+	if (config_bad)
+		return -ENODEV;
+
+	regs = devm_kzalloc(&pdev->dev, nbanks * sizeof(*regs), GFP_KERNEL);
+	if (!regs) {
+		dev_err(&pdev->dev, "Can't alloc regs pointer\n");
+		return -ENODEV;
+	}
+
+	for (i = 0; i < nbanks; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res) {
+			dev_err(&pdev->dev, "Missing MEM resource\n");
+			return -ENODEV;
+		}
+
+		if (!devm_request_mem_region(&pdev->dev, res->start,
+					    resource_size(res),
+					    dev_name(&pdev->dev))) {
+			dev_err(&pdev->dev,
+				"Couldn't request MEM resource %d\n", i);
+			return -ENODEV;
+		}
+
+		regs[i] = devm_ioremap(&pdev->dev, res->start,
+					resource_size(res));
+		if (!regs) {
+			dev_err(&pdev->dev, "Couldn't ioremap regs %d\n", i);
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
+static struct of_device_id tegra_pinmux_of_match[] __devinitdata = {
+	{ .compatible = "nvidia,tegra20-pinmux", },
+	{ },
+};
+
+static struct platform_driver tegra_pinmux_driver = {
+	.driver		= {
+		.name	= "tegra-pinmux",
+		.owner	= THIS_MODULE,
+		.of_match_table = tegra_pinmux_of_match,
+	},
+	.probe		= tegra_pinmux_probe,
+};
+
+static int __init tegra_pinmux_init(void)
+{
+	return platform_driver_register(&tegra_pinmux_driver);
+}
+postcore_initcall(tegra_pinmux_init);
+
 #ifdef	CONFIG_DEBUG_FS
 
 #include <linux/debugfs.h>
@@ -684,6 +780,7 @@ static int dbg_pinmux_show(struct seq_file *s, void *unused)
 	int len;
 
 	for (i = 0; i < TEGRA_MAX_PINGROUP; i++) {
+		unsigned long reg;
 		unsigned long tri;
 		unsigned long mux;
 		unsigned long pupd;
@@ -696,8 +793,9 @@ static int dbg_pinmux_show(struct seq_file *s, void *unused)
 			seq_printf(s, "TEGRA_MUX_NONE");
 			len = strlen("NONE");
 		} else {
-			mux = (pg_readl(pingroups[i].mux_reg) >>
-			       pingroups[i].mux_bit) & 0x3;
+			reg = pg_readl(pingroups[i].mux_bank,
+					pingroups[i].mux_reg);
+			mux = (reg >> pingroups[i].mux_bit) & 0x3;
 			if (pingroups[i].funcs[mux] == TEGRA_MUX_RSVD) {
 				seq_printf(s, "TEGRA_MUX_RSVD%1lu", mux+1);
 				len = 5;
@@ -713,8 +811,9 @@ static int dbg_pinmux_show(struct seq_file *s, void *unused)
 			seq_printf(s, "TEGRA_PUPD_NORMAL");
 			len = strlen("NORMAL");
 		} else {
-			pupd = (pg_readl(pingroups[i].pupd_reg) >>
-				pingroups[i].pupd_bit) & 0x3;
+			reg = pg_readl(pingroups[i].pupd_bank,
+					pingroups[i].pupd_reg);
+			pupd = (reg >> pingroups[i].pupd_bit) & 0x3;
 			seq_printf(s, "TEGRA_PUPD_%s", pupd_name(pupd));
 			len = strlen(pupd_name(pupd));
 		}
@@ -723,8 +822,9 @@ static int dbg_pinmux_show(struct seq_file *s, void *unused)
 		if (pingroups[i].tri_reg < 0) {
 			seq_printf(s, "TEGRA_TRI_NORMAL");
 		} else {
-			tri = (pg_readl(pingroups[i].tri_reg) >>
-			       pingroups[i].tri_bit) & 0x1;
+			reg = pg_readl(pingroups[i].tri_bank,
+					pingroups[i].tri_reg);
+			tri = (reg >> pingroups[i].tri_bit) & 0x1;
 
 			seq_printf(s, "TEGRA_TRI_%s", tri_name(tri));
 		}
@@ -759,7 +859,8 @@ static int dbg_drive_pinmux_show(struct seq_file *s, void *unused)
 		dbg_pad_field(s, 7 - len);
 
 
-		reg = pg_readl(drive_pingroups[i].reg);
+		reg = pg_readl(drive_pingroups[i].reg_bank,
+				drive_pingroups[i].reg);
 		if (HSM_EN(reg)) {
 			seq_printf(s, "TEGRA_HSM_ENABLE");
 			len = 16;
