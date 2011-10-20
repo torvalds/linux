@@ -169,8 +169,7 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver "
 #define ET1310_PCI_REPLAY		0xC2
 #define ET1310_PCI_L0L1LATENCY		0xCF
 
-/* PCI Vendor/Product IDs */
-#define ET131X_PCI_VENDOR_ID		0x11C1	/* Agere Systems */
+/* PCI Product IDs */
 #define ET131X_PCI_DEVICE_ID_GIG	0xED00	/* ET1310 1000 Base-T 8 */
 #define ET131X_PCI_DEVICE_ID_FAST	0xED01	/* ET1310 100  Base-T */
 
@@ -4647,14 +4646,11 @@ static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
 #define ET131X_PM_OPS NULL
 #endif
 
-static struct pci_device_id et131x_pci_table[] __devinitdata = {
-	{ET131X_PCI_VENDOR_ID, ET131X_PCI_DEVICE_ID_GIG, PCI_ANY_ID,
-	 PCI_ANY_ID, 0, 0, 0UL},
-	{ET131X_PCI_VENDOR_ID, ET131X_PCI_DEVICE_ID_FAST, PCI_ANY_ID,
-	 PCI_ANY_ID, 0, 0, 0UL},
+static DEFINE_PCI_DEVICE_TABLE(et131x_pci_table) = {
+	{ PCI_VDEVICE(ATT, ET131X_PCI_DEVICE_ID_GIG), 0UL},
+	{ PCI_VDEVICE(ATT, ET131X_PCI_DEVICE_ID_FAST), 0UL},
 	{0,}
 };
-
 MODULE_DEVICE_TABLE(pci, et131x_pci_table);
 
 static struct pci_driver et131x_driver = {
