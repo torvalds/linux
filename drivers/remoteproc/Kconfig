@@ -1,0 +1,3 @@
+# REMOTEPROC gets selected by whoever wants it
+config REMOTEPROC
+	tristate
