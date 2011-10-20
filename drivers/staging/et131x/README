@@ -9,7 +9,6 @@ driver as they did not build properly at the time.
 
 TODO:
 	- Use of kmem_cache seems a bit unusual
-	- It's too late stopping the tx queue when there is no room for the current packet. The condition should be detected for the next packet.
 
 Please send patches to:
 	Greg Kroah-Hartman <gregkh@suse.de>

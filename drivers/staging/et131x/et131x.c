@@ -3448,9 +3448,7 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 {
 	int status = 0;
-	struct et131x_adapter *adapter = NULL;
-
-	adapter = netdev_priv(netdev);
+	struct et131x_adapter *adapter = netdev_priv(netdev);
 
 	/* Send these packets
 	 *
@@ -5347,6 +5345,11 @@ static void et131x_multicast(struct net_device *netdev)
 static int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	int status = 0;
+	struct et131x_adapter *adapter = netdev_priv(netdev);
+
+	/* stop the queue if it's getting full */
+	if(adapter->tx_ring.used >= NUM_TCB - 1 && !netif_queue_stopped(netdev))
+		netif_stop_queue(netdev);
 
 	/* Save the timestamp for the TX timeout watchdog */
 	netdev->trans_start = jiffies;
@@ -5357,10 +5360,6 @@ static int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 	/* Check status and manage the netif queue if necessary */
 	if (status != 0) {
 		if (status == -ENOMEM) {
-			/* Put the queue to sleep until resources are
-			 * available
-			 */
-			netif_stop_queue(netdev);
 			status = NETDEV_TX_BUSY;
 		} else {
 			status = NETDEV_TX_OK;
