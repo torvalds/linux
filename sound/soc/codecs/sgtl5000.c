@@ -754,7 +754,7 @@ static int ldo_regulator_enable(struct regulator_dev *dev)
 
 	/* set voltage to register */
 	snd_soc_update_bits(codec, SGTL5000_CHIP_LINREG_CTRL,
-				(0x1 << 4) - 1, reg);
+				SGTL5000_LINREG_VDDD_MASK, reg);
 
 	snd_soc_update_bits(codec, SGTL5000_CHIP_ANA_POWER,
 				SGTL5000_LINEREG_D_POWERUP,
@@ -780,7 +780,7 @@ static int ldo_regulator_disable(struct regulator_dev *dev)
 
 	/* clear voltage info */
 	snd_soc_update_bits(codec, SGTL5000_CHIP_LINREG_CTRL,
-				(0x1 << 4) - 1, 0);
+				SGTL5000_LINREG_VDDD_MASK, 0);
 
 	ldo->enabled = 0;
 
@@ -1115,7 +1115,7 @@ static int sgtl5000_set_power_regs(struct snd_soc_codec *codec)
 
 	/* set voltage to register */
 	snd_soc_update_bits(codec, SGTL5000_CHIP_LINREG_CTRL,
-				(0x1 << 4) - 1, 0x8);
+				SGTL5000_LINREG_VDDD_MASK, 0x8);
 
 	/*
 	 * if vddd linear reg has been enabled,
