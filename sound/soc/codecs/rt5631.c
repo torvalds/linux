@@ -31,7 +31,6 @@
 #include "rt5631.h"
 
 struct rt5631_priv {
-	struct snd_soc_codec *codec;
 	int codec_version;
 	int master;
 	int sysclk;
@@ -1632,7 +1631,6 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 	}
 
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
-	rt5631->codec = codec;
 
 	return 0;
 }
