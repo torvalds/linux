@@ -59,7 +59,7 @@ int InterfaceFileReadbackFromChip(PVOID arg, struct file *flp, unsigned int on_c
 	mm_segment_t oldfs = {0};
 	int errno = 0, len = 0, is_config_file = 0;
 	loff_t pos = 0;
-	static int fw_down = 0;
+	static int fw_down;
 	INT Status = STATUS_SUCCESS;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
 
@@ -136,9 +136,9 @@ static int bcm_download_config_file(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwIn
 	B_UINT32 value = 0;
 
 	if (Adapter->pstargetparams == NULL) {
-		if ((Adapter->pstargetparams = kmalloc(sizeof(STARGETPARAMS), GFP_KERNEL)) == NULL) {
+		Adapter->pstargetparams = kmalloc(sizeof(STARGETPARAMS), GFP_KERNEL);
+		if (Adapter->pstargetparams == NULL)
 			return -ENOMEM;
-		}
 	}
 
 	if (psFwInfo->u32FirmwareLength != sizeof(STARGETPARAMS))
@@ -317,7 +317,8 @@ static INT buffRdbkVerify(PMINI_ADAPTER Adapter, PUCHAR mappedbuffer, UINT u32Fi
 			break;
 		}
 
-		if (STATUS_SUCCESS != (retval = bcm_compare_buff_contents(readbackbuff, mappedbuffer, len)))
+		retval = bcm_compare_buff_contents(readbackbuff, mappedbuffer, len);
+		if (STATUS_SUCCESS != retval)
 			break;
 
 		u32StartingAddress += len;
