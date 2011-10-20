@@ -8,7 +8,6 @@ Note, the powermanagement options were removed from the vendor provided
 driver as they did not build properly at the time.
 
 TODO:
-	- Put the driver into a single file, with a .h for the registers layout.
 	- rx_ring.fbr{0, 1} can probably share a common structure
 	- Use of kmem_cache seems a bit unusual
 	- Use dma_alloc_... in place of pci_alloc_...
