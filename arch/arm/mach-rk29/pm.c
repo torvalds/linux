@@ -593,6 +593,10 @@ static int __init rk29_pm_init(void)
 	pm_idle = rk29_idle;
 	ddr_debug = 0;
 
+#ifdef CONFIG_EARLYSUSPEND
+	pm_set_vt_switch(0); /* disable vt switch while suspend */
+#endif
+
 	return 0;
 }
 __initcall(rk29_pm_init);
