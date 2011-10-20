@@ -853,9 +853,9 @@ static inline struct sk_buff *skb_unshare(struct sk_buff *skb,
  *	The reference count is not incremented and the reference is therefore
  *	volatile. Use with caution.
  */
-static inline struct sk_buff *skb_peek(struct sk_buff_head *list_)
+static inline struct sk_buff *skb_peek(const struct sk_buff_head *list_)
 {
-	struct sk_buff *list = ((struct sk_buff *)list_)->next;
+	struct sk_buff *list = ((const struct sk_buff *)list_)->next;
 	if (list == (struct sk_buff *)list_)
 		list = NULL;
 	return list;
@@ -874,9 +874,9 @@ static inline struct sk_buff *skb_peek(struct sk_buff_head *list_)
  *	The reference count is not incremented and the reference is therefore
  *	volatile. Use with caution.
  */
-static inline struct sk_buff *skb_peek_tail(struct sk_buff_head *list_)
+static inline struct sk_buff *skb_peek_tail(const struct sk_buff_head *list_)
 {
-	struct sk_buff *list = ((struct sk_buff *)list_)->prev;
+	struct sk_buff *list = ((const struct sk_buff *)list_)->prev;
 	if (list == (struct sk_buff *)list_)
 		list = NULL;
 	return list;
@@ -1830,7 +1830,7 @@ static inline dma_addr_t skb_frag_dma_map(struct device *dev,
  *	Returns true if modifying the header part of the cloned buffer
  *	does not requires the data to be copied.
  */
-static inline int skb_clone_writable(struct sk_buff *skb, unsigned int len)
+static inline int skb_clone_writable(const struct sk_buff *skb, unsigned int len)
 {
 	return !skb_header_cloned(skb) &&
 	       skb_headroom(skb) + len <= skb->hdr_len;
@@ -2451,7 +2451,8 @@ static inline bool skb_warn_if_lro(const struct sk_buff *skb)
 {
 	/* LRO sets gso_size but not gso_type, whereas if GSO is really
 	 * wanted then gso_type will be set. */
-	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	const struct skb_shared_info *shinfo = skb_shinfo(skb);
+
 	if (skb_is_nonlinear(skb) && shinfo->gso_size != 0 &&
 	    unlikely(shinfo->gso_type == 0)) {
 		__skb_warn_lro_forwarding(skb);
@@ -2475,7 +2476,7 @@ static inline void skb_forward_csum(struct sk_buff *skb)
  * Instead of forcing ip_summed to CHECKSUM_NONE, we can
  * use this helper, to document places where we make this assertion.
  */
-static inline void skb_checksum_none_assert(struct sk_buff *skb)
+static inline void skb_checksum_none_assert(const struct sk_buff *skb)
 {
 #ifdef DEBUG
 	BUG_ON(skb->ip_summed != CHECKSUM_NONE);
@@ -2484,7 +2485,7 @@ static inline void skb_checksum_none_assert(struct sk_buff *skb)
 
 bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off);
 
-static inline bool skb_is_recycleable(struct sk_buff *skb, int skb_size)
+static inline bool skb_is_recycleable(const struct sk_buff *skb, int skb_size)
 {
 	if (irqs_disabled())
 		return false;
