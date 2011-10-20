@@ -1,6 +1,4 @@
 /*
- * Merged from files
- *
  * Copyright © 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
@@ -50,6 +48,66 @@
 
 #define DRIVER_NAME "et131x"
 #define DRIVER_VERSION "v2.0"
+
+/* EEPROM defines */
+
+/* LBCIF Register Groups (addressed via 32-bit offsets) */
+#define LBCIF_DWORD0_GROUP       0xAC
+#define LBCIF_DWORD1_GROUP       0xB0
+
+/* LBCIF Registers (addressed via 8-bit offsets) */
+#define LBCIF_ADDRESS_REGISTER   0xAC
+#define LBCIF_DATA_REGISTER      0xB0
+#define LBCIF_CONTROL_REGISTER   0xB1
+#define LBCIF_STATUS_REGISTER    0xB2
+
+/* LBCIF Control Register Bits */
+#define LBCIF_CONTROL_SEQUENTIAL_READ   0x01
+#define LBCIF_CONTROL_PAGE_WRITE        0x02
+#define LBCIF_CONTROL_EEPROM_RELOAD     0x08
+#define LBCIF_CONTROL_TWO_BYTE_ADDR     0x20
+#define LBCIF_CONTROL_I2C_WRITE         0x40
+#define LBCIF_CONTROL_LBCIF_ENABLE      0x80
+
+/* LBCIF Status Register Bits */
+#define LBCIF_STATUS_PHY_QUEUE_AVAIL    0x01
+#define LBCIF_STATUS_I2C_IDLE           0x02
+#define LBCIF_STATUS_ACK_ERROR          0x04
+#define LBCIF_STATUS_GENERAL_ERROR      0x08
+#define LBCIF_STATUS_CHECKSUM_ERROR     0x40
+#define LBCIF_STATUS_EEPROM_PRESENT     0x80
+
+/* Miscellaneous Constraints */
+#define MAX_NUM_REGISTER_POLLS          1000
+#define MAX_NUM_WRITE_RETRIES           2
+
+/* MAC defines */
+#define COUNTER_WRAP_16_BIT 0x10000
+#define COUNTER_WRAP_12_BIT 0x1000
+
+/* PCI defines */
+#define INTERNAL_MEM_SIZE       0x400	/* 1024 of internal memory */
+#define INTERNAL_MEM_RX_OFFSET  0x1FF	/* 50%   Tx, 50%   Rx */
+
+/* ISR defines */
+/*
+ * For interrupts, normal running is:
+ *       rxdma_xfr_done, phy_interrupt, mac_stat_interrupt,
+ *       watchdog_interrupt & txdma_xfer_done
+ *
+ * In both cases, when flow control is enabled for either Tx or bi-direction,
+ * we additional enable rx_fbr0_low and rx_fbr1_low, so we know when the
+ * buffer rings are running low.
+ */
+#define INT_MASK_DISABLE            0xffffffff
+
+/* NOTE: Masking out MAC_STAT Interrupt for now...
+ * #define INT_MASK_ENABLE             0xfff6bf17
+ * #define INT_MASK_ENABLE_NO_FLOW     0xfff6bfd7
+ */
+#define INT_MASK_ENABLE             0xfffebf17
+#define INT_MASK_ENABLE_NO_FLOW     0xfffebfd7
+
 
 /* et131x_eeprom.c */
 int et131x_init_eeprom(struct et131x_adapter *adapter);
