@@ -419,6 +419,6 @@ MACHINE_START(MX28EVK, "Freescale MX28 EVK")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.map_io		= mx28_map_io,
 	.init_irq	= mx28_init_irq,
-	.init_machine	= mx28evk_init,
 	.timer		= &mx28evk_timer,
+	.init_machine	= mx28evk_init,
 MACHINE_END

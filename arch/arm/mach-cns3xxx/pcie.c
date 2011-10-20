@@ -49,7 +49,7 @@ static struct cns3xxx_pcie *sysdata_to_cnspci(void *sysdata)
 	return &cns3xxx_pcie[root->domain];
 }
 
-static struct cns3xxx_pcie *pdev_to_cnspci(struct pci_dev *dev)
+static struct cns3xxx_pcie *pdev_to_cnspci(const struct pci_dev *dev)
 {
 	return sysdata_to_cnspci(dev->sysdata);
 }

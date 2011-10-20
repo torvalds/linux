@@ -360,7 +360,7 @@ sys_call_table:
 	.quad sys_newuname
 	.quad sys_nanosleep			/* 340 */
 	.quad sys_mremap
-	.quad sys_nfsservctl
+	.quad sys_ni_syscall			/* old nfsservctl */
 	.quad sys_setresuid
 	.quad sys_getresuid
 	.quad sys_pciconfig_read		/* 345 */

@@ -319,7 +319,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
 
 	/* FIXME: Calculate automatically based on DAPM routes? */
-	if (!machine_is_harmony() && !machine_is_ventana())
+	if (!machine_is_harmony())
 		snd_soc_dapm_nc_pin(dapm, "IN1L");
 	if (!machine_is_seaboard() && !machine_is_aebl())
 		snd_soc_dapm_nc_pin(dapm, "IN1R");
@@ -395,7 +395,7 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
-	if (machine_is_harmony() || machine_is_ventana()) {
+	if (machine_is_harmony()) {
 		card->dapm_routes = harmony_audio_map;
 		card->num_dapm_routes = ARRAY_SIZE(harmony_audio_map);
 	} else if (machine_is_seaboard()) {

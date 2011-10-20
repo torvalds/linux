@@ -128,7 +128,7 @@ static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
 		unsigned long clkcon0;
 
 		clkcon0 = __raw_readl(S3C2443_CLKDIV0);
-		clkcon0 &= S3C2443_CLKDIV0_ARMDIV_MASK;
+		clkcon0 &= ~S3C2443_CLKDIV0_ARMDIV_MASK;
 		clkcon0 |= val << S3C2443_CLKDIV0_ARMDIV_SHIFT;
 		__raw_writel(clkcon0, S3C2443_CLKDIV0);
 	}

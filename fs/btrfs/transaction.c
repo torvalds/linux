@@ -884,6 +884,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *root = pending->root;
 	struct btrfs_root *parent_root;
+	struct btrfs_block_rsv *rsv;
 	struct inode *parent_inode;
 	struct dentry *parent;
 	struct dentry *dentry;
@@ -894,6 +895,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	u64 index = 0;
 	u64 objectid;
 	u64 root_flags;
+
+	rsv = trans->block_rsv;
 
 	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
 	if (!new_root_item) {
@@ -1002,6 +1005,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_orphan_post_snapshot(trans, pending);
 fail:
 	kfree(new_root_item);
+	trans->block_rsv = rsv;
 	btrfs_block_rsv_release(root, &pending->block_rsv, (u64)-1);
 	return 0;
 }

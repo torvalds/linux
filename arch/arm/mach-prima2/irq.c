@@ -51,6 +51,7 @@ static __init void sirfsoc_irq_init(void)
 
 static struct of_device_id intc_ids[]  = {
 	{ .compatible = "sirf,prima2-intc" },
+	{},
 };
 
 void __init sirfsoc_of_irq_init(void)

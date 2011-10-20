@@ -175,6 +175,6 @@ static struct sys_timer tx28_timer = {
 MACHINE_START(TX28, "Ka-Ro electronics TX28 module")
 	.map_io = mx28_map_io,
 	.init_irq = mx28_init_irq,
-	.init_machine = tx28_stk5v3_init,
 	.timer = &tx28_timer,
+	.init_machine = tx28_stk5v3_init,
 MACHINE_END

@@ -178,7 +178,7 @@
 		CALL(sys_ni_syscall)		/* vm86 */
 		CALL(sys_ni_syscall)		/* was sys_query_module */
 		CALL(sys_poll)
-		CALL(sys_nfsservctl)
+		CALL(sys_ni_syscall)		/* was nfsservctl */
 /* 170 */	CALL(sys_setresgid16)
 		CALL(sys_getresgid16)
 		CALL(sys_prctl)
