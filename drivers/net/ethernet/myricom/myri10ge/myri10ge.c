@@ -1210,7 +1210,6 @@ myri10ge_rx_skb_build(struct sk_buff *skb, u8 * va,
 	struct skb_frag_struct *skb_frags;
 
 	skb->len = skb->data_len = len;
-	skb->truesize = len + sizeof(struct sk_buff);
 	/* attach the page(s) */
 
 	skb_frags = skb_shinfo(skb)->frags;
@@ -1385,6 +1384,8 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum,
 	if (skb_frag_size(&skb_shinfo(skb)->frags[0]) <= 0) {
 		skb_frag_unref(skb, 0);
 		skb_shinfo(skb)->nr_frags = 0;
+	} else {
+		skb->truesize += bytes * skb_shinfo(skb)->nr_frags;
 	}
 	skb->protocol = eth_type_trans(skb, dev);
 	skb_record_rx_queue(skb, ss - &mgp->ss[0]);
