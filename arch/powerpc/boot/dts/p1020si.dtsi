@@ -200,6 +200,7 @@
 			compatible = "fsl,etsec2";
 			fsl,num_rx_queues = <0x8>;
 			fsl,num_tx_queues = <0x8>;
+			fsl,magic-packet;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupt-parent = <&mpic>;
 
@@ -226,6 +227,7 @@
 			compatible = "fsl,etsec2";
 			fsl,num_rx_queues = <0x8>;
 			fsl,num_tx_queues = <0x8>;
+			fsl,magic-packet;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupt-parent = <&mpic>;
 
@@ -252,6 +254,7 @@
 			compatible = "fsl,etsec2";
 			fsl,num_rx_queues = <0x8>;
 			fsl,num_tx_queues = <0x8>;
+			fsl,magic-packet;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupt-parent = <&mpic>;
 
