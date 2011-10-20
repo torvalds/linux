@@ -144,7 +144,7 @@ static int iio_bfin_tmr_get_number(int irq)
 }
 
 static const struct iio_trigger_ops iio_bfin_tmr_trigger_ops = {
-	owner = THIS_MODULE,
+	.owner = THIS_MODULE,
 };
 
 static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
