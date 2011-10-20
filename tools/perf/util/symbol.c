@@ -24,7 +24,7 @@
 #include <sys/utsname.h>
 
 #ifndef KSYM_NAME_LEN
-#define KSYM_NAME_LEN 128
+#define KSYM_NAME_LEN 256
 #endif
 
 #ifndef NT_GNU_BUILD_ID
