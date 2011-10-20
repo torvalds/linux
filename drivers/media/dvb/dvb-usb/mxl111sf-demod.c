@@ -370,10 +370,20 @@ fail:
 	return ret;
 }
 
+#ifdef MXL111SF_DEMOD_ENABLE_CALCULATIONS
+/* FIXME: leaving this enabled breaks the build on some architectures,
+ * and we shouldn't have any floating point math in the kernel, anyway.
+ *
+ * These macros need to be re-written, but it's harmless to simply
+ * return zero for now. */
 #define CALCULATE_BER(avg_errors, count) \
 	((u32)(avg_errors * 4)/(count*64*188*8))
 #define CALCULATE_SNR(data) \
 	((u32)((10 * (u32)data / 64) - 2.5))
+#else
+#define CALCULATE_BER(avg_errors, count) 0
+#define CALCULATE_SNR(data) 0
+#endif
 
 static int mxl111sf_demod_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
