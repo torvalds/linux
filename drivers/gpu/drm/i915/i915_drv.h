@@ -349,7 +349,6 @@ typedef struct drm_i915_private {
 	/* LVDS info */
 	int backlight_level;  /* restore backlight to this value */
 	bool backlight_enabled;
-	struct drm_display_mode *panel_fixed_mode;
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
@@ -674,7 +673,6 @@ typedef struct drm_i915_private {
 	unsigned int lvds_border_bits;
 	/* Panel fitter placement and size for Ironlake+ */
 	u32 pch_pf_pos, pch_pf_size;
-	int panel_t3, panel_t12;
 
 	struct drm_crtc *plane_to_crtc_mapping[2];
 	struct drm_crtc *pipe_to_crtc_mapping[2];
