@@ -81,6 +81,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		}
 
 		pItemSSID = (PWLAN_IE_SSID)sScanCmd.ssid;
+		if (pItemSSID->len > WLAN_SSID_MAXLEN + 1)
+			return -EINVAL;
 		if (pItemSSID->len != 0) {
 			memset(abyScanSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
 			memcpy(abyScanSSID, pItemSSID, pItemSSID->len + WLAN_IEHDR_LEN);
@@ -155,6 +157,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		}
 
 		pItemSSID = (PWLAN_IE_SSID)sJoinCmd.ssid;
+		if (pItemSSID->len > WLAN_SSID_MAXLEN + 1)
+			return -EINVAL;
 		memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
 		memcpy(pMgmt->abyDesireSSID, pItemSSID, pItemSSID->len + WLAN_IEHDR_LEN);
 		if (sJoinCmd.wBSSType == ADHOC) {
@@ -476,6 +480,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		}
 
 		pItemSSID = (PWLAN_IE_SSID)sStartAPCmd.ssid;
+		if (pItemSSID->len > WLAN_SSID_MAXLEN + 1)
+			return -EINVAL;
 		memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
 		memcpy(pMgmt->abyDesireSSID, pItemSSID, pItemSSID->len + WLAN_IEHDR_LEN);
 
