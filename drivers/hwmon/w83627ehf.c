@@ -390,7 +390,7 @@ temp_from_reg(u16 reg, s16 regval)
 {
 	if (is_word_sized(reg))
 		return LM75_TEMP_FROM_REG(regval);
-	return regval * 1000;
+	return ((s8)regval) * 1000;
 }
 
 static inline u16
@@ -398,7 +398,8 @@ temp_to_reg(u16 reg, long temp)
 {
 	if (is_word_sized(reg))
 		return LM75_TEMP_TO_REG(temp);
-	return DIV_ROUND_CLOSEST(SENSORS_LIMIT(temp, -127000, 128000), 1000);
+	return (s8)DIV_ROUND_CLOSEST(SENSORS_LIMIT(temp, -127000, 128000),
+				     1000);
 }
 
 /* Some of analog inputs have internal scaling (2x), 8mV is ADC LSB */
