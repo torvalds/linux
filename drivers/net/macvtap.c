@@ -343,7 +343,6 @@ static int macvtap_open(struct inode *inode, struct file *file)
 {
 	struct net *net = current->nsproxy->net_ns;
 	struct net_device *dev = dev_get_by_index(net, iminor(inode));
-	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvtap_queue *q;
 	int err;
 
@@ -376,12 +375,12 @@ static int macvtap_open(struct inode *inode, struct file *file)
 	/*
 	 * so far only KVM virtio_net uses macvtap, enable zero copy between
 	 * guest kernel and host kernel when lower device supports zerocopy
+	 *
+	 * The macvlan supports zerocopy iff the lower device supports zero
+	 * copy so we don't have to look at the lower device directly.
 	 */
-	if (vlan) {
-		if ((vlan->lowerdev->features & NETIF_F_HIGHDMA) &&
-		    (vlan->lowerdev->features & NETIF_F_SG))
-			sock_set_flag(&q->sk, SOCK_ZEROCOPY);
-	}
+	if ((dev->features & NETIF_F_HIGHDMA) && (dev->features & NETIF_F_SG))
+		sock_set_flag(&q->sk, SOCK_ZEROCOPY);
 
 	err = macvtap_set_queue(dev, file, q);
 	if (err)
