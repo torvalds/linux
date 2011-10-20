@@ -551,9 +551,13 @@ void __init rk29_gpio_init(void)
 	rk29_gpio_irq_setup();
 }
 
-__weak void rk29_setgpio_suspend_board(void);
+__weak void rk29_setgpio_suspend_board(void)
+{
+}
 
-__weak void rk29_setgpio_resume_board(void);
+__weak void rk29_setgpio_resume_board(void)
+{
+}
 
 #ifdef CONFIG_PM
 static int rk29_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
