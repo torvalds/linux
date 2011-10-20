@@ -49,7 +49,7 @@
 #define DRIVER_NAME "et131x"
 #define DRIVER_VERSION "v2.0"
 
-/* EEPROM defines */
+/* EEPROM registers */
 
 /* LBCIF Register Groups (addressed via 32-bit offsets) */
 #define LBCIF_DWORD0_GROUP       0xAC
@@ -76,35 +76,4 @@
 #define LBCIF_STATUS_GENERAL_ERROR      0x08
 #define LBCIF_STATUS_CHECKSUM_ERROR     0x40
 #define LBCIF_STATUS_EEPROM_PRESENT     0x80
-
-/* Miscellaneous Constraints */
-#define MAX_NUM_REGISTER_POLLS          1000
-#define MAX_NUM_WRITE_RETRIES           2
-
-/* MAC defines */
-#define COUNTER_WRAP_16_BIT 0x10000
-#define COUNTER_WRAP_12_BIT 0x1000
-
-/* PCI defines */
-#define INTERNAL_MEM_SIZE       0x400	/* 1024 of internal memory */
-#define INTERNAL_MEM_RX_OFFSET  0x1FF	/* 50%   Tx, 50%   Rx */
-
-/* ISR defines */
-/*
- * For interrupts, normal running is:
- *       rxdma_xfr_done, phy_interrupt, mac_stat_interrupt,
- *       watchdog_interrupt & txdma_xfer_done
- *
- * In both cases, when flow control is enabled for either Tx or bi-direction,
- * we additional enable rx_fbr0_low and rx_fbr1_low, so we know when the
- * buffer rings are running low.
- */
-#define INT_MASK_DISABLE            0xffffffff
-
-/* NOTE: Masking out MAC_STAT Interrupt for now...
- * #define INT_MASK_ENABLE             0xfff6bf17
- * #define INT_MASK_ENABLE_NO_FLOW     0xfff6bfd7
- */
-#define INT_MASK_ENABLE             0xfffebf17
-#define INT_MASK_ENABLE_NO_FLOW     0xfffebfd7
 
