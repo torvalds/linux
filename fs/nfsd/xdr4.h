@@ -398,6 +398,10 @@ struct nfsd4_destroy_session {
 	struct nfs4_sessionid	sessionid;
 };
 
+struct nfsd4_destroy_clientid {
+	clientid_t clientid;
+};
+
 struct nfsd4_reclaim_complete {
 	u32 rca_one_fs;
 };
@@ -552,6 +556,7 @@ extern __be32 nfsd4_sequence(struct svc_rqst *,
 extern __be32 nfsd4_destroy_session(struct svc_rqst *,
 		struct nfsd4_compound_state *,
 		struct nfsd4_destroy_session *);
+extern __be32 nfsd4_destroy_clientid(struct svc_rqst *, struct nfsd4_compound_state *, struct nfsd4_destroy_clientid *);
 __be32 nfsd4_reclaim_complete(struct svc_rqst *, struct nfsd4_compound_state *, struct nfsd4_reclaim_complete *);
 extern __be32 nfsd4_process_open1(struct nfsd4_compound_state *,
 		struct nfsd4_open *open);

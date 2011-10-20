@@ -1962,6 +1962,50 @@ out:
 	return status;
 }
 
+static inline bool has_resources(struct nfs4_client *clp)
+{
+	return !list_empty(&clp->cl_openowners)
+		|| !list_empty(&clp->cl_delegations)
+		|| !list_empty(&clp->cl_sessions);
+}
+
+__be32
+nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_destroy_clientid *dc)
+{
+	struct nfs4_client *conf, *unconf, *clp;
+	int status = 0;
+
+	nfs4_lock_state();
+	unconf = find_unconfirmed_client(&dc->clientid);
+	conf = find_confirmed_client(&dc->clientid);
+
+	if (conf) {
+		clp = conf;
+
+		if (!is_client_expired(conf) && has_resources(conf)) {
+			status = nfserr_clientid_busy;
+			goto out;
+		}
+
+		/* rfc5661 18.50.3 */
+		if (cstate->session && conf == cstate->session->se_client) {
+			status = nfserr_clientid_busy;
+			goto out;
+		}
+	} else if (unconf)
+		clp = unconf;
+	else {
+		status = nfserr_stale_clientid;
+		goto out;
+	}
+
+	expire_client(clp);
+out:
+	nfs4_unlock_state();
+	dprintk("%s return %d\n", __func__, ntohl(status));
+	return status;
+}
+
 __be32
 nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_reclaim_complete *rc)
 {

@@ -1417,6 +1417,16 @@ xdr_error:
 	goto out;
 }
 
+static __be32 nfsd4_decode_destroy_clientid(struct nfsd4_compoundargs *argp, struct nfsd4_destroy_clientid *dc)
+{
+	DECODE_HEAD;
+
+	READ_BUF(8);
+	COPYMEM(&dc->clientid, 8);
+
+	DECODE_TAIL;
+}
+
 static __be32 nfsd4_decode_reclaim_complete(struct nfsd4_compoundargs *argp, struct nfsd4_reclaim_complete *rc)
 {
 	DECODE_HEAD;
@@ -1538,7 +1548,7 @@ static nfsd4_dec nfsd41_dec_ops[] = {
 	[OP_SET_SSV]		= (nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_TEST_STATEID]	= (nfsd4_dec)nfsd4_decode_test_stateid,
 	[OP_WANT_DELEGATION]	= (nfsd4_dec)nfsd4_decode_notsupp,
-	[OP_DESTROY_CLIENTID]	= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_DESTROY_CLIENTID]	= (nfsd4_dec)nfsd4_decode_destroy_clientid,
 	[OP_RECLAIM_COMPLETE]	= (nfsd4_dec)nfsd4_decode_reclaim_complete,
 };
 
