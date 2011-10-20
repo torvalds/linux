@@ -525,6 +525,11 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	if (!ls->ls_recover_buf)
 		goto out_dirfree;
 
+	ls->ls_slot = 0;
+	ls->ls_num_slots = 0;
+	ls->ls_slots_size = 0;
+	ls->ls_slots = NULL;
+
 	INIT_LIST_HEAD(&ls->ls_recover_list);
 	spin_lock_init(&ls->ls_recover_list_lock);
 	ls->ls_recover_list_count = 0;

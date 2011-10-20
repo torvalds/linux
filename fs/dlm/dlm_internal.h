@@ -117,6 +117,18 @@ struct dlm_member {
 	struct list_head	list;
 	int			nodeid;
 	int			weight;
+	int			slot;
+	int			slot_prev;
+	uint32_t		generation;
+};
+
+/*
+ * low nodeid saves array of these in ls_slots
+ */
+
+struct dlm_slot {
+	int			nodeid;
+	int			slot;
 };
 
 /*
@@ -337,7 +349,9 @@ static inline int rsb_flag(struct dlm_rsb *r, enum rsb_flags flag)
 /* dlm_header is first element of all structs sent between nodes */
 
 #define DLM_HEADER_MAJOR	0x00030000
-#define DLM_HEADER_MINOR	0x00000000
+#define DLM_HEADER_MINOR	0x00000001
+
+#define DLM_HEADER_SLOTS	0x00000001
 
 #define DLM_MSG			1
 #define DLM_RCOM		2
@@ -425,10 +439,34 @@ union dlm_packet {
 	struct dlm_rcom		rcom;
 };
 
+#define DLM_RSF_NEED_SLOTS	0x00000001
+
+/* RCOM_STATUS data */
+struct rcom_status {
+	__le32			rs_flags;
+	__le32			rs_unused1;
+	__le64			rs_unused2;
+};
+
+/* RCOM_STATUS_REPLY data */
 struct rcom_config {
 	__le32			rf_lvblen;
 	__le32			rf_lsflags;
-	__le64			rf_unused;
+
+	/* DLM_HEADER_SLOTS adds: */
+	__le32			rf_flags;
+	__le16			rf_our_slot;
+	__le16			rf_num_slots;
+	__le32			rf_generation;
+	__le32			rf_unused1;
+	__le64			rf_unused2;
+};
+
+struct rcom_slot {
+	__le32			ro_nodeid;
+	__le16			ro_slot;
+	__le16			ro_unused1;
+	__le64			ro_unused2;
 };
 
 struct rcom_lock {
@@ -455,6 +493,7 @@ struct dlm_ls {
 	struct list_head	ls_list;	/* list of lockspaces */
 	dlm_lockspace_t		*ls_local_handle;
 	uint32_t		ls_global_id;	/* global unique lockspace ID */
+	uint32_t		ls_generation;
 	uint32_t		ls_exflags;
 	int			ls_lvblen;
 	int			ls_count;	/* refcount of processes in
@@ -492,6 +531,11 @@ struct dlm_ls {
 	int			ls_low_nodeid;
 	int			ls_total_weight;
 	int			*ls_node_array;
+
+	int			ls_slot;
+	int			ls_num_slots;
+	int			ls_slots_size;
+	struct dlm_slot		*ls_slots;
 
 	struct dlm_rsb		ls_stub_rsb;	/* for returning errors */
 	struct dlm_lkb		ls_stub_lkb;	/* for returning errors */

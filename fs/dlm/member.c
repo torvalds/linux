@@ -19,6 +19,280 @@
 #include "config.h"
 #include "lowcomms.h"
 
+int dlm_slots_version(struct dlm_header *h)
+{
+	if ((h->h_version & 0x0000FFFF) < DLM_HEADER_SLOTS)
+		return 0;
+	return 1;
+}
+
+void dlm_slot_save(struct dlm_ls *ls, struct dlm_rcom *rc,
+		  struct dlm_member *memb)
+{
+	struct rcom_config *rf = (struct rcom_config *)rc->rc_buf;
+
+	if (!dlm_slots_version(&rc->rc_header))
+		return;
+
+	memb->slot = le16_to_cpu(rf->rf_our_slot);
+	memb->generation = le32_to_cpu(rf->rf_generation);
+}
+
+void dlm_slots_copy_out(struct dlm_ls *ls, struct dlm_rcom *rc)
+{
+	struct dlm_slot *slot;
+	struct rcom_slot *ro;
+	int i;
+
+	ro = (struct rcom_slot *)(rc->rc_buf + sizeof(struct rcom_config));
+
+	/* ls_slots array is sparse, but not rcom_slots */
+
+	for (i = 0; i < ls->ls_slots_size; i++) {
+		slot = &ls->ls_slots[i];
+		if (!slot->nodeid)
+			continue;
+		ro->ro_nodeid = cpu_to_le32(slot->nodeid);
+		ro->ro_slot = cpu_to_le16(slot->slot);
+		ro++;
+	}
+}
+
+#define SLOT_DEBUG_LINE 128
+
+static void log_debug_slots(struct dlm_ls *ls, uint32_t gen, int num_slots,
+			    struct rcom_slot *ro0, struct dlm_slot *array,
+			    int array_size)
+{
+	char line[SLOT_DEBUG_LINE];
+	int len = SLOT_DEBUG_LINE - 1;
+	int pos = 0;
+	int ret, i;
+
+	if (!dlm_config.ci_log_debug)
+		return;
+
+	memset(line, 0, sizeof(line));
+
+	if (array) {
+		for (i = 0; i < array_size; i++) {
+			if (!array[i].nodeid)
+				continue;
+
+			ret = snprintf(line + pos, len - pos, " %d:%d",
+				       array[i].slot, array[i].nodeid);
+			if (ret >= len - pos)
+				break;
+			pos += ret;
+		}
+	} else if (ro0) {
+		for (i = 0; i < num_slots; i++) {
+			ret = snprintf(line + pos, len - pos, " %d:%d",
+				       ro0[i].ro_slot, ro0[i].ro_nodeid);
+			if (ret >= len - pos)
+				break;
+			pos += ret;
+		}
+	}
+
+	log_debug(ls, "generation %u slots %d%s", gen, num_slots, line);
+}
+
+int dlm_slots_copy_in(struct dlm_ls *ls)
+{
+	struct dlm_member *memb;
+	struct dlm_rcom *rc = ls->ls_recover_buf;
+	struct rcom_config *rf = (struct rcom_config *)rc->rc_buf;
+	struct rcom_slot *ro0, *ro;
+	int our_nodeid = dlm_our_nodeid();
+	int i, num_slots;
+	uint32_t gen;
+
+	if (!dlm_slots_version(&rc->rc_header))
+		return -1;
+
+	gen = le32_to_cpu(rf->rf_generation);
+	if (gen <= ls->ls_generation) {
+		log_error(ls, "dlm_slots_copy_in gen %u old %u",
+			  gen, ls->ls_generation);
+	}
+	ls->ls_generation = gen;
+
+	num_slots = le16_to_cpu(rf->rf_num_slots);
+	if (!num_slots)
+		return -1;
+
+	ro0 = (struct rcom_slot *)(rc->rc_buf + sizeof(struct rcom_config));
+
+	for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
+		ro->ro_nodeid = le32_to_cpu(ro->ro_nodeid);
+		ro->ro_slot = le16_to_cpu(ro->ro_slot);
+	}
+
+	log_debug_slots(ls, gen, num_slots, ro0, NULL, 0);
+
+	list_for_each_entry(memb, &ls->ls_nodes, list) {
+		for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
+			if (ro->ro_nodeid != memb->nodeid)
+				continue;
+			memb->slot = ro->ro_slot;
+			memb->slot_prev = memb->slot;
+			break;
+		}
+
+		if (memb->nodeid == our_nodeid) {
+			if (ls->ls_slot && ls->ls_slot != memb->slot) {
+				log_error(ls, "dlm_slots_copy_in our slot "
+					  "changed %d %d", ls->ls_slot,
+					  memb->slot);
+				return -1;
+			}
+
+			if (!ls->ls_slot)
+				ls->ls_slot = memb->slot;
+		}
+
+		if (!memb->slot) {
+			log_error(ls, "dlm_slots_copy_in nodeid %d no slot",
+				   memb->nodeid);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/* for any nodes that do not support slots, we will not have set memb->slot
+   in wait_status_all(), so memb->slot will remain -1, and we will not
+   assign slots or set ls_num_slots here */
+
+int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
+		     struct dlm_slot **slots_out, uint32_t *gen_out)
+{
+	struct dlm_member *memb;
+	struct dlm_slot *array;
+	int our_nodeid = dlm_our_nodeid();
+	int array_size, max_slots, i;
+	int need = 0;
+	int max = 0;
+	int num = 0;
+	uint32_t gen = 0;
+
+	/* our own memb struct will have slot -1 gen 0 */
+
+	list_for_each_entry(memb, &ls->ls_nodes, list) {
+		if (memb->nodeid == our_nodeid) {
+			memb->slot = ls->ls_slot;
+			memb->generation = ls->ls_generation;
+			break;
+		}
+	}
+
+	list_for_each_entry(memb, &ls->ls_nodes, list) {
+		if (memb->generation > gen)
+			gen = memb->generation;
+
+		/* node doesn't support slots */
+
+		if (memb->slot == -1)
+			return -1;
+
+		/* node needs a slot assigned */
+
+		if (!memb->slot)
+			need++;
+
+		/* node has a slot assigned */
+
+		num++;
+
+		if (!max || max < memb->slot)
+			max = memb->slot;
+
+		/* sanity check, once slot is assigned it shouldn't change */
+
+		if (memb->slot_prev && memb->slot && memb->slot_prev != memb->slot) {
+			log_error(ls, "nodeid %d slot changed %d %d",
+				  memb->nodeid, memb->slot_prev, memb->slot);
+			return -1;
+		}
+		memb->slot_prev = memb->slot;
+	}
+
+	array_size = max + need;
+
+	array = kzalloc(array_size * sizeof(struct dlm_slot), GFP_NOFS);
+	if (!array)
+		return -ENOMEM;
+
+	num = 0;
+
+	/* fill in slots (offsets) that are used */
+
+	list_for_each_entry(memb, &ls->ls_nodes, list) {
+		if (!memb->slot)
+			continue;
+
+		if (memb->slot > array_size) {
+			log_error(ls, "invalid slot number %d", memb->slot);
+			kfree(array);
+			return -1;
+		}
+
+		array[memb->slot - 1].nodeid = memb->nodeid;
+		array[memb->slot - 1].slot = memb->slot;
+		num++;
+	}
+
+	/* assign new slots from unused offsets */
+
+	list_for_each_entry(memb, &ls->ls_nodes, list) {
+		if (memb->slot)
+			continue;
+
+		for (i = 0; i < array_size; i++) {
+			if (array[i].nodeid)
+				continue;
+
+			memb->slot = i + 1;
+			memb->slot_prev = memb->slot;
+			array[i].nodeid = memb->nodeid;
+			array[i].slot = memb->slot;
+			num++;
+
+			if (!ls->ls_slot && memb->nodeid == our_nodeid)
+				ls->ls_slot = memb->slot;
+			break;
+		}
+
+		if (!memb->slot) {
+			log_error(ls, "no free slot found");
+			kfree(array);
+			return -1;
+		}
+	}
+
+	gen++;
+
+	log_debug_slots(ls, gen, num, NULL, array, array_size);
+
+	max_slots = (dlm_config.ci_buffer_size - sizeof(struct dlm_rcom) -
+		     sizeof(struct rcom_config)) / sizeof(struct rcom_slot);
+
+	if (num > max_slots) {
+		log_error(ls, "num_slots %d exceeds max_slots %d",
+			  num, max_slots);
+		kfree(array);
+		return -1;
+	}
+
+	*gen_out = gen;
+	*slots_out = array;
+	*slots_size = array_size;
+	*num_slots = num;
+	return 0;
+}
+
 static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 {
 	struct dlm_member *memb = NULL;
@@ -176,7 +450,7 @@ static int ping_members(struct dlm_ls *ls)
 		error = dlm_recovery_stopped(ls);
 		if (error)
 			break;
-		error = dlm_rcom_status(ls, memb->nodeid);
+		error = dlm_rcom_status(ls, memb->nodeid, 0);
 		if (error)
 			break;
 	}
@@ -322,7 +596,15 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	 */
 
 	dlm_recoverd_suspend(ls);
+
+	spin_lock(&ls->ls_recover_lock);
+	kfree(ls->ls_slots);
+	ls->ls_slots = NULL;
+	ls->ls_num_slots = 0;
+	ls->ls_slots_size = 0;
 	ls->ls_recover_status = 0;
+	spin_unlock(&ls->ls_recover_lock);
+
 	dlm_recoverd_resume(ls);
 
 	if (!ls->ls_recover_begin)
