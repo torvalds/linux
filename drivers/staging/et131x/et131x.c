@@ -96,6 +96,37 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver "
 		   "for the ET1310 by Agere Systems");
 
+void et131x_error_timer_handler(unsigned long data);
+void et131x_enable_interrupts(struct et131x_adapter *adapter);
+void et131x_disable_interrupts(struct et131x_adapter *adapter);
+void et131x_align_allocated_memory(struct et131x_adapter *adapter,
+				   u64 *phys_addr,
+				   u64 *offset, u64 mask);
+void et131x_adapter_setup(struct et131x_adapter *adapter);
+void et131x_soft_reset(struct et131x_adapter *adapter);
+void et131x_isr_handler(struct work_struct *work);
+void et1310_setup_device_for_multicast(struct et131x_adapter *adapter);
+void et1310_setup_device_for_unicast(struct et131x_adapter *adapter);
+void et131x_up(struct net_device *netdev);
+void et131x_down(struct net_device *netdev);
+struct net_device *et131x_device_alloc(void);
+void et131x_enable_txrx(struct net_device *netdev);
+void et131x_disable_txrx(struct net_device *netdev);
+int et1310_in_phy_coma(struct et131x_adapter *adapter);
+void et1310_phy_access_mii_bit(struct et131x_adapter *adapter,
+			       u16 action,
+			       u16 regnum, u16 bitnum, u8 *value);
+int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
+	      u8 reg, u16 *value);
+int32_t et131x_mii_write(struct et131x_adapter *adapter,
+		u8 reg, u16 value);
+void et131x_rx_dma_memory_free(struct et131x_adapter *adapter);
+void et131x_rx_dma_disable(struct et131x_adapter *adapter);
+void et131x_rx_dma_enable(struct et131x_adapter *adapter);
+void et131x_reset_recv(struct et131x_adapter *adapter);
+void et131x_init_send(struct et131x_adapter *adapter);
+void et131x_tx_dma_enable(struct et131x_adapter *adapter);
+
 /* EEPROM functions */
 
 static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
