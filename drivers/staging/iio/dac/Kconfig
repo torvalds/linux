@@ -13,6 +13,17 @@ config AD5064
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5064.
 
+config AD5360
+	tristate "Analog Devices Analog Devices AD5360/61/62/63/70/71/73 DAC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5360, AD5361,
+	  AD5362, AD5363, AD5370, AD5371, AD5373 multi-channel
+	  Digital to Analog Converters (DAC).
+
+	  To compile this driver as module choose M here: the module will be called
+	  ad5360.
+
 config AD5624R_SPI
 	tristate "Analog Devices AD5624/44/64R DAC spi driver"
 	depends on SPI
