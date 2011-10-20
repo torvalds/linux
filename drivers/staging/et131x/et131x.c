@@ -85,7 +85,6 @@
 
 #include "et1310_phy.h"
 #include "et131x_adapter.h"
-#include "et1310_address_map.h"
 #include "et1310_tx.h"
 #include "et1310_rx.h"
 #include "et131x.h"

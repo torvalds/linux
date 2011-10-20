@@ -61,8 +61,6 @@
 #ifndef __ET1310_RX_H__
 #define __ET1310_RX_H__
 
-#include "et1310_address_map.h"
-
 #define USE_FBR0 true
 
 #ifdef USE_FBR0

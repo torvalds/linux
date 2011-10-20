@@ -61,8 +61,6 @@
 #ifndef _ET1310_PHY_H_
 #define _ET1310_PHY_H_
 
-#include "et1310_address_map.h"
-
 /*
  * Defines for generic MII registers 0x00 -> 0x0F can be found in
  * include/linux/mii.h

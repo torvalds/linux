@@ -61,7 +61,6 @@
 #ifndef __ET131X_ADAPTER_H__
 #define __ET131X_ADAPTER_H__
 
-#include "et1310_address_map.h"
 #include "et1310_tx.h"
 #include "et1310_rx.h"
 
