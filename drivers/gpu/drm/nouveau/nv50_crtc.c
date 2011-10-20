@@ -588,88 +588,73 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 }
 
 static int
-nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
-		   struct drm_display_mode *adjusted_mode, int x, int y,
+nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
+		   struct drm_display_mode *mode, int x, int y,
 		   struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nouveau_connector *nv_connector = NULL;
-	uint32_t hsync_dur,  vsync_dur, hsync_start_to_end, vsync_start_to_end;
-	uint32_t hunk1, vunk1, vunk2a, vunk2b;
+	u32 head = nv_crtc->index * 0x400;
+	u32 ilace = (mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 1;
+	u32 vscan = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
+	u32 hactive, hsynce, hbackp, hfrontp, hblanke, hblanks;
+	u32 vactive, vsynce, vbackp, vfrontp, vblanke, vblanks;
+	u32 vblan2e = 0, vblan2s = 1;
 	int ret;
 
-	/* Find the connector attached to this CRTC */
-	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	/* hw timing description looks like this:
+	 *
+	 * <sync> <back porch> <---------display---------> <front porch>
+	 * ______
+	 *       |____________|---------------------------|____________|
+	 *
+	 *       ^ synce      ^ blanke                    ^ blanks     ^ active
+	 *
+	 * interlaced modes also have 2 additional values pointing at the end
+	 * and start of the next field's blanking period.
+	 */
 
-	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
+	hactive = mode->htotal;
+	hsynce  = mode->hsync_end - mode->hsync_start - 1;
+	hbackp  = mode->htotal - mode->hsync_end;
+	hblanke = hsynce + hbackp;
+	hfrontp = mode->hsync_start - mode->hdisplay;
+	hblanks = mode->htotal - hfrontp - 1;
 
-	hsync_dur = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
-	vsync_dur = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
-	hsync_start_to_end = adjusted_mode->htotal - adjusted_mode->hsync_start;
-	vsync_start_to_end = adjusted_mode->vtotal - adjusted_mode->vsync_start;
-	/* I can't give this a proper name, anyone else can? */
-	hunk1 = adjusted_mode->htotal -
-		adjusted_mode->hsync_start + adjusted_mode->hdisplay;
-	vunk1 = adjusted_mode->vtotal -
-		adjusted_mode->vsync_start + adjusted_mode->vdisplay;
-	/* Another strange value, this time only for interlaced adjusted_modes. */
-	vunk2a = 2 * adjusted_mode->vtotal -
-		 adjusted_mode->vsync_start + adjusted_mode->vdisplay;
-	vunk2b = adjusted_mode->vtotal -
-		 adjusted_mode->vsync_start + adjusted_mode->vtotal;
-
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		vsync_dur /= 2;
-		vsync_start_to_end  /= 2;
-		vunk1 /= 2;
-		vunk2a /= 2;
-		vunk2b /= 2;
-		/* magic */
-		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN) {
-			vsync_start_to_end -= 1;
-			vunk1 -= 1;
-			vunk2a -= 1;
-			vunk2b -= 1;
-		}
+	vactive = mode->vtotal * vscan / ilace;
+	vsynce  = ((mode->vsync_end - mode->vsync_start) * vscan / ilace) - 1;
+	vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
+	vblanke = vsynce + vbackp;
+	vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
+	vblanks = vactive - vfrontp - 1;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		vblan2e = vactive + vsynce + vbackp;
+		vblan2s = vblan2e + (mode->vdisplay * vscan / ilace);
+		vactive = (vactive * 2) + 1;
 	}
 
-	ret = RING_SPACE(evo, 19);
-	if (ret)
-		return ret;
-
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, CLOCK), 2);
-	OUT_RING(evo, adjusted_mode->clock | 0x800000);
-	OUT_RING(evo, (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 0);
-
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, DISPLAY_START), 5);
-	OUT_RING(evo, 0);
-	OUT_RING(evo, (adjusted_mode->vtotal << 16) | adjusted_mode->htotal);
-	OUT_RING(evo, (vsync_dur - 1) << 16 | (hsync_dur - 1));
-	OUT_RING(evo, (vsync_start_to_end - 1) << 16 |
-			(hsync_start_to_end - 1));
-	OUT_RING(evo, (vunk1 - 1) << 16 | (hunk1 - 1));
-
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, UNK0824), 1);
-		OUT_RING(evo, (vunk2b - 1) << 16 | (vunk2a - 1));
-	} else {
-		OUT_RING(evo, 0);
-		OUT_RING(evo, 0);
+	ret = RING_SPACE(evo, 18);
+	if (ret == 0) {
+		BEGIN_RING(evo, 0, 0x0804 + head, 2);
+		OUT_RING  (evo, 0x00800000 | mode->clock);
+		OUT_RING  (evo, (ilace == 2) ? 2 : 0);
+		BEGIN_RING(evo, 0, 0x0810 + head, 6);
+		OUT_RING  (evo, 0x00000000); /* border colour */
+		OUT_RING  (evo, (vactive << 16) | hactive);
+		OUT_RING  (evo, ( vsynce << 16) | hsynce);
+		OUT_RING  (evo, (vblanke << 16) | hblanke);
+		OUT_RING  (evo, (vblanks << 16) | hblanks);
+		OUT_RING  (evo, (vblan2e << 16) | vblan2s);
+		BEGIN_RING(evo, 0, 0x082c + head, 1);
+		OUT_RING  (evo, 0x00000000);
+		BEGIN_RING(evo, 0, 0x0900 + head, 1);
+		OUT_RING  (evo, 0x00000311); /* makes sync channel work */
+		BEGIN_RING(evo, 0, 0x08c8 + head, 1);
+		OUT_RING  (evo, (umode->vdisplay << 16) | umode->hdisplay);
+		BEGIN_RING(evo, 0, 0x08d4 + head, 1);
+		OUT_RING  (evo, 0x00000000); /* screen position */
 	}
-
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, UNK082C), 1);
-	OUT_RING  (evo, 0);
-	/* required to make display sync channel not hate life */
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, UNK900), 1);
-	OUT_RING  (evo, 0x00000311);
-
-	/* This is the actual resolution of the mode. */
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, REAL_RES), 1);
-	OUT_RING(evo, (mode->vdisplay << 16) | mode->hdisplay);
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, SCALE_CENTER_OFFSET), 1);
-	OUT_RING(evo, NV50_EVO_CRTC_SCALE_CENTER_OFFSET_VAL(0, 0));
 
 	nv_crtc->set_dither(nv_crtc, false);
 	nv_crtc->set_scale(nv_crtc, false);
