@@ -2312,7 +2312,7 @@ int fb1_open(struct fb_info *info, int user)
     } else {
         par->refcount++;
         win0_blank(FB_BLANK_NORMAL, info);
-		if(screen->x_res<=1280)
+		if(screen->x_res>1280)
 		fb1_open_init=1;
         fb0_set_par(inf->fb0);
         fb1_open_init=0;
