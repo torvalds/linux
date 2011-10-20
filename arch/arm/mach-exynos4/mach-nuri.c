@@ -32,10 +32,12 @@
 #include <asm/mach-types.h>
 
 #include <plat/adc.h>
+#include <plat/regs-fb-v4.h>
 #include <plat/regs-serial.h>
 #include <plat/exynos4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/fb.h>
 #include <plat/sdhci.h>
 #include <plat/ehci.h>
 #include <plat/clock.h>
@@ -197,6 +199,33 @@ static struct platform_device nuri_gpio_keys = {
 	.dev			= {
 		.platform_data	= &nuri_gpio_keys_data,
 	},
+};
+
+/* Frame Buffer */
+static struct s3c_fb_pd_win nuri_fb_win0 = {
+	.win_mode = {
+		.left_margin	= 64,
+		.right_margin	= 16,
+		.upper_margin	= 64,
+		.lower_margin	= 1,
+		.hsync_len	= 48,
+		.vsync_len	= 3,
+		.xres		= 1280,
+		.yres		= 800,
+		.refresh	= 60,
+	},
+	.max_bpp	= 24,
+	.default_bpp	= 16,
+	.virtual_x	= 1280,
+	.virtual_y	= 800,
+};
+
+static struct s3c_fb_platdata nuri_fb_pdata __initdata = {
+	.win[0]		= &nuri_fb_win0,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB |
+			  VIDCON0_CLKSEL_LCD,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
 };
 
 static void nuri_lcd_power_on(struct plat_lcd_data *pd, unsigned int power)
@@ -1092,6 +1121,7 @@ static struct platform_device *nuri_devices[] __initdata = {
 	/* Samsung Platform Devices */
 	&s3c_device_i2c5, /* PMIC should initialize first */
 	&emmc_fixed_voltage,
+	&s5p_device_fimd0,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
@@ -1106,6 +1136,7 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&exynos4_device_pd[PD_MFC],
+	&exynos4_device_pd[PD_LCD0],
 
 	/* NURI Devices */
 	&nuri_gpio_keys,
@@ -1142,12 +1173,15 @@ static void __init nuri_machine_init(void)
 	i2c9_devs[I2C9_MAX17042].irq = gpio_to_irq(EXYNOS4_GPX2(3));
 	i2c_register_board_info(9, i2c9_devs, ARRAY_SIZE(i2c9_devs));
 
+	s5p_fimd0_set_platdata(&nuri_fb_pdata);
+
 	nuri_ehci_init();
 	clk_xusbxti.rate = 24000000;
 
 	/* Last */
 	platform_add_devices(nuri_devices, ARRAY_SIZE(nuri_devices));
 	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
+	s5p_device_fimd0.dev.parent = &exynos4_device_pd[PD_LCD0].dev;
 }
 
 MACHINE_START(NURI, "NURI")

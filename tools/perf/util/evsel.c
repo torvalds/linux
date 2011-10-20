@@ -7,6 +7,8 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 
+#include <byteswap.h>
+#include "asm/bug.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"
@@ -342,9 +344,19 @@ static bool sample_overlap(const union perf_event *event,
 
 int perf_event__parse_sample(const union perf_event *event, u64 type,
 			     int sample_size, bool sample_id_all,
-			     struct perf_sample *data)
+			     struct perf_sample *data, bool swapped)
 {
 	const u64 *array;
+
+	/*
+	 * used for cross-endian analysis. See git commit 65014ab3
+	 * for why this goofiness is needed.
+	 */
+	union {
+		u64 val64;
+		u32 val32[2];
+	} u;
+
 
 	data->cpu = data->pid = data->tid = -1;
 	data->stream_id = data->id = data->time = -1ULL;
@@ -366,9 +378,16 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_TID) {
-		u32 *p = (u32 *)array;
-		data->pid = p[0];
-		data->tid = p[1];
+		u.val64 = *array;
+		if (swapped) {
+			/* undo swap of u64, then swap on individual u32s */
+			u.val64 = bswap_64(u.val64);
+			u.val32[0] = bswap_32(u.val32[0]);
+			u.val32[1] = bswap_32(u.val32[1]);
+		}
+
+		data->pid = u.val32[0];
+		data->tid = u.val32[1];
 		array++;
 	}
 
@@ -395,8 +414,15 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_CPU) {
-		u32 *p = (u32 *)array;
-		data->cpu = *p;
+
+		u.val64 = *array;
+		if (swapped) {
+			/* undo swap of u64, then swap on individual u32s */
+			u.val64 = bswap_64(u.val64);
+			u.val32[0] = bswap_32(u.val32[0]);
+		}
+
+		data->cpu = u.val32[0];
 		array++;
 	}
 
@@ -423,18 +449,24 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_RAW) {
-		u32 *p = (u32 *)array;
+		u.val64 = *array;
+		if (WARN_ONCE(swapped,
+			      "Endianness of raw data not corrected!\n")) {
+			/* undo swap of u64, then swap on individual u32s */
+			u.val64 = bswap_64(u.val64);
+			u.val32[0] = bswap_32(u.val32[0]);
+			u.val32[1] = bswap_32(u.val32[1]);
+		}
 
 		if (sample_overlap(event, array, sizeof(u32)))
 			return -EFAULT;
 
-		data->raw_size = *p;
-		p++;
+		data->raw_size = u.val32[0];
 
-		if (sample_overlap(event, p, data->raw_size))
+		if (sample_overlap(event, &u.val32[1], data->raw_size))
 			return -EFAULT;
 
-		data->raw_data = p;
+		data->raw_data = &u.val32[1];
 	}
 
 	return 0;

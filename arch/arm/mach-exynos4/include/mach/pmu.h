@@ -13,11 +13,18 @@
 #ifndef __ASM_ARCH_PMU_H
 #define __ASM_ARCH_PMU_H __FILE__
 
+#define PMU_TABLE_END	NULL
+
 enum sys_powerdown {
 	SYS_AFTR,
 	SYS_LPA,
 	SYS_SLEEP,
 	NUM_SYS_POWERDOWN,
+};
+
+struct exynos4_pmu_conf {
+	void __iomem *reg;
+	unsigned int val[NUM_SYS_POWERDOWN];
 };
 
 extern void exynos4_sys_powerdown_conf(enum sys_powerdown mode);

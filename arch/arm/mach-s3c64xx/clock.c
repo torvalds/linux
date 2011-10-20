@@ -25,13 +25,13 @@
 
 #include <mach/regs-sys.h>
 #include <mach/regs-clock.h>
-#include <mach/pll.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/cpu-freq.h>
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
+#include <plat/pll.h>
 
 /* fin_apll, fin_mpll and fin_epll are all the same clock, which we call
  * ext_xtal_mux for want of an actual name from the manual.
@@ -735,7 +735,8 @@ void __init_or_cpufreq s3c6400_setup_clocks(void)
 	/* For now assume the mux always selects the crystal */
 	clk_ext_xtal_mux.parent = xtal_clk;
 
-	epll = s3c6400_get_epll(xtal);
+	epll = s3c_get_pll6553x(xtal, __raw_readl(S3C_EPLL_CON0),
+				__raw_readl(S3C_EPLL_CON1));
 	mpll = s3c6400_get_pll(xtal, __raw_readl(S3C_MPLL_CON));
 	apll = s3c6400_get_pll(xtal, __raw_readl(S3C_APLL_CON));
 
@@ -744,7 +745,13 @@ void __init_or_cpufreq s3c6400_setup_clocks(void)
 	printk(KERN_INFO "S3C64XX: PLL settings, A=%ld, M=%ld, E=%ld\n",
 	       apll, mpll, epll);
 
-	hclk2 = mpll / GET_DIV(clkdiv0, S3C6400_CLKDIV0_HCLK2);
+	if(__raw_readl(S3C64XX_OTHERS) & S3C64XX_OTHERS_SYNCMUXSEL)
+		/* Synchronous mode */
+		hclk2 = apll / GET_DIV(clkdiv0, S3C6400_CLKDIV0_HCLK2);
+	else
+		/* Asynchronous mode */
+		hclk2 = mpll / GET_DIV(clkdiv0, S3C6400_CLKDIV0_HCLK2);
+
 	hclk = hclk2 / GET_DIV(clkdiv0, S3C6400_CLKDIV0_HCLK);
 	pclk = hclk2 / GET_DIV(clkdiv0, S3C6400_CLKDIV0_PCLK);
 

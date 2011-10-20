@@ -12,9 +12,11 @@ obj-				:=
 
 # Core support for EXYNOS4 system
 
-obj-$(CONFIG_CPU_EXYNOS4210)	+= cpu.o init.o clock.o irq-combiner.o
-obj-$(CONFIG_CPU_EXYNOS4210)	+= setup-i2c0.o irq-eint.o dma.o pmu.o
-obj-$(CONFIG_PM)		+= pm.o sleep.o
+obj-$(CONFIG_ARCH_EXYNOS4)	+= cpu.o init.o clock.o irq-combiner.o
+obj-$(CONFIG_ARCH_EXYNOS4)	+= setup-i2c0.o irq-eint.o dma.o pmu.o
+obj-$(CONFIG_CPU_EXYNOS4210)	+= clock-exynos4210.o
+obj-$(CONFIG_SOC_EXYNOS4212)	+= clock-exynos4212.o
+obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 
 obj-$(CONFIG_SMP)		+= platsmp.o headsmp.o
@@ -25,11 +27,15 @@ obj-$(CONFIG_HOTPLUG_CPU)	+= hotplug.o
 
 # machine support
 
-obj-$(CONFIG_MACH_SMDKC210)		+= mach-smdkc210.o
+obj-$(CONFIG_MACH_SMDKC210)		+= mach-smdkv310.o
 obj-$(CONFIG_MACH_SMDKV310)		+= mach-smdkv310.o
 obj-$(CONFIG_MACH_ARMLEX4210)		+= mach-armlex4210.o
 obj-$(CONFIG_MACH_UNIVERSAL_C210)	+= mach-universal_c210.o
 obj-$(CONFIG_MACH_NURI)			+= mach-nuri.o
+obj-$(CONFIG_MACH_ORIGEN)		+= mach-origen.o
+
+obj-$(CONFIG_MACH_SMDK4212)		+= mach-smdk4x12.o
+obj-$(CONFIG_MACH_SMDK4412)		+= mach-smdk4x12.o
 
 # device support
 

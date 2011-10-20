@@ -50,64 +50,46 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 		.name		= "sdi",
 		.channels	= MAP(S3C2412_DMAREQSEL_SDI),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_SDI),
-		.hw_addr.to	= S3C2410_PA_SDI + S3C2410_SDIDATA,
-		.hw_addr.from	= S3C2410_PA_SDI + S3C2410_SDIDATA,
 	},
 	[DMACH_SPI0] = {
 		.name		= "spi0",
 		.channels	= MAP(S3C2412_DMAREQSEL_SPI0TX),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI0RX),
-		.hw_addr.to	= S3C2410_PA_SPI + S3C2410_SPTDAT,
-		.hw_addr.from	= S3C2410_PA_SPI + S3C2410_SPRDAT,
 	},
 	[DMACH_SPI1] = {
 		.name		= "spi1",
 		.channels	= MAP(S3C2412_DMAREQSEL_SPI1TX),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI1RX),
-		.hw_addr.to	= S3C2410_PA_SPI + S3C2412_SPI1 + S3C2410_SPTDAT,
-		.hw_addr.from	= S3C2410_PA_SPI + S3C2412_SPI1  + S3C2410_SPRDAT,
 	},
 	[DMACH_UART0] = {
 		.name		= "uart0",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART0_0),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART0_0),
-		.hw_addr.to	= S3C2410_PA_UART0 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART0 + S3C2410_URXH,
 	},
 	[DMACH_UART1] = {
 		.name		= "uart1",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART1_0),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART1_0),
-		.hw_addr.to	= S3C2410_PA_UART1 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART1 + S3C2410_URXH,
 	},
       	[DMACH_UART2] = {
 		.name		= "uart2",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART2_0),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART2_0),
-		.hw_addr.to	= S3C2410_PA_UART2 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART2 + S3C2410_URXH,
 	},
 	[DMACH_UART0_SRC2] = {
 		.name		= "uart0",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART0_1),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART0_1),
-		.hw_addr.to	= S3C2410_PA_UART0 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART0 + S3C2410_URXH,
 	},
 	[DMACH_UART1_SRC2] = {
 		.name		= "uart1",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART1_1),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART1_1),
-		.hw_addr.to	= S3C2410_PA_UART1 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART1 + S3C2410_URXH,
 	},
       	[DMACH_UART2_SRC2] = {
 		.name		= "uart2",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART2_1),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART2_1),
-		.hw_addr.to	= S3C2410_PA_UART2 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART2 + S3C2410_URXH,
 	},
 	[DMACH_TIMER] = {
 		.name		= "timer",
@@ -148,11 +130,11 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 
 static void s3c2412_dma_direction(struct s3c2410_dma_chan *chan,
 				  struct s3c24xx_dma_map *map,
-				  enum s3c2410_dmasrc dir)
+				  enum dma_data_direction dir)
 {
 	unsigned long chsel;
 
-	if (dir == S3C2410_DMASRC_HW)
+	if (dir == DMA_FROM_DEVICE)
 		chsel = map->channels_rx[0];
 	else
 		chsel = map->channels[0];

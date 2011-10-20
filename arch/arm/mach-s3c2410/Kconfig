@@ -6,9 +6,7 @@ config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
 	select CPU_ARM920T
-	select S3C_GPIO_PULL_UP
 	select S3C2410_CLOCK
-	select S3C2410_GPIO
 	select CPU_LLSERIAL_S3C2410
 	select S3C2410_PM if PM
 	select S3C2410_CPUFREQ if CPU_FREQ_S3C24XX
@@ -27,11 +25,6 @@ config S3C2410_PM
 	bool
 	help
 	  Power Management code common to S3C2410 and better
-
-config S3C2410_GPIO
-	bool
-	help
-	  GPIO code for S3C2410 and similar processors
 
 config SIMTEC_NOR
 	bool

@@ -21,7 +21,6 @@
 #include <plat/cpu.h>
 
 #include <plat/cpu-freq.h>
-#include <plat/pll6553x.h>
 #include <plat/pll.h>
 
 #include <asm/mach/map.h>
@@ -36,6 +35,32 @@ static unsigned int armdiv[8] = {
 	[3] = 4,
 	[5] = 6,
 	[7] = 8,
+};
+
+static struct clksrc_clk hsspi_eplldiv = {
+	.clk = {
+		.name	= "hsspi-eplldiv",
+		.parent	= &clk_esysclk.clk,
+		.ctrlbit = (1 << 14),
+		.enable = s3c2443_clkcon_enable_s,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 2, .shift = 24 },
+};
+
+static struct clk *hsspi_sources[] = {
+	[0] = &hsspi_eplldiv.clk,
+	[1] = NULL, /* to fix */
+};
+
+static struct clksrc_clk hsspi_mux = {
+	.clk	= {
+		.name	= "hsspi-if",
+	},
+	.sources = &(struct clksrc_sources) {
+		.sources = hsspi_sources,
+		.nr_sources = ARRAY_SIZE(hsspi_sources),
+	},
+	.reg_src = { .reg = S3C2443_CLKSRC, .size = 1, .shift = 18 },
 };
 
 static struct clksrc_clk hsmmc_div[] = {
@@ -114,6 +139,8 @@ void __init_or_cpufreq s3c2416_setup_clocks(void)
 
 
 static struct clksrc_clk *clksrcs[] __initdata = {
+	&hsspi_eplldiv,
+	&hsspi_mux,
 	&hsmmc_div[0],
 	&hsmmc_div[1],
 	&hsmmc_mux[0],

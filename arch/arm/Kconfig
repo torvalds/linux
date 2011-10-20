@@ -725,9 +725,6 @@ config ARCH_S3C64XX
 	select SAMSUNG_IRQ_VIC_TIMER
 	select SAMSUNG_IRQ_UART
 	select S3C_GPIO_TRACK
-	select S3C_GPIO_PULL_UPDOWN
-	select S3C_GPIO_CFG_S3C24XX
-	select S3C_GPIO_CFG_S3C64XX
 	select S3C_DEV_NAND
 	select USB_ARCH_HAS_OHCI
 	select SAMSUNG_GPIOLIB_4BIT
@@ -1283,6 +1280,20 @@ config ARM_ERRATA_364296
 	  register, thus disabling hit-under-miss without putting the
 	  processor into full low interrupt latency mode. ARM11MPCore
 	  is not affected.
+
+config ARM_ERRATA_764369
+	bool "ARM errata: Data cache line maintenance operation by MVA may not succeed"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for erratum 764369
+	  affecting Cortex-A9 MPCore with two or more processors (all
+	  current revisions). Under certain timing circumstances, a data
+	  cache line maintenance operation by MVA targeting an Inner
+	  Shareable memory region may fail to proceed up to either the
+	  Point of Coherency or to the Point of Unification of the
+	  system. This workaround adds a DSB instruction before the
+	  relevant cache maintenance functions and sets a specific bit
+	  in the diagnostic control register of the SCU.
 
 endmenu
 
@@ -2083,7 +2094,7 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
-	depends on !ARCH_S5P64X0 && !ARCH_S5PC100
+	depends on !ARCH_S5PC100
 	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
 		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y

@@ -288,5 +288,6 @@ config MACH_WLF_CRAGG_6410
 	select S3C_DEV_RTC
 	select S3C64XX_DEV_SPI
 	select S3C24XX_GPIO_EXTRA128
+	select I2C
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.

@@ -719,7 +719,6 @@ skip_rio:
 			vha->flags.rscn_queue_overflow = 1;
 		}
 
-		atomic_set(&vha->loop_state, LOOP_UPDATE);
 		atomic_set(&vha->loop_down_timer, 0);
 		vha->flags.management_server_logged_in = 0;
 
@@ -1435,25 +1434,27 @@ struct scsi_dif_tuple {
  * ASC/ASCQ fields in the sense buffer with ILLEGAL_REQUEST
  * to indicate to the kernel that the HBA detected error.
  */
-static inline void
+static inline int
 qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 {
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct scsi_cmnd *cmd = sp->cmd;
-	struct scsi_dif_tuple	*ep =
-			(struct scsi_dif_tuple *)&sts24->data[20];
-	struct scsi_dif_tuple	*ap =
-			(struct scsi_dif_tuple *)&sts24->data[12];
+	uint8_t		*ap = &sts24->data[12];
+	uint8_t		*ep = &sts24->data[20];
 	uint32_t	e_ref_tag, a_ref_tag;
 	uint16_t	e_app_tag, a_app_tag;
 	uint16_t	e_guard, a_guard;
 
-	e_ref_tag = be32_to_cpu(ep->ref_tag);
-	a_ref_tag = be32_to_cpu(ap->ref_tag);
-	e_app_tag = be16_to_cpu(ep->app_tag);
-	a_app_tag = be16_to_cpu(ap->app_tag);
-	e_guard = be16_to_cpu(ep->guard);
-	a_guard = be16_to_cpu(ap->guard);
+	/*
+	 * swab32 of the "data" field in the beginning of qla2x00_status_entry()
+	 * would make guard field appear at offset 2
+	 */
+	a_guard   = le16_to_cpu(*(uint16_t *)(ap + 2));
+	a_app_tag = le16_to_cpu(*(uint16_t *)(ap + 0));
+	a_ref_tag = le32_to_cpu(*(uint32_t *)(ap + 4));
+	e_guard   = le16_to_cpu(*(uint16_t *)(ep + 2));
+	e_app_tag = le16_to_cpu(*(uint16_t *)(ep + 0));
+	e_ref_tag = le32_to_cpu(*(uint32_t *)(ep + 4));
 
 	ql_dbg(ql_dbg_io, vha, 0x3023,
 	    "iocb(s) %p Returned STATUS.\n", sts24);
@@ -1465,6 +1466,63 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 	    cmd->cmnd[0], (u64)scsi_get_lba(cmd), a_ref_tag, e_ref_tag,
 	    a_app_tag, e_app_tag, a_guard, e_guard);
 
+	/*
+	 * Ignore sector if:
+	 * For type     3: ref & app tag is all 'f's
+	 * For type 0,1,2: app tag is all 'f's
+	 */
+	if ((a_app_tag == 0xffff) &&
+	    ((scsi_get_prot_type(cmd) != SCSI_PROT_DIF_TYPE3) ||
+	     (a_ref_tag == 0xffffffff))) {
+		uint32_t blocks_done, resid;
+		sector_t lba_s = scsi_get_lba(cmd);
+
+		/* 2TB boundary case covered automatically with this */
+		blocks_done = e_ref_tag - (uint32_t)lba_s + 1;
+
+		resid = scsi_bufflen(cmd) - (blocks_done *
+		    cmd->device->sector_size);
+
+		scsi_set_resid(cmd, resid);
+		cmd->result = DID_OK << 16;
+
+		/* Update protection tag */
+		if (scsi_prot_sg_count(cmd)) {
+			uint32_t i, j = 0, k = 0, num_ent;
+			struct scatterlist *sg;
+			struct sd_dif_tuple *spt;
+
+			/* Patch the corresponding protection tags */
+			scsi_for_each_prot_sg(cmd, sg,
+			    scsi_prot_sg_count(cmd), i) {
+				num_ent = sg_dma_len(sg) / 8;
+				if (k + num_ent < blocks_done) {
+					k += num_ent;
+					continue;
+				}
+				j = blocks_done - k - 1;
+				k = blocks_done;
+				break;
+			}
+
+			if (k != blocks_done) {
+				qla_printk(KERN_WARNING, sp->fcport->vha->hw,
+				    "unexpected tag values tag:lba=%x:%llx)\n",
+				    e_ref_tag, (unsigned long long)lba_s);
+				return 1;
+			}
+
+			spt = page_address(sg_page(sg)) + sg->offset;
+			spt += j;
+
+			spt->app_tag = 0xffff;
+			if (scsi_get_prot_type(cmd) == SCSI_PROT_DIF_TYPE3)
+				spt->ref_tag = 0xffffffff;
+		}
+
+		return 0;
+	}
+
 	/* check guard */
 	if (e_guard != a_guard) {
 		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
@@ -1472,17 +1530,7 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 		set_driver_byte(cmd, DRIVER_SENSE);
 		set_host_byte(cmd, DID_ABORT);
 		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
-		return;
-	}
-
-	/* check appl tag */
-	if (e_app_tag != a_app_tag) {
-		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
-		    0x10, 0x2);
-		set_driver_byte(cmd, DRIVER_SENSE);
-		set_host_byte(cmd, DID_ABORT);
-		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
-		return;
+		return 1;
 	}
 
 	/* check ref tag */
@@ -1492,8 +1540,20 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 		set_driver_byte(cmd, DRIVER_SENSE);
 		set_host_byte(cmd, DID_ABORT);
 		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
-		return;
+		return 1;
 	}
+
+	/* check appl tag */
+	if (e_app_tag != a_app_tag) {
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+		    0x10, 0x2);
+		set_driver_byte(cmd, DRIVER_SENSE);
+		set_host_byte(cmd, DID_ABORT);
+		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
+		return 1;
+	}
+
+	return 1;
 }
 
 /**
@@ -1767,7 +1827,7 @@ check_scsi_status:
 		break;
 
 	case CS_DIF_ERROR:
-		qla2x00_handle_dif_error(sp, sts24);
+		logit = qla2x00_handle_dif_error(sp, sts24);
 		break;
 	default:
 		cp->result = DID_ERROR << 16;
@@ -2468,11 +2528,10 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 		goto skip_msi;
 	}
 
-	if (IS_QLA2432(ha) && (ha->pdev->revision < QLA_MSIX_CHIP_REV_24XX ||
-		!QLA_MSIX_FW_MODE_1(ha->fw_attributes))) {
+	if (IS_QLA2432(ha) && (ha->pdev->revision < QLA_MSIX_CHIP_REV_24XX)) {
 		ql_log(ql_log_warn, vha, 0x0035,
 		    "MSI-X; Unsupported ISP2432 (0x%X, 0x%X).\n",
-		    ha->pdev->revision, ha->fw_attributes);
+		    ha->pdev->revision, QLA_MSIX_CHIP_REV_24XX);
 		goto skip_msix;
 	}
 

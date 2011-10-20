@@ -30,9 +30,13 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-pmu.h>
 
+#include <plat/cpu.h>
+
+extern unsigned int gic_bank_offset;
 extern void exynos4_secondary_startup(void);
 
-#define CPU1_BOOT_REG S5P_VA_SYSRAM
+#define CPU1_BOOT_REG		(samsung_rev() == EXYNOS4210_REV_1_1 ? \
+				S5P_INFORM5 : S5P_VA_SYSRAM)
 
 /*
  * control for which core is the next to come out of the secondary
@@ -64,9 +68,9 @@ static DEFINE_SPINLOCK(boot_lock);
 static void __cpuinit exynos4_gic_secondary_init(void)
 {
 	void __iomem *dist_base = S5P_VA_GIC_DIST +
-				 (EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+				(gic_bank_offset * smp_processor_id());
 	void __iomem *cpu_base = S5P_VA_GIC_CPU +
-				(EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+				(gic_bank_offset * smp_processor_id());
 	int i;
 
 	/*
@@ -106,6 +110,8 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 */
 	spin_lock(&boot_lock);
 	spin_unlock(&boot_lock);
+
+	set_cpu_online(cpu, true);
 }
 
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
@@ -216,5 +222,6 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)), S5P_VA_SYSRAM);
+	__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)),
+			CPU1_BOOT_REG);
 }

@@ -2177,6 +2177,11 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	if (!(src_file->f_mode & FMODE_READ))
 		goto out_fput;
 
+	/* don't make the dst file partly checksummed */
+	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
+	    (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM))
+		goto out_fput;
+
 	ret = -EISDIR;
 	if (S_ISDIR(src->i_mode) || S_ISDIR(inode->i_mode))
 		goto out_fput;
@@ -2226,6 +2231,10 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			goto out_unlock;
 	}
 
+	/* truncate page cache pages from target inode range */
+	truncate_inode_pages_range(&inode->i_data, destoff,
+				   PAGE_CACHE_ALIGN(destoff + len) - 1);
+
 	/* do any pending delalloc/csum calc on src, one way or
 	   another, and lock file content */
 	while (1) {
@@ -2241,10 +2250,6 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			btrfs_put_ordered_extent(ordered);
 		btrfs_wait_ordered_range(src, off, len);
 	}
-
-	/* truncate page cache pages from target inode range */
-	truncate_inode_pages_range(&inode->i_data, off,
-				   ALIGN(off + len, PAGE_CACHE_SIZE) - 1);
 
 	/* clone data */
 	key.objectid = btrfs_ino(src);
@@ -2323,7 +2328,12 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			else
 				new_key.offset = destoff;
 
-			trans = btrfs_start_transaction(root, 1);
+			/*
+			 * 1 - adjusting old extent (we may have to split it)
+			 * 1 - add new extent
+			 * 1 - inode update
+			 */
+			trans = btrfs_start_transaction(root, 3);
 			if (IS_ERR(trans)) {
 				ret = PTR_ERR(trans);
 				goto out;
@@ -2442,7 +2452,6 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			if (endoff > inode->i_size)
 				btrfs_i_size_write(inode, endoff);
 
-			BTRFS_I(inode)->flags = BTRFS_I(src)->flags;
 			ret = btrfs_update_inode(trans, root, inode);
 			BUG_ON(ret);
 			btrfs_end_transaction(trans, root);

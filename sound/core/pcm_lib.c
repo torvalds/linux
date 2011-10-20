@@ -1761,6 +1761,10 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 	snd_pcm_uframes_t avail = 0;
 	long wait_time, tout;
 
+	init_waitqueue_entry(&wait, current);
+	set_current_state(TASK_INTERRUPTIBLE);
+	add_wait_queue(&runtime->tsleep, &wait);
+
 	if (runtime->no_period_wakeup)
 		wait_time = MAX_SCHEDULE_TIMEOUT;
 	else {
@@ -1771,16 +1775,32 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 		}
 		wait_time = msecs_to_jiffies(wait_time * 1000);
 	}
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&runtime->tsleep, &wait);
+
 	for (;;) {
 		if (signal_pending(current)) {
 			err = -ERESTARTSYS;
 			break;
 		}
+
+		/*
+		 * We need to check if space became available already
+		 * (and thus the wakeup happened already) first to close
+		 * the race of space already having become available.
+		 * This check must happen after been added to the waitqueue
+		 * and having current state be INTERRUPTIBLE.
+		 */
+		if (is_playback)
+			avail = snd_pcm_playback_avail(runtime);
+		else
+			avail = snd_pcm_capture_avail(runtime);
+		if (avail >= runtime->twake)
+			break;
 		snd_pcm_stream_unlock_irq(substream);
-		tout = schedule_timeout_interruptible(wait_time);
+
+		tout = schedule_timeout(wait_time);
+
 		snd_pcm_stream_lock_irq(substream);
+		set_current_state(TASK_INTERRUPTIBLE);
 		switch (runtime->status->state) {
 		case SNDRV_PCM_STATE_SUSPENDED:
 			err = -ESTRPIPE;
@@ -1806,14 +1826,9 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 			err = -EIO;
 			break;
 		}
-		if (is_playback)
-			avail = snd_pcm_playback_avail(runtime);
-		else
-			avail = snd_pcm_capture_avail(runtime);
-		if (avail >= runtime->twake)
-			break;
 	}
  _endloop:
+	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&runtime->tsleep, &wait);
 	*availp = avail;
 	return err;

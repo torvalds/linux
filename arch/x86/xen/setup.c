@@ -306,10 +306,12 @@ char * __init xen_memory_setup(void)
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
 	extra_limit = xen_get_max_pages();
-	if (extra_limit >= max_pfn)
-		extra_pages = extra_limit - max_pfn;
-	else
-		extra_pages = 0;
+	if (max_pfn + extra_pages > extra_limit) {
+		if (extra_limit > max_pfn)
+			extra_pages = extra_limit - max_pfn;
+		else
+			extra_pages = 0;
+	}
 
 	extra_pages += xen_return_unused_memory(xen_start_info->nr_pages, &e820);
 

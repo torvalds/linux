@@ -37,7 +37,7 @@ struct s5p_gpioint_bank {
 	int			start;
 	int			nr_groups;
 	int			irq;
-	struct s3c_gpio_chip	**chips;
+	struct samsung_gpio_chip	**chips;
 	void			(*handler)(unsigned int, struct irq_desc *);
 };
 
@@ -87,7 +87,7 @@ static void s5p_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 
 	for (group = 0; group < bank->nr_groups; group++) {
-		struct s3c_gpio_chip *chip = bank->chips[group];
+		struct samsung_gpio_chip *chip = bank->chips[group];
 		if (!chip)
 			continue;
 
@@ -110,27 +110,28 @@ static void s5p_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
+static __init int s5p_gpioint_add(struct samsung_gpio_chip *chip)
 {
 	static int used_gpioint_groups = 0;
 	int group = chip->group;
-	struct s5p_gpioint_bank *bank = NULL;
+	struct s5p_gpioint_bank *b, *bank = NULL;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 
 	if (used_gpioint_groups >= S5P_GPIOINT_GROUP_COUNT)
 		return -ENOMEM;
 
-	list_for_each_entry(bank, &banks, list) {
-		if (group >= bank->start &&
-		    group < bank->start + bank->nr_groups)
+	list_for_each_entry(b, &banks, list) {
+		if (group >= b->start && group < b->start + b->nr_groups) {
+			bank = b;
 			break;
+		}
 	}
 	if (!bank)
 		return -EINVAL;
 
 	if (!bank->handler) {
-		bank->chips = kzalloc(sizeof(struct s3c_gpio_chip *) *
+		bank->chips = kzalloc(sizeof(struct samsung_gpio_chip *) *
 				      bank->nr_groups, GFP_KERNEL);
 		if (!bank->chips)
 			return -ENOMEM;
@@ -173,7 +174,7 @@ static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 
 int __init s5p_register_gpio_interrupt(int pin)
 {
-	struct s3c_gpio_chip *my_chip = s3c_gpiolib_getchip(pin);
+	struct samsung_gpio_chip *my_chip = samsung_gpiolib_getchip(pin);
 	int offset, group;
 	int ret;
 

@@ -22,8 +22,8 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
-#include <mach/s3c6410.h>
 
+#include <plat/s3c6410.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>

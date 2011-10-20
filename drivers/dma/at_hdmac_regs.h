@@ -204,6 +204,9 @@ enum atc_status {
  * @status: transmit status information from irq/prep* functions
  *                to tasklet (use atomic operations)
  * @tasklet: bottom half to finish transaction work
+ * @save_cfg: configuration register that is saved on suspend/resume cycle
+ * @save_dscr: for cyclic operations, preserve next descriptor address in
+ *             the cyclic list on suspend/resume cycle
  * @lock: serializes enqueue/dequeue operations to descriptors lists
  * @completed_cookie: identifier for the most recently completed operation
  * @active_list: list of descriptors dmaengine is being running on
@@ -218,6 +221,8 @@ struct at_dma_chan {
 	u8			mask;
 	unsigned long		status;
 	struct tasklet_struct	tasklet;
+	u32			save_cfg;
+	u32			save_dscr;
 
 	spinlock_t		lock;
 
@@ -248,6 +253,7 @@ static inline struct at_dma_chan *to_at_dma_chan(struct dma_chan *dchan)
  * @chan_common: common dmaengine dma_device object members
  * @ch_regs: memory mapped register base
  * @clk: dma controller clock
+ * @save_imr: interrupt mask register that is saved on suspend/resume cycle
  * @all_chan_mask: all channels availlable in a mask
  * @dma_desc_pool: base of DMA descriptor region (DMA address)
  * @chan: channels table to store at_dma_chan structures
@@ -256,6 +262,7 @@ struct at_dma {
 	struct dma_device	dma_common;
 	void __iomem		*regs;
 	struct clk		*clk;
+	u32			save_imr;
 
 	u8			all_chan_mask;
 
@@ -355,6 +362,23 @@ static inline int atc_chan_is_enabled(struct at_dma_chan *atchan)
 	return !!(dma_readl(atdma, CHSR) & atchan->mask);
 }
 
+/**
+ * atc_chan_is_paused - test channel pause/resume status
+ * @atchan: channel we want to test status
+ */
+static inline int atc_chan_is_paused(struct at_dma_chan *atchan)
+{
+	return test_bit(ATC_IS_PAUSED, &atchan->status);
+}
+
+/**
+ * atc_chan_is_cyclic - test if given channel has cyclic property set
+ * @atchan: channel we want to test status
+ */
+static inline int atc_chan_is_cyclic(struct at_dma_chan *atchan)
+{
+	return test_bit(ATC_IS_CYCLIC, &atchan->status);
+}
 
 /**
  * set_desc_eol - set end-of-link to descriptor so it will end transfer
