@@ -98,6 +98,9 @@ struct blkfront_info
 	unsigned long shadow_free;
 	unsigned int feature_flush;
 	unsigned int flush_op;
+	unsigned int feature_discard;
+	unsigned int discard_granularity;
+	unsigned int discard_alignment;
 	int is_ready;
 };
 
@@ -302,29 +305,36 @@ static int blkif_queue_request(struct request *req)
 		ring_req->operation = info->flush_op;
 	}
 
-	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
-	BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
+	if (unlikely(req->cmd_flags & REQ_DISCARD)) {
+		/* id, sector_number and handle are set above. */
+		ring_req->operation = BLKIF_OP_DISCARD;
+		ring_req->nr_segments = 0;
+		ring_req->u.discard.nr_sectors = blk_rq_sectors(req);
+	} else {
+		ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
+		BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
 
-	for_each_sg(info->sg, sg, ring_req->nr_segments, i) {
-		buffer_mfn = pfn_to_mfn(page_to_pfn(sg_page(sg)));
-		fsect = sg->offset >> 9;
-		lsect = fsect + (sg->length >> 9) - 1;
-		/* install a grant reference. */
-		ref = gnttab_claim_grant_reference(&gref_head);
-		BUG_ON(ref == -ENOSPC);
+		for_each_sg(info->sg, sg, ring_req->nr_segments, i) {
+			buffer_mfn = pfn_to_mfn(page_to_pfn(sg_page(sg)));
+			fsect = sg->offset >> 9;
+			lsect = fsect + (sg->length >> 9) - 1;
+			/* install a grant reference. */
+			ref = gnttab_claim_grant_reference(&gref_head);
+			BUG_ON(ref == -ENOSPC);
 
-		gnttab_grant_foreign_access_ref(
-				ref,
-				info->xbdev->otherend_id,
-				buffer_mfn,
-				rq_data_dir(req) );
+			gnttab_grant_foreign_access_ref(
+					ref,
+					info->xbdev->otherend_id,
+					buffer_mfn,
+					rq_data_dir(req));
 
-		info->shadow[id].frame[i] = mfn_to_pfn(buffer_mfn);
-		ring_req->u.rw.seg[i] =
-				(struct blkif_request_segment) {
-					.gref       = ref,
-					.first_sect = fsect,
-					.last_sect  = lsect };
+			info->shadow[id].frame[i] = mfn_to_pfn(buffer_mfn);
+			ring_req->u.rw.seg[i] =
+					(struct blkif_request_segment) {
+						.gref       = ref,
+						.first_sect = fsect,
+						.last_sect  = lsect };
+		}
 	}
 
 	info->ring.req_prod_pvt++;
@@ -370,7 +380,9 @@ static void do_blkif_request(struct request_queue *rq)
 
 		blk_start_request(req);
 
-		if (req->cmd_type != REQ_TYPE_FS) {
+		if ((req->cmd_type != REQ_TYPE_FS) ||
+		    ((req->cmd_flags & (REQ_FLUSH | REQ_FUA)) &&
+		    !info->flush_op)) {
 			__blk_end_request_all(req, -EIO);
 			continue;
 		}
@@ -399,12 +411,20 @@ wait:
 static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 {
 	struct request_queue *rq;
+	struct blkfront_info *info = gd->private_data;
 
 	rq = blk_init_queue(do_blkif_request, &blkif_io_lock);
 	if (rq == NULL)
 		return -1;
 
 	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
+
+	if (info->feature_discard) {
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, rq);
+		blk_queue_max_discard_sectors(rq, get_capacity(gd));
+		rq->limits.discard_granularity = info->discard_granularity;
+		rq->limits.discard_alignment = info->discard_alignment;
+	}
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
 	blk_queue_logical_block_size(rq, sector_size);
@@ -722,6 +742,17 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 		error = (bret->status == BLKIF_RSP_OKAY) ? 0 : -EIO;
 		switch (bret->operation) {
+		case BLKIF_OP_DISCARD:
+			if (unlikely(bret->status == BLKIF_RSP_EOPNOTSUPP)) {
+				struct request_queue *rq = info->rq;
+				printk(KERN_WARNING "blkfront: %s: discard op failed\n",
+					   info->gd->disk_name);
+				error = -EOPNOTSUPP;
+				info->feature_discard = 0;
+				queue_flag_clear(QUEUE_FLAG_DISCARD, rq);
+			}
+			__blk_end_request_all(req, error);
+			break;
 		case BLKIF_OP_FLUSH_DISKCACHE:
 		case BLKIF_OP_WRITE_BARRIER:
 			if (unlikely(bret->status == BLKIF_RSP_EOPNOTSUPP)) {
@@ -1098,6 +1129,33 @@ blkfront_closing(struct blkfront_info *info)
 	bdput(bdev);
 }
 
+static void blkfront_setup_discard(struct blkfront_info *info)
+{
+	int err;
+	char *type;
+	unsigned int discard_granularity;
+	unsigned int discard_alignment;
+
+	type = xenbus_read(XBT_NIL, info->xbdev->otherend, "type", NULL);
+	if (IS_ERR(type))
+		return;
+
+	if (strncmp(type, "phy", 3) == 0) {
+		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			"discard-granularity", "%u", &discard_granularity,
+			"discard-alignment", "%u", &discard_alignment,
+			NULL);
+		if (!err) {
+			info->feature_discard = 1;
+			info->discard_granularity = discard_granularity;
+			info->discard_alignment = discard_alignment;
+		}
+	} else if (strncmp(type, "file", 4) == 0)
+		info->feature_discard = 1;
+
+	kfree(type);
+}
+
 /*
  * Invoked when the backend is finally 'ready' (and has told produced
  * the details about the physical device - #sectors, size, etc).
@@ -1108,7 +1166,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	unsigned long sector_size;
 	unsigned int binfo;
 	int err;
-	int barrier, flush;
+	int barrier, flush, discard;
 
 	switch (info->connected) {
 	case BLKIF_STATE_CONNECTED:
@@ -1178,7 +1236,14 @@ static void blkfront_connect(struct blkfront_info *info)
 		info->feature_flush = REQ_FLUSH;
 		info->flush_op = BLKIF_OP_FLUSH_DISKCACHE;
 	}
-		
+
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			    "feature-discard", "%d", &discard,
+			    NULL);
+
+	if (!err && discard)
+		blkfront_setup_discard(info);
+
 	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
 		xenbus_dev_fatal(info->xbdev, err, "xlvbd_add at %s",
@@ -1385,6 +1450,8 @@ static struct xenbus_driver blkfront = {
 
 static int __init xlblk_init(void)
 {
+	int ret;
+
 	if (!xen_domain())
 		return -ENODEV;
 
@@ -1394,7 +1461,13 @@ static int __init xlblk_init(void)
 		return -ENODEV;
 	}
 
-	return xenbus_register_frontend(&blkfront);
+	ret = xenbus_register_frontend(&blkfront);
+	if (ret) {
+		unregister_blkdev(XENVBD_MAJOR, DEV_NAME);
+		return ret;
+	}
+
+	return 0;
 }
 module_init(xlblk_init);
 
