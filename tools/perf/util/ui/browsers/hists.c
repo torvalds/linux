@@ -1007,12 +1007,14 @@ zoom_dso:
 zoom_out_dso:
 				ui_helpline__pop();
 				browser->hists->dso_filter = NULL;
+				sort_dso.elide = false;
 			} else {
 				if (dso == NULL)
 					continue;
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
 						   dso->kernel ? "the Kernel" : dso->short_name);
 				browser->hists->dso_filter = dso;
+				sort_dso.elide = true;
 				pstack__push(fstack, &browser->hists->dso_filter);
 			}
 			hists__filter_by_dso(self);
@@ -1024,11 +1026,13 @@ zoom_thread:
 zoom_out_thread:
 				ui_helpline__pop();
 				browser->hists->thread_filter = NULL;
+				sort_thread.elide = false;
 			} else {
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
 						   thread->comm_set ? thread->comm : "",
 						   thread->pid);
 				browser->hists->thread_filter = thread;
+				sort_thread.elide = true;
 				pstack__push(fstack, &browser->hists->thread_filter);
 			}
 			hists__filter_by_thread(self);
