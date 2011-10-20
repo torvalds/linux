@@ -190,8 +190,7 @@ int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
 	}
 
 	/* we share one TRB for ep0/1 */
-	if (!list_empty(&dwc->eps[0]->request_list) ||
-			!list_empty(&dwc->eps[1]->request_list)) {
+	if (!list_empty(&dep->request_list)) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -213,8 +212,8 @@ static void dwc3_ep0_stall_and_restart(struct dwc3 *dwc)
 	struct dwc3_ep		*dep = dwc->eps[0];
 
 	/* stall is always issued on EP0 */
-	__dwc3_gadget_ep_set_halt(dwc->eps[0], 1);
-	dwc->eps[0]->flags = DWC3_EP_ENABLED;
+	__dwc3_gadget_ep_set_halt(dep, 1);
+	dep->flags = DWC3_EP_ENABLED;
 
 	if (!list_empty(&dep->request_list)) {
 		struct dwc3_request	*req;
@@ -300,7 +299,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl
 	dwc->ep0_usb_req.length = sizeof(*response_pkt);
 	dwc->ep0_usb_req.dma = dwc->setup_buf_addr;
 	dwc->ep0_usb_req.complete = dwc3_ep0_status_cmpl;
-	return usb_ep_queue(&dwc->eps[1]->endpoint, &dwc->ep0_usb_req,
+	return usb_ep_queue(&dwc->eps[0]->endpoint, &dwc->ep0_usb_req,
 			GFP_ATOMIC);
 }
 
@@ -552,22 +551,21 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	struct dwc3_request	*r = NULL;
 	struct usb_request	*ur;
 	struct dwc3_trb		trb;
-	struct dwc3_ep		*dep;
+	struct dwc3_ep		*ep0;
 	u32			transferred;
 	u8			epnum;
 
 	epnum = event->endpoint_number;
-	dep = dwc->eps[epnum];
+	ep0 = dwc->eps[0];
 
 	dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
 
-	r = next_request(&dwc->eps[0]->request_list);
+	r = next_request(&ep0->request_list);
 	ur = &r->request;
 
 	dwc3_trb_to_nat(dwc->ep0_trb, &trb);
 
 	if (dwc->ep0_bounced) {
-		struct dwc3_ep	*ep0 = dwc->eps[0];
 
 		transferred = min_t(u32, ur->length,
 				ep0->endpoint.maxpacket - trb.length);
@@ -588,7 +586,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 		 * seems to be case when req.length > maxpacket. Could it be?
 		 */
 		if (r)
-			dwc3_gadget_giveback(dep, r, 0);
+			dwc3_gadget_giveback(ep0, r, 0);
 	}
 }
 
