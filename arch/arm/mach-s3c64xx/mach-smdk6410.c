@@ -262,45 +262,6 @@ static struct samsung_keypad_platdata smdk6410_keypad_data __initdata = {
 	.cols		= 8,
 };
 
-static int smdk6410_backlight_init(struct device *dev)
-{
-	int ret;
-
-	ret = gpio_request(S3C64XX_GPF(15), "Backlight");
-	if (ret) {
-		printk(KERN_ERR "failed to request GPF for PWM-OUT1\n");
-		return ret;
-	}
-
-	/* Configure GPIO pin with S3C64XX_GPF15_PWM_TOUT1 */
-	s3c_gpio_cfgpin(S3C64XX_GPF(15), S3C_GPIO_SFN(2));
-
-	return 0;
-}
-
-static void smdk6410_backlight_exit(struct device *dev)
-{
-	s3c_gpio_cfgpin(S3C64XX_GPF(15), S3C_GPIO_OUTPUT);
-	gpio_free(S3C64XX_GPF(15));
-}
-
-static struct platform_pwm_backlight_data smdk6410_backlight_data = {
-	.pwm_id		= 1,
-	.max_brightness	= 255,
-	.dft_brightness	= 255,
-	.pwm_period_ns	= 78770,
-	.init		= smdk6410_backlight_init,
-	.exit		= smdk6410_backlight_exit,
-};
-
-static struct platform_device smdk6410_backlight_device = {
-	.name		= "pwm-backlight",
-	.dev		= {
-		.parent		= &s3c_device_timer[1].dev,
-		.platform_data	= &smdk6410_backlight_data,
-	},
-};
-
 static struct map_desc smdk6410_iodesc[] = {};
 
 static struct platform_device *smdk6410_devices[] __initdata = {

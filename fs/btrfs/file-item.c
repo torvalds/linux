@@ -183,8 +183,10 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	 * read from the commit root and sidestep a nasty deadlock
 	 * between reading the free space cache and updating the csum tree.
 	 */
-	if (btrfs_is_free_space_inode(root, inode))
+	if (btrfs_is_free_space_inode(root, inode)) {
 		path->search_commit_root = 1;
+		path->skip_locking = 1;
+	}
 
 	disk_bytenr = (u64)bio->bi_sector << 9;
 	if (dio)

@@ -243,7 +243,7 @@
 #define PSC_STATE_DISABLE	2
 #define PSC_STATE_ENABLE	3
 
-#define MDSTAT_STATE_MASK	0x1f
+#define MDSTAT_STATE_MASK	0x3f
 #define MDCTL_FORCE		BIT(31)
 
 #ifndef __ASSEMBLER__

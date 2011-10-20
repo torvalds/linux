@@ -135,10 +135,13 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	max8997->dev = &i2c->dev;
 	max8997->i2c = i2c;
 	max8997->type = id->driver_data;
+	max8997->irq = i2c->irq;
 
 	if (!pdata)
 		goto err;
 
+	max8997->irq_base = pdata->irq_base;
+	max8997->ono = pdata->ono;
 	max8997->wakeup = pdata->wakeup;
 
 	mutex_init(&max8997->iolock);
@@ -151,6 +154,8 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(max8997->muic, max8997);
 
 	pm_runtime_set_active(max8997->dev);
+
+	max8997_irq_init(max8997);
 
 	mfd_add_devices(max8997->dev, -1, max8997_devs,
 			ARRAY_SIZE(max8997_devs),

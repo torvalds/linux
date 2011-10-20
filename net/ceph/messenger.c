@@ -2307,6 +2307,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
 	m->front_max = front_len;
 	m->front_is_vmalloc = false;
 	m->more_to_follow = false;
+	m->ack_stamp = 0;
 	m->pool = NULL;
 
 	/* middle */

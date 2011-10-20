@@ -158,7 +158,7 @@ void __init dove_spi0_init(void)
 
 void __init dove_spi1_init(void)
 {
-	orion_spi_init(DOVE_SPI1_PHYS_BASE, get_tclk());
+	orion_spi_1_init(DOVE_SPI1_PHYS_BASE, get_tclk());
 }
 
 /*****************************************************************************

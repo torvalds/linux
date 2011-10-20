@@ -1401,6 +1401,22 @@ static struct clk esdhc4_mx53_clk = {
 	.secondary = &esdhc4_ipg_clk,
 };
 
+static struct clk sata_clk = {
+	.parent = &ipg_clk,
+	.enable = _clk_max_enable,
+	.enable_reg = MXC_CCM_CCGR4,
+	.enable_shift = MXC_CCM_CCGRx_CG1_OFFSET,
+	.disable = _clk_max_disable,
+};
+
+static struct clk ahci_phy_clk = {
+	.parent = &usb_phy1_clk,
+};
+
+static struct clk ahci_dma_clk = {
+	.parent = &ahb_clk,
+};
+
 DEFINE_CLOCK(mipi_esc_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG5_OFFSET, NULL, NULL, NULL, &pll2_sw_clk);
 DEFINE_CLOCK(mipi_hsc2_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG4_OFFSET, NULL, NULL, &mipi_esc_clk, &pll2_sw_clk);
 DEFINE_CLOCK(mipi_hsc1_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG3_OFFSET, NULL, NULL, &mipi_hsc2_clk, &pll2_sw_clk);
@@ -1513,6 +1529,9 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("imx-ssi.2", NULL, ssi3_clk)
 	_REGISTER_CLOCK("imx-keypad", NULL, dummy_clk)
 	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
+	_REGISTER_CLOCK("imx53-ahci.0", "ahci", sata_clk)
+	_REGISTER_CLOCK("imx53-ahci.0", "ahci_phy", ahci_phy_clk)
+	_REGISTER_CLOCK("imx53-ahci.0", "ahci_dma", ahci_dma_clk)
 };
 
 static void clk_tree_init(void)

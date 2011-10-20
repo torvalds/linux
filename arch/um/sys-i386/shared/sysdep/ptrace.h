@@ -53,6 +53,7 @@ extern int sysemu_supported;
 
 struct uml_pt_regs {
 	unsigned long gp[MAX_REG_NR];
+	unsigned long fp[HOST_FPX_SIZE];
 	struct faultinfo faultinfo;
 	long syscall;
 	int is_user;

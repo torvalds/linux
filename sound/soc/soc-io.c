@@ -205,6 +205,25 @@ static unsigned int snd_soc_16_8_read_i2c(struct snd_soc_codec *codec,
 #define snd_soc_16_8_read_i2c NULL
 #endif
 
+#if defined(CONFIG_SPI_MASTER)
+static unsigned int snd_soc_16_8_read_spi(struct snd_soc_codec *codec,
+		                          unsigned int r)
+{
+	struct spi_device *spi = codec->control_data;
+
+	const u16 reg = cpu_to_be16(r | 0x100);
+	u8 data;
+	int ret;
+
+	ret = spi_write_then_read(spi, &reg, 2, &data, 1);
+	if (ret < 0)
+		return 0;
+	return data;
+}
+#else
+#define snd_soc_16_8_read_spi NULL
+#endif
+
 static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
 {
@@ -295,6 +314,7 @@ static struct {
 	int (*write)(struct snd_soc_codec *codec, unsigned int, unsigned int);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*i2c_read)(struct snd_soc_codec *, unsigned int);
+	unsigned int (*spi_read)(struct snd_soc_codec *, unsigned int);
 } io_types[] = {
 	{
 		.addr_bits = 4, .data_bits = 12,
@@ -318,6 +338,7 @@ static struct {
 		.addr_bits = 16, .data_bits = 8,
 		.write = snd_soc_16_8_write,
 		.i2c_read = snd_soc_16_8_read_i2c,
+		.spi_read = snd_soc_16_8_read_spi,
 	},
 	{
 		.addr_bits = 16, .data_bits = 16,
@@ -383,6 +404,8 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 #ifdef CONFIG_SPI_MASTER
 		codec->hw_write = do_spi_write;
 #endif
+		if (io_types[i].spi_read)
+			codec->hw_read = io_types[i].spi_read;
 
 		codec->control_data = container_of(codec->dev,
 						   struct spi_device,

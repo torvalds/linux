@@ -392,7 +392,7 @@ sys_call_table:
 	PTR	sys_getresuid
 	PTR	sys_ni_syscall			/* was query_module */
 	PTR	sys_poll
-	PTR	compat_sys_nfsservctl
+	PTR	sys_ni_syscall			/* was nfsservctl */
 	PTR	sys_setresgid			/* 4190 */
 	PTR	sys_getresgid
 	PTR	sys_prctl

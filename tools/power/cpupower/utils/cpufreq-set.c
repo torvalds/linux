@@ -20,34 +20,11 @@
 
 #define NORM_FREQ_LEN 32
 
-void freq_set_help(void)
-{
-	printf(_("Usage: cpupower frequency-set [options]\n"));
-	printf(_("Options:\n"));
-	printf(_("  -d FREQ, --min FREQ      new minimum CPU frequency the governor may select\n"));
-	printf(_("  -u FREQ, --max FREQ      new maximum CPU frequency the governor may select\n"));
-	printf(_("  -g GOV, --governor GOV   new cpufreq governor\n"));
-	printf(_("  -f FREQ, --freq FREQ     specific frequency to be set. Requires userspace\n"
-	       "                           governor to be available and loaded\n"));
-	printf(_("  -r, --related            Switches all hardware-related CPUs\n"));
-	printf(_("  -h, --help               Prints out this screen\n"));
-	printf("\n");
-	printf(_("Notes:\n"
-	       "1. Omitting the -c or --cpu argument is equivalent to setting it to \"all\"\n"));
-	printf(_("2. The -f FREQ, --freq FREQ parameter cannot be combined with any other parameter\n"
-	       "   except the -c CPU, --cpu CPU parameter\n"
-	       "3. FREQuencies can be passed in Hz, kHz (default), MHz, GHz, or THz\n"
-	       "   by postfixing the value with the wanted unit name, without any space\n"
-	       "   (FREQuency in kHz =^ Hz * 0.001 =^ MHz * 1000 =^ GHz * 1000000).\n"));
-
-}
-
 static struct option set_opts[] = {
 	{ .name = "min",	.has_arg = required_argument,	.flag = NULL,	.val = 'd'},
 	{ .name = "max",	.has_arg = required_argument,	.flag = NULL,	.val = 'u'},
 	{ .name = "governor",	.has_arg = required_argument,	.flag = NULL,	.val = 'g'},
 	{ .name = "freq",	.has_arg = required_argument,	.flag = NULL,	.val = 'f'},
-	{ .name = "help",	.has_arg = no_argument,		.flag = NULL,	.val = 'h'},
 	{ .name = "related",	.has_arg = no_argument,		.flag = NULL,	.val='r'},
 	{ },
 };
@@ -80,7 +57,6 @@ const struct freq_units def_units[] = {
 static void print_unknown_arg(void)
 {
 	printf(_("invalid or unknown argument\n"));
-	freq_set_help();
 }
 
 static unsigned long string_to_frequency(const char *str)
@@ -231,14 +207,11 @@ int cmd_freq_set(int argc, char **argv)
 
 	/* parameter parsing */
 	do {
-		ret = getopt_long(argc, argv, "d:u:g:f:hr", set_opts, NULL);
+		ret = getopt_long(argc, argv, "d:u:g:f:r", set_opts, NULL);
 		switch (ret) {
 		case '?':
 			print_unknown_arg();
 			return -EINVAL;
-		case 'h':
-			freq_set_help();
-			return 0;
 		case -1:
 			cont = 0;
 			break;
