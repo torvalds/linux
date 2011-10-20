@@ -11,9 +11,8 @@
 #include <sys/ttydefaults.h>
 #include "browser.h"
 #include "helpline.h"
+#include "keysyms.h"
 #include "../color.h"
-
-int newtGetKey(void);
 
 static int ui_browser__percent_color(struct ui_browser *browser,
 				     double percent, bool current)
@@ -292,16 +291,55 @@ void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries)
 	browser->seek(browser, browser->top_idx, SEEK_SET);
 }
 
+static int ui__getch(int delay_secs)
+{
+	struct timeval timeout, *ptimeout = delay_secs ? &timeout : NULL;
+	fd_set read_set;
+	int err, key;
+
+	FD_ZERO(&read_set);
+	FD_SET(0, &read_set);
+
+	if (delay_secs) {
+		timeout.tv_sec = delay_secs;
+		timeout.tv_usec = 0;
+	}
+
+        err = select(1, &read_set, NULL, NULL, ptimeout);
+
+	if (err == 0)
+		return K_TIMER;
+
+	if (err == -1) {
+		if (errno == EINTR)
+			return K_RESIZE;
+		return K_ERROR;
+	}
+
+	key = SLang_getkey();
+	if (key != K_ESC)
+		return key;
+
+	FD_ZERO(&read_set);
+	FD_SET(0, &read_set);
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 20;
+        err = select(1, &read_set, NULL, NULL, &timeout);
+	if (err == 0)
+		return K_ESC;
+
+	SLang_ungetkey(key);
+	return SLkp_getkey();
+}
+
 int ui_browser__run(struct ui_browser *self, int delay_secs)
 {
 	int err, key;
-	struct timeval timeout, *ptimeout = delay_secs ? &timeout : NULL;
 
 	pthread__unblock_sigwinch();
 
 	while (1) {
 		off_t offset;
-		fd_set read_set;
 
 		pthread_mutex_lock(&ui__lock);
 		err = __ui_browser__refresh(self);
@@ -310,20 +348,9 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 		if (err < 0)
 			break;
 
-		FD_ZERO(&read_set);
-		FD_SET(0, &read_set);
+		key = ui__getch(delay_secs);
 
-		if (delay_secs) {
-			timeout.tv_sec = delay_secs;
-			timeout.tv_usec = 0;
-		}
-
-	        err = select(1, &read_set, NULL, NULL, ptimeout);
-		if (err > 0 && FD_ISSET(0, &read_set))
-			key = newtGetKey();
-		else if (err == 0)
-			break;
-		else {
+		if (key == K_RESIZE) {
 			pthread_mutex_lock(&ui__lock);
 			SLtt_get_screen_size();
 			SLsmg_reinit_smg();
@@ -335,9 +362,9 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 		}
 
 		if (self->use_navkeypressed && !self->navkeypressed) {
-			if (key == NEWT_KEY_DOWN || key == NEWT_KEY_UP ||
-			    key == NEWT_KEY_PGDN || key == NEWT_KEY_PGUP ||
-			    key == NEWT_KEY_HOME || key == NEWT_KEY_END ||
+			if (key == K_DOWN || key == K_UP ||
+			    key == K_PGDN || key == K_PGUP ||
+			    key == K_HOME || key == K_END ||
 			    key == ' ') {
 				self->navkeypressed = true;
 				continue;
@@ -346,7 +373,7 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 		}
 
 		switch (key) {
-		case NEWT_KEY_DOWN:
+		case K_DOWN:
 			if (self->index == self->nr_entries - 1)
 				break;
 			++self->index;
@@ -355,7 +382,7 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 				self->seek(self, +1, SEEK_CUR);
 			}
 			break;
-		case NEWT_KEY_UP:
+		case K_UP:
 			if (self->index == 0)
 				break;
 			--self->index;
@@ -364,7 +391,7 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 				self->seek(self, -1, SEEK_CUR);
 			}
 			break;
-		case NEWT_KEY_PGDN:
+		case K_PGDN:
 		case ' ':
 			if (self->top_idx + self->height > self->nr_entries - 1)
 				break;
@@ -376,7 +403,7 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 			self->top_idx += offset;
 			self->seek(self, +offset, SEEK_CUR);
 			break;
-		case NEWT_KEY_PGUP:
+		case K_PGUP:
 			if (self->top_idx == 0)
 				break;
 
@@ -389,10 +416,10 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 			self->top_idx -= offset;
 			self->seek(self, -offset, SEEK_CUR);
 			break;
-		case NEWT_KEY_HOME:
+		case K_HOME:
 			ui_browser__reset_index(self);
 			break;
-		case NEWT_KEY_END:
+		case K_END:
 			offset = self->height - 1;
 			if (offset >= self->nr_entries)
 				offset = self->nr_entries - 1;

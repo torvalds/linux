@@ -18,6 +18,18 @@ static void newt_suspend(void *d __used)
 	newtResume();
 }
 
+static int ui__init(void)
+{
+	int err = SLkp_init();
+
+	if (err < 0)
+		goto out;
+
+	SLkp_define_keysym((char *)"^(kB)", SL_KEY_UNTAB);
+out:
+	return err;
+}
+
 static void ui__exit(void)
 {
 	SLtt_set_cursor_visibility(1);
@@ -44,6 +56,7 @@ void setup_browser(bool fallback_to_pager)
 
 	use_browser = 1;
 	newtInit();
+	ui__init();
 	newtSetSuspendCallback(newt_suspend, NULL);
 	ui_helpline__init();
 	ui_browser__init();

@@ -125,15 +125,12 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 {
 	return 0;
 }
-#define KEY_LEFT -1
-#define KEY_RIGHT -2
+#define K_LEFT -1
+#define K_RIGHT -2
 #else
-#include <newt.h>
+#include "ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, int evidx, int nr_events,
 			     void(*timer)(void *arg), void *arg, int delay_secs);
-
-#define KEY_LEFT NEWT_KEY_LEFT
-#define KEY_RIGHT NEWT_KEY_RIGHT
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  void(*timer)(void *arg), void *arg,

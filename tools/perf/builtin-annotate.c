@@ -118,7 +118,7 @@ static void hists__find_annotations(struct hists *self, int evidx,
 				    int nr_events)
 {
 	struct rb_node *nd = rb_first(&self->entries), *next;
-	int key = KEY_RIGHT;
+	int key = K_RIGHT;
 
 	while (nd) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
@@ -130,7 +130,7 @@ static void hists__find_annotations(struct hists *self, int evidx,
 		notes = symbol__annotation(he->ms.sym);
 		if (notes->src == NULL) {
 find_next:
-			if (key == KEY_LEFT)
+			if (key == K_LEFT)
 				nd = rb_prev(nd);
 			else
 				nd = rb_next(nd);
@@ -141,10 +141,10 @@ find_next:
 			key = hist_entry__tui_annotate(he, evidx, nr_events,
 						       NULL, NULL, 0);
 			switch (key) {
-			case KEY_RIGHT:
+			case K_RIGHT:
 				next = rb_next(nd);
 				break;
-			case KEY_LEFT:
+			case K_LEFT:
 				next = rb_prev(nd);
 				break;
 			default:

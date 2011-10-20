@@ -6,6 +6,7 @@
 #include "../../sort.h"
 #include "../../symbol.h"
 #include <pthread.h>
+#include <newt.h>
 
 static void ui__error_window(const char *fmt, ...)
 {
@@ -265,18 +266,14 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		}
 
 		switch (key) {
-		case -1:
-			/*
- 			 * FIXME we need to check if it was
- 			 * es.reason == NEWT_EXIT_TIMER
- 			 */
+		case K_TIMER:
 			if (timer != NULL)
 				timer(arg);
 
 			if (delay_secs != 0)
 				symbol__annotate_decay_histogram(sym, evidx);
 			continue;
-		case NEWT_KEY_TAB:
+		case K_TAB:
 			if (nd != NULL) {
 				nd = rb_prev(nd);
 				if (nd == NULL)
@@ -284,7 +281,7 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 			} else
 				nd = self->curr_hot;
 			break;
-		case NEWT_KEY_UNTAB:
+		case K_UNTAB:
 			if (nd != NULL)
 				nd = rb_next(nd);
 				if (nd == NULL)
@@ -299,8 +296,8 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 			if (annotate_browser__toggle_source(self))
 				ui_helpline__puts(help);
 			continue;
-		case NEWT_KEY_ENTER:
-		case NEWT_KEY_RIGHT:
+		case K_ENTER:
+		case K_RIGHT:
 			if (self->selection == NULL) {
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
 				continue;
@@ -350,8 +347,8 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 						     timer, arg, delay_secs);
 			}
 			continue;
-		case NEWT_KEY_LEFT:
-		case NEWT_KEY_ESCAPE:
+		case K_LEFT:
+		case K_ESC:
 		case 'q':
 		case CTRL('c'):
 			goto out;
