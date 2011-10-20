@@ -725,7 +725,8 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows)
 
 	while (next && row++ < max_rows) {
 		n = rb_entry(next, struct hist_entry, rb_node);
-		hists__calc_col_len(hists, n);
+		if (!n->filtered)
+			hists__calc_col_len(hists, n);
 		next = rb_next(&n->rb_node);
 	}
 }
