@@ -287,6 +287,7 @@ struct zorrocl {
 				/* If zero, use autoprobe on RAM device */
 	u32 ramoffset;		/* Offset of video RAM in first Zorro device */
 	zorro_id ramid;		/* Zorro ID of RAM device */
+	zorro_id ramid2;	/* Zorro ID of optional second RAM device */
 };
 
 static const struct zorrocl zcl_sd64 __devinitconst = {
@@ -316,6 +317,13 @@ static const struct zorrocl zcl_picasso4_z3 __devinitconst = {
 	.ramoffset	= 0x01000000,
 };
 
+static const struct zorrocl zcl_picasso4_z2 __devinitconst = {
+	.type		= BT_PICASSO4,
+	.regoffset	= 0x10000,
+	.ramid		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z2_RAM1,
+	.ramid2		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z2_RAM2,
+};
+
 
 static const struct zorro_device_id cirrusfb_zorro_table[] __devinitconst = {
 	{
@@ -333,6 +341,9 @@ static const struct zorro_device_id cirrusfb_zorro_table[] __devinitconst = {
 	}, {
 		.id		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z3,
 		.driver_data	= (unsigned long)&zcl_picasso4_z3,
+	}, {
+		.id		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z2_REG,
+		.driver_data	= (unsigned long)&zcl_picasso4_z2,
 	},
 	{ 0 }
 };
@@ -2257,6 +2268,16 @@ static int __devinit cirrusfb_zorro_register(struct zorro_dev *z,
 		}
 		rambase = zorro_resource_start(ram);
 		ramsize = zorro_resource_len(ram);
+		if (zcl->ramid2 &&
+		    (ram = zorro_find_device(zcl->ramid2, NULL))) {
+			if (zorro_resource_start(ram) != rambase + ramsize) {
+				dev_warn(info->device,
+					 "Skipping non-contiguous RAM at %pR\n",
+					 &ram->resource);
+			} else {
+				ramsize += zorro_resource_len(ram);
+			}
+		}
 	}
 
 	dev_info(info->device,
