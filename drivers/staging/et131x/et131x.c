@@ -81,7 +81,6 @@
 #include <linux/random.h>
 #include <linux/phy.h>
 
-#include "et1310_tx.h"
 #include "et131x.h"
 
 MODULE_AUTHOR("Victor Soriano <vjsoriano@agere.com>");
@@ -363,6 +362,92 @@ struct rx_ring {
 
 	/* lookaside lists */
 	struct kmem_cache *recv_lookaside;
+};
+
+/* TX defines */
+/*
+ * word 2 of the control bits in the Tx Descriptor ring for the ET-1310
+ *
+ * 0-15: length of packet
+ * 16-27: VLAN tag
+ * 28: VLAN CFI
+ * 29-31: VLAN priority
+ *
+ * word 3 of the control bits in the Tx Descriptor ring for the ET-1310
+ *
+ * 0: last packet in the sequence
+ * 1: first packet in the sequence
+ * 2: interrupt the processor when this pkt sent
+ * 3: Control word - no packet data
+ * 4: Issue half-duplex backpressure : XON/XOFF
+ * 5: send pause frame
+ * 6: Tx frame has error
+ * 7: append CRC
+ * 8: MAC override
+ * 9: pad packet
+ * 10: Packet is a Huge packet
+ * 11: append VLAN tag
+ * 12: IP checksum assist
+ * 13: TCP checksum assist
+ * 14: UDP checksum assist
+ */
+
+/* struct tx_desc represents each descriptor on the ring */
+struct tx_desc {
+	u32 addr_hi;
+	u32 addr_lo;
+	u32 len_vlan;	/* control words how to xmit the */
+	u32 flags;	/* data (detailed above) */
+};
+
+/*
+ * The status of the Tx DMA engine it sits in free memory, and is pointed to
+ * by 0x101c / 0x1020. This is a DMA10 type
+ */
+
+/* TCB (Transmit Control Block: Host Side) */
+struct tcb {
+	struct tcb *next;	/* Next entry in ring */
+	u32 flags;		/* Our flags for the packet */
+	u32 count;		/* Used to spot stuck/lost packets */
+	u32 stale;		/* Used to spot stuck/lost packets */
+	struct sk_buff *skb;	/* Network skb we are tied to */
+	u32 index;		/* Ring indexes */
+	u32 index_start;
+};
+
+/* Structure representing our local reference(s) to the ring */
+struct tx_ring {
+	/* TCB (Transmit Control Block) memory and lists */
+	struct tcb *tcb_ring;
+
+	/* List of TCBs that are ready to be used */
+	struct tcb *tcb_qhead;
+	struct tcb *tcb_qtail;
+
+	/* list of TCBs that are currently being sent.  NOTE that access to all
+	 * three of these (including used) are controlled via the
+	 * TCBSendQLock.  This lock should be secured prior to incementing /
+	 * decrementing used, or any queue manipulation on send_head /
+	 * tail
+	 */
+	struct tcb *send_head;
+	struct tcb *send_tail;
+	int used;
+
+	/* The actual descriptor ring */
+	struct tx_desc *tx_desc_ring;
+	dma_addr_t tx_desc_ring_pa;
+
+	/* send_idx indicates where we last wrote to in the descriptor ring. */
+	u32 send_idx;
+
+	/* The location of the write-back status block */
+	u32 *tx_status;
+	dma_addr_t tx_status_pa;
+
+	/* Packets since the last IRQ: used for interrupt coalescing */
+	int since_irq;
 };
 
 /* ADAPTER defines */
