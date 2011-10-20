@@ -319,7 +319,7 @@ static const char *const nct6776_temp_label[] = {
 
 #define NUM_REG_TEMP	ARRAY_SIZE(NCT6775_REG_TEMP)
 
-static inline int is_word_sized(u16 reg)
+static int is_word_sized(u16 reg)
 {
 	return ((((reg & 0xff00) == 0x100
 	      || (reg & 0xff00) == 0x200)
