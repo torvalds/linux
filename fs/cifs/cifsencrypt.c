@@ -204,7 +204,7 @@ int cifs_verify_signature(struct kvec *iov, unsigned int nr_iov,
 }
 
 /* first calculate 24 bytes ntlm response and then 16 byte session key */
-int setup_ntlm_response(struct cifs_ses *ses)
+int setup_ntlm_response(struct cifs_ses *ses, const struct nls_table *nls_cp)
 {
 	int rc = 0;
 	unsigned int temp_len = CIFS_SESS_KEY_SIZE + CIFS_AUTH_RESP_SIZE;
@@ -221,14 +221,14 @@ int setup_ntlm_response(struct cifs_ses *ses)
 	ses->auth_key.len = temp_len;
 
 	rc = SMBNTencrypt(ses->password, ses->server->cryptkey,
-			ses->auth_key.response + CIFS_SESS_KEY_SIZE);
+			ses->auth_key.response + CIFS_SESS_KEY_SIZE, nls_cp);
 	if (rc) {
 		cFYI(1, "%s Can't generate NTLM response, error: %d",
 			__func__, rc);
 		return rc;
 	}
 
-	rc = E_md4hash(ses->password, temp_key);
+	rc = E_md4hash(ses->password, temp_key, nls_cp);
 	if (rc) {
 		cFYI(1, "%s Can't generate NT hash, error: %d", __func__, rc);
 		return rc;
@@ -404,7 +404,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 	}
 
 	/* calculate md4 hash of password */
-	E_md4hash(ses->password, nt_hash);
+	E_md4hash(ses->password, nt_hash, nls_cp);
 
 	rc = crypto_shash_setkey(ses->server->secmech.hmacmd5, nt_hash,
 				CIFS_NTHASH_SIZE);

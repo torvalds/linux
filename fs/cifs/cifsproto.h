@@ -395,8 +395,9 @@ extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 extern int cifs_verify_signature(struct kvec *iov, unsigned int nr_iov,
 				 struct TCP_Server_Info *server,
 				__u32 expected_sequence_number);
-extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *);
-extern int setup_ntlm_response(struct cifs_ses *);
+extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *,
+			const struct nls_table *);
+extern int setup_ntlm_response(struct cifs_ses *, const struct nls_table *);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
 extern int cifs_crypto_shash_allocate(struct TCP_Server_Info *);
 extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
@@ -448,7 +449,8 @@ extern int CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 		const unsigned char *path,
 		struct cifs_sb_info *cifs_sb, int xid);
 extern int mdfour(unsigned char *, unsigned char *, int);
-extern int E_md4hash(const unsigned char *passwd, unsigned char *p16);
+extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
+			const struct nls_table *codepage);
 extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 			unsigned char *p24);
 
