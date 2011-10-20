@@ -1076,7 +1076,8 @@ _dhd_sysioc_thread(void *data)
 				in_ap = (ap_net_dev != NULL);
 				dhd_os_spin_unlock(&dhd->pub, flags);
 #endif /* SOFTAP */
-				if (dhd->iflist[i]->state)
+
+				if (dhd->iflist[i] && dhd->iflist[i]->state)
 					dhd_op_if(dhd->iflist[i]);
 
 				if (dhd->iflist[i] == NULL) {
@@ -1084,6 +1085,7 @@ _dhd_sysioc_thread(void *data)
 						"!\n\n", __FUNCTION__, i));
 					continue;
 				}
+
 #ifdef SOFTAP
 				if (in_ap && dhd->set_macaddress)  {
 					DHD_TRACE(("attempt to set MAC for %s in AP Mode,"

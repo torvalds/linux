@@ -1135,8 +1135,7 @@ wl_cfg80211_notify_ifdel(struct net_device *net)
 {
 	struct wl_priv *wl = wlcfg_drv_priv;
 
-
-	if (wl->p2p->vif_created) {
+	if (wl->p2p && wl->p2p->vif_created) {
 		s32 index = 0;
 		WL_DBG(("IF_DEL event called from dongle, net %x, vif name: %s\n",
 			(unsigned int)net, wl->p2p->vir_ifname));
