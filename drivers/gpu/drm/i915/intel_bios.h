@@ -120,7 +120,9 @@ struct bdb_general_features {
 	u8 ssc_freq:1;
 	u8 enable_lfp_on_override:1;
 	u8 disable_ssc_ddt:1;
-	u8 rsvd8:3; /* finish byte */
+	u8 rsvd7:1;
+	u8 display_clock_mode:1;
+	u8 rsvd8:1; /* finish byte */
 
         /* bits 3 */
 	u8 disable_smooth_vision:1;
@@ -133,7 +135,10 @@ struct bdb_general_features {
         /* bits 5 */
 	u8 int_crt_support:1;
 	u8 int_tv_support:1;
-	u8 rsvd11:6; /* finish byte */
+	u8 int_efp_support:1;
+	u8 dp_ssc_enb:1;	/* PCH attached eDP supports SSC */
+	u8 dp_ssc_freq:1;	/* SSC freq for PCH attached eDP */
+	u8 rsvd11:3; /* finish byte */
 } __attribute__((packed));
 
 /* pre-915 */
