@@ -314,7 +314,7 @@ static const struct zorrocl zcl_picasso4_z3 __devinitconst = {
 	.type		= BT_PICASSO4,
 	.regoffset	= 0x00600000,
 	.ramsize	= 4 * MB_,
-	.ramoffset	= 0x01000000,
+	.ramoffset	= 0x01000000,	/* 0x02000000 for 64 MiB boards */
 };
 
 static const struct zorrocl zcl_picasso4_z2 __devinitconst = {
@@ -2259,6 +2259,10 @@ static int __devinit cirrusfb_zorro_register(struct zorro_dev *z,
 	ramsize = zcl->ramsize;
 	if (ramsize) {
 		rambase = zorro_resource_start(z) + zcl->ramoffset;
+		if (zorro_resource_len(z) == 64 * MB_) {
+			/* Quirk for 64 MiB Picasso IV */
+			rambase += zcl->ramoffset;
+		}
 	} else {
 		struct zorro_dev *ram = zorro_find_device(zcl->ramid, NULL);
 		if (!ram || !zorro_resource_len(ram)) {
