@@ -740,11 +740,17 @@ static int clk_misc_init(void)
 	__raw_writel(BM_CLKCTRL_CPU_INTERRUPT_WAIT,
 			CLKCTRL_BASE_ADDR + HW_CLKCTRL_CPU_SET);
 
-	/* Extra fec clock setting */
-	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
-	reg &= ~BM_CLKCTRL_ENET_SLEEP;
-	reg |= BM_CLKCTRL_ENET_CLK_OUT_EN;
-	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
+	/*
+	 * Extra fec clock setting
+	 * The DENX M28 uses an external clock source
+	 * and the clock output must not be enabled
+	 */
+	if (!machine_is_m28evk()) {
+		reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
+		reg &= ~BM_CLKCTRL_ENET_SLEEP;
+		reg |= BM_CLKCTRL_ENET_CLK_OUT_EN;
+		__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
+	}
 
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,
