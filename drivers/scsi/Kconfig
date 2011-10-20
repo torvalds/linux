@@ -837,6 +837,7 @@ config SCSI_ISCI
 	# (temporary): known alpha quality driver
 	depends on EXPERIMENTAL
 	select SCSI_SAS_LIBSAS
+	select SCSI_SAS_HOST_SMP
 	---help---
 	  This driver supports the 6Gb/s SAS capabilities of the storage
 	  control unit found in the Intel(R) C600 series chipset.

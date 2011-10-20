@@ -29,7 +29,9 @@
 #include <mach/iomap.h>
 #include <mach/dma.h>
 #include <mach/usb_phy.h>
+
 #include "gpio-names.h"
+#include "devices.h"
 
 static struct resource i2c_resource1[] = {
 	[0] = {

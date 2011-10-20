@@ -31,25 +31,25 @@
 
 static struct map_desc tegra_io_desc[] __initdata = {
 	{
-		.virtual = IO_PPSB_VIRT,
+		.virtual = (unsigned long)IO_PPSB_VIRT,
 		.pfn = __phys_to_pfn(IO_PPSB_PHYS),
 		.length = IO_PPSB_SIZE,
 		.type = MT_DEVICE,
 	},
 	{
-		.virtual = IO_APB_VIRT,
+		.virtual = (unsigned long)IO_APB_VIRT,
 		.pfn = __phys_to_pfn(IO_APB_PHYS),
 		.length = IO_APB_SIZE,
 		.type = MT_DEVICE,
 	},
 	{
-		.virtual = IO_CPU_VIRT,
+		.virtual = (unsigned long)IO_CPU_VIRT,
 		.pfn = __phys_to_pfn(IO_CPU_PHYS),
 		.length = IO_CPU_SIZE,
 		.type = MT_DEVICE,
 	},
 	{
-		.virtual = IO_IRAM_VIRT,
+		.virtual = (unsigned long)IO_IRAM_VIRT,
 		.pfn = __phys_to_pfn(IO_IRAM_PHYS),
 		.length = IO_IRAM_SIZE,
 		.type = MT_DEVICE,
