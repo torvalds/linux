@@ -263,6 +263,7 @@ static volatile int idle_condition = 1;              //1:idel, 0:busy
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
 static int wq_condition2 = 0;
+static int fb1_open_init = 0;
 #if ANDROID_USE_THREE_BUFS
 static int new_frame_seted = 1;
 #endif
@@ -1317,7 +1318,7 @@ static int win1_set_par(struct fb_info *info)
         addr = fix->smem_start + par->y_offset;
         xres_virtual = var->xres_virtual;      //virtual screen size
     }
-    LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE|m_W1_FORMAT, v_W1_ENABLE(1)|v_W1_FORMAT(par->format));
+    LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE|m_W1_FORMAT, v_W1_ENABLE(fb1_open_init?0:1)|v_W1_FORMAT(par->format));
 
     xpos += (screen->left_margin + screen->hsync_len);
     ypos += (screen->upper_margin + screen->vsync_len);
@@ -2291,6 +2292,7 @@ int fb1_open(struct fb_info *info, int user)
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
     struct win0_par *par = info->par;
+	struct rk29fb_screen *screen = inf->cur_screen;
 
     fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -2310,8 +2312,10 @@ int fb1_open(struct fb_info *info, int user)
     } else {
         par->refcount++;
         win0_blank(FB_BLANK_NORMAL, info);
+		if(screen->x_res<=1280)
+		fb1_open_init=1;
         fb0_set_par(inf->fb0);
-        
+        fb1_open_init=0;
 	    rk29fb_notify(inf, RK29FB_EVENT_FB1_ON);
         return 0;
     }
