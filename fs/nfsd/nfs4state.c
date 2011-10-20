@@ -1947,11 +1947,13 @@ out:
 		atomic_inc(&clp->cl_refcount);
 		switch (clp->cl_cb_state) {
 		case NFSD4_CB_DOWN:
-			seq->status_flags |= SEQ4_STATUS_CB_PATH_DOWN;
+			seq->status_flags = SEQ4_STATUS_CB_PATH_DOWN;
 			break;
 		case NFSD4_CB_FAULT:
-			seq->status_flags |= SEQ4_STATUS_BACKCHANNEL_FAULT;
+			seq->status_flags = SEQ4_STATUS_BACKCHANNEL_FAULT;
 			break;
+		default:
+			seq->status_flags = 0;
 		}
 	}
 	kfree(conn);
