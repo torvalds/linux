@@ -923,9 +923,12 @@ err_register_fiq:
 	if (pdata->uart_free)
 		pdata->uart_free(pdev);
 err_uart_init:
-	kfree(state);
+	if (state->clk)
+		clk_disable(state->clk);
 	if (state->clk)
 		clk_put(state->clk);
+	wake_lock_destroy(&state->debugger_wake_lock);
+	kfree(state);
 	return ret;
 }
 
