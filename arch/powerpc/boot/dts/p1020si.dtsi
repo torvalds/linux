@@ -112,14 +112,13 @@
 		};
 
 		spi@7000 {
-			cell-index = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "fsl,espi";
+			compatible = "fsl,p1020-espi", "fsl,mpc8536-espi";
 			reg = <0x7000 0x1000>;
 			interrupts = <59 0x2>;
 			interrupt-parent = <&mpic>;
-			mode = "cpu";
+			fsl,espi-num-chipselects = <4>;
 		};
 
 		gpio: gpio-controller@f000 {

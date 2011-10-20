@@ -149,49 +149,45 @@
 		};
 
 		spi@7000 {
-
-			fsl_m25p80@0 {
+			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "fsl,espi-flash";
+				compatible = "spansion,s25sl12801";
 				reg = <0>;
-				linux,modalias = "fsl_m25p80";
-				modal = "s25sl128b";
-				spi-max-frequency = <50000000>;
-				mode = <0>;
+				spi-max-frequency = <40000000>; /* input clock */
 
-				partition@0 {
+				partition@u-boot {
 					/* 512KB for u-boot Bootloader Image */
 					reg = <0x0 0x00080000>;
-					label = "SPI (RO) U-Boot Image";
+					label = "u-boot";
 					read-only;
 				};
 
-				partition@80000 {
+				partition@dtb {
 					/* 512KB for DTB Image */
 					reg = <0x00080000 0x00080000>;
-					label = "SPI (RO) DTB Image";
+					label = "dtb";
 					read-only;
 				};
 
-				partition@100000 {
+				partition@kernel {
 					/* 4MB for Linux Kernel Image */
 					reg = <0x00100000 0x00400000>;
-					label = "SPI (RO) Linux Kernel Image";
+					label = "kernel";
 					read-only;
 				};
 
-				partition@500000 {
+				partition@fs {
 					/* 4MB for Compressed RFS Image */
 					reg = <0x00500000 0x00400000>;
-					label = "SPI (RO) Compressed RFS Image";
+					label = "file system";
 					read-only;
 				};
 
-				partition@900000 {
+				partition@jffs-fs {
 					/* 7MB for JFFS2 based RFS */
 					reg = <0x00900000 0x00700000>;
-					label = "SPI (RW) JFFS2 RFS";
+					label = "file system jffs2";
 				};
 			};
 		};
