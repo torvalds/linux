@@ -1234,8 +1234,8 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	/* start the rings */
 	cayman_cp_start(rdev);
 	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ready = true;
-	rdev->cp[CAYMAN_RING_TYPE_CP1_INDEX].ready = true;
-	rdev->cp[CAYMAN_RING_TYPE_CP2_INDEX].ready = true;
+	rdev->cp[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
+	rdev->cp[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
 	/* this only test cp0 */
 	r = radeon_ring_test(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
