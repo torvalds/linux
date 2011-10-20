@@ -9,7 +9,6 @@ driver as they did not build properly at the time.
 
 TODO:
 	- Use of kmem_cache seems a bit unusual
-	- Use dma_alloc_... in place of pci_alloc_...
 	- It's too late stopping the tx queue when there is no room for the current packet. The condition should be detected for the next packet.
 	- PCI_VDEVICE ?
 

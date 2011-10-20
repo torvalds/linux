@@ -1965,9 +1965,10 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Allocate an area of memory for Free Buffer Ring 1 */
 	bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[0]->num_entries) + 0xfff;
-	rx_ring->fbr[0]->ring_virtaddr = pci_alloc_consistent(adapter->pdev,
-						bufsize,
-						&rx_ring->fbr[0]->ring_physaddr);
+	rx_ring->fbr[0]->ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
+					bufsize,
+					&rx_ring->fbr[0]->ring_physaddr,
+					GFP_KERNEL);
 	if (!rx_ring->fbr[0]->ring_virtaddr) {
 		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Free Buffer Ring 1\n");
@@ -1995,9 +1996,10 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 #ifdef USE_FBR0
 	/* Allocate an area of memory for Free Buffer Ring 0 */
 	bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[1]->num_entries) + 0xfff;
-	rx_ring->fbr[1]->ring_virtaddr = pci_alloc_consistent(adapter->pdev,
+	rx_ring->fbr[1]->ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
 						bufsize,
-						&rx_ring->fbr[1]->ring_physaddr);
+						&rx_ring->fbr[1]->ring_physaddr,
+						GFP_KERNEL);
 	if (!rx_ring->fbr[1]->ring_virtaddr) {
 		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Free Buffer Ring 0\n");
@@ -2042,8 +2044,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		fbr_chunksize =
 		    (FBR_CHUNKS * rx_ring->fbr[0]->buffsize) + fbr1_align - 1;
 		rx_ring->fbr[0]->mem_virtaddrs[i] =
-		    pci_alloc_consistent(adapter->pdev, fbr_chunksize,
-					 &rx_ring->fbr[0]->mem_physaddrs[i]);
+		    dma_alloc_coherent(&adapter->pdev->dev, fbr_chunksize,
+					 &rx_ring->fbr[0]->mem_physaddrs[i], GFP_KERNEL);
 
 		if (!rx_ring->fbr[0]->mem_virtaddrs[i]) {
 			dev_err(&adapter->pdev->dev,
@@ -2094,8 +2096,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		fbr_chunksize =
 		    ((FBR_CHUNKS + 1) * rx_ring->fbr[1]->buffsize) - 1;
 		rx_ring->fbr[1]->mem_virtaddrs[i] =
-		    pci_alloc_consistent(adapter->pdev, fbr_chunksize,
-					 &rx_ring->fbr[1]->mem_physaddrs[i]);
+		    dma_alloc_coherent(&adapter->pdev->dev, fbr_chunksize,
+					 &rx_ring->fbr[1]->mem_physaddrs[i], GFP_KERNEL);
 
 		if (!rx_ring->fbr[1]->mem_virtaddrs[i]) {
 			dev_err(&adapter->pdev->dev,
@@ -2137,9 +2139,10 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	pktstat_ringsize =
 	    sizeof(struct pkt_stat_desc) * adapter->rx_ring.psr_num_entries;
 
-	rx_ring->ps_ring_virtaddr = pci_alloc_consistent(adapter->pdev,
+	rx_ring->ps_ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
 						  pktstat_ringsize,
-						  &rx_ring->ps_ring_physaddr);
+						  &rx_ring->ps_ring_physaddr,
+						  GFP_KERNEL);
 
 	if (!rx_ring->ps_ring_virtaddr) {
 		dev_err(&adapter->pdev->dev,
@@ -2157,9 +2160,10 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 */
 
 	/* Allocate an area of memory for writeback of status information */
-	rx_ring->rx_status_block = pci_alloc_consistent(adapter->pdev,
+	rx_ring->rx_status_block = dma_alloc_coherent(&adapter->pdev->dev,
 					    sizeof(struct rx_status_block),
-					    &rx_ring->rx_status_bus);
+					    &rx_ring->rx_status_bus,
+					    GFP_KERNEL);
 	if (!rx_ring->rx_status_block) {
 		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Status Block\n");
@@ -2992,8 +2996,8 @@ int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 */
 	desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX) + 4096 - 1;
 	tx_ring->tx_desc_ring =
-	    (struct tx_desc *) pci_alloc_consistent(adapter->pdev, desc_size,
-						    &tx_ring->tx_desc_ring_pa);
+	    (struct tx_desc *) dma_alloc_coherent(&adapter->pdev->dev, desc_size,
+						    &tx_ring->tx_desc_ring_pa, GFP_KERNEL);
 	if (!adapter->tx_ring.tx_desc_ring) {
 		dev_err(&adapter->pdev->dev,
 					"Cannot alloc memory for Tx Ring\n");
@@ -3008,9 +3012,10 @@ int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 * storing the adjusted address.
 	 */
 	/* Allocate memory for the Tx status block */
-	tx_ring->tx_status = pci_alloc_consistent(adapter->pdev,
+	tx_ring->tx_status = dma_alloc_coherent(&adapter->pdev->dev,
 						    sizeof(u32),
-						    &tx_ring->tx_status_pa);
+						    &tx_ring->tx_status_pa,
+						    GFP_KERNEL);
 	if (!adapter->tx_ring.tx_status_pa) {
 		dev_err(&adapter->pdev->dev,
 				  "Cannot alloc memory for Tx status block\n");
