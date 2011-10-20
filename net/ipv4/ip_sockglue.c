@@ -961,7 +961,7 @@ mc_msf_out:
 		break;
 
 	case IP_TRANSPARENT:
-		if (!capable(CAP_NET_ADMIN)) {
+		if (!!val && !capable(CAP_NET_RAW) && !capable(CAP_NET_ADMIN)) {
 			err = -EPERM;
 			break;
 		}
