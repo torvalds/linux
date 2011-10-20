@@ -388,23 +388,6 @@ div_from_reg(u8 reg)
 	return 1 << reg;
 }
 
-static inline int
-temp_from_reg(u16 reg, s16 regval)
-{
-	if (is_word_sized(reg))
-		return LM75_TEMP_FROM_REG(regval);
-	return ((s8)regval) * 1000;
-}
-
-static inline u16
-temp_to_reg(u16 reg, long temp)
-{
-	if (is_word_sized(reg))
-		return LM75_TEMP_TO_REG(temp);
-	return (s8)DIV_ROUND_CLOSEST(SENSORS_LIMIT(temp, -127000, 128000),
-				     1000);
-}
-
 /* Some of analog inputs have internal scaling (2x), 8mV is ADC LSB */
 
 static u8 scale_in[10] = { 8, 8, 16, 16, 8, 8, 8, 16, 16, 8 };
@@ -559,6 +542,26 @@ static int w83627ehf_write_value(struct w83627ehf_data *data, u16 reg,
 
 	mutex_unlock(&data->lock);
 	return 0;
+}
+
+/* We left-align 8-bit temperature values to make the code simpler */
+static u16 w83627ehf_read_temp(struct w83627ehf_data *data, u16 reg)
+{
+	u16 res;
+
+	res = w83627ehf_read_value(data, reg);
+	if (!is_word_sized(reg))
+		res <<= 8;
+
+	return res;
+}
+
+static int w83627ehf_write_temp(struct w83627ehf_data *data, u16 reg,
+				       u16 value)
+{
+	if (!is_word_sized(reg))
+		value >>= 8;
+	return w83627ehf_write_value(data, reg, value);
 }
 
 /* This function assumes that the caller holds data->update_lock */
@@ -862,15 +865,15 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 		for (i = 0; i < NUM_REG_TEMP; i++) {
 			if (!(data->have_temp & (1 << i)))
 				continue;
-			data->temp[i] = w83627ehf_read_value(data,
+			data->temp[i] = w83627ehf_read_temp(data,
 						data->reg_temp[i]);
 			if (data->reg_temp_over[i])
 				data->temp_max[i]
-				  = w83627ehf_read_value(data,
+				  = w83627ehf_read_temp(data,
 						data->reg_temp_over[i]);
 			if (data->reg_temp_hyst[i])
 				data->temp_max_hyst[i]
-				  = w83627ehf_read_value(data,
+				  = w83627ehf_read_temp(data,
 						data->reg_temp_hyst[i]);
 		}
 
@@ -1166,8 +1169,7 @@ show_##reg(struct device *dev, struct device_attribute *attr, \
 	struct sensor_device_attribute *sensor_attr = \
 		to_sensor_dev_attr(attr); \
 	int nr = sensor_attr->index; \
-	return sprintf(buf, "%d\n", \
-		       temp_from_reg(data->addr[nr], data->reg[nr])); \
+	return sprintf(buf, "%d\n", LM75_TEMP_FROM_REG(data->reg[nr])); \
 }
 show_temp_reg(reg_temp, temp);
 show_temp_reg(reg_temp_over, temp_max);
@@ -1188,9 +1190,8 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	if (err < 0) \
 		return err; \
 	mutex_lock(&data->update_lock); \
-	data->reg[nr] = temp_to_reg(data->addr[nr], val); \
-	w83627ehf_write_value(data, data->addr[nr], \
-			      data->reg[nr]); \
+	data->reg[nr] = LM75_TEMP_TO_REG(val); \
+	w83627ehf_write_temp(data, data->addr[nr], data->reg[nr]); \
 	mutex_unlock(&data->update_lock); \
 	return count; \
 }
