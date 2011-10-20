@@ -263,7 +263,18 @@ void *raw_field_ptr(struct event *event, const char *name, void *data);
 unsigned long long eval_flag(const char *flag);
 
 int read_tracing_data(int fd, struct list_head *pattrs);
-ssize_t read_tracing_data_size(int fd, struct list_head *pattrs);
+
+struct tracing_data {
+	/* size is only valid if temp is 'true' */
+	ssize_t size;
+	bool temp;
+	char temp_file[50];
+};
+
+struct tracing_data *tracing_data_get(struct list_head *pattrs,
+				      int fd, bool temp);
+void tracing_data_put(struct tracing_data *tdata);
+
 
 /* taken from kernel/trace/trace.h */
 enum trace_flag_type {
