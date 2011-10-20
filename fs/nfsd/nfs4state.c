@@ -3905,6 +3905,37 @@ static void get_lock_access(struct nfs4_ol_stateid *lock_stp, u32 access)
 	__set_bit(access, &lock_stp->st_access_bmap);
 }
 
+__be32 lookup_or_create_lock_state(struct nfsd4_compound_state *cstate, struct nfs4_ol_stateid *ost, struct nfsd4_lock *lock, struct nfs4_ol_stateid **lst, bool *new)
+{
+	struct nfs4_file *fi = ost->st_file;
+	struct nfs4_openowner *oo = openowner(ost->st_stateowner);
+	struct nfs4_client *cl = oo->oo_owner.so_client;
+	struct nfs4_lockowner *lo;
+	unsigned int strhashval;
+
+	lo = find_lockowner_str(fi->fi_inode, &cl->cl_clientid, &lock->v.new.owner);
+	if (lo) {
+		if (!cstate->minorversion)
+			return nfserr_bad_seqid;
+		/* XXX: a lockowner always has exactly one stateid: */
+		*lst = list_first_entry(&lo->lo_owner.so_stateids,
+				struct nfs4_ol_stateid, st_perstateowner);
+		return nfs_ok;
+	}
+	strhashval = lock_ownerstr_hashval(fi->fi_inode, cl->cl_clientid.cl_id,
+			&lock->v.new.owner);
+	lo = alloc_init_lock_stateowner(strhashval, cl, ost, lock);
+	if (lo == NULL)
+		return nfserr_jukebox;
+	*lst = alloc_init_lock_stateid(lo, fi, ost);
+	if (*lst == NULL) {
+		release_lockowner(lo);
+		return nfserr_jukebox;
+	}
+	*new = true;
+	return nfs_ok;
+}
+
 /*
  *  LOCK operation 
  */
@@ -3920,7 +3951,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct file_lock file_lock;
 	struct file_lock conflock;
 	__be32 status = 0;
-	unsigned int strhashval;
+	bool new_state = false;
 	int lkflg;
 	int err;
 
@@ -3969,21 +4000,9 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		if (!same_clid(&open_sop->oo_owner.so_client->cl_clientid,
 						&lock->v.new.clientid))
 			goto out;
-		/* create lockowner and lock stateid */
-		fp = open_stp->st_file;
-		strhashval = lock_ownerstr_hashval(fp->fi_inode,
-				open_sop->oo_owner.so_client->cl_clientid.cl_id,
-				&lock->v.new.owner);
-		/* XXX: Do we need to check for duplicate stateowners on
-		 * the same file, or should they just be allowed (and
-		 * create new stateids)? */
-		status = nfserr_jukebox;
-		lock_sop = alloc_init_lock_stateowner(strhashval,
-				open_sop->oo_owner.so_client, open_stp, lock);
-		if (lock_sop == NULL)
-			goto out;
-		lock_stp = alloc_init_lock_stateid(lock_sop, fp, open_stp);
-		if (lock_stp == NULL)
+		status = lookup_or_create_lock_state(cstate, open_stp, lock,
+							&lock_stp, &new_state);
+		if (status)
 			goto out;
 	} else {
 		/* lock (lock owner + lock stateid) already exists */
@@ -3993,10 +4012,9 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				       NFS4_LOCK_STID, &lock_stp);
 		if (status)
 			goto out;
-		lock_sop = lockowner(lock_stp->st_stateowner);
-		fp = lock_stp->st_file;
 	}
-	/* lock_sop and lock_stp have been created or found */
+	lock_sop = lockowner(lock_stp->st_stateowner);
+	fp = lock_stp->st_file;
 
 	lkflg = setlkflg(lock->lk_type);
 	status = nfs4_check_openmode(lock_stp, lkflg);
@@ -4071,7 +4089,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		break;
 	}
 out:
-	if (status && lock->lk_is_new && lock_sop)
+	if (status && new_state)
 		release_lockowner(lock_sop);
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
