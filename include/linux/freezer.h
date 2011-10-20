@@ -143,7 +143,7 @@ static inline void set_freezable_with_signal(void)
 ({									\
 	int __retval;							\
 	do {								\
-		__retval = wait_event_killable(wq, 			\
+		__retval = wait_event_killable(wq,			\
 				(condition) || freezing(current));	\
 		if (__retval && !freezing(current))			\
 			break;						\
