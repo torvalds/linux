@@ -153,6 +153,12 @@
 # define DP_PSR_CRC_VERIFICATION	    (1 << 2)
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
 
+#define DP_DEVICE_SERVICE_IRQ_VECTOR	    0x201
+# define DP_REMOTE_CONTROL_COMMAND_PENDING  (1 << 0)
+# define DP_AUTOMATED_TEST_REQUEST	    (1 << 1)
+# define DP_CP_IRQ			    (1 << 2)
+# define DP_SINK_SPECIFIC_IRQ		    (1 << 6)
+
 #define DP_LANE0_1_STATUS		    0x202
 #define DP_LANE2_3_STATUS		    0x203
 # define DP_LANE_CR_DONE		    (1 << 0)
@@ -184,6 +190,25 @@
 # define DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT 4
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
+
+#define DP_TEST_REQUEST			    0x218
+# define DP_TEST_LINK_TRAINING		    (1 << 0)
+# define DP_TEST_LINK_PATTERN		    (1 << 1)
+# define DP_TEST_LINK_EDID_READ		    (1 << 2)
+# define DP_TEST_LINK_PHY_TEST_PATTERN	    (1 << 3) /* DPCD >= 1.1 */
+
+#define DP_TEST_LINK_RATE		    0x219
+# define DP_LINK_RATE_162		    (0x6)
+# define DP_LINK_RATE_27		    (0xa)
+
+#define DP_TEST_LANE_COUNT		    0x220
+
+#define DP_TEST_PATTERN			    0x221
+
+#define DP_TEST_RESPONSE		    0x260
+# define DP_TEST_ACK			    (1 << 0)
+# define DP_TEST_NAK			    (1 << 1)
+# define DP_TEST_EDID_CHECKSUM_WRITE	    (1 << 2)
 
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1

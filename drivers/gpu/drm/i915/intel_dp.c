@@ -1776,6 +1776,27 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	return false;
 }
 
+static bool
+intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
+{
+	int ret;
+
+	ret = intel_dp_aux_native_read_retry(intel_dp,
+					     DP_DEVICE_SERVICE_IRQ_VECTOR,
+					     sink_irq_vector, 1);
+	if (!ret)
+		return false;
+
+	return true;
+}
+
+static void
+intel_dp_handle_test_request(struct intel_dp *intel_dp)
+{
+	/* NAK by default */
+	intel_dp_aux_native_write_1(intel_dp, DP_TEST_RESPONSE, DP_TEST_ACK);
+}
+
 /*
  * According to DP spec
  * 5.1.2:
@@ -1788,6 +1809,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 static void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
+	u8 sink_irq_vector;
+
 	if (intel_dp->dpms_mode != DRM_MODE_DPMS_ON)
 		return;
 
@@ -1804,6 +1827,20 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	if (!intel_dp_get_dpcd(intel_dp)) {
 		intel_dp_link_down(intel_dp);
 		return;
+	}
+
+	/* Try to read the source of the interrupt */
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
+	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector)) {
+		/* Clear interrupt source */
+		intel_dp_aux_native_write_1(intel_dp,
+					    DP_DEVICE_SERVICE_IRQ_VECTOR,
+					    sink_irq_vector);
+
+		if (sink_irq_vector & DP_AUTOMATED_TEST_REQUEST)
+			intel_dp_handle_test_request(intel_dp);
+		if (sink_irq_vector & (DP_CP_IRQ | DP_SINK_SPECIFIC_IRQ))
+			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
 	}
 
 	if (!intel_channel_eq_ok(intel_dp)) {
