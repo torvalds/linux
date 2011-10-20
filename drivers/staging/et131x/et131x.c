@@ -2666,6 +2666,17 @@ void et131x_rx_dma_enable(struct et131x_adapter *adapter)
 	}
 }
 
+
+static inline void add_10bit(u32 *v, int n)
+{
+	*v = INDEX10(*v + n) | (*v & ET_DMA10_WRAP);
+}
+
+static inline void add_12bit(u32 *v, int n)
+{
+	*v = INDEX12(*v + n) | (*v & ET_DMA12_WRAP);
+}
+
 /**
  * nic_rx_pkts - Checks the hardware for available packets
  * @adapter: pointer to our adapter

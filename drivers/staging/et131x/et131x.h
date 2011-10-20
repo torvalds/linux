@@ -230,16 +230,6 @@ struct global_regs {				/* Location: */
 #define INDEX10(x)	((x) & ET_DMA10_MASK)
 #define INDEX4(x)	((x) & ET_DMA4_MASK)
 
-extern inline void add_10bit(u32 *v, int n)
-{
-	*v = INDEX10(*v + n) | (*v & ET_DMA10_WRAP);
-}
-
-extern inline void add_12bit(u32 *v, int n)
-{
-	*v = INDEX12(*v + n) | (*v & ET_DMA12_WRAP);
-}
-
 /*
  * 10bit DMA with wrap
  * txdma tx queue write address reg in txdma address map at 0x1010
