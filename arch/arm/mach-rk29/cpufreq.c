@@ -191,7 +191,7 @@ static bool limit_gpu_high;
 module_param(limit_vpu_enabled, bool, 0644);
 module_param(limit_gpu_enabled, bool, 0644);
 module_param(limit_gpu_high, bool, 0644);
-static struct clk* aclk_vepu;
+static struct clk* clk_vpu;
 static struct clk* clk_gpu;
 #define GPU_LOW_RATE	(300 * MHZ)
 static unsigned long limit_gpu_low_rate = GPU_LOW_RATE;
@@ -451,7 +451,7 @@ static void rk29_cpufreq_limit_by_temp_work_func(struct work_struct *work)
 	queue_delayed_work(wq, &rk29_cpufreq_limit_by_temp_work, WORK_DELAY);
 }
 
-static int rk29_cpufreq_aclk_vepu_notifier_event(struct notifier_block *this,
+static int rk29_cpufreq_vpu_notifier_event(struct notifier_block *this,
 		unsigned long event, void *ptr)
 {
 	switch (event) {
@@ -478,11 +478,11 @@ static int rk29_cpufreq_aclk_vepu_notifier_event(struct notifier_block *this,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block rk29_cpufreq_aclk_vepu_notifier = {
-	.notifier_call = rk29_cpufreq_aclk_vepu_notifier_event,
+static struct notifier_block rk29_cpufreq_vpu_notifier = {
+	.notifier_call = rk29_cpufreq_vpu_notifier_event,
 };
 
-static int rk29_cpufreq_clk_gpu_notifier_event(struct notifier_block *this,
+static int rk29_cpufreq_gpu_notifier_event(struct notifier_block *this,
 		unsigned long event, void *ptr)
 {
 	struct clk_notifier_data *cnd = ptr;
@@ -526,8 +526,8 @@ static int rk29_cpufreq_clk_gpu_notifier_event(struct notifier_block *this,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block rk29_cpufreq_clk_gpu_notifier = {
-	.notifier_call = rk29_cpufreq_clk_gpu_notifier_event,
+static struct notifier_block rk29_cpufreq_gpu_notifier = {
+	.notifier_call = rk29_cpufreq_gpu_notifier_event,
 };
 #endif
 
@@ -626,9 +626,9 @@ static int rk29_cpufreq_init(struct cpufreq_policy *policy)
 	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 	if (limit_max_freq > 1008000) {
 		clk_gpu = clk_get(NULL, "gpu");
-		aclk_vepu = clk_get(NULL, "aclk_vepu");
-		clk_notifier_register(clk_gpu, &rk29_cpufreq_clk_gpu_notifier);
-		clk_notifier_register(aclk_vepu, &rk29_cpufreq_aclk_vepu_notifier);
+		clk_vpu = clk_get(NULL, "vpu");
+		clk_notifier_register(clk_gpu, &rk29_cpufreq_gpu_notifier);
+		clk_notifier_register(clk_vpu, &rk29_cpufreq_vpu_notifier);
 	}
 #endif
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_DISP
@@ -644,10 +644,10 @@ static int rk29_cpufreq_exit(struct cpufreq_policy *policy)
 #endif
 #ifdef CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP
 	if (limit_max_freq > 1008000) {
-		clk_notifier_unregister(clk_gpu, &rk29_cpufreq_clk_gpu_notifier);
-		clk_notifier_unregister(aclk_vepu, &rk29_cpufreq_aclk_vepu_notifier);
+		clk_notifier_unregister(clk_gpu, &rk29_cpufreq_gpu_notifier);
+		clk_notifier_unregister(clk_vpu, &rk29_cpufreq_vpu_notifier);
 		clk_put(clk_gpu);
-		clk_put(aclk_vepu);
+		clk_put(clk_vpu);
 	}
 	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 	if (wq)
