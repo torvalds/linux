@@ -231,6 +231,8 @@ static void macvtap_del_queues(struct net_device *dev)
 		}
 	}
 	BUG_ON(vlan->numvtaps != 0);
+	/* guarantee that any future macvtap_set_queue will fail */
+	vlan->numvtaps = MAX_MACVTAP_QUEUES;
 	spin_unlock(&macvtap_lock);
 
 	synchronize_rcu();
