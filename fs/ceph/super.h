@@ -346,9 +346,10 @@ static inline struct ceph_vino ceph_vino(struct inode *inode)
  * x86_64+ino32  64                     32
  * x86_64        64                     64
  */
-static inline u32 ceph_ino_to_ino32(ino_t ino)
+static inline u32 ceph_ino_to_ino32(__u64 vino)
 {
-	ino ^= ino >> (sizeof(ino) * 8 - 32);
+	u32 ino = vino & 0xffffffff;
+	ino ^= vino >> 32;
 	if (!ino)
 		ino = 1;
 	return ino;
@@ -359,11 +360,11 @@ static inline u32 ceph_ino_to_ino32(ino_t ino)
  */
 static inline ino_t ceph_vino_to_ino(struct ceph_vino vino)
 {
-	ino_t ino = (ino_t)vino.ino;  /* ^ (vino.snap << 20); */
 #if BITS_PER_LONG == 32
-	ino = ceph_ino_to_ino32(ino);
+	return ceph_ino_to_ino32(vino.ino);
+#else
+	return (ino_t)vino.ino;
 #endif
-	return ino;
 }
 
 /*
