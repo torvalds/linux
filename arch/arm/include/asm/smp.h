@@ -33,6 +33,11 @@ extern void show_ipi_list(struct seq_file *, int);
 asmlinkage void do_IPI(int ipinr, struct pt_regs *regs);
 
 /*
+ * Called from C code, this handles an IPI.
+ */
+void handle_IPI(int ipinr, struct pt_regs *regs);
+
+/*
  * Setup the set of possible CPUs (via set_cpu_possible)
  */
 extern void smp_init_cpus(void);
@@ -64,6 +69,12 @@ extern void platform_secondary_init(unsigned int cpu);
  * Initialize cpu_possible map, and enable coherency
  */
 extern void platform_smp_prepare_cpus(unsigned int);
+
+/*
+ * Logical CPU mapping.
+ */
+extern int __cpu_logical_map[NR_CPUS];
+#define cpu_logical_map(cpu)	__cpu_logical_map[cpu]
 
 /*
  * Initial data for bringing up a secondary CPU.
