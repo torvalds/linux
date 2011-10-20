@@ -282,7 +282,7 @@ err_free_irq:
 err_pm_set_suspended:
 	pm_runtime_set_suspended(&client->dev);
 err_free_mem:
-	input_unregister_device(idev);
+	input_free_device(idev);
 	kfree(sensor);
 	return error;
 }

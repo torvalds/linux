@@ -60,6 +60,19 @@ config HW_RANDOM_AMD
 
 	  If unsure, say Y.
 
+config HW_RANDOM_ATMEL
+	tristate "Atmel Random Number Generator support"
+	depends on HW_RANDOM && ARCH_AT91SAM9G45
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Atmel AT91 devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_GEODE
 	tristate "AMD Geode HW Random Number Generator support"
 	depends on HW_RANDOM && X86_32 && PCI

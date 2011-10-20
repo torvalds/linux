@@ -420,7 +420,7 @@ static const char *sidetone_hpf_text[] = {
 };
 
 static const struct soc_enum sidetone_hpf =
-	SOC_ENUM_SINGLE(WM8996_SIDETONE, 7, 6, sidetone_hpf_text);
+	SOC_ENUM_SINGLE(WM8996_SIDETONE, 7, 7, sidetone_hpf_text);
 
 static const char *hpf_mode_text[] = {
 	"HiFi", "Custom", "Voice"
@@ -988,15 +988,10 @@ SND_SOC_DAPM_MICBIAS("MICB1", WM8996_POWER_MANAGEMENT_1, 8, 0),
 SND_SOC_DAPM_PGA("IN1L PGA", WM8996_POWER_MANAGEMENT_2, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA("IN1R PGA", WM8996_POWER_MANAGEMENT_2, 4, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("IN1L Mux", SND_SOC_NOPM, 0, 0, &in1_mux),
-SND_SOC_DAPM_MUX("IN1R Mux", SND_SOC_NOPM, 0, 0, &in1_mux),
-SND_SOC_DAPM_MUX("IN2L Mux", SND_SOC_NOPM, 0, 0, &in2_mux),
-SND_SOC_DAPM_MUX("IN2R Mux", SND_SOC_NOPM, 0, 0, &in2_mux),
-
-SND_SOC_DAPM_PGA("IN1L", WM8996_POWER_MANAGEMENT_7, 2, 0, NULL, 0),
-SND_SOC_DAPM_PGA("IN1R", WM8996_POWER_MANAGEMENT_7, 3, 0, NULL, 0),
-SND_SOC_DAPM_PGA("IN2L", WM8996_POWER_MANAGEMENT_7, 6, 0, NULL, 0),
-SND_SOC_DAPM_PGA("IN2R", WM8996_POWER_MANAGEMENT_7, 7, 0, NULL, 0),
+SND_SOC_DAPM_MUX("IN1L Mux", WM8996_POWER_MANAGEMENT_7, 2, 0, &in1_mux),
+SND_SOC_DAPM_MUX("IN1R Mux", WM8996_POWER_MANAGEMENT_7, 3, 0, &in1_mux),
+SND_SOC_DAPM_MUX("IN2L Mux", WM8996_POWER_MANAGEMENT_7, 6, 0, &in2_mux),
+SND_SOC_DAPM_MUX("IN2R Mux", WM8996_POWER_MANAGEMENT_7, 7, 0, &in2_mux),
 
 SND_SOC_DAPM_SUPPLY("DMIC2", WM8996_POWER_MANAGEMENT_7, 9, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("DMIC1", WM8996_POWER_MANAGEMENT_7, 8, 0, NULL, 0),
@@ -1212,6 +1207,16 @@ static const struct snd_soc_dapm_route wm8996_dapm_routes[] = {
 
 	{ "AIF2RX0", NULL, "AIFCLK" },
 	{ "AIF2RX1", NULL, "AIFCLK" },
+
+	{ "AIF1TX0", NULL, "AIFCLK" },
+	{ "AIF1TX1", NULL, "AIFCLK" },
+	{ "AIF1TX2", NULL, "AIFCLK" },
+	{ "AIF1TX3", NULL, "AIFCLK" },
+	{ "AIF1TX4", NULL, "AIFCLK" },
+	{ "AIF1TX5", NULL, "AIFCLK" },
+
+	{ "AIF2TX0", NULL, "AIFCLK" },
+	{ "AIF2TX1", NULL, "AIFCLK" },
 
 	{ "DSP1RXL", NULL, "SYSDSPCLK" },
 	{ "DSP1RXR", NULL, "SYSDSPCLK" },
@@ -2105,6 +2110,9 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			    fll_div.fll_loop_gain);
 
 	snd_soc_write(codec, WM8996_FLL_EFS_1, fll_div.lambda);
+
+	/* Clear any pending completions (eg, from failed startups) */
+	try_wait_for_completion(&wm8996->fll_lock);
 
 	snd_soc_update_bits(codec, WM8996_FLL_CONTROL_1,
 			    WM8996_FLL_ENA, WM8996_FLL_ENA);

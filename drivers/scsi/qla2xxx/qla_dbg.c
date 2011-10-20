@@ -8,24 +8,24 @@
 /*
  * Table for showing the current message id in use for particular level
  * Change this table for addition of log/debug messages.
- * -----------------------------------------------------
- * |             Level            |   Last Value Used  |
- * -----------------------------------------------------
- * | Module Init and Probe        |       0x0116       |
- * | Mailbox commands             |       0x111e       |
- * | Device Discovery             |       0x2083       |
- * | Queue Command and IO tracing |       0x302e       |
- * | DPC Thread                   |       0x401c       |
- * | Async Events                 |       0x5059       |
- * | Timer Routines               |       0x600d       |
- * | User Space Interactions      |       0x709c       |
- * | Task Management              |       0x8043       |
- * | AER/EEH                      |       0x900f       |
- * | Virtual Port                 |       0xa007       |
- * | ISP82XX Specific             |       0xb027       |
- * | MultiQ                       |       0xc00b       |
- * | Misc                         |       0xd00b       |
- * -----------------------------------------------------
+ * ----------------------------------------------------------------------
+ * |             Level            |   Last Value Used  |     Holes	|
+ * ----------------------------------------------------------------------
+ * | Module Init and Probe        |       0x0116       |  		|
+ * | Mailbox commands             |       0x1126       |		|
+ * | Device Discovery             |       0x2083       |		|
+ * | Queue Command and IO tracing |       0x302e       |     0x3008     |
+ * | DPC Thread                   |       0x401c       |		|
+ * | Async Events                 |       0x5059       |		|
+ * | Timer Routines               |       0x600d       |		|
+ * | User Space Interactions      |       0x709d       |		|
+ * | Task Management              |       0x8041       |    		|
+ * | AER/EEH                      |       0x900f       |		|
+ * | Virtual Port                 |       0xa007       |		|
+ * | ISP82XX Specific             |       0xb04f       |    		|
+ * | MultiQ                       |       0xc00b       |		|
+ * | Misc                         |       0xd00b       |		|
+ * ----------------------------------------------------------------------
  */
 
 #include "qla_def.h"

@@ -268,7 +268,7 @@ struct se_tpg_np *lio_target_call_addnptotpg(
 				ISCSI_TCP);
 	if (IS_ERR(tpg_np)) {
 		iscsit_put_tpg(tpg);
-		return ERR_PTR(PTR_ERR(tpg_np));
+		return ERR_CAST(tpg_np);
 	}
 	pr_debug("LIO_Target_ConfigFS: addnptotpg done!\n");
 
@@ -1285,7 +1285,7 @@ struct se_wwn *lio_target_call_coreaddtiqn(
 
 	tiqn = iscsit_add_tiqn((unsigned char *)name);
 	if (IS_ERR(tiqn))
-		return ERR_PTR(PTR_ERR(tiqn));
+		return ERR_CAST(tiqn);
 	/*
 	 * Setup struct iscsi_wwn_stat_grps for se_wwn->fabric_stat_group.
 	 */

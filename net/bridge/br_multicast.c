@@ -1456,7 +1456,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 {
 	struct sk_buff *skb2;
 	const struct ipv6hdr *ip6h;
-	struct icmp6hdr *icmp6h;
+	u8 icmp6_type;
 	u8 nexthdr;
 	unsigned len;
 	int offset;
@@ -1502,9 +1502,9 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	__skb_pull(skb2, offset);
 	skb_reset_transport_header(skb2);
 
-	icmp6h = icmp6_hdr(skb2);
+	icmp6_type = icmp6_hdr(skb2)->icmp6_type;
 
-	switch (icmp6h->icmp6_type) {
+	switch (icmp6_type) {
 	case ICMPV6_MGM_QUERY:
 	case ICMPV6_MGM_REPORT:
 	case ICMPV6_MGM_REDUCTION:
@@ -1520,16 +1520,23 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 		err = pskb_trim_rcsum(skb2, len);
 		if (err)
 			goto out;
+		err = -EINVAL;
 	}
+
+	ip6h = ipv6_hdr(skb2);
 
 	switch (skb2->ip_summed) {
 	case CHECKSUM_COMPLETE:
-		if (!csum_fold(skb2->csum))
+		if (!csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr, skb2->len,
+					IPPROTO_ICMPV6, skb2->csum))
 			break;
 		/*FALLTHROUGH*/
 	case CHECKSUM_NONE:
-		skb2->csum = 0;
-		if (skb_checksum_complete(skb2))
+		skb2->csum = ~csum_unfold(csum_ipv6_magic(&ip6h->saddr,
+							&ip6h->daddr,
+							skb2->len,
+							IPPROTO_ICMPV6, 0));
+		if (__skb_checksum_complete(skb2))
 			goto out;
 	}
 
@@ -1537,7 +1544,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 
 	BR_INPUT_SKB_CB(skb)->igmp = 1;
 
-	switch (icmp6h->icmp6_type) {
+	switch (icmp6_type) {
 	case ICMPV6_MGM_REPORT:
 	    {
 		struct mld_msg *mld;
