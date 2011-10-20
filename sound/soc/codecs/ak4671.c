@@ -168,18 +168,15 @@ static int ak4671_out2_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	u8 reg;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		reg = snd_soc_read(codec, AK4671_LOUT2_POWER_MANAGERMENT);
-		reg |= AK4671_MUTEN;
-		snd_soc_write(codec, AK4671_LOUT2_POWER_MANAGERMENT, reg);
+		snd_soc_update_bits(codec, AK4671_LOUT2_POWER_MANAGERMENT,
+				    AK4671_MUTEN, AK4671_MUTEN);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		reg = snd_soc_read(codec, AK4671_LOUT2_POWER_MANAGERMENT);
-		reg &= ~AK4671_MUTEN;
-		snd_soc_write(codec, AK4671_LOUT2_POWER_MANAGERMENT, reg);
+		snd_soc_update_bits(codec, AK4671_LOUT2_POWER_MANAGERMENT,
+				    AK4671_MUTEN, 0);
 		break;
 	}
 
@@ -575,15 +572,12 @@ static int ak4671_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int ak4671_set_bias_level(struct snd_soc_codec *codec,
 		enum snd_soc_bias_level level)
 {
-	u8 reg;
-
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 	case SND_SOC_BIAS_STANDBY:
-		reg = snd_soc_read(codec, AK4671_AD_DA_POWER_MANAGEMENT);
-		snd_soc_write(codec, AK4671_AD_DA_POWER_MANAGEMENT,
-				reg | AK4671_PMVCM);
+		snd_soc_update_bits(codec, AK4671_AD_DA_POWER_MANAGEMENT,
+				    AK4671_PMVCM, AK4671_PMVCM);
 		break;
 	case SND_SOC_BIAS_OFF:
 		snd_soc_write(codec, AK4671_AD_DA_POWER_MANAGEMENT, 0x00);
