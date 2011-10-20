@@ -362,7 +362,6 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
-	kfree(nv_crtc->mode);
 	kfree(nv_crtc);
 }
 
@@ -604,8 +603,6 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	/* Find the connector attached to this CRTC */
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 
-	*nv_crtc->mode = *adjusted_mode;
-
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
 	hsync_dur = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
@@ -736,12 +733,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	if (!nv_crtc)
 		return -ENOMEM;
 
-	nv_crtc->mode = kzalloc(sizeof(*nv_crtc->mode), GFP_KERNEL);
-	if (!nv_crtc->mode) {
-		kfree(nv_crtc);
-		return -ENOMEM;
-	}
-
 	/* Default CLUT parameters, will be activated on the hw upon
 	 * first mode set.
 	 */
@@ -763,7 +754,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	}
 
 	if (ret) {
-		kfree(nv_crtc->mode);
 		kfree(nv_crtc);
 		return ret;
 	}

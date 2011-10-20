@@ -32,8 +32,6 @@ struct nouveau_crtc {
 
 	int index;
 
-	struct drm_display_mode *mode;
-
 	uint32_t dpms_saved_fp_control;
 	uint32_t fp_users;
 	int saturation;
