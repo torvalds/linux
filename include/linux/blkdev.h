@@ -30,6 +30,7 @@ struct request_pm_state;
 struct blk_trace;
 struct request;
 struct sg_io_hdr;
+struct bsg_job;
 
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
@@ -117,6 +118,7 @@ struct request {
 		struct {
 			unsigned int		seq;
 			struct list_head	list;
+			rq_end_io_fn		*saved_end_io;
 		} flush;
 	};
 
@@ -209,6 +211,7 @@ typedef int (merge_bvec_fn) (struct request_queue *, struct bvec_merge_data *,
 typedef void (softirq_done_fn)(struct request *);
 typedef int (dma_drain_needed_fn)(struct request *);
 typedef int (lld_busy_fn) (struct request_queue *q);
+typedef int (bsg_job_fn) (struct bsg_job *);
 
 enum blk_eh_timer_return {
 	BLK_EH_NOT_HANDLED,
@@ -375,6 +378,8 @@ struct request_queue {
 	struct mutex		sysfs_lock;
 
 #if defined(CONFIG_BLK_DEV_BSG)
+	bsg_job_fn		*bsg_job_fn;
+	int			bsg_job_size;
 	struct bsg_class_device bsg_dev;
 #endif
 

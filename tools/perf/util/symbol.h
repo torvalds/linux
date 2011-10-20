@@ -155,7 +155,6 @@ struct dso {
 };
 
 struct dso *dso__new(const char *name);
-struct dso *dso__new_kernel(const char *name);
 void dso__delete(struct dso *dso);
 
 int dso__name_len(const struct dso *dso);

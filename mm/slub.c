@@ -701,7 +701,7 @@ static u8 *check_bytes(u8 *start, u8 value, unsigned int bytes)
 		return check_bytes8(start, value, bytes);
 
 	value64 = value | value << 8 | value << 16 | value << 24;
-	value64 = value64 | value64 << 32;
+	value64 = (value64 & 0xffffffff) | value64 << 32;
 	prefix = 8 - ((unsigned long)start) % 8;
 
 	if (prefix) {
@@ -1854,7 +1854,7 @@ redo:
 
 	new.frozen = 0;
 
-	if (!new.inuse && n->nr_partial < s->min_partial)
+	if (!new.inuse && n->nr_partial > s->min_partial)
 		m = M_FREE;
 	else if (new.freelist) {
 		m = M_PARTIAL;
@@ -2387,11 +2387,13 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 slab_empty:
 	if (prior) {
 		/*
-		 * Slab still on the partial list.
+		 * Slab on the partial list.
 		 */
 		remove_partial(n, page);
 		stat(s, FREE_REMOVE_PARTIAL);
-	}
+	} else
+		/* Slab must be on the full list */
+		remove_full(s, page);
 
 	spin_unlock_irqrestore(&n->list_lock, flags);
 	stat(s, FREE_SLAB);

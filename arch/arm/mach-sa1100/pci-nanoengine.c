@@ -28,6 +28,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/nanoengine.h>
+#include <mach/hardware.h>
 
 static DEFINE_SPINLOCK(nano_lock);
 

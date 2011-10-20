@@ -37,7 +37,7 @@ static int speyside_wm8962_set_bias_level(struct snd_soc_card *card,
 						     44100 * 256,
 						     SND_SOC_CLOCK_IN);
 			if (ret < 0) {
-				pr_err("Failed to set SYSCLK: %d\n");
+				pr_err("Failed to set SYSCLK: %d\n", ret);
 				return ret;
 			}
 		}

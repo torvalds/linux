@@ -139,8 +139,12 @@ static void stream_stop(struct snd_usb_caiaqdev *dev)
 
 	for (i = 0; i < N_URBS; i++) {
 		usb_kill_urb(dev->data_urbs_in[i]);
-		usb_kill_urb(dev->data_urbs_out[i]);
+
+		if (test_bit(i, &dev->outurb_active_mask))
+			usb_kill_urb(dev->data_urbs_out[i]);
 	}
+
+	dev->outurb_active_mask = 0;
 }
 
 static int snd_usb_caiaq_substream_open(struct snd_pcm_substream *substream)
@@ -612,8 +616,9 @@ static void read_completed(struct urb *urb)
 {
 	struct snd_usb_caiaq_cb_info *info = urb->context;
 	struct snd_usb_caiaqdev *dev;
-	struct urb *out;
-	int frame, len, send_it = 0, outframe = 0;
+	struct urb *out = NULL;
+	int i, frame, len, send_it = 0, outframe = 0;
+	size_t offset = 0;
 
 	if (urb->status || !info)
 		return;
@@ -623,7 +628,17 @@ static void read_completed(struct urb *urb)
 	if (!dev->streaming)
 		return;
 
-	out = dev->data_urbs_out[info->index];
+	/* find an unused output urb that is unused */
+	for (i = 0; i < N_URBS; i++)
+		if (test_and_set_bit(i, &dev->outurb_active_mask) == 0) {
+			out = dev->data_urbs_out[i];
+			break;
+		}
+
+	if (!out) {
+		log("Unable to find an output urb to use\n");
+		goto requeue;
+	}
 
 	/* read the recently received packet and send back one which has
 	 * the same layout */
@@ -634,7 +649,8 @@ static void read_completed(struct urb *urb)
 		len = urb->iso_frame_desc[outframe].actual_length;
 		out->iso_frame_desc[outframe].length = len;
 		out->iso_frame_desc[outframe].actual_length = 0;
-		out->iso_frame_desc[outframe].offset = BYTES_PER_FRAME * frame;
+		out->iso_frame_desc[outframe].offset = offset;
+		offset += len;
 
 		if (len > 0) {
 			spin_lock(&dev->spinlock);
@@ -650,11 +666,15 @@ static void read_completed(struct urb *urb)
 	}
 
 	if (send_it) {
-		out->number_of_packets = FRAMES_PER_URB;
+		out->number_of_packets = outframe;
 		out->transfer_flags = URB_ISO_ASAP;
 		usb_submit_urb(out, GFP_ATOMIC);
+	} else {
+		struct snd_usb_caiaq_cb_info *oinfo = out->context;
+		clear_bit(oinfo->index, &dev->outurb_active_mask);
 	}
 
+requeue:
 	/* re-submit inbound urb */
 	for (frame = 0; frame < FRAMES_PER_URB; frame++) {
 		urb->iso_frame_desc[frame].offset = BYTES_PER_FRAME * frame;
@@ -676,6 +696,8 @@ static void write_completed(struct urb *urb)
 		dev->output_running = 1;
 		wake_up(&dev->prepare_wait_queue);
 	}
+
+	clear_bit(info->index, &dev->outurb_active_mask);
 }
 
 static struct urb **alloc_urbs(struct snd_usb_caiaqdev *dev, int dir, int *ret)
@@ -826,6 +848,9 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
 
 	if (!dev->data_cb_info)
 		return -ENOMEM;
+
+	dev->outurb_active_mask = 0;
+	BUILD_BUG_ON(N_URBS > (sizeof(dev->outurb_active_mask) * 8));
 
 	for (i = 0; i < N_URBS; i++) {
 		dev->data_cb_info[i].dev = dev;

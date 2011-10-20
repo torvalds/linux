@@ -48,14 +48,7 @@ void __init omap_pmic_init(int bus, u32 clkrate,
 	omap_register_i2c_bus(bus, clkrate, &pmic_i2c_board_info, 1);
 }
 
-static struct twl4030_usb_data omap4_usb_pdata = {
-	.phy_init	= omap4430_phy_init,
-	.phy_exit	= omap4430_phy_exit,
-	.phy_power	= omap4430_phy_power,
-	.phy_set_clock	= omap4430_phy_set_clk,
-	.phy_suspend	= omap4430_phy_suspend,
-};
-
+#if defined(CONFIG_ARCH_OMAP3)
 static struct twl4030_usb_data omap3_usb_pdata = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
@@ -120,6 +113,45 @@ static struct regulator_init_data omap3_vpll2_idata = {
 	},
 	.num_consumer_supplies		= ARRAY_SIZE(omap3_vpll2_supplies),
 	.consumer_supplies		= omap3_vpll2_supplies,
+};
+
+void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
+				  u32 pdata_flags, u32 regulators_flags)
+{
+	if (!pmic_data->irq_base)
+		pmic_data->irq_base = TWL4030_IRQ_BASE;
+	if (!pmic_data->irq_end)
+		pmic_data->irq_end = TWL4030_IRQ_END;
+
+	/* Common platform data configurations */
+	if (pdata_flags & TWL_COMMON_PDATA_USB && !pmic_data->usb)
+		pmic_data->usb = &omap3_usb_pdata;
+
+	if (pdata_flags & TWL_COMMON_PDATA_BCI && !pmic_data->bci)
+		pmic_data->bci = &omap3_bci_pdata;
+
+	if (pdata_flags & TWL_COMMON_PDATA_MADC && !pmic_data->madc)
+		pmic_data->madc = &omap3_madc_pdata;
+
+	if (pdata_flags & TWL_COMMON_PDATA_AUDIO && !pmic_data->audio)
+		pmic_data->audio = &omap3_audio_pdata;
+
+	/* Common regulator configurations */
+	if (regulators_flags & TWL_COMMON_REGULATOR_VDAC && !pmic_data->vdac)
+		pmic_data->vdac = &omap3_vdac_idata;
+
+	if (regulators_flags & TWL_COMMON_REGULATOR_VPLL2 && !pmic_data->vpll2)
+		pmic_data->vpll2 = &omap3_vpll2_idata;
+}
+#endif /* CONFIG_ARCH_OMAP3 */
+
+#if defined(CONFIG_ARCH_OMAP4)
+static struct twl4030_usb_data omap4_usb_pdata = {
+	.phy_init	= omap4430_phy_init,
+	.phy_exit	= omap4430_phy_exit,
+	.phy_power	= omap4430_phy_power,
+	.phy_set_clock	= omap4430_phy_set_clk,
+	.phy_suspend	= omap4430_phy_suspend,
 };
 
 static struct regulator_init_data omap4_vdac_idata = {
@@ -273,32 +305,4 @@ void __init omap4_pmic_get_config(struct twl4030_platform_data *pmic_data,
 	    !pmic_data->clk32kg)
 		pmic_data->clk32kg = &omap4_clk32kg_idata;
 }
-
-void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
-				  u32 pdata_flags, u32 regulators_flags)
-{
-	if (!pmic_data->irq_base)
-		pmic_data->irq_base = TWL4030_IRQ_BASE;
-	if (!pmic_data->irq_end)
-		pmic_data->irq_end = TWL4030_IRQ_END;
-
-	/* Common platform data configurations */
-	if (pdata_flags & TWL_COMMON_PDATA_USB && !pmic_data->usb)
-		pmic_data->usb = &omap3_usb_pdata;
-
-	if (pdata_flags & TWL_COMMON_PDATA_BCI && !pmic_data->bci)
-		pmic_data->bci = &omap3_bci_pdata;
-
-	if (pdata_flags & TWL_COMMON_PDATA_MADC && !pmic_data->madc)
-		pmic_data->madc = &omap3_madc_pdata;
-
-	if (pdata_flags & TWL_COMMON_PDATA_AUDIO && !pmic_data->audio)
-		pmic_data->audio = &omap3_audio_pdata;
-
-	/* Common regulator configurations */
-	if (regulators_flags & TWL_COMMON_REGULATOR_VDAC && !pmic_data->vdac)
-		pmic_data->vdac = &omap3_vdac_idata;
-
-	if (regulators_flags & TWL_COMMON_REGULATOR_VPLL2 && !pmic_data->vpll2)
-		pmic_data->vpll2 = &omap3_vpll2_idata;
-}
+#endif /* CONFIG_ARCH_OMAP4 */

@@ -161,6 +161,17 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 	return ret;
 }
 
+static int lm25066_write_byte(struct i2c_client *client, int page, u8 value)
+{
+	if (page > 1)
+		return -EINVAL;
+
+	if (page == 0)
+		return pmbus_write_byte(client, 0, value);
+
+	return 0;
+}
+
 static int lm25066_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
@@ -204,6 +215,7 @@ static int lm25066_probe(struct i2c_client *client,
 
 	info->read_word_data = lm25066_read_word_data;
 	info->write_word_data = lm25066_write_word_data;
+	info->write_byte = lm25066_write_byte;
 
 	switch (id->driver_data) {
 	case lm25066:

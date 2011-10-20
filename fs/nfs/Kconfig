@@ -79,12 +79,9 @@ config NFS_V4_1
 	depends on NFS_FS && NFS_V4 && EXPERIMENTAL
 	select SUNRPC_BACKCHANNEL
 	select PNFS_FILE_LAYOUT
-	select PNFS_BLOCK
-	select MD
-	select BLK_DEV_DM
 	help
 	  This option enables support for minor version 1 of the NFSv4 protocol
-	  (RFC 5661 and RFC 5663) in the kernel's NFS client.
+	  (RFC 5661) in the kernel's NFS client.
 
 	  If unsure, say N.
 
@@ -93,16 +90,13 @@ config PNFS_FILE_LAYOUT
 
 config PNFS_BLOCK
 	tristate
+	depends on NFS_FS && NFS_V4_1 && BLK_DEV_DM
+	default m
 
 config PNFS_OBJLAYOUT
-	tristate "Provide support for the pNFS Objects Layout Driver for NFSv4.1 pNFS (EXPERIMENTAL)"
+	tristate
 	depends on NFS_FS && NFS_V4_1 && SCSI_OSD_ULD
-	help
-	  Say M here if you want your pNFS client to support the Objects Layout Driver.
-	  Requires the SCSI osd initiator library (SCSI_OSD_INITIATOR) and
-	  upper level driver (SCSI_OSD_ULD).
-
-	  If unsure, say N.
+	default m
 
 config ROOT_NFS
 	bool "Root file system on NFS"

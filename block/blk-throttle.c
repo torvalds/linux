@@ -746,7 +746,7 @@ static bool tg_may_dispatch(struct throtl_data *td, struct throtl_grp *tg,
 static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 {
 	bool rw = bio_data_dir(bio);
-	bool sync = bio->bi_rw & REQ_SYNC;
+	bool sync = rw_is_sync(bio->bi_rw);
 
 	/* Charge the bio to the group */
 	tg->bytes_disp[rw] += bio->bi_size;
@@ -1150,7 +1150,7 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 
 		if (tg_no_rule_group(tg, rw)) {
 			blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size,
-					rw, bio->bi_rw & REQ_SYNC);
+					rw, rw_is_sync(bio->bi_rw));
 			rcu_read_unlock();
 			return 0;
 		}

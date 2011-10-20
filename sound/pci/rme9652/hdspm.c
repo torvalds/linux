@@ -1339,6 +1339,10 @@ static u64 hdspm_calc_dds_value(struct hdspm *hdspm, u64 period)
 		break;
 	case MADIface:
 		freq_const = 131072000000000ULL;
+		break;
+	default:
+		snd_BUG();
+		return 0;
 	}
 
 	return div_u64(freq_const, period);
@@ -1356,16 +1360,19 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 
 	switch (hdspm->io_type) {
 	case MADIface:
-	  n = 131072000000000ULL;  /* 125 MHz */
-	  break;
+		n = 131072000000000ULL;  /* 125 MHz */
+		break;
 	case MADI:
 	case AES32:
-	  n = 110069313433624ULL;  /* 105 MHz */
-	  break;
+		n = 110069313433624ULL;  /* 105 MHz */
+		break;
 	case RayDAT:
 	case AIO:
-	  n = 104857600000000ULL;  /* 100 MHz */
-	  break;
+		n = 104857600000000ULL;  /* 100 MHz */
+		break;
+	default:
+		snd_BUG();
+		return;
 	}
 
 	n = div_u64(n, rate);

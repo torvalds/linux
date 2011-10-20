@@ -7,21 +7,31 @@
  */
 
 #include <linux/linkage.h>
+
 #include <asm/irq_vectors.h>
+#include <asm/page_types.h>
+#include <asm/unistd_64.h>
 
-/* The unused parts of the page are filled with 0xcc by the linker script. */
+__PAGE_ALIGNED_DATA
+	.globl __vsyscall_page
+	.balign PAGE_SIZE, 0xcc
+	.type __vsyscall_page, @object
+__vsyscall_page:
 
-.section .vsyscall_0, "a"
-ENTRY(vsyscall_0)
-	int $VSYSCALL_EMU_VECTOR
-END(vsyscall_0)
+	mov $__NR_gettimeofday, %rax
+	syscall
+	ret
 
-.section .vsyscall_1, "a"
-ENTRY(vsyscall_1)
-	int $VSYSCALL_EMU_VECTOR
-END(vsyscall_1)
+	.balign 1024, 0xcc
+	mov $__NR_time, %rax
+	syscall
+	ret
 
-.section .vsyscall_2, "a"
-ENTRY(vsyscall_2)
-	int $VSYSCALL_EMU_VECTOR
-END(vsyscall_2)
+	.balign 1024, 0xcc
+	mov $__NR_getcpu, %rax
+	syscall
+	ret
+
+	.balign 4096, 0xcc
+
+	.size __vsyscall_page, 4096

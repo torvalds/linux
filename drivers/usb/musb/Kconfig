@@ -3,9 +3,6 @@
 # for silicon based on Mentor Graphics INVENTRA designs
 #
 
-comment "Enable Host or Gadget support to see Inventra options"
-	depends on !USB && USB_GADGET=n
-
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
 	depends on USB && USB_GADGET

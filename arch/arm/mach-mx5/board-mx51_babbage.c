@@ -369,7 +369,7 @@ static void __init mx51_babbage_init(void)
 					ARRAY_SIZE(mx51babbage_pads));
 
 	imx51_add_imx_uart(0, &uart_pdata);
-	imx51_add_imx_uart(1, &uart_pdata);
+	imx51_add_imx_uart(1, NULL);
 	imx51_add_imx_uart(2, &uart_pdata);
 
 	babbage_fec_reset();

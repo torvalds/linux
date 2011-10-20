@@ -269,7 +269,7 @@ static inline void put_cred(const struct cred *_cred)
  * since nobody else can modify it.
  */
 #define current_cred() \
-	(*(__force struct cred **)&current->cred)
+	rcu_dereference_protected(current->cred, 1)
 
 /**
  * __task_cred - Access a task's objective credentials
@@ -307,7 +307,7 @@ static inline void put_cred(const struct cred *_cred)
 #define get_current_user()				\
 ({							\
 	struct user_struct *__u;			\
-	struct cred *__cred;				\
+	const struct cred *__cred;			\
 	__cred = current_cred();			\
 	__u = get_uid(__cred->user);			\
 	__u;						\
@@ -322,7 +322,7 @@ static inline void put_cred(const struct cred *_cred)
 #define get_current_groups()				\
 ({							\
 	struct group_info *__groups;			\
-	struct cred *__cred;				\
+	const struct cred *__cred;			\
 	__cred = current_cred();			\
 	__groups = get_group_info(__cred->group_info);	\
 	__groups;					\

@@ -1168,9 +1168,9 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 		div64_u64(extent_bytes, (sizeof(struct btrfs_free_space)));
 }
 
-static void bitmap_clear_bits(struct btrfs_free_space_ctl *ctl,
-			      struct btrfs_free_space *info, u64 offset,
-			      u64 bytes)
+static inline void __bitmap_clear_bits(struct btrfs_free_space_ctl *ctl,
+				       struct btrfs_free_space *info,
+				       u64 offset, u64 bytes)
 {
 	unsigned long start, count;
 
@@ -1181,6 +1181,13 @@ static void bitmap_clear_bits(struct btrfs_free_space_ctl *ctl,
 	bitmap_clear(info->bitmap, start, count);
 
 	info->bytes -= bytes;
+}
+
+static void bitmap_clear_bits(struct btrfs_free_space_ctl *ctl,
+			      struct btrfs_free_space *info, u64 offset,
+			      u64 bytes)
+{
+	__bitmap_clear_bits(ctl, info, offset, bytes);
 	ctl->free_space -= bytes;
 }
 
@@ -1984,7 +1991,7 @@ static u64 btrfs_alloc_from_bitmap(struct btrfs_block_group_cache *block_group,
 		return 0;
 
 	ret = search_start;
-	bitmap_clear_bits(ctl, entry, ret, bytes);
+	__bitmap_clear_bits(ctl, entry, ret, bytes);
 
 	return ret;
 }
@@ -2039,7 +2046,6 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 				continue;
 			}
 		} else {
-
 			ret = entry->offset;
 
 			entry->offset += bytes;
