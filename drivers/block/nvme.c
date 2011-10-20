@@ -70,6 +70,7 @@ struct nvme_dev {
 	struct dma_pool *prp_small_pool;
 	int instance;
 	int queue_count;
+	int db_stride;
 	u32 ctrl_config;
 	struct msix_entry *entry;
 	struct nvme_bar __iomem *bar;
@@ -672,7 +673,7 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
 		return IRQ_NONE;
 
-	writel(head, nvmeq->q_db + 1);
+	writel(head, nvmeq->q_db + (1 << nvmeq->dev->db_stride));
 	nvmeq->cq_head = head;
 	nvmeq->cq_phase = phase;
 
@@ -889,7 +890,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	init_waitqueue_head(&nvmeq->sq_full);
 	init_waitqueue_entry(&nvmeq->sq_cong_wait, nvme_thread);
 	bio_list_init(&nvmeq->sq_cong);
-	nvmeq->q_db = &dev->dbs[qid * 2];
+	nvmeq->q_db = &dev->dbs[qid << (dev->db_stride + 1)];
 	nvmeq->q_depth = depth;
 	nvmeq->cq_vector = vector;
 
@@ -981,6 +982,7 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 
 	cap = readq(&dev->bar->cap);
 	timeout = ((NVME_CAP_TIMEOUT(cap) + 1) * HZ / 2) + jiffies;
+	dev->db_stride = NVME_CAP_STRIDE(cap);
 
 	while (!(readl(&dev->bar->csts) & NVME_CSTS_RDY)) {
 		msleep(100);
@@ -1357,7 +1359,7 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 
 static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 {
-	int result, cpu, i, nr_io_queues;
+	int result, cpu, i, nr_io_queues, db_bar_size;
 
 	nr_io_queues = num_online_cpus();
 	result = set_queue_count(dev, nr_io_queues);
@@ -1368,6 +1370,15 @@ static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 
 	/* Deregister the admin queue's interrupt */
 	free_irq(dev->entry[0].vector, dev->queues[0]);
+
+	db_bar_size = 4096 + ((nr_io_queues + 1) << (dev->db_stride + 3));
+	if (db_bar_size > 8192) {
+		iounmap(dev->bar);
+		dev->bar = ioremap(pci_resource_start(dev->pci_dev, 0),
+								db_bar_size);
+		dev->dbs = ((void __iomem *)dev->bar) + 4096;
+		dev->queues[0]->q_db = dev->dbs;
+	}
 
 	for (i = 0; i < nr_io_queues; i++)
 		dev->entry[i].entry = i;
