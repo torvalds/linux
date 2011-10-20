@@ -2238,7 +2238,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 				    (rx_ring->fbr[0]->buffsize * FBR_CHUNKS) +
 				    fbr1_align - 1;
 
-				pci_free_consistent(adapter->pdev,
+				dma_free_coherent(&adapter->pdev->dev,
 					bufsize,
 					rx_ring->fbr[0]->mem_virtaddrs[index],
 					rx_ring->fbr[0]->mem_physaddrs[index]);
@@ -2254,7 +2254,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[0]->num_entries)
 							    + 0xfff;
 
-		pci_free_consistent(adapter->pdev, bufsize,
+		dma_free_coherent(&adapter->pdev->dev, bufsize,
 				    rx_ring->fbr[0]->ring_virtaddr,
 				    rx_ring->fbr[0]->ring_physaddr);
 
@@ -2272,7 +2272,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 				    (rx_ring->fbr[1]->buffsize *
 				     (FBR_CHUNKS + 1)) - 1;
 
-				pci_free_consistent(adapter->pdev,
+				dma_free_coherent(&adapter->pdev->dev,
 					bufsize,
 					rx_ring->fbr[1]->mem_virtaddrs[index],
 					rx_ring->fbr[1]->mem_physaddrs[index]);
@@ -2288,7 +2288,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[1]->num_entries)
 							    + 0xfff;
 
-		pci_free_consistent(adapter->pdev,
+		dma_free_coherent(&adapter->pdev->dev,
 				    bufsize,
 				    rx_ring->fbr[1]->ring_virtaddr,
 				    rx_ring->fbr[1]->ring_physaddr);
@@ -2303,7 +2303,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		    sizeof(struct pkt_stat_desc) *
 		    adapter->rx_ring.psr_num_entries;
 
-		pci_free_consistent(adapter->pdev, pktstat_ringsize,
+		dma_free_coherent(&adapter->pdev->dev, pktstat_ringsize,
 				    rx_ring->ps_ring_virtaddr,
 				    rx_ring->ps_ring_physaddr);
 
@@ -2312,7 +2312,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free area of memory for the writeback of status information */
 	if (rx_ring->rx_status_block) {
-		pci_free_consistent(adapter->pdev,
+		dma_free_coherent(&adapter->pdev->dev,
 			sizeof(struct rx_status_block),
 			rx_ring->rx_status_block, rx_ring->rx_status_bus);
 		rx_ring->rx_status_block = NULL;
@@ -3038,7 +3038,7 @@ void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 		/* Free memory relating to Tx rings here */
 		desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX)
 								+ 4096 - 1;
-		pci_free_consistent(adapter->pdev,
+		dma_free_coherent(&adapter->pdev->dev,
 				    desc_size,
 				    adapter->tx_ring.tx_desc_ring,
 				    adapter->tx_ring.tx_desc_ring_pa);
@@ -3047,7 +3047,7 @@ void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free memory for the Tx status block */
 	if (adapter->tx_ring.tx_status) {
-		pci_free_consistent(adapter->pdev,
+		dma_free_coherent(&adapter->pdev->dev,
 				    sizeof(u32),
 				    adapter->tx_ring.tx_status,
 				    adapter->tx_ring.tx_status_pa);
