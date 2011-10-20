@@ -514,7 +514,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 			if (WARN(csis == NULL,
 				 "MIPI-CSI interface specified "
 				 "but s5p-csis module is not loaded!\n"))
-				continue;
+				return -EINVAL;
 
 			ret = media_entity_create_link(&sensor->entity, 0,
 					      &csis->entity, CSIS_PAD_SINK,
