@@ -368,6 +368,27 @@ void radeon_fence_process(struct radeon_device *rdev, int ring)
 	}
 }
 
+int radeon_fence_count_emitted(struct radeon_device *rdev, int ring)
+{
+	unsigned long irq_flags;
+	int not_processed = 0;
+
+	read_lock_irqsave(&rdev->fence_lock, irq_flags);
+	if (!rdev->fence_drv[ring].initialized)
+		return 0;
+
+	if (!list_empty(&rdev->fence_drv[ring].emitted)) {
+		struct list_head *ptr;
+		list_for_each(ptr, &rdev->fence_drv[ring].emitted) {
+			/* count up to 3, that's enought info */
+			if (++not_processed >= 3)
+				break;
+		}
+	}
+	read_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+	return not_processed;
+}
+
 int radeon_fence_driver_init(struct radeon_device *rdev, int num_rings)
 {
 	unsigned long irq_flags;

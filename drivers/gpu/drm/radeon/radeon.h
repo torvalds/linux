@@ -226,6 +226,7 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_last(struct radeon_device *rdev, int ring);
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence);
 void radeon_fence_unref(struct radeon_fence **fence);
+int radeon_fence_count_emitted(struct radeon_device *rdev, int ring);
 
 /*
  * Semaphores.

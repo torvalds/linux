@@ -802,27 +802,14 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
 	mutex_lock(&rdev->pm.mutex);
 	if (rdev->pm.dynpm_state == DYNPM_STATE_ACTIVE) {
-		unsigned long irq_flags;
 		int not_processed = 0;
 		int i;
 
-		read_lock_irqsave(&rdev->fence_lock, irq_flags);
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-			if (!rdev->fence_drv[i].initialized)
-				continue;
-
-			if (!list_empty(&rdev->fence_drv[i].emitted)) {
-				struct list_head *ptr;
-				list_for_each(ptr, &rdev->fence_drv[i].emitted) {
-					/* count up to 3, that's enought info */
-					if (++not_processed >= 3)
-						break;
-				}
-			}
+			not_processed += radeon_fence_count_emitted(rdev, i);
 			if (not_processed >= 3)
 				break;
 		}
-		read_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 
 		if (not_processed >= 3) { /* should upclock */
 			if (rdev->pm.dynpm_planned_action == DYNPM_ACTION_DOWNCLOCK) {
