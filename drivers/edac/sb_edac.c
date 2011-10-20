@@ -18,10 +18,10 @@
 #include <linux/delay.h>
 #include <linux/edac.h>
 #include <linux/mmzone.h>
-#include <linux/edac_mce.h>
 #include <linux/smp.h>
 #include <linux/bitmap.h>
 #include <asm/processor.h>
+#include <asm/mce.h>
 
 #include "edac_core.h"
 
@@ -317,9 +317,6 @@ struct sbridge_pvt {
 
 	/* Memory type detection */
 	bool			is_mirrored, is_lockstep, is_close_pg;
-
-	/* mcelog glue */
-	struct edac_mce		edac_mce;
 
 	/* Fifo double buffers */
 	struct mce		mce_entry[MCE_LOG_LEN];
@@ -1578,10 +1575,17 @@ static void sbridge_check_error(struct mem_ctl_info *mci)
  * WARNING: As this routine should be called at NMI time, extra care should
  * be taken to avoid deadlocks, and to be as fast as possible.
  */
-static int sbridge_mce_check_error(void *priv, struct mce *mce)
+static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
+				   void *data)
 {
-	struct mem_ctl_info *mci = priv;
-	struct sbridge_pvt *pvt = mci->pvt_info;
+	struct mce *mce = (struct mce *)data;
+	struct mem_ctl_info *mci;
+	struct sbridge_pvt *pvt;
+
+	mci = get_mci_for_node_id(mce->socketid);
+	if (!mci)
+		return NOTIFY_BAD;
+	pvt = mci->pvt_info;
 
 	/*
 	 * Just let mcelog handle it if the error is
@@ -1590,7 +1594,7 @@ static int sbridge_mce_check_error(void *priv, struct mce *mce)
 	 * bit 12 has an special meaning.
 	 */
 	if ((mce->status & 0xefff) >> 7 != 1)
-		return 0;
+		return NOTIFY_DONE;
 
 	printk("sbridge: HANDLING MCE MEMORY ERROR\n");
 
@@ -1607,14 +1611,14 @@ static int sbridge_mce_check_error(void *priv, struct mce *mce)
 #ifdef CONFIG_SMP
 	/* Only handle if it is the right mc controller */
 	if (cpu_data(mce->cpu).phys_proc_id != pvt->sbridge_dev->mc)
-		return 0;
+		return NOTIFY_DONE;
 #endif
 
 	smp_rmb();
 	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
 		smp_wmb();
 		pvt->mce_overrun++;
-		return 0;
+		return NOTIFY_DONE;
 	}
 
 	/* Copy memory error at the ringbuffer */
@@ -1627,8 +1631,12 @@ static int sbridge_mce_check_error(void *priv, struct mce *mce)
 		sbridge_check_error(mci);
 
 	/* Advice mcelog that the error were handled */
-	return 1;
+	return NOTIFY_STOP;
 }
+
+static struct notifier_block sbridge_mce_dec = {
+	.notifier_call      = sbridge_mce_check_error,
+};
 
 /****************************************************************************
 			EDAC register/unregister logic
@@ -1652,8 +1660,8 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
 		__func__, mci, &sbridge_dev->pdev[0]->dev);
 
-	/* Disable MCE NMI handler */
-	edac_mce_unregister(&pvt->edac_mce);
+	atomic_notifier_chain_unregister(&x86_mce_decoder_chain,
+					 &sbridge_mce_dec);
 
 	/* Remove MC sysfs nodes */
 	edac_mc_del_mc(mci->dev);
@@ -1722,19 +1730,9 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 		goto fail0;
 	}
 
-	/* Registers on edac_mce in order to receive memory errors */
-	pvt->edac_mce.priv = mci;
-	pvt->edac_mce.check_error = sbridge_mce_check_error;
-	rc = edac_mce_register(&pvt->edac_mce);
-	if (unlikely(rc < 0)) {
-		debugf0("MC: " __FILE__
-			": %s(): failed edac_mce_register()\n", __func__);
-		goto fail1;
-	}
-
+	atomic_notifier_chain_register(&x86_mce_decoder_chain,
+				       &sbridge_mce_dec);
 	return 0;
-fail1:
-	edac_mc_del_mc(mci->dev);
 
 fail0:
 	kfree(mci->ctl_name);
