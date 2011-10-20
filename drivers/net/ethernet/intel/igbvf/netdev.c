@@ -312,7 +312,7 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 
 			skb->len += length;
 			skb->data_len += length;
-			skb->truesize += length;
+			skb->truesize += PAGE_SIZE / 2;
 		}
 send_up:
 		i++;
