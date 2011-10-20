@@ -35,23 +35,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
-#include <linux/interrupt.h>
-#include <linux/ioport.h>
-#include <linux/io.h>
-#include <linux/list.h>
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
 
 #include "core.h"
-#include "io.h"
-
-#include "debug.h"
 
 static struct resource generic_resources[] = {
 	{
