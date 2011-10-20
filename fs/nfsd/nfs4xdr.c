@@ -671,7 +671,7 @@ static __be32 nfsd4_decode_share_access(struct nfsd4_compoundargs *argp, u32 *x)
 	default:
 		return nfserr_bad_xdr;
 	}
-	w &= !NFS4_SHARE_WANT_MASK;
+	w &= ~NFS4_SHARE_WANT_MASK;
 	if (!w)
 		return nfs_ok;
 	switch (w) {
