@@ -853,7 +853,7 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
 	*nplanes = fmt->num_subframes;
 	for (i = 0; i < fmt->num_subframes; ++i) {
 		alloc_ctxs[i] = layer->mdev->alloc_ctx;
-		sizes[i] = PAGE_ALIGN(planes[i].sizeimage);
+		sizes[i] = planes[i].sizeimage;
 		mxr_dbg(mdev, "size[%d] = %08lx\n", i, sizes[i]);
 	}
 
