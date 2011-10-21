@@ -452,6 +452,7 @@ struct dev_pm_info {
 	struct list_head	entry;
 	struct completion	completion;
 	struct wakeup_source	*wakeup;
+	bool			wakeup_path:1;
 #else
 	unsigned int		should_wakeup:1;
 #endif

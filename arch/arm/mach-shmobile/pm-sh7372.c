@@ -44,6 +44,7 @@
 #define SPDCR 0xe6180008
 #define SWUCR 0xe6180014
 #define SBAR 0xe6180020
+#define WUPRMSK 0xe6180028
 #define WUPSMSK 0xe618002c
 #define WUPSMSK2 0xe6180048
 #define PSTR 0xe6180080
@@ -80,6 +81,12 @@ static int pd_power_down(struct generic_pm_domain *genpd)
 	struct sh7372_pm_domain *sh7372_pd = to_sh7372_pd(genpd);
 	unsigned int mask = 1 << sh7372_pd->bit_shift;
 
+	if (sh7372_pd->suspend)
+		sh7372_pd->suspend();
+
+	if (sh7372_pd->stay_on)
+		return 0;
+
 	if (__raw_readl(PSTR) & mask) {
 		unsigned int retry_count;
 
@@ -92,8 +99,9 @@ static int pd_power_down(struct generic_pm_domain *genpd)
 		}
 	}
 
-	pr_debug("sh7372 power domain down 0x%08x -> PSTR = 0x%08x\n",
-		 mask, __raw_readl(PSTR));
+	if (!sh7372_pd->no_debug)
+		pr_debug("sh7372 power domain down 0x%08x -> PSTR = 0x%08x\n",
+			 mask, __raw_readl(PSTR));
 
 	return 0;
 }
@@ -104,6 +112,9 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 	unsigned int mask = 1 << sh7372_pd->bit_shift;
 	unsigned int retry_count;
 	int ret = 0;
+
+	if (sh7372_pd->stay_on)
+		goto out;
 
 	if (__raw_readl(PSTR) & mask)
 		goto out;
@@ -121,11 +132,21 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 	if (__raw_readl(SWUCR) & mask)
 		ret = -EIO;
 
+	if (!sh7372_pd->no_debug)
+		pr_debug("sh7372 power domain up 0x%08x -> PSTR = 0x%08x\n",
+			 mask, __raw_readl(PSTR));
+
  out:
-	pr_debug("sh7372 power domain up 0x%08x -> PSTR = 0x%08x\n",
-		 mask, __raw_readl(PSTR));
+	if (ret == 0 && sh7372_pd->resume)
+		sh7372_pd->resume();
 
 	return ret;
+}
+
+static void sh7372_a4r_suspend(void)
+{
+	sh7372_intcs_suspend();
+	__raw_writel(0x300fffff, WUPRMSK); /* avoid wakeup */
 }
 
 static bool pd_active_wakeup(struct device *dev)
@@ -133,11 +154,20 @@ static bool pd_active_wakeup(struct device *dev)
 	return true;
 }
 
+static bool sh7372_power_down_forbidden(struct dev_pm_domain *domain)
+{
+	return false;
+}
+
+struct dev_power_governor sh7372_always_on_gov = {
+	.power_down_ok = sh7372_power_down_forbidden,
+};
+
 void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd)
 {
 	struct generic_pm_domain *genpd = &sh7372_pd->genpd;
 
-	pm_genpd_init(genpd, NULL, false);
+	pm_genpd_init(genpd, sh7372_pd->gov, false);
 	genpd->stop_device = pm_clk_suspend;
 	genpd->start_device = pm_clk_resume;
 	genpd->dev_irq_safe = true;
@@ -175,12 +205,26 @@ struct sh7372_pm_domain sh7372_d4 = {
 	.bit_shift = 3,
 };
 
+struct sh7372_pm_domain sh7372_a4r = {
+	.bit_shift = 5,
+	.gov = &sh7372_always_on_gov,
+	.suspend = sh7372_a4r_suspend,
+	.resume = sh7372_intcs_resume,
+	.stay_on = true,
+};
+
 struct sh7372_pm_domain sh7372_a3rv = {
 	.bit_shift = 6,
 };
 
 struct sh7372_pm_domain sh7372_a3ri = {
 	.bit_shift = 8,
+};
+
+struct sh7372_pm_domain sh7372_a3sp = {
+	.bit_shift = 11,
+	.gov = &sh7372_always_on_gov,
+	.no_debug = true,
 };
 
 struct sh7372_pm_domain sh7372_a3sg = {
@@ -421,6 +465,9 @@ void __init sh7372_pm_init(void)
 	__raw_writel(0x0000a500, DBGREG9);
 	__raw_writel(0x0000a501, DBGREG9);
 	__raw_writel(0x00000000, DBGREG1);
+
+	/* do not convert A3SM, A3SP, A3SG, A4R power down into A4S */
+	__raw_writel(0, PDNSEL);
 
 	sh7372_suspend_init();
 	sh7372_cpuidle_init();
