@@ -617,14 +617,14 @@ static uint mask_width(u16 mask)
 	return 0;
 }
 
-static inline void ltoh16_buf(u16 *buf, unsigned int size)
+static inline void le16_to_cpu_buf(u16 *buf, unsigned int size)
 {
 	size /= 2;
 	while (size--)
 		*(buf + size) = le16_to_cpu(*(__le16 *)(buf + size));
 }
 
-static inline void htol16_buf(u16 *buf, unsigned int size)
+static inline void cpu_to_le16_buf(u16 *buf, unsigned int size)
 {
 	size /= 2;
 	while (size--)
@@ -807,7 +807,7 @@ sprom_read_pci(struct si_pub *sih, u8 __iomem *sprom, uint wordoff,
 		err = -EIO;
 	else
 		/* now correct the endianness of the byte array */
-		ltoh16_buf(buf, nbytes);
+		le16_to_cpu_buf(buf, nbytes);
 
 	return err;
 }
@@ -837,13 +837,13 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 		return -ENODATA;
 
 	/* fixup the endianness so crc8 will pass */
-	htol16_buf(buf, bufsz);
+	cpu_to_le16_buf(buf, bufsz);
 	if (crc8(brcms_srom_crc8_table, (u8 *) buf, SROM4_WORDS * 2,
 		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(brcms_srom_crc8_table))
 		err = -EIO;
 
 	/* now correct the endianness of the byte array */
-	ltoh16_buf(buf, bufsz);
+	le16_to_cpu_buf(buf, bufsz);
 
 	return err;
 }
