@@ -2591,6 +2591,7 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 		return -EFAULT;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;
+	head->read_user_buf_avail = 0;
 	idx = tomoyo_read_lock();
 	/* Read a line and dispatch it to the policy handler. */
 	while (avail_len > 0) {
