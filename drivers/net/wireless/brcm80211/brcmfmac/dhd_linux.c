@@ -58,7 +58,6 @@ struct brcmf_if {
 	struct net_device *ndev;
 	struct net_device_stats stats;
 	int idx;		/* iface idx in dongle */
-	int state;		/* interface state */
 	u8 mac_addr[ETH_ALEN];	/* assigned MAC address */
 };
 
@@ -456,12 +455,10 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
 					  skb_mac_header(skb),
 					  &event, &data);
 
-		if (drvr_priv->iflist[ifidx] &&
-		    !drvr_priv->iflist[ifidx]->state)
+		if (drvr_priv->iflist[ifidx]) {
 			ifp = drvr_priv->iflist[ifidx];
-
-		if (ifp->ndev)
 			ifp->ndev->last_rx = jiffies;
+		}
 
 		drvr->dstats.rx_bytes += skb->len;
 		drvr->rx_packets++;	/* Local count */
@@ -896,7 +893,6 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, char *name, u8 *mac_addr)
 	ifp->ndev = ndev;
 	ifp->info = drvr_priv;
 	drvr_priv->iflist[ifidx] = ifp;
-	ifp->state = BRCMF_E_IF_ADD;
 	ifp->idx = ifidx;
 	if (mac_addr != NULL)
 		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
@@ -910,7 +906,6 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, char *name, u8 *mac_addr)
 
 	brcmf_dbg(TRACE, " ==== pid:%x, net_device for if:%s created ===\n",
 		  current->pid, ifp->ndev->name);
-	ifp->state = 0;
 
 	return 0;
 }
@@ -926,7 +921,6 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 		brcmf_dbg(ERROR, "Null interface\n");
 		return;
 	}
-	ifp->state = BRCMF_E_IF_DEL;
 	if (ifp->ndev) {
 		if (ifidx == 0) {
 			if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {

@@ -122,7 +122,6 @@
 
 /* For supporting multiple interfaces */
 #define BRCMF_MAX_IFS	16
-#define BRCMF_DEL_IF	-0xe
 
 #define DOT11_BSSTYPE_ANY			2
 #define DOT11_MAX_DEFAULT_KEYS	4
