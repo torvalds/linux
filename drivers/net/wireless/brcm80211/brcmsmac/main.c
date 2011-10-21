@@ -419,20 +419,6 @@ static int brcms_chspec_bw(u16 chanspec)
 	return BRCMS_10_MHZ;
 }
 
-/*
- * return true if Minimum Power Consumption should
- * be entered, false otherwise
- */
-static bool brcms_c_is_non_delay_mpc(struct brcms_c_info *wlc)
-{
-	return false;
-}
-
-static bool brcms_c_ismpc(struct brcms_c_info *wlc)
-{
-	return (wlc->mpc_delay_off == 0) && (brcms_c_is_non_delay_mpc(wlc));
-}
-
 static void brcms_c_bsscfg_mfree(struct brcms_bss_cfg *cfg)
 {
 	if (cfg == NULL)
@@ -4350,56 +4336,18 @@ static void brcms_b_watchdog(void *arg)
 
 static void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc)
 {
-	bool mpc_radio, radio_state;
-
 	/*
 	 * Clear the WL_RADIO_MPC_DISABLE bit when mpc feature is disabled
 	 * in case the WL_RADIO_MPC_DISABLE bit was set. Stop the radio
 	 * monitor also when WL_RADIO_MPC_DISABLE is the only reason that
 	 * the radio is going down.
 	 */
-	if (!wlc->mpc) {
-		if (!wlc->pub->radio_disabled)
-			return;
-		mboolclr(wlc->pub->radio_disabled, WL_RADIO_MPC_DISABLE);
-		brcms_c_radio_upd(wlc);
-		if (!wlc->pub->radio_disabled)
-			brcms_c_radio_monitor_stop(wlc);
+	if (!wlc->pub->radio_disabled)
 		return;
-	}
-
-	/*
-	 * sync ismpc logic with WL_RADIO_MPC_DISABLE bit in
-	 * wlc->pub->radio_disabled to go ON, always call radio_upd
-	 * synchronously to go OFF, postpone radio_upd to later when
-	 * context is safe(e.g. watchdog)
-	 */
-	radio_state =
-	    (mboolisset(wlc->pub->radio_disabled, WL_RADIO_MPC_DISABLE) ? OFF :
-	     ON);
-	mpc_radio = (brcms_c_ismpc(wlc) == true) ? OFF : ON;
-
-	if (radio_state == ON && mpc_radio == OFF)
-		wlc->mpc_delay_off = wlc->mpc_dlycnt;
-	else if (radio_state == OFF && mpc_radio == ON) {
-		mboolclr(wlc->pub->radio_disabled, WL_RADIO_MPC_DISABLE);
-		brcms_c_radio_upd(wlc);
-		if (wlc->mpc_offcnt < BRCMS_MPC_THRESHOLD)
-			wlc->mpc_dlycnt = BRCMS_MPC_MAX_DELAYCNT;
-		else
-			wlc->mpc_dlycnt = BRCMS_MPC_MIN_DELAYCNT;
-	}
-	/*
-	 * Below logic is meant to capture the transition from mpc off
-	 * to mpc on for reasons other than wlc->mpc_delay_off keeping
-	 * the mpc off. In that case reset wlc->mpc_delay_off to
-	 * wlc->mpc_dlycnt, so that we restart the countdown of mpc_delay_off
-	 */
-	if ((wlc->prev_non_delay_mpc == false) &&
-	    (brcms_c_is_non_delay_mpc(wlc) == true) && wlc->mpc_delay_off)
-		wlc->mpc_delay_off = wlc->mpc_dlycnt;
-
-	wlc->prev_non_delay_mpc = brcms_c_is_non_delay_mpc(wlc);
+	mboolclr(wlc->pub->radio_disabled, WL_RADIO_MPC_DISABLE);
+	brcms_c_radio_upd(wlc);
+	if (!wlc->pub->radio_disabled)
+		brcms_c_radio_monitor_stop(wlc);
 }
 
 /* common watchdog code */
@@ -4427,8 +4375,6 @@ static void brcms_c_watchdog(void *arg)
 		if (--wlc->mpc_delay_off == 0) {
 			mboolset(wlc->pub->radio_disabled,
 				 WL_RADIO_MPC_DISABLE);
-			if (wlc->mpc && brcms_c_ismpc(wlc))
-				wlc->mpc_offcnt = 0;
 		}
 	}
 
@@ -5200,9 +5146,6 @@ static void brcms_c_ap_upd(struct brcms_c_info *wlc)
 {
 	/* STA-BSS; short capable */
 	wlc->PLCPHdr_override = BRCMS_PLCP_SHORT;
-
-	/* fixup mpc */
-	wlc->mpc = true;
 }
 
 /* Initialize just the hardware when coming out of POR or S3/S5 system states */
@@ -8192,9 +8135,8 @@ int brcms_c_get_tx_power(struct brcms_c_info *wlc)
 	return (int)(qdbm / BRCMS_TXPWR_DB_FACTOR);
 }
 
-void brcms_c_set_radio_mpc(struct brcms_c_info *wlc, bool mpc)
+void brcms_c_set_radio_mpc(struct brcms_c_info *wlc)
 {
-	wlc->mpc = mpc;
 	brcms_c_radio_mpc_upd(wlc);
 }
 

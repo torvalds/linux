@@ -1079,7 +1079,7 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	wl->pub->ieee_hw = hw;
 
 	/* disable mpc */
-	brcms_c_set_radio_mpc(wl->wlc, false);
+	brcms_c_set_radio_mpc(wl->wlc);
 
 	/* register our interrupt handler */
 	if (request_irq(irq, brcms_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
