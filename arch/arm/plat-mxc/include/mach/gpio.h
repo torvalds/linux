@@ -21,17 +21,11 @@
 
 #include <linux/spinlock.h>
 #include <mach/hardware.h>
-#include <asm-generic/gpio.h>
 
 
 /* There's a off-by-one betweem the gpio bank number and the gpiochip */
 /* range e.g. GPIO_1_5 is gpio 5 under linux */
 #define IMX_GPIO_NR(bank, nr)		(((bank) - 1) * 32 + (nr))
-
-/* use gpiolib dispatchers */
-#define gpio_get_value		__gpio_get_value
-#define gpio_set_value		__gpio_set_value
-#define gpio_cansleep		__gpio_cansleep
 
 #define gpio_to_irq(gpio)	(MXC_GPIO_IRQ_START + (gpio))
 #define irq_to_gpio(irq)	((irq) - MXC_GPIO_IRQ_START)

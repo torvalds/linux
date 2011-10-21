@@ -32,7 +32,6 @@
 
 #include <mach/iomap.h>
 #include <mach/sdhci.h>
-#include <mach/gpio.h>
 
 #include "board.h"
 #include "clock.h"

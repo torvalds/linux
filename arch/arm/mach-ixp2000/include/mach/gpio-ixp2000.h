@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2002 Intel Corporation.
  *
- * This program is free software, you can redistribute it and/or modify 
+ * This program is free software, you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
@@ -11,7 +11,7 @@
 /*
  * IXP2000 GPIO in/out, edge/level detection for IRQs:
  * IRQs are generated on Falling-edge, Rising-Edge, Level-low, Level-High
- * or both Falling-edge and Rising-edge.  
+ * or both Falling-edge and Rising-edge.
  * This must be called *before* the corresponding IRQ is registerd.
  * Use this instead of directly setting the GPIO registers.
  * GPIOs may also be used as GPIOs (e.g. for emulating i2c/smb)

@@ -12,6 +12,7 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
@@ -27,9 +28,9 @@
 #include <mach/psc.h>
 #include <mach/cp_intc.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
 #include <mach/hardware.h>
 #include <mach/tnetv107x.h>
+#include <mach/gpio-davinci.h>
 
 #include "clock.h"
 #include "mux.h"
