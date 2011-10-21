@@ -477,6 +477,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->vram.get		= nvc0_vram_new;
 		engine->vram.put		= nv50_vram_del;
 		engine->vram.flags_valid	= nvc0_vram_flags_valid;
+		engine->pm.temp_get		= nv84_temp_get;
 		engine->pm.clocks_get		= nvc0_pm_clocks_get;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
