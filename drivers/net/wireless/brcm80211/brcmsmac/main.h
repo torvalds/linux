@@ -427,10 +427,7 @@ struct brcms_txq_info {
  * bandinit_pending: track band init in auto band.
  * radio_monitor: radio timer is running.
  * going_down: down path intermediate variable.
- * mpc_dlycnt: # of watchdog cnt before turn disable radio.
- * mpc_offcnt: # of watchdog cnt that radio is disabled.
  * mpc_delay_off: delay radio disable by # of watchdog cnt.
- * prev_non_delay_mpc: prev state brcms_c_is_non_delay_mpc.
  * wdtimer: timer for watchdog routine.
  * radio_timer: timer for hw radio button monitor routine.
  * monitor: monitor (MPDU sniffing) mode.
@@ -521,10 +518,7 @@ struct brcms_c_info {
 	bool radio_monitor;
 	bool going_down;
 
-	u8 mpc_dlycnt;
-	u8 mpc_offcnt;
 	u8 mpc_delay_off;
-	u8 prev_non_delay_mpc;
 
 	struct brcms_timer *wdtimer;
 	struct brcms_timer *radio_timer;

@@ -4303,10 +4303,6 @@ static void brcms_c_radio_timer(void *arg)
 		return;
 	}
 
-	/* cap mpc off count */
-	if (wlc->mpc_offcnt < BRCMS_MPC_MAX_DELAYCNT)
-		wlc->mpc_offcnt++;
-
 	brcms_c_radio_hwdisable_upd(wlc);
 	brcms_c_radio_upd(wlc);
 }
@@ -4488,7 +4484,7 @@ static void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 	wlc->pub->bcmerror = 0;
 
 	/* initialize mpc delay */
-	wlc->mpc_delay_off = wlc->mpc_dlycnt = BRCMS_MPC_MIN_DELAYCNT;
+	wlc->mpc_delay_off = BRCMS_MPC_MIN_DELAYCNT;
 }
 
 static uint brcms_c_attach_module(struct brcms_c_info *wlc)
@@ -8447,7 +8443,7 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	W_REG(&wlc->regs->rfdisabledly, RFDISABLE_DEFAULT);
 
 	/* initialize mpc delay */
-	wlc->mpc_delay_off = wlc->mpc_dlycnt = BRCMS_MPC_MIN_DELAYCNT;
+	wlc->mpc_delay_off = BRCMS_MPC_MIN_DELAYCNT;
 
 	/*
 	 * Initialize WME parameters; if they haven't been set by some other
