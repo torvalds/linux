@@ -617,18 +617,16 @@ static uint mask_width(u16 mask)
 	return 0;
 }
 
-static inline void le16_to_cpu_buf(u16 *buf, unsigned int size)
+static inline void le16_to_cpu_buf(u16 *buf, uint nwords)
 {
-	size /= 2;
-	while (size--)
-		*(buf + size) = le16_to_cpu(*(__le16 *)(buf + size));
+	while (nwords--)
+		*(buf + nwords) = le16_to_cpu(*(__le16 *)(buf + nwords));
 }
 
-static inline void cpu_to_le16_buf(u16 *buf, unsigned int size)
+static inline void cpu_to_le16_buf(u16 *buf, uint nwords)
 {
-	size /= 2;
-	while (size--)
-		*(__le16 *)(buf + size) = cpu_to_le16(*(buf + size));
+	while (nwords--)
+		*(__le16 *)(buf + nwords) = cpu_to_le16(*(buf + nwords));
 }
 
 /*
@@ -807,12 +805,12 @@ sprom_read_pci(struct si_pub *sih, u8 __iomem *sprom, uint wordoff,
 		err = -EIO;
 	else
 		/* now correct the endianness of the byte array */
-		le16_to_cpu_buf(buf, nbytes);
+		le16_to_cpu_buf(buf, nwords);
 
 	return err;
 }
 
-static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
+static int otp_read_pci(struct si_pub *sih, u16 *buf, uint nwords)
 {
 	u8 *otp;
 	uint sz = OTP_SZ_MAX / 2;	/* size in words */
@@ -824,7 +822,8 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 
 	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);
 
-	memcpy(buf, otp, bufsz);
+	sz = min_t(uint, sz, nwords);
+	memcpy(buf, otp, sz * 2);
 
 	kfree(otp);
 
@@ -836,14 +835,12 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 		 */
 		return -ENODATA;
 
-	/* fixup the endianness so crc8 will pass */
-	cpu_to_le16_buf(buf, bufsz);
-	if (crc8(brcms_srom_crc8_table, (u8 *) buf, SROM4_WORDS * 2,
+	if (crc8(brcms_srom_crc8_table, (u8 *) buf, sz * 2,
 		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(brcms_srom_crc8_table))
 		err = -EIO;
-
-	/* now correct the endianness of the byte array */
-	le16_to_cpu_buf(buf, bufsz);
+	else
+		/* now correct the endianness of the byte array */
+		le16_to_cpu_buf(buf, sz);
 
 	return err;
 }
@@ -880,7 +877,7 @@ static int initvars_srom_pci(struct si_pub *sih, void __iomem *curmap)
 			sromrev = srom[SROM4_CRCREV] & 0xff;
 	} else {
 		/* Use OTP if SPROM not available */
-		err = otp_read_pci(sih, srom, SROM_MAX);
+		err = otp_read_pci(sih, srom, SROM4_WORDS);
 		if (err == 0)
 			/* OTP only contain SROM rev8/rev9 for now */
 			sromrev = srom[SROM4_CRCREV] & 0xff;
