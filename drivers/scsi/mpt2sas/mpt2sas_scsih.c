@@ -610,8 +610,15 @@ _scsih_sas_device_add(struct MPT2SAS_ADAPTER *ioc,
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
 	if (!mpt2sas_transport_port_add(ioc, sas_device->handle,
-	     sas_device->sas_address_parent))
+	     sas_device->sas_address_parent)) {
 		_scsih_sas_device_remove(ioc, sas_device);
+		} else if (!sas_device->starget) {
+			if (!ioc->is_driver_loading)
+				mpt2sas_transport_port_remove(ioc,
+				sas_device->sas_address,
+			    sas_device->sas_address_parent);
+			_scsih_sas_device_remove(ioc, sas_device);
+		}
 }
 
 /**
@@ -1423,6 +1430,10 @@ _scsih_slave_destroy(struct scsi_device *sdev)
 {
 	struct MPT2SAS_TARGET *sas_target_priv_data;
 	struct scsi_target *starget;
+	struct Scsi_Host *shost;
+	struct MPT2SAS_ADAPTER *ioc;
+	struct _sas_device *sas_device;
+	unsigned long flags;
 
 	if (!sdev->hostdata)
 		return;
@@ -1430,6 +1441,19 @@ _scsih_slave_destroy(struct scsi_device *sdev)
 	starget = scsi_target(sdev);
 	sas_target_priv_data = starget->hostdata;
 	sas_target_priv_data->num_luns--;
+
+	shost = dev_to_shost(&starget->dev);
+	ioc = shost_priv(shost);
+
+	if (!(sas_target_priv_data->flags & MPT_TARGET_FLAGS_VOLUME)) {
+		spin_lock_irqsave(&ioc->sas_device_lock, flags);
+		sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+		   sas_target_priv_data->sas_address);
+		if (sas_device)
+			sas_device->starget = NULL;
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+	}
+
 	kfree(sdev->hostdata);
 	sdev->hostdata = NULL;
 }
@@ -2045,7 +2069,8 @@ _scsih_slave_configure(struct scsi_device *sdev)
 				    __FILE__, __LINE__, __func__));
 				return 1;
 			}
-			if (mpt2sas_config_get_volume_wwid(ioc,
+			if (sas_device->volume_handle &&
+			    mpt2sas_config_get_volume_wwid(ioc,
 			    sas_device->volume_handle,
 			    &sas_device->volume_wwid)) {
 				dfailprintk(ioc, printk(MPT2SAS_WARN_FMT
@@ -5893,8 +5918,11 @@ _scsih_reprobe_lun(struct scsi_device *sdev, void *no_uld_attach)
 static void
 _scsih_reprobe_target(struct scsi_target *starget, int no_uld_attach)
 {
-	struct MPT2SAS_TARGET *sas_target_priv_data = starget->hostdata;
+	struct MPT2SAS_TARGET *sas_target_priv_data;
 
+	if (starget == NULL)
+		return;
+	sas_target_priv_data = starget->hostdata;
 	if (no_uld_attach)
 		sas_target_priv_data->flags |= MPT_TARGET_FLAGS_RAID_COMPONENT;
 	else
@@ -7676,8 +7704,9 @@ _scsih_probe_boot_devices(struct MPT2SAS_ADAPTER *ioc)
 		    sas_device->sas_address_parent)) {
 			_scsih_sas_device_remove(ioc, sas_device);
 		} else if (!sas_device->starget) {
-			mpt2sas_transport_port_remove(ioc, sas_address,
-			    sas_address_parent);
+			if (!ioc->is_driver_loading)
+				mpt2sas_transport_port_remove(ioc, sas_address,
+					sas_address_parent);
 			_scsih_sas_device_remove(ioc, sas_device);
 		}
 	}
@@ -7731,9 +7760,10 @@ _scsih_probe_sas(struct MPT2SAS_ADAPTER *ioc)
 			kfree(sas_device);
 			continue;
 		} else if (!sas_device->starget) {
-			mpt2sas_transport_port_remove(ioc,
-			    sas_device->sas_address,
-			    sas_device->sas_address_parent);
+			if (!ioc->is_driver_loading)
+				mpt2sas_transport_port_remove(ioc,
+					sas_device->sas_address,
+					sas_device->sas_address_parent);
 			list_del(&sas_device->list);
 			kfree(sas_device);
 			continue;
