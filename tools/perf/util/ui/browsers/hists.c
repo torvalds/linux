@@ -882,6 +882,13 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			 */
 			goto out_free_stack;
 		case 'a':
+			if (!browser->has_symbols) {
+				ui__warning(
+			"Annotation is only available for symbolic views, "
+			"include \"sym\" in --sort to use it.");
+				continue;
+			}
+
 			if (browser->selection == NULL ||
 			    browser->selection->sym == NULL ||
 			    browser->selection->map->dso->annotate_warned)
