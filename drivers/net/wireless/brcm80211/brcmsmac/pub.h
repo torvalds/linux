@@ -596,7 +596,7 @@ extern void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc,
 					u8 interval);
 extern int brcms_c_set_tx_power(struct brcms_c_info *wlc, int txpwr);
 extern int brcms_c_get_tx_power(struct brcms_c_info *wlc);
-extern void brcms_c_set_radio_mpc(struct brcms_c_info *wlc);
+extern void brcms_c_set_radio_mon(struct brcms_c_info *wlc);
 extern bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc);
 
 #endif				/* _BRCM_PUB_H_ */

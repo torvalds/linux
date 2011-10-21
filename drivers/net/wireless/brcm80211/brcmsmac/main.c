@@ -43,16 +43,6 @@
 /* radio monitor timer, in unit of ms */
 #define TIMER_INTERVAL_RADIOCHK		800
 
-/* Max MPC timeout, in unit of watchdog */
-#ifndef BRCMS_MPC_MAX_DELAYCNT
-#define BRCMS_MPC_MAX_DELAYCNT		10
-#endif
-
-/* Min MPC timeout, in unit of watchdog */
-#define BRCMS_MPC_MIN_DELAYCNT		1
-/* MPC count threshold level */
-#define BRCMS_MPC_THRESHOLD		3
-
 /* beacon interval, in unit of 1024TU */
 #define BEACON_INTERVAL_DEFAULT		100
 
@@ -4330,17 +4320,13 @@ static void brcms_b_watchdog(void *arg)
 	wlc_phy_watchdog(wlc_hw->band->pi);
 }
 
-static void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc)
+static void brcms_c_radio_mon_upd(struct brcms_c_info *wlc)
 {
 	/*
-	 * Clear the WL_RADIO_MPC_DISABLE bit when mpc feature is disabled
-	 * in case the WL_RADIO_MPC_DISABLE bit was set. Stop the radio
-	 * monitor also when WL_RADIO_MPC_DISABLE is the only reason that
-	 * the radio is going down.
+	 * Stop the radio monitor when the radio is going down.
 	 */
 	if (!wlc->pub->radio_disabled)
 		return;
-	mboolclr(wlc->pub->radio_disabled, WL_RADIO_MPC_DISABLE);
 	brcms_c_radio_upd(wlc);
 	if (!wlc->pub->radio_disabled)
 		brcms_c_radio_monitor_stop(wlc);
@@ -4366,17 +4352,8 @@ static void brcms_c_watchdog(void *arg)
 	/* increment second count */
 	wlc->pub->now++;
 
-	/* delay radio disable */
-	if (wlc->mpc_delay_off) {
-		if (--wlc->mpc_delay_off == 0) {
-			mboolset(wlc->pub->radio_disabled,
-				 WL_RADIO_MPC_DISABLE);
-		}
-	}
-
-	/* mpc sync */
-	brcms_c_radio_mpc_upd(wlc);
-	/* radio sync: sw/hw/mpc --> radio_disable/radio_enable */
+	brcms_c_radio_mon_upd(wlc);
+	/* radio sync: sw/hw --> radio_disable/radio_enable */
 	brcms_c_radio_hwdisable_upd(wlc);
 	brcms_c_radio_upd(wlc);
 	/* if radio is disable, driver may be down, quit here */
@@ -4482,9 +4459,6 @@ static void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 	/* WME QoS mode is Auto by default */
 	wlc->pub->_ampdu = AMPDU_AGG_HOST;
 	wlc->pub->bcmerror = 0;
-
-	/* initialize mpc delay */
-	wlc->mpc_delay_off = BRCMS_MPC_MIN_DELAYCNT;
 }
 
 static uint brcms_c_attach_module(struct brcms_c_info *wlc)
@@ -5455,7 +5429,6 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 	if (!wlc->pub->up)
 		return callbacks;
 
-	/* in between, mpc could try to bring down again.. */
 	wlc->going_down = true;
 
 	callbacks += brcms_b_bmac_down_prep(wlc->hw);
@@ -8131,9 +8104,9 @@ int brcms_c_get_tx_power(struct brcms_c_info *wlc)
 	return (int)(qdbm / BRCMS_TXPWR_DB_FACTOR);
 }
 
-void brcms_c_set_radio_mpc(struct brcms_c_info *wlc)
+void brcms_c_set_radio_mon(struct brcms_c_info *wlc)
 {
-	brcms_c_radio_mpc_upd(wlc);
+	brcms_c_radio_mon_upd(wlc);
 }
 
 /* Process received frames */
@@ -8442,9 +8415,6 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	/* enable the RF Disable Delay timer */
 	W_REG(&wlc->regs->rfdisabledly, RFDISABLE_DEFAULT);
 
-	/* initialize mpc delay */
-	wlc->mpc_delay_off = BRCMS_MPC_MIN_DELAYCNT;
-
 	/*
 	 * Initialize WME parameters; if they haven't been set by some other
 	 * mechanism (IOVar, etc) then read them from the hardware.
@@ -8630,8 +8600,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		brcms_c_ht_update_sgi_rx(wlc, 0);
 	}
 
-	/* initialize radio_mpc_disable according to wlc->mpc */
-	brcms_c_radio_mpc_upd(wlc);
+	brcms_c_radio_mon_upd(wlc);
 	brcms_b_antsel_set(wlc->hw, wlc->asi->antsel_avail);
 
 	if (perr)
