@@ -4100,6 +4100,9 @@ static int intel_iommu_device_group(struct device *dev, unsigned int *groupid)
 		}
 	}
 
+	if (!pdev->is_virtfn && iommu_group_mf)
+		id.pci.devfn = PCI_DEVFN(PCI_SLOT(id.pci.devfn), 0);
+
 	*groupid = id.group;
 
 	return 0;

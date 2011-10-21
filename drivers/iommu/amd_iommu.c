@@ -2776,11 +2776,19 @@ static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
 static int amd_iommu_device_group(struct device *dev, unsigned int *groupid)
 {
 	struct iommu_dev_data *dev_data = dev->archdata.iommu;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	u16 devid;
 
 	if (!dev_data)
 		return -ENODEV;
 
-	*groupid = amd_iommu_alias_table[dev_data->devid];
+	if (pdev->is_virtfn || !iommu_group_mf)
+		devid = dev_data->devid;
+	else
+		devid = calc_devid(pdev->bus->number,
+				   PCI_DEVFN(PCI_SLOT(pdev->devfn), 0));
+
+	*groupid = amd_iommu_alias_table[devid];
 
 	return 0;
 }
