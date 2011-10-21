@@ -4579,10 +4579,6 @@ struct device *brcmf_bus_get_device(struct brcmf_bus *bus)
 void
 brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick)
 {
-	/* don't start the wd until fw is loaded */
-	if (bus->drvr->busstate == BRCMF_BUS_DOWN)
-		return;
-
 	/* Totally stop the timer */
 	if (!wdtick && bus->wd_timer_valid == true) {
 		del_timer_sync(&bus->timer);
@@ -4590,6 +4586,10 @@ brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick)
 		bus->save_ms = wdtick;
 		return;
 	}
+
+	/* don't start the wd until fw is loaded */
+	if (bus->drvr->busstate == BRCMF_BUS_DOWN)
+		return;
 
 	if (wdtick) {
 		if (bus->save_ms != BRCMF_WD_POLL_MS) {
