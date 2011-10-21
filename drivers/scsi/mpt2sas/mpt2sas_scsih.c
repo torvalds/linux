@@ -7318,22 +7318,27 @@ _scsih_probe_sas(struct MPT2SAS_ADAPTER *ioc)
 	/* SAS Device List */
 	list_for_each_entry_safe(sas_device, next, &ioc->sas_device_init_list,
 	    list) {
-		spin_lock_irqsave(&ioc->sas_device_lock, flags);
-		list_move_tail(&sas_device->list, &ioc->sas_device_list);
-		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
 		if (ioc->hide_drives)
 			continue;
 
 		if (!mpt2sas_transport_port_add(ioc, sas_device->handle,
 		    sas_device->sas_address_parent)) {
-			_scsih_sas_device_remove(ioc, sas_device);
+			list_del(&sas_device->list);
+			kfree(sas_device);
+			continue;
 		} else if (!sas_device->starget) {
 			mpt2sas_transport_port_remove(ioc,
 			    sas_device->sas_address,
 			    sas_device->sas_address_parent);
-			_scsih_sas_device_remove(ioc, sas_device);
+			list_del(&sas_device->list);
+			kfree(sas_device);
+			continue;
+
 		}
+		spin_lock_irqsave(&ioc->sas_device_lock, flags);
+		list_move_tail(&sas_device->list, &ioc->sas_device_list);
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	}
 }
 
