@@ -4060,6 +4060,51 @@ static int intel_iommu_domain_has_cap(struct iommu_domain *domain,
 	return 0;
 }
 
+/*
+ * Group numbers are arbitrary.  Device with the same group number
+ * indicate the iommu cannot differentiate between them.  To avoid
+ * tracking used groups we just use the seg|bus|devfn of the lowest
+ * level we're able to differentiate devices
+ */
+static int intel_iommu_device_group(struct device *dev, unsigned int *groupid)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_dev *bridge;
+	union {
+		struct {
+			u8 devfn;
+			u8 bus;
+			u16 segment;
+		} pci;
+		u32 group;
+	} id;
+
+	if (iommu_no_mapping(dev))
+		return -ENODEV;
+
+	id.pci.segment = pci_domain_nr(pdev->bus);
+	id.pci.bus = pdev->bus->number;
+	id.pci.devfn = pdev->devfn;
+
+	if (!device_to_iommu(id.pci.segment, id.pci.bus, id.pci.devfn))
+		return -ENODEV;
+
+	bridge = pci_find_upstream_pcie_bridge(pdev);
+	if (bridge) {
+		if (pci_is_pcie(bridge)) {
+			id.pci.bus = bridge->subordinate->number;
+			id.pci.devfn = 0;
+		} else {
+			id.pci.bus = bridge->bus->number;
+			id.pci.devfn = bridge->devfn;
+		}
+	}
+
+	*groupid = id.group;
+
+	return 0;
+}
+
 static struct iommu_ops intel_iommu_ops = {
 	.domain_init	= intel_iommu_domain_init,
 	.domain_destroy = intel_iommu_domain_destroy,
@@ -4069,6 +4114,7 @@ static struct iommu_ops intel_iommu_ops = {
 	.unmap		= intel_iommu_unmap,
 	.iova_to_phys	= intel_iommu_iova_to_phys,
 	.domain_has_cap = intel_iommu_domain_has_cap,
+	.device_group	= intel_iommu_device_group,
 };
 
 static void __devinit quirk_iommu_rwbf(struct pci_dev *dev)
