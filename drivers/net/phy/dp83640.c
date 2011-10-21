@@ -1192,7 +1192,7 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 
 	case HWTSTAMP_TX_ONESTEP_SYNC:
 		if (is_sync(skb, type)) {
-			kfree_skb(skb);
+			skb_complete_tx_timestamp(skb, NULL);
 			return;
 		}
 		/* fall through */
@@ -1203,7 +1203,7 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 
 	case HWTSTAMP_TX_OFF:
 	default:
-		kfree_skb(skb);
+		skb_complete_tx_timestamp(skb, NULL);
 		break;
 	}
 }
