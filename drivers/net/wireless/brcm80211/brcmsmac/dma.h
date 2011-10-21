@@ -18,6 +18,7 @@
 #define	_BRCM_DMA_H_
 
 #include <linux/delay.h>
+#include <linux/skbuff.h>
 #include "types.h"		/* forward structure declarations */
 
 /* map/unmap direction */
@@ -80,7 +81,7 @@ extern struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
 
 void dma_rxinit(struct dma_pub *pub);
-struct sk_buff *dma_rx(struct dma_pub *pub);
+int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list);
 bool dma_rxfill(struct dma_pub *pub);
 bool dma_rxreset(struct dma_pub *pub);
 bool dma_txreset(struct dma_pub *pub);

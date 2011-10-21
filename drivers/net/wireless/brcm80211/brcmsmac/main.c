@@ -8115,21 +8115,17 @@ static bool
 brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 {
 	struct sk_buff *p;
-	struct sk_buff *head = NULL;
-	struct sk_buff *tail = NULL;
+	struct sk_buff *next = NULL;
+	struct sk_buff_head recv_frames;
+
 	uint n = 0;
 	uint bound_limit = bound ? RXBND : -1;
 
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
-	/* gather received frames */
-	while ((p = dma_rx(wlc_hw->di[fifo]))) {
+	skb_queue_head_init(&recv_frames);
 
-		if (!tail)
-			head = tail = p;
-		else {
-			tail->prev = p;
-			tail = p;
-		}
+	/* gather received frames */
+	while (dma_rx(wlc_hw->di[fifo], &recv_frames)) {
 
 		/* !give others some time to run! */
 		if (++n >= bound_limit)
@@ -8140,12 +8136,11 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 	dma_rxfill(wlc_hw->di[fifo]);
 
 	/* process each frame */
-	while ((p = head) != NULL) {
+	skb_queue_walk_safe(&recv_frames, p, next) {
 		struct d11rxhdr_le *rxh_le;
 		struct d11rxhdr *rxh;
-		head = head->prev;
-		p->prev = NULL;
 
+		skb_unlink(p, &recv_frames);
 		rxh_le = (struct d11rxhdr_le *)p->data;
 		rxh = (struct d11rxhdr *)p->data;
 
