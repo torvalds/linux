@@ -4546,9 +4546,10 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 			goto fail;
 		}
 	}
-	/* Ok, have the per-port tell the stack we're open for business */
-	if (brcmf_net_attach(bus->drvr, 0) != 0) {
-		brcmf_dbg(ERROR, "Net attach failed!!\n");
+
+	/* add interface and open for business */
+	if (brcmf_add_if((struct brcmf_info *)bus->drvr, 0, "wlan%d", NULL)) {
+		brcmf_dbg(ERROR, "Add primary net device interface failed!!\n");
 		goto fail;
 	}
 

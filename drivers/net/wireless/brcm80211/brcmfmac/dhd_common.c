@@ -488,10 +488,9 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 
 		if (ifevent->ifidx > 0 && ifevent->ifidx < BRCMF_MAX_IFS) {
 			if (ifevent->action == BRCMF_E_IF_ADD)
-				brcmf_add_if(drvr_priv, ifevent->ifidx, NULL,
+				brcmf_add_if(drvr_priv, ifevent->ifidx,
 					     event->ifname,
-					     pvt_data->eth.h_dest,
-					     ifevent->flags, ifevent->bssidx);
+					     pvt_data->eth.h_dest);
 			else
 				brcmf_del_if(drvr_priv, ifevent->ifidx);
 		} else {

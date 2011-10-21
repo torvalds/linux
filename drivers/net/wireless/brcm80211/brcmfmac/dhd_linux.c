@@ -904,30 +904,21 @@ static const struct net_device_ops brcmf_netdev_ops_pri = {
 };
 
 int
-brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, struct net_device *ndev,
-	     char *name, u8 *mac_addr, u32 flags, u8 bssidx)
+brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
-	int ret = 0, err = 0;
+	int err = 0;
 
-	brcmf_dbg(TRACE, "idx %d, handle->%p\n", ifidx, ndev);
+	brcmf_dbg(TRACE, "idx %d\n", ifidx);
 
 	ifp = drvr_priv->iflist[ifidx];
 	if (!ifp) {
 		ifp = kmalloc(sizeof(struct brcmf_if), GFP_ATOMIC);
 		if (!ifp)
 			return -ENOMEM;
-	}
 
-	memset(ifp, 0, sizeof(struct brcmf_if));
-	ifp->info = drvr_priv;
-	drvr_priv->iflist[ifidx] = ifp;
-	if (mac_addr != NULL)
-		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
-
-	if (ndev == NULL) {
-		ifp->state = BRCMF_E_IF_ADD;
-		ifp->idx = ifidx;
+		drvr_priv->iflist[ifidx] = ifp;
+	} else {
 		/*
 		 * Delete the existing interface before overwriting it
 		 * in case we missed the BRCMF_E_IF_DEL event.
@@ -939,41 +930,42 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, struct net_device *ndev,
 			unregister_netdev(ifp->ndev);
 			free_netdev(ifp->ndev);
 		}
+	}
+	memset(ifp, 0, sizeof(struct brcmf_if));
+	ifp->info = drvr_priv;
+	drvr_priv->iflist[ifidx] = ifp;
+	ifp->state = BRCMF_E_IF_ADD;
+	ifp->idx = ifidx;
 
-		/* Allocate netdev, including space for private structure */
-		ifp->ndev = alloc_netdev(sizeof(drvr_priv), "wlan%d",
-					 ether_setup);
-		if (!ifp->ndev) {
-			brcmf_dbg(ERROR, "OOM - alloc_netdev\n");
-			ret = -ENOMEM;
-		}
+	/* Allocate netdev, including space for private structure */
+	ifp->ndev = alloc_netdev(sizeof(drvr_priv), name, ether_setup);
+	if (!ifp->ndev) {
+		brcmf_dbg(ERROR, "OOM - alloc_netdev\n");
+		err = -ENOMEM;
+		goto errout;
+	}
 
-		if (ret == 0) {
-			memcpy(netdev_priv(ifp->ndev), &drvr_priv,
-			       sizeof(drvr_priv));
-			err = brcmf_net_attach(&drvr_priv->pub, ifp->idx);
-			if (err != 0) {
-				brcmf_dbg(ERROR, "brcmf_net_attach failed, err %d\n",
-					  err);
-				ret = -EOPNOTSUPP;
-			} else {
-				brcmf_dbg(TRACE, " ==== pid:%x, net_device for if:%s created ===\n",
-					  current->pid, ifp->ndev->name);
-				ifp->state = 0;
-			}
-		}
+	if (mac_addr != NULL)
+		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
-		if (ret < 0) {
-			if (ifp->ndev)
-				free_netdev(ifp->ndev);
+	memcpy(netdev_priv(ifp->ndev), &drvr_priv, sizeof(drvr_priv));
+	if (brcmf_net_attach(&drvr_priv->pub, ifp->idx)) {
+		brcmf_dbg(ERROR, "brcmf_net_attach failed");
+		free_netdev(ifp->ndev);
+		err = -EOPNOTSUPP;
+		goto errout;
+	}
 
-			drvr_priv->iflist[ifp->idx] = NULL;
-			kfree(ifp);
-		}
-	} else
-		ifp->ndev = ndev;
+	brcmf_dbg(TRACE, " ==== pid:%x, net_device for if:%s created ===\n",
+		  current->pid, ifp->ndev->name);
+	ifp->state = 0;
 
 	return 0;
+
+errout:
+	kfree(ifp);
+	drvr_priv->iflist[ifidx] = NULL;
+	return err;
 }
 
 void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
@@ -1011,32 +1003,14 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 {
 	struct brcmf_info *drvr_priv = NULL;
-	struct net_device *ndev;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
-	/* Allocate netdev, including space for private structure */
-	ndev = alloc_netdev(sizeof(drvr_priv), "wlan%d", ether_setup);
-	if (!ndev) {
-		brcmf_dbg(ERROR, "OOM - alloc_netdev\n");
-		goto fail;
-	}
 
 	/* Allocate primary brcmf_info */
 	drvr_priv = kzalloc(sizeof(struct brcmf_info), GFP_ATOMIC);
 	if (!drvr_priv)
 		goto fail;
 
-	/*
-	 * Save the brcmf_info into the priv
-	 */
-	memcpy(netdev_priv(ndev), &drvr_priv, sizeof(drvr_priv));
-
-	if (brcmf_add_if(drvr_priv, 0, ndev, ndev->name, NULL, 0, 0) ==
-	    BRCMF_BAD_IF)
-		goto fail;
-
-	ndev->netdev_ops = NULL;
 	mutex_init(&drvr_priv->proto_block);
 
 	/* Link to info module */
@@ -1052,29 +1026,12 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 		goto fail;
 	}
 
-	/* Attach and link in the cfg80211 */
-	drvr_priv->pub.config =
-			brcmf_cfg80211_attach(ndev,
-					      brcmf_bus_get_device(bus),
-					      &drvr_priv->pub);
-	if (drvr_priv->pub.config == NULL) {
-		brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
-		goto fail;
-	}
-
 	INIT_WORK(&drvr_priv->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&drvr_priv->multicast_work, _brcmf_set_multicast_list);
-
-	/*
-	 * Save the brcmf_info into the priv
-	 */
-	memcpy(netdev_priv(ndev), &drvr_priv, sizeof(drvr_priv));
 
 	return &drvr_priv->pub;
 
 fail:
-	if (ndev)
-		free_netdev(ndev);
 	if (drvr_priv)
 		brcmf_detach(&drvr_priv->pub);
 
@@ -1177,6 +1134,18 @@ int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 			      drvr_priv->pub.hdrlen;
 
 	memcpy(ndev->dev_addr, temp_addr, ETH_ALEN);
+
+	/* attach to cfg80211 for primary interface */
+	if (!ifidx) {
+		drvr->config =
+			brcmf_cfg80211_attach(ndev,
+					      brcmf_bus_get_device(drvr->bus),
+					      drvr);
+		if (drvr->config == NULL) {
+			brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
+			goto fail;
+		}
+	}
 
 	if (register_netdev(ndev) != 0) {
 		brcmf_dbg(ERROR, "couldn't register the net device\n");
