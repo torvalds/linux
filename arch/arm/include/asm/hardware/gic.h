@@ -39,7 +39,7 @@ struct device_node;
 extern void __iomem *gic_cpu_base_addr;
 extern struct irq_chip gic_arch_extn;
 
-void gic_init(unsigned int, unsigned int, void __iomem *, void __iomem *);
+void gic_init(unsigned int, int, void __iomem *, void __iomem *);
 int gic_of_init(struct device_node *node, struct device_node *parent);
 void gic_secondary_init(unsigned int);
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);

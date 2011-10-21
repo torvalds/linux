@@ -24,6 +24,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/err.h>
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/smp.h>
@@ -562,7 +563,7 @@ const struct irq_domain_ops gic_irq_domain_ops = {
 #endif
 };
 
-void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
+void __init gic_init(unsigned int gic_nr, int irq_start,
 	void __iomem *dist_base, void __iomem *cpu_base)
 {
 	struct gic_chip_data *gic;
@@ -583,7 +584,8 @@ void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
 	if (gic_nr == 0) {
 		gic_cpu_base_addr = cpu_base;
 		domain->hwirq_base = 16;
-		irq_start = (irq_start & ~31) + 16;
+		if (irq_start > 0)
+			irq_start = (irq_start & ~31) + 16;
 	} else
 		domain->hwirq_base = 32;
 
@@ -598,8 +600,13 @@ void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
 	gic->gic_irqs = gic_irqs;
 
 	domain->nr_irq = gic_irqs - domain->hwirq_base;
-	domain->irq_base = irq_alloc_descs(-1, irq_start, domain->nr_irq,
+	domain->irq_base = irq_alloc_descs(irq_start, 16, domain->nr_irq,
 					   numa_node_id());
+	if (IS_ERR_VALUE(domain->irq_base)) {
+		WARN(1, "Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
+		     irq_start);
+		domain->irq_base = irq_start;
+	}
 	domain->priv = gic;
 	domain->ops = &gic_irq_domain_ops;
 	irq_domain_add(domain);
@@ -659,7 +666,7 @@ int __init gic_of_init(struct device_node *node, struct device_node *parent)
 
 	domain->of_node = of_node_get(node);
 
-	gic_init(gic_cnt, 16, dist_base, cpu_base);
+	gic_init(gic_cnt, -1, dist_base, cpu_base);
 
 	if (parent) {
 		irq = irq_of_parse_and_map(node, 0);
