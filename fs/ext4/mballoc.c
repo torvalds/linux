@@ -4291,6 +4291,10 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 
 	trace_ext4_request_blocks(ar);
 
+	/* Allow to use superuser reservation for quota file */
+	if (IS_NOQUOTA(ar->inode))
+		ar->flags |= EXT4_MB_USE_ROOT_BLOCKS;
+
 	/*
 	 * For delayed allocation, we could skip the ENOSPC and
 	 * EDQUOT check, as blocks and quotas have been already
