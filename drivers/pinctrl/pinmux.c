@@ -94,12 +94,11 @@ struct pinmux_hog {
  * @function: a functional name to give to this pin, passed to the driver
  *	so it knows what function to mux in, e.g. the string "gpioNN"
  *	means that you want to mux in the pin for use as GPIO number NN
- * @gpio: if this request concerns a single GPIO pin
  * @gpio_range: the range matching the GPIO pin if this is a request for a
  *	single GPIO pin
  */
 static int pin_request(struct pinctrl_dev *pctldev,
-		       int pin, const char *function, bool gpio,
+		       int pin, const char *function,
 		       struct pinctrl_gpio_range *gpio_range)
 {
 	struct pin_desc *desc;
@@ -143,7 +142,7 @@ static int pin_request(struct pinctrl_dev *pctldev,
 	 * If there is no kind of request function for the pin we just assume
 	 * we got it by default and proceed.
 	 */
-	if (gpio && ops->gpio_request_enable)
+	if (gpio_range && ops->gpio_request_enable)
 		/* This requests and enables a single GPIO pin */
 		status = ops->gpio_request_enable(pctldev, gpio_range, pin);
 	else if (ops->request)
@@ -173,29 +172,39 @@ out:
  * pin_free() - release a single muxed in pin so something else can be muxed
  * @pctldev: pin controller device handling this pin
  * @pin: the pin to free
- * @free_func: whether to free the pin's assigned function name string
+ * @gpio_range: the range matching the GPIO pin if this is a request for a
+ *	single GPIO pin
  */
-static void pin_free(struct pinctrl_dev *pctldev, int pin, int free_func)
+static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
+			    struct pinctrl_gpio_range *gpio_range)
 {
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
 	struct pin_desc *desc;
+	const char *func;
 
 	desc = pin_desc_get(pctldev, pin);
 	if (desc == NULL) {
 		dev_err(&pctldev->dev,
 			"pin is not registered so it cannot be freed\n");
-		return;
+		return NULL;
 	}
 
-	if (ops->free)
+	/*
+	 * If there is no kind of request function for the pin we just assume
+	 * we got it by default and proceed.
+	 */
+	if (gpio_range && ops->gpio_disable_free)
+		ops->gpio_disable_free(pctldev, gpio_range, pin);
+	else if (ops->free)
 		ops->free(pctldev, pin);
 
 	spin_lock(&desc->lock);
-	if (free_func)
-		kfree(desc->mux_function);
+	func = desc->mux_function;
 	desc->mux_function = NULL;
 	spin_unlock(&desc->lock);
 	module_put(pctldev->owner);
+
+	return func;
 }
 
 /**
@@ -225,7 +234,7 @@ int pinmux_request_gpio(unsigned gpio)
 	if (!function)
 		return -EINVAL;
 
-	ret = pin_request(pctldev, pin, function, true, range);
+	ret = pin_request(pctldev, pin, function, range);
 	if (ret < 0)
 		kfree(function);
 
@@ -243,6 +252,7 @@ void pinmux_free_gpio(unsigned gpio)
 	struct pinctrl_gpio_range *range;
 	int ret;
 	int pin;
+	const char *func;
 
 	ret = pinctrl_get_device_gpio_range(gpio, &pctldev, &range);
 	if (ret)
@@ -251,7 +261,8 @@ void pinmux_free_gpio(unsigned gpio)
 	/* Convert to the pin controllers number space */
 	pin = gpio - range->base;
 
-	pin_free(pctldev, pin, true);
+	func = pin_free(pctldev, pin, range);
+	kfree(func);
 }
 EXPORT_SYMBOL_GPL(pinmux_free_gpio);
 
@@ -341,7 +352,7 @@ static int acquire_pins(struct pinctrl_dev *pctldev,
 
 	/* Try to allocate all pins in this group, one by one */
 	for (i = 0; i < num_pins; i++) {
-		ret = pin_request(pctldev, pins[i], func, false, NULL);
+		ret = pin_request(pctldev, pins[i], func, NULL);
 		if (ret) {
 			dev_err(&pctldev->dev,
 				"could not get pin %d for function %s "
@@ -351,7 +362,7 @@ static int acquire_pins(struct pinctrl_dev *pctldev,
 			/* On error release all taken pins */
 			i--; /* this pin just failed */
 			for (; i >= 0; i--)
-				pin_free(pctldev, pins[i], false);
+				pin_free(pctldev, pins[i], NULL);
 			return -ENODEV;
 		}
 	}
@@ -381,7 +392,7 @@ static void release_pins(struct pinctrl_dev *pctldev,
 		return;
 	}
 	for (i = 0; i < num_pins; i++)
-		pin_free(pctldev, pins[i], false);
+		pin_free(pctldev, pins[i], NULL);
 }
 
 /**

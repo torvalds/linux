@@ -73,6 +73,9 @@ struct pinmux_ops {
 	int (*gpio_request_enable) (struct pinctrl_dev *pctldev,
 				    struct pinctrl_gpio_range *range,
 				    unsigned offset);
+	void (*gpio_disable_free) (struct pinctrl_dev *pctldev,
+				   struct pinctrl_gpio_range *range,
+				   unsigned offset);
 };
 
 /* External interface to pinmux */
