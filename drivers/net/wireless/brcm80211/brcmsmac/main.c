@@ -2396,6 +2396,7 @@ void brcms_c_intrsrestore(struct brcms_c_info *wlc, u32 macintmask)
 	W_REG(&wlc_hw->regs->macintmask, wlc->macintmask);
 }
 
+/* assumes that the d11 MAC is enabled */
 static void brcms_b_tx_fifo_suspend(struct brcms_hardware *wlc_hw,
 				    uint tx_fifo)
 {
@@ -2485,6 +2486,12 @@ static void brcms_b_mute(struct brcms_hardware *wlc_hw, bool mute_tx)
 		brcms_c_ucode_mute_override_set(wlc_hw);
 	else
 		brcms_c_ucode_mute_override_clear(wlc_hw);
+}
+
+void
+brcms_c_mute(struct brcms_c_info *wlc, bool mute_tx)
+{
+	brcms_b_mute(wlc->hw, mute_tx);
 }
 
 /*
@@ -8253,11 +8260,10 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 	return wlc->macintstatus != 0;
 }
 
-void brcms_c_init(struct brcms_c_info *wlc)
+void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
 {
 	struct d11regs __iomem *regs;
 	u16 chanspec;
-	bool mute_tx = false;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 

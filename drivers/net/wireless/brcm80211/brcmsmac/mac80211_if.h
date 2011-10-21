@@ -80,6 +80,7 @@ struct brcms_info {
 	struct brcms_firmware fw;
 	struct wiphy *wiphy;
 	struct brcms_ucode ucode;
+	bool mute_tx;
 };
 
 /* misc callbacks */

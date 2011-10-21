@@ -540,7 +540,7 @@ extern int brcms_c_up(struct brcms_c_info *wlc);
 extern uint brcms_c_down(struct brcms_c_info *wlc);
 
 extern bool brcms_c_chipmatch(u16 vendor, u16 device);
-extern void brcms_c_init(struct brcms_c_info *wlc);
+extern void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx);
 extern void brcms_c_reset(struct brcms_c_info *wlc);
 
 extern void brcms_c_intrson(struct brcms_c_info *wlc);
@@ -597,5 +597,6 @@ extern void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc,
 extern int brcms_c_set_tx_power(struct brcms_c_info *wlc, int txpwr);
 extern int brcms_c_get_tx_power(struct brcms_c_info *wlc);
 extern bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc);
+extern void brcms_c_mute(struct brcms_c_info *wlc, bool on);
 
 #endif				/* _BRCM_PUB_H_ */

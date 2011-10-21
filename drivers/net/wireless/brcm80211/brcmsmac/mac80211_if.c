@@ -294,6 +294,9 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 
 	spin_lock_bh(&wl->lock);
+	/* avoid acknowledging frames before a non-monitor device is added */
+	wl->mute_tx = true;
+
 	if (!wl->pub->up)
 		err = brcms_up(wl);
 	else
@@ -335,6 +338,8 @@ static void brcms_ops_stop(struct ieee80211_hw *hw)
 static int
 brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
+	struct brcms_info *wl = hw->priv;
+
 	/* Just STA for now */
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_MESH_POINT &&
@@ -345,6 +350,9 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 			  " STA for now\n", __func__, vif->type);
 		return -EOPNOTSUPP;
 	}
+
+	wl->mute_tx = false;
+	brcms_c_mute(wl->wlc, false);
 
 	return 0;
 }
@@ -1303,8 +1311,7 @@ void brcms_init(struct brcms_info *wl)
 {
 	BCMMSG(wl->pub->ieee_hw->wiphy, "wl%d\n", wl->pub->unit);
 	brcms_reset(wl);
-
-	brcms_c_init(wl->wlc);
+	brcms_c_init(wl->wlc, wl->mute_tx);
 }
 
 /*
