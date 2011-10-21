@@ -341,11 +341,7 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct brcms_info *wl = hw->priv;
 
 	/* Just STA for now */
-	if (vif->type != NL80211_IFTYPE_AP &&
-	    vif->type != NL80211_IFTYPE_MESH_POINT &&
-	    vif->type != NL80211_IFTYPE_STATION &&
-	    vif->type != NL80211_IFTYPE_WDS &&
-	    vif->type != NL80211_IFTYPE_ADHOC) {
+	if (vif->type != NL80211_IFTYPE_STATION) {
 		wiphy_err(hw->wiphy, "%s: Attempt to add type %d, only"
 			  " STA for now\n", __func__, vif->type);
 		return -EOPNOTSUPP;
