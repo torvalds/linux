@@ -893,6 +893,16 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	return ret;
 }
 
+static const struct net_device_ops brcmf_netdev_ops_pri = {
+	.ndo_open = brcmf_netdev_open,
+	.ndo_stop = brcmf_netdev_stop,
+	.ndo_get_stats = brcmf_netdev_get_stats,
+	.ndo_do_ioctl = brcmf_netdev_ioctl_entry,
+	.ndo_start_xmit = brcmf_netdev_start_xmit,
+	.ndo_set_mac_address = brcmf_netdev_set_mac_address,
+	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
+};
+
 int
 brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, struct net_device *ndev,
 	     char *name, u8 *mac_addr, u32 flags, u8 bssidx)
@@ -977,14 +987,23 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 		brcmf_dbg(ERROR, "Null interface\n");
 		return;
 	}
-
 	ifp->state = BRCMF_E_IF_DEL;
-	ifp->idx = ifidx;
-	if (ifp->ndev != NULL) {
-		netif_stop_queue(ifp->ndev);
+	if (ifp->ndev) {
+		if (ifidx == 0) {
+			if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
+				rtnl_lock();
+				brcmf_netdev_stop(ifp->ndev);
+				rtnl_unlock();
+			}
+		} else {
+			netif_stop_queue(ifp->ndev);
+		}
+
 		unregister_netdev(ifp->ndev);
-		free_netdev(ifp->ndev);
 		drvr_priv->iflist[ifidx] = NULL;
+		if (ifidx == 0)
+			brcmf_cfg80211_detach(drvr_priv->pub.config);
+		free_netdev(ifp->ndev);
 		kfree(ifp);
 	}
 }
@@ -1123,16 +1142,6 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 	return 0;
 }
 
-static struct net_device_ops brcmf_netdev_ops_pri = {
-	.ndo_open = brcmf_netdev_open,
-	.ndo_stop = brcmf_netdev_stop,
-	.ndo_get_stats = brcmf_netdev_get_stats,
-	.ndo_do_ioctl = brcmf_netdev_ioctl_entry,
-	.ndo_start_xmit = brcmf_netdev_start_xmit,
-	.ndo_set_mac_address = brcmf_netdev_set_mac_address,
-	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
-};
-
 int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
@@ -1210,20 +1219,12 @@ void brcmf_detach(struct brcmf_pub *drvr)
 	if (drvr) {
 		drvr_priv = drvr->info;
 		if (drvr_priv) {
-			struct brcmf_if *ifp;
 			int i;
 
-			for (i = 1; i < BRCMF_MAX_IFS; i++)
+			/* make sure primary interface removed last */
+			for (i = BRCMF_MAX_IFS-1; i > -1; i--)
 				if (drvr_priv->iflist[i])
 					brcmf_del_if(drvr_priv, i);
-
-			ifp = drvr_priv->iflist[0];
-			if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
-				rtnl_lock();
-				brcmf_netdev_stop(ifp->ndev);
-				rtnl_unlock();
-				unregister_netdev(ifp->ndev);
-			}
 
 			cancel_work_sync(&drvr_priv->setmacaddr_work);
 			cancel_work_sync(&drvr_priv->multicast_work);
@@ -1233,10 +1234,6 @@ void brcmf_detach(struct brcmf_pub *drvr)
 			if (drvr->prot)
 				brcmf_proto_detach(drvr);
 
-			brcmf_cfg80211_detach(drvr->config);
-
-			free_netdev(ifp->ndev);
-			kfree(ifp);
 			kfree(drvr_priv);
 		}
 	}
