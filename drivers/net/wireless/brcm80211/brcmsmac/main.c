@@ -4194,17 +4194,6 @@ static void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 	}
 }
 
-/* maintain LED behavior in down state */
-static void brcms_c_down_led_upd(struct brcms_c_info *wlc)
-{
-	/*
-	 * maintain LEDs while in down state, turn on sbclk if
-	 * not available yet. Turn on sbclk if necessary
-	 */
-	brcms_b_pllreq(wlc->hw, true, BRCMS_PLLREQ_FLIP);
-	brcms_b_pllreq(wlc->hw, false, BRCMS_PLLREQ_FLIP);
-}
-
 static void brcms_c_radio_monitor_start(struct brcms_c_info *wlc)
 {
 	/* Don't start the timer if HWRADIO feature is disabled */
@@ -4214,28 +4203,6 @@ static void brcms_c_radio_monitor_start(struct brcms_c_info *wlc)
 	wlc->radio_monitor = true;
 	brcms_b_pllreq(wlc->hw, true, BRCMS_PLLREQ_RADIO_MON);
 	brcms_add_timer(wlc->radio_timer, TIMER_INTERVAL_RADIOCHK, true);
-}
-
-static void brcms_c_radio_disable(struct brcms_c_info *wlc)
-{
-	if (!wlc->pub->up) {
-		brcms_c_down_led_upd(wlc);
-		return;
-	}
-
-	brcms_c_radio_monitor_start(wlc);
-	brcms_down(wlc->wl);
-}
-
-static void brcms_c_radio_enable(struct brcms_c_info *wlc)
-{
-	if (wlc->pub->up)
-		return;
-
-	if (brcms_deviceremoved(wlc))
-		return;
-
-	brcms_up(wlc->wl);
 }
 
 static bool brcms_c_radio_monitor_stop(struct brcms_c_info *wlc)
@@ -4260,18 +4227,6 @@ static void brcms_c_radio_hwdisable_upd(struct brcms_c_info *wlc)
 		mboolclr(wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE);
 }
 
-/*
- * centralized radio disable/enable function,
- * invoke radio enable/disable after updating hwradio status
- */
-static void brcms_c_radio_upd(struct brcms_c_info *wlc)
-{
-	if (wlc->pub->radio_disabled)
-		brcms_c_radio_disable(wlc);
-	else
-		brcms_c_radio_enable(wlc);
-}
-
 /* update hwradio status and return it */
 bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc)
 {
@@ -4294,7 +4249,6 @@ static void brcms_c_radio_timer(void *arg)
 	}
 
 	brcms_c_radio_hwdisable_upd(wlc);
-	brcms_c_radio_upd(wlc);
 }
 
 /* common low-level watchdog code */
@@ -4320,18 +4274,6 @@ static void brcms_b_watchdog(void *arg)
 	wlc_phy_watchdog(wlc_hw->band->pi);
 }
 
-static void brcms_c_radio_mon_upd(struct brcms_c_info *wlc)
-{
-	/*
-	 * Stop the radio monitor when the radio is going down.
-	 */
-	if (!wlc->pub->radio_disabled)
-		return;
-	brcms_c_radio_upd(wlc);
-	if (!wlc->pub->radio_disabled)
-		brcms_c_radio_monitor_stop(wlc);
-}
-
 /* common watchdog code */
 static void brcms_c_watchdog(void *arg)
 {
@@ -4352,10 +4294,7 @@ static void brcms_c_watchdog(void *arg)
 	/* increment second count */
 	wlc->pub->now++;
 
-	brcms_c_radio_mon_upd(wlc);
-	/* radio sync: sw/hw --> radio_disable/radio_enable */
 	brcms_c_radio_hwdisable_upd(wlc);
-	brcms_c_radio_upd(wlc);
 	/* if radio is disable, driver may be down, quit here */
 	if (wlc->pub->radio_disabled)
 		return;
@@ -8104,11 +8043,6 @@ int brcms_c_get_tx_power(struct brcms_c_info *wlc)
 	return (int)(qdbm / BRCMS_TXPWR_DB_FACTOR);
 }
 
-void brcms_c_set_radio_mon(struct brcms_c_info *wlc)
-{
-	brcms_c_radio_mon_upd(wlc);
-}
-
 /* Process received frames */
 /*
  * Return true if more frames need to be processed. false otherwise.
@@ -8600,7 +8534,6 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		brcms_c_ht_update_sgi_rx(wlc, 0);
 	}
 
-	brcms_c_radio_mon_upd(wlc);
 	brcms_b_antsel_set(wlc->hw, wlc->asi->antsel_avail);
 
 	if (perr)

@@ -1078,8 +1078,6 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 
 	wl->pub->ieee_hw = hw;
 
-	brcms_c_set_radio_mon(wl->wlc);
-
 	/* register our interrupt handler */
 	if (request_irq(irq, brcms_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
 		wiphy_err(wl->wiphy, "wl%d: request_irq() failed\n", unit);
