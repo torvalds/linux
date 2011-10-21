@@ -10,6 +10,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/intel_msic.h>
