@@ -1675,6 +1675,7 @@ int bond_create_sysfs(struct bond_net *bn)
 	int ret;
 
 	bn->class_attr_bonding_masters = class_attr_bonding_masters;
+	sysfs_attr_init(&bn->class_attr_bonding_masters.attr);
 
 	ret = netdev_class_create_file(&bn->class_attr_bonding_masters);
 	/*
