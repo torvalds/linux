@@ -2489,6 +2489,10 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 		goto out_free_skb;
 	rx->flags |= IEEE80211_RX_CMNTR;
 
+	/* If there are no cooked monitor interfaces, just free the SKB */
+	if (!local->cooked_mntrs)
+		goto out_free_skb;
+
 	if (skb_headroom(skb) < sizeof(*rthdr) &&
 	    pskb_expand_head(skb, sizeof(*rthdr), 0, GFP_ATOMIC))
 		goto out_free_skb;
