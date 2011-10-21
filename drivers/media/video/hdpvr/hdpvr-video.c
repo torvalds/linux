@@ -722,21 +722,39 @@ static const s32 supported_v4l2_ctrls[] = {
 };
 
 static int fill_queryctrl(struct hdpvr_options *opt, struct v4l2_queryctrl *qc,
-			  int ac3)
+			  int ac3, int fw_ver)
 {
 	int err;
 
+	if (fw_ver > 0x15) {
+		switch (qc->id) {
+		case V4L2_CID_BRIGHTNESS:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
+		case V4L2_CID_CONTRAST:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x40);
+		case V4L2_CID_SATURATION:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x40);
+		case V4L2_CID_HUE:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0x1e, 1, 0xf);
+		case V4L2_CID_SHARPNESS:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
+		}
+	} else {
+		switch (qc->id) {
+		case V4L2_CID_BRIGHTNESS:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x86);
+		case V4L2_CID_CONTRAST:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
+		case V4L2_CID_SATURATION:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
+		case V4L2_CID_HUE:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
+		case V4L2_CID_SHARPNESS:
+			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
+		}
+	}
+
 	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x86);
-	case V4L2_CID_CONTRAST:
-		return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-	case V4L2_CID_SHARPNESS:
-		return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		return v4l2_ctrl_query_fill(
 			qc, V4L2_MPEG_AUDIO_ENCODING_AAC,
@@ -794,7 +812,8 @@ static int vidioc_queryctrl(struct file *file, void *private_data,
 
 		if (qc->id == supported_v4l2_ctrls[i])
 			return fill_queryctrl(&dev->options, qc,
-					      dev->flags & HDPVR_FLAG_AC3_CAP);
+					      dev->flags & HDPVR_FLAG_AC3_CAP,
+					      dev->fw_ver);
 
 		if (qc->id < supported_v4l2_ctrls[i])
 			break;
