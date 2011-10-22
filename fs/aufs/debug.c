@@ -437,7 +437,11 @@ void au_dbg_verify_kthread(void)
 {
 	if (au_wkq_test()) {
 		au_dbg_blocked();
-		WARN_ON(1);
+		/*
+		 * It may be recursive, but udba=notify between two aufs mounts,
+		 * where a single ro branch is shared, is not a problem.
+		 */
+		/* WARN_ON(1); */
 	}
 }
 
