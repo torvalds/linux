@@ -101,7 +101,7 @@ static int wait_master_done(struct i2c_au1550_data *adap)
 	int i;
 
 	/* Wait for Master Done. */
-	for (i = 0; i < adap->xfer_timeout; i++) {
+	for (i = 0; i < 2 * adap->xfer_timeout; i++) {
 		if ((RD(adap, PSC_SMBEVNT) & PSC_SMBEVNT_MD) != 0)
 			return 0;
 		udelay(1);
