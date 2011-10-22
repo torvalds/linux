@@ -208,6 +208,7 @@ int smk_curacc(char *, u32, struct smk_audit_info *);
 int smack_to_cipso(const char *, struct smack_cipso *);
 char *smack_from_cipso(u32, char *);
 char *smack_from_secid(const u32);
+void smk_parse_smack(const char *string, int len, char *smack);
 char *smk_import(const char *, int);
 struct smack_known *smk_import_entry(const char *, int);
 struct smack_known *smk_find_entry(const char *);
