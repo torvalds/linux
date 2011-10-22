@@ -99,15 +99,12 @@ typedef __s16 aufs_bindex_t;
 #define AUFS_WH_PLINKDIR	AUFS_WH_PFX AUFS_PLINKDIR_NAME
 #define AUFS_WH_ORPHDIR		AUFS_WH_PFX AUFS_ORPHDIR_NAME
 
-/* branch permission */
+/* branch permissions and attributes */
 #define AUFS_BRPERM_RW		"rw"
 #define AUFS_BRPERM_RO		"ro"
 #define AUFS_BRPERM_RR		"rr"
-#define AUFS_BRPERM_WH		"wh"
-#define AUFS_BRPERM_NLWH	"nolwh"
-#define AUFS_BRPERM_ROWH	AUFS_BRPERM_RO "+" AUFS_BRPERM_WH
-#define AUFS_BRPERM_RRWH	AUFS_BRPERM_RR "+" AUFS_BRPERM_WH
-#define AUFS_BRPERM_RWNLWH	AUFS_BRPERM_RW "+" AUFS_BRPERM_NLWH
+#define AUFS_BRRATTR_WH		"wh"
+#define AUFS_BRWATTR_NLWH	"nolwh"
 
 /* ---------------------------------------------------------------------- */
 
