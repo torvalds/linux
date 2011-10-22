@@ -194,15 +194,27 @@ struct aufs_rdu {
 	struct au_rdu_cookie	cookie;
 } __aligned(8);
 
-struct aufs_ibusy {
-	__u64		ino, h_ino;
-	__s16		bindex;
+/* ---------------------------------------------------------------------- */
+
+struct aufs_wbr_fd {
+	__u32	oflags;
+	__s16	brid;
 } __aligned(8);
+
+/* ---------------------------------------------------------------------- */
+
+struct aufs_ibusy {
+	__u64	ino, h_ino;
+	__s16	bindex;
+} __aligned(8);
+
+/* ---------------------------------------------------------------------- */
 
 #define AuCtlType		'A'
 #define AUFS_CTL_RDU		_IOWR(AuCtlType, AuCtl_RDU, struct aufs_rdu)
 #define AUFS_CTL_RDU_INO	_IOWR(AuCtlType, AuCtl_RDU_INO, struct aufs_rdu)
-#define AUFS_CTL_WBR_FD		_IO(AuCtlType, AuCtl_WBR_FD)
+#define AUFS_CTL_WBR_FD		_IOW(AuCtlType, AuCtl_WBR_FD, \
+				     struct aufs_wbr_fd)
 #define AUFS_CTL_IBUSY		_IOWR(AuCtlType, AuCtl_IBUSY, struct aufs_ibusy)
 
 #endif /* __AUFS_TYPE_H__ */
