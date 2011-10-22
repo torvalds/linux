@@ -387,39 +387,43 @@ static int __devexit i2c_au1550_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int
-i2c_au1550_suspend(struct platform_device *pdev, pm_message_t state)
+static int i2c_au1550_suspend(struct device *dev)
 {
-	struct i2c_au1550_data *priv = platform_get_drvdata(pdev);
+	struct i2c_au1550_data *priv = dev_get_drvdata(dev);
 
 	i2c_au1550_disable(priv);
 
 	return 0;
 }
 
-static int
-i2c_au1550_resume(struct platform_device *pdev)
+static int i2c_au1550_resume(struct device *dev)
 {
-	struct i2c_au1550_data *priv = platform_get_drvdata(pdev);
+	struct i2c_au1550_data *priv = dev_get_drvdata(dev);
 
 	i2c_au1550_setup(priv);
 
 	return 0;
 }
+
+static const struct dev_pm_ops i2c_au1550_pmops = {
+	.suspend	= i2c_au1550_suspend,
+	.resume		= i2c_au1550_resume,
+};
+
+#define AU1XPSC_SMBUS_PMOPS (&i2c_au1550_pmops)
+
 #else
-#define i2c_au1550_suspend	NULL
-#define i2c_au1550_resume	NULL
+#define AU1XPSC_SMBUS_PMOPS NULL
 #endif
 
 static struct platform_driver au1xpsc_smbus_driver = {
 	.driver = {
 		.name	= "au1xpsc_smbus",
 		.owner	= THIS_MODULE,
+		.pm	= AU1XPSC_SMBUS_PMOPS,
 	},
 	.probe		= i2c_au1550_probe,
 	.remove		= __devexit_p(i2c_au1550_remove),
-	.suspend	= i2c_au1550_suspend,
-	.resume		= i2c_au1550_resume,
 };
 
 static int __init i2c_au1550_init(void)
