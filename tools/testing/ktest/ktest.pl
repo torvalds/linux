@@ -1391,6 +1391,11 @@ sub get_version {
 }
 
 sub start_monitor_and_boot {
+    # Make sure the stable kernel has finished booting
+    start_monitor;
+    wait_for_monitor 5;
+    end_monitor;
+
     get_grub_index;
     get_version;
     install;
