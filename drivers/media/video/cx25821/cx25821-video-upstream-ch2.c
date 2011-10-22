@@ -65,9 +65,8 @@ static __le32 *cx25821_update_riscprogram_ch2(struct cx25821_dev *dev,
 		*(rp++) = cpu_to_le32(dev->_data_buf_phys_addr_ch2 + offset);
 		*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 
-		if ((lines <= NTSC_FIELD_HEIGHT)
-		    || (line < (NTSC_FIELD_HEIGHT - 1))
-		    || !(dev->_isNTSC_ch2)) {
+		if ((lines <= NTSC_FIELD_HEIGHT) ||
+		    (line < (NTSC_FIELD_HEIGHT - 1)) || !(dev->_isNTSC_ch2)) {
 			offset += dist_betwn_starts;
 		}
 	}
@@ -103,9 +102,8 @@ static __le32 *cx25821_risc_field_upstream_ch2(struct cx25821_dev *dev,
 		*(rp++) = cpu_to_le32(databuf_phys_addr + offset);
 		*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 
-		if ((lines <= NTSC_FIELD_HEIGHT)
-		    || (line < (NTSC_FIELD_HEIGHT - 1))
-		    || !(dev->_isNTSC_ch2)) {
+		if ((lines <= NTSC_FIELD_HEIGHT) ||
+		    (line < (NTSC_FIELD_HEIGHT - 1)) || !(dev->_isNTSC_ch2)) {
 			offset += dist_betwn_starts;
 		}
 
@@ -413,9 +411,9 @@ int cx25821_openfile_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 				vfs_read_retval =
 				    vfs_read(myfile, mybuf, line_size, &pos);
 
-				if (vfs_read_retval > 0
-				    && vfs_read_retval == line_size
-				    && dev->_data_buf_virt_addr_ch2 != NULL) {
+				if (vfs_read_retval > 0 &&
+				    vfs_read_retval == line_size &&
+				    dev->_data_buf_virt_addr_ch2 != NULL) {
 					memcpy((void *)(dev->
 							_data_buf_virt_addr_ch2
 							+ offset / 4), mybuf,
