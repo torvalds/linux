@@ -140,8 +140,8 @@ void cx25821_video_wakeup(struct cx25821_dev *dev, struct cx25821_dmaqueue *q,
 			break;
 		}
 
-		buf =
-		    list_entry(q->active.next, struct cx25821_buffer, vb.queue);
+		buf = list_entry(q->active.next, struct cx25821_buffer,
+				vb.queue);
 
 		/* count comes from the hw and it is 16bit wide --
 		 * this trick handles wrap-arounds correctly for
@@ -318,8 +318,8 @@ int cx25821_restart_video_queue(struct cx25821_dev *dev,
 	struct list_head *item;
 
 	if (!list_empty(&q->active)) {
-		buf =
-		    list_entry(q->active.next, struct cx25821_buffer, vb.queue);
+		buf = list_entry(q->active.next, struct cx25821_buffer,
+				vb.queue);
 
 		cx25821_start_video_dma(dev, q, buf, channel);
 
@@ -337,8 +337,8 @@ int cx25821_restart_video_queue(struct cx25821_dev *dev,
 		if (list_empty(&q->queued))
 			return 0;
 
-		buf =
-		    list_entry(q->queued.next, struct cx25821_buffer, vb.queue);
+		buf = list_entry(q->queued.next, struct cx25821_buffer,
+				vb.queue);
 
 		if (NULL == prev) {
 			list_move_tail(&buf->vb.queue, &q->active);
@@ -375,8 +375,8 @@ void cx25821_vid_timeout(unsigned long data)
 
 	spin_lock_irqsave(&dev->slock, flags);
 	while (!list_empty(&q->active)) {
-		buf =
-		    list_entry(q->active.next, struct cx25821_buffer, vb.queue);
+		buf = list_entry(q->active.next, struct cx25821_buffer,
+				vb.queue);
 		list_del(&buf->vb.queue);
 
 		buf->vb.state = VIDEOBUF_ERROR;
@@ -498,15 +498,14 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		dev->channels[i].timeout_data.dev = dev;
 		dev->channels[i].timeout_data.channel =
 			&cx25821_sram_channels[i];
-		dev->channels[i].vidq.timeout.function =
-			cx25821_vid_timeout;
+		dev->channels[i].vidq.timeout.function = cx25821_vid_timeout;
 		dev->channels[i].vidq.timeout.data =
 			(unsigned long)&dev->channels[i].timeout_data;
 		init_timer(&dev->channels[i].vidq.timeout);
 
 		/* register v4l devices */
-		dev->channels[i].video_dev = cx25821_vdev_init(dev,
-				dev->pci, &cx25821_video_device, "video");
+		dev->channels[i].video_dev = cx25821_vdev_init(dev, dev->pci,
+				&cx25821_video_device, "video");
 
 		err = video_register_device(dev->channels[i].video_dev,
 				VFL_TYPE_GRABBER, video_nr[dev->nr]);
@@ -619,10 +618,9 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 					    dev->tvnorm & V4L2_STD_PAL_DK)
 						bpl_local = 352 << 1;
 					else
-						bpl_local =
-						 dev->channels[channel_opened].
-						 cif_width <<
-						 1;
+						bpl_local = dev->channels[
+							channel_opened].
+							cif_width << 1;
 				}
 			}
 		}
@@ -846,11 +844,10 @@ static int video_open(struct file *file)
 
 	v4l2_prio_open(&dev->channels[ch_id].prio, &fh->prio);
 
-	videobuf_queue_sg_init(&fh->vidq, &cx25821_video_qops,
-			      &dev->pci->dev, &dev->slock,
-			      V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			      V4L2_FIELD_INTERLACED,
-			      sizeof(struct cx25821_buffer), fh, NULL);
+	videobuf_queue_sg_init(&fh->vidq, &cx25821_video_qops, &dev->pci->dev,
+			&dev->slock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			V4L2_FIELD_INTERLACED, sizeof(struct cx25821_buffer),
+			fh, NULL);
 
 	dprintk(1, "post videobuf_queue_init()\n");
 	mutex_unlock(&cx25821_devlist_mutex);
@@ -1166,8 +1163,8 @@ int cx25821_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->card, cx25821_boards[dev->board].name, sizeof(cap->card));
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
 	cap->version = CX25821_VERSION_CODE;
-	cap->capabilities =
-	    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+		V4L2_CAP_STREAMING;
 	if (UNSET != dev->tuner_type)
 		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
@@ -1897,8 +1894,8 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 		}
 
 		if (selected_channel <= 7 && selected_channel >= 0) {
-			dev->channels[selected_channel].
-				use_cif_resolution = cif_enable;
+			dev->channels[selected_channel].use_cif_resolution =
+				cif_enable;
 			dev->channels[selected_channel].cif_width = width;
 		} else {
 			for (i = 0; i < VID_CHANNEL_NUM; i++) {
