@@ -52,7 +52,6 @@
 struct i2c_au1550_data {
 	void __iomem *psc_base;
 	int	xfer_timeout;
-	int	ack_timeout;
 	struct i2c_adapter adap;
 	struct resource *ioarea;
 };
@@ -346,7 +345,6 @@ i2c_au1550_probe(struct platform_device *pdev)
 		goto out_map;
 	}
 	priv->xfer_timeout = 200;
-	priv->ack_timeout = 200;
 
 	priv->adap.nr = pdev->id;
 	priv->adap.algo = &au1550_algo;
