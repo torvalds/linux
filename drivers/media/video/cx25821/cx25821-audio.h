@@ -23,12 +23,12 @@
 #ifndef __CX25821_AUDIO_H__
 #define __CX25821_AUDIO_H__
 
-#define USE_RISC_NOOP               1
-#define LINES_PER_BUFFER            15
-#define AUDIO_LINE_SIZE             128
+#define USE_RISC_NOOP		1
+#define LINES_PER_BUFFER	15
+#define AUDIO_LINE_SIZE		128
 
 /* Number of buffer programs to use at once. */
-#define NUMBER_OF_PROGRAMS  8
+#define NUMBER_OF_PROGRAMS	8
 
 /*
  * Max size of the RISC program for a buffer. - worst case is 2 writes per line
