@@ -241,9 +241,16 @@ struct tt_local_entry {
 
 struct tt_global_entry {
 	struct tt_common_entry common;
+	struct hlist_head orig_list;
+	spinlock_t list_lock;	/* protects the list */
+	unsigned long roam_at; /* time at which TT_GLOBAL_ROAM was set */
+};
+
+struct tt_orig_list_entry {
 	struct orig_node *orig_node;
 	uint8_t ttvn;
-	unsigned long roam_at; /* time at which TT_GLOBAL_ROAM was set */
+	struct rcu_head rcu;
+	struct hlist_node list;
 };
 
 struct backbone_gw {
