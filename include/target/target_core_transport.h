@@ -113,7 +113,7 @@ extern int init_se_kmem_caches(void);
 extern void release_se_kmem_caches(void);
 extern u32 scsi_get_new_index(scsi_index_t);
 extern void transport_init_queue_obj(struct se_queue_obj *);
-extern int transport_subsystem_check_init(void);
+extern void transport_subsystem_check_init(void);
 extern int transport_subsystem_register(struct se_subsystem_api *);
 extern void transport_subsystem_release(struct se_subsystem_api *);
 extern void transport_load_plugins(void);

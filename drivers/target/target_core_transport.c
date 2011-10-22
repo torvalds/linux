@@ -234,9 +234,12 @@ void transport_init_queue_obj(struct se_queue_obj *qobj)
 }
 EXPORT_SYMBOL(transport_init_queue_obj);
 
-static int transport_subsystem_reqmods(void)
+void transport_subsystem_check_init(void)
 {
 	int ret;
+
+	if (sub_api_initialized)
+		return;
 
 	ret = request_module("target_core_iblock");
 	if (ret != 0)
@@ -254,24 +257,8 @@ static int transport_subsystem_reqmods(void)
 	if (ret != 0)
 		pr_err("Unable to load target_core_stgt\n");
 
-	return 0;
-}
-
-int transport_subsystem_check_init(void)
-{
-	int ret;
-
-	if (sub_api_initialized)
-		return 0;
-	/*
-	 * Request the loading of known TCM subsystem plugins..
-	 */
-	ret = transport_subsystem_reqmods();
-	if (ret < 0)
-		return ret;
-
 	sub_api_initialized = 1;
-	return 0;
+	return;
 }
 
 struct se_session *transport_init_session(void)

@@ -132,14 +132,6 @@ static struct config_group *target_core_register_fabric(
 	pr_debug("Target_Core_ConfigFS: REGISTER -> group: %p name:"
 			" %s\n", group, name);
 	/*
-	 * Ensure that TCM subsystem plugins are loaded at this point for
-	 * using the RAMDISK_DR virtual LUN 0 and all other struct se_port
-	 * LUN symlinks.
-	 */
-	if (transport_subsystem_check_init() < 0)
-		return ERR_PTR(-EINVAL);
-
-	/*
 	 * Below are some hardcoded request_module() calls to automatically
 	 * local fabric modules when the following is called:
 	 *
@@ -3079,8 +3071,7 @@ static struct config_group *target_core_call_addhbatotarget(
 	/*
 	 * Load up TCM subsystem plugins if they have not already been loaded.
 	 */
-	if (transport_subsystem_check_init() < 0)
-		return ERR_PTR(-EINVAL);
+	transport_subsystem_check_init();
 
 	hba = core_alloc_hba(se_plugin_str, plugin_dep_id, 0);
 	if (IS_ERR(hba))
