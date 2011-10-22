@@ -3131,6 +3131,9 @@ jme_suspend(struct device *dev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct jme_adapter *jme = netdev_priv(netdev);
 
+	if (!netif_running(netdev))
+		return 0;
+
 	atomic_dec(&jme->link_changing);
 
 	netif_device_detach(netdev);
@@ -3170,6 +3173,9 @@ jme_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct jme_adapter *jme = netdev_priv(netdev);
+
+	if (!netif_running(netdev))
+		return 0;
 
 	jme_clear_pm(jme);
 	jme_phy_on(jme);
