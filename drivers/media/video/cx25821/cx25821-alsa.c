@@ -317,8 +317,9 @@ static irqreturn_t cx25821_irq(int irq, void *dev_id)
 				cx25821_aud_irq(chip, audint_status,
 						audint_mask);
 				break;
-			} else
+			} else {
 				goto out;
+			}
 		}
 
 		handled = 1;
