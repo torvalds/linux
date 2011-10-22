@@ -32,33 +32,34 @@ static int au_wbr_fd(struct path *path)
 	struct file *h_file;
 	struct super_block *sb;
 	struct dentry *root;
-	struct au_branch *wbr;
+	struct au_branch *br;
 
-	err = get_unused_fd();
-	if (unlikely(err < 0))
+	fd = get_unused_fd();
+	err = fd;
+	if (unlikely(fd < 0))
 		goto out;
-	fd = err;
 
 	wbi = 0;
 	sb = path->dentry->d_sb;
 	root = sb->s_root;
 	aufs_read_lock(root, AuLock_IR);
-	wbr = au_sbr(sb, wbi);
-	if (!(path->mnt->mnt_flags & MNT_READONLY)
-	    && !au_br_writable(wbr->br_perm)) {
+	br = au_sbr(sb, wbi);
+	if (!au_br_writable(br->br_perm)) {
 		bend = au_sbend(sb);
-		for (bindex = 1; bindex <= bend; bindex++) {
-			wbr = au_sbr(sb, bindex);
-			if (au_br_writable(wbr->br_perm)) {
+		bindex = wbi + 1;
+		wbi = -1;
+		for (; bindex <= bend; bindex++) {
+			br = au_sbr(sb, bindex);
+			if (au_br_writable(br->br_perm)) {
 				wbi = bindex;
 				break;
 			}
 		}
-		wbr = au_sbr(sb, wbi);
 	}
 	AuDbg("wbi %d\n", wbi);
-	h_file = au_h_open(root, wbi, O_RDONLY | O_DIRECTORY | O_LARGEFILE,
-			   NULL);
+	h_file = ERR_PTR(-ENOENT);
+	if (wbi >= 0)
+		h_file = au_h_open(root, wbi, au_dir_roflags, NULL);
 	aufs_read_unlock(root, AuLock_IR);
 	err = PTR_ERR(h_file);
 	if (IS_ERR(h_file))
