@@ -654,8 +654,8 @@ int medusa_set_brightness(struct cx25821_dev *dev, int brightness, int decoder)
 	u32 val = 0, tmp = 0;
 
 	mutex_lock(&dev->lock);
-	if ((brightness > VIDEO_PROCAMP_MAX)
-	    || (brightness < VIDEO_PROCAMP_MIN)) {
+	if ((brightness > VIDEO_PROCAMP_MAX) ||
+	    (brightness < VIDEO_PROCAMP_MIN)) {
 		mutex_unlock(&dev->lock);
 		return -1;
 	}
@@ -743,8 +743,8 @@ int medusa_set_saturation(struct cx25821_dev *dev, int saturation, int decoder)
 
 	mutex_lock(&dev->lock);
 
-	if ((saturation > VIDEO_PROCAMP_MAX)
-	    || (saturation < VIDEO_PROCAMP_MIN)) {
+	if ((saturation > VIDEO_PROCAMP_MAX) ||
+	    (saturation < VIDEO_PROCAMP_MIN)) {
 		mutex_unlock(&dev->lock);
 		return -1;
 	}
