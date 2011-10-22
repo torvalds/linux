@@ -326,16 +326,12 @@ int cx25821_get_frame(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 	if (dev->_file_status == END_OF_FILE)
 		return 0;
 
-	if (dev->_isNTSC) {
-		frame_size =
-		    (line_size ==
-		     Y411_LINE_SZ) ? FRAME_SIZE_NTSC_Y411 :
-		    FRAME_SIZE_NTSC_Y422;
-	} else {
-		frame_size =
-		    (line_size ==
-		     Y411_LINE_SZ) ? FRAME_SIZE_PAL_Y411 : FRAME_SIZE_PAL_Y422;
-	}
+	if (dev->_isNTSC)
+		frame_size = (line_size == Y411_LINE_SZ) ?
+			FRAME_SIZE_NTSC_Y411 : FRAME_SIZE_NTSC_Y422;
+	else
+		frame_size = (line_size == Y411_LINE_SZ) ?
+			FRAME_SIZE_PAL_Y411 : FRAME_SIZE_PAL_Y422;
 
 	frame_offset = (frame_index_temp > 0) ? frame_size : 0;
 	file_offset = dev->_frame_count * frame_size;
@@ -507,10 +503,9 @@ int cx25821_upstream_buffer_prepare(struct cx25821_dev *dev,
 	dma_addr_t dma_addr;
 	dma_addr_t data_dma_addr;
 
-	if (dev->_dma_virt_addr != NULL) {
+	if (dev->_dma_virt_addr != NULL)
 		pci_free_consistent(dev->pci, dev->upstream_riscbuf_size,
-				    dev->_dma_virt_addr, dev->_dma_phys_addr);
-	}
+				dev->_dma_virt_addr, dev->_dma_phys_addr);
 
 	dev->_dma_virt_addr =
 	    pci_alloc_consistent(dev->pci, dev->upstream_riscbuf_size,
@@ -528,11 +523,10 @@ int cx25821_upstream_buffer_prepare(struct cx25821_dev *dev,
 	/* Clear memory at address */
 	memset(dev->_dma_virt_addr, 0, dev->_risc_size);
 
-	if (dev->_data_buf_virt_addr != NULL) {
+	if (dev->_data_buf_virt_addr != NULL)
 		pci_free_consistent(dev->pci, dev->upstream_databuf_size,
-				    dev->_data_buf_virt_addr,
-				    dev->_data_buf_phys_addr);
-	}
+				dev->_data_buf_virt_addr,
+				dev->_data_buf_phys_addr);
 	/* For Video Data buffer allocation */
 	dev->_data_buf_virt_addr =
 	    pci_alloc_consistent(dev->pci, dev->upstream_databuf_size,
@@ -672,10 +666,9 @@ static irqreturn_t cx25821_upstream_irq(int irq, void *dev_id)
 	vid_status = cx_read(sram_ch->int_stat);
 
 	/* Only deal with our interrupt */
-	if (vid_status) {
-		handled =
-		    cx25821_video_upstream_irq(dev, channel_num, vid_status);
-	}
+	if (vid_status)
+		handled = cx25821_video_upstream_irq(dev, channel_num,
+				vid_status);
 
 	if (handled < 0)
 		cx25821_stop_upstream_video_ch1(dev);
