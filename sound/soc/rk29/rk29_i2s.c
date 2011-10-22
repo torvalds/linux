@@ -31,6 +31,7 @@
 #include <mach/rk29_iomap.h>
 #include <mach/rk29-dma-pl330.h>
 #include <mach/iomux.h>
+#include <mach/cru.h>
 
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
@@ -117,8 +118,31 @@ static struct rockchip_pcm_dma_params rockchip_i2s_pcm_stereo_in[MAX_I2S] = {
 };
 */
 
+#if 1
+static u32 i2s0_clk_enter()
+{
+  u32 clk = cru_readl(CRU_CLKSEL3_CON);
+  cru_writel(0x1ffff, CRU_CLKSEL3_CON);
+  mdelay(1);
+  return clk;
+}
 
+static void i2s0_clk_exit(u32 clk)
+{
+  mdelay(1);	
+  cru_writel(clk, CRU_CLKSEL3_CON);
+  mdelay(1);
+}
+#else
+static u32 i2s0_clk_enter()
+{
+  return 0;
+}
 
+static void i2s0_clk_exit(u32 clk)
+{
+}
+#endif
 
 /* 
  *Turn on or off the transmission path. 
@@ -126,9 +150,10 @@ static struct rockchip_pcm_dma_params rockchip_i2s_pcm_stereo_in[MAX_I2S] = {
  
 static int flag_i2s_tx = 0;
 static int flag_i2s_rx = 0;
-static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
+static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on, bool stopI2S)
 {
 	u32 opr,xfer;
+	u32 clk;
 
 	opr  = readl(&(pheadi2s->I2S_DMACR));
 	xfer = readl(&(pheadi2s->I2S_XFER));
@@ -138,12 +163,17 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 		I2S_DBG("rockchip_snd_txctrl: on\n");
 
 		//start tx
-		if ((flag_i2s_tx == 0) && (flag_i2s_rx == 0))
+		//if ((flag_i2s_tx == 0) && (flag_i2s_rx == 0))
+		if ((xfer&I2S_TX_TRAN_START)==0 || (xfer&I2S_RX_TRAN_START)==0)
 		{
+			clk = i2s0_clk_enter();
+			
 			//if start tx & rx clk, need reset i2s
 			xfer |= I2S_TX_TRAN_START;
 			xfer |= I2S_RX_TRAN_START;
 			writel(xfer, &(pheadi2s->I2S_XFER));
+			
+			i2s0_clk_exit(clk);
 		}
 
 		if ((opr & I2S_TRAN_DMA_ENABLE) == 0)
@@ -163,23 +193,30 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 		{
 			opr  &= ~I2S_TRAN_DMA_ENABLE;        
 			writel(opr, &(pheadi2s->I2S_DMACR));  
-
-			xfer &= ~I2S_RX_TRAN_START;
-			xfer &= ~I2S_TX_TRAN_START;
-			writel(xfer, &(pheadi2s->I2S_XFER));
+			if(stopI2S)	
+			{
+				clk = i2s0_clk_enter();
+	
+				xfer &= ~I2S_RX_TRAN_START;
+				xfer &= ~I2S_TX_TRAN_START;
+				writel(xfer, &(pheadi2s->I2S_XFER));
+				
+				i2s0_clk_exit(clk);
+			}
 
 			//after stop rx & tx clk, reset i2s
-			writel(0x001,&(pheadi2s->I2S_TXRST));
-			writel(0x001,&(pheadi2s->I2S_RXRST));
+			//writel(0x001,&(pheadi2s->I2S_TXRST));
+			//writel(0x001,&(pheadi2s->I2S_RXRST));
 		}
 
 		I2S_DBG("rockchip_snd_txctrl: off\n");
 	} 
 }
 
-static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
+static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on, bool stopI2S)
 {
 	u32 opr,xfer;
+	u32 clk;
 
 	opr  = readl(&(pheadi2s->I2S_DMACR));
 	xfer = readl(&(pheadi2s->I2S_XFER));
@@ -189,40 +226,52 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 	    I2S_DBG("rockchip_snd_rxctrl: on\n");
 	    
 		//start rx
-		if ((flag_i2s_tx == 0) && (flag_i2s_rx == 0))
+		//if ((flag_i2s_tx == 0) && (flag_i2s_rx == 0))
+		if ((xfer&I2S_TX_TRAN_START)==0 || (xfer&I2S_RX_TRAN_START)==0)
 		{
-		        xfer |= I2S_TX_TRAN_START;
-		        xfer |= I2S_RX_TRAN_START;
-		        writel(xfer, &(pheadi2s->I2S_XFER));
-	        }
+			clk = i2s0_clk_enter();
+			
+			xfer |= I2S_TX_TRAN_START;
+			xfer |= I2S_RX_TRAN_START;
+			writel(xfer, &(pheadi2s->I2S_XFER));
+			
+			i2s0_clk_exit(clk);
+		}
 
-	        if ((opr & I2S_RECE_DMA_ENABLE) == 0)
-	        {
+		if ((opr & I2S_RECE_DMA_ENABLE) == 0)
+		{
 			opr  |= I2S_RECE_DMA_ENABLE;
 			writel(opr, &(pheadi2s->I2S_DMACR));
 		}
 
-	        flag_i2s_rx = 1;
+	  flag_i2s_rx = 1;
 	}
 	else
 	{
 		//stop rx
-	        flag_i2s_rx = 0;
-	        if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
-	        {
+		flag_i2s_rx = 0;
+		if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
+		{
 			opr  &= ~I2S_RECE_DMA_ENABLE;
 			writel(opr, &(pheadi2s->I2S_DMACR));
-
-			xfer &= ~I2S_RX_TRAN_START;
-			xfer &= ~I2S_TX_TRAN_START;
-			writel(xfer, &(pheadi2s->I2S_XFER));
+		
+			if(stopI2S)	
+			{
+				clk = i2s0_clk_enter();
+			
+				xfer &= ~I2S_RX_TRAN_START;
+				xfer &= ~I2S_TX_TRAN_START;
+				writel(xfer, &(pheadi2s->I2S_XFER));
+				
+				i2s0_clk_exit(clk);
+			} 
 
 			//after stop rx & tx clk, reset i2s
-			writel(0x001,&(pheadi2s->I2S_TXRST));
-			writel(0x001,&(pheadi2s->I2S_RXRST));
-		    }               
+			//writel(0x001,&(pheadi2s->I2S_TXRST));
+			//writel(0x001,&(pheadi2s->I2S_RXRST));
+		}               
 		    
-		    I2S_DBG("rockchip_snd_rxctrl: off\n");
+		I2S_DBG("rockchip_snd_rxctrl: off\n");
 	}
 }
 
@@ -364,25 +413,27 @@ static int rockchip_i2s_trigger(struct snd_pcm_substream *substream, int cmd, st
         int ret = 0;
         struct snd_soc_pcm_runtime *rtd = substream->private_data;
         struct rk29_i2s_info *i2s = to_info(rtd->dai->cpu_dai);
+        bool stopI2S = false;
 
         I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
         switch (cmd) {
         case SNDRV_PCM_TRIGGER_START:
         case SNDRV_PCM_TRIGGER_RESUME:
         case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:   
                 if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-	                rockchip_snd_rxctrl(i2s, 1);
+	                rockchip_snd_rxctrl(i2s, 1, stopI2S);
                 else
-	                rockchip_snd_txctrl(i2s, 1);
+	                rockchip_snd_txctrl(i2s, 1, stopI2S);
                 break;
-        case SNDRV_PCM_TRIGGER_STOP:
+        
         case SNDRV_PCM_TRIGGER_SUSPEND:
+                stopI2S = true;
+        case SNDRV_PCM_TRIGGER_STOP:
         case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
                 if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-	                rockchip_snd_rxctrl(i2s, 0);
+	                rockchip_snd_rxctrl(i2s, 0, stopI2S);
                 else
-	                rockchip_snd_txctrl(i2s, 0);
+	                rockchip_snd_txctrl(i2s, 0, stopI2S);
                 break;
         default:
                 ret = -EINVAL;
@@ -581,8 +632,8 @@ static int rk29_i2s_probe(struct platform_device *pdev,
 
 	/* Mark ourselves as in TXRX mode so we can run through our cleanup
 	 * process without warnings. */
-	rockchip_snd_txctrl(i2s, 0);
-	rockchip_snd_rxctrl(i2s, 0);
+	rockchip_snd_txctrl(i2s, 0, true);
+	rockchip_snd_rxctrl(i2s, 0, true);
 
 	return 0;
 }
