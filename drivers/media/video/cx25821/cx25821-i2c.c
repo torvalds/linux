@@ -252,8 +252,8 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 		} else if (i + 1 < num && (msgs[i + 1].flags & I2C_M_RD) &&
 			   msgs[i].addr == msgs[i + 1].addr) {
 			/* write then read from same address */
-			retval =
-			    i2c_sendbytes(i2c_adap, &msgs[i], msgs[i + 1].len);
+			retval = i2c_sendbytes(i2c_adap, &msgs[i],
+					msgs[i + 1].len);
 
 			if (retval < 0)
 				goto err;
@@ -276,10 +276,8 @@ err:
 
 static u32 cx25821_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_SMBUS_EMUL |
-	    I2C_FUNC_I2C |
-	    I2C_FUNC_SMBUS_WORD_DATA |
-	    I2C_FUNC_SMBUS_READ_WORD_DATA | I2C_FUNC_SMBUS_WRITE_WORD_DATA;
+	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C | I2C_FUNC_SMBUS_WORD_DATA |
+		I2C_FUNC_SMBUS_READ_WORD_DATA | I2C_FUNC_SMBUS_WRITE_WORD_DATA;
 }
 
 static struct i2c_algorithm cx25821_i2c_algo_template = {
