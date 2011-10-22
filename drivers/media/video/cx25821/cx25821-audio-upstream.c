@@ -398,9 +398,9 @@ int cx25821_openfile_audio(struct cx25821_dev *dev,
 				vfs_read_retval =
 				    vfs_read(myfile, mybuf, line_size, &pos);
 
-				if (vfs_read_retval > 0
-				    && vfs_read_retval == line_size
-				    && dev->_audiodata_buf_virt_addr != NULL) {
+				if (vfs_read_retval > 0 &&
+				    vfs_read_retval == line_size &&
+				    dev->_audiodata_buf_virt_addr != NULL) {
 					memcpy((void *)(dev->
 							_audiodata_buf_virt_addr
 							+ offset / 4), mybuf,
