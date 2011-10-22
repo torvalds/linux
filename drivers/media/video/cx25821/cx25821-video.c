@@ -616,8 +616,8 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 			if (channel_opened >= 0 && channel_opened <= 7) {
 				if (dev->channels[channel_opened]
 						.use_cif_resolution) {
-					if (dev->tvnorm & V4L2_STD_PAL_BG
-					    || dev->tvnorm & V4L2_STD_PAL_DK)
+					if (dev->tvnorm & V4L2_STD_PAL_BG ||
+					    dev->tvnorm & V4L2_STD_PAL_DK)
 						bpl_local = 352 << 1;
 					else
 						bpl_local =
