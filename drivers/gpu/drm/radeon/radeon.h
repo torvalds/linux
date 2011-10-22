@@ -533,7 +533,7 @@ struct r600_blit_cp_primitives {
 	void (*set_vtx_resource)(struct radeon_device *rdev, u64 gpu_addr);
 	void (*set_tex_resource)(struct radeon_device *rdev,
 				 int format, int w, int h, int pitch,
-				 u64 gpu_addr);
+				 u64 gpu_addr, u32 size);
 	void (*set_scissors)(struct radeon_device *rdev, int x1, int y1,
 			     int x2, int y2);
 	void (*draw_auto)(struct radeon_device *rdev);

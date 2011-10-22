@@ -174,7 +174,7 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 static void
 set_tex_resource(struct radeon_device *rdev,
 		 int format, int w, int h, int pitch,
-		 u64 gpu_addr)
+		 u64 gpu_addr, u32 size)
 {
 	u32 sq_tex_resource_word0, sq_tex_resource_word1;
 	u32 sq_tex_resource_word4, sq_tex_resource_word7;
@@ -195,6 +195,9 @@ set_tex_resource(struct radeon_device *rdev,
 
 	sq_tex_resource_word7 = format |
 		S__SQ_CONSTANT_TYPE(SQ_TEX_VTX_VALID_TEXTURE);
+
+	cp_set_surface_sync(rdev,
+			    PACKET3_TC_ACTION_ENA, size, gpu_addr);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_RESOURCE, 8));
 	radeon_ring_write(rdev, 0);
