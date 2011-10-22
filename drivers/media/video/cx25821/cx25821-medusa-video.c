@@ -499,7 +499,7 @@ void medusa_set_resolution(struct cx25821_dev *dev, int width,
 
 	mutex_lock(&dev->lock);
 
-	/* validate the width - cannot be negative */
+	/* validate the width */
 	if (width > MAX_WIDTH) {
 		pr_info("%s(): width %d > MAX_WIDTH %d ! resetting to MAX_WIDTH\n",
 			__func__, width, MAX_WIDTH);
