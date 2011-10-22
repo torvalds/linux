@@ -22,6 +22,18 @@ config SND_RK29_SOC_I2S_8CH
 	depends on SND_RK29_SOC_I2S
 	help
                 This supports the use of the 8 Channel I2S interface on rk29 processors.
+				
+if 	SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH			
+choice
+  bool "Set i2s on DMA event mode"
+  default SND_I2S_DMA_EVENT_STATIC
+	config SND_I2S_DMA_EVENT_DYNAMIC
+		tristate  "dynamic mode"
+
+	config SND_I2S_DMA_EVENT_STATIC
+		tristate  "static mode"
+endchoice
+endif
 
 config SND_RK29_SOC_WM8988
 	tristate "SoC I2S Audio support for rockchip - WM8988"

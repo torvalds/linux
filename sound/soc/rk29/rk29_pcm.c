@@ -292,6 +292,11 @@ void rk29_audio_buffdone(void *dev_id, int size,
 	unsigned long flags;
 	
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	
+	if (!substream)
+		return;
+	if (!substream->runtime)
+		return;
 
 	prtd = substream->runtime->private_data;
 	DBG("Enter::%s----%d, substream=0x%08X, prtd=0x%08X\n",__FUNCTION__,__LINE__, substream, prtd);
@@ -337,7 +342,7 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (prtd->params == NULL) {
 		/* prepare DMA */
 		prtd->params = dma;
-
+#ifdef CONFIG_SND_I2S_DMA_EVENT_DYNAMIC
 		DBG("params %p, client %p, channel %d\n", prtd->params,
 			prtd->params->client, prtd->params->channel);
 
@@ -356,7 +361,7 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 			DBG(KERN_ERR "failed to get dma channel\n");
 			return ret;
 		}
-                
+#endif
 	}
 
         rk29_dma_set_buffdone_fn(prtd->params->channel, rk29_audio_buffdone);
@@ -389,9 +394,11 @@ static int rockchip_pcm_hw_free(struct snd_pcm_substream *substream)
 	snd_pcm_set_runtime_buffer(substream, NULL);
 
 	if (prtd->params) {
+#ifdef CONFIG_SND_I2S_DMA_EVENT_DYNAMIC		
 		//free_dma(prtd->params->channel);
 		rk29_dma_free(prtd->params->channel, prtd->params->client);
 		prtd->params = NULL;
+#endif		
 	}
 
 	return 0;
