@@ -1059,7 +1059,7 @@ static int wm8400_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	wm8400_write(codec, WM8400_FLL_CONTROL_3, factors.n);
 
 	reg = wm8400_read(codec, WM8400_FLL_CONTROL_4);
-	reg &= WM8400_FLL_OUTDIV_MASK;
+	reg &= ~WM8400_FLL_OUTDIV_MASK;
 	reg |= factors.outdiv;
 	wm8400_write(codec, WM8400_FLL_CONTROL_4, reg);
 
