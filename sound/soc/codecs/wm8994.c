@@ -1104,6 +1104,9 @@ void mainMIC_to_BB_to_headset(void)
 
 void mainMIC_to_BB_to_earpiece(void)
 {//
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
+
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
 	if(wm8994_current_mode == wm8994_mainMIC_to_baseband_to_earpiece)return;
@@ -1120,8 +1123,18 @@ void mainMIC_to_BB_to_earpiece(void)
 //path
 	wm8994_write(0x28,  0x0003); //IN1RP_TO_IN1R IN1RN_TO_IN1R
 	wm8994_write(0x34,  0x0004); //IN1R_TO_LINEOUT1P
-	wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL bit 0 DAC1L_TO_MIXOUTL   
-	wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR bit 0 DAC1R_TO_MIXOUTL
+	if(pdata->BB_input_diff == 1)
+	{
+		wm8994_write(0x2B,  0x0005);
+		wm8994_write(0x2D,  0x0041);    
+		wm8994_write(0x2E,  0x0081);  		
+	}
+	else
+	{
+		wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL bit 0 DAC1L_TO_MIXOUTL   
+		wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR bit 0 DAC1R_TO_MIXOUTL
+	}
+
 	wm8994_write(0x601, 0x0001); //AIF1DAC1L_TO_DAC1L=1
 	wm8994_write(0x602, 0x0001); //AIF1DAC1R_TO_DAC1R=1
 	wm8994_write(0x420, 0x0000);
@@ -1143,6 +1156,9 @@ void mainMIC_to_BB_to_earpiece(void)
 
 void mainMIC_to_BB_to_speakers(void)
 {//
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
+
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
 	if(wm8994_current_mode==wm8994_mainMIC_to_baseband_to_speakers)return;
@@ -1166,8 +1182,17 @@ void mainMIC_to_BB_to_speakers(void)
 	wm8994_write(0x28,  0x0003);  //IN1RP_TO_IN1R IN1RN_TO_IN1R
 	wm8994_write(0x34,  0x0004);  //IN1R_TO_LINEOUT1P
 	//Listen
-	wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL bit 0 DAC1L_TO_MIXOUTL   
-	wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR bit 0 DAC1R_TO_MIXOUTL
+	if(pdata->BB_input_diff == 1)
+	{
+		wm8994_write(0x2B,  0x0005);
+		wm8994_write(0x2D,  0x0041);    
+		wm8994_write(0x2E,  0x0081);  		
+	}
+	else
+	{
+		wm8994_write(0x2D,  0x0003);  //bit 1 IN2LP_TO_MIXOUTL bit 0 DAC1L_TO_MIXOUTL   
+		wm8994_write(0x2E,  0x0003);  //bit 1 IN2RP_TO_MIXOUTR bit 0 DAC1R_TO_MIXOUTL
+	}
 	wm8994_write(0x36,  0x000C);  //MIXOUTL_TO_SPKMIXL	 MIXOUTR_TO_SPKMIXR
 	wm8994_write(0x420, 0x0000);  //AIF1DAC1_MUTE = unMUTE
 	wm8994_write(0x601, 0x0001);  //AIF1DAC1L_TO_DAC1L=1
@@ -1284,10 +1309,10 @@ void BT_BB(void)
 	wm8994_write(0x2E,   0x0001);
 	wm8994_write(0x34,   0x0001);
 	wm8994_write(0x36,   0x0004);
-	wm8994_write(0x601, 0x0004);
+	wm8994_write(0x601, 0x0004);//AIFDAC -- DAC
 	wm8994_write(0x602, 0x0001);
-	wm8994_write(0x603, 0x000C);
-	wm8994_write(0x604, 0x0010);
+	wm8994_write(0x603, 0x000C);//
+	wm8994_write(0x604, 0x0010);//ADC --AIFADC
 	wm8994_write(0x605, 0x0010);
 	wm8994_write(0x620, 0x0000);
 	wm8994_write(0x420, 0x0000);
