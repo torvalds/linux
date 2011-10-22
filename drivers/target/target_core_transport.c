@@ -3934,7 +3934,7 @@ transport_allocate_control_task(struct se_cmd *cmd)
 int transport_generic_new_cmd(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	int task_cdbs;
+	int task_cdbs, task_cdbs_bidi = 0;
 	int set_counts = 1;
 	int ret = 0;
 
@@ -3957,9 +3957,10 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	    dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
 		BUG_ON(!(cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB));
 
-		ret = transport_allocate_data_tasks(cmd, DMA_FROM_DEVICE,
-				cmd->t_bidi_data_sg, cmd->t_bidi_data_nents);
-		if (ret <= 0)
+		task_cdbs_bidi = transport_allocate_data_tasks(cmd,
+				DMA_FROM_DEVICE, cmd->t_bidi_data_sg,
+				cmd->t_bidi_data_nents);
+		if (task_cdbs_bidi <= 0)
 			goto out_fail;
 
 		atomic_inc(&cmd->t_fe_count);
@@ -3983,11 +3984,10 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		atomic_inc(&cmd->t_se_count);
 	}
 
-	cmd->t_task_list_num = task_cdbs;
-
-	atomic_set(&cmd->t_task_cdbs_left, task_cdbs);
-	atomic_set(&cmd->t_task_cdbs_ex_left, task_cdbs);
-	atomic_set(&cmd->t_task_cdbs_timeout_left, task_cdbs);
+	cmd->t_task_list_num = (task_cdbs + task_cdbs_bidi);
+	atomic_set(&cmd->t_task_cdbs_left, cmd->t_task_list_num);
+	atomic_set(&cmd->t_task_cdbs_ex_left, cmd->t_task_list_num);
+	atomic_set(&cmd->t_task_cdbs_timeout_left, cmd->t_task_list_num);
 
 	/*
 	 * For WRITEs, let the fabric know its buffer is ready..
