@@ -394,19 +394,6 @@ typedef struct	psc_spi {
 #define PSC_SPITXRX_LC		(1 << 29)
 #define PSC_SPITXRX_SR		(1 << 28)
 
-/* PSC in SMBus (I2C) Mode. */
-typedef struct	psc_smb {
-	u32	psc_sel;
-	u32	psc_ctrl;
-	u32	psc_smbcfg;
-	u32	psc_smbmsk;
-	u32	psc_smbpcr;
-	u32	psc_smbstat;
-	u32	psc_smbevnt;
-	u32	psc_smbtxrx;
-	u32	psc_smbtmr;
-} psc_smb_t;
-
 /* SMBus Config Register. */
 #define PSC_SMBCFG_RT_MASK	(3 << 30)
 #define PSC_SMBCFG_RT_FIFO1	(0 << 30)
