@@ -496,6 +496,8 @@ extern struct cifs_tcon *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
  */
 struct cifsLockInfo {
 	struct list_head llist;	/* pointer to next cifsLockInfo */
+	struct list_head blist; /* pointer to locks blocked on this */
+	wait_queue_head_t block_q;
 	__u64 offset;
 	__u64 length;
 	__u32 pid;
