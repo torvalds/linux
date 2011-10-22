@@ -118,12 +118,12 @@ void cx25821_dump_video_queue(struct cx25821_dev *dev,
 
 	if (!list_empty(&q->active)) {
 		list_for_each(item, &q->active)
-		    buf = list_entry(item, struct cx25821_buffer, vb.queue);
+			buf = list_entry(item, struct cx25821_buffer, vb.queue);
 	}
 
 	if (!list_empty(&q->queued)) {
 		list_for_each(item, &q->queued)
-		    buf = list_entry(item, struct cx25821_buffer, vb.queue);
+			buf = list_entry(item, struct cx25821_buffer, vb.queue);
 	}
 
 }
@@ -484,8 +484,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		cx25821_init_controls(dev, i);
 
 		cx25821_risc_stopper(dev->pci, &dev->channels[i].vidq.stopper,
-				dev->channels[i].sram_channels->dma_ctl,
-				0x11, 0);
+			dev->channels[i].sram_channels->dma_ctl, 0x11, 0);
 
 		dev->channels[i].sram_channels = &cx25821_sram_channels[i];
 		dev->channels[i].video_dev = NULL;
@@ -557,7 +556,7 @@ int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	struct cx25821_fh *fh = q->priv_data;
 	struct cx25821_dev *dev = fh->dev;
 	struct cx25821_buffer *buf =
-	    container_of(vb, struct cx25821_buffer, vb);
+		container_of(vb, struct cx25821_buffer, vb);
 	int rc, init_buffer = 0;
 	u32 line0_offset, line1_offset;
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
@@ -684,7 +683,7 @@ void cx25821_buffer_release(struct videobuf_queue *q,
 			    struct videobuf_buffer *vb)
 {
 	struct cx25821_buffer *buf =
-	    container_of(vb, struct cx25821_buffer, vb);
+		container_of(vb, struct cx25821_buffer, vb);
 
 	cx25821_free_buffer(q, buf);
 }
@@ -722,7 +721,7 @@ int cx25821_video_mmap(struct file *file, struct vm_area_struct *vma)
 static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
 	struct cx25821_buffer *buf =
-	   container_of(vb, struct cx25821_buffer, vb);
+		container_of(vb, struct cx25821_buffer, vb);
 	struct cx25821_buffer *prev;
 	struct cx25821_fh *fh = vq->priv_data;
 	struct cx25821_dev *dev = fh->dev;
@@ -813,7 +812,7 @@ static int video_open(struct file *file)
 
 		for (i = 0; i < MAX_VID_CHANNEL_NUM; i++) {
 			if (h->channels[i].video_dev &&
-			   h->channels[i].video_dev->minor == minor) {
+			    h->channels[i].video_dev->minor == minor) {
 				dev = h;
 				ch_id = i;
 				type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1453,38 +1452,38 @@ static const struct v4l2_queryctrl no_ctl = {
 static struct v4l2_queryctrl cx25821_ctls[] = {
 	/* --- video --- */
 	{
-	 .id = V4L2_CID_BRIGHTNESS,
-	 .name = "Brightness",
-	 .minimum = 0,
-	 .maximum = 10000,
-	 .step = 1,
-	 .default_value = 6200,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 }, {
-	     .id = V4L2_CID_CONTRAST,
-	     .name = "Contrast",
-	     .minimum = 0,
-	     .maximum = 10000,
-	     .step = 1,
-	     .default_value = 5000,
-	     .type = V4L2_CTRL_TYPE_INTEGER,
-	     }, {
-		 .id = V4L2_CID_SATURATION,
-		 .name = "Saturation",
-		 .minimum = 0,
-		 .maximum = 10000,
-		 .step = 1,
-		 .default_value = 5000,
-		 .type = V4L2_CTRL_TYPE_INTEGER,
-		 }, {
-		     .id = V4L2_CID_HUE,
-		     .name = "Hue",
-		     .minimum = 0,
-		     .maximum = 10000,
-		     .step = 1,
-		     .default_value = 5000,
-		     .type = V4L2_CTRL_TYPE_INTEGER,
-		     }
+		.id = V4L2_CID_BRIGHTNESS,
+		.name = "Brightness",
+		.minimum = 0,
+		.maximum = 10000,
+		.step = 1,
+		.default_value = 6200,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+	}, {
+		.id = V4L2_CID_CONTRAST,
+		.name = "Contrast",
+		.minimum = 0,
+		.maximum = 10000,
+		.step = 1,
+		.default_value = 5000,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+	}, {
+		.id = V4L2_CID_SATURATION,
+		.name = "Saturation",
+		.minimum = 0,
+		.maximum = 10000,
+		.step = 1,
+		.default_value = 5000,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+	}, {
+		.id = V4L2_CID_HUE,
+		.name = "Hue",
+		.minimum = 0,
+		.maximum = 10000,
+		.step = 1,
+		.default_value = 5000,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+	}
 };
 static const int CX25821_CTLS = ARRAY_SIZE(cx25821_ctls);
 
