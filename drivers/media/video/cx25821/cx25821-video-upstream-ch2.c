@@ -610,11 +610,9 @@ static irqreturn_t cx25821_upstream_irq_ch2(int irq, void *dev_id)
 	vid_status = cx_read(sram_ch->int_stat);
 
 	/* Only deal with our interrupt */
-	if (vid_status) {
-		handled =
-		    cx25821_video_upstream_irq_ch2(dev, channel_num,
-						   vid_status);
-	}
+	if (vid_status)
+		handled = cx25821_video_upstream_irq_ch2(dev, channel_num,
+				vid_status);
 
 	if (handled < 0)
 		cx25821_stop_upstream_video_ch2(dev);
