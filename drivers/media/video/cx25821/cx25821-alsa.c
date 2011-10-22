@@ -687,7 +687,7 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 	}
 
 	err = snd_card_create(index[devno], id[devno], THIS_MODULE,
-			 sizeof(struct cx25821_audio_dev), &card);
+			sizeof(struct cx25821_audio_dev), &card);
 	if (err < 0) {
 		pr_info("DEBUG ERROR: cannot create snd_card_new in %s\n",
 			__func__);
