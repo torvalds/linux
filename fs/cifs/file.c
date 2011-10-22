@@ -1057,6 +1057,128 @@ cifs_getlk(struct file *file, struct file_lock *flock, __u8 type,
 	return rc;
 }
 
+static void
+cifs_move_llist(struct list_head *source, struct list_head *dest)
+{
+	struct list_head *li, *tmp;
+	list_for_each_safe(li, tmp, source)
+		list_move(li, dest);
+}
+
+static void
+cifs_free_llist(struct list_head *llist)
+{
+	struct cifsLockInfo *li, *tmp;
+	list_for_each_entry_safe(li, tmp, llist, llist) {
+		cifs_del_lock_waiters(li);
+		list_del(&li->llist);
+		kfree(li);
+	}
+}
+
+static int
+cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock, int xid)
+{
+	int rc = 0, stored_rc;
+	int types[] = {LOCKING_ANDX_LARGE_FILES,
+		       LOCKING_ANDX_SHARED_LOCK | LOCKING_ANDX_LARGE_FILES};
+	unsigned int i;
+	unsigned int max_num, num;
+	LOCKING_ANDX_RANGE *buf, *cur;
+	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
+	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsLockInfo *li, *tmp;
+	__u64 length = 1 + flock->fl_end - flock->fl_start;
+	struct list_head tmp_llist;
+
+	INIT_LIST_HEAD(&tmp_llist);
+
+	max_num = (tcon->ses->server->maxBuf - sizeof(struct smb_hdr)) /
+		  sizeof(LOCKING_ANDX_RANGE);
+	buf = kzalloc(max_num * sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&cinode->lock_mutex);
+	for (i = 0; i < 2; i++) {
+		cur = buf;
+		num = 0;
+		list_for_each_entry_safe(li, tmp, &cinode->llist, llist) {
+			if (flock->fl_start > li->offset ||
+			    (flock->fl_start + length) <
+			    (li->offset + li->length))
+				continue;
+			if (current->tgid != li->pid)
+				continue;
+			if (cfile->netfid != li->netfid)
+				continue;
+			if (types[i] != li->type)
+				continue;
+			if (!cinode->can_cache_brlcks) {
+				cur->Pid = cpu_to_le16(li->pid);
+				cur->LengthLow = cpu_to_le32((u32)li->length);
+				cur->LengthHigh =
+					cpu_to_le32((u32)(li->length>>32));
+				cur->OffsetLow = cpu_to_le32((u32)li->offset);
+				cur->OffsetHigh =
+					cpu_to_le32((u32)(li->offset>>32));
+				/*
+				 * We need to save a lock here to let us add
+				 * it again to the inode list if the unlock
+				 * range request fails on the server.
+				 */
+				list_move(&li->llist, &tmp_llist);
+				if (++num == max_num) {
+					stored_rc = cifs_lockv(xid, tcon,
+							       cfile->netfid,
+							       li->type, num,
+							       0, buf);
+					if (stored_rc) {
+						/*
+						 * We failed on the unlock range
+						 * request - add all locks from
+						 * the tmp list to the head of
+						 * the inode list.
+						 */
+						cifs_move_llist(&tmp_llist,
+								&cinode->llist);
+						rc = stored_rc;
+					} else
+						/*
+						 * The unlock range request
+						 * succeed - free the tmp list.
+						 */
+						cifs_free_llist(&tmp_llist);
+					cur = buf;
+					num = 0;
+				} else
+					cur++;
+			} else {
+				/*
+				 * We can cache brlock requests - simply remove
+				 * a lock from the inode list.
+				 */
+				list_del(&li->llist);
+				cifs_del_lock_waiters(li);
+				kfree(li);
+			}
+		}
+		if (num) {
+			stored_rc = cifs_lockv(xid, tcon, cfile->netfid,
+					       types[i], num, 0, buf);
+			if (stored_rc) {
+				cifs_move_llist(&tmp_llist, &cinode->llist);
+				rc = stored_rc;
+			} else
+				cifs_free_llist(&tmp_llist);
+		}
+	}
+
+	mutex_unlock(&cinode->lock_mutex);
+	kfree(buf);
+	return rc;
+}
+
 static int
 cifs_setlk(struct file *file,  struct file_lock *flock, __u8 type,
 	   bool wait_flag, bool posix_lck, int lock, int unlock, int xid)
@@ -1104,43 +1226,9 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u8 type,
 			rc = cifs_lock_add(cinode, length, flock->fl_start,
 					   type, netfid);
 		}
-	} else if (unlock) {
-		/*
-		 * For each stored lock that this unlock overlaps completely,
-		 * unlock it.
-		 */
-		int stored_rc = 0;
-		struct cifsLockInfo *li, *tmp;
+	} else if (unlock)
+		rc = cifs_unlock_range(cfile, flock, xid);
 
-		mutex_lock(&cinode->lock_mutex);
-		list_for_each_entry_safe(li, tmp, &cinode->llist, llist) {
-			if (flock->fl_start > li->offset ||
-			    (flock->fl_start + length) <
-			    (li->offset + li->length))
-				continue;
-			if (current->tgid != li->pid)
-				continue;
-			if (cfile->netfid != li->netfid)
-				continue;
-
-			if (!cinode->can_cache_brlcks)
-				stored_rc = CIFSSMBLock(xid, tcon, netfid,
-							current->tgid,
-							li->length, li->offset,
-							1, 0, li->type, 0, 0);
-			else
-				stored_rc = 0;
-
-			if (stored_rc)
-				rc = stored_rc;
-			else {
-				list_del(&li->llist);
-				cifs_del_lock_waiters(li);
-				kfree(li);
-			}
-		}
-		mutex_unlock(&cinode->lock_mutex);
-	}
 out:
 	if (flock->fl_flags & FL_POSIX)
 		posix_lock_file_wait(file, flock);

@@ -368,6 +368,9 @@ extern int CIFSGetSrvInodeNumber(const int xid, struct cifs_tcon *tcon,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 
+extern int cifs_lockv(const int xid, struct cifs_tcon *tcon, const __u16 netfid,
+		      const __u8 lock_type, const __u32 num_unlock,
+		      const __u32 num_lock, LOCKING_ANDX_RANGE *buf);
 extern int CIFSSMBLock(const int xid, struct cifs_tcon *tcon,
 			const __u16 netfid, const __u32 netpid, const __u64 len,
 			const __u64 offset, const __u32 numUnlock,
