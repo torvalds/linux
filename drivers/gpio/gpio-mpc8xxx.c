@@ -310,6 +310,7 @@ static struct of_device_id mpc8xxx_gpio_ids[] __initdata = {
 	{ .compatible = "fsl,mpc8572-gpio", },
 	{ .compatible = "fsl,mpc8610-gpio", },
 	{ .compatible = "fsl,mpc5121-gpio", .data = mpc512x_irq_set_type, },
+	{ .compatible = "fsl,pq3-gpio",     },
 	{ .compatible = "fsl,qoriq-gpio",   },
 	{}
 };
