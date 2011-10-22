@@ -1622,7 +1622,8 @@ int cx25821_vidioc_cropcap(struct file *file, void *priv,
 
 	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	cropcap->bounds.top = cropcap->bounds.left = 0;
+	cropcap->bounds.top = 0;
+	cropcap->bounds.left = 0;
 	cropcap->bounds.width = 720;
 	cropcap->bounds.height = dev->tvnorm == V4L2_STD_PAL_BG ? 576 : 480;
 	cropcap->pixelaspect.numerator =
