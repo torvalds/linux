@@ -1931,9 +1931,9 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 static long cx25821_video_ioctl(struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
-	int  ret = 0;
+	int ret = 0;
 
-	struct cx25821_fh  *fh  = file->private_data;
+	struct cx25821_fh *fh = file->private_data;
 
 	/* check to see if it's the video upstream */
 	if (fh->channel_id == SRAM_CH09) {
