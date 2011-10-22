@@ -1829,8 +1829,11 @@ static long video_ioctl_set(struct file *file, unsigned int cmd,
 	struct downstream_user_struct *data_from_user;
 	int command;
 	int width = 720;
-	int selected_channel = 0, pix_format = 0, i = 0;
-	int cif_enable = 0, cif_width = 0;
+	int selected_channel = 0;
+	int pix_format = 0;
+	int i = 0;
+	int cif_enable = 0;
+	int cif_width = 0;
 	u32 value = 0;
 
 	data_from_user = (struct downstream_user_struct *)arg;
