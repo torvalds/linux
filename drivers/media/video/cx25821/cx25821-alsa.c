@@ -234,15 +234,15 @@ static int _cx25821_stop_audio_dma(struct cx25821_audio_dev *chip)
  */
 static char *cx25821_aud_irqs[32] = {
 	"dn_risci1", "up_risci1", "rds_dn_risc1",	/* 0-2 */
-	NULL,			/* reserved */
+	NULL,						/* reserved */
 	"dn_risci2", "up_risci2", "rds_dn_risc2",	/* 4-6 */
-	NULL,			/* reserved */
-	"dnf_of", "upf_uf", "rds_dnf_uf",	/* 8-10 */
-	NULL,			/* reserved */
-	"dn_sync", "up_sync", "rds_dn_sync",	/* 12-14 */
-	NULL,			/* reserved */
-	"opc_err", "par_err", "rip_err",	/* 16-18 */
-	"pci_abort", "ber_irq", "mchg_irq"	/* 19-21 */
+	NULL,						/* reserved */
+	"dnf_of", "upf_uf", "rds_dnf_uf",		/* 8-10 */
+	NULL,						/* reserved */
+	"dn_sync", "up_sync", "rds_dn_sync",		/* 12-14 */
+	NULL,						/* reserved */
+	"opc_err", "par_err", "rip_err",		/* 16-18 */
+	"pci_abort", "ber_irq", "mchg_irq"		/* 19-21 */
 };
 
 /*
