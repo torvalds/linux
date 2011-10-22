@@ -314,8 +314,6 @@ int tt_local_seq_print_text(struct seq_file *seq, void *offset)
 	struct hard_iface *primary_if;
 	struct hlist_node *node;
 	struct hlist_head *head;
-	size_t buf_size, pos;
-	char *buff;
 	uint32_t i;
 	int ret = 0;
 
@@ -338,34 +336,13 @@ int tt_local_seq_print_text(struct seq_file *seq, void *offset)
 		   "announced via TT (TTVN: %u):\n",
 		   net_dev->name, (uint8_t)atomic_read(&bat_priv->ttvn));
 
-	buf_size = 1;
-	/* Estimate length for: " * xx:xx:xx:xx:xx:xx\n" */
-	for (i = 0; i < hash->size; i++) {
-		head = &hash->table[i];
-
-		rcu_read_lock();
-		__hlist_for_each_rcu(node, head)
-			buf_size += 29;
-		rcu_read_unlock();
-	}
-
-	buff = kmalloc(buf_size, GFP_ATOMIC);
-	if (!buff) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	buff[0] = '\0';
-	pos = 0;
-
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(tt_local_entry, node,
 					 head, hash_entry) {
-			pos += snprintf(buff + pos, 30, " * %pM "
-					"[%c%c%c%c%c]\n",
+			seq_printf(seq, " * %pM [%c%c%c%c%c]\n",
 					tt_local_entry->addr,
 					(tt_local_entry->flags &
 					 TT_CLIENT_ROAM ? 'R' : '.'),
@@ -380,9 +357,6 @@ int tt_local_seq_print_text(struct seq_file *seq, void *offset)
 		}
 		rcu_read_unlock();
 	}
-
-	seq_printf(seq, "%s", buff);
-	kfree(buff);
 out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
@@ -591,8 +565,6 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 	struct hard_iface *primary_if;
 	struct hlist_node *node;
 	struct hlist_head *head;
-	size_t buf_size, pos;
-	char *buff;
 	uint32_t i;
 	int ret = 0;
 
@@ -617,35 +589,13 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq, "       %-13s %s       %-15s %s %s\n",
 		   "Client", "(TTVN)", "Originator", "(Curr TTVN)", "Flags");
 
-	buf_size = 1;
-	/* Estimate length for: " * xx:xx:xx:xx:xx:xx (ttvn) via
-	 * xx:xx:xx:xx:xx:xx (cur_ttvn)\n"*/
-	for (i = 0; i < hash->size; i++) {
-		head = &hash->table[i];
-
-		rcu_read_lock();
-		__hlist_for_each_rcu(node, head)
-			buf_size += 67;
-		rcu_read_unlock();
-	}
-
-	buff = kmalloc(buf_size, GFP_ATOMIC);
-	if (!buff) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	buff[0] = '\0';
-	pos = 0;
-
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(tt_global_entry, node,
 					 head, hash_entry) {
-			pos += snprintf(buff + pos, 69,
-					" * %pM  (%3u) via %pM     (%3u)   "
+			seq_printf(seq, " * %pM  (%3u) via %pM     (%3u)   "
 					"[%c%c%c]\n", tt_global_entry->addr,
 					tt_global_entry->ttvn,
 					tt_global_entry->orig_node->orig,
@@ -661,9 +611,6 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 		}
 		rcu_read_unlock();
 	}
-
-	seq_printf(seq, "%s", buff);
-	kfree(buff);
 out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
