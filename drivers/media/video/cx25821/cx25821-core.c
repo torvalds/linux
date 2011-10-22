@@ -1512,6 +1512,5 @@ static void __exit cx25821_fini(void)
 	pci_unregister_driver(&cx25821_pci_driver);
 }
 
-
 module_init(cx25821_init);
 module_exit(cx25821_fini);
