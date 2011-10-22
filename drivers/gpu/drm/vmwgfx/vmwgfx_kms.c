@@ -679,6 +679,7 @@ static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
 				  struct vmw_private *dev_priv,
 				  struct vmw_framebuffer *framebuffer)
 {
+	int depth = framebuffer->base.depth;
 	size_t fifo_size;
 	int ret;
 
@@ -686,6 +687,13 @@ static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
 		uint32_t header;
 		SVGAFifoCmdDefineGMRFB body;
 	} *cmd;
+
+	/* Emulate RGBA support, contrary to svga_reg.h this is not
+	 * supported by hosts. This is only a problem if we are reading
+	 * this value later and expecting what we uploaded back.
+	 */
+	if (depth == 32)
+		depth = 24;
 
 	fifo_size = sizeof(*cmd);
 	cmd = kmalloc(fifo_size, GFP_KERNEL);
@@ -697,7 +705,7 @@ static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
 	memset(cmd, 0, fifo_size);
 	cmd->header = SVGA_CMD_DEFINE_GMRFB;
 	cmd->body.format.bitsPerPixel = framebuffer->base.bits_per_pixel;
-	cmd->body.format.colorDepth = framebuffer->base.depth;
+	cmd->body.format.colorDepth = depth;
 	cmd->body.format.reserved = 0;
 	cmd->body.bytesPerLine = framebuffer->base.pitch;
 	cmd->body.ptr.gmrId = framebuffer->user_handle;
