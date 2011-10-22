@@ -136,7 +136,7 @@ static __le32 *cx25821_risc_field_upstream(struct cx25821_dev *dev, __le32 * rp,
 {
 	unsigned int line, i;
 	struct sram_channel *sram_ch =
-	   dev->channels[dev->_channel_upstream_select].sram_channels;
+		dev->channels[dev->_channel_upstream_select].sram_channels;
 	int dist_betwn_starts = bpl * 2;
 
 	/* sync instruction */
@@ -214,13 +214,9 @@ int cx25821_risc_buffer_upstream(struct cx25821_dev *dev,
 		if (UNSET != top_offset) {
 			fifo_enable = (frame == 0) ? FIFO_ENABLE : FIFO_DISABLE;
 			rp = cx25821_risc_field_upstream(dev, rp,
-							 dev->
-							 _data_buf_phys_addr +
-							 databuf_offset,
-							 top_offset, 0, bpl,
-							 odd_num_lines,
-							 fifo_enable,
-							 ODD_FIELD);
+					dev->_data_buf_phys_addr +
+					databuf_offset, top_offset, 0, bpl,
+					odd_num_lines, fifo_enable, ODD_FIELD);
 		}
 
 		fifo_enable = FIFO_DISABLE;
@@ -255,7 +251,7 @@ int cx25821_risc_buffer_upstream(struct cx25821_dev *dev,
 void cx25821_stop_upstream_video_ch1(struct cx25821_dev *dev)
 {
 	struct sram_channel *sram_ch =
-	   dev->channels[VID_UPSTREAM_SRAM_CHANNEL_I].sram_channels;
+		dev->channels[VID_UPSTREAM_SRAM_CHANNEL_I].sram_channels;
 	u32 tmp = 0;
 
 	if (!dev->_is_running) {
@@ -829,14 +825,12 @@ int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 	if (strcmp(dev->input_filename, "") == 0) {
 		if (dev->_isNTSC) {
 			dev->_filename =
-			    (dev->_pixel_format ==
-			     PIXEL_FRMT_411) ? "/root/vid411.yuv" :
-			    "/root/vidtest.yuv";
+				(dev->_pixel_format == PIXEL_FRMT_411) ?
+				"/root/vid411.yuv" : "/root/vidtest.yuv";
 		} else {
 			dev->_filename =
-			    (dev->_pixel_format ==
-			     PIXEL_FRMT_411) ? "/root/pal411.yuv" :
-			    "/root/pal422.yuv";
+				(dev->_pixel_format == PIXEL_FRMT_411) ?
+				"/root/pal411.yuv" : "/root/pal422.yuv";
 		}
 	}
 
