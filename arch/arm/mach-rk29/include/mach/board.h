@@ -139,6 +139,7 @@ struct rk29_sdmmc_platform_data {
 	char dma_name[8];
 	int (*io_init)(void);
 	int (*io_deinit)(void);
+	void (*set_iomux)(int device_id, unsigned int bus_width);//added by xbw at 2011-10-13
 	int (*status)(struct device *);
 	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
         int detect_irq;

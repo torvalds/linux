@@ -208,7 +208,8 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
     if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) ) 
     {
-        waittime = wait_for_completion_timeout(&complete,HZ*2); //sdio; for cmd dead. Modifyed by xbw at 2011-06-02
+        multi = (mrq->cmd->retries>0)?mrq->cmd->retries:1;
+        waittime = wait_for_completion_timeout(&complete,HZ*7*multi); //sdio; for cmd dead. Modifyed by xbw at 2011-06-02
     }
     else
     {   
@@ -221,7 +222,7 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
             multi += (datasize%unit)?1:0;
             multi = (multi>0) ? multi : 1;
             multi += (mrq->cmd->retries>0)?1:0;
-            waittime = wait_for_completion_timeout(&complete,HZ*5*multi); //It should be longer than bottom driver's time,due to the sum of two cmd time.
+            waittime = wait_for_completion_timeout(&complete,HZ*7*multi); //It should be longer than bottom driver's time,due to the sum of two cmd time.
                                                                           //modifyed by xbw at 2011-10-08
                                                                           //
                                                                           //example:
@@ -230,7 +231,8 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
         }
         else
         {
-            waittime = wait_for_completion_timeout(&complete,HZ*2);
+            multi = (mrq->cmd->retries>0)?mrq->cmd->retries:1;
+            waittime = wait_for_completion_timeout(&complete,HZ*7*multi);
         }
     }
     
@@ -1164,8 +1166,9 @@ void mmc_rescan(struct work_struct *work)
     */
 
     //mmc_send_if_cond(host, host->ocr_avail); //deleted by xbw@2011-04-09
-
+#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
      if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) ){
+#endif     
     	/*
     	 * First we search for SDIO...
     	 */
@@ -1187,8 +1190,9 @@ void mmc_rescan(struct work_struct *work)
     		extend_wakelock = 1;
     		goto out;
     	}
+#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	    	
     }
-
+#endif
 
     /*
      * ...then normal SD...

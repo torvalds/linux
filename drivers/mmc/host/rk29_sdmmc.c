@@ -52,7 +52,7 @@
 #define RK29_SDMMC_xbw_Debug 0
 
 #if RK29_SDMMC_xbw_Debug 
-int debug_level = 4;
+int debug_level = 5;
 #define xbwprintk(n, format, arg...) \
 	if (n <= debug_level) {	 \
 		printk(format,##arg); \
@@ -67,16 +67,22 @@ int debug_level = 4;
 #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD| SDMMC_INT_TXDR | SDMMC_INT_RXDR )
 
 
-#define RK29_SDMMC_SEND_START_TIMEOUT   1000  //The time interval from the time SEND_CMD to START_CMD_BIT cleared.
+#define RK29_SDMMC_SEND_START_TIMEOUT   3000  //The time interval from the time SEND_CMD to START_CMD_BIT cleared.
 #define RK29_ERROR_PRINTK_INTERVAL      200   //The time interval between the two printk for the same error. 
-#define RK29_SDMMC_WAIT_DTO_INTERNVAL   1000  //The time interval from the CMD_DONE_INT to DTO_INT
-#define RK29_SDMMC_REMOVAL_DELAY        1000  //The time interval from the CD_INT to detect_timer react.
+#define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
+#define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.2.11 The last modify date is 2011-10-08,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.2.13 The last modify date is 2011-10-19,modifyed by XBW." 
 
+#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
 #define RK29_CTRL_SDIO1_ID   1  //mainly used by sdio-wifi
 #define RK29_CTRL_SDIO2_ID   2  //mainly used by sdio-card
+#else
+#define RK29_CTRL_SDMMC_ID   5  
+#define RK29_CTRL_SDIO1_ID   1  
+#define RK29_CTRL_SDIO2_ID   2  
+#endif
 
 #define RK29_SDMMC_NOTIFY_REMOVE_INSERTION /* use sysfs to notify the removal or insertion of sd-card*/
 //#define RK29_SDMMC_LIST_QUEUE            /* use list-queue for multi-card*/
@@ -206,6 +212,8 @@ struct rk29_sdmmc {
     int write_protect;
 #endif
 
+    void (*set_iomux)(int device_id, unsigned int bus_width);
+
 };
 
 
@@ -225,6 +233,7 @@ static struct rk29_sdmmc    *globalSDhost[3];
 
 static void rk29_sdmmc_start_error(struct rk29_sdmmc *host);
 static int rk29_sdmmc_clear_fifo(struct rk29_sdmmc *host);
+int rk29_sdmmc_hw_init(void *data);
 
 static void rk29_sdmmc_write(unsigned char  __iomem	*regbase, unsigned int regOff,unsigned int val)
 {
@@ -287,7 +296,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     //envalue the address of host base on input-parameter.
     if( !strncmp(buf,"sd-" , strlen("sd-")) )
     {
-        host = (struct rk29_sdmmc	*)globalSDhost[RK29_CTRL_SDMMC_ID];
+        host = (struct rk29_sdmmc	*)globalSDhost[0];
         if(!host)
         {
             printk("%s..%d.. fail to call progress_store because the host is null. ==xbw==\n",__FUNCTION__,__LINE__);
@@ -329,6 +338,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
      *  insert card state-change:  No-Media ==> Pending ==> Idle-Unmounted ==> Checking ==>Mounted
      *  remove card state-change:  Unmounting ==> Idle-Unmounted ==> No-Media
     */
+    #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
     if(RK29_CTRL_SDMMC_ID == host->pdev->id)
     {
         if(!strncmp(buf, "sd-Unmounting", strlen("sd-Unmounting")))
@@ -366,6 +376,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         else if( !strncmp(buf,"sd-reset" , strlen("sd-reset")) ) 
         {
             printk(".%d.. Now manual reset for SDMMC0. ====xbw[%s]====\n",__LINE__, host->dma_name);
+            rk29_sdmmc_hw_init(host);
             mmc_detect_change(host->mmc, 0);           
         }
         else if( !strncmp(buf, "sd-regs", strlen("sd-regs")))
@@ -375,6 +386,22 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         }
 
     }
+    #else
+    if(0 == host->pdev->id)
+    {
+        if( !strncmp(buf,"sd-reset" , strlen("sd-reset")) ) 
+        {
+            printk(".%d.. Now manual reset for SDMMC0. ====xbw[%s]====\n",__LINE__, host->dma_name);
+            rk29_sdmmc_hw_init(host);
+            mmc_detect_change(host->mmc, 0);           
+        }
+        else if( !strncmp(buf, "sd-regs", strlen("sd-regs")))
+        {
+            printk(".%d.. Now printk the register of SDMMC0. ====xbw[%s]====\n",__LINE__, host->dma_name); 
+            rk29_sdmmc_regs_printk(host);
+        }
+    }
+    #endif
     else if(RK29_CTRL_SDIO1_ID == host->pdev->id)
     {
         if( !strncmp(buf, "sdio1-regs", strlen("sdio1-regs")))
@@ -385,6 +412,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         else if( !strncmp(buf,"sdio1-reset" , strlen("sdio1-reset")) ) 
         {
             printk(".%d.. Now manual reset for SDMMC1. ====xbw[%s]====\n",__LINE__, host->dma_name);
+            rk29_sdmmc_hw_init(host);
             mmc_detect_change(host->mmc, 0);           
         }
     }
@@ -398,6 +426,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         else if( !strncmp(buf,"sdio2-reset" , strlen("sdio2-reset")) ) 
         {
             printk(".%d.. Now manual reset for SDMMC2. ====xbw[%s]====\n",__LINE__, host->dma_name);
+            rk29_sdmmc_hw_init(host);
             mmc_detect_change(host->mmc, 0);           
         }
     }
@@ -414,7 +443,7 @@ struct kobj_attribute mmc_reset_attrs =
 {
         .attr = {
                 .name = "rescan",
-                .mode = 0777},
+                .mode = 0766},
         .show = NULL,
         .store = rk29_sdmmc_progress_store,
 };
@@ -702,7 +731,7 @@ void  rk29_sdmmc_set_frq(struct rk29_sdmmc *host)
 
 static int rk29_sdmmc_start_command(struct rk29_sdmmc *host, struct mmc_command *cmd, u32 cmd_flags)
 {
- 	int tmo = RK29_SDMMC_SEND_START_TIMEOUT*3;
+ 	int tmo = RK29_SDMMC_SEND_START_TIMEOUT*10;//wait 60ms cycle.
 	
  	host->cmd = cmd;
  	host->old_cmd = cmd->opcode;
@@ -1292,10 +1321,10 @@ static void rk29_sdmmc_submit_data(struct rk29_sdmmc *host, struct mmc_data *dat
 
 static int sdmmc_send_cmd_start(struct rk29_sdmmc *host, unsigned int cmd)
 {
-	int tmo = RK29_SDMMC_SEND_START_TIMEOUT*3;;
+	int tmo = RK29_SDMMC_SEND_START_TIMEOUT*10;//wait 60ms cycle.
 	
 	rk29_sdmmc_write(host->regs, SDMMC_CMD, SDMMC_CMD_START | cmd);		
-	while (--tmo && readl(host->regs + SDMMC_CMD) & SDMMC_CMD_START)
+	while (--tmo && (rk29_sdmmc_read(host->regs, SDMMC_CMD) & SDMMC_CMD_START))
 	{
 	    udelay(2);
 	}
@@ -1315,16 +1344,41 @@ static int sdmmc_send_cmd_start(struct rk29_sdmmc *host, unsigned int cmd)
 static int rk29_sdmmc_get_cd(struct mmc_host *mmc)
 {
 	struct rk29_sdmmc *host = mmc_priv(mmc);
-	u32 cdetect;
+	u32 cdetect=1;
 
-#ifdef CONFIG_PM
-	if(host->gpio_det == INVALID_GPIO)
-		return 1;
-#endif
+    switch(host->pdev->id)
+    {
+        case 0:
+        {
+            #ifdef CONFIG_PM
+            	if(host->gpio_det == INVALID_GPIO)
+            		return 1;
+            #endif
 
-	cdetect = rk29_sdmmc_read(host->regs, SDMMC_CDETECT);
+        	cdetect = rk29_sdmmc_read(host->regs, SDMMC_CDETECT);
 
-	return (cdetect & SDMMC_CARD_DETECT_N)?0:1;
+            cdetect = (cdetect & SDMMC_CARD_DETECT_N)?0:1;
+
+            break;
+        }        
+
+        case 1:
+        {
+            #if defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+            cdetect = 1;
+            #else
+            cdetect = test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags)?1:0;
+            #endif
+            break;
+        }
+        
+        default:
+            cdetect = 1;
+            break;
+    
+	}
+
+	 return cdetect;
 }
 
 
@@ -1400,7 +1454,26 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
 		}
 		else
 		{
-		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEDMA | SDMMC_INT_SDIO);
+		    if(0== host->pdev->id)
+		    {
+    		    #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+    		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEDMA | SDMMC_INT_SDIO);
+    		    #else
+    		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEDMA);
+    		    #endif
+		    }
+		    else if(1== host->pdev->id)
+		    {
+		       #if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+    		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEDMA | SDMMC_INT_SDIO);
+    		   #else
+    		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEDMA);
+    		   #endif 
+		    }
+		    else
+		    {
+		        rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEDMA | SDMMC_INT_SDIO);
+		    }
 		}
 	}
 	else
@@ -1411,7 +1484,26 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
 		}
 		else
 		{
-		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEIO | SDMMC_INT_SDIO);
+		    if(0== host->pdev->id)
+		    {
+    		    #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+    		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEIO | SDMMC_INT_SDIO);
+    		    #else
+    		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEIO);
+    		    #endif
+		    }
+		    else if(1== host->pdev->id)
+		    {
+		        #if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+    		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEIO | SDMMC_INT_SDIO);
+    		    #else
+    		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEIO);
+    		    #endif
+		    }
+		    else
+		    {
+		        rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEDMA | SDMMC_INT_SDIO);
+		    }
 		}		
     }
 
@@ -1436,7 +1528,7 @@ static int rk29_sdmmc_control_clock(struct rk29_sdmmc *host, bool enable)
     tmo = 1000;
 	while (--tmo && (rk29_sdmmc_read(host->regs, SDMMC_CMD) & SDMMC_CMD_START))
 	{
-		cpu_relax();
+		udelay(1);//cpu_relax();
 	}
 	if(!tmo)
 	{
@@ -1482,7 +1574,7 @@ static int rk29_sdmmc_control_clock(struct rk29_sdmmc *host, bool enable)
     return SDM_SUCCESS;
 
 Error_exit:
-    printk("\n%s....%d..  control clock fail!!! Enable=%d, ret=%d ===xbw[%s]====\n",\
+    printk("\n%s....%d..  control clock fail!!! Enable=%d, ret=0x%x ===xbw[%s]====\n",\
 			__FILE__,__LINE__,enable,ret, host->dma_name);
 
     return ret;
@@ -1543,7 +1635,7 @@ int rk29_sdmmc_change_clk_div(struct rk29_sdmmc *host, u32 freqHz)
     tmo = 1000;
 	while (--tmo && (rk29_sdmmc_read(host->regs, SDMMC_CMD) & SDMMC_CMD_START))
 	{
-		cpu_relax();
+		udelay(1);//cpu_relax();
 	}
 	if(!tmo)
 	{
@@ -1580,42 +1672,30 @@ int rk29_sdmmc_change_clk_div(struct rk29_sdmmc *host, u32 freqHz)
     
 SetFreq_error:
 
-    printk("%s..%s..%d..  change division fail, ret=%d  !!! ====xbw[%s]====\n",\
-        __FILE__, __FUNCTION__,__LINE__,ret, host->dma_name);
+    printk("%s..%d..  change division fail, errorStep=0x%x,ret=%d  !!! ====xbw[%s]====\n",\
+        __FILE__, __LINE__,host->errorstep,ret, host->dma_name);
         
     return ret;
     
 }
 
-
-
-static int rk29_sdmmc_hw_init(struct rk29_sdmmc *host)
+int rk29_sdmmc_hw_init(void *data)
 {
+    struct rk29_sdmmc *host = (struct rk29_sdmmc *)data;
+
+    //set the iomux
+    host->ctype = SDMMC_CTYPE_1BIT;
+    host->set_iomux(host->pdev->id, host->ctype);
+    
     /* reset controller */
     rk29_sdmmc_reset_controller(host);
+
     rk29_sdmmc_change_clk_div(host, FOD_FREQ);
     
     return SDM_SUCCESS;    
 }
 
 
-
-int rk29_sdmmc_set_iomux(struct rk29_sdmmc *host)
-{
-    #if 0
-    switch (host->busWidth)
-    {
-        case 
-    	rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_SDMMC0_CMD);
-    	rk29_mux_api_set(GPIO1D0_SDMMC0CLKOUT_NAME, GPIO1H_SDMMC0_CLKOUT);
-    	rk29_mux_api_set(GPIO1D2_SDMMC0DATA0_NAME, GPIO1H_SDMMC0_DATA0);
-    	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
-    	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
-	}
-    #endif
-    
-	return 0;
-}
 
 int rk29_sdmmc_set_buswidth(struct rk29_sdmmc *host)
 {
@@ -1630,7 +1710,8 @@ int rk29_sdmmc_set_buswidth(struct rk29_sdmmc *host)
         default:
             return SDM_PARAM_ERROR;
     }
-    rk29_sdmmc_set_iomux(host);
+
+    host->set_iomux(host->pdev->id, host->ctype);
 
     /* Set the current  bus width */
 	rk29_sdmmc_write(host->regs, SDMMC_CTYPE, host->ctype);
@@ -1891,6 +1972,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				__FUNCTION__, __LINE__, host->dma_name, host->dma_name);
 
         host->state = STATE_IDLE;
+        rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
         spin_unlock_irqrestore(&host->lock, iflags);
 	    mmc_request_done(mmc, mrq);
 		return;
@@ -1949,27 +2031,26 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
     		{	
     			host->old_cmd = mrq->cmd->opcode;
 				host->error_times = 0;
-			}
+			}			
     	}
 	}
 	else
 	{
         host->old_cmd = mrq->cmd->opcode;
         host->error_times = 0;
+
+        if(!test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags))
+		{
+		    host->state = STATE_IDLE;
+		    mrq->cmd->error = -ENOMEDIUM;
+            spin_unlock_irqrestore(&host->lock, iflags);
+    		mmc_request_done(mmc, mrq);
+    		return;
+		}
+
 	}
 	
-	#if 1
-    if(0 == host->mmc->doneflag)
-    {
-        host->state = STATE_IDLE;
-    }
-    
-	if(host->state != STATE_IDLE)
-	{
-	     printk("%s..%d..state Error! ,old_state=%d, OldCMD=%d ,NewCMD%2d,arg=0x%x ===xbw[%s]===\n", \
-				__FUNCTION__, __LINE__, host->state, host->cmd->opcode,mrq->cmd->opcode,mrq->cmd->arg, host->dma_name);
-	}
-	    
+	#if 1  
     host->new_mrq = mrq;        
 
 	spin_unlock_irqrestore(&host->lock, iflags);
@@ -2021,25 +2102,28 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
     spin_lock_irqsave(&host->lock, iflags);
 
-    /*
-     * Waiting SDIO controller to be IDLE.
-    */
-    while (timeout-- > 0)
-	{
-		value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
-		if ((value & SDMMC_STAUTS_DATA_BUSY) == 0 &&(value & SDMMC_CMD_FSM_MASK) == SDMMC_CMD_FSM_IDLE)
-		{
-			break;
-		}
-		
-		mdelay(1);
-	}
-	if (timeout <= 0)
-	{
-		printk("%s..%d...Waiting for SDMMC%d controller to be IDLE timeout.==xbw[%s]===\n", \
-				__FUNCTION__, __LINE__, host->pdev->id, host->dma_name);
+    if(test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags) || (RK29_CTRL_SDMMC_ID == host->pdev->id))
+    {
+        /*
+         * Waiting SDIO controller to be IDLE.
+        */
+        while (timeout-- > 0)
+    	{
+    		value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
+    		if ((value & SDMMC_STAUTS_DATA_BUSY) == 0 &&(value & SDMMC_CMD_FSM_MASK) == SDMMC_CMD_FSM_IDLE)
+    		{
+    			break;
+    		}
+    		
+    		mdelay(1);
+    	}
+    	if (timeout <= 0)
+    	{
+    		printk("%s..%d...Waiting for SDMMC%d controller to be IDLE timeout.==xbw[%s]===\n", \
+    				__FUNCTION__, __LINE__, host->pdev->id, host->dma_name);
 
-		goto out;
+    		goto out;
+    	}
 	}
 
     //if(host->bus_mode != ios->power_mode)
@@ -2088,7 +2172,9 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
     	
 	}
 
-    
+    if(!(test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags) || (RK29_CTRL_SDIO1_ID != host->pdev->id)))
+        goto out; //exit the set_ios directly if the SDIO is not present. 
+        
 	if(host->ctype != ios->bus_width)
 	{
     	switch (ios->bus_width) 
@@ -2128,25 +2214,41 @@ out:
 static int rk29_sdmmc_get_ro(struct mmc_host *mmc)
 {
     struct rk29_sdmmc *host = mmc_priv(mmc);
-    
-#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT) || defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
-    int ret;
-    
-	if(INVALID_GPIO == host->write_protect)
-	    ret = 0;//no write-protect
-	else
-        ret = gpio_get_value(host->write_protect)?1:0;
-   
-    xbwprintk(7,"%s..%d.. write_prt_pin=%d, get_ro=%d ===xbw[%s]===\n",\
-        __FUNCTION__, __LINE__,host->write_protect, ret, host->dma_name);
+    int ret=0;
+
+    switch(host->pdev->id)
+    {
+        case 0:
+        {
+            #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT) || defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)            
+        	if(INVALID_GPIO == host->write_protect)
+        	    ret = 0;//no write-protect
+        	else
+                ret = gpio_get_value(host->write_protect)?1:0;
+           
+            xbwprintk(7,"%s..%d.. write_prt_pin=%d, get_ro=%d ===xbw[%s]===\n",\
+                __FUNCTION__, __LINE__,host->write_protect, ret, host->dma_name);
+                            
+            #else
+        	u32 wrtprt = rk29_sdmmc_read(host->regs, SDMMC_WRTPRT);
+        	
+        	ret = (wrtprt & SDMMC_WRITE_PROTECT)?1:0;
+            #endif
+
+            break;
+        }
         
+        case 1:
+            ret = 0;//no write-protect
+            break;
+        
+        default:
+            ret = 0;
+        break;   
+    }
+
     return ret;
-    
-#else
-	u32 wrtprt = rk29_sdmmc_read(host->regs, SDMMC_WRTPRT);
-	
-	return (wrtprt & SDMMC_WRITE_PROTECT)?1:0;
-#endif	
+
 }
 
 
@@ -2231,6 +2333,8 @@ static const struct mmc_host_ops rk29_sdmmc_ops[] = {
 	{
 		.request	= rk29_sdmmc_request,
 		.set_ios	= rk29_sdmmc_set_ios,
+		.get_ro		= rk29_sdmmc_get_ro,
+		.get_cd		= rk29_sdmmc_get_cd,
 		.enable_sdio_irq = rk29_sdmmc_enable_sdio_irq,
 		.init_card       = rk29_sdmmc_init_card,
 	},
@@ -2719,7 +2823,7 @@ static inline void rk29_sdmmc_cmd_interrupt(struct rk29_sdmmc *host, u32 status)
         multi += ((rk29_sdmmc_read(host->regs, SDMMC_BYTCNT)%unit) ? 1 :0 );
         multi = (multi>0) ? multi : 1;
         multi += (host->cmd->retries>2)?2:host->cmd->retries;
-	    mod_timer(&host->DTO_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_WAIT_DTO_INTERNVAL*multi));
+	    mod_timer(&host->DTO_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_WAIT_DTO_INTERNVAL*multi));//max wait 8s larger  
 	}
 	
 	smp_wmb();
@@ -2927,12 +3031,14 @@ static void rk29_sdmmc1_check_status(unsigned long data)
         unsigned int status;
 
     status = pdata->status(mmc_dev(host->mmc));
-
+    
+    pr_info("%s: slot status change detected(%d-%d)\n",mmc_hostname(host->mmc), host->oldstatus, status);
+    
     if (status ^ host->oldstatus)
-    {
-        pr_info("%s: slot status change detected(%d-%d)\n",mmc_hostname(host->mmc), host->oldstatus, status);
+    {        
         if (status) 
         {
+            rk29_sdmmc_hw_init(host);
             set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
             mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(200));
         }
@@ -2949,7 +3055,7 @@ static void rk29_sdmmc1_check_status(unsigned long data)
 static void rk29_sdmmc1_status_notify_cb(int card_present, void *dev_id)
 {
         struct rk29_sdmmc *host = dev_id;
-        printk(KERN_INFO "%s, card_present %d\n", mmc_hostname(host->mmc), card_present);
+        //printk(KERN_INFO "%s, card_present %d\n", mmc_hostname(host->mmc), card_present);
         rk29_sdmmc1_check_status((unsigned long)host);
 }
 
@@ -3007,6 +3113,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM
     host->gpio_det = pdata->detect_irq;
 #endif
+    host->set_iomux = pdata->set_iomux;
 
 	if(pdata->io_init)
 		pdata->io_init();
@@ -3062,6 +3169,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	mmc->caps = pdata->host_caps;
 	mmc->re_initialized_flags = 1;
 	mmc->doneflag = 1;
+	mmc->sdmmc_host_hw_init = rk29_sdmmc_hw_init;
 
     /*
 	 * We can do SGIO
@@ -3186,6 +3294,22 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
             clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
         }
     }
+    else
+    {
+        #if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+        if(0== host->pdev->id)
+        {
+            set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+        }
+        #endif
+
+        #if defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+        if(1== host->pdev->id)
+        {
+            set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+        }
+        #endif
+    }
 
 
     /* sdmmc1 wifi card slot status initially */
@@ -3206,7 +3330,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 #ifdef RK29_SDMMC_NOTIFY_REMOVE_INSERTION
     
     globalSDhost[pdev->id] = (struct rk29_sdmmc	*)host;
-    if(RK29_CTRL_SDMMC_ID== host->pdev->id)
+    if(0== host->pdev->id)
     {
         rk29_sdmmc_progress_add_attr(pdev);
     }
