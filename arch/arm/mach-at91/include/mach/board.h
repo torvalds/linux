@@ -181,7 +181,9 @@ extern void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data);
 extern void __init at91_add_device_ac97(struct ac97c_platform_data *data);
 
  /* ISI */
-extern void __init at91_add_device_isi(void);
+struct isi_platform_data;
+extern void __init at91_add_device_isi(struct isi_platform_data *data,
+		bool use_pck_as_mck);
 
  /* Touchscreen Controller */
 struct at91_tsadcc_data {
