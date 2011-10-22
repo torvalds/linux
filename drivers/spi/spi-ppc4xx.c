@@ -514,7 +514,7 @@ static int __init spi_ppc4xx_of_probe(struct platform_device *op)
 	/* Request IRQ */
 	hw->irqnum = irq_of_parse_and_map(np, 0);
 	ret = request_irq(hw->irqnum, spi_ppc4xx_int,
-			  IRQF_DISABLED, "spi_ppc4xx_of", (void *)hw);
+			  0, "spi_ppc4xx_of", (void *)hw);
 	if (ret) {
 		dev_err(dev, "unable to allocate interrupt\n");
 		goto free_gpios;

@@ -487,7 +487,7 @@ static int __devinit mcfqspi_probe(struct platform_device *pdev)
 		goto fail2;
 	}
 
-	status = request_irq(mcfqspi->irq, mcfqspi_irq_handler, IRQF_DISABLED,
+	status = request_irq(mcfqspi->irq, mcfqspi_irq_handler, 0,
 			     pdev->name, mcfqspi);
 	if (status) {
 		dev_dbg(&pdev->dev, "request_irq failed\n");

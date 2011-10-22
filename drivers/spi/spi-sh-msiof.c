@@ -635,7 +635,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	ret = request_irq(i, sh_msiof_spi_irq, IRQF_DISABLED,
+	ret = request_irq(i, sh_msiof_spi_irq, 0,
 			  dev_name(&pdev->dev), p);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to request irq\n");
