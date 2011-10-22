@@ -136,6 +136,9 @@ my %force_config;
 # do not force reboots on config problems
 my $no_reboot = 1;
 
+# default variables that can be used
+chomp ($variable{"PWD"} = `pwd`);
+
 $config_help{"MACHINE"} = << "EOF"
  The machine hostname that you will test.
 EOF
