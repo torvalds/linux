@@ -173,7 +173,7 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 
 		fifo_enable = FIFO_DISABLE;
 
-	       /* Even field */
+		/* Even field */
 		rp = cx25821_risc_field_upstream_ch2(dev, rp,
 				dev->_data_buf_phys_addr_ch2 + databuf_offset,
 				bottom_offset, 0x200, bpl, singlefield_lines,
@@ -189,9 +189,9 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 		}
 
 	       /*
-		  Loop to 2ndFrameRISC or to Start of
-		  Risc program & generate IRQ
-	       */
+		* Loop to 2ndFrameRISC or to Start of
+		* Risc program & generate IRQ
+		*/
 		*(rp++) = cpu_to_le32(RISC_JUMP | RISC_IRQ1 | risc_flag);
 		*(rp++) = cpu_to_le32(risc_phys_jump_addr);
 		*(rp++) = cpu_to_le32(0);
