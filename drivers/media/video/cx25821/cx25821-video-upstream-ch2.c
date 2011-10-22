@@ -260,9 +260,8 @@ int cx25821_get_frame_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 	struct file *myfile;
 	int frame_index_temp = dev->_frame_index_ch2;
 	int i = 0;
-	int line_size =
-	    (dev->_pixel_format_ch2 ==
-	     PIXEL_FRMT_411) ? Y411_LINE_SZ : Y422_LINE_SZ;
+	int line_size = (dev->_pixel_format_ch2 == PIXEL_FRMT_411) ?
+		Y411_LINE_SZ : Y422_LINE_SZ;
 	int frame_size = 0;
 	int frame_offset = 0;
 	ssize_t vfs_read_retval = 0;
@@ -275,14 +274,11 @@ int cx25821_get_frame_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 		return 0;
 
 	if (dev->_isNTSC_ch2) {
-		frame_size =
-		    (line_size ==
-		     Y411_LINE_SZ) ? FRAME_SIZE_NTSC_Y411 :
-		    FRAME_SIZE_NTSC_Y422;
+		frame_size = (line_size == Y411_LINE_SZ) ?
+			FRAME_SIZE_NTSC_Y411 : FRAME_SIZE_NTSC_Y422;
 	} else {
-		frame_size =
-		    (line_size ==
-		     Y411_LINE_SZ) ? FRAME_SIZE_PAL_Y411 : FRAME_SIZE_PAL_Y422;
+		frame_size = (line_size == Y411_LINE_SZ) ?
+			FRAME_SIZE_PAL_Y411 : FRAME_SIZE_PAL_Y422;
 	}
 
 	frame_offset = (frame_index_temp > 0) ? frame_size : 0;
@@ -316,8 +312,8 @@ int cx25821_get_frame_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 		for (i = 0; i < dev->_lines_count_ch2; i++) {
 			pos = file_offset;
 
-			vfs_read_retval =
-			    vfs_read(myfile, mybuf, line_size, &pos);
+			vfs_read_retval = vfs_read(myfile, mybuf, line_size,
+					&pos);
 
 			if (vfs_read_retval > 0 && vfs_read_retval == line_size
 			    && dev->_data_buf_virt_addr_ch2 != NULL) {
@@ -339,8 +335,8 @@ int cx25821_get_frame_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 		if (i > 0)
 			dev->_frame_count_ch2++;
 
-		dev->_file_status_ch2 =
-		    (vfs_read_retval == line_size) ? IN_PROGRESS : END_OF_FILE;
+		dev->_file_status_ch2 = (vfs_read_retval == line_size) ?
+			IN_PROGRESS : END_OF_FILE;
 
 		set_fs(old_fs);
 		filp_close(myfile, NULL);
@@ -351,8 +347,8 @@ int cx25821_get_frame_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 
 static void cx25821_vidups_handler_ch2(struct work_struct *work)
 {
-	struct cx25821_dev *dev =
-	    container_of(work, struct cx25821_dev, _irq_work_entry_ch2);
+	struct cx25821_dev *dev = container_of(work, struct cx25821_dev,
+			_irq_work_entry_ch2);
 
 	if (!dev) {
 		pr_err("ERROR %s(): since container_of(work_struct) FAILED!\n",
@@ -360,18 +356,16 @@ static void cx25821_vidups_handler_ch2(struct work_struct *work)
 		return;
 	}
 
-	cx25821_get_frame_ch2(dev,
-			     dev->channels[dev->
-			       _channel2_upstream_select].sram_channels);
+	cx25821_get_frame_ch2(dev, dev->channels[dev->
+			_channel2_upstream_select].sram_channels);
 }
 
 int cx25821_openfile_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 {
 	struct file *myfile;
 	int i = 0, j = 0;
-	int line_size =
-	    (dev->_pixel_format_ch2 ==
-	     PIXEL_FRMT_411) ? Y411_LINE_SZ : Y422_LINE_SZ;
+	int line_size = (dev->_pixel_format_ch2 == PIXEL_FRMT_411) ?
+		Y411_LINE_SZ : Y422_LINE_SZ;
 	ssize_t vfs_read_retval = 0;
 	char mybuf[line_size];
 	loff_t pos;
@@ -408,8 +402,8 @@ int cx25821_openfile_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 			for (i = 0; i < dev->_lines_count_ch2; i++) {
 				pos = offset;
 
-				vfs_read_retval =
-				    vfs_read(myfile, mybuf, line_size, &pos);
+				vfs_read_retval = vfs_read(myfile, mybuf,
+						line_size, &pos);
 
 				if (vfs_read_retval > 0 &&
 				    vfs_read_retval == line_size &&
@@ -436,8 +430,8 @@ int cx25821_openfile_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 				break;
 		}
 
-		dev->_file_status_ch2 =
-		    (vfs_read_retval == line_size) ? IN_PROGRESS : END_OF_FILE;
+		dev->_file_status_ch2 = (vfs_read_retval == line_size) ?
+			IN_PROGRESS : END_OF_FILE;
 
 		set_fs(old_fs);
 		myfile->f_pos = 0;
@@ -461,9 +455,8 @@ static int cx25821_upstream_buffer_prepare_ch2(struct cx25821_dev *dev,
 				    dev->_dma_phys_addr_ch2);
 	}
 
-	dev->_dma_virt_addr_ch2 =
-	    pci_alloc_consistent(dev->pci, dev->upstream_riscbuf_size_ch2,
-				 &dma_addr);
+	dev->_dma_virt_addr_ch2 = pci_alloc_consistent(dev->pci,
+			dev->upstream_riscbuf_size_ch2, &dma_addr);
 	dev->_dma_virt_start_addr_ch2 = dev->_dma_virt_addr_ch2;
 	dev->_dma_phys_start_addr_ch2 = dma_addr;
 	dev->_dma_phys_addr_ch2 = dma_addr;
@@ -483,9 +476,8 @@ static int cx25821_upstream_buffer_prepare_ch2(struct cx25821_dev *dev,
 				    dev->_data_buf_phys_addr_ch2);
 	}
 	/* For Video Data buffer allocation */
-	dev->_data_buf_virt_addr_ch2 =
-	    pci_alloc_consistent(dev->pci, dev->upstream_databuf_size_ch2,
-				 &data_dma_addr);
+	dev->_data_buf_virt_addr_ch2 = pci_alloc_consistent(dev->pci,
+			dev->upstream_databuf_size_ch2, &data_dma_addr);
 	dev->_data_buf_phys_addr_ch2 = data_dma_addr;
 	dev->_data_buf_size_ch2 = dev->upstream_databuf_size_ch2;
 
@@ -687,8 +679,7 @@ int cx25821_start_video_dma_upstream_ch2(struct cx25821_dev *dev,
 	tmp = cx_read(sram_ch->int_msk);
 	cx_write(sram_ch->int_msk, tmp |= _intr_msk);
 
-	err =
-	    request_irq(dev->pci->irq, cx25821_upstream_irq_ch2,
+	err = request_irq(dev->pci->irq, cx25821_upstream_irq_ch2,
 			IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		pr_err("%s: can't get upstream IRQ %d\n",
@@ -748,12 +739,11 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	dev->_file_status_ch2 = RESET_STATUS;
 	dev->_lines_count_ch2 = dev->_isNTSC_ch2 ? 480 : 576;
 	dev->_pixel_format_ch2 = pixel_format;
-	dev->_line_size_ch2 =
-	    (dev->_pixel_format_ch2 ==
-	     PIXEL_FRMT_422) ? (WIDTH_D1 * 2) : (WIDTH_D1 * 3) / 2;
+	dev->_line_size_ch2 = (dev->_pixel_format_ch2 == PIXEL_FRMT_422) ?
+		(WIDTH_D1 * 2) : (WIDTH_D1 * 3) / 2;
 	data_frame_size = dev->_isNTSC_ch2 ? NTSC_DATA_BUF_SZ : PAL_DATA_BUF_SZ;
-	risc_buffer_size =
-	    dev->_isNTSC_ch2 ? NTSC_RISC_BUF_SIZE : PAL_RISC_BUF_SIZE;
+	risc_buffer_size = dev->_isNTSC_ch2 ?
+		NTSC_RISC_BUF_SIZE : PAL_RISC_BUF_SIZE;
 
 	if (dev->input_filename_ch2) {
 		str_length = strlen(dev->input_filename_ch2);
@@ -778,15 +768,13 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	/* Default if filename is empty string */
 	if (strcmp(dev->input_filename_ch2, "") == 0) {
 		if (dev->_isNTSC_ch2) {
-			dev->_filename_ch2 =
-			    (dev->_pixel_format_ch2 ==
-			     PIXEL_FRMT_411) ? "/root/vid411.yuv" :
-			    "/root/vidtest.yuv";
+			dev->_filename_ch2 = (dev->_pixel_format_ch2 ==
+				PIXEL_FRMT_411) ? "/root/vid411.yuv" :
+				"/root/vidtest.yuv";
 		} else {
-			dev->_filename_ch2 =
-			    (dev->_pixel_format_ch2 ==
-			     PIXEL_FRMT_411) ? "/root/pal411.yuv" :
-			    "/root/pal422.yuv";
+			dev->_filename_ch2 = (dev->_pixel_format_ch2 ==
+				PIXEL_FRMT_411) ? "/root/pal411.yuv" :
+				"/root/pal422.yuv";
 		}
 	}
 
