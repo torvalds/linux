@@ -528,7 +528,6 @@ int cx25821_video_register(struct cx25821_dev *dev)
 #endif
 	mutex_unlock(&dev->lock);
 
-
 	return 0;
 
 fail_unreg:
