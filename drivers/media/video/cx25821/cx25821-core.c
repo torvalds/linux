@@ -869,7 +869,7 @@ static int cx25821_get_resources(struct cx25821_dev *dev)
 		return 0;
 
 	pr_err("%s: can't get MMIO memory @ 0x%llx\n",
-	       dev->name, (unsigned long long)pci_resource_start(dev->pci, 0));
+		dev->name, (unsigned long long)pci_resource_start(dev->pci, 0));
 
 	return -EBUSY;
 }
@@ -994,7 +994,7 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
  *  cx25821_i2c_register(&dev->i2c_bus[2]); */
 
 	CX25821_INFO("i2c register! bus->i2c_rc = %d\n",
-		     dev->i2c_bus[0].i2c_rc);
+			dev->i2c_bus[0].i2c_rc);
 
 	cx25821_card_setup(dev);
 
@@ -1224,7 +1224,7 @@ static __le32 *cx25821_risc_field_audio(__le32 * rp, struct scatterlist *sglist,
 			/* scanline needs to be split */
 			todo = bpl;
 			*(rp++) = cpu_to_le32(RISC_WRITE | sol |
-					      (sg_dma_len(sg) - offset));
+					(sg_dma_len(sg) - offset));
 			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
 			*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 			todo -= (sg_dma_len(sg) - offset);
@@ -1232,7 +1232,7 @@ static __le32 *cx25821_risc_field_audio(__le32 * rp, struct scatterlist *sglist,
 			sg++;
 			while (todo > sg_dma_len(sg)) {
 				*(rp++) = cpu_to_le32(RISC_WRITE |
-						      sg_dma_len(sg));
+						sg_dma_len(sg));
 				*(rp++) = cpu_to_le32(sg_dma_address(sg));
 				*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 				todo -= sg_dma_len(sg);
