@@ -85,7 +85,7 @@ static __le32 *cx25821_risc_field_upstream_ch2(struct cx25821_dev *dev,
 {
 	unsigned int line, i;
 	struct sram_channel *sram_ch =
-	   dev->channels[dev->_channel2_upstream_select].sram_channels;
+		dev->channels[dev->_channel2_upstream_select].sram_channels;
 	int dist_betwn_starts = bpl * 2;
 
 	/* sync instruction */
@@ -203,7 +203,7 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 void cx25821_stop_upstream_video_ch2(struct cx25821_dev *dev)
 {
 	struct sram_channel *sram_ch =
-	   dev->channels[VID_UPSTREAM_SRAM_CHANNEL_J].sram_channels;
+		dev->channels[VID_UPSTREAM_SRAM_CHANNEL_J].sram_channels;
 	u32 tmp = 0;
 
 	if (!dev->_is_running_ch2) {
@@ -325,7 +325,7 @@ int cx25821_get_frame_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 			    && dev->_data_buf_virt_addr_ch2 != NULL) {
 				memcpy((void *)(dev->_data_buf_virt_addr_ch2 +
 						frame_offset / 4), mybuf,
-				       vfs_read_retval);
+						vfs_read_retval);
 			}
 
 			file_offset += vfs_read_retval;
@@ -419,7 +419,7 @@ int cx25821_openfile_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 					memcpy((void *)(dev->
 							_data_buf_virt_addr_ch2
 							+ offset / 4), mybuf,
-					       vfs_read_retval);
+							vfs_read_retval);
 				}
 
 				offset += vfs_read_retval;
@@ -563,8 +563,8 @@ int cx25821_video_upstream_irq_ch2(struct cx25821_dev *dev, int chan_num,
 				else
 					line_size_in_bytes = Y422_LINE_SZ;
 				risc_phys_jump_addr =
-				    dev->_dma_phys_start_addr_ch2 +
-				    odd_risc_prog_size;
+					dev->_dma_phys_start_addr_ch2 +
+					odd_risc_prog_size;
 
 				rp = cx25821_update_riscprogram_ch2(dev,
 						dev->_dma_virt_start_addr_ch2,
