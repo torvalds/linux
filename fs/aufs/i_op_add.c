@@ -378,7 +378,7 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 		err = PTR_ERR(h_file);
 		h_file = NULL;
 	} else
-		err = au_sio_cpup_simple(src_dentry, a->bdst, a->bsrc,
+		err = au_sio_cpup_simple(src_dentry, a->bdst, -1,
 					 AuCpup_DTIME /* | AuCpup_KEEPLINO */);
 	mutex_unlock(h_mtx);
 	au_h_open_post(src_dentry, a->bsrc, h_file);
