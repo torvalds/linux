@@ -95,30 +95,29 @@ struct au_branch {
 
 /* ---------------------------------------------------------------------- */
 
-/* branch permission and attribute */
-enum {
-	AuBrPerm_RW,		/* writable, linkable wh */
-	AuBrPerm_RO,		/* readonly, no wh */
-	AuBrPerm_RR,		/* natively readonly, no wh */
+/* branch permissions and attributes */
+#define AuBrPerm_RW		1		/* writable, hardlinkable wh */
+#define AuBrPerm_RO		(1 << 1)	/* readonly */
+#define AuBrPerm_RR		(1 << 2)	/* natively readonly */
+#define AuBrPerm_Mask		(AuBrPerm_RW | AuBrPerm_RO | AuBrPerm_RR)
 
-	AuBrPerm_RWNoLinkWH,	/* un-linkable whiteouts */
+#define AuBrRAttr_WH		(1 << 3)	/* whiteout-able */
 
-	AuBrPerm_ROWH,		/* whiteout-able */
-	AuBrPerm_RRWH,		/* whiteout-able */
-
-	AuBrPerm_Last
-};
+#define AuBrWAttr_NoLinkWH	(1 << 4)	/* un-hardlinkable whiteouts */
 
 static inline int au_br_writable(int brperm)
 {
-	return brperm == AuBrPerm_RW || brperm == AuBrPerm_RWNoLinkWH;
+	return brperm & AuBrPerm_RW;
 }
 
 static inline int au_br_whable(int brperm)
 {
-	return brperm == AuBrPerm_RW
-		|| brperm == AuBrPerm_ROWH
-		|| brperm == AuBrPerm_RRWH;
+	return brperm & (AuBrPerm_RW | AuBrRAttr_WH);
+}
+
+static inline int au_br_wh_linkable(int brperm)
+{
+	return !(brperm & AuBrWAttr_NoLinkWH);
 }
 
 static inline int au_br_rdonly(struct au_branch *br)
@@ -131,7 +130,7 @@ static inline int au_br_rdonly(struct au_branch *br)
 static inline int au_br_hnotifyable(int brperm __maybe_unused)
 {
 #ifdef CONFIG_AUFS_HNOTIFY
-	return brperm != AuBrPerm_RR && brperm != AuBrPerm_RRWH;
+	return !(brperm & AuBrPerm_RR);
 #else
 	return 0;
 #endif

@@ -181,31 +181,127 @@ static const char *au_parser_pattern(int val, struct match_token *token)
 
 /* ---------------------------------------------------------------------- */
 
-static match_table_t brperms = {
+static match_table_t brperm = {
 	{AuBrPerm_RO, AUFS_BRPERM_RO},
 	{AuBrPerm_RR, AUFS_BRPERM_RR},
 	{AuBrPerm_RW, AUFS_BRPERM_RW},
-
-	{AuBrPerm_ROWH, AUFS_BRPERM_ROWH},
-	{AuBrPerm_RRWH, AUFS_BRPERM_RRWH},
-	{AuBrPerm_RWNoLinkWH, AUFS_BRPERM_RWNLWH},
-
-	{AuBrPerm_ROWH, "nfsro"},
-	{AuBrPerm_RO, NULL}
+	{0, NULL}
 };
+
+static match_table_t brrattr = {
+	{AuBrRAttr_WH, AUFS_BRRATTR_WH},
+	{0, NULL}
+};
+
+static match_table_t brwattr = {
+	{AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH},
+	{0, NULL}
+};
+
+#define AuBrStr_LONGEST	AUFS_BRPERM_RW "+" AUFS_BRWATTR_NLWH
+
+static int br_attr_val(char *str, match_table_t table, substring_t args[])
+{
+	int attr, v;
+	char *p;
+
+	attr = 0;
+	do {
+		p = strchr(str, '+');
+		if (p)
+			*p = 0;
+		v = match_token(str, table, args);
+		if (v)
+			attr |= v;
+		else {
+			if (p)
+				*p = '+';
+			pr_warning("ignored branch attribute %s\n", str);
+			break;
+		}
+		if (p)
+			str = p + 1;
+	} while (p);
+
+	return attr;
+}
 
 static int noinline_for_stack br_perm_val(char *perm)
 {
 	int val;
+	char *p;
 	substring_t args[MAX_OPT_ARGS];
 
-	val = match_token(perm, brperms, args);
+	p = strchr(perm, '+');
+	if (p)
+		*p = 0;
+	val = match_token(perm, brperm, args);
+	if (!val) {
+		if (p)
+			*p = '+';
+		pr_warning("ignored branch permission %s\n", perm);
+		val = AuBrPerm_RO;
+		goto out;
+	}
+	if (!p)
+		goto out;
+
+	switch (val) {
+	case AuBrPerm_RO:
+	case AuBrPerm_RR:
+		val |= br_attr_val(p + 1, brrattr, args);
+		break;
+	case AuBrPerm_RW:
+		val |= br_attr_val(p + 1, brwattr, args);
+		break;
+	}
+
+out:
 	return val;
 }
 
-const char *au_optstr_br_perm(int brperm)
+/* Caller should free the return value */
+char *au_optstr_br_perm(int brperm)
 {
-	return au_parser_pattern(brperm, (void *)brperms);
+	char *p, a[sizeof(AuBrStr_LONGEST)];
+	int sz;
+
+#define SetPerm(str) do {			\
+		sz = sizeof(str);		\
+		memcpy(a, str, sz);		\
+		p = a + sz - 1;			\
+	} while (0)
+
+#define AppendAttr(flag, str) do {			\
+		if (brperm & flag) {		\
+			sz = sizeof(str);	\
+			*p++ = '+';		\
+			memcpy(p, str, sz);	\
+			p += sz - 1;		\
+		}				\
+	} while (0)
+
+	switch (brperm & AuBrPerm_Mask) {
+	case AuBrPerm_RO:
+		SetPerm(AUFS_BRPERM_RO);
+		break;
+	case AuBrPerm_RR:
+		SetPerm(AUFS_BRPERM_RR);
+		break;
+	case AuBrPerm_RW:
+		SetPerm(AUFS_BRPERM_RW);
+		break;
+	default:
+		AuDebugOn(1);
+	}
+
+	AppendAttr(AuBrRAttr_WH, AUFS_BRRATTR_WH);
+	AppendAttr(AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH);
+
+	AuDebugOn(strlen(a) >= sizeof(a));
+	return kstrdup(a, GFP_NOFS);
+#undef SetPerm
+#undef AppendAttr
 }
 
 /* ---------------------------------------------------------------------- */
@@ -596,7 +692,7 @@ static int opt_add(struct au_opt *opt, char *opt_str, unsigned long sb_flags,
 	char *p;
 
 	add->bindex = bindex;
-	add->perm = AuBrPerm_Last;
+	add->perm = AuBrPerm_RO;
 	add->pathname = opt_str;
 	p = strchr(opt_str, '=');
 	if (p) {
@@ -1389,19 +1485,13 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		if (wbr)
 			wbr_wh_read_lock(wbr);
 
-		switch (br->br_perm) {
-		case AuBrPerm_RO:
-		case AuBrPerm_ROWH:
-		case AuBrPerm_RR:
-		case AuBrPerm_RRWH:
+		if (!au_br_writable(br->br_perm)) {
 			do_free = !!wbr;
 			skip = (!wbr
 				|| (!wbr->wbr_whbase
 				    && !wbr->wbr_plink
 				    && !wbr->wbr_orph));
-			break;
-
-		case AuBrPerm_RWNoLinkWH:
+		} else if (!au_br_wh_linkable(br->br_perm)) {
 			/* skip = (!br->br_whbase && !br->br_orph); */
 			skip = (!wbr || !wbr->wbr_whbase);
 			if (skip && wbr) {
@@ -1410,9 +1500,7 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 				else
 					skip = !wbr->wbr_plink;
 			}
-			break;
-
-		case AuBrPerm_RW:
+		} else {
 			/* skip = (br->br_whbase && br->br_ohph); */
 			skip = (wbr && wbr->wbr_whbase);
 			if (skip) {
@@ -1421,10 +1509,6 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 				else
 					skip = !wbr->wbr_plink;
 			}
-			break;
-
-		default:
-			BUG();
 		}
 		if (wbr)
 			wbr_wh_read_unlock(wbr);
