@@ -2540,13 +2540,6 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		}
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_IDLE && !is_ap) {
-		ret = wl1271_sta_handle_idle(wl, wlvif,
-					conf->flags & IEEE80211_CONF_IDLE);
-		if (ret < 0)
-			wl1271_warning("idle mode change failed %d", ret);
-	}
-
 	/*
 	 * if mac80211 changes the PSM mode, make sure the mode is not
 	 * incorrectly changed after the pspoll failure active window.
@@ -3615,6 +3608,12 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			     bss_conf->enable_beacon ? "enabled" : "disabled");
 
 		do_join = true;
+	}
+
+	if (changed & BSS_CHANGED_IDLE) {
+		ret = wl1271_sta_handle_idle(wl, wlvif, bss_conf->idle);
+		if (ret < 0)
+			wl1271_warning("idle mode change failed %d", ret);
 	}
 
 	if ((changed & BSS_CHANGED_CQM)) {
