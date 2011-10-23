@@ -576,12 +576,6 @@ struct et131x_adapter {
 	struct net_device_stats net_stats;
 };
 
-void et131x_error_timer_handler(unsigned long data);
-void et131x_enable_interrupts(struct et131x_adapter *adapter);
-void et131x_disable_interrupts(struct et131x_adapter *adapter);
-void et131x_align_allocated_memory(struct et131x_adapter *adapter,
-				   u64 *phys_addr,
-				   u64 *offset, u64 mask);
 void et131x_adapter_setup(struct et131x_adapter *adapter);
 void et131x_soft_reset(struct et131x_adapter *adapter);
 void et131x_isr_handler(struct work_struct *work);
@@ -1869,6 +1863,33 @@ static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
 	tmp_free_buff_ring &= (ET_DMA10_MASK|ET_DMA10_WRAP);
 	*free_buff_ring = tmp_free_buff_ring;
 	return tmp_free_buff_ring;
+}
+
+/**
+ * et131x_align_allocated_memory - Align allocated memory on a given boundary
+ * @adapter: pointer to our adapter structure
+ * @phys_addr: pointer to Physical address
+ * @offset: pointer to the offset variable
+ * @mask: correct mask
+ */
+void et131x_align_allocated_memory(struct et131x_adapter *adapter,
+				   uint64_t *phys_addr,
+				   uint64_t *offset, uint64_t mask)
+{
+	uint64_t new_addr;
+
+	*offset = 0;
+
+	new_addr = *phys_addr & ~mask;
+
+	if (new_addr != *phys_addr) {
+		/* Move to next aligned block */
+		new_addr += mask + 1;
+		/* Return offset for adjusting virt addr */
+		*offset = new_addr - *phys_addr;
+		/* Return new physical address */
+		*phys_addr = new_addr;
+	}
 }
 
 /**
@@ -3938,6 +3959,27 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 }
 
 /**
+ *	et131x_enable_interrupts	-	enable interrupt
+ *	@adapter: et131x device
+ *
+ *	Enable the appropriate interrupts on the ET131x according to our
+ *	configuration
+ */
+void et131x_enable_interrupts(struct et131x_adapter *adapter)
+{
+	u32 mask;
+
+	/* Enable all global interrupts */
+	if (adapter->flowcontrol == FLOW_TXONLY ||
+			    adapter->flowcontrol == FLOW_BOTH)
+		mask = INT_MASK_ENABLE;
+	else
+		mask = INT_MASK_ENABLE_NO_FLOW;
+
+	writel(mask, &adapter->regs->global.int_mask);
+}
+
+/**
  * et131x_error_timer_handler
  * @data: timer-specific variable; here a pointer to our adapter structure
  *
@@ -4068,33 +4110,6 @@ void et131x_soft_reset(struct et131x_adapter *adapter)
 	writel(0x7F, &adapter->regs->global.sw_reset);
 	writel(0x000f0000, &adapter->regs->mac.cfg1);
 	writel(0x00000000, &adapter->regs->mac.cfg1);
-}
-
-/**
- * et131x_align_allocated_memory - Align allocated memory on a given boundary
- * @adapter: pointer to our adapter structure
- * @phys_addr: pointer to Physical address
- * @offset: pointer to the offset variable
- * @mask: correct mask
- */
-void et131x_align_allocated_memory(struct et131x_adapter *adapter,
-				   uint64_t *phys_addr,
-				   uint64_t *offset, uint64_t mask)
-{
-	uint64_t new_addr;
-
-	*offset = 0;
-
-	new_addr = *phys_addr & ~mask;
-
-	if (new_addr != *phys_addr) {
-		/* Move to next aligned block */
-		new_addr += mask + 1;
-		/* Return offset for adjusting virt addr */
-		*offset = new_addr - *phys_addr;
-		/* Return new physical address */
-		*phys_addr = new_addr;
-	}
 }
 
 /**
@@ -4336,6 +4351,18 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	memcpy(adapter->addr, default_mac, ETH_ALEN);
 
 	return adapter;
+}
+
+/**
+ *	et131x_disable_interrupts	-	interrupt disable
+ *	@adapter: et131x device
+ *
+ *	Block all interrupts from the et131x device at the device itself
+ */
+void et131x_disable_interrupts(struct et131x_adapter *adapter)
+{
+	/* Disable all global interrupts */
+	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask);
 }
 
 /**
@@ -4631,39 +4658,6 @@ module_init(et131x_init_module);
 module_exit(et131x_cleanup_module);
 
 /* ISR functions */
-
-/**
- *	et131x_enable_interrupts	-	enable interrupt
- *	@adapter: et131x device
- *
- *	Enable the appropriate interrupts on the ET131x according to our
- *	configuration
- */
-void et131x_enable_interrupts(struct et131x_adapter *adapter)
-{
-	u32 mask;
-
-	/* Enable all global interrupts */
-	if (adapter->flowcontrol == FLOW_TXONLY ||
-			    adapter->flowcontrol == FLOW_BOTH)
-		mask = INT_MASK_ENABLE;
-	else
-		mask = INT_MASK_ENABLE_NO_FLOW;
-
-	writel(mask, &adapter->regs->global.int_mask);
-}
-
-/**
- *	et131x_disable_interrupts	-	interrupt disable
- *	@adapter: et131x device
- *
- *	Block all interrupts from the et131x device at the device itself
- */
-void et131x_disable_interrupts(struct et131x_adapter *adapter)
-{
-	/* Disable all global interrupts */
-	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask);
-}
 
 /**
  * et131x_isr - The Interrupt Service Routine for the driver.
