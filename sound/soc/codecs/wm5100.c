@@ -51,6 +51,7 @@ struct wm5100_fll {
 
 /* codec private data */
 struct wm5100_priv {
+	struct regmap *regmap;
 	struct snd_soc_codec *codec;
 
 	struct regulator_bulk_data core_supplies[WM5100_NUM_CORE_SUPPLIES];
@@ -1375,7 +1376,7 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 				msleep(2);
 			}
 
-			codec->cache_only = false;
+			regcache_cache_only(wm5100->regmap, false);
 
 			switch (wm5100->rev) {
 			case 0:
@@ -1993,6 +1994,9 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	else
 		timeout = 50;
 
+	snd_soc_update_bits(codec, WM5100_CLOCKING_3, WM5100_SYSCLK_ENA,
+			    WM5100_SYSCLK_ENA);
+
 	/* Poll for the lock; will use interrupt when we can test */
 	for (i = 0; i < timeout; i++) {
 		if (i2c->irq) {
@@ -2453,8 +2457,9 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 	int ret, i, irq_flags;
 
 	wm5100->codec = codec;
+	codec->control_data = wm5100->regmap;
 
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_I2C);
+	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
@@ -2552,7 +2557,7 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 		goto err_reset;
 	}
 
-	codec->cache_only = true;
+	regcache_cache_only(wm5100->regmap, true);
 
 	wm5100_init_gpio(codec);
 
@@ -2733,14 +2738,18 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.num_dapm_widgets = ARRAY_SIZE(wm5100_dapm_widgets),
 	.dapm_routes = wm5100_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(wm5100_dapm_routes),
+};
 
-	.reg_cache_size = ARRAY_SIZE(wm5100_reg_defaults),
-	.reg_word_size = sizeof(u16),
-	.compress_type = SND_SOC_RBTREE_COMPRESSION,
-	.reg_cache_default = wm5100_reg_defaults,
+static const struct regmap_config wm5100_regmap = {
+	.reg_bits = 16,
+	.val_bits = 16,
 
-	.volatile_register = wm5100_volatile_register,
-	.readable_register = wm5100_readable_register,
+	.max_register = WM5100_MAX_REGISTER,
+	.reg_defaults = wm5100_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(wm5100_reg_defaults),
+	.volatile_reg = wm5100_volatile_register,
+	.readable_reg = wm5100_readable_register,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
@@ -2753,6 +2762,14 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	wm5100 = kzalloc(sizeof(struct wm5100_priv), GFP_KERNEL);
 	if (wm5100 == NULL)
 		return -ENOMEM;
+
+	wm5100->regmap = regmap_init_i2c(i2c, &wm5100_regmap);
+	if (IS_ERR(wm5100->regmap)) {
+		ret = PTR_ERR(wm5100->regmap);
+		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
+			ret);
+		goto err_alloc;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm5100->fll); i++)
 		init_completion(&wm5100->fll[i].lock);
@@ -2767,16 +2784,26 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 				     ARRAY_SIZE(wm5100_dai));
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to register WM5100: %d\n", ret);
-		kfree(wm5100);
+		goto err_regmap;
 	}
 
+	return ret;
+
+err_regmap:
+	regmap_exit(wm5100->regmap);
+err_alloc:
+	kfree(wm5100);
 	return ret;
 }
 
 static __devexit int wm5100_i2c_remove(struct i2c_client *client)
 {
+	struct wm5100_priv *wm5100 = i2c_get_clientdata(client);
+
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+	regmap_exit(wm5100->regmap);
+	kfree(wm5100);
+
 	return 0;
 }
 
