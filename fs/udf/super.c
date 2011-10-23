@@ -826,59 +826,57 @@ out1:
 	return ret;
 }
 
+struct inode *udf_find_metadata_inode_efe(struct super_block *sb,
+					u32 meta_file_loc, u32 partition_num)
+{
+	struct kernel_lb_addr addr;
+	struct inode *metadata_fe;
+
+	addr.logicalBlockNum = meta_file_loc;
+	addr.partitionReferenceNum = partition_num;
+
+	metadata_fe = udf_iget(sb, &addr);
+
+	if (metadata_fe == NULL)
+		udf_warn(sb, "metadata inode efe not found\n");
+	else if (UDF_I(metadata_fe)->i_alloc_type != ICBTAG_FLAG_AD_SHORT) {
+		udf_warn(sb, "metadata inode efe does not have short allocation descriptors!\n");
+		iput(metadata_fe);
+		metadata_fe = NULL;
+	}
+
+	return metadata_fe;
+}
+
 static int udf_load_metadata_files(struct super_block *sb, int partition)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;
 	struct udf_meta_data *mdata;
 	struct kernel_lb_addr addr;
-	int fe_error = 0;
 
 	map = &sbi->s_partmaps[partition];
 	mdata = &map->s_type_specific.s_metadata;
 
 	/* metadata address */
-	addr.logicalBlockNum =  mdata->s_meta_file_loc;
-	addr.partitionReferenceNum = map->s_partition_num;
-
 	udf_debug("Metadata file location: block = %d part = %d\n",
-		  addr.logicalBlockNum, addr.partitionReferenceNum);
+		  mdata->s_meta_file_loc, map->s_partition_num);
 
-	mdata->s_metadata_fe = udf_iget(sb, &addr);
+	mdata->s_metadata_fe = udf_find_metadata_inode_efe(sb,
+		mdata->s_meta_file_loc, map->s_partition_num);
 
 	if (mdata->s_metadata_fe == NULL) {
-		udf_warn(sb, "metadata inode efe not found, will try mirror inode\n");
-		fe_error = 1;
-	} else if (UDF_I(mdata->s_metadata_fe)->i_alloc_type !=
-		 ICBTAG_FLAG_AD_SHORT) {
-		udf_warn(sb, "metadata inode efe does not have short allocation descriptors!\n");
-		fe_error = 1;
-		iput(mdata->s_metadata_fe);
-		mdata->s_metadata_fe = NULL;
-	}
+		/* mirror file entry */
+		udf_debug("Mirror metadata file location: block = %d part = %d\n",
+			  mdata->s_mirror_file_loc, map->s_partition_num);
 
-	/* mirror file entry */
-	addr.logicalBlockNum = mdata->s_mirror_file_loc;
-	addr.partitionReferenceNum = map->s_partition_num;
+		mdata->s_mirror_fe = udf_find_metadata_inode_efe(sb,
+			mdata->s_mirror_file_loc, map->s_partition_num);
 
-	udf_debug("Mirror metadata file location: block = %d part = %d\n",
-		  addr.logicalBlockNum, addr.partitionReferenceNum);
-
-	mdata->s_mirror_fe = udf_iget(sb, &addr);
-
-	if (mdata->s_mirror_fe == NULL) {
-		if (fe_error) {
-			udf_err(sb, "mirror inode efe not found and metadata inode is missing too, exiting...\n");
+		if (mdata->s_mirror_fe == NULL) {
+			udf_err(sb, "Both metadata and mirror metadata inode efe can not found\n");
 			goto error_exit;
-		} else
-			udf_warn(sb, "mirror inode efe not found, but metadata inode is OK\n");
-	} else if (UDF_I(mdata->s_mirror_fe)->i_alloc_type !=
-		 ICBTAG_FLAG_AD_SHORT) {
-		udf_warn(sb, "mirror inode efe does not have short allocation descriptors!\n");
-		iput(mdata->s_mirror_fe);
-		mdata->s_mirror_fe = NULL;
-		if (fe_error)
-			goto error_exit;
+		}
 	}
 
 	/*
