@@ -227,8 +227,6 @@ static int acl_permission_check(struct inode *inode, int mask)
 {
 	unsigned int mode = inode->i_mode;
 
-	mask &= MAY_READ | MAY_WRITE | MAY_EXEC | MAY_NOT_BLOCK;
-
 	if (current_user_ns() != inode_userns(inode))
 		goto other_perms;
 
