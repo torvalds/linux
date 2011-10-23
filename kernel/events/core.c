@@ -2173,7 +2173,8 @@ static void perf_event_context_sched_in(struct perf_event_context *ctx,
 
 	perf_event_sched_in(cpuctx, ctx, task);
 
-	cpuctx->task_ctx = ctx;
+	if (ctx->nr_events)
+		cpuctx->task_ctx = ctx;
 
 	perf_pmu_enable(ctx->pmu);
 	perf_ctx_unlock(cpuctx, ctx);
