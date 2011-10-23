@@ -194,38 +194,17 @@ void __init via_init(void)
 	if (oss_present)
 		return;
 
-	/* Some machines support an alternate IRQ mapping that spreads  */
-	/* Ethernet and Sound out to their own autolevel IRQs and moves */
-	/* VIA1 to level 6. A/UX uses this mapping and we do too.  Note */
-	/* that the IIfx emulates this alternate mapping using the OSS. */
-
-	via_alt_mapping = 0;
-	if (macintosh_config->via_type == MAC_VIA_QUADRA)
-		switch (macintosh_config->ident) {
-		case MAC_MODEL_C660:
-		case MAC_MODEL_Q840:
-			/* not applicable */
-			break;
-		case MAC_MODEL_P588:
-		case MAC_MODEL_TV:
-		case MAC_MODEL_PB140:
-		case MAC_MODEL_PB145:
-		case MAC_MODEL_PB160:
-		case MAC_MODEL_PB165:
-		case MAC_MODEL_PB165C:
-		case MAC_MODEL_PB170:
-		case MAC_MODEL_PB180:
-		case MAC_MODEL_PB180C:
-		case MAC_MODEL_PB190:
-		case MAC_MODEL_PB520:
-			/* not yet tested */
-			break;
-		default:
-			via_alt_mapping = 1;
-			via1[vDirB] |= 0x40;
-			via1[vBufB] &= ~0x40;
-			break;
-		}
+	if ((macintosh_config->via_type == MAC_VIA_QUADRA) &&
+	    (macintosh_config->adb_type != MAC_ADB_PB1) &&
+	    (macintosh_config->adb_type != MAC_ADB_PB2) &&
+	    (macintosh_config->ident    != MAC_MODEL_C660) &&
+	    (macintosh_config->ident    != MAC_MODEL_Q840)) {
+		via_alt_mapping = 1;
+		via1[vDirB] |= 0x40;
+		via1[vBufB] &= ~0x40;
+	} else {
+		via_alt_mapping = 0;
+	}
 
 	/*
 	 * Now initialize VIA2. For RBV we just kill all interrupts;

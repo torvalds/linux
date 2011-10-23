@@ -42,6 +42,18 @@
  *
  *	6	- off switch (?)
  *
+ * Machines with Quadra-like VIA hardware, except PSC and PMU machines, support
+ * an alternate interrupt mapping, as used by A/UX. It spreads ethernet and
+ * sound out to their own autovector IRQs and gives VIA1 a higher priority:
+ *
+ *	1	- unused (?)
+ *
+ *	3	- on-board SONIC
+ *
+ *	5	- Apple Sound Chip (ASC)
+ *
+ *	6	- VIA1
+ *
  * For OSS Macintoshes (IIfx only at this point):
  *
  *	3	- Nubus interrupt
