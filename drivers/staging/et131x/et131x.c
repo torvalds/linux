@@ -3412,9 +3412,6 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 		}
 	}
 
-	if (frag == 0)
-		return -EIO;
-
 	if (phydev && phydev->speed == SPEED_1000) {
 		if (++adapter->tx_ring.since_irq == PARM_TX_NUM_BUFS_DEF) {
 			/* Last element & Interrupt flag */
