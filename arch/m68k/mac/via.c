@@ -253,22 +253,28 @@ void __init via_init(void)
 		via2[vACR] &= ~0x03; /* disable port A & B latches */
 	}
 
+	/* Everything below this point is VIA2 only... */
+
+	if (rbv_present)
+		return;
+
 	/*
-	 * Set vPCR for control line interrupts (but not on RBV)
+	 * Set vPCR for control line interrupts.
+	 *
+	 * CA1 (SLOTS IRQ), CB1 (ASC IRQ): negative edge trigger.
+	 *
+	 * Macs with ESP SCSI have a negative edge triggered SCSI interrupt.
+	 * Testing reveals that PowerBooks do too. However, the SE/30
+	 * schematic diagram shows an active high NCR5380 IRQ line.
 	 */
-	if (!rbv_present) {
-		/* For all VIA types, CA1 (SLOTS IRQ) and CB1 (ASC IRQ)
-		 * are made negative edge triggered here.
-		 */
-		if (macintosh_config->scsi_type == MAC_SCSI_OLD) {
-			/* CB2 (IRQ) indep. input, positive edge */
-			/* CA2 (DRQ) indep. input, positive edge */
-			via2[vPCR] = 0x66;
-		} else {
-			/* CB2 (IRQ) indep. input, negative edge */
-			/* CA2 (DRQ) indep. input, negative edge */
-			via2[vPCR] = 0x22;
-		}
+
+	pr_debug("VIA2 vPCR is 0x%02X\n", via2[vPCR]);
+	if (macintosh_config->via_type == MAC_VIA_II) {
+		/* CA2 (SCSI DRQ), CB2 (SCSI IRQ): indep. input, pos. edge */
+		via2[vPCR] = 0x66;
+	} else {
+		/* CA2 (SCSI DRQ), CB2 (SCSI IRQ): indep. input, neg. edge */
+		via2[vPCR] = 0x22;
 	}
 }
 
