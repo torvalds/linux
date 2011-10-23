@@ -901,6 +901,10 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  * @IEEE80211_KEY_FLAG_SW_MGMT: This flag should be set by the driver for a
  *	CCMP key if it requires CCMP encryption of management frames (MFP) to
  *	be done in software.
+ * @IEEE80211_KEY_FLAG_PUT_IV_SPACE: This flag should be set by the driver
+ *	for a CCMP key if space should be prepared for the IV, but the IV
+ *	itself should not be generated. Do not set together with
+ *	@IEEE80211_KEY_FLAG_GENERATE_IV on the same key.
  */
 enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_WMM_STA	= 1<<0,
@@ -908,6 +912,7 @@ enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_GENERATE_MMIC= 1<<2,
 	IEEE80211_KEY_FLAG_PAIRWISE	= 1<<3,
 	IEEE80211_KEY_FLAG_SW_MGMT	= 1<<4,
+	IEEE80211_KEY_FLAG_PUT_IV_SPACE = 1<<5,
 };
 
 /**
