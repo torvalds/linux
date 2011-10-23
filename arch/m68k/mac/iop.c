@@ -115,7 +115,6 @@
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
-#include <asm/mac_oss.h>
 
 /*#define DEBUG_IOP*/
 
@@ -148,8 +147,6 @@ static struct iop_msg *iop_send_queue[NUM_IOPS][NUM_IOP_CHAN];
 static struct listener iop_listeners[NUM_IOPS][NUM_IOP_CHAN];
 
 irqreturn_t iop_ism_irq(int, void *);
-
-extern void oss_irq_enable(int);
 
 /*
  * Private access functions
@@ -304,11 +301,10 @@ void __init iop_init(void)
 void __init iop_register_interrupts(void)
 {
 	if (iop_ism_present) {
-		if (oss_present) {
-			if (request_irq(OSS_IRQLEV_IOPISM, iop_ism_irq, 0,
+		if (macintosh_config->ident == MAC_MODEL_IIFX) {
+			if (request_irq(IRQ_MAC_ADB, iop_ism_irq, 0,
 					"ISM IOP", (void *)IOP_NUM_ISM))
 				pr_err("Couldn't register ISM IOP interrupt\n");
-			oss_irq_enable(IRQ_MAC_ADB);
 		} else {
 			if (request_irq(IRQ_VIA2_0, iop_ism_irq, 0, "ISM IOP",
 					(void *)IOP_NUM_ISM))

@@ -26,10 +26,6 @@
  *		  - slot 6: timer 1 (not on IIci)
  *		  - slot 7: status of IRQ; signals 'any enabled int.'
  *
- *	2	- OSS (IIfx only?)
- *		  - slot 0: SCSI interrupt
- *		  - slot 1: Sound interrupt
- *
  * Levels 3-6 vary by machine type. For VIA or RBV Macintoshes:
  *
  *	3	- unused (?)
@@ -54,21 +50,18 @@
  *
  *	6	- VIA1
  *
- * For OSS Macintoshes (IIfx only at this point):
+ * For OSS Macintoshes (IIfx only), we apply an interrupt mapping similar to
+ * the Quadra (A/UX) mapping:
  *
- *	3	- Nubus interrupt
- *		  - slot 0: Slot $9
- *		  - slot 1: Slot $A
- *		  - slot 2: Slot $B
- *		  - slot 3: Slot $C
- *		  - slot 4: Slot $D
- *		  - slot 5: Slot $E
+ *	1	- ISM IOP (ADB)
+ *
+ *	2	- SCSI
+ *
+ *	3	- NuBus
  *
  *	4	- SCC IOP
  *
- *	5	- ISM IOP (ADB?)
- *
- *	6	- unused
+ *	6	- VIA1
  *
  * For PSC Macintoshes (660AV, 840AV):
  *
@@ -111,14 +104,6 @@
  * - The Baboon interrupts (used on some PowerBooks) are an even more special
  *   case. They're hidden behind the Nubus slot $C interrupt thus adding a
  *   third layer of indirection. Why oh why did the Apple engineers do that?
- *
- * - We support "fast" and "slow" handlers, just like the Amiga port. The
- *   fast handlers are called first and with all interrupts disabled. They
- *   are expected to execute quickly (hence the name). The slow handlers are
- *   called last with interrupts enabled and the interrupt level restored.
- *   They must therefore be reentrant.
- *
- *   TODO:
  *
  */
 
@@ -216,8 +201,6 @@ void mac_irq_enable(struct irq_data *data)
 
 	switch(irq_src) {
 	case 1:
-		via_irq_enable(irq);
-		break;
 	case 2:
 	case 7:
 		if (oss_present)
@@ -226,16 +209,13 @@ void mac_irq_enable(struct irq_data *data)
 			via_irq_enable(irq);
 		break;
 	case 3:
+	case 4:
 	case 5:
 	case 6:
 		if (psc_present)
 			psc_irq_enable(irq);
 		else if (oss_present)
 			oss_irq_enable(irq);
-		break;
-	case 4:
-		if (psc_present)
-			psc_irq_enable(irq);
 		break;
 	case 8:
 		if (baboon_present)
@@ -251,8 +231,6 @@ void mac_irq_disable(struct irq_data *data)
 
 	switch(irq_src) {
 	case 1:
-		via_irq_disable(irq);
-		break;
 	case 2:
 	case 7:
 		if (oss_present)
@@ -261,16 +239,13 @@ void mac_irq_disable(struct irq_data *data)
 			via_irq_disable(irq);
 		break;
 	case 3:
+	case 4:
 	case 5:
 	case 6:
 		if (psc_present)
 			psc_irq_disable(irq);
 		else if (oss_present)
 			oss_irq_disable(irq);
-		break;
-	case 4:
-		if (psc_present)
-			psc_irq_disable(irq);
 		break;
 	case 8:
 		if (baboon_present)

@@ -893,8 +893,14 @@ static void __init mac_identify(void)
 		scc_b_rsrcs[1].start = scc_b_rsrcs[1].end = IRQ_MAC_SCC_B;
 		break;
 	default:
-		scc_a_rsrcs[1].start = scc_a_rsrcs[1].end = IRQ_MAC_SCC;
-		scc_b_rsrcs[1].start = scc_b_rsrcs[1].end = IRQ_MAC_SCC;
+		/* On non-PSC machines, the serial ports share an IRQ. */
+		if (macintosh_config->ident == MAC_MODEL_IIFX) {
+			scc_a_rsrcs[1].start = scc_a_rsrcs[1].end = IRQ_MAC_SCC;
+			scc_b_rsrcs[1].start = scc_b_rsrcs[1].end = IRQ_MAC_SCC;
+		} else {
+			scc_a_rsrcs[1].start = scc_a_rsrcs[1].end = IRQ_AUTO_4;
+			scc_b_rsrcs[1].start = scc_b_rsrcs[1].end = IRQ_AUTO_4;
+		}
 		break;
 	}
 

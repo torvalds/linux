@@ -1,5 +1,5 @@
 /*
- *	OSS handling
+ *	Operating System Services (OSS) chip handling
  *	Written by Joshua M. Thompson (funaho@jurai.org)
  *
  *
@@ -49,10 +49,8 @@ void __init oss_init(void)
 	/* do this by setting the source's interrupt level to zero. */
 
 	for (i = 0; i <= OSS_NUM_SOURCES; i++) {
-		oss->irq_level[i] = OSS_IRQLEV_DISABLED;
+		oss->irq_level[i] = 0;
 	}
-	/* If we disable VIA1 here, we never really handle it... */
-	oss->irq_level[OSS_VIA1] = OSS_IRQLEV_VIA1;
 }
 
 /*
@@ -64,17 +62,13 @@ void __init oss_nubus_init(void)
 }
 
 /*
- * Handle miscellaneous OSS interrupts. Right now that's just sound
- * and SCSI; everything else is routed to its own autovector IRQ.
+ * Handle miscellaneous OSS interrupts.
  */
 
 static void oss_irq(unsigned int irq, struct irq_desc *desc)
 {
-	int events;
-
-	events = oss->irq_pending & (OSS_IP_SOUND|OSS_IP_SCSI);
-	if (!events)
-		return;
+	int events = oss->irq_pending &
+	             (OSS_IP_IOPSCC | OSS_IP_SCSI | OSS_IP_IOPISM);
 
 #ifdef DEBUG_IRQS
 	if ((console_loglevel == 10) && !(events & OSS_IP_SCSI)) {
@@ -82,16 +76,20 @@ static void oss_irq(unsigned int irq, struct irq_desc *desc)
 			(int) oss->irq_pending);
 	}
 #endif
-	/* FIXME: how do you clear a pending IRQ?    */
 
-	if (events & OSS_IP_SOUND) {
-		oss->irq_pending &= ~OSS_IP_SOUND;
-		/* FIXME: call sound handler */
-	} else if (events & OSS_IP_SCSI) {
+	if (events & OSS_IP_IOPSCC) {
+		oss->irq_pending &= ~OSS_IP_IOPSCC;
+		generic_handle_irq(IRQ_MAC_SCC);
+	}
+
+	if (events & OSS_IP_SCSI) {
 		oss->irq_pending &= ~OSS_IP_SCSI;
 		generic_handle_irq(IRQ_MAC_SCSI);
-	} else {
-		/* FIXME: error check here? */
+	}
+
+	if (events & OSS_IP_IOPISM) {
+		oss->irq_pending &= ~OSS_IP_IOPISM;
+		generic_handle_irq(IRQ_MAC_ADB);
 	}
 }
 
@@ -130,14 +128,29 @@ static void oss_nubus_irq(unsigned int irq, struct irq_desc *desc)
 
 /*
  * Register the OSS and NuBus interrupt dispatchers.
+ *
+ * This IRQ mapping is laid out with two things in mind: first, we try to keep
+ * things on their own levels to avoid having to do double-dispatches. Second,
+ * the levels match as closely as possible the alternate IRQ mapping mode (aka
+ * "A/UX mode") available on some VIA machines.
  */
+
+#define OSS_IRQLEV_IOPISM    IRQ_AUTO_1
+#define OSS_IRQLEV_SCSI      IRQ_AUTO_2
+#define OSS_IRQLEV_NUBUS     IRQ_AUTO_3
+#define OSS_IRQLEV_IOPSCC    IRQ_AUTO_4
+#define OSS_IRQLEV_VIA1      IRQ_AUTO_6
 
 void __init oss_register_interrupts(void)
 {
-	irq_set_chained_handler(OSS_IRQLEV_SCSI, oss_irq);
-	irq_set_chained_handler(OSS_IRQLEV_NUBUS, oss_nubus_irq);
-	irq_set_chained_handler(OSS_IRQLEV_SOUND, oss_irq);
-	irq_set_chained_handler(OSS_IRQLEV_VIA1, via1_irq);
+	irq_set_chained_handler(OSS_IRQLEV_IOPISM, oss_irq);
+	irq_set_chained_handler(OSS_IRQLEV_SCSI,   oss_irq);
+	irq_set_chained_handler(OSS_IRQLEV_NUBUS,  oss_nubus_irq);
+	irq_set_chained_handler(OSS_IRQLEV_IOPSCC, oss_irq);
+	irq_set_chained_handler(OSS_IRQLEV_VIA1,   via1_irq);
+
+	/* OSS_VIA1 gets enabled here because it has no machspec interrupt. */
+	oss->irq_level[OSS_VIA1] = IRQ_AUTO_6;
 }
 
 /*
@@ -156,13 +169,13 @@ void oss_irq_enable(int irq) {
 	switch(irq) {
 		case IRQ_MAC_SCC:
 			oss->irq_level[OSS_IOPSCC] = OSS_IRQLEV_IOPSCC;
-			break;
+			return;
 		case IRQ_MAC_ADB:
 			oss->irq_level[OSS_IOPISM] = OSS_IRQLEV_IOPISM;
-			break;
+			return;
 		case IRQ_MAC_SCSI:
 			oss->irq_level[OSS_SCSI] = OSS_IRQLEV_SCSI;
-			break;
+			return;
 		case IRQ_NUBUS_9:
 		case IRQ_NUBUS_A:
 		case IRQ_NUBUS_B:
@@ -171,13 +184,11 @@ void oss_irq_enable(int irq) {
 		case IRQ_NUBUS_E:
 			irq -= NUBUS_SOURCE_BASE;
 			oss->irq_level[irq] = OSS_IRQLEV_NUBUS;
-			break;
-#ifdef DEBUG_IRQUSE
-		default:
-			printk("%s unknown irq %d\n", __func__, irq);
-			break;
-#endif
+			return;
 	}
+
+	if (IRQ_SRC(irq) == 1)
+		via_irq_enable(irq);
 }
 
 /*
@@ -193,14 +204,14 @@ void oss_irq_disable(int irq) {
 #endif
 	switch(irq) {
 		case IRQ_MAC_SCC:
-			oss->irq_level[OSS_IOPSCC] = OSS_IRQLEV_DISABLED;
-			break;
+			oss->irq_level[OSS_IOPSCC] = 0;
+			return;
 		case IRQ_MAC_ADB:
-			oss->irq_level[OSS_IOPISM] = OSS_IRQLEV_DISABLED;
-			break;
+			oss->irq_level[OSS_IOPISM] = 0;
+			return;
 		case IRQ_MAC_SCSI:
-			oss->irq_level[OSS_SCSI] = OSS_IRQLEV_DISABLED;
-			break;
+			oss->irq_level[OSS_SCSI] = 0;
+			return;
 		case IRQ_NUBUS_9:
 		case IRQ_NUBUS_A:
 		case IRQ_NUBUS_B:
@@ -208,12 +219,10 @@ void oss_irq_disable(int irq) {
 		case IRQ_NUBUS_D:
 		case IRQ_NUBUS_E:
 			irq -= NUBUS_SOURCE_BASE;
-			oss->irq_level[irq] = OSS_IRQLEV_DISABLED;
-			break;
-#ifdef DEBUG_IRQUSE
-		default:
-			printk("%s unknown irq %d\n", __func__, irq);
-			break;
-#endif
+			oss->irq_level[irq] = 0;
+			return;
 	}
+
+	if (IRQ_SRC(irq) == 1)
+		via_irq_disable(irq);
 }
