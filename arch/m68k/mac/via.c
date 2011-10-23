@@ -78,9 +78,6 @@ static int gIER,gIFR,gBufA,gBufB;
 static u8 nubus_disabled;
 
 void via_debug_dump(void);
-void via_irq_enable(int irq);
-void via_irq_disable(int irq);
-void via_irq_clear(int irq);
 
 /*
  * Initialize the VIAs

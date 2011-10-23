@@ -110,73 +110,25 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/kernel_stat.h>
-#include <linux/interrupt.h> /* for intr_count */
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/delay.h>
-#include <linux/seq_file.h>
 
-#include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/traps.h>
-#include <asm/bootinfo.h>
 #include <asm/macintosh.h>
+#include <asm/macints.h>
 #include <asm/mac_via.h>
 #include <asm/mac_psc.h>
-#include <asm/hwtest.h>
-#include <asm/errno.h>
-#include <asm/macints.h>
-#include <asm/irq_regs.h>
 #include <asm/mac_oss.h>
+#include <asm/mac_iop.h>
+#include <asm/mac_baboon.h>
+#include <asm/hwtest.h>
+#include <asm/irq_regs.h>
 
 #define SHUTUP_SONIC
-
-/*
- * VIA/RBV hooks
- */
-
-extern void via_register_interrupts(void);
-extern void via_irq_enable(int);
-extern void via_irq_disable(int);
-extern void via_irq_clear(int);
-
-/*
- * OSS hooks
- */
-
-extern void oss_register_interrupts(void);
-extern void oss_irq_enable(int);
-extern void oss_irq_disable(int);
-extern void oss_irq_clear(int);
-
-/*
- * PSC hooks
- */
-
-extern void psc_register_interrupts(void);
-extern void psc_irq_enable(int);
-extern void psc_irq_disable(int);
-extern void psc_irq_clear(int);
-
-/*
- * IOP hooks
- */
-
-extern void iop_register_interrupts(void);
-
-/*
- * Baboon hooks
- */
-
-extern int baboon_present;
-
-extern void baboon_register_interrupts(void);
-extern void baboon_irq_enable(int);
-extern void baboon_irq_disable(int);
-extern void baboon_irq_clear(int);
 
 /*
  * console_loglevel determines NMI handler function

@@ -16,12 +16,6 @@ extern void mac_irq_enable(struct irq_data *data);
 extern void mac_irq_disable(struct irq_data *data);
 
 /*
- *	Floppy driver magic hook - probably shouldn't be here
- */
-
-extern void via1_set_head(int);
-
-/*
  *	Macintosh Table
  */
 

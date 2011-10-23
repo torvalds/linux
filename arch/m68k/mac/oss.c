@@ -30,8 +30,6 @@
 int oss_present;
 volatile struct mac_oss *oss;
 
-extern void via1_irq(unsigned int irq, struct irq_desc *desc);
-
 /*
  * Initialize the OSS
  *

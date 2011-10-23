@@ -91,4 +91,8 @@ struct mac_oss {
 extern volatile struct mac_oss *oss;
 extern int oss_present;
 
+extern void oss_register_interrupts(void);
+extern void oss_irq_enable(int);
+extern void oss_irq_disable(int);
+
 #endif /* __ASSEMBLY__ */
