@@ -2386,10 +2386,6 @@ config TC
 	  Linux driver support status is documented at:
 	  <http://www.linux-mips.org/wiki/DECstation>
 
-#config ACCESSBUS
-#	bool "Access.Bus support"
-#	depends on TC
-
 config MMU
 	bool
 	default y
