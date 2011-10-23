@@ -502,33 +502,21 @@ int au_wh_init(struct dentry *h_root, struct au_branch *br,
 		}
 
 	err = 0;
-	switch (br->br_perm) {
-	case AuBrPerm_RO:
-	case AuBrPerm_ROWH:
-	case AuBrPerm_RR:
-	case AuBrPerm_RRWH:
+	if (!au_br_writable(br->br_perm)) {
 		h_dir = h_root->d_inode;
 		au_wh_init_ro(h_dir, base, &path);
-		break;
-
-	case AuBrPerm_RWNoLinkWH:
+	} else if (!au_br_wh_linkable(br->br_perm)) {
 		err = au_wh_init_rw_nolink(h_root, wbr, do_plink, base, &path);
 		if (err > 0)
 			goto out;
 		else if (err)
 			goto out_err;
-		break;
-
-	case AuBrPerm_RW:
+	} else {
 		err = au_wh_init_rw(h_root, wbr, do_plink, base, &path);
 		if (err > 0)
 			goto out;
 		else if (err)
 			goto out_err;
-		break;
-
-	default:
-		BUG();
 	}
 	goto out; /* success */
 

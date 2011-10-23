@@ -99,15 +99,12 @@ typedef __s16 aufs_bindex_t;
 #define AUFS_WH_PLINKDIR	AUFS_WH_PFX AUFS_PLINKDIR_NAME
 #define AUFS_WH_ORPHDIR		AUFS_WH_PFX AUFS_ORPHDIR_NAME
 
-/* branch permission */
+/* branch permissions and attributes */
 #define AUFS_BRPERM_RW		"rw"
 #define AUFS_BRPERM_RO		"ro"
 #define AUFS_BRPERM_RR		"rr"
-#define AUFS_BRPERM_WH		"wh"
-#define AUFS_BRPERM_NLWH	"nolwh"
-#define AUFS_BRPERM_ROWH	AUFS_BRPERM_RO "+" AUFS_BRPERM_WH
-#define AUFS_BRPERM_RRWH	AUFS_BRPERM_RR "+" AUFS_BRPERM_WH
-#define AUFS_BRPERM_RWNLWH	AUFS_BRPERM_RW "+" AUFS_BRPERM_NLWH
+#define AUFS_BRRATTR_WH		"wh"
+#define AUFS_BRWATTR_NLWH	"nolwh"
 
 /* ---------------------------------------------------------------------- */
 
@@ -197,15 +194,27 @@ struct aufs_rdu {
 	struct au_rdu_cookie	cookie;
 } __aligned(8);
 
-struct aufs_ibusy {
-	__u64		ino, h_ino;
-	__s16		bindex;
+/* ---------------------------------------------------------------------- */
+
+struct aufs_wbr_fd {
+	__u32	oflags;
+	__s16	brid;
 } __aligned(8);
+
+/* ---------------------------------------------------------------------- */
+
+struct aufs_ibusy {
+	__u64	ino, h_ino;
+	__s16	bindex;
+} __aligned(8);
+
+/* ---------------------------------------------------------------------- */
 
 #define AuCtlType		'A'
 #define AUFS_CTL_RDU		_IOWR(AuCtlType, AuCtl_RDU, struct aufs_rdu)
 #define AUFS_CTL_RDU_INO	_IOWR(AuCtlType, AuCtl_RDU_INO, struct aufs_rdu)
-#define AUFS_CTL_WBR_FD		_IO(AuCtlType, AuCtl_WBR_FD)
+#define AUFS_CTL_WBR_FD		_IOW(AuCtlType, AuCtl_WBR_FD, \
+				     struct aufs_wbr_fd)
 #define AUFS_CTL_IBUSY		_IOWR(AuCtlType, AuCtl_IBUSY, struct aufs_ibusy)
 
 #endif /* __AUFS_TYPE_H__ */

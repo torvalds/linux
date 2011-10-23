@@ -190,7 +190,7 @@ struct au_opts {
 
 /* ---------------------------------------------------------------------- */
 
-const char *au_optstr_br_perm(int brperm);
+char *au_optstr_br_perm(int brperm);
 const char *au_optstr_udba(int udba);
 const char *au_optstr_wbr_copyup(int wbr_copyup);
 const char *au_optstr_wbr_create(int wbr_create);
