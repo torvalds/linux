@@ -18,7 +18,6 @@
 
 int baboon_present;
 static volatile struct baboon *baboon;
-static unsigned char baboon_disabled;
 
 #if 0
 extern int macide_ack_intr(struct ata_channel *);
@@ -84,37 +83,32 @@ static void baboon_irq(unsigned int irq, struct irq_desc *desc)
 
 void __init baboon_register_interrupts(void)
 {
-	baboon_disabled = 0;
 	irq_set_chained_handler(IRQ_NUBUS_C, baboon_irq);
 }
 
 /*
- * The means for masking individual baboon interrupts remains a mystery, so
- * enable the umbrella interrupt only when no baboon interrupt is disabled.
+ * The means for masking individual Baboon interrupts remains a mystery.
+ * However, since we only use the IDE IRQ, we can just enable/disable all
+ * Baboon interrupts. If/when we handle more than one Baboon IRQ, we must
+ * either figure out how to mask them individually or else implement the
+ * same workaround that's used for NuBus slots (see nubus_disabled and
+ * via_nubus_irq_shutdown).
  */
 
 void baboon_irq_enable(int irq)
 {
-	int irq_idx = IRQ_IDX(irq);
-
 #ifdef DEBUG_IRQUSE
 	printk("baboon_irq_enable(%d)\n", irq);
 #endif
 
-	baboon_disabled &= ~(1 << irq_idx);
-	if (!baboon_disabled)
-		mac_irq_enable(irq_get_irq_data(IRQ_NUBUS_C));
+	mac_irq_enable(irq_get_irq_data(IRQ_NUBUS_C));
 }
 
 void baboon_irq_disable(int irq)
 {
-	int irq_idx = IRQ_IDX(irq);
-
 #ifdef DEBUG_IRQUSE
 	printk("baboon_irq_disable(%d)\n", irq);
 #endif
 
-	baboon_disabled |= 1 << irq_idx;
-	if (baboon_disabled)
-		mac_irq_disable(irq_get_irq_data(IRQ_NUBUS_C));
+	mac_irq_disable(irq_get_irq_data(IRQ_NUBUS_C));
 }
