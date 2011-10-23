@@ -493,6 +493,8 @@ static void ideapad_backlight_notify_power(struct ideapad_private *priv)
 	unsigned long power;
 	struct backlight_device *blightdev = priv->blightdev;
 
+	if (!blightdev)
+		return;
 	if (read_ec_data(ideapad_handle, 0x18, &power))
 		return;
 	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
