@@ -151,10 +151,15 @@ irqreturn_t mac_debug_handler(int, void *);
 
 /* #define DEBUG_MACINTS */
 
+static unsigned int mac_irq_startup(struct irq_data *);
+static void mac_irq_shutdown(struct irq_data *);
+
 static struct irq_chip mac_irq_chip = {
 	.name		= "mac",
 	.irq_enable	= mac_irq_enable,
 	.irq_disable	= mac_irq_disable,
+	.irq_startup	= mac_irq_startup,
+	.irq_shutdown	= mac_irq_shutdown,
 };
 
 void __init mac_init_IRQ(void)
@@ -272,6 +277,28 @@ void mac_irq_disable(struct irq_data *data)
 			baboon_irq_disable(irq);
 		break;
 	}
+}
+
+static unsigned int mac_irq_startup(struct irq_data *data)
+{
+	int irq = data->irq;
+
+	if (IRQ_SRC(irq) == 7 && !oss_present)
+		via_nubus_irq_startup(irq);
+	else
+		mac_irq_enable(data);
+
+	return 0;
+}
+
+static void mac_irq_shutdown(struct irq_data *data)
+{
+	int irq = data->irq;
+
+	if (IRQ_SRC(irq) == 7 && !oss_present)
+		via_nubus_irq_shutdown(irq);
+	else
+		mac_irq_disable(data);
 }
 
 static int num_debug[8];

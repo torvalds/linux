@@ -257,6 +257,8 @@ extern int rbv_present,via_alt_mapping;
 extern void via_register_interrupts(void);
 extern void via_irq_enable(int);
 extern void via_irq_disable(int);
+extern void via_nubus_irq_startup(int irq);
+extern void via_nubus_irq_shutdown(int irq);
 extern void via1_irq(unsigned int irq, struct irq_desc *desc);
 extern void via1_set_head(int);
 extern int via2_scsi_drq_pending(void);
