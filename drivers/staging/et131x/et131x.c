@@ -4366,10 +4366,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	adapter->pdev = pci_dev_get(pdev);
 	adapter->netdev = netdev;
 
-	/* Do the same for the netdev struct */
-	netdev->irq = pdev->irq;
-	netdev->base_addr = pci_resource_start(pdev, 0);
-
 	/* Initialize spinlocks here */
 	spin_lock_init(&adapter->lock);
 	spin_lock_init(&adapter->tcb_send_qlock);
@@ -4834,8 +4830,10 @@ static struct net_device_stats *et131x_stats(struct net_device *netdev)
  */
 static int et131x_open(struct net_device *netdev)
 {
-	int result = 0;
 	struct et131x_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
+	unsigned int irq = pdev->irq;
+	int result;
 
 	/* Start the timer to track NIC errors */
 	init_timer(&adapter->error_timer);
@@ -4844,12 +4842,9 @@ static int et131x_open(struct net_device *netdev)
 	adapter->error_timer.data = (unsigned long)adapter;
 	add_timer(&adapter->error_timer);
 
-	/* Register our IRQ */
-	result = request_irq(netdev->irq, et131x_isr, IRQF_SHARED,
-					netdev->name, netdev);
+	result = request_irq(irq, et131x_isr, IRQF_SHARED, netdev->name, netdev);
 	if (result) {
-		dev_err(&adapter->pdev->dev, "could not register IRQ %d\n",
-			netdev->irq);
+		dev_err(&pdev->dev, "could not register IRQ %d\n", irq);
 		return result;
 	}
 
@@ -4873,7 +4868,7 @@ static int et131x_close(struct net_device *netdev)
 	et131x_down(netdev);
 
 	adapter->flags &= ~fMP_ADAPTER_INTERRUPT_IN_USE;
-	free_irq(netdev->irq, netdev);
+	free_irq(adapter->pdev->irq, netdev);
 
 	/* Stop the error timer */
 	return del_timer_sync(&adapter->error_timer);
