@@ -674,7 +674,7 @@ static struct mac_model mac_data_table[] = {
 	}, {
 		.ident		= MAC_MODEL_PB150,
 		.name		= "PowerBook 150",
-		.adb_type	= MAC_ADB_PB1,
+		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_IIci,
 		.scsi_type	= MAC_SCSI_OLD,
 		.ide_type	= MAC_IDE_PB,
