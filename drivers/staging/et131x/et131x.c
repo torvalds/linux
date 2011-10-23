@@ -5429,7 +5429,6 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	 * been initialized, just in case it needs to be quickly restored.
 	 */
 	pci_set_drvdata(pdev, netdev);
-	pci_save_state(adapter->pdev);
 out:
 	return rc;
 
