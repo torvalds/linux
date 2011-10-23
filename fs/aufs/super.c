@@ -98,6 +98,7 @@ static int au_show_brs(struct seq_file *seq, struct super_block *sb)
 	struct path path;
 	struct au_hdentry *hdp;
 	struct au_branch *br;
+	char *perm;
 
 	err = 0;
 	bend = au_sbend(sb);
@@ -107,9 +108,16 @@ static int au_show_brs(struct seq_file *seq, struct super_block *sb)
 		path.mnt = br->br_mnt;
 		path.dentry = hdp[bindex].hd_dentry;
 		err = au_seq_path(seq, &path);
-		if (err > 0)
-			err = seq_printf(seq, "=%s",
-					 au_optstr_br_perm(br->br_perm));
+		if (err > 0) {
+			perm = au_optstr_br_perm(br->br_perm);
+			if (perm) {
+				err = seq_printf(seq, "=%s", perm);
+				kfree(perm);
+				if (err == -1)
+					err = -E2BIG;
+			} else
+				err = -ENOMEM;
+		}
 		if (!err && bindex != bend)
 			err = seq_putc(seq, ':');
 	}

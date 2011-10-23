@@ -60,12 +60,15 @@ int sysaufs_si_xi_path(struct seq_file *seq, struct super_block *sb)
 static int sysaufs_si_br(struct seq_file *seq, struct super_block *sb,
 			 aufs_bindex_t bindex)
 {
+	int err;
 	struct path path;
 	struct dentry *root;
 	struct au_branch *br;
+	char *perm;
 
 	AuDbg("b%d\n", bindex);
 
+	err = 0;
 	root = sb->s_root;
 	di_read_lock_parent(root, !AuLock_IR);
 	br = au_sbr(sb, bindex);
@@ -73,8 +76,15 @@ static int sysaufs_si_br(struct seq_file *seq, struct super_block *sb,
 	path.dentry = au_h_dptr(root, bindex);
 	au_seq_path(seq, &path);
 	di_read_unlock(root, !AuLock_IR);
-	seq_printf(seq, "=%s\n", au_optstr_br_perm(br->br_perm));
-	return 0;
+	perm = au_optstr_br_perm(br->br_perm);
+	if (perm) {
+		err = seq_printf(seq, "=%s\n", perm);
+		kfree(perm);
+		if (err == -1)
+			err = -E2BIG;
+	} else
+		err = -ENOMEM;
+	return err;
 }
 
 /* ---------------------------------------------------------------------- */
