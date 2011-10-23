@@ -4356,7 +4356,6 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
 	int result;
-	int pm_cap;
 	struct net_device *netdev;
 	struct et131x_adapter *adapter;
 	int ii;
@@ -4379,19 +4378,6 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
-
-	/* Query PCI for Power Mgmt Capabilities
-	 *
-	 * NOTE: Now reading PowerMgmt in another location; is this still
-	 * needed?
-	 */
-	pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
-	if (!pm_cap) {
-		dev_err(&pdev->dev,
-			  "Cannot find Power Management capabilities\n");
-		result = -EIO;
-		goto err_release_res;
-	}
 
 	/* Check the DMA addressing support of this device */
 	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
