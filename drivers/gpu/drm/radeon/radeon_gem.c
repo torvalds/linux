@@ -163,7 +163,7 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 	args->vram_visible -= radeon_fbdev_total_size(rdev);
 	args->gart_size = rdev->mc.gtt_size - 4096 - RADEON_IB_POOL_SIZE*64*1024;
 	for(i = 0; i < RADEON_NUM_RINGS; ++i)
-		args->gart_size -= rdev->cp[i].ring_size;
+		args->gart_size -= rdev->ring[i].ring_size;
 	return 0;
 }
 

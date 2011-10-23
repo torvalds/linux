@@ -357,7 +357,7 @@ static int rv770_cp_load_microcode(struct radeon_device *rdev)
 void r700_cp_fini(struct radeon_device *rdev)
 {
 	r700_cp_stop(rdev);
-	radeon_ring_fini(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX]);
+	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 }
 
 /*
@@ -1043,7 +1043,7 @@ int rv770_mc_init(struct radeon_device *rdev)
 
 static int rv770_startup(struct radeon_device *rdev)
 {
-	struct radeon_cp *cp = &rdev->cp[RADEON_RING_TYPE_GFX_INDEX];
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
 	/* enable pcie gen2 link */
@@ -1092,7 +1092,7 @@ static int rv770_startup(struct radeon_device *rdev)
 	}
 	r600_irq_set(rdev);
 
-	r = radeon_ring_init(rdev, cp, cp->ring_size, RADEON_WB_CP_RPTR_OFFSET,
+	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
 			     R600_CP_RB_RPTR, R600_CP_RB_WPTR);
 	if (r)
 		return r;
@@ -1144,7 +1144,7 @@ int rv770_suspend(struct radeon_device *rdev)
 	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
-	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ready = false;
+	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
@@ -1217,8 +1217,8 @@ int rv770_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	rdev->cp[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
-	r600_ring_init(rdev, &rdev->cp[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
+	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX], 1024 * 1024);
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);

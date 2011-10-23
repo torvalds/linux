@@ -58,7 +58,7 @@ void r100_fini(struct radeon_device *rdev);
 int r100_suspend(struct radeon_device *rdev);
 int r100_resume(struct radeon_device *rdev);
 void r100_vga_set_state(struct radeon_device *rdev, bool state);
-bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp);
+bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int r100_asic_reset(struct radeon_device *rdev);
 u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc);
 void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
@@ -69,7 +69,7 @@ int r100_irq_process(struct radeon_device *rdev);
 void r100_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence);
 void r100_semaphore_ring_emit(struct radeon_device *rdev,
-			      struct radeon_cp *cp,
+			      struct radeon_ring *cp,
 			      struct radeon_semaphore *semaphore,
 			      bool emit_wait);
 int r100_cs_parse(struct radeon_cs_parser *p);
@@ -86,7 +86,7 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 void r100_clear_surface_reg(struct radeon_device *rdev, int reg);
 void r100_bandwidth_update(struct radeon_device *rdev);
 void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
-int r100_ring_test(struct radeon_device *rdev, struct radeon_cp *cp);
+int r100_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 void r100_hpd_init(struct radeon_device *rdev);
 void r100_hpd_fini(struct radeon_device *rdev);
 bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
@@ -104,10 +104,10 @@ void r100_pci_gart_disable(struct radeon_device *rdev);
 int r100_debugfs_mc_info_init(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
 void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup,
-			    struct radeon_cp *cp);
+			    struct radeon_ring *cp);
 bool r100_gpu_cp_is_lockup(struct radeon_device *rdev,
 			   struct r100_gpu_lockup *lockup,
-			   struct radeon_cp *cp);
+			   struct radeon_ring *cp);
 void r100_ib_fini(struct radeon_device *rdev);
 int r100_ib_init(struct radeon_device *rdev);
 void r100_irq_disable(struct radeon_device *rdev);
@@ -157,7 +157,7 @@ extern int r300_init(struct radeon_device *rdev);
 extern void r300_fini(struct radeon_device *rdev);
 extern int r300_suspend(struct radeon_device *rdev);
 extern int r300_resume(struct radeon_device *rdev);
-extern bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp);
+extern bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 extern int r300_asic_reset(struct radeon_device *rdev);
 extern void r300_ring_start(struct radeon_device *rdev);
 extern void r300_fence_ring_emit(struct radeon_device *rdev,
@@ -303,10 +303,10 @@ int r600_cs_parse(struct radeon_cs_parser *p);
 void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence);
 void r600_semaphore_ring_emit(struct radeon_device *rdev,
-			      struct radeon_cp *cp,
+			      struct radeon_ring *cp,
 			      struct radeon_semaphore *semaphore,
 			      bool emit_wait);
-bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp);
+bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_asic_reset(struct radeon_device *rdev);
 int r600_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
@@ -314,7 +314,7 @@ int r600_set_surface_reg(struct radeon_device *rdev, int reg,
 void r600_clear_surface_reg(struct radeon_device *rdev, int reg);
 int r600_ib_test(struct radeon_device *rdev, int ring);
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
-int r600_ring_test(struct radeon_device *rdev, struct radeon_cp *cp);
+int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_gpu_pages, struct radeon_fence *fence);
@@ -334,7 +334,7 @@ extern int r600_get_pcie_lanes(struct radeon_device *rdev);
 bool r600_card_posted(struct radeon_device *rdev);
 void r600_cp_stop(struct radeon_device *rdev);
 int r600_cp_start(struct radeon_device *rdev);
-void r600_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size);
+void r600_ring_init(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ring_size);
 int r600_cp_resume(struct radeon_device *rdev);
 void r600_cp_fini(struct radeon_device *rdev);
 int r600_count_pipe_bits(uint32_t val);
@@ -403,7 +403,7 @@ int evergreen_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 int evergreen_suspend(struct radeon_device *rdev);
 int evergreen_resume(struct radeon_device *rdev);
-bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp);
+bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int evergreen_asic_reset(struct radeon_device *rdev);
 void evergreen_bandwidth_update(struct radeon_device *rdev);
 void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
@@ -434,7 +434,7 @@ int cayman_init(struct radeon_device *rdev);
 void cayman_fini(struct radeon_device *rdev);
 int cayman_suspend(struct radeon_device *rdev);
 int cayman_resume(struct radeon_device *rdev);
-bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_cp *cp);
+bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int cayman_asic_reset(struct radeon_device *rdev);
 
 #endif

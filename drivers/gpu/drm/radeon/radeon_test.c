@@ -44,7 +44,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 	 */
 	n = rdev->mc.gtt_size - RADEON_IB_POOL_SIZE*64*1024;
 	for (i = 0; i < RADEON_NUM_RINGS; ++i)
-		n -= rdev->cp[i].ring_size;
+		n -= rdev->ring[i].ring_size;
 	if (rdev->wb.wb_obj)
 		n -= RADEON_GPU_PAGE_SIZE;
 	if (rdev->ih.ring_obj)
@@ -236,16 +236,16 @@ out_cleanup:
 }
 
 void radeon_test_ring_sync(struct radeon_device *rdev,
-			   struct radeon_cp *cpA,
-			   struct radeon_cp *cpB)
+			   struct radeon_ring *ringA,
+			   struct radeon_ring *ringB)
 {
 	struct radeon_fence *fence = NULL;
 	struct radeon_semaphore *semaphore = NULL;
-	int ringA = radeon_ring_index(rdev, cpA);
-	int ringB = radeon_ring_index(rdev, cpB);
+	int ridxA = radeon_ring_index(rdev, ringA);
+	int ridxB = radeon_ring_index(rdev, ringB);
 	int r;
 
-	r = radeon_fence_create(rdev, &fence, ringA);
+	r = radeon_fence_create(rdev, &fence, ridxA);
 	if (r) {
 		DRM_ERROR("Failed to create sync fence\n");
 		goto out_cleanup;
@@ -257,14 +257,14 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 		goto out_cleanup;
 	}
 
-	r = radeon_ring_lock(rdev, cpA, 64);
+	r = radeon_ring_lock(rdev, ringA, 64);
 	if (r) {
-		DRM_ERROR("Failed to lock ring %d\n", ringA);
+		DRM_ERROR("Failed to lock ring A %d\n", ridxA);
 		goto out_cleanup;
 	}
-	radeon_semaphore_emit_wait(rdev, ringA, semaphore);
+	radeon_semaphore_emit_wait(rdev, ridxA, semaphore);
 	radeon_fence_emit(rdev, fence);
-	radeon_ring_unlock_commit(rdev, cpA);
+	radeon_ring_unlock_commit(rdev, ringA);
 
 	mdelay(1000);
 
@@ -273,13 +273,13 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 		goto out_cleanup;
 	}
 
-	r = radeon_ring_lock(rdev, cpB, 64);
+	r = radeon_ring_lock(rdev, ringB, 64);
 	if (r) {
-		DRM_ERROR("Failed to lock ring %d\n", ringB);
+		DRM_ERROR("Failed to lock ring B %p\n", ringB);
 		goto out_cleanup;
 	}
-	radeon_semaphore_emit_signal(rdev, ringB, semaphore);
-	radeon_ring_unlock_commit(rdev, cpB);
+	radeon_semaphore_emit_signal(rdev, ridxB, semaphore);
+	radeon_ring_unlock_commit(rdev, ringB);
 
 	r = radeon_fence_wait(fence, false);
 	if (r) {
@@ -287,7 +287,7 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 		goto out_cleanup;
 	}
 
-	DRM_INFO("Syncing between rings %d and %d seems to work.\n", ringA, ringB);
+	DRM_INFO("Syncing between rings %d and %d seems to work.\n", ridxA, ridxB);
 
 out_cleanup:
 	if (semaphore)
@@ -305,20 +305,20 @@ void radeon_test_syncing(struct radeon_device *rdev)
 	int i, j;
 
 	for (i = 1; i < RADEON_NUM_RINGS; ++i) {
-		struct radeon_cp *cpA = &rdev->cp[i];
-		if (!cpA->ready)
+		struct radeon_ring *ringA = &rdev->ring[i];
+		if (!ringA->ready)
 			continue;
 
 		for (j = 0; j < i; ++j) {
-			struct radeon_cp *cpB = &rdev->cp[j];
-			if (!cpB->ready)
+			struct radeon_ring *ringB = &rdev->ring[j];
+			if (!ringB->ready)
 				continue;
 
 			DRM_INFO("Testing syncing between rings %d and %d\n", i, j);
-			radeon_test_ring_sync(rdev, cpA, cpB);
+			radeon_test_ring_sync(rdev, ringA, ringB);
 
 			DRM_INFO("Testing syncing between rings %d and %d\n", j, i);
-			radeon_test_ring_sync(rdev, cpB, cpA);
+			radeon_test_ring_sync(rdev, ringB, ringA);
 		}
 	}
 }

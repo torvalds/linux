@@ -231,7 +231,7 @@ int radeon_fence_count_emitted(struct radeon_device *rdev, int ring);
 /*
  * Semaphores.
  */
-struct radeon_cp;
+struct radeon_ring;
 
 struct radeon_semaphore_driver {
 	rwlock_t		lock;
@@ -485,7 +485,7 @@ void radeon_irq_kms_pflip_irq_get(struct radeon_device *rdev, int crtc);
 void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
 
 /*
- * CP & ring.
+ * CP & rings.
  */
 
 /* max number of rings */
@@ -522,7 +522,7 @@ struct radeon_ib_pool {
 	unsigned		head_id;
 };
 
-struct radeon_cp {
+struct radeon_ring {
 	struct radeon_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr;
@@ -600,17 +600,17 @@ void radeon_ib_pool_fini(struct radeon_device *rdev);
 int radeon_ib_test(struct radeon_device *rdev);
 extern void radeon_ib_bogus_add(struct radeon_device *rdev, struct radeon_ib *ib);
 /* Ring access between begin & end cannot sleep */
-int radeon_ring_index(struct radeon_device *rdev, struct radeon_cp *cp);
-void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_cp *cp);
-int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ndw);
-int radeon_ring_lock(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ndw);
-void radeon_ring_commit(struct radeon_device *rdev, struct radeon_cp *cp);
-void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_cp *cp);
-void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_cp *cp);
-int radeon_ring_test(struct radeon_device *rdev, struct radeon_cp *cp);
-int radeon_ring_init(struct radeon_device *rdev, struct radeon_cp *cp, unsigned ring_size,
+int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *cp);
+void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *cp);
+int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
+int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
+void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *cp);
+void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *cp);
+void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *cp);
+int radeon_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
+int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ring_size,
 		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg);
-void radeon_ring_fini(struct radeon_device *rdev, struct radeon_cp *cp);
+void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *cp);
 
 
 /*
@@ -915,8 +915,8 @@ void radeon_benchmark(struct radeon_device *rdev, int test_number);
  */
 void radeon_test_moves(struct radeon_device *rdev);
 void radeon_test_ring_sync(struct radeon_device *rdev,
-			   struct radeon_cp *cpA,
-			   struct radeon_cp *cpB);
+			   struct radeon_ring *cpA,
+			   struct radeon_ring *cpB);
 void radeon_test_syncing(struct radeon_device *rdev);
 
 
@@ -943,7 +943,7 @@ struct radeon_asic {
 	int (*resume)(struct radeon_device *rdev);
 	int (*suspend)(struct radeon_device *rdev);
 	void (*vga_set_state)(struct radeon_device *rdev, bool state);
-	bool (*gpu_is_lockup)(struct radeon_device *rdev, struct radeon_cp *cp);
+	bool (*gpu_is_lockup)(struct radeon_device *rdev, struct radeon_ring *cp);
 	int (*asic_reset)(struct radeon_device *rdev);
 	void (*gart_tlb_flush)(struct radeon_device *rdev);
 	int (*gart_set_page)(struct radeon_device *rdev, int i, uint64_t addr);
@@ -955,11 +955,11 @@ struct radeon_asic {
 	struct {
 		void (*ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
 		void (*emit_fence)(struct radeon_device *rdev, struct radeon_fence *fence);
-		void (*emit_semaphore)(struct radeon_device *rdev, struct radeon_cp *cp,
+		void (*emit_semaphore)(struct radeon_device *rdev, struct radeon_ring *cp,
 				       struct radeon_semaphore *semaphore, bool emit_wait);
 	} ring[RADEON_NUM_RINGS];
 
-	int (*ring_test)(struct radeon_device *rdev, struct radeon_cp *cp);
+	int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 	int (*irq_set)(struct radeon_device *rdev);
 	int (*irq_process)(struct radeon_device *rdev);
 	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
@@ -1293,7 +1293,7 @@ struct radeon_device {
 	rwlock_t			fence_lock;
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	struct radeon_semaphore_driver	semaphore_drv;
-	struct radeon_cp		cp[RADEON_NUM_RINGS];
+	struct radeon_ring		ring[RADEON_NUM_RINGS];
 	struct radeon_ib_pool		ib_pool;
 	struct radeon_irq		irq;
 	struct radeon_asic		*asic;
@@ -1476,16 +1476,16 @@ void radeon_atombios_fini(struct radeon_device *rdev);
  * RING helpers.
  */
 #if DRM_DEBUG_CODE == 0
-static inline void radeon_ring_write(struct radeon_cp *cp, uint32_t v)
+static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 {
-	cp->ring[cp->wptr++] = v;
-	cp->wptr &= cp->ptr_mask;
-	cp->count_dw--;
-	cp->ring_free_dw--;
+	ring->ring[ring->wptr++] = v;
+	ring->wptr &= ring->ptr_mask;
+	ring->count_dw--;
+	ring->ring_free_dw--;
 }
 #else
 /* With debugging this is just too big to inline */
-void radeon_ring_write(struct radeon_cp *cp, uint32_t v);
+void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #endif
 
 /*
