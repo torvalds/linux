@@ -605,7 +605,6 @@ int32_t et131x_mii_write(struct et131x_adapter *adapter,
 void et131x_rx_dma_memory_free(struct et131x_adapter *adapter);
 void et131x_rx_dma_disable(struct et131x_adapter *adapter);
 void et131x_rx_dma_enable(struct et131x_adapter *adapter);
-void et131x_reset_recv(struct et131x_adapter *adapter);
 void et131x_init_send(struct et131x_adapter *adapter);
 void et131x_tx_dma_enable(struct et131x_adapter *adapter);
 
@@ -1839,9 +1838,6 @@ void et1310_disable_phy_coma(struct et131x_adapter *adapter)
 	/* Re-initialize the send structures */
 	et131x_init_send(adapter);
 
-	/* Reset the RFD list and re-start RU  */
-	et131x_reset_recv(adapter);
-
 	/* Bring the device back to the state it was during init prior to
 	 * autonegotiation being complete.  This way, when we get the auto-neg
 	 * complete interrupt, we can complete init by calling ConfigMacREGS2.
@@ -2879,17 +2875,6 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 
 	nic_return_rfd(adapter, rfd);
 	return rfd;
-}
-
-/**
- * et131x_reset_recv - Reset the receive list
- * @adapter: pointer to our adapter
- *
- * Assumption, Rcv spinlock has been acquired.
- */
-void et131x_reset_recv(struct et131x_adapter *adapter)
-{
-	WARN_ON(list_empty(&adapter->rx_ring.recv_list));
 }
 
 /**
@@ -4250,9 +4235,6 @@ static void et131x_adjust_link(struct net_device *netdev)
 
 			/* Re-initialize the send structures */
 			et131x_init_send(adapter);
-
-			/* Reset the RFD list and re-start RU */
-			et131x_reset_recv(adapter);
 
 			/*
 			 * Bring the device back to the state it was during
