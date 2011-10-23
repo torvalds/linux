@@ -123,10 +123,3 @@ void baboon_irq_disable(int irq)
 	if (baboon_disabled)
 		mac_irq_disable(irq_get_irq_data(IRQ_NUBUS_C));
 }
-
-int baboon_irq_pending(int irq)
-{
-	int irq_idx = IRQ_IDX(irq);
-
-	return baboon->mb_ifr & (1 << irq_idx);
-}

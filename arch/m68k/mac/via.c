@@ -585,28 +585,6 @@ void via_irq_disable(int irq) {
 	}
 }
 
-/*
- * Returns nonzero if an interrupt is pending on the given
- * VIA/IRQ combination.
- */
-
-int via_irq_pending(int irq)
-{
-	int irq_src	= IRQ_SRC(irq);
-	int irq_idx	= IRQ_IDX(irq);
-	int irq_bit	= 1 << irq_idx;
-
-	if (irq_src == 1) {
-		return via1[vIFR] & irq_bit;
-	} else if (irq_src == 2) {
-		return via2[gIFR] & irq_bit;
-	} else if (irq_src == 7) {
-		/* Always 0 for MAC_VIA_QUADRA if the slot irq is disabled. */
-		return ~via2[gBufA] & irq_bit;
-	}
-	return 0;
-}
-
 void via1_set_head(int head)
 {
 	if (head == 0)
@@ -615,3 +593,9 @@ void via1_set_head(int head)
 		via1[vBufA] |= VIA1A_vHeadSel;
 }
 EXPORT_SYMBOL(via1_set_head);
+
+int via2_scsi_drq_pending(void)
+{
+	return via2[gIFR] & (1 << IRQ_IDX(IRQ_MAC_SCSIDRQ));
+}
+EXPORT_SYMBOL(via2_scsi_drq_pending);

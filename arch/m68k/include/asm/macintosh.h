@@ -11,7 +11,7 @@
 extern void mac_reset(void);
 extern void mac_poweroff(void);
 extern void mac_init_IRQ(void);
-extern int mac_irq_pending(unsigned int);
+
 extern void mac_irq_enable(struct irq_data *data);
 extern void mac_irq_disable(struct irq_data *data);
 

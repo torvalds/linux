@@ -142,7 +142,6 @@ extern void via_register_interrupts(void);
 extern void via_irq_enable(int);
 extern void via_irq_disable(int);
 extern void via_irq_clear(int);
-extern int  via_irq_pending(int);
 
 /*
  * OSS hooks
@@ -152,7 +151,6 @@ extern void oss_register_interrupts(void);
 extern void oss_irq_enable(int);
 extern void oss_irq_disable(int);
 extern void oss_irq_clear(int);
-extern int  oss_irq_pending(int);
 
 /*
  * PSC hooks
@@ -162,7 +160,6 @@ extern void psc_register_interrupts(void);
 extern void psc_irq_enable(int);
 extern void psc_irq_disable(int);
 extern void psc_irq_clear(int);
-extern int  psc_irq_pending(int);
 
 /*
  * IOP hooks
@@ -239,7 +236,6 @@ void __init mac_init_IRQ(void)
 /*
  *  mac_irq_enable - enable an interrupt source
  * mac_irq_disable - disable an interrupt source
- * mac_irq_pending - returns the pending status of an IRQ (nonzero = pending)
  *
  * These routines are just dispatchers to the VIA/OSS/PSC routines.
  */
@@ -313,34 +309,6 @@ void mac_irq_disable(struct irq_data *data)
 		break;
 	}
 }
-
-int mac_irq_pending(unsigned int irq)
-{
-	switch(IRQ_SRC(irq)) {
-	case 1:
-		return via_irq_pending(irq);
-	case 2:
-	case 7:
-		if (oss_present)
-			return oss_irq_pending(irq);
-		else
-			return via_irq_pending(irq);
-	case 3:
-	case 5:
-	case 6:
-		if (psc_present)
-			return psc_irq_pending(irq);
-		else if (oss_present)
-			return oss_irq_pending(irq);
-		break;
-	case 4:
-		if (psc_present)
-			return psc_irq_pending(irq);
-		break;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(mac_irq_pending);
 
 static int num_debug[8];
 
