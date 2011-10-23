@@ -329,8 +329,6 @@ struct rx_ring {
 	struct rx_status_block *rx_status_block;
 	dma_addr_t rx_status_bus;
 
-	struct list_head recv_buff_pool;
-
 	/* RECV */
 	struct list_head recv_list;
 	u32 num_ready_recv;
@@ -2306,10 +2304,6 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 			rx_ring->rx_status_block, rx_ring->rx_status_bus);
 		rx_ring->rx_status_block = NULL;
 	}
-
-	/* Free receive buffer pool */
-
-	/* Free receive packet pool */
 
 	/* Destroy the lookaside (RFD) pool */
 	if (adapter->flags & fMP_ADAPTER_RECV_LOOKASIDE) {
