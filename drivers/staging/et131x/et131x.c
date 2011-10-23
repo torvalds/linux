@@ -337,8 +337,6 @@ struct rx_ring {
 
 	bool unfinished_receives;
 
-	struct list_head recv_packet_pool;
-
 	/* lookaside lists */
 	struct kmem_cache *recv_lookaside;
 };
