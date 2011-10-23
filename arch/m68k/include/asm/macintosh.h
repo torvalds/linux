@@ -42,7 +42,7 @@ struct mac_model
 #define MAC_ADB_IOP		6
 
 #define MAC_VIA_II		1
-#define MAC_VIA_IIci		2
+#define MAC_VIA_IICI		2
 #define MAC_VIA_QUADRA		3
 
 #define MAC_SCSI_NONE		0
