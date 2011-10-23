@@ -119,6 +119,31 @@ Description:
 		Write a 1 to force the device to disconnect
 		(equivalent to unplugging a wired USB device).
 
+What:		/sys/bus/usb/drivers/.../new_id
+Date:		October 2011
+Contact:	linux-usb@vger.kernel.org
+Description:
+		Writing a device ID to this file will attempt to
+		dynamically add a new device ID to a USB device driver.
+		This may allow the driver to support more hardware than
+		was included in the driver's static device ID support
+		table at compile time. The format for the device ID is:
+		idVendor idProduct bInterfaceClass.
+		The vendor ID and device ID fields are required, the
+		interface class is optional.
+		Upon successfully adding an ID, the driver will probe
+		for the device and attempt to bind to it.  For example:
+		# echo "8086 10f5" > /sys/bus/usb/drivers/foo/new_id
+
+What:		/sys/bus/usb-serial/drivers/.../new_id
+Date:		October 2011
+Contact:	linux-usb@vger.kernel.org
+Description:
+		For serial USB drivers, this attribute appears under the
+		extra bus folder "usb-serial" in sysfs; apart from that
+		difference, all descriptions from the entry
+		"/sys/bus/usb/drivers/.../new_id" apply.
+
 What:		/sys/bus/usb/drivers/.../remove_id
 Date:		November 2009
 Contact:	CHENG Renquan <rqcheng@smu.edu.sg>

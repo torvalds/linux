@@ -45,10 +45,12 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	struct usb_dynid *dynid;
 	u32 idVendor = 0;
 	u32 idProduct = 0;
+	unsigned int bInterfaceClass = 0;
 	int fields = 0;
 	int retval = 0;
 
-	fields = sscanf(buf, "%x %x", &idVendor, &idProduct);
+	fields = sscanf(buf, "%x %x %x", &idVendor, &idProduct,
+					&bInterfaceClass);
 	if (fields < 2)
 		return -EINVAL;
 
@@ -60,6 +62,10 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	dynid->id.idVendor = idVendor;
 	dynid->id.idProduct = idProduct;
 	dynid->id.match_flags = USB_DEVICE_ID_MATCH_DEVICE;
+	if (fields == 3) {
+		dynid->id.bInterfaceClass = (u8)bInterfaceClass;
+		dynid->id.match_flags |= USB_DEVICE_ID_MATCH_INT_CLASS;
+	}
 
 	spin_lock(&dynids->lock);
 	list_add_tail(&dynid->node, &dynids->list);
