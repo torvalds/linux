@@ -2986,7 +2986,7 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_CCMP:
 		key_type = KEY_AES;
 
-		key_conf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+		key_conf->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
 		tx_seq_32 = WL1271_TX_SECURITY_HI32(wlvif->tx_security_seq);
 		tx_seq_16 = WL1271_TX_SECURITY_LO16(wlvif->tx_security_seq);
 		break;
