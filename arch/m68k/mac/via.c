@@ -585,22 +585,6 @@ void via_irq_disable(int irq) {
 	}
 }
 
-void via_irq_clear(int irq) {
-	int irq_src	= IRQ_SRC(irq);
-	int irq_idx	= IRQ_IDX(irq);
-	int irq_bit	= 1 << irq_idx;
-
-	if (irq_src == 1) {
-		via1[vIFR] = irq_bit;
-	} else if (irq_src == 2) {
-		via2[gIFR] = irq_bit | rbv_clear;
-	} else if (irq_src == 7) {
-		/* FIXME: There is no way to clear an individual nubus slot
-		 * IRQ flag, other than getting the device to do it.
-		 */
-	}
-}
-
 /*
  * Returns nonzero if an interrupt is pending on the given
  * VIA/IRQ combination.

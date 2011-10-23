@@ -221,37 +221,6 @@ void oss_irq_disable(int irq) {
 }
 
 /*
- * Clear an OSS interrupt
- *
- * Not sure if this works or not but it's the only method I could
- * think of based on the contents of the mac_oss structure.
- */
-
-void oss_irq_clear(int irq) {
-	/* FIXME: how to do this on OSS? */
-	switch(irq) {
-		case IRQ_MAC_SCC:
-			oss->irq_pending &= ~OSS_IP_IOPSCC;
-			break;
-		case IRQ_MAC_ADB:
-			oss->irq_pending &= ~OSS_IP_IOPISM;
-			break;
-		case IRQ_MAC_SCSI:
-			oss->irq_pending &= ~OSS_IP_SCSI;
-			break;
-		case IRQ_NUBUS_9:
-		case IRQ_NUBUS_A:
-		case IRQ_NUBUS_B:
-		case IRQ_NUBUS_C:
-		case IRQ_NUBUS_D:
-		case IRQ_NUBUS_E:
-			irq -= NUBUS_SOURCE_BASE;
-			oss->irq_pending &= ~(1 << irq);
-			break;
-	}
-}
-
-/*
  * Check to see if a specific OSS interrupt is pending
  */
 

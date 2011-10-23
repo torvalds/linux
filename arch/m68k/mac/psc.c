@@ -181,14 +181,6 @@ void psc_irq_disable(int irq) {
 	psc_write_byte(pIER, 1 << irq_idx);
 }
 
-void psc_irq_clear(int irq) {
-	int irq_src	= IRQ_SRC(irq);
-	int irq_idx	= IRQ_IDX(irq);
-	int pIFR	= pIERbase + (irq_src << 4);
-
-	psc_write_byte(pIFR, 1 << irq_idx);
-}
-
 int psc_irq_pending(int irq)
 {
 	int irq_src	= IRQ_SRC(irq);

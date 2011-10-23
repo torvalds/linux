@@ -239,7 +239,6 @@ void __init mac_init_IRQ(void)
 /*
  *  mac_irq_enable - enable an interrupt source
  * mac_irq_disable - disable an interrupt source
- *   mac_clear_irq - clears a pending interrupt
  * mac_irq_pending - returns the pending status of an IRQ (nonzero = pending)
  *
  * These routines are just dispatchers to the VIA/OSS/PSC routines.
@@ -311,38 +310,6 @@ void mac_irq_disable(struct irq_data *data)
 	case 8:
 		if (baboon_present)
 			baboon_irq_disable(irq);
-		break;
-	}
-}
-
-void mac_clear_irq(unsigned int irq)
-{
-	switch(IRQ_SRC(irq)) {
-	case 1:
-		via_irq_clear(irq);
-		break;
-	case 2:
-	case 7:
-		if (oss_present)
-			oss_irq_clear(irq);
-		else
-			via_irq_clear(irq);
-		break;
-	case 3:
-	case 5:
-	case 6:
-		if (psc_present)
-			psc_irq_clear(irq);
-		else if (oss_present)
-			oss_irq_clear(irq);
-		break;
-	case 4:
-		if (psc_present)
-			psc_irq_clear(irq);
-		break;
-	case 8:
-		if (baboon_present)
-			baboon_irq_clear(irq);
 		break;
 	}
 }
