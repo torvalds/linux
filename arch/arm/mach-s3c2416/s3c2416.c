@@ -97,7 +97,9 @@ int __init s3c2416_init(void)
 
 	s3c_fb_setname("s3c2443-fb");
 
+#ifdef CONFIG_PM
 	register_syscore_ops(&s3c2416_pm_syscore_ops);
+#endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	return sysdev_register(&s3c2416_sysdev);

@@ -239,13 +239,19 @@ void bnx2x_int_disable(struct bnx2x *bp);
  *  FUNC_N_CLID_X = N * NUM_SPECIAL_CLIENTS + FUNC_0_CLID_X
  *
  */
-/* iSCSI L2 */
-#define BNX2X_ISCSI_ETH_CL_ID_IDX	1
-#define BNX2X_ISCSI_ETH_CID		49
+enum {
+	BNX2X_ISCSI_ETH_CL_ID_IDX,
+	BNX2X_FCOE_ETH_CL_ID_IDX,
+	BNX2X_MAX_CNIC_ETH_CL_ID_IDX,
+};
 
-/* FCoE L2 */
-#define BNX2X_FCOE_ETH_CL_ID_IDX	2
-#define BNX2X_FCOE_ETH_CID		50
+#define BNX2X_CNIC_START_ETH_CID	48
+enum {
+	/* iSCSI L2 */
+	BNX2X_ISCSI_ETH_CID = BNX2X_CNIC_START_ETH_CID,
+	/* FCoE L2 */
+	BNX2X_FCOE_ETH_CID,
+};
 
 /** Additional rings budgeting */
 #ifdef BCM_CNIC
