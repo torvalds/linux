@@ -1633,12 +1633,28 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 	be_queue_free(adapter, q);
 }
 
+static int be_num_txqs_want(struct be_adapter *adapter)
+{
+	if ((num_vfs && adapter->sriov_enabled) ||
+		(adapter->function_mode & 0x400) ||
+		lancer_chip(adapter) || !be_physfn(adapter) ||
+		adapter->generation == BE_GEN2)
+		return 1;
+	else
+		return MAX_TX_QS;
+}
+
 /* One TX event queue is shared by all TX compl qs */
 static int be_tx_queues_create(struct be_adapter *adapter)
 {
 	struct be_queue_info *eq, *q, *cq;
 	struct be_tx_obj *txo;
 	u8 i;
+
+	adapter->num_tx_qs = be_num_txqs_want(adapter);
+	if (adapter->num_tx_qs != MAX_TX_QS)
+		netif_set_real_num_tx_queues(adapter->netdev,
+			adapter->num_tx_qs);
 
 	adapter->tx_eq.max_eqd = 0;
 	adapter->tx_eq.min_eqd = 0;
@@ -3179,16 +3195,6 @@ static int be_get_config(struct be_adapter *adapter)
 	status = be_cmd_get_cntl_attributes(adapter);
 	if (status)
 		return status;
-
-	if ((num_vfs && adapter->sriov_enabled) ||
-		(adapter->function_mode & 0x400) ||
-		lancer_chip(adapter) || !be_physfn(adapter)) {
-		adapter->num_tx_qs = 1;
-		netif_set_real_num_tx_queues(adapter->netdev,
-			adapter->num_tx_qs);
-	} else {
-		adapter->num_tx_qs = MAX_TX_QS;
-	}
 
 	return 0;
 }
