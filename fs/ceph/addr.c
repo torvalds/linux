@@ -345,7 +345,6 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 
 out_pages:
 	ceph_release_page_vector(pages, nr_pages);
-	kfree(pages);
 out:
 	ceph_osdc_put_request(req);
 	return ret;
