@@ -13,6 +13,7 @@
 #include <linux/videodev2.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
+#include <media/videobuf2-core.h>
 
 /* --------------------------------------------------------------------------
  * UVC constants
@@ -319,13 +320,9 @@ enum uvc_buffer_state {
 };
 
 struct uvc_buffer {
-	unsigned long vma_use_count;
-	struct list_head stream;
-
-	/* Touched by interrupt handler. */
-	struct v4l2_buffer buf;
+	struct vb2_buffer buf;
 	struct list_head queue;
-	wait_queue_head_t wait;
+
 	enum uvc_buffer_state state;
 	unsigned int error;
 
@@ -334,24 +331,17 @@ struct uvc_buffer {
 	unsigned int bytesused;
 };
 
-#define UVC_QUEUE_STREAMING		(1 << 0)
-#define UVC_QUEUE_DISCONNECTED		(1 << 1)
-#define UVC_QUEUE_DROP_CORRUPTED	(1 << 2)
+#define UVC_QUEUE_DISCONNECTED		(1 << 0)
+#define UVC_QUEUE_DROP_CORRUPTED	(1 << 1)
 
 struct uvc_video_queue {
-	enum v4l2_buf_type type;
+	struct vb2_queue queue;
+	struct mutex mutex;			/* Protects queue */
 
-	void *mem;
 	unsigned int flags;
-
-	unsigned int count;
-	unsigned int buf_size;
 	unsigned int buf_used;
-	struct uvc_buffer buffer[UVC_MAX_VIDEO_BUFFERS];
-	struct mutex mutex;	/* protects buffers and mainqueue */
-	spinlock_t irqlock;	/* protects irqqueue */
 
-	struct list_head mainqueue;
+	spinlock_t irqlock;			/* Protects irqqueue */
 	struct list_head irqqueue;
 };
 
@@ -391,6 +381,7 @@ struct uvc_streaming {
 	 */
 	struct mutex mutex;
 
+	/* Buffers queue. */
 	unsigned int frozen : 1;
 	struct uvc_video_queue queue;
 	void (*decode) (struct urb *urb, struct uvc_streaming *video,
@@ -520,8 +511,8 @@ extern struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id);
 extern void uvc_queue_init(struct uvc_video_queue *queue,
 		enum v4l2_buf_type type, int drop_corrupted);
 extern int uvc_alloc_buffers(struct uvc_video_queue *queue,
-		unsigned int nbuffers, unsigned int buflength);
-extern int uvc_free_buffers(struct uvc_video_queue *queue);
+		struct v4l2_requestbuffers *rb);
+extern void uvc_free_buffers(struct uvc_video_queue *queue);
 extern int uvc_query_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf);
 extern int uvc_queue_buffer(struct uvc_video_queue *queue,
@@ -543,7 +534,7 @@ extern unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,
 extern int uvc_queue_allocated(struct uvc_video_queue *queue);
 static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 {
-	return queue->flags & UVC_QUEUE_STREAMING;
+	return vb2_is_streaming(&queue->queue);
 }
 
 /* V4L2 interface */
