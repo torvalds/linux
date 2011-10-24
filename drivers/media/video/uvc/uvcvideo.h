@@ -328,6 +328,10 @@ struct uvc_buffer {
 	wait_queue_head_t wait;
 	enum uvc_buffer_state state;
 	unsigned int error;
+
+	void *mem;
+	unsigned int length;
+	unsigned int bytesused;
 };
 
 #define UVC_QUEUE_STREAMING		(1 << 0)

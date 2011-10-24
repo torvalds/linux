@@ -490,7 +490,7 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	 * avoids detecting end of frame conditions at FID toggling if the
 	 * previous payload had the EOF bit set.
 	 */
-	if (fid != stream->last_fid && buf->buf.bytesused != 0) {
+	if (fid != stream->last_fid && buf->bytesused != 0) {
 		uvc_trace(UVC_TRACE_FRAME, "Frame complete (FID bit "
 				"toggled).\n");
 		buf->state = UVC_BUF_STATE_READY;
@@ -505,7 +505,6 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 static void uvc_video_decode_data(struct uvc_streaming *stream,
 		struct uvc_buffer *buf, const __u8 *data, int len)
 {
-	struct uvc_video_queue *queue = &stream->queue;
 	unsigned int maxlen, nbytes;
 	void *mem;
 
@@ -513,11 +512,11 @@ static void uvc_video_decode_data(struct uvc_streaming *stream,
 		return;
 
 	/* Copy the video data to the buffer. */
-	maxlen = buf->buf.length - buf->buf.bytesused;
-	mem = queue->mem + buf->buf.m.offset + buf->buf.bytesused;
+	maxlen = buf->length - buf->bytesused;
+	mem = buf->mem + buf->bytesused;
 	nbytes = min((unsigned int)len, maxlen);
 	memcpy(mem, data, nbytes);
-	buf->buf.bytesused += nbytes;
+	buf->bytesused += nbytes;
 
 	/* Complete the current frame if the buffer size was exceeded. */
 	if (len > maxlen) {
@@ -530,7 +529,7 @@ static void uvc_video_decode_end(struct uvc_streaming *stream,
 		struct uvc_buffer *buf, const __u8 *data, int len)
 {
 	/* Mark the buffer as done if the EOF marker is set. */
-	if (data[1] & UVC_STREAM_EOF && buf->buf.bytesused != 0) {
+	if (data[1] & UVC_STREAM_EOF && buf->bytesused != 0) {
 		uvc_trace(UVC_TRACE_FRAME, "Frame complete (EOF found).\n");
 		if (data[0] == len)
 			uvc_trace(UVC_TRACE_FRAME, "EOF in empty payload.\n");
@@ -568,8 +567,8 @@ static int uvc_video_encode_data(struct uvc_streaming *stream,
 	void *mem;
 
 	/* Copy video data to the URB buffer. */
-	mem = queue->mem + buf->buf.m.offset + queue->buf_used;
-	nbytes = min((unsigned int)len, buf->buf.bytesused - queue->buf_used);
+	mem = buf->mem + queue->buf_used;
+	nbytes = min((unsigned int)len, buf->bytesused - queue->buf_used);
 	nbytes = min(stream->bulk.max_payload_size - stream->bulk.payload_size,
 			nbytes);
 	memcpy(data, mem, nbytes);
@@ -624,7 +623,7 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 			urb->iso_frame_desc[i].actual_length);
 
 		if (buf->state == UVC_BUF_STATE_READY) {
-			if (buf->buf.length != buf->buf.bytesused &&
+			if (buf->length != buf->bytesused &&
 			    !(stream->cur_format->flags &
 			      UVC_FMT_FLAG_COMPRESSED))
 				buf->error = 1;
@@ -724,9 +723,9 @@ static void uvc_video_encode_bulk(struct urb *urb, struct uvc_streaming *stream,
 	stream->bulk.payload_size += ret;
 	len -= ret;
 
-	if (buf->buf.bytesused == stream->queue.buf_used ||
+	if (buf->bytesused == stream->queue.buf_used ||
 	    stream->bulk.payload_size == stream->bulk.max_payload_size) {
-		if (buf->buf.bytesused == stream->queue.buf_used) {
+		if (buf->bytesused == stream->queue.buf_used) {
 			stream->queue.buf_used = 0;
 			buf->state = UVC_BUF_STATE_READY;
 			buf->buf.sequence = ++stream->sequence;

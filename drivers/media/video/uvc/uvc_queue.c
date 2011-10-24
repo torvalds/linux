@@ -173,6 +173,9 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
 		queue->buffer[i].buf.field = V4L2_FIELD_NONE;
 		queue->buffer[i].buf.memory = V4L2_MEMORY_MMAP;
 		queue->buffer[i].buf.flags = 0;
+
+		queue->buffer[i].mem = queue->mem + i * bufsize;
+		queue->buffer[i].length = buflength;
 		init_waitqueue_head(&queue->buffer[i].wait);
 	}
 
@@ -293,9 +296,9 @@ int uvc_queue_buffer(struct uvc_video_queue *queue,
 	}
 	buf->state = UVC_BUF_STATE_QUEUED;
 	if (v4l2_buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		buf->buf.bytesused = 0;
+		buf->bytesused = 0;
 	else
-		buf->buf.bytesused = v4l2_buf->bytesused;
+		buf->bytesused = v4l2_buf->bytesused;
 
 	list_add_tail(&buf->stream, &queue->mainqueue);
 	list_add_tail(&buf->queue, &queue->irqqueue);
@@ -437,7 +440,7 @@ int uvc_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
 	 */
 	vma->vm_flags |= VM_IO;
 
-	addr = (unsigned long)queue->mem + buffer->buf.m.offset;
+	addr = (unsigned long)buffer->mem;
 #ifdef CONFIG_MMU
 	while (size > 0) {
 		page = vmalloc_to_page((void *)addr);
@@ -515,7 +518,7 @@ unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,
 		ret = -EINVAL;
 		goto done;
 	}
-	ret = (unsigned long)queue->mem + buffer->buf.m.offset;
+	ret = (unsigned long)buf->mem;
 done:
 	mutex_unlock(&queue->mutex);
 	return ret;
@@ -621,6 +624,7 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	list_del(&buf->queue);
 	buf->error = 0;
 	buf->state = UVC_BUF_STATE_DONE;
+	buf->buf.bytesused = buf->bytesused;
 	if (!list_empty(&queue->irqqueue))
 		nextbuf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
 					   queue);
