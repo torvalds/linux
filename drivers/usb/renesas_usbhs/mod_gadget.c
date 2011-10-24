@@ -681,7 +681,6 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	 * - function
 	 * - usb module
 	 */
-	usbhs_sys_hispeed_ctrl(priv, 1);
 	usbhs_sys_function_ctrl(priv, 1);
 	usbhs_sys_usb_ctrl(priv, 1);
 
@@ -731,7 +730,6 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	gpriv->gadget.speed = USB_SPEED_UNKNOWN;
 
 	/* disable sys */
-	usbhs_sys_hispeed_ctrl(priv, 0);
 	usbhs_sys_function_ctrl(priv, 0);
 	usbhs_sys_usb_ctrl(priv, 0);
 

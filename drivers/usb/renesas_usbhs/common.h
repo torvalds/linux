@@ -284,7 +284,6 @@ int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev);
  * sysconfig
  */
 void usbhs_sys_clock_ctrl(struct usbhs_priv *priv, int enable);
-void usbhs_sys_hispeed_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_usb_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable);
