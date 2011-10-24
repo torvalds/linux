@@ -6671,10 +6671,8 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		u32 tcp_opt_len, hdr_len;
 
 		if (skb_header_cloned(skb) &&
-		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
-			dev_kfree_skb(skb);
-			goto out_unlock;
-		}
+		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+			goto drop;
 
 		iph = ip_hdr(skb);
 		tcp_opt_len = tcp_optlen(skb);
@@ -6746,10 +6744,9 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	len = skb_headlen(skb);
 
 	mapping = pci_map_single(tp->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(tp->pdev, mapping)) {
-		dev_kfree_skb(skb);
-		goto out_unlock;
-	}
+	if (pci_dma_mapping_error(tp->pdev, mapping))
+		goto drop;
+
 
 	tnapi->tx_buffers[entry].skb = skb;
 	dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping, mapping);
@@ -6805,7 +6802,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		budget = tg3_tx_avail(tnapi);
 		if (tigon3_dma_hwbug_workaround(tnapi, &skb, &entry, &budget,
 						base_flags, mss, vlan))
-			goto out_unlock;
+			goto drop_nofree;
 	}
 
 	skb_tx_timestamp(skb);
@@ -6827,15 +6824,16 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_wake_queue(txq);
 	}
 
-out_unlock:
 	mmiowb();
-
 	return NETDEV_TX_OK;
 
 dma_error:
 	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, i);
-	dev_kfree_skb(skb);
 	tnapi->tx_buffers[tnapi->tx_prod].skb = NULL;
+drop:
+	dev_kfree_skb(skb);
+drop_nofree:
+	tp->tx_dropped++;
 	return NETDEV_TX_OK;
 }
 
@@ -10009,6 +10007,7 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 		get_stat64(&hw_stats->rx_discards);
 
 	stats->rx_dropped = tp->rx_dropped;
+	stats->tx_dropped = tp->tx_dropped;
 
 	return stats;
 }
