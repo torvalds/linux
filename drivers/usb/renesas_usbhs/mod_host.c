@@ -103,7 +103,7 @@ struct usbhsh_hpriv {
 
 	u32	port_stat;	/* USB_PORT_STAT_xxx */
 
-	struct completion	*done;
+	struct completion	setup_ack_done;
 
 	/* see usbhsh_req_alloc/free */
 	struct list_head	ureq_link_active;
@@ -549,8 +549,7 @@ static void usbhsh_setup_stage_packet_push(struct usbhsh_hpriv *hpriv,
 	 *	usbhsh_irq_setup_ack()
 	 *	usbhsh_irq_setup_err()
 	 */
-	DECLARE_COMPLETION(done);
-	hpriv->done = &done;
+	init_completion(&hpriv->setup_ack_done);
 
 	/* copy original request */
 	memcpy(&req, urb->setup_packet, sizeof(struct usb_ctrlrequest));
@@ -572,8 +571,7 @@ static void usbhsh_setup_stage_packet_push(struct usbhsh_hpriv *hpriv,
 	/*
 	 * wait setup packet ACK
 	 */
-	wait_for_completion(&done);
-	hpriv->done = NULL;
+	wait_for_completion(&hpriv->setup_ack_done);
 
 	dev_dbg(dev, "%s done\n", __func__);
 }
@@ -1095,10 +1093,7 @@ static int usbhsh_irq_setup_ack(struct usbhs_priv *priv,
 
 	dev_dbg(dev, "setup packet OK\n");
 
-	if (unlikely(!hpriv->done))
-		dev_err(dev, "setup ack happen without necessary data\n");
-	else
-		complete(hpriv->done); /* see usbhsh_urb_enqueue() */
+	complete(&hpriv->setup_ack_done); /* see usbhsh_urb_enqueue() */
 
 	return 0;
 }
@@ -1111,10 +1106,7 @@ static int usbhsh_irq_setup_err(struct usbhs_priv *priv,
 
 	dev_dbg(dev, "setup packet Err\n");
 
-	if (unlikely(!hpriv->done))
-		dev_err(dev, "setup err happen without necessary data\n");
-	else
-		complete(hpriv->done); /* see usbhsh_urb_enqueue() */
+	complete(&hpriv->setup_ack_done); /* see usbhsh_urb_enqueue() */
 
 	return 0;
 }
@@ -1279,7 +1271,6 @@ int __devinit usbhs_mod_host_probe(struct usbhs_priv *priv)
 	hpriv->mod.stop		= usbhsh_stop;
 	hpriv->pipe_info	= pipe_info;
 	hpriv->pipe_size	= pipe_size;
-	hpriv->done		= NULL;
 	usbhsh_req_list_init(hpriv);
 	usbhsh_port_stat_init(hpriv);
 
