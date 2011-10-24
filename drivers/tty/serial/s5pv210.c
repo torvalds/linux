@@ -25,25 +25,6 @@
 #include <plat/regs-serial.h>
 #include "samsung.h"
 
-static int s5pv210_serial_resetport(struct uart_port *port,
-					struct s3c2410_uartcfg *cfg)
-{
-	unsigned long ucon = rd_regl(port, S3C2410_UCON);
-
-	ucon &= S5PV210_UCON_CLKMASK;
-	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
-	wr_regl(port, S3C2410_ULCON, cfg->ulcon);
-
-	/* reset both fifos */
-	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
-	wr_regl(port, S3C2410_UFCON, cfg->ufcon);
-
-	/* It is need to delay When reset FIFO register */
-	udelay(1);
-
-	return 0;
-}
-
 #define S5PV210_UART_DEFAULT_INFO(fifo_size)			\
 		.name		= "Samsung S5PV210 UART0",	\
 		.type		= PORT_S3C6400,			\
@@ -58,8 +39,7 @@ static int s5pv210_serial_resetport(struct uart_port *port,
 		.def_clk_sel	= S3C2410_UCON_CLKSEL0,		\
 		.num_clks	= 2,				\
 		.clksel_mask	= S5PV210_UCON_CLKMASK,		\
-		.clksel_shift	= S5PV210_UCON_CLKSHIFT,	\
-		.reset_port	= s5pv210_serial_resetport
+		.clksel_shift	= S5PV210_UCON_CLKSHIFT
 
 static struct s3c24xx_uart_info s5p_port_fifo256 = {
 	S5PV210_UART_DEFAULT_INFO(256),

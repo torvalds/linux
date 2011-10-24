@@ -25,29 +25,6 @@
 
 #include "samsung.h"
 
-static int s3c2412_serial_resetport(struct uart_port *port,
-				    struct s3c2410_uartcfg *cfg)
-{
-	unsigned long ucon = rd_regl(port, S3C2410_UCON);
-
-	dbg("%s: port=%p (%08lx), cfg=%p\n",
-	    __func__, port, port->mapbase, cfg);
-
-	/* ensure we don't change the clock settings... */
-
-	ucon &= S3C2412_UCON_CLKMASK;
-
-	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
-	wr_regl(port, S3C2410_ULCON, cfg->ulcon);
-
-	/* reset both fifos */
-
-	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
-	wr_regl(port, S3C2410_UFCON, cfg->ufcon);
-
-	return 0;
-}
-
 static struct s3c24xx_uart_info s3c2412_uart_inf = {
 	.name		= "Samsung S3C2412 UART",
 	.type		= PORT_S3C2412,
@@ -63,7 +40,6 @@ static struct s3c24xx_uart_info s3c2412_uart_inf = {
 	.num_clks	= 4,
 	.clksel_mask	= S3C2412_UCON_CLKMASK,
 	.clksel_shift	= S3C2412_UCON_CLKSHIFT,
-	.reset_port	= s3c2412_serial_resetport,
 };
 
 /* device management */

@@ -25,23 +25,6 @@
 
 #include "samsung.h"
 
-static int s3c2410_serial_resetport(struct uart_port *port,
-				    struct s3c2410_uartcfg *cfg)
-{
-	dbg("s3c2410_serial_resetport: port=%p (%08lx), cfg=%p\n",
-	    port, port->mapbase, cfg);
-
-	wr_regl(port, S3C2410_UCON,  cfg->ucon);
-	wr_regl(port, S3C2410_ULCON, cfg->ulcon);
-
-	/* reset both fifos */
-
-	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
-	wr_regl(port, S3C2410_UFCON, cfg->ufcon);
-
-	return 0;
-}
-
 static struct s3c24xx_uart_info s3c2410_uart_inf = {
 	.name		= "Samsung S3C2410 UART",
 	.type		= PORT_S3C2410,
@@ -56,7 +39,6 @@ static struct s3c24xx_uart_info s3c2410_uart_inf = {
 	.num_clks	= 2,
 	.clksel_mask	= S3C2410_UCON_CLKMASK,
 	.clksel_shift	= S3C2410_UCON_CLKSHIFT,
-	.reset_port	= s3c2410_serial_resetport,
 };
 
 static int s3c2410_serial_probe(struct platform_device *dev)

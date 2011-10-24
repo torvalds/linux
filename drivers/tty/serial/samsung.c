@@ -965,16 +965,29 @@ static struct s3c24xx_uart_port s3c24xx_serial_ports[CONFIG_SERIAL_SAMSUNG_UARTS
 
 /* s3c24xx_serial_resetport
  *
- * wrapper to call the specific reset for this port (reset the fifos
- * and the settings)
+ * reset the fifos and other the settings.
 */
 
-static inline int s3c24xx_serial_resetport(struct uart_port *port,
-					   struct s3c2410_uartcfg *cfg)
+static void s3c24xx_serial_resetport(struct uart_port *port,
+				   struct s3c2410_uartcfg *cfg)
 {
 	struct s3c24xx_uart_info *info = s3c24xx_port_to_info(port);
+	unsigned long ucon = rd_regl(port, S3C2410_UCON);
+	unsigned int ucon_mask;
 
-	return (info->reset_port)(port, cfg);
+	ucon_mask = info->clksel_mask;
+	if (info->type == PORT_S3C2440)
+		ucon_mask |= S3C2440_UCON0_DIVMASK;
+
+	ucon &= ucon_mask;
+	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
+
+	/* reset both fifos */
+	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
+	wr_regl(port, S3C2410_UFCON, cfg->ufcon);
+
+	/* some delay is required after fifo reset */
+	udelay(1);
 }
 
 
