@@ -617,16 +617,6 @@ static struct clksrc_clk clksrcs[] = {
 		.sources	= &clkset_uhost,
 	}, {
 		.clk	= {
-			.name		= "uclk1",
-			.ctrlbit        = S3C_CLKCON_SCLK_UART,
-			.enable		= s3c64xx_sclk_ctrl,
-		},
-		.reg_src	= { .reg = S3C_CLK_SRC, .shift = 13, .size = 1  },
-		.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 16, .size = 4  },
-		.sources	= &clkset_uart,
-	}, {
-/* Where does UCLK0 come from? */
-		.clk	= {
 			.name		= "spi-bus",
 			.devname	= "s3c64xx-spi.0",
 			.ctrlbit        = S3C_CLKCON_SCLK_SPI0,
@@ -695,12 +685,33 @@ static struct clksrc_clk clksrcs[] = {
 	},
 };
 
+/* Where does UCLK0 come from? */
+static struct clksrc_clk clk_sclk_uclk = {
+	.clk	= {
+		.name		= "uclk1",
+		.ctrlbit        = S3C_CLKCON_SCLK_UART,
+		.enable		= s3c64xx_sclk_ctrl,
+	},
+	.reg_src	= { .reg = S3C_CLK_SRC, .shift = 13, .size = 1  },
+	.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 16, .size = 4  },
+	.sources	= &clkset_uart,
+};
+
 /* Clock initialisation code */
 
 static struct clksrc_clk *init_parents[] = {
 	&clk_mout_apll,
 	&clk_mout_epll,
 	&clk_mout_mpll,
+};
+
+static struct clksrc_clk *clksrc_cdev[] = {
+	&clk_sclk_uclk,
+};
+
+static struct clk_lookup s3c64xx_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
+	CLKDEV_INIT(NULL, "clk_uart_baud3", &clk_sclk_uclk.clk),
 };
 
 #define GET_DIV(clk, field) ((((clk) & field##_MASK) >> field##_SHIFT) + 1)
@@ -811,6 +822,8 @@ static struct clk *clks[] __initdata = {
 void __init s3c64xx_register_clocks(unsigned long xtal, 
 				    unsigned armclk_divlimit)
 {
+	unsigned int cnt;
+
 	armclk_mask = armclk_divlimit;
 
 	s3c24xx_register_baseclocks(xtal);
@@ -823,5 +836,9 @@ void __init s3c64xx_register_clocks(unsigned long xtal,
 
 	s3c24xx_register_clocks(clks1, ARRAY_SIZE(clks1));
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
+	for (cnt = 0; cnt < ARRAY_SIZE(clksrc_cdev); cnt++)
+		s3c_register_clksrc(clksrc_cdev[cnt], 1);
+	clkdev_add_table(s3c64xx_clk_lookup, ARRAY_SIZE(s3c64xx_clk_lookup));
+
 	s3c_pwmclk_init();
 }

@@ -144,6 +144,12 @@ static struct clk s3c2440_clk_fclk_n = {
 	},
 };
 
+static struct clk_lookup s3c2440_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "clk_uart_baud1", &s3c24xx_uclk),
+	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
+	CLKDEV_INIT(NULL, "clk_uart_baud3", &s3c2440_clk_fclk_n),
+};
+
 static int s3c2440_clk_add(struct sys_device *sysdev)
 {
 	struct clk *clock_upll;
@@ -167,6 +173,7 @@ static int s3c2440_clk_add(struct sys_device *sysdev)
 	s3c24xx_register_clock(&s3c2440_clk_ac97);
 	s3c24xx_register_clock(&s3c2440_clk_cam);
 	s3c24xx_register_clock(&s3c2440_clk_cam_upll);
+	clkdev_add_table(s3c2440_clk_lookup, ARRAY_SIZE(s3c2440_clk_lookup));
 
 	clk_disable(&s3c2440_clk_ac97);
 	clk_disable(&s3c2440_clk_cam);
