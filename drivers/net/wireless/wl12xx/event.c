@@ -137,11 +137,6 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 	case EVENT_ENTER_POWER_SAVE_SUCCESS:
 		wlvif->psm_entry_retry = 0;
 
-		/* enable beacon filtering */
-		ret = wl1271_acx_beacon_filter_opt(wl, wlvif, true);
-		if (ret < 0)
-			break;
-
 		/*
 		 * BET has only a minor effect in 5GHz and masks
 		 * channel switch IEs, so we only enable BET on 2.4GHz

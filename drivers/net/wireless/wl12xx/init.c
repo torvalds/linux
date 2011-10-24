@@ -254,17 +254,17 @@ static int wl12xx_init_phy_vif_config(struct wl1271 *wl,
 	return 0;
 }
 
-static int wl1271_init_beacon_filter(struct wl1271 *wl,
-				     struct wl12xx_vif *wlvif)
+static int wl1271_init_sta_beacon_filter(struct wl1271 *wl,
+					 struct wl12xx_vif *wlvif)
 {
 	int ret;
 
-	/* disable beacon filtering at this stage */
-	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, false);
+	ret = wl1271_acx_beacon_filter_table(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_beacon_filter_table(wl, wlvif);
+	/* enable beacon filtering */
+	ret = wl1271_acx_beacon_filter_opt(wl, wlvif, true);
 	if (ret < 0)
 		return ret;
 
@@ -529,7 +529,7 @@ static int wl12xx_init_sta_role(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		return ret;
 
 	/* Beacon filtering */
-	ret = wl1271_init_beacon_filter(wl, wlvif);
+	ret = wl1271_init_sta_beacon_filter(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
