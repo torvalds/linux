@@ -95,7 +95,7 @@ struct usbhs_priv *usbhs_pdev_to_priv(struct platform_device *pdev)
 /*
  *		syscfg functions
  */
-void usbhs_sys_clock_ctrl(struct usbhs_priv *priv, int enable)
+static void usbhs_sys_clock_ctrl(struct usbhs_priv *priv, int enable)
 {
 	usbhs_bset(priv, SYSCFG, SCKE, enable ? SCKE : 0);
 }
