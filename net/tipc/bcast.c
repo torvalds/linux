@@ -417,13 +417,19 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 
 	spin_lock_bh(&bc_lock);
 
+	if (!bclink->bcast_nodes.count) {
+		res = msg_data_sz(buf_msg(buf));
+		buf_discard(buf);
+		goto exit;
+	}
+
 	res = tipc_link_send_buf(bcl, buf);
 	if (likely(res > 0))
 		bclink_set_last_sent();
 
 	bcl->stats.queue_sz_counts++;
 	bcl->stats.accu_queue_sz += bcl->out_queue_size;
-
+exit:
 	spin_unlock_bh(&bc_lock);
 	return res;
 }
