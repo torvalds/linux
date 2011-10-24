@@ -58,7 +58,7 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 
 		duplicate = false;
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
-		for (j = 0; j < p->nrelocs; j++) {
+		for (j = 0; j < i; j++) {
 			if (r->handle == p->relocs[j].handle) {
 				p->relocs_ptr[i] = &p->relocs[j];
 				duplicate = true;
@@ -84,7 +84,8 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].flags = r->flags;
 			radeon_bo_list_add_object(&p->relocs[i].lobj,
 						  &p->validated);
-		}
+		} else
+			p->relocs[i].handle = 0;
 	}
 	return radeon_bo_list_validate(&p->validated);
 }
