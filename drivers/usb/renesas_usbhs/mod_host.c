@@ -1226,7 +1226,17 @@ static int usbhsh_stop(struct usbhs_priv *priv)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
+	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	struct device *dev = usbhs_priv_to_dev(priv);
+
+	/*
+	 * disable irq callback
+	 */
+	mod->irq_attch	= NULL;
+	mod->irq_dtch	= NULL;
+	mod->irq_sack	= NULL;
+	mod->irq_sign	= NULL;
+	usbhs_irq_callback_update(priv, mod);
 
 	usb_remove_hcd(hcd);
 
