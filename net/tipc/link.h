@@ -254,6 +254,11 @@ void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *start, u32 retrans
  * Link sequence number manipulation routines (uses modulo 2**16 arithmetic)
  */
 
+static inline u32 buf_seqno(struct sk_buff *buf)
+{
+	return msg_seqno(buf_msg(buf));
+}
+
 static inline u32 mod(u32 x)
 {
 	return x & 0xffffu;

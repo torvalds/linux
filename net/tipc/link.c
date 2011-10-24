@@ -130,7 +130,7 @@ static void link_init_max_pkt(struct link *l_ptr)
 static u32 link_next_sent(struct link *l_ptr)
 {
 	if (l_ptr->next_out)
-		return msg_seqno(buf_msg(l_ptr->next_out));
+		return buf_seqno(l_ptr->next_out);
 	return mod(l_ptr->next_out_no);
 }
 
@@ -1354,7 +1354,7 @@ u32 tipc_link_push_packet(struct link *l_ptr)
 	if (r_q_size && buf) {
 		u32 last = lesser(mod(r_q_head + r_q_size),
 				  link_last_sent(l_ptr));
-		u32 first = msg_seqno(buf_msg(buf));
+		u32 first = buf_seqno(buf);
 
 		while (buf && less(first, r_q_head)) {
 			first = mod(first + 1);
@@ -1403,7 +1403,7 @@ u32 tipc_link_push_packet(struct link *l_ptr)
 	if (buf) {
 		struct tipc_msg *msg = buf_msg(buf);
 		u32 next = msg_seqno(msg);
-		u32 first = msg_seqno(buf_msg(l_ptr->first_out));
+		u32 first = buf_seqno(l_ptr->first_out);
 
 		if (mod(next - first) < l_ptr->queue_limit[0]) {
 			msg_set_ack(msg, mod(l_ptr->next_in_no - 1));
@@ -1558,7 +1558,7 @@ void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *buf,
 		} else {
 			tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
 			l_ptr->stats.bearer_congs++;
-			l_ptr->retransm_queue_head = msg_seqno(buf_msg(buf));
+			l_ptr->retransm_queue_head = buf_seqno(buf);
 			l_ptr->retransm_queue_size = retransmits;
 			return;
 		}
@@ -1579,7 +1579,7 @@ static struct sk_buff *link_insert_deferred_queue(struct link *l_ptr,
 	if (l_ptr->oldest_deferred_in == NULL)
 		return buf;
 
-	seq_no = msg_seqno(buf_msg(l_ptr->oldest_deferred_in));
+	seq_no = buf_seqno(l_ptr->oldest_deferred_in);
 	if (seq_no == mod(l_ptr->next_in_no)) {
 		l_ptr->newest_deferred_in->next = buf;
 		buf = l_ptr->oldest_deferred_in;
@@ -1738,7 +1738,7 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 
 		crs = l_ptr->first_out;
 		while ((crs != l_ptr->next_out) &&
-		       less_eq(msg_seqno(buf_msg(crs)), ackd)) {
+		       less_eq(buf_seqno(crs), ackd)) {
 			struct sk_buff *next = crs->next;
 
 			buf_discard(crs);
@@ -1861,7 +1861,7 @@ u32 tipc_link_defer_pkt(struct sk_buff **head,
 {
 	struct sk_buff *prev = NULL;
 	struct sk_buff *crs = *head;
-	u32 seq_no = msg_seqno(buf_msg(buf));
+	u32 seq_no = buf_seqno(buf);
 
 	buf->next = NULL;
 
@@ -1872,7 +1872,7 @@ u32 tipc_link_defer_pkt(struct sk_buff **head,
 	}
 
 	/* Last ? */
-	if (less(msg_seqno(buf_msg(*tail)), seq_no)) {
+	if (less(buf_seqno(*tail), seq_no)) {
 		(*tail)->next = buf;
 		*tail = buf;
 		return 1;
@@ -1909,7 +1909,7 @@ u32 tipc_link_defer_pkt(struct sk_buff **head,
 static void link_handle_out_of_seq_msg(struct link *l_ptr,
 				       struct sk_buff *buf)
 {
-	u32 seq_no = msg_seqno(buf_msg(buf));
+	u32 seq_no = buf_seqno(buf);
 
 	if (likely(msg_user(buf_msg(buf)) == LINK_PROTOCOL)) {
 		link_recv_proto_msg(l_ptr, buf);
@@ -1971,10 +1971,10 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		if (!tipc_link_is_up(l_ptr))
 			return;
 		if (l_ptr->next_out)
-			next_sent = msg_seqno(buf_msg(l_ptr->next_out));
+			next_sent = buf_seqno(l_ptr->next_out);
 		msg_set_next_sent(msg, next_sent);
 		if (l_ptr->oldest_deferred_in) {
-			u32 rec = msg_seqno(buf_msg(l_ptr->oldest_deferred_in));
+			u32 rec = buf_seqno(l_ptr->oldest_deferred_in);
 			gap = mod(rec - mod(l_ptr->next_in_no));
 		}
 		msg_set_seq_gap(msg, gap);
@@ -2589,7 +2589,7 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 
 	/* Is there an incomplete message waiting for this fragment? */
 
-	while (pbuf && ((msg_seqno(buf_msg(pbuf)) != long_msg_seq_no) ||
+	while (pbuf && ((buf_seqno(pbuf) != long_msg_seq_no) ||
 			(msg_orignode(fragm) != msg_orignode(buf_msg(pbuf))))) {
 		prev = pbuf;
 		pbuf = pbuf->next;
@@ -3112,13 +3112,12 @@ static void link_print(struct link *l_ptr, const char *str)
 	tipc_printf(buf, "NXI(%u):", mod(l_ptr->next_in_no));
 	tipc_printf(buf, "SQUE");
 	if (l_ptr->first_out) {
-		tipc_printf(buf, "[%u..", msg_seqno(buf_msg(l_ptr->first_out)));
+		tipc_printf(buf, "[%u..", buf_seqno(l_ptr->first_out));
 		if (l_ptr->next_out)
-			tipc_printf(buf, "%u..",
-				    msg_seqno(buf_msg(l_ptr->next_out)));
-		tipc_printf(buf, "%u]", msg_seqno(buf_msg(l_ptr->last_out)));
-		if ((mod(msg_seqno(buf_msg(l_ptr->last_out)) -
-			 msg_seqno(buf_msg(l_ptr->first_out)))
+			tipc_printf(buf, "%u..", buf_seqno(l_ptr->next_out));
+		tipc_printf(buf, "%u]", buf_seqno(l_ptr->last_out));
+		if ((mod(buf_seqno(l_ptr->last_out) -
+			 buf_seqno(l_ptr->first_out))
 		     != (l_ptr->out_queue_size - 1)) ||
 		    (l_ptr->last_out->next != NULL)) {
 			tipc_printf(buf, "\nSend queue inconsistency\n");
@@ -3130,8 +3129,8 @@ static void link_print(struct link *l_ptr, const char *str)
 		tipc_printf(buf, "[]");
 	tipc_printf(buf, "SQSIZ(%u)", l_ptr->out_queue_size);
 	if (l_ptr->oldest_deferred_in) {
-		u32 o = msg_seqno(buf_msg(l_ptr->oldest_deferred_in));
-		u32 n = msg_seqno(buf_msg(l_ptr->newest_deferred_in));
+		u32 o = buf_seqno(l_ptr->oldest_deferred_in);
+		u32 n = buf_seqno(l_ptr->newest_deferred_in);
 		tipc_printf(buf, ":RQUE[%u..%u]", o, n);
 		if (l_ptr->deferred_inqueue_sz != mod((n + 1) - o)) {
 			tipc_printf(buf, ":RQSIZ(%u)",

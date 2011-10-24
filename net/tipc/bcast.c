@@ -115,11 +115,6 @@ static void tipc_nmap_diff(struct tipc_node_map *nm_a,
 			   struct tipc_node_map *nm_b,
 			   struct tipc_node_map *nm_diff);
 
-static u32 buf_seqno(struct sk_buff *buf)
-{
-	return msg_seqno(buf_msg(buf));
-}
-
 static u32 bcbuf_acks(struct sk_buff *buf)
 {
 	return (u32)(unsigned long)TIPC_SKB_CB(buf)->handle;
