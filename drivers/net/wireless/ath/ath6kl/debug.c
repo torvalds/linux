@@ -164,8 +164,7 @@ static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
 	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_to_dist   : %d\n",
 		   ep_dist->cred_to_dist);
 	ath6kl_dbg(ATH6KL_DBG_ANY, " txq_depth      : %d\n",
-		   get_queue_depth(&((struct htc_endpoint *)
-				     ep_dist->htc_rsvd)->txq));
+		   get_queue_depth(&ep_dist->htc_ep->txq));
 	ath6kl_dbg(ATH6KL_DBG_ANY,
 		   "----------------------------------\n");
 }
@@ -584,8 +583,7 @@ static ssize_t read_file_credit_dist_stats(struct file *file,
 		print_credit_info("%9d", cred_per_msg);
 		print_credit_info("%14d", cred_to_dist);
 		len += scnprintf(buf + len, buf_len - len, "%12d\n",
-				 get_queue_depth(&((struct htc_endpoint *)
-						 ep_list->htc_rsvd)->txq));
+				 get_queue_depth(&ep_list->htc_ep->txq));
 	}
 
 	if (len > buf_len)

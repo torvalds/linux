@@ -619,7 +619,7 @@ static void htc_chk_ep_txq(struct htc_target *target)
 	 * are not modifying any state.
 	 */
 	list_for_each_entry(cred_dist, &target->cred_dist_list, list) {
-		endpoint = (struct htc_endpoint *)cred_dist->htc_rsvd;
+		endpoint = cred_dist->htc_ep;
 
 		spin_lock_bh(&target->tx_lock);
 		if (!list_empty(&endpoint->txq)) {
@@ -2119,7 +2119,7 @@ int ath6kl_htc_conn_service(struct htc_target *target,
 	endpoint->len_max = max_msg_sz;
 	endpoint->ep_cb = conn_req->ep_cb;
 	endpoint->cred_dist.svc_id = conn_req->svc_id;
-	endpoint->cred_dist.htc_rsvd = endpoint;
+	endpoint->cred_dist.htc_ep = endpoint;
 	endpoint->cred_dist.endpoint = assigned_ep;
 	endpoint->cred_dist.cred_sz = target->tgt_cred_sz;
 

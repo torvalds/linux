@@ -393,7 +393,7 @@ struct htc_endpoint_credit_dist {
 	int cred_per_msg;
 
 	/* reserved for HTC use */
-	void *htc_rsvd;
+	struct htc_endpoint *htc_ep;
 
 	/*
 	 * current depth of TX queue , i.e. messages waiting for credits
