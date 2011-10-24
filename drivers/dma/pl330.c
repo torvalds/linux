@@ -19,6 +19,7 @@
 #include <linux/amba/pl330.h>
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
+#include <linux/of.h>
 
 #define NR_DEFAULT_DESC	16
 
@@ -276,6 +277,20 @@ bool pl330_filter(struct dma_chan *chan, void *param)
 
 	if (chan->device->dev->driver != &pl330_driver.drv)
 		return false;
+
+#ifdef CONFIG_OF
+	if (chan->device->dev->of_node) {
+		const __be32 *prop_value;
+		phandle phandle;
+		struct device_node *node;
+
+		prop_value = ((struct property *)param)->value;
+		phandle = be32_to_cpup(prop_value++);
+		node = of_find_node_by_phandle(phandle);
+		return ((chan->private == node) &&
+				(chan->chan_id == be32_to_cpup(prop_value)));
+	}
+#endif
 
 	peri_id = chan->private;
 	return *peri_id == (unsigned)param;
@@ -855,12 +870,17 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	INIT_LIST_HEAD(&pd->channels);
 
 	/* Initialize channel parameters */
-	num_chan = max(pdat ? pdat->nr_valid_peri : 0, (u8)pi->pcfg.num_chan);
+	num_chan = max(pdat ? pdat->nr_valid_peri : (u8)pi->pcfg.num_peri,
+			(u8)pi->pcfg.num_chan);
 	pdmac->peripherals = kzalloc(num_chan * sizeof(*pch), GFP_KERNEL);
 
 	for (i = 0; i < num_chan; i++) {
 		pch = &pdmac->peripherals[i];
-		pch->chan.private = pdat ? &pdat->peri_id[i] : NULL;
+		if (!adev->dev.of_node)
+			pch->chan.private = pdat ? &pdat->peri_id[i] : NULL;
+		else
+			pch->chan.private = adev->dev.of_node;
+
 		INIT_LIST_HEAD(&pch->work_list);
 		spin_lock_init(&pch->lock);
 		pch->pl330_chid = NULL;
@@ -872,10 +892,15 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	pd->dev = &adev->dev;
-	if (pdat)
+	if (pdat) {
 		pd->cap_mask = pdat->cap_mask;
-	else
+	} else {
 		dma_cap_set(DMA_MEMCPY, pd->cap_mask);
+		if (pi->pcfg.num_peri) {
+			dma_cap_set(DMA_SLAVE, pd->cap_mask);
+			dma_cap_set(DMA_CYCLIC, pd->cap_mask);
+		}
+	}
 
 	pd->device_alloc_chan_resources = pl330_alloc_chan_resources;
 	pd->device_free_chan_resources = pl330_free_chan_resources;
