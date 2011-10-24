@@ -145,6 +145,9 @@
 #define REC_RETRY_COUNT			1
 #define BNX2FC_NUM_ERR_BITS		63
 
+#define BNX2FC_RELOGIN_WAIT_TIME	200
+#define BNX2FC_RELOGIN_WAIT_CNT		10
+
 /* bnx2fc driver uses only one instance of fcoe_percpu_s */
 extern struct fcoe_percpu_s bnx2fc_global;
 
