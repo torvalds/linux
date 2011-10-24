@@ -682,7 +682,6 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	 * - usb module
 	 */
 	usbhs_sys_function_ctrl(priv, 1);
-	usbhs_sys_usb_ctrl(priv, 1);
 
 	/*
 	 * enable irq callback
@@ -731,7 +730,6 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 
 	/* disable sys */
 	usbhs_sys_function_ctrl(priv, 0);
-	usbhs_sys_usb_ctrl(priv, 0);
 
 	usbhsg_pipe_disable(dcp);
 

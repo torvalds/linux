@@ -100,15 +100,10 @@ void usbhs_sys_clock_ctrl(struct usbhs_priv *priv, int enable)
 	usbhs_bset(priv, SYSCFG, SCKE, enable ? SCKE : 0);
 }
 
-void usbhs_sys_usb_ctrl(struct usbhs_priv *priv, int enable)
-{
-	usbhs_bset(priv, SYSCFG, USBE, enable ? USBE : 0);
-}
-
 void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable)
 {
-	u16 mask = DCFM | DRPD | DPRPU | HSE;
-	u16 val  = DCFM | DRPD | HSE;
+	u16 mask = DCFM | DRPD | DPRPU | HSE | USBE;
+	u16 val  = DCFM | DRPD | HSE | USBE;
 	int has_otg = usbhs_get_dparam(priv, has_otg);
 
 	if (has_otg)
@@ -125,8 +120,8 @@ void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable)
 
 void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable)
 {
-	u16 mask = DCFM | DRPD | DPRPU | HSE;
-	u16 val  = DPRPU | HSE;
+	u16 mask = DCFM | DRPD | DPRPU | HSE | USBE;
+	u16 val  = DPRPU | HSE | USBE;
 
 	/*
 	 * if enable

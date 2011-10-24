@@ -1206,7 +1206,6 @@ static int usbhsh_start(struct usbhs_priv *priv)
 	 * - usb module
 	 */
 	usbhs_sys_host_ctrl(priv, 1);
-	usbhs_sys_usb_ctrl(priv, 1);
 
 	/*
 	 * enable irq callback
@@ -1242,7 +1241,6 @@ static int usbhsh_stop(struct usbhs_priv *priv)
 
 	/* disable sys */
 	usbhs_sys_host_ctrl(priv, 0);
-	usbhs_sys_usb_ctrl(priv, 0);
 
 	dev_dbg(dev, "quit host\n");
 
