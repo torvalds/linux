@@ -439,7 +439,6 @@ struct se_cmd {
 	u32			orig_fe_lun;
 	/* Persistent Reservation key */
 	u64			pr_res_key;
-	atomic_t                transport_sent;
 	/* Used for sense data */
 	void			*sense_buffer;
 	struct list_head	se_delayed_node;

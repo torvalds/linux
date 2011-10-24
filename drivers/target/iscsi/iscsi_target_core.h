@@ -428,7 +428,6 @@ struct iscsi_cmd {
 	/* Number of times struct iscsi_cmd is present in immediate queue */
 	atomic_t		immed_queue_count;
 	atomic_t		response_queue_count;
-	atomic_t		transport_sent;
 	spinlock_t		datain_lock;
 	spinlock_t		dataout_timeout_lock;
 	/* spinlock for protecting struct iscsi_cmd->i_state */
