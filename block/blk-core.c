@@ -1276,7 +1276,6 @@ out:
 
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
-	req->cpu = bio->bi_comp_cpu;
 	req->cmd_type = REQ_TYPE_FS;
 
 	req->cmd_flags |= bio->bi_rw & REQ_COMMON_MASK;
@@ -1362,8 +1361,7 @@ get_rq:
 	 */
 	init_request_from_bio(req, bio);
 
-	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
-	    bio_flagged(bio, BIO_CPU_AFFINE))
+	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags))
 		req->cpu = raw_smp_processor_id();
 
 	plug = current->plug;
