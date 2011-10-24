@@ -87,6 +87,7 @@ struct bcbearer {
  * struct bclink - link used for broadcast messages
  * @link: (non-standard) broadcast link structure
  * @node: (non-standard) node structure representing b'cast link's peer node
+ * @bcast_nodes: map of broadcast-capable nodes
  * @retransmit_to: node that most recently requested a retransmit
  *
  * Handles sequence numbering, fragmentation, bundling, etc.
@@ -95,6 +96,7 @@ struct bcbearer {
 struct bclink {
 	struct link link;
 	struct tipc_node node;
+	struct tipc_node_map bcast_nodes;
 	struct tipc_node *retransmit_to;
 };
 
@@ -106,9 +108,6 @@ static struct bclink *bclink = &bcast_link;
 static struct link *bcl = &bcast_link.link;
 
 static DEFINE_SPINLOCK(bc_lock);
-
-/* broadcast-capable node map */
-struct tipc_node_map tipc_bcast_nmap;
 
 const char tipc_bclink_name[] = "broadcast-link";
 
@@ -136,6 +135,19 @@ static void bcbuf_decr_acks(struct sk_buff *buf)
 	bcbuf_set_acks(buf, bcbuf_acks(buf) - 1);
 }
 
+void tipc_bclink_add_node(u32 addr)
+{
+	spin_lock_bh(&bc_lock);
+	tipc_nmap_add(&bclink->bcast_nodes, addr);
+	spin_unlock_bh(&bc_lock);
+}
+
+void tipc_bclink_remove_node(u32 addr)
+{
+	spin_lock_bh(&bc_lock);
+	tipc_nmap_remove(&bclink->bcast_nodes, addr);
+	spin_unlock_bh(&bc_lock);
+}
 
 static void bclink_set_last_sent(void)
 {
@@ -575,13 +587,13 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 	if (likely(!msg_non_seq(buf_msg(buf)))) {
 		struct tipc_msg *msg;
 
-		bcbuf_set_acks(buf, tipc_bcast_nmap.count);
+		bcbuf_set_acks(buf, bclink->bcast_nodes.count);
 		msg = buf_msg(buf);
 		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tipc_net_id);
 		bcl->stats.sent_info++;
 
-		if (WARN_ON(!tipc_bcast_nmap.count)) {
+		if (WARN_ON(!bclink->bcast_nodes.count)) {
 			dump_stack();
 			return 0;
 		}
@@ -589,7 +601,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 
 	/* Send buffer over bearers until all targets reached */
 
-	bcbearer->remains = tipc_bcast_nmap;
+	bcbearer->remains = bclink->bcast_nodes;
 
 	for (bp_index = 0; bp_index < MAX_BEARERS; bp_index++) {
 		struct tipc_bearer *p = bcbearer->bpairs[bp_index].primary;

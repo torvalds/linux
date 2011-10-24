@@ -307,7 +307,7 @@ static void node_established_contact(struct tipc_node *n_ptr)
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 
 	if (n_ptr->bclink.supported) {
-		tipc_nmap_add(&tipc_bcast_nmap, n_ptr->addr);
+		tipc_bclink_add_node(n_ptr->addr);
 		if (n_ptr->addr < tipc_own_addr)
 			tipc_own_tag++;
 	}
@@ -350,7 +350,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 			n_ptr->bclink.defragm = NULL;
 		}
 
-		tipc_nmap_remove(&tipc_bcast_nmap, n_ptr->addr);
+		tipc_bclink_remove_node(n_ptr->addr);
 		tipc_bclink_acknowledge(n_ptr,
 					mod(n_ptr->bclink.acked + 10000));
 		if (n_ptr->addr < tipc_own_addr)
