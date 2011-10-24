@@ -44,7 +44,7 @@
 
 
 /* Send led command */
-static int il3945_send_led_cmd(struct il_priv *priv,
+static int il3945_send_led_cmd(struct il_priv *il,
 				struct il_led_cmd *led_cmd)
 {
 	struct il_host_cmd cmd = {
@@ -55,7 +55,7 @@ static int il3945_send_led_cmd(struct il_priv *priv,
 		.callback = NULL,
 	};
 
-	return il_send_cmd(priv, &cmd);
+	return il_send_cmd(il, &cmd);
 }
 
 const struct il_led_ops il3945_led_ops = {

@@ -80,14 +80,14 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
-void il4965_calib_free_results(struct il_priv *priv)
+void il4965_calib_free_results(struct il_priv *il)
 {
 	int i;
 
 	for (i = 0; i < IL_CALIB_MAX; i++) {
-		kfree(priv->calib_results[i].buf);
-		priv->calib_results[i].buf = NULL;
-		priv->calib_results[i].buf_len = 0;
+		kfree(il->calib_results[i].buf);
+		il->calib_results[i].buf = NULL;
+		il->calib_results[i].buf_len = 0;
 	}
 }
 
@@ -103,7 +103,7 @@ void il4965_calib_free_results(struct il_priv *priv)
  *   enough to receive all of our own network traffic, but not so
  *   high that our DSP gets too busy trying to lock onto non-network
  *   activity/noise. */
-static int il4965_sens_energy_cck(struct il_priv *priv,
+static int il4965_sens_energy_cck(struct il_priv *il,
 				   u32 norm_fa,
 				   u32 rx_enable_time,
 				   struct statistics_general_data *rx_info)
@@ -130,9 +130,9 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 	u32 max_false_alarms = MAX_FA_CCK * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_CCK * rx_enable_time;
 	struct il_sensitivity_data *data = NULL;
-	const struct il_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct il_sensitivity_ranges *ranges = il->hw_params.sens;
 
-	data = &(priv->sensitivity_data);
+	data = &(il->sensitivity_data);
 
 	data->nrg_auto_corr_silence_diff = 0;
 
@@ -160,7 +160,7 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 		val = data->nrg_silence_rssi[i];
 		silence_ref = max(silence_ref, val);
 	}
-	IL_DEBUG_CALIB(priv, "silence a %u, b %u, c %u, 20-bcn max %u\n",
+	IL_DEBUG_CALIB(il, "silence a %u, b %u, c %u, 20-bcn max %u\n",
 			silence_rssi_a, silence_rssi_b, silence_rssi_c,
 			silence_ref);
 
@@ -184,7 +184,7 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 		max_nrg_cck = (u32) max(max_nrg_cck, (data->nrg_value[i]));
 	max_nrg_cck += 6;
 
-	IL_DEBUG_CALIB(priv, "rx energy a %u, b %u, c %u, 10-bcn max/min %u\n",
+	IL_DEBUG_CALIB(il, "rx energy a %u, b %u, c %u, 10-bcn max/min %u\n",
 			rx_info->beacon_energy_a, rx_info->beacon_energy_b,
 			rx_info->beacon_energy_c, max_nrg_cck - 6);
 
@@ -194,15 +194,15 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 		data->num_in_cck_no_fa++;
 	else
 		data->num_in_cck_no_fa = 0;
-	IL_DEBUG_CALIB(priv, "consecutive bcns with few false alarms = %u\n",
+	IL_DEBUG_CALIB(il, "consecutive bcns with few false alarms = %u\n",
 			data->num_in_cck_no_fa);
 
 	/* If we got too many false alarms this time, reduce sensitivity */
 	if ((false_alarms > max_false_alarms) &&
 		(data->auto_corr_cck > AUTO_CORR_MAX_TH_CCK)) {
-		IL_DEBUG_CALIB(priv, "norm FA %u > max FA %u\n",
+		IL_DEBUG_CALIB(il, "norm FA %u > max FA %u\n",
 		     false_alarms, max_false_alarms);
-		IL_DEBUG_CALIB(priv, "... reducing sensitivity\n");
+		IL_DEBUG_CALIB(il, "... reducing sensitivity\n");
 		data->nrg_curr_state = IL_FA_TOO_MANY;
 		/* Store for "fewer than desired" on later beacon */
 		data->nrg_silence_ref = silence_ref;
@@ -219,7 +219,7 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 		data->nrg_auto_corr_silence_diff = (s32)data->nrg_silence_ref -
 						   (s32)silence_ref;
 
-		IL_DEBUG_CALIB(priv,
+		IL_DEBUG_CALIB(il,
 			 "norm FA %u < min FA %u, silence diff %d\n",
 			 false_alarms, min_false_alarms,
 			 data->nrg_auto_corr_silence_diff);
@@ -234,18 +234,18 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 			((data->nrg_auto_corr_silence_diff > NRG_DIFF) ||
 			(data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA))) {
 
-			IL_DEBUG_CALIB(priv, "... increasing sensitivity\n");
+			IL_DEBUG_CALIB(il, "... increasing sensitivity\n");
 			/* Increase nrg value to increase sensitivity */
 			val = data->nrg_th_cck + NRG_STEP_CCK;
 			data->nrg_th_cck = min((u32)ranges->min_nrg_cck, val);
 		} else {
-			IL_DEBUG_CALIB(priv,
+			IL_DEBUG_CALIB(il,
 					 "... but not changing sensitivity\n");
 		}
 
 	/* Else we got a healthy number of false alarms, keep status quo */
 	} else {
-		IL_DEBUG_CALIB(priv, " FA in safe zone\n");
+		IL_DEBUG_CALIB(il, " FA in safe zone\n");
 		data->nrg_curr_state = IL_FA_GOOD_RANGE;
 
 		/* Store for use in "fewer than desired" with later beacon */
@@ -255,7 +255,7 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 		 *   give it some extra margin by reducing sensitivity again
 		 *   (but don't go below measured energy of desired Rx) */
 		if (IL_FA_TOO_MANY == data->nrg_prev_state) {
-			IL_DEBUG_CALIB(priv, "... increasing margin\n");
+			IL_DEBUG_CALIB(il, "... increasing margin\n");
 			if (data->nrg_th_cck > (max_nrg_cck + NRG_MARGIN))
 				data->nrg_th_cck -= NRG_MARGIN;
 			else
@@ -269,7 +269,7 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 	 * Lower value is higher energy, so we use max()!
 	 */
 	data->nrg_th_cck = max(max_nrg_cck, data->nrg_th_cck);
-	IL_DEBUG_CALIB(priv, "new nrg_th_cck %u\n", data->nrg_th_cck);
+	IL_DEBUG_CALIB(il, "new nrg_th_cck %u\n", data->nrg_th_cck);
 
 	data->nrg_prev_state = data->nrg_curr_state;
 
@@ -306,7 +306,7 @@ static int il4965_sens_energy_cck(struct il_priv *priv,
 }
 
 
-static int il4965_sens_auto_corr_ofdm(struct il_priv *priv,
+static int il4965_sens_auto_corr_ofdm(struct il_priv *il,
 				       u32 norm_fa,
 				       u32 rx_enable_time)
 {
@@ -315,14 +315,14 @@ static int il4965_sens_auto_corr_ofdm(struct il_priv *priv,
 	u32 max_false_alarms = MAX_FA_OFDM * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_OFDM * rx_enable_time;
 	struct il_sensitivity_data *data = NULL;
-	const struct il_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct il_sensitivity_ranges *ranges = il->hw_params.sens;
 
-	data = &(priv->sensitivity_data);
+	data = &(il->sensitivity_data);
 
 	/* If we got too many false alarms this time, reduce sensitivity */
 	if (false_alarms > max_false_alarms) {
 
-		IL_DEBUG_CALIB(priv, "norm FA %u > max FA %u)\n",
+		IL_DEBUG_CALIB(il, "norm FA %u > max FA %u)\n",
 			     false_alarms, max_false_alarms);
 
 		val = data->auto_corr_ofdm + AUTO_CORR_STEP_OFDM;
@@ -345,7 +345,7 @@ static int il4965_sens_auto_corr_ofdm(struct il_priv *priv,
 	/* Else if we got fewer than desired, increase sensitivity */
 	else if (false_alarms < min_false_alarms) {
 
-		IL_DEBUG_CALIB(priv, "norm FA %u < min FA %u\n",
+		IL_DEBUG_CALIB(il, "norm FA %u < min FA %u\n",
 			     false_alarms, min_false_alarms);
 
 		val = data->auto_corr_ofdm - AUTO_CORR_STEP_OFDM;
@@ -364,13 +364,13 @@ static int il4965_sens_auto_corr_ofdm(struct il_priv *priv,
 		data->auto_corr_ofdm_mrc_x1 =
 			max((u32)ranges->auto_corr_min_ofdm_mrc_x1, val);
 	} else {
-		IL_DEBUG_CALIB(priv, "min FA %u < norm FA %u < max FA %u OK\n",
+		IL_DEBUG_CALIB(il, "min FA %u < norm FA %u < max FA %u OK\n",
 			 min_false_alarms, false_alarms, max_false_alarms);
 	}
 	return 0;
 }
 
-static void il4965_prepare_legacy_sensitivity_tbl(struct il_priv *priv,
+static void il4965_prepare_legacy_sensitivity_tbl(struct il_priv *il,
 				struct il_sensitivity_data *data,
 				__le16 *tbl)
 {
@@ -400,18 +400,18 @@ static void il4965_prepare_legacy_sensitivity_tbl(struct il_priv *priv,
 	tbl[HD_OFDM_ENERGY_TH_IN_INDEX] =
 				cpu_to_le16(data->nrg_th_cca);
 
-	IL_DEBUG_CALIB(priv, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
+	IL_DEBUG_CALIB(il, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
 			data->auto_corr_ofdm, data->auto_corr_ofdm_mrc,
 			data->auto_corr_ofdm_x1, data->auto_corr_ofdm_mrc_x1,
 			data->nrg_th_ofdm);
 
-	IL_DEBUG_CALIB(priv, "cck: ac %u mrc %u thresh %u\n",
+	IL_DEBUG_CALIB(il, "cck: ac %u mrc %u thresh %u\n",
 			data->auto_corr_cck, data->auto_corr_cck_mrc,
 			data->nrg_th_cck);
 }
 
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
-static int il4965_sensitivity_write(struct il_priv *priv)
+static int il4965_sensitivity_write(struct il_priv *il)
 {
 	struct il_sensitivity_cmd cmd;
 	struct il_sensitivity_data *data = NULL;
@@ -422,43 +422,43 @@ static int il4965_sensitivity_write(struct il_priv *priv)
 		.data = &cmd,
 	};
 
-	data = &(priv->sensitivity_data);
+	data = &(il->sensitivity_data);
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	il4965_prepare_legacy_sensitivity_tbl(priv, data, &cmd.table[0]);
+	il4965_prepare_legacy_sensitivity_tbl(il, data, &cmd.table[0]);
 
 	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
 
 	/* Don't send command to uCode if nothing has changed */
-	if (!memcmp(&cmd.table[0], &(priv->sensitivity_tbl[0]),
+	if (!memcmp(&cmd.table[0], &(il->sensitivity_tbl[0]),
 		    sizeof(u16)*HD_TABLE_SIZE)) {
-		IL_DEBUG_CALIB(priv, "No change in SENSITIVITY_CMD\n");
+		IL_DEBUG_CALIB(il, "No change in SENSITIVITY_CMD\n");
 		return 0;
 	}
 
 	/* Copy table for comparison next time */
-	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
+	memcpy(&(il->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
 
-	return il_send_cmd(priv, &cmd_out);
+	return il_send_cmd(il, &cmd_out);
 }
 
-void il4965_init_sensitivity(struct il_priv *priv)
+void il4965_init_sensitivity(struct il_priv *il)
 {
 	int ret = 0;
 	int i;
 	struct il_sensitivity_data *data = NULL;
-	const struct il_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct il_sensitivity_ranges *ranges = il->hw_params.sens;
 
-	if (priv->disable_sens_cal)
+	if (il->disable_sens_cal)
 		return;
 
-	IL_DEBUG_CALIB(priv, "Start il4965_init_sensitivity\n");
+	IL_DEBUG_CALIB(il, "Start il4965_init_sensitivity\n");
 
 	/* Clear driver's sensitivity algo data */
-	data = &(priv->sensitivity_data);
+	data = &(il->sensitivity_data);
 
 	if (ranges == NULL)
 		return;
@@ -495,11 +495,11 @@ void il4965_init_sensitivity(struct il_priv *priv)
 	data->last_bad_plcp_cnt_cck = 0;
 	data->last_fa_cnt_cck = 0;
 
-	ret |= il4965_sensitivity_write(priv);
-	IL_DEBUG_CALIB(priv, "<<return 0x%X\n", ret);
+	ret |= il4965_sensitivity_write(il);
+	IL_DEBUG_CALIB(il, "<<return 0x%X\n", ret);
 }
 
-void il4965_sensitivity_calibration(struct il_priv *priv, void *resp)
+void il4965_sensitivity_calibration(struct il_priv *il, void *resp)
 {
 	u32 rx_enable_time;
 	u32 fa_cck;
@@ -514,25 +514,25 @@ void il4965_sensitivity_calibration(struct il_priv *priv, void *resp)
 	unsigned long flags;
 	struct statistics_general_data statis;
 
-	if (priv->disable_sens_cal)
+	if (il->disable_sens_cal)
 		return;
 
-	data = &(priv->sensitivity_data);
+	data = &(il->sensitivity_data);
 
-	if (!il_is_any_associated(priv)) {
-		IL_DEBUG_CALIB(priv, "<< - not associated\n");
+	if (!il_is_any_associated(il)) {
+		IL_DEBUG_CALIB(il, "<< - not associated\n");
 		return;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&il->lock, flags);
 
 	rx_info = &(((struct il_notif_statistics *)resp)->rx.general);
 	ofdm = &(((struct il_notif_statistics *)resp)->rx.ofdm);
 	cck = &(((struct il_notif_statistics *)resp)->rx.cck);
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
-		IL_DEBUG_CALIB(priv, "<< invalid data.\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
+		IL_DEBUG_CALIB(il, "<< invalid data.\n");
+		spin_unlock_irqrestore(&il->lock, flags);
 		return;
 	}
 
@@ -556,12 +556,12 @@ void il4965_sensitivity_calibration(struct il_priv *priv, void *resp)
 	statis.beacon_energy_c =
 			le32_to_cpu(rx_info->beacon_energy_c);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&il->lock, flags);
 
-	IL_DEBUG_CALIB(priv, "rx_enable_time = %u usecs\n", rx_enable_time);
+	IL_DEBUG_CALIB(il, "rx_enable_time = %u usecs\n", rx_enable_time);
 
 	if (!rx_enable_time) {
-		IL_DEBUG_CALIB(priv, "<< RX Enable Time == 0!\n");
+		IL_DEBUG_CALIB(il, "<< RX Enable Time == 0!\n");
 		return;
 	}
 
@@ -600,14 +600,14 @@ void il4965_sensitivity_calibration(struct il_priv *priv, void *resp)
 	norm_fa_ofdm = fa_ofdm + bad_plcp_ofdm;
 	norm_fa_cck = fa_cck + bad_plcp_cck;
 
-	IL_DEBUG_CALIB(priv,
+	IL_DEBUG_CALIB(il,
 			 "cck: fa %u badp %u  ofdm: fa %u badp %u\n", fa_cck,
 			bad_plcp_cck, fa_ofdm, bad_plcp_ofdm);
 
-	il4965_sens_auto_corr_ofdm(priv, norm_fa_ofdm, rx_enable_time);
-	il4965_sens_energy_cck(priv, norm_fa_cck, rx_enable_time, &statis);
+	il4965_sens_auto_corr_ofdm(il, norm_fa_ofdm, rx_enable_time);
+	il4965_sens_energy_cck(il, norm_fa_cck, rx_enable_time, &statis);
 
-	il4965_sensitivity_write(priv);
+	il4965_sensitivity_write(il);
 }
 
 static inline u8 il4965_find_first_chain(u8 mask)
@@ -624,7 +624,7 @@ static inline u8 il4965_find_first_chain(u8 mask)
  * disconnected.
  */
 static void
-il4965_find_disconn_antenna(struct il_priv *priv, u32* average_sig,
+il4965_find_disconn_antenna(struct il_priv *il, u32* average_sig,
 				     struct il_chain_noise_data *data)
 {
 	u32 active_chains = 0;
@@ -635,11 +635,11 @@ il4965_find_disconn_antenna(struct il_priv *priv, u32* average_sig,
 	u16 i = 0;
 
 	average_sig[0] = data->chain_signal_a /
-			 priv->cfg->base_params->chain_noise_num_beacons;
+			 il->cfg->base_params->chain_noise_num_beacons;
 	average_sig[1] = data->chain_signal_b /
-			 priv->cfg->base_params->chain_noise_num_beacons;
+			 il->cfg->base_params->chain_noise_num_beacons;
 	average_sig[2] = data->chain_signal_c /
-			 priv->cfg->base_params->chain_noise_num_beacons;
+			 il->cfg->base_params->chain_noise_num_beacons;
 
 	if (average_sig[0] >= average_sig[1]) {
 		max_average_sig = average_sig[0];
@@ -657,9 +657,9 @@ il4965_find_disconn_antenna(struct il_priv *priv, u32* average_sig,
 		active_chains = (1 << max_average_sig_antenna_i);
 	}
 
-	IL_DEBUG_CALIB(priv, "average_sig: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(il, "average_sig: a %d b %d c %d\n",
 		     average_sig[0], average_sig[1], average_sig[2]);
-	IL_DEBUG_CALIB(priv, "max_average_sig = %d, antenna %d\n",
+	IL_DEBUG_CALIB(il, "max_average_sig = %d, antenna %d\n",
 		     max_average_sig, max_average_sig_antenna_i);
 
 	/* Compare signal strengths for all 3 receivers. */
@@ -673,7 +673,7 @@ il4965_find_disconn_antenna(struct il_priv *priv, u32* average_sig,
 				data->disconn_array[i] = 1;
 			else
 				active_chains |= (1 << i);
-			IL_DEBUG_CALIB(priv, "i = %d  rssiDelta = %d  "
+			IL_DEBUG_CALIB(il, "i = %d  rssiDelta = %d  "
 			     "disconn_array[i] = %d\n",
 			     i, rssi_delta, data->disconn_array[i]);
 		}
@@ -689,58 +689,58 @@ il4965_find_disconn_antenna(struct il_priv *priv, u32* average_sig,
 	 * To be safe, simply mask out any chains that we know
 	 * are not on the device.
 	 */
-	active_chains &= priv->hw_params.valid_rx_ant;
+	active_chains &= il->hw_params.valid_rx_ant;
 
 	num_tx_chains = 0;
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		/* loops on all the bits of
-		 * priv->hw_setting.valid_tx_ant */
+		 * il->hw_setting.valid_tx_ant */
 		u8 ant_msk = (1 << i);
-		if (!(priv->hw_params.valid_tx_ant & ant_msk))
+		if (!(il->hw_params.valid_tx_ant & ant_msk))
 			continue;
 
 		num_tx_chains++;
 		if (data->disconn_array[i] == 0)
 			/* there is a Tx antenna connected */
 			break;
-		if (num_tx_chains == priv->hw_params.tx_chains_num &&
+		if (num_tx_chains == il->hw_params.tx_chains_num &&
 		    data->disconn_array[i]) {
 			/*
 			 * If all chains are disconnected
 			 * connect the first valid tx chain
 			 */
 			first_chain =
-			il4965_find_first_chain(priv->cfg->valid_tx_ant);
+			il4965_find_first_chain(il->cfg->valid_tx_ant);
 			data->disconn_array[first_chain] = 0;
 			active_chains |= BIT(first_chain);
-			IL_DEBUG_CALIB(priv,
+			IL_DEBUG_CALIB(il,
 					"All Tx chains are disconnected W/A - declare %d as connected\n",
 					first_chain);
 			break;
 		}
 	}
 
-	if (active_chains != priv->hw_params.valid_rx_ant &&
-	    active_chains != priv->chain_noise_data.active_chains)
-		IL_DEBUG_CALIB(priv,
+	if (active_chains != il->hw_params.valid_rx_ant &&
+	    active_chains != il->chain_noise_data.active_chains)
+		IL_DEBUG_CALIB(il,
 				"Detected that not all antennas are connected! "
 				"Connected: %#x, valid: %#x.\n",
-				active_chains, priv->hw_params.valid_rx_ant);
+				active_chains, il->hw_params.valid_rx_ant);
 
 	/* Save for use within RXON, TX, SCAN commands, etc. */
 	data->active_chains = active_chains;
-	IL_DEBUG_CALIB(priv, "active_chains (bitwise) = 0x%x\n",
+	IL_DEBUG_CALIB(il, "active_chains (bitwise) = 0x%x\n",
 			active_chains);
 }
 
-static void il4965_gain_computation(struct il_priv *priv,
+static void il4965_gain_computation(struct il_priv *il,
 		u32 *average_noise,
 		u16 min_average_noise_antenna_i,
 		u32 min_average_noise,
 		u8 default_chain)
 {
 	int i, ret;
-	struct il_chain_noise_data *data = &priv->chain_noise_data;
+	struct il_chain_noise_data *data = &il->chain_noise_data;
 
 	data->delta_gain_code[min_average_noise_antenna_i] = 0;
 
@@ -762,7 +762,7 @@ static void il4965_gain_computation(struct il_priv *priv,
 			data->delta_gain_code[i] = 0;
 		}
 	}
-	IL_DEBUG_CALIB(priv, "delta_gain_codes: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(il, "delta_gain_codes: a %d b %d c %d\n",
 		     data->delta_gain_code[0],
 		     data->delta_gain_code[1],
 		     data->delta_gain_code[2]);
@@ -777,10 +777,10 @@ static void il4965_gain_computation(struct il_priv *priv,
 		cmd.diff_gain_a = data->delta_gain_code[0];
 		cmd.diff_gain_b = data->delta_gain_code[1];
 		cmd.diff_gain_c = data->delta_gain_code[2];
-		ret = il_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+		ret = il_send_cmd_pdu(il, REPLY_PHY_CALIBRATION_CMD,
 				      sizeof(cmd), &cmd);
 		if (ret)
-			IL_DEBUG_CALIB(priv, "fail sending cmd "
+			IL_DEBUG_CALIB(il, "fail sending cmd "
 				     "REPLY_PHY_CALIBRATION_CMD\n");
 
 		/* TODO we might want recalculate
@@ -799,7 +799,7 @@ static void il4965_gain_computation(struct il_priv *priv,
  * 1)  Which antennas are connected.
  * 2)  Differential rx gain settings to balance the 3 receivers.
  */
-void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp)
+void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 {
 	struct il_chain_noise_data *data = NULL;
 
@@ -821,12 +821,12 @@ void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp)
 	unsigned long flags;
 	struct statistics_rx_non_phy *rx_info;
 
-	struct il_rxon_context *ctx = &priv->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
 
-	if (priv->disable_chain_noise_cal)
+	if (il->disable_chain_noise_cal)
 		return;
 
-	data = &(priv->chain_noise_data);
+	data = &(il->chain_noise_data);
 
 	/*
 	 * Accumulate just the first "chain_noise_num_beacons" after
@@ -834,18 +834,18 @@ void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp)
 	 */
 	if (data->state != IL_CHAIN_NOISE_ACCUMULATE) {
 		if (data->state == IL_CHAIN_NOISE_ALIVE)
-			IL_DEBUG_CALIB(priv, "Wait for noise calib reset\n");
+			IL_DEBUG_CALIB(il, "Wait for noise calib reset\n");
 		return;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&il->lock, flags);
 
 	rx_info = &(((struct il_notif_statistics *)stat_resp)->
 		      rx.general);
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
-		IL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
+		IL_DEBUG_CALIB(il, " << Interference data unavailable\n");
+		spin_unlock_irqrestore(&il->lock, flags);
 		return;
 	}
 
@@ -861,9 +861,9 @@ void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp)
 	/* Make sure we accumulate data for just the associated channel
 	 *   (even if scanning). */
 	if ((rxon_chnum != stat_chnum) || (rxon_band24 != stat_band24)) {
-		IL_DEBUG_CALIB(priv, "Stats not from chan=%d, band24=%d\n",
+		IL_DEBUG_CALIB(il, "Stats not from chan=%d, band24=%d\n",
 				rxon_chnum, rxon_band24);
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&il->lock, flags);
 		return;
 	}
 
@@ -882,7 +882,7 @@ void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp)
 	chain_sig_b = le32_to_cpu(rx_info->beacon_rssi_b) & IN_BAND_FILTER;
 	chain_sig_c = le32_to_cpu(rx_info->beacon_rssi_c) & IN_BAND_FILTER;
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&il->lock, flags);
 
 	data->beacon_count++;
 
@@ -894,30 +894,30 @@ void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp)
 	data->chain_signal_b = (chain_sig_b + data->chain_signal_b);
 	data->chain_signal_c = (chain_sig_c + data->chain_signal_c);
 
-	IL_DEBUG_CALIB(priv, "chan=%d, band24=%d, beacon=%d\n",
+	IL_DEBUG_CALIB(il, "chan=%d, band24=%d, beacon=%d\n",
 			rxon_chnum, rxon_band24, data->beacon_count);
-	IL_DEBUG_CALIB(priv, "chain_sig: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(il, "chain_sig: a %d b %d c %d\n",
 			chain_sig_a, chain_sig_b, chain_sig_c);
-	IL_DEBUG_CALIB(priv, "chain_noise: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(il, "chain_noise: a %d b %d c %d\n",
 			chain_noise_a, chain_noise_b, chain_noise_c);
 
 	/* If this is the "chain_noise_num_beacons", determine:
 	 * 1)  Disconnected antennas (using signal strengths)
 	 * 2)  Differential gain (using silence noise) to balance receivers */
 	if (data->beacon_count !=
-		priv->cfg->base_params->chain_noise_num_beacons)
+		il->cfg->base_params->chain_noise_num_beacons)
 		return;
 
 	/* Analyze signal for disconnected antenna */
-	il4965_find_disconn_antenna(priv, average_sig, data);
+	il4965_find_disconn_antenna(il, average_sig, data);
 
 	/* Analyze noise for rx balance */
 	average_noise[0] = data->chain_noise_a /
-			   priv->cfg->base_params->chain_noise_num_beacons;
+			   il->cfg->base_params->chain_noise_num_beacons;
 	average_noise[1] = data->chain_noise_b /
-			   priv->cfg->base_params->chain_noise_num_beacons;
+			   il->cfg->base_params->chain_noise_num_beacons;
 	average_noise[2] = data->chain_noise_c /
-			   priv->cfg->base_params->chain_noise_num_beacons;
+			   il->cfg->base_params->chain_noise_num_beacons;
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		if (!(data->disconn_array[i]) &&
@@ -929,39 +929,39 @@ void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp)
 		}
 	}
 
-	IL_DEBUG_CALIB(priv, "average_noise: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(il, "average_noise: a %d b %d c %d\n",
 			average_noise[0], average_noise[1],
 			average_noise[2]);
 
-	IL_DEBUG_CALIB(priv, "min_average_noise = %d, antenna %d\n",
+	IL_DEBUG_CALIB(il, "min_average_noise = %d, antenna %d\n",
 			min_average_noise, min_average_noise_antenna_i);
 
-	il4965_gain_computation(priv, average_noise,
+	il4965_gain_computation(il, average_noise,
 			min_average_noise_antenna_i, min_average_noise,
-			il4965_find_first_chain(priv->cfg->valid_rx_ant));
+			il4965_find_first_chain(il->cfg->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
 	 */
-	if (priv->cfg->ops->lib->update_chain_flags)
-		priv->cfg->ops->lib->update_chain_flags(priv);
+	if (il->cfg->ops->lib->update_chain_flags)
+		il->cfg->ops->lib->update_chain_flags(il);
 
 	data->state = IL_CHAIN_NOISE_DONE;
-	il_power_update_mode(priv, false);
+	il_power_update_mode(il, false);
 }
 
-void il4965_reset_run_time_calib(struct il_priv *priv)
+void il4965_reset_run_time_calib(struct il_priv *il)
 {
 	int i;
-	memset(&(priv->sensitivity_data), 0,
+	memset(&(il->sensitivity_data), 0,
 	       sizeof(struct il_sensitivity_data));
-	memset(&(priv->chain_noise_data), 0,
+	memset(&(il->chain_noise_data), 0,
 	       sizeof(struct il_chain_noise_data));
 	for (i = 0; i < NUM_RX_CHAINS; i++)
-		priv->chain_noise_data.delta_gain_code[i] =
+		il->chain_noise_data.delta_gain_code[i] =
 				CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
 
 	/* Ask for statistics now, the uCode will send notification
 	 * periodically after association */
-	il_send_statistics_request(priv, CMD_ASYNC, true);
+	il_send_statistics_request(il, CMD_ASYNC, true);
 }

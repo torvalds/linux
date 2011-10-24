@@ -73,75 +73,75 @@ extern struct il_mod_params il4965_mod_params;
 extern struct ieee80211_ops il4965_hw_ops;
 
 /* tx queue */
-void il4965_free_tfds_in_queue(struct il_priv *priv,
+void il4965_free_tfds_in_queue(struct il_priv *il,
 			    int sta_id, int tid, int freed);
 
 /* RXON */
-void il4965_set_rxon_chain(struct il_priv *priv,
+void il4965_set_rxon_chain(struct il_priv *il,
 				struct il_rxon_context *ctx);
 
 /* uCode */
-int il4965_verify_ucode(struct il_priv *priv);
+int il4965_verify_ucode(struct il_priv *il);
 
 /* lib */
-void il4965_check_abort_status(struct il_priv *priv,
+void il4965_check_abort_status(struct il_priv *il,
 			    u8 frame_count, u32 status);
 
-void il4965_rx_queue_reset(struct il_priv *priv, struct il_rx_queue *rxq);
-int il4965_rx_init(struct il_priv *priv, struct il_rx_queue *rxq);
-int il4965_hw_nic_init(struct il_priv *priv);
-int il4965_dump_fh(struct il_priv *priv, char **buf, bool display);
+void il4965_rx_queue_reset(struct il_priv *il, struct il_rx_queue *rxq);
+int il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq);
+int il4965_hw_nic_init(struct il_priv *il);
+int il4965_dump_fh(struct il_priv *il, char **buf, bool display);
 
 /* rx */
-void il4965_rx_queue_restock(struct il_priv *priv);
-void il4965_rx_replenish(struct il_priv *priv);
-void il4965_rx_replenish_now(struct il_priv *priv);
-void il4965_rx_queue_free(struct il_priv *priv, struct il_rx_queue *rxq);
-int il4965_rxq_stop(struct il_priv *priv);
+void il4965_rx_queue_restock(struct il_priv *il);
+void il4965_rx_replenish(struct il_priv *il);
+void il4965_rx_replenish_now(struct il_priv *il);
+void il4965_rx_queue_free(struct il_priv *il, struct il_rx_queue *rxq);
+int il4965_rxq_stop(struct il_priv *il);
 int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
-void il4965_rx_reply_rx(struct il_priv *priv,
+void il4965_rx_reply_rx(struct il_priv *il,
 		     struct il_rx_mem_buffer *rxb);
-void il4965_rx_reply_rx_phy(struct il_priv *priv,
+void il4965_rx_reply_rx_phy(struct il_priv *il,
 			 struct il_rx_mem_buffer *rxb);
-void il4965_rx_handle(struct il_priv *priv);
+void il4965_rx_handle(struct il_priv *il);
 
 /* tx */
-void il4965_hw_txq_free_tfd(struct il_priv *priv, struct il_tx_queue *txq);
-int il4965_hw_txq_attach_buf_to_tfd(struct il_priv *priv,
+void il4965_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq);
+int il4965_hw_txq_attach_buf_to_tfd(struct il_priv *il,
 				 struct il_tx_queue *txq,
 				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
-int il4965_hw_tx_queue_init(struct il_priv *priv,
+int il4965_hw_tx_queue_init(struct il_priv *il,
 			 struct il_tx_queue *txq);
-void il4965_hwrate_to_tx_control(struct il_priv *priv, u32 rate_n_flags,
+void il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
-int il4965_tx_skb(struct il_priv *priv, struct sk_buff *skb);
-int il4965_tx_agg_start(struct il_priv *priv, struct ieee80211_vif *vif,
+int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb);
+int il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
-int il4965_tx_agg_stop(struct il_priv *priv, struct ieee80211_vif *vif,
+int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
-int il4965_txq_check_empty(struct il_priv *priv,
+int il4965_txq_check_empty(struct il_priv *il,
 			   int sta_id, u8 tid, int txq_id);
-void il4965_rx_reply_compressed_ba(struct il_priv *priv,
+void il4965_rx_reply_compressed_ba(struct il_priv *il,
 				struct il_rx_mem_buffer *rxb);
-int il4965_tx_queue_reclaim(struct il_priv *priv, int txq_id, int index);
-void il4965_hw_txq_ctx_free(struct il_priv *priv);
-int il4965_txq_ctx_alloc(struct il_priv *priv);
-void il4965_txq_ctx_reset(struct il_priv *priv);
-void il4965_txq_ctx_stop(struct il_priv *priv);
-void il4965_txq_set_sched(struct il_priv *priv, u32 mask);
+int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int index);
+void il4965_hw_txq_ctx_free(struct il_priv *il);
+int il4965_txq_ctx_alloc(struct il_priv *il);
+void il4965_txq_ctx_reset(struct il_priv *il);
+void il4965_txq_ctx_stop(struct il_priv *il);
+void il4965_txq_set_sched(struct il_priv *il, u32 mask);
 
 /*
- * Acquire priv->lock before calling this function !
+ * Acquire il->lock before calling this function !
  */
-void il4965_set_wr_ptrs(struct il_priv *priv, int txq_id, u32 index);
+void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 index);
 /**
  * il4965_tx_queue_set_status - (optionally) start Tx/Cmd queue
  * @tx_fifo_id: Tx DMA/FIFO channel (range 0-7) that the queue will feed
  * @scd_retry: (1) Indicates queue will be used in aggregation mode
  *
- * NOTE:  Acquire priv->lock before calling this function !
+ * NOTE:  Acquire il->lock before calling this function !
  */
-void il4965_tx_queue_set_status(struct il_priv *priv,
+void il4965_tx_queue_set_status(struct il_priv *il,
 					struct il_tx_queue *txq,
 					int tx_fifo_id, int scd_retry);
 
@@ -167,27 +167,27 @@ static inline bool il4965_is_tx_success(u32 status)
 	       (status == TX_STATUS_DIRECT_DONE);
 }
 
-u8 il4965_toggle_tx_ant(struct il_priv *priv, u8 ant_idx, u8 valid);
+u8 il4965_toggle_tx_ant(struct il_priv *il, u8 ant_idx, u8 valid);
 
 /* rx */
-void il4965_rx_missed_beacon_notif(struct il_priv *priv,
+void il4965_rx_missed_beacon_notif(struct il_priv *il,
 				struct il_rx_mem_buffer *rxb);
-bool il4965_good_plcp_health(struct il_priv *priv,
+bool il4965_good_plcp_health(struct il_priv *il,
 			  struct il_rx_packet *pkt);
-void il4965_rx_statistics(struct il_priv *priv,
+void il4965_rx_statistics(struct il_priv *il,
 		       struct il_rx_mem_buffer *rxb);
-void il4965_reply_statistics(struct il_priv *priv,
+void il4965_reply_statistics(struct il_priv *il,
 			  struct il_rx_mem_buffer *rxb);
 
 /* scan */
-int il4965_request_scan(struct il_priv *priv, struct ieee80211_vif *vif);
+int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif);
 
 /* station mgmt */
-int il4965_manage_ibss_station(struct il_priv *priv,
+int il4965_manage_ibss_station(struct il_priv *il,
 			       struct ieee80211_vif *vif, bool add);
 
 /* hcmd */
-int il4965_send_beacon_cmd(struct il_priv *priv);
+int il4965_send_beacon_cmd(struct il_priv *il);
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 const char *il4965_get_tx_fail_reason(u32 status);
@@ -197,38 +197,38 @@ il4965_get_tx_fail_reason(u32 status) { return ""; }
 #endif
 
 /* station management */
-int il4965_alloc_bcast_station(struct il_priv *priv,
+int il4965_alloc_bcast_station(struct il_priv *il,
 			       struct il_rxon_context *ctx);
-int il4965_add_bssid_station(struct il_priv *priv,
+int il4965_add_bssid_station(struct il_priv *il,
 				struct il_rxon_context *ctx,
 			     const u8 *addr, u8 *sta_id_r);
-int il4965_remove_default_wep_key(struct il_priv *priv,
+int il4965_remove_default_wep_key(struct il_priv *il,
 			       struct il_rxon_context *ctx,
 			       struct ieee80211_key_conf *key);
-int il4965_set_default_wep_key(struct il_priv *priv,
+int il4965_set_default_wep_key(struct il_priv *il,
 			    struct il_rxon_context *ctx,
 			    struct ieee80211_key_conf *key);
-int il4965_restore_default_wep_keys(struct il_priv *priv,
+int il4965_restore_default_wep_keys(struct il_priv *il,
 				 struct il_rxon_context *ctx);
-int il4965_set_dynamic_key(struct il_priv *priv,
+int il4965_set_dynamic_key(struct il_priv *il,
 			struct il_rxon_context *ctx,
 			struct ieee80211_key_conf *key, u8 sta_id);
-int il4965_remove_dynamic_key(struct il_priv *priv,
+int il4965_remove_dynamic_key(struct il_priv *il,
 			struct il_rxon_context *ctx,
 			struct ieee80211_key_conf *key, u8 sta_id);
-void il4965_update_tkip_key(struct il_priv *priv,
+void il4965_update_tkip_key(struct il_priv *il,
 			 struct il_rxon_context *ctx,
 			 struct ieee80211_key_conf *keyconf,
 			 struct ieee80211_sta *sta, u32 iv32, u16 *phase1key);
-int il4965_sta_tx_modify_enable_tid(struct il_priv *priv,
+int il4965_sta_tx_modify_enable_tid(struct il_priv *il,
 			int sta_id, int tid);
-int il4965_sta_rx_agg_start(struct il_priv *priv, struct ieee80211_sta *sta,
+int il4965_sta_rx_agg_start(struct il_priv *il, struct ieee80211_sta *sta,
 			 int tid, u16 ssn);
-int il4965_sta_rx_agg_stop(struct il_priv *priv, struct ieee80211_sta *sta,
+int il4965_sta_rx_agg_stop(struct il_priv *il, struct ieee80211_sta *sta,
 			int tid);
-void il4965_sta_modify_sleep_tx_count(struct il_priv *priv,
+void il4965_sta_modify_sleep_tx_count(struct il_priv *il,
 			int sta_id, int cnt);
-int il4965_update_bcast_stations(struct il_priv *priv);
+int il4965_update_bcast_stations(struct il_priv *il);
 
 /* rate */
 static inline u32 il4965_ant_idx_to_flags(u8 ant_idx)
@@ -247,10 +247,10 @@ static inline __le32 il4965_hw_set_rate_n_flags(u8 rate, u32 flags)
 }
 
 /* eeprom */
-void il4965_eeprom_get_mac(const struct il_priv *priv, u8 *mac);
-int il4965_eeprom_acquire_semaphore(struct il_priv *priv);
-void il4965_eeprom_release_semaphore(struct il_priv *priv);
-int  il4965_eeprom_check_version(struct il_priv *priv);
+void il4965_eeprom_get_mac(const struct il_priv *il, u8 *mac);
+int il4965_eeprom_acquire_semaphore(struct il_priv *il);
+void il4965_eeprom_release_semaphore(struct il_priv *il);
+int  il4965_eeprom_check_version(struct il_priv *il);
 
 /* mac80211 handlers (for 4965) */
 void il4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);

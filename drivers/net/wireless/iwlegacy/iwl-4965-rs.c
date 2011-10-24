@@ -140,11 +140,11 @@ static int il4965_hwrate_to_plcp_idx(u32 rate_n_flags)
 	return -1;
 }
 
-static void il4965_rs_rate_scale_perform(struct il_priv *priv,
+static void il4965_rs_rate_scale_perform(struct il_priv *il,
 				   struct sk_buff *skb,
 				   struct ieee80211_sta *sta,
 				   struct il_lq_sta *lq_sta);
-static void il4965_rs_fill_link_cmd(struct il_priv *priv,
+static void il4965_rs_fill_link_cmd(struct il_priv *il,
 			     struct il_lq_sta *lq_sta, u32 rate_n_flags);
 static void il4965_rs_stay_in_table(struct il_lq_sta *lq_sta,
 					bool force_search);
@@ -348,7 +348,7 @@ static u32 il4965_rs_tl_get_load(struct il_lq_sta *lq_data, u8 tid)
 	return tl->total;
 }
 
-static int il4965_rs_tl_turn_on_agg_for_tid(struct il_priv *priv,
+static int il4965_rs_tl_turn_on_agg_for_tid(struct il_priv *il,
 				      struct il_lq_sta *lq_data, u8 tid,
 				      struct ieee80211_sta *sta)
 {
@@ -358,7 +358,7 @@ static int il4965_rs_tl_turn_on_agg_for_tid(struct il_priv *priv,
 	load = il4965_rs_tl_get_load(lq_data, tid);
 
 	if (load > IL_AGG_LOAD_THRESHOLD) {
-		IL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
+		IL_DEBUG_HT(il, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
 		ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
 		if (ret == -EAGAIN) {
@@ -367,25 +367,25 @@ static int il4965_rs_tl_turn_on_agg_for_tid(struct il_priv *priv,
 			 * this might be cause by reloading firmware
 			 * stop the tx ba session here
 			 */
-			IL_ERR(priv, "Fail start Tx agg on tid: %d\n",
+			IL_ERR(il, "Fail start Tx agg on tid: %d\n",
 				tid);
 			ieee80211_stop_tx_ba_session(sta, tid);
 		}
 	} else {
-		IL_ERR(priv, "Aggregation not enabled for tid %d "
+		IL_ERR(il, "Aggregation not enabled for tid %d "
 			"because load = %u\n", tid, load);
 	}
 	return ret;
 }
 
-static void il4965_rs_tl_turn_on_agg(struct il_priv *priv, u8 tid,
+static void il4965_rs_tl_turn_on_agg(struct il_priv *il, u8 tid,
 			      struct il_lq_sta *lq_data,
 			      struct ieee80211_sta *sta)
 {
 	if (tid < TID_MAX_LOAD_COUNT)
-		il4965_rs_tl_turn_on_agg_for_tid(priv, lq_data, tid, sta);
+		il4965_rs_tl_turn_on_agg_for_tid(il, lq_data, tid, sta);
 	else
-		IL_ERR(priv, "tid exceeds max load count: %d/%d\n",
+		IL_ERR(il, "tid exceeds max load count: %d/%d\n",
 			tid, TID_MAX_LOAD_COUNT);
 }
 
@@ -492,7 +492,7 @@ static int il4965_rs_collect_tx_data(struct il_scale_tbl_info *tbl,
 /*
  * Fill uCode API rate_n_flags field, based on "search" or "active" table.
  */
-static u32 il4965_rate_n_flags_from_tbl(struct il_priv *priv,
+static u32 il4965_rate_n_flags_from_tbl(struct il_priv *il,
 				 struct il_scale_tbl_info *tbl,
 				 int index, u8 use_green)
 {
@@ -505,7 +505,7 @@ static u32 il4965_rate_n_flags_from_tbl(struct il_priv *priv,
 
 	} else if (is_Ht(tbl->lq_type)) {
 		if (index > IL_LAST_OFDM_RATE) {
-			IL_ERR(priv, "Invalid HT rate index %d\n", index);
+			IL_ERR(il, "Invalid HT rate index %d\n", index);
 			index = IL_LAST_OFDM_RATE;
 		}
 		rate_n_flags = RATE_MCS_HT_MSK;
@@ -515,7 +515,7 @@ static u32 il4965_rate_n_flags_from_tbl(struct il_priv *priv,
 		else
 			rate_n_flags |=	iwlegacy_rates[index].plcp_mimo2;
 	} else {
-		IL_ERR(priv, "Invalid tbl->lq_type %d\n", tbl->lq_type);
+		IL_ERR(il, "Invalid tbl->lq_type %d\n", tbl->lq_type);
 	}
 
 	rate_n_flags |= ((tbl->ant_type << RATE_MCS_ANT_POS) &
@@ -535,7 +535,7 @@ static u32 il4965_rate_n_flags_from_tbl(struct il_priv *priv,
 			rate_n_flags |= RATE_MCS_GF_MSK;
 			if (is_siso(tbl->lq_type) && tbl->is_SGI) {
 				rate_n_flags &= ~RATE_MCS_SGI_MSK;
-				IL_ERR(priv, "GF was set with SGI:SISO\n");
+				IL_ERR(il, "GF was set with SGI:SISO\n");
 			}
 		}
 	}
@@ -667,7 +667,7 @@ static u16 il4965_rs_get_supported_rates(struct il_lq_sta *lq_sta,
 }
 
 static u16
-il4965_rs_get_adjacent_rate(struct il_priv *priv, u8 index, u16 rate_mask,
+il4965_rs_get_adjacent_rate(struct il_priv *il, u8 index, u16 rate_mask,
 				int rate_type)
 {
 	u8 high = IL_RATE_INVALID;
@@ -707,7 +707,7 @@ il4965_rs_get_adjacent_rate(struct il_priv *priv, u8 index, u16 rate_mask,
 			break;
 		if (rate_mask & (1 << low))
 			break;
-		IL_DEBUG_RATE(priv, "Skipping masked lower rate: %d\n", low);
+		IL_DEBUG_RATE(il, "Skipping masked lower rate: %d\n", low);
 	}
 
 	high = index;
@@ -717,7 +717,7 @@ il4965_rs_get_adjacent_rate(struct il_priv *priv, u8 index, u16 rate_mask,
 			break;
 		if (rate_mask & (1 << high))
 			break;
-		IL_DEBUG_RATE(priv, "Skipping masked higher rate: %d\n", high);
+		IL_DEBUG_RATE(il, "Skipping masked higher rate: %d\n", high);
 	}
 
 	return (high << 8) | low;
@@ -732,7 +732,7 @@ static u32 il4965_rs_get_lower_rate(struct il_lq_sta *lq_sta,
 	u16 high_low;
 	u8 switch_to_legacy = 0;
 	u8 is_green = lq_sta->is_green;
-	struct il_priv *priv = lq_sta->drv;
+	struct il_priv *il = lq_sta->drv;
 
 	/* check if we need to switch from HT to legacy rates.
 	 * assumption is that mandatory rates (1Mbps or 6Mbps)
@@ -747,7 +747,7 @@ static u32 il4965_rs_get_lower_rate(struct il_lq_sta *lq_sta,
 
 		if (il4965_num_of_ant(tbl->ant_type) > 1)
 			tbl->ant_type =
-				il4965_first_antenna(priv->hw_params.valid_tx_ant);
+				il4965_first_antenna(il->hw_params.valid_tx_ant);
 
 		tbl->is_ht40 = 0;
 		tbl->is_SGI = 0;
@@ -798,17 +798,17 @@ static bool il4965_table_type_matches(struct il_scale_tbl_info *a,
  * mac80211 sends us Tx status
  */
 static void
-il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
-			 struct ieee80211_sta *sta, void *priv_sta,
+il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
+			 struct ieee80211_sta *sta, void *il_sta,
 			 struct sk_buff *skb)
 {
 	int legacy_success;
 	int retries;
 	int rs_index, mac_index, i;
-	struct il_lq_sta *lq_sta = priv_sta;
+	struct il_lq_sta *lq_sta = il_sta;
 	struct il_link_quality_cmd *table;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct il_priv *priv = (struct il_priv *)priv_r;
+	struct il_priv *il = (struct il_priv *)il_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	enum mac80211_rate_control_flags mac_flags;
 	u32 tx_rate;
@@ -817,15 +817,15 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
 	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
-	IL_DEBUG_RATE_LIMIT(priv,
+	IL_DEBUG_RATE_LIMIT(il,
 		"get frame ack response, update rate scale window\n");
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (!lq_sta) {
-		IL_DEBUG_RATE(priv, "Station rate scaling not created yet.\n");
+		IL_DEBUG_RATE(il, "Station rate scaling not created yet.\n");
 		return;
 	} else if (!lq_sta->drv) {
-		IL_DEBUG_RATE(priv, "Rate scaling not initialized yet.\n");
+		IL_DEBUG_RATE(il, "Rate scaling not initialized yet.\n");
 		return;
 	}
 
@@ -849,8 +849,8 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	table = &lq_sta->lq;
 	tx_rate = le32_to_cpu(table->rs_table[0].rate_n_flags);
 	il4965_rs_get_tbl_info_from_mcs(tx_rate,
-			 priv->band, &tbl_type, &rs_index);
-	if (priv->band == IEEE80211_BAND_5GHZ)
+			 il->band, &tbl_type, &rs_index);
+	if (il->band == IEEE80211_BAND_5GHZ)
 		rs_index -= IL_FIRST_OFDM_RATE;
 	mac_flags = info->status.rates[0].flags;
 	mac_index = info->status.rates[0].idx;
@@ -863,7 +863,7 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		 * mac80211 HT index is always zero-indexed; we need to move
 		 * HT OFDM rates after CCK rates in 2.4 GHz band
 		 */
-		if (priv->band == IEEE80211_BAND_2GHZ)
+		if (il->band == IEEE80211_BAND_2GHZ)
 			mac_index += IL_FIRST_OFDM_RATE;
 	}
 	/* Here we actually compare this rate to the latest LQ command */
@@ -880,7 +880,7 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	    (!!(tx_rate & RATE_MCS_GF_MSK) !=
 			!!(mac_flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
 	    (rs_index != mac_index)) {
-		IL_DEBUG_RATE(priv,
+		IL_DEBUG_RATE(il,
 		"initial rate %d does not match %d (0x%x)\n",
 			 mac_index, rs_index, tx_rate);
 		/*
@@ -891,7 +891,7 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		lq_sta->missed_rate_counter++;
 		if (lq_sta->missed_rate_counter > IL_MISSED_RATE_MAX) {
 			lq_sta->missed_rate_counter = 0;
-			il_send_lq_cmd(priv, ctx, &lq_sta->lq,
+			il_send_lq_cmd(il, ctx, &lq_sta->lq,
 							CMD_ASYNC, false);
 		}
 		/* Regardless, ignore this status info for outdated rate */
@@ -910,15 +910,15 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		curr_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
 		other_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	} else {
-		IL_DEBUG_RATE(priv,
+		IL_DEBUG_RATE(il,
 			"Neither active nor search matches tx rate\n");
 		tmp_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
-		IL_DEBUG_RATE(priv, "active- lq:%x, ant:%x, SGI:%d\n",
+		IL_DEBUG_RATE(il, "active- lq:%x, ant:%x, SGI:%d\n",
 			tmp_tbl->lq_type, tmp_tbl->ant_type, tmp_tbl->is_SGI);
 		tmp_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
-		IL_DEBUG_RATE(priv, "search- lq:%x, ant:%x, SGI:%d\n",
+		IL_DEBUG_RATE(il, "search- lq:%x, ant:%x, SGI:%d\n",
 			tmp_tbl->lq_type, tmp_tbl->ant_type, tmp_tbl->is_SGI);
-		IL_DEBUG_RATE(priv, "actual- lq:%x, ant:%x, SGI:%d\n",
+		IL_DEBUG_RATE(il, "actual- lq:%x, ant:%x, SGI:%d\n",
 			tbl_type.lq_type, tbl_type.ant_type, tbl_type.is_SGI);
 		/*
 		 * no matching table found, let's by-pass the data collection
@@ -937,7 +937,7 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	 */
 	if (info->flags & IEEE80211_TX_STAT_AMPDU) {
 		tx_rate = le32_to_cpu(table->rs_table[0].rate_n_flags);
-		il4965_rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type,
+		il4965_rs_get_tbl_info_from_mcs(tx_rate, il->band, &tbl_type,
 				&rs_index);
 		il4965_rs_collect_tx_data(curr_tbl, rs_index,
 				   info->status.ampdu_len,
@@ -962,7 +962,7 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		/* Collect data for each rate used during failed TX attempts */
 		for (i = 0; i <= retries; ++i) {
 			tx_rate = le32_to_cpu(table->rs_table[i].rate_n_flags);
-			il4965_rs_get_tbl_info_from_mcs(tx_rate, priv->band,
+			il4965_rs_get_tbl_info_from_mcs(tx_rate, il->band,
 					&tbl_type, &rs_index);
 			/*
 			 * Only collect stats if retried rate is in the same RS
@@ -990,7 +990,7 @@ il4965_rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta && sta->supp_rates[sband->band])
-		il4965_rs_rate_scale_perform(priv, skb, sta, lq_sta);
+		il4965_rs_rate_scale_perform(il, skb, sta, lq_sta);
 }
 
 /*
@@ -1001,10 +1001,10 @@ done:
  * These control how long we stay using same modulation mode before
  * searching for a new mode.
  */
-static void il4965_rs_set_stay_in_table(struct il_priv *priv, u8 is_legacy,
+static void il4965_rs_set_stay_in_table(struct il_priv *il, u8 is_legacy,
 				 struct il_lq_sta *lq_sta)
 {
-	IL_DEBUG_RATE(priv, "we are staying in the same table\n");
+	IL_DEBUG_RATE(il, "we are staying in the same table\n");
 	lq_sta->stay_in_tbl = 1;	/* only place this gets set */
 	if (is_legacy) {
 		lq_sta->table_count_limit = IL_LEGACY_TABLE_COUNT;
@@ -1077,7 +1077,7 @@ static void il4965_rs_set_expected_tpt_table(struct il_lq_sta *lq_sta,
  * to decrease to match "active" throughput.  When moving from MIMO to SISO,
  * bit rate will typically need to increase, but not if performance was bad.
  */
-static s32 il4965_rs_get_best_rate(struct il_priv *priv,
+static s32 il4965_rs_get_best_rate(struct il_priv *il,
 			    struct il_lq_sta *lq_sta,
 			    struct il_scale_tbl_info *tbl,	/* "search" */
 			    u16 rate_mask, s8 index)
@@ -1098,7 +1098,7 @@ static s32 il4965_rs_get_best_rate(struct il_priv *priv,
 	new_rate = high = low = start_hi = IL_RATE_INVALID;
 
 	for (; ;) {
-		high_low = il4965_rs_get_adjacent_rate(priv, rate, rate_mask,
+		high_low = il4965_rs_get_adjacent_rate(il, rate, rate_mask,
 						tbl->lq_type);
 
 		low = high_low & 0xff;
@@ -1171,7 +1171,7 @@ static s32 il4965_rs_get_best_rate(struct il_priv *priv,
 /*
  * Set up search table for MIMO2
  */
-static int il4965_rs_switch_to_mimo2(struct il_priv *priv,
+static int il4965_rs_switch_to_mimo2(struct il_priv *il,
 			     struct il_lq_sta *lq_sta,
 			     struct ieee80211_conf *conf,
 			     struct ieee80211_sta *sta,
@@ -1191,10 +1191,10 @@ static int il4965_rs_switch_to_mimo2(struct il_priv *priv,
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */
-	if (priv->hw_params.tx_chains_num < 2)
+	if (il->hw_params.tx_chains_num < 2)
 		return -1;
 
-	IL_DEBUG_RATE(priv, "LQ: try to switch to MIMO2\n");
+	IL_DEBUG_RATE(il, "LQ: try to switch to MIMO2\n");
 
 	tbl->lq_type = LQ_MIMO2;
 	tbl->is_dup = lq_sta->is_dup;
@@ -1202,27 +1202,27 @@ static int il4965_rs_switch_to_mimo2(struct il_priv *priv,
 	tbl->max_search = IL_MAX_SEARCH;
 	rate_mask = lq_sta->active_mimo2_rate;
 
-	if (il_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
+	if (il_is_ht40_tx_allowed(il, ctx, &sta->ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
 
 	il4965_rs_set_expected_tpt_table(lq_sta, tbl);
 
-	rate = il4965_rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
+	rate = il4965_rs_get_best_rate(il, lq_sta, tbl, rate_mask, index);
 
-	IL_DEBUG_RATE(priv, "LQ: MIMO2 best rate %d mask %X\n",
+	IL_DEBUG_RATE(il, "LQ: MIMO2 best rate %d mask %X\n",
 				rate, rate_mask);
 	if ((rate == IL_RATE_INVALID) || !((1 << rate) & rate_mask)) {
-		IL_DEBUG_RATE(priv,
+		IL_DEBUG_RATE(il,
 				"Can't switch with index %d rate mask %x\n",
 						rate, rate_mask);
 		return -1;
 	}
-	tbl->current_rate = il4965_rate_n_flags_from_tbl(priv,
+	tbl->current_rate = il4965_rate_n_flags_from_tbl(il,
 						 tbl, rate, is_green);
 
-	IL_DEBUG_RATE(priv, "LQ: Switch to new mcs %X index is green %X\n",
+	IL_DEBUG_RATE(il, "LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate, is_green);
 	return 0;
 }
@@ -1230,7 +1230,7 @@ static int il4965_rs_switch_to_mimo2(struct il_priv *priv,
 /*
  * Set up search table for SISO
  */
-static int il4965_rs_switch_to_siso(struct il_priv *priv,
+static int il4965_rs_switch_to_siso(struct il_priv *il,
 			     struct il_lq_sta *lq_sta,
 			     struct ieee80211_conf *conf,
 			     struct ieee80211_sta *sta,
@@ -1245,7 +1245,7 @@ static int il4965_rs_switch_to_siso(struct il_priv *priv,
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
 
-	IL_DEBUG_RATE(priv, "LQ: try to switch to SISO\n");
+	IL_DEBUG_RATE(il, "LQ: try to switch to SISO\n");
 
 	tbl->is_dup = lq_sta->is_dup;
 	tbl->lq_type = LQ_SISO;
@@ -1253,7 +1253,7 @@ static int il4965_rs_switch_to_siso(struct il_priv *priv,
 	tbl->max_search = IL_MAX_SEARCH;
 	rate_mask = lq_sta->active_siso_rate;
 
-	if (il_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
+	if (il_is_ht40_tx_allowed(il, ctx, &sta->ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1262,18 +1262,18 @@ static int il4965_rs_switch_to_siso(struct il_priv *priv,
 		tbl->is_SGI = 0; /*11n spec: no SGI in SISO+Greenfield*/
 
 	il4965_rs_set_expected_tpt_table(lq_sta, tbl);
-	rate = il4965_rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
+	rate = il4965_rs_get_best_rate(il, lq_sta, tbl, rate_mask, index);
 
-	IL_DEBUG_RATE(priv, "LQ: get best rate %d mask %X\n", rate, rate_mask);
+	IL_DEBUG_RATE(il, "LQ: get best rate %d mask %X\n", rate, rate_mask);
 	if ((rate == IL_RATE_INVALID) || !((1 << rate) & rate_mask)) {
-		IL_DEBUG_RATE(priv,
+		IL_DEBUG_RATE(il,
 			"can not switch with index %d rate mask %x\n",
 			     rate, rate_mask);
 		return -1;
 	}
-	tbl->current_rate = il4965_rate_n_flags_from_tbl(priv,
+	tbl->current_rate = il4965_rate_n_flags_from_tbl(il,
 						tbl, rate, is_green);
-	IL_DEBUG_RATE(priv, "LQ: Switch to new mcs %X index is green %X\n",
+	IL_DEBUG_RATE(il, "LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate, is_green);
 	return 0;
 }
@@ -1281,7 +1281,7 @@ static int il4965_rs_switch_to_siso(struct il_priv *priv,
 /*
  * Try to switch to new modulation mode from legacy
  */
-static int il4965_rs_move_legacy_other(struct il_priv *priv,
+static int il4965_rs_move_legacy_other(struct il_priv *il,
 				struct il_lq_sta *lq_sta,
 				struct ieee80211_conf *conf,
 				struct ieee80211_sta *sta,
@@ -1294,8 +1294,8 @@ static int il4965_rs_move_legacy_other(struct il_priv *priv,
 	u32 sz = (sizeof(struct il_scale_tbl_info) -
 		  (sizeof(struct il_rate_scale_data) * IL_RATE_COUNT));
 	u8 start_action;
-	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
-	u8 tx_chains_num = priv->hw_params.tx_chains_num;
+	u8 valid_tx_ant = il->hw_params.valid_tx_ant;
+	u8 tx_chains_num = il->hw_params.tx_chains_num;
 	int ret = 0;
 	u8 update_search_tbl_counter = 0;
 
@@ -1307,7 +1307,7 @@ static int il4965_rs_move_legacy_other(struct il_priv *priv,
 		switch (tbl->action) {
 		case IL_LEGACY_SWITCH_ANTENNA1:
 		case IL_LEGACY_SWITCH_ANTENNA2:
-			IL_DEBUG_RATE(priv, "LQ: Legacy toggle Antenna\n");
+			IL_DEBUG_RATE(il, "LQ: Legacy toggle Antenna\n");
 
 			if ((tbl->action == IL_LEGACY_SWITCH_ANTENNA1 &&
 							tx_chains_num <= 1) ||
@@ -1331,12 +1331,12 @@ static int il4965_rs_move_legacy_other(struct il_priv *priv,
 			}
 			break;
 		case IL_LEGACY_SWITCH_SISO:
-			IL_DEBUG_RATE(priv, "LQ: Legacy switch to SISO\n");
+			IL_DEBUG_RATE(il, "LQ: Legacy switch to SISO\n");
 
 			/* Set up search table to try SISO */
 			memcpy(search_tbl, tbl, sz);
 			search_tbl->is_SGI = 0;
-			ret = il4965_rs_switch_to_siso(priv, lq_sta, conf, sta,
+			ret = il4965_rs_switch_to_siso(il, lq_sta, conf, sta,
 						 search_tbl, index);
 			if (!ret) {
 				lq_sta->action_counter = 0;
@@ -1347,7 +1347,7 @@ static int il4965_rs_move_legacy_other(struct il_priv *priv,
 		case IL_LEGACY_SWITCH_MIMO2_AB:
 		case IL_LEGACY_SWITCH_MIMO2_AC:
 		case IL_LEGACY_SWITCH_MIMO2_BC:
-			IL_DEBUG_RATE(priv, "LQ: Legacy switch to MIMO2\n");
+			IL_DEBUG_RATE(il, "LQ: Legacy switch to MIMO2\n");
 
 			/* Set up search table to try MIMO */
 			memcpy(search_tbl, tbl, sz);
@@ -1364,7 +1364,7 @@ static int il4965_rs_move_legacy_other(struct il_priv *priv,
 						search_tbl->ant_type))
 				break;
 
-			ret = il4965_rs_switch_to_mimo2(priv, lq_sta,
+			ret = il4965_rs_switch_to_mimo2(il, lq_sta,
 						conf, sta,
 						 search_tbl, index);
 			if (!ret) {
@@ -1398,7 +1398,7 @@ out:
 /*
  * Try to switch to new modulation mode from SISO
  */
-static int il4965_rs_move_siso_to_other(struct il_priv *priv,
+static int il4965_rs_move_siso_to_other(struct il_priv *il,
 				 struct il_lq_sta *lq_sta,
 				 struct ieee80211_conf *conf,
 				 struct ieee80211_sta *sta, int index)
@@ -1412,8 +1412,8 @@ static int il4965_rs_move_siso_to_other(struct il_priv *priv,
 	u32 sz = (sizeof(struct il_scale_tbl_info) -
 		  (sizeof(struct il_rate_scale_data) * IL_RATE_COUNT));
 	u8 start_action;
-	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
-	u8 tx_chains_num = priv->hw_params.tx_chains_num;
+	u8 valid_tx_ant = il->hw_params.valid_tx_ant;
+	u8 tx_chains_num = il->hw_params.tx_chains_num;
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
@@ -1424,7 +1424,7 @@ static int il4965_rs_move_siso_to_other(struct il_priv *priv,
 		switch (tbl->action) {
 		case IL_SISO_SWITCH_ANTENNA1:
 		case IL_SISO_SWITCH_ANTENNA2:
-			IL_DEBUG_RATE(priv, "LQ: SISO toggle Antenna\n");
+			IL_DEBUG_RATE(il, "LQ: SISO toggle Antenna\n");
 			if ((tbl->action == IL_SISO_SWITCH_ANTENNA1 &&
 						tx_chains_num <= 1) ||
 			    (tbl->action == IL_SISO_SWITCH_ANTENNA2 &&
@@ -1444,7 +1444,7 @@ static int il4965_rs_move_siso_to_other(struct il_priv *priv,
 		case IL_SISO_SWITCH_MIMO2_AB:
 		case IL_SISO_SWITCH_MIMO2_AC:
 		case IL_SISO_SWITCH_MIMO2_BC:
-			IL_DEBUG_RATE(priv, "LQ: SISO switch to MIMO2\n");
+			IL_DEBUG_RATE(il, "LQ: SISO switch to MIMO2\n");
 			memcpy(search_tbl, tbl, sz);
 			search_tbl->is_SGI = 0;
 
@@ -1459,7 +1459,7 @@ static int il4965_rs_move_siso_to_other(struct il_priv *priv,
 						 search_tbl->ant_type))
 				break;
 
-			ret = il4965_rs_switch_to_mimo2(priv, lq_sta,
+			ret = il4965_rs_switch_to_mimo2(il, lq_sta,
 						conf, sta,
 						 search_tbl, index);
 			if (!ret)
@@ -1473,14 +1473,14 @@ static int il4965_rs_move_siso_to_other(struct il_priv *priv,
 						IEEE80211_HT_CAP_SGI_40))
 				break;
 
-			IL_DEBUG_RATE(priv, "LQ: SISO toggle SGI/NGI\n");
+			IL_DEBUG_RATE(il, "LQ: SISO toggle SGI/NGI\n");
 
 			memcpy(search_tbl, tbl, sz);
 			if (is_green) {
 				if (!tbl->is_SGI)
 					break;
 				else
-					IL_ERR(priv,
+					IL_ERR(il,
 						"SGI was set in GF+SISO\n");
 			}
 			search_tbl->is_SGI = !tbl->is_SGI;
@@ -1491,7 +1491,7 @@ static int il4965_rs_move_siso_to_other(struct il_priv *priv,
 					break;
 			}
 			search_tbl->current_rate =
-				il4965_rate_n_flags_from_tbl(priv, search_tbl,
+				il4965_rate_n_flags_from_tbl(il, search_tbl,
 						      index, is_green);
 			update_search_tbl_counter = 1;
 			goto out;
@@ -1520,7 +1520,7 @@ static int il4965_rs_move_siso_to_other(struct il_priv *priv,
 /*
  * Try to switch to new modulation mode from MIMO2
  */
-static int il4965_rs_move_mimo2_to_other(struct il_priv *priv,
+static int il4965_rs_move_mimo2_to_other(struct il_priv *il,
 				 struct il_lq_sta *lq_sta,
 				 struct ieee80211_conf *conf,
 				 struct ieee80211_sta *sta, int index)
@@ -1534,8 +1534,8 @@ static int il4965_rs_move_mimo2_to_other(struct il_priv *priv,
 	u32 sz = (sizeof(struct il_scale_tbl_info) -
 		  (sizeof(struct il_rate_scale_data) * IL_RATE_COUNT));
 	u8 start_action;
-	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
-	u8 tx_chains_num = priv->hw_params.tx_chains_num;
+	u8 valid_tx_ant = il->hw_params.valid_tx_ant;
+	u8 tx_chains_num = il->hw_params.tx_chains_num;
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
@@ -1545,7 +1545,7 @@ static int il4965_rs_move_mimo2_to_other(struct il_priv *priv,
 		switch (tbl->action) {
 		case IL_MIMO2_SWITCH_ANTENNA1:
 		case IL_MIMO2_SWITCH_ANTENNA2:
-			IL_DEBUG_RATE(priv, "LQ: MIMO2 toggle Antennas\n");
+			IL_DEBUG_RATE(il, "LQ: MIMO2 toggle Antennas\n");
 
 			if (tx_chains_num <= 2)
 				break;
@@ -1563,7 +1563,7 @@ static int il4965_rs_move_mimo2_to_other(struct il_priv *priv,
 		case IL_MIMO2_SWITCH_SISO_A:
 		case IL_MIMO2_SWITCH_SISO_B:
 		case IL_MIMO2_SWITCH_SISO_C:
-			IL_DEBUG_RATE(priv, "LQ: MIMO2 switch to SISO\n");
+			IL_DEBUG_RATE(il, "LQ: MIMO2 switch to SISO\n");
 
 			/* Set up new search table for SISO */
 			memcpy(search_tbl, tbl, sz);
@@ -1579,7 +1579,7 @@ static int il4965_rs_move_mimo2_to_other(struct il_priv *priv,
 						search_tbl->ant_type))
 				break;
 
-			ret = il4965_rs_switch_to_siso(priv, lq_sta,
+			ret = il4965_rs_switch_to_siso(il, lq_sta,
 						conf, sta,
 						 search_tbl, index);
 			if (!ret)
@@ -1595,7 +1595,7 @@ static int il4965_rs_move_mimo2_to_other(struct il_priv *priv,
 						IEEE80211_HT_CAP_SGI_40))
 				break;
 
-			IL_DEBUG_RATE(priv, "LQ: MIMO2 toggle SGI/NGI\n");
+			IL_DEBUG_RATE(il, "LQ: MIMO2 toggle SGI/NGI\n");
 
 			/* Set up new search table for MIMO2 */
 			memcpy(search_tbl, tbl, sz);
@@ -1613,7 +1613,7 @@ static int il4965_rs_move_mimo2_to_other(struct il_priv *priv,
 					break;
 			}
 			search_tbl->current_rate =
-				il4965_rate_n_flags_from_tbl(priv, search_tbl,
+				il4965_rate_n_flags_from_tbl(il, search_tbl,
 						      index, is_green);
 			update_search_tbl_counter = 1;
 			goto out;
@@ -1654,9 +1654,9 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
 	int i;
 	int active_tbl;
 	int flush_interval_passed = 0;
-	struct il_priv *priv;
+	struct il_priv *il;
 
-	priv = lq_sta->drv;
+	il = lq_sta->drv;
 	active_tbl = lq_sta->active_tbl;
 
 	tbl = &(lq_sta->lq_info[active_tbl]);
@@ -1684,7 +1684,7 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
 		    (lq_sta->total_success > lq_sta->max_success_limit) ||
 		    ((!lq_sta->search_better_tbl) && (lq_sta->flush_timer)
 		     && (flush_interval_passed))) {
-			IL_DEBUG_RATE(priv, "LQ: stay is expired %d %d %d\n:",
+			IL_DEBUG_RATE(il, "LQ: stay is expired %d %d %d\n:",
 				     lq_sta->total_failed,
 				     lq_sta->total_success,
 				     flush_interval_passed);
@@ -1707,7 +1707,7 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
 			    lq_sta->table_count_limit) {
 				lq_sta->table_count = 0;
 
-				IL_DEBUG_RATE(priv,
+				IL_DEBUG_RATE(il,
 					"LQ: stay in table clear win\n");
 				for (i = 0; i < IL_RATE_COUNT; i++)
 					il4965_rs_rate_scale_clear_window(
@@ -1730,7 +1730,7 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
  * setup rate table in uCode
  * return rate_n_flags as used in the table
  */
-static u32 il4965_rs_update_rate_tbl(struct il_priv *priv,
+static u32 il4965_rs_update_rate_tbl(struct il_priv *il,
 			      struct il_rxon_context *ctx,
 				struct il_lq_sta *lq_sta,
 				struct il_scale_tbl_info *tbl,
@@ -1739,9 +1739,9 @@ static u32 il4965_rs_update_rate_tbl(struct il_priv *priv,
 	u32 rate;
 
 	/* Update uCode's rate table. */
-	rate = il4965_rate_n_flags_from_tbl(priv, tbl, index, is_green);
-	il4965_rs_fill_link_cmd(priv, lq_sta, rate);
-	il_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_ASYNC, false);
+	rate = il4965_rate_n_flags_from_tbl(il, tbl, index, is_green);
+	il4965_rs_fill_link_cmd(il, lq_sta, rate);
+	il_send_lq_cmd(il, ctx, &lq_sta->lq, CMD_ASYNC, false);
 
 	return rate;
 }
@@ -1749,12 +1749,12 @@ static u32 il4965_rs_update_rate_tbl(struct il_priv *priv,
 /*
  * Do rate scaling and search for new modulation mode.
  */
-static void il4965_rs_rate_scale_perform(struct il_priv *priv,
+static void il4965_rs_rate_scale_perform(struct il_priv *il,
 				  struct sk_buff *skb,
 				  struct ieee80211_sta *sta,
 				  struct il_lq_sta *lq_sta)
 {
-	struct ieee80211_hw *hw = priv->hw;
+	struct ieee80211_hw *hw = il->hw;
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -1783,7 +1783,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
 	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
-	IL_DEBUG_RATE(priv, "rate scale calculate new rate for skb\n");
+	IL_DEBUG_RATE(il, "rate scale calculate new rate for skb\n");
 
 	/* Send management frames and NO_ACK data using lowest rate. */
 	/* TODO: this could probably be improved.. */
@@ -1798,7 +1798,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 
 	tid = il4965_rs_tl_add_packet(lq_sta, hdr);
 	if ((tid != MAX_TID_COUNT) && (lq_sta->tx_agg_tid_en & (1 << tid))) {
-		tid_data = &priv->stations[lq_sta->lq.sta_id].tid[tid];
+		tid_data = &il->stations[lq_sta->lq.sta_id].tid[tid];
 		if (tid_data->agg.state == IL_AGG_OFF)
 			lq_sta->is_agg = 0;
 		else
@@ -1826,13 +1826,13 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 	/* current tx rate */
 	index = lq_sta->last_txrate_idx;
 
-	IL_DEBUG_RATE(priv, "Rate scale index %d for type %d\n", index,
+	IL_DEBUG_RATE(il, "Rate scale index %d for type %d\n", index,
 		       tbl->lq_type);
 
 	/* rates available for this association, and for modulation mode */
 	rate_mask = il4965_rs_get_supported_rates(lq_sta, hdr, tbl->lq_type);
 
-	IL_DEBUG_RATE(priv, "mask 0x%04X\n", rate_mask);
+	IL_DEBUG_RATE(il, "mask 0x%04X\n", rate_mask);
 
 	/* mask with station rate restriction */
 	if (is_legacy(tbl->lq_type)) {
@@ -1851,7 +1851,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 		rate_scale_index_msk = rate_mask;
 
 	if (!((1 << index) & rate_scale_index_msk)) {
-		IL_ERR(priv, "Current Rate is not valid\n");
+		IL_ERR(il, "Current Rate is not valid\n");
 		if (lq_sta->search_better_tbl) {
 			/* revert to active table if search table is not valid*/
 			tbl->lq_type = LQ_NONE;
@@ -1859,7 +1859,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 			/* get "active" rate info */
 			index = il4965_hwrate_to_plcp_idx(tbl->current_rate);
-			rate = il4965_rs_update_rate_tbl(priv, ctx, lq_sta,
+			rate = il4965_rs_update_rate_tbl(il, ctx, lq_sta,
 						  tbl, index, is_green);
 		}
 		return;
@@ -1867,7 +1867,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 
 	/* Get expected throughput table and history window for current rate */
 	if (!tbl->expected_tpt) {
-		IL_ERR(priv, "tbl->expected_tpt is NULL\n");
+		IL_ERR(il, "tbl->expected_tpt is NULL\n");
 		return;
 	}
 
@@ -1892,7 +1892,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 	fail_count = window->counter - window->success_counter;
 	if ((fail_count < IL_RATE_MIN_FAILURE_TH) &&
 			(window->success_counter < IL_RATE_MIN_SUCCESS_TH)) {
-		IL_DEBUG_RATE(priv, "LQ: still below TH. succ=%d total=%d "
+		IL_DEBUG_RATE(il, "LQ: still below TH. succ=%d total=%d "
 			       "for index %d\n",
 			       window->success_counter, window->counter, index);
 
@@ -1909,7 +1909,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 	 * actual average throughput */
 	if (window->average_tpt != ((window->success_ratio *
 			tbl->expected_tpt[index] + 64) / 128)) {
-		IL_ERR(priv,
+		IL_ERR(il,
 			 "expected_tpt should have been calculated by now\n");
 		window->average_tpt = ((window->success_ratio *
 					tbl->expected_tpt[index] + 64) / 128);
@@ -1922,7 +1922,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 		 * continuing to use the setup that we've been trying. */
 		if (window->average_tpt > lq_sta->last_tpt) {
 
-			IL_DEBUG_RATE(priv, "LQ: SWITCHING TO NEW TABLE "
+			IL_DEBUG_RATE(il, "LQ: SWITCHING TO NEW TABLE "
 					"suc=%d cur-tpt=%d old-tpt=%d\n",
 					window->success_ratio,
 					window->average_tpt,
@@ -1938,7 +1938,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 		/* Else poor success; go back to mode in "active" table */
 		} else {
 
-			IL_DEBUG_RATE(priv, "LQ: GOING BACK TO THE OLD TABLE "
+			IL_DEBUG_RATE(il, "LQ: GOING BACK TO THE OLD TABLE "
 					"suc=%d cur-tpt=%d old-tpt=%d\n",
 					window->success_ratio,
 					window->average_tpt,
@@ -1968,7 +1968,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 
 	/* (Else) not in search of better modulation mode, try for better
 	 * starting rate, while staying in this mode. */
-	high_low = il4965_rs_get_adjacent_rate(priv, index,
+	high_low = il4965_rs_get_adjacent_rate(il, index,
 					rate_scale_index_msk,
 					tbl->lq_type);
 	low = high_low & 0xff;
@@ -1992,7 +1992,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 
 	/* Too many failures, decrease rate */
 	if ((sr <= IL_RATE_DECREASE_TH) || (current_tpt == 0)) {
-		IL_DEBUG_RATE(priv,
+		IL_DEBUG_RATE(il,
 			"decrease rate because of low success_ratio\n");
 		scale_action = -1;
 
@@ -2031,7 +2031,7 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 		} else if (low_tpt != IL_INVALID_VALUE) {
 			/* Lower rate has better throughput */
 			if (low_tpt > current_tpt) {
-				IL_DEBUG_RATE(priv,
+				IL_DEBUG_RATE(il,
 				    "decrease rate because of low tpt\n");
 				scale_action = -1;
 			} else if (sr >= IL_RATE_INCREASE_TH) {
@@ -2070,14 +2070,14 @@ static void il4965_rs_rate_scale_perform(struct il_priv *priv,
 		break;
 	}
 
-	IL_DEBUG_RATE(priv, "choose rate scale index %d action %d low %d "
+	IL_DEBUG_RATE(il, "choose rate scale index %d action %d low %d "
 		    "high %d type %d\n",
 		     index, scale_action, low, high, tbl->lq_type);
 
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq)
-		rate = il4965_rs_update_rate_tbl(priv, ctx, lq_sta,
+		rate = il4965_rs_update_rate_tbl(il, ctx, lq_sta,
 					  tbl, index, is_green);
 
 	/* Should we stay with this modulation mode,
@@ -2098,13 +2098,13 @@ lq_update:
 		/* Select a new "search" modulation mode to try.
 		 * If one is found, set up the new "search" table. */
 		if (is_legacy(tbl->lq_type))
-			il4965_rs_move_legacy_other(priv, lq_sta,
+			il4965_rs_move_legacy_other(il, lq_sta,
 							conf, sta, index);
 		else if (is_siso(tbl->lq_type))
-			il4965_rs_move_siso_to_other(priv, lq_sta,
+			il4965_rs_move_siso_to_other(il, lq_sta,
 							conf, sta, index);
 		else /* (is_mimo2(tbl->lq_type)) */
-			il4965_rs_move_mimo2_to_other(priv, lq_sta,
+			il4965_rs_move_mimo2_to_other(il, lq_sta,
 							conf, sta, index);
 
 		/* If new "search" mode was selected, set up in uCode table */
@@ -2118,12 +2118,12 @@ lq_update:
 			/* Use new "search" start rate */
 			index = il4965_hwrate_to_plcp_idx(tbl->current_rate);
 
-			IL_DEBUG_RATE(priv,
+			IL_DEBUG_RATE(il,
 				"Switch current  mcs: %X index: %d\n",
 				     tbl->current_rate, index);
-			il4965_rs_fill_link_cmd(priv, lq_sta,
+			il4965_rs_fill_link_cmd(il, lq_sta,
 						tbl->current_rate);
-			il_send_lq_cmd(priv, ctx,
+			il_send_lq_cmd(il, ctx,
 						&lq_sta->lq, CMD_ASYNC, false);
 		} else
 			done_search = 1;
@@ -2138,8 +2138,8 @@ lq_update:
 		tbl1 = &(lq_sta->lq_info[lq_sta->active_tbl]);
 		if (is_legacy(tbl1->lq_type) && !conf_is_ht(conf) &&
 		    lq_sta->action_counter > tbl1->max_search) {
-			IL_DEBUG_RATE(priv, "LQ: STAY in legacy table\n");
-			il4965_rs_set_stay_in_table(priv, 1, lq_sta);
+			IL_DEBUG_RATE(il, "LQ: STAY in legacy table\n");
+			il4965_rs_set_stay_in_table(il, 1, lq_sta);
 		}
 
 		/* If we're in an HT mode, and all 3 mode switch actions
@@ -2151,21 +2151,21 @@ lq_update:
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
 			    (tid != MAX_TID_COUNT)) {
 				tid_data =
-				   &priv->stations[lq_sta->lq.sta_id].tid[tid];
+				   &il->stations[lq_sta->lq.sta_id].tid[tid];
 				if (tid_data->agg.state == IL_AGG_OFF) {
-					IL_DEBUG_RATE(priv,
+					IL_DEBUG_RATE(il,
 						       "try to aggregate tid %d\n",
 						       tid);
-					il4965_rs_tl_turn_on_agg(priv, tid,
+					il4965_rs_tl_turn_on_agg(il, tid,
 							  lq_sta, sta);
 				}
 			}
-			il4965_rs_set_stay_in_table(priv, 0, lq_sta);
+			il4965_rs_set_stay_in_table(il, 0, lq_sta);
 		}
 	}
 
 out:
-	tbl->current_rate = il4965_rate_n_flags_from_tbl(priv, tbl,
+	tbl->current_rate = il4965_rate_n_flags_from_tbl(il, tbl,
 							index, is_green);
 	i = index;
 	lq_sta->last_txrate_idx = i;
@@ -2185,7 +2185,7 @@ out:
  *       calling this function (which runs REPLY_TX_LINK_QUALITY_CMD,
  *       which requires station table entry to exist).
  */
-static void il4965_rs_initialize_lq(struct il_priv *priv,
+static void il4965_rs_initialize_lq(struct il_priv *il,
 			     struct ieee80211_conf *conf,
 			     struct ieee80211_sta *sta,
 			     struct il_lq_sta *lq_sta)
@@ -2208,7 +2208,7 @@ static void il4965_rs_initialize_lq(struct il_priv *priv,
 
 	i = lq_sta->last_txrate_idx;
 
-	valid_tx_ant = priv->hw_params.valid_tx_ant;
+	valid_tx_ant = il->hw_params.valid_tx_ant;
 
 	if (!lq_sta->search_better_tbl)
 		active_tbl = lq_sta->active_tbl;
@@ -2227,31 +2227,31 @@ static void il4965_rs_initialize_lq(struct il_priv *priv,
 	if (i >= IL_FIRST_CCK_RATE && i <= IL_LAST_CCK_RATE)
 		rate |= RATE_MCS_CCK_MSK;
 
-	il4965_rs_get_tbl_info_from_mcs(rate, priv->band, tbl, &rate_idx);
+	il4965_rs_get_tbl_info_from_mcs(rate, il->band, tbl, &rate_idx);
 	if (!il4965_rs_is_valid_ant(valid_tx_ant, tbl->ant_type))
 		il4965_rs_toggle_antenna(valid_tx_ant, &rate, tbl);
 
-	rate = il4965_rate_n_flags_from_tbl(priv, tbl, rate_idx, use_green);
+	rate = il4965_rate_n_flags_from_tbl(il, tbl, rate_idx, use_green);
 	tbl->current_rate = rate;
 	il4965_rs_set_expected_tpt_table(lq_sta, tbl);
 	il4965_rs_fill_link_cmd(NULL, lq_sta, rate);
-	priv->stations[lq_sta->lq.sta_id].lq = &lq_sta->lq;
-	il_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_SYNC, true);
+	il->stations[lq_sta->lq.sta_id].lq = &lq_sta->lq;
+	il_send_lq_cmd(il, ctx, &lq_sta->lq, CMD_SYNC, true);
 }
 
 static void
-il4965_rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
+il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 			struct ieee80211_tx_rate_control *txrc)
 {
 
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_supported_band *sband = txrc->sband;
-	struct il_priv *priv __maybe_unused = (struct il_priv *)priv_r;
+	struct il_priv *il __maybe_unused = (struct il_priv *)il_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct il_lq_sta *lq_sta = priv_sta;
+	struct il_lq_sta *lq_sta = il_sta;
 	int rate_idx;
 
-	IL_DEBUG_RATE_LIMIT(priv, "rate scale calculate new rate for skb\n");
+	IL_DEBUG_RATE_LIMIT(il, "rate scale calculate new rate for skb\n");
 
 	/* Get max rate if user set max rate */
 	if (lq_sta) {
@@ -2266,12 +2266,12 @@ il4965_rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (lq_sta && !lq_sta->drv) {
-		IL_DEBUG_RATE(priv, "Rate scaling not initialized yet.\n");
-		priv_sta = NULL;
+		IL_DEBUG_RATE(il, "Rate scaling not initialized yet.\n");
+		il_sta = NULL;
 	}
 
 	/* Send management frames and NO_ACK data using lowest rate. */
-	if (rate_control_send_low(sta, priv_sta, txrc))
+	if (rate_control_send_low(sta, il_sta, txrc))
 		return;
 
 	if (!lq_sta)
@@ -2314,16 +2314,16 @@ il4965_rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 
 }
 
-static void *il4965_rs_alloc_sta(void *priv_rate, struct ieee80211_sta *sta,
+static void *il4965_rs_alloc_sta(void *il_rate, struct ieee80211_sta *sta,
 			  gfp_t gfp)
 {
 	struct il_lq_sta *lq_sta;
 	struct il_station_priv *sta_priv =
 				(struct il_station_priv *) sta->drv_priv;
-	struct il_priv *priv;
+	struct il_priv *il;
 
-	priv = (struct il_priv *)priv_rate;
-	IL_DEBUG_RATE(priv, "create station rate scale window\n");
+	il = (struct il_priv *)il_rate;
+	IL_DEBUG_RATE(il, "create station rate scale window\n");
 
 	lq_sta = &sta_priv->lq_sta;
 
@@ -2334,13 +2334,13 @@ static void *il4965_rs_alloc_sta(void *priv_rate, struct ieee80211_sta *sta,
  * Called after adding a new station to initialize rate scaling
  */
 void
-il4965_rs_rate_init(struct il_priv *priv,
+il4965_rs_rate_init(struct il_priv *il,
 			struct ieee80211_sta *sta,
 			u8 sta_id)
 {
 	int i, j;
-	struct ieee80211_hw *hw = priv->hw;
-	struct ieee80211_conf *conf = &priv->hw->conf;
+	struct ieee80211_hw *hw = il->hw;
+	struct ieee80211_conf *conf = &il->hw->conf;
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct il_station_priv *sta_priv;
 	struct il_lq_sta *lq_sta;
@@ -2365,7 +2365,7 @@ il4965_rs_rate_init(struct il_priv *priv,
 			il4965_rs_rate_scale_clear_window(
 					&lq_sta->lq_info[j].win[i]);
 
-	IL_DEBUG_RATE(priv, "LQ:"
+	IL_DEBUG_RATE(il, "LQ:"
 			"*** rate scale station global init for station %d ***\n",
 		       sta_id);
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not
@@ -2377,8 +2377,8 @@ il4965_rs_rate_init(struct il_priv *priv,
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IL_MISSED_RATE_MAX;
 	lq_sta->is_green = il4965_rs_use_green(sta);
-	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
-	lq_sta->band = priv->band;
+	lq_sta->active_legacy_rate = il->active_rate & ~(0x1000);
+	lq_sta->band = il->band;
 	/*
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
 	 * supp_rates[] does not; shift to convert format, force 9 MBits off.
@@ -2396,20 +2396,20 @@ il4965_rs_rate_init(struct il_priv *priv,
 
 	/* These values will be overridden later */
 	lq_sta->lq.general_params.single_stream_ant_msk =
-		il4965_first_antenna(priv->hw_params.valid_tx_ant);
+		il4965_first_antenna(il->hw_params.valid_tx_ant);
 	lq_sta->lq.general_params.dual_stream_ant_msk =
-		priv->hw_params.valid_tx_ant &
-		~il4965_first_antenna(priv->hw_params.valid_tx_ant);
+		il->hw_params.valid_tx_ant &
+		~il4965_first_antenna(il->hw_params.valid_tx_ant);
 	if (!lq_sta->lq.general_params.dual_stream_ant_msk) {
 		lq_sta->lq.general_params.dual_stream_ant_msk = ANT_AB;
-	} else if (il4965_num_of_ant(priv->hw_params.valid_tx_ant) == 2) {
+	} else if (il4965_num_of_ant(il->hw_params.valid_tx_ant) == 2) {
 		lq_sta->lq.general_params.dual_stream_ant_msk =
-			priv->hw_params.valid_tx_ant;
+			il->hw_params.valid_tx_ant;
 	}
 
 	/* as default allow aggregation for all tids */
 	lq_sta->tx_agg_tid_en = IL_AGG_ALL_TID;
-	lq_sta->drv = priv;
+	lq_sta->drv = il;
 
 	/* Set last_txrate_idx to lowest rate */
 	lq_sta->last_txrate_idx = rate_lowest_index(sband, sta);
@@ -2421,10 +2421,10 @@ il4965_rs_rate_init(struct il_priv *priv,
 	lq_sta->dbg_fixed_rate = 0;
 #endif
 
-	il4965_rs_initialize_lq(priv, conf, sta, lq_sta);
+	il4965_rs_initialize_lq(il, conf, sta, lq_sta);
 }
 
-static void il4965_rs_fill_link_cmd(struct il_priv *priv,
+static void il4965_rs_fill_link_cmd(struct il_priv *il,
 			     struct il_lq_sta *lq_sta, u32 new_rate)
 {
 	struct il_scale_tbl_info tbl_type;
@@ -2467,8 +2467,8 @@ static void il4965_rs_fill_link_cmd(struct il_priv *priv,
 
 	index++;
 	repeat_rate--;
-	if (priv)
-		valid_tx_ant = priv->hw_params.valid_tx_ant;
+	if (il)
+		valid_tx_ant = il->hw_params.valid_tx_ant;
 
 	/* Fill rest of rate table */
 	while (index < LINK_QUAL_MAX_RETRY_NUM) {
@@ -2479,7 +2479,7 @@ static void il4965_rs_fill_link_cmd(struct il_priv *priv,
 			if (is_legacy(tbl_type.lq_type)) {
 				if (ant_toggle_cnt < NUM_TRY_BEFORE_ANT_TOGGLE)
 					ant_toggle_cnt++;
-				else if (priv &&
+				else if (il &&
 					 il4965_rs_toggle_antenna(valid_tx_ant,
 							&new_rate, &tbl_type))
 					ant_toggle_cnt = 1;
@@ -2514,7 +2514,7 @@ static void il4965_rs_fill_link_cmd(struct il_priv *priv,
 		if (is_legacy(tbl_type.lq_type)) {
 			if (ant_toggle_cnt < NUM_TRY_BEFORE_ANT_TOGGLE)
 				ant_toggle_cnt++;
-			else if (priv &&
+			else if (il &&
 				 il4965_rs_toggle_antenna(valid_tx_ant,
 						   &new_rate, &tbl_type))
 				ant_toggle_cnt = 1;
@@ -2551,18 +2551,18 @@ static void
 	return hw->priv;
 }
 /* rate scale requires free function to be implemented */
-static void il4965_rs_free(void *priv_rate)
+static void il4965_rs_free(void *il_rate)
 {
 	return;
 }
 
-static void il4965_rs_free_sta(void *priv_r, struct ieee80211_sta *sta,
-			void *priv_sta)
+static void il4965_rs_free_sta(void *il_r, struct ieee80211_sta *sta,
+			void *il_sta)
 {
-	struct il_priv *priv __maybe_unused = priv_r;
+	struct il_priv *il __maybe_unused = il_r;
 
-	IL_DEBUG_RATE(priv, "enter\n");
-	IL_DEBUG_RATE(priv, "leave\n");
+	IL_DEBUG_RATE(il, "enter\n");
+	IL_DEBUG_RATE(il, "leave\n");
 }
 
 
@@ -2575,28 +2575,28 @@ static int il4965_open_file_generic(struct inode *inode, struct file *file)
 static void il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta,
 			     u32 *rate_n_flags, int index)
 {
-	struct il_priv *priv;
+	struct il_priv *il;
 	u8 valid_tx_ant;
 	u8 ant_sel_tx;
 
-	priv = lq_sta->drv;
-	valid_tx_ant = priv->hw_params.valid_tx_ant;
+	il = lq_sta->drv;
+	valid_tx_ant = il->hw_params.valid_tx_ant;
 	if (lq_sta->dbg_fixed_rate) {
 		ant_sel_tx =
 		  ((lq_sta->dbg_fixed_rate & RATE_MCS_ANT_ABC_MSK)
 		  >> RATE_MCS_ANT_POS);
 		if ((valid_tx_ant & ant_sel_tx) == ant_sel_tx) {
 			*rate_n_flags = lq_sta->dbg_fixed_rate;
-			IL_DEBUG_RATE(priv, "Fixed rate ON\n");
+			IL_DEBUG_RATE(il, "Fixed rate ON\n");
 		} else {
 			lq_sta->dbg_fixed_rate = 0;
-			IL_ERR(priv,
+			IL_ERR(il,
 			    "Invalid antenna selection 0x%X, Valid is 0x%X\n",
 			    ant_sel_tx, valid_tx_ant);
-			IL_DEBUG_RATE(priv, "Fixed rate OFF\n");
+			IL_DEBUG_RATE(il, "Fixed rate OFF\n");
 		}
 	} else {
-		IL_DEBUG_RATE(priv, "Fixed rate OFF\n");
+		IL_DEBUG_RATE(il, "Fixed rate OFF\n");
 	}
 }
 
@@ -2604,7 +2604,7 @@ static ssize_t il4965_rs_sta_dbgfs_scale_table_write(struct file *file,
 			const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct il_lq_sta *lq_sta = file->private_data;
-	struct il_priv *priv;
+	struct il_priv *il;
 	char buf[64];
 	size_t buf_size;
 	u32 parsed_rate;
@@ -2612,7 +2612,7 @@ static ssize_t il4965_rs_sta_dbgfs_scale_table_write(struct file *file,
 		container_of(lq_sta, struct il_station_priv, lq_sta);
 	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
-	priv = lq_sta->drv;
+	il = lq_sta->drv;
 	memset(buf, 0, sizeof(buf));
 	buf_size = min(count, sizeof(buf) -  1);
 	if (copy_from_user(buf, user_buf, buf_size))
@@ -2627,7 +2627,7 @@ static ssize_t il4965_rs_sta_dbgfs_scale_table_write(struct file *file,
 	lq_sta->active_siso_rate   = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 
-	IL_DEBUG_RATE(priv, "sta_id %d rate 0x%X\n",
+	IL_DEBUG_RATE(il, "sta_id %d rate 0x%X\n",
 		lq_sta->lq.sta_id, lq_sta->dbg_fixed_rate);
 
 	if (lq_sta->dbg_fixed_rate) {
@@ -2649,10 +2649,10 @@ static ssize_t il4965_rs_sta_dbgfs_scale_table_read(struct file *file,
 	ssize_t ret;
 
 	struct il_lq_sta *lq_sta = file->private_data;
-	struct il_priv *priv;
+	struct il_priv *il;
 	struct il_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 
-	priv = lq_sta->drv;
+	il = lq_sta->drv;
 	buff = kmalloc(1024, GFP_KERNEL);
 	if (!buff)
 		return -ENOMEM;
@@ -2664,9 +2664,9 @@ static ssize_t il4965_rs_sta_dbgfs_scale_table_read(struct file *file,
 	desc += sprintf(buff+desc, "fixed rate 0x%X\n",
 			lq_sta->dbg_fixed_rate);
 	desc += sprintf(buff+desc, "valid_tx_ant %s%s%s\n",
-	    (priv->hw_params.valid_tx_ant & ANT_A) ? "ANT_A," : "",
-	    (priv->hw_params.valid_tx_ant & ANT_B) ? "ANT_B," : "",
-	    (priv->hw_params.valid_tx_ant & ANT_C) ? "ANT_C" : "");
+	    (il->hw_params.valid_tx_ant & ANT_A) ? "ANT_A," : "",
+	    (il->hw_params.valid_tx_ant & ANT_B) ? "ANT_B," : "",
+	    (il->hw_params.valid_tx_ant & ANT_C) ? "ANT_C" : "");
 	desc += sprintf(buff+desc, "lq type %s\n",
 	   (is_legacy(tbl->lq_type)) ? "legacy" : "HT");
 	if (is_Ht(tbl->lq_type)) {
@@ -2781,10 +2781,10 @@ static ssize_t il4965_rs_sta_dbgfs_rate_scale_data_read(struct file *file,
 	ssize_t ret;
 
 	struct il_lq_sta *lq_sta = file->private_data;
-	struct il_priv *priv;
+	struct il_priv *il;
 	struct il_scale_tbl_info *tbl = &lq_sta->lq_info[lq_sta->active_tbl];
 
-	priv = lq_sta->drv;
+	il = lq_sta->drv;
 
 	if (is_Ht(tbl->lq_type))
 		desc += sprintf(buff+desc,
@@ -2805,10 +2805,10 @@ static const struct file_operations rs_sta_dbgfs_rate_scale_data_ops = {
 	.llseek = default_llseek,
 };
 
-static void il4965_rs_add_debugfs(void *priv, void *priv_sta,
+static void il4965_rs_add_debugfs(void *il, void *il_sta,
 					struct dentry *dir)
 {
-	struct il_lq_sta *lq_sta = priv_sta;
+	struct il_lq_sta *lq_sta = il_sta;
 	lq_sta->rs_sta_dbgfs_scale_table_file =
 		debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
 				lq_sta, &rs_sta_dbgfs_scale_table_ops);
@@ -2824,9 +2824,9 @@ static void il4965_rs_add_debugfs(void *priv, void *priv_sta,
 
 }
 
-static void il4965_rs_remove_debugfs(void *priv, void *priv_sta)
+static void il4965_rs_remove_debugfs(void *il, void *il_sta)
 {
-	struct il_lq_sta *lq_sta = priv_sta;
+	struct il_lq_sta *lq_sta = il_sta;
 	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_rate_scale_data_file);
@@ -2840,8 +2840,8 @@ static void il4965_rs_remove_debugfs(void *priv, void *priv_sta)
  * station is added we ignore it.
  */
 static void
-il4965_rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sband,
-			 struct ieee80211_sta *sta, void *priv_sta)
+il4965_rs_rate_init_stub(void *il_r, struct ieee80211_supported_band *sband,
+			 struct ieee80211_sta *sta, void *il_sta)
 {
 }
 static struct rate_control_ops rs_4965_ops = {

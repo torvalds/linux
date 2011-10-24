@@ -48,8 +48,8 @@
 #include "iwl-4965.h"
 #include "iwl-4965-debugfs.h"
 
-static int il4965_send_tx_power(struct il_priv *priv);
-static int il4965_hw_get_temperature(struct il_priv *priv);
+static int il4965_send_tx_power(struct il_priv *il);
+static int il4965_hw_get_temperature(struct il_priv *il);
 
 /* Highest firmware API version supported */
 #define IWL4965_UCODE_API_MAX 2
@@ -62,23 +62,23 @@ static int il4965_hw_get_temperature(struct il_priv *priv);
 #define IWL4965_MODULE_FIRMWARE(api) _IWL4965_MODULE_FIRMWARE(api)
 
 /* check contents of special bootstrap uCode SRAM */
-static int il4965_verify_bsm(struct il_priv *priv)
+static int il4965_verify_bsm(struct il_priv *il)
 {
-	__le32 *image = priv->ucode_boot.v_addr;
-	u32 len = priv->ucode_boot.len;
+	__le32 *image = il->ucode_boot.v_addr;
+	u32 len = il->ucode_boot.len;
 	u32 reg;
 	u32 val;
 
-	IL_DEBUG_INFO(priv, "Begin verify bsm\n");
+	IL_DEBUG_INFO(il, "Begin verify bsm\n");
 
 	/* verify BSM SRAM contents */
-	val = il_read_prph(priv, BSM_WR_DWCOUNT_REG);
+	val = il_read_prph(il, BSM_WR_DWCOUNT_REG);
 	for (reg = BSM_SRAM_LOWER_BOUND;
 	     reg < BSM_SRAM_LOWER_BOUND + len;
 	     reg += sizeof(u32), image++) {
-		val = il_read_prph(priv, reg);
+		val = il_read_prph(il, reg);
 		if (val != le32_to_cpu(*image)) {
-			IL_ERR(priv, "BSM uCode verification failed at "
+			IL_ERR(il, "BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
 				  BSM_SRAM_LOWER_BOUND,
 				  reg - BSM_SRAM_LOWER_BOUND, len,
@@ -87,7 +87,7 @@ static int il4965_verify_bsm(struct il_priv *priv)
 		}
 	}
 
-	IL_DEBUG_INFO(priv, "BSM bootstrap uCode image OK\n");
+	IL_DEBUG_INFO(il, "BSM bootstrap uCode image OK\n");
 
 	return 0;
 }
@@ -124,10 +124,10 @@ static int il4965_verify_bsm(struct il_priv *priv)
  * the runtime uCode instructions and the backup data cache into SRAM,
  * and re-launches the runtime uCode from where it left off.
  */
-static int il4965_load_bsm(struct il_priv *priv)
+static int il4965_load_bsm(struct il_priv *il)
 {
-	__le32 *image = priv->ucode_boot.v_addr;
-	u32 len = priv->ucode_boot.len;
+	__le32 *image = il->ucode_boot.v_addr;
+	u32 len = il->ucode_boot.len;
 	dma_addr_t pinst;
 	dma_addr_t pdata;
 	u32 inst_len;
@@ -137,9 +137,9 @@ static int il4965_load_bsm(struct il_priv *priv)
 	u32 reg_offset;
 	int ret;
 
-	IL_DEBUG_INFO(priv, "Begin load bsm\n");
+	IL_DEBUG_INFO(il, "Begin load bsm\n");
 
-	priv->ucode_type = UCODE_RT;
+	il->ucode_type = UCODE_RT;
 
 	/* make sure bootstrap program is no larger than BSM's SRAM size */
 	if (len > IWL49_MAX_BSM_SIZE)
@@ -151,53 +151,53 @@ static int il4965_load_bsm(struct il_priv *priv)
 	 *        after the "initialize" uCode has run, to point to
 	 *        runtime/protocol instructions and backup data cache.
 	 */
-	pinst = priv->ucode_init.p_addr >> 4;
-	pdata = priv->ucode_init_data.p_addr >> 4;
-	inst_len = priv->ucode_init.len;
-	data_len = priv->ucode_init_data.len;
+	pinst = il->ucode_init.p_addr >> 4;
+	pdata = il->ucode_init_data.p_addr >> 4;
+	inst_len = il->ucode_init.len;
+	data_len = il->ucode_init_data.len;
 
-	il_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
-	il_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
-	il_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
-	il_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
+	il_write_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
+	il_write_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
+	il_write_prph(il, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
+	il_write_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
 
 	/* Fill BSM memory with bootstrap instructions */
 	for (reg_offset = BSM_SRAM_LOWER_BOUND;
 	     reg_offset < BSM_SRAM_LOWER_BOUND + len;
 	     reg_offset += sizeof(u32), image++)
-		_il_write_prph(priv, reg_offset, le32_to_cpu(*image));
+		_il_write_prph(il, reg_offset, le32_to_cpu(*image));
 
-	ret = il4965_verify_bsm(priv);
+	ret = il4965_verify_bsm(il);
 	if (ret)
 		return ret;
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
-	il_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
-	il_write_prph(priv,
+	il_write_prph(il, BSM_WR_MEM_SRC_REG, 0x0);
+	il_write_prph(il,
 			BSM_WR_MEM_DST_REG, IWL49_RTC_INST_LOWER_BOUND);
-	il_write_prph(priv, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
+	il_write_prph(il, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
 	 *   to prepare to load "initialize" uCode */
-	il_write_prph(priv, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START);
+	il_write_prph(il, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START);
 
 	/* Wait for load of bootstrap uCode to finish */
 	for (i = 0; i < 100; i++) {
-		done = il_read_prph(priv, BSM_WR_CTRL_REG);
+		done = il_read_prph(il, BSM_WR_CTRL_REG);
 		if (!(done & BSM_WR_CTRL_REG_BIT_START))
 			break;
 		udelay(10);
 	}
 	if (i < 100)
-		IL_DEBUG_INFO(priv, "BSM write complete, poll %d iterations\n", i);
+		IL_DEBUG_INFO(il, "BSM write complete, poll %d iterations\n", i);
 	else {
-		IL_ERR(priv, "BSM write did not complete!\n");
+		IL_ERR(il, "BSM write did not complete!\n");
 		return -EIO;
 	}
 
 	/* Enable future boot loads whenever power management unit triggers it
 	 *   (e.g. when powering back up after power-save shutdown) */
-	il_write_prph(priv,
+	il_write_prph(il,
 			BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START_EN);
 
 
@@ -213,27 +213,27 @@ static int il4965_load_bsm(struct il_priv *priv)
  * We need to replace them to load runtime uCode inst and data,
  * and to save runtime data when powering down.
  */
-static int il4965_set_ucode_ptrs(struct il_priv *priv)
+static int il4965_set_ucode_ptrs(struct il_priv *il)
 {
 	dma_addr_t pinst;
 	dma_addr_t pdata;
 	int ret = 0;
 
 	/* bits 35:4 for 4965 */
-	pinst = priv->ucode_code.p_addr >> 4;
-	pdata = priv->ucode_data_backup.p_addr >> 4;
+	pinst = il->ucode_code.p_addr >> 4;
+	pdata = il->ucode_data_backup.p_addr >> 4;
 
 	/* Tell bootstrap uCode where to find image to load */
-	il_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
-	il_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
-	il_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG,
-				 priv->ucode_data.len);
+	il_write_prph(il, BSM_DRAM_INST_PTR_REG, pinst);
+	il_write_prph(il, BSM_DRAM_DATA_PTR_REG, pdata);
+	il_write_prph(il, BSM_DRAM_DATA_BYTECOUNT_REG,
+				 il->ucode_data.len);
 
 	/* Inst byte count must be last to set up, bit 31 signals uCode
 	 *   that all new ptr/size info is in place */
-	il_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
-				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
-	IL_DEBUG_INFO(priv, "Runtime uCode pointers are set.\n");
+	il_write_prph(il, BSM_DRAM_INST_BYTECOUNT_REG,
+				 il->ucode_code.len | BSM_DRAM_INST_LOAD);
+	IL_DEBUG_INFO(il, "Runtime uCode pointers are set.\n");
 
 	return ret;
 }
@@ -244,40 +244,40 @@ static int il4965_set_ucode_ptrs(struct il_priv *priv)
  * Called after REPLY_ALIVE notification received from "initialize" uCode.
  *
  * The 4965 "initialize" ALIVE reply contains calibration data for:
- *   Voltage, temperature, and MIMO tx gain correction, now stored in priv
+ *   Voltage, temperature, and MIMO tx gain correction, now stored in il
  *   (3945 does not contain this data).
  *
  * Tell "initialize" uCode to go ahead and load the runtime uCode.
 */
-static void il4965_init_alive_start(struct il_priv *priv)
+static void il4965_init_alive_start(struct il_priv *il)
 {
 	/* Bootstrap uCode has loaded initialize uCode ... verify inst image.
 	 * This is a paranoid check, because we would not have gotten the
 	 * "initialize" alive if code weren't properly loaded.  */
-	if (il4965_verify_ucode(priv)) {
+	if (il4965_verify_ucode(il)) {
 		/* Runtime instruction load was bad;
 		 * take it all the way back down so we can try again */
-		IL_DEBUG_INFO(priv, "Bad \"initialize\" uCode load.\n");
+		IL_DEBUG_INFO(il, "Bad \"initialize\" uCode load.\n");
 		goto restart;
 	}
 
 	/* Calculate temperature */
-	priv->temperature = il4965_hw_get_temperature(priv);
+	il->temperature = il4965_hw_get_temperature(il);
 
 	/* Send pointers to protocol/runtime uCode image ... init code will
 	 * load and launch runtime uCode, which will send us another "Alive"
 	 * notification. */
-	IL_DEBUG_INFO(priv, "Initialization Alive received.\n");
-	if (il4965_set_ucode_ptrs(priv)) {
+	IL_DEBUG_INFO(il, "Initialization Alive received.\n");
+	if (il4965_set_ucode_ptrs(il)) {
 		/* Runtime instruction load won't happen;
 		 * take it all the way back down so we can try again */
-		IL_DEBUG_INFO(priv, "Couldn't set up uCode pointers.\n");
+		IL_DEBUG_INFO(il, "Couldn't set up uCode pointers.\n");
 		goto restart;
 	}
 	return;
 
 restart:
-	queue_work(priv->workqueue, &priv->restart);
+	queue_work(il->workqueue, &il->restart);
 }
 
 static bool iw4965_is_ht40_channel(__le32 rxon_flags)
@@ -288,43 +288,43 @@ static bool iw4965_is_ht40_channel(__le32 rxon_flags)
 		  (chan_mod == CHANNEL_MODE_MIXED));
 }
 
-static void il4965_nic_config(struct il_priv *priv)
+static void il4965_nic_config(struct il_priv *il)
 {
 	unsigned long flags;
 	u16 radio_cfg;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&il->lock, flags);
 
-	radio_cfg = il_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
+	radio_cfg = il_eeprom_query16(il, EEPROM_RADIO_CONFIG);
 
 	/* write radio config values to register */
 	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) == EEPROM_4965_RF_CFG_TYPE_MAX)
-		il_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
 			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
 
 	/* set CSR_HW_CONFIG_REG for uCode use */
-	il_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+	il_set_bit(il, CSR_HW_IF_CONFIG_REG,
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
-	priv->calib_info = (struct il_eeprom_calib_info *)
-		il_eeprom_query_addr(priv,
+	il->calib_info = (struct il_eeprom_calib_info *)
+		il_eeprom_query_addr(il,
 				EEPROM_4965_CALIB_TXPOWER_OFFSET);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&il->lock, flags);
 }
 
 /* Reset differential Rx gains in NIC to prepare for chain noise calibration.
  * Called after every association, but this runs only once!
  *  ... once chain noise is calibrated the first time, it's good forever.  */
-static void il4965_chain_noise_reset(struct il_priv *priv)
+static void il4965_chain_noise_reset(struct il_priv *il)
 {
-	struct il_chain_noise_data *data = &(priv->chain_noise_data);
+	struct il_chain_noise_data *data = &(il->chain_noise_data);
 
 	if ((data->state == IL_CHAIN_NOISE_ALIVE) &&
-	    il_is_any_associated(priv)) {
+	    il_is_any_associated(il)) {
 		struct il_calib_diff_gain_cmd cmd;
 
 		/* clear data for chain noise calibration algorithm */
@@ -341,12 +341,12 @@ static void il4965_chain_noise_reset(struct il_priv *priv)
 		cmd.diff_gain_a = 0;
 		cmd.diff_gain_b = 0;
 		cmd.diff_gain_c = 0;
-		if (il_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+		if (il_send_cmd_pdu(il, REPLY_PHY_CALIBRATION_CMD,
 				 sizeof(cmd), &cmd))
-			IL_ERR(priv,
+			IL_ERR(il,
 				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IL_CHAIN_NOISE_ACCUMULATE;
-		IL_DEBUG_CALIB(priv, "Run chain_noise_calibrate\n");
+		IL_DEBUG_CALIB(il, "Run chain_noise_calibrate\n");
 	}
 }
 
@@ -377,10 +377,10 @@ static struct il_sensitivity_ranges il4965_sensitivity = {
 	.nrg_th_cca = 62,
 };
 
-static void il4965_set_ct_threshold(struct il_priv *priv)
+static void il4965_set_ct_threshold(struct il_priv *il)
 {
 	/* want Kelvin */
-	priv->hw_params.ct_kill_threshold =
+	il->hw_params.ct_kill_threshold =
 		CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY);
 }
 
@@ -389,37 +389,37 @@ static void il4965_set_ct_threshold(struct il_priv *priv)
  *
  * Called when initializing driver
  */
-static int il4965_hw_set_hw_params(struct il_priv *priv)
+static int il4965_hw_set_hw_params(struct il_priv *il)
 {
-	if (priv->cfg->mod_params->num_of_queues >= IL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWL49_NUM_QUEUES)
-		priv->cfg->base_params->num_of_queues =
-			priv->cfg->mod_params->num_of_queues;
+	if (il->cfg->mod_params->num_of_queues >= IL_MIN_NUM_QUEUES &&
+	    il->cfg->mod_params->num_of_queues <= IWL49_NUM_QUEUES)
+		il->cfg->base_params->num_of_queues =
+			il->cfg->mod_params->num_of_queues;
 
-	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
-	priv->hw_params.dma_chnl_num = FH49_TCSR_CHNL_NUM;
-	priv->hw_params.scd_bc_tbls_size =
-			priv->cfg->base_params->num_of_queues *
+	il->hw_params.max_txq_num = il->cfg->base_params->num_of_queues;
+	il->hw_params.dma_chnl_num = FH49_TCSR_CHNL_NUM;
+	il->hw_params.scd_bc_tbls_size =
+			il->cfg->base_params->num_of_queues *
 			sizeof(struct il4965_scd_bc_tbl);
-	priv->hw_params.tfd_size = sizeof(struct il_tfd);
-	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
-	priv->contexts[IL_RXON_CTX_BSS].bcast_sta_id = IWL4965_BROADCAST_ID;
-	priv->hw_params.max_data_size = IWL49_RTC_DATA_SIZE;
-	priv->hw_params.max_inst_size = IWL49_RTC_INST_SIZE;
-	priv->hw_params.max_bsm_size = BSM_SRAM_SIZE;
-	priv->hw_params.ht40_channel = BIT(IEEE80211_BAND_5GHZ);
+	il->hw_params.tfd_size = sizeof(struct il_tfd);
+	il->hw_params.max_stations = IWL4965_STATION_COUNT;
+	il->contexts[IL_RXON_CTX_BSS].bcast_sta_id = IWL4965_BROADCAST_ID;
+	il->hw_params.max_data_size = IWL49_RTC_DATA_SIZE;
+	il->hw_params.max_inst_size = IWL49_RTC_INST_SIZE;
+	il->hw_params.max_bsm_size = BSM_SRAM_SIZE;
+	il->hw_params.ht40_channel = BIT(IEEE80211_BAND_5GHZ);
 
-	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
+	il->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
-	priv->hw_params.tx_chains_num = il4965_num_of_ant(priv->cfg->valid_tx_ant);
-	priv->hw_params.rx_chains_num = il4965_num_of_ant(priv->cfg->valid_rx_ant);
-	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
-	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
+	il->hw_params.tx_chains_num = il4965_num_of_ant(il->cfg->valid_tx_ant);
+	il->hw_params.rx_chains_num = il4965_num_of_ant(il->cfg->valid_rx_ant);
+	il->hw_params.valid_tx_ant = il->cfg->valid_tx_ant;
+	il->hw_params.valid_rx_ant = il->cfg->valid_rx_ant;
 
-	il4965_set_ct_threshold(priv);
+	il4965_set_ct_threshold(il);
 
-	priv->hw_params.sens = &il4965_sensitivity;
-	priv->hw_params.beacon_time_tsf_bits = IWL4965_EXT_BEACON_TIME_POS;
+	il->hw_params.sens = &il4965_sensitivity;
+	il->hw_params.beacon_time_tsf_bits = IWL4965_EXT_BEACON_TIME_POS;
 
 	return 0;
 }
@@ -498,16 +498,16 @@ static s32 il4965_get_tx_atten_grp(u16 channel)
 	return -EINVAL;
 }
 
-static u32 il4965_get_sub_band(const struct il_priv *priv, u32 channel)
+static u32 il4965_get_sub_band(const struct il_priv *il, u32 channel)
 {
 	s32 b = -1;
 
 	for (b = 0; b < EEPROM_TX_POWER_BANDS; b++) {
-		if (priv->calib_info->band_info[b].ch_from == 0)
+		if (il->calib_info->band_info[b].ch_from == 0)
 			continue;
 
-		if ((channel >= priv->calib_info->band_info[b].ch_from)
-		    && (channel <= priv->calib_info->band_info[b].ch_to))
+		if ((channel >= il->calib_info->band_info[b].ch_from)
+		    && (channel <= il->calib_info->band_info[b].ch_to))
 			break;
 	}
 
@@ -534,7 +534,7 @@ static s32 il4965_interpolate_value(s32 x, s32 x1, s32 y1, s32 x2, s32 y2)
  * differences in channel frequencies, which is proportional to differences
  * in channel number.
  */
-static int il4965_interpolate_chan(struct il_priv *priv, u32 channel,
+static int il4965_interpolate_chan(struct il_priv *il, u32 channel,
 				    struct il_eeprom_calib_ch_info *chan_info)
 {
 	s32 s = -1;
@@ -546,24 +546,24 @@ static int il4965_interpolate_chan(struct il_priv *priv, u32 channel,
 	u32 ch_i1;
 	u32 ch_i2;
 
-	s = il4965_get_sub_band(priv, channel);
+	s = il4965_get_sub_band(il, channel);
 	if (s >= EEPROM_TX_POWER_BANDS) {
-		IL_ERR(priv, "Tx Power can not find channel %d\n", channel);
+		IL_ERR(il, "Tx Power can not find channel %d\n", channel);
 		return -1;
 	}
 
-	ch_i1 = priv->calib_info->band_info[s].ch1.ch_num;
-	ch_i2 = priv->calib_info->band_info[s].ch2.ch_num;
+	ch_i1 = il->calib_info->band_info[s].ch1.ch_num;
+	ch_i2 = il->calib_info->band_info[s].ch2.ch_num;
 	chan_info->ch_num = (u8) channel;
 
-	IL_DEBUG_TXPOWER(priv, "channel %d subband %d factory cal ch %d & %d\n",
+	IL_DEBUG_TXPOWER(il, "channel %d subband %d factory cal ch %d & %d\n",
 			  channel, s, ch_i1, ch_i2);
 
 	for (c = 0; c < EEPROM_TX_POWER_TX_CHAINS; c++) {
 		for (m = 0; m < EEPROM_TX_POWER_MEASUREMENTS; m++) {
-			m1 = &(priv->calib_info->band_info[s].ch1.
+			m1 = &(il->calib_info->band_info[s].ch1.
 			       measurements[c][m]);
-			m2 = &(priv->calib_info->band_info[s].ch2.
+			m2 = &(il->calib_info->band_info[s].ch2.
 			       measurements[c][m]);
 			omeas = &(chan_info->measurements[c][m]);
 
@@ -586,16 +586,16 @@ static int il4965_interpolate_chan(struct il_priv *priv, u32 channel,
 							   m1->pa_det, ch_i2,
 							   m2->pa_det);
 
-			IL_DEBUG_TXPOWER(priv,
+			IL_DEBUG_TXPOWER(il,
 				"chain %d meas %d AP1=%d AP2=%d AP=%d\n", c, m,
 				m1->actual_pow, m2->actual_pow, omeas->actual_pow);
-			IL_DEBUG_TXPOWER(priv,
+			IL_DEBUG_TXPOWER(il,
 				"chain %d meas %d NI1=%d NI2=%d NI=%d\n", c, m,
 				m1->gain_idx, m2->gain_idx, omeas->gain_idx);
-			IL_DEBUG_TXPOWER(priv,
+			IL_DEBUG_TXPOWER(il,
 				"chain %d meas %d PA1=%d PA2=%d PA=%d\n", c, m,
 				m1->pa_det, m2->pa_det, omeas->pa_det);
-			IL_DEBUG_TXPOWER(priv,
+			IL_DEBUG_TXPOWER(il,
 				"chain %d meas %d  T1=%d  T2=%d  T=%d\n", c, m,
 				m1->temperature, m2->temperature,
 				omeas->temperature);
@@ -867,7 +867,7 @@ static const struct gain_entry gain_table[2][108] = {
 	 }
 };
 
-static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
+static int il4965_fill_txpower_tbl(struct il_priv *il, u8 band, u16 channel,
 				    u8 is_ht40, u8 ctrl_chan_high,
 				    struct il4965_tx_power_db *tx_power_tbl)
 {
@@ -897,13 +897,13 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 
 	/* tx_power_user_lmt is in dBm, convert to half-dBm (half-dB units
 	 *   are used for indexing into txpower table) */
-	user_target_power = 2 * priv->tx_power_user_lmt;
+	user_target_power = 2 * il->tx_power_user_lmt;
 
 	/* Get current (RXON) channel, band, width */
-	IL_DEBUG_TXPOWER(priv, "chan %d band %d is_ht40 %d\n", channel, band,
+	IL_DEBUG_TXPOWER(il, "chan %d band %d is_ht40 %d\n", channel, band,
 			  is_ht40);
 
-	ch_info = il_get_channel_info(priv, priv->band, channel);
+	ch_info = il_get_channel_info(il, il->band, channel);
 
 	if (!il_is_channel_valid(ch_info))
 		return -EINVAL;
@@ -912,12 +912,12 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 	 *   and 2) mimo txpower balance between Tx chains. */
 	txatten_grp = il4965_get_tx_atten_grp(channel);
 	if (txatten_grp < 0) {
-		IL_ERR(priv, "Can't find txatten group for channel %d.\n",
+		IL_ERR(il, "Can't find txatten group for channel %d.\n",
 			  channel);
 		return txatten_grp;
 	}
 
-	IL_DEBUG_TXPOWER(priv, "channel %d belongs to txatten group %d\n",
+	IL_DEBUG_TXPOWER(il, "channel %d belongs to txatten group %d\n",
 			  channel, txatten_grp);
 
 	if (is_ht40) {
@@ -930,9 +930,9 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 	/* hardware txpower limits ...
 	 * saturation (clipping distortion) txpowers are in half-dBm */
 	if (band)
-		saturation_power = priv->calib_info->saturation_power24;
+		saturation_power = il->calib_info->saturation_power24;
 	else
-		saturation_power = priv->calib_info->saturation_power52;
+		saturation_power = il->calib_info->saturation_power52;
 
 	if (saturation_power < IL_TX_POWER_SATURATION_MIN ||
 	    saturation_power > IL_TX_POWER_SATURATION_MAX) {
@@ -959,21 +959,21 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 
 	/* Interpolate txpower calibration values for this channel,
 	 *   based on factory calibration tests on spaced channels. */
-	il4965_interpolate_chan(priv, channel, &ch_eeprom_info);
+	il4965_interpolate_chan(il, channel, &ch_eeprom_info);
 
 	/* calculate tx gain adjustment based on power supply voltage */
-	voltage = le16_to_cpu(priv->calib_info->voltage);
-	init_voltage = (s32)le32_to_cpu(priv->card_alive_init.voltage);
+	voltage = le16_to_cpu(il->calib_info->voltage);
+	init_voltage = (s32)le32_to_cpu(il->card_alive_init.voltage);
 	voltage_compensation =
 	    il4965_get_voltage_compensation(voltage, init_voltage);
 
-	IL_DEBUG_TXPOWER(priv, "curr volt %d eeprom volt %d volt comp %d\n",
+	IL_DEBUG_TXPOWER(il, "curr volt %d eeprom volt %d volt comp %d\n",
 			  init_voltage,
 			  voltage, voltage_compensation);
 
 	/* get current temperature (Celsius) */
-	current_temp = max(priv->temperature, IL_TX_POWER_TEMPERATURE_MIN);
-	current_temp = min(priv->temperature, IL_TX_POWER_TEMPERATURE_MAX);
+	current_temp = max(il->temperature, IL_TX_POWER_TEMPERATURE_MIN);
+	current_temp = min(il->temperature, IL_TX_POWER_TEMPERATURE_MAX);
 	current_temp = KELVIN_TO_CELSIUS(current_temp);
 
 	/* select thermal txpower adjustment params, based on channel group
@@ -998,13 +998,13 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 		factory_gain_index[c] = measurement->gain_idx;
 		factory_actual_pwr[c] = measurement->actual_pow;
 
-		IL_DEBUG_TXPOWER(priv, "chain = %d\n", c);
-		IL_DEBUG_TXPOWER(priv, "fctry tmp %d, "
+		IL_DEBUG_TXPOWER(il, "chain = %d\n", c);
+		IL_DEBUG_TXPOWER(il, "fctry tmp %d, "
 				  "curr tmp %d, comp %d steps\n",
 				  factory_temp, current_temp,
 				  temperature_comp[c]);
 
-		IL_DEBUG_TXPOWER(priv, "fctry idx %d, fctry pwr %d\n",
+		IL_DEBUG_TXPOWER(il, "fctry idx %d, fctry pwr %d\n",
 				  factory_gain_index[c],
 				  factory_actual_pwr[c]);
 	}
@@ -1037,7 +1037,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 		if (target_power > power_limit)
 			target_power = power_limit;
 
-		IL_DEBUG_TXPOWER(priv, "rate %d sat %d reg %d usr %d tgt %d\n",
+		IL_DEBUG_TXPOWER(il, "rate %d sat %d reg %d usr %d tgt %d\n",
 				  i, saturation_power - back_off_table[i],
 				  current_regulatory, user_target_power,
 				  target_power);
@@ -1048,7 +1048,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 
 			if (is_mimo_rate)
 				atten_value =
-				    (s32)le32_to_cpu(priv->card_alive_init.
+				    (s32)le32_to_cpu(il->card_alive_init.
 				    tx_atten[txatten_grp][c]);
 			else
 				atten_value = 0;
@@ -1061,7 +1061,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 					    voltage_compensation +
 					    atten_value);
 
-/*			IL_DEBUG_TXPOWER(priv, "calculated txpower index %d\n",
+/*			IL_DEBUG_TXPOWER(il, "calculated txpower index %d\n",
 						power_index); */
 
 			if (power_index < get_min_power_index(i, band))
@@ -1078,12 +1078,12 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 
 			/* stay within the table! */
 			if (power_index > 107) {
-				IL_WARN(priv, "txpower index %d > 107\n",
+				IL_WARN(il, "txpower index %d > 107\n",
 					    power_index);
 				power_index = 107;
 			}
 			if (power_index < 0) {
-				IL_WARN(priv, "txpower index %d < 0\n",
+				IL_WARN(il, "txpower index %d < 0\n",
 					    power_index);
 				power_index = 0;
 			}
@@ -1094,7 +1094,7 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
 			tx_power.s.dsp_predis_atten[c] =
 				gain_table[band][power_index].dsp;
 
-			IL_DEBUG_TXPOWER(priv, "chain %d mimo %d index %d "
+			IL_DEBUG_TXPOWER(il, "chain %d mimo %d index %d "
 					  "gain 0x%02x dsp %d\n",
 					  c, atten_value, power_index,
 					tx_power.s.radio_tx_gain[c],
@@ -1112,22 +1112,22 @@ static int il4965_fill_txpower_tbl(struct il_priv *priv, u8 band, u16 channel,
  * il4965_send_tx_power - Configure the TXPOWER level user limit
  *
  * Uses the active RXON for channel, band, and characteristics (ht40, high)
- * The power limit is taken from priv->tx_power_user_lmt.
+ * The power limit is taken from il->tx_power_user_lmt.
  */
-static int il4965_send_tx_power(struct il_priv *priv)
+static int il4965_send_tx_power(struct il_priv *il)
 {
 	struct il4965_txpowertable_cmd cmd = { 0 };
 	int ret;
 	u8 band = 0;
 	bool is_ht40 = false;
 	u8 ctrl_chan_high = 0;
-	struct il_rxon_context *ctx = &priv->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
 
-	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &il->status),
 		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
-	band = priv->band == IEEE80211_BAND_2GHZ;
+	band = il->band == IEEE80211_BAND_2GHZ;
 
 	is_ht40 = iw4965_is_ht40_channel(ctx->active.flags);
 
@@ -1137,20 +1137,20 @@ static int il4965_send_tx_power(struct il_priv *priv)
 	cmd.band = band;
 	cmd.channel = ctx->active.channel;
 
-	ret = il4965_fill_txpower_tbl(priv, band,
+	ret = il4965_fill_txpower_tbl(il, band,
 				le16_to_cpu(ctx->active.channel),
 				is_ht40, ctrl_chan_high, &cmd.tx_power);
 	if (ret)
 		goto out;
 
-	ret = il_send_cmd_pdu(priv,
+	ret = il_send_cmd_pdu(il,
 			 REPLY_TX_PWR_TABLE_CMD, sizeof(cmd), &cmd);
 
 out:
 	return ret;
 }
 
-static int il4965_send_rxon_assoc(struct il_priv *priv,
+static int il4965_send_rxon_assoc(struct il_priv *il,
 				   struct il_rxon_context *ctx)
 {
 	int ret = 0;
@@ -1167,7 +1167,7 @@ static int il4965_send_rxon_assoc(struct il_priv *priv,
 	     rxon2->ofdm_ht_dual_stream_basic_rates) &&
 	    (rxon1->rx_chain == rxon2->rx_chain) &&
 	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
-		IL_DEBUG_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
+		IL_DEBUG_INFO(il, "Using current RXON_ASSOC.  Not resending.\n");
 		return 0;
 	}
 
@@ -1182,13 +1182,13 @@ static int il4965_send_rxon_assoc(struct il_priv *priv,
 	    ctx->staging.ofdm_ht_dual_stream_basic_rates;
 	rxon_assoc.rx_chain_select_flags = ctx->staging.rx_chain;
 
-	ret = il_send_cmd_pdu_async(priv, REPLY_RXON_ASSOC,
+	ret = il_send_cmd_pdu_async(il, REPLY_RXON_ASSOC,
 				     sizeof(rxon_assoc), &rxon_assoc, NULL);
 
 	return ret;
 }
 
-static int il4965_commit_rxon(struct il_priv *priv, struct il_rxon_context *ctx)
+static int il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
 	struct il_rxon_cmd *active_rxon = (void *)&ctx->active;
@@ -1196,7 +1196,7 @@ static int il4965_commit_rxon(struct il_priv *priv, struct il_rxon_context *ctx)
 	bool new_assoc =
 		!!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
 
-	if (!il_is_alive(priv))
+	if (!il_is_alive(il))
 		return -EBUSY;
 
 	if (!ctx->is_active)
@@ -1205,9 +1205,9 @@ static int il4965_commit_rxon(struct il_priv *priv, struct il_rxon_context *ctx)
 	/* always get timestamp with Rx frame */
 	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
 
-	ret = il_check_rxon_cmd(priv, ctx);
+	ret = il_check_rxon_cmd(il, ctx);
 	if (ret) {
-		IL_ERR(priv, "Invalid RXON configuration.  Not committing.\n");
+		IL_ERR(il, "Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
 	}
 
@@ -1215,30 +1215,30 @@ static int il4965_commit_rxon(struct il_priv *priv, struct il_rxon_context *ctx)
 	 * receive commit_rxon request
 	 * abort any previous channel switch if still in process
 	 */
-	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status) &&
-	    (priv->switch_channel != ctx->staging.channel)) {
-		IL_DEBUG_11H(priv, "abort channel switch on %d\n",
-		      le16_to_cpu(priv->switch_channel));
-		il_chswitch_done(priv, false);
+	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &il->status) &&
+	    (il->switch_channel != ctx->staging.channel)) {
+		IL_DEBUG_11H(il, "abort channel switch on %d\n",
+		      le16_to_cpu(il->switch_channel));
+		il_chswitch_done(il, false);
 	}
 
 	/* If we don't need to send a full RXON, we can use
 	 * il_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
-	if (!il_full_rxon_required(priv, ctx)) {
-		ret = il_send_rxon_assoc(priv, ctx);
+	if (!il_full_rxon_required(il, ctx)) {
+		ret = il_send_rxon_assoc(il, ctx);
 		if (ret) {
-			IL_ERR(priv, "Error setting RXON_ASSOC (%d)\n", ret);
+			IL_ERR(il, "Error setting RXON_ASSOC (%d)\n", ret);
 			return ret;
 		}
 
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
-		il_print_rx_config_cmd(priv, ctx);
+		il_print_rx_config_cmd(il, ctx);
 		/*
 		 * We do not commit tx power settings while channel changing,
 		 * do it now if tx power changed.
 		 */
-		il_set_tx_power(priv, priv->tx_power_next, false);
+		il_set_tx_power(il, il->tx_power_next, false);
 		return 0;
 	}
 
@@ -1247,10 +1247,10 @@ static int il4965_commit_rxon(struct il_priv *priv, struct il_rxon_context *ctx)
 	 * we must clear the associated from the active configuration
 	 * before we apply the new config */
 	if (il_is_associated_ctx(ctx) && new_assoc) {
-		IL_DEBUG_INFO(priv, "Toggling associated bit on current RXON\n");
+		IL_DEBUG_INFO(il, "Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
-		ret = il_send_cmd_pdu(priv, ctx->rxon_cmd,
+		ret = il_send_cmd_pdu(il, ctx->rxon_cmd,
 				       sizeof(struct il_rxon_cmd),
 				       active_rxon);
 
@@ -1258,19 +1258,19 @@ static int il4965_commit_rxon(struct il_priv *priv, struct il_rxon_context *ctx)
 		 * active_rxon back to what it was previously */
 		if (ret) {
 			active_rxon->filter_flags |= RXON_FILTER_ASSOC_MSK;
-			IL_ERR(priv, "Error clearing ASSOC_MSK (%d)\n", ret);
+			IL_ERR(il, "Error clearing ASSOC_MSK (%d)\n", ret);
 			return ret;
 		}
-		il_clear_ucode_stations(priv, ctx);
-		il_restore_stations(priv, ctx);
-		ret = il4965_restore_default_wep_keys(priv, ctx);
+		il_clear_ucode_stations(il, ctx);
+		il_restore_stations(il, ctx);
+		ret = il4965_restore_default_wep_keys(il, ctx);
 		if (ret) {
-			IL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+			IL_ERR(il, "Failed to restore WEP keys (%d)\n", ret);
 			return ret;
 		}
 	}
 
-	IL_DEBUG_INFO(priv, "Sending RXON\n"
+	IL_DEBUG_INFO(il, "Sending RXON\n"
 		       "* with%s RXON_FILTER_ASSOC_MSK\n"
 		       "* channel = %d\n"
 		       "* bssid = %pM\n",
@@ -1278,62 +1278,62 @@ static int il4965_commit_rxon(struct il_priv *priv, struct il_rxon_context *ctx)
 		       le16_to_cpu(ctx->staging.channel),
 		       ctx->staging.bssid_addr);
 
-	il_set_rxon_hwcrypto(priv, ctx,
-				!priv->cfg->mod_params->sw_crypto);
+	il_set_rxon_hwcrypto(il, ctx,
+				!il->cfg->mod_params->sw_crypto);
 
 	/* Apply the new configuration
 	 * RXON unassoc clears the station table in uCode so restoration of
 	 * stations is needed after it (the RXON command) completes
 	 */
 	if (!new_assoc) {
-		ret = il_send_cmd_pdu(priv, ctx->rxon_cmd,
+		ret = il_send_cmd_pdu(il, ctx->rxon_cmd,
 			      sizeof(struct il_rxon_cmd), &ctx->staging);
 		if (ret) {
-			IL_ERR(priv, "Error setting new RXON (%d)\n", ret);
+			IL_ERR(il, "Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
-		IL_DEBUG_INFO(priv, "Return from !new_assoc RXON.\n");
+		IL_DEBUG_INFO(il, "Return from !new_assoc RXON.\n");
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
-		il_clear_ucode_stations(priv, ctx);
-		il_restore_stations(priv, ctx);
-		ret = il4965_restore_default_wep_keys(priv, ctx);
+		il_clear_ucode_stations(il, ctx);
+		il_restore_stations(il, ctx);
+		ret = il4965_restore_default_wep_keys(il, ctx);
 		if (ret) {
-			IL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+			IL_ERR(il, "Failed to restore WEP keys (%d)\n", ret);
 			return ret;
 		}
 	}
 	if (new_assoc) {
-		priv->start_calib = 0;
+		il->start_calib = 0;
 		/* Apply the new configuration
 		 * RXON assoc doesn't clear the station table in uCode,
 		 */
-		ret = il_send_cmd_pdu(priv, ctx->rxon_cmd,
+		ret = il_send_cmd_pdu(il, ctx->rxon_cmd,
 			      sizeof(struct il_rxon_cmd), &ctx->staging);
 		if (ret) {
-			IL_ERR(priv, "Error setting new RXON (%d)\n", ret);
+			IL_ERR(il, "Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
 	}
-	il_print_rx_config_cmd(priv, ctx);
+	il_print_rx_config_cmd(il, ctx);
 
-	il4965_init_sensitivity(priv);
+	il4965_init_sensitivity(il);
 
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
-	ret = il_set_tx_power(priv, priv->tx_power_next, true);
+	ret = il_set_tx_power(il, il->tx_power_next, true);
 	if (ret) {
-		IL_ERR(priv, "Error sending TX power (%d)\n", ret);
+		IL_ERR(il, "Error sending TX power (%d)\n", ret);
 		return ret;
 	}
 
 	return 0;
 }
 
-static int il4965_hw_channel_switch(struct il_priv *priv,
+static int il4965_hw_channel_switch(struct il_priv *il,
 				     struct ieee80211_channel_switch *ch_switch)
 {
-	struct il_rxon_context *ctx = &priv->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
 	int rc;
 	u8 band = 0;
 	bool is_ht40 = false;
@@ -1346,7 +1346,7 @@ static int il4965_hw_channel_switch(struct il_priv *priv,
 	u8 switch_count;
 	u16 beacon_interval = le16_to_cpu(ctx->timing.beacon_interval);
 	struct ieee80211_vif *vif = ctx->vif;
-	band = priv->band == IEEE80211_BAND_2GHZ;
+	band = il->band == IEEE80211_BAND_2GHZ;
 
 	is_ht40 = iw4965_is_ht40_channel(ctx->staging.flags);
 
@@ -1366,57 +1366,57 @@ static int il4965_hw_channel_switch(struct il_priv *priv,
 	 * calculate the ucode channel switch time
 	 * adding TSF as one of the factor for when to switch
 	 */
-	if ((priv->ucode_beacon_time > tsf_low) && beacon_interval) {
-		if (switch_count > ((priv->ucode_beacon_time - tsf_low) /
+	if ((il->ucode_beacon_time > tsf_low) && beacon_interval) {
+		if (switch_count > ((il->ucode_beacon_time - tsf_low) /
 		    beacon_interval)) {
-			switch_count -= (priv->ucode_beacon_time -
+			switch_count -= (il->ucode_beacon_time -
 				tsf_low) / beacon_interval;
 		} else
 			switch_count = 0;
 	}
 	if (switch_count <= 1)
-		cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+		cmd.switch_time = cpu_to_le32(il->ucode_beacon_time);
 	else {
 		switch_time_in_usec =
 			vif->bss_conf.beacon_int * switch_count * TIME_UNIT;
-		ucode_switch_time = il_usecs_to_beacons(priv,
+		ucode_switch_time = il_usecs_to_beacons(il,
 							 switch_time_in_usec,
 							 beacon_interval);
-		cmd.switch_time = il_add_beacon_time(priv,
-						      priv->ucode_beacon_time,
+		cmd.switch_time = il_add_beacon_time(il,
+						      il->ucode_beacon_time,
 						      ucode_switch_time,
 						      beacon_interval);
 	}
-	IL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
+	IL_DEBUG_11H(il, "uCode time for the switch is 0x%x\n",
 		      cmd.switch_time);
-	ch_info = il_get_channel_info(priv, priv->band, ch);
+	ch_info = il_get_channel_info(il, il->band, ch);
 	if (ch_info)
 		cmd.expect_beacon = il_is_channel_radar(ch_info);
 	else {
-		IL_ERR(priv, "invalid channel switch from %u to %u\n",
+		IL_ERR(il, "invalid channel switch from %u to %u\n",
 			ctx->active.channel, ch);
 		return -EFAULT;
 	}
 
-	rc = il4965_fill_txpower_tbl(priv, band, ch, is_ht40,
+	rc = il4965_fill_txpower_tbl(il, band, ch, is_ht40,
 				      ctrl_chan_high, &cmd.tx_power);
 	if (rc) {
-		IL_DEBUG_11H(priv, "error:%d  fill txpower_tbl\n", rc);
+		IL_DEBUG_11H(il, "error:%d  fill txpower_tbl\n", rc);
 		return rc;
 	}
 
-	return il_send_cmd_pdu(priv,
+	return il_send_cmd_pdu(il,
 			 REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
 }
 
 /**
  * il4965_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
-static void il4965_txq_update_byte_cnt_tbl(struct il_priv *priv,
+static void il4965_txq_update_byte_cnt_tbl(struct il_priv *il,
 					    struct il_tx_queue *txq,
 					    u16 byte_cnt)
 {
-	struct il4965_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
+	struct il4965_scd_bc_tbl *scd_bc_tbl = il->scd_bc_tbls.addr;
 	int txq_id = txq->q.id;
 	int write_ptr = txq->q.write_ptr;
 	int len = byte_cnt + IL_TX_CRC_SIZE + IL_TX_DELIMITER_SIZE;
@@ -1440,27 +1440,27 @@ static void il4965_txq_update_byte_cnt_tbl(struct il_priv *priv,
  *
  * A return of <0 indicates bogus data in the statistics
  */
-static int il4965_hw_get_temperature(struct il_priv *priv)
+static int il4965_hw_get_temperature(struct il_priv *il)
 {
 	s32 temperature;
 	s32 vt;
 	s32 R1, R2, R3;
 	u32 R4;
 
-	if (test_bit(STATUS_TEMPERATURE, &priv->status) &&
-	    (priv->_4965.statistics.flag &
+	if (test_bit(STATUS_TEMPERATURE, &il->status) &&
+	    (il->_4965.statistics.flag &
 			STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
-		IL_DEBUG_TEMP(priv, "Running HT40 temperature calibration\n");
-		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[1]);
-		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[1]);
-		R3 = (s32)le32_to_cpu(priv->card_alive_init.therm_r3[1]);
-		R4 = le32_to_cpu(priv->card_alive_init.therm_r4[1]);
+		IL_DEBUG_TEMP(il, "Running HT40 temperature calibration\n");
+		R1 = (s32)le32_to_cpu(il->card_alive_init.therm_r1[1]);
+		R2 = (s32)le32_to_cpu(il->card_alive_init.therm_r2[1]);
+		R3 = (s32)le32_to_cpu(il->card_alive_init.therm_r3[1]);
+		R4 = le32_to_cpu(il->card_alive_init.therm_r4[1]);
 	} else {
-		IL_DEBUG_TEMP(priv, "Running temperature calibration\n");
-		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[0]);
-		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[0]);
-		R3 = (s32)le32_to_cpu(priv->card_alive_init.therm_r3[0]);
-		R4 = le32_to_cpu(priv->card_alive_init.therm_r4[0]);
+		IL_DEBUG_TEMP(il, "Running temperature calibration\n");
+		R1 = (s32)le32_to_cpu(il->card_alive_init.therm_r1[0]);
+		R2 = (s32)le32_to_cpu(il->card_alive_init.therm_r2[0]);
+		R3 = (s32)le32_to_cpu(il->card_alive_init.therm_r3[0]);
+		R4 = le32_to_cpu(il->card_alive_init.therm_r4[0]);
 	}
 
 	/*
@@ -1470,16 +1470,16 @@ static int il4965_hw_get_temperature(struct il_priv *priv)
 	 * with an updated temperature, use R4 provided to us in the
 	 * "initialize" ALIVE response.
 	 */
-	if (!test_bit(STATUS_TEMPERATURE, &priv->status))
+	if (!test_bit(STATUS_TEMPERATURE, &il->status))
 		vt = sign_extend32(R4, 23);
 	else
-		vt = sign_extend32(le32_to_cpu(priv->_4965.statistics.
+		vt = sign_extend32(le32_to_cpu(il->_4965.statistics.
 				 general.common.temperature), 23);
 
-	IL_DEBUG_TEMP(priv, "Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
+	IL_DEBUG_TEMP(il, "Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
 	if (R3 == R1) {
-		IL_ERR(priv, "Calibration conflict R1 == R3\n");
+		IL_ERR(il, "Calibration conflict R1 == R3\n");
 		return -1;
 	}
 
@@ -1489,7 +1489,7 @@ static int il4965_hw_get_temperature(struct il_priv *priv)
 	temperature /= (R3 - R1);
 	temperature = (temperature * 97) / 100 + TEMPERATURE_CALIB_KELVIN_OFFSET;
 
-	IL_DEBUG_TEMP(priv, "Calibrated temperature: %dK, %dC\n",
+	IL_DEBUG_TEMP(il, "Calibrated temperature: %dK, %dC\n",
 			temperature, KELVIN_TO_CELSIUS(temperature));
 
 	return temperature;
@@ -1504,66 +1504,66 @@ static int il4965_hw_get_temperature(struct il_priv *priv)
  * If the temperature changed has changed sufficiently, then a recalibration
  * is needed.
  *
- * Assumes caller will replace priv->last_temperature once calibration
+ * Assumes caller will replace il->last_temperature once calibration
  * executed.
  */
-static int il4965_is_temp_calib_needed(struct il_priv *priv)
+static int il4965_is_temp_calib_needed(struct il_priv *il)
 {
 	int temp_diff;
 
-	if (!test_bit(STATUS_STATISTICS, &priv->status)) {
-		IL_DEBUG_TEMP(priv, "Temperature not updated -- no statistics.\n");
+	if (!test_bit(STATUS_STATISTICS, &il->status)) {
+		IL_DEBUG_TEMP(il, "Temperature not updated -- no statistics.\n");
 		return 0;
 	}
 
-	temp_diff = priv->temperature - priv->last_temperature;
+	temp_diff = il->temperature - il->last_temperature;
 
 	/* get absolute value */
 	if (temp_diff < 0) {
-		IL_DEBUG_POWER(priv, "Getting cooler, delta %d\n", temp_diff);
+		IL_DEBUG_POWER(il, "Getting cooler, delta %d\n", temp_diff);
 		temp_diff = -temp_diff;
 	} else if (temp_diff == 0)
-		IL_DEBUG_POWER(priv, "Temperature unchanged\n");
+		IL_DEBUG_POWER(il, "Temperature unchanged\n");
 	else
-		IL_DEBUG_POWER(priv, "Getting warmer, delta %d\n", temp_diff);
+		IL_DEBUG_POWER(il, "Getting warmer, delta %d\n", temp_diff);
 
 	if (temp_diff < IL_TEMPERATURE_THRESHOLD) {
-		IL_DEBUG_POWER(priv, " => thermal txpower calib not needed\n");
+		IL_DEBUG_POWER(il, " => thermal txpower calib not needed\n");
 		return 0;
 	}
 
-	IL_DEBUG_POWER(priv, " => thermal txpower calib needed\n");
+	IL_DEBUG_POWER(il, " => thermal txpower calib needed\n");
 
 	return 1;
 }
 
-static void il4965_temperature_calib(struct il_priv *priv)
+static void il4965_temperature_calib(struct il_priv *il)
 {
 	s32 temp;
 
-	temp = il4965_hw_get_temperature(priv);
+	temp = il4965_hw_get_temperature(il);
 	if (IL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(temp))
 		return;
 
-	if (priv->temperature != temp) {
-		if (priv->temperature)
-			IL_DEBUG_TEMP(priv, "Temperature changed "
+	if (il->temperature != temp) {
+		if (il->temperature)
+			IL_DEBUG_TEMP(il, "Temperature changed "
 				       "from %dC to %dC\n",
-				       KELVIN_TO_CELSIUS(priv->temperature),
+				       KELVIN_TO_CELSIUS(il->temperature),
 				       KELVIN_TO_CELSIUS(temp));
 		else
-			IL_DEBUG_TEMP(priv, "Temperature "
+			IL_DEBUG_TEMP(il, "Temperature "
 				       "initialized to %dC\n",
 				       KELVIN_TO_CELSIUS(temp));
 	}
 
-	priv->temperature = temp;
-	set_bit(STATUS_TEMPERATURE, &priv->status);
+	il->temperature = temp;
+	set_bit(STATUS_TEMPERATURE, &il->status);
 
-	if (!priv->disable_tx_power_cal &&
-	     unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
-	     il4965_is_temp_calib_needed(priv))
-		queue_work(priv->workqueue, &priv->txpower_work);
+	if (!il->disable_tx_power_cal &&
+	     unlikely(!test_bit(STATUS_SCANNING, &il->status)) &&
+	     il4965_is_temp_calib_needed(il))
+		queue_work(il->workqueue, &il->txpower_work);
 }
 
 static u16 il4965_get_hcmd_size(u8 cmd_id, u16 len)
@@ -1604,7 +1604,7 @@ static inline u32 il4965_get_scd_ssn(struct il4965_tx_resp *tx_resp)
 /**
  * il4965_tx_status_reply_tx - Handle Tx response for frames in aggregation queue
  */
-static int il4965_tx_status_reply_tx(struct il_priv *priv,
+static int il4965_tx_status_reply_tx(struct il_priv *il,
 				      struct il_ht_agg *agg,
 				      struct il4965_tx_resp *tx_resp,
 				      int txq_id, u16 start_idx)
@@ -1617,7 +1617,7 @@ static int il4965_tx_status_reply_tx(struct il_priv *priv,
 	int i, sh, idx;
 	u16 seq;
 	if (agg->wait_for_ba)
-		IL_DEBUG_TX_REPLY(priv, "got tx response w/o block-ack\n");
+		IL_DEBUG_TX_REPLY(il, "got tx response w/o block-ack\n");
 
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
@@ -1630,18 +1630,18 @@ static int il4965_tx_status_reply_tx(struct il_priv *priv,
 		status = le16_to_cpu(frame_status[0].status);
 		idx = start_idx;
 
-		IL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
+		IL_DEBUG_TX_REPLY(il, "FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
 
-		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb);
+		info = IEEE80211_SKB_CB(il->txq[txq_id].txb[idx].skb);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= il4965_tx_status_to_mac80211(status);
-		il4965_hwrate_to_tx_control(priv, rate_n_flags, info);
+		il4965_hwrate_to_tx_control(il, rate_n_flags, info);
 
-		IL_DEBUG_TX_REPLY(priv, "1 Frame 0x%x failure :%d\n",
+		IL_DEBUG_TX_REPLY(il, "1 Frame 0x%x failure :%d\n",
 				    status & 0xff, tx_resp->failure_frame);
-		IL_DEBUG_TX_REPLY(priv, "Rate Info rate_n_flags=%x\n", rate_n_flags);
+		IL_DEBUG_TX_REPLY(il, "Rate Info rate_n_flags=%x\n", rate_n_flags);
 
 		agg->wait_for_ba = 0;
 	} else {
@@ -1661,12 +1661,12 @@ static int il4965_tx_status_reply_tx(struct il_priv *priv,
 				      AGG_TX_STATE_ABORT_MSK))
 				continue;
 
-			IL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, txq_id=%d idx=%d\n",
+			IL_DEBUG_TX_REPLY(il, "FrameCnt = %d, txq_id=%d idx=%d\n",
 					   agg->frame_count, txq_id, idx);
 
-			hdr = il_tx_queue_get_hdr(priv, txq_id, idx);
+			hdr = il_tx_queue_get_hdr(il, txq_id, idx);
 			if (!hdr) {
-				IL_ERR(priv,
+				IL_ERR(il,
 					"BUG_ON idx doesn't point to valid skb"
 					" idx=%d, txq_id=%d\n", idx, txq_id);
 				return -1;
@@ -1674,14 +1674,14 @@ static int il4965_tx_status_reply_tx(struct il_priv *priv,
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
-				IL_ERR(priv,
+				IL_ERR(il,
 					"BUG_ON idx doesn't match seq control"
 					" idx=%d, seq_idx=%d, seq=%d\n",
 					idx, SEQ_TO_SN(sc), hdr->seq_ctrl);
 				return -1;
 			}
 
-			IL_DEBUG_TX_REPLY(priv, "AGG Frame i=%d idx %d seq=%d\n",
+			IL_DEBUG_TX_REPLY(il, "AGG Frame i=%d idx %d seq=%d\n",
 					   i, idx, SEQ_TO_SN(sc));
 
 			sh = idx - start;
@@ -1699,13 +1699,13 @@ static int il4965_tx_status_reply_tx(struct il_priv *priv,
 				sh = 0;
 			}
 			bitmap |= 1ULL << sh;
-			IL_DEBUG_TX_REPLY(priv, "start=%d bitmap=0x%llx\n",
+			IL_DEBUG_TX_REPLY(il, "start=%d bitmap=0x%llx\n",
 					   start, (unsigned long long)bitmap);
 		}
 
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
-		IL_DEBUG_TX_REPLY(priv, "Frames %d start_idx=%d bitmap=0x%llx\n",
+		IL_DEBUG_TX_REPLY(il, "Frames %d start_idx=%d bitmap=0x%llx\n",
 				   agg->frame_count, agg->start_idx,
 				   (unsigned long long)agg->bitmap);
 
@@ -1715,30 +1715,30 @@ static int il4965_tx_status_reply_tx(struct il_priv *priv,
 	return 0;
 }
 
-static u8 il4965_find_station(struct il_priv *priv, const u8 *addr)
+static u8 il4965_find_station(struct il_priv *il, const u8 *addr)
 {
 	int i;
 	int start = 0;
 	int ret = IL_INVALID_STATION;
 	unsigned long flags;
 
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC))
+	if ((il->iw_mode == NL80211_IFTYPE_ADHOC))
 		start = IL_STA_ID;
 
 	if (is_broadcast_ether_addr(addr))
-		return priv->contexts[IL_RXON_CTX_BSS].bcast_sta_id;
+		return il->contexts[IL_RXON_CTX_BSS].bcast_sta_id;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	for (i = start; i < priv->hw_params.max_stations; i++)
-		if (priv->stations[i].used &&
-		    (!compare_ether_addr(priv->stations[i].sta.sta.addr,
+	spin_lock_irqsave(&il->sta_lock, flags);
+	for (i = start; i < il->hw_params.max_stations; i++)
+		if (il->stations[i].used &&
+		    (!compare_ether_addr(il->stations[i].sta.sta.addr,
 					 addr))) {
 			ret = i;
 			goto out;
 		}
 
-	IL_DEBUG_ASSOC_LIMIT(priv, "can not find STA %pM total %d\n",
-			      addr, priv->num_stations);
+	IL_DEBUG_ASSOC_LIMIT(il, "can not find STA %pM total %d\n",
+			      addr, il->num_stations);
 
  out:
 	/*
@@ -1747,38 +1747,38 @@ static u8 il4965_find_station(struct il_priv *priv, const u8 *addr)
 	 * station
 	 */
 	if (ret != IL_INVALID_STATION &&
-	    (!(priv->stations[ret].used & IL_STA_UCODE_ACTIVE) ||
-	     ((priv->stations[ret].used & IL_STA_UCODE_ACTIVE) &&
-	      (priv->stations[ret].used & IL_STA_UCODE_INPROGRESS)))) {
-		IL_ERR(priv, "Requested station info for sta %d before ready.\n",
+	    (!(il->stations[ret].used & IL_STA_UCODE_ACTIVE) ||
+	     ((il->stations[ret].used & IL_STA_UCODE_ACTIVE) &&
+	      (il->stations[ret].used & IL_STA_UCODE_INPROGRESS)))) {
+		IL_ERR(il, "Requested station info for sta %d before ready.\n",
 			ret);
 		ret = IL_INVALID_STATION;
 	}
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&il->sta_lock, flags);
 	return ret;
 }
 
-static int il4965_get_ra_sta_id(struct il_priv *priv, struct ieee80211_hdr *hdr)
+static int il4965_get_ra_sta_id(struct il_priv *il, struct ieee80211_hdr *hdr)
 {
-	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
+	if (il->iw_mode == NL80211_IFTYPE_STATION) {
 		return IL_AP_ID;
 	} else {
 		u8 *da = ieee80211_get_DA(hdr);
-		return il4965_find_station(priv, da);
+		return il4965_find_station(il, da);
 	}
 }
 
 /**
  * il4965_rx_reply_tx - Handle standard (non-aggregation) Tx response
  */
-static void il4965_rx_reply_tx(struct il_priv *priv,
+static void il4965_rx_reply_tx(struct il_priv *il,
 				struct il_rx_mem_buffer *rxb)
 {
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
-	struct il_tx_queue *txq = &priv->txq[txq_id];
+	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info;
 	struct il4965_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
@@ -1790,7 +1790,7 @@ static void il4965_rx_reply_tx(struct il_priv *priv,
 	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (il_queue_used(&txq->q, index) == 0)) {
-		IL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
+		IL_ERR(il, "Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
@@ -1801,27 +1801,27 @@ static void il4965_rx_reply_tx(struct il_priv *priv,
 	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
 	memset(&info->status, 0, sizeof(info->status));
 
-	hdr = il_tx_queue_get_hdr(priv, txq_id, index);
+	hdr = il_tx_queue_get_hdr(il, txq_id, index);
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 	}
 
-	sta_id = il4965_get_ra_sta_id(priv, hdr);
+	sta_id = il4965_get_ra_sta_id(il, hdr);
 	if (txq->sched_retry && unlikely(sta_id == IL_INVALID_STATION)) {
-		IL_ERR(priv, "Station not known\n");
+		IL_ERR(il, "Station not known\n");
 		return;
 	}
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&il->sta_lock, flags);
 	if (txq->sched_retry) {
 		const u32 scd_ssn = il4965_get_scd_ssn(tx_resp);
 		struct il_ht_agg *agg = NULL;
 		WARN_ON(!qc);
 
-		agg = &priv->stations[sta_id].tid[tid].agg;
+		agg = &il->stations[sta_id].tid[tid].agg;
 
-		il4965_tx_status_reply_tx(priv, agg, tx_resp, txq_id, index);
+		il4965_tx_status_reply_tx(il, agg, tx_resp, txq_id, index);
 
 		/* check if BAR is needed */
 		if ((tx_resp->frame_count == 1) && !il4965_is_tx_success(status))
@@ -1830,51 +1830,51 @@ static void il4965_rx_reply_tx(struct il_priv *priv,
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
 			index = il_queue_dec_wrap(scd_ssn & 0xff,
 								txq->q.n_bd);
-			IL_DEBUG_TX_REPLY(priv, "Retry scheduler reclaim scd_ssn "
+			IL_DEBUG_TX_REPLY(il, "Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
-			freed = il4965_tx_queue_reclaim(priv, txq_id, index);
+			freed = il4965_tx_queue_reclaim(il, txq_id, index);
 			if (qc)
-				il4965_free_tfds_in_queue(priv, sta_id,
+				il4965_free_tfds_in_queue(il, sta_id,
 						       tid, freed);
 
-			if (priv->mac80211_registered &&
+			if (il->mac80211_registered &&
 			    (il_queue_space(&txq->q) > txq->q.low_mark)
 				 && (agg->state != IL_EMPTYING_HW_QUEUE_DELBA))
-				il_wake_queue(priv, txq);
+				il_wake_queue(il, txq);
 		}
 	} else {
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags |= il4965_tx_status_to_mac80211(status);
-		il4965_hwrate_to_tx_control(priv,
+		il4965_hwrate_to_tx_control(il,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 
-		IL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x) "
+		IL_DEBUG_TX_REPLY(il, "TXQ %d status %s (0x%08x) "
 				   "rate_n_flags 0x%x retries %d\n",
 				   txq_id,
 				   il4965_get_tx_fail_reason(status), status,
 				   le32_to_cpu(tx_resp->rate_n_flags),
 				   tx_resp->failure_frame);
 
-		freed = il4965_tx_queue_reclaim(priv, txq_id, index);
+		freed = il4965_tx_queue_reclaim(il, txq_id, index);
 		if (qc && likely(sta_id != IL_INVALID_STATION))
-			il4965_free_tfds_in_queue(priv, sta_id, tid, freed);
+			il4965_free_tfds_in_queue(il, sta_id, tid, freed);
 		else if (sta_id == IL_INVALID_STATION)
-			IL_DEBUG_TX_REPLY(priv, "Station not known\n");
+			IL_DEBUG_TX_REPLY(il, "Station not known\n");
 
-		if (priv->mac80211_registered &&
+		if (il->mac80211_registered &&
 		    (il_queue_space(&txq->q) > txq->q.low_mark))
-			il_wake_queue(priv, txq);
+			il_wake_queue(il, txq);
 	}
 	if (qc && likely(sta_id != IL_INVALID_STATION))
-		il4965_txq_check_empty(priv, sta_id, tid, txq_id);
+		il4965_txq_check_empty(il, sta_id, tid, txq_id);
 
-	il4965_check_abort_status(priv, tx_resp->frame_count, status);
+	il4965_check_abort_status(il, tx_resp->frame_count, status);
 
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
-static void il4965_rx_beacon_notif(struct il_priv *priv,
+static void il4965_rx_beacon_notif(struct il_priv *il,
 				    struct il_rx_mem_buffer *rxb)
 {
 	struct il_rx_packet *pkt = rxb_addr(rxb);
@@ -1882,7 +1882,7 @@ static void il4965_rx_beacon_notif(struct il_priv *priv,
 	u8 rate __maybe_unused =
 		il4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
-	IL_DEBUG_RX(priv, "beacon status %#x, retries:%d ibssmgr:%d "
+	IL_DEBUG_RX(il, "beacon status %#x, retries:%d ibssmgr:%d "
 		"tsf:0x%.8x%.8x rate:%d\n",
 		le32_to_cpu(beacon->beacon_notify_hdr.u.status) & TX_STATUS_MSK,
 		beacon->beacon_notify_hdr.failure_frame,
@@ -1890,17 +1890,17 @@ static void il4965_rx_beacon_notif(struct il_priv *priv,
 		le32_to_cpu(beacon->high_tsf),
 		le32_to_cpu(beacon->low_tsf), rate);
 
-	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
+	il->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
 }
 
 /* Set up 4965-specific Rx frame reply handlers */
-static void il4965_rx_handler_setup(struct il_priv *priv)
+static void il4965_rx_handler_setup(struct il_priv *il)
 {
 	/* Legacy Rx frames */
-	priv->rx_handlers[REPLY_RX] = il4965_rx_reply_rx;
+	il->rx_handlers[REPLY_RX] = il4965_rx_reply_rx;
 	/* Tx response */
-	priv->rx_handlers[REPLY_TX] = il4965_rx_reply_tx;
-	priv->rx_handlers[BEACON_NOTIFICATION] = il4965_rx_beacon_notif;
+	il->rx_handlers[REPLY_TX] = il4965_rx_reply_tx;
+	il->rx_handlers[BEACON_NOTIFICATION] = il4965_rx_beacon_notif;
 }
 
 static struct il_hcmd_ops il4965_hcmd = {
@@ -1909,53 +1909,53 @@ static struct il_hcmd_ops il4965_hcmd = {
 	.set_rxon_chain = il4965_set_rxon_chain,
 };
 
-static void il4965_post_scan(struct il_priv *priv)
+static void il4965_post_scan(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &priv->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
 
 	/*
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
 	if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
-		il_commit_rxon(priv, ctx);
+		il_commit_rxon(il, ctx);
 }
 
-static void il4965_post_associate(struct il_priv *priv)
+static void il4965_post_associate(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &priv->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
 	struct ieee80211_vif *vif = ctx->vif;
 	struct ieee80211_conf *conf = NULL;
 	int ret = 0;
 
-	if (!vif || !priv->is_open)
+	if (!vif || !il->is_open)
 		return;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &il->status))
 		return;
 
-	il_scan_cancel_timeout(priv, 200);
+	il_scan_cancel_timeout(il, 200);
 
-	conf = il_ieee80211_get_hw_conf(priv->hw);
+	conf = il_ieee80211_get_hw_conf(il->hw);
 
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	il_commit_rxon(priv, ctx);
+	il_commit_rxon(il, ctx);
 
-	ret = il_send_rxon_timing(priv, ctx);
+	ret = il_send_rxon_timing(il, ctx);
 	if (ret)
-		IL_WARN(priv, "RXON timing - "
+		IL_WARN(il, "RXON timing - "
 			    "Attempting to continue.\n");
 
 	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-	il_set_rxon_ht(priv, &priv->current_ht_config);
+	il_set_rxon_ht(il, &il->current_ht_config);
 
-	if (priv->cfg->ops->hcmd->set_rxon_chain)
-		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+	if (il->cfg->ops->hcmd->set_rxon_chain)
+		il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
 
 	ctx->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
 
-	IL_DEBUG_ASSOC(priv, "assoc id %d beacon interval %d\n",
+	IL_DEBUG_ASSOC(il, "assoc id %d beacon interval %d\n",
 			vif->bss_conf.aid, vif->bss_conf.beacon_int);
 
 	if (vif->bss_conf.use_short_preamble)
@@ -1970,19 +1970,19 @@ static void il4965_post_associate(struct il_priv *priv)
 			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 	}
 
-	il_commit_rxon(priv, ctx);
+	il_commit_rxon(il, ctx);
 
-	IL_DEBUG_ASSOC(priv, "Associated as %d to: %pM\n",
+	IL_DEBUG_ASSOC(il, "Associated as %d to: %pM\n",
 			vif->bss_conf.aid, ctx->active.bssid_addr);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		il4965_send_beacon_cmd(priv);
+		il4965_send_beacon_cmd(il);
 		break;
 	default:
-		IL_ERR(priv, "%s Should not be called in %d mode\n",
+		IL_ERR(il, "%s Should not be called in %d mode\n",
 			  __func__, vif->type);
 		break;
 	}
@@ -1990,23 +1990,23 @@ static void il4965_post_associate(struct il_priv *priv)
 	/* the chain noise calibration will enabled PM upon completion
 	 * If chain noise has already been run, then we need to enable
 	 * power management here */
-	if (priv->chain_noise_data.state == IL_CHAIN_NOISE_DONE)
-		il_power_update_mode(priv, false);
+	if (il->chain_noise_data.state == IL_CHAIN_NOISE_DONE)
+		il_power_update_mode(il, false);
 
 	/* Enable Rx differential gain and sensitivity calibrations */
-	il4965_chain_noise_reset(priv);
-	priv->start_calib = 1;
+	il4965_chain_noise_reset(il);
+	il->start_calib = 1;
 }
 
-static void il4965_config_ap(struct il_priv *priv)
+static void il4965_config_ap(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &priv->contexts[IL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &il->contexts[IL_RXON_CTX_BSS];
 	struct ieee80211_vif *vif = ctx->vif;
 	int ret = 0;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&il->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &il->status))
 		return;
 
 	/* The following should be done only at AP bring up */
@@ -2014,20 +2014,20 @@ static void il4965_config_ap(struct il_priv *priv)
 
 		/* RXON - unassoc (to set timing command) */
 		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		il_commit_rxon(priv, ctx);
+		il_commit_rxon(il, ctx);
 
 		/* RXON Timing */
-		ret = il_send_rxon_timing(priv, ctx);
+		ret = il_send_rxon_timing(il, ctx);
 		if (ret)
-			IL_WARN(priv, "RXON timing failed - "
+			IL_WARN(il, "RXON timing failed - "
 					"Attempting to continue.\n");
 
 		/* AP has all antennas */
-		priv->chain_noise_data.active_chains =
-			priv->hw_params.valid_rx_ant;
-		il_set_rxon_ht(priv, &priv->current_ht_config);
-		if (priv->cfg->ops->hcmd->set_rxon_chain)
-			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+		il->chain_noise_data.active_chains =
+			il->hw_params.valid_rx_ant;
+		il_set_rxon_ht(il, &il->current_ht_config);
+		if (il->cfg->ops->hcmd->set_rxon_chain)
+			il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
 
 		ctx->staging.assoc_id = 0;
 
@@ -2047,12 +2047,12 @@ static void il4965_config_ap(struct il_priv *priv)
 					~RXON_FLG_SHORT_SLOT_MSK;
 		}
 		/* need to send beacon cmd before committing assoc RXON! */
-		il4965_send_beacon_cmd(priv);
+		il4965_send_beacon_cmd(il);
 		/* restore RXON assoc */
 		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		il_commit_rxon(priv, ctx);
+		il_commit_rxon(il, ctx);
 	}
-	il4965_send_beacon_cmd(priv);
+	il4965_send_beacon_cmd(il);
 }
 
 static struct il_hcmd_utils_ops il4965_hcmd_utils = {

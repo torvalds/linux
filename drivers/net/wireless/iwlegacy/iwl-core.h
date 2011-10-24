@@ -88,9 +88,9 @@ struct il_cmd;
 #define IL_CMD(x) case x: return #x
 
 struct il_hcmd_ops {
-	int (*rxon_assoc)(struct il_priv *priv, struct il_rxon_context *ctx);
-	int (*commit_rxon)(struct il_priv *priv, struct il_rxon_context *ctx);
-	void (*set_rxon_chain)(struct il_priv *priv,
+	int (*rxon_assoc)(struct il_priv *il, struct il_rxon_context *ctx);
+	int (*commit_rxon)(struct il_priv *il, struct il_rxon_context *ctx);
+	void (*set_rxon_chain)(struct il_priv *il,
 			       struct il_rxon_context *ctx);
 };
 
@@ -98,13 +98,13 @@ struct il_hcmd_utils_ops {
 	u16 (*get_hcmd_size)(u8 cmd_id, u16 len);
 	u16 (*build_addsta_hcmd)(const struct il_addsta_cmd *cmd,
 								u8 *data);
-	int (*request_scan)(struct il_priv *priv, struct ieee80211_vif *vif);
-	void (*post_scan)(struct il_priv *priv);
+	int (*request_scan)(struct il_priv *il, struct ieee80211_vif *vif);
+	void (*post_scan)(struct il_priv *il);
 };
 
 struct il_apm_ops {
-	int (*init)(struct il_priv *priv);
-	void (*config)(struct il_priv *priv);
+	int (*init)(struct il_priv *il);
+	void (*config)(struct il_priv *il);
 };
 
 struct il_debugfs_ops {
@@ -117,43 +117,43 @@ struct il_debugfs_ops {
 };
 
 struct il_temp_ops {
-	void (*temperature)(struct il_priv *priv);
+	void (*temperature)(struct il_priv *il);
 };
 
 struct il_lib_ops {
 	/* set hw dependent parameters */
-	int (*set_hw_params)(struct il_priv *priv);
+	int (*set_hw_params)(struct il_priv *il);
 	/* Handling TX */
-	void (*txq_update_byte_cnt_tbl)(struct il_priv *priv,
+	void (*txq_update_byte_cnt_tbl)(struct il_priv *il,
 					struct il_tx_queue *txq,
 					u16 byte_cnt);
-	int (*txq_attach_buf_to_tfd)(struct il_priv *priv,
+	int (*txq_attach_buf_to_tfd)(struct il_priv *il,
 				     struct il_tx_queue *txq,
 				     dma_addr_t addr,
 				     u16 len, u8 reset, u8 pad);
-	void (*txq_free_tfd)(struct il_priv *priv,
+	void (*txq_free_tfd)(struct il_priv *il,
 			     struct il_tx_queue *txq);
-	int (*txq_init)(struct il_priv *priv,
+	int (*txq_init)(struct il_priv *il,
 			struct il_tx_queue *txq);
 	/* setup Rx handler */
-	void (*rx_handler_setup)(struct il_priv *priv);
+	void (*rx_handler_setup)(struct il_priv *il);
 	/* alive notification after init uCode load */
-	void (*init_alive_start)(struct il_priv *priv);
+	void (*init_alive_start)(struct il_priv *il);
 	/* check validity of rtc data address */
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
-	int (*load_ucode)(struct il_priv *priv);
+	int (*load_ucode)(struct il_priv *il);
 
-	void (*dump_nic_error_log)(struct il_priv *priv);
-	int (*dump_fh)(struct il_priv *priv, char **buf, bool display);
-	int (*set_channel_switch)(struct il_priv *priv,
+	void (*dump_nic_error_log)(struct il_priv *il);
+	int (*dump_fh)(struct il_priv *il, char **buf, bool display);
+	int (*set_channel_switch)(struct il_priv *il,
 				  struct ieee80211_channel_switch *ch_switch);
 	/* power management */
 	struct il_apm_ops apm_ops;
 
 	/* power */
-	int (*send_tx_power) (struct il_priv *priv);
-	void (*update_chain_flags)(struct il_priv *priv);
+	int (*send_tx_power) (struct il_priv *il);
+	void (*update_chain_flags)(struct il_priv *il);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct il_eeprom_ops eeprom_ops;
@@ -166,15 +166,15 @@ struct il_lib_ops {
 };
 
 struct il_led_ops {
-	int (*cmd)(struct il_priv *priv, struct il_led_cmd *led_cmd);
+	int (*cmd)(struct il_priv *il, struct il_led_cmd *led_cmd);
 };
 
 struct il_legacy_ops {
-	void (*post_associate)(struct il_priv *priv);
-	void (*config_ap)(struct il_priv *priv);
+	void (*post_associate)(struct il_priv *il);
+	void (*config_ap)(struct il_priv *il);
 	/* station management */
-	int (*update_bcast_stations)(struct il_priv *priv);
-	int (*manage_ibss_station)(struct il_priv *priv,
+	int (*update_bcast_stations)(struct il_priv *il);
+	int (*manage_ibss_station)(struct il_priv *il,
 				   struct ieee80211_vif *vif, bool add);
 };
 
@@ -247,7 +247,7 @@ struct il_base_params {
  * on firmware version used.
  *
  * For example,
- * if (IL_UCODE_API(priv->ucode_ver) >= 2) {
+ * if (IL_UCODE_API(il->ucode_ver) >= 2) {
  *	Driver interacts with Firmware API version >= 2.
  * } else {
  *	Driver interacts with Firmware API version 1.
@@ -290,35 +290,35 @@ int il_mac_conf_tx(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int il_mac_tx_last_beacon(struct ieee80211_hw *hw);
-void il_set_rxon_hwcrypto(struct il_priv *priv,
+void il_set_rxon_hwcrypto(struct il_priv *il,
 			struct il_rxon_context *ctx,
 			int hw_decrypt);
-int il_check_rxon_cmd(struct il_priv *priv,
+int il_check_rxon_cmd(struct il_priv *il,
 			struct il_rxon_context *ctx);
-int il_full_rxon_required(struct il_priv *priv,
+int il_full_rxon_required(struct il_priv *il,
 			struct il_rxon_context *ctx);
-int il_set_rxon_channel(struct il_priv *priv,
+int il_set_rxon_channel(struct il_priv *il,
 			struct ieee80211_channel *ch,
 			struct il_rxon_context *ctx);
-void il_set_flags_for_band(struct il_priv *priv,
+void il_set_flags_for_band(struct il_priv *il,
 			    struct il_rxon_context *ctx,
 			    enum ieee80211_band band,
 			    struct ieee80211_vif *vif);
-u8 il_get_single_channel_number(struct il_priv *priv,
+u8 il_get_single_channel_number(struct il_priv *il,
 				  enum ieee80211_band band);
-void il_set_rxon_ht(struct il_priv *priv,
+void il_set_rxon_ht(struct il_priv *il,
 			struct il_ht_config *ht_conf);
-bool il_is_ht40_tx_allowed(struct il_priv *priv,
+bool il_is_ht40_tx_allowed(struct il_priv *il,
 			    struct il_rxon_context *ctx,
 			    struct ieee80211_sta_ht_cap *ht_cap);
-void il_connection_init_rx_config(struct il_priv *priv,
+void il_connection_init_rx_config(struct il_priv *il,
 				   struct il_rxon_context *ctx);
-void il_set_rate(struct il_priv *priv);
-int il_set_decrypted_flag(struct il_priv *priv,
+void il_set_rate(struct il_priv *il);
+int il_set_decrypted_flag(struct il_priv *il,
 			   struct ieee80211_hdr *hdr,
 			   u32 decrypt_res,
 			   struct ieee80211_rx_status *stats);
-void il_irq_handle_error(struct il_priv *priv);
+void il_irq_handle_error(struct il_priv *il);
 int il_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
 void il_mac_remove_interface(struct ieee80211_hw *hw,
@@ -326,42 +326,42 @@ void il_mac_remove_interface(struct ieee80211_hw *hw,
 int il_mac_change_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     enum nl80211_iftype newtype, bool newp2p);
-int il_alloc_txq_mem(struct il_priv *priv);
-void il_txq_mem(struct il_priv *priv);
+int il_alloc_txq_mem(struct il_priv *il);
+void il_txq_mem(struct il_priv *il);
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
-int il_alloc_traffic_mem(struct il_priv *priv);
-void il_free_traffic_mem(struct il_priv *priv);
-void il_reset_traffic_log(struct il_priv *priv);
-void il_dbg_log_tx_data_frame(struct il_priv *priv,
+int il_alloc_traffic_mem(struct il_priv *il);
+void il_free_traffic_mem(struct il_priv *il);
+void il_reset_traffic_log(struct il_priv *il);
+void il_dbg_log_tx_data_frame(struct il_priv *il,
 				u16 length, struct ieee80211_hdr *header);
-void il_dbg_log_rx_data_frame(struct il_priv *priv,
+void il_dbg_log_rx_data_frame(struct il_priv *il,
 				u16 length, struct ieee80211_hdr *header);
 const char *il_get_mgmt_string(int cmd);
 const char *il_get_ctrl_string(int cmd);
-void il_clear_traffic_stats(struct il_priv *priv);
-void il_update_stats(struct il_priv *priv, bool is_tx, __le16 fc,
+void il_clear_traffic_stats(struct il_priv *il);
+void il_update_stats(struct il_priv *il, bool is_tx, __le16 fc,
 		      u16 len);
 #else
-static inline int il_alloc_traffic_mem(struct il_priv *priv)
+static inline int il_alloc_traffic_mem(struct il_priv *il)
 {
 	return 0;
 }
-static inline void il_free_traffic_mem(struct il_priv *priv)
+static inline void il_free_traffic_mem(struct il_priv *il)
 {
 }
-static inline void il_reset_traffic_log(struct il_priv *priv)
+static inline void il_reset_traffic_log(struct il_priv *il)
 {
 }
-static inline void il_dbg_log_tx_data_frame(struct il_priv *priv,
+static inline void il_dbg_log_tx_data_frame(struct il_priv *il,
 		      u16 length, struct ieee80211_hdr *header)
 {
 }
-static inline void il_dbg_log_rx_data_frame(struct il_priv *priv,
+static inline void il_dbg_log_rx_data_frame(struct il_priv *il,
 		      u16 length, struct ieee80211_hdr *header)
 {
 }
-static inline void il_update_stats(struct il_priv *priv, bool is_tx,
+static inline void il_update_stats(struct il_priv *il, bool is_tx,
 				    __le16 fc, u16 len)
 {
 }
@@ -369,83 +369,83 @@ static inline void il_update_stats(struct il_priv *priv, bool is_tx,
 /*****************************************************
  * RX handlers.
  * **************************************************/
-void il_rx_pm_sleep_notif(struct il_priv *priv,
+void il_rx_pm_sleep_notif(struct il_priv *il,
 			   struct il_rx_mem_buffer *rxb);
-void il_rx_pm_debug_statistics_notif(struct il_priv *priv,
+void il_rx_pm_debug_statistics_notif(struct il_priv *il,
 				      struct il_rx_mem_buffer *rxb);
-void il_rx_reply_error(struct il_priv *priv,
+void il_rx_reply_error(struct il_priv *il,
 			struct il_rx_mem_buffer *rxb);
 
 /*****************************************************
 * RX
 ******************************************************/
-void il_cmd_queue_unmap(struct il_priv *priv);
-void il_cmd_queue_free(struct il_priv *priv);
-int il_rx_queue_alloc(struct il_priv *priv);
-void il_rx_queue_update_write_ptr(struct il_priv *priv,
+void il_cmd_queue_unmap(struct il_priv *il);
+void il_cmd_queue_free(struct il_priv *il);
+int il_rx_queue_alloc(struct il_priv *il);
+void il_rx_queue_update_write_ptr(struct il_priv *il,
 				  struct il_rx_queue *q);
 int il_rx_queue_space(const struct il_rx_queue *q);
-void il_tx_cmd_complete(struct il_priv *priv,
+void il_tx_cmd_complete(struct il_priv *il,
 				struct il_rx_mem_buffer *rxb);
 /* Handlers */
-void il_rx_spectrum_measure_notif(struct il_priv *priv,
+void il_rx_spectrum_measure_notif(struct il_priv *il,
 					  struct il_rx_mem_buffer *rxb);
-void il_recover_from_statistics(struct il_priv *priv,
+void il_recover_from_statistics(struct il_priv *il,
 				struct il_rx_packet *pkt);
-void il_chswitch_done(struct il_priv *priv, bool is_success);
-void il_rx_csa(struct il_priv *priv, struct il_rx_mem_buffer *rxb);
+void il_chswitch_done(struct il_priv *il, bool is_success);
+void il_rx_csa(struct il_priv *il, struct il_rx_mem_buffer *rxb);
 
 /* TX helpers */
 
 /*****************************************************
 * TX
 ******************************************************/
-void il_txq_update_write_ptr(struct il_priv *priv,
+void il_txq_update_write_ptr(struct il_priv *il,
 					struct il_tx_queue *txq);
-int il_tx_queue_init(struct il_priv *priv, struct il_tx_queue *txq,
+int il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq,
 		      int slots_num, u32 txq_id);
-void il_tx_queue_reset(struct il_priv *priv,
+void il_tx_queue_reset(struct il_priv *il,
 			struct il_tx_queue *txq,
 			int slots_num, u32 txq_id);
-void il_tx_queue_unmap(struct il_priv *priv, int txq_id);
-void il_tx_queue_free(struct il_priv *priv, int txq_id);
-void il_setup_watchdog(struct il_priv *priv);
+void il_tx_queue_unmap(struct il_priv *il, int txq_id);
+void il_tx_queue_free(struct il_priv *il, int txq_id);
+void il_setup_watchdog(struct il_priv *il);
 /*****************************************************
  * TX power
  ****************************************************/
-int il_set_tx_power(struct il_priv *priv, s8 tx_power, bool force);
+int il_set_tx_power(struct il_priv *il, s8 tx_power, bool force);
 
 /*******************************************************************************
  * Rate
  ******************************************************************************/
 
-u8 il_get_lowest_plcp(struct il_priv *priv,
+u8 il_get_lowest_plcp(struct il_priv *il,
 			    struct il_rxon_context *ctx);
 
 /*******************************************************************************
  * Scanning
  ******************************************************************************/
-void il_init_scan_params(struct il_priv *priv);
-int il_scan_cancel(struct il_priv *priv);
-int il_scan_cancel_timeout(struct il_priv *priv, unsigned long ms);
-void il_force_scan_end(struct il_priv *priv);
+void il_init_scan_params(struct il_priv *il);
+int il_scan_cancel(struct il_priv *il);
+int il_scan_cancel_timeout(struct il_priv *il, unsigned long ms);
+void il_force_scan_end(struct il_priv *il);
 int il_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
 		    struct cfg80211_scan_request *req);
-void il_internal_short_hw_scan(struct il_priv *priv);
-int il_force_reset(struct il_priv *priv, bool external);
-u16 il_fill_probe_req(struct il_priv *priv,
+void il_internal_short_hw_scan(struct il_priv *il);
+int il_force_reset(struct il_priv *il, bool external);
+u16 il_fill_probe_req(struct il_priv *il,
 			struct ieee80211_mgmt *frame,
 		       const u8 *ta, const u8 *ie, int ie_len, int left);
-void il_setup_rx_scan_handlers(struct il_priv *priv);
-u16 il_get_active_dwell_time(struct il_priv *priv,
+void il_setup_rx_scan_handlers(struct il_priv *il);
+u16 il_get_active_dwell_time(struct il_priv *il,
 			      enum ieee80211_band band,
 			      u8 n_probes);
-u16 il_get_passive_dwell_time(struct il_priv *priv,
+u16 il_get_passive_dwell_time(struct il_priv *il,
 			       enum ieee80211_band band,
 			       struct ieee80211_vif *vif);
-void il_setup_scan_deferred_work(struct il_priv *priv);
-void il_cancel_scan_deferred_work(struct il_priv *priv);
+void il_setup_scan_deferred_work(struct il_priv *il);
+void il_cancel_scan_deferred_work(struct il_priv *il);
 
 /* For faster active scanning, scan will move to the next channel if fewer than
  * PLCP_QUIET_THRESH packets are heard on this channel within
@@ -463,37 +463,37 @@ void il_cancel_scan_deferred_work(struct il_priv *priv);
  *****************************************************/
 
 const char *il_get_cmd_string(u8 cmd);
-int __must_check il_send_cmd_sync(struct il_priv *priv,
+int __must_check il_send_cmd_sync(struct il_priv *il,
 				   struct il_host_cmd *cmd);
-int il_send_cmd(struct il_priv *priv, struct il_host_cmd *cmd);
-int __must_check il_send_cmd_pdu(struct il_priv *priv, u8 id,
+int il_send_cmd(struct il_priv *il, struct il_host_cmd *cmd);
+int __must_check il_send_cmd_pdu(struct il_priv *il, u8 id,
 				  u16 len, const void *data);
-int il_send_cmd_pdu_async(struct il_priv *priv, u8 id, u16 len,
+int il_send_cmd_pdu_async(struct il_priv *il, u8 id, u16 len,
 			   const void *data,
-			   void (*callback)(struct il_priv *priv,
+			   void (*callback)(struct il_priv *il,
 					    struct il_device_cmd *cmd,
 					    struct il_rx_packet *pkt));
 
-int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd);
+int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd);
 
 
 /*****************************************************
  * PCI						     *
  *****************************************************/
 
-static inline u16 il_pcie_link_ctl(struct il_priv *priv)
+static inline u16 il_pcie_link_ctl(struct il_priv *il)
 {
 	int pos;
 	u16 pci_lnk_ctl;
-	pos = pci_pcie_cap(priv->pci_dev);
-	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
+	pos = pci_pcie_cap(il->pci_dev);
+	pci_read_config_word(il->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }
 
 void il_bg_watchdog(unsigned long data);
-u32 il_usecs_to_beacons(struct il_priv *priv,
+u32 il_usecs_to_beacons(struct il_priv *il,
 					u32 usec, u32 beacon_interval);
-__le32 il_add_beacon_time(struct il_priv *priv, u32 base,
+__le32 il_add_beacon_time(struct il_priv *il, u32 base,
 			   u32 addon, u32 beacon_interval);
 
 #ifdef CONFIG_PM
@@ -512,24 +512,24 @@ extern const struct dev_pm_ops il_pm_ops;
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/
-void il4965_dump_nic_error_log(struct il_priv *priv);
+void il4965_dump_nic_error_log(struct il_priv *il);
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-void il_print_rx_config_cmd(struct il_priv *priv,
+void il_print_rx_config_cmd(struct il_priv *il,
 			     struct il_rxon_context *ctx);
 #else
-static inline void il_print_rx_config_cmd(struct il_priv *priv,
+static inline void il_print_rx_config_cmd(struct il_priv *il,
 					   struct il_rxon_context *ctx)
 {
 }
 #endif
 
-void il_clear_isr_stats(struct il_priv *priv);
+void il_clear_isr_stats(struct il_priv *il);
 
 /*****************************************************
 *  GEOS
 ******************************************************/
-int il_init_geos(struct il_priv *priv);
-void il_free_geos(struct il_priv *priv);
+int il_init_geos(struct il_priv *il);
+void il_free_geos(struct il_priv *il);
 
 /*************** DRIVER STATUS FUNCTIONS   *****/
 
@@ -552,71 +552,71 @@ void il_free_geos(struct il_priv *priv);
 #define STATUS_FW_ERROR		17
 #define STATUS_CHANNEL_SWITCH_PENDING 18
 
-static inline int il_is_ready(struct il_priv *priv)
+static inline int il_is_ready(struct il_priv *il)
 {
 	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
 	 * set but EXIT_PENDING is not */
-	return test_bit(STATUS_READY, &priv->status) &&
-	       test_bit(STATUS_GEO_CONFIGURED, &priv->status) &&
-	       !test_bit(STATUS_EXIT_PENDING, &priv->status);
+	return test_bit(STATUS_READY, &il->status) &&
+	       test_bit(STATUS_GEO_CONFIGURED, &il->status) &&
+	       !test_bit(STATUS_EXIT_PENDING, &il->status);
 }
 
-static inline int il_is_alive(struct il_priv *priv)
+static inline int il_is_alive(struct il_priv *il)
 {
-	return test_bit(STATUS_ALIVE, &priv->status);
+	return test_bit(STATUS_ALIVE, &il->status);
 }
 
-static inline int il_is_init(struct il_priv *priv)
+static inline int il_is_init(struct il_priv *il)
 {
-	return test_bit(STATUS_INIT, &priv->status);
+	return test_bit(STATUS_INIT, &il->status);
 }
 
-static inline int il_is_rfkill_hw(struct il_priv *priv)
+static inline int il_is_rfkill_hw(struct il_priv *il)
 {
-	return test_bit(STATUS_RF_KILL_HW, &priv->status);
+	return test_bit(STATUS_RF_KILL_HW, &il->status);
 }
 
-static inline int il_is_rfkill(struct il_priv *priv)
+static inline int il_is_rfkill(struct il_priv *il)
 {
-	return il_is_rfkill_hw(priv);
+	return il_is_rfkill_hw(il);
 }
 
-static inline int il_is_ctkill(struct il_priv *priv)
+static inline int il_is_ctkill(struct il_priv *il)
 {
-	return test_bit(STATUS_CT_KILL, &priv->status);
+	return test_bit(STATUS_CT_KILL, &il->status);
 }
 
-static inline int il_is_ready_rf(struct il_priv *priv)
+static inline int il_is_ready_rf(struct il_priv *il)
 {
 
-	if (il_is_rfkill(priv))
+	if (il_is_rfkill(il))
 		return 0;
 
-	return il_is_ready(priv);
+	return il_is_ready(il);
 }
 
-extern void il_send_bt_config(struct il_priv *priv);
-extern int il_send_statistics_request(struct il_priv *priv,
+extern void il_send_bt_config(struct il_priv *il);
+extern int il_send_statistics_request(struct il_priv *il,
 				       u8 flags, bool clear);
-void il_apm_stop(struct il_priv *priv);
-int il_apm_init(struct il_priv *priv);
+void il_apm_stop(struct il_priv *il);
+int il_apm_init(struct il_priv *il);
 
-int il_send_rxon_timing(struct il_priv *priv,
+int il_send_rxon_timing(struct il_priv *il,
 				struct il_rxon_context *ctx);
-static inline int il_send_rxon_assoc(struct il_priv *priv,
+static inline int il_send_rxon_assoc(struct il_priv *il,
 				      struct il_rxon_context *ctx)
 {
-	return priv->cfg->ops->hcmd->rxon_assoc(priv, ctx);
+	return il->cfg->ops->hcmd->rxon_assoc(il, ctx);
 }
-static inline int il_commit_rxon(struct il_priv *priv,
+static inline int il_commit_rxon(struct il_priv *il,
 				      struct il_rxon_context *ctx)
 {
-	return priv->cfg->ops->hcmd->commit_rxon(priv, ctx);
+	return il->cfg->ops->hcmd->commit_rxon(il, ctx);
 }
 static inline const struct ieee80211_supported_band *il_get_hw_mode(
-			struct il_priv *priv, enum ieee80211_band band)
+			struct il_priv *il, enum ieee80211_band band)
 {
-	return priv->hw->wiphy->bands[band];
+	return il->hw->wiphy->bands[band];
 }
 
 /* mac80211 handlers */
@@ -627,7 +627,7 @@ void il_mac_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u32 changes);
-void il_tx_cmd_protection(struct il_priv *priv,
+void il_tx_cmd_protection(struct il_priv *il,
 				struct ieee80211_tx_info *info,
 				__le16 fc, __le32 *tx_flags);
 

@@ -325,20 +325,20 @@ struct il_eeprom_calib_info {
 
 struct il_eeprom_ops {
 	const u32 regulatory_bands[7];
-	int (*acquire_semaphore) (struct il_priv *priv);
-	void (*release_semaphore) (struct il_priv *priv);
+	int (*acquire_semaphore) (struct il_priv *il);
+	void (*release_semaphore) (struct il_priv *il);
 };
 
 
-int il_eeprom_init(struct il_priv *priv);
-void il_eeprom_free(struct il_priv *priv);
-const u8 *il_eeprom_query_addr(const struct il_priv *priv,
+int il_eeprom_init(struct il_priv *il);
+void il_eeprom_free(struct il_priv *il);
+const u8 *il_eeprom_query_addr(const struct il_priv *il,
 					size_t offset);
-u16 il_eeprom_query16(const struct il_priv *priv, size_t offset);
-int il_init_channel_map(struct il_priv *priv);
-void il_free_channel_map(struct il_priv *priv);
+u16 il_eeprom_query16(const struct il_priv *il, size_t offset);
+int il_init_channel_map(struct il_priv *il);
+void il_free_channel_map(struct il_priv *il);
 const struct il_channel_info *il_get_channel_info(
-		const struct il_priv *priv,
+		const struct il_priv *il,
 		enum ieee80211_band band, u16 channel);
 
 #endif  /* __il_eeprom_h__ */

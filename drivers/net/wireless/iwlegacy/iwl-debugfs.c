@@ -36,7 +36,7 @@
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	if (!debugfs_create_file(#name, mode, parent, priv,		\
+	if (!debugfs_create_file(#name, mode, parent, il,		\
 			 &il_dbgfs_##name##_ops))		\
 		goto err;						\
 } while (0)
@@ -106,7 +106,7 @@ static ssize_t il_dbgfs_tx_statistics_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char *buf;
 	int pos = 0;
 
@@ -122,20 +122,20 @@ static ssize_t il_dbgfs_tx_statistics_read(struct file *file,
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "\t%25s\t\t: %u\n",
 				 il_get_mgmt_string(cnt),
-				 priv->tx_stats.mgmt[cnt]);
+				 il->tx_stats.mgmt[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Control\n");
 	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "\t%25s\t\t: %u\n",
 				 il_get_ctrl_string(cnt),
-				 priv->tx_stats.ctrl[cnt]);
+				 il->tx_stats.ctrl[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
 	pos += scnprintf(buf + pos, bufsz - pos, "\tcnt: %u\n",
-			 priv->tx_stats.data_cnt);
+			 il->tx_stats.data_cnt);
 	pos += scnprintf(buf + pos, bufsz - pos, "\tbytes: %llu\n",
-			 priv->tx_stats.data_bytes);
+			 il->tx_stats.data_bytes);
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
 	return ret;
@@ -146,7 +146,7 @@ il_dbgfs_clear_traffic_statistics_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	u32 clear_flag;
 	char buf[8];
 	int buf_size;
@@ -157,7 +157,7 @@ il_dbgfs_clear_traffic_statistics_write(struct file *file,
 		return -EFAULT;
 	if (sscanf(buf, "%x", &clear_flag) != 1)
 		return -EFAULT;
-	il_clear_traffic_stats(priv);
+	il_clear_traffic_stats(il);
 
 	return count;
 }
@@ -166,7 +166,7 @@ static ssize_t il_dbgfs_rx_statistics_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char *buf;
 	int pos = 0;
 	int cnt;
@@ -182,20 +182,20 @@ static ssize_t il_dbgfs_rx_statistics_read(struct file *file,
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "\t%25s\t\t: %u\n",
 				 il_get_mgmt_string(cnt),
-				 priv->rx_stats.mgmt[cnt]);
+				 il->rx_stats.mgmt[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Control:\n");
 	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "\t%25s\t\t: %u\n",
 				 il_get_ctrl_string(cnt),
-				 priv->rx_stats.ctrl[cnt]);
+				 il->rx_stats.ctrl[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
 	pos += scnprintf(buf + pos, bufsz - pos, "\tcnt: %u\n",
-			 priv->rx_stats.data_cnt);
+			 il->rx_stats.data_cnt);
 	pos += scnprintf(buf + pos, bufsz - pos, "\tbytes: %llu\n",
-			 priv->rx_stats.data_bytes);
+			 il->rx_stats.data_bytes);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
@@ -214,28 +214,28 @@ static ssize_t il_dbgfs_sram_read(struct file *file,
 	ssize_t ret;
 	int i;
 	int pos = 0;
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	size_t bufsz;
 
 	/* default is to dump the entire data segment */
-	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
-		priv->dbgfs_sram_offset = 0x800000;
-		if (priv->ucode_type == UCODE_INIT)
-			priv->dbgfs_sram_len = priv->ucode_init_data.len;
+	if (!il->dbgfs_sram_offset && !il->dbgfs_sram_len) {
+		il->dbgfs_sram_offset = 0x800000;
+		if (il->ucode_type == UCODE_INIT)
+			il->dbgfs_sram_len = il->ucode_init_data.len;
 		else
-			priv->dbgfs_sram_len = priv->ucode_data.len;
+			il->dbgfs_sram_len = il->ucode_data.len;
 	}
-	bufsz =  30 + priv->dbgfs_sram_len * sizeof(char) * 10;
+	bufsz =  30 + il->dbgfs_sram_len * sizeof(char) * 10;
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 	pos += scnprintf(buf + pos, bufsz - pos, "sram_len: 0x%x\n",
-			priv->dbgfs_sram_len);
+			il->dbgfs_sram_len);
 	pos += scnprintf(buf + pos, bufsz - pos, "sram_offset: 0x%x\n",
-			priv->dbgfs_sram_offset);
-	for (i = priv->dbgfs_sram_len; i > 0; i -= 4) {
-		val = il_read_targ_mem(priv, priv->dbgfs_sram_offset + \
-					priv->dbgfs_sram_len - i);
+			il->dbgfs_sram_offset);
+	for (i = il->dbgfs_sram_len; i > 0; i -= 4) {
+		val = il_read_targ_mem(il, il->dbgfs_sram_offset + \
+					il->dbgfs_sram_len - i);
 		if (i < 4) {
 			switch (i) {
 			case 1:
@@ -264,7 +264,7 @@ static ssize_t il_dbgfs_sram_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[64];
 	int buf_size;
 	u32 offset, len;
@@ -275,11 +275,11 @@ static ssize_t il_dbgfs_sram_write(struct file *file,
 		return -EFAULT;
 
 	if (sscanf(buf, "%x,%x", &offset, &len) == 2) {
-		priv->dbgfs_sram_offset = offset;
-		priv->dbgfs_sram_len = len;
+		il->dbgfs_sram_offset = offset;
+		il->dbgfs_sram_len = len;
 	} else {
-		priv->dbgfs_sram_offset = 0;
-		priv->dbgfs_sram_len = 0;
+		il->dbgfs_sram_offset = 0;
+		il->dbgfs_sram_len = 0;
 	}
 
 	return count;
@@ -289,24 +289,24 @@ static ssize_t
 il_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	struct il_station_entry *station;
-	int max_sta = priv->hw_params.max_stations;
+	int max_sta = il->hw_params.max_stations;
 	char *buf;
 	int i, j, pos = 0;
 	ssize_t ret;
 	/* Add 30 for initial string */
-	const size_t bufsz = 30 + sizeof(char) * 500 * (priv->num_stations);
+	const size_t bufsz = 30 + sizeof(char) * 500 * (il->num_stations);
 
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "num of stations: %d\n\n",
-			priv->num_stations);
+			il->num_stations);
 
 	for (i = 0; i < max_sta; i++) {
-		station = &priv->stations[i];
+		station = &il->stations[i];
 		if (!station->used)
 			continue;
 		pos += scnprintf(buf + pos, bufsz - pos,
@@ -349,32 +349,32 @@ static ssize_t il_dbgfs_nvm_read(struct file *file,
 				       loff_t *ppos)
 {
 	ssize_t ret;
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0, ofs = 0, buf_size = 0;
 	const u8 *ptr;
 	char *buf;
 	u16 eeprom_ver;
-	size_t eeprom_len = priv->cfg->base_params->eeprom_size;
+	size_t eeprom_len = il->cfg->base_params->eeprom_size;
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IL_ERR(priv, "NVM size is not multiple of 16.\n");
+		IL_ERR(il, "NVM size is not multiple of 16.\n");
 		return -ENODATA;
 	}
 
-	ptr = priv->eeprom;
+	ptr = il->eeprom;
 	if (!ptr) {
-		IL_ERR(priv, "Invalid EEPROM memory\n");
+		IL_ERR(il, "Invalid EEPROM memory\n");
 		return -ENOMEM;
 	}
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(il, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
-	eeprom_ver = il_eeprom_query16(priv, EEPROM_VERSION);
+	eeprom_ver = il_eeprom_query16(il, EEPROM_VERSION);
 	pos += scnprintf(buf + pos, buf_size - pos, "EEPROM "
 			"version: 0x%x\n", eeprom_ver);
 	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
@@ -395,23 +395,23 @@ static ssize_t
 il_dbgfs_channels_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	struct ieee80211_channel *channels = NULL;
 	const struct ieee80211_supported_band *supp_band = NULL;
 	int pos = 0, i, bufsz = PAGE_SIZE;
 	char *buf;
 	ssize_t ret;
 
-	if (!test_bit(STATUS_GEO_CONFIGURED, &priv->status))
+	if (!test_bit(STATUS_GEO_CONFIGURED, &il->status))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(il, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
-	supp_band = il_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
+	supp_band = il_get_hw_mode(il, IEEE80211_BAND_2GHZ);
 	if (supp_band) {
 		channels = supp_band->channels;
 
@@ -434,7 +434,7 @@ il_dbgfs_channels_read(struct file *file, char __user *user_buf,
 				IEEE80211_CHAN_PASSIVE_SCAN ?
 				"passive only" : "active/passive");
 	}
-	supp_band = il_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
+	supp_band = il_get_hw_mode(il, IEEE80211_BAND_5GHZ);
 	if (supp_band) {
 		channels = supp_band->channels;
 
@@ -466,43 +466,43 @@ static ssize_t il_dbgfs_status_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[512];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_HCMD_ACTIVE:\t %d\n",
-		test_bit(STATUS_HCMD_ACTIVE, &priv->status));
+		test_bit(STATUS_HCMD_ACTIVE, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_INT_ENABLED:\t %d\n",
-		test_bit(STATUS_INT_ENABLED, &priv->status));
+		test_bit(STATUS_INT_ENABLED, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_RF_KILL_HW:\t %d\n",
-		test_bit(STATUS_RF_KILL_HW, &priv->status));
+		test_bit(STATUS_RF_KILL_HW, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_CT_KILL:\t\t %d\n",
-		test_bit(STATUS_CT_KILL, &priv->status));
+		test_bit(STATUS_CT_KILL, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_INIT:\t\t %d\n",
-		test_bit(STATUS_INIT, &priv->status));
+		test_bit(STATUS_INIT, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_ALIVE:\t\t %d\n",
-		test_bit(STATUS_ALIVE, &priv->status));
+		test_bit(STATUS_ALIVE, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_READY:\t\t %d\n",
-		test_bit(STATUS_READY, &priv->status));
+		test_bit(STATUS_READY, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_TEMPERATURE:\t %d\n",
-		test_bit(STATUS_TEMPERATURE, &priv->status));
+		test_bit(STATUS_TEMPERATURE, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_GEO_CONFIGURED:\t %d\n",
-		test_bit(STATUS_GEO_CONFIGURED, &priv->status));
+		test_bit(STATUS_GEO_CONFIGURED, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_EXIT_PENDING:\t %d\n",
-		test_bit(STATUS_EXIT_PENDING, &priv->status));
+		test_bit(STATUS_EXIT_PENDING, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_STATISTICS:\t %d\n",
-		test_bit(STATUS_STATISTICS, &priv->status));
+		test_bit(STATUS_STATISTICS, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCANNING:\t %d\n",
-		test_bit(STATUS_SCANNING, &priv->status));
+		test_bit(STATUS_SCANNING, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCAN_ABORTING:\t %d\n",
-		test_bit(STATUS_SCAN_ABORTING, &priv->status));
+		test_bit(STATUS_SCAN_ABORTING, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCAN_HW:\t\t %d\n",
-		test_bit(STATUS_SCAN_HW, &priv->status));
+		test_bit(STATUS_SCAN_HW, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_POWER_PMI:\t %d\n",
-		test_bit(STATUS_POWER_PMI, &priv->status));
+		test_bit(STATUS_POWER_PMI, &il->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_FW_ERROR:\t %d\n",
-		test_bit(STATUS_FW_ERROR, &priv->status));
+		test_bit(STATUS_FW_ERROR, &il->status));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
@@ -510,7 +510,7 @@ static ssize_t il_dbgfs_interrupt_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
@@ -519,7 +519,7 @@ static ssize_t il_dbgfs_interrupt_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(il, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -527,46 +527,46 @@ static ssize_t il_dbgfs_interrupt_read(struct file *file,
 			"Interrupt Statistics Report:\n");
 
 	pos += scnprintf(buf + pos, bufsz - pos, "HW Error:\t\t\t %u\n",
-		priv->isr_stats.hw);
+		il->isr_stats.hw);
 	pos += scnprintf(buf + pos, bufsz - pos, "SW Error:\t\t\t %u\n",
-		priv->isr_stats.sw);
-	if (priv->isr_stats.sw || priv->isr_stats.hw) {
+		il->isr_stats.sw);
+	if (il->isr_stats.sw || il->isr_stats.hw) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"\tLast Restarting Code:  0x%X\n",
-			priv->isr_stats.err_code);
+			il->isr_stats.err_code);
 	}
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	pos += scnprintf(buf + pos, bufsz - pos, "Frame transmitted:\t\t %u\n",
-		priv->isr_stats.sch);
+		il->isr_stats.sch);
 	pos += scnprintf(buf + pos, bufsz - pos, "Alive interrupt:\t\t %u\n",
-		priv->isr_stats.alive);
+		il->isr_stats.alive);
 #endif
 	pos += scnprintf(buf + pos, bufsz - pos,
 		"HW RF KILL switch toggled:\t %u\n",
-		priv->isr_stats.rfkill);
+		il->isr_stats.rfkill);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "CT KILL:\t\t\t %u\n",
-		priv->isr_stats.ctkill);
+		il->isr_stats.ctkill);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Wakeup Interrupt:\t\t %u\n",
-		priv->isr_stats.wakeup);
+		il->isr_stats.wakeup);
 
 	pos += scnprintf(buf + pos, bufsz - pos,
 		"Rx command responses:\t\t %u\n",
-		priv->isr_stats.rx);
+		il->isr_stats.rx);
 	for (cnt = 0; cnt < REPLY_MAX; cnt++) {
-		if (priv->isr_stats.rx_handlers[cnt] > 0)
+		if (il->isr_stats.rx_handlers[cnt] > 0)
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"\tRx handler[%36s]:\t\t %u\n",
 				il_get_cmd_string(cnt),
-				priv->isr_stats.rx_handlers[cnt]);
+				il->isr_stats.rx_handlers[cnt]);
 	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Tx/FH interrupt:\t\t %u\n",
-		priv->isr_stats.tx);
+		il->isr_stats.tx);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Unexpected INTA:\t\t %u\n",
-		priv->isr_stats.unhandled);
+		il->isr_stats.unhandled);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
@@ -577,7 +577,7 @@ static ssize_t il_dbgfs_interrupt_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[8];
 	int buf_size;
 	u32 reset_flag;
@@ -589,7 +589,7 @@ static ssize_t il_dbgfs_interrupt_write(struct file *file,
 	if (sscanf(buf, "%x", &reset_flag) != 1)
 		return -EFAULT;
 	if (reset_flag == 0)
-		il_clear_isr_stats(priv);
+		il_clear_isr_stats(il);
 
 	return count;
 }
@@ -598,13 +598,13 @@ static ssize_t
 il_dbgfs_qos_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	struct il_rxon_context *ctx;
 	int pos = 0, i;
 	char buf[256 * NUM_IL_RXON_CTX];
 	const size_t bufsz = sizeof(buf);
 
-	for_each_context(priv, ctx) {
+	for_each_context(il, ctx) {
 		pos += scnprintf(buf + pos, bufsz - pos, "context %d:\n",
 				 ctx->ctxid);
 		for (i = 0; i < AC_NUM; i++) {
@@ -626,7 +626,7 @@ static ssize_t il_dbgfs_disable_ht40_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[8];
 	int buf_size;
 	int ht40;
@@ -637,10 +637,10 @@ static ssize_t il_dbgfs_disable_ht40_write(struct file *file,
 		return -EFAULT;
 	if (sscanf(buf, "%d", &ht40) != 1)
 		return -EFAULT;
-	if (!il_is_any_associated(priv))
-		priv->disable_ht40 = ht40 ? true : false;
+	if (!il_is_any_associated(il))
+		il->disable_ht40 = ht40 ? true : false;
 	else {
-		IL_ERR(priv, "Sta associated with AP - "
+		IL_ERR(il, "Sta associated with AP - "
 			"Change to 40MHz channel support is not allowed\n");
 		return -EINVAL;
 	}
@@ -652,14 +652,14 @@ static ssize_t il_dbgfs_disable_ht40_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[100];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
 
 	pos += scnprintf(buf + pos, bufsz - pos,
 			"11n 40MHz Mode: %s\n",
-			priv->disable_ht40 ? "Disabled" : "Enabled");
+			il->disable_ht40 ? "Disabled" : "Enabled");
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
@@ -676,39 +676,39 @@ static ssize_t il_dbgfs_traffic_log_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0, ofs = 0;
 	int cnt = 0, entry;
 	struct il_tx_queue *txq;
 	struct il_queue *q;
-	struct il_rx_queue *rxq = &priv->rxq;
+	struct il_rx_queue *rxq = &il->rxq;
 	char *buf;
 	int bufsz = ((IL_TRAFFIC_ENTRIES * IL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-		(priv->cfg->base_params->num_of_queues * 32 * 8) + 400;
+		(il->cfg->base_params->num_of_queues * 32 * 8) + 400;
 	const u8 *ptr;
 	ssize_t ret;
 
-	if (!priv->txq) {
-		IL_ERR(priv, "txq not ready\n");
+	if (!il->txq) {
+		IL_ERR(il, "txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate buffer\n");
+		IL_ERR(il, "Can not allocate buffer\n");
 		return -ENOMEM;
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
-	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
-		txq = &priv->txq[cnt];
+	for (cnt = 0; cnt < il->hw_params.max_txq_num; cnt++) {
+		txq = &il->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"q[%d]: read_ptr: %u, write_ptr: %u\n",
 				cnt, q->read_ptr, q->write_ptr);
 	}
-	if (priv->tx_traffic && (iwlegacy_debug_level & IL_DL_TX)) {
-		ptr = priv->tx_traffic;
+	if (il->tx_traffic && (iwlegacy_debug_level & IL_DL_TX)) {
+		ptr = il->tx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"Tx Traffic idx: %u\n",	priv->tx_traffic_idx);
+				"Tx Traffic idx: %u\n",	il->tx_traffic_idx);
 		for (cnt = 0, ofs = 0; cnt < IL_TRAFFIC_ENTRIES; cnt++) {
 			for (entry = 0; entry < IL_TRAFFIC_ENTRY_SIZE / 16;
 			     entry++,  ofs += 16) {
@@ -728,10 +728,10 @@ static ssize_t il_dbgfs_traffic_log_read(struct file *file,
 			"read: %u, write: %u\n",
 			 rxq->read, rxq->write);
 
-	if (priv->rx_traffic && (iwlegacy_debug_level & IL_DL_RX)) {
-		ptr = priv->rx_traffic;
+	if (il->rx_traffic && (iwlegacy_debug_level & IL_DL_RX)) {
+		ptr = il->rx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"Rx Traffic idx: %u\n",	priv->rx_traffic_idx);
+				"Rx Traffic idx: %u\n",	il->rx_traffic_idx);
 		for (cnt = 0, ofs = 0; cnt < IL_TRAFFIC_ENTRIES; cnt++) {
 			for (entry = 0; entry < IL_TRAFFIC_ENTRY_SIZE / 16;
 			     entry++,  ofs += 16) {
@@ -755,7 +755,7 @@ static ssize_t il_dbgfs_traffic_log_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[8];
 	int buf_size;
 	int traffic_log;
@@ -767,7 +767,7 @@ static ssize_t il_dbgfs_traffic_log_write(struct file *file,
 	if (sscanf(buf, "%d", &traffic_log) != 1)
 		return -EFAULT;
 	if (traffic_log == 0)
-		il_reset_traffic_log(priv);
+		il_reset_traffic_log(il);
 
 	return count;
 }
@@ -776,7 +776,7 @@ static ssize_t il_dbgfs_tx_queue_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	struct il_tx_queue *txq;
 	struct il_queue *q;
 	char *buf;
@@ -784,24 +784,24 @@ static ssize_t il_dbgfs_tx_queue_read(struct file *file,
 	int cnt;
 	int ret;
 	const size_t bufsz = sizeof(char) * 64 *
-				priv->cfg->base_params->num_of_queues;
+				il->cfg->base_params->num_of_queues;
 
-	if (!priv->txq) {
-		IL_ERR(priv, "txq not ready\n");
+	if (!il->txq) {
+		IL_ERR(il, "txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
-		txq = &priv->txq[cnt];
+	for (cnt = 0; cnt < il->hw_params.max_txq_num; cnt++) {
+		txq = &il->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"hwq %.2d: read=%u write=%u stop=%d"
 				" swq_id=%#.2x (ac %d/hwq %d)\n",
 				cnt, q->read_ptr, q->write_ptr,
-				!!test_bit(cnt, priv->queue_stopped),
+				!!test_bit(cnt, il->queue_stopped),
 				txq->swq_id, txq->swq_id & 3,
 				(txq->swq_id >> 2) & 0x1f);
 		if (cnt >= 4)
@@ -809,7 +809,7 @@ static ssize_t il_dbgfs_tx_queue_read(struct file *file,
 		/* for the ACs, display the stop count too */
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"        stop-count: %d\n",
-				atomic_read(&priv->queue_stop_count[cnt]));
+				atomic_read(&il->queue_stop_count[cnt]));
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
@@ -820,8 +820,8 @@ static ssize_t il_dbgfs_rx_queue_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
-	struct il_rx_queue *rxq = &priv->rxq;
+	struct il_priv *il = file->private_data;
+	struct il_rx_queue *rxq = &il->rxq;
 	char buf[256];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
@@ -846,8 +846,8 @@ static ssize_t il_dbgfs_ucode_rx_stats_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
-	return priv->cfg->ops->lib->debugfs_ops.rx_stats_read(file,
+	struct il_priv *il = file->private_data;
+	return il->cfg->ops->lib->debugfs_ops.rx_stats_read(file,
 			user_buf, count, ppos);
 }
 
@@ -855,8 +855,8 @@ static ssize_t il_dbgfs_ucode_tx_stats_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
-	return priv->cfg->ops->lib->debugfs_ops.tx_stats_read(file,
+	struct il_priv *il = file->private_data;
+	return il->cfg->ops->lib->debugfs_ops.tx_stats_read(file,
 			user_buf, count, ppos);
 }
 
@@ -864,8 +864,8 @@ static ssize_t il_dbgfs_ucode_general_stats_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
-	return priv->cfg->ops->lib->debugfs_ops.general_stats_read(file,
+	struct il_priv *il = file->private_data;
+	return il->cfg->ops->lib->debugfs_ops.general_stats_read(file,
 			user_buf, count, ppos);
 }
 
@@ -873,7 +873,7 @@ static ssize_t il_dbgfs_sensitivity_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
@@ -881,10 +881,10 @@ static ssize_t il_dbgfs_sensitivity_read(struct file *file,
 	ssize_t ret;
 	struct il_sensitivity_data *data;
 
-	data = &priv->sensitivity_data;
+	data = &il->sensitivity_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(il, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -954,7 +954,7 @@ static ssize_t il_dbgfs_chain_noise_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
@@ -962,10 +962,10 @@ static ssize_t il_dbgfs_chain_noise_read(struct file *file,
 	ssize_t ret;
 	struct il_chain_noise_data *data;
 
-	data = &priv->chain_noise_data;
+	data = &il->chain_noise_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(il, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -1012,13 +1012,13 @@ static ssize_t il_dbgfs_power_save_status_read(struct file *file,
 						    char __user *user_buf,
 						    size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[60];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
 	u32 pwrsave_status;
 
-	pwrsave_status = il_read32(priv, CSR_GP_CNTRL) &
+	pwrsave_status = il_read32(il, CSR_GP_CNTRL) &
 			CSR_GP_REG_POWER_SAVE_STATUS_MSK;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");
@@ -1035,7 +1035,7 @@ static ssize_t il_dbgfs_clear_ucode_statistics_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[8];
 	int buf_size;
 	int clear;
@@ -1048,9 +1048,9 @@ static ssize_t il_dbgfs_clear_ucode_statistics_write(struct file *file,
 		return -EFAULT;
 
 	/* make request to uCode to retrieve statistics information */
-	mutex_lock(&priv->mutex);
-	il_send_statistics_request(priv, CMD_SYNC, true);
-	mutex_unlock(&priv->mutex);
+	mutex_lock(&il->mutex);
+	il_send_statistics_request(il, CMD_SYNC, true);
+	mutex_unlock(&il->mutex);
 
 	return count;
 }
@@ -1059,12 +1059,12 @@ static ssize_t il_dbgfs_rxon_flags_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int len = 0;
 	char buf[20];
 
 	len = sprintf(buf, "0x%04X\n",
-		le32_to_cpu(priv->contexts[IL_RXON_CTX_BSS].active.flags));
+		le32_to_cpu(il->contexts[IL_RXON_CTX_BSS].active.flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -1072,12 +1072,12 @@ static ssize_t il_dbgfs_rxon_filter_flags_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int len = 0;
 	char buf[20];
 
 	len = sprintf(buf, "0x%04X\n",
-	le32_to_cpu(priv->contexts[IL_RXON_CTX_BSS].active.filter_flags));
+	le32_to_cpu(il->contexts[IL_RXON_CTX_BSS].active.filter_flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -1085,13 +1085,13 @@ static ssize_t il_dbgfs_fh_reg_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char *buf;
 	int pos = 0;
 	ssize_t ret = -EFAULT;
 
-	if (priv->cfg->ops->lib->dump_fh) {
-		ret = pos = priv->cfg->ops->lib->dump_fh(priv, &buf, true);
+	if (il->cfg->ops->lib->dump_fh) {
+		ret = pos = il->cfg->ops->lib->dump_fh(il, &buf, true);
 		if (buf) {
 			ret = simple_read_from_buffer(user_buf,
 						      count, ppos, buf, pos);
@@ -1106,13 +1106,13 @@ static ssize_t il_dbgfs_missed_beacon_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0;
 	char buf[12];
 	const size_t bufsz = sizeof(buf);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "%d\n",
-			priv->missed_beacon_threshold);
+			il->missed_beacon_threshold);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1121,7 +1121,7 @@ static ssize_t il_dbgfs_missed_beacon_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[8];
 	int buf_size;
 	int missed;
@@ -1135,10 +1135,10 @@ static ssize_t il_dbgfs_missed_beacon_write(struct file *file,
 
 	if (missed < IL_MISSED_BEACON_THRESHOLD_MIN ||
 	    missed > IL_MISSED_BEACON_THRESHOLD_MAX)
-		priv->missed_beacon_threshold =
+		il->missed_beacon_threshold =
 			IL_MISSED_BEACON_THRESHOLD_DEF;
 	else
-		priv->missed_beacon_threshold = missed;
+		il->missed_beacon_threshold = missed;
 
 	return count;
 }
@@ -1147,13 +1147,13 @@ static ssize_t il_dbgfs_force_reset_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0;
 	char buf[300];
 	const size_t bufsz = sizeof(buf);
 	struct il_force_reset *force_reset;
 
-	force_reset = &priv->force_reset;
+	force_reset = &il->force_reset;
 
 	pos += scnprintf(buf + pos, bufsz - pos,
 			"\tnumber of reset request: %d\n",
@@ -1176,9 +1176,9 @@ static ssize_t il_dbgfs_force_reset_write(struct file *file,
 					size_t count, loff_t *ppos) {
 
 	int ret;
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 
-	ret = il_force_reset(priv, true);
+	ret = il_force_reset(il, true);
 
 	return ret ? ret : count;
 }
@@ -1187,7 +1187,7 @@ static ssize_t il_dbgfs_wd_timeout_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	char buf[8];
 	int buf_size;
 	int timeout;
@@ -1201,8 +1201,8 @@ static ssize_t il_dbgfs_wd_timeout_write(struct file *file,
 	if (timeout < 0 || timeout > IL_MAX_WD_TIMEOUT)
 		timeout = IL_DEF_WD_TIMEOUT;
 
-	priv->cfg->base_params->wd_timeout = timeout;
-	il_setup_watchdog(priv);
+	il->cfg->base_params->wd_timeout = timeout;
+	il_setup_watchdog(il);
 	return count;
 }
 
@@ -1230,16 +1230,16 @@ DEBUGFS_WRITE_FILE_OPS(wd_timeout);
  * Create the debugfs files and directories
  *
  */
-int il_dbgfs_register(struct il_priv *priv, const char *name)
+int il_dbgfs_register(struct il_priv *il, const char *name)
 {
-	struct dentry *phyd = priv->hw->wiphy->debugfsdir;
+	struct dentry *phyd = il->hw->wiphy->debugfsdir;
 	struct dentry *dir_drv, *dir_data, *dir_rf, *dir_debug;
 
 	dir_drv = debugfs_create_dir(name, phyd);
 	if (!dir_drv)
 		return -ENOMEM;
 
-	priv->debugfs_dir = dir_drv;
+	il->debugfs_dir = dir_drv;
 
 	dir_data = debugfs_create_dir("data", dir_drv);
 	if (!dir_data)
@@ -1274,26 +1274,26 @@ int il_dbgfs_register(struct il_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, S_IRUSR);
 
-	if (priv->cfg->base_params->sensitivity_calib_by_driver)
+	if (il->cfg->base_params->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
-	if (priv->cfg->base_params->chain_noise_calib_by_driver)
+	if (il->cfg->base_params->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);
-	if (priv->cfg->base_params->sensitivity_calib_by_driver)
+	if (il->cfg->base_params->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
-				 &priv->disable_sens_cal);
-	if (priv->cfg->base_params->chain_noise_calib_by_driver)
+				 &il->disable_sens_cal);
+	if (il->cfg->base_params->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
-				 &priv->disable_chain_noise_cal);
+				 &il->disable_chain_noise_cal);
 	DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf,
-				&priv->disable_tx_power_cal);
+				&il->disable_tx_power_cal);
 	return 0;
 
 err:
-	IL_ERR(priv, "Can't create the debugfs directory\n");
-	il_dbgfs_unregister(priv);
+	IL_ERR(il, "Can't create the debugfs directory\n");
+	il_dbgfs_unregister(il);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(il_dbgfs_register);
@@ -1302,12 +1302,12 @@ EXPORT_SYMBOL(il_dbgfs_register);
  * Remove the debugfs files and directories
  *
  */
-void il_dbgfs_unregister(struct il_priv *priv)
+void il_dbgfs_unregister(struct il_priv *il)
 {
-	if (!priv->debugfs_dir)
+	if (!il->debugfs_dir)
 		return;
 
-	debugfs_remove_recursive(priv->debugfs_dir);
-	priv->debugfs_dir = NULL;
+	debugfs_remove_recursive(il->debugfs_dir);
+	il->debugfs_dir = NULL;
 }
 EXPORT_SYMBOL(il_dbgfs_unregister);

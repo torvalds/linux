@@ -90,12 +90,12 @@ EXPORT_SYMBOL(il_get_cmd_string);
 
 #define HOST_COMPLETE_TIMEOUT (HZ / 2)
 
-static void il_generic_cmd_callback(struct il_priv *priv,
+static void il_generic_cmd_callback(struct il_priv *il,
 				     struct il_device_cmd *cmd,
 				     struct il_rx_packet *pkt)
 {
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR(priv, "Bad return from %s (0x%08X)\n",
+		IL_ERR(il, "Bad return from %s (0x%08X)\n",
 		il_get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		return;
 	}
@@ -104,18 +104,18 @@ static void il_generic_cmd_callback(struct il_priv *priv,
 	switch (cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IL_DEBUG_HC_DUMP(priv, "back from %s (0x%08X)\n",
+		IL_DEBUG_HC_DUMP(il, "back from %s (0x%08X)\n",
 		il_get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		break;
 	default:
-		IL_DEBUG_HC(priv, "back from %s (0x%08X)\n",
+		IL_DEBUG_HC(il, "back from %s (0x%08X)\n",
 		il_get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 	}
 #endif
 }
 
 static int
-il_send_cmd_async(struct il_priv *priv, struct il_host_cmd *cmd)
+il_send_cmd_async(struct il_priv *il, struct il_host_cmd *cmd)
 {
 	int ret;
 
@@ -128,57 +128,57 @@ il_send_cmd_async(struct il_priv *priv, struct il_host_cmd *cmd)
 	if (!cmd->callback)
 		cmd->callback = il_generic_cmd_callback;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &il->status))
 		return -EBUSY;
 
-	ret = il_enqueue_hcmd(priv, cmd);
+	ret = il_enqueue_hcmd(il, cmd);
 	if (ret < 0) {
-		IL_ERR(priv, "Error sending %s: enqueue_hcmd failed: %d\n",
+		IL_ERR(il, "Error sending %s: enqueue_hcmd failed: %d\n",
 			  il_get_cmd_string(cmd->id), ret);
 		return ret;
 	}
 	return 0;
 }
 
-int il_send_cmd_sync(struct il_priv *priv, struct il_host_cmd *cmd)
+int il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 {
 	int cmd_idx;
 	int ret;
 
-	lockdep_assert_held(&priv->mutex);
+	lockdep_assert_held(&il->mutex);
 
 	BUG_ON(cmd->flags & CMD_ASYNC);
 
 	 /* A synchronous command can not have a callback set. */
 	BUG_ON(cmd->callback);
 
-	IL_DEBUG_INFO(priv, "Attempting to send sync command %s\n",
+	IL_DEBUG_INFO(il, "Attempting to send sync command %s\n",
 			il_get_cmd_string(cmd->id));
 
-	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
-	IL_DEBUG_INFO(priv, "Setting HCMD_ACTIVE for command %s\n",
+	set_bit(STATUS_HCMD_ACTIVE, &il->status);
+	IL_DEBUG_INFO(il, "Setting HCMD_ACTIVE for command %s\n",
 			il_get_cmd_string(cmd->id));
 
-	cmd_idx = il_enqueue_hcmd(priv, cmd);
+	cmd_idx = il_enqueue_hcmd(il, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
-		IL_ERR(priv, "Error sending %s: enqueue_hcmd failed: %d\n",
+		IL_ERR(il, "Error sending %s: enqueue_hcmd failed: %d\n",
 			  il_get_cmd_string(cmd->id), ret);
 		goto out;
 	}
 
-	ret = wait_event_timeout(priv->wait_command_queue,
-			!test_bit(STATUS_HCMD_ACTIVE, &priv->status),
+	ret = wait_event_timeout(il->wait_command_queue,
+			!test_bit(STATUS_HCMD_ACTIVE, &il->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
-		if (test_bit(STATUS_HCMD_ACTIVE, &priv->status)) {
-			IL_ERR(priv,
+		if (test_bit(STATUS_HCMD_ACTIVE, &il->status)) {
+			IL_ERR(il,
 				"Error sending %s: time out after %dms.\n",
 				il_get_cmd_string(cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
-			clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
-			IL_DEBUG_INFO(priv,
+			clear_bit(STATUS_HCMD_ACTIVE, &il->status);
+			IL_DEBUG_INFO(il,
 				"Clearing HCMD_ACTIVE for command %s\n",
 				       il_get_cmd_string(cmd->id));
 			ret = -ETIMEDOUT;
@@ -186,20 +186,20 @@ int il_send_cmd_sync(struct il_priv *priv, struct il_host_cmd *cmd)
 		}
 	}
 
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
-		IL_ERR(priv, "Command %s aborted: RF KILL Switch\n",
+	if (test_bit(STATUS_RF_KILL_HW, &il->status)) {
+		IL_ERR(il, "Command %s aborted: RF KILL Switch\n",
 			       il_get_cmd_string(cmd->id));
 		ret = -ECANCELED;
 		goto fail;
 	}
-	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
-		IL_ERR(priv, "Command %s failed: FW Error\n",
+	if (test_bit(STATUS_FW_ERROR, &il->status)) {
+		IL_ERR(il, "Command %s failed: FW Error\n",
 			       il_get_cmd_string(cmd->id));
 		ret = -EIO;
 		goto fail;
 	}
 	if ((cmd->flags & CMD_WANT_SKB) && !cmd->reply_page) {
-		IL_ERR(priv, "Error: Response NULL in '%s'\n",
+		IL_ERR(il, "Error: Response NULL in '%s'\n",
 			  il_get_cmd_string(cmd->id));
 		ret = -EIO;
 		goto cancel;
@@ -216,12 +216,12 @@ cancel:
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source).
 		 */
-		priv->txq[priv->cmd_queue].meta[cmd_idx].flags &=
+		il->txq[il->cmd_queue].meta[cmd_idx].flags &=
 							~CMD_WANT_SKB;
 	}
 fail:
 	if (cmd->reply_page) {
-		il_free_pages(priv, cmd->reply_page);
+		il_free_pages(il, cmd->reply_page);
 		cmd->reply_page = 0;
 	}
 out:
@@ -229,17 +229,17 @@ out:
 }
 EXPORT_SYMBOL(il_send_cmd_sync);
 
-int il_send_cmd(struct il_priv *priv, struct il_host_cmd *cmd)
+int il_send_cmd(struct il_priv *il, struct il_host_cmd *cmd)
 {
 	if (cmd->flags & CMD_ASYNC)
-		return il_send_cmd_async(priv, cmd);
+		return il_send_cmd_async(il, cmd);
 
-	return il_send_cmd_sync(priv, cmd);
+	return il_send_cmd_sync(il, cmd);
 }
 EXPORT_SYMBOL(il_send_cmd);
 
 int
-il_send_cmd_pdu(struct il_priv *priv, u8 id, u16 len, const void *data)
+il_send_cmd_pdu(struct il_priv *il, u8 id, u16 len, const void *data)
 {
 	struct il_host_cmd cmd = {
 		.id = id,
@@ -247,13 +247,13 @@ il_send_cmd_pdu(struct il_priv *priv, u8 id, u16 len, const void *data)
 		.data = data,
 	};
 
-	return il_send_cmd_sync(priv, &cmd);
+	return il_send_cmd_sync(il, &cmd);
 }
 EXPORT_SYMBOL(il_send_cmd_pdu);
 
-int il_send_cmd_pdu_async(struct il_priv *priv,
+int il_send_cmd_pdu_async(struct il_priv *il,
 			   u8 id, u16 len, const void *data,
-			   void (*callback)(struct il_priv *priv,
+			   void (*callback)(struct il_priv *il,
 					    struct il_device_cmd *cmd,
 					    struct il_rx_packet *pkt))
 {
@@ -266,6 +266,6 @@ int il_send_cmd_pdu_async(struct il_priv *priv,
 	cmd.flags |= CMD_ASYNC;
 	cmd.callback = callback;
 
-	return il_send_cmd_async(priv, &cmd);
+	return il_send_cmd_async(il, &cmd);
 }
 EXPORT_SYMBOL(il_send_cmd_pdu_async);

@@ -43,56 +43,56 @@
 #define IL_STA_BCAST BIT(4) /* this station is the special bcast station */
 
 
-void il_restore_stations(struct il_priv *priv,
+void il_restore_stations(struct il_priv *il,
 				struct il_rxon_context *ctx);
-void il_clear_ucode_stations(struct il_priv *priv,
+void il_clear_ucode_stations(struct il_priv *il,
 			      struct il_rxon_context *ctx);
-void il_dealloc_bcast_stations(struct il_priv *priv);
-int il_get_free_ucode_key_index(struct il_priv *priv);
-int il_send_add_sta(struct il_priv *priv,
+void il_dealloc_bcast_stations(struct il_priv *il);
+int il_get_free_ucode_key_index(struct il_priv *il);
+int il_send_add_sta(struct il_priv *il,
 			struct il_addsta_cmd *sta, u8 flags);
-int il_add_station_common(struct il_priv *priv,
+int il_add_station_common(struct il_priv *il,
 			struct il_rxon_context *ctx,
 			const u8 *addr, bool is_ap,
 			struct ieee80211_sta *sta, u8 *sta_id_r);
-int il_remove_station(struct il_priv *priv,
+int il_remove_station(struct il_priv *il,
 			const u8 sta_id,
 			const u8 *addr);
 int il_mac_sta_remove(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
 
-u8 il_prep_station(struct il_priv *priv,
+u8 il_prep_station(struct il_priv *il,
 			struct il_rxon_context *ctx,
 			const u8 *addr, bool is_ap,
 			struct ieee80211_sta *sta);
 
-int il_send_lq_cmd(struct il_priv *priv,
+int il_send_lq_cmd(struct il_priv *il,
 			struct il_rxon_context *ctx,
 			struct il_link_quality_cmd *lq,
 			u8 flags, bool init);
 
 /**
  * il_clear_driver_stations - clear knowledge of all stations from driver
- * @priv: iwl priv struct
+ * @il: iwl il struct
  *
  * This is called during il_down() to make sure that in the case
  * we're coming there from a hardware restart mac80211 will be
  * able to reconfigure stations -- if we're getting there in the
  * normal down flow then the stations will already be cleared.
  */
-static inline void il_clear_driver_stations(struct il_priv *priv)
+static inline void il_clear_driver_stations(struct il_priv *il)
 {
 	unsigned long flags;
 	struct il_rxon_context *ctx;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	memset(priv->stations, 0, sizeof(priv->stations));
-	priv->num_stations = 0;
+	spin_lock_irqsave(&il->sta_lock, flags);
+	memset(il->stations, 0, sizeof(il->stations));
+	il->num_stations = 0;
 
-	priv->ucode_key_table = 0;
+	il->ucode_key_table = 0;
 
-	for_each_context(priv, ctx) {
+	for_each_context(il, ctx) {
 		/*
 		 * Remove all key information that is not stored as part
 		 * of station information since mac80211 may not have had
@@ -104,7 +104,7 @@ static inline void il_clear_driver_stations(struct il_priv *priv)
 		ctx->key_mapping_keys = 0;
 	}
 
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
 static inline int il_sta_id(struct ieee80211_sta *sta)
@@ -117,7 +117,7 @@ static inline int il_sta_id(struct ieee80211_sta *sta)
 
 /**
  * il_sta_id_or_broadcast - return sta_id or broadcast sta
- * @priv: iwl priv
+ * @il: iwl il
  * @context: the current context
  * @sta: mac80211 station
  *
@@ -126,7 +126,7 @@ static inline int il_sta_id(struct ieee80211_sta *sta)
  * that case, we need to use the broadcast station, so this
  * inline wraps that pattern.
  */
-static inline int il_sta_id_or_broadcast(struct il_priv *priv,
+static inline int il_sta_id_or_broadcast(struct il_priv *il,
 					  struct il_rxon_context *context,
 					  struct ieee80211_sta *sta)
 {

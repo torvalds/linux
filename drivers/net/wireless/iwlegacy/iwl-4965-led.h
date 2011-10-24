@@ -28,6 +28,6 @@
 #define __il_4965_led_h__
 
 extern const struct il_led_ops il4965_led_ops;
-void il4965_led_enable(struct il_priv *priv);
+void il4965_led_enable(struct il_priv *il);
 
 #endif /* __il_4965_led_h__ */

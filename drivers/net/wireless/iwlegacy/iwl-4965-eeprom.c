@@ -87,23 +87,23 @@
  * EEPROM chip, not a single event, so even reads could conflict if they
  * weren't arbitrated by the semaphore.
  */
-int il4965_eeprom_acquire_semaphore(struct il_priv *priv)
+int il4965_eeprom_acquire_semaphore(struct il_priv *il)
 {
 	u16 count;
 	int ret;
 
 	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
 		/* Request semaphore */
-		il_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+		il_set_bit(il, CSR_HW_IF_CONFIG_REG,
 			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = il_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+		ret = il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
-			IL_DEBUG_IO(priv,
+			IL_DEBUG_IO(il,
 				"Acquired semaphore after %d tries.\n",
 				count+1);
 			return ret;
@@ -113,42 +113,42 @@ int il4965_eeprom_acquire_semaphore(struct il_priv *priv)
 	return ret;
 }
 
-void il4965_eeprom_release_semaphore(struct il_priv *priv)
+void il4965_eeprom_release_semaphore(struct il_priv *il)
 {
-	il_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
+	il_clear_bit(il, CSR_HW_IF_CONFIG_REG,
 		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 }
 
-int il4965_eeprom_check_version(struct il_priv *priv)
+int il4965_eeprom_check_version(struct il_priv *il)
 {
 	u16 eeprom_ver;
 	u16 calib_ver;
 
-	eeprom_ver = il_eeprom_query16(priv, EEPROM_VERSION);
-	calib_ver = il_eeprom_query16(priv,
+	eeprom_ver = il_eeprom_query16(il, EEPROM_VERSION);
+	calib_ver = il_eeprom_query16(il,
 			EEPROM_4965_CALIB_VERSION_OFFSET);
 
-	if (eeprom_ver < priv->cfg->eeprom_ver ||
-	    calib_ver < priv->cfg->eeprom_calib_ver)
+	if (eeprom_ver < il->cfg->eeprom_ver ||
+	    calib_ver < il->cfg->eeprom_calib_ver)
 		goto err;
 
-	IL_INFO(priv, "device EEPROM VER=0x%x, CALIB=0x%x\n",
+	IL_INFO(il, "device EEPROM VER=0x%x, CALIB=0x%x\n",
 		 eeprom_ver, calib_ver);
 
 	return 0;
 err:
-	IL_ERR(priv, "Unsupported (too old) EEPROM VER=0x%x < 0x%x "
+	IL_ERR(il, "Unsupported (too old) EEPROM VER=0x%x < 0x%x "
 		  "CALIB=0x%x < 0x%x\n",
-		  eeprom_ver, priv->cfg->eeprom_ver,
-		  calib_ver,  priv->cfg->eeprom_calib_ver);
+		  eeprom_ver, il->cfg->eeprom_ver,
+		  calib_ver,  il->cfg->eeprom_calib_ver);
 	return -EINVAL;
 
 }
 
-void il4965_eeprom_get_mac(const struct il_priv *priv, u8 *mac)
+void il4965_eeprom_get_mac(const struct il_priv *il, u8 *mac)
 {
-	const u8 *addr = il_eeprom_query_addr(priv,
+	const u8 *addr = il_eeprom_query_addr(il,
 					EEPROM_MAC_ADDRESS);
 	memcpy(mac, addr, ETH_ALEN);
 }

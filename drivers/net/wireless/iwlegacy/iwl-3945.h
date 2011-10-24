@@ -85,7 +85,7 @@ struct il3945_rate_scale_data {
 
 struct il3945_rs_sta {
 	spinlock_t lock;
-	struct il_priv *priv;
+	struct il_priv *il;
 	s32 *expected_tpt;
 	unsigned long last_partial_flush;
 	unsigned long last_flush;
@@ -207,12 +207,12 @@ struct il3945_ibss_seq {
  *****************************************************************************/
 extern int il3945_calc_db_from_ratio(int sig_ratio);
 extern void il3945_rx_replenish(void *data);
-extern void il3945_rx_queue_reset(struct il_priv *priv, struct il_rx_queue *rxq);
-extern unsigned int il3945_fill_beacon_frame(struct il_priv *priv,
+extern void il3945_rx_queue_reset(struct il_priv *il, struct il_rx_queue *rxq);
+extern unsigned int il3945_fill_beacon_frame(struct il_priv *il,
 					struct ieee80211_hdr *hdr, int left);
-extern int il3945_dump_nic_event_log(struct il_priv *priv, bool full_log,
+extern int il3945_dump_nic_event_log(struct il_priv *il, bool full_log,
 				       char **buf, bool display);
-extern void il3945_dump_nic_error_log(struct il_priv *priv);
+extern void il3945_dump_nic_error_log(struct il_priv *il);
 
 /******************************************************************************
  *
@@ -230,44 +230,44 @@ extern void il3945_dump_nic_error_log(struct il_priv *priv);
  * il3945_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
-extern void il3945_hw_rx_handler_setup(struct il_priv *priv);
-extern void il3945_hw_setup_deferred_work(struct il_priv *priv);
-extern void il3945_hw_cancel_deferred_work(struct il_priv *priv);
-extern int il3945_hw_rxq_stop(struct il_priv *priv);
-extern int il3945_hw_set_hw_params(struct il_priv *priv);
-extern int il3945_hw_nic_init(struct il_priv *priv);
-extern int il3945_hw_nic_stop_master(struct il_priv *priv);
-extern void il3945_hw_txq_ctx_free(struct il_priv *priv);
-extern void il3945_hw_txq_ctx_stop(struct il_priv *priv);
-extern int il3945_hw_nic_reset(struct il_priv *priv);
-extern int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *priv,
+extern void il3945_hw_rx_handler_setup(struct il_priv *il);
+extern void il3945_hw_setup_deferred_work(struct il_priv *il);
+extern void il3945_hw_cancel_deferred_work(struct il_priv *il);
+extern int il3945_hw_rxq_stop(struct il_priv *il);
+extern int il3945_hw_set_hw_params(struct il_priv *il);
+extern int il3945_hw_nic_init(struct il_priv *il);
+extern int il3945_hw_nic_stop_master(struct il_priv *il);
+extern void il3945_hw_txq_ctx_free(struct il_priv *il);
+extern void il3945_hw_txq_ctx_stop(struct il_priv *il);
+extern int il3945_hw_nic_reset(struct il_priv *il);
+extern int il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il,
 					    struct il_tx_queue *txq,
 					    dma_addr_t addr, u16 len,
 					    u8 reset, u8 pad);
-extern void il3945_hw_txq_free_tfd(struct il_priv *priv,
+extern void il3945_hw_txq_free_tfd(struct il_priv *il,
 				    struct il_tx_queue *txq);
-extern int il3945_hw_get_temperature(struct il_priv *priv);
-extern int il3945_hw_tx_queue_init(struct il_priv *priv,
+extern int il3945_hw_get_temperature(struct il_priv *il);
+extern int il3945_hw_tx_queue_init(struct il_priv *il,
 				struct il_tx_queue *txq);
-extern unsigned int il3945_hw_get_beacon_cmd(struct il_priv *priv,
+extern unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
 				 struct il3945_frame *frame, u8 rate);
-void il3945_hw_build_tx_cmd_rate(struct il_priv *priv,
+void il3945_hw_build_tx_cmd_rate(struct il_priv *il,
 				  struct il_device_cmd *cmd,
 				  struct ieee80211_tx_info *info,
 				  struct ieee80211_hdr *hdr,
 				  int sta_id, int tx_id);
-extern int il3945_hw_reg_send_txpower(struct il_priv *priv);
-extern int il3945_hw_reg_set_txpower(struct il_priv *priv, s8 power);
-extern void il3945_hw_rx_statistics(struct il_priv *priv,
+extern int il3945_hw_reg_send_txpower(struct il_priv *il);
+extern int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power);
+extern void il3945_hw_rx_statistics(struct il_priv *il,
 				 struct il_rx_mem_buffer *rxb);
-void il3945_reply_statistics(struct il_priv *priv,
+void il3945_reply_statistics(struct il_priv *il,
 			      struct il_rx_mem_buffer *rxb);
-extern void il3945_disable_events(struct il_priv *priv);
-extern int il4965_get_temperature(const struct il_priv *priv);
-extern void il3945_post_associate(struct il_priv *priv);
-extern void il3945_config_ap(struct il_priv *priv);
+extern void il3945_disable_events(struct il_priv *il);
+extern int il4965_get_temperature(const struct il_priv *il);
+extern void il3945_post_associate(struct il_priv *il);
+extern void il3945_config_ap(struct il_priv *il);
 
-extern int il3945_commit_rxon(struct il_priv *priv,
+extern int il3945_commit_rxon(struct il_priv *il,
 			       struct il_rxon_context *ctx);
 
 /**
@@ -278,26 +278,26 @@ extern int il3945_commit_rxon(struct il_priv *priv,
  * not yet been merged into a single common layer for managing the
  * station tables.
  */
-extern u8 il3945_hw_find_station(struct il_priv *priv, const u8 *bssid);
+extern u8 il3945_hw_find_station(struct il_priv *il, const u8 *bssid);
 
 extern struct ieee80211_ops il3945_hw_ops;
 
 /*
  * Forward declare iwl-3945.c functions for iwl3945-base.c
  */
-extern __le32 il3945_get_antenna_flags(const struct il_priv *priv);
-extern int il3945_init_hw_rate_table(struct il_priv *priv);
-extern void il3945_reg_txpower_periodic(struct il_priv *priv);
-extern int il3945_txpower_set_from_eeprom(struct il_priv *priv);
+extern __le32 il3945_get_antenna_flags(const struct il_priv *il);
+extern int il3945_init_hw_rate_table(struct il_priv *il);
+extern void il3945_reg_txpower_periodic(struct il_priv *il);
+extern int il3945_txpower_set_from_eeprom(struct il_priv *il);
 
 extern const struct il_channel_info *il3945_get_channel_info(
-	const struct il_priv *priv, enum ieee80211_band band, u16 channel);
+	const struct il_priv *il, enum ieee80211_band band, u16 channel);
 
-extern int il3945_rs_next_rate(struct il_priv *priv, int rate);
+extern int il3945_rs_next_rate(struct il_priv *il, int rate);
 
 /* scanning */
-int il3945_request_scan(struct il_priv *priv, struct ieee80211_vif *vif);
-void il3945_post_scan(struct il_priv *priv);
+int il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif);
+void il3945_post_scan(struct il_priv *il);
 
 /* rates */
 extern const struct il3945_rate_info il3945_rates[IL_RATE_COUNT_3945];

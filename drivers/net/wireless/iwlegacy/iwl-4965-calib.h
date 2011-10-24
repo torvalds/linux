@@ -66,10 +66,10 @@
 #include "iwl-core.h"
 #include "iwl-commands.h"
 
-void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp);
-void il4965_sensitivity_calibration(struct il_priv *priv, void *resp);
-void il4965_init_sensitivity(struct il_priv *priv);
-void il4965_reset_run_time_calib(struct il_priv *priv);
-void il4965_calib_free_results(struct il_priv *priv);
+void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp);
+void il4965_sensitivity_calibration(struct il_priv *il, void *resp);
+void il4965_init_sensitivity(struct il_priv *il);
+void il4965_reset_run_time_calib(struct il_priv *il);
+void il4965_calib_free_results(struct il_priv *il);
 
 #endif /* __il_4965_calib_h__ */

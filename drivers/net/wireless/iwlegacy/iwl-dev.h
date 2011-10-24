@@ -106,7 +106,7 @@ struct il_cmd_meta {
 	 * invoked for SYNC commands, if it were and its result passed
 	 * through it would be simpler...)
 	 */
-	void (*callback)(struct il_priv *priv,
+	void (*callback)(struct il_priv *il,
 			 struct il_device_cmd *cmd,
 			 struct il_rx_packet *pkt);
 
@@ -321,7 +321,7 @@ struct il_device_cmd {
 struct il_host_cmd {
 	const void *data;
 	unsigned long reply_page;
-	void (*callback)(struct il_priv *priv,
+	void (*callback)(struct il_priv *il,
 			 struct il_device_cmd *cmd,
 			 struct il_rx_packet *pkt);
 	u32 flags;
@@ -476,7 +476,7 @@ struct il_station_priv_common {
 };
 
 /*
- * il_station_priv: Driver's private station information
+ * il_station_priv: Driver's ilate station information
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is places in that
@@ -494,7 +494,7 @@ struct il_station_priv {
 };
 
 /**
- * struct il_vif_priv - driver's private per-interface information
+ * struct il_vif_priv - driver's ilate per-interface information
  *
  * When mac80211 allocates a virtual interface, it can allocate
  * space for us to put data into.
@@ -625,7 +625,7 @@ struct il_hw_params {
  * il4965_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
-extern void il4965_update_chain_flags(struct il_priv *priv);
+extern void il4965_update_chain_flags(struct il_priv *il);
 extern const u8 iwlegacy_bcast_addr[ETH_ALEN];
 extern int il_queue_space(const struct il_queue *q);
 static inline int il_queue_used(const struct il_queue *q, int i)
@@ -973,7 +973,7 @@ struct il_priv {
 	enum ieee80211_band band;
 	int alloc_rxb_page;
 
-	void (*rx_handlers[REPLY_MAX])(struct il_priv *priv,
+	void (*rx_handlers[REPLY_MAX])(struct il_priv *il,
 				       struct il_rx_mem_buffer *rxb);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
@@ -1247,14 +1247,14 @@ struct il_priv {
 	bool led_registered;
 }; /*il_priv */
 
-static inline void il_txq_ctx_activate(struct il_priv *priv, int txq_id)
+static inline void il_txq_ctx_activate(struct il_priv *il, int txq_id)
 {
-	set_bit(txq_id, &priv->txq_ctx_active_msk);
+	set_bit(txq_id, &il->txq_ctx_active_msk);
 }
 
-static inline void il_txq_ctx_deactivate(struct il_priv *priv, int txq_id)
+static inline void il_txq_ctx_deactivate(struct il_priv *il, int txq_id)
 {
-	clear_bit(txq_id, &priv->txq_ctx_active_msk);
+	clear_bit(txq_id, &il->txq_ctx_active_msk);
 }
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
@@ -1265,15 +1265,15 @@ static inline void il_txq_ctx_deactivate(struct il_priv *priv, int txq_id)
  * level will be used if set, otherwise the global debug level which can be
  * set via module parameter is used.
  */
-static inline u32 il_get_debug_level(struct il_priv *priv)
+static inline u32 il_get_debug_level(struct il_priv *il)
 {
-	if (priv->debug_level)
-		return priv->debug_level;
+	if (il->debug_level)
+		return il->debug_level;
 	else
 		return iwlegacy_debug_level;
 }
 #else
-static inline u32 il_get_debug_level(struct il_priv *priv)
+static inline u32 il_get_debug_level(struct il_priv *il)
 {
 	return iwlegacy_debug_level;
 }
@@ -1281,11 +1281,11 @@ static inline u32 il_get_debug_level(struct il_priv *priv)
 
 
 static inline struct ieee80211_hdr *
-il_tx_queue_get_hdr(struct il_priv *priv,
+il_tx_queue_get_hdr(struct il_priv *il,
 						 int txq_id, int idx)
 {
-	if (priv->txq[txq_id].txb[idx].skb)
-		return (struct ieee80211_hdr *)priv->txq[txq_id].
+	if (il->txq[txq_id].txb[idx].skb)
+		return (struct ieee80211_hdr *)il->txq[txq_id].
 				txb[idx].skb->data;
 	return NULL;
 }
@@ -1298,21 +1298,21 @@ il_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 	return vif_priv->ctx;
 }
 
-#define for_each_context(priv, ctx)				\
-	for (ctx = &priv->contexts[IL_RXON_CTX_BSS];		\
-	     ctx < &priv->contexts[NUM_IL_RXON_CTX]; ctx++)	\
-		if (priv->valid_contexts & BIT(ctx->ctxid))
+#define for_each_context(il, ctx)				\
+	for (ctx = &il->contexts[IL_RXON_CTX_BSS];		\
+	     ctx < &il->contexts[NUM_IL_RXON_CTX]; ctx++)	\
+		if (il->valid_contexts & BIT(ctx->ctxid))
 
-static inline int il_is_associated(struct il_priv *priv,
+static inline int il_is_associated(struct il_priv *il,
 				    enum il_rxon_context_id ctxid)
 {
-	return (priv->contexts[ctxid].active.filter_flags &
+	return (il->contexts[ctxid].active.filter_flags &
 			RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
-static inline int il_is_any_associated(struct il_priv *priv)
+static inline int il_is_any_associated(struct il_priv *il)
 {
-	return il_is_associated(priv, IL_RXON_CTX_BSS);
+	return il_is_associated(il, IL_RXON_CTX_BSS);
 }
 
 static inline int il_is_associated_ctx(struct il_rxon_context *ctx)
@@ -1350,15 +1350,15 @@ il_is_channel_ibss(const struct il_channel_info *ch)
 }
 
 static inline void
-__il_free_pages(struct il_priv *priv, struct page *page)
+__il_free_pages(struct il_priv *il, struct page *page)
 {
-	__free_pages(page, priv->hw_params.rx_page_order);
-	priv->alloc_rxb_page--;
+	__free_pages(page, il->hw_params.rx_page_order);
+	il->alloc_rxb_page--;
 }
 
-static inline void il_free_pages(struct il_priv *priv, unsigned long page)
+static inline void il_free_pages(struct il_priv *il, unsigned long page)
 {
-	free_pages(page, priv->hw_params.rx_page_order);
-	priv->alloc_rxb_page--;
+	free_pages(page, il->hw_params.rx_page_order);
+	il->alloc_rxb_page--;
 }
 #endif				/* __il_dev_h__ */

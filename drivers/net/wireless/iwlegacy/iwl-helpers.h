@@ -108,28 +108,28 @@ il_set_swq_id(struct il_tx_queue *txq, u8 ac, u8 hwq)
 	txq->swq_id = (hwq << 2) | ac;
 }
 
-static inline void il_wake_queue(struct il_priv *priv,
+static inline void il_wake_queue(struct il_priv *il,
 				  struct il_tx_queue *txq)
 {
 	u8 queue = txq->swq_id;
 	u8 ac = queue & 3;
 	u8 hwq = (queue >> 2) & 0x1f;
 
-	if (test_and_clear_bit(hwq, priv->queue_stopped))
-		if (atomic_dec_return(&priv->queue_stop_count[ac]) <= 0)
-			ieee80211_wake_queue(priv->hw, ac);
+	if (test_and_clear_bit(hwq, il->queue_stopped))
+		if (atomic_dec_return(&il->queue_stop_count[ac]) <= 0)
+			ieee80211_wake_queue(il->hw, ac);
 }
 
-static inline void il_stop_queue(struct il_priv *priv,
+static inline void il_stop_queue(struct il_priv *il,
 				  struct il_tx_queue *txq)
 {
 	u8 queue = txq->swq_id;
 	u8 ac = queue & 3;
 	u8 hwq = (queue >> 2) & 0x1f;
 
-	if (!test_and_set_bit(hwq, priv->queue_stopped))
-		if (atomic_inc_return(&priv->queue_stop_count[ac]) > 0)
-			ieee80211_stop_queue(priv->hw, ac);
+	if (!test_and_set_bit(hwq, il->queue_stopped))
+		if (atomic_inc_return(&il->queue_stop_count[ac]) > 0)
+			ieee80211_stop_queue(il->hw, ac);
 }
 
 #ifdef ieee80211_stop_queue
@@ -144,39 +144,39 @@ static inline void il_stop_queue(struct il_priv *priv,
 
 #define ieee80211_wake_queue DO_NOT_USE_ieee80211_wake_queue
 
-static inline void il_disable_interrupts(struct il_priv *priv)
+static inline void il_disable_interrupts(struct il_priv *il)
 {
-	clear_bit(STATUS_INT_ENABLED, &priv->status);
+	clear_bit(STATUS_INT_ENABLED, &il->status);
 
 	/* disable interrupts from uCode/NIC to host */
-	il_write32(priv, CSR_INT_MASK, 0x00000000);
+	il_write32(il, CSR_INT_MASK, 0x00000000);
 
 	/* acknowledge/clear/reset any interrupts still pending
 	 * from uCode or flow handler (Rx/Tx DMA) */
-	il_write32(priv, CSR_INT, 0xffffffff);
-	il_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
-	IL_DEBUG_ISR(priv, "Disabled interrupts\n");
+	il_write32(il, CSR_INT, 0xffffffff);
+	il_write32(il, CSR_FH_INT_STATUS, 0xffffffff);
+	IL_DEBUG_ISR(il, "Disabled interrupts\n");
 }
 
-static inline void il_enable_rfkill_int(struct il_priv *priv)
+static inline void il_enable_rfkill_int(struct il_priv *il)
 {
-	IL_DEBUG_ISR(priv, "Enabling rfkill interrupt\n");
-	il_write32(priv, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
+	IL_DEBUG_ISR(il, "Enabling rfkill interrupt\n");
+	il_write32(il, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
 }
 
-static inline void il_enable_interrupts(struct il_priv *priv)
+static inline void il_enable_interrupts(struct il_priv *il)
 {
-	IL_DEBUG_ISR(priv, "Enabling interrupts\n");
-	set_bit(STATUS_INT_ENABLED, &priv->status);
-	il_write32(priv, CSR_INT_MASK, priv->inta_mask);
+	IL_DEBUG_ISR(il, "Enabling interrupts\n");
+	set_bit(STATUS_INT_ENABLED, &il->status);
+	il_write32(il, CSR_INT_MASK, il->inta_mask);
 }
 
 /**
  * il_beacon_time_mask_low - mask of lower 32 bit of beacon time
- * @priv -- pointer to il_priv data structure
+ * @il -- pointer to il_priv data structure
  * @tsf_bits -- number of bits need to shift for masking)
  */
-static inline u32 il_beacon_time_mask_low(struct il_priv *priv,
+static inline u32 il_beacon_time_mask_low(struct il_priv *il,
 					   u16 tsf_bits)
 {
 	return (1 << tsf_bits) - 1;
@@ -184,10 +184,10 @@ static inline u32 il_beacon_time_mask_low(struct il_priv *priv,
 
 /**
  * il_beacon_time_mask_high - mask of higher 32 bit of beacon time
- * @priv -- pointer to il_priv data structure
+ * @il -- pointer to il_priv data structure
  * @tsf_bits -- number of bits need to shift for masking)
  */
-static inline u32 il_beacon_time_mask_high(struct il_priv *priv,
+static inline u32 il_beacon_time_mask_high(struct il_priv *il,
 					    u16 tsf_bits)
 {
 	return ((1 << (32 - tsf_bits)) - 1) << tsf_bits;

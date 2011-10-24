@@ -124,11 +124,11 @@ EXPORT_SYMBOL(il_rx_queue_space);
  * il_rx_queue_update_write_ptr - Update the write pointer for the RX queue
  */
 void
-il_rx_queue_update_write_ptr(struct il_priv *priv,
+il_rx_queue_update_write_ptr(struct il_priv *il,
 					struct il_rx_queue *q)
 {
 	unsigned long flags;
-	u32 rx_wrt_ptr_reg = priv->hw_params.rx_wrt_ptr_reg;
+	u32 rx_wrt_ptr_reg = il->hw_params.rx_wrt_ptr_reg;
 	u32 reg;
 
 	spin_lock_irqsave(&q->lock, flags);
@@ -137,27 +137,27 @@ il_rx_queue_update_write_ptr(struct il_priv *priv,
 		goto exit_unlock;
 
 	/* If power-saving is in use, make sure device is awake */
-	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
-		reg = il_read32(priv, CSR_UCODE_DRV_GP1);
+	if (test_bit(STATUS_POWER_PMI, &il->status)) {
+		reg = il_read32(il, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IL_DEBUG_INFO(priv,
+			IL_DEBUG_INFO(il,
 				"Rx queue requesting wakeup,"
 				" GP1 = 0x%x\n", reg);
-			il_set_bit(priv, CSR_GP_CNTRL,
+			il_set_bit(il, CSR_GP_CNTRL,
 				CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			goto exit_unlock;
 		}
 
 		q->write_actual = (q->write & ~0x7);
-		il_write_direct32(priv, rx_wrt_ptr_reg,
+		il_write_direct32(il, rx_wrt_ptr_reg,
 				q->write_actual);
 
 	/* Else device is assumed to be awake */
 	} else {
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
-		il_write_direct32(priv, rx_wrt_ptr_reg,
+		il_write_direct32(il, rx_wrt_ptr_reg,
 			q->write_actual);
 	}
 
@@ -168,10 +168,10 @@ il_rx_queue_update_write_ptr(struct il_priv *priv,
 }
 EXPORT_SYMBOL(il_rx_queue_update_write_ptr);
 
-int il_rx_queue_alloc(struct il_priv *priv)
+int il_rx_queue_alloc(struct il_priv *il)
 {
-	struct il_rx_queue *rxq = &priv->rxq;
-	struct device *dev = &priv->pci_dev->dev;
+	struct il_rx_queue *rxq = &il->rxq;
+	struct device *dev = &il->pci_dev->dev;
 	int i;
 
 	spin_lock_init(&rxq->lock);
@@ -202,7 +202,7 @@ int il_rx_queue_alloc(struct il_priv *priv)
 	return 0;
 
 err_rb:
-	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
+	dma_free_coherent(&il->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
 			  rxq->bd_dma);
 err_bd:
 	return -ENOMEM;
@@ -210,27 +210,27 @@ err_bd:
 EXPORT_SYMBOL(il_rx_queue_alloc);
 
 
-void il_rx_spectrum_measure_notif(struct il_priv *priv,
+void il_rx_spectrum_measure_notif(struct il_priv *il,
 					  struct il_rx_mem_buffer *rxb)
 {
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	struct il_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
 	if (!report->state) {
-		IL_DEBUG_11H(priv,
+		IL_DEBUG_11H(il,
 			"Spectrum Measure Notification: Start\n");
 		return;
 	}
 
-	memcpy(&priv->measure_report, report, sizeof(*report));
-	priv->measurement_status |= MEASUREMENT_READY;
+	memcpy(&il->measure_report, report, sizeof(*report));
+	il->measurement_status |= MEASUREMENT_READY;
 }
 EXPORT_SYMBOL(il_rx_spectrum_measure_notif);
 
 /*
  * returns non-zero if packet should be dropped
  */
-int il_set_decrypted_flag(struct il_priv *priv,
+int il_set_decrypted_flag(struct il_priv *il,
 			   struct ieee80211_hdr *hdr,
 			   u32 decrypt_res,
 			   struct ieee80211_rx_status *stats)
@@ -241,14 +241,14 @@ int il_set_decrypted_flag(struct il_priv *priv,
 	 * All contexts have the same setting here due to it being
 	 * a module parameter, so OK to check any context.
 	 */
-	if (priv->contexts[IL_RXON_CTX_BSS].active.filter_flags &
+	if (il->contexts[IL_RXON_CTX_BSS].active.filter_flags &
 						RXON_FILTER_DIS_DECRYPT_MSK)
 		return 0;
 
 	if (!(fc & IEEE80211_FCTL_PROTECTED))
 		return 0;
 
-	IL_DEBUG_RX(priv, "decrypt_res:0x%x\n", decrypt_res);
+	IL_DEBUG_RX(il, "decrypt_res:0x%x\n", decrypt_res);
 	switch (decrypt_res & RX_RES_STATUS_SEC_TYPE_MSK) {
 	case RX_RES_STATUS_SEC_TYPE_TKIP:
 		/* The uCode has got a bad phase 1 Key, pushes the packet.
@@ -262,13 +262,13 @@ int il_set_decrypted_flag(struct il_priv *priv,
 		    RX_RES_STATUS_BAD_ICV_MIC) {
 			/* bad ICV, the packet is destroyed since the
 			 * decryption is inplace, drop it */
-			IL_DEBUG_RX(priv, "Packet destroyed\n");
+			IL_DEBUG_RX(il, "Packet destroyed\n");
 			return -1;
 		}
 	case RX_RES_STATUS_SEC_TYPE_CCMP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_DECRYPT_OK) {
-			IL_DEBUG_RX(priv, "hw decrypt successfully!!!\n");
+			IL_DEBUG_RX(il, "hw decrypt successfully!!!\n");
 			stats->flag |= RX_FLAG_DECRYPTED;
 		}
 		break;

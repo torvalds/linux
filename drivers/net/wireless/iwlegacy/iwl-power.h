@@ -47,9 +47,9 @@ struct il_power_mgr {
 };
 
 int
-il_power_set_mode(struct il_priv *priv, struct il_powertable_cmd *cmd,
+il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd,
 		       bool force);
-int il_power_update_mode(struct il_priv *priv, bool force);
-void il_power_initialize(struct il_priv *priv);
+int il_power_update_mode(struct il_priv *il, bool force);
+void il_power_initialize(struct il_priv *il);
 
 #endif  /* __il_power_setting_h__ */

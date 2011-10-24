@@ -33,12 +33,12 @@ static const char *fmt_table = "  %-30s %10u  %10u  %10u  %10u\n";
 static const char *fmt_header =
 	"%-32s    current  cumulative       delta         max\n";
 
-static int il4965_statistics_flag(struct il_priv *priv, char *buf, int bufsz)
+static int il4965_statistics_flag(struct il_priv *il, char *buf, int bufsz)
 {
 	int p = 0;
 	u32 flag;
 
-	flag = le32_to_cpu(priv->_4965.statistics.flag);
+	flag = le32_to_cpu(il->_4965.statistics.flag);
 
 	p += scnprintf(buf + p, bufsz - p, "Statistics Flag(0x%X):\n", flag);
 	if (flag & UCODE_STATISTICS_CLEAR_MSK)
@@ -57,7 +57,7 @@ static int il4965_statistics_flag(struct il_priv *priv, char *buf, int bufsz)
 ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = sizeof(struct statistics_rx_phy) * 40 +
@@ -70,12 +70,12 @@ ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	struct statistics_rx_non_phy *delta_general, *max_general;
 	struct statistics_rx_ht_phy *ht, *accum_ht, *delta_ht, *max_ht;
 
-	if (!il_is_alive(priv))
+	if (!il_is_alive(il))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(il, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -84,24 +84,24 @@ ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	 * the last statistics notification from uCode
 	 * might not reflect the current uCode activity
 	 */
-	ofdm = &priv->_4965.statistics.rx.ofdm;
-	cck = &priv->_4965.statistics.rx.cck;
-	general = &priv->_4965.statistics.rx.general;
-	ht = &priv->_4965.statistics.rx.ofdm_ht;
-	accum_ofdm = &priv->_4965.accum_statistics.rx.ofdm;
-	accum_cck = &priv->_4965.accum_statistics.rx.cck;
-	accum_general = &priv->_4965.accum_statistics.rx.general;
-	accum_ht = &priv->_4965.accum_statistics.rx.ofdm_ht;
-	delta_ofdm = &priv->_4965.delta_statistics.rx.ofdm;
-	delta_cck = &priv->_4965.delta_statistics.rx.cck;
-	delta_general = &priv->_4965.delta_statistics.rx.general;
-	delta_ht = &priv->_4965.delta_statistics.rx.ofdm_ht;
-	max_ofdm = &priv->_4965.max_delta.rx.ofdm;
-	max_cck = &priv->_4965.max_delta.rx.cck;
-	max_general = &priv->_4965.max_delta.rx.general;
-	max_ht = &priv->_4965.max_delta.rx.ofdm_ht;
+	ofdm = &il->_4965.statistics.rx.ofdm;
+	cck = &il->_4965.statistics.rx.cck;
+	general = &il->_4965.statistics.rx.general;
+	ht = &il->_4965.statistics.rx.ofdm_ht;
+	accum_ofdm = &il->_4965.accum_statistics.rx.ofdm;
+	accum_cck = &il->_4965.accum_statistics.rx.cck;
+	accum_general = &il->_4965.accum_statistics.rx.general;
+	accum_ht = &il->_4965.accum_statistics.rx.ofdm_ht;
+	delta_ofdm = &il->_4965.delta_statistics.rx.ofdm;
+	delta_cck = &il->_4965.delta_statistics.rx.cck;
+	delta_general = &il->_4965.delta_statistics.rx.general;
+	delta_ht = &il->_4965.delta_statistics.rx.ofdm_ht;
+	max_ofdm = &il->_4965.max_delta.rx.ofdm;
+	max_cck = &il->_4965.max_delta.rx.cck;
+	max_general = &il->_4965.max_delta.rx.general;
+	max_ht = &il->_4965.max_delta.rx.ofdm_ht;
 
-	pos += il4965_statistics_flag(priv, buf, bufsz);
+	pos += il4965_statistics_flag(il, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_Rx - OFDM:");
 	pos += scnprintf(buf + pos, bufsz - pos,
@@ -489,19 +489,19 @@ ssize_t il4965_ucode_tx_stats_read(struct file *file,
 				char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = (sizeof(struct statistics_tx) * 48) + 250;
 	ssize_t ret;
 	struct statistics_tx *tx, *accum_tx, *delta_tx, *max_tx;
 
-	if (!il_is_alive(priv))
+	if (!il_is_alive(il))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(il, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -509,12 +509,12 @@ ssize_t il4965_ucode_tx_stats_read(struct file *file,
 	  * the last statistics notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	tx = &priv->_4965.statistics.tx;
-	accum_tx = &priv->_4965.accum_statistics.tx;
-	delta_tx = &priv->_4965.delta_statistics.tx;
-	max_tx = &priv->_4965.max_delta.tx;
+	tx = &il->_4965.statistics.tx;
+	accum_tx = &il->_4965.accum_statistics.tx;
+	delta_tx = &il->_4965.delta_statistics.tx;
+	max_tx = &il->_4965.max_delta.tx;
 
-	pos += il4965_statistics_flag(priv, buf, bufsz);
+	pos += il4965_statistics_flag(il, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_Tx:");
 	pos += scnprintf(buf + pos, bufsz - pos,
@@ -664,7 +664,7 @@ ssize_t
 il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
-	struct il_priv *priv = file->private_data;
+	struct il_priv *il = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = sizeof(struct statistics_general) * 10 + 300;
@@ -674,12 +674,12 @@ il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
 	struct statistics_div *div, *accum_div, *delta_div, *max_div;
 
-	if (!il_is_alive(priv))
+	if (!il_is_alive(il))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(il, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -687,20 +687,20 @@ il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	  * the last statistics notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	general = &priv->_4965.statistics.general.common;
-	dbg = &priv->_4965.statistics.general.common.dbg;
-	div = &priv->_4965.statistics.general.common.div;
-	accum_general = &priv->_4965.accum_statistics.general.common;
-	accum_dbg = &priv->_4965.accum_statistics.general.common.dbg;
-	accum_div = &priv->_4965.accum_statistics.general.common.div;
-	delta_general = &priv->_4965.delta_statistics.general.common;
-	max_general = &priv->_4965.max_delta.general.common;
-	delta_dbg = &priv->_4965.delta_statistics.general.common.dbg;
-	max_dbg = &priv->_4965.max_delta.general.common.dbg;
-	delta_div = &priv->_4965.delta_statistics.general.common.div;
-	max_div = &priv->_4965.max_delta.general.common.div;
+	general = &il->_4965.statistics.general.common;
+	dbg = &il->_4965.statistics.general.common.dbg;
+	div = &il->_4965.statistics.general.common.div;
+	accum_general = &il->_4965.accum_statistics.general.common;
+	accum_dbg = &il->_4965.accum_statistics.general.common.dbg;
+	accum_div = &il->_4965.accum_statistics.general.common.div;
+	delta_general = &il->_4965.delta_statistics.general.common;
+	max_general = &il->_4965.max_delta.general.common;
+	delta_dbg = &il->_4965.delta_statistics.general.common.dbg;
+	max_dbg = &il->_4965.max_delta.general.common.dbg;
+	delta_div = &il->_4965.delta_statistics.general.common.div;
+	max_div = &il->_4965.max_delta.general.common.div;
 
-	pos += il4965_statistics_flag(priv, buf, bufsz);
+	pos += il4965_statistics_flag(il, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_General:");
 	pos += scnprintf(buf + pos, bufsz - pos,

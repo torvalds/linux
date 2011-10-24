@@ -84,11 +84,11 @@ static const struct ieee80211_tpt_blink il_blink[] = {
  *     compensation = (100 - averageDeviation) * 64 / 100
  *     NewBlinkTime = (compensation * BlinkTime) / 64
  */
-static inline u8 il_blink_compensation(struct il_priv *priv,
+static inline u8 il_blink_compensation(struct il_priv *il,
 				    u8 time, u16 compensation)
 {
 	if (!compensation) {
-		IL_ERR(priv, "undefined blink compensation: "
+		IL_ERR(il, "undefined blink compensation: "
 			"use pre-defined blinking time\n");
 		return time;
 	}
@@ -97,7 +97,7 @@ static inline u8 il_blink_compensation(struct il_priv *priv,
 }
 
 /* Set led pattern command */
-static int il_led_cmd(struct il_priv *priv,
+static int il_led_cmd(struct il_priv *il,
 		       unsigned long on,
 		       unsigned long off)
 {
@@ -107,10 +107,10 @@ static int il_led_cmd(struct il_priv *priv,
 	};
 	int ret;
 
-	if (!test_bit(STATUS_READY, &priv->status))
+	if (!test_bit(STATUS_READY, &il->status))
 		return -EBUSY;
 
-	if (priv->blink_on == on && priv->blink_off == off)
+	if (il->blink_on == on && il->blink_off == off)
 		return 0;
 
 	if (off == 0) {
@@ -118,17 +118,17 @@ static int il_led_cmd(struct il_priv *priv,
 		on = IL_LED_SOLID;
 	}
 
-	IL_DEBUG_LED(priv, "Led blink time compensation=%u\n",
-			priv->cfg->base_params->led_compensation);
-	led_cmd.on = il_blink_compensation(priv, on,
-				priv->cfg->base_params->led_compensation);
-	led_cmd.off = il_blink_compensation(priv, off,
-				priv->cfg->base_params->led_compensation);
+	IL_DEBUG_LED(il, "Led blink time compensation=%u\n",
+			il->cfg->base_params->led_compensation);
+	led_cmd.on = il_blink_compensation(il, on,
+				il->cfg->base_params->led_compensation);
+	led_cmd.off = il_blink_compensation(il, off,
+				il->cfg->base_params->led_compensation);
 
-	ret = priv->cfg->ops->led->cmd(priv, &led_cmd);
+	ret = il->cfg->ops->led->cmd(il, &led_cmd);
 	if (!ret) {
-		priv->blink_on = on;
-		priv->blink_off = off;
+		il->blink_on = on;
+		il->blink_off = off;
 	}
 	return ret;
 }
@@ -136,70 +136,70 @@ static int il_led_cmd(struct il_priv *priv,
 static void il_led_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
-	struct il_priv *priv = container_of(led_cdev, struct il_priv, led);
+	struct il_priv *il = container_of(led_cdev, struct il_priv, led);
 	unsigned long on = 0;
 
 	if (brightness > 0)
 		on = IL_LED_SOLID;
 
-	il_led_cmd(priv, on, 0);
+	il_led_cmd(il, on, 0);
 }
 
 static int il_led_blink_set(struct led_classdev *led_cdev,
 			     unsigned long *delay_on,
 			     unsigned long *delay_off)
 {
-	struct il_priv *priv = container_of(led_cdev, struct il_priv, led);
+	struct il_priv *il = container_of(led_cdev, struct il_priv, led);
 
-	return il_led_cmd(priv, *delay_on, *delay_off);
+	return il_led_cmd(il, *delay_on, *delay_off);
 }
 
-void il_leds_init(struct il_priv *priv)
+void il_leds_init(struct il_priv *il)
 {
 	int mode = led_mode;
 	int ret;
 
 	if (mode == IL_LED_DEFAULT)
-		mode = priv->cfg->led_mode;
+		mode = il->cfg->led_mode;
 
-	priv->led.name = kasprintf(GFP_KERNEL, "%s-led",
-				   wiphy_name(priv->hw->wiphy));
-	priv->led.brightness_set = il_led_brightness_set;
-	priv->led.blink_set = il_led_blink_set;
-	priv->led.max_brightness = 1;
+	il->led.name = kasprintf(GFP_KERNEL, "%s-led",
+				   wiphy_name(il->hw->wiphy));
+	il->led.brightness_set = il_led_brightness_set;
+	il->led.blink_set = il_led_blink_set;
+	il->led.max_brightness = 1;
 
 	switch (mode) {
 	case IL_LED_DEFAULT:
 		WARN_ON(1);
 		break;
 	case IL_LED_BLINK:
-		priv->led.default_trigger =
-			ieee80211_create_tpt_led_trigger(priv->hw,
+		il->led.default_trigger =
+			ieee80211_create_tpt_led_trigger(il->hw,
 					IEEE80211_TPT_LEDTRIG_FL_CONNECTED,
 					il_blink, ARRAY_SIZE(il_blink));
 		break;
 	case IL_LED_RF_STATE:
-		priv->led.default_trigger =
-			ieee80211_get_radio_led_name(priv->hw);
+		il->led.default_trigger =
+			ieee80211_get_radio_led_name(il->hw);
 		break;
 	}
 
-	ret = led_classdev_register(&priv->pci_dev->dev, &priv->led);
+	ret = led_classdev_register(&il->pci_dev->dev, &il->led);
 	if (ret) {
-		kfree(priv->led.name);
+		kfree(il->led.name);
 		return;
 	}
 
-	priv->led_registered = true;
+	il->led_registered = true;
 }
 EXPORT_SYMBOL(il_leds_init);
 
-void il_leds_exit(struct il_priv *priv)
+void il_leds_exit(struct il_priv *il)
 {
-	if (!priv->led_registered)
+	if (!il->led_registered)
 		return;
 
-	led_classdev_unregister(&priv->led);
-	kfree(priv->led.name);
+	led_classdev_unregister(&il->led);
+	kfree(il->led.name);
 }
 EXPORT_SYMBOL(il_leds_exit);

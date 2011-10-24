@@ -37,7 +37,7 @@ extern u32 iwlegacy_debug_level;
 #define IL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)
 #define IL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
 
-#define il_print_hex_error(priv, p, len)				 \
+#define il_print_hex_error(il, p, len)				 \
 do {									\
 	print_hex_dump(KERN_ERR, "iwl data: ",				\
 		       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);		\
@@ -60,9 +60,9 @@ do {									\
 			 __func__ , ## args);				\
 } while (0)
 
-#define il_print_hex_dump(priv, level, p, len) 			\
+#define il_print_hex_dump(il, level, p, len) 			\
 do {									\
-	if (il_get_debug_level(priv) & level)				\
+	if (il_get_debug_level(il) & level)				\
 		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
@@ -70,21 +70,21 @@ do {									\
 #else
 #define IL_DEBUG(__priv, level, fmt, args...)
 #define IL_DEBUG_LIMIT(__priv, level, fmt, args...)
-static inline void il_print_hex_dump(struct il_priv *priv, int level,
+static inline void il_print_hex_dump(struct il_priv *il, int level,
 				      const void *p, u32 len)
 {}
 #endif				/* CONFIG_IWLWIFI_LEGACY_DEBUG */
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
-int il_dbgfs_register(struct il_priv *priv, const char *name);
-void il_dbgfs_unregister(struct il_priv *priv);
+int il_dbgfs_register(struct il_priv *il, const char *name);
+void il_dbgfs_unregister(struct il_priv *il);
 #else
 static inline int
-il_dbgfs_register(struct il_priv *priv, const char *name)
+il_dbgfs_register(struct il_priv *il, const char *name)
 {
 	return 0;
 }
-static inline void il_dbgfs_unregister(struct il_priv *priv)
+static inline void il_dbgfs_unregister(struct il_priv *il)
 {
 }
 #endif				/* CONFIG_IWLWIFI_LEGACY_DEBUGFS */

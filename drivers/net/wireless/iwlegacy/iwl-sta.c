@@ -36,28 +36,28 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 
-/* priv->sta_lock must be held */
-static void il_sta_ucode_activate(struct il_priv *priv, u8 sta_id)
+/* il->sta_lock must be held */
+static void il_sta_ucode_activate(struct il_priv *il, u8 sta_id)
 {
 
-	if (!(priv->stations[sta_id].used & IL_STA_DRIVER_ACTIVE))
-		IL_ERR(priv,
+	if (!(il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE))
+		IL_ERR(il,
 			"ACTIVATE a non DRIVER active station id %u addr %pM\n",
-			sta_id, priv->stations[sta_id].sta.sta.addr);
+			sta_id, il->stations[sta_id].sta.sta.addr);
 
-	if (priv->stations[sta_id].used & IL_STA_UCODE_ACTIVE) {
-		IL_DEBUG_ASSOC(priv,
+	if (il->stations[sta_id].used & IL_STA_UCODE_ACTIVE) {
+		IL_DEBUG_ASSOC(il,
 			"STA id %u addr %pM already present"
 			" in uCode (according to driver)\n",
-			sta_id, priv->stations[sta_id].sta.sta.addr);
+			sta_id, il->stations[sta_id].sta.sta.addr);
 	} else {
-		priv->stations[sta_id].used |= IL_STA_UCODE_ACTIVE;
-		IL_DEBUG_ASSOC(priv, "Added STA id %u addr %pM to uCode\n",
-				sta_id, priv->stations[sta_id].sta.sta.addr);
+		il->stations[sta_id].used |= IL_STA_UCODE_ACTIVE;
+		IL_DEBUG_ASSOC(il, "Added STA id %u addr %pM to uCode\n",
+				sta_id, il->stations[sta_id].sta.sta.addr);
 	}
 }
 
-static int il_process_add_sta_resp(struct il_priv *priv,
+static int il_process_add_sta_resp(struct il_priv *il,
 				    struct il_addsta_cmd *addsta,
 				    struct il_rx_packet *pkt,
 				    bool sync)
@@ -67,45 +67,45 @@ static int il_process_add_sta_resp(struct il_priv *priv,
 	int ret = -EIO;
 
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
+		IL_ERR(il, "Bad return from REPLY_ADD_STA (0x%08X)\n",
 			pkt->hdr.flags);
 		return ret;
 	}
 
-	IL_DEBUG_INFO(priv, "Processing response for adding station %u\n",
+	IL_DEBUG_INFO(il, "Processing response for adding station %u\n",
 		       sta_id);
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&il->sta_lock, flags);
 
 	switch (pkt->u.add_sta.status) {
 	case ADD_STA_SUCCESS_MSK:
-		IL_DEBUG_INFO(priv, "REPLY_ADD_STA PASSED\n");
-		il_sta_ucode_activate(priv, sta_id);
+		IL_DEBUG_INFO(il, "REPLY_ADD_STA PASSED\n");
+		il_sta_ucode_activate(il, sta_id);
 		ret = 0;
 		break;
 	case ADD_STA_NO_ROOM_IN_TABLE:
-		IL_ERR(priv, "Adding station %d failed, no room in table.\n",
+		IL_ERR(il, "Adding station %d failed, no room in table.\n",
 			sta_id);
 		break;
 	case ADD_STA_NO_BLOCK_ACK_RESOURCE:
-		IL_ERR(priv,
+		IL_ERR(il,
 			"Adding station %d failed, no block ack resource.\n",
 			sta_id);
 		break;
 	case ADD_STA_MODIFY_NON_EXIST_STA:
-		IL_ERR(priv, "Attempting to modify non-existing station %d\n",
+		IL_ERR(il, "Attempting to modify non-existing station %d\n",
 			sta_id);
 		break;
 	default:
-		IL_DEBUG_ASSOC(priv, "Received REPLY_ADD_STA:(0x%08X)\n",
+		IL_DEBUG_ASSOC(il, "Received REPLY_ADD_STA:(0x%08X)\n",
 				pkt->u.add_sta.status);
 		break;
 	}
 
-	IL_DEBUG_INFO(priv, "%s station id %u addr %pM\n",
-		       priv->stations[sta_id].sta.mode ==
+	IL_DEBUG_INFO(il, "%s station id %u addr %pM\n",
+		       il->stations[sta_id].sta.mode ==
 		       STA_CONTROL_MODIFY_MSK ?  "Modified" : "Added",
-		       sta_id, priv->stations[sta_id].sta.sta.addr);
+		       sta_id, il->stations[sta_id].sta.sta.addr);
 
 	/*
 	 * XXX: The MAC address in the command buffer is often changed from
@@ -115,27 +115,27 @@ static int il_process_add_sta_resp(struct il_priv *priv,
 	 * issue has not yet been resolved and this debugging is left to
 	 * observe the problem.
 	 */
-	IL_DEBUG_INFO(priv, "%s station according to cmd buffer %pM\n",
-		       priv->stations[sta_id].sta.mode ==
+	IL_DEBUG_INFO(il, "%s station according to cmd buffer %pM\n",
+		       il->stations[sta_id].sta.mode ==
 		       STA_CONTROL_MODIFY_MSK ? "Modified" : "Added",
 		       addsta->sta.addr);
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&il->sta_lock, flags);
 
 	return ret;
 }
 
-static void il_add_sta_callback(struct il_priv *priv,
+static void il_add_sta_callback(struct il_priv *il,
 				 struct il_device_cmd *cmd,
 				 struct il_rx_packet *pkt)
 {
 	struct il_addsta_cmd *addsta =
 		(struct il_addsta_cmd *)cmd->cmd.payload;
 
-	il_process_add_sta_resp(priv, addsta, pkt, false);
+	il_process_add_sta_resp(il, addsta, pkt, false);
 
 }
 
-int il_send_add_sta(struct il_priv *priv,
+int il_send_add_sta(struct il_priv *il,
 		     struct il_addsta_cmd *sta, u8 flags)
 {
 	struct il_rx_packet *pkt = NULL;
@@ -148,7 +148,7 @@ int il_send_add_sta(struct il_priv *priv,
 	};
 	u8 sta_id __maybe_unused = sta->sta.sta_id;
 
-	IL_DEBUG_INFO(priv, "Adding sta %u (%pM) %ssynchronously\n",
+	IL_DEBUG_INFO(il, "Adding sta %u (%pM) %ssynchronously\n",
 		       sta_id, sta->sta.addr, flags & CMD_ASYNC ?  "a" : "");
 
 	if (flags & CMD_ASYNC)
@@ -158,23 +158,23 @@ int il_send_add_sta(struct il_priv *priv,
 		might_sleep();
 	}
 
-	cmd.len = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
-	ret = il_send_cmd(priv, &cmd);
+	cmd.len = il->cfg->ops->utils->build_addsta_hcmd(sta, data);
+	ret = il_send_cmd(il, &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
 		return ret;
 
 	if (ret == 0) {
 		pkt = (struct il_rx_packet *)cmd.reply_page;
-		ret = il_process_add_sta_resp(priv, sta, pkt, true);
+		ret = il_process_add_sta_resp(il, sta, pkt, true);
 	}
-	il_free_pages(priv, cmd.reply_page);
+	il_free_pages(il, cmd.reply_page);
 
 	return ret;
 }
 EXPORT_SYMBOL(il_send_add_sta);
 
-static void il_set_ht_add_station(struct il_priv *priv, u8 index,
+static void il_set_ht_add_station(struct il_priv *il, u8 index,
 				   struct ieee80211_sta *sta,
 				   struct il_rxon_context *ctx)
 {
@@ -186,13 +186,13 @@ static void il_set_ht_add_station(struct il_priv *priv, u8 index,
 		goto done;
 
 	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_SM_PS) >> 2;
-	IL_DEBUG_ASSOC(priv, "spatial multiplexing power save mode: %s\n",
+	IL_DEBUG_ASSOC(il, "spatial multiplexing power save mode: %s\n",
 			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_STATIC) ?
 			"static" :
 			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_DYNAMIC) ?
 			"dynamic" : "disabled");
 
-	sta_flags = priv->stations[index].sta.station_flags;
+	sta_flags = il->stations[index].sta.station_flags;
 
 	sta_flags &= ~(STA_FLG_RTS_MIMO_PROT_MSK | STA_FLG_MIMO_DIS_MSK);
 
@@ -206,7 +206,7 @@ static void il_set_ht_add_station(struct il_priv *priv, u8 index,
 	case WLAN_HT_CAP_SM_PS_DISABLED:
 		break;
 	default:
-		IL_WARN(priv, "Invalid MIMO PS mode %d\n", mimo_ps_mode);
+		IL_WARN(il, "Invalid MIMO PS mode %d\n", mimo_ps_mode);
 		break;
 	}
 
@@ -216,12 +216,12 @@ static void il_set_ht_add_station(struct il_priv *priv, u8 index,
 	sta_flags |= cpu_to_le32(
 	      (u32)sta_ht_inf->ampdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
 
-	if (il_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
+	if (il_is_ht40_tx_allowed(il, ctx, &sta->ht_cap))
 		sta_flags |= STA_FLG_HT40_EN_MSK;
 	else
 		sta_flags &= ~STA_FLG_HT40_EN_MSK;
 
-	priv->stations[index].sta.station_flags = sta_flags;
+	il->stations[index].sta.station_flags = sta_flags;
  done:
 	return;
 }
@@ -231,7 +231,7 @@ static void il_set_ht_add_station(struct il_priv *priv, u8 index,
  *
  * should be called with sta_lock held
  */
-u8 il_prep_station(struct il_priv *priv, struct il_rxon_context *ctx,
+u8 il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
 		    const u8 *addr, bool is_ap, struct ieee80211_sta *sta)
 {
 	struct il_station_entry *station;
@@ -244,14 +244,14 @@ u8 il_prep_station(struct il_priv *priv, struct il_rxon_context *ctx,
 	else if (is_broadcast_ether_addr(addr))
 		sta_id = ctx->bcast_sta_id;
 	else
-		for (i = IL_STA_ID; i < priv->hw_params.max_stations; i++) {
-			if (!compare_ether_addr(priv->stations[i].sta.sta.addr,
+		for (i = IL_STA_ID; i < il->hw_params.max_stations; i++) {
+			if (!compare_ether_addr(il->stations[i].sta.sta.addr,
 						addr)) {
 				sta_id = i;
 				break;
 			}
 
-			if (!priv->stations[i].used &&
+			if (!il->stations[i].used &&
 			    sta_id == IL_INVALID_STATION)
 				sta_id = i;
 		}
@@ -268,27 +268,27 @@ u8 il_prep_station(struct il_priv *priv, struct il_rxon_context *ctx,
 	 * station. Keep track if one is in progress so that we do not send
 	 * another.
 	 */
-	if (priv->stations[sta_id].used & IL_STA_UCODE_INPROGRESS) {
-		IL_DEBUG_INFO(priv,
+	if (il->stations[sta_id].used & IL_STA_UCODE_INPROGRESS) {
+		IL_DEBUG_INFO(il,
 				"STA %d already in process of being added.\n",
 				sta_id);
 		return sta_id;
 	}
 
-	if ((priv->stations[sta_id].used & IL_STA_DRIVER_ACTIVE) &&
-	    (priv->stations[sta_id].used & IL_STA_UCODE_ACTIVE) &&
-	    !compare_ether_addr(priv->stations[sta_id].sta.sta.addr, addr)) {
-		IL_DEBUG_ASSOC(priv,
+	if ((il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE) &&
+	    (il->stations[sta_id].used & IL_STA_UCODE_ACTIVE) &&
+	    !compare_ether_addr(il->stations[sta_id].sta.sta.addr, addr)) {
+		IL_DEBUG_ASSOC(il,
 				"STA %d (%pM) already added, not adding again.\n",
 				sta_id, addr);
 		return sta_id;
 	}
 
-	station = &priv->stations[sta_id];
+	station = &il->stations[sta_id];
 	station->used = IL_STA_DRIVER_ACTIVE;
-	IL_DEBUG_ASSOC(priv, "Add STA to driver ID %d: %pM\n",
+	IL_DEBUG_ASSOC(il, "Add STA to driver ID %d: %pM\n",
 			sta_id, addr);
-	priv->num_stations++;
+	il->num_stations++;
 
 	/* Set up the REPLY_ADD_STA command to send to device */
 	memset(&station->sta, 0, sizeof(struct il_addsta_cmd));
@@ -310,10 +310,10 @@ u8 il_prep_station(struct il_priv *priv, struct il_rxon_context *ctx,
 	 * STA and broadcast STA) pass in a NULL sta, and mac80211
 	 * doesn't allow HT IBSS.
 	 */
-	il_set_ht_add_station(priv, sta_id, sta, ctx);
+	il_set_ht_add_station(il, sta_id, sta, ctx);
 
 	/* 3945 only */
-	rate = (priv->band == IEEE80211_BAND_5GHZ) ?
+	rate = (il->band == IEEE80211_BAND_5GHZ) ?
 		IL_RATE_6M_PLCP : IL_RATE_1M_PLCP;
 	/* Turn on both antennas for the station... */
 	station->sta.rate_n_flags = cpu_to_le16(rate | RATE_MCS_ANT_AB_MSK);
@@ -329,7 +329,7 @@ EXPORT_SYMBOL_GPL(il_prep_station);
  * il_add_station_common -
  */
 int
-il_add_station_common(struct il_priv *priv,
+il_add_station_common(struct il_priv *il,
 			struct il_rxon_context *ctx,
 			   const u8 *addr, bool is_ap,
 			   struct ieee80211_sta *sta, u8 *sta_id_r)
@@ -340,12 +340,12 @@ il_add_station_common(struct il_priv *priv,
 	struct il_addsta_cmd sta_cmd;
 
 	*sta_id_r = 0;
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	sta_id = il_prep_station(priv, ctx, addr, is_ap, sta);
+	spin_lock_irqsave(&il->sta_lock, flags_spin);
+	sta_id = il_prep_station(il, ctx, addr, is_ap, sta);
 	if (sta_id == IL_INVALID_STATION) {
-		IL_ERR(priv, "Unable to prepare station %pM for addition\n",
+		IL_ERR(il, "Unable to prepare station %pM for addition\n",
 			addr);
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 		return -EINVAL;
 	}
 
@@ -354,37 +354,37 @@ il_add_station_common(struct il_priv *priv,
 	 * station. Keep track if one is in progress so that we do not send
 	 * another.
 	 */
-	if (priv->stations[sta_id].used & IL_STA_UCODE_INPROGRESS) {
-		IL_DEBUG_INFO(priv,
+	if (il->stations[sta_id].used & IL_STA_UCODE_INPROGRESS) {
+		IL_DEBUG_INFO(il,
 			"STA %d already in process of being added.\n",
 		       sta_id);
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 		return -EEXIST;
 	}
 
-	if ((priv->stations[sta_id].used & IL_STA_DRIVER_ACTIVE) &&
-	    (priv->stations[sta_id].used & IL_STA_UCODE_ACTIVE)) {
-		IL_DEBUG_ASSOC(priv,
+	if ((il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE) &&
+	    (il->stations[sta_id].used & IL_STA_UCODE_ACTIVE)) {
+		IL_DEBUG_ASSOC(il,
 			"STA %d (%pM) already added, not adding again.\n",
 			sta_id, addr);
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 		return -EEXIST;
 	}
 
-	priv->stations[sta_id].used |= IL_STA_UCODE_INPROGRESS;
-	memcpy(&sta_cmd, &priv->stations[sta_id].sta,
+	il->stations[sta_id].used |= IL_STA_UCODE_INPROGRESS;
+	memcpy(&sta_cmd, &il->stations[sta_id].sta,
 				sizeof(struct il_addsta_cmd));
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 
 	/* Add station to device's station table */
-	ret = il_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	ret = il_send_add_sta(il, &sta_cmd, CMD_SYNC);
 	if (ret) {
-		spin_lock_irqsave(&priv->sta_lock, flags_spin);
-		IL_ERR(priv, "Adding station %pM failed.\n",
-			priv->stations[sta_id].sta.sta.addr);
-		priv->stations[sta_id].used &= ~IL_STA_DRIVER_ACTIVE;
-		priv->stations[sta_id].used &= ~IL_STA_UCODE_INPROGRESS;
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_lock_irqsave(&il->sta_lock, flags_spin);
+		IL_ERR(il, "Adding station %pM failed.\n",
+			il->stations[sta_id].sta.sta.addr);
+		il->stations[sta_id].used &= ~IL_STA_DRIVER_ACTIVE;
+		il->stations[sta_id].used &= ~IL_STA_UCODE_INPROGRESS;
+		spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 	}
 	*sta_id_r = sta_id;
 	return ret;
@@ -394,23 +394,23 @@ EXPORT_SYMBOL(il_add_station_common);
 /**
  * il_sta_ucode_deactivate - deactivate ucode status for a station
  *
- * priv->sta_lock must be held
+ * il->sta_lock must be held
  */
-static void il_sta_ucode_deactivate(struct il_priv *priv, u8 sta_id)
+static void il_sta_ucode_deactivate(struct il_priv *il, u8 sta_id)
 {
 	/* Ucode must be active and driver must be non active */
-	if ((priv->stations[sta_id].used &
+	if ((il->stations[sta_id].used &
 	     (IL_STA_UCODE_ACTIVE | IL_STA_DRIVER_ACTIVE)) !=
 						IL_STA_UCODE_ACTIVE)
-		IL_ERR(priv, "removed non active STA %u\n", sta_id);
+		IL_ERR(il, "removed non active STA %u\n", sta_id);
 
-	priv->stations[sta_id].used &= ~IL_STA_UCODE_ACTIVE;
+	il->stations[sta_id].used &= ~IL_STA_UCODE_ACTIVE;
 
-	memset(&priv->stations[sta_id], 0, sizeof(struct il_station_entry));
-	IL_DEBUG_ASSOC(priv, "Removed STA %u\n", sta_id);
+	memset(&il->stations[sta_id], 0, sizeof(struct il_station_entry));
+	IL_DEBUG_ASSOC(il, "Removed STA %u\n", sta_id);
 }
 
-static int il_send_remove_station(struct il_priv *priv,
+static int il_send_remove_station(struct il_priv *il,
 				   const u8 *addr, int sta_id,
 				   bool temporary)
 {
@@ -433,14 +433,14 @@ static int il_send_remove_station(struct il_priv *priv,
 
 	cmd.flags |= CMD_WANT_SKB;
 
-	ret = il_send_cmd(priv, &cmd);
+	ret = il_send_cmd(il, &cmd);
 
 	if (ret)
 		return ret;
 
 	pkt = (struct il_rx_packet *)cmd.reply_page;
 	if (pkt->hdr.flags & IL_CMD_FAILED_MSK) {
-		IL_ERR(priv, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",
+		IL_ERR(il, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",
 			  pkt->hdr.flags);
 		ret = -EIO;
 	}
@@ -449,20 +449,20 @@ static int il_send_remove_station(struct il_priv *priv,
 		switch (pkt->u.rem_sta.status) {
 		case REM_STA_SUCCESS_MSK:
 			if (!temporary) {
-				spin_lock_irqsave(&priv->sta_lock, flags_spin);
-				il_sta_ucode_deactivate(priv, sta_id);
-				spin_unlock_irqrestore(&priv->sta_lock,
+				spin_lock_irqsave(&il->sta_lock, flags_spin);
+				il_sta_ucode_deactivate(il, sta_id);
+				spin_unlock_irqrestore(&il->sta_lock,
 								flags_spin);
 			}
-			IL_DEBUG_ASSOC(priv, "REPLY_REMOVE_STA PASSED\n");
+			IL_DEBUG_ASSOC(il, "REPLY_REMOVE_STA PASSED\n");
 			break;
 		default:
 			ret = -EIO;
-			IL_ERR(priv, "REPLY_REMOVE_STA failed\n");
+			IL_ERR(il, "REPLY_REMOVE_STA failed\n");
 			break;
 		}
 	}
-	il_free_pages(priv, cmd.reply_page);
+	il_free_pages(il, cmd.reply_page);
 
 	return ret;
 }
@@ -470,13 +470,13 @@ static int il_send_remove_station(struct il_priv *priv,
 /**
  * il_remove_station - Remove driver's knowledge of station.
  */
-int il_remove_station(struct il_priv *priv, const u8 sta_id,
+int il_remove_station(struct il_priv *il, const u8 sta_id,
 		       const u8 *addr)
 {
 	unsigned long flags;
 
-	if (!il_is_ready(priv)) {
-		IL_DEBUG_INFO(priv,
+	if (!il_is_ready(il)) {
+		IL_DEBUG_INFO(il,
 			"Unable to remove station %pM, device not ready.\n",
 			addr);
 		/*
@@ -487,42 +487,42 @@ int il_remove_station(struct il_priv *priv, const u8 sta_id,
 		return 0;
 	}
 
-	IL_DEBUG_ASSOC(priv, "Removing STA from driver:%d  %pM\n",
+	IL_DEBUG_ASSOC(il, "Removing STA from driver:%d  %pM\n",
 			sta_id, addr);
 
 	if (WARN_ON(sta_id == IL_INVALID_STATION))
 		return -EINVAL;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	spin_lock_irqsave(&il->sta_lock, flags);
 
-	if (!(priv->stations[sta_id].used & IL_STA_DRIVER_ACTIVE)) {
-		IL_DEBUG_INFO(priv, "Removing %pM but non DRIVER active\n",
+	if (!(il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE)) {
+		IL_DEBUG_INFO(il, "Removing %pM but non DRIVER active\n",
 				addr);
 		goto out_err;
 	}
 
-	if (!(priv->stations[sta_id].used & IL_STA_UCODE_ACTIVE)) {
-		IL_DEBUG_INFO(priv, "Removing %pM but non UCODE active\n",
+	if (!(il->stations[sta_id].used & IL_STA_UCODE_ACTIVE)) {
+		IL_DEBUG_INFO(il, "Removing %pM but non UCODE active\n",
 				addr);
 		goto out_err;
 	}
 
-	if (priv->stations[sta_id].used & IL_STA_LOCAL) {
-		kfree(priv->stations[sta_id].lq);
-		priv->stations[sta_id].lq = NULL;
+	if (il->stations[sta_id].used & IL_STA_LOCAL) {
+		kfree(il->stations[sta_id].lq);
+		il->stations[sta_id].lq = NULL;
 	}
 
-	priv->stations[sta_id].used &= ~IL_STA_DRIVER_ACTIVE;
+	il->stations[sta_id].used &= ~IL_STA_DRIVER_ACTIVE;
 
-	priv->num_stations--;
+	il->num_stations--;
 
-	BUG_ON(priv->num_stations < 0);
+	BUG_ON(il->num_stations < 0);
 
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&il->sta_lock, flags);
 
-	return il_send_remove_station(priv, addr, sta_id, false);
+	return il_send_remove_station(il, addr, sta_id, false);
 out_err:
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&il->sta_lock, flags);
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(il_remove_station);
@@ -535,31 +535,31 @@ EXPORT_SYMBOL_GPL(il_remove_station);
  * other than explicit station management would cause this in
  * the ucode, e.g. unassociated RXON.
  */
-void il_clear_ucode_stations(struct il_priv *priv,
+void il_clear_ucode_stations(struct il_priv *il,
 			      struct il_rxon_context *ctx)
 {
 	int i;
 	unsigned long flags_spin;
 	bool cleared = false;
 
-	IL_DEBUG_INFO(priv, "Clearing ucode stations in driver\n");
+	IL_DEBUG_INFO(il, "Clearing ucode stations in driver\n");
 
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	for (i = 0; i < priv->hw_params.max_stations; i++) {
-		if (ctx && ctx->ctxid != priv->stations[i].ctxid)
+	spin_lock_irqsave(&il->sta_lock, flags_spin);
+	for (i = 0; i < il->hw_params.max_stations; i++) {
+		if (ctx && ctx->ctxid != il->stations[i].ctxid)
 			continue;
 
-		if (priv->stations[i].used & IL_STA_UCODE_ACTIVE) {
-			IL_DEBUG_INFO(priv,
+		if (il->stations[i].used & IL_STA_UCODE_ACTIVE) {
+			IL_DEBUG_INFO(il,
 				"Clearing ucode active for station %d\n", i);
-			priv->stations[i].used &= ~IL_STA_UCODE_ACTIVE;
+			il->stations[i].used &= ~IL_STA_UCODE_ACTIVE;
 			cleared = true;
 		}
 	}
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 
 	if (!cleared)
-		IL_DEBUG_INFO(priv,
+		IL_DEBUG_INFO(il,
 			"No active stations found to be cleared\n");
 }
 EXPORT_SYMBOL(il_clear_ucode_stations);
@@ -573,7 +573,7 @@ EXPORT_SYMBOL(il_clear_ucode_stations);
  * Function sleeps.
  */
 void
-il_restore_stations(struct il_priv *priv, struct il_rxon_context *ctx)
+il_restore_stations(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	struct il_addsta_cmd sta_cmd;
 	struct il_link_quality_cmd lq;
@@ -583,48 +583,48 @@ il_restore_stations(struct il_priv *priv, struct il_rxon_context *ctx)
 	int ret;
 	bool send_lq;
 
-	if (!il_is_ready(priv)) {
-		IL_DEBUG_INFO(priv,
+	if (!il_is_ready(il)) {
+		IL_DEBUG_INFO(il,
 			"Not ready yet, not restoring any stations.\n");
 		return;
 	}
 
-	IL_DEBUG_ASSOC(priv, "Restoring all known stations ... start.\n");
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	for (i = 0; i < priv->hw_params.max_stations; i++) {
-		if (ctx->ctxid != priv->stations[i].ctxid)
+	IL_DEBUG_ASSOC(il, "Restoring all known stations ... start.\n");
+	spin_lock_irqsave(&il->sta_lock, flags_spin);
+	for (i = 0; i < il->hw_params.max_stations; i++) {
+		if (ctx->ctxid != il->stations[i].ctxid)
 			continue;
-		if ((priv->stations[i].used & IL_STA_DRIVER_ACTIVE) &&
-			    !(priv->stations[i].used & IL_STA_UCODE_ACTIVE)) {
-			IL_DEBUG_ASSOC(priv, "Restoring sta %pM\n",
-					priv->stations[i].sta.sta.addr);
-			priv->stations[i].sta.mode = 0;
-			priv->stations[i].used |= IL_STA_UCODE_INPROGRESS;
+		if ((il->stations[i].used & IL_STA_DRIVER_ACTIVE) &&
+			    !(il->stations[i].used & IL_STA_UCODE_ACTIVE)) {
+			IL_DEBUG_ASSOC(il, "Restoring sta %pM\n",
+					il->stations[i].sta.sta.addr);
+			il->stations[i].sta.mode = 0;
+			il->stations[i].used |= IL_STA_UCODE_INPROGRESS;
 			found = true;
 		}
 	}
 
-	for (i = 0; i < priv->hw_params.max_stations; i++) {
-		if ((priv->stations[i].used & IL_STA_UCODE_INPROGRESS)) {
-			memcpy(&sta_cmd, &priv->stations[i].sta,
+	for (i = 0; i < il->hw_params.max_stations; i++) {
+		if ((il->stations[i].used & IL_STA_UCODE_INPROGRESS)) {
+			memcpy(&sta_cmd, &il->stations[i].sta,
 			       sizeof(struct il_addsta_cmd));
 			send_lq = false;
-			if (priv->stations[i].lq) {
-				memcpy(&lq, priv->stations[i].lq,
+			if (il->stations[i].lq) {
+				memcpy(&lq, il->stations[i].lq,
 				       sizeof(struct il_link_quality_cmd));
 				send_lq = true;
 			}
-			spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
-			ret = il_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+			spin_unlock_irqrestore(&il->sta_lock, flags_spin);
+			ret = il_send_add_sta(il, &sta_cmd, CMD_SYNC);
 			if (ret) {
-				spin_lock_irqsave(&priv->sta_lock, flags_spin);
-				IL_ERR(priv, "Adding station %pM failed.\n",
-					priv->stations[i].sta.sta.addr);
-				priv->stations[i].used &=
+				spin_lock_irqsave(&il->sta_lock, flags_spin);
+				IL_ERR(il, "Adding station %pM failed.\n",
+					il->stations[i].sta.sta.addr);
+				il->stations[i].used &=
 						~IL_STA_DRIVER_ACTIVE;
-				priv->stations[i].used &=
+				il->stations[i].used &=
 						~IL_STA_UCODE_INPROGRESS;
-				spin_unlock_irqrestore(&priv->sta_lock,
+				spin_unlock_irqrestore(&il->sta_lock,
 								flags_spin);
 			}
 			/*
@@ -632,71 +632,71 @@ il_restore_stations(struct il_priv *priv, struct il_rxon_context *ctx)
 			 * current LQ command
 			 */
 			if (send_lq)
-				il_send_lq_cmd(priv, ctx, &lq,
+				il_send_lq_cmd(il, ctx, &lq,
 								CMD_SYNC, true);
-			spin_lock_irqsave(&priv->sta_lock, flags_spin);
-			priv->stations[i].used &= ~IL_STA_UCODE_INPROGRESS;
+			spin_lock_irqsave(&il->sta_lock, flags_spin);
+			il->stations[i].used &= ~IL_STA_UCODE_INPROGRESS;
 		}
 	}
 
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 	if (!found)
-		IL_DEBUG_INFO(priv, "Restoring all known stations"
+		IL_DEBUG_INFO(il, "Restoring all known stations"
 				" .... no stations to be restored.\n");
 	else
-		IL_DEBUG_INFO(priv, "Restoring all known stations"
+		IL_DEBUG_INFO(il, "Restoring all known stations"
 				" .... complete.\n");
 }
 EXPORT_SYMBOL(il_restore_stations);
 
-int il_get_free_ucode_key_index(struct il_priv *priv)
+int il_get_free_ucode_key_index(struct il_priv *il)
 {
 	int i;
 
-	for (i = 0; i < priv->sta_key_max_num; i++)
-		if (!test_and_set_bit(i, &priv->ucode_key_table))
+	for (i = 0; i < il->sta_key_max_num; i++)
+		if (!test_and_set_bit(i, &il->ucode_key_table))
 			return i;
 
 	return WEP_INVALID_OFFSET;
 }
 EXPORT_SYMBOL(il_get_free_ucode_key_index);
 
-void il_dealloc_bcast_stations(struct il_priv *priv)
+void il_dealloc_bcast_stations(struct il_priv *il)
 {
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	for (i = 0; i < priv->hw_params.max_stations; i++) {
-		if (!(priv->stations[i].used & IL_STA_BCAST))
+	spin_lock_irqsave(&il->sta_lock, flags);
+	for (i = 0; i < il->hw_params.max_stations; i++) {
+		if (!(il->stations[i].used & IL_STA_BCAST))
 			continue;
 
-		priv->stations[i].used &= ~IL_STA_UCODE_ACTIVE;
-		priv->num_stations--;
-		BUG_ON(priv->num_stations < 0);
-		kfree(priv->stations[i].lq);
-		priv->stations[i].lq = NULL;
+		il->stations[i].used &= ~IL_STA_UCODE_ACTIVE;
+		il->num_stations--;
+		BUG_ON(il->num_stations < 0);
+		kfree(il->stations[i].lq);
+		il->stations[i].lq = NULL;
 	}
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 EXPORT_SYMBOL_GPL(il_dealloc_bcast_stations);
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-static void il_dump_lq_cmd(struct il_priv *priv,
+static void il_dump_lq_cmd(struct il_priv *il,
 			   struct il_link_quality_cmd *lq)
 {
 	int i;
-	IL_DEBUG_RATE(priv, "lq station id 0x%x\n", lq->sta_id);
-	IL_DEBUG_RATE(priv, "lq ant 0x%X 0x%X\n",
+	IL_DEBUG_RATE(il, "lq station id 0x%x\n", lq->sta_id);
+	IL_DEBUG_RATE(il, "lq ant 0x%X 0x%X\n",
 		       lq->general_params.single_stream_ant_msk,
 		       lq->general_params.dual_stream_ant_msk);
 
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
-		IL_DEBUG_RATE(priv, "lq index %d 0x%X\n",
+		IL_DEBUG_RATE(il, "lq index %d 0x%X\n",
 			       i, lq->rs_table[i].rate_n_flags);
 }
 #else
-static inline void il_dump_lq_cmd(struct il_priv *priv,
+static inline void il_dump_lq_cmd(struct il_priv *il,
 				   struct il_link_quality_cmd *lq)
 {
 }
@@ -713,7 +713,7 @@ static inline void il_dump_lq_cmd(struct il_priv *priv,
  * Test for this to prevent driver from sending LQ command between the time
  * RXON flags are updated and when LQ command is updated.
  */
-static bool il_is_lq_table_valid(struct il_priv *priv,
+static bool il_is_lq_table_valid(struct il_priv *il,
 			      struct il_rxon_context *ctx,
 			      struct il_link_quality_cmd *lq)
 {
@@ -722,12 +722,12 @@ static bool il_is_lq_table_valid(struct il_priv *priv,
 	if (ctx->ht.enabled)
 		return true;
 
-	IL_DEBUG_INFO(priv, "Channel %u is not an HT channel\n",
+	IL_DEBUG_INFO(il, "Channel %u is not an HT channel\n",
 		       ctx->active.channel);
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
 		if (le32_to_cpu(lq->rs_table[i].rate_n_flags) &
 						RATE_MCS_HT_MSK) {
-			IL_DEBUG_INFO(priv,
+			IL_DEBUG_INFO(il,
 				       "index %d of LQ expects HT channel\n",
 				       i);
 			return false;
@@ -746,7 +746,7 @@ static bool il_is_lq_table_valid(struct il_priv *priv,
  * this case to clear the state indicating that station creation is in
  * progress.
  */
-int il_send_lq_cmd(struct il_priv *priv, struct il_rxon_context *ctx,
+int il_send_lq_cmd(struct il_priv *il, struct il_rxon_context *ctx,
 		    struct il_link_quality_cmd *lq, u8 flags, bool init)
 {
 	int ret = 0;
@@ -763,18 +763,18 @@ int il_send_lq_cmd(struct il_priv *priv, struct il_rxon_context *ctx,
 		return -EINVAL;
 
 
-	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	if (!(priv->stations[lq->sta_id].used & IL_STA_DRIVER_ACTIVE)) {
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_lock_irqsave(&il->sta_lock, flags_spin);
+	if (!(il->stations[lq->sta_id].used & IL_STA_DRIVER_ACTIVE)) {
+		spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 
-	il_dump_lq_cmd(priv, lq);
+	il_dump_lq_cmd(il, lq);
 	BUG_ON(init && (cmd.flags & CMD_ASYNC));
 
-	if (il_is_lq_table_valid(priv, ctx, lq))
-		ret = il_send_cmd(priv, &cmd);
+	if (il_is_lq_table_valid(il, ctx, lq))
+		ret = il_send_cmd(il, &cmd);
 	else
 		ret = -EINVAL;
 
@@ -782,12 +782,12 @@ int il_send_lq_cmd(struct il_priv *priv, struct il_rxon_context *ctx,
 		return ret;
 
 	if (init) {
-		IL_DEBUG_INFO(priv, "init LQ command complete,"
+		IL_DEBUG_INFO(il, "init LQ command complete,"
 				" clearing sta addition status for sta %d\n",
 			       lq->sta_id);
-		spin_lock_irqsave(&priv->sta_lock, flags_spin);
-		priv->stations[lq->sta_id].used &= ~IL_STA_UCODE_INPROGRESS;
-		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		spin_lock_irqsave(&il->sta_lock, flags_spin);
+		il->stations[lq->sta_id].used &= ~IL_STA_UCODE_INPROGRESS;
+		spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 	}
 	return ret;
 }
@@ -797,20 +797,20 @@ int il_mac_sta_remove(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {
-	struct il_priv *priv = hw->priv;
+	struct il_priv *il = hw->priv;
 	struct il_station_priv_common *sta_common = (void *)sta->drv_priv;
 	int ret;
 
-	IL_DEBUG_INFO(priv, "received request to remove station %pM\n",
+	IL_DEBUG_INFO(il, "received request to remove station %pM\n",
 			sta->addr);
-	mutex_lock(&priv->mutex);
-	IL_DEBUG_INFO(priv, "proceeding to remove station %pM\n",
+	mutex_lock(&il->mutex);
+	IL_DEBUG_INFO(il, "proceeding to remove station %pM\n",
 			sta->addr);
-	ret = il_remove_station(priv, sta_common->sta_id, sta->addr);
+	ret = il_remove_station(il, sta_common->sta_id, sta->addr);
 	if (ret)
-		IL_ERR(priv, "Error removing station %pM\n",
+		IL_ERR(il, "Error removing station %pM\n",
 			sta->addr);
-	mutex_unlock(&priv->mutex);
+	mutex_unlock(&il->mutex);
 	return ret;
 }
 EXPORT_SYMBOL(il_mac_sta_remove);

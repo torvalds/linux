@@ -346,7 +346,7 @@ struct il_traffic_load {
 };
 
 /**
- * struct il_lq_sta -- driver's rate scaling private structure
+ * struct il_lq_sta -- driver's rate scaling ilate structure
  *
  * Pointer to this gets passed back and forth between driver and mac80211.
  */
@@ -400,11 +400,9 @@ struct il_lq_sta {
 	u8 is_agg;
 };
 
-static inline u8 il4965_num_of_ant(u8 mask)
+static inline u8 il4965_num_of_ant(u8 m)
 {
-	return  !!((mask) & ANT_A) +
-		!!((mask) & ANT_B) +
-		!!((mask) & ANT_C);
+	return !!(m & ANT_A) + !!(m & ANT_B) + !!(m & ANT_C);
 }
 
 static inline u8 il4965_first_antenna(u8 mask)
@@ -426,9 +424,9 @@ static inline u8 il4965_first_antenna(u8 mask)
 extern void il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
 
 /* Initialize station's rate scaling information after adding station */
-extern void il4965_rs_rate_init(struct il_priv *priv,
+extern void il4965_rs_rate_init(struct il_priv *il,
 			     struct ieee80211_sta *sta, u8 sta_id);
-extern void il3945_rs_rate_init(struct il_priv *priv,
+extern void il3945_rs_rate_init(struct il_priv *il,
 				 struct ieee80211_sta *sta, u8 sta_id);
 
 /**

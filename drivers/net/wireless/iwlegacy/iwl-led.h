@@ -50,7 +50,7 @@ enum il_led_mode {
 	IL_LED_BLINK,
 };
 
-void il_leds_init(struct il_priv *priv);
-void il_leds_exit(struct il_priv *priv);
+void il_leds_init(struct il_priv *il);
+void il_leds_exit(struct il_priv *il);
 
 #endif /* __il_leds_h__ */

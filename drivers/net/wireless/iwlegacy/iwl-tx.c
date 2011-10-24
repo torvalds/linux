@@ -42,7 +42,7 @@
  * il_txq_update_write_ptr - Send new write index to hardware
  */
 void
-il_txq_update_write_ptr(struct il_priv *priv, struct il_tx_queue *txq)
+il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
 {
 	u32 reg = 0;
 	int txq_id = txq->q.id;
@@ -51,22 +51,22 @@ il_txq_update_write_ptr(struct il_priv *priv, struct il_tx_queue *txq)
 		return;
 
 	/* if we're trying to save power */
-	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+	if (test_bit(STATUS_POWER_PMI, &il->status)) {
 		/* wake up nic if it's powered down ...
 		 * uCode will wake up, and interrupt us again, so next
 		 * time we'll skip this part. */
-		reg = il_read32(priv, CSR_UCODE_DRV_GP1);
+		reg = il_read32(il, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IL_DEBUG_INFO(priv,
+			IL_DEBUG_INFO(il,
 					"Tx queue %d requesting wakeup,"
 					" GP1 = 0x%x\n", txq_id, reg);
-			il_set_bit(priv, CSR_GP_CNTRL,
+			il_set_bit(il, CSR_GP_CNTRL,
 					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			return;
 		}
 
-		il_write_direct32(priv, HBUS_TARG_WRPTR,
+		il_write_direct32(il, HBUS_TARG_WRPTR,
 				txq->q.write_ptr | (txq_id << 8));
 
 		/*
@@ -75,7 +75,7 @@ il_txq_update_write_ptr(struct il_priv *priv, struct il_tx_queue *txq)
 		 * trying to tx (during RFKILL, we're not trying to tx).
 		 */
 	} else
-		il_write32(priv, HBUS_TARG_WRPTR,
+		il_write32(il, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
 	txq->need_update = 0;
 }
@@ -84,16 +84,16 @@ EXPORT_SYMBOL(il_txq_update_write_ptr);
 /**
  * il_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
  */
-void il_tx_queue_unmap(struct il_priv *priv, int txq_id)
+void il_tx_queue_unmap(struct il_priv *il, int txq_id)
 {
-	struct il_tx_queue *txq = &priv->txq[txq_id];
+	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct il_queue *q = &txq->q;
 
 	if (q->n_bd == 0)
 		return;
 
 	while (q->write_ptr != q->read_ptr) {
-		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
+		il->cfg->ops->lib->txq_free_tfd(il, txq);
 		q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 }
@@ -107,13 +107,13 @@ EXPORT_SYMBOL(il_tx_queue_unmap);
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-void il_tx_queue_free(struct il_priv *priv, int txq_id)
+void il_tx_queue_free(struct il_priv *il, int txq_id)
 {
-	struct il_tx_queue *txq = &priv->txq[txq_id];
-	struct device *dev = &priv->pci_dev->dev;
+	struct il_tx_queue *txq = &il->txq[txq_id];
+	struct device *dev = &il->pci_dev->dev;
 	int i;
 
-	il_tx_queue_unmap(priv, txq_id);
+	il_tx_queue_unmap(il, txq_id);
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
@@ -121,7 +121,7 @@ void il_tx_queue_free(struct il_priv *priv, int txq_id)
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
-		dma_free_coherent(dev, priv->hw_params.tfd_size *
+		dma_free_coherent(dev, il->hw_params.tfd_size *
 				  txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 
 	/* De-alloc array of per-TFD driver data */
@@ -142,9 +142,9 @@ EXPORT_SYMBOL(il_tx_queue_free);
 /**
  * il_cmd_queue_unmap - Unmap any remaining DMA mappings from command queue
  */
-void il_cmd_queue_unmap(struct il_priv *priv)
+void il_cmd_queue_unmap(struct il_priv *il)
 {
-	struct il_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct il_tx_queue *txq = &il->txq[il->cmd_queue];
 	struct il_queue *q = &txq->q;
 	int i;
 
@@ -155,7 +155,7 @@ void il_cmd_queue_unmap(struct il_priv *priv)
 		i = il_get_cmd_index(q, q->read_ptr, 0);
 
 		if (txq->meta[i].flags & CMD_MAPPED) {
-			pci_unmap_single(priv->pci_dev,
+			pci_unmap_single(il->pci_dev,
 					 dma_unmap_addr(&txq->meta[i], mapping),
 					 dma_unmap_len(&txq->meta[i], len),
 					 PCI_DMA_BIDIRECTIONAL);
@@ -167,7 +167,7 @@ void il_cmd_queue_unmap(struct il_priv *priv)
 
 	i = q->n_window;
 	if (txq->meta[i].flags & CMD_MAPPED) {
-		pci_unmap_single(priv->pci_dev,
+		pci_unmap_single(il->pci_dev,
 				 dma_unmap_addr(&txq->meta[i], mapping),
 				 dma_unmap_len(&txq->meta[i], len),
 				 PCI_DMA_BIDIRECTIONAL);
@@ -184,13 +184,13 @@ EXPORT_SYMBOL(il_cmd_queue_unmap);
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-void il_cmd_queue_free(struct il_priv *priv)
+void il_cmd_queue_free(struct il_priv *il)
 {
-	struct il_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct device *dev = &priv->pci_dev->dev;
+	struct il_tx_queue *txq = &il->txq[il->cmd_queue];
+	struct device *dev = &il->pci_dev->dev;
 	int i;
 
-	il_cmd_queue_unmap(priv);
+	il_cmd_queue_unmap(il);
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i <= TFD_CMD_SLOTS; i++)
@@ -198,7 +198,7 @@ void il_cmd_queue_free(struct il_priv *priv)
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
-		dma_free_coherent(dev, priv->hw_params.tfd_size * txq->q.n_bd,
+		dma_free_coherent(dev, il->hw_params.tfd_size * txq->q.n_bd,
 				  txq->tfds, txq->q.dma_addr);
 
 	/* deallocate arrays */
@@ -256,7 +256,7 @@ EXPORT_SYMBOL(il_queue_space);
 /**
  * il_queue_init - Initialize queue's high/low-water and read/write indexes
  */
-static int il_queue_init(struct il_priv *priv, struct il_queue *q,
+static int il_queue_init(struct il_priv *il, struct il_queue *q,
 			  int count, int slots_num, u32 id)
 {
 	q->n_bd = count;
@@ -287,19 +287,19 @@ static int il_queue_init(struct il_priv *priv, struct il_queue *q,
 /**
  * il_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
  */
-static int il_tx_queue_alloc(struct il_priv *priv,
+static int il_tx_queue_alloc(struct il_priv *il,
 			      struct il_tx_queue *txq, u32 id)
 {
-	struct device *dev = &priv->pci_dev->dev;
-	size_t tfd_sz = priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
+	struct device *dev = &il->pci_dev->dev;
+	size_t tfd_sz = il->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
 
-	/* Driver private data, only for Tx (not command) queues,
+	/* Driver ilate data, only for Tx (not command) queues,
 	 * not shared with device. */
-	if (id != priv->cmd_queue) {
+	if (id != il->cmd_queue) {
 		txq->txb = kzalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
-			IL_ERR(priv, "kmalloc for auxiliary BD "
+			IL_ERR(il, "kmalloc for auxiliary BD "
 				  "structures failed\n");
 			goto error;
 		}
@@ -312,7 +312,7 @@ static int il_tx_queue_alloc(struct il_priv *priv,
 	txq->tfds = dma_alloc_coherent(dev, tfd_sz, &txq->q.dma_addr,
 				       GFP_KERNEL);
 	if (!txq->tfds) {
-		IL_ERR(priv, "pci_alloc_consistent(%zd) failed\n", tfd_sz);
+		IL_ERR(il, "pci_alloc_consistent(%zd) failed\n", tfd_sz);
 		goto error;
 	}
 	txq->q.id = id;
@@ -329,7 +329,7 @@ static int il_tx_queue_alloc(struct il_priv *priv,
 /**
  * il_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
-int il_tx_queue_init(struct il_priv *priv, struct il_tx_queue *txq,
+int il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq,
 		      int slots_num, u32 txq_id)
 {
 	int i, len;
@@ -344,7 +344,7 @@ int il_tx_queue_init(struct il_priv *priv, struct il_tx_queue *txq,
 	 * For normal Tx queues (all other queues), no super-size command
 	 * space is needed.
 	 */
-	if (txq_id == priv->cmd_queue)
+	if (txq_id == il->cmd_queue)
 		actual_slots++;
 
 	txq->meta = kzalloc(sizeof(struct il_cmd_meta) * actual_slots,
@@ -367,7 +367,7 @@ int il_tx_queue_init(struct il_priv *priv, struct il_tx_queue *txq,
 	}
 
 	/* Alloc driver data array and TFD circular buffer */
-	ret = il_tx_queue_alloc(priv, txq, txq_id);
+	ret = il_tx_queue_alloc(il, txq, txq_id);
 	if (ret)
 		goto err;
 
@@ -386,11 +386,11 @@ int il_tx_queue_init(struct il_priv *priv, struct il_tx_queue *txq,
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	il_queue_init(priv, &txq->q,
+	il_queue_init(il, &txq->q,
 				TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
-	priv->cfg->ops->lib->txq_init(priv, txq);
+	il->cfg->ops->lib->txq_init(il, txq);
 
 	return 0;
 err:
@@ -404,12 +404,12 @@ out_free_arrays:
 }
 EXPORT_SYMBOL(il_tx_queue_init);
 
-void il_tx_queue_reset(struct il_priv *priv, struct il_tx_queue *txq,
+void il_tx_queue_reset(struct il_priv *il, struct il_tx_queue *txq,
 			int slots_num, u32 txq_id)
 {
 	int actual_slots = slots_num;
 
-	if (txq_id == priv->cmd_queue)
+	if (txq_id == il->cmd_queue)
 		actual_slots++;
 
 	memset(txq->meta, 0, sizeof(struct il_cmd_meta) * actual_slots);
@@ -417,11 +417,11 @@ void il_tx_queue_reset(struct il_priv *priv, struct il_tx_queue *txq,
 	txq->need_update = 0;
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	il_queue_init(priv, &txq->q,
+	il_queue_init(il, &txq->q,
 				TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
-	priv->cfg->ops->lib->txq_init(priv, txq);
+	il->cfg->ops->lib->txq_init(il, txq);
 }
 EXPORT_SYMBOL(il_tx_queue_reset);
 
@@ -429,16 +429,16 @@ EXPORT_SYMBOL(il_tx_queue_reset);
 
 /**
  * il_enqueue_hcmd - enqueue a uCode command
- * @priv: device private data point
+ * @il: device ilate data point
  * @cmd: a point to the ucode command structure
  *
  * The function returns < 0 values to indicate the operation is
  * failed. On success, it turns the index (> 0) of command in the
  * command queue.
  */
-int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd)
+int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 {
-	struct il_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct il_tx_queue *txq = &il->txq[il->cmd_queue];
 	struct il_queue *q = &txq->q;
 	struct il_device_cmd *out_cmd;
 	struct il_cmd_meta *out_meta;
@@ -448,7 +448,7 @@ int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd)
 	u32 idx;
 	u16 fix_size;
 
-	cmd->len = priv->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
+	cmd->len = il->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
 	fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
 
 	/* If any of the command structures end up being larger than
@@ -460,19 +460,19 @@ int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd)
 	       !(cmd->flags & CMD_SIZE_HUGE));
 	BUG_ON(fix_size > IL_MAX_CMD_SIZE);
 
-	if (il_is_rfkill(priv) || il_is_ctkill(priv)) {
-		IL_WARN(priv, "Not sending command - %s KILL\n",
-			 il_is_rfkill(priv) ? "RF" : "CT");
+	if (il_is_rfkill(il) || il_is_ctkill(il)) {
+		IL_WARN(il, "Not sending command - %s KILL\n",
+			 il_is_rfkill(il) ? "RF" : "CT");
 		return -EIO;
 	}
 
-	spin_lock_irqsave(&priv->hcmd_lock, flags);
+	spin_lock_irqsave(&il->hcmd_lock, flags);
 
 	if (il_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
-		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+		spin_unlock_irqrestore(&il->hcmd_lock, flags);
 
-		IL_ERR(priv, "Restarting adapter due to command queue full\n");
-		queue_work(priv->workqueue, &priv->restart);
+		IL_ERR(il, "Restarting adapter due to command queue full\n");
+		queue_work(il->workqueue, &il->restart);
 		return -ENOSPC;
 	}
 
@@ -481,7 +481,7 @@ int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd)
 	out_meta = &txq->meta[idx];
 
 	if (WARN_ON(out_meta->flags & CMD_MAPPED)) {
-		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+		spin_unlock_irqrestore(&il->hcmd_lock, flags);
 		return -ENOSPC;
 	}
 
@@ -499,7 +499,7 @@ int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd)
 	 * information */
 
 	out_cmd->hdr.flags = 0;
-	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(priv->cmd_queue) |
+	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(il->cmd_queue) |
 			INDEX_TO_SEQ(q->write_ptr));
 	if (cmd->flags & CMD_SIZE_HUGE)
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
@@ -511,43 +511,43 @@ int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd)
 	switch (out_cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IL_DEBUG_HC_DUMP(priv,
+		IL_DEBUG_HC_DUMP(il,
 				"Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
 				il_get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
 				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
-				q->write_ptr, idx, priv->cmd_queue);
+				q->write_ptr, idx, il->cmd_queue);
 		break;
 	default:
-		IL_DEBUG_HC(priv, "Sending command %s (#%x), seq: 0x%04X, "
+		IL_DEBUG_HC(il, "Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
 				il_get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
 				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
-				q->write_ptr, idx, priv->cmd_queue);
+				q->write_ptr, idx, il->cmd_queue);
 	}
 #endif
 	txq->need_update = 1;
 
-	if (priv->cfg->ops->lib->txq_update_byte_cnt_tbl)
+	if (il->cfg->ops->lib->txq_update_byte_cnt_tbl)
 		/* Set up entry in queue's byte count circular buffer */
-		priv->cfg->ops->lib->txq_update_byte_cnt_tbl(priv, txq, 0);
+		il->cfg->ops->lib->txq_update_byte_cnt_tbl(il, txq, 0);
 
-	phys_addr = pci_map_single(priv->pci_dev, &out_cmd->hdr,
+	phys_addr = pci_map_single(il->pci_dev, &out_cmd->hdr,
 				   fix_size, PCI_DMA_BIDIRECTIONAL);
 	dma_unmap_addr_set(out_meta, mapping, phys_addr);
 	dma_unmap_len_set(out_meta, len, fix_size);
 
-	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
+	il->cfg->ops->lib->txq_attach_buf_to_tfd(il, txq,
 						   phys_addr, fix_size, 1,
 						   U32_PAD(cmd->len));
 
 	/* Increment and update queue's write index */
 	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
-	il_txq_update_write_ptr(priv, txq);
+	il_txq_update_write_ptr(il, txq);
 
-	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+	spin_unlock_irqrestore(&il->hcmd_lock, flags);
 	return idx;
 }
 
@@ -558,15 +558,15 @@ int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd)
  * need to be reclaimed. As result, some free space forms.  If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
-static void il_hcmd_queue_reclaim(struct il_priv *priv, int txq_id,
+static void il_hcmd_queue_reclaim(struct il_priv *il, int txq_id,
 				   int idx, int cmd_idx)
 {
-	struct il_tx_queue *txq = &priv->txq[txq_id];
+	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct il_queue *q = &txq->q;
 	int nfreed = 0;
 
 	if ((idx >= q->n_bd) || (il_queue_used(q, idx) == 0)) {
-		IL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
+		IL_ERR(il, "Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
@@ -576,9 +576,9 @@ static void il_hcmd_queue_reclaim(struct il_priv *priv, int txq_id,
 	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		if (nfreed++ > 0) {
-			IL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", idx,
+			IL_ERR(il, "HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
-			queue_work(priv->workqueue, &priv->restart);
+			queue_work(il->workqueue, &il->restart);
 		}
 
 	}
@@ -593,7 +593,7 @@ static void il_hcmd_queue_reclaim(struct il_priv *priv, int txq_id,
  * if the callback returns 1
  */
 void
-il_tx_cmd_complete(struct il_priv *priv, struct il_rx_mem_buffer *rxb)
+il_tx_cmd_complete(struct il_priv *il, struct il_rx_mem_buffer *rxb)
 {
 	struct il_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -603,18 +603,18 @@ il_tx_cmd_complete(struct il_priv *priv, struct il_rx_mem_buffer *rxb)
 	bool huge = !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	struct il_device_cmd *cmd;
 	struct il_cmd_meta *meta;
-	struct il_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct il_tx_queue *txq = &il->txq[il->cmd_queue];
 	unsigned long flags;
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
 	 * in the queue management code. */
-	if (WARN(txq_id != priv->cmd_queue,
+	if (WARN(txq_id != il->cmd_queue,
 		 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d\n",
-		  txq_id, priv->cmd_queue, sequence,
-		  priv->txq[priv->cmd_queue].q.read_ptr,
-		  priv->txq[priv->cmd_queue].q.write_ptr)) {
-		il_print_hex_error(priv, pkt, 32);
+		  txq_id, il->cmd_queue, sequence,
+		  il->txq[il->cmd_queue].q.read_ptr,
+		  il->txq[il->cmd_queue].q.write_ptr)) {
+		il_print_hex_error(il, pkt, 32);
 		return;
 	}
 
@@ -624,7 +624,7 @@ il_tx_cmd_complete(struct il_priv *priv, struct il_rx_mem_buffer *rxb)
 
 	txq->time_stamp = jiffies;
 
-	pci_unmap_single(priv->pci_dev,
+	pci_unmap_single(il->pci_dev,
 			 dma_unmap_addr(meta, mapping),
 			 dma_unmap_len(meta, len),
 			 PCI_DMA_BIDIRECTIONAL);
@@ -634,22 +634,22 @@ il_tx_cmd_complete(struct il_priv *priv, struct il_rx_mem_buffer *rxb)
 		meta->source->reply_page = (unsigned long)rxb_addr(rxb);
 		rxb->page = NULL;
 	} else if (meta->callback)
-		meta->callback(priv, cmd, pkt);
+		meta->callback(il, cmd, pkt);
 
-	spin_lock_irqsave(&priv->hcmd_lock, flags);
+	spin_lock_irqsave(&il->hcmd_lock, flags);
 
-	il_hcmd_queue_reclaim(priv, txq_id, index, cmd_index);
+	il_hcmd_queue_reclaim(il, txq_id, index, cmd_index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
-		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
-		IL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command %s\n",
+		clear_bit(STATUS_HCMD_ACTIVE, &il->status);
+		IL_DEBUG_INFO(il, "Clearing HCMD_ACTIVE for command %s\n",
 			       il_get_cmd_string(cmd->hdr.cmd));
-		wake_up(&priv->wait_command_queue);
+		wake_up(&il->wait_command_queue);
 	}
 
 	/* Mark as unmapped */
 	meta->flags = 0;
 
-	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
+	spin_unlock_irqrestore(&il->hcmd_lock, flags);
 }
 EXPORT_SYMBOL(il_tx_cmd_complete);
