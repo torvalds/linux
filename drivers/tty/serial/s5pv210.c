@@ -25,60 +25,6 @@
 #include <plat/regs-serial.h>
 #include "samsung.h"
 
-static int s5pv210_serial_setsource(struct uart_port *port,
-					struct s3c24xx_uart_clksrc *clk)
-{
-	struct s3c24xx_uart_port *ourport;
-	struct s3c2410_uartcfg *cfg;
-	unsigned long ucon = rd_regl(port, S3C2410_UCON);
-
-	ourport = container_of(port, struct s3c24xx_uart_port, port);
-	cfg = ourport->cfg;
-
-	if (cfg->flags & NO_NEED_CHECK_CLKSRC)
-		return 0;
-
-	if (strcmp(clk->name, "pclk") == 0)
-		ucon &= ~S5PV210_UCON_CLKMASK;
-	else if (strcmp(clk->name, "uclk1") == 0)
-		ucon |= S5PV210_UCON_CLKMASK;
-	else {
-		printk(KERN_ERR "unknown clock source %s\n", clk->name);
-		return -EINVAL;
-	}
-
-	wr_regl(port, S3C2410_UCON, ucon);
-	return 0;
-}
-
-
-static int s5pv210_serial_getsource(struct uart_port *port,
-					struct s3c24xx_uart_clksrc *clk)
-{
-	struct s3c24xx_uart_port *ourport;
-	struct s3c2410_uartcfg *cfg;
-	u32 ucon = rd_regl(port, S3C2410_UCON);
-
-	ourport = container_of(port, struct s3c24xx_uart_port, port);
-	cfg = ourport->cfg;
-
-	clk->divisor = 1;
-
-	if (cfg->flags & NO_NEED_CHECK_CLKSRC)
-		return 0;
-
-	switch (ucon & S5PV210_UCON_CLKMASK) {
-	case S5PV210_UCON_PCLK:
-		clk->name = "pclk";
-		break;
-	case S5PV210_UCON_UCLK:
-		clk->name = "uclk1";
-		break;
-	}
-
-	return 0;
-}
-
 static int s5pv210_serial_resetport(struct uart_port *port,
 					struct s3c2410_uartcfg *cfg)
 {
@@ -109,8 +55,10 @@ static int s5pv210_serial_resetport(struct uart_port *port,
 		.tx_fifofull	= S5PV210_UFSTAT_TXFULL,	\
 		.tx_fifomask	= S5PV210_UFSTAT_TXMASK,	\
 		.tx_fifoshift	= S5PV210_UFSTAT_TXSHIFT,	\
-		.get_clksrc	= s5pv210_serial_getsource,	\
-		.set_clksrc	= s5pv210_serial_setsource,	\
+		.def_clk_sel	= S3C2410_UCON_CLKSEL0,		\
+		.num_clks	= 2,				\
+		.clksel_mask	= S5PV210_UCON_CLKMASK,		\
+		.clksel_shift	= S5PV210_UCON_CLKSHIFT,	\
 		.reset_port	= s5pv210_serial_resetport
 
 static struct s3c24xx_uart_info s5p_port_fifo256 = {

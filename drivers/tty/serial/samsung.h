@@ -28,11 +28,6 @@ struct s3c24xx_uart_info {
 
 	unsigned int		has_divslot:1;
 
-	/* clock source control */
-
-	int (*get_clksrc)(struct uart_port *, struct s3c24xx_uart_clksrc *clk);
-	int (*set_clksrc)(struct uart_port *, struct s3c24xx_uart_clksrc *clk);
-
 	/* uart controls */
 	int (*reset_port)(struct uart_port *, struct s3c2410_uartcfg *);
 };

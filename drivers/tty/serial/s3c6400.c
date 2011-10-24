@@ -26,54 +26,6 @@
 
 #include "samsung.h"
 
-static int s3c6400_serial_setsource(struct uart_port *port,
-				    struct s3c24xx_uart_clksrc *clk)
-{
-	unsigned long ucon = rd_regl(port, S3C2410_UCON);
-
-	if (strcmp(clk->name, "uclk0") == 0) {
-		ucon &= ~S3C6400_UCON_CLKMASK;
-		ucon |= S3C6400_UCON_UCLK0;
-	} else if (strcmp(clk->name, "uclk1") == 0)
-		ucon |= S3C6400_UCON_UCLK1;
-	else if (strcmp(clk->name, "pclk") == 0) {
-		/* See notes about transitioning from UCLK to PCLK */
-		ucon &= ~S3C6400_UCON_UCLK0;
-	} else {
-		printk(KERN_ERR "unknown clock source %s\n", clk->name);
-		return -EINVAL;
-	}
-
-	wr_regl(port, S3C2410_UCON, ucon);
-	return 0;
-}
-
-
-static int s3c6400_serial_getsource(struct uart_port *port,
-				    struct s3c24xx_uart_clksrc *clk)
-{
-	u32 ucon = rd_regl(port, S3C2410_UCON);
-
-	clk->divisor = 1;
-
-	switch (ucon & S3C6400_UCON_CLKMASK) {
-	case S3C6400_UCON_UCLK0:
-		clk->name = "uclk0";
-		break;
-
-	case S3C6400_UCON_UCLK1:
-		clk->name = "uclk1";
-		break;
-
-	case S3C6400_UCON_PCLK:
-	case S3C6400_UCON_PCLK2:
-		clk->name = "pclk";
-		break;
-	}
-
-	return 0;
-}
-
 static int s3c6400_serial_resetport(struct uart_port *port,
 				    struct s3c2410_uartcfg *cfg)
 {
@@ -108,8 +60,10 @@ static struct s3c24xx_uart_info s3c6400_uart_inf = {
 	.tx_fifofull	= S3C2440_UFSTAT_TXFULL,
 	.tx_fifomask	= S3C2440_UFSTAT_TXMASK,
 	.tx_fifoshift	= S3C2440_UFSTAT_TXSHIFT,
-	.get_clksrc	= s3c6400_serial_getsource,
-	.set_clksrc	= s3c6400_serial_setsource,
+	.def_clk_sel	= S3C2410_UCON_CLKSEL2,
+	.num_clks	= 4,
+	.clksel_mask	= S3C6400_UCON_CLKMASK,
+	.clksel_shift	= S3C6400_UCON_CLKSHIFT,
 	.reset_port	= s3c6400_serial_resetport,
 };
 
