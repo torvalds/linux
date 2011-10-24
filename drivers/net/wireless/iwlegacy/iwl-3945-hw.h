@@ -66,8 +66,8 @@
  * Please use iwl-3945.h for driver implementation definitions.
  */
 
-#ifndef __iwl_3945_hw__
-#define __iwl_3945_hw__
+#ifndef __il_3945_hw__
+#define __il_3945_hw__
 
 #include "iwl-eeprom.h"
 
@@ -90,7 +90,7 @@
  * Data copied from EEPROM.
  * DO NOT ALTER THIS STRUCTURE!!!
  */
-struct iwl3945_eeprom_txpower_sample {
+struct il3945_eeprom_txpower_sample {
 	u8 gain_index;		/* index into power (gain) setup table ... */
 	s8 power;		/* ... for this pwr level for this chnl group */
 	u16 v_det;		/* PA output voltage */
@@ -104,8 +104,8 @@ struct iwl3945_eeprom_txpower_sample {
  * Data copied from EEPROM.
  * DO NOT ALTER THIS STRUCTURE!!!
  */
-struct iwl3945_eeprom_txpower_group {
-	struct iwl3945_eeprom_txpower_sample samples[5];  /* 5 power levels */
+struct il3945_eeprom_txpower_group {
+	struct il3945_eeprom_txpower_sample samples[5];  /* 5 power levels */
 	s32 a, b, c, d, e;	/* coefficients for voltage->power
 				 * formula (signed) */
 	s32 Fa, Fb, Fc, Fd, Fe;	/* these modify coeffs based on
@@ -123,7 +123,7 @@ struct iwl3945_eeprom_txpower_group {
  *   difference between current temperature and factory calib temperature.
  * Data copied from EEPROM.
  */
-struct iwl3945_eeprom_temperature_corr {
+struct il3945_eeprom_temperature_corr {
 	u32 Ta;
 	u32 Tb;
 	u32 Tc;
@@ -134,7 +134,7 @@ struct iwl3945_eeprom_temperature_corr {
 /*
  * EEPROM map
  */
-struct iwl3945_eeprom {
+struct il3945_eeprom {
 	u8 reserved0[16];
 	u16 device_id;	/* abs.ofs: 16 */
 	u8 reserved1[2];
@@ -171,7 +171,7 @@ struct iwl3945_eeprom {
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
  */
 	u16 band_1_count;	/* abs.ofs: 196 */
-	struct iwl_eeprom_channel band_1_channels[14];  /* abs.ofs: 198 */
+	struct il_eeprom_channel band_1_channels[14];  /* abs.ofs: 198 */
 
 /*
  * 4.9 GHz channels 183, 184, 185, 187, 188, 189, 192, 196,
@@ -179,38 +179,38 @@ struct iwl3945_eeprom {
  * (4915-5080MHz) (none of these is ever supported)
  */
 	u16 band_2_count;	/* abs.ofs: 226 */
-	struct iwl_eeprom_channel band_2_channels[13];  /* abs.ofs: 228 */
+	struct il_eeprom_channel band_2_channels[13];  /* abs.ofs: 228 */
 
 /*
  * 5.2 GHz channels 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64
  * (5170-5320MHz)
  */
 	u16 band_3_count;	/* abs.ofs: 254 */
-	struct iwl_eeprom_channel band_3_channels[12];  /* abs.ofs: 256 */
+	struct il_eeprom_channel band_3_channels[12];  /* abs.ofs: 256 */
 
 /*
  * 5.5 GHz channels 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
  * (5500-5700MHz)
  */
 	u16 band_4_count;	/* abs.ofs: 280 */
-	struct iwl_eeprom_channel band_4_channels[11];  /* abs.ofs: 282 */
+	struct il_eeprom_channel band_4_channels[11];  /* abs.ofs: 282 */
 
 /*
  * 5.7 GHz channels 145, 149, 153, 157, 161, 165
  * (5725-5825MHz)
  */
 	u16 band_5_count;	/* abs.ofs: 304 */
-	struct iwl_eeprom_channel band_5_channels[6];  /* abs.ofs: 306 */
+	struct il_eeprom_channel band_5_channels[6];  /* abs.ofs: 306 */
 
 	u8 reserved9[194];
 
 /*
  * 3945 Txpower calibration data.
  */
-#define IWL_NUM_TX_CALIB_GROUPS 5
-	struct iwl3945_eeprom_txpower_group groups[IWL_NUM_TX_CALIB_GROUPS];
+#define IL_NUM_TX_CALIB_GROUPS 5
+	struct il3945_eeprom_txpower_group groups[IL_NUM_TX_CALIB_GROUPS];
 /* abs.ofs: 512 */
-	struct iwl3945_eeprom_temperature_corr corrections;  /* abs.ofs: 832 */
+	struct il3945_eeprom_temperature_corr corrections;  /* abs.ofs: 832 */
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
 } __packed;
 
@@ -225,7 +225,7 @@ struct iwl3945_eeprom {
 #define IWL39_NUM_QUEUES        5
 #define IWL39_CMD_QUEUE_NUM	4
 
-#define IWL_DEFAULT_TX_RETRY  15
+#define IL_DEFAULT_TX_RETRY  15
 
 /*********************************************/
 
@@ -262,29 +262,29 @@ struct iwl3945_eeprom {
 /* Size of uCode instruction memory in bootstrap state machine */
 #define IWL39_MAX_BSM_SIZE IWL39_RTC_INST_SIZE
 
-static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
+static inline int il3945_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= IWL39_RTC_DATA_LOWER_BOUND) &&
 	       (addr < IWL39_RTC_DATA_UPPER_BOUND);
 }
 
-/* Base physical address of iwl3945_shared is provided to FH_TSSR_CBB_BASE
- * and &iwl3945_shared.rx_read_ptr[0] is provided to FH_RCSR_RPTR_ADDR(0) */
-struct iwl3945_shared {
+/* Base physical address of il3945_shared is provided to FH_TSSR_CBB_BASE
+ * and &il3945_shared.rx_read_ptr[0] is provided to FH_RCSR_RPTR_ADDR(0) */
+struct il3945_shared {
 	__le32 tx_base_ptr[8];
 } __packed;
 
-static inline u8 iwl3945_hw_get_rate(__le16 rate_n_flags)
+static inline u8 il3945_hw_get_rate(__le16 rate_n_flags)
 {
 	return le16_to_cpu(rate_n_flags) & 0xFF;
 }
 
-static inline u16 iwl3945_hw_get_rate_n_flags(__le16 rate_n_flags)
+static inline u16 il3945_hw_get_rate_n_flags(__le16 rate_n_flags)
 {
 	return le16_to_cpu(rate_n_flags);
 }
 
-static inline __le16 iwl3945_hw_set_rate_n_flags(u8 rate, u16 flags)
+static inline __le16 il3945_hw_set_rate_n_flags(u8 rate, u16 flags)
 {
 	return cpu_to_le16((u16)rate|flags);
 }

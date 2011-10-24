@@ -39,10 +39,10 @@
 #include "iwl-helpers.h"
 
 /**
- * iwl_legacy_txq_update_write_ptr - Send new write index to hardware
+ * il_txq_update_write_ptr - Send new write index to hardware
  */
 void
-iwl_legacy_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+il_txq_update_write_ptr(struct il_priv *priv, struct il_tx_queue *txq)
 {
 	u32 reg = 0;
 	int txq_id = txq->q.id;
@@ -55,18 +55,18 @@ iwl_legacy_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		/* wake up nic if it's powered down ...
 		 * uCode will wake up, and interrupt us again, so next
 		 * time we'll skip this part. */
-		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
+		reg = il_read32(priv, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IWL_DEBUG_INFO(priv,
+			IL_DEBUG_INFO(priv,
 					"Tx queue %d requesting wakeup,"
 					" GP1 = 0x%x\n", txq_id, reg);
-			iwl_legacy_set_bit(priv, CSR_GP_CNTRL,
+			il_set_bit(priv, CSR_GP_CNTRL,
 					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			return;
 		}
 
-		iwl_legacy_write_direct32(priv, HBUS_TARG_WRPTR,
+		il_write_direct32(priv, HBUS_TARG_WRPTR,
 				txq->q.write_ptr | (txq_id << 8));
 
 		/*
@@ -75,45 +75,45 @@ iwl_legacy_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		 * trying to tx (during RFKILL, we're not trying to tx).
 		 */
 	} else
-		iwl_write32(priv, HBUS_TARG_WRPTR,
+		il_write32(priv, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
 	txq->need_update = 0;
 }
-EXPORT_SYMBOL(iwl_legacy_txq_update_write_ptr);
+EXPORT_SYMBOL(il_txq_update_write_ptr);
 
 /**
- * iwl_legacy_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
+ * il_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
  */
-void iwl_legacy_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
+void il_tx_queue_unmap(struct il_priv *priv, int txq_id)
 {
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl_queue *q = &txq->q;
+	struct il_tx_queue *txq = &priv->txq[txq_id];
+	struct il_queue *q = &txq->q;
 
 	if (q->n_bd == 0)
 		return;
 
 	while (q->write_ptr != q->read_ptr) {
 		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
-		q->read_ptr = iwl_legacy_queue_inc_wrap(q->read_ptr, q->n_bd);
+		q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 }
-EXPORT_SYMBOL(iwl_legacy_tx_queue_unmap);
+EXPORT_SYMBOL(il_tx_queue_unmap);
 
 /**
- * iwl_legacy_tx_queue_free - Deallocate DMA queue.
+ * il_tx_queue_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-void iwl_legacy_tx_queue_free(struct iwl_priv *priv, int txq_id)
+void il_tx_queue_free(struct il_priv *priv, int txq_id)
 {
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct il_tx_queue *txq = &priv->txq[txq_id];
 	struct device *dev = &priv->pci_dev->dev;
 	int i;
 
-	iwl_legacy_tx_queue_unmap(priv, txq_id);
+	il_tx_queue_unmap(priv, txq_id);
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
@@ -137,22 +137,22 @@ void iwl_legacy_tx_queue_free(struct iwl_priv *priv, int txq_id)
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
 }
-EXPORT_SYMBOL(iwl_legacy_tx_queue_free);
+EXPORT_SYMBOL(il_tx_queue_free);
 
 /**
- * iwl_cmd_queue_unmap - Unmap any remaining DMA mappings from command queue
+ * il_cmd_queue_unmap - Unmap any remaining DMA mappings from command queue
  */
-void iwl_legacy_cmd_queue_unmap(struct iwl_priv *priv)
+void il_cmd_queue_unmap(struct il_priv *priv)
 {
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct iwl_queue *q = &txq->q;
+	struct il_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct il_queue *q = &txq->q;
 	int i;
 
 	if (q->n_bd == 0)
 		return;
 
 	while (q->read_ptr != q->write_ptr) {
-		i = iwl_legacy_get_cmd_index(q, q->read_ptr, 0);
+		i = il_get_cmd_index(q, q->read_ptr, 0);
 
 		if (txq->meta[i].flags & CMD_MAPPED) {
 			pci_unmap_single(priv->pci_dev,
@@ -162,7 +162,7 @@ void iwl_legacy_cmd_queue_unmap(struct iwl_priv *priv)
 			txq->meta[i].flags = 0;
 		}
 
-		q->read_ptr = iwl_legacy_queue_inc_wrap(q->read_ptr, q->n_bd);
+		q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 
 	i = q->n_window;
@@ -174,23 +174,23 @@ void iwl_legacy_cmd_queue_unmap(struct iwl_priv *priv)
 		txq->meta[i].flags = 0;
 	}
 }
-EXPORT_SYMBOL(iwl_legacy_cmd_queue_unmap);
+EXPORT_SYMBOL(il_cmd_queue_unmap);
 
 /**
- * iwl_legacy_cmd_queue_free - Deallocate DMA queue.
+ * il_cmd_queue_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-void iwl_legacy_cmd_queue_free(struct iwl_priv *priv)
+void il_cmd_queue_free(struct il_priv *priv)
 {
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct il_tx_queue *txq = &priv->txq[priv->cmd_queue];
 	struct device *dev = &priv->pci_dev->dev;
 	int i;
 
-	iwl_legacy_cmd_queue_unmap(priv);
+	il_cmd_queue_unmap(priv);
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i <= TFD_CMD_SLOTS; i++)
@@ -210,7 +210,7 @@ void iwl_legacy_cmd_queue_free(struct iwl_priv *priv)
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
 }
-EXPORT_SYMBOL(iwl_legacy_cmd_queue_free);
+EXPORT_SYMBOL(il_cmd_queue_free);
 
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
@@ -235,7 +235,7 @@ EXPORT_SYMBOL(iwl_legacy_cmd_queue_free);
  * See more detailed info in iwl-4965-hw.h.
  ***************************************************/
 
-int iwl_legacy_queue_space(const struct iwl_queue *q)
+int il_queue_space(const struct il_queue *q)
 {
 	int s = q->read_ptr - q->write_ptr;
 
@@ -250,25 +250,25 @@ int iwl_legacy_queue_space(const struct iwl_queue *q)
 		s = 0;
 	return s;
 }
-EXPORT_SYMBOL(iwl_legacy_queue_space);
+EXPORT_SYMBOL(il_queue_space);
 
 
 /**
- * iwl_legacy_queue_init - Initialize queue's high/low-water and read/write indexes
+ * il_queue_init - Initialize queue's high/low-water and read/write indexes
  */
-static int iwl_legacy_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
+static int il_queue_init(struct il_priv *priv, struct il_queue *q,
 			  int count, int slots_num, u32 id)
 {
 	q->n_bd = count;
 	q->n_window = slots_num;
 	q->id = id;
 
-	/* count must be power-of-two size, otherwise iwl_legacy_queue_inc_wrap
-	 * and iwl_legacy_queue_dec_wrap are broken. */
+	/* count must be power-of-two size, otherwise il_queue_inc_wrap
+	 * and il_queue_dec_wrap are broken. */
 	BUG_ON(!is_power_of_2(count));
 
 	/* slots_num must be power-of-two size, otherwise
-	 * iwl_legacy_get_cmd_index is broken. */
+	 * il_get_cmd_index is broken. */
 	BUG_ON(!is_power_of_2(slots_num));
 
 	q->low_mark = q->n_window / 4;
@@ -285,10 +285,10 @@ static int iwl_legacy_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 }
 
 /**
- * iwl_legacy_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
+ * il_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
  */
-static int iwl_legacy_tx_queue_alloc(struct iwl_priv *priv,
-			      struct iwl_tx_queue *txq, u32 id)
+static int il_tx_queue_alloc(struct il_priv *priv,
+			      struct il_tx_queue *txq, u32 id)
 {
 	struct device *dev = &priv->pci_dev->dev;
 	size_t tfd_sz = priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
@@ -299,7 +299,7 @@ static int iwl_legacy_tx_queue_alloc(struct iwl_priv *priv,
 		txq->txb = kzalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
-			IWL_ERR(priv, "kmalloc for auxiliary BD "
+			IL_ERR(priv, "kmalloc for auxiliary BD "
 				  "structures failed\n");
 			goto error;
 		}
@@ -312,7 +312,7 @@ static int iwl_legacy_tx_queue_alloc(struct iwl_priv *priv,
 	txq->tfds = dma_alloc_coherent(dev, tfd_sz, &txq->q.dma_addr,
 				       GFP_KERNEL);
 	if (!txq->tfds) {
-		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n", tfd_sz);
+		IL_ERR(priv, "pci_alloc_consistent(%zd) failed\n", tfd_sz);
 		goto error;
 	}
 	txq->q.id = id;
@@ -327,9 +327,9 @@ static int iwl_legacy_tx_queue_alloc(struct iwl_priv *priv,
 }
 
 /**
- * iwl_legacy_tx_queue_init - Allocate and initialize one tx/cmd queue
+ * il_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
-int iwl_legacy_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+int il_tx_queue_init(struct il_priv *priv, struct il_tx_queue *txq,
 		      int slots_num, u32 txq_id)
 {
 	int i, len;
@@ -347,19 +347,19 @@ int iwl_legacy_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	if (txq_id == priv->cmd_queue)
 		actual_slots++;
 
-	txq->meta = kzalloc(sizeof(struct iwl_cmd_meta) * actual_slots,
+	txq->meta = kzalloc(sizeof(struct il_cmd_meta) * actual_slots,
 			    GFP_KERNEL);
-	txq->cmd = kzalloc(sizeof(struct iwl_device_cmd *) * actual_slots,
+	txq->cmd = kzalloc(sizeof(struct il_device_cmd *) * actual_slots,
 			   GFP_KERNEL);
 
 	if (!txq->meta || !txq->cmd)
 		goto out_free_arrays;
 
-	len = sizeof(struct iwl_device_cmd);
+	len = sizeof(struct il_device_cmd);
 	for (i = 0; i < actual_slots; i++) {
 		/* only happens for cmd queue */
 		if (i == slots_num)
-			len = IWL_MAX_CMD_SIZE;
+			len = IL_MAX_CMD_SIZE;
 
 		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
 		if (!txq->cmd[i])
@@ -367,7 +367,7 @@ int iwl_legacy_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	}
 
 	/* Alloc driver data array and TFD circular buffer */
-	ret = iwl_legacy_tx_queue_alloc(priv, txq, txq_id);
+	ret = il_tx_queue_alloc(priv, txq, txq_id);
 	if (ret)
 		goto err;
 
@@ -379,14 +379,14 @@ int iwl_legacy_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	 * (if they need one at all).
 	 */
 	if (txq_id < 4)
-		iwl_legacy_set_swq_id(txq, txq_id, txq_id);
+		il_set_swq_id(txq, txq_id, txq_id);
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
-	 * iwl_legacy_queue_inc_wrap and iwl_legacy_queue_dec_wrap are broken. */
+	 * il_queue_inc_wrap and il_queue_dec_wrap are broken. */
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	iwl_legacy_queue_init(priv, &txq->q,
+	il_queue_init(priv, &txq->q,
 				TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
@@ -402,9 +402,9 @@ out_free_arrays:
 
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(iwl_legacy_tx_queue_init);
+EXPORT_SYMBOL(il_tx_queue_init);
 
-void iwl_legacy_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+void il_tx_queue_reset(struct il_priv *priv, struct il_tx_queue *txq,
 			int slots_num, u32 txq_id)
 {
 	int actual_slots = slots_num;
@@ -412,23 +412,23 @@ void iwl_legacy_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	if (txq_id == priv->cmd_queue)
 		actual_slots++;
 
-	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * actual_slots);
+	memset(txq->meta, 0, sizeof(struct il_cmd_meta) * actual_slots);
 
 	txq->need_update = 0;
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	iwl_legacy_queue_init(priv, &txq->q,
+	il_queue_init(priv, &txq->q,
 				TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
 	priv->cfg->ops->lib->txq_init(priv, txq);
 }
-EXPORT_SYMBOL(iwl_legacy_tx_queue_reset);
+EXPORT_SYMBOL(il_tx_queue_reset);
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
 /**
- * iwl_legacy_enqueue_hcmd - enqueue a uCode command
+ * il_enqueue_hcmd - enqueue a uCode command
  * @priv: device private data point
  * @cmd: a point to the ucode command structure
  *
@@ -436,12 +436,12 @@ EXPORT_SYMBOL(iwl_legacy_tx_queue_reset);
  * failed. On success, it turns the index (> 0) of command in the
  * command queue.
  */
-int iwl_legacy_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
+int il_enqueue_hcmd(struct il_priv *priv, struct il_host_cmd *cmd)
 {
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct iwl_queue *q = &txq->q;
-	struct iwl_device_cmd *out_cmd;
-	struct iwl_cmd_meta *out_meta;
+	struct il_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct il_queue *q = &txq->q;
+	struct il_device_cmd *out_cmd;
+	struct il_cmd_meta *out_meta;
 	dma_addr_t phys_addr;
 	unsigned long flags;
 	int len;
@@ -458,25 +458,25 @@ int iwl_legacy_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	 * of device_cmd and max_cmd_size. */
 	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->flags & CMD_SIZE_HUGE));
-	BUG_ON(fix_size > IWL_MAX_CMD_SIZE);
+	BUG_ON(fix_size > IL_MAX_CMD_SIZE);
 
-	if (iwl_legacy_is_rfkill(priv) || iwl_legacy_is_ctkill(priv)) {
-		IWL_WARN(priv, "Not sending command - %s KILL\n",
-			 iwl_legacy_is_rfkill(priv) ? "RF" : "CT");
+	if (il_is_rfkill(priv) || il_is_ctkill(priv)) {
+		IL_WARN(priv, "Not sending command - %s KILL\n",
+			 il_is_rfkill(priv) ? "RF" : "CT");
 		return -EIO;
 	}
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
-	if (iwl_legacy_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
+	if (il_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
 
-		IWL_ERR(priv, "Restarting adapter due to command queue full\n");
+		IL_ERR(priv, "Restarting adapter due to command queue full\n");
 		queue_work(priv->workqueue, &priv->restart);
 		return -ENOSPC;
 	}
 
-	idx = iwl_legacy_get_cmd_index(q, q->write_ptr, cmd->flags & CMD_SIZE_HUGE);
+	idx = il_get_cmd_index(q, q->write_ptr, cmd->flags & CMD_SIZE_HUGE);
 	out_cmd = txq->cmd[idx];
 	out_meta = &txq->meta[idx];
 
@@ -503,26 +503,26 @@ int iwl_legacy_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 			INDEX_TO_SEQ(q->write_ptr));
 	if (cmd->flags & CMD_SIZE_HUGE)
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
-	len = sizeof(struct iwl_device_cmd);
+	len = sizeof(struct il_device_cmd);
 	if (idx == TFD_CMD_SLOTS)
-		len = IWL_MAX_CMD_SIZE;
+		len = IL_MAX_CMD_SIZE;
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	switch (out_cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IWL_DEBUG_HC_DUMP(priv,
+		IL_DEBUG_HC_DUMP(priv,
 				"Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
-				iwl_legacy_get_cmd_string(out_cmd->hdr.cmd),
+				il_get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
 				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
 				q->write_ptr, idx, priv->cmd_queue);
 		break;
 	default:
-		IWL_DEBUG_HC(priv, "Sending command %s (#%x), seq: 0x%04X, "
+		IL_DEBUG_HC(priv, "Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
-				iwl_legacy_get_cmd_string(out_cmd->hdr.cmd),
+				il_get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
 				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
 				q->write_ptr, idx, priv->cmd_queue);
@@ -544,39 +544,39 @@ int iwl_legacy_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 						   U32_PAD(cmd->len));
 
 	/* Increment and update queue's write index */
-	q->write_ptr = iwl_legacy_queue_inc_wrap(q->write_ptr, q->n_bd);
-	iwl_legacy_txq_update_write_ptr(priv, txq);
+	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
+	il_txq_update_write_ptr(priv, txq);
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
 	return idx;
 }
 
 /**
- * iwl_legacy_hcmd_queue_reclaim - Reclaim TX command queue entries already Tx'd
+ * il_hcmd_queue_reclaim - Reclaim TX command queue entries already Tx'd
  *
  * When FW advances 'R' index, all entries between old and new 'R' index
  * need to be reclaimed. As result, some free space forms.  If there is
  * enough free space (> low mark), wake the stack that feeds us.
  */
-static void iwl_legacy_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
+static void il_hcmd_queue_reclaim(struct il_priv *priv, int txq_id,
 				   int idx, int cmd_idx)
 {
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl_queue *q = &txq->q;
+	struct il_tx_queue *txq = &priv->txq[txq_id];
+	struct il_queue *q = &txq->q;
 	int nfreed = 0;
 
-	if ((idx >= q->n_bd) || (iwl_legacy_queue_used(q, idx) == 0)) {
-		IWL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
+	if ((idx >= q->n_bd) || (il_queue_used(q, idx) == 0)) {
+		IL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
 	}
 
-	for (idx = iwl_legacy_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
-	     q->read_ptr = iwl_legacy_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+	for (idx = il_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
+	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		if (nfreed++ > 0) {
-			IWL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", idx,
+			IL_ERR(priv, "HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
 			queue_work(priv->workqueue, &priv->restart);
 		}
@@ -585,7 +585,7 @@ static void iwl_legacy_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
 }
 
 /**
- * iwl_legacy_tx_cmd_complete - Pull unused buffers off the queue and reclaim them
+ * il_tx_cmd_complete - Pull unused buffers off the queue and reclaim them
  * @rxb: Rx buffer to reclaim
  *
  * If an Rx buffer has an async callback associated with it the callback
@@ -593,17 +593,17 @@ static void iwl_legacy_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id,
  * if the callback returns 1
  */
 void
-iwl_legacy_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
+il_tx_cmd_complete(struct il_priv *priv, struct il_rx_mem_buffer *rxb)
 {
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
 	int cmd_index;
 	bool huge = !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
-	struct iwl_device_cmd *cmd;
-	struct iwl_cmd_meta *meta;
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
+	struct il_device_cmd *cmd;
+	struct il_cmd_meta *meta;
+	struct il_tx_queue *txq = &priv->txq[priv->cmd_queue];
 	unsigned long flags;
 
 	/* If a Tx command is being handled and it isn't in the actual
@@ -614,11 +614,11 @@ iwl_legacy_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		  txq_id, priv->cmd_queue, sequence,
 		  priv->txq[priv->cmd_queue].q.read_ptr,
 		  priv->txq[priv->cmd_queue].q.write_ptr)) {
-		iwl_print_hex_error(priv, pkt, 32);
+		il_print_hex_error(priv, pkt, 32);
 		return;
 	}
 
-	cmd_index = iwl_legacy_get_cmd_index(&txq->q, index, huge);
+	cmd_index = il_get_cmd_index(&txq->q, index, huge);
 	cmd = txq->cmd[cmd_index];
 	meta = &txq->meta[cmd_index];
 
@@ -638,12 +638,12 @@ iwl_legacy_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
-	iwl_legacy_hcmd_queue_reclaim(priv, txq_id, index, cmd_index);
+	il_hcmd_queue_reclaim(priv, txq_id, index, cmd_index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
 		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
-		IWL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command %s\n",
-			       iwl_legacy_get_cmd_string(cmd->hdr.cmd));
+		IL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command %s\n",
+			       il_get_cmd_string(cmd->hdr.cmd));
 		wake_up(&priv->wait_command_queue);
 	}
 
@@ -652,4 +652,4 @@ iwl_legacy_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
 }
-EXPORT_SYMBOL(iwl_legacy_tx_cmd_complete);
+EXPORT_SYMBOL(il_tx_cmd_complete);

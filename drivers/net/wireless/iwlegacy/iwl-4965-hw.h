@@ -66,8 +66,8 @@
  * Use iwl-dev.h for driver implementation definitions.
  */
 
-#ifndef __iwl_4965_hw_h__
-#define __iwl_4965_hw_h__
+#ifndef __il_4965_hw_h__
+#define __il_4965_hw_h__
 
 #include "iwl-fh.h"
 
@@ -100,7 +100,7 @@
 /* Size of uCode instruction memory in bootstrap state machine */
 #define IWL49_MAX_BSM_SIZE BSM_SRAM_SIZE
 
-static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
+static inline int il4965_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= IWL49_RTC_DATA_LOWER_BOUND) &&
 	       (addr < IWL49_RTC_DATA_UPPER_BOUND);
@@ -118,7 +118,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  * real-time temperature indicator.
  *
  * uCode provides all 4 values to the driver via the "initialize alive"
- * notification (see struct iwl4965_init_alive_resp).  After the runtime uCode
+ * notification (see struct il4965_init_alive_resp).  After the runtime uCode
  * image loads, uCode updates the R4 value via statistics notifications
  * (see STATISTICS_NOTIFICATION), which occur after each received beacon
  * when associated, or can be requested via REPLY_STATISTICS_CMD.
@@ -143,12 +143,12 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
 #define TEMPERATURE_CALIB_A_VAL 259
 
 /* Limit range of calculated temperature to be between these Kelvin values */
-#define IWL_TX_POWER_TEMPERATURE_MIN  (263)
-#define IWL_TX_POWER_TEMPERATURE_MAX  (410)
+#define IL_TX_POWER_TEMPERATURE_MIN  (263)
+#define IL_TX_POWER_TEMPERATURE_MAX  (410)
 
-#define IWL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(t) \
-	(((t) < IWL_TX_POWER_TEMPERATURE_MIN) || \
-	 ((t) > IWL_TX_POWER_TEMPERATURE_MAX))
+#define IL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(t) \
+	(((t) < IL_TX_POWER_TEMPERATURE_MIN) || \
+	 ((t) > IL_TX_POWER_TEMPERATURE_MAX))
 
 /********************* END TEMPERATURE ***************************************/
 
@@ -168,7 +168,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     40 MHz wide (.11n HT40) channels are listed separately from 20 MHz
  *     (legacy) channels.
  *
- *     See struct iwl4965_eeprom_channel for format, and struct iwl4965_eeprom
+ *     See struct il4965_eeprom_channel for format, and struct il4965_eeprom
  *     for locations in EEPROM.
  *
  * 2)  Factory txpower calibration information is provided separately for
@@ -177,11 +177,11 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *
  *     In addition, per-band (2.4 and 5 Ghz) saturation txpowers are provided.
  *
- *     See struct iwl4965_eeprom_calib_info (and the tree of structures
- *     contained within it) for format, and struct iwl4965_eeprom for
+ *     See struct il4965_eeprom_calib_info (and the tree of structures
+ *     contained within it) for format, and struct il4965_eeprom for
  *     locations in EEPROM.
  *
- * "Initialization alive" notification (see struct iwl4965_init_alive_resp)
+ * "Initialization alive" notification (see struct il4965_init_alive_resp)
  * consists of:
  *
  * 1)  Temperature calculation parameters.
@@ -238,7 +238,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *
  * 3)  Determine (EEPROM) calibration sub band for the target channel, by
  *     comparing against first and last channels in each sub band
- *     (see struct iwl4965_eeprom_calib_subband_info).
+ *     (see struct il4965_eeprom_calib_subband_info).
  *
  *
  * 4)  Linearly interpolate (EEPROM) factory calibration measurement sets,
@@ -254,7 +254,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     span of the sampled channels.
  *
  *     Driver may choose the pair (for 2 Tx chains) of measurements (see
- *     struct iwl4965_eeprom_calib_ch_info) for which the actual measured
+ *     struct il4965_eeprom_calib_ch_info) for which the actual measured
  *     txpower comes closest to the desired txpower.  Usually, though,
  *     the middle set of measurements is closest to the regulatory limits,
  *     and is therefore a good choice for all txpower calculations (this
@@ -370,7 +370,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *
  *
  * 11) Read gain table entries for DSP and radio gain, place into appropriate
- *     location(s) in command (struct iwl4965_txpowertable_cmd).
+ *     location(s) in command (struct il4965_txpowertable_cmd).
  */
 
 /**
@@ -382,7 +382,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  * The value "6" represents number of steps in gain table to reduce power 3 dB.
  * Each step is 1/2 dB.
  */
-#define IWL_TX_POWER_MIMO_REGULATORY_COMPENSATION (6)
+#define IL_TX_POWER_MIMO_REGULATORY_COMPENSATION (6)
 
 /**
  * CCK gain compensation.
@@ -394,13 +394,13 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  * Hardware rev for 4965 can be determined by reading CSR_HW_REV_WA_REG,
  * bits [3:2], 1 = B, 2 = C.
  */
-#define IWL_TX_POWER_CCK_COMPENSATION_B_STEP (9)
-#define IWL_TX_POWER_CCK_COMPENSATION_C_STEP (5)
+#define IL_TX_POWER_CCK_COMPENSATION_B_STEP (9)
+#define IL_TX_POWER_CCK_COMPENSATION_C_STEP (5)
 
 /*
  * 4965 power supply voltage compensation for txpower
  */
-#define TX_POWER_IWL_VOLTAGE_CODES_PER_03V   (7)
+#define TX_POWER_IL_VOLTAGE_CODES_PER_03V   (7)
 
 /**
  * Gain tables.
@@ -668,10 +668,10 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *
  * Units are in half-dBm (i.e. "34" means 17 dBm).
  */
-#define IWL_TX_POWER_DEFAULT_REGULATORY_24   (34)
-#define IWL_TX_POWER_DEFAULT_REGULATORY_52   (34)
-#define IWL_TX_POWER_REGULATORY_MIN          (0)
-#define IWL_TX_POWER_REGULATORY_MAX          (34)
+#define IL_TX_POWER_DEFAULT_REGULATORY_24   (34)
+#define IL_TX_POWER_DEFAULT_REGULATORY_52   (34)
+#define IL_TX_POWER_REGULATORY_MIN          (0)
+#define IL_TX_POWER_REGULATORY_MAX          (34)
 
 /**
  * Sanity checks and default values for EEPROM saturation levels.
@@ -689,10 +689,10 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *
  * Units are in half-dBm (i.e. "38" means 19 dBm).
  */
-#define IWL_TX_POWER_DEFAULT_SATURATION_24   (38)
-#define IWL_TX_POWER_DEFAULT_SATURATION_52   (38)
-#define IWL_TX_POWER_SATURATION_MIN          (20)
-#define IWL_TX_POWER_SATURATION_MAX          (50)
+#define IL_TX_POWER_DEFAULT_SATURATION_24   (38)
+#define IL_TX_POWER_DEFAULT_SATURATION_52   (38)
+#define IL_TX_POWER_SATURATION_MIN          (20)
+#define IL_TX_POWER_SATURATION_MAX          (50)
 
 /**
  * Channel groups used for Tx Attenuation calibration (MIMO tx channel balance)
@@ -709,24 +709,24 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  * Different frequency ranges require different compensation, as shown below.
  */
 /* Group 0, 5.2 GHz ch 34-43:  4.5 degrees per 1/2 dB. */
-#define CALIB_IWL_TX_ATTEN_GR1_FCH 34
-#define CALIB_IWL_TX_ATTEN_GR1_LCH 43
+#define CALIB_IL_TX_ATTEN_GR1_FCH 34
+#define CALIB_IL_TX_ATTEN_GR1_LCH 43
 
 /* Group 1, 5.3 GHz ch 44-70:  4.0 degrees per 1/2 dB. */
-#define CALIB_IWL_TX_ATTEN_GR2_FCH 44
-#define CALIB_IWL_TX_ATTEN_GR2_LCH 70
+#define CALIB_IL_TX_ATTEN_GR2_FCH 44
+#define CALIB_IL_TX_ATTEN_GR2_LCH 70
 
 /* Group 2, 5.5 GHz ch 71-124:  4.0 degrees per 1/2 dB. */
-#define CALIB_IWL_TX_ATTEN_GR3_FCH 71
-#define CALIB_IWL_TX_ATTEN_GR3_LCH 124
+#define CALIB_IL_TX_ATTEN_GR3_FCH 71
+#define CALIB_IL_TX_ATTEN_GR3_LCH 124
 
 /* Group 3, 5.7 GHz ch 125-200:  4.0 degrees per 1/2 dB. */
-#define CALIB_IWL_TX_ATTEN_GR4_FCH 125
-#define CALIB_IWL_TX_ATTEN_GR4_LCH 200
+#define CALIB_IL_TX_ATTEN_GR4_FCH 125
+#define CALIB_IL_TX_ATTEN_GR4_LCH 200
 
 /* Group 4, 2.4 GHz all channels:  3.5 degrees per 1/2 dB. */
-#define CALIB_IWL_TX_ATTEN_GR5_FCH 1
-#define CALIB_IWL_TX_ATTEN_GR5_LCH 20
+#define CALIB_IL_TX_ATTEN_GR5_FCH 1
+#define CALIB_IL_TX_ATTEN_GR5_LCH 20
 
 enum {
 	CALIB_CH_GROUP_1 = 0,
@@ -767,7 +767,7 @@ enum {
 
 
 /**
- * struct iwl4965_schedq_bc_tbl
+ * struct il4965_schedq_bc_tbl
  *
  * Byte Count table
  *
@@ -784,7 +784,7 @@ enum {
  * padding puts each byte count table on a 1024-byte boundary;
  * 4965 assumes tables are separated by 1024 bytes.
  */
-struct iwl4965_scd_bc_tbl {
+struct il4965_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
 	u8 pad[1024 - (TFD_QUEUE_BC_SIZE) * sizeof(__le16)];
 } __packed;
@@ -808,4 +808,4 @@ struct iwl4965_scd_bc_tbl {
 #define IWL4965_FIRST_AMPDU_QUEUE	10
 
 
-#endif /* !__iwl_4965_hw_h__ */
+#endif /* !__il_4965_hw_h__ */

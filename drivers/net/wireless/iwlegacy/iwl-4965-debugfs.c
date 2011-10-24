@@ -33,7 +33,7 @@ static const char *fmt_table = "  %-30s %10u  %10u  %10u  %10u\n";
 static const char *fmt_header =
 	"%-32s    current  cumulative       delta         max\n";
 
-static int iwl4965_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
+static int il4965_statistics_flag(struct il_priv *priv, char *buf, int bufsz)
 {
 	int p = 0;
 	u32 flag;
@@ -54,10 +54,10 @@ static int iwl4965_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
 	return p;
 }
 
-ssize_t iwl4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
+ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = sizeof(struct statistics_rx_phy) * 40 +
@@ -70,12 +70,12 @@ ssize_t iwl4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	struct statistics_rx_non_phy *delta_general, *max_general;
 	struct statistics_rx_ht_phy *ht, *accum_ht, *delta_ht, *max_ht;
 
-	if (!iwl_legacy_is_alive(priv))
+	if (!il_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -101,7 +101,7 @@ ssize_t iwl4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	max_general = &priv->_4965.max_delta.rx.general;
 	max_ht = &priv->_4965.max_delta.rx.ofdm_ht;
 
-	pos += iwl4965_statistics_flag(priv, buf, bufsz);
+	pos += il4965_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_Rx - OFDM:");
 	pos += scnprintf(buf + pos, bufsz - pos,
@@ -485,23 +485,23 @@ ssize_t iwl4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-ssize_t iwl4965_ucode_tx_stats_read(struct file *file,
+ssize_t il4965_ucode_tx_stats_read(struct file *file,
 				char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = (sizeof(struct statistics_tx) * 48) + 250;
 	ssize_t ret;
 	struct statistics_tx *tx, *accum_tx, *delta_tx, *max_tx;
 
-	if (!iwl_legacy_is_alive(priv))
+	if (!il_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -514,7 +514,7 @@ ssize_t iwl4965_ucode_tx_stats_read(struct file *file,
 	delta_tx = &priv->_4965.delta_statistics.tx;
 	max_tx = &priv->_4965.max_delta.tx;
 
-	pos += iwl4965_statistics_flag(priv, buf, bufsz);
+	pos += il4965_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_Tx:");
 	pos += scnprintf(buf + pos, bufsz - pos,
@@ -661,10 +661,10 @@ ssize_t iwl4965_ucode_tx_stats_read(struct file *file,
 }
 
 ssize_t
-iwl4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
+il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = sizeof(struct statistics_general) * 10 + 300;
@@ -674,12 +674,12 @@ iwl4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
 	struct statistics_div *div, *accum_div, *delta_div, *max_div;
 
-	if (!iwl_legacy_is_alive(priv))
+	if (!il_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -700,7 +700,7 @@ iwl4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	delta_div = &priv->_4965.delta_statistics.general.common.div;
 	max_div = &priv->_4965.max_delta.general.common.div;
 
-	pos += iwl4965_statistics_flag(priv, buf, bufsz);
+	pos += il4965_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 fmt_header, "Statistics_General:");
 	pos += scnprintf(buf + pos, bufsz - pos,

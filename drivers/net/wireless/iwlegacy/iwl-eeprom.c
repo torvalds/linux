@@ -81,7 +81,7 @@
  * EEPROM contents to the specific channel number supported for each
  * band.
  *
- * For example, iwl_priv->eeprom.band_3_channels[4] from the band_3
+ * For example, il_priv->eeprom.band_3_channels[4] from the band_3
  * definition below maps to physical channel 42 in the 5.2GHz spectrum.
  * The specific geography and calibration information for that channel
  * is contained in the eeprom map itself.
@@ -142,18 +142,18 @@ static const u8 iwlegacy_eeprom_band_7[] = {       /* 5.2 ht40 channel */
  *
 ******************************************************************************/
 
-static int iwl_legacy_eeprom_verify_signature(struct iwl_priv *priv)
+static int il_eeprom_verify_signature(struct il_priv *priv)
 {
-	u32 gp = iwl_read32(priv, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	u32 gp = il_read32(priv, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
 
-	IWL_DEBUG_EEPROM(priv, "EEPROM signature=0x%08x\n", gp);
+	IL_DEBUG_EEPROM(priv, "EEPROM signature=0x%08x\n", gp);
 	switch (gp) {
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K:
 	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
 		break;
 	default:
-		IWL_ERR(priv, "bad EEPROM signature,"
+		IL_ERR(priv, "bad EEPROM signature,"
 			"EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
 		break;
@@ -162,39 +162,39 @@ static int iwl_legacy_eeprom_verify_signature(struct iwl_priv *priv)
 }
 
 const u8
-*iwl_legacy_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
+*il_eeprom_query_addr(const struct il_priv *priv, size_t offset)
 {
 	BUG_ON(offset >= priv->cfg->base_params->eeprom_size);
 	return &priv->eeprom[offset];
 }
-EXPORT_SYMBOL(iwl_legacy_eeprom_query_addr);
+EXPORT_SYMBOL(il_eeprom_query_addr);
 
-u16 iwl_legacy_eeprom_query16(const struct iwl_priv *priv, size_t offset)
+u16 il_eeprom_query16(const struct il_priv *priv, size_t offset)
 {
 	if (!priv->eeprom)
 		return 0;
 	return (u16)priv->eeprom[offset] | ((u16)priv->eeprom[offset + 1] << 8);
 }
-EXPORT_SYMBOL(iwl_legacy_eeprom_query16);
+EXPORT_SYMBOL(il_eeprom_query16);
 
 /**
- * iwl_legacy_eeprom_init - read EEPROM contents
+ * il_eeprom_init - read EEPROM contents
  *
  * Load the EEPROM contents from adapter into priv->eeprom
  *
  * NOTE:  This routine uses the non-debug IO access functions.
  */
-int iwl_legacy_eeprom_init(struct iwl_priv *priv)
+int il_eeprom_init(struct il_priv *priv)
 {
 	__le16 *e;
-	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
+	u32 gp = il_read32(priv, CSR_EEPROM_GP);
 	int sz;
 	int ret;
 	u16 addr;
 
 	/* allocate eeprom */
 	sz = priv->cfg->base_params->eeprom_size;
-	IWL_DEBUG_EEPROM(priv, "NVM size = %d\n", sz);
+	IL_DEBUG_EEPROM(priv, "NVM size = %d\n", sz);
 	priv->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!priv->eeprom) {
 		ret = -ENOMEM;
@@ -204,9 +204,9 @@ int iwl_legacy_eeprom_init(struct iwl_priv *priv)
 
 	priv->cfg->ops->lib->apm_ops.init(priv);
 
-	ret = iwl_legacy_eeprom_verify_signature(priv);
+	ret = il_eeprom_verify_signature(priv);
 	if (ret < 0) {
-		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
 		goto err;
 	}
@@ -214,7 +214,7 @@ int iwl_legacy_eeprom_init(struct iwl_priv *priv)
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
 	ret = priv->cfg->ops->lib->eeprom_ops.acquire_semaphore(priv);
 	if (ret < 0) {
-		IWL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
+		IL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
 		goto err;
 	}
@@ -223,25 +223,25 @@ int iwl_legacy_eeprom_init(struct iwl_priv *priv)
 	for (addr = 0; addr < sz; addr += sizeof(u16)) {
 		u32 r;
 
-		_iwl_legacy_write32(priv, CSR_EEPROM_REG,
+		_il_write32(priv, CSR_EEPROM_REG,
 			     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-		ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
+		ret = il_poll_bit(priv, CSR_EEPROM_REG,
 					  CSR_EEPROM_REG_READ_VALID_MSK,
 					  CSR_EEPROM_REG_READ_VALID_MSK,
-					  IWL_EEPROM_ACCESS_TIMEOUT);
+					  IL_EEPROM_ACCESS_TIMEOUT);
 		if (ret < 0) {
-			IWL_ERR(priv, "Time out reading EEPROM[%d]\n",
+			IL_ERR(priv, "Time out reading EEPROM[%d]\n",
 							addr);
 			goto done;
 		}
-		r = _iwl_legacy_read_direct32(priv, CSR_EEPROM_REG);
+		r = _il_read_direct32(priv, CSR_EEPROM_REG);
 		e[addr / 2] = cpu_to_le16(r >> 16);
 	}
 
-	IWL_DEBUG_EEPROM(priv, "NVM Type: %s, version: 0x%x\n",
+	IL_DEBUG_EEPROM(priv, "NVM Type: %s, version: 0x%x\n",
 		       "EEPROM",
-		       iwl_legacy_eeprom_query16(priv, EEPROM_VERSION));
+		       il_eeprom_query16(priv, EEPROM_VERSION));
 
 	ret = 0;
 done:
@@ -249,24 +249,24 @@ done:
 
 err:
 	if (ret)
-		iwl_legacy_eeprom_free(priv);
+		il_eeprom_free(priv);
 	/* Reset chip to save power until we load uCode during "up". */
-	iwl_legacy_apm_stop(priv);
+	il_apm_stop(priv);
 alloc_err:
 	return ret;
 }
-EXPORT_SYMBOL(iwl_legacy_eeprom_init);
+EXPORT_SYMBOL(il_eeprom_init);
 
-void iwl_legacy_eeprom_free(struct iwl_priv *priv)
+void il_eeprom_free(struct il_priv *priv)
 {
 	kfree(priv->eeprom);
 	priv->eeprom = NULL;
 }
-EXPORT_SYMBOL(iwl_legacy_eeprom_free);
+EXPORT_SYMBOL(il_eeprom_free);
 
-static void iwl_legacy_init_band_reference(const struct iwl_priv *priv,
+static void il_init_band_reference(const struct il_priv *priv,
 			int eep_band, int *eeprom_ch_count,
-			const struct iwl_eeprom_channel **eeprom_ch_info,
+			const struct il_eeprom_channel **eeprom_ch_info,
 			const u8 **eeprom_ch_index)
 {
 	u32 offset = priv->cfg->ops->lib->
@@ -274,44 +274,44 @@ static void iwl_legacy_init_band_reference(const struct iwl_priv *priv,
 	switch (eep_band) {
 	case 1:		/* 2.4GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_1);
-		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_legacy_eeprom_query_addr(priv, offset);
+		*eeprom_ch_info = (struct il_eeprom_channel *)
+				il_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwlegacy_eeprom_band_1;
 		break;
 	case 2:		/* 4.9GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_2);
-		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_legacy_eeprom_query_addr(priv, offset);
+		*eeprom_ch_info = (struct il_eeprom_channel *)
+				il_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwlegacy_eeprom_band_2;
 		break;
 	case 3:		/* 5.2GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_3);
-		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_legacy_eeprom_query_addr(priv, offset);
+		*eeprom_ch_info = (struct il_eeprom_channel *)
+				il_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwlegacy_eeprom_band_3;
 		break;
 	case 4:		/* 5.5GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_4);
-		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_legacy_eeprom_query_addr(priv, offset);
+		*eeprom_ch_info = (struct il_eeprom_channel *)
+				il_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwlegacy_eeprom_band_4;
 		break;
 	case 5:		/* 5.7GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_5);
-		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_legacy_eeprom_query_addr(priv, offset);
+		*eeprom_ch_info = (struct il_eeprom_channel *)
+				il_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwlegacy_eeprom_band_5;
 		break;
 	case 6:		/* 2.4GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_6);
-		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_legacy_eeprom_query_addr(priv, offset);
+		*eeprom_ch_info = (struct il_eeprom_channel *)
+				il_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwlegacy_eeprom_band_6;
 		break;
 	case 7:		/* 5 GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwlegacy_eeprom_band_7);
-		*eeprom_ch_info = (struct iwl_eeprom_channel *)
-				iwl_legacy_eeprom_query_addr(priv, offset);
+		*eeprom_ch_info = (struct il_eeprom_channel *)
+				il_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwlegacy_eeprom_band_7;
 		break;
 	default:
@@ -322,27 +322,27 @@ static void iwl_legacy_init_band_reference(const struct iwl_priv *priv,
 #define CHECK_AND_PRINT(x) ((eeprom_ch->flags & EEPROM_CHANNEL_##x) \
 			    ? # x " " : "")
 /**
- * iwl_legacy_mod_ht40_chan_info - Copy ht40 channel info into driver's priv.
+ * il_mod_ht40_chan_info - Copy ht40 channel info into driver's priv.
  *
  * Does not set up a command, or touch hardware.
  */
-static int iwl_legacy_mod_ht40_chan_info(struct iwl_priv *priv,
+static int il_mod_ht40_chan_info(struct il_priv *priv,
 			      enum ieee80211_band band, u16 channel,
-			      const struct iwl_eeprom_channel *eeprom_ch,
+			      const struct il_eeprom_channel *eeprom_ch,
 			      u8 clear_ht40_extension_channel)
 {
-	struct iwl_channel_info *ch_info;
+	struct il_channel_info *ch_info;
 
-	ch_info = (struct iwl_channel_info *)
-			iwl_legacy_get_channel_info(priv, band, channel);
+	ch_info = (struct il_channel_info *)
+			il_get_channel_info(priv, band, channel);
 
-	if (!iwl_legacy_is_channel_valid(ch_info))
+	if (!il_is_channel_valid(ch_info))
 		return -1;
 
-	IWL_DEBUG_EEPROM(priv, "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
+	IL_DEBUG_EEPROM(priv, "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
 			" Ad-Hoc %ssupported\n",
 			ch_info->channel,
-			iwl_legacy_is_channel_a_band(ch_info) ?
+			il_is_channel_a_band(ch_info) ?
 			"5.2" : "2.4",
 			CHECK_AND_PRINT(IBSS),
 			CHECK_AND_PRINT(ACTIVE),
@@ -369,22 +369,22 @@ static int iwl_legacy_mod_ht40_chan_info(struct iwl_priv *priv,
 			    ? # x " " : "")
 
 /**
- * iwl_legacy_init_channel_map - Set up driver's info for all possible channels
+ * il_init_channel_map - Set up driver's info for all possible channels
  */
-int iwl_legacy_init_channel_map(struct iwl_priv *priv)
+int il_init_channel_map(struct il_priv *priv)
 {
 	int eeprom_ch_count = 0;
 	const u8 *eeprom_ch_index = NULL;
-	const struct iwl_eeprom_channel *eeprom_ch_info = NULL;
+	const struct il_eeprom_channel *eeprom_ch_info = NULL;
 	int band, ch;
-	struct iwl_channel_info *ch_info;
+	struct il_channel_info *ch_info;
 
 	if (priv->channel_count) {
-		IWL_DEBUG_EEPROM(priv, "Channel map already initialized.\n");
+		IL_DEBUG_EEPROM(priv, "Channel map already initialized.\n");
 		return 0;
 	}
 
-	IWL_DEBUG_EEPROM(priv, "Initializing regulatory info from EEPROM\n");
+	IL_DEBUG_EEPROM(priv, "Initializing regulatory info from EEPROM\n");
 
 	priv->channel_count =
 	    ARRAY_SIZE(iwlegacy_eeprom_band_1) +
@@ -393,13 +393,13 @@ int iwl_legacy_init_channel_map(struct iwl_priv *priv)
 	    ARRAY_SIZE(iwlegacy_eeprom_band_4) +
 	    ARRAY_SIZE(iwlegacy_eeprom_band_5);
 
-	IWL_DEBUG_EEPROM(priv, "Parsing data for %d channels.\n",
+	IL_DEBUG_EEPROM(priv, "Parsing data for %d channels.\n",
 			priv->channel_count);
 
-	priv->channel_info = kzalloc(sizeof(struct iwl_channel_info) *
+	priv->channel_info = kzalloc(sizeof(struct il_channel_info) *
 				     priv->channel_count, GFP_KERNEL);
 	if (!priv->channel_info) {
-		IWL_ERR(priv, "Could not allocate channel_info\n");
+		IL_ERR(priv, "Could not allocate channel_info\n");
 		priv->channel_count = 0;
 		return -ENOMEM;
 	}
@@ -411,7 +411,7 @@ int iwl_legacy_init_channel_map(struct iwl_priv *priv)
 	 * what just in the EEPROM) */
 	for (band = 1; band <= 5; band++) {
 
-		iwl_legacy_init_band_reference(priv, band, &eeprom_ch_count,
+		il_init_band_reference(priv, band, &eeprom_ch_count,
 					&eeprom_ch_info, &eeprom_ch_index);
 
 		/* Loop through each band adding each of the channels */
@@ -432,13 +432,13 @@ int iwl_legacy_init_channel_map(struct iwl_priv *priv)
 			ch_info->ht40_extension_channel =
 					IEEE80211_CHAN_NO_HT40;
 
-			if (!(iwl_legacy_is_channel_valid(ch_info))) {
-				IWL_DEBUG_EEPROM(priv,
+			if (!(il_is_channel_valid(ch_info))) {
+				IL_DEBUG_EEPROM(priv,
 					       "Ch. %d Flags %x [%sGHz] - "
 					       "No traffic\n",
 					       ch_info->channel,
 					       ch_info->flags,
-					       iwl_legacy_is_channel_a_band(ch_info) ?
+					       il_is_channel_a_band(ch_info) ?
 					       "5.2" : "2.4");
 				ch_info++;
 				continue;
@@ -450,11 +450,11 @@ int iwl_legacy_init_channel_map(struct iwl_priv *priv)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IWL_DEBUG_EEPROM(priv, "Ch. %d [%sGHz] "
+			IL_DEBUG_EEPROM(priv, "Ch. %d [%sGHz] "
 				       "%s%s%s%s%s%s(0x%02x %ddBm):"
 				       " Ad-Hoc %ssupported\n",
 				       ch_info->channel,
-				       iwl_legacy_is_channel_a_band(ch_info) ?
+				       il_is_channel_a_band(ch_info) ?
 				       "5.2" : "2.4",
 				       CHECK_AND_PRINT_I(VALID),
 				       CHECK_AND_PRINT_I(IBSS),
@@ -485,7 +485,7 @@ int iwl_legacy_init_channel_map(struct iwl_priv *priv)
 	for (band = 6; band <= 7; band++) {
 		enum ieee80211_band ieeeband;
 
-		iwl_legacy_init_band_reference(priv, band, &eeprom_ch_count,
+		il_init_band_reference(priv, band, &eeprom_ch_count,
 					&eeprom_ch_info, &eeprom_ch_index);
 
 		/* EEPROM band 6 is 2.4, band 7 is 5 GHz */
@@ -495,13 +495,13 @@ int iwl_legacy_init_channel_map(struct iwl_priv *priv)
 		/* Loop through each band adding each of the channels */
 		for (ch = 0; ch < eeprom_ch_count; ch++) {
 			/* Set up driver's info for lower half */
-			iwl_legacy_mod_ht40_chan_info(priv, ieeeband,
+			il_mod_ht40_chan_info(priv, ieeeband,
 						eeprom_ch_index[ch],
 						&eeprom_ch_info[ch],
 						IEEE80211_CHAN_NO_HT40PLUS);
 
 			/* Set up driver's info for upper half */
-			iwl_legacy_mod_ht40_chan_info(priv, ieeeband,
+			il_mod_ht40_chan_info(priv, ieeeband,
 						eeprom_ch_index[ch] + 4,
 						&eeprom_ch_info[ch],
 						IEEE80211_CHAN_NO_HT40MINUS);
@@ -510,25 +510,25 @@ int iwl_legacy_init_channel_map(struct iwl_priv *priv)
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_legacy_init_channel_map);
+EXPORT_SYMBOL(il_init_channel_map);
 
 /*
- * iwl_legacy_free_channel_map - undo allocations in iwl_legacy_init_channel_map
+ * il_free_channel_map - undo allocations in il_init_channel_map
  */
-void iwl_legacy_free_channel_map(struct iwl_priv *priv)
+void il_free_channel_map(struct il_priv *priv)
 {
 	kfree(priv->channel_info);
 	priv->channel_count = 0;
 }
-EXPORT_SYMBOL(iwl_legacy_free_channel_map);
+EXPORT_SYMBOL(il_free_channel_map);
 
 /**
- * iwl_legacy_get_channel_info - Find driver's private channel info
+ * il_get_channel_info - Find driver's private channel info
  *
  * Based on band and channel number.
  */
 const struct
-iwl_channel_info *iwl_legacy_get_channel_info(const struct iwl_priv *priv,
+il_channel_info *il_get_channel_info(const struct il_priv *priv,
 					enum ieee80211_band band, u16 channel)
 {
 	int i;
@@ -550,4 +550,4 @@ iwl_channel_info *iwl_legacy_get_channel_info(const struct iwl_priv *priv,
 
 	return NULL;
 }
-EXPORT_SYMBOL(iwl_legacy_get_channel_info);
+EXPORT_SYMBOL(il_get_channel_info);

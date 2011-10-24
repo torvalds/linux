@@ -27,45 +27,45 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_legacy_helpers_h__
-#define __iwl_legacy_helpers_h__
+#ifndef __il_helpers_h__
+#define __il_helpers_h__
 
 #include <linux/ctype.h>
 #include <net/mac80211.h>
 
 #include "iwl-io.h"
 
-#define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
+#define IL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
 
-static inline struct ieee80211_conf *iwl_legacy_ieee80211_get_hw_conf(
+static inline struct ieee80211_conf *il_ieee80211_get_hw_conf(
 	struct ieee80211_hw *hw)
 {
 	return &hw->conf;
 }
 
 /**
- * iwl_legacy_queue_inc_wrap - increment queue index, wrap back to beginning
+ * il_queue_inc_wrap - increment queue index, wrap back to beginning
  * @index -- current index
  * @n_bd -- total number of entries in queue (must be power of 2)
  */
-static inline int iwl_legacy_queue_inc_wrap(int index, int n_bd)
+static inline int il_queue_inc_wrap(int index, int n_bd)
 {
 	return ++index & (n_bd - 1);
 }
 
 /**
- * iwl_legacy_queue_dec_wrap - decrement queue index, wrap back to end
+ * il_queue_dec_wrap - decrement queue index, wrap back to end
  * @index -- current index
  * @n_bd -- total number of entries in queue (must be power of 2)
  */
-static inline int iwl_legacy_queue_dec_wrap(int index, int n_bd)
+static inline int il_queue_dec_wrap(int index, int n_bd)
 {
 	return --index & (n_bd - 1);
 }
 
 /* TODO: Move fw_desc functions to iwl-pci.ko */
-static inline void iwl_legacy_free_fw_desc(struct pci_dev *pci_dev,
+static inline void il_free_fw_desc(struct pci_dev *pci_dev,
 				    struct fw_desc *desc)
 {
 	if (desc->v_addr)
@@ -75,7 +75,7 @@ static inline void iwl_legacy_free_fw_desc(struct pci_dev *pci_dev,
 	desc->len = 0;
 }
 
-static inline int iwl_legacy_alloc_fw_desc(struct pci_dev *pci_dev,
+static inline int il_alloc_fw_desc(struct pci_dev *pci_dev,
 				    struct fw_desc *desc)
 {
 	if (!desc->len) {
@@ -100,7 +100,7 @@ static inline int iwl_legacy_alloc_fw_desc(struct pci_dev *pci_dev,
  * +---------------------- unused
  */
 static inline void
-iwl_legacy_set_swq_id(struct iwl_tx_queue *txq, u8 ac, u8 hwq)
+il_set_swq_id(struct il_tx_queue *txq, u8 ac, u8 hwq)
 {
 	BUG_ON(ac > 3);   /* only have 2 bits */
 	BUG_ON(hwq > 31); /* only use 5 bits */
@@ -108,8 +108,8 @@ iwl_legacy_set_swq_id(struct iwl_tx_queue *txq, u8 ac, u8 hwq)
 	txq->swq_id = (hwq << 2) | ac;
 }
 
-static inline void iwl_legacy_wake_queue(struct iwl_priv *priv,
-				  struct iwl_tx_queue *txq)
+static inline void il_wake_queue(struct il_priv *priv,
+				  struct il_tx_queue *txq)
 {
 	u8 queue = txq->swq_id;
 	u8 ac = queue & 3;
@@ -120,8 +120,8 @@ static inline void iwl_legacy_wake_queue(struct iwl_priv *priv,
 			ieee80211_wake_queue(priv->hw, ac);
 }
 
-static inline void iwl_legacy_stop_queue(struct iwl_priv *priv,
-				  struct iwl_tx_queue *txq)
+static inline void il_stop_queue(struct il_priv *priv,
+				  struct il_tx_queue *txq)
 {
 	u8 queue = txq->swq_id;
 	u8 ac = queue & 3;
@@ -144,53 +144,53 @@ static inline void iwl_legacy_stop_queue(struct iwl_priv *priv,
 
 #define ieee80211_wake_queue DO_NOT_USE_ieee80211_wake_queue
 
-static inline void iwl_legacy_disable_interrupts(struct iwl_priv *priv)
+static inline void il_disable_interrupts(struct il_priv *priv)
 {
 	clear_bit(STATUS_INT_ENABLED, &priv->status);
 
 	/* disable interrupts from uCode/NIC to host */
-	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
+	il_write32(priv, CSR_INT_MASK, 0x00000000);
 
 	/* acknowledge/clear/reset any interrupts still pending
 	 * from uCode or flow handler (Rx/Tx DMA) */
-	iwl_write32(priv, CSR_INT, 0xffffffff);
-	iwl_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
-	IWL_DEBUG_ISR(priv, "Disabled interrupts\n");
+	il_write32(priv, CSR_INT, 0xffffffff);
+	il_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
+	IL_DEBUG_ISR(priv, "Disabled interrupts\n");
 }
 
-static inline void iwl_legacy_enable_rfkill_int(struct iwl_priv *priv)
+static inline void il_enable_rfkill_int(struct il_priv *priv)
 {
-	IWL_DEBUG_ISR(priv, "Enabling rfkill interrupt\n");
-	iwl_write32(priv, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
+	IL_DEBUG_ISR(priv, "Enabling rfkill interrupt\n");
+	il_write32(priv, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
 }
 
-static inline void iwl_legacy_enable_interrupts(struct iwl_priv *priv)
+static inline void il_enable_interrupts(struct il_priv *priv)
 {
-	IWL_DEBUG_ISR(priv, "Enabling interrupts\n");
+	IL_DEBUG_ISR(priv, "Enabling interrupts\n");
 	set_bit(STATUS_INT_ENABLED, &priv->status);
-	iwl_write32(priv, CSR_INT_MASK, priv->inta_mask);
+	il_write32(priv, CSR_INT_MASK, priv->inta_mask);
 }
 
 /**
- * iwl_legacy_beacon_time_mask_low - mask of lower 32 bit of beacon time
- * @priv -- pointer to iwl_priv data structure
+ * il_beacon_time_mask_low - mask of lower 32 bit of beacon time
+ * @priv -- pointer to il_priv data structure
  * @tsf_bits -- number of bits need to shift for masking)
  */
-static inline u32 iwl_legacy_beacon_time_mask_low(struct iwl_priv *priv,
+static inline u32 il_beacon_time_mask_low(struct il_priv *priv,
 					   u16 tsf_bits)
 {
 	return (1 << tsf_bits) - 1;
 }
 
 /**
- * iwl_legacy_beacon_time_mask_high - mask of higher 32 bit of beacon time
- * @priv -- pointer to iwl_priv data structure
+ * il_beacon_time_mask_high - mask of higher 32 bit of beacon time
+ * @priv -- pointer to il_priv data structure
  * @tsf_bits -- number of bits need to shift for masking)
  */
-static inline u32 iwl_legacy_beacon_time_mask_high(struct iwl_priv *priv,
+static inline u32 il_beacon_time_mask_high(struct il_priv *priv,
 					    u16 tsf_bits)
 {
 	return ((1 << (32 - tsf_bits)) - 1) << tsf_bits;
 }
 
-#endif				/* __iwl_legacy_helpers_h__ */
+#endif				/* __il_helpers_h__ */

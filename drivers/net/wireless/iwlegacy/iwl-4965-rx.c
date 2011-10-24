@@ -41,31 +41,31 @@
 #include "iwl-4965-hw.h"
 #include "iwl-4965.h"
 
-void iwl4965_rx_missed_beacon_notif(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb)
+void il4965_rx_missed_beacon_notif(struct il_priv *priv,
+				struct il_rx_mem_buffer *rxb)
 
 {
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_missed_beacon_notif *missed_beacon;
+	struct il_rx_packet *pkt = rxb_addr(rxb);
+	struct il_missed_beacon_notif *missed_beacon;
 
 	missed_beacon = &pkt->u.missed_beacon;
 	if (le32_to_cpu(missed_beacon->consecutive_missed_beacons) >
 	    priv->missed_beacon_threshold) {
-		IWL_DEBUG_CALIB(priv,
+		IL_DEBUG_CALIB(priv,
 		    "missed bcn cnsq %d totl %d rcd %d expctd %d\n",
 		    le32_to_cpu(missed_beacon->consecutive_missed_beacons),
 		    le32_to_cpu(missed_beacon->total_missed_becons),
 		    le32_to_cpu(missed_beacon->num_recvd_beacons),
 		    le32_to_cpu(missed_beacon->num_expected_beacons));
 		if (!test_bit(STATUS_SCANNING, &priv->status))
-			iwl4965_init_sensitivity(priv);
+			il4965_init_sensitivity(priv);
 	}
 }
 
 /* Calculate noise level, based on measurements during network silence just
  *   before arriving beacon.  This measurement can be done only if we know
  *   exactly when to expect beacons, therefore only when we're associated. */
-static void iwl4965_rx_calc_noise(struct iwl_priv *priv)
+static void il4965_rx_calc_noise(struct il_priv *priv)
 {
 	struct statistics_rx_non_phy *rx_info;
 	int num_active_rx = 0;
@@ -98,9 +98,9 @@ static void iwl4965_rx_calc_noise(struct iwl_priv *priv)
 	if (num_active_rx)
 		last_rx_noise = (total_silence / num_active_rx) - 107;
 	else
-		last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
+		last_rx_noise = IL_NOISE_MEAS_NOT_AVAILABLE;
 
-	IWL_DEBUG_CALIB(priv, "inband silence a %u, b %u, c %u, dBm %d\n",
+	IL_DEBUG_CALIB(priv, "inband silence a %u, b %u, c %u, dBm %d\n",
 			bcn_silence_a, bcn_silence_b, bcn_silence_c,
 			last_rx_noise);
 }
@@ -111,7 +111,7 @@ static void iwl4965_rx_calc_noise(struct iwl_priv *priv)
  *  FIXME: This function is for debugging, do not deal with
  *  the case of counters roll-over.
  */
-static void iwl4965_accumulative_statistics(struct iwl_priv *priv,
+static void il4965_accumulative_statistics(struct il_priv *priv,
 					__le32 *stats)
 {
 	int i, size;
@@ -123,7 +123,7 @@ static void iwl4965_accumulative_statistics(struct iwl_priv *priv,
 
 	prev_stats = (__le32 *)&priv->_4965.statistics;
 	accum_stats = (u32 *)&priv->_4965.accum_statistics;
-	size = sizeof(struct iwl_notif_statistics);
+	size = sizeof(struct il_notif_statistics);
 	general = &priv->_4965.statistics.general.common;
 	accum_general = &priv->_4965.accum_statistics.general.common;
 	tx = &priv->_4965.statistics.tx;
@@ -151,15 +151,15 @@ static void iwl4965_accumulative_statistics(struct iwl_priv *priv,
 
 #define REG_RECALIB_PERIOD (60)
 
-void iwl4965_rx_statistics(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
+void il4965_rx_statistics(struct il_priv *priv,
+			      struct il_rx_mem_buffer *rxb)
 {
 	int change;
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_packet *pkt = rxb_addr(rxb);
 
-	IWL_DEBUG_RX(priv,
+	IL_DEBUG_RX(priv,
 		     "Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(struct iwl_notif_statistics),
+		     (int)sizeof(struct il_notif_statistics),
 		     le32_to_cpu(pkt->len_n_flags) &
 		     FH_RSCSR_FRAME_SIZE_MSK);
 
@@ -170,7 +170,7 @@ void iwl4965_rx_statistics(struct iwl_priv *priv,
 		   (pkt->u.stats.flag &
 		   STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
-	iwl4965_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
+	il4965_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
 #endif
 
 	/* TODO: reading some of statistics is unneeded */
@@ -188,28 +188,28 @@ void iwl4965_rx_statistics(struct iwl_priv *priv,
 
 	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
-		iwl4965_rx_calc_noise(priv);
+		il4965_rx_calc_noise(priv);
 		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
 	if (priv->cfg->ops->lib->temp_ops.temperature && change)
 		priv->cfg->ops->lib->temp_ops.temperature(priv);
 }
 
-void iwl4965_reply_statistics(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
+void il4965_reply_statistics(struct il_priv *priv,
+			      struct il_rx_mem_buffer *rxb)
 {
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct il_rx_packet *pkt = rxb_addr(rxb);
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
 		memset(&priv->_4965.accum_statistics, 0,
-			sizeof(struct iwl_notif_statistics));
+			sizeof(struct il_notif_statistics));
 		memset(&priv->_4965.delta_statistics, 0,
-			sizeof(struct iwl_notif_statistics));
+			sizeof(struct il_notif_statistics));
 		memset(&priv->_4965.max_delta, 0,
-			sizeof(struct iwl_notif_statistics));
+			sizeof(struct il_notif_statistics));
 #endif
-		IWL_DEBUG_RX(priv, "Statistics have been cleared\n");
+		IL_DEBUG_RX(priv, "Statistics have been cleared\n");
 	}
-	iwl4965_rx_statistics(priv, rxb);
+	il4965_rx_statistics(priv, rxb);
 }

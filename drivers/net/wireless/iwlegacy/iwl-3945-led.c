@@ -44,20 +44,20 @@
 
 
 /* Send led command */
-static int iwl3945_send_led_cmd(struct iwl_priv *priv,
-				struct iwl_led_cmd *led_cmd)
+static int il3945_send_led_cmd(struct il_priv *priv,
+				struct il_led_cmd *led_cmd)
 {
-	struct iwl_host_cmd cmd = {
+	struct il_host_cmd cmd = {
 		.id = REPLY_LEDS_CMD,
-		.len = sizeof(struct iwl_led_cmd),
+		.len = sizeof(struct il_led_cmd),
 		.data = led_cmd,
 		.flags = CMD_ASYNC,
 		.callback = NULL,
 	};
 
-	return iwl_legacy_send_cmd(priv, &cmd);
+	return il_send_cmd(priv, &cmd);
 }
 
-const struct iwl_led_ops iwl3945_led_ops = {
-	.cmd = iwl3945_send_led_cmd,
+const struct il_led_ops il3945_led_ops = {
+	.cmd = il3945_send_led_cmd,
 };

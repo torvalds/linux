@@ -26,65 +26,65 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
-#ifndef __iwl_legacy_sta_h__
-#define __iwl_legacy_sta_h__
+#ifndef __il_sta_h__
+#define __il_sta_h__
 
 #include "iwl-dev.h"
 
 #define HW_KEY_DYNAMIC 0
 #define HW_KEY_DEFAULT 1
 
-#define IWL_STA_DRIVER_ACTIVE BIT(0) /* driver entry is active */
-#define IWL_STA_UCODE_ACTIVE  BIT(1) /* ucode entry is active */
-#define IWL_STA_UCODE_INPROGRESS  BIT(2) /* ucode entry is in process of
+#define IL_STA_DRIVER_ACTIVE BIT(0) /* driver entry is active */
+#define IL_STA_UCODE_ACTIVE  BIT(1) /* ucode entry is active */
+#define IL_STA_UCODE_INPROGRESS  BIT(2) /* ucode entry is in process of
 					    being activated */
-#define IWL_STA_LOCAL BIT(3) /* station state not directed by mac80211;
+#define IL_STA_LOCAL BIT(3) /* station state not directed by mac80211;
 				(this is for the IBSS BSSID stations) */
-#define IWL_STA_BCAST BIT(4) /* this station is the special bcast station */
+#define IL_STA_BCAST BIT(4) /* this station is the special bcast station */
 
 
-void iwl_legacy_restore_stations(struct iwl_priv *priv,
-				struct iwl_rxon_context *ctx);
-void iwl_legacy_clear_ucode_stations(struct iwl_priv *priv,
-			      struct iwl_rxon_context *ctx);
-void iwl_legacy_dealloc_bcast_stations(struct iwl_priv *priv);
-int iwl_legacy_get_free_ucode_key_index(struct iwl_priv *priv);
-int iwl_legacy_send_add_sta(struct iwl_priv *priv,
-			struct iwl_legacy_addsta_cmd *sta, u8 flags);
-int iwl_legacy_add_station_common(struct iwl_priv *priv,
-			struct iwl_rxon_context *ctx,
+void il_restore_stations(struct il_priv *priv,
+				struct il_rxon_context *ctx);
+void il_clear_ucode_stations(struct il_priv *priv,
+			      struct il_rxon_context *ctx);
+void il_dealloc_bcast_stations(struct il_priv *priv);
+int il_get_free_ucode_key_index(struct il_priv *priv);
+int il_send_add_sta(struct il_priv *priv,
+			struct il_addsta_cmd *sta, u8 flags);
+int il_add_station_common(struct il_priv *priv,
+			struct il_rxon_context *ctx,
 			const u8 *addr, bool is_ap,
 			struct ieee80211_sta *sta, u8 *sta_id_r);
-int iwl_legacy_remove_station(struct iwl_priv *priv,
+int il_remove_station(struct il_priv *priv,
 			const u8 sta_id,
 			const u8 *addr);
-int iwl_legacy_mac_sta_remove(struct ieee80211_hw *hw,
+int il_mac_sta_remove(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
 
-u8 iwl_legacy_prep_station(struct iwl_priv *priv,
-			struct iwl_rxon_context *ctx,
+u8 il_prep_station(struct il_priv *priv,
+			struct il_rxon_context *ctx,
 			const u8 *addr, bool is_ap,
 			struct ieee80211_sta *sta);
 
-int iwl_legacy_send_lq_cmd(struct iwl_priv *priv,
-			struct iwl_rxon_context *ctx,
-			struct iwl_link_quality_cmd *lq,
+int il_send_lq_cmd(struct il_priv *priv,
+			struct il_rxon_context *ctx,
+			struct il_link_quality_cmd *lq,
 			u8 flags, bool init);
 
 /**
- * iwl_legacy_clear_driver_stations - clear knowledge of all stations from driver
+ * il_clear_driver_stations - clear knowledge of all stations from driver
  * @priv: iwl priv struct
  *
- * This is called during iwl_down() to make sure that in the case
+ * This is called during il_down() to make sure that in the case
  * we're coming there from a hardware restart mac80211 will be
  * able to reconfigure stations -- if we're getting there in the
  * normal down flow then the stations will already be cleared.
  */
-static inline void iwl_legacy_clear_driver_stations(struct iwl_priv *priv)
+static inline void il_clear_driver_stations(struct il_priv *priv)
 {
 	unsigned long flags;
-	struct iwl_rxon_context *ctx;
+	struct il_rxon_context *ctx;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	memset(priv->stations, 0, sizeof(priv->stations));
@@ -107,16 +107,16 @@ static inline void iwl_legacy_clear_driver_stations(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
-static inline int iwl_legacy_sta_id(struct ieee80211_sta *sta)
+static inline int il_sta_id(struct ieee80211_sta *sta)
 {
 	if (WARN_ON(!sta))
-		return IWL_INVALID_STATION;
+		return IL_INVALID_STATION;
 
-	return ((struct iwl_station_priv_common *)sta->drv_priv)->sta_id;
+	return ((struct il_station_priv_common *)sta->drv_priv)->sta_id;
 }
 
 /**
- * iwl_legacy_sta_id_or_broadcast - return sta_id or broadcast sta
+ * il_sta_id_or_broadcast - return sta_id or broadcast sta
  * @priv: iwl priv
  * @context: the current context
  * @sta: mac80211 station
@@ -126,8 +126,8 @@ static inline int iwl_legacy_sta_id(struct ieee80211_sta *sta)
  * that case, we need to use the broadcast station, so this
  * inline wraps that pattern.
  */
-static inline int iwl_legacy_sta_id_or_broadcast(struct iwl_priv *priv,
-					  struct iwl_rxon_context *context,
+static inline int il_sta_id_or_broadcast(struct il_priv *priv,
+					  struct il_rxon_context *context,
 					  struct ieee80211_sta *sta)
 {
 	int sta_id;
@@ -135,14 +135,14 @@ static inline int iwl_legacy_sta_id_or_broadcast(struct iwl_priv *priv,
 	if (!sta)
 		return context->bcast_sta_id;
 
-	sta_id = iwl_legacy_sta_id(sta);
+	sta_id = il_sta_id(sta);
 
 	/*
 	 * mac80211 should not be passing a partially
 	 * initialised station!
 	 */
-	WARN_ON(sta_id == IWL_INVALID_STATION);
+	WARN_ON(sta_id == IL_INVALID_STATION);
 
 	return sta_id;
 }
-#endif /* __iwl_legacy_sta_h__ */
+#endif /* __il_sta_h__ */

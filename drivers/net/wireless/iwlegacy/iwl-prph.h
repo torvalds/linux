@@ -60,8 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef	__iwl_legacy_prph_h__
-#define __iwl_legacy_prph_h__
+#ifndef	__il_prph_h__
+#define __il_prph_h__
 
 /*
  * Registers in this file are internal, not PCI bus memory mapped.
@@ -120,13 +120,13 @@
  *
  * 1)  Initialization -- performs hardware calibration and sets up some
  *     internal data, then notifies host via "initialize alive" notification
- *     (struct iwl_init_alive_resp) that it has completed all of its work.
+ *     (struct il_init_alive_resp) that it has completed all of its work.
  *     After signal from host, it then loads and starts the runtime program.
  *     The initialization program must be used when initially setting up the
  *     NIC after loading the driver.
  *
  * 2)  Runtime/Protocol -- performs all normal runtime operations.  This
- *     notifies host via "alive" notification (struct iwl_alive_resp) that it
+ *     notifies host via "alive" notification (struct il_alive_resp) that it
  *     is ready to be used.
  *
  * When initializing the NIC, the host driver does the following procedure:
@@ -287,7 +287,7 @@
  *     Tx completion may end up being out-of-order).
  *
  *     The driver must maintain the queue's Byte Count table in host DRAM
- *     (struct iwl4965_sched_queue_byte_cnt_tbl) for this mode.
+ *     (struct il4965_sched_queue_byte_cnt_tbl) for this mode.
  *     This mode does not support fragmentation.
  *
  * 2)  FIFO (a.k.a. non-Scheduler-ACK), in which each TFD is processed in order.
@@ -514,10 +514,10 @@
 #define IWL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
 	((IWL49_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffffffc)
 
-#define IWL_SCD_TXFIFO_POS_TID			(0)
-#define IWL_SCD_TXFIFO_POS_RA			(4)
-#define IWL_SCD_QUEUE_RA_TID_MAP_RATID_MSK	(0x01FF)
+#define IL_SCD_TXFIFO_POS_TID			(0)
+#define IL_SCD_TXFIFO_POS_RA			(4)
+#define IL_SCD_QUEUE_RA_TID_MAP_RATID_MSK	(0x01FF)
 
 /*********************** END TX SCHEDULER *************************************/
 
-#endif				/* __iwl_legacy_prph_h__ */
+#endif				/* __il_prph_h__ */

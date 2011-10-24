@@ -24,10 +24,10 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_4965_led_h__
-#define __iwl_4965_led_h__
+#ifndef __il_4965_led_h__
+#define __il_4965_led_h__
 
-extern const struct iwl_led_ops iwl4965_led_ops;
-void iwl4965_led_enable(struct iwl_priv *priv);
+extern const struct il_led_ops il4965_led_ops;
+void il4965_led_enable(struct il_priv *priv);
 
-#endif /* __iwl_4965_led_h__ */
+#endif /* __il_4965_led_h__ */

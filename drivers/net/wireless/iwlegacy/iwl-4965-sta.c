@@ -34,45 +34,45 @@
 #include "iwl-sta.h"
 #include "iwl-4965.h"
 
-static struct iwl_link_quality_cmd *
-iwl4965_sta_alloc_lq(struct iwl_priv *priv, u8 sta_id)
+static struct il_link_quality_cmd *
+il4965_sta_alloc_lq(struct il_priv *priv, u8 sta_id)
 {
 	int i, r;
-	struct iwl_link_quality_cmd *link_cmd;
+	struct il_link_quality_cmd *link_cmd;
 	u32 rate_flags = 0;
 	__le32 rate_n_flags;
 
-	link_cmd = kzalloc(sizeof(struct iwl_link_quality_cmd), GFP_KERNEL);
+	link_cmd = kzalloc(sizeof(struct il_link_quality_cmd), GFP_KERNEL);
 	if (!link_cmd) {
-		IWL_ERR(priv, "Unable to allocate memory for LQ cmd.\n");
+		IL_ERR(priv, "Unable to allocate memory for LQ cmd.\n");
 		return NULL;
 	}
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
 	if (priv->band == IEEE80211_BAND_5GHZ)
-		r = IWL_RATE_6M_INDEX;
+		r = IL_RATE_6M_INDEX;
 	else
-		r = IWL_RATE_1M_INDEX;
+		r = IL_RATE_1M_INDEX;
 
-	if (r >= IWL_FIRST_CCK_RATE && r <= IWL_LAST_CCK_RATE)
+	if (r >= IL_FIRST_CCK_RATE && r <= IL_LAST_CCK_RATE)
 		rate_flags |= RATE_MCS_CCK_MSK;
 
-	rate_flags |= iwl4965_first_antenna(priv->hw_params.valid_tx_ant) <<
+	rate_flags |= il4965_first_antenna(priv->hw_params.valid_tx_ant) <<
 				RATE_MCS_ANT_POS;
-	rate_n_flags = iwl4965_hw_set_rate_n_flags(iwlegacy_rates[r].plcp,
+	rate_n_flags = il4965_hw_set_rate_n_flags(iwlegacy_rates[r].plcp,
 						   rate_flags);
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
 		link_cmd->rs_table[i].rate_n_flags = rate_n_flags;
 
 	link_cmd->general_params.single_stream_ant_msk =
-				iwl4965_first_antenna(priv->hw_params.valid_tx_ant);
+				il4965_first_antenna(priv->hw_params.valid_tx_ant);
 
 	link_cmd->general_params.dual_stream_ant_msk =
 		priv->hw_params.valid_tx_ant &
-		~iwl4965_first_antenna(priv->hw_params.valid_tx_ant);
+		~il4965_first_antenna(priv->hw_params.valid_tx_ant);
 	if (!link_cmd->general_params.dual_stream_ant_msk) {
 		link_cmd->general_params.dual_stream_ant_msk = ANT_AB;
-	} else if (iwl4965_num_of_ant(priv->hw_params.valid_tx_ant) == 2) {
+	} else if (il4965_num_of_ant(priv->hw_params.valid_tx_ant) == 2) {
 		link_cmd->general_params.dual_stream_ant_msk =
 			priv->hw_params.valid_tx_ant;
 	}
@@ -87,25 +87,25 @@ iwl4965_sta_alloc_lq(struct iwl_priv *priv, u8 sta_id)
 }
 
 /*
- * iwl4965_add_bssid_station - Add the special IBSS BSSID station
+ * il4965_add_bssid_station - Add the special IBSS BSSID station
  *
  * Function sleeps.
  */
 int
-iwl4965_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+il4965_add_bssid_station(struct il_priv *priv, struct il_rxon_context *ctx,
 			     const u8 *addr, u8 *sta_id_r)
 {
 	int ret;
 	u8 sta_id;
-	struct iwl_link_quality_cmd *link_cmd;
+	struct il_link_quality_cmd *link_cmd;
 	unsigned long flags;
 
 	if (sta_id_r)
-		*sta_id_r = IWL_INVALID_STATION;
+		*sta_id_r = IL_INVALID_STATION;
 
-	ret = iwl_legacy_add_station_common(priv, ctx, addr, 0, NULL, &sta_id);
+	ret = il_add_station_common(priv, ctx, addr, 0, NULL, &sta_id);
 	if (ret) {
-		IWL_ERR(priv, "Unable to add station %pM\n", addr);
+		IL_ERR(priv, "Unable to add station %pM\n", addr);
 		return ret;
 	}
 
@@ -113,21 +113,21 @@ iwl4965_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		*sta_id_r = sta_id;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	priv->stations[sta_id].used |= IWL_STA_LOCAL;
+	priv->stations[sta_id].used |= IL_STA_LOCAL;
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	/* Set up default rate scaling table in device's station table */
-	link_cmd = iwl4965_sta_alloc_lq(priv, sta_id);
+	link_cmd = il4965_sta_alloc_lq(priv, sta_id);
 	if (!link_cmd) {
-		IWL_ERR(priv,
+		IL_ERR(priv,
 			"Unable to initialize rate scaling for station %pM.\n",
 			addr);
 		return -ENOMEM;
 	}
 
-	ret = iwl_legacy_send_lq_cmd(priv, ctx, link_cmd, CMD_SYNC, true);
+	ret = il_send_lq_cmd(priv, ctx, link_cmd, CMD_SYNC, true);
 	if (ret)
-		IWL_ERR(priv, "Link quality command failed (%d)\n", ret);
+		IL_ERR(priv, "Link quality command failed (%d)\n", ret);
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	priv->stations[sta_id].lq = link_cmd;
@@ -136,16 +136,16 @@ iwl4965_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	return 0;
 }
 
-static int iwl4965_static_wepkey_cmd(struct iwl_priv *priv,
-				      struct iwl_rxon_context *ctx,
+static int il4965_static_wepkey_cmd(struct il_priv *priv,
+				      struct il_rxon_context *ctx,
 				      bool send_if_empty)
 {
 	int i, not_empty = 0;
-	u8 buff[sizeof(struct iwl_wep_cmd) +
-		sizeof(struct iwl_wep_key) * WEP_KEYS_MAX];
-	struct iwl_wep_cmd *wep_cmd = (struct iwl_wep_cmd *)buff;
-	size_t cmd_size  = sizeof(struct iwl_wep_cmd);
-	struct iwl_host_cmd cmd = {
+	u8 buff[sizeof(struct il_wep_cmd) +
+		sizeof(struct il_wep_key) * WEP_KEYS_MAX];
+	struct il_wep_cmd *wep_cmd = (struct il_wep_cmd *)buff;
+	size_t cmd_size  = sizeof(struct il_wep_cmd);
+	struct il_host_cmd cmd = {
 		.id = ctx->wep_key_cmd,
 		.data = wep_cmd,
 		.flags = CMD_SYNC,
@@ -154,7 +154,7 @@ static int iwl4965_static_wepkey_cmd(struct iwl_priv *priv,
 	might_sleep();
 
 	memset(wep_cmd, 0, cmd_size +
-			(sizeof(struct iwl_wep_key) * WEP_KEYS_MAX));
+			(sizeof(struct il_wep_key) * WEP_KEYS_MAX));
 
 	for (i = 0; i < WEP_KEYS_MAX ; i++) {
 		wep_cmd->key[i].key_index = i;
@@ -173,51 +173,51 @@ static int iwl4965_static_wepkey_cmd(struct iwl_priv *priv,
 	wep_cmd->global_key_type = WEP_KEY_WEP_TYPE;
 	wep_cmd->num_keys = WEP_KEYS_MAX;
 
-	cmd_size += sizeof(struct iwl_wep_key) * WEP_KEYS_MAX;
+	cmd_size += sizeof(struct il_wep_key) * WEP_KEYS_MAX;
 
 	cmd.len = cmd_size;
 
 	if (not_empty || send_if_empty)
-		return iwl_legacy_send_cmd(priv, &cmd);
+		return il_send_cmd(priv, &cmd);
 	else
 		return 0;
 }
 
-int iwl4965_restore_default_wep_keys(struct iwl_priv *priv,
-				 struct iwl_rxon_context *ctx)
+int il4965_restore_default_wep_keys(struct il_priv *priv,
+				 struct il_rxon_context *ctx)
 {
 	lockdep_assert_held(&priv->mutex);
 
-	return iwl4965_static_wepkey_cmd(priv, ctx, false);
+	return il4965_static_wepkey_cmd(priv, ctx, false);
 }
 
-int iwl4965_remove_default_wep_key(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx,
+int il4965_remove_default_wep_key(struct il_priv *priv,
+			       struct il_rxon_context *ctx,
 			       struct ieee80211_key_conf *keyconf)
 {
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
 
-	IWL_DEBUG_WEP(priv, "Removing default WEP key: idx=%d\n",
+	IL_DEBUG_WEP(priv, "Removing default WEP key: idx=%d\n",
 		      keyconf->keyidx);
 
 	memset(&ctx->wep_keys[keyconf->keyidx], 0, sizeof(ctx->wep_keys[0]));
-	if (iwl_legacy_is_rfkill(priv)) {
-		IWL_DEBUG_WEP(priv,
+	if (il_is_rfkill(priv)) {
+		IL_DEBUG_WEP(priv,
 		"Not sending REPLY_WEPKEY command due to RFKILL.\n");
 		/* but keys in device are clear anyway so return success */
 		return 0;
 	}
-	ret = iwl4965_static_wepkey_cmd(priv, ctx, 1);
-	IWL_DEBUG_WEP(priv, "Remove default WEP key: idx=%d ret=%d\n",
+	ret = il4965_static_wepkey_cmd(priv, ctx, 1);
+	IL_DEBUG_WEP(priv, "Remove default WEP key: idx=%d ret=%d\n",
 		      keyconf->keyidx, ret);
 
 	return ret;
 }
 
-int iwl4965_set_default_wep_key(struct iwl_priv *priv,
-			    struct iwl_rxon_context *ctx,
+int il4965_set_default_wep_key(struct il_priv *priv,
+			    struct il_rxon_context *ctx,
 			    struct ieee80211_key_conf *keyconf)
 {
 	int ret;
@@ -226,7 +226,7 @@ int iwl4965_set_default_wep_key(struct iwl_priv *priv,
 
 	if (keyconf->keylen != WEP_KEY_LEN_128 &&
 	    keyconf->keylen != WEP_KEY_LEN_64) {
-		IWL_DEBUG_WEP(priv, "Bad WEP key length %d\n", keyconf->keylen);
+		IL_DEBUG_WEP(priv, "Bad WEP key length %d\n", keyconf->keylen);
 		return -EINVAL;
 	}
 
@@ -238,21 +238,21 @@ int iwl4965_set_default_wep_key(struct iwl_priv *priv,
 	memcpy(&ctx->wep_keys[keyconf->keyidx].key, &keyconf->key,
 							keyconf->keylen);
 
-	ret = iwl4965_static_wepkey_cmd(priv, ctx, false);
-	IWL_DEBUG_WEP(priv, "Set default WEP key: len=%d idx=%d ret=%d\n",
+	ret = il4965_static_wepkey_cmd(priv, ctx, false);
+	IL_DEBUG_WEP(priv, "Set default WEP key: len=%d idx=%d ret=%d\n",
 		keyconf->keylen, keyconf->keyidx, ret);
 
 	return ret;
 }
 
-static int iwl4965_set_wep_dynamic_key_info(struct iwl_priv *priv,
-					struct iwl_rxon_context *ctx,
+static int il4965_set_wep_dynamic_key_info(struct il_priv *priv,
+					struct il_rxon_context *ctx,
 					struct ieee80211_key_conf *keyconf,
 					u8 sta_id)
 {
 	unsigned long flags;
 	__le16 key_flags = 0;
-	struct iwl_legacy_addsta_cmd sta_cmd;
+	struct il_addsta_cmd sta_cmd;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -283,7 +283,7 @@ static int iwl4965_set_wep_dynamic_key_info(struct iwl_priv *priv,
 	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
 		priv->stations[sta_id].sta.key.key_offset =
-				 iwl_legacy_get_free_ucode_key_index(priv);
+				 il_get_free_ucode_key_index(priv);
 	/* else, we are overriding an existing key => no need to allocated room
 	 * in uCode. */
 
@@ -295,20 +295,20 @@ static int iwl4965_set_wep_dynamic_key_info(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta,
-			sizeof(struct iwl_legacy_addsta_cmd));
+			sizeof(struct il_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return iwl_legacy_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return il_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
-static int iwl4965_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
-					 struct iwl_rxon_context *ctx,
+static int il4965_set_ccmp_dynamic_key_info(struct il_priv *priv,
+					 struct il_rxon_context *ctx,
 					 struct ieee80211_key_conf *keyconf,
 					 u8 sta_id)
 {
 	unsigned long flags;
 	__le16 key_flags = 0;
-	struct iwl_legacy_addsta_cmd sta_cmd;
+	struct il_addsta_cmd sta_cmd;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -334,7 +334,7 @@ static int iwl4965_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
 		priv->stations[sta_id].sta.key.key_offset =
-				 iwl_legacy_get_free_ucode_key_index(priv);
+				 il_get_free_ucode_key_index(priv);
 	/* else, we are overriding an existing key => no need to allocated room
 	 * in uCode. */
 
@@ -346,14 +346,14 @@ static int iwl4965_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta,
-			 sizeof(struct iwl_legacy_addsta_cmd));
+			 sizeof(struct il_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return iwl_legacy_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return il_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
-static int iwl4965_set_tkip_dynamic_key_info(struct iwl_priv *priv,
-					 struct iwl_rxon_context *ctx,
+static int il4965_set_tkip_dynamic_key_info(struct il_priv *priv,
+					 struct il_rxon_context *ctx,
 					 struct ieee80211_key_conf *keyconf,
 					 u8 sta_id)
 {
@@ -379,7 +379,7 @@ static int iwl4965_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
 			== STA_KEY_FLG_NO_ENC)
 		priv->stations[sta_id].sta.key.key_offset =
-				 iwl_legacy_get_free_ucode_key_index(priv);
+				 il_get_free_ucode_key_index(priv);
 	/* else, we are overriding an existing key => no need to allocated room
 	 * in uCode. */
 
@@ -399,8 +399,8 @@ static int iwl4965_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 	return ret;
 }
 
-void iwl4965_update_tkip_key(struct iwl_priv *priv,
-			 struct iwl_rxon_context *ctx,
+void il4965_update_tkip_key(struct il_priv *priv,
+			 struct il_rxon_context *ctx,
 			 struct ieee80211_key_conf *keyconf,
 			 struct ieee80211_sta *sta, u32 iv32, u16 *phase1key)
 {
@@ -408,14 +408,14 @@ void iwl4965_update_tkip_key(struct iwl_priv *priv,
 	unsigned long flags;
 	int i;
 
-	if (iwl_legacy_scan_cancel(priv)) {
+	if (il_scan_cancel(priv)) {
 		/* cancel scan failed, just live w/ bad key and rely
 		   briefly on SW decryption */
 		return;
 	}
 
-	sta_id = iwl_legacy_sta_id_or_broadcast(priv, ctx, sta);
-	if (sta_id == IWL_INVALID_STATION)
+	sta_id = il_sta_id_or_broadcast(priv, ctx, sta);
+	if (sta_id == IL_INVALID_STATION)
 		return;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
@@ -429,21 +429,21 @@ void iwl4965_update_tkip_key(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
-	iwl_legacy_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
+	il_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 }
 
-int iwl4965_remove_dynamic_key(struct iwl_priv *priv,
-			   struct iwl_rxon_context *ctx,
+int il4965_remove_dynamic_key(struct il_priv *priv,
+			   struct il_rxon_context *ctx,
 			   struct ieee80211_key_conf *keyconf,
 			   u8 sta_id)
 {
 	unsigned long flags;
 	u16 key_flags;
 	u8 keyidx;
-	struct iwl_legacy_addsta_cmd sta_cmd;
+	struct il_addsta_cmd sta_cmd;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -453,7 +453,7 @@ int iwl4965_remove_dynamic_key(struct iwl_priv *priv,
 	key_flags = le16_to_cpu(priv->stations[sta_id].sta.key.key_flags);
 	keyidx = (key_flags >> STA_KEY_FLG_KEYID_POS) & 0x3;
 
-	IWL_DEBUG_WEP(priv, "Remove dynamic key: idx=%d sta=%d\n",
+	IL_DEBUG_WEP(priv, "Remove dynamic key: idx=%d sta=%d\n",
 		      keyconf->keyidx, sta_id);
 
 	if (keyconf->keyidx != keyidx) {
@@ -467,7 +467,7 @@ int iwl4965_remove_dynamic_key(struct iwl_priv *priv,
 	}
 
 	if (priv->stations[sta_id].sta.key.key_offset == WEP_INVALID_OFFSET) {
-		IWL_WARN(priv, "Removing wrong key %d 0x%x\n",
+		IL_WARN(priv, "Removing wrong key %d 0x%x\n",
 			    keyconf->keyidx, key_flags);
 		spin_unlock_irqrestore(&priv->sta_lock, flags);
 		return 0;
@@ -475,32 +475,32 @@ int iwl4965_remove_dynamic_key(struct iwl_priv *priv,
 
 	if (!test_and_clear_bit(priv->stations[sta_id].sta.key.key_offset,
 		&priv->ucode_key_table))
-		IWL_ERR(priv, "index %d not used in uCode key table.\n",
+		IL_ERR(priv, "index %d not used in uCode key table.\n",
 			priv->stations[sta_id].sta.key.key_offset);
 	memset(&priv->stations[sta_id].keyinfo, 0,
-					sizeof(struct iwl_hw_key));
+					sizeof(struct il_hw_key));
 	memset(&priv->stations[sta_id].sta.key, 0,
-					sizeof(struct iwl4965_keyinfo));
+					sizeof(struct il4965_keyinfo));
 	priv->stations[sta_id].sta.key.key_flags =
 			STA_KEY_FLG_NO_ENC | STA_KEY_FLG_INVALID;
 	priv->stations[sta_id].sta.key.key_offset = WEP_INVALID_OFFSET;
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
-	if (iwl_legacy_is_rfkill(priv)) {
-		IWL_DEBUG_WEP(priv,
+	if (il_is_rfkill(priv)) {
+		IL_DEBUG_WEP(priv,
 		 "Not sending REPLY_ADD_STA command because RFKILL enabled.\n");
 		spin_unlock_irqrestore(&priv->sta_lock, flags);
 		return 0;
 	}
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta,
-			sizeof(struct iwl_legacy_addsta_cmd));
+			sizeof(struct il_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return iwl_legacy_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return il_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
-int iwl4965_set_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+int il4965_set_dynamic_key(struct il_priv *priv, struct il_rxon_context *ctx,
 			struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	int ret;
@@ -512,26 +512,26 @@ int iwl4965_set_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 	switch (keyconf->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
-		ret = iwl4965_set_ccmp_dynamic_key_info(priv, ctx,
+		ret = il4965_set_ccmp_dynamic_key_info(priv, ctx,
 							keyconf, sta_id);
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		ret = iwl4965_set_tkip_dynamic_key_info(priv, ctx,
+		ret = il4965_set_tkip_dynamic_key_info(priv, ctx,
 							keyconf, sta_id);
 		break;
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		ret = iwl4965_set_wep_dynamic_key_info(priv, ctx,
+		ret = il4965_set_wep_dynamic_key_info(priv, ctx,
 							keyconf, sta_id);
 		break;
 	default:
-		IWL_ERR(priv,
+		IL_ERR(priv,
 			"Unknown alg: %s cipher = %x\n", __func__,
 			keyconf->cipher);
 		ret = -EINVAL;
 	}
 
-	IWL_DEBUG_WEP(priv,
+	IL_DEBUG_WEP(priv,
 		"Set dynamic key: cipher=%x len=%d idx=%d sta=%d ret=%d\n",
 		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
 		      sta_id, ret);
@@ -540,36 +540,36 @@ int iwl4965_set_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 }
 
 /**
- * iwl4965_alloc_bcast_station - add broadcast station into driver's station table.
+ * il4965_alloc_bcast_station - add broadcast station into driver's station table.
  *
  * This adds the broadcast station into the driver's station table
  * and marks it driver active, so that it will be restored to the
  * device at the next best time.
  */
-int iwl4965_alloc_bcast_station(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx)
+int il4965_alloc_bcast_station(struct il_priv *priv,
+			       struct il_rxon_context *ctx)
 {
-	struct iwl_link_quality_cmd *link_cmd;
+	struct il_link_quality_cmd *link_cmd;
 	unsigned long flags;
 	u8 sta_id;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	sta_id = iwl_legacy_prep_station(priv, ctx, iwlegacy_bcast_addr,
+	sta_id = il_prep_station(priv, ctx, iwlegacy_bcast_addr,
 								false, NULL);
-	if (sta_id == IWL_INVALID_STATION) {
-		IWL_ERR(priv, "Unable to prepare broadcast station\n");
+	if (sta_id == IL_INVALID_STATION) {
+		IL_ERR(priv, "Unable to prepare broadcast station\n");
 		spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 		return -EINVAL;
 	}
 
-	priv->stations[sta_id].used |= IWL_STA_DRIVER_ACTIVE;
-	priv->stations[sta_id].used |= IWL_STA_BCAST;
+	priv->stations[sta_id].used |= IL_STA_DRIVER_ACTIVE;
+	priv->stations[sta_id].used |= IL_STA_BCAST;
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	link_cmd = iwl4965_sta_alloc_lq(priv, sta_id);
+	link_cmd = il4965_sta_alloc_lq(priv, sta_id);
 	if (!link_cmd) {
-		IWL_ERR(priv,
+		IL_ERR(priv,
 			"Unable to initialize rate scaling for bcast station.\n");
 		return -ENOMEM;
 	}
@@ -582,21 +582,21 @@ int iwl4965_alloc_bcast_station(struct iwl_priv *priv,
 }
 
 /**
- * iwl4965_update_bcast_station - update broadcast station's LQ command
+ * il4965_update_bcast_station - update broadcast station's LQ command
  *
  * Only used by iwl4965. Placed here to have all bcast station management
  * code together.
  */
-static int iwl4965_update_bcast_station(struct iwl_priv *priv,
-				    struct iwl_rxon_context *ctx)
+static int il4965_update_bcast_station(struct il_priv *priv,
+				    struct il_rxon_context *ctx)
 {
 	unsigned long flags;
-	struct iwl_link_quality_cmd *link_cmd;
+	struct il_link_quality_cmd *link_cmd;
 	u8 sta_id = ctx->bcast_sta_id;
 
-	link_cmd = iwl4965_sta_alloc_lq(priv, sta_id);
+	link_cmd = il4965_sta_alloc_lq(priv, sta_id);
 	if (!link_cmd) {
-		IWL_ERR(priv,
+		IL_ERR(priv,
 		"Unable to initialize rate scaling for bcast station.\n");
 		return -ENOMEM;
 	}
@@ -605,7 +605,7 @@ static int iwl4965_update_bcast_station(struct iwl_priv *priv,
 	if (priv->stations[sta_id].lq)
 		kfree(priv->stations[sta_id].lq);
 	else
-		IWL_DEBUG_INFO(priv,
+		IL_DEBUG_INFO(priv,
 		"Bcast station rate scaling has not been initialized yet.\n");
 	priv->stations[sta_id].lq = link_cmd;
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
@@ -613,13 +613,13 @@ static int iwl4965_update_bcast_station(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwl4965_update_bcast_stations(struct iwl_priv *priv)
+int il4965_update_bcast_stations(struct il_priv *priv)
 {
-	struct iwl_rxon_context *ctx;
+	struct il_rxon_context *ctx;
 	int ret = 0;
 
 	for_each_context(priv, ctx) {
-		ret = iwl4965_update_bcast_station(priv, ctx);
+		ret = il4965_update_bcast_station(priv, ctx);
 		if (ret)
 			break;
 	}
@@ -628,12 +628,12 @@ int iwl4965_update_bcast_stations(struct iwl_priv *priv)
 }
 
 /**
- * iwl4965_sta_tx_modify_enable_tid - Enable Tx for this TID in station table
+ * il4965_sta_tx_modify_enable_tid - Enable Tx for this TID in station table
  */
-int iwl4965_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid)
+int il4965_sta_tx_modify_enable_tid(struct il_priv *priv, int sta_id, int tid)
 {
 	unsigned long flags;
-	struct iwl_legacy_addsta_cmd sta_cmd;
+	struct il_addsta_cmd sta_cmd;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -643,23 +643,23 @@ int iwl4965_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid)
 	priv->stations[sta_id].sta.tid_disable_tx &= cpu_to_le16(~(1 << tid));
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta,
-					sizeof(struct iwl_legacy_addsta_cmd));
+					sizeof(struct il_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return iwl_legacy_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return il_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
-int iwl4965_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
+int il4965_sta_rx_agg_start(struct il_priv *priv, struct ieee80211_sta *sta,
 			 int tid, u16 ssn)
 {
 	unsigned long flags;
 	int sta_id;
-	struct iwl_legacy_addsta_cmd sta_cmd;
+	struct il_addsta_cmd sta_cmd;
 
 	lockdep_assert_held(&priv->mutex);
 
-	sta_id = iwl_legacy_sta_id(sta);
-	if (sta_id == IWL_INVALID_STATION)
+	sta_id = il_sta_id(sta);
+	if (sta_id == IL_INVALID_STATION)
 		return -ENXIO;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
@@ -669,24 +669,24 @@ int iwl4965_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
 	priv->stations[sta_id].sta.add_immediate_ba_ssn = cpu_to_le16(ssn);
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta,
-					sizeof(struct iwl_legacy_addsta_cmd));
+					sizeof(struct il_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return iwl_legacy_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return il_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
-int iwl4965_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
+int il4965_sta_rx_agg_stop(struct il_priv *priv, struct ieee80211_sta *sta,
 			int tid)
 {
 	unsigned long flags;
 	int sta_id;
-	struct iwl_legacy_addsta_cmd sta_cmd;
+	struct il_addsta_cmd sta_cmd;
 
 	lockdep_assert_held(&priv->mutex);
 
-	sta_id = iwl_legacy_sta_id(sta);
-	if (sta_id == IWL_INVALID_STATION) {
-		IWL_ERR(priv, "Invalid station for AGG tid %d\n", tid);
+	sta_id = il_sta_id(sta);
+	if (sta_id == IL_INVALID_STATION) {
+		IL_ERR(priv, "Invalid station for AGG tid %d\n", tid);
 		return -ENXIO;
 	}
 
@@ -696,14 +696,14 @@ int iwl4965_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
 	priv->stations[sta_id].sta.remove_immediate_ba_tid = (u8)tid;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta,
-				sizeof(struct iwl_legacy_addsta_cmd));
+				sizeof(struct il_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return iwl_legacy_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	return il_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
 void
-iwl4965_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt)
+il4965_sta_modify_sleep_tx_count(struct il_priv *priv, int sta_id, int cnt)
 {
 	unsigned long flags;
 
@@ -714,7 +714,7 @@ iwl4965_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt)
 					STA_MODIFY_SLEEP_TX_COUNT_MSK;
 	priv->stations[sta_id].sta.sleep_tx_count = cpu_to_le16(cnt);
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-	iwl_legacy_send_add_sta(priv,
+	il_send_add_sta(priv,
 				&priv->stations[sta_id].sta, CMD_ASYNC);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 

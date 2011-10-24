@@ -29,7 +29,7 @@
 #include "iwl-3945-debugfs.h"
 
 
-static int iwl3945_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
+static int il3945_statistics_flag(struct il_priv *priv, char *buf, int bufsz)
 {
 	int p = 0;
 
@@ -50,11 +50,11 @@ static int iwl3945_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
 	return p;
 }
 
-ssize_t iwl3945_ucode_rx_stats_read(struct file *file,
+ssize_t il3945_ucode_rx_stats_read(struct file *file,
 				    char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = sizeof(struct iwl39_statistics_rx_phy) * 40 +
@@ -66,12 +66,12 @@ ssize_t iwl3945_ucode_rx_stats_read(struct file *file,
 	struct iwl39_statistics_rx_non_phy *general, *accum_general;
 	struct iwl39_statistics_rx_non_phy *delta_general, *max_general;
 
-	if (!iwl_legacy_is_alive(priv))
+	if (!il_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -93,7 +93,7 @@ ssize_t iwl3945_ucode_rx_stats_read(struct file *file,
 	max_cck = &priv->_3945.max_delta.rx.cck;
 	max_general = &priv->_3945.max_delta.rx.general;
 
-	pos += iwl3945_statistics_flag(priv, buf, bufsz);
+	pos += il3945_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_Rx - OFDM:");
@@ -325,23 +325,23 @@ ssize_t iwl3945_ucode_rx_stats_read(struct file *file,
 	return ret;
 }
 
-ssize_t iwl3945_ucode_tx_stats_read(struct file *file,
+ssize_t il3945_ucode_tx_stats_read(struct file *file,
 				    char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = (sizeof(struct iwl39_statistics_tx) * 48) + 250;
 	ssize_t ret;
 	struct iwl39_statistics_tx *tx, *accum_tx, *delta_tx, *max_tx;
 
-	if (!iwl_legacy_is_alive(priv))
+	if (!il_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -354,7 +354,7 @@ ssize_t iwl3945_ucode_tx_stats_read(struct file *file,
 	accum_tx = &priv->_3945.accum_statistics.tx;
 	delta_tx = &priv->_3945.delta_statistics.tx;
 	max_tx = &priv->_3945.max_delta.tx;
-	pos += iwl3945_statistics_flag(priv, buf, bufsz);
+	pos += il3945_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_Tx:");
@@ -421,11 +421,11 @@ ssize_t iwl3945_ucode_tx_stats_read(struct file *file,
 	return ret;
 }
 
-ssize_t iwl3945_ucode_general_stats_read(struct file *file,
+ssize_t il3945_ucode_general_stats_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	char *buf;
 	int bufsz = sizeof(struct iwl39_statistics_general) * 10 + 300;
@@ -435,12 +435,12 @@ ssize_t iwl3945_ucode_general_stats_read(struct file *file,
 	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
 	struct iwl39_statistics_div *div, *accum_div, *delta_div, *max_div;
 
-	if (!iwl_legacy_is_alive(priv))
+	if (!il_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -461,7 +461,7 @@ ssize_t iwl3945_ucode_general_stats_read(struct file *file,
 	accum_div = &priv->_3945.accum_statistics.general.div;
 	delta_div = &priv->_3945.delta_statistics.general.div;
 	max_div = &priv->_3945.max_delta.general.div;
-	pos += iwl3945_statistics_flag(priv, buf, bufsz);
+	pos += il3945_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
 			 "Statistics_General:");

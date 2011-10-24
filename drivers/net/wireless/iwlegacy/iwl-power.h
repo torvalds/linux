@@ -25,31 +25,31 @@
  *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
-#ifndef __iwl_legacy_power_setting_h__
-#define __iwl_legacy_power_setting_h__
+#ifndef __il_power_setting_h__
+#define __il_power_setting_h__
 
 #include "iwl-commands.h"
 
-enum iwl_power_level {
-	IWL_POWER_INDEX_1,
-	IWL_POWER_INDEX_2,
-	IWL_POWER_INDEX_3,
-	IWL_POWER_INDEX_4,
-	IWL_POWER_INDEX_5,
-	IWL_POWER_NUM
+enum il_power_level {
+	IL_POWER_INDEX_1,
+	IL_POWER_INDEX_2,
+	IL_POWER_INDEX_3,
+	IL_POWER_INDEX_4,
+	IL_POWER_INDEX_5,
+	IL_POWER_NUM
 };
 
-struct iwl_power_mgr {
-	struct iwl_powertable_cmd sleep_cmd;
-	struct iwl_powertable_cmd sleep_cmd_next;
+struct il_power_mgr {
+	struct il_powertable_cmd sleep_cmd;
+	struct il_powertable_cmd sleep_cmd_next;
 	int debug_sleep_level_override;
 	bool pci_pm;
 };
 
 int
-iwl_legacy_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
+il_power_set_mode(struct il_priv *priv, struct il_powertable_cmd *cmd,
 		       bool force);
-int iwl_legacy_power_update_mode(struct iwl_priv *priv, bool force);
-void iwl_legacy_power_initialize(struct iwl_priv *priv);
+int il_power_update_mode(struct il_priv *priv, bool force);
+void il_power_initialize(struct il_priv *priv);
 
-#endif  /* __iwl_legacy_power_setting_h__ */
+#endif  /* __il_power_setting_h__ */

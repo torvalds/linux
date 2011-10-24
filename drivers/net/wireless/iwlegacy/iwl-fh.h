@@ -60,8 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_legacy_fh_h__
-#define __iwl_legacy_fh_h__
+#ifndef __il_fh_h__
+#define __il_fh_h__
 
 /****************************/
 /* Flow Handler Definitions */
@@ -99,7 +99,7 @@
  *
  * 4965 has 16 base pointer registers, one for each of 16 host-DRAM-resident
  * circular buffers (CBs/queues) containing Transmit Frame Descriptors (TFDs)
- * (see struct iwl_tfd_frame).  These 16 pointer registers are offset by 0x04
+ * (see struct il_tfd_frame).  These 16 pointer registers are offset by 0x04
  * bytes from one another.  Each TFD circular buffer in DRAM must be 256-byte
  * aligned (address bits 0-7 must be 0).
  *
@@ -146,7 +146,7 @@
  *     physical address [35:4] into FH_RSCSR_CHNL0_STTS_WPTR_REG [31:0].
  *
  *     Bit fields in lower dword of Rx status buffer (upper dword not used
- *     by driver; see struct iwl4965_shared, val0):
+ *     by driver; see struct il4965_shared, val0):
  *     31-12:  Not used by driver
  *     11- 0:  Index of last filled Rx buffer descriptor
  *             (4965 writes, driver reads this value)
@@ -424,12 +424,12 @@
 #define RX_LOW_WATERMARK 8
 
 /* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE_3K (3 * 1000) /* 3945 only */
-#define IWL_RX_BUF_SIZE_4K (4 * 1024)
-#define IWL_RX_BUF_SIZE_8K (8 * 1024)
+#define IL_RX_BUF_SIZE_3K (3 * 1000) /* 3945 only */
+#define IL_RX_BUF_SIZE_4K (4 * 1024)
+#define IL_RX_BUF_SIZE_8K (8 * 1024)
 
 /**
- * struct iwl_rb_status - reseve buffer status
+ * struct il_rb_status - reseve buffer status
  * 	host memory mapped FH registers
  * @closed_rb_num [0:11] - Indicates the index of the RB which was closed
  * @closed_fr_num [0:11] - Indicates the index of the RX Frame which was closed
@@ -438,7 +438,7 @@
  * @finished_fr_num [0:11] - Indicates the index of the RX Frame
  * 	which was transferred
  */
-struct iwl_rb_status {
+struct il_rb_status {
 	__le16 closed_rb_num;
 	__le16 closed_fr_num;
 	__le16 finished_rb_num;
@@ -450,15 +450,15 @@ struct iwl_rb_status {
 #define TFD_QUEUE_SIZE_MAX      (256)
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
-#define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
-#define IWL_NUM_OF_TBS		20
+#define IL_TX_DMA_MASK        DMA_BIT_MASK(36)
+#define IL_NUM_OF_TBS		20
 
-static inline u8 iwl_legacy_get_dma_hi_addr(dma_addr_t addr)
+static inline u8 il_get_dma_hi_addr(dma_addr_t addr)
 {
 	return (sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0) & 0xF;
 }
 /**
- * struct iwl_tfd_tb transmit buffer descriptor within transmit frame descriptor
+ * struct il_tfd_tb transmit buffer descriptor within transmit frame descriptor
  *
  * This structure contains dma address and length of transmission address
  *
@@ -467,13 +467,13 @@ static inline u8 iwl_legacy_get_dma_hi_addr(dma_addr_t addr)
  * @hi_n_len 0-3 [35:32] portion of dma
  *	     4-15 length of the tx buffer
  */
-struct iwl_tfd_tb {
+struct il_tfd_tb {
 	__le32 lo;
 	__le16 hi_n_len;
 } __packed;
 
 /**
- * struct iwl_tfd
+ * struct il_tfd
  *
  * Transmit Frame Descriptor (TFD)
  *
@@ -500,14 +500,14 @@ struct iwl_tfd_tb {
  *
  * A maximum of 255 (not 256!) TFDs may be on a queue waiting for Tx.
  */
-struct iwl_tfd {
+struct il_tfd {
 	u8 __reserved1[3];
 	u8 num_tbs;
-	struct iwl_tfd_tb tbs[IWL_NUM_OF_TBS];
+	struct il_tfd_tb tbs[IL_NUM_OF_TBS];
 	__le32 __pad;
 } __packed;
 
 /* Keep Warm Size */
-#define IWL_KW_SIZE 0x1000	/* 4k */
+#define IL_KW_SIZE 0x1000	/* 4k */
 
-#endif /* !__iwl_legacy_fh_h__ */
+#endif /* !__il_fh_h__ */

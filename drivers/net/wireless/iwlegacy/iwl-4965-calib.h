@@ -59,17 +59,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
-#ifndef __iwl_4965_calib_h__
-#define __iwl_4965_calib_h__
+#ifndef __il_4965_calib_h__
+#define __il_4965_calib_h__
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-commands.h"
 
-void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp);
-void iwl4965_sensitivity_calibration(struct iwl_priv *priv, void *resp);
-void iwl4965_init_sensitivity(struct iwl_priv *priv);
-void iwl4965_reset_run_time_calib(struct iwl_priv *priv);
-void iwl4965_calib_free_results(struct iwl_priv *priv);
+void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp);
+void il4965_sensitivity_calibration(struct il_priv *priv, void *resp);
+void il4965_init_sensitivity(struct il_priv *priv);
+void il4965_reset_run_time_calib(struct il_priv *priv);
+void il4965_calib_free_results(struct il_priv *priv);
 
-#endif /* __iwl_4965_calib_h__ */
+#endif /* __il_4965_calib_h__ */

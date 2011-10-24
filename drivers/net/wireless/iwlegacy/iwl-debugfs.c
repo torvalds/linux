@@ -37,7 +37,7 @@
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
 	if (!debugfs_create_file(#name, mode, parent, priv,		\
-			 &iwl_legacy_dbgfs_##name##_ops))		\
+			 &il_dbgfs_##name##_ops))		\
 		goto err;						\
 } while (0)
 
@@ -59,18 +59,18 @@
 
 /* file operation */
 #define DEBUGFS_READ_FUNC(name)                                         \
-static ssize_t iwl_legacy_dbgfs_##name##_read(struct file *file,               \
+static ssize_t il_dbgfs_##name##_read(struct file *file,               \
 					char __user *user_buf,          \
 					size_t count, loff_t *ppos);
 
 #define DEBUGFS_WRITE_FUNC(name)                                        \
-static ssize_t iwl_legacy_dbgfs_##name##_write(struct file *file,              \
+static ssize_t il_dbgfs_##name##_write(struct file *file,              \
 					const char __user *user_buf,    \
 					size_t count, loff_t *ppos);
 
 
 static int
-iwl_legacy_dbgfs_open_file_generic(struct inode *inode, struct file *file)
+il_dbgfs_open_file_generic(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
 	return 0;
@@ -78,35 +78,35 @@ iwl_legacy_dbgfs_open_file_generic(struct inode *inode, struct file *file)
 
 #define DEBUGFS_READ_FILE_OPS(name) 				\
 	DEBUGFS_READ_FUNC(name);                                        \
-static const struct file_operations iwl_legacy_dbgfs_##name##_ops = {	\
-	.read = iwl_legacy_dbgfs_##name##_read,				\
-	.open = iwl_legacy_dbgfs_open_file_generic,                    	\
+static const struct file_operations il_dbgfs_##name##_ops = {	\
+	.read = il_dbgfs_##name##_read,				\
+	.open = il_dbgfs_open_file_generic,                    	\
 	.llseek = generic_file_llseek,					\
 };
 
 #define DEBUGFS_WRITE_FILE_OPS(name) 				\
 	DEBUGFS_WRITE_FUNC(name);                                       \
-static const struct file_operations iwl_legacy_dbgfs_##name##_ops = {	\
-	.write = iwl_legacy_dbgfs_##name##_write,			\
-	.open = iwl_legacy_dbgfs_open_file_generic,                    	\
+static const struct file_operations il_dbgfs_##name##_ops = {	\
+	.write = il_dbgfs_##name##_write,			\
+	.open = il_dbgfs_open_file_generic,                    	\
 	.llseek = generic_file_llseek,					\
 };
 
 #define DEBUGFS_READ_WRITE_FILE_OPS(name)                           \
 	DEBUGFS_READ_FUNC(name);                                        \
 	DEBUGFS_WRITE_FUNC(name);                                       \
-static const struct file_operations iwl_legacy_dbgfs_##name##_ops = {	\
-	.write = iwl_legacy_dbgfs_##name##_write,			\
-	.read = iwl_legacy_dbgfs_##name##_read,				\
-	.open = iwl_legacy_dbgfs_open_file_generic,			\
+static const struct file_operations il_dbgfs_##name##_ops = {	\
+	.write = il_dbgfs_##name##_write,			\
+	.read = il_dbgfs_##name##_read,				\
+	.open = il_dbgfs_open_file_generic,			\
 	.llseek = generic_file_llseek,					\
 };
 
-static ssize_t iwl_legacy_dbgfs_tx_statistics_read(struct file *file,
+static ssize_t il_dbgfs_tx_statistics_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char *buf;
 	int pos = 0;
 
@@ -121,14 +121,14 @@ static ssize_t iwl_legacy_dbgfs_tx_statistics_read(struct file *file,
 	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "\t%25s\t\t: %u\n",
-				 iwl_legacy_get_mgmt_string(cnt),
+				 il_get_mgmt_string(cnt),
 				 priv->tx_stats.mgmt[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Control\n");
 	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "\t%25s\t\t: %u\n",
-				 iwl_legacy_get_ctrl_string(cnt),
+				 il_get_ctrl_string(cnt),
 				 priv->tx_stats.ctrl[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
@@ -142,11 +142,11 @@ static ssize_t iwl_legacy_dbgfs_tx_statistics_read(struct file *file,
 }
 
 static ssize_t
-iwl_legacy_dbgfs_clear_traffic_statistics_write(struct file *file,
+il_dbgfs_clear_traffic_statistics_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	u32 clear_flag;
 	char buf[8];
 	int buf_size;
@@ -157,16 +157,16 @@ iwl_legacy_dbgfs_clear_traffic_statistics_write(struct file *file,
 		return -EFAULT;
 	if (sscanf(buf, "%x", &clear_flag) != 1)
 		return -EFAULT;
-	iwl_legacy_clear_traffic_stats(priv);
+	il_clear_traffic_stats(priv);
 
 	return count;
 }
 
-static ssize_t iwl_legacy_dbgfs_rx_statistics_read(struct file *file,
+static ssize_t il_dbgfs_rx_statistics_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char *buf;
 	int pos = 0;
 	int cnt;
@@ -181,14 +181,14 @@ static ssize_t iwl_legacy_dbgfs_rx_statistics_read(struct file *file,
 	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "\t%25s\t\t: %u\n",
-				 iwl_legacy_get_mgmt_string(cnt),
+				 il_get_mgmt_string(cnt),
 				 priv->rx_stats.mgmt[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Control:\n");
 	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "\t%25s\t\t: %u\n",
-				 iwl_legacy_get_ctrl_string(cnt),
+				 il_get_ctrl_string(cnt),
 				 priv->rx_stats.ctrl[cnt]);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
@@ -205,7 +205,7 @@ static ssize_t iwl_legacy_dbgfs_rx_statistics_read(struct file *file,
 #define BYTE1_MASK 0x000000ff;
 #define BYTE2_MASK 0x0000ffff;
 #define BYTE3_MASK 0x00ffffff;
-static ssize_t iwl_legacy_dbgfs_sram_read(struct file *file,
+static ssize_t il_dbgfs_sram_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
@@ -214,7 +214,7 @@ static ssize_t iwl_legacy_dbgfs_sram_read(struct file *file,
 	ssize_t ret;
 	int i;
 	int pos = 0;
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	size_t bufsz;
 
 	/* default is to dump the entire data segment */
@@ -234,7 +234,7 @@ static ssize_t iwl_legacy_dbgfs_sram_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, "sram_offset: 0x%x\n",
 			priv->dbgfs_sram_offset);
 	for (i = priv->dbgfs_sram_len; i > 0; i -= 4) {
-		val = iwl_legacy_read_targ_mem(priv, priv->dbgfs_sram_offset + \
+		val = il_read_targ_mem(priv, priv->dbgfs_sram_offset + \
 					priv->dbgfs_sram_len - i);
 		if (i < 4) {
 			switch (i) {
@@ -260,11 +260,11 @@ static ssize_t iwl_legacy_dbgfs_sram_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_sram_write(struct file *file,
+static ssize_t il_dbgfs_sram_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[64];
 	int buf_size;
 	u32 offset, len;
@@ -286,11 +286,11 @@ static ssize_t iwl_legacy_dbgfs_sram_write(struct file *file,
 }
 
 static ssize_t
-iwl_legacy_dbgfs_stations_read(struct file *file, char __user *user_buf,
+il_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
-	struct iwl_station_entry *station;
+	struct il_priv *priv = file->private_data;
+	struct il_station_entry *station;
 	int max_sta = priv->hw_params.max_stations;
 	char *buf;
 	int i, j, pos = 0;
@@ -343,13 +343,13 @@ iwl_legacy_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_nvm_read(struct file *file,
+static ssize_t il_dbgfs_nvm_read(struct file *file,
 				       char __user *user_buf,
 				       size_t count,
 				       loff_t *ppos)
 {
 	ssize_t ret;
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0, ofs = 0, buf_size = 0;
 	const u8 *ptr;
 	char *buf;
@@ -358,23 +358,23 @@ static ssize_t iwl_legacy_dbgfs_nvm_read(struct file *file,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IWL_ERR(priv, "NVM size is not multiple of 16.\n");
+		IL_ERR(priv, "NVM size is not multiple of 16.\n");
 		return -ENODATA;
 	}
 
 	ptr = priv->eeprom;
 	if (!ptr) {
-		IWL_ERR(priv, "Invalid EEPROM memory\n");
+		IL_ERR(priv, "Invalid EEPROM memory\n");
 		return -ENOMEM;
 	}
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
-	eeprom_ver = iwl_legacy_eeprom_query16(priv, EEPROM_VERSION);
+	eeprom_ver = il_eeprom_query16(priv, EEPROM_VERSION);
 	pos += scnprintf(buf + pos, buf_size - pos, "EEPROM "
 			"version: 0x%x\n", eeprom_ver);
 	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
@@ -392,10 +392,10 @@ static ssize_t iwl_legacy_dbgfs_nvm_read(struct file *file,
 }
 
 static ssize_t
-iwl_legacy_dbgfs_channels_read(struct file *file, char __user *user_buf,
+il_dbgfs_channels_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	struct ieee80211_channel *channels = NULL;
 	const struct ieee80211_supported_band *supp_band = NULL;
 	int pos = 0, i, bufsz = PAGE_SIZE;
@@ -407,11 +407,11 @@ iwl_legacy_dbgfs_channels_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
-	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
+	supp_band = il_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
 	if (supp_band) {
 		channels = supp_band->channels;
 
@@ -434,7 +434,7 @@ iwl_legacy_dbgfs_channels_read(struct file *file, char __user *user_buf,
 				IEEE80211_CHAN_PASSIVE_SCAN ?
 				"passive only" : "active/passive");
 	}
-	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
+	supp_band = il_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
 	if (supp_band) {
 		channels = supp_band->channels;
 
@@ -462,11 +462,11 @@ iwl_legacy_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_status_read(struct file *file,
+static ssize_t il_dbgfs_status_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[512];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
@@ -506,11 +506,11 @@ static ssize_t iwl_legacy_dbgfs_status_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_legacy_dbgfs_interrupt_read(struct file *file,
+static ssize_t il_dbgfs_interrupt_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
@@ -519,7 +519,7 @@ static ssize_t iwl_legacy_dbgfs_interrupt_read(struct file *file,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -558,7 +558,7 @@ static ssize_t iwl_legacy_dbgfs_interrupt_read(struct file *file,
 		if (priv->isr_stats.rx_handlers[cnt] > 0)
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"\tRx handler[%36s]:\t\t %u\n",
-				iwl_legacy_get_cmd_string(cnt),
+				il_get_cmd_string(cnt),
 				priv->isr_stats.rx_handlers[cnt]);
 	}
 
@@ -573,11 +573,11 @@ static ssize_t iwl_legacy_dbgfs_interrupt_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_interrupt_write(struct file *file,
+static ssize_t il_dbgfs_interrupt_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[8];
 	int buf_size;
 	u32 reset_flag;
@@ -589,19 +589,19 @@ static ssize_t iwl_legacy_dbgfs_interrupt_write(struct file *file,
 	if (sscanf(buf, "%x", &reset_flag) != 1)
 		return -EFAULT;
 	if (reset_flag == 0)
-		iwl_legacy_clear_isr_stats(priv);
+		il_clear_isr_stats(priv);
 
 	return count;
 }
 
 static ssize_t
-iwl_legacy_dbgfs_qos_read(struct file *file, char __user *user_buf,
+il_dbgfs_qos_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
-	struct iwl_rxon_context *ctx;
+	struct il_priv *priv = file->private_data;
+	struct il_rxon_context *ctx;
 	int pos = 0, i;
-	char buf[256 * NUM_IWL_RXON_CTX];
+	char buf[256 * NUM_IL_RXON_CTX];
 	const size_t bufsz = sizeof(buf);
 
 	for_each_context(priv, ctx) {
@@ -622,11 +622,11 @@ iwl_legacy_dbgfs_qos_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_legacy_dbgfs_disable_ht40_write(struct file *file,
+static ssize_t il_dbgfs_disable_ht40_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[8];
 	int buf_size;
 	int ht40;
@@ -637,10 +637,10 @@ static ssize_t iwl_legacy_dbgfs_disable_ht40_write(struct file *file,
 		return -EFAULT;
 	if (sscanf(buf, "%d", &ht40) != 1)
 		return -EFAULT;
-	if (!iwl_legacy_is_any_associated(priv))
+	if (!il_is_any_associated(priv))
 		priv->disable_ht40 = ht40 ? true : false;
 	else {
-		IWL_ERR(priv, "Sta associated with AP - "
+		IL_ERR(priv, "Sta associated with AP - "
 			"Change to 40MHz channel support is not allowed\n");
 		return -EINVAL;
 	}
@@ -648,11 +648,11 @@ static ssize_t iwl_legacy_dbgfs_disable_ht40_write(struct file *file,
 	return count;
 }
 
-static ssize_t iwl_legacy_dbgfs_disable_ht40_read(struct file *file,
+static ssize_t il_dbgfs_disable_ht40_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[100];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
@@ -672,29 +672,29 @@ DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(qos);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
 
-static ssize_t iwl_legacy_dbgfs_traffic_log_read(struct file *file,
+static ssize_t il_dbgfs_traffic_log_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0, ofs = 0;
 	int cnt = 0, entry;
-	struct iwl_tx_queue *txq;
-	struct iwl_queue *q;
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct il_tx_queue *txq;
+	struct il_queue *q;
+	struct il_rx_queue *rxq = &priv->rxq;
 	char *buf;
-	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
+	int bufsz = ((IL_TRAFFIC_ENTRIES * IL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
 		(priv->cfg->base_params->num_of_queues * 32 * 8) + 400;
 	const u8 *ptr;
 	ssize_t ret;
 
 	if (!priv->txq) {
-		IWL_ERR(priv, "txq not ready\n");
+		IL_ERR(priv, "txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate buffer\n");
+		IL_ERR(priv, "Can not allocate buffer\n");
 		return -ENOMEM;
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
@@ -705,12 +705,12 @@ static ssize_t iwl_legacy_dbgfs_traffic_log_read(struct file *file,
 				"q[%d]: read_ptr: %u, write_ptr: %u\n",
 				cnt, q->read_ptr, q->write_ptr);
 	}
-	if (priv->tx_traffic && (iwlegacy_debug_level & IWL_DL_TX)) {
+	if (priv->tx_traffic && (iwlegacy_debug_level & IL_DL_TX)) {
 		ptr = priv->tx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"Tx Traffic idx: %u\n",	priv->tx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
+		for (cnt = 0, ofs = 0; cnt < IL_TRAFFIC_ENTRIES; cnt++) {
+			for (entry = 0; entry < IL_TRAFFIC_ENTRY_SIZE / 16;
 			     entry++,  ofs += 16) {
 				pos += scnprintf(buf + pos, bufsz - pos,
 						"0x%.4x ", ofs);
@@ -728,12 +728,12 @@ static ssize_t iwl_legacy_dbgfs_traffic_log_read(struct file *file,
 			"read: %u, write: %u\n",
 			 rxq->read, rxq->write);
 
-	if (priv->rx_traffic && (iwlegacy_debug_level & IWL_DL_RX)) {
+	if (priv->rx_traffic && (iwlegacy_debug_level & IL_DL_RX)) {
 		ptr = priv->rx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"Rx Traffic idx: %u\n",	priv->rx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
+		for (cnt = 0, ofs = 0; cnt < IL_TRAFFIC_ENTRIES; cnt++) {
+			for (entry = 0; entry < IL_TRAFFIC_ENTRY_SIZE / 16;
 			     entry++,  ofs += 16) {
 				pos += scnprintf(buf + pos, bufsz - pos,
 						"0x%.4x ", ofs);
@@ -751,11 +751,11 @@ static ssize_t iwl_legacy_dbgfs_traffic_log_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_traffic_log_write(struct file *file,
+static ssize_t il_dbgfs_traffic_log_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[8];
 	int buf_size;
 	int traffic_log;
@@ -767,18 +767,18 @@ static ssize_t iwl_legacy_dbgfs_traffic_log_write(struct file *file,
 	if (sscanf(buf, "%d", &traffic_log) != 1)
 		return -EFAULT;
 	if (traffic_log == 0)
-		iwl_legacy_reset_traffic_log(priv);
+		il_reset_traffic_log(priv);
 
 	return count;
 }
 
-static ssize_t iwl_legacy_dbgfs_tx_queue_read(struct file *file,
+static ssize_t il_dbgfs_tx_queue_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
-	struct iwl_tx_queue *txq;
-	struct iwl_queue *q;
+	struct il_priv *priv = file->private_data;
+	struct il_tx_queue *txq;
+	struct il_queue *q;
 	char *buf;
 	int pos = 0;
 	int cnt;
@@ -787,7 +787,7 @@ static ssize_t iwl_legacy_dbgfs_tx_queue_read(struct file *file,
 				priv->cfg->base_params->num_of_queues;
 
 	if (!priv->txq) {
-		IWL_ERR(priv, "txq not ready\n");
+		IL_ERR(priv, "txq not ready\n");
 		return -EAGAIN;
 	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -816,12 +816,12 @@ static ssize_t iwl_legacy_dbgfs_tx_queue_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_rx_queue_read(struct file *file,
+static ssize_t il_dbgfs_rx_queue_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
-	struct iwl_rx_queue *rxq = &priv->rxq;
+	struct il_priv *priv = file->private_data;
+	struct il_rx_queue *rxq = &priv->rxq;
 	char buf[256];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
@@ -842,49 +842,49 @@ static ssize_t iwl_legacy_dbgfs_rx_queue_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_legacy_dbgfs_ucode_rx_stats_read(struct file *file,
+static ssize_t il_dbgfs_ucode_rx_stats_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	return priv->cfg->ops->lib->debugfs_ops.rx_stats_read(file,
 			user_buf, count, ppos);
 }
 
-static ssize_t iwl_legacy_dbgfs_ucode_tx_stats_read(struct file *file,
+static ssize_t il_dbgfs_ucode_tx_stats_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	return priv->cfg->ops->lib->debugfs_ops.tx_stats_read(file,
 			user_buf, count, ppos);
 }
 
-static ssize_t iwl_legacy_dbgfs_ucode_general_stats_read(struct file *file,
+static ssize_t il_dbgfs_ucode_general_stats_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	return priv->cfg->ops->lib->debugfs_ops.general_stats_read(file,
 			user_buf, count, ppos);
 }
 
-static ssize_t iwl_legacy_dbgfs_sensitivity_read(struct file *file,
+static ssize_t il_dbgfs_sensitivity_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
-	int bufsz = sizeof(struct iwl_sensitivity_data) * 4 + 100;
+	int bufsz = sizeof(struct il_sensitivity_data) * 4 + 100;
 	ssize_t ret;
-	struct iwl_sensitivity_data *data;
+	struct il_sensitivity_data *data;
 
 	data = &priv->sensitivity_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -950,22 +950,22 @@ static ssize_t iwl_legacy_dbgfs_sensitivity_read(struct file *file,
 }
 
 
-static ssize_t iwl_legacy_dbgfs_chain_noise_read(struct file *file,
+static ssize_t il_dbgfs_chain_noise_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	int cnt = 0;
 	char *buf;
-	int bufsz = sizeof(struct iwl_chain_noise_data) * 4 + 100;
+	int bufsz = sizeof(struct il_chain_noise_data) * 4 + 100;
 	ssize_t ret;
-	struct iwl_chain_noise_data *data;
+	struct il_chain_noise_data *data;
 
 	data = &priv->chain_noise_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+		IL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -1008,17 +1008,17 @@ static ssize_t iwl_legacy_dbgfs_chain_noise_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_power_save_status_read(struct file *file,
+static ssize_t il_dbgfs_power_save_status_read(struct file *file,
 						    char __user *user_buf,
 						    size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[60];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
 	u32 pwrsave_status;
 
-	pwrsave_status = iwl_read32(priv, CSR_GP_CNTRL) &
+	pwrsave_status = il_read32(priv, CSR_GP_CNTRL) &
 			CSR_GP_REG_POWER_SAVE_STATUS_MSK;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");
@@ -1031,11 +1031,11 @@ static ssize_t iwl_legacy_dbgfs_power_save_status_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_legacy_dbgfs_clear_ucode_statistics_write(struct file *file,
+static ssize_t il_dbgfs_clear_ucode_statistics_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[8];
 	int buf_size;
 	int clear;
@@ -1049,43 +1049,43 @@ static ssize_t iwl_legacy_dbgfs_clear_ucode_statistics_write(struct file *file,
 
 	/* make request to uCode to retrieve statistics information */
 	mutex_lock(&priv->mutex);
-	iwl_legacy_send_statistics_request(priv, CMD_SYNC, true);
+	il_send_statistics_request(priv, CMD_SYNC, true);
 	mutex_unlock(&priv->mutex);
 
 	return count;
 }
 
-static ssize_t iwl_legacy_dbgfs_rxon_flags_read(struct file *file,
+static ssize_t il_dbgfs_rxon_flags_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int len = 0;
 	char buf[20];
 
 	len = sprintf(buf, "0x%04X\n",
-		le32_to_cpu(priv->contexts[IWL_RXON_CTX_BSS].active.flags));
+		le32_to_cpu(priv->contexts[IL_RXON_CTX_BSS].active.flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static ssize_t iwl_legacy_dbgfs_rxon_filter_flags_read(struct file *file,
+static ssize_t il_dbgfs_rxon_filter_flags_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int len = 0;
 	char buf[20];
 
 	len = sprintf(buf, "0x%04X\n",
-	le32_to_cpu(priv->contexts[IWL_RXON_CTX_BSS].active.filter_flags));
+	le32_to_cpu(priv->contexts[IL_RXON_CTX_BSS].active.filter_flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static ssize_t iwl_legacy_dbgfs_fh_reg_read(struct file *file,
+static ssize_t il_dbgfs_fh_reg_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char *buf;
 	int pos = 0;
 	ssize_t ret = -EFAULT;
@@ -1102,11 +1102,11 @@ static ssize_t iwl_legacy_dbgfs_fh_reg_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_missed_beacon_read(struct file *file,
+static ssize_t il_dbgfs_missed_beacon_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	char buf[12];
 	const size_t bufsz = sizeof(buf);
@@ -1117,11 +1117,11 @@ static ssize_t iwl_legacy_dbgfs_missed_beacon_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_legacy_dbgfs_missed_beacon_write(struct file *file,
+static ssize_t il_dbgfs_missed_beacon_write(struct file *file,
 					 const char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[8];
 	int buf_size;
 	int missed;
@@ -1133,25 +1133,25 @@ static ssize_t iwl_legacy_dbgfs_missed_beacon_write(struct file *file,
 	if (sscanf(buf, "%d", &missed) != 1)
 		return -EINVAL;
 
-	if (missed < IWL_MISSED_BEACON_THRESHOLD_MIN ||
-	    missed > IWL_MISSED_BEACON_THRESHOLD_MAX)
+	if (missed < IL_MISSED_BEACON_THRESHOLD_MIN ||
+	    missed > IL_MISSED_BEACON_THRESHOLD_MAX)
 		priv->missed_beacon_threshold =
-			IWL_MISSED_BEACON_THRESHOLD_DEF;
+			IL_MISSED_BEACON_THRESHOLD_DEF;
 	else
 		priv->missed_beacon_threshold = missed;
 
 	return count;
 }
 
-static ssize_t iwl_legacy_dbgfs_force_reset_read(struct file *file,
+static ssize_t il_dbgfs_force_reset_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	int pos = 0;
 	char buf[300];
 	const size_t bufsz = sizeof(buf);
-	struct iwl_force_reset *force_reset;
+	struct il_force_reset *force_reset;
 
 	force_reset = &priv->force_reset;
 
@@ -1171,23 +1171,23 @@ static ssize_t iwl_legacy_dbgfs_force_reset_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_legacy_dbgfs_force_reset_write(struct file *file,
+static ssize_t il_dbgfs_force_reset_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
 	int ret;
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 
-	ret = iwl_legacy_force_reset(priv, true);
+	ret = il_force_reset(priv, true);
 
 	return ret ? ret : count;
 }
 
-static ssize_t iwl_legacy_dbgfs_wd_timeout_write(struct file *file,
+static ssize_t il_dbgfs_wd_timeout_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = file->private_data;
+	struct il_priv *priv = file->private_data;
 	char buf[8];
 	int buf_size;
 	int timeout;
@@ -1198,11 +1198,11 @@ static ssize_t iwl_legacy_dbgfs_wd_timeout_write(struct file *file,
 		return -EFAULT;
 	if (sscanf(buf, "%d", &timeout) != 1)
 		return -EINVAL;
-	if (timeout < 0 || timeout > IWL_MAX_WD_TIMEOUT)
-		timeout = IWL_DEF_WD_TIMEOUT;
+	if (timeout < 0 || timeout > IL_MAX_WD_TIMEOUT)
+		timeout = IL_DEF_WD_TIMEOUT;
 
 	priv->cfg->base_params->wd_timeout = timeout;
-	iwl_legacy_setup_watchdog(priv);
+	il_setup_watchdog(priv);
 	return count;
 }
 
@@ -1230,7 +1230,7 @@ DEBUGFS_WRITE_FILE_OPS(wd_timeout);
  * Create the debugfs files and directories
  *
  */
-int iwl_legacy_dbgfs_register(struct iwl_priv *priv, const char *name)
+int il_dbgfs_register(struct il_priv *priv, const char *name)
 {
 	struct dentry *phyd = priv->hw->wiphy->debugfsdir;
 	struct dentry *dir_drv, *dir_data, *dir_rf, *dir_debug;
@@ -1292,17 +1292,17 @@ int iwl_legacy_dbgfs_register(struct iwl_priv *priv, const char *name)
 	return 0;
 
 err:
-	IWL_ERR(priv, "Can't create the debugfs directory\n");
-	iwl_legacy_dbgfs_unregister(priv);
+	IL_ERR(priv, "Can't create the debugfs directory\n");
+	il_dbgfs_unregister(priv);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(iwl_legacy_dbgfs_register);
+EXPORT_SYMBOL(il_dbgfs_register);
 
 /**
  * Remove the debugfs files and directories
  *
  */
-void iwl_legacy_dbgfs_unregister(struct iwl_priv *priv)
+void il_dbgfs_unregister(struct il_priv *priv)
 {
 	if (!priv->debugfs_dir)
 		return;
@@ -1310,4 +1310,4 @@ void iwl_legacy_dbgfs_unregister(struct iwl_priv *priv)
 	debugfs_remove_recursive(priv->debugfs_dir);
 	priv->debugfs_dir = NULL;
 }
-EXPORT_SYMBOL(iwl_legacy_dbgfs_unregister);
+EXPORT_SYMBOL(il_dbgfs_unregister);

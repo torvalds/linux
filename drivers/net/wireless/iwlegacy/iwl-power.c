@@ -55,32 +55,32 @@
  * (level 1) and for thermal throttle (levels 3 through 5)
  */
 
-struct iwl_power_vec_entry {
-	struct iwl_powertable_cmd cmd;
+struct il_power_vec_entry {
+	struct il_powertable_cmd cmd;
 	u8 no_dtim;	/* number of skip dtim */
 };
 
-static void iwl_legacy_power_sleep_cam_cmd(struct iwl_priv *priv,
-				    struct iwl_powertable_cmd *cmd)
+static void il_power_sleep_cam_cmd(struct il_priv *priv,
+				    struct il_powertable_cmd *cmd)
 {
 	memset(cmd, 0, sizeof(*cmd));
 
 	if (priv->power_data.pci_pm)
-		cmd->flags |= IWL_POWER_PCI_PM_MSK;
+		cmd->flags |= IL_POWER_PCI_PM_MSK;
 
-	IWL_DEBUG_POWER(priv, "Sleep command for CAM\n");
+	IL_DEBUG_POWER(priv, "Sleep command for CAM\n");
 }
 
 static int
-iwl_legacy_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
+il_set_power(struct il_priv *priv, struct il_powertable_cmd *cmd)
 {
-	IWL_DEBUG_POWER(priv, "Sending power/sleep command\n");
-	IWL_DEBUG_POWER(priv, "Flags value = 0x%08X\n", cmd->flags);
-	IWL_DEBUG_POWER(priv, "Tx timeout = %u\n",
+	IL_DEBUG_POWER(priv, "Sending power/sleep command\n");
+	IL_DEBUG_POWER(priv, "Flags value = 0x%08X\n", cmd->flags);
+	IL_DEBUG_POWER(priv, "Tx timeout = %u\n",
 					le32_to_cpu(cmd->tx_data_timeout));
-	IWL_DEBUG_POWER(priv, "Rx timeout = %u\n",
+	IL_DEBUG_POWER(priv, "Rx timeout = %u\n",
 					le32_to_cpu(cmd->rx_data_timeout));
-	IWL_DEBUG_POWER(priv,
+	IL_DEBUG_POWER(priv,
 			"Sleep interval vector = { %d , %d , %d , %d , %d }\n",
 			le32_to_cpu(cmd->sleep_interval[0]),
 			le32_to_cpu(cmd->sleep_interval[1]),
@@ -88,12 +88,12 @@ iwl_legacy_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return iwl_legacy_send_cmd_pdu(priv, POWER_TABLE_CMD,
-				sizeof(struct iwl_powertable_cmd), cmd);
+	return il_send_cmd_pdu(priv, POWER_TABLE_CMD,
+				sizeof(struct il_powertable_cmd), cmd);
 }
 
 int
-iwl_legacy_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
+il_power_set_mode(struct il_priv *priv, struct il_powertable_cmd *cmd,
 		       bool force)
 {
 	int ret;
@@ -102,58 +102,58 @@ iwl_legacy_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 	lockdep_assert_held(&priv->mutex);
 
 	/* Don't update the RX chain when chain noise calibration is running */
-	update_chains = priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE ||
-			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
+	update_chains = priv->chain_noise_data.state == IL_CHAIN_NOISE_DONE ||
+			priv->chain_noise_data.state == IL_CHAIN_NOISE_ALIVE;
 
 	if (!memcmp(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd)) && !force)
 		return 0;
 
-	if (!iwl_legacy_is_ready_rf(priv))
+	if (!il_is_ready_rf(priv))
 		return -EIO;
 
 	/* scan complete use sleep_power_next, need to be updated */
 	memcpy(&priv->power_data.sleep_cmd_next, cmd, sizeof(*cmd));
 	if (test_bit(STATUS_SCANNING, &priv->status) && !force) {
-		IWL_DEBUG_INFO(priv, "Defer power set mode while scanning\n");
+		IL_DEBUG_INFO(priv, "Defer power set mode while scanning\n");
 		return 0;
 	}
 
-	if (cmd->flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK)
+	if (cmd->flags & IL_POWER_DRIVER_ALLOW_SLEEP_MSK)
 		set_bit(STATUS_POWER_PMI, &priv->status);
 
-	ret = iwl_legacy_set_power(priv, cmd);
+	ret = il_set_power(priv, cmd);
 	if (!ret) {
-		if (!(cmd->flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK))
+		if (!(cmd->flags & IL_POWER_DRIVER_ALLOW_SLEEP_MSK))
 			clear_bit(STATUS_POWER_PMI, &priv->status);
 
 		if (priv->cfg->ops->lib->update_chain_flags && update_chains)
 			priv->cfg->ops->lib->update_chain_flags(priv);
 		else if (priv->cfg->ops->lib->update_chain_flags)
-			IWL_DEBUG_POWER(priv,
+			IL_DEBUG_POWER(priv,
 					"Cannot update the power, chain noise "
 					"calibration running: %d\n",
 					priv->chain_noise_data.state);
 
 		memcpy(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd));
 	} else
-		IWL_ERR(priv, "set power fail, ret = %d", ret);
+		IL_ERR(priv, "set power fail, ret = %d", ret);
 
 	return ret;
 }
 
-int iwl_legacy_power_update_mode(struct iwl_priv *priv, bool force)
+int il_power_update_mode(struct il_priv *priv, bool force)
 {
-	struct iwl_powertable_cmd cmd;
+	struct il_powertable_cmd cmd;
 
-	iwl_legacy_power_sleep_cam_cmd(priv, &cmd);
-	return iwl_legacy_power_set_mode(priv, &cmd, force);
+	il_power_sleep_cam_cmd(priv, &cmd);
+	return il_power_set_mode(priv, &cmd, force);
 }
-EXPORT_SYMBOL(iwl_legacy_power_update_mode);
+EXPORT_SYMBOL(il_power_update_mode);
 
 /* initialize to default */
-void iwl_legacy_power_initialize(struct iwl_priv *priv)
+void il_power_initialize(struct il_priv *priv)
 {
-	u16 lctl = iwl_legacy_pcie_link_ctl(priv);
+	u16 lctl = il_pcie_link_ctl(priv);
 
 	priv->power_data.pci_pm = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
 
@@ -162,4 +162,4 @@ void iwl_legacy_power_initialize(struct iwl_priv *priv)
 	memset(&priv->power_data.sleep_cmd, 0,
 		sizeof(priv->power_data.sleep_cmd));
 }
-EXPORT_SYMBOL(iwl_legacy_power_initialize);
+EXPORT_SYMBOL(il_power_initialize);

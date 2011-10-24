@@ -60,8 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_3945_fh_h__
-#define __iwl_3945_fh_h__
+#ifndef __il_3945_fh_h__
+#define __il_3945_fh_h__
 
 /************************************/
 /* iwl3945 Flow Handler Definitions */
@@ -172,16 +172,16 @@
 
 #define FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE			(0x01000000)
 
-struct iwl3945_tfd_tb {
+struct il3945_tfd_tb {
 	__le32 addr;
 	__le32 len;
 } __packed;
 
-struct iwl3945_tfd {
+struct il3945_tfd {
 	__le32 control_flags;
-	struct iwl3945_tfd_tb tbs[4];
+	struct il3945_tfd_tb tbs[4];
 	u8 __pad[28];
 } __packed;
 
 
-#endif /* __iwl_3945_fh_h__ */
+#endif /* __il_3945_fh_h__ */

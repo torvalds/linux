@@ -24,14 +24,14 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_legacy_rs_h__
-#define __iwl_legacy_rs_h__
+#ifndef __il_rs_h__
+#define __il_rs_h__
 
-struct iwl_rate_info {
-	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */
-	u8 plcp_siso;	/* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
-	u8 plcp_mimo2;	/* uCode API:  IWL_RATE_MIMO2_6M_PLCP, etc. */
-	u8 ieee;	/* MAC header:  IWL_RATE_6M_IEEE, etc. */
+struct il_rate_info {
+	u8 plcp;	/* uCode API:  IL_RATE_6M_PLCP, etc. */
+	u8 plcp_siso;	/* uCode API:  IL_RATE_SISO_6M_PLCP, etc. */
+	u8 plcp_mimo2;	/* uCode API:  IL_RATE_MIMO2_6M_PLCP, etc. */
+	u8 ieee;	/* MAC header:  IL_RATE_6M_IEEE, etc. */
 	u8 prev_ieee;    /* previous rate in IEEE speeds */
 	u8 next_ieee;    /* next rate in IEEE speeds */
 	u8 prev_rs;      /* previous rate used in rs algo */
@@ -40,9 +40,9 @@ struct iwl_rate_info {
 	u8 next_rs_tgg;  /* next rate used in TGG rs algo */
 };
 
-struct iwl3945_rate_info {
-	u8 plcp;		/* uCode API:  IWL_RATE_6M_PLCP, etc. */
-	u8 ieee;		/* MAC header:  IWL_RATE_6M_IEEE, etc. */
+struct il3945_rate_info {
+	u8 plcp;		/* uCode API:  IL_RATE_6M_PLCP, etc. */
+	u8 ieee;		/* MAC header:  IL_RATE_6M_IEEE, etc. */
 	u8 prev_ieee;		/* previous rate in IEEE speeds */
 	u8 next_ieee;		/* next rate in IEEE speeds */
 	u8 prev_rs;		/* previous rate used in rs algo */
@@ -56,210 +56,210 @@ struct iwl3945_rate_info {
 
 /*
  * These serve as indexes into
- * struct iwl_rate_info iwlegacy_rates[IWL_RATE_COUNT];
+ * struct il_rate_info iwlegacy_rates[IL_RATE_COUNT];
  */
 enum {
-	IWL_RATE_1M_INDEX = 0,
-	IWL_RATE_2M_INDEX,
-	IWL_RATE_5M_INDEX,
-	IWL_RATE_11M_INDEX,
-	IWL_RATE_6M_INDEX,
-	IWL_RATE_9M_INDEX,
-	IWL_RATE_12M_INDEX,
-	IWL_RATE_18M_INDEX,
-	IWL_RATE_24M_INDEX,
-	IWL_RATE_36M_INDEX,
-	IWL_RATE_48M_INDEX,
-	IWL_RATE_54M_INDEX,
-	IWL_RATE_60M_INDEX,
-	IWL_RATE_COUNT,
-	IWL_RATE_COUNT_LEGACY = IWL_RATE_COUNT - 1,	/* Excluding 60M */
-	IWL_RATE_COUNT_3945 = IWL_RATE_COUNT - 1,
-	IWL_RATE_INVM_INDEX = IWL_RATE_COUNT,
-	IWL_RATE_INVALID = IWL_RATE_COUNT,
+	IL_RATE_1M_INDEX = 0,
+	IL_RATE_2M_INDEX,
+	IL_RATE_5M_INDEX,
+	IL_RATE_11M_INDEX,
+	IL_RATE_6M_INDEX,
+	IL_RATE_9M_INDEX,
+	IL_RATE_12M_INDEX,
+	IL_RATE_18M_INDEX,
+	IL_RATE_24M_INDEX,
+	IL_RATE_36M_INDEX,
+	IL_RATE_48M_INDEX,
+	IL_RATE_54M_INDEX,
+	IL_RATE_60M_INDEX,
+	IL_RATE_COUNT,
+	IL_RATE_COUNT_LEGACY = IL_RATE_COUNT - 1,	/* Excluding 60M */
+	IL_RATE_COUNT_3945 = IL_RATE_COUNT - 1,
+	IL_RATE_INVM_INDEX = IL_RATE_COUNT,
+	IL_RATE_INVALID = IL_RATE_COUNT,
 };
 
 enum {
-	IWL_RATE_6M_INDEX_TABLE = 0,
-	IWL_RATE_9M_INDEX_TABLE,
-	IWL_RATE_12M_INDEX_TABLE,
-	IWL_RATE_18M_INDEX_TABLE,
-	IWL_RATE_24M_INDEX_TABLE,
-	IWL_RATE_36M_INDEX_TABLE,
-	IWL_RATE_48M_INDEX_TABLE,
-	IWL_RATE_54M_INDEX_TABLE,
-	IWL_RATE_1M_INDEX_TABLE,
-	IWL_RATE_2M_INDEX_TABLE,
-	IWL_RATE_5M_INDEX_TABLE,
-	IWL_RATE_11M_INDEX_TABLE,
-	IWL_RATE_INVM_INDEX_TABLE = IWL_RATE_INVM_INDEX - 1,
+	IL_RATE_6M_INDEX_TABLE = 0,
+	IL_RATE_9M_INDEX_TABLE,
+	IL_RATE_12M_INDEX_TABLE,
+	IL_RATE_18M_INDEX_TABLE,
+	IL_RATE_24M_INDEX_TABLE,
+	IL_RATE_36M_INDEX_TABLE,
+	IL_RATE_48M_INDEX_TABLE,
+	IL_RATE_54M_INDEX_TABLE,
+	IL_RATE_1M_INDEX_TABLE,
+	IL_RATE_2M_INDEX_TABLE,
+	IL_RATE_5M_INDEX_TABLE,
+	IL_RATE_11M_INDEX_TABLE,
+	IL_RATE_INVM_INDEX_TABLE = IL_RATE_INVM_INDEX - 1,
 };
 
 enum {
-	IWL_FIRST_OFDM_RATE = IWL_RATE_6M_INDEX,
-	IWL39_LAST_OFDM_RATE = IWL_RATE_54M_INDEX,
-	IWL_LAST_OFDM_RATE = IWL_RATE_60M_INDEX,
-	IWL_FIRST_CCK_RATE = IWL_RATE_1M_INDEX,
-	IWL_LAST_CCK_RATE = IWL_RATE_11M_INDEX,
+	IL_FIRST_OFDM_RATE = IL_RATE_6M_INDEX,
+	IWL39_LAST_OFDM_RATE = IL_RATE_54M_INDEX,
+	IL_LAST_OFDM_RATE = IL_RATE_60M_INDEX,
+	IL_FIRST_CCK_RATE = IL_RATE_1M_INDEX,
+	IL_LAST_CCK_RATE = IL_RATE_11M_INDEX,
 };
 
 /* #define vs. enum to keep from defaulting to 'large integer' */
-#define	IWL_RATE_6M_MASK   (1 << IWL_RATE_6M_INDEX)
-#define	IWL_RATE_9M_MASK   (1 << IWL_RATE_9M_INDEX)
-#define	IWL_RATE_12M_MASK  (1 << IWL_RATE_12M_INDEX)
-#define	IWL_RATE_18M_MASK  (1 << IWL_RATE_18M_INDEX)
-#define	IWL_RATE_24M_MASK  (1 << IWL_RATE_24M_INDEX)
-#define	IWL_RATE_36M_MASK  (1 << IWL_RATE_36M_INDEX)
-#define	IWL_RATE_48M_MASK  (1 << IWL_RATE_48M_INDEX)
-#define	IWL_RATE_54M_MASK  (1 << IWL_RATE_54M_INDEX)
-#define IWL_RATE_60M_MASK  (1 << IWL_RATE_60M_INDEX)
-#define	IWL_RATE_1M_MASK   (1 << IWL_RATE_1M_INDEX)
-#define	IWL_RATE_2M_MASK   (1 << IWL_RATE_2M_INDEX)
-#define	IWL_RATE_5M_MASK   (1 << IWL_RATE_5M_INDEX)
-#define	IWL_RATE_11M_MASK  (1 << IWL_RATE_11M_INDEX)
+#define	IL_RATE_6M_MASK   (1 << IL_RATE_6M_INDEX)
+#define	IL_RATE_9M_MASK   (1 << IL_RATE_9M_INDEX)
+#define	IL_RATE_12M_MASK  (1 << IL_RATE_12M_INDEX)
+#define	IL_RATE_18M_MASK  (1 << IL_RATE_18M_INDEX)
+#define	IL_RATE_24M_MASK  (1 << IL_RATE_24M_INDEX)
+#define	IL_RATE_36M_MASK  (1 << IL_RATE_36M_INDEX)
+#define	IL_RATE_48M_MASK  (1 << IL_RATE_48M_INDEX)
+#define	IL_RATE_54M_MASK  (1 << IL_RATE_54M_INDEX)
+#define IL_RATE_60M_MASK  (1 << IL_RATE_60M_INDEX)
+#define	IL_RATE_1M_MASK   (1 << IL_RATE_1M_INDEX)
+#define	IL_RATE_2M_MASK   (1 << IL_RATE_2M_INDEX)
+#define	IL_RATE_5M_MASK   (1 << IL_RATE_5M_INDEX)
+#define	IL_RATE_11M_MASK  (1 << IL_RATE_11M_INDEX)
 
 /* uCode API values for legacy bit rates, both OFDM and CCK */
 enum {
-	IWL_RATE_6M_PLCP  = 13,
-	IWL_RATE_9M_PLCP  = 15,
-	IWL_RATE_12M_PLCP = 5,
-	IWL_RATE_18M_PLCP = 7,
-	IWL_RATE_24M_PLCP = 9,
-	IWL_RATE_36M_PLCP = 11,
-	IWL_RATE_48M_PLCP = 1,
-	IWL_RATE_54M_PLCP = 3,
-	IWL_RATE_60M_PLCP = 3,/*FIXME:RS:should be removed*/
-	IWL_RATE_1M_PLCP  = 10,
-	IWL_RATE_2M_PLCP  = 20,
-	IWL_RATE_5M_PLCP  = 55,
-	IWL_RATE_11M_PLCP = 110,
-	/*FIXME:RS:add IWL_RATE_LEGACY_INVM_PLCP = 0,*/
+	IL_RATE_6M_PLCP  = 13,
+	IL_RATE_9M_PLCP  = 15,
+	IL_RATE_12M_PLCP = 5,
+	IL_RATE_18M_PLCP = 7,
+	IL_RATE_24M_PLCP = 9,
+	IL_RATE_36M_PLCP = 11,
+	IL_RATE_48M_PLCP = 1,
+	IL_RATE_54M_PLCP = 3,
+	IL_RATE_60M_PLCP = 3,/*FIXME:RS:should be removed*/
+	IL_RATE_1M_PLCP  = 10,
+	IL_RATE_2M_PLCP  = 20,
+	IL_RATE_5M_PLCP  = 55,
+	IL_RATE_11M_PLCP = 110,
+	/*FIXME:RS:add IL_RATE_LEGACY_INVM_PLCP = 0,*/
 };
 
 /* uCode API values for OFDM high-throughput (HT) bit rates */
 enum {
-	IWL_RATE_SISO_6M_PLCP = 0,
-	IWL_RATE_SISO_12M_PLCP = 1,
-	IWL_RATE_SISO_18M_PLCP = 2,
-	IWL_RATE_SISO_24M_PLCP = 3,
-	IWL_RATE_SISO_36M_PLCP = 4,
-	IWL_RATE_SISO_48M_PLCP = 5,
-	IWL_RATE_SISO_54M_PLCP = 6,
-	IWL_RATE_SISO_60M_PLCP = 7,
-	IWL_RATE_MIMO2_6M_PLCP  = 0x8,
-	IWL_RATE_MIMO2_12M_PLCP = 0x9,
-	IWL_RATE_MIMO2_18M_PLCP = 0xa,
-	IWL_RATE_MIMO2_24M_PLCP = 0xb,
-	IWL_RATE_MIMO2_36M_PLCP = 0xc,
-	IWL_RATE_MIMO2_48M_PLCP = 0xd,
-	IWL_RATE_MIMO2_54M_PLCP = 0xe,
-	IWL_RATE_MIMO2_60M_PLCP = 0xf,
-	IWL_RATE_SISO_INVM_PLCP,
-	IWL_RATE_MIMO2_INVM_PLCP = IWL_RATE_SISO_INVM_PLCP,
+	IL_RATE_SISO_6M_PLCP = 0,
+	IL_RATE_SISO_12M_PLCP = 1,
+	IL_RATE_SISO_18M_PLCP = 2,
+	IL_RATE_SISO_24M_PLCP = 3,
+	IL_RATE_SISO_36M_PLCP = 4,
+	IL_RATE_SISO_48M_PLCP = 5,
+	IL_RATE_SISO_54M_PLCP = 6,
+	IL_RATE_SISO_60M_PLCP = 7,
+	IL_RATE_MIMO2_6M_PLCP  = 0x8,
+	IL_RATE_MIMO2_12M_PLCP = 0x9,
+	IL_RATE_MIMO2_18M_PLCP = 0xa,
+	IL_RATE_MIMO2_24M_PLCP = 0xb,
+	IL_RATE_MIMO2_36M_PLCP = 0xc,
+	IL_RATE_MIMO2_48M_PLCP = 0xd,
+	IL_RATE_MIMO2_54M_PLCP = 0xe,
+	IL_RATE_MIMO2_60M_PLCP = 0xf,
+	IL_RATE_SISO_INVM_PLCP,
+	IL_RATE_MIMO2_INVM_PLCP = IL_RATE_SISO_INVM_PLCP,
 };
 
 /* MAC header values for bit rates */
 enum {
-	IWL_RATE_6M_IEEE  = 12,
-	IWL_RATE_9M_IEEE  = 18,
-	IWL_RATE_12M_IEEE = 24,
-	IWL_RATE_18M_IEEE = 36,
-	IWL_RATE_24M_IEEE = 48,
-	IWL_RATE_36M_IEEE = 72,
-	IWL_RATE_48M_IEEE = 96,
-	IWL_RATE_54M_IEEE = 108,
-	IWL_RATE_60M_IEEE = 120,
-	IWL_RATE_1M_IEEE  = 2,
-	IWL_RATE_2M_IEEE  = 4,
-	IWL_RATE_5M_IEEE  = 11,
-	IWL_RATE_11M_IEEE = 22,
+	IL_RATE_6M_IEEE  = 12,
+	IL_RATE_9M_IEEE  = 18,
+	IL_RATE_12M_IEEE = 24,
+	IL_RATE_18M_IEEE = 36,
+	IL_RATE_24M_IEEE = 48,
+	IL_RATE_36M_IEEE = 72,
+	IL_RATE_48M_IEEE = 96,
+	IL_RATE_54M_IEEE = 108,
+	IL_RATE_60M_IEEE = 120,
+	IL_RATE_1M_IEEE  = 2,
+	IL_RATE_2M_IEEE  = 4,
+	IL_RATE_5M_IEEE  = 11,
+	IL_RATE_11M_IEEE = 22,
 };
 
-#define IWL_CCK_BASIC_RATES_MASK    \
-	(IWL_RATE_1M_MASK          | \
-	IWL_RATE_2M_MASK)
+#define IL_CCK_BASIC_RATES_MASK    \
+	(IL_RATE_1M_MASK          | \
+	IL_RATE_2M_MASK)
 
-#define IWL_CCK_RATES_MASK          \
-	(IWL_CCK_BASIC_RATES_MASK  | \
-	IWL_RATE_5M_MASK          | \
-	IWL_RATE_11M_MASK)
+#define IL_CCK_RATES_MASK          \
+	(IL_CCK_BASIC_RATES_MASK  | \
+	IL_RATE_5M_MASK          | \
+	IL_RATE_11M_MASK)
 
-#define IWL_OFDM_BASIC_RATES_MASK   \
-	(IWL_RATE_6M_MASK         | \
-	IWL_RATE_12M_MASK         | \
-	IWL_RATE_24M_MASK)
+#define IL_OFDM_BASIC_RATES_MASK   \
+	(IL_RATE_6M_MASK         | \
+	IL_RATE_12M_MASK         | \
+	IL_RATE_24M_MASK)
 
-#define IWL_OFDM_RATES_MASK         \
-	(IWL_OFDM_BASIC_RATES_MASK | \
-	IWL_RATE_9M_MASK          | \
-	IWL_RATE_18M_MASK         | \
-	IWL_RATE_36M_MASK         | \
-	IWL_RATE_48M_MASK         | \
-	IWL_RATE_54M_MASK)
+#define IL_OFDM_RATES_MASK         \
+	(IL_OFDM_BASIC_RATES_MASK | \
+	IL_RATE_9M_MASK          | \
+	IL_RATE_18M_MASK         | \
+	IL_RATE_36M_MASK         | \
+	IL_RATE_48M_MASK         | \
+	IL_RATE_54M_MASK)
 
-#define IWL_BASIC_RATES_MASK         \
-	(IWL_OFDM_BASIC_RATES_MASK | \
-	 IWL_CCK_BASIC_RATES_MASK)
+#define IL_BASIC_RATES_MASK         \
+	(IL_OFDM_BASIC_RATES_MASK | \
+	 IL_CCK_BASIC_RATES_MASK)
 
-#define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
-#define IWL_RATES_MASK_3945 ((1 << IWL_RATE_COUNT_3945) - 1)
+#define IL_RATES_MASK ((1 << IL_RATE_COUNT) - 1)
+#define IL_RATES_MASK_3945 ((1 << IL_RATE_COUNT_3945) - 1)
 
-#define IWL_INVALID_VALUE    -1
+#define IL_INVALID_VALUE    -1
 
-#define IWL_MIN_RSSI_VAL                 -100
-#define IWL_MAX_RSSI_VAL                    0
+#define IL_MIN_RSSI_VAL                 -100
+#define IL_MAX_RSSI_VAL                    0
 
 /* These values specify how many Tx frame attempts before
  * searching for a new modulation mode */
-#define IWL_LEGACY_FAILURE_LIMIT	160
-#define IWL_LEGACY_SUCCESS_LIMIT	480
-#define IWL_LEGACY_TABLE_COUNT		160
+#define IL_LEGACY_FAILURE_LIMIT	160
+#define IL_LEGACY_SUCCESS_LIMIT	480
+#define IL_LEGACY_TABLE_COUNT		160
 
-#define IWL_NONE_LEGACY_FAILURE_LIMIT	400
-#define IWL_NONE_LEGACY_SUCCESS_LIMIT	4500
-#define IWL_NONE_LEGACY_TABLE_COUNT	1500
+#define IL_NONE_LEGACY_FAILURE_LIMIT	400
+#define IL_NONE_LEGACY_SUCCESS_LIMIT	4500
+#define IL_NONE_LEGACY_TABLE_COUNT	1500
 
 /* Success ratio (ACKed / attempted tx frames) values (perfect is 128 * 100) */
-#define IWL_RS_GOOD_RATIO		12800	/* 100% */
-#define IWL_RATE_SCALE_SWITCH		10880	/*  85% */
-#define IWL_RATE_HIGH_TH		10880	/*  85% */
-#define IWL_RATE_INCREASE_TH		6400	/*  50% */
-#define IWL_RATE_DECREASE_TH		1920	/*  15% */
+#define IL_RS_GOOD_RATIO		12800	/* 100% */
+#define IL_RATE_SCALE_SWITCH		10880	/*  85% */
+#define IL_RATE_HIGH_TH		10880	/*  85% */
+#define IL_RATE_INCREASE_TH		6400	/*  50% */
+#define IL_RATE_DECREASE_TH		1920	/*  15% */
 
 /* possible actions when in legacy mode */
-#define IWL_LEGACY_SWITCH_ANTENNA1      0
-#define IWL_LEGACY_SWITCH_ANTENNA2      1
-#define IWL_LEGACY_SWITCH_SISO          2
-#define IWL_LEGACY_SWITCH_MIMO2_AB      3
-#define IWL_LEGACY_SWITCH_MIMO2_AC      4
-#define IWL_LEGACY_SWITCH_MIMO2_BC      5
+#define IL_LEGACY_SWITCH_ANTENNA1      0
+#define IL_LEGACY_SWITCH_ANTENNA2      1
+#define IL_LEGACY_SWITCH_SISO          2
+#define IL_LEGACY_SWITCH_MIMO2_AB      3
+#define IL_LEGACY_SWITCH_MIMO2_AC      4
+#define IL_LEGACY_SWITCH_MIMO2_BC      5
 
 /* possible actions when in siso mode */
-#define IWL_SISO_SWITCH_ANTENNA1        0
-#define IWL_SISO_SWITCH_ANTENNA2        1
-#define IWL_SISO_SWITCH_MIMO2_AB        2
-#define IWL_SISO_SWITCH_MIMO2_AC        3
-#define IWL_SISO_SWITCH_MIMO2_BC        4
-#define IWL_SISO_SWITCH_GI              5
+#define IL_SISO_SWITCH_ANTENNA1        0
+#define IL_SISO_SWITCH_ANTENNA2        1
+#define IL_SISO_SWITCH_MIMO2_AB        2
+#define IL_SISO_SWITCH_MIMO2_AC        3
+#define IL_SISO_SWITCH_MIMO2_BC        4
+#define IL_SISO_SWITCH_GI              5
 
 /* possible actions when in mimo mode */
-#define IWL_MIMO2_SWITCH_ANTENNA1       0
-#define IWL_MIMO2_SWITCH_ANTENNA2       1
-#define IWL_MIMO2_SWITCH_SISO_A         2
-#define IWL_MIMO2_SWITCH_SISO_B         3
-#define IWL_MIMO2_SWITCH_SISO_C         4
-#define IWL_MIMO2_SWITCH_GI             5
+#define IL_MIMO2_SWITCH_ANTENNA1       0
+#define IL_MIMO2_SWITCH_ANTENNA2       1
+#define IL_MIMO2_SWITCH_SISO_A         2
+#define IL_MIMO2_SWITCH_SISO_B         3
+#define IL_MIMO2_SWITCH_SISO_C         4
+#define IL_MIMO2_SWITCH_GI             5
 
-#define IWL_MAX_SEARCH IWL_MIMO2_SWITCH_GI
+#define IL_MAX_SEARCH IL_MIMO2_SWITCH_GI
 
-#define IWL_ACTION_LIMIT		3	/* # possible actions */
+#define IL_ACTION_LIMIT		3	/* # possible actions */
 
 #define LQ_SIZE		2	/* 2 mode tables:  "Active" and "Search" */
 
 /* load per tid defines for A-MPDU activation */
-#define IWL_AGG_TPT_THREHOLD	0
-#define IWL_AGG_LOAD_THRESHOLD	10
-#define IWL_AGG_ALL_TID		0xff
+#define IL_AGG_TPT_THREHOLD	0
+#define IL_AGG_LOAD_THRESHOLD	10
+#define IL_AGG_ALL_TID		0xff
 #define TID_QUEUE_CELL_SPACING	50	/*mS */
 #define TID_QUEUE_MAX_SIZE	20
 #define TID_ROUND_VALUE		5	/* mS */
@@ -268,9 +268,9 @@ enum {
 #define TID_MAX_TIME_DIFF ((TID_QUEUE_MAX_SIZE - 1) * TID_QUEUE_CELL_SPACING)
 #define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
 
-extern const struct iwl_rate_info iwlegacy_rates[IWL_RATE_COUNT];
+extern const struct il_rate_info iwlegacy_rates[IL_RATE_COUNT];
 
-enum iwl_table_type {
+enum il_table_type {
 	LQ_NONE,
 	LQ_G,		/* legacy types */
 	LQ_A,
@@ -296,17 +296,17 @@ enum iwl_table_type {
 #define ANT_BC		(ANT_B | ANT_C)
 #define ANT_ABC		(ANT_AB | ANT_C)
 
-#define IWL_MAX_MCS_DISPLAY_SIZE	12
+#define IL_MAX_MCS_DISPLAY_SIZE	12
 
-struct iwl_rate_mcs_info {
-	char	mbps[IWL_MAX_MCS_DISPLAY_SIZE];
-	char	mcs[IWL_MAX_MCS_DISPLAY_SIZE];
+struct il_rate_mcs_info {
+	char	mbps[IL_MAX_MCS_DISPLAY_SIZE];
+	char	mcs[IL_MAX_MCS_DISPLAY_SIZE];
 };
 
 /**
- * struct iwl_rate_scale_data -- tx success history for one rate
+ * struct il_rate_scale_data -- tx success history for one rate
  */
-struct iwl_rate_scale_data {
+struct il_rate_scale_data {
 	u64 data;		/* bitmap of successful frames */
 	s32 success_counter;	/* number of frames successful */
 	s32 success_ratio;	/* per-cent * 128  */
@@ -316,25 +316,25 @@ struct iwl_rate_scale_data {
 };
 
 /**
- * struct iwl_scale_tbl_info -- tx params and success history for all rates
+ * struct il_scale_tbl_info -- tx params and success history for all rates
  *
- * There are two of these in struct iwl_lq_sta,
+ * There are two of these in struct il_lq_sta,
  * one for "active", and one for "search".
  */
-struct iwl_scale_tbl_info {
-	enum iwl_table_type lq_type;
+struct il_scale_tbl_info {
+	enum il_table_type lq_type;
 	u8 ant_type;
 	u8 is_SGI;	/* 1 = short guard interval */
 	u8 is_ht40;	/* 1 = 40 MHz channel width */
 	u8 is_dup;	/* 1 = duplicated data streams */
-	u8 action;	/* change modulation; IWL_[LEGACY/SISO/MIMO]_SWITCH_* */
+	u8 action;	/* change modulation; IL_[LEGACY/SISO/MIMO]_SWITCH_* */
 	u8 max_search;	/* maximun number of tables we can search */
 	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
 	u32 current_rate;  /* rate_n_flags, uCode API format */
-	struct iwl_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
+	struct il_rate_scale_data win[IL_RATE_COUNT]; /* rate histories */
 };
 
-struct iwl_traffic_load {
+struct il_traffic_load {
 	unsigned long time_stamp;	/* age of the oldest statistics */
 	u32 packet_count[TID_QUEUE_MAX_SIZE];   /* packet count in this time
 						 * slice */
@@ -346,11 +346,11 @@ struct iwl_traffic_load {
 };
 
 /**
- * struct iwl_lq_sta -- driver's rate scaling private structure
+ * struct il_lq_sta -- driver's rate scaling private structure
  *
  * Pointer to this gets passed back and forth between driver and mac80211.
  */
-struct iwl_lq_sta {
+struct il_lq_sta {
 	u8 active_tbl;		/* index of active table, range 0-1 */
 	u8 enable_counter;	/* indicates HT mode */
 	u8 stay_in_tbl;		/* 1: disallow, 0: allow search for new mode */
@@ -371,7 +371,7 @@ struct iwl_lq_sta {
 	u8 is_dup;
 	enum ieee80211_band band;
 
-	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
+	/* The following are bitmaps of rates; IL_RATE_6M_MASK, etc. */
 	u32 supp_rates;
 	u16 active_legacy_rate;
 	u16 active_siso_rate;
@@ -379,9 +379,9 @@ struct iwl_lq_sta {
 	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 
-	struct iwl_link_quality_cmd lq;
-	struct iwl_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
-	struct iwl_traffic_load load[TID_MAX_LOAD_COUNT];
+	struct il_link_quality_cmd lq;
+	struct il_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
+	struct il_traffic_load load[TID_MAX_LOAD_COUNT];
 	u8 tx_agg_tid_en;
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
@@ -390,7 +390,7 @@ struct iwl_lq_sta {
 	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
 	u32 dbg_fixed_rate;
 #endif
-	struct iwl_priv *drv;
+	struct il_priv *drv;
 
 	/* used to be in sta_info */
 	int last_txrate_idx;
@@ -400,14 +400,14 @@ struct iwl_lq_sta {
 	u8 is_agg;
 };
 
-static inline u8 iwl4965_num_of_ant(u8 mask)
+static inline u8 il4965_num_of_ant(u8 mask)
 {
 	return  !!((mask) & ANT_A) +
 		!!((mask) & ANT_B) +
 		!!((mask) & ANT_C);
 }
 
-static inline u8 iwl4965_first_antenna(u8 mask)
+static inline u8 il4965_first_antenna(u8 mask)
 {
 	if (mask & ANT_A)
 		return ANT_A;
@@ -418,39 +418,39 @@ static inline u8 iwl4965_first_antenna(u8 mask)
 
 
 /**
- * iwl3945_rate_scale_init - Initialize the rate scale table based on assoc info
+ * il3945_rate_scale_init - Initialize the rate scale table based on assoc info
  *
  * The specific throughput table used is based on the type of network
  * the associated with, including A, B, G, and G w/ TGG protection
  */
-extern void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
+extern void il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
 
 /* Initialize station's rate scaling information after adding station */
-extern void iwl4965_rs_rate_init(struct iwl_priv *priv,
+extern void il4965_rs_rate_init(struct il_priv *priv,
 			     struct ieee80211_sta *sta, u8 sta_id);
-extern void iwl3945_rs_rate_init(struct iwl_priv *priv,
+extern void il3945_rs_rate_init(struct il_priv *priv,
 				 struct ieee80211_sta *sta, u8 sta_id);
 
 /**
- * iwl_rate_control_register - Register the rate control algorithm callbacks
+ * il_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
  * or reason to place it as a stand alone module.  The driver can call
- * iwl_rate_control_register in order to register the rate control callbacks
+ * il_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling
  * ieee80211_register_hw
  *
  */
-extern int iwl4965_rate_control_register(void);
-extern int iwl3945_rate_control_register(void);
+extern int il4965_rate_control_register(void);
+extern int il3945_rate_control_register(void);
 
 /**
- * iwl_rate_control_unregister - Unregister the rate control callbacks
+ * il_rate_control_unregister - Unregister the rate control callbacks
  *
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwl4965_rate_control_unregister(void);
-extern void iwl3945_rate_control_unregister(void);
+extern void il4965_rate_control_unregister(void);
+extern void il3945_rate_control_unregister(void);
 
-#endif /* __iwl_legacy_rs__ */
+#endif /* __il_rs__ */

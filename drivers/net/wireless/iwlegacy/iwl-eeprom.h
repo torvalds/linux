@@ -60,12 +60,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef __iwl_legacy_eeprom_h__
-#define __iwl_legacy_eeprom_h__
+#ifndef __il_eeprom_h__
+#define __il_eeprom_h__
 
 #include <net/mac80211.h>
 
-struct iwl_priv;
+struct il_priv;
 
 /*
  * EEPROM access time values:
@@ -75,14 +75,14 @@ struct iwl_priv;
  * When polling, wait 10 uSec between polling loops, up to a maximum 5000 uSec.
  * Driver reads 16-bit value from bits 31-16 of CSR_EEPROM_REG.
  */
-#define IWL_EEPROM_ACCESS_TIMEOUT	5000 /* uSec */
+#define IL_EEPROM_ACCESS_TIMEOUT	5000 /* uSec */
 
-#define IWL_EEPROM_SEM_TIMEOUT		10   /* microseconds */
-#define IWL_EEPROM_SEM_RETRY_LIMIT	1000 /* number of attempts (not time) */
+#define IL_EEPROM_SEM_TIMEOUT		10   /* microseconds */
+#define IL_EEPROM_SEM_RETRY_LIMIT	1000 /* number of attempts (not time) */
 
 
 /*
- * Regulatory channel usage flags in EEPROM struct iwl4965_eeprom_channel.flags.
+ * Regulatory channel usage flags in EEPROM struct il4965_eeprom_channel.flags.
  *
  * IBSS and/or AP operation is allowed *only* on those channels with
  * (VALID && IBSS && ACTIVE && !RADAR).  This restriction is in place because
@@ -97,7 +97,7 @@ struct iwl_priv;
  *
  * NOTE:  Using a channel inappropriately will result in a uCode error!
  */
-#define IWL_NUM_TX_CALIB_GROUPS 5
+#define IL_NUM_TX_CALIB_GROUPS 5
 enum {
 	EEPROM_CHANNEL_VALID = (1 << 0),	/* usable for this SKU/geo */
 	EEPROM_CHANNEL_IBSS = (1 << 1),		/* usable as an IBSS channel */
@@ -116,7 +116,7 @@ enum {
 
 /* *regulatory* channel data format in eeprom, one for each channel.
  * There are separate entries for HT40 (40 MHz) vs. normal (20 MHz) channels. */
-struct iwl_eeprom_channel {
+struct il_eeprom_channel {
 	u8 flags;		/* EEPROM_CHANNEL_* flags copied from EEPROM */
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
 } __packed;
@@ -160,7 +160,7 @@ extern const u8 iwlegacy_eeprom_band_1[14];
  *
  * 4)  RF power amplifier detector level measurement (not used).
  */
-struct iwl_eeprom_calib_measure {
+struct il_eeprom_calib_measure {
 	u8 temperature;		/* Device temperature (Celsius) */
 	u8 gain_idx;		/* Index into gain table */
 	u8 actual_pow;		/* Measured RF output power, half-dBm */
@@ -176,9 +176,9 @@ struct iwl_eeprom_calib_measure {
  * 2)  Measurements for each of 3 power levels for each of 2 radio transmitters
  *     (a.k.a. "tx chains") (6 measurements altogether)
  */
-struct iwl_eeprom_calib_ch_info {
+struct il_eeprom_calib_ch_info {
 	u8 ch_num;
-	struct iwl_eeprom_calib_measure
+	struct il_eeprom_calib_measure
 		measurements[EEPROM_TX_POWER_TX_CHAINS]
 			[EEPROM_TX_POWER_MEASUREMENTS];
 } __packed;
@@ -193,11 +193,11 @@ struct iwl_eeprom_calib_ch_info {
  *
  * 2)  Sample measurement sets for 2 channels close to the range endpoints.
  */
-struct iwl_eeprom_calib_subband_info {
+struct il_eeprom_calib_subband_info {
 	u8 ch_from;	/* channel number of lowest channel in subband */
 	u8 ch_to;	/* channel number of highest channel in subband */
-	struct iwl_eeprom_calib_ch_info ch1;
-	struct iwl_eeprom_calib_ch_info ch2;
+	struct il_eeprom_calib_ch_info ch1;
+	struct il_eeprom_calib_ch_info ch2;
 } __packed;
 
 
@@ -218,14 +218,14 @@ struct iwl_eeprom_calib_subband_info {
  *     characteristics of the analog radio circuitry vary with frequency.
  *
  *     Not all sets need to be filled with data;
- *     struct iwl_eeprom_calib_subband_info contains range of channels
+ *     struct il_eeprom_calib_subband_info contains range of channels
  *     (0 if unused) for each set of data.
  */
-struct iwl_eeprom_calib_info {
+struct il_eeprom_calib_info {
 	u8 saturation_power24;	/* half-dBm (e.g. "34" = 17 dBm) */
 	u8 saturation_power52;	/* half-dBm */
 	__le16 voltage;		/* signed */
-	struct iwl_eeprom_calib_subband_info
+	struct il_eeprom_calib_subband_info
 		band_info[EEPROM_TX_POWER_BANDS];
 } __packed;
 
@@ -323,22 +323,22 @@ struct iwl_eeprom_calib_info {
 
 #define EEPROM_REGULATORY_BAND_NO_HT40			(0)
 
-struct iwl_eeprom_ops {
+struct il_eeprom_ops {
 	const u32 regulatory_bands[7];
-	int (*acquire_semaphore) (struct iwl_priv *priv);
-	void (*release_semaphore) (struct iwl_priv *priv);
+	int (*acquire_semaphore) (struct il_priv *priv);
+	void (*release_semaphore) (struct il_priv *priv);
 };
 
 
-int iwl_legacy_eeprom_init(struct iwl_priv *priv);
-void iwl_legacy_eeprom_free(struct iwl_priv *priv);
-const u8 *iwl_legacy_eeprom_query_addr(const struct iwl_priv *priv,
+int il_eeprom_init(struct il_priv *priv);
+void il_eeprom_free(struct il_priv *priv);
+const u8 *il_eeprom_query_addr(const struct il_priv *priv,
 					size_t offset);
-u16 iwl_legacy_eeprom_query16(const struct iwl_priv *priv, size_t offset);
-int iwl_legacy_init_channel_map(struct iwl_priv *priv);
-void iwl_legacy_free_channel_map(struct iwl_priv *priv);
-const struct iwl_channel_info *iwl_legacy_get_channel_info(
-		const struct iwl_priv *priv,
+u16 il_eeprom_query16(const struct il_priv *priv, size_t offset);
+int il_init_channel_map(struct il_priv *priv);
+void il_free_channel_map(struct il_priv *priv);
+const struct il_channel_info *il_get_channel_info(
+		const struct il_priv *priv,
 		enum ieee80211_band band, u16 channel);
 
-#endif  /* __iwl_legacy_eeprom_h__ */
+#endif  /* __il_eeprom_h__ */

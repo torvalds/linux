@@ -41,7 +41,7 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 
-/* default: IWL_LED_BLINK(0) using blinking index table */
+/* default: IL_LED_BLINK(0) using blinking index table */
 static int led_mode;
 module_param(led_mode, int, S_IRUGO);
 MODULE_PARM_DESC(led_mode, "0=system default, "
@@ -60,7 +60,7 @@ MODULE_PARM_DESC(led_mode, "0=system default, "
  *	>0 to 1			167		167
  *	<=0					SOLID ON
  */
-static const struct ieee80211_tpt_blink iwl_blink[] = {
+static const struct ieee80211_tpt_blink il_blink[] = {
 	{ .throughput = 0, .blink_time = 334 },
 	{ .throughput = 1 * 1024 - 1, .blink_time = 260 },
 	{ .throughput = 5 * 1024 - 1, .blink_time = 220 },
@@ -84,11 +84,11 @@ static const struct ieee80211_tpt_blink iwl_blink[] = {
  *     compensation = (100 - averageDeviation) * 64 / 100
  *     NewBlinkTime = (compensation * BlinkTime) / 64
  */
-static inline u8 iwl_legacy_blink_compensation(struct iwl_priv *priv,
+static inline u8 il_blink_compensation(struct il_priv *priv,
 				    u8 time, u16 compensation)
 {
 	if (!compensation) {
-		IWL_ERR(priv, "undefined blink compensation: "
+		IL_ERR(priv, "undefined blink compensation: "
 			"use pre-defined blinking time\n");
 		return time;
 	}
@@ -97,13 +97,13 @@ static inline u8 iwl_legacy_blink_compensation(struct iwl_priv *priv,
 }
 
 /* Set led pattern command */
-static int iwl_legacy_led_cmd(struct iwl_priv *priv,
+static int il_led_cmd(struct il_priv *priv,
 		       unsigned long on,
 		       unsigned long off)
 {
-	struct iwl_led_cmd led_cmd = {
-		.id = IWL_LED_LINK,
-		.interval = IWL_DEF_LED_INTRVL
+	struct il_led_cmd led_cmd = {
+		.id = IL_LED_LINK,
+		.interval = IL_DEF_LED_INTRVL
 	};
 	int ret;
 
@@ -115,14 +115,14 @@ static int iwl_legacy_led_cmd(struct iwl_priv *priv,
 
 	if (off == 0) {
 		/* led is SOLID_ON */
-		on = IWL_LED_SOLID;
+		on = IL_LED_SOLID;
 	}
 
-	IWL_DEBUG_LED(priv, "Led blink time compensation=%u\n",
+	IL_DEBUG_LED(priv, "Led blink time compensation=%u\n",
 			priv->cfg->base_params->led_compensation);
-	led_cmd.on = iwl_legacy_blink_compensation(priv, on,
+	led_cmd.on = il_blink_compensation(priv, on,
 				priv->cfg->base_params->led_compensation);
-	led_cmd.off = iwl_legacy_blink_compensation(priv, off,
+	led_cmd.off = il_blink_compensation(priv, off,
 				priv->cfg->base_params->led_compensation);
 
 	ret = priv->cfg->ops->led->cmd(priv, &led_cmd);
@@ -133,52 +133,52 @@ static int iwl_legacy_led_cmd(struct iwl_priv *priv,
 	return ret;
 }
 
-static void iwl_legacy_led_brightness_set(struct led_classdev *led_cdev,
+static void il_led_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
-	struct iwl_priv *priv = container_of(led_cdev, struct iwl_priv, led);
+	struct il_priv *priv = container_of(led_cdev, struct il_priv, led);
 	unsigned long on = 0;
 
 	if (brightness > 0)
-		on = IWL_LED_SOLID;
+		on = IL_LED_SOLID;
 
-	iwl_legacy_led_cmd(priv, on, 0);
+	il_led_cmd(priv, on, 0);
 }
 
-static int iwl_legacy_led_blink_set(struct led_classdev *led_cdev,
+static int il_led_blink_set(struct led_classdev *led_cdev,
 			     unsigned long *delay_on,
 			     unsigned long *delay_off)
 {
-	struct iwl_priv *priv = container_of(led_cdev, struct iwl_priv, led);
+	struct il_priv *priv = container_of(led_cdev, struct il_priv, led);
 
-	return iwl_legacy_led_cmd(priv, *delay_on, *delay_off);
+	return il_led_cmd(priv, *delay_on, *delay_off);
 }
 
-void iwl_legacy_leds_init(struct iwl_priv *priv)
+void il_leds_init(struct il_priv *priv)
 {
 	int mode = led_mode;
 	int ret;
 
-	if (mode == IWL_LED_DEFAULT)
+	if (mode == IL_LED_DEFAULT)
 		mode = priv->cfg->led_mode;
 
 	priv->led.name = kasprintf(GFP_KERNEL, "%s-led",
 				   wiphy_name(priv->hw->wiphy));
-	priv->led.brightness_set = iwl_legacy_led_brightness_set;
-	priv->led.blink_set = iwl_legacy_led_blink_set;
+	priv->led.brightness_set = il_led_brightness_set;
+	priv->led.blink_set = il_led_blink_set;
 	priv->led.max_brightness = 1;
 
 	switch (mode) {
-	case IWL_LED_DEFAULT:
+	case IL_LED_DEFAULT:
 		WARN_ON(1);
 		break;
-	case IWL_LED_BLINK:
+	case IL_LED_BLINK:
 		priv->led.default_trigger =
 			ieee80211_create_tpt_led_trigger(priv->hw,
 					IEEE80211_TPT_LEDTRIG_FL_CONNECTED,
-					iwl_blink, ARRAY_SIZE(iwl_blink));
+					il_blink, ARRAY_SIZE(il_blink));
 		break;
-	case IWL_LED_RF_STATE:
+	case IL_LED_RF_STATE:
 		priv->led.default_trigger =
 			ieee80211_get_radio_led_name(priv->hw);
 		break;
@@ -192,9 +192,9 @@ void iwl_legacy_leds_init(struct iwl_priv *priv)
 
 	priv->led_registered = true;
 }
-EXPORT_SYMBOL(iwl_legacy_leds_init);
+EXPORT_SYMBOL(il_leds_init);
 
-void iwl_legacy_leds_exit(struct iwl_priv *priv)
+void il_leds_exit(struct il_priv *priv)
 {
 	if (!priv->led_registered)
 		return;
@@ -202,4 +202,4 @@ void iwl_legacy_leds_exit(struct iwl_priv *priv)
 	led_classdev_unregister(&priv->led);
 	kfree(priv->led.name);
 }
-EXPORT_SYMBOL(iwl_legacy_leds_exit);
+EXPORT_SYMBOL(il_leds_exit);

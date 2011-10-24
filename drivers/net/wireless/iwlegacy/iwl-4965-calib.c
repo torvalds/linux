@@ -80,11 +80,11 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
-void iwl4965_calib_free_results(struct iwl_priv *priv)
+void il4965_calib_free_results(struct il_priv *priv)
 {
 	int i;
 
-	for (i = 0; i < IWL_CALIB_MAX; i++) {
+	for (i = 0; i < IL_CALIB_MAX; i++) {
 		kfree(priv->calib_results[i].buf);
 		priv->calib_results[i].buf = NULL;
 		priv->calib_results[i].buf_len = 0;
@@ -103,7 +103,7 @@ void iwl4965_calib_free_results(struct iwl_priv *priv)
  *   enough to receive all of our own network traffic, but not so
  *   high that our DSP gets too busy trying to lock onto non-network
  *   activity/noise. */
-static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
+static int il4965_sens_energy_cck(struct il_priv *priv,
 				   u32 norm_fa,
 				   u32 rx_enable_time,
 				   struct statistics_general_data *rx_info)
@@ -129,8 +129,8 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 	u32 false_alarms = norm_fa * 200 * 1024;
 	u32 max_false_alarms = MAX_FA_CCK * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_CCK * rx_enable_time;
-	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	struct il_sensitivity_data *data = NULL;
+	const struct il_sensitivity_ranges *ranges = priv->hw_params.sens;
 
 	data = &(priv->sensitivity_data);
 
@@ -160,7 +160,7 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 		val = data->nrg_silence_rssi[i];
 		silence_ref = max(silence_ref, val);
 	}
-	IWL_DEBUG_CALIB(priv, "silence a %u, b %u, c %u, 20-bcn max %u\n",
+	IL_DEBUG_CALIB(priv, "silence a %u, b %u, c %u, 20-bcn max %u\n",
 			silence_rssi_a, silence_rssi_b, silence_rssi_c,
 			silence_ref);
 
@@ -184,7 +184,7 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 		max_nrg_cck = (u32) max(max_nrg_cck, (data->nrg_value[i]));
 	max_nrg_cck += 6;
 
-	IWL_DEBUG_CALIB(priv, "rx energy a %u, b %u, c %u, 10-bcn max/min %u\n",
+	IL_DEBUG_CALIB(priv, "rx energy a %u, b %u, c %u, 10-bcn max/min %u\n",
 			rx_info->beacon_energy_a, rx_info->beacon_energy_b,
 			rx_info->beacon_energy_c, max_nrg_cck - 6);
 
@@ -194,16 +194,16 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 		data->num_in_cck_no_fa++;
 	else
 		data->num_in_cck_no_fa = 0;
-	IWL_DEBUG_CALIB(priv, "consecutive bcns with few false alarms = %u\n",
+	IL_DEBUG_CALIB(priv, "consecutive bcns with few false alarms = %u\n",
 			data->num_in_cck_no_fa);
 
 	/* If we got too many false alarms this time, reduce sensitivity */
 	if ((false_alarms > max_false_alarms) &&
 		(data->auto_corr_cck > AUTO_CORR_MAX_TH_CCK)) {
-		IWL_DEBUG_CALIB(priv, "norm FA %u > max FA %u\n",
+		IL_DEBUG_CALIB(priv, "norm FA %u > max FA %u\n",
 		     false_alarms, max_false_alarms);
-		IWL_DEBUG_CALIB(priv, "... reducing sensitivity\n");
-		data->nrg_curr_state = IWL_FA_TOO_MANY;
+		IL_DEBUG_CALIB(priv, "... reducing sensitivity\n");
+		data->nrg_curr_state = IL_FA_TOO_MANY;
 		/* Store for "fewer than desired" on later beacon */
 		data->nrg_silence_ref = silence_ref;
 
@@ -212,14 +212,14 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 		data->nrg_th_cck = data->nrg_th_cck - NRG_STEP_CCK;
 	/* Else if we got fewer than desired, increase sensitivity */
 	} else if (false_alarms < min_false_alarms) {
-		data->nrg_curr_state = IWL_FA_TOO_FEW;
+		data->nrg_curr_state = IL_FA_TOO_FEW;
 
 		/* Compare silence level with silence level for most recent
 		 *   healthy number or too many false alarms */
 		data->nrg_auto_corr_silence_diff = (s32)data->nrg_silence_ref -
 						   (s32)silence_ref;
 
-		IWL_DEBUG_CALIB(priv,
+		IL_DEBUG_CALIB(priv,
 			 "norm FA %u < min FA %u, silence diff %d\n",
 			 false_alarms, min_false_alarms,
 			 data->nrg_auto_corr_silence_diff);
@@ -230,23 +230,23 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 		 *      from a previous beacon with too many, or healthy # FAs
 		 * OR 2) We've seen a lot of beacons (100) with too few
 		 *       false alarms */
-		if ((data->nrg_prev_state != IWL_FA_TOO_MANY) &&
+		if ((data->nrg_prev_state != IL_FA_TOO_MANY) &&
 			((data->nrg_auto_corr_silence_diff > NRG_DIFF) ||
 			(data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA))) {
 
-			IWL_DEBUG_CALIB(priv, "... increasing sensitivity\n");
+			IL_DEBUG_CALIB(priv, "... increasing sensitivity\n");
 			/* Increase nrg value to increase sensitivity */
 			val = data->nrg_th_cck + NRG_STEP_CCK;
 			data->nrg_th_cck = min((u32)ranges->min_nrg_cck, val);
 		} else {
-			IWL_DEBUG_CALIB(priv,
+			IL_DEBUG_CALIB(priv,
 					 "... but not changing sensitivity\n");
 		}
 
 	/* Else we got a healthy number of false alarms, keep status quo */
 	} else {
-		IWL_DEBUG_CALIB(priv, " FA in safe zone\n");
-		data->nrg_curr_state = IWL_FA_GOOD_RANGE;
+		IL_DEBUG_CALIB(priv, " FA in safe zone\n");
+		data->nrg_curr_state = IL_FA_GOOD_RANGE;
 
 		/* Store for use in "fewer than desired" with later beacon */
 		data->nrg_silence_ref = silence_ref;
@@ -254,8 +254,8 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 		/* If previous beacon had too many false alarms,
 		 *   give it some extra margin by reducing sensitivity again
 		 *   (but don't go below measured energy of desired Rx) */
-		if (IWL_FA_TOO_MANY == data->nrg_prev_state) {
-			IWL_DEBUG_CALIB(priv, "... increasing margin\n");
+		if (IL_FA_TOO_MANY == data->nrg_prev_state) {
+			IL_DEBUG_CALIB(priv, "... increasing margin\n");
 			if (data->nrg_th_cck > (max_nrg_cck + NRG_MARGIN))
 				data->nrg_th_cck -= NRG_MARGIN;
 			else
@@ -269,7 +269,7 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 	 * Lower value is higher energy, so we use max()!
 	 */
 	data->nrg_th_cck = max(max_nrg_cck, data->nrg_th_cck);
-	IWL_DEBUG_CALIB(priv, "new nrg_th_cck %u\n", data->nrg_th_cck);
+	IL_DEBUG_CALIB(priv, "new nrg_th_cck %u\n", data->nrg_th_cck);
 
 	data->nrg_prev_state = data->nrg_curr_state;
 
@@ -306,7 +306,7 @@ static int iwl4965_sens_energy_cck(struct iwl_priv *priv,
 }
 
 
-static int iwl4965_sens_auto_corr_ofdm(struct iwl_priv *priv,
+static int il4965_sens_auto_corr_ofdm(struct il_priv *priv,
 				       u32 norm_fa,
 				       u32 rx_enable_time)
 {
@@ -314,15 +314,15 @@ static int iwl4965_sens_auto_corr_ofdm(struct iwl_priv *priv,
 	u32 false_alarms = norm_fa * 200 * 1024;
 	u32 max_false_alarms = MAX_FA_OFDM * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_OFDM * rx_enable_time;
-	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	struct il_sensitivity_data *data = NULL;
+	const struct il_sensitivity_ranges *ranges = priv->hw_params.sens;
 
 	data = &(priv->sensitivity_data);
 
 	/* If we got too many false alarms this time, reduce sensitivity */
 	if (false_alarms > max_false_alarms) {
 
-		IWL_DEBUG_CALIB(priv, "norm FA %u > max FA %u)\n",
+		IL_DEBUG_CALIB(priv, "norm FA %u > max FA %u)\n",
 			     false_alarms, max_false_alarms);
 
 		val = data->auto_corr_ofdm + AUTO_CORR_STEP_OFDM;
@@ -345,7 +345,7 @@ static int iwl4965_sens_auto_corr_ofdm(struct iwl_priv *priv,
 	/* Else if we got fewer than desired, increase sensitivity */
 	else if (false_alarms < min_false_alarms) {
 
-		IWL_DEBUG_CALIB(priv, "norm FA %u < min FA %u\n",
+		IL_DEBUG_CALIB(priv, "norm FA %u < min FA %u\n",
 			     false_alarms, min_false_alarms);
 
 		val = data->auto_corr_ofdm - AUTO_CORR_STEP_OFDM;
@@ -364,14 +364,14 @@ static int iwl4965_sens_auto_corr_ofdm(struct iwl_priv *priv,
 		data->auto_corr_ofdm_mrc_x1 =
 			max((u32)ranges->auto_corr_min_ofdm_mrc_x1, val);
 	} else {
-		IWL_DEBUG_CALIB(priv, "min FA %u < norm FA %u < max FA %u OK\n",
+		IL_DEBUG_CALIB(priv, "min FA %u < norm FA %u < max FA %u OK\n",
 			 min_false_alarms, false_alarms, max_false_alarms);
 	}
 	return 0;
 }
 
-static void iwl4965_prepare_legacy_sensitivity_tbl(struct iwl_priv *priv,
-				struct iwl_sensitivity_data *data,
+static void il4965_prepare_legacy_sensitivity_tbl(struct il_priv *priv,
+				struct il_sensitivity_data *data,
 				__le16 *tbl)
 {
 	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX] =
@@ -400,24 +400,24 @@ static void iwl4965_prepare_legacy_sensitivity_tbl(struct iwl_priv *priv,
 	tbl[HD_OFDM_ENERGY_TH_IN_INDEX] =
 				cpu_to_le16(data->nrg_th_cca);
 
-	IWL_DEBUG_CALIB(priv, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
+	IL_DEBUG_CALIB(priv, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
 			data->auto_corr_ofdm, data->auto_corr_ofdm_mrc,
 			data->auto_corr_ofdm_x1, data->auto_corr_ofdm_mrc_x1,
 			data->nrg_th_ofdm);
 
-	IWL_DEBUG_CALIB(priv, "cck: ac %u mrc %u thresh %u\n",
+	IL_DEBUG_CALIB(priv, "cck: ac %u mrc %u thresh %u\n",
 			data->auto_corr_cck, data->auto_corr_cck_mrc,
 			data->nrg_th_cck);
 }
 
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
-static int iwl4965_sensitivity_write(struct iwl_priv *priv)
+static int il4965_sensitivity_write(struct il_priv *priv)
 {
-	struct iwl_sensitivity_cmd cmd;
-	struct iwl_sensitivity_data *data = NULL;
-	struct iwl_host_cmd cmd_out = {
+	struct il_sensitivity_cmd cmd;
+	struct il_sensitivity_data *data = NULL;
+	struct il_host_cmd cmd_out = {
 		.id = SENSITIVITY_CMD,
-		.len = sizeof(struct iwl_sensitivity_cmd),
+		.len = sizeof(struct il_sensitivity_cmd),
 		.flags = CMD_ASYNC,
 		.data = &cmd,
 	};
@@ -426,7 +426,7 @@ static int iwl4965_sensitivity_write(struct iwl_priv *priv)
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	iwl4965_prepare_legacy_sensitivity_tbl(priv, data, &cmd.table[0]);
+	il4965_prepare_legacy_sensitivity_tbl(priv, data, &cmd.table[0]);
 
 	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
@@ -434,7 +434,7 @@ static int iwl4965_sensitivity_write(struct iwl_priv *priv)
 	/* Don't send command to uCode if nothing has changed */
 	if (!memcmp(&cmd.table[0], &(priv->sensitivity_tbl[0]),
 		    sizeof(u16)*HD_TABLE_SIZE)) {
-		IWL_DEBUG_CALIB(priv, "No change in SENSITIVITY_CMD\n");
+		IL_DEBUG_CALIB(priv, "No change in SENSITIVITY_CMD\n");
 		return 0;
 	}
 
@@ -442,20 +442,20 @@ static int iwl4965_sensitivity_write(struct iwl_priv *priv)
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
 
-	return iwl_legacy_send_cmd(priv, &cmd_out);
+	return il_send_cmd(priv, &cmd_out);
 }
 
-void iwl4965_init_sensitivity(struct iwl_priv *priv)
+void il4965_init_sensitivity(struct il_priv *priv)
 {
 	int ret = 0;
 	int i;
-	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	struct il_sensitivity_data *data = NULL;
+	const struct il_sensitivity_ranges *ranges = priv->hw_params.sens;
 
 	if (priv->disable_sens_cal)
 		return;
 
-	IWL_DEBUG_CALIB(priv, "Start iwl4965_init_sensitivity\n");
+	IL_DEBUG_CALIB(priv, "Start il4965_init_sensitivity\n");
 
 	/* Clear driver's sensitivity algo data */
 	data = &(priv->sensitivity_data);
@@ -463,11 +463,11 @@ void iwl4965_init_sensitivity(struct iwl_priv *priv)
 	if (ranges == NULL)
 		return;
 
-	memset(data, 0, sizeof(struct iwl_sensitivity_data));
+	memset(data, 0, sizeof(struct il_sensitivity_data));
 
 	data->num_in_cck_no_fa = 0;
-	data->nrg_curr_state = IWL_FA_TOO_MANY;
-	data->nrg_prev_state = IWL_FA_TOO_MANY;
+	data->nrg_curr_state = IL_FA_TOO_MANY;
+	data->nrg_prev_state = IL_FA_TOO_MANY;
 	data->nrg_silence_ref = 0;
 	data->nrg_silence_idx = 0;
 	data->nrg_energy_idx = 0;
@@ -495,11 +495,11 @@ void iwl4965_init_sensitivity(struct iwl_priv *priv)
 	data->last_bad_plcp_cnt_cck = 0;
 	data->last_fa_cnt_cck = 0;
 
-	ret |= iwl4965_sensitivity_write(priv);
-	IWL_DEBUG_CALIB(priv, "<<return 0x%X\n", ret);
+	ret |= il4965_sensitivity_write(priv);
+	IL_DEBUG_CALIB(priv, "<<return 0x%X\n", ret);
 }
 
-void iwl4965_sensitivity_calibration(struct iwl_priv *priv, void *resp)
+void il4965_sensitivity_calibration(struct il_priv *priv, void *resp)
 {
 	u32 rx_enable_time;
 	u32 fa_cck;
@@ -508,7 +508,7 @@ void iwl4965_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 	u32 bad_plcp_ofdm;
 	u32 norm_fa_ofdm;
 	u32 norm_fa_cck;
-	struct iwl_sensitivity_data *data = NULL;
+	struct il_sensitivity_data *data = NULL;
 	struct statistics_rx_non_phy *rx_info;
 	struct statistics_rx_phy *ofdm, *cck;
 	unsigned long flags;
@@ -519,19 +519,19 @@ void iwl4965_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 
 	data = &(priv->sensitivity_data);
 
-	if (!iwl_legacy_is_any_associated(priv)) {
-		IWL_DEBUG_CALIB(priv, "<< - not associated\n");
+	if (!il_is_any_associated(priv)) {
+		IL_DEBUG_CALIB(priv, "<< - not associated\n");
 		return;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	rx_info = &(((struct iwl_notif_statistics *)resp)->rx.general);
-	ofdm = &(((struct iwl_notif_statistics *)resp)->rx.ofdm);
-	cck = &(((struct iwl_notif_statistics *)resp)->rx.cck);
+	rx_info = &(((struct il_notif_statistics *)resp)->rx.general);
+	ofdm = &(((struct il_notif_statistics *)resp)->rx.ofdm);
+	cck = &(((struct il_notif_statistics *)resp)->rx.cck);
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
-		IWL_DEBUG_CALIB(priv, "<< invalid data.\n");
+		IL_DEBUG_CALIB(priv, "<< invalid data.\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
@@ -558,10 +558,10 @@ void iwl4965_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	IWL_DEBUG_CALIB(priv, "rx_enable_time = %u usecs\n", rx_enable_time);
+	IL_DEBUG_CALIB(priv, "rx_enable_time = %u usecs\n", rx_enable_time);
 
 	if (!rx_enable_time) {
-		IWL_DEBUG_CALIB(priv, "<< RX Enable Time == 0!\n");
+		IL_DEBUG_CALIB(priv, "<< RX Enable Time == 0!\n");
 		return;
 	}
 
@@ -600,17 +600,17 @@ void iwl4965_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 	norm_fa_ofdm = fa_ofdm + bad_plcp_ofdm;
 	norm_fa_cck = fa_cck + bad_plcp_cck;
 
-	IWL_DEBUG_CALIB(priv,
+	IL_DEBUG_CALIB(priv,
 			 "cck: fa %u badp %u  ofdm: fa %u badp %u\n", fa_cck,
 			bad_plcp_cck, fa_ofdm, bad_plcp_ofdm);
 
-	iwl4965_sens_auto_corr_ofdm(priv, norm_fa_ofdm, rx_enable_time);
-	iwl4965_sens_energy_cck(priv, norm_fa_cck, rx_enable_time, &statis);
+	il4965_sens_auto_corr_ofdm(priv, norm_fa_ofdm, rx_enable_time);
+	il4965_sens_energy_cck(priv, norm_fa_cck, rx_enable_time, &statis);
 
-	iwl4965_sensitivity_write(priv);
+	il4965_sensitivity_write(priv);
 }
 
-static inline u8 iwl4965_find_first_chain(u8 mask)
+static inline u8 il4965_find_first_chain(u8 mask)
 {
 	if (mask & ANT_A)
 		return CHAIN_A;
@@ -624,8 +624,8 @@ static inline u8 iwl4965_find_first_chain(u8 mask)
  * disconnected.
  */
 static void
-iwl4965_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
-				     struct iwl_chain_noise_data *data)
+il4965_find_disconn_antenna(struct il_priv *priv, u32* average_sig,
+				     struct il_chain_noise_data *data)
 {
 	u32 active_chains = 0;
 	u32 max_average_sig;
@@ -657,9 +657,9 @@ iwl4965_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 		active_chains = (1 << max_average_sig_antenna_i);
 	}
 
-	IWL_DEBUG_CALIB(priv, "average_sig: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(priv, "average_sig: a %d b %d c %d\n",
 		     average_sig[0], average_sig[1], average_sig[2]);
-	IWL_DEBUG_CALIB(priv, "max_average_sig = %d, antenna %d\n",
+	IL_DEBUG_CALIB(priv, "max_average_sig = %d, antenna %d\n",
 		     max_average_sig, max_average_sig_antenna_i);
 
 	/* Compare signal strengths for all 3 receivers. */
@@ -673,7 +673,7 @@ iwl4965_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 				data->disconn_array[i] = 1;
 			else
 				active_chains |= (1 << i);
-			IWL_DEBUG_CALIB(priv, "i = %d  rssiDelta = %d  "
+			IL_DEBUG_CALIB(priv, "i = %d  rssiDelta = %d  "
 			     "disconn_array[i] = %d\n",
 			     i, rssi_delta, data->disconn_array[i]);
 		}
@@ -710,10 +710,10 @@ iwl4965_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 			 * connect the first valid tx chain
 			 */
 			first_chain =
-			iwl4965_find_first_chain(priv->cfg->valid_tx_ant);
+			il4965_find_first_chain(priv->cfg->valid_tx_ant);
 			data->disconn_array[first_chain] = 0;
 			active_chains |= BIT(first_chain);
-			IWL_DEBUG_CALIB(priv,
+			IL_DEBUG_CALIB(priv,
 					"All Tx chains are disconnected W/A - declare %d as connected\n",
 					first_chain);
 			break;
@@ -722,25 +722,25 @@ iwl4965_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 
 	if (active_chains != priv->hw_params.valid_rx_ant &&
 	    active_chains != priv->chain_noise_data.active_chains)
-		IWL_DEBUG_CALIB(priv,
+		IL_DEBUG_CALIB(priv,
 				"Detected that not all antennas are connected! "
 				"Connected: %#x, valid: %#x.\n",
 				active_chains, priv->hw_params.valid_rx_ant);
 
 	/* Save for use within RXON, TX, SCAN commands, etc. */
 	data->active_chains = active_chains;
-	IWL_DEBUG_CALIB(priv, "active_chains (bitwise) = 0x%x\n",
+	IL_DEBUG_CALIB(priv, "active_chains (bitwise) = 0x%x\n",
 			active_chains);
 }
 
-static void iwl4965_gain_computation(struct iwl_priv *priv,
+static void il4965_gain_computation(struct il_priv *priv,
 		u32 *average_noise,
 		u16 min_average_noise_antenna_i,
 		u32 min_average_noise,
 		u8 default_chain)
 {
 	int i, ret;
-	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+	struct il_chain_noise_data *data = &priv->chain_noise_data;
 
 	data->delta_gain_code[min_average_noise_antenna_i] = 0;
 
@@ -762,32 +762,32 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 			data->delta_gain_code[i] = 0;
 		}
 	}
-	IWL_DEBUG_CALIB(priv, "delta_gain_codes: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(priv, "delta_gain_codes: a %d b %d c %d\n",
 		     data->delta_gain_code[0],
 		     data->delta_gain_code[1],
 		     data->delta_gain_code[2]);
 
 	/* Differential gain gets sent to uCode only once */
 	if (!data->radio_write) {
-		struct iwl_calib_diff_gain_cmd cmd;
+		struct il_calib_diff_gain_cmd cmd;
 		data->radio_write = 1;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.hdr.op_code = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
+		cmd.hdr.op_code = IL_PHY_CALIBRATE_DIFF_GAIN_CMD;
 		cmd.diff_gain_a = data->delta_gain_code[0];
 		cmd.diff_gain_b = data->delta_gain_code[1];
 		cmd.diff_gain_c = data->delta_gain_code[2];
-		ret = iwl_legacy_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+		ret = il_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
 				      sizeof(cmd), &cmd);
 		if (ret)
-			IWL_DEBUG_CALIB(priv, "fail sending cmd "
+			IL_DEBUG_CALIB(priv, "fail sending cmd "
 				     "REPLY_PHY_CALIBRATION_CMD\n");
 
 		/* TODO we might want recalculate
 		 * rx_chain in rxon cmd */
 
 		/* Mark so we run this algo only once! */
-		data->state = IWL_CHAIN_NOISE_CALIBRATED;
+		data->state = IL_CHAIN_NOISE_CALIBRATED;
 	}
 }
 
@@ -799,9 +799,9 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
  * 1)  Which antennas are connected.
  * 2)  Differential rx gain settings to balance the 3 receivers.
  */
-void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
+void il4965_chain_noise_calibration(struct il_priv *priv, void *stat_resp)
 {
-	struct iwl_chain_noise_data *data = NULL;
+	struct il_chain_noise_data *data = NULL;
 
 	u32 chain_noise_a;
 	u32 chain_noise_b;
@@ -821,7 +821,7 @@ void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	unsigned long flags;
 	struct statistics_rx_non_phy *rx_info;
 
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	struct il_rxon_context *ctx = &priv->contexts[IL_RXON_CTX_BSS];
 
 	if (priv->disable_chain_noise_cal)
 		return;
@@ -832,19 +832,19 @@ void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	 * Accumulate just the first "chain_noise_num_beacons" after
 	 * the first association, then we're done forever.
 	 */
-	if (data->state != IWL_CHAIN_NOISE_ACCUMULATE) {
-		if (data->state == IWL_CHAIN_NOISE_ALIVE)
-			IWL_DEBUG_CALIB(priv, "Wait for noise calib reset\n");
+	if (data->state != IL_CHAIN_NOISE_ACCUMULATE) {
+		if (data->state == IL_CHAIN_NOISE_ALIVE)
+			IL_DEBUG_CALIB(priv, "Wait for noise calib reset\n");
 		return;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	rx_info = &(((struct iwl_notif_statistics *)stat_resp)->
+	rx_info = &(((struct il_notif_statistics *)stat_resp)->
 		      rx.general);
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
-		IWL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
+		IL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
@@ -852,16 +852,16 @@ void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	rxon_band24 = !!(ctx->staging.flags & RXON_FLG_BAND_24G_MSK);
 	rxon_chnum = le16_to_cpu(ctx->staging.channel);
 
-	stat_band24 = !!(((struct iwl_notif_statistics *)
+	stat_band24 = !!(((struct il_notif_statistics *)
 			 stat_resp)->flag &
 			 STATISTICS_REPLY_FLG_BAND_24G_MSK);
-	stat_chnum = le32_to_cpu(((struct iwl_notif_statistics *)
+	stat_chnum = le32_to_cpu(((struct il_notif_statistics *)
 				 stat_resp)->flag) >> 16;
 
 	/* Make sure we accumulate data for just the associated channel
 	 *   (even if scanning). */
 	if ((rxon_chnum != stat_chnum) || (rxon_band24 != stat_band24)) {
-		IWL_DEBUG_CALIB(priv, "Stats not from chan=%d, band24=%d\n",
+		IL_DEBUG_CALIB(priv, "Stats not from chan=%d, band24=%d\n",
 				rxon_chnum, rxon_band24);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
@@ -894,11 +894,11 @@ void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	data->chain_signal_b = (chain_sig_b + data->chain_signal_b);
 	data->chain_signal_c = (chain_sig_c + data->chain_signal_c);
 
-	IWL_DEBUG_CALIB(priv, "chan=%d, band24=%d, beacon=%d\n",
+	IL_DEBUG_CALIB(priv, "chan=%d, band24=%d, beacon=%d\n",
 			rxon_chnum, rxon_band24, data->beacon_count);
-	IWL_DEBUG_CALIB(priv, "chain_sig: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(priv, "chain_sig: a %d b %d c %d\n",
 			chain_sig_a, chain_sig_b, chain_sig_c);
-	IWL_DEBUG_CALIB(priv, "chain_noise: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(priv, "chain_noise: a %d b %d c %d\n",
 			chain_noise_a, chain_noise_b, chain_noise_c);
 
 	/* If this is the "chain_noise_num_beacons", determine:
@@ -909,7 +909,7 @@ void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 		return;
 
 	/* Analyze signal for disconnected antenna */
-	iwl4965_find_disconn_antenna(priv, average_sig, data);
+	il4965_find_disconn_antenna(priv, average_sig, data);
 
 	/* Analyze noise for rx balance */
 	average_noise[0] = data->chain_noise_a /
@@ -929,16 +929,16 @@ void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 		}
 	}
 
-	IWL_DEBUG_CALIB(priv, "average_noise: a %d b %d c %d\n",
+	IL_DEBUG_CALIB(priv, "average_noise: a %d b %d c %d\n",
 			average_noise[0], average_noise[1],
 			average_noise[2]);
 
-	IWL_DEBUG_CALIB(priv, "min_average_noise = %d, antenna %d\n",
+	IL_DEBUG_CALIB(priv, "min_average_noise = %d, antenna %d\n",
 			min_average_noise, min_average_noise_antenna_i);
 
-	iwl4965_gain_computation(priv, average_noise,
+	il4965_gain_computation(priv, average_noise,
 			min_average_noise_antenna_i, min_average_noise,
-			iwl4965_find_first_chain(priv->cfg->valid_rx_ant));
+			il4965_find_first_chain(priv->cfg->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
@@ -946,22 +946,22 @@ void iwl4965_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	if (priv->cfg->ops->lib->update_chain_flags)
 		priv->cfg->ops->lib->update_chain_flags(priv);
 
-	data->state = IWL_CHAIN_NOISE_DONE;
-	iwl_legacy_power_update_mode(priv, false);
+	data->state = IL_CHAIN_NOISE_DONE;
+	il_power_update_mode(priv, false);
 }
 
-void iwl4965_reset_run_time_calib(struct iwl_priv *priv)
+void il4965_reset_run_time_calib(struct il_priv *priv)
 {
 	int i;
 	memset(&(priv->sensitivity_data), 0,
-	       sizeof(struct iwl_sensitivity_data));
+	       sizeof(struct il_sensitivity_data));
 	memset(&(priv->chain_noise_data), 0,
-	       sizeof(struct iwl_chain_noise_data));
+	       sizeof(struct il_chain_noise_data));
 	for (i = 0; i < NUM_RX_CHAINS; i++)
 		priv->chain_noise_data.delta_gain_code[i] =
 				CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
 
 	/* Ask for statistics now, the uCode will send notification
 	 * periodically after association */
-	iwl_legacy_send_statistics_request(priv, CMD_ASYNC, true);
+	il_send_statistics_request(priv, CMD_ASYNC, true);
 }
