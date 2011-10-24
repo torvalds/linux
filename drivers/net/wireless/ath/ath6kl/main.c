@@ -556,9 +556,9 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 }
 
 /* Functions for Tx credit handling */
-void ath6k_credit_init(struct htc_credit_state_info *cred_info,
-		       struct list_head *ep_list,
-		       int tot_credits)
+void ath6kl_credit_init(struct htc_credit_state_info *cred_info,
+			struct list_head *ep_list,
+			int tot_credits)
 {
 	struct htc_endpoint_credit_dist *cur_ep_dist;
 	int count;
@@ -572,7 +572,7 @@ void ath6k_credit_init(struct htc_credit_state_info *cred_info,
 
 		cur_ep_dist->cred_min = cur_ep_dist->cred_per_msg;
 
-		if (tot_credits > 4)
+		if (tot_credits > 4) {
 			if ((cur_ep_dist->svc_id == WMI_DATA_BK_SVC) ||
 			    (cur_ep_dist->svc_id == WMI_DATA_BE_SVC)) {
 				ath6kl_deposit_credit_to_ep(cred_info,
@@ -580,6 +580,7 @@ void ath6k_credit_init(struct htc_credit_state_info *cred_info,
 						cur_ep_dist->cred_min);
 				cur_ep_dist->dist_flags |= HTC_EP_ACTIVE;
 			}
+		}
 
 		if (cur_ep_dist->svc_id == WMI_CONTROL_SVC) {
 			ath6kl_deposit_credit_to_ep(cred_info, cur_ep_dist,
@@ -634,8 +635,8 @@ void ath6k_credit_init(struct htc_credit_state_info *cred_info,
 }
 
 /* initialize and setup credit distribution */
-int ath6k_setup_credit_dist(void *htc_handle,
-			    struct htc_credit_state_info *cred_info)
+int ath6kl_setup_credit_dist(void *htc_handle,
+			     struct htc_credit_state_info *cred_info)
 {
 	u16 servicepriority[5];
 
@@ -654,9 +655,9 @@ int ath6k_setup_credit_dist(void *htc_handle,
 }
 
 /* reduce an ep's credits back to a set limit */
-static void ath6k_reduce_credits(struct htc_credit_state_info *cred_info,
-				 struct htc_endpoint_credit_dist  *ep_dist,
-				 int limit)
+static void ath6kl_reduce_credits(struct htc_credit_state_info *cred_info,
+				  struct htc_endpoint_credit_dist *ep_dist,
+				  int limit)
 {
 	int credits;
 
@@ -670,8 +671,8 @@ static void ath6k_reduce_credits(struct htc_credit_state_info *cred_info,
 	cred_info->cur_free_credits += credits;
 }
 
-static void ath6k_credit_update(struct htc_credit_state_info *cred_info,
-				struct list_head *epdist_list)
+static void ath6kl_credit_update(struct htc_credit_state_info *cred_info,
+				 struct list_head *epdist_list)
 {
 	struct htc_endpoint_credit_dist *cur_dist_list;
 
@@ -685,19 +686,19 @@ static void ath6k_credit_update(struct htc_credit_state_info *cred_info,
 			cur_dist_list->cred_to_dist = 0;
 			if (cur_dist_list->credits >
 			    cur_dist_list->cred_assngd)
-				ath6k_reduce_credits(cred_info,
+				ath6kl_reduce_credits(cred_info,
 						cur_dist_list,
 						cur_dist_list->cred_assngd);
 
 			if (cur_dist_list->credits >
 			    cur_dist_list->cred_norm)
-				ath6k_reduce_credits(cred_info, cur_dist_list,
-						     cur_dist_list->cred_norm);
+				ath6kl_reduce_credits(cred_info, cur_dist_list,
+						      cur_dist_list->cred_norm);
 
 			if (!(cur_dist_list->dist_flags & HTC_EP_ACTIVE)) {
 				if (cur_dist_list->txq_depth == 0)
-					ath6k_reduce_credits(cred_info,
-							     cur_dist_list, 0);
+					ath6kl_reduce_credits(cred_info,
+							      cur_dist_list, 0);
 			}
 		}
 	}
@@ -707,8 +708,8 @@ static void ath6k_credit_update(struct htc_credit_state_info *cred_info,
  * HTC has an endpoint that needs credits, ep_dist is the endpoint in
  * question.
  */
-void ath6k_seek_credits(struct htc_credit_state_info *cred_info,
-			struct htc_endpoint_credit_dist *ep_dist)
+void ath6kl_seek_credits(struct htc_credit_state_info *cred_info,
+			 struct htc_endpoint_credit_dist *ep_dist)
 {
 	struct htc_endpoint_credit_dist *curdist_list;
 	int credits = 0;
@@ -760,8 +761,8 @@ void ath6k_seek_credits(struct htc_credit_state_info *cred_info,
 			 * above it's minimum to fulfill our need try to
 			 * take away just enough to fulfill our need.
 			 */
-			ath6k_reduce_credits(cred_info, curdist_list,
-					curdist_list->cred_assngd - need);
+			ath6kl_reduce_credits(cred_info, curdist_list,
+					      curdist_list->cred_assngd - need);
 
 			if (cred_info->cur_free_credits >=
 			    ep_dist->seek_cred)
@@ -783,8 +784,8 @@ out:
 }
 
 /* redistribute credits based on activity change */
-static void ath6k_redistribute_credits(struct htc_credit_state_info *info,
-				       struct list_head *ep_dist_list)
+static void ath6kl_redistribute_credits(struct htc_credit_state_info *info,
+					struct list_head *ep_dist_list)
 {
 	struct htc_endpoint_credit_dist *curdist_list;
 
@@ -799,10 +800,9 @@ static void ath6k_redistribute_credits(struct htc_credit_state_info *info,
 		if ((curdist_list->svc_id != WMI_CONTROL_SVC) &&
 		    !(curdist_list->dist_flags & HTC_EP_ACTIVE)) {
 			if (curdist_list->txq_depth == 0)
-				ath6k_reduce_credits(info,
-						curdist_list, 0);
+				ath6kl_reduce_credits(info, curdist_list, 0);
 			else
-				ath6k_reduce_credits(info,
+				ath6kl_reduce_credits(info,
 						curdist_list,
 						curdist_list->cred_min);
 		}
@@ -817,16 +817,16 @@ static void ath6k_redistribute_credits(struct htc_credit_state_info *info,
  * structures in prioritized order as defined by the call to the
  * htc_set_credit_dist() api.
  */
-void ath6k_credit_distribute(struct htc_credit_state_info *cred_info,
-			     struct list_head *ep_dist_list,
-			     enum htc_credit_dist_reason reason)
+void ath6kl_credit_distribute(struct htc_credit_state_info *cred_info,
+			      struct list_head *ep_dist_list,
+			      enum htc_credit_dist_reason reason)
 {
 	switch (reason) {
 	case HTC_CREDIT_DIST_SEND_COMPLETE:
-		ath6k_credit_update(cred_info, ep_dist_list);
+		ath6kl_credit_update(cred_info, ep_dist_list);
 		break;
 	case HTC_CREDIT_DIST_ACTIVITY_CHANGE:
-		ath6k_redistribute_credits(cred_info, ep_dist_list);
+		ath6kl_redistribute_credits(cred_info, ep_dist_list);
 		break;
 	default:
 		break;

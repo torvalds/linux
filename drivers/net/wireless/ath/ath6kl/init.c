@@ -1506,7 +1506,7 @@ static int ath6kl_init(struct ath6kl *ar)
 	ath6kl_refill_amsdu_rxbufs(ar, ATH6KL_MAX_AMSDU_RX_BUFFERS);
 
 	/* setup credit distribution */
-	ath6k_setup_credit_dist(ar->htc_target, &ar->credit_state_info);
+	ath6kl_setup_credit_dist(ar->htc_target, &ar->credit_state_info);
 
 	ath6kl_cookie_init(ar);
 
