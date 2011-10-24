@@ -873,6 +873,11 @@ void radeon_test_moves(struct radeon_device *rdev);
 /*
  * Debugfs
  */
+struct radeon_debugfs {
+	struct drm_info_list	*files;
+	unsigned		num_files;
+};
+
 int radeon_debugfs_add_files(struct radeon_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles);
@@ -1278,6 +1283,9 @@ struct radeon_device {
 	struct drm_file *cmask_filp;
 	/* i2c buses */
 	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
+	/* debugfs */
+	struct radeon_debugfs	debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
+	unsigned 		debugfs_count;
 };
 
 int radeon_device_init(struct radeon_device *rdev,

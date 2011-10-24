@@ -829,6 +829,8 @@ int radeon_device_init(struct radeon_device *rdev,
 	return 0;
 }
 
+static void radeon_debugfs_remove_files(struct radeon_device *rdev);
+
 void radeon_device_fini(struct radeon_device *rdev)
 {
 	DRM_INFO("radeon: finishing device.\n");
@@ -843,6 +845,7 @@ void radeon_device_fini(struct radeon_device *rdev)
 	rdev->rio_mem = NULL;
 	iounmap(rdev->rmmio);
 	rdev->rmmio = NULL;
+	radeon_debugfs_remove_files(rdev);
 }
 
 
@@ -992,36 +995,29 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 /*
  * Debugfs
  */
-struct radeon_debugfs {
-	struct drm_info_list	*files;
-	unsigned		num_files;
-};
-static struct radeon_debugfs _radeon_debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
-static unsigned _radeon_debugfs_count = 0;
-
 int radeon_debugfs_add_files(struct radeon_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles)
 {
 	unsigned i;
 
-	for (i = 0; i < _radeon_debugfs_count; i++) {
-		if (_radeon_debugfs[i].files == files) {
+	for (i = 0; i < rdev->debugfs_count; i++) {
+		if (rdev->debugfs[i].files == files) {
 			/* Already registered */
 			return 0;
 		}
 	}
 
-	i = _radeon_debugfs_count + 1;
+	i = rdev->debugfs_count + 1;
 	if (i > RADEON_DEBUGFS_MAX_COMPONENTS) {
 		DRM_ERROR("Reached maximum number of debugfs components.\n");
 		DRM_ERROR("Report so we increase "
 		          "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
-	_radeon_debugfs[_radeon_debugfs_count].files = files;
-	_radeon_debugfs[_radeon_debugfs_count].num_files = nfiles;
-	_radeon_debugfs_count = i;
+	rdev->debugfs[rdev->debugfs_count].files = files;
+	rdev->debugfs[rdev->debugfs_count].num_files = nfiles;
+	rdev->debugfs_count = i;
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(files, nfiles,
 				 rdev->ddev->control->debugfs_root,
@@ -1033,6 +1029,22 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 	return 0;
 }
 
+static void radeon_debugfs_remove_files(struct radeon_device *rdev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	unsigned i;
+
+	for (i = 0; i < rdev->debugfs_count; i++) {
+		drm_debugfs_remove_files(rdev->debugfs[i].files,
+					 rdev->debugfs[i].num_files,
+					 rdev->ddev->control);
+		drm_debugfs_remove_files(rdev->debugfs[i].files,
+					 rdev->debugfs[i].num_files,
+					 rdev->ddev->primary);
+	}
+#endif
+}
+
 #if defined(CONFIG_DEBUG_FS)
 int radeon_debugfs_init(struct drm_minor *minor)
 {
@@ -1041,11 +1053,5 @@ int radeon_debugfs_init(struct drm_minor *minor)
 
 void radeon_debugfs_cleanup(struct drm_minor *minor)
 {
-	unsigned i;
-
-	for (i = 0; i < _radeon_debugfs_count; i++) {
-		drm_debugfs_remove_files(_radeon_debugfs[i].files,
-					 _radeon_debugfs[i].num_files, minor);
-	}
 }
 #endif
