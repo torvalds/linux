@@ -142,47 +142,46 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 
 static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
 {
-	ath6kl_dbg(ATH6KL_DBG_ANY,
+	ath6kl_dbg(ATH6KL_DBG_CREDIT,
 		   "--- endpoint: %d  svc_id: 0x%X ---\n",
 		   ep_dist->endpoint, ep_dist->svc_id);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " dist_flags     : 0x%X\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " dist_flags     : 0x%X\n",
 		   ep_dist->dist_flags);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_norm      : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_norm      : %d\n",
 		   ep_dist->cred_norm);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_min       : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_min       : %d\n",
 		   ep_dist->cred_min);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " credits        : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " credits        : %d\n",
 		   ep_dist->credits);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_assngd    : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_assngd    : %d\n",
 		   ep_dist->cred_assngd);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " seek_cred      : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " seek_cred      : %d\n",
 		   ep_dist->seek_cred);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_sz        : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_sz        : %d\n",
 		   ep_dist->cred_sz);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_per_msg   : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_per_msg   : %d\n",
 		   ep_dist->cred_per_msg);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_to_dist   : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_to_dist   : %d\n",
 		   ep_dist->cred_to_dist);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " txq_depth      : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " txq_depth      : %d\n",
 		   get_queue_depth(&ep_dist->htc_ep->txq));
-	ath6kl_dbg(ATH6KL_DBG_ANY,
+	ath6kl_dbg(ATH6KL_DBG_CREDIT,
 		   "----------------------------------\n");
 }
 
+/* FIXME: move to htc.c */
 void dump_cred_dist_stats(struct htc_target *target)
 {
 	struct htc_endpoint_credit_dist *ep_list;
 
-	if (!AR_DBG_LVL_CHECK(ATH6KL_DBG_TRC))
+	if (!AR_DBG_LVL_CHECK(ATH6KL_DBG_CREDIT))
 		return;
 
 	list_for_each_entry(ep_list, &target->cred_dist_list, list)
 		dump_cred_dist(ep_list);
 
-	ath6kl_dbg(ATH6KL_DBG_HTC, "ctxt:%p dist:%p\n",
-		   target->credit_info, NULL);
-	ath6kl_dbg(ATH6KL_DBG_HTC,
-		   "credit distribution, total : %d, free : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT,
+		   "credit distribution total %d free %d\n",
 		   target->credit_info->total_avail_credits,
 		   target->credit_info->cur_free_credits);
 }

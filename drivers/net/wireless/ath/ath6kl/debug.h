@@ -20,7 +20,7 @@
 #include "hif.h"
 
 enum ATH6K_DEBUG_MASK {
-	/* hole */
+	ATH6KL_DBG_CREDIT	= BIT(0),
 	/* hole */
 	ATH6KL_DBG_WLAN_TX      = BIT(2),     /* wlan tx */
 	ATH6KL_DBG_WLAN_RX      = BIT(3),     /* wlan rx */

@@ -27,6 +27,9 @@ static void ath6kl_credit_deposit(struct ath6kl_htc_credit_info *cred_info,
 				  struct htc_endpoint_credit_dist *ep_dist,
 				  int credits)
 {
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, "credit deposit ep %d credits %d\n",
+		   ep_dist->endpoint, credits);
+
 	ep_dist->credits += credits;
 	ep_dist->cred_assngd += credits;
 	cred_info->cur_free_credits -= credits;
@@ -38,6 +41,8 @@ static void ath6kl_credit_init(struct ath6kl_htc_credit_info *cred_info,
 {
 	struct htc_endpoint_credit_dist *cur_ep_dist;
 	int count;
+
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, "credit init total %d\n", tot_credits);
 
 	cred_info->cur_free_credits = tot_credits;
 	cred_info->total_avail_credits = tot_credits;
@@ -108,6 +113,15 @@ static void ath6kl_credit_init(struct ath6kl_htc_credit_info *cred_info,
 			cur_ep_dist->cred_norm = count;
 
 		}
+
+		ath6kl_dbg(ATH6KL_DBG_CREDIT,
+			   "credit ep %d svc_id %d credits %d per_msg %d norm %d min %d\n",
+			   cur_ep_dist->endpoint,
+			   cur_ep_dist->svc_id,
+			   cur_ep_dist->credits,
+			   cur_ep_dist->cred_per_msg,
+			   cur_ep_dist->cred_norm,
+			   cur_ep_dist->cred_min);
 	}
 }
 
@@ -137,6 +151,9 @@ static void ath6kl_credit_reduce(struct ath6kl_htc_credit_info *cred_info,
 				 int limit)
 {
 	int credits;
+
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, "credit reduce ep %d limit %d\n",
+		   ep_dist->endpoint, limit);
 
 	ep_dist->cred_assngd = limit;
 
@@ -515,7 +532,7 @@ static int htc_check_credits(struct htc_target *target,
 	*req_cred = (len > target->tgt_cred_sz) ?
 		     DIV_ROUND_UP(len, target->tgt_cred_sz) : 1;
 
-	ath6kl_dbg(ATH6KL_DBG_HTC, "htc creds required %d got %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, "credit check need %d got %d\n",
 		   *req_cred, ep->cred_dist.credits);
 
 	if (ep->cred_dist.credits < *req_cred) {
@@ -525,16 +542,13 @@ static int htc_check_credits(struct htc_target *target,
 		/* Seek more credits */
 		ep->cred_dist.seek_cred = *req_cred - ep->cred_dist.credits;
 
-		ath6kl_dbg(ATH6KL_DBG_HTC, "htc creds ctxt 0x%p dist 0x%p\n",
-			   target->credit_info, &ep->cred_dist);
-
 		ath6kl_credit_seek(target->credit_info, &ep->cred_dist);
 
 		ep->cred_dist.seek_cred = 0;
 
 		if (ep->cred_dist.credits < *req_cred) {
-			ath6kl_dbg(ATH6KL_DBG_HTC,
-				   "htc creds not enough credits for ep %d\n",
+			ath6kl_dbg(ATH6KL_DBG_CREDIT,
+				   "credit not found for ep %d\n",
 				   eid);
 			return -EINVAL;
 		}
@@ -548,9 +562,6 @@ static int htc_check_credits(struct htc_target *target,
 		ep->cred_dist.seek_cred =
 		ep->cred_dist.cred_per_msg - ep->cred_dist.credits;
 
-		ath6kl_dbg(ATH6KL_DBG_HTC, "htc creds ctxt 0x%p dist 0x%p\n",
-			   target->credit_info, &ep->cred_dist);
-
 		ath6kl_credit_seek(target->credit_info, &ep->cred_dist);
 
 		/* see if we were successful in getting more */
@@ -558,7 +569,8 @@ static int htc_check_credits(struct htc_target *target,
 			/* tell the target we need credits ASAP! */
 			*flags |= HTC_FLAGS_NEED_CREDIT_UPDATE;
 			ep->ep_st.cred_low_indicate += 1;
-			ath6kl_dbg(ATH6KL_DBG_HTC, "htc creds host needs credits\n");
+			ath6kl_dbg(ATH6KL_DBG_CREDIT,
+				   "credit we need credits asap\n");
 		}
 	}
 
@@ -1495,9 +1507,6 @@ static void htc_proc_cred_rpt(struct htc_target *target,
 	int tot_credits = 0, i;
 	bool dist = false;
 
-	ath6kl_dbg(ATH6KL_DBG_HTC,
-		   "htc creds report entries %d\n", n_entries);
-
 	spin_lock_bh(&target->tx_lock);
 
 	for (i = 0; i < n_entries; i++, rpt++) {
@@ -1509,8 +1518,8 @@ static void htc_proc_cred_rpt(struct htc_target *target,
 
 		endpoint = &target->endpoint[rpt->eid];
 
-		ath6kl_dbg(ATH6KL_DBG_HTC,
-			   "htc creds report ep %d credits %d\n",
+		ath6kl_dbg(ATH6KL_DBG_CREDIT,
+			   "credit report ep %d credits %d\n",
 			   rpt->eid, rpt->credits);
 
 		endpoint->ep_st.tx_cred_rpt += 1;
@@ -1551,18 +1560,11 @@ static void htc_proc_cred_rpt(struct htc_target *target,
 		tot_credits += rpt->credits;
 	}
 
-	ath6kl_dbg(ATH6KL_DBG_HTC,
-		   "htc creds report tot_credits %d\n",
-		   tot_credits);
-
 	if (dist) {
 		/*
 		 * This was a credit return based on a completed send
 		 * operations note, this is done with the lock held
 		 */
-		ath6kl_dbg(ATH6KL_DBG_HTC, "htc creds ctxt 0x%p dist 0x%p\n",
-			   target->credit_info, &target->cred_dist_list);
-
 		ath6kl_credit_distribute(target->credit_info,
 					 &target->cred_dist_list,
 					 HTC_CREDIT_DIST_SEND_COMPLETE);
