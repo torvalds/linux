@@ -627,8 +627,8 @@ static int wm8940_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		ret = snd_soc_write(codec, WM8940_CLOCK, reg | (div << 5));
 		break;
 	case WM8940_OPCLKDIV:
-		reg = snd_soc_read(codec, WM8940_ADDCNTRL) & 0xFFCF;
-		ret = snd_soc_write(codec, WM8940_ADDCNTRL, reg | (div << 4));
+		reg = snd_soc_read(codec, WM8940_GPIO) & 0xFFCF;
+		ret = snd_soc_write(codec, WM8940_GPIO, reg | (div << 4));
 		break;
 	}
 	return ret;
