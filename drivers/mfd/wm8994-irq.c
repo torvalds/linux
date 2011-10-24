@@ -140,16 +140,6 @@ static struct wm8994_irq_data wm8994_irqs[] = {
 	},
 };
 
-static inline int irq_data_to_status_reg(struct wm8994_irq_data *irq_data)
-{
-	return WM8994_INTERRUPT_STATUS_1 - 1 + irq_data->reg;
-}
-
-static inline int irq_data_to_mask_reg(struct wm8994_irq_data *irq_data)
-{
-	return WM8994_INTERRUPT_STATUS_1_MASK - 1 + irq_data->reg;
-}
-
 static inline struct wm8994_irq_data *irq_to_wm8994_irq(struct wm8994 *wm8994,
 							int irq)
 {
