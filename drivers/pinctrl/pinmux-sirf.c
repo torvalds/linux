@@ -870,7 +870,7 @@ static const char *sirfsoc_get_group_name(struct pinctrl_dev *pctldev,
 
 static int sirfsoc_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 			       const unsigned **pins,
-			       const unsigned *num_pins)
+			       unsigned *num_pins)
 {
 	if (selector >= ARRAY_SIZE(sirfsoc_pin_groups))
 		return -EINVAL;
