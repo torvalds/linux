@@ -615,7 +615,7 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 	return status;
 }
 
-/* Uses mbox */
+/* Use MCC */
 int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 			u8 type, bool permanent, u32 if_handle)
 {
@@ -623,10 +623,13 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 	struct be_cmd_req_mac_query *req;
 	int status;
 
-	if (mutex_lock_interruptible(&adapter->mbox_lock))
-		return -1;
+	spin_lock_bh(&adapter->mcc_lock);
 
-	wrb = wrb_from_mbox(adapter);
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
 	req = embedded_payload(wrb);
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
@@ -643,13 +646,14 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 		req->permanent = 0;
 	}
 
-	status = be_mbox_notify_wait(adapter);
+	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_mac_query *resp = embedded_payload(wrb);
 		memcpy(mac_addr, resp->mac.addr, ETH_ALEN);
 	}
 
-	mutex_unlock(&adapter->mbox_lock);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
@@ -1111,20 +1115,22 @@ err:
 }
 
 /* Create an rx filtering policy configuration on an i/f
- * Uses mbox
+ * Uses MCCQ
  */
 int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
-		u8 *mac, bool pmac_invalid, u32 *if_handle, u32 *pmac_id,
-		u32 domain)
+		u8 *mac, u32 *if_handle, u32 *pmac_id, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_create *req;
 	int status;
 
-	if (mutex_lock_interruptible(&adapter->mbox_lock))
-		return -1;
+	spin_lock_bh(&adapter->mcc_lock);
 
-	wrb = wrb_from_mbox(adapter);
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
 	req = embedded_payload(wrb);
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
@@ -1136,23 +1142,25 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 	req->hdr.domain = domain;
 	req->capability_flags = cpu_to_le32(cap_flags);
 	req->enable_flags = cpu_to_le32(en_flags);
-	req->pmac_invalid = pmac_invalid;
-	if (!pmac_invalid)
+	if (mac)
 		memcpy(req->mac_addr, mac, ETH_ALEN);
+	else
+		req->pmac_invalid = true;
 
-	status = be_mbox_notify_wait(adapter);
+	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_if_create *resp = embedded_payload(wrb);
 		*if_handle = le32_to_cpu(resp->interface_id);
-		if (!pmac_invalid)
+		if (mac)
 			*pmac_id = le32_to_cpu(resp->pmac_id);
 	}
 
-	mutex_unlock(&adapter->mbox_lock);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
-/* Uses mbox */
+/* Uses MCCQ */
 int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
@@ -1162,10 +1170,16 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id, u32 domain)
 	if (adapter->eeh_err)
 		return -EIO;
 
-	if (mutex_lock_interruptible(&adapter->mbox_lock))
-		return -1;
+	if (!interface_id)
+		return 0;
 
-	wrb = wrb_from_mbox(adapter);
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
 	req = embedded_payload(wrb);
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
@@ -1177,10 +1191,9 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id, u32 domain)
 	req->hdr.domain = domain;
 	req->interface_id = cpu_to_le32(interface_id);
 
-	status = be_mbox_notify_wait(adapter);
-
-	mutex_unlock(&adapter->mbox_lock);
-
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
@@ -1301,7 +1314,8 @@ int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
 		struct be_cmd_resp_link_status *resp = embedded_payload(wrb);
 		if (resp->mac_speed != PHY_LINK_SPEED_ZERO) {
 			*link_speed = le16_to_cpu(resp->link_speed);
-			*mac_speed = resp->mac_speed;
+			if (mac_speed)
+				*mac_speed = resp->mac_speed;
 		}
 	}
 
