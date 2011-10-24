@@ -4954,6 +4954,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	bool failed_cluster_refill = false;
 	bool failed_alloc = false;
 	bool use_cluster = true;
+	bool have_caching_bg = false;
 	u64 ideal_cache_percent = 0;
 	u64 ideal_cache_offset = 0;
 
@@ -5036,6 +5037,7 @@ ideal_cache:
 		}
 	}
 search:
+	have_caching_bg = false;
 	down_read(&space_info->groups_sem);
 	list_for_each_entry(block_group, &space_info->block_groups[index],
 			    list) {
@@ -5244,6 +5246,8 @@ refill_cluster:
 			failed_alloc = true;
 			goto have_block_group;
 		} else if (!offset) {
+			if (!cached)
+				have_caching_bg = true;
 			goto loop;
 		}
 checks:
@@ -5293,6 +5297,9 @@ loop:
 		btrfs_put_block_group(block_group);
 	}
 	up_read(&space_info->groups_sem);
+
+	if (!ins->objectid && loop >= LOOP_CACHING_WAIT && have_caching_bg)
+		goto search;
 
 	if (!ins->objectid && ++index < BTRFS_NR_RAID_TYPES)
 		goto search;
@@ -7312,7 +7319,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	inode = lookup_free_space_inode(root, block_group, path);
+	inode = lookup_free_space_inode(tree_root, block_group, path);
 	if (!IS_ERR(inode)) {
 		ret = btrfs_orphan_add(trans, inode);
 		BUG_ON(ret);

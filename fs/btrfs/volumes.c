@@ -597,10 +597,8 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		set_blocksize(bdev, 4096);
 
 		bh = btrfs_read_dev_super(bdev);
-		if (!bh) {
-			ret = -EINVAL;
+		if (!bh)
 			goto error_close;
-		}
 
 		disk_super = (struct btrfs_super_block *)bh->b_data;
 		devid = btrfs_stack_device_id(&disk_super->dev_item);
@@ -655,7 +653,7 @@ error:
 		continue;
 	}
 	if (fs_devices->open_devices == 0) {
-		ret = -EIO;
+		ret = -EINVAL;
 		goto out;
 	}
 	fs_devices->seeding = seeding;

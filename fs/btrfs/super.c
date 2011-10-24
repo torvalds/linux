@@ -419,7 +419,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		u64 *subvol_rootid, struct btrfs_fs_devices **fs_devices)
 {
 	substring_t args[MAX_OPT_ARGS];
-	char *opts, *orig, *p;
+	char *device_name, *opts, *orig, *p;
 	int error = 0;
 	int intarg;
 
@@ -470,8 +470,14 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			}
 			break;
 		case Opt_device:
-			error = btrfs_scan_one_device(match_strdup(&args[0]),
+			device_name = match_strdup(&args[0]);
+			if (!device_name) {
+				error = -ENOMEM;
+				goto out;
+			}
+			error = btrfs_scan_one_device(device_name,
 					flags, holder, fs_devices);
+			kfree(device_name);
 			if (error)
 				goto out;
 			break;
@@ -735,6 +741,16 @@ static int btrfs_set_super(struct super_block *s, void *data)
 }
 
 /*
+ * subvolumes are identified by ino 256
+ */
+static inline int is_subvolume_inode(struct inode *inode)
+{
+	if (inode && inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
+		return 1;
+	return 0;
+}
+
+/*
  * This will strip out the subvol=%s argument for an argument string and add
  * subvolid=0 to make sure we get the actual tree root for path walking to the
  * subvol we want.
@@ -837,6 +853,15 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 	if (error)
 		return ERR_PTR(error);
 
+	if (!is_subvolume_inode(path.dentry->d_inode)) {
+		path_put(&path);
+		mntput(mnt);
+		error = -EINVAL;
+		printk(KERN_ERR "btrfs: '%s' is not a valid subvolume\n",
+				subvol_name);
+		return ERR_PTR(-EINVAL);
+	}
+
 	/* Get a ref to the sb and the dentry we found and return it */
 	s = path.mnt->mnt_sb;
 	atomic_inc(&s->s_active);
@@ -933,6 +958,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 		s->s_flags = flags | MS_NOSEC;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
+		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
 		if (error) {
@@ -940,7 +966,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 			return ERR_PTR(error);
 		}
 
-		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
 		s->s_flags |= MS_ACTIVE;
 	}
 
