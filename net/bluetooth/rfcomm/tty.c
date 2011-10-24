@@ -1155,9 +1155,11 @@ static const struct tty_operations rfcomm_ops = {
 
 int __init rfcomm_init_ttys(void)
 {
+	int error;
+
 	rfcomm_tty_driver = alloc_tty_driver(RFCOMM_TTY_PORTS);
 	if (!rfcomm_tty_driver)
-		return -1;
+		return -ENOMEM;
 
 	rfcomm_tty_driver->owner	= THIS_MODULE;
 	rfcomm_tty_driver->driver_name	= "rfcomm";
@@ -1172,10 +1174,11 @@ int __init rfcomm_init_ttys(void)
 	rfcomm_tty_driver->init_termios.c_lflag &= ~ICANON;
 	tty_set_operations(rfcomm_tty_driver, &rfcomm_ops);
 
-	if (tty_register_driver(rfcomm_tty_driver)) {
+	error = tty_register_driver(rfcomm_tty_driver);
+	if (error) {
 		BT_ERR("Can't register RFCOMM TTY driver");
 		put_tty_driver(rfcomm_tty_driver);
-		return -1;
+		return error;
 	}
 
 	BT_INFO("RFCOMM TTY layer initialized");
