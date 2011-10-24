@@ -2499,7 +2499,7 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 	target->msg_per_bndl_max = min(target->max_scat_entries,
 				       target->msg_per_bndl_max);
 
-	ath6kl_dbg(ATH6KL_DBG_HTC,
+	ath6kl_dbg(ATH6KL_DBG_BOOT,
 		   "htc bundling allowed msg_per_bndl_max %d\n",
 		   target->msg_per_bndl_max);
 
@@ -2509,7 +2509,7 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 	target->max_tx_bndl_sz = min(HIF_MBOX0_EXT_WIDTH,
 				     target->max_xfer_szper_scatreq);
 
-	ath6kl_dbg(ATH6KL_DBG_HTC, "htc max_rx_bndl_sz %d max_tx_bndl_sz %d\n",
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "htc max_rx_bndl_sz %d max_tx_bndl_sz %d\n",
 		   target->max_rx_bndl_sz, target->max_tx_bndl_sz);
 
 	if (target->max_tx_bndl_sz)
@@ -2563,7 +2563,7 @@ int ath6kl_htc_wait_target(struct htc_target *target)
 	target->tgt_creds = le16_to_cpu(rdy_msg->ver2_0_info.cred_cnt);
 	target->tgt_cred_sz = le16_to_cpu(rdy_msg->ver2_0_info.cred_sz);
 
-	ath6kl_dbg(ATH6KL_DBG_HTC,
+	ath6kl_dbg(ATH6KL_DBG_BOOT,
 		   "htc target ready credits %d size %d\n",
 		   target->tgt_creds, target->tgt_cred_sz);
 
@@ -2578,7 +2578,7 @@ int ath6kl_htc_wait_target(struct htc_target *target)
 		target->msg_per_bndl_max = 0;
 	}
 
-	ath6kl_dbg(ATH6KL_DBG_HTC, "htc using protocol %s (%d)\n",
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "htc using protocol %s (%d)\n",
 		  (target->htc_tgt_ver == HTC_VERSION_2P0) ? "2.0" : ">= 2.1",
 		  target->htc_tgt_ver);
 

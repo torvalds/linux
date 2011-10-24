@@ -471,6 +471,8 @@ static int ath6kl_sdio_power_on(struct ath6kl_sdio *ar_sdio)
 	if (!ar_sdio->is_disabled)
 		return 0;
 
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "sdio power on\n");
+
 	sdio_claim_host(func);
 
 	ret = sdio_enable_func(func);
@@ -499,6 +501,8 @@ static int ath6kl_sdio_power_off(struct ath6kl_sdio *ar_sdio)
 
 	if (ar_sdio->is_disabled)
 		return 0;
+
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "sdio power off\n");
 
 	/* Disable the card */
 	sdio_claim_host(ar_sdio->func);
@@ -678,8 +682,8 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 				MAX_SCATTER_REQUESTS, virt_scat);
 
 		if (!ret) {
-			ath6kl_dbg(ATH6KL_DBG_SCATTER,
-				   "hif-scatter enabled: max scatter req : %d entries: %d\n",
+			ath6kl_dbg(ATH6KL_DBG_BOOT,
+				   "hif-scatter enabled requests %d entries %d\n",
 				   MAX_SCATTER_REQUESTS,
 				   MAX_SCATTER_ENTRIES_PER_REQ);
 
@@ -703,8 +707,8 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 			return ret;
 		}
 
-		ath6kl_dbg(ATH6KL_DBG_SCATTER,
-			   "Vitual scatter enabled, max_scat_req:%d, entries:%d\n",
+		ath6kl_dbg(ATH6KL_DBG_BOOT,
+			   "virtual scatter enabled requests %d entries %d\n",
 			   ATH6KL_SCATTER_REQS, ATH6KL_SCATTER_ENTRIES_PER_REQ);
 
 		target->max_scat_entries = ATH6KL_SCATTER_ENTRIES_PER_REQ;
@@ -778,8 +782,8 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 	struct ath6kl *ar;
 	int count;
 
-	ath6kl_dbg(ATH6KL_DBG_SDIO,
-		   "new func %d vendor 0x%x device 0x%x block 0x%x/0x%x\n",
+	ath6kl_dbg(ATH6KL_DBG_BOOT,
+		   "sdio new func %d vendor 0x%x device 0x%x block 0x%x/0x%x\n",
 		   func->num, func->vendor, func->device,
 		   func->max_blksize, func->cur_blksize);
 
@@ -840,7 +844,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 			goto err_core_alloc;
 		}
 
-		ath6kl_dbg(ATH6KL_DBG_SDIO, "4-bit async irq mode enabled\n");
+		ath6kl_dbg(ATH6KL_DBG_BOOT, "4-bit async irq mode enabled\n");
 	}
 
 	/* give us some time to enable, in ms */
@@ -888,8 +892,8 @@ static void ath6kl_sdio_remove(struct sdio_func *func)
 {
 	struct ath6kl_sdio *ar_sdio;
 
-	ath6kl_dbg(ATH6KL_DBG_SDIO,
-		   "removed func %d vendor 0x%x device 0x%x\n",
+	ath6kl_dbg(ATH6KL_DBG_BOOT,
+		   "sdio removed func %d vendor 0x%x device 0x%x\n",
 		   func->num, func->vendor, func->device);
 
 	ar_sdio = sdio_get_drvdata(func);
