@@ -307,6 +307,11 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 		return err;
 	if (enabled < 0 || enabled > 1)
 		return -EINVAL;
+	if (enabled == nt->enabled) {
+		printk(KERN_INFO "netconsole: network logging has already %s\n",
+				nt->enabled ? "started" : "stopped");
+		return -EINVAL;
+	}
 
 	if (enabled) {	/* 1 */
 

@@ -466,7 +466,7 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 			return;
 		}
 		args.v2.ucEnable = enable;
-		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK))
+		if ((ss->percentage == 0) || (ss->type & ATOM_EXTERNAL_SS_MASK) || ASIC_IS_DCE41(rdev))
 			args.v2.ucEnable = ATOM_DISABLE;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		args.v1.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
