@@ -716,9 +716,6 @@ SE_DEV_ATTR_RO(hw_queue_depth);
 DEF_DEV_ATTRIB(queue_depth);
 SE_DEV_ATTR(queue_depth, S_IRUGO | S_IWUSR);
 
-DEF_DEV_ATTRIB(task_timeout);
-SE_DEV_ATTR(task_timeout, S_IRUGO | S_IWUSR);
-
 DEF_DEV_ATTRIB(max_unmap_lba_count);
 SE_DEV_ATTR(max_unmap_lba_count, S_IRUGO | S_IWUSR);
 
@@ -752,7 +749,6 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_optimal_sectors.attr,
 	&target_core_dev_attrib_hw_queue_depth.attr,
 	&target_core_dev_attrib_queue_depth.attr,
-	&target_core_dev_attrib_task_timeout.attr,
 	&target_core_dev_attrib_max_unmap_lba_count.attr,
 	&target_core_dev_attrib_max_unmap_block_desc_count.attr,
 	&target_core_dev_attrib_unmap_granularity.attr,

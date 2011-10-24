@@ -75,8 +75,7 @@ enum transport_tpg_type_table {
 enum se_task_flags {
 	TF_ACTIVE		= (1 << 0),
 	TF_SENT			= (1 << 1),
-	TF_TIMEOUT		= (1 << 2),
-	TF_REQUEST_STOP		= (1 << 3),
+	TF_REQUEST_STOP		= (1 << 2),
 };
 
 /* Special transport agnostic struct se_cmd->t_states */
@@ -404,7 +403,6 @@ struct se_task {
 	int			task_error_status;
 	enum dma_data_direction	task_data_direction;
 	atomic_t		task_state_active;
-	struct timer_list	task_timer;
 	struct list_head	t_list;
 	struct list_head	t_execute_list;
 	struct list_head	t_state_list;
@@ -469,7 +467,6 @@ struct se_cmd {
 	atomic_t		t_se_count;
 	atomic_t		t_task_cdbs_left;
 	atomic_t		t_task_cdbs_ex_left;
-	atomic_t		t_task_cdbs_timeout_left;
 	atomic_t		t_task_cdbs_sent;
 	atomic_t		t_transport_aborted;
 	atomic_t		t_transport_active;
@@ -477,7 +474,6 @@ struct se_cmd {
 	atomic_t		t_transport_queue_active;
 	atomic_t		t_transport_sent;
 	atomic_t		t_transport_stop;
-	atomic_t		t_transport_timeout;
 	atomic_t		transport_dev_active;
 	atomic_t		transport_lun_active;
 	atomic_t		transport_lun_fe_stop;
@@ -646,7 +642,6 @@ struct se_dev_attrib {
 	u32		optimal_sectors;
 	u32		hw_queue_depth;
 	u32		queue_depth;
-	u32		task_timeout;
 	u32		max_unmap_lba_count;
 	u32		max_unmap_block_desc_count;
 	u32		unmap_granularity;

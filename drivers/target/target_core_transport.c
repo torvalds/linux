@@ -75,7 +75,6 @@ static int __transport_execute_tasks(struct se_device *dev);
 static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
-static void transport_direct_request_timeout(struct se_cmd *cmd);
 static void transport_free_dev_tasks(struct se_cmd *cmd);
 static int transport_generic_get_mem(struct se_cmd *cmd);
 static void transport_put_cmd(struct se_cmd *cmd);
@@ -682,26 +681,6 @@ void transport_complete_sync_cache(struct se_cmd *cmd, int good)
 }
 EXPORT_SYMBOL(transport_complete_sync_cache);
 
-static void target_complete_timeout_work(struct work_struct *work)
-{
-	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
-	unsigned long flags;
-
-	/*
-	 * Reset cmd->t_se_count to allow transport_put_cmd()
-	 * to allow last call to free memory resources.
-	 */
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (atomic_read(&cmd->t_transport_timeout) > 1) {
-		int tmp = (atomic_read(&cmd->t_transport_timeout) - 1);
-
-		atomic_sub(tmp, &cmd->t_se_count);
-	}
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	transport_put_cmd(cmd);
-}
-
 static void target_complete_failure_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
@@ -726,8 +705,6 @@ void transport_complete_task(struct se_task *task, int success)
 	if (dev)
 		atomic_inc(&dev->depth_left);
 
-	del_timer(&task->task_timer);
-
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	task->task_flags &= ~TF_ACTIVE;
 
@@ -749,34 +726,10 @@ void transport_complete_task(struct se_task *task, int success)
 	 * to complete for an exception condition
 	 */
 	if (task->task_flags & TF_REQUEST_STOP) {
-		/*
-		 * Decrement cmd->t_se_count if this task had
-		 * previously thrown its timeout exception handler.
-		 */
-		if (task->task_flags & TF_TIMEOUT) {
-			atomic_dec(&cmd->t_se_count);
-			task->task_flags &= ~TF_TIMEOUT;
-		}
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
 		complete(&task->task_stop_comp);
 		return;
 	}
-	/*
-	 * If the task's timeout handler has fired, use the t_task_cdbs_timeout
-	 * left counter to determine when the struct se_cmd is ready to be queued to
-	 * the processing thread.
-	 */
-	if (task->task_flags & TF_TIMEOUT) {
-		if (!atomic_dec_and_test(&cmd->t_task_cdbs_timeout_left)) {
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			return;
-		}
-		INIT_WORK(&cmd->work, target_complete_timeout_work);
-		goto out_queue;
-	}
-	atomic_dec(&cmd->t_task_cdbs_timeout_left);
-
 	/*
 	 * Decrement the outstanding t_task_cdbs_left count.  The last
 	 * struct se_task from struct se_cmd will complete itself into the
@@ -800,7 +753,6 @@ void transport_complete_task(struct se_task *task, int success)
 		INIT_WORK(&cmd->work, target_complete_ok_work);
 	}
 
-out_queue:
 	cmd->t_state = TRANSPORT_COMPLETE;
 	atomic_set(&cmd->t_transport_active, 1);
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -1519,7 +1471,6 @@ transport_generic_get_task(struct se_cmd *cmd,
 	INIT_LIST_HEAD(&task->t_list);
 	INIT_LIST_HEAD(&task->t_execute_list);
 	INIT_LIST_HEAD(&task->t_state_list);
-	init_timer(&task->task_timer);
 	init_completion(&task->task_stop_comp);
 	task->task_se_cmd = cmd;
 	task->task_data_direction = data_direction;
@@ -1787,7 +1738,6 @@ bool target_stop_task(struct se_task *task, unsigned long *flags)
 		spin_unlock_irqrestore(&cmd->t_state_lock, *flags);
 
 		pr_debug("Task %p waiting to complete\n", task);
-		del_timer_sync(&task->task_timer);
 		wait_for_completion(&task->task_stop_comp);
 		pr_debug("Task %p stopped successfully\n", task);
 
@@ -1876,7 +1826,6 @@ static void transport_generic_request_failure(
 		transport_complete_task_attr(cmd);
 
 	if (complete) {
-		transport_direct_request_timeout(cmd);
 		cmd->transport_error_status = PYX_TRANSPORT_LU_COMM_FAILURE;
 	}
 
@@ -1979,25 +1928,6 @@ queue_full:
 	transport_handle_queue_full(cmd, cmd->se_dev);
 }
 
-static void transport_direct_request_timeout(struct se_cmd *cmd)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (!atomic_read(&cmd->t_transport_timeout)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
-	}
-	if (atomic_read(&cmd->t_task_cdbs_timeout_left)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
-	}
-
-	atomic_sub(atomic_read(&cmd->t_transport_timeout),
-		   &cmd->t_se_count);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-}
-
 static inline u32 transport_lba_21(unsigned char *cdb)
 {
 	return ((cdb[1] & 0x1f) << 16) | (cdb[2] << 8) | cdb[3];
@@ -2038,80 +1968,6 @@ static void transport_set_supported_SAM_opcode(struct se_cmd *se_cmd)
 	spin_lock_irqsave(&se_cmd->t_state_lock, flags);
 	se_cmd->se_cmd_flags |= SCF_SUPPORTED_SAM_OPCODE;
 	spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
-}
-
-/*
- * Called from interrupt context.
- */
-static void transport_task_timeout_handler(unsigned long data)
-{
-	struct se_task *task = (struct se_task *)data;
-	struct se_cmd *cmd = task->task_se_cmd;
-	unsigned long flags;
-
-	pr_debug("transport task timeout fired! task: %p cmd: %p\n", task, cmd);
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-
-	/*
-	 * Determine if transport_complete_task() has already been called.
-	 */
-	if (!(task->task_flags & TF_ACTIVE)) {
-		pr_debug("transport task: %p cmd: %p timeout !TF_ACTIVE\n",
-			 task, cmd);
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
-	}
-
-	atomic_inc(&cmd->t_se_count);
-	atomic_inc(&cmd->t_transport_timeout);
-	cmd->t_tasks_failed = 1;
-
-	task->task_flags |= TF_TIMEOUT;
-	task->task_error_status = PYX_TRANSPORT_TASK_TIMEOUT;
-	task->task_scsi_status = 1;
-
-	if (task->task_flags & TF_REQUEST_STOP) {
-		pr_debug("transport task: %p cmd: %p timeout TF_REQUEST_STOP"
-				" == 1\n", task, cmd);
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		complete(&task->task_stop_comp);
-		return;
-	}
-
-	if (!atomic_dec_and_test(&cmd->t_task_cdbs_left)) {
-		pr_debug("transport task: %p cmd: %p timeout non zero"
-				" t_task_cdbs_left\n", task, cmd);
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
-	}
-	pr_debug("transport task: %p cmd: %p timeout ZERO t_task_cdbs_left\n",
-			task, cmd);
-
-	INIT_WORK(&cmd->work, target_complete_failure_work);
-	cmd->t_state = TRANSPORT_COMPLETE;
-	atomic_set(&cmd->t_transport_active, 1);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	queue_work(target_completion_wq, &cmd->work);
-}
-
-static void transport_start_task_timer(struct se_task *task)
-{
-	struct se_device *dev = task->task_se_cmd->se_dev;
-	int timeout;
-
-	/*
-	 * If the task_timeout is disabled, exit now.
-	 */
-	timeout = dev->se_sub_dev->se_dev_attrib.task_timeout;
-	if (!timeout)
-		return;
-
-	task->task_timer.expires = (get_jiffies_64() + timeout * HZ);
-	task->task_timer.data = (unsigned long) task;
-	task->task_timer.function = transport_task_timeout_handler;
-	add_timer(&task->task_timer);
 }
 
 static inline int transport_tcq_window_closed(struct se_device *dev)
@@ -2296,7 +2152,6 @@ check_depth:
 	    cmd->t_task_list_num)
 		atomic_set(&cmd->t_transport_sent, 1);
 
-	transport_start_task_timer(task);
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 	/*
 	 * The struct se_cmd->transport_emulate_cdb() function pointer is used
@@ -2310,7 +2165,6 @@ check_depth:
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
 			task->task_flags &= ~TF_ACTIVE;
 			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			del_timer_sync(&task->task_timer);
 			atomic_set(&cmd->t_transport_sent, 0);
 			transport_stop_tasks_for_cmd(cmd);
 			atomic_inc(&dev->depth_left);
@@ -2350,7 +2204,6 @@ check_depth:
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
 			task->task_flags &= ~TF_ACTIVE;
 			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			del_timer_sync(&task->task_timer);
 			atomic_set(&cmd->t_transport_sent, 0);
 			transport_stop_tasks_for_cmd(cmd);
 			atomic_inc(&dev->depth_left);
@@ -3543,14 +3396,6 @@ static void transport_free_dev_tasks(struct se_cmd *cmd)
 	while (!list_empty(&dispose_list)) {
 		task = list_first_entry(&dispose_list, struct se_task, t_list);
 
-		/*
-		 * We already cancelled all pending timers in
-		 * transport_complete_task, but that was just a pure del_timer,
-		 * so do a full del_timer_sync here to make sure any handler
-		 * that was running at that point has finished execution.
-		 */
-		del_timer_sync(&task->task_timer);
-
 		if (task->task_sg != cmd->t_data_sg &&
 		    task->task_sg != cmd->t_bidi_data_sg)
 			kfree(task->task_sg);
@@ -4007,7 +3852,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	cmd->t_task_list_num = (task_cdbs + task_cdbs_bidi);
 	atomic_set(&cmd->t_task_cdbs_left, cmd->t_task_list_num);
 	atomic_set(&cmd->t_task_cdbs_ex_left, cmd->t_task_list_num);
-	atomic_set(&cmd->t_task_cdbs_timeout_left, cmd->t_task_list_num);
 
 	/*
 	 * For WRITEs, let the fabric know its buffer is ready..

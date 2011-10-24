@@ -914,21 +914,6 @@ void se_dev_set_default_attribs(
 	dev->se_sub_dev->se_dev_attrib.queue_depth = dev_limits->queue_depth;
 }
 
-int se_dev_set_task_timeout(struct se_device *dev, u32 task_timeout)
-{
-	if (task_timeout > DA_TASK_TIMEOUT_MAX) {
-		pr_err("dev[%p]: Passed task_timeout: %u larger then"
-			" DA_TASK_TIMEOUT_MAX\n", dev, task_timeout);
-		return -EINVAL;
-	} else {
-		dev->se_sub_dev->se_dev_attrib.task_timeout = task_timeout;
-		pr_debug("dev[%p]: Set SE Device task_timeout: %u\n",
-			dev, task_timeout);
-	}
-
-	return 0;
-}
-
 int se_dev_set_max_unmap_lba_count(
 	struct se_device *dev,
 	u32 max_unmap_lba_count)
