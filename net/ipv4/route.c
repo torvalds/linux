@@ -1309,7 +1309,12 @@ static void rt_del(unsigned hash, struct rtable *rt)
 void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 		    __be32 saddr, struct net_device *dev)
 {
+	int s, i;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	struct rtable *rt;
+	__be32 skeys[2] = { saddr, 0 };
+	int    ikeys[2] = { dev->ifindex, 0 };
+	struct flowi4 fl4;
 	struct inet_peer *peer;
 	struct net *net;
 
@@ -1332,13 +1337,34 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 			goto reject_redirect;
 	}
 
-	peer = inet_getpeer_v4(daddr, 1);
-	if (peer) {
-		peer->redirect_learned.a4 = new_gw;
+	memset(&fl4, 0, sizeof(fl4));
+	fl4.daddr = daddr;
+	for (s = 0; s < 2; s++) {
+		for (i = 0; i < 2; i++) {
+			fl4.flowi4_oif = ikeys[i];
+			fl4.saddr = skeys[s];
+			rt = __ip_route_output_key(net, &fl4);
+			if (IS_ERR(rt))
+				continue;
 
-		inet_putpeer(peer);
+			if (rt->dst.error || rt->dst.dev != dev ||
+			    rt->rt_gateway != old_gw) {
+				ip_rt_put(rt);
+				continue;
+			}
 
-		atomic_inc(&__rt_peer_genid);
+			if (!rt->peer)
+				rt_bind_peer(rt, rt->rt_dst, 1);
+
+			peer = rt->peer;
+			if (peer) {
+				peer->redirect_learned.a4 = new_gw;
+				atomic_inc(&__rt_peer_genid);
+			}
+
+			ip_rt_put(rt);
+			return;
+		}
 	}
 	return;
 
