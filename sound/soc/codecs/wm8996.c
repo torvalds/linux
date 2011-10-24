@@ -3144,7 +3144,7 @@ static __devexit int wm8996_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_codec(&client->dev);
 	if (wm8996->pdata.ldo_ena > 0)
 		gpio_free(wm8996->pdata.ldo_ena);
-	kfree(i2c_get_clientdata(client));
+	kfree(wm8996);
 	return 0;
 }
 
