@@ -39,7 +39,7 @@ static int s3c2440_serial_setsource(struct uart_port *port,
 		ucon |= S3C2440_UCON_UCLK;
 	else if (strcmp(clk->name, "pclk") == 0)
 		ucon |= S3C2440_UCON_PCLK;
-	else if (strcmp(clk->name, "fclk") == 0)
+	else if (strcmp(clk->name, "fclk_n") == 0)
 		ucon |= S3C2440_UCON_FCLK;
 	else {
 		printk(KERN_ERR "unknown clock source %s\n", clk->name);
@@ -55,7 +55,6 @@ static int s3c2440_serial_getsource(struct uart_port *port,
 				    struct s3c24xx_uart_clksrc *clk)
 {
 	unsigned long ucon = rd_regl(port, S3C2410_UCON);
-	unsigned long ucon0, ucon1, ucon2;
 
 	switch (ucon & S3C2440_UCON_CLKMASK) {
 	case S3C2440_UCON_UCLK:
@@ -70,34 +69,8 @@ static int s3c2440_serial_getsource(struct uart_port *port,
 		break;
 
 	case S3C2440_UCON_FCLK:
-		/* the fun of calculating the uart divisors on
-		 * the s3c2440 */
-
-		ucon0 = __raw_readl(S3C24XX_VA_UART0 + S3C2410_UCON);
-		ucon1 = __raw_readl(S3C24XX_VA_UART1 + S3C2410_UCON);
-		ucon2 = __raw_readl(S3C24XX_VA_UART2 + S3C2410_UCON);
-
-		printk("ucons: %08lx, %08lx, %08lx\n", ucon0, ucon1, ucon2);
-
-		ucon0 &= S3C2440_UCON0_DIVMASK;
-		ucon1 &= S3C2440_UCON1_DIVMASK;
-		ucon2 &= S3C2440_UCON2_DIVMASK;
-
-		if (ucon0 != 0) {
-			clk->divisor = ucon0 >> S3C2440_UCON_DIVSHIFT;
-			clk->divisor += 6;
-		} else if (ucon1 != 0) {
-			clk->divisor = ucon1 >> S3C2440_UCON_DIVSHIFT;
-			clk->divisor += 21;
-		} else if (ucon2 != 0) {
-			clk->divisor = ucon2 >> S3C2440_UCON_DIVSHIFT;
-			clk->divisor += 36;
-		} else {
-			/* manual calims 44, seems to be 9 */
-			clk->divisor = 9;
-		}
-
-		clk->name = "fclk";
+		clk->divisor = 1;
+		clk->name = "fclk_n";
 		break;
 	}
 

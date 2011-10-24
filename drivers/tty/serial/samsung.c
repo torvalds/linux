@@ -649,27 +649,6 @@ static unsigned int s3c24xx_serial_getclk(struct uart_port *port,
 		if (cfg->clocks_size == 0)
 			clkp = &tmp_clksrc;
 
-		/* check to see if we're sourcing fclk, and if so we're
-		 * going to have to update the clock source
-		 */
-
-		if (strcmp(clkp->name, "fclk") == 0) {
-			struct s3c24xx_uart_clksrc src;
-
-			s3c24xx_serial_getsource(port, &src);
-
-			/* check that the port already using fclk, and if
-			 * not, then re-select fclk
-			 */
-
-			if (strcmp(src.name, clkp->name) == 0) {
-				s3c24xx_serial_setsource(port, clkp);
-				s3c24xx_serial_getsource(port, &src);
-			}
-
-			clkp->divisor = src.divisor;
-		}
-
 		s3c24xx_serial_calcbaud(res, port, clkp, baud);
 		best = res;
 		resptr = best + 1;

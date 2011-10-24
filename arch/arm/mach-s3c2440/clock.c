@@ -34,6 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/serial_core.h>
 
 #include <mach/hardware.h>
 #include <linux/atomic.h>
@@ -43,6 +44,7 @@
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
+#include <plat/regs-serial.h>
 
 /* S3C2440 extended clock support */
 
@@ -108,6 +110,40 @@ static struct clk s3c2440_clk_ac97 = {
 	.ctrlbit	= S3C2440_CLKCON_CAMERA,
 };
 
+static unsigned long  s3c2440_fclk_n_getrate(struct clk *clk)
+{
+	unsigned long ucon0, ucon1, ucon2, divisor;
+
+	/* the fun of calculating the uart divisors on the s3c2440 */
+	ucon0 = __raw_readl(S3C24XX_VA_UART0 + S3C2410_UCON);
+	ucon1 = __raw_readl(S3C24XX_VA_UART1 + S3C2410_UCON);
+	ucon2 = __raw_readl(S3C24XX_VA_UART2 + S3C2410_UCON);
+
+	ucon0 &= S3C2440_UCON0_DIVMASK;
+	ucon1 &= S3C2440_UCON1_DIVMASK;
+	ucon2 &= S3C2440_UCON2_DIVMASK;
+
+	if (ucon0 != 0)
+		divisor = (ucon0 >> S3C2440_UCON_DIVSHIFT) + 6;
+	else if (ucon1 != 0)
+		divisor = (ucon1 >> S3C2440_UCON_DIVSHIFT) + 21;
+	else if (ucon2 != 0)
+		divisor = (ucon2 >> S3C2440_UCON_DIVSHIFT) + 36;
+	else
+		/* manual calims 44, seems to be 9 */
+		divisor = 9;
+
+	return clk_get_rate(clk->parent) / divisor;
+}
+
+static struct clk s3c2440_clk_fclk_n = {
+	.name		= "fclk_n",
+	.parent		= &clk_f,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2440_fclk_n_getrate,
+	},
+};
+
 static int s3c2440_clk_add(struct sys_device *sysdev)
 {
 	struct clk *clock_upll;
@@ -126,6 +162,7 @@ static int s3c2440_clk_add(struct sys_device *sysdev)
 	s3c2440_clk_cam.parent = clock_h;
 	s3c2440_clk_ac97.parent = clock_p;
 	s3c2440_clk_cam_upll.parent = clock_upll;
+	s3c24xx_register_clock(&s3c2440_clk_fclk_n);
 
 	s3c24xx_register_clock(&s3c2440_clk_ac97);
 	s3c24xx_register_clock(&s3c2440_clk_cam);

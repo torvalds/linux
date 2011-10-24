@@ -70,8 +70,8 @@ static struct map_desc rx3715_iodesc[] __initdata = {
 
 static struct s3c24xx_uart_clksrc rx3715_serial_clocks[] = {
 	[0] = {
-		.name		= "fclk",
-		.divisor	= 0,
+		.name		= "fclk_n",
+		.divisor	= 1,
 		.min_baud	= 0,
 		.max_baud	= 0,
 	}
