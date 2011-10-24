@@ -184,6 +184,19 @@ static unsigned long __init xen_set_identity(const struct e820entry *list,
 					PFN_UP(start_pci), PFN_DOWN(last));
 	return identity;
 }
+
+static unsigned long __init xen_get_max_pages(void)
+{
+	unsigned long max_pages = MAX_DOMAIN_PAGES;
+	domid_t domid = DOMID_SELF;
+	int ret;
+
+	ret = HYPERVISOR_memory_op(XENMEM_maximum_reservation, &domid);
+	if (ret > 0)
+		max_pages = ret;
+	return min(max_pages, MAX_DOMAIN_PAGES);
+}
+
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
  **/
@@ -291,6 +304,12 @@ char * __init xen_memory_setup(void)
 			"XEN START INFO");
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+
+	extra_limit = xen_get_max_pages();
+	if (extra_limit >= max_pfn)
+		extra_pages = extra_limit - max_pfn;
+	else
+		extra_pages = 0;
 
 	extra_pages += xen_return_unused_memory(xen_start_info->nr_pages, &e820);
 

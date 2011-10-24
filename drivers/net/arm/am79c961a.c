@@ -308,8 +308,11 @@ static void am79c961_timer(unsigned long data)
 	struct net_device *dev = (struct net_device *)data;
 	struct dev_priv *priv = netdev_priv(dev);
 	unsigned int lnkstat, carrier;
+	unsigned long flags;
 
+	spin_lock_irqsave(&priv->chip_lock, flags);
 	lnkstat = read_ireg(dev->base_addr, ISALED0) & ISALED0_LNKST;
+	spin_unlock_irqrestore(&priv->chip_lock, flags);
 	carrier = netif_carrier_ok(dev);
 
 	if (lnkstat && !carrier) {

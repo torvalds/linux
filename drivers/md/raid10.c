@@ -337,6 +337,21 @@ static void close_write(r10bio_t *r10_bio)
 	md_write_end(r10_bio->mddev);
 }
 
+static void one_write_done(r10bio_t *r10_bio)
+{
+	if (atomic_dec_and_test(&r10_bio->remaining)) {
+		if (test_bit(R10BIO_WriteError, &r10_bio->state))
+			reschedule_retry(r10_bio);
+		else {
+			close_write(r10_bio);
+			if (test_bit(R10BIO_MadeGood, &r10_bio->state))
+				reschedule_retry(r10_bio);
+			else
+				raid_end_bio_io(r10_bio);
+		}
+	}
+}
+
 static void raid10_end_write_request(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
@@ -387,17 +402,7 @@ static void raid10_end_write_request(struct bio *bio, int error)
 	 * Let's see if all mirrored write operations have finished
 	 * already.
 	 */
-	if (atomic_dec_and_test(&r10_bio->remaining)) {
-		if (test_bit(R10BIO_WriteError, &r10_bio->state))
-			reschedule_retry(r10_bio);
-		else {
-			close_write(r10_bio);
-			if (test_bit(R10BIO_MadeGood, &r10_bio->state))
-				reschedule_retry(r10_bio);
-			else
-				raid_end_bio_io(r10_bio);
-		}
-	}
+	one_write_done(r10_bio);
 	if (dec_rdev)
 		rdev_dec_pending(conf->mirrors[dev].rdev, conf->mddev);
 }
@@ -1127,20 +1132,12 @@ retry_write:
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 
-	if (atomic_dec_and_test(&r10_bio->remaining)) {
-		/* This matches the end of raid10_end_write_request() */
-		bitmap_endwrite(r10_bio->mddev->bitmap, r10_bio->sector,
-				r10_bio->sectors,
-				!test_bit(R10BIO_Degraded, &r10_bio->state),
-				0);
-		md_write_end(mddev);
-		raid_end_bio_io(r10_bio);
-	}
-
-	/* In case raid10d snuck in to freeze_array */
-	wake_up(&conf->wait_barrier);
+	/* Don't remove the bias on 'remaining' (one_write_done) until
+	 * after checking if we need to go around again.
+	 */
 
 	if (sectors_handled < (bio->bi_size >> 9)) {
+		one_write_done(r10_bio);
 		/* We need another r10_bio.  It has already been counted
 		 * in bio->bi_phys_segments.
 		 */
@@ -1154,6 +1151,10 @@ retry_write:
 		r10_bio->state = 0;
 		goto retry_write;
 	}
+	one_write_done(r10_bio);
+
+	/* In case raid10d snuck in to freeze_array */
+	wake_up(&conf->wait_barrier);
 
 	if (do_sync || !mddev->bitmap || !plugged)
 		md_wakeup_thread(mddev->thread);
