@@ -221,6 +221,12 @@ static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 	num = DWC3_NUM_INT(dwc->hwparams.hwparams1);
 	dwc->num_event_buffers = num;
 
+	dwc->ev_buffs = kzalloc(sizeof(*dwc->ev_buffs) * num, GFP_KERNEL);
+	if (!dwc->ev_buffs) {
+		dev_err(dwc->dev, "can't allocate event buffers array\n");
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < num; i++) {
 		struct dwc3_event_buffer	*evt;
 

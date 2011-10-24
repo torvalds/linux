@@ -53,7 +53,6 @@
 /* Global constants */
 #define DWC3_ENDPOINTS_NUM	32
 
-#define DWC3_EVENT_BUFFERS_MAX	2
 #define DWC3_EVENT_BUFFERS_SIZE	PAGE_SIZE
 #define DWC3_EVENT_TYPE_MASK	0xfe
 
@@ -603,7 +602,7 @@ struct dwc3 {
 	struct platform_device	*xhci;
 	struct resource		*res;
 
-	struct dwc3_event_buffer *ev_buffs[DWC3_EVENT_BUFFERS_MAX];
+	struct dwc3_event_buffer **ev_buffs;
 	struct dwc3_ep		*eps[DWC3_ENDPOINTS_NUM];
 
 	struct usb_gadget	gadget;
