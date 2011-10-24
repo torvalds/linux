@@ -98,10 +98,13 @@ struct bclink {
 	struct tipc_node *retransmit_to;
 };
 
+static struct bcbearer bcast_bearer;
+static struct bclink bcast_link;
 
-static struct bcbearer *bcbearer;
-static struct bclink *bclink;
-static struct link *bcl;
+static struct bcbearer *bcbearer = &bcast_bearer;
+static struct bclink *bclink = &bcast_link;
+static struct link *bcl = &bcast_link.link;
+
 static DEFINE_SPINLOCK(bc_lock);
 
 /* broadcast-capable node map */
@@ -752,25 +755,13 @@ int tipc_bclink_set_queue_limits(u32 limit)
 	return 0;
 }
 
-int tipc_bclink_init(void)
+void tipc_bclink_init(void)
 {
-	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
-	bclink = kzalloc(sizeof(*bclink), GFP_ATOMIC);
-	if (!bcbearer || !bclink) {
-		warn("Broadcast link creation failed, no memory\n");
-		kfree(bcbearer);
-		bcbearer = NULL;
-		kfree(bclink);
-		bclink = NULL;
-		return -ENOMEM;
-	}
-
 	INIT_LIST_HEAD(&bcbearer->bearer.cong_links);
 	bcbearer->bearer.media = &bcbearer->media;
 	bcbearer->media.send_msg = tipc_bcbearer_send;
 	sprintf(bcbearer->media.name, "tipc-broadcast");
 
-	bcl = &bclink->link;
 	INIT_LIST_HEAD(&bcl->waiting_ports);
 	bcl->next_out_no = 1;
 	spin_lock_init(&bclink->node.lock);
@@ -780,22 +771,16 @@ int tipc_bclink_init(void)
 	bcl->b_ptr = &bcbearer->bearer;
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
-
-	return 0;
 }
 
 void tipc_bclink_stop(void)
 {
 	spin_lock_bh(&bc_lock);
-	if (bcbearer) {
-		tipc_link_stop(bcl);
-		bcl = NULL;
-		kfree(bclink);
-		bclink = NULL;
-		kfree(bcbearer);
-		bcbearer = NULL;
-	}
+	tipc_link_stop(bcl);
 	spin_unlock_bh(&bc_lock);
+
+	memset(bclink, 0, sizeof(*bclink));
+	memset(bcbearer, 0, sizeof(*bcbearer));
 }
 
 

@@ -174,7 +174,6 @@ void tipc_net_route_msg(struct sk_buff *buf)
 int tipc_net_start(u32 addr)
 {
 	char addr_string[16];
-	int res;
 
 	if (tipc_mode != TIPC_NODE_MODE)
 		return -ENOPROTOOPT;
@@ -187,9 +186,7 @@ int tipc_net_start(u32 addr)
 	tipc_named_reinit();
 	tipc_port_reinit();
 
-	res = tipc_bclink_init();
-	if (res)
-		return res;
+	tipc_bclink_init();
 
 	tipc_k_signal((Handler)tipc_subscr_start, 0);
 	tipc_k_signal((Handler)tipc_cfg_init, 0);
