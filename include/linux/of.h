@@ -303,6 +303,7 @@ static inline struct device_node *of_parse_phandle(struct device_node *np,
 }
 
 #define of_match_ptr(_ptr)	NULL
+#define of_match_node(_matches, _node)	NULL
 #endif /* CONFIG_OF */
 
 static inline int of_property_read_u32(const struct device_node *np,
