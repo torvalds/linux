@@ -570,16 +570,6 @@ static inline void *ath6kl_priv(struct net_device *dev)
 	return ((struct ath6kl_vif *) netdev_priv(dev))->ar;
 }
 
-static inline void ath6kl_deposit_credit_to_ep(struct ath6kl_htc_credit_info
-					       *cred_info,
-					       struct htc_endpoint_credit_dist
-					       *ep_dist, int credits)
-{
-	ep_dist->credits += credits;
-	ep_dist->cred_assngd += credits;
-	cred_info->cur_free_credits -= credits;
-}
-
 static inline u32 ath6kl_get_hi_item_addr(struct ath6kl *ar,
 					  u32 item_offset)
 {

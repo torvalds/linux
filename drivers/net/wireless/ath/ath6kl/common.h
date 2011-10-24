@@ -78,16 +78,6 @@ struct ath6kl;
 enum htc_credit_dist_reason;
 struct ath6kl_htc_credit_info;
 
-int ath6kl_setup_credit_dist(void *htc_handle,
-			     struct ath6kl_htc_credit_info *cred_info);
-void ath6kl_credit_distribute(struct ath6kl_htc_credit_info *cred_inf,
-			      struct list_head *epdist_list,
-			      enum htc_credit_dist_reason reason);
-void ath6kl_credit_init(struct ath6kl_htc_credit_info *cred_inf,
-			struct list_head *ep_list,
-			int tot_credits);
-void ath6kl_seek_credits(struct ath6kl_htc_credit_info *cred_inf,
-			 struct htc_endpoint_credit_dist *ep_dist);
 struct ath6kl *ath6kl_core_alloc(struct device *sdev);
 int ath6kl_core_init(struct ath6kl *ar);
 void ath6kl_core_cleanup(struct ath6kl *ar);
