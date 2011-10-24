@@ -252,7 +252,17 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 
 	while (crs && less_eq(buf_seqno(crs), acked)) {
 		next = crs->next;
-		bcbuf_decr_acks(crs);
+
+		if (crs != bcl->next_out)
+			bcbuf_decr_acks(crs);
+		else if (bclink->bcast_nodes.count)
+			break;
+		else {
+			bcbuf_set_acks(crs, 0);
+			bcl->next_out = next;
+			bclink_set_last_sent();
+		}
+
 		if (bcbuf_acks(crs) == 0) {
 			bcl->first_out = next;
 			bcl->out_queue_size--;
