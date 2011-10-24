@@ -570,8 +570,8 @@ int ath6kl_htc_add_rxbuf_multiple(struct htc_target *target,
 int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
 				     u32 msg_look_ahead, int *n_pkts);
 
-int ath6kl_setup_credit_dist(void *htc_handle,
-			     struct ath6kl_htc_credit_info *cred_info);
+int ath6kl_credit_setup(void *htc_handle,
+			struct ath6kl_htc_credit_info *cred_info);
 
 static inline void set_htc_pkt_info(struct htc_packet *packet, void *context,
 				    u8 *buf, unsigned int len,
