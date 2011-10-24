@@ -50,6 +50,7 @@ static inline void decode_ctrl_reg(u32 reg,
 #define ARM_DEBUG_ARCH_V6_1	2
 #define ARM_DEBUG_ARCH_V7_ECP14	3
 #define ARM_DEBUG_ARCH_V7_MM	4
+#define ARM_DEBUG_ARCH_V7_1	5
 
 /* Breakpoint */
 #define ARM_BREAKPOINT_EXECUTE	0
@@ -57,6 +58,7 @@ static inline void decode_ctrl_reg(u32 reg,
 /* Watchpoints */
 #define ARM_BREAKPOINT_LOAD	1
 #define ARM_BREAKPOINT_STORE	2
+#define ARM_FSR_ACCESS_MASK	(1 << 11)
 
 /* Privilege Levels */
 #define ARM_BREAKPOINT_PRIV	1

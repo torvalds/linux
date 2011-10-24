@@ -10,6 +10,8 @@
 #ifndef __ASM_ARM_LOCALTIMER_H
 #define __ASM_ARM_LOCALTIMER_H
 
+#include <linux/interrupt.h>
+
 struct clock_event_device;
 
 /*
@@ -17,27 +19,20 @@ struct clock_event_device;
  */
 void percpu_timer_setup(void);
 
-/*
- * Called from assembly, this is the local timer IRQ handler
- */
-asmlinkage void do_local_timer(struct pt_regs *);
-
-
 #ifdef CONFIG_LOCAL_TIMERS
 
 #ifdef CONFIG_HAVE_ARM_TWD
 
 #include "smp_twd.h"
 
-#define local_timer_ack()	twd_timer_ack()
+#define local_timer_stop(c)	twd_timer_stop((c))
 
 #else
 
 /*
- * Platform provides this to acknowledge a local timer IRQ.
- * Returns true if the local timer IRQ is to be processed.
+ * Stop the local timer
  */
-int local_timer_ack(void);
+void local_timer_stop(struct clock_event_device *);
 
 #endif
 
@@ -51,6 +46,10 @@ int local_timer_setup(struct clock_event_device *);
 static inline int local_timer_setup(struct clock_event_device *evt)
 {
 	return -ENXIO;
+}
+
+static inline void local_timer_stop(struct clock_event_device *evt)
+{
 }
 #endif
 

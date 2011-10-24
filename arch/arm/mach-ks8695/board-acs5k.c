@@ -223,7 +223,7 @@ static void __init acs5k_init(void)
 
 MACHINE_START(ACS5K, "Brivo Systems LLC ACS-5000 Master board")
 	/* Maintainer: Simtec Electronics. */
-	.boot_params	= KS8695_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= acs5k_init,
