@@ -385,7 +385,7 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 	usbhsc_hotplug(priv);
 }
 
-int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
+static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 	int delay = usbhs_get_dparam(priv, detection_delay);
